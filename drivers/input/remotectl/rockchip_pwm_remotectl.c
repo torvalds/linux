@@ -335,9 +335,12 @@ static irqreturn_t rockchip_pwm_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 	if ((val & PWM_CH_POL(id)) == 0) {
 		temp_hpr = readl_relaxed(ddata->base + PWM_REG_HPR);
-		DBG("hpr=%d\n", temp_hpr);
+		writel_relaxed(0, ddata->base + PWM_REG_HPR);
 		temp_lpr = readl_relaxed(ddata->base + PWM_REG_LPR);
+		writel_relaxed(0, ddata->base + PWM_REG_LPR);
+		DBG("hpr=%d\n", temp_hpr);
 		DBG("lpr=%d\n", temp_lpr);
+
 		temp_period = ddata->pwm_freq_nstime * temp_lpr / 1000;
 		if (temp_period > RK_PWM_TIME_BIT0_MIN) {
 			ddata->period = ddata->temp_period
