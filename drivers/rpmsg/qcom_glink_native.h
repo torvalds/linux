@@ -6,6 +6,8 @@
 #ifndef __QCOM_GLINK_NATIVE_H__
 #define __QCOM_GLINK_NATIVE_H__
 
+#include <linux/types.h>
+
 #define GLINK_FEATURE_INTENT_REUSE	BIT(0)
 #define GLINK_FEATURE_MIGRATION		BIT(1)
 #define GLINK_FEATURE_TRACER_PKT	BIT(2)
@@ -24,6 +26,7 @@ struct qcom_glink_pipe {
 		      const void *data, size_t dlen);
 };
 
+struct device;
 struct qcom_glink;
 
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,
