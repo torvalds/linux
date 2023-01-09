@@ -353,8 +353,7 @@ static ssize_t memcg_path_store(struct kobject *kobj,
 	if (!path)
 		return -ENOMEM;
 
-	strncpy(path, buf, count);
-	path[count] = '\0';
+	strscpy(path, buf, count + 1);
 	filter->memcg_path = path;
 	return count;
 }
