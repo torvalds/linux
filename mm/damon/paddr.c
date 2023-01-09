@@ -80,8 +80,6 @@ static void damon_pa_prepare_access_checks(struct damon_ctx *ctx)
 }
 
 struct damon_pa_access_chk_result {
-	/* size of the folio for the access checked physical memory address */
-	unsigned long folio_sz;
 	bool accessed;
 };
 
@@ -92,7 +90,6 @@ static bool __damon_pa_young(struct folio *folio, struct vm_area_struct *vma,
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 
 	result->accessed = false;
-	result->folio_sz = PAGE_SIZE;
 	while (page_vma_mapped_walk(&pvmw)) {
 		addr = pvmw.address;
 		if (pvmw.pte) {
@@ -104,7 +101,6 @@ static bool __damon_pa_young(struct folio *folio, struct vm_area_struct *vma,
 			result->accessed = pmd_young(*pvmw.pmd) ||
 				!folio_test_idle(folio) ||
 				mmu_notifier_test_young(vma->vm_mm, addr);
-			result->folio_sz = HPAGE_PMD_SIZE;
 #else
 			WARN_ON_ONCE(1);
 #endif	/* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -123,7 +119,6 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 {
 	struct folio *folio = damon_get_folio(PHYS_PFN(paddr));
 	struct damon_pa_access_chk_result result = {
-		.folio_sz = PAGE_SIZE,
 		.accessed = false,
 	};
 	struct rmap_walk_control rwc = {
@@ -158,7 +153,7 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 	folio_put(folio);
 
 out:
-	*folio_sz = result.folio_sz;
+	*folio_sz = folio_size(folio);
 	return result.accessed;
 }
 
