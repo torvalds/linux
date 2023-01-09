@@ -149,9 +149,10 @@ static int cros_ec_uart_pkt_xfer(struct cros_ec_device *ec_dev,
 	resp->status = 0;
 
 	ret = serdev_device_write_buf(serdev, ec_dev->dout, len);
-	if (ret < len) {
+	if (ret < 0 || ret < len) {
 		dev_err(ec_dev->dev, "Unable to write data\n");
-		ret = -EIO;
+		if (ret >= 0)
+			ret = -EIO;
 		goto exit;
 	}
 
