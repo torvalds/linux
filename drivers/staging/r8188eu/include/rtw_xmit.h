@@ -280,7 +280,6 @@ struct	xmit_priv {
 	u8	wmm_para_seq[4];/* sequence for wmm ac parameter strength
 				 * from large to small. it's value is 0->vo,
 				 * 1->vi, 2->be, 3->bk. */
-	u8		txirp_cnt;/*  */
 	struct tasklet_struct xmit_tasklet;
 	struct __queue free_xmitbuf_queue;
 	struct __queue pending_xmitbuf_queue;
