@@ -565,8 +565,12 @@ SND_SOC_DAILINK_DEF(i2s_hs,
 		    DAILINK_COMP_ARRAY(COMP_CPU("acp-i2s-hs")));
 SND_SOC_DAILINK_DEF(sof_sp,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-sp")));
+SND_SOC_DAILINK_DEF(sof_sp_virtual,
+	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-sp-virtual")));
 SND_SOC_DAILINK_DEF(sof_hs,
 		    DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-hs")));
+SND_SOC_DAILINK_DEF(sof_hs_virtual,
+	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-hs-virtual")));
 SND_SOC_DAILINK_DEF(sof_dmic,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-dmic")));
 SND_SOC_DAILINK_DEF(pdm_dmic,
@@ -701,8 +705,8 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->amp_cpu_id == I2S_SP) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
-		links[i].cpus = sof_sp;
-		links[i].num_cpus = ARRAY_SIZE(sof_sp);
+		links[i].cpus = sof_sp_virtual;
+		links[i].num_cpus = ARRAY_SIZE(sof_sp_virtual);
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
@@ -733,8 +737,8 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->amp_cpu_id == I2S_HS) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
-		links[i].cpus = sof_hs;
-		links[i].num_cpus = ARRAY_SIZE(sof_hs);
+		links[i].cpus = sof_hs_virtual;
+		links[i].num_cpus = ARRAY_SIZE(sof_hs_virtual);
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
