@@ -300,6 +300,7 @@ static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
 #define HDMI_RTX_CLK_CTL3	0x70
 #define HDMI_RTX_CLK_CTL4	0x80
 #define HDMI_TX_CONTROL0	0x200
+#define  HDMI_LCDIF_NOC_HURRY_MASK		GENMASK(14, 12)
 
 static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 					  struct imx8mp_blk_ctrl_domain *domain)
@@ -316,6 +317,8 @@ static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
 		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
 				BIT(4) | BIT(5) | BIT(6));
+		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0,
+				FIELD_PREP(HDMI_LCDIF_NOC_HURRY_MASK, 7));
 		break;
 	case IMX8MP_HDMIBLK_PD_PAI:
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
