@@ -240,7 +240,7 @@ enum dpcd_training_patterns
 	return dpcd_tr_pattern;
 }
 
-static uint8_t get_nibble_at_index(const uint8_t *buf,
+uint8_t dp_get_nibble_at_index(const uint8_t *buf,
 	uint32_t index)
 {
 	uint8_t nibble;
@@ -520,7 +520,7 @@ enum link_training_result dp_check_link_loss_status(
 		/*
 		 * check lanes status
 		 */
-		lane_status.raw = get_nibble_at_index(&dpcd_buf[2], lane);
+		lane_status.raw = dp_get_nibble_at_index(&dpcd_buf[2], lane);
 
 		if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
 			!lane_status.bits.CR_DONE_0 ||
@@ -579,9 +579,9 @@ enum dc_status dp_get_lane_status_and_lane_adjust(
 		lane++) {
 
 		ln_status[lane].raw =
-			get_nibble_at_index(&dpcd_buf[0], lane);
+			dp_get_nibble_at_index(&dpcd_buf[0], lane);
 		ln_adjust[lane].raw =
-			get_nibble_at_index(&dpcd_buf[lane_adjust_offset], lane);
+			dp_get_nibble_at_index(&dpcd_buf[lane_adjust_offset], lane);
 	}
 
 	ln_align->raw = dpcd_buf[2];

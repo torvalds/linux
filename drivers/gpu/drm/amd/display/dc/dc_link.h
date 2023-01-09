@@ -431,7 +431,8 @@ bool dc_link_wait_for_t12(struct dc_link *link);
 void dc_link_dp_handle_automated_test(struct dc_link *link);
 void dc_link_dp_handle_link_loss(struct dc_link *link);
 bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link);
-
+bool dc_link_check_link_loss_status(struct dc_link *link,
+				       union hpd_irq_data *hpd_irq_dpcd_data);
 struct dc_sink_init_data;
 
 struct dc_sink *dc_link_add_remote_sink(

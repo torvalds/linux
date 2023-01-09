@@ -40,6 +40,7 @@
 #include "link_dp_dpia.h"
 #include "link_dp_phy.h"
 #include "link_edp_panel_control.h"
+#include "link_dp_irq_handler.h"
 #include "link/accessories/link_dp_trace.h"
 #include "link_dp_training.h"
 #include "atomfirmware.h"
@@ -2127,8 +2128,8 @@ static bool dp_verify_link_cap(
 		if (status == LINK_TRAINING_SUCCESS) {
 			success = true;
 			udelay(1000);
-			if (read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
-					hpd_rx_irq_check_link_loss_status(
+			if (dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
+					dc_link_check_link_loss_status(
 							link,
 							&irq_data))
 				(*fail_count)++;

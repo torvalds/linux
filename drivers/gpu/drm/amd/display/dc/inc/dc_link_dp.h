@@ -51,12 +51,6 @@ bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing);
 
-bool hpd_rx_irq_check_link_loss_status(struct dc_link *link,
-				       union hpd_irq_data *hpd_irq_dpcd_data);
-enum dc_status read_hpd_rx_irq_data(
-	struct dc_link *link,
-	union hpd_irq_data *irq_data);
-
 void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
 
 enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource *link_res, bool ready);

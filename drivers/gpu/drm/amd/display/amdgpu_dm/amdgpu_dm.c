@@ -1300,7 +1300,7 @@ static void dm_handle_hpd_rx_offload_work(struct work_struct *work)
 		sizeof(test_response));
 	}
 	else if ((dc_link->connector_signal != SIGNAL_TYPE_EDP) &&
-			hpd_rx_irq_check_link_loss_status(dc_link, &offload_work->data) &&
+			dc_link_check_link_loss_status(dc_link, &offload_work->data) &&
 			dc_link_dp_allow_hpd_rx_irq(dc_link)) {
 		dc_link_dp_handle_link_loss(dc_link);
 		spin_lock_irqsave(&offload_work->offload_wq->offload_lock, flags);
