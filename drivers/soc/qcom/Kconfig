@@ -976,6 +976,16 @@ config QCOM_VM_ALIVE_LOG_ENCRYPT
 	  wrapping. This needs to be enabled on both Primary VM and the other VM
 	  whose kmsg is desired.
 
+config MSM_SYSTEM_HEALTH_MONITOR
+	tristate "System Health Monitor"
+	help
+	  System Health Monitor (SHM) passively monitors the health of the
+	  peripherals connected to the application processor. Software
+	  components in the application processor that experience
+	  communication failure can request the SHM to perform a system-wide
+	  health check. If any failures are detected during the health-check,
+	  then a subsystem restart will be triggered for the failed subsystem.
+
 source "drivers/soc/qcom/mem_buf/Kconfig"
 source "drivers/soc/qcom/tmecom/Kconfig"
 

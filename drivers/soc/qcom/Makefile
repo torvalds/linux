@@ -95,3 +95,5 @@ obj-$(CONFIG_QCOM_DEBUG_SYMBOL) += debug_symbol.o
 obj-$(CONFIG_QCOM_VM_DMESG_DUMPER) += dmesg_dumper.o
 obj-$(CONFIG_QCOM_VM_ALIVE_LOG_ENCRYPT) += dmesg_dumper_crypto.o
 obj-$(CONFIG_RENAME_DEVICES) += rename_devices.o
+obj-$(CONFIG_MSM_SYSTEM_HEALTH_MONITOR) += health_monitor.o
+health_monitor-y := system_health_monitor_v01.o system_health_monitor.o
