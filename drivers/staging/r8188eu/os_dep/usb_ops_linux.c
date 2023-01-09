@@ -41,13 +41,8 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 	struct adapter	*padapter = pxmitbuf->padapter;
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 
-	switch (pxmitbuf->flags) {
-	case HIGH_QUEUE_INX:
+	if (pxmitbuf->flags == HIGH_QUEUE_INX)
 		rtw_chk_hi_queue_cmd(padapter);
-		break;
-	default:
-		break;
-	}
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
 	    padapter->bWritePortCancel)
