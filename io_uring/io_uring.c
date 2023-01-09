@@ -1322,17 +1322,16 @@ static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 static int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked)
 {
 	struct llist_node *node;
-	struct llist_node fake;
-	struct llist_node *current_final = NULL;
+	unsigned int loops = 0;
 	int ret = 0;
-	unsigned int loops = 1;
 
 	if (WARN_ON_ONCE(ctx->submitter_task != current))
 		return -EEXIST;
-
-	node = io_llist_xchg(&ctx->work_llist, &fake);
+	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+		atomic_andnot(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 again:
-	while (node != current_final) {
+	node = io_llist_xchg(&ctx->work_llist, NULL);
+	while (node) {
 		struct llist_node *next = node->next;
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
@@ -1341,23 +1340,14 @@ again:
 		ret++;
 		node = next;
 	}
+	loops++;
 
-	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
-		atomic_andnot(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
-
-	node = io_llist_cmpxchg(&ctx->work_llist, &fake, NULL);
-	if (node != &fake) {
-		loops++;
-		current_final = &fake;
-		node = io_llist_xchg(&ctx->work_llist, &fake);
+	if (!llist_empty(&ctx->work_llist))
 		goto again;
-	}
-
 	if (*locked)
 		io_submit_flush_completions(ctx);
 	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
-
 }
 
 static inline int io_run_local_work_locked(struct io_ring_ctx *ctx)
