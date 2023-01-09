@@ -528,6 +528,8 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 
 	if (next && (vma != next) && (end == next->vm_end)) {
 		remove_next = true;
+		/* Lock the VMA  before removing it */
+		vma_start_write(next);
 		if (next->anon_vma && !vma->anon_vma) {
 			int error;
 
@@ -548,6 +550,7 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 	if (mas_preallocate(mas, vma, GFP_KERNEL))
 		goto nomem;
 
+	vma_start_write(vma);
 	vma_adjust_trans_huge(vma, start, end, 0);
 
 	if (file) {
