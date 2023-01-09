@@ -94,6 +94,12 @@
 /* send status config 2 */
 #define CQHCI_SSC2			0x44
 
+/*
+ * Value n means CQE would send CMD13 during the transfer of data block
+ * BLOCK_CNT-n
+ */
+#define SEND_QSR_INTERVAL 0x70001
+
 /* response for dcmd */
 #define CQHCI_CRDCT			0x48
 

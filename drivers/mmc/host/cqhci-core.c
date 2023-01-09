@@ -286,6 +286,8 @@ static void __cqhci_enable(struct cqhci_host *cq_host)
 
 	cqhci_writel(cq_host, cq_host->rca, CQHCI_SSC2);
 
+	cqhci_writel(cq_host, SEND_QSR_INTERVAL, CQHCI_SSC1);
+
 	cqhci_set_irqs(cq_host, 0);
 
 	cqcfg |= CQHCI_ENABLE;
