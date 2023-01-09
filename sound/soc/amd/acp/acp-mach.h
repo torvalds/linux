@@ -65,5 +65,6 @@ struct acp_card_drvdata {
 
 int acp_sofdsp_dai_links_create(struct snd_soc_card *card);
 int acp_legacy_dai_links_create(struct snd_soc_card *card);
+extern const struct dmi_system_id acp_quirk_table[];
 
 #endif
