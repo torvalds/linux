@@ -408,7 +408,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		}
 		if (priv->epromtype == EEPROM_93C46) {
 			for (i = 0; i < 14; i++) {
-				priv->TxPowerLevelCCK[i] =
+				priv->tx_pwr_level_cck[i] =
 					 priv->EEPROMTxPowerLevelCCK[i];
 				priv->TxPowerLevelOFDM24G[i] =
 					 priv->EEPROMTxPowerLevelOFDM24G[i];
@@ -427,31 +427,31 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		} else if (priv->epromtype == EEPROM_93C56) {
 
 			for (i = 0; i < 3; i++) {
-				priv->TxPowerLevelCCK_A[i] =
+				priv->tx_pwr_level_cck_a[i] =
 					 priv->EEPROMRfACCKChnl1TxPwLevel[0];
 				priv->TxPowerLevelOFDM24G_A[i] =
 					 priv->EEPROMRfAOfdmChnlTxPwLevel[0];
-				priv->TxPowerLevelCCK_C[i] =
+				priv->tx_pwr_level_cck_c[i] =
 					 priv->EEPROMRfCCCKChnl1TxPwLevel[0];
 				priv->TxPowerLevelOFDM24G_C[i] =
 					 priv->EEPROMRfCOfdmChnlTxPwLevel[0];
 			}
 			for (i = 3; i < 9; i++) {
-				priv->TxPowerLevelCCK_A[i]  =
+				priv->tx_pwr_level_cck_a[i]  =
 					 priv->EEPROMRfACCKChnl1TxPwLevel[1];
 				priv->TxPowerLevelOFDM24G_A[i] =
 					 priv->EEPROMRfAOfdmChnlTxPwLevel[1];
-				priv->TxPowerLevelCCK_C[i] =
+				priv->tx_pwr_level_cck_c[i] =
 					 priv->EEPROMRfCCCKChnl1TxPwLevel[1];
 				priv->TxPowerLevelOFDM24G_C[i] =
 					 priv->EEPROMRfCOfdmChnlTxPwLevel[1];
 			}
 			for (i = 9; i < 14; i++) {
-				priv->TxPowerLevelCCK_A[i]  =
+				priv->tx_pwr_level_cck_a[i]  =
 					 priv->EEPROMRfACCKChnl1TxPwLevel[2];
 				priv->TxPowerLevelOFDM24G_A[i] =
 					 priv->EEPROMRfAOfdmChnlTxPwLevel[2];
-				priv->TxPowerLevelCCK_C[i] =
+				priv->tx_pwr_level_cck_c[i] =
 					 priv->EEPROMRfCCCKChnl1TxPwLevel[2];
 				priv->TxPowerLevelOFDM24G_C[i] =
 					 priv->EEPROMRfCOfdmChnlTxPwLevel[2];

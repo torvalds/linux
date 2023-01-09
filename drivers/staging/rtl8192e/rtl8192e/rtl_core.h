@@ -470,9 +470,9 @@ struct r8192_priv {
 	long undecorated_smoothed_pwdb;
 
 	u32 MCSTxPowerLevelOriginalOffset[6];
-	u8 TxPowerLevelCCK[14];
-	u8 TxPowerLevelCCK_A[14];
-	u8 TxPowerLevelCCK_C[14];
+	u8 tx_pwr_level_cck[14];
+	u8 tx_pwr_level_cck_a[14];
+	u8 tx_pwr_level_cck_c[14];
 	u8		TxPowerLevelOFDM24G[14];
 	u8		TxPowerLevelOFDM24G_A[14];
 	u8		TxPowerLevelOFDM24G_C[14];
