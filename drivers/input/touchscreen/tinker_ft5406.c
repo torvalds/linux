@@ -371,8 +371,6 @@ static int tinker_ft5406_probe(struct i2c_client *client,
 
 	return 0;
 
-check_fw_failed:
-	input_unregister_device(g_ts_data->input_dev);
 input_register_failed:
 	input_free_device(input_dev);
 input_allocate_failed:
