@@ -15,19 +15,19 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 #ifdef CONFIG_PRINTK
 
 #ifdef CONFIG_PRINTK_CALLER
-#define PREFIX_MAX		48
+#define PRINTK_PREFIX_MAX	48
 #else
-#define PREFIX_MAX		32
+#define PRINTK_PREFIX_MAX	32
 #endif
 
-/* the maximum size of a formatted record (i.e. with prefix added per line) */
-#define CONSOLE_LOG_MAX		1024
-
-/* the maximum size of a formatted extended record */
-#define CONSOLE_EXT_LOG_MAX	8192
+/*
+ * the maximum size of a formatted record (i.e. with prefix added
+ * per line and dropped messages or in extended message format)
+ */
+#define PRINTK_MESSAGE_MAX	2048
 
 /* the maximum size allowed to be reserved for a record */
-#define LOG_LINE_MAX		(CONSOLE_LOG_MAX - PREFIX_MAX)
+#define PRINTKRB_RECORD_MAX	1024
 
 /* Flags for a single printk record. */
 enum printk_info_flags {
@@ -63,10 +63,9 @@ u16 printk_parse_prefix(const char *text, int *level,
 			enum printk_info_flags *flags);
 #else
 
-#define PREFIX_MAX		0
-#define CONSOLE_LOG_MAX		0
-#define CONSOLE_EXT_LOG_MAX	0
-#define LOG_LINE_MAX		0
+#define PRINTK_PREFIX_MAX	0
+#define PRINTK_MESSAGE_MAX	0
+#define PRINTKRB_RECORD_MAX	0
 
 /*
  * In !PRINTK builds we still export console_sem
@@ -85,8 +84,8 @@ static inline bool printk_percpu_data_ready(void) { return false; }
  * @scratchbuf:	Used as temporary ringbuffer reading and string-print space.
  */
 struct printk_buffers {
-	char	outbuf[CONSOLE_EXT_LOG_MAX];
-	char	scratchbuf[LOG_LINE_MAX];
+	char	outbuf[PRINTK_MESSAGE_MAX];
+	char	scratchbuf[PRINTKRB_RECORD_MAX];
 };
 
 /**

@@ -729,7 +729,7 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	size_t len = iov_iter_count(from);
 	ssize_t ret = len;
 
-	if (!user || len > LOG_LINE_MAX)
+	if (!user || len > PRINTKRB_RECORD_MAX)
 		return -EINVAL;
 
 	/* Ignore when user logging is disabled. */
@@ -1127,7 +1127,7 @@ static unsigned int __init add_to_rb(struct printk_ringbuffer *rb,
 	return prb_record_text_space(&e);
 }
 
-static char setup_text_buf[LOG_LINE_MAX] __initdata;
+static char setup_text_buf[PRINTKRB_RECORD_MAX] __initdata;
 
 void __init setup_log_buf(int early)
 {
@@ -1393,7 +1393,7 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 	size_t text_len = r->info->text_len;
 	size_t buf_size = r->text_buf_size;
 	char *text = r->text_buf;
-	char prefix[PREFIX_MAX];
+	char prefix[PRINTK_PREFIX_MAX];
 	bool truncated = false;
 	size_t prefix_len;
 	size_t line_len;
@@ -1492,7 +1492,7 @@ static size_t get_record_print_text_size(struct printk_info *info,
 					 unsigned int line_count,
 					 bool syslog, bool time)
 {
-	char prefix[PREFIX_MAX];
+	char prefix[PRINTK_PREFIX_MAX];
 	size_t prefix_len;
 
 	prefix_len = info_print_prefix(info, syslog, time, prefix);
@@ -1558,11 +1558,11 @@ static int syslog_print(char __user *buf, int size)
 	int len = 0;
 	u64 seq;
 
-	text = kmalloc(CONSOLE_LOG_MAX, GFP_KERNEL);
+	text = kmalloc(PRINTK_MESSAGE_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
 
-	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
+	prb_rec_init_rd(&r, &info, text, PRINTK_MESSAGE_MAX);
 
 	mutex_lock(&syslog_lock);
 
@@ -1663,7 +1663,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	u64 seq;
 	bool time;
 
-	text = kmalloc(CONSOLE_LOG_MAX, GFP_KERNEL);
+	text = kmalloc(PRINTK_MESSAGE_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
 
@@ -1675,7 +1675,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	seq = find_first_fitting_seq(latched_seq_read_nolock(&clear_seq), -1,
 				     size, true, time);
 
-	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
+	prb_rec_init_rd(&r, &info, text, PRINTK_MESSAGE_MAX);
 
 	len = 0;
 	prb_for_each_record(seq, prb, seq, &r) {
@@ -2198,8 +2198,8 @@ int vprintk_store(int facility, int level,
 	reserve_size = vsnprintf(&prefix_buf[0], sizeof(prefix_buf), fmt, args2) + 1;
 	va_end(args2);
 
-	if (reserve_size > LOG_LINE_MAX)
-		reserve_size = LOG_LINE_MAX;
+	if (reserve_size > PRINTKRB_RECORD_MAX)
+		reserve_size = PRINTKRB_RECORD_MAX;
 
 	/* Extract log level or control flags. */
 	if (facility == 0)
@@ -2213,7 +2213,7 @@ int vprintk_store(int facility, int level,
 
 	if (flags & LOG_CONT) {
 		prb_rec_init_wr(&r, reserve_size);
-		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
+		if (prb_reserve_in_last(&e, prb, &r, caller_id, PRINTKRB_RECORD_MAX)) {
 			text_len = printk_sprint(&r.text_buf[r.info->text_len], reserve_size,
 						 facility, &flags, fmt, args);
 			r.info->text_len += text_len;
@@ -2725,7 +2725,7 @@ static void console_prepend_dropped(struct printk_message *pmsg, unsigned long d
 	 * It is a rather theoretical problem when someone tries to
 	 * use a minimalist buffer.
 	 */
-	if (WARN_ON_ONCE(len + PREFIX_MAX >= outbuf_sz))
+	if (WARN_ON_ONCE(len + PRINTK_PREFIX_MAX >= outbuf_sz))
 		return;
 
 	if (pmsg->outbuf_len + len >= outbuf_sz) {
