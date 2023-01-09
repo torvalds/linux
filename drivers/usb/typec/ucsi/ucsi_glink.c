@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"UCSI: %s: " fmt, __func__
@@ -154,7 +155,7 @@ static void ucsi_log(const char *prefix, unsigned int offset, u8 *buf,
 static int handle_ucsi_read_ack(struct ucsi_dev *udev, void *data, size_t len)
 {
 	if (len != sizeof(udev->rx_buf)) {
-		pr_err("Incorrect received length %zu expected %u\n", len,
+		pr_err("Incorrect received length %zu expected %zu\n", len,
 			sizeof(udev->rx_buf));
 		atomic_set(&udev->rx_valid, 0);
 		return -EINVAL;
@@ -178,7 +179,7 @@ static int handle_ucsi_write_ack(struct ucsi_dev *udev, void *data, size_t len)
 	struct ucsi_write_buf_resp_msg *msg_ptr;
 
 	if (len != sizeof(*msg_ptr)) {
-		pr_err("Incorrect received length %zu expected %u\n", len,
+		pr_err("Incorrect received length %zu expected %zu\n", len,
 			sizeof(*msg_ptr));
 		return -EINVAL;
 	}
@@ -203,7 +204,7 @@ static int handle_ucsi_notify(struct ucsi_dev *udev, void *data, size_t len)
 	u8 con_num;
 
 	if (len != sizeof(*msg_ptr)) {
-		pr_err("Incorrect received length %zu expected %u\n", len,
+		pr_err("Incorrect received length %zu expected %zu\n", len,
 			sizeof(*msg_ptr));
 		return -EINVAL;
 	}
@@ -268,7 +269,7 @@ static int ucsi_callback(void *priv, void *data, size_t len)
 
 static bool validate_ucsi_msg(unsigned int offset, size_t len)
 {
-	pr_debug("offset %u len %u\n", offset, len);
+	pr_debug("offset %u len %zu\n", offset, len);
 
 	if (offset > UCSI_BUF_SIZE - 1 || len > UCSI_BUF_SIZE ||
 		offset + len > UCSI_BUF_SIZE) {
@@ -289,6 +290,9 @@ static int ucsi_qti_glink_write(struct ucsi_dev *udev, unsigned int offset,
 	if (!validate_ucsi_msg(offset, val_len))
 		return -EINVAL;
 
+	ucsi_log(sync ? "sync_write:" : "async_write:", offset,
+			(u8 *)val, val_len);
+
 	if (atomic_read(&udev->state) == PMIC_GLINK_STATE_DOWN)
 		return 0;
 
@@ -305,9 +309,6 @@ static int ucsi_qti_glink_write(struct ucsi_dev *udev, unsigned int offset,
 		set_bit(CMD_PENDING, &udev->flags);
 		reinit_completion(&udev->sync_write_ack);
 	}
-
-	ucsi_log(sync ? "sync_write:" : "async_write:", offset,
-			(u8 *)val, val_len);
 
 	rc = pmic_glink_write(udev->client, &ucsi_buf,
 					sizeof(ucsi_buf));
@@ -464,7 +465,7 @@ static int ucsi_qti_read(struct ucsi *ucsi, unsigned int offset,
 
 	mutex_lock(&udev->read_lock);
 
-	pr_debug("read offset %s len %u\n", offset_to_name(offset), val_len);
+	pr_debug("read offset %s len %zu\n", offset_to_name(offset), val_len);
 	reinit_completion(&udev->read_ack);
 	rc = pmic_glink_write(udev->client, &ucsi_buf,
 					sizeof(ucsi_buf));
