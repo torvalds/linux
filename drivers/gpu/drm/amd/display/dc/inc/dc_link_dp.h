@@ -74,8 +74,6 @@ struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
 		const struct dc_link *link);
 void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
-void dp_retrain_link_dp_test(struct dc_link *link,
-		struct dc_link_settings *link_setting,
-		bool skip_video_pattern);
+
 
 #endif /* __DC_LINK_DP_H__ */
