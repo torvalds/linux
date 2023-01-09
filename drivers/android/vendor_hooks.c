@@ -6,9 +6,7 @@
  * Copyright 2020 Google LLC
  */
 
-#ifndef __GENKSYSMS__
 #include <linux/iova.h>
-#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/hooks/vendor_hooks.h>
