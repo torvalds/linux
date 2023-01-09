@@ -285,4 +285,7 @@ char *strrchr(const char *s, int c)
 	return (char *)ret;
 }
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #endif /* _NOLIBC_STRING_H */
