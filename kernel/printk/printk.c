@@ -2725,6 +2725,82 @@ static void __console_unlock(void)
 }
 
 /*
+ * Read and format the specified record (or a later record if the specified
+ * record is not available).
+ *
+ * @pmsg will contain the formatted result. @pmsg->pbufs must point to a
+ * struct printk_buffers.
+ *
+ * @seq is the record to read and format. If it is not available, the next
+ * valid record is read.
+ *
+ * @is_extended specifies if the message should be formatted for extended
+ * console output.
+ *
+ * Returns false if no record is available. Otherwise true and all fields
+ * of @pmsg are valid. (See the documentation of struct printk_message
+ * for information about the @pmsg fields.)
+ */
+static bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
+				    bool is_extended)
+{
+	static int panic_console_dropped;
+
+	struct printk_buffers *pbufs = pmsg->pbufs;
+	const size_t scratchbuf_sz = sizeof(pbufs->scratchbuf);
+	const size_t outbuf_sz = sizeof(pbufs->outbuf);
+	char *scratchbuf = &pbufs->scratchbuf[0];
+	char *outbuf = &pbufs->outbuf[0];
+	struct printk_info info;
+	struct printk_record r;
+	size_t len = 0;
+
+	/*
+	 * Formatting extended messages requires a separate buffer, so use the
+	 * scratch buffer to read in the ringbuffer text.
+	 *
+	 * Formatting normal messages is done in-place, so read the ringbuffer
+	 * text directly into the output buffer.
+	 */
+	if (is_extended)
+		prb_rec_init_rd(&r, &info, scratchbuf, scratchbuf_sz);
+	else
+		prb_rec_init_rd(&r, &info, outbuf, outbuf_sz);
+
+	if (!prb_read_valid(prb, seq, &r))
+		return false;
+
+	pmsg->seq = r.info->seq;
+	pmsg->dropped = r.info->seq - seq;
+
+	/*
+	 * Check for dropped messages in panic here so that printk
+	 * suppression can occur as early as possible if necessary.
+	 */
+	if (pmsg->dropped &&
+	    panic_in_progress() &&
+	    panic_console_dropped++ > 10) {
+		suppress_panic_printk = 1;
+		pr_warn_once("Too many dropped messages. Suppress messages on non-panic CPUs to prevent livelock.\n");
+	}
+
+	/* Skip record that has level above the console loglevel. */
+	if (suppress_message_printing(r.info->level))
+		goto out;
+
+	if (is_extended) {
+		len = info_print_ext_header(outbuf, outbuf_sz, r.info);
+		len += msg_print_ext_body(outbuf + len, outbuf_sz - len,
+					  &r.text_buf[0], r.info->text_len, &r.info->dev_info);
+	} else {
+		len = record_print_text(&r, console_msg_format & MSG_FORMAT_SYSLOG, printk_time);
+	}
+out:
+	pmsg->outbuf_len = len;
+	return true;
+}
+
+/*
  * Print one record for the given console. The record printed is whatever
  * record is the next available record for the given console.
  *
@@ -2743,56 +2819,25 @@ static bool console_emit_next_record(struct console *con, bool *handover, int co
 {
 	static char dropped_text[DROPPED_TEXT_MAX];
 	static struct printk_buffers pbufs;
-	static int panic_console_dropped;
 
 	bool is_extended = console_srcu_read_flags(con) & CON_EXTENDED;
-	const size_t scratchbuf_sz = sizeof(pbufs.scratchbuf);
-	const size_t outbuf_sz = sizeof(pbufs.outbuf);
-	char *scratchbuf = &pbufs.scratchbuf[0];
 	char *outbuf = &pbufs.outbuf[0];
-	struct printk_info info;
-	struct printk_record r;
+	struct printk_message pmsg = {
+		.pbufs = &pbufs,
+	};
 	unsigned long flags;
-	size_t len;
-
-	/*
-	 * Formatting extended messages requires a separate buffer, so use the
-	 * scratch buffer to read in the ringbuffer text.
-	 *
-	 * Formatting normal messages is done in-place, so read the ringbuffer
-	 * text directly into the output buffer.
-	 */
-	if (is_extended)
-		prb_rec_init_rd(&r, &info, scratchbuf, scratchbuf_sz);
-	else
-		prb_rec_init_rd(&r, &info, outbuf, outbuf_sz);
 
 	*handover = false;
 
-	if (!prb_read_valid(prb, con->seq, &r))
+	if (!printk_get_next_message(&pmsg, con->seq, is_extended))
 		return false;
 
-	if (con->seq != r.info->seq) {
-		con->dropped += r.info->seq - con->seq;
-		con->seq = r.info->seq;
-		if (panic_in_progress() && panic_console_dropped++ > 10) {
-			suppress_panic_printk = 1;
-			pr_warn_once("Too many dropped messages. Suppress messages on non-panic CPUs to prevent livelock.\n");
-		}
-	}
+	con->dropped += pmsg.dropped;
 
-	/* Skip record that has level above the console loglevel. */
-	if (suppress_message_printing(r.info->level)) {
-		con->seq++;
+	/* Skip messages of formatted length 0. */
+	if (pmsg.outbuf_len == 0) {
+		con->seq = pmsg.seq + 1;
 		goto skip;
-	}
-
-	if (is_extended) {
-		len = info_print_ext_header(outbuf, outbuf_sz, r.info);
-		len += msg_print_ext_body(outbuf + len, outbuf_sz - len,
-					  &r.text_buf[0], r.info->text_len, &r.info->dev_info);
-	} else {
-		len = record_print_text(&r, console_msg_format & MSG_FORMAT_SYSLOG, printk_time);
 	}
 
 	/*
@@ -2809,11 +2854,11 @@ static bool console_emit_next_record(struct console *con, bool *handover, int co
 	console_lock_spinning_enable();
 
 	stop_critical_timings();	/* don't trace print latency */
-	call_console_driver(con, outbuf, len,
+	call_console_driver(con, outbuf, pmsg.outbuf_len,
 			    is_extended ? NULL : dropped_text);
 	start_critical_timings();
 
-	con->seq++;
+	con->seq = pmsg.seq + 1;
 
 	*handover = console_lock_spinning_disable_and_check(cookie);
 	printk_safe_exit_irqrestore(flags);

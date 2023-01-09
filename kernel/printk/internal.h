@@ -92,3 +92,19 @@ struct printk_buffers {
 	char	outbuf[CONSOLE_EXT_LOG_MAX];
 	char	scratchbuf[LOG_LINE_MAX];
 };
+
+/**
+ * struct printk_message - Container for a prepared printk message.
+ * @pbufs:	printk buffers used to prepare the message.
+ * @outbuf_len:	The length of prepared text in @pbufs->outbuf to output. This
+ *		does not count the terminator. A value of 0 means there is
+ *		nothing to output and this record should be skipped.
+ * @seq:	The sequence number of the record used for @pbufs->outbuf.
+ * @dropped:	The number of dropped records from reading @seq.
+ */
+struct printk_message {
+	struct printk_buffers	*pbufs;
+	unsigned int		outbuf_len;
+	u64			seq;
+	unsigned long		dropped;
+};
