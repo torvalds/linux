@@ -2662,8 +2662,10 @@
   __request_region
   request_threaded_irq
   resched_curr
+  reset_control_acquire
   reset_control_assert
   reset_control_deassert
+  reset_control_release
   reset_control_reset
   return_address
   rfc1042_header
