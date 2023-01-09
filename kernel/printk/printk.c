@@ -695,16 +695,15 @@ out:
 	return len;
 }
 
+static bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
+				    bool is_extended, bool may_supress);
+
 /* /dev/kmsg - userspace message inject/listen interface */
 struct devkmsg_user {
 	atomic64_t seq;
 	struct ratelimit_state rs;
 	struct mutex lock;
-	char buf[CONSOLE_EXT_LOG_MAX];
-
-	struct printk_info info;
-	char text_buf[CONSOLE_EXT_LOG_MAX];
-	struct printk_record record;
+	struct printk_buffers pbufs;
 };
 
 static __printf(3, 4) __cold
@@ -786,8 +785,10 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	struct devkmsg_user *user = file->private_data;
-	struct printk_record *r = &user->record;
-	size_t len;
+	char *outbuf = &user->pbufs.outbuf[0];
+	struct printk_message pmsg = {
+		.pbufs = &user->pbufs,
+	};
 	ssize_t ret;
 
 	if (!user)
@@ -797,7 +798,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	if (!prb_read_valid(prb, atomic64_read(&user->seq), r)) {
+	if (!printk_get_next_message(&pmsg, atomic64_read(&user->seq), true, false)) {
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
 			goto out;
@@ -814,36 +815,31 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		 * This pairs with __wake_up_klogd:A.
 		 */
 		ret = wait_event_interruptible(log_wait,
-				prb_read_valid(prb,
-					atomic64_read(&user->seq), r)); /* LMM(devkmsg_read:A) */
+				printk_get_next_message(&pmsg, atomic64_read(&user->seq), true,
+							false)); /* LMM(devkmsg_read:A) */
 		if (ret)
 			goto out;
 	}
 
-	if (r->info->seq != atomic64_read(&user->seq)) {
+	if (pmsg.dropped) {
 		/* our last seen message is gone, return error and reset */
-		atomic64_set(&user->seq, r->info->seq);
+		atomic64_set(&user->seq, pmsg.seq);
 		ret = -EPIPE;
 		goto out;
 	}
 
-	len = info_print_ext_header(user->buf, sizeof(user->buf), r->info);
-	len += msg_print_ext_body(user->buf + len, sizeof(user->buf) - len,
-				  &r->text_buf[0], r->info->text_len,
-				  &r->info->dev_info);
+	atomic64_set(&user->seq, pmsg.seq + 1);
 
-	atomic64_set(&user->seq, r->info->seq + 1);
-
-	if (len > count) {
+	if (pmsg.outbuf_len > count) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (copy_to_user(buf, user->buf, len)) {
+	if (copy_to_user(buf, outbuf, pmsg.outbuf_len)) {
 		ret = -EFAULT;
 		goto out;
 	}
-	ret = len;
+	ret = pmsg.outbuf_len;
 out:
 	mutex_unlock(&user->lock);
 	return ret;
@@ -936,9 +932,6 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 	ratelimit_set_flags(&user->rs, RATELIMIT_MSG_ON_RELEASE);
 
 	mutex_init(&user->lock);
-
-	prb_rec_init_rd(&user->record, &user->info,
-			&user->text_buf[0], sizeof(user->text_buf));
 
 	atomic64_set(&user->seq, prb_first_valid_seq(prb));
 
@@ -2762,12 +2755,14 @@ static void console_prepend_dropped(struct printk_message *pmsg, unsigned long d
  * @is_extended specifies if the message should be formatted for extended
  * console output.
  *
+ * @may_supress specifies if records may be skipped based on loglevel.
+ *
  * Returns false if no record is available. Otherwise true and all fields
  * of @pmsg are valid. (See the documentation of struct printk_message
  * for information about the @pmsg fields.)
  */
 static bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
-				    bool is_extended)
+				    bool is_extended, bool may_suppress)
 {
 	static int panic_console_dropped;
 
@@ -2810,7 +2805,7 @@ static bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 	}
 
 	/* Skip record that has level above the console loglevel. */
-	if (suppress_message_printing(r.info->level))
+	if (may_suppress && suppress_message_printing(r.info->level))
 		goto out;
 
 	if (is_extended) {
@@ -2853,7 +2848,7 @@ static bool console_emit_next_record(struct console *con, bool *handover, int co
 
 	*handover = false;
 
-	if (!printk_get_next_message(&pmsg, con->seq, is_extended))
+	if (!printk_get_next_message(&pmsg, con->seq, is_extended, true))
 		return false;
 
 	con->dropped += pmsg.dropped;
