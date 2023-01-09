@@ -99,11 +99,11 @@ define filechk
 	$(check-FORCE)
 	$(Q)set -e;						\
 	mkdir -p $(dir $@);					\
-	trap "rm -f $(dot-target).tmp" EXIT;			\
-	{ $(filechk_$(1)); } > $(dot-target).tmp;		\
-	if [ ! -r $@ ] || ! cmp -s $@ $(dot-target).tmp; then	\
+	trap "rm -f $(tmp-target)" EXIT;			\
+	{ $(filechk_$(1)); } > $(tmp-target);			\
+	if [ ! -r $@ ] || ! cmp -s $@ $(tmp-target); then	\
 		$(kecho) '  UPD     $@';			\
-		mv -f $(dot-target).tmp $@;			\
+		mv -f $(tmp-target) $@;				\
 	fi
 endef
 
