@@ -901,9 +901,6 @@ struct task_struct {
 	/* CLONE_CHILD_CLEARTID: */
 	int __user			*clear_child_tid;
 
-	/* PF_IO_WORKER */
-	void				*pf_io_worker;
-
 	u64				utime;
 	u64				stime;
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
@@ -1379,7 +1376,9 @@ struct task_struct {
 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
 	ANDROID_OEM_DATA_ARRAY(1, 32);
 
-	ANDROID_KABI_RESERVE(1);
+	/* PF_IO_WORKER */
+	ANDROID_KABI_USE(1, void *pf_io_worker);
+
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
