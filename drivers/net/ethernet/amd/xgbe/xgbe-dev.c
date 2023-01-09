@@ -807,6 +807,9 @@ static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
 	unsigned int ss;
 
 	switch (speed) {
+	case SPEED_10:
+		ss = 0x07;
+		break;
 	case SPEED_1000:
 		ss = 0x03;
 		break;
