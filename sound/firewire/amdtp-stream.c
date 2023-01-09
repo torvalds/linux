@@ -504,7 +504,7 @@ static unsigned int calculate_cached_cycle_count(struct amdtp_stream *s, unsigne
 	return cycles;
 }
 
-static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsigned int desc_count)
+static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *src, unsigned int desc_count)
 {
 	const unsigned int transfer_delay = s->transfer_delay;
 	const unsigned int cache_size = s->ctx_data.tx.cache.size;
@@ -515,7 +515,6 @@ static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsi
 
 	for (i = 0; i < desc_count; ++i) {
 		struct seq_desc *dst = cache + cache_pos;
-		const struct pkt_desc *src = descs + i;
 
 		if (aware_syt && src->syt != CIP_SYT_NO_INFO)
 			dst->syt_offset = compute_syt_offset(src->syt, src->cycle, transfer_delay);
@@ -524,6 +523,7 @@ static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsi
 		dst->data_blocks = src->data_blocks;
 
 		cache_pos = (cache_pos + 1) % cache_size;
+		src = amdtp_stream_next_packet_desc(s, src);
 	}
 
 	s->ctx_data.tx.cache.pos = cache_pos;
@@ -881,7 +881,7 @@ static inline u32 compute_ohci_it_cycle(const __be32 ctx_header_tstamp,
 	return increment_ohci_cycle_count(cycle, queue_size);
 }
 
-static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *descs,
+static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *desc,
 				    const __be32 *ctx_header, unsigned int packet_count,
 				    unsigned int *desc_count)
 {
@@ -894,7 +894,6 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 
 	*desc_count = 0;
 	for (i = 0; i < packet_count; ++i) {
-		struct pkt_desc *desc = descs + *desc_count;
 		unsigned int cycle;
 		bool lost;
 		unsigned int data_blocks;
@@ -918,7 +917,7 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 					desc->data_blocks = 0;
 					desc->data_block_counter = dbc;
 					desc->ctx_payload = NULL;
-					++desc;
+					desc = amdtp_stream_next_packet_desc(s, desc);
 					++(*desc_count);
 				}
 			} else if (s->flags & CIP_JUMBO_PAYLOAD) {
@@ -951,6 +950,7 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 			dbc = (dbc + desc->data_blocks) & 0xff;
 
 		next_cycle = increment_ohci_cycle_count(next_cycle, 1);
+		desc = amdtp_stream_next_packet_desc(s, desc);
 		++(*desc_count);
 		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
 		packet_index = (packet_index + 1) % queue_size;
@@ -973,7 +973,7 @@ static unsigned int compute_syt(unsigned int syt_offset, unsigned int cycle,
 	return syt & CIP_SYT_MASK;
 }
 
-static void generate_rx_packet_descs(struct amdtp_stream *s, struct pkt_desc *descs,
+static void generate_rx_packet_descs(struct amdtp_stream *s, struct pkt_desc *desc,
 				     const __be32 *ctx_header, unsigned int packet_count)
 {
 	struct seq_desc *seq_descs = s->ctx_data.rx.seq.descs;
@@ -986,7 +986,6 @@ static void generate_rx_packet_descs(struct amdtp_stream *s, struct pkt_desc *de
 	pool_seq_descs(s, seq_descs, seq_size, seq_pos, packet_count);
 
 	for (i = 0; i < packet_count; ++i) {
-		struct pkt_desc *desc = descs + i;
 		unsigned int index = (s->packet_index + i) % s->queue_size;
 		const struct seq_desc *seq = seq_descs + seq_pos;
 
@@ -1010,6 +1009,7 @@ static void generate_rx_packet_descs(struct amdtp_stream *s, struct pkt_desc *de
 		desc->ctx_payload = s->buffer.packets[index].buffer;
 
 		seq_pos = (seq_pos + 1) % seq_size;
+		desc = amdtp_stream_next_packet_desc(s, desc);
 
 		++ctx_header;
 	}
@@ -1047,6 +1047,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	const __be32 *ctx_header = header;
 	const unsigned int events_per_period = d->events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
+	struct pkt_desc *desc = s->pkt_descs;
 	unsigned int pkt_header_length;
 	unsigned int packets;
 	bool need_hw_irq;
@@ -1058,9 +1059,9 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / sizeof(*ctx_header);
 
-	generate_rx_packet_descs(s, s->pkt_descs, ctx_header, packets);
+	generate_rx_packet_descs(s, desc, ctx_header, packets);
 
-	process_ctx_payloads(s, s->pkt_descs, packets);
+	process_ctx_payloads(s, desc, packets);
 
 	if (!(s->flags & CIP_NO_HEADER))
 		pkt_header_length = IT_PKT_HEADER_SIZE_CIP;
@@ -1078,7 +1079,6 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	}
 
 	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = s->pkt_descs + i;
 		struct {
 			struct fw_iso_packet params;
 			__be32 header[CIP_HEADER_QUADLETS];
@@ -1101,6 +1101,8 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 			cancel_stream(s);
 			return;
 		}
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 
 	s->ctx_data.rx.event_count = event_count;
@@ -1200,6 +1202,7 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 {
 	struct amdtp_stream *s = private_data;
 	__be32 *ctx_header = header;
+	struct pkt_desc *desc = s->pkt_descs;
 	unsigned int packet_count;
 	unsigned int desc_count;
 	int i;
@@ -1212,7 +1215,7 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	packet_count = header_length / s->ctx_data.tx.ctx_header_size;
 
 	desc_count = 0;
-	err = generate_tx_packet_descs(s, s->pkt_descs, ctx_header, packet_count, &desc_count);
+	err = generate_tx_packet_descs(s, desc, ctx_header, packet_count, &desc_count);
 	if (err < 0) {
 		if (err != -EAGAIN) {
 			cancel_stream(s);
@@ -1221,10 +1224,10 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	} else {
 		struct amdtp_domain *d = s->domain;
 
-		process_ctx_payloads(s, s->pkt_descs, desc_count);
+		process_ctx_payloads(s, desc, desc_count);
 
 		if (d->replay.enable)
-			cache_seq(s, s->pkt_descs, desc_count);
+			cache_seq(s, desc, desc_count);
 	}
 
 	for (i = 0; i < packet_count; ++i) {
@@ -1547,7 +1550,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	unsigned int ctx_header_size;
 	unsigned int max_ctx_payload_size;
 	enum dma_data_direction dir;
-	int type, tag, err;
+	struct pkt_desc *descs;
+	int i, type, tag, err;
 
 	mutex_lock(&s->mutex);
 
@@ -1655,11 +1659,18 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	else
 		s->tag = TAG_CIP;
 
-	s->pkt_descs = kcalloc(s->queue_size, sizeof(*s->pkt_descs),
-			       GFP_KERNEL);
-	if (!s->pkt_descs) {
+	descs = kcalloc(s->queue_size, sizeof(*descs), GFP_KERNEL);
+	if (!descs) {
 		err = -ENOMEM;
 		goto err_context;
+	}
+	s->pkt_descs = descs;
+
+	INIT_LIST_HEAD(&s->packet_descs_list);
+	for (i = 0; i < s->queue_size; ++i) {
+		INIT_LIST_HEAD(&descs->link);
+		list_add_tail(&descs->link, &s->packet_descs_list);
+		++descs;
 	}
 
 	s->packet_index = 0;
@@ -1700,6 +1711,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	return 0;
 err_pkt_descs:
 	kfree(s->pkt_descs);
+	s->pkt_descs = NULL;
 err_context:
 	if (s->direction == AMDTP_OUT_STREAM) {
 		kfree(s->ctx_data.rx.seq.descs);
@@ -1794,6 +1806,7 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
 	s->context = ERR_PTR(-1);
 	iso_packets_buffer_destroy(&s->buffer, s->unit);
 	kfree(s->pkt_descs);
+	s->pkt_descs = NULL;
 
 	if (s->direction == AMDTP_OUT_STREAM) {
 		kfree(s->ctx_data.rx.seq.descs);

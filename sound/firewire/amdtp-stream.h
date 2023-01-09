@@ -103,6 +103,7 @@ struct pkt_desc {
 	unsigned int data_blocks;
 	unsigned int data_block_counter;
 	__be32 *ctx_payload;
+	struct list_head link;
 };
 
 struct amdtp_stream;
@@ -126,6 +127,7 @@ struct amdtp_stream {
 	unsigned int queue_size;
 	int packet_index;
 	struct pkt_desc *pkt_descs;
+	struct list_head packet_descs_list;
 	int tag;
 	union {
 		struct {
@@ -275,6 +277,16 @@ static inline void amdtp_stream_pcm_trigger(struct amdtp_stream *s,
 {
 	WRITE_ONCE(s->pcm, pcm);
 }
+
+/**
+ * amdtp_stream_next_packet_desc - retrieve next descriptor for amdtp packet.
+ * @s: the AMDTP stream
+ * @desc: the descriptor of packet
+ *
+ * This macro computes next descriptor so that the list of descriptors behaves circular queue.
+ */
+#define amdtp_stream_next_packet_desc(s, desc) \
+	list_next_entry_circular(desc, &s->packet_descs_list, link)
 
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)
 {
