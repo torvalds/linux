@@ -45,9 +45,6 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 	case VO_QUEUE_INX:
 		pxmitpriv->voq_cnt--;
 		break;
-	case VI_QUEUE_INX:
-		pxmitpriv->viq_cnt--;
-		break;
 	case HIGH_QUEUE_INX:
 		rtw_chk_hi_queue_cmd(padapter);
 		break;
@@ -113,7 +110,6 @@ u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 		pxmitbuf->flags = VO_QUEUE_INX;
 		break;
 	case VI_QUEUE_INX:
-		pxmitpriv->viq_cnt++;
 		pxmitbuf->flags = VI_QUEUE_INX;
 		break;
 	case BE_QUEUE_INX:
