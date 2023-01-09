@@ -306,7 +306,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->eeprom_CustomerID = usValue & 0xff;
 		usValue = rtl92e_eeprom_read(dev,
 					     EEPROM_ICVersion_ChannelPlan>>1);
-		priv->eeprom_ChannelPlan = usValue&0xff;
+		priv->eeprom_chnl_plan = usValue&0xff;
 		IC_Version = (usValue & 0xff00)>>8;
 
 		ICVer8192 = IC_Version & 0xf;
@@ -328,7 +328,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->eeprom_vid = 0;
 		priv->eeprom_did = 0;
 		priv->eeprom_CustomerID = 0;
-		priv->eeprom_ChannelPlan = 0;
+		priv->eeprom_chnl_plan = 0;
 	}
 
 	if (!priv->AutoloadFailFlag) {
@@ -473,9 +473,9 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	priv->rf_chip = RF_8256;
 
 	if (priv->reg_chnl_plan == 0xf)
-		priv->ChannelPlan = priv->eeprom_ChannelPlan;
+		priv->chnl_plan = priv->eeprom_chnl_plan;
 	else
-		priv->ChannelPlan = priv->reg_chnl_plan;
+		priv->chnl_plan = priv->reg_chnl_plan;
 
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->CustomerID =  RT_CID_DLINK;
@@ -495,10 +495,10 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		break;
 	case EEPROM_CID_TOSHIBA:
 		priv->CustomerID = RT_CID_TOSHIBA;
-		if (priv->eeprom_ChannelPlan&0x80)
-			priv->ChannelPlan = priv->eeprom_ChannelPlan&0x7f;
+		if (priv->eeprom_chnl_plan & 0x80)
+			priv->chnl_plan = priv->eeprom_chnl_plan & 0x7f;
 		else
-			priv->ChannelPlan = 0x0;
+			priv->chnl_plan = 0x0;
 		break;
 	case EEPROM_CID_Nettronix:
 		priv->CustomerID = RT_CID_Nettronix;
@@ -516,9 +516,9 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		break;
 	}
 
-	if (priv->ChannelPlan > CHANNEL_PLAN_LEN - 1)
-		priv->ChannelPlan = 0;
-	priv->ChannelPlan = COUNTRY_CODE_WORLD_WIDE_13;
+	if (priv->chnl_plan > CHANNEL_PLAN_LEN - 1)
+		priv->chnl_plan = 0;
+	priv->chnl_plan = COUNTRY_CODE_WORLD_WIDE_13;
 
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->rtllib->bSupportRemoteWakeUp = true;

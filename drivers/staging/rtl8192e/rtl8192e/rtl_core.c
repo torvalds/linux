@@ -862,7 +862,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->cck_present_attn = 0;
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;
-	priv->CckPwEnl = 6;
+	priv->cck_pwr_enl = 6;
 	priv->rst_progress = RESET_TYPE_NORESET;
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
@@ -952,13 +952,13 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 		return -1;
 	}
 
-	if (priv->ChannelPlan >= COUNTRY_CODE_MAX) {
+	if (priv->chnl_plan >= COUNTRY_CODE_MAX) {
 		netdev_info(dev,
 			    "rtl819x_init:Error channel plan! Set to default.\n");
-		priv->ChannelPlan = COUNTRY_CODE_FCC;
+		priv->chnl_plan = COUNTRY_CODE_FCC;
 	}
 	dot11d_init(priv->rtllib);
-	dot11d_channel_map(priv->ChannelPlan, priv->rtllib);
+	dot11d_channel_map(priv->chnl_plan, priv->rtllib);
 	for (i = 1; i <= 11; i++)
 		(priv->rtllib->active_channel_map)[i] = 1;
 	(priv->rtllib->active_channel_map)[12] = 2;

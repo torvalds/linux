@@ -420,7 +420,7 @@ struct r8192_priv {
 	u16 eeprom_vid;
 	u16 eeprom_did;
 	u8 eeprom_CustomerID;
-	u16 eeprom_ChannelPlan;
+	u16 eeprom_chnl_plan;
 
 	u8 EEPROMTxPowerLevelCCK[14];
 	u8 EEPROMTxPowerLevelOFDM24G[14];
@@ -451,7 +451,7 @@ struct r8192_priv {
 	bool bTXPowerDataReadFromEEPORM;
 
 	u16 reg_chnl_plan;
-	u16 ChannelPlan;
+	u16 chnl_plan;
 	u8 hw_rf_off_action;
 
 	bool rf_change_in_progress;
@@ -460,7 +460,7 @@ struct r8192_priv {
 
 	u8 DM_Type;
 
-	u8 CckPwEnl;
+	u8 cck_pwr_enl;
 	u16 TSSI_13dBm;
 	u32 Pwr_Track;
 	u8 CCKPresentAttentuation_20Mdefault;
