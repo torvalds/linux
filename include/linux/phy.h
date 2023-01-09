@@ -739,6 +739,9 @@ struct phy_device {
 #endif
 };
 
+/* Generic phy_device::dev_flags */
+#define PHY_F_NO_IRQ		0x80000000
+
 static inline struct phy_device *to_phy_device(const struct device *dev)
 {
 	return container_of(to_mdio_device(dev), struct phy_device, mdio);
