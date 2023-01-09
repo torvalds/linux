@@ -154,18 +154,6 @@ config CPU_PXA320
 	help
 	  PXA320 (codename Monahans-P)
 
-config CPU_PXA930
-	bool
-	select PXA3xx
-	help
-	  PXA930 (codename Tavor-P)
-
-config CPU_PXA935
-	bool
-	select CPU_PXA930
-	help
-	  PXA935 (codename Tavor-P65)
-
 config PXA_SHARP_Cxx00
 	bool
 	select SHARPSL_PM

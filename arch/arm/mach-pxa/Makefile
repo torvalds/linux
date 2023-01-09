@@ -15,7 +15,6 @@ obj-$(CONFIG_PXA27x)		+= mfp-pxa2xx.o pxa2xx.o pxa27x.o
 obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o pxa3xx.o smemc.o pxa3xx-ulpi.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
-obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # NOTE: keep the order of boards in accordance to their order in Kconfig
 
