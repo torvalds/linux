@@ -8080,7 +8080,7 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		if (IS_ERR(em)) {
 			status = errno_to_blk_status(PTR_ERR(em));
 			em = NULL;
-			goto out_err_em;
+			goto out_err;
 		}
 		ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(dio_bio),
 					    logical, &geom);
