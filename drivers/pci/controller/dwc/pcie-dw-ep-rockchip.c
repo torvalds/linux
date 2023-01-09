@@ -616,7 +616,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS) & (~mask);
 	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++) {
 		if (status.donesta & BIT(chn)) {
-			clears.doneclr = 0x1 << chn;
+			clears.doneclr = BIT(chn);
 			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
 					PCIE_DMA_WR_INT_CLEAR, clears.asdword);
 			if (rockchip->dma_obj && rockchip->dma_obj->cb)
@@ -625,7 +625,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 
 		if (status.abortsta & BIT(chn)) {
 			dev_err(pci->dev, "%s, abort\n", __func__);
-			clears.abortclr = 0x1 << chn;
+			clears.abortclr = BIT(chn);
 			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
 					PCIE_DMA_WR_INT_CLEAR, clears.asdword);
 		}
@@ -635,7 +635,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS) & (~mask);
 	for (chn = 0; chn < PCIE_DMA_CHANEL_MAX_NUM; chn++) {
 		if (status.donesta & BIT(chn)) {
-			clears.doneclr = 0x1 << chn;
+			clears.doneclr = BIT(chn);
 			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
 					PCIE_DMA_RD_INT_CLEAR, clears.asdword);
 			if (rockchip->dma_obj && rockchip->dma_obj->cb)
@@ -644,7 +644,7 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 
 		if (status.abortsta & BIT(chn)) {
 			dev_err(pci->dev, "%s, abort\n", __func__);
-			clears.abortclr = 0x1 << chn;
+			clears.abortclr = BIT(chn);
 			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
 					PCIE_DMA_RD_INT_CLEAR, clears.asdword);
 		}
@@ -702,7 +702,7 @@ static int rockchip_pcie_init_dma_trx(struct rockchip_pcie *rockchip)
 	if (!rockchip_pcie_udma_enabled(rockchip))
 		return 0;
 
-	rockchip->dma_obj = pcie_dw_dmatest_register(pci, true);
+	rockchip->dma_obj = pcie_dw_dmatest_register(pci->dev, true);
 	if (IS_ERR(rockchip->dma_obj)) {
 		dev_err(rockchip->pci.dev, "failed to prepare dmatest\n");
 		return -EINVAL;
@@ -806,6 +806,56 @@ static void rockchip_pcie_config_dma_dwc(struct dma_table *table)
 	table->weilo.weight0 = 0x0;
 	table->start.stop = 0x0;
 	table->start.chnl = table->chn;
+}
+
+static int rockchip_pcie_get_dma_status(struct dma_trx_obj *obj, u8 chn, enum dma_dir dir)
+{
+	struct rockchip_pcie *rockchip = dev_get_drvdata(obj->dev);
+	struct dw_pcie *pci = &rockchip->pci;
+	union int_status status;
+	union int_clear clears;
+	int ret = 0;
+
+	dev_dbg(pci->dev, "%s %x %x\n", __func__,
+		dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS),
+		dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS));
+
+	if (dir == DMA_TO_BUS) {
+		status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS);
+		if (status.donesta & BIT(chn)) {
+			clears.doneclr = BIT(chn);
+			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
+					   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
+			ret = 1;
+		}
+
+		if (status.abortsta & BIT(chn)) {
+			dev_err(pci->dev, "%s, write abort\n", __func__);
+			clears.abortclr = BIT(chn);
+			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
+					   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
+			ret = -1;
+		}
+	} else {
+		status.asdword = dw_pcie_readl_dbi(pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS);
+
+		if (status.donesta & BIT(chn)) {
+			clears.doneclr = BIT(chn);
+			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
+					   PCIE_DMA_RD_INT_CLEAR, clears.asdword);
+			ret = 1;
+		}
+
+		if (status.abortsta & BIT(chn)) {
+			dev_err(pci->dev, "%s, read abort %x\n", __func__, status.asdword);
+			clears.abortclr = BIT(chn);
+			dw_pcie_writel_dbi(pci, PCIE_DMA_OFFSET +
+					   PCIE_DMA_RD_INT_CLEAR, clears.asdword);
+			ret = -1;
+		}
+	}
+
+	return ret;
 }
 
 static const struct dw_pcie_ops dw_pcie_ops = {
@@ -1050,6 +1100,7 @@ already_linkup:
 	if (rockchip->dma_obj) {
 		rockchip->dma_obj->start_dma_func = rockchip_pcie_start_dma_dwc;
 		rockchip->dma_obj->config_dma_func = rockchip_pcie_config_dma_dwc;
+		rockchip->dma_obj->get_dma_status = rockchip_pcie_get_dma_status;
 	}
 
 	/* Enable client ELBI interrupt */

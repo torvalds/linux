@@ -190,6 +190,7 @@ struct dma_trx_obj {
 	struct pcie_misc_dev		*pcie_dev;
 	void				(*start_dma_func)(struct dma_trx_obj *obj, struct dma_table *table);
 	void				(*config_dma_func)(struct dma_table *table);
+	int				(*get_dma_status)(struct dma_trx_obj *obj, u8 chn, enum dma_dir dir);
 	int				(*cb)(struct dma_trx_obj *obj, u32 chn, enum dma_dir dir);
 	ktime_t				begin;
 	ktime_t				end;

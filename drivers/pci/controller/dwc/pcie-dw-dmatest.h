@@ -5,10 +5,13 @@
 #ifndef __PCIE_DW_DMATEST_H
 #define __PCIE_DW_DMATEST_H
 
+struct dma_trx_obj;
+struct device;
+
 #if IS_ENABLED(CONFIG_PCIE_DW_DMATEST)
-struct dma_trx_obj *pcie_dw_dmatest_register(struct dw_pcie *pci, bool irq_en);
+struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en);
 #else
-static inline struct dma_trx_obj *pcie_dw_dmatest_register(struct dw_pcie *pci, bool irq_en)
+static inline struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 {
 	return NULL;
 }
