@@ -126,8 +126,9 @@ struct amdtp_stream {
 	struct iso_packets_buffer buffer;
 	unsigned int queue_size;
 	int packet_index;
-	struct pkt_desc *pkt_descs;
+	struct pkt_desc *packet_descs;
 	struct list_head packet_descs_list;
+	struct pkt_desc *packet_descs_cursor;
 	int tag;
 	union {
 		struct {
