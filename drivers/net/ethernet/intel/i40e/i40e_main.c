@@ -1817,7 +1817,7 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
 	if (vsi->type == I40E_VSI_MAIN) {
-		i40e_status ret;
+		int ret;
 
 		ret = i40e_aq_mac_address_write(hw, I40E_AQC_WRITE_TYPE_LAA_WOL,
 						addr->sa_data, NULL);
@@ -2349,7 +2349,7 @@ void i40e_aqc_del_filters(struct i40e_vsi *vsi, const char *vsi_name,
 {
 	struct i40e_hw *hw = &vsi->back->hw;
 	enum i40e_admin_queue_err aq_status;
-	i40e_status aq_ret;
+	int aq_ret;
 
 	aq_ret = i40e_aq_remove_macvlan_v2(hw, vsi->seid, list, num_del, NULL,
 					   &aq_status);
@@ -2423,13 +2423,13 @@ void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
  *
  * Returns status indicating success or failure;
  **/
-static i40e_status
+static int
 i40e_aqc_broadcast_filter(struct i40e_vsi *vsi, const char *vsi_name,
 			  struct i40e_mac_filter *f)
 {
 	bool enable = f->state == I40E_FILTER_NEW;
 	struct i40e_hw *hw = &vsi->back->hw;
-	i40e_status aq_ret;
+	int aq_ret;
 
 	if (f->vlan == I40E_VLAN_ANY) {
 		aq_ret = i40e_aq_set_vsi_broadcast(hw,
@@ -2468,7 +2468,7 @@ static int i40e_set_promiscuous(struct i40e_pf *pf, bool promisc)
 {
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status aq_ret;
+	int aq_ret;
 
 	if (vsi->type == I40E_VSI_MAIN &&
 	    pf->lan_veb != I40E_NO_VEB &&
@@ -2541,12 +2541,12 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	unsigned int vlan_filters = 0;
 	char vsi_name[16] = "PF";
 	int filter_list_len = 0;
-	i40e_status aq_ret = 0;
 	u32 changed_flags = 0;
 	struct hlist_node *h;
 	struct i40e_pf *pf;
 	int num_add = 0;
 	int num_del = 0;
+	int aq_ret = 0;
 	int retval = 0;
 	u16 cmd_flags;
 	int list_size;
@@ -2965,7 +2965,7 @@ int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 void i40e_vlan_stripping_enable(struct i40e_vsi *vsi)
 {
 	struct i40e_vsi_context ctxt;
-	i40e_status ret;
+	int ret;
 
 	/* Don't modify stripping options if a port VLAN is active */
 	if (vsi->info.pvid)
@@ -2999,7 +2999,7 @@ void i40e_vlan_stripping_enable(struct i40e_vsi *vsi)
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi)
 {
 	struct i40e_vsi_context ctxt;
-	i40e_status ret;
+	int ret;
 
 	/* Don't modify stripping options if a port VLAN is active */
 	if (vsi->info.pvid)
@@ -3252,7 +3252,7 @@ static void i40e_restore_vlan(struct i40e_vsi *vsi)
 int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
 {
 	struct i40e_vsi_context ctxt;
-	i40e_status ret;
+	int ret;
 
 	vsi->info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_VLAN_VALID);
 	vsi->info.pvid = cpu_to_le16(vid);
@@ -3429,8 +3429,8 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	u16 pf_q = vsi->base_queue + ring->queue_index;
 	struct i40e_hw *hw = &vsi->back->hw;
 	struct i40e_hmc_obj_txq tx_ctx;
-	i40e_status err = 0;
 	u32 qtx_ctl = 0;
+	int err = 0;
 
 	if (ring_is_xdp(ring))
 		ring->xsk_pool = i40e_xsk_pool(ring);
@@ -3554,7 +3554,7 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	u16 pf_q = vsi->base_queue + ring->queue_index;
 	struct i40e_hw *hw = &vsi->back->hw;
 	struct i40e_hmc_obj_rxq rx_ctx;
-	i40e_status err = 0;
+	int err = 0;
 	bool ok;
 	int ret;
 
@@ -5525,8 +5525,8 @@ static int i40e_vsi_get_bw_info(struct i40e_vsi *vsi)
 	struct i40e_aqc_query_vsi_bw_config_resp bw_config = {0};
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
 	u32 tc_bw_max;
+	int ret;
 	int i;
 
 	/* Get the VSI level BW configuration */
@@ -5586,7 +5586,7 @@ static int i40e_vsi_configure_bw_alloc(struct i40e_vsi *vsi, u8 enabled_tc,
 {
 	struct i40e_aqc_configure_vsi_tc_bw_data bw_data;
 	struct i40e_pf *pf = vsi->back;
-	i40e_status ret;
+	int ret;
 	int i;
 
 	/* There is no need to reset BW when mqprio mode is on.  */
@@ -6304,7 +6304,7 @@ static int i40e_channel_config_bw(struct i40e_vsi *vsi, struct i40e_channel *ch,
 				  u8 *bw_share)
 {
 	struct i40e_aqc_configure_vsi_tc_bw_data bw_data;
-	i40e_status ret;
+	int ret;
 	int i;
 
 	memset(&bw_data, 0, sizeof(bw_data));
@@ -6340,9 +6340,9 @@ static int i40e_channel_config_tx_ring(struct i40e_pf *pf,
 				       struct i40e_vsi *vsi,
 				       struct i40e_channel *ch)
 {
-	i40e_status ret;
-	int i;
 	u8 bw_share[I40E_MAX_TRAFFIC_CLASS] = {0};
+	int ret;
+	int i;
 
 	/* Enable ETS TCs with equal BW Share for now across all VSIs */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
@@ -7416,15 +7416,15 @@ static void i40e_vsi_reinit_locked(struct i40e_vsi *vsi)
  * @pf: board private structure
  * @is_up: whether the link state should be forced up or down
  **/
-static i40e_status i40e_force_link_state(struct i40e_pf *pf, bool is_up)
+static int i40e_force_link_state(struct i40e_pf *pf, bool is_up)
 {
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	struct i40e_aq_set_phy_config config = {0};
 	bool non_zero_phy_type = is_up;
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status err;
 	u64 mask;
 	u8 speed;
+	int err;
 
 	/* Card might've been put in an unstable state by other drivers
 	 * and applications, which causes incorrect speed values being
@@ -7657,11 +7657,11 @@ static void i40e_vsi_set_default_tc_config(struct i40e_vsi *vsi)
  * This function deletes a mac filter on the channel VSI which serves as the
  * macvlan. Returns 0 on success.
  **/
-static i40e_status i40e_del_macvlan_filter(struct i40e_hw *hw, u16 seid,
-					   const u8 *macaddr, int *aq_err)
+static int i40e_del_macvlan_filter(struct i40e_hw *hw, u16 seid,
+				   const u8 *macaddr, int *aq_err)
 {
 	struct i40e_aqc_remove_macvlan_element_data element;
-	i40e_status status;
+	int status;
 
 	memset(&element, 0, sizeof(element));
 	ether_addr_copy(element.mac_addr, macaddr);
@@ -7683,12 +7683,12 @@ static i40e_status i40e_del_macvlan_filter(struct i40e_hw *hw, u16 seid,
  * This function adds a mac filter on the channel VSI which serves as the
  * macvlan. Returns 0 on success.
  **/
-static i40e_status i40e_add_macvlan_filter(struct i40e_hw *hw, u16 seid,
-					   const u8 *macaddr, int *aq_err)
+static int i40e_add_macvlan_filter(struct i40e_hw *hw, u16 seid,
+				   const u8 *macaddr, int *aq_err)
 {
 	struct i40e_aqc_add_macvlan_element_data element;
-	i40e_status status;
 	u16 cmd_flags = 0;
+	int status;
 
 	ether_addr_copy(element.mac_addr, macaddr);
 	element.vlan_tag = 0;
@@ -9886,8 +9886,8 @@ static void i40e_link_event(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	u8 new_link_speed, old_link_speed;
-	i40e_status status;
 	bool new_link, old_link;
+	int status;
 #ifdef CONFIG_I40E_DCB
 	int err;
 #endif /* CONFIG_I40E_DCB */
@@ -10098,9 +10098,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	struct i40e_arq_event_info event;
 	struct i40e_hw *hw = &pf->hw;
 	u16 pending, i = 0;
-	i40e_status ret;
 	u16 opcode;
 	u32 oldval;
+	int ret;
 	u32 val;
 
 	/* Do not run clean AQ when PF reset fails */
@@ -10579,7 +10579,7 @@ static int i40e_rebuild_cloud_filters(struct i40e_vsi *vsi, u16 seid)
 	struct i40e_cloud_filter *cfilter;
 	struct i40e_pf *pf = vsi->back;
 	struct hlist_node *node;
-	i40e_status ret;
+	int ret;
 
 	/* Add cloud filters back if they exist */
 	hlist_for_each_entry_safe(cfilter, node, &pf->cloud_filter_list,
@@ -10614,7 +10614,7 @@ static int i40e_rebuild_cloud_filters(struct i40e_vsi *vsi, u16 seid)
 static int i40e_rebuild_channels(struct i40e_vsi *vsi)
 {
 	struct i40e_channel *ch, *ch_tmp;
-	i40e_status ret;
+	int ret;
 
 	if (list_empty(&vsi->ch_list))
 		return 0;
@@ -10690,7 +10690,7 @@ static void i40e_clean_xps_state(struct i40e_vsi *vsi)
 static void i40e_prep_for_reset(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret = 0;
+	int ret = 0;
 	u32 v;
 
 	clear_bit(__I40E_RESET_INTR_RECEIVED, pf->state);
@@ -10795,7 +10795,7 @@ static void i40e_get_oem_version(struct i40e_hw *hw)
 static int i40e_reset(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
+	int ret;
 
 	ret = i40e_pf_reset(hw);
 	if (ret) {
@@ -10820,7 +10820,7 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	const bool is_recovery_mode_reported = i40e_check_recovery_mode(pf);
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
+	int ret;
 	u32 val;
 	int v;
 
@@ -12507,11 +12507,11 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
  * i40e_get_partition_bw_setting - Retrieve BW settings for this PF partition
  * @pf: board private structure
  **/
-i40e_status i40e_get_partition_bw_setting(struct i40e_pf *pf)
+int i40e_get_partition_bw_setting(struct i40e_pf *pf)
 {
-	i40e_status status;
 	bool min_valid, max_valid;
 	u32 max_bw, min_bw;
+	int status;
 
 	status = i40e_read_bw_from_alt_ram(&pf->hw, &max_bw, &min_bw,
 					   &min_valid, &max_valid);
@@ -12530,10 +12530,10 @@ i40e_status i40e_get_partition_bw_setting(struct i40e_pf *pf)
  * i40e_set_partition_bw_setting - Set BW settings for this PF partition
  * @pf: board private structure
  **/
-i40e_status i40e_set_partition_bw_setting(struct i40e_pf *pf)
+int i40e_set_partition_bw_setting(struct i40e_pf *pf)
 {
 	struct i40e_aqc_configure_partition_bw_data bw_data;
-	i40e_status status;
+	int status;
 
 	memset(&bw_data, 0, sizeof(bw_data));
 
@@ -12552,12 +12552,12 @@ i40e_status i40e_set_partition_bw_setting(struct i40e_pf *pf)
  * i40e_commit_partition_bw_setting - Commit BW settings for this PF partition
  * @pf: board private structure
  **/
-i40e_status i40e_commit_partition_bw_setting(struct i40e_pf *pf)
+int i40e_commit_partition_bw_setting(struct i40e_pf *pf)
 {
 	/* Commit temporary BW setting to permanent NVM image */
 	enum i40e_admin_queue_err last_aq_status;
-	i40e_status ret;
 	u16 nvm_word;
+	int ret;
 
 	if (pf->hw.partition_id != 1) {
 		dev_info(&pf->pdev->dev,
@@ -12645,7 +12645,7 @@ static bool i40e_is_total_port_shutdown_enabled(struct i40e_pf *pf)
 #define I40E_LINK_BEHAVIOR_WORD_LENGTH		0x1
 #define I40E_LINK_BEHAVIOR_OS_FORCED_ENABLED	BIT(0)
 #define I40E_LINK_BEHAVIOR_PORT_BIT_LENGTH	4
-	i40e_status read_status = I40E_SUCCESS;
+	int read_status = I40E_SUCCESS;
 	u16 sr_emp_sr_settings_ptr = 0;
 	u16 features_enable = 0;
 	u16 link_behavior = 0;
@@ -13024,7 +13024,7 @@ static int i40e_udp_tunnel_set_port(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_hw *hw = &np->vsi->back->hw;
 	u8 type, filter_index;
-	i40e_status ret;
+	int ret;
 
 	type = ti->type == UDP_TUNNEL_TYPE_VXLAN ? I40E_AQC_TUNNEL_TYPE_VXLAN :
 						   I40E_AQC_TUNNEL_TYPE_NGE;
@@ -13048,7 +13048,7 @@ static int i40e_udp_tunnel_unset_port(struct net_device *netdev,
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_hw *hw = &np->vsi->back->hw;
-	i40e_status ret;
+	int ret;
 
 	ret = i40e_aq_del_udp_tunnel(hw, ti->hw_priv, NULL);
 	if (ret) {
@@ -15436,13 +15436,12 @@ static bool i40e_check_recovery_mode(struct i40e_pf *pf)
  *
  * Return 0 on success, negative on failure.
  **/
-static i40e_status i40e_pf_loop_reset(struct i40e_pf *pf)
+static int i40e_pf_loop_reset(struct i40e_pf *pf)
 {
 	/* wait max 10 seconds for PF reset to succeed */
 	const unsigned long time_end = jiffies + 10 * HZ;
-
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
+	int ret;
 
 	ret = i40e_pf_reset(hw);
 	while (ret != I40E_SUCCESS && time_before(jiffies, time_end)) {
@@ -15488,9 +15487,9 @@ static bool i40e_check_fw_empr(struct i40e_pf *pf)
  * Return 0 if NIC is healthy or negative value when there are issues
  * with resets
  **/
-static i40e_status i40e_handle_resets(struct i40e_pf *pf)
+static int i40e_handle_resets(struct i40e_pf *pf)
 {
-	const i40e_status pfr = i40e_pf_loop_reset(pf);
+	const int pfr = i40e_pf_loop_reset(pf);
 	const bool is_empr = i40e_check_fw_empr(pf);
 
 	if (is_empr || pfr != I40E_SUCCESS)
@@ -15627,13 +15626,15 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i40e_aq_get_phy_abilities_resp abilities;
 #ifdef CONFIG_I40E_DCB
 	enum i40e_get_fw_lldp_status_resp lldp_status;
-	i40e_status status;
 #endif /* CONFIG_I40E_DCB */
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
 	static u16 pfs_found;
 	u16 wol_nvm_bits;
 	u16 link_status;
+#ifdef CONFIG_I40E_DCB
+	int status;
+#endif /* CONFIG_I40E_DCB */
 	int err;
 	u32 val;
 	u32 i;
@@ -16235,7 +16236,7 @@ static void i40e_remove(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret_code;
+	int ret_code;
 	int i;
 
 	i40e_dbg_pf_exit(pf);
@@ -16482,9 +16483,9 @@ static void i40e_pci_error_resume(struct pci_dev *pdev)
 static void i40e_enable_mc_magic_wake(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
 	u8 mac_addr[6];
 	u16 flags = 0;
+	int ret;
 
 	/* Get current MAC address in case it's an LAA */
 	if (pf->vsi[pf->lan_vsi] && pf->vsi[pf->lan_vsi]->netdev) {

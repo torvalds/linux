@@ -1226,8 +1226,8 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_hw *hw = &pf->hw;
 	bool autoneg_changed = false;
-	i40e_status status = 0;
 	int timeout = 50;
+	int status = 0;
 	int err = 0;
 	__u32 speed;
 	u8 autoneg;
@@ -1485,7 +1485,7 @@ static int i40e_set_fec_cfg(struct net_device *netdev, u8 fec_cfg)
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status status = 0;
+	int status = 0;
 	u32 flags = 0;
 	int err = 0;
 
@@ -1547,7 +1547,7 @@ static int i40e_get_fec_param(struct net_device *netdev,
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status status = 0;
+	int status = 0;
 	int err = 0;
 	u8 fec_cfg;
 
@@ -1634,7 +1634,7 @@ static int i40e_nway_reset(struct net_device *netdev)
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	bool link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
-	i40e_status ret = 0;
+	int ret = 0;
 
 	ret = i40e_aq_set_link_restart_an(hw, link_up, NULL);
 	if (ret) {
@@ -1699,9 +1699,9 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
 	struct i40e_dcbx_config *dcbx_cfg = &hw->local_dcbx_config;
 	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
-	i40e_status status;
 	u8 aq_failures;
 	int err = 0;
+	int status;
 	u32 is_an;
 
 	/* Changing the port's flow control is not supported if this isn't the
@@ -2583,8 +2583,8 @@ static u64 i40e_link_test(struct net_device *netdev, u64 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
-	i40e_status status;
 	bool link_up = false;
+	int status;
 
 	netif_info(pf, hw, netdev, "link test\n");
 	status = i40e_get_link_status(&pf->hw, &link_up);
@@ -2807,11 +2807,11 @@ static int i40e_set_phys_id(struct net_device *netdev,
 			    enum ethtool_phys_id_state state)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	i40e_status ret = 0;
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	int blink_freq = 2;
 	u16 temp_status;
+	int ret = 0;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
@@ -5247,7 +5247,7 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	u32 reset_needed = 0;
-	i40e_status status;
+	int status;
 	u32 i, j;
 
 	orig_flags = READ_ONCE(pf->flags);
@@ -5476,8 +5476,8 @@ static int i40e_get_module_info(struct net_device *netdev,
 	u32 sff8472_comp = 0;
 	u32 sff8472_swap = 0;
 	u32 sff8636_rev = 0;
-	i40e_status status;
 	u32 type = 0;
+	int status;
 
 	/* Check if firmware supports reading module EEPROM. */
 	if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE)) {
@@ -5581,8 +5581,8 @@ static int i40e_get_module_eeprom(struct net_device *netdev,
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	bool is_sfp = false;
-	i40e_status status;
 	u32 value = 0;
+	int status;
 	int i;
 
 	if (!ee || !ee->len || !data)
@@ -5623,10 +5623,10 @@ static int i40e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_aq_get_phy_abilities_resp phy_cfg;
-	enum i40e_status_code status = 0;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
+	int status = 0;
 
 	/* Get initial PHY capabilities */
 	status = i40e_aq_get_phy_capabilities(hw, false, true, &phy_cfg, NULL);
@@ -5688,11 +5688,11 @@ static int i40e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_aq_get_phy_abilities_resp abilities;
-	enum i40e_status_code status = I40E_SUCCESS;
 	struct i40e_aq_set_phy_config config;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
+	int status = I40E_SUCCESS;
 	__le16 eee_capability;
 
 	/* Deny parameters we don't support */
