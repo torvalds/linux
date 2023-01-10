@@ -73,7 +73,7 @@ struct guc_debug_capture_list_header {
 
 struct guc_debug_capture_list {
 	struct guc_debug_capture_list_header header;
-	struct guc_mmio_reg regs[0];
+	struct guc_mmio_reg regs[];
 } __packed;
 
 /**
@@ -125,7 +125,7 @@ struct guc_state_capture_header_t {
 
 struct guc_state_capture_t {
 	struct guc_state_capture_header_t header;
-	struct guc_mmio_reg mmio_entries[0];
+	struct guc_mmio_reg mmio_entries[];
 } __packed;
 
 enum guc_capture_group_types {
@@ -145,7 +145,7 @@ struct guc_state_capture_group_header_t {
 /* this is the top level structure where an error-capture dump starts */
 struct guc_state_capture_group_t {
 	struct guc_state_capture_group_header_t grp_header;
-	struct guc_state_capture_t capture_entries[0];
+	struct guc_state_capture_t capture_entries[];
 } __packed;
 
 /**
