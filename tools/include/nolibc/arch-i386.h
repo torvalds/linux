@@ -179,6 +179,7 @@ struct sys_stat_struct {
 })
 
 char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
 /*
@@ -195,6 +196,12 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
 		"mov %ecx, environ\n"       // save environ
 		"xor %ebp, %ebp\n"          // zero the stack frame
+		"mov %ecx, %edx\n"          // search for auxv (follows NULL after last env)
+		"0:\n"
+		"add $4, %edx\n"            // search for auxv using edx, it follows the
+		"cmp -4(%edx), %ebp\n"      // ... NULL after last env (ebp is zero here)
+		"jnz 0b\n"
+		"mov %edx, _auxv\n"         // save it into _auxv
 		"and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
 		"sub $4, %esp\n"            // the call instruction (args are aligned)
 		"push %ecx\n"               // push all registers on the stack so that we
