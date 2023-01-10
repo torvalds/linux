@@ -288,14 +288,14 @@ static int iso_connect_bis(struct sock *sk)
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
+	err = iso_chan_add(conn, sk, NULL);
+	if (err)
+		return err;
+
 	lock_sock(sk);
 
 	/* Update source addr of the socket */
 	bacpy(&iso_pi(sk)->src, &hcon->src);
-
-	err = iso_chan_add(conn, sk, NULL);
-	if (err)
-		goto release;
 
 	if (hcon->state == BT_CONNECTED) {
 		iso_sock_clear_timer(sk);
@@ -305,7 +305,6 @@ static int iso_connect_bis(struct sock *sk)
 		iso_sock_set_timer(sk, sk->sk_sndtimeo);
 	}
 
-release:
 	release_sock(sk);
 	return err;
 
@@ -371,14 +370,14 @@ static int iso_connect_cis(struct sock *sk)
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
+	err = iso_chan_add(conn, sk, NULL);
+	if (err)
+		return err;
+
 	lock_sock(sk);
 
 	/* Update source addr of the socket */
 	bacpy(&iso_pi(sk)->src, &hcon->src);
-
-	err = iso_chan_add(conn, sk, NULL);
-	if (err)
-		goto release;
 
 	if (hcon->state == BT_CONNECTED) {
 		iso_sock_clear_timer(sk);
@@ -391,7 +390,6 @@ static int iso_connect_cis(struct sock *sk)
 		iso_sock_set_timer(sk, sk->sk_sndtimeo);
 	}
 
-release:
 	release_sock(sk);
 	return err;
 
@@ -1430,33 +1428,29 @@ static void iso_conn_ready(struct iso_conn *conn)
 	struct sock *parent;
 	struct sock *sk = conn->sk;
 	struct hci_ev_le_big_sync_estabilished *ev;
+	struct hci_conn *hcon;
 
 	BT_DBG("conn %p", conn);
 
 	if (sk) {
 		iso_sock_ready(conn->sk);
 	} else {
-		iso_conn_lock(conn);
-
-		if (!conn->hcon) {
-			iso_conn_unlock(conn);
+		hcon = conn->hcon;
+		if (!hcon)
 			return;
-		}
 
-		ev = hci_recv_event_data(conn->hcon->hdev,
+		ev = hci_recv_event_data(hcon->hdev,
 					 HCI_EVT_LE_BIG_SYNC_ESTABILISHED);
 		if (ev)
-			parent = iso_get_sock_listen(&conn->hcon->src,
-						     &conn->hcon->dst,
+			parent = iso_get_sock_listen(&hcon->src,
+						     &hcon->dst,
 						     iso_match_big, ev);
 		else
-			parent = iso_get_sock_listen(&conn->hcon->src,
+			parent = iso_get_sock_listen(&hcon->src,
 						     BDADDR_ANY, NULL, NULL);
 
-		if (!parent) {
-			iso_conn_unlock(conn);
+		if (!parent)
 			return;
-		}
 
 		lock_sock(parent);
 
@@ -1464,30 +1458,29 @@ static void iso_conn_ready(struct iso_conn *conn)
 				    BTPROTO_ISO, GFP_ATOMIC, 0);
 		if (!sk) {
 			release_sock(parent);
-			iso_conn_unlock(conn);
 			return;
 		}
 
 		iso_sock_init(sk, parent);
 
-		bacpy(&iso_pi(sk)->src, &conn->hcon->src);
-		iso_pi(sk)->src_type = conn->hcon->src_type;
+		bacpy(&iso_pi(sk)->src, &hcon->src);
+		iso_pi(sk)->src_type = hcon->src_type;
 
 		/* If hcon has no destination address (BDADDR_ANY) it means it
 		 * was created by HCI_EV_LE_BIG_SYNC_ESTABILISHED so we need to
 		 * initialize using the parent socket destination address.
 		 */
-		if (!bacmp(&conn->hcon->dst, BDADDR_ANY)) {
-			bacpy(&conn->hcon->dst, &iso_pi(parent)->dst);
-			conn->hcon->dst_type = iso_pi(parent)->dst_type;
-			conn->hcon->sync_handle = iso_pi(parent)->sync_handle;
+		if (!bacmp(&hcon->dst, BDADDR_ANY)) {
+			bacpy(&hcon->dst, &iso_pi(parent)->dst);
+			hcon->dst_type = iso_pi(parent)->dst_type;
+			hcon->sync_handle = iso_pi(parent)->sync_handle;
 		}
 
-		bacpy(&iso_pi(sk)->dst, &conn->hcon->dst);
-		iso_pi(sk)->dst_type = conn->hcon->dst_type;
+		bacpy(&iso_pi(sk)->dst, &hcon->dst);
+		iso_pi(sk)->dst_type = hcon->dst_type;
 
-		hci_conn_hold(conn->hcon);
-		__iso_chan_add(conn, sk, parent);
+		hci_conn_hold(hcon);
+		iso_chan_add(conn, sk, parent);
 
 		if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags))
 			sk->sk_state = BT_CONNECT2;
@@ -1498,8 +1491,6 @@ static void iso_conn_ready(struct iso_conn *conn)
 		parent->sk_data_ready(parent);
 
 		release_sock(parent);
-
-		iso_conn_unlock(conn);
 	}
 }
 
