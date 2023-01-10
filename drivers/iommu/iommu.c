@@ -2163,6 +2163,16 @@ static int iommu_group_do_detach_device(struct device *dev, void *data)
 	return 0;
 }
 
+static int iommu_group_do_set_platform_dma(struct device *dev, void *data)
+{
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
+
+	if (!WARN_ON(!ops->set_platform_dma_ops))
+		ops->set_platform_dma_ops(dev);
+
+	return 0;
+}
+
 static int __iommu_group_set_domain(struct iommu_group *group,
 				    struct iommu_domain *new_domain)
 {
@@ -2177,10 +2187,20 @@ static int __iommu_group_set_domain(struct iommu_group *group,
 	 * platform specific behavior.
 	 */
 	if (!new_domain) {
-		if (WARN_ON(!group->domain->ops->detach_dev))
-			return -EINVAL;
-		__iommu_group_for_each_dev(group, group->domain,
-					   iommu_group_do_detach_device);
+		struct group_device *grp_dev;
+
+		grp_dev = list_first_entry(&group->devices,
+					   struct group_device, list);
+
+		if (dev_iommu_ops(grp_dev->dev)->set_platform_dma_ops)
+			__iommu_group_for_each_dev(group, NULL,
+					iommu_group_do_set_platform_dma);
+		else if (group->domain->ops->detach_dev)
+			__iommu_group_for_each_dev(group, group->domain,
+					iommu_group_do_detach_device);
+		else
+			WARN_ON_ONCE(1);
+
 		group->domain = NULL;
 		return 0;
 	}
