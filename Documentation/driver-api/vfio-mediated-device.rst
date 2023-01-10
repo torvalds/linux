@@ -60,19 +60,13 @@ devices as examples, as these devices are the first devices to use this module::
      |   mdev.ko     |
      | +-----------+ |  mdev_register_parent() +--------------+
      | |           | +<------------------------+              |
-     | |           | |                         |  nvidia.ko   |<-> physical
+     | |           | |                         | ccw_device.ko|<-> physical
      | |           | +------------------------>+              |    device
      | |           | |        callbacks        +--------------+
      | | Physical  | |
      | |  device   | |  mdev_register_parent() +--------------+
      | | interface | |<------------------------+              |
      | |           | |                         |  i915.ko     |<-> physical
-     | |           | +------------------------>+              |    device
-     | |           | |        callbacks        +--------------+
-     | |           | |
-     | |           | |  mdev_register_parent() +--------------+
-     | |           | +<------------------------+              |
-     | |           | |                         | ccw_device.ko|<-> physical
      | |           | +------------------------>+              |    device
      | |           | |        callbacks        +--------------+
      | +-----------+ |
