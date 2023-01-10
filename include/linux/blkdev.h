@@ -1306,6 +1306,18 @@ static inline sector_t bdev_zone_sectors(struct block_device *bdev)
 	return q->limits.chunk_sectors;
 }
 
+static inline sector_t bdev_offset_from_zone_start(struct block_device *bdev,
+						   sector_t sector)
+{
+	return sector & (bdev_zone_sectors(bdev) - 1);
+}
+
+static inline bool bdev_is_zone_start(struct block_device *bdev,
+				      sector_t sector)
+{
+	return bdev_offset_from_zone_start(bdev, sector) == 0;
+}
+
 static inline int queue_dma_alignment(const struct request_queue *q)
 {
 	return q ? q->limits.dma_alignment : 511;
