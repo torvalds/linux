@@ -227,6 +227,11 @@ struct damos_stat {
  * @DAMOS_FILTER_TYPE_ANON:	Anonymous pages.
  * @DAMOS_FILTER_TYPE_MEMCG:	Specific memcg's pages.
  * @NR_DAMOS_FILTER_TYPES:	Number of filter types.
+ *
+ * The support of each filter type is up to running &struct damon_operations.
+ * &enum DAMON_OPS_PADDR is supporting all filter types, while
+ * &enum DAMON_OPS_VADDR and &enum DAMON_OPS_FVADDR are not supporting any
+ * filter types.
  */
 enum damos_filter_type {
 	DAMOS_FILTER_TYPE_ANON,
