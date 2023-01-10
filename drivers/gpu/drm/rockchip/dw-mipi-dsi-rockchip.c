@@ -778,6 +778,7 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
+	s->tv_state = &conn_state->tv;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 	s->output_if = dsi->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
 	if (dsi->slave) {
