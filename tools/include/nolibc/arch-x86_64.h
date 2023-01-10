@@ -178,6 +178,8 @@ struct sys_stat_struct {
 	_ret;                                                                 \
 })
 
+char **environ __attribute__((weak));
+
 /* startup code */
 /*
  * x86-64 System V ABI mandates:
@@ -191,6 +193,7 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"pop %rdi\n"                // argc   (first arg, %rdi)
 		"mov %rsp, %rsi\n"          // argv[] (second arg, %rsi)
 		"lea 8(%rsi,%rdi,8),%rdx\n" // then a NULL then envp (third arg, %rdx)
+		"mov %rdx, environ\n"       // save environ
 		"xor %ebp, %ebp\n"          // zero the stack frame
 		"and $-16, %rsp\n"          // x86 ABI : esp must be 16-byte aligned before call
 		"call main\n"               // main() returns the status code, we'll exit with it.
