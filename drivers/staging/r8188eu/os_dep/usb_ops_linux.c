@@ -44,9 +44,6 @@ static void usb_write_port_complete(struct urb *purb)
 	if (pxmitbuf->flags == HIGH_QUEUE_INX)
 		rtw_chk_hi_queue_cmd(padapter);
 
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped || padapter->bWritePortCancel)
-		goto check_completion;
-
 	switch (purb->status) {
 	case 0:
 	case -EINPROGRESS:
@@ -63,7 +60,6 @@ static void usb_write_port_complete(struct urb *purb)
 		break;
 	}
 
-check_completion:
 	rtw_sctx_done_err(&pxmitbuf->sctx,
 			  purb->status ? RTW_SCTX_DONE_WRITE_PORT_ERR : RTW_SCTX_DONE_SUCCESS);
 	rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
