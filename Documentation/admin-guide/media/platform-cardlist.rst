@@ -30,7 +30,6 @@ exynos-fimc-is     EXYNOS4x12 FIMC-IS (Imaging Subsystem)
 exynos-fimc-lite   EXYNOS FIMC-LITE camera interface
 exynos-gsc         Samsung Exynos G-Scaler
 exy                Samsung S5P/EXYNOS4 SoC series Camera Subsystem
-fsl-viu            Freescale VIU
 imx-pxp            i.MX Pixel Pipeline (PXP)
 isdf               TI DM365 ISIF video capture
 mmp_camera         Marvell Armada 610 integrated camera controller

@@ -11,7 +11,6 @@ obj-$(CONFIG_VIDEO_SUNXI)	+= sunxi/
 obj-$(CONFIG_VIDEO_TEGRA)	+= tegra-video/
 obj-$(CONFIG_VIDEO_IPU3_IMGU)	+= ipu3/
 obj-$(CONFIG_VIDEO_TM6000)	+= deprecated/tm6000/
-obj-$(CONFIG_VIDEO_VIU)		+= deprecated/fsl-viu/
 obj-$(CONFIG_USB_ZR364XX)	+= deprecated/zr364xx/
 obj-y += deprecated/vpfe_capture/
 obj-y += deprecated/saa7146/
