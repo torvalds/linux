@@ -14,8 +14,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/hwmon.h>
 
@@ -45,8 +43,6 @@
 #define ISL12022_INT_WRTC	(1 << 6)
 
 #define ISL12022_BETA_TSE	(1 << 7)
-
-static struct i2c_driver isl12022_driver;
 
 static umode_t isl12022_hwmon_is_visible(const void *data,
 					 enum hwmon_sensor_types type,
@@ -252,14 +248,12 @@ static int isl12022_probe(struct i2c_client *client)
 	return devm_rtc_register_device(rtc);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id isl12022_dt_match[] = {
 	{ .compatible = "isl,isl12022" }, /* for backward compat., don't use */
 	{ .compatible = "isil,isl12022" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, isl12022_dt_match);
-#endif
 
 static const struct i2c_device_id isl12022_id[] = {
 	{ "isl12022", 0 },
@@ -270,9 +264,7 @@ MODULE_DEVICE_TABLE(i2c, isl12022_id);
 static struct i2c_driver isl12022_driver = {
 	.driver		= {
 		.name	= "rtc-isl12022",
-#ifdef CONFIG_OF
-		.of_match_table = of_match_ptr(isl12022_dt_match),
-#endif
+		.of_match_table = isl12022_dt_match,
 	},
 	.probe_new	= isl12022_probe,
 	.id_table	= isl12022_id,
