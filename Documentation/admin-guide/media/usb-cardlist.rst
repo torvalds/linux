@@ -99,7 +99,6 @@ ttusb_dec               Technotrend/Hauppauge USB DEC devices
 usbtv                   USBTV007 video capture
 uvcvideo                USB Video Class (UVC)
 zd1301                  ZyDAS ZD1301
-zr364xx                 USB ZR364XX Camera
 ======================  =========================================================
 
 .. toctree::

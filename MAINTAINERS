@@ -21719,16 +21719,6 @@ S:	Orphan
 W:	http://linux-lc100020.sourceforge.net
 F:	drivers/net/wireless/zydas/zd1201.*
 
-USB ZR364XX DRIVER
-M:	Antoine Jacquet <royale@zerezo.com>
-L:	linux-usb@vger.kernel.org
-L:	linux-media@vger.kernel.org
-S:	Maintained
-W:	http://royale.zerezo.com/zr364xx/
-T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/admin-guide/media/zr364xx*
-F:	drivers/staging/media/deprecated/zr364xx/
-
 USER-MODE LINUX (UML)
 M:	Richard Weinberger <richard@nod.at>
 M:	Anton Ivanov <anton.ivanov@cambridgegreys.com>

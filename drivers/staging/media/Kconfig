@@ -55,7 +55,6 @@ source "drivers/staging/media/deprecated/atmel/Kconfig"
 source "drivers/staging/media/deprecated/saa7146/Kconfig"
 source "drivers/staging/media/deprecated/tm6000/Kconfig"
 source "drivers/staging/media/deprecated/vpfe_capture/Kconfig"
-source "drivers/staging/media/deprecated/zr364xx/Kconfig"
 endif
 
 endif
