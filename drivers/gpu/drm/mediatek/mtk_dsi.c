@@ -28,6 +28,7 @@
 
 #include "mtk_disp_drv.h"
 #include "mtk_drm_ddp_comp.h"
+#include "mtk_drm_drv.h"
 
 #define DSI_START		0x00
 
