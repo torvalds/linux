@@ -5626,8 +5626,10 @@ static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 	 * LOG_INODE_EXISTS mode) and slow down other fsyncs or transaction
 	 * commits.
 	 */
-	if (ctx->num_conflict_inodes >= MAX_CONFLICT_INODES)
+	if (ctx->num_conflict_inodes >= MAX_CONFLICT_INODES) {
+		btrfs_set_log_full_commit(trans);
 		return BTRFS_LOG_FORCE_COMMIT;
+	}
 
 	inode = btrfs_iget(root->fs_info->sb, ino, root);
 	/*
