@@ -171,6 +171,7 @@ struct sys_stat_struct {
 })
 
 char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
@@ -185,6 +186,15 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"slli  a2, a0, "PTRLOG"\n"   // envp (a2) = SZREG*argc ...
 		"add   a2, a2, "SZREG"\n"    //             + SZREG (skip null)
 		"add   a2,a2,a1\n"           //             + argv
+
+		"add   a3, a2, zero\n"       // iterate a3 over envp to find auxv (after NULL)
+		"0:\n"                       // do {
+		"ld    a4, 0(a3)\n"          //   a4 = *a3;
+		"add   a3, a3, "SZREG"\n"    //   a3 += sizeof(void*);
+		"bne   a4, zero, 0b\n"       // } while (a4);
+		"lui   a4, %hi(_auxv)\n"     // a4 = &_auxv (high bits)
+		"sd    a3, %lo(_auxv)(a4)\n" // store a3 into _auxv
+
 		"lui a3, %hi(environ)\n"     // a3 = &environ (high bits)
 		"sd a2,%lo(environ)(a3)\n"   // store envp(a2) into environ
 		"andi  sp,a1,-16\n"          // sp must be 16-byte aligned
