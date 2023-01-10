@@ -143,16 +143,12 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (buf[ISL12022_REG_SR] & (ISL12022_SR_LBAT85 | ISL12022_SR_LBAT75)) {
 		dev_warn(dev,
-			 "voltage dropped below %u%%, "
-			 "date and time is not reliable.\n",
+			 "voltage dropped below %u%%, date and time is not reliable.\n",
 			 buf[ISL12022_REG_SR] & ISL12022_SR_LBAT85 ? 85 : 75);
 	}
 
 	dev_dbg(dev,
-		"%s: raw data is sec=%02x, min=%02x, hr=%02x, "
-		"mday=%02x, mon=%02x, year=%02x, wday=%02x, "
-		"sr=%02x, int=%02x",
-		__func__,
+		"raw data is sec=%02x, min=%02x, hr=%02x, mday=%02x, mon=%02x, year=%02x, wday=%02x, sr=%02x, int=%02x",
 		buf[ISL12022_REG_SC],
 		buf[ISL12022_REG_MN],
 		buf[ISL12022_REG_HR],
