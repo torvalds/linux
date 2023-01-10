@@ -138,7 +138,6 @@ mtk_wed_wo_queue_refill(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 	enum dma_data_direction dir = rx ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	int n_buf = 0;
 
-	spin_lock_bh(&q->lock);
 	while (q->queued < q->n_desc) {
 		struct mtk_wed_wo_queue_entry *entry;
 		dma_addr_t addr;
@@ -172,7 +171,6 @@ mtk_wed_wo_queue_refill(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 		q->queued++;
 		n_buf++;
 	}
-	spin_unlock_bh(&q->lock);
 
 	return n_buf;
 }
@@ -316,7 +314,6 @@ mtk_wed_wo_queue_rx_clean(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q)
 {
 	struct page *page;
 
-	spin_lock_bh(&q->lock);
 	for (;;) {
 		void *buf = mtk_wed_wo_dequeue(wo, q, NULL, true);
 
@@ -325,7 +322,6 @@ mtk_wed_wo_queue_rx_clean(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q)
 
 		skb_free_frag(buf);
 	}
-	spin_unlock_bh(&q->lock);
 
 	if (!q->cache.va)
 		return;
