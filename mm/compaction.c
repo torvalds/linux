@@ -2730,6 +2730,8 @@ int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int write,
 				continue;
 
 			pgdat->proactive_compact_trigger = true;
+			trace_mm_compaction_wakeup_kcompactd(pgdat->node_id, -1,
+							     pgdat->nr_zones - 1);
 			wake_up_interruptible(&pgdat->kcompactd_wait);
 		}
 	}
