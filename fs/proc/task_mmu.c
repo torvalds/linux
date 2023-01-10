@@ -1306,7 +1306,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 
 			inc_tlb_flush_pending(mm);
 			mmu_notifier_range_init(&range, MMU_NOTIFY_SOFT_DIRTY,
-						0, NULL, mm, 0, -1UL);
+						0, mm, 0, -1UL);
 			mmu_notifier_invalidate_range_start(&range);
 		}
 		walk_page_range(mm, 0, -1, &clear_refs_walk_ops, &cp);

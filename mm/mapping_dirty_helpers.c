@@ -191,7 +191,7 @@ static int wp_clean_pre_vma(unsigned long start, unsigned long end,
 	wpwalk->tlbflush_end = start;
 
 	mmu_notifier_range_init(&wpwalk->range, MMU_NOTIFY_PROTECTION_PAGE, 0,
-				walk->vma, walk->mm, start, end);
+				walk->mm, start, end);
 	mmu_notifier_invalidate_range_start(&wpwalk->range);
 	flush_cache_range(walk->vma, start, end);
 
