@@ -2025,6 +2025,8 @@ static unsigned int fragmentation_score_node(pg_data_t *pgdat)
 		struct zone *zone;
 
 		zone = &pgdat->node_zones[zoneid];
+		if (!populated_zone(zone))
+			continue;
 		score += fragmentation_score_zone_weighted(zone);
 	}
 
