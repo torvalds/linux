@@ -442,6 +442,35 @@ int test_getdents64(const char *dir)
 	return ret;
 }
 
+static int test_getpagesize(void)
+{
+	long x = getpagesize();
+	int c;
+
+	if (x < 0)
+		return x;
+
+#if defined(__x86_64__) || defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__)
+	/*
+	 * x86 family is always 4K page.
+	 */
+	c = (x == 4096);
+#elif defined(__aarch64__)
+	/*
+	 * Linux aarch64 supports three values of page size: 4K, 16K, and 64K
+	 * which are selected at kernel compilation time.
+	 */
+	c = (x == 4096 || x == (16 * 1024) || x == (64 * 1024));
+#else
+	/*
+	 * Assuming other architectures must have at least 4K page.
+	 */
+	c = (x >= 4096);
+#endif
+
+	return !c;
+}
+
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
  */
@@ -502,6 +531,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(gettimeofday_bad2); EXPECT_SYSER(1, gettimeofday(NULL, (void *)1), -1, EFAULT); break;
 		CASE_TEST(gettimeofday_bad2); EXPECT_SYSER(1, gettimeofday(NULL, (void *)1), -1, EFAULT); break;
 #endif
+		CASE_TEST(getpagesize);       EXPECT_SYSZR(1, test_getpagesize()); break;
 		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
 		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
 		CASE_TEST(link_root1);        EXPECT_SYSER(1, link("/", "/"), -1, EEXIST); break;
