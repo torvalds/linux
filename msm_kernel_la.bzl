@@ -160,6 +160,8 @@ def _define_kernel_build(
             define_abi_targets = True,
             abi_definition = "//msm-kernel:android/abi_gki_aarch64.xml",
             kmi_enforced = kmi_enforced,
+            module_grouping = False,
+            kmi_symbol_list_add_only = True,
             visibility = ["//visibility:public"],
         )
 
