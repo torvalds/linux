@@ -6,6 +6,8 @@
  */
 
 #include <linux/dsa/ksz_common.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/ptp_classify.h>
 #include <linux/ptp_clock_kernel.h>
@@ -24,6 +26,8 @@
 
 #define KSZ_PTP_INC_NS 40ULL  /* HW clock is incremented every 40 ns (by 40) */
 #define KSZ_PTP_SUBNS_BITS 32
+
+#define KSZ_PTP_INT_START 13
 
 static int ksz_ptp_enable_mode(struct ksz_device *dev)
 {
@@ -417,6 +421,209 @@ void ksz_ptp_clock_unregister(struct dsa_switch *ds)
 
 	if (ptp_data->clock)
 		ptp_clock_unregister(ptp_data->clock);
+}
+
+static irqreturn_t ksz_ptp_msg_thread_fn(int irq, void *dev_id)
+{
+	return IRQ_NONE;
+}
+
+static irqreturn_t ksz_ptp_irq_thread_fn(int irq, void *dev_id)
+{
+	struct ksz_irq *ptpirq = dev_id;
+	unsigned int nhandled = 0;
+	struct ksz_device *dev;
+	unsigned int sub_irq;
+	u16 data;
+	int ret;
+	u8 n;
+
+	dev = ptpirq->dev;
+
+	ret = ksz_read16(dev, ptpirq->reg_status, &data);
+	if (ret)
+		goto out;
+
+	/* Clear the interrupts W1C */
+	ret = ksz_write16(dev, ptpirq->reg_status, data);
+	if (ret)
+		return IRQ_NONE;
+
+	for (n = 0; n < ptpirq->nirqs; ++n) {
+		if (data & BIT(n + KSZ_PTP_INT_START)) {
+			sub_irq = irq_find_mapping(ptpirq->domain, n);
+			handle_nested_irq(sub_irq);
+			++nhandled;
+		}
+	}
+
+out:
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static void ksz_ptp_irq_mask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked &= ~BIT(d->hwirq + KSZ_PTP_INT_START);
+}
+
+static void ksz_ptp_irq_unmask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked |= BIT(d->hwirq + KSZ_PTP_INT_START);
+}
+
+static void ksz_ptp_irq_bus_lock(struct irq_data *d)
+{
+	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
+
+	mutex_lock(&kirq->dev->lock_irq);
+}
+
+static void ksz_ptp_irq_bus_sync_unlock(struct irq_data *d)
+{
+	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
+	struct ksz_device *dev = kirq->dev;
+	int ret;
+
+	ret = ksz_write16(dev, kirq->reg_mask, kirq->masked);
+	if (ret)
+		dev_err(dev->dev, "failed to change IRQ mask\n");
+
+	mutex_unlock(&dev->lock_irq);
+}
+
+static const struct irq_chip ksz_ptp_irq_chip = {
+	.name			= "ksz-irq",
+	.irq_mask		= ksz_ptp_irq_mask,
+	.irq_unmask		= ksz_ptp_irq_unmask,
+	.irq_bus_lock		= ksz_ptp_irq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_ptp_irq_bus_sync_unlock,
+};
+
+static int ksz_ptp_irq_domain_map(struct irq_domain *d,
+				  unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &ksz_ptp_irq_chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ksz_ptp_irq_domain_ops = {
+	.map	= ksz_ptp_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static void ksz_ptp_msg_irq_free(struct ksz_port *port, u8 n)
+{
+	struct ksz_ptp_irq *ptpmsg_irq;
+
+	ptpmsg_irq = &port->ptpmsg_irq[n];
+
+	free_irq(ptpmsg_irq->num, ptpmsg_irq);
+	irq_dispose_mapping(ptpmsg_irq->num);
+}
+
+static int ksz_ptp_msg_irq_setup(struct ksz_port *port, u8 n)
+{
+	u16 ts_reg[] = {REG_PTP_PORT_PDRESP_TS, REG_PTP_PORT_XDELAY_TS,
+			REG_PTP_PORT_SYNC_TS};
+	static const char * const name[] = {"pdresp-msg", "xdreq-msg",
+					    "sync-msg"};
+	const struct ksz_dev_ops *ops = port->ksz_dev->dev_ops;
+	struct ksz_ptp_irq *ptpmsg_irq;
+
+	ptpmsg_irq = &port->ptpmsg_irq[n];
+
+	ptpmsg_irq->port = port;
+	ptpmsg_irq->ts_reg = ops->get_port_addr(port->num, ts_reg[n]);
+
+	snprintf(ptpmsg_irq->name, sizeof(ptpmsg_irq->name), name[n]);
+
+	ptpmsg_irq->num = irq_find_mapping(port->ptpirq.domain, n);
+	if (ptpmsg_irq->num < 0)
+		return ptpmsg_irq->num;
+
+	return request_threaded_irq(ptpmsg_irq->num, NULL,
+				    ksz_ptp_msg_thread_fn, IRQF_ONESHOT,
+				    ptpmsg_irq->name, ptpmsg_irq);
+}
+
+int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p)
+{
+	struct ksz_device *dev = ds->priv;
+	const struct ksz_dev_ops *ops = dev->dev_ops;
+	struct ksz_port *port = &dev->ports[p];
+	struct ksz_irq *ptpirq = &port->ptpirq;
+	int irq;
+	int ret;
+
+	ptpirq->dev = dev;
+	ptpirq->masked = 0;
+	ptpirq->nirqs = 3;
+	ptpirq->reg_mask = ops->get_port_addr(p, REG_PTP_PORT_TX_INT_ENABLE__2);
+	ptpirq->reg_status = ops->get_port_addr(p,
+						REG_PTP_PORT_TX_INT_STATUS__2);
+	snprintf(ptpirq->name, sizeof(ptpirq->name), "ptp-irq-%d", p);
+
+	ptpirq->domain = irq_domain_add_linear(dev->dev->of_node, ptpirq->nirqs,
+					       &ksz_ptp_irq_domain_ops, ptpirq);
+	if (!ptpirq->domain)
+		return -ENOMEM;
+
+	for (irq = 0; irq < ptpirq->nirqs; irq++)
+		irq_create_mapping(ptpirq->domain, irq);
+
+	ptpirq->irq_num = irq_find_mapping(port->pirq.domain, PORT_SRC_PTP_INT);
+	if (ptpirq->irq_num < 0) {
+		ret = ptpirq->irq_num;
+		goto out;
+	}
+
+	ret = request_threaded_irq(ptpirq->irq_num, NULL, ksz_ptp_irq_thread_fn,
+				   IRQF_ONESHOT, ptpirq->name, ptpirq);
+	if (ret)
+		goto out;
+
+	for (irq = 0; irq < ptpirq->nirqs; irq++) {
+		ret = ksz_ptp_msg_irq_setup(port, irq);
+		if (ret)
+			goto out_ptp_msg;
+	}
+
+	return 0;
+
+out_ptp_msg:
+	free_irq(ptpirq->irq_num, ptpirq);
+	while (irq--)
+		free_irq(port->ptpmsg_irq[irq].num, &port->ptpmsg_irq[irq]);
+out:
+	for (irq = 0; irq < ptpirq->nirqs; irq++)
+		irq_dispose_mapping(port->ptpmsg_irq[irq].num);
+
+	irq_domain_remove(ptpirq->domain);
+
+	return ret;
+}
+
+void ksz_ptp_irq_free(struct dsa_switch *ds, u8 p)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *port = &dev->ports[p];
+	struct ksz_irq *ptpirq = &port->ptpirq;
+	u8 n;
+
+	for (n = 0; n < ptpirq->nirqs; n++)
+		ksz_ptp_msg_irq_free(port, n);
+
+	free_irq(ptpirq->irq_num, ptpirq);
+	irq_dispose_mapping(ptpirq->irq_num);
+
+	irq_domain_remove(ptpirq->domain);
 }
 
 MODULE_AUTHOR("Christian Eggers <ceggers@arri.de>");
