@@ -21,14 +21,6 @@
 #include <linux/mm.h>
 #include <linux/pagevec.h>
 
-/* statistics for svc_pool structures */
-struct svc_pool_stats {
-	atomic_long_t	packets;
-	unsigned long	sockets_queued;
-	atomic_long_t	threads_woken;
-	atomic_long_t	threads_timedout;
-};
-
 /*
  *
  * RPC service thread pool.
@@ -45,7 +37,12 @@ struct svc_pool {
 	struct list_head	sp_sockets;	/* pending sockets */
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
-	struct svc_pool_stats	sp_stats;	/* statistics on pool operation */
+
+	/* statistics on pool operation */
+	struct percpu_counter	sp_sockets_queued;
+	struct percpu_counter	sp_threads_woken;
+	struct percpu_counter	sp_threads_timedout;
+
 #define	SP_TASK_PENDING		(0)		/* still work to do even if no
 						 * xprt is queued. */
 #define SP_CONGESTED		(1)
