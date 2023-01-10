@@ -232,7 +232,7 @@ static const struct regmap_config qrc_regmap_config = {
 	.fast_io = true,
 };
 
-const struct reg_sequence msm8976_cfg_dfs_sid[] = {
+static const struct reg_sequence msm8976_cfg_dfs_sid[] = {
 	{ 0x10, 0xfefebff7 },
 	{ 0x14, 0xfdff7fef },
 	{ 0x18, 0xfbffdefb },
@@ -243,23 +243,23 @@ const struct reg_sequence msm8976_cfg_dfs_sid[] = {
 	{ 0x2c, 0x8102 }
 };
 
-const struct reg_sequence msm8976_cfg_link_sid[] = {
+static const struct reg_sequence msm8976_cfg_link_sid[] = {
 	{ 0x40, 0xfc987 }
 };
 
-const struct reg_sequence msm8976_cfg_lmh_sid[] = {
+static const struct reg_sequence msm8976_cfg_lmh_sid[] = {
 	{ 0x30, 0x77706db },
 	{ 0x34, 0x5550249 },
 	{ 0x38, 0x111 }
 };
 
-const struct reg_sequence msm8976_cfg_ramp_en[] = {
+static const struct reg_sequence msm8976_cfg_ramp_en[] = {
 	{ 0x50, 0x800 }, /* pre_en */
 	{ 0x50, 0xc00 }, /* en */
 	{ 0x50, 0x400 }  /* post_en */
 };
 
-const struct reg_sequence msm8976_cfg_ramp_dis[] = {
+static const struct reg_sequence msm8976_cfg_ramp_dis[] = {
 	{ 0x50, 0x0 }
 };
 
