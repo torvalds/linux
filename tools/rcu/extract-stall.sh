@@ -1,11 +1,25 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0+
-#
-# Extract any RCU CPU stall warnings present in specified file.
-# Filter out clocksource lines.  Note that preceding-lines excludes the
-# initial line of the stall warning but trailing-lines includes it.
-#
-# Usage: extract-stall.sh dmesg-file [ preceding-lines [ trailing-lines ] ]
+
+usage() {
+	echo Extract any RCU CPU stall warnings present in specified file.
+	echo Filter out clocksource lines.  Note that preceding-lines excludes the
+	echo initial line of the stall warning but trailing-lines includes it.
+	echo
+	echo Usage: $(basename $0) dmesg-file [ preceding-lines [ trailing-lines ] ]
+	echo
+	echo Error: $1
+}
+
+# Terminate the script, if the argument is missing
+
+if test -f "$1" && test -r "$1"
+then
+	:
+else
+	usage "Console log file \"$1\" missing or unreadable."
+	exit 1
+fi
 
 echo $1
 preceding_lines="${2-3}"
