@@ -8,14 +8,14 @@
  * by Alessandro Zummo <a.zummo@towertech.it>.
  */
 
-#include <linux/i2c.h>
 #include <linux/bcd.h>
+#include <linux/err.h>
+#include <linux/hwmon.h>
+#include <linux/i2c.h>
+#include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/err.h>
-#include <linux/regmap.h>
-#include <linux/hwmon.h>
 
 #include <asm/byteorder.h>
 
