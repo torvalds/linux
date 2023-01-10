@@ -13071,7 +13071,6 @@ F:	include/media/
 F:	include/uapi/linux/dvb/
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/media.h
-F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/uvcvideo.h
 F:	include/uapi/linux/v4l2-*
 F:	include/uapi/linux/videodev2.h
@@ -14149,13 +14148,6 @@ F:	drivers/regulator/mp5416.c
 F:	drivers/regulator/mpq7920.c
 F:	drivers/regulator/mpq7920.h
 F:	include/linux/mfd/mp2629.h
-
-MOTION EYE VAIO PICTUREBOOK CAMERA DRIVER
-S:	Orphan
-W:	http://popies.net/meye/
-F:	Documentation/userspace-api/media/drivers/meye*
-F:	drivers/staging/media/deprecated/meye/
-F:	include/uapi/linux/meye.h
 
 MOTORCOMM PHY DRIVER
 M:	Peter Geis <pgwipeout@gmail.com>
