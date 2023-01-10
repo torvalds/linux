@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/qcom,sc8280xp-qmp-usb43dp-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm QMP USB4-USB3-DP PHY controller (SC8280XP)
+
+maintainers:
+  - Vinod Koul <vkoul@kernel.org>
+
+description:
+  The QMP PHY controller supports physical layer functionality for a number of
+  controllers on Qualcomm chipsets, such as, PCIe, UFS and USB.
+
+properties:
+  compatible:
+    enum:
+      - qcom,sc8280xp-qmp-usb43dp-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: aux
+      - const: ref
+      - const: com_aux
+      - const: usb3_pipe
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: phy
+      - const: common
+
+  vdda-phy-supply: true
+
+  vdda-pll-supply: true
+
+  "#clock-cells":
+    const: 1
+    description:
+      See include/dt-bindings/dt-bindings/phy/phy-qcom-qmp.h
+
+  "#phy-cells":
+    const: 1
+    description:
+      See include/dt-bindings/dt-bindings/phy/phy-qcom-qmp.h
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - power-domains
+  - resets
+  - reset-names
+  - vdda-phy-supply
+  - vdda-pll-supply
+  - "#clock-cells"
+  - "#phy-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-sc8280xp.h>
+
+    phy@88eb000 {
+      compatible = "qcom,sc8280xp-qmp-usb43dp-phy";
+      reg = <0x088eb000 0x4000>;
+
+      clocks = <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
+               <&gcc GCC_USB4_EUD_CLKREF_CLK>,
+               <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>,
+               <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
+      clock-names = "aux", "ref", "com_aux", "usb3_pipe";
+
+      power-domains = <&gcc USB30_PRIM_GDSC>;
+
+      resets = <&gcc GCC_USB3_PHY_PRIM_BCR>,
+               <&gcc GCC_USB4_DP_PHY_PRIM_BCR>;
+      reset-names = "phy", "common";
+
+      vdda-phy-supply = <&vreg_l9d>;
+      vdda-pll-supply = <&vreg_l4d>;
+
+      #clock-cells = <1>;
+      #phy-cells = <1>;
+    };

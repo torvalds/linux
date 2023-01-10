@@ -26,6 +26,25 @@ struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
 			     .hide = ALL_PERMS_MASK };
 
 /**
+ * aa_free_str_table - free entries str table
+ * @str: the string table to free  (MAYBE NULL)
+ */
+void aa_free_str_table(struct aa_str_table *t)
+{
+	int i;
+
+	if (t) {
+		if (!t->table)
+			return;
+
+		for (i = 0; i < t->size; i++)
+			kfree_sensitive(t->table[i]);
+		kfree_sensitive(t->table);
+		t->table = NULL;
+	}
+}
+
+/**
  * aa_split_fqname - split a fqname into a profile and namespace name
  * @fqname: a full qualified name in namespace profile format (NOT NULL)
  * @ns_name: pointer to portion of the string containing the ns name (NOT NULL)
@@ -124,7 +143,7 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 void aa_info_message(const char *str)
 {
 	if (audit_enabled) {
-		DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, NULL);
+		DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
 
 		aad(&sa)->info = str;
 		aa_audit_msg(AUDIT_APPARMOR_STATUS, &sa, NULL);
@@ -308,103 +327,22 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 		perms->kill = ALL_PERMS_MASK;
 	else if (COMPLAIN_MODE(profile))
 		perms->complain = ALL_PERMS_MASK;
-/*
- *  TODO:
- *	else if (PROMPT_MODE(profile))
- *		perms->prompt = ALL_PERMS_MASK;
- */
+	else if (USER_MODE(profile))
+		perms->prompt = ALL_PERMS_MASK;
 }
 
-static u32 map_other(u32 x)
-{
-	return ((x & 0x3) << 8) |	/* SETATTR/GETATTR */
-		((x & 0x1c) << 18) |	/* ACCEPT/BIND/LISTEN */
-		((x & 0x60) << 19);	/* SETOPT/GETOPT */
-}
-
-static u32 map_xbits(u32 x)
-{
-	return ((x & 0x1) << 7) |
-		((x & 0x7e) << 9);
-}
-
-void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
-		      struct aa_perms *perms)
-{
-	/* This mapping is convulated due to history.
-	 * v1-v4: only file perms
-	 * v5: added policydb which dropped in perm user conditional to
-	 *     gain new perm bits, but had to map around the xbits because
-	 *     the userspace compiler was still munging them.
-	 * v9: adds using the xbits in policydb because the compiler now
-	 *     supports treating policydb permission bits different.
-	 *     Unfortunately there is not way to force auditing on the
-	 *     perms represented by the xbits
-	 */
-	*perms = (struct aa_perms) {
-		.allow = dfa_user_allow(dfa, state) |
-			 map_xbits(dfa_user_xbits(dfa, state)),
-		.audit = dfa_user_audit(dfa, state),
-		.quiet = dfa_user_quiet(dfa, state) |
-			 map_xbits(dfa_other_xbits(dfa, state)),
-	};
-
-	/* for v5-v9 perm mapping in the policydb, the other set is used
-	 * to extend the general perm set
-	 */
-	perms->allow |= map_other(dfa_other_allow(dfa, state));
-	perms->audit |= map_other(dfa_other_audit(dfa, state));
-	perms->quiet |= map_other(dfa_other_quiet(dfa, state));
-}
-
-/**
- * aa_perms_accum_raw - accumulate perms with out masking off overlapping perms
- * @accum - perms struct to accumulate into
- * @addend - perms struct to add to @accum
- */
-void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend)
-{
-	accum->deny |= addend->deny;
-	accum->allow &= addend->allow & ~addend->deny;
-	accum->audit |= addend->audit & addend->allow;
-	accum->quiet &= addend->quiet & ~addend->allow;
-	accum->kill |= addend->kill & ~addend->allow;
-	accum->stop |= addend->stop & ~addend->allow;
-	accum->complain |= addend->complain & ~addend->allow & ~addend->deny;
-	accum->cond |= addend->cond & ~addend->allow & ~addend->deny;
-	accum->hide &= addend->hide & ~addend->allow;
-	accum->prompt |= addend->prompt & ~addend->allow & ~addend->deny;
-}
-
-/**
- * aa_perms_accum - accumulate perms, masking off overlapping perms
- * @accum - perms struct to accumulate into
- * @addend - perms struct to add to @accum
- */
-void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend)
-{
-	accum->deny |= addend->deny;
-	accum->allow &= addend->allow & ~accum->deny;
-	accum->audit |= addend->audit & accum->allow;
-	accum->quiet &= addend->quiet & ~accum->allow;
-	accum->kill |= addend->kill & ~accum->allow;
-	accum->stop |= addend->stop & ~accum->allow;
-	accum->complain |= addend->complain & ~accum->allow & ~accum->deny;
-	accum->cond |= addend->cond & ~accum->allow & ~accum->deny;
-	accum->hide &= addend->hide & ~accum->allow;
-	accum->prompt |= addend->prompt & ~accum->allow & ~accum->deny;
-}
-
-void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
+void aa_profile_match_label(struct aa_profile *profile,
+			    struct aa_ruleset *rules,
+			    struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms)
 {
 	/* TODO: doesn't yet handle extended types */
-	unsigned int state;
+	aa_state_t state;
 
-	state = aa_dfa_next(profile->policy.dfa,
-			    profile->policy.start[AA_CLASS_LABEL],
+	state = aa_dfa_next(rules->policy.dfa,
+			    rules->policy.start[AA_CLASS_LABEL],
 			    type);
-	aa_label_match(profile, label, state, false, request, perms);
+	aa_label_match(profile, rules, label, state, false, request, perms);
 }
 
 
@@ -413,13 +351,16 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 			  u32 request, int type, u32 *deny,
 			  struct common_audit_data *sa)
 {
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms;
 
 	aad(sa)->label = &profile->label;
 	aad(sa)->peer = &target->label;
 	aad(sa)->request = request;
 
-	aa_profile_match_label(profile, &target->label, type, request, &perms);
+	aa_profile_match_label(profile, rules, &target->label, type, request,
+			       &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	*deny |= request & perms.deny;
 	return aa_check_perms(profile, &perms, request, sa, aa_audit_perms_cb);

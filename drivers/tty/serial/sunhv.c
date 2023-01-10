@@ -47,8 +47,7 @@ static void transmit_chars_putchar(struct uart_port *port, struct circ_buf *xmit
 		if (status != HV_EOK)
 			break;
 
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 	}
 }
 
@@ -63,8 +62,7 @@ static void transmit_chars_write(struct uart_port *port, struct circ_buf *xmit)
 		status = sun4v_con_write(ra, len, &sent);
 		if (status != HV_EOK)
 			break;
-		xmit->tail = (xmit->tail + sent) & (UART_XMIT_SIZE - 1);
-		port->icount.tx += sent;
+		uart_xmit_advance(port, sent);
 	}
 }
 

@@ -36,14 +36,14 @@ enum iwl_tlc_mng_cfg_flags {
  * @IWL_TLC_MNG_CH_WIDTH_40MHZ: 40MHZ channel
  * @IWL_TLC_MNG_CH_WIDTH_80MHZ: 80MHZ channel
  * @IWL_TLC_MNG_CH_WIDTH_160MHZ: 160MHZ channel
- * @IWL_TLC_MNG_CH_WIDTH_LAST: maximum value
+ * @IWL_TLC_MNG_CH_WIDTH_320MHZ: 320MHZ channel
  */
 enum iwl_tlc_mng_cfg_cw {
 	IWL_TLC_MNG_CH_WIDTH_20MHZ,
 	IWL_TLC_MNG_CH_WIDTH_40MHZ,
 	IWL_TLC_MNG_CH_WIDTH_80MHZ,
 	IWL_TLC_MNG_CH_WIDTH_160MHZ,
-	IWL_TLC_MNG_CH_WIDTH_LAST = IWL_TLC_MNG_CH_WIDTH_160MHZ,
+	IWL_TLC_MNG_CH_WIDTH_320MHZ,
 };
 
 /**
@@ -64,8 +64,7 @@ enum iwl_tlc_mng_cfg_chains {
  * @IWL_TLC_MNG_MODE_HT: enable HT
  * @IWL_TLC_MNG_MODE_VHT: enable VHT
  * @IWL_TLC_MNG_MODE_HE: enable HE
- * @IWL_TLC_MNG_MODE_INVALID: invalid value
- * @IWL_TLC_MNG_MODE_NUM: a count of possible modes
+ * @IWL_TLC_MNG_MODE_EHT: enable EHT
  */
 enum iwl_tlc_mng_cfg_mode {
 	IWL_TLC_MNG_MODE_CCK = 0,
@@ -74,8 +73,7 @@ enum iwl_tlc_mng_cfg_mode {
 	IWL_TLC_MNG_MODE_HT,
 	IWL_TLC_MNG_MODE_VHT,
 	IWL_TLC_MNG_MODE_HE,
-	IWL_TLC_MNG_MODE_INVALID,
-	IWL_TLC_MNG_MODE_NUM = IWL_TLC_MNG_MODE_INVALID,
+	IWL_TLC_MNG_MODE_EHT,
 };
 
 /**

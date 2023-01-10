@@ -100,26 +100,27 @@ void adv7533_dsi_power_off(struct adv7511 *adv)
 	regmap_write(adv->regmap_cec, 0x27, 0x0b);
 }
 
-void adv7533_mode_set(struct adv7511 *adv, const struct drm_display_mode *mode)
+enum drm_mode_status adv7533_mode_valid(struct adv7511 *adv,
+					const struct drm_display_mode *mode)
 {
+	int lanes;
 	struct mipi_dsi_device *dsi = adv->dsi;
-	int lanes, ret;
-
-	if (adv->num_dsi_lanes != 4)
-		return;
 
 	if (mode->clock > 80000)
 		lanes = 4;
 	else
 		lanes = 3;
 
-	if (lanes != dsi->lanes) {
-		mipi_dsi_detach(dsi);
-		dsi->lanes = lanes;
-		ret = mipi_dsi_attach(dsi);
-		if (ret)
-			dev_err(&dsi->dev, "failed to change host lanes\n");
-	}
+	/*
+	 * TODO: add support for dynamic switching of lanes
+	 * by using the bridge pre_enable() op . Till then filter
+	 * out the modes which shall need different number of lanes
+	 * than what was configured in the device tree.
+	 */
+	if (lanes != dsi->lanes)
+		return MODE_BAD;
+
+	return MODE_OK;
 }
 
 int adv7533_patch_registers(struct adv7511 *adv)
@@ -148,16 +149,14 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 						 };
 
 	host = of_find_mipi_dsi_host_by_node(adv->host_node);
-	if (!host) {
-		dev_err(dev, "failed to find dsi host\n");
-		return -EPROBE_DEFER;
-	}
+	if (!host)
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "failed to find dsi host\n");
 
 	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
-	if (IS_ERR(dsi)) {
-		dev_err(dev, "failed to create dsi device\n");
-		return PTR_ERR(dsi);
-	}
+	if (IS_ERR(dsi))
+		return dev_err_probe(dev, PTR_ERR(dsi),
+				     "failed to create dsi device\n");
 
 	adv->dsi = dsi;
 
@@ -167,10 +166,8 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 			  MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
-	if (ret < 0) {
-		dev_err(dev, "failed to attach dsi to host\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to attach dsi to host\n");
 
 	return 0;
 }

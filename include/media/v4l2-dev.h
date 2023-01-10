@@ -539,4 +539,106 @@ static inline int video_is_registered(struct video_device *vdev)
 	return test_bit(V4L2_FL_REGISTERED, &vdev->flags);
 }
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+
+/**
+ * video_device_pipeline_start - Mark a pipeline as streaming
+ * @vdev: Starting video device
+ * @pipe: Media pipeline to be assigned to all entities in the pipeline.
+ *
+ * Mark all entities connected to a given video device through enabled links,
+ * either directly or indirectly, as streaming. The given pipeline object is
+ * assigned to every pad in the pipeline and stored in the media_pad pipe
+ * field.
+ *
+ * Calls to this function can be nested, in which case the same number of
+ * video_device_pipeline_stop() calls will be required to stop streaming. The
+ * pipeline pointer must be identical for all nested calls to
+ * video_device_pipeline_start().
+ *
+ * The video device must contain a single pad.
+ *
+ * This is a convenience wrapper around media_pipeline_start().
+ */
+__must_check int video_device_pipeline_start(struct video_device *vdev,
+					     struct media_pipeline *pipe);
+
+/**
+ * __video_device_pipeline_start - Mark a pipeline as streaming
+ * @vdev: Starting video device
+ * @pipe: Media pipeline to be assigned to all entities in the pipeline.
+ *
+ * ..note:: This is the non-locking version of video_device_pipeline_start()
+ *
+ * The video device must contain a single pad.
+ *
+ * This is a convenience wrapper around __media_pipeline_start().
+ */
+__must_check int __video_device_pipeline_start(struct video_device *vdev,
+					       struct media_pipeline *pipe);
+
+/**
+ * video_device_pipeline_stop - Mark a pipeline as not streaming
+ * @vdev: Starting video device
+ *
+ * Mark all entities connected to a given video device through enabled links,
+ * either directly or indirectly, as not streaming. The media_pad pipe field
+ * is reset to %NULL.
+ *
+ * If multiple calls to media_pipeline_start() have been made, the same
+ * number of calls to this function are required to mark the pipeline as not
+ * streaming.
+ *
+ * The video device must contain a single pad.
+ *
+ * This is a convenience wrapper around media_pipeline_stop().
+ */
+void video_device_pipeline_stop(struct video_device *vdev);
+
+/**
+ * __video_device_pipeline_stop - Mark a pipeline as not streaming
+ * @vdev: Starting video device
+ *
+ * .. note:: This is the non-locking version of media_pipeline_stop()
+ *
+ * The video device must contain a single pad.
+ *
+ * This is a convenience wrapper around __media_pipeline_stop().
+ */
+void __video_device_pipeline_stop(struct video_device *vdev);
+
+/**
+ * video_device_pipeline_alloc_start - Mark a pipeline as streaming
+ * @vdev: Starting video device
+ *
+ * video_device_pipeline_alloc_start() is similar to video_device_pipeline_start()
+ * but instead of working on a given pipeline the function will use an
+ * existing pipeline if the video device is already part of a pipeline, or
+ * allocate a new pipeline.
+ *
+ * Calls to video_device_pipeline_alloc_start() must be matched with
+ * video_device_pipeline_stop().
+ */
+__must_check int video_device_pipeline_alloc_start(struct video_device *vdev);
+
+/**
+ * video_device_pipeline - Get the media pipeline a video device is part of
+ * @vdev: The video device
+ *
+ * This function returns the media pipeline that a video device has been
+ * associated with when constructing the pipeline with
+ * video_device_pipeline_start(). The pointer remains valid until
+ * video_device_pipeline_stop() is called.
+ *
+ * Return: The media_pipeline the video device is part of, or NULL if the video
+ * device is not part of any pipeline.
+ *
+ * The video device must contain a single pad.
+ *
+ * This is a convenience wrapper around media_entity_pipeline().
+ */
+struct media_pipeline *video_device_pipeline(struct video_device *vdev);
+
+#endif /* CONFIG_MEDIA_CONTROLLER */
+
 #endif /* _V4L2_DEV_H */

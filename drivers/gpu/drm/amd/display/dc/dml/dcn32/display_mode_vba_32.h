@@ -46,8 +46,13 @@
 // Prefetch schedule max vratio
 #define __DML_MAX_VRATIO_PRE__ 4.0
 
+#define __DML_VBA_MAX_DST_Y_PRE__    63.75
+
 #define BPP_INVALID 0
 #define BPP_BLENDED_PIPE 0xffffffff
+
+#define MEM_STROBE_FREQ_MHZ 1600
+#define MEM_STROBE_MAX_DELIVERY_TIME_US 60.0
 
 struct display_mode_lib;
 

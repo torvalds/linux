@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/mc-peripheral-props.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Peripheral-specific properties for a Memory Controller bus.
+
+description:
+  Many Memory Controllers need to add properties to peripheral devices.
+  They could be common properties like reg or they could be controller
+  specific like delay in clock or data lines, etc. These properties need
+  to be defined in the peripheral node because they are per-peripheral
+  and there can be multiple peripherals attached to a controller. All
+  those properties are listed here. The controller specific properties
+  should go in their own separate schema that should be referenced
+  from here.
+
+maintainers:
+  - Marek Vasut <marex@denx.de>
+
+properties:
+  reg:
+    description: Bank number, base address and size of the device.
+
+  bank-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Bank width of the device, in bytes.
+    enum: [1, 2, 4]
+
+required:
+  - reg
+
+# The controller specific properties go here.
+allOf:
+  - $ref: st,stm32-fmc2-ebi-props.yaml#
+
+additionalProperties: true

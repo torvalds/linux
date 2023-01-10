@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/cirrus,cs2000-cp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding CIRRUS LOGIC Fractional-N Clock Synthesizer & Clock Multiplier
+title: CIRRUS LOGIC Fractional-N Clock Synthesizer & Clock Multiplier
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>

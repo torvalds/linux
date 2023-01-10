@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/string_helpers.h>
+#include <linux/stddef.h>
 
 #include <sound/soc.h>
 #include <sound/sof/header.h>
@@ -28,233 +29,6 @@
 static bool __read_mostly sof_probes_enabled;
 module_param_named(enable, sof_probes_enabled, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable SOF probes support");
-
-struct sof_probes_priv {
-	struct dentry *dfs_points;
-	struct dentry *dfs_points_remove;
-	u32 extractor_stream_tag;
-	struct snd_soc_card card;
-
-	const struct sof_probes_host_ops *host_ops;
-};
-
-struct sof_probe_point_desc {
-	unsigned int buffer_id;
-	unsigned int purpose;
-	unsigned int stream_tag;
-} __packed;
-
-struct sof_probe_dma {
-	unsigned int stream_tag;
-	unsigned int dma_buffer_size;
-} __packed;
-
-struct sof_ipc_probe_dma_add_params {
-	struct sof_ipc_cmd_hdr hdr;
-	unsigned int num_elems;
-	struct sof_probe_dma dma[];
-} __packed;
-
-struct sof_ipc_probe_info_params {
-	struct sof_ipc_reply rhdr;
-	unsigned int num_elems;
-	union {
-		struct sof_probe_dma dma[0];
-		struct sof_probe_point_desc desc[0];
-	};
-} __packed;
-
-struct sof_ipc_probe_point_add_params {
-	struct sof_ipc_cmd_hdr hdr;
-	unsigned int num_elems;
-	struct sof_probe_point_desc desc[];
-} __packed;
-
-struct sof_ipc_probe_point_remove_params {
-	struct sof_ipc_cmd_hdr hdr;
-	unsigned int num_elems;
-	unsigned int buffer_id[];
-} __packed;
-
-/**
- * sof_probes_init - initialize data probing
- * @cdev:		SOF client device
- * @stream_tag:		Extractor stream tag
- * @buffer_size:	DMA buffer size to set for extractor
- *
- * Host chooses whether extraction is supported or not by providing
- * valid stream tag to DSP. Once specified, stream described by that
- * tag will be tied to DSP for extraction for the entire lifetime of
- * probe.
- *
- * Probing is initialized only once and each INIT request must be
- * matched by DEINIT call.
- */
-static int sof_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
-			   size_t buffer_size)
-{
-	struct sof_ipc_probe_dma_add_params *msg;
-	size_t size = struct_size(msg, dma, 1);
-	struct sof_ipc_reply reply;
-	int ret;
-
-	msg = kmalloc(size, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-	msg->hdr.size = size;
-	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_INIT;
-	msg->num_elems = 1;
-	msg->dma[0].stream_tag = stream_tag;
-	msg->dma[0].dma_buffer_size = buffer_size;
-
-	ret = sof_client_ipc_tx_message(cdev, msg, &reply, sizeof(reply));
-	kfree(msg);
-	return ret;
-}
-
-/**
- * sof_probes_deinit - cleanup after data probing
- * @cdev:		SOF client device
- *
- * Host sends DEINIT request to free previously initialized probe
- * on DSP side once it is no longer needed. DEINIT only when there
- * are no probes connected and with all injectors detached.
- */
-static int sof_probes_deinit(struct sof_client_dev *cdev)
-{
-	struct sof_ipc_cmd_hdr msg;
-	struct sof_ipc_reply reply;
-
-	msg.size = sizeof(msg);
-	msg.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_DEINIT;
-
-	return sof_client_ipc_tx_message(cdev, &msg, &reply, sizeof(reply));
-}
-
-static int sof_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
-			   void **params, size_t *num_params)
-{
-	size_t max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
-	struct sof_ipc_probe_info_params msg = {{{0}}};
-	struct sof_ipc_probe_info_params *reply;
-	size_t bytes;
-	int ret;
-
-	*params = NULL;
-	*num_params = 0;
-
-	reply = kzalloc(max_msg_size, GFP_KERNEL);
-	if (!reply)
-		return -ENOMEM;
-	msg.rhdr.hdr.size = sizeof(msg);
-	msg.rhdr.hdr.cmd = SOF_IPC_GLB_PROBE | cmd;
-
-	ret = sof_client_ipc_tx_message(cdev, &msg, reply, max_msg_size);
-	if (ret < 0 || reply->rhdr.error < 0)
-		goto exit;
-
-	if (!reply->num_elems)
-		goto exit;
-
-	if (cmd == SOF_IPC_PROBE_DMA_INFO)
-		bytes = sizeof(reply->dma[0]);
-	else
-		bytes = sizeof(reply->desc[0]);
-	bytes *= reply->num_elems;
-	*params = kmemdup(&reply->dma[0], bytes, GFP_KERNEL);
-	if (!*params) {
-		ret = -ENOMEM;
-		goto exit;
-	}
-	*num_params = reply->num_elems;
-
-exit:
-	kfree(reply);
-	return ret;
-}
-
-/**
- * sof_probes_points_info - retrieve list of active probe points
- * @cdev:		SOF client device
- * @desc:	Returned list of active probes
- * @num_desc:	Returned count of active probes
- *
- * Host sends PROBE_POINT_INFO request to obtain list of active probe
- * points, valid for disconnection when given probe is no longer
- * required.
- */
-static int sof_probes_points_info(struct sof_client_dev *cdev,
-				  struct sof_probe_point_desc **desc,
-				  size_t *num_desc)
-{
-	return sof_probes_info(cdev, SOF_IPC_PROBE_POINT_INFO,
-			       (void **)desc, num_desc);
-}
-
-/**
- * sof_probes_points_add - connect specified probes
- * @cdev:		SOF client device
- * @desc:	List of probe points to connect
- * @num_desc:	Number of elements in @desc
- *
- * Dynamically connects to provided set of endpoints. Immediately
- * after connection is established, host must be prepared to
- * transfer data from or to target stream given the probing purpose.
- *
- * Each probe point should be removed using PROBE_POINT_REMOVE
- * request when no longer needed.
- */
-static int sof_probes_points_add(struct sof_client_dev *cdev,
-				 struct sof_probe_point_desc *desc,
-				 size_t num_desc)
-{
-	struct sof_ipc_probe_point_add_params *msg;
-	size_t size = struct_size(msg, desc, num_desc);
-	struct sof_ipc_reply reply;
-	int ret;
-
-	msg = kmalloc(size, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-	msg->hdr.size = size;
-	msg->num_elems = num_desc;
-	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_POINT_ADD;
-	memcpy(&msg->desc[0], desc, size - sizeof(*msg));
-
-	ret = sof_client_ipc_tx_message(cdev, msg, &reply, sizeof(reply));
-	kfree(msg);
-	return ret;
-}
-
-/**
- * sof_probes_points_remove - disconnect specified probes
- * @cdev:		SOF client device
- * @buffer_id:		List of probe points to disconnect
- * @num_buffer_id:	Number of elements in @desc
- *
- * Removes previously connected probes from list of active probe
- * points and frees all resources on DSP side.
- */
-static int sof_probes_points_remove(struct sof_client_dev *cdev,
-				    unsigned int *buffer_id, size_t num_buffer_id)
-{
-	struct sof_ipc_probe_point_remove_params *msg;
-	size_t size = struct_size(msg, buffer_id, num_buffer_id);
-	struct sof_ipc_reply reply;
-	int ret;
-
-	msg = kmalloc(size, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-	msg->hdr.size = size;
-	msg->num_elems = num_buffer_id;
-	msg->hdr.cmd = SOF_IPC_GLB_PROBE | SOF_IPC_PROBE_POINT_REMOVE;
-	memcpy(&msg->buffer_id[0], buffer_id, size - sizeof(*msg));
-
-	ret = sof_client_ipc_tx_message(cdev, msg, &reply, sizeof(reply));
-	kfree(msg);
-	return ret;
-}
 
 static int sof_probes_compr_startup(struct snd_compr_stream *cstream,
 				    struct snd_soc_dai *dai)
@@ -289,23 +63,24 @@ static int sof_probes_compr_shutdown(struct snd_compr_stream *cstream,
 	struct sof_client_dev *cdev = snd_soc_card_get_drvdata(card);
 	struct sof_probes_priv *priv = cdev->data;
 	const struct sof_probes_host_ops *ops = priv->host_ops;
+	const struct sof_probes_ipc_ops *ipc = priv->ipc_ops;
 	struct sof_probe_point_desc *desc;
 	size_t num_desc;
 	int i, ret;
 
 	/* disconnect all probe points */
-	ret = sof_probes_points_info(cdev, &desc, &num_desc);
+	ret = ipc->points_info(cdev, &desc, &num_desc);
 	if (ret < 0) {
 		dev_err(dai->dev, "Failed to get probe points: %d\n", ret);
 		goto exit;
 	}
 
 	for (i = 0; i < num_desc; i++)
-		sof_probes_points_remove(cdev, &desc[i].buffer_id, 1);
+		ipc->points_remove(cdev, &desc[i].buffer_id, 1);
 	kfree(desc);
 
 exit:
-	ret = sof_probes_deinit(cdev);
+	ret = ipc->deinit(cdev);
 	if (ret < 0)
 		dev_err(dai->dev, "Failed to deinit probe: %d\n", ret);
 
@@ -328,6 +103,7 @@ static int sof_probes_compr_set_params(struct snd_compr_stream *cstream,
 	struct snd_compr_runtime *rtd = cstream->runtime;
 	struct sof_probes_priv *priv = cdev->data;
 	const struct sof_probes_host_ops *ops = priv->host_ops;
+	const struct sof_probes_ipc_ops *ipc = priv->ipc_ops;
 	int ret;
 
 	cstream->dma_buffer.dev.type = SNDRV_DMA_TYPE_DEV_SG;
@@ -340,7 +116,7 @@ static int sof_probes_compr_set_params(struct snd_compr_stream *cstream,
 	if (ret)
 		return ret;
 
-	ret = sof_probes_init(cdev, priv->extractor_stream_tag, rtd->dma_bytes);
+	ret = ipc->init(cdev, priv->extractor_stream_tag, rtd->dma_bytes);
 	if (ret < 0) {
 		dev_err(dai->dev, "Failed to init probe: %d\n", ret);
 		return ret;
@@ -419,6 +195,7 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 	struct sof_probes_priv *priv = cdev->data;
 	struct device *dev = &cdev->auxdev.dev;
 	struct sof_probe_point_desc *desc;
+	const struct sof_probes_ipc_ops *ipc = priv->ipc_ops;
 	int remaining, offset;
 	size_t num_desc;
 	char *buf;
@@ -439,7 +216,7 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 		goto exit;
 	}
 
-	ret = sof_probes_points_info(cdev, &desc, &num_desc);
+	ret = ipc->points_info(cdev, &desc, &num_desc);
 	if (ret < 0)
 		goto exit;
 
@@ -475,6 +252,7 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_probes_priv *priv = cdev->data;
+	const struct sof_probes_ipc_ops *ipc = priv->ipc_ops;
 	struct device *dev = &cdev->auxdev.dev;
 	struct sof_probe_point_desc *desc;
 	u32 num_elems, *array;
@@ -505,7 +283,7 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 		goto exit;
 	}
 
-	ret = sof_probes_points_add(cdev, desc, bytes / sizeof(*desc));
+	ret = ipc->points_add(cdev, desc, bytes / sizeof(*desc));
 	if (!ret)
 		ret = count;
 
@@ -533,6 +311,7 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_probes_priv *priv = cdev->data;
+	const struct sof_probes_ipc_ops *ipc = priv->ipc_ops;
 	struct device *dev = &cdev->auxdev.dev;
 	int ret, err;
 	u32 *array;
@@ -552,7 +331,7 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 		goto exit;
 	}
 
-	ret = sof_probes_points_remove(cdev, &array[1], array[0]);
+	ret = ipc->points_remove(cdev, &array[1], array[0]);
 	if (!ret)
 		ret = count;
 
@@ -620,12 +399,14 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	if (!sof_probes_enabled)
 		return -ENXIO;
 
-	/* only ipc3 is supported */
-	if (sof_client_get_ipc_type(cdev) != SOF_IPC)
-		return -ENXIO;
-
-	if (!dev->platform_data) {
+	ops = dev_get_platdata(dev);
+	if (!ops) {
 		dev_err(dev, "missing platform data\n");
+		return -ENODEV;
+	}
+	if (!ops->startup || !ops->shutdown || !ops->set_params || !ops->trigger ||
+	    !ops->pointer) {
+		dev_err(dev, "missing platform callback(s)\n");
 		return -ENODEV;
 	}
 
@@ -633,15 +414,24 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	if (!priv)
 		return -ENOMEM;
 
-	ops = dev->platform_data;
+	priv->host_ops = ops;
 
-	if (!ops->startup || !ops->shutdown || !ops->set_params || !ops->trigger ||
-	    !ops->pointer) {
-		dev_err(dev, "missing platform callback(s)\n");
+	switch (sof_client_get_ipc_type(cdev)) {
+#ifdef CONFIG_SND_SOC_SOF_INTEL_IPC4
+	case SOF_INTEL_IPC4:
+		priv->ipc_ops = &ipc4_probe_ops;
+		break;
+#endif
+#ifdef CONFIG_SND_SOC_SOF_IPC3
+	case SOF_IPC:
+		priv->ipc_ops = &ipc3_probe_ops;
+		break;
+#endif
+	default:
+		dev_err(dev, "Matching IPC ops not found.");
 		return -ENODEV;
 	}
 
-	priv->host_ops = ops;
 	cdev->data = priv;
 
 	/* register probes component driver and dai */

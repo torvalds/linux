@@ -73,7 +73,8 @@ static int nft_masq_init(const struct nft_ctx *ctx,
 	return nf_ct_netns_get(ctx->net, ctx->family);
 }
 
-static int nft_masq_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_masq_dump(struct sk_buff *skb,
+			 const struct nft_expr *expr, bool reset)
 {
 	const struct nft_masq *priv = nft_expr_priv(expr);
 

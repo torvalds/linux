@@ -50,34 +50,18 @@ void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx)
 
 struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 			    struct gve_rx_slot_page_info *page_info, u16 len,
-			    u16 padding, struct gve_rx_ctx *ctx)
+			    u16 padding)
 {
 	void *va = page_info->page_address + padding + page_info->page_offset;
-	int skb_linear_offset = 0;
-	bool set_protocol = false;
 	struct sk_buff *skb;
 
-	if (ctx) {
-		if (!ctx->skb_head)
-			ctx->skb_head = napi_alloc_skb(napi, ctx->total_expected_size);
+	skb = napi_alloc_skb(napi, len);
+	if (unlikely(!skb))
+		return NULL;
 
-		if (unlikely(!ctx->skb_head))
-			return NULL;
-		skb = ctx->skb_head;
-		skb_linear_offset = skb->len;
-		set_protocol = ctx->curr_frag_cnt == ctx->expected_frag_cnt - 1;
-	} else {
-		skb = napi_alloc_skb(napi, len);
-
-		if (unlikely(!skb))
-			return NULL;
-		set_protocol = true;
-	}
 	__skb_put(skb, len);
-	skb_copy_to_linear_data_offset(skb, skb_linear_offset, va, len);
-
-	if (set_protocol)
-		skb->protocol = eth_type_trans(skb, dev);
+	skb_copy_to_linear_data_offset(skb, 0, va, len);
+	skb->protocol = eth_type_trans(skb, dev);
 
 	return skb;
 }

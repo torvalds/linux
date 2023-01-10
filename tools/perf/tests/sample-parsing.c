@@ -13,7 +13,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "util/synthetic-events.h"
-#include "util/trace-event.h"
+#include "util/util.h"
 
 #include "tests.h"
 
@@ -117,7 +117,7 @@ static bool samples_same(const struct perf_sample *s1,
 		COMP(branch_stack->hw_idx);
 		for (i = 0; i < s1->branch_stack->nr; i++) {
 			if (needs_swap)
-				return ((tep_is_bigendian()) ?
+				return ((host_is_bigendian()) ?
 					(FLAG(s2).value == BS_EXPECTED_BE) :
 					(FLAG(s2).value == BS_EXPECTED_LE));
 			else

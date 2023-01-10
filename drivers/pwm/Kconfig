@@ -282,8 +282,8 @@ config PWM_IQS620A
 
 config PWM_JZ4740
 	tristate "Ingenic JZ47xx PWM support"
-	depends on MIPS || COMPILE_TEST
-	depends on COMMON_CLK
+	depends on MACH_INGENIC || COMPILE_TEST
+	depends on COMMON_CLK && OF
 	select MFD_SYSCON
 	help
 	  Generic PWM framework driver for Ingenic JZ47xx based
@@ -434,7 +434,7 @@ config PWM_PCA9685
 
 config PWM_PXA
 	tristate "PXA PWM support"
-	depends on ARCH_PXA || COMPILE_TEST
+	depends on ARCH_PXA || ARCH_MMP || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for PXA.

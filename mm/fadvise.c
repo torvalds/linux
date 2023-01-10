@@ -72,7 +72,7 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 	 */
 	endbyte = (u64)offset + (u64)len;
 	if (!len || endbyte < len)
-		endbyte = -1;
+		endbyte = LLONG_MAX;
 	else
 		endbyte--;		/* inclusive */
 

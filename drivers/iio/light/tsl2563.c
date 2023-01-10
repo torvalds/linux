@@ -699,8 +699,7 @@ static const struct iio_info tsl2563_info = {
 	.write_event_config = &tsl2563_write_interrupt_config,
 };
 
-static int tsl2563_probe(struct i2c_client *client,
-				const struct i2c_device_id *device_id)
+static int tsl2563_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct tsl2563_chip *chip;
@@ -880,7 +879,7 @@ static struct i2c_driver tsl2563_i2c_driver = {
 		.of_match_table = tsl2563_of_match,
 		.pm	= pm_sleep_ptr(&tsl2563_pm_ops),
 	},
-	.probe		= tsl2563_probe,
+	.probe_new	= tsl2563_probe,
 	.remove		= tsl2563_remove,
 	.id_table	= tsl2563_id,
 };

@@ -107,9 +107,6 @@ Kernel utility functions
 .. kernel-doc:: kernel/panic.c
    :export:
 
-.. kernel-doc:: include/linux/overflow.h
-   :internal:
-
 Device Resource Management
 --------------------------
 

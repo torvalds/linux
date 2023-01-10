@@ -90,12 +90,9 @@ void i965_disable_vblank(struct drm_crtc *crtc);
 void ilk_disable_vblank(struct drm_crtc *crtc);
 void bdw_disable_vblank(struct drm_crtc *crtc);
 
-void gen2_irq_reset(struct intel_uncore *uncore);
 void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 		    i915_reg_t iir, i915_reg_t ier);
 
-void gen2_irq_init(struct intel_uncore *uncore,
-		   u32 imr_val, u32 ier_val);
 void gen3_irq_init(struct intel_uncore *uncore,
 		   i915_reg_t imr, u32 imr_val,
 		   i915_reg_t ier, u32 ier_val,
@@ -111,9 +108,6 @@ void gen3_irq_init(struct intel_uncore *uncore,
 #define GEN3_IRQ_RESET(uncore, type) \
 	gen3_irq_reset((uncore), type##IMR, type##IIR, type##IER)
 
-#define GEN2_IRQ_RESET(uncore) \
-	gen2_irq_reset(uncore)
-
 #define GEN8_IRQ_INIT_NDX(uncore, type, which, imr_val, ier_val) \
 ({ \
 	unsigned int which_ = which; \
@@ -128,8 +122,5 @@ void gen3_irq_init(struct intel_uncore *uncore,
 		      type##IMR, imr_val, \
 		      type##IER, ier_val, \
 		      type##IIR)
-
-#define GEN2_IRQ_INIT(uncore, imr_val, ier_val) \
-	gen2_irq_init((uncore), imr_val, ier_val)
 
 #endif /* __I915_IRQ_H__ */

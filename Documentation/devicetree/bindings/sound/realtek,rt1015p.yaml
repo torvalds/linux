@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/sound/realtek,rt1015p.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Realtek rt1015p codec devicetree bindings
+title: Realtek rt1015p codec
 
 maintainers:
-  - Tzung-Bi Shih <tzungbi@google.com>
+  - Tzung-Bi Shih <tzungbi@kernel.org>
 
 description: |
   Rt1015p is a rt1015 variant which does not support I2C and

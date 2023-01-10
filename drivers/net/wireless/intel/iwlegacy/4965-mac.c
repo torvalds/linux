@@ -6304,6 +6304,7 @@ il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 
 static const struct ieee80211_ops il4965_mac_ops = {
 	.tx = il4965_mac_tx,
+	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = il4965_mac_start,
 	.stop = il4965_mac_stop,
 	.add_interface = il_mac_add_interface,

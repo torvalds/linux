@@ -669,8 +669,7 @@ static const struct v4l2_ctrl_ops au8522_ctrl_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int au8522_probe(struct i2c_client *client,
-			const struct i2c_device_id *did)
+static int au8522_probe(struct i2c_client *client)
 {
 	struct au8522_state *state;
 	struct v4l2_ctrl_handler *hdl;
@@ -777,7 +776,7 @@ static struct i2c_driver au8522_driver = {
 	.driver = {
 		.name	= "au8522",
 	},
-	.probe		= au8522_probe,
+	.probe_new	= au8522_probe,
 	.remove		= au8522_remove,
 	.id_table	= au8522_id,
 };

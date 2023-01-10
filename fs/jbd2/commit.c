@@ -207,14 +207,13 @@ int jbd2_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
 }
 
 /* Send all the data buffers related to an inode */
-int jbd2_submit_inode_data(struct jbd2_inode *jinode)
+int jbd2_submit_inode_data(journal_t *journal, struct jbd2_inode *jinode)
 {
-
 	if (!jinode || !(jinode->i_flags & JI_WRITE_DATA))
 		return 0;
 
 	trace_jbd2_submit_inode_data(jinode->i_vfs_inode);
-	return jbd2_journal_submit_inode_data_buffers(jinode);
+	return journal->j_submit_inode_data_buffers(jinode);
 
 }
 EXPORT_SYMBOL(jbd2_submit_inode_data);

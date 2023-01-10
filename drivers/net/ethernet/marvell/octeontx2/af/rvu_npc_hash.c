@@ -490,7 +490,7 @@ static bool rvu_npc_exact_alloc_id(struct rvu *rvu, u32 *seq_id)
 	if (idx == table->tot_ids) {
 		mutex_unlock(&table->lock);
 		dev_err(rvu->dev, "%s: No space in id bitmap (%d)\n",
-			__func__, bitmap_weight(table->id_bmap, table->tot_ids));
+			__func__, table->tot_ids);
 
 		return false;
 	}
@@ -1870,12 +1870,11 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	/* Set capability to true */
 	rvu->hw->cap.npc_exact_match_enabled = true;
 
-	table = kmalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 
 	dev_dbg(rvu->dev, "%s: Memory allocation for table success\n", __func__);
-	memset(table, 0, sizeof(*table));
 	rvu->hw->table = table;
 
 	/* Read table size, ways and depth */
@@ -1899,24 +1898,24 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	table_size = table->mem_table.depth * table->mem_table.ways;
 
 	/* Allocate bitmap for 4way 2K table */
-	table->mem_table.bmap = devm_kcalloc(rvu->dev, BITS_TO_LONGS(table_size),
-					     sizeof(long), GFP_KERNEL);
+	table->mem_table.bmap = devm_bitmap_zalloc(rvu->dev, table_size,
+						   GFP_KERNEL);
 	if (!table->mem_table.bmap)
 		return -ENOMEM;
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for 4way 2K entry table\n", __func__);
 
 	/* Allocate bitmap for 32 entry mcam */
-	table->cam_table.bmap = devm_kcalloc(rvu->dev, 1, sizeof(long), GFP_KERNEL);
+	table->cam_table.bmap = devm_bitmap_zalloc(rvu->dev, 32, GFP_KERNEL);
 
 	if (!table->cam_table.bmap)
 		return -ENOMEM;
 
 	dev_dbg(rvu->dev, "%s: Allocated bitmap for 32 entry cam\n", __func__);
 
-	table->tot_ids = (table->mem_table.depth * table->mem_table.ways) + table->cam_table.depth;
-	table->id_bmap = devm_kcalloc(rvu->dev, BITS_TO_LONGS(table->tot_ids),
-				      table->tot_ids, GFP_KERNEL);
+	table->tot_ids = table_size + table->cam_table.depth;
+	table->id_bmap = devm_bitmap_zalloc(rvu->dev, table->tot_ids,
+					    GFP_KERNEL);
 
 	if (!table->id_bmap)
 		return -ENOMEM;
@@ -1957,7 +1956,9 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	/* Install SDP drop rule */
 	drop_mcam_idx = &table->num_drop_rules;
 
-	max_lmac_cnt = rvu->cgx_cnt_max * MAX_LMAC_PER_CGX + PF_CGXMAP_BASE;
+	max_lmac_cnt = rvu->cgx_cnt_max * rvu->hw->lmac_per_cgx +
+		       PF_CGXMAP_BASE;
+
 	for (i = PF_CGXMAP_BASE; i < max_lmac_cnt; i++) {
 		if (rvu->pf2cgxlmac_map[i] == 0xFF)
 			continue;

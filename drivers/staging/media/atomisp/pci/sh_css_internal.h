@@ -488,16 +488,6 @@ ia_css_metadata_free_multiple(unsigned int num_bufs,
 
 /* Macro for handling pipe_qos_config */
 #define QOS_INVALID                  (~0U)
-#define QOS_ALL_STAGES_DISABLED      (0U)
-#define QOS_STAGE_MASK(num)          (0x00000001 << num)
-#define SH_CSS_IS_QOS_PIPE(pipe)               ((pipe)->pipe_qos_config != QOS_INVALID)
-#define SH_CSS_QOS_STAGE_ENABLE(pipe, num)     ((pipe)->pipe_qos_config |= QOS_STAGE_MASK(num))
-#define SH_CSS_QOS_STAGE_DISABLE(pipe, num)    ((pipe)->pipe_qos_config &= ~QOS_STAGE_MASK(num))
-#define SH_CSS_QOS_STAGE_IS_ENABLED(pipe, num) ((pipe)->pipe_qos_config & QOS_STAGE_MASK(num))
-#define SH_CSS_QOS_STAGE_IS_ALL_DISABLED(pipe) ((pipe)->pipe_qos_config == QOS_ALL_STAGES_DISABLED)
-#define SH_CSS_QOS_MODE_PIPE_ADD(mode, pipe)    ((mode) |= (0x1 << (pipe)->pipe_id))
-#define SH_CSS_QOS_MODE_PIPE_REMOVE(mode, pipe) ((mode) &= ~(0x1 << (pipe)->pipe_id))
-#define SH_CSS_IS_QOS_ONLY_MODE(mode)           ((mode) == (0x1 << IA_CSS_PIPE_ID_ACC))
 
 /* Information for a pipeline */
 struct sh_css_sp_pipeline {
@@ -906,9 +896,6 @@ sh_css_params_init(void);
 
 void
 sh_css_params_uninit(void);
-
-/* For Acceleration API: Flush FW (shared buffer pointer) arguments */
-void sh_css_flush(struct ia_css_acc_fw *fw);
 
 void
 sh_css_binary_args_reset(struct sh_css_binary_args *args);

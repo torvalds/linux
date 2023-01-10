@@ -1207,9 +1207,9 @@ static int bq25980_parse_dt(struct bq25980_device *bq)
 	return 0;
 }
 
-static int bq25980_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int bq25980_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct bq25980_device *bq;
 	int ret;
@@ -1287,7 +1287,7 @@ static struct i2c_driver bq25980_driver = {
 		.name = "bq25980-charger",
 		.of_match_table = bq25980_of_match,
 	},
-	.probe = bq25980_probe,
+	.probe_new = bq25980_probe,
 	.id_table = bq25980_i2c_ids,
 };
 module_i2c_driver(bq25980_driver);

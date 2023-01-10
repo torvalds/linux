@@ -22,13 +22,11 @@ properties:
       - items:
           - const: qcom,pms405-adc
           - const: qcom,spmi-adc-rev2
-
-      - items:
-          - enum:
-              - qcom,spmi-vadc
-              - qcom,spmi-adc5
-              - qcom,spmi-adc-rev2
-              - qcom,spmi-adc7
+      - enum:
+          - qcom,spmi-vadc
+          - qcom,spmi-adc5
+          - qcom,spmi-adc-rev2
+          - qcom,spmi-adc7
 
   reg:
     description: VADC base address in the SPMI PMIC register map
@@ -238,42 +236,72 @@ additionalProperties: false
 
 examples:
   - |
-    spmi_bus {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      /* VADC node */
-      pmic_vadc: adc@3100 {
-        compatible = "qcom,spmi-vadc";
-        reg = <0x3100>;
-        interrupts = <0x0 0x31 0x0 0x1>;
+    spmi {
         #address-cells = <1>;
         #size-cells = <0>;
-        #io-channel-cells = <1>;
+        /* VADC node */
+        pmic_vadc: adc@3100 {
+            compatible = "qcom,spmi-vadc";
+            reg = <0x3100>;
+            interrupts = <0x0 0x31 0x0 0x1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            #io-channel-cells = <1>;
 
-        /* Channel node */
-        adc-chan@39 {
-          reg = <0x39>;
-          qcom,decimation = <512>;
-          qcom,ratiometric;
-          qcom,hw-settle-time = <200>;
-          qcom,avg-samples = <1>;
-          qcom,pre-scaling = <1 3>;
-        };
+            /* Channel node */
+            adc-chan@39 {
+                reg = <0x39>;
+                qcom,decimation = <512>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+                qcom,avg-samples = <1>;
+                qcom,pre-scaling = <1 3>;
+            };
 
-        adc-chan@9 {
-          reg = <0x9>;
-        };
+            adc-chan@9 {
+                reg = <0x9>;
+            };
 
-        adc-chan@a {
-          reg = <0xa>;
-        };
+            adc-chan@a {
+                reg = <0xa>;
+            };
 
-        adc-chan@e {
-          reg = <0xe>;
-        };
+            adc-chan@e {
+                reg = <0xe>;
+            };
 
-        adc-chan@f {
-          reg = <0xf>;
+            adc-chan@f {
+                reg = <0xf>;
+            };
         };
-      };
+    };
+
+  - |
+    #include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
+    #include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spmi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        adc@3100 {
+            reg = <0x3100>;
+            compatible = "qcom,spmi-adc7";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            #io-channel-cells = <1>;
+
+            /* Other properties are omitted */
+            xo-therm@44 {
+                reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+            };
+
+            conn-therm@47 {
+                reg = <PM8350_ADC7_AMUX_THM4_100K_PU(1)>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+            };
+        };
     };

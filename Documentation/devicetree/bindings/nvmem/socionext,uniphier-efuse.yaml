@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/socionext,uniphier-efuse.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Socionext UniPhier eFuse bindings
+title: Socionext UniPhier eFuse
 
 maintainers:
   - Keiji Hayashibara <hayashibara.keiji@socionext.com>

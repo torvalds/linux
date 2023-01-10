@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/8250.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: UART (Universal Asynchronous Receiver/Transmitter) bindings
+title: UART (Universal Asynchronous Receiver/Transmitter)
 
 maintainers:
   - devicetree@vger.kernel.org

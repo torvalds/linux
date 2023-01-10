@@ -63,6 +63,13 @@ void test_varlen(void)
 	CHECK_VAL(data->total4, size1 + size2);
 	CHECK(memcmp(data->payload4, exp_str, size1 + size2), "content_check",
 	      "doesn't match!\n");
+
+	CHECK_VAL(bss->ret_bad_read, -EFAULT);
+	CHECK_VAL(data->payload_bad[0], 0x42);
+	CHECK_VAL(data->payload_bad[1], 0x42);
+	CHECK_VAL(data->payload_bad[2], 0);
+	CHECK_VAL(data->payload_bad[3], 0x42);
+	CHECK_VAL(data->payload_bad[4], 0x42);
 cleanup:
 	test_varlen__destroy(skel);
 }

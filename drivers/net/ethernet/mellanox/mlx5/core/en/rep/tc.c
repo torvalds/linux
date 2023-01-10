@@ -690,7 +690,6 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 
 	err = mapping_find(uplink_priv->tunnel_mapping, tun_id, &key);
 	if (err) {
-		WARN_ON_ONCE(true);
 		netdev_dbg(priv->netdev,
 			   "Couldn't find tunnel for tun_id: %d, err: %d\n",
 			   tun_id, err);

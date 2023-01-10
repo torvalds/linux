@@ -224,6 +224,25 @@ int __wrap_cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_hdm_decode_init, CXL);
 
+resource_size_t __wrap_cxl_rcrb_to_component(struct device *dev,
+					     resource_size_t rcrb,
+					     enum cxl_rcrb which)
+{
+	int index;
+	resource_size_t component_reg_phys;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_port(dev))
+		component_reg_phys =
+			ops->cxl_rcrb_to_component(dev, rcrb, which);
+	else
+		component_reg_phys = cxl_rcrb_to_component(dev, rcrb, which);
+	put_cxl_mock_ops(index);
+
+	return component_reg_phys;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_rcrb_to_component, CXL);
+
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(ACPI);
 MODULE_IMPORT_NS(CXL);

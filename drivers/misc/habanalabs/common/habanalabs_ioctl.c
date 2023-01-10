@@ -10,10 +10,11 @@
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
-#include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
 static u32 hl_debug_struct_size[HL_DEBUG_OP_TIMESTAMP + 1] = {
@@ -105,6 +106,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.edma_enabled_mask = prop->edma_enabled_mask;
 	hw_ip.server_type = prop->server_type;
 	hw_ip.security_enabled = prop->fw_security_enabled;
+	hw_ip.revision_id = hdev->pdev->revision;
 
 	return copy_to_user(out, &hw_ip,
 		min((size_t) size, sizeof(hw_ip))) ? -EFAULT : 0;
@@ -121,6 +123,10 @@ static int hw_events_info(struct hl_device *hdev, bool aggregate,
 		return -EINVAL;
 
 	arr = hdev->asic_funcs->get_events_stat(hdev, aggregate, &size);
+	if (!arr) {
+		dev_err(hdev->dev, "Events info not supported\n");
+		return -EOPNOTSUPP;
+	}
 
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
 }
@@ -603,20 +609,14 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	u32 max_size = args->return_size;
-	struct hl_info_razwi_event info = {0};
+	struct hl_info_razwi_event *info = &hdev->captured_err_info.razwi;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->captured_err_info.razwi.timestamp);
-	info.addr = hdev->captured_err_info.razwi.addr;
-	info.engine_id_1 = hdev->captured_err_info.razwi.engine_id_1;
-	info.engine_id_2 = hdev->captured_err_info.razwi.engine_id_2;
-	info.no_engine_id = hdev->captured_err_info.razwi.non_engine_initiator;
-	info.error_type = hdev->captured_err_info.razwi.type;
-
-	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+	return copy_to_user(out, info, min_t(size_t, max_size, sizeof(struct hl_info_razwi_event)))
+				? -EFAULT : 0;
 }
 
 static int undefined_opcode_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
@@ -784,6 +784,42 @@ static int engine_status_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return rc;
 }
 
+static int page_fault_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_page_fault_info *info = &hdev->captured_err_info.pgf_info.pgf;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	return copy_to_user(out, info, min_t(size_t, max_size, sizeof(struct hl_page_fault_info)))
+				? -EFAULT : 0;
+}
+
+static int user_mappings_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	u32 user_buf_size = args->return_size;
+	struct hl_device *hdev = hpriv->hdev;
+	struct page_fault_info *pgf_info;
+	u64 actual_size;
+
+	pgf_info = &hdev->captured_err_info.pgf_info;
+	args->array_size = pgf_info->num_of_user_mappings;
+
+	if (!out)
+		return -EINVAL;
+
+	actual_size = pgf_info->num_of_user_mappings * sizeof(struct hl_user_mapping);
+	if (user_buf_size < actual_size)
+		return -ENOMEM;
+
+	return copy_to_user(out, pgf_info->user_mappings, min_t(size_t, user_buf_size, actual_size))
+				? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -843,6 +879,15 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_GET_EVENTS:
 		return events_info(hpriv, args);
 
+	case HL_INFO_PAGE_FAULT_EVENT:
+		return page_fault_info(hpriv, args);
+
+	case HL_INFO_USER_MAPPINGS:
+		return user_mappings_info(hpriv, args);
+
+	case HL_INFO_UNREGISTER_EVENTFD:
+		return eventfd_unregister(hpriv, args);
+
 	default:
 		break;
 	}
@@ -898,9 +943,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_REGISTER_EVENTFD:
 		return eventfd_register(hpriv, args);
-
-	case HL_INFO_UNREGISTER_EVENTFD:
-		return eventfd_unregister(hpriv, args);
 
 	case HL_INFO_ENGINE_STATUS:
 		return engine_status_info(hpriv, args);

@@ -171,7 +171,7 @@ static const struct uvc_format_uncompressed uvc_format_yuv = {
 	.bDefaultFrameIndex	= 1,
 	.bAspectRatioX		= 0,
 	.bAspectRatioY		= 0,
-	.bmInterfaceFlags	= 0,
+	.bmInterlaceFlags	= 0,
 	.bCopyProtect		= 0,
 };
 
@@ -222,7 +222,7 @@ static const struct uvc_format_mjpeg uvc_format_mjpg = {
 	.bDefaultFrameIndex	= 1,
 	.bAspectRatioX		= 0,
 	.bAspectRatioY		= 0,
-	.bmInterfaceFlags	= 0,
+	.bmInterlaceFlags	= 0,
 	.bCopyProtect		= 0,
 };
 

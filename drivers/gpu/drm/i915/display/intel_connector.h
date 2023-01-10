@@ -6,7 +6,7 @@
 #ifndef __INTEL_CONNECTOR_H__
 #define __INTEL_CONNECTOR_H__
 
-#include "intel_display.h"
+#include <linux/types.h>
 
 struct drm_connector;
 struct edid;
@@ -32,5 +32,6 @@ void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 void intel_attach_aspect_ratio_property(struct drm_connector *connector);
 void intel_attach_hdmi_colorspace_property(struct drm_connector *connector);
 void intel_attach_dp_colorspace_property(struct drm_connector *connector);
+void intel_attach_scaling_mode_property(struct drm_connector *connector);
 
 #endif /* __INTEL_CONNECTOR_H__ */

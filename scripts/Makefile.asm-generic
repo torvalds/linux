@@ -10,14 +10,14 @@ PHONY := all
 all:
 
 src := $(subst /generated,,$(obj))
--include $(src)/Kbuild
+
+include $(srctree)/scripts/Kbuild.include
+-include $(kbuild-file)
 
 # $(generic)/Kbuild lists mandatory-y. Exclude um since it is a special case.
 ifneq ($(SRCARCH),um)
 include $(srctree)/$(generic)/Kbuild
 endif
-
-include $(srctree)/scripts/Kbuild.include
 
 redundant := $(filter $(mandatory-y) $(generated-y), $(generic-y))
 redundant += $(foreach f, $(generic-y), $(if $(wildcard $(srctree)/$(src)/$(f)),$(f)))

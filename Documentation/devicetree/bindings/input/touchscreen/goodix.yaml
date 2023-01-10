@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/goodix.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Goodix GT9xx series touchscreen controller Bindings
+title: Goodix GT9xx series touchscreen controller
 
 maintainers:
   - Dmitry Torokhov <dmitry.torokhov@gmail.com>

@@ -425,8 +425,7 @@ static void ar933x_uart_tx_chars(struct ar933x_uart_port *up)
 
 		ar933x_uart_putc(up, xmit->buf[xmit->tail]);
 
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		up->port.icount.tx++;
+		uart_xmit_advance(&up->port, 1);
 	} while (--count > 0);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)

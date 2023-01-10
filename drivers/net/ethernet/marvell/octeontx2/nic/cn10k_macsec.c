@@ -815,6 +815,7 @@ free_flowid:
 	cn10k_mcs_free_rsrc(pfvf, MCS_TX, MCS_RSRC_TYPE_FLOWID,
 			    txsc->hw_flow_id, false);
 fail:
+	kfree(txsc);
 	return ERR_PTR(ret);
 }
 
@@ -870,6 +871,7 @@ free_flowid:
 	cn10k_mcs_free_rsrc(pfvf, MCS_RX, MCS_RSRC_TYPE_FLOWID,
 			    rxsc->hw_flow_id, false);
 fail:
+	kfree(rxsc);
 	return ERR_PTR(ret);
 }
 

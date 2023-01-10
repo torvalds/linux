@@ -298,7 +298,7 @@ config BRCM_USB_PINMAP
 
 config USB_ONBOARD_HUB
 	tristate "Onboard USB hub support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  Say Y here if you want to support discrete onboard USB hubs that
 	  don't require an additional control bus for initialization, but

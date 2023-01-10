@@ -247,5 +247,5 @@ static gpr_driver_t prm_driver = {
 };
 
 module_gpr_driver(prm_driver);
-MODULE_DESCRIPTION("Audio Process Manager");
+MODULE_DESCRIPTION("Q6 Proxy Resource Manager");
 MODULE_LICENSE("GPL");

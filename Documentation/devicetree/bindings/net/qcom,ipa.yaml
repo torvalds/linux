@@ -49,6 +49,7 @@ properties:
       - qcom,sc7280-ipa
       - qcom,sdm845-ipa
       - qcom,sdx55-ipa
+      - qcom,sm6350-ipa
       - qcom,sm8350-ipa
 
   reg:
@@ -124,19 +125,31 @@ properties:
       - const: ipa-clock-enabled-valid
       - const: ipa-clock-enabled
 
+  qcom,gsi-loader:
+    enum:
+      - self
+      - modem
+      - skip
+    description:
+      Indicates how GSI firmware should be loaded.  If the AP loads
+      and validates GSI firmware, this property has value "self".
+      If the modem does this, this property has value "modem".
+      Otherwise, "skip" means GSI firmware loading is not required.
+
   modem-init:
+    deprecated: true
     type: boolean
     description:
-      If present, it indicates that the modem is responsible for
-      performing early IPA initialization, including loading and
-      validating firwmare used by the GSI.
+      This is the older (deprecated) way of indicating how GSI firmware
+      should be loaded.  If present, the modem loads GSI firmware; if
+      absent, the AP loads GSI firmware.
 
   memory-region:
     maxItems: 1
     description:
       If present, a phandle for a reserved memory area that holds
       the firmware passed to Trust Zone for authentication.  Required
-      when Trust Zone (not the modem) performs early initialization.
+      when the AP (not the modem) performs early initialization.
 
   firmware-name:
     $ref: /schemas/types.yaml#/definitions/string
@@ -155,22 +168,36 @@ required:
   - interconnects
   - qcom,smem-states
 
-# Either modem-init is present, or memory-region must be present.
-oneOf:
-  - required:
-      - modem-init
-  - required:
-      - memory-region
+allOf:
+  # If qcom,gsi-loader is present, modem-init must not be present
+  - if:
+      required:
+        - qcom,gsi-loader
+    then:
+      properties:
+        modem-init: false
 
-# If memory-region is present, firmware-name may optionally be present.
-# But if modem-init is present, firmware-name must not be present.
-if:
-  required:
-    - modem-init
-then:
-  not:
-    required:
-      - firmware-name
+      # If qcom,gsi-loader is "self", the AP loads GSI firmware, and
+      # memory-region must be specified
+      if:
+        properties:
+          qcom,gsi-loader:
+            contains:
+              const: self
+      then:
+        required:
+          - memory-region
+    else:
+      # If qcom,gsi-loader is not present, we use deprecated behavior.
+      # If modem-init is not present, the AP loads GSI firmware, and
+      # memory-region must be specified.
+      if:
+        not:
+          required:
+            - modem-init
+      then:
+        required:
+          - memory-region
 
 additionalProperties: false
 
@@ -201,14 +228,17 @@ examples:
         };
 
         ipa@1e40000 {
-                compatible = "qcom,sdm845-ipa";
+                compatible = "qcom,sc7180-ipa";
 
-                modem-init;
+                qcom,gsi-loader = "self";
+                memory-region = <&ipa_fw_mem>;
+                firmware-name = "qcom/sc7180-trogdor/modem/modem.mdt";
 
-                iommus = <&apps_smmu 0x720 0x3>;
+                iommus = <&apps_smmu 0x440 0x0>,
+                         <&apps_smmu 0x442 0x0>;
                 reg = <0x1e40000 0x7000>,
-                        <0x1e47000 0x2000>,
-                        <0x1e04000 0x2c000>;
+                      <0x1e47000 0x2000>,
+                      <0x1e04000 0x2c000>;
                 reg-names = "ipa-reg",
                             "ipa-shared",
                             "gsi";
@@ -226,9 +256,9 @@ examples:
                 clock-names = "core";
 
                 interconnects =
-                        <&rsc_hlos MASTER_IPA &rsc_hlos SLAVE_EBI1>,
-                        <&rsc_hlos MASTER_IPA &rsc_hlos SLAVE_IMEM>,
-                        <&rsc_hlos MASTER_APPSS_PROC &rsc_hlos SLAVE_IPA_CFG>;
+                        <&aggre2_noc MASTER_IPA 0 &mc_virt SLAVE_EBI1 0>,
+                        <&aggre2_noc MASTER_IPA 0 &system_noc SLAVE_IMEM 0>,
+                        <&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_IPA_CFG 0>;
                 interconnect-names = "memory",
                                      "imem",
                                      "config";

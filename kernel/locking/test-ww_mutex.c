@@ -399,7 +399,7 @@ static int *get_random_order(int count)
 		order[n] = n;
 
 	for (n = count - 1; n > 1; n--) {
-		r = prandom_u32_max(n + 1);
+		r = get_random_u32_below(n + 1);
 		if (r != n) {
 			tmp = order[n];
 			order[n] = order[r];
@@ -538,7 +538,7 @@ static void stress_one_work(struct work_struct *work)
 {
 	struct stress *stress = container_of(work, typeof(*stress), work);
 	const int nlocks = stress->nlocks;
-	struct ww_mutex *lock = stress->locks + prandom_u32_max(nlocks);
+	struct ww_mutex *lock = stress->locks + get_random_u32_below(nlocks);
 	int err;
 
 	do {

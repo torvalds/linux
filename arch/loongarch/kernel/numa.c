@@ -78,7 +78,7 @@ void __init pcpu_populate_pte(unsigned long addr)
 		new = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 		pgd_populate(&init_mm, pgd, new);
 #ifndef __PAGETABLE_PUD_FOLDED
-		pud_init((unsigned long)new, (unsigned long)invalid_pmd_table);
+		pud_init(new);
 #endif
 	}
 
@@ -89,7 +89,7 @@ void __init pcpu_populate_pte(unsigned long addr)
 		new = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, new);
 #ifndef __PAGETABLE_PMD_FOLDED
-		pmd_init((unsigned long)new, (unsigned long)invalid_pte_table);
+		pmd_init(new);
 #endif
 	}
 
@@ -388,6 +388,21 @@ static void __init numa_default_distance(void)
 	}
 }
 
+/*
+ * fake_numa_init() - For Non-ACPI systems
+ * Return: 0 on success, -errno on failure.
+ */
+static int __init fake_numa_init(void)
+{
+	phys_addr_t start = memblock_start_of_DRAM();
+	phys_addr_t end = memblock_end_of_DRAM() - 1;
+
+	node_set(0, numa_nodes_parsed);
+	pr_info("Faking a node at [mem %pap-%pap]\n", &start, &end);
+
+	return numa_add_memblk(0, start, end + 1);
+}
+
 int __init init_numa_memory(void)
 {
 	int i;
@@ -404,7 +419,7 @@ int __init init_numa_memory(void)
 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
 
 	/* Parse SRAT and SLIT if provided by firmware. */
-	ret = acpi_numa_init();
+	ret = acpi_disabled ? fake_numa_init() : acpi_numa_init();
 	if (ret < 0)
 		return ret;
 

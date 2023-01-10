@@ -98,9 +98,9 @@ int devm_gpio_request_one(struct device *dev, unsigned gpio,
 
 #else /* ! CONFIG_GPIOLIB */
 
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/bug.h>
 
 struct device;
 struct gpio_chip;

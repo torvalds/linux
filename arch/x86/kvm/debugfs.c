@@ -158,11 +158,16 @@ out:
 static int kvm_mmu_rmaps_stat_open(struct inode *inode, struct file *file)
 {
 	struct kvm *kvm = inode->i_private;
+	int r;
 
 	if (!kvm_get_kvm_safe(kvm))
 		return -ENOENT;
 
-	return single_open(file, kvm_mmu_rmaps_stat_show, kvm);
+	r = single_open(file, kvm_mmu_rmaps_stat_show, kvm);
+	if (r < 0)
+		kvm_put_kvm(kvm);
+
+	return r;
 }
 
 static int kvm_mmu_rmaps_stat_release(struct inode *inode, struct file *file)

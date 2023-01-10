@@ -128,7 +128,6 @@ examples:
         resets = <&tegra_car 181>;
         reset-names = "dpaux";
         power-domains = <&pd_sor>;
-        status = "disabled";
 
         state_dpaux_aux: pinmux-aux {
             groups = "dpaux-io";

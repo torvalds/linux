@@ -138,8 +138,7 @@ static ssize_t ipc3_fw_ext_man_size(struct snd_sof_dev *sdev, const struct firmw
 
 static size_t sof_ipc3_fw_parse_ext_man(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const struct firmware *fw = plat_data->fw;
+	const struct firmware *fw = sdev->basefw.fw;
 	const struct sof_ext_man_elem_header *elem_hdr;
 	const struct sof_ext_man_header *head;
 	ssize_t ext_man_size;
@@ -310,18 +309,18 @@ static int sof_ipc3_parse_module_memcpy(struct snd_sof_dev *sdev,
 
 static int sof_ipc3_load_fw_to_dsp(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const struct firmware *fw = plat_data->fw;
+	u32 payload_offset = sdev->basefw.payload_offset;
+	const struct firmware *fw = sdev->basefw.fw;
 	struct snd_sof_fw_header *header;
 	struct snd_sof_mod_hdr *module;
 	int (*load_module)(struct snd_sof_dev *sof_dev, struct snd_sof_mod_hdr *hdr);
 	size_t remaining;
 	int ret, count;
 
-	if (!plat_data->fw)
+	if (!fw)
 		return -EINVAL;
 
-	header = (struct snd_sof_fw_header *)(fw->data + plat_data->fw_offset);
+	header = (struct snd_sof_fw_header *)(fw->data + payload_offset);
 	load_module = sof_ops(sdev)->load_module;
 	if (!load_module) {
 		dev_dbg(sdev->dev, "Using generic module loading\n");
@@ -331,9 +330,8 @@ static int sof_ipc3_load_fw_to_dsp(struct snd_sof_dev *sdev)
 	}
 
 	/* parse each module */
-	module = (struct snd_sof_mod_hdr *)(fw->data + plat_data->fw_offset +
-					    sizeof(*header));
-	remaining = fw->size - sizeof(*header) - plat_data->fw_offset;
+	module = (struct snd_sof_mod_hdr *)(fw->data + payload_offset + sizeof(*header));
+	remaining = fw->size - sizeof(*header) - payload_offset;
 	/* check for wrap */
 	if (remaining > fw->size) {
 		dev_err(sdev->dev, "%s: fw size smaller than header size\n", __func__);
@@ -374,19 +372,19 @@ static int sof_ipc3_load_fw_to_dsp(struct snd_sof_dev *sdev)
 
 static int sof_ipc3_validate_firmware(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const struct firmware *fw = plat_data->fw;
+	u32 payload_offset = sdev->basefw.payload_offset;
+	const struct firmware *fw = sdev->basefw.fw;
 	struct snd_sof_fw_header *header;
-	size_t fw_size = fw->size - plat_data->fw_offset;
+	size_t fw_size = fw->size - payload_offset;
 
-	if (fw->size <= plat_data->fw_offset) {
+	if (fw->size <= payload_offset) {
 		dev_err(sdev->dev,
 			"firmware size must be greater than firmware offset\n");
 		return -EINVAL;
 	}
 
 	/* Read the header information from the data pointer */
-	header = (struct snd_sof_fw_header *)(fw->data + plat_data->fw_offset);
+	header = (struct snd_sof_fw_header *)(fw->data + payload_offset);
 
 	/* verify FW sig */
 	if (strncmp(header->sig, SND_SOF_FW_SIG, SND_SOF_FW_SIG_SIZE) != 0) {

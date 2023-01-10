@@ -24,14 +24,13 @@
 #include <asm/set_memory.h>
 #include <asm/sections.h>
 #include <asm/dis.h>
+#include "kprobes.h"
 #include "entry.h"
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
-
-DEFINE_INSN_CACHE_OPS(s390_insn);
 
 static int insn_page_in_use;
 

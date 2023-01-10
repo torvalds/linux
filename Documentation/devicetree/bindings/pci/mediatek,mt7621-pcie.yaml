@@ -31,7 +31,7 @@ properties:
     maxItems: 2
 
 patternProperties:
-  'pcie@[0-2],0':
+  '^pcie@[0-2],0$':
     type: object
     $ref: /schemas/pci/pci-bus.yaml#
 

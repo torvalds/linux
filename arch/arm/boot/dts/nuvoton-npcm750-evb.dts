@@ -74,7 +74,7 @@
 		spi-rx-bus-width = <2>;
 		reg = <0>;
 		spi-max-frequency = <5000000>;
-		partitions@80000000 {
+		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -135,7 +135,7 @@
 		spi-rx-bus-width = <2>;
 		reg = <0>;
 		spi-max-frequency = <5000000>;
-		partitions@A0000000 {
+		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;

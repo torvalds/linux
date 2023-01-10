@@ -19,9 +19,13 @@ static const struct acpi_device_id tiny_power_button_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, tiny_power_button_device_ids);
 
-static int acpi_noop_add_remove(struct acpi_device *device)
+static int acpi_noop_add(struct acpi_device *device)
 {
 	return 0;
+}
+
+static void acpi_noop_remove(struct acpi_device *device)
+{
 }
 
 static void acpi_tiny_power_button_notify(struct acpi_device *device, u32 event)
@@ -34,8 +38,8 @@ static struct acpi_driver acpi_tiny_power_button_driver = {
 	.class = "tiny-power-button",
 	.ids = tiny_power_button_device_ids,
 	.ops = {
-		.add = acpi_noop_add_remove,
-		.remove = acpi_noop_add_remove,
+		.add = acpi_noop_add,
+		.remove = acpi_noop_remove,
 		.notify = acpi_tiny_power_button_notify,
 	},
 };

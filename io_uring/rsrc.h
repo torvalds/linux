@@ -53,6 +53,7 @@ struct io_mapped_ubuf {
 	struct bio_vec	bvec[];
 };
 
+void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_put_work(struct work_struct *work);
 void io_rsrc_refs_refill(struct io_ring_ctx *ctx);
 void io_wait_rsrc_data(struct io_rsrc_data *data);
@@ -82,11 +83,7 @@ int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file);
 #if defined(CONFIG_UNIX)
 static inline bool io_file_need_scm(struct file *filp)
 {
-#if defined(IO_URING_SCM_ALL)
-	return true;
-#else
 	return !!unix_get_socket(filp);
-#endif
 }
 #else
 static inline bool io_file_need_scm(struct file *filp)

@@ -15,7 +15,7 @@ fi
 
 if ip6tables-legacy --version >/dev/null 2>&1; then
 	ip6tables='ip6tables-legacy'
-elif ! ip6tables --version >/dev/null 2>&1; then
+elif ip6tables --version >/dev/null 2>&1; then
 	ip6tables='ip6tables'
 else
 	ip6tables=''
@@ -62,9 +62,11 @@ ip -net "$ns1" a a fec0:42::2/64 dev v0 nodad
 ip -net "$ns2" a a fec0:42::1/64 dev d0 nodad
 
 # firewall matches to test
-ip netns exec "$ns2" "$iptables" -t raw -A PREROUTING -s 192.168.0.0/16 -m rpfilter
-ip netns exec "$ns2" "$ip6tables" -t raw -A PREROUTING -s fec0::/16 -m rpfilter
-ip netns exec "$ns2" nft -f - <<EOF
+[ -n "$iptables" ] && ip netns exec "$ns2" \
+	"$iptables" -t raw -A PREROUTING -s 192.168.0.0/16 -m rpfilter
+[ -n "$ip6tables" ] && ip netns exec "$ns2" \
+	"$ip6tables" -t raw -A PREROUTING -s fec0::/16 -m rpfilter
+[ -n "$nft" ] && ip netns exec "$ns2" $nft -f - <<EOF
 table inet t {
 	chain c {
 		type filter hook prerouting priority raw;
@@ -106,8 +108,8 @@ testrun() {
 	if [ -n "$nft" ]; then
 		(
 			echo "delete table inet t";
-			ip netns exec "$ns2" nft -s list table inet t;
-		) | ip netns exec "$ns2" nft -f -
+			ip netns exec "$ns2" $nft -s list table inet t;
+		) | ip netns exec "$ns2" $nft -f -
 	fi
 
 	# test 1: martian traffic should fail rpfilter matches

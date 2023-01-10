@@ -1297,8 +1297,7 @@ done:
 	return ret;
 }
 
-static int rj54n1_probe(struct i2c_client *client,
-			const struct i2c_device_id *did)
+static int rj54n1_probe(struct i2c_client *client)
 {
 	struct rj54n1 *rj54n1;
 	struct i2c_adapter *adapter = client->adapter;
@@ -1422,7 +1421,7 @@ static struct i2c_driver rj54n1_i2c_driver = {
 	.driver = {
 		.name = "rj54n1cb0c",
 	},
-	.probe		= rj54n1_probe,
+	.probe_new	= rj54n1_probe,
 	.remove		= rj54n1_remove,
 	.id_table	= rj54n1_id,
 };

@@ -463,8 +463,7 @@ err:
 }
 
 
-static int adp1653_probe(struct i2c_client *client,
-			 const struct i2c_device_id *devid)
+static int adp1653_probe(struct i2c_client *client)
 {
 	struct adp1653_flash *flash;
 	int ret;
@@ -536,7 +535,7 @@ static struct i2c_driver adp1653_i2c_driver = {
 		.name	= ADP1653_NAME,
 		.pm	= &adp1653_pm_ops,
 	},
-	.probe		= adp1653_probe,
+	.probe_new	= adp1653_probe,
 	.remove		= adp1653_remove,
 	.id_table	= adp1653_id_table,
 };

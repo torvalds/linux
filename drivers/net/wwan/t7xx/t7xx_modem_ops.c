@@ -165,6 +165,8 @@ static int t7xx_acpi_reset(struct t7xx_pci_dev *t7xx_dev, char *fn_name)
 		return -EFAULT;
 	}
 
+	kfree(buffer.pointer);
+
 #endif
 	return 0;
 }

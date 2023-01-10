@@ -104,6 +104,13 @@ long sys_ppc_ftruncate64(unsigned int fd, u32 reg4,
 			 unsigned long len1, unsigned long len2);
 long sys_ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
 			 size_t len, int advice);
+long sys_ppc_sync_file_range2(int fd, unsigned int flags,
+			      unsigned int offset1,
+			      unsigned int offset2,
+			      unsigned int nbytes1,
+			      unsigned int nbytes2);
+long sys_ppc_fallocate(int fd, int mode, u32 offset1, u32 offset2,
+		       u32 len1, u32 len2);
 #endif
 #ifdef CONFIG_COMPAT
 long compat_sys_mmap2(unsigned long addr, size_t len,

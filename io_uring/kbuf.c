@@ -306,14 +306,11 @@ int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		if (!bl->buf_nr_pages)
 			ret = __io_remove_buffers(ctx, bl, p->nbufs);
 	}
+	io_ring_submit_unlock(ctx, issue_flags);
 	if (ret < 0)
 		req_set_fail(req);
-
-	/* complete before unlock, IOPOLL may need the lock */
 	io_req_set_res(req, ret, 0);
-	__io_req_complete(req, issue_flags);
-	io_ring_submit_unlock(ctx, issue_flags);
-	return IOU_ISSUE_SKIP_COMPLETE;
+	return IOU_OK;
 }
 
 int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -346,6 +343,8 @@ int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	tmp = READ_ONCE(sqe->off);
 	if (tmp > USHRT_MAX)
 		return -E2BIG;
+	if (tmp + p->nbufs >= USHRT_MAX)
+		return -EINVAL;
 	p->bid = tmp;
 	return 0;
 }
@@ -456,13 +455,12 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = io_add_buffers(ctx, p, bl);
 err:
+	io_ring_submit_unlock(ctx, issue_flags);
+
 	if (ret < 0)
 		req_set_fail(req);
-	/* complete before unlock, IOPOLL may need the lock */
 	io_req_set_res(req, ret, 0);
-	__io_req_complete(req, issue_flags);
-	io_ring_submit_unlock(ctx, issue_flags);
-	return IOU_ISSUE_SKIP_COMPLETE;
+	return IOU_OK;
 }
 
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)

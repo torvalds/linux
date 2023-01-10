@@ -376,7 +376,7 @@ static int read_control_sense(struct fb_info_control *p)
 #define CONTROL_PIXCLOCK_MIN	5000	/* ~ 200 MHz dot clock */
 
 /*
- * calculate the clock paramaters to be sent to CUDA according to given
+ * calculate the clock parameters to be sent to CUDA according to given
  * pixclock in pico second.
  */
 static int calc_clock_params(unsigned long clk, unsigned char *param)

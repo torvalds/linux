@@ -216,7 +216,10 @@ struct mtk_eint_offsets {
  * @spec_dir_set: In very few SoCs, direction control registers are not
  * arranged continuously, they may be cut to parts. So they need special
  * dir setting.
-
+ * @mt8365_set_clr_mode: In mt8365, some pins won't set correcty because they
+ * need to use the main R/W register to read/update/write the modes instead of
+ * the SET/CLR register.
+ *
  * @dir_offset: The direction register offset.
  * @pullen_offset: The pull-up/pull-down enable register offset.
  * @pinmux_offset: The pinmux register offset.
@@ -252,6 +255,9 @@ struct mtk_pinctrl_devdata {
 	void (*spec_pinmux_set)(struct regmap *reg, unsigned int pin,
 			unsigned int mode);
 	void (*spec_dir_set)(unsigned int *reg_addr, unsigned int pin);
+	int (*mt8365_set_clr_mode)(struct regmap *regmap,
+			unsigned int bit, unsigned int reg_pullen, unsigned int reg_pullsel,
+			bool enable, bool isup);
 	unsigned int dir_offset;
 	unsigned int ies_offset;
 	unsigned int smt_offset;

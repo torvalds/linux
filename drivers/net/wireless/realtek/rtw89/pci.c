@@ -186,6 +186,17 @@ static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
 	}
 }
 
+static void rtw89_pci_ctrl_txdma_fw_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
+
+	if (enable)
+		rtw89_write32_clr(rtwdev, dma_stop1->addr, B_AX_STOP_CH12);
+	else
+		rtw89_write32_set(rtwdev, dma_stop1->addr, B_AX_STOP_CH12);
+}
+
 static bool
 rtw89_skb_put_rx_data(struct rtw89_dev *rtwdev, bool fs, bool ls,
 		      struct sk_buff *new,
@@ -256,7 +267,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 
 		rtw89_core_query_rxdesc(rtwdev, desc_info, skb->data, rxinfo_size);
 
-		new = dev_alloc_skb(desc_info->pkt_size);
+		new = rtw89_alloc_skb_for_rx(rtwdev, desc_info->pkt_size);
 		if (!new)
 			goto err_sync_device;
 
@@ -960,8 +971,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	struct rtw89_pci_tx_ring *tx_ring = &rtwpci->tx_rings[txch];
 	struct rtw89_pci_tx_wd_ring *wd_ring = &tx_ring->wd_ring;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 bd_cnt, wd_cnt, min_cnt = 0;
 	struct rtw89_pci_rx_ring *rx_ring;
+	enum rtw89_debug_mask debug_mask;
 	u32 cnt;
 
 	rx_ring = &rtwpci->rx_rings[RTW89_RXCH_RPQ];
@@ -985,10 +998,20 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	bd_cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
 	wd_cnt = wd_ring->curr_num;
 	min_cnt = min(bd_cnt, wd_cnt);
-	if (min_cnt == 0)
-		rtw89_debug(rtwdev, rtwpci->low_power ? RTW89_DBG_TXRX : RTW89_DBG_UNEXP,
+	if (min_cnt == 0) {
+		/* This message can be frequently shown in low power mode or
+		 * high traffic with 8852B, and we have recognized it as normal
+		 * behavior, so print with mask RTW89_DBG_TXRX in these situations.
+		 */
+		if (rtwpci->low_power || chip->chip_id == RTL8852B)
+			debug_mask = RTW89_DBG_TXRX;
+		else
+			debug_mask = RTW89_DBG_UNEXP;
+
+		rtw89_debug(rtwdev, debug_mask,
 			    "still no tx resource after reclaim: wd_cnt=%d bd_cnt=%d\n",
 			    wd_cnt, bd_cnt);
+	}
 
 out_unlock:
 	spin_unlock_bh(&rtwpci->trx_lock);
@@ -2513,7 +2536,7 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 
 	/* disable all channels except to FW CMD channel to download firmware */
 	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, false);
-	rtw89_write32_clr(rtwdev, info->dma_stop1.addr, B_AX_STOP_CH12);
+	rtw89_pci_ctrl_txdma_fw_ch_pcie(rtwdev, true);
 
 	/* start DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, true);
@@ -3771,6 +3794,16 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 
 	.recovery_start = rtw89_pci_ops_recovery_start,
 	.recovery_complete = rtw89_pci_ops_recovery_complete,
+
+	.ctrl_txdma_ch	= rtw89_pci_ctrl_txdma_ch_pcie,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_pcie,
+	.ctrl_trxhci	= rtw89_pci_ctrl_dma_trx,
+	.poll_txdma_ch	= rtw89_poll_txdma_ch_idle_pcie,
+	.clr_idx_all	= rtw89_pci_clr_idx_all,
+	.clear		= rtw89_pci_clear_resource,
+	.disable_intr	= rtw89_pci_disable_intr_lock,
+	.enable_intr	= rtw89_pci_enable_intr_lock,
+	.rst_bdram	= rtw89_pci_rst_bdram_pcie,
 };
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)

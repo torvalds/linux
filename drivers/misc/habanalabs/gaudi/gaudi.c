@@ -6505,8 +6505,8 @@ event_not_supported:
 }
 
 static const char *gaudi_get_razwi_initiator_dma_name(struct hl_device *hdev, u32 x_y,
-							bool is_write, s32 *engine_id_1,
-							s32 *engine_id_2)
+							bool is_write, u16 *engine_id_1,
+							u16 *engine_id_2)
 {
 	u32 dma_id[2], dma_offset, err_cause[2], mask, i;
 
@@ -6603,7 +6603,7 @@ unknown_initiator:
 }
 
 static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev, bool is_write,
-							u32 *engine_id_1, u32 *engine_id_2)
+							u16 *engine_id_1, u16 *engine_id_2)
 {
 	u32 val, x_y, axi_id;
 
@@ -6719,8 +6719,8 @@ static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev, bool i
 	return "unknown initiator";
 }
 
-static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_id_1,
-						u32 *engine_id_2)
+static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u16 *engine_id_1,
+						u16 *engine_id_2, bool *is_read, bool *is_write)
 {
 
 	if (RREG32(mmMMU_UP_RAZWI_WRITE_VLD)) {
@@ -6728,6 +6728,7 @@ static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_i
 			"RAZWI event caused by illegal write of %s\n",
 			gaudi_get_razwi_initiator_name(hdev, true, engine_id_1, engine_id_2));
 		WREG32(mmMMU_UP_RAZWI_WRITE_VLD, 0);
+		*is_write = true;
 	}
 
 	if (RREG32(mmMMU_UP_RAZWI_READ_VLD)) {
@@ -6735,10 +6736,11 @@ static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_i
 			"RAZWI event caused by illegal read of %s\n",
 			gaudi_get_razwi_initiator_name(hdev, false, engine_id_1, engine_id_2));
 		WREG32(mmMMU_UP_RAZWI_READ_VLD, 0);
+		*is_read = true;
 	}
 }
 
-static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr, u8 *type)
+static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr, u64 *event_mask)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 val;
@@ -6753,7 +6755,7 @@ static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr
 		*addr |= RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE_VA);
 
 		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n", *addr);
-		*type = HL_RAZWI_PAGE_FAULT;
+		hl_handle_page_fault(hdev, *addr, 0, true, event_mask);
 
 		WREG32(mmMMU_UP_PAGE_ERROR_CAPTURE, 0);
 	}
@@ -6765,7 +6767,6 @@ static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr
 		*addr |= RREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE_VA);
 
 		dev_err_ratelimited(hdev->dev, "MMU access error on va 0x%llx\n", *addr);
-		*type = HL_RAZWI_MMU_ACCESS_ERROR;
 
 		WREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE, 0);
 	}
@@ -7300,48 +7301,44 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 }
 
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
-					bool razwi)
+					bool razwi, u64 *event_mask)
 {
-	u32 engine_id_1, engine_id_2;
+	bool is_read = false, is_write = false;
+	u16 engine_id[2], num_of_razwi_eng = 0;
 	char desc[64] = "";
 	u64 razwi_addr = 0;
-	u8 razwi_type;
-	int rc;
+	u8 razwi_flags = 0;
 
 	/*
 	 * Init engine id by default as not valid and only if razwi initiated from engine with
 	 * engine id it will get valid value.
-	 * Init razwi type to default, will be changed only if razwi caused by page fault of
-	 * MMU access error
 	 */
-	engine_id_1 = U16_MAX;
-	engine_id_2 = U16_MAX;
-	razwi_type = U8_MAX;
+	engine_id[0] = HL_RAZWI_NA_ENG_ID;
+	engine_id[1] = HL_RAZWI_NA_ENG_ID;
 
 	gaudi_get_event_desc(event_type, desc, sizeof(desc));
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
 	if (razwi) {
-		gaudi_print_and_get_razwi_info(hdev, &engine_id_1, &engine_id_2);
-		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, &razwi_type);
+		gaudi_print_and_get_razwi_info(hdev, &engine_id[0], &engine_id[1], &is_read,
+						&is_write);
+		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, event_mask);
 
-		/* In case it's the first razwi, save its parameters*/
-		rc = atomic_cmpxchg(&hdev->captured_err_info.razwi.write_enable, 1, 0);
-		if (rc) {
-			hdev->captured_err_info.razwi.timestamp = ktime_get();
-			hdev->captured_err_info.razwi.addr = razwi_addr;
-			hdev->captured_err_info.razwi.engine_id_1 = engine_id_1;
-			hdev->captured_err_info.razwi.engine_id_2 = engine_id_2;
-			/*
-			 * If first engine id holds non valid value the razwi initiator
-			 * does not have engine id
-			 */
-			hdev->captured_err_info.razwi.non_engine_initiator =
-									(engine_id_1 == U16_MAX);
-			hdev->captured_err_info.razwi.type = razwi_type;
+		if (is_read)
+			razwi_flags |= HL_RAZWI_READ;
+		if (is_write)
+			razwi_flags |= HL_RAZWI_WRITE;
 
+		if (engine_id[0] != HL_RAZWI_NA_ENG_ID) {
+			if (engine_id[1] != HL_RAZWI_NA_ENG_ID)
+				num_of_razwi_eng = 2;
+			else
+				num_of_razwi_eng = 1;
 		}
+
+		hl_handle_razwi(hdev, razwi_addr, engine_id, num_of_razwi_eng, razwi_flags,
+				event_mask);
 	}
 }
 
@@ -7350,8 +7347,8 @@ static void gaudi_print_out_of_sync_info(struct hl_device *hdev,
 {
 	struct hl_hw_queue *q = &hdev->kernel_queues[GAUDI_QUEUE_ID_CPU_PQ];
 
-	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%u\n",
-			sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
+	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%d\n",
+		le32_to_cpu(sync_err->pi), le32_to_cpu(sync_err->ci), q->pi, atomic_read(&q->ci));
 }
 
 static void gaudi_print_fw_alive_info(struct hl_device *hdev,
@@ -7359,9 +7356,10 @@ static void gaudi_print_fw_alive_info(struct hl_device *hdev,
 {
 	dev_err(hdev->dev,
 		"FW alive report: severity=%s, process_id=%u, thread_id=%u, uptime=%llu seconds\n",
-		(fw_alive->severity == FW_ALIVE_SEVERITY_MINOR) ?
-		"Minor" : "Critical", fw_alive->process_id,
-		fw_alive->thread_id, fw_alive->uptime_seconds);
+		(fw_alive->severity == FW_ALIVE_SEVERITY_MINOR) ? "Minor" : "Critical",
+		le32_to_cpu(fw_alive->process_id),
+		le32_to_cpu(fw_alive->thread_id),
+		le64_to_cpu(fw_alive->uptime_seconds));
 }
 
 static void gaudi_print_nic_axi_irq_info(struct hl_device *hdev, u16 event_type,
@@ -7679,7 +7677,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_HBM_0_DERR ... GAUDI_EVENT_HBM_3_DERR:
 	case GAUDI_EVENT_MMU_DERR:
 	case GAUDI_EVENT_NIC0_CS_DBG_DERR ... GAUDI_EVENT_NIC4_CS_DBG_DERR:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
@@ -7689,7 +7687,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_AXI_ECC:
 	case GAUDI_EVENT_L2_RAM_ECC:
 	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
@@ -7698,7 +7696,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_HBM1_SPI_0:
 	case GAUDI_EVENT_HBM2_SPI_0:
 	case GAUDI_EVENT_HBM3_SPI_0:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_hbm_read_interrupts(hdev,
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
@@ -7710,7 +7708,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_HBM1_SPI_1:
 	case GAUDI_EVENT_HBM2_SPI_1:
 	case GAUDI_EVENT_HBM3_SPI_1:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_hbm_read_interrupts(hdev,
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
@@ -7732,7 +7730,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		 * if the event is a TPC Assertion or a "real" TPC DEC.
 		 */
 		event_mask |= HL_NOTIFIER_EVENT_TPC_ASSERT;
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_dec_event_to_tpc_id(event_type),
 					"AXI_SLV_DEC_Error");
@@ -7757,7 +7755,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_TPC5_KRN_ERR:
 	case GAUDI_EVENT_TPC6_KRN_ERR:
 	case GAUDI_EVENT_TPC7_KRN_ERR:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_krn_event_to_tpc_id(event_type),
 					"KRN_ERR");
@@ -7796,7 +7794,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_HBM_0_SERR ... GAUDI_EVENT_HBM_3_SERR:
 		fallthrough;
 	case GAUDI_EVENT_MMU_SERR:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
 		hl_fw_unmask_irq(hdev, event_type);
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
@@ -7806,14 +7804,14 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_CPU_AXI_SPLITTER:
 	case GAUDI_EVENT_PSOC_AXI_DEC:
 	case GAUDI_EVENT_PSOC_PRSTN_FALL:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
 	case GAUDI_EVENT_MMU_PAGE_FAULT:
 	case GAUDI_EVENT_MMU_WR_PERM:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
@@ -7842,14 +7840,14 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_NIC4_QM1:
 	case GAUDI_EVENT_DMA0_CORE ... GAUDI_EVENT_DMA7_CORE:
 	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		gaudi_handle_qman_err(hdev, event_type, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
 		event_mask |= (HL_NOTIFIER_EVENT_USER_ENGINE_ERR | HL_NOTIFIER_EVENT_DEVICE_RESET);
 		break;
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
-		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_print_irq_info(hdev, event_type, true, &event_mask);
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		goto reset_device;
 
@@ -7862,7 +7860,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_TPC6_BMON_SPMU:
 	case GAUDI_EVENT_TPC7_BMON_SPMU:
 	case GAUDI_EVENT_DMA_BM_CH0 ... GAUDI_EVENT_DMA_BM_CH7:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
@@ -7874,7 +7872,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		break;
 
 	case GAUDI_EVENT_DMA_IF_SEI_0 ... GAUDI_EVENT_DMA_IF_SEI_3:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_print_sm_sei_info(hdev, event_type,
 					&eq_entry->sm_sei_data);
 		rc = hl_state_dump(hdev);
@@ -7903,18 +7901,18 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		break;
 
 	case GAUDI_EVENT_DEV_RESET_REQ:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_PKT_QUEUE_OUT_SYNC:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_FW_ALIVE_S:
-		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_print_fw_alive_info(hdev, &eq_entry->fw_alive);
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
@@ -7946,14 +7944,14 @@ reset_device:
 		reset_required = false;
 	}
 
-	/* despite reset doesn't execute. a notification on
-	 * occurred event needs to be sent here
-	 */
-	hl_notifier_event_send_all(hdev, event_mask);
-	if (reset_required)
-		hl_device_reset(hdev, flags);
-	else
+	if (reset_required) {
+		hl_device_cond_reset(hdev, flags, event_mask);
+	} else {
 		hl_fw_unmask_irq(hdev, event_type);
+		/* Notification on occurred event needs to be sent although reset is not executed */
+		if (event_mask)
+			hl_notifier_event_send_all(hdev, event_mask);
+	}
 }
 
 static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate, u32 *size)

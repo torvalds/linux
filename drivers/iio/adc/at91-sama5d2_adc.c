@@ -2198,14 +2198,14 @@ static IIO_DEVICE_ATTR(hwfifo_enabled, 0444,
 static IIO_DEVICE_ATTR(hwfifo_watermark, 0444,
 		       at91_adc_get_watermark, NULL, 0);
 
-static IIO_CONST_ATTR(hwfifo_watermark_min, "2");
-static IIO_CONST_ATTR(hwfifo_watermark_max, AT91_HWFIFO_MAX_SIZE_STR);
+IIO_STATIC_CONST_DEVICE_ATTR(hwfifo_watermark_min, "2");
+IIO_STATIC_CONST_DEVICE_ATTR(hwfifo_watermark_max, AT91_HWFIFO_MAX_SIZE_STR);
 
-static const struct attribute *at91_adc_fifo_attributes[] = {
-	&iio_const_attr_hwfifo_watermark_min.dev_attr.attr,
-	&iio_const_attr_hwfifo_watermark_max.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
-	&iio_dev_attr_hwfifo_enabled.dev_attr.attr,
+static const struct iio_dev_attr *at91_adc_fifo_attributes[] = {
+	&iio_dev_attr_hwfifo_watermark_min,
+	&iio_dev_attr_hwfifo_watermark_max,
+	&iio_dev_attr_hwfifo_watermark,
+	&iio_dev_attr_hwfifo_enabled,
 	NULL,
 };
 
@@ -2222,7 +2222,7 @@ static int at91_adc_buffer_and_trigger_init(struct device *dev,
 					    struct iio_dev *indio)
 {
 	struct at91_adc_state *st = iio_priv(indio);
-	const struct attribute **fifo_attrs;
+	const struct iio_dev_attr **fifo_attrs;
 	int ret;
 
 	if (st->selected_trig->hw_trig)
@@ -2294,11 +2294,9 @@ static int at91_adc_temp_sensor_init(struct at91_adc_state *st,
 	clb->p6 = buf[AT91_ADC_TS_CLB_IDX_P6];
 
 	/*
-	 * We prepare here the conversion to milli and also add constant
-	 * factor (5 degrees Celsius) to p1 here to avoid doing it on
-	 * hotpath.
+	 * We prepare here the conversion to milli to avoid doing it on hotpath.
 	 */
-	clb->p1 = clb->p1 * 1000 + 5000;
+	clb->p1 = clb->p1 * 1000;
 
 free_buf:
 	kfree(buf);

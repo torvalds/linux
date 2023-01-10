@@ -66,14 +66,14 @@ reference_lists_init(struct intel_gt *gt, struct wa_lists *lists)
 
 	memset(lists, 0, sizeof(*lists));
 
-	wa_init_start(&lists->gt_wa_list, "GT_REF", "global");
+	wa_init_start(&lists->gt_wa_list, gt, "GT_REF", "global");
 	gt_init_workarounds(gt, &lists->gt_wa_list);
 	wa_init_finish(&lists->gt_wa_list);
 
 	for_each_engine(engine, gt, id) {
 		struct i915_wa_list *wal = &lists->engine[id].wa_list;
 
-		wa_init_start(wal, "REF", engine->name);
+		wa_init_start(wal, gt, "REF", engine->name);
 		engine_init_workarounds(engine, wal);
 		wa_init_finish(wal);
 
@@ -139,9 +139,7 @@ read_nonprivs(struct intel_context *ce)
 	}
 
 	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, true);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(vma);
 	if (err)
 		goto err_req;
@@ -632,16 +630,12 @@ retry:
 				goto err_request;
 		}
 
-		err = i915_request_await_object(rq, batch->obj, false);
-		if (err == 0)
-			err = i915_vma_move_to_active(batch, rq, 0);
+		err = i915_vma_move_to_active(batch, rq, 0);
 		if (err)
 			goto err_request;
 
-		err = i915_request_await_object(rq, scratch->obj, true);
-		if (err == 0)
-			err = i915_vma_move_to_active(scratch, rq,
-						      EXEC_OBJECT_WRITE);
+		err = i915_vma_move_to_active(scratch, rq,
+					      EXEC_OBJECT_WRITE);
 		if (err)
 			goto err_request;
 
@@ -860,9 +854,7 @@ static int read_whitelisted_registers(struct intel_context *ce,
 		return PTR_ERR(rq);
 
 	i915_vma_lock(results);
-	err = i915_request_await_object(rq, results->obj, true);
-	if (err == 0)
-		err = i915_vma_move_to_active(results, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(results, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(results);
 	if (err)
 		goto err_req;
@@ -944,9 +936,7 @@ static int scrub_whitelisted_registers(struct intel_context *ce)
 	}
 
 	i915_vma_lock(batch);
-	err = i915_request_await_object(rq, batch->obj, false);
-	if (err == 0)
-		err = i915_vma_move_to_active(batch, rq, 0);
+	err = i915_vma_move_to_active(batch, rq, 0);
 	i915_vma_unlock(batch);
 	if (err)
 		goto err_request;
@@ -991,7 +981,7 @@ static bool pardon_reg(struct drm_i915_private *i915, i915_reg_t reg)
 	/* Alas, we must pardon some whitelists. Mistakes already made */
 	static const struct regmask pardon[] = {
 		{ GEN9_CTX_PREEMPT_REG, 9 },
-		{ GEN8_L3SQCREG4, 9 },
+		{ _MMIO(0xb118), 9 }, /* GEN8_L3SQCREG4 */
 	};
 
 	return find_reg(i915, reg, pardon, ARRAY_SIZE(pardon));

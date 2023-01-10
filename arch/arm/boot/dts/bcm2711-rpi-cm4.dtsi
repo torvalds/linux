@@ -12,7 +12,7 @@
 		stdout-path = "serial1:115200n8";
 	};
 
-	sd_io_1v8_reg: sd_io_1v8_reg {
+	sd_io_1v8_reg: regulator-sd-io-1v8 {
 		compatible = "regulator-gpio";
 		regulator-name = "vdd-sd-io";
 		regulator-min-microvolt = <1800000>;
@@ -26,7 +26,7 @@
 		status = "okay";
 	};
 
-	sd_vcc_reg: sd_vcc_reg {
+	sd_vcc_reg: regulator-sd-vcc {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc-sd";
 		regulator-min-microvolt = <3300000>;

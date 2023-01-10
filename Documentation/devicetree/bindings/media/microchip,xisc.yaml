@@ -106,6 +106,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/at91.h>
     #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/media/video-interfaces.h>
 
     xisc: xisc@e1408000 {
         compatible = "microchip,sama7g5-isc";
@@ -118,7 +119,7 @@ examples:
 
         port {
                 xisc_in: endpoint {
-                       bus-type = <5>; /* Parallel */
+                       bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
                        remote-endpoint = <&csi2dc_out>;
                        hsync-active = <1>;
                        vsync-active = <1>;

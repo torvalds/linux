@@ -31,7 +31,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/io-mapping.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
 

@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/eventfd.h>
-#include <linux/msi.h>
 
 #include "linux/fsl/mc.h"
 #include "vfio_fsl_mc_private.h"

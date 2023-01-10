@@ -59,6 +59,7 @@ struct nfs_access_entry {
 	kuid_t			fsuid;
 	kgid_t			fsgid;
 	struct group_info	*group_info;
+	u64			timestamp;
 	__u32			mask;
 	struct rcu_head		rcu_head;
 };

@@ -813,7 +813,6 @@ static int tc6393xb_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int tc6393xb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
@@ -876,16 +875,12 @@ static int tc6393xb_resume(struct platform_device *dev)
 
 	return 0;
 }
-#else
-#define tc6393xb_suspend NULL
-#define tc6393xb_resume NULL
-#endif
 
 static struct platform_driver tc6393xb_driver = {
 	.probe = tc6393xb_probe,
 	.remove = tc6393xb_remove,
-	.suspend = tc6393xb_suspend,
-	.resume = tc6393xb_resume,
+	.suspend = pm_sleep_ptr(tc6393xb_suspend),
+	.resume = pm_sleep_ptr(tc6393xb_resume),
 
 	.driver = {
 		.name = "tc6393xb",

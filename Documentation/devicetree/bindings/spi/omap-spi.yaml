@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/omap-spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SPI controller bindings for OMAP and K3 SoCs
+title: SPI Controller on OMAP and K3 SoCs
 
 maintainers:
   - Aswath Govindraju <a-govindraju@ti.com>

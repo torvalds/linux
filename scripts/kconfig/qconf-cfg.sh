@@ -1,6 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
+cflags=$1
+libs=$2
+bin=$3
+
 PKG="Qt5Core Qt5Gui Qt5Widgets"
 
 if [ -z "$(command -v ${HOSTPKG_CONFIG})" ]; then
@@ -11,9 +15,9 @@ if [ -z "$(command -v ${HOSTPKG_CONFIG})" ]; then
 fi
 
 if ${HOSTPKG_CONFIG} --exists $PKG; then
-	echo cflags=\"-std=c++11 -fPIC $(${HOSTPKG_CONFIG} --cflags $PKG)\"
-	echo libs=\"$(${HOSTPKG_CONFIG} --libs $PKG)\"
-	echo moc=\"$(${HOSTPKG_CONFIG} --variable=host_bins Qt5Core)/moc\"
+	${HOSTPKG_CONFIG} --cflags ${PKG} > ${cflags}
+	${HOSTPKG_CONFIG} --libs ${PKG} > ${libs}
+	${HOSTPKG_CONFIG} --variable=host_bins Qt5Core > ${bin}
 	exit 0
 fi
 

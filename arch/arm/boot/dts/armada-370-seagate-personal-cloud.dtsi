@@ -107,7 +107,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-sata0 {
+		led-red-sata0 {
 			label = "cumulus:red:sata0";
 			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 			default-state = "off";

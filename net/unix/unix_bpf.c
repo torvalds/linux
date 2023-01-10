@@ -145,12 +145,12 @@ int unix_dgram_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool re
 
 	if (restore) {
 		sk->sk_write_space = psock->saved_write_space;
-		WRITE_ONCE(sk->sk_prot, psock->sk_proto);
+		sock_replace_proto(sk, psock->sk_proto);
 		return 0;
 	}
 
 	unix_dgram_bpf_check_needs_rebuild(psock->sk_proto);
-	WRITE_ONCE(sk->sk_prot, &unix_dgram_bpf_prot);
+	sock_replace_proto(sk, &unix_dgram_bpf_prot);
 	return 0;
 }
 
@@ -158,12 +158,12 @@ int unix_stream_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool r
 {
 	if (restore) {
 		sk->sk_write_space = psock->saved_write_space;
-		WRITE_ONCE(sk->sk_prot, psock->sk_proto);
+		sock_replace_proto(sk, psock->sk_proto);
 		return 0;
 	}
 
 	unix_stream_bpf_check_needs_rebuild(psock->sk_proto);
-	WRITE_ONCE(sk->sk_prot, &unix_stream_bpf_prot);
+	sock_replace_proto(sk, &unix_stream_bpf_prot);
 	return 0;
 }
 

@@ -231,9 +231,6 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_SYNC_REGS));
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	ksft_print_header();
 
 	ksft_set_plan(ARRAY_SIZE(testlist));

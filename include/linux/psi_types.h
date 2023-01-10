@@ -72,6 +72,9 @@ enum psi_states {
 /* Use one bit in the state mask to track TSK_ONCPU */
 #define PSI_ONCPU	(1 << NR_PSI_STATES)
 
+/* Flag whether to re-arm avgs_work, see details in get_recent_times() */
+#define PSI_STATE_RESCHEDULE	(1 << (NR_PSI_STATES + 1))
+
 enum psi_aggregators {
 	PSI_AVGS = 0,
 	PSI_POLL,
@@ -177,6 +180,7 @@ struct psi_group {
 	struct timer_list poll_timer;
 	wait_queue_head_t poll_wait;
 	atomic_t poll_wakeup;
+	atomic_t poll_scheduled;
 
 	/* Protects data used by the monitor */
 	struct mutex trigger_lock;

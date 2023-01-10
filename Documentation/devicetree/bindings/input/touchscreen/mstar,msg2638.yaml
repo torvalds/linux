@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/mstar,msg2638.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MStar msg2638 touchscreen controller Bindings
+title: MStar msg2638 touchscreen controller
 
 maintainers:
   - Vincent Knecht <vincent.knecht@mailoo.org>

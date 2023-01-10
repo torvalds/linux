@@ -23,6 +23,7 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 #include <net/flow_offload.h>
+#include <net/tc_wrapper.h>
 
 #ifdef CONFIG_INET
 DEFINE_STATIC_KEY_FALSE(tcf_frag_xmit_count);
@@ -1080,7 +1081,7 @@ restart_act_graph:
 
 		repeat_ttl = 32;
 repeat:
-		ret = a->ops->act(skb, a, res);
+		ret = tc_act(skb, a, res);
 		if (unlikely(ret == TC_ACT_REPEAT)) {
 			if (--repeat_ttl != 0)
 				goto repeat;

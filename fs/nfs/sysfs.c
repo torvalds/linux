@@ -26,7 +26,7 @@ static void nfs_netns_object_release(struct kobject *kobj)
 }
 
 static const struct kobj_ns_type_operations *nfs_netns_object_child_ns_type(
-		struct kobject *kobj)
+		const struct kobject *kobj)
 {
 	return &net_ns_type_operations;
 }
@@ -82,7 +82,7 @@ static ssize_t nfs_netns_identifier_show(struct kobject *kobj,
 	ssize_t ret;
 
 	rcu_read_lock();
-	ret = scnprintf(buf, PAGE_SIZE, "%s\n", rcu_dereference(c->identifier));
+	ret = sysfs_emit(buf, "%s\n", rcu_dereference(c->identifier));
 	rcu_read_unlock();
 	return ret;
 }
@@ -130,7 +130,7 @@ static void nfs_netns_client_release(struct kobject *kobj)
 	kfree(c);
 }
 
-static const void *nfs_netns_client_namespace(struct kobject *kobj)
+static const void *nfs_netns_client_namespace(const struct kobject *kobj)
 {
 	return container_of(kobj, struct nfs_netns_client, kobject)->net;
 }

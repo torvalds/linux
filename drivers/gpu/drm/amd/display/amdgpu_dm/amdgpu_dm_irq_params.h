@@ -39,7 +39,7 @@ struct dm_irq_params {
 #ifdef CONFIG_DEBUG_FS
 	enum amdgpu_dm_pipe_crc_source crc_src;
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-	struct crc_window_parm crc_window;
+	struct crc_window_param window_param;
 #endif
 #endif
 };

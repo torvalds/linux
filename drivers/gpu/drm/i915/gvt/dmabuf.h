@@ -48,7 +48,7 @@ struct intel_vgpu_fb_info {
 	struct intel_vgpu_dmabuf_obj *obj;
 };
 
-/**
+/*
  * struct intel_vgpu_dmabuf_obj- Intel vGPU device buffer object
  */
 struct intel_vgpu_dmabuf_obj {

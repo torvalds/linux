@@ -41,7 +41,7 @@ required:
   - nvmem-cells
 
 patternProperties:
-  "opp-[0-9]+":
+  "^opp-[0-9]+$":
     type: object
 
     properties:
@@ -49,7 +49,7 @@ patternProperties:
       clock-latency-ns: true
 
     patternProperties:
-      "opp-microvolt-.*": true
+      "^opp-microvolt-speed[0-9]$": true
 
     required:
       - opp-hz

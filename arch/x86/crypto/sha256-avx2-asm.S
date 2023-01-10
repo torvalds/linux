@@ -49,6 +49,7 @@
 ########################################################################
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 
 ## assume buffers not aligned
 #define	VMOVDQ vmovdqu
@@ -523,8 +524,7 @@ STACK_SIZE	= _CTX      + _CTX_SIZE
 ## arg 3 : Num blocks
 ########################################################################
 .text
-SYM_FUNC_START(sha256_transform_rorx)
-.align 32
+SYM_TYPED_FUNC_START(sha256_transform_rorx)
 	pushq	%rbx
 	pushq	%r12
 	pushq	%r13

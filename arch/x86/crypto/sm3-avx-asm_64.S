@@ -12,6 +12,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/frame.h>
 
 /* Context structure */
@@ -327,8 +328,7 @@
  * void sm3_transform_avx(struct sm3_state *state,
  *                        const u8 *data, int nblocks);
  */
-.align 16
-SYM_FUNC_START(sm3_transform_avx)
+SYM_TYPED_FUNC_START(sm3_transform_avx)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: data (64*nblks bytes)

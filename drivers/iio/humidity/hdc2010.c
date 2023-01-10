@@ -251,8 +251,7 @@ static const struct iio_info hdc2010_info = {
 	.attrs = &hdc2010_attribute_group,
 };
 
-static int hdc2010_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int hdc2010_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct hdc2010_data *data;
@@ -339,7 +338,7 @@ static struct i2c_driver hdc2010_driver = {
 		.name	= "hdc2010",
 		.of_match_table = hdc2010_dt_ids,
 	},
-	.probe = hdc2010_probe,
+	.probe_new = hdc2010_probe,
 	.remove = hdc2010_remove,
 	.id_table = hdc2010_id,
 };

@@ -28,6 +28,31 @@ bool pagemap_is_softdirty(int fd, char *start)
 	return entry & 0x0080000000000000ull;
 }
 
+bool pagemap_is_swapped(int fd, char *start)
+{
+	uint64_t entry = pagemap_get_entry(fd, start);
+
+	return entry & 0x4000000000000000ull;
+}
+
+bool pagemap_is_populated(int fd, char *start)
+{
+	uint64_t entry = pagemap_get_entry(fd, start);
+
+	/* Present or swapped. */
+	return entry & 0xc000000000000000ull;
+}
+
+unsigned long pagemap_get_pfn(int fd, char *start)
+{
+	uint64_t entry = pagemap_get_entry(fd, start);
+
+	/* If present (63th bit), PFN is at bit 0 -- 54. */
+	if (entry & 0x8000000000000000ull)
+		return entry & 0x007fffffffffffffull;
+	return -1ul;
+}
+
 void clear_softdirty(void)
 {
 	int ret;

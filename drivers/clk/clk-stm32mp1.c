@@ -155,7 +155,7 @@ static const char * const eth_src[] = {
 	"pll4_p", "pll3_q"
 };
 
-const struct clk_parent_data ethrx_src[] = {
+static const struct clk_parent_data ethrx_src[] = {
 	{ .name = "ethck_k", .fw_name = "ETH_RX_CLK/ETH_REF_CLK" },
 };
 

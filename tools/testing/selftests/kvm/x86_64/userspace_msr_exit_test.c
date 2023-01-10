@@ -733,16 +733,98 @@ static void test_msr_permission_bitmap(void)
 	kvm_vm_free(vm);
 }
 
+#define test_user_exit_msr_ioctl(vm, cmd, arg, flag, valid_mask)	\
+({									\
+	int r = __vm_ioctl(vm, cmd, arg);				\
+									\
+	if (flag & valid_mask)						\
+		TEST_ASSERT(!r, __KVM_IOCTL_ERROR(#cmd, r));		\
+	else								\
+		TEST_ASSERT(r == -1 && errno == EINVAL,			\
+			    "Wanted EINVAL for %s with flag = 0x%llx, got  rc: %i errno: %i (%s)", \
+			    #cmd, flag, r, errno,  strerror(errno));	\
+})
+
+static void run_user_space_msr_flag_test(struct kvm_vm *vm)
+{
+	struct kvm_enable_cap cap = { .cap = KVM_CAP_X86_USER_SPACE_MSR };
+	int nflags = sizeof(cap.args[0]) * BITS_PER_BYTE;
+	int rc;
+	int i;
+
+	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
+	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
+
+	for (i = 0; i < nflags; i++) {
+		cap.args[0] = BIT_ULL(i);
+		test_user_exit_msr_ioctl(vm, KVM_ENABLE_CAP, &cap,
+			   BIT_ULL(i), KVM_MSR_EXIT_REASON_VALID_MASK);
+	}
+}
+
+static void run_msr_filter_flag_test(struct kvm_vm *vm)
+{
+	u64 deny_bits = 0;
+	struct kvm_msr_filter filter = {
+		.flags = KVM_MSR_FILTER_DEFAULT_ALLOW,
+		.ranges = {
+			{
+				.flags = KVM_MSR_FILTER_READ,
+				.nmsrs = 1,
+				.base = 0,
+				.bitmap = (uint8_t *)&deny_bits,
+			},
+		},
+	};
+	int nflags;
+	int rc;
+	int i;
+
+	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
+	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");
+
+	nflags = sizeof(filter.flags) * BITS_PER_BYTE;
+	for (i = 0; i < nflags; i++) {
+		filter.flags = BIT_ULL(i);
+		test_user_exit_msr_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter,
+			   BIT_ULL(i), KVM_MSR_FILTER_VALID_MASK);
+	}
+
+	filter.flags = KVM_MSR_FILTER_DEFAULT_ALLOW;
+	nflags = sizeof(filter.ranges[0].flags) * BITS_PER_BYTE;
+	for (i = 0; i < nflags; i++) {
+		filter.ranges[0].flags = BIT_ULL(i);
+		test_user_exit_msr_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter,
+			   BIT_ULL(i), KVM_MSR_FILTER_RANGE_VALID_MASK);
+	}
+}
+
+/* Test that attempts to write to the unused bits in a flag fails. */
+static void test_user_exit_msr_flags(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+
+	vm = vm_create_with_one_vcpu(&vcpu, NULL);
+
+	/* Test flags for KVM_CAP_X86_USER_SPACE_MSR. */
+	run_user_space_msr_flag_test(vm);
+
+	/* Test flags and range flags for KVM_X86_SET_MSR_FILTER. */
+	run_msr_filter_flag_test(vm);
+
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	test_msr_filter_allow();
 
 	test_msr_filter_deny();
 
 	test_msr_permission_bitmap();
+
+	test_user_exit_msr_flags();
 
 	return 0;
 }

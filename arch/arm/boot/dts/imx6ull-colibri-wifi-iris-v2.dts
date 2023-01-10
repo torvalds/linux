@@ -15,13 +15,21 @@
 		     "fsl,imx6ull";
 };
 
+&ad7879_ts {
+	status = "okay";
+};
+
 &atmel_mxt_ts {
+	status = "okay";
+};
+
+&backlight {
 	status = "okay";
 };
 
 &gpio1 {
 	/* This turns the LVDS transceiver on */
-	lvds-power-on {
+	lvds-power-on-hog {
 		gpio-hog;
 		gpios = <14 GPIO_ACTIVE_HIGH>; /* SODIMM 99 */
 		line-name = "LVDS_POWER_ON";
@@ -34,7 +42,7 @@
 	 * This switches the LVDS transceiver to the single-channel
 	 * output mode.
 	 */
-	lvds-ch-mode {
+	lvds-ch-mode-hog {
 		gpio-hog;
 		gpios = <0 GPIO_ACTIVE_HIGH>; /* SODIMM 55 */
 		line-name = "LVDS_CH_MODE";
@@ -44,7 +52,7 @@
 	/*
 	 * This switches the LVDS transceiver to the 24-bit RGB mode.
 	 */
-	lvds-rgb-mode {
+	lvds-rgb-mode-hog {
 		gpio-hog;
 		gpios = <1 GPIO_ACTIVE_HIGH>; /* SODIMM 63 */
 		line-name = "LVDS_RGB_MODE";
@@ -56,10 +64,26 @@
 	/*
 	 * This switches the LVDS transceiver to VESA color mapping mode.
 	 */
-	lvds-color-map {
+	lvds-color-map-hog {
 		gpio-hog;
 		gpios = <3 GPIO_ACTIVE_HIGH>; /* SODIMM 95 */
 		line-name = "LVDS_COLOR_MAP";
 		output-low;
 	};
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
 };

@@ -18,58 +18,6 @@
 
 #include "st_lsm9ds0.h"
 
-static int st_lsm9ds0_power_enable(struct device *dev, struct st_lsm9ds0 *lsm9ds0)
-{
-	int ret;
-
-	/* Regulators not mandatory, but if requested we should enable them. */
-	lsm9ds0->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(lsm9ds0->vdd))
-		return dev_err_probe(dev, PTR_ERR(lsm9ds0->vdd),
-				     "unable to get Vdd supply\n");
-
-	ret = regulator_enable(lsm9ds0->vdd);
-	if (ret) {
-		dev_warn(dev, "Failed to enable specified Vdd supply\n");
-		return ret;
-	}
-
-	lsm9ds0->vdd_io = devm_regulator_get(dev, "vddio");
-	if (IS_ERR(lsm9ds0->vdd_io)) {
-		regulator_disable(lsm9ds0->vdd);
-		return dev_err_probe(dev, PTR_ERR(lsm9ds0->vdd_io),
-				     "unable to get Vdd_IO supply\n");
-	}
-	ret = regulator_enable(lsm9ds0->vdd_io);
-	if (ret) {
-		dev_warn(dev, "Failed to enable specified Vdd_IO supply\n");
-		regulator_disable(lsm9ds0->vdd);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void st_lsm9ds0_power_disable(void *data)
-{
-	struct st_lsm9ds0 *lsm9ds0 = data;
-
-	regulator_disable(lsm9ds0->vdd_io);
-	regulator_disable(lsm9ds0->vdd);
-}
-
-static int devm_st_lsm9ds0_power_enable(struct st_lsm9ds0 *lsm9ds0)
-{
-	struct device *dev = lsm9ds0->dev;
-	int ret;
-
-	ret = st_lsm9ds0_power_enable(dev, lsm9ds0);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev, st_lsm9ds0_power_disable, lsm9ds0);
-}
-
 static int st_lsm9ds0_probe_accel(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 {
 	const struct st_sensor_settings *settings;
@@ -92,8 +40,6 @@ static int st_lsm9ds0_probe_accel(struct st_lsm9ds0 *lsm9ds0, struct regmap *reg
 	data->sensor_settings = (struct st_sensor_settings *)settings;
 	data->irq = lsm9ds0->irq;
 	data->regmap = regmap;
-	data->vdd = lsm9ds0->vdd;
-	data->vdd_io = lsm9ds0->vdd_io;
 
 	return st_accel_common_probe(lsm9ds0->accel);
 }
@@ -120,19 +66,22 @@ static int st_lsm9ds0_probe_magn(struct st_lsm9ds0 *lsm9ds0, struct regmap *regm
 	data->sensor_settings = (struct st_sensor_settings *)settings;
 	data->irq = lsm9ds0->irq;
 	data->regmap = regmap;
-	data->vdd = lsm9ds0->vdd;
-	data->vdd_io = lsm9ds0->vdd_io;
 
 	return st_magn_common_probe(lsm9ds0->magn);
 }
 
 int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 {
+	struct device *dev = lsm9ds0->dev;
+	static const char * const regulator_names[] = { "vdd", "vddio" };
 	int ret;
 
-	ret = devm_st_lsm9ds0_power_enable(lsm9ds0);
+	/* Regulators not mandatory, but if requested we should enable them. */
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulator_names),
+					     regulator_names);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "unable to enable Vdd supply\n");
 
 	/* Setup accelerometer device */
 	ret = st_lsm9ds0_probe_accel(lsm9ds0, regmap);

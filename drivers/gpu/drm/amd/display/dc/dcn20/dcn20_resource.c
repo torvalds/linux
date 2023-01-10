@@ -124,8 +124,6 @@ enum dcn20_clk_src_array_id {
  * macros to expend register list macro defined in HW object header file */
 
 /* DCN */
-/* TODO awful hack. fixup dcn20_dwb.h */
-#undef BASE_INNER
 #define BASE_INNER(seg) DCN_BASE__INST0_SEG ## seg
 
 #define BASE(seg) BASE_INNER(seg)
@@ -137,6 +135,15 @@ enum dcn20_clk_src_array_id {
 #define SRI(reg_name, block, id)\
 	.reg_name = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
+
+#define SRI2_DWB(reg_name, block, id)\
+	.reg_name = BASE(mm ## reg_name ## _BASE_IDX) + \
+					mm ## reg_name
+#define SF_DWB(reg_name, field_name, post_fix)\
+	.field_name = reg_name ## __ ## field_name ## post_fix
+
+#define SF_DWB2(reg_name, block, id, field_name, post_fix)	\
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define SRIR(var_name, reg_name, block, id)\
 	.var_name = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
@@ -1454,6 +1461,22 @@ enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_
 	return result;
 }
 
+/**
+ * dcn20_split_stream_for_odm - Check if stream can be splited for ODM
+ *
+ * @dc: DC object with resource pool info required for pipe split
+ * @res_ctx: Persistent state of resources
+ * @prev_odm_pipe: Reference to the previous ODM pipe
+ * @next_odm_pipe: Reference to the next ODM pipe
+ *
+ * This function takes a logically active pipe and a logically free pipe and
+ * halves all the scaling parameters that need to be halved while populating
+ * the free pipe with the required resources and configuring the next/previous
+ * ODM pipe pointers.
+ *
+ * Return:
+ * Return true if split stream for ODM is possible, otherwise, return false.
+ */
 bool dcn20_split_stream_for_odm(
 		const struct dc *dc,
 		struct resource_context *res_ctx,

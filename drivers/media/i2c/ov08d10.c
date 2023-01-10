@@ -990,8 +990,13 @@ static int ov08d10_init_controls(struct ov08d10 *ov08d10)
 
 	ov08d10->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov08d10_ctrl_ops,
 					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+	if (ov08d10->hflip)
+		ov08d10->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	ov08d10->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov08d10_ctrl_ops,
 					   V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (ov08d10->vflip)
+		ov08d10->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+
 	if (ctrl_hdlr->error)
 		return ctrl_hdlr->error;
 

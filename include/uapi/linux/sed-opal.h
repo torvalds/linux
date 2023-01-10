@@ -44,6 +44,11 @@ enum opal_lock_state {
 	OPAL_LK = 0x04, /* 0100 */
 };
 
+enum opal_lock_flags {
+	/* IOC_OPAL_SAVE will also store the provided key for locking */
+	OPAL_SAVE_FOR_LOCK = 0x01,
+};
+
 struct opal_key {
 	__u8 lr;
 	__u8 key_len;
@@ -76,7 +81,8 @@ struct opal_user_lr_setup {
 struct opal_lock_unlock {
 	struct opal_session_info session;
 	__u32 l_state;
-	__u8 __align[4];
+	__u16 flags;
+	__u8 __align[2];
 };
 
 struct opal_new_pw {

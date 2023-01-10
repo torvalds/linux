@@ -196,6 +196,16 @@ switch_mm_fast:
 
 	if (need_flush_tlb)
 		local_flush_tlb_all();
+#ifdef CONFIG_SMP
+	else {
+		cpumask_t *mask = &mm->context.tlb_stale_mask;
+
+		if (cpumask_test_cpu(cpu, mask)) {
+			cpumask_clear_cpu(cpu, mask);
+			local_flush_tlb_all_asid(cntx & asid_mask);
+		}
+	}
+#endif
 }
 
 static void set_mm_noasid(struct mm_struct *mm)

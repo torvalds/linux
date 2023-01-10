@@ -480,7 +480,6 @@ static int wm5102_clear_write_sequencer(struct arizona *arizona)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int arizona_isolate_dcvdd(struct arizona *arizona)
 {
 	int ret;
@@ -742,9 +741,7 @@ static int arizona_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int arizona_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
@@ -784,17 +781,15 @@ static int arizona_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-const struct dev_pm_ops arizona_pm_ops = {
-	SET_RUNTIME_PM_OPS(arizona_runtime_suspend,
-			   arizona_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(arizona_suspend, arizona_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(arizona_suspend_noirq,
-				      arizona_resume_noirq)
+EXPORT_GPL_DEV_PM_OPS(arizona_pm_ops) = {
+	RUNTIME_PM_OPS(arizona_runtime_suspend,
+		       arizona_runtime_resume,
+		       NULL)
+	SYSTEM_SLEEP_PM_OPS(arizona_suspend, arizona_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(arizona_suspend_noirq,
+				  arizona_resume_noirq)
 };
-EXPORT_SYMBOL_GPL(arizona_pm_ops);
 
 #ifdef CONFIG_OF
 static int arizona_of_get_core_pdata(struct arizona *arizona)

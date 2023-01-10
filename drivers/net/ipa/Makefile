@@ -2,7 +2,7 @@
 #
 # Makefile for the Qualcomm IPA driver.
 
-IPA_VERSIONS		:=	3.1 3.5.1 4.2 4.5 4.9 4.11
+IPA_VERSIONS		:=	3.1 3.5.1 4.2 4.5 4.7 4.9 4.11
 
 obj-$(CONFIG_QCOM_IPA)	+=	ipa.o
 

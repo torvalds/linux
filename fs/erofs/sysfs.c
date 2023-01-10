@@ -210,14 +210,14 @@ int erofs_register_sysfs(struct super_block *sb)
 	int err;
 
 	if (erofs_is_fscache_mode(sb)) {
-		if (sbi->opt.domain_id) {
-			str = kasprintf(GFP_KERNEL, "%s,%s", sbi->opt.domain_id,
-					sbi->opt.fsid);
+		if (sbi->domain_id) {
+			str = kasprintf(GFP_KERNEL, "%s,%s", sbi->domain_id,
+					sbi->fsid);
 			if (!str)
 				return -ENOMEM;
 			name = str;
 		} else {
-			name = sbi->opt.fsid;
+			name = sbi->fsid;
 		}
 	} else {
 		name = sb->s_id;

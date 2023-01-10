@@ -10,6 +10,8 @@
 #include "../disk-io.h"
 #include "../qgroup.h"
 #include "../backref.h"
+#include "../fs.h"
+#include "../accessors.h"
 
 static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 				  u64 num_bytes, u64 parent, u64 root_objectid)
@@ -203,6 +205,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 static int test_no_shared_qgroup(struct btrfs_root *root,
 		u32 sectorsize, u32 nodesize)
 {
+	struct btrfs_backref_walk_ctx ctx = { 0 };
 	struct btrfs_trans_handle trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct ulist *old_roots = NULL;
@@ -218,30 +221,38 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return ret;
 	}
 
+	ctx.bytenr = nodesize;
+	ctx.trans = &trans;
+	ctx.fs_info = fs_info;
+
 	/*
 	 * Since the test trans doesn't have the complicated delayed refs,
 	 * we can only call btrfs_qgroup_account_extent() directly to test
 	 * quota.
 	 */
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots, false);
+	ret = btrfs_find_all_roots(&ctx, false);
 	if (ret) {
-		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	old_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = insert_normal_tree_ref(root, nodesize, nodesize, 0,
 				BTRFS_FS_TREE_OBJECTID);
-	if (ret)
-		return ret;
-
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots, false);
 	if (ret) {
 		ulist_free(old_roots);
-		ulist_free(new_roots);
+		return ret;
+	}
+
+	ret = btrfs_find_all_roots(&ctx, false);
+	if (ret) {
+		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	new_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
 					  new_roots);
@@ -250,32 +261,38 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return ret;
 	}
 
+	/* btrfs_qgroup_account_extent() always frees the ulists passed to it. */
+	old_roots = NULL;
+	new_roots = NULL;
+
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
 				nodesize, nodesize)) {
 		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
-	old_roots = NULL;
-	new_roots = NULL;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots, false);
+	ret = btrfs_find_all_roots(&ctx, false);
 	if (ret) {
-		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	old_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = remove_extent_item(root, nodesize, nodesize);
-	if (ret)
-		return -EINVAL;
-
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots, false);
 	if (ret) {
 		ulist_free(old_roots);
-		ulist_free(new_roots);
+		return -EINVAL;
+	}
+
+	ret = btrfs_find_all_roots(&ctx, false);
+	if (ret) {
+		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	new_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
 					  new_roots);
@@ -300,6 +317,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 static int test_multiple_refs(struct btrfs_root *root,
 		u32 sectorsize, u32 nodesize)
 {
+	struct btrfs_backref_walk_ctx ctx = { 0 };
 	struct btrfs_trans_handle trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct ulist *old_roots = NULL;
@@ -320,25 +338,33 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots, false);
+	ctx.bytenr = nodesize;
+	ctx.trans = &trans;
+	ctx.fs_info = fs_info;
+
+	ret = btrfs_find_all_roots(&ctx, false);
 	if (ret) {
-		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	old_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = insert_normal_tree_ref(root, nodesize, nodesize, 0,
 				BTRFS_FS_TREE_OBJECTID);
-	if (ret)
-		return ret;
-
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots, false);
 	if (ret) {
 		ulist_free(old_roots);
-		ulist_free(new_roots);
+		return ret;
+	}
+
+	ret = btrfs_find_all_roots(&ctx, false);
+	if (ret) {
+		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	new_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
 					  new_roots);
@@ -353,25 +379,29 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return -EINVAL;
 	}
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots, false);
+	ret = btrfs_find_all_roots(&ctx, false);
 	if (ret) {
-		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	old_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = add_tree_ref(root, nodesize, nodesize, 0,
 			BTRFS_FIRST_FREE_OBJECTID);
-	if (ret)
-		return ret;
-
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots, false);
 	if (ret) {
 		ulist_free(old_roots);
-		ulist_free(new_roots);
+		return ret;
+	}
+
+	ret = btrfs_find_all_roots(&ctx, false);
+	if (ret) {
+		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	new_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
 					  new_roots);
@@ -392,25 +422,29 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return -EINVAL;
 	}
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots, false);
+	ret = btrfs_find_all_roots(&ctx, false);
 	if (ret) {
-		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	old_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = remove_extent_ref(root, nodesize, nodesize, 0,
 				BTRFS_FIRST_FREE_OBJECTID);
-	if (ret)
-		return ret;
-
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots, false);
 	if (ret) {
 		ulist_free(old_roots);
-		ulist_free(new_roots);
+		return ret;
+	}
+
+	ret = btrfs_find_all_roots(&ctx, false);
+	if (ret) {
+		ulist_free(old_roots);
 		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
+	new_roots = ctx.roots;
+	ctx.roots = NULL;
 
 	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
 					  new_roots);

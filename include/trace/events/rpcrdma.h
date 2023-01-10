@@ -15,8 +15,8 @@
 #include <linux/tracepoint.h>
 #include <rdma/ib_cm.h>
 
-#include <trace/events/rdma.h>
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/rdma.h>
+#include <trace/misc/sunrpc.h>
 
 /**
  ** Event classes

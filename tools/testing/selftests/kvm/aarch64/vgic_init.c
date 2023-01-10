@@ -68,8 +68,6 @@ static void guest_code(void)
 /* we don't want to assert on run execution, hence that helper */
 static int run_vcpu(struct kvm_vcpu *vcpu)
 {
-	ucall_init(vcpu->vm, NULL);
-
 	return __vcpu_run(vcpu) ? -errno : 0;
 }
 
@@ -662,8 +660,8 @@ int test_kvm_device(uint32_t gic_dev_type)
 					     : KVM_DEV_TYPE_ARM_VGIC_V2;
 
 	if (!__kvm_test_create_device(v.vm, other)) {
-		ret = __kvm_test_create_device(v.vm, other);
-		TEST_ASSERT(ret && (errno == EINVAL || errno == EEXIST),
+		ret = __kvm_create_device(v.vm, other);
+		TEST_ASSERT(ret < 0 && (errno == EINVAL || errno == EEXIST),
 				"create GIC device while other version exists");
 	}
 

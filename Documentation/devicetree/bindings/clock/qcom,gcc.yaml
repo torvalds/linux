@@ -4,15 +4,15 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding Common Bindings
+title: Qualcomm Global Clock & Reset Controller Common Properties
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
-  Common bindings for Qualcomm global clock control module which supports
-  the clocks, resets and power domains.
+  Common bindings for Qualcomm global clock control module providing the
+  clocks, resets and power domains.
 
 properties:
   '#clock-cells':

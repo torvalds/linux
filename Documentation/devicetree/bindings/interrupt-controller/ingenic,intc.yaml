@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/interrupt-controller/ingenic,intc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs interrupt controller devicetree bindings
+title: Ingenic SoCs interrupt controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

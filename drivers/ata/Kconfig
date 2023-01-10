@@ -295,7 +295,7 @@ config SATA_FSL
 
 config SATA_GEMINI
 	tristate "Gemini SATA bridge support"
-	depends on ARCH_GEMINI || (OF && COMPILE_TEST)
+	depends on ARCH_GEMINI || COMPILE_TEST
 	select SATA_HOST
 	default ARCH_GEMINI
 	help
@@ -609,16 +609,6 @@ config PATA_ATP867X
 
 	  If unsure, say N.
 
-config PATA_BK3710
-	tristate "Palmchip BK3710 PATA support"
-	depends on ARCH_DAVINCI || COMPILE_TEST
-	select PATA_TIMINGS
-	help
-	  This option enables support for the integrated IDE controller on
-	  the TI DaVinci SoC.
-
-	  If unsure, say N.
-
 config PATA_CMD64X
 	tristate "CMD64x PATA support"
 	depends on PCI
@@ -696,7 +686,6 @@ config PATA_EP93XX
 
 config PATA_FTIDE010
 	tristate "Faraday Technology FTIDE010 PATA support"
-	depends on OF
 	depends on ARM || COMPILE_TEST
 	depends on SATA_GEMINI
 	help

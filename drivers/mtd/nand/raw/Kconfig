@@ -415,7 +415,7 @@ config MTD_NAND_PLATFORM
 
 config MTD_NAND_CADENCE
 	tristate "Support Cadence NAND (HPNFC) controller"
-	depends on (OF || COMPILE_TEST) && HAS_IOMEM
+	depends on OF && HAS_IOMEM
 	help
 	  Enable the driver for NAND flash on platforms using a Cadence NAND
 	  controller.
@@ -430,7 +430,7 @@ config MTD_NAND_ARASAN
 
 config MTD_NAND_INTEL_LGM
 	tristate "Support for NAND controller on Intel LGM SoC"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	help
 	  Enables support for NAND Flash chips on Intel's LGM SoC.
@@ -450,7 +450,7 @@ config MTD_NAND_ROCKCHIP
 
 config MTD_NAND_PL35X
 	tristate "ARM PL35X NAND controller"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on PL353_SMC
 	help
 	  Enables support for PrimeCell SMC PL351 and PL353 NAND

@@ -277,7 +277,7 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "unable to init generic GPIO\n");
 		goto dis_clk;
 	}
-	g->gc.label = "FTGPIO010";
+	g->gc.label = dev_name(dev);
 	g->gc.base = -1;
 	g->gc.parent = dev;
 	g->gc.owner = THIS_MODULE;

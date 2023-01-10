@@ -113,13 +113,13 @@
 
 &gmac1 {
 	status = "okay";
+	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy5>;
 };
 
 &mdio {
 	ethphy5: ethernet-phy@5 {
 		reg = <5>;
-		phy-mode = "rgmii-rxid";
 	};
 };
 

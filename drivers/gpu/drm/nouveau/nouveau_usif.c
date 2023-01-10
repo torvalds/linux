@@ -151,12 +151,6 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	case NVIF_IOCTL_V0_NEW:
 		ret = usif_object_new(filp, data, size, argv, argc, abi16);
 		break;
-	case NVIF_IOCTL_V0_NTFY_NEW:
-	case NVIF_IOCTL_V0_NTFY_DEL:
-	case NVIF_IOCTL_V0_NTFY_GET:
-	case NVIF_IOCTL_V0_NTFY_PUT:
-		ret = -ENOSYS;
-		break;
 	default:
 		ret = nvif_client_ioctl(client, argv, argc);
 		break;

@@ -23,7 +23,7 @@
 
 const efi_system_table_t *efi_system_table;
 const efi_dxe_services_table_t *efi_dxe_table;
-extern u32 image_offset;
+u32 image_offset __section(".data");
 static efi_loaded_image_t *image = NULL;
 
 static efi_status_t
@@ -765,9 +765,9 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
  * relocated by efi_relocate_kernel.
  * On failure, we exit to the firmware via efi_exit instead of returning.
  */
-unsigned long efi_main(efi_handle_t handle,
-			     efi_system_table_t *sys_table_arg,
-			     struct boot_params *boot_params)
+asmlinkage unsigned long efi_main(efi_handle_t handle,
+				  efi_system_table_t *sys_table_arg,
+				  struct boot_params *boot_params)
 {
 	unsigned long bzimage_addr = (unsigned long)startup_32;
 	unsigned long buffer_start, buffer_end;

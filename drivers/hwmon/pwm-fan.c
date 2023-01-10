@@ -257,7 +257,10 @@ static int pwm_fan_update_enable(struct pwm_fan_ctx *ctx, long val)
 
 	if (val == 0) {
 		/* Disable pwm-fan unconditionally */
-		ret = __set_pwm(ctx, 0);
+		if (ctx->enabled)
+			ret = __set_pwm(ctx, 0);
+		else
+			ret = pwm_fan_switch_power(ctx, false);
 		if (ret)
 			ctx->enable_mode = old_val;
 		pwm_fan_update_state(ctx, 0);

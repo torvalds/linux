@@ -298,9 +298,9 @@ static bool expect_reserve_fail(struct kunit *test, struct drm_mm *mm, struct dr
 	return false;
 }
 
-static bool check_reserve_boundaries(struct kunit *test, struct drm_mm *mm,
-				     unsigned int count,
-				     u64 size)
+static bool noinline_for_stack check_reserve_boundaries(struct kunit *test, struct drm_mm *mm,
+							unsigned int count,
+							u64 size)
 {
 	const struct boundary {
 		u64 start, size;
@@ -2209,10 +2209,14 @@ err_nodes:
 	vfree(nodes);
 }
 
-static int drm_mm_init_test(struct kunit *test)
+static int drm_mm_suite_init(struct kunit_suite *suite)
 {
 	while (!random_seed)
 		random_seed = get_random_u32();
+
+	kunit_info(suite,
+		   "Testing DRM range manager, with random_seed=0x%x max_iterations=%u max_prime=%u\n",
+		   random_seed, max_iterations, max_prime);
 
 	return 0;
 }
@@ -2246,7 +2250,7 @@ static struct kunit_case drm_mm_tests[] = {
 
 static struct kunit_suite drm_mm_test_suite = {
 	.name = "drm_mm",
-	.init = drm_mm_init_test,
+	.suite_init = drm_mm_suite_init,
 	.test_cases = drm_mm_tests,
 };
 

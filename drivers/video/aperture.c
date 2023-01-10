@@ -340,11 +340,8 @@ int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, const char *na
 		size = pci_resource_len(pdev, bar);
 		ret = aperture_remove_conflicting_devices(base, size, primary, name);
 		if (ret)
-			break;
+			return ret;
 	}
-
-	if (ret)
-		return ret;
 
 	/*
 	 * WARNING: Apparently we must kick fbdev drivers before vgacon,

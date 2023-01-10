@@ -413,7 +413,7 @@ static void poll_pidfd(const char *test_name, int pidfd)
 
 	c = epoll_wait(epoll_fd, events, MAX_EVENTS, 5000);
 	if (c != 1 || !(events[0].events & EPOLLIN))
-		ksft_exit_fail_msg("%s test: Unexpected epoll_wait result (c=%d, events=%x) ",
+		ksft_exit_fail_msg("%s test: Unexpected epoll_wait result (c=%d, events=%x) "
 				   "(errno %d)\n",
 				   test_name, c, events[0].events, errno);
 
@@ -435,6 +435,8 @@ static int child_poll_exec_test(void *args)
 	 */
 	while (1)
 		sleep(1);
+
+	return 0;
 }
 
 static void test_pidfd_poll_exec(int use_waitpid)

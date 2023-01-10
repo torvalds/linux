@@ -4,47 +4,39 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc-ipq8074.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Bindingfor IPQ8074
+title: Qualcomm Global Clock & Reset Controller on IPQ8074
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
-  power domains on IPQ8074.
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on IPQ8074.
 
-  See also:
-  - dt-bindings/clock/qcom,gcc-ipq8074.h
+  See also:: include/dt-bindings/clock/qcom,gcc-ipq8074.h
+
+allOf:
+  - $ref: qcom,gcc.yaml#
 
 properties:
   compatible:
     const: qcom,gcc-ipq8074
 
-  '#clock-cells':
-    const: 1
+  clocks:
+    items:
+      - description: board XO clock
+      - description: sleep clock
 
-  '#power-domain-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  reg:
-    maxItems: 1
-
-  protected-clocks:
-    description:
-      Protected clock specifier list as per common clock binding.
+  clock-names:
+    items:
+      - const: xo
+      - const: sleep_clk
 
 required:
   - compatible
-  - reg
-  - '#clock-cells'
-  - '#power-domain-cells'
-  - '#reset-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -98,7 +98,7 @@ struct raid56_bio_trace_info;
 	EM( FLUSH_DELALLOC_WAIT,	"FLUSH_DELALLOC_WAIT")		\
 	EM( FLUSH_DELALLOC_FULL,	"FLUSH_DELALLOC_FULL")		\
 	EM( FLUSH_DELAYED_REFS_NR,	"FLUSH_DELAYED_REFS_NR")	\
-	EM( FLUSH_DELAYED_REFS,		"FLUSH_ELAYED_REFS")		\
+	EM( FLUSH_DELAYED_REFS,		"FLUSH_DELAYED_REFS")		\
 	EM( ALLOC_CHUNK,		"ALLOC_CHUNK")			\
 	EM( ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE")		\
 	EM( RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS")		\
@@ -1993,12 +1993,11 @@ TRACE_EVENT(btrfs_set_extent_bit,
 
 	TP_fast_assign_btrfs(tree->fs_info,
 		__entry->owner = tree->owner;
-		if (tree->private_data) {
-			const struct inode *inode = tree->private_data;
+		if (tree->inode) {
+			const struct btrfs_inode *inode = tree->inode;
 
-			__entry->ino	= btrfs_ino(BTRFS_I(inode));
-			__entry->rootid	=
-				BTRFS_I(inode)->root->root_key.objectid;
+			__entry->ino	= btrfs_ino(inode);
+			__entry->rootid	= inode->root->root_key.objectid;
 		} else {
 			__entry->ino	= 0;
 			__entry->rootid	= 0;
@@ -2032,12 +2031,11 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 
 	TP_fast_assign_btrfs(tree->fs_info,
 		__entry->owner = tree->owner;
-		if (tree->private_data) {
-			const struct inode *inode = tree->private_data;
+		if (tree->inode) {
+			const struct btrfs_inode *inode = tree->inode;
 
-			__entry->ino	= btrfs_ino(BTRFS_I(inode));
-			__entry->rootid	=
-				BTRFS_I(inode)->root->root_key.objectid;
+			__entry->ino	= btrfs_ino(inode);
+			__entry->rootid	= inode->root->root_key.objectid;
 		} else {
 			__entry->ino	= 0;
 			__entry->rootid	= 0;
@@ -2072,12 +2070,11 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 
 	TP_fast_assign_btrfs(tree->fs_info,
 		__entry->owner = tree->owner;
-		if (tree->private_data) {
-			const struct inode *inode = tree->private_data;
+		if (tree->inode) {
+			const struct btrfs_inode *inode = tree->inode;
 
-			__entry->ino	= btrfs_ino(BTRFS_I(inode));
-			__entry->rootid	=
-				BTRFS_I(inode)->root->root_key.objectid;
+			__entry->ino	= btrfs_ino(inode);
+			__entry->rootid	= inode->root->root_key.objectid;
 		} else {
 			__entry->ino	= 0;
 			__entry->rootid	= 0;

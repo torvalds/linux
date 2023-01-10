@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/himax,hx83112b.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Himax hx83112b touchscreen controller bindings
+title: Himax hx83112b touchscreen controller
 
 maintainers:
   - Job Noorman <job@noorman.info>

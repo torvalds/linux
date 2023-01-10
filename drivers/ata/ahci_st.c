@@ -236,7 +236,7 @@ static struct platform_driver st_ahci_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &st_ahci_pm_ops,
-		.of_match_table = of_match_ptr(st_ahci_match),
+		.of_match_table = st_ahci_match,
 	},
 	.probe = st_ahci_probe,
 	.remove = ata_platform_remove_one,

@@ -24,7 +24,7 @@ if MEDIA_SUPPORT
 
 config MEDIA_SUPPORT_FILTER
 	bool "Filter media drivers"
-	default y if !EMBEDDED && !EXPERT
+	default y if !EXPERT
 	help
 	   Configuring the media subsystem can be complex, as there are
 	   hundreds of drivers and other config options.
@@ -182,7 +182,7 @@ config MEDIA_CONTROLLER
 #
 
 config DVB_CORE
-	tristate
+	tristate "DVB Core"
 	depends on MEDIA_DIGITAL_TV_SUPPORT
 	depends on (I2C || I2C=n)
 	default MEDIA_DIGITAL_TV_SUPPORT

@@ -49,13 +49,35 @@
 	};
 
 	ocp@68000000 {
-		am35x_otg_hs: am35x_otg_hs@5c040000 {
-			compatible = "ti,omap3-musb";
-			ti,hwmods = "am35x_otg_hs";
-			status = "disabled";
-			reg = <0x5c040000 0x1000>;
-			interrupts = <71>;
-			interrupt-names = "mc";
+		target-module@5c040000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x5c040400 0x4>,
+			      <0x5c040404 0x4>,
+			      <0x5c040408 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&hsotgusb_ick_am35xx>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x5c040000 0x1000>;
+
+			am35x_otg_hs: am35x_otg_hs@0 {
+				compatible = "ti,omap3-musb";
+				status = "disabled";
+				reg = <0 0x1000>;
+				interrupts = <71>;
+				interrupt-names = "mc";
+			};
 		};
 
 		davinci_emac: ethernet@5c000000 {
@@ -154,7 +176,7 @@
 };
 
 /* Table Table 5-79 of the TRM shows 480ab000 is reserved */
-&usb_otg_hs {
+&usb_otg_target {
 	status = "disabled";
 };
 

@@ -16,6 +16,8 @@
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 
+#include "internal.h"
+
 /*
  * Return true, if the entry has a slot value which
  * the software considers as invalid.
@@ -216,6 +218,9 @@ repeat:
 	new_pte |= pte_set_hidx(ptep, rpte, subpg_index, slot, PTRS_PER_PTE);
 	new_pte |= H_PAGE_HASHPTE;
 
+	if (stress_hpt())
+		hpt_do_stress(ea, hpte_group);
+
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
 }
@@ -327,7 +332,12 @@ repeat:
 
 		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | H_PAGE_HASHPTE;
 		new_pte |= pte_set_hidx(ptep, rpte, 0, slot, PTRS_PER_PTE);
+
+		if (stress_hpt())
+			hpt_do_stress(ea, hpte_group);
 	}
+
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
+
 	return 0;
 }

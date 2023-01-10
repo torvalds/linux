@@ -68,12 +68,6 @@
 #include "policycap_names.h"
 #include "ima.h"
 
-struct convert_context_args {
-	struct selinux_state *state;
-	struct policydb *oldp;
-	struct policydb *newp;
-};
-
 struct selinux_policy_convert_data {
 	struct convert_context_args args;
 	struct sidtab_convert_params sidtab_params;
@@ -2014,17 +2008,22 @@ static inline int convert_context_handle_invalid_context(
 	return 0;
 }
 
-/*
- * Convert the values in the security context
- * structure `oldc' from the values specified
- * in the policy `p->oldp' to the values specified
- * in the policy `p->newp', storing the new context
- * in `newc'.  Verify that the context is valid
- * under the new policy.
+/**
+ * services_convert_context - Convert a security context across policies.
+ * @args: populated convert_context_args struct
+ * @oldc: original context
+ * @newc: converted context
+ * @gfp_flags: allocation flags
+ *
+ * Convert the values in the security context structure @oldc from the values
+ * specified in the policy @args->oldp to the values specified in the policy
+ * @args->newp, storing the new context in @newc, and verifying that the
+ * context is valid under the new policy.
  */
-static int convert_context(struct context *oldc, struct context *newc, void *p)
+int services_convert_context(struct convert_context_args *args,
+			     struct context *oldc, struct context *newc,
+			     gfp_t gfp_flags)
 {
-	struct convert_context_args *args;
 	struct ocontext *oc;
 	struct role_datum *role;
 	struct type_datum *typdatum;
@@ -2033,15 +2032,12 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 	u32 len;
 	int rc;
 
-	args = p;
-
 	if (oldc->str) {
-		s = kstrdup(oldc->str, GFP_KERNEL);
+		s = kstrdup(oldc->str, gfp_flags);
 		if (!s)
 			return -ENOMEM;
 
-		rc = string_to_context_struct(args->newp, NULL, s,
-					      newc, SECSID_NULL);
+		rc = string_to_context_struct(args->newp, NULL, s, newc, SECSID_NULL);
 		if (rc == -EINVAL) {
 			/*
 			 * Retain string representation for later mapping.
@@ -2072,8 +2068,7 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 
 	/* Convert the user. */
 	usrdatum = symtab_search(&args->newp->p_users,
-				 sym_name(args->oldp,
-					  SYM_USERS, oldc->user - 1));
+				 sym_name(args->oldp, SYM_USERS, oldc->user - 1));
 	if (!usrdatum)
 		goto bad;
 	newc->user = usrdatum->value;
@@ -2087,8 +2082,7 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 
 	/* Convert the type. */
 	typdatum = symtab_search(&args->newp->p_types,
-				 sym_name(args->oldp,
-					  SYM_TYPES, oldc->type - 1));
+				 sym_name(args->oldp, SYM_TYPES, oldc->type - 1));
 	if (!typdatum)
 		goto bad;
 	newc->type = typdatum->value;
@@ -2122,8 +2116,7 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 	/* Check the validity of the new context. */
 	if (!policydb_context_isvalid(args->newp, newc)) {
 		rc = convert_context_handle_invalid_context(args->state,
-							args->oldp,
-							oldc);
+							    args->oldp, oldc);
 		if (rc)
 			goto bad;
 	}
@@ -2332,21 +2325,21 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len,
 		goto err_free_isids;
 	}
 
+	/*
+	 * Convert the internal representations of contexts
+	 * in the new SID table.
+	 */
+
 	convert_data = kmalloc(sizeof(*convert_data), GFP_KERNEL);
 	if (!convert_data) {
 		rc = -ENOMEM;
 		goto err_free_isids;
 	}
 
-	/*
-	 * Convert the internal representations of contexts
-	 * in the new SID table.
-	 */
 	convert_data->args.state = state;
 	convert_data->args.oldp = &oldpolicy->policydb;
 	convert_data->args.newp = &newpolicy->policydb;
 
-	convert_data->sidtab_params.func = convert_context;
 	convert_data->sidtab_params.args = &convert_data->args;
 	convert_data->sidtab_params.target = newpolicy->sidtab;
 

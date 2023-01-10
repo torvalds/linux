@@ -1774,35 +1774,42 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 
 /* We translate the tc filter with CT action to the following HW model:
  *
- * +---------------------+
- * + ft prio (tc chain)  +
- * + original match      +
- * +---------------------+
- *      | set chain miss mapping
- *      | set fte_id
- *      | set tunnel_id
- *      | do decap
- *      v
- * +---------------------+
- * + pre_ct/pre_ct_nat   +  if matches     +-------------------------+
- * + zone+nat match      +---------------->+ post_act (see below)    +
- * +---------------------+  set zone       +-------------------------+
- *      | set zone
- *      v
- * +--------------------+
- * + CT (nat or no nat) +
- * + tuple + zone match +
- * +--------------------+
- *      | set mark
- *      | set labels_id
- *      | set established
- *	| set zone_restore
- *      | do nat (if needed)
- *      v
- * +--------------+
- * + post_act     + original filter actions
- * + fte_id match +------------------------>
- * +--------------+
+ *	+---------------------+
+ *	+ ft prio (tc chain)  +
+ *	+ original match      +
+ *	+---------------------+
+ *		 | set chain miss mapping
+ *		 | set fte_id
+ *		 | set tunnel_id
+ *		 | do decap
+ *		 |
+ * +-------------+
+ * | Chain 0	 |
+ * | optimization|
+ * |		 v
+ * |	+---------------------+
+ * |	+ pre_ct/pre_ct_nat   +  if matches     +----------------------+
+ * |	+ zone+nat match      +---------------->+ post_act (see below) +
+ * |	+---------------------+  set zone       +----------------------+
+ * |		 |
+ * +-------------+ set zone
+ *		 |
+ *		 v
+ *	+--------------------+
+ *	+ CT (nat or no nat) +
+ *	+ tuple + zone match +
+ *	+--------------------+
+ *		 | set mark
+ *		 | set labels_id
+ *		 | set established
+ *		 | set zone_restore
+ *		 | do nat (if needed)
+ *		 v
+ *	+--------------+
+ *	+ post_act     + original filter actions
+ *	+ fte_id match +------------------------>
+ *	+--------------+
+ *
  */
 static struct mlx5_flow_handle *
 __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
@@ -1818,6 +1825,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_ct_flow *ct_flow;
 	int chain_mapping = 0, err;
 	struct mlx5_ct_ft *ft;
+	u16 zone;
 
 	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
 	if (!ct_flow) {
@@ -1884,6 +1892,25 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 		}
 	}
 
+	/* Change original rule point to ct table
+	 * Chain 0 sets the zone and jumps to ct table
+	 * Other chains jump to pre_ct table to align with act_ct cached logic
+	 */
+	pre_ct_attr->dest_chain = 0;
+	if (!attr->chain) {
+		zone = ft->zone & MLX5_CT_ZONE_MASK;
+		err = mlx5e_tc_match_to_reg_set(priv->mdev, pre_mod_acts, ct_priv->ns_type,
+						ZONE_TO_REG, zone);
+		if (err) {
+			ct_dbg("Failed to set zone register mapping");
+			goto err_mapping;
+		}
+
+		pre_ct_attr->dest_ft = nat ? ct_priv->ct_nat : ct_priv->ct;
+	} else {
+		pre_ct_attr->dest_ft = nat ? ft->pre_ct_nat.ft : ft->pre_ct.ft;
+	}
+
 	mod_hdr = mlx5_modify_header_alloc(priv->mdev, ct_priv->ns_type,
 					   pre_mod_acts->num_actions,
 					   pre_mod_acts->actions);
@@ -1893,10 +1920,6 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 		goto err_mapping;
 	}
 	pre_ct_attr->modify_hdr = mod_hdr;
-
-	/* Change original rule point to ct table */
-	pre_ct_attr->dest_chain = 0;
-	pre_ct_attr->dest_ft = nat ? ft->pre_ct_nat.ft : ft->pre_ct.ft;
 	ct_flow->pre_ct_rule = mlx5_tc_rule_insert(priv, orig_spec,
 						   pre_ct_attr);
 	if (IS_ERR(ct_flow->pre_ct_rule)) {
@@ -2080,14 +2103,9 @@ out_err:
 static void
 mlx5_ct_tc_create_dbgfs(struct mlx5_tc_ct_priv *ct_priv)
 {
-	bool is_fdb = ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB;
 	struct mlx5_tc_ct_debugfs *ct_dbgfs = &ct_priv->debugfs;
-	char dirname[16] = {};
 
-	if (sscanf(dirname, "ct_%s", is_fdb ? "fdb" : "nic") < 0)
-		return;
-
-	ct_dbgfs->root = debugfs_create_dir(dirname, mlx5_debugfs_get_dev_root(ct_priv->dev));
+	ct_dbgfs->root = debugfs_create_dir("ct", mlx5_debugfs_get_dev_root(ct_priv->dev));
 	debugfs_create_atomic_t("offloaded", 0400, ct_dbgfs->root,
 				&ct_dbgfs->stats.offloaded);
 	debugfs_create_atomic_t("rx_dropped", 0400, ct_dbgfs->root,

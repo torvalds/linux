@@ -90,6 +90,18 @@ nvkm_instobj_ctor(const struct nvkm_memory_func *func,
 }
 
 int
+nvkm_instobj_wrap(struct nvkm_device *device,
+		  struct nvkm_memory *memory, struct nvkm_memory **pmemory)
+{
+	struct nvkm_instmem *imem = device->imem;
+
+	if (!imem->func->memory_wrap)
+		return -ENOSYS;
+
+	return imem->func->memory_wrap(imem, memory, pmemory);
+}
+
+int
 nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
 		 struct nvkm_memory **pmemory)
 {

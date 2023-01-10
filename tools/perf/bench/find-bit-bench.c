@@ -70,7 +70,7 @@ static int do_for_each_set_bit(unsigned int num_bits)
 		bitmap_zero(to_test, num_bits);
 		skip = num_bits / set_bits;
 		for (i = 0; i < num_bits; i += skip)
-			set_bit(i, to_test);
+			__set_bit(i, to_test);
 
 		for (i = 0; i < outer_iterations; i++) {
 			old = accumulator;

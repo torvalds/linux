@@ -550,8 +550,7 @@ static void ts2020_regmap_unlock(void *__dev)
 	mutex_unlock(&dev->regmap_mutex);
 }
 
-static int ts2020_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int ts2020_probe(struct i2c_client *client)
 {
 	struct ts2020_config *pdata = client->dev.platform_data;
 	struct dvb_frontend *fe = pdata->fe;
@@ -721,7 +720,7 @@ static struct i2c_driver ts2020_driver = {
 	.driver = {
 		.name	= "ts2020",
 	},
-	.probe		= ts2020_probe,
+	.probe_new	= ts2020_probe,
 	.remove		= ts2020_remove,
 	.id_table	= ts2020_id_table,
 };

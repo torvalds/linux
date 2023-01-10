@@ -464,9 +464,10 @@ to address dependencies, since the address of a location accessed
 through a pointer will depend on the value read earlier from that
 pointer.
 
-Finally, a read event and another memory access event are linked by a
-control dependency if the value obtained by the read affects whether
-the second event is executed at all.  Simple example:
+Finally, a read event X and a write event Y are linked by a control
+dependency if Y syntactically lies within an arm of an if statement and
+X affects the evaluation of the if condition via a data or address
+dependency (or similarly for a switch statement).  Simple example:
 
 	int x, y;
 

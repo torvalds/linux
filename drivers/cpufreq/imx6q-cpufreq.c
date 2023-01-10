@@ -396,9 +396,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		ret = imx6q_opp_check_speed_grading(cpu_dev);
 	}
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(cpu_dev, "failed to read ocotp: %d\n",
-				ret);
+		dev_err_probe(cpu_dev, ret, "failed to read ocotp\n");
 		goto out_free_opp;
 	}
 

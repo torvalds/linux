@@ -197,7 +197,7 @@ static const struct dvb_tuner_ops qm1d1b0004_ops = {
 };
 
 static int
-qm1d1b0004_probe(struct i2c_client *client, const struct i2c_device_id *id)
+qm1d1b0004_probe(struct i2c_client *client)
 {
 	struct dvb_frontend *fe;
 	struct qm1d1b0004_config *cfg;
@@ -253,7 +253,7 @@ static struct i2c_driver qm1d1b0004_driver = {
 	.driver = {
 		.name = "qm1d1b0004",
 	},
-	.probe    = qm1d1b0004_probe,
+	.probe_new = qm1d1b0004_probe,
 	.remove   = qm1d1b0004_remove,
 	.id_table = qm1d1b0004_id,
 };

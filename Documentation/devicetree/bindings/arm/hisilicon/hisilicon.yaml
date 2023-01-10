@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/hisilicon/hisilicon.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Hisilicon Platforms Device Tree Bindings
+title: Hisilicon Platforms
 
 maintainers:
   - Wei Xu <xuwei5@hisilicon.com>

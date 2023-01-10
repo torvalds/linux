@@ -127,3 +127,9 @@ static int __init riscv_kvm_init(void)
 	return kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 }
 module_init(riscv_kvm_init);
+
+static void __exit riscv_kvm_exit(void)
+{
+	kvm_exit();
+}
+module_exit(riscv_kvm_exit);

@@ -8,6 +8,7 @@ static const char tsnep_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_bytes",
 	"rx_dropped",
 	"rx_multicast",
+	"rx_alloc_failed",
 	"rx_phy_errors",
 	"rx_forwarded_phy_errors",
 	"rx_invalid_frame_errors",
@@ -21,6 +22,7 @@ struct tsnep_stats {
 	u64 rx_bytes;
 	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_alloc_failed;
 	u64 rx_phy_errors;
 	u64 rx_forwarded_phy_errors;
 	u64 rx_invalid_frame_errors;
@@ -36,6 +38,7 @@ static const char tsnep_rx_queue_stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_%d_bytes",
 	"rx_%d_dropped",
 	"rx_%d_multicast",
+	"rx_%d_alloc_failed",
 	"rx_%d_no_descriptor_errors",
 	"rx_%d_buffer_too_small_errors",
 	"rx_%d_fifo_overflow_errors",
@@ -47,6 +50,7 @@ struct tsnep_rx_queue_stats {
 	u64 rx_bytes;
 	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_alloc_failed;
 	u64 rx_no_descriptor_errors;
 	u64 rx_buffer_too_small_errors;
 	u64 rx_fifo_overflow_errors;
@@ -178,6 +182,7 @@ static void tsnep_ethtool_get_ethtool_stats(struct net_device *netdev,
 		tsnep_stats.rx_bytes += adapter->rx[i].bytes;
 		tsnep_stats.rx_dropped += adapter->rx[i].dropped;
 		tsnep_stats.rx_multicast += adapter->rx[i].multicast;
+		tsnep_stats.rx_alloc_failed += adapter->rx[i].alloc_failed;
 	}
 	reg = ioread32(adapter->addr + ECM_STAT);
 	tsnep_stats.rx_phy_errors =
@@ -200,6 +205,8 @@ static void tsnep_ethtool_get_ethtool_stats(struct net_device *netdev,
 		tsnep_rx_queue_stats.rx_bytes = adapter->rx[i].bytes;
 		tsnep_rx_queue_stats.rx_dropped = adapter->rx[i].dropped;
 		tsnep_rx_queue_stats.rx_multicast = adapter->rx[i].multicast;
+		tsnep_rx_queue_stats.rx_alloc_failed =
+			adapter->rx[i].alloc_failed;
 		reg = ioread32(adapter->addr + TSNEP_QUEUE(i) +
 			       TSNEP_RX_STATISTIC);
 		tsnep_rx_queue_stats.rx_no_descriptor_errors =
@@ -250,10 +257,10 @@ static int tsnep_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static int tsnep_ethtool_get_rxnfc(struct net_device *dev,
+static int tsnep_ethtool_get_rxnfc(struct net_device *netdev,
 				   struct ethtool_rxnfc *cmd, u32 *rule_locs)
 {
-	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -273,10 +280,10 @@ static int tsnep_ethtool_get_rxnfc(struct net_device *dev,
 	}
 }
 
-static int tsnep_ethtool_set_rxnfc(struct net_device *dev,
+static int tsnep_ethtool_set_rxnfc(struct net_device *netdev,
 				   struct ethtool_rxnfc *cmd)
 {
-	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -288,10 +295,21 @@ static int tsnep_ethtool_set_rxnfc(struct net_device *dev,
 	}
 }
 
-static int tsnep_ethtool_get_ts_info(struct net_device *dev,
+static void tsnep_ethtool_get_channels(struct net_device *netdev,
+				       struct ethtool_channels *ch)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+
+	ch->max_rx = adapter->num_rx_queues;
+	ch->max_tx = adapter->num_tx_queues;
+	ch->rx_count = adapter->num_rx_queues;
+	ch->tx_count = adapter->num_tx_queues;
+}
+
+static int tsnep_ethtool_get_ts_info(struct net_device *netdev,
 				     struct ethtool_ts_info *info)
 {
-	struct tsnep_adapter *adapter = netdev_priv(dev);
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_RX_SOFTWARE |
@@ -313,7 +331,137 @@ static int tsnep_ethtool_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static struct tsnep_queue *tsnep_get_queue_with_tx(struct tsnep_adapter *adapter,
+						   int index)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		if (adapter->queue[i].tx) {
+			if (index == 0)
+				return &adapter->queue[i];
+
+			index--;
+		}
+	}
+
+	return NULL;
+}
+
+static struct tsnep_queue *tsnep_get_queue_with_rx(struct tsnep_adapter *adapter,
+						   int index)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		if (adapter->queue[i].rx) {
+			if (index == 0)
+				return &adapter->queue[i];
+
+			index--;
+		}
+	}
+
+	return NULL;
+}
+
+static int tsnep_ethtool_get_coalesce(struct net_device *netdev,
+				      struct ethtool_coalesce *ec,
+				      struct kernel_ethtool_coalesce *kernel_coal,
+				      struct netlink_ext_ack *extack)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	struct tsnep_queue *queue;
+
+	queue = tsnep_get_queue_with_rx(adapter, 0);
+	if (queue)
+		ec->rx_coalesce_usecs = tsnep_get_irq_coalesce(queue);
+
+	queue = tsnep_get_queue_with_tx(adapter, 0);
+	if (queue)
+		ec->tx_coalesce_usecs = tsnep_get_irq_coalesce(queue);
+
+	return 0;
+}
+
+static int tsnep_ethtool_set_coalesce(struct net_device *netdev,
+				      struct ethtool_coalesce *ec,
+				      struct kernel_ethtool_coalesce *kernel_coal,
+				      struct netlink_ext_ack *extack)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	int i;
+	int retval;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		/* RX coalesce has priority for queues with TX and RX */
+		if (adapter->queue[i].rx)
+			retval = tsnep_set_irq_coalesce(&adapter->queue[i],
+							ec->rx_coalesce_usecs);
+		else
+			retval = tsnep_set_irq_coalesce(&adapter->queue[i],
+							ec->tx_coalesce_usecs);
+		if (retval != 0)
+			return retval;
+	}
+
+	return 0;
+}
+
+static int tsnep_ethtool_get_per_queue_coalesce(struct net_device *netdev,
+						u32 queue,
+						struct ethtool_coalesce *ec)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	struct tsnep_queue *queue_with_rx;
+	struct tsnep_queue *queue_with_tx;
+
+	if (queue >= max(adapter->num_tx_queues, adapter->num_rx_queues))
+		return -EINVAL;
+
+	queue_with_rx = tsnep_get_queue_with_rx(adapter, queue);
+	if (queue_with_rx)
+		ec->rx_coalesce_usecs = tsnep_get_irq_coalesce(queue_with_rx);
+
+	queue_with_tx = tsnep_get_queue_with_tx(adapter, queue);
+	if (queue_with_tx)
+		ec->tx_coalesce_usecs = tsnep_get_irq_coalesce(queue_with_tx);
+
+	return 0;
+}
+
+static int tsnep_ethtool_set_per_queue_coalesce(struct net_device *netdev,
+						u32 queue,
+						struct ethtool_coalesce *ec)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	struct tsnep_queue *queue_with_rx;
+	struct tsnep_queue *queue_with_tx;
+	int retval;
+
+	if (queue >= max(adapter->num_tx_queues, adapter->num_rx_queues))
+		return -EINVAL;
+
+	queue_with_rx = tsnep_get_queue_with_rx(adapter, queue);
+	if (queue_with_rx) {
+		retval = tsnep_set_irq_coalesce(queue_with_rx, ec->rx_coalesce_usecs);
+		if (retval != 0)
+			return retval;
+	}
+
+	/* RX coalesce has priority for queues with TX and RX */
+	queue_with_tx = tsnep_get_queue_with_tx(adapter, queue);
+	if (queue_with_tx && !queue_with_tx->rx) {
+		retval = tsnep_set_irq_coalesce(queue_with_tx, ec->tx_coalesce_usecs);
+		if (retval != 0)
+			return retval;
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops tsnep_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo = tsnep_ethtool_get_drvinfo,
 	.get_regs_len = tsnep_ethtool_get_regs_len,
 	.get_regs = tsnep_ethtool_get_regs,
@@ -327,7 +475,12 @@ const struct ethtool_ops tsnep_ethtool_ops = {
 	.get_sset_count = tsnep_ethtool_get_sset_count,
 	.get_rxnfc = tsnep_ethtool_get_rxnfc,
 	.set_rxnfc = tsnep_ethtool_set_rxnfc,
+	.get_channels = tsnep_ethtool_get_channels,
 	.get_ts_info = tsnep_ethtool_get_ts_info,
+	.get_coalesce = tsnep_ethtool_get_coalesce,
+	.set_coalesce = tsnep_ethtool_set_coalesce,
+	.get_per_queue_coalesce = tsnep_ethtool_get_per_queue_coalesce,
+	.set_per_queue_coalesce = tsnep_ethtool_set_per_queue_coalesce,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
