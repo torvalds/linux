@@ -172,27 +172,29 @@ struct sys_stat_struct {
 })
 
 /* startup code */
-__asm__ (".section .text\n"
-	 ".weak _start\n"
-	 "_start:\n"
-	 "lg	%r2,0(%r15)\n"		/* argument count */
-	 "la	%r3,8(%r15)\n"		/* argument pointers */
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+{
+	__asm__ volatile (
+		"lg	%r2,0(%r15)\n"		/* argument count */
+		"la	%r3,8(%r15)\n"		/* argument pointers */
 
-	 "xgr	%r0,%r0\n"		/* r0 will be our NULL value */
-	 /* search for envp */
-	 "lgr	%r4,%r3\n"		/* start at argv */
-	 "0:\n"
-	 "clg	%r0,0(%r4)\n"		/* entry zero? */
-	 "la	%r4,8(%r4)\n"		/* advance pointer */
-	 "jnz	0b\n"			/* no -> test next pointer */
-					/* yes -> r4 now contains start of envp */
+		"xgr	%r0,%r0\n"		/* r0 will be our NULL value */
+		/* search for envp */
+		"lgr	%r4,%r3\n"		/* start at argv */
+		"0:\n"
+		"clg	%r0,0(%r4)\n"		/* entry zero? */
+		"la	%r4,8(%r4)\n"		/* advance pointer */
+		"jnz	0b\n"			/* no -> test next pointer */
+						/* yes -> r4 now contains start of envp */
 
-	 "aghi	%r15,-160\n"		/* allocate new stackframe */
-	 "xc	0(8,%r15),0(%r15)\n"	/* clear backchain */
-	 "brasl	%r14,main\n"		/* ret value of main is arg to exit */
-	 "lghi	%r1,1\n"		/* __NR_exit */
-	 "svc	0\n"
-	 "");
+		"aghi	%r15,-160\n"		/* allocate new stackframe */
+		"xc	0(8,%r15),0(%r15)\n"	/* clear backchain */
+		"brasl	%r14,main\n"		/* ret value of main is arg to exit */
+		"lghi	%r1,1\n"		/* __NR_exit */
+		"svc	0\n"
+	);
+	__builtin_unreachable();
+}
 
 struct s390_mmap_arg_struct {
 	unsigned long addr;

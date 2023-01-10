@@ -182,18 +182,19 @@ struct sys_stat_struct {
 })
 
 /* startup code */
-__asm__ (".section .text\n"
-    ".weak _start\n"
-    "_start:\n"
-    "ldr x0, [sp]\n"              // argc (x0) was in the stack
-    "add x1, sp, 8\n"             // argv (x1) = sp
-    "lsl x2, x0, 3\n"             // envp (x2) = 8*argc ...
-    "add x2, x2, 8\n"             //           + 8 (skip null)
-    "add x2, x2, x1\n"            //           + argv
-    "and sp, x1, -16\n"           // sp must be 16-byte aligned in the callee
-    "bl main\n"                   // main() returns the status code, we'll exit with it.
-    "mov x8, 93\n"                // NR_exit == 93
-    "svc #0\n"
-    "");
-
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+{
+	__asm__ volatile (
+		"ldr x0, [sp]\n"     // argc (x0) was in the stack
+		"add x1, sp, 8\n"    // argv (x1) = sp
+		"lsl x2, x0, 3\n"    // envp (x2) = 8*argc ...
+		"add x2, x2, 8\n"    //           + 8 (skip null)
+		"add x2, x2, x1\n"   //           + argv
+		"and sp, x1, -16\n"  // sp must be 16-byte aligned in the callee
+		"bl main\n"          // main() returns the status code, we'll exit with it.
+		"mov x8, 93\n"       // NR_exit == 93
+		"svc #0\n"
+	);
+	__builtin_unreachable();
+}
 #endif // _NOLIBC_ARCH_AARCH64_H

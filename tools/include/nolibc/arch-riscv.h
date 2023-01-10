@@ -183,22 +183,24 @@ struct sys_stat_struct {
 })
 
 /* startup code */
-__asm__ (".section .text\n"
-    ".weak _start\n"
-    "_start:\n"
-    ".option push\n"
-    ".option norelax\n"
-    "lla   gp, __global_pointer$\n"
-    ".option pop\n"
-    "lw    a0, 0(sp)\n"          // argc (a0) was in the stack
-    "add   a1, sp, "SZREG"\n"    // argv (a1) = sp
-    "slli  a2, a0, "PTRLOG"\n"   // envp (a2) = SZREG*argc ...
-    "add   a2, a2, "SZREG"\n"    //             + SZREG (skip null)
-    "add   a2,a2,a1\n"           //             + argv
-    "andi  sp,a1,-16\n"          // sp must be 16-byte aligned
-    "call  main\n"               // main() returns the status code, we'll exit with it.
-    "li a7, 93\n"                // NR_exit == 93
-    "ecall\n"
-    "");
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+{
+	__asm__ volatile (
+		".option push\n"
+		".option norelax\n"
+		"lla   gp, __global_pointer$\n"
+		".option pop\n"
+		"lw    a0, 0(sp)\n"          // argc (a0) was in the stack
+		"add   a1, sp, "SZREG"\n"    // argv (a1) = sp
+		"slli  a2, a0, "PTRLOG"\n"   // envp (a2) = SZREG*argc ...
+		"add   a2, a2, "SZREG"\n"    //             + SZREG (skip null)
+		"add   a2,a2,a1\n"           //             + argv
+		"andi  sp,a1,-16\n"          // sp must be 16-byte aligned
+		"call  main\n"               // main() returns the status code, we'll exit with it.
+		"li a7, 93\n"                // NR_exit == 93
+		"ecall\n"
+	);
+	__builtin_unreachable();
+}
 
 #endif // _NOLIBC_ARCH_RISCV_H

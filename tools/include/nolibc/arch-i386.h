@@ -197,23 +197,25 @@ struct sys_stat_struct {
  * 2) The deepest stack frame should be set to zero
  *
  */
-__asm__ (".section .text\n"
-    ".weak _start\n"
-    "_start:\n"
-    "pop %eax\n"                // argc   (first arg, %eax)
-    "mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
-    "lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
-    "xor %ebp, %ebp\n"          // zero the stack frame
-    "and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
-    "sub $4, %esp\n"            // the call instruction (args are aligned)
-    "push %ecx\n"               // push all registers on the stack so that we
-    "push %ebx\n"               // support both regparm and plain stack modes
-    "push %eax\n"
-    "call main\n"               // main() returns the status code in %eax
-    "mov %eax, %ebx\n"          // retrieve exit code (32-bit int)
-    "movl $1, %eax\n"           // NR_exit == 1
-    "int $0x80\n"               // exit now
-    "hlt\n"                     // ensure it does not
-    "");
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+{
+	__asm__ volatile (
+		"pop %eax\n"                // argc   (first arg, %eax)
+		"mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
+		"lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
+		"xor %ebp, %ebp\n"          // zero the stack frame
+		"and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
+		"sub $4, %esp\n"            // the call instruction (args are aligned)
+		"push %ecx\n"               // push all registers on the stack so that we
+		"push %ebx\n"               // support both regparm and plain stack modes
+		"push %eax\n"
+		"call main\n"               // main() returns the status code in %eax
+		"mov %eax, %ebx\n"          // retrieve exit code (32-bit int)
+		"movl $1, %eax\n"           // NR_exit == 1
+		"int $0x80\n"               // exit now
+		"hlt\n"                     // ensure it does not
+	);
+	__builtin_unreachable();
+}
 
 #endif // _NOLIBC_ARCH_I386_H
