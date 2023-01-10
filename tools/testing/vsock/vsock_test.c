@@ -569,6 +569,70 @@ static void test_seqpacket_timeout_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
+{
+	unsigned long sock_buf_size;
+	ssize_t send_size;
+	socklen_t len;
+	void *data;
+	int fd;
+
+	len = sizeof(sock_buf_size);
+
+	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (getsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
+		       &sock_buf_size, &len)) {
+		perror("getsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	sock_buf_size++;
+
+	data = malloc(sock_buf_size);
+	if (!data) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	send_size = send(fd, data, sock_buf_size, 0);
+	if (send_size != -1) {
+		fprintf(stderr, "expected 'send(2)' failure, got %zi\n",
+			send_size);
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != EMSGSIZE) {
+		fprintf(stderr, "expected EMSGSIZE in 'errno', got %i\n",
+			errno);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("CLISENT");
+
+	free(data);
+	close(fd);
+}
+
+static void test_seqpacket_bigmsg_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("CLISENT");
+
+	close(fd);
+}
+
 #define BUF_PATTERN_1 'a'
 #define BUF_PATTERN_2 'b'
 
@@ -850,6 +914,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM poll() + SO_RCVLOWAT",
 		.run_client = test_stream_poll_rcvlowat_client,
 		.run_server = test_stream_poll_rcvlowat_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET big message",
+		.run_client = test_seqpacket_bigmsg_client,
+		.run_server = test_seqpacket_bigmsg_server,
 	},
 	{},
 };
