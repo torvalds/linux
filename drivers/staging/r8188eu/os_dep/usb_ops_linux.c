@@ -38,14 +38,13 @@ void rtw_read_port_cancel(struct adapter *padapter)
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 {
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)purb->context;
-	struct adapter	*padapter = pxmitbuf->padapter;
-	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
+	struct adapter *padapter = pxmitbuf->padapter;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	if (pxmitbuf->flags == HIGH_QUEUE_INX)
 		rtw_chk_hi_queue_cmd(padapter);
 
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
-	    padapter->bWritePortCancel)
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped || padapter->bWritePortCancel)
 		goto check_completion;
 
 	switch (purb->status) {
@@ -66,13 +65,9 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 
 check_completion:
 	rtw_sctx_done_err(&pxmitbuf->sctx,
-			  purb->status ? RTW_SCTX_DONE_WRITE_PORT_ERR :
-			  RTW_SCTX_DONE_SUCCESS);
-
+			  purb->status ? RTW_SCTX_DONE_WRITE_PORT_ERR : RTW_SCTX_DONE_SUCCESS);
 	rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
-
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
-
 }
 
 u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
