@@ -48,21 +48,20 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 	    padapter->bWritePortCancel)
 		goto check_completion;
 
-	if (purb->status) {
-		if (purb->status == -EINPROGRESS) {
-			goto check_completion;
-		} else if (purb->status == -ENOENT) {
-			goto check_completion;
-		} else if (purb->status == -ECONNRESET) {
-			goto check_completion;
-		} else if (purb->status == -ESHUTDOWN) {
-			padapter->bDriverStopped = true;
-			goto check_completion;
-		} else if ((purb->status != -EPIPE) && (purb->status != -EPROTO)) {
-			padapter->bSurpriseRemoved = true;
-
-			goto check_completion;
-		}
+	switch (purb->status) {
+	case 0:
+	case -EINPROGRESS:
+	case -ENOENT:
+	case -ECONNRESET:
+	case -EPIPE:
+	case -EPROTO:
+		break;
+	case -ESHUTDOWN:
+		padapter->bDriverStopped = true;
+		break;
+	default:
+		padapter->bSurpriseRemoved = true;
+		break;
 	}
 
 check_completion:
