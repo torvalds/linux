@@ -344,10 +344,8 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 	}
 }
 
-static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *desc,
-					    unsigned int count,
-					    struct snd_pcm_substream *pcm)
+static void process_it_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int pcm_frames = 0;
@@ -371,14 +369,10 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
-
-	return pcm_frames;
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *desc,
-					    unsigned int count,
-					    struct snd_pcm_substream *pcm)
+static void process_ir_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
 	unsigned int pcm_frames = 0;
@@ -400,8 +394,6 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 
 		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
-
-	return pcm_frames;
 }
 
 /**

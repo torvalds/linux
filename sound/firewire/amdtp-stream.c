@@ -1043,7 +1043,7 @@ static void process_ctx_payloads(struct amdtp_stream *s,
 	int i;
 
 	pcm = READ_ONCE(s->pcm);
-	(void)s->process_ctx_payloads(s, desc, count, pcm);
+	s->process_ctx_payloads(s, desc, count, pcm);
 
 	if (pcm) {
 		unsigned int data_block_count = 0;

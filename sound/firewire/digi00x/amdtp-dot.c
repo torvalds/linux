@@ -341,10 +341,8 @@ void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 		WRITE_ONCE(p->midi[port], midi);
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *desc,
-					    unsigned int count,
-					    struct snd_pcm_substream *pcm)
+static void process_ir_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
@@ -362,14 +360,10 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 
 		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
-
-	return pcm_frames;
 }
 
-static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *desc,
-					    unsigned int count,
-					    struct snd_pcm_substream *pcm)
+static void process_it_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
@@ -390,8 +384,6 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
-
-	return pcm_frames;
 }
 
 int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
