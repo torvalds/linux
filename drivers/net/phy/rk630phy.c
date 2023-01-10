@@ -87,7 +87,7 @@ static void rk630_phy_t22_get_tx_level_from_efuse(struct phy_device *phydev)
 	unsigned int tx_level_10M = T22_TX_LEVEL_10M;
 	unsigned char *efuse_buf;
 	struct nvmem_cell *cell;
-	int len;
+	size_t len;
 
 	cell = nvmem_cell_get(&phydev->mdio.dev, "txlevel");
 	if (IS_ERR(cell)) {
