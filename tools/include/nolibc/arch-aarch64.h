@@ -169,6 +169,8 @@ struct sys_stat_struct {
 	_arg1;                                                                \
 })
 
+char **environ __attribute__((weak));
+
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 {
@@ -178,6 +180,8 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"lsl x2, x0, 3\n"    // envp (x2) = 8*argc ...
 		"add x2, x2, 8\n"    //           + 8 (skip null)
 		"add x2, x2, x1\n"   //           + argv
+		"adrp x3, environ\n"          // x3 = &environ (high bits)
+		"str x2, [x3, #:lo12:environ]\n" // store envp into environ
 		"and sp, x1, -16\n"  // sp must be 16-byte aligned in the callee
 		"bl main\n"          // main() returns the status code, we'll exit with it.
 		"mov x8, 93\n"       // NR_exit == 93
