@@ -345,7 +345,11 @@ html_use_smartypants = False
 
 # Custom sidebar templates, maps document names to template names.
 # Note that the RTD theme ignores this
-html_sidebars = { '**': ["about.html", 'searchbox.html', 'localtoc.html', 'sourcelink.html']}
+html_sidebars = { '**': ['searchbox.html', 'localtoc.html', 'sourcelink.html']}
+
+# about.html is available for alabaster theme. Add it at the front.
+if html_theme == 'alabaster':
+    html_sidebars['**'].insert(0, 'about.html')
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'TheLinuxKerneldoc'
