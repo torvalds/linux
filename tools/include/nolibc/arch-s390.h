@@ -160,6 +160,7 @@ struct sys_stat_struct {
 })
 
 char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
@@ -178,6 +179,15 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 						/* yes -> r4 now contains start of envp */
 		"larl	%r1,environ\n"
 		"stg	%r4,0(%r1)\n"
+
+		/* search for auxv */
+		"lgr	%r5,%r4\n"		/* start at envp */
+		"1:\n"
+		"clg	%r0,0(%r5)\n"		/* entry zero? */
+		"la	%r5,8(%r5)\n"		/* advance pointer */
+		"jnz	1b\n"			/* no -> test next pointer */
+		"larl	%r1,_auxv\n"		/* yes -> store value in _auxv */
+		"stg	%r5,0(%r1)\n"
 
 		"aghi	%r15,-160\n"		/* allocate new stackframe */
 		"xc	0(8,%r15),0(%r15)\n"	/* clear backchain */
