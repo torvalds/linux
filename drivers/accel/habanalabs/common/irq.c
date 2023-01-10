@@ -72,15 +72,17 @@ static void irq_handle_eqe(struct work_struct *work)
  * @hdev: pointer to device structure
  * @cs_seq: command submission sequence
  * @cq: completion queue
+ * @timestamp: interrupt timestamp
  *
  */
-static void job_finish(struct hl_device *hdev, u32 cs_seq, struct hl_cq *cq)
+static void job_finish(struct hl_device *hdev, u32 cs_seq, struct hl_cq *cq, ktime_t timestamp)
 {
 	struct hl_hw_queue *queue;
 	struct hl_cs_job *job;
 
 	queue = &hdev->kernel_queues[cq->hw_queue_id];
 	job = queue->shadow_queue[hl_pi_2_offset(cs_seq)];
+	job->timestamp = timestamp;
 	queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
 
 	atomic_inc(&queue->ci);
@@ -91,9 +93,10 @@ static void job_finish(struct hl_device *hdev, u32 cs_seq, struct hl_cq *cq)
  *
  * @hdev: pointer to device structure
  * @cs_seq: command submission sequence
+ * @timestamp: interrupt timestamp
  *
  */
-static void cs_finish(struct hl_device *hdev, u16 cs_seq)
+static void cs_finish(struct hl_device *hdev, u16 cs_seq, ktime_t timestamp)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_hw_queue *queue;
@@ -113,6 +116,7 @@ static void cs_finish(struct hl_device *hdev, u16 cs_seq)
 		atomic_inc(&queue->ci);
 	}
 
+	cs->completion_timestamp = timestamp;
 	queue_work(hdev->cs_cmplt_wq, &cs->finish_work);
 }
 
@@ -130,6 +134,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	bool shadow_index_valid, entry_ready;
 	u16 shadow_index;
 	struct hl_cq_entry *cq_entry, *cq_base;
+	ktime_t timestamp = ktime_get();
 
 	if (hdev->disabled) {
 		dev_dbg(hdev->dev,
@@ -171,9 +176,9 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 		if (shadow_index_valid && !hdev->disabled) {
 			if (hdev->asic_prop.completion_mode ==
 					HL_COMPLETION_MODE_CS)
-				cs_finish(hdev, shadow_index);
+				cs_finish(hdev, shadow_index, timestamp);
 			else
-				job_finish(hdev, shadow_index, cq);
+				job_finish(hdev, shadow_index, cq, timestamp);
 		}
 
 		/* Clear CQ entry ready bit */

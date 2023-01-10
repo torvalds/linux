@@ -398,8 +398,16 @@ static void hl_complete_job(struct hl_device *hdev, struct hl_cs_job *job)
 	 * flow by calling 'hl_hw_queue_update_ci'.
 	 */
 	if (cs_needs_completion(cs) &&
-		(job->queue_type == QUEUE_TYPE_EXT || job->queue_type == QUEUE_TYPE_HW))
+			(job->queue_type == QUEUE_TYPE_EXT || job->queue_type == QUEUE_TYPE_HW)) {
+
+		/* In CS based completions, the timestamp is already available,
+		 * so no need to extract it from job
+		 */
+		if (hdev->asic_prop.completion_mode == HL_COMPLETION_MODE_JOB)
+			cs->completion_timestamp = job->timestamp;
+
 		cs_put(cs);
+	}
 
 	hl_cs_job_put(job);
 }
@@ -776,7 +784,7 @@ out:
 	}
 
 	if (cs->timestamp) {
-		cs->fence->timestamp = ktime_get();
+		cs->fence->timestamp = cs->completion_timestamp;
 		hl_push_cs_outcome(hdev, &cs->ctx->outcome_store, cs->sequence,
 				   cs->fence->timestamp, cs->fence->error);
 	}

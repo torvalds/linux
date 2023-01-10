@@ -1940,6 +1940,7 @@ struct hl_userptr {
  * @type: CS_TYPE_*.
  * @jobs_cnt: counter of submitted jobs on all queues.
  * @encaps_sig_hdl_id: encaps signals handle id, set for the first staged cs.
+ * @completion_timestamp: timestamp of the last completed cs job.
  * @sob_addr_offset: sob offset from the configuration base address.
  * @initial_sob_count: count of completed signals in SOB before current submission of signal or
  *                     cs with encaps signals.
@@ -1972,6 +1973,7 @@ struct hl_cs {
 	struct list_head	staged_cs_node;
 	struct list_head	debugfs_list;
 	struct hl_cs_encaps_sig_handle *encaps_sig_hdl;
+	ktime_t			completion_timestamp;
 	u64			sequence;
 	u64			staged_sequence;
 	u64			timeout_jiffies;
@@ -2007,6 +2009,7 @@ struct hl_cs {
  * @debugfs_list: node in debugfs list of command submission jobs.
  * @refcount: reference counter for usage of the CS job.
  * @queue_type: the type of the H/W queue this job is submitted to.
+ * @timestamp: timestamp upon job completion
  * @id: the id of this job inside a CS.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
@@ -2033,6 +2036,7 @@ struct hl_cs_job {
 	struct list_head	debugfs_list;
 	struct kref		refcount;
 	enum hl_queue_type	queue_type;
+	ktime_t			timestamp;
 	u32			id;
 	u32			hw_queue_id;
 	u32			user_cb_size;
