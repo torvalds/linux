@@ -1438,7 +1438,7 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 
 		if (fmt->sync_ep) {
 			subs->sync_endpoint = snd_usb_endpoint_open(chip,
-					fmt, &params, false, fixed_rate);
+					fmt, &params, true, fixed_rate);
 			if (!subs->sync_endpoint) {
 				uaudio_err("failed to open sync endpoint\n");
 				return -EINVAL;
