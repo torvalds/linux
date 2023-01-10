@@ -279,6 +279,8 @@
 &hdmi {
 	avdd-0v9-supply = <&vdda0v9_image>;
 	avdd-1v8-supply = <&vcca1v8_image>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmitx_scl &hdmitx_sda &hdmitxm1_cec>;
 	status = "okay";
 };
 
