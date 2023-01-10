@@ -283,6 +283,9 @@ int ksz_get_ts_info(struct dsa_switch *ds, int port, struct ethtool_ts_info *ts)
 
 	ts->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ONESTEP_P2P);
 
+	if (is_lan937x(dev))
+		ts->tx_types |= BIT(HWTSTAMP_TX_ON);
+
 	ts->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
 			 BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 			 BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
@@ -310,6 +313,8 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 				   struct ksz_port *prt,
 				   struct hwtstamp_config *config)
 {
+	int ret;
+
 	if (config->flags)
 		return -EINVAL;
 
@@ -325,6 +330,25 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 		prt->ptpmsg_irq[KSZ_XDREQ_MSG].ts_en = true;
 		prt->ptpmsg_irq[KSZ_PDRES_MSG].ts_en = false;
 		prt->hwts_tx_en = true;
+
+		ret = ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_1STEP, PTP_1STEP);
+		if (ret)
+			return ret;
+
+		break;
+	case HWTSTAMP_TX_ON:
+		if (!is_lan937x(dev))
+			return -ERANGE;
+
+		prt->ptpmsg_irq[KSZ_SYNC_MSG].ts_en  = true;
+		prt->ptpmsg_irq[KSZ_XDREQ_MSG].ts_en = true;
+		prt->ptpmsg_irq[KSZ_PDRES_MSG].ts_en = true;
+		prt->hwts_tx_en = true;
+
+		ret = ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_1STEP, 0);
+		if (ret)
+			return ret;
+
 		break;
 	default:
 		return -ERANGE;
@@ -412,13 +436,19 @@ bool ksz_port_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb,
 	struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
 	struct ksz_device *dev = ds->priv;
 	struct ptp_header *ptp_hdr;
+	struct ksz_port *prt;
 	u8 ptp_msg_type;
 	ktime_t tstamp;
 	s64 correction;
 
+	prt = &dev->ports[port];
+
 	tstamp = KSZ_SKB_CB(skb)->tstamp;
 	memset(hwtstamps, 0, sizeof(*hwtstamps));
 	hwtstamps->hwtstamp = ksz_tstamp_reconstruct(dev, tstamp);
+
+	if (prt->tstamp_config.tx_type != HWTSTAMP_TX_ONESTEP_P2P)
+		goto out;
 
 	ptp_hdr = ptp_parse_header(skb, type);
 	if (!ptp_hdr)
@@ -467,12 +497,19 @@ void ksz_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 	ptp_msg_type = ptp_get_msgtype(hdr, type);
 
 	switch (ptp_msg_type) {
+	case PTP_MSGTYPE_SYNC:
+		if (prt->tstamp_config.tx_type == HWTSTAMP_TX_ONESTEP_P2P)
+			return;
+		break;
 	case PTP_MSGTYPE_PDELAY_REQ:
 		break;
 	case PTP_MSGTYPE_PDELAY_RESP:
-		KSZ_SKB_CB(skb)->ptp_type = type;
-		KSZ_SKB_CB(skb)->update_correction = true;
-		return;
+		if (prt->tstamp_config.tx_type == HWTSTAMP_TX_ONESTEP_P2P) {
+			KSZ_SKB_CB(skb)->ptp_type = type;
+			KSZ_SKB_CB(skb)->update_correction = true;
+			return;
+		}
+		break;
 
 	default:
 		return;
