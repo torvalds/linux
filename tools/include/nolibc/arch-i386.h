@@ -178,6 +178,8 @@ struct sys_stat_struct {
 	_eax;							\
 })
 
+char **environ __attribute__((weak));
+
 /* startup code */
 /*
  * i386 System V ABI mandates:
@@ -191,6 +193,7 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"pop %eax\n"                // argc   (first arg, %eax)
 		"mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
 		"lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
+		"mov %ecx, environ\n"       // save environ
 		"xor %ebp, %ebp\n"          // zero the stack frame
 		"and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
 		"sub $4, %esp\n"            // the call instruction (args are aligned)
