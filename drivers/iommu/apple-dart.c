@@ -486,13 +486,6 @@ static int apple_dart_domain_add_streams(struct apple_dart_domain *domain,
 				      true);
 }
 
-static int apple_dart_domain_remove_streams(struct apple_dart_domain *domain,
-					    struct apple_dart_master_cfg *cfg)
-{
-	return apple_dart_mod_streams(domain->stream_maps, cfg->stream_maps,
-				      false);
-}
-
 static int apple_dart_attach_dev(struct iommu_domain *domain,
 				 struct device *dev)
 {
@@ -533,22 +526,6 @@ static int apple_dart_attach_dev(struct iommu_domain *domain,
 	}
 
 	return ret;
-}
-
-static void apple_dart_detach_dev(struct iommu_domain *domain,
-				  struct device *dev)
-{
-	int i;
-	struct apple_dart_stream_map *stream_map;
-	struct apple_dart_master_cfg *cfg = dev_iommu_priv_get(dev);
-	struct apple_dart_domain *dart_domain = to_dart_domain(domain);
-
-	for_each_stream_map(i, cfg, stream_map)
-		apple_dart_hw_disable_dma(stream_map);
-
-	if (domain->type == IOMMU_DOMAIN_DMA ||
-	    domain->type == IOMMU_DOMAIN_UNMANAGED)
-		apple_dart_domain_remove_streams(dart_domain, cfg);
 }
 
 static struct iommu_device *apple_dart_probe_device(struct device *dev)
@@ -780,7 +757,6 @@ static const struct iommu_ops apple_dart_iommu_ops = {
 	.owner = THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= apple_dart_attach_dev,
-		.detach_dev	= apple_dart_detach_dev,
 		.map_pages	= apple_dart_map_pages,
 		.unmap_pages	= apple_dart_unmap_pages,
 		.flush_iotlb_all = apple_dart_flush_iotlb_all,
