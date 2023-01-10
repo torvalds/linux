@@ -32,3 +32,4 @@ operations with no code but simple configurations.
    faq
    design
    api
+   maintainer-profile
