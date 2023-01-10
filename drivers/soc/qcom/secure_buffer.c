@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2011 Google, Inc
  * Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/highmem.h>
@@ -487,22 +488,29 @@ int hyp_assign_phys(phys_addr_t addr, u64 size, u32 *source_vm_list,
 			int source_nelems, int *dest_vmids,
 			int *dest_perms, int dest_nelems)
 {
-	struct sg_table table;
-	int ret;
+	struct qcom_scm_vmperm *newvm = NULL;
+	u64 source_vm = 0;
+	int i, ret;
 
 	if (!qcom_secure_buffer_dev)
 		return -EPROBE_DEFER;
+	if (dest_nelems <= 0 || !source_nelems)
+		return -EINVAL;
 
-	ret = sg_alloc_table(&table, 1, GFP_KERNEL);
-	if (ret)
-		return ret;
+	newvm = kcalloc(dest_nelems, sizeof(struct qcom_scm_vmperm),
+				GFP_KERNEL);
+	if (!newvm)
+		return -ENOMEM;
+	for (i = 0; i < source_nelems; i++)
+		source_vm |= BIT(*(source_vm_list + i));
 
-	sg_set_page(table.sgl, phys_to_page(addr), size, 0);
+	for (i = 0; i < dest_nelems; i++) {
+		newvm[i].vmid = *(dest_vmids + i);
+		newvm[i].perm = *(dest_perms + i);
+	}
+	ret = qcom_scm_assign_mem(addr, size, &source_vm, newvm, dest_nelems);
+	kfree(newvm);
 
-	ret = hyp_assign_table(&table, source_vm_list, source_nelems,
-			       dest_vmids, dest_perms, dest_nelems);
-
-	sg_free_table(&table);
 	return ret;
 }
 EXPORT_SYMBOL(hyp_assign_phys);
