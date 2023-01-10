@@ -112,7 +112,7 @@ static void __do_test(void (*trampoline)(void (*)(void)),
 	if (skip_all) {
 		test_skipped++;
 		putstr("ok ");
-		putnum(test_num);
+		putnum(test_num++);
 		putstr(" ");
 		puttestname(name, trampoline_name);
 		putstr(" # SKIP\n");
