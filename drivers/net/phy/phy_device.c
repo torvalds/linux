@@ -1487,6 +1487,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	phydev->interrupts = PHY_INTERRUPT_DISABLED;
 
+	/* PHYs can request to use poll mode even though they have an
+	 * associated interrupt line. This could be the case if they
+	 * detect a broken interrupt handling.
+	 */
+	if (phydev->dev_flags & PHY_F_NO_IRQ)
+		phydev->irq = PHY_POLL;
+
 	/* Port is set to PORT_TP by default and the actual PHY driver will set
 	 * it to different value depending on the PHY configuration. If we have
 	 * the generic PHY driver we can't figure it out, thus set the old

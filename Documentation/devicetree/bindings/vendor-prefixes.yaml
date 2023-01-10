@@ -775,6 +775,8 @@ patternProperties:
     description: MaxBotix Inc.
   "^maxim,.*":
     description: Maxim Integrated Products
+  "^maxlinear,.*":
+    description: MaxLinear Inc.
   "^mbvl,.*":
     description: Mobiveil Inc.
   "^mcube,.*":
