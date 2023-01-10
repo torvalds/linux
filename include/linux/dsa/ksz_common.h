@@ -36,6 +36,8 @@ struct ksz_tagger_data {
 
 struct ksz_skb_cb {
 	struct sk_buff *clone;
+	unsigned int ptp_type;
+	bool update_correction;
 	u32 tstamp;
 };
 

@@ -7,6 +7,7 @@
 #include <linux/dsa/ksz_common.h>
 #include <linux/etherdevice.h>
 #include <linux/list.h>
+#include <linux/ptp_classify.h>
 #include <net/dsa.h>
 
 #include "tag.h"
@@ -195,13 +196,39 @@ static void ksz_rcv_timestamp(struct sk_buff *skb, u8 *tag)
 static void ksz_xmit_timestamp(struct dsa_port *dp, struct sk_buff *skb)
 {
 	struct ksz_tagger_private *priv;
+	struct ptp_header *ptp_hdr;
+	unsigned int ptp_type;
+	u32 tstamp_raw = 0;
+	s64 correction;
 
 	priv = ksz_tagger_private(dp->ds);
 
 	if (!test_bit(KSZ_HWTS_EN, &priv->state))
 		return;
 
-	put_unaligned_be32(0, skb_put(skb, KSZ_PTP_TAG_LEN));
+	if (!KSZ_SKB_CB(skb)->update_correction)
+		goto output_tag;
+
+	ptp_type = KSZ_SKB_CB(skb)->ptp_type;
+
+	ptp_hdr = ptp_parse_header(skb, ptp_type);
+	if (!ptp_hdr)
+		goto output_tag;
+
+	correction = (s64)get_unaligned_be64(&ptp_hdr->correction);
+
+	if (correction < 0) {
+		struct timespec64 ts;
+
+		ts = ns_to_timespec64(-correction >> 16);
+		tstamp_raw = ((ts.tv_sec & 3) << 30) | ts.tv_nsec;
+
+		/* Set correction field to 0 and update UDP checksum */
+		ptp_header_update_correction(skb, ptp_type, ptp_hdr, 0);
+	}
+
+output_tag:
+	put_unaligned_be32(tstamp_raw, skb_put(skb, KSZ_PTP_TAG_LEN));
 }
 
 /* Defer transmit if waiting for egress time stamp is required.  */

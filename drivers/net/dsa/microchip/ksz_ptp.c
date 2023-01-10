@@ -267,6 +267,10 @@ void ksz_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 	switch (ptp_msg_type) {
 	case PTP_MSGTYPE_PDELAY_REQ:
 		break;
+	case PTP_MSGTYPE_PDELAY_RESP:
+		KSZ_SKB_CB(skb)->ptp_type = type;
+		KSZ_SKB_CB(skb)->update_correction = true;
+		return;
 
 	default:
 		return;
