@@ -781,7 +781,7 @@ static void mmu_dma_mem_free_from_chunk(struct gen_pool *pool,
 					struct gen_pool_chunk *chunk,
 					void *data)
 {
-	struct hl_device *hdev = (struct hl_device *)data;
+	struct hl_device *hdev = data;
 
 	hl_asic_dma_free_coherent(hdev, (chunk->end_addr - chunk->start_addr) + 1,
 					(void *)chunk->start_addr, chunk->phys_addr);
