@@ -102,6 +102,9 @@ struct ksz_port {
 	struct ksz_device *ksz_dev;
 	struct ksz_irq pirq;
 	u8 num;
+#if IS_ENABLED(CONFIG_NET_DSA_MICROCHIP_KSZ_PTP)
+	struct hwtstamp_config tstamp_config;
+#endif
 };
 
 struct ksz_device {

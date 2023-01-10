@@ -23,6 +23,11 @@ int ksz_ptp_clock_register(struct dsa_switch *ds);
 
 void ksz_ptp_clock_unregister(struct dsa_switch *ds);
 
+int ksz_get_ts_info(struct dsa_switch *ds, int port,
+		    struct ethtool_ts_info *ts);
+int ksz_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr);
+int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr);
+
 #else
 
 struct ksz_ptp_data {
@@ -36,6 +41,12 @@ static inline int ksz_ptp_clock_register(struct dsa_switch *ds)
 }
 
 static inline void ksz_ptp_clock_unregister(struct dsa_switch *ds) { }
+
+#define ksz_get_ts_info NULL
+
+#define ksz_hwtstamp_get NULL
+
+#define ksz_hwtstamp_set NULL
 
 #endif	/* End of CONFIG_NET_DSA_MICROCHIP_KSZ_PTP */
 

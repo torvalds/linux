@@ -2977,6 +2977,9 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_pause_stats	= ksz_get_pause_stats,
 	.port_change_mtu	= ksz_change_mtu,
 	.port_max_mtu		= ksz_max_mtu,
+	.get_ts_info		= ksz_get_ts_info,
+	.port_hwtstamp_get	= ksz_hwtstamp_get,
+	.port_hwtstamp_set	= ksz_hwtstamp_set,
 };
 
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
