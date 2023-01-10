@@ -721,7 +721,7 @@ out_encode_err:
 /*
  * Define NLM program and procedures
  */
-static unsigned int nlmsvc_version1_count[17];
+static DEFINE_PER_CPU_ALIGNED(unsigned long, nlmsvc_version1_count[17]);
 static const struct svc_version	nlmsvc_version1 = {
 	.vs_vers	= 1,
 	.vs_nproc	= 17,
@@ -730,26 +730,31 @@ static const struct svc_version	nlmsvc_version1 = {
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
-static unsigned int nlmsvc_version3_count[24];
+
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nlmsvc_version3_count[ARRAY_SIZE(nlmsvc_procedures)]);
 static const struct svc_version	nlmsvc_version3 = {
 	.vs_vers	= 3,
-	.vs_nproc	= 24,
+	.vs_nproc	= ARRAY_SIZE(nlmsvc_procedures),
 	.vs_proc	= nlmsvc_procedures,
 	.vs_count	= nlmsvc_version3_count,
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
+
 #ifdef CONFIG_LOCKD_V4
-static unsigned int nlmsvc_version4_count[24];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nlmsvc_version4_count[ARRAY_SIZE(nlmsvc_procedures4)]);
 static const struct svc_version	nlmsvc_version4 = {
 	.vs_vers	= 4,
-	.vs_nproc	= 24,
+	.vs_nproc	= ARRAY_SIZE(nlmsvc_procedures4),
 	.vs_proc	= nlmsvc_procedures4,
 	.vs_count	= nlmsvc_version4_count,
 	.vs_dispatch	= nlmsvc_dispatch,
 	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #endif
+
 static const struct svc_version *nlmsvc_version[] = {
 	[1] = &nlmsvc_version1,
 	[3] = &nlmsvc_version3,

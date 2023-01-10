@@ -1208,7 +1208,7 @@ svc_generic_init_request(struct svc_rqst *rqstp,
 	memset(rqstp->rq_resp, 0, procp->pc_ressize);
 
 	/* Bump per-procedure stats counter */
-	versp->vs_count[rqstp->rq_proc]++;
+	this_cpu_inc(versp->vs_count[rqstp->rq_proc]);
 
 	ret->dispatch = versp->vs_dispatch;
 	return rpc_success;

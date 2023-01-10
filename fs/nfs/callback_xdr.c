@@ -1069,7 +1069,8 @@ static const struct svc_procedure nfs4_callback_procedures1[] = {
 	}
 };
 
-static unsigned int nfs4_callback_count1[ARRAY_SIZE(nfs4_callback_procedures1)];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nfs4_callback_count1[ARRAY_SIZE(nfs4_callback_procedures1)]);
 const struct svc_version nfs4_callback_version1 = {
 	.vs_vers = 1,
 	.vs_nproc = ARRAY_SIZE(nfs4_callback_procedures1),
@@ -1081,7 +1082,8 @@ const struct svc_version nfs4_callback_version1 = {
 	.vs_need_cong_ctrl = true,
 };
 
-static unsigned int nfs4_callback_count4[ARRAY_SIZE(nfs4_callback_procedures1)];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nfs4_callback_count4[ARRAY_SIZE(nfs4_callback_procedures1)]);
 const struct svc_version nfs4_callback_version4 = {
 	.vs_vers = 4,
 	.vs_nproc = ARRAY_SIZE(nfs4_callback_procedures1),
