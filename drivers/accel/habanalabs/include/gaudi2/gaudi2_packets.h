@@ -59,7 +59,7 @@ struct gaudi2_packet {
 	/* The rest of the packet data follows. Use the corresponding
 	 * packet_XXX struct to deference the data, based on packet type
 	 */
-	u8 contents[0];
+	u8 contents[];
 };
 
 struct packet_nop {
@@ -80,7 +80,7 @@ struct packet_wreg32 {
 struct packet_wreg_bulk {
 	__le32 size64;
 	__le32 ctl;
-	__le64 values[0]; /* data starts here */
+	__le64 values[]; /* data starts here */
 };
 
 struct packet_msg_long {
