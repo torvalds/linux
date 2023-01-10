@@ -3888,17 +3888,26 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	/*
-	 * Find the first key from this transaction again.  See the note for
-	 * log_new_dir_dentries, if we're logging a directory recursively we
-	 * won't be holding its i_mutex, which means we can modify the directory
-	 * while we're logging it.  If we remove an entry between our first
-	 * search and this search we'll not find the key again and can just
-	 * bail.
+	 * Find the first key from this transaction again or the one we were at
+	 * in the loop below in case we had to reschedule. We may be logging the
+	 * directory without holding its VFS lock, which happen when logging new
+	 * dentries (through log_new_dir_dentries()) or in some cases when we
+	 * need to log the parent directory of an inode. This means a dir index
+	 * key might be deleted from the inode's root, and therefore we may not
+	 * find it anymore. If we can't find it, just move to the next key. We
+	 * can not bail out and ignore, because if we do that we will simply
+	 * not log dir index keys that come after the one that was just deleted
+	 * and we can end up logging a dir index range that ends at (u64)-1
+	 * (@last_offset is initialized to that), resulting in removing dir
+	 * entries we should not remove at log replay time.
 	 */
 search:
 	ret = btrfs_search_slot(NULL, root, &min_key, path, 0, 0);
+	if (ret > 0)
+		ret = btrfs_next_item(root, path);
 	if (ret < 0)
 		err = ret;
+	/* If ret is 1, there are no more keys in the inode's root. */
 	if (ret != 0)
 		goto done;
 
