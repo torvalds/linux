@@ -46,11 +46,6 @@
 
 static struct i2c_driver isl12022_driver;
 
-struct isl12022 {
-	struct rtc_device *rtc;
-	struct regmap *regmap;
-};
-
 static umode_t isl12022_hwmon_is_visible(const void *data,
 					 enum hwmon_sensor_types type,
 					 u32 attr, int channel)
@@ -67,8 +62,7 @@ static umode_t isl12022_hwmon_is_visible(const void *data,
  */
 static int isl12022_hwmon_read_temp(struct device *dev, long *mC)
 {
-	struct isl12022 *isl12022 = dev_get_drvdata(dev);
-	struct regmap *regmap = isl12022->regmap;
+	struct regmap *regmap = dev_get_drvdata(dev);
 	u8 temp_buf[2];
 	int temp, ret;
 
@@ -115,23 +109,21 @@ static const struct hwmon_chip_info isl12022_hwmon_chip_info = {
 
 static void isl12022_hwmon_register(struct device *dev)
 {
-	struct isl12022 *isl12022;
+	struct regmap *regmap = dev_get_drvdata(dev);
 	struct device *hwmon;
 	int ret;
 
 	if (!IS_REACHABLE(CONFIG_HWMON))
 		return;
 
-	isl12022 = dev_get_drvdata(dev);
-
-	ret = regmap_update_bits(isl12022->regmap, ISL12022_REG_BETA,
+	ret = regmap_update_bits(regmap, ISL12022_REG_BETA,
 				 ISL12022_BETA_TSE, ISL12022_BETA_TSE);
 	if (ret) {
 		dev_warn(dev, "unable to enable temperature sensor\n");
 		return;
 	}
 
-	hwmon = devm_hwmon_device_register_with_info(dev, "isl12022", isl12022,
+	hwmon = devm_hwmon_device_register_with_info(dev, "isl12022", regmap,
 						     &isl12022_hwmon_chip_info,
 						     NULL);
 	if (IS_ERR(hwmon))
@@ -144,8 +136,7 @@ static void isl12022_hwmon_register(struct device *dev)
  */
 static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct isl12022 *isl12022 = dev_get_drvdata(dev);
-	struct regmap *regmap = isl12022->regmap;
+	struct regmap *regmap = dev_get_drvdata(dev);
 	uint8_t buf[ISL12022_REG_INT + 1];
 	int ret;
 
@@ -190,8 +181,7 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct isl12022 *isl12022 = dev_get_drvdata(dev);
-	struct regmap *regmap = isl12022->regmap;
+	struct regmap *regmap = dev_get_drvdata(dev);
 	int ret;
 	uint8_t buf[ISL12022_REG_DW + 1];
 
@@ -218,8 +208,7 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	buf[ISL12022_REG_DW] = tm->tm_wday & 0x07;
 
-	return regmap_bulk_write(isl12022->regmap, ISL12022_REG_SC,
-				 buf, sizeof(buf));
+	return regmap_bulk_write(regmap, ISL12022_REG_SC, buf, sizeof(buf));
 }
 
 static const struct rtc_class_ops isl12022_rtc_ops = {
@@ -235,34 +224,31 @@ static const struct regmap_config regmap_config = {
 
 static int isl12022_probe(struct i2c_client *client)
 {
-	struct isl12022 *isl12022;
+	struct rtc_device *rtc;
+	struct regmap *regmap;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	isl12022 = devm_kzalloc(&client->dev, sizeof(struct isl12022),
-				GFP_KERNEL);
-	if (!isl12022)
-		return -ENOMEM;
-	dev_set_drvdata(&client->dev, isl12022);
-
-	isl12022->regmap = devm_regmap_init_i2c(client, &regmap_config);
-	if (IS_ERR(isl12022->regmap)) {
+	regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "regmap allocation failed\n");
-		return PTR_ERR(isl12022->regmap);
+		return PTR_ERR(regmap);
 	}
+
+	dev_set_drvdata(&client->dev, regmap);
 
 	isl12022_hwmon_register(&client->dev);
 
-	isl12022->rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(isl12022->rtc))
-		return PTR_ERR(isl12022->rtc);
+	rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
-	isl12022->rtc->ops = &isl12022_rtc_ops;
-	isl12022->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
-	isl12022->rtc->range_max = RTC_TIMESTAMP_END_2099;
+	rtc->ops = &isl12022_rtc_ops;
+	rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	return devm_rtc_register_device(isl12022->rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 #ifdef CONFIG_OF
