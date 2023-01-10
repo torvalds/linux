@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -1730,10 +1730,6 @@ static void qcom_geni_i3c_ibi_conf(struct geni_i3c_dev *gi3c)
 	gi3c->ibi.err = 0;
 	reinit_completion(&gi3c->ibi.done);
 
-	/* set the configuration for 100Khz OD speed */
-	geni_write_reg(0x5FD74322, gi3c->ibi.ibi_base, IBI_SCL_PP_TIMING_CONFIG);
-
-
 	if (gi3c->ibi.ibic_naon) {
 		if (geni_i3c_enable_naon_ibi_clks(gi3c, true)) {
 			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
@@ -1741,6 +1737,10 @@ static void qcom_geni_i3c_ibi_conf(struct geni_i3c_dev *gi3c)
 			return;
 		}
 	}
+
+	/* set the configuration for 100Khz OD speed */
+	geni_write_reg(0x5FD74322, gi3c->ibi.ibi_base, IBI_SCL_PP_TIMING_CONFIG);
+
 	geni_i3c_enable_ibi_ctrl(gi3c, true);
 	geni_i3c_enable_ibi_irq(gi3c, true);
 	gi3c->ibi.is_init = true;
@@ -2006,6 +2006,13 @@ static void qcom_geni_i3c_ibi_unconf(struct geni_i3c_dev *gi3c)
 
 	geni_i3c_enable_ibi_ctrl(gi3c, false);
 	geni_i3c_enable_ibi_irq(gi3c, false);
+	if (gi3c->ibi.ibic_naon) {
+		if (geni_i3c_enable_naon_ibi_clks(gi3c, false)) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s:  NAON clock failure\n", __func__);
+			return;
+		}
+	}
 	gi3c->ibi.is_init = false;
 }
 
@@ -2060,6 +2067,53 @@ static const struct i3c_master_controller_ops geni_i3c_master_ops = {
 	.recycle_ibi_slot = geni_i3c_master_recycle_ibi_slot,
 };
 
+/*
+ * geni_i3c_enable_naon_ibi_clks() - Gets clock handles for NAON IBI clocks
+ * @gi3c: I3C device handle
+ *
+ * Return: True OR respective failure code/value
+ */
+static int i3c_naon_ibi_clk_init(struct geni_i3c_dev *gi3c)
+{
+	int ret = 0;
+
+	if (!gi3c->ibi.ibic_naon)
+		return ret;
+
+	gi3c->ibi.core_clk = devm_clk_get(gi3c->se.dev, "ibic-core-clk");
+	if (IS_ERR(gi3c->ibi.core_clk)) {
+		ret = PTR_ERR(gi3c->ibi.core_clk);
+		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+			"Error getting NAON IBI Core clk %d\n", ret);
+		return ret;
+	}
+	/* Keep IBI core clock at 37.5 MHz */
+	ret = clk_set_rate(gi3c->ibi.core_clk, 37500000);
+	if (ret) {
+		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+			"Error Setting the NAON clock rate: %d\n", ret);
+		return ret;
+	}
+
+	gi3c->ibi.ahb_clk = devm_clk_get(gi3c->se.dev, "ibic-ahb-clk");
+	if (IS_ERR(gi3c->ibi.ahb_clk)) {
+		ret = PTR_ERR(gi3c->ibi.ahb_clk);
+		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+			"Error getting NAON AHB clk %d\n", ret);
+		return ret;
+	}
+
+	gi3c->ibi.src_clk = devm_clk_get(gi3c->se.dev, "ibic-src-clk");
+	if (IS_ERR(gi3c->ibi.src_clk)) {
+		ret = PTR_ERR(gi3c->ibi.src_clk);
+		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+			"Error getting NAON src clk %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int i3c_geni_rsrcs_clk_init(struct geni_i3c_dev *gi3c)
 {
 	int ret;
@@ -2089,32 +2143,6 @@ static int i3c_geni_rsrcs_clk_init(struct geni_i3c_dev *gi3c)
 		return ret;
 	}
 
-	if (gi3c->ibi.ibic_naon) {
-		gi3c->ibi.core_clk = devm_clk_get(gi3c->se.dev,
-							"ibic-core-clk");
-		if (IS_ERR(gi3c->ibi.core_clk)) {
-			ret = PTR_ERR(gi3c->ibi.core_clk);
-			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
-				"Error getting NAON IBI Core clk %d\n", ret);
-			return ret;
-		}
-
-		gi3c->ibi.ahb_clk = devm_clk_get(dev->parent, "ibic-ahb-clk");
-		if (IS_ERR(gi3c->ibi.ahb_clk)) {
-			ret = PTR_ERR(gi3c->ibi.ahb_clk);
-			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
-				"Error getting NAON AHB clk %d\n", ret);
-			return ret;
-		}
-
-		gi3c->ibi.src_clk = devm_clk_get(dev->parent, "ibic-src-clk");
-		if (IS_ERR(gi3c->ibi.src_clk)) {
-			ret = PTR_ERR(gi3c->ibi.src_clk);
-			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
-				"Error getting NAON src clk %d\n", ret);
-			return ret;
-		}
-	}
 	return 0;
 }
 
@@ -2236,12 +2264,6 @@ static int i3c_ibi_rsrcs_init(struct geni_i3c_dev *gi3c,
 		return -ENXIO;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "qcom,ibic-naon")) {
-		gi3c->ibi.ibic_naon = true;
-		I3C_LOG_DBG(gi3c->ipcl, false,  gi3c->se.dev,
-			 "IBI is NAON controller\n");
-	}
-
 	/* Enable TLMM I3C MODE registers */
 	msm_qup_write(gi3c->ibi.ctrl_id, TLMM_I3C_MODE);
 
@@ -2270,6 +2292,15 @@ static int i3c_ibi_rsrcs_init(struct geni_i3c_dev *gi3c,
 				sizeof(*gi3c->ibi.slots), GFP_KERNEL);
 	if (!gi3c->ibi.slots)
 		return -ENOMEM;
+
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,ibic-naon")) {
+		gi3c->ibi.ibic_naon = true;
+		dev_info(&pdev->dev, "IBI is NAON controller\n");
+		ret = i3c_naon_ibi_clk_init(gi3c);
+		if (ret)
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"NAON IBI clock failed to init:%d\n", ret);
+	}
 
 	/* Register IBI_C manager interrupt */
 	gi3c->ibi.mngr_irq = platform_get_irq(pdev, 1);
@@ -2449,11 +2480,6 @@ static int geni_i3c_probe(struct platform_device *pdev)
 		goto geni_resources_off;
 	}
 
-	tx_depth = geni_se_get_tx_fifo_depth(&gi3c->se);
-	gi3c->tx_wm = tx_depth - 1;
-	geni_se_init(&gi3c->se, gi3c->tx_wm, tx_depth);
-	geni_se_config_packing(&gi3c->se, BITS_PER_BYTE, PACKING_BYTES_PW, true, true, true);
-
 	I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
 			"%s: i3c_ibi_rsrcs_init()\n", __func__);
 	ret = i3c_ibi_rsrcs_init(gi3c, pdev);
@@ -2462,6 +2488,11 @@ static int geni_i3c_probe(struct platform_device *pdev)
 			"Error: %d, i3c_ibi_rsrcs_init\n", ret);
 		goto geni_resources_off;
 	}
+
+	tx_depth = geni_se_get_tx_fifo_depth(&gi3c->se);
+	gi3c->tx_wm = tx_depth - 1;
+	geni_se_init(&gi3c->se, gi3c->tx_wm, tx_depth);
+	geni_se_config_packing(&gi3c->se, BITS_PER_BYTE, PACKING_BYTES_PW, true, true, true);
 
 	ret = geni_se_resources_off(&gi3c->se);
 	if (ret)
