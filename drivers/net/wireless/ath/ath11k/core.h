@@ -346,6 +346,7 @@ struct ath11k_vif {
 
 	bool is_started;
 	bool is_up;
+	bool ftm_responder;
 	bool spectral_enabled;
 	bool ps;
 	u32 aid;

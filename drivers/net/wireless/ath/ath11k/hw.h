@@ -224,6 +224,7 @@ struct ath11k_hw_params {
 	u32 tx_ring_size;
 	bool smp2p_wow_exit;
 	bool support_fw_mac_sequence;
+	bool ftm_responder;
 };
 
 struct ath11k_hw_ops {
