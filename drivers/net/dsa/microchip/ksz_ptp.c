@@ -32,6 +32,28 @@
 
 #define KSZ_PTP_INT_START 13
 
+static int ksz_ptp_tou_gpio(struct ksz_device *dev)
+{
+	int ret;
+
+	if (!is_lan937x(dev))
+		return 0;
+
+	ret = ksz_rmw32(dev, REG_PTP_CTRL_STAT__4, GPIO_OUT,
+			GPIO_OUT);
+	if (ret)
+		return ret;
+
+	ret = ksz_rmw32(dev, REG_SW_GLOBAL_LED_OVR__4, LED_OVR_1 | LED_OVR_2,
+			LED_OVR_1 | LED_OVR_2);
+	if (ret)
+		return ret;
+
+	return ksz_rmw32(dev, REG_SW_GLOBAL_LED_SRC__4,
+			 LED_SRC_PTP_GPIO_1 | LED_SRC_PTP_GPIO_2,
+			 LED_SRC_PTP_GPIO_1 | LED_SRC_PTP_GPIO_2);
+}
+
 static int ksz_ptp_tou_reset(struct ksz_device *dev, u8 unit)
 {
 	u32 data;
@@ -221,6 +243,10 @@ static int ksz_ptp_enable_perout(struct ksz_device *dev,
 	ret = ksz_ptp_configure_perout(dev, cycle_width_ns, pulse_width_ns,
 				       &ptp_data->perout_target_time_first,
 				       pin);
+	if (ret)
+		return ret;
+
+	ret = ksz_ptp_tou_gpio(dev);
 	if (ret)
 		return ret;
 
