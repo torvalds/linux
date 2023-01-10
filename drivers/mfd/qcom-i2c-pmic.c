@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "I2C PMIC: %s: " fmt, __func__
@@ -671,7 +672,7 @@ cleanup:
 	return rc;
 }
 
-static int i2c_pmic_remove(struct i2c_client *client)
+static void i2c_pmic_remove(struct i2c_client *client)
 {
 	struct i2c_pmic *chip = i2c_get_clientdata(client);
 
@@ -679,7 +680,6 @@ static int i2c_pmic_remove(struct i2c_client *client)
 	if (chip->domain)
 		irq_domain_remove(chip->domain);
 	i2c_set_clientdata(client, NULL);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
