@@ -714,7 +714,7 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 			continue;
 
 #if KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
-		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[i],
+		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[id],
 						  INDIO_BUFFER_SOFTWARE,
 						  &st_lsm6dsvx_fifo_ops);
 		if (err)
