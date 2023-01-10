@@ -674,7 +674,7 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 				struct fw_iso_packet *params, unsigned int header_length,
 				unsigned int data_blocks,
 				unsigned int data_block_counter,
-				unsigned int syt, unsigned int index)
+				unsigned int syt, unsigned int index, u32 curr_cycle_time)
 {
 	unsigned int payload_length;
 	__be32 *cip_header;
@@ -691,7 +691,7 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 	}
 
 	trace_amdtp_packet(s, cycle, cip_header, payload_length + header_length, data_blocks,
-			   data_block_counter, s->packet_index, index);
+			   data_block_counter, s->packet_index, index, curr_cycle_time);
 }
 
 static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
@@ -793,7 +793,8 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			       const __be32 *ctx_header,
 			       unsigned int *data_blocks,
 			       unsigned int *data_block_counter,
-			       unsigned int *syt, unsigned int packet_index, unsigned int index)
+			       unsigned int *syt, unsigned int packet_index, unsigned int index,
+			       u32 curr_cycle_time)
 {
 	unsigned int payload_length;
 	const __be32 *cip_header;
@@ -838,7 +839,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	}
 
 	trace_amdtp_packet(s, cycle, cip_header, payload_length, *data_blocks,
-			   *data_block_counter, packet_index, index);
+			   *data_block_counter, packet_index, index, curr_cycle_time);
 
 	return 0;
 }
@@ -889,8 +890,12 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 	unsigned int dbc = s->data_block_counter;
 	unsigned int packet_index = s->packet_index;
 	unsigned int queue_size = s->queue_size;
+	u32 curr_cycle_time;
 	int i;
 	int err;
+
+	if (trace_amdtp_packet_enabled())
+		(void)fw_card_read_cycle_time(fw_parent_device(s->unit)->card, &curr_cycle_time);
 
 	*desc_count = 0;
 	for (i = 0; i < packet_count; ++i) {
@@ -936,7 +941,7 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 		}
 
 		err = parse_ir_ctx_header(s, cycle, ctx_header, &data_blocks, &dbc, &syt,
-					  packet_index, i);
+					  packet_index, i, curr_cycle_time);
 		if (err < 0)
 			return err;
 
@@ -1050,6 +1055,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	struct pkt_desc *desc = s->packet_descs_cursor;
 	unsigned int pkt_header_length;
 	unsigned int packets;
+	u32 curr_cycle_time;
 	bool need_hw_irq;
 	int i;
 
@@ -1078,6 +1084,9 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 		need_hw_irq = false;
 	}
 
+	if (trace_amdtp_packet_enabled())
+		(void)fw_card_read_cycle_time(fw_parent_device(s->unit)->card, &curr_cycle_time);
+
 	for (i = 0; i < packets; ++i) {
 		struct {
 			struct fw_iso_packet params;
@@ -1087,7 +1096,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 
 		build_it_pkt_header(s, desc->cycle, &template.params, pkt_header_length,
 				    desc->data_blocks, desc->data_block_counter,
-				    desc->syt, i);
+				    desc->syt, i, curr_cycle_time);
 
 		if (s == s->domain->irq_target) {
 			event_count += desc->data_blocks;
