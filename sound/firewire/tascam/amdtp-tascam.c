@@ -29,7 +29,7 @@ int amdtp_tscm_set_parameters(struct amdtp_stream *s, unsigned int rate)
 	if (s->direction == AMDTP_IN_STREAM)
 		data_channels += 2;
 
-	return amdtp_stream_set_parameters(s, rate, data_channels);
+	return amdtp_stream_set_parameters(s, rate, data_channels, 1);
 }
 
 static void write_pcm_s32(struct amdtp_stream *s, struct snd_pcm_substream *pcm,

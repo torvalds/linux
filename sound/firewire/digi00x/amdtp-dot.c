@@ -123,7 +123,7 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	 * A first data channel is for MIDI messages, the rest is Multi Bit
 	 * Linear Audio data channel.
 	 */
-	err = amdtp_stream_set_parameters(s, rate, pcm_channels + 1);
+	err = amdtp_stream_set_parameters(s, rate, pcm_channels + 1, 1);
 	if (err < 0)
 		return err;
 

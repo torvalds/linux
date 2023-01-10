@@ -190,6 +190,7 @@ struct amdtp_stream {
 	struct snd_pcm_substream *pcm;
 	snd_pcm_uframes_t pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
+	unsigned int pcm_frame_multiplier;
 
 	// To start processing content of packets at the same cycle in several contexts for
 	// each direction.
@@ -216,7 +217,7 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
 int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
-				unsigned int data_block_quadlets);
+				unsigned int data_block_quadlets, unsigned int pcm_frame_multiplier);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s);
 
 void amdtp_stream_update(struct amdtp_stream *s);

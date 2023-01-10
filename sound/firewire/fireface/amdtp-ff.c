@@ -24,7 +24,7 @@ int amdtp_ff_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	p->pcm_channels = pcm_channels;
 	data_channels = pcm_channels;
 
-	return amdtp_stream_set_parameters(s, rate, data_channels);
+	return amdtp_stream_set_parameters(s, rate, data_channels, 1);
 }
 
 static void write_pcm_s32(struct amdtp_stream *s, struct snd_pcm_substream *pcm,

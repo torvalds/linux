@@ -271,12 +271,14 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * @s: the AMDTP stream to configure
  * @rate: the sample rate
  * @data_block_quadlets: the size of a data block in quadlet unit
+ * @pcm_frame_multiplier: the multiplier to compute the number of PCM frames by the number of AMDTP
+ *			  events.
  *
  * The parameters must be set before the stream is started, and must not be
  * changed while the stream is running.
  */
 int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
-				unsigned int data_block_quadlets)
+				unsigned int data_block_quadlets, unsigned int pcm_frame_multiplier)
 {
 	unsigned int sfc;
 
@@ -297,6 +299,8 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	// additional buffering needed to adjust for no-data packets.
 	if (s->flags & CIP_BLOCKING)
 		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
+
+	s->pcm_frame_multiplier = pcm_frame_multiplier;
 
 	return 0;
 }
@@ -1032,16 +1036,25 @@ static inline void cancel_stream(struct amdtp_stream *s)
 }
 
 static void process_ctx_payloads(struct amdtp_stream *s,
-				 const struct pkt_desc *descs,
+				 const struct pkt_desc *desc,
 				 unsigned int count)
 {
 	struct snd_pcm_substream *pcm;
-	unsigned int pcm_frames;
+	int i;
 
 	pcm = READ_ONCE(s->pcm);
-	pcm_frames = s->process_ctx_payloads(s, descs, count, pcm);
-	if (pcm)
-		update_pcm_pointers(s, pcm, pcm_frames);
+	(void)s->process_ctx_payloads(s, desc, count, pcm);
+
+	if (pcm) {
+		unsigned int data_block_count = 0;
+
+		for (i = 0; i < count; ++i) {
+			data_block_count += desc->data_blocks;
+			desc = amdtp_stream_next_packet_desc(s, desc);
+		}
+
+		update_pcm_pointers(s, pcm, data_block_count * s->pcm_frame_multiplier);
+	}
 }
 
 static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,

@@ -73,7 +73,7 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	data_chunks = formats->msg_chunks + pcm_chunks;
 	data_block_quadlets = 1 + DIV_ROUND_UP(data_chunks * 3, 4);
 
-	err = amdtp_stream_set_parameters(s, rate, data_block_quadlets);
+	err = amdtp_stream_set_parameters(s, rate, data_block_quadlets, 1);
 	if (err < 0)
 		return err;
 
