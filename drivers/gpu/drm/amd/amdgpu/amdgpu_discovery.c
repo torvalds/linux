@@ -563,10 +563,10 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 		switch (le16_to_cpu(harvest_info->list[i].hw_id)) {
 		case VCN_HWID:
 			(*vcn_harvest_count)++;
-			if (harvest_info->list[i].number_instance == 0)
-				adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN0;
-			else
-				adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
+			adev->vcn.harvest_config |=
+				(1 << harvest_info->list[i].number_instance);
+			adev->jpeg.harvest_config |=
+				(1 << harvest_info->list[i].number_instance);
 			break;
 		case DMU_HWID:
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
