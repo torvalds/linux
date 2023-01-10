@@ -15,6 +15,8 @@
 #include <net/dsa.h>
 #include <linux/irq.h>
 
+#include "ksz_ptp.h"
+
 #define KSZ_MAX_NUM_PORTS 8
 
 struct ksz_device;
@@ -140,6 +142,7 @@ struct ksz_device {
 	u16 port_mask;
 	struct mutex lock_irq;		/* IRQ Access */
 	struct ksz_irq girq;
+	struct ksz_ptp_data ptp_data;
 };
 
 /* List of supported models */
@@ -438,6 +441,19 @@ static inline int ksz_write32(struct ksz_device *dev, u32 reg, u32 value)
 	ret = regmap_write(dev->regmap[2], reg, value);
 	if (ret)
 		dev_err(dev->dev, "can't write 32bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+
+	return ret;
+}
+
+static inline int ksz_rmw16(struct ksz_device *dev, u32 reg, u16 mask,
+			    u16 value)
+{
+	int ret;
+
+	ret = regmap_update_bits(dev->regmap[1], reg, mask, value);
+	if (ret)
+		dev_err(dev->dev, "can't rmw 16bit reg 0x%x: %pe\n", reg,
 			ERR_PTR(ret));
 
 	return ret;
