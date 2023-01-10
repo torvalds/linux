@@ -8287,7 +8287,7 @@ static int gaudi2_handle_hif_fatal(struct hl_device *hdev, u16 event_type, u64 i
 static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool is_pmmu,
 					u64 *event_mask)
 {
-	u32 valid, val;
+	u32 valid, val, axid_l, axid_h;
 	u64 addr;
 
 	valid = RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_PAGE_ERROR_VALID));
@@ -8300,8 +8300,11 @@ static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool 
 	addr <<= 32;
 	addr |= RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_ERROR_CAPTURE_VA));
 
-	dev_err_ratelimited(hdev->dev, "%s page fault on va 0x%llx\n",
-				is_pmmu ? "PMMU" : "HMMU", addr);
+	axid_l = RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_FAULT_ID_LSB));
+	axid_h = RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_FAULT_ID_MSB));
+
+	dev_err_ratelimited(hdev->dev, "%s page fault on va 0x%llx, transaction id 0x%llX\n",
+				is_pmmu ? "PMMU" : "HMMU", addr, ((u64)axid_h << 32) + axid_l);
 	hl_handle_page_fault(hdev, addr, 0, is_pmmu, event_mask);
 
 	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_ERROR_CAPTURE), 0);
