@@ -279,14 +279,25 @@ The ``action`` file is for setting and getting what action you want to apply to
 memory regions having specific access pattern of the interest.  The keywords
 that can be written to and read from the file and their meaning are as below.
 
- - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``
- - ``cold``: Call ``madvise()`` for the region with ``MADV_COLD``
- - ``pageout``: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
- - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
- - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
+Note that support of each action depends on the running DAMON operations set
+`implementation <sysfs_contexts>`.
+
+ - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``cold``: Call ``madvise()`` for the region with ``MADV_COLD``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``pageout``: Call ``madvise()`` for the region with ``MADV_PAGEOUT``.
+   Supported by ``vaddr``, ``fvaddr`` and ``paddr`` operations set.
+ - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
  - ``lru_prio``: Prioritize the region on its LRU lists.
+   Supported by ``paddr`` operations set.
  - ``lru_deprio``: Deprioritize the region on its LRU lists.
- - ``stat``: Do nothing but count the statistics
+   Supported by ``paddr`` operations set.
+ - ``stat``: Do nothing but count the statistics.
+   Supported by all operations sets.
 
 schemes/<N>/access_pattern/
 ---------------------------
@@ -388,8 +399,8 @@ pages of all memory cgroups except ``/having_care_already``.::
     echo /having_care_already > 1/memcg_path
     echo N > 1/matching
 
-Note that filters could be ignored depend on the running DAMON operations set
-`implementation <sysfs_contexts>`.
+Note that filters are currently supported only when ``paddr``
+`implementation <sysfs_contexts>` is being used.
 
 .. _sysfs_schemes_stats:
 
@@ -618,11 +629,15 @@ The ``<action>`` is a predefined integer for memory management actions, which
 DAMON will apply to the regions having the target access pattern.  The
 supported numbers and their meanings are as below.
 
- - 0: Call ``madvise()`` for the region with ``MADV_WILLNEED``
- - 1: Call ``madvise()`` for the region with ``MADV_COLD``
- - 2: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
- - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
- - 4: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
+ - 0: Call ``madvise()`` for the region with ``MADV_WILLNEED``.  Ignored if
+   ``target`` is ``paddr``.
+ - 1: Call ``madvise()`` for the region with ``MADV_COLD``.  Ignored if
+   ``target`` is ``paddr``.
+ - 2: Call ``madvise()`` for the region with ``MADV_PAGEOUT``.
+ - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.  Ignored if
+   ``target`` is ``paddr``.
+ - 4: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.  Ignored if
+   ``target`` is ``paddr``.
  - 5: Do nothing but count the statistics
 
 Quota
