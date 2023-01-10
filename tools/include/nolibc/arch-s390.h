@@ -159,6 +159,8 @@ struct sys_stat_struct {
 	_arg1;								\
 })
 
+char **environ __attribute__((weak));
+
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 {
@@ -174,6 +176,8 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"la	%r4,8(%r4)\n"		/* advance pointer */
 		"jnz	0b\n"			/* no -> test next pointer */
 						/* yes -> r4 now contains start of envp */
+		"larl	%r1,environ\n"
+		"stg	%r4,0(%r1)\n"
 
 		"aghi	%r15,-160\n"		/* allocate new stackframe */
 		"xc	0(8,%r15),0(%r15)\n"	/* clear backchain */
