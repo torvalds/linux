@@ -3032,17 +3032,55 @@ struct razwi_info {
 };
 
 /**
+ * struct hw_err_info - HW error information.
+ * @event: holds information on the event.
+ * @event_detected: if set as 1, then a HW event was discovered for the
+ *                  first time after the driver has finished booting-up.
+ *                  currently we assume that only fatal events (that require hard-reset) are
+ *                  reported so we don't care of the others that might follow it.
+ *                  so once changed to 1, it will remain that way.
+ *                  TODO: support multiple events.
+ * @event_info_available: indicates that a HW event info is now available.
+ */
+struct hw_err_info {
+	struct hl_info_hw_err_event	event;
+	atomic_t			event_detected;
+	bool				event_info_available;
+};
+
+/**
+ * struct fw_err_info - FW error information.
+ * @event: holds information on the event.
+ * @event_detected: if set as 1, then a FW event was discovered for the
+ *                  first time after the driver has finished booting-up.
+ *                  currently we assume that only fatal events (that require hard-reset) are
+ *                  reported so we don't care of the others that might follow it.
+ *                  so once changed to 1, it will remain that way.
+ *                  TODO: support multiple events.
+ * @event_info_available: indicates that a HW event info is now available.
+ */
+struct fw_err_info {
+	struct hl_info_fw_err_event	event;
+	atomic_t			event_detected;
+	bool				event_info_available;
+};
+
+/**
  * struct hl_error_info - holds information collected during an error.
  * @cs_timeout: CS timeout error information.
  * @razwi_info: RAZWI information.
  * @undef_opcode: undefined opcode information.
  * @page_fault_info: page fault information.
+ * @hw_err: (fatal) hardware error information.
+ * @fw_err: firmware error information.
  */
 struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
 	struct razwi_info		razwi_info;
 	struct undefined_opcode_info	undef_opcode;
 	struct page_fault_info		page_fault_info;
+	struct hw_err_info		hw_err;
+	struct fw_err_info		fw_err;
 };
 
 /**
@@ -3451,6 +3489,20 @@ struct hl_cs_encaps_sig_handle {
 	u32  q_idx;
 	u32  pre_sob_val;
 	u32  count;
+};
+
+/**
+ * struct hl_info_fw_err_info - firmware error information structure
+ * @err_type: The type of error detected (or reported).
+ * @event_mask: Pointer to the event mask to be modified with the detected error flag
+ *              (can be NULL)
+ * @event_id: The id of the event that reported the error
+ *            (applicable when err_type is HL_INFO_FW_REPORTED_ERR).
+ */
+struct hl_info_fw_err_info {
+	enum hl_info_fw_err_type err_type;
+	u64 *event_mask;
+	u16 event_id;
 };
 
 /*
@@ -3883,6 +3935,8 @@ void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_o
 void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu);
 void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu,
 				u64 *event_mask);
+void hl_handle_critical_hw_err(struct hl_device *hdev, u16 event_id, u64 *event_mask);
+void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info);
 
 #ifdef CONFIG_DEBUG_FS
 

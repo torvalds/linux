@@ -998,6 +998,8 @@ static void hl_device_heartbeat(struct work_struct *work)
 {
 	struct hl_device *hdev = container_of(work, struct hl_device,
 						work_heartbeat.work);
+	struct hl_info_fw_err_info info = {0};
+	u64 event_mask = HL_NOTIFIER_EVENT_DEVICE_RESET | HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
 
 	if (!hl_device_operational(hdev, NULL))
 		goto reschedule;
@@ -1008,7 +1010,10 @@ static void hl_device_heartbeat(struct work_struct *work)
 	if (hl_device_operational(hdev, NULL))
 		dev_err(hdev->dev, "Device heartbeat failed!\n");
 
-	hl_device_reset(hdev, HL_DRV_RESET_HARD | HL_DRV_RESET_HEARTBEAT);
+	info.err_type = HL_INFO_FW_HEARTBEAT_ERR;
+	info.event_mask = &event_mask;
+	hl_handle_fw_err(hdev, &info);
+	hl_device_cond_reset(hdev, HL_DRV_RESET_HARD | HL_DRV_RESET_HEARTBEAT, event_mask);
 
 	return;
 
@@ -2625,4 +2630,50 @@ void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_
 
 	if (event_mask)
 		*event_mask |=  HL_NOTIFIER_EVENT_PAGE_FAULT;
+}
+
+void hl_capture_hw_err(struct hl_device *hdev, u16 event_id)
+{
+	struct hw_err_info *info = &hdev->captured_err_info.hw_err;
+
+	/* Capture only the first HW err */
+	if (atomic_cmpxchg(&info->event_detected, 0, 1))
+		return;
+
+	info->event.timestamp = ktime_to_ns(ktime_get());
+	info->event.event_id = event_id;
+
+	info->event_info_available = true;
+}
+
+void hl_handle_critical_hw_err(struct hl_device *hdev, u16 event_id, u64 *event_mask)
+{
+	hl_capture_hw_err(hdev, event_id);
+
+	if (event_mask)
+		*event_mask |= HL_NOTIFIER_EVENT_CRITICL_HW_ERR;
+}
+
+void hl_capture_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *fw_info)
+{
+	struct fw_err_info *info = &hdev->captured_err_info.fw_err;
+
+	/* Capture only the first FW error */
+	if (atomic_cmpxchg(&info->event_detected, 0, 1))
+		return;
+
+	info->event.timestamp = ktime_to_ns(ktime_get());
+	info->event.err_type = fw_info->err_type;
+	if (fw_info->err_type == HL_INFO_FW_REPORTED_ERR)
+		info->event.event_id = fw_info->event_id;
+
+	info->event_info_available = true;
+}
+
+void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info)
+{
+	hl_capture_fw_err(hdev, info);
+
+	if (info->event_mask)
+		*info->event_mask |= HL_NOTIFIER_EVENT_CRITICL_FW_ERR;
 }

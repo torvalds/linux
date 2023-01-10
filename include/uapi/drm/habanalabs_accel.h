@@ -723,6 +723,10 @@ enum hl_server_type {
  * HL_NOTIFIER_EVENT_GENERAL_HW_ERR     - Indicates device HW error
  * HL_NOTIFIER_EVENT_RAZWI              - Indicates razwi happened
  * HL_NOTIFIER_EVENT_PAGE_FAULT         - Indicates page fault happened
+ * HL_NOTIFIER_EVENT_CRITICAL_HW_ERR    - Indicates a HW error that requires SW abort and
+ *                                        HW reset
+ * HL_NOTIFIER_EVENT_CRITICAL_FW_ERR    - Indicates a FW error that requires SW abort and
+ *                                        HW reset
  */
 #define HL_NOTIFIER_EVENT_TPC_ASSERT		(1ULL << 0)
 #define HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	(1ULL << 1)
@@ -733,6 +737,8 @@ enum hl_server_type {
 #define HL_NOTIFIER_EVENT_GENERAL_HW_ERR	(1ULL << 6)
 #define HL_NOTIFIER_EVENT_RAZWI			(1ULL << 7)
 #define HL_NOTIFIER_EVENT_PAGE_FAULT		(1ULL << 8)
+#define HL_NOTIFIER_EVENT_CRITICL_HW_ERR	(1ULL << 9)
+#define HL_NOTIFIER_EVENT_CRITICL_FW_ERR	(1ULL << 10)
 
 /* Opcode for management ioctl
  *
@@ -790,6 +796,8 @@ enum hl_server_type {
  * HL_INFO_PAGE_FAULT_EVENT - Retrieve parameters of captured page fault.
  * HL_INFO_USER_MAPPINGS - Retrieve user mappings, captured after page fault event.
  * HL_INFO_FW_GENERIC_REQ - Send generic request to FW.
+ * HL_INFO_HW_ERR_EVENT   - Retrieve information on the reported HW error.
+ * HL_INFO_FW_ERR_EVENT   - Retrieve information on the reported FW error.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -824,6 +832,8 @@ enum hl_server_type {
 #define HL_INFO_PAGE_FAULT_EVENT		33
 #define HL_INFO_USER_MAPPINGS			34
 #define HL_INFO_FW_GENERIC_REQ			35
+#define HL_INFO_HW_ERR_EVENT			36
+#define HL_INFO_FW_ERR_EVENT			37
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -1159,6 +1169,39 @@ struct hl_info_undefined_opcode_event {
 	__u32 cb_addr_streams_len;
 	__u32 engine_id;
 	__u32 stream_id;
+};
+
+/**
+ * struct hl_info_hw_err_event - info about HW error
+ * @timestamp: timestamp of error occurrence
+ * @event_id: The async event ID (specific to each device type).
+ * @pad: size padding for u64 granularity.
+ */
+struct hl_info_hw_err_event {
+	__s64 timestamp;
+	__u16 event_id;
+	__u16 pad[3];
+};
+
+/* FW error definition for event_type in struct hl_info_fw_err_event */
+enum hl_info_fw_err_type {
+	HL_INFO_FW_HEARTBEAT_ERR,
+	HL_INFO_FW_REPORTED_ERR,
+};
+
+/**
+ * struct hl_info_fw_err_event - info about FW error
+ * @timestamp: time-stamp of error occurrence
+ * @err_type: The type of event as defined in hl_info_fw_err_type.
+ * @event_id: The async event ID (specific to each device type, applicable only when event type is
+ *             HL_INFO_FW_REPORTED_ERR).
+ * @pad: size padding for u64 granularity.
+ */
+struct hl_info_fw_err_event {
+	__s64 timestamp;
+	__u16 err_type;
+	__u16 event_id;
+	__u32 pad;
 };
 
 /**

@@ -7634,6 +7634,7 @@ static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type, 
 static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
+	struct hl_info_fw_err_info fw_err_info;
 	u64 data = le64_to_cpu(eq_entry->data[0]), event_mask = 0;
 	u32 ctl = le32_to_cpu(eq_entry->hdr.ctl);
 	u32 fw_fatal_err_flag = 0, flags = 0;
@@ -7912,7 +7913,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_FW_ALIVE_S:
 		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_print_fw_alive_info(hdev, &eq_entry->fw_alive);
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		fw_err_info.err_type = HL_INFO_FW_REPORTED_ERR;
+		fw_err_info.event_id = event_type;
+		fw_err_info.event_mask = &event_mask;
+		hl_handle_fw_err(hdev, &fw_err_info);
 		goto reset_device;
 
 	default:
@@ -7943,6 +7947,10 @@ reset_device:
 	}
 
 	if (reset_required) {
+		/* escalate general hw errors to critical/fatal error */
+		if (event_mask & HL_NOTIFIER_EVENT_GENERAL_HW_ERR)
+			hl_handle_critical_hw_err(hdev, event_type, &event_mask);
+
 		hl_device_cond_reset(hdev, flags, event_mask);
 	} else {
 		hl_fw_unmask_irq(hdev, event_type);

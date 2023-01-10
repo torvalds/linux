@@ -830,6 +830,50 @@ static int user_mappings_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return copy_to_user(out, pgf_info->user_mappings, actual_size) ? -EFAULT : 0;
 }
 
+static int hw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *user_buf = (void __user *) (uintptr_t) args->return_pointer;
+	struct hl_device *hdev = hpriv->hdev;
+	u32 user_buf_size = args->return_size;
+	struct hw_err_info *info;
+	int rc;
+
+	if ((!user_buf_size) || (!user_buf))
+		return -EINVAL;
+
+	if (user_buf_size < sizeof(struct hl_info_hw_err_event))
+		return -ENOMEM;
+
+	info = &hdev->captured_err_info.hw_err;
+	if (!info->event_info_available)
+		return -ENOENT;
+
+	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_hw_err_event));
+	return rc ? -EFAULT : 0;
+}
+
+static int fw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *user_buf = (void __user *) (uintptr_t) args->return_pointer;
+	struct hl_device *hdev = hpriv->hdev;
+	u32 user_buf_size = args->return_size;
+	struct fw_err_info *info;
+	int rc;
+
+	if ((!user_buf_size) || (!user_buf))
+		return -EINVAL;
+
+	if (user_buf_size < sizeof(struct hl_info_fw_err_event))
+		return -ENOMEM;
+
+	info = &hdev->captured_err_info.fw_err;
+	if (!info->event_info_available)
+		return -ENOENT;
+
+	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_fw_err_event));
+	return rc ? -EFAULT : 0;
+}
+
 static int send_fw_generic_request(struct hl_device *hdev, struct hl_info_args *info_args)
 {
 	void __user *buff = (void __user *) (uintptr_t) info_args->return_pointer;
@@ -949,6 +993,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_UNREGISTER_EVENTFD:
 		return eventfd_unregister(hpriv, args);
+
+	case HL_INFO_HW_ERR_EVENT:
+		return hw_err_info(hpriv, args);
+
+	case HL_INFO_FW_ERR_EVENT:
+		return fw_err_info(hpriv, args);
 
 	default:
 		break;

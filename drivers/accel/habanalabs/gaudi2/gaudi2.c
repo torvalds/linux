@@ -9444,6 +9444,10 @@ reset_device:
 	} else {
 		reset_flags |= HL_DRV_RESET_DELAY;
 	}
+	/* escalate general hw errors to critical/fatal error */
+	if (event_mask & HL_NOTIFIER_EVENT_GENERAL_HW_ERR)
+		hl_handle_critical_hw_err(hdev, event_type, &event_mask);
+
 	event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
 	hl_device_cond_reset(hdev, reset_flags, event_mask);
 }
