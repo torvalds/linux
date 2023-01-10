@@ -136,16 +136,12 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 
 		intel_dp->DP |= DP_PIPE_SEL_IVB(crtc->pipe);
 	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
-		u32 trans_dp;
-
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 
-		trans_dp = intel_de_read(dev_priv, TRANS_DP_CTL(crtc->pipe));
-		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
-			trans_dp |= TRANS_DP_ENH_FRAMING;
-		else
-			trans_dp &= ~TRANS_DP_ENH_FRAMING;
-		intel_de_write(dev_priv, TRANS_DP_CTL(crtc->pipe), trans_dp);
+		intel_de_rmw(dev_priv, TRANS_DP_CTL(crtc->pipe),
+			     TRANS_DP_ENH_FRAMING,
+			     drm_dp_enhanced_frame_cap(intel_dp->dpcd) ?
+			     TRANS_DP_ENH_FRAMING : 0);
 	} else {
 		if (IS_G4X(dev_priv) && pipe_config->limited_color_range)
 			intel_dp->DP |= DP_COLOR_RANGE_16_235;
