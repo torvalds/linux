@@ -19,6 +19,8 @@
 #include <linux/regmap.h>
 #include <linux/hwmon.h>
 
+#include <asm/byteorder.h>
+
 /* ISL register offsets */
 #define ISL12022_REG_SC		0x00
 #define ISL12022_REG_MN		0x01
@@ -63,17 +65,16 @@ static umode_t isl12022_hwmon_is_visible(const void *data,
 static int isl12022_hwmon_read_temp(struct device *dev, long *mC)
 {
 	struct regmap *regmap = dev_get_drvdata(dev);
-	u8 temp_buf[2];
 	int temp, ret;
+	__le16 buf;
 
-	ret = regmap_bulk_read(regmap, ISL12022_REG_TEMP_L,
-			       temp_buf, sizeof(temp_buf));
+	ret = regmap_bulk_read(regmap, ISL12022_REG_TEMP_L, &buf, sizeof(buf));
 	if (ret)
 		return ret;
 	/*
 	 * Temperature is represented as a 10-bit number, unit half-Kelvins.
 	 */
-	temp = (temp_buf[1] << 8) | temp_buf[0];
+	temp = le16_to_cpu(buf);
 	temp *= 500;
 	temp -= 273000;
 
