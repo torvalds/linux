@@ -197,6 +197,7 @@ struct sys_stat_struct {
 })
 
 char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
@@ -211,6 +212,16 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"ldr %r3, 1f\n"               // r3 = &environ (see below)
 		"str %r2, [r3]\n"             // store envp into environ
 
+		"mov r4, r2\n"                // search for auxv (follows NULL after last env)
+		"0:\n"
+		"mov r5, r4\n"                // r5 = r4
+		"add r4, r4, #4\n"            // r4 += 4
+		"ldr r5,[r5]\n"               // r5 = *r5 = *(r4-4)
+		"cmp r5, #0\n"                // and stop at NULL after last env
+		"bne 0b\n"
+		"ldr %r3, 2f\n"               // r3 = &_auxv (low bits)
+		"str r4, [r3]\n"              // store r4 into _auxv
+
 		"mov %r3, $8\n"               // AAPCS : sp must be 8-byte aligned in the
 		"neg %r3, %r3\n"              //         callee, and bl doesn't push (lr=pc)
 		"and %r3, %r3, %r1\n"         // so we do sp = r1(=sp) & r3(=-8);
@@ -222,6 +233,8 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		".align 2\n"                  // below are the pointers to a few variables
 		"1:\n"
 		".word environ\n"
+		"2:\n"
+		".word _auxv\n"
 	);
 	__builtin_unreachable();
 }
