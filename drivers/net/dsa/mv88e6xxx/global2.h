@@ -314,12 +314,18 @@ int mv88e6xxx_g2_wait_bit(struct mv88e6xxx_chip *chip, int reg,
 int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
 
-int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
-			      struct mii_bus *bus,
-			      int addr, int reg, u16 *val);
-int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
-			       struct mii_bus *bus,
-			       int addr, int reg, u16 val);
+int mv88e6xxx_g2_smi_phy_read_c22(struct mv88e6xxx_chip *chip,
+				  struct mii_bus *bus,
+				  int addr, int reg, u16 *val);
+int mv88e6xxx_g2_smi_phy_write_c22(struct mv88e6xxx_chip *chip,
+				   struct mii_bus *bus,
+				   int addr, int reg, u16 val);
+int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip,
+				  struct mii_bus *bus,
+				  int addr, int devad, int reg, u16 *val);
+int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip,
+				   struct mii_bus *bus,
+				   int addr, int devad, int reg, u16 val);
 int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr);
 
 int mv88e6xxx_g2_get_eeprom8(struct mv88e6xxx_chip *chip,
