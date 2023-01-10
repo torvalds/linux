@@ -6,9 +6,11 @@
  *
  * V0.0X01.0X01 reduce vcm collision noise.
  * V0.0X01.0X02 check dev connection before register.
+ * V0.0X01.0X03
+ * 1. fix suspend cause i2c error issue.
+ * 2. use v4l2_dbg replace dev_dbg for dynamic print debug info.
  */
 
-//#define DEBUG
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -62,6 +64,10 @@
 #define CN3927V_DEFAULT_NRC_PRESET	0x00
 #define CN3927V_DEFAULT_NRC_INFL	0x00
 #define CN3927V_DEFAULT_NRC_TIME	0x00
+
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "debug level (0-2)");
 
 /* cn3927v device structure */
 struct cn3927v_device {
@@ -206,6 +212,7 @@ static int cn3927v_read_msg(struct i2c_client *client,
 	struct i2c_msg msg[1];
 	unsigned char data[2];
 	int retries;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	if (!client->adapter) {
 		dev_err(&client->dev, "client->adapter NULL\n");
@@ -220,7 +227,7 @@ static int cn3927v_read_msg(struct i2c_client *client,
 
 		ret = i2c_transfer(client->adapter, msg, 1);
 		if (ret == 1) {
-			dev_dbg(&client->dev,
+			v4l2_dbg(1, debug, sd,
 				"%s: vcm i2c ok, addr 0x%x, data 0x%x, 0x%x\n",
 				__func__, msg->addr, data[0], data[1]);
 
@@ -246,6 +253,7 @@ static int cn3927v_write_msg(struct i2c_client *client,
 	struct i2c_msg msg[1];
 	unsigned char data[2];
 	int retries;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	if (!client->adapter) {
 		dev_err(&client->dev, "client->adapter NULL\n");
@@ -265,7 +273,7 @@ static int cn3927v_write_msg(struct i2c_client *client,
 		usleep_range(50, 100);
 
 		if (ret == 1) {
-			dev_dbg(&client->dev,
+			v4l2_dbg(1, debug, sd,
 				"%s: vcm i2c ok, addr 0x%x, data 0x%x, 0x%x\n",
 				__func__, msg->addr, data[0], data[1]);
 			return 0;
@@ -287,6 +295,7 @@ static int cn3927v_write_reg(struct i2c_client *client, u8 reg, u32 len, u32 val
 	u8 buf[5];
 	u8 *val_p;
 	__be32 val_be;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	if (len > 4)
 		return -EINVAL;
@@ -303,7 +312,7 @@ static int cn3927v_write_reg(struct i2c_client *client, u8 reg, u32 len, u32 val
 
 	for (retries = 0; retries < 5; retries++) {
 		if (i2c_master_send(client, buf, len + 1) == len + 1) {
-			dev_dbg(&client->dev,
+			v4l2_dbg(1, debug, sd,
 				"%s: vcm i2c ok, reg 0x%x, val 0x%x, len 0x%x\n",
 				__func__, reg, val, len);
 			return 0;
@@ -326,6 +335,7 @@ static int cn3927v_read_reg(struct i2c_client *client, u8 reg, u32 len, u32 *val
 	u8 *data_be_p;
 	u32 retries;
 	int ret;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	if (len > 4 || !len)
 		return -EINVAL;
@@ -347,7 +357,7 @@ static int cn3927v_read_reg(struct i2c_client *client, u8 reg, u32 len, u32 *val
 		ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 		if (ret == ARRAY_SIZE(msgs)) {
 			*val = be32_to_cpu(data_be);
-			dev_dbg(&client->dev,
+			v4l2_dbg(1, debug, sd,
 				"%s: vcm i2c ok, reg 0x%x, val 0x%x\n",
 				__func__, reg, *val);
 			return 0;
@@ -459,7 +469,7 @@ static int cn3927v_get_dac(struct cn3927v_device *dev_vcm, unsigned int *cur_dac
 	}
 
 	*cur_dac = abs_step;
-	dev_dbg(&client->dev, "%s: get dac %d\n", __func__, *cur_dac);
+	v4l2_dbg(1, debug, &dev_vcm->sd, "%s: get dac %d\n", __func__, *cur_dac);
 	return 0;
 
 err:
@@ -542,7 +552,8 @@ static int cn3927v_get_pos(struct cn3927v_device *dev_vcm,
 
 		*cur_pos = position;
 
-		dev_dbg(&client->dev, "%s: get position %d, dac %d\n", __func__, *cur_pos, dac);
+		v4l2_dbg(1, debug, &dev_vcm->sd, "%s: get position %d, dac %d\n",
+			 __func__, *cur_pos, dac);
 		return 0;
 	}
 
@@ -554,7 +565,6 @@ static int cn3927v_get_pos(struct cn3927v_device *dev_vcm,
 static int cn3927v_set_pos(struct cn3927v_device *dev_vcm,
 	unsigned int dest_pos)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 	unsigned int position;
 	unsigned int range;
 	int ret;
@@ -573,7 +583,8 @@ static int cn3927v_set_pos(struct cn3927v_device *dev_vcm,
 	dev_vcm->current_related_pos = dest_pos;
 
 	ret = cn3927v_set_dac(dev_vcm, position);
-	dev_dbg(&client->dev, "%s: set position %d, dac %d\n", __func__, dest_pos, position);
+	v4l2_dbg(1, debug, &dev_vcm->sd, "%s: set position %d, dac %d\n",
+		 __func__, dest_pos, position);
 
 	return ret;
 }
@@ -617,7 +628,7 @@ static int cn3927v_set_ctrl(struct v4l2_ctrl *ctrl)
 				((dev_vcm->vcm_movefull_t * (uint32_t)move_pos) /
 				dev_vcm->max_logicalpos);
 
-		dev_dbg(&client->dev,
+		v4l2_dbg(1, debug, &dev_vcm->sd,
 			"dest_pos %d, dac %d, move_ms %ld\n",
 			dest_pos, dev_vcm->current_lens_pos, dev_vcm->move_ms);
 
@@ -643,9 +654,18 @@ static const struct v4l2_ctrl_ops cn3927v_vcm_ctrl_ops = {
 	.s_ctrl = cn3927v_set_ctrl,
 };
 
+static int cn3927v_init(struct i2c_client *client);
+
 static int cn3927v_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	int rval;
+	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
+	unsigned int move_time;
+	int dac = dev_vcm->start_current;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	v4l2_info(sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
 
 	rval = pm_runtime_get_sync(sd->dev);
 	if (rval < 0) {
@@ -653,12 +673,69 @@ static int cn3927v_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return rval;
 	}
 
+	cn3927v_init(client);
+
+	usleep_range(1000, 1200);
+	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+
+	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
+	while (dac <= dev_vcm->current_lens_pos) {
+		cn3927v_set_dac(dev_vcm, dac);
+		usleep_range(move_time, move_time + 1000);
+		dac += CN3927V_GRADUAL_MOVELENS_STEPS;
+		if (dac >= dev_vcm->current_lens_pos)
+			break;
+	}
+
+	if (dac > dev_vcm->current_lens_pos) {
+		dac = dev_vcm->current_lens_pos;
+		cn3927v_set_dac(dev_vcm, dac);
+	}
+
+	v4l2_info(sd, "%s: exit,  power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
+
 	return 0;
 }
 
 static int cn3927v_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
+	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
+	int dac = dev_vcm->current_lens_pos;
+	unsigned int move_time;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	v4l2_info(sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
+
+	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
+	while (dac >= CN3927V_GRADUAL_MOVELENS_STEPS) {
+		cn3927v_set_dac(dev_vcm, dac);
+		usleep_range(move_time, move_time + 1000);
+		dac -= CN3927V_GRADUAL_MOVELENS_STEPS;
+		if (dac <= 0)
+			break;
+	}
+
+	if (dac < CN3927V_GRADUAL_MOVELENS_STEPS) {
+		dac = CN3927V_GRADUAL_MOVELENS_STEPS;
+		cn3927v_set_dac(dev_vcm, dac);
+	}
+	/* set to power down mode */
+	if (dev_vcm->adcanced_mode) {
+		cn3927v_write_reg(client, 0x02, 1, 0x01);
+	} else {
+		/* Ringing off */
+		cn3927v_write_msg(client, 0xDC, 0x51);
+	}
+
 	pm_runtime_put(sd->dev);
+
+	v4l2_info(sd, "%s: exit,  power.usage_count(%d)!\n", __func__,
+		  atomic_read(&sd->dev->power.usage_count));
 
 	return 0;
 }
@@ -683,7 +760,7 @@ static void cn3927v_update_vcm_cfg(struct cn3927v_device *dev_vcm)
 				 CN3927V_MAX_REG / dev_vcm->max_current;
 	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
 
-	dev_dbg(&client->dev,
+	v4l2_dbg(1, debug, &dev_vcm->sd,
 		"vcm_cfg: %d, %d, %d, max_current %d\n",
 		dev_vcm->vcm_cfg.start_ma,
 		dev_vcm->vcm_cfg.rated_ma,
@@ -709,7 +786,7 @@ static long cn3927v_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		vcm_tim->vcm_end_t.tv_sec = dev_vcm->end_move_tv.tv_sec;
 		vcm_tim->vcm_end_t.tv_usec = dev_vcm->end_move_tv.tv_usec;
 
-		dev_dbg(&client->dev, "cn3927v_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
+		v4l2_dbg(1, debug, &dev_vcm->sd, "cn3927v_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
 			vcm_tim->vcm_start_t.tv_sec,
 			vcm_tim->vcm_start_t.tv_usec,
 			vcm_tim->vcm_end_t.tv_sec,
@@ -751,7 +828,7 @@ static long cn3927v_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(dev_vcm->focus,
 				0, dev_vcm->max_logicalpos, 1, dev_vcm->max_logicalpos);
 		}
-		dev_dbg(&client->dev,
+		v4l2_dbg(1, debug, &dev_vcm->sd,
 			"max_logicalpos %d\n", max_logicalpos);
 	} else {
 		dev_err(&client->dev,
@@ -931,6 +1008,8 @@ static int __cn3927v_set_power(struct cn3927v_device *cn3927v, bool on)
 {
 	struct i2c_client *client = cn3927v->client;
 	int ret = 0;
+
+	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
 
 	if (cn3927v->power_on == !!on)
 		goto unlock_and_return;
@@ -1156,7 +1235,7 @@ static int cn3927v_parse_dt_property(struct i2c_client *client,
 		return ret;
 	}
 
-	dev_dbg(&client->dev, "current: %d, %d, %d, dlc_en: %d, t_src: %d, mclk: %d",
+	v4l2_dbg(1, debug, &dev_vcm->sd, "current: %d, %d, %d, dlc_en: %d, t_src: %d, mclk: %d",
 		dev_vcm->max_current,
 		dev_vcm->vcm_cfg.start_ma,
 		dev_vcm->vcm_cfg.rated_ma,
@@ -1369,31 +1448,9 @@ static int __maybe_unused cn3927v_vcm_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
-	int dac = dev_vcm->current_lens_pos;
-	unsigned int move_time;
 
-	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
-		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
-	while (dac >= CN3927V_GRADUAL_MOVELENS_STEPS) {
-		cn3927v_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac -= CN3927V_GRADUAL_MOVELENS_STEPS;
-		if (dac <= 0)
-			break;
-	}
-
-	if (dac < CN3927V_GRADUAL_MOVELENS_STEPS) {
-		dac = CN3927V_GRADUAL_MOVELENS_STEPS;
-		cn3927v_set_dac(dev_vcm, dac);
-	}
-	/* set to power down mode */
-	if (dev_vcm->adcanced_mode) {
-		cn3927v_write_reg(client, 0x02, 1, 0x01);
-	} else {
-		/* Ringing off */
-		cn3927v_write_msg(client, 0xDC, 0x51);
-	}
+	v4l2_dbg(1, debug, sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
+		 atomic_read(&sd->dev->power.usage_count));
 
 	__cn3927v_set_power(dev_vcm, false);
 	return 0;
@@ -1404,30 +1461,11 @@ static int __maybe_unused cn3927v_vcm_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
-	unsigned int move_time;
-	int dac = dev_vcm->start_current;
 
+	v4l2_dbg(1, debug, sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
+		 atomic_read(&sd->dev->power.usage_count));
 
 	__cn3927v_set_power(dev_vcm, true);
-	cn3927v_init(client);
-
-	usleep_range(1000, 1200);
-	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
-		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
-	while (dac <= dev_vcm->current_lens_pos) {
-		cn3927v_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac += CN3927V_GRADUAL_MOVELENS_STEPS;
-		if (dac >= dev_vcm->current_lens_pos)
-			break;
-	}
-
-	if (dac > dev_vcm->current_lens_pos) {
-		dac = dev_vcm->current_lens_pos;
-		cn3927v_set_dac(dev_vcm, dac);
-	}
-
 	return 0;
 }
 
