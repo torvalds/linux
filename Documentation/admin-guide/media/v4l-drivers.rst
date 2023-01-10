@@ -11,7 +11,6 @@ Video4Linux (V4L) driver-specific documentation
 
 	bttv
 	cafe_ccic
-	cpia2
 	cx88
 	davinci-vpbe
 	fimc

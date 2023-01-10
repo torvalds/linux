@@ -14,8 +14,6 @@ dvb-as102	  nBox DVB-T Dongle			  0b89:0007
 dvb-as102	  Sky IT Digital Key (green led)	  2137:0001
 b2c2-flexcop-usb  Technisat/B2C2 FlexCop II/IIb/III	  0af7:0101
 		  Digital TV
-cpia2		  Vision's CPiA2 cameras		  0553:0100, 0553:0140,
-		  such as the Digital Blue QX5		  0553:0151
 go7007		  WIS GO7007 MPEG encoder		  1943:a250, 093b:a002,
 							  093b:a004, 0eb1:6666,
 							  0eb1:6668

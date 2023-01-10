@@ -43,7 +43,6 @@ Driver                  Name
 airspy                  AirSpy
 au0828                  Auvitek AU0828
 b2c2-flexcop-usb        Technisat/B2C2 Air/Sky/Cable2PC USB
-cpia2                   CPiA2 Video For Linux
 cx231xx                 Conexant cx231xx USB video capture
 dvb-as102               Abilis AS102 DVB receiver
 dvb-ttusb-budget        Technotrend/Hauppauge Nova - USB devices
