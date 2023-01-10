@@ -12,6 +12,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/efi.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/bitmap.h>
@@ -442,6 +443,32 @@ static bool is_acpi_reserved(u64 start, u64 end, enum e820_type not_used)
 	return mcfg_res.flags;
 }
 
+static bool is_efi_mmio(u64 start, u64 end, enum e820_type not_used)
+{
+#ifdef CONFIG_EFI
+	efi_memory_desc_t *md;
+	u64 size, mmio_start, mmio_end;
+
+	for_each_efi_memory_desc(md) {
+		if (md->type == EFI_MEMORY_MAPPED_IO) {
+			size = md->num_pages << EFI_PAGE_SHIFT;
+			mmio_start = md->phys_addr;
+			mmio_end = mmio_start + size;
+
+			/*
+			 * N.B. Caller supplies (start, start + size),
+			 * so to match, mmio_end is the first address
+			 * *past* the EFI_MEMORY_MAPPED_IO area.
+			 */
+			if (mmio_start <= start && end <= mmio_end)
+				return true;
+		}
+	}
+#endif
+
+	return false;
+}
+
 typedef bool (*check_reserved_t)(u64 start, u64 end, enum e820_type type);
 
 static bool __ref is_mmconf_reserved(check_reserved_t is_reserved,
@@ -513,6 +540,10 @@ pci_mmcfg_check_reserved(struct device *dev, struct pci_mmcfg_region *cfg, int e
 			       "MMCONFIG at %pR not reserved in "
 			       "ACPI motherboard resources\n",
 			       &cfg->res);
+
+		if (is_mmconf_reserved(is_efi_mmio, cfg, dev,
+				       "EfiMemoryMappedIO"))
+			return true;
 	}
 
 	/*
