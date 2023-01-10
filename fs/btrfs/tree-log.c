@@ -3652,11 +3652,10 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 
 	/*
 	 * If for some unexpected reason the last item's index is not greater
-	 * than the last index we logged, warn and return an error to fallback
-	 * to a transaction commit.
+	 * than the last index we logged, warn and force a transaction commit.
 	 */
 	if (WARN_ON(last_index <= inode->last_dir_index_offset))
-		ret = -EUCLEAN;
+		ret = BTRFS_LOG_FORCE_COMMIT;
 	else
 		inode->last_dir_index_offset = last_index;
 out:
@@ -5604,10 +5603,8 @@ static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 	 * LOG_INODE_EXISTS mode) and slow down other fsyncs or transaction
 	 * commits.
 	 */
-	if (ctx->num_conflict_inodes >= MAX_CONFLICT_INODES) {
-		btrfs_set_log_full_commit(trans);
+	if (ctx->num_conflict_inodes >= MAX_CONFLICT_INODES)
 		return BTRFS_LOG_FORCE_COMMIT;
-	}
 
 	inode = btrfs_iget(root->fs_info->sb, ino, root);
 	/*
@@ -6466,7 +6463,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	 * result in losing the file after a log replay.
 	 */
 	if (full_dir_logging && inode->last_unlink_trans >= trans->transid) {
-		btrfs_set_log_full_commit(trans);
 		ret = BTRFS_LOG_FORCE_COMMIT;
 		goto out_unlock;
 	}
