@@ -104,6 +104,8 @@ struct ksz_port {
 	u8 num;
 #if IS_ENABLED(CONFIG_NET_DSA_MICROCHIP_KSZ_PTP)
 	struct hwtstamp_config tstamp_config;
+	bool hwts_tx_en;
+	bool hwts_rx_en;
 #endif
 };
 

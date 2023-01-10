@@ -5,6 +5,7 @@
  * Copyright (C) 2022 Microchip Technology Inc.
  */
 
+#include <linux/dsa/ksz_common.h>
 #include <linux/kernel.h>
 #include <linux/ptp_classify.h>
 #include <linux/ptp_clock_kernel.h>
@@ -23,6 +24,27 @@
 
 #define KSZ_PTP_INC_NS 40ULL  /* HW clock is incremented every 40 ns (by 40) */
 #define KSZ_PTP_SUBNS_BITS 32
+
+static int ksz_ptp_enable_mode(struct ksz_device *dev)
+{
+	struct ksz_tagger_data *tagger_data = ksz_tagger_data(dev->ds);
+	struct ksz_port *prt;
+	struct dsa_port *dp;
+	bool tag_en = false;
+
+	dsa_switch_for_each_user_port(dp, dev->ds) {
+		prt = &dev->ports[dp->index];
+		if (prt->hwts_tx_en || prt->hwts_rx_en) {
+			tag_en = true;
+			break;
+		}
+	}
+
+	tagger_data->hwtstamp_set_state(dev->ds, tag_en);
+
+	return ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_ENABLE,
+			 tag_en ? PTP_ENABLE : 0);
+}
 
 /* The function is return back the capability of timestamping feature when
  * requested through ethtool -T <interface> utility
@@ -67,6 +89,7 @@ int ksz_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr)
 }
 
 static int ksz_set_hwtstamp_config(struct ksz_device *dev,
+				   struct ksz_port *prt,
 				   struct hwtstamp_config *config)
 {
 	if (config->flags)
@@ -74,7 +97,10 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
+		prt->hwts_tx_en = false;
+		break;
 	case HWTSTAMP_TX_ONESTEP_P2P:
+		prt->hwts_tx_en = true;
 		break;
 	default:
 		return -ERANGE;
@@ -82,25 +108,29 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
+		prt->hwts_rx_en = false;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+		prt->hwts_rx_en = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		prt->hwts_rx_en = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		prt->hwts_rx_en = true;
 		break;
 	default:
 		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
 	}
 
-	return 0;
+	return ksz_ptp_enable_mode(dev);
 }
 
 int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
@@ -116,7 +146,7 @@ int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 	if (ret)
 		return ret;
 
-	ret = ksz_set_hwtstamp_config(dev, &config);
+	ret = ksz_set_hwtstamp_config(dev, prt, &config);
 	if (ret)
 		return ret;
 
