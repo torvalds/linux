@@ -1968,6 +1968,14 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Explicit padding to 2 byte boundary.
 	 */
 	uint8_t pad3;
+	/**
+	 * DSC Slice height.
+	 */
+	uint16_t dsc_slice_height;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint16_t pad;
 };
 
 /**
