@@ -18,6 +18,8 @@
 
 #define ptp_caps_to_data(d) container_of((d), struct ksz_ptp_data, caps)
 #define ptp_data_to_ksz_dev(d) container_of((d), struct ksz_device, ptp_data)
+#define work_to_xmit_work(w) \
+		container_of((w), struct ksz_deferred_xmit_work, work)
 
 /* Sub-nanoseconds-adj,max * sub-nanoseconds / 40ns * 1ns
  * = (2^30-1) * (2 ^ 32) / 40 ns * 1 ns = 6249999
@@ -111,9 +113,15 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
+		prt->ptpmsg_irq[KSZ_SYNC_MSG].ts_en  = false;
+		prt->ptpmsg_irq[KSZ_XDREQ_MSG].ts_en = false;
+		prt->ptpmsg_irq[KSZ_PDRES_MSG].ts_en = false;
 		prt->hwts_tx_en = false;
 		break;
 	case HWTSTAMP_TX_ONESTEP_P2P:
+		prt->ptpmsg_irq[KSZ_SYNC_MSG].ts_en  = false;
+		prt->ptpmsg_irq[KSZ_XDREQ_MSG].ts_en = true;
+		prt->ptpmsg_irq[KSZ_PDRES_MSG].ts_en = false;
 		prt->hwts_tx_en = true;
 		break;
 	default:
@@ -230,6 +238,87 @@ bool ksz_port_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb,
 
 out:
 	return false;
+}
+
+void ksz_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ptp_header *hdr;
+	struct sk_buff *clone;
+	struct ksz_port *prt;
+	unsigned int type;
+	u8 ptp_msg_type;
+
+	prt = &dev->ports[port];
+
+	if (!prt->hwts_tx_en)
+		return;
+
+	type = ptp_classify_raw(skb);
+	if (type == PTP_CLASS_NONE)
+		return;
+
+	hdr = ptp_parse_header(skb, type);
+	if (!hdr)
+		return;
+
+	ptp_msg_type = ptp_get_msgtype(hdr, type);
+
+	switch (ptp_msg_type) {
+	case PTP_MSGTYPE_PDELAY_REQ:
+		break;
+
+	default:
+		return;
+	}
+
+	clone = skb_clone_sk(skb);
+	if (!clone)
+		return;
+
+	/* caching the value to be used in tag_ksz.c */
+	KSZ_SKB_CB(skb)->clone = clone;
+}
+
+static void ksz_ptp_txtstamp_skb(struct ksz_device *dev,
+				 struct ksz_port *prt, struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps hwtstamps = {};
+	int ret;
+
+	/* timeout must include DSA master to transmit data, tstamp latency,
+	 * IRQ latency and time for reading the time stamp.
+	 */
+	ret = wait_for_completion_timeout(&prt->tstamp_msg_comp,
+					  msecs_to_jiffies(100));
+	if (!ret)
+		return;
+
+	hwtstamps.hwtstamp = prt->tstamp_msg;
+	skb_complete_tx_timestamp(skb, &hwtstamps);
+}
+
+void ksz_port_deferred_xmit(struct kthread_work *work)
+{
+	struct ksz_deferred_xmit_work *xmit_work = work_to_xmit_work(work);
+	struct sk_buff *clone, *skb = xmit_work->skb;
+	struct dsa_switch *ds = xmit_work->dp->ds;
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *prt;
+
+	prt = &dev->ports[xmit_work->dp->index];
+
+	clone = KSZ_SKB_CB(skb)->clone;
+
+	skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	reinit_completion(&prt->tstamp_msg_comp);
+
+	dsa_enqueue_skb(skb, skb->dev);
+
+	ksz_ptp_txtstamp_skb(dev, prt, clone);
+
+	kfree(xmit_work);
 }
 
 static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
@@ -488,7 +577,29 @@ void ksz_ptp_clock_unregister(struct dsa_switch *ds)
 
 static irqreturn_t ksz_ptp_msg_thread_fn(int irq, void *dev_id)
 {
-	return IRQ_NONE;
+	struct ksz_ptp_irq *ptpmsg_irq = dev_id;
+	struct ksz_device *dev;
+	struct ksz_port *port;
+	u32 tstamp_raw;
+	ktime_t tstamp;
+	int ret;
+
+	port = ptpmsg_irq->port;
+	dev = port->ksz_dev;
+
+	if (ptpmsg_irq->ts_en) {
+		ret = ksz_read32(dev, ptpmsg_irq->ts_reg, &tstamp_raw);
+		if (ret)
+			return IRQ_NONE;
+
+		tstamp = ksz_decode_tstamp(tstamp_raw);
+
+		port->tstamp_msg = ksz_tstamp_reconstruct(dev, tstamp);
+
+		complete(&port->tstamp_msg_comp);
+	}
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t ksz_ptp_irq_thread_fn(int irq, void *dev_id)
@@ -632,6 +743,8 @@ int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p)
 	ptpirq->reg_status = ops->get_port_addr(p,
 						REG_PTP_PORT_TX_INT_STATUS__2);
 	snprintf(ptpirq->name, sizeof(ptpirq->name), "ptp-irq-%d", p);
+
+	init_completion(&port->tstamp_msg_comp);
 
 	ptpirq->domain = irq_domain_add_linear(dev->dev->of_node, ptpirq->nirqs,
 					       &ksz_ptp_irq_domain_ops, ptpirq);
