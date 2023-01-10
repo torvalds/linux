@@ -602,7 +602,7 @@ static int add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 {
 	MA_STATE(mas, &mm->mm_mt, vma->vm_start, vma->vm_end);
 
-	if (mas_preallocate(&mas, vma, GFP_KERNEL)) {
+	if (mas_preallocate(&mas, GFP_KERNEL)) {
 		pr_warn("Allocation of vma tree for process %d failed\n",
 		       current->pid);
 		return -ENOMEM;
@@ -633,7 +633,7 @@ static int delete_vma_from_mm(struct vm_area_struct *vma)
 {
 	MA_STATE(mas, &vma->vm_mm->mm_mt, 0, 0);
 
-	if (mas_preallocate(&mas, vma, GFP_KERNEL)) {
+	if (mas_preallocate(&mas, GFP_KERNEL)) {
 		pr_warn("Allocation of vma tree for process %d failed\n",
 		       current->pid);
 		return -ENOMEM;
@@ -1091,7 +1091,7 @@ unsigned long do_mmap(struct file *file,
 	if (!vma)
 		goto error_getting_vma;
 
-	if (mas_preallocate(&mas, vma, GFP_KERNEL))
+	if (mas_preallocate(&mas, GFP_KERNEL))
 		goto error_maple_preallocate;
 
 	region->vm_usage = 1;
@@ -1369,7 +1369,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!new)
 		goto err_vma_dup;
 
-	if (mas_preallocate(&mas, vma, GFP_KERNEL)) {
+	if (mas_preallocate(&mas, GFP_KERNEL)) {
 		pr_warn("Allocation of vma tree for process %d failed\n",
 			current->pid);
 		goto err_mas_preallocate;
