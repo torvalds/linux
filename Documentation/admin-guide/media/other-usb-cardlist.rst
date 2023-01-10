@@ -64,7 +64,6 @@ pwc		  Visionite VCS-UC300			  0d81:1900
 pwc		  Visionite VCS-UM100			  0d81:1910
 s2255drv	  Sensoray 2255				  1943:2255, 1943:2257
 stk1160		  STK1160 USB video capture dongle	  05e1:0408
-stkwebcam	  Syntek DC1125				  174f:a311, 05e1:0501
 dvb-ttusb-budget  Technotrend/Hauppauge Nova-USB devices  0b48:1003, 0b48:1004,
 							  0b48:1005
 dvb-ttusb_dec	  Technotrend/Hauppauge MPEG decoder	  0b48:1006

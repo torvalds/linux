@@ -92,7 +92,6 @@ pwc                     USB Philips Cameras
 s2250                   Sensoray 2250/2251
 s2255drv                USB Sensoray 2255 video capture device
 smsusb                  Siano SMS1xxx based MDTV receiver
-stkwebcam               USB Syntek DC1125 Camera
 tm6000-alsa             TV Master TM5600/6000/6010 audio
 tm6000-dvb              DVB Support for tm6000 based TV cards
 tm6000                  TV Master TM5600/6000/6010 driver
