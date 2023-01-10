@@ -180,10 +180,16 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 	__asm__ volatile (
 		"pop {%r0}\n"                 // argc was in the stack
 		"mov %r1, %sp\n"              // argv = sp
-		"add %r2, %r1, %r0, lsl #2\n" // envp = argv + 4*argc ...
-		"add %r2, %r2, $4\n"          //        ... + 4
-		"and %r3, %r1, $-8\n"         // AAPCS : sp must be 8-byte aligned in the
-		"mov %sp, %r3\n"              //         callee, an bl doesn't push (lr=pc)
+
+		"add %r2, %r0, $1\n"          // envp = (argc + 1) ...
+		"lsl %r2, %r2, $2\n"          //        * 4        ...
+		"add %r2, %r2, %r1\n"         //        + argv
+
+		"mov %r3, $8\n"               // AAPCS : sp must be 8-byte aligned in the
+		"neg %r3, %r3\n"              //         callee, and bl doesn't push (lr=pc)
+		"and %r3, %r3, %r1\n"         // so we do sp = r1(=sp) & r3(=-8);
+		"mov %sp, %r3\n"              //
+
 		"bl main\n"                   // main() returns the status code, we'll exit with it.
 		"movs r7, $1\n"               // NR_exit == 1
 		"svc $0x00\n"
