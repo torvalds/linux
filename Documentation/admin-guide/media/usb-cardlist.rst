@@ -92,9 +92,6 @@ pwc                     USB Philips Cameras
 s2250                   Sensoray 2250/2251
 s2255drv                USB Sensoray 2255 video capture device
 smsusb                  Siano SMS1xxx based MDTV receiver
-tm6000-alsa             TV Master TM5600/6000/6010 audio
-tm6000-dvb              DVB Support for tm6000 based TV cards
-tm6000                  TV Master TM5600/6000/6010 driver
 ttusb_dec               Technotrend/Hauppauge USB DEC devices
 usbtv                   USBTV007 video capture
 uvcvideo                USB Video Class (UVC)
@@ -107,7 +104,6 @@ zd1301                  ZyDAS ZD1301
 	au0828-cardlist
 	cx231xx-cardlist
 	em28xx-cardlist
-	tm6000-cardlist
 	siano-cardlist
 
 	gspca-cardlist

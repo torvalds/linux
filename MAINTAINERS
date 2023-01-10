@@ -20976,15 +20976,6 @@ W:	http://sourceforge.net/projects/tlan/
 F:	Documentation/networking/device_drivers/ethernet/ti/tlan.rst
 F:	drivers/net/ethernet/ti/tlan.*
 
-TM6000 VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@kernel.org>
-L:	linux-media@vger.kernel.org
-S:	Odd fixes
-W:	https://linuxtv.org
-T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/admin-guide/media/tm6000*
-F:	drivers/staging/media/deprecated/tm6000/
-
 TMIO/SDHI MMC DRIVER
 M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
 L:	linux-mmc@vger.kernel.org
