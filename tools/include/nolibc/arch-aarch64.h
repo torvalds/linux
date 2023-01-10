@@ -170,6 +170,7 @@ struct sys_stat_struct {
 })
 
 char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
@@ -182,6 +183,12 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
 		"add x2, x2, x1\n"   //           + argv
 		"adrp x3, environ\n"          // x3 = &environ (high bits)
 		"str x2, [x3, #:lo12:environ]\n" // store envp into environ
+		"mov x4, x2\n"       // search for auxv (follows NULL after last env)
+		"0:\n"
+		"ldr x5, [x4], 8\n"  // x5 = *x4; x4 += 8
+		"cbnz x5, 0b\n"      // and stop at NULL after last env
+		"adrp x3, _auxv\n"   // x3 = &_auxv (high bits)
+		"str x4, [x3, #:lo12:_auxv]\n" // store x4 into _auxv
 		"and sp, x1, -16\n"  // sp must be 16-byte aligned in the callee
 		"bl main\n"          // main() returns the status code, we'll exit with it.
 		"mov x8, 93\n"       // NR_exit == 93
