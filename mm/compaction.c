@@ -2659,6 +2659,11 @@ static void proactive_compact_node(pg_data_t *pgdat)
 		cc.zone = zone;
 
 		compact_zone(&cc, NULL);
+
+		count_compact_events(KCOMPACTD_MIGRATE_SCANNED,
+				     cc.total_migrate_scanned);
+		count_compact_events(KCOMPACTD_FREE_SCANNED,
+				     cc.total_free_scanned);
 	}
 }
 
