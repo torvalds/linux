@@ -3761,10 +3761,10 @@ static void vop2_initial(struct drm_crtc *crtc)
 		}
 
 		/*
-		 * This is unused and error init value for rk3528 vp1, if less of this config,
+		 * This is unused and error init value for rk3528/rk3562 vp1, if less of this config,
 		 * vp1 can't display normally.
 		 */
-		if (vop2->version == VOP_VERSION_RK3528)
+		if (vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562)
 			vop2_mask_write(vop2, 0x700, 0x3, 4, 0, 0, true);
 
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
