@@ -197,7 +197,7 @@ void *mem_buf_msgq_register(const char *msgq_name, struct mem_buf_msgq_hdlr_info
 void mem_buf_msgq_unregister(void *mem_buf_msgq_hdl);
 void *mem_buf_init_txn(void *mem_buf_msgq_hdl, void *resp_buf);
 int mem_buf_msgq_send(void *mem_buf_msgq_hdl, void *msg);
-int mem_buf_txn_wait(void *mem_buf_txn);
+int mem_buf_txn_wait(void *mem_buf_msgq_hdl, void *mem_buf_txn);
 void mem_buf_destroy_txn(void *mem_buf_msgq_hdl, void *mem_buf_txn);
 int mem_buf_retrieve_txn_id(void *mem_buf_txn);
 /*
@@ -235,7 +235,7 @@ static inline int mem_buf_msgq_send(void *mem_buf_msgq_hdl, void *msg)
 	return -EOPNOTSUPP;
 }
 
-static inline int mem_buf_txn_wait(void *mem_buf_txn)
+static inline int mem_buf_txn_wait(void *mem_buf_msgq_hdl, void *mem_buf_txn)
 {
 	return -EOPNOTSUPP;
 }

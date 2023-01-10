@@ -1963,7 +1963,7 @@ static int virtio_mem_sbm_unplug_any_sb_online(struct virtio_mem *vm,
 		if (!rc) {
 			*nb_sb -= vm->sbm.sbs_per_mb;
 			goto unplugged;
-		} else if (rc != -EBUSY)
+		} else if (rc != -EBUSY && rc != -ENOMEM)
 			return rc;
 	}
 

@@ -204,64 +204,90 @@ static int mem_buf_rmt_alloc_dmaheap_mem(struct mem_buf_xfer_mem *xfer_mem)
 	return 0;
 }
 
-/* In future, try allocating from buddy if cma not available */
-static int mem_buf_rmt_alloc_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
+/*
+ * See __iommu_dma_alloc_pages() @ dma-iommu.c
+ * GFP_NORETRY allows some direct reclaim for large order pages.
+ * GFP_ZERO to avoid leaking prior contents to another VM.
+ */
+static int mem_buf_rmt_alloc_pages(struct sg_table *sgt, unsigned int count)
 {
-	struct cma *cma;
-	struct sg_table *table;
-	struct page *page;
-	int ret;
-	u32 align;
-	size_t nr_pages;
+	int ret, i = 0;
+	struct page **pages;
+	size_t size = count << PAGE_SHIFT;
+	unsigned long order_mask = (1U << MAX_ORDER) - 1;
 
-	pr_debug("%s: Starting DMAHEAP-BUDDY allocation\n", __func__);
-
-	/*
-	 * For the common case of 4Mb transfer, we want it to be nicely aligned
-	 * to allow for 2Mb block mappings in S2 pagetable.
-	 */
-	align = min(get_order(xfer_mem->size), get_order(SZ_2M));
-	nr_pages = xfer_mem->size >> PAGE_SHIFT;
-
-	/*
-	 * Don't use dev_get_cma_area() as we don't want to fall back to
-	 * dma_contiguous_default_area.
-	 */
-	cma = mem_buf_dev->cma_area;
-	if (!cma)
+	pages = kvcalloc(count, sizeof(*pages), GFP_KERNEL);
+	if (!pages)
 		return -ENOMEM;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
-	if (!table) {
-		ret = -ENOMEM;
-		goto err_alloc_table;
+	while (count) {
+		struct page *page = NULL;
+		unsigned int order_size;
+
+		for (order_mask &= (2 << __fls(count)) - 1;
+		     order_mask; order_mask &= ~order_size) {
+			unsigned int order = __fls(order_mask);
+			gfp_t alloc_flags = GFP_KERNEL | __GFP_ZERO;
+
+			order_size = 1U << order;
+			if (order_mask > order_size)
+				alloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+
+			page = alloc_pages(alloc_flags, order);
+			if (!page)
+				continue;
+			if (order)
+				split_page(page, order);
+			break;
+		}
+		if (!page) {
+			ret = -ENOMEM;
+			goto err_alloc_pages;
+		}
+
+		count -= order_size;
+		while (order_size--)
+			pages[i++] = page++;
 	}
 
-	ret = sg_alloc_table(table, 1, GFP_KERNEL);
+	count = i;
+	ret = sg_alloc_table_from_pages(sgt, pages, count, 0, size, GFP_KERNEL);
 	if (ret)
-		goto err_sg_init;
+		goto err_alloc_table;
 
-	page = cma_alloc(cma, nr_pages, align, false);
-	if (!page) {
-		ret = -ENOMEM;
-		goto err_cma_alloc;
-	}
+	kvfree(pages);
+	return 0;
 
-	sg_set_page(table->sgl, page, nr_pages << PAGE_SHIFT, 0);
+err_alloc_table:
+err_alloc_pages:
+	while (i--)
+		__free_page(pages[i]);
+	kvfree(pages);
+	return ret;
+}
 
-	/* Zero memory before transferring to Guest VM */
-	memset(page_address(page), 0, nr_pages << PAGE_SHIFT);
+static int mem_buf_rmt_alloc_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
+{
+	struct sg_table *sgt;
+	int ret;
+	unsigned int count = PAGE_ALIGN(xfer_mem->size) >> PAGE_SHIFT;
 
-	xfer_mem->mem_sgt = table;
+	pr_debug("%s: Starting DMAHEAP-BUDDY allocation\n", __func__);
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
+		return -ENOMEM;
+
+	ret = mem_buf_rmt_alloc_pages(sgt, count);
+	if (ret)
+		goto err_alloc_pages;
+
+	xfer_mem->mem_sgt = sgt;
 	xfer_mem->secure_alloc = false;
 	pr_debug("%s: DMAHEAP-BUDDY allocation complete\n", __func__);
 	return 0;
 
-err_cma_alloc:
-	sg_free_table(table);
-err_sg_init:
-	kfree(table);
-err_alloc_table:
+err_alloc_pages:
+	kfree(sgt);
 	return ret;
 }
 
@@ -301,10 +327,14 @@ static void mem_buf_rmt_free_dmaheap_mem(struct mem_buf_xfer_mem *xfer_mem)
 static void mem_buf_rmt_free_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
 {
 	struct sg_table *table = xfer_mem->mem_sgt;
+	struct sg_page_iter sgiter;
 
 	pr_debug("%s: Freeing DMAHEAP-BUDDY memory\n", __func__);
-	cma_release(dev_get_cma_area(mem_buf_dev), sg_page(table->sgl),
-		table->sgl->length >> PAGE_SHIFT);
+	for_each_sg_page(table->sgl, &sgiter, table->nents, 0) {
+		__free_page(sg_page_iter_page(&sgiter));
+	}
+	sg_free_table(table);
+	kfree(table);
 	pr_debug("%s: DMAHEAP-BUDDY memory freed\n", __func__);
 }
 
@@ -740,7 +770,7 @@ static int mem_buf_request_mem(struct mem_buf_desc *membuf)
 	if (ret < 0)
 		goto out;
 
-	ret = mem_buf_txn_wait(txn);
+	ret = mem_buf_txn_wait(mem_buf_msgq_hdl, txn);
 	if (ret < 0)
 		goto out;
 
@@ -778,7 +808,7 @@ static void __mem_buf_relinquish_mem(u32 obj_id, u32 memparcel_hdl)
 		pr_debug("%s: allocation relinquish message sent\n", __func__);
 
 	/* Wait for response */
-	mem_buf_txn_wait(txn);
+	mem_buf_txn_wait(mem_buf_msgq_hdl, txn);
 
 err_construct_relinquish_msg:
 	mem_buf_destroy_txn(mem_buf_msgq_hdl, txn);

@@ -236,9 +236,9 @@ void *mem_buf_init_txn(void *mem_buf_msgq_hdl, void *resp_buf)
 
 	mutex_lock(&desc->idr_mutex);
 	ret = idr_alloc_cyclic(&desc->txn_idr, txn, 0, INT_MAX, GFP_KERNEL);
-	mutex_unlock(&desc->idr_mutex);
 	if (ret < 0) {
 		pr_err("%s: failed to allocate transaction id rc: %d\n", __func__, ret);
+		mutex_unlock(&desc->idr_mutex);
 		kfree(txn);
 		return ERR_PTR(ret);
 	}
@@ -246,6 +246,7 @@ void *mem_buf_init_txn(void *mem_buf_msgq_hdl, void *resp_buf)
 	txn->txn_id = ret;
 	init_completion(&txn->txn_done);
 	txn->resp_buf = resp_buf;
+	mutex_unlock(&desc->idr_mutex);
 
 	return txn;
 }
@@ -280,27 +281,41 @@ EXPORT_SYMBOL(mem_buf_msgq_send);
 
 /*
  * mem_buf_txn_wait: Wait for a response for a particular request.
+ * @mem_buf_msgq_hdl: The handle that corresponds to the message queue used for messaging.
  * @mem_buf_txn: A valid transaction which corresponds to a request that was sent.
  *
  * When this function returns successfully, the output of the response will be in the @resp_buf
  * parameter that was passed into mem_buf_txn_init().
  */
-int mem_buf_txn_wait(void *mem_buf_txn)
+int mem_buf_txn_wait(void *mem_buf_msgq_hdl, void *mem_buf_txn)
 {
+	struct mem_buf_msgq_desc *desc = mem_buf_msgq_hdl;
 	struct mem_buf_txn *txn = mem_buf_txn;
 	int ret;
 
 	pr_debug("%s: waiting for allocation response\n", __func__);
 	ret = wait_for_completion_timeout(&txn->txn_done,
 					  msecs_to_jiffies(MEM_BUF_TIMEOUT_MS));
-	if (ret == 0) {
+
+	/*
+	 * Recheck under lock.
+	 * Handle race condition where we receive a message immediately after
+	 * timing out above as complete() is called under idr_mutex.
+	 */
+	mutex_lock(&desc->idr_mutex);
+	if (!ret && !try_wait_for_completion(&txn->txn_done)) {
 		pr_err("%s: timed out waiting for allocation response\n",
 		       __func__);
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+	} else {
+		pr_debug("%s: alloc response received\n", __func__);
+		ret = 0;
 	}
-	pr_debug("%s: alloc response received\n", __func__);
 
-	return txn->txn_ret;
+	idr_remove(&desc->txn_idr, txn->txn_id);
+	mutex_unlock(&desc->idr_mutex);
+
+	return ret ? ret : txn->txn_ret;
 }
 EXPORT_SYMBOL(mem_buf_txn_wait);
 
@@ -311,12 +326,8 @@ EXPORT_SYMBOL(mem_buf_txn_wait);
  */
 void mem_buf_destroy_txn(void *mem_buf_msgq_hdl, void *mem_buf_txn)
 {
-	struct mem_buf_msgq_desc *desc = mem_buf_msgq_hdl;
 	struct mem_buf_txn *txn = mem_buf_txn;
 
-	mutex_lock(&desc->idr_mutex);
-	idr_remove(&desc->txn_idr, txn->txn_id);
-	mutex_unlock(&desc->idr_mutex);
 	kfree(txn);
 }
 EXPORT_SYMBOL(mem_buf_destroy_txn);

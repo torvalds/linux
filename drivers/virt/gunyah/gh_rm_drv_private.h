@@ -403,11 +403,28 @@ struct gh_mem_accept_req_payload_hdr {
 	u32 validate_label;
 } __packed;
 
+#define GH_MEM_ACCEPT_RESP_INCOMPLETE BIT(0)
+/*
+ * Identical to gh_sgl_desc except a reserved field is replaced with flags.
+ */
 struct gh_mem_accept_resp_payload {
 	u16 n_sgl_entries;
-	u16 reserved;
+	u8 flags;
+	u8 reserved;
 } __packed;
 
+/*
+ * Mem Accept may not be able to return the sgl_desc in a single call.
+ * These helpers gather the results across many calls.
+ */
+struct gh_sgl_frag_entry {
+	struct list_head list;
+	struct gh_sgl_desc *sgl_desc;
+};
+struct gh_sgl_fragment {
+	struct list_head list;
+	u16 n_sgl_entries;
+};
 /*
  * Call: MEM_LEND/MEM_SHARE
  *

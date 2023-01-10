@@ -3025,6 +3025,7 @@
   spi_setup
   spi_sync
   spi_unregister_controller
+  split_page
   spmi_controller_add
   spmi_controller_alloc
   spmi_controller_remove

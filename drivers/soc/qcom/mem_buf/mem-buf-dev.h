@@ -94,12 +94,12 @@ static inline struct gh_sgl_desc *dup_gh_sgl_desc(struct gh_sgl_desc *sgl_desc)
 static inline int mem_buf_assign_mem_gunyah(u32 op, struct sg_table *sgt,
 					    struct mem_buf_lend_kernel_arg *arg)
 {
-	return -EINVAL;
+	return 0;
 }
 
 static inline int mem_buf_unassign_mem_gunyah(gh_memparcel_handle_t memparcel_hdl)
 {
-	return -EINVAL;
+	return 0;
 }
 #endif
 #endif

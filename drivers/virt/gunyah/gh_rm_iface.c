@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/limits.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #include <linux/gunyah/gh_msgq.h>
 #include <linux/gunyah/gh_common.h>
@@ -1784,6 +1785,103 @@ int gh_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags)
 }
 EXPORT_SYMBOL(gh_rm_mem_reclaim);
 
+static void gh_sgl_fragment_release(struct gh_sgl_fragment *gather)
+{
+	struct gh_sgl_frag_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &gather->list, list) {
+		list_del(&entry->list);
+		kfree(entry->sgl_desc);
+		kfree(entry);
+	}
+
+	kfree(gather);
+}
+
+static struct gh_sgl_fragment *gh_sgl_fragment_init(void)
+{
+	struct gh_sgl_fragment *gather;
+
+	gather = kzalloc(sizeof(*gather), GFP_KERNEL);
+	if (!gather)
+		return NULL;
+
+	INIT_LIST_HEAD(&gather->list);
+
+	return gather;
+}
+
+static int gh_sgl_fragment_append(struct gh_sgl_fragment *gather,
+				struct gh_sgl_desc *sgl_desc)
+{
+	struct gh_sgl_frag_entry *entry;
+
+	/* Check for overflow */
+	if (sgl_desc->n_sgl_entries > (U16_MAX - gather->n_sgl_entries)) {
+		pr_err("%s: Too many sgl_entries\n", __func__);
+		return -EINVAL;
+	}
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	entry->sgl_desc = sgl_desc;
+
+	list_add(&entry->list, &gather->list);
+	gather->n_sgl_entries += sgl_desc->n_sgl_entries;
+	return 0;
+}
+
+static struct gh_sgl_desc *gh_sgl_fragment_combine(struct gh_sgl_fragment *gather)
+{
+	size_t size;
+	struct gh_sgl_desc *sgl_desc;
+	struct gh_sgl_frag_entry *entry, *tmp;
+	struct gh_sgl_entry *p;
+
+	size = offsetof(struct gh_sgl_desc, sgl_entries[gather->n_sgl_entries]);
+	sgl_desc = kvmalloc(size, GFP_KERNEL);
+	if (!sgl_desc)
+		return ERR_PTR(-ENOMEM);
+
+	p = sgl_desc->sgl_entries;
+	list_for_each_entry_safe(entry, tmp, &gather->list, list) {
+		memcpy(p, entry->sgl_desc->sgl_entries,
+		       entry->sgl_desc->n_sgl_entries * sizeof(*p));
+		p += entry->sgl_desc->n_sgl_entries;
+
+		list_del(&entry->list);
+		kfree(entry->sgl_desc);
+		kfree(entry);
+	}
+
+	sgl_desc->n_sgl_entries = gather->n_sgl_entries;
+	gather->n_sgl_entries = 0;
+
+	return sgl_desc;
+}
+
+static int gh_rm_mem_accept_check_resp(struct gh_mem_accept_resp_payload *resp,
+					size_t size, bool has_sgl)
+{
+	size_t expected_size;
+
+	if (has_sgl)
+		expected_size = 0;
+	else if (size < sizeof(*resp))
+		expected_size = sizeof(*resp);
+	else
+		expected_size = sizeof(*resp) +
+				resp->n_sgl_entries * sizeof(struct gh_sgl_entry);
+
+	if (size == expected_size)
+		return 0;
+
+	pr_err("%s Invalid response size: 0x%zx, expected 0x%zx\n",
+				__func__, size, expected_size);
+	return -EINVAL;
+}
 
 static struct gh_mem_accept_req_payload_hdr *
 gh_rm_mem_accept_prepare_request(gh_memparcel_handle_t handle, u8 mem_type,
@@ -1875,6 +1973,9 @@ gh_rm_mem_accept_prepare_request(gh_memparcel_handle_t handle, u8 mem_type,
  * value will be a pointer to a newly allocated SG-List. After the SG-List is
  * no longer needed, the caller must free the table. On a failure, a negative
  * number will be returned.
+ *
+ * If a sgl_desc is to be returned, hypervisor may return it in fragments,
+ * and multiple calls are needed to obtain the full value.
  */
 struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 				     u8 trans_type, u8 flags, gh_label_t label,
@@ -1884,11 +1985,13 @@ struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 				     u16 map_vmid)
 {
 	struct gh_mem_accept_req_payload_hdr *req_payload;
-	struct gh_sgl_desc *ret_sgl;
 	struct gh_mem_accept_resp_payload *resp_payload;
 	size_t req_payload_size, resp_payload_size;
-	int gh_ret;
 	u32 fn_id = GH_RM_RPC_MSG_ID_CALL_MEM_ACCEPT;
+	struct gh_sgl_fragment *gather;
+	bool accept_in_progress = false;
+	bool multi_call;
+	int ret, gh_ret;
 
 	trace_gh_rm_mem_accept(mem_type, flags, label, acl_desc, sgl_desc,
 			       mem_attr_desc, &handle, map_vmid, trans_type);
@@ -1899,35 +2002,82 @@ struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 	if (IS_ERR(req_payload))
 		return ERR_CAST(req_payload);
 
-	resp_payload = gh_rm_call(fn_id, req_payload, req_payload_size,
-				  &resp_payload_size, &gh_ret);
-	if (gh_ret || IS_ERR(resp_payload)) {
-		ret_sgl = ERR_CAST(resp_payload);
-		pr_err("%s failed with error: %d\n", __func__,
-		       PTR_ERR(resp_payload));
-		goto err_rm_call;
+	/* Send DONE flag only after all sgl_desc fragments are received */
+	if (flags & GH_RM_MEM_ACCEPT_MAP_IPA_CONTIGUOUS || sgl_desc) {
+		multi_call = false;
+	} else {
+		req_payload->flags &= ~GH_RM_MEM_ACCEPT_DONE;
+		multi_call = true;
 	}
 
+	gather = gh_sgl_fragment_init();
+	if (!gather) {
+		ret = -ENOMEM;
+		goto err_gather_init;
+	}
 
-	if (sgl_desc) {
-		ret_sgl = sgl_desc;
-	} else {
-		size_t size;
+	do {
+		resp_payload = gh_rm_call(fn_id, req_payload, req_payload_size,
+					  &resp_payload_size, &gh_ret);
+		if (gh_ret || IS_ERR(resp_payload)) {
+			ret = PTR_ERR(resp_payload);
+			pr_err("%s failed with error: %d\n", __func__, ret);
+			goto err_rm_call;
+		}
+		accept_in_progress = true;
 
-		size = offsetof(struct gh_sgl_desc, sgl_entries[resp_payload->n_sgl_entries]);
-		ret_sgl = kvmalloc(size, GFP_KERNEL);
-		if (!ret_sgl)
-			ret_sgl = ERR_PTR(-ENOMEM);
+		if (gh_rm_mem_accept_check_resp(resp_payload, resp_payload_size, !!sgl_desc)) {
+			ret = -EINVAL;
+			goto err_rm_call;
+		}
 
-		memcpy(ret_sgl, resp_payload, size);
+		/* Expected when !!sgl_desc */
+		if (!resp_payload_size) {
+			kfree(resp_payload);
+			break;
+		}
+
+		if (gh_sgl_fragment_append(gather, (struct gh_sgl_desc *)resp_payload)) {
+			ret = -ENOMEM;
+			kfree(resp_payload);
+			goto err_rm_call;
+		}
+	} while (resp_payload->flags & GH_MEM_ACCEPT_RESP_INCOMPLETE);
+
+	if (multi_call && flags & GH_RM_MEM_ACCEPT_DONE) {
+		req_payload->flags |= GH_RM_MEM_ACCEPT_DONE;
+
+		resp_payload = gh_rm_call(fn_id, req_payload, req_payload_size,
+					  &resp_payload_size, &gh_ret);
+		if (gh_ret || IS_ERR(resp_payload)) {
+			ret = PTR_ERR(resp_payload);
+			pr_err("%s failed with error: %d\n", __func__, ret);
+			goto err_rm_call;
+		}
 		kfree(resp_payload);
 	}
 
+	if (!sgl_desc) {
+		sgl_desc = gh_sgl_fragment_combine(gather);
+		if (IS_ERR(sgl_desc)) {
+			ret = PTR_ERR(sgl_desc);
+			goto err_rm_call;
+		}
+	}
+	gh_sgl_fragment_release(gather);
+	kfree(req_payload);
+	trace_gh_rm_mem_accept_reply(sgl_desc);
+	return sgl_desc;
+
 err_rm_call:
+	if (accept_in_progress)
+		gh_rm_mem_release(handle, 0);
+	gh_sgl_fragment_release(gather);
+err_gather_init:
 	kfree(req_payload);
 
-	trace_gh_rm_mem_accept_reply(ret_sgl);
-	return ret_sgl;
+	trace_gh_rm_mem_accept_reply(ERR_PTR(ret));
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(gh_rm_mem_accept);
 
@@ -2206,11 +2356,6 @@ int gh_rm_mem_donate(u8 mem_type, u8 flags, gh_label_t label,
 
 	trace_gh_rm_mem_donate(mem_type, flags, label, acl_desc, sgl_desc,
 			       mem_attr_desc, handle, 0, DONATE);
-
-	if (sgl_desc->n_sgl_entries != 1) {
-		pr_err("%s: Physically contiguous memory required\n", __func__);
-		return -EINVAL;
-	}
 
 	if (acl_desc->n_acl_entries != 1) {
 		pr_err("%s: Donate requires single destination VM\n", __func__);
