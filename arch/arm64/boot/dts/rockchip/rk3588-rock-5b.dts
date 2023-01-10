@@ -9,7 +9,7 @@
 	compatible = "radxa,rock-5b", "rockchip,rk3588";
 
 	aliases {
-		mmc1 = &sdhci;
+		mmc0 = &sdhci;
 		serial2 = &uart2;
 	};
 
