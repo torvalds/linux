@@ -477,6 +477,19 @@ static inline int ksz_rmw16(struct ksz_device *dev, u32 reg, u16 mask,
 	return ret;
 }
 
+static inline int ksz_rmw32(struct ksz_device *dev, u32 reg, u32 mask,
+			    u32 value)
+{
+	int ret;
+
+	ret = regmap_update_bits(dev->regmap[2], reg, mask, value);
+	if (ret)
+		dev_err(dev->dev, "can't rmw 32bit reg 0x%x: %pe\n", reg,
+			ERR_PTR(ret));
+
+	return ret;
+}
+
 static inline int ksz_write64(struct ksz_device *dev, u32 reg, u64 value)
 {
 	u32 val[2];

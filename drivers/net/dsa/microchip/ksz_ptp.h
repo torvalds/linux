@@ -12,6 +12,11 @@
 
 #include <linux/ptp_clock_kernel.h>
 
+enum ksz_ptp_tou_mode {
+	KSZ_PTP_TOU_IDLE,
+	KSZ_PTP_TOU_PEROUT,
+};
+
 struct ksz_ptp_data {
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
@@ -20,6 +25,9 @@ struct ksz_ptp_data {
 	/* lock for accessing the clock_time */
 	spinlock_t clock_lock;
 	struct timespec64 clock_time;
+	enum ksz_ptp_tou_mode tou_mode;
+	struct timespec64 perout_target_time_first;  /* start of first pulse */
+	struct timespec64 perout_period;
 };
 
 int ksz_ptp_clock_register(struct dsa_switch *ds);
