@@ -253,7 +253,7 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 static irqreturn_t ipoctal_irq_handler(void *arg)
 {
 	unsigned int i;
-	struct ipoctal *ipoctal = (struct ipoctal *) arg;
+	struct ipoctal *ipoctal = arg;
 
 	/* Clear the IPack device interrupt */
 	readw(ipoctal->int_space + ACK_INT_REQ0);
