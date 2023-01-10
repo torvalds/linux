@@ -24,7 +24,7 @@ ensure_write_fail()
 	content=$2
 	reason=$3
 
-	if echo "$content" > "$file"
+	if (echo "$content" > "$file") 2> /dev/null
 	then
 		echo "writing $content to $file succeed ($fail_reason)"
 		echo "expected failure because $reason"
