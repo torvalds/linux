@@ -30,6 +30,8 @@ int ksz_get_ts_info(struct dsa_switch *ds, int port,
 		    struct ethtool_ts_info *ts);
 int ksz_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr);
 int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr);
+bool ksz_port_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb,
+		       unsigned int type);
 int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p);
 void ksz_ptp_irq_free(struct dsa_switch *ds, u8 p);
 
@@ -59,6 +61,8 @@ static inline void ksz_ptp_irq_free(struct dsa_switch *ds, u8 p) {}
 #define ksz_hwtstamp_get NULL
 
 #define ksz_hwtstamp_set NULL
+
+#define ksz_port_rxtstamp NULL
 
 #endif	/* End of CONFIG_NET_DSA_MICROCHIP_KSZ_PTP */
 

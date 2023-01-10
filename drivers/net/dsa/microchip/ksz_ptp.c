@@ -169,6 +169,69 @@ int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config));
 }
 
+static ktime_t ksz_tstamp_reconstruct(struct ksz_device *dev, ktime_t tstamp)
+{
+	struct timespec64 ptp_clock_time;
+	struct ksz_ptp_data *ptp_data;
+	struct timespec64 diff;
+	struct timespec64 ts;
+
+	ptp_data = &dev->ptp_data;
+	ts = ktime_to_timespec64(tstamp);
+
+	spin_lock_bh(&ptp_data->clock_lock);
+	ptp_clock_time = ptp_data->clock_time;
+	spin_unlock_bh(&ptp_data->clock_lock);
+
+	/* calculate full time from partial time stamp */
+	ts.tv_sec = (ptp_clock_time.tv_sec & ~3) | ts.tv_sec;
+
+	/* find nearest possible point in time */
+	diff = timespec64_sub(ts, ptp_clock_time);
+	if (diff.tv_sec > 2)
+		ts.tv_sec -= 4;
+	else if (diff.tv_sec < -2)
+		ts.tv_sec += 4;
+
+	return timespec64_to_ktime(ts);
+}
+
+bool ksz_port_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb,
+		       unsigned int type)
+{
+	struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
+	struct ksz_device *dev = ds->priv;
+	struct ptp_header *ptp_hdr;
+	u8 ptp_msg_type;
+	ktime_t tstamp;
+	s64 correction;
+
+	tstamp = KSZ_SKB_CB(skb)->tstamp;
+	memset(hwtstamps, 0, sizeof(*hwtstamps));
+	hwtstamps->hwtstamp = ksz_tstamp_reconstruct(dev, tstamp);
+
+	ptp_hdr = ptp_parse_header(skb, type);
+	if (!ptp_hdr)
+		goto out;
+
+	ptp_msg_type = ptp_get_msgtype(ptp_hdr, type);
+	if (ptp_msg_type != PTP_MSGTYPE_PDELAY_REQ)
+		goto out;
+
+	/* Only subtract the partial time stamp from the correction field.  When
+	 * the hardware adds the egress time stamp to the correction field of
+	 * the PDelay_Resp message on tx, also only the partial time stamp will
+	 * be added.
+	 */
+	correction = (s64)get_unaligned_be64(&ptp_hdr->correction);
+	correction -= ktime_to_ns(tstamp) << 16;
+
+	ptp_header_update_correction(skb, type, ptp_hdr, correction);
+
+out:
+	return false;
+}
+
 static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
 {
 	u32 nanoseconds;
