@@ -11,6 +11,7 @@
 #include "std.h"
 
 /* system includes */
+#include <asm/fcntl.h>   // for O_*
 #include <asm/unistd.h>
 #include <asm/signal.h>  // for SIGCHLD
 #include <asm/ioctls.h>

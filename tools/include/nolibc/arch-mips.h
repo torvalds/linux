@@ -7,18 +7,6 @@
 #ifndef _NOLIBC_ARCH_MIPS_H
 #define _NOLIBC_ARCH_MIPS_H
 
-/* O_* macros for fcntl/open are architecture-specific */
-#define O_RDONLY            0
-#define O_WRONLY            1
-#define O_RDWR              2
-#define O_APPEND       0x0008
-#define O_NONBLOCK     0x0080
-#define O_CREAT        0x0100
-#define O_TRUNC        0x0200
-#define O_EXCL         0x0400
-#define O_NOCTTY       0x0800
-#define O_DIRECTORY   0x10000
-
 /* The struct returned by the stat() syscall. 88 bytes are returned by the
  * syscall.
  */
