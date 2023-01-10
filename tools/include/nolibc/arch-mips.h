@@ -176,6 +176,8 @@ struct sys_stat_struct {
 	_arg4 ? -_num : _num;                                                 \
 })
 
+char **environ __attribute__((weak));
+
 /* startup code, note that it's called __start on MIPS */
 void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __start(void)
 {
@@ -191,6 +193,9 @@ void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __start(void)
 		"sll $a2, $a0, 2\n"     // a2 = argc * 4
 		"add   $a2, $a2, $a1\n" // envp = argv + 4*argc ...
 		"addiu $a2, $a2, 4\n"   //        ... + 4
+		"lui $a3, %hi(environ)\n"     // load environ into a3 (hi)
+		"addiu $a3, %lo(environ)\n"   // load environ into a3 (lo)
+		"sw $a2,($a3)\n"              // store envp(a2) into environ
 		"li $t0, -8\n"
 		"and $sp, $sp, $t0\n"   // sp must be 8-byte aligned
 		"addiu $sp,$sp,-16\n"   // the callee expects to save a0..a3 there!
