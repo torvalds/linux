@@ -38,7 +38,7 @@
 #define US_CR_TXEN		BIT(6)
 #define US_CR_TXDIS		BIT(7)
 
-#define US_MR_SPI_MASTER	0x0E
+#define US_MR_SPI_HOST		0x0E
 #define US_MR_CHRL		GENMASK(7, 6)
 #define US_MR_CPHA		BIT(8)
 #define US_MR_CPOL		BIT(16)
@@ -61,7 +61,7 @@
 #define US_OVRE_RXRDY_IRQS	(US_IR_OVRE | US_IR_RXRDY)
 
 #define US_INIT \
-	(US_MR_SPI_MASTER | US_MR_CHRL | US_MR_CLKO | US_MR_WRDBT)
+	(US_MR_SPI_HOST | US_MR_CHRL | US_MR_CLKO | US_MR_WRDBT)
 #define US_DMA_MIN_BYTES       16
 #define US_DMA_TIMEOUT         (msecs_to_jiffies(1000))
 
@@ -104,7 +104,7 @@ struct at91_usart_spi {
 static void dma_callback(void *data)
 {
 	struct spi_controller   *ctlr = data;
-	struct at91_usart_spi   *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi   *aus = spi_controller_get_devdata(ctlr);
 
 	at91_usart_spi_writel(aus, IER, US_IR_RXRDY);
 	aus->current_rx_remaining_bytes = 0;
@@ -115,7 +115,7 @@ static bool at91_usart_spi_can_dma(struct spi_controller *ctrl,
 				   struct spi_device *spi,
 				   struct spi_transfer *xfer)
 {
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctrl);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctrl);
 
 	return aus->use_dma && xfer->len >= US_DMA_MIN_BYTES;
 }
@@ -216,7 +216,7 @@ static void at91_usart_spi_stop_dma(struct spi_controller *ctlr)
 static int at91_usart_spi_dma_transfer(struct spi_controller *ctlr,
 				       struct spi_transfer *xfer)
 {
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 	struct dma_chan	 *rxchan = ctlr->dma_rx;
 	struct dma_chan *txchan = ctlr->dma_tx;
 	struct dma_async_tx_descriptor *rxdesc;
@@ -334,7 +334,7 @@ at91_usart_spi_set_xfer_speed(struct at91_usart_spi *aus,
 static irqreturn_t at91_usart_spi_interrupt(int irq, void *dev_id)
 {
 	struct spi_controller *controller = dev_id;
-	struct at91_usart_spi *aus = spi_master_get_devdata(controller);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(controller);
 
 	spin_lock(&aus->lock);
 	at91_usart_spi_read_status(aus);
@@ -359,7 +359,7 @@ static irqreturn_t at91_usart_spi_interrupt(int irq, void *dev_id)
 
 static int at91_usart_spi_setup(struct spi_device *spi)
 {
-	struct at91_usart_spi *aus = spi_master_get_devdata(spi->controller);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(spi->controller);
 	u32 *ausd = spi->controller_state;
 	unsigned int mr = at91_usart_spi_readl(aus, MR);
 
@@ -399,7 +399,7 @@ static int at91_usart_spi_transfer_one(struct spi_controller *ctlr,
 				       struct spi_device *spi,
 				       struct spi_transfer *xfer)
 {
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 	unsigned long dma_timeout = 0;
 	int ret = 0;
 
@@ -444,7 +444,7 @@ static int at91_usart_spi_transfer_one(struct spi_controller *ctlr,
 static int at91_usart_spi_prepare_message(struct spi_controller *ctlr,
 					  struct spi_message *message)
 {
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
 	u32 *ausd = spi->controller_state;
 
@@ -458,7 +458,7 @@ static int at91_usart_spi_prepare_message(struct spi_controller *ctlr,
 static int at91_usart_spi_unprepare_message(struct spi_controller *ctlr,
 					    struct spi_message *message)
 {
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 
 	at91_usart_spi_writel(aus, CR, US_RESET | US_DISABLE);
 	at91_usart_spi_writel(aus, IDR, US_OVRE_RXRDY_IRQS);
@@ -515,7 +515,7 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	ret = -ENOMEM;
-	controller = spi_alloc_master(&pdev->dev, sizeof(*aus));
+	controller = spi_alloc_host(&pdev->dev, sizeof(*aus));
 	if (!controller)
 		goto at91_usart_spi_probe_fail;
 
@@ -539,7 +539,7 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 						US_MAX_CLK_DIV);
 	platform_set_drvdata(pdev, controller);
 
-	aus = spi_master_get_devdata(controller);
+	aus = spi_controller_get_devdata(controller);
 
 	aus->dev = &pdev->dev;
 	aus->regs = devm_ioremap_resource(&pdev->dev, regs);
@@ -574,9 +574,9 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 	spin_lock_init(&aus->lock);
 	init_completion(&aus->xfer_completion);
 
-	ret = devm_spi_register_master(&pdev->dev, controller);
+	ret = devm_spi_register_controller(&pdev->dev, controller);
 	if (ret)
-		goto at91_usart_fail_register_master;
+		goto at91_usart_fail_register_controller;
 
 	dev_info(&pdev->dev,
 		 "AT91 USART SPI Controller version 0x%x at %pa (irq %d)\n",
@@ -585,19 +585,19 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 
 	return 0;
 
-at91_usart_fail_register_master:
+at91_usart_fail_register_controller:
 	at91_usart_spi_release_dma(controller);
 at91_usart_fail_dma:
 	clk_disable_unprepare(clk);
 at91_usart_spi_probe_fail:
-	spi_master_put(controller);
+	spi_controller_put(controller);
 	return ret;
 }
 
 __maybe_unused static int at91_usart_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 
 	clk_disable_unprepare(aus->clk);
 	pinctrl_pm_select_sleep_state(dev);
@@ -608,7 +608,7 @@ __maybe_unused static int at91_usart_spi_runtime_suspend(struct device *dev)
 __maybe_unused static int at91_usart_spi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctrl);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctrl);
 
 	pinctrl_pm_select_default_state(dev);
 
@@ -633,7 +633,7 @@ __maybe_unused static int at91_usart_spi_suspend(struct device *dev)
 __maybe_unused static int at91_usart_spi_resume(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctrl);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctrl);
 	int ret;
 
 	if (!pm_runtime_suspended(dev)) {
@@ -650,7 +650,7 @@ __maybe_unused static int at91_usart_spi_resume(struct device *dev)
 static int at91_usart_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = platform_get_drvdata(pdev);
-	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
+	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 
 	at91_usart_spi_release_dma(ctlr);
 	clk_disable_unprepare(aus->clk);
