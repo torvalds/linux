@@ -23,6 +23,7 @@ clk-dummy.ko
 clk-rpmh.ko
 dcc_v2.ko
 debug_symbol.ko
+minidump.ko
 memory_dump_v2.ko
 dispcc-pineapple.ko
 tcsrcc-pineapple.ko
