@@ -284,10 +284,14 @@ static void test_stream_msg_peek_server(const struct test_opts *opts)
 	close(fd);
 }
 
-#define MESSAGES_CNT 7
-#define MSG_EOR_IDX (MESSAGES_CNT / 2)
+#define SOCK_BUF_SIZE (2 * 1024 * 1024)
+#define MAX_MSG_SIZE (32 * 1024)
+
 static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 {
+	unsigned long curr_hash;
+	int page_size;
+	int msg_count;
 	int fd;
 
 	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
@@ -296,18 +300,79 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	/* Send several messages, one with MSG_EOR flag */
-	for (int i = 0; i < MESSAGES_CNT; i++)
-		send_byte(fd, 1, (i == MSG_EOR_IDX) ? MSG_EOR : 0);
+	/* Wait, until receiver sets buffer size. */
+	control_expectln("SRVREADY");
+
+	curr_hash = 0;
+	page_size = getpagesize();
+	msg_count = SOCK_BUF_SIZE / MAX_MSG_SIZE;
+
+	for (int i = 0; i < msg_count; i++) {
+		ssize_t send_size;
+		size_t buf_size;
+		int flags;
+		void *buf;
+
+		/* Use "small" buffers and "big" buffers. */
+		if (i & 1)
+			buf_size = page_size +
+					(rand() % (MAX_MSG_SIZE - page_size));
+		else
+			buf_size = 1 + (rand() % page_size);
+
+		buf = malloc(buf_size);
+
+		if (!buf) {
+			perror("malloc");
+			exit(EXIT_FAILURE);
+		}
+
+		memset(buf, rand() & 0xff, buf_size);
+		/* Set at least one MSG_EOR + some random. */
+		if (i == (msg_count / 2) || (rand() & 1)) {
+			flags = MSG_EOR;
+			curr_hash++;
+		} else {
+			flags = 0;
+		}
+
+		send_size = send(fd, buf, buf_size, flags);
+
+		if (send_size < 0) {
+			perror("send");
+			exit(EXIT_FAILURE);
+		}
+
+		if (send_size != buf_size) {
+			fprintf(stderr, "Invalid send size\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/*
+		 * Hash sum is computed at both client and server in
+		 * the same way:
+		 * H += hash('message data')
+		 * Such hash "controls" both data integrity and message
+		 * bounds. After data exchange, both sums are compared
+		 * using control socket, and if message bounds wasn't
+		 * broken - two values must be equal.
+		 */
+		curr_hash += hash_djb2(buf, buf_size);
+		free(buf);
+	}
 
 	control_writeln("SENDDONE");
+	control_writeulong(curr_hash);
 	close(fd);
 }
 
 static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 {
+	unsigned long sock_buf_size;
+	unsigned long remote_hash;
+	unsigned long curr_hash;
 	int fd;
-	char buf[16];
+	char buf[MAX_MSG_SIZE];
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 
@@ -317,25 +382,57 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
+	sock_buf_size = SOCK_BUF_SIZE;
+
+	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_MAX_SIZE,
+		       &sock_buf_size, sizeof(sock_buf_size))) {
+		perror("setsockopt(SO_VM_SOCKETS_BUFFER_MAX_SIZE)");
+		exit(EXIT_FAILURE);
+	}
+
+	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
+		       &sock_buf_size, sizeof(sock_buf_size))) {
+		perror("setsockopt(SO_VM_SOCKETS_BUFFER_SIZE)");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Ready to receive data. */
+	control_writeln("SRVREADY");
+	/* Wait, until peer sends whole data. */
 	control_expectln("SENDDONE");
 	iov.iov_base = buf;
 	iov.iov_len = sizeof(buf);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	for (int i = 0; i < MESSAGES_CNT; i++) {
-		if (recvmsg(fd, &msg, 0) != 1) {
-			perror("message bound violated");
+	curr_hash = 0;
+
+	while (1) {
+		ssize_t recv_size;
+
+		recv_size = recvmsg(fd, &msg, 0);
+
+		if (!recv_size)
+			break;
+
+		if (recv_size < 0) {
+			perror("recvmsg");
 			exit(EXIT_FAILURE);
 		}
 
-		if ((i == MSG_EOR_IDX) ^ !!(msg.msg_flags & MSG_EOR)) {
-			perror("MSG_EOR");
-			exit(EXIT_FAILURE);
-		}
+		if (msg.msg_flags & MSG_EOR)
+			curr_hash++;
+
+		curr_hash += hash_djb2(msg.msg_iov[0].iov_base, recv_size);
 	}
 
 	close(fd);
+	remote_hash = control_readulong();
+
+	if (curr_hash != remote_hash) {
+		fprintf(stderr, "Message bounds broken\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 #define MESSAGE_TRUNC_SZ 32
@@ -427,7 +524,7 @@ static void test_seqpacket_timeout_client(const struct test_opts *opts)
 	tv.tv_usec = 0;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv)) == -1) {
-		perror("setsockopt 'SO_RCVTIMEO'");
+		perror("setsockopt(SO_RCVTIMEO)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -644,7 +741,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
 		       &lowat_val, sizeof(lowat_val))) {
-		perror("setsockopt");
+		perror("setsockopt(SO_RCVLOWAT)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -837,6 +934,7 @@ int main(int argc, char **argv)
 		.peer_cid = VMADDR_CID_ANY,
 	};
 
+	srand(time(NULL));
 	init_signals();
 
 	for (;;) {
