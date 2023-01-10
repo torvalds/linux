@@ -22061,6 +22061,10 @@ IFCVF VIRTIO DATA PATH ACCELERATOR
 R:	Zhu Lingshan <lingshan.zhu@intel.com>
 F:	drivers/vdpa/ifcvf/
 
+SNET DPU VIRTIO DATA PATH ACCELERATOR
+R:	Alvaro Karsz <alvaro.karsz@solid-run.com>
+F:	drivers/vdpa/solidrun/
+
 VIRTIO BALLOON
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	David Hildenbrand <david@redhat.com>
