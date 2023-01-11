@@ -203,12 +203,6 @@ struct io_queue {
 	struct	intf_hdl	intf;
 };
 
-uint ioreq_flush(struct adapter *adapter, struct io_queue *ioqueue);
-void sync_ioreq_enqueue(struct io_req *preq, struct io_queue *ioqueue);
-uint sync_ioreq_flush(struct adapter *adapter, struct io_queue *ioqueue);
-uint free_ioreq(struct io_req *preq, struct io_queue *pio_queue);
-struct io_req *alloc_ioreq(struct io_queue *pio_q);
-
 uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl);
 void unregister_intf_hdl(struct intf_hdl *pintfhdl);
 
@@ -273,11 +267,6 @@ void async_write32(struct adapter *adapter, u32 addr, u32 val,
 void async_write_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 void async_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-uint alloc_io_queue(struct adapter *adapter);
-void free_io_queue(struct adapter *adapter);
-void async_bus_io(struct io_queue *pio_q);
-void bus_sync_io(struct io_queue *pio_q);
-u32 _ioreq2rwmem(struct io_queue *pio_q);
 void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 
 #endif	/* _RTL8711_IO_H_ */
