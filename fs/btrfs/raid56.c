@@ -1947,13 +1947,25 @@ out:
 	return ret;
 }
 
-static int recover_assemble_read_bios(struct btrfs_raid_bio *rbio,
-				      struct bio_list *bio_list)
+static int recover_rbio(struct btrfs_raid_bio *rbio)
 {
+	struct bio_list bio_list = BIO_EMPTY_LIST;
 	int total_sector_nr;
 	int ret = 0;
 
-	ASSERT(bio_list_size(bio_list) == 0);
+	/*
+	 * Either we're doing recover for a read failure or degraded write,
+	 * caller should have set error bitmap correctly.
+	 */
+	ASSERT(bitmap_weight(rbio->error_bitmap, rbio->nr_sectors));
+
+	/* For recovery, we need to read all sectors including P/Q. */
+	ret = alloc_rbio_pages(rbio);
+	if (ret < 0)
+		return ret;
+
+	index_rbio_pages(rbio);
+
 	/*
 	 * Read everything that hasn't failed. However this time we will
 	 * not trust any cached sector.
@@ -1984,47 +1996,16 @@ static int recover_assemble_read_bios(struct btrfs_raid_bio *rbio,
 		}
 
 		sector = rbio_stripe_sector(rbio, stripe, sectornr);
-		ret = rbio_add_io_sector(rbio, bio_list, sector, stripe,
+		ret = rbio_add_io_sector(rbio, &bio_list, sector, stripe,
 					 sectornr, REQ_OP_READ);
-		if (ret < 0)
-			goto error;
+		if (ret < 0) {
+			bio_list_put(&bio_list);
+			return ret;
+		}
 	}
-	return 0;
-error:
-	bio_list_put(bio_list);
-	return -EIO;
-}
-
-static int recover_rbio(struct btrfs_raid_bio *rbio)
-{
-	struct bio_list bio_list;
-	int ret;
-
-	/*
-	 * Either we're doing recover for a read failure or degraded write,
-	 * caller should have set error bitmap correctly.
-	 */
-	ASSERT(bitmap_weight(rbio->error_bitmap, rbio->nr_sectors));
-	bio_list_init(&bio_list);
-
-	/* For recovery, we need to read all sectors including P/Q. */
-	ret = alloc_rbio_pages(rbio);
-	if (ret < 0)
-		goto out;
-
-	index_rbio_pages(rbio);
-
-	ret = recover_assemble_read_bios(rbio, &bio_list);
-	if (ret < 0)
-		goto out;
 
 	submit_read_wait_bio_list(rbio, &bio_list);
-
-	ret = recover_sectors(rbio);
-
-out:
-	bio_list_put(&bio_list);
-	return ret;
+	return recover_sectors(rbio);
 }
 
 static void recover_rbio_work(struct work_struct *work)
