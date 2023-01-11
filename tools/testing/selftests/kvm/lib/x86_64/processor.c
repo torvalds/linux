@@ -113,7 +113,7 @@ static void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent)
 
 bool kvm_is_tdp_enabled(void)
 {
-	if (is_intel_cpu())
+	if (this_cpu_is_intel())
 		return get_kvm_intel_param_bool("ept");
 	else
 		return get_kvm_amd_param_bool("npt");
@@ -1006,28 +1006,6 @@ void kvm_x86_state_cleanup(struct kvm_x86_state *state)
 	free(state);
 }
 
-static bool cpu_vendor_string_is(const char *vendor)
-{
-	const uint32_t *chunk = (const uint32_t *)vendor;
-	uint32_t eax, ebx, ecx, edx;
-
-	cpuid(0, &eax, &ebx, &ecx, &edx);
-	return (ebx == chunk[0] && edx == chunk[1] && ecx == chunk[2]);
-}
-
-bool is_intel_cpu(void)
-{
-	return cpu_vendor_string_is("GenuineIntel");
-}
-
-/*
- * Exclude early K5 samples with a vendor string of "AMDisbetter!"
- */
-bool is_amd_cpu(void)
-{
-	return cpu_vendor_string_is("AuthenticAMD");
-}
-
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits)
 {
 	if (!kvm_cpu_has_p(X86_PROPERTY_MAX_PHY_ADDR)) {
@@ -1236,7 +1214,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
 
 	/* Avoid reserved HyperTransport region on AMD processors.  */
-	if (!is_amd_cpu())
+	if (!this_cpu_is_amd())
 		return max_gfn;
 
 	/* On parts with <40 physical address bits, the area is fully hidden */
