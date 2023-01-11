@@ -9,10 +9,12 @@
 #include <linux/aer.h>
 #include <linux/etherdevice.h>
 #include <net/ip.h>
+#include <linux/phy.h>
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
 #include "ngbe_type.h"
+#include "ngbe_mdio.h"
 #include "ngbe_hw.h"
 
 char ngbe_driver_name[] = "ngbe";
@@ -146,11 +148,29 @@ static int ngbe_sw_init(struct wx *wx)
 	return 0;
 }
 
+static void ngbe_disable_device(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+
+	/* disable receives */
+	wx_disable_rx(wx);
+	netif_tx_disable(netdev);
+	if (wx->gpio_ctrl)
+		ngbe_sfp_modules_txrx_powerctl(wx, false);
+}
+
 static void ngbe_down(struct wx *wx)
 {
-	netif_carrier_off(wx->netdev);
-	netif_tx_disable(wx->netdev);
-};
+	phy_stop(wx->phydev);
+	ngbe_disable_device(wx);
+}
+
+static void ngbe_up(struct wx *wx)
+{
+	if (wx->gpio_ctrl)
+		ngbe_sfp_modules_txrx_powerctl(wx, true);
+	phy_start(wx->phydev);
+}
 
 /**
  * ngbe_open - Called when a network interface is made active
@@ -164,8 +184,13 @@ static void ngbe_down(struct wx *wx)
 static int ngbe_open(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
+	int err;
 
 	wx_control_hw(wx, true);
+	err = ngbe_phy_connect(wx);
+	if (err)
+		return err;
+	ngbe_up(wx);
 
 	return 0;
 }
@@ -186,6 +211,7 @@ static int ngbe_close(struct net_device *netdev)
 	struct wx *wx = netdev_priv(netdev);
 
 	ngbe_down(wx);
+	phy_disconnect(wx->phydev);
 	wx_control_hw(wx, false);
 
 	return 0;
@@ -384,6 +410,11 @@ static int ngbe_probe(struct pci_dev *pdev,
 
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	wx_mac_set_default_filter(wx, wx->mac.perm_addr);
+
+	/* phy Interface Configuration */
+	err = ngbe_mdio_init(wx);
+	if (err)
+		goto err_free_mac_table;
 
 	err = register_netdev(netdev);
 	if (err)

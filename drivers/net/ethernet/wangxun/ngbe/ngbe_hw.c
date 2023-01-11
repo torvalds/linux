@@ -39,14 +39,22 @@ int ngbe_eeprom_chksum_hostif(struct wx *wx)
 static int ngbe_reset_misc(struct wx *wx)
 {
 	wx_reset_misc(wx);
-	if (wx->mac_type == em_mac_type_rgmii)
-		wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0xF);
 	if (wx->gpio_ctrl) {
 		/* gpio0 is used to power on/off control*/
 		wr32(wx, NGBE_GPIO_DDR, 0x1);
-		wr32(wx, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
+		ngbe_sfp_modules_txrx_powerctl(wx, false);
 	}
 	return 0;
+}
+
+void ngbe_sfp_modules_txrx_powerctl(struct wx *wx, bool swi)
+{
+	if (swi)
+		/* gpio0 is used to power on control*/
+		wr32(wx, NGBE_GPIO_DR, 0);
+	else
+		/* gpio0 is used to power off control*/
+		wr32(wx, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
 }
 
 /**
@@ -59,15 +67,26 @@ static int ngbe_reset_misc(struct wx *wx)
  **/
 int ngbe_reset_hw(struct wx *wx)
 {
-	int status = 0;
-	u32 reset = 0;
+	u32 val = 0;
+	int ret = 0;
 
 	/* Call wx stop to disable tx/rx and clear interrupts */
-	status = wx_stop_adapter(wx);
-	if (status != 0)
-		return status;
-	reset = WX_MIS_RST_LAN_RST(wx->bus.func);
-	wr32(wx, WX_MIS_RST, reset | rd32(wx, WX_MIS_RST));
+	ret = wx_stop_adapter(wx);
+	if (ret != 0)
+		return ret;
+
+	if (wx->mac_type != em_mac_type_mdi) {
+		val = WX_MIS_RST_LAN_RST(wx->bus.func);
+		wr32(wx, WX_MIS_RST, val | rd32(wx, WX_MIS_RST));
+
+		ret = read_poll_timeout(rd32, val,
+					!(val & (BIT(9) << wx->bus.func)), 1000,
+					100000, false, wx, 0x10028);
+		if (ret) {
+			wx_err(wx, "Lan reset exceed s maximum times.\n");
+			return ret;
+		}
+	}
 	ngbe_reset_misc(wx);
 
 	/* Store the permanent mac address */
