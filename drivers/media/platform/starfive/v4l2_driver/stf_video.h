@@ -69,6 +69,7 @@ struct stfcamss_video {
 	const struct stfcamss_format_info *formats;
 	unsigned int nformats;
 	unsigned int is_mp;
+	unsigned int pm_count;
 };
 
 int stf_video_register(struct stfcamss_video *video,

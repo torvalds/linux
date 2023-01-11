@@ -74,6 +74,8 @@ struct cdns_starfive {
 	u32 stg_offset_500;
 	bool usb2_only;
 	enum usb_dr_mode mode;
+	void __iomem *phybase_20;
+	void __iomem *phybase_30;
 };
 
 static int cdns_mode_init(struct platform_device *pdev,
@@ -194,39 +196,44 @@ exit:
 	return ret;
 }
 
-static int cdns_starfive_phy_init(struct platform_device *pdev,
-							struct cdns_starfive *data)
+static void cdns_starfive_set_phy(struct cdns_starfive *data)
 {
-	struct device *dev = &pdev->dev;
-	void __iomem *phybase_20, *phybase_30;
 	unsigned int val;
-	int ret = 0;
-
-	phybase_20 = devm_platform_ioremap_resource(pdev, USB2_PHY_RES_INDEX);
-	if (IS_ERR(phybase_20)) {
-		dev_err(dev, "Can't map phybase_20 IOMEM resource\n");
-		ret = PTR_ERR(phybase_20);
-		goto get_res_err;
-	}
-
-	phybase_30 = devm_platform_ioremap_resource(pdev, USB3_PHY_RES_INDEX);
-	if (IS_ERR(phybase_30)) {
-		dev_err(dev, "Can't map phybase_30 IOMEM resource\n");
-		ret = PTR_ERR(phybase_30);
-		goto get_res_err;
-	}
 
 	if (data->mode != USB_DR_MODE_PERIPHERAL) {
 		/* Enable the LS speed keep-alive signal */
-		val = readl(phybase_20 + USB_LS_KEEPALIVE_OFF);
+		val = readl(data->phybase_20 + USB_LS_KEEPALIVE_OFF);
 		val |= BIT(USB_LS_KEEPALIVE_ENABLE);
-		writel(val, phybase_20 + USB_LS_KEEPALIVE_OFF);
+		writel(val, data->phybase_20 + USB_LS_KEEPALIVE_OFF);
 	}
 
 	if (!data->usb2_only) {
 		/* Configuare spread-spectrum mode: down-spread-spectrum */
-		writel(BIT(4), (phybase_30 + PCIE_USB3_PHY_PLL_CTL_OFF));
+		writel(BIT(4), data->phybase_30 + PCIE_USB3_PHY_PLL_CTL_OFF);
 	}
+}
+
+static int cdns_starfive_phy_init(struct platform_device *pdev,
+							struct cdns_starfive *data)
+{
+	struct device *dev = &pdev->dev;
+	int ret = 0;
+
+	data->phybase_20 = devm_platform_ioremap_resource(pdev, USB2_PHY_RES_INDEX);
+	if (IS_ERR(data->phybase_20)) {
+		dev_err(dev, "Can't map phybase_20 IOMEM resource\n");
+		ret = PTR_ERR(data->phybase_20);
+		goto get_res_err;
+	}
+
+	data->phybase_30 = devm_platform_ioremap_resource(pdev, USB3_PHY_RES_INDEX);
+	if (IS_ERR(data->phybase_30)) {
+		dev_err(dev, "Can't map phybase_30 IOMEM resource\n");
+		ret = PTR_ERR(data->phybase_30);
+		goto get_res_err;
+	}
+
+	cdns_starfive_set_phy(data);
 
 get_res_err:
 	return ret;
@@ -351,6 +358,10 @@ static int cdns_starfive_resume(struct device *dev)
 		goto err;
 
 	ret = reset_control_deassert(data->resets);
+	if (ret)
+		goto err;
+
+	cdns_starfive_set_phy(data);
 err:
 	return ret;
 }

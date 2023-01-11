@@ -423,12 +423,34 @@ static const struct snd_soc_dai_ops sf_spdif_dai_ops = {
 #ifdef CONFIG_PM_SLEEP
 static int spdif_system_suspend(struct device *dev)
 {
+	struct sf_spdif_dev *spdif = dev_get_drvdata(dev);
+
+	/* save the register value */
+	regmap_read(spdif->regmap, SPDIF_CTRL, &spdif->reg_spdif_ctrl);
+	regmap_read(spdif->regmap, SPDIF_INT_REG, &spdif->reg_spdif_int);
+	regmap_read(spdif->regmap, SPDIF_FIFO_CTRL, &spdif->reg_spdif_fifo_ctrl);
+
 	return pm_runtime_force_suspend(dev);
 }
 
 static int spdif_system_resume(struct device *dev)
 {
-	return pm_runtime_force_resume(dev);
+	struct sf_spdif_dev *spdif = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
+
+	/* restore the register value */
+	regmap_update_bits(spdif->regmap, SPDIF_CTRL,
+			   ALLBITMASK, spdif->reg_spdif_ctrl);
+	regmap_update_bits(spdif->regmap, SPDIF_INT_REG,
+			   ALLBITMASK, spdif->reg_spdif_int);
+	regmap_update_bits(spdif->regmap, SPDIF_FIFO_CTRL,
+			   ALLBITMASK, spdif->reg_spdif_fifo_ctrl);
+
+	return 0;
 }
 #endif
 
@@ -452,7 +474,6 @@ static const struct dev_pm_ops spdif_pm_ops = {
 	SET_RUNTIME_PM_OPS(spdif_runtime_suspend, spdif_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(spdif_system_suspend, spdif_system_resume)
 };
-
 
 #define SF_PCM_RATE_44100_192000  (SNDRV_PCM_RATE_44100 | \
 				   SNDRV_PCM_RATE_48000 | \
