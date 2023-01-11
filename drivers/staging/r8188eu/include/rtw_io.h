@@ -227,22 +227,6 @@ void rtw_write_port_cancel(struct adapter *adapter);
 
 void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
 
-void async_write8(struct adapter *adapter, u32 addr, u8 val,
-		  void (*_async_io_callback)(struct adapter *padater,
-					     struct io_req *pio_req,
-					     u8 *cnxt), u8 *cnxt);
-void async_write16(struct adapter *adapter, u32 addr, u16 val,
-		   void (*_async_io_callback)(struct adapter *padater,
-					      struct io_req *pio_req,
-					      u8 *cnxt), u8 *cnxt);
-void async_write32(struct adapter *adapter, u32 addr, u32 val,
-		   void (*_async_io_callback)(struct adapter *padater,
-					      struct io_req *pio_req,
-					      u8 *cnxt), u8 *cnxt);
-
-void async_write_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void async_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
 void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 
 #endif	/* _RTL8711_IO_H_ */
