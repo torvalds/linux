@@ -140,16 +140,6 @@ struct page {
 		};
 		struct {	/* Tail pages of compound page */
 			unsigned long compound_head;	/* Bit zero is set */
-
-			/* First tail page only */
-			unsigned char compound_dtor;
-			unsigned char compound_order;
-			atomic_t compound_mapcount;
-			atomic_t subpages_mapcount;
-			atomic_t compound_pincount;
-#ifdef CONFIG_64BIT
-			unsigned int compound_nr; /* 1 << compound_order */
-#endif
 		};
 		struct {	/* Second tail page of transparent huge page */
 			unsigned long _compound_pad_1;	/* compound_head */
@@ -401,14 +391,6 @@ FOLIO_MATCH(memcg_data, memcg_data);
 			offsetof(struct page, pg) + sizeof(struct page))
 FOLIO_MATCH(flags, _flags_1);
 FOLIO_MATCH(compound_head, _head_1);
-FOLIO_MATCH(compound_dtor, _folio_dtor);
-FOLIO_MATCH(compound_order, _folio_order);
-FOLIO_MATCH(compound_mapcount, _entire_mapcount);
-FOLIO_MATCH(subpages_mapcount, _nr_pages_mapped);
-FOLIO_MATCH(compound_pincount, _pincount);
-#ifdef CONFIG_64BIT
-FOLIO_MATCH(compound_nr, _folio_nr_pages);
-#endif
 #undef FOLIO_MATCH
 #define FOLIO_MATCH(pg, fl)						\
 	static_assert(offsetof(struct folio, fl) ==			\
