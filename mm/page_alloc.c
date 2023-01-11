@@ -779,8 +779,8 @@ static void prep_compound_head(struct page *page, unsigned int order)
 
 	set_compound_page_dtor(page, COMPOUND_PAGE_DTOR);
 	set_compound_order(page, order);
-	atomic_set(compound_mapcount_ptr(page), -1);
-	atomic_set(subpages_mapcount_ptr(page), 0);
+	atomic_set(&folio->_entire_mapcount, -1);
+	atomic_set(&folio->_nr_pages_mapped, 0);
 	atomic_set(&folio->_pincount, 0);
 }
 
@@ -1309,12 +1309,12 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 	switch (page - head_page) {
 	case 1:
 		/* the first tail page: these may be in place of ->mapping */
-		if (unlikely(head_compound_mapcount(head_page))) {
-			bad_page(page, "nonzero compound_mapcount");
+		if (unlikely(folio_entire_mapcount(folio))) {
+			bad_page(page, "nonzero entire_mapcount");
 			goto out;
 		}
-		if (unlikely(atomic_read(subpages_mapcount_ptr(head_page)))) {
-			bad_page(page, "nonzero subpages_mapcount");
+		if (unlikely(atomic_read(&folio->_nr_pages_mapped))) {
+			bad_page(page, "nonzero nr_pages_mapped");
 			goto out;
 		}
 		if (unlikely(atomic_read(&folio->_pincount))) {
