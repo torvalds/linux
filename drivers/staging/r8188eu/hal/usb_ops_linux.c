@@ -95,8 +95,7 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 
 	return usb_read(intf, value, data, 1);
@@ -104,8 +103,7 @@ int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data)
 
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	__le16 le_data;
 	int res;
@@ -121,8 +119,7 @@ int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 
 int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	__le32 le_data;
 	int res;
@@ -138,8 +135,7 @@ int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 
 int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	int ret;
 
@@ -150,8 +146,7 @@ int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
 
 int rtw_write16(struct adapter *adapter, u32 addr, u16 val)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	__le16 data = cpu_to_le16(val);
 	int ret;
@@ -163,8 +158,7 @@ int rtw_write16(struct adapter *adapter, u32 addr, u16 val)
 
 int rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	__le32 data = cpu_to_le32(val);
 	int ret;
@@ -176,8 +170,7 @@ int rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 
 int rtw_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
+	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 
 	if (length > VENDOR_CMD_MAX_DATA_LEN)

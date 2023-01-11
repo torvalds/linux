@@ -203,11 +203,6 @@ struct io_queue {
 	struct	intf_hdl	intf;
 };
 
-struct io_priv {
-	struct adapter *padapter;
-	struct intf_hdl intf;
-};
-
 uint ioreq_flush(struct adapter *adapter, struct io_queue *ioqueue);
 void sync_ioreq_enqueue(struct io_req *preq, struct io_queue *ioqueue);
 uint sync_ioreq_flush(struct adapter *adapter, struct io_queue *ioqueue);
