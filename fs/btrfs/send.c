@@ -32,6 +32,7 @@
 #include "file-item.h"
 #include "ioctl.h"
 #include "verity.h"
+#include "lru_cache.h"
 
 /*
  * Maximum number of references an extent can have in order for us to attempt to
@@ -107,14 +108,14 @@ struct clone_root {
  * x86_64).
  */
 struct backref_cache_entry {
-	/* List to link to the cache's lru list. */
-	struct list_head list;
-	/* The key for this entry in the cache. */
-	u64 key;
+	struct btrfs_lru_cache_entry entry;
 	u64 root_ids[SEND_MAX_BACKREF_CACHE_ROOTS];
 	/* Number of valid elements in the root_ids array. */
 	int num_roots;
 };
+
+/* See the comment at lru_cache.h about struct btrfs_lru_cache_entry. */
+static_assert(offsetof(struct backref_cache_entry, entry) == 0);
 
 struct send_ctx {
 	struct file *send_filp;
@@ -285,13 +286,8 @@ struct send_ctx {
 	struct rb_root rbtree_new_refs;
 	struct rb_root rbtree_deleted_refs;
 
-	struct {
-		u64 last_reloc_trans;
-		struct list_head lru_list;
-		struct maple_tree entries;
-		/* Number of entries stored in the cache. */
-		int size;
-	} backref_cache;
+	struct btrfs_lru_cache backref_cache;
+	u64 backref_cache_last_reloc_trans;
 };
 
 struct pending_dir_move {
@@ -1387,19 +1383,6 @@ static int iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root_id,
 	return 0;
 }
 
-static void empty_backref_cache(struct send_ctx *sctx)
-{
-	struct backref_cache_entry *entry;
-	struct backref_cache_entry *tmp;
-
-	list_for_each_entry_safe(entry, tmp, &sctx->backref_cache.lru_list, list)
-		kfree(entry);
-
-	INIT_LIST_HEAD(&sctx->backref_cache.lru_list);
-	mtree_destroy(&sctx->backref_cache.entries);
-	sctx->backref_cache.size = 0;
-}
-
 static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 				 const u64 **root_ids_ret, int *root_count_ret)
 {
@@ -1407,9 +1390,10 @@ static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 	struct send_ctx *sctx = bctx->sctx;
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	const u64 key = leaf_bytenr >> fs_info->sectorsize_bits;
+	struct btrfs_lru_cache_entry *raw_entry;
 	struct backref_cache_entry *entry;
 
-	if (sctx->backref_cache.size == 0)
+	if (btrfs_lru_cache_size(&sctx->backref_cache) == 0)
 		return false;
 
 	/*
@@ -1423,18 +1407,18 @@ static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 	 * transaction handle or holding fs_info->commit_root_sem, so no need
 	 * to take any lock here.
 	 */
-	if (fs_info->last_reloc_trans > sctx->backref_cache.last_reloc_trans) {
-		empty_backref_cache(sctx);
+	if (fs_info->last_reloc_trans > sctx->backref_cache_last_reloc_trans) {
+		btrfs_lru_cache_clear(&sctx->backref_cache);
 		return false;
 	}
 
-	entry = mtree_load(&sctx->backref_cache.entries, key);
-	if (!entry)
+	raw_entry = btrfs_lru_cache_lookup(&sctx->backref_cache, key);
+	if (!raw_entry)
 		return false;
 
+	entry = container_of(raw_entry, struct backref_cache_entry, entry);
 	*root_ids_ret = entry->root_ids;
 	*root_count_ret = entry->num_roots;
-	list_move_tail(&entry->list, &sctx->backref_cache.lru_list);
 
 	return true;
 }
@@ -1460,7 +1444,7 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 	if (!new_entry)
 		return;
 
-	new_entry->key = leaf_bytenr >> fs_info->sectorsize_bits;
+	new_entry->entry.key = leaf_bytenr >> fs_info->sectorsize_bits;
 	new_entry->num_roots = 0;
 	ULIST_ITER_INIT(&uiter);
 	while ((node = ulist_next(root_ids, &uiter)) != NULL) {
@@ -1488,23 +1472,12 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 	 * none of the roots is part of the list of roots from which we are
 	 * allowed to clone. Cache the new entry as it's still useful to avoid
 	 * backref walking to determine which roots have a path to the leaf.
+	 *
+	 * Also use GFP_NOFS because we're called while holding a transaction
+	 * handle or while holding fs_info->commit_root_sem.
 	 */
-
-	if (sctx->backref_cache.size >= SEND_MAX_BACKREF_CACHE_SIZE) {
-		struct backref_cache_entry *lru_entry;
-		struct backref_cache_entry *mt_entry;
-
-		lru_entry = list_first_entry(&sctx->backref_cache.lru_list,
-					     struct backref_cache_entry, list);
-		mt_entry = mtree_erase(&sctx->backref_cache.entries, lru_entry->key);
-		ASSERT(mt_entry == lru_entry);
-		list_del(&mt_entry->list);
-		kfree(mt_entry);
-		sctx->backref_cache.size--;
-	}
-
-	ret = mtree_insert(&sctx->backref_cache.entries, new_entry->key,
-			   new_entry, GFP_NOFS);
+	ret = btrfs_lru_cache_store(&sctx->backref_cache, &new_entry->entry,
+				    GFP_NOFS);
 	ASSERT(ret == 0 || ret == -ENOMEM);
 	if (ret) {
 		/* Caching is optional, no worries. */
@@ -1512,17 +1485,13 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 		return;
 	}
 
-	list_add_tail(&new_entry->list, &sctx->backref_cache.lru_list);
-
 	/*
 	 * We are called from iterate_extent_inodes() while either holding a
 	 * transaction handle or holding fs_info->commit_root_sem, so no need
 	 * to take any lock here.
 	 */
-	if (sctx->backref_cache.size == 0)
-		sctx->backref_cache.last_reloc_trans = fs_info->last_reloc_trans;
-
-	sctx->backref_cache.size++;
+	if (btrfs_lru_cache_size(&sctx->backref_cache) == 1)
+		sctx->backref_cache_last_reloc_trans = fs_info->last_reloc_trans;
 }
 
 static int check_extent_item(u64 bytenr, const struct btrfs_extent_item *ei,
@@ -8139,8 +8108,7 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 	INIT_RADIX_TREE(&sctx->name_cache, GFP_KERNEL);
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
-	INIT_LIST_HEAD(&sctx->backref_cache.lru_list);
-	mt_init(&sctx->backref_cache.entries);
+	btrfs_lru_cache_init(&sctx->backref_cache, SEND_MAX_BACKREF_CACHE_SIZE);
 
 	sctx->pending_dir_moves = RB_ROOT;
 	sctx->waiting_dir_moves = RB_ROOT;
@@ -8404,7 +8372,7 @@ out:
 
 		close_current_inode(sctx);
 
-		empty_backref_cache(sctx);
+		btrfs_lru_cache_clear(&sctx->backref_cache);
 
 		kfree(sctx);
 	}
