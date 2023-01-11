@@ -1082,7 +1082,7 @@ struct ec_params_get_cmd_versions_v1 {
 } __ec_align2;
 
 /**
- * struct ec_response_get_cmd_version - Response to the get command versions.
+ * struct ec_response_get_cmd_versions - Response to the get command versions.
  * @version_mask: Mask of supported versions; use EC_VER_MASK() to compare with
  *                a desired version.
  */
@@ -5480,7 +5480,7 @@ struct ec_response_rollback_info {
 /* Issue AP reset */
 #define EC_CMD_AP_RESET 0x0125
 
-/**
+/*
  * Get the number of peripheral charge ports
  */
 #define EC_CMD_PCHG_COUNT 0x0134
@@ -5491,7 +5491,7 @@ struct ec_response_pchg_count {
 	uint8_t port_count;
 } __ec_align1;
 
-/**
+/*
  * Get the status of a peripheral charge port
  */
 #define EC_CMD_PCHG 0x0135
