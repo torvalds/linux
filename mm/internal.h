@@ -52,6 +52,24 @@ struct folio_batch;
 
 void page_writeback_init(void);
 
+/*
+ * If a 16GB hugetlb folio were mapped by PTEs of all of its 4kB pages,
+ * its nr_pages_mapped would be 0x400000: choose the COMPOUND_MAPPED bit
+ * above that range, instead of 2*(PMD_SIZE/PAGE_SIZE).  Hugetlb currently
+ * leaves nr_pages_mapped at 0, but avoid surprise if it participates later.
+ */
+#define COMPOUND_MAPPED		0x800000
+#define FOLIO_PAGES_MAPPED	(COMPOUND_MAPPED - 1)
+
+/*
+ * How many individual pages have an elevated _mapcount.  Excludes
+ * the folio's entire_mapcount.
+ */
+static inline int folio_nr_pages_mapped(struct folio *folio)
+{
+	return atomic_read(&folio->_nr_pages_mapped) & FOLIO_PAGES_MAPPED;
+}
+
 static inline void *folio_raw_mapping(struct folio *folio)
 {
 	unsigned long mapping = (unsigned long)folio->mapping;

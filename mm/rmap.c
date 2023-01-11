@@ -1080,12 +1080,13 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 
 int total_compound_mapcount(struct page *head)
 {
+	struct folio *folio = (struct folio *)head;
 	int mapcount = head_compound_mapcount(head);
 	int nr_subpages;
 	int i;
 
 	/* In the common case, avoid the loop when no subpages mapped by PTE */
-	if (head_subpages_mapcount(head) == 0)
+	if (folio_nr_pages_mapped(folio) == 0)
 		return mapcount;
 	/*
 	 * Add all the PTE mappings of those subpages mapped by PTE.
@@ -1233,7 +1234,7 @@ void page_add_anon_rmap(struct page *page,
 			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
 			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
 				nr_pmdmapped = thp_nr_pages(page);
-				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				nr = nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
 				/* Raced ahead of a remove and another add? */
 				if (unlikely(nr < 0))
 					nr = 0;
@@ -1337,7 +1338,7 @@ void page_add_file_rmap(struct page *page,
 			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
 			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
 				nr_pmdmapped = thp_nr_pages(page);
-				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				nr = nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
 				/* Raced ahead of a remove and another add? */
 				if (unlikely(nr < 0))
 					nr = 0;
@@ -1399,7 +1400,7 @@ void page_remove_rmap(struct page *page,
 			nr = atomic_sub_return_relaxed(COMPOUND_MAPPED, mapped);
 			if (likely(nr < COMPOUND_MAPPED)) {
 				nr_pmdmapped = thp_nr_pages(page);
-				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				nr = nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
 				/* Raced ahead of another remove and an add? */
 				if (unlikely(nr < 0))
 					nr = 0;

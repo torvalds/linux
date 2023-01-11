@@ -1475,7 +1475,7 @@ static void __destroy_compound_gigantic_folio(struct folio *folio,
 	struct page *p;
 
 	atomic_set(folio_mapcount_ptr(folio), 0);
-	atomic_set(folio_subpages_mapcount_ptr(folio), 0);
+	atomic_set(&folio->_nr_pages_mapped, 0);
 	atomic_set(&folio->_pincount, 0);
 
 	for (i = 1; i < nr_pages; i++) {
@@ -1997,7 +1997,7 @@ static bool __prep_compound_gigantic_folio(struct folio *folio,
 			set_compound_head(p, &folio->page);
 	}
 	atomic_set(folio_mapcount_ptr(folio), -1);
-	atomic_set(folio_subpages_mapcount_ptr(folio), 0);
+	atomic_set(&folio->_nr_pages_mapped, 0);
 	atomic_set(&folio->_pincount, 0);
 	return true;
 

@@ -844,24 +844,6 @@ static inline int head_compound_mapcount(struct page *head)
 }
 
 /*
- * If a 16GB hugetlb page were mapped by PTEs of all of its 4kB sub-pages,
- * its subpages_mapcount would be 0x400000: choose the COMPOUND_MAPPED bit
- * above that range, instead of 2*(PMD_SIZE/PAGE_SIZE).  Hugetlb currently
- * leaves subpages_mapcount at 0, but avoid surprise if it participates later.
- */
-#define COMPOUND_MAPPED	0x800000
-#define SUBPAGES_MAPPED	(COMPOUND_MAPPED - 1)
-
-/*
- * Number of sub-pages mapped by PTE, does not include compound mapcount.
- * Must be called only on head of compound page.
- */
-static inline int head_subpages_mapcount(struct page *head)
-{
-	return atomic_read(subpages_mapcount_ptr(head)) & SUBPAGES_MAPPED;
-}
-
-/*
  * The atomic page->_mapcount, starts from -1: so that transitions
  * both from it and to it can be tracked, using atomic_inc_and_test
  * and atomic_add_negative(-1).
@@ -920,9 +902,9 @@ static inline bool folio_large_is_mapped(struct folio *folio)
 {
 	/*
 	 * Reading folio_mapcount_ptr() below could be omitted if hugetlb
-	 * participated in incrementing subpages_mapcount when compound mapped.
+	 * participated in incrementing nr_pages_mapped when compound mapped.
 	 */
-	return atomic_read(folio_subpages_mapcount_ptr(folio)) > 0 ||
+	return atomic_read(&folio->_nr_pages_mapped) > 0 ||
 		atomic_read(folio_mapcount_ptr(folio)) >= 0;
 }
 
