@@ -804,7 +804,8 @@ static void hid_scan_collection(struct hid_parser *parser, unsigned type)
 	int i;
 
 	if (((parser->global.usage_page << 16) == HID_UP_SENSOR) &&
-	    type == HID_COLLECTION_PHYSICAL)
+	    (type == HID_COLLECTION_PHYSICAL ||
+	     type == HID_COLLECTION_APPLICATION))
 		hid->group = HID_GROUP_SENSOR_HUB;
 
 	if (hid->vendor == USB_VENDOR_ID_MICROSOFT &&
