@@ -1272,7 +1272,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
 	}
-	xsk_ring_prod__submit(&umem->fq, buffers_to_fill);
+	xsk_ring_prod__submit(&umem->fq, i);
 }
 
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
