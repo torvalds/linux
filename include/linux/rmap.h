@@ -208,7 +208,14 @@ void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
 
 static inline void __page_dup_rmap(struct page *page, bool compound)
 {
-	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
+	if (compound) {
+		struct folio *folio = (struct folio *)page;
+
+		VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+		atomic_inc(&folio->_entire_mapcount);
+	} else {
+		atomic_inc(&page->_mapcount);
+	}
 }
 
 static inline void page_dup_file_rmap(struct page *page, bool compound)
