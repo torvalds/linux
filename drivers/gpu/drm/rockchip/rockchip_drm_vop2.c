@@ -6145,7 +6145,7 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	if (mode->hdisplay > vp_data->max_output.width)
 		return MODE_BAD_HVALUE;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		request_clock *= 2;
 
 	aclk_rate = clk_get_rate(vop2->aclk) / 1000;
@@ -6379,10 +6379,11 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct drm_crtc_state *new_crtc_state = container_of(mode, struct drm_crtc_state, mode);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(new_crtc_state);
 
 	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		adj_mode->crtc_clock *= 2;
 
 	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
@@ -7281,7 +7282,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x) for vp%d dclk: %d\n",
-		     hdisplay, vdisplay, interlaced ? "i" : "p",
+		     hdisplay, adjusted_mode->vdisplay, interlaced ? "i" : "p",
 		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vcstate->output_if,
 		     vp->id, adjusted_mode->crtc_clock * 1000);
 
@@ -7355,7 +7356,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (ret < 0)
 			goto out;
 
-		VOP_CTRL_SET(vop2, bt656_en, 1);
+		if (vop2->version == VOP_VERSION_RK3588) {
+			VOP_CTRL_SET(vop2, bt656_en, 1);
+		} else {
+			VOP_CTRL_SET(vop2, rgb_en, 1);
+			VOP_CTRL_SET(vop2, bt656_en, 1);
+		}
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
 		VOP_GRF_SET(vop2, sys_grf, grf_bt656_clk_inv, !dclk_inv);
 		VOP_CTRL_SET(vop2, bt656_dclk_pol, !dclk_inv);
@@ -7576,7 +7582,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate)
 		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, 1);
 
-	if (vop2->version == VOP_VERSION_RK3568) {
+	if (vop2->version == VOP_VERSION_RK3568 || vop2->version == VOP_VERSION_RK3562) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK ||
 		    vcstate->output_if & VOP_OUTPUT_IF_BT656)
 			VOP_MODULE_SET(vop2, vp, core_dclk_div, 1);

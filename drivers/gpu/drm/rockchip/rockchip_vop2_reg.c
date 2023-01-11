@@ -3469,6 +3469,8 @@ static const struct vop2_ctrl rk3528_vop_ctrl = {
 };
 
 static const struct vop_grf_ctrl rk3562_sys_grf_ctrl = {
+	.grf_bt656_clk_inv = VOP_REG(RK3562_GRF_IOC_VO_IO_CON, 0x1, 3),
+	.grf_bt1120_clk_inv = VOP_REG(RK3562_GRF_IOC_VO_IO_CON, 0x1, 3),
 	.grf_dclk_inv = VOP_REG(RK3562_GRF_IOC_VO_IO_CON, 0x1, 3),
 };
 
