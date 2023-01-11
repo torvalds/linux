@@ -541,9 +541,10 @@ static void
 assemble_neg_contexts(struct smb2_negotiate_req *req,
 		      struct TCP_Server_Info *server, unsigned int *total_len)
 {
-	char *pneg_ctxt;
-	char *hostname = NULL;
 	unsigned int ctxt_len, neg_context_count;
+	struct TCP_Server_Info *pserver;
+	char *pneg_ctxt;
+	char *hostname;
 
 	if (*total_len > 200) {
 		/* In case length corrupted don't want to overrun smb buffer */
@@ -574,8 +575,9 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	 * secondary channels don't have the hostname field populated
 	 * use the hostname field in the primary channel instead
 	 */
-	hostname = CIFS_SERVER_IS_CHAN(server) ?
-		server->primary_server->hostname : server->hostname;
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	cifs_server_lock(pserver);
+	hostname = pserver->hostname;
 	if (hostname && (hostname[0] != 0)) {
 		ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
 					      hostname);
@@ -584,6 +586,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 		neg_context_count = 3;
 	} else
 		neg_context_count = 2;
+	cifs_server_unlock(pserver);
 
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);

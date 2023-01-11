@@ -119,7 +119,7 @@ static bool is_coretext(const struct core_text *ct, void *addr)
 	return within_module_coretext(addr);
 }
 
-static __init_or_module bool skip_addr(void *dest)
+static bool skip_addr(void *dest)
 {
 	if (dest == error_entry)
 		return true;
@@ -181,7 +181,7 @@ static const u8 nops[] = {
 	0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
 };
 
-static __init_or_module void *patch_dest(void *dest, bool direct)
+static void *patch_dest(void *dest, bool direct)
 {
 	unsigned int tsize = SKL_TMPL_SIZE;
 	u8 *pad = dest - tsize;

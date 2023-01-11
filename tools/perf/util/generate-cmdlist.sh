@@ -38,7 +38,7 @@ do
 done
 echo "#endif /* HAVE_LIBELF_SUPPORT */"
 
-echo "#if defined(HAVE_LIBAUDIT_SUPPORT) || defined(HAVE_SYSCALL_TABLE_SUPPORT)"
+echo "#if defined(HAVE_LIBTRACEEVENT) && (defined(HAVE_LIBAUDIT_SUPPORT) || defined(HAVE_SYSCALL_TABLE_SUPPORT))"
 sed -n -e 's/^perf-\([^ 	]*\)[ 	].* audit*/\1/p' command-list.txt |
 sort |
 while read cmd
@@ -51,5 +51,20 @@ do
 	    p
      }' "Documentation/perf-$cmd.txt"
 done
-echo "#endif /* HAVE_LIBELF_SUPPORT */"
+echo "#endif /* HAVE_LIBTRACEEVENT && (HAVE_LIBAUDIT_SUPPORT || HAVE_SYSCALL_TABLE_SUPPORT) */"
+
+echo "#ifdef HAVE_LIBTRACEEVENT"
+sed -n -e 's/^perf-\([^ 	]*\)[ 	].* traceevent.*/\1/p' command-list.txt |
+sort |
+while read cmd
+do
+     sed -n '
+     /^NAME/,/perf-'"$cmd"'/H
+     ${
+            x
+            s/.*perf-'"$cmd"' - \(.*\)/  {"'"$cmd"'", "\1"},/
+            p
+     }' "Documentation/perf-$cmd.txt"
+done
+echo "#endif /* HAVE_LIBTRACEEVENT */"
 echo "};"

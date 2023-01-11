@@ -865,6 +865,8 @@ dcssblk_submit_bio(struct bio *bio)
 	unsigned long bytes_done;
 
 	bio = bio_split_to_limits(bio);
+	if (!bio)
+		return;
 
 	bytes_done = 0;
 	dev_info = bio->bi_bdev->bd_disk->private_data;
