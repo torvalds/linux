@@ -84,19 +84,20 @@ struct clone_root {
 #define SEND_MAX_NAME_CACHE_SIZE			256
 
 /*
- * Limit the root_ids array of struct backref_cache_entry to 12 elements.
- * This makes the size of a cache entry to be exactly 128 bytes on x86_64.
+ * Limit the root_ids array of struct backref_cache_entry to 17 elements.
+ * This makes the size of a cache entry to be exactly 192 bytes on x86_64, which
+ * can be satisfied from the kmalloc-192 slab, without wasting any space.
  * The most common case is to have a single root for cloning, which corresponds
- * to the send root. Having the user specify more than 11 clone roots is not
+ * to the send root. Having the user specify more than 16 clone roots is not
  * common, and in such rare cases we simply don't use caching if the number of
- * cloning roots that lead down to a leaf is more than 12.
+ * cloning roots that lead down to a leaf is more than 17.
  */
-#define SEND_MAX_BACKREF_CACHE_ROOTS 12
+#define SEND_MAX_BACKREF_CACHE_ROOTS			17
 
 /*
  * Max number of entries in the cache.
- * With SEND_MAX_BACKREF_CACHE_ROOTS as 12, the size in bytes, excluding
- * maple tree's internal nodes, is 16K.
+ * With SEND_MAX_BACKREF_CACHE_ROOTS as 17, the size in bytes, excluding
+ * maple tree's internal nodes, is 24K.
  */
 #define SEND_MAX_BACKREF_CACHE_SIZE 128
 
