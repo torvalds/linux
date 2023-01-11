@@ -140,6 +140,7 @@ struct cros_ec_command {
  *      main EC.
  * @pd: The platform_device used by the mfd driver to interface with the
  *      PD behind an EC.
+ * @panic_notifier: EC panic notifier.
  */
 struct cros_ec_device {
 	/* These are used by other drivers that want to talk to the EC */

@@ -38,6 +38,8 @@ static DECLARE_WAIT_QUEUE_HEAD(cros_ec_debugfs_log_wq);
  * @log_mutex: mutex to protect circular buffer
  * @log_poll_work: recurring task to poll EC for new console log data
  * @panicinfo_blob: panicinfo debugfs blob
+ * @notifier_panic: notifier_block to let kernel to flush buffered log
+ *                  when EC panic
  */
 struct cros_ec_debugfs {
 	struct cros_ec_dev *ec;
