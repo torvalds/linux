@@ -2235,7 +2235,7 @@ static bool need_read_stripe_sectors(struct btrfs_raid_bio *rbio)
 	return false;
 }
 
-static int rmw_rbio(struct btrfs_raid_bio *rbio)
+static void rmw_rbio(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list;
 	int sectornr;
@@ -2247,7 +2247,7 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 	 */
 	ret = alloc_rbio_parity_pages(rbio);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/*
 	 * Either full stripe write, or we have every data sector already
@@ -2260,13 +2260,13 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 		 */
 		ret = alloc_rbio_data_pages(rbio);
 		if (ret < 0)
-			return ret;
+			goto out;
 
 		index_rbio_pages(rbio);
 
 		ret = rmw_read_wait_recover(rbio);
 		if (ret < 0)
-			return ret;
+			goto out;
 	}
 
 	/*
@@ -2299,7 +2299,7 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 	bio_list_init(&bio_list);
 	ret = rmw_assemble_write_bios(rbio, &bio_list);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* We should have at least one bio assembled. */
 	ASSERT(bio_list_size(&bio_list));
@@ -2316,32 +2316,22 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 			break;
 		}
 	}
-	return ret;
+out:
+	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
 }
 
 static void rmw_rbio_work(struct work_struct *work)
 {
 	struct btrfs_raid_bio *rbio;
-	int ret;
 
 	rbio = container_of(work, struct btrfs_raid_bio, work);
-
-	ret = lock_stripe_add(rbio);
-	if (ret == 0) {
-		ret = rmw_rbio(rbio);
-		rbio_orig_end_io(rbio, errno_to_blk_status(ret));
-	}
+	if (lock_stripe_add(rbio) == 0)
+		rmw_rbio(rbio);
 }
 
 static void rmw_rbio_work_locked(struct work_struct *work)
 {
-	struct btrfs_raid_bio *rbio;
-	int ret;
-
-	rbio = container_of(work, struct btrfs_raid_bio, work);
-
-	ret = rmw_rbio(rbio);
-	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
+	rmw_rbio(container_of(work, struct btrfs_raid_bio, work));
 }
 
 /*
