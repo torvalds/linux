@@ -2192,48 +2192,44 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 			    u64 ino, u64 ino_gen,
 			    const char *name, int name_len)
 {
-	int ret = 0;
+	int ret;
 	u64 gen;
 	u64 ow_inode;
 
 	if (!sctx->parent_root)
-		goto out;
+		return 0;
 
 	ret = is_inode_existent(sctx, dir, dir_gen);
 	if (ret <= 0)
-		goto out;
+		return ret;
 
 	if (dir != BTRFS_FIRST_FREE_OBJECTID) {
 		ret = get_inode_gen(sctx->send_root, dir, &gen);
-		if (ret < 0 && ret != -ENOENT)
-			goto out;
-		if (ret) {
-			ret = 0;
-			goto out;
-		}
+		if (ret == -ENOENT)
+			return 0;
+		else if (ret < 0)
+			return ret;
+
 		if (gen != dir_gen)
-			goto out;
+			return 0;
 	}
 
 	/* check if the ref was overwritten by another ref */
 	ret = lookup_dir_item_inode(sctx->send_root, dir, name, name_len,
 				    &ow_inode);
-	if (ret < 0 && ret != -ENOENT)
-		goto out;
-	if (ret) {
+	if (ret == -ENOENT) {
 		/* was never and will never be overwritten */
-		ret = 0;
-		goto out;
+		return 0;
+	} else if (ret < 0) {
+		return ret;
 	}
 
 	ret = get_inode_gen(sctx->send_root, ow_inode, &gen);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	if (ow_inode == ino && gen == ino_gen) {
-		ret = 0;
-		goto out;
-	}
+	if (ow_inode == ino && gen == ino_gen)
+		return 0;
 
 	/*
 	 * We know that it is or will be overwritten. Check this now.
@@ -2244,12 +2240,9 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 	if ((ow_inode < sctx->send_progress) ||
 	    (ino != sctx->cur_ino && ow_inode == sctx->cur_ino &&
 	     gen == sctx->cur_inode_gen))
-		ret = 1;
-	else
-		ret = 0;
+		return 1;
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
