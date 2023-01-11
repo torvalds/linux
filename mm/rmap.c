@@ -1309,10 +1309,11 @@ void page_add_new_anon_rmap(struct page *page,
  *
  * The caller needs to hold the pte lock.
  */
-void page_add_file_rmap(struct page *page,
-	struct vm_area_struct *vma, bool compound)
+void page_add_file_rmap(struct page *page, struct vm_area_struct *vma,
+		bool compound)
 {
-	atomic_t *mapped;
+	struct folio *folio = page_folio(page);
+	atomic_t *mapped = &folio->_nr_pages_mapped;
 	int nr = 0, nr_pmdmapped = 0;
 	bool first;
 
@@ -1322,20 +1323,18 @@ void page_add_file_rmap(struct page *page,
 	if (likely(!compound)) {
 		first = atomic_inc_and_test(&page->_mapcount);
 		nr = first;
-		if (first && PageCompound(page)) {
-			mapped = subpages_mapcount_ptr(compound_head(page));
+		if (first && folio_test_large(folio)) {
 			nr = atomic_inc_return_relaxed(mapped);
 			nr = (nr < COMPOUND_MAPPED);
 		}
-	} else if (PageTransHuge(page)) {
+	} else if (folio_test_pmd_mappable(folio)) {
 		/* That test is redundant: it's for safety or to optimize out */
 
-		first = atomic_inc_and_test(compound_mapcount_ptr(page));
+		first = atomic_inc_and_test(&folio->_entire_mapcount);
 		if (first) {
-			mapped = subpages_mapcount_ptr(page);
 			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
 			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
-				nr_pmdmapped = thp_nr_pages(page);
+				nr_pmdmapped = folio_nr_pages(folio);
 				nr = nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
 				/* Raced ahead of a remove and another add? */
 				if (unlikely(nr < 0))
@@ -1348,10 +1347,10 @@ void page_add_file_rmap(struct page *page,
 	}
 
 	if (nr_pmdmapped)
-		__mod_lruvec_page_state(page, PageSwapBacked(page) ?
+		__lruvec_stat_mod_folio(folio, folio_test_swapbacked(folio) ?
 			NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED, nr_pmdmapped);
 	if (nr)
-		__mod_lruvec_page_state(page, NR_FILE_MAPPED, nr);
+		__lruvec_stat_mod_folio(folio, NR_FILE_MAPPED, nr);
 
 	mlock_vma_page(page, vma, compound);
 }
