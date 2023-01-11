@@ -82,6 +82,10 @@ struct vin_line {
 	spinlock_t output_lock;
 	const struct vin2_format *formats;
 	unsigned int nformats;
+#ifdef CONFIG_PM_SLEEP
+	int pm_stream_count;
+	int pm_power_count;
+#endif
 };
 
 struct stf_vin2_dev;
