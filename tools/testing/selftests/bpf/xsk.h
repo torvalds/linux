@@ -201,6 +201,7 @@ int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags)
 void xsk_detach_xdp_program(int ifindex, u32 xdp_flags);
 int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk);
 void xsk_clear_xskmap(struct bpf_map *map);
+bool xsk_is_in_mode(u32 ifindex, int mode);
 
 struct xsk_socket_config {
 	__u32 rx_size;

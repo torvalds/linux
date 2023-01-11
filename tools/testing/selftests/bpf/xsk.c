@@ -267,6 +267,25 @@ out_umem_alloc:
 	return err;
 }
 
+bool xsk_is_in_mode(u32 ifindex, int mode)
+{
+	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
+	int ret;
+
+	ret = bpf_xdp_query(ifindex, mode, &opts);
+	if (ret) {
+		printf("XDP mode query returned error %s\n", strerror(errno));
+		return false;
+	}
+
+	if (mode == XDP_FLAGS_DRV_MODE)
+		return opts.attach_mode == XDP_ATTACHED_DRV;
+	else if (mode == XDP_FLAGS_SKB_MODE)
+		return opts.attach_mode == XDP_ATTACHED_SKB;
+
+	return false;
+}
+
 int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags)
 {
 	int prog_fd;

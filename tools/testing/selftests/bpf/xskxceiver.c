@@ -96,6 +96,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdatomic.h>
+
+#include "xsk_xdp_progs.skel.h"
 #include "xsk.h"
 #include "xskxceiver.h"
 #include <bpf/bpf.h>
@@ -356,7 +358,6 @@ static bool ifobj_zc_avail(struct ifobject *ifobject)
 	xsk = calloc(1, sizeof(struct xsk_socket_info));
 	if (!xsk)
 		goto out;
-	ifobject->xdp_flags = XDP_FLAGS_DRV_MODE;
 	ifobject->bind_flags = XDP_USE_NEED_WAKEUP | XDP_ZEROCOPY;
 	ifobject->rx_on = true;
 	xsk->rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -493,6 +494,10 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 	test->total_steps = 1;
 	test->nb_sockets = 1;
 	test->fail = false;
+	test->xdp_prog_rx = ifobj_rx->xdp_progs->progs.xsk_def_prog;
+	test->xskmap_rx = ifobj_rx->xdp_progs->maps.xsk;
+	test->xdp_prog_tx = ifobj_tx->xdp_progs->progs.xsk_def_prog;
+	test->xskmap_tx = ifobj_tx->xdp_progs->maps.xsk;
 }
 
 static void test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
@@ -530,6 +535,16 @@ static void test_spec_reset(struct test_spec *test)
 static void test_spec_set_name(struct test_spec *test, const char *name)
 {
 	strncpy(test->name, name, MAX_TEST_NAME_SIZE);
+}
+
+static void test_spec_set_xdp_prog(struct test_spec *test, struct bpf_program *xdp_prog_rx,
+				   struct bpf_program *xdp_prog_tx, struct bpf_map *xskmap_rx,
+				   struct bpf_map *xskmap_tx)
+{
+	test->xdp_prog_rx = xdp_prog_rx;
+	test->xdp_prog_tx = xdp_prog_tx;
+	test->xskmap_rx = xskmap_rx;
+	test->xskmap_tx = xskmap_tx;
 }
 
 static void pkt_stream_reset(struct pkt_stream *pkt_stream)
@@ -1356,6 +1371,47 @@ static void handler(int signum)
 	pthread_exit(NULL);
 }
 
+static bool xdp_prog_changed(struct test_spec *test, struct ifobject *ifobj)
+{
+	return ifobj->xdp_prog != test->xdp_prog_rx || ifobj->mode != test->mode;
+}
+
+static void xsk_reattach_xdp(struct ifobject *ifobj, struct bpf_program *xdp_prog,
+			     struct bpf_map *xskmap, enum test_mode mode)
+{
+	int err;
+
+	xsk_detach_xdp_program(ifobj->ifindex, mode_to_xdp_flags(ifobj->mode));
+	err = xsk_attach_xdp_program(xdp_prog, ifobj->ifindex, mode_to_xdp_flags(mode));
+	if (err) {
+		printf("Error attaching XDP program\n");
+		exit_with_error(-err);
+	}
+
+	if (ifobj->mode != mode && (mode == TEST_MODE_DRV || mode == TEST_MODE_ZC))
+		if (!xsk_is_in_mode(ifobj->ifindex, XDP_FLAGS_DRV_MODE)) {
+			ksft_print_msg("ERROR: XDP prog not in DRV mode\n");
+			exit_with_error(EINVAL);
+		}
+
+	ifobj->xdp_prog = xdp_prog;
+	ifobj->xskmap = xskmap;
+	ifobj->mode = mode;
+}
+
+static void xsk_attach_xdp_progs(struct test_spec *test, struct ifobject *ifobj_rx,
+				 struct ifobject *ifobj_tx)
+{
+	if (xdp_prog_changed(test, ifobj_rx))
+		xsk_reattach_xdp(ifobj_rx, test->xdp_prog_rx, test->xskmap_rx, test->mode);
+
+	if (!ifobj_tx || ifobj_tx->shared_umem)
+		return;
+
+	if (xdp_prog_changed(test, ifobj_tx))
+		xsk_reattach_xdp(ifobj_tx, test->xdp_prog_tx, test->xskmap_tx, test->mode);
+}
+
 static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *ifobj1,
 				      struct ifobject *ifobj2)
 {
@@ -1403,7 +1459,11 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 
 static int testapp_validate_traffic(struct test_spec *test)
 {
-	return __testapp_validate_traffic(test, test->ifobj_rx, test->ifobj_tx);
+	struct ifobject *ifobj_rx = test->ifobj_rx;
+	struct ifobject *ifobj_tx = test->ifobj_tx;
+
+	xsk_attach_xdp_progs(test, ifobj_rx, ifobj_tx);
+	return __testapp_validate_traffic(test, ifobj_rx, ifobj_tx);
 }
 
 static int testapp_validate_traffic_single_thread(struct test_spec *test, struct ifobject *ifobj)
@@ -1446,7 +1506,7 @@ static void testapp_bidi(struct test_spec *test)
 
 	print_verbose("Switching Tx/Rx vectors\n");
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
-	testapp_validate_traffic(test);
+	__testapp_validate_traffic(test, test->ifobj_rx, test->ifobj_tx);
 
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
 }
@@ -1615,29 +1675,15 @@ static void testapp_invalid_desc(struct test_spec *test)
 
 static void testapp_xdp_drop(struct test_spec *test)
 {
-	struct ifobject *ifobj = test->ifobj_rx;
-	int err;
+	struct xsk_xdp_progs *skel_rx = test->ifobj_rx->xdp_progs;
+	struct xsk_xdp_progs *skel_tx = test->ifobj_tx->xdp_progs;
 
 	test_spec_set_name(test, "XDP_DROP_HALF");
-	xsk_detach_xdp_program(ifobj->ifindex, ifobj->xdp_flags);
-	err = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_xdp_drop, ifobj->ifindex,
-				     ifobj->xdp_flags);
-	if (err) {
-		printf("Error attaching XDP_DROP program\n");
-		test->fail = true;
-		return;
-	}
+	test_spec_set_xdp_prog(test, skel_rx->progs.xsk_xdp_drop, skel_tx->progs.xsk_xdp_drop,
+			       skel_rx->maps.xsk, skel_tx->maps.xsk);
 
 	pkt_stream_receive_half(test);
 	testapp_validate_traffic(test);
-
-	xsk_detach_xdp_program(ifobj->ifindex, ifobj->xdp_flags);
-	err = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_def_prog, ifobj->ifindex,
-				     ifobj->xdp_flags);
-	if (err) {
-		printf("Error restoring default XDP program\n");
-		exit_with_error(-err);
-	}
 }
 
 static void testapp_poll_txq_tmout(struct test_spec *test)
@@ -1674,7 +1720,7 @@ static void xsk_unload_xdp_programs(struct ifobject *ifobj)
 
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       const char *dst_ip, const char *src_ip, const u16 dst_port,
-		       const u16 src_port, thread_func_t func_ptr, bool load_xdp)
+		       const u16 src_port, thread_func_t func_ptr)
 {
 	struct in_addr ip;
 	int err;
@@ -1693,23 +1739,11 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 
 	ifobj->func_ptr = func_ptr;
 
-	if (!load_xdp)
-		return;
-
 	err = xsk_load_xdp_programs(ifobj);
 	if (err) {
 		printf("Error loading XDP program\n");
 		exit_with_error(err);
 	}
-
-	ifobj->xdp_flags = mode_to_xdp_flags(TEST_MODE_SKB);
-	err = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_def_prog, ifobj->ifindex,
-				     ifobj->xdp_flags);
-	if (err) {
-		printf("Error attaching XDP program\n");
-		exit_with_error(-err);
-	}
-	ifobj->xskmap = ifobj->xdp_progs->maps.xsk;
 }
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
@@ -1871,31 +1905,6 @@ static bool is_xdp_supported(int ifindex)
 	return true;
 }
 
-static void change_to_drv_mode(struct ifobject *ifobj)
-{
-	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
-	int ret;
-
-	xsk_detach_xdp_program(ifobj->ifindex, ifobj->xdp_flags);
-	ifobj->xdp_flags = XDP_FLAGS_DRV_MODE;
-	ret = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_def_prog, ifobj->ifindex,
-				     ifobj->xdp_flags);
-	if (ret) {
-		ksft_print_msg("Error attaching XDP program\n");
-		exit_with_error(-ret);
-	}
-	ifobj->xskmap = ifobj->xdp_progs->maps.xsk;
-
-	ret = bpf_xdp_query(ifobj->ifindex, XDP_FLAGS_DRV_MODE, &opts);
-	if (ret)
-		exit_with_error(errno);
-
-	if (opts.attach_mode != XDP_ATTACHED_DRV) {
-		ksft_print_msg("ERROR: XDP prog not in DRV mode\n");
-		exit_with_error(EINVAL);
-	}
-}
-
 int main(int argc, char **argv)
 {
 	struct pkt_stream *rx_pkt_stream_default;
@@ -1936,9 +1945,9 @@ int main(int argc, char **argv)
 	}
 
 	init_iface(ifobj_rx, MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2,
-		   worker_testapp_validate_rx, true);
+		   worker_testapp_validate_rx);
 	init_iface(ifobj_tx, MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1,
-		   worker_testapp_validate_tx, !shared_netdev);
+		   worker_testapp_validate_tx);
 
 	test_spec_init(&test, ifobj_tx, ifobj_rx, 0);
 	tx_pkt_stream_default = pkt_stream_generate(ifobj_tx->umem, DEFAULT_PKT_CNT, PKT_SIZE);
@@ -1951,12 +1960,6 @@ int main(int argc, char **argv)
 	ksft_set_plan(modes * TEST_TYPE_MAX);
 
 	for (i = 0; i < modes; i++) {
-		if (i == TEST_MODE_DRV) {
-			change_to_drv_mode(ifobj_rx);
-			if (!shared_netdev)
-				change_to_drv_mode(ifobj_tx);
-		}
-
 		for (j = 0; j < TEST_TYPE_MAX; j++) {
 			test_spec_init(&test, ifobj_tx, ifobj_rx, i);
 			run_pkt_test(&test, i, j);
