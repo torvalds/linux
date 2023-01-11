@@ -1914,7 +1914,7 @@ out:
 	return ret;
 }
 
-static int recover_rbio(struct btrfs_raid_bio *rbio)
+static void recover_rbio(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list = BIO_EMPTY_LIST;
 	int total_sector_nr;
@@ -1929,7 +1929,7 @@ static int recover_rbio(struct btrfs_raid_bio *rbio)
 	/* For recovery, we need to read all sectors including P/Q. */
 	ret = alloc_rbio_pages(rbio);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	index_rbio_pages(rbio);
 
@@ -1967,37 +1967,28 @@ static int recover_rbio(struct btrfs_raid_bio *rbio)
 					 sectornr, REQ_OP_READ);
 		if (ret < 0) {
 			bio_list_put(&bio_list);
-			return ret;
+			goto out;
 		}
 	}
 
 	submit_read_wait_bio_list(rbio, &bio_list);
-	return recover_sectors(rbio);
+	ret = recover_sectors(rbio);
+out:
+	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
 }
 
 static void recover_rbio_work(struct work_struct *work)
 {
 	struct btrfs_raid_bio *rbio;
-	int ret;
 
 	rbio = container_of(work, struct btrfs_raid_bio, work);
-
-	ret = lock_stripe_add(rbio);
-	if (ret == 0) {
-		ret = recover_rbio(rbio);
-		rbio_orig_end_io(rbio, errno_to_blk_status(ret));
-	}
+	if (!lock_stripe_add(rbio))
+		recover_rbio(rbio);
 }
 
 static void recover_rbio_work_locked(struct work_struct *work)
 {
-	struct btrfs_raid_bio *rbio;
-	int ret;
-
-	rbio = container_of(work, struct btrfs_raid_bio, work);
-
-	ret = recover_rbio(rbio);
-	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
+	recover_rbio(container_of(work, struct btrfs_raid_bio, work));
 }
 
 static void set_rbio_raid6_extra_error(struct btrfs_raid_bio *rbio, int mirror_num)
