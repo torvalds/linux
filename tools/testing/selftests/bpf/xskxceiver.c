@@ -1646,6 +1646,34 @@ static void testapp_invalid_desc(struct test_spec *test)
 	pkt_stream_restore_default(test);
 }
 
+static void testapp_xdp_drop(struct test_spec *test)
+{
+	struct ifobject *ifobj = test->ifobj_rx;
+	int err;
+
+	test_spec_set_name(test, "XDP_DROP_HALF");
+	xsk_detach_xdp_program(ifobj->ifindex, ifobj->xdp_flags);
+	err = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_xdp_drop, ifobj->ifindex,
+				     ifobj->xdp_flags);
+	if (err) {
+		printf("Error attaching XDP_DROP program\n");
+		test->fail = true;
+		return;
+	}
+
+	pkt_stream_receive_half(test);
+	testapp_validate_traffic(test);
+
+	pkt_stream_restore_default(test);
+	xsk_detach_xdp_program(ifobj->ifindex, ifobj->xdp_flags);
+	err = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_def_prog, ifobj->ifindex,
+				     ifobj->xdp_flags);
+	if (err) {
+		printf("Error restoring default XDP program\n");
+		exit_with_error(-err);
+	}
+}
+
 static int xsk_load_xdp_programs(struct ifobject *ifobj)
 {
 	ifobj->xdp_progs = xsk_xdp_progs__open_and_load();
@@ -1795,6 +1823,9 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		break;
 	case TEST_TYPE_HEADROOM:
 		testapp_headroom(test);
+		break;
+	case TEST_TYPE_XDP_DROP_HALF:
+		testapp_xdp_drop(test);
 		break;
 	default:
 		break;
