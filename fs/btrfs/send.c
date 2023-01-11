@@ -120,7 +120,7 @@ static_assert(offsetof(struct backref_cache_entry, entry) == 0);
 /*
  * Max number of entries in the cache that stores directories that were already
  * created. The cache uses raw struct btrfs_lru_cache_entry entries, so it uses
- * at most 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 40 bytes, but
+ * at most 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 48 bytes, but
  * the kmalloc-64 slab is used, so we get 4096 bytes (64 bytes * 64).
  */
 #define SEND_MAX_DIR_CREATED_CACHE_SIZE			64
@@ -1422,7 +1422,7 @@ static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 		return false;
 	}
 
-	raw_entry = btrfs_lru_cache_lookup(&sctx->backref_cache, key);
+	raw_entry = btrfs_lru_cache_lookup(&sctx->backref_cache, key, 0);
 	if (!raw_entry)
 		return false;
 
@@ -1455,6 +1455,7 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 		return;
 
 	new_entry->entry.key = leaf_bytenr >> fs_info->sectorsize_bits;
+	new_entry->entry.gen = 0;
 	new_entry->num_roots = 0;
 	ULIST_ITER_INIT(&uiter);
 	while ((node = ulist_next(root_ids, &uiter)) != NULL) {
@@ -2957,6 +2958,7 @@ static void cache_dir_created(struct send_ctx *sctx, u64 dir)
 		return;
 
 	entry->key = dir;
+	entry->gen = 0;
 	ret = btrfs_lru_cache_store(&sctx->dir_created_cache, entry, GFP_KERNEL);
 	if (ret < 0)
 		kfree(entry);
@@ -2977,7 +2979,7 @@ static int did_create_dir(struct send_ctx *sctx, u64 dir)
 	struct btrfs_key di_key;
 	struct btrfs_dir_item *di;
 
-	if (btrfs_lru_cache_lookup(&sctx->dir_created_cache, dir))
+	if (btrfs_lru_cache_lookup(&sctx->dir_created_cache, dir, 0))
 		return 1;
 
 	path = alloc_path_for_send();

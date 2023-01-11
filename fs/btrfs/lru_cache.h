@@ -18,6 +18,13 @@ struct btrfs_lru_cache_entry {
 	struct list_head lru_list;
 	u64 key;
 	/*
+	 * Optional generation associated to a key. Use 0 if not needed/used.
+	 * Entries with the same key and different generations are stored in a
+	 * linked list, so use this only for cases where there's a small number
+	 * of different generations.
+	 */
+	u64 gen;
+	/*
 	 * The maple tree uses unsigned long type for the keys, which is 32 bits
 	 * on 32 bits systems, and 64 bits on 64 bits systems. So if we want to
 	 * use something like inode numbers as keys, which are always a u64, we
@@ -47,7 +54,7 @@ static inline unsigned int btrfs_lru_cache_size(const struct btrfs_lru_cache *ca
 
 void btrfs_lru_cache_init(struct btrfs_lru_cache *cache, unsigned int max_size);
 struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cache,
-						     u64 key);
+						     u64 key, u64 gen);
 int btrfs_lru_cache_store(struct btrfs_lru_cache *cache,
 			  struct btrfs_lru_cache_entry *new_entry,
 			  gfp_t gfp);

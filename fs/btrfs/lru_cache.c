@@ -18,12 +18,13 @@ void btrfs_lru_cache_init(struct btrfs_lru_cache *cache, unsigned int max_size)
 	cache->max_size = max_size;
 }
 
-static struct btrfs_lru_cache_entry *match_entry(struct list_head *head, u64 key)
+static struct btrfs_lru_cache_entry *match_entry(struct list_head *head, u64 key,
+						 u64 gen)
 {
 	struct btrfs_lru_cache_entry *entry;
 
 	list_for_each_entry(entry, head, list) {
-		if (entry->key == key)
+		if (entry->key == key && entry->gen == gen)
 			return entry;
 	}
 
@@ -35,11 +36,12 @@ static struct btrfs_lru_cache_entry *match_entry(struct list_head *head, u64 key
  *
  * @cache:      The cache.
  * @key:        The key of the entry we are looking for.
+ * @gen:        Generation associated to the key.
  *
  * Returns the entry associated with the key or NULL if none found.
  */
 struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cache,
-						     u64 key)
+						     u64 key, u64 gen)
 {
 	struct list_head *head;
 	struct btrfs_lru_cache_entry *entry;
@@ -48,7 +50,7 @@ struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cac
 	if (!head)
 		return NULL;
 
-	entry = match_entry(head, key);
+	entry = match_entry(head, key, gen);
 	if (entry)
 		list_move_tail(&entry->lru_list, &cache->lru_list);
 
@@ -111,7 +113,7 @@ int btrfs_lru_cache_store(struct btrfs_lru_cache *cache,
 		kfree(head);
 		head = mtree_load(&cache->entries, key);
 		ASSERT(head != NULL);
-		if (match_entry(head, key) != NULL)
+		if (match_entry(head, key, new_entry->gen) != NULL)
 			return -EEXIST;
 		list_add_tail(&new_entry->list, head);
 	} else if (ret < 0) {
