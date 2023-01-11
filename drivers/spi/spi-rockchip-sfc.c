@@ -114,6 +114,7 @@
 #define  SFC_VER_4			0x4
 #define  SFC_VER_5			0x5
 #define  SFC_VER_6			0x6
+#define  SFC_VER_8			0x8
 
 /* Delay line controller resiter */
 #define SFC_DLL_CTRL0			0x3C
@@ -227,6 +228,7 @@ static u32 rockchip_sfc_get_max_iosize(struct rockchip_sfc *sfc)
 static u32 rockchip_sfc_get_max_dll_cells(struct rockchip_sfc *sfc)
 {
 	switch (rockchip_sfc_get_version(sfc)) {
+	case SFC_VER_8:
 	case SFC_VER_6:
 	case SFC_VER_5:
 		return SFC_DLL_CTRL0_DLL_MAX_VER5;
