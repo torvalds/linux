@@ -23,6 +23,8 @@
 
 #include <net/ip6_checksum.h>
 
+#include "trace.h"
+
 /* Protocol timeouts in ms */
 #define TBNET_LOGIN_DELAY	4500
 #define TBNET_LOGIN_TIMEOUT	500
@@ -353,6 +355,8 @@ static void tbnet_free_buffers(struct tbnet_ring *ring)
 			size = TBNET_RX_PAGE_SIZE;
 		}
 
+		trace_tbnet_free_frame(i, tf->page, tf->frame.buffer_phy, dir);
+
 		if (tf->frame.buffer_phy)
 			dma_unmap_page(dma_dev, tf->frame.buffer_phy, size,
 				       dir);
@@ -526,6 +530,9 @@ static int tbnet_alloc_rx_buffers(struct tbnet *net, unsigned int nbuffers)
 		tf->frame.buffer_phy = dma_addr;
 		tf->dev = net->dev;
 
+		trace_tbnet_alloc_rx_frame(index, tf->page, dma_addr,
+					   DMA_FROM_DEVICE);
+
 		tb_ring_rx(ring->ring, &tf->frame);
 
 		ring->prod++;
@@ -602,6 +609,8 @@ static int tbnet_alloc_tx_buffers(struct tbnet *net)
 		tf->frame.callback = tbnet_tx_callback;
 		tf->frame.sof = TBIP_PDF_FRAME_START;
 		tf->frame.eof = TBIP_PDF_FRAME_END;
+
+		trace_tbnet_alloc_tx_frame(i, tf->page, dma_addr, DMA_TO_DEVICE);
 	}
 
 	ring->cons = 0;
@@ -832,12 +841,16 @@ static int tbnet_poll(struct napi_struct *napi, int budget)
 
 		hdr = page_address(page);
 		if (!tbnet_check_frame(net, tf, hdr)) {
+			trace_tbnet_invalid_rx_ip_frame(hdr->frame_size,
+				hdr->frame_id, hdr->frame_index, hdr->frame_count);
 			__free_pages(page, TBNET_RX_PAGE_ORDER);
 			dev_kfree_skb_any(net->skb);
 			net->skb = NULL;
 			continue;
 		}
 
+		trace_tbnet_rx_ip_frame(hdr->frame_size, hdr->frame_id,
+					hdr->frame_index, hdr->frame_count);
 		frame_size = le32_to_cpu(hdr->frame_size);
 
 		skb = net->skb;
@@ -871,6 +884,7 @@ static int tbnet_poll(struct napi_struct *napi, int budget)
 
 		if (last) {
 			skb->protocol = eth_type_trans(skb, net->dev);
+			trace_tbnet_rx_skb(skb);
 			napi_gro_receive(&net->napi, skb);
 			net->skb = NULL;
 		}
@@ -990,6 +1004,8 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 		for (i = 0; i < frame_count; i++) {
 			hdr = page_address(frames[i]->page);
 			hdr->frame_count = cpu_to_le32(frame_count);
+			trace_tbnet_tx_ip_frame(hdr->frame_size, hdr->frame_id,
+						hdr->frame_index, hdr->frame_count);
 			dma_sync_single_for_device(dma_dev,
 				frames[i]->frame.buffer_phy,
 				tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
@@ -1054,6 +1070,8 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 		len = le32_to_cpu(hdr->frame_size) - offset;
 		wsum = csum_partial(dest, len, wsum);
 		hdr->frame_count = cpu_to_le32(frame_count);
+		trace_tbnet_tx_ip_frame(hdr->frame_size, hdr->frame_id,
+					hdr->frame_index, hdr->frame_count);
 
 		offset = 0;
 	}
@@ -1095,6 +1113,8 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 	u32 frame_index = 0;
 	bool unmap = false;
 	void *dest;
+
+	trace_tbnet_tx_skb(skb);
 
 	nframes = DIV_ROUND_UP(data_len, TBNET_MAX_PAYLOAD_SIZE);
 	if (tbnet_available_buffers(&net->tx_ring) < nframes) {
@@ -1202,6 +1222,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 	net->stats.tx_packets++;
 	net->stats.tx_bytes += skb->len;
 
+	trace_tbnet_consume_skb(skb);
 	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
