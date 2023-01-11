@@ -36,6 +36,7 @@
 #define COMPAT_HWCAP_ASIMDDP	(1 << 24)
 #define COMPAT_HWCAP_ASIMDFHM	(1 << 25)
 #define COMPAT_HWCAP_ASIMDBF16	(1 << 26)
+#define COMPAT_HWCAP_I8MM	(1 << 27)
 
 #define COMPAT_HWCAP2_AES	(1 << 0)
 #define COMPAT_HWCAP2_PMULL	(1 << 1)
