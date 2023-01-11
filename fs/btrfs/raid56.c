@@ -1667,12 +1667,12 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_plug_cb *plug = NULL;
 	struct blk_plug_cb *cb;
-	int ret = 0;
 
 	rbio = alloc_rbio(fs_info, bioc);
 	if (IS_ERR(rbio)) {
-		ret = PTR_ERR(rbio);
-		goto fail;
+		bio->bi_status = errno_to_blk_status(PTR_ERR(rbio));
+		bio_endio(bio);
+		return;
 	}
 	rbio->operation = BTRFS_RBIO_WRITE;
 	rbio_add_bio(rbio, bio);
@@ -1681,31 +1681,24 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	 * Don't plug on full rbios, just get them out the door
 	 * as quickly as we can
 	 */
-	if (rbio_is_full(rbio))
-		goto queue_rbio;
-
-	cb = blk_check_plugged(raid_unplug, fs_info, sizeof(*plug));
-	if (cb) {
-		plug = container_of(cb, struct btrfs_plug_cb, cb);
-		if (!plug->info) {
-			plug->info = fs_info;
-			INIT_LIST_HEAD(&plug->rbio_list);
+	if (!rbio_is_full(rbio)) {
+		cb = blk_check_plugged(raid_unplug, fs_info, sizeof(*plug));
+		if (cb) {
+			plug = container_of(cb, struct btrfs_plug_cb, cb);
+			if (!plug->info) {
+				plug->info = fs_info;
+				INIT_LIST_HEAD(&plug->rbio_list);
+			}
+			list_add_tail(&rbio->plug_list, &plug->rbio_list);
+			return;
 		}
-		list_add_tail(&rbio->plug_list, &plug->rbio_list);
-		return;
 	}
-queue_rbio:
+
 	/*
 	 * Either we don't have any existing plug, or we're doing a full stripe,
-	 * can queue the rmw work now.
+	 * queue the rmw work now.
 	 */
 	start_async_work(rbio, rmw_rbio_work);
-
-	return;
-
-fail:
-	bio->bi_status = errno_to_blk_status(ret);
-	bio_endio(bio);
 }
 
 static int verify_one_sector(struct btrfs_raid_bio *rbio,
