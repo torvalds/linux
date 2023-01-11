@@ -1524,39 +1524,6 @@ static void submit_read_wait_bio_list(struct btrfs_raid_bio *rbio,
 	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
 }
 
-static int rmw_assemble_read_bios(struct btrfs_raid_bio *rbio,
-				  struct bio_list *bio_list)
-{
-	int total_sector_nr;
-	int ret = 0;
-
-	ASSERT(bio_list_size(bio_list) == 0);
-
-	/*
-	 * Build a list of bios to read all sectors (including data and P/Q).
-	 *
-	 * This behavior is to compensate the later csum verification and
-	 * recovery.
-	 */
-	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
-	     total_sector_nr++) {
-		struct sector_ptr *sector;
-		int stripe = total_sector_nr / rbio->stripe_nsectors;
-		int sectornr = total_sector_nr % rbio->stripe_nsectors;
-
-		sector = rbio_stripe_sector(rbio, stripe, sectornr);
-		ret = rbio_add_io_sector(rbio, bio_list, sector,
-			       stripe, sectornr, REQ_OP_READ);
-		if (ret)
-			goto cleanup;
-	}
-	return 0;
-
-cleanup:
-	bio_list_put(bio_list);
-	return ret;
-}
-
 static int alloc_rbio_data_pages(struct btrfs_raid_bio *rbio)
 {
 	const int data_pages = rbio->nr_data * rbio->stripe_npages;
@@ -2176,10 +2143,9 @@ no_csum:
 
 static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 {
-	struct bio_list bio_list;
-	int ret;
-
-	bio_list_init(&bio_list);
+	struct bio_list bio_list = BIO_EMPTY_LIST;
+	int total_sector_nr;
+	int ret = 0;
 
 	/*
 	 * Fill the data csums we need for data verification.  We need to fill
@@ -2188,21 +2154,32 @@ static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 	 */
 	fill_data_csums(rbio);
 
-	ret = rmw_assemble_read_bios(rbio, &bio_list);
-	if (ret < 0)
-		goto out;
+	/*
+	 * Build a list of bios to read all sectors (including data and P/Q).
+	 *
+	 * This behavior is to compensate the later csum verification and recovery.
+	 */
+	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
+	     total_sector_nr++) {
+		struct sector_ptr *sector;
+		int stripe = total_sector_nr / rbio->stripe_nsectors;
+		int sectornr = total_sector_nr % rbio->stripe_nsectors;
 
-	submit_read_wait_bio_list(rbio, &bio_list);
+		sector = rbio_stripe_sector(rbio, stripe, sectornr);
+		ret = rbio_add_io_sector(rbio, &bio_list, sector,
+			       stripe, sectornr, REQ_OP_READ);
+		if (ret) {
+			bio_list_put(&bio_list);
+			return ret;
+		}
+	}
 
 	/*
 	 * We may or may not have any corrupted sectors (including missing dev
 	 * and csum mismatch), just let recover_sectors() to handle them all.
 	 */
-	ret = recover_sectors(rbio);
-	return ret;
-out:
-	bio_list_put(&bio_list);
-	return ret;
+	submit_read_wait_bio_list(rbio, &bio_list);
+	return recover_sectors(rbio);
 }
 
 static void raid_wait_write_end_io(struct bio *bio)
