@@ -1232,7 +1232,7 @@ static int configure_endpoints(struct snd_usb_audio *chip,
 	int err;
 
 	if (subs->data_endpoint->need_setup) {
-		err = snd_usb_endpoint_configure(chip, subs->data_endpoint);
+		err = snd_usb_endpoint_prepare(chip, subs->data_endpoint);
 		if (err < 0) {
 			uaudio_err("failed to configure data endpoint\n");
 			return err;
@@ -1240,7 +1240,7 @@ static int configure_endpoints(struct snd_usb_audio *chip,
 	}
 
 	if (subs->sync_endpoint) {
-		err = snd_usb_endpoint_configure(chip, subs->sync_endpoint);
+		err = snd_usb_endpoint_prepare(chip, subs->sync_endpoint);
 		if (err < 0) {
 			uaudio_err("failed to configure endpoint\n");
 			return err;
