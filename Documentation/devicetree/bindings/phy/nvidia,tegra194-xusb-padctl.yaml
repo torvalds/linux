@@ -42,7 +42,9 @@ description: |
 
 properties:
   compatible:
-    const: nvidia,tegra194-xusb-padctl
+    enum:
+      - nvidia,tegra194-xusb-padctl
+      - nvidia,tegra234-xusb-padctl
 
   reg:
     items:
