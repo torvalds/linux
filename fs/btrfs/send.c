@@ -81,8 +81,7 @@ struct clone_root {
 	bool found_ref;
 };
 
-#define SEND_CTX_MAX_NAME_CACHE_SIZE 128
-#define SEND_CTX_NAME_CACHE_CLEAN_SIZE (SEND_CTX_MAX_NAME_CACHE_SIZE * 2)
+#define SEND_MAX_NAME_CACHE_SIZE			256
 
 /*
  * Limit the root_ids array of struct backref_cache_entry to 12 elements.
@@ -183,9 +182,7 @@ struct send_ctx {
 	struct list_head new_refs;
 	struct list_head deleted_refs;
 
-	struct radix_tree_root name_cache;
-	struct list_head name_cache_list;
-	int name_cache_size;
+	struct btrfs_lru_cache name_cache;
 
 	/*
 	 * The inode we are currently processing. It's not NULL only when we
@@ -331,18 +328,11 @@ struct orphan_dir_info {
 };
 
 struct name_cache_entry {
-	struct list_head list;
 	/*
-	 * radix_tree has only 32bit entries but we need to handle 64bit inums.
-	 * We use the lower 32bit of the 64bit inum to store it in the tree. If
-	 * more then one inum would fall into the same entry, we use radix_list
-	 * to store the additional entries. radix_list is also used to store
-	 * entries where two entries have the same inum but different
-	 * generations.
+	 * The key in the entry is an inode number, and the generation matches
+	 * the inode's generation.
 	 */
-	struct list_head radix_list;
-	u64 ino;
-	u64 gen;
+	struct btrfs_lru_cache_entry entry;
 	u64 parent_ino;
 	u64 parent_gen;
 	int ret;
@@ -350,6 +340,9 @@ struct name_cache_entry {
 	int name_len;
 	char name[];
 };
+
+/* See the comment at lru_cache.h about struct btrfs_lru_cache_entry. */
+static_assert(offsetof(struct name_cache_entry, entry) == 0);
 
 #define ADVANCE							1
 #define ADVANCE_ONLY_NEXT					-1
@@ -2261,113 +2254,16 @@ out:
 	return ret;
 }
 
-/*
- * Insert a name cache entry. On 32bit kernels the radix tree index is 32bit,
- * so we need to do some special handling in case we have clashes. This function
- * takes care of this with the help of name_cache_entry::radix_list.
- * In case of error, nce is kfreed.
- */
-static int name_cache_insert(struct send_ctx *sctx,
-			     struct name_cache_entry *nce)
+static inline struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
+							 u64 ino, u64 gen)
 {
-	int ret = 0;
-	struct list_head *nce_head;
+	struct btrfs_lru_cache_entry *entry;
 
-	nce_head = radix_tree_lookup(&sctx->name_cache,
-			(unsigned long)nce->ino);
-	if (!nce_head) {
-		nce_head = kmalloc(sizeof(*nce_head), GFP_KERNEL);
-		if (!nce_head) {
-			kfree(nce);
-			return -ENOMEM;
-		}
-		INIT_LIST_HEAD(nce_head);
-
-		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
-		if (ret < 0) {
-			kfree(nce_head);
-			kfree(nce);
-			return ret;
-		}
-	}
-	list_add_tail(&nce->radix_list, nce_head);
-	list_add_tail(&nce->list, &sctx->name_cache_list);
-	sctx->name_cache_size++;
-
-	return ret;
-}
-
-static void name_cache_delete(struct send_ctx *sctx,
-			      struct name_cache_entry *nce)
-{
-	struct list_head *nce_head;
-
-	nce_head = radix_tree_lookup(&sctx->name_cache,
-			(unsigned long)nce->ino);
-	if (!nce_head) {
-		btrfs_err(sctx->send_root->fs_info,
-	      "name_cache_delete lookup failed ino %llu cache size %d, leaking memory",
-			nce->ino, sctx->name_cache_size);
-	}
-
-	list_del(&nce->radix_list);
-	list_del(&nce->list);
-	sctx->name_cache_size--;
-
-	/*
-	 * We may not get to the final release of nce_head if the lookup fails
-	 */
-	if (nce_head && list_empty(nce_head)) {
-		radix_tree_delete(&sctx->name_cache, (unsigned long)nce->ino);
-		kfree(nce_head);
-	}
-}
-
-static struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
-						    u64 ino, u64 gen)
-{
-	struct list_head *nce_head;
-	struct name_cache_entry *cur;
-
-	nce_head = radix_tree_lookup(&sctx->name_cache, (unsigned long)ino);
-	if (!nce_head)
+	entry = btrfs_lru_cache_lookup(&sctx->name_cache, ino, gen);
+	if (!entry)
 		return NULL;
 
-	list_for_each_entry(cur, nce_head, radix_list) {
-		if (cur->ino == ino && cur->gen == gen)
-			return cur;
-	}
-	return NULL;
-}
-
-/*
- * Remove some entries from the beginning of name_cache_list.
- */
-static void name_cache_clean_unused(struct send_ctx *sctx)
-{
-	struct name_cache_entry *nce;
-
-	if (sctx->name_cache_size < SEND_CTX_NAME_CACHE_CLEAN_SIZE)
-		return;
-
-	while (sctx->name_cache_size > SEND_CTX_MAX_NAME_CACHE_SIZE) {
-		nce = list_entry(sctx->name_cache_list.next,
-				struct name_cache_entry, list);
-		name_cache_delete(sctx, nce);
-		kfree(nce);
-	}
-}
-
-static void name_cache_free(struct send_ctx *sctx)
-{
-	struct name_cache_entry *nce;
-
-	while (!list_empty(&sctx->name_cache_list)) {
-		nce = list_entry(sctx->name_cache_list.next,
-				struct name_cache_entry, list);
-		name_cache_delete(sctx, nce);
-		kfree(nce);
-	}
+	return container_of(entry, struct name_cache_entry, entry);
 }
 
 /*
@@ -2386,7 +2282,7 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 {
 	int ret;
 	int nce_ret;
-	struct name_cache_entry *nce = NULL;
+	struct name_cache_entry *nce;
 
 	/*
 	 * First check if we already did a call to this function with the same
@@ -2396,17 +2292,9 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	nce = name_cache_search(sctx, ino, gen);
 	if (nce) {
 		if (ino < sctx->send_progress && nce->need_later_update) {
-			name_cache_delete(sctx, nce);
-			kfree(nce);
+			btrfs_lru_cache_remove(&sctx->name_cache, &nce->entry);
 			nce = NULL;
 		} else {
-			/*
-			 * Removes the entry from the list and adds it back to
-			 * the end.  This marks the entry as recently used so
-			 * that name_cache_clean_unused does not remove it.
-			 */
-			list_move_tail(&nce->list, &sctx->name_cache_list);
-
 			*parent_ino = nce->parent_ino;
 			*parent_gen = nce->parent_gen;
 			ret = fs_path_add(dest, nce->name, nce->name_len);
@@ -2473,8 +2361,8 @@ out_cache:
 		goto out;
 	}
 
-	nce->ino = ino;
-	nce->gen = gen;
+	nce->entry.key = ino;
+	nce->entry.gen = gen;
 	nce->parent_ino = *parent_ino;
 	nce->parent_gen = *parent_gen;
 	nce->name_len = fs_path_len(dest);
@@ -2486,10 +2374,11 @@ out_cache:
 	else
 		nce->need_later_update = 1;
 
-	nce_ret = name_cache_insert(sctx, nce);
-	if (nce_ret < 0)
+	nce_ret = btrfs_lru_cache_store(&sctx->name_cache, &nce->entry, GFP_KERNEL);
+	if (nce_ret < 0) {
+		kfree(nce);
 		ret = nce_ret;
-	name_cache_clean_unused(sctx);
+	}
 
 out:
 	return ret;
@@ -4356,10 +4245,9 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				 * and get instead the orphan name.
 				 */
 				nce = name_cache_search(sctx, ow_inode, ow_gen);
-				if (nce) {
-					name_cache_delete(sctx, nce);
-					kfree(nce);
-				}
+				if (nce)
+					btrfs_lru_cache_remove(&sctx->name_cache,
+							       &nce->entry);
 
 				/*
 				 * ow_inode might currently be an ancestor of
@@ -8143,9 +8031,8 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 
 	INIT_LIST_HEAD(&sctx->new_refs);
 	INIT_LIST_HEAD(&sctx->deleted_refs);
-	INIT_RADIX_TREE(&sctx->name_cache, GFP_KERNEL);
-	INIT_LIST_HEAD(&sctx->name_cache_list);
 
+	btrfs_lru_cache_init(&sctx->name_cache, SEND_MAX_NAME_CACHE_SIZE);
 	btrfs_lru_cache_init(&sctx->backref_cache, SEND_MAX_BACKREF_CACHE_SIZE);
 	btrfs_lru_cache_init(&sctx->dir_created_cache,
 			     SEND_MAX_DIR_CREATED_CACHE_SIZE);
@@ -8408,10 +8295,9 @@ out:
 		kvfree(sctx->send_buf);
 		kvfree(sctx->verity_descriptor);
 
-		name_cache_free(sctx);
-
 		close_current_inode(sctx);
 
+		btrfs_lru_cache_clear(&sctx->name_cache);
 		btrfs_lru_cache_clear(&sctx->backref_cache);
 		btrfs_lru_cache_clear(&sctx->dir_created_cache);
 
