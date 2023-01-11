@@ -99,6 +99,7 @@ SYM_FUNC_END(__cpu_suspend_enter)
 
 	.pushsection ".idmap.text", "awx"
 SYM_CODE_START(cpu_resume)
+	mov	x0, xzr
 	bl	init_kernel_el
 	mov	x19, x0			// preserve boot mode
 #if VA_BITS > 48
