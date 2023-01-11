@@ -2674,13 +2674,11 @@ out:
 	return ret;
 }
 
-static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio,
-				    struct bio_list *bio_list)
+static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 {
+	struct bio_list bio_list = BIO_EMPTY_LIST;
 	int total_sector_nr;
 	int ret = 0;
-
-	ASSERT(bio_list_size(bio_list) == 0);
 
 	/* Build a list of bios to read all the missing parts. */
 	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
@@ -2710,42 +2708,38 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio,
 		if (sector->uptodate)
 			continue;
 
-		ret = rbio_add_io_sector(rbio, bio_list, sector, stripe,
+		ret = rbio_add_io_sector(rbio, &bio_list, sector, stripe,
 					 sectornr, REQ_OP_READ);
-		if (ret)
-			goto error;
+		if (ret) {
+			bio_list_put(&bio_list);
+			return ret;
+		}
 	}
+
+	submit_read_wait_bio_list(rbio, &bio_list);
 	return 0;
-error:
-	bio_list_put(bio_list);
-	return ret;
 }
 
 static int scrub_rbio(struct btrfs_raid_bio *rbio)
 {
 	bool need_check = false;
-	struct bio_list bio_list;
 	int sector_nr;
 	int ret;
 
-	bio_list_init(&bio_list);
-
 	ret = alloc_rbio_essential_pages(rbio);
 	if (ret)
-		goto cleanup;
+		return ret;
 
 	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 
-	ret = scrub_assemble_read_bios(rbio, &bio_list);
+	ret = scrub_assemble_read_bios(rbio);
 	if (ret < 0)
-		goto cleanup;
-
-	submit_read_wait_bio_list(rbio, &bio_list);
+		return ret;
 
 	/* We may have some failures, recover the failed sectors first. */
 	ret = recover_scrub_rbio(rbio);
 	if (ret < 0)
-		goto cleanup;
+		return ret;
 
 	/*
 	 * We have every sector properly prepared. Can finish the scrub
@@ -2762,10 +2756,6 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 			break;
 		}
 	}
-	return ret;
-
-cleanup:
-	bio_list_put(&bio_list);
 	return ret;
 }
 
