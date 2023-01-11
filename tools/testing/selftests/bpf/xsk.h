@@ -197,8 +197,10 @@ struct xsk_umem_config {
 	__u32 flags;
 };
 
-int xsk_load_xdp_program(int *xsk_map_fd, int *prog_fd);
-int xsk_attach_xdp_program(int ifindex, int prog_fd, u32 xdp_flags);
+int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags);
+void xsk_detach_xdp_program(int ifindex, u32 xdp_flags);
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk);
+void xsk_clear_xskmap(struct bpf_map *map);
 
 struct xsk_socket_config {
 	__u32 rx_size;

@@ -5,6 +5,8 @@
 #ifndef XSKXCEIVER_H_
 #define XSKXCEIVER_H_
 
+#include "xsk_xdp_progs.skel.h"
+
 #ifndef SOL_XDP
 #define SOL_XDP 283
 #endif
@@ -138,9 +140,8 @@ struct ifobject {
 	thread_func_t func_ptr;
 	validation_func_t validation_func;
 	struct pkt_stream *pkt_stream;
-	int xsk_map_fd;
-	int prog_fd;
-	int link_fd;
+	struct xsk_xdp_progs *xdp_progs;
+	struct bpf_map *xskmap;
 	int ifindex;
 	u32 dst_ip;
 	u32 src_ip;

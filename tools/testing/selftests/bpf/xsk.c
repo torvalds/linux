@@ -267,87 +267,37 @@ out_umem_alloc:
 	return err;
 }
 
-static int __xsk_load_xdp_prog(int xsk_map_fd)
+int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags)
 {
-	static const int log_buf_size = 16 * 1024;
-	char log_buf[log_buf_size];
 	int prog_fd;
 
-	/* This is the post-5.3 kernel C-program:
-	 * SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
-	 * {
-	 *     return bpf_redirect_map(&xsks_map, ctx->rx_queue_index, XDP_PASS);
-	 * }
-	 */
-	struct bpf_insn prog[] = {
-		/* r2 = *(u32 *)(r1 + 16) */
-		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 16),
-		/* r1 = xskmap[] */
-		BPF_LD_MAP_FD(BPF_REG_1, xsk_map_fd),
-		/* r3 = XDP_PASS */
-		BPF_MOV64_IMM(BPF_REG_3, 2),
-		/* call bpf_redirect_map */
-		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
-		BPF_EXIT_INSN(),
-	};
-	size_t insns_cnt = ARRAY_SIZE(prog);
-	LIBBPF_OPTS(bpf_prog_load_opts, opts,
-		.log_buf = log_buf,
-		.log_size = log_buf_size,
-	);
-
-	prog_fd = bpf_prog_load(BPF_PROG_TYPE_XDP, NULL, "LGPL-2.1 or BSD-2-Clause",
-				prog, insns_cnt, &opts);
-	if (prog_fd < 0)
-		pr_warn("BPF log buffer:\n%s", log_buf);
-
-	return prog_fd;
+	prog_fd = bpf_program__fd(prog);
+	return bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL);
 }
 
-int xsk_attach_xdp_program(int ifindex, int prog_fd, u32 xdp_flags)
+void xsk_detach_xdp_program(int ifindex, u32 xdp_flags)
 {
-	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, opts);
-	__u32 prog_id = 0;
-	int link_fd;
-	int err;
-
-	err = bpf_xdp_query_id(ifindex, xdp_flags, &prog_id);
-	if (err) {
-		pr_warn("getting XDP prog id failed\n");
-		return err;
-	}
-
-	/* If there's a netlink-based XDP prog loaded on interface, bail out
-	 * and ask user to do the removal by himself
-	 */
-	if (prog_id) {
-		pr_warn("Netlink-based XDP prog detected, please unload it in order to launch AF_XDP prog\n");
-		return -EINVAL;
-	}
-
-	opts.flags = xdp_flags & ~(XDP_FLAGS_UPDATE_IF_NOEXIST | XDP_FLAGS_REPLACE);
-
-	link_fd = bpf_link_create(prog_fd, ifindex, BPF_XDP, &opts);
-	if (link_fd < 0)
-		pr_warn("bpf_link_create failed: %s\n", strerror(errno));
-
-	return link_fd;
+	bpf_xdp_detach(ifindex, xdp_flags, NULL);
 }
 
-int xsk_load_xdp_program(int *xsk_map_fd, int *prog_fd)
+void xsk_clear_xskmap(struct bpf_map *map)
 {
-	*xsk_map_fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, "xsks_map", sizeof(int), sizeof(int),
-				     XSKMAP_SIZE, NULL);
-	if (*xsk_map_fd < 0)
-		return *xsk_map_fd;
+	u32 index = 0;
+	int map_fd;
 
-	*prog_fd = __xsk_load_xdp_prog(*xsk_map_fd);
-	if (*prog_fd < 0) {
-		close(*xsk_map_fd);
-		return *prog_fd;
-	}
+	map_fd = bpf_map__fd(map);
+	bpf_map_delete_elem(map_fd, &index);
+}
 
-	return 0;
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk)
+{
+	int map_fd, sock_fd;
+	u32 index = 0;
+
+	map_fd = bpf_map__fd(map);
+	sock_fd = xsk_socket__fd(xsk);
+
+	return bpf_map_update_elem(map_fd, &index, &sock_fd, 0);
 }
 
 static struct xsk_ctx *xsk_get_ctx(struct xsk_umem *umem, int ifindex,

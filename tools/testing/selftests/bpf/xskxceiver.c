@@ -1207,7 +1207,7 @@ static void thread_common_ops_tx(struct test_spec *test, struct ifobject *ifobje
 {
 	xsk_configure_socket(test, ifobject, test->ifobj_rx->umem, true);
 	ifobject->xsk = &ifobject->xsk_arr[0];
-	ifobject->xsk_map_fd = test->ifobj_rx->xsk_map_fd;
+	ifobject->xskmap = test->ifobj_rx->xskmap;
 	memcpy(ifobject->umem, test->ifobj_rx->umem, sizeof(struct xsk_umem_info));
 }
 
@@ -1247,9 +1247,8 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
-	u32 queue_id = 0;
-	int ret, fd;
 	void *bufs;
+	int ret;
 
 	if (ifobject->umem->unaligned_mode)
 		mmap_flags |= MAP_HUGETLB;
@@ -1274,8 +1273,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	if (!ifobject->rx_on)
 		return;
 
-	fd = xsk_socket__fd(ifobject->xsk->xsk);
-	ret = bpf_map_update_elem(ifobject->xsk_map_fd, &queue_id, &fd, 0);
+	ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk);
 	if (ret)
 		exit_with_error(errno);
 }
@@ -1309,18 +1307,17 @@ static void *worker_testapp_validate_rx(void *arg)
 {
 	struct test_spec *test = (struct test_spec *)arg;
 	struct ifobject *ifobject = test->ifobj_rx;
-	int id = 0, err, fd = xsk_socket__fd(ifobject->xsk->xsk);
 	struct pollfd fds = { };
-	u32 queue_id = 0;
+	int err;
 
 	if (test->current_step == 1) {
 		thread_common_ops(test, ifobject);
 	} else {
-		bpf_map_delete_elem(ifobject->xsk_map_fd, &id);
-		err = bpf_map_update_elem(ifobject->xsk_map_fd, &queue_id, &fd, 0);
+		xsk_clear_xskmap(ifobject->xskmap);
+		err = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk);
 		if (err) {
-			printf("Error: Failed to update xskmap, error %s\n", strerror(err));
-			exit_with_error(err);
+			printf("Error: Failed to update xskmap, error %s\n", strerror(-err));
+			exit_with_error(-err);
 		}
 	}
 
@@ -1390,10 +1387,8 @@ static int testapp_validate_traffic_single_thread(struct test_spec *test, struct
 	pthread_join(t0, NULL);
 
 	if (test->total_steps == test->current_step || test->fail) {
-		u32 queue_id = 0;
-
 		xsk_socket__delete(ifobj->xsk->xsk);
-		bpf_map_delete_elem(ifobj->xsk_map_fd, &queue_id);
+		xsk_clear_xskmap(ifobj->xskmap);
 		testapp_clean_xsk_umem(ifobj);
 	}
 
@@ -1482,14 +1477,14 @@ static void testapp_bidi(struct test_spec *test)
 
 static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
 {
-	int ret, queue_id = 0, fd = xsk_socket__fd(ifobj_rx->xsk->xsk);
+	int ret;
 
 	xsk_socket__delete(ifobj_tx->xsk->xsk);
 	xsk_socket__delete(ifobj_rx->xsk->xsk);
 	ifobj_tx->xsk = &ifobj_tx->xsk_arr[1];
 	ifobj_rx->xsk = &ifobj_rx->xsk_arr[1];
 
-	ret = bpf_map_update_elem(ifobj_rx->xsk_map_fd, &queue_id, &fd, 0);
+	ret = xsk_update_xskmap(ifobj_rx->xskmap, ifobj_rx->xsk->xsk);
 	if (ret)
 		exit_with_error(errno);
 }
@@ -1651,12 +1646,26 @@ static void testapp_invalid_desc(struct test_spec *test)
 	pkt_stream_restore_default(test);
 }
 
+static int xsk_load_xdp_programs(struct ifobject *ifobj)
+{
+	ifobj->xdp_progs = xsk_xdp_progs__open_and_load();
+	if (libbpf_get_error(ifobj->xdp_progs))
+		return libbpf_get_error(ifobj->xdp_progs);
+
+	return 0;
+}
+
+static void xsk_unload_xdp_programs(struct ifobject *ifobj)
+{
+	xsk_xdp_progs__destroy(ifobj->xdp_progs);
+}
+
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       const char *dst_ip, const char *src_ip, const u16 dst_port,
 		       const u16 src_port, thread_func_t func_ptr, bool load_xdp)
 {
-	int xsk_map_fd, prog_fd, err;
 	struct in_addr ip;
+	int err;
 
 	memcpy(ifobj->dst_mac, dst_mac, ETH_ALEN);
 	memcpy(ifobj->src_mac, src_mac, ETH_ALEN);
@@ -1675,20 +1684,20 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 	if (!load_xdp)
 		return;
 
-	err = xsk_load_xdp_program(&xsk_map_fd, &prog_fd);
+	err = xsk_load_xdp_programs(ifobj);
 	if (err) {
 		printf("Error loading XDP program\n");
 		exit_with_error(err);
 	}
 
-	ifobj->xsk_map_fd = xsk_map_fd;
-	ifobj->prog_fd = prog_fd;
 	ifobj->xdp_flags = mode_to_xdp_flags(TEST_MODE_SKB);
-	ifobj->link_fd = xsk_attach_xdp_program(ifobj->ifindex, prog_fd, ifobj->xdp_flags);
-	if (ifobj->link_fd < 0) {
+	err = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_def_prog, ifobj->ifindex,
+				     ifobj->xdp_flags);
+	if (err) {
 		printf("Error attaching XDP program\n");
-		exit_with_error(ifobj->link_fd);
+		exit_with_error(-err);
 	}
+	ifobj->xskmap = ifobj->xdp_progs->maps.xsk;
 }
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
@@ -1823,9 +1832,6 @@ out_xsk_arr:
 
 static void ifobject_delete(struct ifobject *ifobj)
 {
-	close(ifobj->prog_fd);
-	close(ifobj->xsk_map_fd);
-
 	free(ifobj->umem);
 	free(ifobj->xsk_arr);
 	free(ifobj);
@@ -1864,13 +1870,15 @@ static void change_to_drv_mode(struct ifobject *ifobj)
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
 	int ret;
 
-	close(ifobj->link_fd);
-	ifobj->link_fd = xsk_attach_xdp_program(ifobj->ifindex, ifobj->prog_fd,
-						XDP_FLAGS_DRV_MODE);
-	if (ifobj->link_fd < 0) {
+	xsk_detach_xdp_program(ifobj->ifindex, ifobj->xdp_flags);
+	ifobj->xdp_flags = XDP_FLAGS_DRV_MODE;
+	ret = xsk_attach_xdp_program(ifobj->xdp_progs->progs.xsk_def_prog, ifobj->ifindex,
+				     ifobj->xdp_flags);
+	if (ret) {
 		ksft_print_msg("Error attaching XDP program\n");
-		exit_with_error(-ifobj->link_fd);
+		exit_with_error(-ret);
 	}
+	ifobj->xskmap = ifobj->xdp_progs->maps.xsk;
 
 	ret = bpf_xdp_query(ifobj->ifindex, XDP_FLAGS_DRV_MODE, &opts);
 	if (ret)
@@ -1955,6 +1963,8 @@ int main(int argc, char **argv)
 
 	pkt_stream_delete(tx_pkt_stream_default);
 	pkt_stream_delete(rx_pkt_stream_default);
+	xsk_unload_xdp_programs(ifobj_tx);
+	xsk_unload_xdp_programs(ifobj_rx);
 	ifobject_delete(ifobj_tx);
 	ifobject_delete(ifobj_rx);
 
