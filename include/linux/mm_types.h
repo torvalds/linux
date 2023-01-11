@@ -141,14 +141,6 @@ struct page {
 		struct {	/* Tail pages of compound page */
 			unsigned long compound_head;	/* Bit zero is set */
 		};
-		struct {	/* Second tail page of hugetlb page */
-			unsigned long _hugetlb_pad_1;	/* compound_head */
-			void *hugetlb_subpool;
-			void *hugetlb_cgroup;
-			void *hugetlb_cgroup_rsvd;
-			void *hugetlb_hwpoison;
-			/* No more space on 32-bit: use third tail if more */
-		};
 		struct {	/* Page table pages */
 			unsigned long _pt_pad_1;	/* compound_head */
 			pgtable_t pmd_huge_pte; /* protected by page->ptl */
@@ -399,10 +391,6 @@ FOLIO_MATCH(compound_head, _head_1);
 			offsetof(struct page, pg) + 2 * sizeof(struct page))
 FOLIO_MATCH(flags, _flags_2);
 FOLIO_MATCH(compound_head, _head_2);
-FOLIO_MATCH(hugetlb_subpool, _hugetlb_subpool);
-FOLIO_MATCH(hugetlb_cgroup, _hugetlb_cgroup);
-FOLIO_MATCH(hugetlb_cgroup_rsvd, _hugetlb_cgroup_rsvd);
-FOLIO_MATCH(hugetlb_hwpoison, _hugetlb_hwpoison);
 #undef FOLIO_MATCH
 
 /*
