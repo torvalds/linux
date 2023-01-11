@@ -100,6 +100,8 @@ enum {
 };
 
 enum {
+	MLX5_REG_SBPR            = 0xb001,
+	MLX5_REG_SBCM            = 0xb002,
 	MLX5_REG_QPTS            = 0x4002,
 	MLX5_REG_QETCR		 = 0x4005,
 	MLX5_REG_QTCT		 = 0x400a,
@@ -308,6 +310,7 @@ struct mlx5_cmd {
 	struct workqueue_struct *wq;
 	struct semaphore sem;
 	struct semaphore pages_sem;
+	struct semaphore throttle_sem;
 	int	mode;
 	u16     allowed_opcode;
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
@@ -1198,6 +1201,11 @@ static inline bool mlx5_core_is_pf(const struct mlx5_core_dev *dev)
 static inline bool mlx5_core_is_vf(const struct mlx5_core_dev *dev)
 {
 	return dev->coredev_type == MLX5_COREDEV_VF;
+}
+
+static inline bool mlx5_core_is_management_pf(const struct mlx5_core_dev *dev)
+{
+	return MLX5_CAP_GEN(dev, num_ports) == 1 && !MLX5_CAP_GEN(dev, native_port_num);
 }
 
 static inline bool mlx5_core_is_ecpf(const struct mlx5_core_dev *dev)

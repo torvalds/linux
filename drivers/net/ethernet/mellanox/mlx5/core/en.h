@@ -247,7 +247,7 @@ struct mlx5e_rx_wqe_ll {
 };
 
 struct mlx5e_rx_wqe_cyc {
-	struct mlx5_wqe_data_seg      data[0];
+	DECLARE_FLEX_ARRAY(struct mlx5_wqe_data_seg, data);
 };
 
 struct mlx5e_umr_wqe {
@@ -968,6 +968,7 @@ struct mlx5e_priv {
 	struct mlx5e_scratchpad    scratchpad;
 	struct mlx5e_htb          *htb;
 	struct mlx5e_mqprio_rl    *mqprio_rl;
+	struct dentry             *dfs_root;
 };
 
 struct mlx5e_rx_handlers {

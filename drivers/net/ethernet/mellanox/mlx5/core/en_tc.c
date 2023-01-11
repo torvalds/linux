@@ -71,6 +71,12 @@
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 #define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(18)
 
+struct mlx5e_hairpin_params {
+	struct mlx5_core_dev *mdev;
+	u32 num_queues;
+	u32 queue_size;
+};
+
 struct mlx5e_tc_table {
 	/* Protects the dynamic assignment of the t parameter
 	 * which is the nic tc root table.
@@ -93,6 +99,8 @@ struct mlx5e_tc_table {
 
 	struct mlx5_tc_ct_priv         *ct;
 	struct mapping_ctx             *mapping;
+	struct mlx5e_hairpin_params    hairpin_params;
+	struct dentry                  *dfs_root;
 };
 
 struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
@@ -1016,6 +1024,138 @@ static int mlx5e_hairpin_get_prio(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static int debugfs_hairpin_queues_set(void *data, u64 val)
+{
+	struct mlx5e_hairpin_params *hp = data;
+
+	if (!val) {
+		mlx5_core_err(hp->mdev,
+			      "Number of hairpin queues must be > 0\n");
+		return -EINVAL;
+	}
+
+	hp->num_queues = val;
+
+	return 0;
+}
+
+static int debugfs_hairpin_queues_get(void *data, u64 *val)
+{
+	struct mlx5e_hairpin_params *hp = data;
+
+	*val = hp->num_queues;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_queues, debugfs_hairpin_queues_get,
+			 debugfs_hairpin_queues_set, "%llu\n");
+
+static int debugfs_hairpin_queue_size_set(void *data, u64 val)
+{
+	struct mlx5e_hairpin_params *hp = data;
+
+	if (val > BIT(MLX5_CAP_GEN(hp->mdev, log_max_hairpin_num_packets))) {
+		mlx5_core_err(hp->mdev,
+			      "Invalid hairpin queue size, must be <= %lu\n",
+			      BIT(MLX5_CAP_GEN(hp->mdev,
+					       log_max_hairpin_num_packets)));
+		return -EINVAL;
+	}
+
+	hp->queue_size = roundup_pow_of_two(val);
+
+	return 0;
+}
+
+static int debugfs_hairpin_queue_size_get(void *data, u64 *val)
+{
+	struct mlx5e_hairpin_params *hp = data;
+
+	*val = hp->queue_size;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_queue_size,
+			 debugfs_hairpin_queue_size_get,
+			 debugfs_hairpin_queue_size_set, "%llu\n");
+
+static int debugfs_hairpin_num_active_get(void *data, u64 *val)
+{
+	struct mlx5e_tc_table *tc = data;
+	struct mlx5e_hairpin_entry *hpe;
+	u32 cnt = 0;
+	u32 bkt;
+
+	mutex_lock(&tc->hairpin_tbl_lock);
+	hash_for_each(tc->hairpin_tbl, bkt, hpe, hairpin_hlist)
+		cnt++;
+	mutex_unlock(&tc->hairpin_tbl_lock);
+
+	*val = cnt;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_num_active,
+			 debugfs_hairpin_num_active_get, NULL, "%llu\n");
+
+static int debugfs_hairpin_table_dump_show(struct seq_file *file, void *priv)
+
+{
+	struct mlx5e_tc_table *tc = file->private;
+	struct mlx5e_hairpin_entry *hpe;
+	u32 bkt;
+
+	mutex_lock(&tc->hairpin_tbl_lock);
+	hash_for_each(tc->hairpin_tbl, bkt, hpe, hairpin_hlist)
+		seq_printf(file, "Hairpin peer_vhca_id %u prio %u refcnt %u\n",
+			   hpe->peer_vhca_id, hpe->prio,
+			   refcount_read(&hpe->refcnt));
+	mutex_unlock(&tc->hairpin_tbl_lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(debugfs_hairpin_table_dump);
+
+static void mlx5e_tc_debugfs_init(struct mlx5e_tc_table *tc,
+				  struct dentry *dfs_root)
+{
+	if (IS_ERR_OR_NULL(dfs_root))
+		return;
+
+	tc->dfs_root = debugfs_create_dir("tc", dfs_root);
+	if (!tc->dfs_root)
+		return;
+
+	debugfs_create_file("hairpin_num_queues", 0644, tc->dfs_root,
+			    &tc->hairpin_params, &fops_hairpin_queues);
+	debugfs_create_file("hairpin_queue_size", 0644, tc->dfs_root,
+			    &tc->hairpin_params, &fops_hairpin_queue_size);
+	debugfs_create_file("hairpin_num_active", 0444, tc->dfs_root, tc,
+			    &fops_hairpin_num_active);
+	debugfs_create_file("hairpin_table_dump", 0444, tc->dfs_root, tc,
+			    &debugfs_hairpin_table_dump_fops);
+}
+
+static void
+mlx5e_hairpin_params_init(struct mlx5e_hairpin_params *hairpin_params,
+			  struct mlx5_core_dev *mdev)
+{
+	u64 link_speed64;
+	u32 link_speed;
+
+	hairpin_params->mdev = mdev;
+	/* set hairpin pair per each 50Gbs share of the link */
+	mlx5e_port_max_linkspeed(mdev, &link_speed);
+	link_speed = max_t(u32, link_speed, 50000);
+	link_speed64 = link_speed;
+	do_div(link_speed64, 50000);
+	hairpin_params->num_queues = link_speed64;
+
+	hairpin_params->queue_size =
+		BIT(min_t(u32, 16 - MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev),
+			  MLX5_CAP_GEN(mdev, log_max_hairpin_num_packets)));
+}
+
 static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow,
 				  struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -1027,8 +1167,6 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *peer_mdev;
 	struct mlx5e_hairpin_entry *hpe;
 	struct mlx5e_hairpin *hp;
-	u64 link_speed64;
-	u32 link_speed;
 	u8 match_prio;
 	u16 peer_id;
 	int err;
@@ -1081,21 +1219,16 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 		 hash_hairpin_info(peer_id, match_prio));
 	mutex_unlock(&tc->hairpin_tbl_lock);
 
-	params.log_data_size = clamp_t(u8, 16,
-				       MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz),
-				       MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
-	params.log_num_packets = params.log_data_size -
-				 MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(priv->mdev);
-	params.log_num_packets = min_t(u8, params.log_num_packets,
-				       MLX5_CAP_GEN(priv->mdev, log_max_hairpin_num_packets));
+	params.log_num_packets = ilog2(tc->hairpin_params.queue_size);
+	params.log_data_size =
+		clamp_t(u32,
+			params.log_num_packets +
+				MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(priv->mdev),
+			MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz),
+			MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
 
 	params.q_counter = priv->q_counter;
-	/* set hairpin pair per each 50Gbs share of the link */
-	mlx5e_port_max_linkspeed(priv->mdev, &link_speed);
-	link_speed = max_t(u32, link_speed, 50000);
-	link_speed64 = link_speed;
-	do_div(link_speed64, 50000);
-	params.num_channels = link_speed64;
+	params.num_channels = tc->hairpin_params.num_queues;
 
 	hp = mlx5e_hairpin_create(priv, &params, peer_ifindex);
 	hpe->hp = hp;
@@ -5217,6 +5350,8 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	tc->ct = mlx5_tc_ct_init(priv, tc->chains, &tc->mod_hdr,
 				 MLX5_FLOW_NAMESPACE_KERNEL, tc->post_act);
 
+	mlx5e_hairpin_params_init(&tc->hairpin_params, dev);
+
 	tc->netdevice_nb.notifier_call = mlx5e_tc_netdev_event;
 	err = register_netdevice_notifier_dev_net(priv->netdev,
 						  &tc->netdevice_nb,
@@ -5226,6 +5361,8 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 		mlx5_core_warn(priv->mdev, "Failed to register netdev notifier\n");
 		goto err_reg;
 	}
+
+	mlx5e_tc_debugfs_init(tc, mlx5e_fs_get_debugfs_root(priv->fs));
 
 	return 0;
 
@@ -5254,6 +5391,8 @@ static void _mlx5e_tc_del_flow(void *ptr, void *arg)
 void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = mlx5e_fs_get_tc(priv->fs);
+
+	debugfs_remove_recursive(tc->dfs_root);
 
 	if (tc->netdevice_nb.notifier_call)
 		unregister_netdevice_notifier_dev_net(priv->netdev,

@@ -28,7 +28,7 @@ struct mlx5e_flow_meter_aso_obj {
 	int base_id;
 	int total_meters;
 
-	unsigned long meters_map[0]; /* must be at the end of this struct */
+	unsigned long meters_map[]; /* must be at the end of this struct */
 };
 
 struct mlx5e_flow_meters {
