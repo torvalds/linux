@@ -131,6 +131,11 @@ struct cros_ec_command {
  * @event_data: Raw payload transferred with the MKBP event.
  * @event_size: Size in bytes of the event data.
  * @host_event_wake_mask: Mask of host events that cause wake from suspend.
+ * @suspend_timeout_ms: The timeout in milliseconds between when sleep event
+ *                      is received and when the EC will declare sleep
+ *                      transition failure if the sleep signal is not
+ *                      asserted.  See also struct
+ *                      ec_params_host_sleep_event_v1 in cros_ec_commands.h.
  * @last_event_time: exact time from the hard irq when we got notified of
  *     a new event.
  * @notifier_ready: The notifier_block to let the kernel re-query EC
