@@ -160,10 +160,44 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
+static int vkms_prepare_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct drm_shadow_plane_state *shadow_plane_state;
+	struct drm_framebuffer *fb = state->fb;
+	int ret;
+
+	if (!fb)
+		return 0;
+
+	shadow_plane_state = to_drm_shadow_plane_state(state);
+
+	ret = drm_gem_plane_helper_prepare_fb(plane, state);
+	if (ret)
+		return ret;
+
+	return drm_gem_fb_vmap(fb, shadow_plane_state->map, shadow_plane_state->data);
+}
+
+static void vkms_cleanup_fb(struct drm_plane *plane,
+			    struct drm_plane_state *state)
+{
+	struct drm_shadow_plane_state *shadow_plane_state;
+	struct drm_framebuffer *fb = state->fb;
+
+	if (!fb)
+		return;
+
+	shadow_plane_state = to_drm_shadow_plane_state(state);
+
+	drm_gem_fb_vunmap(fb, shadow_plane_state->map);
+}
+
 static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {
 	.atomic_update		= vkms_plane_atomic_update,
 	.atomic_check		= vkms_plane_atomic_check,
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.prepare_fb		= vkms_prepare_fb,
+	.cleanup_fb		= vkms_cleanup_fb,
 };
 
 struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
