@@ -51,6 +51,14 @@ properties:
       - qcom,sc8180x-mmss-noc
       - qcom,sc8180x-qup-virt
       - qcom,sc8180x-system-noc
+      - qcom,sdm670-aggre1-noc
+      - qcom,sdm670-aggre2-noc
+      - qcom,sdm670-config-noc
+      - qcom,sdm670-dc-noc
+      - qcom,sdm670-gladiator-noc
+      - qcom,sdm670-mem-noc
+      - qcom,sdm670-mmss-noc
+      - qcom,sdm670-system-noc
       - qcom,sdm845-aggre1-noc
       - qcom,sdm845-aggre2-noc
       - qcom,sdm845-config-noc
