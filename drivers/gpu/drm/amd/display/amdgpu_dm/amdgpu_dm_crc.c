@@ -223,7 +223,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 		/* Disable secure_display if it was enabled */
 		if (!enable) {
-			for (i = 0; i < adev->dm.dc->caps.max_links; i++) {
+			for (i = 0; i < adev->mode_info.num_crtc; i++) {
 				if (adev->dm.secure_display_ctxs[i].crtc == crtc) {
 					/* stop ROI update on this crtc */
 					flush_work(&adev->dm.secure_display_ctxs[i].notify_ta_work);
@@ -544,12 +544,14 @@ amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 	struct secure_display_context *secure_display_ctxs = NULL;
 	int i;
 
-	secure_display_ctxs = kcalloc(AMDGPU_MAX_CRTCS, sizeof(struct secure_display_context), GFP_KERNEL);
+	secure_display_ctxs = kcalloc(adev->mode_info.num_crtc,
+				      sizeof(struct secure_display_context),
+				      GFP_KERNEL);
 
 	if (!secure_display_ctxs)
 		return NULL;
 
-	for (i = 0; i < adev->dm.dc->caps.max_links; i++) {
+	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		INIT_WORK(&secure_display_ctxs[i].forward_roi_work, amdgpu_dm_forward_crc_window);
 		INIT_WORK(&secure_display_ctxs[i].notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
 		secure_display_ctxs[i].crtc = &adev->mode_info.crtcs[i]->base;

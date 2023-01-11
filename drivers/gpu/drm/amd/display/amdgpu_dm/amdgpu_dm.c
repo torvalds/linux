@@ -1741,7 +1741,7 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	if (adev->dm.secure_display_ctxs) {
-		for (i = 0; i < adev->dm.dc->caps.max_links; i++) {
+		for (i = 0; i < adev->mode_info.num_crtc; i++) {
 			if (adev->dm.secure_display_ctxs[i].crtc) {
 				flush_work(&adev->dm.secure_display_ctxs[i].notify_ta_work);
 				flush_work(&adev->dm.secure_display_ctxs[i].forward_roi_work);
