@@ -271,7 +271,15 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	 * Attempt to obtain the GPC lock on *both* (if there are two)
 	 * gfn_to_pfn caches that cover the region.
 	 */
-	read_lock_irqsave(&gpc1->lock, flags);
+	if (atomic) {
+		local_irq_save(flags);
+		if (!read_trylock(&gpc1->lock)) {
+			local_irq_restore(flags);
+			return;
+		}
+	} else {
+		read_lock_irqsave(&gpc1->lock, flags);
+	}
 	while (!kvm_gpc_check(gpc1, user_len1)) {
 		read_unlock_irqrestore(&gpc1->lock, flags);
 
@@ -308,7 +316,14 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		 * gpc1 lock to make lockdep shut up about it.
 		 */
 		lock_set_subclass(&gpc1->lock.dep_map, 1, _THIS_IP_);
-		read_lock(&gpc2->lock);
+		if (atomic) {
+			if (!read_trylock(&gpc2->lock)) {
+				read_unlock_irqrestore(&gpc1->lock, flags);
+				return;
+			}
+		} else {
+			read_lock(&gpc2->lock);
+		}
 
 		if (!kvm_gpc_check(gpc2, user_len2)) {
 			read_unlock(&gpc2->lock);
