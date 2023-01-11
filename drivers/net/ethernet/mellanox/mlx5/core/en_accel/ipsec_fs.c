@@ -467,6 +467,27 @@ static void setup_fte_reg_c0(struct mlx5_flow_spec *spec, u32 reqid)
 		 misc_parameters_2.metadata_reg_c_0, reqid);
 }
 
+static void setup_fte_upper_proto_match(struct mlx5_flow_spec *spec, struct upspec *upspec)
+{
+	if (upspec->proto != IPPROTO_UDP)
+		return;
+
+	spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
+	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, spec->match_criteria, ip_protocol);
+	MLX5_SET(fte_match_set_lyr_2_4, spec->match_value, ip_protocol, upspec->proto);
+	if (upspec->dport) {
+		MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria, udp_dport,
+			 upspec->dport_mask);
+		MLX5_SET(fte_match_set_lyr_2_4, spec->match_value, udp_dport, upspec->dport);
+	}
+
+	if (upspec->sport) {
+		MLX5_SET(fte_match_set_lyr_2_4, spec->match_criteria, udp_dport,
+			 upspec->sport_mask);
+		MLX5_SET(fte_match_set_lyr_2_4, spec->match_value, udp_dport, upspec->sport);
+	}
+}
+
 static int setup_modify_header(struct mlx5_core_dev *mdev, u32 val, u8 dir,
 			       struct mlx5_flow_act *flow_act)
 {
@@ -654,6 +675,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
 	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	switch (attrs->type) {
 	case XFRM_DEV_OFFLOAD_CRYPTO:
@@ -728,6 +750,7 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
 	setup_fte_no_frags(spec);
+	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	err = setup_modify_header(mdev, attrs->reqid, XFRM_DEV_OFFLOAD_OUT,
 				  &flow_act);

@@ -158,6 +158,11 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->family = x->props.family;
 	attrs->type = x->xso.type;
 	attrs->reqid = x->props.reqid;
+	attrs->upspec.dport = ntohs(x->sel.dport);
+	attrs->upspec.dport_mask = ntohs(x->sel.dport_mask);
+	attrs->upspec.sport = ntohs(x->sel.sport);
+	attrs->upspec.sport_mask = ntohs(x->sel.sport_mask);
+	attrs->upspec.proto = x->sel.proto;
 
 	mlx5e_ipsec_init_limits(sa_entry, attrs);
 }
@@ -221,6 +226,13 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with geniv other than seqiv");
 		return -EINVAL;
 	}
+
+	if (x->sel.proto != IPPROTO_IP &&
+	    (x->sel.proto != IPPROTO_UDP || x->xso.dir != XFRM_DEV_OFFLOAD_OUT)) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP, and only Tx direction");
+		return -EINVAL;
+	}
+
 	switch (x->xso.type) {
 	case XFRM_DEV_OFFLOAD_CRYPTO:
 		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_CRYPTO)) {
@@ -517,6 +529,12 @@ static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
 		return -EINVAL;
 	}
 
+	if (x->selector.proto != IPPROTO_IP &&
+	    (x->selector.proto != IPPROTO_UDP || x->xdo.dir != XFRM_DEV_OFFLOAD_OUT)) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP, and only Tx direction");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -537,6 +555,11 @@ mlx5e_ipsec_build_accel_pol_attrs(struct mlx5e_ipsec_pol_entry *pol_entry,
 	attrs->action = x->action;
 	attrs->type = XFRM_DEV_OFFLOAD_PACKET;
 	attrs->reqid = x->xfrm_vec[0].reqid;
+	attrs->upspec.dport = ntohs(sel->dport);
+	attrs->upspec.dport_mask = ntohs(sel->dport_mask);
+	attrs->upspec.sport = ntohs(sel->sport);
+	attrs->upspec.sport_mask = ntohs(sel->sport_mask);
+	attrs->upspec.proto = sel->proto;
 }
 
 static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
