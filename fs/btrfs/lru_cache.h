@@ -17,6 +17,18 @@
 struct btrfs_lru_cache_entry {
 	struct list_head lru_list;
 	u64 key;
+	/*
+	 * The maple tree uses unsigned long type for the keys, which is 32 bits
+	 * on 32 bits systems, and 64 bits on 64 bits systems. So if we want to
+	 * use something like inode numbers as keys, which are always a u64, we
+	 * have to deal with this in a special way - we store the key in the
+	 * entry itself, as a u64, and the values inserted into the maple tree
+	 * are linked lists of entries - so in case we are on a 64 bits system,
+	 * that list always has a single entry, while on 32 bits systems it
+	 * may have more than one, with each entry having the same value for
+	 * their lower 32 bits of the u64 key.
+	 */
+	struct list_head list;
 };
 
 struct btrfs_lru_cache {
