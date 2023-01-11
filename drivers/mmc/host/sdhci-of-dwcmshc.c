@@ -528,6 +528,11 @@ static int dwcmshc_probe(struct platform_device *pdev)
 			goto err_clk;
 	}
 
+#ifdef CONFIG_ACPI
+	if (pltfm_data == &sdhci_dwcmshc_bf3_pdata)
+		sdhci_enable_v4_mode(host);
+#endif
+
 	host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 
 	err = sdhci_setup_host(host);
