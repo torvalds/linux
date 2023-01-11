@@ -11,8 +11,6 @@
 #include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-dma-contig.h>
 
-#define USE_MEDIA_PIPELINE
-
 static const struct stfcamss_format_info formats_pix_st7110_wr[] = {
 	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_PIX_FMT_YUYV, 1,
 	  { { 1, 1 } }, { { 1, 1 } }, { 16 } },
@@ -552,15 +550,13 @@ static int video_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct v4l2_subdev *subdev;
 	int ret;
 
-#ifdef USE_MEDIA_PIPELINE
-	// ret = media_pipeline_start(&vdev->entity, &video->pipe);
 	ret = media_pipeline_start(&vdev->entity, &video->stfcamss->pipe);
 	if (ret < 0) {
 		st_err(ST_VIDEO,
 			"Failed to media_pipeline_start: %d\n", ret);
 		return ret;
 	}
-#endif
+
 	ret = video_check_format(video);
 	if (ret < 0)
 		goto error;
@@ -584,9 +580,7 @@ static int video_start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 
 error:
-#ifdef USE_MEDIA_PIPELINE
 	media_pipeline_stop(&vdev->entity);
-#endif
 	video->ops->flush_buffers(video, VB2_BUF_STATE_QUEUED);
 	return ret;
 }
@@ -615,9 +609,7 @@ static void video_stop_streaming(struct vb2_queue *q)
 		v4l2_subdev_call(subdev, video, s_stream, 0);
 	}
 
-#ifdef USE_MEDIA_PIPELINE
 	media_pipeline_stop(&vdev->entity);
-#endif
 	video->ops->flush_buffers(video, VB2_BUF_STATE_ERROR);
 }
 
@@ -1619,59 +1611,17 @@ static int video_open(struct file *file)
 
 	file->private_data = vfh;
 
-#ifdef USE_MEDIA_PIPELINE
 	ret = v4l2_pipeline_pm_get(&vdev->entity);
 	if (ret < 0) {
 		st_err(ST_VIDEO,
 			"Failed to power up pipeline: %d\n", ret);
 		goto error_pm_use;
 	}
-#else
-	struct media_entity *entity;
-	struct media_pad *pad;
-	struct v4l2_subdev *subdev;
-	int i = 0;
 
-	entity = &vdev->entity;
-	while (1) {
-		pad = &entity->pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
-
-		pad = media_entity_remote_pad(pad);
-		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-			break;
-
-		entity = pad->entity;
-		subdev = media_entity_to_v4l2_subdev(entity);
-
-		ret = v4l2_subdev_call(subdev, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			goto error_power;
-		i++;
-	}
-#endif
 	mutex_unlock(&video->lock);
 
 	return 0;
-#ifndef USE_MEDIA_PIPELINE
-error_power:
-	entity = &vdev->entity;
-	while (i--) {
-		pad = &entity->pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
 
-		pad = media_entity_remote_pad(pad);
-		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-			break;
-
-		entity = pad->entity;
-		subdev = media_entity_to_v4l2_subdev(entity);
-
-		v4l2_subdev_call(subdev, core, s_power, 0);
-	}
-#endif
 error_pm_use:
 	v4l2_fh_release(file);
 error_alloc:
@@ -1684,29 +1634,7 @@ static int video_release(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 
 	vb2_fop_release(file);
-#ifdef USE_MEDIA_PIPELINE
 	v4l2_pipeline_pm_put(&vdev->entity);
-#else
-	struct media_entity *entity;
-	struct media_pad *pad;
-	struct v4l2_subdev *subdev;
-
-	entity = &vdev->entity;
-	while (1) {
-		pad = &entity->pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
-
-		pad = media_entity_remote_pad(pad);
-		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-			break;
-
-		entity = pad->entity;
-		subdev = media_entity_to_v4l2_subdev(entity);
-
-		v4l2_subdev_call(subdev, core, s_power, 0);
-	}
-#endif
 	file->private_data = NULL;
 
 	return 0;
