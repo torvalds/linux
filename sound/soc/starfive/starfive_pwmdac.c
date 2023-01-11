@@ -761,12 +761,25 @@ static int sf_pwmdac_dai_probe(struct snd_soc_dai *dai)
 #ifdef CONFIG_PM_SLEEP
 static int starfive_pwmdac_system_suspend(struct device *dev)
 {
+	struct sf_pwmdac_dev *pwmdac = dev_get_drvdata(dev);
+
+	/* save the register value */
+	pwmdac->pwmdac_ctrl_data = pwmdc_read_reg(pwmdac->pwmdac_base, PWMDAC_CTRL);
 	return pm_runtime_force_suspend(dev);
 }
 
 static int starfive_pwmdac_system_resume(struct device *dev)
 {
-	return pm_runtime_force_resume(dev);
+	struct sf_pwmdac_dev *pwmdac = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
+
+	/* restore the register value */
+	pwmdc_write_reg(pwmdac->pwmdac_base, PWMDAC_CTRL, pwmdac->pwmdac_ctrl_data);
+	return 0;
 }
 #endif
 

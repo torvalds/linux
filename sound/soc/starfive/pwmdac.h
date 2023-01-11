@@ -34,9 +34,6 @@
 #define PWMDAC_DUTY_CYCLE_LOW	2
 #define PWMDAC_DUTY_CYCLE_HIGH	3
 
-
-
-
 #define PWMDAC_MCLK	4096000
 
 enum pwmdac_lr_change{
@@ -85,7 +82,6 @@ enum pwmdac_sample_count{
 	PWMDAC_SAMPLE_CNT_30 = 30,
 	PWMDAC_SAMPLE_CNT_511 = 511,
 };
-
 
 enum data_shift{
 	PWMDAC_DATA_LEFT_SHIFT_BIT_0 = 0,
@@ -144,11 +140,10 @@ struct sf_pwmdac_dev {
 	struct clk *audio_src;
 	struct clk *pwmdac_apb;
 	struct clk *pwmdac_mclk;
+	unsigned int pwmdac_ctrl_data;
 };
 
-
-
-#if IS_ENABLED(CONFIG_SND_STARFIVE_PWMDAC_PCM)
+#if IS_ENABLED(CONFIG_SND_SOC_STARFIVE_PWMDAC_PCM)
 void sf_pwmdac_pcm_push_tx(struct sf_pwmdac_dev *dev);
 void sf_pwmdac_pcm_pop_rx(struct sf_pwmdac_dev *dev);
 int sf_pwmdac_pcm_register(struct platform_device *pdev);
