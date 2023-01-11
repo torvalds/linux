@@ -2119,17 +2119,17 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			      const char *name, int name_len,
 			      u64 *who_ino, u64 *who_gen, u64 *who_mode)
 {
-	int ret = 0;
+	int ret;
 	u64 gen;
 	u64 other_inode = 0;
 	struct btrfs_inode_info info;
 
 	if (!sctx->parent_root)
-		goto out;
+		return 0;
 
 	ret = is_inode_existent(sctx, dir, dir_gen);
 	if (ret <= 0)
-		goto out;
+		return 0;
 
 	/*
 	 * If we have a parent root we need to verify that the parent dir was
@@ -2138,24 +2138,21 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	 */
 	if (sctx->parent_root && dir != BTRFS_FIRST_FREE_OBJECTID) {
 		ret = get_inode_gen(sctx->parent_root, dir, &gen);
-		if (ret < 0 && ret != -ENOENT)
-			goto out;
-		if (ret) {
-			ret = 0;
-			goto out;
-		}
+		if (ret == -ENOENT)
+			return 0;
+		else if (ret < 0)
+			return ret;
+
 		if (gen != dir_gen)
-			goto out;
+			return 0;
 	}
 
 	ret = lookup_dir_item_inode(sctx->parent_root, dir, name, name_len,
 				    &other_inode);
-	if (ret < 0 && ret != -ENOENT)
-		goto out;
-	if (ret) {
-		ret = 0;
-		goto out;
-	}
+	if (ret == -ENOENT)
+		return 0;
+	else if (ret < 0)
+		return ret;
 
 	/*
 	 * Check if the overwritten ref was already processed. If yes, the ref
@@ -2166,18 +2163,15 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	    is_waiting_for_move(sctx, other_inode)) {
 		ret = get_inode_info(sctx->parent_root, other_inode, &info);
 		if (ret < 0)
-			goto out;
+			return ret;
 
-		ret = 1;
 		*who_ino = other_inode;
 		*who_gen = info.gen;
 		*who_mode = info.mode;
-	} else {
-		ret = 0;
+		return 1;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
