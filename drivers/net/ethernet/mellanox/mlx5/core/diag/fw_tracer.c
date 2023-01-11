@@ -233,6 +233,8 @@ static int mlx5_fw_tracer_allocate_strings_db(struct mlx5_fw_tracer *tracer)
 	int i;
 
 	for (i = 0; i < num_string_db; i++) {
+		if (!string_db_size_out[i])
+			continue;
 		tracer->str_db.buffer[i] = kzalloc(string_db_size_out[i], GFP_KERNEL);
 		if (!tracer->str_db.buffer[i])
 			goto free_strings_db;
@@ -278,6 +280,8 @@ static void mlx5_tracer_read_strings_db(struct work_struct *work)
 	}
 
 	for (i = 0; i < num_string_db; i++) {
+		if (!tracer->str_db.size_out[i])
+			continue;
 		offset = 0;
 		MLX5_SET(mtrc_stdb, in, string_db_index, i);
 		num_of_reads = tracer->str_db.size_out[i] /
@@ -384,6 +388,8 @@ static struct tracer_string_format *mlx5_tracer_get_string(struct mlx5_fw_tracer
 	str_ptr = tracer_event->string_event.string_param;
 
 	for (i = 0; i < tracer->str_db.num_string_db; i++) {
+		if (!tracer->str_db.size_out[i])
+			continue;
 		if (str_ptr > tracer->str_db.base_address_out[i] &&
 		    str_ptr < tracer->str_db.base_address_out[i] +
 		    tracer->str_db.size_out[i]) {
