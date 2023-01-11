@@ -2300,24 +2300,22 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 	 * Either full stripe write, or we have every data sector already
 	 * cached, can go to write path immediately.
 	 */
-	if (rbio_is_full(rbio) || !need_read_stripe_sectors(rbio))
-		goto write;
+	if (!rbio_is_full(rbio) && need_read_stripe_sectors(rbio)) {
+		/*
+		 * Now we're doing sub-stripe write, also need all data stripes
+		 * to do the full RMW.
+		 */
+		ret = alloc_rbio_data_pages(rbio);
+		if (ret < 0)
+			return ret;
 
-	/*
-	 * Now we're doing sub-stripe write, also need all data stripes to do
-	 * the full RMW.
-	 */
-	ret = alloc_rbio_data_pages(rbio);
-	if (ret < 0)
-		return ret;
+		index_rbio_pages(rbio);
 
-	index_rbio_pages(rbio);
+		ret = rmw_read_wait_recover(rbio);
+		if (ret < 0)
+			return ret;
+	}
 
-	ret = rmw_read_wait_recover(rbio);
-	if (ret < 0)
-		return ret;
-
-write:
 	/*
 	 * At this stage we're not allowed to add any new bios to the
 	 * bio list any more, anyone else that wants to change this stripe
