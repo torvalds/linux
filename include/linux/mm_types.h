@@ -141,12 +141,6 @@ struct page {
 		struct {	/* Tail pages of compound page */
 			unsigned long compound_head;	/* Bit zero is set */
 		};
-		struct {	/* Second tail page of transparent huge page */
-			unsigned long _compound_pad_1;	/* compound_head */
-			unsigned long _compound_pad_2;
-			/* For both global and memcg */
-			struct list_head deferred_list;
-		};
 		struct {	/* Second tail page of hugetlb page */
 			unsigned long _hugetlb_pad_1;	/* compound_head */
 			void *hugetlb_subpool;
@@ -302,6 +296,7 @@ static inline struct page *encoded_page_ptr(struct encoded_page *page)
  * @_hugetlb_cgroup: Do not use directly, use accessor in hugetlb_cgroup.h.
  * @_hugetlb_cgroup_rsvd: Do not use directly, use accessor in hugetlb_cgroup.h.
  * @_hugetlb_hwpoison: Do not use directly, call raw_hwp_list_head().
+ * @_deferred_list: Folios to be split under memory pressure.
  *
  * A folio is a physically, virtually and logically contiguous set
  * of bytes.  It is a power-of-two in size, and it is aligned to that
@@ -366,6 +361,13 @@ struct folio {
 			void *_hugetlb_cgroup;
 			void *_hugetlb_cgroup_rsvd;
 			void *_hugetlb_hwpoison;
+	/* private: the union with struct page is transitional */
+		};
+		struct {
+			unsigned long _flags_2a;
+			unsigned long _head_2a;
+	/* public: */
+			struct list_head _deferred_list;
 	/* private: the union with struct page is transitional */
 		};
 		struct page __page_2;
