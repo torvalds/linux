@@ -86,7 +86,6 @@ struct xsk_ctx {
 struct xsk_socket {
 	struct xsk_ring_cons *rx;
 	struct xsk_ring_prod *tx;
-	__u64 outstanding_tx;
 	struct xsk_ctx *ctx;
 	struct xsk_socket_config config;
 	int fd;
@@ -1021,7 +1020,6 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	if (err)
 		goto out_xsk_alloc;
 
-	xsk->outstanding_tx = 0;
 	ifindex = if_nametoindex(ifname);
 	if (!ifindex) {
 		err = -errno;
