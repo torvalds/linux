@@ -321,6 +321,7 @@ struct orphan_dir_info {
 	u64 ino;
 	u64 gen;
 	u64 last_dir_index_offset;
+	u64 dir_high_seq_ino;
 };
 
 struct name_cache_entry {
@@ -3161,6 +3162,7 @@ static struct orphan_dir_info *add_orphan_dir_info(struct send_ctx *sctx,
 	odi->ino = dir_ino;
 	odi->gen = dir_gen;
 	odi->last_dir_index_offset = 0;
+	odi->dir_high_seq_ino = 0;
 
 	rb_link_node(&odi->node, parent, p);
 	rb_insert_color(&odi->node, &sctx->orphan_dirs);
@@ -3221,6 +3223,8 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 	struct btrfs_key loc;
 	struct btrfs_dir_item *di;
 	struct orphan_dir_info *odi = NULL;
+	u64 dir_high_seq_ino = 0;
+	u64 last_dir_index_offset = 0;
 
 	/*
 	 * Don't try to rmdir the top/root subvolume dir.
@@ -3228,17 +3232,62 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 	if (dir == BTRFS_FIRST_FREE_OBJECTID)
 		return 0;
 
+	odi = get_orphan_dir_info(sctx, dir, dir_gen);
+	if (odi && sctx->cur_ino < odi->dir_high_seq_ino)
+		return 0;
+
 	path = alloc_path_for_send();
 	if (!path)
 		return -ENOMEM;
 
+	if (!odi) {
+		/*
+		 * Find the inode number associated with the last dir index
+		 * entry. This is very likely the inode with the highest number
+		 * of all inodes that have an entry in the directory. We can
+		 * then use it to avoid future calls to can_rmdir(), when
+		 * processing inodes with a lower number, from having to search
+		 * the parent root b+tree for dir index keys.
+		 */
+		key.objectid = dir;
+		key.type = BTRFS_DIR_INDEX_KEY;
+		key.offset = (u64)-1;
+
+		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		if (ret < 0) {
+			goto out;
+		} else if (ret > 0) {
+			/* Can't happen, the root is never empty. */
+			ASSERT(path->slots[0] > 0);
+			if (WARN_ON(path->slots[0] == 0)) {
+				ret = -EUCLEAN;
+				goto out;
+			}
+			path->slots[0]--;
+		}
+
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		if (key.objectid != dir || key.type != BTRFS_DIR_INDEX_KEY) {
+			/* No index keys, dir can be removed. */
+			ret = 1;
+			goto out;
+		}
+
+		di = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				    struct btrfs_dir_item);
+		btrfs_dir_item_key_to_cpu(path->nodes[0], di, &loc);
+		dir_high_seq_ino = loc.objectid;
+		if (sctx->cur_ino < dir_high_seq_ino) {
+			ret = 0;
+			goto out;
+		}
+
+		btrfs_release_path(path);
+	}
+
 	key.objectid = dir;
 	key.type = BTRFS_DIR_INDEX_KEY;
-	key.offset = 0;
-
-	odi = get_orphan_dir_info(sctx, dir, dir_gen);
-	if (odi)
-		key.offset = odi->last_dir_index_offset;
+	key.offset = (odi ? odi->last_dir_index_offset : 0);
 
 	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		struct waiting_dir_move *dm;
@@ -3250,6 +3299,9 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 		di = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				struct btrfs_dir_item);
 		btrfs_dir_item_key_to_cpu(path->nodes[0], di, &loc);
+
+		dir_high_seq_ino = max(dir_high_seq_ino, loc.objectid);
+		last_dir_index_offset = found_key.offset;
 
 		dm = get_waiting_dir_move(sctx, loc.objectid);
 		if (dm) {
@@ -3286,7 +3338,8 @@ out:
 		odi->gen = dir_gen;
 	}
 
-	odi->last_dir_index_offset = found_key.offset;
+	odi->last_dir_index_offset = last_dir_index_offset;
+	odi->dir_high_seq_ino = max(odi->dir_high_seq_ino, dir_high_seq_ino);
 
 	return 0;
 }
