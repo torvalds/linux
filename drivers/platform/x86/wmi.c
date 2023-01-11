@@ -693,15 +693,8 @@ char *wmi_get_acpi_device_uid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
 
-static struct wmi_block *dev_to_wblock(struct device *dev)
-{
-	return container_of(dev, struct wmi_block, dev.dev);
-}
-
-static struct wmi_device *dev_to_wdev(struct device *dev)
-{
-	return container_of(dev, struct wmi_device, dev);
-}
+#define dev_to_wblock(__dev)	container_of_const(__dev, struct wmi_block, dev.dev)
+#define dev_to_wdev(__dev)	container_of_const(__dev, struct wmi_device, dev)
 
 static inline struct wmi_driver *drv_to_wdrv(struct device_driver *drv)
 {
