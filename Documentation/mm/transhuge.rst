@@ -112,20 +112,20 @@ Refcounts and transparent huge pages
 Refcounting on THP is mostly consistent with refcounting on other compound
 pages:
 
-  - get_page()/put_page() and GUP operate on head page's ->_refcount.
+  - get_page()/put_page() and GUP operate on the folio->_refcount.
 
   - ->_refcount in tail pages is always zero: get_page_unless_zero() never
     succeeds on tail pages.
 
-  - map/unmap of PMD entry for the whole compound page increment/decrement
-    ->compound_mapcount, stored in the first tail page of the compound page;
-    and also increment/decrement ->subpages_mapcount (also in the first tail)
-    by COMPOUND_MAPPED when compound_mapcount goes from -1 to 0 or 0 to -1.
+  - map/unmap of a PMD entry for the whole THP increment/decrement
+    folio->_entire_mapcount and also increment/decrement
+    folio->_nr_pages_mapped by COMPOUND_MAPPED when _entire_mapcount
+    goes from -1 to 0 or 0 to -1.
 
-  - map/unmap of sub-pages with PTE entry increment/decrement ->_mapcount
-    on relevant sub-page of the compound page, and also increment/decrement
-    ->subpages_mapcount, stored in first tail page of the compound page, when
-    _mapcount goes from -1 to 0 or 0 to -1: counting sub-pages mapped by PTE.
+  - map/unmap of individual pages with PTE entry increment/decrement
+    page->_mapcount and also increment/decrement folio->_nr_pages_mapped
+    when page->_mapcount goes from -1 to 0 or 0 to -1 as this counts
+    the number of pages mapped by PTE.
 
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page
