@@ -57,8 +57,16 @@ struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cac
 	return entry;
 }
 
-static void delete_entry(struct btrfs_lru_cache *cache,
-			 struct btrfs_lru_cache_entry *entry)
+/*
+ * Remove an entry from the cache.
+ *
+ * @cache:     The cache to remove from.
+ * @entry:     The entry to remove from the cache.
+ *
+ * Note: this also frees the memory used by the entry.
+ */
+void btrfs_lru_cache_remove(struct btrfs_lru_cache *cache,
+			    struct btrfs_lru_cache_entry *entry)
 {
 	struct list_head *prev = entry->list.prev;
 
@@ -127,7 +135,7 @@ int btrfs_lru_cache_store(struct btrfs_lru_cache *cache,
 		lru_entry = list_first_entry(&cache->lru_list,
 					     struct btrfs_lru_cache_entry,
 					     lru_list);
-		delete_entry(cache, lru_entry);
+		btrfs_lru_cache_remove(cache, lru_entry);
 	}
 
 	list_add_tail(&new_entry->lru_list, &cache->lru_list);
@@ -149,7 +157,7 @@ void btrfs_lru_cache_clear(struct btrfs_lru_cache *cache)
 	struct btrfs_lru_cache_entry *tmp;
 
 	list_for_each_entry_safe(entry, tmp, &cache->lru_list, lru_list)
-		delete_entry(cache, entry);
+		btrfs_lru_cache_remove(cache, entry);
 
 	ASSERT(cache->size == 0);
 	ASSERT(mtree_empty(&cache->entries));

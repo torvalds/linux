@@ -58,6 +58,8 @@ struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cac
 int btrfs_lru_cache_store(struct btrfs_lru_cache *cache,
 			  struct btrfs_lru_cache_entry *new_entry,
 			  gfp_t gfp);
+void btrfs_lru_cache_remove(struct btrfs_lru_cache *cache,
+			    struct btrfs_lru_cache_entry *entry);
 void btrfs_lru_cache_clear(struct btrfs_lru_cache *cache);
 
 #endif
