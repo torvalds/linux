@@ -150,6 +150,7 @@ static const char *const compat_hwcap_str[] = {
 	[COMPAT_KERNEL_HWCAP(ASIMDHP)]	= "asimdhp",
 	[COMPAT_KERNEL_HWCAP(ASIMDDP)]	= "asimddp",
 	[COMPAT_KERNEL_HWCAP(ASIMDFHM)]	= "asimdfhm",
+	[COMPAT_KERNEL_HWCAP(ASIMDBF16)] = "asimdbf16",
 };
 
 #define COMPAT_KERNEL_HWCAP2(x)	const_ilog2(COMPAT_HWCAP2_ ## x)
