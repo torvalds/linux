@@ -1646,6 +1646,22 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 		if (status != DC_OK)
 			dm_error("%s: Read DPRX caps data failed.\n", __func__);
+
+		/* AdaptiveSyncCapability  */
+		dpcd_dprx_data = 0;
+		for (i = 0; i < read_dpcd_retry_cnt; i++) {
+			status = core_link_read_dpcd(
+					link, DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1,
+					&dpcd_dprx_data, sizeof(dpcd_dprx_data));
+			if (status == DC_OK)
+				break;
+		}
+
+		link->dpcd_caps.adaptive_sync_caps.dp_adap_sync_caps.raw = dpcd_dprx_data;
+
+		if (status != DC_OK)
+			dm_error("%s: Read DPRX caps data failed. Addr:%#x\n",
+					__func__, DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1);
 	}
 
 	else {
