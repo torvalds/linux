@@ -1309,10 +1309,7 @@ struct hv_device {
 };
 
 
-static inline struct hv_device *device_to_hv_device(struct device *d)
-{
-	return container_of(d, struct hv_device, device);
-}
+#define device_to_hv_device(d)	container_of_const(d, struct hv_device, device)
 
 static inline struct hv_driver *drv_to_hv_drv(struct device_driver *d)
 {
