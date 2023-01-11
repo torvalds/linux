@@ -4335,12 +4335,9 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				 * the source path when performing its rename
 				 * operation.
 				 */
-				if (is_waiting_for_move(sctx, ow_inode)) {
-					wdm = get_waiting_dir_move(sctx,
-								   ow_inode);
-					ASSERT(wdm);
+				wdm = get_waiting_dir_move(sctx, ow_inode);
+				if (wdm)
 					wdm->orphanized = true;
-				}
 
 				/*
 				 * Make sure we clear our orphanized inode's
