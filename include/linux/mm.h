@@ -984,8 +984,11 @@ extern compound_page_dtor * const compound_page_dtors[NR_COMPOUND_DTORS];
 static inline void set_compound_page_dtor(struct page *page,
 		enum compound_dtor_id compound_dtor)
 {
+	struct folio *folio = (struct folio *)page;
+
 	VM_BUG_ON_PAGE(compound_dtor >= NR_COMPOUND_DTORS, page);
-	page[1].compound_dtor = compound_dtor;
+	VM_BUG_ON_PAGE(!PageHead(page), page);
+	folio->_folio_dtor = compound_dtor;
 }
 
 static inline void folio_set_compound_dtor(struct folio *folio,
@@ -999,9 +1002,11 @@ void destroy_large_folio(struct folio *folio);
 
 static inline void set_compound_order(struct page *page, unsigned int order)
 {
-	page[1].compound_order = order;
+	struct folio *folio = (struct folio *)page;
+
+	folio->_folio_order = order;
 #ifdef CONFIG_64BIT
-	page[1].compound_nr = 1U << order;
+	folio->_folio_nr_pages = 1U << order;
 #endif
 }
 
