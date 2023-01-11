@@ -33,6 +33,7 @@
 #define COMPAT_HWCAP_EVTSTRM	(1 << 21)
 #define COMPAT_HWCAP_FPHP	(1 << 22)
 #define COMPAT_HWCAP_ASIMDHP	(1 << 23)
+#define COMPAT_HWCAP_ASIMDDP	(1 << 24)
 
 #define COMPAT_HWCAP2_AES	(1 << 0)
 #define COMPAT_HWCAP2_PMULL	(1 << 1)
