@@ -853,22 +853,26 @@ static inline void page_mapcount_reset(struct page *page)
 	atomic_set(&(page)->_mapcount, -1);
 }
 
-/*
- * Mapcount of 0-order page; when compound sub-page, includes
- * compound_mapcount of compound_head of page.
+/**
+ * page_mapcount() - Number of times this precise page is mapped.
+ * @page: The page.
  *
- * Result is undefined for pages which cannot be mapped into userspace.
+ * The number of times this page is mapped.  If this page is part of
+ * a large folio, it includes the number of times this page is mapped
+ * as part of that folio.
+ *
+ * The result is undefined for pages which cannot be mapped into userspace.
  * For example SLAB or special types of pages. See function page_has_type().
- * They use this place in struct page differently.
+ * They use this field in struct page differently.
  */
 static inline int page_mapcount(struct page *page)
 {
 	int mapcount = atomic_read(&page->_mapcount) + 1;
 
-	if (likely(!PageCompound(page)))
-		return mapcount;
-	page = compound_head(page);
-	return head_compound_mapcount(page) + mapcount;
+	if (unlikely(PageCompound(page)))
+		mapcount += folio_entire_mapcount(page_folio(page));
+
+	return mapcount;
 }
 
 int folio_total_mapcount(struct folio *folio);
