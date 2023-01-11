@@ -149,6 +149,7 @@ struct sf_tdm_dev {
 	/* data related to DMA transfers b/w tdm and DMAC */
 	struct snd_dmaengine_dai_dma_data play_dma_data;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
+	u32 saved_reg_value[4];
 };
 
 #endif	/* __SND_SOC_STARFIVE_TDM_H */
