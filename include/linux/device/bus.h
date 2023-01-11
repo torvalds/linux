@@ -257,21 +257,35 @@ extern int bus_register_notifier(struct bus_type *bus,
 extern int bus_unregister_notifier(struct bus_type *bus,
 				   struct notifier_block *nb);
 
-/* All 4 notifers below get called with the target struct device *
- * as an argument. Note that those functions are likely to be called
- * with the device lock held in the core, so be careful.
+/**
+ * enum bus_notifier_event - Bus Notifier events that have happened
+ * @BUS_NOTIFY_ADD_DEVICE: device is added to this bus
+ * @BUS_NOTIFY_DEL_DEVICE: device is about to be removed from this bus
+ * @BUS_NOTIFY_REMOVED_DEVICE: device is successfully removed from this bus
+ * @BUS_NOTIFY_BIND_DRIVER: a driver is about to be bound to this device on this bus
+ * @BUS_NOTIFY_BOUND_DRIVER: a driver is successfully bound to this device on this bus
+ * @BUS_NOTIFY_UNBIND_DRIVER: a driver is about to be unbound from this device on this bus
+ * @BUS_NOTIFY_UNBOUND_DRIVER: a driver is successfully unbound from this device on this bus
+ * @BUS_NOTIFY_DRIVER_NOT_BOUND: a driver failed to be bound to this device on this bus
+ *
+ * These are the value passed to a bus notifier when a specific event happens.
+ *
+ * Note that bus notifiers are likely to be called with the device lock already
+ * held by the driver core, so be careful in any notifier callback as to what
+ * you do with the device structure.
+ *
+ * All bus notifiers are called with the target struct device * as an argument.
  */
-#define BUS_NOTIFY_ADD_DEVICE		0x00000001 /* device added */
-#define BUS_NOTIFY_DEL_DEVICE		0x00000002 /* device to be removed */
-#define BUS_NOTIFY_REMOVED_DEVICE	0x00000003 /* device removed */
-#define BUS_NOTIFY_BIND_DRIVER		0x00000004 /* driver about to be
-						      bound */
-#define BUS_NOTIFY_BOUND_DRIVER		0x00000005 /* driver bound to device */
-#define BUS_NOTIFY_UNBIND_DRIVER	0x00000006 /* driver about to be
-						      unbound */
-#define BUS_NOTIFY_UNBOUND_DRIVER	0x00000007 /* driver is unbound
-						      from the device */
-#define BUS_NOTIFY_DRIVER_NOT_BOUND	0x00000008 /* driver fails to be bound */
+enum bus_notifier_event {
+	BUS_NOTIFY_ADD_DEVICE,
+	BUS_NOTIFY_DEL_DEVICE,
+	BUS_NOTIFY_REMOVED_DEVICE,
+	BUS_NOTIFY_BIND_DRIVER,
+	BUS_NOTIFY_BOUND_DRIVER,
+	BUS_NOTIFY_UNBIND_DRIVER,
+	BUS_NOTIFY_UNBOUND_DRIVER,
+	BUS_NOTIFY_DRIVER_NOT_BOUND,
+};
 
 extern struct kset *bus_get_kset(struct bus_type *bus);
 
