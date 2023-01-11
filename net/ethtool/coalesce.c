@@ -105,7 +105,10 @@ static int coalesce_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u32)) +	/* _TX_MAX_FRAMES_HIGH */
 	       nla_total_size(sizeof(u32)) +	/* _RATE_SAMPLE_INTERVAL */
 	       nla_total_size(sizeof(u8)) +	/* _USE_CQE_MODE_TX */
-	       nla_total_size(sizeof(u8));	/* _USE_CQE_MODE_RX */
+	       nla_total_size(sizeof(u8)) +	/* _USE_CQE_MODE_RX */
+	       nla_total_size(sizeof(u32)) +	/* _TX_AGGR_MAX_BYTES */
+	       nla_total_size(sizeof(u32)) +	/* _TX_AGGR_MAX_FRAMES */
+	       nla_total_size(sizeof(u32));	/* _TX_AGGR_TIME_USECS */
 }
 
 static bool coalesce_put_u32(struct sk_buff *skb, u16 attr_type, u32 val,
@@ -180,7 +183,13 @@ static int coalesce_fill_reply(struct sk_buff *skb,
 	    coalesce_put_bool(skb, ETHTOOL_A_COALESCE_USE_CQE_MODE_TX,
 			      kcoal->use_cqe_mode_tx, supported) ||
 	    coalesce_put_bool(skb, ETHTOOL_A_COALESCE_USE_CQE_MODE_RX,
-			      kcoal->use_cqe_mode_rx, supported))
+			      kcoal->use_cqe_mode_rx, supported) ||
+	    coalesce_put_u32(skb, ETHTOOL_A_COALESCE_TX_AGGR_MAX_BYTES,
+			     kcoal->tx_aggr_max_bytes, supported) ||
+	    coalesce_put_u32(skb, ETHTOOL_A_COALESCE_TX_AGGR_MAX_FRAMES,
+			     kcoal->tx_aggr_max_frames, supported) ||
+	    coalesce_put_u32(skb, ETHTOOL_A_COALESCE_TX_AGGR_TIME_USECS,
+			     kcoal->tx_aggr_time_usecs, supported))
 		return -EMSGSIZE;
 
 	return 0;
@@ -227,6 +236,9 @@ const struct nla_policy ethnl_coalesce_set_policy[] = {
 	[ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL] = { .type = NLA_U32 },
 	[ETHTOOL_A_COALESCE_USE_CQE_MODE_TX]	= NLA_POLICY_MAX(NLA_U8, 1),
 	[ETHTOOL_A_COALESCE_USE_CQE_MODE_RX]	= NLA_POLICY_MAX(NLA_U8, 1),
+	[ETHTOOL_A_COALESCE_TX_AGGR_MAX_BYTES] = { .type = NLA_U32 },
+	[ETHTOOL_A_COALESCE_TX_AGGR_MAX_FRAMES] = { .type = NLA_U32 },
+	[ETHTOOL_A_COALESCE_TX_AGGR_TIME_USECS] = { .type = NLA_U32 },
 };
 
 int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info)
@@ -321,6 +333,12 @@ int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info)
 			tb[ETHTOOL_A_COALESCE_USE_CQE_MODE_TX], &mod);
 	ethnl_update_u8(&kernel_coalesce.use_cqe_mode_rx,
 			tb[ETHTOOL_A_COALESCE_USE_CQE_MODE_RX], &mod);
+	ethnl_update_u32(&kernel_coalesce.tx_aggr_max_bytes,
+			 tb[ETHTOOL_A_COALESCE_TX_AGGR_MAX_BYTES], &mod);
+	ethnl_update_u32(&kernel_coalesce.tx_aggr_max_frames,
+			 tb[ETHTOOL_A_COALESCE_TX_AGGR_MAX_FRAMES], &mod);
+	ethnl_update_u32(&kernel_coalesce.tx_aggr_time_usecs,
+			 tb[ETHTOOL_A_COALESCE_TX_AGGR_TIME_USECS], &mod);
 	ret = 0;
 	if (!mod)
 		goto out_ops;
