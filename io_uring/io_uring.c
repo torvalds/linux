@@ -461,6 +461,15 @@ struct io_ring_ctx {
 	};
 };
 
+#ifndef __GENKSYMS__
+/*
+ * ANDROID ABI HACK
+ *
+ * See the big comment in the linux/io_uring.h file for details.  This
+ * structure definition should NOT be used if __GENKSYMS__ is enabled,
+ * as a "fake" structure definition has already been read in the
+ * linux/io_uring.h file in order to preserve the Android kernel ABI.
+ */
 struct io_uring_task {
 	/* submission side */
 	int			cached_refs;
@@ -477,6 +486,7 @@ struct io_uring_task {
 	struct callback_head	task_work;
 	bool			task_running;
 };
+#endif
 
 /*
  * First field must be the file pointer in all the
