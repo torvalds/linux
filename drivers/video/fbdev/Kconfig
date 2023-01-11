@@ -456,8 +456,8 @@ config FB_ATARI
 	  chipset found in Ataris.
 
 config FB_OF
-	bool "Open Firmware frame buffer device support"
-	depends on (FB = y) && PPC && (!PPC_PSERIES || PCI)
+	tristate "Open Firmware frame buffer device support"
+	depends on FB && PPC && (!PPC_PSERIES || PCI)
 	depends on !DRM_OFDRM
 	select APERTURE_HELPERS
 	select FB_CFB_FILLRECT

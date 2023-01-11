@@ -173,7 +173,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 	long started = 0, completed = 0, next_reset = reset_n;
 	long completed_before, started_before;
 	int r, test = 1;
-	unsigned len;
+	unsigned int len;
 	long long spurious = 0;
 	const bool random_batch = batch == RANDOM_BATCH;
 

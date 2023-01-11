@@ -40,6 +40,9 @@ properties:
   clock-names:
     const: stmmaceth
 
+  phy-supply:
+    description: PHY regulator
+
   syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:

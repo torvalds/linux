@@ -819,7 +819,7 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 $(LIBAPI): FORCE | $(LIBAPI_OUTPUT)
 	$(Q)$(MAKE) -C $(LIBAPI_DIR) O=$(LIBAPI_OUTPUT) \
-		DESTDIR=$(LIBAPI_DESTDIR) prefix= \
+		DESTDIR=$(LIBAPI_DESTDIR) prefix= subdir= \
 		$@ install_headers
 
 $(LIBAPI)-clean:
@@ -828,7 +828,7 @@ $(LIBAPI)-clean:
 
 $(LIBBPF): FORCE | $(LIBBPF_OUTPUT)
 	$(Q)$(MAKE) -C $(LIBBPF_DIR) FEATURES_DUMP=$(FEATURE_DUMP_EXPORT) \
-		O= OUTPUT=$(LIBBPF_OUTPUT)/ DESTDIR=$(LIBBPF_DESTDIR) prefix= \
+		O= OUTPUT=$(LIBBPF_OUTPUT)/ DESTDIR=$(LIBBPF_DESTDIR) prefix= subdir= \
 		$@ install_headers
 
 $(LIBBPF)-clean:
@@ -837,7 +837,7 @@ $(LIBBPF)-clean:
 
 $(LIBPERF): FORCE | $(LIBPERF_OUTPUT)
 	$(Q)$(MAKE) -C $(LIBPERF_DIR) O=$(LIBPERF_OUTPUT) \
-		DESTDIR=$(LIBPERF_DESTDIR) prefix= \
+		DESTDIR=$(LIBPERF_DESTDIR) prefix= subdir= \
 		$@ install_headers
 
 $(LIBPERF)-clean:
@@ -846,7 +846,7 @@ $(LIBPERF)-clean:
 
 $(LIBSUBCMD): FORCE | $(LIBSUBCMD_OUTPUT)
 	$(Q)$(MAKE) -C $(LIBSUBCMD_DIR) O=$(LIBSUBCMD_OUTPUT) \
-		DESTDIR=$(LIBSUBCMD_DESTDIR) prefix= \
+		DESTDIR=$(LIBSUBCMD_DESTDIR) prefix= subdir= \
 		$@ install_headers
 
 $(LIBSUBCMD)-clean:
@@ -855,7 +855,7 @@ $(LIBSUBCMD)-clean:
 
 $(LIBSYMBOL): FORCE | $(LIBSYMBOL_OUTPUT)
 	$(Q)$(MAKE) -C $(LIBSYMBOL_DIR) O=$(LIBSYMBOL_OUTPUT) \
-		DESTDIR=$(LIBSYMBOL_DESTDIR) prefix= \
+		DESTDIR=$(LIBSYMBOL_DESTDIR) prefix= subdir= \
 		$@ install_headers
 
 $(LIBSYMBOL)-clean:

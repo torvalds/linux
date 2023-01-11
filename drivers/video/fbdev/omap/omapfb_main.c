@@ -1447,7 +1447,7 @@ static int fbinfo_init(struct omapfb_device *fbdev, struct fb_info *info)
 	info->fbops = &omapfb_ops;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
-	strncpy(fix->id, MODULE_NAME, sizeof(fix->id));
+	strscpy(fix->id, MODULE_NAME, sizeof(fix->id));
 
 	info->pseudo_palette = fbdev->pseudo_palette;
 
@@ -1573,8 +1573,7 @@ static int omapfb_find_ctrl(struct omapfb_device *fbdev)
 
 	fbdev->ctrl = NULL;
 
-	strncpy(name, conf->lcd.ctrl_name, sizeof(name) - 1);
-	name[sizeof(name) - 1] = '\0';
+	strscpy(name, conf->lcd.ctrl_name, sizeof(name));
 
 	if (strcmp(name, "internal") == 0) {
 		fbdev->ctrl = fbdev->int_ctrl;

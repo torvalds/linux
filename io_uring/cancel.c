@@ -288,24 +288,23 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 
 		ret = __io_sync_cancel(current->io_uring, &cd, sc.fd);
 
+		mutex_unlock(&ctx->uring_lock);
 		if (ret != -EALREADY)
 			break;
 
-		mutex_unlock(&ctx->uring_lock);
 		ret = io_run_task_work_sig(ctx);
-		if (ret < 0) {
-			mutex_lock(&ctx->uring_lock);
+		if (ret < 0)
 			break;
-		}
 		ret = schedule_hrtimeout(&timeout, HRTIMER_MODE_ABS);
-		mutex_lock(&ctx->uring_lock);
 		if (!ret) {
 			ret = -ETIME;
 			break;
 		}
+		mutex_lock(&ctx->uring_lock);
 	} while (1);
 
 	finish_wait(&ctx->cq_wait, &wait);
+	mutex_lock(&ctx->uring_lock);
 
 	if (ret == -ENOENT || ret > 0)
 		ret = 0;
