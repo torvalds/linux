@@ -22,7 +22,6 @@
  */
 #include "pp_debug.h"
 #include <linux/delay.h>
-#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
