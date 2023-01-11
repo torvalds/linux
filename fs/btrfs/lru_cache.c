@@ -9,6 +9,8 @@
  *
  * @cache:      The cache.
  * @max_size:   Maximum size (number of entries) for the cache.
+ *              Use 0 for unlimited size, it's the user's responsability to
+ *              trim the cache in that case.
  */
 void btrfs_lru_cache_init(struct btrfs_lru_cache *cache, unsigned int max_size)
 {
@@ -129,7 +131,7 @@ int btrfs_lru_cache_store(struct btrfs_lru_cache *cache,
 		return ret;
 	}
 
-	if (cache->size == cache->max_size) {
+	if (cache->max_size > 0 && cache->size == cache->max_size) {
 		struct btrfs_lru_cache_entry *lru_entry;
 
 		lru_entry = list_first_entry(&cache->lru_list,
