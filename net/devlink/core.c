@@ -83,10 +83,21 @@ struct devlink *__must_check devlink_try_get(struct devlink *devlink)
 	return NULL;
 }
 
+static void devlink_release(struct work_struct *work)
+{
+	struct devlink *devlink;
+
+	devlink = container_of(to_rcu_work(work), struct devlink, rwork);
+
+	mutex_destroy(&devlink->lock);
+	lockdep_unregister_key(&devlink->lock_key);
+	kfree(devlink);
+}
+
 void devlink_put(struct devlink *devlink)
 {
 	if (refcount_dec_and_test(&devlink->refcount))
-		kfree_rcu(devlink, rcu);
+		queue_rcu_work(system_wq, &devlink->rwork);
 }
 
 struct devlink *devlinks_xa_find_get(struct net *net, unsigned long *indexp)
@@ -231,6 +242,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	INIT_LIST_HEAD(&devlink->trap_list);
 	INIT_LIST_HEAD(&devlink->trap_group_list);
 	INIT_LIST_HEAD(&devlink->trap_policer_list);
+	INIT_RCU_WORK(&devlink->rwork, devlink_release);
 	lockdep_register_key(&devlink->lock_key);
 	mutex_init(&devlink->lock);
 	lockdep_set_class(&devlink->lock, &devlink->lock_key);
@@ -259,8 +271,6 @@ void devlink_free(struct devlink *devlink)
 
 	mutex_destroy(&devlink->linecards_lock);
 	mutex_destroy(&devlink->reporters_lock);
-	mutex_destroy(&devlink->lock);
-	lockdep_unregister_key(&devlink->lock_key);
 	WARN_ON(!list_empty(&devlink->trap_policer_list));
 	WARN_ON(!list_empty(&devlink->trap_group_list));
 	WARN_ON(!list_empty(&devlink->trap_list));

@@ -7,6 +7,7 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 #include <linux/xarray.h>
 #include <net/devlink.h>
 #include <net/net_namespace.h>
@@ -51,7 +52,7 @@ struct devlink {
 	struct lock_class_key lock_key;
 	u8 reload_failed:1;
 	refcount_t refcount;
-	struct rcu_head rcu;
+	struct rcu_work rwork;
 	struct notifier_block netdevice_nb;
 	char priv[] __aligned(NETDEV_ALIGN);
 };
