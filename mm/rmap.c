@@ -2528,13 +2528,14 @@ void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc)
 void hugepage_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 			    unsigned long address, rmap_t flags)
 {
+	struct folio *folio = page_folio(page);
 	struct anon_vma *anon_vma = vma->anon_vma;
 	int first;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 	BUG_ON(!anon_vma);
 	/* address might be in next vma when migration races vma_adjust */
-	first = atomic_inc_and_test(compound_mapcount_ptr(page));
+	first = atomic_inc_and_test(&folio->_entire_mapcount);
 	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
 	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
 	if (first)
@@ -2545,10 +2546,12 @@ void hugepage_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 void hugepage_add_new_anon_rmap(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
+	struct folio *folio = page_folio(page);
+
 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	/* increment count (starts at -1) */
-	atomic_set(compound_mapcount_ptr(page), 0);
-	ClearHPageRestoreReserve(page);
+	atomic_set(&folio->_entire_mapcount, 0);
+	folio_clear_hugetlb_restore_reserve(folio);
 	__page_set_anon_rmap(page, vma, address, 1);
 }
 #endif /* CONFIG_HUGETLB_PAGE */
