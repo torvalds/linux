@@ -102,9 +102,6 @@ struct	intf_hdl {
 	struct dvobj_priv *pintf_dev;
 };
 
-uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl);
-void unregister_intf_hdl(struct intf_hdl *pintfhdl);
-
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data);
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data);
 int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data);
