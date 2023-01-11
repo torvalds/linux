@@ -153,8 +153,8 @@ clear where references should go after split: it will stay on the head page.
 Note that split_huge_pmd() doesn't have any limitations on refcounting:
 pmd can be split at any point and never fails.
 
-Partial unmap and deferred_split_huge_page()
-============================================
+Partial unmap and deferred_split_folio()
+========================================
 
 Unmapping part of THP (with munmap() or other way) is not going to free
 memory immediately. Instead, we detect that a subpage of THP is not in use
@@ -166,6 +166,6 @@ the place where we can detect partial unmap. It also might be
 counterproductive since in many cases partial unmap happens during exit(2) if
 a THP crosses a VMA boundary.
 
-The function deferred_split_huge_page() is used to queue a page for splitting.
+The function deferred_split_folio() is used to queue a folio for splitting.
 The splitting itself will happen when we get memory pressure via shrinker
 interface.
