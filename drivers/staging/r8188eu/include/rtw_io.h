@@ -227,14 +227,6 @@ void rtw_write_port_cancel(struct adapter *adapter);
 
 void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
 
-/* ioreq */
-void ioreq_read8(struct adapter *adapter, u32 addr, u8 *pval);
-void ioreq_read16(struct adapter *adapter, u32 addr, u16 *pval);
-void ioreq_read32(struct adapter *adapter, u32 addr, u32 *pval);
-void ioreq_write8(struct adapter *adapter, u32 addr, u8 val);
-void ioreq_write16(struct adapter *adapter, u32 addr, u16 val);
-void ioreq_write32(struct adapter *adapter, u32 addr, u32 val);
-
 uint async_read8(struct adapter *adapter, u32 addr, u8 *pbuff,
 		 void (*_async_io_callback)(struct adapter *padater,
 					    struct io_req *pio_req,
