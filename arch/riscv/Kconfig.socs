@@ -34,7 +34,7 @@ config SOC_STARFIVE
 
 config ARCH_VIRT
 	def_bool SOC_VIRT
-	
+
 config SOC_VIRT
 	bool "QEMU Virt Machine"
 	select CLINT_TIMER if RISCV_M_MODE
