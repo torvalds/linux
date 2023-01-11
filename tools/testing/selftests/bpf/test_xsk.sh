@@ -74,6 +74,9 @@
 # Run and dump packet contents:
 #   sudo ./test_xsk.sh -D
 #
+# Set up veth interfaces and leave them up so xskxceiver can be launched in a debugger:
+#   sudo ./test_xsk.sh -d
+#
 # Run test suite for physical device in loopback mode
 #   sudo ./test_xsk.sh -i IFACE
 
@@ -81,11 +84,12 @@
 
 ETH=""
 
-while getopts "vDi:" flag
+while getopts "vDi:d" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
 		D) dump_pkts=1;;
+		d) debug=1;;
 		i) ETH=${OPTARG};;
 	esac
 done
@@ -173,6 +177,11 @@ test_status $retval "${TEST_NAME}"
 statusList=()
 
 TEST_NAME="XSK_SELFTESTS_${VETH0}_SOFTIRQ"
+
+if [[ $debug -eq 1 ]]; then
+    echo "-i" ${VETH0} "-i" ${VETH1},${NS1}
+    exit
+fi
 
 exec_xskxceiver
 
