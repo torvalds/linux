@@ -533,10 +533,6 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (msg->msg_namelen)
 		goto err;
 
-	ret = -EINVAL;
-	if (unlikely(msg->msg_iter.nr_segs == 0) ||
-	    unlikely(msg->msg_iter.iov->iov_base == NULL))
-		goto err;
 	noblock = msg->msg_flags & MSG_DONTWAIT;
 
 	timeo = sock_sndtimeo(sk, noblock);
