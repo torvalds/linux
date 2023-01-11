@@ -3278,11 +3278,14 @@ out:
 	if (ret)
 		return ret;
 
-	odi = add_orphan_dir_info(sctx, dir, dir_gen);
-	if (IS_ERR(odi))
-		return PTR_ERR(odi);
+	if (!odi) {
+		odi = add_orphan_dir_info(sctx, dir, dir_gen);
+		if (IS_ERR(odi))
+			return PTR_ERR(odi);
 
-	odi->gen = dir_gen;
+		odi->gen = dir_gen;
+	}
+
 	odi->last_dir_index_offset = found_key.offset;
 
 	return 0;
