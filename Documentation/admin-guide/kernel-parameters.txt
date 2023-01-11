@@ -6766,11 +6766,11 @@
 			functions are at fixed addresses, they make nice
 			targets for exploits that can control RIP.
 
-			emulate     [default] Vsyscalls turn into traps and are
-			            emulated reasonably safely.  The vsyscall
-				    page is readable.
+			emulate     Vsyscalls turn into traps and are emulated
+			            reasonably safely.  The vsyscall page is
+				    readable.
 
-			xonly       Vsyscalls turn into traps and are
+			xonly       [default] Vsyscalls turn into traps and are
 			            emulated reasonably safely.  The vsyscall
 				    page is not readable.
 
