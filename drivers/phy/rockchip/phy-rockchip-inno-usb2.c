@@ -2077,6 +2077,11 @@ static int rockchip_otg_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static void rockchip_otg_wake_lock_destroy(void *data)
+{
+	wake_lock_destroy((struct wake_lock *)(data));
+}
+
 static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 					  struct rockchip_usb2phy_port *rport,
 					  struct device_node *child_np)
@@ -2195,6 +2200,11 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		goto out;
 
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
+	ret = devm_add_action_or_reset(rphy->dev, rockchip_otg_wake_lock_destroy,
+				       &rport->wakelock);
+	if (ret)
+		return ret;
+
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
 			  rockchip_usb_bypass_uart_work);
 	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
@@ -2207,7 +2217,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 					EXTCON_USB_HOST, &rport->event_nb);
 		if (ret) {
 			dev_err(rphy->dev, "register USB HOST notifier failed\n");
-			goto err;
+			return ret;
 		}
 	}
 
@@ -2223,10 +2233,6 @@ out:
 	rport->suspended = true;
 
 	return 0;
-
-err:
-	wake_lock_destroy(&rport->wakelock);
-	return ret;
 }
 
 static int rockchip_usb2phy_probe(struct platform_device *pdev)
