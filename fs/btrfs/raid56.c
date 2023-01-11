@@ -2701,7 +2701,7 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 	return 0;
 }
 
-static int scrub_rbio(struct btrfs_raid_bio *rbio)
+static void scrub_rbio(struct btrfs_raid_bio *rbio)
 {
 	bool need_check = false;
 	int sector_nr;
@@ -2709,18 +2709,18 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 
 	ret = alloc_rbio_essential_pages(rbio);
 	if (ret)
-		return ret;
+		goto out;
 
 	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 
 	ret = scrub_assemble_read_bios(rbio);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* We may have some failures, recover the failed sectors first. */
 	ret = recover_scrub_rbio(rbio);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/*
 	 * We have every sector properly prepared. Can finish the scrub
@@ -2737,17 +2737,13 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 			break;
 		}
 	}
-	return ret;
+out:
+	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
 }
 
 static void scrub_rbio_work_locked(struct work_struct *work)
 {
-	struct btrfs_raid_bio *rbio;
-	int ret;
-
-	rbio = container_of(work, struct btrfs_raid_bio, work);
-	ret = scrub_rbio(rbio);
-	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
+	scrub_rbio(container_of(work, struct btrfs_raid_bio, work));
 }
 
 void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
