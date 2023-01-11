@@ -160,6 +160,44 @@ void mlx5i_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_dropped = sstats->tx_queue_dropped;
 }
 
+struct net_device *mlx5i_parent_get(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5i_priv *ipriv, *parent_ipriv;
+	struct net_device *parent_dev;
+	int parent_ifindex;
+
+	ipriv = priv->ppriv;
+
+	parent_ifindex = netdev->netdev_ops->ndo_get_iflink(netdev);
+	parent_dev = dev_get_by_index(dev_net(netdev), parent_ifindex);
+	if (!parent_dev)
+		return NULL;
+
+	parent_ipriv = netdev_priv(parent_dev);
+
+	ASSERT_RTNL();
+	parent_ipriv->num_sub_interfaces++;
+
+	ipriv->parent_dev = parent_dev;
+
+	return parent_dev;
+}
+
+void mlx5i_parent_put(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5i_priv *ipriv, *parent_ipriv;
+
+	ipriv = priv->ppriv;
+	parent_ipriv = netdev_priv(ipriv->parent_dev);
+
+	ASSERT_RTNL();
+	parent_ipriv->num_sub_interfaces--;
+
+	dev_put(ipriv->parent_dev);
+}
+
 int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
