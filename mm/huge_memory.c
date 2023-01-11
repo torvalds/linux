@@ -559,10 +559,11 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
 }
 
 #ifdef CONFIG_MEMCG
-static inline struct deferred_split *get_deferred_split_queue(struct page *page)
+static inline
+struct deferred_split *get_deferred_split_queue(struct folio *folio)
 {
-	struct mem_cgroup *memcg = page_memcg(compound_head(page));
-	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
+	struct mem_cgroup *memcg = folio_memcg(folio);
+	struct pglist_data *pgdat = NODE_DATA(folio_nid(folio));
 
 	if (memcg)
 		return &memcg->deferred_split_queue;
@@ -570,9 +571,10 @@ static inline struct deferred_split *get_deferred_split_queue(struct page *page)
 		return &pgdat->deferred_split_queue;
 }
 #else
-static inline struct deferred_split *get_deferred_split_queue(struct page *page)
+static inline
+struct deferred_split *get_deferred_split_queue(struct folio *folio)
 {
-	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
+	struct pglist_data *pgdat = NODE_DATA(folio_nid(folio));
 
 	return &pgdat->deferred_split_queue;
 }
@@ -2650,7 +2652,7 @@ bool can_split_folio(struct folio *folio, int *pextra_pins)
 int split_huge_page_to_list(struct page *page, struct list_head *list)
 {
 	struct folio *folio = page_folio(page);
-	struct deferred_split *ds_queue = get_deferred_split_queue(&folio->page);
+	struct deferred_split *ds_queue = get_deferred_split_queue(folio);
 	XA_STATE(xas, &folio->mapping->i_pages, folio->index);
 	struct anon_vma *anon_vma = NULL;
 	struct address_space *mapping = NULL;
@@ -2801,7 +2803,7 @@ out:
 void free_transhuge_page(struct page *page)
 {
 	struct folio *folio = (struct folio *)page;
-	struct deferred_split *ds_queue = get_deferred_split_queue(page);
+	struct deferred_split *ds_queue = get_deferred_split_queue(folio);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
@@ -2816,7 +2818,7 @@ void free_transhuge_page(struct page *page)
 void deferred_split_huge_page(struct page *page)
 {
 	struct folio *folio = page_folio(page);
-	struct deferred_split *ds_queue = get_deferred_split_queue(page);
+	struct deferred_split *ds_queue = get_deferred_split_queue(folio);
 #ifdef CONFIG_MEMCG
 	struct mem_cgroup *memcg = folio_memcg(folio);
 #endif
