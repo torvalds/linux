@@ -543,19 +543,6 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	eret
 SYM_FUNC_END(init_kernel_el)
 
-/*
- * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
- * in w0. See arch/arm64/include/asm/virt.h for more info.
- */
-SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
-	adr_l	x1, __boot_cpu_mode
-	cmp	w0, #BOOT_CPU_MODE_EL2
-	b.ne	1f
-	add	x1, x1, #4
-1:	str	w0, [x1]			// Save CPU boot mode
-	ret
-SYM_FUNC_END(set_cpu_boot_mode_flag)
-
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
 	 * cores are held until we're ready for them to initialise.
@@ -599,6 +586,7 @@ SYM_FUNC_START_LOCAL(secondary_startup)
 	br	x8
 SYM_FUNC_END(secondary_startup)
 
+	.text
 SYM_FUNC_START_LOCAL(__secondary_switched)
 	mov	x0, x20
 	bl	set_cpu_boot_mode_flag
@@ -632,6 +620,19 @@ SYM_FUNC_START_LOCAL(__secondary_too_slow)
 SYM_FUNC_END(__secondary_too_slow)
 
 /*
+ * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
+ * in w0. See arch/arm64/include/asm/virt.h for more info.
+ */
+SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
+	adr_l	x1, __boot_cpu_mode
+	cmp	w0, #BOOT_CPU_MODE_EL2
+	b.ne	1f
+	add	x1, x1, #4
+1:	str	w0, [x1]			// Save CPU boot mode
+	ret
+SYM_FUNC_END(set_cpu_boot_mode_flag)
+
+/*
  * The booting CPU updates the failed status @__early_cpu_boot_status,
  * with MMU turned off.
  *
@@ -662,6 +663,7 @@ SYM_FUNC_END(__secondary_too_slow)
  * Checks if the selected granule size is supported by the CPU.
  * If it isn't, park the CPU
  */
+	.section ".idmap.text","awx"
 SYM_FUNC_START(__enable_mmu)
 	mrs	x3, ID_AA64MMFR0_EL1
 	ubfx	x3, x3, #ID_AA64MMFR0_EL1_TGRAN_SHIFT, 4
