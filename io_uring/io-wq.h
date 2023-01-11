@@ -1,6 +1,17 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
+#ifdef __GENKSYMS__
+/*
+ * ANDROID ABI HACK
+ *
+ * See the big comment in the linux/io_uring.h file for details.  This
+ * include is not needed for any real functionality, but must be here to
+ * preserve the CRC of a number of variables and functions.
+ */
+#include <linux/io_uring.h>
+#endif
+
 #include <linux/refcount.h>
 
 struct io_wq;
