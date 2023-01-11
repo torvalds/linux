@@ -305,6 +305,8 @@ static int tbnet_logout_request(struct tbnet *net)
 
 static void start_login(struct tbnet *net)
 {
+	netdev_dbg(net->dev, "login started\n");
+
 	mutex_lock(&net->connection_lock);
 	net->login_sent = false;
 	net->login_received = false;
@@ -318,6 +320,8 @@ static void stop_login(struct tbnet *net)
 {
 	cancel_delayed_work_sync(&net->login_work);
 	cancel_work_sync(&net->connected_work);
+
+	netdev_dbg(net->dev, "login stopped\n");
 }
 
 static inline unsigned int tbnet_frame_size(const struct tbnet_frame *tf)
@@ -374,6 +378,8 @@ static void tbnet_tear_down(struct tbnet *net, bool send_logout)
 		int ret, retries = TBNET_LOGOUT_RETRIES;
 
 		while (send_logout && retries-- > 0) {
+			netdev_dbg(net->dev, "sending logout request %u\n",
+				   retries);
 			ret = tbnet_logout_request(net);
 			if (ret != -ETIMEDOUT)
 				break;
@@ -399,6 +405,8 @@ static void tbnet_tear_down(struct tbnet *net, bool send_logout)
 	net->login_retries = 0;
 	net->login_sent = false;
 	net->login_received = false;
+
+	netdev_dbg(net->dev, "network traffic stopped\n");
 
 	mutex_unlock(&net->connection_lock);
 }
@@ -431,12 +439,15 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 
 	switch (pkg->hdr.type) {
 	case TBIP_LOGIN:
+		netdev_dbg(net->dev, "remote login request received\n");
 		if (!netif_running(net->dev))
 			break;
 
 		ret = tbnet_login_response(net, route, sequence,
 					   pkg->hdr.command_id);
 		if (!ret) {
+			netdev_dbg(net->dev, "remote login response sent\n");
+
 			mutex_lock(&net->connection_lock);
 			net->login_received = true;
 			net->remote_transmit_path = pkg->transmit_path;
@@ -458,9 +469,12 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 		break;
 
 	case TBIP_LOGOUT:
+		netdev_dbg(net->dev, "remote logout request received\n");
 		ret = tbnet_logout_response(net, route, sequence, command_id);
-		if (!ret)
+		if (!ret) {
+			netdev_dbg(net->dev, "remote logout response sent\n");
 			queue_work(system_long_wq, &net->disconnect_work);
+		}
 		break;
 
 	default:
@@ -612,6 +626,8 @@ static void tbnet_connected_work(struct work_struct *work)
 	if (!connected)
 		return;
 
+	netdev_dbg(net->dev, "login successful, enabling paths\n");
+
 	ret = tb_xdomain_alloc_in_hopid(net->xd, net->remote_transmit_path);
 	if (ret != net->remote_transmit_path) {
 		netdev_err(net->dev, "failed to allocate Rx HopID\n");
@@ -647,6 +663,8 @@ static void tbnet_connected_work(struct work_struct *work)
 
 	netif_carrier_on(net->dev);
 	netif_start_queue(net->dev);
+
+	netdev_dbg(net->dev, "network traffic started\n");
 	return;
 
 err_free_tx_buffers:
@@ -668,8 +686,13 @@ static void tbnet_login_work(struct work_struct *work)
 	if (netif_carrier_ok(net->dev))
 		return;
 
+	netdev_dbg(net->dev, "sending login request, retries=%u\n",
+		   net->login_retries);
+
 	ret = tbnet_login_request(net, net->login_retries % 4);
 	if (ret) {
+		netdev_dbg(net->dev, "sending login request failed, ret=%d\n",
+			   ret);
 		if (net->login_retries++ < TBNET_LOGIN_RETRIES) {
 			queue_delayed_work(system_long_wq, &net->login_work,
 					   delay);
@@ -677,6 +700,8 @@ static void tbnet_login_work(struct work_struct *work)
 			netdev_info(net->dev, "ThunderboltIP login timed out\n");
 		}
 	} else {
+		netdev_dbg(net->dev, "received login reply\n");
+
 		net->login_retries = 0;
 
 		mutex_lock(&net->connection_lock);
