@@ -1365,19 +1365,21 @@ void page_add_file_rmap(struct page *page,
  *
  * The caller needs to hold the pte lock.
  */
-void page_remove_rmap(struct page *page,
-	struct vm_area_struct *vma, bool compound)
+void page_remove_rmap(struct page *page, struct vm_area_struct *vma,
+		bool compound)
 {
-	atomic_t *mapped;
+	struct folio *folio = page_folio(page);
+	atomic_t *mapped = &folio->_nr_pages_mapped;
 	int nr = 0, nr_pmdmapped = 0;
 	bool last;
+	enum node_stat_item idx;
 
 	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
 
 	/* Hugetlb pages are not counted in NR_*MAPPED */
-	if (unlikely(PageHuge(page))) {
+	if (unlikely(folio_test_hugetlb(folio))) {
 		/* hugetlb pages are always mapped with pmds */
-		atomic_dec(compound_mapcount_ptr(page));
+		atomic_dec(&folio->_entire_mapcount);
 		return;
 	}
 
@@ -1385,20 +1387,18 @@ void page_remove_rmap(struct page *page,
 	if (likely(!compound)) {
 		last = atomic_add_negative(-1, &page->_mapcount);
 		nr = last;
-		if (last && PageCompound(page)) {
-			mapped = subpages_mapcount_ptr(compound_head(page));
+		if (last && folio_test_large(folio)) {
 			nr = atomic_dec_return_relaxed(mapped);
 			nr = (nr < COMPOUND_MAPPED);
 		}
-	} else if (PageTransHuge(page)) {
+	} else if (folio_test_pmd_mappable(folio)) {
 		/* That test is redundant: it's for safety or to optimize out */
 
-		last = atomic_add_negative(-1, compound_mapcount_ptr(page));
+		last = atomic_add_negative(-1, &folio->_entire_mapcount);
 		if (last) {
-			mapped = subpages_mapcount_ptr(page);
 			nr = atomic_sub_return_relaxed(COMPOUND_MAPPED, mapped);
 			if (likely(nr < COMPOUND_MAPPED)) {
-				nr_pmdmapped = thp_nr_pages(page);
+				nr_pmdmapped = folio_nr_pages(folio);
 				nr = nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
 				/* Raced ahead of another remove and an add? */
 				if (unlikely(nr < 0))
@@ -1411,21 +1411,26 @@ void page_remove_rmap(struct page *page,
 	}
 
 	if (nr_pmdmapped) {
-		__mod_lruvec_page_state(page, PageAnon(page) ? NR_ANON_THPS :
-				(PageSwapBacked(page) ? NR_SHMEM_PMDMAPPED :
-				NR_FILE_PMDMAPPED), -nr_pmdmapped);
+		if (folio_test_anon(folio))
+			idx = NR_ANON_THPS;
+		else if (folio_test_swapbacked(folio))
+			idx = NR_SHMEM_PMDMAPPED;
+		else
+			idx = NR_FILE_PMDMAPPED;
+		__lruvec_stat_mod_folio(folio, idx, -nr_pmdmapped);
 	}
 	if (nr) {
-		__mod_lruvec_page_state(page, PageAnon(page) ? NR_ANON_MAPPED :
-				NR_FILE_MAPPED, -nr);
+		idx = folio_test_anon(folio) ? NR_ANON_MAPPED : NR_FILE_MAPPED;
+		__lruvec_stat_mod_folio(folio, idx, -nr);
+
 		/*
-		 * Queue anon THP for deferred split if at least one small
-		 * page of the compound page is unmapped, but at least one
-		 * small page is still mapped.
+		 * Queue anon THP for deferred split if at least one
+		 * page of the folio is unmapped and at least one page
+		 * is still mapped.
 		 */
-		if (PageTransCompound(page) && PageAnon(page))
+		if (folio_test_pmd_mappable(folio) && folio_test_anon(folio))
 			if (!compound || nr < nr_pmdmapped)
-				deferred_split_huge_page(compound_head(page));
+				deferred_split_huge_page(&folio->page);
 	}
 
 	/*
