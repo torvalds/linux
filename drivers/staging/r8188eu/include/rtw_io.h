@@ -82,7 +82,6 @@
 
 struct intf_priv;
 struct intf_hdl;
-struct io_queue;
 
 struct io_req {
 	struct list_head list;
@@ -186,21 +185,6 @@ struct reg_protocol_wt {
 	/* DW4 */
 	u32	Value;
 #endif
-};
-
-/*
-Below is the data structure used by _io_handler
-*/
-
-struct io_queue {
-	spinlock_t lock;
-	struct list_head free_ioreqs;
-	struct list_head pending;	/* The io_req list that will be served
-					 * in the single protocol read/write.*/
-	struct list_head processing;
-	u8	*free_ioreqs_buf; /*  4-byte aligned */
-	u8	*pallocated_free_ioreqs_buf;
-	struct	intf_hdl	intf;
 };
 
 uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl);
