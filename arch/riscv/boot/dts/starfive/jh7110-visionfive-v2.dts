@@ -15,7 +15,7 @@
 	gpio-restart {
 		compatible = "gpio-restart";
 		gpios = <&gpio 35 GPIO_ACTIVE_HIGH>;
-		priority = <224>;
+		priority = <160>;
 	};
 
 };
