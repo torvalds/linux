@@ -1264,41 +1264,40 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 }
 
 /**
- * page_add_new_anon_rmap - add mapping to a new anonymous page
- * @page:	the page to add the mapping to
+ * folio_add_new_anon_rmap - Add mapping to a new anonymous folio.
+ * @folio:	The folio to add the mapping to.
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * If it's a compound page, it is accounted as a compound page. As the page
- * is new, it's assume to get mapped exclusively by a single process.
- *
- * Same as page_add_anon_rmap but must only be called on *new* pages.
+ * Like page_add_anon_rmap() but must only be called on *new* folios.
  * This means the inc-and-test can be bypassed.
- * Page does not have to be locked.
+ * The folio does not have to be locked.
+ *
+ * If the folio is large, it is accounted as a THP.  As the folio
+ * is new, it's assumed to be mapped exclusively by a single process.
  */
-void page_add_new_anon_rmap(struct page *page,
-	struct vm_area_struct *vma, unsigned long address)
+void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
+		unsigned long address)
 {
 	int nr;
 
 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-	__SetPageSwapBacked(page);
+	__folio_set_swapbacked(folio);
 
-	if (likely(!PageCompound(page))) {
+	if (likely(!folio_test_pmd_mappable(folio))) {
 		/* increment count (starts at -1) */
-		atomic_set(&page->_mapcount, 0);
+		atomic_set(&folio->_mapcount, 0);
 		nr = 1;
 	} else {
-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 		/* increment count (starts at -1) */
-		atomic_set(compound_mapcount_ptr(page), 0);
-		atomic_set(subpages_mapcount_ptr(page), COMPOUND_MAPPED);
-		nr = thp_nr_pages(page);
-		__mod_lruvec_page_state(page, NR_ANON_THPS, nr);
+		atomic_set(&folio->_entire_mapcount, 0);
+		atomic_set(&folio->_nr_pages_mapped, COMPOUND_MAPPED);
+		nr = folio_nr_pages(folio);
+		__lruvec_stat_mod_folio(folio, NR_ANON_THPS, nr);
 	}
 
-	__mod_lruvec_page_state(page, NR_ANON_MAPPED, nr);
-	__page_set_anon_rmap(page, vma, address, 1);
+	__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
+	__page_set_anon_rmap(&folio->page, vma, address, 1);
 }
 
 /**

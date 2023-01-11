@@ -6,6 +6,7 @@
 
 #include <linux/migrate.h>
 #include <linux/pagemap.h>
+#include <linux/rmap.h>
 #include <linux/swap.h>
 #include "internal.h"
 
@@ -123,3 +124,13 @@ void putback_lru_page(struct page *page)
 {
 	folio_putback_lru(page_folio(page));
 }
+
+#ifdef CONFIG_MMU
+void page_add_new_anon_rmap(struct page *page, struct vm_area_struct *vma,
+		unsigned long address)
+{
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
+	return folio_add_new_anon_rmap((struct folio *)page, vma, address);
+}
+#endif
