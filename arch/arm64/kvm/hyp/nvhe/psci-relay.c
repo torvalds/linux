@@ -31,10 +31,12 @@ static void pkvm_psci_notify(enum pkvm_psci_notification notif, struct kvm_cpu_c
 		pkvm_psci_notifier(notif, host_ctxt);
 }
 
+#ifdef CONFIG_MODULES
 int __pkvm_register_psci_notifier(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *))
 {
 	return cmpxchg(&pkvm_psci_notifier, NULL, cb) ? -EBUSY : 0;
 }
+#endif
 
 #define INVALID_CPU_ID	UINT_MAX
 

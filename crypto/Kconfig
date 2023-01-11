@@ -54,6 +54,31 @@ config CRYPTO_FIPS_VERSION
 	  This option provides the ability to override the FIPS Module Version.
 	  By default the KERNELRELEASE value is used.
 
+config CRYPTO_FIPS140_MOD
+	tristate "Enable FIPS 140 cryptographic module"
+	depends on ARM64 && ARM64_MODULE_PLTS
+	depends on m
+	help
+	  This option enables building a loadable module fips140.ko, which
+	  contains various crypto algorithms that are also built into vmlinux.
+	  At load time, this module overrides the built-in implementations of
+	  these algorithms with its implementations.  It also runs self-tests on
+	  these algorithms and verifies the integrity of its code and data.  If
+	  either of these steps fails, the kernel will panic.
+
+	  This module is intended to be loaded at early boot time in order to
+	  meet FIPS 140 and NIAP FPT_TST_EXT.1 requirements.  It shouldn't be
+	  used if you don't need to meet these requirements.
+
+config CRYPTO_FIPS140_MOD_EVAL_TESTING
+	bool "Enable evaluation testing features in FIPS 140 module"
+	depends on CRYPTO_FIPS140_MOD
+	help
+	  This option adds some features to the FIPS 140 module which are needed
+	  for lab evaluation testing of the module, e.g. support for injecting
+	  errors and support for a userspace interface to some of the module's
+	  services.  This option should not be enabled in production builds.
+
 config CRYPTO_ALGAPI
 	tristate
 	select CRYPTO_ALGAPI2

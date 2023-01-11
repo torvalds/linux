@@ -505,14 +505,76 @@ static int module_init_ftrace_plt(const Elf_Ehdr *hdr,
 	return 0;
 }
 
+static int module_init_hyp(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+			   struct module *mod)
+{
+#ifdef CONFIG_KVM
+	const Elf_Shdr *s;
+
+	/*
+	 * If the .hyp.text is missing or empty, this is not a hypervisor
+	 * module so ignore the rest of it.
+	 */
+	s = find_section(hdr, sechdrs, ".hyp.text");
+	if (!s || !s->sh_size)
+		return 0;
+
+	mod->arch.hyp.text = (struct pkvm_module_section) {
+		.start	= (void *)s->sh_addr,
+		.end	= (void *)s->sh_addr + s->sh_size,
+	};
+
+	s = find_section(hdr, sechdrs, ".hyp.bss");
+	if (!s)
+		return -ENOEXEC;
+
+	mod->arch.hyp.bss = (struct pkvm_module_section) {
+		.start	= (void *)s->sh_addr,
+		.end	= (void *)s->sh_addr + s->sh_size,
+	};
+
+	s = find_section(hdr, sechdrs, ".hyp.rodata");
+	if (!s)
+		return -ENOEXEC;
+
+	mod->arch.hyp.rodata = (struct pkvm_module_section) {
+		.start	= (void *)s->sh_addr,
+		.end	= (void *)s->sh_addr + s->sh_size,
+	};
+
+	s = find_section(hdr, sechdrs, ".hyp.data");
+	if (!s)
+		return -ENOEXEC;
+
+	mod->arch.hyp.data = (struct pkvm_module_section) {
+		.start	= (void *)s->sh_addr,
+		.end	= (void *)s->sh_addr + s->sh_size,
+	};
+
+	s = find_section(hdr, sechdrs, ".hyp.reloc");
+	if (!s)
+		return -ENOEXEC;
+
+	mod->arch.hyp.relocs = (void *)s->sh_addr;
+	mod->arch.hyp.nr_relocs = s->sh_size / sizeof(*mod->arch.hyp.relocs);
+#endif
+	return 0;
+}
+
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
+	int err;
 	const Elf_Shdr *s;
+
 	s = find_section(hdr, sechdrs, ".altinstructions");
 	if (s)
 		apply_alternatives_module((void *)s->sh_addr, s->sh_size);
 
-	return module_init_ftrace_plt(hdr, sechdrs, me);
+	err = module_init_ftrace_plt(hdr, sechdrs, me);
+	if (err)
+		return err;
+
+	return module_init_hyp(hdr, sechdrs, me);
 }

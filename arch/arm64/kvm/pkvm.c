@@ -9,6 +9,7 @@
 #include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/sort.h>
@@ -24,6 +25,7 @@ static struct reserved_mem *pkvm_firmware_mem;
 static phys_addr_t *pvmfw_base = &kvm_nvhe_sym(pvmfw_base);
 static phys_addr_t *pvmfw_size = &kvm_nvhe_sym(pvmfw_size);
 
+static struct pkvm_moveable_reg *moveable_regs = kvm_nvhe_sym(pkvm_moveable_regs);
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
 static unsigned int *hyp_memblock_nr_ptr = &kvm_nvhe_sym(hyp_memblock_nr);
 
@@ -63,6 +65,80 @@ static int __init register_memblock_regions(void)
 	return 0;
 }
 
+static int cmp_moveable_reg(const void *p1, const void *p2)
+{
+	const struct pkvm_moveable_reg *r1 = p1;
+	const struct pkvm_moveable_reg *r2 = p2;
+
+	/*
+	 * Moveable regions may overlap, so put the largest one first when start
+	 * addresses are equal to allow a simpler walk from e.g.
+	 * host_stage2_unmap_unmoveable_regs().
+	 */
+	if (r1->start < r2->start)
+		return -1;
+	else if (r1->start > r2->start)
+		return 1;
+	else if (r1->size > r2->size)
+		return -1;
+	else if (r1->size < r2->size)
+		return 1;
+	return 0;
+}
+
+static void __init sort_moveable_regs(void)
+{
+	sort(moveable_regs,
+	     kvm_nvhe_sym(pkvm_moveable_regs_nr),
+	     sizeof(struct pkvm_moveable_reg),
+	     cmp_moveable_reg,
+	     NULL);
+}
+
+static int __init register_moveable_regions(void)
+{
+	struct memblock_region *reg;
+	struct device_node *np;
+	int i = 0;
+
+	for_each_mem_region(reg) {
+		if (i >= PKVM_NR_MOVEABLE_REGS)
+			return -ENOMEM;
+		moveable_regs[i].start = reg->base;
+		moveable_regs[i].size = reg->size;
+		moveable_regs[i].type = PKVM_MREG_MEMORY;
+		i++;
+	}
+
+	for_each_compatible_node(np, NULL, "pkvm,protected-region") {
+		struct resource res;
+		u64 start, size;
+		int ret;
+
+		if (i >= PKVM_NR_MOVEABLE_REGS)
+			return -ENOMEM;
+
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			return ret;
+
+		start = res.start;
+		size = resource_size(&res);
+		if (!PAGE_ALIGNED(start) || !PAGE_ALIGNED(size))
+			return -EINVAL;
+
+		moveable_regs[i].start = start;
+		moveable_regs[i].size = size;
+		moveable_regs[i].type = PKVM_MREG_PROTECTED_RANGE;
+		i++;
+	}
+
+	kvm_nvhe_sym(pkvm_moveable_regs_nr) = i;
+	sort_moveable_regs();
+
+	return 0;
+}
+
 void __init kvm_hyp_reserve(void)
 {
 	u64 hyp_mem_pages = 0;
@@ -78,6 +154,13 @@ void __init kvm_hyp_reserve(void)
 	if (ret) {
 		*hyp_memblock_nr_ptr = 0;
 		kvm_err("Failed to register hyp memblocks: %d\n", ret);
+		return;
+	}
+
+	ret = register_moveable_regions();
+	if (ret) {
+		*hyp_memblock_nr_ptr = 0;
+		kvm_err("Failed to register pkvm moveable regions: %d\n", ret);
 		return;
 	}
 
@@ -424,7 +507,6 @@ static int __init early_pkvm_enable_modules(char *arg)
 	return 0;
 }
 early_param("kvm-arm.protected_modules", early_pkvm_enable_modules);
-#endif
 
 struct pkvm_mod_sec_mapping {
 	struct pkvm_module_section *sec;
@@ -501,9 +583,9 @@ static int __pkvm_cmp_mod_sec(const void *p1, const void *p2)
 	return s1->sec->start < s2->sec->start ? -1 : s1->sec->start > s2->sec->start;
 }
 
-int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this,
-			   unsigned long *token)
+int __pkvm_load_el2_module(struct module *this, unsigned long *token)
 {
+	struct pkvm_el2_module *mod = &this->arch.hyp;
 	struct pkvm_mod_sec_mapping secs_map[] = {
 		{ &mod->text, KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_X },
 		{ &mod->bss, KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_W },
@@ -533,7 +615,7 @@ int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this,
 	sort(secs_map, ARRAY_SIZE(secs_map), sizeof(secs_map[0]), __pkvm_cmp_mod_sec, NULL);
 	start = secs_map[0].sec->start;
 	end = secs_map[ARRAY_SIZE(secs_map) - 1].sec->end;
-	size = PAGE_ALIGN(end - start);
+	size = end - start;
 
 	hyp_va = (void *)kvm_call_hyp_nvhe(__pkvm_alloc_module_va, size >> PAGE_SHIFT);
 	if (!hyp_va) {
@@ -587,3 +669,4 @@ int __pkvm_register_el2_call(dyn_hcall_t hfn, unsigned long token,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__pkvm_register_el2_call);
+#endif /* CONFIG_MODULES */

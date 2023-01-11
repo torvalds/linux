@@ -303,6 +303,23 @@ static int fix_hyp_pgtable_refcnt(void)
 				&walker);
 }
 
+static int unmap_protected_regions(void)
+{
+	struct pkvm_moveable_reg *reg;
+	int i, ret;
+
+	for (i = 0; i < pkvm_moveable_regs_nr; i++) {
+		reg = &pkvm_moveable_regs[i];
+		if (reg->type != PKVM_MREG_PROTECTED_RANGE)
+			continue;
+		ret = host_stage2_protect_pages_locked(reg->start, reg->size);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 void __noreturn __pkvm_init_finalise(void)
 {
 	struct kvm_host_data *host_data = this_cpu_ptr(&kvm_host_data);
@@ -341,6 +358,10 @@ void __noreturn __pkvm_init_finalise(void)
 		goto out;
 
 	ret = hyp_create_pcpu_fixmap();
+	if (ret)
+		goto out;
+
+	ret = unmap_protected_regions();
 	if (ret)
 		goto out;
 

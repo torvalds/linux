@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <crypto/sha2.h>
 #include <asm/unaligned.h>
+#include <trace/hooks/fips140.h>
 
 static const u32 SHA256_K[] = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -199,6 +200,14 @@ EXPORT_SYMBOL(sha224_final);
 void sha256(const u8 *data, unsigned int len, u8 *out)
 {
 	struct sha256_state sctx;
+
+#ifndef __DISABLE_EXPORTS
+	int hook_inuse = 0;
+
+	trace_android_vh_sha256(data, len, out, &hook_inuse);
+	if (hook_inuse)
+		return;
+#endif
 
 	sha256_init(&sctx);
 	sha256_update(&sctx, data, len);
