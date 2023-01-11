@@ -36,7 +36,7 @@ extern ssize_t of_device_modalias(struct device *dev, char *str, ssize_t len);
 extern int of_device_request_module(struct device *dev);
 
 extern void of_device_uevent(const struct device *dev, struct kobj_uevent_env *env);
-extern int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env);
+extern int of_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *env);
 
 static inline struct device_node *of_cpu_device_node_get(int cpu)
 {
@@ -83,7 +83,7 @@ static inline int of_device_request_module(struct device *dev)
 	return -ENODEV;
 }
 
-static inline int of_device_uevent_modalias(struct device *dev,
+static inline int of_device_uevent_modalias(const struct device *dev,
 				   struct kobj_uevent_env *env)
 {
 	return -ENODEV;
