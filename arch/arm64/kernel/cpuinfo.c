@@ -162,6 +162,7 @@ static const char *const compat_hwcap2_str[] = {
 	[COMPAT_KERNEL_HWCAP2(SHA2)]	= "sha2",
 	[COMPAT_KERNEL_HWCAP2(CRC32)]	= "crc32",
 	[COMPAT_KERNEL_HWCAP2(SB)]	= "sb",
+	[COMPAT_KERNEL_HWCAP2(SSBS)]	= "ssbs",
 };
 #endif /* CONFIG_COMPAT */
 
