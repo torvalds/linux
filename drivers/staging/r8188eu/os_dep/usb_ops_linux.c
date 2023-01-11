@@ -29,8 +29,7 @@ void rtw_read_port_cancel(struct adapter *padapter)
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		precvbuf->reuse = true;
-		if (precvbuf->purb)
-			usb_kill_urb(precvbuf->purb);
+		usb_kill_urb(precvbuf->purb);
 		precvbuf++;
 	}
 }
@@ -153,15 +152,13 @@ void rtw_write_port_cancel(struct adapter *padapter)
 	padapter->bWritePortCancel = true;
 
 	for (i = 0; i < NR_XMITBUFF; i++) {
-		if (pxmitbuf->pxmit_urb)
-			usb_kill_urb(pxmitbuf->pxmit_urb);
+		usb_kill_urb(pxmitbuf->pxmit_urb);
 		pxmitbuf++;
 	}
 
 	pxmitbuf = (struct xmit_buf *)padapter->xmitpriv.pxmit_extbuf;
 	for (i = 0; i < NR_XMIT_EXTBUFF; i++) {
-		if (pxmitbuf->pxmit_urb)
-			usb_kill_urb(pxmitbuf->pxmit_urb);
+		usb_kill_urb(pxmitbuf->pxmit_urb);
 		pxmitbuf++;
 	}
 }
