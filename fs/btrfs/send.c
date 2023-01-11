@@ -3253,13 +3253,6 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 
 		dm = get_waiting_dir_move(sctx, loc.objectid);
 		if (dm) {
-			odi = add_orphan_dir_info(sctx, dir, dir_gen);
-			if (IS_ERR(odi)) {
-				ret = PTR_ERR(odi);
-				goto out;
-			}
-			odi->gen = dir_gen;
-			odi->last_dir_index_offset = found_key.offset;
 			dm->rmdir_ino = dir;
 			dm->rmdir_gen = dir_gen;
 			ret = 0;
@@ -3267,13 +3260,6 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 		}
 
 		if (loc.objectid > sctx->cur_ino) {
-			odi = add_orphan_dir_info(sctx, dir, dir_gen);
-			if (IS_ERR(odi)) {
-				ret = PTR_ERR(odi);
-				goto out;
-			}
-			odi->gen = dir_gen;
-			odi->last_dir_index_offset = found_key.offset;
 			ret = 0;
 			goto out;
 		}
@@ -3288,7 +3274,18 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 
 out:
 	btrfs_free_path(path);
-	return ret;
+
+	if (ret)
+		return ret;
+
+	odi = add_orphan_dir_info(sctx, dir, dir_gen);
+	if (IS_ERR(odi))
+		return PTR_ERR(odi);
+
+	odi->gen = dir_gen;
+	odi->last_dir_index_offset = found_key.offset;
+
+	return 0;
 }
 
 static int is_waiting_for_move(struct send_ctx *sctx, u64 ino)
