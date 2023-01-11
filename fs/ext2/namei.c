@@ -335,18 +335,16 @@ static int ext2_rename (struct mnt_idmap * idmap,
 
 	err = dquot_initialize(old_dir);
 	if (err)
-		goto out;
+		return err;
 
 	err = dquot_initialize(new_dir);
 	if (err)
-		goto out;
+		return err;
 
 	old_de = ext2_find_entry(old_dir, &old_dentry->d_name, &old_page,
 				 &old_page_addr);
-	if (IS_ERR(old_de)) {
-		err = PTR_ERR(old_de);
-		goto out;
-	}
+	if (IS_ERR(old_de))
+		return PTR_ERR(old_de);
 
 	if (S_ISDIR(old_inode->i_mode)) {
 		err = -EIO;
@@ -394,27 +392,20 @@ static int ext2_rename (struct mnt_idmap * idmap,
 	old_inode->i_ctime = current_time(old_inode);
 	mark_inode_dirty(old_inode);
 
-	ext2_delete_entry(old_de, old_page, old_page_addr);
-
-	if (dir_de) {
-		if (old_dir != new_dir) {
+	err = ext2_delete_entry(old_de, old_page, old_page_addr);
+	if (!err && dir_de) {
+		if (old_dir != new_dir)
 			err = ext2_set_link(old_inode, dir_de, dir_page,
 					    dir_page_addr, new_dir, false);
 
-		}
-		ext2_put_page(dir_page, dir_page_addr);
 		inode_dec_link_count(old_dir);
 	}
-
-out_old:
-	ext2_put_page(old_page, old_page_addr);
-out:
-	return err;
-
 out_dir:
 	if (dir_de)
 		ext2_put_page(dir_page, dir_page_addr);
-	goto out_old;
+out_old:
+	ext2_put_page(old_page, old_page_addr);
+	return err;
 }
 
 const struct inode_operations ext2_dir_inode_operations = {

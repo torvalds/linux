@@ -606,8 +606,7 @@ int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
 		if (de->rec_len == 0) {
 			ext2_error(inode->i_sb, __func__,
 				"zero-length directory entry");
-			err = -EIO;
-			goto out;
+			return -EIO;
 		}
 		pde = de;
 		de = ext2_next_entry(de);
@@ -617,7 +616,10 @@ int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
 	pos = page_offset(page) + from;
 	lock_page(page);
 	err = ext2_prepare_chunk(page, pos, to - from);
-	BUG_ON(err);
+	if (err) {
+		unlock_page(page);
+		return err;
+	}
 	if (pde)
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;
@@ -625,9 +627,7 @@ int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
 	inode->i_ctime = inode->i_mtime = current_time(inode);
 	EXT2_I(inode)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(inode);
-	err = ext2_handle_dirsync(inode);
-out:
-	return err;
+	return ext2_handle_dirsync(inode);
 }
 
 /*
