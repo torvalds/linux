@@ -17,6 +17,7 @@
 #include "i915_utils.h"
 #include "intel_gt.h"
 #include "intel_gt_mcr.h"
+#include "intel_gt_print.h"
 #include "intel_gt_regs.h"
 #include "intel_gtt.h"
 
@@ -461,9 +462,9 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   HSW_GTT_CACHE_EN,
 				   can_use_gtt_cache ? GTT_CACHE_EN_ALL : 0);
-		drm_WARN_ON_ONCE(&i915->drm, can_use_gtt_cache &&
-				 intel_uncore_read(uncore,
-						   HSW_GTT_CACHE_EN) == 0);
+		gt_WARN_ON_ONCE(gt, can_use_gtt_cache &&
+				intel_uncore_read(uncore,
+						  HSW_GTT_CACHE_EN) == 0);
 	}
 }
 

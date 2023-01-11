@@ -22,6 +22,7 @@
 #include "intel_gt_debugfs.h"
 #include "intel_gt_mcr.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_print.h"
 #include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
 #include "intel_migrate.h"
@@ -89,9 +90,8 @@ static int intel_gt_probe_lmem(struct intel_gt *gt)
 		if (err == -ENODEV)
 			return 0;
 
-		drm_err(&i915->drm,
-			"Failed to setup region(%d) type=%d\n",
-			err, INTEL_MEMORY_LOCAL);
+		gt_err(gt, "Failed to setup region(%d) type=%d\n",
+		       err, INTEL_MEMORY_LOCAL);
 		return err;
 	}
 
@@ -200,14 +200,14 @@ int intel_gt_init_hw(struct intel_gt *gt)
 
 	ret = i915_ppgtt_init_hw(gt);
 	if (ret) {
-		drm_err(&i915->drm, "Enabling PPGTT failed (%d)\n", ret);
+		gt_err(gt, "Enabling PPGTT failed (%d)\n", ret);
 		goto out;
 	}
 
 	/* We can't enable contexts until all firmware is loaded */
 	ret = intel_uc_init_hw(&gt->uc);
 	if (ret) {
-		i915_probe_error(i915, "Enabling uc failed (%d)\n", ret);
+		gt_probe_error(gt, "Enabling uc failed (%d)\n", ret);
 		goto out;
 	}
 
@@ -257,7 +257,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 		 * some errors might have become stuck,
 		 * mask them.
 		 */
-		drm_dbg(&gt->i915->drm, "EIR stuck: 0x%08x, masking\n", eir);
+		gt_dbg(gt, "EIR stuck: 0x%08x, masking\n", eir);
 		intel_uncore_rmw(uncore, EMR, 0, eir);
 		intel_uncore_write(uncore, GEN2_IIR,
 				   I915_MASTER_ERROR_INTERRUPT);
@@ -291,16 +291,16 @@ static void gen6_check_faults(struct intel_gt *gt)
 	for_each_engine(engine, gt, id) {
 		fault = GEN6_RING_FAULT_REG_READ(engine);
 		if (fault & RING_FAULT_VALID) {
-			drm_dbg(&engine->i915->drm, "Unexpected fault\n"
-				"\tAddr: 0x%08lx\n"
-				"\tAddress space: %s\n"
-				"\tSource ID: %d\n"
-				"\tType: %d\n",
-				fault & PAGE_MASK,
-				fault & RING_FAULT_GTTSEL_MASK ?
-				"GGTT" : "PPGTT",
-				RING_FAULT_SRCID(fault),
-				RING_FAULT_FAULT_TYPE(fault));
+			gt_dbg(gt, "Unexpected fault\n"
+			       "\tAddr: 0x%08lx\n"
+			       "\tAddress space: %s\n"
+			       "\tSource ID: %d\n"
+			       "\tType: %d\n",
+			       fault & PAGE_MASK,
+			       fault & RING_FAULT_GTTSEL_MASK ?
+			       "GGTT" : "PPGTT",
+			       RING_FAULT_SRCID(fault),
+			       RING_FAULT_FAULT_TYPE(fault));
 		}
 	}
 }
@@ -327,17 +327,17 @@ static void xehp_check_faults(struct intel_gt *gt)
 		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
 			     ((u64)fault_data0 << 12);
 
-		drm_dbg(&gt->i915->drm, "Unexpected fault\n"
-			"\tAddr: 0x%08x_%08x\n"
-			"\tAddress space: %s\n"
-			"\tEngine ID: %d\n"
-			"\tSource ID: %d\n"
-			"\tType: %d\n",
-			upper_32_bits(fault_addr), lower_32_bits(fault_addr),
-			fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-			GEN8_RING_FAULT_ENGINE_ID(fault),
-			RING_FAULT_SRCID(fault),
-			RING_FAULT_FAULT_TYPE(fault));
+		gt_dbg(gt, "Unexpected fault\n"
+		       "\tAddr: 0x%08x_%08x\n"
+		       "\tAddress space: %s\n"
+		       "\tEngine ID: %d\n"
+		       "\tSource ID: %d\n"
+		       "\tType: %d\n",
+		       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
+		       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
+		       GEN8_RING_FAULT_ENGINE_ID(fault),
+		       RING_FAULT_SRCID(fault),
+		       RING_FAULT_FAULT_TYPE(fault));
 	}
 }
 
@@ -368,17 +368,17 @@ static void gen8_check_faults(struct intel_gt *gt)
 		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
 			     ((u64)fault_data0 << 12);
 
-		drm_dbg(&uncore->i915->drm, "Unexpected fault\n"
-			"\tAddr: 0x%08x_%08x\n"
-			"\tAddress space: %s\n"
-			"\tEngine ID: %d\n"
-			"\tSource ID: %d\n"
-			"\tType: %d\n",
-			upper_32_bits(fault_addr), lower_32_bits(fault_addr),
-			fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-			GEN8_RING_FAULT_ENGINE_ID(fault),
-			RING_FAULT_SRCID(fault),
-			RING_FAULT_FAULT_TYPE(fault));
+		gt_dbg(gt, "Unexpected fault\n"
+		       "\tAddr: 0x%08x_%08x\n"
+		       "\tAddress space: %s\n"
+		       "\tEngine ID: %d\n"
+		       "\tSource ID: %d\n"
+		       "\tType: %d\n",
+		       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
+		       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
+		       GEN8_RING_FAULT_ENGINE_ID(fault),
+		       RING_FAULT_SRCID(fault),
+		       RING_FAULT_FAULT_TYPE(fault));
 	}
 }
 
@@ -472,7 +472,7 @@ static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 	if (IS_ERR(obj))
 		obj = i915_gem_object_create_internal(i915, size);
 	if (IS_ERR(obj)) {
-		drm_err(&i915->drm, "Failed to allocate scratch page\n");
+		gt_err(gt, "Failed to allocate scratch page\n");
 		return PTR_ERR(obj);
 	}
 
@@ -727,8 +727,7 @@ int intel_gt_init(struct intel_gt *gt)
 
 	err = intel_gt_init_hwconfig(gt);
 	if (err)
-		drm_err(&gt->i915->drm, "Failed to retrieve hwconfig table: %pe\n",
-			ERR_PTR(err));
+		gt_err(gt, "Failed to retrieve hwconfig table: %pe\n", ERR_PTR(err));
 
 	err = __engines_record_defaults(gt);
 	if (err)
@@ -885,7 +884,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	gt->name = "Primary GT";
 	gt->info.engine_mask = RUNTIME_INFO(i915)->platform_engine_mask;
 
-	drm_dbg(&i915->drm, "Setting up %s\n", gt->name);
+	gt_dbg(gt, "Setting up %s\n", gt->name);
 	ret = intel_gt_tile_setup(gt, phys_addr);
 	if (ret)
 		return ret;
@@ -910,7 +909,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 		gt->info.engine_mask = gtdef->engine_mask;
 		gt->info.id = i;
 
-		drm_dbg(&i915->drm, "Setting up %s\n", gt->name);
+		gt_dbg(gt, "Setting up %s\n", gt->name);
 		if (GEM_WARN_ON(range_overflows_t(resource_size_t,
 						  gtdef->mapping_base,
 						  SZ_16M,
@@ -998,8 +997,7 @@ get_reg_and_bit(const struct intel_engine_cs *engine, const bool gen8,
 	const unsigned int class = engine->class;
 	struct reg_and_bit rb = { };
 
-	if (drm_WARN_ON_ONCE(&engine->i915->drm,
-			     class >= num || !regs[class].reg))
+	if (gt_WARN_ON_ONCE(engine->gt, class >= num || !regs[class].reg))
 		return rb;
 
 	rb.reg = regs[class];
@@ -1096,8 +1094,7 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 		return;
 	}
 
-	if (drm_WARN_ONCE(&i915->drm, !num,
-			  "Platform does not implement TLB invalidation!"))
+	if (gt_WARN_ONCE(gt, !num, "Platform does not implement TLB invalidation!"))
 		return;
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
@@ -1162,9 +1159,8 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 		}
 
 		if (wait_for_invalidate(gt, rb))
-			drm_err_ratelimited(&gt->i915->drm,
-					    "%s TLB invalidation did not complete in %ums!\n",
-					    engine->name, TLB_INVAL_TIMEOUT_MS);
+			gt_err_ratelimited(gt, "%s TLB invalidation did not complete in %ums!\n",
+					   engine->name, TLB_INVAL_TIMEOUT_MS);
 	}
 
 	/*
