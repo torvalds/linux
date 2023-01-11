@@ -1410,13 +1410,10 @@ static void kmem_rcu_free(struct rcu_head *head)
 }
 
 #if DEBUG
-static bool is_debug_pagealloc_cache(struct kmem_cache *cachep)
+static inline bool is_debug_pagealloc_cache(struct kmem_cache *cachep)
 {
-	if (debug_pagealloc_enabled_static() && OFF_SLAB(cachep) &&
-		(cachep->size % PAGE_SIZE) == 0)
-		return true;
-
-	return false;
+	return debug_pagealloc_enabled_static() && OFF_SLAB(cachep) &&
+			((cachep->size % PAGE_SIZE) == 0);
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
