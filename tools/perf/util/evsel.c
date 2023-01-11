@@ -2784,10 +2784,8 @@ void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char 
 	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		offset = *(int *)(sample->raw_data + field->offset);
 		offset &= 0xffff;
-#if LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 5, 0)
-		if (field->flags & TEP_FIELD_IS_RELATIVE)
+		if (tep_field_is_relative(field->flags))
 			offset += field->offset + field->size;
-#endif
 	}
 
 	return sample->raw_data + offset;

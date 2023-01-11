@@ -140,4 +140,20 @@ int common_lock_depth(struct scripting_context *context);
 #define SAMPLE_FLAGS_BUF_SIZE 64
 int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz);
 
+#if defined(LIBTRACEEVENT_VERSION) &&  LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 5, 0)
+#include <traceevent/event-parse.h>
+
+static inline bool tep_field_is_relative(unsigned long flags)
+{
+	return (flags & TEP_FIELD_IS_RELATIVE) != 0;
+}
+#else
+#include <linux/compiler.h>
+
+static inline bool tep_field_is_relative(unsigned long flags __maybe_unused)
+{
+	return false;
+}
+#endif
+
 #endif /* _PERF_UTIL_TRACE_EVENT_H */

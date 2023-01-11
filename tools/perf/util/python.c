@@ -442,10 +442,8 @@ tracepoint_field(struct pyrf_event *pe, struct tep_format_field *field)
 			offset  = val;
 			len     = offset >> 16;
 			offset &= 0xffff;
-#if LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 5, 0)
-			if (field->flags & TEP_FIELD_IS_RELATIVE)
+			if (tep_field_is_relative(field->flags))
 				offset += field->offset + field->size;
-#endif
 		}
 		if (field->flags & TEP_FIELD_IS_STRING &&
 		    is_printable_array(data + offset, len)) {
