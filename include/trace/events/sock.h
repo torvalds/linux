@@ -263,6 +263,51 @@ TRACE_EVENT(inet_sk_error_report,
 		  __entry->error)
 );
 
+/*
+ * sock send/recv msg length
+ */
+DECLARE_EVENT_CLASS(sock_msg_length,
+
+	TP_PROTO(struct sock *sk, int ret, int flags),
+
+	TP_ARGS(sk, ret, flags),
+
+	TP_STRUCT__entry(
+		__field(void *, sk)
+		__field(__u16, family)
+		__field(__u16, protocol)
+		__field(int, ret)
+		__field(int, flags)
+	),
+
+	TP_fast_assign(
+		__entry->sk = sk;
+		__entry->family = sk->sk_family;
+		__entry->protocol = sk->sk_protocol;
+		__entry->ret = ret;
+		__entry->flags = flags;
+	),
+
+	TP_printk("sk address = %p, family = %s protocol = %s, length = %d, error = %d, flags = 0x%x",
+		  __entry->sk, show_family_name(__entry->family),
+		  show_inet_protocol_name(__entry->protocol),
+		  !(__entry->flags & MSG_PEEK) ?
+		  (__entry->ret > 0 ? __entry->ret : 0) : 0,
+		  __entry->ret < 0 ? __entry->ret : 0,
+		  __entry->flags)
+);
+
+DEFINE_EVENT(sock_msg_length, sock_send_length,
+	TP_PROTO(struct sock *sk, int ret, int flags),
+
+	TP_ARGS(sk, ret, flags)
+);
+
+DEFINE_EVENT(sock_msg_length, sock_recv_length,
+	TP_PROTO(struct sock *sk, int ret, int flags),
+
+	TP_ARGS(sk, ret, flags)
+);
 #endif /* _TRACE_SOCK_H */
 
 /* This part must be outside protection */
