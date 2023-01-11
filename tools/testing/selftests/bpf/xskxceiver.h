@@ -139,6 +139,9 @@ struct ifobject {
 	validation_func_t validation_func;
 	struct pkt_stream *pkt_stream;
 	int xsk_map_fd;
+	int prog_fd;
+	int link_fd;
+	int ifindex;
 	u32 dst_ip;
 	u32 src_ip;
 	u32 xdp_flags;

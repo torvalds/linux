@@ -51,6 +51,8 @@
 
 #define pr_warn(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 
+#define XSKMAP_SIZE 1
+
 enum xsk_prog {
 	XSK_PROG_FALLBACK,
 	XSK_PROG_REDIRECT_FLAGS,
@@ -387,10 +389,9 @@ static enum xsk_prog get_xsk_prog(void)
 	return detected;
 }
 
-static int xsk_load_xdp_prog(struct xsk_socket *xsk)
+static int __xsk_load_xdp_prog(int xsk_map_fd)
 {
 	static const int log_buf_size = 16 * 1024;
-	struct xsk_ctx *ctx = xsk->ctx;
 	char log_buf[log_buf_size];
 	int prog_fd;
 
@@ -418,7 +419,7 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		/* *(u32 *)(r10 - 4) = r2 */
 		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -4),
 		/* r1 = xskmap[] */
-		BPF_LD_MAP_FD(BPF_REG_1, ctx->xsks_map_fd),
+		BPF_LD_MAP_FD(BPF_REG_1, xsk_map_fd),
 		/* r3 = XDP_PASS */
 		BPF_MOV64_IMM(BPF_REG_3, 2),
 		/* call bpf_redirect_map */
@@ -430,7 +431,7 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		/* r2 += -4 */
 		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
 		/* r1 = xskmap[] */
-		BPF_LD_MAP_FD(BPF_REG_1, ctx->xsks_map_fd),
+		BPF_LD_MAP_FD(BPF_REG_1, xsk_map_fd),
 		/* call bpf_map_lookup_elem */
 		BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
 		/* r1 = r0 */
@@ -442,7 +443,7 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		/* r2 = *(u32 *)(r10 - 4) */
 		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_10, -4),
 		/* r1 = xskmap[] */
-		BPF_LD_MAP_FD(BPF_REG_1, ctx->xsks_map_fd),
+		BPF_LD_MAP_FD(BPF_REG_1, xsk_map_fd),
 		/* r3 = 0 */
 		BPF_MOV64_IMM(BPF_REG_3, 0),
 		/* call bpf_redirect_map */
@@ -461,7 +462,7 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		/* r2 = *(u32 *)(r1 + 16) */
 		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 16),
 		/* r1 = xskmap[] */
-		BPF_LD_MAP_FD(BPF_REG_1, ctx->xsks_map_fd),
+		BPF_LD_MAP_FD(BPF_REG_1, xsk_map_fd),
 		/* r3 = XDP_PASS */
 		BPF_MOV64_IMM(BPF_REG_3, 2),
 		/* call bpf_redirect_map */
@@ -480,13 +481,40 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 
 	prog_fd = bpf_prog_load(BPF_PROG_TYPE_XDP, NULL, "LGPL-2.1 or BSD-2-Clause",
 				progs[option], insns_cnt[option], &opts);
-	if (prog_fd < 0) {
+	if (prog_fd < 0)
 		pr_warn("BPF log buffer:\n%s", log_buf);
-		return prog_fd;
+
+	return prog_fd;
+}
+
+int xsk_attach_xdp_program(int ifindex, int prog_fd, u32 xdp_flags)
+{
+	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, opts);
+	__u32 prog_id = 0;
+	int link_fd;
+	int err;
+
+	err = bpf_xdp_query_id(ifindex, xdp_flags, &prog_id);
+	if (err) {
+		pr_warn("getting XDP prog id failed\n");
+		return err;
 	}
 
-	ctx->prog_fd = prog_fd;
-	return 0;
+	/* If there's a netlink-based XDP prog loaded on interface, bail out
+	 * and ask user to do the removal by himself
+	 */
+	if (prog_id) {
+		pr_warn("Netlink-based XDP prog detected, please unload it in order to launch AF_XDP prog\n");
+		return -EINVAL;
+	}
+
+	opts.flags = xdp_flags & ~(XDP_FLAGS_UPDATE_IF_NOEXIST | XDP_FLAGS_REPLACE);
+
+	link_fd = bpf_link_create(prog_fd, ifindex, BPF_XDP, &opts);
+	if (link_fd < 0)
+		pr_warn("bpf_link_create failed: %s\n", strerror(errno));
+
+	return link_fd;
 }
 
 static int xsk_create_bpf_link(struct xsk_socket *xsk)
@@ -775,7 +803,7 @@ static int xsk_init_xdp_res(struct xsk_socket *xsk,
 	if (err)
 		return err;
 
-	err = xsk_load_xdp_prog(xsk);
+	err = __xsk_load_xdp_prog(*xsks_map_fd);
 	if (err)
 		goto err_load_xdp_prog;
 
@@ -871,6 +899,22 @@ int xsk_setup_xdp_prog_xsk(struct xsk_socket *xsk, int *xsks_map_fd)
 	return __xsk_setup_xdp_prog(xsk, xsks_map_fd);
 }
 
+int xsk_load_xdp_program(int *xsk_map_fd, int *prog_fd)
+{
+	*xsk_map_fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, "xsks_map", sizeof(int), sizeof(int),
+				     XSKMAP_SIZE, NULL);
+	if (*xsk_map_fd < 0)
+		return *xsk_map_fd;
+
+	*prog_fd = __xsk_load_xdp_prog(*xsk_map_fd);
+	if (*prog_fd < 0) {
+		close(*xsk_map_fd);
+		return *prog_fd;
+	}
+
+	return 0;
+}
+
 static struct xsk_ctx *xsk_get_ctx(struct xsk_umem *umem, int ifindex,
 				   __u32 queue_id)
 {
@@ -917,7 +961,7 @@ out_free:
 
 static struct xsk_ctx *xsk_create_ctx(struct xsk_socket *xsk,
 				      struct xsk_umem *umem, int ifindex,
-				      const char *ifname, __u32 queue_id,
+				      __u32 queue_id,
 				      struct xsk_ring_prod *fill,
 				      struct xsk_ring_cons *comp)
 {
@@ -944,7 +988,6 @@ static struct xsk_ctx *xsk_create_ctx(struct xsk_socket *xsk,
 	ctx->refcount = 1;
 	ctx->umem = umem;
 	ctx->queue_id = queue_id;
-	bpf_strlcpy(ctx->ifname, ifname, IFNAMSIZ);
 	ctx->prog_fd = FD_NOT_USED;
 	ctx->link_fd = FD_NOT_USED;
 	ctx->xsks_map_fd = FD_NOT_USED;
@@ -991,7 +1034,7 @@ int xsk_setup_xdp_prog(int ifindex, int *xsks_map_fd)
 }
 
 int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
-			      const char *ifname,
+			      int ifindex,
 			      __u32 queue_id, struct xsk_umem *umem,
 			      struct xsk_ring_cons *rx,
 			      struct xsk_ring_prod *tx,
@@ -1005,7 +1048,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	struct xdp_mmap_offsets off;
 	struct xsk_socket *xsk;
 	struct xsk_ctx *ctx;
-	int err, ifindex;
+	int err;
 
 	if (!umem || !xsk_ptr || !(rx || tx))
 		return -EFAULT;
@@ -1019,12 +1062,6 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	err = xsk_set_xdp_socket_config(&xsk->config, usr_config);
 	if (err)
 		goto out_xsk_alloc;
-
-	ifindex = if_nametoindex(ifname);
-	if (!ifindex) {
-		err = -errno;
-		goto out_xsk_alloc;
-	}
 
 	if (umem->refcount++ > 0) {
 		xsk->fd = socket(AF_XDP, SOCK_RAW | SOCK_CLOEXEC, 0);
@@ -1045,8 +1082,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 			goto out_socket;
 		}
 
-		ctx = xsk_create_ctx(xsk, umem, ifindex, ifname, queue_id,
-				     fill, comp);
+		ctx = xsk_create_ctx(xsk, umem, ifindex, queue_id, fill, comp);
 		if (!ctx) {
 			err = -ENOMEM;
 			goto out_socket;
@@ -1144,12 +1180,6 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 		goto out_mmap_tx;
 	}
 
-	if (!(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)) {
-		err = __xsk_setup_xdp_prog(xsk, NULL);
-		if (err)
-			goto out_mmap_tx;
-	}
-
 	*xsk_ptr = xsk;
 	umem->fill_save = NULL;
 	umem->comp_save = NULL;
@@ -1173,7 +1203,7 @@ out_xsk_alloc:
 	return err;
 }
 
-int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
+int xsk_socket__create(struct xsk_socket **xsk_ptr, int ifindex,
 		       __u32 queue_id, struct xsk_umem *umem,
 		       struct xsk_ring_cons *rx, struct xsk_ring_prod *tx,
 		       const struct xsk_socket_config *usr_config)
@@ -1181,7 +1211,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	if (!umem)
 		return -EFAULT;
 
-	return xsk_socket__create_shared(xsk_ptr, ifname, queue_id, umem,
+	return xsk_socket__create_shared(xsk_ptr, ifindex, queue_id, umem,
 					 rx, tx, umem->fill_save,
 					 umem->comp_save, usr_config);
 }

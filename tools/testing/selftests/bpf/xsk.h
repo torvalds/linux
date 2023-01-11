@@ -204,6 +204,9 @@ int xsk_socket__update_xskmap(struct xsk_socket *xsk, int xsks_map_fd);
 /* Flags for the libbpf_flags field. */
 #define XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD (1 << 0)
 
+int xsk_load_xdp_program(int *xsk_map_fd, int *prog_fd);
+int xsk_attach_xdp_program(int ifindex, int prog_fd, u32 xdp_flags);
+
 struct xsk_socket_config {
 	__u32 rx_size;
 	__u32 tx_size;
@@ -219,13 +222,13 @@ int xsk_umem__create(struct xsk_umem **umem,
 		     struct xsk_ring_cons *comp,
 		     const struct xsk_umem_config *config);
 int xsk_socket__create(struct xsk_socket **xsk,
-		       const char *ifname, __u32 queue_id,
+		       int ifindex, __u32 queue_id,
 		       struct xsk_umem *umem,
 		       struct xsk_ring_cons *rx,
 		       struct xsk_ring_prod *tx,
 		       const struct xsk_socket_config *config);
 int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
-			      const char *ifname,
+			      int ifindex,
 			      __u32 queue_id, struct xsk_umem *umem,
 			      struct xsk_ring_cons *rx,
 			      struct xsk_ring_prod *tx,

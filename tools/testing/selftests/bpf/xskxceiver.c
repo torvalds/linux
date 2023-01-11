@@ -268,6 +268,11 @@ static void gen_udp_csum(struct udphdr *udp_hdr, struct iphdr *ip_hdr)
 	    udp_csum(ip_hdr->saddr, ip_hdr->daddr, UDP_PKT_SIZE, IPPROTO_UDP, (u16 *)udp_hdr);
 }
 
+static u32 mode_to_xdp_flags(enum test_mode mode)
+{
+	return (mode == TEST_MODE_SKB) ? XDP_FLAGS_SKB_MODE : XDP_FLAGS_DRV_MODE;
+}
+
 static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size)
 {
 	struct xsk_umem_config cfg = {
@@ -329,7 +334,7 @@ static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_i
 
 	txr = ifobject->tx_on ? &xsk->tx : NULL;
 	rxr = ifobject->rx_on ? &xsk->rx : NULL;
-	return xsk_socket__create(&xsk->xsk, ifobject->ifname, 0, umem->umem, rxr, txr, &cfg);
+	return xsk_socket__create(&xsk->xsk, ifobject->ifindex, 0, umem->umem, rxr, txr, &cfg);
 }
 
 static bool ifobj_zc_avail(struct ifobject *ifobject)
@@ -359,8 +364,7 @@ static bool ifobj_zc_avail(struct ifobject *ifobject)
 	xsk = calloc(1, sizeof(struct xsk_socket_info));
 	if (!xsk)
 		goto out;
-	ifobject->xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
-	ifobject->xdp_flags |= XDP_FLAGS_DRV_MODE;
+	ifobject->xdp_flags = XDP_FLAGS_DRV_MODE;
 	ifobject->bind_flags = XDP_USE_NEED_WAKEUP | XDP_ZEROCOPY;
 	ifobject->rx_on = true;
 	xsk->rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -430,6 +434,11 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 
 			memcpy(ifobj->ifname, optarg,
 			       min_t(size_t, MAX_INTERFACE_NAME_CHARS, strlen(optarg)));
+
+			ifobj->ifindex = if_nametoindex(ifobj->ifname);
+			if (!ifobj->ifindex)
+				exit_with_error(errno);
+
 			interface_nb++;
 			break;
 		case 'D':
@@ -509,12 +518,6 @@ static void test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 
 	for (i = 0; i < MAX_INTERFACES; i++) {
 		struct ifobject *ifobj = i ? ifobj_rx : ifobj_tx;
-
-		ifobj->xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
-		if (mode == TEST_MODE_SKB)
-			ifobj->xdp_flags |= XDP_FLAGS_SKB_MODE;
-		else
-			ifobj->xdp_flags |= XDP_FLAGS_DRV_MODE;
 
 		ifobj->bind_flags = XDP_USE_NEED_WAKEUP;
 		if (mode == TEST_MODE_ZC)
@@ -1252,7 +1255,8 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
-	int ret, ifindex;
+	u32 queue_id = 0;
+	int ret, fd;
 	void *bufs;
 
 	if (ifobject->umem->unaligned_mode)
@@ -1278,31 +1282,8 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	if (!ifobject->rx_on)
 		return;
 
-	ifindex = if_nametoindex(ifobject->ifname);
-	if (!ifindex)
-		exit_with_error(errno);
-
-	ret = xsk_setup_xdp_prog_xsk(ifobject->xsk->xsk, &ifobject->xsk_map_fd);
-	if (ret)
-		exit_with_error(-ret);
-
-	ret = bpf_xdp_query(ifindex, ifobject->xdp_flags, &opts);
-	if (ret)
-		exit_with_error(-ret);
-
-	if (ifobject->xdp_flags & XDP_FLAGS_SKB_MODE) {
-		if (opts.attach_mode != XDP_ATTACHED_SKB) {
-			ksft_print_msg("ERROR: [%s] XDP prog not in SKB mode\n");
-			exit_with_error(EINVAL);
-		}
-	} else if (ifobject->xdp_flags & XDP_FLAGS_DRV_MODE) {
-		if (opts.attach_mode != XDP_ATTACHED_DRV) {
-			ksft_print_msg("ERROR: [%s] XDP prog not in DRV mode\n");
-			exit_with_error(EINVAL);
-		}
-	}
-
-	ret = xsk_socket__update_xskmap(ifobject->xsk->xsk, ifobject->xsk_map_fd);
+	fd = xsk_socket__fd(ifobject->xsk->xsk);
+	ret = bpf_map_update_elem(ifobject->xsk_map_fd, &queue_id, &fd, 0);
 	if (ret)
 		exit_with_error(errno);
 }
@@ -1336,15 +1317,19 @@ static void *worker_testapp_validate_rx(void *arg)
 {
 	struct test_spec *test = (struct test_spec *)arg;
 	struct ifobject *ifobject = test->ifobj_rx;
+	int id = 0, err, fd = xsk_socket__fd(ifobject->xsk->xsk);
 	struct pollfd fds = { };
-	int id = 0;
-	int err;
+	u32 queue_id = 0;
 
 	if (test->current_step == 1) {
 		thread_common_ops(test, ifobject);
 	} else {
 		bpf_map_delete_elem(ifobject->xsk_map_fd, &id);
-		xsk_socket__update_xskmap(ifobject->xsk->xsk, ifobject->xsk_map_fd);
+		err = bpf_map_update_elem(ifobject->xsk_map_fd, &queue_id, &fd, 0);
+		if (err) {
+			printf("Error: Failed to update xskmap, error %s\n", strerror(err));
+			exit_with_error(err);
+		}
 	}
 
 	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
@@ -1413,7 +1398,10 @@ static int testapp_validate_traffic_single_thread(struct test_spec *test, struct
 	pthread_join(t0, NULL);
 
 	if (test->total_steps == test->current_step || test->fail) {
+		u32 queue_id = 0;
+
 		xsk_socket__delete(ifobj->xsk->xsk);
+		bpf_map_delete_elem(ifobj->xsk_map_fd, &queue_id);
 		testapp_clean_xsk_umem(ifobj);
 	}
 
@@ -1502,14 +1490,14 @@ static void testapp_bidi(struct test_spec *test)
 
 static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
 {
-	int ret;
+	int ret, queue_id = 0, fd = xsk_socket__fd(ifobj_rx->xsk->xsk);
 
 	xsk_socket__delete(ifobj_tx->xsk->xsk);
 	xsk_socket__delete(ifobj_rx->xsk->xsk);
 	ifobj_tx->xsk = &ifobj_tx->xsk_arr[1];
 	ifobj_rx->xsk = &ifobj_rx->xsk_arr[1];
 
-	ret = xsk_socket__update_xskmap(ifobj_rx->xsk->xsk, ifobj_rx->xsk_map_fd);
+	ret = bpf_map_update_elem(ifobj_rx->xsk_map_fd, &queue_id, &fd, 0);
 	if (ret)
 		exit_with_error(errno);
 }
@@ -1673,8 +1661,9 @@ static void testapp_invalid_desc(struct test_spec *test)
 
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       const char *dst_ip, const char *src_ip, const u16 dst_port,
-		       const u16 src_port, thread_func_t func_ptr)
+		       const u16 src_port, thread_func_t func_ptr, bool load_xdp)
 {
+	int xsk_map_fd, prog_fd, err;
 	struct in_addr ip;
 
 	memcpy(ifobj->dst_mac, dst_mac, ETH_ALEN);
@@ -1690,6 +1679,24 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 	ifobj->src_port = src_port;
 
 	ifobj->func_ptr = func_ptr;
+
+	if (!load_xdp)
+		return;
+
+	err = xsk_load_xdp_program(&xsk_map_fd, &prog_fd);
+	if (err) {
+		printf("Error loading XDP program\n");
+		exit_with_error(err);
+	}
+
+	ifobj->xsk_map_fd = xsk_map_fd;
+	ifobj->prog_fd = prog_fd;
+	ifobj->xdp_flags = mode_to_xdp_flags(TEST_MODE_SKB);
+	ifobj->link_fd = xsk_attach_xdp_program(ifobj->ifindex, prog_fd, ifobj->xdp_flags);
+	if (ifobj->link_fd < 0) {
+		printf("Error attaching XDP program\n");
+		exit_with_error(ifobj->link_fd);
+	}
 }
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
@@ -1824,12 +1831,15 @@ out_xsk_arr:
 
 static void ifobject_delete(struct ifobject *ifobj)
 {
+	close(ifobj->prog_fd);
+	close(ifobj->xsk_map_fd);
+
 	free(ifobj->umem);
 	free(ifobj->xsk_arr);
 	free(ifobj);
 }
 
-static bool is_xdp_supported(struct ifobject *ifobject)
+static bool is_xdp_supported(int ifindex)
 {
 	int flags = XDP_FLAGS_DRV_MODE;
 
@@ -1838,7 +1848,6 @@ static bool is_xdp_supported(struct ifobject *ifobject)
 		BPF_MOV64_IMM(BPF_REG_0, XDP_PASS),
 		BPF_EXIT_INSN()
 	};
-	int ifindex = if_nametoindex(ifobject->ifname);
 	int prog_fd, insn_cnt = ARRAY_SIZE(insns);
 	int err;
 
@@ -1858,6 +1867,29 @@ static bool is_xdp_supported(struct ifobject *ifobject)
 	return true;
 }
 
+static void change_to_drv_mode(struct ifobject *ifobj)
+{
+	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
+	int ret;
+
+	close(ifobj->link_fd);
+	ifobj->link_fd = xsk_attach_xdp_program(ifobj->ifindex, ifobj->prog_fd,
+						XDP_FLAGS_DRV_MODE);
+	if (ifobj->link_fd < 0) {
+		ksft_print_msg("Error attaching XDP program\n");
+		exit_with_error(-ifobj->link_fd);
+	}
+
+	ret = bpf_xdp_query(ifobj->ifindex, XDP_FLAGS_DRV_MODE, &opts);
+	if (ret)
+		exit_with_error(errno);
+
+	if (opts.attach_mode != XDP_ATTACHED_DRV) {
+		ksft_print_msg("ERROR: XDP prog not in DRV mode\n");
+		exit_with_error(EINVAL);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	struct pkt_stream *rx_pkt_stream_default;
@@ -1866,7 +1898,7 @@ int main(int argc, char **argv)
 	int modes = TEST_MODE_SKB + 1;
 	u32 i, j, failed_tests = 0;
 	struct test_spec test;
-	bool shared_umem;
+	bool shared_netdev;
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
@@ -1881,26 +1913,26 @@ int main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 
 	parse_command_line(ifobj_tx, ifobj_rx, argc, argv);
-	shared_umem = !strcmp(ifobj_tx->ifname, ifobj_rx->ifname);
 
-	ifobj_tx->shared_umem = shared_umem;
-	ifobj_rx->shared_umem = shared_umem;
+	shared_netdev = (ifobj_tx->ifindex == ifobj_rx->ifindex);
+	ifobj_tx->shared_umem = shared_netdev;
+	ifobj_rx->shared_umem = shared_netdev;
 
 	if (!validate_interface(ifobj_tx) || !validate_interface(ifobj_rx)) {
 		usage(basename(argv[0]));
 		ksft_exit_xfail();
 	}
 
-	init_iface(ifobj_tx, MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2,
-		   worker_testapp_validate_tx);
-	init_iface(ifobj_rx, MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1,
-		   worker_testapp_validate_rx);
-
-	if (is_xdp_supported(ifobj_tx)) {
+	if (is_xdp_supported(ifobj_tx->ifindex)) {
 		modes++;
 		if (ifobj_zc_avail(ifobj_tx))
 			modes++;
 	}
+
+	init_iface(ifobj_rx, MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2,
+		   worker_testapp_validate_rx, true);
+	init_iface(ifobj_tx, MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1,
+		   worker_testapp_validate_tx, !shared_netdev);
 
 	test_spec_init(&test, ifobj_tx, ifobj_rx, 0);
 	tx_pkt_stream_default = pkt_stream_generate(ifobj_tx->umem, DEFAULT_PKT_CNT, PKT_SIZE);
@@ -1912,7 +1944,13 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(modes * TEST_TYPE_MAX);
 
-	for (i = 0; i < modes; i++)
+	for (i = 0; i < modes; i++) {
+		if (i == TEST_MODE_DRV) {
+			change_to_drv_mode(ifobj_rx);
+			if (!shared_netdev)
+				change_to_drv_mode(ifobj_tx);
+		}
+
 		for (j = 0; j < TEST_TYPE_MAX; j++) {
 			test_spec_init(&test, ifobj_tx, ifobj_rx, i);
 			run_pkt_test(&test, i, j);
@@ -1921,6 +1959,7 @@ int main(int argc, char **argv)
 			if (test.fail)
 				failed_tests++;
 		}
+	}
 
 	pkt_stream_delete(tx_pkt_stream_default);
 	pkt_stream_delete(rx_pkt_stream_default);
