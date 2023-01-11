@@ -25,20 +25,6 @@
 struct intf_priv;
 struct intf_hdl;
 
-struct io_req {
-	struct list_head list;
-	u32	addr;
-	u32	val;
-	u32	command;
-	u32	status;
-	u8	*pbuf;
-	struct semaphore sema;
-
-	void (*_async_io_callback)(struct adapter *padater,
-				   struct io_req *pio_req, u8 *cnxt);
-	u8 *cnxt;
-};
-
 struct	intf_hdl {
 	struct adapter *padapter;
 	struct dvobj_priv *pintf_dev;
