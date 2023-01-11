@@ -831,16 +831,7 @@ static inline int is_vmalloc_or_module_addr(const void *x)
 static inline int folio_entire_mapcount(struct folio *folio)
 {
 	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
-	return atomic_read(folio_mapcount_ptr(folio)) + 1;
-}
-
-/*
- * Mapcount of compound page as a whole, does not include mapped sub-pages.
- * Must be called only on head of compound page.
- */
-static inline int head_compound_mapcount(struct page *head)
-{
-	return atomic_read(compound_mapcount_ptr(head)) + 1;
+	return atomic_read(&folio->_entire_mapcount) + 1;
 }
 
 /*
@@ -905,11 +896,11 @@ static inline int total_mapcount(struct page *page)
 static inline bool folio_large_is_mapped(struct folio *folio)
 {
 	/*
-	 * Reading folio_mapcount_ptr() below could be omitted if hugetlb
+	 * Reading _entire_mapcount below could be omitted if hugetlb
 	 * participated in incrementing nr_pages_mapped when compound mapped.
 	 */
 	return atomic_read(&folio->_nr_pages_mapped) > 0 ||
-		atomic_read(folio_mapcount_ptr(folio)) >= 0;
+		atomic_read(&folio->_entire_mapcount) >= 0;
 }
 
 /**
