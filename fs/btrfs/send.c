@@ -2193,8 +2193,8 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 			    const char *name, int name_len)
 {
 	int ret;
-	u64 gen;
 	u64 ow_inode;
+	u64 ow_gen = 0;
 
 	if (!sctx->parent_root)
 		return 0;
@@ -2204,6 +2204,8 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 		return ret;
 
 	if (dir != BTRFS_FIRST_FREE_OBJECTID) {
+		u64 gen;
+
 		ret = get_inode_gen(sctx->send_root, dir, &gen);
 		if (ret == -ENOENT)
 			return 0;
@@ -2224,12 +2226,15 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 		return ret;
 	}
 
-	ret = get_inode_gen(sctx->send_root, ow_inode, &gen);
-	if (ret < 0)
-		return ret;
+	if (ow_inode == ino) {
+		ret = get_inode_gen(sctx->send_root, ow_inode, &ow_gen);
+		if (ret < 0)
+			return ret;
 
-	if (ow_inode == ino && gen == ino_gen)
-		return 0;
+		/* It's the same inode, so no overwrite happened. */
+		if (ow_gen == ino_gen)
+			return 0;
+	}
 
 	/*
 	 * We know that it is or will be overwritten. Check this now.
@@ -2237,10 +2242,18 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 	 * inode 'ino' to be orphanized, therefore check if ow_inode matches
 	 * the current inode being processed.
 	 */
-	if ((ow_inode < sctx->send_progress) ||
-	    (ino != sctx->cur_ino && ow_inode == sctx->cur_ino &&
-	     gen == sctx->cur_inode_gen))
+	if (ow_inode < sctx->send_progress)
 		return 1;
+
+	if (ino != sctx->cur_ino && ow_inode == sctx->cur_ino) {
+		if (ow_gen == 0) {
+			ret = get_inode_gen(sctx->send_root, ow_inode, &ow_gen);
+			if (ret < 0)
+				return ret;
+		}
+		if (ow_gen == sctx->cur_inode_gen)
+			return 1;
+	}
 
 	return 0;
 }
