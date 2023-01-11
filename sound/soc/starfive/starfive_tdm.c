@@ -30,6 +30,22 @@ static inline void sf_tdm_writel(struct sf_tdm_dev *dev, u16 reg, u32 val)
 	writel_relaxed(val, dev->tdm_base + reg);
 }
 
+static void sf_tdm_save_context(struct sf_tdm_dev *dev)
+{
+	dev->saved_reg_value[0] = sf_tdm_readl(dev, TDM_PCMGBCR);
+	dev->saved_reg_value[1] = sf_tdm_readl(dev, TDM_PCMTXCR);
+	dev->saved_reg_value[2] = sf_tdm_readl(dev, TDM_PCMRXCR);
+	dev->saved_reg_value[3] = sf_tdm_readl(dev, TDM_PCMDIV);
+}
+
+static void sf_tdm_restore_context(struct sf_tdm_dev *dev)
+{
+	sf_tdm_writel(dev, TDM_PCMGBCR, dev->saved_reg_value[0]);
+	sf_tdm_writel(dev, TDM_PCMTXCR, dev->saved_reg_value[1]);
+	sf_tdm_writel(dev, TDM_PCMRXCR, dev->saved_reg_value[2]);
+	sf_tdm_writel(dev, TDM_PCMDIV, dev->saved_reg_value[3]);
+}
+
 static void sf_tdm_start(struct sf_tdm_dev *dev, struct snd_pcm_substream *substream)
 {
 	u32 data;
@@ -60,6 +76,10 @@ static void sf_tdm_stop(struct sf_tdm_dev *dev, struct snd_pcm_substream *substr
 		val &= ~PCMRXCR_RXEN;
 		sf_tdm_writel(dev, TDM_PCMRXCR, val);
 	}
+
+	val = sf_tdm_readl(dev, TDM_PCMGBCR);
+	val &= ~PCMGBCR_ENABLE;
+	sf_tdm_writel(dev, TDM_PCMGBCR, val);
 }
 
 static int sf_tdm_syncdiv(struct sf_tdm_dev *dev)
@@ -129,7 +149,9 @@ static void sf_tdm_clk_disable(struct sf_tdm_dev *priv)
 	clk_disable_unprepare(priv->clk_tdm_ext);
 	clk_disable_unprepare(priv->clk_tdm_internal);
 	clk_disable_unprepare(priv->clk_tdm_apb);
+	clk_disable_unprepare(priv->clk_apb0);
 	clk_disable_unprepare(priv->clk_tdm_ahb);
+	clk_disable_unprepare(priv->clk_ahb0);
 	clk_disable_unprepare(priv->clk_mclk_inner);
 }
 
@@ -153,12 +175,24 @@ static int sf_tdm_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	ret = clk_prepare_enable(priv->clk_ahb0);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_ahb0\n");
+		return ret;
+	}
+
 	ret = clk_prepare_enable(priv->clk_tdm_ahb);
 	if (ret) {
 		dev_err(dev, "Failed to prepare enable clk_tdm_ahb\n");
 		goto dis_mclk_inner;
 	}
 
+	ret = clk_prepare_enable(priv->clk_apb0);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_apb0\n");
+		return ret;
+	}
+	
 	ret = clk_prepare_enable(priv->clk_tdm_apb);
 	if (ret) {
 		dev_err(dev, "Failed to prepare enable clk_tdm_apb\n");
@@ -183,8 +217,16 @@ static int sf_tdm_runtime_resume(struct device *dev)
 		goto dis_tdm_ext;
 	}
 
+	ret = reset_control_deassert(priv->resets);
+	if (ret) {
+		dev_err(dev, "Failed to deassert tdm resets\n");
+		goto err_reset;
+	}
+
 	return 0;
 
+err_reset:
+	clk_disable_unprepare(priv->clk_tdm);	
 dis_tdm_ext:
 	clk_disable_unprepare(priv->clk_tdm_ext);
 dis_tdm_internal:
@@ -385,6 +427,7 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	sf_tdm_config(dev, substream);
+	sf_tdm_save_context(dev);
 
 	return 0;
 }
@@ -400,6 +443,7 @@ static int sf_tdm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		dev->active++;
+		sf_tdm_restore_context(dev);
 		sf_tdm_start(dev, substream);
 		break;
 
@@ -485,6 +529,8 @@ static struct snd_soc_dai_driver sf_tdm_dai = {
 static const struct snd_pcm_hardware jh71xx_pcm_hardware = {
 	.info			= (SNDRV_PCM_INFO_MMAP		|
 				   SNDRV_PCM_INFO_MMAP_VALID	|
+				   SNDRV_PCM_INFO_PAUSE 	|
+				   SNDRV_PCM_INFO_RESUME 	|
 				   SNDRV_PCM_INFO_INTERLEAVED	|
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER),
 	.buffer_bytes_max	= 192512,
@@ -628,7 +674,7 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 		dev_err(&pdev->dev, "Failed to deassert tdm resets\n");
 		goto dis_tdm_clk;
 	}
-
+	
 	return 0;
 
 dis_tdm_clk:
