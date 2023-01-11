@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2021 Qualcomm Innovation Center, Inc. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
@@ -562,6 +561,20 @@ static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int 
 			 * the context is execve. allow this cpu.
 			 */
 			*allowed = true;
+		} else {
+			cpumask_t active_unhalted_cpus;
+
+			/* make sure there is a cpu to handle this task */
+			cpumask_andnot(&active_unhalted_cpus, cpu_active_mask, cpu_halt_mask);
+
+			if (cpumask_weight(&active_unhalted_cpus) == 0) {
+				/*
+				 * there must be at least one active unhalted cpu in the system
+				 * if not, blanket allow this cpu, regardless of halt status
+				 */
+				*allowed = true;
+				return;
+			}
 		}
 	}
 }
