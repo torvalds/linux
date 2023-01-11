@@ -19,6 +19,8 @@
 #define MAX_NR_CPUID_ENTRIES 100
 
 vm_vaddr_t exception_handlers;
+bool host_cpu_is_amd;
+bool host_cpu_is_intel;
 
 static void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent)
 {
@@ -113,7 +115,7 @@ static void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent)
 
 bool kvm_is_tdp_enabled(void)
 {
-	if (this_cpu_is_intel())
+	if (host_cpu_is_intel)
 		return get_kvm_intel_param_bool("ept");
 	else
 		return get_kvm_amd_param_bool("npt");
@@ -555,6 +557,8 @@ static void vcpu_setup(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 void kvm_arch_vm_post_create(struct kvm_vm *vm)
 {
 	vm_create_irqchip(vm);
+	sync_global_to_guest(vm, host_cpu_is_intel);
+	sync_global_to_guest(vm, host_cpu_is_amd);
 }
 
 struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
@@ -1214,7 +1218,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
 
 	/* Avoid reserved HyperTransport region on AMD processors.  */
-	if (!this_cpu_is_amd())
+	if (!host_cpu_is_amd)
 		return max_gfn;
 
 	/* On parts with <40 physical address bits, the area is fully hidden */
@@ -1253,4 +1257,10 @@ bool vm_is_unrestricted_guest(struct kvm_vm *vm)
 		close(open_kvm_dev_path_or_exit());
 
 	return get_kvm_intel_param_bool("unrestricted_guest");
+}
+
+void kvm_selftest_arch_init(void)
+{
+	host_cpu_is_intel = this_cpu_is_intel();
+	host_cpu_is_amd = this_cpu_is_amd();
 }

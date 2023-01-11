@@ -19,6 +19,9 @@
 
 #include "../kvm_util.h"
 
+extern bool host_cpu_is_intel;
+extern bool host_cpu_is_amd;
+
 #define NMI_VECTOR		0x02
 
 #define X86_EFLAGS_FIXED	 (1u << 1)
