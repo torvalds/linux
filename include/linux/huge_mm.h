@@ -293,14 +293,6 @@ static inline bool thp_migration_supported(void)
 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
 }
 
-static inline struct list_head *page_deferred_list(struct page *page)
-{
-	struct folio *folio = (struct folio *)page;
-
-	VM_BUG_ON_FOLIO(folio_order(folio) < 2, folio);
-	return &folio->_deferred_list;
-}
-
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
 #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })

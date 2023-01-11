@@ -580,12 +580,10 @@ static inline struct deferred_split *get_deferred_split_queue(struct page *page)
 
 void prep_transhuge_page(struct page *page)
 {
-	/*
-	 * we use page->mapping and page->index in second tail page
-	 * as list_head: assuming THP order >= 2
-	 */
+	struct folio *folio = (struct folio *)page;
 
-	INIT_LIST_HEAD(page_deferred_list(page));
+	VM_BUG_ON_FOLIO(folio_order(folio) < 2, folio);
+	INIT_LIST_HEAD(&folio->_deferred_list);
 	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
 }
 
@@ -2802,13 +2800,14 @@ out:
 
 void free_transhuge_page(struct page *page)
 {
+	struct folio *folio = (struct folio *)page;
 	struct deferred_split *ds_queue = get_deferred_split_queue(page);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
-	if (!list_empty(page_deferred_list(page))) {
+	if (!list_empty(&folio->_deferred_list)) {
 		ds_queue->split_queue_len--;
-		list_del(page_deferred_list(page));
+		list_del(&folio->_deferred_list);
 	}
 	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
 	free_compound_page(page);
@@ -2816,38 +2815,39 @@ void free_transhuge_page(struct page *page)
 
 void deferred_split_huge_page(struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	struct deferred_split *ds_queue = get_deferred_split_queue(page);
 #ifdef CONFIG_MEMCG
-	struct mem_cgroup *memcg = page_memcg(compound_head(page));
+	struct mem_cgroup *memcg = folio_memcg(folio);
 #endif
 	unsigned long flags;
 
-	VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+	VM_BUG_ON_FOLIO(folio_order(folio) < 2, folio);
 
 	/*
 	 * The try_to_unmap() in page reclaim path might reach here too,
 	 * this may cause a race condition to corrupt deferred split queue.
-	 * And, if page reclaim is already handling the same page, it is
+	 * And, if page reclaim is already handling the same folio, it is
 	 * unnecessary to handle it again in shrinker.
 	 *
-	 * Check PageSwapCache to determine if the page is being
-	 * handled by page reclaim since THP swap would add the page into
+	 * Check the swapcache flag to determine if the folio is being
+	 * handled by page reclaim since THP swap would add the folio into
 	 * swap cache before calling try_to_unmap().
 	 */
-	if (PageSwapCache(page))
+	if (folio_test_swapcache(folio))
 		return;
 
-	if (!list_empty(page_deferred_list(page)))
+	if (!list_empty(&folio->_deferred_list))
 		return;
 
 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
-	if (list_empty(page_deferred_list(page))) {
+	if (list_empty(&folio->_deferred_list)) {
 		count_vm_event(THP_DEFERRED_SPLIT_PAGE);
-		list_add_tail(page_deferred_list(page), &ds_queue->split_queue);
+		list_add_tail(&folio->_deferred_list, &ds_queue->split_queue);
 		ds_queue->split_queue_len++;
 #ifdef CONFIG_MEMCG
 		if (memcg)
-			set_shrinker_bit(memcg, page_to_nid(page),
+			set_shrinker_bit(memcg, folio_nid(folio),
 					 deferred_split_shrinker.id);
 #endif
 	}
