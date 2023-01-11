@@ -7137,23 +7137,24 @@ static void gaudi2_razwi_rr_lbw_shared_printf_info(struct hl_device *hdev,
 			u64 rtr_mstr_if_base_addr, bool is_write, char *name,
 			enum gaudi2_engine_id id, u64 *event_mask)
 {
-	u32 razwi_addr, razwi_xy;
+	u64 razwi_addr = CFG_BASE;
+	u32 razwi_xy;
 	u16 eng_id = id;
 	u8 rd_wr_flag;
 
 	if (is_write) {
-		razwi_addr = RREG32(rtr_mstr_if_base_addr + RR_SHRD_LBW_AW_RAZWI);
+		razwi_addr += RREG32(rtr_mstr_if_base_addr + RR_SHRD_LBW_AW_RAZWI);
 		razwi_xy = RREG32(rtr_mstr_if_base_addr + RR_SHRD_LBW_AW_RAZWI_XY);
 		rd_wr_flag = HL_RAZWI_WRITE;
 	} else {
-		razwi_addr = RREG32(rtr_mstr_if_base_addr + RR_SHRD_LBW_AR_RAZWI);
+		razwi_addr += RREG32(rtr_mstr_if_base_addr + RR_SHRD_LBW_AR_RAZWI);
 		razwi_xy = RREG32(rtr_mstr_if_base_addr + RR_SHRD_LBW_AR_RAZWI_XY);
 		rd_wr_flag = HL_RAZWI_READ;
 	}
 
 	hl_handle_razwi(hdev, razwi_addr, &eng_id, 1, rd_wr_flag | HL_RAZWI_LBW, event_mask);
 	dev_err_ratelimited(hdev->dev,
-				"%s-RAZWI SHARED RR LBW %s error, mstr_if 0x%llx, captured address 0x%x Initiator coordinates 0x%x\n",
+				"%s-RAZWI SHARED RR LBW %s error, mstr_if 0x%llx, captured address 0x%llX Initiator coordinates 0x%x\n",
 				name, is_write ? "WR" : "RD", rtr_mstr_if_base_addr, razwi_addr,
 						razwi_xy);
 }
@@ -7665,19 +7666,19 @@ static void gaudi2_razwi_unmapped_addr_lbw_printf_info(struct hl_device *hdev, u
 							u64 *event_mask)
 {
 	u16 engines[HL_RAZWI_MAX_NUM_OF_ENGINES_PER_RTR], num_of_eng;
-	u32 razwi_addr;
+	u64 razwi_addr = CFG_BASE;
 	u8 rd_wr_flag;
 
 	num_of_eng = gaudi2_get_razwi_initiators(rtr_id, &engines[0]);
 
 	if (is_write) {
-		razwi_addr = RREG32(rtr_ctrl_base_addr + DEC_RAZWI_LBW_AW_ADDR);
+		razwi_addr += RREG32(rtr_ctrl_base_addr + DEC_RAZWI_LBW_AW_ADDR);
 		rd_wr_flag = HL_RAZWI_WRITE;
 
 		/* Clear set indication */
 		WREG32(rtr_ctrl_base_addr + DEC_RAZWI_LBW_AW_SET, 0x1);
 	} else {
-		razwi_addr = RREG32(rtr_ctrl_base_addr + DEC_RAZWI_LBW_AR_ADDR);
+		razwi_addr += RREG32(rtr_ctrl_base_addr + DEC_RAZWI_LBW_AR_ADDR);
 		rd_wr_flag = HL_RAZWI_READ;
 
 		/* Clear set indication */
@@ -7687,7 +7688,7 @@ static void gaudi2_razwi_unmapped_addr_lbw_printf_info(struct hl_device *hdev, u
 	hl_handle_razwi(hdev, razwi_addr, &engines[0], num_of_eng, rd_wr_flag | HL_RAZWI_LBW,
 			event_mask);
 	dev_err_ratelimited(hdev->dev,
-		"RAZWI PSOC unmapped LBW %s error, rtr id %u, address %#x\n",
+		"RAZWI PSOC unmapped LBW %s error, rtr id %u, address 0x%llX\n",
 		is_write ? "WR" : "RD", rtr_id, razwi_addr);
 
 	dev_err_ratelimited(hdev->dev,
