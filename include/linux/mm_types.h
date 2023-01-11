@@ -443,11 +443,6 @@ static inline atomic_t *subpages_mapcount_ptr(struct page *page)
 	return &page[1].subpages_mapcount;
 }
 
-static inline atomic_t *compound_pincount_ptr(struct page *page)
-{
-	return &page[1].compound_pincount;
-}
-
 /*
  * Used for sizing the vmemmap region on some architectures
  */

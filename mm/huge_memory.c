@@ -2477,9 +2477,9 @@ static void __split_huge_page_tail(struct page *head, int tail,
 	 * of swap cache pages that store the swp_entry_t in tail pages.
 	 * Fix up and warn once if private is unexpectedly set.
 	 *
-	 * What of 32-bit systems, on which head[1].compound_pincount overlays
+	 * What of 32-bit systems, on which folio->_pincount overlays
 	 * head[1].private?  No problem: THP_SWAP is not enabled on 32-bit, and
-	 * compound_pincount must be 0 for folio_ref_freeze() to have succeeded.
+	 * pincount must be 0 for folio_ref_freeze() to have succeeded.
 	 */
 	if (!folio_test_swapcache(page_folio(head))) {
 		VM_WARN_ON_ONCE_PAGE(page_tail->private != 0, page_tail);

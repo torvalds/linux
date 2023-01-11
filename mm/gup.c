@@ -111,7 +111,7 @@ retry:
  *    FOLL_GET: folio's refcount will be incremented by @refs.
  *
  *    FOLL_PIN on large folios: folio's refcount will be incremented by
- *    @refs, and its compound_pincount will be incremented by @refs.
+ *    @refs, and its pincount will be incremented by @refs.
  *
  *    FOLL_PIN on single-page folios: folio's refcount will be incremented by
  *    @refs * GUP_PIN_COUNTING_BIAS.
@@ -157,7 +157,7 @@ struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags)
 		 * try_get_folio() is left intact.
 		 */
 		if (folio_test_large(folio))
-			atomic_add(refs, folio_pincount_ptr(folio));
+			atomic_add(refs, &folio->_pincount);
 		else
 			folio_ref_add(folio,
 					refs * (GUP_PIN_COUNTING_BIAS - 1));
@@ -182,7 +182,7 @@ static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
 	if (flags & FOLL_PIN) {
 		node_stat_mod_folio(folio, NR_FOLL_PIN_RELEASED, refs);
 		if (folio_test_large(folio))
-			atomic_sub(refs, folio_pincount_ptr(folio));
+			atomic_sub(refs, &folio->_pincount);
 		else
 			refs *= GUP_PIN_COUNTING_BIAS;
 	}
@@ -232,7 +232,7 @@ int __must_check try_grab_page(struct page *page, unsigned int flags)
 		 */
 		if (folio_test_large(folio)) {
 			folio_ref_add(folio, 1);
-			atomic_add(1, folio_pincount_ptr(folio));
+			atomic_add(1, &folio->_pincount);
 		} else {
 			folio_ref_add(folio, GUP_PIN_COUNTING_BIAS);
 		}

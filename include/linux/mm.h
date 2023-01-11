@@ -1011,11 +1011,6 @@ static inline void folio_set_compound_dtor(struct folio *folio,
 
 void destroy_large_folio(struct folio *folio);
 
-static inline int head_compound_pincount(struct page *head)
-{
-	return atomic_read(compound_pincount_ptr(head));
-}
-
 static inline void set_compound_order(struct page *page, unsigned int order)
 {
 	page[1].compound_order = order;
@@ -1641,11 +1636,6 @@ static inline struct folio *pfn_folio(unsigned long pfn)
 	return page_folio(pfn_to_page(pfn));
 }
 
-static inline atomic_t *folio_pincount_ptr(struct folio *folio)
-{
-	return &folio_page(folio, 1)->compound_pincount;
-}
-
 /**
  * folio_maybe_dma_pinned - Report if a folio may be pinned for DMA.
  * @folio: The folio.
@@ -1663,7 +1653,7 @@ static inline atomic_t *folio_pincount_ptr(struct folio *folio)
  * expected to be able to deal gracefully with a false positive.
  *
  * For large folios, the result will be exactly correct. That's because
- * we have more tracking data available: the compound_pincount is used
+ * we have more tracking data available: the _pincount field is used
  * instead of the GUP_PIN_COUNTING_BIAS scheme.
  *
  * For more information, please see Documentation/core-api/pin_user_pages.rst.
@@ -1674,7 +1664,7 @@ static inline atomic_t *folio_pincount_ptr(struct folio *folio)
 static inline bool folio_maybe_dma_pinned(struct folio *folio)
 {
 	if (folio_test_large(folio))
-		return atomic_read(folio_pincount_ptr(folio)) > 0;
+		return atomic_read(&folio->_pincount) > 0;
 
 	/*
 	 * folio_ref_count() is signed. If that refcount overflows, then
