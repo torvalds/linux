@@ -1078,27 +1078,26 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 	return page_vma_mkclean_one(&pvmw);
 }
 
-int total_compound_mapcount(struct page *head)
+int folio_total_mapcount(struct folio *folio)
 {
-	struct folio *folio = (struct folio *)head;
-	int mapcount = head_compound_mapcount(head);
-	int nr_subpages;
+	int mapcount = folio_entire_mapcount(folio);
+	int nr_pages;
 	int i;
 
-	/* In the common case, avoid the loop when no subpages mapped by PTE */
+	/* In the common case, avoid the loop when no pages mapped by PTE */
 	if (folio_nr_pages_mapped(folio) == 0)
 		return mapcount;
 	/*
-	 * Add all the PTE mappings of those subpages mapped by PTE.
-	 * Limit the loop, knowing that only subpages_mapcount are mapped?
+	 * Add all the PTE mappings of those pages mapped by PTE.
+	 * Limit the loop to folio_nr_pages_mapped()?
 	 * Perhaps: given all the raciness, that may be a good or a bad idea.
 	 */
-	nr_subpages = thp_nr_pages(head);
-	for (i = 0; i < nr_subpages; i++)
-		mapcount += atomic_read(&head[i]._mapcount);
+	nr_pages = folio_nr_pages(folio);
+	for (i = 0; i < nr_pages; i++)
+		mapcount += atomic_read(&folio_page(folio, i)->_mapcount);
 
 	/* But each of those _mapcounts was based on -1 */
-	mapcount += nr_subpages;
+	mapcount += nr_pages;
 	return mapcount;
 }
 

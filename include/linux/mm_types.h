@@ -306,7 +306,7 @@ static inline struct page *encoded_page_ptr(struct encoded_page *page)
  * @_head_1: Points to the folio.  Do not use.
  * @_folio_dtor: Which destructor to use for this folio.
  * @_folio_order: Do not use directly, call folio_order().
- * @_compound_mapcount: Do not use directly, call folio_entire_mapcount().
+ * @_entire_mapcount: Do not use directly, call folio_entire_mapcount().
  * @_nr_pages_mapped: Do not use directly, call folio_mapcount().
  * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
  * @_folio_nr_pages: Do not use directly, call folio_nr_pages().
@@ -360,7 +360,7 @@ struct folio {
 			unsigned long _head_1;
 			unsigned char _folio_dtor;
 			unsigned char _folio_order;
-			atomic_t _compound_mapcount;
+			atomic_t _entire_mapcount;
 			atomic_t _nr_pages_mapped;
 			atomic_t _pincount;
 #ifdef CONFIG_64BIT
@@ -403,7 +403,7 @@ FOLIO_MATCH(flags, _flags_1);
 FOLIO_MATCH(compound_head, _head_1);
 FOLIO_MATCH(compound_dtor, _folio_dtor);
 FOLIO_MATCH(compound_order, _folio_order);
-FOLIO_MATCH(compound_mapcount, _compound_mapcount);
+FOLIO_MATCH(compound_mapcount, _entire_mapcount);
 FOLIO_MATCH(subpages_mapcount, _nr_pages_mapped);
 FOLIO_MATCH(compound_pincount, _pincount);
 #ifdef CONFIG_64BIT

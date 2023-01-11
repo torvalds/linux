@@ -871,7 +871,7 @@ static inline int page_mapcount(struct page *page)
 	return head_compound_mapcount(page) + mapcount;
 }
 
-int total_compound_mapcount(struct page *head);
+int folio_total_mapcount(struct folio *folio);
 
 /**
  * folio_mapcount() - Calculate the number of mappings of this folio.
@@ -888,14 +888,14 @@ static inline int folio_mapcount(struct folio *folio)
 {
 	if (likely(!folio_test_large(folio)))
 		return atomic_read(&folio->_mapcount) + 1;
-	return total_compound_mapcount(&folio->page);
+	return folio_total_mapcount(folio);
 }
 
 static inline int total_mapcount(struct page *page)
 {
 	if (likely(!PageCompound(page)))
 		return atomic_read(&page->_mapcount) + 1;
-	return total_compound_mapcount(compound_head(page));
+	return folio_total_mapcount(page_folio(page));
 }
 
 static inline bool folio_large_is_mapped(struct folio *folio)
