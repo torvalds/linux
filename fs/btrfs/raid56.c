@@ -1183,6 +1183,14 @@ not_found:
 	trace_info->stripe_nr = -1;
 }
 
+static inline void bio_list_put(struct bio_list *bio_list)
+{
+	struct bio *bio;
+
+	while ((bio = bio_list_pop(bio_list)))
+		bio_put(bio);
+}
+
 /* Generate PQ for one vertical stripe. */
 static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
 {
@@ -1228,7 +1236,6 @@ static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
 static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 				   struct bio_list *bio_list)
 {
-	struct bio *bio;
 	/* The total sector number inside the full stripe. */
 	int total_sector_nr;
 	int sectornr;
@@ -1317,8 +1324,7 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 
 	return 0;
 error:
-	while ((bio = bio_list_pop(bio_list)))
-		bio_put(bio);
+	bio_list_put(bio_list);
 	return -EIO;
 }
 
@@ -1521,7 +1527,6 @@ static void submit_read_wait_bio_list(struct btrfs_raid_bio *rbio,
 static int rmw_assemble_read_bios(struct btrfs_raid_bio *rbio,
 				  struct bio_list *bio_list)
 {
-	struct bio *bio;
 	int total_sector_nr;
 	int ret = 0;
 
@@ -1548,8 +1553,7 @@ static int rmw_assemble_read_bios(struct btrfs_raid_bio *rbio,
 	return 0;
 
 cleanup:
-	while ((bio = bio_list_pop(bio_list)))
-		bio_put(bio);
+	bio_list_put(bio_list);
 	return ret;
 }
 
@@ -1946,7 +1950,6 @@ out:
 static int recover_assemble_read_bios(struct btrfs_raid_bio *rbio,
 				      struct bio_list *bio_list)
 {
-	struct bio *bio;
 	int total_sector_nr;
 	int ret = 0;
 
@@ -1988,16 +1991,13 @@ static int recover_assemble_read_bios(struct btrfs_raid_bio *rbio,
 	}
 	return 0;
 error:
-	while ((bio = bio_list_pop(bio_list)))
-		bio_put(bio);
-
+	bio_list_put(bio_list);
 	return -EIO;
 }
 
 static int recover_rbio(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list;
-	struct bio *bio;
 	int ret;
 
 	/*
@@ -2023,9 +2023,7 @@ static int recover_rbio(struct btrfs_raid_bio *rbio)
 	ret = recover_sectors(rbio);
 
 out:
-	while ((bio = bio_list_pop(&bio_list)))
-		bio_put(bio);
-
+	bio_list_put(&bio_list);
 	return ret;
 }
 
@@ -2198,7 +2196,6 @@ no_csum:
 static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list;
-	struct bio *bio;
 	int ret;
 
 	bio_list_init(&bio_list);
@@ -2223,9 +2220,7 @@ static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 	ret = recover_sectors(rbio);
 	return ret;
 out:
-	while ((bio = bio_list_pop(&bio_list)))
-		bio_put(bio);
-
+	bio_list_put(&bio_list);
 	return ret;
 }
 
@@ -2496,7 +2491,6 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
 	struct sector_ptr p_sector = { 0 };
 	struct sector_ptr q_sector = { 0 };
 	struct bio_list bio_list;
-	struct bio *bio;
 	int is_replace = 0;
 	int ret;
 
@@ -2627,8 +2621,7 @@ submit_write:
 	return 0;
 
 cleanup:
-	while ((bio = bio_list_pop(&bio_list)))
-		bio_put(bio);
+	bio_list_put(&bio_list);
 	return ret;
 }
 
@@ -2726,7 +2719,6 @@ out:
 static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio,
 				    struct bio_list *bio_list)
 {
-	struct bio *bio;
 	int total_sector_nr;
 	int ret = 0;
 
@@ -2767,8 +2759,7 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio,
 	}
 	return 0;
 error:
-	while ((bio = bio_list_pop(bio_list)))
-		bio_put(bio);
+	bio_list_put(bio_list);
 	return ret;
 }
 
@@ -2778,7 +2769,6 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 	struct bio_list bio_list;
 	int sector_nr;
 	int ret;
-	struct bio *bio;
 
 	bio_list_init(&bio_list);
 
@@ -2817,9 +2807,7 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 	return ret;
 
 cleanup:
-	while ((bio = bio_list_pop(&bio_list)))
-		bio_put(bio);
-
+	bio_list_put(&bio_list);
 	return ret;
 }
 
