@@ -136,6 +136,10 @@ struct cros_ec_command {
  *                      transition failure if the sleep signal is not
  *                      asserted.  See also struct
  *                      ec_params_host_sleep_event_v1 in cros_ec_commands.h.
+ * @last_resume_result: The number of sleep power signal transitions that
+ *                      occurred since the suspend message. The high bit
+ *                      indicates a timeout occurred.  See also struct
+ *                      ec_response_host_sleep_event_v1 in cros_ec_commands.h.
  * @last_event_time: exact time from the hard irq when we got notified of
  *     a new event.
  * @notifier_ready: The notifier_block to let the kernel re-query EC
