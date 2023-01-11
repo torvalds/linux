@@ -4806,7 +4806,9 @@ CG_FUNCS(nop);
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_PONTEVECCHIO(dev_priv))
+	if (IS_METEORLAKE(dev_priv))
+		dev_priv->clock_gating_funcs = &nop_clock_gating_funcs;
+	else if (IS_PONTEVECCHIO(dev_priv))
 		dev_priv->clock_gating_funcs = &pvc_clock_gating_funcs;
 	else if (IS_DG2(dev_priv))
 		dev_priv->clock_gating_funcs = &dg2_clock_gating_funcs;
