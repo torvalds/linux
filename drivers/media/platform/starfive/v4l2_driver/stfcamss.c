@@ -1201,31 +1201,43 @@ static int stfcamss_suspend(struct device *dev)
 	struct stfcamss_video *video;
 	struct video_device *vdev;
 	int i = 0;
+	int pm_power_count;
+	int pm_stream_count;
 
 	for (i = 0; i < VIN_LINE_MAX; i++) {
-		if (vin_dev->line[i].stream_count) {
-			vin_dev->line[i].stream_count ++;
-			video = &vin_dev->line[i].video_out;
-			vdev = &vin_dev->line[i].video_out.vdev;
-			entity = &vdev->entity;
-			while (1) {
-				pad = &entity->pads[0];
-				if (!(pad->flags & MEDIA_PAD_FL_SINK))
-					break;
+		video = &vin_dev->line[i].video_out;
+		vdev = &vin_dev->line[i].video_out.vdev;
+		vin_dev->line[i].pm_power_count = vin_dev->line[i].power_count;
+		vin_dev->line[i].pm_stream_count = vin_dev->line[i].stream_count;
+		pm_power_count = vin_dev->line[i].pm_power_count;
+		pm_stream_count = vin_dev->line[i].pm_stream_count;
 
-				pad = media_entity_remote_pad(pad);
-				if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-					break;
+		if (pm_stream_count) {
+			while (pm_stream_count--) {
+				entity = &vdev->entity;
+				while (1) {
+					pad = &entity->pads[0];
+					if (!(pad->flags & MEDIA_PAD_FL_SINK))
+						break;
 
-				entity = pad->entity;
-				subdev = media_entity_to_v4l2_subdev(entity);
+					pad = media_entity_remote_pad(pad);
+					if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+						break;
 
-				v4l2_subdev_call(subdev, video, s_stream, 0);
+					entity = pad->entity;
+					subdev = media_entity_to_v4l2_subdev(entity);
+
+					v4l2_subdev_call(subdev, video, s_stream, 0);
+				}
 			}
 			media_pipeline_stop(&vdev->entity);
 			video->ops->flush_buffers(video, VB2_BUF_STATE_ERROR);
-			v4l2_pipeline_pm_put(&vdev->entity);
 		}
+
+		if (!pm_power_count)
+			continue;
+
+		v4l2_pipeline_pm_put(&vdev->entity);
 	}
 
 	return pm_runtime_force_suspend(dev);
@@ -1241,40 +1253,48 @@ static int stfcamss_resume(struct device *dev)
 	struct stfcamss_video *video;
 	struct video_device *vdev;
 	int i = 0;
+	int pm_power_count;
+	int pm_stream_count;
 	int ret = 0;
 
 	pm_runtime_force_resume(dev);
 
 	for (i = 0; i < VIN_LINE_MAX; i++) {
-		if (vin_dev->line[i].stream_count) {
-			vin_dev->line[i].stream_count--;
-			video = &vin_dev->line[i].video_out;
-			vdev = &vin_dev->line[i].video_out.vdev;
+		video = &vin_dev->line[i].video_out;
+		vdev = &vin_dev->line[i].video_out.vdev;
+		pm_power_count = vin_dev->line[i].pm_power_count;
+		pm_stream_count = vin_dev->line[i].pm_stream_count;
 
-			ret = v4l2_pipeline_pm_get(&vdev->entity);
-			if (ret < 0)
-				goto err;
+		if (!pm_power_count)
+			continue;
 
+		ret = v4l2_pipeline_pm_get(&vdev->entity);
+		if (ret < 0)
+			goto err;
+
+		if (pm_stream_count) {
 			ret = media_pipeline_start(&vdev->entity, &video->stfcamss->pipe);
 			if (ret < 0)
 				goto err_pm_put;
 
-			entity = &vdev->entity;
-			while (1) {
-				pad = &entity->pads[0];
-				if (!(pad->flags & MEDIA_PAD_FL_SINK))
-					break;
+			while (pm_stream_count--) {
+				entity = &vdev->entity;
+				while (1) {
+					pad = &entity->pads[0];
+					if (!(pad->flags & MEDIA_PAD_FL_SINK))
+						break;
 
-				pad = media_entity_remote_pad(pad);
-				if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-					break;
+					pad = media_entity_remote_pad(pad);
+					if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+						break;
 
-				entity = pad->entity;
-				subdev = media_entity_to_v4l2_subdev(entity);
+					entity = pad->entity;
+					subdev = media_entity_to_v4l2_subdev(entity);
 
-				ret = v4l2_subdev_call(subdev, video, s_stream, 1);
-				if (ret < 0 && ret != -ENOIOCTLCMD)
-					goto err_pipeline_stop;
+					ret = v4l2_subdev_call(subdev, video, s_stream, 1);
+					if (ret < 0 && ret != -ENOIOCTLCMD)
+						goto err_pipeline_stop;
+				}
 			}
 		}
 	}
