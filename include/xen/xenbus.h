@@ -96,10 +96,7 @@ struct xenbus_device {
 	unsigned int spurious_threshold;
 };
 
-static inline struct xenbus_device *to_xenbus_device(struct device *dev)
-{
-	return container_of(dev, struct xenbus_device, dev);
-}
+#define to_xenbus_device(__dev)	container_of_const(__dev, struct xenbus_device, dev)
 
 struct xenbus_device_id
 {
