@@ -146,6 +146,8 @@ static const char *const compat_hwcap_str[] = {
 	[COMPAT_KERNEL_HWCAP(VFPD32)]	= NULL,	/* Not possible on arm64 */
 	[COMPAT_KERNEL_HWCAP(LPAE)]	= "lpae",
 	[COMPAT_KERNEL_HWCAP(EVTSTRM)]	= "evtstrm",
+	[COMPAT_KERNEL_HWCAP(FPHP)]	= "fphp",
+	[COMPAT_KERNEL_HWCAP(ASIMDHP)]	= "asimdhp",
 };
 
 #define COMPAT_KERNEL_HWCAP2(x)	const_ilog2(COMPAT_HWCAP2_ ## x)
