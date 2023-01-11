@@ -7,9 +7,8 @@
 #include "../include/usb_ops.h"
 #include "../include/rtl8188e_hal.h"
 
-static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
+static int usb_read(struct adapter *adapt, u16 value, void *data, u8 size)
 {
-	struct adapter *adapt = intf->padapter;
 	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
 	int status;
@@ -95,20 +94,18 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data)
 {
-	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 
-	return usb_read(intf, value, data, 1);
+	return usb_read(adapter, value, data, 1);
 }
 
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 {
-	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	__le16 le_data;
 	int res;
 
-	res = usb_read(intf, value, &le_data, 2);
+	res = usb_read(adapter, value, &le_data, 2);
 	if (res)
 		return res;
 
@@ -119,12 +116,11 @@ int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 
 int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 {
-	struct intf_hdl *intf = &adapter->intf;
 	u16 value = addr & 0xffff;
 	__le32 le_data;
 	int res;
 
-	res = usb_read(intf, value, &le_data, 4);
+	res = usb_read(adapter, value, &le_data, 4);
 	if (res)
 		return res;
 
