@@ -1737,7 +1737,7 @@ static const struct attribute_group *typec_groups[] = {
 	NULL
 };
 
-static int typec_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int typec_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
 

@@ -2176,9 +2176,9 @@ static void tb_switch_release(struct device *dev)
 	kfree(sw);
 }
 
-static int tb_switch_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int tb_switch_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_switch *sw = tb_to_switch(dev);
 	const char *type;
 
 	if (sw->config.thunderbolt_version == USB4_VERSION_1_0) {

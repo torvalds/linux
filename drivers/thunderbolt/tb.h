@@ -815,7 +815,7 @@ static inline bool tb_is_switch(const struct device *dev)
 	return dev->type == &tb_switch_type;
 }
 
-static inline struct tb_switch *tb_to_switch(struct device *dev)
+static inline struct tb_switch *tb_to_switch(const struct device *dev)
 {
 	if (tb_is_switch(dev))
 		return container_of(dev, struct tb_switch, dev);
