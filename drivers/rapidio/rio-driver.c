@@ -204,9 +204,9 @@ static int rio_match_bus(struct device *dev, struct device_driver *drv)
       out:return 0;
 }
 
-static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int rio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct rio_dev *rdev;
+	const struct rio_dev *rdev;
 
 	if (!dev)
 		return -ENODEV;

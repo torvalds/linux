@@ -1353,9 +1353,9 @@ static int platform_match(struct device *dev, struct device_driver *drv)
 	return (strcmp(pdev->name, drv->name) == 0);
 }
 
-static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int platform_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
+	const struct platform_device *pdev = to_platform_device(dev);
 	int rc;
 
 	/* Some devices have extra OF data and an OF-style MODALIAS */

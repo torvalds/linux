@@ -55,9 +55,9 @@ static int ulpi_match(struct device *dev, struct device_driver *driver)
 	return 0;
 }
 
-static int ulpi_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int ulpi_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct ulpi *ulpi = to_ulpi_dev(dev);
+	const struct ulpi *ulpi = to_ulpi_dev(dev);
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);

@@ -492,9 +492,9 @@ static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
 	return of_driver_match_device(dev, drv);
 }
 
-static int rpmsg_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int rpmsg_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	const struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);

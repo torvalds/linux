@@ -82,14 +82,14 @@ static inline void nvdimm_security_overwrite_query(struct work_struct *work)
 }
 #endif
 
-bool is_nvdimm(struct device *dev);
-bool is_nd_pmem(struct device *dev);
-bool is_nd_volatile(struct device *dev);
-static inline bool is_nd_region(struct device *dev)
+bool is_nvdimm(const struct device *dev);
+bool is_nd_pmem(const struct device *dev);
+bool is_nd_volatile(const struct device *dev);
+static inline bool is_nd_region(const struct device *dev)
 {
 	return is_nd_pmem(dev) || is_nd_volatile(dev);
 }
-static inline bool is_memory(struct device *dev)
+static inline bool is_memory(const struct device *dev)
 {
 	return is_nd_pmem(dev) || is_nd_volatile(dev);
 }

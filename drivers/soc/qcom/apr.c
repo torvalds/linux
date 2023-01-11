@@ -387,9 +387,9 @@ static void apr_device_remove(struct device *dev)
 	spin_unlock(&apr->svcs_lock);
 }
 
-static int apr_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int apr_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct apr_device *adev = to_apr_device(dev);
+	const struct apr_device *adev = to_apr_device(dev);
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);

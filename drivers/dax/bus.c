@@ -18,7 +18,7 @@ struct dax_id {
 	char dev_name[DAX_NAME_LEN];
 };
 
-static int dax_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int dax_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	/*
 	 * We only ever expect to handle device-dax instances, i.e. the

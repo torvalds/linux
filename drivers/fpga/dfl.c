@@ -293,9 +293,9 @@ static void dfl_bus_remove(struct device *dev)
 		ddrv->remove(ddev);
 }
 
-static int dfl_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int dfl_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct dfl_device *ddev = to_dfl_dev(dev);
+	const struct dfl_device *ddev = to_dfl_dev(dev);
 
 	return add_uevent_var(env, "MODALIAS=dfl:t%04Xf%04X",
 			      ddev->type, ddev->feature_id);

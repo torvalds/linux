@@ -572,7 +572,7 @@ static const struct device_type nvdimm_device_type = {
 	.groups = nvdimm_attribute_groups,
 };
 
-bool is_nvdimm(struct device *dev)
+bool is_nvdimm(const struct device *dev)
 {
 	return dev->type == &nvdimm_device_type;
 }

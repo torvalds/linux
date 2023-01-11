@@ -128,7 +128,7 @@ static int macio_device_resume(struct device * dev)
 	return 0;
 }
 
-static int macio_device_modalias(struct device *dev, struct kobj_uevent_env *env)
+static int macio_device_modalias(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return of_device_uevent_modalias(dev, env);
 }

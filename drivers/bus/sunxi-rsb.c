@@ -172,7 +172,7 @@ static void sunxi_rsb_device_remove(struct device *dev)
 	drv->remove(to_sunxi_rsb_device(dev));
 }
 
-static int sunxi_rsb_device_modalias(struct device *dev, struct kobj_uevent_env *env)
+static int sunxi_rsb_device_modalias(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return of_device_uevent_modalias(dev, env);
 }

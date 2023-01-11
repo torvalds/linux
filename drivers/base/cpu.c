@@ -336,7 +336,7 @@ static ssize_t print_cpu_modalias(struct device *dev,
 	return len;
 }
 
-static int cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int cpu_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (buf) {
