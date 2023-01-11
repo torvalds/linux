@@ -997,6 +997,15 @@ static inline uint32_t vop2_read_grf_reg(struct regmap *regmap, const struct vop
 	return (vop2_grf_readl(regmap, reg) >> reg->shift) & reg->mask;
 }
 
+static inline void vop2_write_reg_uncached(struct vop2 *vop2, const struct vop_reg *reg, uint32_t v)
+{
+	uint32_t offset = reg->offset;
+	uint32_t cached_val = vop2->regsbak[offset >> 2];
+
+	v = (cached_val & ~(reg->mask << reg->shift)) | ((v & reg->mask) << reg->shift);
+	writel(v, vop2->regs + offset);
+}
+
 static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
 				   uint32_t mask, uint32_t shift, uint32_t v,
 				   bool write_mask, bool relaxed)
@@ -3304,7 +3313,7 @@ static void rk3568_crtc_load_lut(struct drm_crtc *crtc)
 	spin_lock(&vop2->reg_lock);
 
 	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 1);
-	VOP_MODULE_SET(vop2, vp, gamma_update_en, 1);
+	vop2_write_reg_uncached(vop2, &vp->regs->gamma_update_en, 1);
 	vop2_cfg_done(crtc);
 	vp->gamma_lut_active = true;
 
@@ -3325,7 +3334,7 @@ static void rk3588_crtc_load_lut(struct drm_crtc *crtc, u32 *lut)
 		vop2_write_lut(vop2, i << 2, lut[i]);
 
 	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 1);
-	VOP_MODULE_SET(vop2, vp, gamma_update_en, 1);
+	vop2_write_reg_uncached(vop2, &vp->regs->gamma_update_en, 1);
 	vp->gamma_lut_active = true;
 
 	spin_unlock(&vop2->reg_lock);
