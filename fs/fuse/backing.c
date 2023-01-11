@@ -920,7 +920,8 @@ int fuse_file_write_iter_initialize(
 		.in_args[0].size = sizeof(fwio->fwi),
 		.in_args[0].value = &fwio->fwi,
 		.in_args[1].size = fwio->fwi.size,
-		.in_args[1].value = from->kvec->iov_base,
+		.in_args[1].value = iov_iter_is_kvec(from)
+			? from->kvec->iov_base : NULL,
 		.out_numargs = 1,
 		.out_args[0].size = sizeof(fwio->fwio),
 		.out_args[0].value = &fwio->fwio,
