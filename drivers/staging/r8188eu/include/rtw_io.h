@@ -206,6 +206,4 @@ void _rtw_write_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 u32 rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 void rtw_write_port_cancel(struct adapter *adapter);
 
-void dev_power_down(struct adapter *Adapter, u8 bpwrup);
-
 #endif	/* _RTL8711_IO_H_ */
