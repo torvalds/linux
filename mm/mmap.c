@@ -1558,8 +1558,8 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
  * the correct alignment and offset, all from @info. Note: current->mm is used
  * for the search.
  *
- * @info: The unmapped area information including the range (low_limit -
- * hight_limit), the alignment offset and mask.
+ * @info: The unmapped area information including the range [low_limit -
+ * high_limit), the alignment offset and mask.
  *
  * Return: A memory address or -ENOMEM.
  */
@@ -1585,11 +1585,11 @@ static unsigned long unmapped_area(struct vm_unmapped_area_info *info)
 
 /**
  * unmapped_area_topdown() - Find an area between the low_limit and the
- * high_limit with * the correct alignment and offset at the highest available
+ * high_limit with the correct alignment and offset at the highest available
  * address, all from @info. Note: current->mm is used for the search.
  *
- * @info: The unmapped area information including the range (low_limit -
- * hight_limit), the alignment offset and mask.
+ * @info: The unmapped area information including the range [low_limit -
+ * high_limit), the alignment offset and mask.
  *
  * Return: A memory address or -ENOMEM.
  */
