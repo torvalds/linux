@@ -37,8 +37,6 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 
-#include <linux/fb.h>
-
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_modeset_helper.h>
