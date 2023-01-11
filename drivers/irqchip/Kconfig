@@ -389,7 +389,7 @@ config LS_EXTIRQ
 
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
-	depends on PCI && PCI_MSI
+	depends on PCI_MSI
 
 config PARTITION_PERCPU
 	bool
