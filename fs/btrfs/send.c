@@ -8142,6 +8142,12 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 	INIT_LIST_HEAD(&sctx->backref_cache.lru_list);
 	mt_init(&sctx->backref_cache.entries);
 
+	sctx->pending_dir_moves = RB_ROOT;
+	sctx->waiting_dir_moves = RB_ROOT;
+	sctx->orphan_dirs = RB_ROOT;
+	sctx->rbtree_new_refs = RB_ROOT;
+	sctx->rbtree_deleted_refs = RB_ROOT;
+
 	sctx->flags = arg->flags;
 
 	if (arg->flags & BTRFS_SEND_FLAG_VERSION) {
@@ -8206,12 +8212,6 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	sctx->pending_dir_moves = RB_ROOT;
-	sctx->waiting_dir_moves = RB_ROOT;
-	sctx->orphan_dirs = RB_ROOT;
-	sctx->rbtree_new_refs = RB_ROOT;
-	sctx->rbtree_deleted_refs = RB_ROOT;
 
 	sctx->clone_roots = kvcalloc(sizeof(*sctx->clone_roots),
 				     arg->clone_sources_count + 1,
