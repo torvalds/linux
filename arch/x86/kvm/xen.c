@@ -304,8 +304,10 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		 * The guest's runstate_info is split across two pages and we
 		 * need to hold and validate both GPCs simultaneously. We can
 		 * declare a lock ordering GPC1 > GPC2 because nothing else
-		 * takes them more than one at a time.
+		 * takes them more than one at a time. Set a subclass on the
+		 * gpc1 lock to make lockdep shut up about it.
 		 */
+		lock_set_subclass(&gpc1->lock.dep_map, 1, _THIS_IP_);
 		read_lock(&gpc2->lock);
 
 		if (!kvm_gpc_check(gpc2, user_len2)) {
