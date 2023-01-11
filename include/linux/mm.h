@@ -719,11 +719,20 @@ int vma_is_stack_for_current(struct vm_area_struct *vma);
 struct mmu_gather;
 struct inode;
 
+/*
+ * compound_order() can be called without holding a reference, which means
+ * that niceties like page_folio() don't work.  These callers should be
+ * prepared to handle wild return values.  For example, PG_head may be
+ * set before _folio_order is initialised, or this may be a tail page.
+ * See compaction.c for some good examples.
+ */
 static inline unsigned int compound_order(struct page *page)
 {
-	if (!PageHead(page))
+	struct folio *folio = (struct folio *)page;
+
+	if (!test_bit(PG_head, &folio->flags))
 		return 0;
-	return page[1].compound_order;
+	return folio->_folio_order;
 }
 
 /**
