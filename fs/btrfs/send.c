@@ -3210,8 +3210,7 @@ static void free_orphan_dir_info(struct send_ctx *sctx,
  * We check this by iterating all dir items and checking if the inode behind
  * the dir item was already processed.
  */
-static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
-		     u64 send_progress)
+static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen)
 {
 	int ret = 0;
 	int iter_ret = 0;
@@ -3267,7 +3266,7 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			goto out;
 		}
 
-		if (loc.objectid > send_progress) {
+		if (loc.objectid > sctx->cur_ino) {
 			odi = add_orphan_dir_info(sctx, dir, dir_gen);
 			if (IS_ERR(odi)) {
 				ret = PTR_ERR(odi);
@@ -3574,7 +3573,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 		}
 		gen = odi->gen;
 
-		ret = can_rmdir(sctx, rmdir_ino, gen, sctx->cur_ino);
+		ret = can_rmdir(sctx, rmdir_ino, gen);
 		if (ret < 0)
 			goto out;
 		if (!ret)
@@ -4465,8 +4464,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 		 * later, we do this check again and rmdir it then if possible.
 		 * See the use of check_dirs for more details.
 		 */
-		ret = can_rmdir(sctx, sctx->cur_ino, sctx->cur_inode_gen,
-				sctx->cur_ino);
+		ret = can_rmdir(sctx, sctx->cur_ino, sctx->cur_inode_gen);
 		if (ret < 0)
 			goto out;
 		if (ret) {
@@ -4571,8 +4569,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				goto out;
 		} else if (ret == inode_state_did_delete &&
 			   cur->dir != last_dir_ino_rm) {
-			ret = can_rmdir(sctx, cur->dir, cur->dir_gen,
-					sctx->cur_ino);
+			ret = can_rmdir(sctx, cur->dir, cur->dir_gen);
 			if (ret < 0)
 				goto out;
 			if (ret) {
