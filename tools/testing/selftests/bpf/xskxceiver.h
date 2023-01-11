@@ -30,7 +30,6 @@
 #define TEST_CONTINUE 1
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 16
-#define MAX_INTERFACES_NAMESPACE_CHARS 16
 #define MAX_SOCKETS 2
 #define MAX_TEST_NAME_SIZE 32
 #define MAX_TEARDOWN_ITER 10
@@ -133,14 +132,12 @@ typedef void *(*thread_func_t)(void *arg);
 
 struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
-	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
 	struct xsk_socket_info *xsk;
 	struct xsk_socket_info *xsk_arr;
 	struct xsk_umem_info *umem;
 	thread_func_t func_ptr;
 	validation_func_t validation_func;
 	struct pkt_stream *pkt_stream;
-	int ns_fd;
 	int xsk_map_fd;
 	u32 dst_ip;
 	u32 src_ip;
