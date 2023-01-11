@@ -117,6 +117,14 @@ struct backref_cache_entry {
 /* See the comment at lru_cache.h about struct btrfs_lru_cache_entry. */
 static_assert(offsetof(struct backref_cache_entry, entry) == 0);
 
+/*
+ * Max number of entries in the cache that stores directories that were already
+ * created. The cache uses raw struct btrfs_lru_cache_entry entries, so it uses
+ * at most 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 40 bytes, but
+ * the kmalloc-64 slab is used, so we get 4096 bytes (64 bytes * 64).
+ */
+#define SEND_MAX_DIR_CREATED_CACHE_SIZE			64
+
 struct send_ctx {
 	struct file *send_filp;
 	loff_t send_off;
@@ -288,6 +296,8 @@ struct send_ctx {
 
 	struct btrfs_lru_cache backref_cache;
 	u64 backref_cache_last_reloc_trans;
+
+	struct btrfs_lru_cache dir_created_cache;
 };
 
 struct pending_dir_move {
@@ -2936,6 +2946,22 @@ out:
 	return ret;
 }
 
+static void cache_dir_created(struct send_ctx *sctx, u64 dir)
+{
+	struct btrfs_lru_cache_entry *entry;
+	int ret;
+
+	/* Caching is optional, ignore any failures. */
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return;
+
+	entry->key = dir;
+	ret = btrfs_lru_cache_store(&sctx->dir_created_cache, entry, GFP_KERNEL);
+	if (ret < 0)
+		kfree(entry);
+}
+
 /*
  * We need some special handling for inodes that get processed before the parent
  * directory got created. See process_recorded_refs for details.
@@ -2950,6 +2976,9 @@ static int did_create_dir(struct send_ctx *sctx, u64 dir)
 	struct btrfs_key found_key;
 	struct btrfs_key di_key;
 	struct btrfs_dir_item *di;
+
+	if (btrfs_lru_cache_lookup(&sctx->dir_created_cache, dir))
+		return 1;
 
 	path = alloc_path_for_send();
 	if (!path)
@@ -2974,6 +3003,7 @@ static int did_create_dir(struct send_ctx *sctx, u64 dir)
 		if (di_key.type != BTRFS_ROOT_ITEM_KEY &&
 		    di_key.objectid < sctx->send_progress) {
 			ret = 1;
+			cache_dir_created(sctx, dir);
 			break;
 		}
 	}
@@ -3003,7 +3033,12 @@ static int send_create_inode_if_needed(struct send_ctx *sctx)
 			return 0;
 	}
 
-	return send_create_inode(sctx, sctx->cur_ino);
+	ret = send_create_inode(sctx, sctx->cur_ino);
+
+	if (ret == 0 && S_ISDIR(sctx->cur_inode_mode))
+		cache_dir_created(sctx, sctx->cur_ino);
+
+	return ret;
 }
 
 struct recorded_ref {
@@ -4401,6 +4436,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				ret = send_create_inode(sctx, cur->dir);
 				if (ret < 0)
 					goto out;
+				cache_dir_created(sctx, cur->dir);
 			}
 		}
 
@@ -8109,6 +8145,8 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
 	btrfs_lru_cache_init(&sctx->backref_cache, SEND_MAX_BACKREF_CACHE_SIZE);
+	btrfs_lru_cache_init(&sctx->dir_created_cache,
+			     SEND_MAX_DIR_CREATED_CACHE_SIZE);
 
 	sctx->pending_dir_moves = RB_ROOT;
 	sctx->waiting_dir_moves = RB_ROOT;
@@ -8373,6 +8411,7 @@ out:
 		close_current_inode(sctx);
 
 		btrfs_lru_cache_clear(&sctx->backref_cache);
+		btrfs_lru_cache_clear(&sctx->dir_created_cache);
 
 		kfree(sctx);
 	}
