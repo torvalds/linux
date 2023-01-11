@@ -2038,11 +2038,12 @@ static bool prep_compound_gigantic_folio_for_demote(struct folio *folio,
  */
 int PageHuge(struct page *page)
 {
+	struct folio *folio;
+
 	if (!PageCompound(page))
 		return 0;
-
-	page = compound_head(page);
-	return page[1].compound_dtor == HUGETLB_PAGE_DTOR;
+	folio = page_folio(page);
+	return folio->_folio_dtor == HUGETLB_PAGE_DTOR;
 }
 EXPORT_SYMBOL_GPL(PageHuge);
 
@@ -2052,10 +2053,11 @@ EXPORT_SYMBOL_GPL(PageHuge);
  */
 int PageHeadHuge(struct page *page_head)
 {
-	if (!PageHead(page_head))
+	struct folio *folio = (struct folio *)page_head;
+	if (!folio_test_large(folio))
 		return 0;
 
-	return page_head[1].compound_dtor == HUGETLB_PAGE_DTOR;
+	return folio->_folio_dtor == HUGETLB_PAGE_DTOR;
 }
 EXPORT_SYMBOL_GPL(PageHeadHuge);
 
