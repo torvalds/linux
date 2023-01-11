@@ -2387,9 +2387,9 @@ static const char *dev_uevent_name(const struct kobject *kobj)
 	return NULL;
 }
 
-static int dev_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
+static int dev_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 	int retval = 0;
 
 	/* add device node properties if present */
