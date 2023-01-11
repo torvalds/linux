@@ -850,6 +850,14 @@ int bus_unregister_notifier(struct bus_type *bus, struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(bus_unregister_notifier);
 
+void bus_notify(struct device *dev, enum bus_notifier_event value)
+{
+	struct bus_type *bus = dev->bus;
+
+	if (bus)
+		blocking_notifier_call_chain(&bus->p->bus_notifier, value, dev);
+}
+
 struct kset *bus_get_kset(struct bus_type *bus)
 {
 	return &bus->p->subsys;

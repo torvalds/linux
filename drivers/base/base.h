@@ -130,6 +130,7 @@ struct kobject *virtual_device_parent(struct device *dev);
 extern int bus_add_device(struct device *dev);
 extern void bus_probe_device(struct device *dev);
 extern void bus_remove_device(struct device *dev);
+void bus_notify(struct device *dev, enum bus_notifier_event value);
 
 extern int bus_add_driver(struct device_driver *drv);
 extern void bus_remove_driver(struct device_driver *drv);
