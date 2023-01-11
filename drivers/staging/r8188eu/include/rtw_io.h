@@ -227,22 +227,6 @@ void rtw_write_port_cancel(struct adapter *adapter);
 
 void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
 
-uint async_read8(struct adapter *adapter, u32 addr, u8 *pbuff,
-		 void (*_async_io_callback)(struct adapter *padater,
-					    struct io_req *pio_req,
-					    u8 *cnxt), u8 *cnxt);
-uint async_read16(struct adapter *adapter, u32 addr,  u8 *pbuff,
-		  void (*_async_io_callback)(struct adapter *padater,
-					     struct io_req *pio_req,
-					     u8 *cnxt), u8 *cnxt);
-uint async_read32(struct adapter *adapter, u32 addr,  u8 *pbuff,
-		  void (*_async_io_callback)(struct adapter *padater,
-					     struct io_req *pio_req,
-					     u8 *cnxt), u8 *cnxt);
-
-void async_read_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void async_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
 void async_write8(struct adapter *adapter, u32 addr, u8 val,
 		  void (*_async_io_callback)(struct adapter *padater,
 					     struct io_req *pio_req,
