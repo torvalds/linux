@@ -39,7 +39,7 @@ For SRCU:
 
 On x86:
 
-- vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock
+- vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock and kvm->arch.xen.xen_lock
 
 - kvm->arch.mmu_lock is an rwlock.  kvm->arch.tdp_mmu_pages_lock and
   kvm->arch.mmu_unsync_pages_lock are taken inside kvm->arch.mmu_lock, and
