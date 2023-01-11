@@ -209,18 +209,6 @@ struct device *i3cdev_to_dev(struct i3c_device *i3cdev)
 EXPORT_SYMBOL_GPL(i3cdev_to_dev);
 
 /**
- * dev_to_i3cdev() - Returns the I3C device containing @dev
- * @dev: device object
- *
- * Return: a pointer to an I3C device object.
- */
-struct i3c_device *dev_to_i3cdev(struct device *dev)
-{
-	return container_of(dev, struct i3c_device, dev);
-}
-EXPORT_SYMBOL_GPL(dev_to_i3cdev);
-
-/**
  * i3c_device_match_id() - Returns the i3c_device_id entry matching @i3cdev
  * @i3cdev: I3C device
  * @id_table: I3C device match table

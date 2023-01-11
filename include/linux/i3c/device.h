@@ -186,7 +186,14 @@ static inline struct i3c_driver *drv_to_i3cdrv(struct device_driver *drv)
 }
 
 struct device *i3cdev_to_dev(struct i3c_device *i3cdev);
-struct i3c_device *dev_to_i3cdev(struct device *dev);
+
+/**
+ * dev_to_i3cdev() - Returns the I3C device containing @dev
+ * @dev: device object
+ *
+ * Return: a pointer to an I3C device object.
+ */
+#define dev_to_i3cdev(__dev)	container_of_const(__dev, struct i3c_device, dev)
 
 const struct i3c_device_id *
 i3c_device_match_id(struct i3c_device *i3cdev,
