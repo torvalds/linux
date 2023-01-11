@@ -1497,7 +1497,7 @@ static void raid_wait_read_end_io(struct bio *bio)
 		wake_up(&rbio->io_wait);
 }
 
-static void submit_read_bios(struct btrfs_raid_bio *rbio,
+static void submit_read_wait_bio_list(struct btrfs_raid_bio *rbio,
 			     struct bio_list *bio_list)
 {
 	struct bio *bio;
@@ -1514,6 +1514,8 @@ static void submit_read_bios(struct btrfs_raid_bio *rbio,
 		}
 		submit_bio(bio);
 	}
+
+	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
 }
 
 static int rmw_assemble_read_bios(struct btrfs_raid_bio *rbio,
@@ -2016,8 +2018,7 @@ static int recover_rbio(struct btrfs_raid_bio *rbio)
 	if (ret < 0)
 		goto out;
 
-	submit_read_bios(rbio, &bio_list);
-	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+	submit_read_wait_bio_list(rbio, &bio_list);
 
 	ret = recover_sectors(rbio);
 
@@ -2213,8 +2214,7 @@ static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 	if (ret < 0)
 		goto out;
 
-	submit_read_bios(rbio, &bio_list);
-	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+	submit_read_wait_bio_list(rbio, &bio_list);
 
 	/*
 	 * We may or may not have any corrupted sectors (including missing dev
@@ -2792,8 +2792,7 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 	if (ret < 0)
 		goto cleanup;
 
-	submit_read_bios(rbio, &bio_list);
-	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+	submit_read_wait_bio_list(rbio, &bio_list);
 
 	/* We may have some failures, recover the failed sectors first. */
 	ret = recover_scrub_rbio(rbio);
