@@ -4,6 +4,7 @@
 
 import argparse
 import errno
+import glob
 import logging
 import os
 import re
@@ -192,6 +193,21 @@ class BazelBuilder:
         logging.debug("using userspace cross toolchain %s", toolchain)
         return toolchain
 
+    def clean_legacy_generated_files(self):
+        """Clean generated files from legacy build to avoid conflicts with Bazel"""
+        for f in glob.glob("{}/msm-kernel/arch/arm64/configs/vendor/*-*_defconfig".format(self.workspace)):
+            os.remove(f)
+
+        f = os.path.join(self.workspace, "bootable", "bootloader", "edk2", "Conf", ".AutoGenIdFile.txt")
+        if os.path.exists(f):
+            os.remove(f)
+
+        for root, _, files in os.walk(os.path.join(self.workspace, "bootable")):
+            for f in files:
+                if f.endswith(".pyc"):
+                    os.remove(os.path.join(root, f))
+
+
     def bazel(
         self,
         bazel_subcommand,
@@ -257,6 +273,8 @@ class BazelBuilder:
         if not cross_targets_to_build and not host_targets_to_build:
             logging.error("no targets to build")
             sys.exit(1)
+
+        self.clean_legacy_generated_files()
 
         logging.info("Building %s targets...", CPU)
         self.build_targets(
