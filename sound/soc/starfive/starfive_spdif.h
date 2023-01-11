@@ -156,6 +156,9 @@ struct sf_spdif_dev {
 	struct clk *mclk;
 	struct clk *mclk_ext;
 	struct reset_control *rst_apb;
+	unsigned int reg_spdif_ctrl;
+	unsigned int reg_spdif_int;
+	unsigned int reg_spdif_fifo_ctrl;
 
 	struct snd_dmaengine_dai_dma_data dma_data;
 };
@@ -172,6 +175,5 @@ int sf_spdif_pcm_register(struct platform_device *pdev)
 	return -EINVAL;
 }
 #endif
-
 
 #endif	/* __SND_SOC_STARFIVE_SPDIF_H */
