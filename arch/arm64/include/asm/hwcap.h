@@ -43,6 +43,7 @@
 #define COMPAT_HWCAP2_SHA1	(1 << 2)
 #define COMPAT_HWCAP2_SHA2	(1 << 3)
 #define COMPAT_HWCAP2_CRC32	(1 << 4)
+#define COMPAT_HWCAP2_SB	(1 << 5)
 
 #ifndef __ASSEMBLY__
 #include <linux/log2.h>
