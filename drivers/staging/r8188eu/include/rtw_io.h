@@ -190,9 +190,6 @@ struct reg_protocol_wt {
 uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl);
 void unregister_intf_hdl(struct intf_hdl *pintfhdl);
 
-void _rtw_attrib_read(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void _rtw_attrib_write(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data);
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data);
 int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data);
