@@ -28,7 +28,6 @@ ifeq ($(mte_cc_support),1)
 # Generated binaries to be installed by top KSFT script
 TEST_GEN_PROGS := $(PROGS)
 
-# Get Kernel headers installed and use them.
 else
     $(warning compiler "$(CC)" does not support the ARMv8.5 MTE extension.)
     $(warning test program "mte" will not be created.)
