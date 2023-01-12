@@ -420,21 +420,22 @@ static void juggle_array(u32 **array, unsigned int size, unsigned int nr)
 	}
 }
 
-static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
-			     enum con_scroll dir, unsigned int nr)
+static void vc_uniscr_scroll(struct vc_data *vc, unsigned int top,
+			     unsigned int bottom, enum con_scroll dir,
+			     unsigned int nr)
 {
 	u32 **uni_lines = vc->vc_uni_lines;
-	unsigned int size = b - t;
+	unsigned int size = bottom - top;
 
 	if (!uni_lines)
 		return;
 
 	if (dir == SM_DOWN) {
 		juggle_array(&uni_lines[top], size, size - nr);
-		vc_uniscr_clear_lines(vc, t, nr);
+		vc_uniscr_clear_lines(vc, top, nr);
 	} else {
 		juggle_array(&uni_lines[top], size, nr);
-		vc_uniscr_clear_lines(vc, b - nr, nr);
+		vc_uniscr_clear_lines(vc, bottom - nr, nr);
 	}
 }
 
@@ -556,27 +557,30 @@ void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, bool viewed,
 	}
 }
 
-static void con_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
-		enum con_scroll dir, unsigned int nr)
+static void con_scroll(struct vc_data *vc, unsigned int top,
+		       unsigned int bottom, enum con_scroll dir,
+		       unsigned int nr)
 {
-	u16 *clear, *d, *s;
+	u16 *clear, *dst, *src;
 
-	if (t + nr >= b)
-		nr = b - t - 1;
-	if (b > vc->vc_rows || t >= b || nr < 1)
-		return;
-	vc_uniscr_scroll(vc, t, b, dir, nr);
-	if (con_is_visible(vc) && vc->vc_sw->con_scroll(vc, t, b, dir, nr))
+	if (top + nr >= bottom)
+		nr = bottom - top - 1;
+	if (bottom > vc->vc_rows || top >= bottom || nr < 1)
 		return;
 
-	s = clear = (u16 *)(vc->vc_origin + vc->vc_size_row * t);
-	d = (u16 *)(vc->vc_origin + vc->vc_size_row * (t + nr));
+	vc_uniscr_scroll(vc, top, bottom, dir, nr);
+	if (con_is_visible(vc) &&
+			vc->vc_sw->con_scroll(vc, top, bottom, dir, nr))
+		return;
+
+	src = clear = (u16 *)(vc->vc_origin + vc->vc_size_row * top);
+	dst = (u16 *)(vc->vc_origin + vc->vc_size_row * (top + nr));
 
 	if (dir == SM_UP) {
-		clear = s + (b - t - nr) * vc->vc_cols;
-		swap(s, d);
+		clear = src + (bottom - top - nr) * vc->vc_cols;
+		swap(src, dst);
 	}
-	scr_memmovew(d, s, (b - t - nr) * vc->vc_size_row);
+	scr_memmovew(dst, src, (bottom - top - nr) * vc->vc_size_row);
 	scr_memsetw(clear, vc->vc_video_erase_char, vc->vc_size_row * nr);
 }
 
