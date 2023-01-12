@@ -83,10 +83,10 @@ static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 }
 
 static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val,
-				 u32 mask, u32 timeout_ms, u32 *out_val)
+				 u32 mask, u32 timeout_us, u32 *out_val)
 {
 	ktime_t cur = ktime_get_raw();
-	const ktime_t end = ktime_add_ms(cur, timeout_ms);
+	const ktime_t end = ktime_add_us(cur, timeout_us);
 	int ret = -ETIMEDOUT;
 	s64 wait = 10;
 	u32 read;

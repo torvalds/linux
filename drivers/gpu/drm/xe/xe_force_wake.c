@@ -124,7 +124,8 @@ static int domain_wake_wait(struct xe_gt *gt,
 			    struct xe_force_wake_domain *domain)
 {
 	return xe_mmio_wait32(gt, domain->reg_ack, domain->val, domain->val,
-			      XE_FORCE_WAKE_ACK_TIMEOUT_MS, NULL);
+			      XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
+			      NULL);
 }
 
 static void domain_sleep(struct xe_gt *gt, struct xe_force_wake_domain *domain)
@@ -136,7 +137,8 @@ static int domain_sleep_wait(struct xe_gt *gt,
 			     struct xe_force_wake_domain *domain)
 {
 	return xe_mmio_wait32(gt, domain->reg_ack, 0, domain->val,
-			      XE_FORCE_WAKE_ACK_TIMEOUT_MS, NULL);
+			      XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
+			      NULL);
 }
 
 #define for_each_fw_domain_masked(domain__, mask__, fw__, tmp__) \

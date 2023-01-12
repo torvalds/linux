@@ -324,7 +324,8 @@ int xe_guc_reset(struct xe_guc *guc)
 
 	xe_mmio_write32(gt, GEN6_GDRST.reg, GEN11_GRDOM_GUC);
 
-	ret = xe_mmio_wait32(gt, GEN6_GDRST.reg, 0, GEN11_GRDOM_GUC, 5, &gdrst);
+	ret = xe_mmio_wait32(gt, GEN6_GDRST.reg, 0, GEN11_GRDOM_GUC, 5000,
+			     &gdrst);
 	if (ret) {
 		drm_err(&xe->drm, "GuC reset timed out, GEN6_GDRST=0x%8x\n",
 			gdrst);
@@ -422,7 +423,7 @@ static int guc_wait_ucode(struct xe_guc *guc)
 	ret = xe_mmio_wait32(guc_to_gt(guc), GUC_STATUS.reg,
 			     FIELD_PREP(GS_UKERNEL_MASK,
 					XE_GUC_LOAD_STATUS_READY),
-			     GS_UKERNEL_MASK, 200, &status);
+			     GS_UKERNEL_MASK, 200000, &status);
 
 	if (ret) {
 		struct drm_device *drm = &xe->drm;
@@ -670,7 +671,7 @@ retry:
 	ret = xe_mmio_wait32(gt, reply_reg,
 			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN,
 					GUC_HXG_ORIGIN_GUC),
-			     GUC_HXG_MSG_0_ORIGIN, 50, &reply);
+			     GUC_HXG_MSG_0_ORIGIN, 50000, &reply);
 	if (ret) {
 timeout:
 		drm_err(&xe->drm, "mmio request 0x%08x: no reply 0x%08x\n",
@@ -685,7 +686,7 @@ timeout:
 		ret = xe_mmio_wait32(gt, reply_reg,
 				     FIELD_PREP(GUC_HXG_MSG_0_TYPE,
 						GUC_HXG_TYPE_RESPONSE_SUCCESS),
-				     GUC_HXG_MSG_0_TYPE, 1000, &header);
+				     GUC_HXG_MSG_0_TYPE, 1000000, &header);
 
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
 			     GUC_HXG_ORIGIN_GUC))

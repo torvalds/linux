@@ -85,7 +85,7 @@ int xe_huc_auth(struct xe_huc *huc)
 
 	ret = xe_mmio_wait32(gt, GEN11_HUC_KERNEL_LOAD_INFO.reg,
 			     HUC_LOAD_SUCCESSFUL,
-			     HUC_LOAD_SUCCESSFUL, 100, NULL);
+			     HUC_LOAD_SUCCESSFUL, 100000, NULL);
 	if (ret) {
 		drm_err(&xe->drm, "HuC: Firmware not verified %d\n", ret);
 		goto fail;
