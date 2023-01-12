@@ -18,7 +18,7 @@ struct qat_alg_buf_list {
 	u64 resrvd;
 	u32 num_bufs;
 	u32 num_mapped_bufs;
-	struct qat_alg_buf bufers[];
+	struct qat_alg_buf buffers[];
 } __packed;
 
 struct qat_alg_fixed_buf_list {
