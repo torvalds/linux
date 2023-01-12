@@ -33,7 +33,7 @@ static int send_get_hwconfig(struct xe_guc *guc, u32 ggtt_addr, u32 size)
 		size,
 	};
 
-	return xe_guc_send_mmio(guc, action, ARRAY_SIZE(action));
+	return xe_guc_mmio_send(guc, action, ARRAY_SIZE(action));
 }
 
 static int guc_hwconfig_size(struct xe_guc *guc, u32 *size)

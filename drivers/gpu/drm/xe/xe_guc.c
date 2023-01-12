@@ -599,7 +599,7 @@ int xe_guc_suspend(struct xe_guc *guc)
 		XE_GUC_ACTION_CLIENT_SOFT_RESET,
 	};
 
-	ret = xe_guc_send_mmio(guc, action, ARRAY_SIZE(action));
+	ret = xe_guc_mmio_send(guc, action, ARRAY_SIZE(action));
 	if (ret) {
 		drm_err(&guc_to_xe(guc)->drm,
 			"GuC suspend: CLIENT_SOFT_RESET fail: %d!\n", ret);
@@ -630,7 +630,7 @@ int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
 #define MEDIA_SOFT_SCRATCH(n)           _MMIO(0x190310 + (n) * 4)
 #define MEDIA_SOFT_SCRATCH_COUNT        4
 
-int xe_guc_send_mmio(struct xe_guc *guc, const u32 *request, u32 len)
+int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
@@ -747,7 +747,7 @@ static int guc_self_cfg(struct xe_guc *guc, u16 key, u16 len, u64 val)
 	XE_BUG_ON(len == 1 && upper_32_bits(val));
 
 	/* Self config must go over MMIO */
-	ret = xe_guc_send_mmio(guc, request, ARRAY_SIZE(request));
+	ret = xe_guc_mmio_send(guc, request, ARRAY_SIZE(request));
 
 	if (unlikely(ret < 0))
 		return ret;

@@ -268,7 +268,7 @@ static int guc_ct_control_toggle(struct xe_guc_ct *ct, bool enable)
 			   enable ? GUC_CTB_CONTROL_ENABLE :
 			   GUC_CTB_CONTROL_DISABLE),
 	};
-	int ret = xe_guc_send_mmio(ct_to_guc(ct), request, ARRAY_SIZE(request));
+	int ret = xe_guc_mmio_send(ct_to_guc(ct), request, ARRAY_SIZE(request));
 
 	return ret > 0 ? -EPROTO : ret;
 }
