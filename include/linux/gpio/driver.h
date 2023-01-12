@@ -336,7 +336,7 @@ struct gpio_irq_chip {
  * @set_multiple: assigns output values for multiple signals defined by "mask"
  * @set_config: optional hook for all kinds of settings. Uses the same
  *	packed config format as generic pinconf.
- * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
+ * @to_irq: optional hook supporting non-static gpiod_to_irq() mappings;
  *	implementation may not sleep
  * @dbg_show: optional routine to show contents in debugfs; default code
  *	will be used when this is omitted, but custom code can show extra
