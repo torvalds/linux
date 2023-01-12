@@ -657,6 +657,7 @@ static int dlm_midcomms_version_check_3_2(struct midcomms_node *node)
 	switch (node->version) {
 	case DLM_VERSION_NOT_SET:
 		node->version = DLM_VERSION_3_2;
+		wake_up(&node->shutdown_wait);
 		log_print("version 0x%08x for node %d detected", DLM_VERSION_3_2,
 			  node->nodeid);
 		break;
@@ -826,6 +827,7 @@ static int dlm_midcomms_version_check_3_1(struct midcomms_node *node)
 	switch (node->version) {
 	case DLM_VERSION_NOT_SET:
 		node->version = DLM_VERSION_3_1;
+		wake_up(&node->shutdown_wait);
 		log_print("version 0x%08x for node %d detected", DLM_VERSION_3_1,
 			  node->nodeid);
 		break;
@@ -1384,6 +1386,27 @@ static void midcomms_node_release(struct rcu_head *rcu)
 	WARN_ON_ONCE(atomic_read(&node->send_queue_cnt));
 	dlm_send_queue_flush(node);
 	kfree(node);
+}
+
+void dlm_midcomms_version_wait(void)
+{
+	struct midcomms_node *node;
+	int i, idx, ret;
+
+	idx = srcu_read_lock(&nodes_srcu);
+	for (i = 0; i < CONN_HASH_SIZE; i++) {
+		hlist_for_each_entry_rcu(node, &node_hash[i], hlist) {
+			ret = wait_event_timeout(node->shutdown_wait,
+						 node->version != DLM_VERSION_NOT_SET ||
+						 node->state == DLM_CLOSED ||
+						 test_bit(DLM_NODE_FLAG_CLOSE, &node->flags),
+						 DLM_SHUTDOWN_TIMEOUT);
+			if (!ret || test_bit(DLM_NODE_FLAG_CLOSE, &node->flags))
+				pr_debug("version wait timed out for node %d with state %s\n",
+					 node->nodeid, dlm_state_str(node->state));
+		}
+	}
+	srcu_read_unlock(&nodes_srcu, idx);
 }
 
 static void midcomms_shutdown(struct midcomms_node *node)

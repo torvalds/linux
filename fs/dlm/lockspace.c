@@ -820,6 +820,9 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 		return rv;
 	}
 
+	if (ls_count == 1)
+		dlm_midcomms_version_wait();
+
 	dlm_device_deregister(ls);
 
 	if (force < 3 && dlm_user_daemon_available())
