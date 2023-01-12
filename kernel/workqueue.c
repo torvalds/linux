@@ -3608,18 +3608,6 @@ static void rcu_free_pool(struct rcu_head *rcu)
 	kfree(pool);
 }
 
-/* This returns with the lock held on success (pool manager is inactive). */
-static bool wq_manager_inactive(struct worker_pool *pool)
-{
-	raw_spin_lock_irq(&pool->lock);
-
-	if (pool->flags & POOL_MANAGER_ACTIVE) {
-		raw_spin_unlock_irq(&pool->lock);
-		return false;
-	}
-	return true;
-}
-
 /**
  * put_unbound_pool - put a worker_pool
  * @pool: worker_pool to put
@@ -3655,12 +3643,26 @@ static void put_unbound_pool(struct worker_pool *pool)
 	 * Become the manager and destroy all workers.  This prevents
 	 * @pool's workers from blocking on attach_mutex.  We're the last
 	 * manager and @pool gets freed with the flag set.
-	 * Because of how wq_manager_inactive() works, we will hold the
-	 * spinlock after a successful wait.
+	 *
+	 * Having a concurrent manager is quite unlikely to happen as we can
+	 * only get here with
+	 *   pwq->refcnt == pool->refcnt == 0
+	 * which implies no work queued to the pool, which implies no worker can
+	 * become the manager. However a worker could have taken the role of
+	 * manager before the refcnts dropped to 0, since maybe_create_worker()
+	 * drops pool->lock
 	 */
-	rcuwait_wait_event(&manager_wait, wq_manager_inactive(pool),
-			   TASK_UNINTERRUPTIBLE);
-	pool->flags |= POOL_MANAGER_ACTIVE;
+	while (true) {
+		rcuwait_wait_event(&manager_wait,
+				   !(pool->flags & POOL_MANAGER_ACTIVE),
+				   TASK_UNINTERRUPTIBLE);
+		raw_spin_lock_irq(&pool->lock);
+		if (!(pool->flags & POOL_MANAGER_ACTIVE)) {
+			pool->flags |= POOL_MANAGER_ACTIVE;
+			break;
+		}
+		raw_spin_unlock_irq(&pool->lock);
+	}
 
 	while ((worker = first_idle_worker(pool)))
 		destroy_worker(worker);
