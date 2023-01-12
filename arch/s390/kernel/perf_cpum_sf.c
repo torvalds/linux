@@ -22,6 +22,7 @@
 #include <asm/irq.h>
 #include <asm/debug.h>
 #include <asm/timex.h>
+#include <asm-generic/io.h>
 
 /* Minimum number of sample-data-block-tables:
  * At least one table is required for the sampling buffer structure.
@@ -98,6 +99,57 @@ static DEFINE_PER_CPU(struct cpu_hw_sf, cpu_hw_sf);
 
 /* Debug feature */
 static debug_info_t *sfdbg;
+
+/* Sampling control helper functions */
+static inline unsigned long freq_to_sample_rate(struct hws_qsi_info_block *qsi,
+						unsigned long freq)
+{
+	return (USEC_PER_SEC / freq) * qsi->cpu_speed;
+}
+
+static inline unsigned long sample_rate_to_freq(struct hws_qsi_info_block *qsi,
+						unsigned long rate)
+{
+	return USEC_PER_SEC * qsi->cpu_speed / rate;
+}
+
+/* Return TOD timestamp contained in an trailer entry */
+static inline unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
+{
+	/* TOD in STCKE format */
+	if (te->header.t)
+		return *((unsigned long long *)&te->timestamp[1]);
+
+	/* TOD in STCK format */
+	return *((unsigned long long *)&te->timestamp[0]);
+}
+
+/* Return pointer to trailer entry of an sample data block */
+static inline unsigned long *trailer_entry_ptr(unsigned long v)
+{
+	void *ret;
+
+	ret = (void *)v;
+	ret += PAGE_SIZE;
+	ret -= sizeof(struct hws_trailer_entry);
+
+	return (unsigned long *)ret;
+}
+
+/*
+ * Return true if the entry in the sample data block table (sdbt)
+ * is a link to the next sdbt
+ */
+static inline int is_link_entry(unsigned long *s)
+{
+	return *s & 0x1UL ? 1 : 0;
+}
+
+/* Return pointer to the linked sdbt */
+static inline unsigned long *get_next_sdbt(unsigned long *s)
+{
+	return (unsigned long *)(*s & ~0x1UL);
+}
 
 /*
  * sf_disable() - Switch off sampling facility
