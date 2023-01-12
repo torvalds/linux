@@ -23,9 +23,13 @@ struct xe_vm;
 struct xe_vm_pgtable_update;
 struct xe_vma;
 
+/**
+ * struct xe_migrate_pt_update_ops - Callbacks for the
+ * xe_migrate_update_pgtables() function.
+ */
 struct xe_migrate_pt_update_ops {
 	/**
-	 * populate() - Populate a command buffer or page-table with ptes.
+	 * @populate: Populate a command buffer or page-table with ptes.
 	 * @pt_update: Embeddable callback argument.
 	 * @gt: The gt for the current operation.
 	 * @map: struct iosys_map into the memory to be populated.
@@ -44,7 +48,7 @@ struct xe_migrate_pt_update_ops {
 			 const struct xe_vm_pgtable_update *update);
 
 	/**
-	 * pre_commit(): Callback to be called just before arming the
+	 * @pre_commit: Callback to be called just before arming the
 	 * sched_job.
 	 * @pt_update: Pointer to embeddable callback argument.
 	 *
@@ -53,8 +57,16 @@ struct xe_migrate_pt_update_ops {
 	int (*pre_commit)(struct xe_migrate_pt_update *pt_update);
 };
 
+/**
+ * struct xe_migrate_pt_update - Argument to the
+ * struct xe_migrate_pt_update_ops callbacks.
+ *
+ * Intended to be subclassed to support additional arguments if necessary.
+ */
 struct xe_migrate_pt_update {
+	/** @ops: Pointer to the struct xe_migrate_pt_update_ops callbacks */
 	const struct xe_migrate_pt_update_ops *ops;
+	/** @vma: The vma we're updating the pagetable for. */
 	struct xe_vma *vma;
 };
 
