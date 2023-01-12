@@ -205,7 +205,7 @@ static int mlxbf_gige_stop(struct net_device *netdev)
 }
 
 static int mlxbf_gige_eth_ioctl(struct net_device *netdev,
-			       struct ifreq *ifr, int cmd)
+				struct ifreq *ifr, int cmd)
 {
 	if (!(netif_running(netdev)))
 		return -EINVAL;
