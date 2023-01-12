@@ -316,13 +316,6 @@ void schedule_console_callback(void)
  * Code to manage unicode-based screen buffers
  */
 
-#ifdef NO_VC_UNI_SCREEN
-/* this disables and optimizes related code away at compile time */
-#define get_vc_uniscr(vc) NULL
-#else
-#define get_vc_uniscr(vc) vc->vc_uni_screen
-#endif
-
 typedef uint32_t char32_t;
 
 /*
@@ -369,7 +362,7 @@ static void vc_uniscr_set(struct vc_data *vc, struct uni_screen *new_uniscr)
 
 static void vc_uniscr_putc(struct vc_data *vc, char32_t uc)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr)
 		uniscr->lines[vc->state.y][vc->state.x] = uc;
@@ -377,7 +370,7 @@ static void vc_uniscr_putc(struct vc_data *vc, char32_t uc)
 
 static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr) {
 		char32_t *ln = uniscr->lines[vc->state.y];
@@ -390,7 +383,7 @@ static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 
 static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr) {
 		char32_t *ln = uniscr->lines[vc->state.y];
@@ -404,7 +397,7 @@ static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 static void vc_uniscr_clear_line(struct vc_data *vc, unsigned int x,
 				 unsigned int nr)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr) {
 		char32_t *ln = uniscr->lines[vc->state.y];
@@ -416,7 +409,7 @@ static void vc_uniscr_clear_line(struct vc_data *vc, unsigned int x,
 static void vc_uniscr_clear_lines(struct vc_data *vc, unsigned int y,
 				  unsigned int nr)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr) {
 		unsigned int cols = vc->vc_cols;
@@ -429,7 +422,7 @@ static void vc_uniscr_clear_lines(struct vc_data *vc, unsigned int y,
 static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			     enum con_scroll dir, unsigned int nr)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr) {
 		unsigned int i, j, k, sz, d, clear;
@@ -545,7 +538,7 @@ int vc_uniscr_check(struct vc_data *vc)
 void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, bool viewed,
 			 unsigned int row, unsigned int col, unsigned int nr)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 	int offset = row * vc->vc_size_row + col * 2;
 	unsigned long pos;
 
@@ -1206,7 +1199,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (!newscreen)
 		return -ENOMEM;
 
-	if (get_vc_uniscr(vc)) {
+	if (vc->vc_uni_screen) {
 		new_uniscr = vc_uniscr_alloc(new_cols, new_rows);
 		if (!new_uniscr) {
 			kfree(newscreen);
@@ -1258,7 +1251,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	end = old_origin + old_row_size * min(old_rows, new_rows);
 
 	vc_uniscr_copy_area(new_uniscr, new_cols, new_rows,
-			    get_vc_uniscr(vc), rlth/2, first_copied_row,
+			    vc->vc_uni_screen, rlth/2, first_copied_row,
 			    min(old_rows, new_rows));
 	vc_uniscr_set(vc, new_uniscr);
 
@@ -4706,7 +4699,7 @@ EXPORT_SYMBOL_GPL(screen_glyph);
 
 u32 screen_glyph_unicode(const struct vc_data *vc, int n)
 {
-	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	struct uni_screen *uniscr = vc->vc_uni_screen;
 
 	if (uniscr)
 		return uniscr->lines[n / vc->vc_cols][n % vc->vc_cols];
