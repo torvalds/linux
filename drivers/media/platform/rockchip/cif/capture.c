@@ -1435,7 +1435,7 @@ static void rkcif_rx_buffer_free(struct rkcif_stream *stream)
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_device *dev = stream->cifdev;
 
-	if (dev->sditf[0]) {
+	if (dev->sditf[0] && dev->sditf[0]->num_sensors != 0) {
 		if (dev->sditf[0]->is_combine_mode)
 			pad = media_entity_remote_pad(&dev->sditf[0]->pads[1]);
 		else
