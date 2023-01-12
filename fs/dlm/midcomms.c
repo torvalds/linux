@@ -1418,8 +1418,7 @@ static void midcomms_shutdown(struct midcomms_node *node)
 		break;
 	case DLM_CLOSED:
 		/* we have what we want */
-		spin_unlock(&node->state_lock);
-		return;
+		break;
 	default:
 		/* busy to enter DLM_FIN_WAIT1, wait until passive
 		 * done in shutdown_wait to enter DLM_CLOSED.
@@ -1436,25 +1435,18 @@ static void midcomms_shutdown(struct midcomms_node *node)
 				 node->state == DLM_CLOSED ||
 				 test_bit(DLM_NODE_FLAG_CLOSE, &node->flags),
 				 DLM_SHUTDOWN_TIMEOUT);
-	if (!ret || test_bit(DLM_NODE_FLAG_CLOSE, &node->flags)) {
+	if (!ret || test_bit(DLM_NODE_FLAG_CLOSE, &node->flags))
 		pr_debug("active shutdown timed out for node %d with state %s\n",
 			 node->nodeid, dlm_state_str(node->state));
-		midcomms_node_reset(node);
-		dlm_lowcomms_shutdown_node(node->nodeid, true);
-		return;
-	}
-
-	pr_debug("active shutdown done for node %d with state %s\n",
-		 node->nodeid, dlm_state_str(node->state));
-	dlm_lowcomms_shutdown_node(node->nodeid, false);
+	else
+		pr_debug("active shutdown done for node %d with state %s\n",
+			 node->nodeid, dlm_state_str(node->state));
 }
 
 void dlm_midcomms_shutdown(void)
 {
 	struct midcomms_node *node;
 	int i, idx;
-
-	dlm_lowcomms_shutdown();
 
 	mutex_lock(&close_lock);
 	idx = srcu_read_lock(&nodes_srcu);
@@ -1473,6 +1465,8 @@ void dlm_midcomms_shutdown(void)
 	}
 	srcu_read_unlock(&nodes_srcu, idx);
 	mutex_unlock(&close_lock);
+
+	dlm_lowcomms_shutdown();
 }
 
 int dlm_midcomms_close(int nodeid)
