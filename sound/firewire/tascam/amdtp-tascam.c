@@ -29,7 +29,7 @@ int amdtp_tscm_set_parameters(struct amdtp_stream *s, unsigned int rate)
 	if (s->direction == AMDTP_IN_STREAM)
 		data_channels += 2;
 
-	return amdtp_stream_set_parameters(s, rate, data_channels);
+	return amdtp_stream_set_parameters(s, rate, data_channels, 1);
 }
 
 static void write_pcm_s32(struct amdtp_stream *s, struct snd_pcm_substream *pcm,
@@ -176,10 +176,8 @@ static void read_status_messages(struct amdtp_stream *s,
 	}
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *desc,
-					    unsigned int count,
-					    struct snd_pcm_substream *pcm)
+static void process_ir_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
@@ -197,14 +195,10 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 
 		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
-
-	return pcm_frames;
 }
 
-static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *desc,
-					    unsigned int count,
-					    struct snd_pcm_substream *pcm)
+static void process_it_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
@@ -222,8 +216,6 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
-
-	return pcm_frames;
 }
 
 int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,

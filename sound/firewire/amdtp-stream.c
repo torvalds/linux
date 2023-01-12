@@ -271,12 +271,14 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * @s: the AMDTP stream to configure
  * @rate: the sample rate
  * @data_block_quadlets: the size of a data block in quadlet unit
+ * @pcm_frame_multiplier: the multiplier to compute the number of PCM frames by the number of AMDTP
+ *			  events.
  *
  * The parameters must be set before the stream is started, and must not be
  * changed while the stream is running.
  */
 int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
-				unsigned int data_block_quadlets)
+				unsigned int data_block_quadlets, unsigned int pcm_frame_multiplier)
 {
 	unsigned int sfc;
 
@@ -297,6 +299,8 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	// additional buffering needed to adjust for no-data packets.
 	if (s->flags & CIP_BLOCKING)
 		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
+
+	s->pcm_frame_multiplier = pcm_frame_multiplier;
 
 	return 0;
 }
@@ -347,6 +351,9 @@ void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 	s->pcm_period_pointer = 0;
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_prepare);
+
+#define prev_packet_desc(s, desc) \
+	list_prev_entry_circular(desc, &s->packet_descs_list, link)
 
 static void pool_blocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
 				      unsigned int size, unsigned int pos, unsigned int count)
@@ -847,10 +854,15 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 // In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
 // the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
 // it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
+static inline u32 compute_ohci_iso_ctx_cycle_count(u32 tstamp)
+{
+	return (((tstamp >> 13) & 0x07) * CYCLES_PER_SECOND) + (tstamp & 0x1fff);
+}
+
 static inline u32 compute_ohci_cycle_count(__be32 ctx_header_tstamp)
 {
 	u32 tstamp = be32_to_cpu(ctx_header_tstamp) & HEADER_TSTAMP_MASK;
-	return (((tstamp >> 13) & 0x07) * 8000) + (tstamp & 0x1fff);
+	return compute_ohci_iso_ctx_cycle_count(tstamp);
 }
 
 static inline u32 increment_ohci_cycle_count(u32 cycle, unsigned int addend)
@@ -859,6 +871,14 @@ static inline u32 increment_ohci_cycle_count(u32 cycle, unsigned int addend)
 	if (cycle >= OHCI_SECOND_MODULUS * CYCLES_PER_SECOND)
 		cycle -= OHCI_SECOND_MODULUS * CYCLES_PER_SECOND;
 	return cycle;
+}
+
+static inline u32 decrement_ohci_cycle_count(u32 minuend, u32 subtrahend)
+{
+	if (minuend < subtrahend)
+		minuend += OHCI_SECOND_MODULUS * CYCLES_PER_SECOND;
+
+	return minuend - subtrahend;
 }
 
 static int compare_ohci_cycle_count(u32 lval, u32 rval)
@@ -1031,17 +1051,85 @@ static inline void cancel_stream(struct amdtp_stream *s)
 	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 }
 
+static snd_pcm_sframes_t compute_pcm_extra_delay(struct amdtp_stream *s,
+						 const struct pkt_desc *desc, unsigned int count)
+{
+	unsigned int data_block_count = 0;
+	u32 latest_cycle;
+	u32 cycle_time;
+	u32 curr_cycle;
+	u32 cycle_gap;
+	int i, err;
+
+	if (count == 0)
+		goto end;
+
+	// Forward to the latest record.
+	for (i = 0; i < count - 1; ++i)
+		desc = amdtp_stream_next_packet_desc(s, desc);
+	latest_cycle = desc->cycle;
+
+	err = fw_card_read_cycle_time(fw_parent_device(s->unit)->card, &cycle_time);
+	if (err < 0)
+		goto end;
+
+	// Compute cycle count with lower 3 bits of second field and cycle field like timestamp
+	// format of 1394 OHCI isochronous context.
+	curr_cycle = compute_ohci_iso_ctx_cycle_count((cycle_time >> 12) & 0x0000ffff);
+
+	if (s->direction == AMDTP_IN_STREAM) {
+		// NOTE: The AMDTP packet descriptor should be for the past isochronous cycle since
+		// it corresponds to arrived isochronous packet.
+		if (compare_ohci_cycle_count(latest_cycle, curr_cycle) > 0)
+			goto end;
+		cycle_gap = decrement_ohci_cycle_count(curr_cycle, latest_cycle);
+
+		// NOTE: estimate delay by recent history of arrived AMDTP packets. The estimated
+		// value expectedly corresponds to a few packets (0-2) since the packet arrived at
+		// the most recent isochronous cycle has been already processed.
+		for (i = 0; i < cycle_gap; ++i) {
+			desc = amdtp_stream_next_packet_desc(s, desc);
+			data_block_count += desc->data_blocks;
+		}
+	} else {
+		// NOTE: The AMDTP packet descriptor should be for the future isochronous cycle
+		// since it was already scheduled.
+		if (compare_ohci_cycle_count(latest_cycle, curr_cycle) < 0)
+			goto end;
+		cycle_gap = decrement_ohci_cycle_count(latest_cycle, curr_cycle);
+
+		// NOTE: use history of scheduled packets.
+		for (i = 0; i < cycle_gap; ++i) {
+			data_block_count += desc->data_blocks;
+			desc = prev_packet_desc(s, desc);
+		}
+	}
+end:
+	return data_block_count * s->pcm_frame_multiplier;
+}
+
 static void process_ctx_payloads(struct amdtp_stream *s,
-				 const struct pkt_desc *descs,
+				 const struct pkt_desc *desc,
 				 unsigned int count)
 {
 	struct snd_pcm_substream *pcm;
-	unsigned int pcm_frames;
+	int i;
 
 	pcm = READ_ONCE(s->pcm);
-	pcm_frames = s->process_ctx_payloads(s, descs, count, pcm);
-	if (pcm)
-		update_pcm_pointers(s, pcm, pcm_frames);
+	s->process_ctx_payloads(s, desc, count, pcm);
+
+	if (pcm) {
+		unsigned int data_block_count = 0;
+
+		pcm->runtime->delay = compute_pcm_extra_delay(s, desc, count);
+
+		for (i = 0; i < count; ++i) {
+			data_block_count += desc->data_blocks;
+			desc = amdtp_stream_next_packet_desc(s, desc);
+		}
+
+		update_pcm_pointers(s, pcm, data_block_count * s->pcm_frame_multiplier);
+	}
 }
 
 static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,
@@ -1673,7 +1761,11 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	else
 		s->tag = TAG_CIP;
 
-	descs = kcalloc(s->queue_size, sizeof(*descs), GFP_KERNEL);
+	// NOTE: When operating without hardIRQ/softIRQ, applications tends to call ioctl request
+	// for runtime of PCM substream in the interval equivalent to the size of PCM buffer. It
+	// could take a round over queue of AMDTP packet descriptors and small loss of history. For
+	// safe, keep more 8 elements for the queue, equivalent to 1 ms.
+	descs = kcalloc(s->queue_size + 8, sizeof(*descs), GFP_KERNEL);
 	if (!descs) {
 		err = -ENOMEM;
 		goto err_context;
