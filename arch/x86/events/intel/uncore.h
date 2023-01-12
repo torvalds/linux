@@ -34,6 +34,8 @@
 
 #define UNCORE_EVENT_CONSTRAINT(c, n) EVENT_CONSTRAINT(c, n, 0xff)
 
+#define UNCORE_IGNORE_END		-1
+
 struct pci_extra_dev {
 	struct pci_dev *dev[UNCORE_EXTRA_PCI_DEV_MAX];
 };

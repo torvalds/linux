@@ -190,8 +190,25 @@ free_box_offset:
 
 }
 
+static bool
+uncore_ignore_unit(struct uncore_unit_discovery *unit, int *ignore)
+{
+	int i;
+
+	if (!ignore)
+		return false;
+
+	for (i = 0; ignore[i] != UNCORE_IGNORE_END ; i++) {
+		if (unit->box_type == ignore[i])
+			return true;
+	}
+
+	return false;
+}
+
 static int parse_discovery_table(struct pci_dev *dev, int die,
-				 u32 bar_offset, bool *parsed)
+				 u32 bar_offset, bool *parsed,
+				 int *ignore)
 {
 	struct uncore_global_discovery global;
 	struct uncore_unit_discovery unit;
@@ -246,6 +263,9 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 		if (unit.access_type >= UNCORE_ACCESS_MAX)
 			continue;
 
+		if (uncore_ignore_unit(&unit, ignore))
+			continue;
+
 		uncore_insert_box_info(&unit, die, *parsed);
 	}
 
@@ -254,7 +274,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	return 0;
 }
 
-bool intel_uncore_has_discovery_tables(void)
+bool intel_uncore_has_discovery_tables(int *ignore)
 {
 	u32 device, val, entry_id, bar_offset;
 	int die, dvsec = 0, ret = true;
@@ -290,7 +310,7 @@ bool intel_uncore_has_discovery_tables(void)
 			if (die < 0)
 				continue;
 
-			parse_discovery_table(dev, die, bar_offset, &parsed);
+			parse_discovery_table(dev, die, bar_offset, &parsed, ignore);
 		}
 	}
 

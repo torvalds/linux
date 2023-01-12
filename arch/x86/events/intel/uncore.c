@@ -1695,7 +1695,10 @@ struct intel_uncore_init_fun {
 	void	(*cpu_init)(void);
 	int	(*pci_init)(void);
 	void	(*mmio_init)(void);
+	/* Discovery table is required */
 	bool	use_discovery;
+	/* The units in the discovery table should be ignored. */
+	int	*uncore_units_ignore;
 };
 
 static const struct intel_uncore_init_fun nhm_uncore_init __initconst = {
@@ -1874,7 +1877,7 @@ static int __init intel_uncore_init(void)
 
 	id = x86_match_cpu(intel_uncore_match);
 	if (!id) {
-		if (!uncore_no_discover && intel_uncore_has_discovery_tables())
+		if (!uncore_no_discover && intel_uncore_has_discovery_tables(NULL))
 			uncore_init = (struct intel_uncore_init_fun *)&generic_uncore_init;
 		else
 			return -ENODEV;
@@ -1882,7 +1885,8 @@ static int __init intel_uncore_init(void)
 		uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
 		if (uncore_no_discover && uncore_init->use_discovery)
 			return -ENODEV;
-		if (uncore_init->use_discovery && !intel_uncore_has_discovery_tables())
+		if (uncore_init->use_discovery &&
+		    !intel_uncore_has_discovery_tables(uncore_init->uncore_units_ignore))
 			return -ENODEV;
 	}
 
