@@ -8,7 +8,7 @@
 #include <linux/dma-fence-array.h>
 #include <linux/slab.h>
 
-#include "xe_device_types.h"
+#include "xe_device.h"
 #include "xe_engine.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_types.h"
@@ -70,6 +70,11 @@ static void job_free(struct xe_sched_job *job)
 
 	kmem_cache_free(xe_engine_is_parallel(job->engine) || is_migration ?
 			xe_sched_job_parallel_slab : xe_sched_job_slab, job);
+}
+
+static struct xe_device *job_to_xe(struct xe_sched_job *job)
+{
+	return gt_to_xe(job->engine->gt);
 }
 
 struct xe_sched_job *xe_sched_job_create(struct xe_engine *e,
@@ -149,6 +154,11 @@ struct xe_sched_job *xe_sched_job_create(struct xe_engine *e,
 	for (i = 0; i < width; ++i)
 		job->batch_addr[i] = batch_addr[i];
 
+	/* All other jobs require a VM to be open which has a ref */
+	if (unlikely(e->flags & ENGINE_FLAG_KERNEL))
+		xe_device_mem_access_get(job_to_xe(job));
+	xe_device_assert_mem_access(job_to_xe(job));
+
 	trace_xe_sched_job_create(job);
 	return job;
 
@@ -178,6 +188,8 @@ void xe_sched_job_destroy(struct kref *ref)
 	struct xe_sched_job *job =
 		container_of(ref, struct xe_sched_job, refcount);
 
+	if (unlikely(job->engine->flags & ENGINE_FLAG_KERNEL))
+		xe_device_mem_access_put(job_to_xe(job));
 	xe_engine_put(job->engine);
 	dma_fence_put(job->fence);
 	drm_sched_job_cleanup(&job->drm);
