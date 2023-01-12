@@ -11,6 +11,13 @@
 
 #include "gt/intel_gt_regs.h"
 
+#include <linux/delay.h>
+/*
+ * FIXME: This header has been deemed evil and we need to kill it. Temporar
+ * including so we can use 'wait_for'.
+ */
+#include "i915_utils.h"
+
 /**
  * DOC: GT Multicast/Replicated (MCR) Register Support
  *

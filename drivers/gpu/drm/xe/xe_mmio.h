@@ -10,13 +10,6 @@
 
 #include "xe_gt_types.h"
 
-/*
- * FIXME: This header has been deemed evil and we need to kill it. Temporarily
- * including so we can use 'wait_for' and unblock initial development. A follow
- * should replace 'wait_for' with a sane version and drop including this header.
- */
-#include "i915_utils.h"
-
 struct drm_device;
 struct drm_file;
 struct xe_device;
@@ -93,8 +86,26 @@ static inline int xe_mmio_wait32(struct xe_gt *gt,
 				 u32 reg, u32 val,
 				 u32 mask, u32 timeout_ms)
 {
-	return wait_for((xe_mmio_read32(gt, reg) & mask) == val,
-			timeout_ms);
+	ktime_t cur = ktime_get_raw();
+	const ktime_t end = ktime_add_ms(cur, timeout_ms);
+	s64 wait = 10;
+
+	for (;;) {
+		if ((xe_mmio_read32(gt, reg) & mask) == val)
+			return 0;
+
+		cur = ktime_get_raw();
+		if (!ktime_before(cur, end))
+			return -ETIMEDOUT;
+
+		if (ktime_after(ktime_add_us(cur, wait), end))
+			wait = ktime_us_delta(end, cur);
+
+		usleep_range(wait, wait << 1);
+		wait <<= 1;
+	}
+
+	return -ETIMEDOUT;
 }
 
 int xe_mmio_ioctl(struct drm_device *dev, void *data,

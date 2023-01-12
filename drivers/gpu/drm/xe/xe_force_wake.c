@@ -10,6 +10,12 @@
 #include "xe_mmio.h"
 #include "gt/intel_gt_regs.h"
 
+/*
+ * FIXME: This header has been deemed evil and we need to kill it. Temporarily
+ * including so we can use '__mask_next_bit'.
+ */
+#include "i915_utils.h"
+
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 
 static struct xe_gt *

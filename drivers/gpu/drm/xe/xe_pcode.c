@@ -11,6 +11,13 @@
 
 #include <linux/errno.h>
 
+#include <linux/delay.h>
+/*
+ * FIXME: This header has been deemed evil and we need to kill it. Temporarily
+ * including so we can use 'wait_for'.
+ */
+#include "i915_utils.h"
+
 /**
  * DOC: PCODE
  *

@@ -22,6 +22,13 @@
 #include "i915_reg_defs.h"
 #include "gt/intel_gt_regs.h"
 
+#include <linux/delay.h>
+/*
+ * FIXME: This header has been deemed evil and we need to kill it. Temporarily
+ * including so we can use 'wait_for' and range_overflow_t.
+ */
+#include "i915_utils.h"
+
 /* TODO: move to common file */
 #define GUC_PVC_MOCS_INDEX_MASK		REG_GENMASK(25, 24)
 #define PVC_MOCS_UC_INDEX		1
