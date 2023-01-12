@@ -428,10 +428,8 @@ static void timer_emulate(struct arch_timer_context *ctx)
 	 * scheduled for the future.  If the timer cannot fire at all,
 	 * then we also don't need a soft timer.
 	 */
-	if (!kvm_timer_irq_can_fire(ctx)) {
-		soft_timer_cancel(&ctx->hrtimer);
+	if (should_fire || !kvm_timer_irq_can_fire(ctx))
 		return;
-	}
 
 	soft_timer_start(&ctx->hrtimer, kvm_timer_compute_delta(ctx));
 }
