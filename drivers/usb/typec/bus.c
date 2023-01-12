@@ -11,6 +11,22 @@
 #include "bus.h"
 #include "class.h"
 #include "mux.h"
+#include "retimer.h"
+
+static inline int
+typec_altmode_set_retimer(struct altmode *alt, unsigned long conf, void *data)
+{
+	struct typec_retimer_state state;
+
+	if (!alt->retimer)
+		return 0;
+
+	state.alt = &alt->adev;
+	state.mode = conf;
+	state.data = data;
+
+	return typec_retimer_set(alt->retimer, &state);
+}
 
 static inline int
 typec_altmode_set_mux(struct altmode *alt, unsigned long conf, void *data)
@@ -31,6 +47,12 @@ typec_altmode_set_mux(struct altmode *alt, unsigned long conf, void *data)
 static inline int
 typec_altmode_set_switches(struct altmode *alt, unsigned long conf, void *data)
 {
+	int ret;
+
+	ret = typec_altmode_set_retimer(alt, conf, data);
+	if (ret)
+		return ret;
+
 	return typec_altmode_set_mux(alt, conf, data);
 }
 
