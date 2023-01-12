@@ -2533,7 +2533,7 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	 */
 	result = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (result < 0)
-		return result;
+		goto disable;
 
 	dev->ctrl.cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
 
@@ -2586,8 +2586,13 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	pci_enable_pcie_error_reporting(pdev);
 	pci_save_state(pdev);
 
-	return nvme_pci_configure_admin_queue(dev);
+	result = nvme_pci_configure_admin_queue(dev);
+	if (result)
+		goto free_irq;
+	return result;
 
+ free_irq:
+	pci_free_irq_vectors(pdev);
  disable:
 	pci_disable_device(pdev);
 	return result;
@@ -3495,7 +3500,8 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_SINGLE_VECTOR |
 				NVME_QUIRK_128_BYTES_SQES |
 				NVME_QUIRK_SHARED_TAGS |
-				NVME_QUIRK_SKIP_CID_GEN },
+				NVME_QUIRK_SKIP_CID_GEN |
+				NVME_QUIRK_IDENTIFY_CNS },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
 	{ 0, }
 };
