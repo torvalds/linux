@@ -79,7 +79,6 @@ void __weak arch_cpu_idle_dead(void) { }
 void __weak arch_cpu_idle(void)
 {
 	cpu_idle_force_poll = 1;
-	raw_local_irq_enable();
 }
 
 /**
@@ -96,7 +95,6 @@ void __cpuidle default_idle_call(void)
 
 		ct_cpuidle_enter();
 		arch_cpu_idle();
-		raw_local_irq_disable();
 		ct_cpuidle_exit();
 
 		start_critical_timings();
