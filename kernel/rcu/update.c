@@ -144,8 +144,45 @@ bool rcu_gp_is_normal(void)
 }
 EXPORT_SYMBOL_GPL(rcu_gp_is_normal);
 
-static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
+static atomic_t rcu_async_hurry_nesting = ATOMIC_INIT(1);
+/*
+ * Should call_rcu() callbacks be processed with urgency or are
+ * they OK being executed with arbitrary delays?
+ */
+bool rcu_async_should_hurry(void)
+{
+	return !IS_ENABLED(CONFIG_RCU_LAZY) ||
+	       atomic_read(&rcu_async_hurry_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_async_should_hurry);
 
+/**
+ * rcu_async_hurry - Make future async RCU callbacks not lazy.
+ *
+ * After a call to this function, future calls to call_rcu()
+ * will be processed in a timely fashion.
+ */
+void rcu_async_hurry(void)
+{
+	if (IS_ENABLED(CONFIG_RCU_LAZY))
+		atomic_inc(&rcu_async_hurry_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_async_hurry);
+
+/**
+ * rcu_async_relax - Make future async RCU callbacks lazy.
+ *
+ * After a call to this function, future calls to call_rcu()
+ * will be processed in a lazy fashion.
+ */
+void rcu_async_relax(void)
+{
+	if (IS_ENABLED(CONFIG_RCU_LAZY))
+		atomic_dec(&rcu_async_hurry_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_async_relax);
+
+static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
 /*
  * Should normal grace-period primitives be expedited?  Intended for
  * use within RCU.  Note that this function takes the rcu_expedited
@@ -195,6 +232,7 @@ static bool rcu_boot_ended __read_mostly;
 void rcu_end_inkernel_boot(void)
 {
 	rcu_unexpedite_gp();
+	rcu_async_relax();
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
 	rcu_boot_ended = true;
