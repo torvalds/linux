@@ -398,40 +398,44 @@ static void vc_uniscr_clear_lines(struct vc_data *vc, unsigned int y,
 			memset32(vc->vc_uni_lines[y++], ' ', vc->vc_cols);
 }
 
+/* juggling array rotation algorithm (complexity O(N), size complexity O(1)) */
+static void juggle_array(u32 **array, unsigned int size, unsigned int nr)
+{
+	unsigned int gcd_idx;
+
+	for (gcd_idx = 0; gcd_idx < gcd(nr, size); gcd_idx++) {
+		u32 *gcd_idx_val = array[gcd_idx];
+		unsigned int dst_idx = gcd_idx;
+
+		while (1) {
+			unsigned int src_idx = (dst_idx + nr) % size;
+			if (src_idx == gcd_idx)
+				break;
+
+			array[dst_idx] = array[src_idx];
+			dst_idx = src_idx;
+		}
+
+		array[dst_idx] = gcd_idx_val;
+	}
+}
+
 static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			     enum con_scroll dir, unsigned int nr)
 {
 	u32 **uni_lines = vc->vc_uni_lines;
-	unsigned int i, j, k, sz, d, clear;
+	unsigned int size = b - t;
 
 	if (!uni_lines)
 		return;
 
-	sz = b - t;
-	clear = b - nr;
-	d = nr;
-
 	if (dir == SM_DOWN) {
-		clear = t;
-		d = sz - nr;
+		juggle_array(&uni_lines[top], size, size - nr);
+		vc_uniscr_clear_lines(vc, t, nr);
+	} else {
+		juggle_array(&uni_lines[top], size, nr);
+		vc_uniscr_clear_lines(vc, b - nr, nr);
 	}
-
-	for (i = 0; i < gcd(d, sz); i++) {
-		u32 *tmp = uni_lines[t + i];
-		j = i;
-		while (1) {
-			k = j + d;
-			if (k >= sz)
-				k -= sz;
-			if (k == i)
-				break;
-			uni_lines[t + j] = uni_lines[t + k];
-			j = k;
-		}
-		uni_lines[t + j] = tmp;
-	}
-
-	vc_uniscr_clear_lines(vc, clear, nr);
 }
 
 static void vc_uniscr_copy_area(u32 **dst_lines,
