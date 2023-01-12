@@ -2962,6 +2962,7 @@
 		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
 		reset-names = "shared_video_a", "shared_video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&vdpu_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
@@ -2983,6 +2984,7 @@
 		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
 		reset-names = "shared_video_a", "shared_video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&vdpu_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
@@ -3125,6 +3127,7 @@
 		resets = <&cru SRST_A_JPEG_ENCODER0>, <&cru SRST_H_JPEG_ENCODER0>;
 		reset-names = "video_a", "video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&jpege0_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <2>;
@@ -3158,6 +3161,7 @@
 		resets = <&cru SRST_A_JPEG_ENCODER1>, <&cru SRST_H_JPEG_ENCODER1>;
 		reset-names = "video_a", "video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&jpege1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <2>;
@@ -3191,6 +3195,7 @@
 		resets = <&cru SRST_A_JPEG_ENCODER2>, <&cru SRST_H_JPEG_ENCODER2>;
 		reset-names = "video_a", "video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&jpege2_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <2>;
@@ -3224,6 +3229,7 @@
 		resets = <&cru SRST_A_JPEG_ENCODER3>, <&cru SRST_H_JPEG_ENCODER3>;
 		reset-names = "video_a", "video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&jpege3_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <2>;
@@ -3251,9 +3257,13 @@
 		interrupt-names = "irq_iep";
 		clocks = <&cru ACLK_IEP2P0>, <&cru HCLK_IEP2P0>, <&cru CLK_IEP2P0_CORE>;
 		clock-names = "aclk", "hclk", "sclk";
+		rockchip,normal-rates = <594000000>, <0>;
+		assigned-clocks = <&cru ACLK_IEP2P0>;
+		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_IEP2P0>, <&cru SRST_H_IEP2P0>, <&cru SRST_IEP2P0_CORE>;
 		reset-names = "rst_a", "rst_h", "rst_s";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		power-domains = <&power RK3588_PD_VDPU>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <6>;
