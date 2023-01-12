@@ -23,9 +23,75 @@
 
 #include "mlxbf_gige.h"
 #include "mlxbf_gige_regs.h"
+#include "mlxbf_gige_mdio_bf2.h"
+#include "mlxbf_gige_mdio_bf3.h"
 
-#define MLXBF_GIGE_MDIO_GW_OFFSET	0x0
-#define MLXBF_GIGE_MDIO_CFG_OFFSET	0x4
+static struct mlxbf_gige_mdio_gw mlxbf_gige_mdio_gw_t[] = {
+	[MLXBF_GIGE_VERSION_BF2] = {
+		.gw_address = MLXBF2_GIGE_MDIO_GW_OFFSET,
+		.read_data_address = MLXBF2_GIGE_MDIO_GW_OFFSET,
+		.busy = {
+			.mask = MLXBF2_GIGE_MDIO_GW_BUSY_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_BUSY_SHIFT,
+		},
+		.read_data = {
+			.mask = MLXBF2_GIGE_MDIO_GW_AD_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_AD_SHIFT,
+		},
+		.write_data = {
+			.mask = MLXBF2_GIGE_MDIO_GW_AD_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_AD_SHIFT,
+		},
+		.devad = {
+			.mask = MLXBF2_GIGE_MDIO_GW_DEVAD_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_DEVAD_SHIFT,
+		},
+		.partad = {
+			.mask = MLXBF2_GIGE_MDIO_GW_PARTAD_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_PARTAD_SHIFT,
+		},
+		.opcode = {
+			.mask = MLXBF2_GIGE_MDIO_GW_OPCODE_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_OPCODE_SHIFT,
+		},
+		.st1 = {
+			.mask = MLXBF2_GIGE_MDIO_GW_ST1_MASK,
+			.shift = MLXBF2_GIGE_MDIO_GW_ST1_SHIFT,
+		},
+	},
+	[MLXBF_GIGE_VERSION_BF3] = {
+		.gw_address = MLXBF3_GIGE_MDIO_GW_OFFSET,
+		.read_data_address = MLXBF3_GIGE_MDIO_DATA_READ,
+		.busy = {
+			.mask = MLXBF3_GIGE_MDIO_GW_BUSY_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_BUSY_SHIFT,
+		},
+		.read_data = {
+			.mask = MLXBF3_GIGE_MDIO_GW_DATA_READ_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_DATA_READ_SHIFT,
+		},
+		.write_data = {
+			.mask = MLXBF3_GIGE_MDIO_GW_DATA_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_DATA_SHIFT,
+		},
+		.devad = {
+			.mask = MLXBF3_GIGE_MDIO_GW_DEVAD_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_DEVAD_SHIFT,
+		},
+		.partad = {
+			.mask = MLXBF3_GIGE_MDIO_GW_PARTAD_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_PARTAD_SHIFT,
+		},
+		.opcode = {
+			.mask = MLXBF3_GIGE_MDIO_GW_OPCODE_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_OPCODE_SHIFT,
+		},
+		.st1 = {
+			.mask = MLXBF3_GIGE_MDIO_GW_ST1_MASK,
+			.shift = MLXBF3_GIGE_MDIO_GW_ST1_SHIFT,
+		},
+	},
+};
 
 #define MLXBF_GIGE_MDIO_FREQ_REFERENCE 156250000ULL
 #define MLXBF_GIGE_MDIO_COREPLL_CONST  16384ULL
@@ -47,30 +113,10 @@
 /* Busy bit is set by software and cleared by hardware */
 #define MLXBF_GIGE_MDIO_SET_BUSY	0x1
 
-/* MDIO GW register bits */
-#define MLXBF_GIGE_MDIO_GW_AD_MASK	GENMASK(15, 0)
-#define MLXBF_GIGE_MDIO_GW_DEVAD_MASK	GENMASK(20, 16)
-#define MLXBF_GIGE_MDIO_GW_PARTAD_MASK	GENMASK(25, 21)
-#define MLXBF_GIGE_MDIO_GW_OPCODE_MASK	GENMASK(27, 26)
-#define MLXBF_GIGE_MDIO_GW_ST1_MASK	GENMASK(28, 28)
-#define MLXBF_GIGE_MDIO_GW_BUSY_MASK	GENMASK(30, 30)
-
-/* MDIO config register bits */
-#define MLXBF_GIGE_MDIO_CFG_MDIO_MODE_MASK		GENMASK(1, 0)
-#define MLXBF_GIGE_MDIO_CFG_MDIO3_3_MASK		GENMASK(2, 2)
-#define MLXBF_GIGE_MDIO_CFG_MDIO_FULL_DRIVE_MASK	GENMASK(4, 4)
-#define MLXBF_GIGE_MDIO_CFG_MDC_PERIOD_MASK		GENMASK(15, 8)
-#define MLXBF_GIGE_MDIO_CFG_MDIO_IN_SAMP_MASK		GENMASK(23, 16)
-#define MLXBF_GIGE_MDIO_CFG_MDIO_OUT_SAMP_MASK		GENMASK(31, 24)
-
-#define MLXBF_GIGE_MDIO_CFG_VAL (FIELD_PREP(MLXBF_GIGE_MDIO_CFG_MDIO_MODE_MASK, 1) | \
-				 FIELD_PREP(MLXBF_GIGE_MDIO_CFG_MDIO3_3_MASK, 1) | \
-				 FIELD_PREP(MLXBF_GIGE_MDIO_CFG_MDIO_FULL_DRIVE_MASK, 1) | \
-				 FIELD_PREP(MLXBF_GIGE_MDIO_CFG_MDIO_IN_SAMP_MASK, 6) | \
-				 FIELD_PREP(MLXBF_GIGE_MDIO_CFG_MDIO_OUT_SAMP_MASK, 13))
-
 #define MLXBF_GIGE_BF2_COREPLL_ADDR 0x02800c30
 #define MLXBF_GIGE_BF2_COREPLL_SIZE 0x0000000c
+#define MLXBF_GIGE_BF3_COREPLL_ADDR 0x13409824
+#define MLXBF_GIGE_BF3_COREPLL_SIZE 0x00000010
 
 static struct resource corepll_params[] = {
 	[MLXBF_GIGE_VERSION_BF2] = {
@@ -78,6 +124,11 @@ static struct resource corepll_params[] = {
 		.end = MLXBF_GIGE_BF2_COREPLL_ADDR + MLXBF_GIGE_BF2_COREPLL_SIZE - 1,
 		.name = "COREPLL_RES"
 	},
+	[MLXBF_GIGE_VERSION_BF3] = {
+		.start = MLXBF_GIGE_BF3_COREPLL_ADDR,
+		.end = MLXBF_GIGE_BF3_COREPLL_ADDR + MLXBF_GIGE_BF3_COREPLL_SIZE - 1,
+		.name = "COREPLL_RES"
+	}
 };
 
 /* Returns core clock i1clk in Hz */
@@ -134,19 +185,23 @@ static u8 mdio_period_map(struct mlxbf_gige *priv)
 	return mdio_period;
 }
 
-static u32 mlxbf_gige_mdio_create_cmd(u16 data, int phy_add,
+static u32 mlxbf_gige_mdio_create_cmd(struct mlxbf_gige_mdio_gw *mdio_gw, u16 data, int phy_add,
 				      int phy_reg, u32 opcode)
 {
 	u32 gw_reg = 0;
 
-	gw_reg |= FIELD_PREP(MLXBF_GIGE_MDIO_GW_AD_MASK, data);
-	gw_reg |= FIELD_PREP(MLXBF_GIGE_MDIO_GW_DEVAD_MASK, phy_reg);
-	gw_reg |= FIELD_PREP(MLXBF_GIGE_MDIO_GW_PARTAD_MASK, phy_add);
-	gw_reg |= FIELD_PREP(MLXBF_GIGE_MDIO_GW_OPCODE_MASK, opcode);
-	gw_reg |= FIELD_PREP(MLXBF_GIGE_MDIO_GW_ST1_MASK,
-			     MLXBF_GIGE_MDIO_CL22_ST1);
-	gw_reg |= FIELD_PREP(MLXBF_GIGE_MDIO_GW_BUSY_MASK,
-			     MLXBF_GIGE_MDIO_SET_BUSY);
+	gw_reg |= ((data << mdio_gw->write_data.shift) &
+		   mdio_gw->write_data.mask);
+	gw_reg |= ((phy_reg << mdio_gw->devad.shift) &
+		   mdio_gw->devad.mask);
+	gw_reg |= ((phy_add << mdio_gw->partad.shift) &
+		   mdio_gw->partad.mask);
+	gw_reg |= ((opcode << mdio_gw->opcode.shift) &
+		   mdio_gw->opcode.mask);
+	gw_reg |= ((MLXBF_GIGE_MDIO_CL22_ST1 << mdio_gw->st1.shift) &
+		   mdio_gw->st1.mask);
+	gw_reg |= ((MLXBF_GIGE_MDIO_SET_BUSY << mdio_gw->busy.shift) &
+		   mdio_gw->busy.mask);
 
 	return gw_reg;
 }
@@ -162,25 +217,26 @@ static int mlxbf_gige_mdio_read(struct mii_bus *bus, int phy_add, int phy_reg)
 		return -EOPNOTSUPP;
 
 	/* Send mdio read request */
-	cmd = mlxbf_gige_mdio_create_cmd(0, phy_add, phy_reg, MLXBF_GIGE_MDIO_CL22_READ);
+	cmd = mlxbf_gige_mdio_create_cmd(priv->mdio_gw, 0, phy_add, phy_reg,
+					 MLXBF_GIGE_MDIO_CL22_READ);
 
-	writel(cmd, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+	writel(cmd, priv->mdio_io + priv->mdio_gw->gw_address);
 
-	ret = readl_poll_timeout_atomic(priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET,
-					val, !(val & MLXBF_GIGE_MDIO_GW_BUSY_MASK),
+	ret = readl_poll_timeout_atomic(priv->mdio_io + priv->mdio_gw->gw_address,
+					val, !(val & priv->mdio_gw->busy.mask),
 					5, 1000000);
 
 	if (ret) {
-		writel(0, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+		writel(0, priv->mdio_io + priv->mdio_gw->gw_address);
 		return ret;
 	}
 
-	ret = readl(priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+	ret = readl(priv->mdio_io + priv->mdio_gw->read_data_address);
 	/* Only return ad bits of the gw register */
-	ret &= MLXBF_GIGE_MDIO_GW_AD_MASK;
+	ret &= priv->mdio_gw->read_data.mask;
 
 	/* The MDIO lock is set on read. To release it, clear gw register */
-	writel(0, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+	writel(0, priv->mdio_io + priv->mdio_gw->gw_address);
 
 	return ret;
 }
@@ -197,17 +253,17 @@ static int mlxbf_gige_mdio_write(struct mii_bus *bus, int phy_add,
 		return -EOPNOTSUPP;
 
 	/* Send mdio write request */
-	cmd = mlxbf_gige_mdio_create_cmd(val, phy_add, phy_reg,
+	cmd = mlxbf_gige_mdio_create_cmd(priv->mdio_gw, val, phy_add, phy_reg,
 					 MLXBF_GIGE_MDIO_CL22_WRITE);
-	writel(cmd, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+	writel(cmd, priv->mdio_io + priv->mdio_gw->gw_address);
 
 	/* If the poll timed out, drop the request */
-	ret = readl_poll_timeout_atomic(priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET,
-					temp, !(temp & MLXBF_GIGE_MDIO_GW_BUSY_MASK),
+	ret = readl_poll_timeout_atomic(priv->mdio_io + priv->mdio_gw->gw_address,
+					temp, !(temp & priv->mdio_gw->busy.mask),
 					5, 1000000);
 
 	/* The MDIO lock is set on read. To release it, clear gw register */
-	writel(0, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+	writel(0, priv->mdio_io + priv->mdio_gw->gw_address);
 
 	return ret;
 }
@@ -219,9 +275,20 @@ static void mlxbf_gige_mdio_cfg(struct mlxbf_gige *priv)
 
 	mdio_period = mdio_period_map(priv);
 
-	val = MLXBF_GIGE_MDIO_CFG_VAL;
-	val |= FIELD_PREP(MLXBF_GIGE_MDIO_CFG_MDC_PERIOD_MASK, mdio_period);
-	writel(val, priv->mdio_io + MLXBF_GIGE_MDIO_CFG_OFFSET);
+	if (priv->hw_version == MLXBF_GIGE_VERSION_BF2) {
+		val = MLXBF2_GIGE_MDIO_CFG_VAL;
+		val |= FIELD_PREP(MLXBF2_GIGE_MDIO_CFG_MDC_PERIOD_MASK, mdio_period);
+		writel(val, priv->mdio_io + MLXBF2_GIGE_MDIO_CFG_OFFSET);
+	} else {
+		val = FIELD_PREP(MLXBF3_GIGE_MDIO_CFG_MDIO_MODE_MASK, 1) |
+		      FIELD_PREP(MLXBF3_GIGE_MDIO_CFG_MDIO_FULL_DRIVE_MASK, 1);
+		writel(val, priv->mdio_io + MLXBF3_GIGE_MDIO_CFG_REG0);
+		val = FIELD_PREP(MLXBF3_GIGE_MDIO_CFG_MDC_PERIOD_MASK, mdio_period);
+		writel(val, priv->mdio_io + MLXBF3_GIGE_MDIO_CFG_REG1);
+		val = FIELD_PREP(MLXBF3_GIGE_MDIO_CFG_MDIO_IN_SAMP_MASK, 6) |
+		      FIELD_PREP(MLXBF3_GIGE_MDIO_CFG_MDIO_OUT_SAMP_MASK, 13);
+		writel(val, priv->mdio_io + MLXBF3_GIGE_MDIO_CFG_REG2);
+	}
 }
 
 int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
@@ -229,6 +296,9 @@ int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret;
+
+	if (priv->hw_version > MLXBF_GIGE_VERSION_BF3)
+		return -ENODEV;
 
 	priv->mdio_io = devm_platform_ioremap_resource(pdev, MLXBF_GIGE_RES_MDIO9);
 	if (IS_ERR(priv->mdio_io))
@@ -242,12 +312,14 @@ int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
 		/* For backward compatibility with older ACPI tables, also keep
 		 * CLK resource internal to the driver.
 		 */
-		res = &corepll_params[MLXBF_GIGE_VERSION_BF2];
+		res = &corepll_params[priv->hw_version];
 	}
 
 	priv->clk_io = devm_ioremap(dev, res->start, resource_size(res));
 	if (!priv->clk_io)
 		return -ENOMEM;
+
+	priv->mdio_gw = &mlxbf_gige_mdio_gw_t[priv->hw_version];
 
 	mlxbf_gige_mdio_cfg(priv);
 

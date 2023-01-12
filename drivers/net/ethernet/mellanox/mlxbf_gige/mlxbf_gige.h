@@ -67,6 +67,23 @@ struct mlxbf_gige_stats {
 	u64 rx_filter_discard_pkts;
 };
 
+struct mlxbf_gige_reg_param {
+	u32 mask;
+	u32 shift;
+};
+
+struct mlxbf_gige_mdio_gw {
+	u32 gw_address;
+	u32 read_data_address;
+	struct mlxbf_gige_reg_param busy;
+	struct mlxbf_gige_reg_param write_data;
+	struct mlxbf_gige_reg_param read_data;
+	struct mlxbf_gige_reg_param devad;
+	struct mlxbf_gige_reg_param partad;
+	struct mlxbf_gige_reg_param opcode;
+	struct mlxbf_gige_reg_param st1;
+};
+
 struct mlxbf_gige {
 	void __iomem *base;
 	void __iomem *llu_base;
@@ -102,6 +119,8 @@ struct mlxbf_gige {
 	u8 valid_polarity;
 	struct napi_struct napi;
 	struct mlxbf_gige_stats stats;
+	u8 hw_version;
+	struct mlxbf_gige_mdio_gw *mdio_gw;
 };
 
 /* Rx Work Queue Element definitions */
