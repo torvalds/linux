@@ -675,7 +675,7 @@ static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u
 	int i = 0;
 
 	//due to master slave is common buffer, so need force the master stop not issue
-	if (readl(i2c_bus->reg_base + AST2600_I2CM_CMD_STS) & 0x1ffff) {
+	if (readl(i2c_bus->reg_base + AST2600_I2CM_CMD_STS) & 0xffff) {
 		writel(0, i2c_bus->reg_base + AST2600_I2CM_CMD_STS);
 		i2c_bus->cmd_err = -EBUSY;
 		writel(0, i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
