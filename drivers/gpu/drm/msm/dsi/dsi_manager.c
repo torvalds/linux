@@ -450,6 +450,25 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct mipi_dsi_host *host = msm_dsi->host;
+	struct platform_device *pdev = msm_dsi->pdev;
+	struct dev_pm_opp *opp;
+	unsigned long byte_clk_rate;
+
+	byte_clk_rate = dsi_byte_clk_get_rate(host, IS_BONDED_DSI(), mode);
+
+	/*
+	 * fail all errors except -ENODEV as that could mean that opp
+	 * table is not yet implemented
+	 */
+	opp = dev_pm_opp_find_freq_ceil(&pdev->dev, &byte_clk_rate);
+	if (IS_ERR(opp)) {
+		if (PTR_ERR(opp) == -ERANGE)
+			return MODE_CLOCK_RANGE;
+		else if (PTR_ERR(opp) != -ENODEV)
+			return MODE_ERROR;
+	} else {
+		dev_pm_opp_put(opp);
+	}
 
 	return msm_dsi_host_check_dsc(host, mode);
 }
