@@ -1731,7 +1731,7 @@ static void __update_and_free_page(struct hstate *h, struct page *page)
 	 * which makes any healthy subpages reusable.
 	 */
 	if (unlikely(folio_test_hwpoison(folio)))
-		hugetlb_clear_page_hwpoison(&folio->page);
+		folio_clear_hugetlb_hwpoison(folio);
 
 	for (i = 0; i < pages_per_huge_page(h); i++) {
 		subpage = folio_page(folio, i);

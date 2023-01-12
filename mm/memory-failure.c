@@ -1785,12 +1785,12 @@ static unsigned long free_raw_hwp_pages(struct page *hpage, bool move_flag)
 	return __free_raw_hwp_pages(hpage, move_flag);
 }
 
-void hugetlb_clear_page_hwpoison(struct page *hpage)
+void folio_clear_hugetlb_hwpoison(struct folio *folio)
 {
-	if (HPageRawHwpUnreliable(hpage))
+	if (folio_test_hugetlb_raw_hwp_unreliable(folio))
 		return;
-	ClearPageHWPoison(hpage);
-	free_raw_hwp_pages(hpage, true);
+	folio_clear_hwpoison(folio);
+	free_raw_hwp_pages(&folio->page, true);
 }
 
 /*
@@ -1889,7 +1889,7 @@ retry:
 	folio_lock(folio);
 
 	if (hwpoison_filter(p)) {
-		hugetlb_clear_page_hwpoison(&folio->page);
+		folio_clear_hugetlb_hwpoison(folio);
 		if (migratable_cleared)
 			folio_set_hugetlb_migratable(folio);
 		folio_unlock(folio);
