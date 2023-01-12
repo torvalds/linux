@@ -2578,33 +2578,23 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 
 	if (pos + copied > inode->i_size)
 		i_size_write(inode, pos + copied);
 
-	if (!PageUptodate(page)) {
-		struct page *head = compound_head(page);
-		if (PageTransCompound(page)) {
-			int i;
-
-			for (i = 0; i < HPAGE_PMD_NR; i++) {
-				if (head + i == page)
-					continue;
-				clear_highpage(head + i);
-				flush_dcache_page(head + i);
-			}
+	if (!folio_test_uptodate(folio)) {
+		if (copied < folio_size(folio)) {
+			size_t from = offset_in_folio(folio, pos);
+			folio_zero_segments(folio, 0, from,
+					from + copied, folio_size(folio));
 		}
-		if (copied < PAGE_SIZE) {
-			unsigned from = pos & (PAGE_SIZE - 1);
-			zero_user_segments(page, 0, from,
-					from + copied, PAGE_SIZE);
-		}
-		SetPageUptodate(head);
+		folio_mark_uptodate(folio);
 	}
-	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }
