@@ -11,8 +11,6 @@
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
-#include "i915_utils.h"
-
 /**
  * DOC: Write Once Protected Content Memory (WOPCM) Layout
  *
@@ -92,7 +90,8 @@ static bool __check_layout(struct xe_device *xe, u32 wopcm_size,
 	u32 size;
 
 	size = wopcm_size - ctx_rsvd;
-	if (unlikely(range_overflows(guc_wopcm_base, guc_wopcm_size, size))) {
+	if (unlikely(guc_wopcm_base >= size ||
+		     guc_wopcm_size > size - guc_wopcm_base)) {
 		drm_err(&xe->drm,
 			"WOPCM: invalid GuC region layout: %uK + %uK > %uK\n",
 			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K,
