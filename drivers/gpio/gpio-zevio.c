@@ -5,13 +5,14 @@
  * Author: Fabian Vogt <fabian@ritter-vogt.de>
  */
 
-#include <linux/spinlock.h>
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/bitops.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+
 #include <linux/gpio/driver.h>
 
 /*
