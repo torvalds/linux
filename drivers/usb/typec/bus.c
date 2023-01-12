@@ -27,6 +27,13 @@ typec_altmode_set_mux(struct altmode *alt, unsigned long conf, void *data)
 	return typec_mux_set(alt->mux, &state);
 }
 
+/* Wrapper to set various Type-C port switches together. */
+static inline int
+typec_altmode_set_switches(struct altmode *alt, unsigned long conf, void *data)
+{
+	return typec_altmode_set_mux(alt, conf, data);
+}
+
 static int typec_altmode_set_state(struct typec_altmode *adev,
 				   unsigned long conf, void *data)
 {
@@ -35,7 +42,7 @@ static int typec_altmode_set_state(struct typec_altmode *adev,
 
 	port_altmode = is_port ? to_altmode(adev) : to_altmode(adev)->partner;
 
-	return typec_altmode_set_mux(port_altmode, conf, data);
+	return typec_altmode_set_switches(port_altmode, conf, data);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -73,7 +80,7 @@ int typec_altmode_notify(struct typec_altmode *adev,
 	is_port = is_typec_port(adev->dev.parent);
 	partner = altmode->partner;
 
-	ret = typec_altmode_set_mux(is_port ? altmode : partner, conf, data);
+	ret = typec_altmode_set_switches(is_port ? altmode : partner, conf, data);
 	if (ret)
 		return ret;
 
