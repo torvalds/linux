@@ -321,7 +321,7 @@ static void fastrpc_free_map(struct kref *ref)
 			perm.vmid = QCOM_SCM_VMID_HLOS;
 			perm.perm = QCOM_SCM_PERM_RWX;
 			err = qcom_scm_assign_mem(map->phys, map->size,
-				&(map->fl->cctx->vmperms[0].vmid), &perm, 1);
+				&map->fl->cctx->perms, &perm, 1);
 			if (err) {
 				dev_err(map->fl->sctx->dev, "Failed to assign memory phys 0x%llx size 0x%llx err %d",
 						map->phys, map->size, err);
@@ -798,10 +798,8 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 		 * If subsystem VMIDs are defined in DTSI, then do
 		 * hyp_assign from HLOS to those VM(s)
 		 */
-		unsigned int perms = BIT(QCOM_SCM_VMID_HLOS);
-
 		map->attr = attr;
-		err = qcom_scm_assign_mem(map->phys, (u64)map->size, &perms,
+		err = qcom_scm_assign_mem(map->phys, (u64)map->size, &fl->cctx->perms,
 				fl->cctx->vmperms, fl->cctx->vmcount);
 		if (err) {
 			dev_err(sess->dev, "Failed to assign memory with phys 0x%llx size 0x%llx err %d",
@@ -1268,10 +1266,9 @@ static int fastrpc_init_create_static_process(struct fastrpc_user *fl,
 
 		/* Map if we have any heap VMIDs associated with this ADSP Static Process. */
 		if (fl->cctx->vmcount) {
-			unsigned int perms = BIT(QCOM_SCM_VMID_HLOS);
-
 			err = qcom_scm_assign_mem(fl->cctx->remote_heap->phys,
-							(u64)fl->cctx->remote_heap->size, &perms,
+							(u64)fl->cctx->remote_heap->size,
+							&fl->cctx->perms,
 							fl->cctx->vmperms, fl->cctx->vmcount);
 			if (err) {
 				dev_err(fl->sctx->dev, "Failed to assign memory with phys 0x%llx size 0x%llx err %d",
@@ -1319,7 +1316,7 @@ err_invoke:
 		perm.perm = QCOM_SCM_PERM_RWX;
 		err = qcom_scm_assign_mem(fl->cctx->remote_heap->phys,
 						(u64)fl->cctx->remote_heap->size,
-						&(fl->cctx->vmperms[0].vmid), &perm, 1);
+						&fl->cctx->perms, &perm, 1);
 		if (err)
 			dev_err(fl->sctx->dev, "Failed to assign memory phys 0x%llx size 0x%llx err %d",
 				fl->cctx->remote_heap->phys, fl->cctx->remote_heap->size, err);
@@ -1901,7 +1898,7 @@ static int fastrpc_req_mmap(struct fastrpc_user *fl, char __user *argp)
 		perm.vmid = QCOM_SCM_VMID_HLOS;
 		perm.perm = QCOM_SCM_PERM_RWX;
 		err = qcom_scm_assign_mem(buf->phys, buf->size,
-			&(fl->cctx->vmperms[0].vmid), &perm, 1);
+			&fl->cctx->perms, &perm, 1);
 		if (err) {
 			dev_err(fl->sctx->dev, "Failed to assign memory phys 0x%llx size 0x%llx err %d",
 					buf->phys, buf->size, err);
