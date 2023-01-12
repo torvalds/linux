@@ -22,13 +22,6 @@
 #include "i915_reg_defs.h"
 #include "gt/intel_gt_regs.h"
 
-#include <linux/delay.h>
-/*
- * FIXME: This header has been deemed evil and we need to kill it. Temporarily
- * including so we can use 'wait_for'.
- */
-#include "i915_utils.h"
-
 /* TODO: move to common file */
 #define GUC_PVC_MOCS_INDEX_MASK		REG_GENMASK(25, 24)
 #define PVC_MOCS_UC_INDEX		1
@@ -688,19 +681,17 @@ timeout:
 	header = xe_mmio_read32(gt, reply_reg);
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
 	    GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
-#define done ({ header = xe_mmio_read32(gt, reply_reg); \
-		FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) != \
-		GUC_HXG_ORIGIN_GUC || \
-		FIELD_GET(GUC_HXG_MSG_0_TYPE, header) != \
-		GUC_HXG_TYPE_NO_RESPONSE_BUSY; })
 
-		ret = wait_for(done, 1000);
+		ret = xe_mmio_wait32(gt, reply_reg,
+				     FIELD_PREP(GUC_HXG_MSG_0_TYPE,
+						GUC_HXG_TYPE_RESPONSE_SUCCESS),
+				     GUC_HXG_MSG_0_TYPE, 1000, &header);
+
+		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
+			     GUC_HXG_ORIGIN_GUC))
+			goto proto;
 		if (unlikely(ret))
 			goto timeout;
-		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
-				       GUC_HXG_ORIGIN_GUC))
-			goto proto;
-#undef done
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
