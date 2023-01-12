@@ -533,11 +533,11 @@ void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
 		if (stream != NULL)
 			mod_build_adaptive_sync_infopacket_v2(stream, param, info_packet);
 		break;
-	case ADAPTIVE_SYNC_TYPE_PCON_IN_WHITELIST:
+	case FREESYNC_TYPE_PCON_IN_WHITELIST:
 		mod_build_adaptive_sync_infopacket_v1(info_packet);
 		break;
 	case ADAPTIVE_SYNC_TYPE_NONE:
-	case ADAPTIVE_SYNC_TYPE_PCON_NOT_IN_WHITELIST:
+	case FREESYNC_TYPE_PCON_NOT_IN_WHITELIST:
 	default:
 		break;
 	}
