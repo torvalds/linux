@@ -630,7 +630,8 @@ int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
 #define MEDIA_SOFT_SCRATCH(n)           _MMIO(0x190310 + (n) * 4)
 #define MEDIA_SOFT_SCRATCH_COUNT        4
 
-int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
+int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
+			  u32 len, u32 *response_buf)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
@@ -640,6 +641,7 @@ int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
 	int ret;
 	int i;
 
+	BUILD_BUG_ON(GEN11_SOFT_SCRATCH_COUNT != MEDIA_SOFT_SCRATCH_COUNT);
 	XE_BUG_ON(guc->ct.enabled);
 	XE_BUG_ON(!len);
 	XE_BUG_ON(len > GEN11_SOFT_SCRATCH_COUNT);
@@ -723,8 +725,22 @@ proto:
 		return -EPROTO;
 	}
 
+	/* Just copy entire possible message response */
+	if (response_buf) {
+		response_buf[0] = header;
+
+		for (i = 1; i < GEN11_SOFT_SCRATCH_COUNT; i++)
+			response_buf[i] =
+				xe_mmio_read32(gt, reply_reg + i * sizeof(u32));
+	}
+
 	/* Use data from the GuC response as our return value */
 	return FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, header);
+}
+
+int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
+{
+	return xe_guc_mmio_send_recv(guc, request, len, NULL);
 }
 
 static int guc_self_cfg(struct xe_guc *guc, u16 key, u16 len, u64 val)
