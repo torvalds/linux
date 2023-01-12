@@ -561,10 +561,11 @@ static void con_scroll(struct vc_data *vc, unsigned int top,
 		       unsigned int bottom, enum con_scroll dir,
 		       unsigned int nr)
 {
+	unsigned int rows = bottom - top;
 	u16 *clear, *dst, *src;
 
 	if (top + nr >= bottom)
-		nr = bottom - top - 1;
+		nr = rows - 1;
 	if (bottom > vc->vc_rows || top >= bottom || nr < 1)
 		return;
 
@@ -577,10 +578,10 @@ static void con_scroll(struct vc_data *vc, unsigned int top,
 	dst = (u16 *)(vc->vc_origin + vc->vc_size_row * (top + nr));
 
 	if (dir == SM_UP) {
-		clear = src + (bottom - top - nr) * vc->vc_cols;
+		clear = src + (rows - nr) * vc->vc_cols;
 		swap(src, dst);
 	}
-	scr_memmovew(dst, src, (bottom - top - nr) * vc->vc_size_row);
+	scr_memmovew(dst, src, (rows - nr) * vc->vc_size_row);
 	scr_memsetw(clear, vc->vc_video_erase_char, vc->vc_size_row * nr);
 }
 
