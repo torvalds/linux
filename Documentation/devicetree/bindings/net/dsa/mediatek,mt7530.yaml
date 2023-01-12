@@ -157,9 +157,6 @@ patternProperties:
     patternProperties:
       "^(ethernet-)?port@[0-9]+$":
         type: object
-        description: Ethernet switch ports
-
-        unevaluatedProperties: false
 
         properties:
           reg:
@@ -238,7 +235,7 @@ $defs:
                       - sgmii
 
 allOf:
-  - $ref: dsa.yaml#
+  - $ref: dsa.yaml#/$defs/ethernet-ports
   - if:
       required:
         - mediatek,mcm
