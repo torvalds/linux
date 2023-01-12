@@ -417,6 +417,11 @@ config TOUCHSCREEN_GSL3673
 	help
 	  gsl3673 touchpad driver
 
+config TOUCHSCREEN_GSL3673_800X1280
+	tristate "gsl3673 800x1280 touchpad driver"
+	help
+	  gsl3673 touchpad driver
+
 config TOUCHSCREEN_GSLX680_PAD
 	tristate "gslX680 touchpad driver for pad"
 	help

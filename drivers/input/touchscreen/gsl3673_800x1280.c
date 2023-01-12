@@ -61,7 +61,8 @@ static char chip_type;
 	#define Y_POL
 #elif defined(CONFIG_TOUCHSCREEN_GSL3673_800X1280)
 	#define TP_SIZE_800X1280
-	#include "gsl3673_800x1280.h"
+	#include "rochkchip_gslX680_8inch_800x1280_tg806_10.h"
+//	#include "gsl3673_800x1280.h"
 #else
 	#include "gsl3680b_zm97f.h"
 	#define HAVE_TOUCH_KEY
@@ -103,7 +104,7 @@ static char chip_type;
 #define GSL_STATUS_REG		0xe0
 #define GSL_PAGE_REG		0xf0
 
-#define TPD_PROC_DEBUG
+//#define TPD_PROC_DEBUG
 #ifdef TPD_PROC_DEBUG
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
