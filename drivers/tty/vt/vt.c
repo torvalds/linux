@@ -535,7 +535,8 @@ void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, bool viewed,
 	int offset = row * vc->vc_size_row + col * 2;
 	unsigned long pos;
 
-	BUG_ON(!uni_lines);
+	if (WARN_ON_ONCE(!uni_lines))
+		return;
 
 	pos = (unsigned long)screenpos(vc, offset, viewed);
 	if (pos >= vc->vc_origin && pos < vc->vc_scr_end) {
