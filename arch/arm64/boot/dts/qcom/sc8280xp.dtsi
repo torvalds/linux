@@ -2564,7 +2564,7 @@
 				interrupts = <15>;
 				phys = <&mdss0_dp3_phy>;
 				phy-names = "dp";
-				power-domains = <&dispcc0 MDSS_GDSC>;
+				power-domains = <&rpmhpd SC8280XP_MMCX>;
 
 				assigned-clocks = <&dispcc0 DISP_CC_MDSS_DPTX3_LINK_CLK_SRC>,
 						  <&dispcc0 DISP_CC_MDSS_DPTX3_PIXEL0_CLK_SRC>;
