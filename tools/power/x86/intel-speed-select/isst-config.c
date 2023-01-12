@@ -383,11 +383,11 @@ void set_isst_id(struct isst_id *id, int cpu)
 	id->cpu = cpu;
 
 	id->pkg = get_physical_package_id(cpu);
-	if (id < 0 || id->pkg >= MAX_PACKAGE_COUNT)
+	if (id->pkg >= MAX_PACKAGE_COUNT)
 		id->pkg = -1;
 
 	id->die = get_physical_die_id(cpu);
-	if (id < 0 || id->die >= MAX_DIE_PER_PACKAGE)
+	if (id->die >= MAX_DIE_PER_PACKAGE)
 		id->die = -1;
 }
 
