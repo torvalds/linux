@@ -10,11 +10,6 @@
 #include "xe_mmio.h"
 #include "gt/intel_gt_regs.h"
 
-/*
- * FIXME: This header has been deemed evil and we need to kill it. Temporarily
- * including so we can use '__mask_next_bit'.
- */
-#include "i915_utils.h"
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 
@@ -145,9 +140,9 @@ static int domain_sleep_wait(struct xe_gt *gt,
 }
 
 #define for_each_fw_domain_masked(domain__, mask__, fw__, tmp__) \
-	for (tmp__ = (mask__); tmp__ ;) \
+	for (tmp__ = (mask__); tmp__; tmp__ &= ~BIT(ffs(tmp__) - 1)) \
 		for_each_if((domain__ = ((fw__)->domains + \
-					 __mask_next_bit(tmp__))) && \
+					 (ffs(tmp__) - 1))) && \
 					 domain__->reg_ctl)
 
 int xe_force_wake_get(struct xe_force_wake *fw,
