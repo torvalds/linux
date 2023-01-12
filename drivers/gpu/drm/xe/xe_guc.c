@@ -403,24 +403,6 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 	return 0;
 }
 
-/*
- * Read the GuC status register (GUC_STATUS) and store it in the
- * specified location; then return a boolean indicating whether
- * the value matches either of two values representing completion
- * of the GuC boot process.
- *
- * This is used for polling the GuC status in a wait_for()
- * loop below.
- */
-static bool guc_ready(struct xe_guc *guc, u32 *status)
-{
-	u32 val = xe_mmio_read32(guc_to_gt(guc), GUC_STATUS.reg);
-	u32 uk_val = REG_FIELD_GET(GS_UKERNEL_MASK, val);
-
-	*status = val;
-	return uk_val == XE_GUC_LOAD_STATUS_READY;
-}
-
 static int guc_wait_ucode(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -444,7 +426,11 @@ static int guc_wait_ucode(struct xe_guc *guc)
 	 * 200ms. Even at slowest clock, this should be sufficient. And
 	 * in the working case, a larger timeout makes no difference.
 	 */
-	ret = wait_for(guc_ready(guc, &status), 200);
+	ret = xe_mmio_wait32(guc_to_gt(guc), GUC_STATUS.reg,
+			     FIELD_PREP(GS_UKERNEL_MASK,
+					XE_GUC_LOAD_STATUS_READY),
+			     GS_UKERNEL_MASK, 200, &status);
+
 	if (ret) {
 		struct drm_device *drm = &xe->drm;
 		struct drm_printer p = drm_info_printer(drm->dev);
