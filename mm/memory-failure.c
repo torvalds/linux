@@ -1860,7 +1860,7 @@ static int try_memory_failure_hugetlb(unsigned long pfn, int flags, int *hugetlb
 {
 	int res;
 	struct page *p = pfn_to_page(pfn);
-	struct page *head;
+	struct folio *folio;
 	unsigned long page_flags;
 	bool migratable_cleared = false;
 
@@ -1873,8 +1873,8 @@ retry:
 	} else if (res == -EHWPOISON) {
 		pr_err("%#lx: already hardware poisoned\n", pfn);
 		if (flags & MF_ACTION_REQUIRED) {
-			head = compound_head(p);
-			res = kill_accessing_process(current, page_to_pfn(head), flags);
+			folio = page_folio(p);
+			res = kill_accessing_process(current, folio_pfn(folio), flags);
 		}
 		return res;
 	} else if (res == -EBUSY) {
@@ -1885,16 +1885,16 @@ retry:
 		return action_result(pfn, MF_MSG_UNKNOWN, MF_IGNORED);
 	}
 
-	head = compound_head(p);
-	lock_page(head);
+	folio = page_folio(p);
+	folio_lock(folio);
 
 	if (hwpoison_filter(p)) {
-		hugetlb_clear_page_hwpoison(head);
+		hugetlb_clear_page_hwpoison(&folio->page);
 		if (migratable_cleared)
-			SetHPageMigratable(head);
-		unlock_page(head);
+			folio_set_hugetlb_migratable(folio);
+		folio_unlock(folio);
 		if (res == 1)
-			put_page(head);
+			folio_put(folio);
 		return -EOPNOTSUPP;
 	}
 
@@ -1903,7 +1903,7 @@ retry:
 	 * or demotion can be prevented by PageHWPoison flag.
 	 */
 	if (res == 0) {
-		unlock_page(head);
+		folio_unlock(folio);
 		if (__page_handle_poison(p) >= 0) {
 			page_ref_inc(p);
 			res = MF_RECOVERED;
@@ -1913,10 +1913,10 @@ retry:
 		return action_result(pfn, MF_MSG_FREE_HUGE, res);
 	}
 
-	page_flags = head->flags;
+	page_flags = folio->flags;
 
-	if (!hwpoison_user_mappings(p, pfn, flags, head)) {
-		unlock_page(head);
+	if (!hwpoison_user_mappings(p, pfn, flags, &folio->page)) {
+		folio_unlock(folio);
 		return action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
 	}
 
