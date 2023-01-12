@@ -534,7 +534,6 @@ static void dlm_midcomms_receive_buffer(union dlm_packet *p,
 				midcomms_node_reset(node);
 				pr_debug("switch node %d to state %s\n",
 					 node->nodeid, dlm_state_str(node->state));
-				wake_up(&node->shutdown_wait);
 				break;
 			case DLM_LAST_ACK:
 				/* probably remove_member caught it, do nothing */
@@ -1262,7 +1261,6 @@ static void dlm_act_fin_ack_rcv(struct midcomms_node *node)
 		midcomms_node_reset(node);
 		pr_debug("switch node %d to state %s\n",
 			 node->nodeid, dlm_state_str(node->state));
-		wake_up(&node->shutdown_wait);
 		break;
 	case DLM_CLOSED:
 		/* not valid but somehow we got what we want */
