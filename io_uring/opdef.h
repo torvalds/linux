@@ -29,19 +29,24 @@ struct io_issue_def {
 	unsigned		iopoll_queue : 1;
 	/* opcode specific path will handle ->async_data allocation if needed */
 	unsigned		manual_alloc : 1;
+
+	int (*issue)(struct io_kiocb *, unsigned int);
+	int (*prep)(struct io_kiocb *, const struct io_uring_sqe *);
+};
+
+struct io_cold_def {
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 
 	const char		*name;
 
-	int (*prep)(struct io_kiocb *, const struct io_uring_sqe *);
-	int (*issue)(struct io_kiocb *, unsigned int);
 	int (*prep_async)(struct io_kiocb *);
 	void (*cleanup)(struct io_kiocb *);
 	void (*fail)(struct io_kiocb *);
 };
 
 extern const struct io_issue_def io_issue_defs[];
+extern const struct io_cold_def io_cold_defs[];
 
 void io_uring_optable_init(void);
 #endif
