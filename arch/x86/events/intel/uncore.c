@@ -857,6 +857,12 @@ static const struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 
+static inline int uncore_get_box_id(struct intel_uncore_type *type,
+				    struct intel_uncore_pmu *pmu)
+{
+	return type->box_ids ? type->box_ids[pmu->pmu_idx] : pmu->pmu_idx;
+}
+
 void uncore_get_alias_name(char *pmu_name, struct intel_uncore_pmu *pmu)
 {
 	struct intel_uncore_type *type = pmu->type;
@@ -865,7 +871,7 @@ void uncore_get_alias_name(char *pmu_name, struct intel_uncore_pmu *pmu)
 		sprintf(pmu_name, "uncore_type_%u", type->type_id);
 	else {
 		sprintf(pmu_name, "uncore_type_%u_%d",
-			type->type_id, type->box_ids[pmu->pmu_idx]);
+			type->type_id, uncore_get_box_id(type, pmu));
 	}
 }
 
@@ -892,7 +898,7 @@ static void uncore_get_pmu_name(struct intel_uncore_pmu *pmu)
 		 * Use the box ID from the discovery table if applicable.
 		 */
 		sprintf(pmu->name, "uncore_%s_%d", type->name,
-			type->box_ids ? type->box_ids[pmu->pmu_idx] : pmu->pmu_idx);
+			uncore_get_box_id(type, pmu));
 	}
 }
 
