@@ -348,9 +348,9 @@ static int relinquish_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 			     enum kvm_pgtable_walk_flags flag, void * const arg)
 {
 	kvm_pte_t pte = *ptep;
-	struct hyp_page *page;
 	struct relinquish_data *data = arg;
 	enum pkvm_page_state state;
+	phys_addr_t phys;
 
 	if (!kvm_pte_valid(pte))
 		return 0;
@@ -359,12 +359,13 @@ static int relinquish_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	if (state != data->expected_state)
 		return -EPERM;
 
-	page = hyp_phys_to_page(kvm_pte_to_phys(pte));
-	if (state == PKVM_PAGE_OWNED)
-		page->flags |= HOST_PAGE_NEED_POISONING;
-	page->flags |= HOST_PAGE_PENDING_RECLAIM;
+	phys = kvm_pte_to_phys(pte);
+	if (state == PKVM_PAGE_OWNED) {
+		hyp_poison_page(phys);
+		psci_mem_protect_dec(1);
+	}
 
-	data->pa = kvm_pte_to_phys(pte);
+	data->pa = phys;
 
 	return 0;
 }
@@ -392,12 +393,14 @@ int __pkvm_guest_relinquish_to_host(struct pkvm_hyp_vcpu *vcpu,
 	/* Set default pa value to "not found". */
 	data.pa = 0;
 
-	/* If ipa is mapped: sets page flags, and gets the pa. */
+	/* If ipa is mapped: poisons the page, and gets the pa. */
 	ret = kvm_pgtable_walk(&vm->pgt, ipa, PAGE_SIZE, &walker);
 
-	/* Zap the guest stage2 pte. */
-	if (!ret && data.pa)
-		kvm_pgtable_stage2_unmap(&vm->pgt, ipa, PAGE_SIZE);
+	/* Zap the guest stage2 pte and return ownership to the host */
+	if (!ret && data.pa) {
+		WARN_ON(host_stage2_set_owner_locked(data.pa, PAGE_SIZE, PKVM_ID_HOST));
+		WARN_ON(kvm_pgtable_stage2_unmap(&vm->pgt, ipa, PAGE_SIZE));
+	}
 
 	guest_unlock_component(vm);
 	host_unlock_component();

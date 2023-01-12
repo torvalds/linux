@@ -381,10 +381,6 @@ void pkvm_host_reclaim_page(struct kvm *host_kvm, phys_addr_t ipa)
 		return;
 
 	ppage = container_of(node, struct kvm_pinned_page, node);
-
-	WARN_ON(kvm_call_hyp_nvhe(__pkvm_host_reclaim_page,
-				  page_to_pfn(ppage->page)));
-
 	account_locked_vm(mm, 1, false);
 	unpin_user_pages_dirty_lock(&ppage->page, 1, true);
 	kfree(ppage);
