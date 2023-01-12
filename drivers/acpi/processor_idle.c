@@ -642,6 +642,8 @@ static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 	 */
 	bool dis_bm = pr->flags.bm_control;
 
+	instrumentation_begin();
+
 	/* If we can skip BM, demote to a safe state. */
 	if (!cx->bm_sts_skip && acpi_idle_bm_check()) {
 		dis_bm = false;
@@ -663,11 +665,11 @@ static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 		raw_spin_unlock(&c3_lock);
 	}
 
-	ct_idle_enter();
+	ct_cpuidle_enter();
 
 	acpi_idle_do_entry(cx);
 
-	ct_idle_exit();
+	ct_cpuidle_exit();
 
 	/* Re-enable bus master arbitration */
 	if (dis_bm) {
@@ -676,6 +678,8 @@ static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 		c3_cpu_count--;
 		raw_spin_unlock(&c3_lock);
 	}
+
+	instrumentation_end();
 
 	return index;
 }
