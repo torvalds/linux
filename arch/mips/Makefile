@@ -95,22 +95,13 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 # crossformat linking we rely on the elf2ecoff tool for format conversion.
 #
 cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
-cflags-y			+= -msoft-float
+cflags-y			+= -msoft-float -Wa,-msoft-float
 LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
 ifeq ($(CONFIG_RELOCATABLE),y)
 LDFLAGS_vmlinux			+= --emit-relocs
-endif
-
-#
-# pass -msoft-float to GAS if it supports it.  However on newer binutils
-# (specifically newer than 2.24.51.20140728) we then also need to explicitly
-# set ".set hardfloat" in all files which manipulate floating point registers.
-#
-ifneq ($(call as-option,-Wa$(comma)-msoft-float,),)
-	cflags-y		+= -DGAS_HAS_SET_HARDFLOAT -Wa,-msoft-float
 endif
 
 cflags-y += -ffreestanding
