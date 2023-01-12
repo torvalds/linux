@@ -330,11 +330,11 @@ static struct uni_screen *vc_uniscr_alloc(unsigned int cols, unsigned int rows)
 {
 	struct uni_screen *uniscr;
 	void *p;
-	unsigned int memsize, i;
+	unsigned int memsize, i, col_size = cols * sizeof(**uniscr->lines);
 
 	/* allocate everything in one go */
-	memsize = cols * rows * sizeof(char32_t);
-	memsize += rows * sizeof(char32_t *);
+	memsize = col_size * rows;
+	memsize += rows * sizeof(*uniscr->lines);
 	p = vzalloc(memsize);
 	if (!p)
 		return NULL;
@@ -344,7 +344,7 @@ static struct uni_screen *vc_uniscr_alloc(unsigned int cols, unsigned int rows)
 	p = uniscr->lines + rows;
 	for (i = 0; i < rows; i++) {
 		uniscr->lines[i] = p;
-		p += cols * sizeof(char32_t);
+		p += col_size;
 	}
 	return uniscr;
 }
@@ -469,7 +469,7 @@ static void vc_uniscr_copy_area(struct uni_screen *dst,
 		char32_t *src_line = src->lines[src_top_row];
 		char32_t *dst_line = dst->lines[dst_row];
 
-		memcpy(dst_line, src_line, src_cols * sizeof(char32_t));
+		memcpy(dst_line, src_line, src_cols * sizeof(*src_line));
 		if (dst_cols - src_cols)
 			memset32(dst_line + src_cols, ' ', dst_cols - src_cols);
 		src_top_row++;
