@@ -5009,6 +5009,14 @@ static void rawnand_early_check_supported_ops(struct nand_chip *chip)
 	rawnand_check_data_only_read_support(chip);
 }
 
+static void rawnand_late_check_supported_ops(struct nand_chip *chip)
+{
+	/* The supported_op fields should not be set by individual drivers */
+
+	if (!nand_has_exec_op(chip))
+		return;
+}
+
 /*
  * Get the flash and manufacturer id and lookup if the type is supported.
  */
@@ -6344,6 +6352,8 @@ static int nand_scan_tail(struct nand_chip *chip)
 		if (ret)
 			goto err_free_interface_config;
 	}
+
+	rawnand_late_check_supported_ops(chip);
 
 	/*
 	 * Look for secure regions in the NAND chip. These regions are supposed
