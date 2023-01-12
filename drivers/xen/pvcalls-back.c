@@ -1181,9 +1181,8 @@ static void pvcalls_back_changed(struct xenbus_device *dev,
 	}
 }
 
-static int pvcalls_back_remove(struct xenbus_device *dev)
+static void pvcalls_back_remove(struct xenbus_device *dev)
 {
-	return 0;
 }
 
 static int pvcalls_back_uevent(struct xenbus_device *xdev,
