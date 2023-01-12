@@ -387,9 +387,6 @@ map between them using calls like::
 	/* map GPIO numbers to IRQ numbers */
 	int gpio_to_irq(unsigned gpio);
 
-	/* map IRQ numbers to GPIO numbers (avoid using this) */
-	int irq_to_gpio(unsigned irq);
-
 Those return either the corresponding number in the other namespace, or
 else a negative errno code if the mapping can't be done.  (For example,
 some GPIOs can't be used as IRQs.)  It is an unchecked error to use a GPIO
@@ -404,11 +401,6 @@ or free_irq().  They will often be stored into IRQ resources for platform
 devices, by the board-specific initialization code.  Note that IRQ trigger
 options are part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are
 system wakeup capabilities.
-
-Non-error values returned from irq_to_gpio() would most commonly be used
-with gpio_get_value(), for example to initialize or update driver state
-when the IRQ is edge-triggered.  Note that some platforms don't support
-this reverse mapping, so you should avoid using it.
 
 
 Emulating Open Drain Signals

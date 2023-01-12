@@ -363,9 +363,6 @@ GPIO 編號是無符號整數;IRQ 編號也是。這些構成了兩個邏輯上�
 	/* 映射 GPIO 編號到 IRQ 編號 */
 	int gpio_to_irq(unsigned gpio);
 
-	/* 映射 IRQ 編號到 GPIO 編號 (儘量避免使用) */
-	int irq_to_gpio(unsigned irq);
-
 它們的返回值爲對應命名空間的相關編號，或是負的錯誤代碼(如果無法映射)。
 (例如,某些 GPIO 無法做爲 IRQ 使用。)以下的編號錯誤是未經檢測的:使用一個
 未通過 gpio_direction_input()配置爲輸入的 GPIO 編號，或者使用一個
@@ -377,10 +374,6 @@ gpio_to_irq()返回的非錯誤值可以傳遞給 request_irq()或者 free_irq()
 它們通常通過板級特定的初始化代碼存放到平台設備的 IRQ 資源中。注意:IRQ
 觸發選項是 IRQ 接口的一部分，如 IRQF_TRIGGER_FALLING，系統喚醒能力
 也是如此。
-
-irq_to_gpio()返回的非錯誤值大多數通常可以被 gpio_get_value()所使用，
-比如在 IRQ 是沿觸發時初始化或更新驅動狀態。注意某些平台不支持反映射,所以
-你應該儘量避免使用它。
 
 
 模擬開漏信號
