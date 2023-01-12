@@ -495,9 +495,6 @@ int vc_uniscr_check(struct vc_data *vc)
 	unsigned short *p;
 	int x, y, mask;
 
-	if (__is_defined(NO_VC_UNI_SCREEN))
-		return -EOPNOTSUPP;
-
 	WARN_CONSOLE_UNLOCKED();
 
 	if (!vc->vc_utf)
