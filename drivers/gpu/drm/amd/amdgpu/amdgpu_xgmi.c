@@ -35,7 +35,9 @@
 #include "amdgpu_reset.h"
 
 #define smnPCS_XGMI3X16_PCS_ERROR_STATUS 0x11a0020c
+#define smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK   0x11a00218
 #define smnPCS_GOPX1_PCS_ERROR_STATUS    0x12200210
+#define smnPCS_GOPX1_PCS_ERROR_NONCORRECTABLE_MASK      0x12200218
 
 static DEFINE_MUTEX(xgmi_mutex);
 
@@ -79,9 +81,25 @@ static const int xgmi3x16_pcs_err_status_reg_aldebaran[] = {
 	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x700000
 };
 
+static const int xgmi3x16_pcs_err_noncorrectable_mask_reg_aldebaran[] = {
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x100000,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x200000,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x300000,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x400000,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x500000,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x600000,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x700000
+};
+
 static const int walf_pcs_err_status_reg_aldebaran[] = {
 	smnPCS_GOPX1_PCS_ERROR_STATUS,
 	smnPCS_GOPX1_PCS_ERROR_STATUS + 0x100000
+};
+
+static const int walf_pcs_err_noncorrectable_mask_reg_aldebaran[] = {
+	smnPCS_GOPX1_PCS_ERROR_NONCORRECTABLE_MASK,
+	smnPCS_GOPX1_PCS_ERROR_NONCORRECTABLE_MASK + 0x100000
 };
 
 static const struct amdgpu_pcs_ras_field xgmi_pcs_ras_fields[] = {
@@ -809,39 +827,43 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 
 static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
 					      uint32_t value,
+						  uint32_t mask_value,
 					      uint32_t *ue_count,
 					      uint32_t *ce_count,
-					      bool is_xgmi_pcs)
+					      bool is_xgmi_pcs,
+						  bool check_mask)
 {
 	int i;
-	int ue_cnt;
+	int ue_cnt = 0;
+	int mask_bit_value = 0;
+	const struct amdgpu_pcs_ras_field *pcs_ras_fields = NULL;
+	uint32_t field_array_size = 0;
 
 	if (is_xgmi_pcs) {
-		/* query xgmi pcs error status,
-		 * only ue is supported */
-		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_ras_fields); i ++) {
-			ue_cnt = (value &
-				  xgmi_pcs_ras_fields[i].pcs_err_mask) >>
-				  xgmi_pcs_ras_fields[i].pcs_err_shift;
-			if (ue_cnt) {
-				dev_info(adev->dev, "%s detected\n",
-					 xgmi_pcs_ras_fields[i].err_name);
-				*ue_count += ue_cnt;
-			}
-		}
+		pcs_ras_fields = &xgmi_pcs_ras_fields[0];
+		field_array_size = ARRAY_SIZE(xgmi_pcs_ras_fields);
 	} else {
-		/* query wafl pcs error status,
-		 * only ue is supported */
-		for (i = 0; i < ARRAY_SIZE(wafl_pcs_ras_fields); i++) {
-			ue_cnt = (value &
-				  wafl_pcs_ras_fields[i].pcs_err_mask) >>
-				  wafl_pcs_ras_fields[i].pcs_err_shift;
-			if (ue_cnt) {
-				dev_info(adev->dev, "%s detected\n",
-					 wafl_pcs_ras_fields[i].err_name);
-				*ue_count += ue_cnt;
-			}
+		pcs_ras_fields = &wafl_pcs_ras_fields[0];
+		field_array_size = ARRAY_SIZE(wafl_pcs_ras_fields);
+	}
+
+	if (check_mask)
+		value = value & ~mask_value;
+
+	/* query xgmi/walf pcs error status,
+	 * only ue is supported */
+	for (i = 0; value && i < field_array_size; i++) {
+		ue_cnt = (value &
+				pcs_ras_fields[i].pcs_err_mask) >>
+				pcs_ras_fields[i].pcs_err_shift;
+		if (ue_cnt) {
+			dev_info(adev->dev, "%s detected\n",
+				 pcs_ras_fields[i].err_name);
+			*ue_count += ue_cnt;
 		}
+
+		/* reset bit value if the bit is checked */
+		value &= ~(pcs_ras_fields[i].pcs_err_mask);
 	}
 
 	return 0;
@@ -852,7 +874,7 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	int i;
-	uint32_t data;
+	uint32_t data, mask_data = 0;
 	uint32_t ue_cnt = 0, ce_cnt = 0;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL))
@@ -867,15 +889,15 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_arct); i++) {
 			data = RREG32_PCIE(xgmi_pcs_err_status_reg_arct[i]);
 			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, true);
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, true, false);
 		}
 		/* check wafl pcs error */
 		for (i = 0; i < ARRAY_SIZE(wafl_pcs_err_status_reg_arct); i++) {
 			data = RREG32_PCIE(wafl_pcs_err_status_reg_arct[i]);
 			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, false);
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, false, false);
 		}
 		break;
 	case CHIP_VEGA20:
@@ -883,31 +905,35 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_vg20); i++) {
 			data = RREG32_PCIE(xgmi_pcs_err_status_reg_vg20[i]);
 			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, true);
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, true, false);
 		}
 		/* check wafl pcs error */
 		for (i = 0; i < ARRAY_SIZE(wafl_pcs_err_status_reg_vg20); i++) {
 			data = RREG32_PCIE(wafl_pcs_err_status_reg_vg20[i]);
 			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, false);
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, false, false);
 		}
 		break;
 	case CHIP_ALDEBARAN:
 		/* check xgmi3x16 pcs error */
 		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_aldebaran); i++) {
 			data = RREG32_PCIE(xgmi3x16_pcs_err_status_reg_aldebaran[i]);
+			mask_data =
+				RREG32_PCIE(xgmi3x16_pcs_err_noncorrectable_mask_reg_aldebaran[i]);
 			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, true);
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, true, true);
 		}
 		/* check wafl pcs error */
 		for (i = 0; i < ARRAY_SIZE(walf_pcs_err_status_reg_aldebaran); i++) {
 			data = RREG32_PCIE(walf_pcs_err_status_reg_aldebaran[i]);
+			mask_data =
+				RREG32_PCIE(walf_pcs_err_noncorrectable_mask_reg_aldebaran[i]);
 			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, false);
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, false, true);
 		}
 		break;
 	default:
