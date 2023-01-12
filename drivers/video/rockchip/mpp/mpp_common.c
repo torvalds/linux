@@ -1055,9 +1055,15 @@ static void mpp_attach_workqueue(struct mpp_dev *mpp,
 		goto done;
 	}
 
+	/*
+	 * multi devices with no multicores share one queue,
+	 * the core_id is default value 0.
+	 */
 	if (queue->cores[core_id]) {
-		dev_err(mpp->dev, "can not attach device with same id %d", core_id);
-		goto done;
+		if (queue->cores[core_id] == mpp)
+			goto done;
+
+		core_id = queue->core_count;
 	}
 
 	queue->cores[core_id] = mpp;
