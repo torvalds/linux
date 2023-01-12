@@ -43,7 +43,7 @@ static int regmap_sdw_config_check(const struct regmap_config *config)
 	if (config->val_bits != 8)
 		return -ENOTSUPP;
 
-	/* Registers are 32 bits wide */
+	/* Register addresses are 32 bits wide */
 	if (config->reg_bits != 32)
 		return -ENOTSUPP;
 
