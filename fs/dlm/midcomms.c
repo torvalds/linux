@@ -606,16 +606,8 @@ dlm_midcomms_recv_node_lookup(int nodeid, const union dlm_packet *p,
 				case DLM_ESTABLISHED:
 					break;
 				default:
-					/* some invalid state passive shutdown
-					 * was failed, we try to reset and
-					 * hope it will go on.
-					 */
-					log_print("reset node %d because shutdown stuck",
-						  node->nodeid);
-
-					midcomms_node_reset(node);
-					node->state = DLM_ESTABLISHED;
-					break;
+					spin_unlock(&node->state_lock);
+					return NULL;
 				}
 				spin_unlock(&node->state_lock);
 			}
