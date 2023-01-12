@@ -123,6 +123,7 @@ bool console_srcu_read_lock_is_held(void)
 {
 	return srcu_read_lock_held(&console_srcu);
 }
+EXPORT_SYMBOL(console_srcu_read_lock_is_held);
 #endif
 
 enum devkmsg_log_bits {
