@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#include "qdu1000.dtsi"
+/delete-node/ &tenx_mem;
+/delete-node/ &oem_tenx_mem;
+/delete-node/ &tenx_q6_buffer_mem;
+
+&reserved_memory {
+	oem_tenx_mem: oem-tenx@a0000000 {
+		reg = <0x0 0xa0000000 0x0 0x6400000>;
+		no-map;
+	};
+
+	mpss_diag_buffer_mem: mpss-diag-buffer@aea00000 {
+		reg = <0x0 0xaea00000 0x0 0x6400000>;
+		no-map;
+	};
+
+	tenx_q6_buffer_mem: tenx-q6-buffer@b4e00000 {
+		reg = <0x0 0xb4e00000 0x0 0x3200000>;
+		no-map;
+	};
+};
