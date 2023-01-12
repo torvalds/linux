@@ -1403,6 +1403,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 	v4l2_ctrl_handler_setup(&inst->v4l2_ctrl_hdl);
 
 	wave5_set_default_format(&inst->src_fmt, &inst->dst_fmt);
+	memcpy((void *)&inst->display_fmt, (void *)&inst->dst_fmt, sizeof(struct v4l2_pix_format_mplane));
 	inst->colorspace = V4L2_COLORSPACE_REC709;
 	inst->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	inst->hsv_enc = 0;
