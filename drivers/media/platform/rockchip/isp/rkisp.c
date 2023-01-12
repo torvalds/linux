@@ -2762,7 +2762,7 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 			if (stream->id == RKISP_STREAM_VIR ||
 			    stream->id == RKISP_STREAM_LUMA)
 				continue;
-			if (stream->streaming && !stream->next_buf)
+			if (stream->streaming && !stream->curr_buf)
 				stream->ops->frame_end(stream);
 		}
 	}
