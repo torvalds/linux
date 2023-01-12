@@ -1695,9 +1695,9 @@ struct raw_hwp_page {
 	struct page *page;
 };
 
-static inline struct llist_head *raw_hwp_list_head(struct page *hpage)
+static inline struct llist_head *raw_hwp_list_head(struct folio *folio)
 {
-	return (struct llist_head *)&page_folio(hpage)->_hugetlb_hwpoison;
+	return (struct llist_head *)&folio->_hugetlb_hwpoison;
 }
 
 static unsigned long __free_raw_hwp_pages(struct page *hpage, bool move_flag)
@@ -1705,8 +1705,9 @@ static unsigned long __free_raw_hwp_pages(struct page *hpage, bool move_flag)
 	struct llist_head *head;
 	struct llist_node *t, *tnode;
 	unsigned long count = 0;
+	struct folio *folio = page_folio(hpage);
 
-	head = raw_hwp_list_head(hpage);
+	head = raw_hwp_list_head(folio);
 	llist_for_each_safe(tnode, t, head->first) {
 		struct raw_hwp_page *p = container_of(tnode, struct raw_hwp_page, node);
 
@@ -1727,15 +1728,16 @@ static int hugetlb_set_page_hwpoison(struct page *hpage, struct page *page)
 	struct raw_hwp_page *raw_hwp;
 	struct llist_node *t, *tnode;
 	int ret = TestSetPageHWPoison(hpage) ? -EHWPOISON : 0;
+	struct folio *folio = page_folio(hpage);
 
 	/*
 	 * Once the hwpoison hugepage has lost reliable raw error info,
 	 * there is little meaning to keep additional error info precisely,
 	 * so skip to add additional raw error info.
 	 */
-	if (HPageRawHwpUnreliable(hpage))
+	if (folio_test_hugetlb_raw_hwp_unreliable(folio))
 		return -EHWPOISON;
-	head = raw_hwp_list_head(hpage);
+	head = raw_hwp_list_head(folio);
 	llist_for_each_safe(tnode, t, head->first) {
 		struct raw_hwp_page *p = container_of(tnode, struct raw_hwp_page, node);
 
@@ -1756,9 +1758,9 @@ static int hugetlb_set_page_hwpoison(struct page *hpage, struct page *page)
 		 * hwpoisoned subpages, and we need refuse to free/dissolve
 		 * this hwpoisoned hugepage.
 		 */
-		SetHPageRawHwpUnreliable(hpage);
+		folio_set_hugetlb_raw_hwp_unreliable(folio);
 		/*
-		 * Once HPageRawHwpUnreliable is set, raw_hwp_page is not
+		 * Once hugetlb_raw_hwp_unreliable is set, raw_hwp_page is not
 		 * used any more, so free it.
 		 */
 		__free_raw_hwp_pages(hpage, false);
