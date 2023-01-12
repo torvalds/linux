@@ -162,7 +162,6 @@ static const struct gpio_chip zevio_gpio_chip = {
 	.base			= 0,
 	.owner			= THIS_MODULE,
 	.ngpio			= 32,
-	.of_gpio_n_cells	= 2,
 };
 
 /* Initialization */
