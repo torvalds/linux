@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 /*
  * FIXME: This header has been deemed evil and we need to kill it. Temporarily
- * including so we can use 'wait_for' and range_overflow_t.
+ * including so we can use 'wait_for'.
  */
 #include "i915_utils.h"
 
@@ -55,7 +55,8 @@ static u32 guc_bo_ggtt_addr(struct xe_guc *guc,
 	u32 addr = xe_bo_ggtt_addr(bo);
 
 	XE_BUG_ON(addr < xe_wopcm_size(guc_to_xe(guc)));
-	XE_BUG_ON(range_overflows_t(u32, addr, bo->size, GUC_GGTT_TOP));
+	XE_BUG_ON(addr >= GUC_GGTT_TOP);
+	XE_BUG_ON(bo->size > GUC_GGTT_TOP - addr);
 
 	return addr;
 }
