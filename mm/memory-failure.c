@@ -1700,12 +1700,11 @@ static inline struct llist_head *raw_hwp_list_head(struct folio *folio)
 	return (struct llist_head *)&folio->_hugetlb_hwpoison;
 }
 
-static unsigned long __free_raw_hwp_pages(struct page *hpage, bool move_flag)
+static unsigned long __folio_free_raw_hwp(struct folio *folio, bool move_flag)
 {
 	struct llist_head *head;
 	struct llist_node *t, *tnode;
 	unsigned long count = 0;
-	struct folio *folio = page_folio(hpage);
 
 	head = raw_hwp_list_head(folio);
 	llist_for_each_safe(tnode, t, head->first) {
@@ -1763,7 +1762,7 @@ static int hugetlb_set_page_hwpoison(struct page *hpage, struct page *page)
 		 * Once hugetlb_raw_hwp_unreliable is set, raw_hwp_page is not
 		 * used any more, so free it.
 		 */
-		__free_raw_hwp_pages(hpage, false);
+		__folio_free_raw_hwp(folio, false);
 	}
 	return ret;
 }
@@ -1784,7 +1783,7 @@ static unsigned long folio_free_raw_hwp(struct folio *folio, bool move_flag)
 	if (folio_test_hugetlb_raw_hwp_unreliable(folio))
 		return 0;
 
-	return __free_raw_hwp_pages(&folio->page, move_flag);
+	return __folio_free_raw_hwp(folio, move_flag);
 }
 
 void folio_clear_hugetlb_hwpoison(struct folio *folio)
