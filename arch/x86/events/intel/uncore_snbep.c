@@ -1453,9 +1453,6 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			}
 			raw_spin_unlock(&pci2phy_map_lock);
 		} else {
-			int node = pcibus_to_node(ubox_dev->bus);
-			int cpu;
-
 			segment = pci_domain_nr(ubox_dev->bus);
 			raw_spin_lock(&pci2phy_map_lock);
 			map = __find_pci2phy_map(segment);
@@ -1465,15 +1462,8 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 				break;
 			}
 
-			die_id = -1;
-			for_each_cpu(cpu, cpumask_of_pcibus(ubox_dev->bus)) {
-				struct cpuinfo_x86 *c = &cpu_data(cpu);
+			map->pbus_to_dieid[bus] = die_id = uncore_device_to_die(ubox_dev);
 
-				if (c->initialized && cpu_to_node(cpu) == node) {
-					map->pbus_to_dieid[bus] = die_id = c->logical_die_id;
-					break;
-				}
-			}
 			raw_spin_unlock(&pci2phy_map_lock);
 
 			if (WARN_ON_ONCE(die_id == -1)) {
