@@ -51,6 +51,15 @@ struct xe_guc {
 			/** @seqno: suspend fences seqno */
 			u32 seqno;
 		} suspend;
+		/** @version: submission version */
+		struct {
+			/** @major: major version of GuC submission */
+			u32 major;
+			/** @minor: minor version of GuC submission */
+			u32 minor;
+			/** @patch: patch version of GuC submission */
+			u32 patch;
+		} version;
 	} submission_state;
 	/** @hwconfig: Hardware config state */
 	struct {

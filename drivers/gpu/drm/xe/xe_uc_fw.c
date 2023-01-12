@@ -184,6 +184,40 @@ static void uc_fw_fini(struct drm_device *drm, void *arg)
 	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_SELECTED);
 }
 
+static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
+{
+	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	struct xe_guc *guc = &gt->uc.guc;
+
+	XE_BUG_ON(uc_fw->type != XE_UC_FW_TYPE_GUC);
+	XE_WARN_ON(uc_fw->major_ver_found < 70);
+
+	if (uc_fw->major_ver_found > 70 || uc_fw->minor_ver_found >= 6) {
+		/* v70.6.0 adds CSS header support */
+		guc->submission_state.version.major =
+			FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+				  css->submission_version);
+		guc->submission_state.version.minor =
+			FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+				  css->submission_version);
+		guc->submission_state.version.patch =
+			FIELD_GET(CSS_SW_VERSION_UC_PATCH,
+				  css->submission_version);
+	} else if (uc_fw->minor_ver_found >= 3) {
+		/* v70.3.0 introduced v1.1.0 */
+		guc->submission_state.version.major = 1;
+		guc->submission_state.version.minor = 1;
+		guc->submission_state.version.patch = 0;
+	} else {
+		/* v70.0.0 introduced v1.0.0 */
+		guc->submission_state.version.major = 1;
+		guc->submission_state.version.minor = 0;
+		guc->submission_state.version.patch = 0;
+	}
+
+	uc_fw->private_data_size = css->private_data_size;
+}
+
 int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
@@ -278,7 +312,7 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	}
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
-		uc_fw->private_data_size = css->private_data_size;
+		guc_read_css_info(uc_fw, css);
 
 	obj = xe_bo_create_from_data(xe, gt, fw->data, fw->size,
 				     ttm_bo_type_kernel,
@@ -403,4 +437,14 @@ void xe_uc_fw_print(struct xe_uc_fw *uc_fw, struct drm_printer *p)
 		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
 	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
+
+	if (uc_fw->type == XE_UC_FW_TYPE_GUC) {
+		struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+		struct xe_guc *guc = &gt->uc.guc;
+
+		drm_printf(p, "\tSubmit version: %u.%u.%u\n",
+			   guc->submission_state.version.major,
+			   guc->submission_state.version.minor,
+			   guc->submission_state.version.patch);
+	}
 }
