@@ -12,11 +12,6 @@
 #include <linux/errno.h>
 
 #include <linux/delay.h>
-/*
- * FIXME: This header has been deemed evil and we need to kill it. Temporarily
- * including so we can use 'wait_for'.
- */
-#include "i915_utils.h"
 
 /**
  * DOC: PCODE
@@ -59,28 +54,24 @@ static int pcode_mailbox_status(struct xe_gt *gt)
 	return 0;
 }
 
-static bool pcode_mailbox_done(struct xe_gt *gt)
-{
-	lockdep_assert_held(&gt->pcode.lock);
-	return (xe_mmio_read32(gt, PCODE_MAILBOX.reg) & PCODE_READY) == 0;
-}
-
 static int pcode_mailbox_rw(struct xe_gt *gt, u32 mbox, u32 *data0, u32 *data1,
-			    unsigned int timeout, bool return_data, bool atomic)
+			    unsigned int timeout_ms, bool return_data,
+			    bool atomic)
 {
+	int err;
 	lockdep_assert_held(&gt->pcode.lock);
 
-	if (!pcode_mailbox_done(gt))
+	if ((xe_mmio_read32(gt, PCODE_MAILBOX.reg) & PCODE_READY) != 0)
 		return -EAGAIN;
 
 	xe_mmio_write32(gt, PCODE_DATA0.reg, *data0);
 	xe_mmio_write32(gt, PCODE_DATA1.reg, data1 ? *data1 : 0);
 	xe_mmio_write32(gt, PCODE_MAILBOX.reg, PCODE_READY | mbox);
 
-	if (atomic)
-		_wait_for_atomic(pcode_mailbox_done(gt), timeout * 1000, 1);
-	else
-		wait_for(pcode_mailbox_done(gt), timeout);
+	err = xe_mmio_wait32(gt, PCODE_MAILBOX.reg, 0, PCODE_READY,
+			     timeout_ms * 1000, NULL, atomic);
+	if (err)
+		return err;
 
 	if (return_data) {
 		*data0 = xe_mmio_read32(gt, PCODE_DATA0.reg);
@@ -113,13 +104,26 @@ int xe_pcode_read(struct xe_gt *gt, u32 mbox, u32 *val, u32 *val1)
 	return err;
 }
 
-static bool xe_pcode_try_request(struct xe_gt *gt, u32 mbox,
-				  u32 request, u32 reply_mask, u32 reply,
-				  u32 *status, bool atomic)
+static int xe_pcode_try_request(struct xe_gt *gt, u32 mbox,
+				u32 request, u32 reply_mask, u32 reply,
+				u32 *status, bool atomic, int timeout_us)
 {
-	*status = pcode_mailbox_rw(gt, mbox, &request, NULL, 1, true, atomic);
+	int slept, wait = 10;
 
-	return (*status == 0) && ((request & reply_mask) == reply);
+	for (slept = 0; slept < timeout_us; slept += wait) {
+		*status = pcode_mailbox_rw(gt, mbox, &request, NULL, 1, true,
+					   atomic);
+		if ((*status == 0) && ((request & reply_mask) == reply))
+			return 0;
+
+		if (atomic)
+			udelay(wait);
+		else
+			usleep_range(wait, wait << 1);
+		wait <<= 1;
+	}
+
+	return -ETIMEDOUT;
 }
 
 /**
@@ -146,25 +150,12 @@ int xe_pcode_request(struct xe_gt *gt, u32 mbox, u32 request,
 {
 	u32 status;
 	int ret;
-	bool atomic = false;
 
 	mutex_lock(&gt->pcode.lock);
 
-#define COND \
-	xe_pcode_try_request(gt, mbox, request, reply_mask, reply, &status, atomic)
-
-	/*
-	 * Prime the PCODE by doing a request first. Normally it guarantees
-	 * that a subsequent request, at most @timeout_base_ms later, succeeds.
-	 * _wait_for() doesn't guarantee when its passed condition is evaluated
-	 * first, so send the first request explicitly.
-	 */
-	if (COND) {
-		ret = 0;
-		goto out;
-	}
-	ret = _wait_for(COND, timeout_base_ms * 1000, 10, 10);
-	if (!ret)
+	ret = xe_pcode_try_request(gt, mbox, request, reply_mask, reply, &status,
+				   false, timeout_base_ms * 1000);
+	if (ret)
 		goto out;
 
 	/*
@@ -181,15 +172,13 @@ int xe_pcode_request(struct xe_gt *gt, u32 mbox, u32 request,
 		"PCODE timeout, retrying with preemption disabled\n");
 	drm_WARN_ON_ONCE(&gt_to_xe(gt)->drm, timeout_base_ms > 1);
 	preempt_disable();
-	atomic = true;
-	ret = wait_for_atomic(COND, 50);
-	atomic = false;
+	ret = xe_pcode_try_request(gt, mbox, request, reply_mask, reply, &status,
+				   true, timeout_base_ms * 1000);
 	preempt_enable();
 
 out:
 	mutex_unlock(&gt->pcode.lock);
 	return status ? status : ret;
-#undef COND
 }
 /**
  * xe_pcode_init_min_freq_table - Initialize PCODE's QOS frequency table
@@ -243,16 +232,6 @@ unlock:
 	return ret;
 }
 
-static bool pcode_dgfx_status_complete(struct xe_gt *gt)
-{
-	u32 data = DGFX_GET_INIT_STATUS;
-	int status = pcode_mailbox_rw(gt, DGFX_PCODE_STATUS,
-				      &data, NULL, 1, true, false);
-
-	return status == 0 &&
-		(data & DGFX_INIT_STATUS_COMPLETE) == DGFX_INIT_STATUS_COMPLETE;
-}
-
 /**
  * xe_pcode_init - Ensure PCODE is initialized
  * @gt: gt instance
@@ -264,20 +243,23 @@ static bool pcode_dgfx_status_complete(struct xe_gt *gt)
  */
 int xe_pcode_init(struct xe_gt *gt)
 {
-	int timeout = 180000; /* 3 min */
+	u32 status, request = DGFX_GET_INIT_STATUS;
+	int timeout_us = 180000000; /* 3 min */
 	int ret;
 
 	if (!IS_DGFX(gt_to_xe(gt)))
 		return 0;
 
 	mutex_lock(&gt->pcode.lock);
-	ret = wait_for(pcode_dgfx_status_complete(gt), timeout);
+	ret = xe_pcode_try_request(gt, DGFX_PCODE_STATUS, request,
+				   DGFX_INIT_STATUS_COMPLETE,
+				   DGFX_INIT_STATUS_COMPLETE,
+				   &status, false, timeout_us);
 	mutex_unlock(&gt->pcode.lock);
 
 	if (ret)
 		drm_err(&gt_to_xe(gt)->drm,
-			"PCODE initialization timedout after: %d min\n",
-			timeout / 60000);
+			"PCODE initialization timedout after: 3 min\n");
 
 	return ret;
 }

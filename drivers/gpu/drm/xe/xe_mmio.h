@@ -82,8 +82,8 @@ static inline int xe_mmio_write32_and_verify(struct xe_gt *gt,
 	return (reg_val & mask) != eval ? -EINVAL : 0;
 }
 
-static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val,
-				 u32 mask, u32 timeout_us, u32 *out_val)
+static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val, u32 mask,
+				 u32 timeout_us, u32 *out_val, bool atomic)
 {
 	ktime_t cur = ktime_get_raw();
 	const ktime_t end = ktime_add_us(cur, timeout_us);
@@ -108,7 +108,10 @@ static inline int xe_mmio_wait32(struct xe_gt *gt, u32 reg, u32 val,
 		if (ktime_after(ktime_add_us(cur, wait), end))
 			wait = ktime_us_delta(end, cur);
 
-		usleep_range(wait, wait << 1);
+		if (atomic)
+			udelay(wait);
+		else
+			usleep_range(wait, wait << 1);
 		wait <<= 1;
 	}
 
