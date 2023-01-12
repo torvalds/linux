@@ -1345,7 +1345,7 @@ static int gfx_v9_0_init_cp_compute_microcode(struct amdgpu_device *adev,
 
 	err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw, fw_name);
 	if (err)
-		return err;
+		goto out;
 	amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC1);
 	amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC1_JT);
 
@@ -1355,13 +1355,14 @@ static int gfx_v9_0_init_cp_compute_microcode(struct amdgpu_device *adev,
 		else
 			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
 
+		/* ignore failures to load */
 		err = amdgpu_ucode_request(adev, &adev->gfx.mec2_fw, fw_name);
 		if (!err) {
 			amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC2);
 			amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC2_JT);
 		} else {
 			err = 0;
-			adev->gfx.mec2_fw = NULL;
+			amdgpu_ucode_release(&adev->gfx.mec2_fw);
 		}
 	} else {
 		adev->gfx.mec2_fw_version = adev->gfx.mec_fw_version;
@@ -1370,10 +1371,10 @@ static int gfx_v9_0_init_cp_compute_microcode(struct amdgpu_device *adev,
 
 	gfx_v9_0_check_if_need_gfxoff(adev);
 	gfx_v9_0_check_fw_write_wait(adev);
-	if (err) {
+
+out:
+	if (err)
 		amdgpu_ucode_release(&adev->gfx.mec_fw);
-		amdgpu_ucode_release(&adev->gfx.mec2_fw);
-	}
 	return err;
 }
 
