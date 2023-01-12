@@ -506,9 +506,6 @@ static void dlm_midcomms_receive_buffer(union dlm_packet *p,
 			case DLM_ESTABLISHED:
 				dlm_send_ack(node->nodeid, node->seq_next);
 
-				node->state = DLM_CLOSE_WAIT;
-				pr_debug("switch node %d to state %s\n",
-					 node->nodeid, dlm_state_str(node->state));
 				/* passive shutdown DLM_LAST_ACK case 1
 				 * additional we check if the node is used by
 				 * cluster manager events at all.
@@ -519,6 +516,10 @@ static void dlm_midcomms_receive_buffer(union dlm_packet *p,
 						 node->nodeid, dlm_state_str(node->state));
 					set_bit(DLM_NODE_FLAG_STOP_RX, &node->flags);
 					dlm_send_fin(node, dlm_pas_fin_ack_rcv);
+				} else {
+					node->state = DLM_CLOSE_WAIT;
+					pr_debug("switch node %d to state %s\n",
+						 node->nodeid, dlm_state_str(node->state));
 				}
 				break;
 			case DLM_FIN_WAIT1:
