@@ -258,7 +258,6 @@ mtk_wed_wo_queue_alloc(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 		       int n_desc, int buf_size, int index,
 		       struct mtk_wed_wo_queue_regs *regs)
 {
-	spin_lock_init(&q->lock);
 	q->regs = *regs;
 	q->n_desc = n_desc;
 	q->buf_size = buf_size;
@@ -290,7 +289,6 @@ mtk_wed_wo_queue_tx_clean(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q)
 	struct page *page;
 	int i;
 
-	spin_lock_bh(&q->lock);
 	for (i = 0; i < q->n_desc; i++) {
 		struct mtk_wed_wo_queue_entry *entry = &q->entry[i];
 
@@ -299,7 +297,6 @@ mtk_wed_wo_queue_tx_clean(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q)
 		skb_free_frag(entry->buf);
 		entry->buf = NULL;
 	}
-	spin_unlock_bh(&q->lock);
 
 	if (!q->cache.va)
 		return;
@@ -347,8 +344,6 @@ int mtk_wed_wo_queue_tx_skb(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 	int ret = 0, index;
 	u32 ctrl;
 
-	spin_lock_bh(&q->lock);
-
 	q->tail = mtk_wed_mmio_r32(wo, q->regs.dma_idx);
 	index = (q->head + 1) % q->n_desc;
 	if (q->tail == index) {
@@ -379,8 +374,6 @@ int mtk_wed_wo_queue_tx_skb(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 	mtk_wed_wo_queue_kick(wo, q, q->head);
 	mtk_wed_wo_kickout(wo);
 out:
-	spin_unlock_bh(&q->lock);
-
 	dev_kfree_skb(skb);
 
 	return ret;
