@@ -125,10 +125,9 @@ static void transmit_midi1_msg(struct work_struct *work)
 	transmit_midi_msg(ff, 1);
 }
 
-static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
-			    int tcode, int destination, int source,
-			    int generation, unsigned long long offset,
-			    void *data, size_t length, void *callback_data)
+static void handle_msg(struct fw_card *card, struct fw_request *request, int tcode,
+		       int destination, int source, int generation, unsigned long long offset,
+		       void *data, size_t length, void *callback_data)
 {
 	struct snd_ff *ff = callback_data;
 	__le32 *buf = data;
@@ -136,8 +135,7 @@ static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
 	fw_send_response(card, request, RCODE_COMPLETE);
 
 	offset -= ff->async_handler.offset;
-	ff->spec->protocol->handle_midi_msg(ff, (unsigned int)offset, buf,
-					    length);
+	ff->spec->protocol->handle_msg(ff, (unsigned int)offset, buf, length);
 }
 
 static int allocate_own_address(struct snd_ff *ff, int i)
@@ -146,7 +144,7 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 	int err;
 
 	ff->async_handler.length = ff->spec->midi_addr_range;
-	ff->async_handler.address_callback = handle_midi_msg;
+	ff->async_handler.address_callback = handle_msg;
 	ff->async_handler.callback_data = ff;
 
 	midi_msg_region.start = 0x000100000000ull * i;
