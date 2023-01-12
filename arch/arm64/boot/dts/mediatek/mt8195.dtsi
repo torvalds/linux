@@ -2305,6 +2305,66 @@
 			dma-ranges = <0x1 0x0 0x0 0x40000000 0x0 0xfff00000>;
 		};
 
+		jpgdec-master {
+			compatible = "mediatek,mt8195-jpgdec";
+			power-domains = <&spm MT8195_POWER_DOMAIN_VDEC1>;
+			iommus = <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA0>,
+				 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA0>,
+				 <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA1>,
+				 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA1>,
+				 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET1>,
+				 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET0>;
+			dma-ranges = <0x1 0x0 0x0 0x40000000 0x0 0xfff00000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			jpgdec@1a040000 {
+				compatible = "mediatek,mt8195-jpgdec-hw";
+				reg = <0 0x1a040000 0 0x10000>;/* JPGDEC_C0 */
+				iommus = <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA0>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA0>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA1>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA1>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET1>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET0>;
+				interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&vencsys CLK_VENC_JPGDEC>;
+				clock-names = "jpgdec";
+				power-domains = <&spm MT8195_POWER_DOMAIN_VDEC0>;
+			};
+
+			jpgdec@1a050000 {
+				compatible = "mediatek,mt8195-jpgdec-hw";
+				reg = <0 0x1a050000 0 0x10000>;/* JPGDEC_C1 */
+				iommus = <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA0>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA0>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_WDMA1>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BSDMA1>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET1>,
+					 <&iommu_vdo M4U_PORT_L19_JPGDEC_BUFF_OFFSET0>;
+				interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&vencsys CLK_VENC_JPGDEC_C1>;
+				clock-names = "jpgdec";
+				power-domains = <&spm MT8195_POWER_DOMAIN_VDEC1>;
+			};
+
+			jpgdec@1b040000 {
+				compatible = "mediatek,mt8195-jpgdec-hw";
+				reg = <0 0x1b040000 0 0x10000>;/* JPGDEC_C2 */
+				iommus = <&iommu_vpp M4U_PORT_L20_JPGDEC_WDMA0>,
+					 <&iommu_vpp M4U_PORT_L20_JPGDEC_BSDMA0>,
+					 <&iommu_vpp M4U_PORT_L20_JPGDEC_WDMA1>,
+					 <&iommu_vpp M4U_PORT_L20_JPGDEC_BSDMA1>,
+					 <&iommu_vpp M4U_PORT_L20_JPGDEC_BUFF_OFFSET1>,
+					 <&iommu_vpp M4U_PORT_L20_JPGDEC_BUFF_OFFSET0>;
+				interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&vencsys_core1 CLK_VENC_CORE1_JPGDEC>;
+				clock-names = "jpgdec";
+				power-domains = <&spm MT8195_POWER_DOMAIN_VDEC2>;
+			};
+		};
+
 		vencsys_core1: clock-controller@1b000000 {
 			compatible = "mediatek,mt8195-vencsys_core1";
 			reg = <0 0x1b000000 0 0x1000>;
