@@ -1721,13 +1721,12 @@ static unsigned long __folio_free_raw_hwp(struct folio *folio, bool move_flag)
 	return count;
 }
 
-static int hugetlb_set_page_hwpoison(struct page *hpage, struct page *page)
+static int folio_set_hugetlb_hwpoison(struct folio *folio, struct page *page)
 {
 	struct llist_head *head;
 	struct raw_hwp_page *raw_hwp;
 	struct llist_node *t, *tnode;
-	int ret = TestSetPageHWPoison(hpage) ? -EHWPOISON : 0;
-	struct folio *folio = page_folio(hpage);
+	int ret = folio_test_set_hwpoison(folio) ? -EHWPOISON : 0;
 
 	/*
 	 * Once the hwpoison hugepage has lost reliable raw error info,
@@ -1830,7 +1829,7 @@ int __get_huge_page_for_hwpoison(unsigned long pfn, int flags,
 			goto out;
 	}
 
-	if (hugetlb_set_page_hwpoison(&folio->page, page)) {
+	if (folio_set_hugetlb_hwpoison(folio, page)) {
 		ret = -EHWPOISON;
 		goto out;
 	}
