@@ -17,11 +17,6 @@
 #include "i915_reg.h"
 
 #include <linux/delay.h>
-/*
- * FIXME: This header has been deemed evil and we need to kill it. Temporarily
- * including so we can use 'wait_for'.
- */
-#include "i915_utils.h"
 
 #include "intel_mchbar_regs.h"
 
@@ -135,10 +130,26 @@ pc_to_maps(struct xe_guc_pc *pc)
 	(FIELD_PREP(HOST2GUC_PC_SLPC_REQUEST_MSG_1_EVENT_ID, id) | \
 	 FIELD_PREP(HOST2GUC_PC_SLPC_REQUEST_MSG_1_EVENT_ARGC, count))
 
-static bool pc_is_in_state(struct xe_guc_pc *pc, enum slpc_global_state state)
+static int wait_for_pc_state(struct xe_guc_pc *pc,
+			     enum slpc_global_state state)
 {
+	int timeout_us = 5000; /* rought 5ms, but no need for precision */
+	int slept, wait = 10;
+
 	xe_device_assert_mem_access(pc_to_xe(pc));
-	return slpc_shared_data_read(pc, header.global_state) == state;
+
+	for (slept = 0; slept < timeout_us;) {
+		if (slpc_shared_data_read(pc, header.global_state) == state)
+			return 0;
+
+		usleep_range(wait, wait << 1);
+		slept += wait;
+		wait <<= 1;
+		if (slept + wait > timeout_us)
+			wait = timeout_us - slept;
+	}
+
+	return -ETIMEDOUT;
 }
 
 static int pc_action_reset(struct xe_guc_pc *pc)
@@ -189,7 +200,7 @@ static int pc_action_query_task_state(struct xe_guc_pc *pc)
 		0,
 	};
 
-	if (!pc_is_in_state(pc, SLPC_GLOBAL_STATE_RUNNING))
+	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
 		return -EAGAIN;
 
 	/* Blocking here to ensure the results are ready before reading them */
@@ -212,7 +223,7 @@ static int pc_action_set_param(struct xe_guc_pc *pc, u8 id, u32 value)
 		value,
 	};
 
-	if (!pc_is_in_state(pc, SLPC_GLOBAL_STATE_RUNNING))
+	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
 		return -EAGAIN;
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
@@ -747,7 +758,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 	if (ret)
 		goto out;
 
-	if (wait_for(pc_is_in_state(pc, SLPC_GLOBAL_STATE_RUNNING), 5)) {
+	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING)) {
 		drm_err(&pc_to_xe(pc)->drm, "GuC PC Start failed\n");
 		ret = -EIO;
 		goto out;
@@ -793,7 +804,7 @@ int xe_guc_pc_stop(struct xe_guc_pc *pc)
 	if (ret)
 		goto out;
 
-	if (wait_for(pc_is_in_state(pc, SLPC_GLOBAL_STATE_NOT_RUNNING), 5)) {
+	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_NOT_RUNNING)) {
 		drm_err(&pc_to_xe(pc)->drm, "GuC PC Shutdown failed\n");
 		ret = -EIO;
 	}
