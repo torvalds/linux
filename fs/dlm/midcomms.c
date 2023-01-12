@@ -467,7 +467,7 @@ static void dlm_pas_fin_ack_rcv(struct midcomms_node *node)
 		break;
 	default:
 		spin_unlock(&node->state_lock);
-		log_print("%s: unexpected state: %d\n",
+		log_print("%s: unexpected state: %d",
 			  __func__, node->state);
 		WARN_ON_ONCE(1);
 		return;
@@ -540,7 +540,7 @@ static void dlm_midcomms_receive_buffer(union dlm_packet *p,
 				break;
 			default:
 				spin_unlock(&node->state_lock);
-				log_print("%s: unexpected state: %d\n",
+				log_print("%s: unexpected state: %d",
 					  __func__, node->state);
 				WARN_ON_ONCE(1);
 				return;
@@ -1269,7 +1269,7 @@ static void dlm_act_fin_ack_rcv(struct midcomms_node *node)
 		break;
 	default:
 		spin_unlock(&node->state_lock);
-		log_print("%s: unexpected state: %d\n",
+		log_print("%s: unexpected state: %d",
 			  __func__, node->state);
 		WARN_ON_ONCE(1);
 		return;
@@ -1369,7 +1369,7 @@ void dlm_midcomms_remove_member(int nodeid)
 			/* already gone, do nothing */
 			break;
 		default:
-			log_print("%s: unexpected state: %d\n",
+			log_print("%s: unexpected state: %d",
 				  __func__, node->state);
 			break;
 		}
