@@ -24,6 +24,7 @@
 #include "xe_preempt_fence.h"
 #include "xe_res_cursor.h"
 #include "xe_trace.h"
+#include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
 
 static const struct ttm_place sys_placement_flags = {
@@ -42,7 +43,12 @@ static struct ttm_placement sys_placement = {
 
 bool mem_type_is_vram(u32 mem_type)
 {
-	return mem_type >= XE_PL_VRAM0;
+	return mem_type >= XE_PL_VRAM0 && mem_type != XE_PL_STOLEN;
+}
+
+static bool resource_is_stolen_vram(struct xe_device *xe, struct ttm_resource *res)
+{
+	return res->mem_type == XE_PL_STOLEN && IS_DGFX(xe);
 }
 
 static bool resource_is_vram(struct ttm_resource *res)
@@ -52,7 +58,13 @@ static bool resource_is_vram(struct ttm_resource *res)
 
 bool xe_bo_is_vram(struct xe_bo *bo)
 {
-	return resource_is_vram(bo->ttm.resource);
+	return resource_is_vram(bo->ttm.resource) ||
+		resource_is_stolen_vram(xe_bo_device(bo), bo->ttm.resource);
+}
+
+bool xe_bo_is_stolen(struct xe_bo *bo)
+{
+	return bo->ttm.resource->mem_type == XE_PL_STOLEN;
 }
 
 static bool xe_bo_is_user(struct xe_bo *bo)
@@ -63,9 +75,9 @@ static bool xe_bo_is_user(struct xe_bo *bo)
 static struct xe_gt *
 mem_type_to_gt(struct xe_device *xe, u32 mem_type)
 {
-	XE_BUG_ON(!mem_type_is_vram(mem_type));
+	XE_BUG_ON(mem_type != XE_PL_STOLEN && !mem_type_is_vram(mem_type));
 
-	return xe_device_get_gt(xe, mem_type - XE_PL_VRAM0);
+	return xe_device_get_gt(xe, mem_type == XE_PL_STOLEN ? 0 : (mem_type - XE_PL_VRAM0));
 }
 
 static void try_add_system(struct xe_bo *bo, struct ttm_place *places,
@@ -134,6 +146,20 @@ static void try_add_vram1(struct xe_device *xe, struct xe_bo *bo,
 	}
 }
 
+static void try_add_stolen(struct xe_device *xe, struct xe_bo *bo,
+			   struct ttm_place *places, u32 bo_flags, u32 *c)
+{
+	if (bo_flags & XE_BO_CREATE_STOLEN_BIT) {
+		places[*c] = (struct ttm_place) {
+			.mem_type = XE_PL_STOLEN,
+			.flags = bo_flags & (XE_BO_CREATE_PINNED_BIT |
+					     XE_BO_CREATE_GGTT_BIT) ?
+				TTM_PL_FLAG_CONTIGUOUS : 0,
+		};
+		*c += 1;
+	}
+}
+
 static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 				       u32 bo_flags)
 {
@@ -162,6 +188,7 @@ static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 		try_add_vram1(xe, bo, places, bo_flags, &c);
 		try_add_system(bo, places, bo_flags, &c);
 	}
+	try_add_stolen(xe, bo, places, bo_flags, &c);
 
 	if (!c)
 		return -EINVAL;
@@ -209,6 +236,7 @@ static void xe_evict_flags(struct ttm_buffer_object *tbo,
 	switch (tbo->resource->mem_type) {
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1:
+	case XE_PL_STOLEN:
 	case XE_PL_TT:
 	default:
 		/* for now kick out to system */
@@ -362,11 +390,12 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 #if  !defined(CONFIG_X86)
 		mem->bus.caching = ttm_write_combined;
 #endif
-		break;
+		return 0;
+	case XE_PL_STOLEN:
+		return xe_ttm_stolen_io_mem_reserve(xe, mem);
 	default:
 		return -EINVAL;
 	}
-	return 0;
 }
 
 static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
@@ -673,14 +702,18 @@ out:
 
 }
 
-static unsigned long xe_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
+static unsigned long xe_ttm_io_mem_pfn(struct ttm_buffer_object *ttm_bo,
 				       unsigned long page_offset)
 {
-	struct xe_device *xe = ttm_to_xe_device(bo->bdev);
-	struct xe_gt *gt = mem_type_to_gt(xe, bo->resource->mem_type);
+	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
+	struct xe_gt *gt = mem_type_to_gt(xe, ttm_bo->resource->mem_type);
 	struct xe_res_cursor cursor;
 
-	xe_res_first(bo->resource, (u64)page_offset << PAGE_SHIFT, 0, &cursor);
+	if (ttm_bo->resource->mem_type == XE_PL_STOLEN)
+		return xe_ttm_stolen_io_offset(bo, page_offset << PAGE_SHIFT) >> PAGE_SHIFT;
+
+	xe_res_first(ttm_bo->resource, (u64)page_offset << PAGE_SHIFT, 0, &cursor);
 	return (gt->mem.vram.io_start + cursor.start) >> PAGE_SHIFT;
 }
 
@@ -945,7 +978,8 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 			return bo;
 	}
 
-	if (flags & (XE_BO_CREATE_VRAM0_BIT | XE_BO_CREATE_VRAM1_BIT) &&
+	if (flags & (XE_BO_CREATE_VRAM0_BIT | XE_BO_CREATE_VRAM1_BIT |
+		     XE_BO_CREATE_STOLEN_BIT) &&
 	    !(flags & XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT) &&
 	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) {
 		size = ALIGN(size, SZ_64K);
@@ -973,9 +1007,11 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 		ctx.resv = resv;
 	}
 
-	err = __xe_bo_placement_for_flags(xe, bo, bo->flags);
-	if (WARN_ON(err))
-		return ERR_PTR(err);
+	if (!(flags & XE_BO_FIXED_PLACEMENT_BIT)) {
+		err = __xe_bo_placement_for_flags(xe, bo, bo->flags);
+		if (WARN_ON(err))
+			return ERR_PTR(err);
+	}
 
 	/* Defer populating type_sg bos */
 	placement = (type == ttm_bo_type_sg ||
@@ -993,16 +1029,73 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	return bo;
 }
 
-struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
-				  struct xe_vm *vm, size_t size,
-				  enum ttm_bo_type type, u32 flags)
+static int __xe_bo_fixed_placement(struct xe_device *xe,
+				   struct xe_bo *bo,
+				   u32 flags,
+				   u64 start, u64 end, u64 size)
 {
-	struct xe_bo *bo;
+	struct ttm_place *place = bo->placements;
+
+	if (flags & (XE_BO_CREATE_USER_BIT|XE_BO_CREATE_SYSTEM_BIT))
+		return -EINVAL;
+
+	place->flags = TTM_PL_FLAG_CONTIGUOUS;
+	place->fpfn = start >> PAGE_SHIFT;
+	place->lpfn = end >> PAGE_SHIFT;
+
+	switch (flags & (XE_BO_CREATE_STOLEN_BIT |
+		XE_BO_CREATE_VRAM0_BIT |XE_BO_CREATE_VRAM1_BIT)) {
+	case XE_BO_CREATE_VRAM0_BIT:
+		place->mem_type = XE_PL_VRAM0;
+		break;
+	case XE_BO_CREATE_VRAM1_BIT:
+		place->mem_type = XE_PL_VRAM1;
+		break;
+	case XE_BO_CREATE_STOLEN_BIT:
+		place->mem_type = XE_PL_STOLEN;
+		break;
+
+	default:
+		/* 0 or multiple of the above set */
+		return -EINVAL;
+	}
+
+	bo->placement = (struct ttm_placement) {
+		.num_placement = 1,
+		.placement = place,
+		.num_busy_placement = 1,
+		.busy_placement = place,
+	};
+
+	return 0;
+}
+
+struct xe_bo *
+xe_bo_create_locked_range(struct xe_device *xe,
+			  struct xe_gt *gt, struct xe_vm *vm,
+			  size_t size, u64 start, u64 end,
+			  enum ttm_bo_type type, u32 flags)
+{
+	struct xe_bo *bo = NULL;
 	int err;
 
 	if (vm)
 		xe_vm_assert_held(vm);
-	bo = __xe_bo_create_locked(xe, NULL, gt, vm ? &vm->resv : NULL, size,
+
+	if (start || end != ~0ULL) {
+		bo = xe_bo_alloc();
+		if (IS_ERR(bo))
+			return bo;
+
+		flags |= XE_BO_FIXED_PLACEMENT_BIT;
+		err = __xe_bo_fixed_placement(xe, bo, flags, start, end, size);
+		if (err) {
+			xe_bo_free(bo);
+			return ERR_PTR(err);
+		}
+	}
+
+	bo = __xe_bo_create_locked(xe, bo, gt, vm ? &vm->resv : NULL, size,
 				   type, flags);
 	if (IS_ERR(bo))
 		return bo;
@@ -1011,7 +1104,10 @@ struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
 		xe_vm_get(vm);
 	bo->vm = vm;
 
-	if (flags & XE_BO_CREATE_GGTT_BIT) {
+	if (bo->flags & XE_BO_CREATE_GGTT_BIT) {
+		if (!gt && flags & XE_BO_CREATE_STOLEN_BIT)
+			gt = xe_device_get_gt(xe, 0);
+
 		XE_BUG_ON(!gt);
 
 		err = xe_ggtt_insert_bo(gt->mem.ggtt, bo);
@@ -1027,6 +1123,13 @@ err_unlock_put_bo:
 	return ERR_PTR(err);
 }
 
+struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
+				  struct xe_vm *vm, size_t size,
+				  enum ttm_bo_type type, u32 flags)
+{
+	return xe_bo_create_locked_range(xe, gt, vm, size, 0, ~0ULL, type, flags);
+}
+
 struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
 			   struct xe_vm *vm, size_t size,
 			   enum ttm_bo_type type, u32 flags)
@@ -1039,13 +1142,21 @@ struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
 	return bo;
 }
 
-struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_gt *gt,
-				   struct xe_vm *vm, size_t size,
-				   enum ttm_bo_type type, u32 flags)
+struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_gt *gt,
+				      struct xe_vm *vm,
+				      size_t size, u64 offset,
+				      enum ttm_bo_type type, u32 flags)
 {
-	struct xe_bo *bo = xe_bo_create_locked(xe, gt, vm, size, type, flags);
+	struct xe_bo *bo;
 	int err;
+	u64 start = offset == ~0ull ? 0 : offset;
+	u64 end = offset == ~0ull ? offset : start + size;
 
+	if (flags & XE_BO_CREATE_STOLEN_BIT &&
+	    xe_ttm_stolen_inaccessible(xe))
+		flags |= XE_BO_CREATE_GGTT_BIT;
+
+	bo = xe_bo_create_locked_range(xe, gt, vm, size, start, end, type, flags);
 	if (IS_ERR(bo))
 		return bo;
 
@@ -1067,6 +1178,13 @@ err_put:
 	xe_bo_unlock_vm_held(bo);
 	xe_bo_put(bo);
 	return ERR_PTR(err);
+}
+
+struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_gt *gt,
+				   struct xe_vm *vm, size_t size,
+				   enum ttm_bo_type type, u32 flags)
+{
+	return xe_bo_create_pin_map_at(xe, gt, vm, size, ~0ull, type, flags);
 }
 
 struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
@@ -1092,6 +1210,9 @@ static uint64_t vram_region_io_offset(struct xe_bo *bo)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_gt *gt = mem_type_to_gt(xe, bo->ttm.resource->mem_type);
+
+	if (bo->ttm.resource->mem_type == XE_PL_STOLEN)
+		return xe_ttm_stolen_gpu_offset(xe);
 
 	return gt->mem.vram.io_start - xe->mem.vram.io_start;
 }
@@ -1174,7 +1295,7 @@ int xe_bo_pin(struct xe_bo *bo)
 		bool lmem;
 
 		XE_BUG_ON(!(place->flags & TTM_PL_FLAG_CONTIGUOUS));
-		XE_BUG_ON(!mem_type_is_vram(place->mem_type));
+		XE_BUG_ON(!mem_type_is_vram(place->mem_type) && place->mem_type != XE_PL_STOLEN);
 
 		place->fpfn = (xe_bo_addr(bo, 0, PAGE_SIZE, &lmem) -
 			       vram_region_io_offset(bo)) >> PAGE_SHIFT;
@@ -1305,7 +1426,7 @@ dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
 
 	*is_lmem = xe_bo_is_vram(bo);
 
-	if (!*is_lmem) {
+	if (!*is_lmem && !xe_bo_is_stolen(bo)) {
 		XE_BUG_ON(!bo->ttm.ttm);
 
 		xe_res_first_sg(xe_bo_get_sg(bo), page << PAGE_SHIFT,

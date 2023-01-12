@@ -27,6 +27,8 @@ struct xe_ttm_vram_mgr {
 	u64 default_page_size;
 	/** @lock: protects allocations of VRAM */
 	struct mutex lock;
+
+	u32 mem_type;
 };
 
 /**

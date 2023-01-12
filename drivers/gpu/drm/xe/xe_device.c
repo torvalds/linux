@@ -25,6 +25,7 @@
 #include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_query.h"
+#include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
 #include "xe_vm_madvise.h"
 #include "xe_wait_user_fence.h"
@@ -255,6 +256,9 @@ int xe_device_probe(struct xe_device *xe)
 		if (err)
 			goto err_irq_shutdown;
 	}
+
+	/* Allocate and map stolen after potential VRAM resize */
+	xe_ttm_stolen_mgr_init(xe);
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_init(gt);

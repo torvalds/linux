@@ -12,6 +12,7 @@
 #include "xe_pt_walk.h"
 #include "xe_vm.h"
 #include "xe_res_cursor.h"
+#include "xe_ttm_stolen_mgr.h"
 
 struct xe_pt_dir {
 	struct xe_pt pt;
@@ -756,12 +757,14 @@ xe_pt_stage_bind(struct xe_gt *gt, struct xe_vma *vma,
 		else
 			xe_walk.cache = XE_CACHE_WB;
 	}
+	if (xe_bo_is_stolen(bo))
+		xe_walk.dma_offset = xe_ttm_stolen_gpu_offset(xe_bo_device(bo));
 
 	xe_bo_assert_held(bo);
 	if (xe_vma_is_userptr(vma))
 		xe_res_first_sg(vma->userptr.sg, 0, vma->end - vma->start + 1,
 				&curs);
-	else if (xe_bo_is_vram(bo))
+	else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
 		xe_res_first(bo->ttm.resource, vma->bo_offset,
 			     vma->end - vma->start + 1, &curs);
 	else

@@ -15,25 +15,14 @@
 #include "xe_res_cursor.h"
 #include "xe_ttm_vram_mgr.h"
 
-static inline struct xe_ttm_vram_mgr *
-to_vram_mgr(struct ttm_resource_manager *man)
-{
-	return container_of(man, struct xe_ttm_vram_mgr, manager);
-}
-
-static inline struct xe_gt *
-mgr_to_gt(struct xe_ttm_vram_mgr *mgr)
-{
-	return mgr->gt;
-}
-
 static inline struct drm_buddy_block *
 xe_ttm_vram_mgr_first_block(struct list_head *list)
 {
 	return list_first_entry_or_null(list, struct drm_buddy_block, link);
 }
 
-static inline bool xe_is_vram_mgr_blocks_contiguous(struct list_head *head)
+static inline bool xe_is_vram_mgr_blocks_contiguous(struct drm_buddy *mm,
+						    struct list_head *head)
 {
 	struct drm_buddy_block *block;
 	u64 start, size;
@@ -43,12 +32,12 @@ static inline bool xe_is_vram_mgr_blocks_contiguous(struct list_head *head)
 		return false;
 
 	while (head != block->link.next) {
-		start = xe_ttm_vram_mgr_block_start(block);
-		size = xe_ttm_vram_mgr_block_size(block);
+		start = drm_buddy_block_offset(block);
+		size = drm_buddy_block_size(mm, block);
 
 		block = list_entry(block->link.next, struct drm_buddy_block,
 				   link);
-		if (start + size != xe_ttm_vram_mgr_block_start(block))
+		if (start + size != drm_buddy_block_offset(block))
 			return false;
 	}
 
@@ -61,7 +50,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 			       struct ttm_resource **res)
 {
 	u64 max_bytes, cur_size, min_block_size;
-	struct xe_ttm_vram_mgr *mgr = to_vram_mgr(man);
+	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
 	struct xe_ttm_vram_mgr_resource *vres;
 	u64 size, remaining_size, lpfn, fpfn;
 	struct drm_buddy *mm = &mgr->mm;
@@ -70,12 +59,12 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 	int r;
 
 	lpfn = (u64)place->lpfn << PAGE_SHIFT;
-	if (!lpfn)
+	if (!lpfn || lpfn > man->size)
 		lpfn = man->size;
 
 	fpfn = (u64)place->fpfn << PAGE_SHIFT;
 
-	max_bytes = mgr->gt->mem.vram.size;
+	max_bytes = mgr->manager.size;
 	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		pages_per_block = ~0ul;
 	} else {
@@ -183,7 +172,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 			 * Compute the original_size value by subtracting the
 			 * last block size with (aligned size - original size)
 			 */
-			original_size = xe_ttm_vram_mgr_block_size(block) -
+			original_size = drm_buddy_block_size(mm, block) -
 				(size - cur_size);
 		}
 
@@ -201,8 +190,8 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 	list_for_each_entry(block, &vres->blocks, link) {
 		unsigned long start;
 
-		start = xe_ttm_vram_mgr_block_start(block) +
-			xe_ttm_vram_mgr_block_size(block);
+		start = drm_buddy_block_offset(block) +
+			drm_buddy_block_size(mm, block);
 		start >>= PAGE_SHIFT;
 
 		if (start > PFN_UP(vres->base.size))
@@ -212,7 +201,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 		vres->base.start = max(vres->base.start, start);
 	}
 
-	if (xe_is_vram_mgr_blocks_contiguous(&vres->blocks))
+	if (xe_is_vram_mgr_blocks_contiguous(mm, &vres->blocks))
 		vres->base.placement |= TTM_PL_FLAG_CONTIGUOUS;
 
 	*res = &vres->base;
@@ -233,7 +222,7 @@ static void xe_ttm_vram_mgr_del(struct ttm_resource_manager *man,
 {
 	struct xe_ttm_vram_mgr_resource *vres =
 		to_xe_ttm_vram_mgr_resource(res);
-	struct xe_ttm_vram_mgr *mgr = to_vram_mgr(man);
+	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
 	struct drm_buddy *mm = &mgr->mm;
 
 	mutex_lock(&mgr->lock);
@@ -248,7 +237,7 @@ static void xe_ttm_vram_mgr_del(struct ttm_resource_manager *man,
 static void xe_ttm_vram_mgr_debug(struct ttm_resource_manager *man,
 				  struct drm_printer *printer)
 {
-	struct xe_ttm_vram_mgr *mgr = to_vram_mgr(man);
+	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
 	struct drm_buddy *mm = &mgr->mm;
 
 	mutex_lock(&mgr->lock);
@@ -263,54 +252,54 @@ static const struct ttm_resource_manager_func xe_ttm_vram_mgr_func = {
 	.debug	= xe_ttm_vram_mgr_debug
 };
 
-static void ttm_vram_mgr_fini(struct drm_device *drm, void *arg)
+static void ttm_vram_mgr_fini(struct drm_device *dev, void *arg)
 {
+	struct xe_device *xe = to_xe_device(dev);
 	struct xe_ttm_vram_mgr *mgr = arg;
-	struct xe_device *xe = gt_to_xe(mgr->gt);
 	struct ttm_resource_manager *man = &mgr->manager;
-	int err;
 
 	ttm_resource_manager_set_used(man, false);
 
-	err = ttm_resource_manager_evict_all(&xe->ttm, man);
-	if (err)
+	if (ttm_resource_manager_evict_all(&xe->ttm, man))
 		return;
 
 	drm_buddy_fini(&mgr->mm);
 
-	ttm_resource_manager_cleanup(man);
-	ttm_set_driver_manager(&xe->ttm, XE_PL_VRAM0 + mgr->gt->info.vram_id,
-			       NULL);
+	ttm_resource_manager_cleanup(&mgr->manager);
+
+	ttm_set_driver_manager(&xe->ttm, mgr->mem_type, NULL);
+}
+
+int __xe_ttm_vram_mgr_init(struct xe_device *xe, struct xe_ttm_vram_mgr *mgr,
+			   u32 mem_type, u64 size, u64 default_page_size)
+{
+	struct ttm_resource_manager *man = &mgr->manager;
+	int err;
+
+	man->func = &xe_ttm_vram_mgr_func;
+	mgr->mem_type = mem_type;
+	mutex_init(&mgr->lock);
+	mgr->default_page_size = default_page_size;
+
+	ttm_resource_manager_init(man, &xe->ttm, size);
+	err = drm_buddy_init(&mgr->mm, man->size, default_page_size);
+
+	ttm_set_driver_manager(&xe->ttm, mem_type, &mgr->manager);
+	ttm_resource_manager_set_used(&mgr->manager, true);
+
+	return drmm_add_action_or_reset(&xe->drm, ttm_vram_mgr_fini, mgr);
 }
 
 int xe_ttm_vram_mgr_init(struct xe_gt *gt, struct xe_ttm_vram_mgr *mgr)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	struct ttm_resource_manager *man = &mgr->manager;
-	int err;
 
 	XE_BUG_ON(xe_gt_is_media_type(gt));
 
 	mgr->gt = gt;
-	man->func = &xe_ttm_vram_mgr_func;
 
-	ttm_resource_manager_init(man, &xe->ttm, gt->mem.vram.size);
-	err = drm_buddy_init(&mgr->mm, man->size, PAGE_SIZE);
-	if (err)
-		return err;
-
-	mutex_init(&mgr->lock);
-	mgr->default_page_size = PAGE_SIZE;
-
-	ttm_set_driver_manager(&xe->ttm, XE_PL_VRAM0 + gt->info.vram_id,
-			       &mgr->manager);
-	ttm_resource_manager_set_used(man, true);
-
-	err = drmm_add_action_or_reset(&xe->drm, ttm_vram_mgr_fini, mgr);
-	if (err)
-		return err;
-
-	return 0;
+	return __xe_ttm_vram_mgr_init(xe, mgr, XE_PL_VRAM0 + gt->info.vram_id,
+				      gt->mem.vram.size, PAGE_SIZE);
 }
 
 int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,

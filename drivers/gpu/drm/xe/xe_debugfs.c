@@ -124,6 +124,10 @@ void xe_debugfs_register(struct xe_device *xe)
 	man = ttm_manager_type(bdev, XE_PL_TT);
 	ttm_resource_manager_create_debugfs(man, root, "gtt_mm");
 
+	man = ttm_manager_type(bdev, XE_PL_STOLEN);
+	if (man)
+		ttm_resource_manager_create_debugfs(man, root, "stolen_mm");
+
 	for_each_gt(gt, xe, id)
 		xe_gt_debugfs_register(gt);
 }

@@ -33,10 +33,11 @@
 #include <drm/ttm/ttm_tt.h>
 
 #include "xe_bo.h"
+#include "xe_device.h"
 #include "xe_macros.h"
 #include "xe_ttm_vram_mgr.h"
 
-/* state back for walking over vram_mgr and gtt_mgr allocations */
+/* state back for walking over vram_mgr, stolen_mgr, and gtt_mgr allocations */
 struct xe_res_cursor {
 	u64 start;
 	u64 size;
@@ -44,7 +45,22 @@ struct xe_res_cursor {
 	void *node;
 	u32 mem_type;
 	struct scatterlist *sgl;
+	struct drm_buddy *mm;
 };
+
+static struct drm_buddy *xe_res_get_buddy(struct ttm_resource *res)
+{
+	struct xe_device *xe = ttm_to_xe_device(res->bo->bdev);
+
+	if (res->mem_type != XE_PL_STOLEN) {
+		return &xe_device_get_gt(xe, res->mem_type - XE_PL_VRAM0)->mem.vram_mgr->mm;
+	} else {
+		struct ttm_resource_manager *mgr =
+			ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
+
+		return &to_xe_ttm_vram_mgr(mgr)->mm;
+	}
+}
 
 /**
  * xe_res_first - initialize a xe_res_cursor
@@ -60,9 +76,6 @@ static inline void xe_res_first(struct ttm_resource *res,
 				u64 start, u64 size,
 				struct xe_res_cursor *cur)
 {
-	struct drm_buddy_block *block;
-	struct list_head *head, *next;
-
 	cur->sgl = NULL;
 	if (!res)
 		goto fallback;
@@ -72,8 +85,13 @@ static inline void xe_res_first(struct ttm_resource *res,
 	cur->mem_type = res->mem_type;
 
 	switch (cur->mem_type) {
+	case XE_PL_STOLEN:
 	case XE_PL_VRAM0:
-	case XE_PL_VRAM1:
+	case XE_PL_VRAM1: {
+		struct drm_buddy_block *block;
+		struct list_head *head, *next;
+		struct drm_buddy *mm = xe_res_get_buddy(res);
+
 		head = &to_xe_ttm_vram_mgr_resource(res)->blocks;
 
 		block = list_first_entry_or_null(head,
@@ -82,8 +100,8 @@ static inline void xe_res_first(struct ttm_resource *res,
 		if (!block)
 			goto fallback;
 
-		while (start >= xe_ttm_vram_mgr_block_size(block)) {
-			start -= xe_ttm_vram_mgr_block_size(block);
+		while (start >= drm_buddy_block_size(mm, block)) {
+			start -= drm_buddy_block_size(mm, block);
 
 			next = block->link.next;
 			if (next != head)
@@ -91,12 +109,14 @@ static inline void xe_res_first(struct ttm_resource *res,
 						   link);
 		}
 
-		cur->start = xe_ttm_vram_mgr_block_start(block) + start;
-		cur->size = min(xe_ttm_vram_mgr_block_size(block) - start,
+		cur->mm = mm;
+		cur->start = drm_buddy_block_offset(block) + start;
+		cur->size = min(drm_buddy_block_size(mm, block) - start,
 				size);
 		cur->remaining = size;
 		cur->node = block;
 		break;
+	}
 	default:
 		goto fallback;
 	}
@@ -188,6 +208,7 @@ static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 	}
 
 	switch (cur->mem_type) {
+	case XE_PL_STOLEN:
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1:
 		start = size - cur->size;
@@ -197,15 +218,15 @@ static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 		block = list_entry(next, struct drm_buddy_block, link);
 
 
-		while (start >= xe_ttm_vram_mgr_block_size(block)) {
-			start -= xe_ttm_vram_mgr_block_size(block);
+		while (start >= drm_buddy_block_size(cur->mm, block)) {
+			start -= drm_buddy_block_size(cur->mm, block);
 
 			next = block->link.next;
 			block = list_entry(next, struct drm_buddy_block, link);
 		}
 
-		cur->start = xe_ttm_vram_mgr_block_start(block) + start;
-		cur->size = min(xe_ttm_vram_mgr_block_size(block) - start,
+		cur->start = drm_buddy_block_offset(block) + start;
+		cur->size = min(drm_buddy_block_size(cur->mm, block) - start,
 				cur->remaining);
 		cur->node = block;
 		break;

@@ -12,8 +12,9 @@
 
 #define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
 
-#define XE_BO_CREATE_USER_BIT		BIT(1)
-#define XE_BO_CREATE_SYSTEM_BIT		BIT(2)
+#define XE_BO_CREATE_USER_BIT		BIT(0)
+#define XE_BO_CREATE_SYSTEM_BIT		BIT(1)
+#define XE_BO_CREATE_STOLEN_BIT		BIT(2)
 #define XE_BO_CREATE_VRAM0_BIT		BIT(3)
 #define XE_BO_CREATE_VRAM1_BIT		BIT(4)
 #define XE_BO_CREATE_VRAM_IF_DGFX(gt) \
@@ -24,6 +25,7 @@
 #define XE_BO_CREATE_PINNED_BIT		BIT(7)
 #define XE_BO_DEFER_BACKING		BIT(8)
 #define XE_BO_SCANOUT_BIT		BIT(9)
+#define XE_BO_FIXED_PLACEMENT_BIT	BIT(10)
 /* this one is trigger internally only */
 #define XE_BO_INTERNAL_TEST		BIT(30)
 #define XE_BO_INTERNAL_64K		BIT(31)
@@ -64,6 +66,7 @@
 #define XE_PL_TT		TTM_PL_TT
 #define XE_PL_VRAM0		TTM_PL_VRAM
 #define XE_PL_VRAM1		(XE_PL_VRAM0 + 1)
+#define XE_PL_STOLEN		(TTM_NUM_MEM_TYPES - 1)
 
 #define XE_BO_PROPS_INVALID	(-1)
 
@@ -76,6 +79,11 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 				    struct xe_gt *gt, struct dma_resv *resv,
 				    size_t size, enum ttm_bo_type type,
 				    u32 flags);
+struct xe_bo *
+xe_bo_create_locked_range(struct xe_device *xe,
+			  struct xe_gt *gt, struct xe_vm *vm,
+			  size_t size, u64 start, u64 end,
+			  enum ttm_bo_type type, u32 flags);
 struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_gt *gt,
 				  struct xe_vm *vm, size_t size,
 				  enum ttm_bo_type type, u32 flags);
@@ -85,6 +93,9 @@ struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_gt *gt,
 struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_gt *gt,
 				   struct xe_vm *vm, size_t size,
 				   enum ttm_bo_type type, u32 flags);
+struct xe_bo *xe_bo_create_pin_map_at(struct xe_device *xe, struct xe_gt *gt,
+				      struct xe_vm *vm, size_t size, u64 offset,
+				      enum ttm_bo_type type, u32 flags);
 struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_gt *gt,
 				     const void *data, size_t size,
 				     enum ttm_bo_type type, u32 flags);
@@ -206,6 +217,7 @@ void xe_bo_vunmap(struct xe_bo *bo);
 
 bool mem_type_is_vram(u32 mem_type);
 bool xe_bo_is_vram(struct xe_bo *bo);
+bool xe_bo_is_stolen(struct xe_bo *bo);
 
 bool xe_bo_can_migrate(struct xe_bo *bo, u32 mem_type);
 

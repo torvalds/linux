@@ -150,6 +150,38 @@ static bool xe_pci_resource_valid(struct pci_dev *pdev, int bar)
 	return true;
 }
 
+int xe_mmio_total_vram_size(struct xe_device *xe, u64 *vram_size, u64 *flat_ccs_base)
+{
+	struct xe_gt *gt = xe_device_get_gt(xe, 0);
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	int err;
+	u32 reg;
+
+	if (!xe->info.has_flat_ccs)  {
+		*vram_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
+		if (flat_ccs_base)
+			*flat_ccs_base = *vram_size;
+		return 0;
+	}
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (err)
+		return err;
+
+	reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE0_ADDR_RANGE);
+	*vram_size = (u64)REG_FIELD_GET(GENMASK(14, 8), reg) * SZ_1G;
+	if (flat_ccs_base) {
+		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
+		*flat_ccs_base = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
+	}
+
+	if (flat_ccs_base)
+		drm_info(&xe->drm, "lmem_size: 0x%llx flat_ccs_base: 0x%llx\n",
+			 *vram_size, *flat_ccs_base);
+
+	return xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+}
+
 int xe_mmio_probe_vram(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -159,7 +191,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	u64 original_size;
 	u64 current_size;
 	u64 flat_ccs_base;
-	int resize_result;
+	int resize_result, err;
 
 	if (!IS_DGFX(xe)) {
 		xe->mem.vram.mapping = 0;
@@ -184,27 +216,9 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 	original_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 
-	if (xe->info.has_flat_ccs)  {
-		int err;
-		u32 reg;
-
-		err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-		if (err)
-			return err;
-		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE0_ADDR_RANGE);
-		lmem_size = (u64)REG_FIELD_GET(GENMASK(14, 8), reg) * SZ_1G;
-		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
-		flat_ccs_base = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
-
-		drm_info(&xe->drm, "lmem_size: 0x%llx flat_ccs_base: 0x%llx\n",
-			 lmem_size, flat_ccs_base);
-
-		err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
-		if (err)
-			return err;
-	} else {
-		flat_ccs_base = lmem_size;
-	}
+	err = xe_mmio_total_vram_size(xe, &lmem_size, &flat_ccs_base);
+	if (err)
+		return err;
 
 	resize_result = xe_resize_lmem_bar(xe, lmem_size);
 	current_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
