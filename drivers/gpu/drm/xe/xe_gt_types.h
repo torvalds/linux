@@ -93,6 +93,12 @@ struct xe_gt {
 		u32 clock_freq;
 		/** @engine_mask: mask of engines present on GT */
 		u64 engine_mask;
+		/**
+		 * @__engine_mask: mask of engines present on GT read from
+		 * xe_pci.c, used to fake reading the engine_mask from the
+		 * hwconfig blob.
+		 */
+		u64 __engine_mask;
 	} info;
 
 	/**

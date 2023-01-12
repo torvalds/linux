@@ -420,13 +420,13 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (id == 0) {
 			gt->info.type = XE_GT_TYPE_MAIN;
 			gt->info.vram_id = id;
-			gt->info.engine_mask = desc->platform_engine_mask;
+			gt->info.__engine_mask = desc->platform_engine_mask;
 			gt->mmio.adj_limit = 0;
 			gt->mmio.adj_offset = 0;
 		} else {
 			gt->info.type = desc->extra_gts[id - 1].type;
 			gt->info.vram_id = desc->extra_gts[id - 1].vram_id;
-			gt->info.engine_mask =
+			gt->info.__engine_mask =
 				desc->extra_gts[id - 1].engine_mask;
 			gt->mmio.adj_limit =
 				desc->extra_gts[id - 1].mmio_adj_limit;
