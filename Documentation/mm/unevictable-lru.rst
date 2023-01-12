@@ -308,22 +308,22 @@ do end up getting faulted into this VM_LOCKED VMA, they will be handled in the
 fault path - which is also how mlock2()'s MLOCK_ONFAULT areas are handled.
 
 For each PTE (or PMD) being faulted into a VMA, the page add rmap function
-calls mlock_vma_page(), which calls mlock_page() when the VMA is VM_LOCKED
+calls mlock_vma_page(), which calls mlock_folio() when the VMA is VM_LOCKED
 (unless it is a PTE mapping of a part of a transparent huge page).  Or when
-it is a newly allocated anonymous page, lru_cache_add_inactive_or_unevictable()
-calls mlock_new_page() instead: similar to mlock_page(), but can make better
+it is a newly allocated anonymous page, folio_add_lru_vma() calls
+mlock_new_folio() instead: similar to mlock_folio(), but can make better
 judgments, since this page is held exclusively and known not to be on LRU yet.
 
-mlock_page() sets PageMlocked immediately, then places the page on the CPU's
-mlock pagevec, to batch up the rest of the work to be done under lru_lock by
-__mlock_page().  __mlock_page() sets PageUnevictable, initializes mlock_count
+mlock_folio() sets PG_mlocked immediately, then places the page on the CPU's
+mlock folio batch, to batch up the rest of the work to be done under lru_lock by
+__mlock_folio().  __mlock_folio() sets PG_unevictable, initializes mlock_count
 and moves the page to unevictable state ("the unevictable LRU", but with
-mlock_count in place of LRU threading).  Or if the page was already PageLRU
-and PageUnevictable and PageMlocked, it simply increments the mlock_count.
+mlock_count in place of LRU threading).  Or if the page was already PG_lru
+and PG_unevictable and PG_mlocked, it simply increments the mlock_count.
 
 But in practice that may not work ideally: the page may not yet be on an LRU, or
 it may have been temporarily isolated from LRU.  In such cases the mlock_count
-field cannot be touched, but will be set to 0 later when __pagevec_lru_add_fn()
+field cannot be touched, but will be set to 0 later when __munlock_folio()
 returns the page to "LRU".  Races prohibit mlock_count from being set to 1 then:
 rather than risk stranding a page indefinitely as unevictable, always err with
 mlock_count on the low side, so that when munlocked the page will be rescued to
@@ -377,8 +377,8 @@ that it is munlock() being performed.
 
 munlock_page() uses the mlock pagevec to batch up work to be done under
 lru_lock by  __munlock_page().  __munlock_page() decrements the page's
-mlock_count, and when that reaches 0 it clears PageMlocked and clears
-PageUnevictable, moving the page from unevictable state to inactive LRU.
+mlock_count, and when that reaches 0 it clears PG_mlocked and clears
+PG_unevictable, moving the page from unevictable state to inactive LRU.
 
 But in practice that may not work ideally: the page may not yet have reached
 "the unevictable LRU", or it may have been temporarily isolated from it.  In
@@ -488,8 +488,8 @@ munlock_vma_page(), which calls munlock_page() when the VMA is VM_LOCKED
 
 munlock_page() uses the mlock pagevec to batch up work to be done under
 lru_lock by  __munlock_page().  __munlock_page() decrements the page's
-mlock_count, and when that reaches 0 it clears PageMlocked and clears
-PageUnevictable, moving the page from unevictable state to inactive LRU.
+mlock_count, and when that reaches 0 it clears PG_mlocked and clears
+PG_unevictable, moving the page from unevictable state to inactive LRU.
 
 But in practice that may not work ideally: the page may not yet have reached
 "the unevictable LRU", or it may have been temporarily isolated from it.  In
@@ -515,7 +515,7 @@ munlocking by clearing VM_LOCKED from a VMA, before munlocking all the pages
 present, if one of those pages were unmapped by truncation or hole punch before
 mlock_pte_range() reached it, it would not be recognized as mlocked by this VMA,
 and would not be counted out of mlock_count.  In this rare case, a page may
-still appear as PageMlocked after it has been fully unmapped: and it is left to
+still appear as PG_mlocked after it has been fully unmapped: and it is left to
 release_pages() (or __page_cache_release()) to clear it and update statistics
 before freeing (this event is counted in /proc/vmstat unevictable_pgs_cleared,
 which is usually 0).
@@ -527,7 +527,7 @@ Page Reclaim in shrink_*_list()
 vmscan's shrink_active_list() culls any obviously unevictable pages -
 i.e. !page_evictable(page) pages - diverting those to the unevictable list.
 However, shrink_active_list() only sees unevictable pages that made it onto the
-active/inactive LRU lists.  Note that these pages do not have PageUnevictable
+active/inactive LRU lists.  Note that these pages do not have PG_unevictable
 set - otherwise they would be on the unevictable list and shrink_active_list()
 would never see them.
 
