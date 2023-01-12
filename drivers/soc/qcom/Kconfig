@@ -860,6 +860,15 @@ config QCOM_ADSP_SLEEPMON
 	   detects and logs sleep violations from ADSP subsystem. The driver
 	   uses master stats from ADSP subsystem stored in SMEM.
 
+config GH_CPUSYS_VM_MEM_ACCESS
+        tristate "Qualcomm Technologies, Inc. CPUSYS VM shared mem access driver"
+        depends on GH_RM_DRV
+        help
+         Qualcomm Technologies, Inc. CPUSYS shared  mem access driver for MSM devices.
+         The drivers provides shared memory access to CPUSYS VM.
+         Say Y here to compile the driver as a part of kernel or M to compile
+         as a module.
+
 config GH_TLMM_VM_MEM_ACCESS
 	tristate "Qualcomm Technologies, Inc. TLMM VM mem access driver"
 	depends on GH_RM_DRV
