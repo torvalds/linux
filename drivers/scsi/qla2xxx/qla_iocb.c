@@ -623,7 +623,7 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	}
 
 	cur_seg = scsi_sglist(cmd);
-	ctx = sp->u.scmd.ct6_ctx;
+	ctx = &sp->u.scmd.ct6_ctx;
 
 	while (tot_dsds) {
 		avail_dsds = (tot_dsds > QLA_DSDS_PER_IOCB) ?
@@ -2920,7 +2920,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 					conflict_fcport->conflict = fcport;
 					fcport->login_pause = 1;
 					ql_dbg(ql_dbg_disc, vha, 0x20ed,
-					    "%s %d %8phC pid %06x inuse with lid %#x post gidpn\n",
+					    "%s %d %8phC pid %06x inuse with lid %#x.\n",
 					    __func__, __LINE__,
 					    fcport->port_name,
 					    fcport->d_id.b24, lid);
@@ -3459,13 +3459,7 @@ sufficient_dsds:
 				goto queuing_error;
 		}
 
-		ctx = sp->u.scmd.ct6_ctx =
-		    mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
-		if (!ctx) {
-			ql_log(ql_log_fatal, vha, 0x3010,
-			    "Failed to allocate ctx for cmd=%p.\n", cmd);
-			goto queuing_error;
-		}
+		ctx = &sp->u.scmd.ct6_ctx;
 
 		memset(ctx, 0, sizeof(struct ct6_dsd));
 		ctx->fcp_cmnd = dma_pool_zalloc(ha->fcp_cmnd_dma_pool,
