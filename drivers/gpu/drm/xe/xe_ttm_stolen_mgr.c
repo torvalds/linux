@@ -184,7 +184,6 @@ static int __xe_ttm_stolen_io_mem_reserve_bar2(struct xe_device *xe,
 	mem->bus.offset = cur.start;
 
 	drm_WARN_ON(&xe->drm, !(mem->placement & TTM_PL_FLAG_CONTIGUOUS));
-	WARN_ON_ONCE(1);
 
 	if (mem->placement & TTM_PL_FLAG_CONTIGUOUS && mgr->mapping)
 		mem->bus.addr = (u8 *)mgr->mapping + mem->bus.offset;

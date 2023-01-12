@@ -13,10 +13,12 @@
 #define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
 
 #define XE_BO_CREATE_USER_BIT		BIT(0)
+/* The bits below need to be contiguous, or things break */
 #define XE_BO_CREATE_SYSTEM_BIT		BIT(1)
-#define XE_BO_CREATE_STOLEN_BIT		BIT(2)
-#define XE_BO_CREATE_VRAM0_BIT		BIT(3)
-#define XE_BO_CREATE_VRAM1_BIT		BIT(4)
+#define XE_BO_CREATE_VRAM0_BIT		BIT(2)
+#define XE_BO_CREATE_VRAM1_BIT		BIT(3)
+/* -- */
+#define XE_BO_CREATE_STOLEN_BIT		BIT(4)
 #define XE_BO_CREATE_VRAM_IF_DGFX(gt) \
 	(IS_DGFX(gt_to_xe(gt)) ? XE_BO_CREATE_VRAM0_BIT << gt->info.vram_id : \
 	 XE_BO_CREATE_SYSTEM_BIT)
