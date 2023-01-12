@@ -757,7 +757,7 @@ xe_pt_stage_bind(struct xe_gt *gt, struct xe_vma *vma,
 		else
 			xe_walk.cache = XE_CACHE_WB;
 	}
-	if (xe_bo_is_stolen(bo))
+	if (!xe_vma_is_userptr(vma) && xe_bo_is_stolen(bo))
 		xe_walk.dma_offset = xe_ttm_stolen_gpu_offset(xe_bo_device(bo));
 
 	xe_bo_assert_held(bo);
