@@ -56,11 +56,6 @@ extern int of_get_named_gpio(const struct device_node *np,
 extern int of_mm_gpiochip_add_data(struct device_node *np,
 				   struct of_mm_gpio_chip *mm_gc,
 				   void *data);
-static inline int of_mm_gpiochip_add(struct device_node *np,
-				     struct of_mm_gpio_chip *mm_gc)
-{
-	return of_mm_gpiochip_add_data(np, mm_gc, NULL);
-}
 extern void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc);
 
 #else /* CONFIG_OF_GPIO */
