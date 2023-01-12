@@ -357,18 +357,14 @@ static void vc_uniscr_set(struct vc_data *vc, u32 **new_uni_lines)
 
 static void vc_uniscr_putc(struct vc_data *vc, u32 uc)
 {
-	u32 **uni_lines = vc->vc_uni_lines;
-
-	if (uni_lines)
-		uni_lines[vc->state.y][vc->state.x] = uc;
+	if (vc->vc_uni_lines)
+		vc->vc_uni_lines[vc->state.y][vc->state.x] = uc;
 }
 
 static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 {
-	u32 **uni_lines = vc->vc_uni_lines;
-
-	if (uni_lines) {
-		u32 *ln = uni_lines[vc->state.y];
+	if (vc->vc_uni_lines) {
+		u32 *ln = vc->vc_uni_lines[vc->state.y];
 		unsigned int x = vc->state.x, cols = vc->vc_cols;
 
 		memmove(&ln[x + nr], &ln[x], (cols - x - nr) * sizeof(*ln));
@@ -378,10 +374,8 @@ static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 
 static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 {
-	u32 **uni_lines = vc->vc_uni_lines;
-
-	if (uni_lines) {
-		u32 *ln = uni_lines[vc->state.y];
+	if (vc->vc_uni_lines) {
+		u32 *ln = vc->vc_uni_lines[vc->state.y];
 		unsigned int x = vc->state.x, cols = vc->vc_cols;
 
 		memcpy(&ln[x], &ln[x + nr], (cols - x - nr) * sizeof(*ln));
@@ -392,59 +386,52 @@ static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 static void vc_uniscr_clear_line(struct vc_data *vc, unsigned int x,
 				 unsigned int nr)
 {
-	u32 **uni_lines = vc->vc_uni_lines;
-
-	if (uni_lines) {
-		u32 *ln = uni_lines[vc->state.y];
-
-		memset32(&ln[x], ' ', nr);
-	}
+	if (vc->vc_uni_lines)
+		memset32(&vc->vc_uni_lines[vc->state.y][x], ' ', nr);
 }
 
 static void vc_uniscr_clear_lines(struct vc_data *vc, unsigned int y,
 				  unsigned int nr)
 {
-	u32 **uni_lines = vc->vc_uni_lines;
-
-	if (uni_lines) {
-		unsigned int cols = vc->vc_cols;
-
+	if (vc->vc_uni_lines)
 		while (nr--)
-			memset32(uni_lines[y++], ' ', cols);
-	}
+			memset32(vc->vc_uni_lines[y++], ' ', vc->vc_cols);
 }
 
 static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			     enum con_scroll dir, unsigned int nr)
 {
 	u32 **uni_lines = vc->vc_uni_lines;
+	unsigned int i, j, k, sz, d, clear;
 
-	if (uni_lines) {
-		unsigned int i, j, k, sz, d, clear;
+	if (!uni_lines)
+		return;
 
-		sz = b - t;
-		clear = b - nr;
-		d = nr;
-		if (dir == SM_DOWN) {
-			clear = t;
-			d = sz - nr;
-		}
-		for (i = 0; i < gcd(d, sz); i++) {
-			u32 *tmp = uni_lines[t + i];
-			j = i;
-			while (1) {
-				k = j + d;
-				if (k >= sz)
-					k -= sz;
-				if (k == i)
-					break;
-				uni_lines[t + j] = uni_lines[t + k];
-				j = k;
-			}
-			uni_lines[t + j] = tmp;
-		}
-		vc_uniscr_clear_lines(vc, clear, nr);
+	sz = b - t;
+	clear = b - nr;
+	d = nr;
+
+	if (dir == SM_DOWN) {
+		clear = t;
+		d = sz - nr;
 	}
+
+	for (i = 0; i < gcd(d, sz); i++) {
+		u32 *tmp = uni_lines[t + i];
+		j = i;
+		while (1) {
+			k = j + d;
+			if (k >= sz)
+				k -= sz;
+			if (k == i)
+				break;
+			uni_lines[t + j] = uni_lines[t + k];
+			j = k;
+		}
+		uni_lines[t + j] = tmp;
+	}
+
+	vc_uniscr_clear_lines(vc, clear, nr);
 }
 
 static void vc_uniscr_copy_area(u32 **dst_lines,
