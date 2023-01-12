@@ -31,6 +31,7 @@
 #include <asm/sigframe.h>
 #include <asm/sighandling.h>
 #include <asm/smap.h>
+#include <asm/gsseg.h>
 
 #ifdef CONFIG_IA32_EMULATION
 #include <asm/ia32_unistd.h>
