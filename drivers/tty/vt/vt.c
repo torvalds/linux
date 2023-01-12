@@ -320,58 +320,55 @@ void schedule_console_callback(void)
  * Our screen buffer is preceded by an array of line pointers so that
  * scrolling only implies some pointer shuffling.
  */
-struct uni_screen {
-	u32 *lines[0];
-};
 
-static struct uni_screen *vc_uniscr_alloc(unsigned int cols, unsigned int rows)
+static u32 **vc_uniscr_alloc(unsigned int cols, unsigned int rows)
 {
-	struct uni_screen *uniscr;
+	u32 **uni_lines;
 	void *p;
-	unsigned int memsize, i, col_size = cols * sizeof(**uniscr->lines);
+	unsigned int memsize, i, col_size = cols * sizeof(**uni_lines);
 
 	/* allocate everything in one go */
 	memsize = col_size * rows;
-	memsize += rows * sizeof(*uniscr->lines);
-	p = vzalloc(memsize);
-	if (!p)
+	memsize += rows * sizeof(*uni_lines);
+	uni_lines = vzalloc(memsize);
+	if (!uni_lines)
 		return NULL;
 
 	/* initial line pointers */
-	uniscr = p;
-	p = uniscr->lines + rows;
+	p = uni_lines + rows;
 	for (i = 0; i < rows; i++) {
-		uniscr->lines[i] = p;
+		uni_lines[i] = p;
 		p += col_size;
 	}
-	return uniscr;
+
+	return uni_lines;
 }
 
-static void vc_uniscr_free(struct uni_screen *uniscr)
+static void vc_uniscr_free(u32 **uni_lines)
 {
-	vfree(uniscr);
+	vfree(uni_lines);
 }
 
-static void vc_uniscr_set(struct vc_data *vc, struct uni_screen *new_uniscr)
+static void vc_uniscr_set(struct vc_data *vc, u32 **new_uni_lines)
 {
-	vc_uniscr_free(vc->vc_uni_screen);
-	vc->vc_uni_screen = new_uniscr;
+	vc_uniscr_free(vc->vc_uni_lines);
+	vc->vc_uni_lines = new_uni_lines;
 }
 
 static void vc_uniscr_putc(struct vc_data *vc, u32 uc)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr)
-		uniscr->lines[vc->state.y][vc->state.x] = uc;
+	if (uni_lines)
+		uni_lines[vc->state.y][vc->state.x] = uc;
 }
 
 static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr) {
-		u32 *ln = uniscr->lines[vc->state.y];
+	if (uni_lines) {
+		u32 *ln = uni_lines[vc->state.y];
 		unsigned int x = vc->state.x, cols = vc->vc_cols;
 
 		memmove(&ln[x + nr], &ln[x], (cols - x - nr) * sizeof(*ln));
@@ -381,10 +378,10 @@ static void vc_uniscr_insert(struct vc_data *vc, unsigned int nr)
 
 static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr) {
-		u32 *ln = uniscr->lines[vc->state.y];
+	if (uni_lines) {
+		u32 *ln = uni_lines[vc->state.y];
 		unsigned int x = vc->state.x, cols = vc->vc_cols;
 
 		memcpy(&ln[x], &ln[x + nr], (cols - x - nr) * sizeof(*ln));
@@ -395,10 +392,10 @@ static void vc_uniscr_delete(struct vc_data *vc, unsigned int nr)
 static void vc_uniscr_clear_line(struct vc_data *vc, unsigned int x,
 				 unsigned int nr)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr) {
-		u32 *ln = uniscr->lines[vc->state.y];
+	if (uni_lines) {
+		u32 *ln = uni_lines[vc->state.y];
 
 		memset32(&ln[x], ' ', nr);
 	}
@@ -407,22 +404,22 @@ static void vc_uniscr_clear_line(struct vc_data *vc, unsigned int x,
 static void vc_uniscr_clear_lines(struct vc_data *vc, unsigned int y,
 				  unsigned int nr)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr) {
+	if (uni_lines) {
 		unsigned int cols = vc->vc_cols;
 
 		while (nr--)
-			memset32(uniscr->lines[y++], ' ', cols);
+			memset32(uni_lines[y++], ' ', cols);
 	}
 }
 
 static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			     enum con_scroll dir, unsigned int nr)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr) {
+	if (uni_lines) {
 		unsigned int i, j, k, sz, d, clear;
 
 		sz = b - t;
@@ -433,7 +430,7 @@ static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			d = sz - nr;
 		}
 		for (i = 0; i < gcd(d, sz); i++) {
-			u32 *tmp = uniscr->lines[t + i];
+			u32 *tmp = uni_lines[t + i];
 			j = i;
 			while (1) {
 				k = j + d;
@@ -441,31 +438,31 @@ static void vc_uniscr_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 					k -= sz;
 				if (k == i)
 					break;
-				uniscr->lines[t + j] = uniscr->lines[t + k];
+				uni_lines[t + j] = uni_lines[t + k];
 				j = k;
 			}
-			uniscr->lines[t + j] = tmp;
+			uni_lines[t + j] = tmp;
 		}
 		vc_uniscr_clear_lines(vc, clear, nr);
 	}
 }
 
-static void vc_uniscr_copy_area(struct uni_screen *dst,
+static void vc_uniscr_copy_area(u32 **dst_lines,
 				unsigned int dst_cols,
 				unsigned int dst_rows,
-				struct uni_screen *src,
+				u32 **src_lines,
 				unsigned int src_cols,
 				unsigned int src_top_row,
 				unsigned int src_bot_row)
 {
 	unsigned int dst_row = 0;
 
-	if (!dst)
+	if (!dst_lines)
 		return;
 
 	while (src_top_row < src_bot_row) {
-		u32 *src_line = src->lines[src_top_row];
-		u32 *dst_line = dst->lines[dst_row];
+		u32 *src_line = src_lines[src_top_row];
+		u32 *dst_line = dst_lines[dst_row];
 
 		memcpy(dst_line, src_line, src_cols * sizeof(*src_line));
 		if (dst_cols - src_cols)
@@ -474,7 +471,7 @@ static void vc_uniscr_copy_area(struct uni_screen *dst,
 		dst_row++;
 	}
 	while (dst_row < dst_rows) {
-		u32 *dst_line = dst->lines[dst_row];
+		u32 *dst_line = dst_lines[dst_row];
 
 		memset32(dst_line, ' ', dst_cols);
 		dst_row++;
@@ -489,7 +486,7 @@ static void vc_uniscr_copy_area(struct uni_screen *dst,
  */
 int vc_uniscr_check(struct vc_data *vc)
 {
-	struct uni_screen *uniscr;
+	u32 **uni_lines;
 	unsigned short *p;
 	int x, y, mask;
 
@@ -498,11 +495,11 @@ int vc_uniscr_check(struct vc_data *vc)
 	if (!vc->vc_utf)
 		return -ENODATA;
 
-	if (vc->vc_uni_screen)
+	if (vc->vc_uni_lines)
 		return 0;
 
-	uniscr = vc_uniscr_alloc(vc->vc_cols, vc->vc_rows);
-	if (!uniscr)
+	uni_lines = vc_uniscr_alloc(vc->vc_cols, vc->vc_rows);
+	if (!uni_lines)
 		return -ENOMEM;
 
 	/*
@@ -514,14 +511,15 @@ int vc_uniscr_check(struct vc_data *vc)
 	p = (unsigned short *)vc->vc_origin;
 	mask = vc->vc_hi_font_mask | 0xff;
 	for (y = 0; y < vc->vc_rows; y++) {
-		u32 *line = uniscr->lines[y];
+		u32 *line = uni_lines[y];
 		for (x = 0; x < vc->vc_cols; x++) {
 			u16 glyph = scr_readw(p++) & mask;
 			line[x] = inverse_translate(vc, glyph, true);
 		}
 	}
 
-	vc->vc_uni_screen = uniscr;
+	vc->vc_uni_lines = uni_lines;
+
 	return 0;
 }
 
@@ -533,11 +531,11 @@ int vc_uniscr_check(struct vc_data *vc)
 void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, bool viewed,
 			 unsigned int row, unsigned int col, unsigned int nr)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 	int offset = row * vc->vc_size_row + col * 2;
 	unsigned long pos;
 
-	BUG_ON(!uniscr);
+	BUG_ON(!uni_lines);
 
 	pos = (unsigned long)screenpos(vc, offset, viewed);
 	if (pos >= vc->vc_origin && pos < vc->vc_scr_end) {
@@ -548,7 +546,7 @@ void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, bool viewed,
 		 */
 		row = (pos - vc->vc_origin) / vc->vc_size_row;
 		col = ((pos - vc->vc_origin) % vc->vc_size_row) / 2;
-		memcpy(dest, &uniscr->lines[row][col], nr * sizeof(u32));
+		memcpy(dest, &uni_lines[row][col], nr * sizeof(u32));
 	} else {
 		/*
 		 * Scrollback is active. For now let's simply backtranslate
@@ -1150,7 +1148,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
 	unsigned int user;
 	unsigned short *oldscreen, *newscreen;
-	struct uni_screen *new_uniscr = NULL;
+	u32 **new_uniscr = NULL;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -1194,7 +1192,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (!newscreen)
 		return -ENOMEM;
 
-	if (vc->vc_uni_screen) {
+	if (vc->vc_uni_lines) {
 		new_uniscr = vc_uniscr_alloc(new_cols, new_rows);
 		if (!new_uniscr) {
 			kfree(newscreen);
@@ -1246,7 +1244,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	end = old_origin + old_row_size * min(old_rows, new_rows);
 
 	vc_uniscr_copy_area(new_uniscr, new_cols, new_rows,
-			    vc->vc_uni_screen, rlth/2, first_copied_row,
+			    vc->vc_uni_lines, rlth/2, first_copied_row,
 			    min(old_rows, new_rows));
 	vc_uniscr_set(vc, new_uniscr);
 
@@ -4694,10 +4692,11 @@ EXPORT_SYMBOL_GPL(screen_glyph);
 
 u32 screen_glyph_unicode(const struct vc_data *vc, int n)
 {
-	struct uni_screen *uniscr = vc->vc_uni_screen;
+	u32 **uni_lines = vc->vc_uni_lines;
 
-	if (uniscr)
-		return uniscr->lines[n / vc->vc_cols][n % vc->vc_cols];
+	if (uni_lines)
+		return uni_lines[n / vc->vc_cols][n % vc->vc_cols];
+
 	return inverse_translate(vc, screen_glyph(vc, n * 2), true);
 }
 EXPORT_SYMBOL_GPL(screen_glyph_unicode);
