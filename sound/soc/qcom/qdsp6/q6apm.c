@@ -27,6 +27,8 @@ struct apm_graph_mgmt_cmd {
 
 #define APM_GRAPH_MGMT_PSIZE(p, n) ALIGN(struct_size(p, sub_graph_id_list, n), 8)
 
+struct q6apm *g_apm;
+
 int q6apm_send_cmd_sync(struct q6apm *apm, struct gpr_pkt *pkt, uint32_t rsp_opcode)
 {
 	gpr_device_t *gdev = apm->gdev;
@@ -142,6 +144,15 @@ static void q6apm_put_audioreach_graph(struct kref *ref)
 	kfree(graph->graph);
 	kfree(graph);
 }
+
+bool q6apm_is_adsp_ready(void)
+{
+	if (g_apm && g_apm->state)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(q6apm_is_adsp_ready);
 
 static int q6apm_get_apm_state(struct q6apm *apm)
 {
@@ -657,6 +668,8 @@ static int apm_probe(gpr_device_t *gdev)
 	idr_init(&apm->containers_idr);
 
 	idr_init(&apm->modules_idr);
+
+	g_apm = apm;
 
 	q6apm_get_apm_state(apm);
 
