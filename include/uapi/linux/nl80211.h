@@ -6348,6 +6348,10 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_SECURE_NAN: Device supports NAN Pairing which enables
  *	authentication, data encryption and message integrity.
  *
+ * @NL80211_EXT_FEATURE_AUTH_AND_DEAUTH_RANDOM_TA: Device supports randomized TA
+ *	in authentication and deauthentication frames sent to unassociated peer
+ *	using @NL80211_CMD_FRAME.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -6418,6 +6422,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_POWERED_ADDR_CHANGE,
 	NL80211_EXT_FEATURE_PUNCT,
 	NL80211_EXT_FEATURE_SECURE_NAN,
+	NL80211_EXT_FEATURE_AUTH_AND_DEAUTH_RANDOM_TA,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
