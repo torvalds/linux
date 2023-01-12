@@ -83,3 +83,5 @@ endif
 nfp-$(CONFIG_NFP_NET_IPSEC) += crypto/ipsec.o nfd3/ipsec.o
 
 nfp-$(CONFIG_NFP_DEBUG) += nfp_net_debugfs.o
+
+nfp-$(CONFIG_DCB) += nic/dcb.o
