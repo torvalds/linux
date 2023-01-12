@@ -155,7 +155,7 @@ int xe_pcode_request(struct xe_gt *gt, u32 mbox, u32 request,
 
 	ret = xe_pcode_try_request(gt, mbox, request, reply_mask, reply, &status,
 				   false, timeout_base_ms * 1000);
-	if (ret)
+	if (!ret)
 		goto out;
 
 	/*
