@@ -202,8 +202,11 @@
 #define DATA_BUFFER_STATUS_LEVEL_TX(x)	((x) & GENMASK(7, 0))
 
 #define PRESENT_STATE			0x54
-#define PRESENT_STATE_CM_ST_STS(x)	(((x) & GENMASK(13, 8)) >> 8)
-#define CM_ST_STS_HALT			0x6
+#define   CM_TFR_ST_STS			GENMASK(21, 16)
+#define     CM_TFR_ST_STS_HALT		0x13
+#define   CM_TFR_STS			GENMASK(13, 8)
+#define     CM_TFR_STS_MASTER_HALT	0xf
+#define     CM_TFR_STS_SLAVE_HALT	0x6
 
 #define CCC_DEVICE_STATUS		0x58
 #define DEVICE_ADDR_TABLE_POINTER	0x5c
@@ -1938,10 +1941,10 @@ static void aspeed_i3c_master_detach_i2c_dev(struct i2c_dev_desc *dev)
 static void aspeed_i3c_slave_event_handler(struct aspeed_i3c_master *master)
 {
 	u32 event = readl(master->regs + SLV_EVENT_CTRL);
-	u32 cm_state =
-		PRESENT_STATE_CM_ST_STS(readl(master->regs + PRESENT_STATE));
+	u32 reg = readl(master->regs + PRESENT_STATE);
+	u32 cm_state = FIELD_GET(CM_TFR_STS, reg);
 
-	if (cm_state == CM_ST_STS_HALT) {
+	if (cm_state == CM_TFR_STS_SLAVE_HALT) {
 		dev_dbg(master->dev, "slave in halt state\n");
 		aspeed_i3c_master_resume(master);
 	}
@@ -2026,6 +2029,8 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 		if (status & INTR_CCC_UPDATED_STAT)
 			aspeed_i3c_slave_event_handler(master);
 	} else {
+		u32 reg, cm_state, xfr_state;
+
 		if (status & INTR_RESP_READY_STAT ||
 		    status & INTR_TRANSFER_ERR_STAT) {
 			spin_lock(&master->xferqueue.lock);
@@ -2037,6 +2042,21 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 
 		if (status & INTR_IBI_THLD_STAT)
 			aspeed_i3c_master_demux_ibis(master);
+
+		/*
+		 * check whether the controller is in halt state and resume the
+		 * controller if it is in halt state
+		 */
+		reg = readl(master->regs + PRESENT_STATE);
+		cm_state = FIELD_GET(CM_TFR_ST_STS, reg);
+		xfr_state = FIELD_GET(CM_TFR_STS, reg);
+
+		if (cm_state == CM_TFR_ST_STS_HALT ||
+		    xfr_state == CM_TFR_STS_MASTER_HALT) {
+			dev_dbg(master->dev, "master in halt state, resume\n");
+			writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
+			aspeed_i3c_master_resume(master);
+		}
 	}
 
 	writel(status, master->regs + INTR_STATUS);
