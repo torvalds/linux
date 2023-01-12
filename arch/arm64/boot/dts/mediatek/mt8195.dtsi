@@ -2318,6 +2318,46 @@
 			#clock-cells = <1>;
 		};
 
+
+		jpgenc-master {
+			compatible = "mediatek,mt8195-jpgenc";
+			power-domains = <&spm MT8195_POWER_DOMAIN_VENC_CORE1>;
+			iommus = <&iommu_vpp M4U_PORT_L20_JPGENC_Y_RDMA>,
+					<&iommu_vpp M4U_PORT_L20_JPGENC_C_RDMA>,
+					<&iommu_vpp M4U_PORT_L20_JPGENC_Q_TABLE>,
+					<&iommu_vpp M4U_PORT_L20_JPGENC_BSDMA>;
+			dma-ranges = <0x1 0x0 0x0 0x40000000 0x0 0xfff00000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			jpgenc@1a030000 {
+				compatible = "mediatek,mt8195-jpgenc-hw";
+				reg = <0 0x1a030000 0 0x10000>;
+				iommus = <&iommu_vdo M4U_PORT_L19_JPGENC_Y_RDMA>,
+						<&iommu_vdo M4U_PORT_L19_JPGENC_C_RDMA>,
+						<&iommu_vdo M4U_PORT_L19_JPGENC_Q_TABLE>,
+						<&iommu_vdo M4U_PORT_L19_JPGENC_BSDMA>;
+				interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&vencsys CLK_VENC_JPGENC>;
+				clock-names = "jpgenc";
+				power-domains = <&spm MT8195_POWER_DOMAIN_VENC>;
+			};
+
+			jpgenc@1b030000 {
+				compatible = "mediatek,mt8195-jpgenc-hw";
+				reg = <0 0x1b030000 0 0x10000>;
+				iommus = <&iommu_vpp M4U_PORT_L20_JPGENC_Y_RDMA>,
+						<&iommu_vpp M4U_PORT_L20_JPGENC_C_RDMA>,
+						<&iommu_vpp M4U_PORT_L20_JPGENC_Q_TABLE>,
+						<&iommu_vpp M4U_PORT_L20_JPGENC_BSDMA>;
+				interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&vencsys_core1 CLK_VENC_CORE1_JPGENC>;
+				clock-names = "jpgenc";
+				power-domains = <&spm MT8195_POWER_DOMAIN_VENC_CORE1>;
+			};
+		};
+
 		larb20: larb@1b010000 {
 			compatible = "mediatek,mt8195-smi-larb";
 			reg = <0 0x1b010000 0 0x1000>;
