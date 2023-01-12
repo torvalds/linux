@@ -88,6 +88,11 @@ Compressed Formats
       - ``V4L2_PIX_FMT_H263``
       - 'H263'
       - H263 video elementary stream.
+    * .. _V4L2-PIX-FMT-SPK:
+
+      - ``V4L2_PIX_FMT_SPK``
+      - 'SPK0'
+      - Sorenson Spark is an implementation of H.263 for use in Flash Video and Adobe Flash files
     * .. _V4L2-PIX-FMT-MPEG1:
 
       - ``V4L2_PIX_FMT_MPEG1``
