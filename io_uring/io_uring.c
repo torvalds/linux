@@ -406,7 +406,7 @@ static inline void io_arm_ltimeout(struct io_kiocb *req)
 
 static void io_prep_async_work(struct io_kiocb *req)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (!(req->flags & REQ_F_CREDS)) {
@@ -1009,7 +1009,7 @@ void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 void io_req_defer_failed(struct io_kiocb *req, s32 res)
 	__must_hold(&ctx->uring_lock)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 
 	lockdep_assert_held(&req->ctx->uring_lock);
 
@@ -1741,8 +1741,8 @@ unsigned int io_file_get_flags(struct file *file)
 
 bool io_alloc_async_data(struct io_kiocb *req)
 {
-	WARN_ON_ONCE(!io_op_defs[req->opcode].async_size);
-	req->async_data = kmalloc(io_op_defs[req->opcode].async_size, GFP_KERNEL);
+	WARN_ON_ONCE(!io_issue_defs[req->opcode].async_size);
+	req->async_data = kmalloc(io_issue_defs[req->opcode].async_size, GFP_KERNEL);
 	if (req->async_data) {
 		req->flags |= REQ_F_ASYNC_DATA;
 		return false;
@@ -1752,7 +1752,7 @@ bool io_alloc_async_data(struct io_kiocb *req)
 
 int io_req_prep_async(struct io_kiocb *req)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 
 	/* assign early for deferred execution for non-fixed file */
 	if (def->needs_file && !(req->flags & REQ_F_FIXED_FILE))
@@ -1761,7 +1761,7 @@ int io_req_prep_async(struct io_kiocb *req)
 		return 0;
 	if (WARN_ON_ONCE(req_has_async_data(req)))
 		return -EFAULT;
-	if (!io_op_defs[req->opcode].manual_alloc) {
+	if (!io_issue_defs[req->opcode].manual_alloc) {
 		if (io_alloc_async_data(req))
 			return -EAGAIN;
 	}
@@ -1829,7 +1829,7 @@ static void io_clean_op(struct io_kiocb *req)
 	}
 
 	if (req->flags & REQ_F_NEED_CLEANUP) {
-		const struct io_op_def *def = &io_op_defs[req->opcode];
+		const struct io_issue_def *def = &io_issue_defs[req->opcode];
 
 		if (def->cleanup)
 			def->cleanup(req);
@@ -1855,7 +1855,7 @@ static void io_clean_op(struct io_kiocb *req)
 
 static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
 {
-	if (req->file || !io_op_defs[req->opcode].needs_file)
+	if (req->file || !io_issue_defs[req->opcode].needs_file)
 		return true;
 
 	if (req->flags & REQ_F_FIXED_FILE)
@@ -1868,7 +1868,7 @@ static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	const struct cred *creds = NULL;
 	int ret;
 
@@ -1922,7 +1922,7 @@ struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
 void io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	unsigned int issue_flags = IO_URING_F_UNLOCKED | IO_URING_F_IOWQ;
 	bool needs_poll = false;
 	int ret = 0, err = -ECANCELED;
@@ -2137,7 +2137,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		       const struct io_uring_sqe *sqe)
 	__must_hold(&ctx->uring_lock)
 {
-	const struct io_op_def *def;
+	const struct io_issue_def *def;
 	unsigned int sqe_flags;
 	int personality;
 	u8 opcode;
@@ -2155,7 +2155,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		req->opcode = 0;
 		return -EINVAL;
 	}
-	def = &io_op_defs[opcode];
+	def = &io_issue_defs[opcode];
 	if (unlikely(sqe_flags & ~SQE_COMMON_FLAGS)) {
 		/* enforce forwards compatibility on users */
 		if (sqe_flags & ~SQE_VALID_FLAGS)
@@ -3859,7 +3859,7 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 
 	for (i = 0; i < nr_args; i++) {
 		p->ops[i].op = i;
-		if (!io_op_defs[i].not_supported)
+		if (!io_issue_defs[i].not_supported)
 			p->ops[i].flags = IO_URING_OP_SUPPORTED;
 	}
 	p->ops_len = i;

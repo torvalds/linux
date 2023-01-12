@@ -516,7 +516,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     struct io_rw_state *s, bool force)
 {
-	if (!force && !io_op_defs[req->opcode].prep_async)
+	if (!force && !io_issue_defs[req->opcode].prep_async)
 		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;

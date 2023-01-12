@@ -2,7 +2,7 @@
 #ifndef IOU_OP_DEF_H
 #define IOU_OP_DEF_H
 
-struct io_op_def {
+struct io_issue_def {
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
 	/* should block plug */
@@ -41,7 +41,7 @@ struct io_op_def {
 	void (*fail)(struct io_kiocb *);
 };
 
-extern const struct io_op_def io_op_defs[];
+extern const struct io_issue_def io_issue_defs[];
 
 void io_uring_optable_init(void);
 #endif

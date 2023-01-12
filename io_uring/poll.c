@@ -678,7 +678,7 @@ alloc_apoll:
 
 int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	struct async_poll *apoll;
 	struct io_poll_table ipt;
 	__poll_t mask = POLLPRI | POLLERR | EPOLLET;

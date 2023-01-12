@@ -46,7 +46,7 @@ static __maybe_unused int io_eopnotsupp_prep(struct io_kiocb *kiocb,
 	return -EOPNOTSUPP;
 }
 
-const struct io_op_def io_op_defs[] = {
+const struct io_issue_def io_issue_defs[] = {
 	[IORING_OP_NOP] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
@@ -536,7 +536,7 @@ const struct io_op_def io_op_defs[] = {
 const char *io_uring_get_opcode(u8 opcode)
 {
 	if (opcode < IORING_OP_LAST)
-		return io_op_defs[opcode].name;
+		return io_issue_defs[opcode].name;
 	return "INVALID";
 }
 
@@ -544,12 +544,12 @@ void __init io_uring_optable_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(io_op_defs) != IORING_OP_LAST);
+	BUILD_BUG_ON(ARRAY_SIZE(io_issue_defs) != IORING_OP_LAST);
 
-	for (i = 0; i < ARRAY_SIZE(io_op_defs); i++) {
-		BUG_ON(!io_op_defs[i].prep);
-		if (io_op_defs[i].prep != io_eopnotsupp_prep)
-			BUG_ON(!io_op_defs[i].issue);
-		WARN_ON_ONCE(!io_op_defs[i].name);
+	for (i = 0; i < ARRAY_SIZE(io_issue_defs); i++) {
+		BUG_ON(!io_issue_defs[i].prep);
+		if (io_issue_defs[i].prep != io_eopnotsupp_prep)
+			BUG_ON(!io_issue_defs[i].issue);
+		WARN_ON_ONCE(!io_issue_defs[i].name);
 	}
 }
