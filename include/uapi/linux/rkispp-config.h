@@ -114,8 +114,10 @@
 	(V4L2_EVENT_PRIVATE_START + 3)
 
 struct rkispp_fec_in_out {
-	int width;
-	int height;
+	int in_width;
+	int in_height;
+	int out_width;
+	int out_height;
 	int in_fourcc;
 	int out_fourcc;
 	int in_pic_fd;

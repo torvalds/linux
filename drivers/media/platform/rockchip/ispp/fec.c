@@ -124,7 +124,9 @@ static int fec_running(struct file *file, struct rkispp_fec_in_out *buf)
 	struct rkispp_fec_dev *fec = video_drvdata(file);
 	u32 in_fmt, out_fmt, in_mult = 1, out_mult = 1;
 	u32 in_size, in_offs, out_size, out_offs, val;
-	u32 w = buf->width, h = buf->height, density, mesh_size;
+	u32 in_w = buf->in_width, in_h = buf->in_height;
+	u32 out_w = buf->out_width, out_h = buf->out_height;
+	u32 density, mesh_size;
 	void __iomem *base = fec->hw->base_addr;
 	void *mem;
 	int ret = -EINVAL;
@@ -134,8 +136,8 @@ static int fec_running(struct file *file, struct rkispp_fec_in_out *buf)
 	if (rkispp_debug)
 		t = ktime_get();
 	v4l2_dbg(3, rkispp_debug, &fec->v4l2_dev,
-		 "%s enter %dx%d format(in:%c%c%c%c out:%c%c%c%c)\n",
-		 __func__, w, h,
+		 "%s enter %dx%d->%dx%d format(in:%c%c%c%c out:%c%c%c%c)\n",
+		 __func__, in_w, in_h, out_w, out_h,
 		 buf->in_fourcc, buf->in_fourcc >> 8,
 		 buf->in_fourcc >> 16, buf->in_fourcc >> 24,
 		 buf->out_fourcc, buf->out_fourcc >> 8,
@@ -145,8 +147,8 @@ static int fec_running(struct file *file, struct rkispp_fec_in_out *buf)
 		rkispp_set_clk_rate(fec->hw->clks[0], fec->hw->core_clk_max);
 
 	init_completion(&fec->cmpl);
-	density = w > 1920 ? SW_MESH_DENSITY : 0;
-	mesh_size = cal_fec_mesh(w, h, !!density);
+	density = out_w > 1920 ? SW_MESH_DENSITY : 0;
+	mesh_size = cal_fec_mesh(out_w, out_h, !!density);
 
 	switch (buf->in_fourcc) {
 	case V4L2_PIX_FMT_YUYV:
@@ -170,9 +172,9 @@ static int fec_running(struct file *file, struct rkispp_fec_in_out *buf)
 			 buf->in_fourcc >> 16, buf->in_fourcc >> 24);
 		return -EINVAL;
 	}
-	in_offs = w * h;
+	in_offs = in_w * in_h;
 	in_size = (in_fmt & FMT_YUV422) ?
-		w * h * 2 : w * h * 3 / 2;
+		in_w * in_h * 2 : in_w * in_h * 3 / 2;
 
 	switch (buf->out_fourcc) {
 	case V4L2_PIX_FMT_YUYV:
@@ -202,15 +204,15 @@ static int fec_running(struct file *file, struct rkispp_fec_in_out *buf)
 		return -EINVAL;
 	}
 	out_size = 0;
-	out_offs = w * h;
+	out_offs = out_w * out_h;
 	if (out_fmt & FMT_FBC) {
-		w = ALIGN(w, 16);
-		h = ALIGN(h, 16);
-		out_offs = w * h >> 4;
+		out_w = ALIGN(out_w, 16);
+		out_h = ALIGN(out_h, 16);
+		out_offs = out_w * out_h >> 4;
 		out_size = out_offs;
 	}
 	out_size += (out_fmt & FMT_YUV422) ?
-		w * h * 2 : w * h * 3 / 2;
+		out_w * out_h * 2 : out_w * out_h * 3 / 2;
 
 	/* input picture buf */
 	mem = fec_buf_add(file, buf->in_pic_fd, in_size);
@@ -260,12 +262,13 @@ static int fec_running(struct file *file, struct rkispp_fec_in_out *buf)
 
 	val = out_fmt << 4 | in_fmt;
 	writel(val, base + RKISPP_FEC_CTRL);
-	val = ALIGN(buf->width * in_mult, 16) >> 2;
+	val = ALIGN(in_w * in_mult, 16) >> 2;
 	writel(val, base + RKISPP_FEC_RD_VIR_STRIDE);
-	val = ALIGN(buf->width * out_mult, 16) >> 2;
+	val = ALIGN(out_w * out_mult, 16) >> 2;
 	writel(val, base + RKISPP_FEC_WR_VIR_STRIDE);
-	val = buf->height << 16 | buf->width;
+	val = out_h << 16 | out_w;
 	writel(val, base + RKISPP_FEC_DST_SIZE);
+	val = in_h << 16 | in_w;
 	writel(val, base + RKISPP_FEC_SRC_SIZE);
 	writel(mesh_size, base + RKISPP_FEC_MESH_SIZE);
 	val = SW_FEC_EN | density;
