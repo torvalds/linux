@@ -578,6 +578,14 @@ config QCS_Q6SSTOP_404
 	  Say Y if you want to use the Q6SSTOP branch clocks of the WCSS clock
 	  controller to reset the Q6SSTOP subsystem.
 
+config QDU_GCC_1000
+	tristate "QDU1000/QRU1000 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on QDU1000 and
+	  QRU1000 devices. Say Y if you want to use peripheral
+	  devices such as UART, SPI, I2C, USB, SD, PCIe, etc.
+
 config SDM_GCC_845
 	tristate "SDM845/SDM670 Global Clock Controller"
 	select QCOM_GDSC
