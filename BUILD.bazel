@@ -12,9 +12,6 @@ package(
     ],
 )
 
-load(":msm_platforms.bzl", "define_msm_platforms")
-define_msm_platforms()
-
 load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
 
 define_common_kernels(branch = BRANCH, target_configs = {
@@ -236,6 +233,10 @@ define_db845c(
 load(":consolidate.bzl", "define_consolidate")
 
 define_consolidate()
+
+load(":msm_platforms.bzl", "define_msm_platforms")
+
+define_msm_platforms()
 
 # TODO(b/258259749): Convert rockpi4 to mixed build
 kernel_build(
