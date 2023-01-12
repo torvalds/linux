@@ -316,9 +316,9 @@ static int rockchip_amp_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_amp_match[] = {
-	{
-		.compatible = "rockchip,amp",
-	},
+	{ .compatible = "rockchip,amp" },
+	{ .compatible = "rockchip,mcu-amp" },
+	{ .compatible = "rockchip,rk3568-amp" },
 	{ /* sentinel */ },
 };
 
