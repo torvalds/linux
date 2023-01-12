@@ -534,6 +534,22 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
+static void parse_midi_msg(struct snd_ff *ff, u32 quad, unsigned int port)
+{
+	struct snd_rawmidi_substream *substream = READ_ONCE(ff->tx_midi_substreams[port]);
+
+	if (substream != NULL) {
+		u8 byte = (quad >> (16 * port)) & 0x000000ff;
+
+		snd_rawmidi_receive(substream, &byte, 1);
+	}
+}
+
+#define FF400_MSG_FLAG_IS_MIDI_PORT_0		0x00000100
+#define  FF400_MSG_MASK_MIDI_PORT_0		0x000000ff
+#define FF400_MSG_FLAG_IS_MIDI_PORT_1		0x01000000
+#define  FF400_MSG_MASK_MIDI_PORT_1		0x00ff0000
+
 // For Fireface 400, lower 4 bytes of destination address is configured by bit
 // flag in quadlet register (little endian) at 0x'0000'801'0051c. Drivers can
 // select one of 4 options:
@@ -560,34 +576,11 @@ static void ff400_handle_msg(struct snd_ff *ff, unsigned int offset, const __le3
 
 	for (i = 0; i < length / 4; i++) {
 		u32 quad = le32_to_cpu(buf[i]);
-		u8 byte;
-		unsigned int index;
-		struct snd_rawmidi_substream *substream;
 
-		/* Message in first port. */
-		/*
-		 * This value may represent the index of this unit when the same
-		 * units are on the same IEEE 1394 bus. This driver doesn't use
-		 * it.
-		 */
-		index = (quad >> 8) & 0xff;
-		if (index > 0) {
-			substream = READ_ONCE(ff->tx_midi_substreams[0]);
-			if (substream != NULL) {
-				byte = quad & 0xff;
-				snd_rawmidi_receive(substream, &byte, 1);
-			}
-		}
-
-		/* Message in second port. */
-		index = (quad >> 24) & 0xff;
-		if (index > 0) {
-			substream = READ_ONCE(ff->tx_midi_substreams[1]);
-			if (substream != NULL) {
-				byte = (quad >> 16) & 0xff;
-				snd_rawmidi_receive(substream, &byte, 1);
-			}
-		}
+		if (quad & FF400_MSG_FLAG_IS_MIDI_PORT_0)
+			parse_midi_msg(ff, quad, 0);
+		else if (quad & FF400_MSG_FLAG_IS_MIDI_PORT_1)
+			parse_midi_msg(ff, quad, 1);
 	}
 }
 
