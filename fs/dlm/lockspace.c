@@ -572,7 +572,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	spin_lock_init(&ls->ls_rcom_spin);
 	get_random_bytes(&ls->ls_rcom_seq, sizeof(uint64_t));
 	ls->ls_recover_status = 0;
-	ls->ls_recover_seq = 0;
+	ls->ls_recover_seq = get_random_u64();
 	ls->ls_recover_args = NULL;
 	init_rwsem(&ls->ls_in_recovery);
 	init_rwsem(&ls->ls_recv_active);
