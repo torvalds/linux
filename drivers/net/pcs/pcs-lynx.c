@@ -10,9 +10,6 @@
 #define SGMII_CLOCK_PERIOD_NS		8 /* PCS is clocked at 125 MHz */
 #define LINK_TIMER_VAL(ns)		((u32)((ns) / SGMII_CLOCK_PERIOD_NS))
 
-#define SGMII_AN_LINK_TIMER_NS		1600000 /* defined by SGMII spec */
-#define IEEE8023_LINK_TIMER_NS		10000000
-
 #define LINK_TIMER_LO			0x12
 #define LINK_TIMER_HI			0x13
 #define IF_MODE				0x14
@@ -126,26 +123,25 @@ static int lynx_pcs_config_giga(struct mdio_device *pcs, unsigned int mode,
 				phy_interface_t interface,
 				const unsigned long *advertising)
 {
+	int link_timer_ns;
 	u32 link_timer;
 	u16 if_mode;
 	int err;
 
-	if (interface == PHY_INTERFACE_MODE_1000BASEX) {
-		link_timer = LINK_TIMER_VAL(IEEE8023_LINK_TIMER_NS);
+	link_timer_ns = phylink_get_link_timer_ns(interface);
+	if (link_timer_ns > 0) {
+		link_timer = LINK_TIMER_VAL(link_timer_ns);
+
 		mdiodev_write(pcs, LINK_TIMER_LO, link_timer & 0xffff);
 		mdiodev_write(pcs, LINK_TIMER_HI, link_timer >> 16);
+	}
 
+	if (interface == PHY_INTERFACE_MODE_1000BASEX) {
 		if_mode = 0;
 	} else {
 		if_mode = IF_MODE_SGMII_EN;
-		if (mode == MLO_AN_INBAND) {
+		if (mode == MLO_AN_INBAND)
 			if_mode |= IF_MODE_USE_SGMII_AN;
-
-			/* Adjust link timer for SGMII */
-			link_timer = LINK_TIMER_VAL(SGMII_AN_LINK_TIMER_NS);
-			mdiodev_write(pcs, LINK_TIMER_LO, link_timer & 0xffff);
-			mdiodev_write(pcs, LINK_TIMER_HI, link_timer >> 16);
-		}
 	}
 
 	err = mdiodev_modify(pcs, IF_MODE,
