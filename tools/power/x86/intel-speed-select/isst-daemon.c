@@ -174,6 +174,8 @@ static void daemonize(char *rundir, char *pidfile)
 		close(i);
 
 	i = open("/dev/null", O_RDWR);
+	if (i < 0)
+		exit(EXIT_FAILURE);
 	ret = dup(i);
 	if (ret == -1)
 		exit(EXIT_FAILURE);
