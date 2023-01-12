@@ -188,8 +188,11 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	unsigned long align_mask = ~0UL;
 	unsigned long high_pfn = limit_pfn, low_pfn = iovad->start_pfn;
 
-	if (size_aligned)
-		align_mask <<= fls_long(size - 1);
+	if (size_aligned) {
+		unsigned long shift = fls_long(size - 1);
+		trace_android_rvh_iommu_limit_align_shift(iovad, size, &shift);
+		align_mask <<= shift;
+	}
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
