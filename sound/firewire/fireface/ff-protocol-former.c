@@ -403,7 +403,7 @@ static void ff800_finish_session(struct snd_ff *ff)
 // A write transaction to clear registered higher 4 bytes of destination address
 // has an effect to suppress asynchronous transaction from device.
 static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
-				  size_t length)
+				  size_t length, u32 tstamp)
 {
 	int i;
 
@@ -554,7 +554,7 @@ static void ff400_finish_session(struct snd_ff *ff)
 // in its lower offset and expects userspace application to configure the
 // register for it.
 static void ff400_handle_msg(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
-			     size_t length)
+			     size_t length, u32 tstamp)
 {
 	int i;
 

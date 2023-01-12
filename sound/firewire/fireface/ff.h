@@ -111,7 +111,7 @@ enum snd_ff_clock_src {
 
 struct snd_ff_protocol {
 	void (*handle_msg)(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
-			   size_t length);
+			   size_t length, u32 tstamp);
 	int (*fill_midi_msg)(struct snd_ff *ff,
 			     struct snd_rawmidi_substream *substream,
 			     unsigned int port);

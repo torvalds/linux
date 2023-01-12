@@ -394,7 +394,7 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 // (0x'....'....'0000'0000) and expects userspace application to configure the
 // register for it.
 static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
-				   size_t length)
+				   size_t length, u32 tstamp)
 {
 	u32 data = le32_to_cpu(*buf);
 	unsigned int index = (data & 0x000000f0) >> 4;
