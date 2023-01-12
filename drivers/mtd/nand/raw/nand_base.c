@@ -4991,6 +4991,24 @@ nand_manufacturer_name(const struct nand_manufacturer_desc *manufacturer_desc)
 	return manufacturer_desc ? manufacturer_desc->name : "Unknown";
 }
 
+static void rawnand_check_data_only_read_support(struct nand_chip *chip)
+{
+	/* Use an arbitrary size for the check */
+	if (!nand_read_data_op(chip, NULL, SZ_512, true, true))
+		chip->controller->supported_op.data_only_read = 1;
+}
+
+static void rawnand_early_check_supported_ops(struct nand_chip *chip)
+{
+	/* The supported_op fields should not be set by individual drivers */
+	WARN_ON_ONCE(chip->controller->supported_op.data_only_read);
+
+	if (!nand_has_exec_op(chip))
+		return;
+
+	rawnand_check_data_only_read_support(chip);
+}
+
 /*
  * Get the flash and manufacturer id and lookup if the type is supported.
  */
@@ -5022,6 +5040,8 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 
 	/* Select the device */
 	nand_select_target(chip, 0);
+
+	rawnand_early_check_supported_ops(chip);
 
 	/* Send the command for reading device ID */
 	ret = nand_readid_op(chip, 0, id_data, 2);
