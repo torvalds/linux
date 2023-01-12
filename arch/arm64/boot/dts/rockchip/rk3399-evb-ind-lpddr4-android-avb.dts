@@ -12,7 +12,7 @@
 	model = "Rockchip RK3399 EVB IND LPDDR4 Board edp (Android)";
 	compatible = "rockchip,android", "rockchip,rk3399-evb-ind-lpddr4-android", "rockchip,rk3399";
 	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
+		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
 	};
 
 	iram: sram@ff8d0000 {

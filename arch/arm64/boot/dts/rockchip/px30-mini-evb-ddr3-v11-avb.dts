@@ -14,10 +14,6 @@
 	compatible = "rockchip,px30-mini-evb-ddr3-v11-avb", "rockchip,px30";
 };
 
-&chosen {
-	bootargs_ext = "androidboot.boot_devices=ff390000.dwmmc,ff3b0000.nandc";
-};
-
 &dsi {
 	status = "okay";
 

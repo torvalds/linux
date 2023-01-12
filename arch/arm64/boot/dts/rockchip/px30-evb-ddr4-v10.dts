@@ -14,10 +14,6 @@
 	compatible = "rockchip,px30-evb-ddr4-v10", "rockchip,px30";
 };
 
-&chosen {
-	bootargs_ext = "androidboot.boot_devices=ff390000.dwmmc,ff3b0000.nandc";
-};
-
 &dsi {
 	status = "okay";
 
