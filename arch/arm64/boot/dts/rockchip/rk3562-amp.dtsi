@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,mcu-amp";
+		clocks = <&cru FCLK_BUS_CM0_CORE>, <&cru CLK_BUS_CM0_RTC>,
+			<&cru SCLK_UART5>, <&cru PCLK_UART5>,
+			<&cru PCLK_TIMER>, <&cru CLK_TIMER5>;
+		clock-names = "fclk_bus_cm0_core", "clk_bus_cm0_rtc",
+			      "baudclk", "apb_pclk", "pclk", "timer";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart5m0_xfer>;
+
+		status = "okay";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* mcu address */
+		mcu_reserved: mcu@8200000 {
+			reg = <0x0 0x8200000 0x0 0x100000>;
+			no-map;
+		};
+	};
+};
+
