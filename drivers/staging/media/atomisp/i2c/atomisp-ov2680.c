@@ -693,17 +693,13 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 {
 	static const struct v4l2_frmsize_discrete ov2680_frame_sizes[] = {
 		{ 1616, 1216 },
-		{ 1616, 1082 },
+		{ 1616, 1096 },
 		{ 1616,  916 },
 		{ 1456, 1096 },
 		{ 1296,  976 },
 		{ 1296,  736 },
-		{  800,  600 },
-		{  720,  592 },
+		{  784,  592 },
 		{  656,  496 },
-		{  336,  256 },
-		{  352,  288 },
-		{  176,  144 },
 	};
 	int index = fse->index;
 
