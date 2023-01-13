@@ -234,6 +234,9 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 			rx_token = mt76_rx_token_consume(dev, (void *)skb, t,
 							 buf[0].addr);
+			if (rx_token < 0)
+				return -ENOMEM;
+
 			buf1 |= FIELD_PREP(MT_DMA_CTL_TOKEN, rx_token);
 			ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len) |
 			       MT_DMA_CTL_TO_HOST;
@@ -602,7 +605,12 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 		qbuf.addr = addr + offset;
 		qbuf.len = len - offset;
 		qbuf.skip_unmap = false;
-		mt76_dma_add_buf(dev, q, &qbuf, 1, 0, buf, t);
+		if (mt76_dma_add_buf(dev, q, &qbuf, 1, 0, buf, t) < 0) {
+			dma_unmap_single(dev->dma_dev, addr, len,
+					 DMA_FROM_DEVICE);
+			skb_free_frag(buf);
+			break;
+		}
 		frames++;
 	}
 
