@@ -1633,7 +1633,7 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 	size_t block_size;
 	int ret;
 
-	switch (hdr->type) {
+	switch (le32_to_cpu(hdr->type)) {
 	case SND_SOC_TPLG_TYPE_MIXER:
 		tmc = container_of(hdr, typeof(*tmc), hdr);
 		tuples = tmc->priv.array;
