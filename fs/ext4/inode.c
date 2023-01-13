@@ -5467,7 +5467,7 @@ int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (error)
 		return error;
 
-	if (is_quota_modification(mnt_userns, inode, attr)) {
+	if (is_quota_modification(idmap, inode, attr)) {
 		error = dquot_initialize(inode);
 		if (error)
 			return error;
@@ -5491,7 +5491,7 @@ int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 * counts xattr inode references.
 		 */
 		down_read(&EXT4_I(inode)->xattr_sem);
-		error = dquot_transfer(mnt_userns, inode, attr);
+		error = dquot_transfer(idmap, inode, attr);
 		up_read(&EXT4_I(inode)->xattr_sem);
 
 		if (error) {

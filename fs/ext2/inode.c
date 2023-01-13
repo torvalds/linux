@@ -1621,7 +1621,6 @@ int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
 int ext2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *iattr)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	int error;
 
@@ -1629,14 +1628,14 @@ int ext2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (error)
 		return error;
 
-	if (is_quota_modification(mnt_userns, inode, iattr)) {
+	if (is_quota_modification(&nop_mnt_idmap, inode, iattr)) {
 		error = dquot_initialize(inode);
 		if (error)
 			return error;
 	}
-	if (i_uid_needs_update(mnt_userns, iattr, inode) ||
-	    i_gid_needs_update(mnt_userns, iattr, inode)) {
-		error = dquot_transfer(mnt_userns, inode, iattr);
+	if (i_uid_needs_update(&nop_mnt_idmap, iattr, inode) ||
+	    i_gid_needs_update(&nop_mnt_idmap, iattr, inode)) {
+		error = dquot_transfer(&nop_mnt_idmap, inode, iattr);
 		if (error)
 			return error;
 	}

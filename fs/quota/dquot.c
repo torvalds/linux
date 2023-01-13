@@ -2085,9 +2085,10 @@ EXPORT_SYMBOL(__dquot_transfer);
 /* Wrapper for transferring ownership of an inode for uid/gid only
  * Called from FSXXX_setattr()
  */
-int dquot_transfer(struct user_namespace *mnt_userns, struct inode *inode,
+int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *iattr)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct dquot *transfer_to[MAXQUOTAS] = {};
 	struct dquot *dquot;
 	struct super_block *sb = inode->i_sb;
