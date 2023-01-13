@@ -1197,7 +1197,7 @@ int may_linkat(struct mnt_idmap *idmap, const struct path *link)
 	 * otherwise, it must be a safe source.
 	 */
 	if (safe_hardlink_source(idmap, inode) ||
-	    inode_owner_or_capable(mnt_userns, inode))
+	    inode_owner_or_capable(idmap, inode))
 		return 0;
 
 	audit_log_path_denied(AUDIT_ANOM_LINK, "linkat");
@@ -3158,7 +3158,6 @@ bool may_open_dev(const struct path *path)
 static int may_open(struct mnt_idmap *idmap, const struct path *path,
 		    int acc_mode, int flag)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct dentry *dentry = path->dentry;
 	struct inode *inode = dentry->d_inode;
 	int error;
@@ -3207,7 +3206,7 @@ static int may_open(struct mnt_idmap *idmap, const struct path *path,
 	}
 
 	/* O_NOATIME can only be set by the owner or superuser */
-	if (flag & O_NOATIME && !inode_owner_or_capable(mnt_userns, inode))
+	if (flag & O_NOATIME && !inode_owner_or_capable(idmap, inode))
 		return -EPERM;
 
 	return 0;

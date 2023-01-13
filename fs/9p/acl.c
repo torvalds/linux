@@ -195,7 +195,7 @@ int v9fs_iop_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		goto err_out;
 	}
 
-	if (!inode_owner_or_capable(&init_user_ns, inode)) {
+	if (!inode_owner_or_capable(&nop_mnt_idmap, inode)) {
 		retval = -EPERM;
 		goto err_out;
 	}

@@ -196,7 +196,7 @@ int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (ia_valid & ATTR_MODE) {
 		vfsgid_t vfsgid;
 
-		if (!inode_owner_or_capable(mnt_userns, inode))
+		if (!inode_owner_or_capable(idmap, inode))
 			return -EPERM;
 
 		if (ia_valid & ATTR_GID)
@@ -211,7 +211,7 @@ int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	/* Check for setting the inode time. */
 	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)) {
-		if (!inode_owner_or_capable(mnt_userns, inode))
+		if (!inode_owner_or_capable(idmap, inode))
 			return -EPERM;
 	}
 
@@ -328,7 +328,6 @@ int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid)
 {
 	int error;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) {
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -343,7 +342,7 @@ int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		if (IS_IMMUTABLE(inode))
 			return -EPERM;
 
-		if (!inode_owner_or_capable(mnt_userns, inode)) {
+		if (!inode_owner_or_capable(idmap, inode)) {
 			error = inode_permission(idmap, inode, MAY_WRITE);
 			if (error)
 				return error;

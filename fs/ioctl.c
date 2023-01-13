@@ -675,7 +675,7 @@ int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (!inode->i_op->fileattr_set)
 		return -ENOIOCTLCMD;
 
-	if (!inode_owner_or_capable(mnt_idmap_owner(idmap), inode))
+	if (!inode_owner_or_capable(idmap, inode))
 		return -EPERM;
 
 	inode_lock(inode);

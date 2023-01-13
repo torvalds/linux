@@ -113,8 +113,6 @@ static int
 xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 		 const char *name, int mask)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
 	if (mask & MAY_WRITE) {
 		int ret;
 
@@ -150,7 +148,7 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 			return (mask & MAY_WRITE) ? -EPERM : -ENODATA;
 		if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
 		    (mask & MAY_WRITE) &&
-		    !inode_owner_or_capable(mnt_userns, inode))
+		    !inode_owner_or_capable(idmap, inode))
 			return -EPERM;
 	}
 

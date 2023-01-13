@@ -3154,7 +3154,6 @@ static int selinux_inode_setxattr(struct mnt_idmap *idmap,
 	struct superblock_security_struct *sbsec;
 	struct common_audit_data ad;
 	u32 newsid, sid = current_sid();
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int rc = 0;
 
 	if (strcmp(name, XATTR_NAME_SELINUX)) {
@@ -3168,13 +3167,13 @@ static int selinux_inode_setxattr(struct mnt_idmap *idmap,
 	}
 
 	if (!selinux_initialized(&selinux_state))
-		return (inode_owner_or_capable(mnt_userns, inode) ? 0 : -EPERM);
+		return (inode_owner_or_capable(idmap, inode) ? 0 : -EPERM);
 
 	sbsec = selinux_superblock(inode->i_sb);
 	if (!(sbsec->flags & SBLABEL_MNT))
 		return -EOPNOTSUPP;
 
-	if (!inode_owner_or_capable(mnt_userns, inode))
+	if (!inode_owner_or_capable(idmap, inode))
 		return -EPERM;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
