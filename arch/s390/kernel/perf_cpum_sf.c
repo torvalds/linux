@@ -1408,10 +1408,26 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 				    OVERFLOW_REG(hwc), num_sdb);
 }
 
-#define AUX_SDB_INDEX(aux, i) ((i) % aux->sfb.num_sdb)
-#define AUX_SDB_NUM(aux, start, end) (end >= start ? end - start + 1 : 0)
-#define AUX_SDB_NUM_ALERT(aux) AUX_SDB_NUM(aux, aux->head, aux->alert_mark)
-#define AUX_SDB_NUM_EMPTY(aux) AUX_SDB_NUM(aux, aux->head, aux->empty_mark)
+static inline unsigned long aux_sdb_index(struct aux_buffer *aux,
+					  unsigned long i)
+{
+	return i % aux->sfb.num_sdb;
+}
+
+static inline unsigned long aux_sdb_num(unsigned long start, unsigned long end)
+{
+	return end >= start ? end - start + 1 : 0;
+}
+
+static inline unsigned long aux_sdb_num_alert(struct aux_buffer *aux)
+{
+	return aux_sdb_num(aux->head, aux->alert_mark);
+}
+
+static inline unsigned long aux_sdb_num_empty(struct aux_buffer *aux)
+{
+	return aux_sdb_num(aux->head, aux->empty_mark);
+}
 
 /*
  * Get trailer entry by index of SDB.
@@ -1421,7 +1437,7 @@ static struct hws_trailer_entry *aux_sdb_trailer(struct aux_buffer *aux,
 {
 	unsigned long sdb;
 
-	index = AUX_SDB_INDEX(aux, index);
+	index = aux_sdb_index(aux, index);
 	sdb = aux->sdb_index[index];
 	return trailer_entry_ptr(sdb);
 }
@@ -1445,7 +1461,7 @@ static void aux_output_end(struct perf_output_handle *handle)
 	if (!aux)
 		return;
 
-	range_scan = AUX_SDB_NUM_ALERT(aux);
+	range_scan = aux_sdb_num_alert(aux);
 	for (i = 0, idx = aux->head; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
 		if (!te->header.f)
@@ -1496,8 +1512,8 @@ static int aux_output_begin(struct perf_output_handle *handle,
 			    "%s: range %ld head %ld alert %ld empty %ld\n",
 			    __func__, range, aux->head, aux->alert_mark,
 			    aux->empty_mark);
-	if (range > AUX_SDB_NUM_EMPTY(aux)) {
-		range_scan = range - AUX_SDB_NUM_EMPTY(aux);
+	if (range > aux_sdb_num_empty(aux)) {
+		range_scan = range - aux_sdb_num_empty(aux);
 		idx = aux->empty_mark + 1;
 		for (i = 0; i < range_scan; i++, idx++) {
 			te = aux_sdb_trailer(aux, idx);
@@ -1515,7 +1531,7 @@ static int aux_output_begin(struct perf_output_handle *handle,
 	te->header.a = 1;
 
 	/* Reset hardware buffer head */
-	head = AUX_SDB_INDEX(aux, aux->head);
+	head = aux_sdb_index(aux, aux->head);
 	base = aux->sdbt_index[head / CPUM_SF_SDB_PER_TABLE];
 	offset = head % CPUM_SF_SDB_PER_TABLE;
 	cpuhw->lsctl.tear = base + offset * sizeof(unsigned long);
@@ -1597,7 +1613,7 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 	debug_sprintf_event(sfdbg, 6, "%s: range %ld head %ld alert %ld "
 			    "empty %ld\n", __func__, range, aux->head,
 			    aux->alert_mark, aux->empty_mark);
-	if (range <= AUX_SDB_NUM_EMPTY(aux))
+	if (range <= aux_sdb_num_empty(aux))
 		/*
 		 * No need to scan. All SDBs in range are marked as empty.
 		 * Just set alert indicator. Should check race with hardware
@@ -1618,7 +1634,7 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 	 * Start scanning from one SDB behind empty_mark. If the new alert
 	 * indicator fall into this range, set it.
 	 */
-	range_scan = range - AUX_SDB_NUM_EMPTY(aux);
+	range_scan = range - aux_sdb_num_empty(aux);
 	idx_old = idx = aux->empty_mark + 1;
 	for (i = 0; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
@@ -1665,7 +1681,7 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 		return;
 
 	/* Inform user space new data arrived */
-	size = AUX_SDB_NUM_ALERT(aux) << PAGE_SHIFT;
+	size = aux_sdb_num_alert(aux) << PAGE_SHIFT;
 	debug_sprintf_event(sfdbg, 6, "%s: #alert %ld\n", __func__,
 			    size >> PAGE_SHIFT);
 	perf_aux_output_end(handle, size);
@@ -1707,7 +1723,7 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 					    "overflow %lld\n", __func__,
 					    aux->head, range, overflow);
 		} else {
-			size = AUX_SDB_NUM_ALERT(aux) << PAGE_SHIFT;
+			size = aux_sdb_num_alert(aux) << PAGE_SHIFT;
 			perf_aux_output_end(&cpuhw->handle, size);
 			debug_sprintf_event(sfdbg, 6, "%s: head %ld alert %ld "
 					    "already full, try another\n",
