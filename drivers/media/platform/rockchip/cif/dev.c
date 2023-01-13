@@ -556,7 +556,7 @@ static ssize_t rkcif_store_capture_fps(struct device *dev,
 		}
 
 		for (i = 0; i < index; i++) {
-			if ((val[i] - '0' != 0) && cif_dev->chip_id == CHIP_RV1106_CIF) {
+			if ((val[i] - '0' != 0) && cif_dev->chip_id >= CHIP_RV1106_CIF) {
 				stream = &cif_dev->stream[i];
 				fps.fps = val[i];
 				rkcif_set_fps(stream, &fps);

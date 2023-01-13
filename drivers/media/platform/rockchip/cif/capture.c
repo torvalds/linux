@@ -3301,7 +3301,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			val |= BIT(12);
 		rkcif_write_register(dev, get_reg_index_of_lvds_id_ctrl0(channel->id), val);
 	}
-	if (dev->chip_id == CHIP_RV1106_CIF)
+	if (dev->chip_id >= CHIP_RV1106_CIF)
 		rkcif_modify_frame_skip_config(stream);
 	stream->cifdev->id_use_cnt++;
 	return 0;
@@ -8784,6 +8784,8 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				wake_up(&stream->wq_stopped);
 			}
 
+			if (stream->cifdev->chip_id >= CHIP_RV1106_CIF)
+				rkcif_modify_frame_skip_config(stream);
 			if (stream->cifdev->rdbk_debug &&
 			    stream->frame_idx < 15)
 				v4l2_info(&priv->cif_dev->v4l2_dev,
@@ -9181,11 +9183,11 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					is_update = rkcif_check_buffer_prepare(stream);
 				if (is_update)
 					rkcif_update_stream(cif_dev, stream, mipi_id);
-				if (cif_dev->chip_id == CHIP_RV1106_CIF)
-					rkcif_modify_frame_skip_config(stream);
 			} else if (stream->dma_en & RKCIF_DMAEN_BY_ISP) {
 				rkcif_update_stream_toisp(cif_dev, stream, mipi_id);
 			}
+			if (cif_dev->chip_id >= CHIP_RV1106_CIF)
+				rkcif_modify_frame_skip_config(stream);
 			if (stream->is_change_toisp) {
 				stream->is_change_toisp = false;
 				if ((cif_dev->hdr.hdr_mode == HDR_X2 && stream->id != 1) ||
