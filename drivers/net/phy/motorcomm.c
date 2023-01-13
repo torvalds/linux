@@ -743,10 +743,10 @@ static int yt8531_config_init(struct phy_device *phydev)
 		return ret;
 
 	/* RXC, PHY_CLK_OUT and RXData Drive strength:
-	 * Drive strength of RXC = 4, PHY_CLK_OUT = 3, RXD0 = 4 (default)
-	 * If the io voltage is 3.3v, PHY_CLK_OUT = 2, set 0xa010 = 0x9acf
+	 * Drive strength of RXC = 6, PHY_CLK_OUT = 3, RXD0 = 4 (default 1.8v)
+	 * If the io voltage is 3.3v, PHY_CLK_OUT = 2, set 0xa010 = 0xdacf
 	 */
-	ret = ytphy_write_ext(phydev, 0xa010, 0x9bcf);
+	ret = ytphy_write_ext(phydev, 0xa010, 0xdbcf);
 	if (ret < 0)
 		return ret;
 
