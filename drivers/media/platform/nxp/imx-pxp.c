@@ -735,11 +735,10 @@ static u32 pxp_data_path_ctrl0(struct pxp_ctx *ctx)
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(3);
 	/* Select Rotation */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(0);
-	/* Select LUT */
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(0);
+	/* Bypass LUT */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(1);
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(3);
-	/* Select MUX8 for LUT */
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(3);
 	/* Select CSC 2 */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0);
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(3);
@@ -964,7 +963,7 @@ static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 	/* ungate, enable PS/AS/OUT and PXP operation */
 	writel(BM_PXP_CTRL_IRQ_ENABLE, dev->mmio + HW_PXP_CTRL_SET);
 	writel(BM_PXP_CTRL_ENABLE | BM_PXP_CTRL_ENABLE_CSC2 |
-	       BM_PXP_CTRL_ENABLE_LUT | BM_PXP_CTRL_ENABLE_ROTATE0 |
+	       BM_PXP_CTRL_ENABLE_ROTATE0 |
 	       BM_PXP_CTRL_ENABLE_PS_AS_OUT, dev->mmio + HW_PXP_CTRL_SET);
 
 	return 0;
