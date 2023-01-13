@@ -46,8 +46,6 @@
 
 #define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
 
-#define MAX_FMTS		1
-
 #define OV2680_INTEGRATION_TIME_MARGIN	8
 #define OV2680_ID	0x2680
 

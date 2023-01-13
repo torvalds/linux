@@ -680,7 +680,8 @@ static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= MAX_FMTS)
+	/* We support only a single format */
+	if (code->index)
 		return -EINVAL;
 
 	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
