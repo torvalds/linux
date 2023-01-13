@@ -87,6 +87,16 @@ static int dcn315_get_active_display_cnt_wa(
 	return display_count;
 }
 
+bool should_disable_otg(struct pipe_ctx *pipe)
+{
+	bool ret = true;
+
+	if (pipe->stream->link->link_enc && pipe->stream->link->link_enc->funcs->is_dig_enabled &&
+			pipe->stream->link->link_enc->funcs->is_dig_enabled(pipe->stream->link->link_enc))
+		ret = false;
+	return ret;
+}
+
 static void dcn315_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context, bool disable)
 {
 	struct dc *dc = clk_mgr_base->ctx->dc;
@@ -98,12 +108,16 @@ static void dcn315_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state 
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
 		if (pipe->stream && (pipe->stream->dpms_off || pipe->plane_state == NULL ||
-				     dc_is_virtual_signal(pipe->stream->signal))) {
-			if (disable) {
-				pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
-				reset_sync_context_for_pipe(dc, context, i);
-			} else
-				pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+					dc_is_virtual_signal(pipe->stream->signal))) {
+
+			/* This w/a should not trigger when we have a dig active */
+			if (should_disable_otg(pipe)) {
+				if (disable) {
+					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
+					reset_sync_context_for_pipe(dc, context, i);
+				} else
+					pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+			}
 		}
 	}
 }
