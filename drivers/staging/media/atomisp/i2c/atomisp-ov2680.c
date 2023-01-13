@@ -328,24 +328,6 @@ static int power_down(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int ov2680_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	int ret;
-
-	mutex_lock(&dev->input_lock);
-
-	if (on == 0) {
-		ret = power_down(sd);
-	} else {
-		ret = power_up(sd);
-	}
-
-	mutex_unlock(&dev->input_lock);
-
-	return ret;
-}
-
 static struct v4l2_mbus_framefmt *
 __ov2680_get_pad_format(struct ov2680_device *sensor,
 			struct v4l2_subdev_state *state,
@@ -394,13 +376,11 @@ static void ov2680_calc_mode(struct ov2680_device *sensor, int width, int height
 	sensor->mode.vts = OV2680_LINES_PER_FRAME;
 }
 
-static int ov2680_set_mode(struct ov2680_device *sensor, int width, int height)
+static int ov2680_set_mode(struct ov2680_device *sensor)
 {
 	struct i2c_client *client = sensor->client;
 	u8 pll_div, unknown, inc, fmt1, fmt2;
 	int ret;
-
-	ov2680_calc_mode(sensor, width, height);
 
 	if (sensor->mode.binning) {
 		pll_div = 1;
@@ -498,10 +478,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int width, height;
-	int ret = 0;
 
 	width = min_t(unsigned int, ALIGN(format->format.width, 2), OV2680_NATIVE_WIDTH);
 	height = min_t(unsigned int, ALIGN(format->format.height, 2), OV2680_NATIVE_HEIGHT);
@@ -514,23 +492,10 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
 
-	dev_dbg(&client->dev, "%s: %dx%d\n",
-		__func__, fmt->width, fmt->height);
-
 	mutex_lock(&dev->input_lock);
-
-	/* s_power has not been called yet for std v4l2 clients (camorama) */
-	power_up(sd);
-
-	ret = ov2680_set_mode(dev, fmt->width, fmt->height);
-	if (ret < 0)
-		goto err;
-
-	/* Restore value of all ctrls */
-	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
-err:
+	ov2680_calc_mode(dev, fmt->width, fmt->height);
 	mutex_unlock(&dev->input_lock);
-	return ret;
+	return 0;
 }
 
 static int ov2680_get_fmt(struct v4l2_subdev *sd,
@@ -580,30 +545,50 @@ static int ov2680_detect(struct i2c_client *client)
 
 static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = 0;
 
-	mutex_lock(&dev->input_lock);
-	if (enable)
-		dev_dbg(&client->dev, "ov2680_s_stream one\n");
-	else
-		dev_dbg(&client->dev, "ov2680_s_stream off\n");
+	mutex_lock(&sensor->input_lock);
 
-	ret = ov_write_reg8(client, OV2680_SW_STREAM,
-				enable ? OV2680_START_STREAMING : OV2680_STOP_STREAMING);
-	if (ret == 0) {
-		dev->is_streaming = enable;
-		v4l2_ctrl_activate(dev->ctrls.vflip, !enable);
-		v4l2_ctrl_activate(dev->ctrls.hflip, !enable);
+	if (sensor->is_streaming == enable) {
+		dev_warn(&client->dev, "stream already %s\n", enable ? "started" : "stopped");
+		goto error_unlock;
 	}
 
-	//otp valid at stream on state
-	//if(!dev->otp_data)
-	//	dev->otp_data = ov2680_otp_read(sd);
+	if (enable) {
+		ret = power_up(sd);
+		if (ret)
+			goto error_unlock;
 
-	mutex_unlock(&dev->input_lock);
+		ret = ov2680_set_mode(sensor);
+		if (ret)
+			goto error_power_down;
 
+		/* Restore value of all ctrls */
+		ret = __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
+		if (ret)
+			goto error_power_down;
+
+		ret = ov_write_reg8(client, OV2680_SW_STREAM, OV2680_START_STREAMING);
+		if (ret)
+			goto error_power_down;
+	} else {
+		ov_write_reg8(client, OV2680_SW_STREAM, OV2680_STOP_STREAMING);
+		power_down(sd);
+	}
+
+	sensor->is_streaming = enable;
+	v4l2_ctrl_activate(sensor->ctrls.vflip, !enable);
+	v4l2_ctrl_activate(sensor->ctrls.hflip, !enable);
+
+	mutex_unlock(&sensor->input_lock);
+	return 0;
+
+error_power_down:
+	power_down(sd);
+error_unlock:
+	mutex_unlock(&sensor->input_lock);
 	return ret;
 }
 
@@ -733,10 +718,6 @@ static const struct v4l2_subdev_sensor_ops ov2680_sensor_ops = {
 	.g_skip_frames	= ov2680_g_skip_frames,
 };
 
-static const struct v4l2_subdev_core_ops ov2680_core_ops = {
-	.s_power = ov2680_s_power,
-};
-
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.enum_mbus_code = ov2680_enum_mbus_code,
 	.enum_frame_size = ov2680_enum_frame_size,
@@ -746,7 +727,6 @@ static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops ov2680_ops = {
-	.core = &ov2680_core_ops,
 	.video = &ov2680_video_ops,
 	.pad = &ov2680_pad_ops,
 	.sensor = &ov2680_sensor_ops,
