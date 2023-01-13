@@ -388,13 +388,14 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	struct list_head *l;
+	unsigned int call_debug_id = 0;
 	size_t copied = 0;
 	long timeo;
 	int ret;
 
 	DEFINE_WAIT(wait);
 
-	trace_rxrpc_recvmsg(NULL, rxrpc_recvmsg_enter, 0);
+	trace_rxrpc_recvmsg(0, rxrpc_recvmsg_enter, 0);
 
 	if (flags & (MSG_OOB | MSG_TRUNC))
 		return -EOPNOTSUPP;
@@ -431,7 +432,7 @@ try_again:
 		if (list_empty(&rx->recvmsg_q)) {
 			if (signal_pending(current))
 				goto wait_interrupted;
-			trace_rxrpc_recvmsg(NULL, rxrpc_recvmsg_wait, 0);
+			trace_rxrpc_recvmsg(0, rxrpc_recvmsg_wait, 0);
 			timeo = schedule_timeout(timeo);
 		}
 		finish_wait(sk_sleep(&rx->sk), &wait);
@@ -450,7 +451,8 @@ try_again:
 		rxrpc_get_call(call, rxrpc_call_get_recvmsg);
 	write_unlock(&rx->recvmsg_lock);
 
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0);
+	call_debug_id = call->debug_id;
+	trace_rxrpc_recvmsg(call_debug_id, rxrpc_recvmsg_dequeue, 0);
 
 	/* We're going to drop the socket lock, so we need to lock the call
 	 * against interference by sendmsg.
@@ -531,7 +533,7 @@ try_again:
 error_unlock_call:
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put_recvmsg);
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, ret);
+	trace_rxrpc_recvmsg(call_debug_id, rxrpc_recvmsg_return, ret);
 	return ret;
 
 error_requeue_call:
@@ -539,14 +541,14 @@ error_requeue_call:
 		write_lock(&rx->recvmsg_lock);
 		list_add(&call->recvmsg_link, &rx->recvmsg_q);
 		write_unlock(&rx->recvmsg_lock);
-		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0);
+		trace_rxrpc_recvmsg(call_debug_id, rxrpc_recvmsg_requeue, 0);
 	} else {
 		rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 	}
 error_no_call:
 	release_sock(&rx->sk);
 error_trace:
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, ret);
+	trace_rxrpc_recvmsg(call_debug_id, rxrpc_recvmsg_return, ret);
 	return ret;
 
 wait_interrupted:

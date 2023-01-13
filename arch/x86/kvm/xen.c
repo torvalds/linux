@@ -272,7 +272,15 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	 * Attempt to obtain the GPC lock on *both* (if there are two)
 	 * gfn_to_pfn caches that cover the region.
 	 */
-	read_lock_irqsave(&gpc1->lock, flags);
+	if (atomic) {
+		local_irq_save(flags);
+		if (!read_trylock(&gpc1->lock)) {
+			local_irq_restore(flags);
+			return;
+		}
+	} else {
+		read_lock_irqsave(&gpc1->lock, flags);
+	}
 	while (!kvm_gpc_check(gpc1, user_len1)) {
 		read_unlock_irqrestore(&gpc1->lock, flags);
 
@@ -305,9 +313,18 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		 * The guest's runstate_info is split across two pages and we
 		 * need to hold and validate both GPCs simultaneously. We can
 		 * declare a lock ordering GPC1 > GPC2 because nothing else
-		 * takes them more than one at a time.
+		 * takes them more than one at a time. Set a subclass on the
+		 * gpc1 lock to make lockdep shut up about it.
 		 */
-		read_lock(&gpc2->lock);
+		lock_set_subclass(&gpc1->lock.dep_map, 1, _THIS_IP_);
+		if (atomic) {
+			if (!read_trylock(&gpc2->lock)) {
+				read_unlock_irqrestore(&gpc1->lock, flags);
+				return;
+			}
+		} else {
+			read_lock(&gpc2->lock);
+		}
 
 		if (!kvm_gpc_check(gpc2, user_len2)) {
 			read_unlock(&gpc2->lock);
@@ -591,26 +608,26 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		if (!IS_ENABLED(CONFIG_64BIT) && data->u.long_mode) {
 			r = -EINVAL;
 		} else {
-			mutex_lock(&kvm->lock);
+			mutex_lock(&kvm->arch.xen.xen_lock);
 			kvm->arch.xen.long_mode = !!data->u.long_mode;
-			mutex_unlock(&kvm->lock);
+			mutex_unlock(&kvm->arch.xen.xen_lock);
 			r = 0;
 		}
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		mutex_lock(&kvm->lock);
+		mutex_lock(&kvm->arch.xen.xen_lock);
 		r = kvm_xen_shared_info_init(kvm, data->u.shared_info.gfn);
-		mutex_unlock(&kvm->lock);
+		mutex_unlock(&kvm->arch.xen.xen_lock);
 		break;
 
 	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
 		if (data->u.vector && data->u.vector < 0x10)
 			r = -EINVAL;
 		else {
-			mutex_lock(&kvm->lock);
+			mutex_lock(&kvm->arch.xen.xen_lock);
 			kvm->arch.xen.upcall_vector = data->u.vector;
-			mutex_unlock(&kvm->lock);
+			mutex_unlock(&kvm->arch.xen.xen_lock);
 			r = 0;
 		}
 		break;
@@ -620,9 +637,9 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_XEN_VERSION:
-		mutex_lock(&kvm->lock);
+		mutex_lock(&kvm->arch.xen.xen_lock);
 		kvm->arch.xen.xen_version = data->u.xen_version;
-		mutex_unlock(&kvm->lock);
+		mutex_unlock(&kvm->arch.xen.xen_lock);
 		r = 0;
 		break;
 
@@ -631,9 +648,9 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 			r = -EOPNOTSUPP;
 			break;
 		}
-		mutex_lock(&kvm->lock);
+		mutex_lock(&kvm->arch.xen.xen_lock);
 		kvm->arch.xen.runstate_update_flag = !!data->u.runstate_update_flag;
-		mutex_unlock(&kvm->lock);
+		mutex_unlock(&kvm->arch.xen.xen_lock);
 		r = 0;
 		break;
 
@@ -648,7 +665,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 {
 	int r = -ENOENT;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 
 	switch (data->type) {
 	case KVM_XEN_ATTR_TYPE_LONG_MODE:
@@ -687,7 +704,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 	}
 
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 	return r;
 }
 
@@ -695,7 +712,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 {
 	int idx, r = -ENOENT;
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->arch.xen.xen_lock);
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	switch (data->type) {
@@ -923,7 +940,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 	}
 
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->arch.xen.xen_lock);
 	return r;
 }
 
@@ -931,7 +948,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 {
 	int r = -ENOENT;
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->arch.xen.xen_lock);
 
 	switch (data->type) {
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO:
@@ -1014,7 +1031,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 	}
 
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->arch.xen.xen_lock);
 	return r;
 }
 
@@ -1107,7 +1124,7 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 	     xhc->blob_size_32 || xhc->blob_size_64))
 		return -EINVAL;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 
 	if (xhc->msr && !kvm->arch.xen_hvm_config.msr)
 		static_branch_inc(&kvm_xen_enabled.key);
@@ -1116,7 +1133,7 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 
 	memcpy(&kvm->arch.xen_hvm_config, xhc, sizeof(*xhc));
 
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 	return 0;
 }
 
@@ -1659,15 +1676,7 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		mm_borrowed = true;
 	}
 
-	/*
-	 * For the irqfd workqueue, using the main kvm->lock mutex is
-	 * fine since this function is invoked from kvm_set_irq() with
-	 * no other lock held, no srcu. In future if it will be called
-	 * directly from a vCPU thread (e.g. on hypercall for an IPI)
-	 * then it may need to switch to using a leaf-node mutex for
-	 * serializing the shared_info mapping.
-	 */
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 
 	/*
 	 * It is theoretically possible for the page to be unmapped
@@ -1696,7 +1705,7 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		srcu_read_unlock(&kvm->srcu, idx);
 	} while(!rc);
 
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 
 	if (mm_borrowed)
 		kthread_unuse_mm(kvm->mm);
@@ -1812,7 +1821,7 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 	int ret;
 
 	/* Protect writes to evtchnfd as well as the idr lookup.  */
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 	evtchnfd = idr_find(&kvm->arch.xen.evtchn_ports, port);
 
 	ret = -ENOENT;
@@ -1843,7 +1852,7 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 	}
 	ret = 0;
 out_unlock:
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 	return ret;
 }
 
@@ -1906,10 +1915,10 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm,
 		evtchnfd->deliver.port.priority = data->u.evtchn.deliver.port.priority;
 	}
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 	ret = idr_alloc(&kvm->arch.xen.evtchn_ports, evtchnfd, port, port + 1,
 			GFP_KERNEL);
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 	if (ret >= 0)
 		return 0;
 
@@ -1927,9 +1936,9 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
 {
 	struct evtchnfd *evtchnfd;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 	evtchnfd = idr_remove(&kvm->arch.xen.evtchn_ports, port);
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 
 	if (!evtchnfd)
 		return -ENOENT;
@@ -1947,7 +1956,7 @@ static int kvm_xen_eventfd_reset(struct kvm *kvm)
 	int i;
 	int n = 0;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->arch.xen.xen_lock);
 
 	/*
 	 * Because synchronize_srcu() cannot be called inside the
@@ -1959,7 +1968,7 @@ static int kvm_xen_eventfd_reset(struct kvm *kvm)
 
 	all_evtchnfds = kmalloc_array(n, sizeof(struct evtchnfd *), GFP_KERNEL);
 	if (!all_evtchnfds) {
-		mutex_unlock(&kvm->lock);
+		mutex_unlock(&kvm->arch.xen.xen_lock);
 		return -ENOMEM;
 	}
 
@@ -1968,7 +1977,7 @@ static int kvm_xen_eventfd_reset(struct kvm *kvm)
 		all_evtchnfds[n++] = evtchnfd;
 		idr_remove(&kvm->arch.xen.evtchn_ports, evtchnfd->send_port);
 	}
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->arch.xen.xen_lock);
 
 	synchronize_srcu(&kvm->srcu);
 
@@ -2070,6 +2079,7 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 
 void kvm_xen_init_vm(struct kvm *kvm)
 {
+	mutex_init(&kvm->arch.xen.xen_lock);
 	idr_init(&kvm->arch.xen.evtchn_ports);
 	kvm_gpc_init(&kvm->arch.xen.shinfo_cache, kvm, NULL, KVM_HOST_USES_PFN);
 }
