@@ -449,6 +449,7 @@
  *
  * #include "ulcb-kf-simple-audio-card.dtsi"
  * #include "ulcb-kf-audio-graph-card.dtsi"
+ * #include "ulcb-kf-audio-graph-card-mix+split.dtsi"
  * #include "ulcb-kf-audio-graph-card2-mix+split.dtsi"
  */
 #include "ulcb-kf-audio-graph-card2.dtsi"
