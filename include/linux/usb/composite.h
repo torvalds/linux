@@ -25,6 +25,7 @@
 #include <linux/version.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/webusb.h>
 #include <linux/log2.h>
 #include <linux/configfs.h>
 
@@ -473,6 +474,12 @@ struct usb_composite_dev {
 	u8				b_vendor_code;
 	struct usb_configuration	*os_desc_config;
 	unsigned int			use_os_string:1;
+
+	/* WebUSB */
+	u16				bcd_webusb_version;
+	u8				b_webusb_vendor_code;
+	char				landing_page[WEBUSB_URL_RAW_MAX_LENGTH];
+	unsigned int			use_webusb:1;
 
 	/* private: */
 	/* internals */

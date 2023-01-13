@@ -7,6 +7,7 @@
 #include <linux/nls.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
+#include <linux/usb/webusb.h>
 #include "configfs.h"
 #include "u_f.h"
 #include "u_os_desc.h"
@@ -39,6 +40,7 @@ struct gadget_info {
 	struct config_group configs_group;
 	struct config_group strings_group;
 	struct config_group os_desc_group;
+	struct config_group webusb_group;
 
 	struct mutex lock;
 	struct usb_gadget_strings *gstrings[MAX_USB_STRING_LANGS + 1];
@@ -50,6 +52,11 @@ struct gadget_info {
 	bool use_os_desc;
 	char b_vendor_code;
 	char qw_sign[OS_STRING_QW_SIGN_LEN];
+	bool use_webusb;
+	u16 bcd_webusb_version;
+	u8 b_webusb_vendor_code;
+	char landing_page[WEBUSB_URL_RAW_MAX_LENGTH];
+
 	spinlock_t spinlock;
 	bool unbind;
 };
@@ -780,6 +787,154 @@ static void gadget_strings_attr_release(struct config_item *item)
 USB_CONFIG_STRING_RW_OPS(gadget_strings);
 USB_CONFIG_STRINGS_LANG(gadget_strings, gadget_info);
 
+static inline struct gadget_info *webusb_item_to_gadget_info(
+		struct config_item *item)
+{
+	return container_of(to_config_group(item),
+			struct gadget_info, webusb_group);
+}
+
+static ssize_t webusb_use_show(struct config_item *item, char *page)
+{
+	return sysfs_emit(page, "%d\n",
+			webusb_item_to_gadget_info(item)->use_webusb);
+}
+
+static ssize_t webusb_use_store(struct config_item *item, const char *page,
+				 size_t len)
+{
+	struct gadget_info *gi = webusb_item_to_gadget_info(item);
+	int ret;
+	bool use;
+
+	mutex_lock(&gi->lock);
+	ret = kstrtobool(page, &use);
+	if (!ret) {
+		gi->use_webusb = use;
+		ret = len;
+	}
+	mutex_unlock(&gi->lock);
+
+	return ret;
+}
+
+static ssize_t webusb_bcdVersion_show(struct config_item *item, char *page)
+{
+	return sysfs_emit(page, "0x%04x\n",
+					webusb_item_to_gadget_info(item)->bcd_webusb_version);
+}
+
+static ssize_t webusb_bcdVersion_store(struct config_item *item,
+		const char *page, size_t len)
+{
+	struct gadget_info *gi = webusb_item_to_gadget_info(item);
+	u16 bcdVersion;
+	int ret;
+
+	mutex_lock(&gi->lock);
+	ret = kstrtou16(page, 0, &bcdVersion);
+	if (ret)
+		goto out;
+	ret = is_valid_bcd(bcdVersion);
+	if (ret)
+		goto out;
+
+	gi->bcd_webusb_version = bcdVersion;
+	ret = len;
+
+out:
+	mutex_unlock(&gi->lock);
+
+	return ret;
+}
+
+static ssize_t webusb_bVendorCode_show(struct config_item *item, char *page)
+{
+	return sysfs_emit(page, "0x%02x\n",
+			webusb_item_to_gadget_info(item)->b_webusb_vendor_code);
+}
+
+static ssize_t webusb_bVendorCode_store(struct config_item *item,
+					   const char *page, size_t len)
+{
+	struct gadget_info *gi = webusb_item_to_gadget_info(item);
+	int ret;
+	u8 b_vendor_code;
+
+	mutex_lock(&gi->lock);
+	ret = kstrtou8(page, 0, &b_vendor_code);
+	if (!ret) {
+		gi->b_webusb_vendor_code = b_vendor_code;
+		ret = len;
+	}
+	mutex_unlock(&gi->lock);
+
+	return ret;
+}
+
+static ssize_t webusb_landingPage_show(struct config_item *item, char *page)
+{
+	return sysfs_emit(page, "%s\n", webusb_item_to_gadget_info(item)->landing_page);
+}
+
+static ssize_t webusb_landingPage_store(struct config_item *item, const char *page,
+				     size_t len)
+{
+	struct gadget_info *gi = webusb_item_to_gadget_info(item);
+	unsigned int bytes_to_strip = 0;
+	int l = len;
+
+	if (page[l - 1] == '\n') {
+		--l;
+		++bytes_to_strip;
+	}
+
+	if (l > sizeof(gi->landing_page)) {
+		pr_err("webusb: landingPage URL too long\n");
+		return -EINVAL;
+	}
+
+	// validation
+	if (strncasecmp(page, "https://",  8) == 0)
+		bytes_to_strip = 8;
+	else if (strncasecmp(page, "http://", 7) == 0)
+		bytes_to_strip = 7;
+	else
+		bytes_to_strip = 0;
+
+	if (l > U8_MAX - WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + bytes_to_strip) {
+		pr_err("webusb: landingPage URL %d bytes too long for given URL scheme\n",
+			l - U8_MAX + WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH - bytes_to_strip);
+		return -EINVAL;
+	}
+
+	mutex_lock(&gi->lock);
+	// ensure 0 bytes are set, in case the new landing page is shorter then the old one.
+	memset(gi->landing_page, 0, sizeof(gi->landing_page));
+	memcpy(gi->landing_page, page, l);
+	mutex_unlock(&gi->lock);
+
+	return len;
+}
+
+CONFIGFS_ATTR(webusb_, use);
+CONFIGFS_ATTR(webusb_, bVendorCode);
+CONFIGFS_ATTR(webusb_, bcdVersion);
+CONFIGFS_ATTR(webusb_, landingPage);
+
+static struct configfs_attribute *webusb_attrs[] = {
+	&webusb_attr_use,
+	&webusb_attr_bcdVersion,
+	&webusb_attr_bVendorCode,
+	&webusb_attr_landingPage,
+	NULL,
+};
+
+static struct config_item_type webusb_type = {
+	.ct_attrs	= webusb_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static inline struct gadget_info *os_desc_item_to_gadget_info(
 		struct config_item *item)
 {
@@ -1341,6 +1496,13 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		gi->cdev.desc.iSerialNumber = s[USB_GADGET_SERIAL_IDX].id;
 	}
 
+	if (gi->use_webusb) {
+		cdev->use_webusb = true;
+		cdev->bcd_webusb_version = gi->bcd_webusb_version;
+		cdev->b_webusb_vendor_code = gi->b_webusb_vendor_code;
+		memcpy(cdev->landing_page, gi->landing_page, WEBUSB_URL_RAW_MAX_LENGTH);
+	}
+
 	if (gi->use_os_desc) {
 		cdev->use_os_string = true;
 		cdev->b_vendor_code = gi->b_vendor_code;
@@ -1604,6 +1766,10 @@ static struct config_group *gadgets_make(
 	config_group_init_type_name(&gi->os_desc_group, "os_desc",
 			&os_desc_type);
 	configfs_add_default_group(&gi->os_desc_group, &gi->group);
+
+	config_group_init_type_name(&gi->webusb_group, "webusb",
+			&webusb_type);
+	configfs_add_default_group(&gi->webusb_group, &gi->group);
 
 	gi->composite.bind = configfs_do_nothing;
 	gi->composite.unbind = configfs_do_nothing;
