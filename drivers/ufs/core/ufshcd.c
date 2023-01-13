@@ -8353,6 +8353,11 @@ out:
 	return ret;
 }
 
+static int ufshcd_alloc_mcq(struct ufs_hba *hba)
+{
+	return ufshcd_mcq_init(hba);
+}
+
 /**
  * ufshcd_probe_hba - probe hba to detect device and initialize it
  * @hba: per-adapter instance
@@ -8401,6 +8406,13 @@ static int ufshcd_probe_hba(struct ufs_hba *hba, bool init_dev_params)
 		if (ret)
 			return ret;
 		if (is_mcq_supported(hba) && !hba->scsi_host_added) {
+			ret = ufshcd_alloc_mcq(hba);
+			if (ret) {
+				/* Continue with SDB mode */
+				use_mcq_mode = false;
+				dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
+					 ret);
+			}
 			ret = scsi_add_host(host, hba->dev);
 			if (ret) {
 				dev_err(hba->dev, "scsi_add_host failed\n");
