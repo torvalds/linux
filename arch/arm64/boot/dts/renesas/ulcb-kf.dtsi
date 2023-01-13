@@ -447,6 +447,7 @@
  * We can switch Audio Card for testing
  * see also ulcb.dtsi
  *
+ * #include "ulcb-kf-simple-audio-card.dtsi"
  * #include "ulcb-kf-audio-graph-card.dtsi"
  */
 #include "ulcb-kf-audio-graph-card2.dtsi"
