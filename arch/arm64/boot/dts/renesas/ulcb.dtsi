@@ -495,5 +495,6 @@
  *
  * #include "ulcb-simple-audio-card.dtsi"
  * #include "ulcb-audio-graph-card.dtsi"
+ * #include "ulcb-audio-graph-card2-mix+split.dtsi"
  */
 #include "ulcb-audio-graph-card2.dtsi"
