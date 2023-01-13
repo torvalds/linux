@@ -724,6 +724,47 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 	}
 }
 
+static u32 pxp_data_path_ctrl0(struct pxp_ctx *ctx)
+{
+	u32 ctrl0;
+
+	ctrl0 = 0;
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(0);
+
+	return ctrl0;
+}
+
+static void pxp_set_data_path(struct pxp_ctx *ctx)
+{
+	struct pxp_dev *dev = ctx->dev;
+	u32 ctrl0;
+	u32 ctrl1;
+
+	ctrl0 = pxp_data_path_ctrl0(ctx);
+
+	ctrl1 = 0;
+	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1);
+	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1);
+
+	writel(ctrl0, dev->mmio + HW_PXP_DATA_PATH_CTRL0);
+	writel(ctrl1, dev->mmio + HW_PXP_DATA_PATH_CTRL1);
+}
+
 static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 		     struct vb2_v4l2_buffer *out_vb)
 {
@@ -910,26 +951,7 @@ static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 	/* bypass LUT */
 	writel(BM_PXP_LUT_CTRL_BYPASS, dev->mmio + HW_PXP_LUT_CTRL);
 
-	writel(BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(1)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(1)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(0),
-	       dev->mmio + HW_PXP_DATA_PATH_CTRL0);
-	writel(BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1) |
-	       BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1),
-	       dev->mmio + HW_PXP_DATA_PATH_CTRL1);
+	pxp_set_data_path(ctx);
 
 	writel(0xffff, dev->mmio + HW_PXP_IRQ_MASK);
 
