@@ -212,14 +212,14 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 {
 	struct mt76_queue_entry *entry;
 	struct mt76_desc *desc;
-	u32 ctrl;
 	int i, idx = -1;
+	u32 ctrl, next;
 
 	for (i = 0; i < nbufs; i += 2, buf += 2) {
 		u32 buf0 = buf[0].addr, buf1 = 0;
 
 		idx = q->head;
-		q->head = (q->head + 1) % q->ndesc;
+		next = (q->head + 1) % q->ndesc;
 
 		desc = &q->desc[idx];
 		entry = &q->entry[idx];
@@ -239,8 +239,8 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 			       MT_DMA_CTL_TO_HOST;
 		} else {
 			if (txwi) {
-				q->entry[q->head].txwi = DMA_DUMMY_DATA;
-				q->entry[q->head].skip_buf0 = true;
+				q->entry[next].txwi = DMA_DUMMY_DATA;
+				q->entry[next].skip_buf0 = true;
 			}
 
 			if (buf[0].skip_unmap)
@@ -271,6 +271,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 		WRITE_ONCE(desc->info, cpu_to_le32(info));
 		WRITE_ONCE(desc->ctrl, cpu_to_le32(ctrl));
 
+		q->head = next;
 		q->queued++;
 	}
 
