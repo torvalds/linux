@@ -10,6 +10,7 @@
  * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  */
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -51,6 +52,11 @@ MODULE_PARM_DESC(debug, "activates debug info");
 /* Flags that indicate processing mode */
 #define MEM2MEM_HFLIP	(1 << 0)
 #define MEM2MEM_VFLIP	(1 << 1)
+
+#define PXP_VERSION_MAJOR(version) \
+	FIELD_GET(BM_PXP_VERSION_MAJOR, version)
+#define PXP_VERSION_MINOR(version) \
+	FIELD_GET(BM_PXP_VERSION_MINOR, version)
 
 #define dprintk(dev, fmt, arg...) \
 	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
@@ -1664,6 +1670,7 @@ static int pxp_probe(struct platform_device *pdev)
 {
 	struct pxp_dev *dev;
 	struct video_device *vfd;
+	u32 hw_version;
 	int irq;
 	int ret;
 
@@ -1704,6 +1711,10 @@ static int pxp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "PXP reset timeout: %d\n", ret);
 		goto err_clk;
 	}
+
+	hw_version = readl(dev->mmio + HW_PXP_VERSION);
+	dev_dbg(&pdev->dev, "PXP Version %u.%u\n",
+		PXP_VERSION_MAJOR(hw_version), PXP_VERSION_MINOR(hw_version));
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
