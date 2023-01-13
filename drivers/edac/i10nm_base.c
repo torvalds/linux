@@ -148,35 +148,47 @@ static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable
 
 static void enable_retry_rd_err_log(bool enable)
 {
+	int i, j, imc_num, chan_num;
 	struct skx_imc *imc;
 	struct skx_dev *d;
-	int i, j;
 
 	edac_dbg(2, "\n");
 
-	list_for_each_entry(d, i10nm_edac_list, list)
-		for (i = 0; i < I10NM_NUM_IMC; i++) {
+	list_for_each_entry(d, i10nm_edac_list, list) {
+		imc_num  = res_cfg->ddr_imc_num;
+		chan_num = res_cfg->ddr_chan_num;
+
+		for (i = 0; i < imc_num; i++) {
 			imc = &d->imc[i];
 			if (!imc->mbase)
 				continue;
 
-			for (j = 0; j < I10NM_NUM_CHANNELS; j++) {
-				if (imc->hbm_mc) {
-					__enable_retry_rd_err_log(imc, j, enable,
-								  res_cfg->offsets_scrub_hbm0,
-								  res_cfg->offsets_demand_hbm0,
-								  NULL);
-					__enable_retry_rd_err_log(imc, j, enable,
-								  res_cfg->offsets_scrub_hbm1,
-								  res_cfg->offsets_demand_hbm1,
-								  NULL);
-				} else {
-					__enable_retry_rd_err_log(imc, j, enable,
-								  res_cfg->offsets_scrub,
-								  res_cfg->offsets_demand,
-								  res_cfg->offsets_demand2);
-				}
+			for (j = 0; j < chan_num; j++)
+				__enable_retry_rd_err_log(imc, j, enable,
+							  res_cfg->offsets_scrub,
+							  res_cfg->offsets_demand,
+							  res_cfg->offsets_demand2);
+		}
+
+		imc_num += res_cfg->hbm_imc_num;
+		chan_num = res_cfg->hbm_chan_num;
+
+		for (; i < imc_num; i++) {
+			imc = &d->imc[i];
+			if (!imc->mbase || !imc->hbm_mc)
+				continue;
+
+			for (j = 0; j < chan_num; j++) {
+				__enable_retry_rd_err_log(imc, j, enable,
+							  res_cfg->offsets_scrub_hbm0,
+							  res_cfg->offsets_demand_hbm0,
+							  NULL);
+				__enable_retry_rd_err_log(imc, j, enable,
+							  res_cfg->offsets_scrub_hbm1,
+							  res_cfg->offsets_demand_hbm1,
+							  NULL);
 			}
+		}
 	}
 }
 
@@ -318,9 +330,9 @@ static bool i10nm_check_2lm(struct res_config *cfg)
 	int i;
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
-		d->sad_all = pci_get_dev_wrapper(d->seg, d->bus[1],
-						 PCI_SLOT(cfg->sad_all_devfn),
-						 PCI_FUNC(cfg->sad_all_devfn));
+		d->sad_all = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->sad_all_bdf.bus],
+						 res_cfg->sad_all_bdf.dev,
+						 res_cfg->sad_all_bdf.fun);
 		if (!d->sad_all)
 			continue;
 
@@ -444,11 +456,15 @@ static int i10nm_get_ddr_munits(void)
 	u64 base;
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
-		d->util_all = pci_get_dev_wrapper(d->seg, d->bus[1], 29, 1);
+		d->util_all = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->util_all_bdf.bus],
+						  res_cfg->util_all_bdf.dev,
+						  res_cfg->util_all_bdf.fun);
 		if (!d->util_all)
 			return -ENODEV;
 
-		d->uracu = pci_get_dev_wrapper(d->seg, d->bus[0], 0, 1);
+		d->uracu = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->uracu_bdf.bus],
+					       res_cfg->uracu_bdf.dev,
+					       res_cfg->uracu_bdf.fun);
 		if (!d->uracu)
 			return -ENODEV;
 
@@ -461,9 +477,10 @@ static int i10nm_get_ddr_munits(void)
 		edac_dbg(2, "socket%d mmio base 0x%llx (reg 0x%x)\n",
 			 j++, base, reg);
 
-		for (i = 0; i < I10NM_NUM_DDR_IMC; i++) {
-			mdev = pci_get_dev_wrapper(d->seg, d->bus[0],
-						   12 + i, 0);
+		for (i = 0; i < res_cfg->ddr_imc_num; i++) {
+			mdev = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->ddr_mdev_bdf.bus],
+						   res_cfg->ddr_mdev_bdf.dev + i,
+						   res_cfg->ddr_mdev_bdf.fun);
 			if (i == 0 && !mdev) {
 				i10nm_printk(KERN_ERR, "No IMC found\n");
 				return -ENODEV;
@@ -519,7 +536,9 @@ static int i10nm_get_hbm_munits(void)
 	u64 base;
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
-		d->pcu_cr3 = pci_get_dev_wrapper(d->seg, d->bus[1], 30, 3);
+		d->pcu_cr3 = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->pcu_cr3_bdf.bus],
+						 res_cfg->pcu_cr3_bdf.dev,
+						 res_cfg->pcu_cr3_bdf.fun);
 		if (!d->pcu_cr3)
 			return -ENODEV;
 
@@ -540,11 +559,13 @@ static int i10nm_get_hbm_munits(void)
 		}
 		base += I10NM_GET_HBM_IMC_MMIO_OFFSET(reg);
 
-		lmc = I10NM_NUM_DDR_IMC;
+		lmc = res_cfg->ddr_imc_num;
 
-		for (i = 0; i < I10NM_NUM_HBM_IMC; i++) {
-			mdev = pci_get_dev_wrapper(d->seg, d->bus[0],
-						   12 + i / 4, 1 + i % 4);
+		for (i = 0; i < res_cfg->hbm_imc_num; i++) {
+			mdev = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->hbm_mdev_bdf.bus],
+						   res_cfg->hbm_mdev_bdf.dev + i / 4,
+						   res_cfg->hbm_mdev_bdf.fun + i % 4);
+
 			if (i == 0 && !mdev) {
 				i10nm_printk(KERN_ERR, "No hbm mc found\n");
 				return -ENODEV;
@@ -594,8 +615,16 @@ static struct res_config i10nm_cfg0 = {
 	.type			= I10NM,
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xcc,
+	.ddr_imc_num		= 4,
+	.ddr_chan_num		= 2,
+	.ddr_dimm_num		= 2,
 	.ddr_chan_mmio_sz	= 0x4000,
-	.sad_all_devfn		= PCI_DEVFN(29, 0),
+	.sad_all_bdf		= {1, 29, 0},
+	.pcu_cr3_bdf		= {1, 30, 3},
+	.util_all_bdf		= {1, 29, 1},
+	.uracu_bdf		= {0, 0, 1},
+	.ddr_mdev_bdf		= {0, 12, 0},
+	.hbm_mdev_bdf		= {0, 12, 1},
 	.sad_all_offset		= 0x108,
 	.offsets_scrub		= offsets_scrub_icx,
 	.offsets_demand		= offsets_demand_icx,
@@ -605,8 +634,16 @@ static struct res_config i10nm_cfg1 = {
 	.type			= I10NM,
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xd0,
+	.ddr_imc_num		= 4,
+	.ddr_chan_num		= 2,
+	.ddr_dimm_num		= 2,
 	.ddr_chan_mmio_sz	= 0x4000,
-	.sad_all_devfn		= PCI_DEVFN(29, 0),
+	.sad_all_bdf		= {1, 29, 0},
+	.pcu_cr3_bdf		= {1, 30, 3},
+	.util_all_bdf		= {1, 29, 1},
+	.uracu_bdf		= {0, 0, 1},
+	.ddr_mdev_bdf		= {0, 12, 0},
+	.hbm_mdev_bdf		= {0, 12, 1},
 	.sad_all_offset		= 0x108,
 	.offsets_scrub		= offsets_scrub_icx,
 	.offsets_demand		= offsets_demand_icx,
@@ -616,10 +653,21 @@ static struct res_config spr_cfg = {
 	.type			= SPR,
 	.decs_did		= 0x3252,
 	.busno_cfg_offset	= 0xd0,
+	.ddr_imc_num		= 4,
+	.ddr_chan_num		= 2,
+	.ddr_dimm_num		= 2,
+	.hbm_imc_num		= 16,
+	.hbm_chan_num		= 2,
+	.hbm_dimm_num		= 1,
 	.ddr_chan_mmio_sz	= 0x8000,
 	.hbm_chan_mmio_sz	= 0x4000,
 	.support_ddr5		= true,
-	.sad_all_devfn		= PCI_DEVFN(10, 0),
+	.sad_all_bdf		= {1, 10, 0},
+	.pcu_cr3_bdf		= {1, 30, 3},
+	.util_all_bdf		= {1, 29, 1},
+	.uracu_bdf		= {0, 0, 1},
+	.ddr_mdev_bdf		= {0, 12, 0},
+	.hbm_mdev_bdf		= {0, 12, 1},
 	.sad_all_offset		= 0x300,
 	.offsets_scrub		= offsets_scrub_spr,
 	.offsets_scrub_hbm0	= offsets_scrub_spr_hbm0,
@@ -753,6 +801,7 @@ static int __init i10nm_init(void)
 	struct skx_dev *d;
 	int rc, i, off[3] = {0xd0, 0xc8, 0xcc};
 	u64 tolm, tohm;
+	int imc_num;
 
 	edac_dbg(2, "\n");
 
@@ -793,6 +842,8 @@ static int __init i10nm_init(void)
 	if (i10nm_get_hbm_munits() && rc)
 		goto fail;
 
+	imc_num = res_cfg->ddr_imc_num + res_cfg->hbm_imc_num;
+
 	list_for_each_entry(d, i10nm_edac_list, list) {
 		rc = skx_get_src_id(d, 0xf8, &src_id);
 		if (rc < 0)
@@ -803,7 +854,7 @@ static int __init i10nm_init(void)
 			goto fail;
 
 		edac_dbg(2, "src_id = %d node_id = %d\n", src_id, node_id);
-		for (i = 0; i < I10NM_NUM_IMC; i++) {
+		for (i = 0; i < imc_num; i++) {
 			if (!d->imc[i].mdev)
 				continue;
 
@@ -813,12 +864,12 @@ static int __init i10nm_init(void)
 			d->imc[i].node_id = node_id;
 			if (d->imc[i].hbm_mc) {
 				d->imc[i].chan_mmio_sz = cfg->hbm_chan_mmio_sz;
-				d->imc[i].num_channels = I10NM_NUM_HBM_CHANNELS;
-				d->imc[i].num_dimms    = I10NM_NUM_HBM_DIMMS;
+				d->imc[i].num_channels = cfg->hbm_chan_num;
+				d->imc[i].num_dimms    = cfg->hbm_dimm_num;
 			} else {
 				d->imc[i].chan_mmio_sz = cfg->ddr_chan_mmio_sz;
-				d->imc[i].num_channels = I10NM_NUM_DDR_CHANNELS;
-				d->imc[i].num_dimms    = I10NM_NUM_DDR_DIMMS;
+				d->imc[i].num_channels = cfg->ddr_chan_num;
+				d->imc[i].num_dimms    = cfg->ddr_dimm_num;
 			}
 
 			rc = skx_register_mci(&d->imc[i], d->imc[i].mdev,

@@ -173,19 +173,47 @@ struct decoded_addr {
 	bool	decoded_by_adxl;
 };
 
+struct pci_bdf {
+	u32 bus : 8;
+	u32 dev : 5;
+	u32 fun : 3;
+};
+
 struct res_config {
 	enum type type;
 	/* Configuration agent device ID */
 	unsigned int decs_did;
 	/* Default bus number configuration register offset */
 	int busno_cfg_offset;
+	/* DDR memory controllers per socket */
+	int ddr_imc_num;
+	/* DDR channels per DDR memory controller */
+	int ddr_chan_num;
+	/* DDR DIMMs per DDR memory channel */
+	int ddr_dimm_num;
 	/* Per DDR channel memory-mapped I/O size */
 	int ddr_chan_mmio_sz;
+	/* HBM memory controllers per socket */
+	int hbm_imc_num;
+	/* HBM channels per HBM memory controller */
+	int hbm_chan_num;
+	/* HBM DIMMs per HBM memory channel */
+	int hbm_dimm_num;
 	/* Per HBM channel memory-mapped I/O size */
 	int hbm_chan_mmio_sz;
 	bool support_ddr5;
-	/* SAD device number and function number */
-	unsigned int sad_all_devfn;
+	/* SAD device BDF */
+	struct pci_bdf sad_all_bdf;
+	/* PCU device BDF */
+	struct pci_bdf pcu_cr3_bdf;
+	/* UTIL device BDF */
+	struct pci_bdf util_all_bdf;
+	/* URACU device BDF */
+	struct pci_bdf uracu_bdf;
+	/* DDR mdev device BDF */
+	struct pci_bdf ddr_mdev_bdf;
+	/* HBM mdev device BDF */
+	struct pci_bdf hbm_mdev_bdf;
 	int sad_all_offset;
 	/* Offsets of retry_rd_err_log registers */
 	u32 *offsets_scrub;
