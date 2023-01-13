@@ -691,15 +691,29 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
+	static const struct v4l2_frmsize_discrete ov2680_frame_sizes[] = {
+		{ 1616, 1216 },
+		{ 1616, 1082 },
+		{ 1616,  916 },
+		{ 1456, 1096 },
+		{ 1296,  976 },
+		{ 1296,  736 },
+		{  800,  600 },
+		{  720,  592 },
+		{  656,  496 },
+		{  336,  256 },
+		{  352,  288 },
+		{  176,  144 },
+	};
 	int index = fse->index;
 
-	if (index >= N_RES_PREVIEW)
+	if (index >= ARRAY_SIZE(ov2680_frame_sizes))
 		return -EINVAL;
 
-	fse->min_width = ov2680_res_preview[index].width;
-	fse->min_height = ov2680_res_preview[index].height;
-	fse->max_width = ov2680_res_preview[index].width;
-	fse->max_height = ov2680_res_preview[index].height;
+	fse->min_width = ov2680_frame_sizes[index].width;
+	fse->min_height = ov2680_frame_sizes[index].height;
+	fse->max_width = ov2680_frame_sizes[index].width;
+	fse->max_height = ov2680_frame_sizes[index].height;
 
 	return 0;
 }
