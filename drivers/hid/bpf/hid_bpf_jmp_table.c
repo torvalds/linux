@@ -322,16 +322,6 @@ static int hid_bpf_insert_prog(int prog_fd, struct bpf_prog *prog)
 	if (err)
 		goto out;
 
-	/*
-	 * The program has been safely inserted, decrement the reference count
-	 * so it doesn't interfere with the number of actual user handles.
-	 * This is safe to do because:
-	 * - we overrite the put_ptr in the prog fd map
-	 * - we also have a cleanup function that monitors when a program gets
-	 *   released and we manually do the cleanup in the prog fd map
-	 */
-	bpf_prog_sub(prog, 1);
-
 	/* return the index */
 	err = index;
 
@@ -365,14 +355,46 @@ int hid_bpf_get_prog_attach_type(int prog_fd)
 	return prog_type;
 }
 
+static void hid_bpf_link_release(struct bpf_link *link)
+{
+	struct hid_bpf_link *hid_link =
+		container_of(link, struct hid_bpf_link, link);
+
+	__clear_bit(hid_link->hid_table_index, jmp_table.enabled);
+	schedule_work(&release_work);
+}
+
+static void hid_bpf_link_dealloc(struct bpf_link *link)
+{
+	struct hid_bpf_link *hid_link =
+		container_of(link, struct hid_bpf_link, link);
+
+	kfree(hid_link);
+}
+
+static void hid_bpf_link_show_fdinfo(const struct bpf_link *link,
+					 struct seq_file *seq)
+{
+	seq_printf(seq,
+		   "attach_type:\tHID-BPF\n");
+}
+
+static const struct bpf_link_ops hid_bpf_link_lops = {
+	.release = hid_bpf_link_release,
+	.dealloc = hid_bpf_link_dealloc,
+	.show_fdinfo = hid_bpf_link_show_fdinfo,
+};
+
 /* called from syscall */
 noinline int
 __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
 		      int prog_fd, __u32 flags)
 {
+	struct bpf_link_primer link_primer;
+	struct hid_bpf_link *link;
 	struct bpf_prog *prog = NULL;
 	struct hid_bpf_prog_entry *prog_entry;
-	int cnt, err = -EINVAL, prog_idx = -1;
+	int cnt, err = -EINVAL, prog_table_idx = -1;
 
 	/* take a ref on the prog itself */
 	prog = bpf_prog_get(prog_fd);
@@ -381,23 +403,32 @@ __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
 
 	mutex_lock(&hid_bpf_attach_lock);
 
+	link = kzalloc(sizeof(*link), GFP_USER);
+	if (!link) {
+		err = -ENOMEM;
+		goto err_unlock;
+	}
+
+	bpf_link_init(&link->link, BPF_LINK_TYPE_UNSPEC,
+		      &hid_bpf_link_lops, prog);
+
 	/* do not attach too many programs to a given HID device */
 	cnt = hid_bpf_program_count(hdev, NULL, prog_type);
 	if (cnt < 0) {
 		err = cnt;
-		goto out_unlock;
+		goto err_unlock;
 	}
 
 	if (cnt >= hid_bpf_max_programs(prog_type)) {
 		err = -E2BIG;
-		goto out_unlock;
+		goto err_unlock;
 	}
 
-	prog_idx = hid_bpf_insert_prog(prog_fd, prog);
+	prog_table_idx = hid_bpf_insert_prog(prog_fd, prog);
 	/* if the jmp table is full, abort */
-	if (prog_idx < 0) {
-		err = prog_idx;
-		goto out_unlock;
+	if (prog_table_idx < 0) {
+		err = prog_table_idx;
+		goto err_unlock;
 	}
 
 	if (flags & HID_BPF_FLAG_INSERT_HEAD) {
@@ -412,22 +443,32 @@ __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
 
 	/* we steal the ref here */
 	prog_entry->prog = prog;
-	prog_entry->idx = prog_idx;
+	prog_entry->idx = prog_table_idx;
 	prog_entry->hdev = hdev;
 	prog_entry->type = prog_type;
 
 	/* finally store the index in the device list */
 	err = hid_bpf_populate_hdev(hdev, prog_type);
-	if (err)
-		hid_bpf_release_prog_at(prog_idx);
+	if (err) {
+		hid_bpf_release_prog_at(prog_table_idx);
+		goto err_unlock;
+	}
 
- out_unlock:
+	link->hid_table_index = prog_table_idx;
+
+	err = bpf_link_prime(&link->link, &link_primer);
+	if (err)
+		goto err_unlock;
+
 	mutex_unlock(&hid_bpf_attach_lock);
 
-	/* we only use prog as a key in the various tables, so we don't need to actually
-	 * increment the ref count.
-	 */
+	return bpf_link_settle(&link_primer);
+
+ err_unlock:
+	mutex_unlock(&hid_bpf_attach_lock);
+
 	bpf_prog_put(prog);
+	kfree(link);
 
 	return err;
 }
@@ -460,36 +501,10 @@ void __hid_bpf_destroy_device(struct hid_device *hdev)
 
 void call_hid_bpf_prog_put_deferred(struct work_struct *work)
 {
-	struct bpf_prog_aux *aux;
-	struct bpf_prog *prog;
-	bool found = false;
-	int i;
-
-	aux = container_of(work, struct bpf_prog_aux, work);
-	prog = aux->prog;
-
-	/* we don't need locking here because the entries in the progs table
-	 * are stable:
-	 * if there are other users (and the progs entries might change), we
-	 * would simply not have been called.
-	 */
-	for (i = 0; i < HID_BPF_MAX_PROGS; i++) {
-		if (jmp_table.progs[i] == prog) {
-			__clear_bit(i, jmp_table.enabled);
-			found = true;
-		}
-	}
-
-	if (found)
-		/* schedule release of all detached progs */
-		schedule_work(&release_work);
+	/* kept around for patch readability, to be dropped in the next commmit */
 }
 
-static void hid_bpf_prog_fd_array_put_ptr(void *ptr)
-{
-}
-
-#define HID_BPF_PROGS_COUNT 2
+#define HID_BPF_PROGS_COUNT 1
 
 static struct bpf_link *links[HID_BPF_PROGS_COUNT];
 static struct entrypoints_bpf *skel;
@@ -528,8 +543,6 @@ void hid_bpf_free_links_and_skel(void)
 	idx++;									\
 } while (0)
 
-static struct bpf_map_ops hid_bpf_prog_fd_maps_ops;
-
 int hid_bpf_preload_skel(void)
 {
 	int err, idx = 0;
@@ -548,14 +561,7 @@ int hid_bpf_preload_skel(void)
 		goto out;
 	}
 
-	/* our jump table is stealing refs, so we should not decrement on removal of elements */
-	hid_bpf_prog_fd_maps_ops = *jmp_table.map->ops;
-	hid_bpf_prog_fd_maps_ops.map_fd_put_ptr = hid_bpf_prog_fd_array_put_ptr;
-
-	jmp_table.map->ops = &hid_bpf_prog_fd_maps_ops;
-
 	ATTACH_AND_STORE_LINK(hid_tail_call);
-	ATTACH_AND_STORE_LINK(hid_bpf_prog_put_deferred);
 
 	return 0;
 out:

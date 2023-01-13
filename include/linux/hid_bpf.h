@@ -3,6 +3,7 @@
 #ifndef __HID_BPF_H
 #define __HID_BPF_H
 
+#include <linux/bpf.h>
 #include <linux/spinlock.h>
 #include <uapi/linux/hid.h>
 
@@ -136,6 +137,12 @@ struct hid_bpf {
 	bool destroyed;			/* prevents the assignment of any progs */
 
 	spinlock_t progs_lock;		/* protects RCU update of progs */
+};
+
+/* specific HID-BPF link when a program is attached to a device */
+struct hid_bpf_link {
+	struct bpf_link link;
+	int hid_table_index;
 };
 
 #ifdef CONFIG_HID_BPF

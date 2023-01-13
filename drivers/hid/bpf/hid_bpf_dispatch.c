@@ -249,7 +249,9 @@ int hid_bpf_reconnect(struct hid_device *hdev)
  * @prog_fd: an fd in the user process representing the program to attach
  * @flags: any logical OR combination of &enum hid_bpf_attach_flags
  *
- * @returns %0 on success, an error code otherwise.
+ * @returns an fd of a bpf_link object on success (> %0), an error code otherwise.
+ * Closing this fd will detach the program from the HID device (unless the bpf_link
+ * is pinned to the BPF file system).
  */
 /* called from syscall */
 noinline int
@@ -257,7 +259,7 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 {
 	struct hid_device *hdev;
 	struct device *dev;
-	int err, prog_type = hid_bpf_get_prog_attach_type(prog_fd);
+	int fd, err, prog_type = hid_bpf_get_prog_attach_type(prog_fd);
 
 	if (!hid_bpf_ops)
 		return -EINVAL;
@@ -283,17 +285,19 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 			return err;
 	}
 
-	err = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
-	if (err)
-		return err;
+	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
+	if (fd < 0)
+		return fd;
 
 	if (prog_type == HID_BPF_PROG_TYPE_RDESC_FIXUP) {
 		err = hid_bpf_reconnect(hdev);
-		if (err)
+		if (err) {
+			close_fd(fd);
 			return err;
+		}
 	}
 
-	return 0;
+	return fd;
 }
 
 /**
