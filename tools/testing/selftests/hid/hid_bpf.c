@@ -616,6 +616,7 @@ TEST_F(hid_bpf, test_attach_detach)
 {
 	const struct test_program progs[] = {
 		{ .name = "hid_first_event" },
+		{ .name = "hid_second_event" },
 	};
 	__u8 buf[10] = {0};
 	int err;
@@ -634,7 +635,10 @@ TEST_F(hid_bpf, test_attach_detach)
 	ASSERT_EQ(buf[0], 1);
 	ASSERT_EQ(buf[2], 47);
 
-	/* pin the program and immediately unpin it */
+	/* make sure both programs are run */
+	ASSERT_EQ(buf[3], 52);
+
+	/* pin the first program and immediately unpin it */
 #define PIN_PATH "/sys/fs/bpf/hid_first_event"
 	bpf_program__pin(self->skel->progs.hid_first_event, PIN_PATH);
 	remove(PIN_PATH);
@@ -660,6 +664,7 @@ TEST_F(hid_bpf, test_attach_detach)
 	ASSERT_EQ(buf[0], 1);
 	ASSERT_EQ(buf[1], 47);
 	ASSERT_EQ(buf[2], 0);
+	ASSERT_EQ(buf[3], 0);
 
 	/* re-attach our program */
 
@@ -677,6 +682,7 @@ TEST_F(hid_bpf, test_attach_detach)
 	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
 	ASSERT_EQ(buf[0], 1);
 	ASSERT_EQ(buf[2], 47);
+	ASSERT_EQ(buf[3], 52);
 }
 
 /*
