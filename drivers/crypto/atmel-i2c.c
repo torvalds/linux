@@ -59,7 +59,7 @@ void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
 	 * Read the word from Configuration zone that contains the lock bytes
 	 * (UserExtra, Selector, LockValue, LockConfig).
 	 */
-	cmd->param1 = CONFIG_ZONE;
+	cmd->param1 = CONFIGURATION_ZONE;
 	cmd->param2 = cpu_to_le16(DEVICE_LOCK_ADDR);
 	cmd->count = READ_COUNT;
 

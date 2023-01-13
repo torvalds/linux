@@ -63,7 +63,7 @@ struct atmel_i2c_cmd {
 #define STATUS_WAKE_SUCCESSFUL		0x11
 
 /* Definitions for eeprom organization */
-#define CONFIG_ZONE			0
+#define CONFIGURATION_ZONE		0
 
 /* Definitions for Indexes common to all commands */
 #define RSP_DATA_IDX			1 /* buffer index of data in response */
