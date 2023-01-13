@@ -33,7 +33,7 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, un
 	return d_splice_alias(inode, dentry);
 }
 
-static int minix_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	int error;
@@ -68,7 +68,7 @@ static int minix_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return minix_mknod(&init_user_ns, dir, dentry, mode, 0);
+	return minix_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
 
 static int minix_symlink(struct mnt_idmap *idmap, struct inode *dir,

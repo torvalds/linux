@@ -217,7 +217,7 @@ bail:
 	return err;
 }
 
-static int hpfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int hpfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	const unsigned char *name = dentry->d_name.name;

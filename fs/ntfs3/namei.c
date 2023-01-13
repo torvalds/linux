@@ -111,9 +111,10 @@ static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
  *
  * inode_operations::mknod
  */
-static int ntfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, mode, rdev,

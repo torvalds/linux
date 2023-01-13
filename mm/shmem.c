@@ -2915,7 +2915,7 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
  * File creation. Allocate an inode, and we're done..
  */
 static int
-shmem_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+shmem_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -2975,7 +2975,7 @@ static int shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 {
 	int error;
 
-	if ((error = shmem_mknod(&init_user_ns, dir, dentry,
+	if ((error = shmem_mknod(&nop_mnt_idmap, dir, dentry,
 				 mode | S_IFDIR, 0)))
 		return error;
 	inc_nlink(dir);
@@ -2985,7 +2985,7 @@ static int shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 static int shmem_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return shmem_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
+	return shmem_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
 /*
@@ -3055,7 +3055,7 @@ static int shmem_whiteout(struct user_namespace *mnt_userns,
 	if (!whiteout)
 		return -ENOMEM;
 
-	error = shmem_mknod(&init_user_ns, old_dir, whiteout,
+	error = shmem_mknod(&nop_mnt_idmap, old_dir, whiteout,
 			    S_IFCHR | WHITEOUT_MODE, WHITEOUT_DEV);
 	dput(whiteout);
 	if (error)

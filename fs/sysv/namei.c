@@ -41,7 +41,7 @@ static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, un
 	return d_splice_alias(inode, dentry);
 }
 
-static int sysv_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int sysv_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode * inode;
@@ -64,7 +64,7 @@ static int sysv_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 static int sysv_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
-	return sysv_mknod(&init_user_ns, dir, dentry, mode, 0);
+	return sysv_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
 
 static int sysv_symlink(struct mnt_idmap *idmap, struct inode *dir,

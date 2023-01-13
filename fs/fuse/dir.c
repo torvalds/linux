@@ -645,7 +645,7 @@ out_err:
 	return err;
 }
 
-static int fuse_mknod(struct user_namespace *, struct inode *, struct dentry *,
+static int fuse_mknod(struct mnt_idmap *, struct inode *, struct dentry *,
 		      umode_t, dev_t);
 static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned flags,
@@ -686,7 +686,7 @@ out_dput:
 	return err;
 
 mknod:
-	err = fuse_mknod(&init_user_ns, dir, entry, mode, 0);
+	err = fuse_mknod(&nop_mnt_idmap, dir, entry, mode, 0);
 	if (err)
 		goto out_dput;
 no_open:
@@ -773,7 +773,7 @@ static int create_new_entry(struct fuse_mount *fm, struct fuse_args *args,
 	return err;
 }
 
-static int fuse_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int fuse_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *entry, umode_t mode, dev_t rdev)
 {
 	struct fuse_mknod_in inarg;
@@ -799,7 +799,7 @@ static int fuse_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 static int fuse_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *entry, umode_t mode, bool excl)
 {
-	return fuse_mknod(&init_user_ns, dir, entry, mode, 0);
+	return fuse_mknod(&nop_mnt_idmap, dir, entry, mode, 0);
 }
 
 static int fuse_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,

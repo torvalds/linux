@@ -30,7 +30,7 @@
 #include "acl.h"
 
 static int
-v9fs_vfs_mknod_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev);
 
 /**
@@ -222,8 +222,7 @@ static int
 v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t omode, bool excl)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	return v9fs_vfs_mknod_dotl(mnt_userns, dir, dentry, omode, 0);
+	return v9fs_vfs_mknod_dotl(idmap, dir, dentry, omode, 0);
 }
 
 static int
@@ -818,7 +817,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 
 /**
  * v9fs_vfs_mknod_dotl - create a special file
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The idmap of the mount
  * @dir: inode destination for new link
  * @dentry: dentry for file
  * @omode: mode for creation
@@ -826,7 +825,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
  *
  */
 static int
-v9fs_vfs_mknod_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev)
 {
 	int err;

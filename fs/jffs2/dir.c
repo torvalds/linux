@@ -35,7 +35,7 @@ static int jffs2_symlink (struct mnt_idmap *, struct inode *,
 static int jffs2_mkdir (struct mnt_idmap *, struct inode *,struct dentry *,
 			umode_t);
 static int jffs2_rmdir (struct inode *,struct dentry *);
-static int jffs2_mknod (struct user_namespace *, struct inode *,struct dentry *,
+static int jffs2_mknod (struct mnt_idmap *, struct inode *,struct dentry *,
 			umode_t,dev_t);
 static int jffs2_rename (struct user_namespace *, struct inode *,
 			 struct dentry *, struct inode *, struct dentry *,
@@ -614,7 +614,7 @@ static int jffs2_rmdir (struct inode *dir_i, struct dentry *dentry)
 	return ret;
 }
 
-static int jffs2_mknod (struct user_namespace *mnt_userns, struct inode *dir_i,
+static int jffs2_mknod (struct mnt_idmap *idmap, struct inode *dir_i,
 		        struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct jffs2_inode_info *f, *dir_f;

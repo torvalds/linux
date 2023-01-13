@@ -1019,7 +1019,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 /*
  * File creation. Allocate an inode, and we're done..
  */
-static int hugetlbfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int hugetlbfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -1036,7 +1036,7 @@ static int hugetlbfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 static int hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode)
 {
-	int retval = hugetlbfs_mknod(&init_user_ns, dir, dentry,
+	int retval = hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry,
 				     mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
@@ -1047,7 +1047,7 @@ static int hugetlbfs_create(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode, bool excl)
 {
-	return hugetlbfs_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
+	return hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
 static int hugetlbfs_tmpfile(struct user_namespace *mnt_userns,

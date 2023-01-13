@@ -1052,7 +1052,7 @@ out_budg:
 	return err;
 }
 
-static int ubifs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int ubifs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;

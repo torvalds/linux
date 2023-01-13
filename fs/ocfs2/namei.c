@@ -221,7 +221,7 @@ static void ocfs2_cleanup_add_entry_failure(struct ocfs2_super *osb,
 	iput(inode);
 }
 
-static int ocfs2_mknod(struct user_namespace *mnt_userns,
+static int ocfs2_mknod(struct mnt_idmap *idmap,
 		       struct inode *dir,
 		       struct dentry *dentry,
 		       umode_t mode,
@@ -651,7 +651,7 @@ static int ocfs2_mkdir(struct mnt_idmap *idmap,
 
 	trace_ocfs2_mkdir(dir, dentry, dentry->d_name.len, dentry->d_name.name,
 			  OCFS2_I(dir)->ip_blkno, mode);
-	ret = ocfs2_mknod(&init_user_ns, dir, dentry, mode | S_IFDIR, 0);
+	ret = ocfs2_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFDIR, 0);
 	if (ret)
 		mlog_errno(ret);
 
@@ -668,7 +668,7 @@ static int ocfs2_create(struct mnt_idmap *idmap,
 
 	trace_ocfs2_create(dir, dentry, dentry->d_name.len, dentry->d_name.name,
 			   (unsigned long long)OCFS2_I(dir)->ip_blkno, mode);
-	ret = ocfs2_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
+	ret = ocfs2_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 	if (ret)
 		mlog_errno(ret);
 

@@ -1345,7 +1345,7 @@ static int jfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
  *
  * FUNCTION:	Create a special file (device)
  */
-static int jfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int jfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct jfs_inode_info *jfs_ip;

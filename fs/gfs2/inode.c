@@ -1246,7 +1246,7 @@ static int gfs2_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 /**
  * gfs2_mknod - Make a special file
- * @mnt_userns: User namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @dir: The directory in which the special file will reside
  * @dentry: The dentry of the special file
  * @mode: The mode of the special file
@@ -1254,7 +1254,7 @@ static int gfs2_mkdir(struct mnt_idmap *idmap, struct inode *dir,
  *
  */
 
-static int gfs2_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int gfs2_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	return gfs2_create_inode(dir, dentry, NULL, mode, dev, NULL, 0, 0);

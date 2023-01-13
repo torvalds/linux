@@ -667,7 +667,7 @@ static int ovl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	return ovl_create_object(dentry, (mode & 07777) | S_IFDIR, 0, NULL);
 }
 
-static int ovl_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int ovl_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	/* Don't allow creation of "whiteout" on overlay */

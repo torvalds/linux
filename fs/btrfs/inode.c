@@ -6725,9 +6725,10 @@ out_inode:
 	return err;
 }
 
-static int btrfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int btrfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = new_inode(dir->i_sb);

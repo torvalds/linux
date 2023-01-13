@@ -1356,7 +1356,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 
 /**
  * v9fs_vfs_mknod - create a special file
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir: inode destination for new link
  * @dentry: dentry for file
  * @mode: mode for creation
@@ -1365,7 +1365,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
  */
 
 static int
-v9fs_vfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);

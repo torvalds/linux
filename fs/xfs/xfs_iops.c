@@ -255,13 +255,14 @@ xfs_generic_create(
 
 STATIC int
 xfs_vn_mknod(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode,
 	dev_t			rdev)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, NULL);
+	return xfs_generic_create(mnt_idmap_owner(idmap), dir, dentry, mode,
+				  rdev, NULL);
 }
 
 STATIC int

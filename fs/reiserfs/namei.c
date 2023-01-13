@@ -700,7 +700,7 @@ out_failed:
 	return retval;
 }
 
-static int reiserfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int reiserfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 			  struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	int retval;
