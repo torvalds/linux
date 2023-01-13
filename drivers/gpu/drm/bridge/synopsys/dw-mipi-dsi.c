@@ -85,8 +85,12 @@
 #define ENABLE_CMD_MODE			BIT(0)
 
 #define DSI_VID_MODE_CFG		0x38
-#define ENABLE_LOW_POWER		(0x3f << 8)
-#define ENABLE_LOW_POWER_MASK		(0x3f << 8)
+#define LP_HFP_EN			BIT(13)
+#define LP_HBP_EN			BIT(12)
+#define LP_VACT_EN			BIT(11)
+#define LP_VFP_EN			BIT(10)
+#define LP_VBP_EN			BIT(9)
+#define LP_VSA_EN			BIT(8)
 #define VID_MODE_TYPE_NON_BURST_SYNC_PULSES	0x0
 #define VID_MODE_TYPE_NON_BURST_SYNC_EVENTS	0x1
 #define VID_MODE_TYPE_BURST			0x2
@@ -376,6 +380,7 @@ static void dw_mipi_message_config(struct dw_mipi_dsi *dsi,
 {
 	bool lpm = msg->flags & MIPI_DSI_MSG_USE_LPM;
 	u32 val = 0;
+	u32 ctrl = 0;
 
 	/*
 	 * TODO dw drv improvements
@@ -394,11 +399,17 @@ static void dw_mipi_message_config(struct dw_mipi_dsi *dsi,
 	dsi_write(dsi, DSI_CMD_MODE_CFG, val);
 
 	val = dsi_read(dsi, DSI_VID_MODE_CFG);
-	if (lpm)
+	ctrl = dsi_read(dsi, DSI_LPCLK_CTRL);
+	if (lpm) {
 		val |= ENABLE_LOW_POWER_CMD;
-	else
+		ctrl &= ~PHY_TXREQUESTCLKHS;
+	} else {
 		val &= ~ENABLE_LOW_POWER_CMD;
+		ctrl |= PHY_TXREQUESTCLKHS;
+	}
+
 	dsi_write(dsi, DSI_VID_MODE_CFG, val);
+	dsi_write(dsi, DSI_LPCLK_CTRL, ctrl);
 }
 
 static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
@@ -544,14 +555,14 @@ static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
 
 static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 {
-	u32 val;
+	u32 val = LP_VSA_EN | LP_VBP_EN | LP_VFP_EN |
+		  LP_VACT_EN | LP_HBP_EN | LP_HFP_EN;
 
-	/*
-	 * TODO dw drv improvements
-	 * enabling low power is panel-dependent, we should use the
-	 * panel configuration here...
-	 */
-	val = ENABLE_LOW_POWER;
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HFP)
+		val &= ~LP_HFP_EN;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HBP)
+		val &= ~LP_HBP_EN;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		val |= VID_MODE_TYPE_BURST;
@@ -575,8 +586,6 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 				 unsigned long mode_flags)
 {
-	u32 val;
-
 	dsi_write(dsi, DSI_PWR_UP, RESET);
 
 	if (mode_flags & MIPI_DSI_MODE_VIDEO) {
@@ -586,25 +595,14 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
 	}
 
-	val = PHY_TXREQUESTCLKHS;
-	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
-		val |= AUTO_CLKLANE_CTRL;
-	dsi_write(dsi, DSI_LPCLK_CTRL, val);
-
 	dsi_write(dsi, DSI_PWR_UP, POWERUP);
 }
 
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
-	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
-
-	if (phy_ops->power_off)
-		phy_ops->power_off(dsi->plat_data->priv_data);
-
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
-	pm_runtime_put(dsi->dev);
-
+	dsi_write(dsi, DSI_LPCLK_CTRL, 0);
+	dsi_write(dsi, DSI_EDPI_CMD_SIZE, 0);
+	dw_mipi_dsi_set_mode(dsi, 0);
 	if (dsi->slave)
 		dw_mipi_dsi_disable(dsi->slave);
 }
@@ -862,9 +860,17 @@ static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_set_mode(dsi, 0);
+	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
+
+	if (phy_ops->power_off)
+		phy_ops->power_off(dsi->plat_data->priv_data);
+
+	dsi_write(dsi, DSI_PWR_UP, RESET);
+	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
+	pm_runtime_put(dsi->dev);
+
 	if (dsi->slave)
-		dw_mipi_dsi_set_mode(dsi->slave, 0);
+		dw_mipi_dsi_post_disable(dsi->slave);
 }
 
 static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
@@ -872,7 +878,7 @@ static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
 	if (dsi->panel)
-		drm_panel_disable(dsi->panel);
+		drm_panel_unprepare(dsi->panel);
 
 	dw_mipi_dsi_post_disable(dsi);
 }
@@ -882,7 +888,7 @@ static void dw_mipi_dsi_bridge_disable(struct drm_bridge *bridge)
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
 	if (dsi->panel)
-		drm_panel_unprepare(dsi->panel);
+		drm_panel_disable(dsi->panel);
 
 	dw_mipi_dsi_disable(dsi);
 }
@@ -978,18 +984,26 @@ static void dw_mipi_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 
 static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 {
+	u32 val;
+
+	val = PHY_TXREQUESTCLKHS;
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		val |= AUTO_CLKLANE_CTRL;
+
+	dsi_write(dsi, DSI_LPCLK_CTRL, val);
+
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
 		if (dsi->slave)
 			dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
 	} else {
+		dsi_write(dsi, DSI_EDPI_CMD_SIZE, dsi->mode.hdisplay);
 		dw_mipi_dsi_set_mode(dsi, 0);
-		if (dsi->slave)
+		if (dsi->slave) {
+			dsi_write(dsi->slave, DSI_EDPI_CMD_SIZE, dsi->mode.hdisplay);
 			dw_mipi_dsi_set_mode(dsi->slave, 0);
+		}
 	}
-
-	if (dsi->slave)
-		dw_mipi_dsi_enable(dsi->slave);
 }
 
 static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
