@@ -1420,6 +1420,93 @@ out:
 	return ret;
 }
 
+struct mon_config_info {
+	u32 evtid;
+	u32 mon_config;
+};
+
+#define INVALID_CONFIG_INDEX   UINT_MAX
+
+/**
+ * mon_event_config_index_get - get the hardware index for the
+ *                              configurable event
+ * @evtid: event id.
+ *
+ * Return: 0 for evtid == QOS_L3_MBM_TOTAL_EVENT_ID
+ *         1 for evtid == QOS_L3_MBM_LOCAL_EVENT_ID
+ *         INVALID_CONFIG_INDEX for invalid evtid
+ */
+static inline unsigned int mon_event_config_index_get(u32 evtid)
+{
+	switch (evtid) {
+	case QOS_L3_MBM_TOTAL_EVENT_ID:
+		return 0;
+	case QOS_L3_MBM_LOCAL_EVENT_ID:
+		return 1;
+	default:
+		/* Should never reach here */
+		return INVALID_CONFIG_INDEX;
+	}
+}
+
+static void mon_event_config_read(void *info)
+{
+	struct mon_config_info *mon_info = info;
+	unsigned int index;
+	u32 h;
+
+	index = mon_event_config_index_get(mon_info->evtid);
+	if (index == INVALID_CONFIG_INDEX) {
+		pr_warn_once("Invalid event id %d\n", mon_info->evtid);
+		return;
+	}
+	rdmsr(MSR_IA32_EVT_CFG_BASE + index, mon_info->mon_config, h);
+
+	/* Report only the valid event configuration bits */
+	mon_info->mon_config &= MAX_EVT_CONFIG_BITS;
+}
+
+static void mondata_config_read(struct rdt_domain *d, struct mon_config_info *mon_info)
+{
+	smp_call_function_any(&d->cpu_mask, mon_event_config_read, mon_info, 1);
+}
+
+static int mbm_config_show(struct seq_file *s, struct rdt_resource *r, u32 evtid)
+{
+	struct mon_config_info mon_info = {0};
+	struct rdt_domain *dom;
+	bool sep = false;
+
+	mutex_lock(&rdtgroup_mutex);
+
+	list_for_each_entry(dom, &r->domains, list) {
+		if (sep)
+			seq_puts(s, ";");
+
+		memset(&mon_info, 0, sizeof(struct mon_config_info));
+		mon_info.evtid = evtid;
+		mondata_config_read(dom, &mon_info);
+
+		seq_printf(s, "%d=0x%02x", dom->id, mon_info.mon_config);
+		sep = true;
+	}
+	seq_puts(s, "\n");
+
+	mutex_unlock(&rdtgroup_mutex);
+
+	return 0;
+}
+
+static int mbm_total_bytes_config_show(struct kernfs_open_file *of,
+				       struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	mbm_config_show(seq, r, QOS_L3_MBM_TOTAL_EVENT_ID);
+
+	return 0;
+}
+
 /* rdtgroup information files for one cache resource. */
 static struct rftype res_common_files[] = {
 	{
@@ -1517,6 +1604,12 @@ static struct rftype res_common_files[] = {
 		.write		= max_threshold_occ_write,
 		.seq_show	= max_threshold_occ_show,
 		.fflags		= RF_MON_INFO | RFTYPE_RES_CACHE,
+	},
+	{
+		.name		= "mbm_total_bytes_config",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= mbm_total_bytes_config_show,
 	},
 	{
 		.name		= "cpus",
@@ -1622,6 +1715,15 @@ void __init thread_throttle_mode_init(void)
 		return;
 
 	rft->fflags = RF_CTRL_INFO | RFTYPE_RES_MB;
+}
+
+void __init mbm_config_rftype_init(const char *config)
+{
+	struct rftype *rft;
+
+	rft = rdtgroup_get_rftype_by_name(config);
+	if (rft)
+		rft->fflags = RF_MON_INFO | RFTYPE_RES_CACHE;
 }
 
 /**

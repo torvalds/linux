@@ -801,8 +801,10 @@ int __init rdt_get_mon_l3_config(struct rdt_resource *r)
 		return ret;
 
 	if (rdt_cpu_has(X86_FEATURE_BMEC)) {
-		if (rdt_cpu_has(X86_FEATURE_CQM_MBM_TOTAL))
+		if (rdt_cpu_has(X86_FEATURE_CQM_MBM_TOTAL)) {
 			mbm_total_event.configurable = true;
+			mbm_config_rftype_init("mbm_total_bytes_config");
+		}
 		if (rdt_cpu_has(X86_FEATURE_CQM_MBM_LOCAL))
 			mbm_local_event.configurable = true;
 	}
