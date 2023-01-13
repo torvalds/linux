@@ -1379,6 +1379,26 @@ static int pxp_s_fmt_vid_out(struct file *file, void *priv,
 	return 0;
 }
 
+static int pxp_enum_framesizes(struct file *file, void *fh,
+			       struct v4l2_frmsizeenum *fsize)
+{
+	if (fsize->index > 0)
+		return -EINVAL;
+
+	if (!find_format(fsize->pixel_format))
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	fsize->stepwise.min_width = MIN_W;
+	fsize->stepwise.max_width = MAX_W;
+	fsize->stepwise.step_width = 1 << ALIGN_W;
+	fsize->stepwise.min_height = MIN_H;
+	fsize->stepwise.max_height = MAX_H;
+	fsize->stepwise.step_height = 1 << ALIGN_H;
+
+	return 0;
+}
+
 static u8 pxp_degrees_to_rot_mode(u32 degrees)
 {
 	switch (degrees) {
@@ -1446,6 +1466,8 @@ static const struct v4l2_ioctl_ops pxp_ioctl_ops = {
 	.vidioc_g_fmt_vid_out	= pxp_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out	= pxp_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out	= pxp_s_fmt_vid_out,
+
+	.vidioc_enum_framesizes	= pxp_enum_framesizes,
 
 	.vidioc_reqbufs		= v4l2_m2m_ioctl_reqbufs,
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
