@@ -922,7 +922,7 @@ static void __setattr_copy(struct mnt_idmap *idmap,
 		vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 
 		if (!vfsgid_in_group_p(vfsgid) &&
-		    !capable_wrt_inode_uidgid(mnt_userns, inode, CAP_FSETID))
+		    !capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
 			mode &= ~S_ISGID;
 		set_acl_inode(inode, mode);
 	}

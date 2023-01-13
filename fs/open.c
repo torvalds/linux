@@ -39,7 +39,6 @@
 int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 		loff_t length, unsigned int time_attrs, struct file *filp)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int ret;
 	struct iattr newattrs;
 
@@ -55,7 +54,7 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 
 	/* Remove suid, sgid, and file capabilities on truncate too */
-	ret = dentry_needs_remove_privs(mnt_userns, dentry);
+	ret = dentry_needs_remove_privs(idmap, dentry);
 	if (ret < 0)
 		return ret;
 	if (ret)
@@ -729,7 +728,7 @@ retry_deleg:
 	inode_lock(inode);
 	if (!S_ISDIR(inode->i_mode))
 		newattrs.ia_valid |= ATTR_KILL_SUID | ATTR_KILL_PRIV |
-				     setattr_should_drop_sgid(mnt_userns, inode);
+				     setattr_should_drop_sgid(idmap, inode);
 	/* Continue to send actual fs values, not the mount values. */
 	error = security_path_chown(
 		path,

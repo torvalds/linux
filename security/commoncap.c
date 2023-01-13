@@ -546,7 +546,7 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 		return -EINVAL;
 	if (!validheader(size, cap))
 		return -EINVAL;
-	if (!capable_wrt_inode_uidgid(mnt_userns, inode, CAP_SETFCAP))
+	if (!capable_wrt_inode_uidgid(idmap, inode, CAP_SETFCAP))
 		return -EPERM;
 	if (size == XATTR_CAPS_SZ_2 && (idmap == &nop_mnt_idmap))
 		if (ns_capable(inode->i_sb->s_user_ns, CAP_SETFCAP))
@@ -1039,7 +1039,6 @@ int cap_inode_removexattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name)
 {
 	struct user_namespace *user_ns = dentry->d_sb->s_user_ns;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	/* Ignore non-security xattrs */
 	if (strncmp(name, XATTR_SECURITY_PREFIX,
@@ -1051,7 +1050,7 @@ int cap_inode_removexattr(struct mnt_idmap *idmap,
 		struct inode *inode = d_backing_inode(dentry);
 		if (!inode)
 			return -EINVAL;
-		if (!capable_wrt_inode_uidgid(mnt_userns, inode, CAP_SETFCAP))
+		if (!capable_wrt_inode_uidgid(idmap, inode, CAP_SETFCAP))
 			return -EPERM;
 		return 0;
 	}

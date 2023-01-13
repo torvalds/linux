@@ -1953,7 +1953,7 @@ EXPORT_SYMBOL(touch_atime);
  * response to write or truncate. Return 0 if nothing has to be changed.
  * Negative value on error (change should be denied).
  */
-int dentry_needs_remove_privs(struct user_namespace *mnt_userns,
+int dentry_needs_remove_privs(struct mnt_idmap *idmap,
 			      struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
@@ -1963,7 +1963,7 @@ int dentry_needs_remove_privs(struct user_namespace *mnt_userns,
 	if (IS_NOSEC(inode))
 		return 0;
 
-	mask = setattr_should_drop_suidgid(mnt_userns, inode);
+	mask = setattr_should_drop_suidgid(idmap, inode);
 	ret = security_inode_need_killpriv(dentry);
 	if (ret < 0)
 		return ret;
@@ -1995,7 +1995,7 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
 	if (IS_NOSEC(inode) || !S_ISREG(inode->i_mode))
 		return 0;
 
-	kill = dentry_needs_remove_privs(file_mnt_user_ns(file), dentry);
+	kill = dentry_needs_remove_privs(file_mnt_idmap(file), dentry);
 	if (kill < 0)
 		return kill;
 
@@ -2461,7 +2461,7 @@ EXPORT_SYMBOL(current_time);
 
 /**
  * in_group_or_capable - check whether caller is CAP_FSETID privileged
- * @mnt_userns: user namespace of the mount @inode was found from
+ * @idmap:	idmap of the mount @inode was found from
  * @inode:	inode to check
  * @vfsgid:	the new/current vfsgid of @inode
  *
@@ -2471,19 +2471,19 @@ EXPORT_SYMBOL(current_time);
  *
  * Return: true if the caller is sufficiently privileged, false if not.
  */
-bool in_group_or_capable(struct user_namespace *mnt_userns,
+bool in_group_or_capable(struct mnt_idmap *idmap,
 			 const struct inode *inode, vfsgid_t vfsgid)
 {
 	if (vfsgid_in_group_p(vfsgid))
 		return true;
-	if (capable_wrt_inode_uidgid(mnt_userns, inode, CAP_FSETID))
+	if (capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
 		return true;
 	return false;
 }
 
 /**
  * mode_strip_sgid - handle the sgid bit for non-directories
- * @mnt_userns: User namespace of the mount the inode was created from
+ * @idmap: idmap of the mount the inode was created from
  * @dir: parent directory inode
  * @mode: mode of the file to be created in @dir
  *
@@ -2495,14 +2495,16 @@ bool in_group_or_capable(struct user_namespace *mnt_userns,
  *
  * Return: the new mode to use for the file
  */
-umode_t mode_strip_sgid(struct user_namespace *mnt_userns,
+umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 			const struct inode *dir, umode_t mode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	if ((mode & (S_ISGID | S_IXGRP)) != (S_ISGID | S_IXGRP))
 		return mode;
 	if (S_ISDIR(mode) || !dir || !(dir->i_mode & S_ISGID))
 		return mode;
-	if (in_group_or_capable(mnt_userns, dir,
+	if (in_group_or_capable(idmap, dir,
 				i_gid_into_vfsgid(mnt_userns, dir)))
 		return mode;
 	return mode & ~S_ISGID;

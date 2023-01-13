@@ -150,8 +150,8 @@ extern int vfs_open(const struct path *, struct file *);
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
-int dentry_needs_remove_privs(struct user_namespace *, struct dentry *dentry);
-bool in_group_or_capable(struct user_namespace *mnt_userns,
+int dentry_needs_remove_privs(struct mnt_idmap *, struct dentry *dentry);
+bool in_group_or_capable(struct mnt_idmap *idmap,
 			 const struct inode *inode, vfsgid_t vfsgid);
 
 /*
@@ -261,5 +261,5 @@ ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *po
 /*
  * fs/attr.c
  */
-int setattr_should_drop_sgid(struct user_namespace *mnt_userns,
+int setattr_should_drop_sgid(struct mnt_idmap *idmap,
 			     const struct inode *inode);

@@ -398,7 +398,6 @@ int generic_permission(struct mnt_idmap *idmap, struct inode *inode,
 		       int mask)
 {
 	int ret;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	/*
 	 * Do the basic permission checks.
@@ -410,10 +409,10 @@ int generic_permission(struct mnt_idmap *idmap, struct inode *inode,
 	if (S_ISDIR(inode->i_mode)) {
 		/* DACs are overridable for directories */
 		if (!(mask & MAY_WRITE))
-			if (capable_wrt_inode_uidgid(mnt_userns, inode,
+			if (capable_wrt_inode_uidgid(idmap, inode,
 						     CAP_DAC_READ_SEARCH))
 				return 0;
-		if (capable_wrt_inode_uidgid(mnt_userns, inode,
+		if (capable_wrt_inode_uidgid(idmap, inode,
 					     CAP_DAC_OVERRIDE))
 			return 0;
 		return -EACCES;
@@ -424,7 +423,7 @@ int generic_permission(struct mnt_idmap *idmap, struct inode *inode,
 	 */
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
 	if (mask == MAY_READ)
-		if (capable_wrt_inode_uidgid(mnt_userns, inode,
+		if (capable_wrt_inode_uidgid(idmap, inode,
 					     CAP_DAC_READ_SEARCH))
 			return 0;
 	/*
@@ -433,7 +432,7 @@ int generic_permission(struct mnt_idmap *idmap, struct inode *inode,
 	 * at least one exec bit set.
 	 */
 	if (!(mask & MAY_EXEC) || (inode->i_mode & S_IXUGO))
-		if (capable_wrt_inode_uidgid(mnt_userns, inode,
+		if (capable_wrt_inode_uidgid(idmap, inode,
 					     CAP_DAC_OVERRIDE))
 			return 0;
 
@@ -2885,16 +2884,17 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 }
 EXPORT_SYMBOL(user_path_at_empty);
 
-int __check_sticky(struct user_namespace *mnt_userns, struct inode *dir,
+int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
 		   struct inode *inode)
 {
 	kuid_t fsuid = current_fsuid();
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode), fsuid))
 		return 0;
 	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, dir), fsuid))
 		return 0;
-	return !capable_wrt_inode_uidgid(mnt_userns, inode, CAP_FOWNER);
+	return !capable_wrt_inode_uidgid(idmap, inode, CAP_FOWNER);
 }
 EXPORT_SYMBOL(__check_sticky);
 
@@ -2944,7 +2944,7 @@ static int may_delete(struct mnt_idmap *idmap, struct inode *dir,
 	if (IS_APPEND(dir))
 		return -EPERM;
 
-	if (check_sticky(mnt_userns, dir, inode) || IS_APPEND(inode) ||
+	if (check_sticky(idmap, dir, inode) || IS_APPEND(inode) ||
 	    IS_IMMUTABLE(inode) || IS_SWAPFILE(inode) ||
 	    HAS_UNMAPPED_ID(idmap, inode))
 		return -EPERM;
@@ -3050,7 +3050,7 @@ static inline umode_t mode_strip_umask(const struct inode *dir, umode_t mode)
 
 /**
  * vfs_prepare_mode - prepare the mode to be used for a new inode
- * @mnt_userns:		user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dir:	parent directory of the new inode
  * @mode:	mode of the new inode
  * @mask_perms:	allowed permission by the vfs
@@ -3071,11 +3071,11 @@ static inline umode_t mode_strip_umask(const struct inode *dir, umode_t mode)
  *
  * Returns: mode to be passed to the filesystem
  */
-static inline umode_t vfs_prepare_mode(struct user_namespace *mnt_userns,
+static inline umode_t vfs_prepare_mode(struct mnt_idmap *idmap,
 				       const struct inode *dir, umode_t mode,
 				       umode_t mask_perms, umode_t type)
 {
-	mode = mode_strip_sgid(mnt_userns, dir, mode);
+	mode = mode_strip_sgid(idmap, dir, mode);
 	mode = mode_strip_umask(dir, mode);
 
 	/*
@@ -3107,7 +3107,6 @@ static inline umode_t vfs_prepare_mode(struct user_namespace *mnt_userns,
 int vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	       struct dentry *dentry, umode_t mode, bool want_excl)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int error;
 
 	error = may_create(idmap, dir, dentry);
@@ -3117,7 +3116,7 @@ int vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	if (!dir->i_op->create)
 		return -EACCES;	/* shouldn't it be ENOSYS? */
 
-	mode = vfs_prepare_mode(mnt_userns, dir, mode, S_IALLUGO, S_IFREG);
+	mode = vfs_prepare_mode(idmap, dir, mode, S_IALLUGO, S_IFREG);
 	error = security_inode_create(dir, dentry, mode);
 	if (error)
 		return error;
@@ -3329,7 +3328,6 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 				  bool got_write)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *mnt_userns;
 	struct dentry *dir = nd->path.dentry;
 	struct inode *dir_inode = dir->d_inode;
 	int open_flag = op->open_flag;
@@ -3378,11 +3376,10 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 	if (unlikely(!got_write))
 		open_flag &= ~O_TRUNC;
 	idmap = mnt_idmap(nd->path.mnt);
-	mnt_userns = mnt_idmap_owner(idmap);
 	if (open_flag & O_CREAT) {
 		if (open_flag & O_EXCL)
 			open_flag &= ~O_TRUNC;
-		mode = vfs_prepare_mode(mnt_userns, dir->d_inode, mode, mode, mode);
+		mode = vfs_prepare_mode(idmap, dir->d_inode, mode, mode, mode);
 		if (likely(got_write))
 			create_error = may_o_create(idmap, &nd->path,
 						    dentry, mode);
@@ -3600,7 +3597,6 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
 		       const struct path *parentpath,
 		       struct file *file, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct dentry *child;
 	struct inode *dir = d_inode(parentpath->dentry);
 	struct inode *inode;
@@ -3618,7 +3614,7 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
 		return -ENOMEM;
 	file->f_path.mnt = parentpath->mnt;
 	file->f_path.dentry = child;
-	mode = vfs_prepare_mode(mnt_userns, dir, mode, mode, mode);
+	mode = vfs_prepare_mode(idmap, dir, mode, mode, mode);
 	error = dir->i_op->tmpfile(idmap, dir, file, mode);
 	dput(child);
 	if (error)
@@ -3902,7 +3898,6 @@ EXPORT_SYMBOL(user_path_create);
 int vfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	      struct dentry *dentry, umode_t mode, dev_t dev)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	bool is_whiteout = S_ISCHR(mode) && dev == WHITEOUT_DEV;
 	int error = may_create(idmap, dir, dentry);
 
@@ -3916,7 +3911,7 @@ int vfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	if (!dir->i_op->mknod)
 		return -EPERM;
 
-	mode = vfs_prepare_mode(mnt_userns, dir, mode, mode, mode);
+	mode = vfs_prepare_mode(idmap, dir, mode, mode, mode);
 	error = devcgroup_inode_mknod(mode, dev);
 	if (error)
 		return error;
@@ -4029,7 +4024,6 @@ SYSCALL_DEFINE3(mknod, const char __user *, filename, umode_t, mode, unsigned, d
 int vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	      struct dentry *dentry, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int error;
 	unsigned max_links = dir->i_sb->s_max_links;
 
@@ -4040,7 +4034,7 @@ int vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (!dir->i_op->mkdir)
 		return -EPERM;
 
-	mode = vfs_prepare_mode(mnt_userns, dir, mode, S_IRWXUGO | S_ISVTX, 0);
+	mode = vfs_prepare_mode(idmap, dir, mode, S_IRWXUGO | S_ISVTX, 0);
 	error = security_inode_mkdir(dir, dentry, mode);
 	if (error)
 		return error;

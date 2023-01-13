@@ -204,11 +204,12 @@ struct posix_acl *f2fs_get_acl(struct inode *inode, int type, bool rcu)
 	return __f2fs_get_acl(inode, type, NULL);
 }
 
-static int f2fs_acl_update_mode(struct user_namespace *mnt_userns,
+static int f2fs_acl_update_mode(struct mnt_idmap *idmap,
 				struct inode *inode, umode_t *mode_p,
 				struct posix_acl **acl)
 {
 	umode_t mode = inode->i_mode;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int error;
 
 	if (is_inode_flag_set(inode, FI_ACL_MODE))
@@ -220,13 +221,13 @@ static int f2fs_acl_update_mode(struct user_namespace *mnt_userns,
 	if (error == 0)
 		*acl = NULL;
 	if (!vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)) &&
-	    !capable_wrt_inode_uidgid(mnt_userns, inode, CAP_FSETID))
+	    !capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;
 	return 0;
 }
 
-static int __f2fs_set_acl(struct user_namespace *mnt_userns,
+static int __f2fs_set_acl(struct mnt_idmap *idmap,
 			struct inode *inode, int type,
 			struct posix_acl *acl, struct page *ipage)
 {
@@ -240,7 +241,7 @@ static int __f2fs_set_acl(struct user_namespace *mnt_userns,
 	case ACL_TYPE_ACCESS:
 		name_index = F2FS_XATTR_INDEX_POSIX_ACL_ACCESS;
 		if (acl && !ipage) {
-			error = f2fs_acl_update_mode(mnt_userns, inode,
+			error = f2fs_acl_update_mode(idmap, inode,
 								&mode, &acl);
 			if (error)
 				return error;
@@ -279,13 +280,12 @@ static int __f2fs_set_acl(struct user_namespace *mnt_userns,
 int f2fs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;
 
-	return __f2fs_set_acl(mnt_userns, inode, type, acl, NULL);
+	return __f2fs_set_acl(idmap, inode, type, acl, NULL);
 }
 
 /*

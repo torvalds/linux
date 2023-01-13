@@ -23,7 +23,7 @@
 /**
  * setattr_should_drop_sgid - determine whether the setgid bit needs to be
  *                            removed
- * @mnt_userns:	user namespace of the mount @inode was found from
+ * @idmap:	idmap of the mount @inode was found from
  * @inode:	inode to check
  *
  * This function determines whether the setgid bit needs to be removed.
@@ -33,16 +33,17 @@
  *
  * Return: ATTR_KILL_SGID if setgid bit needs to be removed, 0 otherwise.
  */
-int setattr_should_drop_sgid(struct user_namespace *mnt_userns,
+int setattr_should_drop_sgid(struct mnt_idmap *idmap,
 			     const struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	umode_t mode = inode->i_mode;
 
 	if (!(mode & S_ISGID))
 		return 0;
 	if (mode & S_IXGRP)
 		return ATTR_KILL_SGID;
-	if (!in_group_or_capable(mnt_userns, inode,
+	if (!in_group_or_capable(idmap, inode,
 				 i_gid_into_vfsgid(mnt_userns, inode)))
 		return ATTR_KILL_SGID;
 	return 0;
@@ -51,7 +52,7 @@ int setattr_should_drop_sgid(struct user_namespace *mnt_userns,
 /**
  * setattr_should_drop_suidgid - determine whether the set{g,u}id bit needs to
  *                               be dropped
- * @mnt_userns:	user namespace of the mount @inode was found from
+ * @idmap:	idmap of the mount @inode was found from
  * @inode:	inode to check
  *
  * This function determines whether the set{g,u}id bits need to be removed.
@@ -63,7 +64,7 @@ int setattr_should_drop_sgid(struct user_namespace *mnt_userns,
  * Return: A mask of ATTR_KILL_S{G,U}ID indicating which - if any - setid bits
  * to remove, 0 otherwise.
  */
-int setattr_should_drop_suidgid(struct user_namespace *mnt_userns,
+int setattr_should_drop_suidgid(struct mnt_idmap *idmap,
 				struct inode *inode)
 {
 	umode_t mode = inode->i_mode;
@@ -73,7 +74,7 @@ int setattr_should_drop_suidgid(struct user_namespace *mnt_userns,
 	if (unlikely(mode & S_ISUID))
 		kill = ATTR_KILL_SUID;
 
-	kill |= setattr_should_drop_sgid(mnt_userns, inode);
+	kill |= setattr_should_drop_sgid(idmap, inode);
 
 	if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
 		return kill;
@@ -84,24 +85,26 @@ EXPORT_SYMBOL(setattr_should_drop_suidgid);
 
 /**
  * chown_ok - verify permissions to chown inode
- * @mnt_userns:	user namespace of the mount @inode was found from
+ * @idmap:	idmap of the mount @inode was found from
  * @inode:	inode to check permissions on
  * @ia_vfsuid:	uid to chown @inode to
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-static bool chown_ok(struct user_namespace *mnt_userns,
+static bool chown_ok(struct mnt_idmap *idmap,
 		     const struct inode *inode, vfsuid_t ia_vfsuid)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid()) &&
 	    vfsuid_eq(ia_vfsuid, vfsuid))
 		return true;
-	if (capable_wrt_inode_uidgid(mnt_userns, inode, CAP_CHOWN))
+	if (capable_wrt_inode_uidgid(idmap, inode, CAP_CHOWN))
 		return true;
 	if (!vfsuid_valid(vfsuid) &&
 	    ns_capable(inode->i_sb->s_user_ns, CAP_CHOWN))
@@ -111,19 +114,21 @@ static bool chown_ok(struct user_namespace *mnt_userns,
 
 /**
  * chgrp_ok - verify permissions to chgrp inode
- * @mnt_userns:	user namespace of the mount @inode was found from
+ * @idmap:	idmap of the mount @inode was found from
  * @inode:	inode to check permissions on
  * @ia_vfsgid:	gid to chown @inode to
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  */
-static bool chgrp_ok(struct user_namespace *mnt_userns,
+static bool chgrp_ok(struct mnt_idmap *idmap,
 		     const struct inode *inode, vfsgid_t ia_vfsgid)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid())) {
@@ -132,7 +137,7 @@ static bool chgrp_ok(struct user_namespace *mnt_userns,
 		if (vfsgid_in_group_p(ia_vfsgid))
 			return true;
 	}
-	if (capable_wrt_inode_uidgid(mnt_userns, inode, CAP_CHOWN))
+	if (capable_wrt_inode_uidgid(idmap, inode, CAP_CHOWN))
 		return true;
 	if (!vfsgid_valid(vfsgid) &&
 	    ns_capable(inode->i_sb->s_user_ns, CAP_CHOWN))
@@ -184,12 +189,12 @@ int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	/* Make sure a caller can chown. */
 	if ((ia_valid & ATTR_UID) &&
-	    !chown_ok(mnt_userns, inode, attr->ia_vfsuid))
+	    !chown_ok(idmap, inode, attr->ia_vfsuid))
 		return -EPERM;
 
 	/* Make sure caller can chgrp. */
 	if ((ia_valid & ATTR_GID) &&
-	    !chgrp_ok(mnt_userns, inode, attr->ia_vfsgid))
+	    !chgrp_ok(idmap, inode, attr->ia_vfsgid))
 		return -EPERM;
 
 	/* Make sure a caller can chmod. */
@@ -205,7 +210,7 @@ int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 			vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 
 		/* Also check the setgid bit! */
-		if (!in_group_or_capable(mnt_userns, inode, vfsgid))
+		if (!in_group_or_capable(idmap, inode, vfsgid))
 			attr->ia_mode &= ~S_ISGID;
 	}
 
@@ -316,7 +321,7 @@ void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 		inode->i_ctime = attr->ia_ctime;
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
-		if (!in_group_or_capable(mnt_userns, inode,
+		if (!in_group_or_capable(idmap, inode,
 					 i_gid_into_vfsgid(mnt_userns, inode)))
 			mode &= ~S_ISGID;
 		inode->i_mode = mode;

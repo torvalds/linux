@@ -902,7 +902,6 @@ static int btrfs_may_delete(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *victim, int isdir)
 {
 	int error;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (d_really_is_negative(victim))
 		return -ENOENT;
@@ -915,7 +914,7 @@ static int btrfs_may_delete(struct mnt_idmap *idmap,
 		return error;
 	if (IS_APPEND(dir))
 		return -EPERM;
-	if (check_sticky(mnt_userns, dir, d_inode(victim)) ||
+	if (check_sticky(idmap, dir, d_inode(victim)) ||
 	    IS_APPEND(d_inode(victim)) || IS_IMMUTABLE(d_inode(victim)) ||
 	    IS_SWAPFILE(d_inode(victim)))
 		return -EPERM;
