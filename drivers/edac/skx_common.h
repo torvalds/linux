@@ -33,7 +33,7 @@
 #define SKX_NUM_CHANNELS	3	/* Channels per memory controller */
 #define SKX_NUM_DIMMS		2	/* Max DIMMS per channel */
 
-#define I10NM_NUM_DDR_IMC	4
+#define I10NM_NUM_DDR_IMC	12
 #define I10NM_NUM_DDR_CHANNELS	2
 #define I10NM_NUM_DDR_DIMMS	2
 
@@ -129,7 +129,8 @@ struct skx_pvt {
 enum type {
 	SKX,
 	I10NM,
-	SPR
+	SPR,
+	GNR
 };
 
 enum {
