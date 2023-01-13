@@ -8719,6 +8719,7 @@ static int devlink_trap_group_set(struct devlink *devlink,
 	struct netlink_ext_ack *extack = info->extack;
 	const struct devlink_trap_policer *policer;
 	struct nlattr **attrs = info->attrs;
+	u32 policer_id;
 	int err;
 
 	if (!attrs[DEVLINK_ATTR_TRAP_POLICER_ID])
@@ -8727,17 +8728,11 @@ static int devlink_trap_group_set(struct devlink *devlink,
 	if (!devlink->ops->trap_group_set)
 		return -EOPNOTSUPP;
 
-	policer_item = group_item->policer_item;
-	if (attrs[DEVLINK_ATTR_TRAP_POLICER_ID]) {
-		u32 policer_id;
-
-		policer_id = nla_get_u32(attrs[DEVLINK_ATTR_TRAP_POLICER_ID]);
-		policer_item = devlink_trap_policer_item_lookup(devlink,
-								policer_id);
-		if (policer_id && !policer_item) {
-			NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap policer");
-			return -ENOENT;
-		}
+	policer_id = nla_get_u32(attrs[DEVLINK_ATTR_TRAP_POLICER_ID]);
+	policer_item = devlink_trap_policer_item_lookup(devlink, policer_id);
+	if (policer_id && !policer_item) {
+		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap policer");
+		return -ENOENT;
 	}
 	policer = policer_item ? policer_item->policer : NULL;
 
