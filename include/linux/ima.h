@@ -187,14 +187,14 @@ extern void ima_inode_post_setattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry);
 extern int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len);
-extern int ima_inode_set_acl(struct user_namespace *mnt_userns,
+extern int ima_inode_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     struct posix_acl *kacl);
-static inline int ima_inode_remove_acl(struct user_namespace *mnt_userns,
+static inline int ima_inode_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {
-	return ima_inode_set_acl(mnt_userns, dentry, acl_name, NULL);
+	return ima_inode_set_acl(idmap, dentry, acl_name, NULL);
 }
 extern int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name);
 #else
@@ -217,7 +217,7 @@ static inline int ima_inode_setxattr(struct dentry *dentry,
 	return 0;
 }
 
-static inline int ima_inode_set_acl(struct user_namespace *mnt_userns,
+static inline int ima_inode_set_acl(struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *acl_name,
 				    struct posix_acl *kacl)
 {
@@ -231,7 +231,7 @@ static inline int ima_inode_removexattr(struct dentry *dentry,
 	return 0;
 }
 
-static inline int ima_inode_remove_acl(struct user_namespace *mnt_userns,
+static inline int ima_inode_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {

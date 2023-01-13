@@ -97,10 +97,9 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
-	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, S_IFREG | mode,
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode,
 				  0, NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
@@ -114,10 +113,9 @@ static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
-	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, mode, rdev,
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev,
 				  NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
@@ -188,11 +186,10 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	u32 size = strlen(symname);
 	struct inode *inode;
 
-	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, S_IFLNK | 0777,
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777,
 				  0, symname, size, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
@@ -204,10 +201,9 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 static int ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
-	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, S_IFDIR | mode,
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode,
 				  0, NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
@@ -419,13 +415,13 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/*
 	 * Unfortunately I don't know how to get here correct 'struct nameidata *nd'
-	 * or 'struct user_namespace *mnt_userns'.
+	 * or 'struct mnt_idmap *idmap'.
 	 * See atomic_open in fs/namei.c.
 	 * This is why xfstest/633 failed.
-	 * Looks like ntfs_atomic_open must accept 'struct user_namespace *mnt_userns' as argument.
+	 * Looks like ntfs_atomic_open must accept 'struct mnt_idmap *idmap' as argument.
 	 */
 
-	inode = ntfs_create_inode(&init_user_ns, dir, dentry, uni, mode, 0,
+	inode = ntfs_create_inode(&nop_mnt_idmap, dir, dentry, uni, mode, 0,
 				  NULL, 0, fnd);
 	err = IS_ERR(inode) ? PTR_ERR(inode)
 			    : finish_open(file, dentry, ntfs_file_open);

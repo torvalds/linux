@@ -206,7 +206,7 @@ int v9fs_iop_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 			struct iattr iattr = {};
 			struct posix_acl *acl_mode = acl;
 
-			retval = posix_acl_update_mode(&init_user_ns, inode,
+			retval = posix_acl_update_mode(&nop_mnt_idmap, inode,
 						       &iattr.ia_mode,
 						       &acl_mode);
 			if (retval)

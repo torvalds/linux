@@ -245,7 +245,6 @@ int
 xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	    struct posix_acl *acl, int type)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	umode_t mode;
 	bool set_mode = false;
 	int error = 0;
@@ -259,7 +258,7 @@ xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(mnt_userns, inode, &mode, &acl);
+		error = posix_acl_update_mode(idmap, inode, &mode, &acl);
 		if (error)
 			return error;
 		set_mode = true;

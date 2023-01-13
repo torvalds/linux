@@ -106,7 +106,7 @@ int jfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&JFS_IP(inode)->commit_mutex);
 	if (type == ACL_TYPE_ACCESS && acl) {
-		rc = posix_acl_update_mode(&init_user_ns, inode, &mode, &acl);
+		rc = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode, &acl);
 		if (rc)
 			goto end_tx;
 		if (mode != inode->i_mode)

@@ -1400,7 +1400,7 @@ int security_inode_setxattr(struct mnt_idmap *idmap,
 	return evm_inode_setxattr(idmap, dentry, name, value, size);
 }
 
-int security_inode_set_acl(struct user_namespace *mnt_userns,
+int security_inode_set_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name,
 			   struct posix_acl *kacl)
 {
@@ -1408,38 +1408,38 @@ int security_inode_set_acl(struct user_namespace *mnt_userns,
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	ret = call_int_hook(inode_set_acl, 0, mnt_userns, dentry, acl_name,
+	ret = call_int_hook(inode_set_acl, 0, idmap, dentry, acl_name,
 			    kacl);
 	if (ret)
 		return ret;
-	ret = ima_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+	ret = ima_inode_set_acl(idmap, dentry, acl_name, kacl);
 	if (ret)
 		return ret;
-	return evm_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+	return evm_inode_set_acl(idmap, dentry, acl_name, kacl);
 }
 
-int security_inode_get_acl(struct user_namespace *mnt_userns,
+int security_inode_get_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	return call_int_hook(inode_get_acl, 0, mnt_userns, dentry, acl_name);
+	return call_int_hook(inode_get_acl, 0, idmap, dentry, acl_name);
 }
 
-int security_inode_remove_acl(struct user_namespace *mnt_userns,
+int security_inode_remove_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name)
 {
 	int ret;
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	ret = call_int_hook(inode_remove_acl, 0, mnt_userns, dentry, acl_name);
+	ret = call_int_hook(inode_remove_acl, 0, idmap, dentry, acl_name);
 	if (ret)
 		return ret;
-	ret = ima_inode_remove_acl(mnt_userns, dentry, acl_name);
+	ret = ima_inode_remove_acl(idmap, dentry, acl_name);
 	if (ret)
 		return ret;
-	return evm_inode_remove_acl(mnt_userns, dentry, acl_name);
+	return evm_inode_remove_acl(idmap, dentry, acl_name);
 }
 
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,

@@ -578,7 +578,7 @@ struct posix_acl *ntfs_get_acl(struct inode *inode, int type, bool rcu)
 	return ntfs_get_acl_ex(inode, type, 0);
 }
 
-static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
+static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 				    struct inode *inode, struct posix_acl *acl,
 				    int type, bool init_acl)
 {
@@ -597,7 +597,7 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 	case ACL_TYPE_ACCESS:
 		/* Do not change i_mode if we are in init_acl */
 		if (acl && !init_acl) {
-			err = posix_acl_update_mode(mnt_userns, inode, &mode,
+			err = posix_acl_update_mode(idmap, inode, &mode,
 						    &acl);
 			if (err)
 				return err;
@@ -655,9 +655,7 @@ out:
 int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	return ntfs_set_acl_ex(mnt_userns, d_inode(dentry), acl, type, false);
+	return ntfs_set_acl_ex(idmap, d_inode(dentry), acl, type, false);
 }
 
 /*
@@ -665,7 +663,7 @@ int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
  *
  * Called from ntfs_create_inode().
  */
-int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
 		  struct inode *dir)
 {
 	struct posix_acl *default_acl, *acl;
@@ -676,7 +674,7 @@ int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		return err;
 
 	if (default_acl) {
-		err = ntfs_set_acl_ex(mnt_userns, inode, default_acl,
+		err = ntfs_set_acl_ex(idmap, inode, default_acl,
 				      ACL_TYPE_DEFAULT, true);
 		posix_acl_release(default_acl);
 	} else {
@@ -685,7 +683,7 @@ int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
 
 	if (acl) {
 		if (!err)
-			err = ntfs_set_acl_ex(mnt_userns, inode, acl,
+			err = ntfs_set_acl_ex(idmap, inode, acl,
 					      ACL_TYPE_ACCESS, true);
 		posix_acl_release(acl);
 	} else {

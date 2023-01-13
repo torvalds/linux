@@ -241,7 +241,7 @@ int jffs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		if (acl) {
 			umode_t mode;
 
-			rc = posix_acl_update_mode(&init_user_ns, inode, &mode,
+			rc = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode,
 						   &acl);
 			if (rc)
 				return rc;

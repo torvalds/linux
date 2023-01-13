@@ -273,7 +273,7 @@ void putname(struct filename *name)
 
 /**
  * check_acl - perform ACL permission checking
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @inode:	inode to check permissions on
  * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC ...)
  *
@@ -281,13 +281,13 @@ void putname(struct filename *name)
  * retrieve POSIX acls it needs to know whether it is called from a blocking or
  * non-blocking context and thus cares about the MAY_NOT_BLOCK bit.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then take
- * care to map the inode according to @mnt_userns before checking permissions.
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then take
+ * care to map the inode according to @idmap before checking permissions.
  * On non-idmapped mounts or if permission checking is to be performed on the
- * raw inode simply passs init_user_ns.
+ * raw inode simply passs @nop_mnt_idmap.
  */
-static int check_acl(struct user_namespace *mnt_userns,
+static int check_acl(struct mnt_idmap *idmap,
 		     struct inode *inode, int mask)
 {
 #ifdef CONFIG_FS_POSIX_ACL
@@ -300,14 +300,14 @@ static int check_acl(struct user_namespace *mnt_userns,
 		/* no ->get_inode_acl() calls in RCU mode... */
 		if (is_uncached_acl(acl))
 			return -ECHILD;
-	        return posix_acl_permission(mnt_userns, inode, acl, mask);
+	        return posix_acl_permission(idmap, inode, acl, mask);
 	}
 
 	acl = get_inode_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl) {
-	        int error = posix_acl_permission(mnt_userns, inode, acl, mask);
+	        int error = posix_acl_permission(idmap, inode, acl, mask);
 	        posix_acl_release(acl);
 	        return error;
 	}
@@ -318,7 +318,7 @@ static int check_acl(struct user_namespace *mnt_userns,
 
 /**
  * acl_permission_check - perform basic UNIX permission checking
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @inode:	inode to check permissions on
  * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC ...)
  *
@@ -326,15 +326,16 @@ static int check_acl(struct user_namespace *mnt_userns,
  * function may retrieve POSIX acls it needs to know whether it is called from a
  * blocking or non-blocking context and thus cares about the MAY_NOT_BLOCK bit.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then take
- * care to map the inode according to @mnt_userns before checking permissions.
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then take
+ * care to map the inode according to @idmap before checking permissions.
  * On non-idmapped mounts or if permission checking is to be performed on the
- * raw inode simply passs init_user_ns.
+ * raw inode simply passs @nop_mnt_idmap.
  */
-static int acl_permission_check(struct user_namespace *mnt_userns,
+static int acl_permission_check(struct mnt_idmap *idmap,
 				struct inode *inode, int mask)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	unsigned int mode = inode->i_mode;
 	vfsuid_t vfsuid;
 
@@ -348,7 +349,7 @@ static int acl_permission_check(struct user_namespace *mnt_userns,
 
 	/* Do we have ACL's? */
 	if (IS_POSIXACL(inode) && (mode & S_IRWXG)) {
-		int error = check_acl(mnt_userns, inode, mask);
+		int error = check_acl(idmap, inode, mask);
 		if (error != -EAGAIN)
 			return error;
 	}
@@ -402,7 +403,7 @@ int generic_permission(struct mnt_idmap *idmap, struct inode *inode,
 	/*
 	 * Do the basic permission checks.
 	 */
-	ret = acl_permission_check(mnt_userns, inode, mask);
+	ret = acl_permission_check(idmap, inode, mask);
 	if (ret != -EACCES)
 		return ret;
 

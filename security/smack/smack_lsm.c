@@ -1394,14 +1394,14 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
 
 /**
  * smack_inode_set_acl - Smack check for setting posix acls
- * @mnt_userns: the userns attached to the mnt this request came from
+ * @idmap: idmap of the mnt this request came from
  * @dentry: the object
  * @acl_name: name of the posix acl
  * @kacl: the posix acls
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_set_acl(struct user_namespace *mnt_userns,
+static int smack_inode_set_acl(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *acl_name,
 			       struct posix_acl *kacl)
 {
@@ -1418,13 +1418,13 @@ static int smack_inode_set_acl(struct user_namespace *mnt_userns,
 
 /**
  * smack_inode_get_acl - Smack check for getting posix acls
- * @mnt_userns: the userns attached to the mnt this request came from
+ * @idmap: idmap of the mnt this request came from
  * @dentry: the object
  * @acl_name: name of the posix acl
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_get_acl(struct user_namespace *mnt_userns,
+static int smack_inode_get_acl(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *acl_name)
 {
 	struct smk_audit_info ad;
@@ -1440,13 +1440,13 @@ static int smack_inode_get_acl(struct user_namespace *mnt_userns,
 
 /**
  * smack_inode_remove_acl - Smack check for getting posix acls
- * @mnt_userns: the userns attached to the mnt this request came from
+ * @idmap: idmap of the mnt this request came from
  * @dentry: the object
  * @acl_name: name of the posix acl
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_remove_acl(struct user_namespace *mnt_userns,
+static int smack_inode_remove_acl(struct mnt_idmap *idmap,
 				  struct dentry *dentry, const char *acl_name)
 {
 	struct smk_audit_info ad;

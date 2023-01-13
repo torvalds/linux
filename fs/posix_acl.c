@@ -372,11 +372,12 @@ EXPORT_SYMBOL(posix_acl_from_mode);
  * by the acl. Returns -E... otherwise.
  */
 int
-posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
+posix_acl_permission(struct mnt_idmap *idmap, struct inode *inode,
 		     const struct posix_acl *acl, int want)
 {
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
 	struct user_namespace *fs_userns = i_user_ns(inode);
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int found = 0;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
@@ -683,7 +684,7 @@ EXPORT_SYMBOL_GPL(posix_acl_create);
 
 /**
  * posix_acl_update_mode  -  update mode in set_acl
- * @mnt_userns:	user namespace of the mount @inode was found from
+ * @idmap:	idmap of the mount @inode was found from
  * @inode:	target inode
  * @mode_p:	mode (pointer) for update
  * @acl:	acl pointer
@@ -695,18 +696,19 @@ EXPORT_SYMBOL_GPL(posix_acl_create);
  * As with chmod, clear the setgid bit if the caller is not in the owning group
  * or capable of CAP_FSETID (see inode_change_ok).
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply passs @nop_mnt_idmap.
  *
  * Called from set_acl inode operations.
  */
-int posix_acl_update_mode(struct user_namespace *mnt_userns,
+int posix_acl_update_mode(struct mnt_idmap *idmap,
 			  struct inode *inode, umode_t *mode_p,
 			  struct posix_acl **acl)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	umode_t mode = inode->i_mode;
 	int error;
 
@@ -982,11 +984,10 @@ int simple_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct posix_acl *acl, int type)
 {
 	int error;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(mnt_userns, inode,
+		error = posix_acl_update_mode(idmap, inode,
 				&inode->i_mode, &acl);
 		if (error)
 			return error;
@@ -1018,10 +1019,12 @@ int simple_acl_create(struct inode *dir, struct inode *inode)
 	return 0;
 }
 
-static int vfs_set_acl_idmapped_mnt(struct user_namespace *mnt_userns,
+static int vfs_set_acl_idmapped_mnt(struct mnt_idmap *idmap,
 				    struct user_namespace *fs_userns,
 				    struct posix_acl *acl)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	for (int n = 0; n < acl->a_count; n++) {
 		struct posix_acl_entry *acl_e = &acl->a_entries[n];
 
@@ -1057,7 +1060,6 @@ int vfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 {
 	int acl_type;
 	int error;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	struct inode *delegated_inode = NULL;
 
@@ -1073,7 +1075,7 @@ int vfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 * if this is a filesystem with a backing store - ultimately
 		 * translate them to backing store values.
 		 */
-		error = vfs_set_acl_idmapped_mnt(mnt_userns, i_user_ns(inode), kacl);
+		error = vfs_set_acl_idmapped_mnt(idmap, i_user_ns(inode), kacl);
 		if (error)
 			return error;
 	}
@@ -1089,7 +1091,7 @@ retry_deleg:
 	if (error)
 		goto out_inode_unlock;
 
-	error = security_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+	error = security_inode_set_acl(idmap, dentry, acl_name, kacl);
 	if (error)
 		goto out_inode_unlock;
 
@@ -1135,7 +1137,6 @@ EXPORT_SYMBOL_GPL(vfs_set_acl);
 struct posix_acl *vfs_get_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	struct posix_acl *acl;
 	int acl_type, error;
@@ -1148,7 +1149,7 @@ struct posix_acl *vfs_get_acl(struct mnt_idmap *idmap,
 	 * The VFS has no restrictions on reading POSIX ACLs so calling
 	 * something like xattr_permission() isn't needed. Only LSMs get a say.
 	 */
-	error = security_inode_get_acl(mnt_userns, dentry, acl_name);
+	error = security_inode_get_acl(idmap, dentry, acl_name);
 	if (error)
 		return ERR_PTR(error);
 
@@ -1182,7 +1183,6 @@ int vfs_remove_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 {
 	int acl_type;
 	int error;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	struct inode *delegated_inode = NULL;
 
@@ -1201,7 +1201,7 @@ retry_deleg:
 	if (error)
 		goto out_inode_unlock;
 
-	error = security_inode_remove_acl(mnt_userns, dentry, acl_name);
+	error = security_inode_remove_acl(idmap, dentry, acl_name);
 	if (error)
 		goto out_inode_unlock;
 
@@ -1217,7 +1217,7 @@ retry_deleg:
 		error = -EOPNOTSUPP;
 	if (!error) {
 		fsnotify_xattr(dentry);
-		evm_inode_post_remove_acl(mnt_userns, dentry, acl_name);
+		evm_inode_post_remove_acl(idmap, dentry, acl_name);
 	}
 
 out_inode_unlock:

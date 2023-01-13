@@ -135,7 +135,7 @@ int gfs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	mode = inode->i_mode;
 	if (type == ACL_TYPE_ACCESS && acl) {
-		ret = posix_acl_update_mode(&init_user_ns, inode, &mode, &acl);
+		ret = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode, &acl);
 		if (ret)
 			goto unlock;
 	}

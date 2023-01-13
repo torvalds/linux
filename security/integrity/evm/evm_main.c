@@ -610,7 +610,7 @@ int evm_inode_removexattr(struct mnt_idmap *idmap,
 }
 
 #ifdef CONFIG_FS_POSIX_ACL
-static int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
+static int evm_inode_set_acl_change(struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *name,
 				    struct posix_acl *kacl)
 {
@@ -622,14 +622,14 @@ static int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
 	if (!kacl)
 		return 1;
 
-	rc = posix_acl_update_mode(mnt_userns, inode, &mode, &kacl);
+	rc = posix_acl_update_mode(idmap, inode, &mode, &kacl);
 	if (rc || (inode->i_mode != mode))
 		return 1;
 
 	return 0;
 }
 #else
-static inline int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
+static inline int evm_inode_set_acl_change(struct mnt_idmap *idmap,
 					   struct dentry *dentry,
 					   const char *name,
 					   struct posix_acl *kacl)
@@ -640,7 +640,7 @@ static inline int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
 
 /**
  * evm_inode_set_acl - protect the EVM extended attribute from posix acls
- * @mnt_userns: user namespace of the idmapped mount
+ * @idmap: idmap of the idmapped mount
  * @dentry: pointer to the affected dentry
  * @acl_name: name of the posix acl
  * @kacl: pointer to the posix acls
@@ -649,7 +649,7 @@ static inline int evm_inode_set_acl_change(struct user_namespace *mnt_userns,
  * and 'security.evm' xattr updated, unless the existing 'security.evm' is
  * valid.
  */
-int evm_inode_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int evm_inode_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		      const char *acl_name, struct posix_acl *kacl)
 {
 	enum integrity_status evm_status;
@@ -678,7 +678,7 @@ int evm_inode_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return 0;
 
 	if (evm_status == INTEGRITY_PASS_IMMUTABLE &&
-	    !evm_inode_set_acl_change(mnt_userns, dentry, acl_name, kacl))
+	    !evm_inode_set_acl_change(idmap, dentry, acl_name, kacl))
 		return 0;
 
 	if (evm_status != INTEGRITY_PASS_IMMUTABLE)

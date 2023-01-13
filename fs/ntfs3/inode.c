@@ -1185,13 +1185,14 @@ out:
  * 
  * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
  */
-struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
+struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 				struct inode *dir, struct dentry *dentry,
 				const struct cpu_str *uni, umode_t mode,
 				dev_t dev, const char *symname, u32 size,
 				struct ntfs_fnd *fnd)
 {
 	int err;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	const struct qstr *name = &dentry->d_name;
@@ -1614,7 +1615,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	if (!S_ISLNK(mode) && (sb->s_flags & SB_POSIXACL)) {
-		err = ntfs_init_acl(mnt_userns, inode, dir);
+		err = ntfs_init_acl(idmap, inode, dir);
 		if (err)
 			goto out7;
 	} else
