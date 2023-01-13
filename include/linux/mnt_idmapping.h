@@ -170,7 +170,7 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
 
 /**
  * make_vfsuid - map a filesystem kuid into a mnt_userns
- * @mnt_userns: the mount's idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @kuid : kuid to be mapped
  *
@@ -189,11 +189,12 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
  * returned.
  */
 
-static inline vfsuid_t make_vfsuid(struct user_namespace *mnt_userns,
+static inline vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
 				   struct user_namespace *fs_userns,
 				   kuid_t kuid)
 {
 	uid_t uid;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (no_idmapping(mnt_userns, fs_userns))
 		return VFSUIDT_INIT(kuid);
@@ -208,7 +209,7 @@ static inline vfsuid_t make_vfsuid(struct user_namespace *mnt_userns,
 
 /**
  * make_vfsgid - map a filesystem kgid into a mnt_userns
- * @mnt_userns: the mount's idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @kgid : kgid to be mapped
  *
@@ -227,11 +228,12 @@ static inline vfsuid_t make_vfsuid(struct user_namespace *mnt_userns,
  * returned.
  */
 
-static inline vfsgid_t make_vfsgid(struct user_namespace *mnt_userns,
+static inline vfsgid_t make_vfsgid(struct mnt_idmap *idmap,
 				   struct user_namespace *fs_userns,
 				   kgid_t kgid)
 {
 	gid_t gid;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (no_idmapping(mnt_userns, fs_userns))
 		return VFSGIDT_INIT(kgid);
@@ -246,7 +248,7 @@ static inline vfsgid_t make_vfsgid(struct user_namespace *mnt_userns,
 
 /**
  * from_vfsuid - map a vfsuid into the filesystem idmapping
- * @mnt_userns: the mount's idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @vfsuid : vfsuid to be mapped
  *
@@ -255,11 +257,12 @@ static inline vfsgid_t make_vfsgid(struct user_namespace *mnt_userns,
  *
  * Return: @vfsuid mapped into the filesystem idmapping
  */
-static inline kuid_t from_vfsuid(struct user_namespace *mnt_userns,
+static inline kuid_t from_vfsuid(struct mnt_idmap *idmap,
 				 struct user_namespace *fs_userns,
 				 vfsuid_t vfsuid)
 {
 	uid_t uid;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (no_idmapping(mnt_userns, fs_userns))
 		return AS_KUIDT(vfsuid);
@@ -273,7 +276,7 @@ static inline kuid_t from_vfsuid(struct user_namespace *mnt_userns,
 
 /**
  * vfsuid_has_fsmapping - check whether a vfsuid maps into the filesystem
- * @mnt_userns: the mount's idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @vfsuid: vfsuid to be mapped
  *
@@ -283,11 +286,11 @@ static inline kuid_t from_vfsuid(struct user_namespace *mnt_userns,
  *
  * Return: true if @vfsuid has a mapping in the filesystem, false if not.
  */
-static inline bool vfsuid_has_fsmapping(struct user_namespace *mnt_userns,
+static inline bool vfsuid_has_fsmapping(struct mnt_idmap *idmap,
 					struct user_namespace *fs_userns,
 					vfsuid_t vfsuid)
 {
-	return uid_valid(from_vfsuid(mnt_userns, fs_userns, vfsuid));
+	return uid_valid(from_vfsuid(idmap, fs_userns, vfsuid));
 }
 
 static inline bool vfsuid_has_mapping(struct user_namespace *userns,
@@ -311,7 +314,7 @@ static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid)
 
 /**
  * from_vfsgid - map a vfsgid into the filesystem idmapping
- * @mnt_userns: the mount's idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @vfsgid : vfsgid to be mapped
  *
@@ -320,11 +323,12 @@ static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid)
  *
  * Return: @vfsgid mapped into the filesystem idmapping
  */
-static inline kgid_t from_vfsgid(struct user_namespace *mnt_userns,
+static inline kgid_t from_vfsgid(struct mnt_idmap *idmap,
 				 struct user_namespace *fs_userns,
 				 vfsgid_t vfsgid)
 {
 	gid_t gid;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (no_idmapping(mnt_userns, fs_userns))
 		return AS_KGIDT(vfsgid);
@@ -338,7 +342,7 @@ static inline kgid_t from_vfsgid(struct user_namespace *mnt_userns,
 
 /**
  * vfsgid_has_fsmapping - check whether a vfsgid maps into the filesystem
- * @mnt_userns: the mount's idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @vfsgid: vfsgid to be mapped
  *
@@ -348,11 +352,11 @@ static inline kgid_t from_vfsgid(struct user_namespace *mnt_userns,
  *
  * Return: true if @vfsgid has a mapping in the filesystem, false if not.
  */
-static inline bool vfsgid_has_fsmapping(struct user_namespace *mnt_userns,
+static inline bool vfsgid_has_fsmapping(struct mnt_idmap *idmap,
 					struct user_namespace *fs_userns,
 					vfsgid_t vfsgid)
 {
-	return gid_valid(from_vfsgid(mnt_userns, fs_userns, vfsgid));
+	return gid_valid(from_vfsgid(idmap, fs_userns, vfsgid));
 }
 
 static inline bool vfsgid_has_mapping(struct user_namespace *userns,
@@ -390,9 +394,7 @@ static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
 static inline kuid_t mapped_fsuid(struct mnt_idmap *idmap,
 				  struct user_namespace *fs_userns)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	return from_vfsuid(mnt_userns, fs_userns,
-			   VFSUIDT_INIT(current_fsuid()));
+	return from_vfsuid(idmap, fs_userns, VFSUIDT_INIT(current_fsuid()));
 }
 
 /**
@@ -411,9 +413,7 @@ static inline kuid_t mapped_fsuid(struct mnt_idmap *idmap,
 static inline kgid_t mapped_fsgid(struct mnt_idmap *idmap,
 				  struct user_namespace *fs_userns)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	return from_vfsgid(mnt_userns, fs_userns,
-			   VFSGIDT_INIT(current_fsgid()));
+	return from_vfsgid(idmap, fs_userns, VFSGIDT_INIT(current_fsgid()));
 }
 
 #endif /* _LINUX_MNT_IDMAPPING_H */

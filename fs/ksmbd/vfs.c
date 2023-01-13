@@ -1362,7 +1362,7 @@ out:
 	return err;
 }
 
-static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct user_namespace *user_ns,
+static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct mnt_idmap *idmap,
 							    struct inode *inode,
 							    int acl_type)
 {
@@ -1392,14 +1392,14 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct user_namespac
 		switch (pa_entry->e_tag) {
 		case ACL_USER:
 			xa_entry->type = SMB_ACL_USER;
-			xa_entry->uid = posix_acl_uid_translate(user_ns, pa_entry);
+			xa_entry->uid = posix_acl_uid_translate(idmap, pa_entry);
 			break;
 		case ACL_USER_OBJ:
 			xa_entry->type = SMB_ACL_USER_OBJ;
 			break;
 		case ACL_GROUP:
 			xa_entry->type = SMB_ACL_GROUP;
-			xa_entry->gid = posix_acl_gid_translate(user_ns, pa_entry);
+			xa_entry->gid = posix_acl_gid_translate(idmap, pa_entry);
 			break;
 		case ACL_GROUP_OBJ:
 			xa_entry->type = SMB_ACL_GROUP_OBJ;
@@ -1433,7 +1433,6 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
 			   struct smb_ntsd *pntsd, int len)
 {
 	int rc;
-	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct ndr sd_ndr = {0}, acl_ndr = {0};
 	struct xattr_ntacl acl = {0};
 	struct xattr_smb_acl *smb_acl, *def_smb_acl = NULL;
@@ -1462,10 +1461,10 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
 		return rc;
 	}
 
-	smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
+	smb_acl = ksmbd_vfs_make_xattr_posix_acl(idmap, inode,
 						 ACL_TYPE_ACCESS);
 	if (S_ISDIR(inode->i_mode))
-		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
+		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(idmap, inode,
 							     ACL_TYPE_DEFAULT);
 
 	rc = ndr_encode_posix_acl(&acl_ndr, idmap, inode,
@@ -1508,7 +1507,6 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 			   struct smb_ntsd **pntsd)
 {
 	int rc;
-	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct ndr n;
 	struct inode *inode = d_inode(dentry);
 	struct ndr acl_ndr = {0};
@@ -1525,10 +1523,10 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 	if (rc)
 		goto free_n_data;
 
-	smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
+	smb_acl = ksmbd_vfs_make_xattr_posix_acl(idmap, inode,
 						 ACL_TYPE_ACCESS);
 	if (S_ISDIR(inode->i_mode))
-		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
+		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(idmap, inode,
 							     ACL_TYPE_DEFAULT);
 
 	rc = ndr_encode_posix_acl(&acl_ndr, idmap, inode, smb_acl,

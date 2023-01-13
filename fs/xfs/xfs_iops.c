@@ -663,7 +663,6 @@ xfs_setattr_nonsize(
 	kgid_t			gid = GLOBAL_ROOT_GID;
 	struct xfs_dquot	*udqp = NULL, *gdqp = NULL;
 	struct xfs_dquot	*old_udqp = NULL, *old_gdqp = NULL;
-	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 
 	ASSERT((mask & ATTR_SIZE) == 0);
 
@@ -679,14 +678,14 @@ xfs_setattr_nonsize(
 		uint	qflags = 0;
 
 		if ((mask & ATTR_UID) && XFS_IS_UQUOTA_ON(mp)) {
-			uid = from_vfsuid(mnt_userns, i_user_ns(inode),
+			uid = from_vfsuid(idmap, i_user_ns(inode),
 					  iattr->ia_vfsuid);
 			qflags |= XFS_QMOPT_UQUOTA;
 		} else {
 			uid = inode->i_uid;
 		}
 		if ((mask & ATTR_GID) && XFS_IS_GQUOTA_ON(mp)) {
-			gid = from_vfsgid(mnt_userns, i_user_ns(inode),
+			gid = from_vfsgid(idmap, i_user_ns(inode),
 					  iattr->ia_vfsgid);
 			qflags |= XFS_QMOPT_GQUOTA;
 		}  else {

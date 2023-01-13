@@ -463,7 +463,7 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
  * alter the POSIX ACLs for the underlying filesystem.
  */
 static void ovl_idmap_posix_acl(const struct inode *realinode,
-				struct user_namespace *mnt_userns,
+				struct mnt_idmap *idmap,
 				struct posix_acl *acl)
 {
 	struct user_namespace *fs_userns = i_user_ns(realinode);
@@ -475,11 +475,11 @@ static void ovl_idmap_posix_acl(const struct inode *realinode,
 		struct posix_acl_entry *e = &acl->a_entries[i];
 		switch (e->e_tag) {
 		case ACL_USER:
-			vfsuid = make_vfsuid(mnt_userns, fs_userns, e->e_uid);
+			vfsuid = make_vfsuid(idmap, fs_userns, e->e_uid);
 			e->e_uid = vfsuid_into_kuid(vfsuid);
 			break;
 		case ACL_GROUP:
-			vfsgid = make_vfsgid(mnt_userns, fs_userns, e->e_gid);
+			vfsgid = make_vfsgid(idmap, fs_userns, e->e_gid);
 			e->e_gid = vfsgid_into_kgid(vfsgid);
 			break;
 		}
@@ -514,12 +514,10 @@ struct posix_acl *ovl_get_acl_path(const struct path *path,
 				   const char *acl_name, bool noperm)
 {
 	struct posix_acl *real_acl, *clone;
-	struct user_namespace *mnt_userns;
 	struct mnt_idmap *idmap;
 	struct inode *realinode = d_inode(path->dentry);
 
 	idmap = mnt_idmap(path->mnt);
-	mnt_userns = mnt_idmap_owner(idmap);
 
 	if (noperm)
 		real_acl = get_inode_acl(realinode, posix_acl_type(acl_name));
@@ -542,7 +540,7 @@ struct posix_acl *ovl_get_acl_path(const struct path *path,
 	if (!clone)
 		return ERR_PTR(-ENOMEM);
 
-	ovl_idmap_posix_acl(realinode, mnt_userns, clone);
+	ovl_idmap_posix_acl(realinode, idmap, clone);
 	return clone;
 }
 

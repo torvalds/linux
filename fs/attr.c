@@ -379,7 +379,6 @@ EXPORT_SYMBOL(may_setattr);
 int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr, struct inode **delegated_inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = dentry->d_inode;
 	umode_t mode = inode->i_mode;
 	int error;
@@ -453,11 +452,11 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 	 * namespace of the superblock.
 	 */
 	if (ia_valid & ATTR_UID &&
-	    !vfsuid_has_fsmapping(mnt_userns, inode->i_sb->s_user_ns,
+	    !vfsuid_has_fsmapping(idmap, inode->i_sb->s_user_ns,
 				  attr->ia_vfsuid))
 		return -EOVERFLOW;
 	if (ia_valid & ATTR_GID &&
-	    !vfsgid_has_fsmapping(mnt_userns, inode->i_sb->s_user_ns,
+	    !vfsgid_has_fsmapping(idmap, inode->i_sb->s_user_ns,
 				  attr->ia_vfsgid))
 		return -EOVERFLOW;
 

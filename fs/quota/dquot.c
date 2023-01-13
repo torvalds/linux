@@ -2088,7 +2088,6 @@ EXPORT_SYMBOL(__dquot_transfer);
 int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *iattr)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct dquot *transfer_to[MAXQUOTAS] = {};
 	struct dquot *dquot;
 	struct super_block *sb = inode->i_sb;
@@ -2098,7 +2097,7 @@ int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		return 0;
 
 	if (i_uid_needs_update(idmap, iattr, inode)) {
-		kuid_t kuid = from_vfsuid(mnt_userns, i_user_ns(inode),
+		kuid_t kuid = from_vfsuid(idmap, i_user_ns(inode),
 					  iattr->ia_vfsuid);
 
 		dquot = dqget(sb, make_kqid_uid(kuid));
@@ -2112,7 +2111,7 @@ int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		transfer_to[USRQUOTA] = dquot;
 	}
 	if (i_gid_needs_update(idmap, iattr, inode)) {
-		kgid_t kgid = from_vfsgid(mnt_userns, i_user_ns(inode),
+		kgid_t kgid = from_vfsgid(idmap, i_user_ns(inode),
 					  iattr->ia_vfsgid);
 
 		dquot = dqget(sb, make_kqid_gid(kgid));

@@ -2513,7 +2513,6 @@ int smb2_open(struct ksmbd_work *work)
 	struct ksmbd_file *fp = NULL;
 	struct file *filp = NULL;
 	struct mnt_idmap *idmap = NULL;
-	struct user_namespace *user_ns = NULL;
 	struct kstat stat;
 	struct create_context *context;
 	struct lease_ctx_info *lc = NULL;
@@ -2767,7 +2766,6 @@ int smb2_open(struct ksmbd_work *work)
 	} else {
 		file_present = true;
 		idmap = mnt_idmap(path.mnt);
-		user_ns = mnt_idmap_owner(idmap);
 	}
 	if (stream_name) {
 		if (req->CreateOptions & FILE_DIRECTORY_FILE_LE) {
@@ -2867,7 +2865,6 @@ int smb2_open(struct ksmbd_work *work)
 
 		created = true;
 		idmap = mnt_idmap(path.mnt);
-		user_ns = mnt_idmap_owner(idmap);
 		if (ea_buf) {
 			if (le32_to_cpu(ea_buf->ccontext.DataLength) <
 			    sizeof(struct smb2_ea_info)) {
@@ -2999,7 +2996,7 @@ int smb2_open(struct ksmbd_work *work)
 					if (!pntsd)
 						goto err_out;
 
-					rc = build_sec_desc(user_ns,
+					rc = build_sec_desc(idmap,
 							    pntsd, NULL, 0,
 							    OWNER_SECINFO |
 							    GROUP_SECINFO |
@@ -5128,7 +5125,6 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 {
 	struct ksmbd_file *fp;
 	struct mnt_idmap *idmap;
-	struct user_namespace *user_ns;
 	struct smb_ntsd *pntsd = (struct smb_ntsd *)rsp->Buffer, *ppntsd = NULL;
 	struct smb_fattr fattr = {{0}};
 	struct inode *inode;
@@ -5176,7 +5172,6 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 		return -ENOENT;
 
 	idmap = file_mnt_idmap(fp->filp);
-	user_ns = mnt_idmap_owner(idmap);
 	inode = file_inode(fp->filp);
 	ksmbd_acls_fattr(&fattr, idmap, inode);
 
@@ -5188,7 +5183,7 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 
 	/* Check if sd buffer size exceeds response buffer size */
 	if (smb2_resp_buf_len(work, 8) > ppntsd_size)
-		rc = build_sec_desc(user_ns, pntsd, ppntsd, ppntsd_size,
+		rc = build_sec_desc(idmap, pntsd, ppntsd, ppntsd_size,
 				    addition_info, &secdesclen, &fattr);
 	posix_acl_release(fattr.cf_acls);
 	posix_acl_release(fattr.cf_dacls);

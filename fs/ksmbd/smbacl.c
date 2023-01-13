@@ -254,7 +254,7 @@ void id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 	ssid->num_subauth++;
 }
 
-static int sid_to_id(struct user_namespace *user_ns,
+static int sid_to_id(struct mnt_idmap *idmap,
 		     struct smb_sid *psid, uint sidtype,
 		     struct smb_fattr *fattr)
 {
@@ -276,7 +276,7 @@ static int sid_to_id(struct user_namespace *user_ns,
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
 		uid = KUIDT_INIT(id);
-		uid = from_vfsuid(user_ns, &init_user_ns, VFSUIDT_INIT(uid));
+		uid = from_vfsuid(idmap, &init_user_ns, VFSUIDT_INIT(uid));
 		if (uid_valid(uid)) {
 			fattr->cf_uid = uid;
 			rc = 0;
@@ -287,7 +287,7 @@ static int sid_to_id(struct user_namespace *user_ns,
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
 		gid = KGIDT_INIT(id);
-		gid = from_vfsgid(user_ns, &init_user_ns, VFSGIDT_INIT(gid));
+		gid = from_vfsgid(idmap, &init_user_ns, VFSGIDT_INIT(gid));
 		if (gid_valid(gid)) {
 			fattr->cf_gid = gid;
 			rc = 0;
@@ -362,7 +362,7 @@ void free_acl_state(struct posix_acl_state *state)
 	kfree(state->groups);
 }
 
-static void parse_dacl(struct user_namespace *user_ns,
+static void parse_dacl(struct mnt_idmap *idmap,
 		       struct smb_acl *pdacl, char *end_of_acl,
 		       struct smb_sid *pownersid, struct smb_sid *pgrpsid,
 		       struct smb_fattr *fattr)
@@ -489,7 +489,7 @@ static void parse_dacl(struct user_namespace *user_ns,
 			acl_mode = access_flags_to_mode(fattr, ppace[i]->access_req,
 							ppace[i]->type);
 			temp_fattr.cf_uid = INVALID_UID;
-			ret = sid_to_id(user_ns, &ppace[i]->sid, SIDOWNER, &temp_fattr);
+			ret = sid_to_id(idmap, &ppace[i]->sid, SIDOWNER, &temp_fattr);
 			if (ret || uid_eq(temp_fattr.cf_uid, INVALID_UID)) {
 				pr_err("%s: Error %d mapping Owner SID to uid\n",
 				       __func__, ret);
@@ -575,7 +575,7 @@ static void parse_dacl(struct user_namespace *user_ns,
 	free_acl_state(&default_acl_state);
 }
 
-static void set_posix_acl_entries_dacl(struct user_namespace *user_ns,
+static void set_posix_acl_entries_dacl(struct mnt_idmap *idmap,
 				       struct smb_ace *pndace,
 				       struct smb_fattr *fattr, u32 *num_aces,
 				       u16 *size, u32 nt_aces_num)
@@ -600,14 +600,14 @@ static void set_posix_acl_entries_dacl(struct user_namespace *user_ns,
 			uid_t uid;
 			unsigned int sid_type = SIDOWNER;
 
-			uid = posix_acl_uid_translate(user_ns, pace);
+			uid = posix_acl_uid_translate(idmap, pace);
 			if (!uid)
 				sid_type = SIDUNIX_USER;
 			id_to_sid(uid, sid_type, sid);
 		} else if (pace->e_tag == ACL_GROUP) {
 			gid_t gid;
 
-			gid = posix_acl_gid_translate(user_ns, pace);
+			gid = posix_acl_gid_translate(idmap, pace);
 			id_to_sid(gid, SIDUNIX_GROUP, sid);
 		} else if (pace->e_tag == ACL_OTHER && !nt_aces_num) {
 			smb_copy_sid(sid, &sid_everyone);
@@ -666,12 +666,12 @@ posix_default_acl:
 		if (pace->e_tag == ACL_USER) {
 			uid_t uid;
 
-			uid = posix_acl_uid_translate(user_ns, pace);
+			uid = posix_acl_uid_translate(idmap, pace);
 			id_to_sid(uid, SIDCREATOR_OWNER, sid);
 		} else if (pace->e_tag == ACL_GROUP) {
 			gid_t gid;
 
-			gid = posix_acl_gid_translate(user_ns, pace);
+			gid = posix_acl_gid_translate(idmap, pace);
 			id_to_sid(gid, SIDCREATOR_GROUP, sid);
 		} else {
 			kfree(sid);
@@ -689,7 +689,7 @@ posix_default_acl:
 	}
 }
 
-static void set_ntacl_dacl(struct user_namespace *user_ns,
+static void set_ntacl_dacl(struct mnt_idmap *idmap,
 			   struct smb_acl *pndacl,
 			   struct smb_acl *nt_dacl,
 			   unsigned int aces_size,
@@ -723,13 +723,13 @@ static void set_ntacl_dacl(struct user_namespace *user_ns,
 		}
 	}
 
-	set_posix_acl_entries_dacl(user_ns, pndace, fattr,
+	set_posix_acl_entries_dacl(idmap, pndace, fattr,
 				   &num_aces, &size, nt_num_aces);
 	pndacl->num_aces = cpu_to_le32(num_aces);
 	pndacl->size = cpu_to_le16(le16_to_cpu(pndacl->size) + size);
 }
 
-static void set_mode_dacl(struct user_namespace *user_ns,
+static void set_mode_dacl(struct mnt_idmap *idmap,
 			  struct smb_acl *pndacl, struct smb_fattr *fattr)
 {
 	struct smb_ace *pace, *pndace;
@@ -741,7 +741,7 @@ static void set_mode_dacl(struct user_namespace *user_ns,
 	pace = pndace = (struct smb_ace *)((char *)pndacl + sizeof(struct smb_acl));
 
 	if (fattr->cf_acls) {
-		set_posix_acl_entries_dacl(user_ns, pndace, fattr,
+		set_posix_acl_entries_dacl(idmap, pndace, fattr,
 					   &num_aces, &size, num_aces);
 		goto out;
 	}
@@ -808,7 +808,7 @@ static int parse_sid(struct smb_sid *psid, char *end_of_acl)
 }
 
 /* Convert CIFS ACL to POSIX form */
-int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
+int parse_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		   int acl_len, struct smb_fattr *fattr)
 {
 	int rc = 0;
@@ -851,7 +851,7 @@ int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
 			return rc;
 		}
 
-		rc = sid_to_id(user_ns, owner_sid_ptr, SIDOWNER, fattr);
+		rc = sid_to_id(idmap, owner_sid_ptr, SIDOWNER, fattr);
 		if (rc) {
 			pr_err("%s: Error %d mapping Owner SID to uid\n",
 			       __func__, rc);
@@ -866,7 +866,7 @@ int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
 			       __func__, rc);
 			return rc;
 		}
-		rc = sid_to_id(user_ns, group_sid_ptr, SIDUNIX_GROUP, fattr);
+		rc = sid_to_id(idmap, group_sid_ptr, SIDUNIX_GROUP, fattr);
 		if (rc) {
 			pr_err("%s: Error %d mapping Group SID to gid\n",
 			       __func__, rc);
@@ -881,7 +881,7 @@ int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
 		pntsd->type |= cpu_to_le16(DACL_PROTECTED);
 
 	if (dacloffset) {
-		parse_dacl(user_ns, dacl_ptr, end_of_acl,
+		parse_dacl(idmap, dacl_ptr, end_of_acl,
 			   owner_sid_ptr, group_sid_ptr, fattr);
 	}
 
@@ -889,7 +889,7 @@ int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
 }
 
 /* Convert permission bits from mode to equivalent CIFS ACL */
-int build_sec_desc(struct user_namespace *user_ns,
+int build_sec_desc(struct mnt_idmap *idmap,
 		   struct smb_ntsd *pntsd, struct smb_ntsd *ppntsd,
 		   int ppntsd_size, int addition_info, __u32 *secdesclen,
 		   struct smb_fattr *fattr)
@@ -950,7 +950,7 @@ int build_sec_desc(struct user_namespace *user_ns,
 		dacl_ptr->num_aces = 0;
 
 		if (!ppntsd) {
-			set_mode_dacl(user_ns, dacl_ptr, fattr);
+			set_mode_dacl(idmap, dacl_ptr, fattr);
 		} else {
 			struct smb_acl *ppdacl_ptr;
 			unsigned int dacl_offset = le32_to_cpu(ppntsd->dacloffset);
@@ -966,7 +966,7 @@ int build_sec_desc(struct user_namespace *user_ns,
 			    ppdacl_size < sizeof(struct smb_acl))
 				goto out;
 
-			set_ntacl_dacl(user_ns, dacl_ptr, ppdacl_ptr,
+			set_ntacl_dacl(idmap, dacl_ptr, ppdacl_ptr,
 				       ntacl_size - sizeof(struct smb_acl),
 				       nowner_sid_ptr, ngroup_sid_ptr,
 				       fattr);
@@ -1191,7 +1191,6 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 			__le32 *pdaccess, int uid)
 {
 	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
-	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct smb_ntsd *pntsd = NULL;
 	struct smb_acl *pdacl;
 	struct posix_acl *posix_acls;
@@ -1297,9 +1296,9 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 			pa_entry = posix_acls->a_entries;
 			for (i = 0; i < posix_acls->a_count; i++, pa_entry++) {
 				if (pa_entry->e_tag == ACL_USER)
-					id = posix_acl_uid_translate(user_ns, pa_entry);
+					id = posix_acl_uid_translate(idmap, pa_entry);
 				else if (pa_entry->e_tag == ACL_GROUP)
-					id = posix_acl_gid_translate(user_ns, pa_entry);
+					id = posix_acl_gid_translate(idmap, pa_entry);
 				else
 					continue;
 
@@ -1362,14 +1361,13 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 	struct smb_fattr fattr = {{0}};
 	struct inode *inode = d_inode(path->dentry);
 	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
-	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct iattr newattrs;
 
 	fattr.cf_uid = INVALID_UID;
 	fattr.cf_gid = INVALID_GID;
 	fattr.cf_mode = inode->i_mode;
 
-	rc = parse_sec_desc(user_ns, pntsd, ntsd_len, &fattr);
+	rc = parse_sec_desc(idmap, pntsd, ntsd_len, &fattr);
 	if (rc)
 		goto out;
 

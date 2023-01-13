@@ -391,7 +391,6 @@ int cap_inode_getsecurity(struct mnt_idmap *idmap,
 	struct vfs_ns_cap_data *nscap = NULL;
 	struct dentry *dentry;
 	struct user_namespace *fs_ns;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (strcmp(name, "capability") != 0)
 		return -EOPNOTSUPP;
@@ -421,7 +420,7 @@ int cap_inode_getsecurity(struct mnt_idmap *idmap,
 	kroot = make_kuid(fs_ns, root);
 
 	/* If this is an idmapped mount shift the kuid. */
-	vfsroot = make_vfsuid(mnt_userns, fs_ns, kroot);
+	vfsroot = make_vfsuid(idmap, fs_ns, kroot);
 
 	/* If the root kuid maps to a valid uid in current ns, then return
 	 * this as a nscap. */
@@ -537,7 +536,6 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 	struct inode *inode = d_backing_inode(dentry);
 	struct user_namespace *task_ns = current_user_ns(),
 		*fs_ns = inode->i_sb->s_user_ns;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	kuid_t rootid;
 	vfsuid_t vfsrootid;
 	size_t newsize;
@@ -557,7 +555,7 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (!vfsuid_valid(vfsrootid))
 		return -EINVAL;
 
-	rootid = from_vfsuid(mnt_userns, fs_ns, vfsrootid);
+	rootid = from_vfsuid(idmap, fs_ns, vfsrootid);
 	if (!uid_valid(rootid))
 		return -EINVAL;
 
@@ -653,7 +651,6 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 	kuid_t rootkuid;
 	vfsuid_t rootvfsuid;
 	struct user_namespace *fs_ns;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
 
@@ -698,7 +695,7 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 		return -EINVAL;
 	}
 
-	rootvfsuid = make_vfsuid(mnt_userns, fs_ns, rootkuid);
+	rootvfsuid = make_vfsuid(idmap, fs_ns, rootkuid);
 	if (!vfsuid_valid(rootvfsuid))
 		return -ENODATA;
 

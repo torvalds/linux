@@ -480,7 +480,6 @@ static int fat_allow_set_time(struct mnt_idmap *idmap,
 int fat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid;
@@ -519,10 +518,10 @@ int fat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 
 	if (((attr->ia_valid & ATTR_UID) &&
-	     (!uid_eq(from_vfsuid(mnt_userns, i_user_ns(inode), attr->ia_vfsuid),
+	     (!uid_eq(from_vfsuid(idmap, i_user_ns(inode), attr->ia_vfsuid),
 		      sbi->options.fs_uid))) ||
 	    ((attr->ia_valid & ATTR_GID) &&
-	     (!gid_eq(from_vfsgid(mnt_userns, i_user_ns(inode), attr->ia_vfsgid),
+	     (!gid_eq(from_vfsgid(idmap, i_user_ns(inode), attr->ia_vfsgid),
 		      sbi->options.fs_gid))) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
 	     (attr->ia_mode & ~FAT_VALID_MODE)))

@@ -1642,8 +1642,7 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
 static inline vfsuid_t i_uid_into_vfsuid(struct mnt_idmap *idmap,
 					 const struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	return make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid);
+	return make_vfsuid(idmap, i_user_ns(inode), inode->i_uid);
 }
 
 /**
@@ -1679,10 +1678,8 @@ static inline void i_uid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
 				struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
 	if (attr->ia_valid & ATTR_UID)
-		inode->i_uid = from_vfsuid(mnt_userns, i_user_ns(inode),
+		inode->i_uid = from_vfsuid(idmap, i_user_ns(inode),
 					   attr->ia_vfsuid);
 }
 
@@ -1697,8 +1694,7 @@ static inline void i_uid_update(struct mnt_idmap *idmap,
 static inline vfsgid_t i_gid_into_vfsgid(struct mnt_idmap *idmap,
 					 const struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	return make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid);
+	return make_vfsgid(idmap, i_user_ns(inode), inode->i_gid);
 }
 
 /**
@@ -1734,10 +1730,8 @@ static inline void i_gid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
 				struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
 	if (attr->ia_valid & ATTR_GID)
-		inode->i_gid = from_vfsgid(mnt_userns, i_user_ns(inode),
+		inode->i_gid = from_vfsgid(idmap, i_user_ns(inode),
 					   attr->ia_vfsgid);
 }
 
