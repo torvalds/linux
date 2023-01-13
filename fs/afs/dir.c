@@ -38,7 +38,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		    struct dentry *dentry);
 static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *content);
-static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+static int afs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags);
 static bool afs_dir_release_folio(struct folio *folio, gfp_t gfp_flags);
@@ -1897,7 +1897,7 @@ static const struct afs_operation_ops afs_rename_operation = {
 /*
  * rename a file in an AFS filesystem and/or move it between directories
  */
-static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+static int afs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {

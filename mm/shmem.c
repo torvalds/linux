@@ -3045,7 +3045,7 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 	return shmem_unlink(dir, dentry);
 }
 
-static int shmem_whiteout(struct user_namespace *mnt_userns,
+static int shmem_whiteout(struct mnt_idmap *idmap,
 			  struct inode *old_dir, struct dentry *old_dentry)
 {
 	struct dentry *whiteout;
@@ -3078,7 +3078,7 @@ static int shmem_whiteout(struct user_namespace *mnt_userns,
  * it exists so that the VFS layer correctly free's it when it
  * gets overwritten.
  */
-static int shmem_rename2(struct user_namespace *mnt_userns,
+static int shmem_rename2(struct mnt_idmap *idmap,
 			 struct inode *old_dir, struct dentry *old_dentry,
 			 struct inode *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
@@ -3098,7 +3098,7 @@ static int shmem_rename2(struct user_namespace *mnt_userns,
 	if (flags & RENAME_WHITEOUT) {
 		int error;
 
-		error = shmem_whiteout(&init_user_ns, old_dir, old_dentry);
+		error = shmem_whiteout(&nop_mnt_idmap, old_dir, old_dentry);
 		if (error)
 			return error;
 	}

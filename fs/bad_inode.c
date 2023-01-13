@@ -75,7 +75,7 @@ static int bad_inode_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return -EIO;
 }
 
-static int bad_inode_rename2(struct user_namespace *mnt_userns,
+static int bad_inode_rename2(struct mnt_idmap *idmap,
 			     struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)

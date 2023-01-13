@@ -4162,11 +4162,12 @@ end_rename:
 	return retval;
 }
 
-static int ext4_rename2(struct user_namespace *mnt_userns,
+static int ext4_rename2(struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int err;
 
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(old_dir->i_sb))))

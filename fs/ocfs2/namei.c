@@ -1194,7 +1194,7 @@ static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2)
 		ocfs2_inode_unlock(inode2, 1);
 }
 
-static int ocfs2_rename(struct user_namespace *mnt_userns,
+static int ocfs2_rename(struct mnt_idmap *idmap,
 			struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,

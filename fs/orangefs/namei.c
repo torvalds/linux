@@ -375,7 +375,7 @@ out:
 	return ret;
 }
 
-static int orangefs_rename(struct user_namespace *mnt_userns,
+static int orangefs_rename(struct mnt_idmap *idmap,
 			struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,

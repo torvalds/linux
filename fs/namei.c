@@ -4786,7 +4786,7 @@ int vfs_rename(struct renamedata *rd)
 		if (error)
 			goto out;
 	}
-	error = old_dir->i_op->rename(new_mnt_userns, old_dir, old_dentry,
+	error = old_dir->i_op->rename(rd->new_mnt_idmap, old_dir, old_dentry,
 				      new_dir, new_dentry, flags);
 	if (error)
 		goto out;

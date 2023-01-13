@@ -1766,7 +1766,7 @@ out:
 	return error;
 }
 
-static int gfs2_rename2(struct user_namespace *mnt_userns, struct inode *odir,
+static int gfs2_rename2(struct mnt_idmap *idmap, struct inode *odir,
 			struct dentry *odentry, struct inode *ndir,
 			struct dentry *ndentry, unsigned int flags)
 {

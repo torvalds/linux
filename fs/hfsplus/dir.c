@@ -529,7 +529,7 @@ static int hfsplus_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	return hfsplus_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFDIR, 0);
 }
 
-static int hfsplus_rename(struct user_namespace *mnt_userns,
+static int hfsplus_rename(struct mnt_idmap *idmap,
 			  struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry,
 			  unsigned int flags)

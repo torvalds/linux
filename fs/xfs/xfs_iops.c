@@ -446,13 +446,14 @@ xfs_vn_symlink(
 
 STATIC int
 xfs_vn_rename(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct inode		*odir,
 	struct dentry		*odentry,
 	struct inode		*ndir,
 	struct dentry		*ndentry,
 	unsigned int		flags)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode	*new_inode = d_inode(ndentry);
 	int		omode = 0;
 	int		error;
