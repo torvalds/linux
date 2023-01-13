@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/bio.h>
-#include <linux/buffer_head.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -388,25 +387,18 @@ extern struct file_system_type erofs_fs_type;
 extern const struct address_space_operations erofs_raw_access_aops;
 extern const struct address_space_operations z_erofs_aops;
 
-enum {
-	BH_Encoded = BH_PrivateStart,
-	BH_FullMapped,
-	BH_Fragment,
-	BH_Partialref,
-};
-
 /* Has a disk mapping */
-#define EROFS_MAP_MAPPED	(1 << BH_Mapped)
+#define EROFS_MAP_MAPPED	0x0001
 /* Located in metadata (could be copied from bd_inode) */
-#define EROFS_MAP_META		(1 << BH_Meta)
+#define EROFS_MAP_META		0x0002
 /* The extent is encoded */
-#define EROFS_MAP_ENCODED	(1 << BH_Encoded)
+#define EROFS_MAP_ENCODED	0x0004
 /* The length of extent is full */
-#define EROFS_MAP_FULL_MAPPED	(1 << BH_FullMapped)
+#define EROFS_MAP_FULL_MAPPED	0x0008
 /* Located in the special packed inode */
-#define EROFS_MAP_FRAGMENT	(1 << BH_Fragment)
+#define EROFS_MAP_FRAGMENT	0x0010
 /* The extent refers to partial decompressed data */
-#define EROFS_MAP_PARTIAL_REF	(1 << BH_Partialref)
+#define EROFS_MAP_PARTIAL_REF	0x0020
 
 struct erofs_map_blocks {
 	struct erofs_buf buf;
