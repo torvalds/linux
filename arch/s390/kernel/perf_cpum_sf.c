@@ -1491,9 +1491,7 @@ static int aux_output_begin(struct perf_output_handle *handle,
 			    struct aux_buffer *aux,
 			    struct cpu_hw_sf *cpuhw)
 {
-	unsigned long range;
-	unsigned long i, range_scan, idx;
-	unsigned long head, base, offset;
+	unsigned long range, i, range_scan, idx, head, base, offset;
 	struct hws_trailer_entry *te;
 
 	if (WARN_ON_ONCE(handle->head & ~PAGE_MASK))
@@ -1534,8 +1532,8 @@ static int aux_output_begin(struct perf_output_handle *handle,
 	head = aux_sdb_index(aux, aux->head);
 	base = aux->sdbt_index[head / CPUM_SF_SDB_PER_TABLE];
 	offset = head % CPUM_SF_SDB_PER_TABLE;
-	cpuhw->lsctl.tear = base + offset * sizeof(unsigned long);
-	cpuhw->lsctl.dear = aux->sdb_index[head];
+	cpuhw->lsctl.tear = virt_to_phys((void *)base) + offset * sizeof(unsigned long);
+	cpuhw->lsctl.dear = virt_to_phys((void *)aux->sdb_index[head]);
 
 	debug_sprintf_event(sfdbg, 6, "%s: head %ld alert %ld empty %ld "
 			    "index %ld tear %#lx dear %#lx\n", __func__,
@@ -1845,18 +1843,18 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 				goto no_sdbt;
 			aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)new;
 			/* Link current page to tail of chain */
-			*tail = (unsigned long)(void *) new + 1;
+			*tail = virt_to_phys(new) + 1;
 			tail = new;
 		}
 		/* Tail is the entry in a SDBT */
-		*tail = (unsigned long)pages[i];
+		*tail = virt_to_phys(pages[i]);
 		aux->sdb_index[i] = (unsigned long)pages[i];
 		aux_sdb_init((unsigned long)pages[i]);
 	}
 	sfb->num_sdb = nr_pages;
 
 	/* Link the last entry in the SDBT to the first SDBT */
-	*tail = (unsigned long) sfb->sdbt + 1;
+	*tail = virt_to_phys(sfb->sdbt) + 1;
 	sfb->tail = tail;
 
 	/*
