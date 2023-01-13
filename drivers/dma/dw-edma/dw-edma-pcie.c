@@ -240,20 +240,20 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		struct dw_edma_block *ll_block = &vsec_data.ll_wr[i];
 		struct dw_edma_block *dt_block = &vsec_data.dt_wr[i];
 
-		ll_region->vaddr = pcim_iomap_table(pdev)[ll_block->bar];
-		if (!ll_region->vaddr)
+		ll_region->vaddr.io = pcim_iomap_table(pdev)[ll_block->bar];
+		if (!ll_region->vaddr.io)
 			return -ENOMEM;
 
-		ll_region->vaddr += ll_block->off;
+		ll_region->vaddr.io += ll_block->off;
 		ll_region->paddr = pci_bus_address(pdev, ll_block->bar);
 		ll_region->paddr += ll_block->off;
 		ll_region->sz = ll_block->sz;
 
-		dt_region->vaddr = pcim_iomap_table(pdev)[dt_block->bar];
-		if (!dt_region->vaddr)
+		dt_region->vaddr.io = pcim_iomap_table(pdev)[dt_block->bar];
+		if (!dt_region->vaddr.io)
 			return -ENOMEM;
 
-		dt_region->vaddr += dt_block->off;
+		dt_region->vaddr.io += dt_block->off;
 		dt_region->paddr = pci_bus_address(pdev, dt_block->bar);
 		dt_region->paddr += dt_block->off;
 		dt_region->sz = dt_block->sz;
@@ -265,20 +265,20 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		struct dw_edma_block *ll_block = &vsec_data.ll_rd[i];
 		struct dw_edma_block *dt_block = &vsec_data.dt_rd[i];
 
-		ll_region->vaddr = pcim_iomap_table(pdev)[ll_block->bar];
-		if (!ll_region->vaddr)
+		ll_region->vaddr.io = pcim_iomap_table(pdev)[ll_block->bar];
+		if (!ll_region->vaddr.io)
 			return -ENOMEM;
 
-		ll_region->vaddr += ll_block->off;
+		ll_region->vaddr.io += ll_block->off;
 		ll_region->paddr = pci_bus_address(pdev, ll_block->bar);
 		ll_region->paddr += ll_block->off;
 		ll_region->sz = ll_block->sz;
 
-		dt_region->vaddr = pcim_iomap_table(pdev)[dt_block->bar];
-		if (!dt_region->vaddr)
+		dt_region->vaddr.io = pcim_iomap_table(pdev)[dt_block->bar];
+		if (!dt_region->vaddr.io)
 			return -ENOMEM;
 
-		dt_region->vaddr += dt_block->off;
+		dt_region->vaddr.io += dt_block->off;
 		dt_region->paddr = pci_bus_address(pdev, dt_block->bar);
 		dt_region->paddr += dt_block->off;
 		dt_region->sz = dt_block->sz;
@@ -303,24 +303,24 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		pci_dbg(pdev, "L. List:\tWRITE CH%.2u, BAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 			i, vsec_data.ll_wr[i].bar,
 			vsec_data.ll_wr[i].off, chip->ll_region_wr[i].sz,
-			chip->ll_region_wr[i].vaddr, &chip->ll_region_wr[i].paddr);
+			chip->ll_region_wr[i].vaddr.io, &chip->ll_region_wr[i].paddr);
 
 		pci_dbg(pdev, "Data:\tWRITE CH%.2u, BAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 			i, vsec_data.dt_wr[i].bar,
 			vsec_data.dt_wr[i].off, chip->dt_region_wr[i].sz,
-			chip->dt_region_wr[i].vaddr, &chip->dt_region_wr[i].paddr);
+			chip->dt_region_wr[i].vaddr.io, &chip->dt_region_wr[i].paddr);
 	}
 
 	for (i = 0; i < chip->ll_rd_cnt; i++) {
 		pci_dbg(pdev, "L. List:\tREAD CH%.2u, BAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 			i, vsec_data.ll_rd[i].bar,
 			vsec_data.ll_rd[i].off, chip->ll_region_rd[i].sz,
-			chip->ll_region_rd[i].vaddr, &chip->ll_region_rd[i].paddr);
+			chip->ll_region_rd[i].vaddr.io, &chip->ll_region_rd[i].paddr);
 
 		pci_dbg(pdev, "Data:\tREAD CH%.2u, BAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 			i, vsec_data.dt_rd[i].bar,
 			vsec_data.dt_rd[i].off, chip->dt_region_rd[i].sz,
-			chip->dt_region_rd[i].vaddr, &chip->dt_region_rd[i].paddr);
+			chip->dt_region_rd[i].vaddr.io, &chip->dt_region_rd[i].paddr);
 	}
 
 	pci_dbg(pdev, "Nr. IRQs:\t%u\n", chip->nr_irqs);

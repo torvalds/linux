@@ -19,7 +19,10 @@ struct dw_edma;
 
 struct dw_edma_region {
 	u64		paddr;
-	void __iomem	*vaddr;
+	union {
+		void		*mem;
+		void __iomem	*io;
+	} vaddr;
 	size_t		sz;
 };
 
