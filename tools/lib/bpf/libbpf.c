@@ -9994,9 +9994,16 @@ static void gen_kprobe_legacy_event_name(char *buf, size_t buf_sz,
 					 const char *kfunc_name, size_t offset)
 {
 	static int index = 0;
+	int i;
 
 	snprintf(buf, buf_sz, "libbpf_%u_%s_0x%zx_%d", getpid(), kfunc_name, offset,
 		 __sync_fetch_and_add(&index, 1));
+
+	/* sanitize binary_path in the probe name */
+	for (i = 0; buf[i]; i++) {
+		if (!isalnum(buf[i]))
+			buf[i] = '_';
+	}
 }
 
 static int add_kprobe_event_legacy(const char *probe_name, bool retprobe,
