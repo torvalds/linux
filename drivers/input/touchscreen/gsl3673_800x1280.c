@@ -28,6 +28,7 @@
 #include "tp_suspend.h"
 #include <linux/of_gpio.h>
 #define GSL_DEBUG 0
+#define GSL9XX_VDDIO_1800
 
 #define TP2680A_ID	0x88
 #define TP2680B_ID	0x82
@@ -207,6 +208,7 @@ struct gsl_ts {
 	struct tp_device  tp;
 	struct work_struct download_fw_work;
 	struct work_struct resume_work;
+	struct delayed_work delayed_work_init;
 };
 
 #if GSL_DEBUG
@@ -401,6 +403,29 @@ static int test_i2c(struct i2c_client *client)
 	return rc;
 }
 
+static void gsl_io_control(struct i2c_client *client)
+{
+#ifdef GSL9XX_VDDIO_1800
+	u8 buf[4] = {0};
+	int i;
+
+	for (i = 0; i < 5; i++) {
+		buf[0] = 0;
+		buf[1] = 0;
+		buf[2] = 0xfe;
+		buf[3] = 0x1;
+		gsl_ts_write(client, 0xf0, buf, 4);
+		buf[0] = 0x5;
+		buf[1] = 0;
+		buf[2] = 0;
+		buf[3] = 0x80;
+		gsl_ts_write(client, 0x78, buf, 4);
+		usleep_range(5*1000, 5*1100);
+	}
+	usleep_range(50*1000, 50*1100);
+#endif
+}
+
 static void startup_chip(struct i2c_client *client)
 {
 	u8 tmp = 0x00;
@@ -410,6 +435,7 @@ static void startup_chip(struct i2c_client *client)
 #endif
 	gsl_ts_write(client, 0xe0, &tmp, 1);
 	mdelay(5);
+	gsl_io_control(client);
 }
 
 static void reset_chip(struct i2c_client *client)
@@ -460,6 +486,20 @@ static int init_chip(struct i2c_client *client)
 	}
 	schedule_work(&ts->download_fw_work);
 	return 0;
+}
+
+static void gsl_delayed_work_init(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct gsl_ts *gsl3673_ts = container_of(dwork, struct gsl_ts,
+						 delayed_work_init);
+	int rc;
+
+	rc = init_chip(gsl3673_ts->client);
+	if (rc < 0) {
+		dev_err(&gsl3673_ts->client->dev, "gsl_probe: init_chip failed\n");
+		cancel_work_sync(&gsl3673_ts->download_fw_work);
+	}
 }
 
 static int check_mem_data(struct i2c_client *client)
@@ -1159,20 +1199,19 @@ static int  gsl_ts_probe(struct i2c_client *client,
 #endif
 	INIT_WORK(&ts->download_fw_work, gsl_download_fw_work);
 	INIT_WORK(&ts->resume_work, gsl_resume_work);
+	INIT_DELAYED_WORK(&ts->delayed_work_init, gsl_delayed_work_init);
 
-	rc = init_chip(ts->client);
-	if (rc < 0) {
-		dev_err(&client->dev, "gsl_probe: init_chip failed\n");
-		goto error_init_chip_fail;
-	}
 	spin_lock_init(&ts->irq_lock);
 	client->irq = gpio_to_irq(ts->irq);
 	rc = devm_request_irq(&client->dev, client->irq, gsl_ts_irq,
 				IRQF_TRIGGER_RISING, client->name, ts);
 	if (rc < 0) {
 		dev_err(&client->dev, "gsl_probe: request irq failed\n");
-		return rc;
+		goto error_mutex_destroy;
 	}
+
+	schedule_delayed_work(&ts->delayed_work_init,
+			      msecs_to_jiffies(800));
 #ifdef GSL_MONITOR
 	INIT_DELAYED_WORK(&gsl_monitor_work, gsl_monitor_worker);
 	gsl_monitor_workqueue = create_singlethread_workqueue
@@ -1184,8 +1223,6 @@ static int  gsl_ts_probe(struct i2c_client *client,
 	gsl_proc_flag = 0;
 #endif
 	return 0;
-error_init_chip_fail:
-	cancel_work_sync(&ts->download_fw_work);
 error_mutex_destroy:
 	tp_unregister_fb(&ts->tp);
 	return rc;
@@ -1199,9 +1236,11 @@ static int gsl_ts_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&gsl_monitor_work);
 	destroy_workqueue(gsl_monitor_workqueue);
 #endif
+	tp_unregister_fb(&ts->tp);
 	device_init_wakeup(&client->dev, 0);
 	cancel_work_sync(&ts->work);
 	destroy_workqueue(ts->wq);
+	cancel_delayed_work_sync(&ts->delayed_work_init);
 	cancel_work_sync(&ts->download_fw_work);
 	return 0;
 }
