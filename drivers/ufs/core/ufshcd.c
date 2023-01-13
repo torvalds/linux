@@ -43,6 +43,12 @@
 #define UFSHCD_ENABLE_INTRS	(UTP_TRANSFER_REQ_COMPL |\
 				 UTP_TASK_REQ_COMPL |\
 				 UFSHCD_ERROR_MASK)
+
+#define UFSHCD_ENABLE_MCQ_INTRS	(UTP_TASK_REQ_COMPL |\
+				 UFSHCD_ERROR_MASK |\
+				 MCQ_CQ_EVENT_STATUS)
+
+
 /* UIC command timeout, unit: ms */
 #define UIC_CMD_TIMEOUT	500
 
@@ -8356,6 +8362,20 @@ err:
 	return ret;
 }
 
+static void ufshcd_config_mcq(struct ufs_hba *hba)
+{
+	ufshcd_enable_intr(hba, UFSHCD_ENABLE_MCQ_INTRS);
+	ufshcd_mcq_make_queues_operational(hba);
+	ufshcd_mcq_config_mac(hba, hba->nutrs);
+
+	hba->host->can_queue = hba->nutrs - UFSHCD_NUM_RESERVED;
+	hba->reserved_slot = hba->nutrs - UFSHCD_NUM_RESERVED;
+	dev_info(hba->dev, "MCQ configured, nr_queues=%d, io_queues=%d, read_queue=%d, poll_queues=%d, queue_depth=%d\n",
+		 hba->nr_hw_queues, hba->nr_queues[HCTX_TYPE_DEFAULT],
+		 hba->nr_queues[HCTX_TYPE_READ], hba->nr_queues[HCTX_TYPE_POLL],
+		 hba->nutrs);
+}
+
 static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 {
 	int ret;
@@ -8375,6 +8395,10 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 
 	/* UniPro link is active now */
 	ufshcd_set_link_active(hba);
+
+	/* Reconfigure MCQ upon reset */
+	if (is_mcq_enabled(hba) && !init_dev_params)
+		ufshcd_config_mcq(hba);
 
 	/* Verify device initialization by sending NOP OUT UPIU */
 	ret = ufshcd_verify_dev_init(hba);
@@ -8409,6 +8433,9 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 			}
 			hba->scsi_host_added = true;
 		}
+		/* MCQ may be disabled if ufshcd_alloc_mcq() fails */
+		if (is_mcq_supported(hba) && use_mcq_mode)
+			ufshcd_config_mcq(hba);
 	}
 
 	ufshcd_tune_unipro_params(hba);
