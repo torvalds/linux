@@ -2176,15 +2176,9 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		return -EINVAL;
 	}
 
-	cmd->stats = kvcalloc(MLX5_CMD_OP_MAX, sizeof(*cmd->stats), GFP_KERNEL);
-	if (!cmd->stats)
-		return -ENOMEM;
-
 	cmd->pool = dma_pool_create("mlx5_cmd", mlx5_core_dma_dev(dev), size, align, 0);
-	if (!cmd->pool) {
-		err = -ENOMEM;
-		goto dma_pool_err;
-	}
+	if (!cmd->pool)
+		return -ENOMEM;
 
 	err = alloc_cmd_page(dev, cmd);
 	if (err)
@@ -2268,8 +2262,6 @@ err_free_page:
 
 err_free_pool:
 	dma_pool_destroy(cmd->pool);
-dma_pool_err:
-	kvfree(cmd->stats);
 	return err;
 }
 
@@ -2282,7 +2274,6 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 	destroy_msg_cache(dev);
 	free_cmd_page(dev, cmd);
 	dma_pool_destroy(cmd->pool);
-	kvfree(cmd->stats);
 }
 
 void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
