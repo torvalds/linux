@@ -1496,6 +1496,12 @@ insert_res_err:
 	return ret;
 }
 
+static int ufs_qcom_get_hba_mac(struct ufs_hba *hba)
+{
+	/* Qualcomm HC supports up to 64 */
+	return MAX_SUPP_MAC;
+}
+
 /*
  * struct ufs_hba_qcom_vops - UFS QCOM specific variant operations
  *
@@ -1521,6 +1527,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.program_key		= ufs_qcom_ice_program_key,
 	.reinit_notify		= ufs_qcom_reinit_notify,
 	.mcq_config_resource	= ufs_qcom_mcq_config_resource,
+	.get_hba_mac		= ufs_qcom_get_hba_mac,
 };
 
 /**
