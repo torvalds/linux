@@ -272,7 +272,7 @@ void kernfs_evict_inode(struct inode *inode)
 	kernfs_put(kn);
 }
 
-int kernfs_iop_permission(struct user_namespace *mnt_userns,
+int kernfs_iop_permission(struct mnt_idmap *idmap,
 			  struct inode *inode, int mask)
 {
 	struct kernfs_node *kn;
@@ -287,7 +287,7 @@ int kernfs_iop_permission(struct user_namespace *mnt_userns,
 
 	down_read(&root->kernfs_rwsem);
 	kernfs_refresh_inode(kn, inode);
-	ret = generic_permission(&init_user_ns, inode, mask);
+	ret = generic_permission(&nop_mnt_idmap, inode, mask);
 	up_read(&root->kernfs_rwsem);
 
 	return ret;

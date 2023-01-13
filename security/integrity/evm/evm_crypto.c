@@ -265,7 +265,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 						    req_xattr_value_len);
 			continue;
 		}
-		size = vfs_getxattr_alloc(&init_user_ns, dentry, xattr->name,
+		size = vfs_getxattr_alloc(&nop_mnt_idmap, dentry, xattr->name,
 					  &xattr_value, xattr_size, GFP_NOFS);
 		if (size == -ENOMEM) {
 			error = -ENOMEM;
@@ -274,7 +274,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 		if (size < 0)
 			continue;
 
-		user_space_size = vfs_getxattr(&init_user_ns, dentry,
+		user_space_size = vfs_getxattr(&nop_mnt_idmap, dentry,
 					       xattr->name, NULL, 0);
 		if (user_space_size != size)
 			pr_debug("file %s: xattr %s size mismatch (kernel: %d, user: %d)\n",
@@ -331,7 +331,7 @@ static int evm_is_immutable(struct dentry *dentry, struct inode *inode)
 		return 1;
 
 	/* Do this the hard way */
-	rc = vfs_getxattr_alloc(&init_user_ns, dentry, XATTR_NAME_EVM,
+	rc = vfs_getxattr_alloc(&nop_mnt_idmap, dentry, XATTR_NAME_EVM,
 				(char **)&xattr_data, 0, GFP_NOFS);
 	if (rc <= 0) {
 		if (rc == -ENODATA)

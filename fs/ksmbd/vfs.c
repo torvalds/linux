@@ -69,14 +69,14 @@ static void ksmbd_vfs_inherit_owner(struct ksmbd_work *work,
  *
  * the reference count of @parent isn't incremented.
  */
-int ksmbd_vfs_lock_parent(struct user_namespace *user_ns, struct dentry *parent,
+int ksmbd_vfs_lock_parent(struct mnt_idmap *idmap, struct dentry *parent,
 			  struct dentry *child)
 {
 	struct dentry *dentry;
 	int ret = 0;
 
 	inode_lock_nested(d_inode(parent), I_MUTEX_PARENT);
-	dentry = lookup_one(user_ns, child->d_name.name, parent,
+	dentry = lookup_one(idmap, child->d_name.name, parent,
 			    child->d_name.len);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
@@ -96,20 +96,20 @@ out_err:
 	return ret;
 }
 
-int ksmbd_vfs_may_delete(struct user_namespace *user_ns,
+int ksmbd_vfs_may_delete(struct mnt_idmap *idmap,
 			 struct dentry *dentry)
 {
 	struct dentry *parent;
 	int ret;
 
 	parent = dget_parent(dentry);
-	ret = ksmbd_vfs_lock_parent(user_ns, parent, dentry);
+	ret = ksmbd_vfs_lock_parent(idmap, parent, dentry);
 	if (ret) {
 		dput(parent);
 		return ret;
 	}
 
-	ret = inode_permission(user_ns, d_inode(parent),
+	ret = inode_permission(idmap, d_inode(parent),
 			       MAY_EXEC | MAY_WRITE);
 
 	inode_unlock(d_inode(parent));
@@ -117,7 +117,7 @@ int ksmbd_vfs_may_delete(struct user_namespace *user_ns,
 	return ret;
 }
 
-int ksmbd_vfs_query_maximal_access(struct user_namespace *user_ns,
+int ksmbd_vfs_query_maximal_access(struct mnt_idmap *idmap,
 				   struct dentry *dentry, __le32 *daccess)
 {
 	struct dentry *parent;
@@ -125,26 +125,26 @@ int ksmbd_vfs_query_maximal_access(struct user_namespace *user_ns,
 
 	*daccess = cpu_to_le32(FILE_READ_ATTRIBUTES | READ_CONTROL);
 
-	if (!inode_permission(user_ns, d_inode(dentry), MAY_OPEN | MAY_WRITE))
+	if (!inode_permission(idmap, d_inode(dentry), MAY_OPEN | MAY_WRITE))
 		*daccess |= cpu_to_le32(WRITE_DAC | WRITE_OWNER | SYNCHRONIZE |
 				FILE_WRITE_DATA | FILE_APPEND_DATA |
 				FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES |
 				FILE_DELETE_CHILD);
 
-	if (!inode_permission(user_ns, d_inode(dentry), MAY_OPEN | MAY_READ))
+	if (!inode_permission(idmap, d_inode(dentry), MAY_OPEN | MAY_READ))
 		*daccess |= FILE_READ_DATA_LE | FILE_READ_EA_LE;
 
-	if (!inode_permission(user_ns, d_inode(dentry), MAY_OPEN | MAY_EXEC))
+	if (!inode_permission(idmap, d_inode(dentry), MAY_OPEN | MAY_EXEC))
 		*daccess |= FILE_EXECUTE_LE;
 
 	parent = dget_parent(dentry);
-	ret = ksmbd_vfs_lock_parent(user_ns, parent, dentry);
+	ret = ksmbd_vfs_lock_parent(idmap, parent, dentry);
 	if (ret) {
 		dput(parent);
 		return ret;
 	}
 
-	if (!inode_permission(user_ns, d_inode(parent), MAY_EXEC | MAY_WRITE))
+	if (!inode_permission(idmap, d_inode(parent), MAY_EXEC | MAY_WRITE))
 		*daccess |= FILE_DELETE_LE;
 
 	inode_unlock(d_inode(parent));
@@ -200,7 +200,6 @@ int ksmbd_vfs_create(struct ksmbd_work *work, const char *name, umode_t mode)
 int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *user_ns;
 	struct path path;
 	struct dentry *dentry;
 	int err;
@@ -217,7 +216,6 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 	}
 
 	idmap = mnt_idmap(path.mnt);
-	user_ns = mnt_idmap_owner(idmap);
 	mode |= S_IFDIR;
 	err = vfs_mkdir(idmap, d_inode(path.dentry), dentry, mode);
 	if (err) {
@@ -225,7 +223,7 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 	} else if (d_unhashed(dentry)) {
 		struct dentry *d;
 
-		d = lookup_one(user_ns, dentry->d_name.name, dentry->d_parent,
+		d = lookup_one(idmap, dentry->d_name.name, dentry->d_parent,
 			       dentry->d_name.len);
 		if (IS_ERR(d)) {
 			err = PTR_ERR(d);
@@ -247,7 +245,7 @@ out:
 	return err;
 }
 
-static ssize_t ksmbd_vfs_getcasexattr(struct user_namespace *user_ns,
+static ssize_t ksmbd_vfs_getcasexattr(struct mnt_idmap *idmap,
 				      struct dentry *dentry, char *attr_name,
 				      int attr_name_len, char **attr_value)
 {
@@ -264,7 +262,7 @@ static ssize_t ksmbd_vfs_getcasexattr(struct user_namespace *user_ns,
 		if (strncasecmp(attr_name, name, attr_name_len))
 			continue;
 
-		value_len = ksmbd_vfs_getxattr(user_ns,
+		value_len = ksmbd_vfs_getxattr(idmap,
 					       dentry,
 					       name,
 					       attr_value);
@@ -287,7 +285,7 @@ static int ksmbd_vfs_stream_read(struct ksmbd_file *fp, char *buf, loff_t *pos,
 	ksmbd_debug(VFS, "read stream data pos : %llu, count : %zd\n",
 		    *pos, count);
 
-	v_len = ksmbd_vfs_getcasexattr(file_mnt_user_ns(fp->filp),
+	v_len = ksmbd_vfs_getcasexattr(file_mnt_idmap(fp->filp),
 				       fp->filp->f_path.dentry,
 				       fp->stream.name,
 				       fp->stream.size,
@@ -411,7 +409,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 				  size_t count)
 {
 	char *stream_buf = NULL, *wbuf;
-	struct user_namespace *user_ns = file_mnt_user_ns(fp->filp);
+	struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
 	size_t size, v_len;
 	int err = 0;
 
@@ -424,7 +422,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 		count = (*pos + count) - XATTR_SIZE_MAX;
 	}
 
-	v_len = ksmbd_vfs_getcasexattr(user_ns,
+	v_len = ksmbd_vfs_getcasexattr(idmap,
 				       fp->filp->f_path.dentry,
 				       fp->stream.name,
 				       fp->stream.size,
@@ -450,7 +448,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 
 	memcpy(&stream_buf[*pos], buf, count);
 
-	err = ksmbd_vfs_setxattr(user_ns,
+	err = ksmbd_vfs_setxattr(idmap,
 				 fp->filp->f_path.dentry,
 				 fp->stream.name,
 				 (void *)stream_buf,
@@ -586,7 +584,6 @@ int ksmbd_vfs_fsync(struct ksmbd_work *work, u64 fid, u64 p_id)
 int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *user_ns;
 	struct path path;
 	struct dentry *parent;
 	int err;
@@ -602,9 +599,8 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 	}
 
 	idmap = mnt_idmap(path.mnt);
-	user_ns = mnt_idmap_owner(idmap);
 	parent = dget_parent(path.dentry);
-	err = ksmbd_vfs_lock_parent(user_ns, parent, path.dentry);
+	err = ksmbd_vfs_lock_parent(idmap, parent, path.dentry);
 	if (err) {
 		dput(parent);
 		path_put(&path);
@@ -744,7 +740,7 @@ static int __ksmbd_vfs_rename(struct ksmbd_work *work,
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
 
-	dst_dent = lookup_one(mnt_idmap_owner(dst_idmap), dst_name,
+	dst_dent = lookup_one(dst_idmap, dst_name,
 			      dst_dent_parent, strlen(dst_name));
 	err = PTR_ERR(dst_dent);
 	if (IS_ERR(dst_dent)) {
@@ -777,7 +773,6 @@ int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 			char *newname)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *user_ns;
 	struct path dst_path;
 	struct dentry *src_dent_parent, *dst_dent_parent;
 	struct dentry *src_dent, *trap_dent, *src_child;
@@ -806,8 +801,7 @@ int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 	dget(src_dent);
 	dget(dst_dent_parent);
 	idmap = file_mnt_idmap(fp->filp);
-	user_ns = mnt_idmap_owner(idmap);
-	src_child = lookup_one(user_ns, src_dent->d_name.name, src_dent_parent,
+	src_child = lookup_one(idmap, src_dent->d_name.name, src_dent_parent,
 			       src_dent->d_name.len);
 	if (IS_ERR(src_child)) {
 		err = PTR_ERR(src_child);
@@ -913,22 +907,22 @@ ssize_t ksmbd_vfs_listxattr(struct dentry *dentry, char **list)
 	return size;
 }
 
-static ssize_t ksmbd_vfs_xattr_len(struct user_namespace *user_ns,
+static ssize_t ksmbd_vfs_xattr_len(struct mnt_idmap *idmap,
 				   struct dentry *dentry, char *xattr_name)
 {
-	return vfs_getxattr(user_ns, dentry, xattr_name, NULL, 0);
+	return vfs_getxattr(idmap, dentry, xattr_name, NULL, 0);
 }
 
 /**
  * ksmbd_vfs_getxattr() - vfs helper for smb get extended attributes value
- * @user_ns:	user namespace
+ * @idmap:	idmap
  * @dentry:	dentry of file for getting xattrs
  * @xattr_name:	name of xattr name to query
  * @xattr_buf:	destination buffer xattr value
  *
  * Return:	read xattr value length on success, otherwise error
  */
-ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
+ssize_t ksmbd_vfs_getxattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry,
 			   char *xattr_name, char **xattr_buf)
 {
@@ -936,7 +930,7 @@ ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
 	char *buf;
 
 	*xattr_buf = NULL;
-	xattr_len = ksmbd_vfs_xattr_len(user_ns, dentry, xattr_name);
+	xattr_len = ksmbd_vfs_xattr_len(idmap, dentry, xattr_name);
 	if (xattr_len < 0)
 		return xattr_len;
 
@@ -944,7 +938,7 @@ ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
 	if (!buf)
 		return -ENOMEM;
 
-	xattr_len = vfs_getxattr(user_ns, dentry, xattr_name,
+	xattr_len = vfs_getxattr(idmap, dentry, xattr_name,
 				 (void *)buf, xattr_len);
 	if (xattr_len > 0)
 		*xattr_buf = buf;
@@ -955,7 +949,7 @@ ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
 
 /**
  * ksmbd_vfs_setxattr() - vfs helper for smb set extended attributes value
- * @user_ns:	user namespace
+ * @idmap:	idmap of the relevant mount
  * @dentry:	dentry to set XATTR at
  * @name:	xattr name for setxattr
  * @value:	xattr value to set
@@ -964,13 +958,13 @@ ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
  *
  * Return:	0 on success, otherwise error
  */
-int ksmbd_vfs_setxattr(struct user_namespace *user_ns,
+int ksmbd_vfs_setxattr(struct mnt_idmap *idmap,
 		       struct dentry *dentry, const char *attr_name,
 		       void *attr_value, size_t attr_size, int flags)
 {
 	int err;
 
-	err = vfs_setxattr(user_ns,
+	err = vfs_setxattr(idmap,
 			   dentry,
 			   attr_name,
 			   attr_value,
@@ -1080,19 +1074,18 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 	return ret;
 }
 
-int ksmbd_vfs_remove_xattr(struct user_namespace *user_ns,
+int ksmbd_vfs_remove_xattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, char *attr_name)
 {
-	return vfs_removexattr(user_ns, dentry, attr_name);
+	return vfs_removexattr(idmap, dentry, attr_name);
 }
 
 int ksmbd_vfs_unlink(struct mnt_idmap *idmap,
 		     struct dentry *dir, struct dentry *dentry)
 {
 	int err = 0;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
-	err = ksmbd_vfs_lock_parent(mnt_userns, dir, dentry);
+	err = ksmbd_vfs_lock_parent(idmap, dir, dentry);
 	if (err)
 		return err;
 	dget(dentry);
@@ -1339,7 +1332,7 @@ out:
 	return err;
 }
 
-int ksmbd_vfs_remove_sd_xattrs(struct user_namespace *user_ns,
+int ksmbd_vfs_remove_sd_xattrs(struct mnt_idmap *idmap,
 			       struct dentry *dentry)
 {
 	char *name, *xattr_list = NULL;
@@ -1359,7 +1352,7 @@ int ksmbd_vfs_remove_sd_xattrs(struct user_namespace *user_ns,
 		ksmbd_debug(SMB, "%s, len %zd\n", name, strlen(name));
 
 		if (!strncmp(name, XATTR_NAME_SD, XATTR_NAME_SD_LEN)) {
-			err = ksmbd_vfs_remove_xattr(user_ns, dentry, name);
+			err = ksmbd_vfs_remove_xattr(idmap, dentry, name);
 			if (err)
 				ksmbd_debug(SMB, "remove xattr failed : %s\n", name);
 		}
@@ -1435,11 +1428,12 @@ out:
 }
 
 int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
-			   struct user_namespace *user_ns,
+			   struct mnt_idmap *idmap,
 			   struct dentry *dentry,
 			   struct smb_ntsd *pntsd, int len)
 {
 	int rc;
+	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct ndr sd_ndr = {0}, acl_ndr = {0};
 	struct xattr_ntacl acl = {0};
 	struct xattr_smb_acl *smb_acl, *def_smb_acl = NULL;
@@ -1494,7 +1488,7 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
 		goto out;
 	}
 
-	rc = ksmbd_vfs_setxattr(user_ns, dentry,
+	rc = ksmbd_vfs_setxattr(idmap, dentry,
 				XATTR_NAME_SD, sd_ndr.data,
 				sd_ndr.offset, 0);
 	if (rc < 0)
@@ -1509,11 +1503,12 @@ out:
 }
 
 int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
-			   struct user_namespace *user_ns,
+			   struct mnt_idmap *idmap,
 			   struct dentry *dentry,
 			   struct smb_ntsd **pntsd)
 {
 	int rc;
+	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct ndr n;
 	struct inode *inode = d_inode(dentry);
 	struct ndr acl_ndr = {0};
@@ -1521,7 +1516,7 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 	struct xattr_smb_acl *smb_acl = NULL, *def_smb_acl = NULL;
 	__u8 cmp_hash[XATTR_SD_HASH_SIZE] = {0};
 
-	rc = ksmbd_vfs_getxattr(user_ns, dentry, XATTR_NAME_SD, &n.data);
+	rc = ksmbd_vfs_getxattr(idmap, dentry, XATTR_NAME_SD, &n.data);
 	if (rc <= 0)
 		return rc;
 
@@ -1583,7 +1578,7 @@ free_n_data:
 	return rc;
 }
 
-int ksmbd_vfs_set_dos_attrib_xattr(struct user_namespace *user_ns,
+int ksmbd_vfs_set_dos_attrib_xattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry,
 				   struct xattr_dos_attrib *da)
 {
@@ -1594,7 +1589,7 @@ int ksmbd_vfs_set_dos_attrib_xattr(struct user_namespace *user_ns,
 	if (err)
 		return err;
 
-	err = ksmbd_vfs_setxattr(user_ns, dentry, XATTR_NAME_DOS_ATTRIBUTE,
+	err = ksmbd_vfs_setxattr(idmap, dentry, XATTR_NAME_DOS_ATTRIBUTE,
 				 (void *)n.data, n.offset, 0);
 	if (err)
 		ksmbd_debug(SMB, "failed to store dos attribute in xattr\n");
@@ -1603,14 +1598,14 @@ int ksmbd_vfs_set_dos_attrib_xattr(struct user_namespace *user_ns,
 	return err;
 }
 
-int ksmbd_vfs_get_dos_attrib_xattr(struct user_namespace *user_ns,
+int ksmbd_vfs_get_dos_attrib_xattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry,
 				   struct xattr_dos_attrib *da)
 {
 	struct ndr n;
 	int err;
 
-	err = ksmbd_vfs_getxattr(user_ns, dentry, XATTR_NAME_DOS_ATTRIBUTE,
+	err = ksmbd_vfs_getxattr(idmap, dentry, XATTR_NAME_DOS_ATTRIBUTE,
 				 (char **)&n.data);
 	if (err > 0) {
 		n.length = err;
@@ -1682,7 +1677,7 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 				   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS)) {
 		struct xattr_dos_attrib da;
 
-		rc = ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap_owner(idmap), dentry, &da);
+		rc = ksmbd_vfs_get_dos_attrib_xattr(idmap, dentry, &da);
 		if (rc > 0) {
 			ksmbd_kstat->file_attributes = cpu_to_le32(da.attr);
 			ksmbd_kstat->create_time = da.create_time;
@@ -1694,7 +1689,7 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 	return 0;
 }
 
-ssize_t ksmbd_vfs_casexattr_len(struct user_namespace *user_ns,
+ssize_t ksmbd_vfs_casexattr_len(struct mnt_idmap *idmap,
 				struct dentry *dentry, char *attr_name,
 				int attr_name_len)
 {
@@ -1711,7 +1706,7 @@ ssize_t ksmbd_vfs_casexattr_len(struct user_namespace *user_ns,
 		if (strncasecmp(attr_name, name, attr_name_len))
 			continue;
 
-		value_len = ksmbd_vfs_xattr_len(user_ns, dentry, name);
+		value_len = ksmbd_vfs_xattr_len(idmap, dentry, name);
 		break;
 	}
 

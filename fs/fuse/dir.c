@@ -1326,7 +1326,7 @@ static int fuse_perm_getattr(struct inode *inode, int mask)
  * access request is sent.  Execute permission is still checked
  * locally based on file mode.
  */
-static int fuse_permission(struct user_namespace *mnt_userns,
+static int fuse_permission(struct mnt_idmap *idmap,
 			   struct inode *inode, int mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -1358,7 +1358,7 @@ static int fuse_permission(struct user_namespace *mnt_userns,
 	}
 
 	if (fc->default_permissions) {
-		err = generic_permission(&init_user_ns, inode, mask);
+		err = generic_permission(&nop_mnt_idmap, inode, mask);
 
 		/* If permission is denied, try to refresh file
 		   attributes.  This is also needed, because the root
@@ -1366,7 +1366,7 @@ static int fuse_permission(struct user_namespace *mnt_userns,
 		if (err == -EACCES && !refreshed) {
 			err = fuse_perm_getattr(inode, mask);
 			if (!err)
-				err = generic_permission(&init_user_ns,
+				err = generic_permission(&nop_mnt_idmap,
 							 inode, mask);
 		}
 

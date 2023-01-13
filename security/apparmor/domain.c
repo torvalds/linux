@@ -313,7 +313,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < attach->xattr_count; i++) {
-		size = vfs_getxattr_alloc(&init_user_ns, d, attach->xattrs[i],
+		size = vfs_getxattr_alloc(&nop_mnt_idmap, d, attach->xattrs[i],
 					  &value, value_size, GFP_KERNEL);
 		if (size >= 0) {
 			u32 index, perm;

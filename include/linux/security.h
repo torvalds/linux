@@ -158,7 +158,7 @@ int cap_inode_removexattr(struct user_namespace *mnt_userns,
 int cap_inode_need_killpriv(struct dentry *dentry);
 int cap_inode_killpriv(struct user_namespace *mnt_userns,
 		       struct dentry *dentry);
-int cap_inode_getsecurity(struct user_namespace *mnt_userns,
+int cap_inode_getsecurity(struct mnt_idmap *idmap,
 			  struct inode *inode, const char *name, void **buffer,
 			  bool alloc);
 extern int cap_mmap_addr(unsigned long addr);
@@ -378,7 +378,7 @@ int security_inode_removexattr(struct user_namespace *mnt_userns,
 int security_inode_need_killpriv(struct dentry *dentry);
 int security_inode_killpriv(struct user_namespace *mnt_userns,
 			    struct dentry *dentry);
-int security_inode_getsecurity(struct user_namespace *mnt_userns,
+int security_inode_getsecurity(struct mnt_idmap *idmap,
 			       struct inode *inode, const char *name,
 			       void **buffer, bool alloc);
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags);
@@ -936,12 +936,12 @@ static inline int security_inode_killpriv(struct user_namespace *mnt_userns,
 	return cap_inode_killpriv(mnt_userns, dentry);
 }
 
-static inline int security_inode_getsecurity(struct user_namespace *mnt_userns,
+static inline int security_inode_getsecurity(struct mnt_idmap *idmap,
 					     struct inode *inode,
 					     const char *name, void **buffer,
 					     bool alloc)
 {
-	return cap_inode_getsecurity(mnt_userns, inode, name, buffer, alloc);
+	return cap_inode_getsecurity(idmap, inode, name, buffer, alloc);
 }
 
 static inline int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)

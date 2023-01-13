@@ -1335,7 +1335,7 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int ocfs2_permission(struct mnt_idmap *idmap, struct inode *inode,
 		     int mask)
 {
 	int ret, had_lock;
@@ -1361,7 +1361,7 @@ int ocfs2_permission(struct user_namespace *mnt_userns, struct inode *inode,
 		dump_stack();
 	}
 
-	ret = generic_permission(&init_user_ns, inode, mask);
+	ret = generic_permission(&nop_mnt_idmap, inode, mask);
 
 	ocfs2_inode_unlock_tracker(inode, 0, &oh, had_lock);
 out:

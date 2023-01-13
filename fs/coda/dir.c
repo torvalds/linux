@@ -73,7 +73,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsig
 }
 
 
-int coda_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int coda_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int error;

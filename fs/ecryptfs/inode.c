@@ -864,10 +864,10 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 }
 
 static int
-ecryptfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
+ecryptfs_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
-	return inode_permission(&init_user_ns,
+	return inode_permission(&nop_mnt_idmap,
 				ecryptfs_inode_to_lower(inode), mask);
 }
 
@@ -1033,7 +1033,7 @@ ecryptfs_setxattr(struct dentry *dentry, struct inode *inode,
 		goto out;
 	}
 	inode_lock(lower_inode);
-	rc = __vfs_setxattr_locked(&init_user_ns, lower_dentry, name, value, size, flags, NULL);
+	rc = __vfs_setxattr_locked(&nop_mnt_idmap, lower_dentry, name, value, size, flags, NULL);
 	inode_unlock(lower_inode);
 	if (!rc && inode)
 		fsstack_copy_attr_all(inode, lower_inode);

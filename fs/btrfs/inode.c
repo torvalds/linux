@@ -10078,7 +10078,7 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 					   min_size, actual_len, alloc_hint, trans);
 }
 
-static int btrfs_permission(struct user_namespace *mnt_userns,
+static int btrfs_permission(struct mnt_idmap *idmap,
 			    struct inode *inode, int mask)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -10091,7 +10091,7 @@ static int btrfs_permission(struct user_namespace *mnt_userns,
 		if (BTRFS_I(inode)->flags & BTRFS_INODE_READONLY)
 			return -EACCES;
 	}
-	return generic_permission(mnt_userns, inode, mask);
+	return generic_permission(idmap, inode, mask);
 }
 
 static int btrfs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,

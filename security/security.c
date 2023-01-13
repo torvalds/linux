@@ -1498,7 +1498,7 @@ int security_inode_killpriv(struct user_namespace *mnt_userns,
 	return call_int_hook(inode_killpriv, 0, mnt_userns, dentry);
 }
 
-int security_inode_getsecurity(struct user_namespace *mnt_userns,
+int security_inode_getsecurity(struct mnt_idmap *idmap,
 			       struct inode *inode, const char *name,
 			       void **buffer, bool alloc)
 {
@@ -1511,7 +1511,7 @@ int security_inode_getsecurity(struct user_namespace *mnt_userns,
 	 * Only one module will provide an attribute with a given name.
 	 */
 	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
-		rc = hp->hook.inode_getsecurity(mnt_userns, inode, name, buffer, alloc);
+		rc = hp->hook.inode_getsecurity(idmap, inode, name, buffer, alloc);
 		if (rc != LSM_RET_DEFAULT(inode_getsecurity))
 			return rc;
 	}

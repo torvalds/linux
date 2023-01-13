@@ -1040,7 +1040,7 @@ static inline int ceph_do_getattr(struct inode *inode, int mask, bool force)
 {
 	return __ceph_do_getattr(inode, NULL, mask, force);
 }
-extern int ceph_permission(struct user_namespace *mnt_userns,
+extern int ceph_permission(struct mnt_idmap *idmap,
 			   struct inode *inode, int mask);
 extern int __ceph_setattr(struct inode *inode, struct iattr *attr);
 extern int ceph_setattr(struct mnt_idmap *idmap,

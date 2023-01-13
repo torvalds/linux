@@ -1387,7 +1387,7 @@ extern void afs_cache_permit(struct afs_vnode *, struct key *, unsigned int,
 extern struct key *afs_request_key(struct afs_cell *);
 extern struct key *afs_request_key_rcu(struct afs_cell *);
 extern int afs_check_permit(struct afs_vnode *, struct key *, afs_access_t *);
-extern int afs_permission(struct user_namespace *, struct inode *, int);
+extern int afs_permission(struct mnt_idmap *, struct inode *, int);
 extern void __exit afs_clean_up_permit_cache(void);
 
 /*

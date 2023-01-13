@@ -1002,13 +1002,13 @@ int smb_inherit_dacl(struct ksmbd_conn *conn,
 	struct smb_ntsd *parent_pntsd = NULL;
 	struct smb_sid owner_sid, group_sid;
 	struct dentry *parent = path->dentry->d_parent;
-	struct user_namespace *user_ns = mnt_user_ns(path->mnt);
+	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
 	int inherited_flags = 0, flags = 0, i, ace_cnt = 0, nt_size = 0, pdacl_size;
 	int rc = 0, num_aces, dacloffset, pntsd_type, pntsd_size, acl_len, aces_size;
 	char *aces_base;
 	bool is_dir = S_ISDIR(d_inode(path->dentry)->i_mode);
 
-	pntsd_size = ksmbd_vfs_get_sd_xattr(conn, user_ns,
+	pntsd_size = ksmbd_vfs_get_sd_xattr(conn, idmap,
 					    parent, &parent_pntsd);
 	if (pntsd_size <= 0)
 		return -ENOENT;
@@ -1162,7 +1162,7 @@ pass:
 			pntsd_size += sizeof(struct smb_acl) + nt_size;
 		}
 
-		ksmbd_vfs_set_sd_xattr(conn, user_ns,
+		ksmbd_vfs_set_sd_xattr(conn, idmap,
 				       path->dentry, pntsd, pntsd_size);
 		kfree(pntsd);
 	}
@@ -1190,7 +1190,8 @@ bool smb_inherit_flags(int flags, bool is_dir)
 int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 			__le32 *pdaccess, int uid)
 {
-	struct user_namespace *user_ns = mnt_user_ns(path->mnt);
+	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct smb_ntsd *pntsd = NULL;
 	struct smb_acl *pdacl;
 	struct posix_acl *posix_acls;
@@ -1206,7 +1207,7 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, const struct path *path,
 	unsigned short ace_size;
 
 	ksmbd_debug(SMB, "check permission using windows acl\n");
-	pntsd_size = ksmbd_vfs_get_sd_xattr(conn, user_ns,
+	pntsd_size = ksmbd_vfs_get_sd_xattr(conn, idmap,
 					    path->dentry, &pntsd);
 	if (pntsd_size <= 0 || !pntsd)
 		goto err_out;
@@ -1415,8 +1416,8 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 
 	if (test_share_config_flag(tcon->share_conf, KSMBD_SHARE_FLAG_ACL_XATTR)) {
 		/* Update WinACL in xattr */
-		ksmbd_vfs_remove_sd_xattrs(user_ns, path->dentry);
-		ksmbd_vfs_set_sd_xattr(conn, user_ns,
+		ksmbd_vfs_remove_sd_xattrs(idmap, path->dentry);
+		ksmbd_vfs_set_sd_xattr(conn, idmap,
 				       path->dentry, pntsd, ntsd_len);
 	}
 

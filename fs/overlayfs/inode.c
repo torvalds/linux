@@ -278,7 +278,7 @@ out:
 	return err;
 }
 
-int ovl_permission(struct user_namespace *mnt_userns,
+int ovl_permission(struct mnt_idmap *idmap,
 		   struct inode *inode, int mask)
 {
 	struct inode *upperinode = ovl_inode_upper(inode);
@@ -298,7 +298,7 @@ int ovl_permission(struct user_namespace *mnt_userns,
 	 * Check overlay inode with the creds of task and underlying inode
 	 * with creds of mounter
 	 */
-	err = generic_permission(&init_user_ns, inode, mask);
+	err = generic_permission(&nop_mnt_idmap, inode, mask);
 	if (err)
 		return err;
 
@@ -310,7 +310,7 @@ int ovl_permission(struct user_namespace *mnt_userns,
 		/* Make sure mounter can read file for copy up later */
 		mask |= MAY_READ;
 	}
-	err = inode_permission(mnt_user_ns(realpath.mnt), realinode, mask);
+	err = inode_permission(mnt_idmap(realpath.mnt), realinode, mask);
 	revert_creds(old_cred);
 
 	return err;
@@ -361,7 +361,7 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 	if (!value && !upperdentry) {
 		ovl_path_lower(dentry, &realpath);
 		old_cred = ovl_override_creds(dentry->d_sb);
-		err = vfs_getxattr(mnt_user_ns(realpath.mnt), realdentry, name, NULL, 0);
+		err = vfs_getxattr(mnt_idmap(realpath.mnt), realdentry, name, NULL, 0);
 		revert_creds(old_cred);
 		if (err < 0)
 			goto out_drop_write;
@@ -403,7 +403,7 @@ int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 
 	ovl_i_path_real(inode, &realpath);
 	old_cred = ovl_override_creds(dentry->d_sb);
-	res = vfs_getxattr(mnt_user_ns(realpath.mnt), realpath.dentry, name, value, size);
+	res = vfs_getxattr(mnt_idmap(realpath.mnt), realpath.dentry, name, value, size);
 	revert_creds(old_cred);
 	return res;
 }

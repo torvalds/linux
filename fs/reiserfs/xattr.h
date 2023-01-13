@@ -16,7 +16,7 @@ int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
 int reiserfs_lookup_privroot(struct super_block *sb);
 int reiserfs_delete_xattrs(struct inode *inode);
 int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs);
-int reiserfs_permission(struct user_namespace *mnt_userns,
+int reiserfs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask);
 
 #ifdef CONFIG_REISERFS_FS_XATTR

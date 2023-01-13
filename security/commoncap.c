@@ -377,7 +377,7 @@ static bool is_v3header(int size, const struct vfs_cap_data *cap)
  * by the integrity subsystem, which really wants the unconverted values -
  * so that's good.
  */
-int cap_inode_getsecurity(struct user_namespace *mnt_userns,
+int cap_inode_getsecurity(struct mnt_idmap *idmap,
 			  struct inode *inode, const char *name, void **buffer,
 			  bool alloc)
 {
@@ -391,6 +391,7 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 	struct vfs_ns_cap_data *nscap = NULL;
 	struct dentry *dentry;
 	struct user_namespace *fs_ns;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (strcmp(name, "capability") != 0)
 		return -EOPNOTSUPP;
@@ -398,7 +399,7 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 	dentry = d_find_any_alias(inode);
 	if (!dentry)
 		return -EINVAL;
-	size = vfs_getxattr_alloc(mnt_userns, dentry, XATTR_NAME_CAPS, &tmpbuf,
+	size = vfs_getxattr_alloc(idmap, dentry, XATTR_NAME_CAPS, &tmpbuf,
 				  sizeof(struct vfs_ns_cap_data), GFP_NOFS);
 	dput(dentry);
 	/* gcc11 complains if we don't check for !tmpbuf */

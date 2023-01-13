@@ -69,7 +69,7 @@ prototypes::
 	int (*readlink) (struct dentry *, char __user *,int);
 	const char *(*get_link) (struct dentry *, struct inode *, struct delayed_call *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, unsigned int);
+	int (*permission) (struct mnt_idmap *, struct inode *, int, unsigned int);
 	struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
 	int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
 	int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);

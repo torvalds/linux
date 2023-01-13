@@ -218,7 +218,7 @@ static inline ssize_t ovl_do_getxattr(const struct path *path, const char *name,
 
 	WARN_ON(path->dentry->d_sb != path->mnt->mnt_sb);
 
-	err = vfs_getxattr(mnt_user_ns(path->mnt), path->dentry,
+	err = vfs_getxattr(mnt_idmap(path->mnt), path->dentry,
 			       name, value, size);
 	len = (value && err > 0) ? err : 0;
 
@@ -252,7 +252,7 @@ static inline int ovl_do_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
 				  const char *name, const void *value,
 				  size_t size, int flags)
 {
-	int err = vfs_setxattr(ovl_upper_mnt_userns(ofs), dentry, name,
+	int err = vfs_setxattr(ovl_upper_mnt_idmap(ofs), dentry, name,
 			       value, size, flags);
 
 	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, %d) = %i\n",
@@ -270,7 +270,7 @@ static inline int ovl_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
 static inline int ovl_do_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
 				     const char *name)
 {
-	int err = vfs_removexattr(ovl_upper_mnt_userns(ofs), dentry, name);
+	int err = vfs_removexattr(ovl_upper_mnt_idmap(ofs), dentry, name);
 	pr_debug("removexattr(%pd2, \"%s\") = %i\n", dentry, name, err);
 	return err;
 }
@@ -341,7 +341,7 @@ static inline struct dentry *ovl_lookup_upper(struct ovl_fs *ofs,
 					      const char *name,
 					      struct dentry *base, int len)
 {
-	return lookup_one(ovl_upper_mnt_userns(ofs), name, base, len);
+	return lookup_one(ovl_upper_mnt_idmap(ofs), name, base, len);
 }
 
 static inline bool ovl_open_flags_need_copy_up(int flags)
@@ -601,7 +601,7 @@ int ovl_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr);
 int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
 		struct kstat *stat, u32 request_mask, unsigned int flags);
-int ovl_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int ovl_permission(struct mnt_idmap *idmap, struct inode *inode,
 		   int mask);
 int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 		  const void *value, size_t size, int flags);

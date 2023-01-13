@@ -324,10 +324,11 @@ void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 }
 EXPORT_SYMBOL(setattr_copy);
 
-int may_setattr(struct user_namespace *mnt_userns, struct inode *inode,
+int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid)
 {
 	int error;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) {
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -343,7 +344,7 @@ int may_setattr(struct user_namespace *mnt_userns, struct inode *inode,
 			return -EPERM;
 
 		if (!inode_owner_or_capable(mnt_userns, inode)) {
-			error = inode_permission(mnt_userns, inode, MAY_WRITE);
+			error = inode_permission(idmap, inode, MAY_WRITE);
 			if (error)
 				return error;
 		}
@@ -391,7 +392,7 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	WARN_ON_ONCE(!inode_is_locked(inode));
 
-	error = may_setattr(mnt_userns, inode, ia_valid);
+	error = may_setattr(idmap, inode, ia_valid);
 	if (error)
 		return error;
 

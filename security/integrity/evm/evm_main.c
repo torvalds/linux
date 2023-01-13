@@ -184,7 +184,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	/* if status is not PASS, try to check again - against -ENOMEM */
 
 	/* first need to know the sig type */
-	rc = vfs_getxattr_alloc(&init_user_ns, dentry, XATTR_NAME_EVM,
+	rc = vfs_getxattr_alloc(&nop_mnt_idmap, dentry, XATTR_NAME_EVM,
 				(char **)&xattr_data, 0, GFP_NOFS);
 	if (rc <= 0) {
 		evm_status = INTEGRITY_FAIL;
@@ -453,7 +453,7 @@ static int evm_xattr_change(struct user_namespace *mnt_userns,
 	char *xattr_data = NULL;
 	int rc = 0;
 
-	rc = vfs_getxattr_alloc(&init_user_ns, dentry, xattr_name, &xattr_data,
+	rc = vfs_getxattr_alloc(&nop_mnt_idmap, dentry, xattr_name, &xattr_data,
 				0, GFP_NOFS);
 	if (rc < 0) {
 		rc = 1;

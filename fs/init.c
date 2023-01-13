@@ -168,7 +168,6 @@ int __init init_link(const char *oldname, const char *newname)
 	struct dentry *new_dentry;
 	struct path old_path, new_path;
 	struct mnt_idmap *idmap;
-	struct user_namespace *mnt_userns;
 	int error;
 
 	error = kern_path(oldname, 0, &old_path);
@@ -184,8 +183,7 @@ int __init init_link(const char *oldname, const char *newname)
 	if (old_path.mnt != new_path.mnt)
 		goto out_dput;
 	idmap = mnt_idmap(new_path.mnt);
-	mnt_userns = mnt_idmap_owner(idmap);
-	error = may_linkat(mnt_userns, &old_path);
+	error = may_linkat(idmap, &old_path);
 	if (unlikely(error))
 		goto out_dput;
 	error = security_path_link(old_path.dentry, &new_path, new_dentry);

@@ -2397,7 +2397,7 @@ out:
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int ceph_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int err;
@@ -2408,7 +2408,7 @@ int ceph_permission(struct user_namespace *mnt_userns, struct inode *inode,
 	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED, false);
 
 	if (!err)
-		err = generic_permission(&init_user_ns, inode, mask);
+		err = generic_permission(&nop_mnt_idmap, inode, mask);
 	return err;
 }
 

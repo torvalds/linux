@@ -798,7 +798,7 @@ out:
 	return 0;
 }
 
-static int proc_sys_permission(struct user_namespace *mnt_userns,
+static int proc_sys_permission(struct mnt_idmap *idmap,
 			       struct inode *inode, int mask)
 {
 	/*

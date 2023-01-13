@@ -1766,18 +1766,19 @@ static inline void inode_fsgid_set(struct inode *inode,
 /**
  * fsuidgid_has_mapping() - check whether caller's fsuid/fsgid is mapped
  * @sb: the superblock we want a mapping in
- * @mnt_userns: user namespace of the relevant mount
+ * @idmap: idmap of the relevant mount
  *
  * Check whether the caller's fsuid and fsgid have a valid mapping in the
  * s_user_ns of the superblock @sb. If the caller is on an idmapped mount map
- * the caller's fsuid and fsgid according to the @mnt_userns first.
+ * the caller's fsuid and fsgid according to the @idmap first.
  *
  * Return: true if fsuid and fsgid is mapped, false if not.
  */
 static inline bool fsuidgid_has_mapping(struct super_block *sb,
-					struct user_namespace *mnt_userns)
+					struct mnt_idmap *idmap)
 {
 	struct user_namespace *fs_userns = sb->s_user_ns;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	kuid_t kuid;
 	kgid_t kgid;
 
@@ -2134,7 +2135,7 @@ struct file_operations {
 struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	const char * (*get_link) (struct dentry *, struct inode *, struct delayed_call *);
-	int (*permission) (struct user_namespace *, struct inode *, int);
+	int (*permission) (struct mnt_idmap *, struct inode *, int);
 	struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
 
 	int (*readlink) (struct dentry *, char __user *,int);
@@ -2322,9 +2323,11 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags 
 #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
 				 (inode)->i_rdev == WHITEOUT_DEV)
 
-static inline bool HAS_UNMAPPED_ID(struct user_namespace *mnt_userns,
+static inline bool HAS_UNMAPPED_ID(struct mnt_idmap *idmap,
 				   struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	return !vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)) ||
 	       !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode));
 }
@@ -2902,16 +2905,16 @@ static inline int bmap(struct inode *inode,  sector_t *block)
 
 int notify_change(struct mnt_idmap *, struct dentry *,
 		  struct iattr *, struct inode **);
-int inode_permission(struct user_namespace *, struct inode *, int);
-int generic_permission(struct user_namespace *, struct inode *, int);
+int inode_permission(struct mnt_idmap *, struct inode *, int);
+int generic_permission(struct mnt_idmap *, struct inode *, int);
 static inline int file_permission(struct file *file, int mask)
 {
-	return inode_permission(file_mnt_user_ns(file),
+	return inode_permission(file_mnt_idmap(file),
 				file_inode(file), mask);
 }
 static inline int path_permission(const struct path *path, int mask)
 {
-	return inode_permission(mnt_user_ns(path->mnt),
+	return inode_permission(mnt_idmap(path->mnt),
 				d_inode(path->dentry), mask);
 }
 int __check_sticky(struct user_namespace *mnt_userns, struct inode *dir,
@@ -3365,7 +3368,7 @@ extern int generic_check_addressable(unsigned, u64);
 
 extern void generic_set_encrypted_ci_d_ops(struct dentry *dentry);
 
-int may_setattr(struct user_namespace *mnt_userns, struct inode *inode,
+int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid);
 int setattr_prepare(struct mnt_idmap *, struct dentry *, struct iattr *);
 extern int inode_newsize_ok(const struct inode *, loff_t offset);

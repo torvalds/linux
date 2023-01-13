@@ -367,7 +367,7 @@ int orangefs_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags);
 
-int orangefs_permission(struct user_namespace *mnt_userns,
+int orangefs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask);
 
 int orangefs_update_time(struct inode *, struct timespec64 *, int);

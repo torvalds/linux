@@ -716,7 +716,7 @@ int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry)
 /*
  * ntfs_permission - inode_operations::permission
  */
-int ntfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int ntfs_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	if (ntfs_sb(inode->i_sb)->options->noacsrules) {
@@ -724,7 +724,7 @@ int ntfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
 		return 0;
 	}
 
-	return generic_permission(mnt_userns, inode, mask);
+	return generic_permission(idmap, inode, mask);
 }
 
 /*

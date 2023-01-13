@@ -3257,7 +3257,7 @@ static int nfs_execute_ok(struct inode *inode, int mask)
 	return ret;
 }
 
-int nfs_permission(struct user_namespace *mnt_userns,
+int nfs_permission(struct mnt_idmap *idmap,
 		   struct inode *inode,
 		   int mask)
 {
@@ -3308,7 +3308,7 @@ out_notsup:
 	res = nfs_revalidate_inode(inode, NFS_INO_INVALID_MODE |
 						  NFS_INO_INVALID_OTHER);
 	if (res == 0)
-		res = generic_permission(&init_user_ns, inode, mask);
+		res = generic_permission(&nop_mnt_idmap, inode, mask);
 	goto out;
 }
 EXPORT_SYMBOL_GPL(nfs_permission);

@@ -90,11 +90,6 @@ static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)
 	return ofs->layers[0].mnt;
 }
 
-static inline struct user_namespace *ovl_upper_mnt_userns(struct ovl_fs *ofs)
-{
-	return mnt_user_ns(ovl_upper_mnt(ofs));
-}
-
 static inline struct mnt_idmap *ovl_upper_mnt_idmap(struct ovl_fs *ofs)
 {
 	return mnt_idmap(ovl_upper_mnt(ofs));

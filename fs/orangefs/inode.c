@@ -890,7 +890,7 @@ int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return ret;
 }
 
-int orangefs_permission(struct user_namespace *mnt_userns,
+int orangefs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask)
 {
 	int ret;
@@ -905,7 +905,7 @@ int orangefs_permission(struct user_namespace *mnt_userns,
 	if (ret < 0)
 		return ret;
 
-	return generic_permission(&init_user_ns, inode, mask);
+	return generic_permission(&nop_mnt_idmap, inode, mask);
 }
 
 int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)

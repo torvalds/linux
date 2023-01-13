@@ -53,7 +53,7 @@ int ocfs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr);
 int ocfs2_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags);
-int ocfs2_permission(struct user_namespace *mnt_userns,
+int ocfs2_permission(struct mnt_idmap *idmap,
 		     struct inode *inode,
 		     int mask);
 

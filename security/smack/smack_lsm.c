@@ -1462,7 +1462,7 @@ static int smack_inode_remove_acl(struct user_namespace *mnt_userns,
 
 /**
  * smack_inode_getsecurity - get smack xattrs
- * @mnt_userns: active user namespace
+ * @idmap: idmap of the mount
  * @inode: the object
  * @name: attribute name
  * @buffer: where to put the result
@@ -1470,7 +1470,7 @@ static int smack_inode_remove_acl(struct user_namespace *mnt_userns,
  *
  * Returns the size of the attribute or an error code
  */
-static int smack_inode_getsecurity(struct user_namespace *mnt_userns,
+static int smack_inode_getsecurity(struct mnt_idmap *idmap,
 				   struct inode *inode, const char *name,
 				   void **buffer, bool alloc)
 {

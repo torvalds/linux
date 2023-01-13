@@ -42,6 +42,7 @@ static struct file *ovl_open_realfile(const struct file *file,
 {
 	struct inode *realinode = d_inode(realpath->dentry);
 	struct inode *inode = file_inode(file);
+	struct mnt_idmap *real_idmap;
 	struct user_namespace *real_mnt_userns;
 	struct file *realfile;
 	const struct cred *old_cred;
@@ -53,8 +54,9 @@ static struct file *ovl_open_realfile(const struct file *file,
 		acc_mode |= MAY_APPEND;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-	real_mnt_userns = mnt_user_ns(realpath->mnt);
-	err = inode_permission(real_mnt_userns, realinode, MAY_OPEN | acc_mode);
+	real_idmap = mnt_idmap(realpath->mnt);
+	real_mnt_userns = mnt_idmap_owner(real_idmap);
+	err = inode_permission(real_idmap, realinode, MAY_OPEN | acc_mode);
 	if (err) {
 		realfile = ERR_PTR(err);
 	} else {

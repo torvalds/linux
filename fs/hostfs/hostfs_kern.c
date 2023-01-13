@@ -763,7 +763,7 @@ static int hostfs_rename2(struct mnt_idmap *idmap,
 	return err;
 }
 
-static int hostfs_permission(struct user_namespace *mnt_userns,
+static int hostfs_permission(struct mnt_idmap *idmap,
 			     struct inode *ino, int desired)
 {
 	char *name;
@@ -786,7 +786,7 @@ static int hostfs_permission(struct user_namespace *mnt_userns,
 		err = access_file(name, r, w, x);
 	__putname(name);
 	if (!err)
-		err = generic_permission(&init_user_ns, ino, desired);
+		err = generic_permission(&nop_mnt_idmap, ino, desired);
 	return err;
 }
 

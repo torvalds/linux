@@ -396,7 +396,7 @@ extern int nfs_getattr(struct mnt_idmap *, const struct path *,
 		       struct kstat *, u32, unsigned int);
 extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *, const struct cred *);
 extern void nfs_access_set_mask(struct nfs_access_entry *, u32);
-extern int nfs_permission(struct user_namespace *, struct inode *, int);
+extern int nfs_permission(struct mnt_idmap *, struct inode *, int);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_attribute_cache_expired(struct inode *inode);
 extern int nfs_revalidate_inode(struct inode *inode, unsigned long flags);

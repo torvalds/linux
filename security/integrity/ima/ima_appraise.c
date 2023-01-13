@@ -225,7 +225,7 @@ int ima_read_xattr(struct dentry *dentry,
 {
 	int ret;
 
-	ret = vfs_getxattr_alloc(&init_user_ns, dentry, XATTR_NAME_IMA,
+	ret = vfs_getxattr_alloc(&nop_mnt_idmap, dentry, XATTR_NAME_IMA,
 				 (char **)xattr_value, xattr_len, GFP_NOFS);
 	if (ret == -EOPNOTSUPP)
 		ret = 0;

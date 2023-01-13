@@ -559,7 +559,7 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 static struct bpf_prog *__get_prog_inode(struct inode *inode, enum bpf_prog_type type)
 {
 	struct bpf_prog *prog;
-	int ret = inode_permission(&init_user_ns, inode, MAY_READ);
+	int ret = inode_permission(&nop_mnt_idmap, inode, MAY_READ);
 	if (ret)
 		return ERR_PTR(ret);
 

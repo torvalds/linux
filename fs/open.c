@@ -71,7 +71,6 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 long vfs_truncate(const struct path *path, loff_t length)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *mnt_userns;
 	struct inode *inode;
 	long error;
 
@@ -88,8 +87,7 @@ long vfs_truncate(const struct path *path, loff_t length)
 		goto out;
 
 	idmap = mnt_idmap(path->mnt);
-	mnt_userns = mnt_idmap_owner(idmap);
-	error = inode_permission(mnt_userns, inode, MAY_WRITE);
+	error = inode_permission(idmap, inode, MAY_WRITE);
 	if (error)
 		goto mnt_drop_write_and_out;
 
@@ -462,7 +460,7 @@ retry:
 			goto out_path_release;
 	}
 
-	res = inode_permission(mnt_user_ns(path.mnt), inode, mode | MAY_ACCESS);
+	res = inode_permission(mnt_idmap(path.mnt), inode, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
 	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
 		goto out_path_release;

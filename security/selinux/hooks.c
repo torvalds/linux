@@ -3383,7 +3383,7 @@ static int selinux_path_notify(const struct path *path, u64 mask,
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
-static int selinux_inode_getsecurity(struct user_namespace *mnt_userns,
+static int selinux_inode_getsecurity(struct mnt_idmap *idmap,
 				     struct inode *inode, const char *name,
 				     void **buffer, bool alloc)
 {
@@ -6595,7 +6595,7 @@ static int selinux_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 static int selinux_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 {
 	int len = 0;
-	len = selinux_inode_getsecurity(&init_user_ns, inode,
+	len = selinux_inode_getsecurity(&nop_mnt_idmap, inode,
 					XATTR_SELINUX_SUFFIX, ctx, true);
 	if (len < 0)
 		return len;
