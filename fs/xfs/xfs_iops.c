@@ -1098,11 +1098,13 @@ xfs_vn_fiemap(
 
 STATIC int
 xfs_vn_tmpfile(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct file		*file,
 	umode_t			mode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	int err = xfs_generic_create(mnt_userns, dir, file->f_path.dentry, mode, 0, file);
 
 	return finish_open_simple(file, err);

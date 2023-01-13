@@ -145,7 +145,7 @@ static int ramfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	return error;
 }
 
-static int ramfs_tmpfile(struct user_namespace *mnt_userns,
+static int ramfs_tmpfile(struct mnt_idmap *idmap,
 			 struct inode *dir, struct file *file, umode_t mode)
 {
 	struct inode *inode;

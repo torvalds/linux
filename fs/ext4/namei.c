@@ -2863,9 +2863,10 @@ retry:
 	return err;
 }
 
-static int ext4_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+static int ext4_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 			struct file *file, umode_t mode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	handle_t *handle;
 	struct inode *inode;
 	int err, retries = 0;

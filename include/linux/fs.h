@@ -2162,7 +2162,7 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
 			   umode_t create_mode);
-	int (*tmpfile) (struct user_namespace *, struct inode *,
+	int (*tmpfile) (struct mnt_idmap *, struct inode *,
 			struct file *, umode_t);
 	struct posix_acl *(*get_acl)(struct user_namespace *, struct dentry *,
 				     int);

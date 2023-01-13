@@ -1050,7 +1050,7 @@ static int hugetlbfs_create(struct mnt_idmap *idmap,
 	return hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int hugetlbfs_tmpfile(struct user_namespace *mnt_userns,
+static int hugetlbfs_tmpfile(struct mnt_idmap *idmap,
 			     struct inode *dir, struct file *file,
 			     umode_t mode)
 {

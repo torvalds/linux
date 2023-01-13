@@ -426,7 +426,7 @@ static void unlock_2_inodes(struct inode *inode1, struct inode *inode2)
 	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
 }
 
-static int ubifs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+static int ubifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 			 struct file *file, umode_t mode)
 {
 	struct dentry *dentry = file->f_path.dentry;

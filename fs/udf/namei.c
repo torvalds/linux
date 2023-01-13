@@ -625,7 +625,7 @@ static int udf_create(struct mnt_idmap *idmap, struct inode *dir,
 	return udf_add_nondir(dentry, inode);
 }
 
-static int udf_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+static int udf_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 		       struct file *file, umode_t mode)
 {
 	struct inode *inode = udf_new_inode(dir, mode);

@@ -3613,7 +3613,7 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
 	file->f_path.mnt = parentpath->mnt;
 	file->f_path.dentry = child;
 	mode = vfs_prepare_mode(mnt_userns, dir, mode, mode, mode);
-	error = dir->i_op->tmpfile(mnt_userns, dir, file, mode);
+	error = dir->i_op->tmpfile(idmap, dir, file, mode);
 	dput(child);
 	if (error)
 		return error;

@@ -79,7 +79,7 @@ prototypes::
 	int (*atomic_open)(struct inode *, struct dentry *,
 				struct file *, unsigned open_flag,
 				umode_t create_mode);
-	int (*tmpfile) (struct user_namespace *, struct inode *,
+	int (*tmpfile) (struct mnt_idmap *, struct inode *,
 			struct file *, umode_t);
 	int (*fileattr_set)(struct user_namespace *mnt_userns,
 			    struct dentry *dentry, struct fileattr *fa);

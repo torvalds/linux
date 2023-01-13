@@ -2946,7 +2946,7 @@ out_iput:
 }
 
 static int
-shmem_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+shmem_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	      struct file *file, umode_t mode)
 {
 	struct inode *inode;
