@@ -160,6 +160,23 @@ int set_memory_valid(unsigned long addr, int numpages, int enable)
 					__pgprot(PTE_VALID));
 }
 
+/*
+ * Only to be used with memory in the logical map (e.g. vmapped memory will
+ * face coherency issues as we don't call vm_unmap_aliases()). Only to be used
+ * whilst accesses are not ongoing to the region, as we do not follow the
+ * make-before-break sequence in order to cut down the run time of this
+ * function.
+ */
+int arch_set_direct_map_range_uncached(unsigned long addr, unsigned long numpages)
+{
+	if (!can_set_direct_map())
+		return 0;
+
+	return __change_memory_common(addr, PAGE_SIZE * numpages,
+				      __pgprot(PTE_ATTRINDX(MT_NORMAL_NC)),
+				      __pgprot(PTE_ATTRINDX_MASK));
+}
+
 int set_direct_map_invalid_noflush(struct page *page)
 {
 	struct page_change_data data = {

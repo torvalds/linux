@@ -56,6 +56,8 @@ static inline int clear_mce_nospec(unsigned long pfn)
 }
 #endif
 
+int set_direct_map_range_uncached(unsigned long addr, unsigned long numpages);
+
 #ifndef CONFIG_ARCH_HAS_MEM_ENCRYPT
 static inline int set_memory_encrypted(unsigned long addr, int numpages)
 {
