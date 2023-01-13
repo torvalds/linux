@@ -102,7 +102,7 @@ static int bad_inode_getattr(struct user_namespace *mnt_userns,
 	return -EIO;
 }
 
-static int bad_inode_setattr(struct user_namespace *mnt_userns,
+static int bad_inode_setattr(struct mnt_idmap *idmap,
 			     struct dentry *direntry, struct iattr *attrs)
 {
 	return -EIO;

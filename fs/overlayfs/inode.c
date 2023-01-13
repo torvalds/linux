@@ -19,7 +19,7 @@
 #include "overlayfs.h"
 
 
-int ovl_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ovl_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct iattr *attr)
 {
 	int err;
@@ -28,7 +28,7 @@ int ovl_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	struct dentry *upperdentry;
 	const struct cred *old_cred;
 
-	err = setattr_prepare(&init_user_ns, dentry, attr);
+	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (err)
 		return err;
 
@@ -677,7 +677,7 @@ int ovl_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	    !capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_FSETID)) {
 		struct iattr iattr = { .ia_valid = ATTR_KILL_SGID };
 
-		err = ovl_setattr(&init_user_ns, dentry, &iattr);
+		err = ovl_setattr(&nop_mnt_idmap, dentry, &iattr);
 		if (err)
 			return err;
 	}

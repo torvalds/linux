@@ -256,7 +256,7 @@ int vboxsf_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	return 0;
 }
 
-int vboxsf_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *iattr)
 {
 	struct vboxsf_inode *sf_i = VBOXSF_I(d_inode(dentry));

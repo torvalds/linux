@@ -898,7 +898,7 @@ out:
 	return error;
 }
 
-static int hugetlbfs_setattr(struct user_namespace *mnt_userns,
+static int hugetlbfs_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -907,7 +907,7 @@ static int hugetlbfs_setattr(struct user_namespace *mnt_userns,
 	unsigned int ia_valid = attr->ia_valid;
 	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -924,7 +924,7 @@ static int hugetlbfs_setattr(struct user_namespace *mnt_userns,
 		hugetlb_vmtruncate(inode, newsize);
 	}
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

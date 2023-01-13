@@ -100,7 +100,7 @@ int vboxsf_inode_revalidate(struct dentry *dentry);
 int vboxsf_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		   struct kstat *kstat, u32 request_mask,
 		   unsigned int query_flags);
-int vboxsf_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *iattr);
 struct shfl_string *vboxsf_path_from_dentry(struct vboxsf_sbi *sbi,
 					    struct dentry *dentry);

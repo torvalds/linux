@@ -92,7 +92,7 @@ out:
 }
 
 static int
-spufs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+spufs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	      struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -100,7 +100,7 @@ spufs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    (attr->ia_size != inode->i_size))
 		return -EINVAL;
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

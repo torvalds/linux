@@ -352,7 +352,7 @@ static int chown_one_xattr(struct dentry *dentry, void *data)
 	 * ATTR_MODE is set.
 	 */
 	attrs->ia_valid &= (ATTR_UID|ATTR_GID);
-	err = reiserfs_setattr(&init_user_ns, dentry, attrs);
+	err = reiserfs_setattr(&nop_mnt_idmap, dentry, attrs);
 	attrs->ia_valid = ia_valid;
 
 	return err;
@@ -597,7 +597,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 		inode_lock_nested(d_inode(dentry), I_MUTEX_XATTR);
 		inode_dio_wait(d_inode(dentry));
 
-		err = reiserfs_setattr(&init_user_ns, dentry, &newattrs);
+		err = reiserfs_setattr(&nop_mnt_idmap, dentry, &newattrs);
 		inode_unlock(d_inode(dentry));
 	} else
 		update_ctime(inode);

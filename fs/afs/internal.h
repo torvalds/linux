@@ -1172,7 +1172,7 @@ extern bool afs_check_validity(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_getattr(struct user_namespace *mnt_userns, const struct path *,
 		       struct kstat *, u32, unsigned int);
-extern int afs_setattr(struct user_namespace *mnt_userns, struct dentry *, struct iattr *);
+extern int afs_setattr(struct mnt_idmap *idmap, struct dentry *, struct iattr *);
 extern void afs_evict_inode(struct inode *);
 extern int afs_drop_inode(struct inode *);
 

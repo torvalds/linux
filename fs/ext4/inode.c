@@ -5434,7 +5434,7 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
  *
  * Called with inode->i_rwsem down.
  */
-int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -5442,6 +5442,7 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	int orphan = 0;
 	const unsigned int ia_valid = attr->ia_valid;
 	bool inc_ivers = true;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return -EIO;
@@ -5454,7 +5455,7 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 				  ATTR_GID | ATTR_TIMES_SET))))
 		return -EPERM;
 
-	error = setattr_prepare(mnt_userns, dentry, attr);
+	error = setattr_prepare(idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -5630,7 +5631,7 @@ out_mmap_sem:
 	if (!error) {
 		if (inc_ivers)
 			inode_inc_iversion(inode);
-		setattr_copy(mnt_userns, inode, attr);
+		setattr_copy(idmap, inode, attr);
 		mark_inode_dirty(inode);
 	}
 

@@ -260,7 +260,7 @@ int coda_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	return err;
 }
 
-int coda_setattr(struct user_namespace *mnt_userns, struct dentry *de,
+int coda_setattr(struct mnt_idmap *idmap, struct dentry *de,
 		 struct iattr *iattr)
 {
 	struct inode *inode = d_inode(de);

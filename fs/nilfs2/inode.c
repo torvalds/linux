@@ -949,7 +949,7 @@ void nilfs_evict_inode(struct inode *inode)
 	 */
 }
 
-int nilfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int nilfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *iattr)
 {
 	struct nilfs_transaction_info ti;
@@ -957,7 +957,7 @@ int nilfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	struct super_block *sb = inode->i_sb;
 	int err;
 
-	err = setattr_prepare(&init_user_ns, dentry, iattr);
+	err = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (err)
 		return err;
 
@@ -972,7 +972,7 @@ int nilfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		nilfs_truncate(inode);
 	}
 
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	mark_inode_dirty(inode);
 
 	if (iattr->ia_valid & ATTR_MODE) {

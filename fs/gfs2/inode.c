@@ -1881,7 +1881,7 @@ int gfs2_permission(struct user_namespace *mnt_userns, struct inode *inode,
 
 static int __gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
 {
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -1966,7 +1966,7 @@ out:
 
 /**
  * gfs2_setattr - Change attributes on an inode
- * @mnt_userns: User namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @dentry: The dentry which is changing
  * @attr: The structure describing the change
  *
@@ -1976,7 +1976,7 @@ out:
  * Returns: errno
  */
 
-static int gfs2_setattr(struct user_namespace *mnt_userns,
+static int gfs2_setattr(struct mnt_idmap *idmap,
 			struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -1996,7 +1996,7 @@ static int gfs2_setattr(struct user_namespace *mnt_userns,
 	if (error)
 		goto error;
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		goto error;
 

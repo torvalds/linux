@@ -185,7 +185,7 @@ extern int	affs_rename2(struct user_namespace *mnt_userns,
 /* inode.c */
 
 extern struct inode		*affs_new_inode(struct inode *dir);
-extern int			 affs_notify_change(struct user_namespace *mnt_userns,
+extern int			 affs_notify_change(struct mnt_idmap *idmap,
 					struct dentry *dentry, struct iattr *attr);
 extern void			 affs_evict_inode(struct inode *inode);
 extern struct inode		*affs_iget(struct super_block *sb,

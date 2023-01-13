@@ -220,11 +220,11 @@ nfs_namespace_getattr(struct user_namespace *mnt_userns,
 }
 
 static int
-nfs_namespace_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+nfs_namespace_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
 	if (NFS_FH(d_inode(dentry))->size != 0)
-		return nfs_setattr(mnt_userns, dentry, attr);
+		return nfs_setattr(idmap, dentry, attr);
 	return -EACCES;
 }
 

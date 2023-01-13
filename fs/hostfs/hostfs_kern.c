@@ -790,7 +790,7 @@ static int hostfs_permission(struct user_namespace *mnt_userns,
 	return err;
 }
 
-static int hostfs_setattr(struct user_namespace *mnt_userns,
+static int hostfs_setattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -800,7 +800,7 @@ static int hostfs_setattr(struct user_namespace *mnt_userns,
 
 	int fd = HOSTFS_I(inode)->fd;
 
-	err = setattr_prepare(&init_user_ns, dentry, attr);
+	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (err)
 		return err;
 
@@ -857,7 +857,7 @@ static int hostfs_setattr(struct user_namespace *mnt_userns,
 	    attr->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attr->ia_size);
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

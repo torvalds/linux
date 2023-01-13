@@ -822,7 +822,7 @@ again:
 		ORANGEFS_I(inode)->attr_uid = current_fsuid();
 		ORANGEFS_I(inode)->attr_gid = current_fsgid();
 	}
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	spin_unlock(&inode->i_lock);
 	mark_inode_dirty(inode);
 
@@ -846,13 +846,13 @@ int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr)
 /*
  * Change attributes of an object referenced by dentry.
  */
-int orangefs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int orangefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *iattr)
 {
 	int ret;
 	gossip_debug(GOSSIP_INODE_DEBUG, "__orangefs_setattr: called on %pd\n",
 	    dentry);
-	ret = setattr_prepare(&init_user_ns, dentry, iattr);
+	ret = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (ret)
 	        goto out;
 	ret = __orangefs_setattr_mode(dentry, iattr);

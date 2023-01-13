@@ -873,7 +873,7 @@ ecryptfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
 
 /**
  * ecryptfs_setattr
- * @mnt_userns: user namespace of the target mount
+ * @idmap: idmap of the target mount
  * @dentry: dentry handle to the inode to modify
  * @ia: Structure with flags of what to change and values
  *
@@ -884,7 +884,7 @@ ecryptfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
  * All other metadata changes will be passed right to the lower filesystem,
  * and we will just update our inode to look like the lower.
  */
-static int ecryptfs_setattr(struct user_namespace *mnt_userns,
+static int ecryptfs_setattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct iattr *ia)
 {
 	int rc = 0;
@@ -939,7 +939,7 @@ static int ecryptfs_setattr(struct user_namespace *mnt_userns,
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
 
-	rc = setattr_prepare(&init_user_ns, dentry, ia);
+	rc = setattr_prepare(&nop_mnt_idmap, dentry, ia);
 	if (rc)
 		goto out;
 	if (ia->ia_valid & ATTR_SIZE) {

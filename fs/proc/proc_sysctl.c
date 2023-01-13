@@ -827,7 +827,7 @@ static int proc_sys_permission(struct user_namespace *mnt_userns,
 	return error;
 }
 
-static int proc_sys_setattr(struct user_namespace *mnt_userns,
+static int proc_sys_setattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -836,11 +836,11 @@ static int proc_sys_setattr(struct user_namespace *mnt_userns,
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		return -EPERM;
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

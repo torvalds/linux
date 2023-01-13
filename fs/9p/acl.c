@@ -225,7 +225,7 @@ int v9fs_iop_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 			 * FIXME should we update ctime ?
 			 * What is the following setxattr update the mode ?
 			 */
-			v9fs_vfs_setattr_dotl(&init_user_ns, dentry, &iattr);
+			v9fs_vfs_setattr_dotl(&nop_mnt_idmap, dentry, &iattr);
 		}
 		break;
 	case ACL_TYPE_DEFAULT:

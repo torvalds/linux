@@ -2752,7 +2752,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(&init_user_ns, direntry, attrs);
+	rc = setattr_prepare(&nop_mnt_idmap, direntry, attrs);
 	if (rc < 0)
 		goto out;
 
@@ -2859,7 +2859,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		fscache_resize_cookie(cifs_inode_cookie(inode), attrs->ia_size);
 	}
 
-	setattr_copy(&init_user_ns, inode, attrs);
+	setattr_copy(&nop_mnt_idmap, inode, attrs);
 	mark_inode_dirty(inode);
 
 	/* force revalidate when any of these times are set since some
@@ -2903,7 +2903,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(&init_user_ns, direntry, attrs);
+	rc = setattr_prepare(&nop_mnt_idmap, direntry, attrs);
 	if (rc < 0)
 		goto cifs_setattr_exit;
 
@@ -3058,7 +3058,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		fscache_resize_cookie(cifs_inode_cookie(inode), attrs->ia_size);
 	}
 
-	setattr_copy(&init_user_ns, inode, attrs);
+	setattr_copy(&nop_mnt_idmap, inode, attrs);
 	mark_inode_dirty(inode);
 
 cifs_setattr_exit:
@@ -3068,7 +3068,7 @@ cifs_setattr_exit:
 }
 
 int
-cifs_setattr(struct user_namespace *mnt_userns, struct dentry *direntry,
+cifs_setattr(struct mnt_idmap *idmap, struct dentry *direntry,
 	     struct iattr *attrs)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);

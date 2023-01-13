@@ -903,10 +903,11 @@ int f2fs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 }
 
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
-static void __setattr_copy(struct user_namespace *mnt_userns,
+static void __setattr_copy(struct mnt_idmap *idmap,
 			   struct inode *inode, const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	i_uid_update(mnt_userns, attr, inode);
 	i_gid_update(mnt_userns, attr, inode);
@@ -930,9 +931,10 @@ static void __setattr_copy(struct user_namespace *mnt_userns,
 #define __setattr_copy setattr_copy
 #endif
 
-int f2fs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	int err;
 
@@ -951,7 +953,7 @@ int f2fs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		!f2fs_is_compress_backend_ready(inode))
 		return -EOPNOTSUPP;
 
-	err = setattr_prepare(mnt_userns, dentry, attr);
+	err = setattr_prepare(idmap, dentry, attr);
 	if (err)
 		return err;
 
@@ -1023,7 +1025,7 @@ int f2fs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		spin_unlock(&F2FS_I(inode)->i_size_lock);
 	}
 
-	__setattr_copy(mnt_userns, inode, attr);
+	__setattr_copy(idmap, inode, attr);
 
 	if (attr->ia_valid & ATTR_MODE) {
 		err = posix_acl_chmod(mnt_userns, dentry, f2fs_get_inode_mode(inode));

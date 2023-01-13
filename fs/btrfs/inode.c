@@ -5281,7 +5281,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 	return ret;
 }
 
-static int btrfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+static int btrfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -5291,7 +5291,7 @@ static int btrfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentr
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	err = setattr_prepare(mnt_userns, dentry, attr);
+	err = setattr_prepare(idmap, dentry, attr);
 	if (err)
 		return err;
 
@@ -5302,12 +5302,13 @@ static int btrfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentr
 	}
 
 	if (attr->ia_valid) {
-		setattr_copy(mnt_userns, inode, attr);
+		setattr_copy(idmap, inode, attr);
 		inode_inc_iversion(inode);
 		err = btrfs_dirty_inode(BTRFS_I(inode));
 
 		if (!err && attr->ia_valid & ATTR_MODE)
-			err = posix_acl_chmod(mnt_userns, dentry, inode->i_mode);
+			err = posix_acl_chmod(mnt_idmap_owner(idmap), dentry,
+					      inode->i_mode);
 	}
 
 	return err;

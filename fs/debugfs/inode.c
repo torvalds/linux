@@ -42,7 +42,7 @@ static unsigned int debugfs_allow __ro_after_init = DEFAULT_DEBUGFS_ALLOW_BITS;
  * so that we can use the file mode as part of a heuristic to determine whether
  * to lock down individual files.
  */
-static int debugfs_setattr(struct user_namespace *mnt_userns,
+static int debugfs_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *ia)
 {
 	int ret;
@@ -52,7 +52,7 @@ static int debugfs_setattr(struct user_namespace *mnt_userns,
 		if (ret)
 			return ret;
 	}
-	return simple_setattr(&init_user_ns, dentry, ia);
+	return simple_setattr(&nop_mnt_idmap, dentry, ia);
 }
 
 static const struct inode_operations debugfs_file_inode_operations = {

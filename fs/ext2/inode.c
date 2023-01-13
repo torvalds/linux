@@ -1618,13 +1618,14 @@ int ext2_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	return 0;
 }
 
-int ext2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ext2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *iattr)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	error = setattr_prepare(&init_user_ns, dentry, iattr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (error)
 		return error;
 
@@ -1644,7 +1645,7 @@ int ext2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		if (error)
 			return error;
 	}
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	if (iattr->ia_valid & ATTR_MODE)
 		error = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
 	mark_inode_dirty(inode);

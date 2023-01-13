@@ -1082,7 +1082,7 @@ static int shmem_getattr(struct user_namespace *mnt_userns,
 	return 0;
 }
 
-static int shmem_setattr(struct user_namespace *mnt_userns,
+static int shmem_setattr(struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -1091,7 +1091,7 @@ static int shmem_setattr(struct user_namespace *mnt_userns,
 	bool update_mtime = false;
 	bool update_ctime = true;
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -1129,7 +1129,7 @@ static int shmem_setattr(struct user_namespace *mnt_userns,
 		}
 	}
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	if (attr->ia_valid & ATTR_MODE)
 		error = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
 	if (!error && update_ctime) {

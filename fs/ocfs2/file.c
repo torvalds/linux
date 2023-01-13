@@ -1111,9 +1111,10 @@ out:
 	return ret;
 }
 
-int ocfs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ocfs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int status = 0, size_change;
 	int inode_locked = 0;
 	struct inode *inode = d_inode(dentry);
@@ -1142,7 +1143,7 @@ int ocfs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (!(attr->ia_valid & OCFS2_VALID_ATTRS))
 		return 0;
 
-	status = setattr_prepare(&init_user_ns, dentry, attr);
+	status = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (status)
 		return status;
 
@@ -1265,7 +1266,7 @@ int ocfs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		}
 	}
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 
 	status = ocfs2_mark_inode_dirty(handle, inode, bh);

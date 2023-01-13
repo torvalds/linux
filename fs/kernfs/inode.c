@@ -107,7 +107,7 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 	return ret;
 }
 
-int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int kernfs_iop_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -120,7 +120,7 @@ int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 	root = kernfs_root(kn);
 	down_write(&root->kernfs_rwsem);
-	error = setattr_prepare(&init_user_ns, dentry, iattr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (error)
 		goto out;
 
@@ -129,7 +129,7 @@ int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		goto out;
 
 	/* this ignores size changes */
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 
 out:
 	up_write(&root->kernfs_rwsem);

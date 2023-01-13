@@ -509,7 +509,7 @@ EXPORT_SYMBOL(simple_rename);
 
 /**
  * simple_setattr - setattr for simple filesystem
- * @mnt_userns: user namespace of the target mount
+ * @idmap: idmap of the target mount
  * @dentry: dentry
  * @iattr: iattr structure
  *
@@ -522,19 +522,19 @@ EXPORT_SYMBOL(simple_rename);
  * on simple regular filesystems.  Anything that needs to change on-disk
  * or wire state on size changes needs its own setattr method.
  */
-int simple_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int simple_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	error = setattr_prepare(mnt_userns, dentry, iattr);
+	error = setattr_prepare(idmap, dentry, iattr);
 	if (error)
 		return error;
 
 	if (iattr->ia_valid & ATTR_SIZE)
 		truncate_setsize(inode, iattr->ia_size);
-	setattr_copy(mnt_userns, inode, iattr);
+	setattr_copy(idmap, inode, iattr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -1324,7 +1324,7 @@ static int empty_dir_getattr(struct user_namespace *mnt_userns,
 	return 0;
 }
 
-static int empty_dir_setattr(struct user_namespace *mnt_userns,
+static int empty_dir_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr)
 {
 	return -EPERM;

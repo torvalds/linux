@@ -657,7 +657,7 @@ out:
 /*
  * ntfs3_setattr - inode_operations::setattr
  */
-int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr)
 {
 	struct super_block *sb = dentry->d_sb;
@@ -676,7 +676,7 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		ia_valid = attr->ia_valid;
 	}
 
-	err = setattr_prepare(mnt_userns, dentry, attr);
+	err = setattr_prepare(idmap, dentry, attr);
 	if (err)
 		goto out;
 
@@ -704,10 +704,10 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		inode->i_size = newsize;
 	}
 
-	setattr_copy(mnt_userns, inode, attr);
+	setattr_copy(idmap, inode, attr);
 
 	if (mode != inode->i_mode) {
-		err = ntfs_acl_chmod(mnt_userns, dentry);
+		err = ntfs_acl_chmod(mnt_idmap_owner(idmap), dentry);
 		if (err)
 			goto out;
 

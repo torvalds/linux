@@ -142,7 +142,7 @@ static bool chgrp_ok(struct user_namespace *mnt_userns,
 
 /**
  * setattr_prepare - check if attribute changes to a dentry are allowed
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dentry:	dentry to check
  * @attr:	attributes to change
  *
@@ -152,18 +152,19 @@ static bool chgrp_ok(struct user_namespace *mnt_userns,
  * SGID bit from mode if user is not allowed to set it. Also file capabilities
  * and IMA extended attributes are cleared if ATTR_KILL_PRIV is set.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply passs @nop_mnt_idmap.
  *
  * Should be called as the first thing in ->setattr implementations,
  * possibly after taking additional locks.
  */
-int setattr_prepare(struct user_namespace *mnt_userns, struct dentry *dentry,
+int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 		    struct iattr *attr)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 
@@ -276,7 +277,7 @@ EXPORT_SYMBOL(inode_newsize_ok);
 
 /**
  * setattr_copy - copy simple metadata updates into the generic inode
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @inode:	the inode to be updated
  * @attr:	the new attributes
  *
@@ -289,19 +290,20 @@ EXPORT_SYMBOL(inode_newsize_ok);
  * Noticeably missing is inode size update, which is more complex
  * as it requires pagecache updates.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  *
  * The inode is not marked as dirty after this operation. The rationale is
  * that for "simple" filesystems, the struct inode is the inode storage.
  * The caller is free to mark the inode dirty afterwards if needed.
  */
-void setattr_copy(struct user_namespace *mnt_userns, struct inode *inode,
+void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 		  const struct iattr *attr)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	unsigned int ia_valid = attr->ia_valid;
 
 	i_uid_update(mnt_userns, attr, inode);
@@ -472,7 +474,7 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 	    !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode)))
 		return -EOVERFLOW;
 
-	error = security_inode_setattr(mnt_userns, dentry, attr);
+	error = security_inode_setattr(idmap, dentry, attr);
 	if (error)
 		return error;
 	error = try_break_deleg(inode, delegated_inode);
@@ -480,9 +482,9 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 		return error;
 
 	if (inode->i_op->setattr)
-		error = inode->i_op->setattr(mnt_userns, dentry, attr);
+		error = inode->i_op->setattr(idmap, dentry, attr);
 	else
-		error = simple_setattr(mnt_userns, dentry, attr);
+		error = simple_setattr(idmap, dentry, attr);
 
 	if (!error) {
 		fsnotify_change(dentry, ia_valid);

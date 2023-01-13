@@ -627,7 +627,7 @@ xfs_vn_getattr(
 
 static int
 xfs_vn_change_ok(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -639,7 +639,7 @@ xfs_vn_change_ok(
 	if (xfs_is_shutdown(mp))
 		return -EIO;
 
-	return setattr_prepare(mnt_userns, dentry, iattr);
+	return setattr_prepare(idmap, dentry, iattr);
 }
 
 /*
@@ -650,7 +650,7 @@ xfs_vn_change_ok(
  */
 static int
 xfs_setattr_nonsize(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
@@ -664,6 +664,7 @@ xfs_setattr_nonsize(
 	kgid_t			gid = GLOBAL_ROOT_GID;
 	struct xfs_dquot	*udqp = NULL, *gdqp = NULL;
 	struct xfs_dquot	*old_udqp = NULL, *old_gdqp = NULL;
+	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 
 	ASSERT((mask & ATTR_SIZE) == 0);
 
@@ -730,7 +731,7 @@ xfs_setattr_nonsize(
 		old_gdqp = xfs_qm_vop_chown(tp, ip, &ip->i_gdquot, gdqp);
 	}
 
-	setattr_copy(mnt_userns, inode, iattr);
+	setattr_copy(idmap, inode, iattr);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
@@ -779,7 +780,7 @@ out_dqrele:
  */
 STATIC int
 xfs_setattr_size(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
@@ -812,7 +813,7 @@ xfs_setattr_size(
 		 * Use the regular setattr path to update the timestamps.
 		 */
 		iattr->ia_valid &= ~ATTR_SIZE;
-		return xfs_setattr_nonsize(mnt_userns, dentry, ip, iattr);
+		return xfs_setattr_nonsize(idmap, dentry, ip, iattr);
 	}
 
 	/*
@@ -956,7 +957,7 @@ xfs_setattr_size(
 	}
 
 	ASSERT(!(iattr->ia_valid & (ATTR_UID | ATTR_GID)));
-	setattr_copy(mnt_userns, inode, iattr);
+	setattr_copy(idmap, inode, iattr);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
@@ -977,7 +978,7 @@ out_trans_cancel:
 
 int
 xfs_vn_setattr_size(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -986,15 +987,15 @@ xfs_vn_setattr_size(
 
 	trace_xfs_setattr(ip);
 
-	error = xfs_vn_change_ok(mnt_userns, dentry, iattr);
+	error = xfs_vn_change_ok(idmap, dentry, iattr);
 	if (error)
 		return error;
-	return xfs_setattr_size(mnt_userns, dentry, ip, iattr);
+	return xfs_setattr_size(idmap, dentry, ip, iattr);
 }
 
 STATIC int
 xfs_vn_setattr(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -1014,14 +1015,14 @@ xfs_vn_setattr(
 			return error;
 		}
 
-		error = xfs_vn_setattr_size(mnt_userns, dentry, iattr);
+		error = xfs_vn_setattr_size(idmap, dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
 		trace_xfs_setattr(ip);
 
-		error = xfs_vn_change_ok(mnt_userns, dentry, iattr);
+		error = xfs_vn_change_ok(idmap, dentry, iattr);
 		if (!error)
-			error = xfs_setattr_nonsize(mnt_userns, dentry, ip, iattr);
+			error = xfs_setattr_nonsize(idmap, dentry, ip, iattr);
 	}
 
 	return error;

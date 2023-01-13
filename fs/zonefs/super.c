@@ -600,7 +600,7 @@ unlock:
 	return ret;
 }
 
-static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
+static int zonefs_inode_setattr(struct mnt_idmap *idmap,
 				struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -609,7 +609,7 @@ static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
 	if (unlikely(IS_IMMUTABLE(inode)))
 		return -EPERM;
 
-	ret = setattr_prepare(&init_user_ns, dentry, iattr);
+	ret = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (ret)
 		return ret;
 
@@ -626,7 +626,7 @@ static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
 	     !uid_eq(iattr->ia_uid, inode->i_uid)) ||
 	    ((iattr->ia_valid & ATTR_GID) &&
 	     !gid_eq(iattr->ia_gid, inode->i_gid))) {
-		ret = dquot_transfer(mnt_userns, inode, iattr);
+		ret = dquot_transfer(&init_user_ns, inode, iattr);
 		if (ret)
 			return ret;
 	}
@@ -637,7 +637,7 @@ static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
 			return ret;
 	}
 
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 
 	return 0;
 }
