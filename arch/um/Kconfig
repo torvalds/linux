@@ -243,4 +243,8 @@ source "arch/um/drivers/Kconfig"
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
+menu "Power management options"
+
 source "kernel/power/Kconfig"
+
+endmenu
