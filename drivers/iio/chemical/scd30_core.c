@@ -354,7 +354,7 @@ static ssize_t sampling_frequency_available_show(struct device *dev, struct devi
 	ssize_t len = 0;
 
 	do {
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ", 1000000000 / i);
+		len += sysfs_emit_at(buf, len, "0.%09u ", 1000000000 / i);
 		/*
 		 * Not all values fit PAGE_SIZE buffer hence print every 6th
 		 * (each frequency differs by 6s in time domain from the
@@ -380,7 +380,7 @@ static ssize_t calibration_auto_enable_show(struct device *dev, struct device_at
 	ret = scd30_command_read(state, CMD_ASC, &val);
 	mutex_unlock(&state->lock);
 
-	return ret ?: sprintf(buf, "%d\n", val);
+	return ret ?: sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t calibration_auto_enable_store(struct device *dev, struct device_attribute *attr,
@@ -414,7 +414,7 @@ static ssize_t calibration_forced_value_show(struct device *dev, struct device_a
 	ret = scd30_command_read(state, CMD_FRC, &val);
 	mutex_unlock(&state->lock);
 
-	return ret ?: sprintf(buf, "%d\n", val);
+	return ret ?: sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t calibration_forced_value_store(struct device *dev, struct device_attribute *attr,
