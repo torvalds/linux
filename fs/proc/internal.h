@@ -162,7 +162,7 @@ extern int proc_pid_statm(struct seq_file *, struct pid_namespace *,
  * base.c
  */
 extern const struct dentry_operations pid_dentry_operations;
-extern int pid_getattr(struct user_namespace *, const struct path *,
+extern int pid_getattr(struct mnt_idmap *, const struct path *,
 		       struct kstat *, u32, unsigned int);
 extern int proc_setattr(struct mnt_idmap *, struct dentry *,
 			struct iattr *);

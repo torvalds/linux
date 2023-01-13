@@ -549,12 +549,13 @@ xfs_stat_blksize(
 
 STATIC int
 xfs_vn_getattr(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	const struct path	*path,
 	struct kstat		*stat,
 	u32			request_mask,
 	unsigned int		query_flags)
 {
+	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct inode		*inode = d_inode(path->dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;

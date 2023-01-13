@@ -9005,7 +9005,7 @@ fail:
 	return -ENOMEM;
 }
 
-static int btrfs_getattr(struct user_namespace *mnt_userns,
+static int btrfs_getattr(struct mnt_idmap *idmap,
 			 const struct path *path, struct kstat *stat,
 			 u32 request_mask, unsigned int flags)
 {
@@ -9035,7 +9035,7 @@ static int btrfs_getattr(struct user_namespace *mnt_userns,
 				  STATX_ATTR_IMMUTABLE |
 				  STATX_ATTR_NODUMP);
 
-	generic_fillattr(mnt_userns, inode, stat);
+	generic_fillattr(idmap, inode, stat);
 	stat->dev = BTRFS_I(inode)->root->anon_dev;
 
 	spin_lock(&BTRFS_I(inode)->lock);

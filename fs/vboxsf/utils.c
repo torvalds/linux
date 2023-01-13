@@ -231,7 +231,7 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 	return 0;
 }
 
-int vboxsf_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 		   struct kstat *kstat, u32 request_mask, unsigned int flags)
 {
 	int err;
@@ -252,7 +252,7 @@ int vboxsf_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	if (err)
 		return err;
 
-	generic_fillattr(&init_user_ns, d_inode(dentry), kstat);
+	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), kstat);
 	return 0;
 }
 

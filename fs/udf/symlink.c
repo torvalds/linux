@@ -153,7 +153,7 @@ out_unmap:
 	return err;
 }
 
-static int udf_symlink_getattr(struct user_namespace *mnt_userns,
+static int udf_symlink_getattr(struct mnt_idmap *idmap,
 			       const struct path *path, struct kstat *stat,
 			       u32 request_mask, unsigned int flags)
 {
@@ -161,7 +161,7 @@ static int udf_symlink_getattr(struct user_namespace *mnt_userns,
 	struct inode *inode = d_backing_inode(dentry);
 	struct page *page;
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	page = read_mapping_page(inode->i_mapping, 0, NULL);
 	if (IS_ERR(page))
 		return PTR_ERR(page);

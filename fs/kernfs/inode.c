@@ -181,7 +181,7 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int kernfs_iop_getattr(struct user_namespace *mnt_userns,
+int kernfs_iop_getattr(struct mnt_idmap *idmap,
 		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags)
 {
@@ -191,7 +191,7 @@ int kernfs_iop_getattr(struct user_namespace *mnt_userns,
 
 	down_read(&root->kernfs_rwsem);
 	kernfs_refresh_inode(kn, inode);
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	up_read(&root->kernfs_rwsem);
 
 	return 0;

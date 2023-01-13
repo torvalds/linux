@@ -2445,7 +2445,7 @@ static int statx_to_caps(u32 want, umode_t mode)
  * Get all the attributes. If we have sufficient caps for the requested attrs,
  * then we can avoid talking to the MDS at all.
  */
-int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int ceph_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -2466,7 +2466,7 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			return err;
 	}
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	stat->ino = ceph_present_inode(inode);
 
 	/*

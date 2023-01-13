@@ -437,7 +437,7 @@ As of kernel 2.6.22, the following members are defined:
 		int (*permission) (struct user_namespace *, struct inode *, int);
 		struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
 		int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
-		int (*getattr) (struct user_namespace *, const struct path *, struct kstat *, u32, unsigned int);
+		int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
 		void (*update_time)(struct inode *, struct timespec *, int);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,

@@ -845,7 +845,7 @@ static int proc_sys_setattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static int proc_sys_getattr(struct user_namespace *mnt_userns,
+static int proc_sys_getattr(struct mnt_idmap *idmap,
 			    const struct path *path, struct kstat *stat,
 			    u32 request_mask, unsigned int query_flags)
 {
@@ -856,7 +856,7 @@ static int proc_sys_getattr(struct user_namespace *mnt_userns,
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	if (table)
 		stat->mode = (stat->mode & S_IFMT) | table->mode;
 

@@ -1156,7 +1156,7 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 		forget_all_cached_acls(inode);
 		err = fuse_do_getattr(inode, stat, file);
 	} else if (stat) {
-		generic_fillattr(&init_user_ns, inode, stat);
+		generic_fillattr(&nop_mnt_idmap, inode, stat);
 		stat->mode = fi->orig_i_mode;
 		stat->ino = fi->orig_ino;
 	}
@@ -1900,7 +1900,7 @@ static int fuse_setattr(struct mnt_idmap *idmap, struct dentry *entry,
 	return ret;
 }
 
-static int fuse_getattr(struct user_namespace *mnt_userns,
+static int fuse_getattr(struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int flags)
 {

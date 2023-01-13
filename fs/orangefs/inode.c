@@ -866,7 +866,7 @@ out:
 /*
  * Obtain attributes of an object given a dentry
  */
-int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int ret;
@@ -879,7 +879,7 @@ int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	ret = orangefs_inode_getattr(inode,
 	    request_mask & STATX_SIZE ? ORANGEFS_GETATTR_SIZE : 0);
 	if (ret == 0) {
-		generic_fillattr(&init_user_ns, inode, stat);
+		generic_fillattr(&nop_mnt_idmap, inode, stat);
 
 		/* override block size reported to stat */
 		if (!(request_mask & STATX_SIZE))

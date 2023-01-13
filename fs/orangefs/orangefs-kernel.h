@@ -364,7 +364,7 @@ int __orangefs_setattr(struct inode *, struct iattr *);
 int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr);
 int orangefs_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 
-int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags);
 
 int orangefs_permission(struct user_namespace *mnt_userns,

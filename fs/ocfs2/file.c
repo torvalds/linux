@@ -1303,7 +1303,7 @@ bail:
 	return status;
 }
 
-int ocfs2_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int ocfs2_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -1318,7 +1318,7 @@ int ocfs2_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		goto bail;
 	}
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	/*
 	 * If there is inline data in the inode, the inode will normally not
 	 * have data blocks allocated (it may have an external xattr block).

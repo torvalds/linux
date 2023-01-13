@@ -344,14 +344,14 @@ int proc_fd_permission(struct user_namespace *mnt_userns,
 	return rv;
 }
 
-static int proc_fd_getattr(struct user_namespace *mnt_userns,
+static int proc_fd_getattr(struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	int rv = 0;
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 
 	/* If it's a directory, put the number of open fds there */
 	if (S_ISDIR(inode->i_mode)) {

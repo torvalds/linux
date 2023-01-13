@@ -135,7 +135,7 @@ int ksmbd_vfs_unlink(struct mnt_idmap *idmap, struct dentry *dir,
 		     struct dentry *dentry);
 void *ksmbd_vfs_init_kstat(char **p, struct ksmbd_kstat *ksmbd_kstat);
 int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
-				struct user_namespace *user_ns,
+				struct mnt_idmap *idmap,
 				struct dentry *dentry,
 				struct ksmbd_kstat *ksmbd_kstat);
 void ksmbd_vfs_posix_lock_wait(struct file_lock *flock);

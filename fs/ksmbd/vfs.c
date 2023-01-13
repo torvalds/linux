@@ -1657,14 +1657,14 @@ void *ksmbd_vfs_init_kstat(char **p, struct ksmbd_kstat *ksmbd_kstat)
 }
 
 int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
-				struct user_namespace *user_ns,
+				struct mnt_idmap *idmap,
 				struct dentry *dentry,
 				struct ksmbd_kstat *ksmbd_kstat)
 {
 	u64 time;
 	int rc;
 
-	generic_fillattr(user_ns, d_inode(dentry), ksmbd_kstat->kstat);
+	generic_fillattr(idmap, d_inode(dentry), ksmbd_kstat->kstat);
 
 	time = ksmbd_UnixTimeToNT(ksmbd_kstat->kstat->ctime);
 	ksmbd_kstat->create_time = time;
@@ -1682,7 +1682,7 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 				   KSMBD_SHARE_FLAG_STORE_DOS_ATTRS)) {
 		struct xattr_dos_attrib da;
 
-		rc = ksmbd_vfs_get_dos_attrib_xattr(user_ns, dentry, &da);
+		rc = ksmbd_vfs_get_dos_attrib_xattr(mnt_idmap_owner(idmap), dentry, &da);
 		if (rc > 0) {
 			ksmbd_kstat->file_attributes = cpu_to_le32(da.attr);
 			ksmbd_kstat->create_time = da.create_time;

@@ -1045,7 +1045,7 @@ extern int ceph_permission(struct user_namespace *mnt_userns,
 extern int __ceph_setattr(struct inode *inode, struct iattr *attr);
 extern int ceph_setattr(struct mnt_idmap *idmap,
 			struct dentry *dentry, struct iattr *attr);
-extern int ceph_getattr(struct user_namespace *mnt_userns,
+extern int ceph_getattr(struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int flags);
 void ceph_inode_shutdown(struct inode *inode);

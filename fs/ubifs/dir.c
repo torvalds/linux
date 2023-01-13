@@ -1631,7 +1631,7 @@ static int ubifs_rename(struct user_namespace *mnt_userns,
 	return do_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
 
-int ubifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int ubifs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	loff_t size;
@@ -1654,7 +1654,7 @@ int ubifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 				STATX_ATTR_ENCRYPTED |
 				STATX_ATTR_IMMUTABLE);
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	stat->blksize = UBIFS_BLOCK_SIZE;
 	stat->size = ui->ui_size;
 
