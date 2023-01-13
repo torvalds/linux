@@ -23,10 +23,9 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 static inline bool is_quota_modification(struct mnt_idmap *idmap,
 					 struct inode *inode, struct iattr *ia)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return ((ia->ia_valid & ATTR_SIZE) ||
-		i_uid_needs_update(mnt_userns, ia, inode) ||
-		i_gid_needs_update(mnt_userns, ia, inode));
+		i_uid_needs_update(idmap, ia, inode) ||
+		i_gid_needs_update(idmap, ia, inode));
 }
 
 #if defined(CONFIG_QUOTA)

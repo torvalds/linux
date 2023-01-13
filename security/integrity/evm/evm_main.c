@@ -783,11 +783,10 @@ static int evm_attr_change(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_backing_inode(dentry);
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	unsigned int ia_valid = attr->ia_valid;
 
-	if (!i_uid_needs_update(mnt_userns, attr, inode) &&
-	    !i_gid_needs_update(mnt_userns, attr, inode) &&
+	if (!i_uid_needs_update(idmap, attr, inode) &&
+	    !i_gid_needs_update(idmap, attr, inode) &&
 	    (!(ia_valid & ATTR_MODE) || attr->ia_mode == inode->i_mode))
 		return 0;
 

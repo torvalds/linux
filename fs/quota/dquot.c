@@ -2097,7 +2097,7 @@ int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 	if (!dquot_active(inode))
 		return 0;
 
-	if (i_uid_needs_update(mnt_userns, iattr, inode)) {
+	if (i_uid_needs_update(idmap, iattr, inode)) {
 		kuid_t kuid = from_vfsuid(mnt_userns, i_user_ns(inode),
 					  iattr->ia_vfsuid);
 
@@ -2111,7 +2111,7 @@ int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		}
 		transfer_to[USRQUOTA] = dquot;
 	}
-	if (i_gid_needs_update(mnt_userns, iattr, inode)) {
+	if (i_gid_needs_update(idmap, iattr, inode)) {
 		kgid_t kgid = from_vfsgid(mnt_userns, i_user_ns(inode),
 					  iattr->ia_vfsgid);
 

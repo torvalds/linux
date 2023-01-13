@@ -311,8 +311,8 @@ void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	unsigned int ia_valid = attr->ia_valid;
 
-	i_uid_update(mnt_userns, attr, inode);
-	i_gid_update(mnt_userns, attr, inode);
+	i_uid_update(idmap, attr, inode);
+	i_gid_update(idmap, attr, inode);
 	if (ia_valid & ATTR_ATIME)
 		inode->i_atime = attr->ia_atime;
 	if (ia_valid & ATTR_MTIME)

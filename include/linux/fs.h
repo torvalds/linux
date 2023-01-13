@@ -1647,7 +1647,7 @@ static inline vfsuid_t i_uid_into_vfsuid(struct user_namespace *mnt_userns,
 
 /**
  * i_uid_needs_update - check whether inode's i_uid needs to be updated
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
@@ -1656,10 +1656,12 @@ static inline vfsuid_t i_uid_into_vfsuid(struct user_namespace *mnt_userns,
  *
  * Return: true if @inode's i_uid field needs to be updated, false if not.
  */
-static inline bool i_uid_needs_update(struct user_namespace *mnt_userns,
+static inline bool i_uid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
 				      const struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	return ((attr->ia_valid & ATTR_UID) &&
 		!vfsuid_eq(attr->ia_vfsuid,
 			   i_uid_into_vfsuid(mnt_userns, inode)));
@@ -1667,17 +1669,19 @@ static inline bool i_uid_needs_update(struct user_namespace *mnt_userns,
 
 /**
  * i_uid_update - update @inode's i_uid field
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
  * Safely update @inode's i_uid field translating the vfsuid of any idmapped
  * mount into the filesystem kuid.
  */
-static inline void i_uid_update(struct user_namespace *mnt_userns,
+static inline void i_uid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
 				struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	if (attr->ia_valid & ATTR_UID)
 		inode->i_uid = from_vfsuid(mnt_userns, i_user_ns(inode),
 					   attr->ia_vfsuid);
@@ -1699,7 +1703,7 @@ static inline vfsgid_t i_gid_into_vfsgid(struct user_namespace *mnt_userns,
 
 /**
  * i_gid_needs_update - check whether inode's i_gid needs to be updated
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
@@ -1708,10 +1712,12 @@ static inline vfsgid_t i_gid_into_vfsgid(struct user_namespace *mnt_userns,
  *
  * Return: true if @inode's i_gid field needs to be updated, false if not.
  */
-static inline bool i_gid_needs_update(struct user_namespace *mnt_userns,
+static inline bool i_gid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
 				      const struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	return ((attr->ia_valid & ATTR_GID) &&
 		!vfsgid_eq(attr->ia_vfsgid,
 			   i_gid_into_vfsgid(mnt_userns, inode)));
@@ -1719,17 +1725,19 @@ static inline bool i_gid_needs_update(struct user_namespace *mnt_userns,
 
 /**
  * i_gid_update - update @inode's i_gid field
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
  * Safely update @inode's i_gid field translating the vfsgid of any idmapped
  * mount into the filesystem kgid.
  */
-static inline void i_gid_update(struct user_namespace *mnt_userns,
+static inline void i_gid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
 				struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	if (attr->ia_valid & ATTR_GID)
 		inode->i_gid = from_vfsgid(mnt_userns, i_user_ns(inode),
 					   attr->ia_vfsgid);

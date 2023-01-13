@@ -720,12 +720,12 @@ xfs_setattr_nonsize(
 	 * also.
 	 */
 	if (XFS_IS_UQUOTA_ON(mp) &&
-	    i_uid_needs_update(mnt_userns, iattr, inode)) {
+	    i_uid_needs_update(idmap, iattr, inode)) {
 		ASSERT(udqp);
 		old_udqp = xfs_qm_vop_chown(tp, ip, &ip->i_udquot, udqp);
 	}
 	if (XFS_IS_GQUOTA_ON(mp) &&
-	    i_gid_needs_update(mnt_userns, iattr, inode)) {
+	    i_gid_needs_update(idmap, iattr, inode)) {
 		ASSERT(xfs_has_pquotino(mp) || !XFS_IS_PQUOTA_ON(mp));
 		ASSERT(gdqp);
 		old_gdqp = xfs_qm_vop_chown(tp, ip, &ip->i_gdquot, gdqp);
