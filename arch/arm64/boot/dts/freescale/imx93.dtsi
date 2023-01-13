@@ -558,6 +558,32 @@
 				status = "disabled";
 			};
 
+			fec: ethernet@42890000 {
+				compatible = "fsl,imx93-fec", "fsl,imx8mq-fec", "fsl,imx6sx-fec";
+				reg = <0x42890000 0x10000>;
+				interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX93_CLK_ENET1_GATE>,
+					 <&clk IMX93_CLK_ENET1_GATE>,
+					 <&clk IMX93_CLK_ENET_TIMER1>,
+					 <&clk IMX93_CLK_ENET_REF>,
+					 <&clk IMX93_CLK_ENET_REF_PHY>;
+				clock-names = "ipg", "ahb", "ptp",
+					      "enet_clk_ref", "enet_out";
+				assigned-clocks = <&clk IMX93_CLK_ENET_TIMER1>,
+						  <&clk IMX93_CLK_ENET_REF>,
+						  <&clk IMX93_CLK_ENET_REF_PHY>;
+				assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>,
+							 <&clk IMX93_CLK_SYS_PLL_PFD0_DIV2>,
+							 <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>;
+				assigned-clock-rates = <100000000>, <250000000>, <50000000>;
+				fsl,num-tx-queues = <3>;
+				fsl,num-rx-queues = <3>;
+				status = "disabled";
+			};
+
 			usdhc3: mmc@428b0000 {
 				compatible = "fsl,imx93-usdhc", "fsl,imx8mm-usdhc";
 				reg = <0x428b0000 0x10000>;
