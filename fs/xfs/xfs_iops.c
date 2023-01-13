@@ -266,12 +266,13 @@ xfs_vn_mknod(
 
 STATIC int
 xfs_vn_create(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode,
 	bool			flags)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, NULL);
 }
 

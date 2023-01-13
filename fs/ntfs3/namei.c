@@ -94,9 +94,10 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 /*
  * ntfs_create - inode_operations::create
  */
-static int ntfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, S_IFREG | mode,

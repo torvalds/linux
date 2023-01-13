@@ -451,7 +451,7 @@ bail:
 	return status;
 }
 
-static int dlmfs_create(struct user_namespace *mnt_userns,
+static int dlmfs_create(struct mnt_idmap *idmap,
 			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,

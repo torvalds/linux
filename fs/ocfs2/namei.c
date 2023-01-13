@@ -658,7 +658,7 @@ static int ocfs2_mkdir(struct user_namespace *mnt_userns,
 	return ret;
 }
 
-static int ocfs2_create(struct user_namespace *mnt_userns,
+static int ocfs2_create(struct mnt_idmap *idmap,
 			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,

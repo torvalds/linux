@@ -211,7 +211,7 @@ int v9fs_open_to_dotl_flags(int flags)
 
 /**
  * v9fs_vfs_create_dotl - VFS hook to create files for 9P2000.L protocol.
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The user namespace of the mount
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
  * @omode: create permissions
@@ -219,9 +219,10 @@ int v9fs_open_to_dotl_flags(int flags)
  *
  */
 static int
-v9fs_vfs_create_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t omode, bool excl)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return v9fs_vfs_mknod_dotl(mnt_userns, dir, dentry, omode, 0);
 }
 

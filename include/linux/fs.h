@@ -2139,7 +2139,7 @@ struct inode_operations {
 
 	int (*readlink) (struct dentry *, char __user *,int);
 
-	int (*create) (struct user_namespace *, struct inode *,struct dentry *,
+	int (*create) (struct mnt_idmap *, struct inode *,struct dentry *,
 		       umode_t, bool);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);

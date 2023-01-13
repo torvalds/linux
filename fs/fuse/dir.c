@@ -796,7 +796,7 @@ static int fuse_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return create_new_entry(fm, &args, dir, entry, mode);
 }
 
-static int fuse_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int fuse_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *entry, umode_t mode, bool excl)
 {
 	return fuse_mknod(&init_user_ns, dir, entry, mode, 0);

@@ -333,9 +333,10 @@ fail_drop:
 	return ERR_PTR(err);
 }
 
-static int f2fs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
 	nid_t ino = 0;

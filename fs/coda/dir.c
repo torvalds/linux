@@ -133,7 +133,7 @@ static inline void coda_dir_drop_nlink(struct inode *dir)
 }
 
 /* creation routines: create, mknod, mkdir, link, symlink */
-static int coda_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int coda_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *de, umode_t mode, bool excl)
 {
 	int error;

@@ -620,7 +620,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, umode_t mode)
 	return dquot_initialize(inode);
 }
 
-static int reiserfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int reiserfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, bool excl)
 {
 	int retval;

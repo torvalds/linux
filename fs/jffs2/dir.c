@@ -24,7 +24,7 @@
 
 static int jffs2_readdir (struct file *, struct dir_context *);
 
-static int jffs2_create (struct user_namespace *, struct inode *,
+static int jffs2_create (struct mnt_idmap *, struct inode *,
 		         struct dentry *, umode_t, bool);
 static struct dentry *jffs2_lookup (struct inode *,struct dentry *,
 				    unsigned int);
@@ -160,7 +160,7 @@ static int jffs2_readdir(struct file *file, struct dir_context *ctx)
 /***********************************************************************/
 
 
-static int jffs2_create(struct user_namespace *mnt_userns, struct inode *dir_i,
+static int jffs2_create(struct mnt_idmap *idmap, struct inode *dir_i,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct jffs2_raw_inode *ri;

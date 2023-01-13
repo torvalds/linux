@@ -3115,7 +3115,7 @@ int vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	error = security_inode_create(dir, dentry, mode);
 	if (error)
 		return error;
-	error = dir->i_op->create(mnt_userns, dir, dentry, mode, want_excl);
+	error = dir->i_op->create(idmap, dir, dentry, mode, want_excl);
 	if (!error)
 		fsnotify_create(dir, dentry);
 	return error;
@@ -3322,6 +3322,7 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 				  const struct open_flags *op,
 				  bool got_write)
 {
+	struct mnt_idmap *idmap;
 	struct user_namespace *mnt_userns;
 	struct dentry *dir = nd->path.dentry;
 	struct inode *dir_inode = dir->d_inode;
@@ -3370,7 +3371,8 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 	 */
 	if (unlikely(!got_write))
 		open_flag &= ~O_TRUNC;
-	mnt_userns = mnt_user_ns(nd->path.mnt);
+	idmap = mnt_idmap(nd->path.mnt);
+	mnt_userns = mnt_idmap_owner(idmap);
 	if (open_flag & O_CREAT) {
 		if (open_flag & O_EXCL)
 			open_flag &= ~O_TRUNC;
@@ -3413,7 +3415,7 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 			goto out_dput;
 		}
 
-		error = dir_inode->i_op->create(mnt_userns, dir_inode, dentry,
+		error = dir_inode->i_op->create(idmap, dir_inode, dentry,
 						mode, open_flag & O_EXCL);
 		if (error)
 			goto out_dput;

@@ -2982,7 +2982,7 @@ static int shmem_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	return 0;
 }
 
-static int shmem_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int shmem_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
 	return shmem_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);

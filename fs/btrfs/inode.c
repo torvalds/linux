@@ -6739,9 +6739,10 @@ static int btrfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return btrfs_create_common(dir, dentry, inode);
 }
 
-static int btrfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int btrfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = new_inode(dir->i_sb);

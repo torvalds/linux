@@ -65,10 +65,10 @@ static int minix_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	return finish_open_simple(file, error);
 }
 
-static int minix_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return minix_mknod(mnt_userns, dir, dentry, mode, 0);
+	return minix_mknod(&init_user_ns, dir, dentry, mode, 0);
 }
 
 static int minix_symlink(struct user_namespace *mnt_userns, struct inode *dir,

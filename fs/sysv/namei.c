@@ -61,7 +61,7 @@ static int sysv_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return err;
 }
 
-static int sysv_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int sysv_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
 	return sysv_mknod(&init_user_ns, dir, dentry, mode, 0);

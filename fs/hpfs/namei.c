@@ -129,7 +129,7 @@ bail:
 	return err;
 }
 
-static int hpfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int hpfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
 	const unsigned char *name = dentry->d_name.name;

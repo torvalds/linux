@@ -294,7 +294,7 @@ out:
 	return err;
 }
 
-static int vboxsf_dir_mkfile(struct user_namespace *mnt_userns,
+static int vboxsf_dir_mkfile(struct mnt_idmap *idmap,
 			     struct inode *parent, struct dentry *dentry,
 			     umode_t mode, bool excl)
 {

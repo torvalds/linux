@@ -672,7 +672,7 @@ error:
 
 /**
  * v9fs_vfs_create - VFS hook to create a regular file
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir: The parent directory
  * @dentry: The name of file to be created
  * @mode: The UNIX file mode to set
@@ -684,7 +684,7 @@ error:
  */
 
 static int
-v9fs_vfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);

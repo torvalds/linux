@@ -59,7 +59,7 @@ static inline void free_ea_wmap(struct inode *inode)
  * RETURN:	Errors from subroutines
  *
  */
-static int jfs_create(struct user_namespace *mnt_userns, struct inode *dip,
+static int jfs_create(struct mnt_idmap *idmap, struct inode *dip,
 		      struct dentry *dentry, umode_t mode, bool excl)
 {
 	int rc = 0;

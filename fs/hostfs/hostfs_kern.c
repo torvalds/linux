@@ -559,7 +559,7 @@ static int read_name(struct inode *ino, char *name)
 	return 0;
 }
 
-static int hostfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int hostfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct inode *inode;

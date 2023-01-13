@@ -843,7 +843,7 @@ fail:
 
 /**
  * gfs2_create - Create a file
- * @mnt_userns: User namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @dir: The directory in which to create the file
  * @dentry: The dentry of the new file
  * @mode: The mode of the new file
@@ -852,7 +852,7 @@ fail:
  * Returns: errno
  */
 
-static int gfs2_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int gfs2_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
 	return gfs2_create_inode(dir, dentry, NULL, S_IFREG | mode, 0, NULL, 0, excl);

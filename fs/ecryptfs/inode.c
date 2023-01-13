@@ -253,7 +253,7 @@ out:
  * Returns zero on success; non-zero on error condition
  */
 static int
-ecryptfs_create(struct user_namespace *mnt_userns,
+ecryptfs_create(struct mnt_idmap *idmap,
 		struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 		umode_t mode, bool excl)
 {
