@@ -77,15 +77,21 @@
 #define DART_TCR_BYPASS0_ENABLE BIT(8)
 #define DART_TCR_BYPASS1_ENABLE BIT(12)
 
-#define DART_TTBR(sid, idx) (0x200 + 16 * (sid) + 4 * (idx))
 #define DART_TTBR_VALID BIT(31)
 #define DART_TTBR_SHIFT 12
+
+#define DART_TTBR(dart, sid, idx) (0x200 + \
+				   (((dart)->hw->ttbr_count * (sid)) << 2) + \
+				   ((idx) << 2))
+
 
 struct apple_dart_hw {
 	u32 oas;
 	enum io_pgtable_fmt fmt;
 
 	int max_sid_count;
+
+	int ttbr_count;
 };
 
 /*
@@ -245,7 +251,7 @@ static void apple_dart_hw_set_ttbr(struct apple_dart_stream_map *stream_map,
 	WARN_ON(paddr & ((1 << DART_TTBR_SHIFT) - 1));
 	for_each_set_bit(sid, stream_map->sidmap, dart->num_streams)
 		writel(DART_TTBR_VALID | (paddr >> DART_TTBR_SHIFT),
-		       dart->regs + DART_TTBR(sid, idx));
+		       dart->regs + DART_TTBR(dart, sid, idx));
 }
 
 static void apple_dart_hw_clear_ttbr(struct apple_dart_stream_map *stream_map,
@@ -255,7 +261,7 @@ static void apple_dart_hw_clear_ttbr(struct apple_dart_stream_map *stream_map,
 	int sid;
 
 	for_each_set_bit(sid, stream_map->sidmap, dart->num_streams)
-		writel(0, dart->regs + DART_TTBR(sid, idx));
+		writel(0, dart->regs + DART_TTBR(dart, sid, idx));
 }
 
 static void
@@ -263,7 +269,7 @@ apple_dart_hw_clear_all_ttbrs(struct apple_dart_stream_map *stream_map)
 {
 	int i;
 
-	for (i = 0; i < DART_MAX_TTBR; ++i)
+	for (i = 0; i < stream_map->dart->hw->ttbr_count; ++i)
 		apple_dart_hw_clear_ttbr(stream_map, i);
 }
 
@@ -415,7 +421,7 @@ apple_dart_setup_translation(struct apple_dart_domain *domain,
 	for (i = 0; i < pgtbl_cfg->apple_dart_cfg.n_ttbrs; ++i)
 		apple_dart_hw_set_ttbr(stream_map, i,
 				       pgtbl_cfg->apple_dart_cfg.ttbr[i]);
-	for (; i < DART_MAX_TTBR; ++i)
+	for (; i < stream_map->dart->hw->ttbr_count; ++i)
 		apple_dart_hw_clear_ttbr(stream_map, i);
 
 	apple_dart_hw_enable_translation(stream_map);
@@ -956,11 +962,15 @@ static const struct apple_dart_hw apple_dart_hw_t8103 = {
 	.oas = 36,
 	.fmt = APPLE_DART,
 	.max_sid_count = 16,
+
+	.ttbr_count = 4,
 };
 static const struct apple_dart_hw apple_dart_hw_t6000 = {
 	.oas = 42,
 	.fmt = APPLE_DART2,
 	.max_sid_count = 16,
+
+	.ttbr_count = 4,
 };
 
 static __maybe_unused int apple_dart_suspend(struct device *dev)
@@ -970,9 +980,9 @@ static __maybe_unused int apple_dart_suspend(struct device *dev)
 
 	for (sid = 0; sid < dart->num_streams; sid++) {
 		dart->save_tcr[sid] = readl_relaxed(dart->regs + DART_TCR(sid));
-		for (idx = 0; idx < DART_MAX_TTBR; idx++)
+		for (idx = 0; idx < dart->hw->ttbr_count; idx++)
 			dart->save_ttbr[sid][idx] =
-				readl(dart->regs + DART_TTBR(sid, idx));
+				readl(dart->regs + DART_TTBR(dart, sid, idx));
 	}
 
 	return 0;
@@ -991,9 +1001,9 @@ static __maybe_unused int apple_dart_resume(struct device *dev)
 	}
 
 	for (sid = 0; sid < dart->num_streams; sid++) {
-		for (idx = 0; idx < DART_MAX_TTBR; idx++)
+		for (idx = 0; idx < dart->hw->ttbr_count; idx++)
 			writel(dart->save_ttbr[sid][idx],
-			       dart->regs + DART_TTBR(sid, idx));
+			       dart->regs + DART_TTBR(dart, sid, idx));
 		writel(dart->save_tcr[sid], dart->regs + DART_TCR(sid));
 	}
 
