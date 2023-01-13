@@ -717,7 +717,7 @@ static const char * const qmp_phy_vreg_l[] = {
 	"vdda-phy", "vdda-pll",
 };
 
-static const struct qmp_ufs_offsets qmp_ufs_offsets_v5 = {
+static const struct qmp_ufs_offsets qmp_ufs_offsets = {
 	.serdes		= 0,
 	.pcs		= 0xc00,
 	.tx		= 0x400,
@@ -752,7 +752,7 @@ static const struct qmp_phy_cfg msm8996_ufsphy_cfg = {
 static const struct qmp_phy_cfg sc8280xp_ufsphy_cfg = {
 	.lanes			= 2,
 
-	.offsets		= &qmp_ufs_offsets_v5,
+	.offsets		= &qmp_ufs_offsets,
 
 	.tbls = {
 		.serdes		= sm8350_ufsphy_serdes,
@@ -812,7 +812,7 @@ static const struct qmp_phy_cfg sdm845_ufsphy_cfg = {
 static const struct qmp_phy_cfg sm6115_ufsphy_cfg = {
 	.lanes			= 1,
 
-	.offsets		= &qmp_ufs_offsets_v5,
+	.offsets		= &qmp_ufs_offsets,
 
 	.tbls = {
 		.serdes		= sm6115_ufsphy_serdes,
