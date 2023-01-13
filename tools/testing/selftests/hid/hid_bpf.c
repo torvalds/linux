@@ -638,11 +638,7 @@ TEST_F(hid_bpf, test_attach_detach)
 	LOAD_PROGRAMS(progs);
 
 	link = self->hid_links[0];
-	/* we might not be using the new code path where hid_bpf_attach_prog()
-	 * returns a link.
-	 */
-	if (!link)
-		link = bpf_program__fd(self->skel->progs.hid_first_event);
+	ASSERT_GT(link, 0) TH_LOG("HID-BPF link not created");
 
 	/* inject one event */
 	buf[0] = 1;
