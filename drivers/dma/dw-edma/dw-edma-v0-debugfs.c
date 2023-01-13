@@ -15,8 +15,26 @@
 
 #define REGS_ADDR(name) \
 	((void __iomem *)&regs->name)
+
+#define REGS_CH_ADDR(name, _dir, _ch)					       \
+	({								       \
+		struct dw_edma_v0_ch_regs __iomem *__ch_regs;		       \
+									       \
+		if ((dw)->chip->mf == EDMA_MF_EDMA_LEGACY)		       \
+			__ch_regs = &regs->type.legacy.ch;		       \
+		else if (_dir == EDMA_DIR_READ)				       \
+			__ch_regs = &regs->type.unroll.ch[_ch].rd;	       \
+		else							       \
+			__ch_regs = &regs->type.unroll.ch[_ch].wr;	       \
+									       \
+		(void __iomem *)&__ch_regs->name;			       \
+	})
+
 #define REGISTER(name) \
 	{ #name, REGS_ADDR(name) }
+
+#define CTX_REGISTER(name, dir, ch) \
+	{ #name, REGS_CH_ADDR(name, dir, ch), dir, ch }
 
 #define WR_REGISTER(name) \
 	{ #name, REGS_ADDR(wr_##name) }
@@ -41,14 +59,11 @@
 static struct dw_edma				*dw;
 static struct dw_edma_v0_regs			__iomem *regs;
 
-static struct {
-	void					__iomem *start;
-	void					__iomem *end;
-} lim[2][EDMA_V0_MAX_NR_CH];
-
 struct dw_edma_debugfs_entry {
 	const char				*name;
 	void __iomem				*reg;
+	enum dw_edma_dir			dir;
+	u16					ch;
 };
 
 static int dw_edma_debugfs_u32_get(void *data, u64 *val)
@@ -58,33 +73,16 @@ static int dw_edma_debugfs_u32_get(void *data, u64 *val)
 
 	if (dw->chip->mf == EDMA_MF_EDMA_LEGACY &&
 	    reg >= (void __iomem *)&regs->type.legacy.ch) {
-		void __iomem *ptr = &regs->type.legacy.ch;
-		u32 viewport_sel = 0;
 		unsigned long flags;
-		u16 ch;
+		u32 viewport_sel;
 
-		for (ch = 0; ch < dw->wr_ch_cnt; ch++)
-			if (lim[0][ch].start >= reg && reg < lim[0][ch].end) {
-				ptr += (reg - lim[0][ch].start);
-				goto legacy_sel_wr;
-			}
-
-		for (ch = 0; ch < dw->rd_ch_cnt; ch++)
-			if (lim[1][ch].start >= reg && reg < lim[1][ch].end) {
-				ptr += (reg - lim[1][ch].start);
-				goto legacy_sel_rd;
-			}
-
-		return 0;
-legacy_sel_rd:
-		viewport_sel = BIT(31);
-legacy_sel_wr:
-		viewport_sel |= FIELD_PREP(EDMA_V0_VIEWPORT_MASK, ch);
+		viewport_sel = entry->dir == EDMA_DIR_READ ? BIT(31) : 0;
+		viewport_sel |= FIELD_PREP(EDMA_V0_VIEWPORT_MASK, entry->ch);
 
 		raw_spin_lock_irqsave(&dw->lock, flags);
 
 		writel(viewport_sel, &regs->type.legacy.viewport_sel);
-		*val = readl(ptr);
+		*val = readl(reg);
 
 		raw_spin_unlock_irqrestore(&dw->lock, flags);
 	} else {
@@ -114,19 +112,19 @@ static void dw_edma_debugfs_create_x32(const struct dw_edma_debugfs_entry ini[],
 	}
 }
 
-static void dw_edma_debugfs_regs_ch(struct dw_edma_v0_ch_regs __iomem *regs,
+static void dw_edma_debugfs_regs_ch(enum dw_edma_dir dir, u16 ch,
 				    struct dentry *dent)
 {
-	const struct dw_edma_debugfs_entry debugfs_regs[] = {
-		REGISTER(ch_control1),
-		REGISTER(ch_control2),
-		REGISTER(transfer_size),
-		REGISTER(sar.lsb),
-		REGISTER(sar.msb),
-		REGISTER(dar.lsb),
-		REGISTER(dar.msb),
-		REGISTER(llp.lsb),
-		REGISTER(llp.msb),
+	struct dw_edma_debugfs_entry debugfs_regs[] = {
+		CTX_REGISTER(ch_control1, dir, ch),
+		CTX_REGISTER(ch_control2, dir, ch),
+		CTX_REGISTER(transfer_size, dir, ch),
+		CTX_REGISTER(sar.lsb, dir, ch),
+		CTX_REGISTER(sar.msb, dir, ch),
+		CTX_REGISTER(dar.lsb, dir, ch),
+		CTX_REGISTER(dar.msb, dir, ch),
+		CTX_REGISTER(llp.lsb, dir, ch),
+		CTX_REGISTER(llp.msb, dir, ch),
 	};
 	int nr_entries;
 
@@ -191,10 +189,7 @@ static void dw_edma_debugfs_regs_wr(struct dentry *dent)
 
 		ch_dent = debugfs_create_dir(name, regs_dent);
 
-		dw_edma_debugfs_regs_ch(&regs->type.unroll.ch[i].wr, ch_dent);
-
-		lim[0][i].start = &regs->type.unroll.ch[i].wr;
-		lim[0][i].end = &regs->type.unroll.ch[i].padding_1[0];
+		dw_edma_debugfs_regs_ch(EDMA_DIR_WRITE, i, ch_dent);
 	}
 }
 
@@ -256,10 +251,7 @@ static void dw_edma_debugfs_regs_rd(struct dentry *dent)
 
 		ch_dent = debugfs_create_dir(name, regs_dent);
 
-		dw_edma_debugfs_regs_ch(&regs->type.unroll.ch[i].rd, ch_dent);
-
-		lim[1][i].start = &regs->type.unroll.ch[i].rd;
-		lim[1][i].end = &regs->type.unroll.ch[i].padding_2[0];
+		dw_edma_debugfs_regs_ch(EDMA_DIR_READ, i, ch_dent);
 	}
 }
 
