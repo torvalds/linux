@@ -510,17 +510,14 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *fmt;
-	struct ov2680_resolution *res;
+	unsigned int width, height;
 	int ret = 0;
 
-	res = v4l2_find_nearest_size(ov2680_res_preview, ARRAY_SIZE(ov2680_res_preview),
-				     width, height,
-				     format->format.width, format->format.height);
-	if (!res)
-		res = &ov2680_res_preview[N_RES_PREVIEW - 1];
+	width = min_t(unsigned int, ALIGN(format->format.width, 2), OV2680_NATIVE_WIDTH);
+	height = min_t(unsigned int, ALIGN(format->format.height, 2), OV2680_NATIVE_HEIGHT);
 
 	fmt = __ov2680_get_pad_format(dev, sd_state, format->pad, format->which);
-	ov2680_fill_format(dev, fmt, res->width, res->height);
+	ov2680_fill_format(dev, fmt, width, height);
 
 	format->format = *fmt;
 
