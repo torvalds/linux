@@ -1207,7 +1207,7 @@ static int smack_inode_getattr(const struct path *path)
 
 /**
  * smack_inode_setxattr - Smack check for setting xattrs
- * @mnt_userns: active user namespace
+ * @idmap: idmap of the mount
  * @dentry: the object
  * @name: name of the attribute
  * @value: value of the attribute
@@ -1218,7 +1218,7 @@ static int smack_inode_getattr(const struct path *path)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_setxattr(struct user_namespace *mnt_userns,
+static int smack_inode_setxattr(struct mnt_idmap *idmap,
 				struct dentry *dentry, const char *name,
 				const void *value, size_t size, int flags)
 {
@@ -1334,7 +1334,7 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
 
 /**
  * smack_inode_removexattr - Smack check on removexattr
- * @mnt_userns: active user namespace
+ * @idmap: idmap of the mount
  * @dentry: the object
  * @name: name of the attribute
  *
@@ -1342,7 +1342,7 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_removexattr(struct user_namespace *mnt_userns,
+static int smack_inode_removexattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry, const char *name)
 {
 	struct inode_smack *isp;
@@ -1358,7 +1358,7 @@ static int smack_inode_removexattr(struct user_namespace *mnt_userns,
 		if (!smack_privileged(CAP_MAC_ADMIN))
 			rc = -EPERM;
 	} else
-		rc = cap_inode_removexattr(mnt_userns, dentry, name);
+		rc = cap_inode_removexattr(idmap, dentry, name);
 
 	if (rc != 0)
 		return rc;
@@ -3507,7 +3507,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			 */
 			if (isp->smk_flags & SMK_INODE_CHANGED) {
 				isp->smk_flags &= ~SMK_INODE_CHANGED;
-				rc = __vfs_setxattr(&init_user_ns, dp, inode,
+				rc = __vfs_setxattr(&nop_mnt_idmap, dp, inode,
 					XATTR_NAME_SMACKTRANSMUTE,
 					TRANS_TRUE, TRANS_TRUE_SIZE,
 					0);
@@ -4686,7 +4686,7 @@ static int smack_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 
 static int smack_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return __vfs_setxattr_noperm(&init_user_ns, dentry, XATTR_NAME_SMACK,
+	return __vfs_setxattr_noperm(&nop_mnt_idmap, dentry, XATTR_NAME_SMACK,
 				     ctx, ctxlen, 0);
 }
 

@@ -1099,7 +1099,7 @@ static int ecryptfs_removexattr(struct dentry *dentry, struct inode *inode,
 		goto out;
 	}
 	inode_lock(lower_inode);
-	rc = __vfs_removexattr(&init_user_ns, lower_dentry, name);
+	rc = __vfs_removexattr(&nop_mnt_idmap, lower_dentry, name);
 	inode_unlock(lower_inode);
 out:
 	return rc;
@@ -1190,7 +1190,7 @@ static int ecryptfs_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ecryptfs_xattr_set(const struct xattr_handler *handler,
-			      struct user_namespace *mnt_userns,
+			      struct mnt_idmap *idmap,
 			      struct dentry *dentry, struct inode *inode,
 			      const char *name, const void *value, size_t size,
 			      int flags)

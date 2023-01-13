@@ -1375,7 +1375,7 @@ int security_inode_getattr(const struct path *path)
 	return call_int_hook(inode_getattr, 0, path);
 }
 
-int security_inode_setxattr(struct user_namespace *mnt_userns,
+int security_inode_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
@@ -1387,7 +1387,7 @@ int security_inode_setxattr(struct user_namespace *mnt_userns,
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_setxattr, 1, mnt_userns, dentry, name, value,
+	ret = call_int_hook(inode_setxattr, 1, idmap, dentry, name, value,
 			    size, flags);
 
 	if (ret == 1)
@@ -1397,7 +1397,7 @@ int security_inode_setxattr(struct user_namespace *mnt_userns,
 	ret = ima_inode_setxattr(dentry, name, value, size);
 	if (ret)
 		return ret;
-	return evm_inode_setxattr(mnt_userns, dentry, name, value, size);
+	return evm_inode_setxattr(idmap, dentry, name, value, size);
 }
 
 int security_inode_set_acl(struct user_namespace *mnt_userns,
@@ -1465,7 +1465,7 @@ int security_inode_listxattr(struct dentry *dentry)
 	return call_int_hook(inode_listxattr, 0, dentry);
 }
 
-int security_inode_removexattr(struct user_namespace *mnt_userns,
+int security_inode_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name)
 {
 	int ret;
@@ -1476,15 +1476,15 @@ int security_inode_removexattr(struct user_namespace *mnt_userns,
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_removexattr, 1, mnt_userns, dentry, name);
+	ret = call_int_hook(inode_removexattr, 1, idmap, dentry, name);
 	if (ret == 1)
-		ret = cap_inode_removexattr(mnt_userns, dentry, name);
+		ret = cap_inode_removexattr(idmap, dentry, name);
 	if (ret)
 		return ret;
 	ret = ima_inode_removexattr(dentry, name);
 	if (ret)
 		return ret;
-	return evm_inode_removexattr(mnt_userns, dentry, name);
+	return evm_inode_removexattr(idmap, dentry, name);
 }
 
 int security_inode_need_killpriv(struct dentry *dentry)
@@ -1492,10 +1492,10 @@ int security_inode_need_killpriv(struct dentry *dentry)
 	return call_int_hook(inode_need_killpriv, 0, dentry);
 }
 
-int security_inode_killpriv(struct user_namespace *mnt_userns,
+int security_inode_killpriv(struct mnt_idmap *idmap,
 			    struct dentry *dentry)
 {
-	return call_int_hook(inode_killpriv, 0, mnt_userns, dentry);
+	return call_int_hook(inode_killpriv, 0, idmap, dentry);
 }
 
 int security_inode_getsecurity(struct mnt_idmap *idmap,

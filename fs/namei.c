@@ -3633,7 +3633,7 @@ static int vfs_tmpfile(struct mnt_idmap *idmap,
 		inode->i_state |= I_LINKABLE;
 		spin_unlock(&inode->i_lock);
 	}
-	ima_post_create_tmpfile(mnt_userns, inode);
+	ima_post_create_tmpfile(idmap, inode);
 	return 0;
 }
 
@@ -3953,7 +3953,6 @@ static int do_mknodat(int dfd, struct filename *name, umode_t mode,
 		unsigned int dev)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *mnt_userns;
 	struct dentry *dentry;
 	struct path path;
 	int error;
@@ -3974,13 +3973,12 @@ retry:
 		goto out2;
 
 	idmap = mnt_idmap(path.mnt);
-	mnt_userns = mnt_idmap_owner(idmap);
 	switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
 			error = vfs_create(idmap, path.dentry->d_inode,
 					   dentry, mode, true);
 			if (!error)
-				ima_post_path_mknod(mnt_userns, dentry);
+				ima_post_path_mknod(idmap, dentry);
 			break;
 		case S_IFCHR: case S_IFBLK:
 			error = vfs_mknod(idmap, path.dentry->d_inode,

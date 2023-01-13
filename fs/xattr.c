@@ -185,7 +185,7 @@ xattr_supported_namespace(struct inode *inode, const char *prefix)
 EXPORT_SYMBOL(xattr_supported_namespace);
 
 int
-__vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+__vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	       struct inode *inode, const char *name, const void *value,
 	       size_t size, int flags)
 {
@@ -201,7 +201,7 @@ __vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return -EOPNOTSUPP;
 	if (size == 0)
 		value = "";  /* empty EA, do not remove */
-	return handler->set(handler, mnt_userns, dentry, inode, name, value,
+	return handler->set(handler, idmap, dentry, inode, name, value,
 			    size, flags);
 }
 EXPORT_SYMBOL(__vfs_setxattr);
@@ -210,7 +210,7 @@ EXPORT_SYMBOL(__vfs_setxattr);
  *  __vfs_setxattr_noperm - perform setxattr operation without performing
  *  permission checks.
  *
- *  @mnt_userns: user namespace of the mount the inode was found from
+ *  @idmap: idmap of the mount the inode was found from
  *  @dentry: object to perform setxattr on
  *  @name: xattr name to set
  *  @value: value to set @name to
@@ -223,7 +223,7 @@ EXPORT_SYMBOL(__vfs_setxattr);
  *  is executed. It also assumes that the caller will make the appropriate
  *  permission checks.
  */
-int __vfs_setxattr_noperm(struct user_namespace *mnt_userns,
+int __vfs_setxattr_noperm(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name,
 			  const void *value, size_t size, int flags)
 {
@@ -235,7 +235,7 @@ int __vfs_setxattr_noperm(struct user_namespace *mnt_userns,
 	if (issec)
 		inode->i_flags &= ~S_NOSEC;
 	if (inode->i_opflags & IOP_XATTR) {
-		error = __vfs_setxattr(mnt_userns, dentry, inode, name, value,
+		error = __vfs_setxattr(idmap, dentry, inode, name, value,
 				       size, flags);
 		if (!error) {
 			fsnotify_xattr(dentry);
@@ -280,7 +280,6 @@ __vfs_setxattr_locked(struct mnt_idmap *idmap, struct dentry *dentry,
 		      const char *name, const void *value, size_t size,
 		      int flags, struct inode **delegated_inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = dentry->d_inode;
 	int error;
 
@@ -288,7 +287,7 @@ __vfs_setxattr_locked(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (error)
 		return error;
 
-	error = security_inode_setxattr(mnt_userns, dentry, name, value, size,
+	error = security_inode_setxattr(idmap, dentry, name, value, size,
 					flags);
 	if (error)
 		goto out;
@@ -297,7 +296,7 @@ __vfs_setxattr_locked(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (error)
 		goto out;
 
-	error = __vfs_setxattr_noperm(mnt_userns, dentry, name, value,
+	error = __vfs_setxattr_noperm(idmap, dentry, name, value,
 				      size, flags);
 
 out:
@@ -309,14 +308,13 @@ int
 vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	     const char *name, const void *value, size_t size, int flags)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = dentry->d_inode;
 	struct inode *delegated_inode = NULL;
 	const void  *orig_value = value;
 	int error;
 
 	if (size && strcmp(name, XATTR_NAME_CAPS) == 0) {
-		error = cap_convert_nscap(mnt_userns, dentry, &value, size);
+		error = cap_convert_nscap(idmap, dentry, &value, size);
 		if (error < 0)
 			return error;
 		size = error;
@@ -484,7 +482,7 @@ vfs_listxattr(struct dentry *dentry, char *list, size_t size)
 EXPORT_SYMBOL_GPL(vfs_listxattr);
 
 int
-__vfs_removexattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+__vfs_removexattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  const char *name)
 {
 	struct inode *inode = d_inode(dentry);
@@ -498,7 +496,7 @@ __vfs_removexattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return PTR_ERR(handler);
 	if (!handler->set)
 		return -EOPNOTSUPP;
-	return handler->set(handler, mnt_userns, dentry, inode, name, NULL, 0,
+	return handler->set(handler, idmap, dentry, inode, name, NULL, 0,
 			    XATTR_REPLACE);
 }
 EXPORT_SYMBOL(__vfs_removexattr);
@@ -518,7 +516,6 @@ __vfs_removexattr_locked(struct mnt_idmap *idmap,
 			 struct dentry *dentry, const char *name,
 			 struct inode **delegated_inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = dentry->d_inode;
 	int error;
 
@@ -526,7 +523,7 @@ __vfs_removexattr_locked(struct mnt_idmap *idmap,
 	if (error)
 		return error;
 
-	error = security_inode_removexattr(mnt_userns, dentry, name);
+	error = security_inode_removexattr(idmap, dentry, name);
 	if (error)
 		goto out;
 
@@ -534,7 +531,7 @@ __vfs_removexattr_locked(struct mnt_idmap *idmap,
 	if (error)
 		goto out;
 
-	error = __vfs_removexattr(mnt_userns, dentry, name);
+	error = __vfs_removexattr(idmap, dentry, name);
 
 	if (!error) {
 		fsnotify_xattr(dentry);

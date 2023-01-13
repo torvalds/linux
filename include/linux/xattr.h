@@ -42,7 +42,7 @@ struct xattr_handler {
 		   struct inode *inode, const char *name, void *buffer,
 		   size_t size);
 	int (*set)(const struct xattr_handler *,
-		   struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct inode *inode, const char *name, const void *buffer,
 		   size_t size, int flags);
 };
@@ -59,16 +59,16 @@ ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, si
 ssize_t vfs_getxattr(struct mnt_idmap *, struct dentry *, const char *,
 		     void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
-int __vfs_setxattr(struct user_namespace *, struct dentry *, struct inode *,
+int __vfs_setxattr(struct mnt_idmap *, struct dentry *, struct inode *,
 		   const char *, const void *, size_t, int);
-int __vfs_setxattr_noperm(struct user_namespace *, struct dentry *,
+int __vfs_setxattr_noperm(struct mnt_idmap *, struct dentry *,
 			  const char *, const void *, size_t, int);
 int __vfs_setxattr_locked(struct mnt_idmap *, struct dentry *,
 			  const char *, const void *, size_t, int,
 			  struct inode **);
 int vfs_setxattr(struct mnt_idmap *, struct dentry *, const char *,
 		 const void *, size_t, int);
-int __vfs_removexattr(struct user_namespace *, struct dentry *, const char *);
+int __vfs_removexattr(struct mnt_idmap *, struct dentry *, const char *);
 int __vfs_removexattr_locked(struct mnt_idmap *, struct dentry *,
 			     const char *, struct inode **);
 int vfs_removexattr(struct mnt_idmap *, struct dentry *, const char *);

@@ -436,7 +436,7 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 
 /*
  * evm_xattr_change - check if passed xattr value differs from current value
- * @mnt_userns: user namespace of the idmapped mount
+ * @idmap: idmap of the mount
  * @dentry: pointer to the affected dentry
  * @xattr_name: requested xattr
  * @xattr_value: requested xattr value
@@ -446,7 +446,7 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
  *
  * Returns 1 if passed xattr value differs from current value, 0 otherwise.
  */
-static int evm_xattr_change(struct user_namespace *mnt_userns,
+static int evm_xattr_change(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *xattr_name,
 			    const void *xattr_value, size_t xattr_value_len)
 {
@@ -482,7 +482,7 @@ out:
  * For posix xattr acls only, permit security.evm, even if it currently
  * doesn't exist, to be updated unless the EVM signature is immutable.
  */
-static int evm_protect_xattr(struct user_namespace *mnt_userns,
+static int evm_protect_xattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
@@ -538,7 +538,7 @@ out:
 		return 0;
 
 	if (evm_status == INTEGRITY_PASS_IMMUTABLE &&
-	    !evm_xattr_change(mnt_userns, dentry, xattr_name, xattr_value,
+	    !evm_xattr_change(idmap, dentry, xattr_name, xattr_value,
 			      xattr_value_len))
 		return 0;
 
@@ -553,7 +553,7 @@ out:
 
 /**
  * evm_inode_setxattr - protect the EVM extended attribute
- * @mnt_userns: user namespace of the idmapped mount
+ * @idmap: idmap of the mount
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  * @xattr_value: pointer to the new extended attribute value
@@ -565,7 +565,7 @@ out:
  * userspace from writing HMAC value.  Writing 'security.evm' requires
  * requires CAP_SYS_ADMIN privileges.
  */
-int evm_inode_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int evm_inode_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       const char *xattr_name, const void *xattr_value,
 		       size_t xattr_value_len)
 {
@@ -584,20 +584,20 @@ int evm_inode_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		    xattr_data->type != EVM_XATTR_PORTABLE_DIGSIG)
 			return -EPERM;
 	}
-	return evm_protect_xattr(mnt_userns, dentry, xattr_name, xattr_value,
+	return evm_protect_xattr(idmap, dentry, xattr_name, xattr_value,
 				 xattr_value_len);
 }
 
 /**
  * evm_inode_removexattr - protect the EVM extended attribute
- * @mnt_userns: user namespace of the idmapped mount
+ * @idmap: idmap of the mount
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  *
  * Removing 'security.evm' requires CAP_SYS_ADMIN privileges and that
  * the current value is valid.
  */
-int evm_inode_removexattr(struct user_namespace *mnt_userns,
+int evm_inode_removexattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *xattr_name)
 {
 	/* Policy permits modification of the protected xattrs even though
@@ -606,7 +606,7 @@ int evm_inode_removexattr(struct user_namespace *mnt_userns,
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
 
-	return evm_protect_xattr(mnt_userns, dentry, xattr_name, NULL, 0);
+	return evm_protect_xattr(idmap, dentry, xattr_name, NULL, 0);
 }
 
 #ifdef CONFIG_FS_POSIX_ACL

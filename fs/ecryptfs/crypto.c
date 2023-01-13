@@ -1105,7 +1105,7 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
 	}
 
 	inode_lock(lower_inode);
-	rc = __vfs_setxattr(&init_user_ns, lower_dentry, lower_inode,
+	rc = __vfs_setxattr(&nop_mnt_idmap, lower_dentry, lower_inode,
 			    ECRYPTFS_XATTR_NAME, page_virt, size, 0);
 	if (!rc && ecryptfs_inode)
 		fsstack_copy_attr_all(ecryptfs_inode, lower_inode);

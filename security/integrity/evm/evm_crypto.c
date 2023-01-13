@@ -376,12 +376,12 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			   xattr_value_len, &data);
 	if (rc == 0) {
 		data.hdr.xattr.sha1.type = EVM_XATTR_HMAC;
-		rc = __vfs_setxattr_noperm(&init_user_ns, dentry,
+		rc = __vfs_setxattr_noperm(&nop_mnt_idmap, dentry,
 					   XATTR_NAME_EVM,
 					   &data.hdr.xattr.data[1],
 					   SHA1_DIGEST_SIZE + 1, 0);
 	} else if (rc == -ENODATA && (inode->i_opflags & IOP_XATTR)) {
-		rc = __vfs_removexattr(&init_user_ns, dentry, XATTR_NAME_EVM);
+		rc = __vfs_removexattr(&nop_mnt_idmap, dentry, XATTR_NAME_EVM);
 	}
 	return rc;
 }

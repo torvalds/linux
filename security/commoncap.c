@@ -305,24 +305,24 @@ int cap_inode_need_killpriv(struct dentry *dentry)
 /**
  * cap_inode_killpriv - Erase the security markings on an inode
  *
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dentry:	The inode/dentry to alter
  *
  * Erase the privilege-enhancing security markings on an inode.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply passs @nop_mnt_idmap.
  *
  * Return: 0 if successful, -ve on error.
  */
-int cap_inode_killpriv(struct user_namespace *mnt_userns, struct dentry *dentry)
+int cap_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	int error;
 
-	error = __vfs_removexattr(mnt_userns, dentry, XATTR_NAME_CAPS);
+	error = __vfs_removexattr(idmap, dentry, XATTR_NAME_CAPS);
 	if (error == -EOPNOTSUPP)
 		error = 0;
 	return error;
@@ -511,7 +511,7 @@ static bool validheader(size_t size, const struct vfs_cap_data *cap)
 /**
  * cap_convert_nscap - check vfs caps
  *
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dentry:	used to retrieve inode to check permissions on
  * @ivalue:	vfs caps value which may be modified by this function
  * @size:	size of @ivalue
@@ -519,15 +519,15 @@ static bool validheader(size_t size, const struct vfs_cap_data *cap)
  * User requested a write of security.capability.  If needed, update the
  * xattr to change from v2 to v3, or to fixup the v3 rootid.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply passs @nop_mnt_idmap.
  *
  * Return: On success, return the new size; on error, return < 0.
  */
-int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
+int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 		      const void **ivalue, size_t size)
 {
 	struct vfs_ns_cap_data *nscap;
@@ -537,6 +537,7 @@ int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
 	struct inode *inode = d_backing_inode(dentry);
 	struct user_namespace *task_ns = current_user_ns(),
 		*fs_ns = inode->i_sb->s_user_ns;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	kuid_t rootid;
 	vfsuid_t vfsrootid;
 	size_t newsize;
@@ -547,7 +548,7 @@ int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return -EINVAL;
 	if (!capable_wrt_inode_uidgid(mnt_userns, inode, CAP_SETFCAP))
 		return -EPERM;
-	if (size == XATTR_CAPS_SZ_2 && (mnt_userns == fs_ns))
+	if (size == XATTR_CAPS_SZ_2 && (idmap == &nop_mnt_idmap))
 		if (ns_capable(inode->i_sb->s_user_ns, CAP_SETFCAP))
 			/* user is privileged, just write the v2 */
 			return size;
@@ -627,19 +628,19 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
 /**
  * get_vfs_caps_from_disk - retrieve vfs caps from disk
  *
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dentry:	dentry from which @inode is retrieved
  * @cpu_caps:	vfs capabilities
  *
  * Extract the on-exec-apply capability sets for an executable file.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply passs @nop_mnt_idmap.
  */
-int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
+int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 			   const struct dentry *dentry,
 			   struct cpu_vfs_cap_data *cpu_caps)
 {
@@ -652,6 +653,7 @@ int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
 	kuid_t rootkuid;
 	vfsuid_t rootvfsuid;
 	struct user_namespace *fs_ns;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
 
@@ -748,7 +750,7 @@ static int get_file_caps(struct linux_binprm *bprm, struct file *file,
 	if (!current_in_userns(file->f_path.mnt->mnt_sb->s_user_ns))
 		return 0;
 
-	rc = get_vfs_caps_from_disk(file_mnt_user_ns(file),
+	rc = get_vfs_caps_from_disk(file_mnt_idmap(file),
 				    file->f_path.dentry, &vcaps);
 	if (rc < 0) {
 		if (rc == -EINVAL)
@@ -1017,26 +1019,27 @@ int cap_inode_setxattr(struct dentry *dentry, const char *name,
 /**
  * cap_inode_removexattr - Determine whether an xattr may be removed
  *
- * @mnt_userns:	User namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dentry:	The inode/dentry being altered
  * @name:	The name of the xattr to be changed
  *
  * Determine whether an xattr may be removed from an inode, returning 0 if
  * permission is granted, -ve if denied.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  *
  * This is used to make sure security xattrs don't get removed by those who
  * aren't privileged to remove them.
  */
-int cap_inode_removexattr(struct user_namespace *mnt_userns,
+int cap_inode_removexattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name)
 {
 	struct user_namespace *user_ns = dentry->d_sb->s_user_ns;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	/* Ignore non-security xattrs */
 	if (strncmp(name, XATTR_SECURITY_PREFIX,

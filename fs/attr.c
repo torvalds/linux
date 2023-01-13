@@ -220,7 +220,7 @@ kill_priv:
 	if (ia_valid & ATTR_KILL_PRIV) {
 		int error;
 
-		error = security_inode_killpriv(mnt_userns, dentry);
+		error = security_inode_killpriv(idmap, dentry);
 		if (error)
 			return error;
 	}
@@ -489,7 +489,7 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	if (!error) {
 		fsnotify_change(dentry, ia_valid);
-		ima_inode_post_setattr(mnt_userns, dentry);
+		ima_inode_post_setattr(idmap, dentry);
 		evm_inode_post_setattr(dentry, ia_valid);
 	}
 
