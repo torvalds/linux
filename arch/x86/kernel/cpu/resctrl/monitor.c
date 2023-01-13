@@ -800,6 +800,13 @@ int __init rdt_get_mon_l3_config(struct rdt_resource *r)
 	if (ret)
 		return ret;
 
+	if (rdt_cpu_has(X86_FEATURE_BMEC)) {
+		if (rdt_cpu_has(X86_FEATURE_CQM_MBM_TOTAL))
+			mbm_total_event.configurable = true;
+		if (rdt_cpu_has(X86_FEATURE_CQM_MBM_LOCAL))
+			mbm_local_event.configurable = true;
+	}
+
 	l3_mon_evt_init(r);
 
 	r->mon_capable = true;
