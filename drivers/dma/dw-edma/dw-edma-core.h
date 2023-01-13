@@ -98,10 +98,9 @@ struct dw_edma_irq {
 struct dw_edma {
 	char				name[20];
 
-	struct dma_device		wr_edma;
-	u16				wr_ch_cnt;
+	struct dma_device		dma;
 
-	struct dma_device		rd_edma;
+	u16				wr_ch_cnt;
 	u16				rd_ch_cnt;
 
 	struct dw_edma_irq		*irq;
