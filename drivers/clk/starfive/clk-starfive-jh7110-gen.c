@@ -79,11 +79,6 @@ static void jh7110_clk_reg_rmw(struct jh7110_clk *clk, u32 mask, u32 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->rmw_lock, flags);
-	if ((clk->idx == JH7110_UART3_CLK_CORE
-		|| clk->idx == JH7110_UART4_CLK_CORE
-		|| clk->idx == JH7110_UART5_CLK_CORE)
-		&& (value != JH7110_CLK_ENABLE))
-		value  <<= 8;
 	value |= jh7110_clk_reg_get(clk) & ~mask;
 	writel_relaxed(value, reg);
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
@@ -162,6 +157,12 @@ static int jh7110_clk_set_rate(struct clk_hw *hw,
 	struct jh7110_clk *clk = jh7110_clk_from(hw);
 	unsigned long div = clamp(DIV_ROUND_CLOSEST(parent_rate, rate),
 					1UL, (unsigned long)clk->max_div);
+
+	/* UART3-5: [15:8]: integer part of the divisor. [7:0] fraction part of the divisor */
+	if (clk->idx == JH7110_UART3_CLK_CORE ||
+	    clk->idx == JH7110_UART4_CLK_CORE ||
+	    clk->idx == JH7110_UART5_CLK_CORE)
+		div <<= 8;
 
 	jh7110_clk_reg_rmw(clk, JH7110_CLK_DIV_MASK, div);
 	return 0;
