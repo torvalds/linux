@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -176,6 +177,13 @@ enum {
 	V4L2_M2M_DST = 1,
 };
 
+static const struct regmap_config pxp_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = HW_PXP_VERSION,
+};
+
 static struct pxp_fmt *find_format(unsigned int pixelformat)
 {
 	struct pxp_fmt *fmt;
@@ -207,7 +215,7 @@ struct pxp_dev {
 #endif
 
 	struct clk		*clk;
-	void __iomem		*mmio;
+	struct regmap		*regmap;
 
 	const struct pxp_pdata	*pdata;
 
@@ -255,12 +263,16 @@ static struct pxp_q_data *get_q_data(struct pxp_ctx *ctx,
 
 static inline u32 pxp_read(struct pxp_dev *dev, u32 reg)
 {
-	return readl(dev->mmio + reg);
+	u32 value;
+
+	regmap_read(dev->regmap, reg, &value);
+
+	return value;
 }
 
 static inline void pxp_write(struct pxp_dev *dev, u32 reg, u32 value)
 {
-	writel(value, dev->mmio + reg);
+	regmap_write(dev->regmap, reg, value);
 }
 
 static u32 pxp_v4l2_pix_fmt_to_ps_format(u32 v4l2_pix_fmt)
@@ -1756,8 +1768,8 @@ static int pxp_soft_reset(struct pxp_dev *dev)
 
 	pxp_write(dev, HW_PXP_CTRL_SET, BM_PXP_CTRL_SFTRST);
 
-	ret = readl_poll_timeout(dev->mmio + HW_PXP_CTRL, val,
-				 val & BM_PXP_CTRL_CLKGATE, 0, 100);
+	ret = regmap_read_poll_timeout(dev->regmap, HW_PXP_CTRL, val,
+				       val & BM_PXP_CTRL_CLKGATE, 0, 100);
 	if (ret < 0)
 		return ret;
 
@@ -1774,6 +1786,7 @@ static int pxp_probe(struct platform_device *pdev)
 	u32 hw_version;
 	int irq;
 	int ret;
+	void __iomem *mmio;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -1788,9 +1801,11 @@ static int pxp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev->mmio = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(dev->mmio))
-		return PTR_ERR(dev->mmio);
+	mmio = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mmio))
+		return PTR_ERR(mmio);
+	dev->regmap = devm_regmap_init_mmio(&pdev->dev, mmio,
+					    &pxp_regmap_config);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
