@@ -763,6 +763,37 @@ static u32 pxp_imx6ull_data_path_ctrl0(struct pxp_ctx *ctx)
 	return ctrl0;
 }
 
+static u32 pxp_imx7d_data_path_ctrl0(struct pxp_ctx *ctx)
+{
+	u32 ctrl0;
+
+	ctrl0 = 0;
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(3);
+	/* Select Rotation 0 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(3);
+	/* Select MUX11 for Rotation 0 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(1);
+	/* Bypass LUT */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(3);
+	/* Select CSC 2 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(3);
+	/* Select Composite Alpha Blending/Color Key 0 for CSC 2 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(3);
+	/* Bypass Rotation 1 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(3);
+
+	return ctrl0;
+}
+
 static void pxp_set_data_path(struct pxp_ctx *ctx)
 {
 	struct pxp_dev *dev = ctx->dev;
@@ -1819,8 +1850,13 @@ static const struct pxp_pdata pxp_imx6ull_pdata = {
 	.data_path_ctrl0 = pxp_imx6ull_data_path_ctrl0,
 };
 
+static const struct pxp_pdata pxp_imx7d_pdata = {
+	.data_path_ctrl0 = pxp_imx7d_data_path_ctrl0,
+};
+
 static const struct of_device_id pxp_dt_ids[] = {
 	{ .compatible = "fsl,imx6ull-pxp", .data = &pxp_imx6ull_pdata },
+	{ .compatible = "fsl,imx7d-pxp", .data = &pxp_imx7d_pdata },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pxp_dt_ids);
