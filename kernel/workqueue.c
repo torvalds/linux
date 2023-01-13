@@ -1990,12 +1990,6 @@ static void unbind_worker(struct worker *worker)
 		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
 }
 
-static void rebind_worker(struct worker *worker, struct worker_pool *pool)
-{
-	kthread_set_per_cpu(worker->task, pool->cpu);
-	WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask) < 0);
-}
-
 static void wake_dying_workers(struct list_head *cull_list)
 {
 	struct worker *worker, *tmp;
@@ -5192,8 +5186,11 @@ static void rebind_workers(struct worker_pool *pool)
 	 * of all workers first and then clear UNBOUND.  As we're called
 	 * from CPU_ONLINE, the following shouldn't fail.
 	 */
-	for_each_pool_worker(worker, pool)
-		rebind_worker(worker, pool);
+	for_each_pool_worker(worker, pool) {
+		kthread_set_per_cpu(worker->task, pool->cpu);
+		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task,
+						  pool->attrs->cpumask) < 0);
+	}
 
 	raw_spin_lock_irq(&pool->lock);
 
