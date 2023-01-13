@@ -22,7 +22,4 @@ int hid_bpf_reconnect(struct hid_device *hdev);
 
 struct bpf_prog;
 
-/* HID-BPF internal kfuncs API */
-void call_hid_bpf_prog_put_deferred(struct work_struct *work);
-
 #endif

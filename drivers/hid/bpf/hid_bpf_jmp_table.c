@@ -499,11 +499,6 @@ void __hid_bpf_destroy_device(struct hid_device *hdev)
 	schedule_work(&release_work);
 }
 
-void call_hid_bpf_prog_put_deferred(struct work_struct *work)
-{
-	/* kept around for patch readability, to be dropped in the next commmit */
-}
-
 #define HID_BPF_PROGS_COUNT 1
 
 static struct bpf_link *links[HID_BPF_PROGS_COUNT];

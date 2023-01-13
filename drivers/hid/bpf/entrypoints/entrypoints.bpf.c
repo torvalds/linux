@@ -7,8 +7,6 @@
 
 #define HID_BPF_MAX_PROGS 1024
 
-extern void call_hid_bpf_prog_put_deferred(struct work_struct *work) __ksym;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
 	__uint(max_entries, HID_BPF_MAX_PROGS);
@@ -21,13 +19,6 @@ int BPF_PROG(hid_tail_call, struct hid_bpf_ctx *hctx)
 {
 	bpf_tail_call(ctx, &hid_jmp_table, hctx->index);
 
-	return 0;
-}
-
-SEC("fentry/bpf_prog_put_deferred")
-int BPF_PROG(hid_bpf_prog_put_deferred, struct work_struct *work)
-{
-	call_hid_bpf_prog_put_deferred(work);
 	return 0;
 }
 
