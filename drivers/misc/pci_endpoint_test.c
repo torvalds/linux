@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Host side test driver to test endpoint functionality
  *
  * Copyright (C) 2017 Texas Instruments
