@@ -58,6 +58,14 @@ enum wiz_lane_standard_mode {
 	LANE_MODE_GEN4,
 };
 
+/*
+ * List of master lanes used for lane swapping
+ */
+enum wiz_typec_master_lane {
+	LANE0 = 0,
+	LANE2 = 2,
+};
+
 enum wiz_refclk_mux_sel {
 	PLL0_REFCLK,
 	PLL1_REFCLK,
@@ -193,6 +201,9 @@ static const struct reg_field p_mac_div_sel1[WIZ_MAX_LANES] = {
 
 static const struct reg_field typec_ln10_swap =
 					REG_FIELD(WIZ_SERDES_TYPEC, 30, 30);
+
+static const struct reg_field typec_ln23_swap =
+					REG_FIELD(WIZ_SERDES_TYPEC, 31, 31);
 
 struct wiz_clk_mux {
 	struct clk_hw		hw;
@@ -367,6 +378,7 @@ struct wiz {
 	struct regmap_field	*mux_sel_field[WIZ_MUX_NUM_CLOCKS];
 	struct regmap_field	*div_sel_field[WIZ_DIV_NUM_CLOCKS_16G];
 	struct regmap_field	*typec_ln10_swap;
+	struct regmap_field	*typec_ln23_swap;
 	struct regmap_field	*sup_legacy_clk_override;
 
 	struct device		*dev;
@@ -674,6 +686,13 @@ static int wiz_regfield_init(struct wiz *wiz)
 	if (IS_ERR(wiz->typec_ln10_swap)) {
 		dev_err(dev, "LN10_SWAP reg field init failed\n");
 		return PTR_ERR(wiz->typec_ln10_swap);
+	}
+
+	wiz->typec_ln23_swap = devm_regmap_field_alloc(dev, regmap,
+						       typec_ln23_swap);
+	if (IS_ERR(wiz->typec_ln23_swap)) {
+		dev_err(dev, "LN23_SWAP reg field init failed\n");
+		return PTR_ERR(wiz->typec_ln23_swap);
 	}
 
 	wiz->phy_en_refclk = devm_regmap_field_alloc(dev, regmap, phy_en_refclk);
@@ -1246,17 +1265,26 @@ static int wiz_phy_reset_deassert(struct reset_controller_dev *rcdev,
 			else
 				regmap_field_write(wiz->typec_ln10_swap, 0);
 		} else {
-			/* if no typec-dir gpio was specified and PHY type is
-			 * USB3 with master lane number is '0', set LN10 SWAP
-			 * bit to '1'
+			/* if no typec-dir gpio is specified and PHY type is USB3
+			 * with master lane number is '0' or '2', then set LN10 or
+			 * LN23 SWAP bit to '1' respectively.
 			 */
 			u32 num_lanes = wiz->num_lanes;
 			int i;
 
 			for (i = 0; i < num_lanes; i++) {
-				if (wiz->lane_phy_type[i] == PHY_TYPE_USB3)
-					if (wiz->master_lane_num[i] == 0)
+				if (wiz->lane_phy_type[i] == PHY_TYPE_USB3) {
+					switch (wiz->master_lane_num[i]) {
+					case LANE0:
 						regmap_field_write(wiz->typec_ln10_swap, 1);
+						break;
+					case LANE2:
+						regmap_field_write(wiz->typec_ln23_swap, 1);
+						break;
+					default:
+						break;
+					}
+				}
 			}
 		}
 	}
