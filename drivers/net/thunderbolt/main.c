@@ -23,6 +23,8 @@
 
 #include <net/ip6_checksum.h>
 
+#include "trace.h"
+
 /* Protocol timeouts in ms */
 #define TBNET_LOGIN_DELAY	4500
 #define TBNET_LOGIN_TIMEOUT	500
@@ -305,6 +307,8 @@ static int tbnet_logout_request(struct tbnet *net)
 
 static void start_login(struct tbnet *net)
 {
+	netdev_dbg(net->dev, "login started\n");
+
 	mutex_lock(&net->connection_lock);
 	net->login_sent = false;
 	net->login_received = false;
@@ -318,6 +322,8 @@ static void stop_login(struct tbnet *net)
 {
 	cancel_delayed_work_sync(&net->login_work);
 	cancel_work_sync(&net->connected_work);
+
+	netdev_dbg(net->dev, "login stopped\n");
 }
 
 static inline unsigned int tbnet_frame_size(const struct tbnet_frame *tf)
@@ -349,6 +355,8 @@ static void tbnet_free_buffers(struct tbnet_ring *ring)
 			size = TBNET_RX_PAGE_SIZE;
 		}
 
+		trace_tbnet_free_frame(i, tf->page, tf->frame.buffer_phy, dir);
+
 		if (tf->frame.buffer_phy)
 			dma_unmap_page(dma_dev, tf->frame.buffer_phy, size,
 				       dir);
@@ -374,6 +382,8 @@ static void tbnet_tear_down(struct tbnet *net, bool send_logout)
 		int ret, retries = TBNET_LOGOUT_RETRIES;
 
 		while (send_logout && retries-- > 0) {
+			netdev_dbg(net->dev, "sending logout request %u\n",
+				   retries);
 			ret = tbnet_logout_request(net);
 			if (ret != -ETIMEDOUT)
 				break;
@@ -399,6 +409,8 @@ static void tbnet_tear_down(struct tbnet *net, bool send_logout)
 	net->login_retries = 0;
 	net->login_sent = false;
 	net->login_received = false;
+
+	netdev_dbg(net->dev, "network traffic stopped\n");
 
 	mutex_unlock(&net->connection_lock);
 }
@@ -431,12 +443,15 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 
 	switch (pkg->hdr.type) {
 	case TBIP_LOGIN:
+		netdev_dbg(net->dev, "remote login request received\n");
 		if (!netif_running(net->dev))
 			break;
 
 		ret = tbnet_login_response(net, route, sequence,
 					   pkg->hdr.command_id);
 		if (!ret) {
+			netdev_dbg(net->dev, "remote login response sent\n");
+
 			mutex_lock(&net->connection_lock);
 			net->login_received = true;
 			net->remote_transmit_path = pkg->transmit_path;
@@ -458,9 +473,12 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 		break;
 
 	case TBIP_LOGOUT:
+		netdev_dbg(net->dev, "remote logout request received\n");
 		ret = tbnet_logout_response(net, route, sequence, command_id);
-		if (!ret)
+		if (!ret) {
+			netdev_dbg(net->dev, "remote logout response sent\n");
 			queue_work(system_long_wq, &net->disconnect_work);
+		}
 		break;
 
 	default:
@@ -511,6 +529,9 @@ static int tbnet_alloc_rx_buffers(struct tbnet *net, unsigned int nbuffers)
 
 		tf->frame.buffer_phy = dma_addr;
 		tf->dev = net->dev;
+
+		trace_tbnet_alloc_rx_frame(index, tf->page, dma_addr,
+					   DMA_FROM_DEVICE);
 
 		tb_ring_rx(ring->ring, &tf->frame);
 
@@ -588,6 +609,8 @@ static int tbnet_alloc_tx_buffers(struct tbnet *net)
 		tf->frame.callback = tbnet_tx_callback;
 		tf->frame.sof = TBIP_PDF_FRAME_START;
 		tf->frame.eof = TBIP_PDF_FRAME_END;
+
+		trace_tbnet_alloc_tx_frame(i, tf->page, dma_addr, DMA_TO_DEVICE);
 	}
 
 	ring->cons = 0;
@@ -611,6 +634,8 @@ static void tbnet_connected_work(struct work_struct *work)
 
 	if (!connected)
 		return;
+
+	netdev_dbg(net->dev, "login successful, enabling paths\n");
 
 	ret = tb_xdomain_alloc_in_hopid(net->xd, net->remote_transmit_path);
 	if (ret != net->remote_transmit_path) {
@@ -647,6 +672,8 @@ static void tbnet_connected_work(struct work_struct *work)
 
 	netif_carrier_on(net->dev);
 	netif_start_queue(net->dev);
+
+	netdev_dbg(net->dev, "network traffic started\n");
 	return;
 
 err_free_tx_buffers:
@@ -668,8 +695,13 @@ static void tbnet_login_work(struct work_struct *work)
 	if (netif_carrier_ok(net->dev))
 		return;
 
+	netdev_dbg(net->dev, "sending login request, retries=%u\n",
+		   net->login_retries);
+
 	ret = tbnet_login_request(net, net->login_retries % 4);
 	if (ret) {
+		netdev_dbg(net->dev, "sending login request failed, ret=%d\n",
+			   ret);
 		if (net->login_retries++ < TBNET_LOGIN_RETRIES) {
 			queue_delayed_work(system_long_wq, &net->login_work,
 					   delay);
@@ -677,6 +709,8 @@ static void tbnet_login_work(struct work_struct *work)
 			netdev_info(net->dev, "ThunderboltIP login timed out\n");
 		}
 	} else {
+		netdev_dbg(net->dev, "received login reply\n");
+
 		net->login_retries = 0;
 
 		mutex_lock(&net->connection_lock);
@@ -807,12 +841,16 @@ static int tbnet_poll(struct napi_struct *napi, int budget)
 
 		hdr = page_address(page);
 		if (!tbnet_check_frame(net, tf, hdr)) {
+			trace_tbnet_invalid_rx_ip_frame(hdr->frame_size,
+				hdr->frame_id, hdr->frame_index, hdr->frame_count);
 			__free_pages(page, TBNET_RX_PAGE_ORDER);
 			dev_kfree_skb_any(net->skb);
 			net->skb = NULL;
 			continue;
 		}
 
+		trace_tbnet_rx_ip_frame(hdr->frame_size, hdr->frame_id,
+					hdr->frame_index, hdr->frame_count);
 		frame_size = le32_to_cpu(hdr->frame_size);
 
 		skb = net->skb;
@@ -846,6 +884,7 @@ static int tbnet_poll(struct napi_struct *napi, int budget)
 
 		if (last) {
 			skb->protocol = eth_type_trans(skb, net->dev);
+			trace_tbnet_rx_skb(skb);
 			napi_gro_receive(&net->napi, skb);
 			net->skb = NULL;
 		}
@@ -965,6 +1004,8 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 		for (i = 0; i < frame_count; i++) {
 			hdr = page_address(frames[i]->page);
 			hdr->frame_count = cpu_to_le32(frame_count);
+			trace_tbnet_tx_ip_frame(hdr->frame_size, hdr->frame_id,
+						hdr->frame_index, hdr->frame_count);
 			dma_sync_single_for_device(dma_dev,
 				frames[i]->frame.buffer_phy,
 				tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
@@ -1029,6 +1070,8 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 		len = le32_to_cpu(hdr->frame_size) - offset;
 		wsum = csum_partial(dest, len, wsum);
 		hdr->frame_count = cpu_to_le32(frame_count);
+		trace_tbnet_tx_ip_frame(hdr->frame_size, hdr->frame_id,
+					hdr->frame_index, hdr->frame_count);
 
 		offset = 0;
 	}
@@ -1070,6 +1113,8 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 	u32 frame_index = 0;
 	bool unmap = false;
 	void *dest;
+
+	trace_tbnet_tx_skb(skb);
 
 	nframes = DIV_ROUND_UP(data_len, TBNET_MAX_PAYLOAD_SIZE);
 	if (tbnet_available_buffers(&net->tx_ring) < nframes) {
@@ -1177,6 +1222,7 @@ static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
 	net->stats.tx_packets++;
 	net->stats.tx_bytes += skb->len;
 
+	trace_tbnet_consume_skb(skb);
 	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;

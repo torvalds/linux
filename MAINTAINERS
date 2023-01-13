@@ -20789,7 +20789,7 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/thunderbolt.c
+F:	drivers/net/thunderbolt/
 
 THUNDERX GPIO DRIVER
 M:	Robert Richter <rric@kernel.org>
