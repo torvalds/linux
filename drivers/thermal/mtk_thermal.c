@@ -550,7 +550,7 @@ static const struct mtk_thermal_data mt8183_thermal_data = {
 };
 
 /**
- * raw_to_mcelsius - convert a raw ADC value to mcelsius
+ * raw_to_mcelsius_v1 - convert a raw ADC value to mcelsius
  * @mt:	The thermal controller
  * @sensno:	sensor number
  * @raw:	raw ADC value
