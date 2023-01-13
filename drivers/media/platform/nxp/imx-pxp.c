@@ -729,22 +729,28 @@ static u32 pxp_data_path_ctrl0(struct pxp_ctx *ctx)
 	u32 ctrl0;
 
 	ctrl0 = 0;
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(3);
+	/* Bypass Dithering x3CH */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(1);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(3);
+	/* Select Rotation */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(0);
+	/* Select LUT */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(3);
+	/* Select MUX8 for LUT */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(1);
+	/* Select CSC 2 */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(3);
+	/* Bypass Rotation 2 */
 	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(0);
-	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(3);
 
 	return ctrl0;
 }
@@ -758,8 +764,8 @@ static void pxp_set_data_path(struct pxp_ctx *ctx)
 	ctrl0 = pxp_data_path_ctrl0(ctx);
 
 	ctrl1 = 0;
-	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1);
-	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1);
+	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(3);
+	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(3);
 
 	writel(ctrl0, dev->mmio + HW_PXP_DATA_PATH_CTRL0);
 	writel(ctrl1, dev->mmio + HW_PXP_DATA_PATH_CTRL1);
