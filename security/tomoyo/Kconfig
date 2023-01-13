@@ -10,7 +10,7 @@ config SECURITY_TOMOYO
 	help
 	  This selects TOMOYO Linux, pathname-based access control.
 	  Required userspace tools and further information may be
-	  found at <http://tomoyo.sourceforge.jp/>.
+	  found at <https://tomoyo.osdn.jp/>.
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_TOMOYO_MAX_ACCEPT_ENTRY
