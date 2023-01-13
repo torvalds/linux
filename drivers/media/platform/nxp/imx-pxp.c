@@ -19,6 +19,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -191,12 +192,20 @@ static struct pxp_fmt *find_format(struct v4l2_format *f)
 	return &formats[k];
 }
 
+struct pxp_ctx;
+
+struct pxp_pdata {
+	u32 (*data_path_ctrl0)(struct pxp_ctx *ctx);
+};
+
 struct pxp_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vfd;
 
 	struct clk		*clk;
 	void __iomem		*mmio;
+
+	const struct pxp_pdata	*pdata;
 
 	atomic_t		num_inst;
 	struct mutex		dev_mutex;
@@ -724,7 +733,7 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 	}
 }
 
-static u32 pxp_data_path_ctrl0(struct pxp_ctx *ctx)
+static u32 pxp_imx6ull_data_path_ctrl0(struct pxp_ctx *ctx)
 {
 	u32 ctrl0;
 
@@ -760,7 +769,7 @@ static void pxp_set_data_path(struct pxp_ctx *ctx)
 	u32 ctrl0;
 	u32 ctrl1;
 
-	ctrl0 = pxp_data_path_ctrl0(ctx);
+	ctrl0 = dev->pdata->data_path_ctrl0(ctx);
 
 	ctrl1 = 0;
 	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(3);
@@ -1705,6 +1714,8 @@ static int pxp_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	dev->pdata = of_device_get_match_data(&pdev->dev);
+
 	dev->clk = devm_clk_get(&pdev->dev, "axi");
 	if (IS_ERR(dev->clk)) {
 		ret = PTR_ERR(dev->clk);
@@ -1804,8 +1815,12 @@ static int pxp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct pxp_pdata pxp_imx6ull_pdata = {
+	.data_path_ctrl0 = pxp_imx6ull_data_path_ctrl0,
+};
+
 static const struct of_device_id pxp_dt_ids[] = {
-	{ .compatible = "fsl,imx6ull-pxp", .data = NULL },
+	{ .compatible = "fsl,imx6ull-pxp", .data = &pxp_imx6ull_pdata },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pxp_dt_ids);
