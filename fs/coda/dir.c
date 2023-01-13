@@ -228,7 +228,7 @@ static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 }
 
 
-static int coda_symlink(struct user_namespace *mnt_userns,
+static int coda_symlink(struct mnt_idmap *idmap,
 			struct inode *dir_inode, struct dentry *de,
 			const char *symname)
 {

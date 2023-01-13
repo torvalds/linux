@@ -425,7 +425,7 @@ As of kernel 2.6.22, the following members are defined:
 		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,const char *);
+		int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,const char *);
 		int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
 		int (*mknod) (struct user_namespace *, struct inode *,struct dentry *,umode_t,dev_t);

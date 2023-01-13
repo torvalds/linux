@@ -125,7 +125,7 @@ static int ramfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	return ramfs_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int ramfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int ramfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	struct inode *inode;

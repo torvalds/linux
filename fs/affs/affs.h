@@ -174,7 +174,7 @@ extern int	affs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 extern int	affs_rmdir(struct inode *dir, struct dentry *dentry);
 extern int	affs_link(struct dentry *olddentry, struct inode *dir,
 			  struct dentry *dentry);
-extern int	affs_symlink(struct user_namespace *mnt_userns,
+extern int	affs_symlink(struct mnt_idmap *idmap,
 			struct inode *dir, struct dentry *dentry,
 			const char *symname);
 extern int	affs_rename2(struct user_namespace *mnt_userns,

@@ -677,7 +677,7 @@ static int ovl_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return ovl_create_object(dentry, mode, rdev, NULL);
 }
 
-static int ovl_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int ovl_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *link)
 {
 	return ovl_create_object(dentry, S_IFLNK, 0, link);

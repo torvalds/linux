@@ -30,7 +30,7 @@ static struct dentry *jffs2_lookup (struct inode *,struct dentry *,
 				    unsigned int);
 static int jffs2_link (struct dentry *,struct inode *,struct dentry *);
 static int jffs2_unlink (struct inode *,struct dentry *);
-static int jffs2_symlink (struct user_namespace *, struct inode *,
+static int jffs2_symlink (struct mnt_idmap *, struct inode *,
 			  struct dentry *, const char *);
 static int jffs2_mkdir (struct user_namespace *, struct inode *,struct dentry *,
 			umode_t);
@@ -279,7 +279,7 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 
 /***********************************************************************/
 
-static int jffs2_symlink (struct user_namespace *mnt_userns, struct inode *dir_i,
+static int jffs2_symlink (struct mnt_idmap *idmap, struct inode *dir_i,
 			  struct dentry *dentry, const char *target)
 {
 	struct jffs2_inode_info *f, *dir_f;

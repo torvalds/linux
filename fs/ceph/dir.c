@@ -912,7 +912,7 @@ static int ceph_create(struct mnt_idmap *idmap, struct inode *dir,
 	return ceph_mknod(mnt_userns, dir, dentry, mode, 0);
 }
 
-static int ceph_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int ceph_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *dest)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(dir->i_sb);

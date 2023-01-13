@@ -216,7 +216,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int orangefs_symlink(struct user_namespace *mnt_userns,
+static int orangefs_symlink(struct mnt_idmap *idmap,
 		         struct inode *dir,
 			 struct dentry *dentry,
 			 const char *symname)

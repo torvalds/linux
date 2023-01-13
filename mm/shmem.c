@@ -3124,7 +3124,7 @@ static int shmem_rename2(struct user_namespace *mnt_userns,
 	return 0;
 }
 
-static int shmem_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	int error;

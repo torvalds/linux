@@ -313,7 +313,7 @@ affs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 int
-affs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+affs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	     struct dentry *dentry, const char *symname)
 {
 	struct super_block	*sb = dir->i_sb;

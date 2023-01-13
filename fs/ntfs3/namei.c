@@ -184,9 +184,10 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 /*
  * ntfs_symlink - inode_operations::symlink
  */
-static int ntfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	u32 size = strlen(symname);
 	struct inode *inode;
 

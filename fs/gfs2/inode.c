@@ -1207,7 +1207,7 @@ out_inodes:
 
 /**
  * gfs2_symlink - Create a symlink
- * @mnt_userns: User namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @dir: The directory to create the symlink in
  * @dentry: The dentry to put the symlink in
  * @symname: The thing which the link points to
@@ -1215,7 +1215,7 @@ out_inodes:
  * Returns: errno
  */
 
-static int gfs2_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int gfs2_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	unsigned int size;

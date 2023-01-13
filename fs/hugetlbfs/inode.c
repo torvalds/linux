@@ -1064,7 +1064,7 @@ static int hugetlbfs_tmpfile(struct user_namespace *mnt_userns,
 	return finish_open_simple(file, 0);
 }
 
-static int hugetlbfs_symlink(struct user_namespace *mnt_userns,
+static int hugetlbfs_symlink(struct mnt_idmap *idmap,
 			     struct inode *dir, struct dentry *dentry,
 			     const char *symname)
 {

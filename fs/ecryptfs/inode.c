@@ -456,7 +456,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	return ecryptfs_do_unlink(dir, dentry, d_inode(dentry));
 }
 
-static int ecryptfs_symlink(struct user_namespace *mnt_userns,
+static int ecryptfs_symlink(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    const char *symname)
 {

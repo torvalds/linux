@@ -3340,9 +3340,10 @@ out:
 	return err;
 }
 
-static int ext4_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int ext4_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	handle_t *handle;
 	struct inode *inode;
 	int err, len = strlen(symname);

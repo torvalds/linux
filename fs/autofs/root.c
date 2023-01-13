@@ -11,7 +11,7 @@
 #include "autofs_i.h"
 
 static int autofs_dir_permission(struct user_namespace *, struct inode *, int);
-static int autofs_dir_symlink(struct user_namespace *, struct inode *,
+static int autofs_dir_symlink(struct mnt_idmap *, struct inode *,
 			      struct dentry *, const char *);
 static int autofs_dir_unlink(struct inode *, struct dentry *);
 static int autofs_dir_rmdir(struct inode *, struct dentry *);
@@ -563,7 +563,7 @@ static int autofs_dir_permission(struct user_namespace *mnt_userns,
 	return generic_permission(mnt_userns, inode, mask);
 }
 
-static int autofs_dir_symlink(struct user_namespace *mnt_userns,
+static int autofs_dir_symlink(struct mnt_idmap *idmap,
 			      struct inode *dir, struct dentry *dentry,
 			      const char *symname)
 {

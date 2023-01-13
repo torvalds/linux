@@ -2143,7 +2143,7 @@ struct inode_operations {
 		       umode_t, bool);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
-	int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,
+	int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,
 			const char *);
 	int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,
 		      umode_t);

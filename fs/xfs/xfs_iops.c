@@ -401,11 +401,12 @@ xfs_vn_unlink(
 
 STATIC int
 xfs_vn_symlink(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	const char		*symname)
 {
+	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct inode	*inode;
 	struct xfs_inode *cip = NULL;
 	struct xfs_name	name;

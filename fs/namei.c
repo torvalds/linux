@@ -4394,8 +4394,9 @@ int vfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, const char *oldname)
 {
 	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	int error = may_create(mnt_userns, dir, dentry);
+	int error;
 
+	error = may_create(mnt_userns, dir, dentry);
 	if (error)
 		return error;
 
@@ -4406,7 +4407,7 @@ int vfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	if (error)
 		return error;
 
-	error = dir->i_op->symlink(mnt_userns, dir, dentry, oldname);
+	error = dir->i_op->symlink(idmap, dir, dentry, oldname);
 	if (!error)
 		fsnotify_create(dir, dentry);
 	return error;

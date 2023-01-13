@@ -869,7 +869,7 @@ static int jfs_link(struct dentry *old_dentry,
  * an intermediate result whose length exceeds PATH_MAX [XPG4.2]
 */
 
-static int jfs_symlink(struct user_namespace *mnt_userns, struct inode *dip,
+static int jfs_symlink(struct mnt_idmap *idmap, struct inode *dip,
 		       struct dentry *dentry, const char *name)
 {
 	int rc;

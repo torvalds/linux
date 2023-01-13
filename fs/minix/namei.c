@@ -71,7 +71,7 @@ static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
 	return minix_mknod(&init_user_ns, dir, dentry, mode, 0);
 }
 
-static int minix_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	int err = -ENAMETOOLONG;
