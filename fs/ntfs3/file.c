@@ -707,7 +707,7 @@ int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	setattr_copy(idmap, inode, attr);
 
 	if (mode != inode->i_mode) {
-		err = ntfs_acl_chmod(mnt_idmap_owner(idmap), dentry);
+		err = ntfs_acl_chmod(idmap, dentry);
 		if (err)
 			goto out;
 

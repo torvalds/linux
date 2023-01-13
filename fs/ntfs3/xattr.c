@@ -652,9 +652,11 @@ out:
 /*
  * ntfs_set_acl - inode_operations::set_acl
  */
-int ntfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
+
 	return ntfs_set_acl_ex(mnt_userns, d_inode(dentry), acl, type, false);
 }
 
@@ -697,7 +699,7 @@ int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
 /*
  * ntfs_acl_chmod - Helper for ntfs3_setattr().
  */
-int ntfs_acl_chmod(struct user_namespace *mnt_userns, struct dentry *dentry)
+int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
@@ -708,7 +710,7 @@ int ntfs_acl_chmod(struct user_namespace *mnt_userns, struct dentry *dentry)
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	return posix_acl_chmod(mnt_userns, dentry, inode->i_mode);
+	return posix_acl_chmod(idmap, dentry, inode->i_mode);
 }
 
 /*

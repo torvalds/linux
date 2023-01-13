@@ -2007,7 +2007,7 @@ static int gfs2_setattr(struct mnt_idmap *idmap,
 	else {
 		error = gfs2_setattr_simple(inode, attr);
 		if (!error && attr->ia_valid & ATTR_MODE)
-			error = posix_acl_chmod(&init_user_ns, dentry,
+			error = posix_acl_chmod(&nop_mnt_idmap, dentry,
 						inode->i_mode);
 	}
 

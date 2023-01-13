@@ -242,9 +242,10 @@ xfs_acl_set_mode(
 }
 
 int
-xfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	    struct posix_acl *acl, int type)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	umode_t mode;
 	bool set_mode = false;
 	int error = 0;

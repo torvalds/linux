@@ -85,7 +85,7 @@ retry:
 	return acl;
 }
 
-int ceph_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ceph_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;

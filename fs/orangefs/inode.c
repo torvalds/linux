@@ -839,7 +839,7 @@ int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr)
 	ret = __orangefs_setattr(inode, iattr);
 	/* change mode on a file that has ACLs */
 	if (!ret && (iattr->ia_valid & ATTR_MODE))
-		ret = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
+		ret = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 	return ret;
 }
 

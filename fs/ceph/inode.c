@@ -2255,7 +2255,7 @@ int ceph_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	err = __ceph_setattr(inode, attr);
 
 	if (err >= 0 && (attr->ia_valid & ATTR_MODE))
-		err = posix_acl_chmod(&init_user_ns, dentry, attr->ia_mode);
+		err = posix_acl_chmod(&nop_mnt_idmap, dentry, attr->ia_mode);
 
 	return err;
 }

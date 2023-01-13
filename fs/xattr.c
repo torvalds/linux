@@ -892,7 +892,7 @@ removexattr(struct mnt_idmap *idmap, struct dentry *d,
 		return error;
 
 	if (is_posix_acl_xattr(kname))
-		return vfs_remove_acl(mnt_idmap_owner(idmap), d, kname);
+		return vfs_remove_acl(idmap, d, kname);
 
 	return vfs_removexattr(mnt_idmap_owner(idmap), d, kname);
 }

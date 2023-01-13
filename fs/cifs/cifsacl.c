@@ -1738,7 +1738,7 @@ out:
 #endif
 }
 
-int cifs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int cifs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 #if defined(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) && defined(CONFIG_CIFS_POSIX)

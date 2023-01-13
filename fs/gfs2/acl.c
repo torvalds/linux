@@ -109,7 +109,7 @@ out:
 	return error;
 }
 
-int gfs2_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int gfs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	struct inode *inode = d_inode(dentry);

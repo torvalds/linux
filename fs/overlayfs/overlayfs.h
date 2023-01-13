@@ -284,13 +284,13 @@ static inline int ovl_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
 static inline int ovl_do_set_acl(struct ovl_fs *ofs, struct dentry *dentry,
 				 const char *acl_name, struct posix_acl *acl)
 {
-	return vfs_set_acl(ovl_upper_mnt_userns(ofs), dentry, acl_name, acl);
+	return vfs_set_acl(ovl_upper_mnt_idmap(ofs), dentry, acl_name, acl);
 }
 
 static inline int ovl_do_remove_acl(struct ovl_fs *ofs, struct dentry *dentry,
 				    const char *acl_name)
 {
-	return vfs_remove_acl(ovl_upper_mnt_userns(ofs), dentry, acl_name);
+	return vfs_remove_acl(ovl_upper_mnt_idmap(ofs), dentry, acl_name);
 }
 
 static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
@@ -623,7 +623,7 @@ static inline struct posix_acl *ovl_get_acl(struct mnt_idmap *idmap,
 {
 	return do_ovl_get_acl(idmap, d_inode(dentry), type, false, false);
 }
-int ovl_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ovl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct posix_acl *acl, int type);
 struct posix_acl *ovl_get_acl_path(const struct path *path,
 				   const char *acl_name, bool noperm);

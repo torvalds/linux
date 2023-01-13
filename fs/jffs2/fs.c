@@ -202,7 +202,7 @@ int jffs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	rc = jffs2_do_setattr(inode, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
+		rc = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 
 	return rc;
 }

@@ -153,7 +153,7 @@ static int bad_inode_tmpfile(struct mnt_idmap *idmap,
 	return -EIO;
 }
 
-static int bad_inode_set_acl(struct user_namespace *mnt_userns,
+static int bad_inode_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct posix_acl *acl,
 			     int type)
 {

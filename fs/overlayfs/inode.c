@@ -653,7 +653,7 @@ out_drop_write:
 	return err;
 }
 
-int ovl_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ovl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct posix_acl *acl, int type)
 {
 	int err;

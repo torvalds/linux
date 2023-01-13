@@ -5307,8 +5307,7 @@ static int btrfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		err = btrfs_dirty_inode(BTRFS_I(inode));
 
 		if (!err && attr->ia_valid & ATTR_MODE)
-			err = posix_acl_chmod(mnt_idmap_owner(idmap), dentry,
-					      inode->i_mode);
+			err = posix_acl_chmod(idmap, dentry, inode->i_mode);
 	}
 
 	return err;

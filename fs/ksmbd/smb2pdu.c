@@ -2512,6 +2512,7 @@ int smb2_open(struct ksmbd_work *work)
 	struct ksmbd_share_config *share = tcon->share_conf;
 	struct ksmbd_file *fp = NULL;
 	struct file *filp = NULL;
+	struct mnt_idmap *idmap = NULL;
 	struct user_namespace *user_ns = NULL;
 	struct kstat stat;
 	struct create_context *context;
@@ -2765,7 +2766,8 @@ int smb2_open(struct ksmbd_work *work)
 		rc = 0;
 	} else {
 		file_present = true;
-		user_ns = mnt_user_ns(path.mnt);
+		idmap = mnt_idmap(path.mnt);
+		user_ns = mnt_idmap_owner(idmap);
 	}
 	if (stream_name) {
 		if (req->CreateOptions & FILE_DIRECTORY_FILE_LE) {
@@ -2864,7 +2866,8 @@ int smb2_open(struct ksmbd_work *work)
 		}
 
 		created = true;
-		user_ns = mnt_user_ns(path.mnt);
+		idmap = mnt_idmap(path.mnt);
+		user_ns = mnt_idmap_owner(idmap);
 		if (ea_buf) {
 			if (le32_to_cpu(ea_buf->ccontext.DataLength) <
 			    sizeof(struct smb2_ea_info)) {
@@ -2957,7 +2960,7 @@ int smb2_open(struct ksmbd_work *work)
 		int posix_acl_rc;
 		struct inode *inode = d_inode(path.dentry);
 
-		posix_acl_rc = ksmbd_vfs_inherit_posix_acl(user_ns,
+		posix_acl_rc = ksmbd_vfs_inherit_posix_acl(idmap,
 							   path.dentry,
 							   d_inode(path.dentry->d_parent));
 		if (posix_acl_rc)
@@ -2973,7 +2976,7 @@ int smb2_open(struct ksmbd_work *work)
 			rc = smb2_create_sd_buffer(work, req, &path);
 			if (rc) {
 				if (posix_acl_rc)
-					ksmbd_vfs_set_init_posix_acl(user_ns,
+					ksmbd_vfs_set_init_posix_acl(idmap,
 								     path.dentry);
 
 				if (test_share_config_flag(work->tcon->share_conf,
