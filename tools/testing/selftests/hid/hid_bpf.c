@@ -444,12 +444,20 @@ FIXTURE(hid_bpf) {
 	int hid_id;
 	pthread_t tid;
 	struct hid *skel;
+	int hid_links[3]; /* max number of programs loaded in a single test */
 };
 static void detach_bpf(FIXTURE_DATA(hid_bpf) * self)
 {
+	int i;
+
 	if (self->hidraw_fd)
 		close(self->hidraw_fd);
 	self->hidraw_fd = 0;
+
+	for (i = 0; i < ARRAY_SIZE(self->hid_links); i++) {
+		if (self->hid_links[i])
+			close(self->hid_links[i]);
+	}
 
 	hid__destroy(self->skel);
 	self->skel = NULL;
@@ -512,6 +520,9 @@ static void load_programs(const struct test_program programs[],
 			    .ctx_size_in = sizeof(args),
 	);
 
+	ASSERT_LE(progs_count, ARRAY_SIZE(self->hid_links))
+		TH_LOG("too many programs are to be loaded");
+
 	/* open the bpf file */
 	self->skel = hid__open();
 	ASSERT_OK_PTR(self->skel) TEARDOWN_LOG("Error while calling hid__open");
@@ -543,7 +554,10 @@ static void load_programs(const struct test_program programs[],
 		args.hid = self->hid_id;
 		args.insert_head = programs[i].insert_head;
 		err = bpf_prog_test_run_opts(attach_fd, &tattr);
-		ASSERT_OK(args.retval) TH_LOG("attach_hid(%s): %d", programs[i].name, args.retval);
+		ASSERT_GE(args.retval, 0)
+			TH_LOG("attach_hid(%s): %d", programs[i].name, args.retval);
+
+		self->hid_links[i] = args.retval;
 	}
 
 	self->hidraw_fd = open_hidraw(self->dev_id);
@@ -619,9 +633,16 @@ TEST_F(hid_bpf, test_attach_detach)
 		{ .name = "hid_second_event" },
 	};
 	__u8 buf[10] = {0};
-	int err;
+	int err, link;
 
 	LOAD_PROGRAMS(progs);
+
+	link = self->hid_links[0];
+	/* we might not be using the new code path where hid_bpf_attach_prog()
+	 * returns a link.
+	 */
+	if (!link)
+		link = bpf_program__fd(self->skel->progs.hid_first_event);
 
 	/* inject one event */
 	buf[0] = 1;
@@ -640,8 +661,8 @@ TEST_F(hid_bpf, test_attach_detach)
 
 	/* pin the first program and immediately unpin it */
 #define PIN_PATH "/sys/fs/bpf/hid_first_event"
-	err = bpf_program__pin(self->skel->progs.hid_first_event, PIN_PATH);
-	ASSERT_OK(err) TH_LOG("error while calling bpf_program__pin");
+	err = bpf_obj_pin(link, PIN_PATH);
+	ASSERT_OK(err) TH_LOG("error while calling bpf_obj_pin");
 	remove(PIN_PATH);
 #undef PIN_PATH
 	usleep(100000);
