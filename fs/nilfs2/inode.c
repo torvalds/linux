@@ -364,7 +364,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	ii->i_bh = bh;
 
 	atomic64_inc(&root->inodes_count);
-	inode_init_owner(&init_user_ns, inode, dir, mode);
+	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 	inode->i_ino = ino;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 

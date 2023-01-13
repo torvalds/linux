@@ -921,7 +921,7 @@ static int ext4_xattr_credits_for_new_inode(struct inode *dir, mode_t mode,
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
+struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 			       handle_t *handle, struct inode *dir,
 			       umode_t mode, const struct qstr *qstr,
 			       __u32 goal, uid_t *owner, __u32 i_flags,
@@ -943,6 +943,7 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 	ext4_group_t flex_group;
 	struct ext4_group_info *grp = NULL;
 	bool encrypt = false;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	/* Cannot create files in a deleted directory */
 	if (!dir || !dir->i_nlink)
@@ -975,7 +976,7 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 		inode_fsuid_set(inode, mnt_userns);
 		inode->i_gid = dir->i_gid;
 	} else
-		inode_init_owner(mnt_userns, inode, dir, mode);
+		inode_init_owner(idmap, inode, dir, mode);
 
 	if (ext4_has_feature_project(sb) &&
 	    ext4_test_inode_flag(dir, EXT4_INODE_PROJINHERIT))

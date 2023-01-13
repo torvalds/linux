@@ -2040,7 +2040,8 @@ static int f2fs_ioc_getversion(struct file *filp, unsigned long arg)
 static int f2fs_ioc_start_atomic_write(struct file *filp, bool truncate)
 {
 	struct inode *inode = file_inode(filp);
-	struct user_namespace *mnt_userns = file_mnt_user_ns(filp);
+	struct mnt_idmap *idmap = file_mnt_idmap(filp);
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct inode *pinode;
@@ -2097,7 +2098,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp, bool truncate)
 		goto out;
 	}
 
-	ret = f2fs_get_tmpfile(mnt_userns, pinode, &fi->cow_inode);
+	ret = f2fs_get_tmpfile(idmap, pinode, &fi->cow_inode);
 	iput(pinode);
 	if (ret) {
 		f2fs_up_write(&fi->i_gc_rwsem[WRITE]);

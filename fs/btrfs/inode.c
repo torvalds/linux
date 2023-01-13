@@ -6727,13 +6727,12 @@ out_inode:
 static int btrfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return -ENOMEM;
-	inode_init_owner(mnt_userns, inode, dir, mode);
+	inode_init_owner(idmap, inode, dir, mode);
 	inode->i_op = &btrfs_special_inode_operations;
 	init_special_inode(inode, inode->i_mode, rdev);
 	return btrfs_create_common(dir, dentry, inode);
@@ -6742,13 +6741,12 @@ static int btrfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 static int btrfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return -ENOMEM;
-	inode_init_owner(mnt_userns, inode, dir, mode);
+	inode_init_owner(idmap, inode, dir, mode);
 	inode->i_fop = &btrfs_file_operations;
 	inode->i_op = &btrfs_file_inode_operations;
 	inode->i_mapping->a_ops = &btrfs_aops;
@@ -6842,13 +6840,12 @@ fail:
 static int btrfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return -ENOMEM;
-	inode_init_owner(mnt_userns, inode, dir, S_IFDIR | mode);
+	inode_init_owner(idmap, inode, dir, S_IFDIR | mode);
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
 	return btrfs_create_common(dir, dentry, inode);
@@ -8805,7 +8802,7 @@ out:
 	return ret;
 }
 
-struct inode *btrfs_new_subvol_inode(struct user_namespace *mnt_userns,
+struct inode *btrfs_new_subvol_inode(struct mnt_idmap *idmap,
 				     struct inode *dir)
 {
 	struct inode *inode;
@@ -8816,7 +8813,7 @@ struct inode *btrfs_new_subvol_inode(struct user_namespace *mnt_userns,
 		 * Subvolumes don't inherit the sgid bit or the parent's gid if
 		 * the parent's sgid bit is set. This is probably a bug.
 		 */
-		inode_init_owner(mnt_userns, inode, NULL,
+		inode_init_owner(idmap, inode, NULL,
 				 S_IFDIR | (~current_umask() & S_IRWXUGO));
 		inode->i_op = &btrfs_dir_inode_operations;
 		inode->i_fop = &btrfs_dir_file_operations;
@@ -9292,14 +9289,14 @@ out_notrans:
 	return ret;
 }
 
-static struct inode *new_whiteout_inode(struct user_namespace *mnt_userns,
+static struct inode *new_whiteout_inode(struct mnt_idmap *idmap,
 					struct inode *dir)
 {
 	struct inode *inode;
 
 	inode = new_inode(dir->i_sb);
 	if (inode) {
-		inode_init_owner(mnt_userns, inode, dir,
+		inode_init_owner(idmap, inode, dir,
 				 S_IFCHR | WHITEOUT_MODE);
 		inode->i_op = &btrfs_special_inode_operations;
 		init_special_inode(inode, inode->i_mode, WHITEOUT_DEV);
@@ -9307,7 +9304,7 @@ static struct inode *new_whiteout_inode(struct user_namespace *mnt_userns,
 	return inode;
 }
 
-static int btrfs_rename(struct user_namespace *mnt_userns,
+static int btrfs_rename(struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
@@ -9379,7 +9376,7 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		filemap_flush(old_inode->i_mapping);
 
 	if (flags & RENAME_WHITEOUT) {
-		whiteout_args.inode = new_whiteout_inode(mnt_userns, old_dir);
+		whiteout_args.inode = new_whiteout_inode(idmap, old_dir);
 		if (!whiteout_args.inode)
 			return -ENOMEM;
 		ret = btrfs_new_inode_prepare(&whiteout_args, &trans_num_items);
@@ -9550,7 +9547,6 @@ static int btrfs_rename2(struct mnt_idmap *idmap, struct inode *old_dir,
 			 struct dentry *old_dentry, struct inode *new_dir,
 			 struct dentry *new_dentry, unsigned int flags)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int ret;
 
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
@@ -9560,7 +9556,7 @@ static int btrfs_rename2(struct mnt_idmap *idmap, struct inode *old_dir,
 		ret = btrfs_rename_exchange(old_dir, old_dentry, new_dir,
 					    new_dentry);
 	else
-		ret = btrfs_rename(mnt_userns, old_dir, old_dentry, new_dir,
+		ret = btrfs_rename(idmap, old_dir, old_dentry, new_dir,
 				   new_dentry, flags);
 
 	btrfs_btree_balance_dirty(BTRFS_I(new_dir)->root->fs_info);
@@ -9763,7 +9759,6 @@ out:
 static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -9789,7 +9784,7 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return -ENOMEM;
-	inode_init_owner(mnt_userns, inode, dir, S_IFLNK | S_IRWXUGO);
+	inode_init_owner(idmap, inode, dir, S_IFLNK | S_IRWXUGO);
 	inode->i_op = &btrfs_symlink_inode_operations;
 	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &btrfs_aops;
@@ -10097,7 +10092,6 @@ static int btrfs_permission(struct mnt_idmap *idmap,
 static int btrfs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 			 struct file *file, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -10113,7 +10107,7 @@ static int btrfs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return -ENOMEM;
-	inode_init_owner(mnt_userns, inode, dir, mode);
+	inode_init_owner(idmap, inode, dir, mode);
 	inode->i_fop = &btrfs_file_operations;
 	inode->i_op = &btrfs_file_inode_operations;
 	inode->i_mapping->a_ops = &btrfs_aops;

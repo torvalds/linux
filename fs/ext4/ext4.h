@@ -2845,7 +2845,7 @@ extern int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 
 /* ialloc.c */
 extern int ext4_mark_inode_used(struct super_block *sb, int ino);
-extern struct inode *__ext4_new_inode(struct user_namespace *, handle_t *,
+extern struct inode *__ext4_new_inode(struct mnt_idmap *, handle_t *,
 				      struct inode *, umode_t,
 				      const struct qstr *qstr, __u32 goal,
 				      uid_t *owner, __u32 i_flags,
@@ -2853,11 +2853,11 @@ extern struct inode *__ext4_new_inode(struct user_namespace *, handle_t *,
 				      int nblocks);
 
 #define ext4_new_inode(handle, dir, mode, qstr, goal, owner, i_flags)          \
-	__ext4_new_inode(&init_user_ns, (handle), (dir), (mode), (qstr),       \
+	__ext4_new_inode(&nop_mnt_idmap, (handle), (dir), (mode), (qstr),      \
 			 (goal), (owner), i_flags, 0, 0, 0)
-#define ext4_new_inode_start_handle(mnt_userns, dir, mode, qstr, goal, owner, \
+#define ext4_new_inode_start_handle(idmap, dir, mode, qstr, goal, owner, \
 				    type, nblocks)		    \
-	__ext4_new_inode((mnt_userns), NULL, (dir), (mode), (qstr), (goal), (owner), \
+	__ext4_new_inode((idmap), NULL, (dir), (mode), (qstr), (goal), (owner), \
 			 0, (type), __LINE__, (nblocks))
 
 

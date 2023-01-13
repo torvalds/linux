@@ -1192,7 +1192,6 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 				struct ntfs_fnd *fnd)
 {
 	int err;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	const struct qstr *name = &dentry->d_name;
@@ -1308,7 +1307,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 		goto out3;
 	}
 	inode = &ni->vfs_inode;
-	inode_init_owner(mnt_userns, inode, dir, mode);
+	inode_init_owner(idmap, inode, dir, mode);
 	mode = inode->i_mode;
 
 	inode->i_atime = inode->i_mtime = inode->i_ctime = ni->i_crtime =

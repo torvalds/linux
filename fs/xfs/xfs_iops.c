@@ -162,12 +162,12 @@ xfs_create_need_xattr(
 
 STATIC int
 xfs_generic_create(
-	struct user_namespace	*mnt_userns,
-	struct inode	*dir,
-	struct dentry	*dentry,
-	umode_t		mode,
-	dev_t		rdev,
-	struct file	*tmpfile)	/* unnamed file */
+	struct mnt_idmap	*idmap,
+	struct inode		*dir,
+	struct dentry		*dentry,
+	umode_t			mode,
+	dev_t			rdev,
+	struct file		*tmpfile)	/* unnamed file */
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
@@ -196,11 +196,11 @@ xfs_generic_create(
 		goto out_free_acl;
 
 	if (!tmpfile) {
-		error = xfs_create(mnt_userns, XFS_I(dir), &name, mode, rdev,
+		error = xfs_create(idmap, XFS_I(dir), &name, mode, rdev,
 				xfs_create_need_xattr(dir, default_acl, acl),
 				&ip);
 	} else {
-		error = xfs_create_tmpfile(mnt_userns, XFS_I(dir), mode, &ip);
+		error = xfs_create_tmpfile(idmap, XFS_I(dir), mode, &ip);
 	}
 	if (unlikely(error))
 		goto out_free_acl;
@@ -261,8 +261,7 @@ xfs_vn_mknod(
 	umode_t			mode,
 	dev_t			rdev)
 {
-	return xfs_generic_create(mnt_idmap_owner(idmap), dir, dentry, mode,
-				  rdev, NULL);
+	return xfs_generic_create(idmap, dir, dentry, mode, rdev, NULL);
 }
 
 STATIC int
@@ -273,8 +272,7 @@ xfs_vn_create(
 	umode_t			mode,
 	bool			flags)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, NULL);
+	return xfs_generic_create(idmap, dir, dentry, mode, 0, NULL);
 }
 
 STATIC int
@@ -284,8 +282,7 @@ xfs_vn_mkdir(
 	struct dentry		*dentry,
 	umode_t			mode)
 {
-	return xfs_generic_create(mnt_idmap_owner(idmap), dir, dentry,
-				  mode | S_IFDIR, 0, NULL);
+	return xfs_generic_create(idmap, dir, dentry, mode | S_IFDIR, 0, NULL);
 }
 
 STATIC struct dentry *
@@ -407,7 +404,6 @@ xfs_vn_symlink(
 	struct dentry		*dentry,
 	const char		*symname)
 {
-	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct inode	*inode;
 	struct xfs_inode *cip = NULL;
 	struct xfs_name	name;
@@ -420,7 +416,7 @@ xfs_vn_symlink(
 	if (unlikely(error))
 		goto out;
 
-	error = xfs_symlink(mnt_userns, XFS_I(dir), &name, symname, mode, &cip);
+	error = xfs_symlink(idmap, XFS_I(dir), &name, symname, mode, &cip);
 	if (unlikely(error))
 		goto out;
 
@@ -453,7 +449,6 @@ xfs_vn_rename(
 	struct dentry		*ndentry,
 	unsigned int		flags)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode	*new_inode = d_inode(ndentry);
 	int		omode = 0;
 	int		error;
@@ -476,7 +471,7 @@ xfs_vn_rename(
 	if (unlikely(error))
 		return error;
 
-	return xfs_rename(mnt_userns, XFS_I(odir), &oname,
+	return xfs_rename(idmap, XFS_I(odir), &oname,
 			  XFS_I(d_inode(odentry)), XFS_I(ndir), &nname,
 			  new_inode ? XFS_I(new_inode) : NULL, flags);
 }
@@ -1103,9 +1098,7 @@ xfs_vn_tmpfile(
 	struct file		*file,
 	umode_t			mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	int err = xfs_generic_create(mnt_userns, dir, file->f_path.dentry, mode, 0, file);
+	int err = xfs_generic_create(idmap, dir, file->f_path.dentry, mode, 0, file);
 
 	return finish_open_simple(file, err);
 }

@@ -578,7 +578,7 @@ static unsigned int create_subvol_num_items(struct btrfs_qgroup_inherit *inherit
 	return num_items;
 }
 
-static noinline int create_subvol(struct user_namespace *mnt_userns,
+static noinline int create_subvol(struct mnt_idmap *idmap,
 				  struct inode *dir, struct dentry *dentry,
 				  struct btrfs_qgroup_inherit *inherit)
 {
@@ -623,7 +623,7 @@ static noinline int create_subvol(struct user_namespace *mnt_userns,
 	if (ret < 0)
 		goto out_root_item;
 
-	new_inode_args.inode = btrfs_new_subvol_inode(mnt_userns, dir);
+	new_inode_args.inode = btrfs_new_subvol_inode(idmap, dir);
 	if (!new_inode_args.inode) {
 		ret = -ENOMEM;
 		goto out_anon_dev;
@@ -962,7 +962,6 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
 	struct dentry *dentry;
 	struct fscrypt_str name_str = FSTR_INIT((char *)name, namelen);
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int error;
 
 	error = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
@@ -995,7 +994,7 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 	if (snap_src)
 		error = create_snapshot(snap_src, dir, dentry, readonly, inherit);
 	else
-		error = create_subvol(mnt_userns, dir, dentry, inherit);
+		error = create_subvol(idmap, dir, dentry, inherit);
 
 	if (!error)
 		fsnotify_mkdir(dir, dentry);

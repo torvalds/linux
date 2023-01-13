@@ -144,13 +144,14 @@ xfs_readlink(
 
 int
 xfs_symlink(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct xfs_inode	*dp,
 	struct xfs_name		*link_name,
 	const char		*target_path,
 	umode_t			mode,
 	struct xfs_inode	**ipp)
 {
+	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_trans	*tp = NULL;
 	struct xfs_inode	*ip = NULL;
@@ -231,7 +232,7 @@ xfs_symlink(
 	 */
 	error = xfs_dialloc(&tp, dp->i_ino, S_IFLNK, &ino);
 	if (!error)
-		error = xfs_init_new_inode(mnt_userns, tp, dp, ino,
+		error = xfs_init_new_inode(idmap, tp, dp, ino,
 				S_IFLNK | (mode & ~S_IFMT), 1, 0, prid,
 				false, &ip);
 	if (error)
