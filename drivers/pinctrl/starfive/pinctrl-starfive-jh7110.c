@@ -1668,13 +1668,15 @@ static int __maybe_unused starfive_pinctrl_suspend(struct device *dev)
 	struct starfive_pinctrl *pctl = dev_get_drvdata(dev);
 	u8 i;
 
-	for (i = 0 ; i < SYS_IRQ_REG_SUSPENDED_NUM ; i++)
-		pctl->sys_irq_reg_suspended[i] =
-			readl_relaxed(pctl->padctl_base + GPIO_EN + OFFSET_PER_REG * i);
+	for (i = 0 ; i < SYS_REG_SUSPENDED_NUM ; i++)
+		pctl->sys_reg_suspended[i] = readl_relaxed(pctl->padctl_base +
+							   SYS_GPO_DOEN_CFG_BASE_REG +
+							   OFFSET_PER_REG * i);
 
-	for (i = 0 ; i < AON_IRQ_REG_SUSPENDED_NUM ; i++)
-		pctl->aon_irq_reg_suspended[i] =
-			readl_relaxed(pctl->padctl_base + AON_GPIO_EN_REG + OFFSET_PER_REG * i);
+	for (i = 0 ; i < AON_REG_SUSPENDED_NUM ; i++)
+		pctl->aon_reg_suspended[i] = readl_relaxed(pctl->padctl_base +
+							   AON_GPO_DOEN_CFG_BASE_REG +
+							   OFFSET_PER_REG * i);
 
 	return pinctrl_force_sleep(pctl->pctl_dev);
 }
@@ -1684,13 +1686,13 @@ static int __maybe_unused starfive_pinctrl_resume(struct device *dev)
 	struct starfive_pinctrl *pctl = dev_get_drvdata(dev);
 	u8 i;
 
-	for (i = 0 ; i < SYS_IRQ_REG_SUSPENDED_NUM ; i++)
-		writel_relaxed(pctl->sys_irq_reg_suspended[i],
-			       pctl->padctl_base + GPIO_EN + OFFSET_PER_REG * i);
+	for (i = 0 ; i < SYS_REG_SUSPENDED_NUM ; i++)
+		writel_relaxed(pctl->sys_reg_suspended[i],
+			       pctl->padctl_base + SYS_GPO_DOEN_CFG_BASE_REG + OFFSET_PER_REG * i);
 
-	for (i = 0 ; i < AON_IRQ_REG_SUSPENDED_NUM ; i++)
-		writel_relaxed(pctl->aon_irq_reg_suspended[i],
-			       pctl->padctl_base + AON_GPIO_EN_REG + OFFSET_PER_REG * i);
+	for (i = 0 ; i < AON_REG_SUSPENDED_NUM ; i++)
+		writel_relaxed(pctl->aon_reg_suspended[i],
+			       pctl->padctl_base + AON_GPO_DOEN_CFG_BASE_REG + OFFSET_PER_REG * i);
 
 	return pinctrl_force_default(pctl->pctl_dev);
 }
