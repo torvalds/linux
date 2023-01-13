@@ -810,7 +810,6 @@ static void __init pmd_swap_soft_dirty_tests(struct pgtable_debug_args *args) { 
 
 static void __init pte_swap_exclusive_tests(struct pgtable_debug_args *args)
 {
-#ifdef __HAVE_ARCH_PTE_SWP_EXCLUSIVE
 	unsigned long max_swap_offset;
 	swp_entry_t entry, entry2;
 	pte_t pte;
@@ -841,7 +840,6 @@ static void __init pte_swap_exclusive_tests(struct pgtable_debug_args *args)
 	WARN_ON(!is_swap_pte(pte));
 	entry2 = pte_to_swp_entry(pte);
 	WARN_ON(memcmp(&entry, &entry2, sizeof(entry)));
-#endif /* __HAVE_ARCH_PTE_SWP_EXCLUSIVE */
 }
 
 static void __init pte_swap_tests(struct pgtable_debug_args *args)

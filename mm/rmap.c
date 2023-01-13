@@ -1710,17 +1710,6 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				page_vma_mapped_walk_done(&pvmw);
 				break;
 			}
-			/*
-			 * Note: We *don't* remember if the page was mapped
-			 * exclusively in the swap pte if the architecture
-			 * doesn't support __HAVE_ARCH_PTE_SWP_EXCLUSIVE. In
-			 * that case, swapin code has to re-determine that
-			 * manually and might detect the page as possibly
-			 * shared, for example, if there are other references on
-			 * the page or if the page is under writeback. We made
-			 * sure that there are no GUP pins on the page that
-			 * would rely on it, so for GUP pins this is fine.
-			 */
 			if (list_empty(&mm->mmlist)) {
 				spin_lock(&mmlist_lock);
 				if (list_empty(&mm->mmlist))
