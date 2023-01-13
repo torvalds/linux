@@ -46,44 +46,10 @@
 
 #define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
 
-#define OV2680_BIN_FACTOR_MAX 4
-
 #define MAX_FMTS		1
 
-/* sensor_mode_data read_mode adaptation */
-#define OV2680_READ_MODE_BINNING_ON	0x0400
-#define OV2680_READ_MODE_BINNING_OFF	0x00
 #define OV2680_INTEGRATION_TIME_MARGIN	8
-
-#define OV2680_MAX_EXPOSURE_VALUE	0xFFF1
-#define OV2680_MAX_GAIN_VALUE		0xFF
-
-/*
- * focal length bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
- */
-#define OV2680_FOCAL_LENGTH_DEFAULT 0x1B70064
-
-/*
- * current f-number bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
- */
-#define OV2680_F_NUMBER_DEFAULT 0x18000a
-
-/*
- * f-number range bits definition:
- * bits 31-24: max f-number numerator
- * bits 23-16: max f-number denominator
- * bits 15-8: min f-number numerator
- * bits 7-0: min f-number denominator
- */
-#define OV2680_F_NUMBER_RANGE 0x180a180a
 #define OV2680_ID	0x2680
-
-#define OV2680_FINE_INTG_TIME_MIN 0
-#define OV2680_FINE_INTG_TIME_MAX_MARGIN 0
-#define OV2680_COARSE_INTG_TIME_MIN 1
-#define OV2680_COARSE_INTG_TIME_MAX_MARGIN 6
 
 /*
  * OV2680 System control registers
@@ -140,19 +106,6 @@
 
 #define OV2680_START_STREAMING			0x01
 #define OV2680_STOP_STREAMING			0x00
-
-#define OV2680_INVALID_CONFIG	0xffffffff
-
-struct regval_list {
-	u16 reg_num;
-	u8 value;
-};
-
-struct ov2680_format {
-	u8 *desc;
-	u32 pixelformat;
-	struct ov2680_reg *regs;
-};
 
 /*
  * ov2680 device structure.
@@ -211,18 +164,6 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 
 	return &sensor->sd;
 }
-
-#define OV2680_MAX_WRITE_BUF_SIZE	30
-
-struct ov2680_write_buffer {
-	u16 addr;
-	u8 data[OV2680_MAX_WRITE_BUF_SIZE];
-};
-
-struct ov2680_write_ctrl {
-	int index;
-	struct ov2680_write_buffer buffer;
-};
 
 static struct ov2680_reg const ov2680_global_setting[] = {
 	{0x0103, 0x01},
@@ -300,7 +241,6 @@ static struct ov2680_reg const ov2680_global_setting[] = {
 	{0x5793, 0x00},
 	{0x5794, 0x03}, //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
 	{0x0100, 0x00},	//stream off
-
 	{}
 };
 
