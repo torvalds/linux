@@ -10,6 +10,9 @@ maintainers:
   - Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
 
 properties:
+  $nodename:
+    pattern: "^(watchdog|timer)@[0-9a-f]+$"
+
   compatible:
     oneOf:
       - items:
@@ -48,6 +51,20 @@ properties:
   clocks:
     maxItems: 1
 
+  clock-names:
+    items:
+      - const: sleep
+
+  clock-frequency:
+    description:
+      The frequency of the general purpose timer in Hz.
+
+  cpu-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Per-CPU offset used when the timer is accessed without the CPU remapping
+      facilities. The offset is cpu-offset + (0x10000 * cpu-nr).
+
   interrupts:
     minItems: 1
     maxItems: 5
@@ -67,11 +84,26 @@ allOf:
             const: qcom,kpss-wdt
     then:
       properties:
+        clock-frequency: false
+        cpu-offset: false
         interrupts:
           minItems: 1
           items:
             - description: Bark
             - description: Bite
+
+    else:
+      properties:
+        interrupts:
+          minItems: 3
+          items:
+            - description: Debug
+            - description: First general purpose timer
+            - description: Second general purpose timer
+            - description: First watchdog
+            - description: Second watchdog
+      required:
+        - clock-frequency
 
 unevaluatedProperties: false
 
@@ -85,4 +117,21 @@ examples:
       clocks = <&sleep_clk>;
       interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
       timeout-sec = <10>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    watchdog@200a000 {
+      compatible = "qcom,kpss-wdt-ipq8064", "qcom,kpss-timer", "qcom,msm-timer";
+      interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                   <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                   <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                   <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+                   <GIC_PPI 5 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
+      reg = <0x0200a000 0x100>;
+      clock-frequency = <25000000>;
+      clocks = <&sleep_clk>;
+      clock-names = "sleep";
+      cpu-offset = <0x80000>;
     };
