@@ -53,7 +53,7 @@ knowledge about the kernel Makefiles, plus detailed knowledge about the
 public interface for kbuild.
 
 *Arch developers* are people who work on an entire architecture, such
-as sparc or ia64.  Arch developers need to know about the arch Makefile
+as sparc or x86.  Arch developers need to know about the arch Makefile
 as well as kbuild Makefiles.
 
 *Kbuild developers* are people who work on the kernel build system itself.

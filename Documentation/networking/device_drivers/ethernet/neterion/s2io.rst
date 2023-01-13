@@ -64,8 +64,8 @@ c. Multi-buffer receive mode. Scattering of packet across multiple
    IBM xSeries).
 
 d. MSI/MSI-X. Can be enabled on platforms which support this feature
-   (IA64, Xeon) resulting in noticeable performance improvement(up to 7%
-   on certain platforms).
+   resulting in noticeable performance improvement (up to 7% on certain
+   platforms).
 
 e. Statistics. Comprehensive MAC-level and software statistics displayed
    using "ethtool -S" option.
