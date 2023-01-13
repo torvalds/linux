@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015,2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -87,7 +87,7 @@ static void fill_get_wq_ctx_args(struct arm_smccc_args *get_wq_ctx)
 {
 	memset(get_wq_ctx->args, 0, ARRAY_SIZE(get_wq_ctx->args));
 
-	get_wq_ctx->args[0] = ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL,
+	get_wq_ctx->args[0] = ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,
 			 ARM_SMCCC_SMC_64, ARM_SMCCC_OWNER_SIP,
 			 SCM_SMC_FNID(QCOM_SCM_SVC_WAITQ, QCOM_SCM_WAITQ_GET_WQ_CTX));
 }
