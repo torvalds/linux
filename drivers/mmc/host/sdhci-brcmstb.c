@@ -324,13 +324,11 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 	 * will allow these modes to be specified by device tree
 	 * properties through mmc_of_parse().
 	 */
-	host->caps = sdhci_readl(host, SDHCI_CAPABILITIES);
+	sdhci_read_caps(host);
 	if (match_priv->flags & BRCMSTB_MATCH_FLAGS_NO_64BIT)
 		host->caps &= ~SDHCI_CAN_64BIT;
-	host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
 	host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
 			 SDHCI_SUPPORT_DDR50);
-	host->quirks |= SDHCI_QUIRK_MISSING_CAPS;
 
 	if (match_priv->flags & BRCMSTB_MATCH_FLAGS_BROKEN_TIMEOUT)
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
