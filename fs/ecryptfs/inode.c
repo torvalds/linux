@@ -1122,10 +1122,10 @@ static int ecryptfs_fileattr_set(struct user_namespace *mnt_userns,
 	return rc;
 }
 
-static struct posix_acl *ecryptfs_get_acl(struct user_namespace *mnt_userns,
+static struct posix_acl *ecryptfs_get_acl(struct mnt_idmap *idmap,
 					  struct dentry *dentry, int type)
 {
-	return vfs_get_acl(mnt_userns, ecryptfs_dentry_to_lower(dentry),
+	return vfs_get_acl(idmap, ecryptfs_dentry_to_lower(dentry),
 			   posix_acl_xattr_name(type));
 }
 

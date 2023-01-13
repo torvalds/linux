@@ -84,7 +84,7 @@ prototypes::
 	int (*fileattr_set)(struct user_namespace *mnt_userns,
 			    struct dentry *dentry, struct fileattr *fa);
 	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
-	struct posix_acl * (*get_acl)(struct user_namespace *, struct dentry *, int);
+	struct posix_acl * (*get_acl)(struct mnt_idmap *, struct dentry *, int);
 
 locking rules:
 	all may block

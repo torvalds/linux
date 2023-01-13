@@ -515,14 +515,16 @@ struct posix_acl *ovl_get_acl_path(const struct path *path,
 {
 	struct posix_acl *real_acl, *clone;
 	struct user_namespace *mnt_userns;
+	struct mnt_idmap *idmap;
 	struct inode *realinode = d_inode(path->dentry);
 
-	mnt_userns = mnt_user_ns(path->mnt);
+	idmap = mnt_idmap(path->mnt);
+	mnt_userns = mnt_idmap_owner(idmap);
 
 	if (noperm)
 		real_acl = get_inode_acl(realinode, posix_acl_type(acl_name));
 	else
-		real_acl = vfs_get_acl(mnt_userns, path->dentry, acl_name);
+		real_acl = vfs_get_acl(idmap, path->dentry, acl_name);
 	if (IS_ERR_OR_NULL(real_acl))
 		return real_acl;
 
@@ -555,7 +557,7 @@ struct posix_acl *ovl_get_acl_path(const struct path *path,
  *
  * This is obviously only relevant when idmapped layers are used.
  */
-struct posix_acl *do_ovl_get_acl(struct user_namespace *mnt_userns,
+struct posix_acl *do_ovl_get_acl(struct mnt_idmap *idmap,
 				 struct inode *inode, int type,
 				 bool rcu, bool noperm)
 {
@@ -618,7 +620,7 @@ static int ovl_set_or_remove_acl(struct dentry *dentry, struct inode *inode,
 
 		ovl_path_lower(dentry, &realpath);
 		old_cred = ovl_override_creds(dentry->d_sb);
-		real_acl = vfs_get_acl(mnt_user_ns(realpath.mnt), realdentry,
+		real_acl = vfs_get_acl(mnt_idmap(realpath.mnt), realdentry,
 				       acl_name);
 		revert_creds(old_cred);
 		if (IS_ERR(real_acl)) {

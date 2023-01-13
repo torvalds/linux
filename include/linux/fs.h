@@ -2164,7 +2164,7 @@ struct inode_operations {
 			   umode_t create_mode);
 	int (*tmpfile) (struct mnt_idmap *, struct inode *,
 			struct file *, umode_t);
-	struct posix_acl *(*get_acl)(struct user_namespace *, struct dentry *,
+	struct posix_acl *(*get_acl)(struct mnt_idmap *, struct dentry *,
 				     int);
 	int (*set_acl)(struct user_namespace *, struct dentry *,
 		       struct posix_acl *, int);
