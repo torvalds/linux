@@ -163,7 +163,7 @@ efivarfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 static int
-efivarfs_fileattr_set(struct user_namespace *mnt_userns,
+efivarfs_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
 	unsigned int i_flags = 0;

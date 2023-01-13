@@ -2085,7 +2085,7 @@ void ubifs_destroy_size_tree(struct ubifs_info *c);
 
 /* ioctl.c */
 int ubifs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int ubifs_fileattr_set(struct user_namespace *mnt_userns,
+int ubifs_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa);
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 void ubifs_set_inode_flags(struct inode *inode);

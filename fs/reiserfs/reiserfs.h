@@ -3407,7 +3407,7 @@ __u32 r5_hash(const signed char *msg, int len);
 
 /* prototypes from ioctl.c */
 int reiserfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int reiserfs_fileattr_set(struct user_namespace *mnt_userns,
+int reiserfs_fileattr_set(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct fileattr *fa);
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long reiserfs_compat_ioctl(struct file *filp,

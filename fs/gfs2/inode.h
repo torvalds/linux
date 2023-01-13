@@ -111,7 +111,7 @@ extern const struct file_operations gfs2_file_fops_nolock;
 extern const struct file_operations gfs2_dir_fops_nolock;
 
 extern int gfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-extern int gfs2_fileattr_set(struct user_namespace *mnt_userns,
+extern int gfs2_fileattr_set(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct fileattr *fa);
 extern void gfs2_set_inode_flags(struct inode *inode);
  

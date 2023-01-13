@@ -1110,13 +1110,13 @@ static int ecryptfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 	return vfs_fileattr_get(ecryptfs_dentry_to_lower(dentry), fa);
 }
 
-static int ecryptfs_fileattr_set(struct user_namespace *mnt_userns,
+static int ecryptfs_fileattr_set(struct mnt_idmap *idmap,
 				 struct dentry *dentry, struct fileattr *fa)
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	int rc;
 
-	rc = vfs_fileattr_set(&init_user_ns, lower_dentry, fa);
+	rc = vfs_fileattr_set(&nop_mnt_idmap, lower_dentry, fa);
 	fsstack_copy_attr_all(d_inode(dentry), d_inode(lower_dentry));
 
 	return rc;

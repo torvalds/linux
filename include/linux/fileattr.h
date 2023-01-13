@@ -53,7 +53,7 @@ static inline bool fileattr_has_fsx(const struct fileattr *fa)
 }
 
 int vfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int vfs_fileattr_set(struct user_namespace *mnt_userns, struct dentry *dentry,
+int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct fileattr *fa);
 
 #endif /* _LINUX_FILEATTR_H */
