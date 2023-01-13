@@ -1360,7 +1360,8 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 	int rc;
 	struct smb_fattr fattr = {{0}};
 	struct inode *inode = d_inode(path->dentry);
-	struct user_namespace *user_ns = mnt_user_ns(path->mnt);
+	struct mnt_idmap *idmap = mnt_idmap(path->mnt);
+	struct user_namespace *user_ns = mnt_idmap_owner(idmap);
 	struct iattr newattrs;
 
 	fattr.cf_uid = INVALID_UID;
@@ -1403,7 +1404,7 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 	}
 
 	inode_lock(inode);
-	rc = notify_change(user_ns, path->dentry, &newattrs, NULL);
+	rc = notify_change(idmap, path->dentry, &newattrs, NULL);
 	inode_unlock(inode);
 	if (rc)
 		goto out;

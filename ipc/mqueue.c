@@ -979,7 +979,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 		err = -ENOENT;
 	} else {
 		ihold(inode);
-		err = vfs_unlink(&init_user_ns, d_inode(dentry->d_parent),
+		err = vfs_unlink(&nop_mnt_idmap, d_inode(dentry->d_parent),
 				 dentry, NULL);
 	}
 	dput(dentry);

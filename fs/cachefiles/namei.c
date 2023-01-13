@@ -130,7 +130,7 @@ retry:
 			goto mkdir_error;
 		ret = cachefiles_inject_write_error();
 		if (ret == 0)
-			ret = vfs_mkdir(&init_user_ns, d_inode(dir), subdir, 0700);
+			ret = vfs_mkdir(&nop_mnt_idmap, d_inode(dir), subdir, 0700);
 		if (ret < 0) {
 			trace_cachefiles_vfs_error(NULL, d_inode(dir), ret,
 						   cachefiles_trace_mkdir_error);
@@ -245,7 +245,7 @@ static int cachefiles_unlink(struct cachefiles_cache *cache,
 
 	ret = cachefiles_inject_remove_error();
 	if (ret == 0) {
-		ret = vfs_unlink(&init_user_ns, d_backing_inode(dir), dentry, NULL);
+		ret = vfs_unlink(&nop_mnt_idmap, d_backing_inode(dir), dentry, NULL);
 		if (ret == -EIO)
 			cachefiles_io_error(cache, "Unlink failed");
 	}
@@ -382,10 +382,10 @@ try_again:
 		cachefiles_io_error(cache, "Rename security error %d", ret);
 	} else {
 		struct renamedata rd = {
-			.old_mnt_userns	= &init_user_ns,
+			.old_mnt_idmap	= &nop_mnt_idmap,
 			.old_dir	= d_inode(dir),
 			.old_dentry	= rep,
-			.new_mnt_userns	= &init_user_ns,
+			.new_mnt_idmap	= &nop_mnt_idmap,
 			.new_dir	= d_inode(cache->graveyard),
 			.new_dentry	= grave,
 		};
@@ -451,7 +451,7 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0) {
-		file = vfs_tmpfile_open(&init_user_ns, &parentpath, S_IFREG,
+		file = vfs_tmpfile_open(&nop_mnt_idmap, &parentpath, S_IFREG,
 					O_RDWR | O_LARGEFILE | O_DIRECT,
 					cache->cache_cred);
 		ret = PTR_ERR_OR_ZERO(file);
@@ -714,7 +714,7 @@ bool cachefiles_commit_tmpfile(struct cachefiles_cache *cache,
 
 	ret = cachefiles_inject_read_error();
 	if (ret == 0)
-		ret = vfs_link(object->file->f_path.dentry, &init_user_ns,
+		ret = vfs_link(object->file->f_path.dentry, &nop_mnt_idmap,
 			       d_inode(fan), dentry, NULL);
 	if (ret < 0) {
 		trace_cachefiles_vfs_error(object, d_inode(fan), ret,

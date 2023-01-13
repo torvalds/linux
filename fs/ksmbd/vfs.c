@@ -177,7 +177,7 @@ int ksmbd_vfs_create(struct ksmbd_work *work, const char *name, umode_t mode)
 	}
 
 	mode |= S_IFREG;
-	err = vfs_create(mnt_user_ns(path.mnt), d_inode(path.dentry),
+	err = vfs_create(mnt_idmap(path.mnt), d_inode(path.dentry),
 			 dentry, mode, true);
 	if (!err) {
 		ksmbd_vfs_inherit_owner(work, d_inode(path.dentry),
@@ -199,6 +199,7 @@ int ksmbd_vfs_create(struct ksmbd_work *work, const char *name, umode_t mode)
  */
 int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 {
+	struct mnt_idmap *idmap;
 	struct user_namespace *user_ns;
 	struct path path;
 	struct dentry *dentry;
@@ -215,9 +216,10 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 		return err;
 	}
 
-	user_ns = mnt_user_ns(path.mnt);
+	idmap = mnt_idmap(path.mnt);
+	user_ns = mnt_idmap_owner(idmap);
 	mode |= S_IFDIR;
-	err = vfs_mkdir(user_ns, d_inode(path.dentry), dentry, mode);
+	err = vfs_mkdir(idmap, d_inode(path.dentry), dentry, mode);
 	if (err) {
 		goto out;
 	} else if (d_unhashed(dentry)) {
@@ -583,6 +585,7 @@ int ksmbd_vfs_fsync(struct ksmbd_work *work, u64 fid, u64 p_id)
  */
 int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 {
+	struct mnt_idmap *idmap;
 	struct user_namespace *user_ns;
 	struct path path;
 	struct dentry *parent;
@@ -598,7 +601,8 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 		return err;
 	}
 
-	user_ns = mnt_user_ns(path.mnt);
+	idmap = mnt_idmap(path.mnt);
+	user_ns = mnt_idmap_owner(idmap);
 	parent = dget_parent(path.dentry);
 	err = ksmbd_vfs_lock_parent(user_ns, parent, path.dentry);
 	if (err) {
@@ -614,12 +618,12 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 	}
 
 	if (S_ISDIR(d_inode(path.dentry)->i_mode)) {
-		err = vfs_rmdir(user_ns, d_inode(parent), path.dentry);
+		err = vfs_rmdir(idmap, d_inode(parent), path.dentry);
 		if (err && err != -ENOTEMPTY)
 			ksmbd_debug(VFS, "%s: rmdir failed, err %d\n", name,
 				    err);
 	} else {
-		err = vfs_unlink(user_ns, d_inode(parent), path.dentry, NULL);
+		err = vfs_unlink(idmap, d_inode(parent), path.dentry, NULL);
 		if (err)
 			ksmbd_debug(VFS, "%s: unlink failed, err %d\n", name,
 				    err);
@@ -672,7 +676,7 @@ int ksmbd_vfs_link(struct ksmbd_work *work, const char *oldname,
 		goto out3;
 	}
 
-	err = vfs_link(oldpath.dentry, mnt_user_ns(newpath.mnt),
+	err = vfs_link(oldpath.dentry, mnt_idmap(newpath.mnt),
 		       d_inode(newpath.dentry),
 		       dentry, NULL);
 	if (err)
@@ -711,10 +715,10 @@ static int ksmbd_validate_entry_in_use(struct dentry *src_dent)
 }
 
 static int __ksmbd_vfs_rename(struct ksmbd_work *work,
-			      struct user_namespace *src_user_ns,
+			      struct mnt_idmap *src_idmap,
 			      struct dentry *src_dent_parent,
 			      struct dentry *src_dent,
-			      struct user_namespace *dst_user_ns,
+			      struct mnt_idmap *dst_idmap,
 			      struct dentry *dst_dent_parent,
 			      struct dentry *trap_dent,
 			      char *dst_name)
@@ -740,8 +744,8 @@ static int __ksmbd_vfs_rename(struct ksmbd_work *work,
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
 
-	dst_dent = lookup_one(dst_user_ns, dst_name, dst_dent_parent,
-			      strlen(dst_name));
+	dst_dent = lookup_one(mnt_idmap_owner(dst_idmap), dst_name,
+			      dst_dent_parent, strlen(dst_name));
 	err = PTR_ERR(dst_dent);
 	if (IS_ERR(dst_dent)) {
 		pr_err("lookup failed %s [%d]\n", dst_name, err);
@@ -751,10 +755,10 @@ static int __ksmbd_vfs_rename(struct ksmbd_work *work,
 	err = -ENOTEMPTY;
 	if (dst_dent != trap_dent && !d_really_is_positive(dst_dent)) {
 		struct renamedata rd = {
-			.old_mnt_userns	= src_user_ns,
+			.old_mnt_idmap	= src_idmap,
 			.old_dir	= d_inode(src_dent_parent),
 			.old_dentry	= src_dent,
-			.new_mnt_userns	= dst_user_ns,
+			.new_mnt_idmap	= dst_idmap,
 			.new_dir	= d_inode(dst_dent_parent),
 			.new_dentry	= dst_dent,
 		};
@@ -772,6 +776,7 @@ out:
 int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 			char *newname)
 {
+	struct mnt_idmap *idmap;
 	struct user_namespace *user_ns;
 	struct path dst_path;
 	struct dentry *src_dent_parent, *dst_dent_parent;
@@ -800,7 +805,8 @@ int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 	trap_dent = lock_rename(src_dent_parent, dst_dent_parent);
 	dget(src_dent);
 	dget(dst_dent_parent);
-	user_ns = file_mnt_user_ns(fp->filp);
+	idmap = file_mnt_idmap(fp->filp);
+	user_ns = mnt_idmap_owner(idmap);
 	src_child = lookup_one(user_ns, src_dent->d_name.name, src_dent_parent,
 			       src_dent->d_name.len);
 	if (IS_ERR(src_child)) {
@@ -816,10 +822,10 @@ int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 	dput(src_child);
 
 	err = __ksmbd_vfs_rename(work,
-				 user_ns,
+				 idmap,
 				 src_dent_parent,
 				 src_dent,
-				 mnt_user_ns(dst_path.mnt),
+				 mnt_idmap(dst_path.mnt),
 				 dst_dent_parent,
 				 trap_dent,
 				 dst_name);
@@ -1080,20 +1086,21 @@ int ksmbd_vfs_remove_xattr(struct user_namespace *user_ns,
 	return vfs_removexattr(user_ns, dentry, attr_name);
 }
 
-int ksmbd_vfs_unlink(struct user_namespace *user_ns,
+int ksmbd_vfs_unlink(struct mnt_idmap *idmap,
 		     struct dentry *dir, struct dentry *dentry)
 {
 	int err = 0;
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
-	err = ksmbd_vfs_lock_parent(user_ns, dir, dentry);
+	err = ksmbd_vfs_lock_parent(mnt_userns, dir, dentry);
 	if (err)
 		return err;
 	dget(dentry);
 
 	if (S_ISDIR(d_inode(dentry)->i_mode))
-		err = vfs_rmdir(user_ns, d_inode(dir), dentry);
+		err = vfs_rmdir(idmap, d_inode(dir), dentry);
 	else
-		err = vfs_unlink(user_ns, d_inode(dir), dentry, NULL);
+		err = vfs_unlink(idmap, d_inode(dir), dentry, NULL);
 
 	dput(dentry);
 	inode_unlock(d_inode(dir));

@@ -826,7 +826,7 @@ out:
 
 SEC("kprobe/vfs_link")
 int BPF_KPROBE(kprobe__vfs_link,
-	       struct dentry* old_dentry, struct user_namespace *mnt_userns,
+	       struct dentry* old_dentry, struct mnt_idmap *idmap,
 	       struct inode* dir, struct dentry* new_dentry,
 	       struct inode** delegated_inode)
 {

@@ -36,9 +36,10 @@
 
 #include "internal.h"
 
-int do_truncate(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 		loff_t length, unsigned int time_attrs, struct file *filp)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int ret;
 	struct iattr newattrs;
 
@@ -62,13 +63,14 @@ int do_truncate(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 	inode_lock(dentry->d_inode);
 	/* Note any delegations or leases have already been broken: */
-	ret = notify_change(mnt_userns, dentry, &newattrs, NULL);
+	ret = notify_change(idmap, dentry, &newattrs, NULL);
 	inode_unlock(dentry->d_inode);
 	return ret;
 }
 
 long vfs_truncate(const struct path *path, loff_t length)
 {
+	struct mnt_idmap *idmap;
 	struct user_namespace *mnt_userns;
 	struct inode *inode;
 	long error;
@@ -85,7 +87,8 @@ long vfs_truncate(const struct path *path, loff_t length)
 	if (error)
 		goto out;
 
-	mnt_userns = mnt_user_ns(path->mnt);
+	idmap = mnt_idmap(path->mnt);
+	mnt_userns = mnt_idmap_owner(idmap);
 	error = inode_permission(mnt_userns, inode, MAY_WRITE);
 	if (error)
 		goto mnt_drop_write_and_out;
@@ -108,7 +111,7 @@ long vfs_truncate(const struct path *path, loff_t length)
 
 	error = security_path_truncate(path);
 	if (!error)
-		error = do_truncate(mnt_userns, path->dentry, length, 0, NULL);
+		error = do_truncate(idmap, path->dentry, length, 0, NULL);
 
 put_write_and_out:
 	put_write_access(inode);
@@ -190,7 +193,7 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 	sb_start_write(inode->i_sb);
 	error = security_file_truncate(f.file);
 	if (!error)
-		error = do_truncate(file_mnt_user_ns(f.file), dentry, length,
+		error = do_truncate(file_mnt_idmap(f.file), dentry, length,
 				    ATTR_MTIME | ATTR_CTIME, f.file);
 	sb_end_write(inode->i_sb);
 out_putf:
@@ -603,7 +606,7 @@ retry_deleg:
 		goto out_unlock;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-	error = notify_change(mnt_user_ns(path->mnt), path->dentry,
+	error = notify_change(mnt_idmap(path->mnt), path->dentry,
 			      &newattrs, &delegated_inode);
 out_unlock:
 	inode_unlock(inode);
@@ -701,6 +704,7 @@ static inline bool setattr_vfsgid(struct iattr *attr, kgid_t kgid)
 
 int chown_common(const struct path *path, uid_t user, gid_t group)
 {
+	struct mnt_idmap *idmap;
 	struct user_namespace *mnt_userns, *fs_userns;
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
@@ -712,7 +716,8 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 	uid = make_kuid(current_user_ns(), user);
 	gid = make_kgid(current_user_ns(), group);
 
-	mnt_userns = mnt_user_ns(path->mnt);
+	idmap = mnt_idmap(path->mnt);
+	mnt_userns = mnt_idmap_owner(idmap);
 	fs_userns = i_user_ns(inode);
 
 retry_deleg:
@@ -733,7 +738,7 @@ retry_deleg:
 		from_vfsuid(mnt_userns, fs_userns, newattrs.ia_vfsuid),
 		from_vfsgid(mnt_userns, fs_userns, newattrs.ia_vfsgid));
 	if (!error)
-		error = notify_change(mnt_userns, path->dentry, &newattrs,
+		error = notify_change(idmap, path->dentry, &newattrs,
 				      &delegated_inode);
 	inode_unlock(inode);
 	if (delegated_inode) {
@@ -1064,7 +1069,7 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 	if (IS_ERR(f))
 		return f;
 
-	error = vfs_create(mnt_user_ns(path->mnt),
+	error = vfs_create(mnt_idmap(path->mnt),
 			   d_inode(path->dentry->d_parent),
 			   path->dentry, mode, true);
 	if (!error)
