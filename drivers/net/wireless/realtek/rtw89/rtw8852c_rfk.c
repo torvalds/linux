@@ -11,6 +11,15 @@
 #include "rtw8852c_rfk_table.h"
 #include "rtw8852c_table.h"
 
+struct rxck_def {
+	u32 ctl;
+	u32 en;
+	u32 bw0;
+	u32 bw1;
+	u32 mul;
+	u32 lp;
+};
+
 #define _TSSI_DE_MASK GENMASK(21, 12)
 static const u32 _tssi_de_cck_long[RF_PATH_NUM_8852C] = {0x5858, 0x7858};
 static const u32 _tssi_de_cck_short[RF_PATH_NUM_8852C] = {0x5860, 0x7860};
@@ -61,6 +70,10 @@ static const u32 dpk_par_regs[RTW89_DPK_RF_PATH][4] = {
 
 static const u8 _dck_addr_bs[RF_PATH_NUM_8852C] = {0x0, 0x10};
 static const u8 _dck_addr[RF_PATH_NUM_8852C] = {0xc, 0x1c};
+
+static const struct rxck_def _ck480M = {0x8, 0x2, 0x3, 0xf, 0x0, 0x9};
+static const struct rxck_def _ck960M = {0x8, 0x2, 0x2, 0x8, 0x0, 0x9};
+static const struct rxck_def _ck1920M = {0x8, 0x0, 0x2, 0x4, 0x6, 0x9};
 
 static u8 _kpath(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
@@ -440,6 +453,8 @@ static void rtw8852c_txck_force(struct rtw89_dev *rtwdev, u8 path, bool force,
 static void rtw8852c_rxck_force(struct rtw89_dev *rtwdev, u8 path, bool force,
 				enum adc_ck ck)
 {
+	const struct rxck_def *def;
+
 	rtw89_phy_write32_mask(rtwdev, R_P0_RXCK | (path << 13), B_P0_RXCK_ON, 0x0);
 
 	if (!force)
@@ -447,6 +462,26 @@ static void rtw8852c_rxck_force(struct rtw89_dev *rtwdev, u8 path, bool force,
 
 	rtw89_phy_write32_mask(rtwdev, R_P0_RXCK | (path << 13), B_P0_RXCK_VAL, ck);
 	rtw89_phy_write32_mask(rtwdev, R_P0_RXCK | (path << 13), B_P0_RXCK_ON, 0x1);
+
+	switch (ck) {
+	case ADC_480M:
+		def = &_ck480M;
+		break;
+	case ADC_960M:
+		def = &_ck960M;
+		break;
+	case ADC_1920M:
+	default:
+		def = &_ck1920M;
+		break;
+	}
+
+	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 | (path << 8), B_P0_CFCH_CTL, def->ctl);
+	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 | (path << 8), B_P0_CFCH_EN, def->en);
+	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 | (path << 8), B_P0_CFCH_BW0, def->bw0);
+	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1 | (path << 8), B_P0_CFCH_BW1, def->bw1);
+	rtw89_phy_write32_mask(rtwdev, R_DRCK | (path << 8), B_DRCK_MUL, def->mul);
+	rtw89_phy_write32_mask(rtwdev, R_ADCMOD | (path << 8), B_ADCMOD_LP, def->lp);
 }
 
 static bool _check_dack_done(struct rtw89_dev *rtwdev, bool s0)
@@ -630,8 +665,6 @@ static void _iqk_rxk_setting(struct rtw89_dev *rtwdev, u8 path)
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK + (path << 13), B_DPD_GDIS, 0x1);
 		rtw8852c_rxck_force(rtwdev, path, true, ADC_480M);
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK + (path << 13), B_ACK_VAL, 0x0);
-		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 + (path << 8), B_P0_CFCH_BW0, 0x3);
-		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1 + (path << 8), B_P0_CFCH_BW1, 0xf);
 		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_CKT, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P0_NRBW + (path << 13), B_P0_NRBW_DBG, 0x1);
 		break;
@@ -639,8 +672,6 @@ static void _iqk_rxk_setting(struct rtw89_dev *rtwdev, u8 path)
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK + (path << 13), B_DPD_GDIS, 0x1);
 		rtw8852c_rxck_force(rtwdev, path, true, ADC_960M);
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK + (path << 13), B_ACK_VAL, 0x1);
-		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 + (path << 8), B_P0_CFCH_BW0, 0x2);
-		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1 + (path << 8), B_P0_CFCH_BW1, 0xd);
 		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_CKT, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P0_NRBW + (path << 13), B_P0_NRBW_DBG, 0x1);
 	break;
@@ -648,8 +679,6 @@ static void _iqk_rxk_setting(struct rtw89_dev *rtwdev, u8 path)
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK + (path << 13), B_DPD_GDIS, 0x1);
 		rtw8852c_rxck_force(rtwdev, path, true, ADC_1920M);
 		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK + (path << 13), B_ACK_VAL, 0x2);
-		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 + (path << 8), B_P0_CFCH_BW0, 0x1);
-		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1 + (path << 8), B_P0_CFCH_BW1, 0xb);
 		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_CKT, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P0_NRBW + (path << 13), B_P0_NRBW_DBG, 0x1);
 		break;
@@ -1413,8 +1442,6 @@ static void _iqk_macbb_setting(struct rtw89_dev *rtwdev,
 	rtw8852c_rxck_force(rtwdev, path, true, ADC_1920M);
 	rtw89_phy_write32_mask(rtwdev, R_UPD_CLK | (path << 13), B_ACK_VAL, 0x2);
 
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 | (path << 8), B_P0_CFCH_BW0, 0x1);
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1 | (path << 8), B_P0_CFCH_BW1, 0xb);
 	rtw89_phy_write32_mask(rtwdev, R_P0_NRBW | (path << 13), B_P0_NRBW_DBG, 0x1);
 	rtw89_phy_write32_mask(rtwdev, R_ANAPAR_PW15, B_ANAPAR_PW15, 0x1f);
 	rtw89_phy_write32_mask(rtwdev, R_ANAPAR_PW15, B_ANAPAR_PW15, 0x13);
@@ -1760,7 +1787,7 @@ u8 _rx_dck_channel_calc(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan)
 #define RTW8852C_DPK_VER 0xf
 #define RTW8852C_DPK_TH_AVG_NUM 4
 #define RTW8852C_DPK_RF_PATH 2
-#define RTW8852C_DPK_KIP_REG_NUM 5
+#define RTW8852C_DPK_KIP_REG_NUM 7
 #define RTW8852C_DPK_RXSRAM_DBG 0
 
 enum rtw8852c_dpk_id {
@@ -1919,8 +1946,6 @@ static void _dpk_bb_afe_setting(struct rtw89_dev *rtwdev,
 
 	/*4. Set ADC clk*/
 	rtw8852c_rxck_force(rtwdev, path, true, ADC_1920M);
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0 + (path << 8), B_P0_CFCH_BW0, 0x1);
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1 + (path << 8), B_P0_CFCH_BW1, 0xb);
 	rtw89_phy_write32_mask(rtwdev, R_P0_NRBW + (path << 13),
 			       B_P0_NRBW_DBG, 0x1);
 	rtw89_phy_write32_mask(rtwdev, R_ANAPAR_PW15, MASKBYTE3, 0x1f);
@@ -2671,11 +2696,13 @@ static void _dpk_cal_select(struct rtw89_dev *rtwdev, bool force,
 			    enum rtw89_phy_idx phy, u8 kpath)
 {
 	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
-	static const u32 kip_reg[] = {0x813c, 0x8124, 0x8120, 0xc0d4, 0xc0d8};
+	static const u32 kip_reg[] = {0x813c, 0x8124, 0x8120, 0xc0c4, 0xc0e8, 0xc0d4, 0xc0d8};
 	u32 backup_rf_val[RTW8852C_DPK_RF_PATH][BACKUP_RF_REGS_NR];
 	u32 kip_bkup[RTW8852C_DPK_RF_PATH][RTW8852C_DPK_KIP_REG_NUM] = {};
 	u8 path;
 	bool is_fail = true, reloaded[RTW8852C_DPK_RF_PATH] = {false};
+
+	static_assert(ARRAY_SIZE(kip_reg) == RTW8852C_DPK_KIP_REG_NUM);
 
 	if (dpk->is_dpk_reload_en) {
 		for (path = 0; path < RTW8852C_DPK_RF_PATH; path++) {
