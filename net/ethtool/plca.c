@@ -61,7 +61,7 @@ static int plca_get_cfg_prepare_data(const struct ethnl_req_info *req_base,
 	}
 
 	ret = ethnl_ops_begin(dev);
-	if (!ret)
+	if (ret < 0)
 		goto out;
 
 	memset(&data->plca_cfg, 0xff,
@@ -151,7 +151,7 @@ int ethnl_set_plca_cfg(struct sk_buff *skb, struct genl_info *info)
 					 tb[ETHTOOL_A_PLCA_HEADER],
 					 genl_info_net(info), info->extack,
 					 true);
-	if (!ret)
+	if (ret < 0)
 		return ret;
 
 	dev = req_info.dev;
@@ -171,7 +171,7 @@ int ethnl_set_plca_cfg(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	ret = ethnl_ops_begin(dev);
-	if (!ret)
+	if (ret < 0)
 		goto out_rtnl;
 
 	memset(&plca_cfg, 0xff, sizeof(plca_cfg));
@@ -189,7 +189,7 @@ int ethnl_set_plca_cfg(struct sk_buff *skb, struct genl_info *info)
 		goto out_ops;
 
 	ret = ops->set_plca_cfg(dev->phydev, &plca_cfg, info->extack);
-	if (!ret)
+	if (ret < 0)
 		goto out_ops;
 
 	ethtool_notify(dev, ETHTOOL_MSG_PLCA_NTF, NULL);
@@ -233,7 +233,7 @@ static int plca_get_status_prepare_data(const struct ethnl_req_info *req_base,
 	}
 
 	ret = ethnl_ops_begin(dev);
-	if (!ret)
+	if (ret < 0)
 		goto out;
 
 	memset(&data->plca_st, 0xff,
