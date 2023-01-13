@@ -962,16 +962,54 @@ kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason)
 }
 EXPORT_SYMBOL(kfree_skb_reason);
 
+#define KFREE_SKB_BULK_SIZE	16
+
+struct skb_free_array {
+	unsigned int skb_count;
+	void *skb_array[KFREE_SKB_BULK_SIZE];
+};
+
+static void kfree_skb_add_bulk(struct sk_buff *skb,
+			       struct skb_free_array *sa,
+			       enum skb_drop_reason reason)
+{
+	/* if SKB is a clone, don't handle this case */
+	if (unlikely(skb->fclone != SKB_FCLONE_UNAVAILABLE)) {
+		__kfree_skb(skb);
+		return;
+	}
+
+	skb_release_all(skb, reason);
+	sa->skb_array[sa->skb_count++] = skb;
+
+	if (unlikely(sa->skb_count == KFREE_SKB_BULK_SIZE)) {
+		kmem_cache_free_bulk(skbuff_head_cache, KFREE_SKB_BULK_SIZE,
+				     sa->skb_array);
+		sa->skb_count = 0;
+	}
+}
+
 void __fix_address
 kfree_skb_list_reason(struct sk_buff *segs, enum skb_drop_reason reason)
 {
+	struct skb_free_array sa;
+
+	sa.skb_count = 0;
+
 	while (segs) {
 		struct sk_buff *next = segs->next;
 
+		skb_mark_not_on_list(segs);
+
 		if (__kfree_skb_reason(segs, reason))
-			__kfree_skb(segs);
+			kfree_skb_add_bulk(segs, &sa, reason);
+
 		segs = next;
 	}
+
+	if (sa.skb_count)
+		kmem_cache_free_bulk(skbuff_head_cache, sa.skb_count,
+				     sa.skb_array);
 }
 EXPORT_SYMBOL(kfree_skb_list_reason);
 
