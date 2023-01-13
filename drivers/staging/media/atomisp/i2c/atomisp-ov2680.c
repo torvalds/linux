@@ -711,19 +711,12 @@ static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct v4l2_fract fract;
-
-	if (fie->index >= N_RES_PREVIEW ||
-	    fie->width > ov2680_res_preview[0].width ||
-	    fie->height > ov2680_res_preview[0].height ||
-	    fie->which > V4L2_SUBDEV_FORMAT_ACTIVE)
+	/* Only 1 framerate */
+	if (fie->index)
 		return -EINVAL;
 
-	fract.numerator = 1;
-	fract.denominator = OV2680_FPS;
-
-	fie->interval = fract;
-
+	fie->interval.numerator = 1;
+	fie->interval.denominator = OV2680_FPS;
 	return 0;
 }
 
