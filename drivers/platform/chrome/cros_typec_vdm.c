@@ -86,10 +86,12 @@ static int cros_typec_port_amode_vdm(struct typec_altmode *amode, const u32 hdr,
 		.command = TYPEC_CONTROL_COMMAND_SEND_VDM_REQ,
 	};
 	struct typec_vdm_req vdm_req = {};
+	int i;
 
 	vdm_req.vdm_data[0] = hdr;
 	vdm_req.vdm_data_objects = cnt;
-	memcpy(&vdm_req.vdm_data[1], vdo, cnt - 1);
+	for (i = 1; i < cnt; i++)
+		vdm_req.vdm_data[i] = vdo[i-1];
 	vdm_req.partner_type = TYPEC_PARTNER_SOP;
 	req.vdm_req_params = vdm_req;
 
