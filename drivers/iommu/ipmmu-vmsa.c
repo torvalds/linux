@@ -299,18 +299,6 @@ static void ipmmu_utlb_enable(struct ipmmu_vmsa_domain *domain,
 	mmu->utlb_ctx[utlb] = domain->context_id;
 }
 
-/*
- * Disable MMU translation for the microTLB.
- */
-static void ipmmu_utlb_disable(struct ipmmu_vmsa_domain *domain,
-			       unsigned int utlb)
-{
-	struct ipmmu_vmsa_device *mmu = domain->mmu;
-
-	ipmmu_imuctr_write(mmu, utlb, 0);
-	mmu->utlb_ctx[utlb] = IPMMU_CTX_INVALID;
-}
-
 static void ipmmu_tlb_flush_all(void *cookie)
 {
 	struct ipmmu_vmsa_domain *domain = cookie;
