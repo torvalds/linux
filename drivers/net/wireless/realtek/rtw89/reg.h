@@ -4102,9 +4102,9 @@
 #define R_MUIC 0x40F8
 #define B_MUIC_EN BIT(0)
 #define R_DCFO 0x4264
-#define B_DCFO GENMASK(1, 0)
+#define B_DCFO GENMASK(7, 0)
 #define R_SEG0CSI 0x42AC
-#define B_SEG0CSI_IDX GENMASK(11, 0)
+#define B_SEG0CSI_IDX GENMASK(10, 0)
 #define R_SEG0CSI_EN 0x42C4
 #define B_SEG0CSI_EN BIT(23)
 #define R_BSS_CLR_MAP 0x43ac
