@@ -125,17 +125,31 @@ module_param(dbg, bool, 0644);
 #define PTE_LIST_EXT 14
 
 /*
- * Slight optimization of cacheline layout, by putting `more' and `spte_count'
- * at the start; then accessing it will only use one single cacheline for
- * either full (entries==PTE_LIST_EXT) case or entries<=6.
+ * struct pte_list_desc is the core data structure used to implement a custom
+ * list for tracking a set of related SPTEs, e.g. all the SPTEs that map a
+ * given GFN when used in the context of rmaps.  Using a custom list allows KVM
+ * to optimize for the common case where many GFNs will have at most a handful
+ * of SPTEs pointing at them, i.e. allows packing multiple SPTEs into a small
+ * memory footprint, which in turn improves runtime performance by exploiting
+ * cache locality.
+ *
+ * A list is comprised of one or more pte_list_desc objects (descriptors).
+ * Each individual descriptor stores up to PTE_LIST_EXT SPTEs.  If a descriptor
+ * is full and a new SPTEs needs to be added, a new descriptor is allocated and
+ * becomes the head of the list.  This means that by definitions, all tail
+ * descriptors are full.
+ *
+ * Note, the meta data fields are deliberately placed at the start of the
+ * structure to optimize the cacheline layout; accessing the descriptor will
+ * touch only a single cacheline so long as @spte_count<=6 (or if only the
+ * descriptors metadata is accessed).
  */
 struct pte_list_desc {
 	struct pte_list_desc *more;
-	/*
-	 * Stores number of entries stored in the pte_list_desc.  No need to be
-	 * u64 but just for easier alignment.  When PTE_LIST_EXT, means full.
-	 */
-	u64 spte_count;
+	/* The number of PTEs stored in _this_ descriptor. */
+	u32 spte_count;
+	/* The number of PTEs stored in all tails of this descriptor. */
+	u32 tail_count;
 	u64 *sptes[PTE_LIST_EXT];
 };
 
@@ -929,22 +943,25 @@ static int pte_list_add(struct kvm_mmu_memory_cache *cache, u64 *spte,
 		desc->sptes[0] = (u64 *)rmap_head->val;
 		desc->sptes[1] = spte;
 		desc->spte_count = 2;
+		desc->tail_count = 0;
 		rmap_head->val = (unsigned long)desc | 1;
 		++count;
 	} else {
 		rmap_printk("%p %llx many->many\n", spte, *spte);
 		desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
-		while (desc->spte_count == PTE_LIST_EXT) {
-			count += PTE_LIST_EXT;
-			if (!desc->more) {
-				desc->more = kvm_mmu_memory_cache_alloc(cache);
-				desc = desc->more;
-				desc->spte_count = 0;
-				break;
-			}
-			desc = desc->more;
+		count = desc->tail_count + desc->spte_count;
+
+		/*
+		 * If the previous head is full, allocate a new head descriptor
+		 * as tail descriptors are always kept full.
+		 */
+		if (desc->spte_count == PTE_LIST_EXT) {
+			desc = kvm_mmu_memory_cache_alloc(cache);
+			desc->more = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+			desc->spte_count = 0;
+			desc->tail_count = count;
+			rmap_head->val = (unsigned long)desc | 1;
 		}
-		count += desc->spte_count;
 		desc->sptes[desc->spte_count++] = spte;
 	}
 	return count;
@@ -952,30 +969,44 @@ static int pte_list_add(struct kvm_mmu_memory_cache *cache, u64 *spte,
 
 static void
 pte_list_desc_remove_entry(struct kvm_rmap_head *rmap_head,
-			   struct pte_list_desc *desc, int i,
-			   struct pte_list_desc *prev_desc)
+			   struct pte_list_desc *desc, int i)
 {
-	int j = desc->spte_count - 1;
+	struct pte_list_desc *head_desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+	int j = head_desc->spte_count - 1;
 
-	desc->sptes[i] = desc->sptes[j];
-	desc->sptes[j] = NULL;
-	desc->spte_count--;
-	if (desc->spte_count)
+	/*
+	 * The head descriptor should never be empty.  A new head is added only
+	 * when adding an entry and the previous head is full, and heads are
+	 * removed (this flow) when they become empty.
+	 */
+	BUG_ON(j < 0);
+
+	/*
+	 * Replace the to-be-freed SPTE with the last valid entry from the head
+	 * descriptor to ensure that tail descriptors are full at all times.
+	 * Note, this also means that tail_count is stable for each descriptor.
+	 */
+	desc->sptes[i] = head_desc->sptes[j];
+	head_desc->sptes[j] = NULL;
+	head_desc->spte_count--;
+	if (head_desc->spte_count)
 		return;
-	if (!prev_desc && !desc->more)
+
+	/*
+	 * The head descriptor is empty.  If there are no tail descriptors,
+	 * nullify the rmap head to mark the list as emtpy, else point the rmap
+	 * head at the next descriptor, i.e. the new head.
+	 */
+	if (!head_desc->more)
 		rmap_head->val = 0;
 	else
-		if (prev_desc)
-			prev_desc->more = desc->more;
-		else
-			rmap_head->val = (unsigned long)desc->more | 1;
-	mmu_free_pte_list_desc(desc);
+		rmap_head->val = (unsigned long)head_desc->more | 1;
+	mmu_free_pte_list_desc(head_desc);
 }
 
 static void pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 {
 	struct pte_list_desc *desc;
-	struct pte_list_desc *prev_desc;
 	int i;
 
 	if (!rmap_head->val) {
@@ -991,16 +1022,13 @@ static void pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 	} else {
 		rmap_printk("%p many->many\n", spte);
 		desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
-		prev_desc = NULL;
 		while (desc) {
 			for (i = 0; i < desc->spte_count; ++i) {
 				if (desc->sptes[i] == spte) {
-					pte_list_desc_remove_entry(rmap_head,
-							desc, i, prev_desc);
+					pte_list_desc_remove_entry(rmap_head, desc, i);
 					return;
 				}
 			}
-			prev_desc = desc;
 			desc = desc->more;
 		}
 		pr_err("%s: %p many->many\n", __func__, spte);
@@ -1047,7 +1075,6 @@ out:
 unsigned int pte_list_count(struct kvm_rmap_head *rmap_head)
 {
 	struct pte_list_desc *desc;
-	unsigned int count = 0;
 
 	if (!rmap_head->val)
 		return 0;
@@ -1055,13 +1082,7 @@ unsigned int pte_list_count(struct kvm_rmap_head *rmap_head)
 		return 1;
 
 	desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
-
-	while (desc) {
-		count += desc->spte_count;
-		desc = desc->more;
-	}
-
-	return count;
+	return desc->tail_count + desc->spte_count;
 }
 
 static struct kvm_rmap_head *gfn_to_rmap(gfn_t gfn, int level,
