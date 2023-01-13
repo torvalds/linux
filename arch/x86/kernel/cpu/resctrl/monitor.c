@@ -204,6 +204,23 @@ void resctrl_arch_reset_rmid(struct rdt_resource *r, struct rdt_domain *d,
 	}
 }
 
+/*
+ * Assumes that hardware counters are also reset and thus that there is
+ * no need to record initial non-zero counts.
+ */
+void resctrl_arch_reset_rmid_all(struct rdt_resource *r, struct rdt_domain *d)
+{
+	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
+
+	if (is_mbm_total_enabled())
+		memset(hw_dom->arch_mbm_total, 0,
+		       sizeof(*hw_dom->arch_mbm_total) * r->num_rmid);
+
+	if (is_mbm_local_enabled())
+		memset(hw_dom->arch_mbm_local, 0,
+		       sizeof(*hw_dom->arch_mbm_local) * r->num_rmid);
+}
+
 static u64 mbm_overflow_count(u64 prev_msr, u64 cur_msr, unsigned int width)
 {
 	u64 shift = 64 - width, chunks;
