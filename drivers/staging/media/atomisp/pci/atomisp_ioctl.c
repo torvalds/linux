@@ -700,7 +700,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	    asd->input_curr != input) {
 		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, s_power, 0);
-		if (ret)
+		if (ret && ret != -ENOIOCTLCMD)
 			dev_warn(isp->dev,
 				 "Failed to power-off sensor\n");
 		/* clear the asd field to show this camera is not used */
@@ -709,7 +709,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 
 	/* powe on the new sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, 1);
-	if (ret) {
+	if (ret && ret != -ENOIOCTLCMD) {
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
