@@ -14,9 +14,9 @@ struct path;
 struct mount;
 struct shrink_control;
 struct fs_context;
-struct user_namespace;
 struct pipe_inode_info;
 struct iov_iter;
+struct mnt_idmap;
 
 /*
  * block/bdev.c
@@ -263,3 +263,6 @@ ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *po
  */
 int setattr_should_drop_sgid(struct mnt_idmap *idmap,
 			     const struct inode *inode);
+struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns);
+struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
+void mnt_idmap_put(struct mnt_idmap *idmap);
