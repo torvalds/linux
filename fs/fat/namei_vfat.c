@@ -844,7 +844,7 @@ out:
 	return err;
 }
 
-static int vfat_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int vfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;

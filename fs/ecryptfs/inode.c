@@ -495,7 +495,7 @@ out_lock:
 	return rc;
 }
 
-static int ecryptfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int ecryptfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			  struct dentry *dentry, umode_t mode)
 {
 	int rc;

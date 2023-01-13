@@ -59,7 +59,7 @@ extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
 extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
 extern int cifs_mknod(struct user_namespace *, struct inode *, struct dentry *,
 		      umode_t, dev_t);
-extern int cifs_mkdir(struct user_namespace *, struct inode *, struct dentry *,
+extern int cifs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
 		      umode_t);
 extern int cifs_rmdir(struct inode *, struct dentry *);
 extern int cifs_rename2(struct user_namespace *, struct inode *,

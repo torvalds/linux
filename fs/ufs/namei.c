@@ -166,7 +166,7 @@ static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 	return error;
 }
 
-static int ufs_mkdir(struct user_namespace * mnt_userns, struct inode * dir,
+static int ufs_mkdir(struct mnt_idmap * idmap, struct inode * dir,
 	struct dentry * dentry, umode_t mode)
 {
 	struct inode * inode;

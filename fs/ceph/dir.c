@@ -971,7 +971,7 @@ out:
 	return err;
 }
 
-static int ceph_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(dir->i_sb);

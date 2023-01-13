@@ -73,7 +73,7 @@ static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	BUG_ON(!inode_is_locked(dir));
-	return dir->i_op->mkdir(&init_user_ns, dir, dentry, mode);
+	return dir->i_op->mkdir(&nop_mnt_idmap, dir, dentry, mode);
 }
 
 /*

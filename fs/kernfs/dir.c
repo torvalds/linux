@@ -1200,7 +1200,7 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	return d_splice_alias(inode, dentry);
 }
 
-static int kernfs_iop_mkdir(struct user_namespace *mnt_userns,
+static int kernfs_iop_mkdir(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode)
 {

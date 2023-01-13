@@ -1229,7 +1229,7 @@ static int gfs2_symlink(struct mnt_idmap *idmap, struct inode *dir,
 
 /**
  * gfs2_mkdir - Make a directory
- * @mnt_userns: User namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @dir: The parent directory of the new one
  * @dentry: The dentry of the new directory
  * @mode: The mode of the new directory
@@ -1237,7 +1237,7 @@ static int gfs2_symlink(struct mnt_idmap *idmap, struct inode *dir,
  * Returns: errno
  */
 
-static int gfs2_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int gfs2_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	unsigned dsize = gfs2_max_stuffed_size(GFS2_I(dir));

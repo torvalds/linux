@@ -1910,7 +1910,7 @@ posix_mkdir_get_info:
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
-int cifs_mkdir(struct user_namespace *mnt_userns, struct inode *inode,
+int cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
 	       struct dentry *direntry, umode_t mode)
 {
 	int rc = 0;

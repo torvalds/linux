@@ -278,13 +278,13 @@ xfs_vn_create(
 
 STATIC int
 xfs_vn_mkdir(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode | S_IFDIR, 0,
-				  NULL);
+	return xfs_generic_create(mnt_idmap_owner(idmap), dir, dentry,
+				  mode | S_IFDIR, 0, NULL);
 }
 
 STATIC struct dentry *

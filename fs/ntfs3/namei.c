@@ -200,9 +200,10 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 /*
  * ntfs_mkdir- inode_operations::mkdir
  */
-static int ntfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode;
 
 	inode = ntfs_create_inode(mnt_userns, dir, dentry, NULL, S_IFDIR | mode,

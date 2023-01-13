@@ -274,7 +274,7 @@ affs_create(struct mnt_idmap *idmap, struct inode *dir,
 }
 
 int
-affs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	   struct dentry *dentry, umode_t mode)
 {
 	struct inode		*inode;

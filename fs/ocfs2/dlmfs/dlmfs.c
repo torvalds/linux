@@ -402,7 +402,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
  * File creation. Allocate an inode, and we're done..
  */
 /* SMP-safe */
-static int dlmfs_mkdir(struct user_namespace * mnt_userns,
+static int dlmfs_mkdir(struct mnt_idmap * idmap,
 		       struct inode * dir,
 		       struct dentry * dentry,
 		       umode_t mode)

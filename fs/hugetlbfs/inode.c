@@ -1033,7 +1033,7 @@ static int hugetlbfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return 0;
 }
 
-static int hugetlbfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode)
 {
 	int retval = hugetlbfs_mknod(&init_user_ns, dir, dentry,

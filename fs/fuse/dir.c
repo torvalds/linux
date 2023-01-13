@@ -819,7 +819,7 @@ static int fuse_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	return err;
 }
 
-static int fuse_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int fuse_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *entry, umode_t mode)
 {
 	struct fuse_mkdir_in inarg;

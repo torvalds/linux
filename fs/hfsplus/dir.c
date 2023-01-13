@@ -523,7 +523,7 @@ static int hfsplus_create(struct mnt_idmap *idmap, struct inode *dir,
 	return hfsplus_mknod(&init_user_ns, dir, dentry, mode, 0);
 }
 
-static int hfsplus_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int hfsplus_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, umode_t mode)
 {
 	return hfsplus_mknod(&init_user_ns, dir, dentry, mode | S_IFDIR, 0);

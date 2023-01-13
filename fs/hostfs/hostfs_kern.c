@@ -671,7 +671,7 @@ static int hostfs_symlink(struct mnt_idmap *idmap, struct inode *ino,
 	return err;
 }
 
-static int hostfs_mkdir(struct user_namespace *mnt_userns, struct inode *ino,
+static int hostfs_mkdir(struct mnt_idmap *idmap, struct inode *ino,
 			struct dentry *dentry, umode_t mode)
 {
 	char *file;

@@ -704,14 +704,14 @@ v9fs_vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 
 /**
  * v9fs_vfs_mkdir - VFS mkdir hook to create a directory
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
  * @mode: mode for new directory
  *
  */
 
-static int v9fs_vfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int v9fs_vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			  struct dentry *dentry, umode_t mode)
 {
 	int err;

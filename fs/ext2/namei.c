@@ -225,7 +225,7 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	return err;
 }
 
-static int ext2_mkdir(struct user_namespace * mnt_userns,
+static int ext2_mkdir(struct mnt_idmap * idmap,
 	struct inode * dir, struct dentry * dentry, umode_t mode)
 {
 	struct inode * inode;

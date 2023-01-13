@@ -2973,9 +2973,10 @@ out:
 	return err;
 }
 
-static int ext4_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int ext4_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	handle_t *handle;
 	struct inode *inode;
 	int err, err2 = 0, credits, retries = 0;

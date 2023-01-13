@@ -357,14 +357,14 @@ out:
 
 /**
  * v9fs_vfs_mkdir_dotl - VFS mkdir hook to create a directory
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The idmap of the mount
  * @dir:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
  * @omode: mode for new directory
  *
  */
 
-static int v9fs_vfs_mkdir_dotl(struct user_namespace *mnt_userns,
+static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 			       struct inode *dir, struct dentry *dentry,
 			       umode_t omode)
 {

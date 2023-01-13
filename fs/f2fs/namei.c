@@ -741,9 +741,10 @@ out_free_encrypted_link:
 	return err;
 }
 
-static int f2fs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
 	int err;
