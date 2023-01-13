@@ -793,6 +793,22 @@ config CHARGER_RT9455
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
 
+config CHARGER_RT9471
+	tristate "Richtek RT9471 battery charger driver"
+	depends on I2C && GPIOLIB && REGULATOR
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select LINEAR_RANGES
+	help
+	  This adds support for Richtek RT9471 battery charger. RT9471 is
+	  highly-integrated switch mode battery charger which is system power
+	  patch manageable device for single cell Li-Ion and Li-polymer battery.
+	  It can support BC12 detection on DPDM, and current and voltage
+	  regulation on both charging and boost mode.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called rt9471.
+
 config CHARGER_CROS_USBPD
 	tristate "ChromeOS EC based USBPD charger"
 	depends on CROS_USBPD_NOTIFY
