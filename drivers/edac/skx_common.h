@@ -57,6 +57,30 @@
 #define MCI_MISC_ECC_DDRT	8	/* read from DDRT */
 
 /*
+ * According to Intel Architecture spec vol 3B,
+ * Table 15-10 "IA32_MCi_Status [15:0] Compound Error Code Encoding"
+ * memory errors should fit one of these masks:
+ *	000f 0000 1mmm cccc (binary)
+ *	000f 0010 1mmm cccc (binary)	[RAM used as cache]
+ * where:
+ *	f = Correction Report Filtering Bit. If 1, subsequent errors
+ *	    won't be shown
+ *	mmm = error type
+ *	cccc = channel
+ */
+#define MCACOD_MEM_ERR_MASK	0xef80
+/*
+ * Errors from either the memory of the 1-level memory system or the
+ * 2nd level memory (the slow "far" memory) of the 2-level memory system.
+ */
+#define MCACOD_MEM_CTL_ERR	0x80
+/*
+ * Errors from the 1st level memory (the fast "near" memory as cache)
+ * of the 2-level memory system.
+ */
+#define MCACOD_EXT_MEM_ERR	0x280
+
+/*
  * Each cpu socket contains some pci devices that provide global
  * information, and also some that are local to each of the two
  * memory controllers on the die.
