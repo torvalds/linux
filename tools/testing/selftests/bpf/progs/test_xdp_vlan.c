@@ -195,7 +195,7 @@ int  xdp_prognum2(struct xdp_md *ctx)
 
 	/* Moving Ethernet header, dest overlap with src, memmove handle this */
 	dest = data;
-	dest+= VLAN_HDR_SZ;
+	dest += VLAN_HDR_SZ;
 	/*
 	 * Notice: Taking over vlan_hdr->h_vlan_encapsulated_proto, by
 	 * only moving two MAC addrs (12 bytes), not overwriting last 2 bytes
