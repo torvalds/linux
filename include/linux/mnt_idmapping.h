@@ -375,8 +375,8 @@ static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
 }
 
 /**
- * mapped_fsuid - return caller's fsuid mapped up into a mnt_userns
- * @mnt_userns: the mount's idmapping
+ * mapped_fsuid - return caller's fsuid mapped according to an idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  *
  * Use this helper to initialize a new vfs or filesystem object based on
@@ -385,18 +385,19 @@ static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
  * O_CREAT. Other examples include the allocation of quotas for a specific
  * user.
  *
- * Return: the caller's current fsuid mapped up according to @mnt_userns.
+ * Return: the caller's current fsuid mapped up according to @idmap.
  */
-static inline kuid_t mapped_fsuid(struct user_namespace *mnt_userns,
+static inline kuid_t mapped_fsuid(struct mnt_idmap *idmap,
 				  struct user_namespace *fs_userns)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return from_vfsuid(mnt_userns, fs_userns,
 			   VFSUIDT_INIT(current_fsuid()));
 }
 
 /**
- * mapped_fsgid - return caller's fsgid mapped up into a mnt_userns
- * @mnt_userns: the mount's idmapping
+ * mapped_fsgid - return caller's fsgid mapped according to an idmapping
+ * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  *
  * Use this helper to initialize a new vfs or filesystem object based on
@@ -405,11 +406,12 @@ static inline kuid_t mapped_fsuid(struct user_namespace *mnt_userns,
  * O_CREAT. Other examples include the allocation of quotas for a specific
  * user.
  *
- * Return: the caller's current fsgid mapped up according to @mnt_userns.
+ * Return: the caller's current fsgid mapped up according to @idmap.
  */
-static inline kgid_t mapped_fsgid(struct user_namespace *mnt_userns,
+static inline kgid_t mapped_fsgid(struct mnt_idmap *idmap,
 				  struct user_namespace *fs_userns)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return from_vfsgid(mnt_userns, fs_userns,
 			   VFSGIDT_INIT(current_fsgid()));
 }

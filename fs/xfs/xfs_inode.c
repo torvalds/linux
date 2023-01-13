@@ -788,7 +788,6 @@ xfs_init_new_inode(
 	bool			init_xattrs,
 	struct xfs_inode	**ipp)
 {
-	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct inode		*dir = pip ? VFS_I(pip) : NULL;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_inode	*ip;
@@ -824,7 +823,7 @@ xfs_init_new_inode(
 	ip->i_projid = prid;
 
 	if (dir && !(dir->i_mode & S_ISGID) && xfs_has_grpid(mp)) {
-		inode_fsuid_set(inode, mnt_userns);
+		inode_fsuid_set(inode, idmap);
 		inode->i_gid = dir->i_gid;
 		inode->i_mode = mode;
 	} else {
@@ -955,7 +954,6 @@ xfs_create(
 	bool			init_xattrs,
 	xfs_inode_t		**ipp)
 {
-	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	int			is_dir = S_ISDIR(mode);
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
@@ -980,8 +978,8 @@ xfs_create(
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.
 	 */
-	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(mnt_userns, &init_user_ns),
-			mapped_fsgid(mnt_userns, &init_user_ns), prid,
+	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(idmap, &init_user_ns),
+			mapped_fsgid(idmap, &init_user_ns), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
 			&udqp, &gdqp, &pdqp);
 	if (error)
@@ -1109,7 +1107,6 @@ xfs_create_tmpfile(
 	umode_t			mode,
 	struct xfs_inode	**ipp)
 {
-	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
@@ -1130,8 +1127,8 @@ xfs_create_tmpfile(
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.
 	 */
-	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(mnt_userns, &init_user_ns),
-			mapped_fsgid(mnt_userns, &init_user_ns), prid,
+	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(idmap, &init_user_ns),
+			mapped_fsgid(idmap, &init_user_ns), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
 			&udqp, &gdqp, &pdqp);
 	if (error)

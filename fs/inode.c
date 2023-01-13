@@ -2293,9 +2293,7 @@ EXPORT_SYMBOL(init_special_inode);
 void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
 		      const struct inode *dir, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	inode_fsuid_set(inode, mnt_userns);
+	inode_fsuid_set(inode, idmap);
 	if (dir && dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;
 
@@ -2303,7 +2301,7 @@ void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else
-		inode_fsgid_set(inode, mnt_userns);
+		inode_fsgid_set(inode, idmap);
 	inode->i_mode = mode;
 }
 EXPORT_SYMBOL(inode_init_owner);

@@ -943,7 +943,6 @@ struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 	ext4_group_t flex_group;
 	struct ext4_group_info *grp = NULL;
 	bool encrypt = false;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	/* Cannot create files in a deleted directory */
 	if (!dir || !dir->i_nlink)
@@ -973,7 +972,7 @@ struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 		i_gid_write(inode, owner[1]);
 	} else if (test_opt(sb, GRPID)) {
 		inode->i_mode = mode;
-		inode_fsuid_set(inode, mnt_userns);
+		inode_fsuid_set(inode, idmap);
 		inode->i_gid = dir->i_gid;
 	} else
 		inode_init_owner(idmap, inode, dir, mode);

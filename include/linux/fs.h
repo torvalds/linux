@@ -1744,29 +1744,29 @@ static inline void i_gid_update(struct mnt_idmap *idmap,
 /**
  * inode_fsuid_set - initialize inode's i_uid field with callers fsuid
  * @inode: inode to initialize
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  *
  * Initialize the i_uid field of @inode. If the inode was found/created via
- * an idmapped mount map the caller's fsuid according to @mnt_users.
+ * an idmapped mount map the caller's fsuid according to @idmap.
  */
 static inline void inode_fsuid_set(struct inode *inode,
-				   struct user_namespace *mnt_userns)
+				   struct mnt_idmap *idmap)
 {
-	inode->i_uid = mapped_fsuid(mnt_userns, i_user_ns(inode));
+	inode->i_uid = mapped_fsuid(idmap, i_user_ns(inode));
 }
 
 /**
  * inode_fsgid_set - initialize inode's i_gid field with callers fsgid
  * @inode: inode to initialize
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  *
  * Initialize the i_gid field of @inode. If the inode was found/created via
- * an idmapped mount map the caller's fsgid according to @mnt_users.
+ * an idmapped mount map the caller's fsgid according to @idmap.
  */
 static inline void inode_fsgid_set(struct inode *inode,
-				   struct user_namespace *mnt_userns)
+				   struct mnt_idmap *idmap)
 {
-	inode->i_gid = mapped_fsgid(mnt_userns, i_user_ns(inode));
+	inode->i_gid = mapped_fsgid(idmap, i_user_ns(inode));
 }
 
 /**
@@ -1784,14 +1784,13 @@ static inline bool fsuidgid_has_mapping(struct super_block *sb,
 					struct mnt_idmap *idmap)
 {
 	struct user_namespace *fs_userns = sb->s_user_ns;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	kuid_t kuid;
 	kgid_t kgid;
 
-	kuid = mapped_fsuid(mnt_userns, fs_userns);
+	kuid = mapped_fsuid(idmap, fs_userns);
 	if (!uid_valid(kuid))
 		return false;
-	kgid = mapped_fsgid(mnt_userns, fs_userns);
+	kgid = mapped_fsgid(idmap, fs_userns);
 	if (!gid_valid(kgid))
 		return false;
 	return kuid_has_mapping(fs_userns, kuid) &&
