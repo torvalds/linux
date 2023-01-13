@@ -40,10 +40,10 @@
 
 
 #define DART_PARAMS1 0x00
-#define DART_PARAMS_PAGE_SHIFT GENMASK(27, 24)
+#define DART_PARAMS1_PAGE_SHIFT GENMASK(27, 24)
 
 #define DART_PARAMS2 0x04
-#define DART_PARAMS_BYPASS_SUPPORT BIT(0)
+#define DART_PARAMS2_BYPASS_SUPPORT BIT(0)
 
 #define DART_STREAM_COMMAND 0x20
 #define DART_STREAM_COMMAND_BUSY BIT(2)
@@ -893,8 +893,8 @@ static int apple_dart_probe(struct platform_device *pdev)
 
 	dart_params[0] = readl(dart->regs + DART_PARAMS1);
 	dart_params[1] = readl(dart->regs + DART_PARAMS2);
-	dart->pgsize = 1 << FIELD_GET(DART_PARAMS_PAGE_SHIFT, dart_params[0]);
-	dart->supports_bypass = dart_params[1] & DART_PARAMS_BYPASS_SUPPORT;
+	dart->pgsize = 1 << FIELD_GET(DART_PARAMS1_PAGE_SHIFT, dart_params[0]);
+	dart->supports_bypass = dart_params[1] & DART_PARAMS2_BYPASS_SUPPORT;
 
 	dart->num_streams = dart->hw->max_sid_count;
 
