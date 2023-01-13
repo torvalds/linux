@@ -27,3 +27,9 @@ obj-$(CONFIG_ST_LPS33HW_I2C_IIO) += st_lps33hw_i2c.o
 obj-$(CONFIG_ST_LPS33HW_SPI_IIO) += st_lps33hw_spi.o
 
 st_lps33hw-y += st_lps33hw_core.o st_lps33hw_buffer.o
+
+obj-$(CONFIG_ST_ILPS22QS_IIO) += st_ilps22qs.o
+obj-$(CONFIG_ST_ILPS22QS_I2C_IIO) += st_ilps22qs_i2c.o
+obj-$(CONFIG_ST_ILPS22QS_SPI_IIO) += st_ilps22qs_spi.o
+
+st_ilps22qs-y += st_ilps22qs_core.o

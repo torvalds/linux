@@ -85,4 +85,23 @@ config ST_LPS33HW_SPI_IIO
         tristate
         depends on ST_LPS33HW_IIO
 
+config ST_ILPS22QS_IIO
+	tristate "STMicroelectronics ILPS22QS sensor"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select ST_ILPS22QS_I2C_IIO if (I2C)
+	select ST_ILPS22QS_SPI_IIO if (SPI)
+	help
+	  This driver supports ILPS22QS sensor. This driver can be
+	  built as a module. The module will be called st-ilps22qs.
+
+config ST_ILPS22QS_I2C_IIO
+	tristate
+	depends on ST_ILPS22QS_IIO
+
+config ST_ILPS22QS_SPI_IIO
+	tristate
+	depends on ST_ILPS22QS_IIO
+
 endmenu
