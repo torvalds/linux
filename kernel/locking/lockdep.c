@@ -5693,6 +5693,40 @@ void lock_release(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_release);
 
+/*
+ * lock_sync() - A special annotation for synchronize_{s,}rcu()-like API.
+ *
+ * No actual critical section is created by the APIs annotated with this: these
+ * APIs are used to wait for one or multiple critical sections (on other CPUs
+ * or threads), and it means that calling these APIs inside these critical
+ * sections is potential deadlock.
+ *
+ * This annotation acts as an acquire+release annotation pair with hardirqoff
+ * being 1. Since there's no critical section, no interrupt can create extra
+ * dependencies "inside" the annotation, hardirqoff == 1 allows us to avoid
+ * false positives.
+ */
+void lock_sync(struct lockdep_map *lock, unsigned subclass, int read,
+	       int check, struct lockdep_map *nest_lock, unsigned long ip)
+{
+	unsigned long flags;
+
+	if (unlikely(!lockdep_enabled()))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+
+	lockdep_recursion_inc();
+	__lock_acquire(lock, subclass, 0, read, check, 1, nest_lock, ip, 0, 0);
+
+	if (__lock_release(lock, ip))
+		check_chain_key(current);
+	lockdep_recursion_finish();
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_sync);
+
 noinstr int lock_is_held_type(const struct lockdep_map *lock, int read)
 {
 	unsigned long flags;
