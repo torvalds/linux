@@ -480,15 +480,6 @@ int erofs_map_blocks(struct inode *inode,
 		     struct erofs_map_blocks *map, int flags);
 
 /* inode.c */
-static inline unsigned long erofs_inode_hash(erofs_nid_t nid)
-{
-#if BITS_PER_LONG == 32
-	return (nid >> 32) ^ (nid & 0xffffffff);
-#else
-	return nid;
-#endif
-}
-
 extern const struct inode_operations erofs_generic_iops;
 extern const struct inode_operations erofs_symlink_iops;
 extern const struct inode_operations erofs_fast_symlink_iops;
