@@ -12,9 +12,6 @@
 		}							\
 	} while (0)
 
-__RISCV_INSN_FUNCS(system,	0x7f, 0x73);
-__RISCV_INSN_FUNCS(fence,	0x7f, 0x0f);
-
 #define RISCV_INSN_SET_SIMULATE(name, code)				\
 	do {								\
 		if (riscv_insn_is_##name(code)) {			\
