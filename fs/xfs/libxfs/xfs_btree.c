@@ -4666,7 +4666,12 @@ xfs_btree_space_to_height(
 	const unsigned int	*limits,
 	unsigned long long	leaf_blocks)
 {
-	unsigned long long	node_blocks = limits[1];
+	/*
+	 * The root btree block can have fewer than minrecs pointers in it
+	 * because the tree might not be big enough to require that amount of
+	 * fanout. Hence it has a minimum size of 2 pointers, not limits[1].
+	 */
+	unsigned long long	node_blocks = 2;
 	unsigned long long	blocks_left = leaf_blocks - 1;
 	unsigned int		height = 1;
 
