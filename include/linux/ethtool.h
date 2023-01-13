@@ -217,6 +217,9 @@ __ethtool_get_link_ksettings(struct net_device *dev,
 struct kernel_ethtool_coalesce {
 	u8 use_cqe_mode_tx;
 	u8 use_cqe_mode_rx;
+	u32 tx_aggr_max_bytes;
+	u32 tx_aggr_max_frames;
+	u32 tx_aggr_time_usecs;
 };
 
 /**
@@ -260,7 +263,10 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 #define ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL	BIT(21)
 #define ETHTOOL_COALESCE_USE_CQE_RX		BIT(22)
 #define ETHTOOL_COALESCE_USE_CQE_TX		BIT(23)
-#define ETHTOOL_COALESCE_ALL_PARAMS		GENMASK(23, 0)
+#define ETHTOOL_COALESCE_TX_AGGR_MAX_BYTES	BIT(24)
+#define ETHTOOL_COALESCE_TX_AGGR_MAX_FRAMES	BIT(25)
+#define ETHTOOL_COALESCE_TX_AGGR_TIME_USECS	BIT(26)
+#define ETHTOOL_COALESCE_ALL_PARAMS		GENMASK(26, 0)
 
 #define ETHTOOL_COALESCE_USECS						\
 	(ETHTOOL_COALESCE_RX_USECS | ETHTOOL_COALESCE_TX_USECS)
@@ -288,6 +294,10 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	 ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL)
 #define ETHTOOL_COALESCE_USE_CQE					\
 	(ETHTOOL_COALESCE_USE_CQE_RX | ETHTOOL_COALESCE_USE_CQE_TX)
+#define ETHTOOL_COALESCE_TX_AGGR		\
+	(ETHTOOL_COALESCE_TX_AGGR_MAX_BYTES |	\
+	 ETHTOOL_COALESCE_TX_AGGR_MAX_FRAMES |	\
+	 ETHTOOL_COALESCE_TX_AGGR_TIME_USECS)
 
 #define ETHTOOL_STAT_NOT_SET	(~0ULL)
 
