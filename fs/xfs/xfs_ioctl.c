@@ -665,7 +665,7 @@ xfs_ioc_fsbulkstat(
 	struct xfs_fsop_bulkreq	bulkreq;
 	struct xfs_ibulk	breq = {
 		.mp		= mp,
-		.mnt_userns	= file_mnt_user_ns(file),
+		.idmap		= file_mnt_idmap(file),
 		.ocount		= 0,
 	};
 	xfs_ino_t		lastino;
@@ -844,7 +844,7 @@ xfs_ioc_bulkstat(
 	struct xfs_bulk_ireq		hdr;
 	struct xfs_ibulk		breq = {
 		.mp			= mp,
-		.mnt_userns		= file_mnt_user_ns(file),
+		.idmap			= file_mnt_idmap(file),
 	};
 	int				error;
 

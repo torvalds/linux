@@ -554,12 +554,11 @@ xfs_vn_getattr(
 	u32			request_mask,
 	unsigned int		query_flags)
 {
-	struct user_namespace	*mnt_userns = mnt_idmap_owner(idmap);
 	struct inode		*inode = d_inode(path->dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	vfsuid_t		vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
-	vfsgid_t		vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+	vfsuid_t		vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsgid_t		vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 	trace_xfs_getattr(ip);
 

@@ -2327,9 +2327,8 @@ bool inode_owner_or_capable(struct mnt_idmap *idmap,
 {
 	vfsuid_t vfsuid;
 	struct user_namespace *ns;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
-	vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
 		return true;
 
@@ -2498,14 +2497,11 @@ bool in_group_or_capable(struct mnt_idmap *idmap,
 umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 			const struct inode *dir, umode_t mode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
 	if ((mode & (S_ISGID | S_IXGRP)) != (S_ISGID | S_IXGRP))
 		return mode;
 	if (S_ISDIR(mode) || !dir || !(dir->i_mode & S_ISGID))
 		return mode;
-	if (in_group_or_capable(idmap, dir,
-				i_gid_into_vfsgid(mnt_userns, dir)))
+	if (in_group_or_capable(idmap, dir, i_gid_into_vfsgid(idmap, dir)))
 		return mode;
 	return mode & ~S_ISGID;
 }

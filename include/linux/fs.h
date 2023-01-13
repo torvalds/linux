@@ -1632,16 +1632,17 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
 }
 
 /**
- * i_uid_into_vfsuid - map an inode's i_uid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
+ * i_uid_into_vfsuid - map an inode's i_uid down according to an idmapping
+ * @idmap: idmap of the mount the inode was found from
  * @inode: inode to map
  *
- * Return: whe inode's i_uid mapped down according to @mnt_userns.
+ * Return: whe inode's i_uid mapped down according to @idmap.
  * If the inode's i_uid has no mapping INVALID_VFSUID is returned.
  */
-static inline vfsuid_t i_uid_into_vfsuid(struct user_namespace *mnt_userns,
+static inline vfsuid_t i_uid_into_vfsuid(struct mnt_idmap *idmap,
 					 const struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid);
 }
 
@@ -1660,11 +1661,9 @@ static inline bool i_uid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
 				      const struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
 	return ((attr->ia_valid & ATTR_UID) &&
 		!vfsuid_eq(attr->ia_vfsuid,
-			   i_uid_into_vfsuid(mnt_userns, inode)));
+			   i_uid_into_vfsuid(idmap, inode)));
 }
 
 /**
@@ -1688,16 +1687,17 @@ static inline void i_uid_update(struct mnt_idmap *idmap,
 }
 
 /**
- * i_gid_into_vfsgid - map an inode's i_gid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
+ * i_gid_into_vfsgid - map an inode's i_gid down according to an idmapping
+ * @idmap: idmap of the mount the inode was found from
  * @inode: inode to map
  *
- * Return: the inode's i_gid mapped down according to @mnt_userns.
+ * Return: the inode's i_gid mapped down according to @idmap.
  * If the inode's i_gid has no mapping INVALID_VFSGID is returned.
  */
-static inline vfsgid_t i_gid_into_vfsgid(struct user_namespace *mnt_userns,
+static inline vfsgid_t i_gid_into_vfsgid(struct mnt_idmap *idmap,
 					 const struct inode *inode)
 {
+	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	return make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid);
 }
 
@@ -1716,11 +1716,9 @@ static inline bool i_gid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
 				      const struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
 	return ((attr->ia_valid & ATTR_GID) &&
 		!vfsgid_eq(attr->ia_vfsgid,
-			   i_gid_into_vfsgid(mnt_userns, inode)));
+			   i_gid_into_vfsgid(idmap, inode)));
 }
 
 /**
@@ -2334,10 +2332,8 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags 
 static inline bool HAS_UNMAPPED_ID(struct mnt_idmap *idmap,
 				   struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	return !vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)) ||
-	       !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode));
+	return !vfsuid_valid(i_uid_into_vfsuid(idmap, inode)) ||
+	       !vfsgid_valid(i_gid_into_vfsgid(idmap, inode));
 }
 
 static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
@@ -2731,11 +2727,6 @@ struct filename {
 	const char		iname[];
 };
 static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
-
-static inline struct user_namespace *file_mnt_user_ns(struct file *file)
-{
-	return mnt_user_ns(file->f_path.mnt);
-}
 
 static inline struct mnt_idmap *file_mnt_idmap(struct file *file)
 {

@@ -907,7 +907,6 @@ static void __setattr_copy(struct mnt_idmap *idmap,
 			   struct inode *inode, const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
 	i_uid_update(idmap, attr, inode);
 	i_gid_update(idmap, attr, inode);
@@ -919,7 +918,7 @@ static void __setattr_copy(struct mnt_idmap *idmap,
 		inode->i_ctime = attr->ia_ctime;
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
-		vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+		vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 		if (!vfsgid_in_group_p(vfsgid) &&
 		    !capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))

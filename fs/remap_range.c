@@ -420,14 +420,13 @@ EXPORT_SYMBOL(vfs_clone_file_range);
 static bool allow_file_dedupe(struct file *file)
 {
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = file_inode(file);
 
 	if (capable(CAP_SYS_ADMIN))
 		return true;
 	if (file->f_mode & FMODE_WRITE)
 		return true;
-	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode), current_fsuid()))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid()))
 		return true;
 	if (!inode_permission(idmap, inode, MAY_WRITE))
 		return true;

@@ -388,7 +388,7 @@ posix_acl_permission(struct mnt_idmap *idmap, struct inode *inode,
                 switch(pa->e_tag) {
                         case ACL_USER_OBJ:
 				/* (May have been checked already) */
-				vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+				vfsuid = i_uid_into_vfsuid(idmap, inode);
 				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto check_perm;
                                 break;
@@ -399,7 +399,7 @@ posix_acl_permission(struct mnt_idmap *idmap, struct inode *inode,
                                         goto mask;
 				break;
                         case ACL_GROUP_OBJ:
-				vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+				vfsgid = i_gid_into_vfsgid(idmap, inode);
 				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
@@ -708,7 +708,6 @@ int posix_acl_update_mode(struct mnt_idmap *idmap,
 			  struct inode *inode, umode_t *mode_p,
 			  struct posix_acl **acl)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	umode_t mode = inode->i_mode;
 	int error;
 
@@ -717,7 +716,7 @@ int posix_acl_update_mode(struct mnt_idmap *idmap,
 		return error;
 	if (error == 0)
 		*acl = NULL;
-	if (!vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)) &&
+	if (!vfsgid_in_group_p(i_gid_into_vfsgid(idmap, inode)) &&
 	    !capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;

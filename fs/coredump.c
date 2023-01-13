@@ -645,7 +645,6 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		}
 	} else {
 		struct mnt_idmap *idmap;
-		struct user_namespace *mnt_userns;
 		struct inode *inode;
 		int open_flags = O_CREAT | O_RDWR | O_NOFOLLOW |
 				 O_LARGEFILE | O_EXCL;
@@ -724,8 +723,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		 * filesystem.
 		 */
 		idmap = file_mnt_idmap(cprm.file);
-		mnt_userns = mnt_idmap_owner(idmap);
-		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode),
+		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
 				    current_fsuid())) {
 			pr_info_ratelimited("Core dump to %s aborted: cannot preserve file owner\n",
 					    cn.corename);

@@ -862,7 +862,7 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 	const char *info = NULL;
 	int error = 0;
 	bool unsafe = false;
-	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_user_ns(bprm->file),
+	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(bprm->file),
 					    file_inode(bprm->file));
 	struct path_cond cond = {
 		vfsuid_into_kuid(vfsuid),

@@ -209,7 +209,6 @@ static int f2fs_acl_update_mode(struct mnt_idmap *idmap,
 				struct posix_acl **acl)
 {
 	umode_t mode = inode->i_mode;
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	int error;
 
 	if (is_inode_flag_set(inode, FI_ACL_MODE))
@@ -220,7 +219,7 @@ static int f2fs_acl_update_mode(struct mnt_idmap *idmap,
 		return error;
 	if (error == 0)
 		*acl = NULL;
-	if (!vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)) &&
+	if (!vfsgid_in_group_p(i_gid_into_vfsgid(idmap, inode)) &&
 	    !capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;

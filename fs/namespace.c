@@ -231,32 +231,6 @@ struct user_namespace *mnt_idmap_owner(const struct mnt_idmap *idmap)
 EXPORT_SYMBOL_GPL(mnt_idmap_owner);
 
 /**
- * mnt_user_ns - retrieve owner of an idmapped mount
- * @mnt: the relevant vfsmount
- *
- * This helper will go away once the conversion to use struct mnt_idmap
- * everywhere has finished at which point the helper will be unexported.
- *
- * Only code that needs to perform permission checks based on the owner of the
- * idmapping will get access to it. All other code will solely rely on
- * idmappings. This will get us type safety so it's impossible to conflate
- * filesystems idmappings with mount idmappings.
- *
- * Return: The owner of the idmapped.
- */
-struct user_namespace *mnt_user_ns(const struct vfsmount *mnt)
-{
-	struct mnt_idmap *idmap = mnt_idmap(mnt);
-
-	/* Return the actual owner of the filesystem instead of the nop. */
-	if (idmap == &nop_mnt_idmap &&
-	    !initial_idmapping(mnt->mnt_sb->s_user_ns))
-		return mnt->mnt_sb->s_user_ns;
-	return mnt_idmap_owner(idmap);
-}
-EXPORT_SYMBOL_GPL(mnt_user_ns);
-
-/**
  * alloc_mnt_idmap - allocate a new idmapping for the mount
  * @mnt_userns: owning userns of the idmapping
  *

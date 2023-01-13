@@ -2476,11 +2476,11 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 }
 
 static void ksmbd_acls_fattr(struct smb_fattr *fattr,
-			     struct user_namespace *mnt_userns,
+			     struct mnt_idmap *idmap,
 			     struct inode *inode)
 {
-	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
-	vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 	fattr->cf_uid = vfsuid_into_kuid(vfsuid);
 	fattr->cf_gid = vfsgid_into_kgid(vfsgid);
@@ -2985,7 +2985,7 @@ int smb2_open(struct ksmbd_work *work)
 					struct smb_ntsd *pntsd;
 					int pntsd_size, ace_num = 0;
 
-					ksmbd_acls_fattr(&fattr, user_ns, inode);
+					ksmbd_acls_fattr(&fattr, idmap, inode);
 					if (fattr.cf_acls)
 						ace_num = fattr.cf_acls->a_count;
 					if (fattr.cf_dacls)
@@ -4725,9 +4725,9 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 {
 	struct smb311_posix_qinfo *file_info;
 	struct inode *inode = file_inode(fp->filp);
-	struct user_namespace *user_ns = file_mnt_user_ns(fp->filp);
-	vfsuid_t vfsuid = i_uid_into_vfsuid(user_ns, inode);
-	vfsgid_t vfsgid = i_gid_into_vfsgid(user_ns, inode);
+	struct mnt_idmap *idmap = file_mnt_idmap(fp->filp);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 	u64 time;
 	int out_buf_len = sizeof(struct smb311_posix_qinfo) + 32;
 
@@ -5178,7 +5178,7 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 	idmap = file_mnt_idmap(fp->filp);
 	user_ns = mnt_idmap_owner(idmap);
 	inode = file_inode(fp->filp);
-	ksmbd_acls_fattr(&fattr, user_ns, inode);
+	ksmbd_acls_fattr(&fattr, idmap, inode);
 
 	if (test_share_config_flag(work->tcon->share_conf,
 				   KSMBD_SHARE_FLAG_ACL_XATTR))

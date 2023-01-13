@@ -335,12 +335,11 @@ static int check_acl(struct mnt_idmap *idmap,
 static int acl_permission_check(struct mnt_idmap *idmap,
 				struct inode *inode, int mask)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	unsigned int mode = inode->i_mode;
 	vfsuid_t vfsuid;
 
 	/* Are we the owner? If so, ACL's don't matter */
-	vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	if (likely(vfsuid_eq_kuid(vfsuid, current_fsuid()))) {
 		mask &= 7;
 		mode >>= 6;
@@ -363,7 +362,7 @@ static int acl_permission_check(struct mnt_idmap *idmap,
 	 * about? Need to check group ownership if so.
 	 */
 	if (mask & (mode ^ (mode >> 3))) {
-		vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+		vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 		if (vfsgid_in_group_p(vfsgid))
 			mode >>= 3;
 	}
@@ -1095,14 +1094,14 @@ fs_initcall(init_fs_namei_sysctls);
  */
 static inline int may_follow_link(struct nameidata *nd, const struct inode *inode)
 {
-	struct user_namespace *mnt_userns;
+	struct mnt_idmap *idmap;
 	vfsuid_t vfsuid;
 
 	if (!sysctl_protected_symlinks)
 		return 0;
 
-	mnt_userns = mnt_user_ns(nd->path.mnt);
-	vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	idmap = mnt_idmap(nd->path.mnt);
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	/* Allowed if owner and follower match. */
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
 		return 0;
@@ -1181,12 +1180,11 @@ static bool safe_hardlink_source(struct mnt_idmap *idmap,
  */
 int may_linkat(struct mnt_idmap *idmap, const struct path *link)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = link->dentry->d_inode;
 
 	/* Inode writeback is not safe when the uid or gid are invalid. */
-	if (!vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)) ||
-	    !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode)))
+	if (!vfsuid_valid(i_uid_into_vfsuid(idmap, inode)) ||
+	    !vfsgid_valid(i_gid_into_vfsgid(idmap, inode)))
 		return -EOVERFLOW;
 
 	if (!sysctl_protected_hardlinks)
@@ -1207,7 +1205,7 @@ int may_linkat(struct mnt_idmap *idmap, const struct path *link)
  * may_create_in_sticky - Check whether an O_CREAT open in a sticky directory
  *			  should be allowed, or not, on files that already
  *			  exist.
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @nd: nameidata pathwalk data
  * @inode: the inode of the file to open
  *
@@ -1222,15 +1220,15 @@ int may_linkat(struct mnt_idmap *idmap, const struct path *link)
  * the directory doesn't have to be world writable: being group writable will
  * be enough.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then take
- * care to map the inode according to @mnt_userns before checking permissions.
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then take
+ * care to map the inode according to @idmap before checking permissions.
  * On non-idmapped mounts or if permission checking is to be performed on the
- * raw inode simply passs init_user_ns.
+ * raw inode simply pass @nop_mnt_idmap.
  *
  * Returns 0 if the open is allowed, -ve on error.
  */
-static int may_create_in_sticky(struct user_namespace *mnt_userns,
+static int may_create_in_sticky(struct mnt_idmap *idmap,
 				struct nameidata *nd, struct inode *const inode)
 {
 	umode_t dir_mode = nd->dir_mode;
@@ -1239,8 +1237,8 @@ static int may_create_in_sticky(struct user_namespace *mnt_userns,
 	if ((!sysctl_protected_fifos && S_ISFIFO(inode->i_mode)) ||
 	    (!sysctl_protected_regular && S_ISREG(inode->i_mode)) ||
 	    likely(!(dir_mode & S_ISVTX)) ||
-	    vfsuid_eq(i_uid_into_vfsuid(mnt_userns, inode), dir_vfsuid) ||
-	    vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode), current_fsuid()))
+	    vfsuid_eq(i_uid_into_vfsuid(idmap, inode), dir_vfsuid) ||
+	    vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid()))
 		return 0;
 
 	if (likely(dir_mode & 0002) ||
@@ -2256,13 +2254,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	/* At this point we know we have a real path component. */
 	for(;;) {
 		struct mnt_idmap *idmap;
-		struct user_namespace *mnt_userns;
 		const char *link;
 		u64 hash_len;
 		int type;
 
 		idmap = mnt_idmap(nd->path.mnt);
-		mnt_userns = mnt_idmap_owner(idmap);
 		err = may_lookup(idmap, nd);
 		if (err)
 			return err;
@@ -2311,7 +2307,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 OK:
 			/* pathname or trailing symlink, done */
 			if (!depth) {
-				nd->dir_vfsuid = i_uid_into_vfsuid(mnt_userns, nd->inode);
+				nd->dir_vfsuid = i_uid_into_vfsuid(idmap, nd->inode);
 				nd->dir_mode = nd->inode->i_mode;
 				nd->flags &= ~LOOKUP_PARENT;
 				return 0;
@@ -2888,11 +2884,10 @@ int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
 		   struct inode *inode)
 {
 	kuid_t fsuid = current_fsuid();
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 
-	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode), fsuid))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), fsuid))
 		return 0;
-	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, dir), fsuid))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, dir), fsuid))
 		return 0;
 	return !capable_wrt_inode_uidgid(idmap, inode, CAP_FOWNER);
 }
@@ -2921,7 +2916,6 @@ EXPORT_SYMBOL(__check_sticky);
 static int may_delete(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *victim, bool isdir)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_backing_inode(victim);
 	int error;
 
@@ -2932,8 +2926,8 @@ static int may_delete(struct mnt_idmap *idmap, struct inode *dir,
 	BUG_ON(victim->d_parent->d_inode != dir);
 
 	/* Inode writeback is not safe when the uid or gid are invalid. */
-	if (!vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)) ||
-	    !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode)))
+	if (!vfsuid_valid(i_uid_into_vfsuid(idmap, inode)) ||
+	    !vfsgid_valid(i_gid_into_vfsgid(idmap, inode)))
 		return -EOVERFLOW;
 
 	audit_inode_child(dir, victim, AUDIT_TYPE_CHILD_DELETE);
@@ -3522,7 +3516,6 @@ static int do_open(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op)
 {
 	struct mnt_idmap *idmap;
-	struct user_namespace *mnt_userns;
 	int open_flag = op->open_flag;
 	bool do_truncate;
 	int acc_mode;
@@ -3536,13 +3529,12 @@ static int do_open(struct nameidata *nd,
 	if (!(file->f_mode & FMODE_CREATED))
 		audit_inode(nd->name, nd->path.dentry, 0);
 	idmap = mnt_idmap(nd->path.mnt);
-	mnt_userns = mnt_idmap_owner(idmap);
 	if (open_flag & O_CREAT) {
 		if ((open_flag & O_EXCL) && !(file->f_mode & FMODE_CREATED))
 			return -EEXIST;
 		if (d_is_dir(nd->path.dentry))
 			return -EISDIR;
-		error = may_create_in_sticky(mnt_userns, nd,
+		error = may_create_in_sticky(idmap, nd,
 					     d_backing_inode(nd->path.dentry));
 		if (unlikely(error))
 			return error;

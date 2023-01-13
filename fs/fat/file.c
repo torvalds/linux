@@ -456,14 +456,14 @@ static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 	return 0;
 }
 
-static int fat_allow_set_time(struct user_namespace *mnt_userns,
+static int fat_allow_set_time(struct mnt_idmap *idmap,
 			      struct msdos_sb_info *sbi, struct inode *inode)
 {
 	umode_t allow_utime = sbi->options.allow_utime;
 
-	if (!vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode),
+	if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
 			    current_fsuid())) {
-		if (vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)))
+		if (vfsgid_in_group_p(i_gid_into_vfsgid(idmap, inode)))
 			allow_utime >>= 3;
 		if (allow_utime & MAY_WRITE)
 			return 1;
@@ -489,7 +489,7 @@ int fat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	/* Check for setting the inode time. */
 	ia_valid = attr->ia_valid;
 	if (ia_valid & TIMES_SET_FLAGS) {
-		if (fat_allow_set_time(mnt_userns, sbi, inode))
+		if (fat_allow_set_time(idmap, sbi, inode))
 			attr->ia_valid &= ~TIMES_SET_FLAGS;
 	}
 

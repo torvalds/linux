@@ -36,15 +36,13 @@
 int setattr_should_drop_sgid(struct mnt_idmap *idmap,
 			     const struct inode *inode)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	umode_t mode = inode->i_mode;
 
 	if (!(mode & S_ISGID))
 		return 0;
 	if (mode & S_IXGRP)
 		return ATTR_KILL_SGID;
-	if (!in_group_or_capable(idmap, inode,
-				 i_gid_into_vfsgid(mnt_userns, inode)))
+	if (!in_group_or_capable(idmap, inode, i_gid_into_vfsgid(idmap, inode)))
 		return ATTR_KILL_SGID;
 	return 0;
 }
@@ -98,9 +96,7 @@ EXPORT_SYMBOL(setattr_should_drop_suidgid);
 static bool chown_ok(struct mnt_idmap *idmap,
 		     const struct inode *inode, vfsuid_t ia_vfsuid)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid()) &&
 	    vfsuid_eq(ia_vfsuid, vfsuid))
 		return true;
@@ -127,10 +123,8 @@ static bool chown_ok(struct mnt_idmap *idmap,
 static bool chgrp_ok(struct mnt_idmap *idmap,
 		     const struct inode *inode, vfsgid_t ia_vfsgid)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
-	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid())) {
 		if (vfsgid_eq(ia_vfsgid, vfsgid))
 			return true;
@@ -169,7 +163,6 @@ static bool chgrp_ok(struct mnt_idmap *idmap,
 int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 		    struct iattr *attr)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 
@@ -207,7 +200,7 @@ int setattr_prepare(struct mnt_idmap *idmap, struct dentry *dentry,
 		if (ia_valid & ATTR_GID)
 			vfsgid = attr->ia_vfsgid;
 		else
-			vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+			vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 		/* Also check the setgid bit! */
 		if (!in_group_or_capable(idmap, inode, vfsgid))
@@ -308,7 +301,6 @@ EXPORT_SYMBOL(inode_newsize_ok);
 void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 		  const struct iattr *attr)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
 	unsigned int ia_valid = attr->ia_valid;
 
 	i_uid_update(idmap, attr, inode);
@@ -322,7 +314,7 @@ void setattr_copy(struct mnt_idmap *idmap, struct inode *inode,
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
 		if (!in_group_or_capable(idmap, inode,
-					 i_gid_into_vfsgid(mnt_userns, inode)))
+					 i_gid_into_vfsgid(idmap, inode)))
 			mode &= ~S_ISGID;
 		inode->i_mode = mode;
 	}
@@ -473,10 +465,10 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 	 * gids unless those uids & gids are being made valid.
 	 */
 	if (!(ia_valid & ATTR_UID) &&
-	    !vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)))
+	    !vfsuid_valid(i_uid_into_vfsuid(idmap, inode)))
 		return -EOVERFLOW;
 	if (!(ia_valid & ATTR_GID) &&
-	    !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode)))
+	    !vfsgid_valid(i_gid_into_vfsgid(idmap, inode)))
 		return -EOVERFLOW;
 
 	error = security_inode_setattr(idmap, dentry, attr);

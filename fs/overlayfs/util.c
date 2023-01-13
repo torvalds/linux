@@ -1101,16 +1101,16 @@ void ovl_copyattr(struct inode *inode)
 {
 	struct path realpath;
 	struct inode *realinode;
-	struct user_namespace *real_mnt_userns;
+	struct mnt_idmap *real_idmap;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
 
 	ovl_i_path_real(inode, &realpath);
 	realinode = d_inode(realpath.dentry);
-	real_mnt_userns = mnt_user_ns(realpath.mnt);
+	real_idmap = mnt_idmap(realpath.mnt);
 
-	vfsuid = i_uid_into_vfsuid(real_mnt_userns, realinode);
-	vfsgid = i_gid_into_vfsgid(real_mnt_userns, realinode);
+	vfsuid = i_uid_into_vfsuid(real_idmap, realinode);
+	vfsgid = i_gid_into_vfsgid(real_idmap, realinode);
 
 	inode->i_uid = vfsuid_into_kuid(vfsuid);
 	inode->i_gid = vfsgid_into_kgid(vfsgid);

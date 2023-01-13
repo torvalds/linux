@@ -44,10 +44,8 @@
 void generic_fillattr(struct mnt_idmap *idmap, struct inode *inode,
 		      struct kstat *stat)
 {
-	struct user_namespace *mnt_userns = mnt_idmap_owner(idmap);
-
-	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
-	vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = inode->i_ino;

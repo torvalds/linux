@@ -1468,7 +1468,7 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
 		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
 							     ACL_TYPE_DEFAULT);
 
-	rc = ndr_encode_posix_acl(&acl_ndr, user_ns, inode,
+	rc = ndr_encode_posix_acl(&acl_ndr, idmap, inode,
 				  smb_acl, def_smb_acl);
 	if (rc) {
 		pr_err("failed to encode ndr to posix acl\n");
@@ -1531,7 +1531,7 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(user_ns, inode,
 							     ACL_TYPE_DEFAULT);
 
-	rc = ndr_encode_posix_acl(&acl_ndr, user_ns, inode, smb_acl,
+	rc = ndr_encode_posix_acl(&acl_ndr, idmap, inode, smb_acl,
 				  def_smb_acl);
 	if (rc) {
 		pr_err("failed to encode ndr to posix acl\n");
