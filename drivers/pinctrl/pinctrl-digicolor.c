@@ -248,7 +248,6 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap)
 	chip->set		= dc_gpio_set;
 	chip->base		= -1;
 	chip->ngpio		= PINS_COUNT;
-	chip->of_gpio_n_cells	= 2;
 
 	spin_lock_init(&pmap->lock);
 
