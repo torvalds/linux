@@ -996,6 +996,7 @@ struct ufs_hba {
 	u32 luns_avail;
 	bool complete_put;
 	bool ext_iid_sup;
+	bool scsi_host_added;
 	bool mcq_sup;
 };
 
