@@ -16,6 +16,7 @@
 #include <linux/blk-crypto-profile.h>
 #include <linux/blk-mq.h>
 #include <linux/devfreq.h>
+#include <linux/msi.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-direction.h>
 #include <scsi/scsi_device.h>
@@ -305,6 +306,7 @@ struct ufs_pwr_mode_info {
  * @get_hba_mac: called to get vendor specific mac value, mandatory for mcq mode
  * @op_runtime_config: called to config Operation and runtime regs Pointers
  * @get_outstanding_cqs: called to get outstanding completion queues
+ * @config_esi: called to config Event Specific Interrupt
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -349,6 +351,7 @@ struct ufs_hba_variant_ops {
 	int	(*op_runtime_config)(struct ufs_hba *hba);
 	int	(*get_outstanding_cqs)(struct ufs_hba *hba,
 				       unsigned long *ocqs);
+	int	(*config_esi)(struct ufs_hba *hba);
 };
 
 /* clock gating state  */
@@ -1239,6 +1242,11 @@ void ufshcd_parse_dev_ref_clk_freq(struct ufs_hba *hba, struct clk *refclk);
 void ufshcd_update_evt_hist(struct ufs_hba *hba, u32 id, u32 val);
 void ufshcd_hba_stop(struct ufs_hba *hba);
 void ufshcd_schedule_eh_work(struct ufs_hba *hba);
+void ufshcd_mcq_write_cqis(struct ufs_hba *hba, u32 val, int i);
+unsigned long ufshcd_mcq_poll_cqe_nolock(struct ufs_hba *hba,
+					 struct ufs_hw_queue *hwq);
+void ufshcd_mcq_enable_esi(struct ufs_hba *hba);
+void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg);
 
 /**
  * ufshcd_set_variant - set variant specific data to the hba
