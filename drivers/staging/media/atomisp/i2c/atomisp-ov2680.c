@@ -15,25 +15,15 @@
  *
  */
 
-#include <asm/unaligned.h>
-
+#include <linux/acpi.h>
+#include <linux/device.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kmod.h>
-#include <linux/device.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/i2c.h>
-#include <linux/moduleparam.h>
+
 #include <media/ov_16bit_addr_reg_helpers.h>
 #include <media/v4l2-device.h>
-#include <linux/io.h>
-#include <linux/acpi.h>
+
 #include "../include/linux/atomisp_gmin_platform.h"
 
 #include "ov2680.h"
