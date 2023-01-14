@@ -3970,6 +3970,11 @@ static void mtk_pending_work(struct work_struct *work)
 	set_bit(MTK_RESETTING, &eth->state);
 
 	mtk_prepare_for_reset(eth);
+	mtk_wed_fe_reset();
+	/* Run again reset preliminary configuration in order to avoid any
+	 * possible race during FE reset since it can run releasing RTNL lock.
+	 */
+	mtk_prepare_for_reset(eth);
 
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -4006,6 +4011,8 @@ static void mtk_pending_work(struct work_struct *work)
 	mtk_w32(eth, val, MTK_FE_GLO_CFG);
 
 	clear_bit(MTK_RESETTING, &eth->state);
+
+	mtk_wed_fe_reset_complete();
 
 	rtnl_unlock();
 }
