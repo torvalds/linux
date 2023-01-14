@@ -738,7 +738,7 @@ int vcap_api_check(struct vcap_control *ctrl)
 	    !ctrl->ops->add_default_fields || !ctrl->ops->cache_erase ||
 	    !ctrl->ops->cache_write || !ctrl->ops->cache_read ||
 	    !ctrl->ops->init || !ctrl->ops->update || !ctrl->ops->move ||
-	    !ctrl->ops->port_info || !ctrl->ops->enable) {
+	    !ctrl->ops->port_info) {
 		pr_err("%s:%d: client operations are missing\n",
 		       __func__, __LINE__);
 		return -ENOENT;
@@ -2655,10 +2655,6 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 	/* first instance and first chain */
 	if (admin->vinst || chain_id > admin->first_cid)
 		return -EFAULT;
-
-	err = vctrl->ops->enable(ndev, admin, enable);
-	if (err)
-		return err;
 
 	if (chain_id) {
 		if (vcap_is_enabled(admin, ndev, cookie))
