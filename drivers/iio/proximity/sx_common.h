@@ -101,7 +101,6 @@ struct sx_common_chip_info {
  * @client:		I2C client structure.
  * @trig:		IIO trigger object.
  * @regmap:		Register map.
- * @num_default_regs:	Number of default registers to set at init.
  * @chan_prox_stat:	Last reading of the proximity status for each channel.
  *			We only send an event to user space when this changes.
  * @trigger_enabled:	True when the device trigger is enabled.
