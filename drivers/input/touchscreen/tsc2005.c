@@ -81,7 +81,7 @@ static struct spi_driver tsc2005_driver = {
 	.driver	= {
 		.name	= "tsc2005",
 		.of_match_table = of_match_ptr(tsc2005_of_match),
-		.pm	= &tsc200x_pm_ops,
+		.pm	= pm_sleep_ptr(&tsc200x_pm_ops),
 	},
 	.probe	= tsc2005_probe,
 	.remove	= tsc2005_remove,
