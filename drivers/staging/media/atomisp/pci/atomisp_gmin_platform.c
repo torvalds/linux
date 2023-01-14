@@ -149,7 +149,6 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 				enum intel_v4l2_subdev_type type)
 {
 	int i;
-	struct i2c_board_info *bi;
 	struct gmin_subdev *gs;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
@@ -183,35 +182,9 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	pdata.subdevs[i].type = type;
 	pdata.subdevs[i].port = gs->csi_port;
 	pdata.subdevs[i].subdev = subdev;
-	pdata.subdevs[i].v4l2_subdev.i2c_adapter_id = client->adapter->nr;
-
-	/* Convert i2c_client to i2c_board_info */
-	bi = &pdata.subdevs[i].v4l2_subdev.board_info;
-	memcpy(bi->type, client->name, I2C_NAME_SIZE);
-	bi->flags = client->flags;
-	bi->addr = client->addr;
-	bi->irq = client->irq;
-	bi->platform_data = plat_data;
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atomisp_register_i2c_module);
-
-struct v4l2_subdev *atomisp_gmin_find_subdev(struct i2c_adapter *adapter,
-	struct i2c_board_info *board_info)
-{
-	int i;
-
-	for (i = 0; i < MAX_SUBDEVS && pdata.subdevs[i].type; i++) {
-		struct intel_v4l2_subdev_table *sd = &pdata.subdevs[i];
-
-		if (sd->v4l2_subdev.i2c_adapter_id == adapter->nr &&
-		    sd->v4l2_subdev.board_info.addr == board_info->addr)
-			return sd->subdev;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(atomisp_gmin_find_subdev);
 
 int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd)
 {

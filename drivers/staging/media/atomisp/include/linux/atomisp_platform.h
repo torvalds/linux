@@ -125,13 +125,7 @@ struct intel_v4l2_subdev_id {
 	enum atomisp_camera_port    port;
 };
 
-struct intel_v4l2_subdev_i2c_board_info {
-	struct i2c_board_info board_info;
-	int i2c_adapter_id;
-};
-
 struct intel_v4l2_subdev_table {
-	struct intel_v4l2_subdev_i2c_board_info v4l2_subdev;
 	enum intel_v4l2_subdev_type type;
 	enum atomisp_camera_port port;
 	struct v4l2_subdev *subdev;

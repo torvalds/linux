@@ -937,45 +937,9 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 	/* FIXME: should, instead, use I2C probe */
 
 	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-		struct v4l2_subdev *subdev;
-		struct i2c_board_info *board_info =
-			    &subdevs->v4l2_subdev.board_info;
-		struct i2c_adapter *adapter =
-		    i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
-
-		dev_info(isp->dev, "Probing Subdev %s\n", board_info->type);
-
-		if (!adapter) {
-			dev_err(isp->dev,
-				"Failed to find i2c adapter for subdev %s\n",
-				board_info->type);
-			break;
-		}
-
-		/* In G-Min, the sensor devices will already be probed
-		 * (via ACPI) and registered, do not create new
-		 * ones */
-		subdev = atomisp_gmin_find_subdev(adapter, board_info);
-		if (!subdev) {
-			dev_warn(isp->dev, "Subdev %s not found\n",
-				 board_info->type);
+		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdevs->subdev);
+		if (ret)
 			continue;
-		}
-		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdev);
-		if (ret) {
-			dev_warn(isp->dev, "Subdev %s detection fail\n",
-				 board_info->type);
-			continue;
-		}
-
-		if (!subdev) {
-			dev_warn(isp->dev, "Subdev %s detection fail\n",
-				 board_info->type);
-			continue;
-		}
-
-		dev_info(isp->dev, "Subdev %s successfully register\n",
-			 board_info->type);
 
 		switch (subdevs->type) {
 		case RAW_CAMERA:
@@ -992,7 +956,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 
 			isp->inputs[isp->input_cnt].type = subdevs->type;
 			isp->inputs[isp->input_cnt].port = subdevs->port;
-			isp->inputs[isp->input_cnt].camera = subdev;
+			isp->inputs[isp->input_cnt].camera = subdevs->subdev;
 			isp->inputs[isp->input_cnt].sensor_index = 0;
 			/*
 			 * initialize the subdev frame size, then next we can
@@ -1004,22 +968,18 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			break;
 		case CAMERA_MOTOR:
 			if (isp->motor) {
-				dev_warn(isp->dev,
-					 "too many atomisp motors, ignored %s\n",
-					 board_info->type);
+				dev_warn(isp->dev, "too many atomisp motors\n");
 				continue;
 			}
-			isp->motor = subdev;
+			isp->motor = subdevs->subdev;
 			break;
 		case LED_FLASH:
 		case XENON_FLASH:
 			if (isp->flash) {
-				dev_warn(isp->dev,
-					 "too many atomisp flash devices, ignored %s\n",
-					 board_info->type);
+				dev_warn(isp->dev, "too many atomisp flash devices\n");
 				continue;
 			}
-			isp->flash = subdev;
+			isp->flash = subdevs->subdev;
 			break;
 		default:
 			dev_dbg(isp->dev, "unknown subdev probed\n");
