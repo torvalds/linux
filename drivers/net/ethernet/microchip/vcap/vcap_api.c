@@ -508,10 +508,133 @@ static void vcap_encode_keyfield_typegroups(struct vcap_control *vctrl,
 	vcap_encode_typegroups(cache->maskstream, sw_width, tgt, true);
 }
 
+/* Copy data from src to dst but reverse the data in chunks of 32bits.
+ * For example if src is 00:11:22:33:44:55 where 55 is LSB the dst will
+ * have the value 22:33:44:55:00:11.
+ */
+static void vcap_copy_to_w32be(u8 *dst, const u8 *src, int size)
+{
+	for (int idx = 0; idx < size; ++idx) {
+		int first_byte_index = 0;
+		int nidx;
+
+		first_byte_index = size - (((idx >> 2) + 1) << 2);
+		if (first_byte_index < 0)
+			first_byte_index = 0;
+		nidx = idx + first_byte_index - (idx & ~0x3);
+		dst[nidx] = src[idx];
+	}
+}
+
+static void
+vcap_copy_from_client_keyfield(struct vcap_rule *rule,
+			       struct vcap_client_keyfield *dst,
+			       const struct vcap_client_keyfield *src)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	const struct vcap_client_keyfield_data *sdata;
+	struct vcap_client_keyfield_data *ddata;
+	int size;
+
+	dst->ctrl.type = src->ctrl.type;
+	dst->ctrl.key = src->ctrl.key;
+	INIT_LIST_HEAD(&dst->ctrl.list);
+	sdata = &src->data;
+	ddata = &dst->data;
+
+	if (!ri->admin->w32be) {
+		memcpy(ddata, sdata, sizeof(dst->data));
+		return;
+	}
+
+	size = keyfield_size_table[dst->ctrl.type] / 2;
+
+	switch (dst->ctrl.type) {
+	case VCAP_FIELD_BIT:
+	case VCAP_FIELD_U32:
+		memcpy(ddata, sdata, sizeof(dst->data));
+		break;
+	case VCAP_FIELD_U48:
+		vcap_copy_to_w32be(ddata->u48.value, src->data.u48.value, size);
+		vcap_copy_to_w32be(ddata->u48.mask,  src->data.u48.mask, size);
+		break;
+	case VCAP_FIELD_U56:
+		vcap_copy_to_w32be(ddata->u56.value, sdata->u56.value, size);
+		vcap_copy_to_w32be(ddata->u56.mask,  sdata->u56.mask, size);
+		break;
+	case VCAP_FIELD_U64:
+		vcap_copy_to_w32be(ddata->u64.value, sdata->u64.value, size);
+		vcap_copy_to_w32be(ddata->u64.mask,  sdata->u64.mask, size);
+		break;
+	case VCAP_FIELD_U72:
+		vcap_copy_to_w32be(ddata->u72.value, sdata->u72.value, size);
+		vcap_copy_to_w32be(ddata->u72.mask,  sdata->u72.mask, size);
+		break;
+	case VCAP_FIELD_U112:
+		vcap_copy_to_w32be(ddata->u112.value, sdata->u112.value, size);
+		vcap_copy_to_w32be(ddata->u112.mask,  sdata->u112.mask, size);
+		break;
+	case VCAP_FIELD_U128:
+		vcap_copy_to_w32be(ddata->u128.value, sdata->u128.value, size);
+		vcap_copy_to_w32be(ddata->u128.mask,  sdata->u128.mask, size);
+		break;
+	}
+}
+
+static void
+vcap_copy_from_client_actionfield(struct vcap_rule *rule,
+				  struct vcap_client_actionfield *dst,
+				  const struct vcap_client_actionfield *src)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	const struct vcap_client_actionfield_data *sdata;
+	struct vcap_client_actionfield_data *ddata;
+	int size;
+
+	dst->ctrl.type = src->ctrl.type;
+	dst->ctrl.action = src->ctrl.action;
+	INIT_LIST_HEAD(&dst->ctrl.list);
+	sdata = &src->data;
+	ddata = &dst->data;
+
+	if (!ri->admin->w32be) {
+		memcpy(ddata, sdata, sizeof(dst->data));
+		return;
+	}
+
+	size = actionfield_size_table[dst->ctrl.type];
+
+	switch (dst->ctrl.type) {
+	case VCAP_FIELD_BIT:
+	case VCAP_FIELD_U32:
+		memcpy(ddata, sdata, sizeof(dst->data));
+		break;
+	case VCAP_FIELD_U48:
+		vcap_copy_to_w32be(ddata->u48.value, sdata->u48.value, size);
+		break;
+	case VCAP_FIELD_U56:
+		vcap_copy_to_w32be(ddata->u56.value, sdata->u56.value, size);
+		break;
+	case VCAP_FIELD_U64:
+		vcap_copy_to_w32be(ddata->u64.value, sdata->u64.value, size);
+		break;
+	case VCAP_FIELD_U72:
+		vcap_copy_to_w32be(ddata->u72.value, sdata->u72.value, size);
+		break;
+	case VCAP_FIELD_U112:
+		vcap_copy_to_w32be(ddata->u112.value, sdata->u112.value, size);
+		break;
+	case VCAP_FIELD_U128:
+		vcap_copy_to_w32be(ddata->u128.value, sdata->u128.value, size);
+		break;
+	}
+}
+
 static int vcap_encode_rule_keyset(struct vcap_rule_internal *ri)
 {
 	const struct vcap_client_keyfield *ckf;
 	const struct vcap_typegroup *tg_table;
+	struct vcap_client_keyfield tempkf;
 	const struct vcap_field *kf_table;
 	int keyset_size;
 
@@ -552,7 +675,9 @@ static int vcap_encode_rule_keyset(struct vcap_rule_internal *ri)
 			       __func__, __LINE__, ckf->ctrl.key);
 			return -EINVAL;
 		}
-		vcap_encode_keyfield(ri, ckf, &kf_table[ckf->ctrl.key], tg_table);
+		vcap_copy_from_client_keyfield(&ri->data, &tempkf, ckf);
+		vcap_encode_keyfield(ri, &tempkf, &kf_table[ckf->ctrl.key],
+				     tg_table);
 	}
 	/* Add typegroup bits to the key/mask bitstreams */
 	vcap_encode_keyfield_typegroups(ri->vctrl, ri, tg_table);
@@ -667,6 +792,7 @@ static int vcap_encode_rule_actionset(struct vcap_rule_internal *ri)
 {
 	const struct vcap_client_actionfield *caf;
 	const struct vcap_typegroup *tg_table;
+	struct vcap_client_actionfield tempaf;
 	const struct vcap_field *af_table;
 	int actionset_size;
 
@@ -707,8 +833,9 @@ static int vcap_encode_rule_actionset(struct vcap_rule_internal *ri)
 			       __func__, __LINE__, caf->ctrl.action);
 			return -EINVAL;
 		}
-		vcap_encode_actionfield(ri, caf, &af_table[caf->ctrl.action],
-					tg_table);
+		vcap_copy_from_client_actionfield(&ri->data, &tempaf, caf);
+		vcap_encode_actionfield(ri, &tempaf,
+					&af_table[caf->ctrl.action], tg_table);
 	}
 	/* Add typegroup bits to the entry bitstreams */
 	vcap_encode_actionfield_typegroups(ri, tg_table);
@@ -2142,69 +2269,6 @@ const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
 }
 EXPORT_SYMBOL_GPL(vcap_lookup_keyfield);
 
-/* Copy data from src to dst but reverse the data in chunks of 32bits.
- * For example if src is 00:11:22:33:44:55 where 55 is LSB the dst will
- * have the value 22:33:44:55:00:11.
- */
-static void vcap_copy_to_w32be(u8 *dst, u8 *src, int size)
-{
-	for (int idx = 0; idx < size; ++idx) {
-		int first_byte_index = 0;
-		int nidx;
-
-		first_byte_index = size - (((idx >> 2) + 1) << 2);
-		if (first_byte_index < 0)
-			first_byte_index = 0;
-		nidx = idx + first_byte_index - (idx & ~0x3);
-		dst[nidx] = src[idx];
-	}
-}
-
-static void vcap_copy_from_client_keyfield(struct vcap_rule *rule,
-					   struct vcap_client_keyfield *field,
-					   struct vcap_client_keyfield_data *data)
-{
-	struct vcap_rule_internal *ri = to_intrule(rule);
-	int size;
-
-	if (!ri->admin->w32be) {
-		memcpy(&field->data, data, sizeof(field->data));
-		return;
-	}
-
-	size = keyfield_size_table[field->ctrl.type] / 2;
-	switch (field->ctrl.type) {
-	case VCAP_FIELD_BIT:
-	case VCAP_FIELD_U32:
-		memcpy(&field->data, data, sizeof(field->data));
-		break;
-	case VCAP_FIELD_U48:
-		vcap_copy_to_w32be(field->data.u48.value, data->u48.value, size);
-		vcap_copy_to_w32be(field->data.u48.mask,  data->u48.mask, size);
-		break;
-	case VCAP_FIELD_U56:
-		vcap_copy_to_w32be(field->data.u56.value, data->u56.value, size);
-		vcap_copy_to_w32be(field->data.u56.mask,  data->u56.mask, size);
-		break;
-	case VCAP_FIELD_U64:
-		vcap_copy_to_w32be(field->data.u64.value, data->u64.value, size);
-		vcap_copy_to_w32be(field->data.u64.mask,  data->u64.mask, size);
-		break;
-	case VCAP_FIELD_U72:
-		vcap_copy_to_w32be(field->data.u72.value, data->u72.value, size);
-		vcap_copy_to_w32be(field->data.u72.mask,  data->u72.mask, size);
-		break;
-	case VCAP_FIELD_U112:
-		vcap_copy_to_w32be(field->data.u112.value, data->u112.value, size);
-		vcap_copy_to_w32be(field->data.u112.mask,  data->u112.mask, size);
-		break;
-	case VCAP_FIELD_U128:
-		vcap_copy_to_w32be(field->data.u128.value, data->u128.value, size);
-		vcap_copy_to_w32be(field->data.u128.mask,  data->u128.mask, size);
-		break;
-	}
-}
-
 /* Check if the keyfield is already in the rule */
 static bool vcap_keyfield_unique(struct vcap_rule *rule,
 				 enum vcap_key_field key)
@@ -2262,9 +2326,9 @@ static int vcap_rule_add_key(struct vcap_rule *rule,
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
 		return -ENOMEM;
+	memcpy(&field->data, data, sizeof(field->data));
 	field->ctrl.key = key;
 	field->ctrl.type = ftype;
-	vcap_copy_from_client_keyfield(rule, field, data);
 	list_add_tail(&field->ctrl.list, &rule->keyfields);
 	return 0;
 }
@@ -2372,45 +2436,6 @@ vcap_find_actionfield(struct vcap_rule *rule, enum vcap_action_field act)
 	return NULL;
 }
 
-static void vcap_copy_from_client_actionfield(struct vcap_rule *rule,
-					      struct vcap_client_actionfield *field,
-					      struct vcap_client_actionfield_data *data)
-{
-	struct vcap_rule_internal *ri = to_intrule(rule);
-	int size;
-
-	if (!ri->admin->w32be) {
-		memcpy(&field->data, data, sizeof(field->data));
-		return;
-	}
-
-	size = actionfield_size_table[field->ctrl.type];
-	switch (field->ctrl.type) {
-	case VCAP_FIELD_BIT:
-	case VCAP_FIELD_U32:
-		memcpy(&field->data, data, sizeof(field->data));
-		break;
-	case VCAP_FIELD_U48:
-		vcap_copy_to_w32be(field->data.u48.value, data->u48.value, size);
-		break;
-	case VCAP_FIELD_U56:
-		vcap_copy_to_w32be(field->data.u56.value, data->u56.value, size);
-		break;
-	case VCAP_FIELD_U64:
-		vcap_copy_to_w32be(field->data.u64.value, data->u64.value, size);
-		break;
-	case VCAP_FIELD_U72:
-		vcap_copy_to_w32be(field->data.u72.value, data->u72.value, size);
-		break;
-	case VCAP_FIELD_U112:
-		vcap_copy_to_w32be(field->data.u112.value, data->u112.value, size);
-		break;
-	case VCAP_FIELD_U128:
-		vcap_copy_to_w32be(field->data.u128.value, data->u128.value, size);
-		break;
-	}
-}
-
 /* Check if the actionfield is already in the rule */
 static bool vcap_actionfield_unique(struct vcap_rule *rule,
 				    enum vcap_action_field act)
@@ -2468,9 +2493,9 @@ static int vcap_rule_add_action(struct vcap_rule *rule,
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
 		return -ENOMEM;
+	memcpy(&field->data, data, sizeof(field->data));
 	field->ctrl.action = action;
 	field->ctrl.type = ftype;
-	vcap_copy_from_client_actionfield(rule, field, data);
 	list_add_tail(&field->ctrl.list, &rule->actionfields);
 	return 0;
 }
@@ -2747,7 +2772,7 @@ static int vcap_rule_mod_key(struct vcap_rule *rule,
 	field = vcap_find_keyfield(rule, key);
 	if (!field)
 		return vcap_rule_add_key(rule, key, ftype, data);
-	vcap_copy_from_client_keyfield(rule, field, data);
+	memcpy(&field->data, data, sizeof(field->data));
 	return 0;
 }
 
@@ -2773,7 +2798,7 @@ static int vcap_rule_mod_action(struct vcap_rule *rule,
 	field = vcap_find_actionfield(rule, action);
 	if (!field)
 		return vcap_rule_add_action(rule, action, ftype, data);
-	vcap_copy_from_client_actionfield(rule, field, data);
+	memcpy(&field->data, data, sizeof(field->data));
 	return 0;
 }
 
