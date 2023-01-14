@@ -191,6 +191,7 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 		scale_times = 32;
 	}
 	//source resolution align (scale_times * 2)
+	width = ALIGN(width, scale_times * 2);
 	pixm->width = width  / (scale_times * 2) * 2;
 	pixm->height = height / (scale_times * 2) * 2;
 	pixm->num_planes = fmt->mplanes;
@@ -199,6 +200,7 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 
 	bpp = rkcif_scale_align_bits_per_pixel(cif_dev, fmt, 0);
 	bpl = pixm->width * bpp / CIF_RAW_STORED_BIT_WIDTH_RV1126;
+	bpl = ALIGN(bpl, 8);
 	size = bpl * pixm->height;
 	imagesize += size;
 
@@ -215,7 +217,7 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 		scale_vdev->scale_out_fmt = fmt;
 		scale_vdev->pixm = *pixm;
 
-		v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+		v4l2_info(&stream->cifdev->v4l2_dev,
 			 "%s: req(%d, %d) src out(%d, %d)\n", __func__,
 			 pixm->width, pixm->height,
 			 scale_vdev->src_res.width, scale_vdev->src_res.height);
