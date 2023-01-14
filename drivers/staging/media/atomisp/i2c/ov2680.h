@@ -44,10 +44,10 @@
 /* If possible send 16 extra rows / lines to the ISP as padding */
 #define OV2680_END_MARGIN			16
 
-#define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
+#define OV2680_FOCAL_LENGTH_NUM			334	/*3.34mm*/
 
-#define OV2680_INTEGRATION_TIME_MARGIN	8
-#define OV2680_ID	0x2680
+#define OV2680_INTEGRATION_TIME_MARGIN		8
+#define OV2680_ID				0x2680
 
 /*
  * OV2680 System control registers
@@ -61,23 +61,23 @@
 #define OV2680_SC_CMMN_SCCB_ID			0x302B /* 0x300C*/
 #define OV2680_SC_CMMN_SUB_ID			0x302A /* process, version*/
 
-#define OV2680_GROUP_ACCESS							0x3208 /*Bit[7:4] Group control, Bit[3:0] Group ID*/
+#define OV2680_GROUP_ACCESS			0x3208 /*Bit[7:4] Group control, Bit[3:0] Group ID*/
 
 #define OV2680_REG_EXPOSURE_PK_HIGH		0x3500
 #define OV2680_REG_GAIN_PK			0x350a
 
-#define OV2680_HORIZONTAL_START_H					0x3800 /*Bit[11:8]*/
-#define OV2680_HORIZONTAL_START_L					0x3801 /*Bit[7:0]*/
-#define OV2680_VERTICAL_START_H						0x3802 /*Bit[11:8]*/
-#define OV2680_VERTICAL_START_L						0x3803 /*Bit[7:0]*/
-#define OV2680_HORIZONTAL_END_H						0x3804 /*Bit[11:8]*/
-#define OV2680_HORIZONTAL_END_L						0x3805 /*Bit[7:0]*/
-#define OV2680_VERTICAL_END_H						0x3806 /*Bit[11:8]*/
-#define OV2680_VERTICAL_END_L						0x3807 /*Bit[7:0]*/
-#define OV2680_HORIZONTAL_OUTPUT_SIZE_H				0x3808 /*Bit[3:0]*/
-#define OV2680_HORIZONTAL_OUTPUT_SIZE_L				0x3809 /*Bit[7:0]*/
-#define OV2680_VERTICAL_OUTPUT_SIZE_H				0x380a /*Bit[3:0]*/
-#define OV2680_VERTICAL_OUTPUT_SIZE_L				0x380b /*Bit[7:0]*/
+#define OV2680_HORIZONTAL_START_H		0x3800 /* Bit[11:8] */
+#define OV2680_HORIZONTAL_START_L		0x3801 /* Bit[7:0]  */
+#define OV2680_VERTICAL_START_H			0x3802 /* Bit[11:8] */
+#define OV2680_VERTICAL_START_L			0x3803 /* Bit[7:0]  */
+#define OV2680_HORIZONTAL_END_H			0x3804 /* Bit[11:8] */
+#define OV2680_HORIZONTAL_END_L			0x3805 /* Bit[7:0]  */
+#define OV2680_VERTICAL_END_H			0x3806 /* Bit[11:8] */
+#define OV2680_VERTICAL_END_L			0x3807 /* Bit[7:0]  */
+#define OV2680_HORIZONTAL_OUTPUT_SIZE_H		0x3808 /* Bit[11:8] */
+#define OV2680_HORIZONTAL_OUTPUT_SIZE_L		0x3809 /* Bit[7:0]  */
+#define OV2680_VERTICAL_OUTPUT_SIZE_H		0x380a /* Bit[11:8] */
+#define OV2680_VERTICAL_OUTPUT_SIZE_L		0x380b /* Bit[7:0]  */
 #define OV2680_HTS				0x380c
 #define OV2680_VTS				0x380e
 #define OV2680_ISP_X_WIN			0x3810
@@ -85,7 +85,7 @@
 #define OV2680_X_INC				0x3814
 #define OV2680_Y_INC				0x3815
 
-#define OV2680_FRAME_OFF_NUM						0x4202
+#define OV2680_FRAME_OFF_NUM			0x4202
 
 /*Flip/Mirror*/
 #define OV2680_REG_FORMAT1			0x3820
@@ -94,7 +94,7 @@
 #define OV2680_MWB_RED_GAIN_H			0x5004/*0x3400*/
 #define OV2680_MWB_GREEN_GAIN_H			0x5006/*0x3402*/
 #define OV2680_MWB_BLUE_GAIN_H			0x5008/*0x3404*/
-#define OV2680_MWB_GAIN_MAX				0x0fff
+#define OV2680_MWB_GAIN_MAX			0x0fff
 
 #define OV2680_REG_ISP_CTRL00			0x5080
 
