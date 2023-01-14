@@ -294,11 +294,14 @@ static int halt_cpus(struct cpumask *cpus, enum pause_type type)
 	}
 
 	/* migrate tasks off the cpu */
-	raw_spin_lock_irqsave(&walt_drain_pending_lock, flags);
-	cpumask_or(&drain_data.cpus_to_drain, &drain_data.cpus_to_drain, cpus);
-	raw_spin_unlock_irqrestore(&walt_drain_pending_lock, flags);
+	if (type == HALT) {
+		/* signal and wakeup the drain kthread */
+		raw_spin_lock_irqsave(&walt_drain_pending_lock, flags);
+		cpumask_or(&drain_data.cpus_to_drain, &drain_data.cpus_to_drain, cpus);
+		raw_spin_unlock_irqrestore(&walt_drain_pending_lock, flags);
 
-	wake_up_process(walt_drain_thread);
+		wake_up_process(walt_drain_thread);
+	}
 out:
 	trace_halt_cpus(cpus, start_time, 1, ret);
 
