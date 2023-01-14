@@ -1090,7 +1090,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	unsigned int truesize = mergeable_ctx_to_truesize(ctx);
 	unsigned int headroom = mergeable_ctx_to_headroom(ctx);
-	unsigned int metasize = 0;
 	unsigned int tailroom = headroom ? sizeof(struct skb_shared_info) : 0;
 	unsigned int room = SKB_DATA_ALIGN(headroom + tailroom);
 	unsigned int frame_sz, xdp_room;
@@ -1186,63 +1185,24 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 		switch (act) {
 		case XDP_PASS:
-			metasize = xdp.data - xdp.data_meta;
-
-			/* recalculate offset to account for any header
-			 * adjustments and minus the metasize to copy the
-			 * metadata in page_to_skb(). Note other cases do not
-			 * build an skb and avoid using offset
-			 */
-			offset = xdp.data - page_address(xdp_page) -
-				 vi->hdr_len - metasize;
-
-			/* recalculate len if xdp.data, xdp.data_end or
-			 * xdp.data_meta were adjusted
-			 */
-			len = xdp.data_end - xdp.data + vi->hdr_len + metasize;
-
-			/* recalculate headroom if xdp.data or xdp_data_meta
-			 * were adjusted, note that offset should always point
-			 * to the start of the reserved bytes for virtio_net
-			 * header which are followed by xdp.data, that means
-			 * that offset is equal to the headroom (when buf is
-			 * starting at the beginning of the page, otherwise
-			 * there is a base offset inside the page) but it's used
-			 * with a different starting point (buf start) than
-			 * xdp.data (buf start + vnet hdr size). If xdp.data or
-			 * data_meta were adjusted by the xdp prog then the
-			 * headroom size has changed and so has the offset, we
-			 * can use data_hard_start, which points at buf start +
-			 * vnet hdr size, to calculate the new headroom and use
-			 * it later to compute buf start in page_to_skb()
-			 */
-			headroom = xdp.data - xdp.data_hard_start - metasize;
-
-			/* We can only create skb based on xdp_page. */
-			if (unlikely(xdp_page != page)) {
-				rcu_read_unlock();
+			if (unlikely(xdp_page != page))
 				put_page(page);
-				head_skb = page_to_skb(vi, rq, xdp_page, offset,
-						       len, PAGE_SIZE);
-				return head_skb;
-			}
-			break;
+			head_skb = build_skb_from_xdp_buff(dev, vi, &xdp, xdp_frags_truesz);
+			rcu_read_unlock();
+			return head_skb;
 		case XDP_TX:
 			stats->xdp_tx++;
 			xdpf = xdp_convert_buff_to_frame(&xdp);
 			if (unlikely(!xdpf)) {
-				if (unlikely(xdp_page != page))
-					put_page(xdp_page);
-				goto err_xdp;
+				netdev_dbg(dev, "convert buff to frame failed for xdp\n");
+				goto err_xdp_frags;
 			}
 			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);
 			if (unlikely(!err)) {
 				xdp_return_frame_rx_napi(xdpf);
 			} else if (unlikely(err < 0)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
-				if (unlikely(xdp_page != page))
-					put_page(xdp_page);
-				goto err_xdp;
+				goto err_xdp_frags;
 			}
 			*xdp_xmit |= VIRTIO_XDP_TX;
 			if (unlikely(xdp_page != page))
@@ -1252,11 +1212,8 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		case XDP_REDIRECT:
 			stats->xdp_redirects++;
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
-			if (err) {
-				if (unlikely(xdp_page != page))
-					put_page(xdp_page);
-				goto err_xdp;
-			}
+			if (err)
+				goto err_xdp_frags;
 			*xdp_xmit |= VIRTIO_XDP_REDIR;
 			if (unlikely(xdp_page != page))
 				put_page(page);
@@ -1269,9 +1226,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			trace_xdp_exception(vi->dev, xdp_prog, act);
 			fallthrough;
 		case XDP_DROP:
-			if (unlikely(xdp_page != page))
-				__free_pages(xdp_page, 0);
-			goto err_xdp;
+			goto err_xdp_frags;
 		}
 err_xdp_frags:
 		if (unlikely(xdp_page != page))
