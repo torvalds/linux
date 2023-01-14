@@ -445,6 +445,7 @@ static const char * const test_admin_expect[] = {
 	"  chain_id: 0\n",
 	"  user: 0\n",
 	"  priority: 0\n",
+	"  state: permanent\n",
 	"  keysets: VCAP_KFS_MAC_ETYPE\n",
 	"  keyset_sw: 6\n",
 	"  keyset_sw_regs: 2\n",

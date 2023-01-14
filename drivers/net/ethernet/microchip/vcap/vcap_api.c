@@ -950,9 +950,12 @@ int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie)
 }
 EXPORT_SYMBOL_GPL(vcap_lookup_rule_by_cookie);
 
-/* Make a shallow copy of the rule without the fields */
-struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri)
+/* Make a copy of the rule, shallow or full */
+static struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri,
+						bool full)
 {
+	struct vcap_client_actionfield *caf, *newcaf;
+	struct vcap_client_keyfield *ckf, *newckf;
 	struct vcap_rule_internal *duprule;
 
 	/* Allocate the client part */
@@ -965,6 +968,27 @@ struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri)
 	/* No elements in these lists */
 	INIT_LIST_HEAD(&duprule->data.keyfields);
 	INIT_LIST_HEAD(&duprule->data.actionfields);
+
+	/* A full rule copy includes keys and actions */
+	if (!full)
+		return duprule;
+
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list) {
+		newckf = kzalloc(sizeof(*newckf), GFP_KERNEL);
+		if (!newckf)
+			return ERR_PTR(-ENOMEM);
+		memcpy(newckf, ckf, sizeof(*newckf));
+		list_add_tail(&newckf->ctrl.list, &duprule->data.keyfields);
+	}
+
+	list_for_each_entry(caf, &ri->data.actionfields, ctrl.list) {
+		newcaf = kzalloc(sizeof(*newcaf), GFP_KERNEL);
+		if (!newcaf)
+			return ERR_PTR(-ENOMEM);
+		memcpy(newcaf, caf, sizeof(*newcaf));
+		list_add_tail(&newcaf->ctrl.list, &duprule->data.actionfields);
+	}
+
 	return duprule;
 }
 
@@ -1877,8 +1901,8 @@ static int vcap_insert_rule(struct vcap_rule_internal *ri,
 		ri->addr = vcap_next_rule_addr(admin->last_used_addr, ri);
 		admin->last_used_addr = ri->addr;
 
-		/* Add a shallow copy of the rule to the VCAP list */
-		duprule = vcap_dup_rule(ri);
+		/* Add a copy of the rule to the VCAP list */
+		duprule = vcap_dup_rule(ri, ri->state == VCAP_RS_DISABLED);
 		if (IS_ERR(duprule))
 			return PTR_ERR(duprule);
 
@@ -1891,8 +1915,8 @@ static int vcap_insert_rule(struct vcap_rule_internal *ri,
 	ri->addr = vcap_next_rule_addr(addr, ri);
 	addr = ri->addr;
 
-	/* Add a shallow copy of the rule to the VCAP list */
-	duprule = vcap_dup_rule(ri);
+	/* Add a copy of the rule to the VCAP list */
+	duprule = vcap_dup_rule(ri, ri->state == VCAP_RS_DISABLED);
 	if (IS_ERR(duprule))
 		return PTR_ERR(duprule);
 
@@ -1939,6 +1963,72 @@ static bool vcap_is_chain_used(struct vcap_control *vctrl,
 	return false;
 }
 
+/* Fetch the next chain in the enabled list for the port */
+static int vcap_get_next_chain(struct vcap_control *vctrl,
+			       struct net_device *ndev,
+			       int dst_cid)
+{
+	struct vcap_enabled_port *eport;
+	struct vcap_admin *admin;
+
+	list_for_each_entry(admin, &vctrl->list, list) {
+		list_for_each_entry(eport, &admin->enabled, list) {
+			if (eport->ndev != ndev)
+				continue;
+			if (eport->src_cid == dst_cid)
+				return eport->dst_cid;
+		}
+	}
+
+	return 0;
+}
+
+static bool vcap_path_exist(struct vcap_control *vctrl, struct net_device *ndev,
+			    int dst_cid)
+{
+	struct vcap_enabled_port *eport, *elem;
+	struct vcap_admin *admin;
+	int tmp;
+
+	/* Find first entry that starts from chain 0*/
+	list_for_each_entry(admin, &vctrl->list, list) {
+		list_for_each_entry(elem, &admin->enabled, list) {
+			if (elem->src_cid == 0 && elem->ndev == ndev) {
+				eport = elem;
+				break;
+			}
+		}
+		if (eport)
+			break;
+	}
+
+	if (!eport)
+		return false;
+
+	tmp = eport->dst_cid;
+	while (tmp != dst_cid && tmp != 0)
+		tmp = vcap_get_next_chain(vctrl, ndev, tmp);
+
+	return !!tmp;
+}
+
+/* Internal clients can always store their rules in HW
+ * External clients can store their rules if the chain is enabled all
+ * the way from chain 0, otherwise the rule will be cached until
+ * the chain is enabled.
+ */
+static void vcap_rule_set_state(struct vcap_rule_internal *ri)
+{
+	if (ri->data.user <= VCAP_USER_QOS)
+		ri->state = VCAP_RS_PERMANENT;
+	else if (vcap_path_exist(ri->vctrl, ri->ndev, ri->data.vcap_chain_id))
+		ri->state = VCAP_RS_ENABLED;
+	else
+		ri->state = VCAP_RS_DISABLED;
+	/* For now always store directly in HW */
+	ri->state = VCAP_RS_PERMANENT;
+}
+
 /* Encode and write a validated rule to the VCAP */
 int vcap_add_rule(struct vcap_rule *rule)
 {
@@ -1952,6 +2042,8 @@ int vcap_add_rule(struct vcap_rule *rule)
 		return ret;
 	/* Insert the new rule in the list of vcap rules */
 	mutex_lock(&ri->admin->lock);
+
+	vcap_rule_set_state(ri);
 	ret = vcap_insert_rule(ri, &move);
 	if (ret < 0) {
 		pr_err("%s:%d: could not insert rule in vcap list: %d\n",
@@ -1960,6 +2052,13 @@ int vcap_add_rule(struct vcap_rule *rule)
 	}
 	if (move.count > 0)
 		vcap_move_rules(ri, &move);
+
+	if (ri->state == VCAP_RS_DISABLED) {
+		/* Erase the rule area */
+		ri->vctrl->ops->init(ri->ndev, ri->admin, ri->addr, ri->size);
+		goto out;
+	}
+
 	vcap_erase_cache(ri);
 	ret = vcap_encode_rule(ri);
 	if (ret) {
@@ -2071,9 +2170,13 @@ struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id)
 	if (!elem)
 		return NULL;
 	mutex_lock(&elem->admin->lock);
-	ri = vcap_dup_rule(elem);
+	ri = vcap_dup_rule(elem, elem->state == VCAP_RS_DISABLED);
 	if (IS_ERR(ri))
 		goto unlock;
+
+	if (ri->state == VCAP_RS_DISABLED)
+		goto unlock;
+
 	err = vcap_read_rule(ri);
 	if (err) {
 		ri = ERR_PTR(err);
@@ -2111,6 +2214,11 @@ int vcap_mod_rule(struct vcap_rule *rule)
 		return -ENOENT;
 
 	mutex_lock(&ri->admin->lock);
+
+	vcap_rule_set_state(ri);
+	if (ri->state == VCAP_RS_DISABLED)
+		goto out;
+
 	/* Encode the bitstreams to the VCAP cache */
 	vcap_erase_cache(ri);
 	err = vcap_encode_rule(ri);
@@ -2203,7 +2311,7 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 	mutex_lock(&admin->lock);
 	list_del(&ri->list);
 	vctrl->ops->init(ndev, admin, admin->last_used_addr, ri->size + gap);
-	kfree(ri);
+	vcap_free_rule(&ri->data);
 	mutex_unlock(&admin->lock);
 
 	/* Update the last used address, set to default when no rules */
@@ -2232,7 +2340,7 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 	list_for_each_entry_safe(ri, next_ri, &admin->rules, list) {
 		vctrl->ops->init(ri->ndev, admin, ri->addr, ri->size);
 		list_del(&ri->list);
-		kfree(ri);
+		vcap_free_rule(&ri->data);
 	}
 	admin->last_used_addr = admin->last_valid_addr;
 
