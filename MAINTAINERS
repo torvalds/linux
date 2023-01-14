@@ -21386,6 +21386,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/ufs/host/*dwc*
 
+UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER EXYNOS HOOKS
+M:	Alim Akhtar <alim.akhtar@samsung.com>
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+F:	drivers/ufs/host/ufs-exynos*
+
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER MEDIATEK HOOKS
 M:	Stanley Chu <stanley.chu@mediatek.com>
 L:	linux-scsi@vger.kernel.org
