@@ -1744,7 +1744,6 @@ static void cyttsp4_free_si_ptrs(struct cyttsp4 *cd)
 	kfree(si->btn_rec_data);
 }
 
-#ifdef CONFIG_PM
 static int cyttsp4_core_sleep(struct cyttsp4 *cd)
 {
 	int rc;
@@ -1877,13 +1876,9 @@ static int cyttsp4_core_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-const struct dev_pm_ops cyttsp4_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cyttsp4_core_suspend, cyttsp4_core_resume)
-	SET_RUNTIME_PM_OPS(cyttsp4_core_suspend, cyttsp4_core_resume, NULL)
-};
-EXPORT_SYMBOL_GPL(cyttsp4_pm_ops);
+EXPORT_GPL_RUNTIME_DEV_PM_OPS(cyttsp4_pm_ops,
+			      cyttsp4_core_suspend, cyttsp4_core_resume, NULL);
 
 static int cyttsp4_mt_open(struct input_dev *input)
 {
