@@ -120,6 +120,7 @@ torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
 torture_param(int, test_boost_duration, 4, "Duration of each boost test, seconds.");
 torture_param(int, test_boost_interval, 7, "Interval between boost tests, seconds.");
 torture_param(bool, test_no_idle_hz, true, "Test support for tickless idle CPUs");
+torture_param(int, test_srcu_lockdep, 0, "Test specified SRCU deadlock scenario.");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 
 static char *torture_type = "rcu";
@@ -3463,6 +3464,154 @@ static void rcutorture_sync(void)
 		cur_ops->sync();
 }
 
+static DEFINE_MUTEX(mut0);
+static DEFINE_MUTEX(mut1);
+static DEFINE_MUTEX(mut2);
+static DEFINE_MUTEX(mut3);
+static DEFINE_MUTEX(mut4);
+static DEFINE_MUTEX(mut5);
+static DEFINE_MUTEX(mut6);
+static DEFINE_MUTEX(mut7);
+static DEFINE_MUTEX(mut8);
+static DEFINE_MUTEX(mut9);
+
+static DECLARE_RWSEM(rwsem0);
+static DECLARE_RWSEM(rwsem1);
+static DECLARE_RWSEM(rwsem2);
+static DECLARE_RWSEM(rwsem3);
+static DECLARE_RWSEM(rwsem4);
+static DECLARE_RWSEM(rwsem5);
+static DECLARE_RWSEM(rwsem6);
+static DECLARE_RWSEM(rwsem7);
+static DECLARE_RWSEM(rwsem8);
+static DECLARE_RWSEM(rwsem9);
+
+DEFINE_STATIC_SRCU(srcu0);
+DEFINE_STATIC_SRCU(srcu1);
+DEFINE_STATIC_SRCU(srcu2);
+DEFINE_STATIC_SRCU(srcu3);
+DEFINE_STATIC_SRCU(srcu4);
+DEFINE_STATIC_SRCU(srcu5);
+DEFINE_STATIC_SRCU(srcu6);
+DEFINE_STATIC_SRCU(srcu7);
+DEFINE_STATIC_SRCU(srcu8);
+DEFINE_STATIC_SRCU(srcu9);
+
+static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, const char *fu, int i,
+			     int cyclelen, int deadlock)
+{
+	int j = i + 1;
+
+	if (j >= cyclelen)
+		j = deadlock ? 0 : -1;
+	if (j >= 0)
+		pr_info("%s: %s(%d), %s(%d), %s(%d)\n", f, fl, i, fs, j, fu, i);
+	else
+		pr_info("%s: %s(%d), %s(%d)\n", f, fl, i, fu, i);
+	return j;
+}
+
+// Test lockdep on SRCU-based deadlock scenarios.
+static void rcu_torture_init_srcu_lockdep(void)
+{
+	int cyclelen;
+	int deadlock;
+	bool err = false;
+	int i;
+	int j;
+	int idx;
+	struct mutex *muts[] = { &mut0, &mut1, &mut2, &mut3, &mut4,
+				 &mut5, &mut6, &mut7, &mut8, &mut9 };
+	struct rw_semaphore *rwsems[] = { &rwsem0, &rwsem1, &rwsem2, &rwsem3, &rwsem4,
+					  &rwsem5, &rwsem6, &rwsem7, &rwsem8, &rwsem9 };
+	struct srcu_struct *srcus[] = { &srcu0, &srcu1, &srcu2, &srcu3, &srcu4,
+					&srcu5, &srcu6, &srcu7, &srcu8, &srcu9 };
+	int testtype;
+
+	if (!test_srcu_lockdep)
+		return;
+
+	deadlock = test_srcu_lockdep / 1000;
+	testtype = (test_srcu_lockdep / 10) % 100;
+	cyclelen = test_srcu_lockdep % 10;
+	WARN_ON_ONCE(ARRAY_SIZE(muts) != ARRAY_SIZE(srcus));
+	if (WARN_ONCE(deadlock != !!deadlock,
+		      "%s: test_srcu_lockdep=%d and deadlock digit %d must be zero or one.\n",
+		      __func__, test_srcu_lockdep, deadlock))
+		err = true;
+	if (WARN_ONCE(cyclelen <= 0,
+		      "%s: test_srcu_lockdep=%d and cycle-length digit %d must be greater than zero.\n",
+		      __func__, test_srcu_lockdep, cyclelen))
+		err = true;
+	if (err)
+		goto err_out;
+
+	if (testtype == 0) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		if (deadlock && cyclelen == 1)
+			pr_info("%s: Expect hang.\n", __func__);
+		for (i = 0; i < cyclelen; i++) {
+			j = srcu_lockdep_next(__func__, "srcu_read_lock", "synchronize_srcu",
+					      "srcu_read_unlock", i, cyclelen, deadlock);
+			idx = srcu_read_lock(srcus[i]);
+			if (j >= 0)
+				synchronize_srcu(srcus[j]);
+			srcu_read_unlock(srcus[i], idx);
+		}
+		return;
+	}
+
+	if (testtype == 1) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU/mutex %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		for (i = 0; i < cyclelen; i++) {
+			pr_info("%s: srcu_read_lock(%d), mutex_lock(%d), mutex_unlock(%d), srcu_read_unlock(%d)\n",
+				__func__, i, i, i, i);
+			idx = srcu_read_lock(srcus[i]);
+			mutex_lock(muts[i]);
+			mutex_unlock(muts[i]);
+			srcu_read_unlock(srcus[i], idx);
+
+			j = srcu_lockdep_next(__func__, "mutex_lock", "synchronize_srcu",
+					      "mutex_unlock", i, cyclelen, deadlock);
+			mutex_lock(muts[i]);
+			if (j >= 0)
+				synchronize_srcu(srcus[j]);
+			mutex_unlock(muts[i]);
+		}
+		return;
+	}
+
+	if (testtype == 2) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU/rwsem %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		for (i = 0; i < cyclelen; i++) {
+			pr_info("%s: srcu_read_lock(%d), down_read(%d), up_read(%d), srcu_read_unlock(%d)\n",
+				__func__, i, i, i, i);
+			idx = srcu_read_lock(srcus[i]);
+			down_read(rwsems[i]);
+			up_read(rwsems[i]);
+			srcu_read_unlock(srcus[i], idx);
+
+			j = srcu_lockdep_next(__func__, "down_write", "synchronize_srcu",
+					      "up_write", i, cyclelen, deadlock);
+			down_write(rwsems[i]);
+			if (j >= 0)
+				synchronize_srcu(srcus[j]);
+			up_write(rwsems[i]);
+		}
+		return;
+	}
+
+err_out:
+	pr_info("%s: test_srcu_lockdep = %05d does nothing.\n", __func__, test_srcu_lockdep);
+	pr_info("%s: test_srcu_lockdep = DNNL.\n", __func__);
+	pr_info("%s: D: Deadlock if nonzero.\n", __func__);
+	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem.\n", __func__);
+	pr_info("%s: L: Cycle length.\n", __func__);
+}
+
 static int __init
 rcu_torture_init(void)
 {
@@ -3503,6 +3652,8 @@ rcu_torture_init(void)
 	}
 	if (cur_ops->init)
 		cur_ops->init();
+
+	rcu_torture_init_srcu_lockdep();
 
 	if (nreaders >= 0) {
 		nrealreaders = nreaders;
