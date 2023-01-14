@@ -1194,7 +1194,7 @@ static ssize_t reipl_eckd_clear_store(struct kobject *kobj,
 				      struct kobj_attribute *attr,
 				      const char *buf, size_t len)
 {
-	if (strtobool(buf, &reipl_eckd_clear) < 0)
+	if (kstrtobool(buf, &reipl_eckd_clear) < 0)
 		return -EINVAL;
 	return len;
 }
