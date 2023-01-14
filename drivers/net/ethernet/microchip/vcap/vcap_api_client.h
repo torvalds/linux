@@ -264,5 +264,4 @@ int vcap_rule_mod_action_u32(struct vcap_rule *rule,
 /* Get a 32 bit key field value and mask from the rule */
 int vcap_rule_get_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
 			  u32 *value, u32 *mask);
-
 #endif /* __VCAP_API_CLIENT__ */

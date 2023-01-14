@@ -1305,8 +1305,8 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 
 	struct vcap_admin is2_admin = {
 		.vtype = VCAP_TYPE_IS2,
-		.first_cid = 10000,
-		.last_cid = 19999,
+		.first_cid = 8000000,
+		.last_cid = 8099999,
 		.lookups = 4,
 		.last_valid_addr = 3071,
 		.first_valid_addr = 0,
@@ -1319,7 +1319,7 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	};
 	struct vcap_rule *rule;
 	struct vcap_rule_internal *ri;
-	int vcap_chain_id = 10005;
+	int vcap_chain_id = 8000000;
 	enum vcap_user user = VCAP_USER_VCAP_UTIL;
 	u16 priority = 10;
 	int id = 100;
@@ -1390,6 +1390,11 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 6, ri->size);
 	KUNIT_EXPECT_EQ(test, 2, ri->keyset_sw_regs);
 	KUNIT_EXPECT_EQ(test, 4, ri->actionset_sw_regs);
+
+	/* Enable lookup, so the rule will be written */
+	ret = vcap_enable_lookups(&test_vctrl, &test_netdev, 0,
+				  rule->vcap_chain_id, rule->cookie, true);
+	KUNIT_EXPECT_EQ(test, 0, ret);
 
 	/* Add rule with write callback */
 	ret = vcap_add_rule(rule);

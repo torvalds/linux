@@ -164,10 +164,13 @@ static int vcap_debugfs_show_keysets(struct vcap_rule_internal *ri,
 	matches.cnt = 0;
 	matches.max = ARRAY_SIZE(keysets);
 
-	err = vcap_find_keystream_keysets(ri->vctrl, admin->vtype,
-					  admin->cache.keystream,
-					  admin->cache.maskstream,
-					  false, 0, &matches);
+	if (ri->state == VCAP_RS_DISABLED)
+		err = vcap_rule_get_keysets(ri, &matches);
+	else
+		err = vcap_find_keystream_keysets(ri->vctrl, admin->vtype,
+						  admin->cache.keystream,
+						  admin->cache.maskstream,
+						  false, 0, &matches);
 	if (err) {
 		pr_err("%s:%d: could not find valid keysets: %d\n",
 		       __func__, __LINE__, err);

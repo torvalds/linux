@@ -1990,6 +1990,9 @@ static bool vcap_path_exist(struct vcap_control *vctrl, struct net_device *ndev,
 	struct vcap_admin *admin;
 	int tmp;
 
+	if (dst_cid == 0) /* Chain zero is always available */
+		return true;
+
 	/* Find first entry that starts from chain 0*/
 	list_for_each_entry(admin, &vctrl->list, list) {
 		list_for_each_entry(elem, &admin->enabled, list) {
@@ -2025,8 +2028,6 @@ static void vcap_rule_set_state(struct vcap_rule_internal *ri)
 		ri->state = VCAP_RS_ENABLED;
 	else
 		ri->state = VCAP_RS_DISABLED;
-	/* For now always store directly in HW */
-	ri->state = VCAP_RS_PERMANENT;
 }
 
 /* Encode and write a validated rule to the VCAP */
@@ -2711,6 +2712,125 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule)
 }
 EXPORT_SYMBOL_GPL(vcap_set_tc_exterr);
 
+/* Write a rule to VCAP HW to enable it */
+static int vcap_enable_rule(struct vcap_rule_internal *ri)
+{
+	struct vcap_client_actionfield *af, *naf;
+	struct vcap_client_keyfield *kf, *nkf;
+	int err;
+
+	vcap_erase_cache(ri);
+	err = vcap_encode_rule(ri);
+	if (err)
+		goto out;
+	err = vcap_write_rule(ri);
+	if (err)
+		goto out;
+
+	/* Deallocate the list of keys and actions */
+	list_for_each_entry_safe(kf, nkf, &ri->data.keyfields, ctrl.list) {
+		list_del(&kf->ctrl.list);
+		kfree(kf);
+	}
+	list_for_each_entry_safe(af, naf, &ri->data.actionfields, ctrl.list) {
+		list_del(&af->ctrl.list);
+		kfree(af);
+	}
+	ri->state = VCAP_RS_ENABLED;
+out:
+	return err;
+}
+
+/* Enable all disabled rules for a specific chain/port in the VCAP HW */
+static int vcap_enable_rules(struct vcap_control *vctrl,
+			     struct net_device *ndev, int chain)
+{
+	struct vcap_rule_internal *ri;
+	struct vcap_admin *admin;
+	int err = 0;
+
+	list_for_each_entry(admin, &vctrl->list, list) {
+		if (!(chain >= admin->first_cid && chain <= admin->last_cid))
+			continue;
+
+		/* Found the admin, now find the offloadable rules */
+		mutex_lock(&admin->lock);
+		list_for_each_entry(ri, &admin->rules, list) {
+			if (ri->data.vcap_chain_id != chain)
+				continue;
+
+			if (ri->ndev != ndev)
+				continue;
+
+			if (ri->state != VCAP_RS_DISABLED)
+				continue;
+
+			err = vcap_enable_rule(ri);
+			if (err)
+				break;
+		}
+		mutex_unlock(&admin->lock);
+		if (err)
+			break;
+	}
+	return err;
+}
+
+/* Read and erase a rule from VCAP HW to disable it */
+static int vcap_disable_rule(struct vcap_rule_internal *ri)
+{
+	int err;
+
+	err = vcap_read_rule(ri);
+	if (err)
+		return err;
+	err = vcap_decode_keyset(ri);
+	if (err)
+		return err;
+	err = vcap_decode_actionset(ri);
+	if (err)
+		return err;
+
+	ri->state = VCAP_RS_DISABLED;
+	ri->vctrl->ops->init(ri->ndev, ri->admin, ri->addr, ri->size);
+	return 0;
+}
+
+/* Disable all enabled rules for a specific chain/port in the VCAP HW */
+static int vcap_disable_rules(struct vcap_control *vctrl,
+			      struct net_device *ndev, int chain)
+{
+	struct vcap_rule_internal *ri;
+	struct vcap_admin *admin;
+	int err = 0;
+
+	list_for_each_entry(admin, &vctrl->list, list) {
+		if (!(chain >= admin->first_cid && chain <= admin->last_cid))
+			continue;
+
+		/* Found the admin, now find the rules on the chain */
+		mutex_lock(&admin->lock);
+		list_for_each_entry(ri, &admin->rules, list) {
+			if (ri->data.vcap_chain_id != chain)
+				continue;
+
+			if (ri->ndev != ndev)
+				continue;
+
+			if (ri->state != VCAP_RS_ENABLED)
+				continue;
+
+			err = vcap_disable_rule(ri);
+			if (err)
+				break;
+		}
+		mutex_unlock(&admin->lock);
+		if (err)
+			break;
+	}
+	return err;
+}
+
 /* Check if this port is already enabled for this VCAP instance */
 static bool vcap_is_enabled(struct vcap_control *vctrl, struct net_device *ndev,
 			    int dst_cid)
@@ -2752,6 +2872,17 @@ static int vcap_enable(struct vcap_control *vctrl, struct net_device *ndev,
 	list_add_tail(&eport->list, &admin->enabled);
 	mutex_unlock(&admin->lock);
 
+	if (vcap_path_exist(vctrl, ndev, src_cid)) {
+		/* Enable chained lookups */
+		while (dst_cid) {
+			admin = vcap_find_admin(vctrl, dst_cid);
+			if (!admin)
+				return -ENOENT;
+
+			vcap_enable_rules(vctrl, ndev, dst_cid);
+			dst_cid = vcap_get_next_chain(vctrl, ndev, dst_cid);
+		}
+	}
 	return 0;
 }
 
@@ -2761,6 +2892,7 @@ static int vcap_disable(struct vcap_control *vctrl, struct net_device *ndev,
 {
 	struct vcap_enabled_port *elem, *eport = NULL;
 	struct vcap_admin *found = NULL, *admin;
+	int dst_cid;
 
 	list_for_each_entry(admin, &vctrl->list, list) {
 		list_for_each_entry(elem, &admin->enabled, list) {
@@ -2776,6 +2908,17 @@ static int vcap_disable(struct vcap_control *vctrl, struct net_device *ndev,
 
 	if (!eport)
 		return -ENOENT;
+
+	/* Disable chained lookups */
+	dst_cid = eport->dst_cid;
+	while (dst_cid) {
+		admin = vcap_find_admin(vctrl, dst_cid);
+		if (!admin)
+			return -ENOENT;
+
+		vcap_disable_rules(vctrl, ndev, dst_cid);
+		dst_cid = vcap_get_next_chain(vctrl, ndev, dst_cid);
+	}
 
 	mutex_lock(&found->lock);
 	list_del(&eport->list);
@@ -2902,6 +3045,65 @@ int vcap_rule_get_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 	return vcap_read_counter(ri, ctr);
 }
 EXPORT_SYMBOL_GPL(vcap_rule_get_counter);
+
+/* Get a copy of a client key field */
+static int vcap_rule_get_key(struct vcap_rule *rule,
+			     enum vcap_key_field key,
+			     struct vcap_client_keyfield *ckf)
+{
+	struct vcap_client_keyfield *field;
+
+	field = vcap_find_keyfield(rule, key);
+	if (!field)
+		return -EINVAL;
+	memcpy(ckf, field, sizeof(*ckf));
+	INIT_LIST_HEAD(&ckf->ctrl.list);
+	return 0;
+}
+
+/* Get the keysets that matches the rule key type/mask */
+int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
+			  struct vcap_keyset_list *matches)
+{
+	struct vcap_control *vctrl = ri->vctrl;
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_set *keyfield_set;
+	struct vcap_client_keyfield kf = {};
+	u32 value, mask;
+	int err, idx;
+
+	err = vcap_rule_get_key(&ri->data, VCAP_KF_TYPE, &kf);
+	if (err)
+		return err;
+
+	if (kf.ctrl.type == VCAP_FIELD_BIT) {
+		value = kf.data.u1.value;
+		mask = kf.data.u1.mask;
+	} else if (kf.ctrl.type == VCAP_FIELD_U32) {
+		value = kf.data.u32.value;
+		mask = kf.data.u32.mask;
+	} else {
+		return -EINVAL;
+	}
+
+	keyfield_set = vctrl->vcaps[vt].keyfield_set;
+	for (idx = 0; idx < vctrl->vcaps[vt].keyfield_set_size; ++idx) {
+		if (keyfield_set[idx].sw_per_item != ri->keyset_sw)
+			continue;
+
+		if (keyfield_set[idx].type_id == (u8)-1) {
+			vcap_keyset_list_add(matches, idx);
+			continue;
+		}
+
+		if ((keyfield_set[idx].type_id & mask) == value)
+			vcap_keyset_list_add(matches, idx);
+	}
+	if (matches->cnt > 0)
+		return 0;
+
+	return -EINVAL;
+}
 
 static int vcap_rule_mod_key(struct vcap_rule *rule,
 			     enum vcap_key_field key,

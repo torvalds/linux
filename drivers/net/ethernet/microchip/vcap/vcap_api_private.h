@@ -115,4 +115,7 @@ int vcap_find_keystream_keysets(struct vcap_control *vctrl, enum vcap_type vt,
 				u32 *keystream, u32 *mskstream, bool mask,
 				int sw_max, struct vcap_keyset_list *kslist);
 
+/* Get the keysets that matches the rule key type/mask */
+int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
+			  struct vcap_keyset_list *matches);
 #endif /* __VCAP_API_PRIVATE__ */
