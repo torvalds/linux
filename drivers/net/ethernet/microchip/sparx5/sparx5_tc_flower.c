@@ -573,8 +573,8 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 }
 
 static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
-					 struct flow_cls_offload *fco,
-					 struct vcap_admin *admin)
+					 struct net_device *ndev,
+					 struct flow_cls_offload *fco)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(fco);
 	struct flow_action_entry *actent, *last_actent = NULL;
@@ -600,18 +600,20 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 		last_actent = actent; /* Save last action for later check */
 	}
 
-	/* Check that last action is a goto */
-	if (last_actent->id != FLOW_ACTION_GOTO) {
+	/* Check if last action is a goto
+	 * The last chain/lookup does not need to have a goto action
+	 */
+	if (last_actent->id == FLOW_ACTION_GOTO) {
+		/* Check if the destination chain is in one of the VCAPs */
+		if (!vcap_is_next_lookup(vctrl, fco->common.chain_index,
+					 last_actent->chain_index)) {
+			NL_SET_ERR_MSG_MOD(fco->common.extack,
+					   "Invalid goto chain");
+			return -EINVAL;
+		}
+	} else if (!vcap_is_last_chain(vctrl, fco->common.chain_index)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
 				   "Last action must be 'goto'");
-		return -EINVAL;
-	}
-
-	/* Check if the goto chain is in the next lookup */
-	if (!vcap_is_next_lookup(vctrl, fco->common.chain_index,
-				 last_actent->chain_index)) {
-		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Invalid goto chain");
 		return -EINVAL;
 	}
 
@@ -833,7 +835,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 
 	vctrl = port->sparx5->vcap_ctrl;
 
-	err = sparx5_tc_flower_action_check(vctrl, fco, admin);
+	err = sparx5_tc_flower_action_check(vctrl, ndev, fco);
 	if (err)
 		return err;
 

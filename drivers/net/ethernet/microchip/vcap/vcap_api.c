@@ -1553,39 +1553,31 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
 
-/* Is the next chain id in the following lookup, possible in another VCAP */
-bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid)
+/* Is the next chain id in one of the following lookups
+ * For now this does not support filters linked to other filters using
+ * keys and actions. That will be added later.
+ */
+bool vcap_is_next_lookup(struct vcap_control *vctrl, int src_cid, int dst_cid)
 {
-	struct vcap_admin *admin, *next_admin;
-	int lookup, next_lookup;
-
-	/* The offset must be at least one lookup */
-	if (next_cid < cur_cid + VCAP_CID_LOOKUP_SIZE)
-		return false;
+	struct vcap_admin *admin;
+	int next_cid;
 
 	if (vcap_api_check(vctrl))
 		return false;
 
-	admin = vcap_find_admin(vctrl, cur_cid);
+	/* The offset must be at least one lookup, round up */
+	next_cid = src_cid + VCAP_CID_LOOKUP_SIZE;
+	next_cid /= VCAP_CID_LOOKUP_SIZE;
+	next_cid *= VCAP_CID_LOOKUP_SIZE;
+
+	if (dst_cid < next_cid)
+		return false;
+
+	admin = vcap_find_admin(vctrl, dst_cid);
 	if (!admin)
 		return false;
 
-	/* If no VCAP contains the next chain, the next chain must be beyond
-	 * the last chain in the current VCAP
-	 */
-	next_admin = vcap_find_admin(vctrl, next_cid);
-	if (!next_admin)
-		return next_cid > admin->last_cid;
-
-	lookup = vcap_chain_id_to_lookup(admin, cur_cid);
-	next_lookup = vcap_chain_id_to_lookup(next_admin, next_cid);
-
-	/* Next lookup must be the following lookup */
-	if (admin == next_admin || admin->vtype == next_admin->vtype)
-		return next_lookup == lookup + 1;
-
-	/* Must be the first lookup in the next VCAP instance */
-	return next_lookup == 0;
+	return true;
 }
 EXPORT_SYMBOL_GPL(vcap_is_next_lookup);
 
@@ -2717,6 +2709,25 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_enable_lookups);
+
+/* Is this chain id the last lookup of all VCAPs */
+bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
+{
+	struct vcap_admin *admin;
+	int lookup;
+
+	if (vcap_api_check(vctrl))
+		return false;
+
+	admin = vcap_find_admin(vctrl, cid);
+	if (!admin)
+		return false;
+
+	/* This must be the last lookup in this VCAP type */
+	lookup = vcap_chain_id_to_lookup(admin, cid);
+	return lookup == admin->lookups - 1;
+}
+EXPORT_SYMBOL_GPL(vcap_is_last_chain);
 
 /* Set a rule counter id (for certain vcaps only) */
 void vcap_rule_set_counter_id(struct vcap_rule *rule, u32 counter_id)

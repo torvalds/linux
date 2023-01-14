@@ -1865,7 +1865,7 @@ static void vcap_api_next_lookup_basic_test(struct kunit *test)
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8301000);
 	KUNIT_EXPECT_EQ(test, false, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8401000);
-	KUNIT_EXPECT_EQ(test, true, ret);
+	KUNIT_EXPECT_EQ(test, false, ret);
 }
 
 static void vcap_api_next_lookup_advanced_test(struct kunit *test)
@@ -1926,9 +1926,9 @@ static void vcap_api_next_lookup_advanced_test(struct kunit *test)
 	ret = vcap_is_next_lookup(&test_vctrl, 1100000, 1201000);
 	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1100000, 1301000);
-	KUNIT_EXPECT_EQ(test, false, ret);
+	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1100000, 8101000);
-	KUNIT_EXPECT_EQ(test, false, ret);
+	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1300000, 1401000);
 	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1400000, 1501000);
@@ -1944,7 +1944,7 @@ static void vcap_api_next_lookup_advanced_test(struct kunit *test)
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8301000);
 	KUNIT_EXPECT_EQ(test, false, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8401000);
-	KUNIT_EXPECT_EQ(test, true, ret);
+	KUNIT_EXPECT_EQ(test, false, ret);
 }
 
 static void vcap_api_filter_unsupported_keys_test(struct kunit *test)
