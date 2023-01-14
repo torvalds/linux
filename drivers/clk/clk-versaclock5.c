@@ -450,10 +450,7 @@ static long vc5_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	u32 div_int;
 	u64 div_frc;
 
-	if (rate < VC5_PLL_VCO_MIN)
-		rate = VC5_PLL_VCO_MIN;
-	if (rate > VC5_PLL_VCO_MAX)
-		rate = VC5_PLL_VCO_MAX;
+	rate = clamp(rate, VC5_PLL_VCO_MIN, VC5_PLL_VCO_MAX);
 
 	/* Determine integer part, which is 12 bit wide */
 	div_int = rate / *parent_rate;
