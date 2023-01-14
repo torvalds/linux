@@ -71,6 +71,8 @@ enum {
 #define TYPE_PADDING		0x0402
 #define TYPE_ACLTAB		0x0403
 #define TYPE_BENIGN_SEC		0x0800
+#define TYPE_VENDOR_EXT		0x0801
+#define TYPE_VENDOR_ALLOC	0x0802
 
 #define MAX_CHARSET_SIZE	6 /* max size of multi-byte character */
 #define MAX_NAME_LENGTH		255 /* max len of file name excluding NULL */
