@@ -332,7 +332,6 @@ struct lan966x_port_tc {
 	unsigned long police_id;
 	unsigned long ingress_mirror_id;
 	unsigned long egress_mirror_id;
-	unsigned long goto_id;
 	struct flow_stats police_stat;
 	struct flow_stats mirror_stat;
 };
@@ -607,7 +606,7 @@ int lan966x_tc_flower(struct lan966x_port *port,
 		      struct flow_cls_offload *f);
 
 int lan966x_goto_port_add(struct lan966x_port *port,
-			  struct flow_action_entry *act,
+			  int from_cid, int to_cid,
 			  unsigned long goto_id,
 			  struct netlink_ext_ack *extack);
 int lan966x_goto_port_del(struct lan966x_port *port,

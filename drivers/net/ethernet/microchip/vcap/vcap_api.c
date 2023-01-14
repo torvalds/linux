@@ -37,11 +37,13 @@ struct vcap_rule_move {
 	int count; /* blocksize of addresses to move */
 };
 
-/* Stores the filter cookie that enabled the port */
+/* Stores the filter cookie and chain id that enabled the port */
 struct vcap_enabled_port {
 	struct list_head list; /* for insertion in enabled ports list */
 	struct net_device *ndev;  /* the enabled port */
 	unsigned long cookie; /* filter that enabled the port */
+	int src_cid; /* source chain id */
+	int dst_cid; /* destination chain id */
 };
 
 void vcap_iter_set(struct vcap_stream_iter *itr, int sw_width,
@@ -1930,6 +1932,21 @@ static void vcap_move_rules(struct vcap_rule_internal *ri,
 			 move->offset, move->count);
 }
 
+/* Check if the chain is already used to enable a VCAP lookup for this port */
+static bool vcap_is_chain_used(struct vcap_control *vctrl,
+			       struct net_device *ndev, int src_cid)
+{
+	struct vcap_enabled_port *eport;
+	struct vcap_admin *admin;
+
+	list_for_each_entry(admin, &vctrl->list, list)
+		list_for_each_entry(eport, &admin->enabled, list)
+			if (eport->src_cid == src_cid && eport->ndev == ndev)
+				return true;
+
+	return false;
+}
+
 /* Encode and write a validated rule to the VCAP */
 int vcap_add_rule(struct vcap_rule *rule)
 {
@@ -2595,23 +2612,33 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule)
 EXPORT_SYMBOL_GPL(vcap_set_tc_exterr);
 
 /* Check if this port is already enabled for this VCAP instance */
-static bool vcap_is_enabled(struct vcap_admin *admin, struct net_device *ndev,
-			    unsigned long cookie)
+static bool vcap_is_enabled(struct vcap_control *vctrl, struct net_device *ndev,
+			    int dst_cid)
 {
 	struct vcap_enabled_port *eport;
+	struct vcap_admin *admin;
 
-	list_for_each_entry(eport, &admin->enabled, list)
-		if (eport->cookie == cookie || eport->ndev == ndev)
-			return true;
+	list_for_each_entry(admin, &vctrl->list, list)
+		list_for_each_entry(eport, &admin->enabled, list)
+			if (eport->dst_cid == dst_cid && eport->ndev == ndev)
+				return true;
 
 	return false;
 }
 
-/* Enable this port for this VCAP instance */
-static int vcap_enable(struct vcap_admin *admin, struct net_device *ndev,
-		       unsigned long cookie)
+/* Enable this port and chain id in a VCAP instance */
+static int vcap_enable(struct vcap_control *vctrl, struct net_device *ndev,
+		       unsigned long cookie, int src_cid, int dst_cid)
 {
 	struct vcap_enabled_port *eport;
+	struct vcap_admin *admin;
+
+	if (src_cid >= dst_cid)
+		return -EFAULT;
+
+	admin = vcap_find_admin(vctrl, dst_cid);
+	if (!admin)
+		return -ENOENT;
 
 	eport = kzalloc(sizeof(*eport), GFP_KERNEL);
 	if (!eport)
@@ -2619,48 +2646,49 @@ static int vcap_enable(struct vcap_admin *admin, struct net_device *ndev,
 
 	eport->ndev = ndev;
 	eport->cookie = cookie;
+	eport->src_cid = src_cid;
+	eport->dst_cid = dst_cid;
+	mutex_lock(&admin->lock);
 	list_add_tail(&eport->list, &admin->enabled);
+	mutex_unlock(&admin->lock);
 
 	return 0;
 }
 
-/* Disable this port for this VCAP instance */
-static int vcap_disable(struct vcap_admin *admin, struct net_device *ndev,
+/* Disable this port and chain id for a VCAP instance */
+static int vcap_disable(struct vcap_control *vctrl, struct net_device *ndev,
 			unsigned long cookie)
 {
-	struct vcap_enabled_port *eport;
+	struct vcap_enabled_port *elem, *eport = NULL;
+	struct vcap_admin *found = NULL, *admin;
 
-	list_for_each_entry(eport, &admin->enabled, list) {
-		if (eport->cookie == cookie && eport->ndev == ndev) {
-			list_del(&eport->list);
-			kfree(eport);
-			return 0;
+	list_for_each_entry(admin, &vctrl->list, list) {
+		list_for_each_entry(elem, &admin->enabled, list) {
+			if (elem->cookie == cookie && elem->ndev == ndev) {
+				eport = elem;
+				found = admin;
+				break;
+			}
 		}
+		if (eport)
+			break;
 	}
 
-	return -ENOENT;
+	if (!eport)
+		return -ENOENT;
+
+	mutex_lock(&found->lock);
+	list_del(&eport->list);
+	mutex_unlock(&found->lock);
+	kfree(eport);
+	return 0;
 }
 
-/* Find the VCAP instance that enabled the port using a specific filter */
-static struct vcap_admin *vcap_find_admin_by_cookie(struct vcap_control *vctrl,
-						    unsigned long cookie)
-{
-	struct vcap_enabled_port *eport;
-	struct vcap_admin *admin;
-
-	list_for_each_entry(admin, &vctrl->list, list)
-		list_for_each_entry(eport, &admin->enabled, list)
-			if (eport->cookie == cookie)
-				return admin;
-
-	return NULL;
-}
-
-/* Enable/Disable the VCAP instance lookups. Chain id 0 means disable */
+/* Enable/Disable the VCAP instance lookups */
 int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
-			int chain_id, unsigned long cookie, bool enable)
+			int src_cid, int dst_cid, unsigned long cookie,
+			bool enable)
 {
-	struct vcap_admin *admin;
 	int err;
 
 	err = vcap_api_check(vctrl);
@@ -2670,29 +2698,23 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 	if (!ndev)
 		return -ENODEV;
 
-	if (chain_id)
-		admin = vcap_find_admin(vctrl, chain_id);
-	else
-		admin = vcap_find_admin_by_cookie(vctrl, cookie);
-	if (!admin)
-		return -ENOENT;
-
-	/* first instance and first chain */
-	if (admin->vinst || chain_id > admin->first_cid)
+	/* Source and destination must be the first chain in a lookup */
+	if (src_cid % VCAP_CID_LOOKUP_SIZE)
+		return -EFAULT;
+	if (dst_cid % VCAP_CID_LOOKUP_SIZE)
 		return -EFAULT;
 
-	if (chain_id) {
-		if (vcap_is_enabled(admin, ndev, cookie))
+	if (enable) {
+		if (vcap_is_enabled(vctrl, ndev, dst_cid))
 			return -EADDRINUSE;
-		mutex_lock(&admin->lock);
-		vcap_enable(admin, ndev, cookie);
+		if (vcap_is_chain_used(vctrl, ndev, src_cid))
+			return -EADDRNOTAVAIL;
+		err = vcap_enable(vctrl, ndev, cookie, src_cid, dst_cid);
 	} else {
-		mutex_lock(&admin->lock);
-		vcap_disable(admin, ndev, cookie);
+		err = vcap_disable(vctrl, ndev, cookie);
 	}
-	mutex_unlock(&admin->lock);
 
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_enable_lookups);
 

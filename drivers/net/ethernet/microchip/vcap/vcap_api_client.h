@@ -148,9 +148,10 @@ struct vcap_counter {
 	bool sticky;
 };
 
-/* Enable/Disable the VCAP instance lookups. Chain id 0 means disable */
+/* Enable/Disable the VCAP instance lookups */
 int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
-			int chain_id, unsigned long cookie, bool enable);
+			int from_cid, int to_cid, unsigned long cookie,
+			bool enable);
 
 /* VCAP rule operations */
 /* Allocate a rule and fill in the basic information */
