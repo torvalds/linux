@@ -1087,6 +1087,8 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 			return "navi10";
 		case IP_VERSION(11, 0, 2):
 			return "vega20";
+		case IP_VERSION(11, 0, 3):
+			return "renoir";
 		case IP_VERSION(11, 0, 4):
 			return "arcturus";
 		case IP_VERSION(11, 0, 5):
@@ -1104,12 +1106,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		case IP_VERSION(11, 5, 0):
 			return "vangogh";
 		case IP_VERSION(12, 0, 1):
-			if (adev->asic_type == CHIP_RENOIR) {
-				if (adev->apu_flags & AMD_APU_IS_RENOIR)
-					return "renoir";
-				return "green_sardine";
-			}
-			break;
+			return "green_sardine";
 		case IP_VERSION(13, 0, 2):
 			return "aldebaran";
 		case IP_VERSION(13, 0, 1):
