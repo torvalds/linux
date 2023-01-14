@@ -367,7 +367,7 @@
 
 		assigned-clocks = <&versaclock6_bb 1>, <&versaclock6_bb 2>,
 				  <&versaclock6_bb 3>, <&versaclock6_bb 4>;
-		assigned-clock-rates = <24000000>, <24000000>, <24000000>,
+		assigned-clock-rates = <24000000>, <24000000>, <24576000>,
 				       <24576000>;
 
 		OUT1 {
