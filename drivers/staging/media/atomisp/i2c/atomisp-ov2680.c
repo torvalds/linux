@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/types.h>
 
 #include <media/ov_16bit_addr_reg_helpers.h>
@@ -139,7 +140,8 @@ static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 	int ret;
 
-	if (!sensor->power_on) {
+	/* Only apply changes to the controls if the device is powered up */
+	if (!pm_runtime_get_if_in_use(sensor->sd.dev)) {
 		ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
 		return 0;
 	}
@@ -163,6 +165,8 @@ static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 	default:
 		ret = -EINVAL;
 	}
+
+	pm_runtime_put(sensor->sd.dev);
 	return ret;
 }
 
@@ -245,9 +249,6 @@ static int power_up(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
-	if (dev->power_on)
-		return 0; /* Already on */
-
 	/* power control */
 	ret = power_ctrl(sd, 1);
 	if (ret)
@@ -276,7 +277,6 @@ static int power_up(struct v4l2_subdev *sd)
 	if (ret)
 		goto fail_init_registers;
 
-	dev->power_on = true;
 	return 0;
 
 fail_init_registers:
@@ -302,9 +302,6 @@ static int power_down(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
-	if (!dev->power_on)
-		return 0; /* Already off */
-
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
 	if (ret)
 		dev_err(&client->dev, "flisclk failed\n");
@@ -324,7 +321,6 @@ static int power_down(struct v4l2_subdev *sd)
 		return ret;
 	}
 
-	dev->power_on = false;
 	return 0;
 }
 
@@ -557,8 +553,8 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = power_up(sd);
-		if (ret)
+		ret = pm_runtime_get_sync(sensor->sd.dev);
+		if (ret < 0)
 			goto error_unlock;
 
 		ret = ov2680_set_mode(sensor);
@@ -575,7 +571,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 			goto error_power_down;
 	} else {
 		ov_write_reg8(client, OV2680_SW_STREAM, OV2680_STOP_STREAMING);
-		power_down(sd);
+		pm_runtime_put(sensor->sd.dev);
 	}
 
 	sensor->is_streaming = enable;
@@ -586,7 +582,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 
 error_power_down:
-	power_down(sd);
+	pm_runtime_put(sensor->sd.dev);
 error_unlock:
 	mutex_unlock(&sensor->input_lock);
 	return ret;
@@ -607,8 +603,8 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 
 	mutex_lock(&dev->input_lock);
 
-	ret = power_up(sd);
-	if (ret) {
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret < 0) {
 		dev_err(&client->dev, "ov2680 power-up err.\n");
 		goto fail_power_on;
 	}
@@ -625,11 +621,7 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 	}
 
 	/* turn off sensor, after probed */
-	ret = power_down(sd);
-	if (ret) {
-		dev_err(&client->dev, "ov2680 power-off err.\n");
-		goto fail_csi_cfg;
-	}
+	pm_runtime_put(&client->dev);
 	mutex_unlock(&dev->input_lock);
 
 	return 0;
@@ -637,7 +629,7 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 fail_csi_cfg:
 	dev->platform_data->csi_cfg(sd, 0);
 fail_power_on:
-	power_down(sd);
+	pm_runtime_put(&client->dev);
 	dev_err(&client->dev, "sensor power-gating failed\n");
 	mutex_unlock(&dev->input_lock);
 	return ret;
@@ -783,6 +775,7 @@ static void ov2680_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrls.handler);
+	pm_runtime_disable(&client->dev);
 	kfree(dev);
 }
 
@@ -808,6 +801,11 @@ static int ov2680_probe(struct i2c_client *client)
 		ret = -EINVAL;
 		goto out_free;
 	}
+
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
 
 	ret = ov2680_s_config(&dev->sd, client->irq, pdata);
 	if (ret)
@@ -845,6 +843,22 @@ out_free:
 	return ret;
 }
 
+static int ov2680_suspend(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+
+	return power_down(sd);
+}
+
+static int ov2680_resume(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+
+	return power_up(sd);
+}
+
+static DEFINE_RUNTIME_DEV_PM_OPS(ov2680_pm_ops, ov2680_suspend, ov2680_resume, NULL);
+
 static const struct acpi_device_id ov2680_acpi_match[] = {
 	{"XXOV2680"},
 	{"OVTI2680"},
@@ -855,6 +869,7 @@ MODULE_DEVICE_TABLE(acpi, ov2680_acpi_match);
 static struct i2c_driver ov2680_driver = {
 	.driver = {
 		.name = "ov2680",
+		.pm = pm_sleep_ptr(&ov2680_pm_ops),
 		.acpi_match_table = ov2680_acpi_match,
 	},
 	.probe_new = ov2680_probe,

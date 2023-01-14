@@ -114,7 +114,6 @@ struct ov2680_device {
 	struct mutex input_lock;
 	struct i2c_client *client;
 	struct camera_sensor_platform_data *platform_data;
-	bool power_on;
 	bool is_streaming;
 
 	struct ov2680_mode {
