@@ -3030,14 +3030,29 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	kfree(eth->scratch_head);
 }
 
+static bool mtk_hw_reset_check(struct mtk_eth *eth)
+{
+	u32 val = mtk_r32(eth, MTK_INT_STATUS2);
+
+	return (val & MTK_FE_INT_FQ_EMPTY) || (val & MTK_FE_INT_RFIFO_UF) ||
+	       (val & MTK_FE_INT_RFIFO_OV) || (val & MTK_FE_INT_TSO_FAIL) ||
+	       (val & MTK_FE_INT_TSO_ALIGN) || (val & MTK_FE_INT_TSO_ILLEGAL);
+}
+
 static void mtk_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 
+	if (test_bit(MTK_RESETTING, &eth->state))
+		return;
+
+	if (!mtk_hw_reset_check(eth))
+		return;
+
 	eth->netdev[mac->id]->stats.tx_errors++;
-	netif_err(eth, tx_err, dev,
-		  "transmit timed out\n");
+	netif_err(eth, tx_err, dev, "transmit timed out\n");
+
 	schedule_work(&eth->pending_work);
 }
 
@@ -3592,15 +3607,17 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	int i, val, ret;
 
-	if (test_and_set_bit(MTK_HW_INIT, &eth->state))
+	if (!reset && test_and_set_bit(MTK_HW_INIT, &eth->state))
 		return 0;
 
-	pm_runtime_enable(eth->dev);
-	pm_runtime_get_sync(eth->dev);
+	if (!reset) {
+		pm_runtime_enable(eth->dev);
+		pm_runtime_get_sync(eth->dev);
 
-	ret = mtk_clk_enable(eth);
-	if (ret)
-		goto err_disable_pm;
+		ret = mtk_clk_enable(eth);
+		if (ret)
+			goto err_disable_pm;
+	}
 
 	if (eth->ethsys)
 		regmap_update_bits(eth->ethsys, ETHSYS_DMA_AG_MAP, dma_mask,
@@ -3733,8 +3750,10 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
 	return 0;
 
 err_disable_pm:
-	pm_runtime_put_sync(eth->dev);
-	pm_runtime_disable(eth->dev);
+	if (!reset) {
+		pm_runtime_put_sync(eth->dev);
+		pm_runtime_disable(eth->dev);
+	}
 
 	return ret;
 }
@@ -3813,30 +3832,53 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
+static void mtk_prepare_for_reset(struct mtk_eth *eth)
+{
+	u32 val;
+	int i;
+
+	/* disabe FE P3 and P4 */
+	val = mtk_r32(eth, MTK_FE_GLO_CFG) | MTK_FE_LINK_DOWN_P3;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		val |= MTK_FE_LINK_DOWN_P4;
+	mtk_w32(eth, val, MTK_FE_GLO_CFG);
+
+	/* adjust PPE configurations to prepare for reset */
+	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
+		mtk_ppe_prepare_reset(eth->ppe[i]);
+
+	/* disable NETSYS interrupts */
+	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
+
+	/* force link down GMAC */
+	for (i = 0; i < 2; i++) {
+		val = mtk_r32(eth, MTK_MAC_MCR(i)) & ~MAC_MCR_FORCE_LINK;
+		mtk_w32(eth, val, MTK_MAC_MCR(i));
+	}
+}
+
 static void mtk_pending_work(struct work_struct *work)
 {
 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
-	int err, i;
 	unsigned long restart = 0;
+	u32 val;
+	int i;
 
 	rtnl_lock();
-
-	dev_dbg(eth->dev, "[%s][%d] reset\n", __func__, __LINE__);
 	set_bit(MTK_RESETTING, &eth->state);
+
+	mtk_prepare_for_reset(eth);
 
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i])
+		if (!eth->netdev[i] || !netif_running(eth->netdev[i]))
 			continue;
+
 		mtk_stop(eth->netdev[i]);
 		__set_bit(i, &restart);
 	}
-	dev_dbg(eth->dev, "[%s][%d] mtk_stop ends\n", __func__, __LINE__);
 
-	/* restart underlying hardware such as power, clock, pin mux
-	 * and the connected phy
-	 */
-	mtk_hw_deinit(eth);
+	usleep_range(15000, 16000);
 
 	if (eth->dev->pins)
 		pinctrl_select_state(eth->dev->pins->p,
@@ -3847,15 +3889,19 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!test_bit(i, &restart))
 			continue;
-		err = mtk_open(eth->netdev[i]);
-		if (err) {
+
+		if (mtk_open(eth->netdev[i])) {
 			netif_alert(eth, ifup, eth->netdev[i],
-			      "Driver up/down cycle failed, closing device.\n");
+				    "Driver up/down cycle failed\n");
 			dev_close(eth->netdev[i]);
 		}
 	}
 
-	dev_dbg(eth->dev, "[%s][%d] reset done\n", __func__, __LINE__);
+	/* enabe FE P3 and P4 */
+	val = mtk_r32(eth, MTK_FE_GLO_CFG) & ~MTK_FE_LINK_DOWN_P3;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		val &= ~MTK_FE_LINK_DOWN_P4;
+	mtk_w32(eth, val, MTK_FE_GLO_CFG);
 
 	clear_bit(MTK_RESETTING, &eth->state);
 

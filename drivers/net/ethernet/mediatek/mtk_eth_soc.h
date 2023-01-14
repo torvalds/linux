@@ -77,12 +77,24 @@
 #define	MTK_HW_LRO_REPLACE_DELTA	1000
 #define	MTK_HW_LRO_SDL_REMAIN_ROOM	1522
 
+/* Frame Engine Global Configuration */
+#define MTK_FE_GLO_CFG		0x00
+#define MTK_FE_LINK_DOWN_P3	BIT(11)
+#define MTK_FE_LINK_DOWN_P4	BIT(12)
+
 /* Frame Engine Global Reset Register */
 #define MTK_RST_GL		0x04
 #define RST_GL_PSE		BIT(0)
 
 /* Frame Engine Interrupt Status Register */
 #define MTK_INT_STATUS2		0x08
+#define MTK_FE_INT_ENABLE	0x0c
+#define MTK_FE_INT_FQ_EMPTY	BIT(8)
+#define MTK_FE_INT_TSO_FAIL	BIT(12)
+#define MTK_FE_INT_TSO_ILLEGAL	BIT(13)
+#define MTK_FE_INT_TSO_ALIGN	BIT(14)
+#define MTK_FE_INT_RFIFO_OV	BIT(18)
+#define MTK_FE_INT_RFIFO_UF	BIT(19)
 #define MTK_GDM1_AF		BIT(28)
 #define MTK_GDM2_AF		BIT(29)
 
