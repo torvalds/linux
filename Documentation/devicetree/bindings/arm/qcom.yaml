@@ -221,6 +221,8 @@ properties:
               - samsung,j5
               - samsung,j5x
               - samsung,serranove
+              - thwc,uf896
+              - thwc,ufi001c
               - wingtech,wt88047
           - const: qcom,msm8916
 
