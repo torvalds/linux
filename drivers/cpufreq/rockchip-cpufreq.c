@@ -655,6 +655,7 @@ int rockchip_cpufreq_adjust_power_scale(struct device *dev)
 		return -EINVAL;
 	rockchip_adjust_power_scale(dev, cluster->scale);
 	rockchip_pvtpll_calibrate_opp(&cluster->opp_info);
+	rockchip_pvtpll_add_length(&cluster->opp_info);
 
 	return 0;
 }
