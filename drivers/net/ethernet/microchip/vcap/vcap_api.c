@@ -1808,6 +1808,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 {
 	struct vcap_rule_internal *ri = to_intrule(rule);
 	struct vcap_rule_move move = {0};
+	struct vcap_counter ctr = {0};
 	int ret;
 
 	ret = vcap_api_check(ri->vctrl);
@@ -1831,8 +1832,12 @@ int vcap_add_rule(struct vcap_rule *rule)
 	}
 
 	ret = vcap_write_rule(ri);
-	if (ret)
+	if (ret) {
 		pr_err("%s:%d: rule write error: %d\n", __func__, __LINE__, ret);
+		goto out;
+	}
+	/* Set the counter to zero */
+	ret = vcap_write_counter(ri, &ctr);
 out:
 	mutex_unlock(&ri->admin->lock);
 	return ret;
