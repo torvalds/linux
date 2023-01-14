@@ -8,11 +8,28 @@
 
 #define VOLT_RM_TABLE_END	~1
 
-#define OPP_INTERMEDIATE_MASK	0x3f
+/*
+ * [0]:      set intermediate rate
+ *           [1]: scaling up rate or scaling down rate
+ * [1]:      add length for pvtpll
+ *           [2:5]: length
+ * [2]:      use low length for pvtpll
+ * [3:5]:    reserved
+ */
+#define OPP_RATE_MASK		0x3f
+
+/* Set intermediate rate */
 #define OPP_INTERMEDIATE_RATE	BIT(0)
 #define OPP_SCALING_UP_RATE	BIT(1)
 #define OPP_SCALING_UP_INTER	(OPP_INTERMEDIATE_RATE | OPP_SCALING_UP_RATE)
 #define OPP_SCALING_DOWN_INTER	OPP_INTERMEDIATE_RATE
+
+/* Add length for pvtpll */
+#define OPP_ADD_LENGTH		BIT(1)
+#define OPP_LENGTH_MASK		0xf
+#define OPP_LENGTH_SHIFT	2
+
+/* Use low length for pvtpll */
 #define OPP_LENGTH_LOW		BIT(2)
 
 struct rockchip_opp_info;
@@ -69,6 +86,7 @@ void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 			     char *lkg_name, int process,
 			     int *volt_sel, int *scale_sel);
 void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info);
+void rockchip_pvtpll_add_length(struct rockchip_opp_info *info);
 void rockchip_of_get_pvtm_sel(struct device *dev, struct device_node *np,
 			      char *reg_name, int process,
 			      int *volt_sel, int *scale_sel);
@@ -122,6 +140,10 @@ static inline void rockchip_of_get_lkg_sel(struct device *dev,
 }
 
 static inline void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
+{
+}
+
+static inline void rockchip_pvtpll_add_length(struct rockchip_opp_info *info)
 {
 }
 

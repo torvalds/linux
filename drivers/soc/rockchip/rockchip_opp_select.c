@@ -977,6 +977,58 @@ out_put:
 }
 EXPORT_SYMBOL(rockchip_pvtpll_calibrate_opp);
 
+void rockchip_pvtpll_add_length(struct rockchip_opp_info *info)
+{
+	struct device_node *np;
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
+	unsigned long old_rate;
+	unsigned int min_rate = 0, max_rate = 0, margin = 0;
+	u32 opp_flag = 0;
+	int ret;
+
+	if (!info || !info->grf)
+		return;
+
+	np = of_parse_phandle(info->dev->of_node, "operating-points-v2", 0);
+	if (!np) {
+		dev_warn(info->dev, "OPP-v2 not supported\n");
+		return;
+	}
+
+	if (of_property_read_u32(np, "rockchip,pvtpll-len-min-rate", &min_rate))
+		return;
+	if (of_property_read_u32(np, "rockchip,pvtpll-len-max-rate", &max_rate))
+		return;
+	if (of_property_read_u32(np, "rockchip,pvtpll-len-margin", &margin))
+		return;
+
+	opp_table = dev_pm_opp_get_opp_table(info->dev);
+	if (!opp_table)
+		return;
+	old_rate = clk_get_rate(opp_table->clk);
+	opp_flag = OPP_ADD_LENGTH | ((margin & OPP_LENGTH_MASK) << OPP_LENGTH_SHIFT);
+
+	mutex_lock(&opp_table->lock);
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (opp->rate < min_rate * 1000 || opp->rate > max_rate * 1000)
+			continue;
+		ret = clk_set_rate(opp_table->clk, opp->rate | opp_flag);
+		if (ret) {
+			dev_err(info->dev,
+				"failed to change %lu len margin %d\n",
+				opp->rate, margin);
+			break;
+		}
+	}
+	mutex_unlock(&opp_table->lock);
+
+	clk_set_rate(opp_table->clk, old_rate);
+
+	dev_pm_opp_put_opp_table(opp_table);
+}
+EXPORT_SYMBOL(rockchip_pvtpll_add_length);
+
 static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 				    char *reg_name)
 {
@@ -1719,6 +1771,7 @@ next:
 	}
 	rockchip_adjust_power_scale(dev, scale);
 	rockchip_pvtpll_calibrate_opp(info);
+	rockchip_pvtpll_add_length(info);
 
 dis_opp_clk:
 	if (info && info->clks)
