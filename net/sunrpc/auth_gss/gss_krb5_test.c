@@ -1417,9 +1417,120 @@ static struct kunit_suite rfc6803_suite = {
 	.test_cases		= rfc6803_test_cases,
 };
 
+/*
+ * From RFC 8009 Appendix A.  Test Vectors
+ *
+ * Sample results for SHA-2 enctype key derivation
+ *
+ * This test material is copyright (c) 2016 IETF Trust and the
+ * persons identified as the document authors.  All rights reserved.
+ */
+
+DEFINE_HEX_XDR_NETOBJ(aes128_cts_hmac_sha256_128_basekey,
+		      0x37, 0x05, 0xd9, 0x60, 0x80, 0xc1, 0x77, 0x28,
+		      0xa0, 0xe8, 0x00, 0xea, 0xb6, 0xe0, 0xd2, 0x3c
+);
+DEFINE_HEX_XDR_NETOBJ(aes128_cts_hmac_sha256_128_Kc,
+		      0xb3, 0x1a, 0x01, 0x8a, 0x48, 0xf5, 0x47, 0x76,
+		      0xf4, 0x03, 0xe9, 0xa3, 0x96, 0x32, 0x5d, 0xc3
+);
+DEFINE_HEX_XDR_NETOBJ(aes128_cts_hmac_sha256_128_Ke,
+		      0x9b, 0x19, 0x7d, 0xd1, 0xe8, 0xc5, 0x60, 0x9d,
+		      0x6e, 0x67, 0xc3, 0xe3, 0x7c, 0x62, 0xc7, 0x2e
+);
+DEFINE_HEX_XDR_NETOBJ(aes128_cts_hmac_sha256_128_Ki,
+		      0x9f, 0xda, 0x0e, 0x56, 0xab, 0x2d, 0x85, 0xe1,
+		      0x56, 0x9a, 0x68, 0x86, 0x96, 0xc2, 0x6a, 0x6c
+);
+
+DEFINE_HEX_XDR_NETOBJ(aes256_cts_hmac_sha384_192_basekey,
+		      0x6d, 0x40, 0x4d, 0x37, 0xfa, 0xf7, 0x9f, 0x9d,
+		      0xf0, 0xd3, 0x35, 0x68, 0xd3, 0x20, 0x66, 0x98,
+		      0x00, 0xeb, 0x48, 0x36, 0x47, 0x2e, 0xa8, 0xa0,
+		      0x26, 0xd1, 0x6b, 0x71, 0x82, 0x46, 0x0c, 0x52
+);
+DEFINE_HEX_XDR_NETOBJ(aes256_cts_hmac_sha384_192_Kc,
+		      0xef, 0x57, 0x18, 0xbe, 0x86, 0xcc, 0x84, 0x96,
+		      0x3d, 0x8b, 0xbb, 0x50, 0x31, 0xe9, 0xf5, 0xc4,
+		      0xba, 0x41, 0xf2, 0x8f, 0xaf, 0x69, 0xe7, 0x3d
+);
+DEFINE_HEX_XDR_NETOBJ(aes256_cts_hmac_sha384_192_Ke,
+		      0x56, 0xab, 0x22, 0xbe, 0xe6, 0x3d, 0x82, 0xd7,
+		      0xbc, 0x52, 0x27, 0xf6, 0x77, 0x3f, 0x8e, 0xa7,
+		      0xa5, 0xeb, 0x1c, 0x82, 0x51, 0x60, 0xc3, 0x83,
+		      0x12, 0x98, 0x0c, 0x44, 0x2e, 0x5c, 0x7e, 0x49
+);
+DEFINE_HEX_XDR_NETOBJ(aes256_cts_hmac_sha384_192_Ki,
+		      0x69, 0xb1, 0x65, 0x14, 0xe3, 0xcd, 0x8e, 0x56,
+		      0xb8, 0x20, 0x10, 0xd5, 0xc7, 0x30, 0x12, 0xb6,
+		      0x22, 0xc4, 0xd0, 0x0f, 0xfc, 0x23, 0xed, 0x1f
+);
+
+static const struct gss_krb5_test_param rfc8009_kdf_test_params[] = {
+	{
+		.desc			= "Derive Kc subkey for aes128-cts-hmac-sha256-128",
+		.enctype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+		.base_key		= &aes128_cts_hmac_sha256_128_basekey,
+		.usage			= &usage_checksum,
+		.expected_result	= &aes128_cts_hmac_sha256_128_Kc,
+	},
+	{
+		.desc			= "Derive Ke subkey for aes128-cts-hmac-sha256-128",
+		.enctype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+		.base_key		= &aes128_cts_hmac_sha256_128_basekey,
+		.usage			= &usage_encryption,
+		.expected_result	= &aes128_cts_hmac_sha256_128_Ke,
+	},
+	{
+		.desc			= "Derive Ki subkey for aes128-cts-hmac-sha256-128",
+		.enctype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+		.base_key		= &aes128_cts_hmac_sha256_128_basekey,
+		.usage			= &usage_integrity,
+		.expected_result	= &aes128_cts_hmac_sha256_128_Ki,
+	},
+	{
+		.desc			= "Derive Kc subkey for aes256-cts-hmac-sha384-192",
+		.enctype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		.base_key		= &aes256_cts_hmac_sha384_192_basekey,
+		.usage			= &usage_checksum,
+		.expected_result	= &aes256_cts_hmac_sha384_192_Kc,
+	},
+	{
+		.desc			= "Derive Ke subkey for aes256-cts-hmac-sha384-192",
+		.enctype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		.base_key		= &aes256_cts_hmac_sha384_192_basekey,
+		.usage			= &usage_encryption,
+		.expected_result	= &aes256_cts_hmac_sha384_192_Ke,
+	},
+	{
+		.desc			= "Derive Ki subkey for aes256-cts-hmac-sha384-192",
+		.enctype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		.base_key		= &aes256_cts_hmac_sha384_192_basekey,
+		.usage			= &usage_integrity,
+		.expected_result	= &aes256_cts_hmac_sha384_192_Ki,
+	},
+};
+
+/* Creates the function rfc8009_kdf_gen_params */
+KUNIT_ARRAY_PARAM(rfc8009_kdf, rfc8009_kdf_test_params, gss_krb5_get_desc);
+
+static struct kunit_case rfc8009_test_cases[] = {
+	{
+		.name			= "RFC 8009 key derivation",
+		.run_case		= kdf_case,
+		.generate_params	= rfc8009_kdf_gen_params,
+	},
+};
+
+static struct kunit_suite rfc8009_suite = {
+	.name			= "RFC 8009 suite",
+	.test_cases		= rfc8009_test_cases,
+};
+
 kunit_test_suites(&rfc3961_suite,
 		  &rfc3962_suite,
-		  &rfc6803_suite);
+		  &rfc6803_suite,
+		  &rfc8009_suite);
 
 MODULE_DESCRIPTION("Test RPCSEC GSS Kerberos 5 functions");
 MODULE_LICENSE("GPL");
