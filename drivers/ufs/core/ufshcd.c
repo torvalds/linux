@@ -3537,7 +3537,8 @@ int ufshcd_read_desc_param(struct ufs_hba *hba,
 	if (param_offset >= buff_len) {
 		dev_err(hba->dev, "%s: Invalid offset 0x%x in descriptor IDN 0x%x, length 0x%x\n",
 			__func__, param_offset, desc_id, buff_len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* Sanity check */
