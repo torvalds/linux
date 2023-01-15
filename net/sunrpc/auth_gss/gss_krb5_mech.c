@@ -19,7 +19,6 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
-#include <linux/sunrpc/gss_krb5_enctypes.h>
 
 #include "auth_gss_internal.h"
 #include "gss_krb5_internal.h"
@@ -144,6 +143,43 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .keyed_cksum = 1,
 	},
 };
+
+/*
+ * The list of advertised enctypes is specified in order of most
+ * preferred to least.
+ */
+static char gss_krb5_enctype_priority_list[64];
+
+static void gss_krb5_prepare_enctype_priority_list(void)
+{
+	static const u32 gss_krb5_enctypes[] = {
+		ENCTYPE_AES256_CTS_HMAC_SHA1_96,
+		ENCTYPE_AES128_CTS_HMAC_SHA1_96,
+		ENCTYPE_DES3_CBC_SHA1,
+#ifndef CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
+		ENCTYPE_DES_CBC_MD5,
+		ENCTYPE_DES_CBC_CRC,
+		ENCTYPE_DES_CBC_MD4,
+#endif
+	};
+	size_t total, i;
+	char buf[16];
+	char *sep;
+	int n;
+
+	sep = "";
+	gss_krb5_enctype_priority_list[0] = '\0';
+	for (total = 0, i = 0; i < ARRAY_SIZE(gss_krb5_enctypes); i++) {
+		n = sprintf(buf, "%s%u", sep, gss_krb5_enctypes[i]);
+		if (n < 0)
+			break;
+		if (total + n >= sizeof(gss_krb5_enctype_priority_list))
+			break;
+		strcat(gss_krb5_enctype_priority_list, buf);
+		sep = ",";
+		total += n;
+	}
+}
 
 static const int num_supported_enctypes =
 	ARRAY_SIZE(supported_gss_krb5_enctypes);
@@ -761,13 +797,14 @@ static struct gss_api_mech gss_kerberos_mech = {
 	.gm_ops		= &gss_kerberos_ops,
 	.gm_pf_num	= ARRAY_SIZE(gss_kerberos_pfs),
 	.gm_pfs		= gss_kerberos_pfs,
-	.gm_upcall_enctypes = KRB5_SUPPORTED_ENCTYPES,
+	.gm_upcall_enctypes = gss_krb5_enctype_priority_list,
 };
 
 static int __init init_kerberos_module(void)
 {
 	int status;
 
+	gss_krb5_prepare_enctype_priority_list();
 	status = gss_mech_register(&gss_kerberos_mech);
 	if (status)
 		printk("Failed to register kerberos gss mechanism!\n");
