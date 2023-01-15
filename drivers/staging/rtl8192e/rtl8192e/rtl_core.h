@@ -442,7 +442,7 @@ struct r8192_priv {
 	u8 SwChnlStep;
 	u8 SetBWModeInProgress;
 
-	u8 nCur40MhzPrimeSC;
+	u8 n_cur_40mhz_prime_sc;
 
 	u32 rf_reg_0value[4];
 	u8 num_total_rf_path;
@@ -515,14 +515,14 @@ struct r8192_priv {
 	bool		bswitch_fsync;
 	u8		framesync;
 	u32		framesyncC34;
-	u8		framesyncMonitor;
+	u8		frame_sync_monitor;
 
 	u32		reset_count;
 
 	enum reset_type rst_progress;
 	u16		tx_counter;
 	u16		rx_ctr;
-	bool		bResetInProgress;
+	bool		reset_in_progress;
 	bool		force_reset;
 	bool		force_lps;
 

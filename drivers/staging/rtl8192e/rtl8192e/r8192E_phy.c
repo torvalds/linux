@@ -1156,9 +1156,9 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		}
 
 		rtl92e_set_bb_reg(dev, rCCK0_System, bCCKSideBand,
-				  (priv->nCur40MhzPrimeSC>>1));
+				  (priv->n_cur_40mhz_prime_sc>>1));
 		rtl92e_set_bb_reg(dev, rOFDM1_LSTF, 0xC00,
-				  priv->nCur40MhzPrimeSC);
+				  priv->n_cur_40mhz_prime_sc);
 
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 		break;
@@ -1208,11 +1208,11 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 	priv->CurrentChannelBW = bandwidth;
 
 	if (Offset == HT_EXTCHNL_OFFSET_LOWER)
-		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_UPPER;
+		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_UPPER;
 	else if (Offset == HT_EXTCHNL_OFFSET_UPPER)
-		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_LOWER;
+		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_LOWER;
 	else
-		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		priv->n_cur_40mhz_prime_sc = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	_rtl92e_set_bw_mode_work_item(dev);
 

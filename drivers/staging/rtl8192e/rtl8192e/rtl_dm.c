@@ -640,7 +640,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 			if (Pwr_Flag == 0) {
 				mdelay(1);
 
-				if (priv->bResetInProgress) {
+				if (priv->reset_in_progress) {
 					rtl92e_writeb(dev, Pw_Track_Flag, 0);
 					rtl92e_writeb(dev, FW_Busy_Flag, 0);
 					return;
@@ -1969,7 +1969,7 @@ static void _rtl92e_dm_init_fsync(struct net_device *dev)
 	priv->rtllib->fsync_firstdiff_ratethreshold = 100;
 	priv->rtllib->fsync_seconddiff_ratethreshold = 200;
 	priv->rtllib->fsync_state = Default_Fsync;
-	priv->framesyncMonitor = 1;
+	priv->frame_sync_monitor = 1;
 
 	timer_setup(&priv->fsync_timer, _rtl92e_dm_fsync_timer_callback, 0);
 }
@@ -2196,7 +2196,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 
 			}
 		}
-		if (priv->framesyncMonitor) {
+		if (priv->frame_sync_monitor) {
 			if (reg_c38_State != RegC38_Fsync_AP_BCM) {
 				rtl92e_writeb(dev, rOFDM0_RxDetector3, 0x95);
 
@@ -2218,7 +2218,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			break;
 		}
 
-		if (priv->framesyncMonitor) {
+		if (priv->frame_sync_monitor) {
 			if (priv->rtllib->state == RTLLIB_LINKED) {
 				if (priv->undecorated_smoothed_pwdb <=
 				    RegC38_TH) {
@@ -2249,7 +2249,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			}
 		}
 	}
-	if (priv->framesyncMonitor) {
+	if (priv->frame_sync_monitor) {
 		if (priv->reset_count != reset_cnt) {
 			rtl92e_writeb(dev, rOFDM0_RxDetector3,
 				       priv->framesync);

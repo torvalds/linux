@@ -1138,7 +1138,7 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 			goto END;
 		}
 		priv->rf_change_in_progress = true;
-		priv->bResetInProgress = true;
+		priv->reset_in_progress = true;
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
 RESET_START:
@@ -1229,7 +1229,7 @@ RESET_START:
 END:
 		priv->rst_progress = RESET_TYPE_NORESET;
 		priv->reset_count++;
-		priv->bResetInProgress = false;
+		priv->reset_in_progress = false;
 
 		rtl92e_writeb(dev, UFWP, 1);
 	}
@@ -1397,7 +1397,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	if ((priv->force_reset || ResetType == RESET_TYPE_SILENT))
 		_rtl92e_if_silent_reset(dev);
 	priv->force_reset = false;
-	priv->bResetInProgress = false;
+	priv->reset_in_progress = false;
 }
 
 static void _rtl92e_watchdog_timer_cb(struct timer_list *t)
@@ -1486,7 +1486,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 	u8 queue_index = tcb_desc->queue_index;
 
 	if ((priv->rtllib->rf_power_state == rf_off) || !priv->up ||
-	     priv->bResetInProgress) {
+	     priv->reset_in_progress) {
 		kfree_skb(skb);
 		return;
 	}
@@ -1519,7 +1519,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (queue_index != TXCMD_QUEUE) {
 		if ((priv->rtllib->rf_power_state == rf_off) ||
-		     !priv->up || priv->bResetInProgress) {
+		     !priv->up || priv->reset_in_progress) {
 			kfree_skb(skb);
 			return 0;
 		}

@@ -1074,7 +1074,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 			pTxFwInfo->TxSubCarrier = 0;
 		} else {
 			pTxFwInfo->TxBandwidth = 0;
-			pTxFwInfo->TxSubCarrier = priv->nCur40MhzPrimeSC;
+			pTxFwInfo->TxSubCarrier = priv->n_cur_40mhz_prime_sc;
 		}
 	} else {
 		pTxFwInfo->TxBandwidth = 0;
