@@ -607,8 +607,8 @@ static struct folio *__iomap_get_folio(struct iomap_iter *iter, loff_t pos,
 {
 	const struct iomap_page_ops *page_ops = iter->iomap.page_ops;
 
-	if (page_ops && page_ops->page_prepare)
-		return page_ops->page_prepare(iter, pos, len);
+	if (page_ops && page_ops->get_folio)
+		return page_ops->get_folio(iter, pos, len);
 	else
 		return iomap_get_folio(iter, pos);
 }
