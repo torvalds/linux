@@ -2008,31 +2008,31 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 					  priv->rate_record;
 		else
 			rate_count_diff = rate_count - priv->rate_record;
-		if (rate_count_diff < priv->rateCountDiffRecord) {
+		if (rate_count_diff < priv->rate_count_diff_rec) {
 
-			u32 DiffNum = priv->rateCountDiffRecord -
+			u32 DiffNum = priv->rate_count_diff_rec -
 				      rate_count_diff;
 			if (DiffNum >=
 			    priv->rtllib->fsync_seconddiff_ratethreshold)
-				priv->ContinueDiffCount++;
+				priv->continue_diff_count++;
 			else
-				priv->ContinueDiffCount = 0;
+				priv->continue_diff_count = 0;
 
-			if (priv->ContinueDiffCount >= 2) {
+			if (priv->continue_diff_count >= 2) {
 				bSwitchFromCountDiff = true;
-				priv->ContinueDiffCount = 0;
+				priv->continue_diff_count = 0;
 			}
 		} else {
-			priv->ContinueDiffCount = 0;
+			priv->continue_diff_count = 0;
 		}
 
 		if (rate_count_diff <=
 		    priv->rtllib->fsync_firstdiff_ratethreshold) {
 			bSwitchFromCountDiff = true;
-			priv->ContinueDiffCount = 0;
+			priv->continue_diff_count = 0;
 		}
 		priv->rate_record = rate_count;
-		priv->rateCountDiffRecord = rate_count_diff;
+		priv->rate_count_diff_rec = rate_count_diff;
 		if (priv->undecorated_smoothed_pwdb >
 		    priv->rtllib->fsync_rssi_threshold &&
 		    bSwitchFromCountDiff) {
@@ -2073,7 +2073,7 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 			rtl92e_writeb(dev, 0xC36, 0x5c);
 			rtl92e_writeb(dev, 0xC3e, 0x96);
 		}
-		priv->ContinueDiffCount = 0;
+		priv->continue_diff_count = 0;
 		rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	}
 }
@@ -2114,7 +2114,7 @@ static void _rtl92e_dm_end_sw_fsync(struct net_device *dev)
 		rtl92e_writeb(dev, 0xC3e, 0x96);
 	}
 
-	priv->ContinueDiffCount = 0;
+	priv->continue_diff_count = 0;
 	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 }
 
@@ -2125,8 +2125,8 @@ static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 	u32 rate_bitmap;
 
 	priv->rate_record = 0;
-	priv->ContinueDiffCount = 0;
-	priv->rateCountDiffRecord = 0;
+	priv->continue_diff_count = 0;
+	priv->rate_count_diff_rec = 0;
 	priv->bswitch_fsync  = false;
 
 	if (priv->rtllib->mode == WIRELESS_MODE_N_24G) {

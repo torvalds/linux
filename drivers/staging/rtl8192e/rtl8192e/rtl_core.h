@@ -510,8 +510,8 @@ struct r8192_priv {
 
 	bool		bfsync_processing;
 	u32		rate_record;
-	u32		rateCountDiffRecord;
-	u32		ContinueDiffCount;
+	u32		rate_count_diff_rec;
+	u32		continue_diff_count;
 	bool		bswitch_fsync;
 	u8		framesync;
 	u32		framesyncC34;
@@ -520,7 +520,7 @@ struct r8192_priv {
 	u32		reset_count;
 
 	enum reset_type rst_progress;
-	u16		TxCounter;
+	u16		tx_counter;
 	u16		rx_ctr;
 	bool		bResetInProgress;
 	bool		force_reset;

@@ -2154,10 +2154,10 @@ bool rtl92e_is_tx_stuck(struct net_device *dev)
 	bool	bStuck = false;
 	u16	RegTxCounter = rtl92e_readw(dev, 0x128);
 
-	if (priv->TxCounter == RegTxCounter)
+	if (priv->tx_counter == RegTxCounter)
 		bStuck = true;
 
-	priv->TxCounter = RegTxCounter;
+	priv->tx_counter = RegTxCounter;
 
 	return bStuck;
 }
