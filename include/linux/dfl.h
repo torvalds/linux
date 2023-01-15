@@ -27,11 +27,15 @@ enum dfl_id_type {
  * @id: id of the dfl device.
  * @type: type of DFL FIU of the device. See enum dfl_id_type.
  * @feature_id: feature identifier local to its DFL FIU type.
+ * @revision: revision of this dfl device feature.
  * @mmio_res: mmio resource of this dfl device.
  * @irqs: list of Linux IRQ numbers of this dfl device.
  * @num_irqs: number of IRQs supported by this dfl device.
  * @cdev: pointer to DFL FPGA container device this dfl device belongs to.
  * @id_entry: matched id entry in dfl driver's id table.
+ * @dfh_version: version of DFH for the device
+ * @param_size: size of the block parameters in bytes
+ * @params: pointer to block of parameters copied memory
  */
 struct dfl_device {
 	struct device dev;
@@ -44,6 +48,9 @@ struct dfl_device {
 	unsigned int num_irqs;
 	struct dfl_fpga_cdev *cdev;
 	const struct dfl_device_id *id_entry;
+	u8 dfh_version;
+	unsigned int param_size;
+	void *params;
 };
 
 /**
@@ -84,4 +91,5 @@ void dfl_driver_unregister(struct dfl_driver *dfl_drv);
 	module_driver(__dfl_driver, dfl_driver_register, \
 		      dfl_driver_unregister)
 
+void *dfh_find_param(struct dfl_device *dfl_dev, int param_id, size_t *pcount);
 #endif /* __LINUX_DFL_H */
