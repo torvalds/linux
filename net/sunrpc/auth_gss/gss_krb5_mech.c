@@ -350,42 +350,49 @@ out_err:
 static int
 context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
-	struct xdr_netobj c, keyin, keyout;
 	u8 cdata[GSS_KRB5_K5CLENGTH];
+	struct xdr_netobj c = {
+		.len	= sizeof(cdata),
+		.data	= cdata,
+	};
+	struct xdr_netobj keyin = {
+		.len	= ctx->gk5e->keylength,
+		.data	= ctx->Ksess,
+	};
+	struct xdr_netobj keyout;
+	int ret = -EINVAL;
+	void *subkey;
 	u32 err;
 
-	c.len = GSS_KRB5_K5CLENGTH;
-	c.data = cdata;
-
-	keyin.data = ctx->Ksess;
-	keyin.len = ctx->gk5e->keylength;
+	subkey = kmalloc(ctx->gk5e->keylength, gfp_mask);
+	if (!subkey)
+		return -ENOMEM;
 	keyout.len = ctx->gk5e->keylength;
+	keyout.data = subkey;
 
 	/* initiator seal encryption */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SEAL, KEY_USAGE_SEED_ENCRYPTION);
-	keyout.data = ctx->initiator_seal;
 	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving initiator_seal key\n",
 			__func__, err);
-		goto out_err;
+		goto out;
 	}
 	ctx->initiator_enc = context_v2_alloc_cipher(ctx,
 						     ctx->gk5e->encrypt_name,
-						     ctx->initiator_seal);
+						     subkey);
 	if (ctx->initiator_enc == NULL)
-		goto out_err;
+		goto out;
 	if (ctx->gk5e->aux_cipher) {
 		ctx->initiator_enc_aux =
 			context_v2_alloc_cipher(ctx, ctx->gk5e->aux_cipher,
-						ctx->initiator_seal);
+						subkey);
 		if (ctx->initiator_enc_aux == NULL)
 			goto out_free;
 	}
 
 	/* acceptor seal encryption */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SEAL, KEY_USAGE_SEED_ENCRYPTION);
-	keyout.data = ctx->acceptor_seal;
 	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_seal key\n",
@@ -394,13 +401,13 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	}
 	ctx->acceptor_enc = context_v2_alloc_cipher(ctx,
 						    ctx->gk5e->encrypt_name,
-						    ctx->acceptor_seal);
+						    subkey);
 	if (ctx->acceptor_enc == NULL)
 		goto out_free;
 	if (ctx->gk5e->aux_cipher) {
 		ctx->acceptor_enc_aux =
 			context_v2_alloc_cipher(ctx, ctx->gk5e->aux_cipher,
-						ctx->acceptor_seal);
+						subkey);
 		if (ctx->acceptor_enc_aux == NULL)
 			goto out_free;
 	}
@@ -445,15 +452,17 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 		goto out_free;
 	}
 
-	return 0;
+	ret = 0;
+out:
+	kfree_sensitive(subkey);
+	return ret;
 
 out_free:
 	crypto_free_sync_skcipher(ctx->acceptor_enc_aux);
 	crypto_free_sync_skcipher(ctx->acceptor_enc);
 	crypto_free_sync_skcipher(ctx->initiator_enc_aux);
 	crypto_free_sync_skcipher(ctx->initiator_enc);
-out_err:
-	return -EINVAL;
+	goto out;
 }
 
 static int
