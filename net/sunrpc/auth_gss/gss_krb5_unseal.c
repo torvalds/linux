@@ -73,9 +73,9 @@
 /* read_token is a mic token, and message_buffer is the data that the mic was
  * supposedly taken over. */
 
-static u32
-gss_verify_mic_v1(struct krb5_ctx *ctx,
-		struct xdr_buf *message_buffer, struct xdr_netobj *read_token)
+u32
+gss_krb5_verify_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,
+		       struct xdr_netobj *read_token)
 {
 	int			signalg;
 	int			sealalg;
@@ -145,9 +145,9 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 	return GSS_S_COMPLETE;
 }
 
-static u32
-gss_verify_mic_v2(struct krb5_ctx *ctx,
-		struct xdr_buf *message_buffer, struct xdr_netobj *read_token)
+u32
+gss_krb5_verify_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,
+		       struct xdr_netobj *read_token)
 {
 	struct crypto_ahash *tfm = ctx->initiate ?
 				   ctx->acceptor_sign : ctx->initiator_sign;
@@ -201,23 +201,4 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 	 */
 
 	return GSS_S_COMPLETE;
-}
-
-u32
-gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
-			struct xdr_buf *message_buffer,
-			struct xdr_netobj *read_token)
-{
-	struct krb5_ctx *ctx = gss_ctx->internal_ctx_id;
-
-	switch (ctx->enctype) {
-	default:
-		BUG();
-	case ENCTYPE_DES_CBC_RAW:
-	case ENCTYPE_DES3_CBC_RAW:
-		return gss_verify_mic_v1(ctx, message_buffer, read_token);
-	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
-	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return gss_verify_mic_v2(ctx, message_buffer, read_token);
-	}
 }

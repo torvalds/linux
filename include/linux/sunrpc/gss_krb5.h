@@ -84,6 +84,15 @@ struct gss_krb5_enctype {
 	u32 (*decrypt_v2) (struct krb5_ctx *kctx, u32 offset, u32 len,
 			   struct xdr_buf *buf, u32 *headskip,
 			   u32 *tailskip);	/* v2 decryption function */
+	u32 (*get_mic)(struct krb5_ctx *kctx, struct xdr_buf *text,
+		       struct xdr_netobj *token);
+	u32 (*verify_mic)(struct krb5_ctx *kctx, struct xdr_buf *message_buffer,
+			  struct xdr_netobj *read_token);
+	u32 (*wrap)(struct krb5_ctx *kctx, int offset,
+		    struct xdr_buf *buf, struct page **pages);
+	u32 (*unwrap)(struct krb5_ctx *kctx, int offset, int len,
+		      struct xdr_buf *buf, unsigned int *slack,
+		      unsigned int *align);
 };
 
 /* krb5_ctx flags definitions */
@@ -232,20 +241,6 @@ u32
 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		struct xdr_buf *body, int body_offset, u8 *cksumkey,
 		unsigned int usage, struct xdr_netobj *cksumout);
-
-u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
-		struct xdr_netobj *);
-
-u32 gss_verify_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
-		struct xdr_netobj *);
-
-u32
-gss_wrap_kerberos(struct gss_ctx *ctx_id, int offset,
-		struct xdr_buf *outbuf, struct page **pages);
-
-u32
-gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset, int len,
-		struct xdr_buf *buf);
 
 u32
 krb5_encrypt(struct crypto_sync_skcipher *key,

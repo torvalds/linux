@@ -22,6 +22,7 @@
 #include <linux/sunrpc/gss_krb5_enctypes.h>
 
 #include "auth_gss_internal.h"
+#include "gss_krb5_internal.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
@@ -43,6 +44,10 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
 	  .mk_key = NULL,
+	  .get_mic = gss_krb5_get_mic_v1,
+	  .verify_mic = gss_krb5_verify_mic_v1,
+	  .wrap = gss_krb5_wrap_v1,
+	  .unwrap = gss_krb5_unwrap_v1,
 	  .signalg = SGN_ALG_DES_MAC_MD5,
 	  .sealalg = SEAL_ALG_DES,
 	  .keybytes = 7,
@@ -63,6 +68,10 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
 	  .mk_key = gss_krb5_des3_make_key,
+	  .get_mic = gss_krb5_get_mic_v1,
+	  .verify_mic = gss_krb5_verify_mic_v1,
+	  .wrap = gss_krb5_wrap_v1,
+	  .unwrap = gss_krb5_unwrap_v1,
 	  .signalg = SGN_ALG_HMAC_SHA1_DES3_KD,
 	  .sealalg = SEAL_ALG_DES3KD,
 	  .keybytes = 21,
@@ -85,6 +94,12 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .mk_key = gss_krb5_aes_make_key,
 	  .encrypt_v2 = gss_krb5_aes_encrypt,
 	  .decrypt_v2 = gss_krb5_aes_decrypt,
+
+	  .get_mic = gss_krb5_get_mic_v2,
+	  .verify_mic = gss_krb5_verify_mic_v2,
+	  .wrap = gss_krb5_wrap_v2,
+	  .unwrap = gss_krb5_unwrap_v2,
+
 	  .signalg = -1,
 	  .sealalg = -1,
 	  .keybytes = 16,
@@ -107,6 +122,12 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .mk_key = gss_krb5_aes_make_key,
 	  .encrypt_v2 = gss_krb5_aes_encrypt,
 	  .decrypt_v2 = gss_krb5_aes_decrypt,
+
+	  .get_mic = gss_krb5_get_mic_v2,
+	  .verify_mic = gss_krb5_verify_mic_v2,
+	  .wrap = gss_krb5_wrap_v2,
+	  .unwrap = gss_krb5_unwrap_v2,
+
 	  .signalg = -1,
 	  .sealalg = -1,
 	  .keybytes = 32,
@@ -557,10 +578,8 @@ out_err:
 }
 
 static int
-gss_import_sec_context_kerberos(const void *p, size_t len,
-				struct gss_ctx *ctx_id,
-				time64_t *endtime,
-				gfp_t gfp_mask)
+gss_krb5_import_sec_context(const void *p, size_t len, struct gss_ctx *ctx_id,
+			    time64_t *endtime, gfp_t gfp_mask)
 {
 	const void *end = (const void *)((const char *)p + len);
 	struct  krb5_ctx *ctx;
@@ -587,7 +606,8 @@ gss_import_sec_context_kerberos(const void *p, size_t len,
 }
 
 static void
-gss_delete_sec_context_kerberos(void *internal_ctx) {
+gss_krb5_delete_sec_context(void *internal_ctx)
+{
 	struct krb5_ctx *kctx = internal_ctx;
 
 	crypto_free_sync_skcipher(kctx->seq);
@@ -604,13 +624,97 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	kfree(kctx);
 }
 
+/**
+ * gss_krb5_get_mic - get_mic for the Kerberos GSS mechanism
+ * @gctx: GSS context
+ * @text: plaintext to checksum
+ * @token: buffer into which to write the computed checksum
+ *
+ * Return values:
+ *    %GSS_S_COMPLETE - success, and @token is filled in
+ *    %GSS_S_FAILURE - checksum could not be generated
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ */
+static u32 gss_krb5_get_mic(struct gss_ctx *gctx, struct xdr_buf *text,
+			    struct xdr_netobj *token)
+{
+	struct krb5_ctx *kctx = gctx->internal_ctx_id;
+
+	return kctx->gk5e->get_mic(kctx, text, token);
+}
+
+/**
+ * gss_krb5_verify_mic - verify_mic for the Kerberos GSS mechanism
+ * @gctx: GSS context
+ * @message_buffer: plaintext to check
+ * @read_token: received checksum to check
+ *
+ * Return values:
+ *    %GSS_S_COMPLETE - computed and received checksums match
+ *    %GSS_S_DEFECTIVE_TOKEN - received checksum is not valid
+ *    %GSS_S_BAD_SIG - computed and received checksums do not match
+ *    %GSS_S_FAILURE - received checksum could not be checked
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ */
+static u32 gss_krb5_verify_mic(struct gss_ctx *gctx,
+			       struct xdr_buf *message_buffer,
+			       struct xdr_netobj *read_token)
+{
+	struct krb5_ctx *kctx = gctx->internal_ctx_id;
+
+	return kctx->gk5e->verify_mic(kctx, message_buffer, read_token);
+}
+
+/**
+ * gss_krb5_wrap - gss_wrap for the Kerberos GSS mechanism
+ * @gctx: initialized GSS context
+ * @offset: byte offset in @buf to start writing the cipher text
+ * @buf: OUT: send buffer
+ * @pages: plaintext to wrap
+ *
+ * Return values:
+ *    %GSS_S_COMPLETE - success, @buf has been updated
+ *    %GSS_S_FAILURE - @buf could not be wrapped
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ */
+static u32 gss_krb5_wrap(struct gss_ctx *gctx, int offset,
+			 struct xdr_buf *buf, struct page **pages)
+{
+	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
+
+	return kctx->gk5e->wrap(kctx, offset, buf, pages);
+}
+
+/**
+ * gss_krb5_unwrap - gss_unwrap for the Kerberos GSS mechanism
+ * @gctx: initialized GSS context
+ * @offset: starting byte offset into @buf
+ * @len: size of ciphertext to unwrap
+ * @buf: ciphertext to unwrap
+ *
+ * Return values:
+ *    %GSS_S_COMPLETE - success, @buf has been updated
+ *    %GSS_S_DEFECTIVE_TOKEN - received blob is not valid
+ *    %GSS_S_BAD_SIG - computed and received checksums do not match
+ *    %GSS_S_FAILURE - @buf could not be unwrapped
+ *    %GSS_S_CONTEXT_EXPIRED - Kerberos context is no longer valid
+ */
+static u32 gss_krb5_unwrap(struct gss_ctx *gctx, int offset,
+			   int len, struct xdr_buf *buf)
+{
+	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
+
+	return kctx->gk5e->unwrap(kctx, offset, len, buf,
+				  &gctx->slack, &gctx->align);
+}
+
 static const struct gss_api_ops gss_kerberos_ops = {
-	.gss_import_sec_context	= gss_import_sec_context_kerberos,
-	.gss_get_mic		= gss_get_mic_kerberos,
-	.gss_verify_mic		= gss_verify_mic_kerberos,
-	.gss_wrap		= gss_wrap_kerberos,
-	.gss_unwrap		= gss_unwrap_kerberos,
-	.gss_delete_sec_context	= gss_delete_sec_context_kerberos,
+	.gss_import_sec_context	= gss_krb5_import_sec_context,
+	.gss_get_mic		= gss_krb5_get_mic,
+	.gss_verify_mic		= gss_krb5_verify_mic,
+	.gss_wrap		= gss_krb5_wrap,
+	.gss_unwrap		= gss_krb5_unwrap,
+	.gss_delete_sec_context	= gss_krb5_delete_sec_context,
 };
 
 static struct pf_desc gss_kerberos_pfs[] = {

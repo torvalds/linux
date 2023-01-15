@@ -125,9 +125,9 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	return krb5_hdr;
 }
 
-static u32
-gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
-		struct xdr_netobj *token)
+u32
+gss_krb5_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
+		    struct xdr_netobj *token)
 {
 	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
@@ -164,9 +164,9 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
-static u32
-gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
-		struct xdr_netobj *token)
+u32
+gss_krb5_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
+		    struct xdr_netobj *token)
 {
 	struct crypto_ahash *tfm = ctx->initiate ?
 				   ctx->initiator_sign : ctx->acceptor_sign;
@@ -193,22 +193,4 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	now = ktime_get_real_seconds();
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
-}
-
-u32
-gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
-		     struct xdr_netobj *token)
-{
-	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
-
-	switch (ctx->enctype) {
-	default:
-		BUG();
-	case ENCTYPE_DES_CBC_RAW:
-	case ENCTYPE_DES3_CBC_RAW:
-		return gss_get_mic_v1(ctx, text, token);
-	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
-	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return gss_get_mic_v2(ctx, text, token);
-	}
 }
