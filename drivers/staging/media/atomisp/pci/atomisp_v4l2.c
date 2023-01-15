@@ -665,14 +665,6 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 		msleep(20);
 	}
 
-	/*
-	 * FIXME:WA for ECS28A, with this sleep, CTS
-	 * android.hardware.camera2.cts.CameraDeviceTest#testCameraDeviceAbort
-	 * PASS, no impact on other platforms
-	 */
-	if (IS_BYT && enable)
-		msleep(10);
-
 	/* Write to ISPSSPM0 bit[1:0] to power on/off the IUNIT */
 	iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0,
 			val, MRFLD_ISPSSPM0_ISPSSC_MASK);
