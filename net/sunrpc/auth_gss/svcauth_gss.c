@@ -1494,6 +1494,55 @@ static void destroy_use_gss_proxy_proc_entry(struct net *net)
 		clear_gssp_clnt(sn);
 	}
 }
+
+static ssize_t read_gss_krb5_enctypes(struct file *file, char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	struct rpcsec_gss_oid oid = {
+		.len	= 9,
+		.data	= "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02",
+	};
+	struct gss_api_mech *mech;
+	ssize_t ret;
+
+	mech = gss_mech_get_by_OID(&oid);
+	if (!mech)
+		return 0;
+	if (!mech->gm_upcall_enctypes) {
+		gss_mech_put(mech);
+		return 0;
+	}
+
+	ret = simple_read_from_buffer(buf, count, ppos,
+				      mech->gm_upcall_enctypes,
+				      strlen(mech->gm_upcall_enctypes));
+	gss_mech_put(mech);
+	return ret;
+}
+
+static const struct proc_ops gss_krb5_enctypes_proc_ops = {
+	.proc_open	= nonseekable_open,
+	.proc_read	= read_gss_krb5_enctypes,
+};
+
+static int create_krb5_enctypes_proc_entry(struct net *net)
+{
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+
+	if (!proc_create_data("gss_krb5_enctypes", S_IFREG | 0444,
+			      sn->proc_net_rpc,
+			      &gss_krb5_enctypes_proc_ops, net))
+		return -ENOMEM;
+	return 0;
+}
+
+static void destroy_krb5_enctypes_proc_entry(struct net *net)
+{
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+
+	remove_proc_entry("gss_krb5_enctypes", sn->proc_net_rpc);
+}
+
 #else /* CONFIG_PROC_FS */
 
 static int create_use_gss_proxy_proc_entry(struct net *net)
@@ -1502,6 +1551,13 @@ static int create_use_gss_proxy_proc_entry(struct net *net)
 }
 
 static void destroy_use_gss_proxy_proc_entry(struct net *net) {}
+
+static int create_krb5_enctypes_proc_entry(struct net *net)
+{
+	return 0;
+}
+
+static void destroy_krb5_enctypes_proc_entry(struct net *net) {}
 
 #endif /* CONFIG_PROC_FS */
 
@@ -2042,7 +2098,15 @@ gss_svc_init_net(struct net *net)
 	rv = create_use_gss_proxy_proc_entry(net);
 	if (rv)
 		goto out2;
+
+	rv = create_krb5_enctypes_proc_entry(net);
+	if (rv)
+		goto out3;
+
 	return 0;
+
+out3:
+	destroy_use_gss_proxy_proc_entry(net);
 out2:
 	rsi_cache_destroy_net(net);
 out1:
@@ -2053,6 +2117,7 @@ out1:
 void
 gss_svc_shutdown_net(struct net *net)
 {
+	destroy_krb5_enctypes_proc_entry(net);
 	destroy_use_gss_proxy_proc_entry(net);
 	rsi_cache_destroy_net(net);
 	rsc_cache_destroy_net(net);
