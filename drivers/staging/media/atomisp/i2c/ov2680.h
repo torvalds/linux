@@ -113,7 +113,8 @@ struct ov2680_device {
 	struct media_pad pad;
 	struct mutex input_lock;
 	struct i2c_client *client;
-	struct camera_sensor_platform_data *platform_data;
+	struct gpio_desc *powerdown;
+	struct gpio_desc *powerdown_alt;
 	bool is_streaming;
 
 	struct ov2680_mode {

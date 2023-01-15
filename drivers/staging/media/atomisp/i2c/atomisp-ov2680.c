@@ -17,6 +17,8 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -183,145 +185,6 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 	ret |= ov2680_write_reg_array(client, ov2680_global_setting);
 
 	return ret;
-}
-
-static int power_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	int ret = 0;
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	dev_dbg(&client->dev, "%s: %s", __func__, flag ? "on" : "off");
-
-	if (flag) {
-		ret |= dev->platform_data->v1p8_ctrl(sd, 1);
-		ret |= dev->platform_data->v2p8_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-	}
-
-	if (!flag || ret) {
-		ret |= dev->platform_data->v1p8_ctrl(sd, 0);
-		ret |= dev->platform_data->v2p8_ctrl(sd, 0);
-	}
-	return ret;
-}
-
-static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	int ret;
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	/*
-	 * The OV2680 documents only one GPIO input (#XSHUTDN), but
-	 * existing integrations often wire two (reset/power_down)
-	 * because that is the way other sensors work.  There is no
-	 * way to tell how it is wired internally, so existing
-	 * firmwares expose both and we drive them symmetrically.
-	 */
-	if (flag) {
-		ret = dev->platform_data->gpio0_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-		/* Ignore return from second gpio, it may not be there */
-		dev->platform_data->gpio1_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-	} else {
-		dev->platform_data->gpio1_ctrl(sd, 0);
-		ret = dev->platform_data->gpio0_ctrl(sd, 0);
-	}
-	return ret;
-}
-
-static int power_up(struct v4l2_subdev *sd)
-{
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	if (!dev->platform_data) {
-		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
-	}
-
-	/* power control */
-	ret = power_ctrl(sd, 1);
-	if (ret)
-		goto fail_power;
-
-	/* according to DS, at least 5ms is needed between DOVDD and PWDN */
-	usleep_range(5000, 6000);
-
-	/* gpio ctrl */
-	ret = gpio_ctrl(sd, 1);
-	if (ret) {
-		ret = gpio_ctrl(sd, 1);
-		if (ret)
-			goto fail_power;
-	}
-
-	/* flis clock control */
-	ret = dev->platform_data->flisclk_ctrl(sd, 1);
-	if (ret)
-		goto fail_clk;
-
-	/* according to DS, 20ms is needed between PWDN and i2c access */
-	msleep(20);
-
-	ret = ov2680_init_registers(sd);
-	if (ret)
-		goto fail_init_registers;
-
-	return 0;
-
-fail_init_registers:
-	dev->platform_data->flisclk_ctrl(sd, 0);
-fail_clk:
-	gpio_ctrl(sd, 0);
-fail_power:
-	power_ctrl(sd, 0);
-	dev_err(&client->dev, "sensor power-up failed\n");
-
-	return ret;
-}
-
-static int power_down(struct v4l2_subdev *sd)
-{
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (!dev->platform_data) {
-		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
-	}
-
-	ret = dev->platform_data->flisclk_ctrl(sd, 0);
-	if (ret)
-		dev_err(&client->dev, "flisclk failed\n");
-
-	/* gpio ctrl */
-	ret = gpio_ctrl(sd, 0);
-	if (ret) {
-		ret = gpio_ctrl(sd, 0);
-		if (ret)
-			dev_err(&client->dev, "gpio failed 2\n");
-	}
-
-	/* power control */
-	ret = power_ctrl(sd, 0);
-	if (ret) {
-		dev_err(&client->dev, "vprog failed.\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static struct v4l2_mbus_framefmt *
@@ -588,20 +451,10 @@ error_unlock:
 	return ret;
 }
 
-static int ov2680_s_config(struct v4l2_subdev *sd,
-			   int irq, void *platform_data)
+static int ov2680_s_config(struct v4l2_subdev *sd)
 {
-	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (!platform_data)
-		return -ENODEV;
-
-	sensor->platform_data =
-	    (struct camera_sensor_platform_data *)platform_data;
-
-	mutex_lock(&sensor->input_lock);
+	int ret;
 
 	ret = pm_runtime_get_sync(&client->dev);
 	if (ret < 0) {
@@ -609,29 +462,13 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 		goto fail_power_on;
 	}
 
-	ret = sensor->platform_data->csi_cfg(sd, 1);
-	if (ret)
-		goto fail_csi_cfg;
-
 	/* config & detect sensor */
 	ret = ov2680_detect(client);
-	if (ret) {
+	if (ret)
 		dev_err(&client->dev, "ov2680_detect err s_config.\n");
-		goto fail_csi_cfg;
-	}
 
-	/* turn off sensor, after probed */
-	pm_runtime_put(&client->dev);
-	mutex_unlock(&sensor->input_lock);
-
-	return 0;
-
-fail_csi_cfg:
-	sensor->platform_data->csi_cfg(sd, 0);
 fail_power_on:
 	pm_runtime_put(&client->dev);
-	dev_err(&client->dev, "sensor power-gating failed\n");
-	mutex_unlock(&sensor->input_lock);
 	return ret;
 }
 
@@ -770,20 +607,33 @@ static void ov2680_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "ov2680_remove...\n");
 
-	sensor->platform_data->csi_cfg(sd, 0);
-
+	atomisp_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	pm_runtime_disable(&client->dev);
 }
 
+/*
+ * Unlike other sensors which have both a rest and powerdown input pins,
+ * the OV2680 only has a powerdown input. But some ACPI tables still list
+ * 2 GPIOs for the OV2680 and it is unclear which to use. So try to get
+ * up to 2 GPIOs (1 mandatory, 1 optional) and control them in sync.
+ */
+static const struct acpi_gpio_params ov2680_first_gpio = { 0, 0, true };
+static const struct acpi_gpio_params ov2680_second_gpio = { 1, 0, true };
+
+static const struct acpi_gpio_mapping ov2680_gpio_mapping[] = {
+	{ "powerdown-gpios", &ov2680_first_gpio, 1 },
+	{ "powerdown-alt-gpios", &ov2680_second_gpio, 1 },
+	{ },
+};
+
 static int ov2680_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ov2680_device *sensor;
 	int ret;
-	void *pdata;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
@@ -794,18 +644,24 @@ static int ov2680_probe(struct i2c_client *client)
 	sensor->client = client;
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_ops);
 
-	pdata = gmin_camera_platform_data(&sensor->sd,
-					  ATOMISP_INPUT_FORMAT_RAW_10,
-					  atomisp_bayer_order_bggr);
-	if (!pdata)
-		return -EINVAL;
+	ret = devm_acpi_dev_add_driver_gpios(&client->dev, ov2680_gpio_mapping);
+	if (ret)
+		return ret;
+
+	sensor->powerdown = devm_gpiod_get(dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->powerdown))
+		return dev_err_probe(dev, PTR_ERR(sensor->powerdown), "getting powerdown GPIO\n");
+
+	sensor->powerdown_alt = devm_gpiod_get_optional(dev, "powerdown-alt", GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->powerdown_alt))
+		return dev_err_probe(dev, PTR_ERR(sensor->powerdown_alt), "getting powerdown-alt GPIO\n");
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
 
-	ret = ov2680_s_config(&sensor->sd, client->irq, pdata);
+	ret = ov2680_s_config(&sensor->sd);
 	if (ret)
 		return ret;
 
@@ -827,7 +683,8 @@ static int ov2680_probe(struct i2c_client *client)
 
 	ov2680_fill_format(sensor, &sensor->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
 
-	ret = atomisp_register_i2c_module(&sensor->sd, pdata, RAW_CAMERA);
+	ret = atomisp_register_sensor_no_gmin(&sensor->sd, 1, ATOMISP_INPUT_FORMAT_RAW_10,
+					      atomisp_bayer_order_bggr);
 	if (ret) {
 		ov2680_remove(client);
 		return ret;
@@ -839,15 +696,29 @@ static int ov2680_probe(struct i2c_client *client)
 static int ov2680_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 
-	return power_down(sd);
+	gpiod_set_value_cansleep(sensor->powerdown, 1);
+	gpiod_set_value_cansleep(sensor->powerdown_alt, 1);
+	return 0;
 }
 
 static int ov2680_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 
-	return power_up(sd);
+	/* according to DS, at least 5ms is needed after DOVDD (enabled by ACPI) */
+	usleep_range(5000, 6000);
+
+	gpiod_set_value_cansleep(sensor->powerdown, 0);
+	gpiod_set_value_cansleep(sensor->powerdown_alt, 0);
+
+	/* according to DS, 20ms is needed between PWDN and i2c access */
+	msleep(20);
+
+	ov2680_init_registers(sd);
+	return 0;
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(ov2680_pm_ops, ov2680_suspend, ov2680_resume, NULL);
