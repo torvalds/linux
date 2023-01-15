@@ -1072,7 +1072,6 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 			default:
 				return NULL;
 			}
-			break;
 		case IP_VERSION(10, 0, 0):
 		case IP_VERSION(10, 0, 1):
 			if (adev->asic_type == CHIP_RAVEN) {
