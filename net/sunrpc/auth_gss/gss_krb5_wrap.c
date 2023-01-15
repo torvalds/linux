@@ -40,6 +40,8 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
+#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
+
 static inline int
 gss_krb5_padding(int blocksize, int length)
 {
@@ -322,6 +324,8 @@ gss_krb5_unwrap_v1(struct krb5_ctx *kctx, int offset, int len,
 	*align = *slack;
 	return GSS_S_COMPLETE;
 }
+
+#endif
 
 /*
  * We can shift data by up to LOCAL_BUF_LEN bytes in a pass.  If we need

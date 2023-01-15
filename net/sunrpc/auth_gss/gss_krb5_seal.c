@@ -71,6 +71,8 @@
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
+#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
+
 static void *
 setup_token(struct krb5_ctx *ctx, struct xdr_netobj *token)
 {
@@ -94,34 +96,6 @@ setup_token(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	*ptr++ = SEAL_ALG_NONE;
 	*ptr = 0xffff;
 
-	return krb5_hdr;
-}
-
-static void *
-setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
-{
-	u16 *ptr;
-	void *krb5_hdr;
-	u8 *p, flags = 0x00;
-
-	if ((ctx->flags & KRB5_CTX_FLAG_INITIATOR) == 0)
-		flags |= 0x01;
-	if (ctx->flags & KRB5_CTX_FLAG_ACCEPTOR_SUBKEY)
-		flags |= 0x04;
-
-	/* Per rfc 4121, sec 4.2.6.1, there is no header,
-	 * just start the token */
-	krb5_hdr = ptr = (u16 *)token->data;
-
-	*ptr++ = KG2_TOK_MIC;
-	p = (u8 *)ptr;
-	*p++ = flags;
-	*p++ = 0xff;
-	ptr = (u16 *)p;
-	*ptr++ = 0xffff;
-	*ptr = 0xffff;
-
-	token->len = GSS_KRB5_TOK_HDR_LEN + ctx->gk5e->cksumlength;
 	return krb5_hdr;
 }
 
@@ -162,6 +136,38 @@ gss_krb5_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 		return GSS_S_FAILURE;
 
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+}
+
+#endif
+
+static void *
+setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
+{
+	u16 *ptr;
+	void *krb5_hdr;
+	u8 *p, flags = 0x00;
+
+	if ((ctx->flags & KRB5_CTX_FLAG_INITIATOR) == 0)
+		flags |= 0x01;
+	if (ctx->flags & KRB5_CTX_FLAG_ACCEPTOR_SUBKEY)
+		flags |= 0x04;
+
+	/* Per rfc 4121, sec 4.2.6.1, there is no header,
+	 * just start the token.
+	 */
+	krb5_hdr = (u16 *)token->data;
+	ptr = krb5_hdr;
+
+	*ptr++ = KG2_TOK_MIC;
+	p = (u8 *)ptr;
+	*p++ = flags;
+	*p++ = 0xff;
+	ptr = (u16 *)p;
+	*ptr++ = 0xffff;
+	*ptr = 0xffff;
+
+	token->len = GSS_KRB5_TOK_HDR_LEN + ctx->gk5e->cksumlength;
+	return krb5_hdr;
 }
 
 u32

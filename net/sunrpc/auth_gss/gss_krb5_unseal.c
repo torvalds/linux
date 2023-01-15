@@ -70,9 +70,9 @@
 #endif
 
 
+#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
 /* read_token is a mic token, and message_buffer is the data that the mic was
  * supposedly taken over. */
-
 u32
 gss_krb5_verify_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,
 		       struct xdr_netobj *read_token)
@@ -144,6 +144,7 @@ gss_krb5_verify_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,
 
 	return GSS_S_COMPLETE;
 }
+#endif
 
 u32
 gss_krb5_verify_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,

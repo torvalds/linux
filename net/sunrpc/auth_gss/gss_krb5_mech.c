@@ -29,12 +29,16 @@
 
 static struct gss_api_mech gss_kerberos_mech;
 
+#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
 static int gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask);
 static int gss_krb5_import_ctx_v1(struct krb5_ctx *ctx, gfp_t gfp_mask);
+#endif
+#if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
 static int gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask);
+#endif
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
-#ifndef CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_DES)
 	/*
 	 * DES (All DES enctypes are mapped to the same gss functionality)
 	 */
@@ -59,7 +63,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 8,
 	  .keyed_cksum = 0,
 	},
-#endif	/* CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES */
 	/*
 	 * 3DES
 	 */
@@ -84,8 +87,11 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 20,
 	  .keyed_cksum = 1,
 	},
+#endif
+
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
 	/*
-	 * AES128
+	 * AES-128 with SHA-1 (RFC 3962)
 	 */
 	{
 	  .etype = ENCTYPE_AES128_CTS_HMAC_SHA1_96,
@@ -114,7 +120,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .keyed_cksum = 1,
 	},
 	/*
-	 * AES256
+	 * AES-256 with SHA-1 (RFC 3962)
 	 */
 	{
 	  .etype = ENCTYPE_AES256_CTS_HMAC_SHA1_96,
@@ -142,6 +148,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 12,
 	  .keyed_cksum = 1,
 	},
+#endif
 };
 
 /*
@@ -153,10 +160,12 @@ static char gss_krb5_enctype_priority_list[64];
 static void gss_krb5_prepare_enctype_priority_list(void)
 {
 	static const u32 gss_krb5_enctypes[] = {
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
 		ENCTYPE_AES256_CTS_HMAC_SHA1_96,
 		ENCTYPE_AES128_CTS_HMAC_SHA1_96,
+#endif
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_DES)
 		ENCTYPE_DES3_CBC_SHA1,
-#ifndef CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
 		ENCTYPE_DES_CBC_MD5,
 		ENCTYPE_DES_CBC_CRC,
 		ENCTYPE_DES_CBC_MD4,
@@ -337,7 +346,7 @@ out_err:
 	return PTR_ERR(p);
 }
 
-static struct crypto_sync_skcipher *
+static inline struct crypto_sync_skcipher *
 context_v2_alloc_cipher(struct krb5_ctx *ctx, const char *cname, u8 *key)
 {
 	struct crypto_sync_skcipher *cp;
@@ -367,6 +376,7 @@ set_cdata(u8 cdata[GSS_KRB5_K5CLENGTH], u32 usage, u8 seed)
 	cdata[4] = seed;
 }
 
+#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
 static int
 gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
@@ -417,6 +427,9 @@ out_free_seq:
 out_err:
 	return -EINVAL;
 }
+#endif
+
+#if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
 
 static struct crypto_ahash *
 gss_krb5_alloc_hash_v2(struct krb5_ctx *kctx, const struct xdr_netobj *key)
@@ -550,6 +563,8 @@ out_free:
 	crypto_free_sync_skcipher(ctx->initiator_enc);
 	goto out;
 }
+
+#endif
 
 static int
 gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
