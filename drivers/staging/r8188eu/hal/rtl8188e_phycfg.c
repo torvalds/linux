@@ -478,18 +478,17 @@ PHY_BBConfig8188E(
 		struct adapter *Adapter
 	)
 {
-	int	rtStatus = _SUCCESS;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u16 RegVal;
 	u8 CrystalCap;
-	int res;
+	int err;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
 	/*  Enable BB and RF */
-	res = rtw_read16(Adapter, REG_SYS_FUNC_EN, &RegVal);
-	if (res)
-		return _FAIL;
+	err = rtw_read16(Adapter, REG_SYS_FUNC_EN, &RegVal);
+	if (err)
+		return err;
 
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal | BIT(13) | BIT(0) | BIT(1)));
 
@@ -500,14 +499,13 @@ PHY_BBConfig8188E(
 	rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
 
 	/*  Config BB and AGC */
-	if (phy_BB8188E_Config_ParaFile(Adapter))
-		rtStatus = _FAIL;
+	err = phy_BB8188E_Config_ParaFile(Adapter);
 
 	/*  write 0x24[16:11] = 0x24[22:17] = CrystalCap */
 	CrystalCap = pHalData->CrystalCap & 0x3F;
 	rtl8188e_PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, 0x7ff800, (CrystalCap | (CrystalCap << 6)));
 
-	return rtStatus;
+	return err;
 }
 
 static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,

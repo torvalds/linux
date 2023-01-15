@@ -606,9 +606,8 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  */
 	/* d. Initialize BB related configurations. */
 	/*  */
-	status = PHY_BBConfig8188E(Adapter);
-	if (status == _FAIL)
-		goto exit;
+	if (PHY_BBConfig8188E(Adapter))
+		return _FAIL;
 
 	if (phy_RF6052_Config_ParaFile(Adapter))
 		return _FAIL;
