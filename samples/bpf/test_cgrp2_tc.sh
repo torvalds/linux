@@ -4,7 +4,7 @@
 MY_DIR=$(dirname $0)
 # Details on the bpf prog
 BPF_CGRP2_ARRAY_NAME='test_cgrp2_array_pin'
-BPF_PROG="$MY_DIR/test_cgrp2_tc_kern.o"
+BPF_PROG="$MY_DIR/test_cgrp2_tc.bpf.o"
 BPF_SECTION='filter'
 
 [ -z "$TC" ] && TC='tc'

@@ -189,7 +189,7 @@ int main(int argc, char **argv)
 
 	if (test_flags & 0xC) {
 		snprintf(filename, sizeof(filename),
-			 "%s_kprobe_kern.o", argv[0]);
+			 "%s_kprobe.bpf.o", argv[0]);
 
 		printf("w/KPROBE\n");
 		err = load_progs(filename);
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 
 	if (test_flags & 0x30) {
 		snprintf(filename, sizeof(filename),
-			 "%s_tp_kern.o", argv[0]);
+			 "%s_tp.bpf.o", argv[0]);
 		printf("w/TRACEPOINT\n");
 		err = load_progs(filename);
 		if (!err)
@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 
 	if (test_flags & 0xC0) {
 		snprintf(filename, sizeof(filename),
-			 "%s_raw_tp_kern.o", argv[0]);
+			 "%s_raw_tp.bpf.o", argv[0]);
 		printf("w/RAW_TRACEPOINT\n");
 		err = load_progs(filename);
 		if (!err)

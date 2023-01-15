@@ -5,7 +5,7 @@ BPFFS=/sys/fs/bpf
 MY_DIR=$(dirname $0)
 TEST=$MY_DIR/test_cgrp2_sock2
 LINK_PIN=$BPFFS/test_cgrp2_sock2
-BPF_PROG=$MY_DIR/sock_flags_kern.o
+BPF_PROG=$MY_DIR/sock_flags.bpf.o
 
 function config_device {
 	ip netns add at_ns0

@@ -4,7 +4,7 @@
 NS1=lwt_ns1
 VETH0=tst_lwt1a
 VETH1=tst_lwt1b
-BPF_PROG=lwt_len_hist_kern.o
+BPF_PROG=lwt_len_hist.bpf.o
 TRACE_ROOT=/sys/kernel/debug/tracing
 
 function cleanup {
