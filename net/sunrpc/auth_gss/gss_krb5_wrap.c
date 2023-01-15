@@ -390,9 +390,6 @@ gss_krb5_wrap_v2(struct krb5_ctx *kctx, int offset,
 
 	dprintk("RPC:       %s\n", __func__);
 
-	if (kctx->gk5e->encrypt_v2 == NULL)
-		return GSS_S_FAILURE;
-
 	/* make room for gss token header */
 	if (xdr_extend_head(buf, offset, GSS_KRB5_TOK_HDR_LEN))
 		return GSS_S_FAILURE;
@@ -420,7 +417,7 @@ gss_krb5_wrap_v2(struct krb5_ctx *kctx, int offset,
 	be64ptr = (__be64 *)be16ptr;
 	*be64ptr = cpu_to_be64(atomic64_fetch_inc(&kctx->seq_send64));
 
-	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, pages);
+	err = (*kctx->gk5e->encrypt)(kctx, offset, buf, pages);
 	if (err)
 		return err;
 
@@ -444,9 +441,6 @@ gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 
 
 	dprintk("RPC:       %s\n", __func__);
-
-	if (kctx->gk5e->decrypt_v2 == NULL)
-		return GSS_S_FAILURE;
 
 	ptr = buf->head[0].iov_base + offset;
 
@@ -477,8 +471,8 @@ gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 	if (rrc != 0)
 		rotate_left(offset + 16, buf, rrc);
 
-	err = (*kctx->gk5e->decrypt_v2)(kctx, offset, len, buf,
-					&headskip, &tailskip);
+	err = (*kctx->gk5e->decrypt)(kctx, offset, len, buf,
+				     &headskip, &tailskip);
 	if (err)
 		return GSS_S_FAILURE;
 

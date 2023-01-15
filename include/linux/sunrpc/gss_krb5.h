@@ -73,12 +73,10 @@ struct gss_krb5_enctype {
 	u32 (*mk_key) (const struct gss_krb5_enctype *gk5e,
 		       struct xdr_netobj *in,
 		       struct xdr_netobj *out);	/* complete key generation */
-	u32 (*encrypt_v2) (struct krb5_ctx *kctx, u32 offset,
-			   struct xdr_buf *buf,
-			   struct page **pages); /* v2 encryption function */
-	u32 (*decrypt_v2) (struct krb5_ctx *kctx, u32 offset, u32 len,
-			   struct xdr_buf *buf, u32 *headskip,
-			   u32 *tailskip);	/* v2 decryption function */
+	u32 (*encrypt)(struct krb5_ctx *kctx, u32 offset,
+			struct xdr_buf *buf, struct page **pages);
+	u32 (*decrypt)(struct krb5_ctx *kctx, u32 offset, u32 len,
+		       struct xdr_buf *buf, u32 *headskip, u32 *tailskip);
 	u32 (*get_mic)(struct krb5_ctx *kctx, struct xdr_buf *text,
 		       struct xdr_netobj *token);
 	u32 (*verify_mic)(struct krb5_ctx *kctx, struct xdr_buf *message_buffer,
@@ -275,15 +273,5 @@ u32
 gss_krb5_aes_make_key(const struct gss_krb5_enctype *gk5e,
 		      struct xdr_netobj *randombits,
 		      struct xdr_netobj *key);
-
-u32
-gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
-		     struct xdr_buf *buf,
-		     struct page **pages);
-
-u32
-gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
-		     struct xdr_buf *buf, u32 *plainoffset,
-		     u32 *plainlen);
 
 #endif /* _LINUX_SUNRPC_GSS_KRB5_H */
