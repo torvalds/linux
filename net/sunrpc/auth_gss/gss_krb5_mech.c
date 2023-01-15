@@ -19,6 +19,7 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
+#include <kunit/visibility.h>
 
 #include "auth_gss_internal.h"
 #include "gss_krb5_internal.h"
@@ -309,28 +310,24 @@ static void gss_krb5_prepare_enctype_priority_list(void)
 	}
 }
 
-static const int num_supported_enctypes =
-	ARRAY_SIZE(supported_gss_krb5_enctypes);
-
-static int
-supported_gss_krb5_enctype(int etype)
+/**
+ * gss_krb5_lookup_enctype - Retrieve profile information for a given enctype
+ * @etype: ENCTYPE value
+ *
+ * Returns a pointer to a gss_krb5_enctype structure, or NULL if no
+ * matching etype is found.
+ */
+VISIBLE_IF_KUNIT
+const struct gss_krb5_enctype *gss_krb5_lookup_enctype(u32 etype)
 {
-	int i;
-	for (i = 0; i < num_supported_enctypes; i++)
-		if (supported_gss_krb5_enctypes[i].etype == etype)
-			return 1;
-	return 0;
-}
+	size_t i;
 
-static const struct gss_krb5_enctype *
-get_gss_krb5_enctype(int etype)
-{
-	int i;
-	for (i = 0; i < num_supported_enctypes; i++)
+	for (i = 0; i < ARRAY_SIZE(supported_gss_krb5_enctypes); i++)
 		if (supported_gss_krb5_enctypes[i].etype == etype)
 			return &supported_gss_krb5_enctypes[i];
 	return NULL;
 }
+EXPORT_SYMBOL_IF_KUNIT(gss_krb5_lookup_enctype);
 
 static struct crypto_sync_skcipher *
 gss_krb5_alloc_cipher_v1(struct krb5_ctx *ctx, struct xdr_netobj *key)
@@ -366,7 +363,7 @@ get_key(const void *p, const void *end,
 		alg = ENCTYPE_DES_CBC_RAW;
 		break;
 	}
-	if (!supported_gss_krb5_enctype(alg)) {
+	if (!gss_krb5_lookup_enctype(alg)) {
 		pr_warn("gss_krb5: unsupported enctype: %d\n", alg);
 		goto out_err_inval;
 	}
@@ -405,7 +402,7 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	/* Old format supports only DES!  Any other enctype uses new format */
 	ctx->enctype = ENCTYPE_DES_CBC_RAW;
 
-	ctx->gk5e = get_gss_krb5_enctype(ctx->enctype);
+	ctx->gk5e = gss_krb5_lookup_enctype(ctx->enctype);
 	if (ctx->gk5e == NULL) {
 		p = ERR_PTR(-EINVAL);
 		goto out_err;
@@ -677,7 +674,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	/* Map ENCTYPE_DES3_CBC_SHA1 to ENCTYPE_DES3_CBC_RAW */
 	if (ctx->enctype == ENCTYPE_DES3_CBC_SHA1)
 		ctx->enctype = ENCTYPE_DES3_CBC_RAW;
-	ctx->gk5e = get_gss_krb5_enctype(ctx->enctype);
+	ctx->gk5e = gss_krb5_lookup_enctype(ctx->enctype);
 	if (ctx->gk5e == NULL) {
 		dprintk("gss_kerberos_mech: unsupported krb5 enctype %u\n",
 			ctx->enctype);
