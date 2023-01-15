@@ -73,11 +73,13 @@ setup_net() {
 	start)
 	    $IP link add $HOST_IFC type veth peer name $NS_IFC || return $?
 	    $IP link set dev $HOST_IFC up || return $?
+	    sysctl -q net.ipv6.conf.$HOST_IFC.disable_ipv6=0
 	    sysctl -q net.ipv6.conf.$HOST_IFC.accept_dad=0
 
 	    $IP netns add ns || return $?
 	    $IP link set dev $NS_IFC netns ns || return $?
 	    $IP -n $NS link set dev $NS_IFC up || return $?
+	    $IP netns exec $NS sysctl -q net.ipv6.conf.$NS_IFC.disable_ipv6=0
 	    $IP netns exec $NS sysctl -q net.ipv6.conf.$NS_IFC.accept_dad=0
 	    $TC qdisc add dev $HOST_IFC clsact || return $?
 	    $TC filter add dev $HOST_IFC egress bpf da obj $BPF_PROG sec $BPF_SECTION || return $?
