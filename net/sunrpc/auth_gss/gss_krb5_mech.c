@@ -204,17 +204,32 @@ get_gss_krb5_enctype(int etype)
 	return NULL;
 }
 
+static struct crypto_sync_skcipher *
+gss_krb5_alloc_cipher_v1(struct krb5_ctx *ctx, struct xdr_netobj *key)
+{
+	struct crypto_sync_skcipher *tfm;
+
+	tfm = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
+	if (IS_ERR(tfm))
+		return NULL;
+	if (crypto_sync_skcipher_setkey(tfm, key->data, key->len)) {
+		crypto_free_sync_skcipher(tfm);
+		return NULL;
+	}
+	return tfm;
+}
+
 static inline const void *
 get_key(const void *p, const void *end,
 	struct krb5_ctx *ctx, struct crypto_sync_skcipher **res)
 {
+	struct crypto_sync_skcipher *tfm;
 	struct xdr_netobj	key;
 	int			alg;
 
 	p = simple_get_bytes(p, end, &alg, sizeof(alg));
 	if (IS_ERR(p))
 		goto out_err;
-
 	switch (alg) {
 	case ENCTYPE_DES_CBC_CRC:
 	case ENCTYPE_DES_CBC_MD4:
@@ -223,37 +238,26 @@ get_key(const void *p, const void *end,
 		alg = ENCTYPE_DES_CBC_RAW;
 		break;
 	}
-
 	if (!supported_gss_krb5_enctype(alg)) {
-		printk(KERN_WARNING "gss_kerberos_mech: unsupported "
-			"encryption key algorithm %d\n", alg);
-		p = ERR_PTR(-EINVAL);
-		goto out_err;
+		pr_warn("gss_krb5: unsupported enctype: %d\n", alg);
+		goto out_err_inval;
 	}
+
 	p = simple_get_netobj(p, end, &key);
 	if (IS_ERR(p))
 		goto out_err;
-
-	*res = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
-	if (IS_ERR(*res)) {
-		printk(KERN_WARNING "gss_kerberos_mech: unable to initialize "
-			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
-		*res = NULL;
-		goto out_err_free_key;
-	}
-	if (crypto_sync_skcipher_setkey(*res, key.data, key.len)) {
-		printk(KERN_WARNING "gss_kerberos_mech: error setting key for "
-			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
-		goto out_err_free_tfm;
-	}
-
+	tfm = gss_krb5_alloc_cipher_v1(ctx, &key);
 	kfree(key.data);
+	if (!tfm) {
+		pr_warn("gss_krb5: failed to initialize cipher '%s'\n",
+			ctx->gk5e->encrypt_name);
+		goto out_err_inval;
+	}
+	*res = tfm;
+
 	return p;
 
-out_err_free_tfm:
-	crypto_free_sync_skcipher(*res);
-out_err_free_key:
-	kfree(key.data);
+out_err_inval:
 	p = ERR_PTR(-EINVAL);
 out_err:
 	return p;
@@ -372,14 +376,10 @@ gss_krb5_import_ctx_v1(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	keyin.data = ctx->Ksess;
 	keyin.len = ctx->gk5e->keylength;
 
-	/* seq uses the raw key */
-	ctx->seq = context_v2_alloc_cipher(ctx, ctx->gk5e->encrypt_name,
-					   ctx->Ksess);
+	ctx->seq = gss_krb5_alloc_cipher_v1(ctx, &keyin);
 	if (ctx->seq == NULL)
 		goto out_err;
-
-	ctx->enc = context_v2_alloc_cipher(ctx, ctx->gk5e->encrypt_name,
-					   ctx->Ksess);
+	ctx->enc = gss_krb5_alloc_cipher_v1(ctx, &keyin);
 	if (ctx->enc == NULL)
 		goto out_free_seq;
 
