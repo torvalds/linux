@@ -406,7 +406,7 @@ struct r8192_priv {
 	u8 check_roaming_cnt;
 
 	u32 SilentResetRxSlotIndex;
-	u32 SilentResetRxStuckEvent[MAX_SILENT_RESET_RX_SLOT_NUM];
+	u32 silent_reset_rx_stuck_event[MAX_SILENT_RESET_RX_SLOT_NUM];
 
 	u16 basic_rate;
 	u8 short_preamble;
@@ -414,7 +414,7 @@ struct r8192_priv {
 	u8 slot_time;
 	u16 SifsTime;
 
-	bool AutoloadFailFlag;
+	bool autoload_fail_flag;
 
 	short	epromtype;
 	u16 eeprom_vid;
@@ -422,7 +422,7 @@ struct r8192_priv {
 	u8 eeprom_CustomerID;
 	u16 eeprom_chnl_plan;
 
-	u8 EEPROMTxPowerLevelCCK[14];
+	u8 eeprom_tx_pwr_level_cck[14];
 	u8 eeprom_tx_pwr_level_ofdm24g[14];
 	u8 EEPROMRfACCKChnl1TxPwLevel[3];
 	u8 EEPROMRfAOfdmChnlTxPwLevel[3];

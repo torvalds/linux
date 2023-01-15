@@ -292,12 +292,12 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	if (EEPROMId != RTL8190_EEPROM_ID) {
 		netdev_err(dev, "%s(): Invalid EEPROM ID: %x\n", __func__,
 			   EEPROMId);
-		priv->AutoloadFailFlag = true;
+		priv->autoload_fail_flag = true;
 	} else {
-		priv->AutoloadFailFlag = false;
+		priv->autoload_fail_flag = false;
 	}
 
-	if (!priv->AutoloadFailFlag) {
+	if (!priv->autoload_fail_flag) {
 		priv->eeprom_vid = rtl92e_eeprom_read(dev, EEPROM_VID >> 1);
 		priv->eeprom_did = rtl92e_eeprom_read(dev, EEPROM_DID >> 1);
 
@@ -331,7 +331,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->eeprom_chnl_plan = 0;
 	}
 
-	if (!priv->AutoloadFailFlag) {
+	if (!priv->autoload_fail_flag) {
 		u8 addr[ETH_ALEN];
 
 		for (i = 0; i < 6; i += 2) {
@@ -352,7 +352,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE;
 
 	if (priv->card_8192_version > VERSION_8190_BD) {
-		if (!priv->AutoloadFailFlag) {
+		if (!priv->autoload_fail_flag) {
 			tempval = (rtl92e_eeprom_read(dev,
 						      (EEPROM_RFInd_PowerDiff >> 1))) & 0xff;
 			priv->eeprom_legacy_ht_tx_pwr_diff = tempval & 0xf;
@@ -365,7 +365,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->eeprom_legacy_ht_tx_pwr_diff = 0x04;
 		}
 
-		if (!priv->AutoloadFailFlag)
+		if (!priv->autoload_fail_flag)
 			priv->eeprom_thermal_meter = ((rtl92e_eeprom_read(dev,
 						   (EEPROM_ThermalMeter>>1))) &
 						   0xff00) >> 8;
@@ -374,7 +374,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->tssi_13dBm = priv->eeprom_thermal_meter * 100;
 
 		if (priv->epromtype == EEPROM_93C46) {
-			if (!priv->AutoloadFailFlag) {
+			if (!priv->autoload_fail_flag) {
 				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
 				priv->eeprom_ant_pwr_diff = usValue & 0x0fff;
@@ -388,16 +388,16 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			}
 
 			for (i = 0; i < 14; i += 2) {
-				if (!priv->AutoloadFailFlag)
+				if (!priv->autoload_fail_flag)
 					usValue = rtl92e_eeprom_read(dev,
 						  (EEPROM_TxPwIndex_CCK + i) >> 1);
 				else
 					usValue = EEPROM_Default_TxPower;
-				*((u16 *)(&priv->EEPROMTxPowerLevelCCK[i])) =
+				*((u16 *)(&priv->eeprom_tx_pwr_level_cck[i])) =
 								 usValue;
 			}
 			for (i = 0; i < 14; i += 2) {
-				if (!priv->AutoloadFailFlag)
+				if (!priv->autoload_fail_flag)
 					usValue = rtl92e_eeprom_read(dev,
 						(EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
 				else
@@ -409,7 +409,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		if (priv->epromtype == EEPROM_93C46) {
 			for (i = 0; i < 14; i++) {
 				priv->tx_pwr_level_cck[i] =
-					 priv->EEPROMTxPowerLevelCCK[i];
+					 priv->eeprom_tx_pwr_level_cck[i];
 				priv->tx_pwr_level_ofdm_24g[i] =
 					 priv->eeprom_tx_pwr_level_ofdm24g[i];
 			}
@@ -2126,21 +2126,21 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 	SlotIndex = (priv->SilentResetRxSlotIndex++)%SilentResetRxSoltNum;
 
 	if (priv->rx_ctr == RegRxCounter) {
-		priv->SilentResetRxStuckEvent[SlotIndex] = 1;
+		priv->silent_reset_rx_stuck_event[SlotIndex] = 1;
 
 		for (i = 0; i < SilentResetRxSoltNum; i++)
-			TotalRxStuckCount += priv->SilentResetRxStuckEvent[i];
+			TotalRxStuckCount += priv->silent_reset_rx_stuck_event[i];
 
 		if (TotalRxStuckCount == SilentResetRxSoltNum) {
 			bStuck = true;
 			for (i = 0; i < SilentResetRxSoltNum; i++)
 				TotalRxStuckCount +=
-					 priv->SilentResetRxStuckEvent[i];
+					 priv->silent_reset_rx_stuck_event[i];
 		}
 
 
 	} else {
-		priv->SilentResetRxStuckEvent[SlotIndex] = 0;
+		priv->silent_reset_rx_stuck_event[SlotIndex] = 0;
 	}
 
 	priv->rx_ctr = RegRxCounter;
