@@ -147,6 +147,61 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	},
 #endif
 
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_CAMELLIA)
+	/*
+	 * Camellia-128 with CMAC (RFC 6803)
+	 */
+	{
+		.etype		= ENCTYPE_CAMELLIA128_CTS_CMAC,
+		.ctype		= CKSUMTYPE_CMAC_CAMELLIA128,
+		.name		= "camellia128-cts-cmac",
+		.encrypt_name	= "cts(cbc(camellia))",
+		.aux_cipher	= "cbc(camellia)",
+		.cksum_name	= "cmac(camellia)",
+		.cksumlength	= BITS2OCTETS(128),
+		.keyed_cksum	= 1,
+		.keylength	= BITS2OCTETS(128),
+		.Kc_length	= BITS2OCTETS(128),
+		.Ke_length	= BITS2OCTETS(128),
+		.Ki_length	= BITS2OCTETS(128),
+
+		.import_ctx	= gss_krb5_import_ctx_v2,
+		.encrypt	= gss_krb5_aes_encrypt,
+		.decrypt	= gss_krb5_aes_decrypt,
+
+		.get_mic	= gss_krb5_get_mic_v2,
+		.verify_mic	= gss_krb5_verify_mic_v2,
+		.wrap		= gss_krb5_wrap_v2,
+		.unwrap		= gss_krb5_unwrap_v2,
+	},
+	/*
+	 * Camellia-256 with CMAC (RFC 6803)
+	 */
+	{
+		.etype		= ENCTYPE_CAMELLIA256_CTS_CMAC,
+		.ctype		= CKSUMTYPE_CMAC_CAMELLIA256,
+		.name		= "camellia256-cts-cmac",
+		.encrypt_name	= "cts(cbc(camellia))",
+		.aux_cipher	= "cbc(camellia)",
+		.cksum_name	= "cmac(camellia)",
+		.cksumlength	= BITS2OCTETS(128),
+		.keyed_cksum	= 1,
+		.keylength	= BITS2OCTETS(256),
+		.Kc_length	= BITS2OCTETS(256),
+		.Ke_length	= BITS2OCTETS(256),
+		.Ki_length	= BITS2OCTETS(256),
+
+		.import_ctx	= gss_krb5_import_ctx_v2,
+		.encrypt	= gss_krb5_aes_encrypt,
+		.decrypt	= gss_krb5_aes_decrypt,
+
+		.get_mic	= gss_krb5_get_mic_v2,
+		.verify_mic	= gss_krb5_verify_mic_v2,
+		.wrap		= gss_krb5_wrap_v2,
+		.unwrap		= gss_krb5_unwrap_v2,
+	},
+#endif
+
 #if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2)
 	/*
 	 * AES-128 with SHA-256 (RFC 8009)

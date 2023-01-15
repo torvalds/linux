@@ -80,6 +80,19 @@ config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1
 	  SHA-1 digests. These include aes128-cts-hmac-sha1-96 and
 	  aes256-cts-hmac-sha1-96.
 
+config RPCSEC_GSS_KRB5_ENCTYPES_CAMELLIA
+	bool "Enable Kerberos encryption types based on Camellia and CMAC"
+	depends on RPCSEC_GSS_KRB5
+	depends on CRYPTO_CBC && CRYPTO_CTS && CRYPTO_CAMELLIA
+	depends on CRYPTO_CMAC
+	default n
+	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
+	help
+	  Choose Y to enable the use of Kerberos 5 encryption types
+	  that utilize Camellia ciphers (RFC 3713) and CMAC digests
+	  (NIST Special Publication 800-38B). These include
+	  camellia128-cts-cmac and camellia256-cts-cmac.
+
 config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2
 	bool "Enable Kerberos enctypes based on AES and SHA-2"
 	depends on RPCSEC_GSS_KRB5
