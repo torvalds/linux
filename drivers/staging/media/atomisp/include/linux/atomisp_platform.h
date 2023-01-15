@@ -211,6 +211,10 @@ struct camera_mipi_info {
 };
 
 const struct atomisp_platform_data *atomisp_get_platform_data(void);
+int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
+				    enum atomisp_input_format format,
+				    enum atomisp_bayer_order bayer_order);
+void atomisp_unregister_subdev(struct v4l2_subdev *subdev);
 
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \

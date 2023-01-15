@@ -1084,6 +1084,67 @@ static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 	return 0;
 }
 
+int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
+				    enum atomisp_input_format format,
+				    enum atomisp_bayer_order bayer_order)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+	int i, ret, clock_num, port = 0;
+
+	if (adev) {
+		/* Get ACPI _PR0 derived clock to determine the csi_port default */
+		if (acpi_device_power_manageable(adev)) {
+			clock_num = atomisp_get_acpi_power(&client->dev);
+
+			/* Compare clock to CsiPort 1 pmc-clock used in the CHT/BYT reference designs */
+			if (IS_ISP2401)
+				port = clock_num == 4 ? 1 : 0;
+			else
+				port = clock_num == 0 ? 1 : 0;
+		}
+
+		port = gmin_get_var_int(&client->dev, false, "CsiPort", port);
+		lanes = gmin_get_var_int(&client->dev, false, "CsiLanes", lanes);
+	}
+
+	for (i = 0; i < MAX_SUBDEVS; i++)
+		if (!pdata.subdevs[i].type)
+			break;
+
+	if (i >= MAX_SUBDEVS) {
+		dev_err(&client->dev, "Error too many subdevs already registered\n");
+		return -ENOMEM;
+	}
+
+	ret = camera_sensor_csi_alloc(subdev, port, lanes, format, bayer_order);
+	if (ret)
+		return ret;
+
+	pdata.subdevs[i].type = RAW_CAMERA;
+	pdata.subdevs[i].port = port;
+	pdata.subdevs[i].subdev = subdev;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(atomisp_register_sensor_no_gmin);
+
+void atomisp_unregister_subdev(struct v4l2_subdev *subdev)
+{
+	int i;
+
+	for (i = 0; i < MAX_SUBDEVS; i++) {
+		if (pdata.subdevs[i].subdev != subdev)
+			continue;
+
+		camera_sensor_csi_free(subdev);
+		pdata.subdevs[i].subdev = NULL;
+		pdata.subdevs[i].type = 0;
+		pdata.subdevs[i].port = 0;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(atomisp_unregister_subdev);
+
 static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
 	char *camera_module)
 {
