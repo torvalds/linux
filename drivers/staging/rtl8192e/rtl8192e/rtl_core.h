@@ -499,11 +499,11 @@ struct r8192_priv {
 	u8		ofdm_index[2];
 	u8		cck_index;
 
-	u8		Record_CCK_20Mindex;
-	u8		Record_CCK_40Mindex;
+	u8		rec_cck_20m_idx;
+	u8		rec_cck_40m_idx;
 
 	struct init_gain initgain_backup;
-	u8		DefaultInitialGain[4];
+	u8		def_initial_gain[4];
 	bool		bis_any_nonbepkts;
 	bool		bcurrent_turbo_EDCA;
 	bool		bis_cur_rdlstate;

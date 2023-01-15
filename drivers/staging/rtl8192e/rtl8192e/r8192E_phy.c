@@ -574,10 +574,10 @@ void rtl92e_get_tx_power(struct net_device *dev)
 	priv->mcs_tx_pwr_level_org_offset[5] =
 		rtl92e_readl(dev, rTxAGC_Mcs15_Mcs12);
 
-	priv->DefaultInitialGain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
-	priv->DefaultInitialGain[1] = rtl92e_readb(dev, rOFDM0_XBAGCCore1);
-	priv->DefaultInitialGain[2] = rtl92e_readb(dev, rOFDM0_XCAGCCore1);
-	priv->DefaultInitialGain[3] = rtl92e_readb(dev, rOFDM0_XDAGCCore1);
+	priv->def_initial_gain[0] = rtl92e_readb(dev, rOFDM0_XAAGCCore1);
+	priv->def_initial_gain[1] = rtl92e_readb(dev, rOFDM0_XBAGCCore1);
+	priv->def_initial_gain[2] = rtl92e_readb(dev, rOFDM0_XCAGCCore1);
+	priv->def_initial_gain[3] = rtl92e_readb(dev, rOFDM0_XDAGCCore1);
 
 	priv->framesync = rtl92e_readb(dev, rOFDM0_RxDetector3);
 	priv->framesyncC34 = rtl92e_readl(dev, rOFDM0_RxDetector2);
@@ -1072,13 +1072,13 @@ static void _rtl92e_cck_tx_power_track_bw_switch_thermal(struct net_device *dev)
 
 	switch (priv->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
-		if (priv->Record_CCK_20Mindex == 0)
-			priv->Record_CCK_20Mindex = 6;
-		priv->cck_index = priv->Record_CCK_20Mindex;
+		if (priv->rec_cck_20m_idx == 0)
+			priv->rec_cck_20m_idx = 6;
+		priv->cck_index = priv->rec_cck_20m_idx;
 	break;
 
 	case HT_CHANNEL_WIDTH_20_40:
-		priv->cck_index = priv->Record_CCK_40Mindex;
+		priv->cck_index = priv->rec_cck_40m_idx;
 	break;
 	}
 	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);

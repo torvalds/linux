@@ -823,8 +823,8 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	else
 		tmpCCKindex = tmpCCK20Mindex;
 
-	priv->Record_CCK_20Mindex = tmpCCK20Mindex;
-	priv->Record_CCK_40Mindex = tmpCCK40Mindex;
+	priv->rec_cck_20m_idx = tmpCCK20Mindex;
+	priv->rec_cck_40m_idx = tmpCCK40Mindex;
 
 	if (priv->rtllib->current_network.channel == 14 &&
 	    !priv->bcck_in_ch14) {
@@ -1378,12 +1378,12 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 			dm_digtable.cur_ig_value = gain_range;
 		} else {
 			if (dm_digtable.cur_ig_value == 0)
-				dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
+				dm_digtable.cur_ig_value = priv->def_initial_gain[0];
 			else
 				dm_digtable.cur_ig_value = dm_digtable.pre_ig_value;
 		}
 	} else {
-		dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
+		dm_digtable.cur_ig_value = priv->def_initial_gain[0];
 		dm_digtable.pre_ig_value = 0;
 	}
 
