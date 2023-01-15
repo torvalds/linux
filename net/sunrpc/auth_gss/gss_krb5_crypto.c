@@ -641,6 +641,100 @@ out:
 	return ret;
 }
 
+/*
+ * To provide confidentiality, encrypt using cipher block chaining
+ * with ciphertext stealing. Message integrity is handled separately.
+ */
+static int
+krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
+		     struct crypto_sync_skcipher *cbc_tfm,
+		     u32 offset, struct xdr_buf *buf, struct page **pages)
+{
+	u32 blocksize, nbytes, nblocks, cbcbytes;
+	struct encryptor_desc desc;
+	int err;
+
+	blocksize = crypto_sync_skcipher_blocksize(cts_tfm);
+	nbytes = buf->len - offset;
+	nblocks = (nbytes + blocksize - 1) / blocksize;
+	cbcbytes = 0;
+	if (nblocks > 2)
+		cbcbytes = (nblocks - 2) * blocksize;
+
+	memset(desc.iv, 0, sizeof(desc.iv));
+
+	/* Handle block-sized chunks of plaintext with CBC. */
+	if (cbcbytes) {
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, cbc_tfm);
+
+		desc.pos = offset;
+		desc.fragno = 0;
+		desc.fraglen = 0;
+		desc.pages = pages;
+		desc.outbuf = buf;
+		desc.req = req;
+
+		skcipher_request_set_sync_tfm(req, cbc_tfm);
+		skcipher_request_set_callback(req, 0, NULL, NULL);
+
+		sg_init_table(desc.infrags, 4);
+		sg_init_table(desc.outfrags, 4);
+
+		err = xdr_process_buf(buf, offset, cbcbytes, encryptor, &desc);
+		skcipher_request_zero(req);
+		if (err)
+			return err;
+	}
+
+	/* Remaining plaintext is handled with CBC-CTS. */
+	err = gss_krb5_cts_crypt(cts_tfm, buf, offset + cbcbytes,
+				 desc.iv, pages, 1);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int
+krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
+		     struct crypto_sync_skcipher *cbc_tfm,
+		     u32 offset, struct xdr_buf *buf)
+{
+	u32 blocksize, nblocks, cbcbytes;
+	struct decryptor_desc desc;
+	int err;
+
+	blocksize = crypto_sync_skcipher_blocksize(cts_tfm);
+	nblocks = (buf->len + blocksize - 1) / blocksize;
+	cbcbytes = 0;
+	if (nblocks > 2)
+		cbcbytes = (nblocks - 2) * blocksize;
+
+	memset(desc.iv, 0, sizeof(desc.iv));
+
+	/* Handle block-sized chunks of plaintext with CBC. */
+	if (cbcbytes) {
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, cbc_tfm);
+
+		desc.fragno = 0;
+		desc.fraglen = 0;
+		desc.req = req;
+
+		skcipher_request_set_sync_tfm(req, cbc_tfm);
+		skcipher_request_set_callback(req, 0, NULL, NULL);
+
+		sg_init_table(desc.frags, 4);
+
+		err = xdr_process_buf(buf, 0, cbcbytes, decryptor, &desc);
+		skcipher_request_zero(req);
+		if (err)
+			return err;
+	}
+
+	/* Remaining plaintext is handled with CBC-CTS. */
+	return gss_krb5_cts_crypt(cts_tfm, buf, cbcbytes, desc.iv, NULL, 0);
+}
+
 u32
 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		     struct xdr_buf *buf, struct page **pages)
@@ -650,11 +744,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	u8 *ecptr;
 	struct crypto_sync_skcipher *cipher, *aux_cipher;
 	struct crypto_ahash *ahash;
-	int blocksize;
 	struct page **save_pages;
-	int nblocks, nbytes;
-	struct encryptor_desc desc;
-	u32 cbcbytes;
 	unsigned int conflen;
 
 	if (kctx->initiate) {
@@ -666,7 +756,6 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		aux_cipher = kctx->acceptor_enc_aux;
 		ahash = kctx->acceptor_integ;
 	}
-	blocksize = crypto_sync_skcipher_blocksize(cipher);
 	conflen = crypto_sync_skcipher_blocksize(cipher);
 
 	/* hide the gss token header and insert the confounder */
@@ -710,69 +799,30 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	if (err)
 		return GSS_S_FAILURE;
 
-	nbytes = buf->len - offset - GSS_KRB5_TOK_HDR_LEN;
-	nblocks = (nbytes + blocksize - 1) / blocksize;
-	cbcbytes = 0;
-	if (nblocks > 2)
-		cbcbytes = (nblocks - 2) * blocksize;
-
-	memset(desc.iv, 0, sizeof(desc.iv));
-
-	if (cbcbytes) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, aux_cipher);
-
-		desc.pos = offset + GSS_KRB5_TOK_HDR_LEN;
-		desc.fragno = 0;
-		desc.fraglen = 0;
-		desc.pages = pages;
-		desc.outbuf = buf;
-		desc.req = req;
-
-		skcipher_request_set_sync_tfm(req, aux_cipher);
-		skcipher_request_set_callback(req, 0, NULL, NULL);
-
-		sg_init_table(desc.infrags, 4);
-		sg_init_table(desc.outfrags, 4);
-
-		err = xdr_process_buf(buf, offset + GSS_KRB5_TOK_HDR_LEN,
-				      cbcbytes, encryptor, &desc);
-		skcipher_request_zero(req);
-		if (err)
-			goto out_err;
-	}
-
-	/* Make sure IV carries forward from any CBC results. */
-	err = gss_krb5_cts_crypt(cipher, buf,
-				 offset + GSS_KRB5_TOK_HDR_LEN + cbcbytes,
-				 desc.iv, pages, 1);
-	if (err) {
-		err = GSS_S_FAILURE;
-		goto out_err;
-	}
+	err = krb5_cbc_cts_encrypt(cipher, aux_cipher,
+				   offset + GSS_KRB5_TOK_HDR_LEN,
+				   buf, pages);
+	if (err)
+		return GSS_S_FAILURE;
 
 	/* Now update buf to account for HMAC */
 	buf->tail[0].iov_len += kctx->gk5e->cksumlength;
 	buf->len += kctx->gk5e->cksumlength;
 
-out_err:
-	if (err)
-		err = GSS_S_FAILURE;
-	return err;
+	return GSS_S_COMPLETE;
 }
 
 u32
 gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		     struct xdr_buf *buf, u32 *headskip, u32 *tailskip)
 {
-	struct xdr_buf subbuf;
-	u32 ret = 0;
 	struct crypto_sync_skcipher *cipher, *aux_cipher;
 	struct crypto_ahash *ahash;
 	struct xdr_netobj our_hmac_obj;
 	u8 our_hmac[GSS_KRB5_MAX_CKSUM_LEN];
 	u8 pkt_hmac[GSS_KRB5_MAX_CKSUM_LEN];
-	int nblocks, blocksize, cbcbytes;
-	struct decryptor_desc desc;
+	struct xdr_buf subbuf;
+	u32 ret = 0;
 
 	if (kctx->initiate) {
 		cipher = kctx->acceptor_enc;
@@ -783,44 +833,17 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		aux_cipher = kctx->initiator_enc_aux;
 		ahash = kctx->initiator_integ;
 	}
-	blocksize = crypto_sync_skcipher_blocksize(cipher);
 
 	/* create a segment skipping the header and leaving out the checksum */
 	xdr_buf_subsegment(buf, &subbuf, offset + GSS_KRB5_TOK_HDR_LEN,
 				    (len - offset - GSS_KRB5_TOK_HDR_LEN -
 				     kctx->gk5e->cksumlength));
 
-	nblocks = (subbuf.len + blocksize - 1) / blocksize;
-
-	cbcbytes = 0;
-	if (nblocks > 2)
-		cbcbytes = (nblocks - 2) * blocksize;
-
-	memset(desc.iv, 0, sizeof(desc.iv));
-
-	if (cbcbytes) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, aux_cipher);
-
-		desc.fragno = 0;
-		desc.fraglen = 0;
-		desc.req = req;
-
-		skcipher_request_set_sync_tfm(req, aux_cipher);
-		skcipher_request_set_callback(req, 0, NULL, NULL);
-
-		sg_init_table(desc.frags, 4);
-
-		ret = xdr_process_buf(&subbuf, 0, cbcbytes, decryptor, &desc);
-		skcipher_request_zero(req);
-		if (ret)
-			goto out_err;
-	}
-
-	/* Make sure IV carries forward from any CBC results. */
-	ret = gss_krb5_cts_crypt(cipher, &subbuf, cbcbytes, desc.iv, NULL, 0);
+	ret = krb5_cbc_cts_decrypt(cipher, aux_cipher, 0, &subbuf);
 	if (ret)
 		goto out_err;
 
+	/* Calculate our hmac over the plaintext data */
 	our_hmac_obj.len = sizeof(our_hmac);
 	our_hmac_obj.data = our_hmac;
 	ret = gss_krb5_checksum(ahash, NULL, 0, &subbuf, 0, &our_hmac_obj);
@@ -837,7 +860,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		ret = GSS_S_BAD_SIG;
 		goto out_err;
 	}
-	*headskip = blocksize;
+	*headskip = crypto_sync_skcipher_blocksize(cipher);
 	*tailskip = kctx->gk5e->cksumlength;
 out_err:
 	if (ret && ret != GSS_S_BAD_SIG)
