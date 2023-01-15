@@ -292,6 +292,8 @@ struct io_ring_ctx {
 	struct {
 		spinlock_t		completion_lock;
 
+		bool			poll_multi_queue;
+
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
 		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
@@ -300,7 +302,6 @@ struct io_ring_ctx {
 		 */
 		struct io_wq_work_list	iopoll_list;
 		struct io_hash_table	cancel_table;
-		bool			poll_multi_queue;
 
 		struct llist_head	work_llist;
 

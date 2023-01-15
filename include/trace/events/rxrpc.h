@@ -1062,10 +1062,10 @@ TRACE_EVENT(rxrpc_receive,
 	    );
 
 TRACE_EVENT(rxrpc_recvmsg,
-	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_recvmsg_trace why,
+	    TP_PROTO(unsigned int call_debug_id, enum rxrpc_recvmsg_trace why,
 		     int ret),
 
-	    TP_ARGS(call, why, ret),
+	    TP_ARGS(call_debug_id, why, ret),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
@@ -1074,7 +1074,7 @@ TRACE_EVENT(rxrpc_recvmsg,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call ? call->debug_id : 0;
+		    __entry->call = call_debug_id;
 		    __entry->why = why;
 		    __entry->ret = ret;
 			   ),

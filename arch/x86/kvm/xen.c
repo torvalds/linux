@@ -41,7 +41,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	int ret = 0;
 	int idx = srcu_read_lock(&kvm->srcu);
 
-	if (gfn == GPA_INVALID) {
+	if (gfn == KVM_XEN_INVALID_GFN) {
 		kvm_gpc_deactivate(gpc);
 		goto out;
 	}
@@ -659,7 +659,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		if (kvm->arch.xen.shinfo_cache.active)
 			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
 		else
-			data->u.shared_info.gfn = GPA_INVALID;
+			data->u.shared_info.gfn = KVM_XEN_INVALID_GFN;
 		r = 0;
 		break;
 
@@ -705,7 +705,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		BUILD_BUG_ON(offsetof(struct vcpu_info, time) !=
 			     offsetof(struct compat_vcpu_info, time));
 
-		if (data->u.gpa == GPA_INVALID) {
+		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
 			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
 			r = 0;
 			break;
@@ -719,7 +719,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
-		if (data->u.gpa == GPA_INVALID) {
+		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
 			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_time_info_cache);
 			r = 0;
 			break;
@@ -739,7 +739,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			r = -EOPNOTSUPP;
 			break;
 		}
-		if (data->u.gpa == GPA_INVALID) {
+		if (data->u.gpa == KVM_XEN_INVALID_GPA) {
 			r = 0;
 		deactivate_out:
 			kvm_gpc_deactivate(&vcpu->arch.xen.runstate_cache);
@@ -937,7 +937,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (vcpu->arch.xen.vcpu_info_cache.active)
 			data->u.gpa = vcpu->arch.xen.vcpu_info_cache.gpa;
 		else
-			data->u.gpa = GPA_INVALID;
+			data->u.gpa = KVM_XEN_INVALID_GPA;
 		r = 0;
 		break;
 
@@ -945,7 +945,7 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (vcpu->arch.xen.vcpu_time_info_cache.active)
 			data->u.gpa = vcpu->arch.xen.vcpu_time_info_cache.gpa;
 		else
-			data->u.gpa = GPA_INVALID;
+			data->u.gpa = KVM_XEN_INVALID_GPA;
 		r = 0;
 		break;
 
@@ -1069,6 +1069,7 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
 				  : kvm->arch.xen_hvm_config.blob_size_32;
 		u8 *page;
+		int ret;
 
 		if (page_num >= blob_size)
 			return 1;
@@ -1079,10 +1080,10 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		if (kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE)) {
-			kfree(page);
+		ret = kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE);
+		kfree(page);
+		if (ret)
 			return 1;
-		}
 	}
 	return 0;
 }
@@ -1183,22 +1184,14 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 				 u64 param, u64 *r)
 {
-	int idx, i;
 	struct sched_poll sched_poll;
 	evtchn_port_t port, *ports;
-	gpa_t gpa;
+	struct x86_exception e;
+	int i;
 
 	if (!lapic_in_kernel(vcpu) ||
 	    !(vcpu->kvm->arch.xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
 		return false;
-
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-	if (!gpa) {
-		*r = -EFAULT;
-		return true;
-	}
 
 	if (IS_ENABLED(CONFIG_64BIT) && !longmode) {
 		struct compat_sched_poll sp32;
@@ -1206,7 +1199,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		/* Sanity check that the compat struct definition is correct */
 		BUILD_BUG_ON(sizeof(sp32) != 16);
 
-		if (kvm_vcpu_read_guest(vcpu, gpa, &sp32, sizeof(sp32))) {
+		if (kvm_read_guest_virt(vcpu, param, &sp32, sizeof(sp32), &e)) {
 			*r = -EFAULT;
 			return true;
 		}
@@ -1220,8 +1213,8 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		sched_poll.nr_ports = sp32.nr_ports;
 		sched_poll.timeout = sp32.timeout;
 	} else {
-		if (kvm_vcpu_read_guest(vcpu, gpa, &sched_poll,
-					sizeof(sched_poll))) {
+		if (kvm_read_guest_virt(vcpu, param, &sched_poll,
+					sizeof(sched_poll), &e)) {
 			*r = -EFAULT;
 			return true;
 		}
@@ -1243,18 +1236,13 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	} else
 		ports = &port;
 
-	for (i = 0; i < sched_poll.nr_ports; i++) {
-		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		gpa = kvm_mmu_gva_to_gpa_system(vcpu,
-						(gva_t)(sched_poll.ports + i),
-						NULL);
-		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+	if (kvm_read_guest_virt(vcpu, (gva_t)sched_poll.ports, ports,
+				sched_poll.nr_ports * sizeof(*ports), &e)) {
+		*r = -EFAULT;
+		return true;
+	}
 
-		if (!gpa || kvm_vcpu_read_guest(vcpu, gpa,
-						&ports[i], sizeof(port))) {
-			*r = -EFAULT;
-			goto out;
-		}
+	for (i = 0; i < sched_poll.nr_ports; i++) {
 		if (ports[i] >= max_evtchn_port(vcpu->kvm)) {
 			*r = -EINVAL;
 			goto out;
@@ -1330,9 +1318,8 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 				  int vcpu_id, u64 param, u64 *r)
 {
 	struct vcpu_set_singleshot_timer oneshot;
+	struct x86_exception e;
 	s64 delta;
-	gpa_t gpa;
-	int idx;
 
 	if (!kvm_xen_timer_enabled(vcpu))
 		return false;
@@ -1343,9 +1330,6 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 			*r = -EINVAL;
 			return true;
 		}
-		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
-		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 		/*
 		 * The only difference for 32-bit compat is the 4 bytes of
@@ -1363,9 +1347,8 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 		BUILD_BUG_ON(sizeof_field(struct compat_vcpu_set_singleshot_timer, flags) !=
 			     sizeof_field(struct vcpu_set_singleshot_timer, flags));
 
-		if (!gpa ||
-		    kvm_vcpu_read_guest(vcpu, gpa, &oneshot, longmode ? sizeof(oneshot) :
-					sizeof(struct compat_vcpu_set_singleshot_timer))) {
+		if (kvm_read_guest_virt(vcpu, param, &oneshot, longmode ? sizeof(oneshot) :
+					sizeof(struct compat_vcpu_set_singleshot_timer), &e)) {
 			*r = -EFAULT;
 			return true;
 		}
@@ -1825,20 +1808,20 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 {
 	u32 port = data->u.evtchn.send_port;
 	struct evtchnfd *evtchnfd;
+	int ret;
 
-	if (!port || port >= max_evtchn_port(kvm))
-		return -EINVAL;
-
+	/* Protect writes to evtchnfd as well as the idr lookup.  */
 	mutex_lock(&kvm->lock);
 	evtchnfd = idr_find(&kvm->arch.xen.evtchn_ports, port);
-	mutex_unlock(&kvm->lock);
 
+	ret = -ENOENT;
 	if (!evtchnfd)
-		return -ENOENT;
+		goto out_unlock;
 
 	/* For an UPDATE, nothing may change except the priority/vcpu */
+	ret = -EINVAL;
 	if (evtchnfd->type != data->u.evtchn.type)
-		return -EINVAL;
+		goto out_unlock;
 
 	/*
 	 * Port cannot change, and if it's zero that was an eventfd
@@ -1846,20 +1829,21 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 	 */
 	if (!evtchnfd->deliver.port.port ||
 	    evtchnfd->deliver.port.port != data->u.evtchn.deliver.port.port)
-		return -EINVAL;
+		goto out_unlock;
 
 	/* We only support 2 level event channels for now */
 	if (data->u.evtchn.deliver.port.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
-		return -EINVAL;
+		goto out_unlock;
 
-	mutex_lock(&kvm->lock);
 	evtchnfd->deliver.port.priority = data->u.evtchn.deliver.port.priority;
 	if (evtchnfd->deliver.port.vcpu_id != data->u.evtchn.deliver.port.vcpu) {
 		evtchnfd->deliver.port.vcpu_id = data->u.evtchn.deliver.port.vcpu;
 		evtchnfd->deliver.port.vcpu_idx = -1;
 	}
+	ret = 0;
+out_unlock:
 	mutex_unlock(&kvm->lock);
-	return 0;
+	return ret;
 }
 
 /*
@@ -1871,11 +1855,8 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm,
 {
 	u32 port = data->u.evtchn.send_port;
 	struct eventfd_ctx *eventfd = NULL;
-	struct evtchnfd *evtchnfd = NULL;
+	struct evtchnfd *evtchnfd;
 	int ret = -EINVAL;
-
-	if (!port || port >= max_evtchn_port(kvm))
-		return -EINVAL;
 
 	evtchnfd = kzalloc(sizeof(struct evtchnfd), GFP_KERNEL);
 	if (!evtchnfd)
@@ -1952,8 +1933,7 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
 	if (!evtchnfd)
 		return -ENOENT;
 
-	if (kvm)
-		synchronize_srcu(&kvm->srcu);
+	synchronize_srcu(&kvm->srcu);
 	if (!evtchnfd->deliver.port.port)
 		eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
 	kfree(evtchnfd);
@@ -1962,18 +1942,42 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, u32 port)
 
 static int kvm_xen_eventfd_reset(struct kvm *kvm)
 {
-	struct evtchnfd *evtchnfd;
+	struct evtchnfd *evtchnfd, **all_evtchnfds;
 	int i;
+	int n = 0;
 
 	mutex_lock(&kvm->lock);
+
+	/*
+	 * Because synchronize_srcu() cannot be called inside the
+	 * critical section, first collect all the evtchnfd objects
+	 * in an array as they are removed from evtchn_ports.
+	 */
+	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i)
+		n++;
+
+	all_evtchnfds = kmalloc_array(n, sizeof(struct evtchnfd *), GFP_KERNEL);
+	if (!all_evtchnfds) {
+		mutex_unlock(&kvm->lock);
+		return -ENOMEM;
+	}
+
+	n = 0;
 	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i) {
+		all_evtchnfds[n++] = evtchnfd;
 		idr_remove(&kvm->arch.xen.evtchn_ports, evtchnfd->send_port);
-		synchronize_srcu(&kvm->srcu);
+	}
+	mutex_unlock(&kvm->lock);
+
+	synchronize_srcu(&kvm->srcu);
+
+	while (n--) {
+		evtchnfd = all_evtchnfds[n];
 		if (!evtchnfd->deliver.port.port)
 			eventfd_ctx_put(evtchnfd->deliver.eventfd.ctx);
 		kfree(evtchnfd);
 	}
-	mutex_unlock(&kvm->lock);
+	kfree(all_evtchnfds);
 
 	return 0;
 }
@@ -2002,20 +2006,22 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 {
 	struct evtchnfd *evtchnfd;
 	struct evtchn_send send;
-	gpa_t gpa;
-	int idx;
+	struct x86_exception e;
 
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-
-	if (!gpa || kvm_vcpu_read_guest(vcpu, gpa, &send, sizeof(send))) {
+	/* Sanity check: this structure is the same for 32-bit and 64-bit */
+	BUILD_BUG_ON(sizeof(send) != 4);
+	if (kvm_read_guest_virt(vcpu, param, &send, sizeof(send), &e)) {
 		*r = -EFAULT;
 		return true;
 	}
 
-	/* The evtchn_ports idr is protected by vcpu->kvm->srcu */
+	/*
+	 * evtchnfd is protected by kvm->srcu; the idr lookup instead
+	 * is protected by RCU.
+	 */
+	rcu_read_lock();
 	evtchnfd = idr_find(&vcpu->kvm->arch.xen.evtchn_ports, send.port);
+	rcu_read_unlock();
 	if (!evtchnfd)
 		return false;
 

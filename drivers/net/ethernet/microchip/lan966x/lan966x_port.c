@@ -381,7 +381,7 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 	}
 
 	/* Take PCS out of reset */
-	lan_rmw(DEV_CLOCK_CFG_LINK_SPEED_SET(2) |
+	lan_rmw(DEV_CLOCK_CFG_LINK_SPEED_SET(LAN966X_SPEED_1000) |
 		DEV_CLOCK_CFG_PCS_RX_RST_SET(0) |
 		DEV_CLOCK_CFG_PCS_TX_RST_SET(0),
 		DEV_CLOCK_CFG_LINK_SPEED |

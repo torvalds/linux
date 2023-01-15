@@ -962,6 +962,12 @@ int main(int argc, char *argv[])
 	}
 
  done:
+	struct kvm_xen_hvm_attr evt_reset = {
+		.type = KVM_XEN_ATTR_TYPE_EVTCHN,
+		.u.evtchn.flags = KVM_XEN_EVTCHN_RESET,
+	};
+	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &evt_reset);
+
 	alarm(0);
 	clock_gettime(CLOCK_REALTIME, &max_ts);
 

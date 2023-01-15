@@ -11,6 +11,8 @@
 static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 		fmode_t mode)
 {
+	u32 effects;
+
 	if (capable(CAP_SYS_ADMIN))
 		return true;
 
@@ -43,11 +45,29 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 	}
 
 	/*
-	 * Only allow I/O commands that transfer data to the controller if the
-	 * special file is open for writing, but always allow I/O commands that
-	 * transfer data from the controller.
+	 * Check if the controller provides a Commands Supported and Effects log
+	 * and marks this command as supported.  If not reject unprivileged
+	 * passthrough.
 	 */
-	if (nvme_is_write(c))
+	effects = nvme_command_effects(ns->ctrl, ns, c->common.opcode);
+	if (!(effects & NVME_CMD_EFFECTS_CSUPP))
+		return false;
+
+	/*
+	 * Don't allow passthrough for command that have intrusive (or unknown)
+	 * effects.
+	 */
+	if (effects & ~(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC |
+			NVME_CMD_EFFECTS_UUID_SEL |
+			NVME_CMD_EFFECTS_SCOPE_MASK))
+		return false;
+
+	/*
+	 * Only allow I/O commands that transfer data to the controller or that
+	 * change the logical block contents if the file descriptor is open for
+	 * writing.
+	 */
+	if (nvme_is_write(c) || (effects & NVME_CMD_EFFECTS_LBCC))
 		return mode & FMODE_WRITE;
 	return true;
 }

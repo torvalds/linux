@@ -124,16 +124,25 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
+static int hclge_inform_vf_reset(struct hclge_vport *vport, u16 reset_type)
+{
+	__le16 msg_data;
+	u8 dest_vfid;
+
+	dest_vfid = (u8)vport->vport_id;
+	msg_data = cpu_to_le16(reset_type);
+
+	/* send this requested info to VF */
+	return hclge_send_mbx_msg(vport, (u8 *)&msg_data, sizeof(msg_data),
+				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
+}
+
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
 	struct hclge_dev *hdev = vport->back;
-	__le16 msg_data;
 	u16 reset_type;
-	u8 dest_vfid;
 
 	BUILD_BUG_ON(HNAE3_MAX_RESET > U16_MAX);
-
-	dest_vfid = (u8)vport->vport_id;
 
 	if (hdev->reset_type == HNAE3_FUNC_RESET)
 		reset_type = HNAE3_VF_PF_FUNC_RESET;
@@ -142,11 +151,7 @@ int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 	else
 		reset_type = HNAE3_VF_FUNC_RESET;
 
-	msg_data = cpu_to_le16(reset_type);
-
-	/* send this requested info to VF */
-	return hclge_send_mbx_msg(vport, (u8 *)&msg_data, sizeof(msg_data),
-				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
+	return hclge_inform_vf_reset(vport, reset_type);
 }
 
 static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
@@ -652,9 +657,56 @@ static int hclge_reset_vf(struct hclge_vport *vport)
 	return hclge_func_reset_cmd(hdev, vport->vport_id);
 }
 
+static void hclge_notify_vf_config(struct hclge_vport *vport)
+{
+	struct hclge_dev *hdev = vport->back;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	struct hclge_port_base_vlan_config *vlan_cfg;
+	int ret;
+
+	hclge_push_vf_link_status(vport);
+	if (test_bit(HCLGE_VPORT_NEED_NOTIFY_RESET, &vport->need_notify)) {
+		ret = hclge_inform_vf_reset(vport, HNAE3_VF_PF_FUNC_RESET);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to inform VF %u reset!",
+				vport->vport_id - HCLGE_VF_VPORT_START_NUM);
+			return;
+		}
+		vport->need_notify = 0;
+		return;
+	}
+
+	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3 &&
+	    test_bit(HCLGE_VPORT_NEED_NOTIFY_VF_VLAN, &vport->need_notify)) {
+		vlan_cfg = &vport->port_base_vlan_cfg;
+		ret = hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
+							vport->vport_id,
+							vlan_cfg->state,
+							&vlan_cfg->vlan_info);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to inform VF %u port base vlan!",
+				vport->vport_id - HCLGE_VF_VPORT_START_NUM);
+			return;
+		}
+		clear_bit(HCLGE_VPORT_NEED_NOTIFY_VF_VLAN, &vport->need_notify);
+	}
+}
+
 static void hclge_vf_keep_alive(struct hclge_vport *vport)
 {
+	struct hclge_dev *hdev = vport->back;
+
 	vport->last_active_jiffies = jiffies;
+
+	if (test_bit(HCLGE_VPORT_STATE_INITED, &vport->state) &&
+	    !test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
+		set_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+		dev_info(&hdev->pdev->dev, "VF %u is alive!",
+			 vport->vport_id - HCLGE_VF_VPORT_START_NUM);
+		hclge_notify_vf_config(vport);
+	}
 }
 
 static int hclge_set_vf_mtu(struct hclge_vport *vport,
@@ -954,6 +1006,7 @@ static int hclge_mbx_vf_uninit_handler(struct hclge_mbx_ops_param *param)
 	hclge_rm_vport_all_mac_table(param->vport, true,
 				     HCLGE_MAC_ADDR_MC);
 	hclge_rm_vport_all_vlan_table(param->vport, true);
+	param->vport->mps = 0;
 	return 0;
 }
 

@@ -2971,6 +2971,18 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		ret = add_all_matching_fields(evlist, field_name, raw_trace, level);
 		goto out;
 	}
+#else
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
+			pr_err("%s %s", ret ? "," : "This perf binary isn't linked with libtraceevent, can't process", evsel__name(evsel));
+			ret = -ENOTSUP;
+		}
+	}
+
+	if (ret) {
+		pr_err("\n");
+		goto out;
+	}
 #endif
 
 	evsel = find_evsel(evlist, event_name);

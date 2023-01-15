@@ -476,7 +476,7 @@ int sg_alloc_append_table_from_pages(struct sg_append_table *sgt_append,
 		/* Merge contiguous pages into the last SG */
 		prv_len = sgt_append->prv->length;
 		last_pg = sg_page(sgt_append->prv);
-		while (n_pages && pages_are_mergeable(last_pg, pages[0])) {
+		while (n_pages && pages_are_mergeable(pages[0], last_pg)) {
 			if (sgt_append->prv->length + PAGE_SIZE > max_segment)
 				break;
 			sgt_append->prv->length += PAGE_SIZE;
