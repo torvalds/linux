@@ -242,6 +242,21 @@ static inline int pkvm_get_max_wrps(void)
 	return num ? num + 1 : 0;
 }
 
+enum pkvm_moveable_reg_type {
+	PKVM_MREG_MEMORY,
+	PKVM_MREG_PROTECTED_RANGE,
+};
+
+struct pkvm_moveable_reg {
+	phys_addr_t start;
+	u64 size;
+	enum pkvm_moveable_reg_type type;
+};
+
+#define PKVM_NR_MOVEABLE_REGS 512
+extern struct pkvm_moveable_reg kvm_nvhe_sym(pkvm_moveable_regs)[];
+extern unsigned int kvm_nvhe_sym(pkvm_moveable_regs_nr);
+
 extern struct memblock_region kvm_nvhe_sym(hyp_memory)[];
 extern unsigned int kvm_nvhe_sym(hyp_memblock_nr);
 
@@ -292,27 +307,28 @@ static inline unsigned long __hyp_pgtable_max_pages(unsigned long nr_pages)
 	return total;
 }
 
-static inline unsigned long __hyp_pgtable_total_pages(void)
+static inline unsigned long __hyp_pgtable_moveable_regs_pages(void)
 {
 	unsigned long res = 0, i;
 
-	/* Cover all of memory with page-granularity */
-	for (i = 0; i < kvm_nvhe_sym(hyp_memblock_nr); i++) {
-		struct memblock_region *reg = &kvm_nvhe_sym(hyp_memory)[i];
+	/* Cover all of moveable regions with page-granularity */
+	for (i = 0; i < kvm_nvhe_sym(pkvm_moveable_regs_nr); i++) {
+		struct pkvm_moveable_reg *reg = &kvm_nvhe_sym(pkvm_moveable_regs)[i];
 		res += __hyp_pgtable_max_pages(reg->size >> PAGE_SHIFT);
 	}
 
 	return res;
 }
 
+#define __PKVM_PRIVATE_SZ SZ_1G
+
 static inline unsigned long hyp_s1_pgtable_pages(void)
 {
 	unsigned long res;
 
-	res = __hyp_pgtable_total_pages();
+	res = __hyp_pgtable_moveable_regs_pages();
 
-	/* Allow 1 GiB for private mappings */
-	res += __hyp_pgtable_max_pages(SZ_1G >> PAGE_SHIFT);
+	res += __hyp_pgtable_max_pages(__PKVM_PRIVATE_SZ >> PAGE_SHIFT);
 
 	return res;
 }
@@ -325,9 +341,9 @@ static inline unsigned long host_s2_pgtable_pages(void)
 	 * Include an extra 16 pages to safely upper-bound the worst case of
 	 * concatenated pgds.
 	 */
-	res = __hyp_pgtable_total_pages() + 16;
+	res = __hyp_pgtable_moveable_regs_pages() + 16;
 
-	/* Allow 1 GiB for MMIO mappings */
+	/* Allow 1 GiB for non-moveable regions */
 	res += __hyp_pgtable_max_pages(SZ_1G >> PAGE_SHIFT);
 
 	return res;

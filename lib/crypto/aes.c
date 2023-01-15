@@ -7,6 +7,7 @@
 #include <linux/crypto.h>
 #include <linux/module.h>
 #include <asm/unaligned.h>
+#include <trace/hooks/fips140.h>
 
 /*
  * Emit the sbox as volatile const to prevent the compiler from doing
@@ -189,6 +190,13 @@ int aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 	u32 rc, i, j;
 	int err;
 
+#ifndef __DISABLE_EXPORTS
+	err = -(MAX_ERRNO + 1);
+	trace_android_vh_aes_expandkey(ctx, in_key, key_len, &err);
+	if (err != -(MAX_ERRNO + 1))
+		return err;
+#endif
+
 	err = aes_check_keylen(key_len);
 	if (err)
 		return err;
@@ -261,6 +269,13 @@ void aes_encrypt(const struct crypto_aes_ctx *ctx, u8 *out, const u8 *in)
 	int rounds = 6 + ctx->key_length / 4;
 	u32 st0[4], st1[4];
 	int round;
+#ifndef __DISABLE_EXPORTS
+	int hook_inuse = 0;
+
+	trace_android_vh_aes_encrypt(ctx, out, in, &hook_inuse);
+	if (hook_inuse)
+		return;
+#endif
 
 	st0[0] = ctx->key_enc[0] ^ get_unaligned_le32(in);
 	st0[1] = ctx->key_enc[1] ^ get_unaligned_le32(in + 4);
@@ -312,6 +327,13 @@ void aes_decrypt(const struct crypto_aes_ctx *ctx, u8 *out, const u8 *in)
 	int rounds = 6 + ctx->key_length / 4;
 	u32 st0[4], st1[4];
 	int round;
+#ifndef __DISABLE_EXPORTS
+	int hook_inuse = 0;
+
+	trace_android_vh_aes_decrypt(ctx, out, in, &hook_inuse);
+	if (hook_inuse)
+		return;
+#endif
 
 	st0[0] = ctx->key_dec[0] ^ get_unaligned_le32(in);
 	st0[1] = ctx->key_dec[1] ^ get_unaligned_le32(in + 4);
