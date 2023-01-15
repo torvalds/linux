@@ -1514,11 +1514,64 @@ static const struct gss_krb5_test_param rfc8009_kdf_test_params[] = {
 /* Creates the function rfc8009_kdf_gen_params */
 KUNIT_ARRAY_PARAM(rfc8009_kdf, rfc8009_kdf_test_params, gss_krb5_get_desc);
 
+/*
+ * From RFC 8009 Appendix A.  Test Vectors
+ *
+ * These sample checksums use the above sample key derivation results,
+ * including use of the same base-key and key usage values.
+ *
+ * This test material is copyright (c) 2016 IETF Trust and the
+ * persons identified as the document authors.  All rights reserved.
+ */
+
+DEFINE_HEX_XDR_NETOBJ(rfc8009_checksum_plaintext,
+		      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+		      0x10, 0x11, 0x12, 0x13, 0x14
+);
+DEFINE_HEX_XDR_NETOBJ(rfc8009_checksum_test1_expected_result,
+		      0xd7, 0x83, 0x67, 0x18, 0x66, 0x43, 0xd6, 0x7b,
+		      0x41, 0x1c, 0xba, 0x91, 0x39, 0xfc, 0x1d, 0xee
+);
+DEFINE_HEX_XDR_NETOBJ(rfc8009_checksum_test2_expected_result,
+		      0x45, 0xee, 0x79, 0x15, 0x67, 0xee, 0xfc, 0xa3,
+		      0x7f, 0x4a, 0xc1, 0xe0, 0x22, 0x2d, 0xe8, 0x0d,
+		      0x43, 0xc3, 0xbf, 0xa0, 0x66, 0x99, 0x67, 0x2a
+);
+
+static const struct gss_krb5_test_param rfc8009_checksum_test_params[] = {
+	{
+		.desc			= "Checksum with aes128-cts-hmac-sha256-128",
+		.enctype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+		.base_key		= &aes128_cts_hmac_sha256_128_basekey,
+		.usage			= &usage_checksum,
+		.plaintext		= &rfc8009_checksum_plaintext,
+		.expected_result	= &rfc8009_checksum_test1_expected_result,
+	},
+	{
+		.desc			= "Checksum with aes256-cts-hmac-sha384-192",
+		.enctype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		.base_key		= &aes256_cts_hmac_sha384_192_basekey,
+		.usage			= &usage_checksum,
+		.plaintext		= &rfc8009_checksum_plaintext,
+		.expected_result	= &rfc8009_checksum_test2_expected_result,
+	},
+};
+
+/* Creates the function rfc8009_checksum_gen_params */
+KUNIT_ARRAY_PARAM(rfc8009_checksum, rfc8009_checksum_test_params,
+		  gss_krb5_get_desc);
+
 static struct kunit_case rfc8009_test_cases[] = {
 	{
 		.name			= "RFC 8009 key derivation",
 		.run_case		= kdf_case,
 		.generate_params	= rfc8009_kdf_gen_params,
+	},
+	{
+		.name			= "RFC 8009 checksum",
+		.run_case		= checksum_case,
+		.generate_params	= rfc8009_checksum_gen_params,
 	},
 };
 
