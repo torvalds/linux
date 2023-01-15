@@ -203,7 +203,7 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return;
 
-	if (priv->Rf_Mode == RF_OP_By_FW) {
+	if (priv->rf_mode == RF_OP_By_FW) {
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath,
 								RegAddr);
@@ -240,7 +240,7 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return	0;
 	mutex_lock(&priv->rf_mutex);
-	if (priv->Rf_Mode == RF_OP_By_FW) {
+	if (priv->rf_mode == RF_OP_By_FW) {
 		Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath, RegAddr);
 		udelay(200);
 	} else {
@@ -533,7 +533,7 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 
 	_rtl92e_phy_config_bb(dev, BaseBand_Config_AGC_TAB);
 
-	if (priv->IC_Cut  > VERSION_8190_BD) {
+	if (priv->ic_cut  > VERSION_8190_BD) {
 		if (priv->rf_type == RF_2T4R)
 			dwRegValue = priv->antenna_tx_pwr_diff[2] << 8 |
 				      priv->antenna_tx_pwr_diff[1] << 4 |
@@ -886,7 +886,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				continue;
 			switch (CurrentCmd->CmdID) {
 			case CmdID_SetTxPowerLevel:
-				if (priv->IC_Cut > VERSION_8190_BD)
+				if (priv->ic_cut > VERSION_8190_BD)
 					_rtl92e_set_tx_power_level(dev,
 								   channel);
 				break;
@@ -1088,7 +1088,7 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_cck_tx_power_track_bw_switch_tssi(dev);
 	else
 		_rtl92e_cck_tx_power_track_bw_switch_thermal(dev);

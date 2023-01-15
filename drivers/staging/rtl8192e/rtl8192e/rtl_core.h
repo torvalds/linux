@@ -396,16 +396,16 @@ struct r8192_priv {
 
 	u32 irq_mask[2];
 
-	u8 Rf_Mode;
+	u8 rf_mode;
 	enum nic_t card_8192;
 	u8 card_8192_version;
 
 	u8 rf_type;
-	u8 IC_Cut;
+	u8 ic_cut;
 	char nick[IW_ESSID_MAX_SIZE + 1];
 	u8 check_roaming_cnt;
 
-	u32 SilentResetRxSlotIndex;
+	u32 silent_reset_rx_slot_index;
 	u32 silent_reset_rx_stuck_event[MAX_SILENT_RESET_RX_SLOT_NUM];
 
 	u16 basic_rate;

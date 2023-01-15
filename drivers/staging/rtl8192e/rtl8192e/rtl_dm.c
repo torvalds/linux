@@ -857,7 +857,7 @@ void rtl92e_dm_txpower_tracking_wq(void *data)
 				  struct r8192_priv, txpower_tracking_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_tx_power_tracking_callback_tssi(dev);
 	else
 		_rtl92e_dm_tx_power_tracking_cb_thermal(dev);
@@ -891,7 +891,7 @@ void rtl92e_dm_init_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_initialize_tx_power_tracking_tssi(dev);
 	else
 		_rtl92e_dm_init_tx_power_tracking_thermal(dev);
@@ -952,7 +952,7 @@ static void _rtl92e_dm_check_tx_power_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_check_tx_power_tracking_tssi(dev);
 	else
 		_rtl92e_dm_check_tx_power_tracking_thermal(dev);
@@ -1038,7 +1038,7 @@ void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->IC_Cut >= IC_VersionCut_D)
+	if (priv->ic_cut >= IC_VersionCut_D)
 		_rtl92e_dm_cck_tx_power_adjust_tssi(dev, binch14);
 	else
 		_rtl92e_dm_cck_tx_power_adjust_thermal_meter(dev, binch14);

@@ -614,7 +614,7 @@ bool rtl92e_start_adapter(struct net_device *dev)
 
 start:
 	rtl92e_reset_desc_ring(dev);
-	priv->Rf_Mode = RF_OP_By_SW_3wire;
+	priv->rf_mode = RF_OP_By_SW_3wire;
 	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtl92e_writeb(dev, ANAPAR, 0x37);
 		mdelay(500);
@@ -724,7 +724,7 @@ start:
 	}
 
 	tmpvalue = rtl92e_readb(dev, IC_VERRSION);
-	priv->IC_Cut = tmpvalue;
+	priv->ic_cut = tmpvalue;
 
 	bfirmwareok = rtl92e_init_fw(dev);
 	if (!bfirmwareok) {
@@ -760,14 +760,14 @@ start:
 	}
 
 	if (priv->rtllib->FwRWRF)
-		priv->Rf_Mode = RF_OP_By_FW;
+		priv->rf_mode = RF_OP_By_FW;
 	else
-		priv->Rf_Mode = RF_OP_By_SW_3wire;
+		priv->rf_mode = RF_OP_By_SW_3wire;
 
 	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtl92e_dm_init_txpower_tracking(dev);
 
-		if (priv->IC_Cut >= IC_VersionCut_D) {
+		if (priv->ic_cut >= IC_VersionCut_D) {
 			tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
 						    bMaskDWord);
 			rtl92e_get_bb_reg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord);
@@ -2123,7 +2123,7 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 	}
 
 
-	SlotIndex = (priv->SilentResetRxSlotIndex++)%SilentResetRxSoltNum;
+	SlotIndex = (priv->silent_reset_rx_slot_index++)%SilentResetRxSoltNum;
 
 	if (priv->rx_ctr == RegRxCounter) {
 		priv->silent_reset_rx_stuck_event[SlotIndex] = 1;
