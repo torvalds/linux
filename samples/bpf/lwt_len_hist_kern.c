@@ -16,23 +16,13 @@
 #include <uapi/linux/in.h>
 #include <bpf/bpf_helpers.h>
 
-struct bpf_elf_map {
-	__u32 type;
-	__u32 size_key;
-	__u32 size_value;
-	__u32 max_elem;
-	__u32 flags;
-	__u32 id;
-	__u32 pinning;
-};
-
-struct bpf_elf_map SEC("maps") lwt_len_hist_map = {
-	.type = BPF_MAP_TYPE_PERCPU_HASH,
-	.size_key = sizeof(__u64),
-	.size_value = sizeof(__u64),
-	.pinning = 2,
-	.max_elem = 1024,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_HASH);
+	__type(key, u64);
+	__type(value, u64);
+	__uint(pinning, LIBBPF_PIN_BY_NAME);
+	__uint(max_entries, 1024);
+} lwt_len_hist_map SEC(".maps");
 
 static unsigned int log2(unsigned int v)
 {

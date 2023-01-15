@@ -19,24 +19,13 @@ struct eth_hdr {
 	unsigned short  h_proto;
 };
 
-#define PIN_GLOBAL_NS		2
-struct bpf_elf_map {
-	__u32 type;
-	__u32 size_key;
-	__u32 size_value;
-	__u32 max_elem;
-	__u32 flags;
-	__u32 id;
-	__u32 pinning;
-};
-
-struct bpf_elf_map SEC("maps") test_cgrp2_array_pin = {
-	.type		= BPF_MAP_TYPE_CGROUP_ARRAY,
-	.size_key	= sizeof(uint32_t),
-	.size_value	= sizeof(uint32_t),
-	.pinning	= PIN_GLOBAL_NS,
-	.max_elem	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_CGROUP_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(pinning, LIBBPF_PIN_BY_NAME);
+	__uint(max_entries, 1);
+} test_cgrp2_array_pin SEC(".maps");
 
 SEC("filter")
 int handle_egress(struct __sk_buff *skb)
