@@ -341,26 +341,6 @@ out_err:
 	return PTR_ERR(p);
 }
 
-static inline struct crypto_sync_skcipher *
-context_v2_alloc_cipher(struct krb5_ctx *ctx, const char *cname, u8 *key)
-{
-	struct crypto_sync_skcipher *cp;
-
-	cp = crypto_alloc_sync_skcipher(cname, 0, 0);
-	if (IS_ERR(cp)) {
-		dprintk("gss_kerberos_mech: unable to initialize "
-			"crypto algorithm %s\n", cname);
-		return NULL;
-	}
-	if (crypto_sync_skcipher_setkey(cp, key, ctx->gk5e->keylength)) {
-		dprintk("gss_kerberos_mech: error setting key for "
-			"crypto algorithm %s\n", cname);
-		crypto_free_sync_skcipher(cp);
-		return NULL;
-	}
-	return cp;
-}
-
 #if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
 static int
 gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask)
@@ -403,6 +383,21 @@ out_err:
 
 #if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
 
+static struct crypto_sync_skcipher *
+gss_krb5_alloc_cipher_v2(const char *cname, const struct xdr_netobj *key)
+{
+	struct crypto_sync_skcipher *tfm;
+
+	tfm = crypto_alloc_sync_skcipher(cname, 0, 0);
+	if (IS_ERR(tfm))
+		return NULL;
+	if (crypto_sync_skcipher_setkey(tfm, key->data, key->len)) {
+		crypto_free_sync_skcipher(tfm);
+		return NULL;
+	}
+	return tfm;
+}
+
 static struct crypto_ahash *
 gss_krb5_alloc_hash_v2(struct krb5_ctx *kctx, const struct xdr_netobj *key)
 {
@@ -427,27 +422,24 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	};
 	struct xdr_netobj keyout;
 	int ret = -EINVAL;
-	void *subkey;
 
-	subkey = kmalloc(ctx->gk5e->keylength, gfp_mask);
-	if (!subkey)
+	keyout.data = kmalloc(ctx->gk5e->keylength, gfp_mask);
+	if (!keyout.data)
 		return -ENOMEM;
 	keyout.len = ctx->gk5e->keylength;
-	keyout.data = subkey;
 
 	/* initiator seal encryption */
 	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SEAL,
 			    KEY_USAGE_SEED_ENCRYPTION, gfp_mask))
 		goto out;
-	ctx->initiator_enc = context_v2_alloc_cipher(ctx,
-						     ctx->gk5e->encrypt_name,
-						     subkey);
+	ctx->initiator_enc = gss_krb5_alloc_cipher_v2(ctx->gk5e->encrypt_name,
+						      &keyout);
 	if (ctx->initiator_enc == NULL)
 		goto out;
 	if (ctx->gk5e->aux_cipher) {
 		ctx->initiator_enc_aux =
-			context_v2_alloc_cipher(ctx, ctx->gk5e->aux_cipher,
-						subkey);
+			gss_krb5_alloc_cipher_v2(ctx->gk5e->aux_cipher,
+						 &keyout);
 		if (ctx->initiator_enc_aux == NULL)
 			goto out_free;
 	}
@@ -456,15 +448,14 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_ACCEPTOR_SEAL,
 			    KEY_USAGE_SEED_ENCRYPTION, gfp_mask))
 		goto out_free;
-	ctx->acceptor_enc = context_v2_alloc_cipher(ctx,
-						    ctx->gk5e->encrypt_name,
-						    subkey);
+	ctx->acceptor_enc = gss_krb5_alloc_cipher_v2(ctx->gk5e->encrypt_name,
+						     &keyout);
 	if (ctx->acceptor_enc == NULL)
 		goto out_free;
 	if (ctx->gk5e->aux_cipher) {
 		ctx->acceptor_enc_aux =
-			context_v2_alloc_cipher(ctx, ctx->gk5e->aux_cipher,
-						subkey);
+			gss_krb5_alloc_cipher_v2(ctx->gk5e->aux_cipher,
+						 &keyout);
 		if (ctx->acceptor_enc_aux == NULL)
 			goto out_free;
 	}
@@ -503,7 +494,7 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 
 	ret = 0;
 out:
-	kfree_sensitive(subkey);
+	kfree_sensitive(keyout.data);
 	return ret;
 
 out_free:
