@@ -44,9 +44,9 @@ SEC("test_ctx")
 int do_test_ctx(struct __sk_buff *skb)
 {
 	skb->cb[0] = CB_MAGIC;
-	printk("len %d hash %d protocol %d\n", skb->len, skb->hash,
+	printk("len %d hash %d protocol %d", skb->len, skb->hash,
 	       skb->protocol);
-	printk("cb %d ingress_ifindex %d ifindex %d\n", skb->cb[0],
+	printk("cb %d ingress_ifindex %d ifindex %d", skb->cb[0],
 	       skb->ingress_ifindex, skb->ifindex);
 
 	return BPF_OK;
@@ -56,9 +56,9 @@ int do_test_ctx(struct __sk_buff *skb)
 SEC("test_cb")
 int do_test_cb(struct __sk_buff *skb)
 {
-	printk("cb0: %x cb1: %x cb2: %x\n", skb->cb[0], skb->cb[1],
+	printk("cb0: %x cb1: %x cb2: %x", skb->cb[0], skb->cb[1],
 	       skb->cb[2]);
-	printk("cb3: %x cb4: %x\n", skb->cb[3], skb->cb[4]);
+	printk("cb3: %x cb4: %x", skb->cb[3], skb->cb[4]);
 
 	return BPF_OK;
 }
@@ -72,11 +72,11 @@ int do_test_data(struct __sk_buff *skb)
 	struct iphdr *iph = data;
 
 	if (data + sizeof(*iph) > data_end) {
-		printk("packet truncated\n");
+		printk("packet truncated");
 		return BPF_DROP;
 	}
 
-	printk("src: %x dst: %x\n", iph->saddr, iph->daddr);
+	printk("src: %x dst: %x", iph->saddr, iph->daddr);
 
 	return BPF_OK;
 }
@@ -97,7 +97,7 @@ static inline int rewrite(struct __sk_buff *skb, uint32_t old_ip,
 
 	ret = bpf_skb_load_bytes(skb, IP_PROTO_OFF, &proto, 1);
 	if (ret < 0) {
-		printk("bpf_l4_csum_replace failed: %d\n", ret);
+		printk("bpf_l4_csum_replace failed: %d", ret);
 		return BPF_DROP;
 	}
 
@@ -120,14 +120,14 @@ static inline int rewrite(struct __sk_buff *skb, uint32_t old_ip,
 		ret = bpf_l4_csum_replace(skb, off, old_ip, new_ip,
 					  flags | sizeof(new_ip));
 		if (ret < 0) {
-			printk("bpf_l4_csum_replace failed: %d\n");
+			printk("bpf_l4_csum_replace failed: %d");
 			return BPF_DROP;
 		}
 	}
 
 	ret = bpf_l3_csum_replace(skb, IP_CSUM_OFF, old_ip, new_ip, sizeof(new_ip));
 	if (ret < 0) {
-		printk("bpf_l3_csum_replace failed: %d\n", ret);
+		printk("bpf_l3_csum_replace failed: %d", ret);
 		return BPF_DROP;
 	}
 
@@ -137,7 +137,7 @@ static inline int rewrite(struct __sk_buff *skb, uint32_t old_ip,
 		ret = bpf_skb_store_bytes(skb, IP_SRC_OFF, &new_ip, sizeof(new_ip), 0);
 
 	if (ret < 0) {
-		printk("bpf_skb_store_bytes() failed: %d\n", ret);
+		printk("bpf_skb_store_bytes() failed: %d", ret);
 		return BPF_DROP;
 	}
 
@@ -153,12 +153,12 @@ int do_test_rewrite(struct __sk_buff *skb)
 
 	ret = bpf_skb_load_bytes(skb, IP_DST_OFF, &old_ip, 4);
 	if (ret < 0) {
-		printk("bpf_skb_load_bytes failed: %d\n", ret);
+		printk("bpf_skb_load_bytes failed: %d", ret);
 		return BPF_DROP;
 	}
 
 	if (old_ip == 0x2fea8c0) {
-		printk("out: rewriting from %x to %x\n", old_ip, new_ip);
+		printk("out: rewriting from %x to %x", old_ip, new_ip);
 		return rewrite(skb, old_ip, new_ip, 1);
 	}
 
@@ -173,7 +173,7 @@ static inline int __do_push_ll_and_redirect(struct __sk_buff *skb)
 
 	ret = bpf_skb_change_head(skb, 14, 0);
 	if (ret < 0) {
-		printk("skb_change_head() failed: %d\n", ret);
+		printk("skb_change_head() failed: %d", ret);
 	}
 
 	ehdr.h_proto = __constant_htons(ETH_P_IP);
@@ -182,7 +182,7 @@ static inline int __do_push_ll_and_redirect(struct __sk_buff *skb)
 
 	ret = bpf_skb_store_bytes(skb, 0, &ehdr, sizeof(ehdr), 0);
 	if (ret < 0) {
-		printk("skb_store_bytes() failed: %d\n", ret);
+		printk("skb_store_bytes() failed: %d", ret);
 		return BPF_DROP;
 	}
 
@@ -202,7 +202,7 @@ int do_push_ll_and_redirect(struct __sk_buff *skb)
 
 	ret = __do_push_ll_and_redirect(skb);
 	if (ret >= 0)
-		printk("redirected to %d\n", ifindex);
+		printk("redirected to %d", ifindex);
 
 	return ret;
 }
@@ -229,7 +229,7 @@ SEC("fill_garbage")
 int do_fill_garbage(struct __sk_buff *skb)
 {
 	__fill_garbage(skb);
-	printk("Set initial 96 bytes of header to FF\n");
+	printk("Set initial 96 bytes of header to FF");
 	return BPF_OK;
 }
 
@@ -238,7 +238,7 @@ int do_fill_garbage_and_redirect(struct __sk_buff *skb)
 {
 	int ifindex = DST_IFINDEX;
 	__fill_garbage(skb);
-	printk("redirected to %d\n", ifindex);
+	printk("redirected to %d", ifindex);
 	return bpf_redirect(ifindex, 0);
 }
 
@@ -246,7 +246,7 @@ int do_fill_garbage_and_redirect(struct __sk_buff *skb)
 SEC("drop_all")
 int do_drop_all(struct __sk_buff *skb)
 {
-	printk("dropping with: %d\n", BPF_DROP);
+	printk("dropping with: %d", BPF_DROP);
 	return BPF_DROP;
 }
 

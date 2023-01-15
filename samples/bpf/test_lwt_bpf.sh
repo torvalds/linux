@@ -22,6 +22,7 @@ IP_LOCAL="192.168.99.1"
 PROG_SRC="test_lwt_bpf.c"
 BPF_PROG="test_lwt_bpf.o"
 TRACE_ROOT=/sys/kernel/debug/tracing
+CONTEXT_INFO=$(cat ${TRACE_ROOT}/trace_options | grep context)
 
 function lookup_mac()
 {
@@ -98,7 +99,7 @@ function remove_prog {
 function filter_trace {
 	# Add newline to allow starting EXPECT= variables on newline
 	NL=$'\n'
-	echo "${NL}$*" | sed -e 's/^.*: : //g'
+	echo "${NL}$*" | sed -e 's/bpf_trace_printk: //g'
 }
 
 function expect_fail {
@@ -162,11 +163,11 @@ function test_ctx_out {
 		failure "test_ctx out: packets are dropped"
 	}
 	match_trace "$(get_trace)" "
-len 84 hash 0 protocol 0
+len 84 hash 0 protocol 8
 cb 1234 ingress_ifindex 0 ifindex 0
-len 84 hash 0 protocol 0
+len 84 hash 0 protocol 8
 cb 1234 ingress_ifindex 0 ifindex 0
-len 84 hash 0 protocol 0
+len 84 hash 0 protocol 8
 cb 1234 ingress_ifindex 0 ifindex 0" || exit 1
 	remove_prog out
 }
@@ -369,6 +370,7 @@ setup_one_veth $NS1 $VETH0 $VETH1 $IPVETH0 $IPVETH1 $IPVETH1b
 setup_one_veth $NS2 $VETH2 $VETH3 $IPVETH2 $IPVETH3
 ip netns exec $NS1 netserver
 echo 1 > ${TRACE_ROOT}/tracing_on
+echo nocontext-info > ${TRACE_ROOT}/trace_options
 
 DST_MAC=$(lookup_mac $VETH1 $NS1)
 SRC_MAC=$(lookup_mac $VETH0)
@@ -399,4 +401,5 @@ test_netperf_redirect
 
 cleanup
 echo 0 > ${TRACE_ROOT}/tracing_on
+echo $CONTEXT_INFO > ${TRACE_ROOT}/trace_options
 exit 0
