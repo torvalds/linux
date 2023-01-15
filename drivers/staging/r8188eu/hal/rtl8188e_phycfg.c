@@ -449,13 +449,15 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 {
 	struct eeprom_priv *pEEPROM = &Adapter->eeprompriv;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
+	int err;
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
-	if (ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
-		return _FAIL;
+	err = ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv);
+	if (err)
+		return err;
 
 	/*  2. If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
 	if (!pEEPROM->bautoload_fail_flag) {
@@ -464,10 +466,11 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	}
 
 	/*  3. BB AGC table Initialization */
-	if (ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
-		return _FAIL;
+	err = ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv);
+	if (err)
+		return err;
 
-	return _SUCCESS;
+	return 0;
 }
 
 int
@@ -497,7 +500,8 @@ PHY_BBConfig8188E(
 	rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
 
 	/*  Config BB and AGC */
-	rtStatus = phy_BB8188E_Config_ParaFile(Adapter);
+	if (phy_BB8188E_Config_ParaFile(Adapter))
+		rtStatus = _FAIL;
 
 	/*  write 0x24[16:11] = 0x24[22:17] = CrystalCap */
 	CrystalCap = pHalData->CrystalCap & 0x3F;
