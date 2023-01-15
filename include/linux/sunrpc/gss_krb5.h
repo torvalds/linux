@@ -42,12 +42,6 @@
 #include <linux/sunrpc/gss_err.h>
 #include <linux/sunrpc/gss_asn1.h>
 
-/*
- * The RFCs often specify payload lengths in bits. This helper
- * converts a specified bit-length to the number of octets/bytes.
- */
-#define BITS2OCTETS(x)	((x) / 8)
-
 /* Length of constant used in key derivation */
 #define GSS_KRB5_K5CLENGTH (5)
 
@@ -59,74 +53,6 @@
 
 /* Maximum blocksize for the supported crypto algorithms */
 #define GSS_KRB5_MAX_BLOCKSIZE  (16)
-
-struct krb5_ctx;
-
-struct gss_krb5_enctype {
-	const u32		etype;		/* encryption (key) type */
-	const u32		ctype;		/* checksum type */
-	const char		*name;		/* "friendly" name */
-	const char		*encrypt_name;	/* crypto encrypt name */
-	const char		*aux_cipher;	/* aux encrypt cipher name */
-	const char		*cksum_name;	/* crypto checksum name */
-	const u16		signalg;	/* signing algorithm */
-	const u16		sealalg;	/* sealing algorithm */
-	const u32		cksumlength;	/* checksum length */
-	const u32		keyed_cksum;	/* is it a keyed cksum? */
-	const u32		keybytes;	/* raw key len, in bytes */
-	const u32		keylength;	/* protocol key length, in octets */
-	const u32		Kc_length;	/* checksum subkey length, in octets */
-	const u32		Ke_length;	/* encryption subkey length, in octets */
-	const u32		Ki_length;	/* integrity subkey length, in octets */
-
-	int (*import_ctx)(struct krb5_ctx *ctx, gfp_t gfp_mask);
-	int (*derive_key)(const struct gss_krb5_enctype *gk5e,
-			  const struct xdr_netobj *in,
-			  struct xdr_netobj *out,
-			  const struct xdr_netobj *label,
-			  gfp_t gfp_mask);
-	u32 (*encrypt)(struct krb5_ctx *kctx, u32 offset,
-			struct xdr_buf *buf, struct page **pages);
-	u32 (*decrypt)(struct krb5_ctx *kctx, u32 offset, u32 len,
-		       struct xdr_buf *buf, u32 *headskip, u32 *tailskip);
-	u32 (*get_mic)(struct krb5_ctx *kctx, struct xdr_buf *text,
-		       struct xdr_netobj *token);
-	u32 (*verify_mic)(struct krb5_ctx *kctx, struct xdr_buf *message_buffer,
-			  struct xdr_netobj *read_token);
-	u32 (*wrap)(struct krb5_ctx *kctx, int offset,
-		    struct xdr_buf *buf, struct page **pages);
-	u32 (*unwrap)(struct krb5_ctx *kctx, int offset, int len,
-		      struct xdr_buf *buf, unsigned int *slack,
-		      unsigned int *align);
-};
-
-/* krb5_ctx flags definitions */
-#define KRB5_CTX_FLAG_INITIATOR         0x00000001
-#define KRB5_CTX_FLAG_CFX               0x00000002
-#define KRB5_CTX_FLAG_ACCEPTOR_SUBKEY   0x00000004
-
-struct krb5_ctx {
-	int			initiate; /* 1 = initiating, 0 = accepting */
-	u32			enctype;
-	u32			flags;
-	const struct gss_krb5_enctype *gk5e; /* enctype-specific info */
-	struct crypto_sync_skcipher *enc;
-	struct crypto_sync_skcipher *seq;
-	struct crypto_sync_skcipher *acceptor_enc;
-	struct crypto_sync_skcipher *initiator_enc;
-	struct crypto_sync_skcipher *acceptor_enc_aux;
-	struct crypto_sync_skcipher *initiator_enc_aux;
-	struct crypto_ahash	*acceptor_sign;
-	struct crypto_ahash	*initiator_sign;
-	struct crypto_ahash	*initiator_integ;
-	struct crypto_ahash	*acceptor_integ;
-	u8			Ksess[GSS_KRB5_MAX_KEYLEN]; /* session key */
-	u8			cksum[GSS_KRB5_MAX_KEYLEN];
-	atomic_t		seq_send;
-	atomic64_t		seq_send64;
-	time64_t		endtime;
-	struct xdr_netobj	mech_used;
-};
 
 /* The length of the Kerberos GSS token header */
 #define GSS_KRB5_TOK_HDR_LEN	(16)
@@ -244,48 +170,5 @@ enum seal_alg {
 #define KG_USAGE_ACCEPTOR_SIGN  (23)
 #define KG_USAGE_INITIATOR_SEAL (24)
 #define KG_USAGE_INITIATOR_SIGN (25)
-
-/*
- * This compile-time check verifies that we will not exceed the
- * slack space allotted by the client and server auth_gss code
- * before they call gss_wrap().
- */
-#define GSS_KRB5_MAX_SLACK_NEEDED \
-	(GSS_KRB5_TOK_HDR_LEN     /* gss token header */         \
-	+ GSS_KRB5_MAX_CKSUM_LEN  /* gss token checksum */       \
-	+ GSS_KRB5_MAX_BLOCKSIZE  /* confounder */               \
-	+ GSS_KRB5_MAX_BLOCKSIZE  /* possible padding */         \
-	+ GSS_KRB5_TOK_HDR_LEN    /* encrypted hdr in v2 token */\
-	+ GSS_KRB5_MAX_CKSUM_LEN  /* encryption hmac */          \
-	+ 4 + 4                   /* RPC verifier */             \
-	+ GSS_KRB5_TOK_HDR_LEN                                   \
-	+ GSS_KRB5_MAX_CKSUM_LEN)
-
-u32
-make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
-		struct xdr_buf *body, int body_offset, u8 *cksumkey,
-		unsigned int usage, struct xdr_netobj *cksumout);
-
-int
-gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *outbuf,
-		    int offset, struct page **pages);
-
-int
-gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *inbuf,
-		    int offset);
-
-s32
-krb5_make_seq_num(struct krb5_ctx *kctx,
-		struct crypto_sync_skcipher *key,
-		int direction,
-		u32 seqnum, unsigned char *cksum, unsigned char *buf);
-
-s32
-krb5_get_seq_num(struct krb5_ctx *kctx,
-	       unsigned char *cksum,
-	       unsigned char *buf, int *direction, u32 *seqnum);
-
-int
-xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen);
 
 #endif /* _LINUX_SUNRPC_GSS_KRB5_H */
