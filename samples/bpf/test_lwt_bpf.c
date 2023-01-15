@@ -10,6 +10,7 @@
  * General Public License for more details.
  */
 
+#include "net_shared.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <linux/bpf.h>
@@ -176,7 +177,7 @@ static inline int __do_push_ll_and_redirect(struct __sk_buff *skb)
 		printk("skb_change_head() failed: %d", ret);
 	}
 
-	ehdr.h_proto = __constant_htons(ETH_P_IP);
+	ehdr.h_proto = bpf_htons(ETH_P_IP);
 	memcpy(&ehdr.h_source, &smac, 6);
 	memcpy(&ehdr.h_dest, &dmac, 6);
 

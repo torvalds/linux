@@ -1,5 +1,5 @@
+#include "net_shared.h"
 #include <uapi/linux/bpf.h>
-#include <linux/socket.h>
 #include <linux/net.h>
 #include <uapi/linux/in.h>
 #include <uapi/linux/in6.h>
@@ -17,10 +17,10 @@ int bpf_prog1(struct bpf_sock *sk)
 	bpf_trace_printk(fmt, sizeof(fmt), sk->family, sk->type, sk->protocol);
 	bpf_trace_printk(fmt2, sizeof(fmt2), uid, gid);
 
-	/* block PF_INET6, SOCK_DGRAM, IPPROTO_ICMPV6 sockets
+	/* block AF_INET6, SOCK_DGRAM, IPPROTO_ICMPV6 sockets
 	 * ie., make ping6 fail
 	 */
-	if (sk->family == PF_INET6 &&
+	if (sk->family == AF_INET6 &&
 	    sk->type == SOCK_DGRAM   &&
 	    sk->protocol == IPPROTO_ICMPV6)
 		return 0;
@@ -35,10 +35,10 @@ int bpf_prog2(struct bpf_sock *sk)
 
 	bpf_trace_printk(fmt, sizeof(fmt), sk->family, sk->type, sk->protocol);
 
-	/* block PF_INET, SOCK_DGRAM, IPPROTO_ICMP sockets
+	/* block AF_INET, SOCK_DGRAM, IPPROTO_ICMP sockets
 	 * ie., make ping fail
 	 */
-	if (sk->family == PF_INET &&
+	if (sk->family == AF_INET &&
 	    sk->type == SOCK_DGRAM  &&
 	    sk->protocol == IPPROTO_ICMP)
 		return 0;

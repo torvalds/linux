@@ -2,6 +2,9 @@
 #ifndef _NET_SHARED_H
 #define _NET_SHARED_H
 
+#define AF_INET		2
+#define AF_INET6	10
+
 #define ETH_ALEN 6
 #define ETH_P_802_3_MIN 0x0600
 #define ETH_P_8021Q 0x8100
@@ -10,6 +13,9 @@
 #define ETH_P_IPV6 0x86DD
 #define ETH_P_ARP 0x0806
 #define IPPROTO_ICMPV6 58
+
+#define TC_ACT_OK		0
+#define TC_ACT_SHOT		2
 
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
 	__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__

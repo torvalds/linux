@@ -5,10 +5,8 @@
  * License as published by the Free Software Foundation.
  */
 #define KBUILD_MODNAME "foo"
-#include <uapi/linux/if_ether.h>
-#include <uapi/linux/in6.h>
+#include "net_shared.h"
 #include <uapi/linux/ipv6.h>
-#include <uapi/linux/pkt_cls.h>
 #include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
@@ -42,7 +40,7 @@ int handle_egress(struct __sk_buff *skb)
 	if (data + sizeof(*eth) + sizeof(*ip6h) > data_end)
 		return TC_ACT_OK;
 
-	if (eth->h_proto != htons(ETH_P_IPV6) ||
+	if (eth->h_proto != bpf_htons(ETH_P_IPV6) ||
 	    ip6h->nexthdr != IPPROTO_ICMPV6) {
 		bpf_trace_printk(dont_care_msg, sizeof(dont_care_msg),
 				 eth->h_proto, ip6h->nexthdr);
