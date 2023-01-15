@@ -2271,10 +2271,10 @@ static void _rtl92e_dm_init_dynamic_tx_power(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->rtllib->bdynamic_txpower_enable = true;
-	priv->bLastDTPFlag_High = false;
+	priv->last_dtp_flag_high = false;
 	priv->bLastDTPFlag_Low = false;
-	priv->bDynamicTxHighPower = false;
-	priv->bDynamicTxLowPower = false;
+	priv->dynamic_tx_high_pwr = false;
+	priv->dynamic_tx_low_pwr = false;
 }
 
 static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
@@ -2284,8 +2284,8 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 	unsigned int txlowpower_threshold = 0;
 
 	if (!priv->rtllib->bdynamic_txpower_enable) {
-		priv->bDynamicTxHighPower = false;
-		priv->bDynamicTxLowPower = false;
+		priv->dynamic_tx_high_pwr = false;
+		priv->dynamic_tx_low_pwr = false;
 		return;
 	}
 	if ((priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_ATHEROS) &&
@@ -2299,28 +2299,28 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
 		if (priv->undecorated_smoothed_pwdb >= txhipower_threshold) {
-			priv->bDynamicTxHighPower = true;
-			priv->bDynamicTxLowPower = false;
+			priv->dynamic_tx_high_pwr = true;
+			priv->dynamic_tx_low_pwr = false;
 		} else {
 			if (priv->undecorated_smoothed_pwdb <
-			    txlowpower_threshold && priv->bDynamicTxHighPower)
-				priv->bDynamicTxHighPower = false;
+			    txlowpower_threshold && priv->dynamic_tx_high_pwr)
+				priv->dynamic_tx_high_pwr = false;
 			if (priv->undecorated_smoothed_pwdb < 35)
-				priv->bDynamicTxLowPower = true;
+				priv->dynamic_tx_low_pwr = true;
 			else if (priv->undecorated_smoothed_pwdb >= 40)
-				priv->bDynamicTxLowPower = false;
+				priv->dynamic_tx_low_pwr = false;
 		}
 	} else {
-		priv->bDynamicTxHighPower = false;
-		priv->bDynamicTxLowPower = false;
+		priv->dynamic_tx_high_pwr = false;
+		priv->dynamic_tx_low_pwr = false;
 	}
 
-	if ((priv->bDynamicTxHighPower != priv->bLastDTPFlag_High) ||
-	    (priv->bDynamicTxLowPower != priv->bLastDTPFlag_Low)) {
+	if ((priv->dynamic_tx_high_pwr != priv->last_dtp_flag_high) ||
+	    (priv->dynamic_tx_low_pwr != priv->bLastDTPFlag_Low)) {
 		rtl92e_set_tx_power(dev, priv->rtllib->current_network.channel);
 	}
-	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
-	priv->bLastDTPFlag_Low = priv->bDynamicTxLowPower;
+	priv->last_dtp_flag_high = priv->dynamic_tx_high_pwr;
+	priv->bLastDTPFlag_Low = priv->dynamic_tx_low_pwr;
 
 }
 

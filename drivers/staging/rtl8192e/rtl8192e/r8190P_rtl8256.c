@@ -150,7 +150,7 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	TxAGC = powerlevel;
-	if (priv->bDynamicTxLowPower) {
+	if (priv->dynamic_tx_low_pwr) {
 		if (priv->CustomerID == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
 		else
@@ -198,7 +198,7 @@ void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 			priv->pwr_track = writeVal_tmp;
 		}
 
-		if (priv->bDynamicTxHighPower)
+		if (priv->dynamic_tx_high_pwr)
 			writeVal = 0x03030303;
 		else
 			writeVal = (byte3 << 24) | (byte2 << 16) |

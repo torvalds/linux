@@ -480,9 +480,9 @@ struct r8192_priv {
 	s8		RF_C_TxPwDiff;
 	u8 antenna_tx_pwr_diff[3];
 
-	bool		bDynamicTxHighPower;
-	bool		bDynamicTxLowPower;
-	bool		bLastDTPFlag_High;
+	bool		dynamic_tx_high_pwr;
+	bool		dynamic_tx_low_pwr;
+	bool		last_dtp_flag_high;
 	bool		bLastDTPFlag_Low;
 
 	u8		rfa_txpowertrackingindex;
