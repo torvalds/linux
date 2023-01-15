@@ -167,6 +167,8 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 
 		.import_ctx	= gss_krb5_import_ctx_v2,
 		.derive_key	= krb5_kdf_hmac_sha2,
+		.encrypt	= krb5_etm_encrypt,
+		.decrypt	= krb5_etm_decrypt,
 
 		.get_mic	= gss_krb5_get_mic_v2,
 		.verify_mic	= gss_krb5_verify_mic_v2,
@@ -192,6 +194,8 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 
 		.import_ctx	= gss_krb5_import_ctx_v2,
 		.derive_key	= krb5_kdf_hmac_sha2,
+		.encrypt	= krb5_etm_encrypt,
+		.decrypt	= krb5_etm_decrypt,
 
 		.get_mic	= gss_krb5_get_mic_v2,
 		.verify_mic	= gss_krb5_verify_mic_v2,

@@ -867,3 +867,230 @@ out_err:
 		ret = GSS_S_FAILURE;
 	return ret;
 }
+
+static u32
+krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
+		  struct crypto_ahash *tfm, const struct xdr_buf *body,
+		  int body_offset, struct xdr_netobj *cksumout)
+{
+	unsigned int ivsize = crypto_sync_skcipher_ivsize(cipher);
+	struct ahash_request *req;
+	struct scatterlist sg[1];
+	u8 *iv, *checksumdata;
+	int err = -ENOMEM;
+
+	checksumdata = kmalloc(crypto_ahash_digestsize(tfm), GFP_KERNEL);
+	if (!checksumdata)
+		return GSS_S_FAILURE;
+	/* For RPCSEC, the "initial cipher state" is always all zeroes. */
+	iv = kzalloc(ivsize, GFP_KERNEL);
+	if (!iv)
+		goto out_free_mem;
+
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		goto out_free_mem;
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	err = crypto_ahash_init(req);
+	if (err)
+		goto out_free_ahash;
+
+	sg_init_one(sg, iv, ivsize);
+	ahash_request_set_crypt(req, sg, NULL, ivsize);
+	err = crypto_ahash_update(req);
+	if (err)
+		goto out_free_ahash;
+	err = xdr_process_buf(body, body_offset, body->len - body_offset,
+			      checksummer, req);
+	if (err)
+		goto out_free_ahash;
+
+	ahash_request_set_crypt(req, NULL, checksumdata, 0);
+	err = crypto_ahash_final(req);
+	if (err)
+		goto out_free_ahash;
+	memcpy(cksumout->data, checksumdata, cksumout->len);
+
+out_free_ahash:
+	ahash_request_free(req);
+out_free_mem:
+	kfree(iv);
+	kfree_sensitive(checksumdata);
+	return err ? GSS_S_FAILURE : GSS_S_COMPLETE;
+}
+
+/**
+ * krb5_etm_encrypt - Encrypt using the RFC 8009 rules
+ * @kctx: Kerberos context
+ * @offset: starting offset of the payload, in bytes
+ * @buf: OUT: send buffer to contain the encrypted payload
+ * @pages: plaintext payload
+ *
+ * The main difference with aes_encrypt is that "The HMAC is
+ * calculated over the cipher state concatenated with the AES
+ * output, instead of being calculated over the confounder and
+ * plaintext.  This allows the message receiver to verify the
+ * integrity of the message before decrypting the message."
+ *
+ * RFC 8009 Section 5:
+ *
+ * encryption function: as follows, where E() is AES encryption in
+ * CBC-CS3 mode, and h is the size of truncated HMAC (128 bits or
+ * 192 bits as described above).
+ *
+ *    N = random value of length 128 bits (the AES block size)
+ *    IV = cipher state
+ *    C = E(Ke, N | plaintext, IV)
+ *    H = HMAC(Ki, IV | C)
+ *    ciphertext = C | H[1..h]
+ *
+ * This encryption formula provides AEAD EtM with key separation.
+ *
+ * Return values:
+ *   %GSS_S_COMPLETE: Encryption successful
+ *   %GSS_S_FAILURE: Encryption failed
+ */
+u32
+krb5_etm_encrypt(struct krb5_ctx *kctx, u32 offset,
+		 struct xdr_buf *buf, struct page **pages)
+{
+	struct crypto_sync_skcipher *cipher, *aux_cipher;
+	struct crypto_ahash *ahash;
+	struct xdr_netobj hmac;
+	unsigned int conflen;
+	u8 *ecptr;
+	u32 err;
+
+	if (kctx->initiate) {
+		cipher = kctx->initiator_enc;
+		aux_cipher = kctx->initiator_enc_aux;
+		ahash = kctx->initiator_integ;
+	} else {
+		cipher = kctx->acceptor_enc;
+		aux_cipher = kctx->acceptor_enc_aux;
+		ahash = kctx->acceptor_integ;
+	}
+	conflen = crypto_sync_skcipher_blocksize(cipher);
+
+	offset += GSS_KRB5_TOK_HDR_LEN;
+	if (xdr_extend_head(buf, offset, conflen))
+		return GSS_S_FAILURE;
+	krb5_make_confounder(buf->head[0].iov_base + offset, conflen);
+	offset -= GSS_KRB5_TOK_HDR_LEN;
+
+	if (buf->tail[0].iov_base) {
+		ecptr = buf->tail[0].iov_base + buf->tail[0].iov_len;
+	} else {
+		buf->tail[0].iov_base = buf->head[0].iov_base
+							+ buf->head[0].iov_len;
+		buf->tail[0].iov_len = 0;
+		ecptr = buf->tail[0].iov_base;
+	}
+
+	memcpy(ecptr, buf->head[0].iov_base + offset, GSS_KRB5_TOK_HDR_LEN);
+	buf->tail[0].iov_len += GSS_KRB5_TOK_HDR_LEN;
+	buf->len += GSS_KRB5_TOK_HDR_LEN;
+
+	err = krb5_cbc_cts_encrypt(cipher, aux_cipher,
+				   offset + GSS_KRB5_TOK_HDR_LEN,
+				   buf, pages);
+	if (err)
+		return GSS_S_FAILURE;
+
+	hmac.data = buf->tail[0].iov_base + buf->tail[0].iov_len;
+	hmac.len = kctx->gk5e->cksumlength;
+	err = krb5_etm_checksum(cipher, ahash,
+				buf, offset + GSS_KRB5_TOK_HDR_LEN, &hmac);
+	if (err)
+		goto out_err;
+	buf->tail[0].iov_len += kctx->gk5e->cksumlength;
+	buf->len += kctx->gk5e->cksumlength;
+
+	return GSS_S_COMPLETE;
+
+out_err:
+	return GSS_S_FAILURE;
+}
+
+/**
+ * krb5_etm_decrypt - Decrypt using the RFC 8009 rules
+ * @kctx: Kerberos context
+ * @offset: starting offset of the ciphertext, in bytes
+ * @len:
+ * @buf:
+ * @headskip: OUT: the enctype's confounder length, in octets
+ * @tailskip: OUT: the enctype's HMAC length, in octets
+ *
+ * RFC 8009 Section 5:
+ *
+ * decryption function: as follows, where D() is AES decryption in
+ * CBC-CS3 mode, and h is the size of truncated HMAC.
+ *
+ *    (C, H) = ciphertext
+ *        (Note: H is the last h bits of the ciphertext.)
+ *    IV = cipher state
+ *    if H != HMAC(Ki, IV | C)[1..h]
+ *        stop, report error
+ *    (N, P) = D(Ke, C, IV)
+ *
+ * Return values:
+ *   %GSS_S_COMPLETE: Decryption successful
+ *   %GSS_S_BAD_SIG: computed HMAC != received HMAC
+ *   %GSS_S_FAILURE: Decryption failed
+ */
+u32
+krb5_etm_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
+		 struct xdr_buf *buf, u32 *headskip, u32 *tailskip)
+{
+	struct crypto_sync_skcipher *cipher, *aux_cipher;
+	u8 our_hmac[GSS_KRB5_MAX_CKSUM_LEN];
+	u8 pkt_hmac[GSS_KRB5_MAX_CKSUM_LEN];
+	struct xdr_netobj our_hmac_obj;
+	struct crypto_ahash *ahash;
+	struct xdr_buf subbuf;
+	u32 ret = 0;
+
+	if (kctx->initiate) {
+		cipher = kctx->acceptor_enc;
+		aux_cipher = kctx->acceptor_enc_aux;
+		ahash = kctx->acceptor_integ;
+	} else {
+		cipher = kctx->initiator_enc;
+		aux_cipher = kctx->initiator_enc_aux;
+		ahash = kctx->initiator_integ;
+	}
+
+	/* Extract the ciphertext into @subbuf. */
+	xdr_buf_subsegment(buf, &subbuf, offset + GSS_KRB5_TOK_HDR_LEN,
+			   (len - offset - GSS_KRB5_TOK_HDR_LEN -
+			    kctx->gk5e->cksumlength));
+
+	our_hmac_obj.data = our_hmac;
+	our_hmac_obj.len = kctx->gk5e->cksumlength;
+	ret = krb5_etm_checksum(cipher, ahash, &subbuf, 0, &our_hmac_obj);
+	if (ret)
+		goto out_err;
+	ret = read_bytes_from_xdr_buf(buf, len - kctx->gk5e->cksumlength,
+				      pkt_hmac, kctx->gk5e->cksumlength);
+	if (ret)
+		goto out_err;
+	if (crypto_memneq(pkt_hmac, our_hmac, kctx->gk5e->cksumlength) != 0) {
+		ret = GSS_S_BAD_SIG;
+		goto out_err;
+	}
+
+	ret = krb5_cbc_cts_decrypt(cipher, aux_cipher, 0, &subbuf);
+	if (ret) {
+		ret = GSS_S_FAILURE;
+		goto out_err;
+	}
+
+	*headskip = crypto_sync_skcipher_blocksize(cipher);
+	*tailskip = kctx->gk5e->cksumlength;
+	return GSS_S_COMPLETE;
+
+out_err:
+	if (ret != GSS_S_BAD_SIG)
+		ret = GSS_S_FAILURE;
+	return ret;
+}

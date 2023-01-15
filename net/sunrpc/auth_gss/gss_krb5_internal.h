@@ -108,4 +108,10 @@ u32 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 u32 gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 			 struct xdr_buf *buf, u32 *plainoffset, u32 *plainlen);
 
+u32 krb5_etm_encrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
+		     struct page **pages);
+
+u32 krb5_etm_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
+		     struct xdr_buf *buf, u32 *headskip, u32 *tailskip);
+
 #endif /* _NET_SUNRPC_AUTH_GSS_KRB5_INTERNAL_H */
