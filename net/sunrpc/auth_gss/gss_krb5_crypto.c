@@ -361,6 +361,7 @@ out_free_cksum:
 	kfree_sensitive(checksumdata);
 	return err ? GSS_S_FAILURE : GSS_S_COMPLETE;
 }
+EXPORT_SYMBOL_IF_KUNIT(gss_krb5_checksum);
 
 struct encryptor_desc {
 	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
