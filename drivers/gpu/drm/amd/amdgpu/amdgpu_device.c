@@ -2075,6 +2075,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	struct drm_device *dev = adev_to_drm(adev);
 	struct pci_dev *parent;
 	int i, r;
+	bool total;
 
 	amdgpu_device_enable_virtual_display(adev);
 
@@ -2158,6 +2159,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_SIENNA_CICHLID)
 		adev->pm.pp_feature &= ~PP_OVERDRIVE_MASK;
 
+	total = true;
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
 			DRM_ERROR("disabled ip block: %d <%s>\n",
@@ -2171,7 +2173,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 				} else if (r) {
 					DRM_ERROR("early_init of IP block <%s> failed %d\n",
 						  adev->ip_blocks[i].version->funcs->name, r);
-					return r;
+					total = false;
 				} else {
 					adev->ip_blocks[i].status.valid = true;
 				}
@@ -2202,6 +2204,8 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 
 		}
 	}
+	if (!total)
+		return -ENODEV;
 
 	adev->cg_flags &= amdgpu_cg_mask;
 	adev->pg_flags &= amdgpu_pg_mask;
