@@ -23,6 +23,15 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+/*
+ * The Streams API is an experimental feature. To use the Streams API, set
+ * 'v4l2_subdev_enable_streams_api' to 1 below.
+ */
+
+static bool v4l2_subdev_enable_streams_api;
+#endif
+
 /*
  * Maximum stream ID is 63 for now, as we use u64 bitmask to represent a set
  * of streams.
@@ -766,6 +775,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 		struct v4l2_subdev_routing *routing = arg;
 		struct v4l2_subdev_krouting *krouting;
 
+		if (!v4l2_subdev_enable_streams_api)
+			return -ENOIOCTLCMD;
+
 		if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
 			return -ENOIOCTLCMD;
 
@@ -792,6 +804,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 			(struct v4l2_subdev_route *)(uintptr_t)routing->routes;
 		struct v4l2_subdev_krouting krouting = {};
 		unsigned int i;
+
+		if (!v4l2_subdev_enable_streams_api)
+			return -ENOIOCTLCMD;
 
 		if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
 			return -ENOIOCTLCMD;
