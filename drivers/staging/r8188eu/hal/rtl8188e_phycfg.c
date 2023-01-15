@@ -315,21 +315,20 @@ rtl8188e_PHY_SetRFReg(
  *  08/12/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-s32 PHY_MACConfig8188E(struct adapter *Adapter)
+int PHY_MACConfig8188E(struct adapter *Adapter)
 {
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	int rtStatus = _SUCCESS;
+	int err;
 
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv))
-		rtStatus = _FAIL;
+	err = ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv);
 
 	/*  2010.07.13 AMPDU aggregation number B */
 	rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM);
 
-	return rtStatus;
+	return err;
 }
 
 /**

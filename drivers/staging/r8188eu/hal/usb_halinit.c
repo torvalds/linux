@@ -600,9 +600,8 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	Adapter->pwrctrlpriv.bFwCurrentInPSMode = false;
 	haldata->LastHMEBoxNum = 0;
 
-	status = PHY_MACConfig8188E(Adapter);
-	if (status == _FAIL)
-		goto exit;
+	if (PHY_MACConfig8188E(Adapter))
+		return _FAIL;
 
 	/*  */
 	/* d. Initialize BB related configurations. */
