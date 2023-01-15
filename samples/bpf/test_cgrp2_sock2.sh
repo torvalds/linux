@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
 BPFFS=/sys/fs/bpf
+MY_DIR=$(dirname $0)
+TEST=$MY_DIR/test_cgrp2_sock2
 LINK_PIN=$BPFFS/test_cgrp2_sock2
+BPF_PROG=$MY_DIR/sock_flags_kern.o
 
 function config_device {
 	ip netns add at_ns0
@@ -36,7 +39,7 @@ function config_bpffs {
 }
 
 function attach_bpf {
-	./test_cgrp2_sock2 /tmp/cgroupv2/foo sock_flags_kern.o $1
+	$TEST /tmp/cgroupv2/foo $BPF_PROG $1
 	[ $? -ne 0 ] && exit 1
 }
 

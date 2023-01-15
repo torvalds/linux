@@ -76,8 +76,8 @@ setup_net() {
 	    sysctl -q net.ipv6.conf.$HOST_IFC.disable_ipv6=0
 	    sysctl -q net.ipv6.conf.$HOST_IFC.accept_dad=0
 
-	    $IP netns add ns || return $?
-	    $IP link set dev $NS_IFC netns ns || return $?
+	    $IP netns add $NS || return $?
+	    $IP link set dev $NS_IFC netns $NS || return $?
 	    $IP -n $NS link set dev $NS_IFC up || return $?
 	    $IP netns exec $NS sysctl -q net.ipv6.conf.$NS_IFC.disable_ipv6=0
 	    $IP netns exec $NS sysctl -q net.ipv6.conf.$NS_IFC.accept_dad=0

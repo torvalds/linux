@@ -19,6 +19,8 @@ IPVETH3="192.168.111.2"
 
 IP_LOCAL="192.168.99.1"
 
+PROG_SRC="test_lwt_bpf.c"
+BPF_PROG="test_lwt_bpf.o"
 TRACE_ROOT=/sys/kernel/debug/tracing
 
 function lookup_mac()
@@ -36,7 +38,7 @@ function lookup_mac()
 
 function cleanup {
 	set +ex
-	rm test_lwt_bpf.o 2> /dev/null
+	rm $BPF_PROG 2> /dev/null
 	ip link del $VETH0 2> /dev/null
 	ip link del $VETH1 2> /dev/null
 	ip link del $VETH2 2> /dev/null
@@ -76,7 +78,7 @@ function install_test {
 	cleanup_routes
 	cp /dev/null ${TRACE_ROOT}/trace
 
-	OPTS="encap bpf headroom 14 $1 obj test_lwt_bpf.o section $2 $VERBOSE"
+	OPTS="encap bpf headroom 14 $1 obj $BPF_PROG section $2 $VERBOSE"
 
 	if [ "$1" == "in" ];  then
 		ip route add table local local ${IP_LOCAL}/32 $OPTS dev lo
@@ -374,7 +376,7 @@ DST_IFINDEX=$(cat /sys/class/net/$VETH0/ifindex)
 
 CLANG_OPTS="-O2 -target bpf -I ../include/"
 CLANG_OPTS+=" -DSRC_MAC=$SRC_MAC -DDST_MAC=$DST_MAC -DDST_IFINDEX=$DST_IFINDEX"
-clang $CLANG_OPTS -c test_lwt_bpf.c -o test_lwt_bpf.o
+clang $CLANG_OPTS -c $PROG_SRC -o $BPF_PROG
 
 test_ctx_xmit
 test_ctx_out
