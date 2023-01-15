@@ -89,3 +89,27 @@
 &pwm6 {
 	status = "okay";
 };
+
+&u2phy {
+	status = "okay";
+};
+
+&u2phy_otg {
+	status = "okay";
+};
+
+&usbdrd30 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
+	dr_mode = "otg";
+	extcon = <&u2phy>;
+	maximum-speed = "high-speed";
+	phys = <&u2phy_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+};
+
