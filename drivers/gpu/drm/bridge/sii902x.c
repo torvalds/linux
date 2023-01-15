@@ -473,8 +473,13 @@ static void sii902x_set_embedded_sync(struct sii902x *sii902x)
 	drm_display_mode_to_videomode(&sii902x->mode, &vm);
 	data[0] = vm.hfront_porch & 0xff;
 	data[1] = (vm.hfront_porch >> 8) & 0x03;
-	data[2] = 0;
-	data[3] = 0;
+	if (sii902x->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		data[2] = (sii902x->mode.vtotal >> 1) & 0xff;
+		data[3] = ((sii902x->mode.vtotal >> 1) >> 8) & 0x1f;
+	} else {
+		data[2] = 0;
+		data[3] = 0;
+	}
 	data[4] = vm.hsync_len & 0xff;
 	data[5] = (vm.hsync_len >> 8) & 0x03;
 	data[6] = vm.vfront_porch;
