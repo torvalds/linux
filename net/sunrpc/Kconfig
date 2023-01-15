@@ -107,6 +107,21 @@ config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2
 	  SHA-2 digests. These include aes128-cts-hmac-sha256-128 and
 	  aes256-cts-hmac-sha384-192.
 
+config RPCSEC_GSS_KRB5_KUNIT_TEST
+	tristate "KUnit tests for RPCSEC GSS Kerberos" if !KUNIT_ALL_TESTS
+	depends on RPCSEC_GSS_KRB5 && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit tests for RPCSEC GSS Kerberos 5.
+
+	  KUnit tests run during boot and output the results to the debug
+	  log in TAP format (https://testanything.org/). Only useful for
+	  kernel devs running KUnit test harness and are not for inclusion
+	  into a production build.
+
+	  For more information on KUnit and unit tests in general, refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
 config SUNRPC_DEBUG
 	bool "RPC: Enable dprintk debugging"
 	depends on SUNRPC && SYSCTL

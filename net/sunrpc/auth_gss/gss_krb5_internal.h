@@ -214,4 +214,8 @@ u32 krb5_etm_encrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 u32 krb5_etm_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		     struct xdr_buf *buf, u32 *headskip, u32 *tailskip);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+void krb5_nfold(u32 inbits, const u8 *in, u32 outbits, u8 *out);
+#endif
+
 #endif /* _NET_SUNRPC_AUTH_GSS_KRB5_INTERNAL_H */

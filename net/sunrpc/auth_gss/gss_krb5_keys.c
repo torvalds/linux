@@ -61,6 +61,7 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/lcm.h>
 #include <crypto/hash.h>
+#include <kunit/visibility.h>
 
 #include "gss_krb5_internal.h"
 
@@ -68,13 +69,18 @@
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
-/*
+/**
+ * krb5_nfold - n-fold function
+ * @inbits: number of bits in @in
+ * @in: buffer containing input to fold
+ * @outbits: number of bits in the output buffer
+ * @out: buffer to hold the result
+ *
  * This is the n-fold function as described in rfc3961, sec 5.1
  * Taken from MIT Kerberos and modified.
  */
-
-static void krb5_nfold(u32 inbits, const u8 *in,
-		       u32 outbits, u8 *out)
+VISIBLE_IF_KUNIT
+void krb5_nfold(u32 inbits, const u8 *in, u32 outbits, u8 *out)
 {
 	unsigned long ulcm;
 	int byte, i, msbit;
@@ -135,6 +141,7 @@ static void krb5_nfold(u32 inbits, const u8 *in,
 		}
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(krb5_nfold);
 
 /*
  * This is the DK (derive_key) function as described in rfc3961, sec 5.1
