@@ -69,12 +69,6 @@ struct gss_krb5_enctype {
 	const u32		keyed_cksum;	/* is it a keyed cksum? */
 	const u32		keybytes;	/* raw key len, in bytes */
 	const u32		keylength;	/* final key len, in bytes */
-	u32 (*encrypt) (struct crypto_sync_skcipher *tfm,
-			void *iv, void *in, void *out,
-			int length);		/* encryption function */
-	u32 (*decrypt) (struct crypto_sync_skcipher *tfm,
-			void *iv, void *in, void *out,
-			int length);		/* decryption function */
 	int (*import_ctx)(struct krb5_ctx *ctx, gfp_t gfp_mask);
 	u32 (*mk_key) (const struct gss_krb5_enctype *gk5e,
 		       struct xdr_netobj *in,
@@ -242,14 +236,6 @@ u32
 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		struct xdr_buf *body, int body_offset, u8 *cksumkey,
 		unsigned int usage, struct xdr_netobj *cksumout);
-
-u32
-krb5_encrypt(struct crypto_sync_skcipher *key,
-	     void *iv, void *in, void *out, int length);
-
-u32
-krb5_decrypt(struct crypto_sync_skcipher *key,
-	     void *iv, void *in, void *out, int length); 
 
 int
 gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *outbuf,

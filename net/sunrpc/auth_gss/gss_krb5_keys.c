@@ -61,6 +61,8 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/lcm.h>
 
+#include "gss_krb5_internal.h"
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
@@ -195,8 +197,8 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 
 	n = 0;
 	while (n < keybytes) {
-		(*(gk5e->encrypt))(cipher, NULL, inblock.data,
-				   outblock.data, inblock.len);
+		krb5_encrypt(cipher, NULL, inblock.data, outblock.data,
+			     inblock.len);
 
 		if ((keybytes - n) <= outblock.len) {
 			memcpy(rawkey + n, outblock.data, (keybytes - n));

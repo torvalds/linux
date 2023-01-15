@@ -82,6 +82,22 @@ void krb5_make_confounder(u8 *p, int conflen)
 	get_random_bytes(p, conflen);
 }
 
+/**
+ * krb5_encrypt - simple encryption of an RPCSEC GSS payload
+ * @tfm: initialized cipher transform
+ * @iv: pointer to an IV
+ * @in: plaintext to encrypt
+ * @out: OUT: ciphertext
+ * @length: length of input and output buffers, in bytes
+ *
+ * @iv may be NULL to force the use of an all-zero IV.
+ * The buffer containing the IV must be as large as the
+ * cipher's ivsize.
+ *
+ * Return values:
+ *   %0: @in successfully encrypted into @out
+ *   negative errno: @in not encrypted
+ */
 u32
 krb5_encrypt(
 	struct crypto_sync_skcipher *tfm,
@@ -121,6 +137,22 @@ out:
 	return ret;
 }
 
+/**
+ * krb5_decrypt - simple decryption of an RPCSEC GSS payload
+ * @tfm: initialized cipher transform
+ * @iv: pointer to an IV
+ * @in: ciphertext to decrypt
+ * @out: OUT: plaintext
+ * @length: length of input and output buffers, in bytes
+ *
+ * @iv may be NULL to force the use of an all-zero IV.
+ * The buffer containing the IV must be as large as the
+ * cipher's ivsize.
+ *
+ * Return values:
+ *   %0: @in successfully decrypted into @out
+ *   negative errno: @in not decrypted
+ */
 u32
 krb5_decrypt(
      struct crypto_sync_skcipher *tfm,
@@ -234,8 +266,8 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 
 	switch (kctx->gk5e->ctype) {
 	case CKSUMTYPE_RSA_MD5:
-		err = kctx->gk5e->encrypt(kctx->seq, NULL, checksumdata,
-					  checksumdata, checksumlen);
+		err = krb5_encrypt(kctx->seq, NULL, checksumdata,
+				   checksumdata, checksumlen);
 		if (err)
 			goto out;
 		memcpy(cksumout->data,

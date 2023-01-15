@@ -44,4 +44,10 @@ u32 gss_krb5_checksum(struct crypto_ahash *tfm, char *header, int hdrlen,
 		      const struct xdr_buf *body, int body_offset,
 		      struct xdr_netobj *cksumout);
 
+u32 krb5_encrypt(struct crypto_sync_skcipher *key, void *iv, void *in,
+		 void *out, int length);
+
+u32 krb5_decrypt(struct crypto_sync_skcipher *key, void *iv, void *in,
+		 void *out, int length);
+
 #endif /* _NET_SUNRPC_AUTH_GSS_KRB5_INTERNAL_H */
