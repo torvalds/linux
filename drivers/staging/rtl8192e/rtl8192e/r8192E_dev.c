@@ -366,22 +366,22 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		}
 
 		if (!priv->AutoloadFailFlag)
-			priv->EEPROMThermalMeter = ((rtl92e_eeprom_read(dev,
+			priv->eeprom_thermal_meter = ((rtl92e_eeprom_read(dev,
 						   (EEPROM_ThermalMeter>>1))) &
 						   0xff00) >> 8;
 		else
-			priv->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
-		priv->tssi_13dBm = priv->EEPROMThermalMeter * 100;
+			priv->eeprom_thermal_meter = EEPROM_Default_ThermalMeter;
+		priv->tssi_13dBm = priv->eeprom_thermal_meter * 100;
 
 		if (priv->epromtype == EEPROM_93C46) {
 			if (!priv->AutoloadFailFlag) {
 				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
-				priv->EEPROMAntPwDiff = usValue & 0x0fff;
+				priv->eeprom_ant_pwr_diff = usValue & 0x0fff;
 				priv->eeprom_crystal_cap = (usValue & 0xf000)
 							 >> 12;
 			} else {
-				priv->EEPROMAntPwDiff =
+				priv->eeprom_ant_pwr_diff =
 					 EEPROM_Default_AntTxPowerDiff;
 				priv->eeprom_crystal_cap =
 					 EEPROM_Default_TxPwDiff_CrystalCap;
@@ -402,7 +402,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 						(EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
 				else
 					usValue = EEPROM_Default_TxPower;
-				*((u16 *)(&priv->EEPROMTxPowerLevelOFDM24G[i]))
+				*((u16 *)(&priv->eeprom_tx_pwr_level_ofdm24g[i]))
 							 = usValue;
 			}
 		}
@@ -411,18 +411,18 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 				priv->tx_pwr_level_cck[i] =
 					 priv->EEPROMTxPowerLevelCCK[i];
 				priv->tx_pwr_level_ofdm_24g[i] =
-					 priv->EEPROMTxPowerLevelOFDM24G[i];
+					 priv->eeprom_tx_pwr_level_ofdm24g[i];
 			}
 			priv->legacy_ht_tx_pwr_diff =
 					 priv->eeprom_legacy_ht_tx_pwr_diff;
-			priv->antenna_tx_pwr_diff[0] = priv->EEPROMAntPwDiff & 0xf;
-			priv->antenna_tx_pwr_diff[1] = (priv->EEPROMAntPwDiff &
+			priv->antenna_tx_pwr_diff[0] = priv->eeprom_ant_pwr_diff & 0xf;
+			priv->antenna_tx_pwr_diff[1] = (priv->eeprom_ant_pwr_diff &
 							0xf0) >> 4;
-			priv->antenna_tx_pwr_diff[2] = (priv->EEPROMAntPwDiff &
+			priv->antenna_tx_pwr_diff[2] = (priv->eeprom_ant_pwr_diff &
 							0xf00) >> 8;
 			priv->crystal_cap = priv->eeprom_crystal_cap;
-			priv->thermal_meter[0] = priv->EEPROMThermalMeter & 0xf;
-			priv->thermal_meter[1] = (priv->EEPROMThermalMeter &
+			priv->thermal_meter[0] = priv->eeprom_thermal_meter & 0xf;
+			priv->thermal_meter[1] = (priv->eeprom_thermal_meter &
 						     0xf0) >> 4;
 		} else if (priv->epromtype == EEPROM_93C56) {
 
@@ -462,8 +462,8 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->antenna_tx_pwr_diff[1] = 0;
 			priv->antenna_tx_pwr_diff[2] = 0;
 			priv->crystal_cap = priv->eeprom_crystal_cap;
-			priv->thermal_meter[0] = priv->EEPROMThermalMeter & 0xf;
-			priv->thermal_meter[1] = (priv->EEPROMThermalMeter &
+			priv->thermal_meter[0] = priv->eeprom_thermal_meter & 0xf;
+			priv->thermal_meter[1] = (priv->eeprom_thermal_meter &
 						     0xf0) >> 4;
 		}
 	}

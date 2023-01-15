@@ -423,13 +423,13 @@ struct r8192_priv {
 	u16 eeprom_chnl_plan;
 
 	u8 EEPROMTxPowerLevelCCK[14];
-	u8 EEPROMTxPowerLevelOFDM24G[14];
+	u8 eeprom_tx_pwr_level_ofdm24g[14];
 	u8 EEPROMRfACCKChnl1TxPwLevel[3];
 	u8 EEPROMRfAOfdmChnlTxPwLevel[3];
 	u8 EEPROMRfCCCKChnl1TxPwLevel[3];
 	u8 EEPROMRfCOfdmChnlTxPwLevel[3];
-	u16 EEPROMAntPwDiff;
-	u8 EEPROMThermalMeter;
+	u16 eeprom_ant_pwr_diff;
+	u8 eeprom_thermal_meter;
 	u8 eeprom_crystal_cap;
 
 	u8 eeprom_legacy_ht_tx_pwr_diff;
