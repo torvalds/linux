@@ -28,7 +28,11 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
-static struct gss_api_mech gss_kerberos_mech;	/* forward declaration */
+static struct gss_api_mech gss_kerberos_mech;
+
+static int gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask);
+static int gss_krb5_import_ctx_v1(struct krb5_ctx *ctx, gfp_t gfp_mask);
+static int gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask);
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 #ifndef CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
@@ -43,6 +47,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksum_name = "md5",
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
+	  .import_ctx = gss_krb5_import_ctx_des,
 	  .mk_key = NULL,
 	  .get_mic = gss_krb5_get_mic_v1,
 	  .verify_mic = gss_krb5_verify_mic_v1,
@@ -67,6 +72,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksum_name = "hmac(sha1)",
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
+	  .import_ctx = gss_krb5_import_ctx_v1,
 	  .mk_key = gss_krb5_des3_make_key,
 	  .get_mic = gss_krb5_get_mic_v1,
 	  .verify_mic = gss_krb5_verify_mic_v1,
@@ -91,6 +97,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksum_name = "hmac(sha1)",
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
+	  .import_ctx = gss_krb5_import_ctx_v2,
 	  .mk_key = gss_krb5_aes_make_key,
 	  .encrypt_v2 = gss_krb5_aes_encrypt,
 	  .decrypt_v2 = gss_krb5_aes_decrypt,
@@ -119,6 +126,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksum_name = "hmac(sha1)",
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
+	  .import_ctx = gss_krb5_import_ctx_v2,
 	  .mk_key = gss_krb5_aes_make_key,
 	  .encrypt_v2 = gss_krb5_aes_encrypt,
 	  .decrypt_v2 = gss_krb5_aes_decrypt,
@@ -324,7 +332,13 @@ set_cdata(u8 cdata[GSS_KRB5_K5CLENGTH], u32 usage, u8 seed)
 }
 
 static int
-context_derive_keys_des3(struct krb5_ctx *ctx, gfp_t gfp_mask)
+gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask)
+{
+	return -EINVAL;
+}
+
+static int
+gss_krb5_import_ctx_v1(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
 	struct xdr_netobj c, keyin, keyout;
 	u8 cdata[GSS_KRB5_K5CLENGTH];
@@ -384,7 +398,7 @@ gss_krb5_alloc_hash_v2(struct krb5_ctx *kctx, const struct xdr_netobj *key)
 }
 
 static int
-context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
+gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
 	u8 cdata[GSS_KRB5_K5CLENGTH];
 	struct xdr_netobj c = {
@@ -563,15 +577,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	}
 	ctx->mech_used.len = gss_kerberos_mech.gm_oid.len;
 
-	switch (ctx->enctype) {
-	case ENCTYPE_DES3_CBC_RAW:
-		return context_derive_keys_des3(ctx, gfp_mask);
-	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
-	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return context_derive_keys_new(ctx, gfp_mask);
-	default:
-		return -EINVAL;
-	}
+	return ctx->gk5e->import_ctx(ctx, gfp_mask);
 
 out_err:
 	return PTR_ERR(p);

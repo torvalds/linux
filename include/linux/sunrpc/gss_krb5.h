@@ -75,6 +75,7 @@ struct gss_krb5_enctype {
 	u32 (*decrypt) (struct crypto_sync_skcipher *tfm,
 			void *iv, void *in, void *out,
 			int length);		/* decryption function */
+	int (*import_ctx)(struct krb5_ctx *ctx, gfp_t gfp_mask);
 	u32 (*mk_key) (const struct gss_krb5_enctype *gk5e,
 		       struct xdr_netobj *in,
 		       struct xdr_netobj *out);	/* complete key generation */
