@@ -430,11 +430,11 @@ struct r8192_priv {
 	u8 EEPROMRfCOfdmChnlTxPwLevel[3];
 	u16 EEPROMAntPwDiff;
 	u8 EEPROMThermalMeter;
-	u8 EEPROMCrystalCap;
+	u8 eeprom_crystal_cap;
 
-	u8 EEPROMLegacyHTTxPowerDiff;
+	u8 eeprom_legacy_ht_tx_pwr_diff;
 
-	u8 CrystalCap;
+	u8 crystal_cap;
 	u8 thermal_meter[2];
 
 	u8 sw_chnl_in_progress;

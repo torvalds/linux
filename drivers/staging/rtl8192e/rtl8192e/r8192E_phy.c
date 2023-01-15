@@ -544,7 +544,7 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 				  (bXBTxAGC|bXCTxAGC|bXDTxAGC), dwRegValue);
 
 
-		dwRegValue = priv->CrystalCap;
+		dwRegValue = priv->crystal_cap;
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, bXtalCap92x,
 				  dwRegValue);
 	}
