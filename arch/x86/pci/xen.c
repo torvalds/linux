@@ -433,6 +433,7 @@ static struct msi_domain_ops xen_pci_msi_domain_ops = {
 };
 
 static struct msi_domain_info xen_pci_msi_domain_info = {
+	.flags			= MSI_FLAG_PCI_MSIX,
 	.ops			= &xen_pci_msi_domain_ops,
 };
 
