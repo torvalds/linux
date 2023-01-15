@@ -473,24 +473,24 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int width, height;
 
 	width = min_t(unsigned int, ALIGN(format->format.width, 2), OV2680_NATIVE_WIDTH);
 	height = min_t(unsigned int, ALIGN(format->format.height, 2), OV2680_NATIVE_HEIGHT);
 
-	fmt = __ov2680_get_pad_format(dev, sd_state, format->pad, format->which);
-	ov2680_fill_format(dev, fmt, width, height);
+	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad, format->which);
+	ov2680_fill_format(sensor, fmt, width, height);
 
 	format->format = *fmt;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
 
-	mutex_lock(&dev->input_lock);
-	ov2680_calc_mode(dev, fmt->width, fmt->height);
-	mutex_unlock(&dev->input_lock);
+	mutex_lock(&sensor->input_lock);
+	ov2680_calc_mode(sensor, fmt->width, fmt->height);
+	mutex_unlock(&sensor->input_lock);
 	return 0;
 }
 
@@ -498,10 +498,10 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 	struct v4l2_mbus_framefmt *fmt;
 
-	fmt = __ov2680_get_pad_format(dev, sd_state, format->pad, format->which);
+	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad, format->which);
 	format->format = *fmt;
 	return 0;
 }
@@ -591,17 +591,17 @@ error_unlock:
 static int ov2680_s_config(struct v4l2_subdev *sd,
 			   int irq, void *platform_data)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	if (!platform_data)
 		return -ENODEV;
 
-	dev->platform_data =
+	sensor->platform_data =
 	    (struct camera_sensor_platform_data *)platform_data;
 
-	mutex_lock(&dev->input_lock);
+	mutex_lock(&sensor->input_lock);
 
 	ret = pm_runtime_get_sync(&client->dev);
 	if (ret < 0) {
@@ -609,7 +609,7 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 		goto fail_power_on;
 	}
 
-	ret = dev->platform_data->csi_cfg(sd, 1);
+	ret = sensor->platform_data->csi_cfg(sd, 1);
 	if (ret)
 		goto fail_csi_cfg;
 
@@ -622,16 +622,16 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 
 	/* turn off sensor, after probed */
 	pm_runtime_put(&client->dev);
-	mutex_unlock(&dev->input_lock);
+	mutex_unlock(&sensor->input_lock);
 
 	return 0;
 
 fail_csi_cfg:
-	dev->platform_data->csi_cfg(sd, 0);
+	sensor->platform_data->csi_cfg(sd, 0);
 fail_power_on:
 	pm_runtime_put(&client->dev);
 	dev_err(&client->dev, "sensor power-gating failed\n");
-	mutex_unlock(&dev->input_lock);
+	mutex_unlock(&sensor->input_lock);
 	return ret;
 }
 
@@ -766,35 +766,35 @@ static int ov2680_init_controls(struct ov2680_device *sensor)
 static void ov2680_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct ov2680_device *sensor = to_ov2680_sensor(sd);
 
 	dev_dbg(&client->dev, "ov2680_remove...\n");
 
-	dev->platform_data->csi_cfg(sd, 0);
+	sensor->platform_data->csi_cfg(sd, 0);
 
 	v4l2_device_unregister_subdev(sd);
-	media_entity_cleanup(&dev->sd.entity);
-	v4l2_ctrl_handler_free(&dev->ctrls.handler);
+	media_entity_cleanup(&sensor->sd.entity);
+	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	pm_runtime_disable(&client->dev);
-	kfree(dev);
+	kfree(sensor);
 }
 
 static int ov2680_probe(struct i2c_client *client)
 {
-	struct ov2680_device *dev;
+	struct ov2680_device *sensor;
 	int ret;
 	void *pdata;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
+	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
+	if (!sensor)
 		return -ENOMEM;
 
-	mutex_init(&dev->input_lock);
+	mutex_init(&sensor->input_lock);
 
-	dev->client = client;
-	v4l2_i2c_subdev_init(&dev->sd, client, &ov2680_ops);
+	sensor->client = client;
+	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_ops);
 
-	pdata = gmin_camera_platform_data(&dev->sd,
+	pdata = gmin_camera_platform_data(&sensor->sd,
 					  ATOMISP_INPUT_FORMAT_RAW_10,
 					  atomisp_bayer_order_bggr);
 	if (!pdata) {
@@ -807,29 +807,29 @@ static int ov2680_probe(struct i2c_client *client)
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	ret = ov2680_s_config(&dev->sd, client->irq, pdata);
+	ret = ov2680_s_config(&sensor->sd, client->irq, pdata);
 	if (ret)
 		goto out_free;
 
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
-	ret = ov2680_init_controls(dev);
+	ret = ov2680_init_controls(sensor);
 	if (ret) {
 		ov2680_remove(client);
 		return ret;
 	}
 
-	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
+	ret = media_entity_pads_init(&sensor->sd.entity, 1, &sensor->pad);
 	if (ret) {
 		ov2680_remove(client);
 		return ret;
 	}
 
-	ov2680_fill_format(dev, &dev->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
+	ov2680_fill_format(sensor, &sensor->mode.fmt, OV2680_NATIVE_WIDTH, OV2680_NATIVE_HEIGHT);
 
-	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	ret = atomisp_register_i2c_module(&sensor->sd, pdata, RAW_CAMERA);
 	if (ret) {
 		ov2680_remove(client);
 		return ret;
@@ -838,8 +838,8 @@ static int ov2680_probe(struct i2c_client *client)
 	return 0;
 out_free:
 	dev_dbg(&client->dev, "+++ out free\n");
-	v4l2_device_unregister_subdev(&dev->sd);
-	kfree(dev);
+	v4l2_device_unregister_subdev(&sensor->sd);
+	kfree(sensor);
 	return ret;
 }
 
