@@ -776,7 +776,6 @@ static void ov2680_remove(struct i2c_client *client)
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	pm_runtime_disable(&client->dev);
-	kfree(sensor);
 }
 
 static int ov2680_probe(struct i2c_client *client)
@@ -786,7 +785,7 @@ static int ov2680_probe(struct i2c_client *client)
 	int ret;
 	void *pdata;
 
-	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
 		return -ENOMEM;
 
@@ -798,10 +797,8 @@ static int ov2680_probe(struct i2c_client *client)
 	pdata = gmin_camera_platform_data(&sensor->sd,
 					  ATOMISP_INPUT_FORMAT_RAW_10,
 					  atomisp_bayer_order_bggr);
-	if (!pdata) {
-		ret = -EINVAL;
-		goto out_free;
-	}
+	if (!pdata)
+		return -EINVAL;
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_enable(dev);
@@ -810,7 +807,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	ret = ov2680_s_config(&sensor->sd, client->irq, pdata);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -837,11 +834,6 @@ static int ov2680_probe(struct i2c_client *client)
 	}
 
 	return 0;
-out_free:
-	dev_dbg(&client->dev, "+++ out free\n");
-	v4l2_device_unregister_subdev(&sensor->sd);
-	kfree(sensor);
-	return ret;
 }
 
 static int ov2680_suspend(struct device *dev)
