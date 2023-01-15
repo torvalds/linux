@@ -57,10 +57,13 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <crypto/algapi.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/crypto.h>
+
+#include "gss_krb5_internal.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
@@ -146,16 +149,18 @@ static u32
 gss_verify_mic_v2(struct krb5_ctx *ctx,
 		struct xdr_buf *message_buffer, struct xdr_netobj *read_token)
 {
+	struct crypto_ahash *tfm = ctx->initiate ?
+				   ctx->acceptor_sign : ctx->initiator_sign;
 	char cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
-	struct xdr_netobj cksumobj = {.len = sizeof(cksumdata),
-				      .data = cksumdata};
-	time64_t now;
+	struct xdr_netobj cksumobj = {
+		.len	= ctx->gk5e->cksumlength,
+		.data	= cksumdata,
+	};
 	u8 *ptr = read_token->data;
-	u8 *cksumkey;
+	__be16 be16_ptr;
+	time64_t now;
 	u8 flags;
 	int i;
-	unsigned int cksum_usage;
-	__be16 be16_ptr;
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -177,16 +182,8 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 		if (ptr[i] != 0xff)
 			return GSS_S_DEFECTIVE_TOKEN;
 
-	if (ctx->initiate) {
-		cksumkey = ctx->acceptor_sign;
-		cksum_usage = KG_USAGE_ACCEPTOR_SIGN;
-	} else {
-		cksumkey = ctx->initiator_sign;
-		cksum_usage = KG_USAGE_INITIATOR_SIGN;
-	}
-
-	if (make_checksum_v2(ctx, ptr, GSS_KRB5_TOK_HDR_LEN, message_buffer, 0,
-			     cksumkey, cksum_usage, &cksumobj))
+	if (gss_krb5_checksum(tfm, ptr, GSS_KRB5_TOK_HDR_LEN,
+			      message_buffer, 0, &cksumobj))
 		return GSS_S_FAILURE;
 
 	if (memcmp(cksumobj.data, ptr + GSS_KRB5_TOK_HDR_LEN,

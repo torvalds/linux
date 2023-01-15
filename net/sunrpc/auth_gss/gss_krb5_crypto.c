@@ -346,6 +346,76 @@ out_free_cksum:
 	return err ? GSS_S_FAILURE : 0;
 }
 
+/**
+ * gss_krb5_checksum - Compute the MAC for a GSS Wrap or MIC token
+ * @tfm: an initialized hash transform
+ * @header: pointer to a buffer containing the token header, or NULL
+ * @hdrlen: number of octets in @header
+ * @body: xdr_buf containing an RPC message (body.len is the message length)
+ * @body_offset: byte offset into @body to start checksumming
+ * @cksumout: OUT: a buffer to be filled in with the computed HMAC
+ *
+ * Usually expressed as H = HMAC(K, message)[1..h] .
+ *
+ * Caller provides the truncation length of the output token (h) in
+ * cksumout.len.
+ *
+ * Return values:
+ *   %GSS_S_COMPLETE: Digest computed, @cksumout filled in
+ *   %GSS_S_FAILURE: Call failed
+ */
+u32
+gss_krb5_checksum(struct crypto_ahash *tfm, char *header, int hdrlen,
+		  const struct xdr_buf *body, int body_offset,
+		  struct xdr_netobj *cksumout)
+{
+	struct ahash_request *req;
+	int err = -ENOMEM;
+	u8 *checksumdata;
+
+	checksumdata = kmalloc(crypto_ahash_digestsize(tfm), GFP_KERNEL);
+	if (!checksumdata)
+		return GSS_S_FAILURE;
+
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		goto out_free_cksum;
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	err = crypto_ahash_init(req);
+	if (err)
+		goto out_free_ahash;
+
+	/*
+	 * Per RFC 4121 Section 4.2.4, the checksum is performed over the
+	 * data body first, then over the octets in "header".
+	 */
+	err = xdr_process_buf(body, body_offset, body->len - body_offset,
+			      checksummer, req);
+	if (err)
+		goto out_free_ahash;
+	if (header) {
+		struct scatterlist sg[1];
+
+		sg_init_one(sg, header, hdrlen);
+		ahash_request_set_crypt(req, sg, NULL, hdrlen);
+		err = crypto_ahash_update(req);
+		if (err)
+			goto out_free_ahash;
+	}
+
+	ahash_request_set_crypt(req, NULL, checksumdata, 0);
+	err = crypto_ahash_final(req);
+	if (err)
+		goto out_free_ahash;
+	memcpy(cksumout->data, checksumdata, cksumout->len);
+
+out_free_ahash:
+	ahash_request_free(req);
+out_free_cksum:
+	kfree_sensitive(checksumdata);
+	return err ? GSS_S_FAILURE : GSS_S_COMPLETE;
+}
+
 struct encryptor_desc {
 	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct skcipher_request *req;

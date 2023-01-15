@@ -102,14 +102,14 @@ struct krb5_ctx {
 	struct crypto_sync_skcipher *initiator_enc;
 	struct crypto_sync_skcipher *acceptor_enc_aux;
 	struct crypto_sync_skcipher *initiator_enc_aux;
+	struct crypto_ahash	*acceptor_sign;
+	struct crypto_ahash	*initiator_sign;
 	u8			Ksess[GSS_KRB5_MAX_KEYLEN]; /* session key */
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	atomic_t		seq_send;
 	atomic64_t		seq_send64;
 	time64_t		endtime;
 	struct xdr_netobj	mech_used;
-	u8			initiator_sign[GSS_KRB5_MAX_KEYLEN];
-	u8			acceptor_sign[GSS_KRB5_MAX_KEYLEN];
 	u8			initiator_integ[GSS_KRB5_MAX_KEYLEN];
 	u8			acceptor_integ[GSS_KRB5_MAX_KEYLEN];
 };
@@ -251,7 +251,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx_id, int offset,
 u32
 gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset, int len,
 		struct xdr_buf *buf);
-
 
 u32
 krb5_encrypt(struct crypto_sync_skcipher *key,

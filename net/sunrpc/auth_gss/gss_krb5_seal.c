@@ -65,6 +65,8 @@
 #include <linux/crypto.h>
 #include <linux/atomic.h>
 
+#include "gss_krb5_internal.h"
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
@@ -166,14 +168,14 @@ static u32
 gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
 {
-	char cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
-	struct xdr_netobj cksumobj = { .len = sizeof(cksumdata),
-				       .data = cksumdata};
+	struct crypto_ahash *tfm = ctx->initiate ?
+				   ctx->initiator_sign : ctx->acceptor_sign;
+	struct xdr_netobj cksumobj = {
+		.len =	ctx->gk5e->cksumlength,
+	};
+	__be64 seq_send_be64;
 	void *krb5_hdr;
 	time64_t now;
-	u8 *cksumkey;
-	unsigned int cksum_usage;
-	__be64 seq_send_be64;
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -184,22 +186,12 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	seq_send_be64 = cpu_to_be64(atomic64_fetch_inc(&ctx->seq_send64));
 	memcpy(krb5_hdr + 8, (char *) &seq_send_be64, 8);
 
-	if (ctx->initiate) {
-		cksumkey = ctx->initiator_sign;
-		cksum_usage = KG_USAGE_INITIATOR_SIGN;
-	} else {
-		cksumkey = ctx->acceptor_sign;
-		cksum_usage = KG_USAGE_ACCEPTOR_SIGN;
-	}
-
-	if (make_checksum_v2(ctx, krb5_hdr, GSS_KRB5_TOK_HDR_LEN,
-			     text, 0, cksumkey, cksum_usage, &cksumobj))
+	cksumobj.data = krb5_hdr + GSS_KRB5_TOK_HDR_LEN;
+	if (gss_krb5_checksum(tfm, krb5_hdr, GSS_KRB5_TOK_HDR_LEN,
+			      text, 0, &cksumobj))
 		return GSS_S_FAILURE;
 
-	memcpy(krb5_hdr + GSS_KRB5_TOK_HDR_LEN, cksumobj.data, cksumobj.len);
-
 	now = ktime_get_real_seconds();
-
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 

@@ -347,6 +347,21 @@ out_err:
 	return -EINVAL;
 }
 
+static struct crypto_ahash *
+gss_krb5_alloc_hash_v2(struct krb5_ctx *kctx, const struct xdr_netobj *key)
+{
+	struct crypto_ahash *tfm;
+
+	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
+		return NULL;
+	if (crypto_ahash_setkey(tfm, key->data, key->len)) {
+		crypto_free_ahash(tfm);
+		return NULL;
+	}
+	return tfm;
+}
+
 static int
 context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
@@ -414,23 +429,21 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 
 	/* initiator sign checksum */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SIGN, KEY_USAGE_SEED_CHECKSUM);
-	keyout.data = ctx->initiator_sign;
 	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
-	if (err) {
-		dprintk("%s: Error %d deriving initiator_sign key\n",
-			__func__, err);
+	if (err)
 		goto out_free;
-	}
+	ctx->initiator_sign = gss_krb5_alloc_hash_v2(ctx, &keyout);
+	if (ctx->initiator_sign == NULL)
+		goto out_free;
 
 	/* acceptor sign checksum */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SIGN, KEY_USAGE_SEED_CHECKSUM);
-	keyout.data = ctx->acceptor_sign;
 	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
-	if (err) {
-		dprintk("%s: Error %d deriving acceptor_sign key\n",
-			__func__, err);
+	if (err)
 		goto out_free;
-	}
+	ctx->acceptor_sign = gss_krb5_alloc_hash_v2(ctx, &keyout);
+	if (ctx->acceptor_sign == NULL)
+		goto out_free;
 
 	/* initiator seal integrity */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SEAL, KEY_USAGE_SEED_INTEGRITY);
@@ -458,6 +471,8 @@ out:
 	return ret;
 
 out_free:
+	crypto_free_ahash(ctx->acceptor_sign);
+	crypto_free_ahash(ctx->initiator_sign);
 	crypto_free_sync_skcipher(ctx->acceptor_enc_aux);
 	crypto_free_sync_skcipher(ctx->acceptor_enc);
 	crypto_free_sync_skcipher(ctx->initiator_enc_aux);
@@ -581,6 +596,8 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	crypto_free_sync_skcipher(kctx->initiator_enc);
 	crypto_free_sync_skcipher(kctx->acceptor_enc_aux);
 	crypto_free_sync_skcipher(kctx->initiator_enc_aux);
+	crypto_free_ahash(kctx->acceptor_sign);
+	crypto_free_ahash(kctx->initiator_sign);
 	kfree(kctx->mech_used.data);
 	kfree(kctx);
 }
