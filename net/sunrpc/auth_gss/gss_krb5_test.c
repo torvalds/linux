@@ -727,8 +727,131 @@ static struct kunit_suite rfc3962_suite = {
 	.test_cases		= rfc3962_test_cases,
 };
 
+/*
+ * From RFC 6803 Section 10.  Test vectors
+ *
+ * Sample results for key derivation
+ *
+ * Copyright (c) 2012 IETF Trust and the persons identified as the
+ * document authors.  All rights reserved.
+ */
+
+DEFINE_HEX_XDR_NETOBJ(camellia128_cts_cmac_basekey,
+		      0x57, 0xd0, 0x29, 0x72, 0x98, 0xff, 0xd9, 0xd3,
+		      0x5d, 0xe5, 0xa4, 0x7f, 0xb4, 0xbd, 0xe2, 0x4b
+);
+DEFINE_HEX_XDR_NETOBJ(camellia128_cts_cmac_Kc,
+		      0xd1, 0x55, 0x77, 0x5a, 0x20, 0x9d, 0x05, 0xf0,
+		      0x2b, 0x38, 0xd4, 0x2a, 0x38, 0x9e, 0x5a, 0x56
+);
+DEFINE_HEX_XDR_NETOBJ(camellia128_cts_cmac_Ke,
+		      0x64, 0xdf, 0x83, 0xf8, 0x5a, 0x53, 0x2f, 0x17,
+		      0x57, 0x7d, 0x8c, 0x37, 0x03, 0x57, 0x96, 0xab
+);
+DEFINE_HEX_XDR_NETOBJ(camellia128_cts_cmac_Ki,
+		      0x3e, 0x4f, 0xbd, 0xf3, 0x0f, 0xb8, 0x25, 0x9c,
+		      0x42, 0x5c, 0xb6, 0xc9, 0x6f, 0x1f, 0x46, 0x35
+);
+
+DEFINE_HEX_XDR_NETOBJ(camellia256_cts_cmac_basekey,
+		      0xb9, 0xd6, 0x82, 0x8b, 0x20, 0x56, 0xb7, 0xbe,
+		      0x65, 0x6d, 0x88, 0xa1, 0x23, 0xb1, 0xfa, 0xc6,
+		      0x82, 0x14, 0xac, 0x2b, 0x72, 0x7e, 0xcf, 0x5f,
+		      0x69, 0xaf, 0xe0, 0xc4, 0xdf, 0x2a, 0x6d, 0x2c
+);
+DEFINE_HEX_XDR_NETOBJ(camellia256_cts_cmac_Kc,
+		      0xe4, 0x67, 0xf9, 0xa9, 0x55, 0x2b, 0xc7, 0xd3,
+		      0x15, 0x5a, 0x62, 0x20, 0xaf, 0x9c, 0x19, 0x22,
+		      0x0e, 0xee, 0xd4, 0xff, 0x78, 0xb0, 0xd1, 0xe6,
+		      0xa1, 0x54, 0x49, 0x91, 0x46, 0x1a, 0x9e, 0x50
+);
+DEFINE_HEX_XDR_NETOBJ(camellia256_cts_cmac_Ke,
+		      0x41, 0x2a, 0xef, 0xc3, 0x62, 0xa7, 0x28, 0x5f,
+		      0xc3, 0x96, 0x6c, 0x6a, 0x51, 0x81, 0xe7, 0x60,
+		      0x5a, 0xe6, 0x75, 0x23, 0x5b, 0x6d, 0x54, 0x9f,
+		      0xbf, 0xc9, 0xab, 0x66, 0x30, 0xa4, 0xc6, 0x04
+);
+DEFINE_HEX_XDR_NETOBJ(camellia256_cts_cmac_Ki,
+		      0xfa, 0x62, 0x4f, 0xa0, 0xe5, 0x23, 0x99, 0x3f,
+		      0xa3, 0x88, 0xae, 0xfd, 0xc6, 0x7e, 0x67, 0xeb,
+		      0xcd, 0x8c, 0x08, 0xe8, 0xa0, 0x24, 0x6b, 0x1d,
+		      0x73, 0xb0, 0xd1, 0xdd, 0x9f, 0xc5, 0x82, 0xb0
+);
+
+DEFINE_HEX_XDR_NETOBJ(usage_checksum,
+		      0x00, 0x00, 0x00, 0x02, KEY_USAGE_SEED_CHECKSUM
+);
+DEFINE_HEX_XDR_NETOBJ(usage_encryption,
+		      0x00, 0x00, 0x00, 0x02, KEY_USAGE_SEED_ENCRYPTION
+);
+DEFINE_HEX_XDR_NETOBJ(usage_integrity,
+		      0x00, 0x00, 0x00, 0x02, KEY_USAGE_SEED_INTEGRITY
+);
+
+static const struct gss_krb5_test_param rfc6803_kdf_test_params[] = {
+	{
+		.desc			= "Derive Kc subkey for camellia128-cts-cmac",
+		.enctype		= ENCTYPE_CAMELLIA128_CTS_CMAC,
+		.base_key		= &camellia128_cts_cmac_basekey,
+		.usage			= &usage_checksum,
+		.expected_result	= &camellia128_cts_cmac_Kc,
+	},
+	{
+		.desc			= "Derive Ke subkey for camellia128-cts-cmac",
+		.enctype		= ENCTYPE_CAMELLIA128_CTS_CMAC,
+		.base_key		= &camellia128_cts_cmac_basekey,
+		.usage			= &usage_encryption,
+		.expected_result	= &camellia128_cts_cmac_Ke,
+	},
+	{
+		.desc			= "Derive Ki subkey for camellia128-cts-cmac",
+		.enctype		= ENCTYPE_CAMELLIA128_CTS_CMAC,
+		.base_key		= &camellia128_cts_cmac_basekey,
+		.usage			= &usage_integrity,
+		.expected_result	= &camellia128_cts_cmac_Ki,
+	},
+	{
+		.desc			= "Derive Kc subkey for camellia256-cts-cmac",
+		.enctype		= ENCTYPE_CAMELLIA256_CTS_CMAC,
+		.base_key		= &camellia256_cts_cmac_basekey,
+		.usage			= &usage_checksum,
+		.expected_result	= &camellia256_cts_cmac_Kc,
+	},
+	{
+		.desc			= "Derive Ke subkey for camellia256-cts-cmac",
+		.enctype		= ENCTYPE_CAMELLIA256_CTS_CMAC,
+		.base_key		= &camellia256_cts_cmac_basekey,
+		.usage			= &usage_encryption,
+		.expected_result	= &camellia256_cts_cmac_Ke,
+	},
+	{
+		.desc			= "Derive Ki subkey for camellia256-cts-cmac",
+		.enctype		= ENCTYPE_CAMELLIA256_CTS_CMAC,
+		.base_key		= &camellia256_cts_cmac_basekey,
+		.usage			= &usage_integrity,
+		.expected_result	= &camellia256_cts_cmac_Ki,
+	},
+};
+
+/* Creates the function rfc6803_kdf_gen_params */
+KUNIT_ARRAY_PARAM(rfc6803_kdf, rfc6803_kdf_test_params, gss_krb5_get_desc);
+
+static struct kunit_case rfc6803_test_cases[] = {
+	{
+		.name			= "RFC 6803 key derivation",
+		.run_case		= kdf_case,
+		.generate_params	= rfc6803_kdf_gen_params,
+	},
+};
+
+static struct kunit_suite rfc6803_suite = {
+	.name			= "RFC 6803 suite",
+	.test_cases		= rfc6803_test_cases,
+};
+
 kunit_test_suites(&rfc3961_suite,
-		  &rfc3962_suite);
+		  &rfc3962_suite,
+		  &rfc6803_suite);
 
 MODULE_DESCRIPTION("Test RPCSEC GSS Kerberos 5 functions");
 MODULE_LICENSE("GPL");
