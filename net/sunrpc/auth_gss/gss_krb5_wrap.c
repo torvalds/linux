@@ -32,8 +32,9 @@
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
-#include <linux/random.h>
 #include <linux/pagemap.h>
+
+#include "gss_krb5_internal.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
@@ -113,39 +114,6 @@ out:
 	return 0;
 }
 
-void
-gss_krb5_make_confounder(char *p, u32 conflen)
-{
-	static u64 i = 0;
-	u64 *q = (u64 *)p;
-
-	/* rfc1964 claims this should be "random".  But all that's really
-	 * necessary is that it be unique.  And not even that is necessary in
-	 * our case since our "gssapi" implementation exists only to support
-	 * rpcsec_gss, so we know that the only buffers we will ever encrypt
-	 * already begin with a unique sequence number.  Just to hedge my bets
-	 * I'll make a half-hearted attempt at something unique, but ensuring
-	 * uniqueness would mean worrying about atomicity and rollover, and I
-	 * don't care enough. */
-
-	/* initialize to random value */
-	if (i == 0) {
-		i = get_random_u32();
-		i = (i << 32) | get_random_u32();
-	}
-
-	switch (conflen) {
-	case 16:
-		*q++ = i++;
-		fallthrough;
-	case 8:
-		*q++ = i++;
-		break;
-	default:
-		BUG();
-	}
-}
-
 /* Assumptions: the head and tail of inbuf are ours to play with.
  * The pages, however, may be real pages in the page cache and we replace
  * them with scratch pages from **pages before writing to them. */
@@ -211,7 +179,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	ptr[6] = 0xff;
 	ptr[7] = 0xff;
 
-	gss_krb5_make_confounder(msg_start, conflen);
+	krb5_make_confounder(msg_start, conflen);
 
 	if (kctx->gk5e->keyed_cksum)
 		cksumkey = kctx->cksum;

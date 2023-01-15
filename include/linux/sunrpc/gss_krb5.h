@@ -311,7 +311,4 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		     struct xdr_buf *buf, u32 *plainoffset,
 		     u32 *plainlen);
 
-void
-gss_krb5_make_confounder(char *p, u32 conflen);
-
 #endif /* _LINUX_SUNRPC_GSS_KRB5_H */

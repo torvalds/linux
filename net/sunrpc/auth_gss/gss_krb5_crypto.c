@@ -47,9 +47,40 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 
+#include "gss_krb5_internal.h"
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
+
+/**
+ * krb5_make_confounder - Generate a confounder string
+ * @p: memory location into which to write the string
+ * @conflen: string length to write, in octets
+ *
+ * RFCs 1964 and 3961 mention only "a random confounder" without going
+ * into detail about its function or cryptographic requirements. The
+ * assumed purpose is to prevent repeated encryption of a plaintext with
+ * the same key from generating the same ciphertext. It is also used to
+ * pad minimum plaintext length to at least a single cipher block.
+ *
+ * However, in situations like the GSS Kerberos 5 mechanism, where the
+ * encryption IV is always all zeroes, the confounder also effectively
+ * functions like an IV. Thus, not only must it be unique from message
+ * to message, but it must also be difficult to predict. Otherwise an
+ * attacker can correlate the confounder to previous or future values,
+ * making the encryption easier to break.
+ *
+ * Given that the primary consumer of this encryption mechanism is a
+ * network storage protocol, a type of traffic that often carries
+ * predictable payloads (eg, all zeroes when reading unallocated blocks
+ * from a file), our confounder generation has to be cryptographically
+ * strong.
+ */
+void krb5_make_confounder(u8 *p, int conflen)
+{
+	get_random_bytes(p, conflen);
+}
 
 u32
 krb5_encrypt(
@@ -630,7 +661,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	offset += GSS_KRB5_TOK_HDR_LEN;
 	if (xdr_extend_head(buf, offset, conflen))
 		return GSS_S_FAILURE;
-	gss_krb5_make_confounder(buf->head[0].iov_base + offset, conflen);
+	krb5_make_confounder(buf->head[0].iov_base + offset, conflen);
 	offset -= GSS_KRB5_TOK_HDR_LEN;
 
 	if (buf->tail[0].iov_base != NULL) {

@@ -550,16 +550,15 @@ gss_import_sec_context_kerberos(const void *p, size_t len,
 		ret = gss_import_v1_context(p, end, ctx);
 	else
 		ret = gss_import_v2_context(p, end, ctx, gfp_mask);
-
-	if (ret == 0) {
-		ctx_id->internal_ctx_id = ctx;
-		if (endtime)
-			*endtime = ctx->endtime;
-	} else
+	if (ret) {
 		kfree(ctx);
+		return ret;
+	}
 
-	dprintk("RPC:       %s: returning %d\n", __func__, ret);
-	return ret;
+	ctx_id->internal_ctx_id = ctx;
+	if (endtime)
+		*endtime = ctx->endtime;
+	return 0;
 }
 
 static void
