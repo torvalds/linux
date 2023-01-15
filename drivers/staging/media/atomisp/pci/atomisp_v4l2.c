@@ -638,27 +638,16 @@ done:
 */
 static void punit_ddr_dvfs_enable(bool enable)
 {
-	int door_bell = 1 << 8;
-	int max_wait = 30;
 	int reg;
 
 	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
 	if (enable) {
 		reg &= ~(MRFLD_BIT0 | MRFLD_BIT1);
 	} else {
-		reg |= (MRFLD_BIT1 | door_bell);
+		reg |= MRFLD_BIT1;
 		reg &= ~(MRFLD_BIT0);
 	}
 	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSDVFS, reg);
-
-	/* Check Req_ACK to see freq status, wait until door_bell is cleared */
-	while ((reg & door_bell) && max_wait--) {
-		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
-		usleep_range(100, 500);
-	}
-
-	if (max_wait == -1)
-		pr_info("DDR DVFS, door bell is not cleared within 3ms\n");
 }
 
 static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
@@ -671,8 +660,10 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	dev_dbg(isp->dev, "IUNIT power-%s.\n", enable ? "on" : "off");
 
 	/* WA for P-Unit, if DVFS enabled, ISP timeout observed */
-	if (IS_CHT && enable)
+	if (IS_CHT && enable) {
 		punit_ddr_dvfs_enable(false);
+		msleep(20);
+	}
 
 	/*
 	 * FIXME:WA for ECS28A, with this sleep, CTS
