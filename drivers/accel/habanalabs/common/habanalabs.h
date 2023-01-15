@@ -29,6 +29,8 @@
 #include <linux/coresight.h>
 #include <linux/dma-buf.h>
 
+#include "security.h"
+
 #define HL_NAME				"habanalabs"
 
 struct hl_device;
@@ -546,6 +548,8 @@ struct hl_hints_range {
 /**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
+ * @special_blocks: points to an array containing special blocks info.
+ * @skip_special_blocks_cfg: special blocks skip configs.
  * @cpucp_info: received various information from CPU-CP regarding the H/W, e.g.
  *		available sensors.
  * @uboot_ver: F/W U-boot version.
@@ -645,6 +649,8 @@ struct hl_hints_range {
  *                                      (i.e. the DRAM supports multiple page sizes), otherwise
  *                                      it will shall  be equal to dram_page_size.
  * @num_engine_cores: number of engine cpu cores
+ * @num_of_special_blocks: special_blocks array size.
+ * @glbl_err_cause_num: global err cause number.
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
  *                 not supported.
  * @collective_first_sob: first sync object available for collective use
@@ -695,6 +701,8 @@ struct hl_hints_range {
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
+	struct hl_special_block_info	*special_blocks;
+	struct hl_skip_blocks_cfg	skip_special_blocks_cfg;
 	struct cpucp_info		cpucp_info;
 	char				uboot_ver[VERSION_MAX_LEN];
 	char				preboot_ver[VERSION_MAX_LEN];
@@ -767,6 +775,8 @@ struct asic_fixed_properties {
 	u32				xbar_edge_enabled_mask;
 	u32				device_mem_alloc_default_page_size;
 	u32				num_engine_cores;
+	u32				num_of_special_blocks;
+	u32				glbl_err_cause_num;
 	u32				hbw_flush_reg;
 	u16				collective_first_sob;
 	u16				collective_first_mon;

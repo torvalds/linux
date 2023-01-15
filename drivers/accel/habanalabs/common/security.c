@@ -7,6 +7,19 @@
 
 #include "habanalabs.h"
 
+static const char * const hl_glbl_error_cause[HL_MAX_NUM_OF_GLBL_ERR_CAUSE] = {
+	"Error due to un-priv read",
+	"Error due to un-secure read",
+	"Error due to read from unmapped reg",
+	"Error due to un-priv write",
+	"Error due to un-secure write",
+	"Error due to write to unmapped reg",
+	"External I/F write sec violation",
+	"External I/F write to un-mapped reg",
+	"Read to write only",
+	"Write to read only"
+};
+
 /**
  * hl_get_pb_block - return the relevant block within the block array
  *
@@ -597,4 +610,165 @@ void hl_ack_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 				dcore_offset + i * instance_offset,
 				blocks_array_size);
 
+}
+
+static u32 hl_automated_get_block_base_addr(struct hl_device *hdev,
+		struct hl_special_block_info *block_info,
+		u32 major, u32 minor, u32 sub_minor)
+{
+	u32 fw_block_base_address = block_info->base_addr +
+			major * block_info->major_offset +
+			minor * block_info->minor_offset +
+			sub_minor * block_info->sub_minor_offset;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	/* Calculation above returns an address for FW use, and therefore should
+	 * be casted for driver use.
+	 */
+	return (fw_block_base_address - lower_32_bits(prop->cfg_base_address));
+}
+
+static bool hl_check_block_type_exclusion(struct hl_skip_blocks_cfg *skip_blocks_cfg,
+		int block_type)
+{
+	int i;
+
+	/* Check if block type is listed in the exclusion list of block types */
+	for (i = 0 ; i < skip_blocks_cfg->block_types_len ; i++)
+		if (block_type == skip_blocks_cfg->block_types[i])
+			return true;
+
+	return false;
+}
+
+static bool hl_check_block_range_exclusion(struct hl_device *hdev,
+		struct hl_skip_blocks_cfg *skip_blocks_cfg,
+		struct hl_special_block_info *block_info,
+		u32 major, u32 minor, u32 sub_minor)
+{
+	u32 blocks_in_range, block_base_addr_in_range, block_base_addr;
+	int i, j;
+
+	block_base_addr = hl_automated_get_block_base_addr(hdev, block_info,
+			major, minor, sub_minor);
+
+	for (i = 0 ; i < skip_blocks_cfg->block_ranges_len ; i++) {
+		blocks_in_range = (skip_blocks_cfg->block_ranges[i].end -
+				skip_blocks_cfg->block_ranges[i].start) /
+				HL_BLOCK_SIZE + 1;
+		for (j = 0 ; j < blocks_in_range ; j++) {
+			block_base_addr_in_range = skip_blocks_cfg->block_ranges[i].start +
+					j * HL_BLOCK_SIZE;
+			if (block_base_addr == block_base_addr_in_range)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static int hl_read_glbl_errors(struct hl_device *hdev,
+		u32 blk_idx, u32 major, u32 minor, u32 sub_minor, void *data)
+{
+	struct hl_special_block_info *special_blocks = hdev->asic_prop.special_blocks;
+	struct hl_special_block_info *current_block = &special_blocks[blk_idx];
+	u32 glbl_err_addr, glbl_err_cause, addr_val, cause_val, block_base,
+		base = current_block->base_addr - lower_32_bits(hdev->asic_prop.cfg_base_address);
+	int i;
+
+	block_base = base + major * current_block->major_offset +
+			minor * current_block->minor_offset +
+			sub_minor * current_block->sub_minor_offset;
+
+	glbl_err_cause = block_base + HL_GLBL_ERR_CAUSE_OFFSET;
+	cause_val = RREG32(glbl_err_cause);
+	if (!cause_val)
+		return 0;
+
+	glbl_err_addr = block_base + HL_GLBL_ERR_ADDR_OFFSET;
+	addr_val = RREG32(glbl_err_addr);
+
+	for (i = 0 ; i < hdev->asic_prop.glbl_err_cause_num ; i++) {
+		if (cause_val & BIT(i))
+			dev_err_ratelimited(hdev->dev,
+				"%s, addr %#llx\n",
+				hl_glbl_error_cause[i],
+				hdev->asic_prop.cfg_base_address + block_base +
+				FIELD_GET(HL_GLBL_ERR_ADDRESS_MASK, addr_val));
+	}
+
+	WREG32(glbl_err_cause, cause_val);
+
+	return 0;
+}
+
+void hl_check_for_glbl_errors(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_special_blocks_cfg special_blocks_cfg;
+	struct iterate_special_ctx glbl_err_iter;
+	int rc;
+
+	memset(&special_blocks_cfg, 0, sizeof(special_blocks_cfg));
+	special_blocks_cfg.skip_blocks_cfg = &prop->skip_special_blocks_cfg;
+
+	glbl_err_iter.fn = &hl_read_glbl_errors;
+	glbl_err_iter.data = &special_blocks_cfg;
+
+	rc = hl_iterate_special_blocks(hdev, &glbl_err_iter);
+	if (rc)
+		dev_err_ratelimited(hdev->dev,
+			"Could not iterate special blocks, glbl error check failed\n");
+}
+
+int hl_iterate_special_blocks(struct hl_device *hdev, struct iterate_special_ctx *ctx)
+{
+	struct hl_special_blocks_cfg *special_blocks_cfg =
+			(struct hl_special_blocks_cfg *)ctx->data;
+	struct hl_skip_blocks_cfg *skip_blocks_cfg =
+			special_blocks_cfg->skip_blocks_cfg;
+	u32 major, minor, sub_minor, blk_idx, num_blocks;
+	struct hl_special_block_info *block_info_arr;
+	int rc;
+
+	block_info_arr = hdev->asic_prop.special_blocks;
+	if (!block_info_arr)
+		return -EINVAL;
+
+	num_blocks = hdev->asic_prop.num_of_special_blocks;
+
+	for (blk_idx = 0 ; blk_idx < num_blocks ; blk_idx++, block_info_arr++) {
+		if (hl_check_block_type_exclusion(skip_blocks_cfg, block_info_arr->block_type))
+			continue;
+
+		for (major = 0 ; major < block_info_arr->major ; major++) {
+			minor = 0;
+			do {
+				sub_minor = 0;
+				do {
+					if ((hl_check_block_range_exclusion(hdev,
+							skip_blocks_cfg, block_info_arr,
+							major, minor, sub_minor)) ||
+						(skip_blocks_cfg->skip_block_hook &&
+						skip_blocks_cfg->skip_block_hook(hdev,
+							special_blocks_cfg,
+							blk_idx, major, minor, sub_minor))) {
+						sub_minor++;
+						continue;
+					}
+
+					rc = ctx->fn(hdev, blk_idx, major, minor,
+								sub_minor, ctx->data);
+					if (rc)
+						return rc;
+
+					sub_minor++;
+				} while (sub_minor < block_info_arr->sub_minor);
+
+				minor++;
+			} while (minor < block_info_arr->minor);
+		}
+	}
+
+	return 0;
 }

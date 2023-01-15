@@ -7,6 +7,7 @@
 
 #include "gaudi2P.h"
 #include "gaudi2_masks.h"
+#include "../include/gaudi2/gaudi2_special_blocks.h"
 #include "../include/hw_ip/mmu/mmu_general.h"
 #include "../include/hw_ip/mmu/mmu_v2_0.h"
 #include "../include/gaudi2/gaudi2_packets.h"
@@ -1683,6 +1684,30 @@ struct hbm_mc_error_causes {
 	char cause[50];
 };
 
+static struct hl_special_block_info gaudi2_special_blocks[] = GAUDI2_SPECIAL_BLOCKS;
+
+/* Special blocks iterator is currently used to configure security protection bits,
+ * and read global errors. Most HW blocks are addressable and those who aren't (N/A)-
+ * must be skipped. Following configurations are commonly used for both PB config
+ * and global error reading, since currently they both share the same settings.
+ * Once it changes, we must remember to use separate configurations for either one.
+ */
+static int gaudi2_iterator_skip_block_types[] = {
+		GAUDI2_BLOCK_TYPE_PLL,
+		GAUDI2_BLOCK_TYPE_EU_BIST,
+		GAUDI2_BLOCK_TYPE_HBM,
+		GAUDI2_BLOCK_TYPE_XFT
+};
+
+static struct range gaudi2_iterator_skip_block_ranges[] = {
+		/* Skip all PSOC blocks except for PSOC_GLOBAL_CONF */
+		{mmPSOC_I2C_M0_BASE, mmPSOC_EFUSE_BASE},
+		{mmPSOC_BTL_BASE, mmPSOC_MSTR_IF_RR_SHRD_HBW_BASE},
+		/* Skip all CPU blocks except for CPU_IF */
+		{mmCPU_CA53_CFG_BASE, mmCPU_CA53_CFG_BASE},
+		{mmCPU_TIMESTAMP_BASE, mmCPU_MSTR_IF_RR_SHRD_HBW_BASE}
+};
+
 static struct hbm_mc_error_causes hbm_mc_spi[GAUDI2_NUM_OF_HBM_MC_SPI_CAUSE] = {
 	{HBM_MC_SPI_TEMP_PIN_CHG_MASK, "temperature pins changed"},
 	{HBM_MC_SPI_THR_ENG_MASK, "temperature-based throttling engaged"},
@@ -2997,6 +3022,99 @@ static inline int gaudi2_get_non_zero_random_int(void)
 	return rand ? rand : 1;
 }
 
+static void gaudi2_special_blocks_free(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_skip_blocks_cfg *skip_special_blocks_cfg =
+			&prop->skip_special_blocks_cfg;
+
+	kfree(prop->special_blocks);
+	kfree(skip_special_blocks_cfg->block_types);
+	kfree(skip_special_blocks_cfg->block_ranges);
+}
+
+static void gaudi2_special_blocks_iterator_free(struct hl_device *hdev)
+{
+	gaudi2_special_blocks_free(hdev);
+}
+
+static bool gaudi2_special_block_skip(struct hl_device *hdev,
+		struct hl_special_blocks_cfg *special_blocks_cfg,
+		u32 blk_idx, u32 major, u32 minor, u32 sub_minor)
+{
+	return false;
+}
+
+static int gaudi2_special_blocks_config(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int i, rc;
+
+	/* Configure Special blocks */
+	prop->glbl_err_cause_num = GAUDI2_NUM_OF_GLBL_ERR_CAUSE;
+	prop->num_of_special_blocks = ARRAY_SIZE(gaudi2_special_blocks);
+	prop->special_blocks = kmalloc_array(prop->num_of_special_blocks,
+			sizeof(*prop->special_blocks), GFP_KERNEL);
+	if (!prop->special_blocks)
+		return -ENOMEM;
+
+	for (i = 0 ; i < prop->num_of_special_blocks ; i++)
+		memcpy(&prop->special_blocks[i], &gaudi2_special_blocks[i],
+				sizeof(*prop->special_blocks));
+
+	/* Configure when to skip Special blocks */
+	memset(&prop->skip_special_blocks_cfg, 0, sizeof(prop->skip_special_blocks_cfg));
+	prop->skip_special_blocks_cfg.skip_block_hook = gaudi2_special_block_skip;
+
+	if (ARRAY_SIZE(gaudi2_iterator_skip_block_types)) {
+		prop->skip_special_blocks_cfg.block_types =
+				kmalloc_array(ARRAY_SIZE(gaudi2_iterator_skip_block_types),
+					sizeof(gaudi2_iterator_skip_block_types[0]), GFP_KERNEL);
+		if (!prop->skip_special_blocks_cfg.block_types) {
+			rc = -ENOMEM;
+			goto free_special_blocks;
+		}
+
+		memcpy(prop->skip_special_blocks_cfg.block_types, gaudi2_iterator_skip_block_types,
+				sizeof(gaudi2_iterator_skip_block_types));
+
+		prop->skip_special_blocks_cfg.block_types_len =
+					ARRAY_SIZE(gaudi2_iterator_skip_block_types);
+	}
+
+	if (ARRAY_SIZE(gaudi2_iterator_skip_block_ranges)) {
+		prop->skip_special_blocks_cfg.block_ranges =
+				kmalloc_array(ARRAY_SIZE(gaudi2_iterator_skip_block_ranges),
+					sizeof(gaudi2_iterator_skip_block_ranges[0]), GFP_KERNEL);
+		if (!prop->skip_special_blocks_cfg.block_ranges) {
+			rc = -ENOMEM;
+			goto free_skip_special_blocks_types;
+		}
+
+		for (i = 0 ; i < ARRAY_SIZE(gaudi2_iterator_skip_block_ranges) ; i++)
+			memcpy(&prop->skip_special_blocks_cfg.block_ranges[i],
+					&gaudi2_iterator_skip_block_ranges[i],
+					sizeof(struct range));
+
+		prop->skip_special_blocks_cfg.block_ranges_len =
+					ARRAY_SIZE(gaudi2_iterator_skip_block_ranges);
+	}
+
+	return 0;
+
+free_skip_special_blocks_types:
+	kfree(prop->skip_special_blocks_cfg.block_types);
+free_special_blocks:
+	kfree(prop->special_blocks);
+
+	return rc;
+}
+
+static int gaudi2_special_blocks_iterator_config(struct hl_device *hdev)
+{
+	return gaudi2_special_blocks_config(hdev);
+}
+
 static int gaudi2_sw_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -3092,8 +3210,15 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
 
+	rc = gaudi2_special_blocks_iterator_config(hdev);
+	if (rc)
+		goto free_scratchpad_mem;
+
 	return 0;
 
+free_scratchpad_mem:
+	hl_asic_dma_pool_free(hdev, gaudi2->scratchpad_kernel_address,
+				gaudi2->scratchpad_bus_address);
 free_virt_msix_db_mem:
 	hl_cpu_accessible_dma_pool_free(hdev, prop->pmmu.page_size, gaudi2->virt_msix_db_cpu_addr);
 free_cpu_accessible_dma_pool:
@@ -3112,6 +3237,8 @@ static int gaudi2_sw_fini(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+
+	gaudi2_special_blocks_iterator_free(hdev);
 
 	hl_cpu_accessible_dma_pool_free(hdev, prop->pmmu.page_size, gaudi2->virt_msix_db_cpu_addr);
 
@@ -7836,9 +7963,11 @@ static int gaudi2_handle_qm_sei_err(struct hl_device *hdev, u16 event_type,
 		error_count += _gaudi2_handle_qm_sei_err(hdev,
 					qman_base + NIC_QM_OFFSET, event_type);
 
-	if (extended_err_check)
+	if (extended_err_check) {
 		/* check if RAZWI happened */
 		gaudi2_ack_module_razwi_event_handler(hdev, module, 0, 0, event_mask);
+		hl_check_for_glbl_errors(hdev);
+	}
 
 	return error_count;
 }
@@ -7958,6 +8087,8 @@ static int gaudi2_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 		gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_EDMA, index, 0, event_mask);
 	}
 
+	hl_check_for_glbl_errors(hdev);
+
 	return error_count;
 }
 
@@ -7975,6 +8106,8 @@ static int gaudi2_handle_arc_farm_sei_err(struct hl_device *hdev, u16 event_type
 			error_count++;
 		}
 	}
+
+	hl_check_for_glbl_errors(hdev);
 
 	WREG32(mmARC_FARM_ARC0_AUX_ARC_SEI_INTR_CLR, sts_clr_val);
 
@@ -7995,6 +8128,8 @@ static int gaudi2_handle_cpu_sei_err(struct hl_device *hdev, u16 event_type)
 			error_count++;
 		}
 	}
+
+	hl_check_for_glbl_errors(hdev);
 
 	WREG32(mmCPU_IF_CPU_SEI_INTR_CLR, sts_clr_val);
 
@@ -8018,6 +8153,7 @@ static int gaudi2_handle_rot_err(struct hl_device *hdev, u8 rot_index, u16 event
 
 	/* check if RAZWI happened */
 	gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_ROT, rot_index, 0, event_mask);
+	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
 }
@@ -8039,6 +8175,7 @@ static int gaudi2_tpc_ack_interrupts(struct hl_device *hdev,  u8 tpc_index, u16 
 
 	/* check if RAZWI happened */
 	gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_TPC, tpc_index, 0, event_mask);
+	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
 }
@@ -8072,6 +8209,7 @@ static int gaudi2_handle_dec_err(struct hl_device *hdev, u8 dec_index, u16 event
 
 	/* check if RAZWI happened */
 	gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_DEC, dec_index, 0, event_mask);
+	hl_check_for_glbl_errors(hdev);
 
 	/* Write 1 clear errors */
 	WREG32(sts_addr, sts_clr_val);
@@ -8103,6 +8241,8 @@ static int gaudi2_handle_mme_err(struct hl_device *hdev, u8 mme_index, u16 event
 	for (i = MME_WRITE ; i < MME_INITIATORS_MAX ; i++)
 		gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_MME, mme_index, i, event_mask);
 
+	hl_check_for_glbl_errors(hdev);
+
 	WREG32(sts_clr_addr, sts_clr_val);
 
 	return error_count;
@@ -8119,6 +8259,8 @@ static int gaudi2_handle_mme_sbte_err(struct hl_device *hdev, u16 event_type,
 				"err cause: %s", guadi2_mme_sbte_error_cause[i]);
 			error_count++;
 		}
+
+	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
 }
@@ -8146,6 +8288,7 @@ static int gaudi2_handle_mme_wap_err(struct hl_device *hdev, u8 mme_index, u16 e
 	/* check if RAZWI happened on WAP0/1 */
 	gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_MME, mme_index, MME_WAP0, event_mask);
 	gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_MME, mme_index, MME_WAP1, event_mask);
+	hl_check_for_glbl_errors(hdev);
 
 	WREG32(sts_clr_addr, sts_clr_val);
 
@@ -8170,6 +8313,8 @@ static int gaudi2_handle_kdma_core_event(struct hl_device *hdev, u16 event_type,
 			error_count++;
 		}
 
+	hl_check_for_glbl_errors(hdev);
+
 	return error_count;
 }
 
@@ -8185,6 +8330,8 @@ static int gaudi2_handle_dma_core_event(struct hl_device *hdev, u16 event_type,
 				"err cause: %s", gaudi2_dma_core_interrupts_cause[i]);
 			error_count++;
 		}
+
+	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
 }
@@ -8238,6 +8385,7 @@ static int gaudi2_print_pcie_addr_dec_info(struct hl_device *hdev, u16 event_typ
 
 		switch (intr_cause_data & BIT_ULL(i)) {
 		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_AXI_LBW_ERR_INTR_MASK:
+			hl_check_for_glbl_errors(hdev);
 			break;
 		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_BAD_ACCESS_INTR_MASK:
 			gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(hdev, event_mask);
@@ -8412,6 +8560,8 @@ static int gaudi2_handle_sm_err(struct hl_device *hdev, u16 event_type, u8 sm_in
 		WREG32(cq_intr_addr, 0);
 	}
 
+	hl_check_for_glbl_errors(hdev);
+
 	return error_count;
 }
 
@@ -8466,6 +8616,7 @@ static int gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type,
 
 	error_count = gaudi2_handle_mmu_spi_sei_generic(hdev, event_type, mmu_base,
 							is_pmmu, event_mask);
+	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
 }
@@ -8791,6 +8942,8 @@ static int gaudi2_handle_psoc_drain(struct hl_device *hdev, u64 intr_cause_data)
 			error_count++;
 		}
 	}
+
+	hl_check_for_glbl_errors(hdev);
 
 	return error_count;
 }
