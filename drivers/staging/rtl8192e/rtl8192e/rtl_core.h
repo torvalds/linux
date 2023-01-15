@@ -483,7 +483,7 @@ struct r8192_priv {
 	bool		dynamic_tx_high_pwr;
 	bool		dynamic_tx_low_pwr;
 	bool		last_dtp_flag_high;
-	bool		bLastDTPFlag_Low;
+	bool		last_dtp_flag_low;
 
 	u8		rfa_txpowertrackingindex;
 	u8		rfa_txpowertrackingindex_real;
@@ -496,8 +496,8 @@ struct r8192_priv {
 	u8		txpower_count;
 	bool		btxpower_trackingInit;
 
-	u8		OFDM_index[2];
-	u8		CCK_index;
+	u8		ofdm_index[2];
+	u8		cck_index;
 
 	u8		Record_CCK_20Mindex;
 	u8		Record_CCK_40Mindex;

@@ -775,13 +775,13 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 					    bMaskDWord);
 		for (i = 0; i < OFDM_Table_Length; i++) {
 			if (tmpRegA == OFDMSwingTable[i])
-				priv->OFDM_index[0] = i;
+				priv->ofdm_index[0] = i;
 		}
 
 		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
 		for (i = 0; i < CCK_Table_length; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
-				priv->CCK_index = i;
+				priv->cck_index = i;
 				break;
 			}
 		}
@@ -836,17 +836,17 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		CCKSwingNeedUpdate = 1;
 	}
 
-	if (priv->CCK_index != tmpCCKindex) {
-		priv->CCK_index = tmpCCKindex;
+	if (priv->cck_index != tmpCCKindex) {
+		priv->cck_index = tmpCCKindex;
 		CCKSwingNeedUpdate = 1;
 	}
 
 	if (CCKSwingNeedUpdate)
 		rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-	if (priv->OFDM_index[0] != tmpOFDMindex) {
-		priv->OFDM_index[0] = tmpOFDMindex;
+	if (priv->ofdm_index[0] != tmpOFDMindex) {
+		priv->ofdm_index[0] = tmpOFDMindex;
 		rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance, bMaskDWord,
-				  OFDMSwingTable[priv->OFDM_index[0]]);
+				  OFDMSwingTable[priv->ofdm_index[0]]);
 	}
 	priv->txpower_count = 0;
 }
@@ -1005,30 +1005,30 @@ static void _rtl92e_dm_cck_tx_power_adjust_thermal_meter(struct net_device *dev,
 
 	TempVal = 0;
 	if (!bInCH14) {
-		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][1] << 8);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->cck_index][0] +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][1] << 8);
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][3] << 8) +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][4] << 16)+
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][5] << 24);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->cck_index][2] +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][3] << 8) +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][4] << 16)+
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][5] << 24);
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
-			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][7] << 8);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->cck_index][6] +
+			  (CCKSwingTable_Ch1_Ch13[priv->cck_index][7] << 8);
 
 		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 	} else {
-		TempVal = CCKSwingTable_Ch14[priv->CCK_index][0] +
-			  (CCKSwingTable_Ch14[priv->CCK_index][1] << 8);
+		TempVal = CCKSwingTable_Ch14[priv->cck_index][0] +
+			  (CCKSwingTable_Ch14[priv->cck_index][1] << 8);
 
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		TempVal = CCKSwingTable_Ch14[priv->CCK_index][2] +
-			  (CCKSwingTable_Ch14[priv->CCK_index][3] << 8) +
-			  (CCKSwingTable_Ch14[priv->CCK_index][4] << 16)+
-			  (CCKSwingTable_Ch14[priv->CCK_index][5] << 24);
+		TempVal = CCKSwingTable_Ch14[priv->cck_index][2] +
+			  (CCKSwingTable_Ch14[priv->cck_index][3] << 8) +
+			  (CCKSwingTable_Ch14[priv->cck_index][4] << 16)+
+			  (CCKSwingTable_Ch14[priv->cck_index][5] << 24);
 		rtl92e_set_bb_reg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		TempVal = CCKSwingTable_Ch14[priv->CCK_index][6] +
-			  (CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
+		TempVal = CCKSwingTable_Ch14[priv->cck_index][6] +
+			  (CCKSwingTable_Ch14[priv->cck_index][7]<<8);
 
 		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 	}
@@ -2272,7 +2272,7 @@ static void _rtl92e_dm_init_dynamic_tx_power(struct net_device *dev)
 
 	priv->rtllib->bdynamic_txpower_enable = true;
 	priv->last_dtp_flag_high = false;
-	priv->bLastDTPFlag_Low = false;
+	priv->last_dtp_flag_low = false;
 	priv->dynamic_tx_high_pwr = false;
 	priv->dynamic_tx_low_pwr = false;
 }
@@ -2316,11 +2316,11 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 	}
 
 	if ((priv->dynamic_tx_high_pwr != priv->last_dtp_flag_high) ||
-	    (priv->dynamic_tx_low_pwr != priv->bLastDTPFlag_Low)) {
+	    (priv->dynamic_tx_low_pwr != priv->last_dtp_flag_low)) {
 		rtl92e_set_tx_power(dev, priv->rtllib->current_network.channel);
 	}
 	priv->last_dtp_flag_high = priv->dynamic_tx_high_pwr;
-	priv->bLastDTPFlag_Low = priv->dynamic_tx_low_pwr;
+	priv->last_dtp_flag_low = priv->dynamic_tx_low_pwr;
 
 }
 

@@ -1074,11 +1074,11 @@ static void _rtl92e_cck_tx_power_track_bw_switch_thermal(struct net_device *dev)
 	case HT_CHANNEL_WIDTH_20:
 		if (priv->Record_CCK_20Mindex == 0)
 			priv->Record_CCK_20Mindex = 6;
-		priv->CCK_index = priv->Record_CCK_20Mindex;
+		priv->cck_index = priv->Record_CCK_20Mindex;
 	break;
 
 	case HT_CHANNEL_WIDTH_20_40:
-		priv->CCK_index = priv->Record_CCK_40Mindex;
+		priv->cck_index = priv->Record_CCK_40Mindex;
 	break;
 	}
 	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
