@@ -2430,14 +2430,10 @@ err:
 static int rockchip_dw_pcie_prepare(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
-	u32 val;
 
-	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
-	if ((val & S_MAX) != S_L0) {
-		dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
-		rk_pcie_downstream_dev_to_d0(rk_pcie, false);
-		dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
-	}
+	dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
+	rk_pcie_downstream_dev_to_d0(rk_pcie, false);
+	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 
 	return 0;
 }
