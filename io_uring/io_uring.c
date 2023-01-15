@@ -3412,11 +3412,9 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		}
 		if (flags & IORING_ENTER_SQ_WAKEUP)
 			wake_up(&ctx->sq_data->wait);
-		if (flags & IORING_ENTER_SQ_WAIT) {
-			ret = io_sqpoll_wait_sq(ctx);
-			if (ret)
-				goto out;
-		}
+		if (flags & IORING_ENTER_SQ_WAIT)
+			io_sqpoll_wait_sq(ctx);
+
 		ret = to_submit;
 	} else if (to_submit) {
 		ret = io_uring_add_tctx_node(ctx);
