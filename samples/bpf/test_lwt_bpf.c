@@ -10,17 +10,8 @@
  * General Public License for more details.
  */
 
+#include "vmlinux.h"
 #include "net_shared.h"
-#include <stdint.h>
-#include <stddef.h>
-#include <linux/bpf.h>
-#include <linux/ip.h>
-#include <linux/in.h>
-#include <linux/in6.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/icmpv6.h>
-#include <linux/if_ether.h>
 #include <bpf/bpf_helpers.h>
 #include <string.h>
 

@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "vmlinux.h"
 #include "net_shared.h"
-#include <uapi/linux/bpf.h>
-#include <linux/net.h>
-#include <uapi/linux/in.h>
-#include <uapi/linux/in6.h>
 #include <bpf/bpf_helpers.h>
 
 SEC("cgroup/sock")

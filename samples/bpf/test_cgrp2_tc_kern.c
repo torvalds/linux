@@ -5,9 +5,8 @@
  * License as published by the Free Software Foundation.
  */
 #define KBUILD_MODNAME "foo"
+#include "vmlinux.h"
 #include "net_shared.h"
-#include <uapi/linux/ipv6.h>
-#include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
 /* copy of 'struct ethhdr' without __packed */

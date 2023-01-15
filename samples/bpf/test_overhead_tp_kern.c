@@ -4,8 +4,7 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <linux/sched.h>
-#include <uapi/linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
 /* from /sys/kernel/debug/tracing/events/task/task_rename/format */
