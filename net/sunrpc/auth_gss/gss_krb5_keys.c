@@ -150,7 +150,6 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 	struct crypto_sync_skcipher *cipher;
 	u32 ret = EINVAL;
 
-	blocksize = gk5e->blocksize;
 	keybytes = gk5e->keybytes;
 	keylength = gk5e->keylength;
 
@@ -160,10 +159,9 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 	cipher = crypto_alloc_sync_skcipher(gk5e->encrypt_name, 0, 0);
 	if (IS_ERR(cipher))
 		goto err_return;
+	blocksize = crypto_sync_skcipher_blocksize(cipher);
 	if (crypto_sync_skcipher_setkey(cipher, inkey->data, inkey->len))
 		goto err_return;
-
-	/* allocate and set up buffers */
 
 	ret = ENOMEM;
 	inblockdata = kmalloc(blocksize, gfp_mask);

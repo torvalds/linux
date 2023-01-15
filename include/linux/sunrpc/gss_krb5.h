@@ -64,7 +64,6 @@ struct gss_krb5_enctype {
 	const char		*cksum_name;	/* crypto checksum name */
 	const u16		signalg;	/* signing algorithm */
 	const u16		sealalg;	/* sealing algorithm */
-	const u32		blocksize;	/* encryption blocksize */
 	const u32		conflen;	/* confounder length
 						   (normally the same as
 						   the blocksize) */
