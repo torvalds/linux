@@ -1886,7 +1886,7 @@ pstripe:
 		sector->uptodate = 1;
 	}
 	if (failb >= 0) {
-		ret = verify_one_sector(rbio, faila, sector_nr);
+		ret = verify_one_sector(rbio, failb, sector_nr);
 		if (ret < 0)
 			goto cleanup;
 
