@@ -78,6 +78,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .ctype = CKSUMTYPE_HMAC_SHA1_96_AES128,
 	  .name = "aes128-cts",
 	  .encrypt_name = "cts(cbc(aes))",
+	  .aux_cipher = "cbc(aes)",
 	  .cksum_name = "hmac(sha1)",
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
@@ -99,6 +100,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .ctype = CKSUMTYPE_HMAC_SHA1_96_AES256,
 	  .name = "aes256-cts",
 	  .encrypt_name = "cts(cbc(aes))",
+	  .aux_cipher = "cbc(aes)",
 	  .cksum_name = "hmac(sha1)",
 	  .encrypt = krb5_encrypt,
 	  .decrypt = krb5_decrypt,
@@ -373,6 +375,13 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 						     ctx->initiator_seal);
 	if (ctx->initiator_enc == NULL)
 		goto out_err;
+	if (ctx->gk5e->aux_cipher) {
+		ctx->initiator_enc_aux =
+			context_v2_alloc_cipher(ctx, ctx->gk5e->aux_cipher,
+						ctx->initiator_seal);
+		if (ctx->initiator_enc_aux == NULL)
+			goto out_free;
+	}
 
 	/* acceptor seal encryption */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SEAL, KEY_USAGE_SEED_ENCRYPTION);
@@ -381,13 +390,20 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_seal key\n",
 			__func__, err);
-		goto out_free_initiator_enc;
+		goto out_free;
 	}
 	ctx->acceptor_enc = context_v2_alloc_cipher(ctx,
 						    ctx->gk5e->encrypt_name,
 						    ctx->acceptor_seal);
 	if (ctx->acceptor_enc == NULL)
-		goto out_free_initiator_enc;
+		goto out_free;
+	if (ctx->gk5e->aux_cipher) {
+		ctx->acceptor_enc_aux =
+			context_v2_alloc_cipher(ctx, ctx->gk5e->aux_cipher,
+						ctx->acceptor_seal);
+		if (ctx->acceptor_enc_aux == NULL)
+			goto out_free;
+	}
 
 	/* initiator sign checksum */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SIGN, KEY_USAGE_SEED_CHECKSUM);
@@ -396,7 +412,7 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	if (err) {
 		dprintk("%s: Error %d deriving initiator_sign key\n",
 			__func__, err);
-		goto out_free_acceptor_enc;
+		goto out_free;
 	}
 
 	/* acceptor sign checksum */
@@ -406,7 +422,7 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_sign key\n",
 			__func__, err);
-		goto out_free_acceptor_enc;
+		goto out_free;
 	}
 
 	/* initiator seal integrity */
@@ -416,7 +432,7 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	if (err) {
 		dprintk("%s: Error %d deriving initiator_integ key\n",
 			__func__, err);
-		goto out_free_acceptor_enc;
+		goto out_free;
 	}
 
 	/* acceptor seal integrity */
@@ -426,31 +442,15 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_integ key\n",
 			__func__, err);
-		goto out_free_acceptor_enc;
-	}
-
-	switch (ctx->enctype) {
-	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
-	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		ctx->initiator_enc_aux =
-			context_v2_alloc_cipher(ctx, "cbc(aes)",
-						ctx->initiator_seal);
-		if (ctx->initiator_enc_aux == NULL)
-			goto out_free_acceptor_enc;
-		ctx->acceptor_enc_aux =
-			context_v2_alloc_cipher(ctx, "cbc(aes)",
-						ctx->acceptor_seal);
-		if (ctx->acceptor_enc_aux == NULL) {
-			crypto_free_sync_skcipher(ctx->initiator_enc_aux);
-			goto out_free_acceptor_enc;
-		}
+		goto out_free;
 	}
 
 	return 0;
 
-out_free_acceptor_enc:
+out_free:
+	crypto_free_sync_skcipher(ctx->acceptor_enc_aux);
 	crypto_free_sync_skcipher(ctx->acceptor_enc);
-out_free_initiator_enc:
+	crypto_free_sync_skcipher(ctx->initiator_enc_aux);
 	crypto_free_sync_skcipher(ctx->initiator_enc);
 out_err:
 	return -EINVAL;

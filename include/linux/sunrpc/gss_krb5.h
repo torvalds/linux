@@ -61,6 +61,7 @@ struct gss_krb5_enctype {
 	const u32		ctype;		/* checksum type */
 	const char		*name;		/* "friendly" name */
 	const char		*encrypt_name;	/* crypto encrypt name */
+	const char		*aux_cipher;	/* aux encrypt cipher name */
 	const char		*cksum_name;	/* crypto checksum name */
 	const u16		signalg;	/* signing algorithm */
 	const u16		sealalg;	/* sealing algorithm */
