@@ -713,10 +713,21 @@ int krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
 }
 EXPORT_SYMBOL_IF_KUNIT(krb5_cbc_cts_encrypt);
 
-static int
-krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
-		     struct crypto_sync_skcipher *cbc_tfm,
-		     u32 offset, struct xdr_buf *buf)
+/**
+ * krb5_cbc_cts_decrypt - decrypt in CBC mode with CTS
+ * @cts_tfm: CBC cipher with CTS
+ * @cbc_tfm: base CBC cipher
+ * @offset: starting byte offset for plaintext
+ * @buf: OUT: output buffer
+ *
+ * Return values:
+ *   %0: decryption successful
+ *   negative errno: decryption could not be completed
+ */
+VISIBLE_IF_KUNIT
+int krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
+			 struct crypto_sync_skcipher *cbc_tfm,
+			 u32 offset, struct xdr_buf *buf)
 {
 	u32 blocksize, nblocks, cbcbytes;
 	struct decryptor_desc desc;
@@ -752,6 +763,7 @@ krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
 	/* Remaining plaintext is handled with CBC-CTS. */
 	return gss_krb5_cts_crypt(cts_tfm, buf, cbcbytes, desc.iv, NULL, 0);
 }
+EXPORT_SYMBOL_IF_KUNIT(krb5_cbc_cts_decrypt);
 
 u32
 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,

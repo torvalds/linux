@@ -1909,10 +1909,132 @@ static struct kunit_suite rfc8009_suite = {
 	.test_cases		= rfc8009_test_cases,
 };
 
+/*
+ * Encryption self-tests
+ */
+
+DEFINE_STR_XDR_NETOBJ(encrypt_selftest_plaintext,
+		      "This is the plaintext for the encryption self-test.");
+
+static const struct gss_krb5_test_param encrypt_selftest_params[] = {
+	{
+		.desc			= "aes128-cts-hmac-sha1-96 encryption self-test",
+		.enctype		= ENCTYPE_AES128_CTS_HMAC_SHA1_96,
+		.Ke			= &rfc3962_encryption_key,
+		.plaintext		= &encrypt_selftest_plaintext,
+	},
+	{
+		.desc			= "aes256-cts-hmac-sha1-96 encryption self-test",
+		.enctype		= ENCTYPE_AES256_CTS_HMAC_SHA1_96,
+		.Ke			= &rfc3962_encryption_key,
+		.plaintext		= &encrypt_selftest_plaintext,
+	},
+	{
+		.desc			= "camellia128-cts-cmac encryption self-test",
+		.enctype		= ENCTYPE_CAMELLIA128_CTS_CMAC,
+		.Ke			= &camellia128_cts_cmac_Ke,
+		.plaintext		= &encrypt_selftest_plaintext,
+	},
+	{
+		.desc			= "camellia256-cts-cmac encryption self-test",
+		.enctype		= ENCTYPE_CAMELLIA256_CTS_CMAC,
+		.Ke			= &camellia256_cts_cmac_Ke,
+		.plaintext		= &encrypt_selftest_plaintext,
+	},
+	{
+		.desc			= "aes128-cts-hmac-sha256-128 encryption self-test",
+		.enctype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+		.Ke			= &aes128_cts_hmac_sha256_128_Ke,
+		.plaintext		= &encrypt_selftest_plaintext,
+	},
+	{
+		.desc			= "aes256-cts-hmac-sha384-192 encryption self-test",
+		.enctype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		.Ke			= &aes256_cts_hmac_sha384_192_Ke,
+		.plaintext		= &encrypt_selftest_plaintext,
+	},
+};
+
+/* Creates the function encrypt_selftest_gen_params */
+KUNIT_ARRAY_PARAM(encrypt_selftest, encrypt_selftest_params,
+		  gss_krb5_get_desc);
+
+/*
+ * Encrypt and decrypt plaintext, and ensure the input plaintext
+ * matches the output plaintext. A confounder is not added in this
+ * case.
+ */
+static void encrypt_selftest_case(struct kunit *test)
+{
+	const struct gss_krb5_test_param *param = test->param_value;
+	struct crypto_sync_skcipher *cts_tfm, *cbc_tfm;
+	const struct gss_krb5_enctype *gk5e;
+	struct xdr_buf buf;
+	void *text;
+	int err;
+
+	/* Arrange */
+	gk5e = gss_krb5_lookup_enctype(param->enctype);
+	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+
+	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
+	err = crypto_sync_skcipher_setkey(cbc_tfm, param->Ke->data, param->Ke->len);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	cts_tfm = crypto_alloc_sync_skcipher(gk5e->encrypt_name, 0, 0);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cts_tfm);
+	err = crypto_sync_skcipher_setkey(cts_tfm, param->Ke->data, param->Ke->len);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	text = kunit_kzalloc(test, roundup(param->plaintext->len,
+					   crypto_sync_skcipher_blocksize(cbc_tfm)),
+			     GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, text);
+
+	memcpy(text, param->plaintext->data, param->plaintext->len);
+	memset(&buf, 0, sizeof(buf));
+	buf.head[0].iov_base = text;
+	buf.head[0].iov_len = param->plaintext->len;
+	buf.len = buf.head[0].iov_len;
+
+	/* Act */
+	err = krb5_cbc_cts_encrypt(cts_tfm, cbc_tfm, 0, &buf, NULL, NULL, 0);
+	KUNIT_ASSERT_EQ(test, err, 0);
+	err = krb5_cbc_cts_decrypt(cts_tfm, cbc_tfm, 0, &buf);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	/* Assert */
+	KUNIT_EXPECT_EQ_MSG(test,
+			    param->plaintext->len, buf.len,
+			    "length mismatch");
+	KUNIT_EXPECT_EQ_MSG(test,
+			    memcmp(param->plaintext->data,
+				   buf.head[0].iov_base, buf.len), 0,
+			    "plaintext mismatch");
+
+	crypto_free_sync_skcipher(cts_tfm);
+	crypto_free_sync_skcipher(cbc_tfm);
+}
+
+static struct kunit_case encryption_test_cases[] = {
+	{
+		.name			= "Encryption self-tests",
+		.run_case		= encrypt_selftest_case,
+		.generate_params	= encrypt_selftest_gen_params,
+	},
+};
+
+static struct kunit_suite encryption_test_suite = {
+	.name			= "Encryption test suite",
+	.test_cases		= encryption_test_cases,
+};
+
 kunit_test_suites(&rfc3961_suite,
 		  &rfc3962_suite,
 		  &rfc6803_suite,
-		  &rfc8009_suite);
+		  &rfc8009_suite,
+		  &encryption_test_suite);
 
 MODULE_DESCRIPTION("Test RPCSEC GSS Kerberos 5 functions");
 MODULE_LICENSE("GPL");

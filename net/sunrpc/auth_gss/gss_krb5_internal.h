@@ -221,6 +221,9 @@ int krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
 			 struct crypto_sync_skcipher *cbc_tfm, u32 offset,
 			 struct xdr_buf *buf, struct page **pages,
 			 u8 *iv, unsigned int ivsize);
+int krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
+			 struct crypto_sync_skcipher *cbc_tfm,
+			 u32 offset, struct xdr_buf *buf);
 u32 krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
 		      struct crypto_ahash *tfm, const struct xdr_buf *body,
 		      int body_offset, struct xdr_netobj *cksumout);
