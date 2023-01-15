@@ -146,6 +146,57 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .keyed_cksum = 1,
 	},
 #endif
+
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2)
+	/*
+	 * AES-128 with SHA-256 (RFC 8009)
+	 */
+	{
+		.etype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+		.ctype		= CKSUMTYPE_HMAC_SHA256_128_AES128,
+		.name		= "aes128-cts-hmac-sha256-128",
+		.encrypt_name	= "cts(cbc(aes))",
+		.aux_cipher	= "cbc(aes)",
+		.cksum_name	= "hmac(sha256)",
+		.cksumlength	= BITS2OCTETS(128),
+		.keyed_cksum	= 1,
+		.keylength	= BITS2OCTETS(128),
+		.Kc_length	= BITS2OCTETS(128),
+		.Ke_length	= BITS2OCTETS(128),
+		.Ki_length	= BITS2OCTETS(128),
+
+		.import_ctx	= gss_krb5_import_ctx_v2,
+
+		.get_mic	= gss_krb5_get_mic_v2,
+		.verify_mic	= gss_krb5_verify_mic_v2,
+		.wrap		= gss_krb5_wrap_v2,
+		.unwrap		= gss_krb5_unwrap_v2,
+	},
+	/*
+	 * AES-256 with SHA-384 (RFC 8009)
+	 */
+	{
+		.etype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		.ctype		= CKSUMTYPE_HMAC_SHA384_192_AES256,
+		.name		= "aes256-cts-hmac-sha384-192",
+		.encrypt_name	= "cts(cbc(aes))",
+		.aux_cipher	= "cbc(aes)",
+		.cksum_name	= "hmac(sha384)",
+		.cksumlength	= BITS2OCTETS(192),
+		.keyed_cksum	= 1,
+		.keylength	= BITS2OCTETS(256),
+		.Kc_length	= BITS2OCTETS(192),
+		.Ke_length	= BITS2OCTETS(256),
+		.Ki_length	= BITS2OCTETS(192),
+
+		.import_ctx	= gss_krb5_import_ctx_v2,
+
+		.get_mic	= gss_krb5_get_mic_v2,
+		.verify_mic	= gss_krb5_verify_mic_v2,
+		.wrap		= gss_krb5_wrap_v2,
+		.unwrap		= gss_krb5_unwrap_v2,
+	},
+#endif
 };
 
 /*

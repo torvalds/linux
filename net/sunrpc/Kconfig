@@ -80,6 +80,20 @@ config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1
 	  SHA-1 digests. These include aes128-cts-hmac-sha1-96 and
 	  aes256-cts-hmac-sha1-96.
 
+config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2
+	bool "Enable Kerberos enctypes based on AES and SHA-2"
+	depends on RPCSEC_GSS_KRB5
+	depends on CRYPTO_CBC && CRYPTO_CTS
+	depends on CRYPTO_HMAC && CRYPTO_SHA256 && CRYPTO_SHA512
+	depends on CRYPTO_AES
+	default n
+	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
+	help
+	  Choose Y to enable the use of Kerberos 5 encryption types
+	  that utilize Advanced Encryption Standard (AES) ciphers and
+	  SHA-2 digests. These include aes128-cts-hmac-sha256-128 and
+	  aes256-cts-hmac-sha384-192.
+
 config SUNRPC_DEBUG
 	bool "RPC: Enable dprintk debugging"
 	depends on SUNRPC && SYSCTL

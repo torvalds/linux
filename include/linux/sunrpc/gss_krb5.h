@@ -54,8 +54,8 @@
 /* Maximum key length (in bytes) for the supported crypto algorithms */
 #define GSS_KRB5_MAX_KEYLEN (32)
 
-/* Maximum checksum function output for the supported crypto algorithms */
-#define GSS_KRB5_MAX_CKSUM_LEN  (20)
+/* Maximum checksum function output for the supported enctypes */
+#define GSS_KRB5_MAX_CKSUM_LEN  (24)
 
 /* Maximum blocksize for the supported crypto algorithms */
 #define GSS_KRB5_MAX_BLOCKSIZE  (16)
@@ -160,6 +160,12 @@ enum seal_alg {
 	SEAL_ALG_DES3KD = 0x0002
 };
 
+/*
+ * These values are assigned by IANA and published via the
+ * subregistry at the link below:
+ *
+ * https://www.iana.org/assignments/kerberos-parameters/kerberos-parameters.xhtml#kerberos-parameters-2
+ */
 #define CKSUMTYPE_CRC32			0x0001
 #define CKSUMTYPE_RSA_MD4		0x0002
 #define CKSUMTYPE_RSA_MD4_DES		0x0003
@@ -170,6 +176,8 @@ enum seal_alg {
 #define CKSUMTYPE_HMAC_SHA1_DES3	0x000c
 #define CKSUMTYPE_HMAC_SHA1_96_AES128   0x000f
 #define CKSUMTYPE_HMAC_SHA1_96_AES256   0x0010
+#define CKSUMTYPE_HMAC_SHA256_128_AES128	0x0013
+#define CKSUMTYPE_HMAC_SHA384_192_AES256	0x0014
 #define CKSUMTYPE_HMAC_MD5_ARCFOUR      -138 /* Microsoft md5 hmac cksumtype */
 
 /* from gssapi_err_krb5.h */
@@ -190,6 +198,11 @@ enum seal_alg {
 
 /* per Kerberos v5 protocol spec crypto types from the wire. 
  * these get mapped to linux kernel crypto routines.  
+ *
+ * These values are assigned by IANA and published via the
+ * subregistry at the link below:
+ *
+ * https://www.iana.org/assignments/kerberos-parameters/kerberos-parameters.xhtml#kerberos-parameters-1
  */
 #define ENCTYPE_NULL            0x0000
 #define ENCTYPE_DES_CBC_CRC     0x0001	/* DES cbc mode with CRC-32 */
@@ -203,6 +216,8 @@ enum seal_alg {
 #define ENCTYPE_DES3_CBC_SHA1   0x0010
 #define ENCTYPE_AES128_CTS_HMAC_SHA1_96 0x0011
 #define ENCTYPE_AES256_CTS_HMAC_SHA1_96 0x0012
+#define ENCTYPE_AES128_CTS_HMAC_SHA256_128	0x0013
+#define ENCTYPE_AES256_CTS_HMAC_SHA384_192	0x0014
 #define ENCTYPE_ARCFOUR_HMAC            0x0017
 #define ENCTYPE_ARCFOUR_HMAC_EXP        0x0018
 #define ENCTYPE_UNKNOWN         0x01ff
