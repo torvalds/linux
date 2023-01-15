@@ -108,8 +108,11 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .signalg = -1,
 	  .sealalg = -1,
 	  .keybytes = 16,
-	  .keylength = 16,
-	  .cksumlength = 12,
+	  .keylength = BITS2OCTETS(128),
+	  .Kc_length = BITS2OCTETS(128),
+	  .Ke_length = BITS2OCTETS(128),
+	  .Ki_length = BITS2OCTETS(128),
+	  .cksumlength = BITS2OCTETS(96),
 	  .keyed_cksum = 1,
 	},
 	/*
@@ -135,8 +138,11 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .signalg = -1,
 	  .sealalg = -1,
 	  .keybytes = 32,
-	  .keylength = 32,
-	  .cksumlength = 12,
+	  .keylength = BITS2OCTETS(256),
+	  .Kc_length = BITS2OCTETS(256),
+	  .Ke_length = BITS2OCTETS(256),
+	  .Ki_length = BITS2OCTETS(256),
+	  .cksumlength = BITS2OCTETS(96),
 	  .keyed_cksum = 1,
 	},
 #endif
@@ -423,12 +429,12 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	struct xdr_netobj keyout;
 	int ret = -EINVAL;
 
-	keyout.data = kmalloc(ctx->gk5e->keylength, gfp_mask);
+	keyout.data = kmalloc(GSS_KRB5_MAX_KEYLEN, gfp_mask);
 	if (!keyout.data)
 		return -ENOMEM;
-	keyout.len = ctx->gk5e->keylength;
 
 	/* initiator seal encryption */
+	keyout.len = ctx->gk5e->Ke_length;
 	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SEAL,
 			    KEY_USAGE_SEED_ENCRYPTION, gfp_mask))
 		goto out;
@@ -461,6 +467,7 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 	}
 
 	/* initiator sign checksum */
+	keyout.len = ctx->gk5e->Kc_length;
 	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SIGN,
 			    KEY_USAGE_SEED_CHECKSUM, gfp_mask))
 		goto out_free;
@@ -477,6 +484,7 @@ gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 		goto out_free;
 
 	/* initiator seal integrity */
+	keyout.len = ctx->gk5e->Ki_length;
 	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SEAL,
 			    KEY_USAGE_SEED_INTEGRITY, gfp_mask))
 		goto out_free;

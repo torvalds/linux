@@ -42,10 +42,16 @@
 #include <linux/sunrpc/gss_err.h>
 #include <linux/sunrpc/gss_asn1.h>
 
+/*
+ * The RFCs often specify payload lengths in bits. This helper
+ * converts a specified bit-length to the number of octets/bytes.
+ */
+#define BITS2OCTETS(x)	((x) / 8)
+
 /* Length of constant used in key derivation */
 #define GSS_KRB5_K5CLENGTH (5)
 
-/* Maximum key length (in bytes) for the supported crypto algorithms*/
+/* Maximum key length (in bytes) for the supported crypto algorithms */
 #define GSS_KRB5_MAX_KEYLEN (32)
 
 /* Maximum checksum function output for the supported crypto algorithms */
@@ -68,7 +74,11 @@ struct gss_krb5_enctype {
 	const u32		cksumlength;	/* checksum length */
 	const u32		keyed_cksum;	/* is it a keyed cksum? */
 	const u32		keybytes;	/* raw key len, in bytes */
-	const u32		keylength;	/* final key len, in bytes */
+	const u32		keylength;	/* protocol key length, in octets */
+	const u32		Kc_length;	/* checksum subkey length, in octets */
+	const u32		Ke_length;	/* encryption subkey length, in octets */
+	const u32		Ki_length;	/* integrity subkey length, in octets */
+
 	int (*import_ctx)(struct krb5_ctx *ctx, gfp_t gfp_mask);
 	int (*derive_key)(const struct gss_krb5_enctype *gk5e,
 			  const struct xdr_netobj *in,
