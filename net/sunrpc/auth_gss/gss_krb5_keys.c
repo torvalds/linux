@@ -60,6 +60,7 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/lcm.h>
+#include <crypto/hash.h>
 
 #include "gss_krb5_internal.h"
 
@@ -359,5 +360,121 @@ int krb5_derive_key_v2(const struct gss_krb5_enctype *gk5e,
 		ret = krb5_random_to_key_v2(gk5e, &inblock, outkey);
 
 	kfree_sensitive(inblock.data);
+	return ret;
+}
+
+/*
+ * K1 = HMAC-SHA(key, 0x00000001 | label | 0x00 | k)
+ *
+ *    key: The source of entropy from which subsequent keys are derived.
+ *
+ *    label: An octet string describing the intended usage of the
+ *    derived key.
+ *
+ *    k: Length in bits of the key to be outputted, expressed in
+ *    big-endian binary representation in 4 bytes.
+ */
+static int
+krb5_hmac_K1(struct crypto_shash *tfm, const struct xdr_netobj *label,
+	     u32 outlen, struct xdr_netobj *K1)
+{
+	__be32 k = cpu_to_be32(outlen * 8);
+	SHASH_DESC_ON_STACK(desc, tfm);
+	__be32 one = cpu_to_be32(1);
+	u8 zero = 0;
+	int ret;
+
+	desc->tfm = tfm;
+	ret = crypto_shash_init(desc);
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, (u8 *)&one, sizeof(one));
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, label->data, label->len);
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, &zero, sizeof(zero));
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, (u8 *)&k, sizeof(k));
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_final(desc, K1->data);
+	if (ret)
+		goto out_err;
+
+out_err:
+	shash_desc_zero(desc);
+	return ret;
+}
+
+/**
+ * krb5_kdf_hmac_sha2 - Derive a subkey for an AES/SHA2-based enctype
+ * @gk5e: Kerberos 5 enctype policy parameters
+ * @inkey: base protocol key
+ * @outkey: OUT: derived key
+ * @label: subkey usage label
+ * @gfp_mask: memory allocation control flags
+ *
+ * RFC 8009 Section 3:
+ *
+ *  "We use a key derivation function from Section 5.1 of [SP800-108],
+ *   which uses the HMAC algorithm as the PRF."
+ *
+ *	function KDF-HMAC-SHA2(key, label, [context,] k):
+ *		k-truncate(K1)
+ *
+ * Caller sets @outkey->len to the desired length of the derived key.
+ *
+ * On success, returns 0 and fills in @outkey. A negative errno value
+ * is returned on failure.
+ */
+int
+krb5_kdf_hmac_sha2(const struct gss_krb5_enctype *gk5e,
+		   const struct xdr_netobj *inkey,
+		   struct xdr_netobj *outkey,
+		   const struct xdr_netobj *label,
+		   gfp_t gfp_mask)
+{
+	struct crypto_shash *tfm;
+	struct xdr_netobj K1 = {
+		.data = NULL,
+	};
+	int ret;
+
+	/*
+	 * This implementation assumes the HMAC used for an enctype's
+	 * key derivation is the same as the HMAC used for its
+	 * checksumming. This happens to be true for enctypes that
+	 * are currently supported by this implementation.
+	 */
+	tfm = crypto_alloc_shash(gk5e->cksum_name, 0, 0);
+	if (IS_ERR(tfm)) {
+		ret = PTR_ERR(tfm);
+		goto out;
+	}
+	ret = crypto_shash_setkey(tfm, inkey->data, inkey->len);
+	if (ret)
+		goto out_free_tfm;
+
+	K1.len = crypto_shash_digestsize(tfm);
+	K1.data = kmalloc(K1.len, gfp_mask);
+	if (!K1.data) {
+		ret = -ENOMEM;
+		goto out_free_tfm;
+	}
+
+	ret = krb5_hmac_K1(tfm, label, outkey->len, &K1);
+	if (ret)
+		goto out_free_tfm;
+
+	/* k-truncate and random-to-key */
+	memcpy(outkey->data, K1.data, outkey->len);
+
+out_free_tfm:
+	kfree_sensitive(K1.data);
+	crypto_free_shash(tfm);
+out:
 	return ret;
 }
