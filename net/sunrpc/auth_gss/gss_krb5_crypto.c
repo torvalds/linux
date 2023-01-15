@@ -46,6 +46,7 @@
 #include <linux/random.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
+#include <kunit/visibility.h>
 
 #include "gss_krb5_internal.h"
 
@@ -640,14 +641,28 @@ out:
 	return ret;
 }
 
-/*
+/**
+ * krb5_cbc_cts_encrypt - encrypt in CBC mode with CTS
+ * @cts_tfm: CBC cipher with CTS
+ * @cbc_tfm: base CBC cipher
+ * @offset: starting byte offset for plaintext
+ * @buf: OUT: output buffer
+ * @pages: plaintext
+ * @iv: output CBC initialization vector, or NULL
+ * @ivsize: size of @iv, in octets
+ *
  * To provide confidentiality, encrypt using cipher block chaining
  * with ciphertext stealing. Message integrity is handled separately.
+ *
+ * Return values:
+ *   %0: encryption successful
+ *   negative errno: encryption could not be completed
  */
-static int
-krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
-		     struct crypto_sync_skcipher *cbc_tfm,
-		     u32 offset, struct xdr_buf *buf, struct page **pages)
+VISIBLE_IF_KUNIT
+int krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
+			 struct crypto_sync_skcipher *cbc_tfm,
+			 u32 offset, struct xdr_buf *buf, struct page **pages,
+			 u8 *iv, unsigned int ivsize)
 {
 	u32 blocksize, nbytes, nblocks, cbcbytes;
 	struct encryptor_desc desc;
@@ -691,8 +706,11 @@ krb5_cbc_cts_encrypt(struct crypto_sync_skcipher *cts_tfm,
 	if (err)
 		return err;
 
+	if (unlikely(iv))
+		memcpy(iv, desc.iv, ivsize);
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(krb5_cbc_cts_encrypt);
 
 static int
 krb5_cbc_cts_decrypt(struct crypto_sync_skcipher *cts_tfm,
@@ -800,7 +818,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 
 	err = krb5_cbc_cts_encrypt(cipher, aux_cipher,
 				   offset + GSS_KRB5_TOK_HDR_LEN,
-				   buf, pages);
+				   buf, pages, NULL, 0);
 	if (err)
 		return GSS_S_FAILURE;
 
@@ -992,7 +1010,7 @@ krb5_etm_encrypt(struct krb5_ctx *kctx, u32 offset,
 
 	err = krb5_cbc_cts_encrypt(cipher, aux_cipher,
 				   offset + GSS_KRB5_TOK_HDR_LEN,
-				   buf, pages);
+				   buf, pages, NULL, 0);
 	if (err)
 		return GSS_S_FAILURE;
 
