@@ -58,6 +58,12 @@ int krb5_kdf_hmac_sha2(const struct gss_krb5_enctype *gk5e,
 		       const struct xdr_netobj *in_constant,
 		       gfp_t gfp_mask);
 
+int krb5_kdf_feedback_cmac(const struct gss_krb5_enctype *gk5e,
+			   const struct xdr_netobj *inkey,
+			   struct xdr_netobj *outkey,
+			   const struct xdr_netobj *in_constant,
+			   gfp_t gfp_mask);
+
 /**
  * krb5_derive_key - Derive a subkey from a protocol key
  * @kctx: Kerberos 5 context

@@ -166,6 +166,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 		.Ki_length	= BITS2OCTETS(128),
 
 		.import_ctx	= gss_krb5_import_ctx_v2,
+		.derive_key	= krb5_kdf_feedback_cmac,
 		.encrypt	= gss_krb5_aes_encrypt,
 		.decrypt	= gss_krb5_aes_decrypt,
 
@@ -192,6 +193,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 		.Ki_length	= BITS2OCTETS(256),
 
 		.import_ctx	= gss_krb5_import_ctx_v2,
+		.derive_key	= krb5_kdf_feedback_cmac,
 		.encrypt	= gss_krb5_aes_encrypt,
 		.decrypt	= gss_krb5_aes_decrypt,
 

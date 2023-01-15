@@ -364,6 +364,149 @@ int krb5_derive_key_v2(const struct gss_krb5_enctype *gk5e,
 }
 
 /*
+ * K(i) = CMAC(key, K(i-1) | i | constant | 0x00 | k)
+ *
+ *    i: A block counter is used with a length of 4 bytes, represented
+ *       in big-endian order.
+ *
+ *    constant: The label input to the KDF is the usage constant supplied
+ *              to the key derivation function
+ *
+ *    k: The length of the output key in bits, represented as a 4-byte
+ *       string in big-endian order.
+ *
+ * Caller fills in K(i-1) in @step, and receives the result K(i)
+ * in the same buffer.
+ */
+static int
+krb5_cmac_Ki(struct crypto_shash *tfm, const struct xdr_netobj *constant,
+	     u32 outlen, u32 count, struct xdr_netobj *step)
+{
+	__be32 k = cpu_to_be32(outlen * 8);
+	SHASH_DESC_ON_STACK(desc, tfm);
+	__be32 i = cpu_to_be32(count);
+	u8 zero = 0;
+	int ret;
+
+	desc->tfm = tfm;
+	ret = crypto_shash_init(desc);
+	if (ret)
+		goto out_err;
+
+	ret = crypto_shash_update(desc, step->data, step->len);
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, (u8 *)&i, sizeof(i));
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, constant->data, constant->len);
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, &zero, sizeof(zero));
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_update(desc, (u8 *)&k, sizeof(k));
+	if (ret)
+		goto out_err;
+	ret = crypto_shash_final(desc, step->data);
+	if (ret)
+		goto out_err;
+
+out_err:
+	shash_desc_zero(desc);
+	return ret;
+}
+
+/**
+ * krb5_kdf_feedback_cmac - Derive a subkey for a Camellia/CMAC-based enctype
+ * @gk5e: Kerberos 5 enctype parameters
+ * @inkey: base protocol key
+ * @outkey: OUT: derived key
+ * @constant: subkey usage label
+ * @gfp_mask: memory allocation control flags
+ *
+ * RFC 6803 Section 3:
+ *
+ * "We use a key derivation function from the family specified in
+ *  [SP800-108], Section 5.2, 'KDF in Feedback Mode'."
+ *
+ *	n = ceiling(k / 128)
+ *	K(0) = zeros
+ *	K(i) = CMAC(key, K(i-1) | i | constant | 0x00 | k)
+ *	DR(key, constant) = k-truncate(K(1) | K(2) | ... | K(n))
+ *	KDF-FEEDBACK-CMAC(key, constant) = random-to-key(DR(key, constant))
+ *
+ * Caller sets @outkey->len to the desired length of the derived key (k).
+ *
+ * On success, returns 0 and fills in @outkey. A negative errno value
+ * is returned on failure.
+ */
+int
+krb5_kdf_feedback_cmac(const struct gss_krb5_enctype *gk5e,
+		       const struct xdr_netobj *inkey,
+		       struct xdr_netobj *outkey,
+		       const struct xdr_netobj *constant,
+		       gfp_t gfp_mask)
+{
+	struct xdr_netobj step = { .data = NULL };
+	struct xdr_netobj DR = { .data = NULL };
+	unsigned int blocksize, offset;
+	struct crypto_shash *tfm;
+	int n, count, ret;
+
+	/*
+	 * This implementation assumes the CMAC used for an enctype's
+	 * key derivation is the same as the CMAC used for its
+	 * checksumming. This happens to be true for enctypes that
+	 * are currently supported by this implementation.
+	 */
+	tfm = crypto_alloc_shash(gk5e->cksum_name, 0, 0);
+	if (IS_ERR(tfm)) {
+		ret = PTR_ERR(tfm);
+		goto out;
+	}
+	ret = crypto_shash_setkey(tfm, inkey->data, inkey->len);
+	if (ret)
+		goto out_free_tfm;
+
+	blocksize = crypto_shash_digestsize(tfm);
+	n = (outkey->len + blocksize - 1) / blocksize;
+
+	/* K(0) is all zeroes */
+	ret = -ENOMEM;
+	step.len = blocksize;
+	step.data = kzalloc(step.len, gfp_mask);
+	if (!step.data)
+		goto out_free_tfm;
+
+	DR.len = blocksize * n;
+	DR.data = kmalloc(DR.len, gfp_mask);
+	if (!DR.data)
+		goto out_free_tfm;
+
+	/* XXX: Does not handle partial-block key sizes */
+	for (offset = 0, count = 1; count <= n; count++) {
+		ret = krb5_cmac_Ki(tfm, constant, outkey->len, count, &step);
+		if (ret)
+			goto out_free_tfm;
+
+		memcpy(DR.data + offset, step.data, blocksize);
+		offset += blocksize;
+	}
+
+	/* k-truncate and random-to-key */
+	memcpy(outkey->data, DR.data, outkey->len);
+	ret = 0;
+
+out_free_tfm:
+	crypto_free_shash(tfm);
+out:
+	kfree_sensitive(step.data);
+	kfree_sensitive(DR.data);
+	return ret;
+}
+
+/*
  * K1 = HMAC-SHA(key, 0x00000001 | label | 0x00 | k)
  *
  *    key: The source of entropy from which subsequent keys are derived.
