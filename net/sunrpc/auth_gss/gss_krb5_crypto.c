@@ -610,6 +610,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	struct encryptor_desc desc;
 	u32 cbcbytes;
 	unsigned int usage;
+	unsigned int conflen;
 
 	if (kctx->initiate) {
 		cipher = kctx->initiator_enc;
@@ -623,12 +624,13 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		usage = KG_USAGE_ACCEPTOR_SEAL;
 	}
 	blocksize = crypto_sync_skcipher_blocksize(cipher);
+	conflen = crypto_sync_skcipher_blocksize(cipher);
 
 	/* hide the gss token header and insert the confounder */
 	offset += GSS_KRB5_TOK_HDR_LEN;
-	if (xdr_extend_head(buf, offset, kctx->gk5e->conflen))
+	if (xdr_extend_head(buf, offset, conflen))
 		return GSS_S_FAILURE;
-	gss_krb5_make_confounder(buf->head[0].iov_base + offset, kctx->gk5e->conflen);
+	gss_krb5_make_confounder(buf->head[0].iov_base + offset, conflen);
 	offset -= GSS_KRB5_TOK_HDR_LEN;
 
 	if (buf->tail[0].iov_base != NULL) {
@@ -744,7 +746,6 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 	}
 	blocksize = crypto_sync_skcipher_blocksize(cipher);
 
-
 	/* create a segment skipping the header and leaving out the checksum */
 	xdr_buf_subsegment(buf, &subbuf, offset + GSS_KRB5_TOK_HDR_LEN,
 				    (len - offset - GSS_KRB5_TOK_HDR_LEN -
@@ -801,7 +802,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		ret = GSS_S_BAD_SIG;
 		goto out_err;
 	}
-	*headskip = kctx->gk5e->conflen;
+	*headskip = blocksize;
 	*tailskip = kctx->gk5e->cksumlength;
 out_err:
 	if (ret && ret != GSS_S_BAD_SIG)

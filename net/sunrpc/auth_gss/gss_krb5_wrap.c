@@ -168,7 +168,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	struct page		**tmp_pages;
 	u32			seq_send;
 	u8			*cksumkey;
-	u32			conflen = kctx->gk5e->conflen;
+	u32			conflen = crypto_sync_skcipher_blocksize(kctx->enc);
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -261,7 +261,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, int len,
 	void			*data_start, *orig_start;
 	int			data_len;
 	int			blocksize;
-	u32			conflen = kctx->gk5e->conflen;
+	u32			conflen = crypto_sync_skcipher_blocksize(kctx->enc);
 	int			crypt_offset;
 	u8			*cksumkey;
 	unsigned int		saved_len = buf->len;
