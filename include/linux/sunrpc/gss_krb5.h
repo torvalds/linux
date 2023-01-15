@@ -1,6 +1,4 @@
 /*
- *  linux/include/linux/sunrpc/gss_krb5_types.h
- *
  *  Adapted from MIT Kerberos 5-1.2.1 lib/include/krb5.h,
  *  lib/gssapi/krb5/gssapiP_krb5.h, and others
  *
@@ -35,6 +33,9 @@
  * or implied warranty.
  *
  */
+
+#ifndef _LINUX_SUNRPC_GSS_KRB5_H
+#define _LINUX_SUNRPC_GSS_KRB5_H
 
 #include <crypto/skcipher.h>
 #include <linux/sunrpc/auth_gss.h>
@@ -316,3 +317,5 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 
 void
 gss_krb5_make_confounder(char *p, u32 conflen);
+
+#endif /* _LINUX_SUNRPC_GSS_KRB5_H */
