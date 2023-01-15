@@ -794,11 +794,11 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		return;
 	if (tmpRegA >= 12)
 		tmpRegA = 12;
-	priv->ThermalMeter[0] = ThermalMeterVal;
-	priv->ThermalMeter[1] = ThermalMeterVal;
+	priv->thermal_meter[0] = ThermalMeterVal;
+	priv->thermal_meter[1] = ThermalMeterVal;
 
-	if (priv->ThermalMeter[0] >= (u8)tmpRegA) {
-		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->ThermalMeter[0] -
+	if (priv->thermal_meter[0] >= (u8)tmpRegA) {
+		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
 			      (u8)tmpRegA);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
 		if (tmpOFDMindex >= OFDM_Table_Length)
@@ -808,7 +808,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		if (tmpCCK40Mindex >= CCK_Table_length)
 			tmpCCK40Mindex = CCK_Table_length-1;
 	} else {
-		tmpval = (u8)tmpRegA - priv->ThermalMeter[0];
+		tmpval = (u8)tmpRegA - priv->thermal_meter[0];
 		if (tmpval >= 6) {
 			tmpOFDMindex = 0;
 			tmpCCK20Mindex = 0;

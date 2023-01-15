@@ -954,7 +954,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 		netdev_err(dev, "%s(): Driver is not initialized\n", __func__);
 		return false;
 	}
-	if (priv->SwChnlInProgress)
+	if (priv->sw_chnl_in_progress)
 		return false;
 
 
@@ -987,7 +987,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 		break;
 	}
 
-	priv->SwChnlInProgress = true;
+	priv->sw_chnl_in_progress = true;
 	if (channel == 0)
 		channel = 1;
 
@@ -998,7 +998,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 
 	if (priv->up)
 		_rtl92e_phy_switch_channel_work_item(dev);
-	priv->SwChnlInProgress = false;
+	priv->sw_chnl_in_progress = false;
 	return true;
 }
 
@@ -1101,7 +1101,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 	u8 regBwOpMode;
 
 	if (priv->rf_chip == RF_PSEUDO_11N) {
-		priv->SetBWModeInProgress = false;
+		priv->set_bw_mode_in_progress = false;
 		return;
 	}
 	if (!priv->up) {
@@ -1190,7 +1190,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 	}
 
 	atomic_dec(&(priv->rtllib->atm_swbw));
-	priv->SetBWModeInProgress = false;
+	priv->set_bw_mode_in_progress = false;
 }
 
 void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
@@ -1199,11 +1199,11 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 
-	if (priv->SetBWModeInProgress)
+	if (priv->set_bw_mode_in_progress)
 		return;
 
 	atomic_inc(&(priv->rtllib->atm_swbw));
-	priv->SetBWModeInProgress = true;
+	priv->set_bw_mode_in_progress = true;
 
 	priv->CurrentChannelBW = bandwidth;
 
