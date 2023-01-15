@@ -886,10 +886,27 @@ out_err:
 	return ret;
 }
 
-static u32
-krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
-		  struct crypto_ahash *tfm, const struct xdr_buf *body,
-		  int body_offset, struct xdr_netobj *cksumout)
+/**
+ * krb5_etm_checksum - Compute a MAC for a GSS Wrap token
+ * @cipher: an initialized cipher transform
+ * @tfm: an initialized hash transform
+ * @body: xdr_buf containing an RPC message (body.len is the message length)
+ * @body_offset: byte offset into @body to start checksumming
+ * @cksumout: OUT: a buffer to be filled in with the computed HMAC
+ *
+ * Usually expressed as H = HMAC(K, IV | ciphertext)[1..h] .
+ *
+ * Caller provides the truncation length of the output token (h) in
+ * cksumout.len.
+ *
+ * Return values:
+ *   %GSS_S_COMPLETE: Digest computed, @cksumout filled in
+ *   %GSS_S_FAILURE: Call failed
+ */
+VISIBLE_IF_KUNIT
+u32 krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
+		      struct crypto_ahash *tfm, const struct xdr_buf *body,
+		      int body_offset, struct xdr_netobj *cksumout)
 {
 	unsigned int ivsize = crypto_sync_skcipher_ivsize(cipher);
 	struct ahash_request *req;
@@ -936,6 +953,7 @@ out_free_mem:
 	kfree_sensitive(checksumdata);
 	return err ? GSS_S_FAILURE : GSS_S_COMPLETE;
 }
+EXPORT_SYMBOL_IF_KUNIT(krb5_etm_checksum);
 
 /**
  * krb5_etm_encrypt - Encrypt using the RFC 8009 rules
