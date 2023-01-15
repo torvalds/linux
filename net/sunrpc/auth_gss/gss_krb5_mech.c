@@ -214,6 +214,10 @@ static char gss_krb5_enctype_priority_list[64];
 static void gss_krb5_prepare_enctype_priority_list(void)
 {
 	static const u32 gss_krb5_enctypes[] = {
+#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2)
+		ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+		ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+#endif
 #if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
 		ENCTYPE_AES256_CTS_HMAC_SHA1_96,
 		ENCTYPE_AES128_CTS_HMAC_SHA1_96,
