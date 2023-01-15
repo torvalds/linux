@@ -39,7 +39,7 @@ int prog(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/urandom_read")
+SEC("kprobe/fib_table_lookup")
 int prog2(struct pt_regs *ctx)
 {
 	return 0;

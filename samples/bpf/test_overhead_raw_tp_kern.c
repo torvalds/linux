@@ -9,7 +9,7 @@ int prog(struct bpf_raw_tracepoint_args *ctx)
 	return 0;
 }
 
-SEC("raw_tracepoint/urandom_read")
+SEC("raw_tracepoint/fib_table_lookup")
 int prog2(struct bpf_raw_tracepoint_args *ctx)
 {
 	return 0;

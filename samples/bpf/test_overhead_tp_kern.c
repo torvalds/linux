@@ -22,15 +22,27 @@ int prog(struct task_rename *ctx)
 	return 0;
 }
 
-/* from /sys/kernel/debug/tracing/events/random/urandom_read/format */
-struct urandom_read {
+/* from /sys/kernel/debug/tracing/events/fib/fib_table_lookup/format */
+struct fib_table_lookup {
 	__u64 pad;
-	int got_bits;
-	int pool_left;
-	int input_left;
+	__u32 tb_id;
+	int err;
+	int oif;
+	int iif;
+	__u8 proto;
+	__u8 tos;
+	__u8 scope;
+	__u8 flags;
+	__u8 src[4];
+	__u8 dst[4];
+	__u8 gw4[4];
+	__u8 gw6[16];
+	__u16 sport;
+	__u16 dport;
+	char name[16];
 };
-SEC("tracepoint/random/urandom_read")
-int prog2(struct urandom_read *ctx)
+SEC("tracepoint/fib/fib_table_lookup")
+int prog2(struct fib_table_lookup *ctx)
 {
 	return 0;
 }
