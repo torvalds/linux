@@ -104,14 +104,14 @@ struct krb5_ctx {
 	struct crypto_sync_skcipher *initiator_enc_aux;
 	struct crypto_ahash	*acceptor_sign;
 	struct crypto_ahash	*initiator_sign;
+	struct crypto_ahash	*initiator_integ;
+	struct crypto_ahash	*acceptor_integ;
 	u8			Ksess[GSS_KRB5_MAX_KEYLEN]; /* session key */
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	atomic_t		seq_send;
 	atomic64_t		seq_send64;
 	time64_t		endtime;
 	struct xdr_netobj	mech_used;
-	u8			initiator_integ[GSS_KRB5_MAX_KEYLEN];
-	u8			acceptor_integ[GSS_KRB5_MAX_KEYLEN];
 };
 
 /* The length of the Kerberos GSS token header */
@@ -232,11 +232,6 @@ u32
 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		struct xdr_buf *body, int body_offset, u8 *cksumkey,
 		unsigned int usage, struct xdr_netobj *cksumout);
-
-u32
-make_checksum_v2(struct krb5_ctx *, char *header, int hdrlen,
-		 struct xdr_buf *body, int body_offset, u8 *key,
-		 unsigned int usage, struct xdr_netobj *cksum);
 
 u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
 		struct xdr_netobj *);

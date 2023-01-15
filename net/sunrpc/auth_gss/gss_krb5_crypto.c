@@ -259,93 +259,6 @@ out_free_cksum:
 	return err ? GSS_S_FAILURE : 0;
 }
 
-/*
- * checksum the plaintext data and hdrlen bytes of the token header
- * Per rfc4121, sec. 4.2.4, the checksum is performed over the data
- * body then over the first 16 octets of the MIC token
- * Inclusion of the header data in the calculation of the
- * checksum is optional.
- */
-u32
-make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
-		 struct xdr_buf *body, int body_offset, u8 *cksumkey,
-		 unsigned int usage, struct xdr_netobj *cksumout)
-{
-	struct crypto_ahash *tfm;
-	struct ahash_request *req;
-	struct scatterlist sg[1];
-	int err = -1;
-	u8 *checksumdata;
-
-	if (kctx->gk5e->keyed_cksum == 0) {
-		dprintk("%s: expected keyed hash for %s\n",
-			__func__, kctx->gk5e->name);
-		return GSS_S_FAILURE;
-	}
-	if (cksumkey == NULL) {
-		dprintk("%s: no key supplied for %s\n",
-			__func__, kctx->gk5e->name);
-		return GSS_S_FAILURE;
-	}
-
-	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_KERNEL);
-	if (!checksumdata)
-		return GSS_S_FAILURE;
-
-	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
-		goto out_free_cksum;
-
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		goto out_free_ahash;
-
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
-
-	err = crypto_ahash_setkey(tfm, cksumkey, kctx->gk5e->keylength);
-	if (err)
-		goto out;
-
-	err = crypto_ahash_init(req);
-	if (err)
-		goto out;
-	err = xdr_process_buf(body, body_offset, body->len - body_offset,
-			      checksummer, req);
-	if (err)
-		goto out;
-	if (header != NULL) {
-		sg_init_one(sg, header, hdrlen);
-		ahash_request_set_crypt(req, sg, NULL, hdrlen);
-		err = crypto_ahash_update(req);
-		if (err)
-			goto out;
-	}
-	ahash_request_set_crypt(req, NULL, checksumdata, 0);
-	err = crypto_ahash_final(req);
-	if (err)
-		goto out;
-
-	cksumout->len = kctx->gk5e->cksumlength;
-
-	switch (kctx->gk5e->ctype) {
-	case CKSUMTYPE_HMAC_SHA1_96_AES128:
-	case CKSUMTYPE_HMAC_SHA1_96_AES256:
-		/* note that this truncates the hash */
-		memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
-		break;
-	default:
-		BUG();
-		break;
-	}
-out:
-	ahash_request_free(req);
-out_free_ahash:
-	crypto_free_ahash(tfm);
-out_free_cksum:
-	kfree(checksumdata);
-	return err ? GSS_S_FAILURE : 0;
-}
-
 /**
  * gss_krb5_checksum - Compute the MAC for a GSS Wrap or MIC token
  * @tfm: an initialized hash transform
@@ -702,27 +615,24 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 {
 	u32 err;
 	struct xdr_netobj hmac;
-	u8 *cksumkey;
 	u8 *ecptr;
 	struct crypto_sync_skcipher *cipher, *aux_cipher;
+	struct crypto_ahash *ahash;
 	int blocksize;
 	struct page **save_pages;
 	int nblocks, nbytes;
 	struct encryptor_desc desc;
 	u32 cbcbytes;
-	unsigned int usage;
 	unsigned int conflen;
 
 	if (kctx->initiate) {
 		cipher = kctx->initiator_enc;
 		aux_cipher = kctx->initiator_enc_aux;
-		cksumkey = kctx->initiator_integ;
-		usage = KG_USAGE_INITIATOR_SEAL;
+		ahash = kctx->initiator_integ;
 	} else {
 		cipher = kctx->acceptor_enc;
 		aux_cipher = kctx->acceptor_enc_aux;
-		cksumkey = kctx->acceptor_integ;
-		usage = KG_USAGE_ACCEPTOR_SEAL;
+		ahash = kctx->acceptor_integ;
 	}
 	blocksize = crypto_sync_skcipher_blocksize(cipher);
 	conflen = crypto_sync_skcipher_blocksize(cipher);
@@ -762,9 +672,8 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	save_pages = buf->pages;
 	buf->pages = pages;
 
-	err = make_checksum_v2(kctx, NULL, 0, buf,
-			       offset + GSS_KRB5_TOK_HDR_LEN,
-			       cksumkey, usage, &hmac);
+	err = gss_krb5_checksum(ahash, NULL, 0, buf,
+				offset + GSS_KRB5_TOK_HDR_LEN, &hmac);
 	buf->pages = save_pages;
 	if (err)
 		return GSS_S_FAILURE;
@@ -825,25 +734,22 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 {
 	struct xdr_buf subbuf;
 	u32 ret = 0;
-	u8 *cksum_key;
 	struct crypto_sync_skcipher *cipher, *aux_cipher;
+	struct crypto_ahash *ahash;
 	struct xdr_netobj our_hmac_obj;
 	u8 our_hmac[GSS_KRB5_MAX_CKSUM_LEN];
 	u8 pkt_hmac[GSS_KRB5_MAX_CKSUM_LEN];
 	int nblocks, blocksize, cbcbytes;
 	struct decryptor_desc desc;
-	unsigned int usage;
 
 	if (kctx->initiate) {
 		cipher = kctx->acceptor_enc;
 		aux_cipher = kctx->acceptor_enc_aux;
-		cksum_key = kctx->acceptor_integ;
-		usage = KG_USAGE_ACCEPTOR_SEAL;
+		ahash = kctx->acceptor_integ;
 	} else {
 		cipher = kctx->initiator_enc;
 		aux_cipher = kctx->initiator_enc_aux;
-		cksum_key = kctx->initiator_integ;
-		usage = KG_USAGE_INITIATOR_SEAL;
+		ahash = kctx->initiator_integ;
 	}
 	blocksize = crypto_sync_skcipher_blocksize(cipher);
 
@@ -883,13 +789,9 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 	if (ret)
 		goto out_err;
 
-
-	/* Calculate our hmac over the plaintext data */
 	our_hmac_obj.len = sizeof(our_hmac);
 	our_hmac_obj.data = our_hmac;
-
-	ret = make_checksum_v2(kctx, NULL, 0, &subbuf, 0,
-			       cksum_key, usage, &our_hmac_obj);
+	ret = gss_krb5_checksum(ahash, NULL, 0, &subbuf, 0, &our_hmac_obj);
 	if (ret)
 		goto out_err;
 

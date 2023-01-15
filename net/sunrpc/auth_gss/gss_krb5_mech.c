@@ -447,23 +447,21 @@ context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 
 	/* initiator seal integrity */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SEAL, KEY_USAGE_SEED_INTEGRITY);
-	keyout.data = ctx->initiator_integ;
 	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
-	if (err) {
-		dprintk("%s: Error %d deriving initiator_integ key\n",
-			__func__, err);
+	if (err)
 		goto out_free;
-	}
+	ctx->initiator_integ = gss_krb5_alloc_hash_v2(ctx, &keyout);
+	if (ctx->initiator_integ == NULL)
+		goto out_free;
 
 	/* acceptor seal integrity */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SEAL, KEY_USAGE_SEED_INTEGRITY);
-	keyout.data = ctx->acceptor_integ;
 	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
-	if (err) {
-		dprintk("%s: Error %d deriving acceptor_integ key\n",
-			__func__, err);
+	if (err)
 		goto out_free;
-	}
+	ctx->acceptor_integ = gss_krb5_alloc_hash_v2(ctx, &keyout);
+	if (ctx->acceptor_integ == NULL)
+		goto out_free;
 
 	ret = 0;
 out:
@@ -471,6 +469,8 @@ out:
 	return ret;
 
 out_free:
+	crypto_free_ahash(ctx->acceptor_integ);
+	crypto_free_ahash(ctx->initiator_integ);
 	crypto_free_ahash(ctx->acceptor_sign);
 	crypto_free_ahash(ctx->initiator_sign);
 	crypto_free_sync_skcipher(ctx->acceptor_enc_aux);
@@ -598,6 +598,8 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	crypto_free_sync_skcipher(kctx->initiator_enc_aux);
 	crypto_free_ahash(kctx->acceptor_sign);
 	crypto_free_ahash(kctx->initiator_sign);
+	crypto_free_ahash(kctx->acceptor_integ);
+	crypto_free_ahash(kctx->initiator_integ);
 	kfree(kctx->mech_used.data);
 	kfree(kctx);
 }
