@@ -2735,7 +2735,7 @@ static int get_modules_for_addrs(struct module ***mods, unsigned long *addrs, u3
 	int err;
 
 	/* We return either err < 0 in case of error, ... */
-	err = module_kallsyms_on_each_symbol(module_callback, &args);
+	err = module_kallsyms_on_each_symbol(NULL, module_callback, &args);
 	if (err) {
 		kprobe_multi_put_modules(args.mods, args.mods_cnt);
 		kfree(args.mods);
