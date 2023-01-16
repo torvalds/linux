@@ -149,7 +149,7 @@ static u64 sja1105_base_t1_encode_addr(struct sja1105_private *priv,
 	return regs->mdio_100base_t1 | (phy << 7) | (op << 5) | (xad << 0);
 }
 
-static int sja1105_base_t1_mdio_read(struct mii_bus *bus, int phy, int reg)
+static int sja1105_base_t1_mdio_read_c22(struct mii_bus *bus, int phy, int reg)
 {
 	struct sja1105_mdio_private *mdio_priv = bus->priv;
 	struct sja1105_private *priv = mdio_priv->priv;
@@ -157,29 +157,6 @@ static int sja1105_base_t1_mdio_read(struct mii_bus *bus, int phy, int reg)
 	u32 tmp;
 	int rc;
 
-	if (reg & MII_ADDR_C45) {
-		u16 mmd = (reg >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-
-		addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_ADDR,
-						   mmd);
-
-		tmp = reg & MII_REGADDR_C45_MASK;
-
-		rc = sja1105_xfer_u32(priv, SPI_WRITE, addr, &tmp, NULL);
-		if (rc < 0)
-			return rc;
-
-		addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_DATA,
-						   mmd);
-
-		rc = sja1105_xfer_u32(priv, SPI_READ, addr, &tmp, NULL);
-		if (rc < 0)
-			return rc;
-
-		return tmp & 0xffff;
-	}
-
-	/* Clause 22 read */
 	addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C22, reg & 0x1f);
 
 	rc = sja1105_xfer_u32(priv, SPI_READ, addr, &tmp, NULL);
@@ -189,8 +166,8 @@ static int sja1105_base_t1_mdio_read(struct mii_bus *bus, int phy, int reg)
 	return tmp & 0xffff;
 }
 
-static int sja1105_base_t1_mdio_write(struct mii_bus *bus, int phy, int reg,
-				      u16 val)
+static int sja1105_base_t1_mdio_read_c45(struct mii_bus *bus, int phy,
+					 int mmd, int reg)
 {
 	struct sja1105_mdio_private *mdio_priv = bus->priv;
 	struct sja1105_private *priv = mdio_priv->priv;
@@ -198,32 +175,52 @@ static int sja1105_base_t1_mdio_write(struct mii_bus *bus, int phy, int reg,
 	u32 tmp;
 	int rc;
 
-	if (reg & MII_ADDR_C45) {
-		u16 mmd = (reg >> MII_DEVADDR_C45_SHIFT) & 0x1f;
+	addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_ADDR, mmd);
 
-		addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_ADDR,
-						   mmd);
+	rc = sja1105_xfer_u32(priv, SPI_WRITE, addr, &reg, NULL);
+	if (rc < 0)
+		return rc;
 
-		tmp = reg & MII_REGADDR_C45_MASK;
+	addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_DATA, mmd);
 
-		rc = sja1105_xfer_u32(priv, SPI_WRITE, addr, &tmp, NULL);
-		if (rc < 0)
-			return rc;
+	rc = sja1105_xfer_u32(priv, SPI_READ, addr, &tmp, NULL);
+	if (rc < 0)
+		return rc;
 
-		addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_DATA,
-						   mmd);
+	return tmp & 0xffff;
+}
 
-		tmp = val & 0xffff;
+static int sja1105_base_t1_mdio_write_c22(struct mii_bus *bus, int phy, int reg,
+					  u16 val)
+{
+	struct sja1105_mdio_private *mdio_priv = bus->priv;
+	struct sja1105_private *priv = mdio_priv->priv;
+	u64 addr;
+	u32 tmp;
 
-		rc = sja1105_xfer_u32(priv, SPI_WRITE, addr, &tmp, NULL);
-		if (rc < 0)
-			return rc;
-
-		return 0;
-	}
-
-	/* Clause 22 write */
 	addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C22, reg & 0x1f);
+
+	tmp = val & 0xffff;
+
+	return sja1105_xfer_u32(priv, SPI_WRITE, addr, &tmp, NULL);
+}
+
+static int sja1105_base_t1_mdio_write_c45(struct mii_bus *bus, int phy,
+					  int mmd, int reg, u16 val)
+{
+	struct sja1105_mdio_private *mdio_priv = bus->priv;
+	struct sja1105_private *priv = mdio_priv->priv;
+	u64 addr;
+	u32 tmp;
+	int rc;
+
+	addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_ADDR, mmd);
+
+	rc = sja1105_xfer_u32(priv, SPI_WRITE, addr, &reg, NULL);
+	if (rc < 0)
+		return rc;
+
+	addr = sja1105_base_t1_encode_addr(priv, phy, SJA1105_C45_DATA, mmd);
 
 	tmp = val & 0xffff;
 
@@ -342,8 +339,10 @@ static int sja1105_mdiobus_base_t1_register(struct sja1105_private *priv,
 	bus->name = "SJA1110 100base-T1 MDIO bus";
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-base-t1",
 		 dev_name(priv->ds->dev));
-	bus->read = sja1105_base_t1_mdio_read;
-	bus->write = sja1105_base_t1_mdio_write;
+	bus->read = sja1105_base_t1_mdio_read_c22;
+	bus->write = sja1105_base_t1_mdio_write_c22;
+	bus->read_c45 = sja1105_base_t1_mdio_read_c45;
+	bus->write_c45 = sja1105_base_t1_mdio_write_c45;
 	bus->parent = priv->ds->dev;
 	mdio_priv = bus->priv;
 	mdio_priv->priv = priv;
