@@ -68,9 +68,8 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[drm_crtc_index(crtc)];
 	const struct drm_display_mode *mode = &vblank->hwmode;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
-	i915_reg_t high_frame, low_frame;
-	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
-	unsigned long irqflags;
+	u32 pixel, vbl_start, hsync_start, htotal;
+	u64 frame;
 
 	/*
 	 * On i965gm TV output the frame counter only works up to
@@ -98,34 +97,22 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 	/* Start of vblank event occurs at start of hsync */
 	vbl_start -= htotal - hsync_start;
 
-	high_frame = PIPEFRAME(pipe);
-	low_frame = PIPEFRAMEPIXEL(pipe);
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	/*
 	 * High & low register fields aren't synchronized, so make sure
 	 * we get a low value that's stable across two reads of the high
 	 * register.
 	 */
-	do {
-		high1 = intel_de_read_fw(dev_priv, high_frame) & PIPE_FRAME_HIGH_MASK;
-		low   = intel_de_read_fw(dev_priv, low_frame);
-		high2 = intel_de_read_fw(dev_priv, high_frame) & PIPE_FRAME_HIGH_MASK;
-	} while (high1 != high2);
+	frame = intel_de_read64_2x32(dev_priv, PIPEFRAMEPIXEL(pipe), PIPEFRAME(pipe));
 
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-
-	high1 >>= PIPE_FRAME_HIGH_SHIFT;
-	pixel = low & PIPE_PIXEL_MASK;
-	low >>= PIPE_FRAME_LOW_SHIFT;
+	pixel = frame & PIPE_PIXEL_MASK;
+	frame = (frame >> PIPE_FRAME_LOW_SHIFT) & 0xffffff;
 
 	/*
 	 * The frame counter increments at beginning of active.
 	 * Cook up a vblank counter by also checking the pixel
 	 * counter against vblank start.
 	 */
-	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
+	return (frame + (pixel >= vbl_start)) & 0xffffff;
 }
 
 u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
