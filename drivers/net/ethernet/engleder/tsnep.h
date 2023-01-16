@@ -125,6 +125,8 @@ struct tsnep_rx {
 	u32 dropped;
 	u32 multicast;
 	u32 alloc_failed;
+
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct tsnep_queue {

@@ -1205,17 +1205,64 @@ static void tsnep_free_irq(struct tsnep_queue *queue, bool first)
 	memset(queue->name, 0, sizeof(queue->name));
 }
 
+static void tsnep_queue_close(struct tsnep_queue *queue, bool first)
+{
+	struct tsnep_rx *rx = queue->rx;
+
+	tsnep_free_irq(queue, first);
+
+	if (rx && xdp_rxq_info_is_reg(&rx->xdp_rxq))
+		xdp_rxq_info_unreg(&rx->xdp_rxq);
+
+	netif_napi_del(&queue->napi);
+}
+
+static int tsnep_queue_open(struct tsnep_adapter *adapter,
+			    struct tsnep_queue *queue, bool first)
+{
+	struct tsnep_rx *rx = queue->rx;
+	int retval;
+
+	queue->adapter = adapter;
+
+	netif_napi_add(adapter->netdev, &queue->napi, tsnep_poll);
+
+	if (rx) {
+		retval = xdp_rxq_info_reg(&rx->xdp_rxq, adapter->netdev,
+					  rx->queue_index, queue->napi.napi_id);
+		if (retval)
+			goto failed;
+		retval = xdp_rxq_info_reg_mem_model(&rx->xdp_rxq,
+						    MEM_TYPE_PAGE_POOL,
+						    rx->page_pool);
+		if (retval)
+			goto failed;
+	}
+
+	retval = tsnep_request_irq(queue, first);
+	if (retval) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "can't get assigned irq %d.\n", queue->irq);
+		goto failed;
+	}
+
+	return 0;
+
+failed:
+	tsnep_queue_close(queue, first);
+
+	return retval;
+}
+
 static int tsnep_netdev_open(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
-	int i;
-	void __iomem *addr;
 	int tx_queue_index = 0;
 	int rx_queue_index = 0;
-	int retval;
+	void __iomem *addr;
+	int i, retval;
 
 	for (i = 0; i < adapter->num_queues; i++) {
-		adapter->queue[i].adapter = adapter;
 		if (adapter->queue[i].tx) {
 			addr = adapter->addr + TSNEP_QUEUE(tx_queue_index);
 			retval = tsnep_tx_open(adapter, addr, tx_queue_index,
@@ -1226,21 +1273,16 @@ static int tsnep_netdev_open(struct net_device *netdev)
 		}
 		if (adapter->queue[i].rx) {
 			addr = adapter->addr + TSNEP_QUEUE(rx_queue_index);
-			retval = tsnep_rx_open(adapter, addr,
-					       rx_queue_index,
+			retval = tsnep_rx_open(adapter, addr, rx_queue_index,
 					       adapter->queue[i].rx);
 			if (retval)
 				goto failed;
 			rx_queue_index++;
 		}
 
-		retval = tsnep_request_irq(&adapter->queue[i], i == 0);
-		if (retval) {
-			netif_err(adapter, drv, adapter->netdev,
-				  "can't get assigned irq %d.\n",
-				  adapter->queue[i].irq);
+		retval = tsnep_queue_open(adapter, &adapter->queue[i], i == 0);
+		if (retval)
 			goto failed;
-		}
 	}
 
 	retval = netif_set_real_num_tx_queues(adapter->netdev,
@@ -1258,8 +1300,6 @@ static int tsnep_netdev_open(struct net_device *netdev)
 		goto phy_failed;
 
 	for (i = 0; i < adapter->num_queues; i++) {
-		netif_napi_add(adapter->netdev, &adapter->queue[i].napi,
-			       tsnep_poll);
 		napi_enable(&adapter->queue[i].napi);
 
 		tsnep_enable_irq(adapter, adapter->queue[i].irq_mask);
@@ -1269,10 +1309,9 @@ static int tsnep_netdev_open(struct net_device *netdev)
 
 phy_failed:
 	tsnep_disable_irq(adapter, ECM_INT_LINK);
-	tsnep_phy_close(adapter);
 failed:
 	for (i = 0; i < adapter->num_queues; i++) {
-		tsnep_free_irq(&adapter->queue[i], i == 0);
+		tsnep_queue_close(&adapter->queue[i], i == 0);
 
 		if (adapter->queue[i].rx)
 			tsnep_rx_close(adapter->queue[i].rx);
@@ -1294,9 +1333,8 @@ static int tsnep_netdev_close(struct net_device *netdev)
 		tsnep_disable_irq(adapter, adapter->queue[i].irq_mask);
 
 		napi_disable(&adapter->queue[i].napi);
-		netif_napi_del(&adapter->queue[i].napi);
 
-		tsnep_free_irq(&adapter->queue[i], i == 0);
+		tsnep_queue_close(&adapter->queue[i], i == 0);
 
 		if (adapter->queue[i].rx)
 			tsnep_rx_close(adapter->queue[i].rx);
