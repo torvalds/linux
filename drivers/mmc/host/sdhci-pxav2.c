@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/mmc.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
@@ -45,6 +46,9 @@
 
 struct sdhci_pxav2_host {
 	struct mmc_request *sdio_mrq;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_cmd_gpio;
 };
 
 static void pxav2_reset(struct sdhci_host *host, u8 mask)
@@ -104,6 +108,11 @@ static u32 pxav1_irq(struct sdhci_host *host, u32 intmask)
 		/* The dummy CMD0 for the SDIO workaround just completed */
 		sdhci_writel(host, intmask & SDHCI_INT_CMD_MASK, SDHCI_INT_STATUS);
 		intmask &= ~SDHCI_INT_CMD_MASK;
+
+		/* Restore MMC function to CMD pin */
+		if (pxav2_host->pinctrl && pxav2_host->pins_default)
+			pinctrl_select_state(pxav2_host->pinctrl, pxav2_host->pins_default);
+
 		sdio_mrq = pxav2_host->sdio_mrq;
 		pxav2_host->sdio_mrq = NULL;
 		mmc_request_done(host->mmc, sdio_mrq);
@@ -129,6 +138,11 @@ static void pxav1_request_done(struct sdhci_host *host, struct mmc_request *mrq)
 		/* Clock is now stopped, so restart it by sending a dummy CMD0 */
 		pxav2_host = sdhci_pltfm_priv(sdhci_priv(host));
 		pxav2_host->sdio_mrq = mrq;
+
+		/* Set CMD as high output rather than MMC function while we do CMD0 */
+		if (pxav2_host->pinctrl && pxav2_host->pins_cmd_gpio)
+			pinctrl_select_state(pxav2_host->pinctrl, pxav2_host->pins_cmd_gpio);
+
 		sdhci_writel(host, 0, SDHCI_ARGUMENT);
 		sdhci_writew(host, 0, SDHCI_TRANSFER_MODE);
 		sdhci_writew(host, SDHCI_MAKE_CMD(MMC_GO_IDLE_STATE, SDHCI_CMD_RESP_NONE),
@@ -240,6 +254,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
+	struct sdhci_pxav2_host *pxav2_host;
 	struct device *dev = &pdev->dev;
 	struct sdhci_host *host = NULL;
 	const struct sdhci_pxa_variant *variant;
@@ -247,11 +262,12 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	int ret;
 	struct clk *clk, *clk_core;
 
-	host = sdhci_pltfm_init(pdev, NULL, sizeof(struct sdhci_pxav2_host));
+	host = sdhci_pltfm_init(pdev, NULL, sizeof(*pxav2_host));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
+	pxav2_host = sdhci_pltfm_priv(pltfm_host);
 
 	clk = devm_clk_get(dev, "io");
 	if (IS_ERR(clk) && PTR_ERR(clk) != -EPROBE_DEFER)
@@ -306,6 +322,21 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 
 	host->quirks |= variant->extra_quirks;
 	host->ops = variant->ops;
+
+	/* Set up optional pinctrl for PXA168 SDIO IRQ fix */
+	pxav2_host->pinctrl = devm_pinctrl_get(dev);
+	if (!IS_ERR(pxav2_host->pinctrl)) {
+		pxav2_host->pins_cmd_gpio = pinctrl_lookup_state(pxav2_host->pinctrl,
+								 "state_cmd_gpio");
+		if (IS_ERR(pxav2_host->pins_cmd_gpio))
+			pxav2_host->pins_cmd_gpio = NULL;
+		pxav2_host->pins_default = pinctrl_lookup_state(pxav2_host->pinctrl,
+								"default");
+		if (IS_ERR(pxav2_host->pins_default))
+			pxav2_host->pins_default = NULL;
+	} else {
+		pxav2_host->pinctrl = NULL;
+	}
 
 	ret = sdhci_add_host(host);
 	if (ret)
