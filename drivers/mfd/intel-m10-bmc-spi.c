@@ -5,28 +5,13 @@
  * Copyright (C) 2018-2020 Intel Corporation. All rights reserved.
  */
 #include <linux/bitfield.h>
+#include <linux/dev_printk.h>
 #include <linux/init.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/intel-m10-bmc.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
-
-static struct mfd_cell m10bmc_d5005_subdevs[] = {
-	{ .name = "d5005bmc-hwmon" },
-	{ .name = "d5005bmc-sec-update" }
-};
-
-static struct mfd_cell m10bmc_pacn3000_subdevs[] = {
-	{ .name = "n3000bmc-hwmon" },
-	{ .name = "n3000bmc-retimer" },
-	{ .name = "n3000bmc-sec-update" },
-};
-
-static struct mfd_cell m10bmc_n5010_subdevs[] = {
-	{ .name = "n5010bmc-hwmon" },
-};
 
 static const struct regmap_range m10bmc_regmap_range[] = {
 	regmap_reg_range(M10BMC_LEGACY_BUILD_VER, M10BMC_LEGACY_BUILD_VER),
@@ -47,86 +32,6 @@ static struct regmap_config intel_m10bmc_regmap_config = {
 	.rd_table = &m10bmc_access_table,
 	.max_register = M10BMC_MEM_END,
 };
-
-static ssize_t bmc_version_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct intel_m10bmc *ddata = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = m10bmc_sys_read(ddata, M10BMC_BUILD_VER, &val);
-	if (ret)
-		return ret;
-
-	return sprintf(buf, "0x%x\n", val);
-}
-static DEVICE_ATTR_RO(bmc_version);
-
-static ssize_t bmcfw_version_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct intel_m10bmc *ddata = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = m10bmc_sys_read(ddata, NIOS2_FW_VERSION, &val);
-	if (ret)
-		return ret;
-
-	return sprintf(buf, "0x%x\n", val);
-}
-static DEVICE_ATTR_RO(bmcfw_version);
-
-static ssize_t mac_address_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct intel_m10bmc *ddata = dev_get_drvdata(dev);
-	unsigned int macaddr_low, macaddr_high;
-	int ret;
-
-	ret = m10bmc_sys_read(ddata, M10BMC_MAC_LOW, &macaddr_low);
-	if (ret)
-		return ret;
-
-	ret = m10bmc_sys_read(ddata, M10BMC_MAC_HIGH, &macaddr_high);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE1, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE2, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE3, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE4, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE5, macaddr_high),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE6, macaddr_high));
-}
-static DEVICE_ATTR_RO(mac_address);
-
-static ssize_t mac_count_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	struct intel_m10bmc *ddata = dev_get_drvdata(dev);
-	unsigned int macaddr_high;
-	int ret;
-
-	ret = m10bmc_sys_read(ddata, M10BMC_MAC_HIGH, &macaddr_high);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%u\n",
-			  (u8)FIELD_GET(M10BMC_MAC_COUNT, macaddr_high));
-}
-static DEVICE_ATTR_RO(mac_count);
-
-static struct attribute *m10bmc_attrs[] = {
-	&dev_attr_bmc_version.attr,
-	&dev_attr_bmcfw_version.attr,
-	&dev_attr_mac_address.attr,
-	&dev_attr_mac_count.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(m10bmc);
 
 static int check_m10bmc_version(struct intel_m10bmc *ddata)
 {
@@ -166,11 +71,9 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	info = (struct intel_m10bmc_platform_info *)id->driver_data;
-	ddata->info = info;
 	ddata->dev = dev;
 
-	ddata->regmap =
-		devm_regmap_init_spi_avmm(spi, &intel_m10bmc_regmap_config);
+	ddata->regmap = devm_regmap_init_spi_avmm(spi, &intel_m10bmc_regmap_config);
 	if (IS_ERR(ddata->regmap)) {
 		ret = PTR_ERR(ddata->regmap);
 		dev_err(dev, "Failed to allocate regmap: %d\n", ret);
@@ -185,14 +88,23 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO,
-				   info->cells, info->n_cells,
-				   NULL, 0, NULL);
-	if (ret)
-		dev_err(dev, "Failed to register sub-devices: %d\n", ret);
-
-	return ret;
+	return m10bmc_dev_init(ddata, info);
 }
+
+static struct mfd_cell m10bmc_d5005_subdevs[] = {
+	{ .name = "d5005bmc-hwmon" },
+	{ .name = "d5005bmc-sec-update" },
+};
+
+static struct mfd_cell m10bmc_pacn3000_subdevs[] = {
+	{ .name = "n3000bmc-hwmon" },
+	{ .name = "n3000bmc-retimer" },
+	{ .name = "n3000bmc-sec-update" },
+};
+
+static struct mfd_cell m10bmc_n5010_subdevs[] = {
+	{ .name = "n5010bmc-hwmon" },
+};
 
 static const struct intel_m10bmc_platform_info m10bmc_spi_n3000 = {
 	.cells = m10bmc_pacn3000_subdevs,
@@ -220,14 +132,14 @@ MODULE_DEVICE_TABLE(spi, m10bmc_spi_id);
 static struct spi_driver intel_m10bmc_spi_driver = {
 	.driver = {
 		.name = "intel-m10-bmc",
-		.dev_groups = m10bmc_groups,
+		.dev_groups = m10bmc_dev_groups,
 	},
 	.probe = intel_m10_bmc_spi_probe,
 	.id_table = m10bmc_spi_id,
 };
 module_spi_driver(intel_m10bmc_spi_driver);
 
-MODULE_DESCRIPTION("Intel MAX 10 BMC Device Driver");
+MODULE_DESCRIPTION("Intel MAX 10 BMC SPI bus interface");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:intel-m10-bmc");
