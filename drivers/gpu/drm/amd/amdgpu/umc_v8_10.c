@@ -360,6 +360,138 @@ static bool umc_v8_10_query_ras_poison_mode(struct amdgpu_device *adev)
 	return true;
 }
 
+static void umc_v8_10_ecc_info_query_correctable_error_count(struct amdgpu_device *adev,
+				      uint32_t node_inst, uint32_t umc_inst, uint32_t ch_inst,
+				      unsigned long *error_count)
+{
+	uint64_t mc_umc_status;
+	uint32_t eccinfo_table_idx;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
+				  adev->umc.channel_inst_num +
+				  umc_inst * adev->umc.channel_inst_num +
+				  ch_inst;
+
+	/* check the MCUMC_STATUS */
+	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
+	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1) {
+		*error_count += 1;
+	}
+}
+
+static void umc_v8_10_ecc_info_query_uncorrectable_error_count(struct amdgpu_device *adev,
+				      uint32_t node_inst, uint32_t umc_inst, uint32_t ch_inst,
+				      unsigned long *error_count)
+{
+	uint64_t mc_umc_status;
+	uint32_t eccinfo_table_idx;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
+				  adev->umc.channel_inst_num +
+				  umc_inst * adev->umc.channel_inst_num +
+				  ch_inst;
+
+	/* check the MCUMC_STATUS */
+	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
+	if ((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1) &&
+	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1 ||
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, PCC) == 1 ||
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 1 ||
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, TCC) == 1)) {
+		*error_count += 1;
+	}
+}
+
+static void umc_v8_10_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
+					void *ras_error_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	uint32_t node_inst       = 0;
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+
+	/* TODO: driver needs to toggle DF Cstate to ensure
+	 * safe access of UMC registers. Will add the protection
+	 */
+	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
+		umc_v8_10_ecc_info_query_correctable_error_count(adev,
+							node_inst, umc_inst, ch_inst,
+							&(err_data->ce_count));
+		umc_v8_10_ecc_info_query_uncorrectable_error_count(adev,
+							node_inst, umc_inst, ch_inst,
+							&(err_data->ue_count));
+	}
+}
+
+static void umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
+					struct ras_err_data *err_data,
+					uint32_t ch_inst,
+					uint32_t umc_inst,
+					uint32_t node_inst)
+{
+	uint32_t eccinfo_table_idx, channel_index;
+	uint64_t mc_umc_status, err_addr;
+
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
+				  adev->umc.channel_inst_num +
+				  umc_inst * adev->umc.channel_inst_num +
+				  ch_inst;
+	channel_index =
+		adev->umc.channel_idx_tbl[node_inst * adev->umc.umc_inst_num *
+						  adev->umc.channel_inst_num +
+						  umc_inst * adev->umc.channel_inst_num +
+						  ch_inst];
+
+	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
+
+	if (mc_umc_status == 0)
+		return;
+
+	if (!err_data->err_addr)
+		return;
+
+	/* calculate error address if ue error is detected */
+	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, AddrV) == 1 &&
+	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1)) {
+
+		err_addr = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_addr;
+		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+
+		umc_v8_10_convert_error_address(adev, err_data, err_addr,
+					ch_inst, umc_inst, node_inst, mc_umc_status);
+	}
+}
+
+static void umc_v8_10_ecc_info_query_ras_error_address(struct amdgpu_device *adev,
+					void *ras_error_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	uint32_t node_inst       = 0;
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+
+	/* TODO: driver needs to toggle DF Cstate to ensure
+	 * safe access of UMC resgisters. Will add the protection
+	 * when firmware interface is ready
+	 */
+	LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
+		umc_v8_10_ecc_info_query_error_address(adev,
+						err_data,
+						ch_inst,
+						umc_inst,
+						node_inst);
+	}
+}
+
 const struct amdgpu_ras_block_hw_ops umc_v8_10_ras_hw_ops = {
 	.query_ras_error_count = umc_v8_10_query_ras_error_count,
 	.query_ras_error_address = umc_v8_10_query_ras_error_address,
@@ -371,4 +503,6 @@ struct amdgpu_umc_ras umc_v8_10_ras = {
 	},
 	.err_cnt_init = umc_v8_10_err_cnt_init,
 	.query_ras_poison_mode = umc_v8_10_query_ras_poison_mode,
+	.ecc_info_query_ras_error_count = umc_v8_10_ecc_info_query_ras_error_count,
+	.ecc_info_query_ras_error_address = umc_v8_10_ecc_info_query_ras_error_address,
 };
