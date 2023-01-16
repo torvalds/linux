@@ -1120,6 +1120,34 @@ static int imx290_get_regulators(struct device *dev, struct imx290 *imx290)
 				       imx290->supplies);
 }
 
+static int imx290_init_clk(struct imx290 *imx290)
+{
+	u32 xclk_freq;
+	int ret;
+
+	ret = fwnode_property_read_u32(dev_fwnode(imx290->dev),
+				       "clock-frequency", &xclk_freq);
+	if (ret) {
+		dev_err(imx290->dev, "Could not get xclk frequency\n");
+		return ret;
+	}
+
+	/* external clock must be 37.125 MHz */
+	if (xclk_freq != 37125000) {
+		dev_err(imx290->dev, "External clock frequency %u is not supported\n",
+			xclk_freq);
+		return -EINVAL;
+	}
+
+	ret = clk_set_rate(imx290->xclk, xclk_freq);
+	if (ret) {
+		dev_err(imx290->dev, "Could not set xclk frequency\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 /*
  * Returns 0 if all link frequencies used by the driver for the given number
  * of MIPI data lanes are mentioned in the device tree, or the value of the
@@ -1204,7 +1232,6 @@ static int imx290_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct imx290 *imx290;
-	u32 xclk_freq;
 	int ret;
 
 	imx290 = devm_kzalloc(dev, sizeof(*imx290), GFP_KERNEL);
@@ -1222,31 +1249,11 @@ static int imx290_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	/* get system clock (xclk) */
+	/* Acquire resources. */
 	imx290->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(imx290->xclk))
 		return dev_err_probe(dev, PTR_ERR(imx290->xclk),
 				     "Could not get xclk");
-
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &xclk_freq);
-	if (ret) {
-		dev_err(dev, "Could not get xclk frequency\n");
-		return ret;
-	}
-
-	/* external clock must be 37.125 MHz */
-	if (xclk_freq != 37125000) {
-		dev_err(dev, "External clock frequency %u is not supported\n",
-			xclk_freq);
-		return -EINVAL;
-	}
-
-	ret = clk_set_rate(imx290->xclk, xclk_freq);
-	if (ret) {
-		dev_err(dev, "Could not set xclk frequency\n");
-		return ret;
-	}
 
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0)
@@ -1258,8 +1265,14 @@ static int imx290_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(imx290->rst_gpio),
 				     "Cannot get reset gpio\n");
 
+	/* Initialize external clock frequency. */
+	ret = imx290_init_clk(imx290);
+	if (ret)
+		return ret;
+
 	mutex_init(&imx290->lock);
 
+	/* Initialize and register subdev. */
 	ret = imx290_subdev_init(imx290);
 	if (ret)
 		goto err_mutex;
