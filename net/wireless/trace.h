@@ -2524,6 +2524,7 @@ TRACE_EVENT(rdev_external_auth,
 			     MAC_ENTRY(bssid)
 			     __array(u8, ssid, IEEE80211_MAX_SSID_LEN + 1)
 			     __field(u16, status)
+			     MAC_ENTRY(mld_addr)
 	    ),
 	    TP_fast_assign(WIPHY_ASSIGN;
 			   NETDEV_ASSIGN;
@@ -2532,10 +2533,12 @@ TRACE_EVENT(rdev_external_auth,
 			   memcpy(__entry->ssid, params->ssid.ssid,
 				  params->ssid.ssid_len);
 			   __entry->status = params->status;
+			   MAC_ASSIGN(mld_addr, params->mld_addr);
 	    ),
 	    TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: %pM"
-		      ", ssid: %s, status: %u", WIPHY_PR_ARG, NETDEV_PR_ARG,
-		      __entry->bssid, __entry->ssid, __entry->status)
+		      ", ssid: %s, status: %u, mld_addr: %pM",
+		      WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->bssid,
+		      __entry->ssid, __entry->status, __entry->mld_addr)
 );
 
 TRACE_EVENT(rdev_start_radar_detection,
