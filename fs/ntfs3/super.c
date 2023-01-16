@@ -253,7 +253,6 @@ enum Opt {
 	Opt_acl,
 	Opt_iocharset,
 	Opt_prealloc,
-	Opt_noacsrules,
 	Opt_nocase,
 	Opt_err,
 };
@@ -274,7 +273,6 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("acl",			Opt_acl),
 	fsparam_flag_no("showmeta",		Opt_showmeta),
 	fsparam_flag_no("prealloc",		Opt_prealloc),
-	fsparam_flag_no("acsrules",		Opt_noacsrules),
 	fsparam_flag_no("nocase",		Opt_nocase),
 	fsparam_string("iocharset",		Opt_iocharset),
 	{}
@@ -386,9 +384,6 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_prealloc:
 		opts->prealloc = result.negated ? 0 : 1;
-		break;
-	case Opt_noacsrules:
-		opts->noacsrules = result.negated ? 1 : 0;
 		break;
 	case Opt_nocase:
 		opts->nocase = result.negated ? 1 : 0;
@@ -572,8 +567,6 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",hide_dot_files");
 	if (opts->force)
 		seq_puts(m, ",force");
-	if (opts->noacsrules)
-		seq_puts(m, ",noacsrules");
 	if (opts->prealloc)
 		seq_puts(m, ",prealloc");
 	if (sb->s_flags & SB_POSIXACL)
@@ -791,7 +784,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	if (boot_sector_size != sector_size) {
 		ntfs_warn(
 			sb,
-			"Different NTFS' sector size (%u) and media sector size (%u)",
+			"Different NTFS sector size (%u) and media sector size (%u)",
 			boot_sector_size, sector_size);
 		dev_size += sector_size - 1;
 	}

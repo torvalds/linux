@@ -712,20 +712,6 @@ int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry)
 }
 
 /*
- * ntfs_permission - inode_operations::permission
- */
-int ntfs_permission(struct mnt_idmap *idmap, struct inode *inode,
-		    int mask)
-{
-	if (ntfs_sb(inode->i_sb)->options->noacsrules) {
-		/* "No access rules" mode - Allow all changes. */
-		return 0;
-	}
-
-	return generic_permission(idmap, inode, mask);
-}
-
-/*
  * ntfs_listxattr - inode_operations::listxattr
  */
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)

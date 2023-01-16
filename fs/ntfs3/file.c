@@ -654,21 +654,11 @@ out:
 int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr)
 {
-	struct super_block *sb = dentry->d_sb;
-	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct inode *inode = d_inode(dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
 	u32 ia_valid = attr->ia_valid;
 	umode_t mode = inode->i_mode;
 	int err;
-
-	if (sbi->options->noacsrules) {
-		/* "No access rules" - Force any changes of time etc. */
-		attr->ia_valid |= ATTR_FORCE;
-		/* and disable for editing some attributes. */
-		attr->ia_valid &= ~(ATTR_UID | ATTR_GID | ATTR_MODE);
-		ia_valid = attr->ia_valid;
-	}
 
 	err = setattr_prepare(idmap, dentry, attr);
 	if (err)
@@ -1153,7 +1143,6 @@ const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
 	.setattr	= ntfs3_setattr,
 	.listxattr	= ntfs_listxattr,
-	.permission	= ntfs_permission,
 	.get_inode_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 	.fiemap		= ntfs_fiemap,

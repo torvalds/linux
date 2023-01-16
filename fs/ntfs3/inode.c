@@ -2070,7 +2070,6 @@ const struct inode_operations ntfs_link_inode_operations = {
 	.get_link	= ntfs_get_link,
 	.setattr	= ntfs3_setattr,
 	.listxattr	= ntfs_listxattr,
-	.permission	= ntfs_permission,
 };
 
 const struct address_space_operations ntfs_aops = {

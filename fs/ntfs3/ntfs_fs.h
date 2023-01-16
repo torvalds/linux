@@ -100,7 +100,6 @@ struct ntfs_mount_options {
 	unsigned hide_dot_files : 1; /* Set hidden flag on dot files. */
 	unsigned windows_names : 1; /* Disallow names forbidden by Windows. */
 	unsigned force : 1; /* RW mount dirty volume. */
-	unsigned noacsrules : 1; /* Exclude acs rules. */
 	unsigned prealloc : 1; /* Preallocate space when file is growing. */
 	unsigned nocase : 1; /* case insensitive. */
 };
@@ -870,8 +869,6 @@ int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
 #endif
 
 int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry);
-int ntfs_permission(struct mnt_idmap *idmap, struct inode *inode,
-		    int mask);
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 extern const struct xattr_handler *ntfs_xattr_handlers[];
 
