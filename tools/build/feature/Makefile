@@ -58,13 +58,6 @@ FILES=                                          \
          test-lzma.bin                          \
          test-bpf.bin                           \
          test-libbpf.bin                        \
-         test-libbpf-btf__load_from_kernel_by_id.bin	\
-         test-libbpf-bpf_prog_load.bin          \
-         test-libbpf-bpf_map_create.bin		\
-         test-libbpf-bpf_object__next_program.bin \
-         test-libbpf-bpf_object__next_map.bin   \
-         test-libbpf-bpf_program__set_insns.bin	\
-         test-libbpf-btf__raw_data.bin          \
          test-get_cpuid.bin                     \
          test-sdt.bin                           \
          test-cxx.bin                           \
