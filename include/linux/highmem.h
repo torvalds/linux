@@ -207,31 +207,30 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 }
 #endif
 
-#ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
+#ifndef vma_alloc_zeroed_movable_folio
 /**
- * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
- * @vma: The VMA the page is to be allocated for
- * @vaddr: The virtual address the page will be inserted into
+ * vma_alloc_zeroed_movable_folio - Allocate a zeroed page for a VMA.
+ * @vma: The VMA the page is to be allocated for.
+ * @vaddr: The virtual address the page will be inserted into.
  *
- * Returns: The allocated and zeroed HIGHMEM page
+ * This function will allocate a page suitable for inserting into this
+ * VMA at this virtual address.  It may be allocated from highmem or
+ * the movable zone.  An architecture may provide its own implementation.
  *
- * This function will allocate a page for a VMA that the caller knows will
- * be able to migrate in the future using move_pages() or reclaimed
- *
- * An architecture may override this function by defining
- * __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE and providing their own
- * implementation.
+ * Return: A folio containing one allocated and zeroed page or NULL if
+ * we are out of memory.
  */
-static inline struct page *
-alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
+static inline
+struct folio *vma_alloc_zeroed_movable_folio(struct vm_area_struct *vma,
 				   unsigned long vaddr)
 {
-	struct page *page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
+	struct folio *folio;
 
-	if (page)
-		clear_user_highpage(page, vaddr);
+	folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE, 0, vma, vaddr, false);
+	if (folio)
+		clear_user_highpage(&folio->page, vaddr);
 
-	return page;
+	return folio;
 }
 #endif
 
