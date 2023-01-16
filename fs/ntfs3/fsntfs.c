@@ -925,6 +925,7 @@ int ntfs_set_state(struct ntfs_sb_info *sbi, enum NTFS_DIRTY_FLAGS dirty)
 	struct VOLUME_INFO *info;
 	struct mft_inode *mi;
 	struct ntfs_inode *ni;
+	__le16 info_flags;
 
 	/*
 	 * Do not change state if fs was real_dirty.
@@ -957,6 +958,8 @@ int ntfs_set_state(struct ntfs_sb_info *sbi, enum NTFS_DIRTY_FLAGS dirty)
 		goto out;
 	}
 
+	info_flags = info->flags;
+
 	switch (dirty) {
 	case NTFS_DIRTY_ERROR:
 		ntfs_notice(sbi->sb, "Mark volume as dirty due to NTFS errors");
@@ -970,8 +973,10 @@ int ntfs_set_state(struct ntfs_sb_info *sbi, enum NTFS_DIRTY_FLAGS dirty)
 		break;
 	}
 	/* Cache current volume flags. */
-	sbi->volume.flags = info->flags;
-	mi->dirty = true;
+	if (info_flags != info->flags) {
+		sbi->volume.flags = info->flags;
+		mi->dirty = true;
+	}
 	err = 0;
 
 out:
