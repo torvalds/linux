@@ -112,6 +112,7 @@
 #include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_tv.h"
+#include "intel_vblank.h"
 #include "intel_vdsc.h"
 #include "intel_vga.h"
 #include "intel_vrr.h"
@@ -382,41 +383,6 @@ struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state)
 		return intel_crtc_for_pipe(i915, bigjoiner_master_pipe(crtc_state));
 	else
 		return to_intel_crtc(crtc_state->uapi.crtc);
-}
-
-static bool pipe_scanline_is_moving(struct drm_i915_private *dev_priv,
-				    enum pipe pipe)
-{
-	i915_reg_t reg = PIPEDSL(pipe);
-	u32 line1, line2;
-
-	line1 = intel_de_read(dev_priv, reg) & PIPEDSL_LINE_MASK;
-	msleep(5);
-	line2 = intel_de_read(dev_priv, reg) & PIPEDSL_LINE_MASK;
-
-	return line1 != line2;
-}
-
-static void wait_for_pipe_scanline_moving(struct intel_crtc *crtc, bool state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-
-	/* Wait for the display line to settle/start moving */
-	if (wait_for(pipe_scanline_is_moving(dev_priv, pipe) == state, 100))
-		drm_err(&dev_priv->drm,
-			"pipe %c scanline %s wait timed out\n",
-			pipe_name(pipe), str_on_off(state));
-}
-
-static void intel_wait_for_pipe_scanline_stopped(struct intel_crtc *crtc)
-{
-	wait_for_pipe_scanline_moving(crtc, false);
-}
-
-static void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
-{
-	wait_for_pipe_scanline_moving(crtc, true);
 }
 
 static void
