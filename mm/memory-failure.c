@@ -2167,7 +2167,7 @@ try_again:
 	}
 
 	/*
-	 * __munlock_pagevec may clear a writeback page's LRU flag without
+	 * __munlock_folio() may clear a writeback page's LRU flag without
 	 * page_lock. We need wait writeback completion for this page or it
 	 * may trigger vfs BUG while evict inode.
 	 */

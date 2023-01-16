@@ -298,7 +298,7 @@ treated as a no-op and mlock_fixup() simply returns.
 If the VMA passes some filtering as described in "Filtering Special VMAs"
 below, mlock_fixup() will attempt to merge the VMA with its neighbors or split
 off a subset of the VMA if the range does not cover the entire VMA.  Any pages
-already present in the VMA are then marked as mlocked by mlock_page() via
+already present in the VMA are then marked as mlocked by mlock_folio() via
 mlock_pte_range() via walk_page_range() via mlock_vma_pages_range().
 
 Before returning from the system call, do_mlock() or mlockall() will call
@@ -373,20 +373,21 @@ Because of the VMA filtering discussed above, VM_LOCKED will not be set in
 any "special" VMAs.  So, those VMAs will be ignored for munlock.
 
 If the VMA is VM_LOCKED, mlock_fixup() again attempts to merge or split off the
-specified range.  All pages in the VMA are then munlocked by munlock_page() via
+specified range.  All pages in the VMA are then munlocked by munlock_folio() via
 mlock_pte_range() via walk_page_range() via mlock_vma_pages_range() - the same
 function used when mlocking a VMA range, with new flags for the VMA indicating
 that it is munlock() being performed.
 
-munlock_page() uses the mlock pagevec to batch up work to be done under
-lru_lock by  __munlock_page().  __munlock_page() decrements the page's
-mlock_count, and when that reaches 0 it clears PG_mlocked and clears
-PG_unevictable, moving the page from unevictable state to inactive LRU.
+munlock_folio() uses the mlock pagevec to batch up work to be done
+under lru_lock by  __munlock_folio().  __munlock_folio() decrements the
+folio's mlock_count, and when that reaches 0 it clears the mlocked flag
+and clears the unevictable flag, moving the folio from unevictable state
+to the inactive LRU.
 
-But in practice that may not work ideally: the page may not yet have reached
+But in practice that may not work ideally: the folio may not yet have reached
 "the unevictable LRU", or it may have been temporarily isolated from it.  In
 those cases its mlock_count field is unusable and must be assumed to be 0: so
-that the page will be rescued to an evictable LRU, then perhaps be mlocked
+that the folio will be rescued to an evictable LRU, then perhaps be mlocked
 again later if vmscan finds it in a VM_LOCKED VMA.
 
 
@@ -489,15 +490,16 @@ For each PTE (or PMD) being unmapped from a VMA, page_remove_rmap() calls
 munlock_vma_folio(), which calls munlock_folio() when the VMA is VM_LOCKED
 (unless it was a PTE mapping of a part of a transparent huge page).
 
-munlock_page() uses the mlock pagevec to batch up work to be done under
-lru_lock by  __munlock_page().  __munlock_page() decrements the page's
-mlock_count, and when that reaches 0 it clears PG_mlocked and clears
-PG_unevictable, moving the page from unevictable state to inactive LRU.
+munlock_folio() uses the mlock pagevec to batch up work to be done
+under lru_lock by  __munlock_folio().  __munlock_folio() decrements the
+folio's mlock_count, and when that reaches 0 it clears the mlocked flag
+and clears the unevictable flag, moving the folio from unevictable state
+to the inactive LRU.
 
-But in practice that may not work ideally: the page may not yet have reached
+But in practice that may not work ideally: the folio may not yet have reached
 "the unevictable LRU", or it may have been temporarily isolated from it.  In
 those cases its mlock_count field is unusable and must be assumed to be 0: so
-that the page will be rescued to an evictable LRU, then perhaps be mlocked
+that the folio will be rescued to an evictable LRU, then perhaps be mlocked
 again later if vmscan finds it in a VM_LOCKED VMA.
 
 

@@ -201,7 +201,7 @@ static void lru_add_fn(struct lruvec *lruvec, struct folio *folio)
 	 * Is an smp_mb__after_atomic() still required here, before
 	 * folio_evictable() tests the mlocked flag, to rule out the possibility
 	 * of stranding an evictable folio on an unevictable LRU?  I think
-	 * not, because __munlock_page() only clears the mlocked flag
+	 * not, because __munlock_folio() only clears the mlocked flag
 	 * while the LRU lock is held.
 	 *
 	 * (That is not true of __page_cache_release(), and not necessarily
@@ -216,7 +216,7 @@ static void lru_add_fn(struct lruvec *lruvec, struct folio *folio)
 		folio_set_unevictable(folio);
 		/*
 		 * folio->mlock_count = !!folio_test_mlocked(folio)?
-		 * But that leaves __mlock_page() in doubt whether another
+		 * But that leaves __mlock_folio() in doubt whether another
 		 * actor has already counted the mlock or not.  Err on the
 		 * safe side, underestimate, let page reclaim fix it, rather
 		 * than leaving a page on the unevictable LRU indefinitely.
