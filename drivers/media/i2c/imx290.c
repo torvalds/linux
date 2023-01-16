@@ -1224,10 +1224,9 @@ static int imx290_probe(struct i2c_client *client)
 
 	/* get system clock (xclk) */
 	imx290->xclk = devm_clk_get(dev, "xclk");
-	if (IS_ERR(imx290->xclk)) {
-		dev_err(dev, "Could not get xclk");
-		return PTR_ERR(imx290->xclk);
-	}
+	if (IS_ERR(imx290->xclk))
+		return dev_err_probe(dev, PTR_ERR(imx290->xclk),
+				     "Could not get xclk");
 
 	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 				       &xclk_freq);
@@ -1250,17 +1249,14 @@ static int imx290_probe(struct i2c_client *client)
 	}
 
 	ret = imx290_get_regulators(dev, imx290);
-	if (ret < 0) {
-		dev_err(dev, "Cannot get regulators\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Cannot get regulators\n");
 
 	imx290->rst_gpio = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_OUT_HIGH);
-	if (IS_ERR(imx290->rst_gpio)) {
-		dev_err(dev, "Cannot get reset gpio\n");
-		return PTR_ERR(imx290->rst_gpio);
-	}
+	if (IS_ERR(imx290->rst_gpio))
+		return dev_err_probe(dev, PTR_ERR(imx290->rst_gpio),
+				     "Cannot get reset gpio\n");
 
 	mutex_init(&imx290->lock);
 
