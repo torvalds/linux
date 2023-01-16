@@ -163,11 +163,34 @@ static void inno_hdmi_disable_clk_assert_rst(struct device *dev, struct inno_hdm
 #ifdef CONFIG_PM_SLEEP
 static int hdmi_system_pm_suspend(struct device *dev)
 {
-	return pm_runtime_force_suspend(dev);
+	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
+
+	pm_runtime_force_suspend(dev);
+
+	regulator_disable(hdmi->hdmi_1p8);
+	udelay(100);
+	regulator_disable(hdmi->hdmi_0p9);
+	udelay(100);
+	return 0;
 }
 
 static int hdmi_system_pm_resume(struct device *dev)
 {
+	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
+	int ret;
+	//pmic turn on
+	ret = regulator_enable(hdmi->hdmi_1p8);
+	if (ret) {
+		dev_err(dev, "Cannot enable hdmi_1p8 regulator\n");
+		return ret;
+	}
+	udelay(100);
+	ret = regulator_enable(hdmi->hdmi_0p9);
+	if (ret) {
+		dev_err(dev, "Cannot enable hdmi_0p9 regulator\n");
+		return ret;
+	}
+	udelay(100);
 	return pm_runtime_force_resume(dev);
 }
 #endif
