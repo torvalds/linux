@@ -257,6 +257,28 @@ static void log_error_regs(struct m10bmc_sec *sec, u32 doorbell)
 		dev_err(sec->dev, "RSU auth result: 0x%08x\n", auth_result);
 }
 
+static bool rsu_status_ok(u32 status)
+{
+	return (status == RSU_STAT_NORMAL ||
+		status == RSU_STAT_NIOS_OK ||
+		status == RSU_STAT_USER_OK ||
+		status == RSU_STAT_FACTORY_OK);
+}
+
+static bool rsu_progress_done(u32 progress)
+{
+	return (progress == RSU_PROG_IDLE ||
+		progress == RSU_PROG_RSU_DONE);
+}
+
+static bool rsu_progress_busy(u32 progress)
+{
+	return (progress == RSU_PROG_AUTHENTICATING ||
+		progress == RSU_PROG_COPYING ||
+		progress == RSU_PROG_UPDATE_CANCEL ||
+		progress == RSU_PROG_PROGRAM_KEY_HASH);
+}
+
 static enum fw_upload_err rsu_check_idle(struct m10bmc_sec *sec)
 {
 	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
@@ -267,8 +289,7 @@ static enum fw_upload_err rsu_check_idle(struct m10bmc_sec *sec)
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
-	if (rsu_prog(doorbell) != RSU_PROG_IDLE &&
-	    rsu_prog(doorbell) != RSU_PROG_RSU_DONE) {
+	if (!rsu_progress_done(rsu_prog(doorbell))) {
 		log_error_regs(sec, doorbell);
 		return FW_UPLOAD_ERR_BUSY;
 	}
@@ -288,7 +309,7 @@ static inline bool rsu_start_done(u32 doorbell)
 		return true;
 
 	progress = rsu_prog(doorbell);
-	if (progress != RSU_PROG_IDLE && progress != RSU_PROG_RSU_DONE)
+	if (!rsu_progress_done(progress))
 		return true;
 
 	return false;
@@ -397,13 +418,7 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_RW_ERROR;
 	}
 
-	switch (rsu_stat(doorbell)) {
-	case RSU_STAT_NORMAL:
-	case RSU_STAT_NIOS_OK:
-	case RSU_STAT_USER_OK:
-	case RSU_STAT_FACTORY_OK:
-		break;
-	default:
+	if (!rsu_status_ok(rsu_stat(doorbell))) {
 		log_error_regs(sec, doorbell);
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
@@ -418,28 +433,16 @@ static int rsu_check_complete(struct m10bmc_sec *sec, u32 *doorbell)
 	if (m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, doorbell))
 		return -EIO;
 
-	switch (rsu_stat(*doorbell)) {
-	case RSU_STAT_NORMAL:
-	case RSU_STAT_NIOS_OK:
-	case RSU_STAT_USER_OK:
-	case RSU_STAT_FACTORY_OK:
-		break;
-	default:
+	if (!rsu_status_ok(rsu_stat(*doorbell)))
 		return -EINVAL;
-	}
 
-	switch (rsu_prog(*doorbell)) {
-	case RSU_PROG_IDLE:
-	case RSU_PROG_RSU_DONE:
+	if (rsu_progress_done(rsu_prog(*doorbell)))
 		return 0;
-	case RSU_PROG_AUTHENTICATING:
-	case RSU_PROG_COPYING:
-	case RSU_PROG_UPDATE_CANCEL:
-	case RSU_PROG_PROGRAM_KEY_HASH:
+
+	if (rsu_progress_busy(rsu_prog(*doorbell)))
 		return -EAGAIN;
-	default:
-		return -EINVAL;
-	}
+
+	return -EINVAL;
 }
 
 static enum fw_upload_err rsu_cancel(struct m10bmc_sec *sec)
