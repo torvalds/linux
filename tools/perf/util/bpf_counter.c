@@ -312,24 +312,6 @@ static bool bperf_attr_map_compatible(int attr_map_fd)
 		(map_info.value_size == sizeof(struct perf_event_attr_map_entry));
 }
 
-#ifndef HAVE_LIBBPF_BPF_MAP_CREATE
-LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
-                              int value_size, int max_entries, __u32 map_flags);
-int
-bpf_map_create(enum bpf_map_type map_type,
-	       const char *map_name __maybe_unused,
-	       __u32 key_size,
-	       __u32 value_size,
-	       __u32 max_entries,
-	       const struct bpf_map_create_opts *opts __maybe_unused)
-{
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	return bpf_create_map(map_type, key_size, value_size, max_entries, 0);
-#pragma GCC diagnostic pop
-}
-#endif
-
 static int bperf_lock_attr_map(struct target *target)
 {
 	char path[PATH_MAX];
