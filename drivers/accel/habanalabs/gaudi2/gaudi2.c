@@ -2348,6 +2348,7 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 					(num_sync_stream_queues * HL_RSVD_MONS);
 
 	prop->first_available_user_interrupt = GAUDI2_IRQ_NUM_USER_FIRST;
+	prop->tpc_interrupt_id = GAUDI2_IRQ_NUM_TPC_ASSERT;
 
 	prop->first_available_cq[0] = GAUDI2_RESERVED_CQ_NUMBER;
 
@@ -3235,6 +3236,9 @@ static void gaudi2_user_interrupt_setup(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i, j, k;
 
+	/* Initialize TPC interrupt */
+	HL_USR_INTR_STRUCT_INIT(hdev->tpc_interrupt, hdev, 0, HL_USR_INTERRUPT_TPC);
+
 	/* Initialize common user CQ interrupt */
 	HL_USR_INTR_STRUCT_INIT(hdev->common_user_cq_interrupt, hdev,
 				HL_COMMON_USER_CQ_INTERRUPT_ID, HL_USR_INTERRUPT_CQ);
@@ -3892,6 +3896,8 @@ static const char *gaudi2_irq_name(u16 irq_number)
 		return "gaudi2 completion";
 	case GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM ... GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM:
 		return gaudi2_vdec_irq_name[irq_number - GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM];
+	case GAUDI2_IRQ_NUM_TPC_ASSERT:
+		return "gaudi2 tpc assert";
 	case GAUDI2_IRQ_NUM_USER_FIRST ... GAUDI2_IRQ_NUM_USER_LAST:
 		return "gaudi2 user completion";
 	default:
@@ -4004,6 +4010,15 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 		goto free_event_irq;
 	}
 
+	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_TPC_ASSERT);
+	rc = request_threaded_irq(irq, hl_irq_handler_user_interrupt,
+			hl_irq_user_interrupt_thread_handler, IRQF_ONESHOT,
+			gaudi2_irq_name(GAUDI2_IRQ_NUM_TPC_ASSERT), &hdev->tpc_interrupt);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
+		goto free_dec_irq;
+	}
+
 	for (i = GAUDI2_IRQ_NUM_USER_FIRST, j = prop->user_dec_intr_count, user_irq_init_cnt = 0;
 			user_irq_init_cnt < prop->user_interrupt_count;
 			i++, j++, user_irq_init_cnt++) {
@@ -4031,9 +4046,8 @@ free_user_irq:
 		irq = pci_irq_vector(hdev->pdev, i);
 		free_irq(irq, &hdev->user_interrupt[j]);
 	}
-
-	gaudi2_dec_disable_msix(hdev, GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM + 1);
-
+free_dec_irq:
+	gaudi2_dec_disable_msix(hdev, GAUDI2_IRQ_NUM_DEC_LAST + 1);
 free_event_irq:
 	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_EVENT_QUEUE);
 	free_irq(irq, cq);
@@ -4065,6 +4079,8 @@ static void gaudi2_sync_irqs(struct hl_device *hdev)
 		synchronize_irq(irq);
 	}
 
+	synchronize_irq(pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_TPC_ASSERT));
+
 	for (i = GAUDI2_IRQ_NUM_USER_FIRST, j = 0 ; j < hdev->asic_prop.user_interrupt_count;
 										i++, j++) {
 		irq = pci_irq_vector(hdev->pdev, i);
@@ -4090,6 +4106,9 @@ static void gaudi2_disable_msix(struct hl_device *hdev)
 	free_irq(irq, &hdev->event_queue);
 
 	gaudi2_dec_disable_msix(hdev, GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM + 1);
+
+	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_TPC_ASSERT);
+	free_irq(irq, &hdev->tpc_interrupt);
 
 	for (i = GAUDI2_IRQ_NUM_USER_FIRST, j = prop->user_dec_intr_count, k = 0;
 			k < hdev->asic_prop.user_interrupt_count ; i++, j++, k++) {

@@ -325,6 +325,21 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 	}
 }
 
+static void handle_tpc_interrupt(struct hl_device *hdev)
+{
+	u64 event_mask;
+	u32 flags;
+
+	event_mask = HL_NOTIFIER_EVENT_TPC_ASSERT |
+		HL_NOTIFIER_EVENT_USER_ENGINE_ERR |
+		HL_NOTIFIER_EVENT_DEVICE_RESET;
+
+	flags = HL_DRV_RESET_DELAY;
+
+	dev_err_ratelimited(hdev->dev, "Received TPC assert\n");
+	hl_device_cond_reset(hdev, flags, event_mask);
+}
+
 /**
  * hl_irq_handler_user_interrupt - irq handler for user interrupts
  *
@@ -366,6 +381,9 @@ irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
 
 		/* Handle decoder interrupt registered on this specific irq */
 		handle_user_interrupt(hdev, user_int);
+		break;
+	case HL_USR_INTERRUPT_TPC:
+		handle_tpc_interrupt(hdev);
 		break;
 	default:
 		break;

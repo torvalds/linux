@@ -885,6 +885,7 @@ enum hl_server_type {
  *                             application to use. Relevant for Gaudi2 and later.
  * @device_mem_alloc_default_page_size: default page size used in device memory allocation.
  * @revision_id: PCI revision ID of the ASIC.
+ * @tpc_interrupt_id: interrupt id for TPC to use in order to raise events towards the host.
  * @engine_core_interrupt_reg_addr: interrupt register address for engine core to use
  *                                  in order to raise events toward FW.
  */
@@ -922,7 +923,7 @@ struct hl_info_hw_ip_info {
 	__u32 reserved7;
 	__u8 reserved8;
 	__u8 revision_id;
-	__u8 pad[2];
+	__u16 tpc_interrupt_id;
 	__u32 reserved9;
 	__u8 pad3[4];
 	__u64 engine_core_interrupt_reg_addr;
