@@ -36,7 +36,7 @@
 
 #include <drm/ttm/ttm_device.h>
 
-#include "display/intel_display.h"
+#include "display/intel_display_limits.h"
 #include "display/intel_display_core.h"
 
 #include "gem/i915_gem_context_types.h"

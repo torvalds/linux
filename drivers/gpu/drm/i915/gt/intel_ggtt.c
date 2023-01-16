@@ -12,6 +12,7 @@
 #include <drm/i915_drm.h>
 #include <drm/intel-gtt.h>
 
+#include "display/intel_display.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "intel_ggtt_gmch.h"
