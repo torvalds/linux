@@ -924,32 +924,33 @@ static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_vram_scratch_init - allocate the VRAM scratch page
+ * amdgpu_device_mem_scratch_init - allocate the VRAM scratch page
  *
  * @adev: amdgpu_device pointer
  *
  * Allocates a scratch page of VRAM for use by various things in the
  * driver.
  */
-static int amdgpu_device_vram_scratch_init(struct amdgpu_device *adev)
+static int amdgpu_device_mem_scratch_init(struct amdgpu_device *adev)
 {
-	return amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_SIZE,
-				       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				       &adev->vram_scratch.robj,
-				       &adev->vram_scratch.gpu_addr,
-				       (void **)&adev->vram_scratch.ptr);
+	return amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_SIZE, PAGE_SIZE,
+				       AMDGPU_GEM_DOMAIN_VRAM |
+				       AMDGPU_GEM_DOMAIN_GTT,
+				       &adev->mem_scratch.robj,
+				       &adev->mem_scratch.gpu_addr,
+				       (void **)&adev->mem_scratch.ptr);
 }
 
 /**
- * amdgpu_device_vram_scratch_fini - Free the VRAM scratch page
+ * amdgpu_device_mem_scratch_fini - Free the VRAM scratch page
  *
  * @adev: amdgpu_device pointer
  *
  * Frees the VRAM scratch page.
  */
-static void amdgpu_device_vram_scratch_fini(struct amdgpu_device *adev)
+static void amdgpu_device_mem_scratch_fini(struct amdgpu_device *adev)
 {
-	amdgpu_bo_free_kernel(&adev->vram_scratch.robj, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mem_scratch.robj, NULL, NULL);
 }
 
 /**
@@ -2390,9 +2391,9 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			if (amdgpu_sriov_vf(adev))
 				amdgpu_virt_exchange_data(adev);
 
-			r = amdgpu_device_vram_scratch_init(adev);
+			r = amdgpu_device_mem_scratch_init(adev);
 			if (r) {
-				DRM_ERROR("amdgpu_vram_scratch_init failed %d\n", r);
+				DRM_ERROR("amdgpu_mem_scratch_init failed %d\n", r);
 				goto init_failed;
 			}
 			r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
@@ -2410,8 +2411,9 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			/* right after GMC hw init, we create CSA */
 			if (amdgpu_mcbp) {
 				r = amdgpu_allocate_static_csa(adev, &adev->virt.csa_obj,
-								AMDGPU_GEM_DOMAIN_VRAM,
-								AMDGPU_CSA_SIZE);
+							       AMDGPU_GEM_DOMAIN_VRAM |
+							       AMDGPU_GEM_DOMAIN_GTT,
+							       AMDGPU_CSA_SIZE);
 				if (r) {
 					DRM_ERROR("allocate CSA failed %d\n", r);
 					goto init_failed;
@@ -2581,9 +2583,10 @@ int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
 		i = state == AMD_CG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
 		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
-		/* skip CG for GFX on S0ix */
+		/* skip CG for GFX, SDMA on S0ix */
 		if (adev->in_s0ix &&
-		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX)
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX ||
+		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
@@ -2617,9 +2620,10 @@ int amdgpu_device_set_pg_state(struct amdgpu_device *adev,
 		i = state == AMD_PG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
 		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
-		/* skip PG for GFX on S0ix */
+		/* skip PG for GFX, SDMA on S0ix */
 		if (adev->in_s0ix &&
-		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX)
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX ||
+		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
@@ -2871,7 +2875,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			amdgpu_ucode_free_bo(adev);
 			amdgpu_free_static_csa(&adev->virt.csa_obj);
 			amdgpu_device_wb_fini(adev);
-			amdgpu_device_vram_scratch_fini(adev);
+			amdgpu_device_mem_scratch_fini(adev);
 			amdgpu_ib_pool_fini(adev);
 		}
 
@@ -3025,6 +3029,12 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP ||
 		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX ||
 		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_MES))
+			continue;
+
+		/* SDMA 5.x+ is part of GFX power domain so it's covered by GFXOFF */
+		if (adev->in_s0ix &&
+		    (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(5, 0, 0)) &&
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
 
 		/* XXX handle errors */
@@ -3227,15 +3237,6 @@ static int amdgpu_device_ip_resume_phase2(struct amdgpu_device *adev)
 			return r;
 		}
 		adev->ip_blocks[i].status.hw = true;
-
-		if (adev->in_s0ix && adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
-			/* disable gfxoff for IP resume. The gfxoff will be re-enabled in
-			 * amdgpu_device_resume() after IP resume.
-			 */
-			amdgpu_gfx_off_ctrl(adev, false);
-			DRM_DEBUG("will disable gfxoff for re-initializing other blocks\n");
-		}
-
 	}
 
 	return 0;
@@ -4221,13 +4222,6 @@ exit:
 	/* Make sure IB tests flushed */
 	flush_delayed_work(&adev->delayed_init_work);
 
-	if (adev->in_s0ix) {
-		/* re-enable gfxoff after IP resume. This re-enables gfxoff after
-		 * it was disabled for IP resume in amdgpu_device_ip_resume_phase2().
-		 */
-		amdgpu_gfx_off_ctrl(adev, true);
-		DRM_DEBUG("will enable gfxoff for the mission mode\n");
-	}
 	if (fbcon)
 		drm_fb_helper_set_suspend_unlocked(adev_to_drm(adev)->fb_helper, false);
 
@@ -4608,11 +4602,6 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 	if (!amdgpu_ras_is_poison_mode_supported(adev))
 		return true;
 
-	if (!amdgpu_device_ip_check_soft_reset(adev)) {
-		dev_info(adev->dev,"Timeout, but no hardware hang detected.\n");
-		return false;
-	}
-
 	if (amdgpu_sriov_vf(adev))
 		return true;
 
@@ -4737,7 +4726,8 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		if (!need_full_reset)
 			need_full_reset = amdgpu_device_ip_need_full_reset(adev);
 
-		if (!need_full_reset && amdgpu_gpu_recovery) {
+		if (!need_full_reset && amdgpu_gpu_recovery &&
+		    amdgpu_device_ip_check_soft_reset(adev)) {
 			amdgpu_device_ip_pre_soft_reset(adev);
 			r = amdgpu_device_ip_soft_reset(adev);
 			amdgpu_device_ip_post_soft_reset(adev);

@@ -484,6 +484,14 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
 
+				/* This works because this interrupt is only
+				 * enabled at init/resume and disabled in
+				 * fini/suspend, so the overall state doesn't
+				 * change over the course of suspend/resume.
+				 */
+				if (adev->in_s0ix && (j == AMDGPU_GFXHUB_0))
+					continue;
+
 				if (j == AMDGPU_GFXHUB_0)
 					tmp = RREG32_SOC15_IP(GC, reg);
 				else
@@ -503,6 +511,14 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
+
+				/* This works because this interrupt is only
+				 * enabled at init/resume and disabled in
+				 * fini/suspend, so the overall state doesn't
+				 * change over the course of suspend/resume.
+				 */
+				if (adev->in_s0ix && (j == AMDGPU_GFXHUB_0))
+					continue;
 
 				if (j == AMDGPU_GFXHUB_0)
 					tmp = RREG32_SOC15_IP(GC, reg);
@@ -1536,10 +1552,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	}
 
 #endif
-	/* In case the PCI BAR is larger than the actual amount of vram */
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
-	if (adev->gmc.visible_vram_size > adev->gmc.real_vram_size)
-		adev->gmc.visible_vram_size = adev->gmc.real_vram_size;
 
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
@@ -1862,9 +1875,12 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	}
 
 	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
-	r = adev->gfxhub.funcs->gart_enable(adev);
-	if (r)
-		return r;
+
+	if (!adev->in_s0ix) {
+		r = adev->gfxhub.funcs->gart_enable(adev);
+		if (r)
+			return r;
+	}
 
 	r = adev->mmhub.funcs->gart_enable(adev);
 	if (r)
@@ -1911,11 +1927,15 @@ static int gmc_v9_0_hw_init(void *handle)
 		value = true;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		adev->gfxhub.funcs->set_fault_enable_default(adev, value);
+		if (!adev->in_s0ix)
+			adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 		adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	}
-	for (i = 0; i < adev->num_vmhubs; ++i)
+	for (i = 0; i < adev->num_vmhubs; ++i) {
+		if (adev->in_s0ix && (i == AMDGPU_GFXHUB_0))
+			continue;
 		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
+	}
 
 	if (adev->umc.funcs && adev->umc.funcs->init_registers)
 		adev->umc.funcs->init_registers(adev);
@@ -1939,7 +1959,8 @@ static int gmc_v9_0_hw_init(void *handle)
  */
 static void gmc_v9_0_gart_disable(struct amdgpu_device *adev)
 {
-	adev->gfxhub.funcs->gart_disable(adev);
+	if (!adev->in_s0ix)
+		adev->gfxhub.funcs->gart_disable(adev);
 	adev->mmhub.funcs->gart_disable(adev);
 }
 

@@ -274,8 +274,11 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			continue;
 
 		r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
-						AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].vcpu_bo,
-						&adev->vcn.inst[i].gpu_addr, &adev->vcn.inst[i].cpu_addr);
+					    AMDGPU_GEM_DOMAIN_VRAM |
+					    AMDGPU_GEM_DOMAIN_GTT,
+					    &adev->vcn.inst[i].vcpu_bo,
+					    &adev->vcn.inst[i].gpu_addr,
+					    &adev->vcn.inst[i].cpu_addr);
 		if (r) {
 			dev_err(adev->dev, "(%d) failed to allocate vcn bo\n", r);
 			return r;
@@ -296,8 +299,11 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 
 		if (adev->vcn.indirect_sram) {
 			r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
-					AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].dpg_sram_bo,
-					&adev->vcn.inst[i].dpg_sram_gpu_addr, &adev->vcn.inst[i].dpg_sram_cpu_addr);
+					AMDGPU_GEM_DOMAIN_VRAM |
+					AMDGPU_GEM_DOMAIN_GTT,
+					&adev->vcn.inst[i].dpg_sram_bo,
+					&adev->vcn.inst[i].dpg_sram_gpu_addr,
+					&adev->vcn.inst[i].dpg_sram_cpu_addr);
 			if (r) {
 				dev_err(adev->dev, "VCN %d (%d) failed to allocate DPG bo\n", i, r);
 				return r;
@@ -1250,8 +1256,16 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 	if (!ras_if)
 		return 0;
 
-	ih_data.head = *ras_if;
-	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	if (!amdgpu_sriov_vf(adev)) {
+		ih_data.head = *ras_if;
+		amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	} else {
+		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
+			adev->virt.ops->ras_poison_handler(adev);
+		else
+			dev_warn(adev->dev,
+				"No ras_poison_handler interface in SRIOV for VCN!\n");
+	}
 
 	return 0;
 }

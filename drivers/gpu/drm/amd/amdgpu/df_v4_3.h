@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,18 +19,13 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- *
  */
-#ifndef _AMDGPU_SECUREDISPLAY_H
-#define _AMDGPU_SECUREDISPLAY_H
 
-#include "amdgpu.h"
-#include "ta_secureDisplay_if.h"
+#ifndef __DF_V4_3_H__
+#define __DF_V4_3_H__
 
-void amdgpu_securedisplay_debugfs_init(struct amdgpu_device *adev);
-void psp_securedisplay_parse_resp_status(struct psp_context *psp,
-		enum ta_securedisplay_status status);
-void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct ta_securedisplay_cmd **cmd,
-		enum ta_securedisplay_command command_id);
+#include "soc15_common.h"
+
+extern const struct amdgpu_df_funcs df_v4_3_funcs;
 
 #endif

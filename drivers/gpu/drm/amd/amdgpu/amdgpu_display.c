@@ -63,7 +63,7 @@
 void amdgpu_display_hotplug_work_func(struct work_struct *work)
 {
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
-						  hotplug_work);
+						  hotplug_work.work);
 	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;

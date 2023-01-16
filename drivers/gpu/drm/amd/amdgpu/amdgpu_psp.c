@@ -66,7 +66,8 @@ static int psp_ring_init(struct psp_context *psp,
 	/* allocate 4k Page of Local Frame Buffer memory for ring */
 	ring->ring_size = 0x1000;
 	ret = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->firmware.rbuf,
 				      &ring->ring_mem_mc_addr,
 				      (void **)&ring->ring_mem);
@@ -797,9 +798,13 @@ static int psp_tmr_init(struct psp_context *psp)
 
 	if (!psp->tmr_bo) {
 		pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
-		ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_ALIGNMENT,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      &psp->tmr_bo, &psp->tmr_mc_addr, pptr);
+		ret = amdgpu_bo_create_kernel(psp->adev, tmr_size,
+					      PSP_TMR_ALIGNMENT,
+					      AMDGPU_HAS_VRAM(psp->adev) ?
+					      AMDGPU_GEM_DOMAIN_VRAM :
+					      AMDGPU_GEM_DOMAIN_GTT,
+					      &psp->tmr_bo, &psp->tmr_mc_addr,
+					      pptr);
 	}
 
 	return ret;
@@ -1092,7 +1097,8 @@ int psp_ta_init_shared_buf(struct psp_context *psp,
 	* physical) for ta to host memory
 	*/
 	return amdgpu_bo_create_kernel(psp->adev, mem_ctx->shared_mem_size,
-				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &mem_ctx->shared_bo,
 				      &mem_ctx->shared_mc_addr,
 				      &mem_ctx->shared_buf);
@@ -1901,7 +1907,7 @@ out_unlock:
 static int psp_securedisplay_initialize(struct psp_context *psp)
 {
 	int ret;
-	struct securedisplay_cmd *securedisplay_cmd;
+	struct ta_securedisplay_cmd *securedisplay_cmd;
 
 	/*
 	 * TODO: bypass the initialize in sriov for now
@@ -3444,10 +3450,10 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 
 	/* LFB address which is aligned to 1MB boundary per PSP request */
 	ret = amdgpu_bo_create_kernel(adev, usbc_pd_fw->size, 0x100000,
-						AMDGPU_GEM_DOMAIN_VRAM,
-						&fw_buf_bo,
-						&fw_pri_mc_addr,
-						&fw_pri_cpu_addr);
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
+				      &fw_buf_bo, &fw_pri_mc_addr,
+				      &fw_pri_cpu_addr);
 	if (ret)
 		goto rel_buf;
 

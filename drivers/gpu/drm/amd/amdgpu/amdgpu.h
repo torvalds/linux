@@ -149,7 +149,7 @@ struct amdgpu_watchdog_timer
  * Modules parameters.
  */
 extern int amdgpu_modeset;
-extern int amdgpu_vram_limit;
+extern unsigned int amdgpu_vram_limit;
 extern int amdgpu_vis_vram_limit;
 extern int amdgpu_gart_size;
 extern int amdgpu_gtt_size;
@@ -194,6 +194,7 @@ extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
 extern int amdgpu_smu_pptable_id;
 extern uint amdgpu_dc_feature_mask;
+extern uint amdgpu_freesync_vid_mode;
 extern uint amdgpu_dc_debug_mask;
 extern uint amdgpu_dc_visual_confirm;
 extern uint amdgpu_dm_abm_level;
@@ -607,7 +608,7 @@ int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
 /* VRAM scratch page for HDP bug, default vram page */
-struct amdgpu_vram_scratch {
+struct amdgpu_mem_scratch {
 	struct amdgpu_bo		*robj;
 	volatile uint32_t		*ptr;
 	u64				gpu_addr;
@@ -754,6 +755,11 @@ struct amdgpu_mqd {
 #define AMDGPU_PRODUCT_NAME_LEN 64
 struct amdgpu_reset_domain;
 
+/*
+ * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
+ */
+#define AMDGPU_HAS_VRAM(_adev) ((_adev)->gmc.real_vram_size)
+
 struct amdgpu_device {
 	struct device			*dev;
 	struct pci_dev			*pdev;
@@ -847,7 +853,7 @@ struct amdgpu_device {
 
 	/* memory management */
 	struct amdgpu_mman		mman;
-	struct amdgpu_vram_scratch	vram_scratch;
+	struct amdgpu_mem_scratch	mem_scratch;
 	struct amdgpu_wb		wb;
 	atomic64_t			num_bytes_moved;
 	atomic64_t			num_evictions;
@@ -869,7 +875,7 @@ struct amdgpu_device {
 	struct amdgpu_vkms_output       *amdgpu_vkms_output;
 	struct amdgpu_mode_info		mode_info;
 	/* For pre-DCE11. DCE11 and later are in "struct amdgpu_device->dm" */
-	struct work_struct		hotplug_work;
+	struct delayed_work         hotplug_work;
 	struct amdgpu_irq_src		crtc_irq;
 	struct amdgpu_irq_src		vline0_irq;
 	struct amdgpu_irq_src		vupdate_irq;

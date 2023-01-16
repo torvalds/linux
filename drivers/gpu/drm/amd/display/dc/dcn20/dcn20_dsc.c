@@ -200,7 +200,6 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 	bool is_config_ok;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
-	DC_LOG_DSC(" ");
 	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
 	dsc_config_log(dsc, dsc_cfg);
 	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
