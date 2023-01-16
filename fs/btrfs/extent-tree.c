@@ -38,7 +38,6 @@
 #include "dev-replace.h"
 #include "fs.h"
 #include "accessors.h"
-#include "extent-tree.h"
 #include "root-tree.h"
 #include "file-item.h"
 #include "orphan.h"
