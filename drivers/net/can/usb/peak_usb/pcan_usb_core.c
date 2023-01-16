@@ -8,15 +8,15 @@
  *
  * Many thanks to Klaus Hitschler <klaus.hitschler@gmx.de>
  */
+#include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/init.h>
-#include <linux/signal.h>
-#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/usb.h>
-#include <linux/ethtool.h>
+#include <linux/signal.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/device.h>
+#include <linux/usb.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
