@@ -10,6 +10,7 @@
 
 /dts-v1/;
 #include "fsd.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Tesla Full Self-Driving (FSD) Evaluation board";
@@ -32,6 +33,17 @@
 
 &fin_pll {
 	clock-frequency = <24000000>;
+};
+
+&hsi2c_5 {
+	status = "okay";
+
+	tlv320aic3x: codec@18 {
+		compatible = "ti,tlv320aic3104";
+		reg = <0x18>;
+		#sound-dai-cells = <0>;
+		reset-gpios = <&gpg1 6 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &i2s_0 {
