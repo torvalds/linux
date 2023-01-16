@@ -405,10 +405,13 @@ static irqreturn_t am65_cpts_interrupt(int irq, void *dev_id)
 static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct am65_cpts *cpts = container_of(ptp, struct am65_cpts, ptp_info);
+	u32 pps_ctrl_val = 0, pps_ppm_hi = 0, pps_ppm_low = 0;
 	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
+	int pps_index = cpts->pps_genf_idx;
+	u64 adj_period, pps_adj_period;
+	u32 ctrl_val, ppm_hi, ppm_low;
+	unsigned long flags;
 	int neg_adj = 0;
-	u64 adj_period;
-	u32 val;
 
 	if (ppb < 0) {
 		neg_adj = 1;
@@ -428,17 +431,53 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 
 	mutex_lock(&cpts->ptp_clk_lock);
 
-	val = am65_cpts_read32(cpts, control);
+	ctrl_val = am65_cpts_read32(cpts, control);
 	if (neg_adj)
-		val |= AM65_CPTS_CONTROL_TS_PPM_DIR;
+		ctrl_val |= AM65_CPTS_CONTROL_TS_PPM_DIR;
 	else
-		val &= ~AM65_CPTS_CONTROL_TS_PPM_DIR;
-	am65_cpts_write32(cpts, val, control);
+		ctrl_val &= ~AM65_CPTS_CONTROL_TS_PPM_DIR;
 
-	val = upper_32_bits(adj_period) & 0x3FF;
-	am65_cpts_write32(cpts, val, ts_ppm_hi);
-	val = lower_32_bits(adj_period);
-	am65_cpts_write32(cpts, val, ts_ppm_low);
+	ppm_hi = upper_32_bits(adj_period) & 0x3FF;
+	ppm_low = lower_32_bits(adj_period);
+
+	if (cpts->pps_enabled) {
+		pps_ctrl_val = am65_cpts_read32(cpts, genf[pps_index].control);
+		if (neg_adj)
+			pps_ctrl_val &= ~BIT(1);
+		else
+			pps_ctrl_val |= BIT(1);
+
+		/* GenF PPM will do correction using cpts refclk tick which is
+		 * (cpts->ts_add_val + 1) ns, so GenF length PPM adj period
+		 * need to be corrected.
+		 */
+		pps_adj_period = adj_period * (cpts->ts_add_val + 1);
+		pps_ppm_hi = upper_32_bits(pps_adj_period) & 0x3FF;
+		pps_ppm_low = lower_32_bits(pps_adj_period);
+	}
+
+	spin_lock_irqsave(&cpts->lock, flags);
+
+	/* All below writes must be done extremely fast:
+	 *  - delay between PPM dir and PPM value changes can cause err due old
+	 *    PPM correction applied in wrong direction
+	 *  - delay between CPTS-clock PPM cfg and GenF PPM cfg can cause err
+	 *    due CPTS-clock PPM working with new cfg while GenF PPM cfg still
+	 *    with old for short period of time
+	 */
+
+	am65_cpts_write32(cpts, ctrl_val, control);
+	am65_cpts_write32(cpts, ppm_hi, ts_ppm_hi);
+	am65_cpts_write32(cpts, ppm_low, ts_ppm_low);
+
+	if (cpts->pps_enabled) {
+		am65_cpts_write32(cpts, pps_ctrl_val, genf[pps_index].control);
+		am65_cpts_write32(cpts, pps_ppm_hi, genf[pps_index].ppm_hi);
+		am65_cpts_write32(cpts, pps_ppm_low, genf[pps_index].ppm_low);
+	}
+
+	/* All GenF/EstF can be updated here the same way */
+	spin_unlock_irqrestore(&cpts->lock, flags);
 
 	mutex_unlock(&cpts->ptp_clk_lock);
 
