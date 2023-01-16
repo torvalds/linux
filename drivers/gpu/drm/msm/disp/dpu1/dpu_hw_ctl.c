@@ -383,7 +383,8 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 	enum dpu_lm lm, struct dpu_hw_stage_cfg *stage_cfg)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	u32 mixercfg = 0, mixercfg_ext = 0, mix, ext;
+	u32 mix, ext, mix_ext;
+	u32 mixercfg = 0, mixercfg_ext = 0;
 	u32 mixercfg_ext2 = 0, mixercfg_ext3 = 0;
 	u32 mixercfg_ext4 = 0;
 	int i, j;
@@ -409,6 +410,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 		/* overflow to ext register if 'i + 1 > 7' */
 		mix = (i + 1) & 0x7;
 		ext = i >= 7;
+		mix_ext = (i + 1) & 0xf;
 
 		for (j = 0 ; j < pipes_per_stage; j++) {
 			enum dpu_sspp_multirect_index rect_index =
@@ -417,7 +419,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 			switch (stage_cfg->stage[i][j]) {
 			case SSPP_VIG0:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext3 |= ((i + 1) & 0xF) << 0;
+					mixercfg_ext3 |= mix_ext << 0;
 				} else {
 					mixercfg |= mix << 0;
 					mixercfg_ext |= ext << 0;
@@ -425,7 +427,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 				break;
 			case SSPP_VIG1:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext3 |= ((i + 1) & 0xF) << 4;
+					mixercfg_ext3 |= mix_ext << 4;
 				} else {
 					mixercfg |= mix << 3;
 					mixercfg_ext |= ext << 2;
@@ -433,7 +435,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 				break;
 			case SSPP_VIG2:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext3 |= ((i + 1) & 0xF) << 8;
+					mixercfg_ext3 |= mix_ext << 8;
 				} else {
 					mixercfg |= mix << 6;
 					mixercfg_ext |= ext << 4;
@@ -441,7 +443,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 				break;
 			case SSPP_VIG3:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext3 |= ((i + 1) & 0xF) << 12;
+					mixercfg_ext3 |= mix_ext << 12;
 				} else {
 					mixercfg |= mix << 26;
 					mixercfg_ext |= ext << 6;
@@ -465,7 +467,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 				break;
 			case SSPP_DMA0:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext2 |= ((i + 1) & 0xF) << 8;
+					mixercfg_ext2 |= mix_ext << 8;
 				} else {
 					mixercfg |= mix << 18;
 					mixercfg_ext |= ext << 16;
@@ -473,7 +475,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 				break;
 			case SSPP_DMA1:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext2 |= ((i + 1) & 0xF) << 12;
+					mixercfg_ext2 |= mix_ext << 12;
 				} else {
 					mixercfg |= mix << 21;
 					mixercfg_ext |= ext << 18;
@@ -481,39 +483,37 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 				break;
 			case SSPP_DMA2:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext2 |= ((i + 1) & 0xF) << 16;
+					mixercfg_ext2 |= mix_ext << 16;
 				} else {
-					mix |= (i + 1) & 0xF;
-					mixercfg_ext2 |= mix << 0;
+					mixercfg_ext2 |= mix_ext << 0;
 				}
 				break;
 			case SSPP_DMA3:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext2 |= ((i + 1) & 0xF) << 20;
+					mixercfg_ext2 |= mix_ext << 20;
 				} else {
-					mix |= (i + 1) & 0xF;
-					mixercfg_ext2 |= mix << 4;
+					mixercfg_ext2 |= mix_ext << 4;
 				}
 				break;
 			case SSPP_DMA4:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext4 |= ((i + 1) & 0xF) << 8;
+					mixercfg_ext4 |= mix_ext << 8;
 				} else {
-					mixercfg_ext4 |= ((i + 1) & 0xF) << 0;
+					mixercfg_ext4 |= mix_ext << 0;
 				}
 				break;
 			case SSPP_DMA5:
 				if (rect_index == DPU_SSPP_RECT_1) {
-					mixercfg_ext4 |= ((i + 1) & 0xF) << 12;
+					mixercfg_ext4 |= mix_ext << 12;
 				} else {
-					mixercfg_ext4 |= ((i + 1) & 0xF) << 4;
+					mixercfg_ext4 |= mix_ext << 4;
 				}
 				break;
 			case SSPP_CURSOR0:
-				mixercfg_ext |= ((i + 1) & 0xF) << 20;
+				mixercfg_ext |= mix_ext << 20;
 				break;
 			case SSPP_CURSOR1:
-				mixercfg_ext |= ((i + 1) & 0xF) << 26;
+				mixercfg_ext |= mix_ext << 26;
 				break;
 			default:
 				break;
