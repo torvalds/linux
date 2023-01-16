@@ -3294,10 +3294,6 @@ static void ip6_dst_gc(struct dst_ops *ops)
 	unsigned int val;
 	int entries;
 
-	entries = dst_entries_get_fast(ops);
-	if (entries > ops->gc_thresh)
-		entries = dst_entries_get_slow(ops);
-
 	if (time_after(rt_last_gc + rt_min_interval, jiffies))
 		goto out;
 
