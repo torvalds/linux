@@ -754,24 +754,6 @@ static void ofdrm_crtc_state_destroy(struct ofdrm_crtc_state *ofdrm_crtc_state)
 	kfree(ofdrm_crtc_state);
 }
 
-/*
- * Support all formats of OF display and maybe more; in order
- * of preference. The display's update function will do any
- * conversion necessary.
- *
- * TODO: Add blit helpers for remaining formats and uncomment
- *       constants.
- */
-static const uint32_t ofdrm_primary_plane_formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_RGB565,
-	//DRM_FORMAT_XRGB1555,
-	//DRM_FORMAT_C8,
-	/* Big-endian formats below */
-	DRM_FORMAT_BGRX8888,
-	DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN,
-};
-
 static const uint64_t ofdrm_primary_plane_format_modifiers[] = {
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID
@@ -1290,8 +1272,6 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	/* Primary plane */
 
 	nformats = drm_fb_build_fourcc_list(dev, &format->format, 1,
-					    ofdrm_primary_plane_formats,
-					    ARRAY_SIZE(ofdrm_primary_plane_formats),
 					    odev->formats, ARRAY_SIZE(odev->formats));
 
 	primary_plane = &odev->primary_plane;
@@ -1372,6 +1352,7 @@ static int ofdrm_probe(struct platform_device *pdev)
 {
 	struct ofdrm_device *odev;
 	struct drm_device *dev;
+	unsigned int color_mode;
 	int ret;
 
 	odev = ofdrm_device_create(&ofdrm_driver, pdev);
@@ -1383,7 +1364,11 @@ static int ofdrm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, drm_format_info_bpp(odev->format, 0));
+	color_mode = drm_format_info_bpp(odev->format, 0);
+	if (color_mode == 16)
+		color_mode = odev->format->depth; // can be 15 or 16
+
+	drm_fbdev_generic_setup(dev, color_mode);
 
 	return 0;
 }

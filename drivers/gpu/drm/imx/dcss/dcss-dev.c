@@ -253,10 +253,7 @@ static int dcss_dev_suspend(struct device *dev)
 {
 	struct dcss_dev *dcss = dcss_drv_dev_to_dcss(dev);
 	struct drm_device *ddev = dcss_drv_dev_to_drm(dev);
-	struct dcss_kms_dev *kms = container_of(ddev, struct dcss_kms_dev, base);
 	int ret;
-
-	drm_bridge_connector_disable_hpd(kms->connector);
 
 	drm_mode_config_helper_suspend(ddev);
 
@@ -276,7 +273,6 @@ static int dcss_dev_resume(struct device *dev)
 {
 	struct dcss_dev *dcss = dcss_drv_dev_to_dcss(dev);
 	struct drm_device *ddev = dcss_drv_dev_to_drm(dev);
-	struct dcss_kms_dev *kms = container_of(ddev, struct dcss_kms_dev, base);
 
 	if (pm_runtime_suspended(dev)) {
 		drm_mode_config_helper_resume(ddev);
@@ -290,8 +286,6 @@ static int dcss_dev_resume(struct device *dev)
 	dcss_ctxld_resume(dcss->ctxld);
 
 	drm_mode_config_helper_resume(ddev);
-
-	drm_bridge_connector_enable_hpd(kms->connector);
 
 	return 0;
 }

@@ -861,7 +861,6 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	job->args = *args;
 
-	spin_lock(&file_priv->table_lock);
 	for (job->base.bo_count = 0;
 	     job->base.bo_count < ARRAY_SIZE(args->bo_handles);
 	     job->base.bo_count++) {
@@ -870,20 +869,16 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 		if (!args->bo_handles[job->base.bo_count])
 			break;
 
-		bo = idr_find(&file_priv->object_idr,
-			      args->bo_handles[job->base.bo_count]);
+		bo = drm_gem_object_lookup(file_priv, args->bo_handles[job->base.bo_count]);
 		if (!bo) {
 			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
 				  job->base.bo_count,
 				  args->bo_handles[job->base.bo_count]);
 			ret = -ENOENT;
-			spin_unlock(&file_priv->table_lock);
 			goto fail;
 		}
-		drm_gem_object_get(bo);
 		job->base.bo[job->base.bo_count] = bo;
 	}
-	spin_unlock(&file_priv->table_lock);
 
 	ret = v3d_lock_bo_reservations(&job->base, &acquire_ctx);
 	if (ret)

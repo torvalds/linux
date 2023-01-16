@@ -766,7 +766,7 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 
 	shmem->sgt = sgt;
 
-	DRM_DEBUG_PRIME("size = %zu\n", size);
+	drm_dbg_prime(dev, "size = %zu\n", size);
 
 	return &shmem->base;
 }
