@@ -58,12 +58,12 @@ static ssize_t mac_address_show(struct device *dev,
 		return ret;
 
 	return sysfs_emit(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE1, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE2, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE3, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE4, macaddr_low),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE5, macaddr_high),
-			  (u8)FIELD_GET(M10BMC_MAC_BYTE6, macaddr_high));
+			  (u8)FIELD_GET(M10BMC_N3000_MAC_BYTE1, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_N3000_MAC_BYTE2, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_N3000_MAC_BYTE3, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_N3000_MAC_BYTE4, macaddr_low),
+			  (u8)FIELD_GET(M10BMC_N3000_MAC_BYTE5, macaddr_high),
+			  (u8)FIELD_GET(M10BMC_N3000_MAC_BYTE6, macaddr_high));
 }
 static DEVICE_ATTR_RO(mac_address);
 
@@ -78,7 +78,7 @@ static ssize_t mac_count_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sysfs_emit(buf, "%u\n", (u8)FIELD_GET(M10BMC_MAC_COUNT, macaddr_high));
+	return sysfs_emit(buf, "%u\n", (u8)FIELD_GET(M10BMC_N3000_MAC_COUNT, macaddr_high));
 }
 static DEVICE_ATTR_RO(mac_count);
 

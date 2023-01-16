@@ -14,9 +14,9 @@
 #include <linux/spi/spi.h>
 
 static const struct regmap_range m10bmc_regmap_range[] = {
-	regmap_reg_range(M10BMC_LEGACY_BUILD_VER, M10BMC_LEGACY_BUILD_VER),
-	regmap_reg_range(M10BMC_SYS_BASE, M10BMC_SYS_END),
-	regmap_reg_range(M10BMC_FLASH_BASE, M10BMC_FLASH_END),
+	regmap_reg_range(M10BMC_N3000_LEGACY_BUILD_VER, M10BMC_N3000_LEGACY_BUILD_VER),
+	regmap_reg_range(M10BMC_N3000_SYS_BASE, M10BMC_N3000_SYS_END),
+	regmap_reg_range(M10BMC_N3000_FLASH_BASE, M10BMC_N3000_FLASH_END),
 };
 
 static const struct regmap_access_table m10bmc_access_table = {
@@ -30,7 +30,7 @@ static struct regmap_config intel_m10bmc_regmap_config = {
 	.reg_stride = 4,
 	.wr_table = &m10bmc_access_table,
 	.rd_table = &m10bmc_access_table,
-	.max_register = M10BMC_MEM_END,
+	.max_register = M10BMC_N3000_MEM_END,
 };
 
 static int check_m10bmc_version(struct intel_m10bmc *ddata)
@@ -41,16 +41,16 @@ static int check_m10bmc_version(struct intel_m10bmc *ddata)
 	/*
 	 * This check is to filter out the very old legacy BMC versions. In the
 	 * old BMC chips, the BMC version info is stored in the old version
-	 * register (M10BMC_LEGACY_BUILD_VER), so its read out value would have
-	 * not been M10BMC_VER_LEGACY_INVALID (0xffffffff). But in new BMC
+	 * register (M10BMC_N3000_LEGACY_BUILD_VER), so its read out value would have
+	 * not been M10BMC_N3000_VER_LEGACY_INVALID (0xffffffff). But in new BMC
 	 * chips that the driver supports, the value of this register should be
-	 * M10BMC_VER_LEGACY_INVALID.
+	 * M10BMC_N3000_VER_LEGACY_INVALID.
 	 */
-	ret = m10bmc_raw_read(ddata, M10BMC_LEGACY_BUILD_VER, &v);
+	ret = m10bmc_raw_read(ddata, M10BMC_N3000_LEGACY_BUILD_VER, &v);
 	if (ret)
 		return -ENODEV;
 
-	if (v != M10BMC_VER_LEGACY_INVALID) {
+	if (v != M10BMC_N3000_VER_LEGACY_INVALID) {
 		dev_err(ddata->dev, "bad version M10BMC detected\n");
 		return -ENODEV;
 	}
@@ -92,23 +92,23 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 }
 
 static const struct m10bmc_csr_map m10bmc_n3000_csr_map = {
-	.base = M10BMC_SYS_BASE,
-	.build_version = M10BMC_BUILD_VER,
-	.fw_version = NIOS2_FW_VERSION,
-	.mac_low = M10BMC_MAC_LOW,
-	.mac_high = M10BMC_MAC_HIGH,
-	.doorbell = M10BMC_DOORBELL,
-	.auth_result = M10BMC_AUTH_RESULT,
-	.bmc_prog_addr = BMC_PROG_ADDR,
-	.bmc_reh_addr = BMC_REH_ADDR,
-	.bmc_magic = BMC_PROG_MAGIC,
-	.sr_prog_addr = SR_PROG_ADDR,
-	.sr_reh_addr = SR_REH_ADDR,
-	.sr_magic = SR_PROG_MAGIC,
-	.pr_prog_addr = PR_PROG_ADDR,
-	.pr_reh_addr = PR_REH_ADDR,
-	.pr_magic = PR_PROG_MAGIC,
-	.rsu_update_counter = STAGING_FLASH_COUNT,
+	.base = M10BMC_N3000_SYS_BASE,
+	.build_version = M10BMC_N3000_BUILD_VER,
+	.fw_version = NIOS2_N3000_FW_VERSION,
+	.mac_low = M10BMC_N3000_MAC_LOW,
+	.mac_high = M10BMC_N3000_MAC_HIGH,
+	.doorbell = M10BMC_N3000_DOORBELL,
+	.auth_result = M10BMC_N3000_AUTH_RESULT,
+	.bmc_prog_addr = M10BMC_N3000_BMC_PROG_ADDR,
+	.bmc_reh_addr = M10BMC_N3000_BMC_REH_ADDR,
+	.bmc_magic = M10BMC_N3000_BMC_PROG_MAGIC,
+	.sr_prog_addr = M10BMC_N3000_SR_PROG_ADDR,
+	.sr_reh_addr = M10BMC_N3000_SR_REH_ADDR,
+	.sr_magic = M10BMC_N3000_SR_PROG_MAGIC,
+	.pr_prog_addr = M10BMC_N3000_PR_PROG_ADDR,
+	.pr_reh_addr = M10BMC_N3000_PR_REH_ADDR,
+	.pr_magic = M10BMC_N3000_PR_PROG_MAGIC,
+	.rsu_update_counter = M10BMC_N3000_STAGING_FLASH_COUNT,
 };
 
 static struct mfd_cell m10bmc_d5005_subdevs[] = {
