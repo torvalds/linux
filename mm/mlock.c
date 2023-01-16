@@ -370,9 +370,9 @@ static void mlock_vma_pages_range(struct vm_area_struct *vma,
 	/*
 	 * There is a slight chance that concurrent page migration,
 	 * or page reclaim finding a page of this now-VM_LOCKED vma,
-	 * will call mlock_vma_page() and raise page's mlock_count:
+	 * will call mlock_vma_folio() and raise page's mlock_count:
 	 * double counting, leaving the page unevictable indefinitely.
-	 * Communicate this danger to mlock_vma_page() with VM_IO,
+	 * Communicate this danger to mlock_vma_folio() with VM_IO,
 	 * which is a VM_SPECIAL flag not allowed on VM_LOCKED vmas.
 	 * mmap_lock is held in write mode here, so this weird
 	 * combination should not be visible to other mmap_lock users;

@@ -1260,7 +1260,7 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 			__page_check_anon_rmap(page, vma, address);
 	}
 
-	mlock_vma_page(page, vma, compound);
+	mlock_vma_folio(folio, vma, compound);
 }
 
 /**
@@ -1351,7 +1351,7 @@ void page_add_file_rmap(struct page *page, struct vm_area_struct *vma,
 	if (nr)
 		__lruvec_stat_mod_folio(folio, NR_FILE_MAPPED, nr);
 
-	mlock_vma_page(page, vma, compound);
+	mlock_vma_folio(folio, vma, compound);
 }
 
 /**

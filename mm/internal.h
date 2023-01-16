@@ -518,7 +518,7 @@ extern long faultin_vma_page_range(struct vm_area_struct *vma,
 extern int mlock_future_check(struct mm_struct *mm, unsigned long flags,
 			      unsigned long len);
 /*
- * mlock_vma_page() and munlock_vma_page():
+ * mlock_vma_folio() and munlock_vma_folio():
  * should be called with vma's mmap_lock held for read or write,
  * under page table lock for the pte/pmd being added or removed.
  *
@@ -545,12 +545,6 @@ static inline void mlock_vma_folio(struct folio *folio,
 	if (unlikely((vma->vm_flags & (VM_LOCKED|VM_SPECIAL)) == VM_LOCKED) &&
 	    (compound || !folio_test_large(folio)))
 		mlock_folio(folio);
-}
-
-static inline void mlock_vma_page(struct page *page,
-			struct vm_area_struct *vma, bool compound)
-{
-	mlock_vma_folio(page_folio(page), vma, compound);
 }
 
 void munlock_folio(struct folio *folio);
@@ -656,8 +650,6 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 }
 #else /* !CONFIG_MMU */
 static inline void unmap_mapping_folio(struct folio *folio) { }
-static inline void mlock_vma_page(struct page *page,
-			struct vm_area_struct *vma, bool compound) { }
 static inline void munlock_vma_page(struct page *page,
 			struct vm_area_struct *vma, bool compound) { }
 static inline void mlock_new_folio(struct folio *folio) { }

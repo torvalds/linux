@@ -311,7 +311,7 @@ do end up getting faulted into this VM_LOCKED VMA, they will be handled in the
 fault path - which is also how mlock2()'s MLOCK_ONFAULT areas are handled.
 
 For each PTE (or PMD) being faulted into a VMA, the page add rmap function
-calls mlock_vma_page(), which calls mlock_folio() when the VMA is VM_LOCKED
+calls mlock_vma_folio(), which calls mlock_folio() when the VMA is VM_LOCKED
 (unless it is a PTE mapping of a part of a transparent huge page).  Or when
 it is a newly allocated anonymous page, folio_add_lru_vma() calls
 mlock_new_folio() instead: similar to mlock_folio(), but can make better
@@ -413,7 +413,7 @@ However, since mlock_vma_pages_range() starts by setting VM_LOCKED on a VMA,
 before mlocking any pages already present, if one of those pages were migrated
 before mlock_pte_range() reached it, it would get counted twice in mlock_count.
 To prevent that, mlock_vma_pages_range() temporarily marks the VMA as VM_IO,
-so that mlock_vma_page() will skip it.
+so that mlock_vma_folio() will skip it.
 
 To complete page migration, we place the old and new pages back onto the LRU
 afterwards.  The "unneeded" page - old page on success, new page on failure -
@@ -552,6 +552,6 @@ and node unevictable list.
 
 rmap's folio_referenced_one(), called via vmscan's shrink_active_list() or
 shrink_page_list(), and rmap's try_to_unmap_one() called via shrink_page_list(),
-check for (3) pages still mapped into VM_LOCKED VMAs, and call mlock_vma_page()
+check for (3) pages still mapped into VM_LOCKED VMAs, and call mlock_vma_folio()
 to correct them.  Such pages are culled to the unevictable list when released
 by the shrinker.
