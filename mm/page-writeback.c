@@ -2652,7 +2652,7 @@ static void folio_account_dirtied(struct folio *folio,
 		struct bdi_writeback *wb;
 		long nr = folio_nr_pages(folio);
 
-		inode_attach_wb(inode, &folio->page);
+		inode_attach_wb(inode, folio);
 		wb = inode_to_wb(inode);
 
 		__lruvec_stat_mod_folio(folio, NR_FILE_DIRTY, nr);
