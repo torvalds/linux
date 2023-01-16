@@ -27,6 +27,7 @@
 #include <linux/phy.h>
 #include <linux/iopoll.h>
 #include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 
 #define TSNEP_RX_OFFSET (max(NET_SKB_PAD, XDP_PACKET_HEADROOM) + NET_IP_ALIGN)
 #define TSNEP_HEADROOM ALIGN(TSNEP_RX_OFFSET, 4)
@@ -48,6 +49,9 @@
 #define TSNEP_TX_TYPE_SKB_FRAG	BIT(1)
 #define TSNEP_TX_TYPE_XDP_TX	BIT(2)
 #define TSNEP_TX_TYPE_XDP_NDO	BIT(3)
+
+#define TSNEP_XDP_TX		BIT(0)
+#define TSNEP_XDP_REDIRECT	BIT(1)
 
 static void tsnep_enable_irq(struct tsnep_adapter *adapter, u32 mask)
 {
@@ -607,6 +611,29 @@ static void tsnep_xdp_xmit_flush(struct tsnep_tx *tx)
 	iowrite32(TSNEP_CONTROL_TX_ENABLE, tx->addr + TSNEP_CONTROL);
 }
 
+static bool tsnep_xdp_xmit_back(struct tsnep_adapter *adapter,
+				struct xdp_buff *xdp,
+				struct netdev_queue *tx_nq, struct tsnep_tx *tx)
+{
+	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
+	bool xmit;
+
+	if (unlikely(!xdpf))
+		return false;
+
+	__netif_tx_lock(tx_nq, smp_processor_id());
+
+	xmit = tsnep_xdp_xmit_frame_ring(xdpf, tx, TSNEP_TX_TYPE_XDP_TX);
+
+	/* Avoid transmit queue timeout since we share it with the slow path */
+	if (xmit)
+		txq_trans_cond_update(tx_nq);
+
+	__netif_tx_unlock(tx_nq);
+
+	return xmit;
+}
+
 static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 {
 	struct tsnep_tx_entry *entry;
@@ -938,6 +965,62 @@ static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
 	return i;
 }
 
+static bool tsnep_xdp_run_prog(struct tsnep_rx *rx, struct bpf_prog *prog,
+			       struct xdp_buff *xdp, int *status,
+			       struct netdev_queue *tx_nq, struct tsnep_tx *tx)
+{
+	unsigned int length;
+	unsigned int sync;
+	u32 act;
+
+	length = xdp->data_end - xdp->data_hard_start - XDP_PACKET_HEADROOM;
+
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU touch */
+	sync = xdp->data_end - xdp->data_hard_start - XDP_PACKET_HEADROOM;
+	sync = max(sync, length);
+
+	switch (act) {
+	case XDP_PASS:
+		return false;
+	case XDP_TX:
+		if (!tsnep_xdp_xmit_back(rx->adapter, xdp, tx_nq, tx))
+			goto out_failure;
+		*status |= TSNEP_XDP_TX;
+		return true;
+	case XDP_REDIRECT:
+		if (xdp_do_redirect(rx->adapter->netdev, xdp, prog) < 0)
+			goto out_failure;
+		*status |= TSNEP_XDP_REDIRECT;
+		return true;
+	default:
+		bpf_warn_invalid_xdp_action(rx->adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_ABORTED:
+out_failure:
+		trace_xdp_exception(rx->adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		page_pool_put_page(rx->page_pool, virt_to_head_page(xdp->data),
+				   sync, true);
+		return true;
+	}
+}
+
+static void tsnep_finalize_xdp(struct tsnep_adapter *adapter, int status,
+			       struct netdev_queue *tx_nq, struct tsnep_tx *tx)
+{
+	if (status & TSNEP_XDP_TX) {
+		__netif_tx_lock(tx_nq, smp_processor_id());
+		tsnep_xdp_xmit_flush(tx);
+		__netif_tx_unlock(tx_nq);
+	}
+
+	if (status & TSNEP_XDP_REDIRECT)
+		xdp_do_flush();
+}
+
 static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
 				       int length)
 {
@@ -973,15 +1056,28 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			 int budget)
 {
 	struct device *dmadev = rx->adapter->dmadev;
-	int desc_available;
-	int done = 0;
 	enum dma_data_direction dma_dir;
 	struct tsnep_rx_entry *entry;
+	struct netdev_queue *tx_nq;
+	struct bpf_prog *prog;
+	struct xdp_buff xdp;
 	struct sk_buff *skb;
+	struct tsnep_tx *tx;
+	int desc_available;
+	int xdp_status = 0;
+	int done = 0;
 	int length;
 
 	desc_available = tsnep_rx_desc_available(rx);
 	dma_dir = page_pool_get_dma_dir(rx->page_pool);
+	prog = READ_ONCE(rx->adapter->xdp_prog);
+	if (prog) {
+		tx_nq = netdev_get_tx_queue(rx->adapter->netdev,
+					    rx->tx_queue_index);
+		tx = &rx->adapter->tx[rx->tx_queue_index];
+
+		xdp_init_buff(&xdp, PAGE_SIZE, &rx->xdp_rxq);
+	}
 
 	while (likely(done < budget) && (rx->read != rx->write)) {
 		entry = &rx->entry[rx->read];
@@ -1031,6 +1127,25 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
 		desc_available++;
 
+		if (prog) {
+			bool consume;
+
+			xdp_prepare_buff(&xdp, page_address(entry->page),
+					 XDP_PACKET_HEADROOM + TSNEP_RX_INLINE_METADATA_SIZE,
+					 length, false);
+
+			consume = tsnep_xdp_run_prog(rx, prog, &xdp,
+						     &xdp_status, tx_nq, tx);
+			if (consume) {
+				rx->packets++;
+				rx->bytes += length;
+
+				entry->page = NULL;
+
+				continue;
+			}
+		}
+
 		skb = tsnep_build_skb(rx, entry->page, length);
 		if (skb) {
 			page_pool_release_page(rx->page_pool, entry->page);
@@ -1048,6 +1163,9 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		}
 		entry->page = NULL;
 	}
+
+	if (xdp_status)
+		tsnep_finalize_xdp(rx->adapter, xdp_status, tx_nq, tx);
 
 	if (desc_available)
 		tsnep_rx_refill(rx, desc_available, false);
@@ -1221,6 +1339,7 @@ static int tsnep_queue_open(struct tsnep_adapter *adapter,
 			    struct tsnep_queue *queue, bool first)
 {
 	struct tsnep_rx *rx = queue->rx;
+	struct tsnep_tx *tx = queue->tx;
 	int retval;
 
 	queue->adapter = adapter;
@@ -1228,6 +1347,14 @@ static int tsnep_queue_open(struct tsnep_adapter *adapter,
 	netif_napi_add(adapter->netdev, &queue->napi, tsnep_poll);
 
 	if (rx) {
+		/* choose TX queue for XDP_TX */
+		if (tx)
+			rx->tx_queue_index = tx->queue_index;
+		else if (rx->queue_index < adapter->num_tx_queues)
+			rx->tx_queue_index = rx->queue_index;
+		else
+			rx->tx_queue_index = 0;
+
 		retval = xdp_rxq_info_reg(&rx->xdp_rxq, adapter->netdev,
 					  rx->queue_index, queue->napi.napi_id);
 		if (retval)

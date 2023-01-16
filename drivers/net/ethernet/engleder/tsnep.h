@@ -109,6 +109,7 @@ struct tsnep_rx {
 	struct tsnep_adapter *adapter;
 	void __iomem *addr;
 	int queue_index;
+	int tx_queue_index;
 
 	void *page[TSNEP_RING_PAGE_COUNT];
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
@@ -175,6 +176,8 @@ struct tsnep_adapter {
 	struct list_head rxnfc_rules;
 	int rxnfc_count;
 	int rxnfc_max;
+
+	struct bpf_prog *xdp_prog;
 
 	int num_tx_queues;
 	struct tsnep_tx tx[TSNEP_MAX_QUEUES];
