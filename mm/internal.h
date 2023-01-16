@@ -159,17 +159,6 @@ static inline bool folio_evictable(struct folio *folio)
 	return ret;
 }
 
-static inline bool page_evictable(struct page *page)
-{
-	bool ret;
-
-	/* Prevent address_space of inode and swap cache from being freed */
-	rcu_read_lock();
-	ret = !mapping_unevictable(page_mapping(page)) && !PageMlocked(page);
-	rcu_read_unlock();
-	return ret;
-}
-
 /*
  * Turn a non-refcounted page (->_refcount == 0) into refcounted with
  * a count of one.

@@ -12,7 +12,7 @@ Introduction
 
 This document describes the Linux memory manager's "Unevictable LRU"
 infrastructure and the use of this to manage several types of "unevictable"
-pages.
+folios.
 
 The document attempts to provide the overall rationale behind this mechanism
 and the rationale for some of the design decisions that drove the
@@ -27,8 +27,8 @@ The Unevictable LRU
 ===================
 
 The Unevictable LRU facility adds an additional LRU list to track unevictable
-pages and to hide these pages from vmscan.  This mechanism is based on a patch
-by Larry Woodman of Red Hat to address several scalability problems with page
+folios and to hide these folios from vmscan.  This mechanism is based on a patch
+by Larry Woodman of Red Hat to address several scalability problems with folio
 reclaim in Linux.  The problems have been observed at customer sites on large
 memory x86_64 systems.
 
@@ -52,40 +52,41 @@ The infrastructure may also be able to handle other conditions that make pages
 unevictable, either by definition or by circumstance, in the future.
 
 
-The Unevictable LRU Page List
------------------------------
+The Unevictable LRU Folio List
+------------------------------
 
-The Unevictable LRU page list is a lie.  It was never an LRU-ordered list, but a
-companion to the LRU-ordered anonymous and file, active and inactive page lists;
-and now it is not even a page list.  But following familiar convention, here in
-this document and in the source, we often imagine it as a fifth LRU page list.
+The Unevictable LRU folio list is a lie.  It was never an LRU-ordered
+list, but a companion to the LRU-ordered anonymous and file, active and
+inactive folio lists; and now it is not even a folio list.  But following
+familiar convention, here in this document and in the source, we often
+imagine it as a fifth LRU folio list.
 
 The Unevictable LRU infrastructure consists of an additional, per-node, LRU list
-called the "unevictable" list and an associated page flag, PG_unevictable, to
-indicate that the page is being managed on the unevictable list.
+called the "unevictable" list and an associated folio flag, PG_unevictable, to
+indicate that the folio is being managed on the unevictable list.
 
 The PG_unevictable flag is analogous to, and mutually exclusive with, the
-PG_active flag in that it indicates on which LRU list a page resides when
+PG_active flag in that it indicates on which LRU list a folio resides when
 PG_lru is set.
 
-The Unevictable LRU infrastructure maintains unevictable pages as if they were
+The Unevictable LRU infrastructure maintains unevictable folios as if they were
 on an additional LRU list for a few reasons:
 
- (1) We get to "treat unevictable pages just like we treat other pages in the
+ (1) We get to "treat unevictable folios just like we treat other folios in the
      system - which means we get to use the same code to manipulate them, the
      same code to isolate them (for migrate, etc.), the same code to keep track
      of the statistics, etc..." [Rik van Riel]
 
- (2) We want to be able to migrate unevictable pages between nodes for memory
+ (2) We want to be able to migrate unevictable folios between nodes for memory
      defragmentation, workload management and memory hotplug.  The Linux kernel
-     can only migrate pages that it can successfully isolate from the LRU
+     can only migrate folios that it can successfully isolate from the LRU
      lists (or "Movable" pages: outside of consideration here).  If we were to
-     maintain pages elsewhere than on an LRU-like list, where they can be
-     detected by isolate_lru_page(), we would prevent their migration.
+     maintain folios elsewhere than on an LRU-like list, where they can be
+     detected by folio_isolate_lru(), we would prevent their migration.
 
-The unevictable list does not differentiate between file-backed and anonymous,
-swap-backed pages.  This differentiation is only important while the pages are,
-in fact, evictable.
+The unevictable list does not differentiate between file-backed and
+anonymous, swap-backed folios.  This differentiation is only important
+while the folios are, in fact, evictable.
 
 The unevictable list benefits from the "arrayification" of the per-node LRU
 lists and statistics originally proposed and posted by Christoph Lameter.
@@ -158,7 +159,7 @@ These are currently used in three places in the kernel:
 Detecting Unevictable Pages
 ---------------------------
 
-The function page_evictable() in mm/internal.h determines whether a page is
+The function folio_evictable() in mm/internal.h determines whether a folio is
 evictable or not using the query function outlined above [see section
 :ref:`Marking address spaces unevictable <mark_addr_space_unevict>`]
 to check the AS_UNEVICTABLE flag.
@@ -167,7 +168,7 @@ For address spaces that are so marked after being populated (as SHM regions
 might be), the lock action (e.g. SHM_LOCK) can be lazy, and need not populate
 the page tables for the region as does, for example, mlock(), nor need it make
 any special effort to push any pages in the SHM_LOCK'd area to the unevictable
-list.  Instead, vmscan will do this if and when it encounters the pages during
+list.  Instead, vmscan will do this if and when it encounters the folios during
 a reclamation scan.
 
 On an unlock action (such as SHM_UNLOCK), the unlocker (e.g. shmctl()) must scan
@@ -176,41 +177,43 @@ condition is keeping them unevictable.  If an unevictable region is destroyed,
 the pages are also "rescued" from the unevictable list in the process of
 freeing them.
 
-page_evictable() also checks for mlocked pages by testing an additional page
-flag, PG_mlocked (as wrapped by PageMlocked()), which is set when a page is
-faulted into a VM_LOCKED VMA, or found in a VMA being VM_LOCKED.
+folio_evictable() also checks for mlocked folios by calling
+folio_test_mlocked(), which is set when a folio is faulted into a
+VM_LOCKED VMA, or found in a VMA being VM_LOCKED.
 
 
-Vmscan's Handling of Unevictable Pages
---------------------------------------
+Vmscan's Handling of Unevictable Folios
+---------------------------------------
 
-If unevictable pages are culled in the fault path, or moved to the unevictable
-list at mlock() or mmap() time, vmscan will not encounter the pages until they
+If unevictable folios are culled in the fault path, or moved to the unevictable
+list at mlock() or mmap() time, vmscan will not encounter the folios until they
 have become evictable again (via munlock() for example) and have been "rescued"
 from the unevictable list.  However, there may be situations where we decide,
-for the sake of expediency, to leave an unevictable page on one of the regular
+for the sake of expediency, to leave an unevictable folio on one of the regular
 active/inactive LRU lists for vmscan to deal with.  vmscan checks for such
-pages in all of the shrink_{active|inactive|page}_list() functions and will
-"cull" such pages that it encounters: that is, it diverts those pages to the
+folios in all of the shrink_{active|inactive|page}_list() functions and will
+"cull" such folios that it encounters: that is, it diverts those folios to the
 unevictable list for the memory cgroup and node being scanned.
 
-There may be situations where a page is mapped into a VM_LOCKED VMA, but the
-page is not marked as PG_mlocked.  Such pages will make it all the way to
-shrink_active_list() or shrink_page_list() where they will be detected when
-vmscan walks the reverse map in folio_referenced() or try_to_unmap().  The page
-is culled to the unevictable list when it is released by the shrinker.
+There may be situations where a folio is mapped into a VM_LOCKED VMA,
+but the folio does not have the mlocked flag set.  Such folios will make
+it all the way to shrink_active_list() or shrink_page_list() where they
+will be detected when vmscan walks the reverse map in folio_referenced()
+or try_to_unmap().  The folio is culled to the unevictable list when it
+is released by the shrinker.
 
-To "cull" an unevictable page, vmscan simply puts the page back on the LRU list
-using putback_lru_page() - the inverse operation to isolate_lru_page() - after
-dropping the page lock.  Because the condition which makes the page unevictable
-may change once the page is unlocked, __pagevec_lru_add_fn() will recheck the
-unevictable state of a page before placing it on the unevictable list.
+To "cull" an unevictable folio, vmscan simply puts the folio back on
+the LRU list using folio_putback_lru() - the inverse operation to
+folio_isolate_lru() - after dropping the folio lock.  Because the
+condition which makes the folio unevictable may change once the folio
+is unlocked, __pagevec_lru_add_fn() will recheck the unevictable state
+of a folio before placing it on the unevictable list.
 
 
 MLOCKED Pages
 =============
 
-The unevictable page list is also useful for mlock(), in addition to ramfs and
+The unevictable folio list is also useful for mlock(), in addition to ramfs and
 SYSV SHM.  Note that mlock() is only available in CONFIG_MMU=y situations; in
 NOMMU situations, all mappings are effectively mlocked.
 
