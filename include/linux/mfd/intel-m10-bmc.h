@@ -122,13 +122,25 @@
 #define STAGING_FLASH_COUNT	0x17ffb000
 
 /**
+ * struct intel_m10bmc_platform_info - Intel MAX 10 BMC platform specific information
+ * @cells: MFD cells
+ * @n_cells: MFD cells ARRAY_SIZE()
+ */
+struct intel_m10bmc_platform_info {
+	struct mfd_cell *cells;
+	int n_cells;
+};
+
+/**
  * struct intel_m10bmc - Intel MAX 10 BMC parent driver data structure
  * @dev: this device
  * @regmap: the regmap used to access registers by m10bmc itself
+ * @info: the platform information for MAX10 BMC
  */
 struct intel_m10bmc {
 	struct device *dev;
 	struct regmap *regmap;
+	const struct intel_m10bmc_platform_info *info;
 };
 
 /*
