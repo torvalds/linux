@@ -408,7 +408,7 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc  *dc = stream->ctx->dc;
+	struct dc *dc;
 	bool reset_idle_optimizations = false;
 
 	if (NULL == stream) {
