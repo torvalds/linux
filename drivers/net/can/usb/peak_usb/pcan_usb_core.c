@@ -922,8 +922,7 @@ static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 	}
 
 	/* get CAN channel id early */
-	if (dev->adapter->dev_get_can_channel_id)
-		dev->adapter->dev_get_can_channel_id(dev, &dev->can_channel_id);
+	dev->adapter->dev_get_can_channel_id(dev, &dev->can_channel_id);
 
 	netdev_info(netdev, "attached to %s channel %u (device %u)\n",
 			peak_usb_adapter->name, ctrl_idx, dev->can_channel_id);
