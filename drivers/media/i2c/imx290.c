@@ -1015,6 +1015,47 @@ static const struct media_entity_operations imx290_subdev_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
+static int imx290_subdev_init(struct imx290 *imx290)
+{
+	struct i2c_client *client = to_i2c_client(imx290->dev);
+	int ret;
+
+	/*
+	 * Initialize the frame format. In particular, imx290->current_mode
+	 * and imx290->bpp are set to defaults: imx290_calc_pixel_rate() call
+	 * below relies on these fields.
+	 */
+	imx290_entity_init_cfg(&imx290->sd, NULL);
+
+	ret = imx290_ctrl_init(imx290);
+	if (ret < 0) {
+		dev_err(imx290->dev, "Control initialization error %d\n", ret);
+		return ret;
+	}
+
+	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
+	imx290->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx290->sd.dev = imx290->dev;
+	imx290->sd.entity.ops = &imx290_subdev_entity_ops;
+	imx290->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+
+	imx290->pad.flags = MEDIA_PAD_FL_SOURCE;
+	ret = media_entity_pads_init(&imx290->sd.entity, 1, &imx290->pad);
+	if (ret < 0) {
+		dev_err(imx290->dev, "Could not register media entity\n");
+		v4l2_ctrl_handler_free(&imx290->ctrls);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void imx290_subdev_cleanup(struct imx290 *imx290)
+{
+	media_entity_cleanup(&imx290->sd.entity);
+	v4l2_ctrl_handler_free(&imx290->ctrls);
+}
+
 /* ----------------------------------------------------------------------------
  * Power management
  */
@@ -1147,10 +1188,10 @@ static int imx290_probe(struct i2c_client *client)
 	fwnode_handle_put(endpoint);
 	if (ret == -ENXIO) {
 		dev_err(dev, "Unsupported bus type, should be CSI2\n");
-		goto free_err;
+		goto err_endpoint;
 	} else if (ret) {
 		dev_err(dev, "Parsing endpoint node failed\n");
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	/* Get number of data lanes */
@@ -1158,7 +1199,7 @@ static int imx290_probe(struct i2c_client *client)
 	if (imx290->nlanes != 2 && imx290->nlanes != 4) {
 		dev_err(dev, "Invalid data lanes: %d\n", imx290->nlanes);
 		ret = -EINVAL;
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	dev_dbg(dev, "Using %u data lanes\n", imx290->nlanes);
@@ -1166,7 +1207,7 @@ static int imx290_probe(struct i2c_client *client)
 	if (!ep.nr_of_link_frequencies) {
 		dev_err(dev, "link-frequency property not found in DT\n");
 		ret = -EINVAL;
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	/* Check that link frequences for all the modes are in device tree */
@@ -1174,7 +1215,7 @@ static int imx290_probe(struct i2c_client *client)
 	if (fq) {
 		dev_err(dev, "Link frequency of %lld is not supported\n", fq);
 		ret = -EINVAL;
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	/* get system clock (xclk) */
@@ -1182,14 +1223,14 @@ static int imx290_probe(struct i2c_client *client)
 	if (IS_ERR(imx290->xclk)) {
 		dev_err(dev, "Could not get xclk");
 		ret = PTR_ERR(imx290->xclk);
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 				       &xclk_freq);
 	if (ret) {
 		dev_err(dev, "Could not get xclk frequency\n");
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	/* external clock must be 37.125 MHz */
@@ -1197,19 +1238,19 @@ static int imx290_probe(struct i2c_client *client)
 		dev_err(dev, "External clock frequency %u is not supported\n",
 			xclk_freq);
 		ret = -EINVAL;
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	ret = clk_set_rate(imx290->xclk, xclk_freq);
 	if (ret) {
 		dev_err(dev, "Could not set xclk frequency\n");
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0) {
 		dev_err(dev, "Cannot get regulators\n");
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	imx290->rst_gpio = devm_gpiod_get_optional(dev, "reset",
@@ -1217,48 +1258,26 @@ static int imx290_probe(struct i2c_client *client)
 	if (IS_ERR(imx290->rst_gpio)) {
 		dev_err(dev, "Cannot get reset gpio\n");
 		ret = PTR_ERR(imx290->rst_gpio);
-		goto free_err;
+		goto err_endpoint;
 	}
 
 	mutex_init(&imx290->lock);
 
-	/*
-	 * Initialize the frame format. In particular, imx290->current_mode
-	 * and imx290->bpp are set to defaults: imx290_calc_pixel_rate() call
-	 * below relies on these fields.
-	 */
-	imx290_entity_init_cfg(&imx290->sd, NULL);
-
-	ret = imx290_ctrl_init(imx290);
-	if (ret < 0) {
-		dev_err(dev, "Control initialization error %d\n", ret);
-		goto free_mutex;
-	}
-
-	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
-	imx290->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	imx290->sd.dev = &client->dev;
-	imx290->sd.entity.ops = &imx290_subdev_entity_ops;
-	imx290->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-
-	imx290->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_pads_init(&imx290->sd.entity, 1, &imx290->pad);
-	if (ret < 0) {
-		dev_err(dev, "Could not register media entity\n");
-		goto free_ctrl;
-	}
+	ret = imx290_subdev_init(imx290);
+	if (ret)
+		goto err_mutex;
 
 	ret = v4l2_async_register_subdev(&imx290->sd);
 	if (ret < 0) {
 		dev_err(dev, "Could not register v4l2 device\n");
-		goto free_entity;
+		goto err_subdev;
 	}
 
 	/* Power on the device to match runtime PM state below */
 	ret = imx290_power_on(dev);
 	if (ret < 0) {
 		dev_err(dev, "Could not power on the device\n");
-		goto free_entity;
+		goto err_subdev;
 	}
 
 	pm_runtime_set_active(dev);
@@ -1269,13 +1288,11 @@ static int imx290_probe(struct i2c_client *client)
 
 	return 0;
 
-free_entity:
-	media_entity_cleanup(&imx290->sd.entity);
-free_ctrl:
-	v4l2_ctrl_handler_free(&imx290->ctrls);
-free_mutex:
+err_subdev:
+	imx290_subdev_cleanup(imx290);
+err_mutex:
 	mutex_destroy(&imx290->lock);
-free_err:
+err_endpoint:
 	v4l2_fwnode_endpoint_free(&ep);
 
 	return ret;
@@ -1287,8 +1304,7 @@ static void imx290_remove(struct i2c_client *client)
 	struct imx290 *imx290 = to_imx290(sd);
 
 	v4l2_async_unregister_subdev(sd);
-	media_entity_cleanup(&sd->entity);
-	v4l2_ctrl_handler_free(sd->ctrl_handler);
+	imx290_subdev_cleanup(imx290);
 
 	mutex_destroy(&imx290->lock);
 
