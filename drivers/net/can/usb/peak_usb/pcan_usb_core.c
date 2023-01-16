@@ -15,6 +15,8 @@
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 #include <linux/ethtool.h>
+#include <linux/sysfs.h>
+#include <linux/device.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -52,6 +54,26 @@ static const struct usb_device_id peak_usb_table[] = {
 };
 
 MODULE_DEVICE_TABLE(usb, peak_usb_table);
+
+static ssize_t can_channel_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	struct peak_usb_device *peak_dev = netdev_priv(netdev);
+
+	return sysfs_emit(buf, "%08X\n", peak_dev->can_channel_id);
+}
+static DEVICE_ATTR_RO(can_channel_id);
+
+/* mutable to avoid cast in attribute_group */
+static struct attribute *peak_usb_sysfs_attrs[] = {
+	&dev_attr_can_channel_id.attr,
+	NULL,
+};
+
+static const struct attribute_group peak_usb_sysfs_group = {
+	.name	= "peak_usb",
+	.attrs	= peak_usb_sysfs_attrs,
+};
 
 /*
  * dump memory
@@ -960,6 +982,9 @@ static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 
 	/* add ethtool support */
 	netdev->ethtool_ops = peak_usb_adapter->ethtool_ops;
+
+	/* register peak_usb sysfs files */
+	netdev->sysfs_groups[0] = &peak_usb_sysfs_group;
 
 	init_usb_anchor(&dev->rx_submitted);
 
