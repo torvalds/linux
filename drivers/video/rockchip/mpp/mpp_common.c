@@ -2291,7 +2291,9 @@ irqreturn_t mpp_dev_irq(int irq, void *param)
 			/* normal condition, set state and wake up isr thread */
 			set_bit(TASK_STATE_IRQ, &task->state);
 		}
-		mpp_iommu_dev_deactivate(mpp->iommu_info, mpp);
+
+		if (irq_ret == IRQ_WAKE_THREAD)
+			mpp_iommu_dev_deactivate(mpp->iommu_info, mpp);
 	} else {
 		mpp_debug(DEBUG_IRQ_CHECK, "error, task is null\n");
 	}
