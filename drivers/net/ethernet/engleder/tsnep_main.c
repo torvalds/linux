@@ -1614,6 +1614,18 @@ static ktime_t tsnep_netdev_get_tstamp(struct net_device *netdev,
 	return ns_to_ktime(timestamp);
 }
 
+static int tsnep_netdev_bpf(struct net_device *dev, struct netdev_bpf *bpf)
+{
+	struct tsnep_adapter *adapter = netdev_priv(dev);
+
+	switch (bpf->command) {
+	case XDP_SETUP_PROG:
+		return tsnep_xdp_setup_prog(adapter, bpf->prog, bpf->extack);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static struct tsnep_tx *tsnep_xdp_get_tx(struct tsnep_adapter *adapter, u32 cpu)
 {
 	if (cpu >= TSNEP_MAX_QUEUES)
@@ -1674,6 +1686,7 @@ static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_set_features = tsnep_netdev_set_features,
 	.ndo_get_tstamp = tsnep_netdev_get_tstamp,
 	.ndo_setup_tc = tsnep_tc_setup,
+	.ndo_bpf = tsnep_netdev_bpf,
 	.ndo_xdp_xmit = tsnep_netdev_xdp_xmit,
 };
 
