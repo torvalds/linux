@@ -91,6 +91,26 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 	return m10bmc_dev_init(ddata, info);
 }
 
+static const struct m10bmc_csr_map m10bmc_n3000_csr_map = {
+	.base = M10BMC_SYS_BASE,
+	.build_version = M10BMC_BUILD_VER,
+	.fw_version = NIOS2_FW_VERSION,
+	.mac_low = M10BMC_MAC_LOW,
+	.mac_high = M10BMC_MAC_HIGH,
+	.doorbell = M10BMC_DOORBELL,
+	.auth_result = M10BMC_AUTH_RESULT,
+	.bmc_prog_addr = BMC_PROG_ADDR,
+	.bmc_reh_addr = BMC_REH_ADDR,
+	.bmc_magic = BMC_PROG_MAGIC,
+	.sr_prog_addr = SR_PROG_ADDR,
+	.sr_reh_addr = SR_REH_ADDR,
+	.sr_magic = SR_PROG_MAGIC,
+	.pr_prog_addr = PR_PROG_ADDR,
+	.pr_reh_addr = PR_REH_ADDR,
+	.pr_magic = PR_PROG_MAGIC,
+	.rsu_update_counter = STAGING_FLASH_COUNT,
+};
+
 static struct mfd_cell m10bmc_d5005_subdevs[] = {
 	{ .name = "d5005bmc-hwmon" },
 	{ .name = "d5005bmc-sec-update" },
@@ -109,16 +129,19 @@ static struct mfd_cell m10bmc_n5010_subdevs[] = {
 static const struct intel_m10bmc_platform_info m10bmc_spi_n3000 = {
 	.cells = m10bmc_pacn3000_subdevs,
 	.n_cells = ARRAY_SIZE(m10bmc_pacn3000_subdevs),
+	.csr_map = &m10bmc_n3000_csr_map,
 };
 
 static const struct intel_m10bmc_platform_info m10bmc_spi_d5005 = {
 	.cells = m10bmc_d5005_subdevs,
 	.n_cells = ARRAY_SIZE(m10bmc_d5005_subdevs),
+	.csr_map = &m10bmc_n3000_csr_map,
 };
 
 static const struct intel_m10bmc_platform_info m10bmc_spi_n5010 = {
 	.cells = m10bmc_n5010_subdevs,
 	.n_cells = ARRAY_SIZE(m10bmc_n5010_subdevs),
+	.csr_map = &m10bmc_n3000_csr_map,
 };
 
 static const struct spi_device_id m10bmc_spi_id[] = {

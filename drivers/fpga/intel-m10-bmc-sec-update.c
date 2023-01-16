@@ -73,16 +73,24 @@ show_root_entry_hash(struct device *dev, u32 exp_magic,
 	return cnt;
 }
 
-#define DEVICE_ATTR_SEC_REH_RO(_name, _magic, _prog_addr, _reh_addr) \
+#define DEVICE_ATTR_SEC_REH_RO(_name)						\
 static ssize_t _name##_root_entry_hash_show(struct device *dev, \
 					    struct device_attribute *attr, \
 					    char *buf) \
-{ return show_root_entry_hash(dev, _magic, _prog_addr, _reh_addr, buf); } \
+{										\
+	struct m10bmc_sec *sec = dev_get_drvdata(dev);				\
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;	\
+										\
+	return show_root_entry_hash(dev, csr_map->_name##_magic,		\
+				    csr_map->_name##_prog_addr,			\
+				    csr_map->_name##_reh_addr,			\
+				    buf);					\
+}										\
 static DEVICE_ATTR_RO(_name##_root_entry_hash)
 
-DEVICE_ATTR_SEC_REH_RO(bmc, BMC_PROG_MAGIC, BMC_PROG_ADDR, BMC_REH_ADDR);
-DEVICE_ATTR_SEC_REH_RO(sr, SR_PROG_MAGIC, SR_PROG_ADDR, SR_REH_ADDR);
-DEVICE_ATTR_SEC_REH_RO(pr, PR_PROG_MAGIC, PR_PROG_ADDR, PR_REH_ADDR);
+DEVICE_ATTR_SEC_REH_RO(bmc);
+DEVICE_ATTR_SEC_REH_RO(sr);
+DEVICE_ATTR_SEC_REH_RO(pr);
 
 #define CSK_BIT_LEN		128U
 #define CSK_32ARRAY_SIZE	DIV_ROUND_UP(CSK_BIT_LEN, 32)
@@ -122,18 +130,25 @@ show_canceled_csk(struct device *dev, u32 addr, char *buf)
 	return bitmap_print_to_pagebuf(1, buf, csk_map, CSK_BIT_LEN);
 }
 
-#define DEVICE_ATTR_SEC_CSK_RO(_name, _addr) \
+#define DEVICE_ATTR_SEC_CSK_RO(_name)						\
 static ssize_t _name##_canceled_csks_show(struct device *dev, \
 					  struct device_attribute *attr, \
 					  char *buf) \
-{ return show_canceled_csk(dev, _addr, buf); } \
+{										\
+	struct m10bmc_sec *sec = dev_get_drvdata(dev);				\
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;	\
+										\
+	return show_canceled_csk(dev,						\
+				 csr_map->_name##_prog_addr + CSK_VEC_OFFSET,	\
+				 buf);						\
+}										\
 static DEVICE_ATTR_RO(_name##_canceled_csks)
 
 #define CSK_VEC_OFFSET 0x34
 
-DEVICE_ATTR_SEC_CSK_RO(bmc, BMC_PROG_ADDR + CSK_VEC_OFFSET);
-DEVICE_ATTR_SEC_CSK_RO(sr, SR_PROG_ADDR + CSK_VEC_OFFSET);
-DEVICE_ATTR_SEC_CSK_RO(pr, PR_PROG_ADDR + CSK_VEC_OFFSET);
+DEVICE_ATTR_SEC_CSK_RO(bmc);
+DEVICE_ATTR_SEC_CSK_RO(sr);
+DEVICE_ATTR_SEC_CSK_RO(pr);
 
 #define FLASH_COUNT_SIZE 4096	/* count stored as inverted bit vector */
 
@@ -141,6 +156,7 @@ static ssize_t flash_count_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct m10bmc_sec *sec = dev_get_drvdata(dev);
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	unsigned int stride, num_bits;
 	u8 *flash_buf;
 	int cnt, ret;
@@ -160,12 +176,12 @@ static ssize_t flash_count_show(struct device *dev,
 	if (!flash_buf)
 		return -ENOMEM;
 
-	ret = regmap_bulk_read(sec->m10bmc->regmap, STAGING_FLASH_COUNT,
+	ret = regmap_bulk_read(sec->m10bmc->regmap, csr_map->rsu_update_counter,
 			       flash_buf, FLASH_COUNT_SIZE / stride);
 	if (ret) {
 		dev_err(sec->dev,
 			"failed to read flash count: %x cnt %x: %d\n",
-			STAGING_FLASH_COUNT, FLASH_COUNT_SIZE / stride, ret);
+			csr_map->rsu_update_counter, FLASH_COUNT_SIZE / stride, ret);
 		goto exit_free;
 	}
 	cnt = num_bits - bitmap_weight((unsigned long *)flash_buf, num_bits);
@@ -200,20 +216,22 @@ static const struct attribute_group *m10bmc_sec_attr_groups[] = {
 
 static void log_error_regs(struct m10bmc_sec *sec, u32 doorbell)
 {
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 auth_result;
 
 	dev_err(sec->dev, "RSU error status: 0x%08x\n", doorbell);
 
-	if (!m10bmc_sys_read(sec->m10bmc, M10BMC_AUTH_RESULT, &auth_result))
+	if (!m10bmc_sys_read(sec->m10bmc, csr_map->auth_result, &auth_result))
 		dev_err(sec->dev, "RSU auth result: 0x%08x\n", auth_result);
 }
 
 static enum fw_upload_err rsu_check_idle(struct m10bmc_sec *sec)
 {
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 doorbell;
 	int ret;
 
-	ret = m10bmc_sys_read(sec->m10bmc, M10BMC_DOORBELL, &doorbell);
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, &doorbell);
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
@@ -246,11 +264,12 @@ static inline bool rsu_start_done(u32 doorbell)
 
 static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 {
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 doorbell, status;
 	int ret;
 
 	ret = regmap_update_bits(sec->m10bmc->regmap,
-				 M10BMC_SYS_BASE + M10BMC_DOORBELL,
+				 csr_map->base + csr_map->doorbell,
 				 DRBL_RSU_REQUEST | DRBL_HOST_STATUS,
 				 DRBL_RSU_REQUEST |
 				 FIELD_PREP(DRBL_HOST_STATUS,
@@ -259,7 +278,7 @@ static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
 	ret = regmap_read_poll_timeout(sec->m10bmc->regmap,
-				       M10BMC_SYS_BASE + M10BMC_DOORBELL,
+				       csr_map->base + csr_map->doorbell,
 				       doorbell,
 				       rsu_start_done(doorbell),
 				       NIOS_HANDSHAKE_INTERVAL_US,
@@ -286,11 +305,12 @@ static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 
 static enum fw_upload_err rsu_prog_ready(struct m10bmc_sec *sec)
 {
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	unsigned long poll_timeout;
 	u32 doorbell, progress;
 	int ret;
 
-	ret = m10bmc_sys_read(sec->m10bmc, M10BMC_DOORBELL, &doorbell);
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, &doorbell);
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
@@ -300,7 +320,7 @@ static enum fw_upload_err rsu_prog_ready(struct m10bmc_sec *sec)
 		if (time_after(jiffies, poll_timeout))
 			break;
 
-		ret = m10bmc_sys_read(sec->m10bmc, M10BMC_DOORBELL, &doorbell);
+		ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, &doorbell);
 		if (ret)
 			return FW_UPLOAD_ERR_RW_ERROR;
 	}
@@ -319,11 +339,12 @@ static enum fw_upload_err rsu_prog_ready(struct m10bmc_sec *sec)
 
 static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 {
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 doorbell;
 	int ret;
 
 	ret = regmap_update_bits(sec->m10bmc->regmap,
-				 M10BMC_SYS_BASE + M10BMC_DOORBELL,
+				 csr_map->base + csr_map->doorbell,
 				 DRBL_HOST_STATUS,
 				 FIELD_PREP(DRBL_HOST_STATUS,
 					    HOST_STATUS_WRITE_DONE));
@@ -331,7 +352,7 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
 	ret = regmap_read_poll_timeout(sec->m10bmc->regmap,
-				       M10BMC_SYS_BASE + M10BMC_DOORBELL,
+				       csr_map->base + csr_map->doorbell,
 				       doorbell,
 				       rsu_prog(doorbell) != RSU_PROG_READY,
 				       NIOS_HANDSHAKE_INTERVAL_US,
@@ -360,7 +381,9 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 
 static int rsu_check_complete(struct m10bmc_sec *sec, u32 *doorbell)
 {
-	if (m10bmc_sys_read(sec->m10bmc, M10BMC_DOORBELL, doorbell))
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
+
+	if (m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, doorbell))
 		return -EIO;
 
 	switch (rsu_stat(*doorbell)) {
@@ -389,10 +412,11 @@ static int rsu_check_complete(struct m10bmc_sec *sec, u32 *doorbell)
 
 static enum fw_upload_err rsu_cancel(struct m10bmc_sec *sec)
 {
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 doorbell;
 	int ret;
 
-	ret = m10bmc_sys_read(sec->m10bmc, M10BMC_DOORBELL, &doorbell);
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, &doorbell);
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
@@ -400,7 +424,7 @@ static enum fw_upload_err rsu_cancel(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_BUSY;
 
 	ret = regmap_update_bits(sec->m10bmc->regmap,
-				 M10BMC_SYS_BASE + M10BMC_DOORBELL,
+				 csr_map->base + csr_map->doorbell,
 				 DRBL_HOST_STATUS,
 				 FIELD_PREP(DRBL_HOST_STATUS,
 					    HOST_STATUS_ABORT_RSU));
@@ -445,6 +469,7 @@ static enum fw_upload_err m10bmc_sec_write(struct fw_upload *fwl, const u8 *data
 					   u32 offset, u32 size, u32 *written)
 {
 	struct m10bmc_sec *sec = fwl->dd_handle;
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 blk_size, doorbell, extra_offset;
 	unsigned int stride, extra = 0;
 	int ret;
@@ -453,7 +478,7 @@ static enum fw_upload_err m10bmc_sec_write(struct fw_upload *fwl, const u8 *data
 	if (sec->cancel_request)
 		return rsu_cancel(sec);
 
-	ret = m10bmc_sys_read(sec->m10bmc, M10BMC_DOORBELL, &doorbell);
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, &doorbell);
 	if (ret) {
 		return FW_UPLOAD_ERR_RW_ERROR;
 	} else if (rsu_prog(doorbell) != RSU_PROG_READY) {

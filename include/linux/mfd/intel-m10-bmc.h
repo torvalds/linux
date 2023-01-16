@@ -122,13 +122,38 @@
 #define STAGING_FLASH_COUNT	0x17ffb000
 
 /**
+ * struct m10bmc_csr_map - Intel MAX 10 BMC CSR register map
+ */
+struct m10bmc_csr_map {
+	unsigned int base;
+	unsigned int build_version;
+	unsigned int fw_version;
+	unsigned int mac_low;
+	unsigned int mac_high;
+	unsigned int doorbell;
+	unsigned int auth_result;
+	unsigned int bmc_prog_addr;
+	unsigned int bmc_reh_addr;
+	unsigned int bmc_magic;
+	unsigned int sr_prog_addr;
+	unsigned int sr_reh_addr;
+	unsigned int sr_magic;
+	unsigned int pr_prog_addr;
+	unsigned int pr_reh_addr;
+	unsigned int pr_magic;
+	unsigned int rsu_update_counter;
+};
+
+/**
  * struct intel_m10bmc_platform_info - Intel MAX 10 BMC platform specific information
  * @cells: MFD cells
  * @n_cells: MFD cells ARRAY_SIZE()
+ * @csr_map: the mappings for register definition of MAX10 BMC
  */
 struct intel_m10bmc_platform_info {
 	struct mfd_cell *cells;
 	int n_cells;
+	const struct m10bmc_csr_map *csr_map;
 };
 
 /**
@@ -167,12 +192,17 @@ m10bmc_raw_read(struct intel_m10bmc *m10bmc, unsigned int addr,
  * The base of the system registers could be configured by HW developers, and
  * in HW SPEC, the base is not added to the addresses of the system registers.
  *
- * This macro helps to simplify the accessing of the system registers. And if
+ * This function helps to simplify the accessing of the system registers. And if
  * the base is reconfigured in HW, SW developers could simply change the
- * M10BMC_SYS_BASE accordingly.
+ * csr_map's base accordingly.
  */
-#define m10bmc_sys_read(m10bmc, offset, val) \
-	m10bmc_raw_read(m10bmc, M10BMC_SYS_BASE + (offset), val)
+static inline int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset,
+				  unsigned int *val)
+{
+	const struct m10bmc_csr_map *csr_map = m10bmc->info->csr_map;
+
+	return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
+}
 
 /*
  * MAX10 BMC Core support
