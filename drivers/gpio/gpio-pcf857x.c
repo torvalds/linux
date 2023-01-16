@@ -11,9 +11,9 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -35,7 +35,6 @@ static const struct i2c_device_id pcf857x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcf857x_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id pcf857x_of_table[] = {
 	{ .compatible = "nxp,pcf8574" },
 	{ .compatible = "nxp,pcf8574a" },
@@ -53,7 +52,6 @@ static const struct of_device_id pcf857x_of_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcf857x_of_table);
-#endif
 
 /*
  * The pcf857x, pca857x, and pca967x chips only expose one read and one
@@ -275,12 +273,11 @@ static const struct irq_chip pcf857x_irq_chip = {
 static int pcf857x_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	struct device_node *np = client->dev.of_node;
 	struct pcf857x *gpio;
 	unsigned int n_latch = 0;
 	int status;
 
-	of_property_read_u32(np, "lines-initial-states", &n_latch);
+	device_property_read_u32(&client->dev, "lines-initial-states", &n_latch);
 
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
@@ -420,7 +417,7 @@ static void pcf857x_shutdown(struct i2c_client *client)
 static struct i2c_driver pcf857x_driver = {
 	.driver = {
 		.name	= "pcf857x",
-		.of_match_table = of_match_ptr(pcf857x_of_table),
+		.of_match_table = pcf857x_of_table,
 	},
 	.probe_new = pcf857x_probe,
 	.shutdown = pcf857x_shutdown,
