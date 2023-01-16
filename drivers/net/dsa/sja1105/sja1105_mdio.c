@@ -7,20 +7,15 @@
 
 #define SJA1110_PCS_BANK_REG		SJA1110_SPI_ADDR(0x3fc)
 
-int sja1105_pcs_mdio_read(struct mii_bus *bus, int phy, int reg)
+int sja1105_pcs_mdio_read_c45(struct mii_bus *bus, int phy, int mmd, int reg)
 {
 	struct sja1105_mdio_private *mdio_priv = bus->priv;
 	struct sja1105_private *priv = mdio_priv->priv;
 	u64 addr;
 	u32 tmp;
-	u16 mmd;
 	int rc;
 
-	if (!(reg & MII_ADDR_C45))
-		return -EINVAL;
-
-	mmd = (reg >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	addr = (mmd << 16) | (reg & GENMASK(15, 0));
+	addr = (mmd << 16) | reg;
 
 	if (mmd != MDIO_MMD_VEND1 && mmd != MDIO_MMD_VEND2)
 		return 0xffff;
@@ -37,19 +32,15 @@ int sja1105_pcs_mdio_read(struct mii_bus *bus, int phy, int reg)
 	return tmp & 0xffff;
 }
 
-int sja1105_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
+int sja1105_pcs_mdio_write_c45(struct mii_bus *bus, int phy, int mmd,
+			       int reg, u16 val)
 {
 	struct sja1105_mdio_private *mdio_priv = bus->priv;
 	struct sja1105_private *priv = mdio_priv->priv;
 	u64 addr;
 	u32 tmp;
-	u16 mmd;
 
-	if (!(reg & MII_ADDR_C45))
-		return -EINVAL;
-
-	mmd = (reg >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	addr = (mmd << 16) | (reg & GENMASK(15, 0));
+	addr = (mmd << 16) | reg;
 	tmp = val;
 
 	if (mmd != MDIO_MMD_VEND1 && mmd != MDIO_MMD_VEND2)
@@ -58,7 +49,7 @@ int sja1105_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return sja1105_xfer_u32(priv, SPI_WRITE, addr, &tmp, NULL);
 }
 
-int sja1110_pcs_mdio_read(struct mii_bus *bus, int phy, int reg)
+int sja1110_pcs_mdio_read_c45(struct mii_bus *bus, int phy, int mmd, int reg)
 {
 	struct sja1105_mdio_private *mdio_priv = bus->priv;
 	struct sja1105_private *priv = mdio_priv->priv;
@@ -66,17 +57,12 @@ int sja1110_pcs_mdio_read(struct mii_bus *bus, int phy, int reg)
 	int offset, bank;
 	u64 addr;
 	u32 tmp;
-	u16 mmd;
 	int rc;
-
-	if (!(reg & MII_ADDR_C45))
-		return -EINVAL;
 
 	if (regs->pcs_base[phy] == SJA1105_RSV_ADDR)
 		return -ENODEV;
 
-	mmd = (reg >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	addr = (mmd << 16) | (reg & GENMASK(15, 0));
+	addr = (mmd << 16) | reg;
 
 	if (mmd == MDIO_MMD_VEND2 && (reg & GENMASK(15, 0)) == MII_PHYSID1)
 		return NXP_SJA1110_XPCS_ID >> 16;
@@ -108,7 +94,8 @@ int sja1110_pcs_mdio_read(struct mii_bus *bus, int phy, int reg)
 	return tmp & 0xffff;
 }
 
-int sja1110_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
+int sja1110_pcs_mdio_write_c45(struct mii_bus *bus, int phy, int reg, int mmd,
+			       u16 val)
 {
 	struct sja1105_mdio_private *mdio_priv = bus->priv;
 	struct sja1105_private *priv = mdio_priv->priv;
@@ -116,17 +103,12 @@ int sja1110_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	int offset, bank;
 	u64 addr;
 	u32 tmp;
-	u16 mmd;
 	int rc;
-
-	if (!(reg & MII_ADDR_C45))
-		return -EINVAL;
 
 	if (regs->pcs_base[phy] == SJA1105_RSV_ADDR)
 		return -ENODEV;
 
-	mmd = (reg >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	addr = (mmd << 16) | (reg & GENMASK(15, 0));
+	addr = (mmd << 16) | reg;
 
 	bank = addr >> 8;
 	offset = addr & GENMASK(7, 0);
@@ -398,7 +380,7 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 	int rc = 0;
 	int port;
 
-	if (!priv->info->pcs_mdio_read || !priv->info->pcs_mdio_write)
+	if (!priv->info->pcs_mdio_read_c45 || !priv->info->pcs_mdio_write_c45)
 		return 0;
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
@@ -408,8 +390,8 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 	bus->name = "SJA1105 PCS MDIO bus";
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-pcs",
 		 dev_name(ds->dev));
-	bus->read = priv->info->pcs_mdio_read;
-	bus->write = priv->info->pcs_mdio_write;
+	bus->read_c45 = priv->info->pcs_mdio_read_c45;
+	bus->write_c45 = priv->info->pcs_mdio_write_c45;
 	bus->parent = ds->dev;
 	/* There is no PHY on this MDIO bus => mask out all PHY addresses
 	 * from auto probing.
