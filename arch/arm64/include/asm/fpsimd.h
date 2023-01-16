@@ -61,7 +61,7 @@ extern void fpsimd_kvm_prepare(void);
 struct cpu_fp_state {
 	struct user_fpsimd_state *st;
 	void *sve_state;
-	void *za_state;
+	void *sme_state;
 	u64 *svcr;
 	unsigned int sve_vl;
 	unsigned int sme_vl;
@@ -355,14 +355,17 @@ extern int sme_get_current_vl(void);
 
 /*
  * Return how many bytes of memory are required to store the full SME
- * specific state (currently just ZA) for task, given task's currently
- * configured vector length.
+ * specific state for task, given task's currently configured vector
+ * length.
  */
-static inline size_t za_state_size(struct task_struct const *task)
+static inline size_t sme_state_size(struct task_struct const *task)
 {
 	unsigned int vl = task_get_sme_vl(task);
+	size_t size;
 
-	return ZA_SIG_REGS_SIZE(sve_vq_from_vl(vl));
+	size = ZA_SIG_REGS_SIZE(sve_vq_from_vl(vl));
+
+	return size;
 }
 
 #else
@@ -382,7 +385,7 @@ static inline int sme_max_virtualisable_vl(void) { return 0; }
 static inline int sme_set_current_vl(unsigned long arg) { return -EINVAL; }
 static inline int sme_get_current_vl(void) { return -EINVAL; }
 
-static inline size_t za_state_size(struct task_struct const *task)
+static inline size_t sme_state_size(struct task_struct const *task)
 {
 	return 0;
 }
