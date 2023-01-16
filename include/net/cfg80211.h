@@ -3600,6 +3600,17 @@ struct cfg80211_pmk_conf {
  *	the real status code for failures. Used only for the authentication
  *	response command interface (user space to driver).
  * @pmkid: The identifier to refer a PMKSA.
+ * @mld_addr: MLD address of the peer. Used by the authentication request event
+ *	interface. Driver indicates this to enable MLO during the authentication
+ *	offload to user space. Driver shall look at %NL80211_ATTR_MLO_SUPPORT
+ *	flag capability in NL80211_CMD_CONNECT to know whether the user space
+ *	supports enabling MLO during the authentication offload.
+ *	User space should use the address of the interface (on which the
+ *	authentication request event reported) as self MLD address. User space
+ *	and driver should use MLD addresses in RA, TA and BSSID fields of
+ *	authentication frames sent or received via cfg80211. The driver
+ *	translates the MLD addresses to/from link addresses based on the link
+ *	chosen for the authentication.
  */
 struct cfg80211_external_auth_params {
 	enum nl80211_external_auth_action action;
@@ -3608,6 +3619,7 @@ struct cfg80211_external_auth_params {
 	unsigned int key_mgmt_suite;
 	u16 status;
 	const u8 *pmkid;
+	u8 mld_addr[ETH_ALEN] __aligned(2);
 };
 
 /**
