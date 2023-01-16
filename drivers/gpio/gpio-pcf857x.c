@@ -88,7 +88,7 @@ static int i2c_write_le8(struct i2c_client *client, unsigned int data)
 
 static int i2c_read_le8(struct i2c_client *client)
 {
-	return (int)i2c_smbus_read_byte(client);
+	return i2c_smbus_read_byte(client);
 }
 
 /* Talk to 16-bit I/O expander */
