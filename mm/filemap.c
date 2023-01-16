@@ -470,7 +470,7 @@ EXPORT_SYMBOL(filemap_flush);
 bool filemap_range_has_page(struct address_space *mapping,
 			   loff_t start_byte, loff_t end_byte)
 {
-	struct page *page;
+	struct folio *folio;
 	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
 	pgoff_t max = end_byte >> PAGE_SHIFT;
 
@@ -479,11 +479,11 @@ bool filemap_range_has_page(struct address_space *mapping,
 
 	rcu_read_lock();
 	for (;;) {
-		page = xas_find(&xas, max);
-		if (xas_retry(&xas, page))
+		folio = xas_find(&xas, max);
+		if (xas_retry(&xas, folio))
 			continue;
 		/* Shadow entries don't count */
-		if (xa_is_value(page))
+		if (xa_is_value(folio))
 			continue;
 		/*
 		 * We don't need to try to pin this page; we're about to
@@ -494,7 +494,7 @@ bool filemap_range_has_page(struct address_space *mapping,
 	}
 	rcu_read_unlock();
 
-	return page != NULL;
+	return folio != NULL;
 }
 EXPORT_SYMBOL(filemap_range_has_page);
 
