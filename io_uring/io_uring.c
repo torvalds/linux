@@ -1344,8 +1344,11 @@ again:
 
 	if (!llist_empty(&ctx->work_llist))
 		goto again;
-	if (*locked)
+	if (*locked) {
 		io_submit_flush_completions(ctx);
+		if (!llist_empty(&ctx->work_llist))
+			goto again;
+	}
 	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
 }
