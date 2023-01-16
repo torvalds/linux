@@ -434,7 +434,6 @@ static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 					 struct tsnep_tx *tx)
 {
-	unsigned long flags;
 	int count = 1;
 	struct tsnep_tx_entry *entry;
 	int length;
@@ -444,15 +443,11 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 	if (skb_shinfo(skb)->nr_frags > 0)
 		count += skb_shinfo(skb)->nr_frags;
 
-	spin_lock_irqsave(&tx->lock, flags);
-
 	if (tsnep_tx_desc_available(tx) < count) {
 		/* ring full, shall not happen because queue is stopped if full
 		 * below
 		 */
 		netif_stop_queue(tx->adapter->netdev);
-
-		spin_unlock_irqrestore(&tx->lock, flags);
 
 		return NETDEV_TX_BUSY;
 	}
@@ -467,8 +462,6 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		entry->skb = NULL;
 
 		tx->dropped++;
-
-		spin_unlock_irqrestore(&tx->lock, flags);
 
 		netdev_err(tx->adapter->netdev, "TX DMA map failed\n");
 
@@ -496,20 +489,19 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		netif_stop_queue(tx->adapter->netdev);
 	}
 
-	spin_unlock_irqrestore(&tx->lock, flags);
-
 	return NETDEV_TX_OK;
 }
 
 static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 {
-	unsigned long flags;
-	int budget = 128;
 	struct tsnep_tx_entry *entry;
-	int count;
+	struct netdev_queue *nq;
+	int budget = 128;
 	int length;
+	int count;
 
-	spin_lock_irqsave(&tx->lock, flags);
+	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
+	__netif_tx_lock(nq, smp_processor_id());
 
 	do {
 		if (tx->read == tx->write)
@@ -568,18 +560,19 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		netif_wake_queue(tx->adapter->netdev);
 	}
 
-	spin_unlock_irqrestore(&tx->lock, flags);
+	__netif_tx_unlock(nq);
 
 	return (budget != 0);
 }
 
 static bool tsnep_tx_pending(struct tsnep_tx *tx)
 {
-	unsigned long flags;
 	struct tsnep_tx_entry *entry;
+	struct netdev_queue *nq;
 	bool pending = false;
 
-	spin_lock_irqsave(&tx->lock, flags);
+	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
+	__netif_tx_lock(nq, smp_processor_id());
 
 	if (tx->read != tx->write) {
 		entry = &tx->entry[tx->read];
@@ -589,7 +582,7 @@ static bool tsnep_tx_pending(struct tsnep_tx *tx)
 			pending = true;
 	}
 
-	spin_unlock_irqrestore(&tx->lock, flags);
+	__netif_tx_unlock(nq);
 
 	return pending;
 }
@@ -614,8 +607,6 @@ static int tsnep_tx_open(struct tsnep_adapter *adapter, void __iomem *addr,
 	iowrite32(DMA_ADDR_HIGH(dma), tx->addr + TSNEP_TX_DESC_ADDR_HIGH);
 	tx->owner_counter = 1;
 	tx->increment_owner_counter = TSNEP_RING_SIZE - 1;
-
-	spin_lock_init(&tx->lock);
 
 	return 0;
 }

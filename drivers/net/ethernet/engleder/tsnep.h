@@ -78,8 +78,6 @@ struct tsnep_tx {
 	void *page[TSNEP_RING_PAGE_COUNT];
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
 
-	/* TX ring lock */
-	spinlock_t lock;
 	struct tsnep_tx_entry entry[TSNEP_RING_SIZE];
 	int write;
 	int read;
