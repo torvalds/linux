@@ -626,7 +626,8 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(imx290->dev);
+	pm_runtime_mark_last_busy(imx290->dev);
+	pm_runtime_put_autosuspend(imx290->dev);
 
 	return ret;
 }
@@ -827,12 +828,13 @@ static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = imx290_start_streaming(imx290, state);
 		if (ret) {
 			dev_err(imx290->dev, "Start stream failed\n");
-			pm_runtime_put(imx290->dev);
+			pm_runtime_put_sync(imx290->dev);
 			goto unlock;
 		}
 	} else {
 		imx290_stop_streaming(imx290);
-		pm_runtime_put(imx290->dev);
+		pm_runtime_mark_last_busy(imx290->dev);
+		pm_runtime_put_autosuspend(imx290->dev);
 	}
 
 unlock:
@@ -1269,33 +1271,59 @@ static int imx290_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	/* Initialize and register subdev. */
+	/* Initialize the V4L2 subdev. */
 	ret = imx290_subdev_init(imx290);
 	if (ret)
 		return ret;
 
-	ret = v4l2_async_register_subdev(&imx290->sd);
-	if (ret < 0) {
-		dev_err(dev, "Could not register v4l2 device\n");
-		goto err_subdev;
-	}
-
-	/* Power on the device to match runtime PM state below */
+	/*
+	 * Enable power management. The driver supports runtime PM, but needs to
+	 * work when runtime PM is disabled in the kernel. To that end, power
+	 * the sensor on manually here.
+	 */
 	ret = imx290_power_on(dev);
 	if (ret < 0) {
 		dev_err(dev, "Could not power on the device\n");
 		goto err_subdev;
 	}
 
+	/*
+	 * Enable runtime PM with autosuspend. As the device has been powered
+	 * manually, mark it as active, and increase the usage count without
+	 * resuming the device.
+	 */
 	pm_runtime_set_active(dev);
+	pm_runtime_get_noresume(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+
+	/*
+	 * Finally, register the V4L2 subdev. This must be done after
+	 * initializing everything as the subdev can be used immediately after
+	 * being registered.
+	 */
+	ret = v4l2_async_register_subdev(&imx290->sd);
+	if (ret < 0) {
+		dev_err(dev, "Could not register v4l2 device\n");
+		goto err_pm;
+	}
+
+	/*
+	 * Decrease the PM usage count. The device will get suspended after the
+	 * autosuspend delay, turning the power off.
+	 */
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
+err_pm:
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
+	imx290_power_off(dev);
 err_subdev:
 	imx290_subdev_cleanup(imx290);
-
 	return ret;
 }
 
@@ -1307,6 +1335,10 @@ static void imx290_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	imx290_subdev_cleanup(imx290);
 
+	/*
+	 * Disable runtime PM. In case runtime PM is disabled in the kernel,
+	 * make sure to turn power off manually.
+	 */
 	pm_runtime_disable(imx290->dev);
 	if (!pm_runtime_status_suspended(imx290->dev))
 		imx290_power_off(imx290->dev);
