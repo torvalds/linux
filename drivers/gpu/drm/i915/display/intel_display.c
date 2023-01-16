@@ -1060,22 +1060,6 @@ intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 	return encoder;
 }
 
-static void cpt_verify_modeset(struct drm_i915_private *dev_priv,
-			       enum pipe pipe)
-{
-	i915_reg_t dslreg = PIPEDSL(pipe);
-	u32 temp;
-
-	temp = intel_de_read(dev_priv, dslreg);
-	udelay(500);
-	if (wait_for(intel_de_read(dev_priv, dslreg) != temp, 5)) {
-		if (wait_for(intel_de_read(dev_priv, dslreg) != temp, 5))
-			drm_err(&dev_priv->drm,
-				"mode set failed: pipe %c stuck\n",
-				pipe_name(pipe));
-	}
-}
-
 static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1770,7 +1754,7 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	intel_encoders_enable(state, crtc);
 
 	if (HAS_PCH_CPT(dev_priv))
-		cpt_verify_modeset(dev_priv, pipe);
+		intel_wait_for_pipe_scanline_moving(crtc);
 
 	/*
 	 * Must wait for vblank to avoid spurious PCH FIFO underruns.
