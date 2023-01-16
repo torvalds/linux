@@ -756,7 +756,11 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	}
 
 	/* Set data lane count */
-	imx290_set_data_lanes(imx290);
+	ret = imx290_set_data_lanes(imx290);
+	if (ret < 0) {
+		dev_err(imx290->dev, "Could not set data lanes\n");
+		return ret;
+	}
 
 	/* Apply the register values related to current frame format */
 	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
