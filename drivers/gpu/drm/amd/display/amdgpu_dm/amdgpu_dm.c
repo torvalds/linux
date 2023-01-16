@@ -1622,6 +1622,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	/* TODO: Remove after DP2 receiver gets proper support of Cable ID feature */
 	adev->dm.dc->debug.ignore_cable_id = true;
 
+	if (adev->dm.dc->caps.dp_hdmi21_pcon_support)
+		DRM_INFO("DP-HDMI FRL PCON supported\n");
+
 	r = dm_dmub_hw_init(adev);
 	if (r) {
 		DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);

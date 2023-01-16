@@ -403,6 +403,7 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		bool boot)
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
+	int ret;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to find connector for link!");
@@ -418,7 +419,16 @@ bool dm_helpers_dp_mst_start_top_mgr(
 	DRM_INFO("DM_MST: starting TM on aconnector: %p [id: %d]\n",
 			aconnector, aconnector->base.base.id);
 
-	return (drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true) == 0);
+	ret = drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+	if (ret < 0) {
+		DRM_ERROR("DM_MST: Failed to set the device into MST mode!");
+		return false;
+	}
+
+	DRM_INFO("DM_MST: DP%x, %d-lane link detected\n", aconnector->mst_mgr.dpcd[0],
+		aconnector->mst_mgr.dpcd[2] & DP_MAX_LANE_COUNT_MASK);
+
+	return true;
 }
 
 bool dm_helpers_dp_mst_stop_top_mgr(
