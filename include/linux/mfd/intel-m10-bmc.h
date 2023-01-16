@@ -91,7 +91,6 @@
 #define HOST_STATUS_ABORT_RSU		0x2
 
 #define rsu_prog(doorbell)	FIELD_GET(DRBL_RSU_PROGRESS, doorbell)
-#define rsu_stat(doorbell)	FIELD_GET(DRBL_RSU_STATUS, doorbell)
 
 /* interval 100ms and timeout 5s */
 #define NIOS_HANDSHAKE_INTERVAL_US	(100 * 1000)

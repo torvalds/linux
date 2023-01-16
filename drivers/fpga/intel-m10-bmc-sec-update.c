@@ -14,6 +14,12 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+struct m10bmc_sec;
+
+struct m10bmc_sec_ops {
+	int (*rsu_status)(struct m10bmc_sec *sec);
+};
+
 struct m10bmc_sec {
 	struct device *dev;
 	struct intel_m10bmc *m10bmc;
@@ -21,6 +27,7 @@ struct m10bmc_sec {
 	char *fw_name;
 	u32 fw_name_id;
 	bool cancel_request;
+	const struct m10bmc_sec_ops *ops;
 };
 
 static DEFINE_XARRAY_ALLOC(fw_upload_xa);
@@ -251,10 +258,23 @@ static void log_error_regs(struct m10bmc_sec *sec, u32 doorbell)
 	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 auth_result;
 
-	dev_err(sec->dev, "RSU error status: 0x%08x\n", doorbell);
+	dev_err(sec->dev, "Doorbell: 0x%08x\n", doorbell);
 
 	if (!m10bmc_sys_read(sec->m10bmc, csr_map->auth_result, &auth_result))
 		dev_err(sec->dev, "RSU auth result: 0x%08x\n", auth_result);
+}
+
+static int m10bmc_sec_n3000_rsu_status(struct m10bmc_sec *sec)
+{
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
+	u32 doorbell;
+	int ret;
+
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, &doorbell);
+	if (ret)
+		return ret;
+
+	return FIELD_GET(DRBL_RSU_STATUS, doorbell);
 }
 
 static bool rsu_status_ok(u32 status)
@@ -279,6 +299,26 @@ static bool rsu_progress_busy(u32 progress)
 		progress == RSU_PROG_PROGRAM_KEY_HASH);
 }
 
+static int m10bmc_sec_progress_status(struct m10bmc_sec *sec, u32 *doorbell_reg,
+				      u32 *progress, u32 *status)
+{
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
+	int ret;
+
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, doorbell_reg);
+	if (ret)
+		return ret;
+
+	ret = sec->ops->rsu_status(sec);
+	if (ret < 0)
+		return ret;
+
+	*status = ret;
+	*progress = rsu_prog(*doorbell_reg);
+
+	return 0;
+}
+
 static enum fw_upload_err rsu_check_idle(struct m10bmc_sec *sec)
 {
 	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
@@ -297,18 +337,14 @@ static enum fw_upload_err rsu_check_idle(struct m10bmc_sec *sec)
 	return FW_UPLOAD_ERR_NONE;
 }
 
-static inline bool rsu_start_done(u32 doorbell)
+static inline bool rsu_start_done(u32 doorbell_reg, u32 progress, u32 status)
 {
-	u32 status, progress;
-
-	if (doorbell & DRBL_RSU_REQUEST)
+	if (doorbell_reg & DRBL_RSU_REQUEST)
 		return false;
 
-	status = rsu_stat(doorbell);
 	if (status == RSU_STAT_ERASE_FAIL || status == RSU_STAT_WEAROUT)
 		return true;
 
-	progress = rsu_prog(doorbell);
 	if (!rsu_progress_done(progress))
 		return true;
 
@@ -318,8 +354,8 @@ static inline bool rsu_start_done(u32 doorbell)
 static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 {
 	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
-	u32 doorbell, status;
-	int ret;
+	u32 doorbell_reg, progress, status;
+	int ret, err;
 
 	ret = regmap_update_bits(sec->m10bmc->regmap,
 				 csr_map->base + csr_map->doorbell,
@@ -330,26 +366,25 @@ static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
-	ret = regmap_read_poll_timeout(sec->m10bmc->regmap,
-				       csr_map->base + csr_map->doorbell,
-				       doorbell,
-				       rsu_start_done(doorbell),
-				       NIOS_HANDSHAKE_INTERVAL_US,
-				       NIOS_HANDSHAKE_TIMEOUT_US);
+	ret = read_poll_timeout(m10bmc_sec_progress_status, err,
+				err < 0 || rsu_start_done(doorbell_reg, progress, status),
+				NIOS_HANDSHAKE_INTERVAL_US,
+				NIOS_HANDSHAKE_TIMEOUT_US,
+				false,
+				sec, &doorbell_reg, &progress, &status);
 
 	if (ret == -ETIMEDOUT) {
-		log_error_regs(sec, doorbell);
+		log_error_regs(sec, doorbell_reg);
 		return FW_UPLOAD_ERR_TIMEOUT;
-	} else if (ret) {
+	} else if (err) {
 		return FW_UPLOAD_ERR_RW_ERROR;
 	}
 
-	status = rsu_stat(doorbell);
 	if (status == RSU_STAT_WEAROUT) {
 		dev_warn(sec->dev, "Excessive flash update count detected\n");
 		return FW_UPLOAD_ERR_WEAROUT;
 	} else if (status == RSU_STAT_ERASE_FAIL) {
-		log_error_regs(sec, doorbell);
+		log_error_regs(sec, doorbell_reg);
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
@@ -393,7 +428,7 @@ static enum fw_upload_err rsu_prog_ready(struct m10bmc_sec *sec)
 static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 {
 	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
-	u32 doorbell;
+	u32 doorbell_reg, status;
 	int ret;
 
 	ret = regmap_update_bits(sec->m10bmc->regmap,
@@ -406,40 +441,45 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 
 	ret = regmap_read_poll_timeout(sec->m10bmc->regmap,
 				       csr_map->base + csr_map->doorbell,
-				       doorbell,
-				       rsu_prog(doorbell) != RSU_PROG_READY,
+				       doorbell_reg,
+				       rsu_prog(doorbell_reg) != RSU_PROG_READY,
 				       NIOS_HANDSHAKE_INTERVAL_US,
 				       NIOS_HANDSHAKE_TIMEOUT_US);
 
 	if (ret == -ETIMEDOUT) {
-		log_error_regs(sec, doorbell);
+		log_error_regs(sec, doorbell_reg);
 		return FW_UPLOAD_ERR_TIMEOUT;
 	} else if (ret) {
 		return FW_UPLOAD_ERR_RW_ERROR;
 	}
 
-	if (!rsu_status_ok(rsu_stat(doorbell))) {
-		log_error_regs(sec, doorbell);
+	ret = sec->ops->rsu_status(sec);
+	if (ret < 0)
+		return ret;
+	status = ret;
+
+	if (!rsu_status_ok(status)) {
+		log_error_regs(sec, doorbell_reg);
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
 	return FW_UPLOAD_ERR_NONE;
 }
 
-static int rsu_check_complete(struct m10bmc_sec *sec, u32 *doorbell)
+static int rsu_check_complete(struct m10bmc_sec *sec, u32 *doorbell_reg)
 {
-	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
+	u32 progress, status;
 
-	if (m10bmc_sys_read(sec->m10bmc, csr_map->doorbell, doorbell))
+	if (m10bmc_sec_progress_status(sec, doorbell_reg, &progress, &status))
 		return -EIO;
 
-	if (!rsu_status_ok(rsu_stat(*doorbell)))
+	if (!rsu_status_ok(status))
 		return -EINVAL;
 
-	if (rsu_progress_done(rsu_prog(*doorbell)))
+	if (rsu_progress_done(progress))
 		return 0;
 
-	if (rsu_progress_busy(rsu_prog(*doorbell)))
+	if (rsu_progress_busy(progress))
 		return -EAGAIN;
 
 	return -EINVAL;
@@ -592,6 +632,10 @@ static const struct fw_upload_ops m10bmc_ops = {
 	.cleanup = m10bmc_sec_cleanup,
 };
 
+static const struct m10bmc_sec_ops m10sec_n3000_ops = {
+	.rsu_status = m10bmc_sec_n3000_rsu_status,
+};
+
 #define SEC_UPDATE_LEN_MAX 32
 static int m10bmc_sec_probe(struct platform_device *pdev)
 {
@@ -607,6 +651,7 @@ static int m10bmc_sec_probe(struct platform_device *pdev)
 
 	sec->dev = &pdev->dev;
 	sec->m10bmc = dev_get_drvdata(pdev->dev.parent);
+	sec->ops = (struct m10bmc_sec_ops *)platform_get_device_id(pdev)->driver_data;
 	dev_set_drvdata(&pdev->dev, sec);
 
 	ret = xa_alloc(&fw_upload_xa, &sec->fw_name_id, sec,
@@ -647,9 +692,11 @@ static int m10bmc_sec_remove(struct platform_device *pdev)
 static const struct platform_device_id intel_m10bmc_sec_ids[] = {
 	{
 		.name = "n3000bmc-sec-update",
+		.driver_data = (kernel_ulong_t)&m10sec_n3000_ops,
 	},
 	{
 		.name = "d5005bmc-sec-update",
+		.driver_data = (kernel_ulong_t)&m10sec_n3000_ops,
 	},
 	{ }
 };
