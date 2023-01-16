@@ -7,7 +7,6 @@
 
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/pcf857x.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -17,7 +16,6 @@
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
 
 static const struct i2c_device_id pcf857x_id[] = {
 	{ "pcf8574", 8 },
@@ -277,18 +275,12 @@ static const struct irq_chip pcf857x_irq_chip = {
 static int pcf857x_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	struct pcf857x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct device_node *np = client->dev.of_node;
 	struct pcf857x *gpio;
 	unsigned int n_latch = 0;
 	int status;
 
-	if (IS_ENABLED(CONFIG_OF) && np)
-		of_property_read_u32(np, "lines-initial-states", &n_latch);
-	else if (pdata)
-		n_latch = pdata->n_latch;
-	else
-		dev_dbg(&client->dev, "no platform data\n");
+	of_property_read_u32(np, "lines-initial-states", &n_latch);
 
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
@@ -297,7 +289,7 @@ static int pcf857x_probe(struct i2c_client *client)
 
 	mutex_init(&gpio->lock);
 
-	gpio->chip.base			= pdata ? pdata->gpio_base : -1;
+	gpio->chip.base			= -1;
 	gpio->chip.can_sleep		= true;
 	gpio->chip.parent		= &client->dev;
 	gpio->chip.owner		= THIS_MODULE;
@@ -406,17 +398,6 @@ static int pcf857x_probe(struct i2c_client *client)
 	if (status < 0)
 		goto fail;
 
-	/* Let platform code set up the GPIOs and their users.
-	 * Now is the first time anyone could use them.
-	 */
-	if (pdata && pdata->setup) {
-		status = pdata->setup(client,
-				gpio->chip.base, gpio->chip.ngpio,
-				pdata->context);
-		if (status < 0)
-			dev_warn(&client->dev, "setup --> %d\n", status);
-	}
-
 	dev_info(&client->dev, "probed\n");
 
 	return 0;
@@ -426,16 +407,6 @@ fail:
 		client->name);
 
 	return status;
-}
-
-static void pcf857x_remove(struct i2c_client *client)
-{
-	struct pcf857x_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct pcf857x *gpio = i2c_get_clientdata(client);
-
-	if (pdata && pdata->teardown)
-		pdata->teardown(client, gpio->chip.base, gpio->chip.ngpio,
-				pdata->context);
 }
 
 static void pcf857x_shutdown(struct i2c_client *client)
@@ -452,7 +423,6 @@ static struct i2c_driver pcf857x_driver = {
 		.of_match_table = of_match_ptr(pcf857x_of_table),
 	},
 	.probe_new = pcf857x_probe,
-	.remove	= pcf857x_remove,
 	.shutdown = pcf857x_shutdown,
 	.id_table = pcf857x_id,
 };
