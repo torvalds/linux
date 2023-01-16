@@ -7,6 +7,9 @@
 #ifndef __MFD_INTEL_M10_BMC_H
 #define __MFD_INTEL_M10_BMC_H
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
+#include <linux/dev_printk.h>
 #include <linux/regmap.h>
 
 #define M10BMC_LEGACY_BUILD_VER		0x300468
