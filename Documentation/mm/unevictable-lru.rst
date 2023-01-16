@@ -486,7 +486,7 @@ Before the unevictable/mlock changes, mlocking did not mark the pages in any
 way, so unmapping them required no processing.
 
 For each PTE (or PMD) being unmapped from a VMA, page_remove_rmap() calls
-munlock_vma_page(), which calls munlock_page() when the VMA is VM_LOCKED
+munlock_vma_folio(), which calls munlock_folio() when the VMA is VM_LOCKED
 (unless it was a PTE mapping of a part of a transparent huge page).
 
 munlock_page() uses the mlock pagevec to batch up work to be done under
@@ -510,7 +510,7 @@ which had been Copied-On-Write from the file pages now being truncated.
 
 Mlocked pages can be munlocked and deleted in this way: like with munmap(),
 for each PTE (or PMD) being unmapped from a VMA, page_remove_rmap() calls
-munlock_vma_page(), which calls munlock_page() when the VMA is VM_LOCKED
+munlock_vma_folio(), which calls munlock_folio() when the VMA is VM_LOCKED
 (unless it was a PTE mapping of a part of a transparent huge page).
 
 However, if there is a racing munlock(), since mlock_vma_pages_range() starts

@@ -548,7 +548,6 @@ static inline void mlock_vma_folio(struct folio *folio,
 }
 
 void munlock_folio(struct folio *folio);
-
 static inline void munlock_vma_folio(struct folio *folio,
 			struct vm_area_struct *vma, bool compound)
 {
@@ -557,11 +556,6 @@ static inline void munlock_vma_folio(struct folio *folio,
 		munlock_folio(folio);
 }
 
-static inline void munlock_vma_page(struct page *page,
-			struct vm_area_struct *vma, bool compound)
-{
-	munlock_vma_folio(page_folio(page), vma, compound);
-}
 void mlock_new_folio(struct folio *folio);
 bool need_mlock_drain(int cpu);
 void mlock_drain_local(void);
@@ -650,8 +644,6 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 }
 #else /* !CONFIG_MMU */
 static inline void unmap_mapping_folio(struct folio *folio) { }
-static inline void munlock_vma_page(struct page *page,
-			struct vm_area_struct *vma, bool compound) { }
 static inline void mlock_new_folio(struct folio *folio) { }
 static inline bool need_mlock_drain(int cpu) { return false; }
 static inline void mlock_drain_local(void) { }

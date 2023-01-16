@@ -1431,14 +1431,14 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma,
 	}
 
 	/*
-	 * It would be tidy to reset PageAnon mapping when fully unmapped,
-	 * but that might overwrite a racing page_add_anon_rmap
-	 * which increments mapcount after us but sets mapping
-	 * before us: so leave the reset to free_pages_prepare,
-	 * and remember that it's only reliable while mapped.
+	 * It would be tidy to reset folio_test_anon mapping when fully
+	 * unmapped, but that might overwrite a racing page_add_anon_rmap
+	 * which increments mapcount after us but sets mapping before us:
+	 * so leave the reset to free_pages_prepare, and remember that
+	 * it's only reliable while mapped.
 	 */
 
-	munlock_vma_page(page, vma, compound);
+	munlock_vma_folio(folio, vma, compound);
 }
 
 /*
