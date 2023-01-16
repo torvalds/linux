@@ -581,9 +581,7 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	/*
 	 * Return immediately for controls that don't need to be applied to the
-	 * device. Those controls are modified in imx290_ctrl_update(), which
-	 * is called at probe time before runtime PM is initialized, so we
-	 * can't proceed to the pm_runtime_get_if_in_use() call below.
+	 * device.
 	 */
 	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
 		return 0;
@@ -1049,22 +1047,20 @@ static void imx290_subdev_cleanup(struct imx290 *imx290)
  * Power management
  */
 
-static int imx290_power_on(struct device *dev)
+static int imx290_power_on(struct imx290 *imx290)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx290 *imx290 = to_imx290(sd);
 	int ret;
 
 	ret = clk_prepare_enable(imx290->xclk);
 	if (ret) {
-		dev_err(dev, "Failed to enable clock\n");
+		dev_err(imx290->dev, "Failed to enable clock\n");
 		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(imx290->supplies),
 				    imx290->supplies);
 	if (ret) {
-		dev_err(dev, "Failed to enable regulators\n");
+		dev_err(imx290->dev, "Failed to enable regulators\n");
 		clk_disable_unprepare(imx290->xclk);
 		return ret;
 	}
@@ -1079,20 +1075,33 @@ static int imx290_power_on(struct device *dev)
 	return 0;
 }
 
-static int imx290_power_off(struct device *dev)
+static void imx290_power_off(struct imx290 *imx290)
+{
+	clk_disable_unprepare(imx290->xclk);
+	gpiod_set_value_cansleep(imx290->rst_gpio, 1);
+	regulator_bulk_disable(ARRAY_SIZE(imx290->supplies), imx290->supplies);
+}
+
+static int imx290_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx290 *imx290 = to_imx290(sd);
 
-	clk_disable_unprepare(imx290->xclk);
-	gpiod_set_value_cansleep(imx290->rst_gpio, 1);
-	regulator_bulk_disable(ARRAY_SIZE(imx290->supplies), imx290->supplies);
+	return imx290_power_on(imx290);
+}
+
+static int imx290_runtime_suspend(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct imx290 *imx290 = to_imx290(sd);
+
+	imx290_power_off(imx290);
 
 	return 0;
 }
 
 static const struct dev_pm_ops imx290_pm_ops = {
-	SET_RUNTIME_PM_OPS(imx290_power_off, imx290_power_on, NULL)
+	SET_RUNTIME_PM_OPS(imx290_runtime_suspend, imx290_runtime_resume, NULL)
 };
 
 /* ----------------------------------------------------------------------------
@@ -1271,20 +1280,15 @@ static int imx290_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	/* Initialize the V4L2 subdev. */
-	ret = imx290_subdev_init(imx290);
-	if (ret)
-		return ret;
-
 	/*
 	 * Enable power management. The driver supports runtime PM, but needs to
 	 * work when runtime PM is disabled in the kernel. To that end, power
 	 * the sensor on manually here.
 	 */
-	ret = imx290_power_on(dev);
+	ret = imx290_power_on(imx290);
 	if (ret < 0) {
 		dev_err(dev, "Could not power on the device\n");
-		goto err_subdev;
+		return ret;
 	}
 
 	/*
@@ -1298,6 +1302,11 @@ static int imx290_probe(struct i2c_client *client)
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
 
+	/* Initialize the V4L2 subdev. */
+	ret = imx290_subdev_init(imx290);
+	if (ret)
+		goto err_pm;
+
 	/*
 	 * Finally, register the V4L2 subdev. This must be done after
 	 * initializing everything as the subdev can be used immediately after
@@ -1306,7 +1315,7 @@ static int imx290_probe(struct i2c_client *client)
 	ret = v4l2_async_register_subdev(&imx290->sd);
 	if (ret < 0) {
 		dev_err(dev, "Could not register v4l2 device\n");
-		goto err_pm;
+		goto err_subdev;
 	}
 
 	/*
@@ -1318,12 +1327,12 @@ static int imx290_probe(struct i2c_client *client)
 
 	return 0;
 
+err_subdev:
+	imx290_subdev_cleanup(imx290);
 err_pm:
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
-	imx290_power_off(dev);
-err_subdev:
-	imx290_subdev_cleanup(imx290);
+	imx290_power_off(imx290);
 	return ret;
 }
 
@@ -1341,7 +1350,7 @@ static void imx290_remove(struct i2c_client *client)
 	 */
 	pm_runtime_disable(imx290->dev);
 	if (!pm_runtime_status_suspended(imx290->dev))
-		imx290_power_off(imx290->dev);
+		imx290_power_off(imx290);
 	pm_runtime_set_suspended(imx290->dev);
 }
 
