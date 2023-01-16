@@ -34,6 +34,14 @@
 	clock-frequency = <24000000>;
 };
 
+&i2s_0 {
+	status = "okay";
+};
+
+&i2s_1 {
+	status = "okay";
+};
+
 &m_can0 {
 	status = "okay";
 };
