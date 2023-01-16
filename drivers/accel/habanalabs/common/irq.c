@@ -333,13 +333,22 @@ irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 	struct hl_user_interrupt *user_int = arg;
 	struct hl_device *hdev = user_int->hdev;
 
-	if (user_int->is_decoder)
-		handle_user_interrupt(hdev, &hdev->common_decoder_interrupt);
-	else
+	switch (user_int->type) {
+	case HL_USR_INTERRUPT_CQ:
 		handle_user_interrupt(hdev, &hdev->common_user_cq_interrupt);
 
-	/* Handle user cq or decoder interrupts registered on this specific irq */
-	handle_user_interrupt(hdev, user_int);
+		/* Handle user cq interrupt registered on this specific irq */
+		handle_user_interrupt(hdev, user_int);
+		break;
+	case HL_USR_INTERRUPT_DECODER:
+		handle_user_interrupt(hdev, &hdev->common_decoder_interrupt);
+
+		/* Handle decoder interrupt registered on this specific irq */
+		handle_user_interrupt(hdev, user_int);
+		break;
+	default:
+		break;
+	}
 
 	return IRQ_HANDLED;
 }

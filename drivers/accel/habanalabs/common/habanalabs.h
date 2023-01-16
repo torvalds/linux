@@ -1083,20 +1083,25 @@ struct hl_cq {
 	atomic_t		free_slots_cnt;
 };
 
+enum hl_user_interrupt_type {
+	HL_USR_INTERRUPT_CQ = 0,
+	HL_USR_INTERRUPT_DECODER,
+};
+
 /**
  * struct hl_user_interrupt - holds user interrupt information
  * @hdev: pointer to the device structure
+ * @type: user interrupt type
  * @wait_list_head: head to the list of user threads pending on this interrupt
  * @wait_list_lock: protects wait_list_head
  * @interrupt_id: msix interrupt id
- * @is_decoder: whether this entry represents a decoder interrupt
  */
 struct hl_user_interrupt {
-	struct hl_device	*hdev;
-	struct list_head	wait_list_head;
-	spinlock_t		wait_list_lock;
-	u32			interrupt_id;
-	bool			is_decoder;
+	struct hl_device		*hdev;
+	enum hl_user_interrupt_type	type;
+	struct list_head		wait_list_head;
+	spinlock_t			wait_list_lock;
+	u32				interrupt_id;
 };
 
 /**
@@ -2691,11 +2696,11 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	p->size = sz; \
 })
 
-#define HL_USR_INTR_STRUCT_INIT(usr_intr, hdev, intr_id, decoder) \
+#define HL_USR_INTR_STRUCT_INIT(usr_intr, hdev, intr_id, intr_type) \
 ({ \
 	usr_intr.hdev = hdev; \
 	usr_intr.interrupt_id = intr_id; \
-	usr_intr.is_decoder = decoder; \
+	usr_intr.type = intr_type; \
 	INIT_LIST_HEAD(&usr_intr.wait_list_head); \
 	spin_lock_init(&usr_intr.wait_list_lock); \
 })
