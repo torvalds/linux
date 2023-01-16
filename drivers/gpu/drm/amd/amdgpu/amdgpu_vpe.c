@@ -457,6 +457,18 @@ static uint64_t vpe_get_csa_mc_addr(struct amdgpu_ring *ring, uint32_t vmid)
 	return csa_mc_addr;
 }
 
+static void vpe_ring_emit_pred_exec(struct amdgpu_ring *ring,
+				    uint32_t device_select,
+				    uint32_t exec_count)
+{
+	if (!ring->adev->vpe.collaborate_mode)
+		return;
+
+	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_PRED_EXE, 0) |
+				(device_select << 16));
+	amdgpu_ring_write(ring, exec_count & 0x1fff);
+}
+
 static void vpe_ring_emit_ib(struct amdgpu_ring *ring,
 			     struct amdgpu_job *job,
 			     struct amdgpu_ib *ib,
@@ -480,6 +492,8 @@ static void vpe_ring_emit_fence(struct amdgpu_ring *ring, uint64_t addr,
 				uint64_t seq, unsigned int flags)
 {
 	int i = 0;
+
+	vpe_ring_emit_pred_exec(ring, 0, 10);
 
 	do {
 		/* write the fence */
@@ -505,6 +519,8 @@ static void vpe_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	uint32_t seq = ring->fence_drv.sync_seq;
 	uint64_t addr = ring->fence_drv.gpu_addr;
 
+	vpe_ring_emit_pred_exec(ring, 0, 6);
+
 	/* wait for idle */
 	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_POLL_REGMEM,
 				VPE_POLL_REGMEM_SUBOP_REGMEM) |
@@ -520,6 +536,8 @@ static void vpe_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 
 static void vpe_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
 {
+	vpe_ring_emit_pred_exec(ring, 0, 3);
+
 	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_REG_WRITE, 0));
 	amdgpu_ring_write(ring,	reg << 2);
 	amdgpu_ring_write(ring, val);
@@ -528,6 +546,8 @@ static void vpe_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t 
 static void vpe_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 				   uint32_t val, uint32_t mask)
 {
+	vpe_ring_emit_pred_exec(ring, 0, 6);
+
 	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_POLL_REGMEM,
 				VPE_POLL_REGMEM_SUBOP_REGMEM) |
 				VPE_CMD_POLL_REGMEM_HEADER_FUNC(3) | /* equal */

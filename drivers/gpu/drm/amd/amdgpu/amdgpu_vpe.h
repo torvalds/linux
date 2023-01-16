@@ -78,6 +78,7 @@ struct amdgpu_vpe {
 	bool				context_started;
 
 	uint32_t			num_instances;
+	bool				collaborate_mode;
 };
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev);
