@@ -463,8 +463,6 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 		tx->dropped++;
 
-		netdev_err(tx->adapter->netdev, "TX DMA map failed\n");
-
 		return NETDEV_TX_OK;
 	}
 	length = retval;
