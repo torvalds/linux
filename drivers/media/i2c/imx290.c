@@ -1142,17 +1142,69 @@ static s64 imx290_check_link_freqs(const struct imx290 *imx290,
 	return 0;
 }
 
-static int imx290_probe(struct i2c_client *client)
+static int imx290_parse_dt(struct imx290 *imx290)
 {
-	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
 	/* Only CSI2 is supported for now: */
 	struct v4l2_fwnode_endpoint ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	struct fwnode_handle *endpoint;
+	int ret;
+	s64 fq;
+
+	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(imx290->dev), NULL);
+	if (!endpoint) {
+		dev_err(imx290->dev, "Endpoint node not found\n");
+		return -EINVAL;
+	}
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
+	fwnode_handle_put(endpoint);
+	if (ret == -ENXIO) {
+		dev_err(imx290->dev, "Unsupported bus type, should be CSI2\n");
+		goto done;
+	} else if (ret) {
+		dev_err(imx290->dev, "Parsing endpoint node failed\n");
+		goto done;
+	}
+
+	/* Get number of data lanes */
+	imx290->nlanes = ep.bus.mipi_csi2.num_data_lanes;
+	if (imx290->nlanes != 2 && imx290->nlanes != 4) {
+		dev_err(imx290->dev, "Invalid data lanes: %d\n", imx290->nlanes);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	dev_dbg(imx290->dev, "Using %u data lanes\n", imx290->nlanes);
+
+	if (!ep.nr_of_link_frequencies) {
+		dev_err(imx290->dev, "link-frequency property not found in DT\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/* Check that link frequences for all the modes are in device tree */
+	fq = imx290_check_link_freqs(imx290, &ep);
+	if (fq) {
+		dev_err(imx290->dev, "Link frequency of %lld is not supported\n",
+			fq);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = 0;
+
+done:
+	v4l2_fwnode_endpoint_free(&ep);
+	return ret;
+}
+
+static int imx290_probe(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
 	struct imx290 *imx290;
 	u32 xclk_freq;
-	s64 fq;
 	int ret;
 
 	imx290 = devm_kzalloc(dev, sizeof(*imx290), GFP_KERNEL);
@@ -1166,87 +1218,48 @@ static int imx290_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
-	if (!endpoint) {
-		dev_err(dev, "Endpoint node not found\n");
-		return -EINVAL;
-	}
-
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
-	fwnode_handle_put(endpoint);
-	if (ret == -ENXIO) {
-		dev_err(dev, "Unsupported bus type, should be CSI2\n");
-		goto err_endpoint;
-	} else if (ret) {
-		dev_err(dev, "Parsing endpoint node failed\n");
-		goto err_endpoint;
-	}
-
-	/* Get number of data lanes */
-	imx290->nlanes = ep.bus.mipi_csi2.num_data_lanes;
-	if (imx290->nlanes != 2 && imx290->nlanes != 4) {
-		dev_err(dev, "Invalid data lanes: %d\n", imx290->nlanes);
-		ret = -EINVAL;
-		goto err_endpoint;
-	}
-
-	dev_dbg(dev, "Using %u data lanes\n", imx290->nlanes);
-
-	if (!ep.nr_of_link_frequencies) {
-		dev_err(dev, "link-frequency property not found in DT\n");
-		ret = -EINVAL;
-		goto err_endpoint;
-	}
-
-	/* Check that link frequences for all the modes are in device tree */
-	fq = imx290_check_link_freqs(imx290, &ep);
-	if (fq) {
-		dev_err(dev, "Link frequency of %lld is not supported\n", fq);
-		ret = -EINVAL;
-		goto err_endpoint;
-	}
+	ret = imx290_parse_dt(imx290);
+	if (ret)
+		return ret;
 
 	/* get system clock (xclk) */
 	imx290->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(imx290->xclk)) {
 		dev_err(dev, "Could not get xclk");
-		ret = PTR_ERR(imx290->xclk);
-		goto err_endpoint;
+		return PTR_ERR(imx290->xclk);
 	}
 
 	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 				       &xclk_freq);
 	if (ret) {
 		dev_err(dev, "Could not get xclk frequency\n");
-		goto err_endpoint;
+		return ret;
 	}
 
 	/* external clock must be 37.125 MHz */
 	if (xclk_freq != 37125000) {
 		dev_err(dev, "External clock frequency %u is not supported\n",
 			xclk_freq);
-		ret = -EINVAL;
-		goto err_endpoint;
+		return -EINVAL;
 	}
 
 	ret = clk_set_rate(imx290->xclk, xclk_freq);
 	if (ret) {
 		dev_err(dev, "Could not set xclk frequency\n");
-		goto err_endpoint;
+		return ret;
 	}
 
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0) {
 		dev_err(dev, "Cannot get regulators\n");
-		goto err_endpoint;
+		return ret;
 	}
 
 	imx290->rst_gpio = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_OUT_HIGH);
 	if (IS_ERR(imx290->rst_gpio)) {
 		dev_err(dev, "Cannot get reset gpio\n");
-		ret = PTR_ERR(imx290->rst_gpio);
-		goto err_endpoint;
+		return PTR_ERR(imx290->rst_gpio);
 	}
 
 	mutex_init(&imx290->lock);
@@ -1272,16 +1285,12 @@ static int imx290_probe(struct i2c_client *client)
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
-	v4l2_fwnode_endpoint_free(&ep);
-
 	return 0;
 
 err_subdev:
 	imx290_subdev_cleanup(imx290);
 err_mutex:
 	mutex_destroy(&imx290->lock);
-err_endpoint:
-	v4l2_fwnode_endpoint_free(&ep);
 
 	return ret;
 }
