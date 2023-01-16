@@ -120,6 +120,34 @@
 /* Address of 4KB inverted bit vector containing staging area FLASH count */
 #define M10BMC_N3000_STAGING_FLASH_COUNT	0x17ffb000
 
+#define M10BMC_N6000_INDIRECT_BASE		0x400
+
+#define M10BMC_N6000_SYS_BASE			0x0
+#define M10BMC_N6000_SYS_END			0xfff
+
+#define M10BMC_N6000_DOORBELL			0x1c0
+#define M10BMC_N6000_AUTH_RESULT		0x1c4
+
+#define M10BMC_N6000_BUILD_VER			0x0
+#define NIOS2_N6000_FW_VERSION			0x4
+#define M10BMC_N6000_MAC_LOW			0x20
+#define M10BMC_N6000_MAC_HIGH			(M10BMC_N6000_MAC_LOW + 4)
+
+/* Addresses for security related data in FLASH */
+#define M10BMC_N6000_BMC_REH_ADDR		0x7ffc004
+#define M10BMC_N6000_BMC_PROG_ADDR		0x7ffc000
+#define M10BMC_N6000_BMC_PROG_MAGIC		0x5746
+
+#define M10BMC_N6000_SR_REH_ADDR		0x7ffd004
+#define M10BMC_N6000_SR_PROG_ADDR		0x7ffd000
+#define M10BMC_N6000_SR_PROG_MAGIC		0x5253
+
+#define M10BMC_N6000_PR_REH_ADDR		0x7ffe004
+#define M10BMC_N6000_PR_PROG_ADDR		0x7ffe000
+#define M10BMC_N6000_PR_PROG_MAGIC		0x5250
+
+#define M10BMC_N6000_STAGING_FLASH_COUNT	0x7ff5000
+
 /**
  * struct m10bmc_csr_map - Intel MAX 10 BMC CSR register map
  */
