@@ -26,7 +26,6 @@
 #include <drm/drm_bridge_connector.h>
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
