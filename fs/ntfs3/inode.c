@@ -1320,8 +1320,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 	inode_init_owner(idmap, inode, dir, mode);
 	mode = inode->i_mode;
 
-	inode->i_atime = inode->i_mtime = inode->i_ctime = ni->i_crtime =
-		current_time(inode);
+	ni->i_crtime = current_time(inode);
 
 	rec = ni->mi.mrec;
 	rec->hard_links = cpu_to_le16(1);
@@ -1362,10 +1361,9 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 	attr->res.data_size = cpu_to_le32(dsize);
 
 	std5->cr_time = std5->m_time = std5->c_time = std5->a_time =
-		kernel2nt(&inode->i_atime);
+		kernel2nt(&ni->i_crtime);
 
-	ni->std_fa = fa;
-	std5->fa = fa;
+	std5->fa = ni->std_fa = fa;
 
 	attr = Add2Ptr(attr, asize);
 
@@ -1564,11 +1562,15 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 			}
 
 			asize = SIZEOF_NONRESIDENT + ALIGN(err, 8);
+			/* Write non resident data. */
+			err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rp,
+						nsize, 0);
+			if (err)
+				goto out5;
 		} else {
 			attr->res.data_off = SIZEOF_RESIDENT_LE;
 			attr->res.data_size = cpu_to_le32(nsize);
 			memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), rp, nsize);
-			nsize = 0;
 		}
 		/* Size of symlink equals the length of input string. */
 		inode->i_size = size;
@@ -1589,18 +1591,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 	rec->used = cpu_to_le32(PtrOffset(rec, attr) + 8);
 	rec->next_attr_id = cpu_to_le16(aid);
 
-	/* Step 2: Add new name in index. */
-	err = indx_insert_entry(&dir_ni->dir, dir_ni, new_de, sbi, fnd, 0);
-	if (err)
-		goto out6;
-
-	/* Unlock parent directory before ntfs_init_acl. */
-	if (!fnd)
-		ni_unlock(dir_ni);
-
 	inode->i_generation = le16_to_cpu(rec->seq);
-
-	dir->i_mtime = dir->i_ctime = inode->i_atime;
 
 	if (S_ISDIR(mode)) {
 		inode->i_op = &ntfs_dir_inode_operations;
@@ -1626,19 +1617,41 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 	if (!S_ISLNK(mode) && (sb->s_flags & SB_POSIXACL)) {
 		err = ntfs_init_acl(idmap, inode, dir);
 		if (err)
-			goto out7;
+			goto out5;
 	} else
 #endif
 	{
 		inode->i_flags |= S_NOSEC;
 	}
 
-	/* Write non resident data. */
-	if (nsize) {
-		err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rp, nsize, 0);
-		if (err)
-			goto out7;
+	/*
+	 * ntfs_init_acl and ntfs_save_wsl_perm update extended attribute.
+	 * The packed size of extended attribute is stored in direntry too.
+	 * 'fname' here points to inside new_de.
+	 */
+	ntfs_save_wsl_perm(inode, &fname->dup.ea_size);
+
+	/*
+	 * update ea_size in file_name attribute too.
+	 * Use ni_find_attr cause layout of MFT record may be changed
+	 * in ntfs_init_acl and ntfs_save_wsl_perm.
+	 */
+	attr = ni_find_attr(ni, NULL, NULL, ATTR_NAME, NULL, 0, NULL, NULL);
+	if (attr) {
+		struct ATTR_FILE_NAME *fn;
+
+		fn = resident_data_ex(attr, SIZEOF_ATTRIBUTE_FILENAME);
+		if (fn)
+			fn->dup.ea_size = fname->dup.ea_size;
 	}
+
+	/* We do not need to update parent directory later */
+	ni->ni_flags &= ~NI_FLAG_UPDATE_PARENT;
+
+	/* Step 2: Add new name in index. */
+	err = indx_insert_entry(&dir_ni->dir, dir_ni, new_de, sbi, fnd, 0);
+	if (err)
+		goto out6;
 
 	/*
 	 * Call 'd_instantiate' after inode->i_op is set
@@ -1646,21 +1659,16 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 	 */
 	d_instantiate(dentry, inode);
 
-	ntfs_save_wsl_perm(inode);
+	/* Set original time. inode times (i_ctime) may be changed in ntfs_init_acl. */
+	inode->i_atime = inode->i_mtime = inode->i_ctime = dir->i_mtime =
+		dir->i_ctime = ni->i_crtime;
+
 	mark_inode_dirty(dir);
 	mark_inode_dirty(inode);
 
 	/* Normal exit. */
 	goto out2;
 
-out7:
-
-	/* Undo 'indx_insert_entry'. */
-	if (!fnd)
-		ni_lock_dir(dir_ni);
-	indx_delete_entry(&dir_ni->dir, dir_ni, new_de + 1,
-			  le16_to_cpu(new_de->key_size), sbi);
-	/* ni_unlock(dir_ni); will be called later. */
 out6:
 	if (rp_inserted)
 		ntfs_remove_reparse(sbi, IO_REPARSE_TAG_SYMLINK, &new_de->ref);
@@ -1682,11 +1690,11 @@ out2:
 	kfree(rp);
 
 out1:
-	if (err) {
-		if (!fnd)
-			ni_unlock(dir_ni);
+	if (!fnd)
+		ni_unlock(dir_ni);
+
+	if (err)
 		return ERR_PTR(err);
-	}
 
 	unlock_new_inode(inode);
 
@@ -1782,9 +1790,6 @@ out:
 void ntfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
-
-	if (inode->i_nlink)
-		_ni_write_inode(inode, inode_needs_sync(inode));
 
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);

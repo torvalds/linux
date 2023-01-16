@@ -703,7 +703,7 @@ int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 
 	if (ia_valid & (ATTR_UID | ATTR_GID | ATTR_MODE))
-		ntfs_save_wsl_perm(inode);
+		ntfs_save_wsl_perm(inode, NULL);
 	mark_inode_dirty(inode);
 out:
 	return err;

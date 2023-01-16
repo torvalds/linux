@@ -296,7 +296,8 @@ out:
 
 static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 				size_t name_len, const void *value,
-				size_t val_size, int flags, bool locked)
+				size_t val_size, int flags, bool locked,
+				__le16 *ea_size)
 {
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
@@ -504,6 +505,8 @@ update_ea:
 
 	if (ea_info.size_pack != size_pack)
 		ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
+	if (ea_size)
+		*ea_size = ea_info.size_pack;
 	mark_inode_dirty(&ni->vfs_inode);
 
 out:
@@ -633,7 +636,7 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 		flags = 0;
 	}
 
-	err = ntfs_set_ea(inode, name, name_len, value, size, flags, 0);
+	err = ntfs_set_ea(inode, name, name_len, value, size, flags, 0, NULL);
 	if (err == -ENODATA && !size)
 		err = 0; /* Removing non existed xattr. */
 	if (!err) {
@@ -923,7 +926,8 @@ set_new_fa:
 	}
 
 	/* Deal with NTFS extended attribute. */
-	err = ntfs_set_ea(inode, name, strlen(name), value, size, flags, 0);
+	err = ntfs_set_ea(inode, name, strlen(name), value, size, flags, 0,
+			  NULL);
 
 out:
 	inode->i_ctime = current_time(inode);
@@ -937,7 +941,7 @@ out:
  *
  * save uid/gid/mode in xattr
  */
-int ntfs_save_wsl_perm(struct inode *inode)
+int ntfs_save_wsl_perm(struct inode *inode, __le16 *ea_size)
 {
 	int err;
 	__le32 value;
@@ -946,26 +950,26 @@ int ntfs_save_wsl_perm(struct inode *inode)
 	ni_lock(ni);
 	value = cpu_to_le32(i_uid_read(inode));
 	err = ntfs_set_ea(inode, "$LXUID", sizeof("$LXUID") - 1, &value,
-			  sizeof(value), 0, true); /* true == already locked. */
+			  sizeof(value), 0, true, ea_size);
 	if (err)
 		goto out;
 
 	value = cpu_to_le32(i_gid_read(inode));
 	err = ntfs_set_ea(inode, "$LXGID", sizeof("$LXGID") - 1, &value,
-			  sizeof(value), 0, true);
+			  sizeof(value), 0, true, ea_size);
 	if (err)
 		goto out;
 
 	value = cpu_to_le32(inode->i_mode);
 	err = ntfs_set_ea(inode, "$LXMOD", sizeof("$LXMOD") - 1, &value,
-			  sizeof(value), 0, true);
+			  sizeof(value), 0, true, ea_size);
 	if (err)
 		goto out;
 
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 		value = cpu_to_le32(inode->i_rdev);
 		err = ntfs_set_ea(inode, "$LXDEV", sizeof("$LXDEV") - 1, &value,
-				  sizeof(value), 0, true);
+				  sizeof(value), 0, true, ea_size);
 		if (err)
 			goto out;
 	}
