@@ -2793,6 +2793,48 @@ free_pble:
 	return err;
 }
 
+static struct irdma_mr *irdma_alloc_iwmr(struct ib_umem *region,
+					 struct ib_pd *pd, u64 virt,
+					 enum irdma_memreg_type reg_type)
+{
+	struct irdma_device *iwdev = to_iwdev(pd->device);
+	struct irdma_pbl *iwpbl = NULL;
+	struct irdma_mr *iwmr = NULL;
+	unsigned long pgsz_bitmap;
+
+	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
+	if (!iwmr)
+		return ERR_PTR(-ENOMEM);
+
+	iwpbl = &iwmr->iwpbl;
+	iwpbl->iwmr = iwmr;
+	iwmr->region = region;
+	iwmr->ibmr.pd = pd;
+	iwmr->ibmr.device = pd->device;
+	iwmr->ibmr.iova = virt;
+	iwmr->type = reg_type;
+
+	pgsz_bitmap = (reg_type == IRDMA_MEMREG_TYPE_MEM) ?
+		iwdev->rf->sc_dev.hw_attrs.page_size_cap : PAGE_SIZE;
+
+	iwmr->page_size = ib_umem_find_best_pgsz(region, pgsz_bitmap, virt);
+	if (unlikely(!iwmr->page_size)) {
+		kfree(iwmr);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	iwmr->len = region->length;
+	iwpbl->user_base = virt;
+	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
+
+	return iwmr;
+}
+
+static void irdma_free_iwmr(struct irdma_mr *iwmr)
+{
+	kfree(iwmr);
+}
+
 /**
  * irdma_reg_user_mr - Register a user memory region
  * @pd: ptr of pd
@@ -2838,34 +2880,13 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 		return ERR_PTR(-EFAULT);
 	}
 
-	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
-	if (!iwmr) {
+	iwmr = irdma_alloc_iwmr(region, pd, virt, req.reg_type);
+	if (IS_ERR(iwmr)) {
 		ib_umem_release(region);
-		return ERR_PTR(-ENOMEM);
+		return (struct ib_mr *)iwmr;
 	}
 
 	iwpbl = &iwmr->iwpbl;
-	iwpbl->iwmr = iwmr;
-	iwmr->region = region;
-	iwmr->ibmr.pd = pd;
-	iwmr->ibmr.device = pd->device;
-	iwmr->ibmr.iova = virt;
-	iwmr->page_size = PAGE_SIZE;
-
-	if (req.reg_type == IRDMA_MEMREG_TYPE_MEM) {
-		iwmr->page_size = ib_umem_find_best_pgsz(region,
-							 iwdev->rf->sc_dev.hw_attrs.page_size_cap,
-							 virt);
-		if (unlikely(!iwmr->page_size)) {
-			kfree(iwmr);
-			ib_umem_release(region);
-			return ERR_PTR(-EOPNOTSUPP);
-		}
-	}
-	iwmr->len = region->length;
-	iwpbl->user_base = virt;
-	iwmr->type = req.reg_type;
-	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
 
 	switch (req.reg_type) {
 	case IRDMA_MEMREG_TYPE_QP:
@@ -2918,13 +2939,10 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 		goto error;
 	}
 
-	iwmr->type = req.reg_type;
-
 	return &iwmr->ibmr;
-
 error:
 	ib_umem_release(region);
-	kfree(iwmr);
+	irdma_free_iwmr(iwmr);
 
 	return ERR_PTR(err);
 }
