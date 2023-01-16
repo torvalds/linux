@@ -75,6 +75,8 @@
 
 #include "pxp/intel_pxp_pm.h"
 
+#include "soc/intel_dram.h"
+
 #include "i915_file_private.h"
 #include "i915_debugfs.h"
 #include "i915_driver.h"
@@ -93,7 +95,6 @@
 #include "i915_sysfs.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
-#include "intel_dram.h"
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pci_config.h"

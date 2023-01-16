@@ -24,8 +24,10 @@ enum dsb_id {
 
 struct intel_dsb {
 	enum dsb_id id;
+
 	u32 *cmd_buf;
 	struct i915_vma *vma;
+	struct intel_crtc *crtc;
 
 	/*
 	 * free_pos will point the first free entry position
@@ -113,7 +115,7 @@ static bool intel_dsb_disable_engine(struct drm_i915_private *i915,
 /**
  * intel_dsb_indexed_reg_write() -Write to the DSB context for auto
  * increment register.
- * @crtc_state: intel_crtc_state structure
+ * @dsb: DSB context
  * @reg: register address.
  * @val: value.
  *
@@ -123,20 +125,14 @@ static bool intel_dsb_disable_engine(struct drm_i915_private *i915,
  * is done through mmio write.
  */
 
-void intel_dsb_indexed_reg_write(const struct intel_crtc_state *crtc_state,
+void intel_dsb_indexed_reg_write(struct intel_dsb *dsb,
 				 i915_reg_t reg, u32 val)
 {
-	struct intel_dsb *dsb = crtc_state->dsb;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc *crtc = dsb->crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 *buf;
+	u32 *buf = dsb->cmd_buf;
 	u32 reg_val;
 
-	if (!dsb) {
-		intel_de_write_fw(dev_priv, reg, val);
-		return;
-	}
-	buf = dsb->cmd_buf;
 	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
 		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
@@ -200,21 +196,13 @@ void intel_dsb_indexed_reg_write(const struct intel_crtc_state *crtc_state,
  * and rest all erroneous condition register programming is done
  * through mmio write.
  */
-void intel_dsb_reg_write(const struct intel_crtc_state *crtc_state,
+void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc *crtc = dsb->crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_dsb *dsb;
-	u32 *buf;
+	u32 *buf = dsb->cmd_buf;
 
-	dsb = crtc_state->dsb;
-	if (!dsb) {
-		intel_de_write_fw(dev_priv, reg, val);
-		return;
-	}
-
-	buf = dsb->cmd_buf;
 	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
 		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
@@ -229,17 +217,14 @@ void intel_dsb_reg_write(const struct intel_crtc_state *crtc_state,
 
 /**
  * intel_dsb_commit() - Trigger workload execution of DSB.
- * @crtc_state: intel_crtc_state structure
+ * @dsb: DSB context
  *
  * This function is used to do actual write to hardware using DSB.
- * On errors, fall back to MMIO. Also this function help to reset the context.
  */
-void intel_dsb_commit(const struct intel_crtc_state *crtc_state)
+void intel_dsb_commit(struct intel_dsb *dsb)
 {
-	struct intel_dsb *dsb = crtc_state->dsb;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = dsb->crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 tail;
 
@@ -286,14 +271,16 @@ reset:
 
 /**
  * intel_dsb_prepare() - Allocate, pin and map the DSB command buffer.
- * @crtc_state: intel_crtc_state structure to prepare associated dsb instance.
+ * @crtc: the CRTC
  *
  * This function prepare the command buffer which is used to store dsb
  * instructions with data.
+ *
+ * Returns:
+ * DSB context, NULL on failure
  */
-void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
+struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_dsb *dsb;
 	struct drm_i915_gem_object *obj;
@@ -302,63 +289,60 @@ void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
 	intel_wakeref_t wakeref;
 
 	if (!HAS_DSB(i915))
-		return;
+		return NULL;
 
 	dsb = kmalloc(sizeof(*dsb), GFP_KERNEL);
-	if (!dsb) {
-		drm_err(&i915->drm, "DSB object creation failed\n");
-		return;
-	}
+	if (!dsb)
+		goto out;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	obj = i915_gem_object_create_internal(i915, DSB_BUF_SIZE);
-	if (IS_ERR(obj)) {
-		kfree(dsb);
-		goto out;
-	}
+	if (IS_ERR(obj))
+		goto out_put_rpm;
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {
 		i915_gem_object_put(obj);
-		kfree(dsb);
-		goto out;
+		goto out_put_rpm;
 	}
 
 	buf = i915_gem_object_pin_map_unlocked(vma->obj, I915_MAP_WC);
 	if (IS_ERR(buf)) {
 		i915_vma_unpin_and_release(&vma, I915_VMA_RELEASE_MAP);
-		kfree(dsb);
-		goto out;
+		goto out_put_rpm;
 	}
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	dsb->id = DSB1;
 	dsb->vma = vma;
+	dsb->crtc = crtc;
 	dsb->cmd_buf = buf;
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
-	crtc_state->dsb = dsb;
-out:
-	if (!crtc_state->dsb)
-		drm_info(&i915->drm,
-			 "DSB queue setup failed, will fallback to MMIO for display HW programming\n");
 
+	return dsb;
+
+out_put_rpm:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	kfree(dsb);
+out:
+	drm_info_once(&i915->drm,
+		      "DSB queue setup failed, will fallback to MMIO for display HW programming\n");
+
+	return NULL;
 }
 
 /**
  * intel_dsb_cleanup() - To cleanup DSB context.
- * @crtc_state: intel_crtc_state structure to cleanup associated dsb instance.
+ * @dsb: DSB context
  *
  * This function cleanup the DSB context by unpinning and releasing
  * the VMA object associated with it.
  */
-void intel_dsb_cleanup(struct intel_crtc_state *crtc_state)
+void intel_dsb_cleanup(struct intel_dsb *dsb)
 {
-	if (!crtc_state->dsb)
-		return;
-
-	i915_vma_unpin_and_release(&crtc_state->dsb->vma, I915_VMA_RELEASE_MAP);
-	kfree(crtc_state->dsb);
-	crtc_state->dsb = NULL;
+	i915_vma_unpin_and_release(&dsb->vma, I915_VMA_RELEASE_MAP);
+	kfree(dsb);
 }
