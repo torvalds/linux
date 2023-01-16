@@ -3707,7 +3707,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct btrfs_device *scrub_dev,
 					   int stripe_index)
 {
-	struct btrfs_path *path;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_root *csum_root;
@@ -3728,19 +3727,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 stripe_logical;
 	u64 stripe_end;
 	int stop_loop = 0;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-	/*
-	 * work on commit root. The related disk blocks are static as
-	 * long as COW is applied. This means, it is save to rewrite
-	 * them to repair disk errors without any race conditions
-	 */
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
-	path->reada = READA_FORWARD;
 
 	wait_event(sctx->list_wait,
 		   atomic_read(&sctx->bios_in_flight) == 0);
@@ -3861,7 +3847,6 @@ out:
 	mutex_unlock(&sctx->wr_lock);
 
 	blk_finish_plug(&plug);
-	btrfs_free_path(path);
 
 	if (sctx->is_dev_replace && ret >= 0) {
 		int ret2;
