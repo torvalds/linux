@@ -326,22 +326,22 @@
 			status = "disabled";
 		};
 
-		acc0: clock-controller@b088000 {
+		acc0: power-manager@b088000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0x0b088000 0x1000>, <0xb008000 0x1000>;
 		};
 
-		acc1: clock-controller@b098000 {
+		acc1: power-manager@b098000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0x0b098000 0x1000>, <0xb008000 0x1000>;
 		};
 
-		acc2: clock-controller@b0a8000 {
+		acc2: power-manager@b0a8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0x0b0a8000 0x1000>, <0xb008000 0x1000>;
 		};
 
-		acc3: clock-controller@b0b8000 {
+		acc3: power-manager@b0b8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0x0b0b8000 0x1000>, <0xb008000 0x1000>;
 		};
