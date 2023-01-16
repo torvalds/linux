@@ -358,6 +358,8 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					if (unlikely(drdymask >= ST_LSM6DSVX_SAMPLE_DISCHARD))
 						continue;
 
+					sensor = iio_priv(iio_dev);
+
 					/*
 					 * hw ts in not queued in FIFO if only step
 					 * counter enabled
@@ -386,8 +388,6 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					hw->tsample = min_t(s64,
 							    iio_get_time_ns(hw->iio_devs[0]),
 							    hw->tsample);
-
-					sensor = iio_priv(iio_dev);
 
 					/* support decimation for ODR < 15 Hz */
 					if (sensor->dec_counter > 0) {
