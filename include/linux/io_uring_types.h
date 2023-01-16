@@ -196,17 +196,17 @@ struct io_ring_ctx {
 	/* const or read-mostly hot data */
 	struct {
 		unsigned int		flags;
-		unsigned int		compat: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		restricted: 1;
 		unsigned int		off_timeout_used: 1;
 		unsigned int		drain_active: 1;
-		unsigned int		drain_disabled: 1;
 		unsigned int		has_evfd: 1;
-		unsigned int		syscall_iopoll: 1;
 		/* all CQEs should be posted only by the submitter task */
 		unsigned int		task_complete: 1;
+		unsigned int		syscall_iopoll: 1;
 		unsigned int		poll_activated: 1;
+		unsigned int		drain_disabled: 1;
+		unsigned int		compat: 1;
 
 		enum task_work_notify_mode	notify_method;
 		struct io_rings			*rings;
