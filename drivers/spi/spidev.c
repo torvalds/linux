@@ -90,9 +90,21 @@ MODULE_PARM_DESC(bufsiz, "data bytes in biggest supported SPI message");
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
+spidev_sync_unlocked(struct spi_device *spi, struct spi_message *message)
+{
+	ssize_t status;
+
+	status = spi_sync(spi, message);
+	if (status == 0)
+		status = message->actual_length;
+
+	return status;
+}
+
+static ssize_t
 spidev_sync(struct spidev_data *spidev, struct spi_message *message)
 {
-	int status;
+	ssize_t status;
 	struct spi_device *spi;
 
 	mutex_lock(&spidev->spi_lock);
@@ -101,12 +113,10 @@ spidev_sync(struct spidev_data *spidev, struct spi_message *message)
 	if (spi == NULL)
 		status = -ESHUTDOWN;
 	else
-		status = spi_sync(spi, message);
-
-	if (status == 0)
-		status = message->actual_length;
+		status = spidev_sync_unlocked(spi, message);
 
 	mutex_unlock(&spidev->spi_lock);
+
 	return status;
 }
 
@@ -294,7 +304,7 @@ static int spidev_message(struct spidev_data *spidev,
 		spi_message_add_tail(k_tmp, &msg);
 	}
 
-	status = spidev_sync(spidev, &msg);
+	status = spidev_sync_unlocked(spidev->spi, &msg);
 	if (status < 0)
 		goto done;
 
