@@ -461,9 +461,9 @@ static int ext2_handle_dirsync(struct inode *dir)
 	return err;
 }
 
-void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
-		   struct page *page, void *page_addr, struct inode *inode,
-		   int update_times)
+int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
+		struct page *page, void *page_addr, struct inode *inode,
+		bool update_times)
 {
 	loff_t pos = page_offset(page) +
 			(char *) de - (char *) page_addr;
@@ -472,7 +472,10 @@ void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 
 	lock_page(page);
 	err = ext2_prepare_chunk(page, pos, len);
-	BUG_ON(err);
+	if (err) {
+		unlock_page(page);
+		return err;
+	}
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type(de, inode);
 	ext2_commit_chunk(page, pos, len);
@@ -480,7 +483,7 @@ void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 		dir->i_mtime = dir->i_ctime = current_time(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
-	ext2_handle_dirsync(dir);
+	return ext2_handle_dirsync(dir);
 }
 
 /*
