@@ -948,7 +948,7 @@ static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
 
 	/* update pointers within the skb to store the data */
 	skb_reserve(skb, TSNEP_SKB_PAD + TSNEP_RX_INLINE_METADATA_SIZE);
-	__skb_put(skb, length - TSNEP_RX_INLINE_METADATA_SIZE - ETH_FCS_LEN);
+	__skb_put(skb, length - ETH_FCS_LEN);
 
 	if (rx->adapter->hwtstamp_config.rx_filter == HWTSTAMP_FILTER_ALL) {
 		struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
@@ -1020,6 +1020,13 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		dma_sync_single_range_for_cpu(dmadev, entry->dma, TSNEP_SKB_PAD,
 					      length, dma_dir);
 
+		/* RX metadata with timestamps is in front of actual data,
+		 * subtract metadata size to get length of actual data and
+		 * consider metadata size as offset of actual data during RX
+		 * processing
+		 */
+		length -= TSNEP_RX_INLINE_METADATA_SIZE;
+
 		rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
 		desc_available++;
 
@@ -1028,7 +1035,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			page_pool_release_page(rx->page_pool, entry->page);
 
 			rx->packets++;
-			rx->bytes += length - TSNEP_RX_INLINE_METADATA_SIZE;
+			rx->bytes += length;
 			if (skb->pkt_type == PACKET_MULTICAST)
 				rx->multicast++;
 
