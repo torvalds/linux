@@ -56,7 +56,7 @@
 #define MIXER_SDM845_MASK \
 	(BIT(DPU_MIXER_SOURCESPLIT) | BIT(DPU_DIM_LAYER) | BIT(DPU_MIXER_COMBINED_ALPHA))
 
-#define MIXER_SC7180_MASK \
+#define MIXER_QCM2290_MASK \
 	(BIT(DPU_DIM_LAYER) | BIT(DPU_MIXER_COMBINED_ALPHA))
 
 #define PINGPONG_SDM845_MASK BIT(DPU_PINGPONG_DITHER)
@@ -1461,9 +1461,9 @@ static const struct dpu_lm_sub_blks sc7180_lm_sblk = {
 };
 
 static const struct dpu_lm_cfg sc7180_lm[] = {
-	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SC7180_MASK,
+	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SDM845_MASK,
 		&sc7180_lm_sblk, PINGPONG_0, LM_1, DSPP_0),
-	LM_BLK("lm_1", LM_1, 0x45000, MIXER_SC7180_MASK,
+	LM_BLK("lm_1", LM_1, 0x45000, MIXER_SDM845_MASK,
 		&sc7180_lm_sblk, PINGPONG_1, LM_0, 0),
 };
 
@@ -1496,11 +1496,11 @@ static const struct dpu_lm_cfg sm8150_lm[] = {
 };
 
 static const struct dpu_lm_cfg sc7280_lm[] = {
-	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SC7180_MASK,
+	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SDM845_MASK,
 		&sc7180_lm_sblk, PINGPONG_0, 0, DSPP_0),
-	LM_BLK("lm_2", LM_2, 0x46000, MIXER_SC7180_MASK,
+	LM_BLK("lm_2", LM_2, 0x46000, MIXER_SDM845_MASK,
 		&sc7180_lm_sblk, PINGPONG_2, LM_3, 0),
-	LM_BLK("lm_3", LM_3, 0x47000, MIXER_SC7180_MASK,
+	LM_BLK("lm_3", LM_3, 0x47000, MIXER_SDM845_MASK,
 		&sc7180_lm_sblk, PINGPONG_3, LM_2, 0),
 };
 
@@ -1515,7 +1515,7 @@ static const struct dpu_lm_sub_blks qcm2290_lm_sblk = {
 };
 
 static const struct dpu_lm_cfg qcm2290_lm[] = {
-	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SC7180_MASK,
+	LM_BLK("lm_0", LM_0, 0x44000, MIXER_QCM2290_MASK,
 		&qcm2290_lm_sblk, PINGPONG_0, 0, DSPP_0),
 };
 
