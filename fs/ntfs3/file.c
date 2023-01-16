@@ -223,16 +223,10 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 				set_buffer_uptodate(bh);
 
 			if (!buffer_uptodate(bh)) {
-				lock_buffer(bh);
-				bh->b_end_io = end_buffer_read_sync;
-				get_bh(bh);
-				submit_bh(REQ_OP_READ, bh);
-
-				wait_on_buffer(bh);
-				if (!buffer_uptodate(bh)) {
+				err = bh_read(bh, 0);
+				if (err < 0) {
 					unlock_page(page);
 					put_page(page);
-					err = -EIO;
 					goto out;
 				}
 			}

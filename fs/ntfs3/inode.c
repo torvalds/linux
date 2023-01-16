@@ -648,6 +648,7 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 			bh->b_size = block_size;
 			off = vbo & (PAGE_SIZE - 1);
 			set_bh_page(bh, page, off);
+
 			err = bh_read(bh, 0);
 			if (err < 0)
 				goto out;
