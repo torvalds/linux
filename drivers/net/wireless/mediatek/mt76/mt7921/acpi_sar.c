@@ -33,14 +33,17 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 	    sar_root->package.elements[0].type != ACPI_TYPE_INTEGER) {
 		dev_err(mdev->dev, "sar cnt = %d\n",
 			sar_root->package.count);
+		ret = -EINVAL;
 		goto free;
 	}
 
 	if (!*tbl) {
 		*tbl = devm_kzalloc(mdev->dev, sar_root->package.count,
 				    GFP_KERNEL);
-		if (!*tbl)
+		if (!*tbl) {
+			ret = -ENOMEM;
 			goto free;
+		}
 	}
 	if (len)
 		*len = sar_root->package.count;
@@ -52,9 +55,9 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 			break;
 		*(*tbl + i) = (u8)sar_unit->integer.value;
 	}
-free:
 	ret = (i == sar_root->package.count) ? 0 : -EINVAL;
 
+free:
 	kfree(sar_root);
 
 	return ret;
