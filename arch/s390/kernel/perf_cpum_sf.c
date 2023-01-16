@@ -125,7 +125,7 @@ static inline unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
 }
 
 /* Return pointer to trailer entry of an sample data block */
-static inline unsigned long *trailer_entry_ptr(unsigned long v)
+static inline struct hws_trailer_entry *trailer_entry_ptr(unsigned long v)
 {
 	void *ret;
 
@@ -133,7 +133,7 @@ static inline unsigned long *trailer_entry_ptr(unsigned long v)
 	ret += PAGE_SIZE;
 	ret -= sizeof(struct hws_trailer_entry);
 
-	return (unsigned long *)ret;
+	return ret;
 }
 
 /*
@@ -148,7 +148,7 @@ static inline int is_link_entry(unsigned long *s)
 /* Return pointer to the linked sdbt */
 static inline unsigned long *get_next_sdbt(unsigned long *s)
 {
-	return (unsigned long *)(*s & ~0x1UL);
+	return phys_to_virt(*s & ~0x1UL);
 }
 
 /*
@@ -202,7 +202,7 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 		} else {
 			/* Process SDB pointer */
 			if (*curr) {
-				free_page(*curr);
+				free_page((unsigned long)phys_to_virt(*curr));
 				curr++;
 			}
 		}
@@ -222,11 +222,11 @@ static int alloc_sample_data_block(unsigned long *sdbt, gfp_t gfp_flags)
 	sdb = get_zeroed_page(gfp_flags);
 	if (!sdb)
 		return -ENOMEM;
-	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	te = trailer_entry_ptr(sdb);
 	te->header.a = 1;
 
 	/* Link SDB into the sample-data-block-table */
-	*sdbt = sdb;
+	*sdbt = virt_to_phys((void *)sdb);
 
 	return 0;
 }
@@ -285,7 +285,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 			}
 			sfb->num_sdbt++;
 			/* Link current page to tail of chain */
-			*tail = (unsigned long)(void *) new + 1;
+			*tail = virt_to_phys((void *)new) + 1;
 			tail_prev = tail;
 			tail = new;
 		}
@@ -315,7 +315,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 	}
 
 	/* Link sampling buffer to its origin */
-	*tail = (unsigned long) sfb->sdbt + 1;
+	*tail = virt_to_phys(sfb->sdbt) + 1;
 	sfb->tail = tail;
 
 	debug_sprintf_event(sfdbg, 4, "%s: new buffer"
@@ -353,7 +353,7 @@ static int alloc_sampling_buffer(struct sf_buffer *sfb, unsigned long num_sdb)
 	 * realloc_sampling_buffer() invocation.
 	 */
 	sfb->tail = sfb->sdbt;
-	*sfb->tail = (unsigned long)(void *) sfb->sdbt + 1;
+	*sfb->tail = virt_to_phys((void *)sfb->sdbt) + 1;
 
 	/* Allocate requested number of sample-data-blocks */
 	rc = realloc_sampling_buffer(sfb, num_sdb, GFP_KERNEL);
@@ -1222,8 +1222,8 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 	struct hws_trailer_entry *te;
 	struct hws_basic_entry *sample;
 
-	te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
-	sample = (struct hws_basic_entry *) *sdbt;
+	te = trailer_entry_ptr((unsigned long)sdbt);
+	sample = (struct hws_basic_entry *)sdbt;
 	while ((unsigned long *) sample < (unsigned long *) te) {
 		/* Check for an empty sample */
 		if (!sample->def || sample->LS)
@@ -1304,7 +1304,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	union hws_trailer_header old, prev, new;
 	struct hw_perf_event *hwc = &event->hw;
 	struct hws_trailer_entry *te;
-	unsigned long *sdbt;
+	unsigned long *sdbt, sdb;
 	int done;
 
 	/*
@@ -1321,7 +1321,8 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	done = event_overflow = sampl_overflow = num_sdb = 0;
 	while (!done) {
 		/* Get the trailer entry of the sample-data-block */
-		te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
+		sdb = (unsigned long)phys_to_virt(*sdbt);
+		te = trailer_entry_ptr(sdb);
 
 		/* Leave loop if no more work to do (block full indicator) */
 		if (!te->header.f) {
@@ -1339,16 +1340,17 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 			sampl_overflow += te->header.overflow;
 
 		/* Timestamps are valid for full sample-data-blocks only */
-		debug_sprintf_event(sfdbg, 6, "%s: sdbt %#lx "
+		debug_sprintf_event(sfdbg, 6, "%s: sdbt %#lx/%#lx "
 				    "overflow %llu timestamp %#llx\n",
-				    __func__, (unsigned long)sdbt, te->header.overflow,
+				    __func__, sdb, (unsigned long)sdbt,
+				    te->header.overflow,
 				    (te->header.f) ? trailer_timestamp(te) : 0ULL);
 
 		/* Collect all samples from a single sample-data-block and
 		 * flag if an (perf) event overflow happened.  If so, the PMU
 		 * is stopped and remaining samples will be discarded.
 		 */
-		hw_collect_samples(event, sdbt, &event_overflow);
+		hw_collect_samples(event, (unsigned long *)sdb, &event_overflow);
 		num_sdb++;
 
 		/* Reset trailer (using compare-double-and-swap) */
@@ -1421,7 +1423,7 @@ static struct hws_trailer_entry *aux_sdb_trailer(struct aux_buffer *aux,
 
 	index = AUX_SDB_INDEX(aux, index);
 	sdb = aux->sdb_index[index];
-	return (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	return trailer_entry_ptr(sdb);
 }
 
 /*
@@ -1747,7 +1749,7 @@ static void aux_sdb_init(unsigned long sdb)
 {
 	struct hws_trailer_entry *te;
 
-	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	te = trailer_entry_ptr(sdb);
 
 	/* Save clock base */
 	te->clock_base = 1;
@@ -1978,7 +1980,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	cpuhw->lsctl.h = 1;
 	cpuhw->lsctl.interval = SAMPL_RATE(&event->hw);
 	if (!SAMPL_DIAG_MODE(&event->hw)) {
-		cpuhw->lsctl.tear = (unsigned long) cpuhw->sfb.sdbt;
+		cpuhw->lsctl.tear = virt_to_phys(cpuhw->sfb.sdbt);
 		cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
 		TEAR_REG(&event->hw) = (unsigned long) cpuhw->sfb.sdbt;
 	}
