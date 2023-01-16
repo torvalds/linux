@@ -525,7 +525,6 @@ int PVRSRVDeviceServicesOpen(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 	if (psDeviceNode->eDevState == PVRSRV_DEVICE_STATE_INIT)
 	{
-		PVRSRVSetSystemPowerState(psDeviceNode->psDevConfig, PVRSRV_SYS_POWER_STATE_ON);
 		eError = PVRSRVCommonDeviceInitialise(psDeviceNode);
 		if (eError != PVRSRV_OK)
 		{
