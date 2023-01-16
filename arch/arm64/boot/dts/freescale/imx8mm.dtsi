@@ -1302,6 +1302,10 @@
 					<0 0 0 4 &gic GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
 			linux,pci-domain = <0>;
+			clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>,
+				 <&clk IMX8MM_CLK_PCIE1_PHY>,
+				 <&clk IMX8MM_CLK_PCIE1_AUX>;
+			clock-names = "pcie", "pcie_bus", "pcie_aux";
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
 				 <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURNOFF>;
