@@ -127,6 +127,7 @@
 
 #define M10BMC_N6000_DOORBELL			0x1c0
 #define M10BMC_N6000_AUTH_RESULT		0x1c4
+#define AUTH_RESULT_RSU_STATUS			GENMASK(23, 16)
 
 #define M10BMC_N6000_BUILD_VER			0x0
 #define NIOS2_N6000_FW_VERSION			0x4
@@ -147,6 +148,35 @@
 #define M10BMC_N6000_PR_PROG_MAGIC		0x5250
 
 #define M10BMC_N6000_STAGING_FLASH_COUNT	0x7ff5000
+
+#define M10BMC_N6000_FLASH_MUX_CTRL		0x1d0
+#define M10BMC_N6000_FLASH_MUX_SELECTION	GENMASK(2, 0)
+#define M10BMC_N6000_FLASH_MUX_IDLE		0
+#define M10BMC_N6000_FLASH_MUX_NIOS		1
+#define M10BMC_N6000_FLASH_MUX_HOST		2
+#define M10BMC_N6000_FLASH_MUX_PFL		4
+#define get_flash_mux(mux)			FIELD_GET(M10BMC_N6000_FLASH_MUX_SELECTION, mux)
+
+#define M10BMC_N6000_FLASH_NIOS_REQUEST		BIT(4)
+#define M10BMC_N6000_FLASH_HOST_REQUEST		BIT(5)
+
+#define M10BMC_N6000_FLASH_CTRL			0x40
+#define M10BMC_N6000_FLASH_WR_MODE		BIT(0)
+#define M10BMC_N6000_FLASH_RD_MODE		BIT(1)
+#define M10BMC_N6000_FLASH_BUSY			BIT(2)
+#define M10BMC_N6000_FLASH_FIFO_SPACE		GENMASK(13, 4)
+#define M10BMC_N6000_FLASH_READ_COUNT		GENMASK(25, 16)
+
+#define M10BMC_N6000_FLASH_ADDR			0x44
+#define M10BMC_N6000_FLASH_FIFO			0x800
+#define M10BMC_N6000_READ_BLOCK_SIZE		0x800
+#define M10BMC_N6000_FIFO_MAX_BYTES		0x800
+#define M10BMC_N6000_FIFO_WORD_SIZE		4
+#define M10BMC_N6000_FIFO_MAX_WORDS		(M10BMC_N6000_FIFO_MAX_BYTES / \
+						 M10BMC_N6000_FIFO_WORD_SIZE)
+
+#define M10BMC_FLASH_INT_US			1
+#define M10BMC_FLASH_TIMEOUT_US			10000
 
 /**
  * struct m10bmc_csr_map - Intel MAX 10 BMC CSR register map
@@ -183,16 +213,37 @@ struct intel_m10bmc_platform_info {
 	const struct m10bmc_csr_map *csr_map;
 };
 
+struct intel_m10bmc;
+
+/**
+ * struct intel_m10bmc_flash_bulk_ops - device specific operations for flash R/W
+ * @read: read a block of data from flash
+ * @write: write a block of data to flash
+ * @lock_write: locks flash access for erase+write
+ * @unlock_write: unlock flash access
+ *
+ * Write must be protected with @lock_write and @unlock_write. While the flash
+ * is locked, @read returns -EBUSY.
+ */
+struct intel_m10bmc_flash_bulk_ops {
+	int (*read)(struct intel_m10bmc *m10bmc, u8 *buf, u32 addr, u32 size);
+	int (*write)(struct intel_m10bmc *m10bmc, const u8 *buf, u32 offset, u32 size);
+	int (*lock_write)(struct intel_m10bmc *m10bmc);
+	void (*unlock_write)(struct intel_m10bmc *m10bmc);
+};
+
 /**
  * struct intel_m10bmc - Intel MAX 10 BMC parent driver data structure
  * @dev: this device
  * @regmap: the regmap used to access registers by m10bmc itself
  * @info: the platform information for MAX10 BMC
+ * @flash_bulk_ops: optional device specific operations for flash R/W
  */
 struct intel_m10bmc {
 	struct device *dev;
 	struct regmap *regmap;
 	const struct intel_m10bmc_platform_info *info;
+	const struct intel_m10bmc_flash_bulk_ops *flash_bulk_ops;
 };
 
 /*

@@ -48,6 +48,9 @@ static int m10bmc_sec_write(struct m10bmc_sec *sec, const u8 *buf, u32 offset, u
 	u32 leftover_tmp = 0;
 	int ret;
 
+	if (sec->m10bmc->flash_bulk_ops)
+		return sec->m10bmc->flash_bulk_ops->write(m10bmc, buf, offset, size);
+
 	if (WARN_ON_ONCE(stride > sizeof(leftover_tmp)))
 		return -EINVAL;
 
@@ -77,6 +80,9 @@ static int m10bmc_sec_read(struct m10bmc_sec *sec, u8 *buf, u32 addr, u32 size)
 	u32 leftover_size = size - leftover_offset;
 	u32 leftover_tmp;
 	int ret;
+
+	if (sec->m10bmc->flash_bulk_ops)
+		return sec->m10bmc->flash_bulk_ops->read(m10bmc, buf, addr, size);
 
 	if (WARN_ON_ONCE(stride > sizeof(leftover_tmp)))
 		return -EINVAL;
@@ -275,6 +281,19 @@ static int m10bmc_sec_n3000_rsu_status(struct m10bmc_sec *sec)
 		return ret;
 
 	return FIELD_GET(DRBL_RSU_STATUS, doorbell);
+}
+
+static int m10bmc_sec_n6000_rsu_status(struct m10bmc_sec *sec)
+{
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
+	u32 auth_result;
+	int ret;
+
+	ret = m10bmc_sys_read(sec->m10bmc, csr_map->auth_result, &auth_result);
+	if (ret)
+		return ret;
+
+	return FIELD_GET(AUTH_RESULT_RSU_STATUS, auth_result);
 }
 
 static bool rsu_status_ok(u32 status)
@@ -520,22 +539,33 @@ static enum fw_upload_err m10bmc_sec_prepare(struct fw_upload *fwl,
 	if (!size || size > M10BMC_STAGING_SIZE)
 		return FW_UPLOAD_ERR_INVALID_SIZE;
 
+	if (sec->m10bmc->flash_bulk_ops)
+		if (sec->m10bmc->flash_bulk_ops->lock_write(sec->m10bmc))
+			return FW_UPLOAD_ERR_BUSY;
+
 	ret = rsu_check_idle(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		return ret;
+		goto unlock_flash;
 
 	ret = rsu_update_init(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		return ret;
+		goto unlock_flash;
 
 	ret = rsu_prog_ready(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		return ret;
+		goto unlock_flash;
 
-	if (sec->cancel_request)
-		return rsu_cancel(sec);
+	if (sec->cancel_request) {
+		ret = rsu_cancel(sec);
+		goto unlock_flash;
+	}
 
 	return FW_UPLOAD_ERR_NONE;
+
+unlock_flash:
+	if (sec->m10bmc->flash_bulk_ops)
+		sec->m10bmc->flash_bulk_ops->unlock_write(sec->m10bmc);
+	return ret;
 }
 
 #define WRITE_BLOCK_SIZE 0x4000	/* Default write-block size is 0x4000 bytes */
@@ -622,6 +652,9 @@ static void m10bmc_sec_cleanup(struct fw_upload *fwl)
 	struct m10bmc_sec *sec = fwl->dd_handle;
 
 	(void)rsu_cancel(sec);
+
+	if (sec->m10bmc->flash_bulk_ops)
+		sec->m10bmc->flash_bulk_ops->unlock_write(sec->m10bmc);
 }
 
 static const struct fw_upload_ops m10bmc_ops = {
@@ -634,6 +667,10 @@ static const struct fw_upload_ops m10bmc_ops = {
 
 static const struct m10bmc_sec_ops m10sec_n3000_ops = {
 	.rsu_status = m10bmc_sec_n3000_rsu_status,
+};
+
+static const struct m10bmc_sec_ops m10sec_n6000_ops = {
+	.rsu_status = m10bmc_sec_n6000_rsu_status,
 };
 
 #define SEC_UPDATE_LEN_MAX 32
@@ -697,6 +734,10 @@ static const struct platform_device_id intel_m10bmc_sec_ids[] = {
 	{
 		.name = "d5005bmc-sec-update",
 		.driver_data = (kernel_ulong_t)&m10sec_n3000_ops,
+	},
+	{
+		.name = "n6000bmc-sec-update",
+		.driver_data = (kernel_ulong_t)&m10sec_n6000_ops,
 	},
 	{ }
 };
