@@ -13,6 +13,7 @@
 #include "xe_device.h"
 #include "xe_bo.h"
 #include "xe_gt.h"
+#include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_wopcm.h"
 
@@ -152,23 +153,30 @@ static void xe_ggtt_initial_clear(struct xe_ggtt *ggtt)
 int xe_ggtt_init(struct xe_gt *gt, struct xe_ggtt *ggtt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int flags;
 	int err;
 
-	ggtt->scratch = xe_bo_create_locked(xe, gt, NULL, GEN8_PAGE_SIZE,
-					    ttm_bo_type_kernel,
-					    XE_BO_CREATE_VRAM_IF_DGFX(gt) |
-					    XE_BO_CREATE_PINNED_BIT);
+	/*
+	 * So we don't need to worry about 64K GGTT layout when dealing with
+	 * scratch entires, rather keep the scratch page in system memory on
+	 * platforms where 64K pages are needed for VRAM.
+	 */
+	flags = XE_BO_CREATE_PINNED_BIT;
+	if (ggtt->flags & XE_GGTT_FLAGS_64K)
+		flags |= XE_BO_CREATE_SYSTEM_BIT;
+	else
+		flags |= XE_BO_CREATE_VRAM_IF_DGFX(gt);
+
+	ggtt->scratch = xe_bo_create_pin_map(xe, gt, NULL, GEN8_PAGE_SIZE,
+					     ttm_bo_type_kernel,
+					     flags);
+
 	if (IS_ERR(ggtt->scratch)) {
 		err = PTR_ERR(ggtt->scratch);
 		goto err;
 	}
 
-	err = xe_bo_pin(ggtt->scratch);
-	xe_bo_unlock_no_vm(ggtt->scratch);
-	if (err) {
-		xe_bo_put(ggtt->scratch);
-		goto err;
-	}
+	xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0, ggtt->scratch->size);
 
 	xe_ggtt_initial_clear(ggtt);
 	return 0;
