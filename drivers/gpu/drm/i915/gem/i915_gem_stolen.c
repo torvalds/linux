@@ -110,9 +110,7 @@ static int adjust_stolen(struct drm_i915_private *i915,
 		else
 			ggtt_start &= PGTBL_ADDRESS_LO_MASK;
 
-		ggtt_res =
-			(struct resource) DEFINE_RES_MEM(ggtt_start,
-							 ggtt_total_entries(ggtt) * 4);
+		ggtt_res = DEFINE_RES_MEM(ggtt_start, ggtt_total_entries(ggtt) * 4);
 
 		if (ggtt_res.start >= stolen[0].start && ggtt_res.start < stolen[0].end)
 			stolen[0].end = ggtt_res.start;
@@ -471,8 +469,7 @@ static int init_reserved_stolen(struct drm_i915_private *i915)
 		goto bail_out;
 	}
 
-	i915->dsm.reserved =
-		(struct resource)DEFINE_RES_MEM(reserved_base, reserved_size);
+	i915->dsm.reserved = DEFINE_RES_MEM(reserved_base, reserved_size);
 
 	if (!resource_contains(&i915->dsm.stolen, &i915->dsm.reserved)) {
 		drm_err(&i915->drm,
@@ -485,8 +482,7 @@ static int init_reserved_stolen(struct drm_i915_private *i915)
 	return 0;
 
 bail_out:
-	i915->dsm.reserved =
-		(struct resource)DEFINE_RES_MEM(reserved_base, 0);
+	i915->dsm.reserved = DEFINE_RES_MEM(reserved_base, 0);
 
 	return ret;
 }

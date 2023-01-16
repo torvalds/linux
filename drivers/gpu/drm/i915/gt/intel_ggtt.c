@@ -920,8 +920,8 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 
 static struct resource pci_resource(struct pci_dev *pdev, int bar)
 {
-	return (struct resource)DEFINE_RES_MEM(pci_resource_start(pdev, bar),
-					       pci_resource_len(pdev, bar));
+	return DEFINE_RES_MEM(pci_resource_start(pdev, bar),
+			      pci_resource_len(pdev, bar));
 }
 
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
