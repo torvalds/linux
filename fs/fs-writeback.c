@@ -246,7 +246,7 @@ void __inode_attach_wb(struct inode *inode, struct folio *folio)
 		struct cgroup_subsys_state *memcg_css;
 
 		if (folio) {
-			memcg_css = mem_cgroup_css_from_page(&folio->page);
+			memcg_css = mem_cgroup_css_from_folio(folio);
 			wb = wb_get_create(bdi, memcg_css, GFP_ATOMIC);
 		} else {
 			/* must pin memcg_css, see wb_get_create() */
@@ -859,6 +859,7 @@ EXPORT_SYMBOL_GPL(wbc_detach_inode);
 void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
 			      size_t bytes)
 {
+	struct folio *folio;
 	struct cgroup_subsys_state *css;
 	int id;
 
@@ -871,7 +872,8 @@ void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
 	if (!wbc->wb || wbc->no_cgroup_owner)
 		return;
 
-	css = mem_cgroup_css_from_page(page);
+	folio = page_folio(page);
+	css = mem_cgroup_css_from_folio(folio);
 	/* dead cgroups shouldn't contribute to inode ownership arbitration */
 	if (!(css->flags & CSS_ONLINE))
 		return;
