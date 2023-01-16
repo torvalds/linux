@@ -547,14 +547,9 @@ static int imx290_write_current_format(struct imx290 *imx290)
 	return 0;
 }
 
-static inline u8 imx290_get_link_freq_index(struct imx290 *imx290)
-{
-	return imx290->current_mode->link_freq_index;
-}
-
 static s64 imx290_get_link_freq(struct imx290 *imx290)
 {
-	u8 index = imx290_get_link_freq_index(imx290);
+	u8 index = imx290->current_mode->link_freq_index;
 
 	return *(imx290_link_freqs_ptr(imx290) + index);
 }
@@ -652,8 +647,7 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 	if (!imx290->ctrls.lock)
 		return;
 
-	__v4l2_ctrl_s_ctrl(imx290->link_freq,
-			   imx290_get_link_freq_index(imx290));
+	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
 	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate,
 				 imx290_calc_pixel_rate(imx290));
 
