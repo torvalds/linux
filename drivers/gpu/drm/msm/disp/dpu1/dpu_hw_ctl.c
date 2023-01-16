@@ -17,6 +17,8 @@
 	(0x70 + (((lm) - LM_0) * 0x004))
 #define   CTL_LAYER_EXT3(lm)             \
 	(0xA0 + (((lm) - LM_0) * 0x004))
+#define CTL_LAYER_EXT4(lm)             \
+	(0xB8 + (((lm) - LM_0) * 0x004))
 #define   CTL_TOP                       0x014
 #define   CTL_FLUSH                     0x018
 #define   CTL_START                     0x01C
@@ -383,6 +385,7 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
 	u32 mixercfg = 0, mixercfg_ext = 0, mix, ext;
 	u32 mixercfg_ext2 = 0, mixercfg_ext3 = 0;
+	u32 mixercfg_ext4 = 0;
 	int i, j;
 	int stages;
 	int pipes_per_stage;
@@ -492,6 +495,20 @@ static void dpu_hw_ctl_setup_blendstage(struct dpu_hw_ctl *ctx,
 					mixercfg_ext2 |= mix << 4;
 				}
 				break;
+			case SSPP_DMA4:
+				if (rect_index == DPU_SSPP_RECT_1) {
+					mixercfg_ext4 |= ((i + 1) & 0xF) << 8;
+				} else {
+					mixercfg_ext4 |= ((i + 1) & 0xF) << 0;
+				}
+				break;
+			case SSPP_DMA5:
+				if (rect_index == DPU_SSPP_RECT_1) {
+					mixercfg_ext4 |= ((i + 1) & 0xF) << 12;
+				} else {
+					mixercfg_ext4 |= ((i + 1) & 0xF) << 4;
+				}
+				break;
 			case SSPP_CURSOR0:
 				mixercfg_ext |= ((i + 1) & 0xF) << 20;
 				break;
@@ -509,6 +526,8 @@ exit:
 	DPU_REG_WRITE(c, CTL_LAYER_EXT(lm), mixercfg_ext);
 	DPU_REG_WRITE(c, CTL_LAYER_EXT2(lm), mixercfg_ext2);
 	DPU_REG_WRITE(c, CTL_LAYER_EXT3(lm), mixercfg_ext3);
+	if ((test_bit(DPU_CTL_HAS_LAYER_EXT4, &ctx->caps->features)))
+		DPU_REG_WRITE(c, CTL_LAYER_EXT4(lm), mixercfg_ext4);
 }
 
 
