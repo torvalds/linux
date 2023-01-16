@@ -1892,6 +1892,7 @@ static void console_lock_spinning_enable(void)
 /**
  * console_lock_spinning_disable_and_check - mark end of code where another
  *	thread was able to busy wait and check if there is a waiter
+ * @cookie: cookie returned from console_srcu_read_lock()
  *
  * This is called at the end of the section where spinning is allowed.
  * It has two functions. First, it is a signal that it is no longer
