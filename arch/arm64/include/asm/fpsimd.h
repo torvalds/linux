@@ -105,6 +105,13 @@ static inline void *sve_pffr(struct thread_struct *thread)
 	return (char *)thread->sve_state + sve_ffr_offset(vl);
 }
 
+static inline void *thread_zt_state(struct thread_struct *thread)
+{
+	/* The ZT register state is stored immediately after the ZA state */
+	unsigned int sme_vq = sve_vq_from_vl(thread_get_sme_vl(thread));
+	return thread->sme_state + ZA_SIG_REGS_SIZE(sme_vq);
+}
+
 extern void sve_save_state(void *state, u32 *pfpsr, int save_ffr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   int restore_ffr);
@@ -354,6 +361,9 @@ extern unsigned int sme_get_vl(void);
 extern int sme_set_current_vl(unsigned long arg);
 extern int sme_get_current_vl(void);
 
+/* Will move with signal support */
+#define ZT_SIG_REG_SIZE 512
+
 /*
  * Return how many bytes of memory are required to store the full SME
  * specific state for task, given task's currently configured vector
@@ -365,6 +375,9 @@ static inline size_t sme_state_size(struct task_struct const *task)
 	size_t size;
 
 	size = ZA_SIG_REGS_SIZE(sve_vq_from_vl(vl));
+
+	if (system_supports_sme2())
+		size += ZT_SIG_REG_SIZE;
 
 	return size;
 }
