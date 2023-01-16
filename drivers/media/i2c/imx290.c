@@ -639,6 +639,28 @@ static const char * const imx290_test_pattern_menu[] = {
 	"000/555h Toggle Pattern",
 };
 
+static void imx290_ctrl_update(struct imx290 *imx290,
+			       const struct imx290_mode *mode)
+{
+	unsigned int hblank = mode->hmax - mode->width;
+	unsigned int vblank = IMX290_VMAX_DEFAULT - mode->height;
+
+	/*
+	 * This function may be called from imx290_set_fmt() before controls
+	 * get created by imx290_ctrl_init(). Return immediately in that case.
+	 */
+	if (!imx290->ctrls.lock)
+		return;
+
+	__v4l2_ctrl_s_ctrl(imx290->link_freq,
+			   imx290_get_link_freq_index(imx290));
+	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate,
+				 imx290_calc_pixel_rate(imx290));
+
+	__v4l2_ctrl_modify_range(imx290->hblank, hblank, hblank, 1, hblank);
+	__v4l2_ctrl_modify_range(imx290->vblank, vblank, vblank, 1, vblank);
+}
+
 static int imx290_ctrl_init(struct imx290 *imx290)
 {
 	struct v4l2_fwnode_device_properties props;
@@ -904,26 +926,7 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 		imx290->current_mode = mode;
 		imx290->bpp = imx290_formats[i].bpp;
 
-		if (imx290->link_freq)
-			__v4l2_ctrl_s_ctrl(imx290->link_freq,
-					   imx290_get_link_freq_index(imx290));
-		if (imx290->pixel_rate)
-			__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate,
-						 imx290_calc_pixel_rate(imx290));
-
-		if (imx290->hblank) {
-			unsigned int hblank = mode->hmax - mode->width;
-
-			__v4l2_ctrl_modify_range(imx290->hblank, hblank, hblank,
-						 1, hblank);
-		}
-
-		if (imx290->vblank) {
-			unsigned int vblank = IMX290_VMAX_DEFAULT - mode->height;
-
-			__v4l2_ctrl_modify_range(imx290->vblank, vblank, vblank,
-						 1, vblank);
-		}
+		imx290_ctrl_update(imx290, mode);
 	}
 
 	*format = fmt->format;
