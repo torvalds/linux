@@ -3509,8 +3509,6 @@ static int sync_write_pointer_for_zoned(struct scrub_ctx *sctx, u64 logical,
  * and @logical_length parameter.
  */
 static int scrub_simple_mirror(struct scrub_ctx *sctx,
-			       struct btrfs_root *extent_root,
-			       struct btrfs_root *csum_root,
 			       struct btrfs_block_group *bg,
 			       struct map_lookup *map,
 			       u64 logical_start, u64 logical_length,
@@ -3518,6 +3516,8 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 			       u64 physical, int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bg->start);
+	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bg->start);
 	const u64 logical_end = logical_start + logical_length;
 	/* An artificial limit, inherit from old scrub behavior */
 	const u32 max_length = SZ_64K;
@@ -3667,8 +3667,6 @@ static int simple_stripe_mirror_num(struct map_lookup *map, int stripe_index)
 }
 
 static int scrub_simple_stripe(struct scrub_ctx *sctx,
-			       struct btrfs_root *extent_root,
-			       struct btrfs_root *csum_root,
 			       struct btrfs_block_group *bg,
 			       struct map_lookup *map,
 			       struct btrfs_device *device,
@@ -3688,9 +3686,9 @@ static int scrub_simple_stripe(struct scrub_ctx *sctx,
 		 * just RAID1, so we can reuse scrub_simple_mirror() to scrub
 		 * this stripe.
 		 */
-		ret = scrub_simple_mirror(sctx, extent_root, csum_root, bg, map,
-					  cur_logical, BTRFS_STRIPE_LEN, device,
-					  cur_physical, mirror_num);
+		ret = scrub_simple_mirror(sctx, bg, map, cur_logical,
+					  BTRFS_STRIPE_LEN, device, cur_physical,
+					  mirror_num);
 		if (ret)
 			return ret;
 		/* Skip to next stripe which belongs to the target device */
@@ -3708,8 +3706,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   int stripe_index)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct btrfs_root *root;
-	struct btrfs_root *csum_root;
 	struct blk_plug plug;
 	struct map_lookup *map = em->map_lookup;
 	const u64 profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
@@ -3731,9 +3727,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	wait_event(sctx->list_wait,
 		   atomic_read(&sctx->bios_in_flight) == 0);
 	scrub_blocked_if_needed(fs_info);
-
-	root = btrfs_extent_root(fs_info, bg->start);
-	csum_root = btrfs_csum_root(fs_info, bg->start);
 
 	/*
 	 * collect all data csums for the stripe to avoid seeking during
@@ -3766,16 +3759,14 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		 * Only @physical and @mirror_num needs to calculated using
 		 * @stripe_index.
 		 */
-		ret = scrub_simple_mirror(sctx, root, csum_root, bg, map,
-				bg->start, bg->length, scrub_dev,
-				map->stripes[stripe_index].physical,
+		ret = scrub_simple_mirror(sctx, bg, map, bg->start, bg->length,
+				scrub_dev, map->stripes[stripe_index].physical,
 				stripe_index + 1);
 		offset = 0;
 		goto out;
 	}
 	if (profile & (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID10)) {
-		ret = scrub_simple_stripe(sctx, root, csum_root, bg, map,
-					  scrub_dev, stripe_index);
+		ret = scrub_simple_stripe(sctx, bg, map, scrub_dev, stripe_index);
 		offset = (stripe_index / map->sub_stripes) << BTRFS_STRIPE_LEN_SHIFT;
 		goto out;
 	}
@@ -3821,8 +3812,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		 * We can reuse scrub_simple_mirror() here, as the repair part
 		 * is still based on @mirror_num.
 		 */
-		ret = scrub_simple_mirror(sctx, root, csum_root, bg, map,
-					  logical, BTRFS_STRIPE_LEN,
+		ret = scrub_simple_mirror(sctx, bg, map, logical, BTRFS_STRIPE_LEN,
 					  scrub_dev, physical, 1);
 		if (ret < 0)
 			goto out;
