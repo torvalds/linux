@@ -211,13 +211,6 @@ static int vcap_test_port_info(struct net_device *ndev,
 	return 0;
 }
 
-static int vcap_test_enable(struct net_device *ndev,
-			    struct vcap_admin *admin,
-			    bool enable)
-{
-	return 0;
-}
-
 static struct vcap_operations test_callbacks = {
 	.validate_keyset = test_val_keyset,
 	.add_default_fields = test_add_def_fields,
@@ -228,7 +221,6 @@ static struct vcap_operations test_callbacks = {
 	.update = test_cache_update,
 	.move = test_cache_move,
 	.port_info = vcap_test_port_info,
-	.enable = vcap_test_enable,
 };
 
 static struct vcap_control test_vctrl = {
@@ -243,6 +235,7 @@ static void vcap_test_api_init(struct vcap_admin *admin)
 	INIT_LIST_HEAD(&test_vctrl.list);
 	INIT_LIST_HEAD(&admin->list);
 	INIT_LIST_HEAD(&admin->rules);
+	INIT_LIST_HEAD(&admin->enabled);
 	list_add_tail(&admin->list, &test_vctrl.list);
 	memset(test_updateaddr, 0, sizeof(test_updateaddr));
 	test_updateaddridx = 0;
@@ -1312,8 +1305,8 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 
 	struct vcap_admin is2_admin = {
 		.vtype = VCAP_TYPE_IS2,
-		.first_cid = 10000,
-		.last_cid = 19999,
+		.first_cid = 8000000,
+		.last_cid = 8099999,
 		.lookups = 4,
 		.last_valid_addr = 3071,
 		.first_valid_addr = 0,
@@ -1326,7 +1319,7 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	};
 	struct vcap_rule *rule;
 	struct vcap_rule_internal *ri;
-	int vcap_chain_id = 10005;
+	int vcap_chain_id = 8000000;
 	enum vcap_user user = VCAP_USER_VCAP_UTIL;
 	u16 priority = 10;
 	int id = 100;
@@ -1343,8 +1336,8 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	u32 port_mask_rng_mask = 0x0f;
 	u32 igr_port_mask_value = 0xffabcd01;
 	u32 igr_port_mask_mask = ~0;
-	/* counter is not written yet, so it is not in expwriteaddr */
-	u32 expwriteaddr[] = {792, 793, 794, 795, 796, 797, 0};
+	/* counter is written as the last operation */
+	u32 expwriteaddr[] = {792, 793, 794, 795, 796, 797, 792};
 	int idx;
 
 	vcap_test_api_init(&is2_admin);
@@ -1397,6 +1390,11 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 6, ri->size);
 	KUNIT_EXPECT_EQ(test, 2, ri->keyset_sw_regs);
 	KUNIT_EXPECT_EQ(test, 4, ri->actionset_sw_regs);
+
+	/* Enable lookup, so the rule will be written */
+	ret = vcap_enable_lookups(&test_vctrl, &test_netdev, 0,
+				  rule->vcap_chain_id, rule->cookie, true);
+	KUNIT_EXPECT_EQ(test, 0, ret);
 
 	/* Add rule with write callback */
 	ret = vcap_add_rule(rule);
@@ -1872,7 +1870,7 @@ static void vcap_api_next_lookup_basic_test(struct kunit *test)
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8301000);
 	KUNIT_EXPECT_EQ(test, false, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8401000);
-	KUNIT_EXPECT_EQ(test, true, ret);
+	KUNIT_EXPECT_EQ(test, false, ret);
 }
 
 static void vcap_api_next_lookup_advanced_test(struct kunit *test)
@@ -1933,9 +1931,9 @@ static void vcap_api_next_lookup_advanced_test(struct kunit *test)
 	ret = vcap_is_next_lookup(&test_vctrl, 1100000, 1201000);
 	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1100000, 1301000);
-	KUNIT_EXPECT_EQ(test, false, ret);
+	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1100000, 8101000);
-	KUNIT_EXPECT_EQ(test, false, ret);
+	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1300000, 1401000);
 	KUNIT_EXPECT_EQ(test, true, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 1400000, 1501000);
@@ -1951,7 +1949,7 @@ static void vcap_api_next_lookup_advanced_test(struct kunit *test)
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8301000);
 	KUNIT_EXPECT_EQ(test, false, ret);
 	ret = vcap_is_next_lookup(&test_vctrl, 8300000, 8401000);
-	KUNIT_EXPECT_EQ(test, true, ret);
+	KUNIT_EXPECT_EQ(test, false, ret);
 }
 
 static void vcap_api_filter_unsupported_keys_test(struct kunit *test)

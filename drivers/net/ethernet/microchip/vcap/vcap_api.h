@@ -259,11 +259,6 @@ struct vcap_operations {
 		(struct net_device *ndev,
 		 struct vcap_admin *admin,
 		 struct vcap_output_print *out);
-	/* enable/disable the lookups in a vcap instance */
-	int (*enable)
-		(struct net_device *ndev,
-		 struct vcap_admin *admin,
-		 bool enable);
 };
 
 /* VCAP API Client control interface */

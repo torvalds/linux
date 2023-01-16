@@ -29,7 +29,7 @@ static void sparx5_vcap_port_keys(struct sparx5 *sparx5,
 		/* Get lookup state */
 		value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_CFG(port->portno));
 		out->prf(out->dst, "\n      state: ");
-		if (ANA_ACL_VCAP_S2_CFG_SEC_ENA_GET(value))
+		if (ANA_ACL_VCAP_S2_CFG_SEC_ENA_GET(value) & BIT(lookup))
 			out->prf(out->dst, "on");
 		else
 			out->prf(out->dst, "off");
