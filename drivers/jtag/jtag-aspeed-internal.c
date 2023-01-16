@@ -248,7 +248,7 @@ static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
 	aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW);
 
 	/* Target device have their operating frequency*/
-	ndelay(aspeed_jtag->sw_delay);
+	ndelay(aspeed_jtag->sw_delay >> 1);
 
 	// TCK = 1
 	aspeed_jtag_write(aspeed_jtag,
@@ -258,7 +258,7 @@ static u8 TCK_Cycle(struct aspeed_jtag_info *aspeed_jtag, u8 TMS, u8 TDI)
 			  ASPEED_JTAG_SW);
 	aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW);
 
-	ndelay(aspeed_jtag->sw_delay);
+	ndelay(aspeed_jtag->sw_delay >> 1);
 	/* Sampled TDI(slave, master's TDO) on the rising edge */
 	if (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) & JTAG_SW_MODE_TDIO)
 		tdo = 1;
