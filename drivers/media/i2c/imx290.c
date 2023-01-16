@@ -762,6 +762,9 @@ static int imx290_start_streaming(struct imx290 *imx290,
 		return ret;
 	}
 
+	/* Set data lane count */
+	imx290_set_data_lanes(imx290);
+
 	/* Apply the register values related to current frame format */
 	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
 	ret = imx290_setup_format(imx290, format);
@@ -1068,9 +1071,6 @@ static int imx290_power_on(struct imx290 *imx290)
 	usleep_range(1, 2);
 	gpiod_set_value_cansleep(imx290->rst_gpio, 0);
 	usleep_range(30000, 31000);
-
-	/* Set data lane count */
-	imx290_set_data_lanes(imx290);
 
 	return 0;
 }
