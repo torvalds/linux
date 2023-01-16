@@ -49,7 +49,6 @@
 #define NGBE_SPI_ILDR_STATUS			0x10120
 #define NGBE_SPI_ILDR_STATUS_PERST		BIT(0) /* PCIE_PERST is done */
 #define NGBE_SPI_ILDR_STATUS_PWRRST		BIT(1) /* Power on reset is done */
-#define NGBE_SPI_ILDR_STATUS_LAN_SW_RST(_i)	BIT((_i) + 9) /* lan soft reset done */
 
 /* Checksum and EEPROM pointers */
 #define NGBE_CALSUM_COMMAND			0xE9
@@ -62,12 +61,11 @@
 
 /* mdio access */
 #define NGBE_MSCA				0x11200
-#define NGBE_MSCA_RA(v)				((0xFFFF & (v)))
-#define NGBE_MSCA_PA(v)				((0x1F & (v)) << 16)
-#define NGBE_MSCA_DA(v)				((0x1F & (v)) << 21)
+#define NGBE_MSCA_RA(v)				FIELD_PREP(U16_MAX, v)
+#define NGBE_MSCA_PA(v)				FIELD_PREP(GENMASK(20, 16), v)
+#define NGBE_MSCA_DA(v)				FIELD_PREP(GENMASK(25, 21), v)
 #define NGBE_MSCC				0x11204
-#define NGBE_MSCC_DATA(v)			((0xFFFF & (v)))
-#define NGBE_MSCC_CMD(v)			((0x3 & (v)) << 16)
+#define NGBE_MSCC_CMD(v)			FIELD_PREP(GENMASK(17, 16), v)
 
 enum NGBE_MSCA_CMD_value {
 	NGBE_MSCA_CMD_RSV = 0,
@@ -78,7 +76,7 @@ enum NGBE_MSCA_CMD_value {
 
 #define NGBE_MSCC_SADDR				BIT(18)
 #define NGBE_MSCC_BUSY				BIT(22)
-#define NGBE_MDIO_CLK(v)			((0x7 & (v)) << 19)
+#define NGBE_MDIO_CLK(v)			FIELD_PREP(GENMASK(21, 19), v)
 
 /* Media-dependent registers. */
 #define NGBE_MDIO_CLAUSE_SELECT			0x11220

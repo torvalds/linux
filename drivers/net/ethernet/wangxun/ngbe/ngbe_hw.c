@@ -49,12 +49,8 @@ static int ngbe_reset_misc(struct wx *wx)
 
 void ngbe_sfp_modules_txrx_powerctl(struct wx *wx, bool swi)
 {
-	if (swi)
-		/* gpio0 is used to power on control*/
-		wr32(wx, NGBE_GPIO_DR, 0);
-	else
-		/* gpio0 is used to power off control*/
-		wr32(wx, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
+	/* gpio0 is used to power on control . 0 is on */
+	wr32(wx, NGBE_GPIO_DR, swi ? 0 : NGBE_GPIO_DR_0);
 }
 
 /**

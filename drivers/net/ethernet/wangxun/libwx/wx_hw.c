@@ -76,15 +76,11 @@ EXPORT_SYMBOL(wx_check_flash_load);
 
 void wx_control_hw(struct wx *wx, bool drv)
 {
-	if (drv) {
-		/* Let firmware know the driver has taken over */
-		wr32m(wx, WX_CFG_PORT_CTL,
-		      WX_CFG_PORT_CTL_DRV_LOAD, WX_CFG_PORT_CTL_DRV_LOAD);
-	} else {
-		/* Let firmware take over control of hw */
-		wr32m(wx, WX_CFG_PORT_CTL,
-		      WX_CFG_PORT_CTL_DRV_LOAD, 0);
-	}
+	/* True : Let firmware know the driver has taken over
+	 * False : Let firmware take over control of hw
+	 */
+	wr32m(wx, WX_CFG_PORT_CTL, WX_CFG_PORT_CTL_DRV_LOAD,
+	      drv ? WX_CFG_PORT_CTL_DRV_LOAD : 0);
 }
 EXPORT_SYMBOL(wx_control_hw);
 
@@ -575,8 +571,8 @@ static int wx_set_rar(struct wx *wx, u32 index, u8 *addr, u64 pools,
 
 	wr32(wx, WX_PSR_MAC_SWC_AD_L, rar_low);
 	wr32m(wx, WX_PSR_MAC_SWC_AD_H,
-	      (WX_PSR_MAC_SWC_AD_H_AD(~0) |
-	       WX_PSR_MAC_SWC_AD_H_ADTYPE(~0) |
+	      (WX_PSR_MAC_SWC_AD_H_AD(U16_MAX) |
+	       WX_PSR_MAC_SWC_AD_H_ADTYPE(1) |
 	       WX_PSR_MAC_SWC_AD_H_AV),
 	      rar_high);
 
@@ -611,8 +607,8 @@ static int wx_clear_rar(struct wx *wx, u32 index)
 
 	wr32(wx, WX_PSR_MAC_SWC_AD_L, 0);
 	wr32m(wx, WX_PSR_MAC_SWC_AD_H,
-	      (WX_PSR_MAC_SWC_AD_H_AD(~0) |
-	       WX_PSR_MAC_SWC_AD_H_ADTYPE(~0) |
+	      (WX_PSR_MAC_SWC_AD_H_AD(U16_MAX) |
+	       WX_PSR_MAC_SWC_AD_H_ADTYPE(1) |
 	       WX_PSR_MAC_SWC_AD_H_AV),
 	      0);
 

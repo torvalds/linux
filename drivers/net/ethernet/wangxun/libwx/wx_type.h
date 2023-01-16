@@ -4,6 +4,8 @@
 #ifndef _WX_TYPE_H_
 #define _WX_TYPE_H_
 
+#include <linux/bitfield.h>
+
 /* Vendor ID */
 #ifndef PCI_VENDOR_ID_WANGXUN
 #define PCI_VENDOR_ID_WANGXUN                   0x8088
@@ -36,12 +38,11 @@
 #define WX_SPI_CMD                   0x10104
 #define WX_SPI_CMD_READ_DWORD        0x1
 #define WX_SPI_CLK_DIV               0x3
-#define WX_SPI_CMD_CMD(_v)           (((_v) & 0x7) << 28)
-#define WX_SPI_CMD_CLK(_v)           (((_v) & 0x7) << 25)
-#define WX_SPI_CMD_ADDR(_v)          (((_v) & 0xFFFFFF))
+#define WX_SPI_CMD_CMD(_v)           FIELD_PREP(GENMASK(30, 28), _v)
+#define WX_SPI_CMD_CLK(_v)           FIELD_PREP(GENMASK(27, 25), _v)
+#define WX_SPI_CMD_ADDR(_v)          FIELD_PREP(GENMASK(23, 0), _v)
 #define WX_SPI_DATA                  0x10108
 #define WX_SPI_DATA_BYPASS           BIT(31)
-#define WX_SPI_DATA_STATUS(_v)       (((_v) & 0xFF) << 16)
 #define WX_SPI_DATA_OP_DONE          BIT(0)
 #define WX_SPI_STATUS                0x1010C
 #define WX_SPI_STATUS_OPDONE         BIT(0)
@@ -113,8 +114,8 @@
 /* mac switcher */
 #define WX_PSR_MAC_SWC_AD_L          0x16200
 #define WX_PSR_MAC_SWC_AD_H          0x16204
-#define WX_PSR_MAC_SWC_AD_H_AD(v)       (((v) & 0xFFFF))
-#define WX_PSR_MAC_SWC_AD_H_ADTYPE(v)   (((v) & 0x1) << 30)
+#define WX_PSR_MAC_SWC_AD_H_AD(v)       FIELD_PREP(U16_MAX, v)
+#define WX_PSR_MAC_SWC_AD_H_ADTYPE(v)   FIELD_PREP(BIT(30), v)
 #define WX_PSR_MAC_SWC_AD_H_AV       BIT(31)
 #define WX_PSR_MAC_SWC_VM_L          0x16208
 #define WX_PSR_MAC_SWC_VM_H          0x1620C
@@ -134,7 +135,7 @@
 #define WX_MAC_TX_CFG                0x11000
 #define WX_MAC_TX_CFG_TE             BIT(0)
 #define WX_MAC_TX_CFG_SPEED_MASK     GENMASK(30, 29)
-#define WX_MAC_TX_CFG_SPEED_1G       (0x3 << 29)
+#define WX_MAC_TX_CFG_SPEED_1G       FIELD_PREP(WX_MAC_TX_CFG_SPEED_MASK, 3)
 #define WX_MAC_RX_CFG                0x11004
 #define WX_MAC_RX_CFG_RE             BIT(0)
 #define WX_MAC_RX_CFG_JE             BIT(8)
