@@ -101,6 +101,24 @@ static void pxav2_mmc_set_bus_width(struct sdhci_host *host, int width)
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 }
 
+struct sdhci_pxa_variant {
+	const struct sdhci_ops *ops;
+	unsigned int extra_quirks;
+};
+
+static const struct sdhci_ops pxav1_sdhci_ops = {
+	.set_clock     = sdhci_set_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_bus_width = pxav2_mmc_set_bus_width,
+	.reset         = pxav2_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
+};
+
+static const struct sdhci_pxa_variant __maybe_unused pxav1_variant = {
+	.ops = &pxav1_sdhci_ops,
+	.extra_quirks = SDHCI_QUIRK_NO_BUSY_IRQ | SDHCI_QUIRK_32BIT_DMA_SIZE,
+};
+
 static const struct sdhci_ops pxav2_sdhci_ops = {
 	.set_clock     = sdhci_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
@@ -109,11 +127,14 @@ static const struct sdhci_ops pxav2_sdhci_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
+static const struct sdhci_pxa_variant pxav2_variant = {
+	.ops = &pxav2_sdhci_ops,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id sdhci_pxav2_of_match[] = {
-	{
-		.compatible = "mrvl,pxav2-mmc",
-	},
+	{ .compatible = "mrvl,pxav1-mmc", .data = &pxav1_variant, },
+	{ .compatible = "mrvl,pxav2-mmc", .data = &pxav2_variant, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sdhci_pxav2_of_match);
@@ -157,7 +178,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
 	struct sdhci_host *host = NULL;
-	const struct of_device_id *match;
+	const struct sdhci_pxa_variant *variant;
 
 	int ret;
 	struct clk *clk;
@@ -185,10 +206,12 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
 		| SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN;
 
-	match = of_match_device(of_match_ptr(sdhci_pxav2_of_match), &pdev->dev);
-	if (match) {
+	variant = of_device_get_match_data(dev);
+	if (variant)
 		pdata = pxav2_get_mmc_pdata(dev);
-	}
+	else
+		variant = &pxav2_variant;
+
 	if (pdata) {
 		if (pdata->flags & PXA_FLAG_CARD_PERMANENT) {
 			/* on-chip device */
@@ -208,7 +231,8 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 			host->mmc->pm_caps |= pdata->pm_caps;
 	}
 
-	host->ops = &pxav2_sdhci_ops;
+	host->quirks |= variant->extra_quirks;
+	host->ops = variant->ops;
 
 	ret = sdhci_add_host(host);
 	if (ret)
