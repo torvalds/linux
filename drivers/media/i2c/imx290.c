@@ -547,21 +547,14 @@ static int imx290_write_current_format(struct imx290 *imx290)
 	return 0;
 }
 
-static s64 imx290_get_link_freq(struct imx290 *imx290)
+static u64 imx290_calc_pixel_rate(struct imx290 *imx290,
+				  const struct imx290_mode *mode)
 {
-	u8 index = imx290->current_mode->link_freq_index;
-
-	return *(imx290_link_freqs_ptr(imx290) + index);
-}
-
-static u64 imx290_calc_pixel_rate(struct imx290 *imx290)
-{
-	s64 link_freq = imx290_get_link_freq(imx290);
-	u8 nlanes = imx290->nlanes;
+	s64 link_freq = imx290_link_freqs_ptr(imx290)[mode->link_freq_index];
 	u64 pixel_rate;
 
 	/* pixel rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
-	pixel_rate = link_freq * 2 * nlanes;
+	pixel_rate = link_freq * 2 * imx290->nlanes;
 	do_div(pixel_rate, imx290->bpp);
 	return pixel_rate;
 }
@@ -649,7 +642,7 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 
 	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
 	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate,
-				 imx290_calc_pixel_rate(imx290));
+				 imx290_calc_pixel_rate(imx290, mode));
 
 	__v4l2_ctrl_modify_range(imx290->hblank, hblank, hblank, 1, hblank);
 	__v4l2_ctrl_modify_range(imx290->vblank, vblank, vblank, 1, vblank);
@@ -659,6 +652,7 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 {
 	struct v4l2_fwnode_device_properties props;
 	unsigned int blank;
+	u64 pixel_rate;
 	int ret;
 
 	ret = v4l2_fwnode_device_parse(imx290->dev, &props);
@@ -696,10 +690,10 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 	if (imx290->link_freq)
 		imx290->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
+	pixel_rate = imx290_calc_pixel_rate(imx290, imx290->current_mode);
 	imx290->pixel_rate = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 					       V4L2_CID_PIXEL_RATE,
-					       1, INT_MAX, 1,
-					       imx290_calc_pixel_rate(imx290));
+					       1, INT_MAX, 1, pixel_rate);
 
 	v4l2_ctrl_new_std_menu_items(&imx290->ctrls, &imx290_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,
