@@ -29,6 +29,7 @@
 #include "df/df_3_6_offset.h"
 #include "xgmi/xgmi_4_0_0_smn.h"
 #include "xgmi/xgmi_4_0_0_sh_mask.h"
+#include "xgmi/xgmi_6_1_0_sh_mask.h"
 #include "wafl/wafl2_4_0_0_smn.h"
 #include "wafl/wafl2_4_0_0_sh_mask.h"
 
@@ -178,6 +179,67 @@ static const struct amdgpu_pcs_ras_field wafl_pcs_ras_fields[] = {
 	 SOC15_REG_FIELD(PCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS, RecoveryAttemptErr)},
 	{"WAFL PCS RecoveryRelockAttemptErr",
 	 SOC15_REG_FIELD(PCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS, RecoveryRelockAttemptErr)},
+};
+
+static const struct amdgpu_pcs_ras_field xgmi3x16_pcs_ras_fields[] = {
+	{"XGMI3X16 PCS DataLossErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, DataLossErr)},
+	{"XGMI3X16 PCS TrainingErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, TrainingErr)},
+	{"XGMI3X16 PCS FlowCtrlAckErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, FlowCtrlAckErr)},
+	{"XGMI3X16 PCS RxFifoUnderflowErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RxFifoUnderflowErr)},
+	{"XGMI3X16 PCS RxFifoOverflowErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RxFifoOverflowErr)},
+	{"XGMI3X16 PCS CRCErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, CRCErr)},
+	{"XGMI3X16 PCS BERExceededErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, BERExceededErr)},
+	{"XGMI3X16 PCS TxVcidDataErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, TxVcidDataErr)},
+	{"XGMI3X16 PCS ReplayBufParityErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ReplayBufParityErr)},
+	{"XGMI3X16 PCS DataParityErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, DataParityErr)},
+	{"XGMI3X16 PCS ReplayFifoOverflowErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ReplayFifoOverflowErr)},
+	{"XGMI3X16 PCS ReplayFifoUnderflowErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ReplayFifoUnderflowErr)},
+	{"XGMI3X16 PCS ElasticFifoOverflowErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ElasticFifoOverflowErr)},
+	{"XGMI3X16 PCS DeskewErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, DeskewErr)},
+	{"XGMI3X16 PCS FlowCtrlCRCErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, FlowCtrlCRCErr)},
+	{"XGMI3X16 PCS DataStartupLimitErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, DataStartupLimitErr)},
+	{"XGMI3X16 PCS FCInitTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, FCInitTimeoutErr)},
+	{"XGMI3X16 PCS RecoveryTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RecoveryTimeoutErr)},
+	{"XGMI3X16 PCS ReadySerialTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ReadySerialTimeoutErr)},
+	{"XGMI3X16 PCS ReadySerialAttemptErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ReadySerialAttemptErr)},
+	{"XGMI3X16 PCS RecoveryAttemptErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RecoveryAttemptErr)},
+	{"XGMI3X16 PCS RecoveryRelockAttemptErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RecoveryRelockAttemptErr)},
+	{"XGMI3X16 PCS ReplayAttemptErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, ReplayAttemptErr)},
+	{"XGMI3X16 PCS SyncHdrErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, SyncHdrErr)},
+	{"XGMI3X16 PCS TxReplayTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, TxReplayTimeoutErr)},
+	{"XGMI3X16 PCS RxReplayTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RxReplayTimeoutErr)},
+	{"XGMI3X16 PCS LinkSubTxTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, LinkSubTxTimeoutErr)},
+	{"XGMI3X16 PCS LinkSubRxTimeoutErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, LinkSubRxTimeoutErr)},
+	{"XGMI3X16 PCS RxCMDPktErr",
+	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RxCMDPktErr)},
 };
 
 /**
@@ -835,13 +897,17 @@ static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
 {
 	int i;
 	int ue_cnt = 0;
-	int mask_bit_value = 0;
 	const struct amdgpu_pcs_ras_field *pcs_ras_fields = NULL;
 	uint32_t field_array_size = 0;
 
 	if (is_xgmi_pcs) {
-		pcs_ras_fields = &xgmi_pcs_ras_fields[0];
-		field_array_size = ARRAY_SIZE(xgmi_pcs_ras_fields);
+		if (adev->ip_versions[XGMI_HWIP][0] == IP_VERSION(6, 1, 0)) {
+			pcs_ras_fields = &xgmi3x16_pcs_ras_fields[0];
+			field_array_size = ARRAY_SIZE(xgmi3x16_pcs_ras_fields);
+		} else {
+			pcs_ras_fields = &xgmi_pcs_ras_fields[0];
+			field_array_size = ARRAY_SIZE(xgmi_pcs_ras_fields);
+		}
 	} else {
 		pcs_ras_fields = &wafl_pcs_ras_fields[0];
 		field_array_size = ARRAY_SIZE(wafl_pcs_ras_fields);
