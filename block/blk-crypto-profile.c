@@ -468,9 +468,7 @@ EXPORT_SYMBOL_GPL(blk_crypto_register);
 
 /**
  * blk_crypto_derive_sw_secret() - Derive software secret from wrapped key
- * @bdev: a block device whose hardware-wrapped keys implementation is
- *	  compatible (blk_crypto_hw_wrapped_keys_compatible()) with all block
- *	  devices on which the key will be used.
+ * @bdev: a block device that supports hardware-wrapped keys
  * @eph_key: the hardware-wrapped key in ephemerally-wrapped form
  * @eph_key_size: size of @eph_key in bytes
  * @sw_secret: (output) the software secret
@@ -506,20 +504,6 @@ int blk_crypto_derive_sw_secret(struct block_device *bdev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(blk_crypto_derive_sw_secret);
-
-/**
- * blk_crypto_hw_wrapped_keys_compatible() - Check HW-wrapped key compatibility
- * @bdev1: the first block device
- * @bdev2: the second block device
- *
- * Return: true if HW-wrapped keys used on @bdev1 can also be used on @bdev2.
- */
-bool blk_crypto_hw_wrapped_keys_compatible(struct block_device *bdev1,
-					   struct block_device *bdev2)
-{
-	return bdev_get_queue(bdev1)->crypto_profile ==
-		bdev_get_queue(bdev2)->crypto_profile;
-}
 
 /**
  * blk_crypto_intersect_capabilities() - restrict supported crypto capabilities
