@@ -361,9 +361,6 @@ extern unsigned int sme_get_vl(void);
 extern int sme_set_current_vl(unsigned long arg);
 extern int sme_get_current_vl(void);
 
-/* Will move with signal support */
-#define ZT_SIG_REG_SIZE 512
-
 /*
  * Return how many bytes of memory are required to store the full SME
  * specific state for task, given task's currently configured vector
