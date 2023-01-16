@@ -512,28 +512,21 @@ static int imx290_set_register_array(struct imx290 *imx290,
 
 static int imx290_set_data_lanes(struct imx290 *imx290)
 {
-	int ret = 0, laneval, frsel;
+	int ret = 0;
+	u32 frsel;
 
 	switch (imx290->nlanes) {
 	case 2:
-		laneval = 0x01;
+	default:
 		frsel = 0x02;
 		break;
 	case 4:
-		laneval = 0x03;
 		frsel = 0x01;
 		break;
-	default:
-		/*
-		 * We should never hit this since the data lane count is
-		 * validated in probe itself
-		 */
-		dev_err(imx290->dev, "Lane configuration not supported\n");
-		return -EINVAL;
 	}
 
-	imx290_write(imx290, IMX290_PHY_LANE_NUM, laneval, &ret);
-	imx290_write(imx290, IMX290_CSI_LANE_MODE, laneval, &ret);
+	imx290_write(imx290, IMX290_PHY_LANE_NUM, imx290->nlanes - 1, &ret);
+	imx290_write(imx290, IMX290_CSI_LANE_MODE, imx290->nlanes - 1, &ret);
 	imx290_write(imx290, IMX290_FR_FDG_SEL, frsel, &ret);
 
 	return ret;
