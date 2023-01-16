@@ -78,10 +78,8 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 		return retval;
 
 	retval = pcim_iomap_regions(pdev, BIT(1) | BIT(0), pci_name(pdev));
-	if (retval) {
-		dev_err(&pdev->dev, "I/O memory mapping error\n");
-		return retval;
-	}
+	if (retval)
+		return dev_err_probe(dev, retval, "I/O memory mapping error\n");
 
 	base = pcim_iomap_table(pdev)[1];
 
