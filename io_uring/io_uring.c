@@ -974,14 +974,14 @@ static void __io_req_complete_post(struct io_kiocb *req)
 				req->link = NULL;
 			}
 		}
+		io_put_kbuf_comp(req);
+		io_dismantle_req(req);
 		io_req_put_rsrc(req);
 		/*
 		 * Selected buffer deallocation in io_clean_op() assumes that
 		 * we don't hold ->completion_lock. Clean them here to avoid
 		 * deadlocks.
 		 */
-		io_put_kbuf_comp(req);
-		io_dismantle_req(req);
 		io_put_task(req->task, 1);
 		wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 		ctx->locked_free_nr++;
