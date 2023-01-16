@@ -687,6 +687,8 @@
 			reg = <0x0 0x3160000 0x0 0x100>;
 			status = "disabled";
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C1
 				  &bpmp TEGRA234_CLK_PLLP_OUT0>;
@@ -705,6 +707,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0x3180000 0x0 0x100>;
 			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C3
@@ -724,6 +728,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0x3190000 0x0 0x100>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C4
@@ -743,6 +749,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0x31b0000 0x0 0x100>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C6
@@ -762,6 +770,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0x31c0000 0x0 0x100>;
 			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C7
@@ -788,6 +798,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0x31e0000 0x0 0x100>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C9
@@ -1654,6 +1666,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0xc240000 0x0 0x100>;
 			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C2
@@ -1673,6 +1687,8 @@
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0 0xc250000 0x0 0x100>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <400000>;
 			clocks = <&bpmp TEGRA234_CLK_I2C8
