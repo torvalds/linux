@@ -1024,34 +1024,18 @@ static int rswitch_etha_set_access(struct rswitch_etha *etha, bool read,
 	return ret;
 }
 
-static int rswitch_etha_mii_read(struct mii_bus *bus, int addr, int regnum)
+static int rswitch_etha_mii_read_c45(struct mii_bus *bus, int addr, int devad,
+				     int regad)
 {
 	struct rswitch_etha *etha = bus->priv;
-	int mode, devad, regad;
-
-	mode = regnum & MII_ADDR_C45;
-	devad = (regnum >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	regad = regnum & MII_REGADDR_C45_MASK;
-
-	/* Not support Clause 22 access method */
-	if (!mode)
-		return -EOPNOTSUPP;
 
 	return rswitch_etha_set_access(etha, true, addr, devad, regad, 0);
 }
 
-static int rswitch_etha_mii_write(struct mii_bus *bus, int addr, int regnum, u16 val)
+static int rswitch_etha_mii_write_c45(struct mii_bus *bus, int addr, int devad,
+				      int regad, u16 val)
 {
 	struct rswitch_etha *etha = bus->priv;
-	int mode, devad, regad;
-
-	mode = regnum & MII_ADDR_C45;
-	devad = (regnum >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	regad = regnum & MII_REGADDR_C45_MASK;
-
-	/* Not support Clause 22 access method */
-	if (!mode)
-		return -EOPNOTSUPP;
 
 	return rswitch_etha_set_access(etha, false, addr, devad, regad, val);
 }
@@ -1142,8 +1126,8 @@ static int rswitch_mii_register(struct rswitch_device *rdev)
 	mii_bus->name = "rswitch_mii";
 	sprintf(mii_bus->id, "etha%d", rdev->etha->index);
 	mii_bus->priv = rdev->etha;
-	mii_bus->read = rswitch_etha_mii_read;
-	mii_bus->write = rswitch_etha_mii_write;
+	mii_bus->read_c45 = rswitch_etha_mii_read_c45;
+	mii_bus->write_c45 = rswitch_etha_mii_write_c45;
 	mii_bus->parent = &rdev->priv->pdev->dev;
 
 	mdio_np = rswitch_get_mdio_node(rdev);
