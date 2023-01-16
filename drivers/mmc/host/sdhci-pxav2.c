@@ -191,7 +191,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	const struct sdhci_pxa_variant *variant;
 
 	int ret;
-	struct clk *clk;
+	struct clk *clk, *clk_core;
 
 	host = sdhci_pltfm_init(pdev, NULL, 0);
 	if (IS_ERR(host))
@@ -212,6 +212,13 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "failed to enable io clock\n");
 		goto free;
+	}
+
+	clk_core = devm_clk_get_optional_enabled(dev, "core");
+	if (IS_ERR(clk_core)) {
+		ret = PTR_ERR(clk_core);
+		dev_err_probe(dev, ret, "failed to enable core clock\n");
+		goto disable_clk;
 	}
 
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA
