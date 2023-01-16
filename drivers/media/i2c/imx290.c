@@ -547,18 +547,6 @@ static int imx290_write_current_format(struct imx290 *imx290)
 	return 0;
 }
 
-static u64 imx290_calc_pixel_rate(struct imx290 *imx290,
-				  const struct imx290_mode *mode)
-{
-	s64 link_freq = imx290_link_freqs_ptr(imx290)[mode->link_freq_index];
-	u64 pixel_rate;
-
-	/* pixel rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
-	pixel_rate = link_freq * 2 * imx290->nlanes;
-	do_div(pixel_rate, imx290->bpp);
-	return pixel_rate;
-}
-
 /* ----------------------------------------------------------------------------
  * Controls
  */
@@ -632,6 +620,8 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 {
 	unsigned int hblank = mode->hmax - mode->width;
 	unsigned int vblank = IMX290_VMAX_DEFAULT - mode->height;
+	s64 link_freq = imx290_link_freqs_ptr(imx290)[mode->link_freq_index];
+	u64 pixel_rate;
 
 	/*
 	 * This function may be called from imx290_set_fmt() before controls
@@ -640,9 +630,12 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 	if (!imx290->ctrls.lock)
 		return;
 
+	/* pixel rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
+	pixel_rate = link_freq * 2 * imx290->nlanes;
+	do_div(pixel_rate, imx290->bpp);
+
 	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
-	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate,
-				 imx290_calc_pixel_rate(imx290, mode));
+	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate, pixel_rate);
 
 	__v4l2_ctrl_modify_range(imx290->hblank, hblank, hblank, 1, hblank);
 	__v4l2_ctrl_modify_range(imx290->vblank, vblank, vblank, 1, vblank);
@@ -651,8 +644,6 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 static int imx290_ctrl_init(struct imx290 *imx290)
 {
 	struct v4l2_fwnode_device_properties props;
-	unsigned int blank;
-	u64 pixel_rate;
 	int ret;
 
 	ret = v4l2_fwnode_device_parse(imx290->dev, &props);
@@ -682,6 +673,11 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 			  V4L2_CID_EXPOSURE, 1, IMX290_VMAX_DEFAULT - 2, 1,
 			  IMX290_VMAX_DEFAULT - 2);
 
+	/*
+	 * Set the link frequency, pixel rate, horizontal blanking and vertical
+	 * blanking to hardcoded values, they will be updated by
+	 * imx290_ctrl_update().
+	 */
 	imx290->link_freq =
 		v4l2_ctrl_new_int_menu(&imx290->ctrls, &imx290_ctrl_ops,
 				       V4L2_CID_LINK_FREQ,
@@ -690,27 +686,22 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 	if (imx290->link_freq)
 		imx290->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	pixel_rate = imx290_calc_pixel_rate(imx290, imx290->current_mode);
 	imx290->pixel_rate = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 					       V4L2_CID_PIXEL_RATE,
-					       1, INT_MAX, 1, pixel_rate);
+					       1, INT_MAX, 1, 1);
 
 	v4l2_ctrl_new_std_menu_items(&imx290->ctrls, &imx290_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(imx290_test_pattern_menu) - 1,
 				     0, 0, imx290_test_pattern_menu);
 
-	blank = imx290->current_mode->hmax - imx290->current_mode->width;
 	imx290->hblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
-					   V4L2_CID_HBLANK, blank, blank, 1,
-					   blank);
+					   V4L2_CID_HBLANK, 1, 1, 1, 1);
 	if (imx290->hblank)
 		imx290->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	blank = IMX290_VMAX_DEFAULT - imx290->current_mode->height;
 	imx290->vblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
-					   V4L2_CID_VBLANK, blank, blank, 1,
-					   blank);
+					   V4L2_CID_VBLANK, 1, 1, 1, 1);
 	if (imx290->vblank)
 		imx290->vblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
@@ -724,6 +715,10 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 		v4l2_ctrl_handler_free(&imx290->ctrls);
 		return ret;
 	}
+
+	mutex_lock(imx290->ctrls.lock);
+	imx290_ctrl_update(imx290, imx290->current_mode);
+	mutex_unlock(imx290->ctrls.lock);
 
 	return 0;
 }
