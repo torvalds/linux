@@ -152,6 +152,9 @@
 #define IMX290_PIXEL_ARRAY_RECORDING_WIDTH		1920
 #define IMX290_PIXEL_ARRAY_RECORDING_HEIGHT		1080
 
+/* Equivalent value for 16bpp */
+#define IMX290_BLACK_LEVEL_DEFAULT			3840
+
 #define IMX290_NUM_SUPPLIES				3
 
 struct imx290_regval {
@@ -315,7 +318,6 @@ static const struct imx290_regval imx290_10bit_settings[] = {
 	{ IMX290_ADBIT2, IMX290_ADBIT2_10BIT },
 	{ IMX290_ADBIT3, IMX290_ADBIT3_10BIT },
 	{ IMX290_CSI_DT_FMT, IMX290_CSI_DT_FMT_RAW10 },
-	{ IMX290_BLKLEVEL, 60 },
 };
 
 static const struct imx290_regval imx290_12bit_settings[] = {
@@ -325,7 +327,6 @@ static const struct imx290_regval imx290_12bit_settings[] = {
 	{ IMX290_ADBIT2, IMX290_ADBIT2_12BIT },
 	{ IMX290_ADBIT3, IMX290_ADBIT3_12BIT },
 	{ IMX290_CSI_DT_FMT, IMX290_CSI_DT_FMT_RAW12 },
-	{ IMX290_BLKLEVEL, 240 },
 };
 
 /* supported link frequencies */
@@ -516,35 +517,40 @@ static int imx290_set_data_lanes(struct imx290 *imx290)
 	return ret;
 }
 
+static int imx290_set_black_level(struct imx290 *imx290,
+				  unsigned int black_level, int *err)
+{
+	return imx290_write(imx290, IMX290_BLKLEVEL,
+			    black_level >> (16 - imx290->bpp), err);
+}
+
 static int imx290_write_current_format(struct imx290 *imx290)
 {
+	const struct imx290_regval *regs;
+	unsigned int num_regs;
 	int ret;
 
 	switch (imx290->current_format.code) {
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
-		ret = imx290_set_register_array(imx290, imx290_10bit_settings,
-						ARRAY_SIZE(
-							imx290_10bit_settings));
-		if (ret < 0) {
-			dev_err(imx290->dev, "Could not set format registers\n");
-			return ret;
-		}
+		regs = imx290_10bit_settings;
+		num_regs = ARRAY_SIZE(imx290_10bit_settings);
 		break;
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
-		ret = imx290_set_register_array(imx290, imx290_12bit_settings,
-						ARRAY_SIZE(
-							imx290_12bit_settings));
-		if (ret < 0) {
-			dev_err(imx290->dev, "Could not set format registers\n");
-			return ret;
-		}
+		regs = imx290_12bit_settings;
+		num_regs = ARRAY_SIZE(imx290_12bit_settings);
 		break;
 	default:
 		dev_err(imx290->dev, "Unknown pixel format\n");
 		return -EINVAL;
 	}
 
-	return 0;
+	ret = imx290_set_register_array(imx290, regs, num_regs);
+	if (ret < 0) {
+		dev_err(imx290->dev, "Could not set format registers\n");
+		return ret;
+	}
+
+	return imx290_set_black_level(imx290, IMX290_BLACK_LEVEL_DEFAULT, &ret);
 }
 
 /* ----------------------------------------------------------------------------
@@ -573,7 +579,7 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_TEST_PATTERN:
 		if (ctrl->val) {
-			imx290_write(imx290, IMX290_BLKLEVEL, 0, &ret);
+			imx290_set_black_level(imx290, 0, &ret);
 			usleep_range(10000, 11000);
 			imx290_write(imx290, IMX290_PGCTRL,
 				     (u8)(IMX290_PGCTRL_REGEN |
@@ -582,12 +588,8 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		} else {
 			imx290_write(imx290, IMX290_PGCTRL, 0x00, &ret);
 			usleep_range(10000, 11000);
-			if (imx290->bpp == 10)
-				imx290_write(imx290, IMX290_BLKLEVEL, 0x3c,
-					     &ret);
-			else /* 12 bits per pixel */
-				imx290_write(imx290, IMX290_BLKLEVEL, 0xf0,
-					     &ret);
+			imx290_set_black_level(imx290, IMX290_BLACK_LEVEL_DEFAULT,
+					       &ret);
 		}
 		break;
 	default:
