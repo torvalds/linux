@@ -331,15 +331,15 @@ static void i8xx_fbc_program_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
-	GEM_BUG_ON(range_overflows_end_t(u64, i915->dsm.start,
+	GEM_BUG_ON(range_overflows_end_t(u64, i915->dsm.stolen.start,
 					 fbc->compressed_fb.start, U32_MAX));
-	GEM_BUG_ON(range_overflows_end_t(u64, i915->dsm.start,
+	GEM_BUG_ON(range_overflows_end_t(u64, i915->dsm.stolen.start,
 					 fbc->compressed_llb.start, U32_MAX));
 
 	intel_de_write(i915, FBC_CFB_BASE,
-		       i915->dsm.start + fbc->compressed_fb.start);
+		       i915->dsm.stolen.start + fbc->compressed_fb.start);
 	intel_de_write(i915, FBC_LL_BASE,
-		       i915->dsm.start + fbc->compressed_llb.start);
+		       i915->dsm.stolen.start + fbc->compressed_llb.start);
 }
 
 static const struct intel_fbc_funcs i8xx_fbc_funcs = {
@@ -712,7 +712,7 @@ static u64 intel_fbc_stolen_end(struct drm_i915_private *i915)
 	 * underruns, even if that range is not reserved by the BIOS. */
 	if (IS_BROADWELL(i915) ||
 	    (DISPLAY_VER(i915) == 9 && !IS_BROXTON(i915)))
-		end = resource_size(&i915->dsm) - 8 * 1024 * 1024;
+		end = resource_size(&i915->dsm.stolen) - 8 * 1024 * 1024;
 	else
 		end = U64_MAX;
 

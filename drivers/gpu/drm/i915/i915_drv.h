@@ -85,6 +85,37 @@ struct vlv_s0ix_state;
 
 #define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
 
+/* Data Stolen Memory (DSM) aka "i915 stolen memory" */
+struct i915_dsm {
+	/*
+	 * The start and end of DSM which we can optionally use to create GEM
+	 * objects backed by stolen memory.
+	 *
+	 * Note that usable_size tells us exactly how much of this we are
+	 * actually allowed to use, given that some portion of it is in fact
+	 * reserved for use by hardware functions.
+	 */
+	struct resource stolen;
+
+	/*
+	 * Reserved portion of DSM.
+	 */
+	struct resource reserved;
+
+	/*
+	 * Total size minus reserved ranges.
+	 *
+	 * DSM is segmented in hardware with different portions offlimits to
+	 * certain functions.
+	 *
+	 * The drm_mm is initialised to the total accessible range, as found
+	 * from the PCI config. On Broadwell+, this is further restricted to
+	 * avoid the first page! The upper end of DSM is reserved for hardware
+	 * functions and similarly removed from the accessible range.
+	 */
+	resource_size_t usable_size;
+};
+
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
 	u32 saveSWF0[16];
@@ -204,29 +235,7 @@ struct drm_i915_private {
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
 
-	/**
-	 * Data Stolen Memory - aka "i915 stolen memory" gives us the start and
-	 * end of stolen which we can optionally use to create GEM objects
-	 * backed by stolen memory. Note that stolen_usable_size tells us
-	 * exactly how much of this we are actually allowed to use, given that
-	 * some portion of it is in fact reserved for use by hardware functions.
-	 */
-	struct resource dsm;
-	/**
-	 * Reseved portion of Data Stolen Memory
-	 */
-	struct resource dsm_reserved;
-
-	/*
-	 * Stolen memory is segmented in hardware with different portions
-	 * offlimits to certain functions.
-	 *
-	 * The drm_mm is initialised to the total accessible range, as found
-	 * from the PCI config. On Broadwell+, this is further restricted to
-	 * avoid the first page! The upper end of stolen memory is reserved for
-	 * hardware functions and similarly removed from the accessible range.
-	 */
-	resource_size_t stolen_usable_size;	/* Total size minus reserved ranges */
+	struct i915_dsm dsm;
 
 	struct intel_uncore uncore;
 	struct intel_uncore_mmio_debug mmio_debug;
