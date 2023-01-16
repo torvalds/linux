@@ -170,7 +170,7 @@ out:
 	return ret;
 }
 
-int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 {
 	int mode;
 
@@ -180,7 +180,8 @@ int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 	if (!xcp_mgr->funcs || !xcp_mgr->funcs->query_partition_mode)
 		return xcp_mgr->mode;
 
-	mutex_lock(&xcp_mgr->xcp_lock);
+	if (!(flags & AMDGPU_XCP_FL_LOCKED))
+		mutex_lock(&xcp_mgr->xcp_lock);
 	mode = xcp_mgr->funcs->query_partition_mode(xcp_mgr);
 	if (mode != xcp_mgr->mode)
 		dev_WARN(
@@ -188,7 +189,8 @@ int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 			"Cached partition mode %d not matching with device mode %d",
 			xcp_mgr->mode, mode);
 
-	mutex_unlock(&xcp_mgr->xcp_lock);
+	if (!(flags & AMDGPU_XCP_FL_LOCKED))
+		mutex_unlock(&xcp_mgr->xcp_lock);
 
 	return mode;
 }

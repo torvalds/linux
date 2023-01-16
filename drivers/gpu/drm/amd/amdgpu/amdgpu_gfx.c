@@ -1177,7 +1177,8 @@ static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
 	int mode;
 	char *partition_mode;
 
-	mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr);
+	mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
+					       AMDGPU_XCP_FL_NONE);
 
 	switch (mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
