@@ -70,7 +70,6 @@ void io_wq_submit_work(struct io_wq_work *work);
 
 void io_free_req(struct io_kiocb *req);
 void io_queue_next(struct io_kiocb *req);
-void __io_put_task(struct task_struct *task, int nr);
 void io_task_refs_refill(struct io_uring_task *tctx);
 bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 
@@ -317,15 +316,6 @@ static inline void io_commit_cqring_flush(struct io_ring_ctx *ctx)
 	if (unlikely(ctx->off_timeout_used || ctx->drain_active ||
 		     ctx->has_evfd || ctx->poll_activated))
 		__io_commit_cqring_flush(ctx);
-}
-
-/* must to be called somewhat shortly after putting a request */
-static inline void io_put_task(struct task_struct *task, int nr)
-{
-	if (likely(task == current))
-		task->io_uring->cached_refs += nr;
-	else
-		__io_put_task(task, nr);
 }
 
 static inline void io_get_task_refs(int nr)
