@@ -420,14 +420,15 @@
 	status = "okay";
 
 	/*
-	 * PLL3 at 320 MHz supplies UART2 root with 64 MHz clock,
-	 * which with 16x oversampling yields 4 Mbdps baud base,
+	 * PLL1 at 80 MHz supplies UART2 root with 80 MHz clock,
+	 * which with 16x oversampling yields 5 Mbdps baud base,
+	 * which can be well divided by 5/4 to achieve 4 Mbdps,
 	 * which is exactly the maximum rate supported by muRata
 	 * 2AE bluetooth UART.
 	 */
-	assigned-clocks = <&clk IMX8MP_SYS_PLL3>, <&clk IMX8MP_CLK_UART2>;
-	assigned-clock-parents = <0>, <&clk IMX8MP_SYS_PLL3_OUT>;
-	assigned-clock-rates = <320000000>, <64000000>;
+	assigned-clocks = <&clk IMX8MP_CLK_UART2>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_80M>;
+	assigned-clock-rates = <80000000>;
 
 	bluetooth {
 		pinctrl-names = "default";
