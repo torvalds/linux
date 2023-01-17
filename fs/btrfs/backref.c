@@ -1252,7 +1252,11 @@ static bool lookup_backref_shared_cache(struct btrfs_backref_share_check_ctx *ct
 					struct btrfs_root *root,
 					u64 bytenr, int level, bool *is_shared)
 {
+	const struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_backref_shared_cache_entry *entry;
+
+	if (!current->journal_info)
+		lockdep_assert_held(&fs_info->commit_root_sem);
 
 	if (!ctx->use_path_cache)
 		return false;
@@ -1288,7 +1292,7 @@ static bool lookup_backref_shared_cache(struct btrfs_backref_share_check_ctx *ct
 	 * could be a snapshot sharing this extent buffer.
 	 */
 	if (entry->is_shared &&
-	    entry->gen != btrfs_get_last_root_drop_gen(root->fs_info))
+	    entry->gen != btrfs_get_last_root_drop_gen(fs_info))
 		return false;
 
 	*is_shared = entry->is_shared;
@@ -1318,8 +1322,12 @@ static void store_backref_shared_cache(struct btrfs_backref_share_check_ctx *ctx
 				       struct btrfs_root *root,
 				       u64 bytenr, int level, bool is_shared)
 {
+	const struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_backref_shared_cache_entry *entry;
 	u64 gen;
+
+	if (!current->journal_info)
+		lockdep_assert_held(&fs_info->commit_root_sem);
 
 	if (!ctx->use_path_cache)
 		return;
@@ -1336,7 +1344,7 @@ static void store_backref_shared_cache(struct btrfs_backref_share_check_ctx *ctx
 	ASSERT(level >= 0);
 
 	if (is_shared)
-		gen = btrfs_get_last_root_drop_gen(root->fs_info);
+		gen = btrfs_get_last_root_drop_gen(fs_info);
 	else
 		gen = btrfs_root_last_snapshot(&root->root_item);
 
