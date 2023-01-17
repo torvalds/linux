@@ -588,7 +588,7 @@ ath12k_dp_mon_rx_parse_status_tlv(struct ath12k_base *ab,
 				  u32 tlv_tag, u8 *tlv_data, u32 userid)
 {
 	struct hal_rx_mon_ppdu_info *ppdu_info = &pmon->mon_ppdu_info;
-	u32 info[6];
+	u32 info[7];
 
 	switch (tlv_tag) {
 	case HAL_RX_PPDU_START: {
