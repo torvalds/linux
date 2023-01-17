@@ -932,6 +932,7 @@ properties:
       - description: i.MX8MP based Boards
         items:
           - enum:
+              - beacon,imx8mp-beacon-kit  # i.MX8MP Beacon Development Kit
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
               - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
               - polyhex,imx8mp-debix      # Polyhex Debix boards
