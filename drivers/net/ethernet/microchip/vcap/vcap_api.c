@@ -934,18 +934,21 @@ static bool vcap_rule_exists(struct vcap_control *vctrl, u32 id)
 	return false;
 }
 
-/* Find a rule with a provided rule id */
-static struct vcap_rule_internal *vcap_lookup_rule(struct vcap_control *vctrl,
-						   u32 id)
+/* Find a rule with a provided rule id return a locked vcap */
+static struct vcap_rule_internal *
+vcap_get_locked_rule(struct vcap_control *vctrl, u32 id)
 {
 	struct vcap_rule_internal *ri;
 	struct vcap_admin *admin;
 
 	/* Look for the rule id in all vcaps */
-	list_for_each_entry(admin, &vctrl->list, list)
+	list_for_each_entry(admin, &vctrl->list, list) {
+		mutex_lock(&admin->lock);
 		list_for_each_entry(ri, &admin->rules, list)
 			if (ri->data.id == id)
 				return ri;
+		mutex_unlock(&admin->lock);
+	}
 	return NULL;
 }
 
@@ -954,12 +957,21 @@ int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie)
 {
 	struct vcap_rule_internal *ri;
 	struct vcap_admin *admin;
+	int id = 0;
 
 	/* Look for the rule id in all vcaps */
-	list_for_each_entry(admin, &vctrl->list, list)
-		list_for_each_entry(ri, &admin->rules, list)
-			if (ri->data.cookie == cookie)
-				return ri->data.id;
+	list_for_each_entry(admin, &vctrl->list, list) {
+		mutex_lock(&admin->lock);
+		list_for_each_entry(ri, &admin->rules, list) {
+			if (ri->data.cookie == cookie) {
+				id = ri->data.id;
+				break;
+			}
+		}
+		mutex_unlock(&admin->lock);
+		if (id)
+			return id;
+	}
 	return -ENOENT;
 }
 EXPORT_SYMBOL_GPL(vcap_lookup_rule_by_cookie);
@@ -2116,17 +2128,28 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 	/* Sanity check that this VCAP is supported on this platform */
 	if (vctrl->vcaps[admin->vtype].rows == 0)
 		return ERR_PTR(-EINVAL);
+
+	mutex_lock(&admin->lock);
 	/* Check if a rule with this id already exists */
-	if (vcap_rule_exists(vctrl, id))
-		return ERR_PTR(-EEXIST);
+	if (vcap_rule_exists(vctrl, id)) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
 	/* Check if there is room for the rule in the block(s) of the VCAP */
 	maxsize = vctrl->vcaps[admin->vtype].sw_count; /* worst case rule size */
-	if (vcap_rule_space(admin, maxsize))
-		return ERR_PTR(-ENOSPC);
+	if (vcap_rule_space(admin, maxsize)) {
+		err = -ENOSPC;
+		goto out_unlock;
+	}
+
 	/* Create a container for the rule and return it */
 	ri = kzalloc(sizeof(*ri), GFP_KERNEL);
-	if (!ri)
-		return ERR_PTR(-ENOMEM);
+	if (!ri) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
 	ri->data.vcap_chain_id = vcap_chain_id;
 	ri->data.user = user;
 	ri->data.priority = priority;
@@ -2139,13 +2162,21 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 	ri->ndev = ndev;
 	ri->admin = admin; /* refer to the vcap instance */
 	ri->vctrl = vctrl; /* refer to the client */
-	if (vcap_set_rule_id(ri) == 0)
+
+	if (vcap_set_rule_id(ri) == 0) {
+		err = -EINVAL;
 		goto out_free;
+	}
+
+	mutex_unlock(&admin->lock);
 	return (struct vcap_rule *)ri;
 
 out_free:
 	kfree(ri);
-	return ERR_PTR(-EINVAL);
+out_unlock:
+	mutex_unlock(&admin->lock);
+	return ERR_PTR(err);
+
 }
 EXPORT_SYMBOL_GPL(vcap_alloc_rule);
 
@@ -2209,11 +2240,10 @@ struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id)
 	if (err)
 		return ERR_PTR(err);
 
-	elem = vcap_lookup_rule(vctrl, id);
+	elem = vcap_get_locked_rule(vctrl, id);
 	if (!elem)
 		return NULL;
 
-	mutex_lock(&elem->admin->lock);
 	rule = vcap_decode_rule(elem);
 	mutex_unlock(&elem->admin->lock);
 	return rule;
@@ -2231,10 +2261,8 @@ int vcap_mod_rule(struct vcap_rule *rule)
 	if (err)
 		return err;
 
-	if (!vcap_lookup_rule(ri->vctrl, ri->data.id))
+	if (!vcap_get_locked_rule(ri->vctrl, ri->data.id))
 		return -ENOENT;
-
-	mutex_lock(&ri->admin->lock);
 
 	vcap_rule_set_state(ri);
 	if (ri->state == VCAP_RS_DISABLED)
@@ -2252,8 +2280,6 @@ int vcap_mod_rule(struct vcap_rule *rule)
 
 	memset(&ctr, 0, sizeof(ctr));
 	err =  vcap_write_counter(ri, &ctr);
-	if (err)
-		goto out;
 
 out:
 	mutex_unlock(&ri->admin->lock);
@@ -2320,20 +2346,19 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 	if (err)
 		return err;
 	/* Look for the rule id in all vcaps */
-	ri = vcap_lookup_rule(vctrl, id);
+	ri = vcap_get_locked_rule(vctrl, id);
 	if (!ri)
-		return -EINVAL;
+		return -ENOENT;
+
 	admin = ri->admin;
 
 	if (ri->addr > admin->last_used_addr)
 		gap = vcap_fill_rule_gap(ri);
 
 	/* Delete the rule from the list of rules and the cache */
-	mutex_lock(&admin->lock);
 	list_del(&ri->list);
 	vctrl->ops->init(ndev, admin, admin->last_used_addr, ri->size + gap);
 	vcap_free_rule(&ri->data);
-	mutex_unlock(&admin->lock);
 
 	/* Update the last used address, set to default when no rules */
 	if (list_empty(&admin->rules)) {
@@ -2343,7 +2368,9 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 				       list);
 		admin->last_used_addr = elem->addr;
 	}
-	return 0;
+
+	mutex_unlock(&admin->lock);
+	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_del_rule);
 
@@ -3021,7 +3048,12 @@ int vcap_rule_set_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 		pr_err("%s:%d: counter is missing\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	return vcap_write_counter(ri, ctr);
+
+	mutex_lock(&ri->admin->lock);
+	err = vcap_write_counter(ri, ctr);
+	mutex_unlock(&ri->admin->lock);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_rule_set_counter);
 
@@ -3037,7 +3069,12 @@ int vcap_rule_get_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 		pr_err("%s:%d: counter is missing\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	return vcap_read_counter(ri, ctr);
+
+	mutex_lock(&ri->admin->lock);
+	err = vcap_read_counter(ri, ctr);
+	mutex_unlock(&ri->admin->lock);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_rule_get_counter);
 
