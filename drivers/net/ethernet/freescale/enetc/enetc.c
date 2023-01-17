@@ -1773,11 +1773,6 @@ err_alloc_bdr:
 
 static void enetc_free_txbdr(struct enetc_bdr *txr)
 {
-	int i;
-
-	for (i = 0; i < txr->bd_count; i++)
-		enetc_free_tx_frame(txr, &txr->tx_swbd[i]);
-
 	dma_free_coherent(txr->dev, txr->bd_count * TSO_HEADER_SIZE,
 			  txr->tso_headers, txr->tso_headers_dma);
 	txr->tso_headers = NULL;
