@@ -644,7 +644,9 @@ static struct cache_entry *__lookup_cache_entry(const char *path, unsigned int h
  *
  * Use whole path components in the match.  Must be called with htable_rw_lock held.
  *
+ * Return cached entry if successful.
  * Return ERR_PTR(-ENOENT) if the entry is not found.
+ * Return error ptr otherwise.
  */
 static struct cache_entry *lookup_cache_entry(const char *path)
 {
@@ -789,8 +791,13 @@ static struct cache_entry *cache_refresh_path(const unsigned int xid,
 	down_read(&htable_rw_lock);
 
 	ce = lookup_cache_entry(path);
-	if (!IS_ERR(ce) && !force_refresh && !cache_entry_expired(ce))
+	if (!IS_ERR(ce)) {
+		if (!force_refresh && !cache_entry_expired(ce))
+			return ce;
+	} else if (PTR_ERR(ce) != -ENOENT) {
+		up_read(&htable_rw_lock);
 		return ce;
+	}
 
 	/*
 	 * Unlock shared access as we don't want to hold any locks while getting
@@ -822,7 +829,7 @@ static struct cache_entry *cache_refresh_path(const unsigned int xid,
 			if (rc)
 				ce = ERR_PTR(rc);
 		}
-	} else {
+	} else if (PTR_ERR(ce) == -ENOENT) {
 		ce = add_cache_entry_locked(refs, numrefs);
 	}
 
