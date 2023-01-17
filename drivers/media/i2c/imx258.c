@@ -1299,14 +1299,6 @@ static int imx258_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	/*
-	 * Check that the device is mounted upside down. The driver only
-	 * supports a single pixel order right now.
-	 */
-	ret = device_property_read_u32(&client->dev, "rotation", &val);
-	if (ret || val != 180)
-		return -EINVAL;
-
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx258->sd, client, &imx258_subdev_ops);
 
