@@ -93,14 +93,12 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	dw = msg->win0.dst_act_w;
 	dh = msg->win0.dst_act_h;
 
-	if (msg->win0.rotate_mode != 0) {
-		if (rotate_mode) {
-			sh = msg->win0.src_act_w;
-			sw = msg->win0.src_act_h;
-		} else {
-			sw = msg->win0.src_act_w;
-			sh = msg->win0.src_act_h;
-		}
+	if (rotate_mode) {
+		sh = msg->win0.src_act_w;
+		sw = msg->win0.src_act_h;
+	} else {
+		sw = msg->win0.src_act_w;
+		sh = msg->win0.src_act_h;
 	}
 
 	if (sw > dw) {
@@ -291,7 +289,7 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	}
 
 	/* rotate & mirror */
-	if (msg->win1.yrgb_addr == 0) {
+	if (msg->win0.rotate_mode == 1) {
 		reg =
 			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_ROT)) |
 			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_ROT(rotate_mode)));
@@ -301,36 +299,23 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		reg =
 			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_YMIRROR)) |
 			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_YMIRROR(ymirror)));
-
-		/* scale */
-		*bRGA3_WIN0_SCL_FAC = param_x | param_y << 16;
-
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_BY)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_BY(x_by)));
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_UP)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_UP(x_up)));
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_BY)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_BY(y_by)));
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_UP)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_UP(y_up)));
-	} else {
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_BY)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_BY(1)));
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_UP)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_UP(0)));
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_BY)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_BY(1)));
-		reg =
-			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_UP)) |
-			 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_UP(0)));
 	}
+
+	/* scale */
+	*bRGA3_WIN0_SCL_FAC = param_x | param_y << 16;
+
+	reg =
+		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_BY)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_BY(x_by)));
+	reg =
+		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_UP)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_HOR_UP(x_up)));
+	reg =
+		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_BY)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_BY(y_by)));
+	reg =
+		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_UP)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_VER_UP(y_up)));
 
 	/* rd_mode */
 	reg =
@@ -1387,18 +1372,18 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			if (req->win0.x_offset || req->win0.y_offset) {
 				req->win0.src_act_w = req->win0.src_act_w + req->win0.x_offset;
 				req->win0.src_act_h = req->win0.src_act_h + req->win0.y_offset;
-				req->win0.dst_act_w = req_rga->pat.act_w + req->win0.x_offset;
-				req->win0.dst_act_h = req_rga->pat.act_h + req->win0.y_offset;
+				req->win0.dst_act_w = req_rga->dst.act_w + req->win0.x_offset;
+				req->win0.dst_act_h = req_rga->dst.act_h + req->win0.y_offset;
 
 				req->win0.x_offset = 0;
 				req->win0.y_offset = 0;
 			} else {
-				req->win0.dst_act_w = req_rga->pat.act_w;
-				req->win0.dst_act_h = req_rga->pat.act_h;
+				req->win0.dst_act_w = req_rga->dst.act_w;
+				req->win0.dst_act_h = req_rga->dst.act_h;
 			}
 			/* set win1 dst size */
-			req->win1.dst_act_w = req_rga->pat.act_w;
-			req->win1.dst_act_h = req_rga->pat.act_h;
+			req->win1.dst_act_w = req_rga->dst.act_w;
+			req->win1.dst_act_h = req_rga->dst.act_h;
 		} else {
 			/* A+B->B mode */
 			set_win_info(&req->win0, &req_rga->dst);
