@@ -915,8 +915,11 @@ static int lan9303_setup(struct dsa_switch *ds)
 	if (ret)
 		return (ret);
 
-	reg &= ~LAN9303_VIRT_SPECIAL_TURBO;
-	regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, reg);
+	/* Clear the TURBO Mode bit if it was set. */
+	if (reg & LAN9303_VIRT_SPECIAL_TURBO) {
+		reg &= ~LAN9303_VIRT_SPECIAL_TURBO;
+		regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, reg);
+	}
 
 	ret = lan9303_setup_tagging(chip);
 	if (ret)
