@@ -1138,6 +1138,33 @@ config SA_VIDEOCC_LEMANS
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
+config SA_GCC_MONACO_AUTO
+	tristate "Monaco_Auto Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  Monaco_Auto devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
+	  USB, UFS, SD/eMMC, PCIe, etc.
+
+config SA_DISPCC_MONACO_AUTO
+	tristate "Monaco_Auto Display Clock Controller"
+	select SA_GCC_MONACO_AUTO
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc.
+	  Monaco_Auto devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
+config SA_DEBUGCC_MONACO_AUTO
+	tristate "Monaco_Auto Debug Clock Controller"
+	depends on SA_GCC_MONACO_AUTO
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc
+	  Monaco_Auto devices.
+	  Say Y if you want to support the debug clocks such as
+	  clock measurement functionality.
+
 endif
 
 config VIRTIO_CLK

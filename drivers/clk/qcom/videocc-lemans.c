@@ -40,7 +40,7 @@ enum {
 };
 
 static const struct pll_vco lucid_evo_vco[] = {
-	{ 249600000, 2000000000, 0 },
+	{ 249600000, 2020000000, 0 },
 };
 
 /* 1098MHz configuration */
@@ -79,7 +79,7 @@ static struct clk_alpha_pll video_pll0 = {
 				[VDD_LOW] = 1066000000,
 				[VDD_LOW_L1] = 1500000000,
 				[VDD_NOMINAL] = 1800000000,
-				[VDD_HIGH] = 2000000000},
+				[VDD_HIGH] = 2020000000},
 		},
 	},
 };
@@ -120,7 +120,7 @@ static struct clk_alpha_pll video_pll1 = {
 				[VDD_LOW] = 1066000000,
 				[VDD_LOW_L1] = 1500000000,
 				[VDD_NOMINAL] = 1800000000,
-				[VDD_HIGH] = 2000000000},
+				[VDD_HIGH] = 2020000000},
 		},
 	},
 };

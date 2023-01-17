@@ -40,7 +40,7 @@ enum {
 };
 
 static const struct pll_vco lucid_evo_vco[] = {
-	{ 249600000, 2000000000, 0 },
+	{ 249600000, 2020000000, 0 },
 };
 
 /* 810MHz configuration */
@@ -79,7 +79,7 @@ static struct clk_alpha_pll gpu_cc_pll0 = {
 				[VDD_LOW] = 1066000000,
 				[VDD_LOW_L1] = 1500000000,
 				[VDD_NOMINAL] = 1800000000,
-				[VDD_HIGH] = 2000000000},
+				[VDD_HIGH] = 2020000000},
 		},
 	},
 };
@@ -362,6 +362,24 @@ static struct clk_branch gpu_cc_crc_ahb_clk = {
 	},
 };
 
+static struct clk_branch gpu_cc_cx_accu_shift_clk = {
+	.halt_reg = 0x95e8,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x95e8,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gpu_cc_cx_accu_shift_clk",
+			.parent_hws = (const struct clk_hw*[]){
+				&gpu_cc_xo_clk_src.clkr.hw,
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gpu_cc_cx_ff_clk = {
 	.halt_reg = 0x914c,
 	.halt_check = BRANCH_HALT,
@@ -465,6 +483,24 @@ static struct clk_branch gpu_cc_demet_clk = {
 	},
 };
 
+static struct clk_branch gpu_cc_gx_accu_shift_clk = {
+	.halt_reg = 0x95e4,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x95e4,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gpu_cc_gx_accu_shift_clk",
+			.parent_hws = (const struct clk_hw*[]){
+				&gpu_cc_xo_clk_src.clkr.hw,
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gpu_cc_hlos1_vote_gpu_smmu_clk = {
 	.halt_reg = 0x7000,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -543,6 +579,7 @@ static struct clk_branch gpu_cc_sleep_clk = {
 static struct clk_regmap *gpu_cc_lemans_clocks[] = {
 	[GPU_CC_AHB_CLK] = &gpu_cc_ahb_clk.clkr,
 	[GPU_CC_CRC_AHB_CLK] = &gpu_cc_crc_ahb_clk.clkr,
+	[GPU_CC_CX_ACCU_SHIFT_CLK] = NULL,
 	[GPU_CC_CX_FF_CLK] = &gpu_cc_cx_ff_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
 	[GPU_CC_CX_SNOC_DVM_CLK] = &gpu_cc_cx_snoc_dvm_clk.clkr,
@@ -552,6 +589,7 @@ static struct clk_regmap *gpu_cc_lemans_clocks[] = {
 	[GPU_CC_DEMET_DIV_CLK_SRC] = &gpu_cc_demet_div_clk_src.clkr,
 	[GPU_CC_FF_CLK_SRC] = &gpu_cc_ff_clk_src.clkr,
 	[GPU_CC_GMU_CLK_SRC] = &gpu_cc_gmu_clk_src.clkr,
+	[GPU_CC_GX_ACCU_SHIFT_CLK] = NULL,
 	[GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK] = &gpu_cc_hlos1_vote_gpu_smmu_clk.clkr,
 	[GPU_CC_HUB_AHB_DIV_CLK_SRC] = &gpu_cc_hub_ahb_div_clk_src.clkr,
 	[GPU_CC_HUB_AON_CLK] = &gpu_cc_hub_aon_clk.clkr,
@@ -583,10 +621,23 @@ static const struct qcom_cc_desc gpu_cc_lemans_desc = {
 
 static const struct of_device_id gpu_cc_lemans_match_table[] = {
 	{ .compatible = "qcom,lemans-gpucc" },
+	{ .compatible = "qcom,monaco_auto-gpucc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, gpu_cc_lemans_match_table);
 
+static int gpu_cc_lemans_fixup(struct platform_device *pdev, struct regmap *regmap)
+{
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,monaco_auto-gpucc")) {
+		gpu_cc_pll0_config.l = 0x31;
+		gpu_cc_pll0_config.alpha = 0xe555;
+
+		gpu_cc_lemans_clocks[GPU_CC_CX_ACCU_SHIFT_CLK] = &gpu_cc_cx_accu_shift_clk.clkr;
+		gpu_cc_lemans_clocks[GPU_CC_GX_ACCU_SHIFT_CLK] = &gpu_cc_gx_accu_shift_clk.clkr;
+	}
+
+	return 0;
+}
 static int gpu_cc_lemans_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
@@ -595,6 +646,10 @@ static int gpu_cc_lemans_probe(struct platform_device *pdev)
 	regmap = qcom_cc_map(pdev, &gpu_cc_lemans_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	ret = gpu_cc_lemans_fixup(pdev, regmap);
+	if (ret)
+		return ret;
 
 	clk_lucid_evo_pll_configure(&gpu_cc_pll0, regmap, gpu_cc_pll0.config);
 	clk_lucid_evo_pll_configure(&gpu_cc_pll1, regmap, gpu_cc_pll1.config);
