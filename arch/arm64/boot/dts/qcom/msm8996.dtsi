@@ -462,6 +462,12 @@
 			reg = <0x0 0x91500000 0x0 0x200000>;
 			no-map;
 		};
+
+		mdata_mem: mpss-metadata {
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			size = <0x0 0x4000>;
+			no-map;
+		};
 	};
 
 	rpm-glink {
@@ -2463,6 +2469,10 @@
 
 			mpss {
 				memory-region = <&mpss_mem>;
+			};
+
+			metadata {
+				memory-region = <&mdata_mem>;
 			};
 
 			smd-edge {
