@@ -14,6 +14,20 @@
 /* Enable bit for DSB subunit */
 #define TPDM_DSB_CR_ENA		BIT(0)
 
+/* TPDM integration test registers */
+#define TPDM_ITATBCNTRL		(0xEF0)
+#define TPDM_ITCNTRL		(0xF00)
+
+/* Register value for integration test */
+#define ATBCNTRL_VAL_32		0xC00F1409
+#define ATBCNTRL_VAL_64		0xC01F1409
+
+/*
+ * Number of cycles to write value when
+ * integration test.
+ */
+#define INTEGRATION_TEST_CYCLE	10
+
 /**
  * The bits of PERIPHIDR0 register.
  * The fields [6:0] of PERIPHIDR0 are used to determine what
