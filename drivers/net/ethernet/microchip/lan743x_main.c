@@ -1491,6 +1491,11 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct lan743x_phy *phy = &adapter->phy;
+	struct fixed_phy_status fphy_status = {
+		.link = 1,
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
+	};
 	struct phy_device *phydev;
 	int ret = -EIO;
 
@@ -1501,8 +1506,19 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 	if (!phydev) {
 		/* try internal phy */
 		phydev = phy_find_first(adapter->mdiobus);
-		if (!phydev)
-			goto return_error;
+		if (!phydev)	{
+			if ((adapter->csr.id_rev & ID_REV_ID_MASK_) ==
+					ID_REV_ID_LAN7431_) {
+				phydev = fixed_phy_register(PHY_POLL,
+							    &fphy_status, NULL);
+				if (IS_ERR(phydev)) {
+					netdev_err(netdev, "No PHY/fixed_PHY found\n");
+					return -EIO;
+				}
+			} else {
+				goto return_error;
+				}
+		}
 
 		lan743x_phy_interface_select(adapter);
 
