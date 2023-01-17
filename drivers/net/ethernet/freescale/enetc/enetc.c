@@ -1753,9 +1753,6 @@ static int enetc_alloc_txbdr(struct enetc_bdr *txr)
 		goto err_alloc_tso;
 	}
 
-	txr->next_to_clean = 0;
-	txr->next_to_use = 0;
-
 	return 0;
 
 err_alloc_tso:
@@ -1897,9 +1894,6 @@ static void enetc_free_tx_ring(struct enetc_bdr *tx_ring)
 
 		enetc_free_tx_frame(tx_ring, tx_swbd);
 	}
-
-	tx_ring->next_to_clean = 0;
-	tx_ring->next_to_use = 0;
 }
 
 static void enetc_free_rx_ring(struct enetc_bdr *rx_ring)
