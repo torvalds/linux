@@ -1832,9 +1832,6 @@ static int enetc_alloc_rxbdr(struct enetc_bdr *rxr, bool extended)
 		return err;
 	}
 
-	rxr->next_to_clean = 0;
-	rxr->next_to_use = 0;
-	rxr->next_to_alloc = 0;
 	rxr->ext_en = extended;
 
 	return 0;
@@ -1914,10 +1911,6 @@ static void enetc_free_rx_ring(struct enetc_bdr *rx_ring)
 		__free_page(rx_swbd->page);
 		rx_swbd->page = NULL;
 	}
-
-	rx_ring->next_to_clean = 0;
-	rx_ring->next_to_use = 0;
-	rx_ring->next_to_alloc = 0;
 }
 
 static void enetc_free_rxtx_rings(struct enetc_ndev_priv *priv)
@@ -2083,6 +2076,10 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 
 	rx_ring->rcir = hw->reg + ENETC_BDR(RX, idx, ENETC_RBCIR);
 	rx_ring->idr = hw->reg + ENETC_SIRXIDR;
+
+	rx_ring->next_to_clean = 0;
+	rx_ring->next_to_use = 0;
+	rx_ring->next_to_alloc = 0;
 
 	enetc_lock_mdio();
 	enetc_refill_rx_ring(rx_ring, enetc_bd_unused(rx_ring));
