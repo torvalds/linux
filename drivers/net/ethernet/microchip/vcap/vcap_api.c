@@ -2989,31 +2989,6 @@ void vcap_rule_set_counter_id(struct vcap_rule *rule, u32 counter_id)
 }
 EXPORT_SYMBOL_GPL(vcap_rule_set_counter_id);
 
-/* Provide all rules via a callback interface */
-int vcap_rule_iter(struct vcap_control *vctrl,
-		   int (*callback)(void *, struct vcap_rule *), void *arg)
-{
-	struct vcap_rule_internal *ri;
-	struct vcap_admin *admin;
-	int ret;
-
-	ret = vcap_api_check(vctrl);
-	if (ret)
-		return ret;
-
-	/* Iterate all rules in each VCAP instance */
-	list_for_each_entry(admin, &vctrl->list, list) {
-		list_for_each_entry(ri, &admin->rules, list) {
-			ret = callback(arg, &ri->data);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(vcap_rule_iter);
-
 int vcap_rule_set_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 {
 	struct vcap_rule_internal *ri = to_intrule(rule);
@@ -3104,6 +3079,48 @@ int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
 
 	return -EINVAL;
 }
+
+/* Collect packet counts from all rules with the same cookie */
+int vcap_get_rule_count_by_cookie(struct vcap_control *vctrl,
+				  struct vcap_counter *ctr, u64 cookie)
+{
+	struct vcap_rule_internal *ri;
+	struct vcap_counter temp = {};
+	struct vcap_admin *admin;
+	int err;
+
+	err = vcap_api_check(vctrl);
+	if (err)
+		return err;
+
+	/* Iterate all rules in each VCAP instance */
+	list_for_each_entry(admin, &vctrl->list, list) {
+		mutex_lock(&admin->lock);
+		list_for_each_entry(ri, &admin->rules, list) {
+			if (ri->data.cookie != cookie)
+				continue;
+
+			err = vcap_read_counter(ri, &temp);
+			if (err)
+				goto unlock;
+			ctr->value += temp.value;
+
+			/* Reset the rule counter */
+			temp.value = 0;
+			temp.sticky = 0;
+			err = vcap_write_counter(ri, &temp);
+			if (err)
+				goto unlock;
+		}
+		mutex_unlock(&admin->lock);
+	}
+	return err;
+
+unlock:
+	mutex_unlock(&admin->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(vcap_get_rule_count_by_cookie);
 
 static int vcap_rule_mod_key(struct vcap_rule *rule,
 			     enum vcap_key_field key,
