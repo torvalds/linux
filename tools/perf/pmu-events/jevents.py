@@ -358,6 +358,8 @@ def preprocess_arch_std_files(archpath: str) -> None:
       for event in read_json_events(item.path, topic=''):
         if event.name:
           _arch_std_events[event.name.lower()] = event
+        if event.metric_name:
+          _arch_std_events[event.metric_name.lower()] = event
 
 
 def print_events_table_prefix(tblname: str) -> None:
