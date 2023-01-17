@@ -67,3 +67,7 @@ ap_ts_pen_1v8: &i2c4 {
 	compatible = "google,sc7180-trogdor";
 	model = "sc7180-rt5682s-max98357a-1mic";
 };
+
+&wifi {
+	qcom,ath10k-calibration-variant = "GO_PAZQUEL360";
+};
