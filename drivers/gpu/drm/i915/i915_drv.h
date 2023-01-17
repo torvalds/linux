@@ -216,12 +216,14 @@ struct drm_i915_private {
 
 	struct intel_gvt *gvt;
 
-	struct pci_dev *bridge_dev;
+	struct {
+		struct pci_dev *pdev;
+		struct resource mch_res;
+		bool mchbar_need_disable;
+	} gmch;
 
 	struct rb_root uabi_engines;
 	unsigned int engine_uabi_class_count[I915_LAST_UABI_ENGINE_CLASS + 1];
-
-	struct resource mch_res;
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
@@ -267,8 +269,6 @@ struct drm_i915_private {
 	unsigned long gem_quirks;
 
 	struct i915_gem_mm mm;
-
-	bool mchbar_need_disable;
 
 	struct intel_l3_parity l3_parity;
 
