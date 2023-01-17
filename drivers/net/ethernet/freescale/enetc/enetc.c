@@ -1829,8 +1829,6 @@ static int enetc_alloc_rxbdr(struct enetc_bdr *rxr, bool extended)
 		return err;
 	}
 
-	rxr->ext_en = extended;
-
 	return 0;
 }
 
@@ -1842,9 +1840,8 @@ static void enetc_free_rxbdr(struct enetc_bdr *rxr)
 	rxr->rx_swbd = NULL;
 }
 
-static int enetc_alloc_rx_resources(struct enetc_ndev_priv *priv)
+static int enetc_alloc_rx_resources(struct enetc_ndev_priv *priv, bool extended)
 {
-	bool extended = !!(priv->active_offloads & ENETC_F_RX_TSTAMP);
 	int i, err;
 
 	for (i = 0; i < priv->num_rx_rings; i++) {
@@ -2022,7 +2019,8 @@ static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 	tx_ring->idr = hw->reg + ENETC_SITXIDR;
 }
 
-static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
+static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
+			      bool extended)
 {
 	int idx = rx_ring->index;
 	u32 rbmr;
@@ -2054,6 +2052,7 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 
 	rbmr = ENETC_RBMR_EN;
 
+	rx_ring->ext_en = extended;
 	if (rx_ring->ext_en)
 		rbmr |= ENETC_RBMR_BDS;
 
@@ -2075,7 +2074,7 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
 }
 
-static void enetc_setup_bdrs(struct enetc_ndev_priv *priv)
+static void enetc_setup_bdrs(struct enetc_ndev_priv *priv, bool extended)
 {
 	struct enetc_hw *hw = &priv->si->hw;
 	int i;
@@ -2084,7 +2083,7 @@ static void enetc_setup_bdrs(struct enetc_ndev_priv *priv)
 		enetc_setup_txbdr(hw, priv->tx_ring[i]);
 
 	for (i = 0; i < priv->num_rx_rings; i++)
-		enetc_setup_rxbdr(hw, priv->rx_ring[i]);
+		enetc_setup_rxbdr(hw, priv->rx_ring[i], extended);
 }
 
 static void enetc_clear_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
@@ -2308,7 +2307,10 @@ int enetc_open(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	int num_stack_tx_queues;
+	bool extended;
 	int err;
+
+	extended = !!(priv->active_offloads & ENETC_F_RX_TSTAMP);
 
 	err = enetc_setup_irqs(priv);
 	if (err)
@@ -2322,7 +2324,7 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_alloc_tx;
 
-	err = enetc_alloc_rx_resources(priv);
+	err = enetc_alloc_rx_resources(priv, extended);
 	if (err)
 		goto err_alloc_rx;
 
@@ -2337,7 +2339,7 @@ int enetc_open(struct net_device *ndev)
 		goto err_set_queues;
 
 	enetc_tx_onestep_tstamp_init(priv);
-	enetc_setup_bdrs(priv);
+	enetc_setup_bdrs(priv, extended);
 	enetc_start(ndev);
 
 	return 0;
