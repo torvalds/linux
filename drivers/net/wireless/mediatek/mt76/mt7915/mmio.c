@@ -635,9 +635,14 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 		int token;
 		void *ptr;
 
-		page = __dev_alloc_pages(GFP_KERNEL, get_order(length));
-		if (!page)
+		if (!t)
 			goto unmap;
+
+		page = __dev_alloc_pages(GFP_KERNEL, get_order(length));
+		if (!page) {
+			mt76_put_rxwi(&dev->mt76, t);
+			goto unmap;
+		}
 
 		ptr = page_address(page);
 		phy_addr = dma_map_single(dev->mt76.dma_dev, ptr,
@@ -645,6 +650,7 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 					  DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev->mt76.dev, phy_addr))) {
 			__free_pages(page, get_order(length));
+			mt76_put_rxwi(&dev->mt76, t);
 			goto unmap;
 		}
 
@@ -654,6 +660,7 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 			dma_unmap_single(dev->mt76.dma_dev, phy_addr,
 					 wed->wlan.rx_size, DMA_TO_DEVICE);
 			__free_pages(page, get_order(length));
+			mt76_put_rxwi(&dev->mt76, t);
 			goto unmap;
 		}
 
