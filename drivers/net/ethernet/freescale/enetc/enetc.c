@@ -2088,7 +2088,7 @@ static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 	/* enable Tx ints by setting pkt thr to 1 */
 	enetc_txbdr_wr(hw, idx, ENETC_TBICR0, ENETC_TBICR0_ICEN | 0x1);
 
-	tbmr = ENETC_TBMR_EN | ENETC_TBMR_SET_PRIO(tx_ring->prio);
+	tbmr = ENETC_TBMR_SET_PRIO(tx_ring->prio);
 	if (tx_ring->ndev->features & NETIF_F_HW_VLAN_CTAG_TX)
 		tbmr |= ENETC_TBMR_VIH;
 
@@ -2104,7 +2104,7 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 			      bool extended)
 {
 	int idx = rx_ring->index;
-	u32 rbmr;
+	u32 rbmr = 0;
 
 	enetc_rxbdr_wr(hw, idx, ENETC_RBBAR0,
 		       lower_32_bits(rx_ring->bd_dma_base));
@@ -2131,8 +2131,6 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 	/* enable Rx ints by setting pkt thr to 1 */
 	enetc_rxbdr_wr(hw, idx, ENETC_RBICR0, ENETC_RBICR0_ICEN | 0x1);
 
-	rbmr = ENETC_RBMR_EN;
-
 	rx_ring->ext_en = extended;
 	if (rx_ring->ext_en)
 		rbmr |= ENETC_RBMR_BDS;
@@ -2151,7 +2149,6 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 	enetc_refill_rx_ring(rx_ring, enetc_bd_unused(rx_ring));
 	enetc_unlock_mdio();
 
-	/* enable ring */
 	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
 }
 
@@ -2167,7 +2164,39 @@ static void enetc_setup_bdrs(struct enetc_ndev_priv *priv, bool extended)
 		enetc_setup_rxbdr(hw, priv->rx_ring[i], extended);
 }
 
-static void enetc_clear_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
+static void enetc_enable_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
+{
+	int idx = tx_ring->index;
+	u32 tbmr;
+
+	tbmr = enetc_txbdr_rd(hw, idx, ENETC_TBMR);
+	tbmr |= ENETC_TBMR_EN;
+	enetc_txbdr_wr(hw, idx, ENETC_TBMR, tbmr);
+}
+
+static void enetc_enable_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
+{
+	int idx = rx_ring->index;
+	u32 rbmr;
+
+	rbmr = enetc_rxbdr_rd(hw, idx, ENETC_RBMR);
+	rbmr |= ENETC_RBMR_EN;
+	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
+}
+
+static void enetc_enable_bdrs(struct enetc_ndev_priv *priv)
+{
+	struct enetc_hw *hw = &priv->si->hw;
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		enetc_enable_txbdr(hw, priv->tx_ring[i]);
+
+	for (i = 0; i < priv->num_rx_rings; i++)
+		enetc_enable_rxbdr(hw, priv->rx_ring[i]);
+}
+
+static void enetc_disable_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 {
 	int idx = rx_ring->index;
 
@@ -2175,13 +2204,30 @@ static void enetc_clear_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, 0);
 }
 
-static void enetc_clear_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
+static void enetc_disable_txbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 {
-	int delay = 8, timeout = 100;
-	int idx = tx_ring->index;
+	int idx = rx_ring->index;
 
 	/* disable EN bit on ring */
 	enetc_txbdr_wr(hw, idx, ENETC_TBMR, 0);
+}
+
+static void enetc_disable_bdrs(struct enetc_ndev_priv *priv)
+{
+	struct enetc_hw *hw = &priv->si->hw;
+	int i;
+
+	for (i = 0; i < priv->num_tx_rings; i++)
+		enetc_disable_txbdr(hw, priv->tx_ring[i]);
+
+	for (i = 0; i < priv->num_rx_rings; i++)
+		enetc_disable_rxbdr(hw, priv->rx_ring[i]);
+}
+
+static void enetc_wait_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
+{
+	int delay = 8, timeout = 100;
+	int idx = tx_ring->index;
 
 	/* wait for busy to clear */
 	while (delay < timeout &&
@@ -2195,18 +2241,13 @@ static void enetc_clear_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 			    idx);
 }
 
-static void enetc_clear_bdrs(struct enetc_ndev_priv *priv)
+static void enetc_wait_bdrs(struct enetc_ndev_priv *priv)
 {
 	struct enetc_hw *hw = &priv->si->hw;
 	int i;
 
 	for (i = 0; i < priv->num_tx_rings; i++)
-		enetc_clear_txbdr(hw, priv->tx_ring[i]);
-
-	for (i = 0; i < priv->num_rx_rings; i++)
-		enetc_clear_rxbdr(hw, priv->rx_ring[i]);
-
-	udelay(1);
+		enetc_wait_txbdr(hw, priv->tx_ring[i]);
 }
 
 static int enetc_setup_irqs(struct enetc_ndev_priv *priv)
@@ -2381,6 +2422,8 @@ void enetc_start(struct net_device *ndev)
 		enable_irq(irq);
 	}
 
+	enetc_enable_bdrs(priv);
+
 	netif_tx_start_all_queues(ndev);
 }
 
@@ -2452,6 +2495,8 @@ void enetc_stop(struct net_device *ndev)
 
 	netif_tx_stop_all_queues(ndev);
 
+	enetc_disable_bdrs(priv);
+
 	for (i = 0; i < priv->bdr_int_num; i++) {
 		int irq = pci_irq_vector(priv->si->pdev,
 					 ENETC_BDR_INT_BASE_IDX + i);
@@ -2461,6 +2506,8 @@ void enetc_stop(struct net_device *ndev)
 		napi_disable(&priv->int_vector[i]->napi);
 	}
 
+	enetc_wait_bdrs(priv);
+
 	enetc_clear_interrupts(priv);
 }
 
@@ -2469,7 +2516,6 @@ int enetc_close(struct net_device *ndev)
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 
 	enetc_stop(ndev);
-	enetc_clear_bdrs(priv);
 
 	if (priv->phylink) {
 		phylink_stop(priv->phylink);
@@ -2521,7 +2567,6 @@ static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended,
 	}
 
 	enetc_stop(priv->ndev);
-	enetc_clear_bdrs(priv);
 	enetc_free_rxtx_rings(priv);
 
 	/* Interface is down, run optional callback now */
