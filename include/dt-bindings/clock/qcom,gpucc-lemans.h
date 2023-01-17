@@ -30,5 +30,7 @@
 #define GPU_CC_MEMNOC_GFX_CLK					20
 #define GPU_CC_SLEEP_CLK					21
 #define GPU_CC_XO_CLK_SRC					22
+#define GPU_CC_CX_ACCU_SHIFT_CLK				23
+#define GPU_CC_GX_ACCU_SHIFT_CLK				24
 
 #endif
