@@ -22,7 +22,7 @@ struct unwind_state {
 	char type; /* UNWINDER_XXX */
 	struct stack_info stack_info;
 	struct task_struct *task;
-	bool first, error, is_ftrace;
+	bool first, error, reset;
 	int graph_idx;
 	unsigned long sp, pc, ra;
 };

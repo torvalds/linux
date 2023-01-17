@@ -2,21 +2,101 @@
 /*
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  */
+#include <linux/cpumask.h>
 #include <linux/ftrace.h>
 #include <linux/kallsyms.h>
 
 #include <asm/inst.h>
+#include <asm/loongson.h>
 #include <asm/ptrace.h>
+#include <asm/setup.h>
 #include <asm/unwind.h>
 
-static inline void unwind_state_fixup(struct unwind_state *state)
+extern const int unwind_hint_ade;
+extern const int unwind_hint_ale;
+extern const int unwind_hint_bp;
+extern const int unwind_hint_fpe;
+extern const int unwind_hint_fpu;
+extern const int unwind_hint_lsx;
+extern const int unwind_hint_lasx;
+extern const int unwind_hint_lbt;
+extern const int unwind_hint_ri;
+extern const int unwind_hint_watch;
+extern unsigned long eentry;
+#ifdef CONFIG_NUMA
+extern unsigned long pcpu_handlers[NR_CPUS];
+#endif
+
+static inline bool scan_handlers(unsigned long entry_offset)
+{
+	int idx, offset;
+
+	if (entry_offset >= EXCCODE_INT_START * VECSIZE)
+		return false;
+
+	idx = entry_offset / VECSIZE;
+	offset = entry_offset % VECSIZE;
+	switch (idx) {
+	case EXCCODE_ADE:
+		return offset == unwind_hint_ade;
+	case EXCCODE_ALE:
+		return offset == unwind_hint_ale;
+	case EXCCODE_BP:
+		return offset == unwind_hint_bp;
+	case EXCCODE_FPE:
+		return offset == unwind_hint_fpe;
+	case EXCCODE_FPDIS:
+		return offset == unwind_hint_fpu;
+	case EXCCODE_LSXDIS:
+		return offset == unwind_hint_lsx;
+	case EXCCODE_LASXDIS:
+		return offset == unwind_hint_lasx;
+	case EXCCODE_BTDIS:
+		return offset == unwind_hint_lbt;
+	case EXCCODE_INE:
+		return offset == unwind_hint_ri;
+	case EXCCODE_WATCH:
+		return offset == unwind_hint_watch;
+	default:
+		return false;
+	}
+}
+
+static inline bool fix_exception(unsigned long pc)
+{
+#ifdef CONFIG_NUMA
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (!pcpu_handlers[cpu])
+			continue;
+		if (scan_handlers(pc - pcpu_handlers[cpu]))
+			return true;
+	}
+#endif
+	return scan_handlers(pc - eentry);
+}
+
+/*
+ * As we meet ftrace_regs_entry, reset first flag like first doing
+ * tracing. Prologue analysis will stop soon because PC is at entry.
+ */
+static inline bool fix_ftrace(unsigned long pc)
 {
 #ifdef CONFIG_DYNAMIC_FTRACE
-	static unsigned long ftrace = (unsigned long)ftrace_call + 4;
-
-	if (state->pc == ftrace)
-		state->is_ftrace = true;
+	return pc == (unsigned long)ftrace_call + LOONGARCH_INSN_SIZE;
+#else
+	return false;
 #endif
+}
+
+static inline bool unwind_state_fixup(struct unwind_state *state)
+{
+	if (!fix_exception(state->pc) && !fix_ftrace(state->pc))
+		return false;
+
+	state->reset = true;
+	return true;
 }
 
 /*
@@ -39,14 +119,10 @@ static bool unwind_by_prologue(struct unwind_state *state)
 	if (state->sp >= info->end || state->sp < info->begin)
 		return false;
 
-	if (state->is_ftrace) {
-		/*
-		 * As we meet ftrace_regs_entry, reset first flag like first doing
-		 * tracing. Prologue analysis will stop soon because PC is at entry.
-		 */
+	if (state->reset) {
 		regs = (struct pt_regs *)state->sp;
 		state->first = true;
-		state->is_ftrace = false;
+		state->reset = false;
 		state->pc = regs->csr_era;
 		state->ra = regs->regs[1];
 		state->sp = regs->regs[3];
@@ -112,8 +188,7 @@ first:
 
 out:
 	state->first = false;
-	unwind_state_fixup(state);
-	return !!__kernel_text_address(state->pc);
+	return unwind_state_fixup(state) || __kernel_text_address(state->pc);
 }
 
 static bool next_frame(struct unwind_state *state)
