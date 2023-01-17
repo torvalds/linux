@@ -24,6 +24,7 @@
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
+#include "ivpu_pm.h"
 
 #ifndef DRIVER_VERSION_STR
 #define DRIVER_VERSION_STR __stringify(DRM_IVPU_DRIVER_MAJOR) "." \
@@ -462,6 +463,10 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->ipc)
 		return -ENOMEM;
 
+	vdev->pm = drmm_kzalloc(&vdev->drm, sizeof(*vdev->pm), GFP_KERNEL);
+	if (!vdev->pm)
+		return -ENOMEM;
+
 	vdev->hw->ops = &ivpu_hw_mtl_ops;
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_GLOBAL_CONTEXT_MMU_SSID + 1;
@@ -521,6 +526,12 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		goto err_fw_fini;
 	}
 
+	ret = ivpu_pm_init(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize PM: %d\n", ret);
+		goto err_ipc_fini;
+	}
+
 	ret = ivpu_job_done_thread_init(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to initialize job done thread: %d\n", ret);
@@ -538,6 +549,8 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		ivpu_err(vdev, "Failed to boot: %d\n", ret);
 		goto err_job_done_thread_fini;
 	}
+
+	ivpu_pm_enable(vdev);
 
 	return 0;
 
@@ -559,6 +572,7 @@ err_xa_destroy:
 
 static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
+	ivpu_pm_disable(vdev);
 	ivpu_shutdown(vdev);
 	ivpu_job_done_thread_fini(vdev);
 	ivpu_ipc_fini(vdev);
@@ -611,11 +625,25 @@ static void ivpu_remove(struct pci_dev *pdev)
 	ivpu_dev_fini(vdev);
 }
 
+static const struct dev_pm_ops ivpu_drv_pci_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(ivpu_pm_suspend_cb, ivpu_pm_resume_cb)
+	SET_RUNTIME_PM_OPS(ivpu_pm_runtime_suspend_cb, ivpu_pm_runtime_resume_cb, NULL)
+};
+
+static const struct pci_error_handlers ivpu_drv_pci_err = {
+	.reset_prepare = ivpu_pm_reset_prepare_cb,
+	.reset_done = ivpu_pm_reset_done_cb,
+};
+
 static struct pci_driver ivpu_pci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = ivpu_pci_ids,
 	.probe = ivpu_probe,
 	.remove = ivpu_remove,
+	.driver = {
+		.pm = &ivpu_drv_pci_pm,
+	},
+	.err_handler = &ivpu_drv_pci_err,
 };
 
 module_pci_driver(ivpu_pci_driver);

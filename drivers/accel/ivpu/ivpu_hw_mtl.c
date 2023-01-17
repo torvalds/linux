@@ -10,6 +10,7 @@
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_mmu.h"
+#include "ivpu_pm.h"
 
 #define TILE_FUSE_ENABLE_BOTH	     0x0
 #define TILE_FUSE_ENABLE_UPPER	     0x1
@@ -921,6 +922,8 @@ static void ivpu_hw_mtl_irq_disable(struct ivpu_device *vdev)
 static void ivpu_hw_mtl_irq_wdt_nce_handler(struct ivpu_device *vdev)
 {
 	ivpu_err_ratelimited(vdev, "WDT NCE irq\n");
+
+	ivpu_pm_schedule_recovery(vdev);
 }
 
 static void ivpu_hw_mtl_irq_wdt_mss_handler(struct ivpu_device *vdev)
@@ -928,11 +931,14 @@ static void ivpu_hw_mtl_irq_wdt_mss_handler(struct ivpu_device *vdev)
 	ivpu_err_ratelimited(vdev, "WDT MSS irq\n");
 
 	ivpu_hw_wdt_disable(vdev);
+	ivpu_pm_schedule_recovery(vdev);
 }
 
 static void ivpu_hw_mtl_irq_noc_firewall_handler(struct ivpu_device *vdev)
 {
 	ivpu_err_ratelimited(vdev, "NOC Firewall irq\n");
+
+	ivpu_pm_schedule_recovery(vdev);
 }
 
 /* Handler for IRQs from VPU core (irqV) */
@@ -970,6 +976,7 @@ static u32 ivpu_hw_mtl_irqv_handler(struct ivpu_device *vdev, int irq)
 static u32 ivpu_hw_mtl_irqb_handler(struct ivpu_device *vdev, int irq)
 {
 	u32 status = REGB_RD32(MTL_BUTTRESS_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
+	bool schedule_recovery = false;
 
 	if (status == 0)
 		return 0;
@@ -983,6 +990,7 @@ static u32 ivpu_hw_mtl_irqb_handler(struct ivpu_device *vdev, int irq)
 	if (REG_TEST_FLD(MTL_BUTTRESS_INTERRUPT_STAT, ATS_ERR, status)) {
 		ivpu_err(vdev, "ATS_ERR irq 0x%016llx", REGB_RD64(MTL_BUTTRESS_ATS_ERR_LOG_0));
 		REGB_WR32(MTL_BUTTRESS_ATS_ERR_CLEAR, 0x1);
+		schedule_recovery = true;
 	}
 
 	if (REG_TEST_FLD(MTL_BUTTRESS_INTERRUPT_STAT, UFI_ERR, status)) {
@@ -993,6 +1001,7 @@ static u32 ivpu_hw_mtl_irqb_handler(struct ivpu_device *vdev, int irq)
 			 REG_GET_FLD(MTL_BUTTRESS_UFI_ERR_LOG, AXI_ID, ufi_log),
 			 REG_GET_FLD(MTL_BUTTRESS_UFI_ERR_LOG, CQ_ID, ufi_log));
 		REGB_WR32(MTL_BUTTRESS_UFI_ERR_CLEAR, 0x1);
+		schedule_recovery = true;
 	}
 
 	/*
@@ -1004,6 +1013,9 @@ static u32 ivpu_hw_mtl_irqb_handler(struct ivpu_device *vdev, int irq)
 
 	/* Re-enable global interrupt */
 	REGB_WR32(MTL_BUTTRESS_GLOBAL_INT_MASK, 0x0);
+
+	if (schedule_recovery)
+		ivpu_pm_schedule_recovery(vdev);
 
 	return status;
 }

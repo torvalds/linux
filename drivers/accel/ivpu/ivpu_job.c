@@ -17,6 +17,7 @@
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
+#include "ivpu_pm.h"
 
 #define CMD_BUF_IDX	     0
 #define JOB_ID_JOB_MASK	     GENMASK(7, 0)
@@ -270,6 +271,9 @@ static void job_release(struct kref *ref)
 
 	ivpu_dbg(vdev, KREF, "Job released: id %u\n", job->job_id);
 	kfree(job);
+
+	/* Allow the VPU to get suspended, must be called after ivpu_file_priv_put() */
+	ivpu_rpm_put(vdev);
 }
 
 static void job_put(struct ivpu_job *job)
@@ -286,11 +290,16 @@ ivpu_create_job(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_job *job;
 	size_t buf_size;
+	int ret;
+
+	ret = ivpu_rpm_get(vdev);
+	if (ret < 0)
+		return NULL;
 
 	buf_size = sizeof(*job) + bo_count * sizeof(struct ivpu_bo *);
 	job = kzalloc(buf_size, GFP_KERNEL);
 	if (!job)
-		return NULL;
+		goto err_rpm_put;
 
 	kref_init(&job->ref);
 
@@ -311,6 +320,8 @@ ivpu_create_job(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 
 err_free_job:
 	kfree(job);
+err_rpm_put:
+	ivpu_rpm_put(vdev);
 	return NULL;
 }
 
@@ -565,6 +576,7 @@ static int ivpu_job_done_thread(void *arg)
 			if (jobs_submitted && !xa_empty(&vdev->submitted_jobs_xa)) {
 				ivpu_err(vdev, "TDR detected, timeout %d ms", timeout);
 				ivpu_hw_diagnose_failure(vdev);
+				ivpu_pm_schedule_recovery(vdev);
 			}
 		}
 	}

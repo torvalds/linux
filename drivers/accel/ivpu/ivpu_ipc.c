@@ -14,6 +14,7 @@
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_ipc.h"
 #include "ivpu_jsm_msg.h"
+#include "ivpu_pm.h"
 
 #define IPC_MAX_RX_MSG	128
 #define IS_KTHREAD()	(get_current()->flags & PF_KTHREAD)
@@ -294,18 +295,27 @@ int ivpu_ipc_send_receive(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
 {
 	struct vpu_jsm_msg hb_req = { .type = VPU_JSM_MSG_QUERY_ENGINE_HB };
 	struct vpu_jsm_msg hb_resp;
-	int ret;
+	int ret, hb_ret;
+
+	ret = ivpu_rpm_get(vdev);
+	if (ret < 0)
+		return ret;
 
 	ret = ivpu_ipc_send_receive_internal(vdev, req, expected_resp_type, resp,
 					     channel, timeout_ms);
 	if (ret != -ETIMEDOUT)
-		return ret;
+		goto rpm_put;
 
-	ret = ivpu_ipc_send_receive_internal(vdev, &hb_req, VPU_JSM_MSG_QUERY_ENGINE_HB_DONE,
-					     &hb_resp, VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
-	if (ret == -ETIMEDOUT)
+	hb_ret = ivpu_ipc_send_receive_internal(vdev, &hb_req, VPU_JSM_MSG_QUERY_ENGINE_HB_DONE,
+						&hb_resp, VPU_IPC_CHAN_ASYNC_CMD,
+						vdev->timeout.jsm);
+	if (hb_ret == -ETIMEDOUT) {
 		ivpu_hw_diagnose_failure(vdev);
+		ivpu_pm_schedule_recovery(vdev);
+	}
 
+rpm_put:
+	ivpu_rpm_put(vdev);
 	return ret;
 }
 

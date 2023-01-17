@@ -14,6 +14,7 @@
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
+#include "ivpu_pm.h"
 
 #define FW_GLOBAL_MEM_START	(2ull * SZ_1G)
 #define FW_GLOBAL_MEM_END	(3ull * SZ_1G)
@@ -361,8 +362,11 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	/* In case of warm boot we only have to reset the entrypoint addr */
 	if (!ivpu_fw_is_cold_boot(vdev)) {
 		boot_params->save_restore_ret_address = 0;
+		vdev->pm->is_warmboot = true;
 		return;
 	}
+
+	vdev->pm->is_warmboot = false;
 
 	boot_params->magic = VPU_BOOT_PARAMS_MAGIC;
 	boot_params->vpu_id = to_pci_dev(vdev->drm.dev)->bus->number;

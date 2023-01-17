@@ -11,6 +11,7 @@
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
+#include "ivpu_pm.h"
 
 #define IVPU_MMU_IDR0_REF		0x080f3e0f
 #define IVPU_MMU_IDR0_REF_SIMICS	0x080f3e1f
@@ -814,6 +815,7 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 
 void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 {
+	bool schedule_recovery = false;
 	u32 *event;
 	u32 ssid;
 
@@ -823,9 +825,14 @@ void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 		ivpu_mmu_dump_event(vdev, event);
 
 		ssid = FIELD_GET(IVPU_MMU_EVT_SSID_MASK, event[0]);
-		if (ssid != IVPU_GLOBAL_CONTEXT_MMU_SSID)
+		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID)
+			schedule_recovery = true;
+		else
 			ivpu_mmu_user_context_mark_invalid(vdev, ssid);
 	}
+
+	if (schedule_recovery)
+		ivpu_pm_schedule_recovery(vdev);
 }
 
 void ivpu_mmu_irq_gerr_handler(struct ivpu_device *vdev)
