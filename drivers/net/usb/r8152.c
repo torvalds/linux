@@ -9556,9 +9556,8 @@ static int rtl_fw_init(struct r8152 *tp)
 	return 0;
 }
 
-u8 rtl8152_get_version(struct usb_interface *intf)
+static u8 __rtl_get_hw_ver(struct usb_device *udev)
 {
-	struct usb_device *udev = interface_to_usbdev(intf);
 	u32 ocp_data = 0;
 	__le32 *tmp;
 	u8 version;
@@ -9628,9 +9627,18 @@ u8 rtl8152_get_version(struct usb_interface *intf)
 		break;
 	default:
 		version = RTL_VER_UNKNOWN;
-		dev_info(&intf->dev, "Unknown version 0x%04x\n", ocp_data);
+		dev_info(&udev->dev, "Unknown version 0x%04x\n", ocp_data);
 		break;
 	}
+
+	return version;
+}
+
+u8 rtl8152_get_version(struct usb_interface *intf)
+{
+	u8 version;
+
+	version = __rtl_get_hw_ver(interface_to_usbdev(intf));
 
 	dev_dbg(&intf->dev, "Detected version 0x%04x\n", version);
 
@@ -9932,6 +9940,12 @@ static int rtl8152_cfgselector_probe(struct usb_device *udev)
 {
 	struct usb_host_config *c;
 	int i, num_configs;
+
+	/* Switch the device to vendor mode, if and only if the vendor mode
+	 * driver supports it.
+	 */
+	if (__rtl_get_hw_ver(udev) == RTL_VER_UNKNOWN)
+		return 0;
 
 	/* The vendor mode is not always config #1, so to find it out. */
 	c = udev->config;
