@@ -502,7 +502,7 @@ static int startup(struct tty_struct *tty, struct serial_state *info)
 	 */
 	change_speed(tty, info, NULL);
 
-	tty_port_set_initialized(port, 1);
+	tty_port_set_initialized(port, true);
 	local_irq_restore(flags);
 	return 0;
 
@@ -556,7 +556,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 
 	set_bit(TTY_IO_ERROR, &tty->flags);
 
-	tty_port_set_initialized(&info->tport, 0);
+	tty_port_set_initialized(&info->tport, false);
 	local_irq_restore(flags);
 }
 

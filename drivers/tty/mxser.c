@@ -1063,7 +1063,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	} else {
 		retval = mxser_activate(port, tty);
 		if (retval == 0)
-			tty_port_set_initialized(port, 1);
+			tty_port_set_initialized(port, true);
 	}
 	mutex_unlock(&port->mutex);
 	return retval;

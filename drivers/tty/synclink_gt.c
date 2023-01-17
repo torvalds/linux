@@ -2354,7 +2354,7 @@ static int startup(struct slgt_info *info)
 	if (info->port.tty)
 		clear_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	tty_port_set_initialized(&info->port, 1);
+	tty_port_set_initialized(&info->port, true);
 
 	return 0;
 }
@@ -2401,7 +2401,7 @@ static void shutdown(struct slgt_info *info)
 	if (info->port.tty)
 		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	tty_port_set_initialized(&info->port, 0);
+	tty_port_set_initialized(&info->port, false);
 }
 
 static void program_hw(struct slgt_info *info)

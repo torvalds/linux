@@ -290,7 +290,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 		set_bit(TTY_IO_ERROR, &tty->flags);
 
 	if (tty_port_initialized(port)) {
-		tty_port_set_initialized(port, 0);
+		tty_port_set_initialized(port, false);
 
 		/*
 		 * Turn off DTR and RTS early.
@@ -2347,7 +2347,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		unsigned int mctrl;
 
 		tty_port_set_suspended(port, 1);
-		tty_port_set_initialized(port, 0);
+		tty_port_set_initialized(port, false);
 
 		spin_lock_irq(&uport->lock);
 		ops->stop_tx(uport);
@@ -2458,7 +2458,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 					uart_rs485_config(uport);
 				ops->start_tx(uport);
 				spin_unlock_irq(&uport->lock);
-				tty_port_set_initialized(port, 1);
+				tty_port_set_initialized(port, true);
 			} else {
 				/*
 				 * Failed to resume - maybe hardware went away?

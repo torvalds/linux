@@ -1309,7 +1309,7 @@ static int startup(MGSLPC_INFO * info, struct tty_struct *tty)
 	if (tty)
 		clear_bit(TTY_IO_ERROR, &tty->flags);
 
-	tty_port_set_initialized(&info->port, 1);
+	tty_port_set_initialized(&info->port, true);
 
 	return 0;
 }
@@ -1359,7 +1359,7 @@ static void shutdown(MGSLPC_INFO * info, struct tty_struct *tty)
 	if (tty)
 		set_bit(TTY_IO_ERROR, &tty->flags);
 
-	tty_port_set_initialized(&info->port, 0);
+	tty_port_set_initialized(&info->port, false);
 }
 
 static void mgslpc_program_hw(MGSLPC_INFO *info, struct tty_struct *tty)

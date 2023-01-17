@@ -367,7 +367,7 @@ static void tty_port_shutdown(struct tty_port *port, struct tty_struct *tty)
 		goto out;
 
 	if (tty_port_initialized(port)) {
-		tty_port_set_initialized(port, 0);
+		tty_port_set_initialized(port, false);
 		/*
 		 * Drop DTR/RTS if HUPCL is set. This causes any attached
 		 * modem to hang up the line.
@@ -788,7 +788,7 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 				return retval;
 			}
 		}
-		tty_port_set_initialized(port, 1);
+		tty_port_set_initialized(port, true);
 	}
 	mutex_unlock(&port->mutex);
 	return tty_port_block_til_ready(port, tty, filp);
