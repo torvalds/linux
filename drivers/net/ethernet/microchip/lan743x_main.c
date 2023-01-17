@@ -1418,14 +1418,6 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 
 		data = lan743x_csr_read(adapter, MAC_CR);
 
-		/* set interface mode */
-		if (phy_interface_is_rgmii(phydev))
-			/* RGMII */
-			data &= ~MAC_CR_MII_EN_;
-		else
-			/* GMII */
-			data |= MAC_CR_MII_EN_;
-
 		/* set duplex mode */
 		if (phydev->duplex)
 			data |= MAC_CR_DPX_;
