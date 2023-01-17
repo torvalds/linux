@@ -1509,7 +1509,7 @@ When kbuild executes, the following steps are followed (roughly):
 	the linked vmlinux file.
 
 8 Kbuild syntax for exported headers
-------------------------------------
+====================================
 
 The kernel includes a set of headers that is exported to userspace.
 Many headers can be exported as-is but other headers require a
