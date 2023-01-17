@@ -2586,10 +2586,10 @@ int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 	return 0;
 }
 
-static int enetc_setup_xdp_prog(struct net_device *dev, struct bpf_prog *prog,
+static int enetc_setup_xdp_prog(struct net_device *ndev, struct bpf_prog *prog,
 				struct netlink_ext_ack *extack)
 {
-	struct enetc_ndev_priv *priv = netdev_priv(dev);
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct bpf_prog *old_prog;
 	bool is_up;
 	int i;
@@ -2597,9 +2597,9 @@ static int enetc_setup_xdp_prog(struct net_device *dev, struct bpf_prog *prog,
 	/* The buffer layout is changing, so we need to drain the old
 	 * RX buffers and seed new ones.
 	 */
-	is_up = netif_running(dev);
+	is_up = netif_running(ndev);
 	if (is_up)
-		dev_close(dev);
+		dev_close(ndev);
 
 	old_prog = xchg(&priv->xdp_prog, prog);
 	if (old_prog)
@@ -2617,16 +2617,16 @@ static int enetc_setup_xdp_prog(struct net_device *dev, struct bpf_prog *prog,
 	}
 
 	if (is_up)
-		return dev_open(dev, extack);
+		return dev_open(ndev, extack);
 
 	return 0;
 }
 
-int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp)
+int enetc_setup_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 {
-	switch (xdp->command) {
+	switch (bpf->command) {
 	case XDP_SETUP_PROG:
-		return enetc_setup_xdp_prog(dev, xdp->prog, xdp->extack);
+		return enetc_setup_xdp_prog(ndev, bpf->prog, bpf->extack);
 	default:
 		return -EINVAL;
 	}
