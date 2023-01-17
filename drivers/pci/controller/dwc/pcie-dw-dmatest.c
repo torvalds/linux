@@ -47,6 +47,10 @@ static unsigned int test_dev;
 module_param(test_dev, uint, 0644);
 MODULE_PARM_DESC(test_dev, "Choose dma_obj device,(default 0)");
 
+static bool is_rc = true;
+module_param_named(is_rc, is_rc, bool, 0644);
+MODULE_PARM_DESC(is_rc, "Test port is rc(default true)");
+
 #define PCIE_DW_MISC_DMATEST_DEV_MAX 5
 
 #define PCIE_DMA_CHANEL_MAX_NUM		2
@@ -90,8 +94,8 @@ static int rk_pcie_dma_wait_for_finised(struct dma_trx_obj *obj, struct dma_tabl
 	return ret;
 }
 
-static int rk_pcie_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-			       u32 local_paddr, u32 bus_paddr, u32 size)
+static int rk_pcie_ep_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
+				  u32 local_paddr, u32 bus_paddr, u32 size)
 {
 	struct dma_table *table;
 	struct dma_trx_obj *obj = dmatest_dev->obj;
@@ -133,8 +137,8 @@ static int rk_pcie_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
 	return ret;
 }
 
-static int rk_pcie_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-			     u32 bus_paddr, u32 local_paddr, u32 size)
+static int rk_pcie_ep_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
+				u32 bus_paddr, u32 local_paddr, u32 size)
 {
 	struct dma_table *table;
 	struct dma_trx_obj *obj = dmatest_dev->obj;
@@ -174,6 +178,18 @@ static int rk_pcie_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
 	kfree(table);
 
 	return ret;
+}
+
+static int rk_pcie_rc_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
+				  u32 local_paddr, u32 bus_paddr, u32 size)
+{
+	return rk_pcie_ep_dma_tobus(dmatest_dev, chn, local_paddr, bus_paddr, size);
+}
+
+static int rk_pcie_rc_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
+				u32 bus_paddr, u32 local_paddr, u32 size)
+{
+	return rk_pcie_ep_dma_frombus(dmatest_dev, chn, bus_paddr, local_paddr, size);
 }
 
 static int rk_pcie_dma_interrupt_handler_call_back(struct dma_trx_obj *obj, u32 chn, enum dma_dir dir)
@@ -243,13 +259,19 @@ static int dma_test(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
 	start_time = ktime_get();
 	for (i = 0; i < loop; i++) {
 		if (rd_en) {
-			rk_pcie_dma_frombus(dmatest_dev, chn, local_paddr, bus_paddr, size);
+			if (is_rc)
+				rk_pcie_rc_dma_frombus(dmatest_dev, chn, local_paddr, bus_paddr, size);
+			else
+				rk_pcie_ep_dma_frombus(dmatest_dev, chn, local_paddr, bus_paddr, size);
 			dma_sync_single_for_cpu(obj->dev, local_paddr, size, DMA_FROM_DEVICE);
 		}
 
 		if (wr_en) {
 			dma_sync_single_for_device(obj->dev, local_paddr, size, DMA_TO_DEVICE);
-			rk_pcie_dma_tobus(dmatest_dev, chn, bus_paddr, local_paddr, size);
+			if (is_rc)
+				rk_pcie_rc_dma_tobus(dmatest_dev, chn, bus_paddr, local_paddr, size);
+			else
+				rk_pcie_ep_dma_tobus(dmatest_dev, chn, bus_paddr, local_paddr, size);
 		}
 	}
 	end_time = ktime_get();
