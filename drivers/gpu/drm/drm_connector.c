@@ -1846,7 +1846,7 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties_legacy);
  * drm_mode_create_tv_properties - create TV specific connector properties
  * @dev: DRM device
  * @supported_tv_modes: Bitmask of TV modes supported (See DRM_MODE_TV_MODE_*)
-
+ *
  * Called by a driver's TV initialization routine, this function creates
  * the TV specific connector properties for a given device.
  *
