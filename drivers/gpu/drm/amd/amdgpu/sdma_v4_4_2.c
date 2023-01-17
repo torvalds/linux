@@ -566,6 +566,11 @@ static void sdma_v4_4_2_inst_enable(struct amdgpu_device *adev, bool enable,
 		sdma_v4_4_2_inst_rlc_stop(adev, inst_mask);
 		if (adev->sdma.has_page_queue)
 			sdma_v4_4_2_inst_page_stop(adev, inst_mask);
+
+		/* SDMA FW needs to respond to FREEZE requests during reset.
+		 * Keep it running during reset */
+		if (!amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
+			return;
 	}
 
 	for_each_inst(i, inst_mask) {
@@ -1434,6 +1439,9 @@ static int sdma_v4_4_2_set_clockgating_state(void *handle,
 static int sdma_v4_4_2_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_in_reset(adev))
+		sdma_v4_4_2_set_clockgating_state(adev, AMD_CG_STATE_UNGATE);
 
 	return sdma_v4_4_2_hw_fini(adev);
 }
