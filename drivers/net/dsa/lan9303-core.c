@@ -53,6 +53,9 @@
 #define LAN9303_MANUAL_FC_1 0x68
 #define LAN9303_MANUAL_FC_2 0x69
 #define LAN9303_MANUAL_FC_0 0x6a
+# define LAN9303_BP_EN BIT(6)
+# define LAN9303_RX_FC_EN BIT(2)
+# define LAN9303_TX_FC_EN BIT(1)
 #define LAN9303_SWITCH_CSR_DATA 0x6b
 #define LAN9303_SWITCH_CSR_CMD 0x6c
 #define LAN9303_SWITCH_CSR_CMD_BUSY BIT(31)
@@ -227,6 +230,13 @@ const struct regmap_access_table lan9303_register_set = {
 	.n_no_ranges = ARRAY_SIZE(lan9303_reserved_ranges),
 };
 EXPORT_SYMBOL(lan9303_register_set);
+
+/* Flow Control registers indexed by port number */
+static unsigned int flow_ctl_reg[] = {
+	LAN9303_MANUAL_FC_0,
+	LAN9303_MANUAL_FC_1,
+	LAN9303_MANUAL_FC_2
+};
 
 static int lan9303_read(struct regmap *regmap, unsigned int offset, u32 *reg)
 {
@@ -1299,7 +1309,9 @@ static void lan9303_phylink_mac_link_up(struct dsa_switch *ds, int port,
 					int duplex, bool tx_pause,
 					bool rx_pause)
 {
+	struct lan9303 *chip = ds->priv;
 	u32 ctl;
+	u32 reg;
 
 	/* On this device, we are only interested in doing something here if
 	 * this is the xMII port. All other ports are 10/100 phys using MDIO
@@ -1308,23 +1320,23 @@ static void lan9303_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	if (!IS_PORT_XMII(port))
 		return;
 
+	/* Disable auto-negotiation and force the speed/duplex settings. */
 	ctl = lan9303_phy_read(ds, port, MII_BMCR);
-
-	ctl &= ~BMCR_ANENABLE;
-
+	ctl &= ~(BMCR_ANENABLE | BMCR_SPEED100 | BMCR_FULLDPLX);
 	if (speed == SPEED_100)
 		ctl |= BMCR_SPEED100;
-	else if (speed == SPEED_10)
-		ctl &= ~BMCR_SPEED100;
-	else
-		dev_err(ds->dev, "unsupported speed: %d\n", speed);
-
 	if (duplex == DUPLEX_FULL)
 		ctl |= BMCR_FULLDPLX;
-	else
-		ctl &= ~BMCR_FULLDPLX;
-
 	lan9303_phy_write(ds, port, MII_BMCR, ctl);
+
+	/* Force the flow control settings. */
+	lan9303_read(chip->regmap, flow_ctl_reg[port], &reg);
+	reg &= ~(LAN9303_BP_EN | LAN9303_RX_FC_EN | LAN9303_TX_FC_EN);
+	if (rx_pause)
+		reg |= (LAN9303_RX_FC_EN | LAN9303_BP_EN);
+	if (tx_pause)
+		reg |= LAN9303_TX_FC_EN;
+	regmap_write(chip->regmap, flow_ctl_reg[port], reg);
 }
 
 static const struct dsa_switch_ops lan9303_switch_ops = {
