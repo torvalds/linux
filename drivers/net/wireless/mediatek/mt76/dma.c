@@ -173,7 +173,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
 	local_bh_disable();
 	while ((t = __mt76_get_rxwi(dev)) != NULL) {
 		if (t->ptr)
-			skb_free_frag(t->ptr);
+			mt76_put_page_pool_buf(t->ptr, false);
 		kfree(t);
 	}
 	local_bh_enable();
@@ -408,9 +408,9 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 		if (!t)
 			return NULL;
 
-		dma_unmap_single(dev->dma_dev, t->dma_addr,
-				 SKB_WITH_OVERHEAD(q->buf_size),
-				 DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(dev->dma_dev, t->dma_addr,
+				SKB_WITH_OVERHEAD(q->buf_size),
+				page_pool_get_dma_dir(q->page_pool));
 
 		buf = t->ptr;
 		t->dma_addr = 0;
@@ -427,9 +427,9 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 	} else {
 		buf = e->buf;
 		e->buf = NULL;
-		dma_unmap_single(dev->dma_dev, e->dma_addr[0],
-				 SKB_WITH_OVERHEAD(q->buf_size),
-				 DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(dev->dma_dev, e->dma_addr[0],
+				SKB_WITH_OVERHEAD(q->buf_size),
+				page_pool_get_dma_dir(q->page_pool));
 	}
 
 	return buf;
@@ -581,11 +581,11 @@ free_skb:
 }
 
 static int
-mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
+		 bool allow_direct)
 {
 	int len = SKB_WITH_OVERHEAD(q->buf_size);
-	int frames = 0, offset = q->buf_offset;
-	dma_addr_t addr;
+	int frames = 0;
 
 	if (!q->ndesc)
 		return 0;
@@ -593,26 +593,25 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 	spin_lock_bh(&q->lock);
 
 	while (q->queued < q->ndesc - 1) {
+		enum dma_data_direction dir;
 		struct mt76_queue_buf qbuf;
-		void *buf = NULL;
+		dma_addr_t addr;
+		int offset;
+		void *buf;
 
-		buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
+		buf = mt76_get_page_pool_buf(q, &offset, q->buf_size);
 		if (!buf)
 			break;
 
-		addr = dma_map_single(dev->dma_dev, buf, len, DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(dev->dma_dev, addr))) {
-			skb_free_frag(buf);
-			break;
-		}
+		addr = page_pool_get_dma_addr(virt_to_head_page(buf)) + offset;
+		dir = page_pool_get_dma_dir(q->page_pool);
+		dma_sync_single_for_device(dev->dma_dev, addr, len, dir);
 
-		qbuf.addr = addr + offset;
-		qbuf.len = len - offset;
+		qbuf.addr = addr + q->buf_offset;
+		qbuf.len = len - q->buf_offset;
 		qbuf.skip_unmap = false;
 		if (mt76_dma_add_rx_buf(dev, q, &qbuf, buf) < 0) {
-			dma_unmap_single(dev->dma_dev, addr, len,
-					 DMA_FROM_DEVICE);
-			skb_free_frag(buf);
+			mt76_put_page_pool_buf(buf, allow_direct);
 			break;
 		}
 		frames++;
@@ -653,7 +652,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
 		/* WED txfree queue needs ring to be initialized before setup */
 		q->flags = 0;
 		mt76_dma_queue_reset(dev, q);
-		mt76_dma_rx_fill(dev, q);
+		mt76_dma_rx_fill(dev, q, false);
 		q->flags = flags;
 
 		ret = mtk_wed_device_txfree_ring_setup(wed, q->regs);
@@ -700,6 +699,10 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 	if (!q->entry)
 		return -ENOMEM;
 
+	ret = mt76_create_page_pool(dev, q);
+	if (ret)
+		return ret;
+
 	ret = mt76_dma_wed_setup(dev, q);
 	if (ret)
 		return ret;
@@ -713,7 +716,6 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 static void
 mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	struct page *page;
 	void *buf;
 	bool more;
 
@@ -727,7 +729,7 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 		if (!buf)
 			break;
 
-		skb_free_frag(buf);
+		mt76_put_page_pool_buf(buf, false);
 	} while (1);
 
 	if (q->rx_head) {
@@ -736,13 +738,6 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 	}
 
 	spin_unlock_bh(&q->lock);
-
-	if (!q->rx_page.va)
-		return;
-
-	page = virt_to_page(q->rx_page.va);
-	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
-	memset(&q->rx_page, 0, sizeof(q->rx_page));
 }
 
 static void
@@ -759,7 +754,7 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
 
 	mt76_dma_rx_cleanup(dev, q);
 	mt76_dma_sync_idx(dev, q);
-	mt76_dma_rx_fill(dev, q);
+	mt76_dma_rx_fill(dev, q, false);
 }
 
 static void
@@ -776,7 +771,7 @@ mt76_add_fragment(struct mt76_dev *dev, struct mt76_queue *q, void *data,
 
 		skb_add_rx_frag(skb, nr_frags, page, offset, len, q->buf_size);
 	} else {
-		skb_free_frag(data);
+		mt76_put_page_pool_buf(data, true);
 	}
 
 	if (more)
@@ -849,6 +844,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 			goto free_frag;
 
 		skb_reserve(skb, q->buf_offset);
+		skb_mark_for_recycle(skb);
 
 		*(u32 *)skb->cb = info;
 
@@ -864,10 +860,10 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 		continue;
 
 free_frag:
-		skb_free_frag(data);
+		mt76_put_page_pool_buf(data, true);
 	}
 
-	mt76_dma_rx_fill(dev, q);
+	mt76_dma_rx_fill(dev, q, true);
 	return done;
 }
 
@@ -910,7 +906,7 @@ mt76_dma_init(struct mt76_dev *dev,
 
 	mt76_for_each_q_rx(dev, i) {
 		netif_napi_add(&dev->napi_dev, &dev->napi[i], poll);
-		mt76_dma_rx_fill(dev, &dev->q_rx[i]);
+		mt76_dma_rx_fill(dev, &dev->q_rx[i], false);
 		napi_enable(&dev->napi[i]);
 	}
 
@@ -961,6 +957,8 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 
 		netif_napi_del(&dev->napi[i]);
 		mt76_dma_rx_cleanup(dev, q);
+
+		page_pool_destroy(q->page_pool);
 	}
 
 	mt76_free_pending_txwi(dev);
