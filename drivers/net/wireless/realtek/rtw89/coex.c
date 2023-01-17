@@ -63,7 +63,7 @@ struct btc_fbtc_1slot {
 static const struct rtw89_btc_fbtc_tdma t_def[] = {
 	[CXTD_OFF]	= { CXTDMA_OFF,    CXFLC_OFF, CXTPS_OFF, 0, 0, 0, 0, 0},
 	[CXTD_OFF_B2]	= { CXTDMA_OFF,    CXFLC_OFF, CXTPS_OFF, 0, 0, 1, 0, 0},
-	[CXTD_OFF_EXT]	= { CXTDMA_OFF,    CXFLC_OFF, CXTPS_OFF, 0, 0, 3, 0, 0},
+	[CXTD_OFF_EXT]	= { CXTDMA_OFF,    CXFLC_OFF, CXTPS_OFF, 0, 0, 2, 0, 0},
 	[CXTD_FIX]	= { CXTDMA_FIX,    CXFLC_OFF, CXTPS_OFF, 0, 0, 0, 0, 0},
 	[CXTD_PFIX]	= { CXTDMA_FIX,  CXFLC_NULLP,  CXTPS_ON, 0, 5, 0, 0, 0},
 	[CXTD_AUTO]	= { CXTDMA_AUTO,   CXFLC_OFF, CXTPS_OFF, 0, 0, 0, 0, 0},
@@ -80,21 +80,21 @@ static const struct rtw89_btc_fbtc_slot s_def[] = {
 	[CXST_OFF]	= __DEF_FBTC_SLOT(100, 0x55555555, SLOT_MIX),
 	[CXST_B2W]	= __DEF_FBTC_SLOT(5,   0xea5a5a5a, SLOT_ISO),
 	[CXST_W1]	= __DEF_FBTC_SLOT(70,  0xea5a5a5a, SLOT_ISO),
-	[CXST_W2]	= __DEF_FBTC_SLOT(70,  0xea5a5aaa, SLOT_ISO),
+	[CXST_W2]	= __DEF_FBTC_SLOT(15,  0xea5a5a5a, SLOT_ISO),
 	[CXST_W2B]	= __DEF_FBTC_SLOT(15,  0xea5a5a5a, SLOT_ISO),
-	[CXST_B1]	= __DEF_FBTC_SLOT(100, 0xe5555555, SLOT_MIX),
+	[CXST_B1]	= __DEF_FBTC_SLOT(250, 0xe5555555, SLOT_MIX),
 	[CXST_B2]	= __DEF_FBTC_SLOT(7,   0xea5a5a5a, SLOT_MIX),
 	[CXST_B3]	= __DEF_FBTC_SLOT(5,   0xe5555555, SLOT_MIX),
 	[CXST_B4]	= __DEF_FBTC_SLOT(50,  0xe5555555, SLOT_MIX),
 	[CXST_LK]	= __DEF_FBTC_SLOT(20,  0xea5a5a5a, SLOT_ISO),
-	[CXST_BLK]	= __DEF_FBTC_SLOT(250, 0x55555555, SLOT_MIX),
-	[CXST_E2G]	= __DEF_FBTC_SLOT(20,  0xea5a5a5a, SLOT_MIX),
-	[CXST_E5G]	= __DEF_FBTC_SLOT(20,  0xffffffff, SLOT_MIX),
-	[CXST_EBT]	= __DEF_FBTC_SLOT(20,  0xe5555555, SLOT_MIX),
-	[CXST_ENULL]	= __DEF_FBTC_SLOT(7,   0xaaaaaaaa, SLOT_ISO),
+	[CXST_BLK]	= __DEF_FBTC_SLOT(500, 0x55555555, SLOT_MIX),
+	[CXST_E2G]	= __DEF_FBTC_SLOT(0,   0xea5a5a5a, SLOT_MIX),
+	[CXST_E5G]	= __DEF_FBTC_SLOT(0,   0xffffffff, SLOT_ISO),
+	[CXST_EBT]	= __DEF_FBTC_SLOT(0,   0xe5555555, SLOT_MIX),
+	[CXST_ENULL]	= __DEF_FBTC_SLOT(0,   0xaaaaaaaa, SLOT_ISO),
 	[CXST_WLK]	= __DEF_FBTC_SLOT(250, 0xea5a5a5a, SLOT_MIX),
-	[CXST_W1FDD]	= __DEF_FBTC_SLOT(35,  0xfafafafa, SLOT_ISO),
-	[CXST_B1FDD]	= __DEF_FBTC_SLOT(100, 0xffffffff, SLOT_MIX),
+	[CXST_W1FDD]	= __DEF_FBTC_SLOT(50,  0xffffffff, SLOT_ISO),
+	[CXST_B1FDD]	= __DEF_FBTC_SLOT(50,  0xffffdfff, SLOT_ISO),
 };
 
 static const u32 cxtbl[] = {
@@ -117,7 +117,12 @@ static const u32 cxtbl[] = {
 	0xfafafafa, /* 16 */
 	0xffffddff, /* 17 */
 	0xdaffdaff, /* 18 */
-	0xfafadafa  /* 19 */
+	0xfafadafa, /* 19 */
+	0xea6a6a6a, /* 20 */
+	0xea55556a, /* 21 */
+	0xaafafafa, /* 22 */
+	0xfafaaafa, /* 23 */
+	0xfafffaff  /* 24 */
 };
 
 static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
@@ -2701,15 +2706,16 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 			break;
 		case BTC_CXP_OFF_EQ0:
 			_slot_set_tbl(btc, CXST_OFF, cxtbl[0]);
+			_slot_set_type(btc, CXST_OFF, SLOT_ISO);
 			break;
 		case BTC_CXP_OFF_EQ1:
 			_slot_set_tbl(btc, CXST_OFF, cxtbl[16]);
 			break;
 		case BTC_CXP_OFF_EQ2:
-			_slot_set_tbl(btc, CXST_OFF, cxtbl[17]);
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[0]);
 			break;
 		case BTC_CXP_OFF_EQ3:
-			_slot_set_tbl(btc, CXST_OFF, cxtbl[18]);
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[24]);
 			break;
 		case BTC_CXP_OFF_BWB0:
 			_slot_set_tbl(btc, CXST_OFF, cxtbl[5]);
@@ -2765,6 +2771,7 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 		default:
 			break;
 		}
+		s[CXST_OFF] = s_def[CXST_OFF];
 		break;
 	case BTC_CXP_FIX: /* TDMA Fix-Slot */
 		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
@@ -2790,6 +2797,10 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 		case BTC_CXP_FIX_TD4010ISO:
 			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_ISO);
 			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD4020:
+			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_MIX);
+			_slot_set(btc, CXST_B1, 20, tbl_b1, SLOT_MIX);
 			break;
 		case BTC_CXP_FIX_TD7010:
 			_slot_set(btc, CXST_W1, 70, tbl_w1, SLOT_ISO);
