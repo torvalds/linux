@@ -2170,47 +2170,53 @@ void vcap_free_rule(struct vcap_rule *rule)
 }
 EXPORT_SYMBOL_GPL(vcap_free_rule);
 
-struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id)
+/* Decode a rule from the VCAP cache and return a copy */
+struct vcap_rule *vcap_decode_rule(struct vcap_rule_internal *elem)
 {
-	struct vcap_rule_internal *elem;
 	struct vcap_rule_internal *ri;
 	int err;
 
-	ri = NULL;
+	ri = vcap_dup_rule(elem, elem->state == VCAP_RS_DISABLED);
+	if (IS_ERR(ri))
+		return ERR_PTR(PTR_ERR(ri));
+
+	if (ri->state == VCAP_RS_DISABLED)
+		goto out;
+
+	err = vcap_read_rule(ri);
+	if (err)
+		return ERR_PTR(err);
+
+	err = vcap_decode_keyset(ri);
+	if (err)
+		return ERR_PTR(err);
+
+	err = vcap_decode_actionset(ri);
+	if (err)
+		return ERR_PTR(err);
+
+out:
+	return &ri->data;
+}
+
+struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id)
+{
+	struct vcap_rule_internal *elem;
+	struct vcap_rule *rule;
+	int err;
 
 	err = vcap_api_check(vctrl);
 	if (err)
 		return ERR_PTR(err);
+
 	elem = vcap_lookup_rule(vctrl, id);
 	if (!elem)
 		return NULL;
+
 	mutex_lock(&elem->admin->lock);
-	ri = vcap_dup_rule(elem, elem->state == VCAP_RS_DISABLED);
-	if (IS_ERR(ri))
-		goto unlock;
-
-	if (ri->state == VCAP_RS_DISABLED)
-		goto unlock;
-
-	err = vcap_read_rule(ri);
-	if (err) {
-		ri = ERR_PTR(err);
-		goto unlock;
-	}
-	err = vcap_decode_keyset(ri);
-	if (err) {
-		ri = ERR_PTR(err);
-		goto unlock;
-	}
-	err = vcap_decode_actionset(ri);
-	if (err) {
-		ri = ERR_PTR(err);
-		goto unlock;
-	}
-
-unlock:
+	rule = vcap_decode_rule(elem);
 	mutex_unlock(&elem->admin->lock);
-	return (struct vcap_rule *)ri;
+	return rule;
 }
 EXPORT_SYMBOL_GPL(vcap_get_rule);
 
