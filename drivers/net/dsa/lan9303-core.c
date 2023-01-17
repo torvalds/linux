@@ -15,6 +15,9 @@
 
 #include "lan9303.h"
 
+/* For the LAN9303 and LAN9354, only port 0 is an XMII port. */
+#define IS_PORT_XMII(port)	((port) == 0)
+
 #define LAN9303_NUM_PORTS 3
 
 /* 13.2 System Control and Status Registers
@@ -1066,7 +1069,11 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 {
 	int ctl;
 
-	if (!phy_is_pseudo_fixed_link(phydev))
+	/* On this device, we are only interested in doing something here if
+	 * this is an xMII port. All other ports are 10/100 phys using MDIO
+	 * to control there link settings.
+	 */
+	if (!IS_PORT_XMII(port))
 		return;
 
 	ctl = lan9303_phy_read(ds, port, MII_BMCR);
