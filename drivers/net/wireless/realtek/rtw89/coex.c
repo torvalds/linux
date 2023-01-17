@@ -4763,6 +4763,8 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 		_action_wl_nc(rtwdev);
 		break;
 	case BTC_WLINK_2G_STA:
+		if (wl->status.map.traffic_dir & BIT(RTW89_TFC_DL))
+			bt->scan_rx_low_pri = true;
 		_action_wl_2g_sta(rtwdev);
 		break;
 	case BTC_WLINK_2G_AP:
