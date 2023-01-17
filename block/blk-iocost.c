@@ -3214,7 +3214,8 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 
 		switch (match_token(p, qos_ctrl_tokens, args)) {
 		case QOS_ENABLE:
-			match_u64(&args[0], &v);
+			if (match_u64(&args[0], &v))
+				goto einval;
 			enable = v;
 			continue;
 		case QOS_CTRL:
