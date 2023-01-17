@@ -428,7 +428,7 @@ static int ath12k_pull_svc_ready_ext(struct ath12k_wmi_pdev *wmi_handle,
 	arg->ppet.numss_m1 = le32_to_cpu(ev->ppet.numss_m1);
 	arg->ppet.ru_bit_mask = le32_to_cpu(ev->ppet.ru_info);
 
-	for (i = 0; i < PSOC_HOST_MAX_NUM_SS; i++)
+	for (i = 0; i < WMI_MAX_NUM_SS; i++)
 		arg->ppet.ppet16_ppet8_ru3_ru0[i] =
 			le32_to_cpu(ev->ppet.ppet16_ppet8_ru3_ru0[i]);
 
@@ -520,7 +520,7 @@ ath12k_pull_mac_phy_cap_svc_ready_ext(struct ath12k_wmi_pdev *wmi_handle,
 		cap_band->he_ppet.numss_m1 = le32_to_cpu(mac_caps->he_ppet2g.numss_m1);
 		cap_band->he_ppet.ru_bit_mask = le32_to_cpu(mac_caps->he_ppet2g.ru_info);
 
-		for (i = 0; i < PSOC_HOST_MAX_NUM_SS; i++)
+		for (i = 0; i < WMI_MAX_NUM_SS; i++)
 			cap_band->he_ppet.ppet16_ppet8_ru3_ru0[i] =
 				le32_to_cpu(mac_caps->he_ppet2g.ppet16_ppet8_ru3_ru0[i]);
 	}
@@ -541,7 +541,7 @@ ath12k_pull_mac_phy_cap_svc_ready_ext(struct ath12k_wmi_pdev *wmi_handle,
 		cap_band->he_ppet.numss_m1 = le32_to_cpu(mac_caps->he_ppet5g.numss_m1);
 		cap_band->he_ppet.ru_bit_mask = le32_to_cpu(mac_caps->he_ppet5g.ru_info);
 
-		for (i = 0; i < PSOC_HOST_MAX_NUM_SS; i++)
+		for (i = 0; i < WMI_MAX_NUM_SS; i++)
 			cap_band->he_ppet.ppet16_ppet8_ru3_ru0[i] =
 				le32_to_cpu(mac_caps->he_ppet5g.ppet16_ppet8_ru3_ru0[i]);
 
@@ -559,7 +559,7 @@ ath12k_pull_mac_phy_cap_svc_ready_ext(struct ath12k_wmi_pdev *wmi_handle,
 		cap_band->he_ppet.numss_m1 = le32_to_cpu(mac_caps->he_ppet5g.numss_m1);
 		cap_band->he_ppet.ru_bit_mask = le32_to_cpu(mac_caps->he_ppet5g.ru_info);
 
-		for (i = 0; i < PSOC_HOST_MAX_NUM_SS; i++)
+		for (i = 0; i < WMI_MAX_NUM_SS; i++)
 			cap_band->he_ppet.ppet16_ppet8_ru3_ru0[i] =
 				le32_to_cpu(mac_caps->he_ppet5g.ppet16_ppet8_ru3_ru0[i]);
 	}
@@ -1935,7 +1935,7 @@ int ath12k_wmi_send_peer_assoc_cmd(struct ath12k *ar,
 			cpu_to_le32(arg->peer_he_cap_phyinfo[i]);
 	cmd->peer_ppet.numss_m1 = cpu_to_le32(arg->peer_ppet.numss_m1);
 	cmd->peer_ppet.ru_info = cpu_to_le32(arg->peer_ppet.ru_bit_mask);
-	for (i = 0; i < PSOC_HOST_MAX_NUM_SS; i++)
+	for (i = 0; i < WMI_MAX_NUM_SS; i++)
 		cmd->peer_ppet.ppet16_ppet8_ru3_ru0[i] =
 			cpu_to_le32(arg->peer_ppet.ppet16_ppet8_ru3_ru0[i]);
 

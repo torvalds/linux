@@ -43,8 +43,6 @@ static inline s32 a_sle32_to_cpu(a_sle32 val)
 	return le32_to_cpu((__force __le32)val);
 }
 
-#define PSOC_HOST_MAX_NUM_SS (8)
-
 /* defines to set Packet extension values which can be 0 us, 8 usec or 16 usec */
 #define MAX_HE_NSS               8
 #define MAX_HE_MODULATION        8
@@ -2233,7 +2231,7 @@ struct ath12k_wmi_pdev_band_arg {
 struct ath12k_wmi_ppe_threshold_arg {
 	u32 numss_m1;
 	u32 ru_bit_mask;
-	u32 ppet16_ppet8_ru3_ru0[PSOC_HOST_MAX_NUM_SS];
+	u32 ppet16_ppet8_ru3_ru0[WMI_MAX_NUM_SS];
 };
 
 #define PSOC_HOST_MAX_PHY_SIZE (3)
