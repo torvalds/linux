@@ -442,6 +442,16 @@ struct intel_display {
 	} snps;
 
 	struct {
+		/*
+		 * Shadows for CHV DPLL_MD regs to keep the state
+		 * checker somewhat working in the presence hardware
+		 * crappiness (can't read out DPLL_MD for pipes B & C).
+		 */
+		u32 chv_dpll_md[I915_MAX_PIPES];
+		u32 bxt_phy_grc;
+	} state;
+
+	struct {
 		/* ordered wq for modesets */
 		struct workqueue_struct *modeset;
 
