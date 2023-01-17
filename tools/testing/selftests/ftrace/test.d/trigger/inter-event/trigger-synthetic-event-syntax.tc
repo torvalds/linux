@@ -70,6 +70,12 @@ grep "myevent[[:space:]]unsigned long var" synthetic_events
 echo "myevent char var[10]" > synthetic_events
 grep "myevent[[:space:]]char\[10\] var" synthetic_events
 
+if grep -q 'long\[\]' README; then
+  # test stacktrace type
+  echo "myevent unsigned long[] var" > synthetic_events
+  grep "myevent[[:space:]]unsigned long\[\] var" synthetic_events
+fi
+
 do_reset
 
 exit 0
