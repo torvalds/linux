@@ -56,7 +56,7 @@ static bool unwind_by_prologue(struct unwind_state *state)
 {
 	long frame_ra = -1;
 	unsigned long frame_size = 0;
-	unsigned long size, offset, pc = state->pc;
+	unsigned long size, offset, pc;
 	struct pt_regs *regs;
 	struct stack_info *info = &state->stack_info;
 	union loongarch_instruction *ip, *ip_end;
@@ -78,6 +78,11 @@ static bool unwind_by_prologue(struct unwind_state *state)
 		return true;
 	}
 
+	/*
+	 * When first is not set, the PC is a return address in the previous frame.
+	 * We need to adjust its value in case overflow to the next symbol.
+	 */
+	pc = state->pc - (state->first ? 0 : LOONGARCH_INSN_SIZE);
 	if (!kallsyms_lookup_size_offset(pc, &size, &offset))
 		return false;
 
