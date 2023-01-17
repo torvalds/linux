@@ -1,0 +1,30 @@
+[
+    {
+        "MetricExpr": "stall_slot_frontend / (#slots * cpu_cycles)",
+        "BriefDescription": "Frontend bound L1 topdown metric",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "frontend_bound",
+        "ScaleUnit": "100%"
+    },
+    {
+        "MetricExpr": "(1 - op_retired / op_spec) * (1 - stall_slot / (#slots * cpu_cycles))",
+        "BriefDescription": "Bad speculation L1 topdown metric",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "bad_speculation",
+        "ScaleUnit": "100%"
+    },
+    {
+        "MetricExpr": "(op_retired / op_spec) * (1 - stall_slot / (#slots * cpu_cycles))",
+        "BriefDescription": "Retiring L1 topdown metric",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "retiring",
+        "ScaleUnit": "100%"
+    },
+    {
+        "MetricExpr": "stall_slot_backend / (#slots * cpu_cycles)",
+        "BriefDescription": "Backend Bound L1 topdown metric",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "backend_bound",
+        "ScaleUnit": "100%"
+    }
+]
