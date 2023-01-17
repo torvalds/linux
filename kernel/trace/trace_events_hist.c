@@ -1716,6 +1716,8 @@ static const char *get_hist_field_flags(struct hist_field *hist_field)
 		flags_str = "percent";
 	else if (hist_field->flags & HIST_FIELD_FL_GRAPH)
 		flags_str = "graph";
+	else if (hist_field->flags & HIST_FIELD_FL_STACKTRACE)
+		flags_str = "stacktrace";
 
 	return flags_str;
 }
@@ -2314,6 +2316,8 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 			*flags |= HIST_FIELD_FL_EXECNAME;
 		else if (strcmp(modifier, "syscall") == 0)
 			*flags |= HIST_FIELD_FL_SYSCALL;
+		else if (strcmp(modifier, "stacktrace") == 0)
+			*flags |= HIST_FIELD_FL_STACKTRACE;
 		else if (strcmp(modifier, "log2") == 0)
 			*flags |= HIST_FIELD_FL_LOG2;
 		else if (strcmp(modifier, "usecs") == 0)
