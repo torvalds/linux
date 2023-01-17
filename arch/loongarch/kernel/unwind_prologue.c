@@ -19,32 +19,14 @@ static inline void unwind_state_fixup(struct unwind_state *state)
 #endif
 }
 
-unsigned long unwind_get_return_address(struct unwind_state *state)
-{
-	if (unwind_done(state))
-		return 0;
-
-	return state->pc;
-}
-EXPORT_SYMBOL_GPL(unwind_get_return_address);
-
-static bool unwind_by_guess(struct unwind_state *state)
-{
-	struct stack_info *info = &state->stack_info;
-	unsigned long addr;
-
-	for (state->sp += sizeof(unsigned long);
-	     state->sp < info->end;
-	     state->sp += sizeof(unsigned long)) {
-		addr = *(unsigned long *)(state->sp);
-		state->pc = unwind_graph_addr(state, addr, state->sp + 8);
-		if (__kernel_text_address(state->pc))
-			return true;
-	}
-
-	return false;
-}
-
+/*
+ * LoongArch function prologue is like follows,
+ *     [instructions not use stack var]
+ *     addi.d sp, sp, -imm
+ *     st.d   xx, sp, offset <- save callee saved regs and
+ *     st.d   yy, sp, offset    save ra if function is nest.
+ *     [others instructions]
+ */
 static bool unwind_by_prologue(struct unwind_state *state)
 {
 	long frame_ra = -1;
@@ -91,6 +73,10 @@ static bool unwind_by_prologue(struct unwind_state *state)
 		ip++;
 	}
 
+	/*
+	 * Can't find stack alloc action, PC may be in a leaf function. Only the
+	 * first being true is reasonable, otherwise indicate analysis is broken.
+	 */
 	if (!frame_size) {
 		if (state->first)
 			goto first;
@@ -108,6 +94,7 @@ static bool unwind_by_prologue(struct unwind_state *state)
 		ip++;
 	}
 
+	/* Can't find save $ra action, PC may be in a leaf function, too. */
 	if (frame_ra < 0) {
 		if (state->first) {
 			state->sp = state->sp + frame_size;
@@ -116,96 +103,48 @@ static bool unwind_by_prologue(struct unwind_state *state)
 		return false;
 	}
 
-	if (state->first)
-		state->first = false;
-
 	state->pc = *(unsigned long *)(state->sp + frame_ra);
 	state->sp = state->sp + frame_size;
 	goto out;
 
 first:
-	state->first = false;
-	if (state->pc == state->ra)
-		return false;
-
 	state->pc = state->ra;
 
 out:
+	state->first = false;
 	unwind_state_fixup(state);
 	return !!__kernel_text_address(state->pc);
 }
 
-void unwind_start(struct unwind_state *state, struct task_struct *task,
-		    struct pt_regs *regs)
+static bool next_frame(struct unwind_state *state)
 {
-	memset(state, 0, sizeof(*state));
-	state->type = UNWINDER_PROLOGUE;
-
-	if (regs) {
-		state->sp = regs->regs[3];
-		state->pc = regs->csr_era;
-		state->ra = regs->regs[1];
-		if (!__kernel_text_address(state->pc))
-			state->type = UNWINDER_GUESS;
-	} else if (task && task != current) {
-		state->sp = thread_saved_fp(task);
-		state->pc = thread_saved_ra(task);
-		state->ra = 0;
-	} else {
-		state->sp = (unsigned long)__builtin_frame_address(0);
-		state->pc = (unsigned long)__builtin_return_address(0);
-		state->ra = 0;
-	}
-
-	state->task = task;
-	state->first = true;
-	state->pc = unwind_graph_addr(state, state->pc, state->sp);
-	get_stack_info(state->sp, state->task, &state->stack_info);
-
-	if (!unwind_done(state) && !__kernel_text_address(state->pc))
-		unwind_next_frame(state);
-}
-EXPORT_SYMBOL_GPL(unwind_start);
-
-bool unwind_next_frame(struct unwind_state *state)
-{
-	struct stack_info *info = &state->stack_info;
-	struct pt_regs *regs;
 	unsigned long pc;
+	struct pt_regs *regs;
+	struct stack_info *info = &state->stack_info;
 
 	if (unwind_done(state))
 		return false;
 
 	do {
-		switch (state->type) {
-		case UNWINDER_GUESS:
-			state->first = false;
-			if (unwind_by_guess(state))
-				return true;
-			break;
+		if (unwind_by_prologue(state)) {
+			state->pc = unwind_graph_addr(state, state->pc, state->sp);
+			return true;
+		}
 
-		case UNWINDER_PROLOGUE:
-			if (unwind_by_prologue(state)) {
-				state->pc = unwind_graph_addr(state, state->pc, state->sp);
-				return true;
-			}
+		if (info->type == STACK_TYPE_IRQ && info->end == state->sp) {
+			regs = (struct pt_regs *)info->next_sp;
+			pc = regs->csr_era;
 
-			if (info->type == STACK_TYPE_IRQ &&
-				info->end == state->sp) {
-				regs = (struct pt_regs *)info->next_sp;
-				pc = regs->csr_era;
+			if (user_mode(regs) || !__kernel_text_address(pc))
+				return false;
 
-				if (user_mode(regs) || !__kernel_text_address(pc))
-					return false;
+			state->first = true;
+			state->pc = pc;
+			state->ra = regs->regs[1];
+			state->sp = regs->regs[3];
+			get_stack_info(state->sp, state->task, info);
 
-				state->first = true;
-				state->ra = regs->regs[1];
-				state->sp = regs->regs[3];
-				state->pc = pc;
-				get_stack_info(state->sp, state->task, info);
-
-				return true;
-			}
+			return true;
 		}
 
 		state->sp = info->next_sp;
@@ -213,5 +152,37 @@ bool unwind_next_frame(struct unwind_state *state)
 	} while (!get_stack_info(state->sp, state->task, info));
 
 	return false;
+}
+
+unsigned long unwind_get_return_address(struct unwind_state *state)
+{
+	return __unwind_get_return_address(state);
+}
+EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+void unwind_start(struct unwind_state *state, struct task_struct *task,
+		    struct pt_regs *regs)
+{
+	__unwind_start(state, task, regs);
+	state->type = UNWINDER_PROLOGUE;
+	state->first = true;
+
+	/*
+	 * The current PC is not kernel text address, we cannot find its
+	 * relative symbol. Thus, prologue analysis will be broken. Luckily,
+	 * we can use the default_next_frame().
+	 */
+	if (!__kernel_text_address(state->pc)) {
+		state->type = UNWINDER_GUESS;
+		if (!unwind_done(state))
+			unwind_next_frame(state);
+	}
+}
+EXPORT_SYMBOL_GPL(unwind_start);
+
+bool unwind_next_frame(struct unwind_state *state)
+{
+	return state->type == UNWINDER_PROLOGUE ?
+			next_frame(state) : default_next_frame(state);
 }
 EXPORT_SYMBOL_GPL(unwind_next_frame);
