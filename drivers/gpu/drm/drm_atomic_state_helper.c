@@ -557,15 +557,15 @@ void drm_atomic_helper_connector_tv_reset(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_atomic_helper_connector_tv_reset);
 
 /**
- * @drm_atomic_helper_connector_tv_check: Validate an analog TV connector state
+ * drm_atomic_helper_connector_tv_check - Validate an analog TV connector state
  * @connector: DRM Connector
  * @state: the DRM State object
  *
  * Checks the state object to see if the requested state is valid for an
  * analog TV connector.
  *
- * Returns:
- * Zero for success, a negative error code on error.
+ * Return:
+ * %0 for success, a negative error code on error.
  */
 int drm_atomic_helper_connector_tv_check(struct drm_connector *connector,
 					 struct drm_atomic_state *state)
