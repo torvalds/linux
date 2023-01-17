@@ -1469,6 +1469,24 @@ static void lan743x_phy_close(struct lan743x_adapter *adapter)
 	netdev->phydev = NULL;
 }
 
+static void lan743x_phy_interface_select(struct lan743x_adapter *adapter)
+{
+	u32 id_rev;
+	u32 data;
+
+	data = lan743x_csr_read(adapter, MAC_CR);
+	id_rev = adapter->csr.id_rev & ID_REV_ID_MASK_;
+
+	if (adapter->is_pci11x1x && adapter->is_sgmii_en)
+		adapter->phy_interface = PHY_INTERFACE_MODE_SGMII;
+	else if (id_rev == ID_REV_ID_LAN7430_)
+		adapter->phy_interface = PHY_INTERFACE_MODE_GMII;
+	else if ((id_rev == ID_REV_ID_LAN7431_) && (data & MAC_CR_MII_EN_))
+		adapter->phy_interface = PHY_INTERFACE_MODE_MII;
+	else
+		adapter->phy_interface = PHY_INTERFACE_MODE_RGMII;
+}
+
 static int lan743x_phy_open(struct lan743x_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1486,14 +1504,11 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 		if (!phydev)
 			goto return_error;
 
-		if (adapter->is_pci11x1x)
-			ret = phy_connect_direct(netdev, phydev,
-						 lan743x_phy_link_status_change,
-						 PHY_INTERFACE_MODE_RGMII);
-		else
-			ret = phy_connect_direct(netdev, phydev,
-						 lan743x_phy_link_status_change,
-						 PHY_INTERFACE_MODE_GMII);
+		lan743x_phy_interface_select(adapter);
+
+		ret = phy_connect_direct(netdev, phydev,
+					 lan743x_phy_link_status_change,
+					 adapter->phy_interface);
 		if (ret)
 			goto return_error;
 	}
