@@ -416,8 +416,7 @@ static unsigned int trace_string(struct synth_trace_event *entry,
 	if (is_dynamic) {
 		u32 data_offset;
 
-		data_offset = offsetof(typeof(*entry), fields);
-		data_offset += event->n_u64 * sizeof(u64);
+		data_offset = struct_size(entry, fields, event->n_u64);
 		data_offset += data_size;
 
 		len = kern_fetch_store_strlen((unsigned long)str_val);
