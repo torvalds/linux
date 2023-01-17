@@ -1777,6 +1777,15 @@ static void dcn20_program_pipe(
 			&pipe_ctx->stream->bit_depth_params,
 			&pipe_ctx->stream->clamping);
 	}
+
+	/* Set ABM pipe after other pipe configurations done */
+	if (pipe_ctx->plane_state->visible) {
+		if (pipe_ctx->stream_res.abm) {
+			dc->hwss.set_pipe(pipe_ctx);
+			pipe_ctx->stream_res.abm->funcs->set_abm_level(pipe_ctx->stream_res.abm,
+				pipe_ctx->stream->abm_level);
+		}
+	}
 }
 
 void dcn20_program_front_end_for_ctx(
