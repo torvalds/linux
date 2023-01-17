@@ -1116,7 +1116,8 @@ static int sii902x_probe(struct i2c_client *client)
 		sii902x->next_bridge = of_drm_find_bridge(remote);
 		of_node_put(remote);
 		if (!sii902x->next_bridge)
-			return -EPROBE_DEFER;
+			return dev_err_probe(dev, -EPROBE_DEFER,
+					     "Failed to find remote bridge\n");
 	}
 
 	mutex_init(&sii902x->mutex);
