@@ -77,6 +77,7 @@
  * @MCP16502_REG_A: active state register
  * @MCP16502_REG_LPM: low power mode state register
  * @MCP16502_REG_HIB: hibernate state register
+ * @MCP16502_REG_HPM: high-performance mode register
  * @MCP16502_REG_SEQ: startup sequence register
  * @MCP16502_REG_CFG: configuration register
  */
