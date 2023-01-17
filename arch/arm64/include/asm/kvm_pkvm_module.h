@@ -39,6 +39,7 @@ struct pkvm_module_ops {
 	void* (*memcpy)(void *to, const void *from, size_t count);
 	void* (*memset)(void *dst, int c, size_t count);
 	phys_addr_t (*hyp_pa)(void *x);
+	void* (*hyp_va)(phys_addr_t phys);
 	unsigned long (*kern_hyp_va)(unsigned long x);
 };
 

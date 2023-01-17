@@ -115,6 +115,7 @@ const struct pkvm_module_ops module_ops = {
 	.memcpy = memcpy,
 	.memset = memset,
 	.hyp_pa = hyp_virt_to_phys,
+	.hyp_va = hyp_phys_to_virt,
 	.kern_hyp_va = __kern_hyp_va,
 };
 
