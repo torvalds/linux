@@ -15,7 +15,7 @@ struct tty_struct;
 
 /**
  * struct tty_port_operations -- operations on tty_port
- * @carrier_raised: return 1 if the carrier is raised on @port
+ * @carrier_raised: return true if the carrier is raised on @port
  * @dtr_rts: raise the DTR line if @raise is nonzero, otherwise lower DTR
  * @shutdown: called when the last close completes or a hangup finishes IFF the
  *	port was initialized. Do not use to free resources. Turn off the device
@@ -31,7 +31,7 @@ struct tty_struct;
  *	the port itself.
  */
 struct tty_port_operations {
-	int (*carrier_raised)(struct tty_port *port);
+	bool (*carrier_raised)(struct tty_port *port);
 	void (*dtr_rts)(struct tty_port *port, int raise);
 	void (*shutdown)(struct tty_port *port);
 	int (*activate)(struct tty_port *port, struct tty_struct *tty);
@@ -230,7 +230,7 @@ static inline void tty_port_set_kopened(struct tty_port *port, bool val)
 
 struct tty_struct *tty_port_tty_get(struct tty_port *port);
 void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
-int tty_port_carrier_raised(struct tty_port *port);
+bool tty_port_carrier_raised(struct tty_port *port);
 void tty_port_raise_dtr_rts(struct tty_port *port);
 void tty_port_lower_dtr_rts(struct tty_port *port);
 void tty_port_hangup(struct tty_port *port);
