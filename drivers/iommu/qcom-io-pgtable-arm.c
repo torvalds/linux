@@ -6,7 +6,7 @@
  *
  * Author: Will Deacon <will.deacon@arm.com>
  *
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"arm-lpae io-pgtable: " fmt
@@ -628,7 +628,7 @@ static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
 	return pte;
 }
 
-static int arm_lpae_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
+int qcom_arm_lpae_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 			      phys_addr_t paddr, size_t pgsize, size_t pgcount,
 			      int iommu_prot, gfp_t gfp, size_t *mapped)
 {
@@ -666,13 +666,15 @@ static int arm_lpae_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 	return ret;
 }
+EXPORT_SYMBOL(qcom_arm_lpae_map_pages);
 
-static int arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
+int qcom_arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
 			phys_addr_t paddr, size_t size, int iommu_prot, gfp_t gfp)
 {
-	return arm_lpae_map_pages(ops, iova, paddr, size, 1, iommu_prot, gfp,
+	return qcom_arm_lpae_map_pages(ops, iova, paddr, size, 1, iommu_prot, gfp,
 				  NULL);
 }
+EXPORT_SYMBOL(qcom_arm_lpae_map);
 
 static size_t arm_lpae_pgsize(unsigned long pgsize_bitmap, unsigned long addr_merge,
 			      size_t size)
@@ -764,7 +766,7 @@ static int arm_lpae_map_by_pgsize(struct io_pgtable_ops *ops,
 	return 0;
 }
 
-static int __maybe_unused arm_lpae_map_sg(struct io_pgtable_ops *ops, unsigned long iova,
+int qcom_arm_lpae_map_sg(struct io_pgtable_ops *ops, unsigned long iova,
 			   struct scatterlist *sg, unsigned int nents, int prot,
 			   gfp_t gfp, size_t *mapped)
 {
@@ -821,6 +823,7 @@ static int __maybe_unused arm_lpae_map_sg(struct io_pgtable_ops *ops, unsigned l
 
 	return 0;
 }
+EXPORT_SYMBOL(qcom_arm_lpae_map_sg);
 
 static void __arm_lpae_free_pgtable(struct arm_lpae_io_pgtable *data, int lvl,
 				    arm_lpae_iopte *ptep, bool deferred_free)
@@ -1035,7 +1038,7 @@ static size_t __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 	return __arm_lpae_unmap(data, gather, iova, size, pgcount, lvl + 1, ptep, flags);
 }
 
-static size_t arm_lpae_unmap_pages(struct io_pgtable_ops *ops, unsigned long iova,
+size_t qcom_arm_lpae_unmap_pages(struct io_pgtable_ops *ops, unsigned long iova,
 				   size_t pgsize, size_t pgcount,
 				   struct iommu_iotlb_gather *gather)
 {
@@ -1062,12 +1065,14 @@ static size_t arm_lpae_unmap_pages(struct io_pgtable_ops *ops, unsigned long iov
 
 	return unmapped;
 }
+EXPORT_SYMBOL(qcom_arm_lpae_unmap_pages);
 
-static size_t arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
+size_t qcom_arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
 			     size_t size, struct iommu_iotlb_gather *gather)
 {
-	return arm_lpae_unmap_pages(ops, iova, size, 1, gather);
+	return qcom_arm_lpae_unmap_pages(ops, iova, size, 1, gather);
 }
+EXPORT_SYMBOL(qcom_arm_lpae_unmap);
 
 static phys_addr_t arm_lpae_iova_to_phys(struct io_pgtable_ops *ops,
 					 unsigned long iova)
@@ -1186,10 +1191,10 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 	data->pgd_bits = va_bits - (data->bits_per_level * (levels - 1));
 
 	data->iop.ops = (struct io_pgtable_ops) {
-		.map		= arm_lpae_map,
-		.map_pages	= arm_lpae_map_pages,
-		.unmap		= arm_lpae_unmap,
-		.unmap_pages	= arm_lpae_unmap_pages,
+		.map		= qcom_arm_lpae_map,
+		.map_pages	= qcom_arm_lpae_map_pages,
+		.unmap		= qcom_arm_lpae_unmap,
+		.unmap_pages	= qcom_arm_lpae_unmap_pages,
 		.iova_to_phys	= arm_lpae_iova_to_phys,
 	};
 
