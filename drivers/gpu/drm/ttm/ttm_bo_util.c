@@ -127,9 +127,8 @@ EXPORT_SYMBOL(ttm_move_memcpy);
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
- * @new_mem: struct ttm_resource indicating where to move.
+ * @ctx: operation context
+ * @dst_mem: struct ttm_resource indicating where to move.
  *
  * Fallback move function for a mappable buffer object in mappable memory.
  * The function will, if successful,
@@ -281,8 +280,8 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 /**
  * ttm_io_prot
  *
- * bo: ttm buffer object
- * res: ttm resource object
+ * @bo: ttm buffer object
+ * @res: ttm resource object
  * @tmp: Page protection flag for a normal, cached mapping.
  *
  * Utility function that returns the pgprot_t that should be used for
@@ -621,7 +620,7 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 }
 
 /**
- * ttm_bo_move_accel_cleanup.
+ * ttm_bo_move_accel_cleanup - cleanup helper for hw copies
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @fence: A fence object that signals when moving is complete.
@@ -665,7 +664,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
 /**
- * ttm_bo_move_sync_cleanup.
+ * ttm_bo_move_sync_cleanup - cleanup by waiting for the move to finish
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @new_mem: struct ttm_resource indicating where to move.
