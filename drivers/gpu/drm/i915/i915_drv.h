@@ -381,12 +381,6 @@ struct drm_i915_private {
 
 	bool irq_enabled;
 
-	/*
-	 * DG2: Mask of PHYs that were not calibrated by the firmware
-	 * and should not be used.
-	 */
-	u8 snps_phy_failed_calibration;
-
 	struct i915_pmu pmu;
 
 	struct i915_drm_clients clients;

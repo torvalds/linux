@@ -4323,7 +4323,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	if (intel_phy_is_snps(dev_priv, phy) &&
-	    dev_priv->snps_phy_failed_calibration & BIT(phy)) {
+	    dev_priv->display.snps.phy_failed_calibration & BIT(phy)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "SNPS PHY %c failed to calibrate, proceeding anyway\n",
 			    phy_name(phy));
