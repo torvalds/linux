@@ -15,6 +15,8 @@
 #include <linux/xarray.h>
 #include <uapi/drm/ivpu_accel.h>
 
+#include "ivpu_mmu_context.h"
+
 #define DRIVER_NAME "intel_vpu"
 #define DRIVER_DESC "Driver for Intel Versatile Processing Unit (VPU)"
 #define DRIVER_DATE "20230117"
@@ -71,6 +73,7 @@ struct ivpu_wa_table {
 };
 
 struct ivpu_hw_info;
+struct ivpu_mmu_info;
 
 struct ivpu_device {
 	struct drm_device drm;
@@ -81,7 +84,9 @@ struct ivpu_device {
 
 	struct ivpu_wa_table wa;
 	struct ivpu_hw_info *hw;
+	struct ivpu_mmu_info *mmu;
 
+	struct ivpu_mmu_context gctx;
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
@@ -100,7 +105,9 @@ struct ivpu_device {
 struct ivpu_file_priv {
 	struct kref ref;
 	struct ivpu_device *vdev;
+	struct ivpu_mmu_context ctx;
 	u32 priority;
+	bool has_mmu_faults;
 };
 
 extern int ivpu_dbg_mask;

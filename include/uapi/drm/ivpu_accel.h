@@ -38,6 +38,7 @@ extern "C" {
 #define DRM_IVPU_PARAM_NUM_CONTEXTS	    4
 #define DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS 5
 #define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6
+#define DRM_IVPU_PARAM_CONTEXT_ID	    7
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
@@ -77,6 +78,9 @@ struct drm_ivpu_param {
 	 * %DRM_IVPU_PARAM_CONTEXT_PRIORITY:
 	 * Value of current context scheduling priority (read-write).
 	 * See DRM_IVPU_CONTEXT_PRIORITY_* for possible values.
+	 *
+	 * %DRM_IVPU_PARAM_CONTEXT_ID:
+	 * Current context ID, always greater than 0 (read-only)
 	 *
 	 */
 	__u32 param;

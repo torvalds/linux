@@ -7,6 +7,7 @@
 #include "ivpu_hw_mtl_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_hw.h"
+#include "ivpu_mmu.h"
 
 #define TILE_FUSE_ENABLE_BOTH	     0x0
 #define TILE_FUSE_ENABLE_UPPER	     0x1
@@ -929,6 +930,15 @@ static u32 ivpu_hw_mtl_irqv_handler(struct ivpu_device *vdev, int irq)
 	u32 status = REGV_RD32(MTL_VPU_HOST_SS_ICB_STATUS_0) & ICB_0_IRQ_MASK;
 
 	REGV_WR32(MTL_VPU_HOST_SS_ICB_CLEAR_0, status);
+
+	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, MMU_IRQ_0_INT, status))
+		ivpu_mmu_irq_evtq_handler(vdev);
+
+	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, MMU_IRQ_1_INT, status))
+		ivpu_dbg(vdev, IRQ, "MMU sync complete\n");
+
+	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, MMU_IRQ_2_INT, status))
+		ivpu_mmu_irq_gerr_handler(vdev);
 
 	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, CPU_INT_REDIRECT_0_INT, status))
 		ivpu_hw_mtl_irq_wdt_mss_handler(vdev);
