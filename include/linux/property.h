@@ -436,9 +436,9 @@ fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
 					     unsigned long flags);
 
-#define fwnode_graph_for_each_endpoint(fwnode, child)			\
-	for (child = NULL;						\
-	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
+#define fwnode_graph_for_each_endpoint(fwnode, child)				\
+	for (child = fwnode_graph_get_next_endpoint(fwnode, NULL); child;	\
+	     child = fwnode_graph_get_next_endpoint(fwnode, child))
 
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
