@@ -393,6 +393,7 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 }
 
 DEF_EMIT_REG0I26_FORMAT(b, b_op)
+DEF_EMIT_REG0I26_FORMAT(bl, bl_op)
 
 #define DEF_EMIT_REG1I20_FORMAT(NAME, OP)				\
 static inline void emit_##NAME(union loongarch_instruction *insn,	\
