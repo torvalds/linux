@@ -1073,8 +1073,7 @@ static int dev_set_geometry(struct file *filp, struct dm_ioctl *param, size_t pa
 		goto out;
 	}
 
-	if (indata[0] > 65535 || indata[1] > 255 ||
-	    indata[2] > 255 || indata[3] > ULONG_MAX) {
+	if (indata[0] > 65535 || indata[1] > 255 || indata[2] > 255) {
 		DMERR("Geometry exceeds range limits.");
 		goto out;
 	}
