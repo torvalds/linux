@@ -17,6 +17,7 @@
 #include "ivpu_drv.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
+#include "ivpu_ipc.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
 
@@ -229,6 +230,7 @@ int ivpu_shutdown(struct ivpu_device *vdev)
 	int ret;
 
 	ivpu_hw_irq_disable(vdev);
+	ivpu_ipc_disable(vdev);
 	ivpu_mmu_disable(vdev);
 
 	ret = ivpu_hw_power_down(vdev);
@@ -339,6 +341,10 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->mmu)
 		return -ENOMEM;
 
+	vdev->ipc = drmm_kzalloc(&vdev->drm, sizeof(*vdev->ipc), GFP_KERNEL);
+	if (!vdev->ipc)
+		return -ENOMEM;
+
 	vdev->hw->ops = &ivpu_hw_mtl_ops;
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_GLOBAL_CONTEXT_MMU_SSID + 1;
@@ -383,6 +389,12 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		goto err_mmu_gctx_fini;
 	}
 
+	ret = ivpu_ipc_init(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize IPC: %d\n", ret);
+		goto err_mmu_gctx_fini;
+	}
+
 	return 0;
 
 err_mmu_gctx_fini:
@@ -397,6 +409,7 @@ err_xa_destroy:
 static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
 	ivpu_shutdown(vdev);
+	ivpu_ipc_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
 
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->context_xa));

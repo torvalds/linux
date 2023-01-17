@@ -7,6 +7,7 @@
 #include "ivpu_hw_mtl_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_hw.h"
+#include "ivpu_ipc.h"
 #include "ivpu_mmu.h"
 
 #define TILE_FUSE_ENABLE_BOTH	     0x0
@@ -933,6 +934,9 @@ static u32 ivpu_hw_mtl_irqv_handler(struct ivpu_device *vdev, int irq)
 
 	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, MMU_IRQ_0_INT, status))
 		ivpu_mmu_irq_evtq_handler(vdev);
+
+	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, HOST_IPC_FIFO_INT, status))
+		ivpu_ipc_irq_handler(vdev);
 
 	if (REG_TEST_FLD(MTL_VPU_HOST_SS_ICB_STATUS_0, MMU_IRQ_1_INT, status))
 		ivpu_dbg(vdev, IRQ, "MMU sync complete\n");

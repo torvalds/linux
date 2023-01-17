@@ -74,6 +74,7 @@ struct ivpu_wa_table {
 
 struct ivpu_hw_info;
 struct ivpu_mmu_info;
+struct ivpu_ipc_info;
 
 struct ivpu_device {
 	struct drm_device drm;
@@ -85,6 +86,7 @@ struct ivpu_device {
 	struct ivpu_wa_table wa;
 	struct ivpu_hw_info *hw;
 	struct ivpu_mmu_info *mmu;
+	struct ivpu_ipc_info *ipc;
 
 	struct ivpu_mmu_context gctx;
 	struct xarray context_xa;
