@@ -163,9 +163,6 @@ int blk_crypto_derive_sw_secret(struct block_device *bdev,
 				const u8 *eph_key, size_t eph_key_size,
 				u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE]);
 
-bool blk_crypto_hw_wrapped_keys_compatible(struct block_device *bdev1,
-					   struct block_device *bdev2);
-
 #else /* CONFIG_BLK_INLINE_ENCRYPTION */
 
 static inline bool bio_has_crypt_ctx(struct bio *bio)
