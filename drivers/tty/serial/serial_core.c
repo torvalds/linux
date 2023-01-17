@@ -312,7 +312,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	 * a DCD drop (hangup) at just the right time.  Clear suspended bit so
 	 * we don't try to resume a port that has been shutdown.
 	 */
-	tty_port_set_suspended(port, 0);
+	tty_port_set_suspended(port, false);
 
 	/*
 	 * Do not free() the transmit buffer page under the port lock since
@@ -1725,7 +1725,7 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	 * a DCD drop (hangup) at just the right time.  Clear suspended bit so
 	 * we don't try to resume a port that has been shutdown.
 	 */
-	tty_port_set_suspended(port, 0);
+	tty_port_set_suspended(port, false);
 
 	/*
 	 * Free the transmit buffer.
@@ -2346,7 +2346,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		int tries;
 		unsigned int mctrl;
 
-		tty_port_set_suspended(port, 1);
+		tty_port_set_suspended(port, true);
 		tty_port_set_initialized(port, false);
 
 		spin_lock_irq(&uport->lock);
@@ -2469,7 +2469,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			}
 		}
 
-		tty_port_set_suspended(port, 0);
+		tty_port_set_suspended(port, false);
 	}
 
 	mutex_unlock(&port->mutex);
