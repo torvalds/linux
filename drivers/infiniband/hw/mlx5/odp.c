@@ -986,7 +986,7 @@ static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 {
 	int ret = 0, npages = 0;
 	u64 io_virt;
-	u32 key;
+	__be32 key;
 	u32 byte_count;
 	size_t bcnt;
 	int inline_segment;
@@ -1000,7 +1000,7 @@ static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 		struct mlx5_wqe_data_seg *dseg = wqe;
 
 		io_virt = be64_to_cpu(dseg->addr);
-		key = be32_to_cpu(dseg->lkey);
+		key = dseg->lkey;
 		byte_count = be32_to_cpu(dseg->byte_count);
 		inline_segment = !!(byte_count &  MLX5_INLINE_SEG);
 		bcnt	       = byte_count & ~MLX5_INLINE_SEG;
@@ -1014,8 +1014,8 @@ static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 		}
 
 		/* receive WQE end of sg list. */
-		if (receive_queue && bcnt == 0 && key == MLX5_INVALID_LKEY &&
-		    io_virt == 0)
+		if (receive_queue && bcnt == 0 &&
+		    key == MLX5_TERMINATE_SCATTER_LIST_LKEY && io_virt == 0)
 			break;
 
 		if (!inline_segment && total_wqe_bytes) {
@@ -1034,7 +1034,7 @@ static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 			continue;
 		}
 
-		ret = pagefault_single_data_segment(dev, NULL, key,
+		ret = pagefault_single_data_segment(dev, NULL, be32_to_cpu(key),
 						    io_virt, bcnt,
 						    &pfault->bytes_committed,
 						    bytes_mapped);
