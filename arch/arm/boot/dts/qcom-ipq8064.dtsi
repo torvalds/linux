@@ -326,25 +326,25 @@
 		};
 	};
 
+	stmmac_axi_setup: stmmac-axi-config {
+		snps,wr_osr_lmt = <7>;
+		snps,rd_osr_lmt = <7>;
+		snps,blen = <16 0 0 0 0 0 0>;
+	};
+
+	vsdcc_fixed: vsdcc-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "SDCC Power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 		compatible = "simple-bus";
-
-		stmmac_axi_setup: stmmac-axi-config {
-			snps,wr_osr_lmt = <7>;
-			snps,rd_osr_lmt = <7>;
-			snps,blen = <16 0 0 0 0 0 0>;
-		};
-
-		vsdcc_fixed: vsdcc-regulator {
-			compatible = "regulator-fixed";
-			regulator-name = "SDCC Power";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
 
 		rpm: rpm@108000 {
 			compatible = "qcom,rpm-ipq8064";
