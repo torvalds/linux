@@ -4,67 +4,6 @@ Linux Kernel Makefiles
 
 This document describes the Linux kernel Makefiles.
 
-.. Table of Contents
-
-	=== 1 Overview
-	=== 2 Who does what
-	=== 3 The kbuild files
-	   --- 3.1 Goal definitions
-	   --- 3.2 Built-in object goals - obj-y
-	   --- 3.3 Loadable module goals - obj-m
-	   --- 3.4 <deleted>
-	   --- 3.5 Library file goals - lib-y
-	   --- 3.6 Descending down in directories
-	   --- 3.7 Non-builtin vmlinux targets - extra-y
-	   --- 3.8 Always built goals - always-y
-	   --- 3.9 Compilation flags
-	   --- 3.10 Dependency tracking
-	   --- 3.11 Custom Rules
-	   --- 3.12 Command change detection
-	   --- 3.13 $(CC) support functions
-	   --- 3.14 $(LD) support functions
-	   --- 3.15 Script Invocation
-
-	=== 4 Host Program support
-	   --- 4.1 Simple Host Program
-	   --- 4.2 Composite Host Programs
-	   --- 4.3 Using C++ for host programs
-	   --- 4.4 Using Rust for host programs
-	   --- 4.5 Controlling compiler options for host programs
-	   --- 4.6 When host programs are actually built
-
-	=== 5 Userspace Program support
-	   --- 5.1 Simple Userspace Program
-	   --- 5.2 Composite Userspace Programs
-	   --- 5.3 Controlling compiler options for userspace programs
-	   --- 5.4 When userspace programs are actually built
-
-	=== 6 Kbuild clean infrastructure
-
-	=== 7 Architecture Makefiles
-	   --- 7.1 Set variables to tweak the build to the architecture
-	   --- 7.2 Add prerequisites to archheaders
-	   --- 7.3 Add prerequisites to archprepare
-	   --- 7.4 List directories to visit when descending
-	   --- 7.5 Architecture-specific boot images
-	   --- 7.6 Building non-kbuild targets
-	   --- 7.7 Commands useful for building a boot image
-	   --- 7.8 <deleted>
-	   --- 7.9 Preprocessing linker scripts
-	   --- 7.10 Generic header files
-	   --- 7.11 Post-link pass
-
-	=== 8 Kbuild syntax for exported headers
-		--- 8.1 no-export-headers
-		--- 8.2 generic-y
-		--- 8.3 generated-y
-		--- 8.4 mandatory-y
-
-	=== 9 Kbuild Variables
-	=== 10 Makefile language
-	=== 11 Credits
-	=== 12 TODO
-
 1 Overview
 ==========
 
