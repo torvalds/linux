@@ -1459,7 +1459,7 @@ static bool amiga_carrier_raised(struct tty_port *port)
 	return !(ciab.pra & SER_DCD);
 }
 
-static void amiga_dtr_rts(struct tty_port *port, int raise)
+static void amiga_dtr_rts(struct tty_port *port, bool raise)
 {
 	struct serial_state *info = container_of(port, struct serial_state,
 			tport);

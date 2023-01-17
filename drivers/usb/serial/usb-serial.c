@@ -765,7 +765,7 @@ static bool serial_port_carrier_raised(struct tty_port *port)
 	return true;
 }
 
-static void serial_port_dtr_rts(struct tty_port *port, int on)
+static void serial_port_dtr_rts(struct tty_port *port, bool on)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = p->serial->type;
