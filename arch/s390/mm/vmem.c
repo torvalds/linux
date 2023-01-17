@@ -672,13 +672,7 @@ static int __init memblock_region_cmp(const void *a, const void *b)
 
 static void __init memblock_region_swap(void *a, void *b, int size)
 {
-	struct memblock_region *r1 = a;
-	struct memblock_region *r2 = b;
-	struct memblock_region swap;
-
-	swap = *r1;
-	*r1 = *r2;
-	*r2 = swap;
+	swap(*(struct memblock_region *)a, *(struct memblock_region *)b);
 }
 
 /*
