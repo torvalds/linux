@@ -433,6 +433,9 @@ void dc_link_dp_handle_link_loss(struct dc_link *link);
 bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link);
 bool dc_link_check_link_loss_status(struct dc_link *link,
 				       union hpd_irq_data *hpd_irq_dpcd_data);
+enum dc_status dp_read_hpd_rx_irq_data(
+	struct dc_link *link,
+	union hpd_irq_data *irq_data);
 struct dc_sink_init_data;
 
 struct dc_sink *dc_link_add_remote_sink(
