@@ -229,10 +229,9 @@ int thermal_build_list_of_policies(char *buf)
 	mutex_lock(&thermal_governor_lock);
 
 	list_for_each_entry(pos, &thermal_governor_list, governor_list) {
-		count += scnprintf(buf + count, PAGE_SIZE - count, "%s ",
-				   pos->name);
+		count += sysfs_emit_at(buf, count, "%s ", pos->name);
 	}
-	count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
+	count += sysfs_emit_at(buf, count, "\n");
 
 	mutex_unlock(&thermal_governor_lock);
 
