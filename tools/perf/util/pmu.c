@@ -19,6 +19,7 @@
 #include <regex.h>
 #include <perf/cpumap.h>
 #include <fnmatch.h>
+#include <math.h>
 #include "debug.h"
 #include "evsel.h"
 #include "pmu.h"
@@ -1992,4 +1993,9 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 	*mcpus_ptr = matched_cpus;
 	*ucpus_ptr = unmatched_cpus;
 	return 0;
+}
+
+double __weak perf_pmu__cpu_slots_per_cycle(void)
+{
+	return NAN;
 }
