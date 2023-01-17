@@ -758,8 +758,13 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
 		q->desc[i].ctrl = cpu_to_le32(MT_DMA_CTL_DMA_DONE);
 
 	mt76_dma_rx_cleanup(dev, q);
-	mt76_dma_sync_idx(dev, q);
-	mt76_dma_rx_fill(dev, q, false);
+
+	/* reset WED rx queues */
+	mt76_dma_wed_setup(dev, q, true);
+	if (q->flags != MT_WED_Q_TXFREE) {
+		mt76_dma_sync_idx(dev, q);
+		mt76_dma_rx_fill(dev, q, false);
+	}
 }
 
 static void
