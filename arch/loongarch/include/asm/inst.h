@@ -377,14 +377,6 @@ static inline bool unsigned_imm_check(unsigned long val, unsigned int bit)
 	return val < (1UL << bit);
 }
 
-static inline unsigned long sign_extend(unsigned long val, unsigned int idx)
-{
-	if (!is_imm_negative(val, idx + 1))
-		return ((1UL << idx) - 1) & val;
-	else
-		return ~((1UL << idx) - 1) | val;
-}
-
 #define DEF_EMIT_REG0I26_FORMAT(NAME, OP)				\
 static inline void emit_##NAME(union loongarch_instruction *insn,	\
 			       int offset)				\
