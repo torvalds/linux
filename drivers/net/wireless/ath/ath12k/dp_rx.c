@@ -2582,7 +2582,6 @@ int ath12k_dp_rx_process(struct ath12k_base *ab, int ring_id,
 	struct sk_buff *msdu;
 	bool done = false;
 	int mac_id;
-	int i;
 	u64 desc_va;
 
 	__skb_queue_head_init(&msdu_list);
@@ -2687,7 +2686,7 @@ try_again:
 		goto exit;
 
 	/* TODO: Move to implicit BM? */
-	ath12k_dp_rx_bufs_replenish(ab, i, rx_ring, num_buffs_reaped,
+	ath12k_dp_rx_bufs_replenish(ab, 0, rx_ring, num_buffs_reaped,
 				    ab->hw_params->hal_params->rx_buf_rbm, true);
 
 	ath12k_dp_rx_process_received_packets(ab, napi, &msdu_list,

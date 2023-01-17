@@ -230,7 +230,7 @@ int ath12k_dbring_get_cap(struct ath12k_base *ab,
 int ath12k_dbring_buffer_release_event(struct ath12k_base *ab,
 				       struct ath12k_dbring_buf_release_event *ev)
 {
-	struct ath12k_dbring *ring;
+	struct ath12k_dbring *ring = NULL;
 	struct hal_srng *srng;
 	struct ath12k *ar;
 	struct ath12k_dbring_element *buff;

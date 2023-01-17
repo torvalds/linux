@@ -1057,7 +1057,7 @@ static int ath12k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath12k *ar = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -1089,7 +1089,7 @@ exit:
 err_mon_del:
 	ath12k_mac_monitor_vdev_delete(ar);
 	mutex_unlock(&ar->conf_mutex);
-	return 0;
+	return ret;
 }
 
 static int ath12k_mac_setup_bcn_tmpl(struct ath12k_vif *arvif)
