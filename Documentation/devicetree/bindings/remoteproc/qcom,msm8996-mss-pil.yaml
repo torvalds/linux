@@ -122,6 +122,7 @@ properties:
     items:
       - description: MBA reserved region
       - description: Modem reserved region
+      - description: Metadata reserved region
 
   firmware-name:
     $ref: /schemas/types.yaml#/definitions/string-array
@@ -162,6 +163,20 @@ properties:
     type: object
     description:
       MPSS reserved region
+
+    properties:
+      memory-region: true
+
+    required:
+      - memory-region
+
+    additionalProperties: false
+    deprecated: true
+
+  metadata:
+    type: object
+    description:
+      Metadata reserved region
 
     properties:
       memory-region: true
@@ -313,6 +328,7 @@ allOf:
       - required:
           - mba
           - mpss
+          - metadata
 
 additionalProperties: false
 
@@ -355,7 +371,7 @@ examples:
                         <&rpmhpd SDM845_MSS>;
         power-domain-names = "cx", "mx", "mss";
 
-        memory-region = <&mba_mem>, <&mpss_mem>;
+        memory-region = <&mba_mem>, <&mpss_mem>, <&mdata_mem>;
 
         resets = <&aoss_reset AOSS_CC_MSS_RESTART>,
                  <&pdc_reset PDC_MODEM_SYNC_RESET>;
