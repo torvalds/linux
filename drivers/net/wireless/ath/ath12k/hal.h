@@ -155,30 +155,6 @@ struct ath12k_base;
 #define HAL_REO1_AGING_THRESH_IX_2(ab)	((ab)->hw_params->regs->hal_reo1_aging_thres_ix2)
 #define HAL_REO1_AGING_THRESH_IX_3(ab)	((ab)->hw_params->regs->hal_reo1_aging_thres_ix3)
 
-#define HAL_REO1_RING_MSI1_BASE_LSB_OFFSET(ab)				\
-		(HAL_REO1_RING_MSI1_BASE_LSB(ab) - HAL_REO1_RING_BASE_LSB(ab))
-#define HAL_REO1_RING_MSI1_BASE_MSB_OFFSET(ab)				\
-		(HAL_REO1_RING_MSI1_BASE_MSB(ab) - HAL_REO1_RING_BASE_LSB(ab))
-#define HAL_REO1_RING_MSI1_DATA_OFFSET(ab)				\
-		(HAL_REO1_RING_MSI1_DATA(ab) - HAL_REO1_RING_BASE_LSB(ab))
-#define HAL_REO1_RING_BASE_MSB_OFFSET(ab)				\
-		(HAL_REO1_RING_BASE_MSB(ab) - HAL_REO1_RING_BASE_LSB(ab))
-
-#define HAL_REO1_RING_ID_OFFSET(ab)					\
-	({								\
-		struct ath12k_base *_ab = (ab);				\
-		(HAL_REO1_RING_ID(_ab) - HAL_REO1_RING_BASE_LSB(_ab));	\
-	})
-
-#define HAL_REO1_RING_PRODUCER_INT_SETUP_OFFSET(ab)			\
-		(HAL_REO1_RING_PRODUCER_INT_SETUP(ab) - HAL_REO1_RING_BASE_LSB(ab))
-#define HAL_REO1_RING_HP_ADDR_LSB_OFFSET(ab)				\
-		(HAL_REO1_RING_HP_ADDR_LSB(ab) - HAL_REO1_RING_BASE_LSB(ab))
-#define HAL_REO1_RING_HP_ADDR_MSB_OFFSET(ab)				\
-		(HAL_REO1_RING_HP_ADDR_MSB(ab) - HAL_REO1_RING_BASE_LSB(ab))
-#define HAL_REO1_RING_MISC_OFFSET(ab)					\
-		(HAL_REO1_RING_MISC(ab) - HAL_REO1_RING_BASE_LSB(ab))
-
 /* REO2SW(x) R2 ring pointers (head/tail) address */
 #define HAL_REO1_RING_HP			0x00003048
 #define HAL_REO1_RING_TP			0x0000304c
