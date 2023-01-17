@@ -344,19 +344,36 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 
 	*bRGA3_WIN0_RD_CTRL = reg;
 
-	/* stride need align to 16 */
-	if (msg->win0.rd_mode != 1)
+	switch (msg->win0.rd_mode) {
+	case 0: /* raster */
 		stride = (((msg->win0.vir_w * pixel_width) + 15) & ~15) >> 2;
-	else
-		stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win0.format))
+			uv_stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
+		else
+			uv_stride = stride;
+		break;
 
-	if (msg->win0.format == RGA_FORMAT_YCbCr_420_SP
-		|| msg->win0.format == RGA_FORMAT_YCrCb_420_SP
-		|| msg->win0.format == RGA_FORMAT_YCbCr_420_SP_10B
-		|| msg->win0.format == RGA_FORMAT_YCrCb_420_SP_10B)
-		uv_stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
-	else
-		uv_stride = stride;
+	case 1: /* fbc */
+		stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win0.format))
+			uv_stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
+		else
+			uv_stride = stride;
+		break;
+
+	case 2: /* tile 8*8 */
+		/*
+		 * tile 8*8 mode 8 lines of data are read/written at one time,
+		 * so stride needs * 8. YUV420 only has 4 lines of UV data, so
+		 * it needs to >>1.
+		 */
+		stride = (((msg->win0.vir_w * pixel_width * 8) + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win0.format))
+			uv_stride = ((((msg->win0.vir_w * 8) + 15) & ~15) >> 1) >> 2;
+		else
+			uv_stride = stride;
+		break;
+	}
 
 	*bRGA3_WIN0_Y_BASE = (u32) msg->win0.yrgb_addr;
 	*bRGA3_WIN0_U_BASE = (u32) msg->win0.uv_addr;
@@ -708,19 +725,31 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 
 	*bRGA3_WIN1_RD_CTRL = reg;
 
-	/* stride need align to 16 */
-	if (msg->win1.rd_mode != 1)
+	switch (msg->win1.rd_mode) {
+	case 0: /* raster */
 		stride = (((msg->win1.vir_w * pixel_width) + 15) & ~15) >> 2;
-	else
-		stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win1.format))
+			uv_stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
+		else
+			uv_stride = stride;
+		break;
 
-	if (msg->win1.format == RGA_FORMAT_YCbCr_420_SP
-		|| msg->win1.format == RGA_FORMAT_YCrCb_420_SP
-		|| msg->win1.format == RGA_FORMAT_YCbCr_420_SP_10B
-		|| msg->win1.format == RGA_FORMAT_YCrCb_420_SP_10B)
-		uv_stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
-	else
-		uv_stride = stride;
+	case 1: /* fbc */
+		stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win1.format))
+			uv_stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
+		else
+			uv_stride = stride;
+		break;
+
+	case 2: /* tile 8*8 */
+		stride = (((msg->win1.vir_w * pixel_width * 8) + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win1.format))
+			uv_stride = ((((msg->win1.vir_w * 8) + 15) & ~15) >> 1) >> 2;
+		else
+			uv_stride = stride;
+		break;
+	}
 
 	*bRGA3_WIN1_Y_BASE = (u32) msg->win1.yrgb_addr;
 	*bRGA3_WIN1_U_BASE = (u32) msg->win1.uv_addr;
@@ -934,16 +963,20 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 	*bRGA3_WR_RD_CTRL = reg;
 	*bRGA3_WR_FBCD_CTRL = fbcd_reg;
 
-	/* stride need align to 16 */
-	if (msg->wr.rd_mode != 1) {
+	switch (msg->wr.rd_mode) {
+	case 0: /* raster */
 		stride = (((msg->wr.vir_w * pixel_width) + 15) & ~15) >> 2;
-		*bRGA3_WR_U_BASE = (u32) msg->wr.uv_addr;
 		uv_stride = ((msg->wr.vir_w + 15) & ~15) >> 2;
-	} else {
+
+		*bRGA3_WR_U_BASE = (u32) msg->wr.uv_addr;
+
+		break;
+
+	case 1: /* fbc */
 		stride = ((msg->wr.vir_w + 15) & ~15) >> 2;
 		/* need to calculate fbcd header size */
 		vir_h = ((msg->wr.vir_h + 15) & ~15);
-		*bRGA3_WR_U_BASE = (u32) (msg->wr.uv_addr + ((stride * vir_h)>>2));
+
 		/* RGBA8888 */
 		if (wr_format == 0x6)
 			uv_stride = ((msg->wr.vir_w + 15) & ~15);
@@ -959,6 +992,20 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 		/* yuv422 10bit */
 		else if (wr_format == 0x3)
 			uv_stride = (((msg->wr.vir_w + 15) & ~15) >> 3) * 5;
+
+		*bRGA3_WR_U_BASE = (u32) (msg->wr.uv_addr + ((stride * vir_h)>>2));
+
+		break;
+
+	case 2: /* tile 8*8 */
+		stride = (((msg->wr.vir_w * pixel_width * 8) + 15) & ~15) >> 2;
+		if (rga_is_yuv420_semi_planar_format(msg->win0.format))
+			uv_stride = ((((msg->wr.vir_w * 8) + 15) & ~15) >> 1) >> 2;
+		else
+			uv_stride = stride;
+
+		*bRGA3_WR_U_BASE = (u32) msg->wr.uv_addr;
+		break;
 	}
 
 	*bRGA3_WR_Y_BASE = (u32) msg->wr.yrgb_addr;

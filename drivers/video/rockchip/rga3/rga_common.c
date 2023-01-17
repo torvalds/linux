@@ -107,6 +107,30 @@ bool rga_is_yuv420_packed_format(uint32_t format)
 	}
 }
 
+bool rga_is_yuv420_planar_format(uint32_t format)
+{
+	switch (format) {
+	case RGA_FORMAT_YCbCr_420_P:
+	case RGA_FORMAT_YCrCb_420_P:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool rga_is_yuv420_semi_planar_format(uint32_t format)
+{
+	switch (format) {
+	case RGA_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool rga_is_yuv422_packed_format(uint32_t format)
 {
 	switch (format) {
@@ -114,6 +138,30 @@ bool rga_is_yuv422_packed_format(uint32_t format)
 	case RGA_FORMAT_VYUY_422:
 	case RGA_FORMAT_YUYV_422:
 	case RGA_FORMAT_UYVY_422:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool rga_is_yuv422_planar_format(uint32_t format)
+{
+	switch (format) {
+	case RGA_FORMAT_YCbCr_422_P:
+	case RGA_FORMAT_YCrCb_422_P:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool rga_is_yuv422_semi_planar_format(uint32_t format)
+{
+	switch (format) {
+	case RGA_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
 		return true;
 	default:
 		return false;
