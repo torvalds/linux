@@ -3818,6 +3818,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 		wl->scbd_change = false;
 		btc->cx.cnt_wl[BTC_WCNT_SCBDUPDATE]++;
 	}
+	btc->dm.tdma_instant_excute = 0;
 }
 
 static void _action_by_bt(struct rtw89_dev *rtwdev)
@@ -5347,6 +5348,11 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 	}
 
 	btc->dm.cnt_dm[BTC_DCNT_BTCNT_FREEZE] = 0;
+	if (wl->status.map.lps_pre == BTC_LPS_OFF &&
+	    wl->status.map.lps_pre != wl->status.map.lps)
+		btc->dm.tdma_instant_excute = 1;
+	else
+		btc->dm.tdma_instant_excute = 0;
 
 	_run_coex(rtwdev, BTC_RSN_NTFY_RADIO_STATE);
 
