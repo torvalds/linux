@@ -559,6 +559,20 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	return 0;
 }
 
+static void mt7915_dma_wed_reset(struct mt7915_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+
+	if (!test_bit(MT76_STATE_WED_RESET, &dev->mphy.state))
+		return;
+
+	complete(&mdev->mmio.wed_reset);
+
+	if (!wait_for_completion_timeout(&dev->mt76.mmio.wed_reset_complete,
+					 3 * HZ))
+		dev_err(dev->mt76.dev, "wed reset complete timeout\n");
+}
+
 int mt7915_dma_reset(struct mt7915_dev *dev, bool force)
 {
 	struct mt76_phy *mphy_ext = dev->mt76.phys[MT_BAND1];
@@ -582,6 +596,7 @@ int mt7915_dma_reset(struct mt7915_dev *dev, bool force)
 		mt7915_wfsys_reset(dev);
 
 	mt7915_dma_disable(dev, force);
+	mt7915_dma_wed_reset(dev);
 
 	/* reset hw queues */
 	for (i = 0; i < __MT_TXQ_MAX; i++) {
