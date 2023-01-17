@@ -228,6 +228,7 @@ def define_pineapple():
         # keep sorted
         "drivers/hwtracing/coresight/coresight-etm4x.ko",
         "drivers/misc/lkdtm/lkdtm.ko",
+        "drivers/misc/qseecom_proxy.ko",
         "kernel/locking/locktorture.ko",
         "kernel/rcu/rcutorture.ko",
         "kernel/torture.ko",
