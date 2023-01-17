@@ -1732,6 +1732,13 @@ static int enetc_dma_alloc_bdr(struct enetc_bdr *r, size_t bd_size)
 	return 0;
 }
 
+static void enetc_dma_free_bdr(struct enetc_bdr *r, size_t bd_size)
+{
+	dma_free_coherent(r->dev, r->bd_count * bd_size, r->bd_base,
+			  r->bd_dma_base);
+	r->bd_base = NULL;
+}
+
 static int enetc_alloc_txbdr(struct enetc_bdr *txr)
 {
 	int err;
@@ -1756,9 +1763,7 @@ static int enetc_alloc_txbdr(struct enetc_bdr *txr)
 	return 0;
 
 err_alloc_tso:
-	dma_free_coherent(txr->dev, txr->bd_count * sizeof(union enetc_tx_bd),
-			  txr->bd_base, txr->bd_dma_base);
-	txr->bd_base = NULL;
+	enetc_dma_free_bdr(txr, sizeof(union enetc_tx_bd));
 err_alloc_bdr:
 	vfree(txr->tx_swbd);
 	txr->tx_swbd = NULL;
@@ -1768,19 +1773,16 @@ err_alloc_bdr:
 
 static void enetc_free_txbdr(struct enetc_bdr *txr)
 {
-	int size, i;
+	int i;
 
 	for (i = 0; i < txr->bd_count; i++)
 		enetc_free_tx_frame(txr, &txr->tx_swbd[i]);
-
-	size = txr->bd_count * sizeof(union enetc_tx_bd);
 
 	dma_free_coherent(txr->dev, txr->bd_count * TSO_HEADER_SIZE,
 			  txr->tso_headers, txr->tso_headers_dma);
 	txr->tso_headers = NULL;
 
-	dma_free_coherent(txr->dev, size, txr->bd_base, txr->bd_dma_base);
-	txr->bd_base = NULL;
+	enetc_dma_free_bdr(txr, sizeof(union enetc_tx_bd));
 
 	vfree(txr->tx_swbd);
 	txr->tx_swbd = NULL;
@@ -1839,12 +1841,7 @@ static int enetc_alloc_rxbdr(struct enetc_bdr *rxr, bool extended)
 
 static void enetc_free_rxbdr(struct enetc_bdr *rxr)
 {
-	int size;
-
-	size = rxr->bd_count * sizeof(union enetc_rx_bd);
-
-	dma_free_coherent(rxr->dev, size, rxr->bd_base, rxr->bd_dma_base);
-	rxr->bd_base = NULL;
+	enetc_dma_free_bdr(rxr, sizeof(union enetc_rx_bd));
 
 	vfree(rxr->rx_swbd);
 	rxr->rx_swbd = NULL;
