@@ -88,7 +88,7 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 	if (!resource_id)
 		return -EINVAL;
 
-	for (i = 0; resource_id[i] > 0; i++) {
+	for (i = 0; resource_id[i] >= 0; i++) {
 
 		sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
 		if (!sensor)
@@ -127,7 +127,7 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx_sc_sensors[] = { IMX_SC_R_SYSTEM, IMX_SC_R_PMIC_0, -1 };
+static const int imx_sc_sensors[] = { IMX_SC_R_SYSTEM, IMX_SC_R_PMIC_0, -1 };
 
 static const struct of_device_id imx_sc_thermal_table[] = {
 	{ .compatible = "fsl,imx-sc-thermal", .data =  imx_sc_sensors },
