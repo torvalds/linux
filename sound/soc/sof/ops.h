@@ -472,10 +472,10 @@ static inline int snd_sof_load_firmware(struct snd_sof_dev *sdev)
 
 /* host DSP message data */
 static inline int snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
-				       struct snd_pcm_substream *substream,
+				       struct snd_sof_pcm_stream *sps,
 				       void *p, size_t sz)
 {
-	return sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
+	return sof_ops(sdev)->ipc_msg_data(sdev, sps, p, sz);
 }
 /* host side configuration of the stream's data offset in stream mailbox area */
 static inline int

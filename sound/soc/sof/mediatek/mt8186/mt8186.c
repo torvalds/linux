@@ -494,7 +494,7 @@ static snd_pcm_uframes_t mt8186_pcm_pointer(struct snd_sof_dev *sdev,
 	}
 
 	stream = &spcm->stream[substream->stream];
-	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
 	if (ret < 0) {
 		dev_warn(sdev->dev, "failed to read stream position: %d\n", ret);
 		return 0;

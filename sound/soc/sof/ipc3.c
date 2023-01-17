@@ -847,7 +847,7 @@ static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	}
 
 	stream = &spcm->stream[direction];
-	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
 	if (ret < 0) {
 		dev_warn(sdev->dev, "failed to read stream position: %d\n", ret);
 		return;
@@ -882,7 +882,7 @@ static void ipc3_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 	}
 
 	stream = &spcm->stream[direction];
-	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
 	if (ret < 0) {
 		dev_warn(sdev->dev, "failed to read overrun position: %d\n", ret);
 		return;
