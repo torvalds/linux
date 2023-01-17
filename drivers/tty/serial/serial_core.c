@@ -1827,7 +1827,7 @@ static void uart_hangup(struct tty_struct *tty)
 		spin_lock_irqsave(&port->lock, flags);
 		port->count = 0;
 		spin_unlock_irqrestore(&port->lock, flags);
-		tty_port_set_active(port, 0);
+		tty_port_set_active(port, false);
 		tty_port_tty_set(port, NULL);
 		if (uport && !uart_console(uport))
 			uart_change_pm(state, UART_PM_STATE_OFF);
@@ -1945,7 +1945,7 @@ static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
 	 */
 	ret = uart_startup(tty, state, 0);
 	if (ret > 0)
-		tty_port_set_active(port, 1);
+		tty_port_set_active(port, true);
 
 	return ret;
 }
