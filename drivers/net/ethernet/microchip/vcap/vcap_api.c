@@ -920,6 +920,20 @@ int vcap_set_rule_set_actionset(struct vcap_rule *rule,
 }
 EXPORT_SYMBOL_GPL(vcap_set_rule_set_actionset);
 
+/* Check if a rule with this id exists */
+static bool vcap_rule_exists(struct vcap_control *vctrl, u32 id)
+{
+	struct vcap_rule_internal *ri;
+	struct vcap_admin *admin;
+
+	/* Look for the rule id in all vcaps */
+	list_for_each_entry(admin, &vctrl->list, list)
+		list_for_each_entry(ri, &admin->rules, list)
+			if (ri->data.id == id)
+				return true;
+	return false;
+}
+
 /* Find a rule with a provided rule id */
 static struct vcap_rule_internal *vcap_lookup_rule(struct vcap_control *vctrl,
 						   u32 id)
@@ -1866,7 +1880,7 @@ static u32 vcap_set_rule_id(struct vcap_rule_internal *ri)
 		return ri->data.id;
 
 	for (u32 next_id = 1; next_id < ~0; ++next_id) {
-		if (!vcap_lookup_rule(ri->vctrl, next_id)) {
+		if (!vcap_rule_exists(ri->vctrl, next_id)) {
 			ri->data.id = next_id;
 			break;
 		}
@@ -2103,7 +2117,7 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 	if (vctrl->vcaps[admin->vtype].rows == 0)
 		return ERR_PTR(-EINVAL);
 	/* Check if a rule with this id already exists */
-	if (vcap_lookup_rule(vctrl, id))
+	if (vcap_rule_exists(vctrl, id))
 		return ERR_PTR(-EEXIST);
 	/* Check if there is room for the rule in the block(s) of the VCAP */
 	maxsize = vctrl->vcaps[admin->vtype].sw_count; /* worst case rule size */
