@@ -1715,47 +1715,54 @@ void enetc_get_si_caps(struct enetc_si *si)
 		si->hw_features |= ENETC_SI_F_PSFP;
 }
 
-static int enetc_dma_alloc_bdr(struct enetc_bdr *r, size_t bd_size)
+static int enetc_dma_alloc_bdr(struct enetc_bdr_resource *res)
 {
-	r->bd_base = dma_alloc_coherent(r->dev, r->bd_count * bd_size,
-					&r->bd_dma_base, GFP_KERNEL);
-	if (!r->bd_base)
+	size_t bd_base_size = res->bd_count * res->bd_size;
+
+	res->bd_base = dma_alloc_coherent(res->dev, bd_base_size,
+					  &res->bd_dma_base, GFP_KERNEL);
+	if (!res->bd_base)
 		return -ENOMEM;
 
 	/* h/w requires 128B alignment */
-	if (!IS_ALIGNED(r->bd_dma_base, 128)) {
-		dma_free_coherent(r->dev, r->bd_count * bd_size, r->bd_base,
-				  r->bd_dma_base);
+	if (!IS_ALIGNED(res->bd_dma_base, 128)) {
+		dma_free_coherent(res->dev, bd_base_size, res->bd_base,
+				  res->bd_dma_base);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static void enetc_dma_free_bdr(struct enetc_bdr *r, size_t bd_size)
+static void enetc_dma_free_bdr(const struct enetc_bdr_resource *res)
 {
-	dma_free_coherent(r->dev, r->bd_count * bd_size, r->bd_base,
-			  r->bd_dma_base);
-	r->bd_base = NULL;
+	size_t bd_base_size = res->bd_count * res->bd_size;
+
+	dma_free_coherent(res->dev, bd_base_size, res->bd_base,
+			  res->bd_dma_base);
 }
 
-static int enetc_alloc_txbdr(struct enetc_bdr *txr)
+static int enetc_alloc_tx_resource(struct enetc_bdr_resource *res,
+				   struct device *dev, size_t bd_count)
 {
 	int err;
 
-	txr->tx_swbd = vzalloc(txr->bd_count * sizeof(struct enetc_tx_swbd));
-	if (!txr->tx_swbd)
+	res->dev = dev;
+	res->bd_count = bd_count;
+	res->bd_size = sizeof(union enetc_tx_bd);
+
+	res->tx_swbd = vzalloc(bd_count * sizeof(*res->tx_swbd));
+	if (!res->tx_swbd)
 		return -ENOMEM;
 
-	err = enetc_dma_alloc_bdr(txr, sizeof(union enetc_tx_bd));
+	err = enetc_dma_alloc_bdr(res);
 	if (err)
 		goto err_alloc_bdr;
 
-	txr->tso_headers = dma_alloc_coherent(txr->dev,
-					      txr->bd_count * TSO_HEADER_SIZE,
-					      &txr->tso_headers_dma,
+	res->tso_headers = dma_alloc_coherent(dev, bd_count * TSO_HEADER_SIZE,
+					      &res->tso_headers_dma,
 					      GFP_KERNEL);
-	if (!txr->tso_headers) {
+	if (!res->tso_headers) {
 		err = -ENOMEM;
 		goto err_alloc_tso;
 	}
@@ -1763,109 +1770,183 @@ static int enetc_alloc_txbdr(struct enetc_bdr *txr)
 	return 0;
 
 err_alloc_tso:
-	enetc_dma_free_bdr(txr, sizeof(union enetc_tx_bd));
+	enetc_dma_free_bdr(res);
 err_alloc_bdr:
-	vfree(txr->tx_swbd);
-	txr->tx_swbd = NULL;
+	vfree(res->tx_swbd);
+	res->tx_swbd = NULL;
 
 	return err;
 }
 
-static void enetc_free_txbdr(struct enetc_bdr *txr)
+static void enetc_free_tx_resource(const struct enetc_bdr_resource *res)
 {
-	dma_free_coherent(txr->dev, txr->bd_count * TSO_HEADER_SIZE,
-			  txr->tso_headers, txr->tso_headers_dma);
-	txr->tso_headers = NULL;
-
-	enetc_dma_free_bdr(txr, sizeof(union enetc_tx_bd));
-
-	vfree(txr->tx_swbd);
-	txr->tx_swbd = NULL;
+	dma_free_coherent(res->dev, res->bd_count * TSO_HEADER_SIZE,
+			  res->tso_headers, res->tso_headers_dma);
+	enetc_dma_free_bdr(res);
+	vfree(res->tx_swbd);
 }
 
-static int enetc_alloc_tx_resources(struct enetc_ndev_priv *priv)
+static struct enetc_bdr_resource *
+enetc_alloc_tx_resources(struct enetc_ndev_priv *priv)
 {
+	struct enetc_bdr_resource *tx_res;
 	int i, err;
 
-	for (i = 0; i < priv->num_tx_rings; i++) {
-		err = enetc_alloc_txbdr(priv->tx_ring[i]);
+	tx_res = kcalloc(priv->num_tx_rings, sizeof(*tx_res), GFP_KERNEL);
+	if (!tx_res)
+		return ERR_PTR(-ENOMEM);
 
+	for (i = 0; i < priv->num_tx_rings; i++) {
+		struct enetc_bdr *tx_ring = priv->tx_ring[i];
+
+		err = enetc_alloc_tx_resource(&tx_res[i], tx_ring->dev,
+					      tx_ring->bd_count);
 		if (err)
 			goto fail;
 	}
 
-	return 0;
+	return tx_res;
 
 fail:
 	while (i-- > 0)
-		enetc_free_txbdr(priv->tx_ring[i]);
+		enetc_free_tx_resource(&tx_res[i]);
 
-	return err;
+	kfree(tx_res);
+
+	return ERR_PTR(err);
 }
 
-static void enetc_free_tx_resources(struct enetc_ndev_priv *priv)
+static void enetc_free_tx_resources(const struct enetc_bdr_resource *tx_res,
+				    size_t num_resources)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; i < priv->num_tx_rings; i++)
-		enetc_free_txbdr(priv->tx_ring[i]);
+	for (i = 0; i < num_resources; i++)
+		enetc_free_tx_resource(&tx_res[i]);
+
+	kfree(tx_res);
 }
 
-static int enetc_alloc_rxbdr(struct enetc_bdr *rxr, bool extended)
+static int enetc_alloc_rx_resource(struct enetc_bdr_resource *res,
+				   struct device *dev, size_t bd_count,
+				   bool extended)
 {
-	size_t size = sizeof(union enetc_rx_bd);
 	int err;
 
-	rxr->rx_swbd = vzalloc(rxr->bd_count * sizeof(struct enetc_rx_swbd));
-	if (!rxr->rx_swbd)
+	res->dev = dev;
+	res->bd_count = bd_count;
+	res->bd_size = sizeof(union enetc_rx_bd);
+	if (extended)
+		res->bd_size *= 2;
+
+	res->rx_swbd = vzalloc(bd_count * sizeof(struct enetc_rx_swbd));
+	if (!res->rx_swbd)
 		return -ENOMEM;
 
-	if (extended)
-		size *= 2;
-
-	err = enetc_dma_alloc_bdr(rxr, size);
+	err = enetc_dma_alloc_bdr(res);
 	if (err) {
-		vfree(rxr->rx_swbd);
+		vfree(res->rx_swbd);
 		return err;
 	}
 
 	return 0;
 }
 
-static void enetc_free_rxbdr(struct enetc_bdr *rxr)
+static void enetc_free_rx_resource(const struct enetc_bdr_resource *res)
 {
-	enetc_dma_free_bdr(rxr, sizeof(union enetc_rx_bd));
-
-	vfree(rxr->rx_swbd);
-	rxr->rx_swbd = NULL;
+	enetc_dma_free_bdr(res);
+	vfree(res->rx_swbd);
 }
 
-static int enetc_alloc_rx_resources(struct enetc_ndev_priv *priv, bool extended)
+static struct enetc_bdr_resource *
+enetc_alloc_rx_resources(struct enetc_ndev_priv *priv, bool extended)
 {
+	struct enetc_bdr_resource *rx_res;
 	int i, err;
 
-	for (i = 0; i < priv->num_rx_rings; i++) {
-		err = enetc_alloc_rxbdr(priv->rx_ring[i], extended);
+	rx_res = kcalloc(priv->num_rx_rings, sizeof(*rx_res), GFP_KERNEL);
+	if (!rx_res)
+		return ERR_PTR(-ENOMEM);
 
+	for (i = 0; i < priv->num_rx_rings; i++) {
+		struct enetc_bdr *rx_ring = priv->rx_ring[i];
+
+		err = enetc_alloc_rx_resource(&rx_res[i], rx_ring->dev,
+					      rx_ring->bd_count, extended);
 		if (err)
 			goto fail;
 	}
 
-	return 0;
+	return rx_res;
 
 fail:
 	while (i-- > 0)
-		enetc_free_rxbdr(priv->rx_ring[i]);
+		enetc_free_rx_resource(&rx_res[i]);
 
-	return err;
+	kfree(rx_res);
+
+	return ERR_PTR(err);
 }
 
-static void enetc_free_rx_resources(struct enetc_ndev_priv *priv)
+static void enetc_free_rx_resources(const struct enetc_bdr_resource *rx_res,
+				    size_t num_resources)
+{
+	size_t i;
+
+	for (i = 0; i < num_resources; i++)
+		enetc_free_rx_resource(&rx_res[i]);
+
+	kfree(rx_res);
+}
+
+static void enetc_assign_tx_resource(struct enetc_bdr *tx_ring,
+				     const struct enetc_bdr_resource *res)
+{
+	tx_ring->bd_base = res ? res->bd_base : NULL;
+	tx_ring->bd_dma_base = res ? res->bd_dma_base : 0;
+	tx_ring->tx_swbd = res ? res->tx_swbd : NULL;
+	tx_ring->tso_headers = res ? res->tso_headers : NULL;
+	tx_ring->tso_headers_dma = res ? res->tso_headers_dma : 0;
+}
+
+static void enetc_assign_rx_resource(struct enetc_bdr *rx_ring,
+				     const struct enetc_bdr_resource *res)
+{
+	rx_ring->bd_base = res ? res->bd_base : NULL;
+	rx_ring->bd_dma_base = res ? res->bd_dma_base : 0;
+	rx_ring->rx_swbd = res ? res->rx_swbd : NULL;
+}
+
+static void enetc_assign_tx_resources(struct enetc_ndev_priv *priv,
+				      const struct enetc_bdr_resource *res)
 {
 	int i;
 
-	for (i = 0; i < priv->num_rx_rings; i++)
-		enetc_free_rxbdr(priv->rx_ring[i]);
+	if (priv->tx_res)
+		enetc_free_tx_resources(priv->tx_res, priv->num_tx_rings);
+
+	for (i = 0; i < priv->num_tx_rings; i++) {
+		enetc_assign_tx_resource(priv->tx_ring[i],
+					 res ? &res[i] : NULL);
+	}
+
+	priv->tx_res = res;
+}
+
+static void enetc_assign_rx_resources(struct enetc_ndev_priv *priv,
+				      const struct enetc_bdr_resource *res)
+{
+	int i;
+
+	if (priv->rx_res)
+		enetc_free_rx_resources(priv->rx_res, priv->num_rx_rings);
+
+	for (i = 0; i < priv->num_rx_rings; i++) {
+		enetc_assign_rx_resource(priv->rx_ring[i],
+					 res ? &res[i] : NULL);
+	}
+
+	priv->rx_res = res;
 }
 
 static void enetc_free_tx_ring(struct enetc_bdr *tx_ring)
@@ -2306,6 +2387,7 @@ void enetc_start(struct net_device *ndev)
 int enetc_open(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_bdr_resource *tx_res, *rx_res;
 	int num_stack_tx_queues;
 	bool extended;
 	int err;
@@ -2320,13 +2402,17 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_phy_connect;
 
-	err = enetc_alloc_tx_resources(priv);
-	if (err)
+	tx_res = enetc_alloc_tx_resources(priv);
+	if (IS_ERR(tx_res)) {
+		err = PTR_ERR(tx_res);
 		goto err_alloc_tx;
+	}
 
-	err = enetc_alloc_rx_resources(priv, extended);
-	if (err)
+	rx_res = enetc_alloc_rx_resources(priv, extended);
+	if (IS_ERR(rx_res)) {
+		err = PTR_ERR(rx_res);
 		goto err_alloc_rx;
+	}
 
 	num_stack_tx_queues = enetc_num_stack_tx_queues(priv);
 
@@ -2339,15 +2425,17 @@ int enetc_open(struct net_device *ndev)
 		goto err_set_queues;
 
 	enetc_tx_onestep_tstamp_init(priv);
+	enetc_assign_tx_resources(priv, tx_res);
+	enetc_assign_rx_resources(priv, rx_res);
 	enetc_setup_bdrs(priv, extended);
 	enetc_start(ndev);
 
 	return 0;
 
 err_set_queues:
-	enetc_free_rx_resources(priv);
+	enetc_free_rx_resources(rx_res, priv->num_rx_rings);
 err_alloc_rx:
-	enetc_free_tx_resources(priv);
+	enetc_free_tx_resources(tx_res, priv->num_tx_rings);
 err_alloc_tx:
 	if (priv->phylink)
 		phylink_disconnect_phy(priv->phylink);
@@ -2391,8 +2479,11 @@ int enetc_close(struct net_device *ndev)
 	if (priv->phylink)
 		phylink_disconnect_phy(priv->phylink);
 	enetc_free_rxtx_rings(priv);
-	enetc_free_rx_resources(priv);
-	enetc_free_tx_resources(priv);
+
+	/* Avoids dangling pointers and also frees old resources */
+	enetc_assign_rx_resources(priv, NULL);
+	enetc_assign_tx_resources(priv, NULL);
+
 	enetc_free_irqs(priv);
 
 	return 0;

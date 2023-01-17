@@ -85,6 +85,23 @@ struct enetc_xdp_data {
 #define ENETC_TX_RING_DEFAULT_SIZE	2048
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
+struct enetc_bdr_resource {
+	/* Input arguments saved for teardown */
+	struct device *dev; /* for DMA mapping */
+	size_t bd_count;
+	size_t bd_size;
+
+	/* Resource proper */
+	void *bd_base; /* points to Rx or Tx BD ring */
+	dma_addr_t bd_dma_base;
+	union {
+		struct enetc_tx_swbd *tx_swbd;
+		struct enetc_rx_swbd *rx_swbd;
+	};
+	char *tso_headers;
+	dma_addr_t tso_headers_dma;
+};
+
 struct enetc_bdr {
 	struct device *dev; /* for DMA mapping */
 	struct net_device *ndev;
@@ -344,6 +361,8 @@ struct enetc_ndev_priv {
 	struct enetc_bdr **xdp_tx_ring;
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
+	const struct enetc_bdr_resource *tx_res;
+	const struct enetc_bdr_resource *rx_res;
 
 	struct enetc_cls_rule *cls_rules;
 
