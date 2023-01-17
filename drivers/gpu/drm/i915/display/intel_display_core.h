@@ -122,6 +122,11 @@ struct intel_dpll {
 		int nssc;
 		int ssc;
 	} ref_clks;
+
+	/*
+	 * Bitmask of PLLs using the PCH SSC, indexed using enum intel_dpll_id.
+	 */
+	u8 pch_ssc_use;
 };
 
 struct intel_frontbuffer_tracking {
