@@ -4254,6 +4254,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	const struct dc_plane_cap *plane;
 	bool psr_feature_enabled = false;
+	int max_overlay = dm->dc->caps.max_slave_planes;
 
 	dm->display_indexes_num = dm->dc->caps.max_streams;
 	/* Update the actual used number of crtc */
@@ -4308,14 +4309,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		if (!plane->pixel_format_support.argb8888)
 			continue;
 
+		if (max_overlay-- == 0)
+			break;
+
 		if (initialize_plane(dm, NULL, primary_planes + i,
 				     DRM_PLANE_TYPE_OVERLAY, plane)) {
 			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
 			goto fail;
 		}
-
-		/* Only create one overlay plane. */
-		break;
 	}
 
 	for (i = 0; i < dm->dc->caps.max_streams; i++)
@@ -9510,7 +9511,8 @@ static int dm_update_plane_state(struct dc *dc,
 				 struct drm_plane_state *old_plane_state,
 				 struct drm_plane_state *new_plane_state,
 				 bool enable,
-				 bool *lock_and_validation_needed)
+				 bool *lock_and_validation_needed,
+				 bool *is_top_most_overlay)
 {
 
 	struct dm_atomic_state *dm_state = NULL;
@@ -9617,6 +9619,14 @@ static int dm_update_plane_state(struct dc *dc,
 		dc_new_plane_state = dc_create_plane_state(dc);
 		if (!dc_new_plane_state)
 			return -ENOMEM;
+
+		/* Block top most plane from being a video plane */
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
+			if (is_video_format(new_plane_state->fb->format->format) && *is_top_most_overlay)
+				return -EINVAL;
+			else
+				*is_top_most_overlay = false;
+		}
 
 		DRM_DEBUG_ATOMIC("Enabling DRM plane: %d on DRM crtc %d\n",
 				 plane->base.id, new_plane_crtc->base.id);
@@ -9814,6 +9824,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	enum dc_status status;
 	int ret, i;
 	bool lock_and_validation_needed = false;
+	bool is_top_most_overlay = true;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct drm_dp_mst_topology_mgr *mgr;
@@ -9948,7 +9959,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 					    old_plane_state,
 					    new_plane_state,
 					    false,
-					    &lock_and_validation_needed);
+					    &lock_and_validation_needed,
+					    &is_top_most_overlay);
 		if (ret) {
 			DRM_DEBUG_DRIVER("dm_update_plane_state() failed\n");
 			goto fail;
@@ -9987,7 +9999,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 					    old_plane_state,
 					    new_plane_state,
 					    true,
-					    &lock_and_validation_needed);
+					    &lock_and_validation_needed,
+					    &is_top_most_overlay);
 		if (ret) {
 			DRM_DEBUG_DRIVER("dm_update_plane_state() failed\n");
 			goto fail;
