@@ -2716,7 +2716,7 @@ static void console_prepend_dropped(struct printk_message *pmsg, unsigned long d
 	char *outbuf = &pbufs->outbuf[0];
 	size_t len;
 
-	len = snprintf(scratchbuf, scratchbuf_sz,
+	len = scnprintf(scratchbuf, scratchbuf_sz,
 		       "** %lu printk messages dropped **\n", dropped);
 
 	/*
