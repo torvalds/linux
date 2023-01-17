@@ -340,7 +340,7 @@
 	status = "okay";
 
 	pca6416: gpio@20 {
-		compatible = "ti,tca6416";
+		compatible = "nxp,pca6416";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
