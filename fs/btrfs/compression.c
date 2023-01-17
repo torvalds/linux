@@ -796,7 +796,7 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			 * Save the initial offset of this chunk, as there
 			 * is no direct correlation between compressed pages and
 			 * the original file offset.  The field is only used for
-			 * priting error messages.
+			 * printing error messages.
 			 */
 			btrfs_bio(comp_bio)->file_offset = file_offset;
 
@@ -1642,7 +1642,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
  *
  * For now is's a naive and optimistic 'return true', we'll extend the logic to
  * quickly (compared to direct compression) detect data characteristics
- * (compressible/uncompressible) to avoid wasting CPU time on uncompressible
+ * (compressible/incompressible) to avoid wasting CPU time on incompressible
  * data.
  *
  * The following types of analysis can be performed:

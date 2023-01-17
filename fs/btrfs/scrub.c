@@ -229,7 +229,7 @@ struct full_stripe_lock {
 };
 
 #ifndef CONFIG_64BIT
-/* This structure is for archtectures whose (void *) is smaller than u64 */
+/* This structure is for architectures whose (void *) is smaller than u64 */
 struct scrub_page_private {
 	u64 logical;
 };

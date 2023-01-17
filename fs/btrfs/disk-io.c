@@ -767,8 +767,8 @@ static void run_one_async_free(struct btrfs_work *work)
 /*
  * Submit bio to an async queue.
  *
- * Retrun:
- * - true if the work has been succesfuly submitted
+ * Return:
+ * - true if the work has been successfully submitted
  * - false in case of error
  */
 bool btrfs_wq_submit_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num,

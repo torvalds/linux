@@ -728,7 +728,7 @@ static struct btrfs_fs_devices *find_fsid_reverted_metadata(
 	/*
 	 * Handle the case where the scanned device is part of an fs whose last
 	 * metadata UUID change reverted it to the original FSID. At the same
-	 * time * fs_devices was first created by another constitutent device
+	 * time fs_devices was first created by another constituent device
 	 * which didn't fully observe the operation. This results in an
 	 * btrfs_fs_devices created with metadata/fsid different AND
 	 * btrfs_fs_devices::fsid_change set AND the metadata_uuid of the

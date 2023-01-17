@@ -1625,7 +1625,7 @@ search:
 }
 
 /*
- * Searche a range in the state tree for a given mask.  If 'filled' == 1, this
+ * Search a range in the state tree for a given mask.  If 'filled' == 1, this
  * returns 1 only if every extent in the tree has the bits set.  Otherwise, 1
  * is returned if any bit in the range is found set.
  */
