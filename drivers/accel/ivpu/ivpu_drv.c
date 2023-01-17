@@ -14,10 +14,13 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_prime.h>
 
+#include "vpu_boot_api.h"
 #include "ivpu_drv.h"
+#include "ivpu_fw.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
+#include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
 
@@ -31,6 +34,10 @@ static const struct drm_driver driver;
 int ivpu_dbg_mask;
 module_param_named(dbg_mask, ivpu_dbg_mask, int, 0644);
 MODULE_PARM_DESC(dbg_mask, "Driver debug mask. See IVPU_DBG_* macros.");
+
+int ivpu_test_mode;
+module_param_named_unsafe(test_mode, ivpu_test_mode, int, 0644);
+MODULE_PARM_DESC(test_mode, "Test mode: 0 - normal operation, 1 - fw unit test, 2 - null hw");
 
 u8 ivpu_pll_min_ratio;
 module_param_named(pll_min_ratio, ivpu_pll_min_ratio, byte, 0644);
@@ -129,6 +136,28 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	case DRM_IVPU_PARAM_CONTEXT_ID:
 		args->value = file_priv->ctx.id;
 		break;
+	case DRM_IVPU_PARAM_FW_API_VERSION:
+		if (args->index < VPU_FW_API_VER_NUM) {
+			struct vpu_firmware_header *fw_hdr;
+
+			fw_hdr = (struct vpu_firmware_header *)vdev->fw->file->data;
+			args->value = fw_hdr->api_version[args->index];
+		} else {
+			ret = -EINVAL;
+		}
+		break;
+	case DRM_IVPU_PARAM_ENGINE_HEARTBEAT:
+		ret = ivpu_jsm_get_heartbeat(vdev, args->index, &args->value);
+		break;
+	case DRM_IVPU_PARAM_UNIQUE_INFERENCE_ID:
+		args->value = (u64)atomic64_inc_return(&vdev->unique_id_counter);
+		break;
+	case DRM_IVPU_PARAM_TILE_CONFIG:
+		args->value = vdev->hw->tile_fuse;
+		break;
+	case DRM_IVPU_PARAM_SKU:
+		args->value = vdev->hw->sku;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -225,11 +254,85 @@ static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_BO_INFO, ivpu_bo_info_ioctl, 0),
 };
 
+static int ivpu_wait_for_ready(struct ivpu_device *vdev)
+{
+	struct ivpu_ipc_consumer cons;
+	struct ivpu_ipc_hdr ipc_hdr;
+	unsigned long timeout;
+	int ret;
+
+	if (ivpu_test_mode == IVPU_TEST_MODE_FW_TEST)
+		return 0;
+
+	ivpu_ipc_consumer_add(vdev, &cons, IVPU_IPC_CHAN_BOOT_MSG);
+
+	timeout = jiffies + msecs_to_jiffies(vdev->timeout.boot);
+	while (1) {
+		ret = ivpu_ipc_irq_handler(vdev);
+		if (ret)
+			break;
+		ret = ivpu_ipc_receive(vdev, &cons, &ipc_hdr, NULL, 0);
+		if (ret != -ETIMEDOUT || time_after_eq(jiffies, timeout))
+			break;
+
+		cond_resched();
+	}
+
+	ivpu_ipc_consumer_del(vdev, &cons);
+
+	if (!ret && ipc_hdr.data_addr != IVPU_IPC_BOOT_MSG_DATA_ADDR) {
+		ivpu_err(vdev, "Invalid VPU ready message: 0x%x\n",
+			 ipc_hdr.data_addr);
+		return -EIO;
+	}
+
+	if (!ret)
+		ivpu_info(vdev, "VPU ready message received successfully\n");
+	else
+		ivpu_hw_diagnose_failure(vdev);
+
+	return ret;
+}
+
+/**
+ * ivpu_boot() - Start VPU firmware
+ * @vdev: VPU device
+ *
+ * This function is paired with ivpu_shutdown() but it doesn't power up the
+ * VPU because power up has to be called very early in ivpu_probe().
+ */
+int ivpu_boot(struct ivpu_device *vdev)
+{
+	int ret;
+
+	/* Update boot params located at first 4KB of FW memory */
+	ivpu_fw_boot_params_setup(vdev, vdev->fw->mem->kvaddr);
+
+	ret = ivpu_hw_boot_fw(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to start the firmware: %d\n", ret);
+		return ret;
+	}
+
+	ret = ivpu_wait_for_ready(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to boot the firmware: %d\n", ret);
+		return ret;
+	}
+
+	ivpu_hw_irq_clear(vdev);
+	enable_irq(vdev->irq);
+	ivpu_hw_irq_enable(vdev);
+	ivpu_ipc_enable(vdev);
+	return 0;
+}
+
 int ivpu_shutdown(struct ivpu_device *vdev)
 {
 	int ret;
 
 	ivpu_hw_irq_disable(vdev);
+	disable_irq(vdev->irq);
 	ivpu_ipc_disable(vdev);
 	ivpu_mmu_disable(vdev);
 
@@ -341,6 +444,10 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->mmu)
 		return -ENOMEM;
 
+	vdev->fw = drmm_kzalloc(&vdev->drm, sizeof(*vdev->fw), GFP_KERNEL);
+	if (!vdev->fw)
+		return -ENOMEM;
+
 	vdev->ipc = drmm_kzalloc(&vdev->drm, sizeof(*vdev->ipc), GFP_KERNEL);
 	if (!vdev->ipc)
 		return -ENOMEM;
@@ -349,6 +456,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_GLOBAL_CONTEXT_MMU_SSID + 1;
 	vdev->context_xa_limit.max = IVPU_CONTEXT_LIMIT;
+	atomic64_set(&vdev->unique_id_counter, 0);
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
 
 	ret = ivpu_pci_init(vdev);
@@ -389,14 +497,34 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		goto err_mmu_gctx_fini;
 	}
 
+	ret = ivpu_fw_init(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize firmware: %d\n", ret);
+		goto err_mmu_gctx_fini;
+	}
+
 	ret = ivpu_ipc_init(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to initialize IPC: %d\n", ret);
-		goto err_mmu_gctx_fini;
+		goto err_fw_fini;
+	}
+
+	ret = ivpu_fw_load(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to load firmware: %d\n", ret);
+		goto err_fw_fini;
+	}
+
+	ret = ivpu_boot(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to boot: %d\n", ret);
+		goto err_fw_fini;
 	}
 
 	return 0;
 
+err_fw_fini:
+	ivpu_fw_fini(vdev);
 err_mmu_gctx_fini:
 	ivpu_mmu_global_context_fini(vdev);
 err_power_down:
@@ -410,6 +538,7 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
 	ivpu_shutdown(vdev);
 	ivpu_ipc_fini(vdev);
+	ivpu_fw_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
 
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->context_xa));

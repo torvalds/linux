@@ -74,6 +74,7 @@ struct ivpu_wa_table {
 
 struct ivpu_hw_info;
 struct ivpu_mmu_info;
+struct ivpu_fw_info;
 struct ivpu_ipc_info;
 
 struct ivpu_device {
@@ -86,11 +87,14 @@ struct ivpu_device {
 	struct ivpu_wa_table wa;
 	struct ivpu_hw_info *hw;
 	struct ivpu_mmu_info *mmu;
+	struct ivpu_fw_info *fw;
 	struct ivpu_ipc_info *ipc;
 
 	struct ivpu_mmu_context gctx;
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
+
+	atomic64_t unique_id_counter;
 
 	struct {
 		int boot;
@@ -116,9 +120,16 @@ extern int ivpu_dbg_mask;
 extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
 
+#define IVPU_TEST_MODE_DISABLED  0
+#define IVPU_TEST_MODE_FW_TEST   1
+#define IVPU_TEST_MODE_NULL_HW   2
+extern int ivpu_test_mode;
+
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
 struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id);
 void ivpu_file_priv_put(struct ivpu_file_priv **link);
+
+int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
 
 static inline bool ivpu_is_mtl(struct ivpu_device *vdev)

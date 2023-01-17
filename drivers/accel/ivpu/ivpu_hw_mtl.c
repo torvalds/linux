@@ -4,6 +4,7 @@
  */
 
 #include "ivpu_drv.h"
+#include "ivpu_fw.h"
 #include "ivpu_hw_mtl_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_hw.h"
@@ -588,6 +589,15 @@ static void ivpu_boot_soc_cpu_boot(struct ivpu_device *vdev)
 
 	val = REG_CLR_FLD(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RESUME0, val);
 	REGV_WR32(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
+
+	val = vdev->fw->entry_point >> 9;
+	REGV_WR32(MTL_VPU_HOST_SS_LOADING_ADDRESS_LO, val);
+
+	val = REG_SET_FLD(MTL_VPU_HOST_SS_LOADING_ADDRESS_LO, DONE, val);
+	REGV_WR32(MTL_VPU_HOST_SS_LOADING_ADDRESS_LO, val);
+
+	ivpu_dbg(vdev, PM, "Booting firmware, mode: %s\n",
+		 vdev->fw->entry_point == vdev->fw->cold_boot_entry_point ? "cold boot" : "resume");
 }
 
 static int ivpu_boot_d0i3_drive(struct ivpu_device *vdev, bool enable)

@@ -47,6 +47,11 @@ extern "C" {
 #define DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS 5
 #define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6
 #define DRM_IVPU_PARAM_CONTEXT_ID	    7
+#define DRM_IVPU_PARAM_FW_API_VERSION	    8
+#define DRM_IVPU_PARAM_ENGINE_HEARTBEAT	    9
+#define DRM_IVPU_PARAM_UNIQUE_INFERENCE_ID  10
+#define DRM_IVPU_PARAM_TILE_CONFIG	    11
+#define DRM_IVPU_PARAM_SKU		    12
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
@@ -89,6 +94,22 @@ struct drm_ivpu_param {
 	 *
 	 * %DRM_IVPU_PARAM_CONTEXT_ID:
 	 * Current context ID, always greater than 0 (read-only)
+	 *
+	 * %DRM_IVPU_PARAM_FW_API_VERSION:
+	 * Firmware API version array (read-only)
+	 *
+	 * %DRM_IVPU_PARAM_ENGINE_HEARTBEAT:
+	 * Heartbeat value from an engine (read-only).
+	 * Engine ID (i.e. DRM_IVPU_ENGINE_COMPUTE) is given via index.
+	 *
+	 * %DRM_IVPU_PARAM_UNIQUE_INFERENCE_ID:
+	 * Device-unique inference ID (read-only)
+	 *
+	 * %DRM_IVPU_PARAM_TILE_CONFIG:
+	 * VPU tile configuration  (read-only)
+	 *
+	 * %DRM_IVPU_PARAM_SKU:
+	 * VPU SKU ID (read-only)
 	 *
 	 */
 	__u32 param;
