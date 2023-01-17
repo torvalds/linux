@@ -314,11 +314,11 @@ static int port_set_buffer(struct mlx5e_priv *priv,
 	err = port_update_shared_buffer(priv->mdev, current_headroom_size,
 					new_headroom_size);
 	if (err)
-		return err;
+		goto out;
 
 	err = port_update_pool_cfg(priv->mdev, port_buffer);
 	if (err)
-		return err;
+		goto out;
 
 	err = mlx5e_port_set_pbmc(mdev, in);
 out:
