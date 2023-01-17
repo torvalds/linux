@@ -1319,6 +1319,34 @@ static void dump_isst_config(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static int set_uncore_min_max(struct isst_id *id, int max, int freq)
+{
+	char buffer[128], freq_str[16];
+	int fd, ret, len;
+
+	if (max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/max_freq_khz", id->pkg, id->die);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/min_freq_khz", id->pkg, id->die);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		return fd;
+
+	snprintf(freq_str, sizeof(freq_str), "%d", freq);
+	len = strlen(freq_str);
+	ret = write(fd, freq_str, len);
+	if (ret == -1) {
+		close(fd);
+		return ret;
+	}
+	close(fd);
+
+	return 0;
+}
+
 static void adjust_scaling_max_from_base_freq(int cpu);
 
 static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *arg3,
@@ -1339,6 +1367,14 @@ static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, vo
 
 			/* Wait for updated base frequencies */
 			usleep(2000);
+
+			/* Adjusting uncore freq */
+			isst_get_uncore_p0_p1_info(id, tdp_level, &ctdp_level);
+			if (ctdp_level.uncore_pm)
+				set_uncore_min_max(id, 0, ctdp_level.uncore_pm * 100000);
+
+			if (ctdp_level.uncore_p0)
+				set_uncore_min_max(id, 1, ctdp_level.uncore_p0 * 100000);
 
 			fprintf(stderr, "Option is set to online/offline\n");
 			ctdp_level.core_cpumask_size =
