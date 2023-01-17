@@ -92,6 +92,7 @@ MODULE_DEVICE_TABLE(spi, mpl115_spi_ids);
 static struct spi_driver mpl115_spi_driver = {
 	.driver = {
 		.name   = "mpl115",
+		.pm = pm_ptr(&mpl115_dev_pm_ops),
 	},
 	.probe = mpl115_spi_probe,
 	.id_table = mpl115_spi_ids,

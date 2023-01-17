@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/ingenic,spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs SPI controller devicetree bindings
+title: Ingenic SoCs SPI controller
 
 maintainers:
   - Artur Rojek <contact@artur-rojek.eu>

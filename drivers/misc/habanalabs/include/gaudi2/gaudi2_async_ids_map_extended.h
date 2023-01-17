@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2018-2021 HabanaLabs, Ltd.
+ * Copyright 2018-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -2663,6 +2663,8 @@ static struct gaudi2_async_events_ids_map gaudi2_irq_map_table[] = {
 		.msg = 1, .reset = 0, .name = "STATUS_NIC11_ENG1" },
 	{ .fc_id = 1319, .cpu_id = 625, .valid = 1,
 		.msg = 1, .reset = 0, .name = "ARC_DCCM_FULL" },
+	{ .fc_id = 1320, .cpu_id = 626, .valid = 1,
+		.msg = 1, .reset = 1, .name = "FP32_NOT_SUPPORTED" },
 };
 
 #endif /* __GAUDI2_ASYNC_IDS_MAP_EVENTS_EXT_H_ */

@@ -44,6 +44,8 @@ static const u8 PSX_CMD_POLL[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
+
+#ifdef CONFIG_JOYSTICK_PSXPAD_SPI_FF
 /*	0x01, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 */
 static const u8 PSX_CMD_ENTER_CFG[] = {
 	0x80, 0xC2, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -56,6 +58,7 @@ static const u8 PSX_CMD_EXIT_CFG[] = {
 static const u8 PSX_CMD_ENABLE_MOTOR[]	= {
 	0x80, 0xB2, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0xFF
 };
+#endif /* CONFIG_JOYSTICK_PSXPAD_SPI_FF */
 
 struct psxpad {
 	struct spi_device *spi;
@@ -371,7 +374,7 @@ static int psxpad_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __maybe_unused psxpad_spi_suspend(struct device *dev)
+static int psxpad_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct psxpad *pad = spi_get_drvdata(spi);
@@ -381,7 +384,7 @@ static int __maybe_unused psxpad_spi_suspend(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(psxpad_spi_pm, psxpad_spi_suspend, NULL);
+static DEFINE_SIMPLE_DEV_PM_OPS(psxpad_spi_pm, psxpad_spi_suspend, NULL);
 
 static const struct spi_device_id psxpad_spi_id[] = {
 	{ "psxpad-spi", 0 },
@@ -392,7 +395,7 @@ MODULE_DEVICE_TABLE(spi, psxpad_spi_id);
 static struct spi_driver psxpad_spi_driver = {
 	.driver = {
 		.name = "psxpad-spi",
-		.pm = &psxpad_spi_pm,
+		.pm = pm_sleep_ptr(&psxpad_spi_pm),
 	},
 	.id_table = psxpad_spi_id,
 	.probe   = psxpad_spi_probe,

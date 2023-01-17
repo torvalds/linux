@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/8250_omap.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for 8250 compliant UARTs on TI's OMAP2+ and K3 SoCs
+title: 8250 compliant UARTs on TI's OMAP2+ and K3 SoCs
 
 maintainers:
   - Vignesh Raghavendra <vigneshr@ti.com>

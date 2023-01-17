@@ -72,9 +72,6 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	uint64_t msr_platform_info;
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_MSR_PLATFORM_INFO));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);

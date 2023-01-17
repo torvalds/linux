@@ -547,7 +547,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	init_completion(&rpm->ack);
 
 	/* Enable message RAM clock */
-	rpm->ramclk = devm_clk_get(&pdev->dev, "ram");
+	rpm->ramclk = devm_clk_get_enabled(&pdev->dev, "ram");
 	if (IS_ERR(rpm->ramclk)) {
 		ret = PTR_ERR(rpm->ramclk);
 		if (ret == -EPROBE_DEFER)
@@ -558,7 +558,6 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 		 */
 		rpm->ramclk = NULL;
 	}
-	clk_prepare_enable(rpm->ramclk); /* Accepts NULL */
 
 	irq_ack = platform_get_irq_byname(pdev, "ack");
 	if (irq_ack < 0)
@@ -673,22 +672,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
-}
-
-static int qcom_rpm_remove(struct platform_device *pdev)
-{
-	struct qcom_rpm *rpm = dev_get_drvdata(&pdev->dev);
-
-	of_platform_depopulate(&pdev->dev);
-	clk_disable_unprepare(rpm->ramclk);
-
-	return 0;
+	return devm_of_platform_populate(&pdev->dev);
 }
 
 static struct platform_driver qcom_rpm_driver = {
 	.probe = qcom_rpm_probe,
-	.remove = qcom_rpm_remove,
 	.driver  = {
 		.name  = "qcom_rpm",
 		.of_match_table = qcom_rpm_of_match,

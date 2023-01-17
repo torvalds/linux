@@ -635,7 +635,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 		hl_mmu_v1_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		break;
 	case ASIC_GAUDI2:
-	case ASIC_GAUDI2_SEC:
+	case ASIC_GAUDI2B:
 		/* MMUs in Gaudi2 are always host resident */
 		hl_mmu_v2_hr_set_funcs(hdev, &hdev->mmu_func[MMU_HR_PGT]);
 		break;
@@ -699,7 +699,7 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 
 static void hl_mmu_prefetch_work_function(struct work_struct *work)
 {
-	struct hl_prefetch_work *pfw = container_of(work, struct hl_prefetch_work, pf_work);
+	struct hl_prefetch_work *pfw = container_of(work, struct hl_prefetch_work, prefetch_work);
 	struct hl_ctx *ctx = pfw->ctx;
 	struct hl_device *hdev = ctx->hdev;
 
@@ -723,25 +723,25 @@ put_ctx:
 
 int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va, u64 size)
 {
-	struct hl_prefetch_work *handle_pf_work;
+	struct hl_prefetch_work *handle_prefetch_work;
 
-	handle_pf_work = kmalloc(sizeof(*handle_pf_work), GFP_KERNEL);
-	if (!handle_pf_work)
+	handle_prefetch_work = kmalloc(sizeof(*handle_prefetch_work), GFP_KERNEL);
+	if (!handle_prefetch_work)
 		return -ENOMEM;
 
-	INIT_WORK(&handle_pf_work->pf_work, hl_mmu_prefetch_work_function);
-	handle_pf_work->ctx = ctx;
-	handle_pf_work->va = va;
-	handle_pf_work->size = size;
-	handle_pf_work->flags = flags;
-	handle_pf_work->asid = asid;
+	INIT_WORK(&handle_prefetch_work->prefetch_work, hl_mmu_prefetch_work_function);
+	handle_prefetch_work->ctx = ctx;
+	handle_prefetch_work->va = va;
+	handle_prefetch_work->size = size;
+	handle_prefetch_work->flags = flags;
+	handle_prefetch_work->asid = asid;
 
 	/*
 	 * as actual prefetch is done in a WQ we must get the context (and put it
 	 * at the end of the work function)
 	 */
 	hl_ctx_get(ctx);
-	queue_work(ctx->hdev->pf_wq, &handle_pf_work->pf_work);
+	queue_work(ctx->hdev->prefetch_wq, &handle_prefetch_work->prefetch_work);
 
 	return 0;
 }

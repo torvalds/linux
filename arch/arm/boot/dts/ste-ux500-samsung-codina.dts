@@ -333,7 +333,7 @@
 		};
 	};
 
-	spi-gpio-0 {
+	spi {
 		compatible = "spi-gpio";
 		/* Clock on GPIO220, pin SCL */
 		sck-gpios = <&gpio6 28 GPIO_ACTIVE_HIGH>;

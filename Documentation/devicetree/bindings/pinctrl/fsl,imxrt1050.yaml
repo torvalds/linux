@@ -35,7 +35,7 @@ patternProperties:
           each entry consists of 6 integers and represents the mux and config
           setting for one pin. The first 5 integers <mux_reg conf_reg input_reg
           mux_val input_val> are specified using a PIN_FUNC_ID macro, which can
-          be found in <include/dt-bindings/pinctrl/pins-imxrt1050.h>. The last
+          be found in <arch/arm/boot/dts/imxrt1050-pinfunc.h>. The last
           integer CONFIG is the pad setting value like pull-up on this pin. Please
           refer to i.MXRT1050 Reference Manual for detailed CONFIG settings.
         $ref: /schemas/types.yaml#/definitions/uint32-matrix

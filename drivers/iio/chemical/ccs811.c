@@ -401,9 +401,9 @@ static int ccs811_reset(struct i2c_client *client)
 	return 0;
 }
 
-static int ccs811_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ccs811_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct ccs811_data *data;
 	int ret;
@@ -567,7 +567,7 @@ static struct i2c_driver ccs811_driver = {
 		.name = "ccs811",
 		.of_match_table = ccs811_dt_ids,
 	},
-	.probe = ccs811_probe,
+	.probe_new = ccs811_probe,
 	.remove = ccs811_remove,
 	.id_table = ccs811_id,
 };

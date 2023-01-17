@@ -607,6 +607,7 @@ static int perf_event__repipe_exit(struct perf_tool *tool,
 	return err;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int perf_event__repipe_tracing_data(struct perf_session *session,
 					   union perf_event *event)
 {
@@ -614,6 +615,7 @@ static int perf_event__repipe_tracing_data(struct perf_session *session,
 
 	return perf_event__process_tracing_data(session, event);
 }
+#endif
 
 static int dso__read_build_id(struct dso *dso)
 {
@@ -807,6 +809,7 @@ static int perf_inject__sched_switch(struct perf_tool *tool,
 	return 0;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int perf_inject__sched_stat(struct perf_tool *tool,
 				   union perf_event *event __maybe_unused,
 				   struct perf_sample *sample,
@@ -836,6 +839,7 @@ found:
 	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);
 	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
 }
+#endif
 
 static struct guest_vcpu *guest_session__vcpu(struct guest_session *gs, u32 vcpu)
 {
@@ -1961,7 +1965,9 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.mmap	  = perf_event__repipe_mmap;
 		inject->tool.mmap2	  = perf_event__repipe_mmap2;
 		inject->tool.fork	  = perf_event__repipe_fork;
+#ifdef HAVE_LIBTRACEEVENT
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
+#endif
 	}
 
 	output_data_offset = perf_session__data_offset(session->evlist);
@@ -1984,8 +1990,10 @@ static int __cmd_inject(struct perf_inject *inject)
 				evsel->handler = perf_inject__sched_switch;
 			} else if (!strcmp(name, "sched:sched_process_exit"))
 				evsel->handler = perf_inject__sched_process_exit;
+#ifdef HAVE_LIBTRACEEVENT
 			else if (!strncmp(name, "sched:sched_stat_", 17))
 				evsel->handler = perf_inject__sched_stat;
+#endif
 		}
 	} else if (inject->itrace_synth_opts.vm_time_correlation) {
 		session->itrace_synth_opts = &inject->itrace_synth_opts;

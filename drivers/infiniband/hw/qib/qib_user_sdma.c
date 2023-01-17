@@ -851,7 +851,7 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 		}
 
 		/*
-		 * This assignment is a bit strange.  it's because the
+		 * This assignment is a bit strange.  it's because
 		 * the pbc counts the number of 32 bit words in the full
 		 * packet _except_ the first word of the pbc itself...
 		 */

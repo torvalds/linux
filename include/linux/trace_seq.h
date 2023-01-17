@@ -97,7 +97,8 @@ extern int trace_seq_hex_dump(struct trace_seq *s, const char *prefix_str,
 			      const void *buf, size_t len, bool ascii);
 
 #else /* CONFIG_TRACING */
-static inline void trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
+static inline __printf(2, 3)
+void trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
 }
 static inline void

@@ -27,6 +27,10 @@ properties:
           Broadcom stores environment variables inside a U-Boot partition. They
           can be identified by a custom header with magic value.
 
+patternProperties:
+  "^partition-.*$":
+    $ref: partition.yaml#
+
 unevaluatedProperties: false
 
 examples:
@@ -40,6 +44,9 @@ examples:
             compatible = "brcm,u-boot";
             reg = <0x0 0x100000>;
             label = "u-boot";
+
+            partition-u-boot-env {
+            };
         };
 
         partition@100000 {

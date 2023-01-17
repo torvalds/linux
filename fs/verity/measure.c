@@ -65,8 +65,7 @@ EXPORT_SYMBOL_GPL(fsverity_ioctl_measure);
  * @alg: (out) pointer to the hash algorithm enumeration
  *
  * Return the file hash algorithm and digest of an fsverity protected file.
- * Assumption: before calling fsverity_get_digest(), the file must have been
- * opened.
+ * Assumption: before calling this, the file must have been opened.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -76,27 +75,13 @@ int fsverity_get_digest(struct inode *inode,
 {
 	const struct fsverity_info *vi;
 	const struct fsverity_hash_alg *hash_alg;
-	int i;
 
 	vi = fsverity_get_info(inode);
 	if (!vi)
 		return -ENODATA; /* not a verity file */
 
 	hash_alg = vi->tree_params.hash_alg;
-	memset(digest, 0, FS_VERITY_MAX_DIGEST_SIZE);
-
-	/* convert the verity hash algorithm name to a hash_algo_name enum */
-	i = match_string(hash_algo_name, HASH_ALGO__LAST, hash_alg->name);
-	if (i < 0)
-		return -EINVAL;
-	*alg = i;
-
-	if (WARN_ON_ONCE(hash_alg->digest_size != hash_digest_size[*alg]))
-		return -EINVAL;
 	memcpy(digest, vi->file_digest, hash_alg->digest_size);
-
-	pr_debug("file digest %s:%*phN\n", hash_algo_name[*alg],
-		 hash_digest_size[*alg], digest);
-
+	*alg = hash_alg->algo_id;
 	return 0;
 }

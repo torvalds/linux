@@ -23,6 +23,7 @@
 	aliases {
 		display0 = &framebuffer0;
 		serial0 = &uart9;
+		serial1 = &uart6;
 	};
 
 	chosen {
@@ -693,8 +694,16 @@
 &uart6 {
 	status = "okay";
 
+	pinctrl-0 = <&qup_uart6_4pin>;
+
 	bluetooth {
 		compatible = "qcom,wcn3990-bt";
+
+		/*
+		 * This path is relative to the qca/
+		 * subdir under lib/firmware.
+		 */
+		firmware-name = "axolotl/crnv21.bin";
 
 		vddio-supply = <&vreg_s4a_1p8>;
 		vddxo-supply = <&vreg_l7a_1p8>;

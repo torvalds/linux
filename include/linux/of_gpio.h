@@ -34,7 +34,7 @@ enum of_gpio_flags {
 
 #ifdef CONFIG_OF_GPIO
 
-#include <linux/kernel.h>
+#include <linux/container_of.h>
 
 /*
  * OF GPIO chip for memory mapped banks

@@ -85,6 +85,7 @@ struct of_drc_info {
 extern int of_read_drc_info_cell(struct property **prop,
 			const __be32 **curval, struct of_drc_info *data);
 
+extern unsigned int boot_cpu_node_count;
 
 /*
  * There are two methods for telling firmware what our capabilities are.

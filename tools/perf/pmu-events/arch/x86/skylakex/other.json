@@ -1,8 +1,6 @@
 [
     {
         "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Non-AVX turbo schedule.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
         "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
@@ -11,8 +9,6 @@
     },
     {
         "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX2 turbo schedule.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL1_TURBO_LICENSE",
         "PublicDescription": "Core cycles where the core was running with power-delivery for license level 1.  This includes high current AVX 256-bit instructions as well as low current AVX 512-bit instructions.",
@@ -21,8 +17,6 @@
     },
     {
         "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX512 turbo schedule.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL2_TURBO_LICENSE",
         "PublicDescription": "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server michroarchtecture).  This includes high current AVX 512-bit instructions.",
@@ -31,8 +25,6 @@
     },
     {
         "BriefDescription": "Core cycles the core was throttled due to a pending power level request.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.THROTTLE",
         "PublicDescription": "Core cycles the out-of-order engine was throttled due to a pending power level request.",
@@ -41,8 +33,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
         "SampleAfterValue": "2000003",
@@ -50,8 +40,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
         "SampleAfterValue": "2000003",
@@ -59,8 +47,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
         "SampleAfterValue": "2000003",
@@ -68,8 +54,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITI",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITI",
         "SampleAfterValue": "2000003",
@@ -77,8 +61,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
         "SampleAfterValue": "2000003",
@@ -86,8 +68,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
         "SampleAfterValue": "2000003",
@@ -95,8 +75,6 @@
     },
     {
         "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xEF",
         "EventName": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
         "SampleAfterValue": "2000003",
@@ -104,8 +82,6 @@
     },
     {
         "BriefDescription": "Number of hardware interrupts received by the processor.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xCB",
         "EventName": "HW_INTERRUPTS.RECEIVED",
         "PublicDescription": "Counts the number of hardware interruptions received by the processor.",
@@ -114,8 +90,6 @@
     },
     {
         "BriefDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xFE",
         "EventName": "IDI_MISC.WB_DOWNGRADE",
         "PublicDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly.",
@@ -124,8 +98,6 @@
     },
     {
         "BriefDescription": "Counts number of cache lines that are allocated and written back to L3 with the intention that they are more likely to be reused shortly",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xFE",
         "EventName": "IDI_MISC.WB_UPGRADE",
         "PublicDescription": "Counts number of cache lines that are allocated and written back to L3 with the intention that they are more likely to be reused shortly.",
@@ -134,8 +106,6 @@
     },
     {
         "BriefDescription": "MEMORY_DISAMBIGUATION.HISTORY_RESET",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x09",
         "EventName": "MEMORY_DISAMBIGUATION.HISTORY_RESET",
         "SampleAfterValue": "2000003",

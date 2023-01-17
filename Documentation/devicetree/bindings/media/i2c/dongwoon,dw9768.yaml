@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/media/i2c/dongwoon,dw9768.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Dongwoon Anatech DW9768 Voice Coil Motor (VCM) Lens Device Tree Bindings
+title: Dongwoon Anatech DW9768 Voice Coil Motor (VCM) Lens
 
 maintainers:
   - Dongchun Zhu <dongchun.zhu@mediatek.com>

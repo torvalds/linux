@@ -658,7 +658,7 @@ static enum drm_mode_status dsi_encoder_mode_valid(struct drm_encoder *encoder,
 		 * reset adj_mode to the mode value each time,
 		 * so we don't adjust the mode twice
 		 */
-		drm_mode_copy(&adj_mode, mode);
+		drm_mode_init(&adj_mode, mode);
 
 		crtc_funcs = crtc->helper_private;
 		if (crtc_funcs && crtc_funcs->mode_fixup)

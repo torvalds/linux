@@ -14,6 +14,9 @@ description: |
   https://www.ti.com/product/TLV320ADC3001
   https://www.ti.com/product/TLV320ADC3101
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -106,7 +109,7 @@ required:
   - reg
   - clocks
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

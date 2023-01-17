@@ -608,9 +608,9 @@ static struct max732x_platform_data *of_gpio_max732x(struct device *dev)
 	return pdata;
 }
 
-static int max732x_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int max732x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct max732x_platform_data *pdata;
 	struct device_node *node;
 	struct max732x_chip *chip;
@@ -707,7 +707,7 @@ static struct i2c_driver max732x_driver = {
 		.name		= "max732x",
 		.of_match_table	= of_match_ptr(max732x_of_table),
 	},
-	.probe		= max732x_probe,
+	.probe_new	= max732x_probe,
 	.id_table	= max732x_id,
 };
 

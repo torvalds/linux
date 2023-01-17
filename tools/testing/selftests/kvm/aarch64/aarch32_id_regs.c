@@ -13,6 +13,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "test_util.h"
+#include <linux/bitfield.h>
 
 #define BAD_ID_REG_VAL	0x1badc0deul
 
@@ -145,7 +146,7 @@ static bool vcpu_aarch64_only(struct kvm_vcpu *vcpu)
 
 	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), &val);
 
-	el0 = (val & ARM64_FEATURE_MASK(ID_AA64PFR0_EL0)) >> ID_AA64PFR0_EL0_SHIFT;
+	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL0), val);
 	return el0 == ID_AA64PFR0_ELx_64BIT_ONLY;
 }
 
@@ -158,12 +159,9 @@ int main(void)
 
 	TEST_REQUIRE(vcpu_aarch64_only(vcpu));
 
-	ucall_init(vm, NULL);
-
 	test_user_raz_wi(vcpu);
 	test_user_raz_invariant(vcpu);
 	test_guest_raz(vcpu);
 
-	ucall_uninit(vm);
 	kvm_vm_free(vm);
 }

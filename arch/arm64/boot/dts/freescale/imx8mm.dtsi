@@ -139,6 +139,7 @@
 		A53_L2: l2-cache0 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 			cache-size = <0x80000>;
 			cache-line-size = <64>;
 			cache-sets = <512>;
@@ -575,9 +576,10 @@
 				};
 			};
 
-			anatop: anatop@30360000 {
-				compatible = "fsl,imx8mm-anatop", "syscon";
+			anatop: clock-controller@30360000 {
+				compatible = "fsl,imx8mm-anatop";
 				reg = <0x30360000 0x10000>;
+				#clock-cells = <1>;
 			};
 
 			snvs: snvs@30370000 {

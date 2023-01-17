@@ -105,6 +105,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/media/video-interfaces.h>
 
     i2c0 {
         #address-cells = <1>;
@@ -118,7 +119,7 @@ examples:
 
             port {
                 ov772x_0: endpoint {
-                    bus-type = <5>;
+                    bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
                     vsync-active = <0>;
                     hsync-active = <0>;
                     pclk-sample = <0>;

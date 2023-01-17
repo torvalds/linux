@@ -105,10 +105,7 @@ ga102_sor = {
 	.state = gv100_sor_state,
 	.power = nv50_sor_power,
 	.clock = ga102_sor_clock,
-	.hdmi = {
-		.ctrl = gv100_sor_hdmi_ctrl,
-		.scdc = gm200_sor_hdmi_scdc,
-	},
+	.hdmi = &gv100_sor_hdmi,
 	.dp = &ga102_sor_dp,
 	.hda = &gv100_sor_hda,
 };

@@ -34,13 +34,12 @@ bpf_sk_storage_get()
 
    void *bpf_sk_storage_get(struct bpf_map *map, void *sk, void *value, u64 flags)
 
-Socket-local storage can be retrieved using the ``bpf_sk_storage_get()``
-helper. The helper gets the storage from ``sk`` that is associated with ``map``.
-If the ``BPF_LOCAL_STORAGE_GET_F_CREATE`` flag is used then
-``bpf_sk_storage_get()`` will create the storage for ``sk`` if it does not
-already exist. ``value`` can be used together with
-``BPF_LOCAL_STORAGE_GET_F_CREATE`` to initialize the storage value, otherwise it
-will be zero initialized. Returns a pointer to the storage on success, or
+Socket-local storage for ``map`` can be retrieved from socket ``sk`` using the
+``bpf_sk_storage_get()`` helper. If the ``BPF_LOCAL_STORAGE_GET_F_CREATE``
+flag is used then ``bpf_sk_storage_get()`` will create the storage for ``sk``
+if it does not already exist. ``value`` can be used together with
+``BPF_LOCAL_STORAGE_GET_F_CREATE`` to initialize the storage value, otherwise
+it will be zero initialized. Returns a pointer to the storage on success, or
 ``NULL`` in case of failure.
 
 .. note::
@@ -54,9 +53,9 @@ bpf_sk_storage_delete()
 
    long bpf_sk_storage_delete(struct bpf_map *map, void *sk)
 
-Socket-local storage can be deleted using the ``bpf_sk_storage_delete()``
-helper. The helper deletes the storage from ``sk`` that is identified by
-``map``. Returns ``0`` on success, or negative error in case of failure.
+Socket-local storage for ``map`` can be deleted from socket ``sk`` using the
+``bpf_sk_storage_delete()`` helper. Returns ``0`` on success, or negative
+error in case of failure.
 
 User space
 ----------
@@ -68,16 +67,20 @@ bpf_map_update_elem()
 
    int bpf_map_update_elem(int map_fd, const void *key, const void *value, __u64 flags)
 
-Socket-local storage for the socket identified by ``key`` belonging to
-``map_fd`` can be added or updated using the ``bpf_map_update_elem()`` libbpf
-function. ``key`` must be a pointer to a valid ``fd`` in the user space
-program. The ``flags`` parameter can be used to control the update behaviour:
+Socket-local storage for map ``map_fd`` can be added or updated locally to a
+socket using the ``bpf_map_update_elem()`` libbpf function. The socket is
+identified by a `socket` ``fd`` stored in the pointer ``key``. The pointer
+``value`` has the data to be added or updated to the socket ``fd``. The type
+and size of ``value`` should be the same as the value type of the map
+definition.
 
-- ``BPF_ANY`` will create storage for ``fd`` or update existing storage.
-- ``BPF_NOEXIST`` will create storage for ``fd`` only if it did not already
-  exist, otherwise the call will fail with ``-EEXIST``.
-- ``BPF_EXIST`` will update existing storage for ``fd`` if it already exists,
-  otherwise the call will fail with ``-ENOENT``.
+The ``flags`` parameter can be used to control the update behaviour:
+
+- ``BPF_ANY`` will create storage for `socket` ``fd`` or update existing storage.
+- ``BPF_NOEXIST`` will create storage for `socket` ``fd`` only if it did not
+  already exist, otherwise the call will fail with ``-EEXIST``.
+- ``BPF_EXIST`` will update existing storage for `socket` ``fd`` if it already
+  exists, otherwise the call will fail with ``-ENOENT``.
 
 Returns ``0`` on success, or negative error in case of failure.
 
@@ -88,10 +91,10 @@ bpf_map_lookup_elem()
 
    int bpf_map_lookup_elem(int map_fd, const void *key, void *value)
 
-Socket-local storage for the socket identified by ``key`` belonging to
-``map_fd`` can be retrieved using the ``bpf_map_lookup_elem()`` libbpf
-function. ``key`` must be a pointer to a valid ``fd`` in the user space
-program. Returns ``0`` on success, or negative error in case of failure.
+Socket-local storage for map ``map_fd`` can be retrieved from a socket using
+the ``bpf_map_lookup_elem()`` libbpf function. The storage is retrieved from
+the socket identified by a `socket` ``fd`` stored in the pointer
+``key``. Returns ``0`` on success, or negative error in case of failure.
 
 bpf_map_delete_elem()
 ~~~~~~~~~~~~~~~~~~~~~
@@ -100,9 +103,10 @@ bpf_map_delete_elem()
 
    int bpf_map_delete_elem(int map_fd, const void *key)
 
-Socket-local storage for the socket identified by ``key`` belonging to
-``map_fd`` can be deleted using the ``bpf_map_delete_elem()`` libbpf
-function. Returns ``0`` on success, or negative error in case of failure.
+Socket-local storage for map ``map_fd`` can be deleted from a socket using the
+``bpf_map_delete_elem()`` libbpf function. The storage is deleted from the
+socket identified by a `socket` ``fd`` stored in the pointer ``key``. Returns
+``0`` on success, or negative error in case of failure.
 
 Examples
 ========

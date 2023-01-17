@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+# Loongson-2 series SoC drivers
+#
+
+config LOONGSON2_GUTS
+	tristate "Loongson-2 SoC Global UtiliTieS (GUTS) register block"
+	depends on LOONGARCH || COMPILE_TEST
+	select SOC_BUS
+	help
+	 The global utilities block controls PCIE device enabling, alternate
+	 function selection for multiplexed signals, consistency of HDA, USB
+	 and PCIE, configuration of memory controller, rtc controller, lio
+	 controller, and clock control. This patch adds a driver to manage
+	 and access global utilities block for LoongArch architecture Loongson-2
+	 SoCs. Initially only reading SVR and registering soc device are
+	 supported. Other guts accesses, such as reading firmware configuration
+	 by default, should eventually be added into this driver as well.

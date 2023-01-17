@@ -25,9 +25,9 @@
  * Third Edition.
  */
 
+#include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <linux/bitops.h>
-#include <linux/crypto.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

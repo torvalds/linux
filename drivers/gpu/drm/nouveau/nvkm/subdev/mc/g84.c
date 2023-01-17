@@ -34,30 +34,29 @@ g84_mc_reset[] = {
 	{}
 };
 
-static const struct nvkm_mc_map
-g84_mc_intr[] = {
-	{ 0x04000000, NVKM_ENGINE_DISP },
-	{ 0x00020000, NVKM_ENGINE_VP },
-	{ 0x00008000, NVKM_ENGINE_BSP },
-	{ 0x00004000, NVKM_ENGINE_CIPHER },
-	{ 0x00001000, NVKM_ENGINE_GR },
-	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x00000001, NVKM_ENGINE_MPEG },
-	{ 0x0002d101, NVKM_SUBDEV_FB },
-	{ 0x10000000, NVKM_SUBDEV_BUS },
-	{ 0x00200000, NVKM_SUBDEV_GPIO },
-	{ 0x00200000, NVKM_SUBDEV_I2C },
-	{ 0x00100000, NVKM_SUBDEV_TIMER },
+static const struct nvkm_intr_data
+g84_mc_intrs[] = {
+	{ NVKM_ENGINE_DISP  , 0, 0, 0x04000000, true },
+	{ NVKM_ENGINE_VP    , 0, 0, 0x00020000, true },
+	{ NVKM_ENGINE_BSP   , 0, 0, 0x00008000, true },
+	{ NVKM_ENGINE_CIPHER, 0, 0, 0x00004000, true },
+	{ NVKM_ENGINE_GR    , 0, 0, 0x00001000, true },
+	{ NVKM_ENGINE_FIFO  , 0, 0, 0x00000100 },
+	{ NVKM_ENGINE_MPEG  , 0, 0, 0x00000001, true },
+	{ NVKM_SUBDEV_FB    , 0, 0, 0x0002d101, true },
+	{ NVKM_SUBDEV_BUS   , 0, 0, 0x10000000, true },
+	{ NVKM_SUBDEV_GPIO  , 0, 0, 0x00200000, true },
+	{ NVKM_SUBDEV_I2C   , 0, 0, 0x00200000, true },
+	{ NVKM_SUBDEV_TIMER , 0, 0, 0x00100000, true },
 	{},
 };
 
 static const struct nvkm_mc_func
 g84_mc = {
 	.init = nv50_mc_init,
-	.intr = g84_mc_intr,
-	.intr_unarm = nv04_mc_intr_unarm,
-	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_stat = nv04_mc_intr_stat,
+	.intr = &nv04_mc_intr,
+	.intrs = g84_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = g84_mc_reset,
 };
 

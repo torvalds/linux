@@ -430,6 +430,11 @@ static int mt8186_dsp_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int mt8186_dsp_shutdown(struct snd_sof_dev *sdev)
+{
+	return snd_sof_suspend(sdev->dev);
+}
+
 static int mt8186_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
 	mt8186_sof_hifixdsp_shutdown(sdev);
@@ -538,6 +543,7 @@ static struct snd_sof_dsp_ops sof_mt8186_ops = {
 	/* probe and remove */
 	.probe		= mt8186_dsp_probe,
 	.remove		= mt8186_dsp_remove,
+	.shutdown	= mt8186_dsp_shutdown,
 
 	/* DSP core boot */
 	.run		= mt8186_run,
@@ -629,6 +635,7 @@ MODULE_DEVICE_TABLE(of, sof_of_mt8186_ids);
 static struct platform_driver snd_sof_of_mt8186_driver = {
 	.probe = sof_of_probe,
 	.remove = sof_of_remove,
+	.shutdown = sof_of_shutdown,
 	.driver = {
 	.name = "sof-audio-of-mt8186",
 		.pm = &sof_of_pm,

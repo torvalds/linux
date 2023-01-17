@@ -25,7 +25,7 @@ xchk_should_terminate(
 
 	if (fatal_signal_pending(current)) {
 		if (*error == 0)
-			*error = -EAGAIN;
+			*error = -EINTR;
 		return true;
 	}
 	return false;

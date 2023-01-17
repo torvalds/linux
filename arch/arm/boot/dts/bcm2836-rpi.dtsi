@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcm2835-rpi.dtsi"
+#include "bcm2835-rpi-common.dtsi"
 
 &vchiq {
 	compatible = "brcm,bcm2836-vchiq", "brcm,bcm2835-vchiq";

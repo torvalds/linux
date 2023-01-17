@@ -36,10 +36,10 @@
  ******************************************************************************/
 
 static int
-nv50_sw_chan_vblsem_release(struct nvkm_notify *notify)
+nv50_sw_chan_vblsem_release(struct nvkm_event_ntfy *notify, u32 bits)
 {
 	struct nv50_sw_chan *chan =
-		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
+		container_of(notify, typeof(*chan), vblank.notify[notify->id]);
 	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
 
@@ -55,7 +55,7 @@ nv50_sw_chan_vblsem_release(struct nvkm_notify *notify)
 		nvkm_wr32(device, 0x060014, chan->vblank.value);
 	}
 
-	return NVKM_NOTIFY_DROP;
+	return NVKM_EVENT_DROP;
 }
 
 static bool
@@ -70,7 +70,7 @@ nv50_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 	case 0x0404: chan->vblank.value  = data; return true;
 	case 0x0408:
 		if (data < device->disp->vblank.index_nr) {
-			nvkm_notify_get(&chan->vblank.notify[data]);
+			nvkm_event_ntfy_allow(&chan->vblank.notify[data]);
 			return true;
 		}
 		break;
@@ -85,8 +85,10 @@ nv50_sw_chan_dtor(struct nvkm_sw_chan *base)
 {
 	struct nv50_sw_chan *chan = nv50_sw_chan(base);
 	int i;
+
 	for (i = 0; i < ARRAY_SIZE(chan->vblank.notify); i++)
-		nvkm_notify_fini(&chan->vblank.notify[i]);
+		nvkm_event_ntfy_del(&chan->vblank.notify[i]);
+
 	return chan;
 }
 
@@ -113,16 +115,8 @@ nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
 		return ret;
 
 	for (i = 0; disp && i < disp->vblank.index_nr; i++) {
-		ret = nvkm_notify_init(NULL, &disp->vblank,
-				       nv50_sw_chan_vblsem_release, false,
-				       &(struct nvif_notify_head_req_v0) {
-					.head = i,
-				       },
-				       sizeof(struct nvif_notify_head_req_v0),
-				       sizeof(struct nvif_notify_head_rep_v0),
-				       &chan->vblank.notify[i]);
-		if (ret)
-			return ret;
+		nvkm_event_ntfy_add(&disp->vblank, i, NVKM_DISP_HEAD_EVENT_VBLANK, true,
+				    nv50_sw_chan_vblsem_release, &chan->vblank.notify[i]);
 	}
 
 	return 0;

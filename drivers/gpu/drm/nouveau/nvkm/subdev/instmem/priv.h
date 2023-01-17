@@ -12,6 +12,7 @@ struct nvkm_instmem_func {
 	void (*wr32)(struct nvkm_instmem *, u32 addr, u32 data);
 	int (*memory_new)(struct nvkm_instmem *, u32 size, u32 align,
 			  bool zero, struct nvkm_memory **);
+	int (*memory_wrap)(struct nvkm_instmem *, struct nvkm_memory *, struct nvkm_memory **);
 	bool zero;
 };
 

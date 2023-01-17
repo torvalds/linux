@@ -135,12 +135,12 @@ static int gpio_pin_request(struct gpio_chip *gc, unsigned offset)
 	if (idx < 0 || pfc->info->pins[idx].enum_id == 0)
 		return -EINVAL;
 
-	return pinctrl_gpio_request(offset);
+	return pinctrl_gpio_request(gc->base + offset);
 }
 
 static void gpio_pin_free(struct gpio_chip *gc, unsigned offset)
 {
-	return pinctrl_gpio_free(offset);
+	return pinctrl_gpio_free(gc->base + offset);
 }
 
 static void gpio_pin_set_value(struct sh_pfc_chip *chip, unsigned offset,
@@ -164,7 +164,7 @@ static void gpio_pin_set_value(struct sh_pfc_chip *chip, unsigned offset,
 
 static int gpio_pin_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	return pinctrl_gpio_direction_input(offset);
+	return pinctrl_gpio_direction_input(gc->base + offset);
 }
 
 static int gpio_pin_direction_output(struct gpio_chip *gc, unsigned offset,
@@ -172,7 +172,7 @@ static int gpio_pin_direction_output(struct gpio_chip *gc, unsigned offset,
 {
 	gpio_pin_set_value(gpiochip_get_data(gc), offset, value);
 
-	return pinctrl_gpio_direction_output(offset);
+	return pinctrl_gpio_direction_output(gc->base + offset);
 }
 
 static int gpio_pin_get(struct gpio_chip *gc, unsigned offset)
@@ -238,7 +238,7 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	gc->label = pfc->info->name;
 	gc->parent = pfc->dev;
 	gc->owner = THIS_MODULE;
-	gc->base = 0;
+	gc->base = IS_ENABLED(CONFIG_PINCTRL_SH_FUNC_GPIO) ? 0 : -1;
 	gc->ngpio = pfc->nr_gpio_pins;
 
 	return 0;

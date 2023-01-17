@@ -1769,6 +1769,11 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry,
 				&hl_timeout_locked_fops);
 
+	debugfs_create_u32("device_release_watchdog_timeout",
+				0644,
+				dev_entry->root,
+				&hdev->device_release_watchdog_timeout_sec);
+
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,

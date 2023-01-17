@@ -23,6 +23,7 @@
  */
 
 #include <linux/gcd.h>
+#include <linux/component.h>
 
 #include <drm/drm_crtc.h>
 #include "dce6_afmt.h"
@@ -180,6 +181,8 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.dpms = evergreen_dp_enable,
 };
 
+static void radeon_audio_component_notify(struct radeon_device *rdev, int port);
+
 static void radeon_audio_enable(struct radeon_device *rdev,
 				struct r600_audio_pin *pin, u8 enable_mask)
 {
@@ -207,6 +210,8 @@ static void radeon_audio_enable(struct radeon_device *rdev,
 
 	if (rdev->audio.funcs->enable)
 		rdev->audio.funcs->enable(rdev, pin, enable_mask);
+
+	radeon_audio_component_notify(rdev, pin->id);
 }
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -720,4 +725,116 @@ unsigned int radeon_audio_decode_dfs_div(unsigned int div)
 		return (div - 96) * 100 + 3200;
 	else
 		return 0;
+}
+
+/*
+ * Audio component support
+ */
+static void radeon_audio_component_notify(struct radeon_device *rdev, int port)
+{
+	struct drm_audio_component *acomp;
+
+	mutex_lock(&rdev->audio.component_mutex);
+	acomp = rdev->audio.component;
+	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
+		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
+						 port, -1);
+	mutex_unlock(&rdev->audio.component_mutex);
+}
+
+static int radeon_audio_component_get_eld(struct device *kdev, int port,
+					  int pipe, bool *enabled,
+					  unsigned char *buf, int max_bytes)
+{
+	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_encoder *encoder;
+	struct radeon_encoder *radeon_encoder;
+	struct radeon_encoder_atom_dig *dig;
+	struct drm_connector *connector;
+	int ret = 0;
+
+	*enabled = false;
+	if (!rdev->audio.enabled || !rdev->mode_info.mode_config_initialized)
+		return 0;
+
+	list_for_each_entry(encoder, &rdev->ddev->mode_config.encoder_list, head) {
+		if (!radeon_encoder_is_digital(encoder))
+			continue;
+		radeon_encoder = to_radeon_encoder(encoder);
+		dig = radeon_encoder->enc_priv;
+		if (!dig->pin || dig->pin->id != port)
+			continue;
+		connector = radeon_get_connector_for_encoder(encoder);
+		if (!connector)
+			continue;
+		*enabled = true;
+		ret = drm_eld_size(connector->eld);
+		memcpy(buf, connector->eld, min(max_bytes, ret));
+		break;
+	}
+
+	return ret;
+}
+
+static const struct drm_audio_component_ops radeon_audio_component_ops = {
+	.get_eld = radeon_audio_component_get_eld,
+};
+
+static int radeon_audio_component_bind(struct device *kdev,
+				       struct device *hda_kdev, void *data)
+{
+	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_audio_component *acomp = data;
+
+	if (WARN_ON(!device_link_add(hda_kdev, kdev, DL_FLAG_STATELESS)))
+		return -ENOMEM;
+
+	mutex_lock(&rdev->audio.component_mutex);
+	acomp->ops = &radeon_audio_component_ops;
+	acomp->dev = kdev;
+	rdev->audio.component = acomp;
+	mutex_unlock(&rdev->audio.component_mutex);
+
+	return 0;
+}
+
+static void radeon_audio_component_unbind(struct device *kdev,
+					  struct device *hda_kdev, void *data)
+{
+	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_audio_component *acomp = data;
+
+	device_link_remove(hda_kdev, kdev);
+
+	mutex_lock(&rdev->audio.component_mutex);
+	rdev->audio.component = NULL;
+	acomp->ops = NULL;
+	acomp->dev = NULL;
+	mutex_unlock(&rdev->audio.component_mutex);
+}
+
+static const struct component_ops radeon_audio_component_bind_ops = {
+	.bind	= radeon_audio_component_bind,
+	.unbind	= radeon_audio_component_unbind,
+};
+
+void radeon_audio_component_init(struct radeon_device *rdev)
+{
+	if (rdev->audio.component_registered ||
+	    !radeon_audio || !radeon_audio_chipset_supported(rdev))
+		return;
+
+	if (!component_add(rdev->dev, &radeon_audio_component_bind_ops))
+		rdev->audio.component_registered = true;
+}
+
+void radeon_audio_component_fini(struct radeon_device *rdev)
+{
+	if (rdev->audio.component_registered) {
+		component_del(rdev->dev, &radeon_audio_component_bind_ops);
+		rdev->audio.component_registered = false;
+	}
 }

@@ -40,6 +40,7 @@ nvkm-y += nvkm/engine/gr/gp108.o
 nvkm-y += nvkm/engine/gr/gp10b.o
 nvkm-y += nvkm/engine/gr/gv100.o
 nvkm-y += nvkm/engine/gr/tu102.o
+nvkm-y += nvkm/engine/gr/ga102.o
 
 nvkm-y += nvkm/engine/gr/ctxnv40.o
 nvkm-y += nvkm/engine/gr/ctxnv50.o
@@ -63,3 +64,4 @@ nvkm-y += nvkm/engine/gr/ctxgp104.o
 nvkm-y += nvkm/engine/gr/ctxgp107.o
 nvkm-y += nvkm/engine/gr/ctxgv100.o
 nvkm-y += nvkm/engine/gr/ctxtu102.o
+nvkm-y += nvkm/engine/gr/ctxga102.o

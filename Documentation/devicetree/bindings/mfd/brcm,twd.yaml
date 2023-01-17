@@ -36,6 +36,9 @@ properties:
     const: 1
 
 patternProperties:
+  '^timer@[a-f0-9]+$':
+    $ref: /schemas/timer/brcm,bcmbca-timer.yaml
+
   '^watchdog@[a-f0-9]+$':
     $ref: /schemas/watchdog/brcm,bcm7038-wdt.yaml
 
@@ -53,6 +56,11 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <1>;
+
+        timer@0 {
+            compatible = "brcm,bcm63138-timer";
+            reg = <0x0 0x28>;
+        };
 
         watchdog@28 {
             compatible = "brcm,bcm7038-wdt";

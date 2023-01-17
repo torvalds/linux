@@ -671,8 +671,7 @@ free_q:
 	return err;
 }
 
-int mana_gd_destroy_dma_region(struct gdma_context *gc,
-			       gdma_obj_handle_t dma_region_handle)
+int mana_gd_destroy_dma_region(struct gdma_context *gc, u64 dma_region_handle)
 {
 	struct gdma_destroy_dma_region_req req = {};
 	struct gdma_general_resp resp = {};

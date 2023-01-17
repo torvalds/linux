@@ -808,7 +808,7 @@ static int thunderbay_add_functions(struct thunderbay_pinctrl *tpc, struct funct
 					    funcs[i].num_group_names,
 					    funcs[i].data);
 	}
-	kfree(funcs);
+
 	return 0;
 }
 
@@ -817,6 +817,7 @@ static int thunderbay_build_functions(struct thunderbay_pinctrl *tpc)
 	struct function_desc *thunderbay_funcs;
 	void *ptr;
 	int pin;
+	int ret;
 
 	/*
 	 * Allocate maximum possible number of functions. Assume every pin
@@ -860,7 +861,10 @@ static int thunderbay_build_functions(struct thunderbay_pinctrl *tpc)
 		return -ENOMEM;
 
 	thunderbay_funcs = ptr;
-	return thunderbay_add_functions(tpc, thunderbay_funcs);
+	ret = thunderbay_add_functions(tpc, thunderbay_funcs);
+
+	kfree(thunderbay_funcs);
+	return ret;
 }
 
 static int thunderbay_pinconf_set_tristate(struct thunderbay_pinctrl *tpc,

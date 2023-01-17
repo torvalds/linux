@@ -227,7 +227,7 @@ static const struct regmap_config retu_config = {
 	.val_bits = 16,
 };
 
-static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static int retu_probe(struct i2c_client *i2c)
 {
 	struct retu_data const *rdat;
 	struct retu_dev *rdev;
@@ -318,7 +318,7 @@ static struct i2c_driver retu_driver = {
 		.name = "retu-mfd",
 		.of_match_table = retu_of_match,
 	},
-	.probe		= retu_probe,
+	.probe_new	= retu_probe,
 	.remove		= retu_remove,
 	.id_table	= retu_id,
 };

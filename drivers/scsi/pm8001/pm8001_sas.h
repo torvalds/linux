@@ -510,8 +510,7 @@ struct pm8001_hba_info {
 	u32			chip_id;
 	const struct pm8001_chip_info	*chip;
 	struct completion	*nvmd_completion;
-	int			tags_num;
-	unsigned long		*tags;
+	unsigned long		*rsvd_tags;
 	struct pm8001_phy	phy[PM8001_MAX_PHYS];
 	struct pm8001_port	port[PM8001_MAX_PHYS];
 	u32			id;
@@ -535,7 +534,6 @@ struct pm8001_hba_info {
 	bool			controller_fatal_error;
 	const struct firmware 	*fw_image;
 	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
-	u32			reset_in_progress;
 	u32			non_fatal_count;
 	u32			non_fatal_read_length;
 	u32 max_q_num;
@@ -578,10 +576,6 @@ struct pm8001_fw_image_header {
 #define FLASH_UPDATE_HW_ERR			0x06
 #define FLASH_UPDATE_DNLD_NOT_SUPPORTED		0x10
 #define FLASH_UPDATE_DISABLED			0x11
-
-#define	NCQ_READ_LOG_FLAG			0x80000000
-#define	NCQ_ABORT_ALL_FLAG			0x40000000
-#define	NCQ_2ND_RLE_FLAG			0x20000000
 
 /* Device states */
 #define DS_OPERATIONAL				0x01
@@ -636,7 +630,6 @@ extern struct workqueue_struct *pm8001_wq;
 
 /******************** function prototype *********************/
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out);
-void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha);
 u32 pm8001_get_ncq_tag(struct sas_task *task, u32 *tag);
 void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 			  struct pm8001_ccb_info *ccb);
@@ -709,7 +702,6 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha, void *piomb);
 int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
 struct sas_task *pm8001_alloc_task(void);
-void pm8001_task_done(struct sas_task *task);
 void pm8001_free_task(struct sas_task *task);
 void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag);
 struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
@@ -742,9 +734,15 @@ pm8001_ccb_alloc(struct pm8001_hba_info *pm8001_ha,
 		 struct pm8001_device *dev, struct sas_task *task)
 {
 	struct pm8001_ccb_info *ccb;
+	struct request *rq = NULL;
 	u32 tag;
 
-	if (pm8001_tag_alloc(pm8001_ha, &tag)) {
+	if (task)
+		rq = sas_task_find_rq(task);
+
+	if (rq) {
+		tag = rq->tag + PM8001_RESERVE_SLOT;
+	} else if (pm8001_tag_alloc(pm8001_ha, &tag)) {
 		pm8001_dbg(pm8001_ha, FAIL, "Failed to allocate a tag\n");
 		return NULL;
 	}

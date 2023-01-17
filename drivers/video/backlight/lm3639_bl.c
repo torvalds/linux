@@ -296,8 +296,7 @@ static const struct regmap_config lm3639_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int lm3639_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int lm3639_probe(struct i2c_client *client)
 {
 	int ret;
 	struct lm3639_chip_data *pchip;
@@ -412,7 +411,7 @@ static struct i2c_driver lm3639_i2c_driver = {
 	.driver = {
 		   .name = LM3639_NAME,
 		   },
-	.probe = lm3639_probe,
+	.probe_new = lm3639_probe,
 	.remove = lm3639_remove,
 	.id_table = lm3639_id,
 };

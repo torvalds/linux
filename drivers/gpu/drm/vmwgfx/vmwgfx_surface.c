@@ -815,11 +815,15 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	res->backup_size = cur_bo_offset;
 	if (metadata->scanout &&
 	    metadata->num_sizes == 1 &&
-	    metadata->sizes[0].width == 64 &&
-	    metadata->sizes[0].height == 64 &&
-	    metadata->format == SVGA3D_A8R8G8B8) {
-
-		srf->snooper.image = kzalloc(64 * 64 * 4, GFP_KERNEL);
+	    metadata->sizes[0].width == VMW_CURSOR_SNOOP_WIDTH &&
+	    metadata->sizes[0].height == VMW_CURSOR_SNOOP_HEIGHT &&
+	    metadata->format == VMW_CURSOR_SNOOP_FORMAT) {
+		const struct SVGA3dSurfaceDesc *desc =
+			vmw_surface_get_desc(VMW_CURSOR_SNOOP_FORMAT);
+		const u32 cursor_size_bytes = VMW_CURSOR_SNOOP_WIDTH *
+					      VMW_CURSOR_SNOOP_HEIGHT *
+					      desc->pitchBytesPerBlock;
+		srf->snooper.image = kzalloc(cursor_size_bytes, GFP_KERNEL);
 		if (!srf->snooper.image) {
 			DRM_ERROR("Failed to allocate cursor_image\n");
 			ret = -ENOMEM;

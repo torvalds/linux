@@ -283,7 +283,6 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 
 	spin_lock_bh(&qp_ctx->req_lock);
 	ret = hisi_qp_send(qp_ctx->qp, &req->sec_sqe);
-
 	if (ctx->fake_req_limit <=
 	    atomic_read(&qp_ctx->qp->qp_status.used) && !ret) {
 		list_add_tail(&req->backlog_head, &qp_ctx->backlog);
@@ -2009,7 +2008,7 @@ static int sec_aead_sha512_ctx_init(struct crypto_aead *tfm)
 	return sec_aead_ctx_init(tfm, "sha512");
 }
 
-static int sec_skcipher_cryptlen_ckeck(struct sec_ctx *ctx,
+static int sec_skcipher_cryptlen_check(struct sec_ctx *ctx,
 	struct sec_req *sreq)
 {
 	u32 cryptlen = sreq->c_req.sk_req->cryptlen;
@@ -2071,7 +2070,7 @@ static int sec_skcipher_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 		}
 		return 0;
 	} else if (c_alg == SEC_CALG_AES || c_alg == SEC_CALG_SM4) {
-		return sec_skcipher_cryptlen_ckeck(ctx, sreq);
+		return sec_skcipher_cryptlen_check(ctx, sreq);
 	}
 
 	dev_err(dev, "skcipher algorithm error!\n");

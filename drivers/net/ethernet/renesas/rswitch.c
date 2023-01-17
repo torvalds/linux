@@ -1578,6 +1578,7 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct rswitch_device *rdev;
+	struct device_node *port;
 	struct net_device *ndev;
 	int err;
 
@@ -1606,7 +1607,9 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 
 	netif_napi_add(ndev, &rdev->napi, rswitch_poll);
 
-	err = of_get_ethdev_address(pdev->dev.of_node, ndev);
+	port = rswitch_get_port_node(rdev);
+	err = of_get_ethdev_address(port, ndev);
+	of_node_put(port);
 	if (err) {
 		if (is_valid_ether_addr(rdev->etha->mac_addr))
 			eth_hw_addr_set(ndev, rdev->etha->mac_addr);
@@ -1786,6 +1789,11 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	ret = rswitch_init(priv);
+	if (ret < 0) {
+		pm_runtime_put(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+		return ret;
+	}
 
 	device_set_wakeup_capable(&pdev->dev, 1);
 

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/chipone,icn8318.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ChipOne ICN8318 Touchscreen Controller Device Tree Bindings
+title: ChipOne ICN8318 Touchscreen Controller
 
 maintainers:
   - Dmitry Torokhov <dmitry.torokhov@gmail.com>

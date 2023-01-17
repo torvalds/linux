@@ -78,13 +78,6 @@ struct ccp_crypto_cmd {
 	int ret;
 };
 
-struct ccp_crypto_cpu {
-	struct work_struct work;
-	struct completion completion;
-	struct ccp_crypto_cmd *crypto_cmd;
-	int err;
-};
-
 static inline bool ccp_crypto_success(int err)
 {
 	if (err && (err != -EINPROGRESS) && (err != -EBUSY))
@@ -146,7 +139,7 @@ static void ccp_crypto_complete(void *data, int err)
 	struct ccp_crypto_cmd *crypto_cmd = data;
 	struct ccp_crypto_cmd *held, *next, *backlog;
 	struct crypto_async_request *req = crypto_cmd->req;
-	struct ccp_ctx *ctx = crypto_tfm_ctx(req->tfm);
+	struct ccp_ctx *ctx = crypto_tfm_ctx_dma(req->tfm);
 	int ret;
 
 	if (err == -EINPROGRESS) {
@@ -190,7 +183,7 @@ static void ccp_crypto_complete(void *data, int err)
 			break;
 
 		/* Error occurred, report it and get the next entry */
-		ctx = crypto_tfm_ctx(held->req->tfm);
+		ctx = crypto_tfm_ctx_dma(held->req->tfm);
 		if (ctx->complete)
 			ret = ctx->complete(held->req, ret);
 		held->req->complete(held->req, ret);
@@ -400,7 +393,7 @@ static void ccp_unregister_algs(void)
 	}
 }
 
-static int ccp_crypto_init(void)
+static int __init ccp_crypto_init(void)
 {
 	int ret;
 
@@ -421,7 +414,7 @@ static int ccp_crypto_init(void)
 	return ret;
 }
 
-static void ccp_crypto_exit(void)
+static void __exit ccp_crypto_exit(void)
 {
 	ccp_unregister_algs();
 }

@@ -105,6 +105,7 @@
 
 		l2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 };
@@ -138,4 +139,8 @@
 
 &mali {
 	dma-coherent;
+};
+
+&pmu {
+	compatible = "amlogic,g12b-ddr-pmu";
 };

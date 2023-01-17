@@ -28,9 +28,7 @@ nvkm-y += nvkm/engine/disp/gv100.o
 nvkm-y += nvkm/engine/disp/tu102.o
 nvkm-y += nvkm/engine/disp/ga102.o
 
-nvkm-y += nvkm/engine/disp/rootnv04.o
-nvkm-y += nvkm/engine/disp/rootnv50.o
-
 nvkm-y += nvkm/engine/disp/udisp.o
 nvkm-y += nvkm/engine/disp/uconn.o
 nvkm-y += nvkm/engine/disp/uoutp.o
+nvkm-y += nvkm/engine/disp/uhead.o

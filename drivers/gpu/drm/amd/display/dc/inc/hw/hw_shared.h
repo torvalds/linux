@@ -35,6 +35,13 @@
  ******************************************************************************/
 
 #define MAX_AUDIOS 7
+
+/**
+ * @MAX_PIPES:
+ *
+ * Every ASIC support a fixed number of pipes; MAX_PIPES defines a large number
+ * to be used inside loops and for determining array sizes.
+ */
 #define MAX_PIPES 6
 #define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1

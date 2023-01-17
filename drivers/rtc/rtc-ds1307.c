@@ -11,6 +11,7 @@
 #include <linux/bcd.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/kstrtox.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -1218,8 +1219,7 @@ static ssize_t frequency_test_show(struct device *dev,
 
 	regmap_read(ds1307->regmap, M41TXX_REG_CONTROL, &ctrl_reg);
 
-	return scnprintf(buf, PAGE_SIZE, (ctrl_reg & M41TXX_BIT_FT) ? "on\n" :
-			"off\n");
+	return sysfs_emit(buf, (ctrl_reg & M41TXX_BIT_FT) ? "on\n" : "off\n");
 }
 
 static DEVICE_ATTR_RW(frequency_test);

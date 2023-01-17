@@ -27,7 +27,7 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 #include <nvif/conn.h>
-#include <nvif/notify.h>
+#include <nvif/event.h>
 
 #include <nvhw/class/cl507d.h>
 #include <nvhw/class/cl907d.h>
@@ -124,7 +124,10 @@ struct nouveau_connector {
 	u8 *dcb;
 
 	struct nvif_conn conn;
-	struct nvif_notify hpd;
+	u64 hpd_pending;
+	struct nvif_event hpd;
+	struct nvif_event irq;
+	struct work_struct irq_work;
 
 	struct drm_dp_aux aux;
 
@@ -198,7 +201,7 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, const struct dcb_output *);
-void nouveau_connector_hpd(struct drm_connector *connector);
+void nouveau_connector_hpd(struct nouveau_connector *, u64 bits);
 
 extern int nouveau_tv_disable;
 extern int nouveau_ignorelid;

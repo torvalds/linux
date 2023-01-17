@@ -124,6 +124,8 @@ properties:
       The child node for the charger to hold additional properties. If a
       battery is not in use, this node can be omitted.
     type: object
+    $ref: /schemas/power/supply/power-supply.yaml
+
     properties:
       monitored-battery:
         description: |

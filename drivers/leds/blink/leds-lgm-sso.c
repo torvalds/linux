@@ -635,9 +635,8 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 		led->priv = priv;
 		desc = &led->desc;
 
-		led->gpiod = devm_fwnode_get_gpiod_from_child(dev, NULL,
-							      fwnode_child,
-							      GPIOD_ASIS, NULL);
+		led->gpiod = devm_fwnode_gpiod_get(dev, fwnode_child, NULL,
+						   GPIOD_ASIS, NULL);
 		if (IS_ERR(led->gpiod)) {
 			ret = dev_err_probe(dev, PTR_ERR(led->gpiod), "led: get gpio fail!\n");
 			goto __dt_err;

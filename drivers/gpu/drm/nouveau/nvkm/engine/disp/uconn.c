@@ -21,10 +21,84 @@
  */
 #define nvkm_uconn(p) container_of((p), struct nvkm_conn, object)
 #include "conn.h"
+#include "outp.h"
 
+#include <core/client.h>
+#include <core/event.h>
 #include <subdev/gpio.h>
+#include <subdev/i2c.h>
 
 #include <nvif/if0011.h>
+
+static int
+nvkm_uconn_uevent_aux(struct nvkm_object *object, u64 token, u32 bits)
+{
+	union nvif_conn_event_args args;
+
+	args.v0.version = 0;
+	args.v0.types = 0;
+	if (bits & NVKM_I2C_PLUG)
+		args.v0.types |= NVIF_CONN_EVENT_V0_PLUG;
+	if (bits & NVKM_I2C_UNPLUG)
+		args.v0.types |= NVIF_CONN_EVENT_V0_UNPLUG;
+	if (bits & NVKM_I2C_IRQ)
+		args.v0.types |= NVIF_CONN_EVENT_V0_IRQ;
+
+	return object->client->event(token, &args, sizeof(args.v0));
+}
+
+static int
+nvkm_uconn_uevent_gpio(struct nvkm_object *object, u64 token, u32 bits)
+{
+	union nvif_conn_event_args args;
+
+	args.v0.version = 0;
+	args.v0.types = 0;
+	if (bits & NVKM_GPIO_HI)
+		args.v0.types |= NVIF_CONN_EVENT_V0_PLUG;
+	if (bits & NVKM_GPIO_LO)
+		args.v0.types |= NVIF_CONN_EVENT_V0_UNPLUG;
+
+	return object->client->event(token, &args, sizeof(args.v0));
+}
+
+static int
+nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+{
+	struct nvkm_conn *conn = nvkm_uconn(object);
+	struct nvkm_device *device = conn->disp->engine.subdev.device;
+	struct nvkm_outp *outp;
+	union nvif_conn_event_args *args = argv;
+	u64 bits = 0;
+
+	if (!uevent) {
+		if (conn->info.hpd == DCB_GPIO_UNUSED)
+			return -ENOSYS;
+		return 0;
+	}
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	list_for_each_entry(outp, &conn->disp->outps, head) {
+		if (outp->info.connector == conn->index && outp->dp.aux) {
+			if (args->v0.types & NVIF_CONN_EVENT_V0_PLUG  ) bits |= NVKM_I2C_PLUG;
+			if (args->v0.types & NVIF_CONN_EVENT_V0_UNPLUG) bits |= NVKM_I2C_UNPLUG;
+			if (args->v0.types & NVIF_CONN_EVENT_V0_IRQ   ) bits |= NVKM_I2C_IRQ;
+
+			return nvkm_uevent_add(uevent, &device->i2c->event, outp->dp.aux->id, bits,
+					       nvkm_uconn_uevent_aux);
+		}
+	}
+
+	if (args->v0.types & NVIF_CONN_EVENT_V0_PLUG  ) bits |= NVKM_GPIO_HI;
+	if (args->v0.types & NVIF_CONN_EVENT_V0_UNPLUG) bits |= NVKM_GPIO_LO;
+	if (args->v0.types & NVIF_CONN_EVENT_V0_IRQ)
+		return -EINVAL;
+
+	return nvkm_uevent_add(uevent, &device->gpio->event, conn->info.hpd, bits,
+			       nvkm_uconn_uevent_gpio);
+}
 
 static int
 nvkm_uconn_mthd_hpd_status(struct nvkm_conn *conn, void *argv, u32 argc)
@@ -82,6 +156,7 @@ static const struct nvkm_object_func
 nvkm_uconn = {
 	.dtor = nvkm_uconn_dtor,
 	.mthd = nvkm_uconn_mthd,
+	.uevent = nvkm_uconn_uevent,
 };
 
 int

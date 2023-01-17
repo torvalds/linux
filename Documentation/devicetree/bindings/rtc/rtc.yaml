@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/rtc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RTC Generic Binding
+title: Real Time Clock Common Properties
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>

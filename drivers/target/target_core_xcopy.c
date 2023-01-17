@@ -582,11 +582,11 @@ static int target_xcopy_read_source(
 	struct xcopy_op *xop,
 	struct se_device *src_dev,
 	sector_t src_lba,
-	u32 src_sectors)
+	u32 src_bytes)
 {
 	struct xcopy_pt_cmd xpt_cmd;
 	struct se_cmd *se_cmd = &xpt_cmd.se_cmd;
-	u32 length = (src_sectors * src_dev->dev_attrib.block_size);
+	u32 transfer_length_block = src_bytes / src_dev->dev_attrib.block_size;
 	int rc;
 	unsigned char cdb[16];
 	bool remote_port = (xop->op_origin == XCOL_DEST_RECV_OP);
@@ -597,11 +597,11 @@ static int target_xcopy_read_source(
 	memset(&cdb[0], 0, 16);
 	cdb[0] = READ_16;
 	put_unaligned_be64(src_lba, &cdb[2]);
-	put_unaligned_be32(src_sectors, &cdb[10]);
-	pr_debug("XCOPY: Built READ_16: LBA: %llu Sectors: %u Length: %u\n",
-		(unsigned long long)src_lba, src_sectors, length);
+	put_unaligned_be32(transfer_length_block, &cdb[10]);
+	pr_debug("XCOPY: Built READ_16: LBA: %llu Blocks: %u Length: %u\n",
+		(unsigned long long)src_lba, transfer_length_block, src_bytes);
 
-	__target_init_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
+	__target_init_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, src_bytes,
 			  DMA_FROM_DEVICE, 0, &xpt_cmd.sense_buffer[0], 0);
 
 	rc = target_xcopy_setup_pt_cmd(&xpt_cmd, xop, src_dev, &cdb[0],
@@ -627,11 +627,11 @@ static int target_xcopy_write_destination(
 	struct xcopy_op *xop,
 	struct se_device *dst_dev,
 	sector_t dst_lba,
-	u32 dst_sectors)
+	u32 dst_bytes)
 {
 	struct xcopy_pt_cmd xpt_cmd;
 	struct se_cmd *se_cmd = &xpt_cmd.se_cmd;
-	u32 length = (dst_sectors * dst_dev->dev_attrib.block_size);
+	u32 transfer_length_block = dst_bytes / dst_dev->dev_attrib.block_size;
 	int rc;
 	unsigned char cdb[16];
 	bool remote_port = (xop->op_origin == XCOL_SOURCE_RECV_OP);
@@ -642,11 +642,11 @@ static int target_xcopy_write_destination(
 	memset(&cdb[0], 0, 16);
 	cdb[0] = WRITE_16;
 	put_unaligned_be64(dst_lba, &cdb[2]);
-	put_unaligned_be32(dst_sectors, &cdb[10]);
-	pr_debug("XCOPY: Built WRITE_16: LBA: %llu Sectors: %u Length: %u\n",
-		(unsigned long long)dst_lba, dst_sectors, length);
+	put_unaligned_be32(transfer_length_block, &cdb[10]);
+	pr_debug("XCOPY: Built WRITE_16: LBA: %llu Blocks: %u Length: %u\n",
+		(unsigned long long)dst_lba, transfer_length_block, dst_bytes);
 
-	__target_init_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
+	__target_init_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, dst_bytes,
 			  DMA_TO_DEVICE, 0, &xpt_cmd.sense_buffer[0], 0);
 
 	rc = target_xcopy_setup_pt_cmd(&xpt_cmd, xop, dst_dev, &cdb[0],
@@ -670,9 +670,10 @@ static void target_xcopy_do_work(struct work_struct *work)
 	struct se_cmd *ec_cmd = xop->xop_se_cmd;
 	struct se_device *src_dev, *dst_dev;
 	sector_t src_lba, dst_lba, end_lba;
-	unsigned int max_sectors;
+	unsigned long long max_bytes, max_bytes_src, max_bytes_dst, max_blocks;
 	int rc = 0;
-	unsigned short nolb, max_nolb, copied_nolb = 0;
+	unsigned short nolb;
+	unsigned int copied_bytes = 0;
 	sense_reason_t sense_rc;
 
 	sense_rc = target_parse_xcopy_cmd(xop);
@@ -691,23 +692,31 @@ static void target_xcopy_do_work(struct work_struct *work)
 	nolb = xop->nolb;
 	end_lba = src_lba + nolb;
 	/*
-	 * Break up XCOPY I/O into hw_max_sectors sized I/O based on the
-	 * smallest max_sectors between src_dev + dev_dev, or
+	 * Break up XCOPY I/O into hw_max_sectors * hw_block_size sized
+	 * I/O based on the smallest max_bytes between src_dev + dst_dev
 	 */
-	max_sectors = min(src_dev->dev_attrib.hw_max_sectors,
-			  dst_dev->dev_attrib.hw_max_sectors);
-	max_sectors = min_t(u32, max_sectors, XCOPY_MAX_SECTORS);
+	max_bytes_src = (unsigned long long) src_dev->dev_attrib.hw_max_sectors *
+			src_dev->dev_attrib.hw_block_size;
+	max_bytes_dst = (unsigned long long) dst_dev->dev_attrib.hw_max_sectors *
+			dst_dev->dev_attrib.hw_block_size;
 
-	max_nolb = min_t(u16, max_sectors, ((u16)(~0U)));
+	max_bytes = min_t(u64, max_bytes_src, max_bytes_dst);
+	max_bytes = min_t(u64, max_bytes, XCOPY_MAX_BYTES);
 
-	pr_debug("target_xcopy_do_work: nolb: %hu, max_nolb: %hu end_lba: %llu\n",
-			nolb, max_nolb, (unsigned long long)end_lba);
-	pr_debug("target_xcopy_do_work: Starting src_lba: %llu, dst_lba: %llu\n",
+	/*
+	 * Using shift instead of the division because otherwise GCC
+	 * generates __udivdi3 that is missing on i386
+	 */
+	max_blocks = max_bytes >> ilog2(src_dev->dev_attrib.block_size);
+
+	pr_debug("%s: nolb: %u, max_blocks: %llu end_lba: %llu\n", __func__,
+			nolb, max_blocks, (unsigned long long)end_lba);
+	pr_debug("%s: Starting src_lba: %llu, dst_lba: %llu\n", __func__,
 			(unsigned long long)src_lba, (unsigned long long)dst_lba);
 
-	while (src_lba < end_lba) {
-		unsigned short cur_nolb = min(nolb, max_nolb);
-		u32 cur_bytes = cur_nolb * src_dev->dev_attrib.block_size;
+	while (nolb) {
+		u32 cur_bytes = min_t(u64, max_bytes, nolb * src_dev->dev_attrib.block_size);
+		unsigned short cur_nolb = cur_bytes / src_dev->dev_attrib.block_size;
 
 		if (cur_bytes != xop->xop_data_bytes) {
 			/*
@@ -724,43 +733,43 @@ static void target_xcopy_do_work(struct work_struct *work)
 			xop->xop_data_bytes = cur_bytes;
 		}
 
-		pr_debug("target_xcopy_do_work: Calling read src_dev: %p src_lba: %llu,"
-			" cur_nolb: %hu\n", src_dev, (unsigned long long)src_lba, cur_nolb);
+		pr_debug("%s: Calling read src_dev: %p src_lba: %llu, cur_nolb: %hu\n",
+				__func__, src_dev, (unsigned long long)src_lba, cur_nolb);
 
-		rc = target_xcopy_read_source(ec_cmd, xop, src_dev, src_lba, cur_nolb);
+		rc = target_xcopy_read_source(ec_cmd, xop, src_dev, src_lba, cur_bytes);
 		if (rc < 0)
 			goto out;
 
-		src_lba += cur_nolb;
-		pr_debug("target_xcopy_do_work: Incremented READ src_lba to %llu\n",
+		src_lba += cur_bytes / src_dev->dev_attrib.block_size;
+		pr_debug("%s: Incremented READ src_lba to %llu\n", __func__,
 				(unsigned long long)src_lba);
 
-		pr_debug("target_xcopy_do_work: Calling write dst_dev: %p dst_lba: %llu,"
-			" cur_nolb: %hu\n", dst_dev, (unsigned long long)dst_lba, cur_nolb);
+		pr_debug("%s: Calling write dst_dev: %p dst_lba: %llu, cur_nolb: %u\n",
+				__func__, dst_dev, (unsigned long long)dst_lba, cur_nolb);
 
 		rc = target_xcopy_write_destination(ec_cmd, xop, dst_dev,
-						dst_lba, cur_nolb);
+						dst_lba, cur_bytes);
 		if (rc < 0)
 			goto out;
 
-		dst_lba += cur_nolb;
-		pr_debug("target_xcopy_do_work: Incremented WRITE dst_lba to %llu\n",
+		dst_lba += cur_bytes / dst_dev->dev_attrib.block_size;
+		pr_debug("%s: Incremented WRITE dst_lba to %llu\n", __func__,
 				(unsigned long long)dst_lba);
 
-		copied_nolb += cur_nolb;
-		nolb -= cur_nolb;
+		copied_bytes += cur_bytes;
+		nolb -= cur_bytes / src_dev->dev_attrib.block_size;
 	}
 
 	xcopy_pt_undepend_remotedev(xop);
 	target_free_sgl(xop->xop_data_sg, xop->xop_data_nents);
 	kfree(xop);
 
-	pr_debug("target_xcopy_do_work: Final src_lba: %llu, dst_lba: %llu\n",
+	pr_debug("%s: Final src_lba: %llu, dst_lba: %llu\n", __func__,
 		(unsigned long long)src_lba, (unsigned long long)dst_lba);
-	pr_debug("target_xcopy_do_work: Blocks copied: %hu, Bytes Copied: %u\n",
-		copied_nolb, copied_nolb * dst_dev->dev_attrib.block_size);
+	pr_debug("%s: Blocks copied: %u, Bytes Copied: %u\n", __func__,
+		copied_bytes / dst_dev->dev_attrib.block_size, copied_bytes);
 
-	pr_debug("target_xcopy_do_work: Setting X-COPY GOOD status -> sending response\n");
+	pr_debug("%s: Setting X-COPY GOOD status -> sending response\n", __func__);
 	target_complete_cmd(ec_cmd, SAM_STAT_GOOD);
 	return;
 
@@ -776,8 +785,8 @@ out:
 
 err_free:
 	kfree(xop);
-	pr_warn_ratelimited("target_xcopy_do_work: rc: %d, sense: %u, XCOPY operation failed\n",
-			   rc, sense_rc);
+	pr_warn_ratelimited("%s: rc: %d, sense: %u, XCOPY operation failed\n",
+			   __func__, rc, sense_rc);
 	target_complete_cmd_with_sense(ec_cmd, SAM_STAT_CHECK_CONDITION, sense_rc);
 }
 
@@ -1009,7 +1018,13 @@ sense_reason_t target_do_receive_copy_results(struct se_cmd *se_cmd)
 {
 	unsigned char *cdb = &se_cmd->t_task_cdb[0];
 	int sa = (cdb[1] & 0x1f), list_id = cdb[2];
+	struct se_device *dev = se_cmd->se_dev;
 	sense_reason_t rc = TCM_NO_SENSE;
+
+	if (!dev->dev_attrib.emulate_3pc) {
+		pr_debug("Third-party copy operations explicitly disabled\n");
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
 
 	pr_debug("Entering target_do_receive_copy_results: SA: 0x%02x, List ID:"
 		" 0x%02x, AL: %u\n", sa, list_id, se_cmd->data_length);

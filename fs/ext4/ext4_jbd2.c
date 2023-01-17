@@ -86,15 +86,21 @@ static int ext4_journal_check_start(struct super_block *sb)
 	return 0;
 }
 
-handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
+handle_t *__ext4_journal_start_sb(struct inode *inode,
+				  struct super_block *sb, unsigned int line,
 				  int type, int blocks, int rsv_blocks,
 				  int revoke_creds)
 {
 	journal_t *journal;
 	int err;
-
-	trace_ext4_journal_start(sb, blocks, rsv_blocks, revoke_creds,
-				 _RET_IP_);
+	if (inode)
+		trace_ext4_journal_start_inode(inode, blocks, rsv_blocks,
+					revoke_creds, type,
+					_RET_IP_);
+	else
+		trace_ext4_journal_start_sb(sb, blocks, rsv_blocks,
+					revoke_creds, type,
+					_RET_IP_);
 	err = ext4_journal_check_start(sb);
 	if (err < 0)
 		return ERR_PTR(err);

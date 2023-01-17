@@ -1168,7 +1168,7 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 		if (session->tx_retry < J1939_XTP_TX_RETRY_LIMIT) {
 			session->tx_retry++;
 			j1939_tp_schedule_txtimer(session,
-						  10 + prandom_u32_max(16));
+						  10 + get_random_u32_below(16));
 		} else {
 			netdev_alert(priv->ndev, "%s: 0x%p: tx retry count reached\n",
 				     __func__, session);

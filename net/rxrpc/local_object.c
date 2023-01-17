@@ -82,30 +82,59 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 	}
 }
 
+static void rxrpc_client_conn_reap_timeout(struct timer_list *timer)
+{
+	struct rxrpc_local *local =
+		container_of(timer, struct rxrpc_local, client_conn_reap_timer);
+
+	if (local->kill_all_client_conns &&
+	    test_and_set_bit(RXRPC_CLIENT_CONN_REAP_TIMER, &local->client_conn_flags))
+		rxrpc_wake_up_io_thread(local);
+}
+
 /*
  * Allocate a new local endpoint.
  */
-static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
+static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 					     const struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_local *local;
+	u32 tmp;
 
 	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
 	if (local) {
 		refcount_set(&local->ref, 1);
 		atomic_set(&local->active_users, 1);
-		local->rxnet = rxnet;
+		local->net = net;
+		local->rxnet = rxrpc_net(net);
 		INIT_HLIST_NODE(&local->link);
 		init_rwsem(&local->defrag_sem);
+		init_completion(&local->io_thread_ready);
 		skb_queue_head_init(&local->rx_queue);
+		INIT_LIST_HEAD(&local->conn_attend_q);
 		INIT_LIST_HEAD(&local->call_attend_q);
+
 		local->client_bundles = RB_ROOT;
 		spin_lock_init(&local->client_bundles_lock);
+		local->kill_all_client_conns = false;
+		INIT_LIST_HEAD(&local->idle_client_conns);
+		timer_setup(&local->client_conn_reap_timer,
+			    rxrpc_client_conn_reap_timeout, 0);
+
 		spin_lock_init(&local->lock);
 		rwlock_init(&local->services_lock);
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
 		local->srx.srx_service = 0;
+		idr_init(&local->conn_ids);
+		get_random_bytes(&tmp, sizeof(tmp));
+		tmp &= 0x3fffffff;
+		if (tmp == 0)
+			tmp = 1;
+		idr_set_cursor(&local->conn_ids, tmp);
+		INIT_LIST_HEAD(&local->new_client_calls);
+		spin_lock_init(&local->client_call_lock);
+
 		trace_rxrpc_local(local->debug_id, rxrpc_local_new, 1, 1);
 	}
 
@@ -189,6 +218,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		goto error_sock;
 	}
 
+	wait_for_completion(&local->io_thread_ready);
 	local->io_thread = io_thread;
 	_leave(" = 0");
 	return 0;
@@ -246,7 +276,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 		goto found;
 	}
 
-	local = rxrpc_alloc_local(rxnet, srx);
+	local = rxrpc_alloc_local(net, srx);
 	if (!local)
 		goto nomem;
 
@@ -357,10 +387,11 @@ struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local,
  */
 void rxrpc_unuse_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
 {
-	unsigned int debug_id = local->debug_id;
+	unsigned int debug_id;
 	int r, u;
 
 	if (local) {
+		debug_id = local->debug_id;
 		r = refcount_read(&local->ref);
 		u = atomic_dec_return(&local->active_users);
 		trace_rxrpc_local(debug_id, why, r, u);
@@ -404,6 +435,7 @@ void rxrpc_destroy_local(struct rxrpc_local *local)
 	 * local endpoint.
 	 */
 	rxrpc_purge_queue(&local->rx_queue);
+	rxrpc_purge_client_connections(local);
 }
 
 /*

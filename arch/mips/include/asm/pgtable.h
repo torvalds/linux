@@ -550,8 +550,6 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 	__update_tlb(vma, address, pte);
 }
 
-#define kern_addr_valid(addr)	(1)
-
 /*
  * Allow physical addresses to be fixed up to help 36-bit peripherals.
  */

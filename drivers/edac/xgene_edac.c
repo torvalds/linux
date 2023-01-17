@@ -2004,6 +2004,9 @@ static int __init xgene_edac_init(void)
 {
 	int rc;
 
+	if (ghes_get_devices())
+		return -EBUSY;
+
 	/* Make sure error reporting method is sane */
 	switch (edac_op_state) {
 	case EDAC_OPSTATE_POLL:

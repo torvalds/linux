@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpio/ti,omap-gpio.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: OMAP GPIO controller bindings
+title: OMAP GPIO controller
 
 maintainers:
   - Grygorii Strashko <grygorii.strashko@ti.com>

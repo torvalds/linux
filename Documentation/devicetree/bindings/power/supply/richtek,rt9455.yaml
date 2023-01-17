@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/richtek,rt9455.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for Richtek rt9455 battery charger
+title: Richtek rt9455 battery charger
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

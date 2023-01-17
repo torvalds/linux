@@ -438,7 +438,7 @@ static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
 	return -1;
 }
 
-static int max_tcpci_probe(struct i2c_client *client, const struct i2c_device_id *i2c_id)
+static int max_tcpci_probe(struct i2c_client *client)
 {
 	int ret;
 	struct max_tcpci_chip *chip;
@@ -519,7 +519,7 @@ static struct i2c_driver max_tcpci_i2c_driver = {
 		.name = "maxtcpc",
 		.of_match_table = of_match_ptr(max_tcpci_of_match),
 	},
-	.probe = max_tcpci_probe,
+	.probe_new = max_tcpci_probe,
 	.remove = max_tcpci_remove,
 	.id_table = max_tcpci_id,
 };

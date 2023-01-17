@@ -179,6 +179,7 @@
 		A53_L2: l2-cache0 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 			cache-size = <0x100000>;
 			cache-line-size = <64>;
 			cache-sets = <1024>;
@@ -605,10 +606,11 @@
 				};
 			};
 
-			anatop: syscon@30360000 {
-				compatible = "fsl,imx8mq-anatop", "syscon";
+			anatop: clock-controller@30360000 {
+				compatible = "fsl,imx8mq-anatop";
 				reg = <0x30360000 0x10000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+				#clock-cells = <1>;
 			};
 
 			snvs: snvs@30370000 {
@@ -1184,7 +1186,7 @@
 			};
 
 			csi1: csi@30a90000 {
-				compatible = "fsl,imx8mq-csi", "fsl,imx7-csi";
+				compatible = "fsl,imx8mq-csi";
 				reg = <0x30a90000 0x10000>;
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_CSI1_ROOT>;
@@ -1236,7 +1238,7 @@
 			};
 
 			csi2: csi@30b80000 {
-				compatible = "fsl,imx8mq-csi", "fsl,imx7-csi";
+				compatible = "fsl,imx8mq-csi";
 				reg = <0x30b80000 0x10000>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_CSI2_ROOT>;
@@ -1356,15 +1358,15 @@
 			noc_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
-				opp-133M {
+				opp-133000000 {
 					opp-hz = /bits/ 64 <133333333>;
 				};
 
-				opp-400M {
+				opp-400000000 {
 					opp-hz = /bits/ 64 <400000000>;
 				};
 
-				opp-800M {
+				opp-800000000 {
 					opp-hz = /bits/ 64 <800000000>;
 				};
 			};

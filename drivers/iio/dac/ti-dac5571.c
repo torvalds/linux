@@ -306,9 +306,9 @@ static const struct iio_info dac5571_info = {
 	.write_raw_get_fmt = dac5571_write_raw_get_fmt,
 };
 
-static int dac5571_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int dac5571_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	const struct dac5571_spec *spec;
 	struct dac5571_data *data;
@@ -426,7 +426,7 @@ static struct i2c_driver dac5571_driver = {
 		   .name = "ti-dac5571",
 		   .of_match_table = dac5571_of_id,
 	},
-	.probe	  = dac5571_probe,
+	.probe_new = dac5571_probe,
 	.remove   = dac5571_remove,
 	.id_table = dac5571_id,
 };

@@ -21,57 +21,57 @@
 
 /* Register definitions for the USB CTRL block */
 #define USB_CTRL_SETUP			0x00
-#define   USB_CTRL_SETUP_IOC_MASK			0x00000010
-#define   USB_CTRL_SETUP_IPP_MASK			0x00000020
-#define   USB_CTRL_SETUP_BABO_MASK			0x00000001
-#define   USB_CTRL_SETUP_FNHW_MASK			0x00000002
-#define   USB_CTRL_SETUP_FNBO_MASK			0x00000004
-#define   USB_CTRL_SETUP_WABO_MASK			0x00000008
-#define   USB_CTRL_SETUP_SCB_CLIENT_SWAP_MASK		0x00002000 /* option */
-#define   USB_CTRL_SETUP_SCB1_EN_MASK			0x00004000 /* option */
-#define   USB_CTRL_SETUP_SCB2_EN_MASK			0x00008000 /* option */
-#define   USB_CTRL_SETUP_SS_EHCI64BIT_EN_MASK		0X00020000 /* option */
-#define   USB_CTRL_SETUP_SS_EHCI64BIT_EN_VAR_MASK	0x00010000 /* option */
-#define   USB_CTRL_SETUP_STRAP_IPP_SEL_MASK		0x02000000 /* option */
-#define   USB_CTRL_SETUP_CC_DRD_MODE_ENABLE_MASK	0x04000000 /* option */
-#define   USB_CTRL_SETUP_STRAP_CC_DRD_MODE_ENABLE_SEL_MASK 0x08000000 /* opt */
-#define   USB_CTRL_SETUP_OC3_DISABLE_MASK		0xc0000000 /* option */
+#define   USB_CTRL_SETUP_BABO_MASK			BIT(0)
+#define   USB_CTRL_SETUP_FNHW_MASK			BIT(1)
+#define   USB_CTRL_SETUP_FNBO_MASK			BIT(2)
+#define   USB_CTRL_SETUP_WABO_MASK			BIT(3)
+#define   USB_CTRL_SETUP_IOC_MASK			BIT(4)
+#define   USB_CTRL_SETUP_IPP_MASK			BIT(5)
+#define   USB_CTRL_SETUP_SCB_CLIENT_SWAP_MASK		BIT(13) /* option */
+#define   USB_CTRL_SETUP_SCB1_EN_MASK			BIT(14) /* option */
+#define   USB_CTRL_SETUP_SCB2_EN_MASK			BIT(15) /* option */
+#define   USB_CTRL_SETUP_SS_EHCI64BIT_EN_MASK		BIT(17) /* option */
+#define   USB_CTRL_SETUP_SS_EHCI64BIT_EN_VAR_MASK	BIT(16) /* option */
+#define   USB_CTRL_SETUP_STRAP_IPP_SEL_MASK		BIT(25) /* option */
+#define   USB_CTRL_SETUP_CC_DRD_MODE_ENABLE_MASK	BIT(26) /* option */
+#define   USB_CTRL_SETUP_STRAP_CC_DRD_MODE_ENABLE_SEL_MASK BIT(27) /* opt */
+#define   USB_CTRL_SETUP_OC3_DISABLE_MASK		GENMASK(31, 30) /* option */
 #define USB_CTRL_PLL_CTL		0x04
-#define   USB_CTRL_PLL_CTL_PLL_SUSPEND_EN_MASK		0x08000000
-#define   USB_CTRL_PLL_CTL_PLL_RESETB_MASK		0x40000000
-#define   USB_CTRL_PLL_CTL_PLL_IDDQ_PWRDN_MASK		0x80000000 /* option */
+#define   USB_CTRL_PLL_CTL_PLL_SUSPEND_EN_MASK		BIT(27)
+#define   USB_CTRL_PLL_CTL_PLL_RESETB_MASK		BIT(30)
+#define   USB_CTRL_PLL_CTL_PLL_IDDQ_PWRDN_MASK		BIT(31) /* option */
 #define USB_CTRL_EBRIDGE		0x0c
-#define   USB_CTRL_EBRIDGE_ESTOP_SCB_REQ_MASK		0x00020000 /* option */
-#define   USB_CTRL_EBRIDGE_EBR_SCB_SIZE_MASK		0x00000f80 /* option */
+#define   USB_CTRL_EBRIDGE_EBR_SCB_SIZE_MASK		GENMASK(11, 7) /* option */
+#define   USB_CTRL_EBRIDGE_ESTOP_SCB_REQ_MASK		BIT(17) /* option */
 #define USB_CTRL_OBRIDGE		0x10
-#define   USB_CTRL_OBRIDGE_LS_KEEP_ALIVE_MASK		0x08000000
+#define   USB_CTRL_OBRIDGE_LS_KEEP_ALIVE_MASK		BIT(27)
 #define USB_CTRL_MDIO			0x14
 #define USB_CTRL_MDIO2			0x18
 #define USB_CTRL_UTMI_CTL_1		0x2c
-#define   USB_CTRL_UTMI_CTL_1_POWER_UP_FSM_EN_MASK	0x00000800
-#define   USB_CTRL_UTMI_CTL_1_POWER_UP_FSM_EN_P1_MASK	0x08000000
+#define   USB_CTRL_UTMI_CTL_1_POWER_UP_FSM_EN_MASK	BIT(11)
+#define   USB_CTRL_UTMI_CTL_1_POWER_UP_FSM_EN_P1_MASK	BIT(27)
 #define USB_CTRL_USB_PM			0x34
-#define   USB_CTRL_USB_PM_BDC_SOFT_RESETB_MASK		0x00800000 /* option */
-#define   USB_CTRL_USB_PM_XHC_SOFT_RESETB_MASK		0x00400000 /* option */
-#define   USB_CTRL_USB_PM_XHC_SOFT_RESETB_VAR_MASK	0x40000000 /* option */
-#define   USB_CTRL_USB_PM_USB_PWRDN_MASK		0x80000000 /* option */
-#define   USB_CTRL_USB_PM_SOFT_RESET_MASK		0x40000000 /* option */
-#define   USB_CTRL_USB_PM_USB20_HC_RESETB_MASK		0x30000000 /* option */
-#define   USB_CTRL_USB_PM_USB20_HC_RESETB_VAR_MASK	0x00300000 /* option */
-#define   USB_CTRL_USB_PM_RMTWKUP_EN_MASK		0x00000001
+#define   USB_CTRL_USB_PM_RMTWKUP_EN_MASK		BIT(0)
+#define   USB_CTRL_USB_PM_USB20_HC_RESETB_VAR_MASK	GENMASK(21, 20) /* option */
+#define   USB_CTRL_USB_PM_XHC_SOFT_RESETB_MASK		BIT(22) /* option */
+#define   USB_CTRL_USB_PM_BDC_SOFT_RESETB_MASK		BIT(23) /* option */
+#define   USB_CTRL_USB_PM_USB20_HC_RESETB_MASK		GENMASK(29, 28) /* option */
+#define   USB_CTRL_USB_PM_XHC_SOFT_RESETB_VAR_MASK	BIT(30) /* option */
+#define   USB_CTRL_USB_PM_SOFT_RESET_MASK		BIT(30) /* option */
+#define   USB_CTRL_USB_PM_USB_PWRDN_MASK		BIT(31) /* option */
 #define USB_CTRL_USB_PM_STATUS		0x38
 #define USB_CTRL_USB30_CTL1		0x60
-#define   USB_CTRL_USB30_CTL1_PHY3_PLL_SEQ_START_MASK	0x00000010
-#define   USB_CTRL_USB30_CTL1_PHY3_RESETB_MASK		0x00010000
-#define   USB_CTRL_USB30_CTL1_XHC_SOFT_RESETB_MASK	0x00020000 /* option */
-#define   USB_CTRL_USB30_CTL1_USB3_IOC_MASK		0x10000000 /* option */
-#define   USB_CTRL_USB30_CTL1_USB3_IPP_MASK		0x20000000 /* option */
+#define   USB_CTRL_USB30_CTL1_PHY3_PLL_SEQ_START_MASK	BIT(4)
+#define   USB_CTRL_USB30_CTL1_PHY3_RESETB_MASK		BIT(16)
+#define   USB_CTRL_USB30_CTL1_XHC_SOFT_RESETB_MASK	BIT(17) /* option */
+#define   USB_CTRL_USB30_CTL1_USB3_IOC_MASK		BIT(28) /* option */
+#define   USB_CTRL_USB30_CTL1_USB3_IPP_MASK		BIT(29) /* option */
 #define USB_CTRL_USB30_PCTL		0x70
-#define   USB_CTRL_USB30_PCTL_PHY3_SOFT_RESETB_MASK	0x00000002
-#define   USB_CTRL_USB30_PCTL_PHY3_IDDQ_OVERRIDE_MASK	0x00008000
-#define   USB_CTRL_USB30_PCTL_PHY3_SOFT_RESETB_P1_MASK	0x00020000
+#define   USB_CTRL_USB30_PCTL_PHY3_SOFT_RESETB_MASK	BIT(1)
+#define   USB_CTRL_USB30_PCTL_PHY3_IDDQ_OVERRIDE_MASK	BIT(15)
+#define   USB_CTRL_USB30_PCTL_PHY3_SOFT_RESETB_P1_MASK	BIT(17)
 #define USB_CTRL_USB_DEVICE_CTL1	0x90
-#define   USB_CTRL_USB_DEVICE_CTL1_PORT_MODE_MASK	0x00000003 /* option */
+#define   USB_CTRL_USB_DEVICE_CTL1_PORT_MODE_MASK	GENMASK(1, 0) /* option */
 
 /* Register definitions for the XHCI EC block */
 #define USB_XHCI_EC_IRAADR 0x658
@@ -876,11 +876,11 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 		reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 		reg &= ~USB_CTRL_MASK_FAMILY(params, USB_DEVICE_CTL1,
 					PORT_MODE);
-		reg |= params->mode;
+		reg |= params->port_mode;
 		brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	}
 	if (USB_CTRL_MASK_FAMILY(params, USB_PM, BDC_SOFT_RESETB)) {
-		switch (params->mode) {
+		switch (params->supported_port_modes) {
 		case USB_CTLR_MODE_HOST:
 			USB_CTRL_UNSET_FAMILY(params, USB_PM, BDC_SOFT_RESETB);
 			break;
@@ -891,7 +891,7 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 		}
 	}
 	if (USB_CTRL_MASK_FAMILY(params, SETUP, CC_DRD_MODE_ENABLE)) {
-		if (params->mode == USB_CTLR_MODE_TYPEC_PD)
+		if (params->supported_port_modes == USB_CTLR_MODE_TYPEC_PD)
 			USB_CTRL_SET_FAMILY(params, SETUP, CC_DRD_MODE_ENABLE);
 		else
 			USB_CTRL_UNSET_FAMILY(params, SETUP,
@@ -1000,7 +1000,7 @@ static int usb_get_dual_select(struct brcm_usb_init_params *params)
 	return reg;
 }
 
-static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
+static void usb_set_dual_select(struct brcm_usb_init_params *params)
 {
 	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg;
@@ -1011,7 +1011,7 @@ static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
 		reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 		reg &= ~USB_CTRL_MASK_FAMILY(params, USB_DEVICE_CTL1,
 					PORT_MODE);
-		reg |= mode;
+		reg |= params->port_mode;
 		brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	}
 }

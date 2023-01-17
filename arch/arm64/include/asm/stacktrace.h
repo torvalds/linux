@@ -57,6 +57,8 @@ static inline bool on_task_stack(const struct task_struct *tsk,
 	return stackinfo_on_stack(&info, sp, size);
 }
 
+#define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1))
+
 #ifdef CONFIG_VMAP_STACK
 DECLARE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack);
 

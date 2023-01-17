@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpu/brcm,bcm-v3d.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom V3D GPU Bindings
+title: Broadcom V3D GPU
 
 maintainers:
   - Eric Anholt <eric@anholt.net>

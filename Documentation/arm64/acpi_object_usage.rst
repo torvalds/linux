@@ -163,7 +163,7 @@ FPDT   Section 5.2.23 (signature == "FPDT")
 
        **Firmware Performance Data Table**
 
-       Optional, not currently supported.
+       Optional, useful for boot performance profiling.
 
 GTDT   Section 5.2.24 (signature == "GTDT")
 

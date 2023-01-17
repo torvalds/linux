@@ -1113,10 +1113,80 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 	}
 }
 
+static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
+					 struct amdgpu_bo *bo,
+					 struct amdgpu_bo_va_mapping *mapping,
+					 uint64_t *flags)
+{
+	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	bool is_vram = bo->tbo.resource->mem_type == TTM_PL_VRAM;
+	bool coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
+	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
+	unsigned int mtype;
+	bool snoop = false;
+
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		if (is_vram) {
+			if (bo_adev == adev) {
+				if (uncached)
+					mtype = MTYPE_UC;
+				else if (coherent)
+					mtype = MTYPE_CC;
+				else
+					mtype = MTYPE_RW;
+				/* FIXME: is this still needed? Or does
+				 * amdgpu_ttm_tt_pde_flags already handle this?
+				 */
+				if (adev->ip_versions[GC_HWIP][0] ==
+					IP_VERSION(9, 4, 2) &&
+				    adev->gmc.xgmi.connected_to_cpu)
+					snoop = true;
+			} else {
+				if (uncached || coherent)
+					mtype = MTYPE_UC;
+				else
+					mtype = MTYPE_NC;
+				if (mapping->bo_va->is_xgmi)
+					snoop = true;
+			}
+		} else {
+			if (uncached || coherent)
+				mtype = MTYPE_UC;
+			else
+				mtype = MTYPE_NC;
+			/* FIXME: is this still needed? Or does
+			 * amdgpu_ttm_tt_pde_flags already handle this?
+			 */
+			snoop = true;
+		}
+		break;
+	default:
+		if (uncached || coherent)
+			mtype = MTYPE_UC;
+		else
+			mtype = MTYPE_NC;
+
+		/* FIXME: is this still needed? Or does
+		 * amdgpu_ttm_tt_pde_flags already handle this?
+		 */
+		if (!is_vram)
+			snoop = true;
+	}
+
+	if (mtype != MTYPE_NC)
+		*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
+			 AMDGPU_PTE_MTYPE_VG10(mtype);
+	*flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
+}
+
 static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
 				struct amdgpu_bo_va_mapping *mapping,
 				uint64_t *flags)
 {
+	struct amdgpu_bo *bo = mapping->bo_va->base.bo;
+
 	*flags &= ~AMDGPU_PTE_EXECUTABLE;
 	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
 
@@ -1128,14 +1198,9 @@ static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags &= ~AMDGPU_PTE_VALID;
 	}
 
-	if ((adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1) ||
-	     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2)) &&
-	    !(*flags & AMDGPU_PTE_SYSTEM) &&
-	    mapping->bo_va->is_xgmi)
-		*flags |= AMDGPU_PTE_SNOOPED;
-
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
-		*flags |= mapping->flags & AMDGPU_PTE_SNOOPED;
+	if (bo && bo->tbo.resource)
+		gmc_v9_0_get_coherence_flags(adev, mapping->bo_va->base.bo,
+					     mapping, flags);
 }
 
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)

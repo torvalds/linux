@@ -11,7 +11,12 @@
 
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
+#include <linux/seq_file.h>
+
+#include <linux/pinctrl/consumer.h>
+
 #include <dt-bindings/pinctrl/mt65xx.h>
+
 #include "pinctrl-paris.h"
 
 #define PINCTRL_PINCTRL_DEV	KBUILD_MODNAME

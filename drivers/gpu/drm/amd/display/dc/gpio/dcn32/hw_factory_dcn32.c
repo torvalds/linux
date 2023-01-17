@@ -256,8 +256,8 @@ static const struct hw_factory_funcs funcs = {
  */
 void dal_hw_factory_dcn32_init(struct hw_factory *factory)
 {
-	factory->number_of_pins[GPIO_ID_DDC_DATA] = 6;
-	factory->number_of_pins[GPIO_ID_DDC_CLOCK] = 6;
+	factory->number_of_pins[GPIO_ID_DDC_DATA] = 8;
+	factory->number_of_pins[GPIO_ID_DDC_CLOCK] = 8;
 	factory->number_of_pins[GPIO_ID_GENERIC] = 4;
 	factory->number_of_pins[GPIO_ID_HPD] = 5;
 	factory->number_of_pins[GPIO_ID_GPIO_PAD] = 28;

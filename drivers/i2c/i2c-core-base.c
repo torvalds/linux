@@ -1018,15 +1018,14 @@ static const struct i2c_device_id dummy_id[] = {
 	{ },
 };
 
-static int dummy_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int dummy_probe(struct i2c_client *client)
 {
 	return 0;
 }
 
 static struct i2c_driver dummy_driver = {
 	.driver.name	= "dummy",
-	.probe		= dummy_probe,
+	.probe_new	= dummy_probe,
 	.id_table	= dummy_id,
 };
 

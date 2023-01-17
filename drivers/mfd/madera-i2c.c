@@ -17,9 +17,9 @@
 
 #include "madera.h"
 
-static int madera_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int madera_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct madera *madera;
 	const struct regmap_config *regmap_16bit_config = NULL;
 	const struct regmap_config *regmap_32bit_config = NULL;
@@ -139,7 +139,7 @@ static struct i2c_driver madera_i2c_driver = {
 		.pm	= &madera_pm_ops,
 		.of_match_table	= of_match_ptr(madera_of_match),
 	},
-	.probe		= madera_i2c_probe,
+	.probe_new	= madera_i2c_probe,
 	.remove		= madera_i2c_remove,
 	.id_table	= madera_i2c_id,
 };

@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 
 #include <drm/drm_connector.h>
+#include <drm/drm_modeset_lock.h>
 
 #include "intel_cdclk.h"
 #include "intel_display.h"
@@ -28,6 +29,7 @@
 
 struct drm_i915_private;
 struct drm_property;
+struct drm_property_blob;
 struct i915_audio_component;
 struct i915_hdcp_comp_master;
 struct intel_atomic_state;
@@ -309,6 +311,10 @@ struct intel_display {
 	} cdclk;
 
 	struct {
+		struct drm_property_blob *glk_linear_degamma_lut;
+	} color;
+
+	struct {
 		/* The current hardware dbuf configuration */
 		u8 enabled_slices;
 
@@ -340,6 +346,10 @@ struct intel_display {
 	} fdi;
 
 	struct {
+		struct list_head obj_list;
+	} global;
+
+	struct {
 		/*
 		 * Base address of where the gmbus and gpio blocks are located
 		 * (either on PCH or on SoC for platforms without PCH).
@@ -366,6 +376,16 @@ struct intel_display {
 	} hdcp;
 
 	struct {
+		/*
+		 * HTI (aka HDPORT) state read during initial hw readout. Most
+		 * platforms don't have HTI, so this will just stay 0. Those
+		 * that do will use this later to figure out which PLLs and PHYs
+		 * are unavailable for driver usage.
+		 */
+		u32 state;
+	} hti;
+
+	struct {
 		struct i915_power_domains domains;
 
 		/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */
@@ -390,6 +410,12 @@ struct intel_display {
 	struct {
 		unsigned long mask;
 	} quirks;
+
+	struct {
+		/* restore state for suspend/resume and display reset */
+		struct drm_atomic_state *modeset_state;
+		struct drm_modeset_acquire_ctx reset_ctx;
+	} restore;
 
 	struct {
 		enum {

@@ -216,6 +216,8 @@ skip:
 	return tp->classify(skb, tp, res);
 }
 
+#endif /* CONFIG_NET_CLS */
+
 static inline void tc_wrapper_init(void)
 {
 #ifdef CONFIG_X86
@@ -223,8 +225,6 @@ static inline void tc_wrapper_init(void)
 		static_branch_enable(&tc_skip_wrapper);
 #endif
 }
-
-#endif /* CONFIG_NET_CLS */
 
 #else
 

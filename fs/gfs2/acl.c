@@ -109,9 +109,10 @@ out:
 	return error;
 }
 
-int gfs2_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int gfs2_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	bool need_unlock = false;

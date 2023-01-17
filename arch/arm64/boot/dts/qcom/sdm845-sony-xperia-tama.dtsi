@@ -376,7 +376,7 @@
 	pinctrl-names = "default";
 	bus-width = <4>;
 	no-sdio;
-	no-emmc;
+	no-mmc;
 };
 
 &tlmm {

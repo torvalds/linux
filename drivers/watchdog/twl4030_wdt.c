@@ -81,7 +81,6 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, wdt);
 }
 
-#ifdef CONFIG_PM
 static int twl4030_wdt_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct watchdog_device *wdt = platform_get_drvdata(pdev);
@@ -99,10 +98,6 @@ static int twl4030_wdt_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define twl4030_wdt_suspend        NULL
-#define twl4030_wdt_resume         NULL
-#endif
 
 static const struct of_device_id twl_wdt_of_match[] = {
 	{ .compatible = "ti,twl4030-wdt", },
@@ -112,8 +107,8 @@ MODULE_DEVICE_TABLE(of, twl_wdt_of_match);
 
 static struct platform_driver twl4030_wdt_driver = {
 	.probe		= twl4030_wdt_probe,
-	.suspend	= twl4030_wdt_suspend,
-	.resume		= twl4030_wdt_resume,
+	.suspend	= pm_ptr(twl4030_wdt_suspend),
+	.resume		= pm_ptr(twl4030_wdt_resume),
 	.driver		= {
 		.name		= "twl4030_wdt",
 		.of_match_table	= twl_wdt_of_match,

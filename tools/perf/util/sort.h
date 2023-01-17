@@ -282,6 +282,7 @@ struct sort_entry {
 	int	(*se_snprintf)(struct hist_entry *he, char *bf, size_t size,
 			       unsigned int width);
 	int	(*se_filter)(struct hist_entry *he, int type, const void *arg);
+	void	(*se_init)(struct hist_entry *he);
 	u8	se_width_idx;
 };
 

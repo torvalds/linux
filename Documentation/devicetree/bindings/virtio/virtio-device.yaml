@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/virtio/virtio-device.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Virtio device bindings
+title: Virtio device
 
 maintainers:
   - Viresh Kumar <viresh.kumar@linaro.org>

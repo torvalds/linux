@@ -3486,6 +3486,19 @@ int regmap_get_reg_stride(struct regmap *map)
 }
 EXPORT_SYMBOL_GPL(regmap_get_reg_stride);
 
+/**
+ * regmap_might_sleep() - Returns whether a regmap access might sleep.
+ *
+ * @map: Register map to operate on.
+ *
+ * Returns true if an access to the register might sleep, else false.
+ */
+bool regmap_might_sleep(struct regmap *map)
+{
+	return map->can_sleep;
+}
+EXPORT_SYMBOL_GPL(regmap_might_sleep);
+
 int regmap_parse_val(struct regmap *map, const void *buf,
 			unsigned int *val)
 {

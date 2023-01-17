@@ -1261,8 +1261,6 @@ int qxl_modeset_init(struct qxl_device *qdev)
 	qdev->ddev.mode_config.max_width = 8192;
 	qdev->ddev.mode_config.max_height = 8192;
 
-	qdev->ddev.mode_config.fb_base = qdev->vram_base;
-
 	drm_mode_create_suggested_offset_properties(&qdev->ddev);
 	qxl_mode_create_hotplug_mode_update_property(qdev);
 

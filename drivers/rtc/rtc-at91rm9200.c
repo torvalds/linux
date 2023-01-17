@@ -130,7 +130,7 @@ static void at91_rtc_write_idr(u32 mask)
 	 *
 	 * Note that there is still a possibility that the mask is updated
 	 * before interrupts have actually been disabled in hardware. The only
-	 * way to be certain would be to poll the IMR-register, which is is
+	 * way to be certain would be to poll the IMR-register, which is
 	 * the very register we are trying to emulate. The register read back
 	 * is a reasonable heuristic.
 	 */

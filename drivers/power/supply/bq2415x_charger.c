@@ -1520,9 +1520,9 @@ static int bq2415x_power_supply_init(struct bq2415x_device *bq)
 }
 
 /* main bq2415x probe function */
-static int bq2415x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int bq2415x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	int num;
 	char *name = NULL;
@@ -1780,7 +1780,7 @@ static struct i2c_driver bq2415x_driver = {
 		.of_match_table = of_match_ptr(bq2415x_of_match_table),
 		.acpi_match_table = ACPI_PTR(bq2415x_i2c_acpi_match),
 	},
-	.probe = bq2415x_probe,
+	.probe_new = bq2415x_probe,
 	.remove = bq2415x_remove,
 	.id_table = bq2415x_i2c_id_table,
 };

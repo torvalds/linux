@@ -2165,7 +2165,12 @@ static int rivafb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("rivafb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("rivafb", &option))
 		return -ENODEV;
 	rivafb_setup(option);

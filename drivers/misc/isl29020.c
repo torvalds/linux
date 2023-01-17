@@ -151,8 +151,7 @@ static int als_set_default_config(struct i2c_client *client)
 	return 0;
 }
 
-static int  isl29020_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int  isl29020_probe(struct i2c_client *client)
 {
 	int res;
 
@@ -215,7 +214,7 @@ static struct i2c_driver isl29020_driver = {
 		.name = "isl29020",
 		.pm = ISL29020_PM_OPS,
 	},
-	.probe = isl29020_probe,
+	.probe_new = isl29020_probe,
 	.remove = isl29020_remove,
 	.id_table = isl29020_id,
 };

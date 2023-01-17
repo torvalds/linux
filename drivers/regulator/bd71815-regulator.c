@@ -602,12 +602,10 @@ static int bd7181x_probe(struct platform_device *pdev)
 			config.ena_gpiod = NULL;
 
 		rdev = devm_regulator_register(&pdev->dev, desc, &config);
-		if (IS_ERR(rdev)) {
-			dev_err(&pdev->dev,
-				"failed to register %s regulator\n",
-				desc->name);
-			return PTR_ERR(rdev);
-		}
+		if (IS_ERR(rdev))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rdev),
+					     "failed to register %s regulator\n",
+					     desc->name);
 	}
 	return 0;
 }

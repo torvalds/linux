@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/allwinner,sun8i-a33-ths.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A33 Thermal Sensor Device Tree Bindings
+title: Allwinner A33 Thermal Sensor
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

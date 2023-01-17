@@ -426,24 +426,37 @@ static unsigned int xhci_port_speed(unsigned int port_status)
  */
 #define	XHCI_PORT_RZ	((1<<2) | (1<<24) | (0xf<<28))
 
-/*
+/**
+ * xhci_port_state_to_neutral() - Clean up read portsc value back into writeable
+ * @state: u32 port value read from portsc register to be cleanup up
+ *
  * Given a port state, this function returns a value that would result in the
  * port being in the same state, if the value was written to the port status
  * control register.
  * Save Read Only (RO) bits and save read/write bits where
  * writing a 0 clears the bit and writing a 1 sets the bit (RWS).
  * For all other types (RW1S, RW1CS, RW, and RZ), writing a '0' has no effect.
+ *
+ * Return: u32 value that can be written back to portsc register without
+ * changing port state.
  */
+
 u32 xhci_port_state_to_neutral(u32 state)
 {
 	/* Save read-only status and port state */
 	return (state & XHCI_PORT_RO) | (state & XHCI_PORT_RWS);
 }
+EXPORT_SYMBOL_GPL(xhci_port_state_to_neutral);
 
-/*
- * find slot id based on port number.
- * @port: The one-based port number from one of the two split roothubs.
+/**
+ * xhci_find_slot_id_by_port() - Find slot id of a usb device on a roothub port
+ * @hcd: pointer to hcd of the roothub
+ * @xhci: pointer to xhci structure
+ * @port: one-based port number of the port in this roothub.
+ *
+ * Return: Slot id of the usb device connected to the root port, 0 if not found
  */
+
 int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		u16 port)
 {
@@ -465,6 +478,7 @@ int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 
 	return slot_id;
 }
+EXPORT_SYMBOL_GPL(xhci_find_slot_id_by_port);
 
 /*
  * Stop device

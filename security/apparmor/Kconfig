@@ -85,8 +85,8 @@ config SECURITY_APPARMOR_HASH_DEFAULT
 config SECURITY_APPARMOR_EXPORT_BINARY
 	bool "Allow exporting the raw binary policy"
 	depends on SECURITY_APPARMOR_INTROSPECT_POLICY
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
 	default y
 	help
 	  This option allows reading back binary policy as it was loaded.
@@ -106,8 +106,8 @@ config SECURITY_APPARMOR_PARANOID_LOAD
 	  Disabling the check will speed up policy loads.
 
 config SECURITY_APPARMOR_KUNIT_TEST
-	bool "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
-	depends on KUNIT=y && SECURITY_APPARMOR
+	tristate "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
+	depends on KUNIT && SECURITY_APPARMOR
 	default KUNIT_ALL_TESTS
 	help
 	  This builds the AppArmor KUnit tests.

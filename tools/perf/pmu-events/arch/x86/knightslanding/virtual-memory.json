@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "Counts the number of load micro-ops retired that cause a DTLB miss",
-        "Counter": "0,1",
         "Data_LA": "1",
         "EventCode": "0x04",
         "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_LOADS",
@@ -11,7 +10,6 @@
     },
     {
         "BriefDescription": "Counts the total number of core cycles for all the page walks. The cycles for page walks started in speculative path will also be included.",
-        "Counter": "0,1",
         "EventCode": "0x05",
         "EventName": "PAGE_WALKS.CYCLES",
         "PublicDescription": "This event counts every cycle when a data (D) page walk or instruction (I) page walk is in progress.",
@@ -20,7 +18,6 @@
     },
     {
         "BriefDescription": "Counts the total number of core cycles for all the D-side page walks. The cycles for page walks started in speculative path will also be included.",
-        "Counter": "0,1",
         "EventCode": "0x05",
         "EventName": "PAGE_WALKS.D_SIDE_CYCLES",
         "SampleAfterValue": "200003",
@@ -28,7 +25,6 @@
     },
     {
         "BriefDescription": "Counts the total D-side page walks that are completed or started. The page walks started in the speculative path will also be counted",
-        "Counter": "0,1",
         "EdgeDetect": "1",
         "EventCode": "0x05",
         "EventName": "PAGE_WALKS.D_SIDE_WALKS",
@@ -37,7 +33,6 @@
     },
     {
         "BriefDescription": "Counts the total number of core cycles for all the I-side page walks. The cycles for page walks started in speculative path will also be included.",
-        "Counter": "0,1",
         "EventCode": "0x05",
         "EventName": "PAGE_WALKS.I_SIDE_CYCLES",
         "PublicDescription": "This event counts every cycle when an I-side (walks due to an instruction fetch) page walk is in progress.",
@@ -46,7 +41,6 @@
     },
     {
         "BriefDescription": "Counts the total I-side page walks that are completed.",
-        "Counter": "0,1",
         "EdgeDetect": "1",
         "EventCode": "0x05",
         "EventName": "PAGE_WALKS.I_SIDE_WALKS",
@@ -55,7 +49,6 @@
     },
     {
         "BriefDescription": "Counts the total page walks that are completed (I-side and D-side)",
-        "Counter": "0,1",
         "EdgeDetect": "1",
         "EventCode": "0x05",
         "EventName": "PAGE_WALKS.WALKS",

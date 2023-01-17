@@ -15,7 +15,6 @@
 #include <linux/inet.h>
 #include <linux/pagemap.h>
 #include <linux/mount.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/statfs.h>

@@ -1,8 +1,6 @@
 [
     {
         "BriefDescription": "Number of hardware interrupts received by the processor.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xCB",
         "EventName": "HW_INTERRUPTS.RECEIVED",
         "PublicDescription": "Counts the number of hardware interruptions received by the processor.",
@@ -10,8 +8,6 @@
         "UMask": "0x1"
     },
     {
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x09",
         "EventName": "MEMORY_DISAMBIGUATION.HISTORY_RESET",
         "SampleAfterValue": "2000003",

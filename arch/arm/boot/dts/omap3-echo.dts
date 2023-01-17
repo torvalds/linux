@@ -146,7 +146,7 @@
 		label = "q1";
 		reg = <0x32>;
 		clock-mode = /bits/ 8 <0>; /* LP55XX_CLOCK_AUTO */
-		enable-gpio = <&gpio4 13 GPIO_ACTIVE_HIGH>; /* GPIO_109 */
+		enable-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>; /* GPIO_109 */
 
 		multi-led@0 {
 			#address-cells = <1>;

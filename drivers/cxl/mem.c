@@ -45,9 +45,60 @@ static int cxl_mem_dpa_show(struct seq_file *file, void *data)
 	return 0;
 }
 
+static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
+				 struct cxl_dport *parent_dport)
+{
+	struct cxl_port *parent_port = parent_dport->port;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_port *endpoint, *iter, *down;
+	resource_size_t component_reg_phys;
+	int rc;
+
+	/*
+	 * Now that the path to the root is established record all the
+	 * intervening ports in the chain.
+	 */
+	for (iter = parent_port, down = NULL; !is_cxl_root(iter);
+	     down = iter, iter = to_cxl_port(iter->dev.parent)) {
+		struct cxl_ep *ep;
+
+		ep = cxl_ep_load(iter, cxlmd);
+		ep->next = down;
+	}
+
+	/*
+	 * The component registers for an RCD might come from the
+	 * host-bridge RCRB if they are not already mapped via the
+	 * typical register locator mechanism.
+	 */
+	if (parent_dport->rch && cxlds->component_reg_phys == CXL_RESOURCE_NONE)
+		component_reg_phys = cxl_rcrb_to_component(
+			&cxlmd->dev, parent_dport->rcrb, CXL_RCRB_UPSTREAM);
+	else
+		component_reg_phys = cxlds->component_reg_phys;
+	endpoint = devm_cxl_add_port(host, &cxlmd->dev, component_reg_phys,
+				     parent_dport);
+	if (IS_ERR(endpoint))
+		return PTR_ERR(endpoint);
+
+	rc = cxl_endpoint_autoremove(cxlmd, endpoint);
+	if (rc)
+		return rc;
+
+	if (!endpoint->dev.driver) {
+		dev_err(&cxlmd->dev, "%s failed probe\n",
+			dev_name(&endpoint->dev));
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct device *endpoint_parent;
 	struct cxl_port *parent_port;
 	struct cxl_dport *dport;
 	struct dentry *dentry;
@@ -80,20 +131,33 @@ static int cxl_mem_probe(struct device *dev)
 		return -ENXIO;
 	}
 
-	device_lock(&parent_port->dev);
-	if (!parent_port->dev.driver) {
+	if (dport->rch)
+		endpoint_parent = parent_port->uport;
+	else
+		endpoint_parent = &parent_port->dev;
+
+	device_lock(endpoint_parent);
+	if (!endpoint_parent->driver) {
 		dev_err(dev, "CXL port topology %s not enabled\n",
-			dev_name(&parent_port->dev));
+			dev_name(endpoint_parent));
 		rc = -ENXIO;
 		goto unlock;
 	}
 
-	rc = devm_cxl_add_endpoint(cxlmd, dport);
+	rc = devm_cxl_add_endpoint(endpoint_parent, cxlmd, dport);
 unlock:
-	device_unlock(&parent_port->dev);
+	device_unlock(endpoint_parent);
 	put_device(&parent_port->dev);
 	if (rc)
 		return rc;
+
+	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM)) {
+		rc = devm_cxl_add_nvdimm(cxlmd);
+		if (rc == -ENODEV)
+			dev_info(dev, "PMEM disabled by platform\n");
+		else
+			return rc;
+	}
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,

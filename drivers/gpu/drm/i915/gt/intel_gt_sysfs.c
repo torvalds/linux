@@ -22,11 +22,9 @@ bool is_object_gt(struct kobject *kobj)
 	return !strncmp(kobj->name, "gt", 2);
 }
 
-struct intel_gt *intel_gt_sysfs_get_drvdata(struct device *dev,
+struct intel_gt *intel_gt_sysfs_get_drvdata(struct kobject *kobj,
 					    const char *name)
 {
-	struct kobject *kobj = &dev->kobj;
-
 	/*
 	 * We are interested at knowing from where the interface
 	 * has been called, whether it's called from gt/ or from
@@ -38,6 +36,7 @@ struct intel_gt *intel_gt_sysfs_get_drvdata(struct device *dev,
 	 * "struct drm_i915_private *" type.
 	 */
 	if (!is_object_gt(kobj)) {
+		struct device *dev = kobj_to_dev(kobj);
 		struct drm_i915_private *i915 = kdev_minor_to_i915(dev);
 
 		return to_gt(i915);
@@ -51,18 +50,18 @@ static struct kobject *gt_get_parent_obj(struct intel_gt *gt)
 	return &gt->i915->drm.primary->kdev->kobj;
 }
 
-static ssize_t id_show(struct device *dev,
-		       struct device_attribute *attr,
+static ssize_t id_show(struct kobject *kobj,
+		       struct kobj_attribute *attr,
 		       char *buf)
 {
-	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
+	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
 
 	return sysfs_emit(buf, "%u\n", gt->info.id);
 }
-static DEVICE_ATTR_RO(id);
+static struct kobj_attribute attr_id = __ATTR_RO(id);
 
 static struct attribute *id_attrs[] = {
-	&dev_attr_id.attr,
+	&attr_id.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(id);

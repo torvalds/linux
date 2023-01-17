@@ -85,8 +85,7 @@ static const struct iio_info max5432_info = {
 	.write_raw = max5432_write_raw,
 };
 
-static int max5432_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int max5432_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
@@ -124,7 +123,7 @@ static struct i2c_driver max5432_driver = {
 		.name = "max5432",
 		.of_match_table = max5432_dt_ids,
 	},
-	.probe = max5432_probe,
+	.probe_new = max5432_probe,
 };
 
 module_i2c_driver(max5432_driver);

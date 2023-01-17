@@ -439,8 +439,7 @@ static void hycon_hy46xx_disable_regulator(void *arg)
 	regulator_disable(data->vcc);
 }
 
-static int hycon_hy46xx_probe(struct i2c_client *client,
-					 const struct i2c_device_id *id)
+static int hycon_hy46xx_probe(struct i2c_client *client)
 {
 	struct hycon_hy46xx_data *tsdata;
 	struct input_dev *input;
@@ -581,7 +580,7 @@ static struct i2c_driver hycon_hy46xx_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = hycon_hy46xx_id,
-	.probe    = hycon_hy46xx_probe,
+	.probe_new = hycon_hy46xx_probe,
 };
 
 module_i2c_driver(hycon_hy46xx_driver);

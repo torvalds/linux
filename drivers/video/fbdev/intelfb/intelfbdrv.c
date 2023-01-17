@@ -389,6 +389,9 @@ static int __init intelfb_init(void)
 	if (idonly)
 		return -ENODEV;
 
+	if (fb_modesetting_disabled("intelfb"))
+		return -ENODEV;
+
 #ifndef MODULE
 	if (fb_get_options("intelfb", &option))
 		return -ENODEV;

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/linux,wdt-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO-controlled Watchdog
+
+maintainers:
+  - Guenter Roeck <linux@roeck-us.net>
+
+properties:
+  compatible:
+    const: linux,wdt-gpio
+
+  gpios:
+    description: gpio connection to WDT reset pin
+    maxItems: 1
+
+  hw_algo:
+    description: The algorithm used by the driver.
+    enum: [ level, toggle ]
+
+  hw_margin_ms:
+    description: Maximum time to reset watchdog circuit (milliseconds).
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  always-running:
+    type: boolean
+    description:
+      If the watchdog timer cannot be disabled, add this flag to have the driver
+      keep toggling the signal without a client.
+      It will only cease to toggle the signal when the device is open and the
+      timeout elapsed.
+
+required:
+  - compatible
+  - gpios
+  - hw_algo
+  - hw_margin_ms
+
+allOf:
+  - $ref: watchdog.yaml#
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    watchdog {
+        compatible = "linux,wdt-gpio";
+        gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
+        hw_algo = "toggle";
+        hw_margin_ms = <1600>;
+    };

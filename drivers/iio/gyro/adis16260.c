@@ -395,7 +395,7 @@ static int adis16260_probe(struct spi_device *spi)
 		return ret;
 
 	/* Get the device into a sane initial state */
-	ret = adis_initial_startup(&adis16260->adis);
+	ret = __adis_initial_startup(&adis16260->adis);
 	if (ret)
 		return ret;
 

@@ -150,7 +150,9 @@ extern int vfs_open(const struct path *, struct file *);
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
-extern int dentry_needs_remove_privs(struct dentry *dentry);
+int dentry_needs_remove_privs(struct user_namespace *, struct dentry *dentry);
+bool in_group_or_capable(struct user_namespace *mnt_userns,
+			 const struct inode *inode, vfsgid_t vfsgid);
 
 /*
  * fs-writeback.c
@@ -225,12 +227,39 @@ struct xattr_ctx {
 };
 
 
-ssize_t do_getxattr(struct user_namespace *mnt_userns,
+ssize_t do_getxattr(struct mnt_idmap *idmap,
 		    struct dentry *d,
 		    struct xattr_ctx *ctx);
 
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
-int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct xattr_ctx *ctx);
+int may_write_xattr(struct user_namespace *mnt_userns, struct inode *inode);
+
+#ifdef CONFIG_FS_POSIX_ACL
+int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+	       const char *acl_name, const void *kvalue, size_t size);
+ssize_t do_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		   const char *acl_name, void *kvalue, size_t size);
+#else
+static inline int do_set_acl(struct mnt_idmap *idmap,
+			     struct dentry *dentry, const char *acl_name,
+			     const void *kvalue, size_t size)
+{
+	return -EOPNOTSUPP;
+}
+static inline ssize_t do_get_acl(struct mnt_idmap *idmap,
+				 struct dentry *dentry, const char *acl_name,
+				 void *kvalue, size_t size)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *pos);
+
+/*
+ * fs/attr.c
+ */
+int setattr_should_drop_sgid(struct user_namespace *mnt_userns,
+			     const struct inode *inode);

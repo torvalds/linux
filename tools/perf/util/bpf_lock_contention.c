@@ -5,6 +5,7 @@
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/target.h"
+#include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/lock-contention.h"
 #include <linux/zalloc.h>
@@ -12,21 +13,14 @@
 #include <bpf/bpf.h>
 
 #include "bpf_skel/lock_contention.skel.h"
+#include "bpf_skel/lock_data.h"
 
 static struct lock_contention_bpf *skel;
-
-struct lock_contention_data {
-	u64 total_time;
-	u64 min_time;
-	u64 max_time;
-	u32 count;
-	u32 flags;
-};
 
 int lock_contention_prepare(struct lock_contention *con)
 {
 	int i, fd;
-	int ncpus = 1, ntasks = 1;
+	int ncpus = 1, ntasks = 1, ntypes = 1, naddrs = 1;
 	struct evlist *evlist = con->evlist;
 	struct target *target = con->target;
 
@@ -37,16 +31,57 @@ int lock_contention_prepare(struct lock_contention *con)
 	}
 
 	bpf_map__set_value_size(skel->maps.stacks, con->max_stack * sizeof(u64));
-	bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
 	bpf_map__set_max_entries(skel->maps.lock_stat, con->map_nr_entries);
+	bpf_map__set_max_entries(skel->maps.tstamp, con->map_nr_entries);
+
+	if (con->aggr_mode == LOCK_AGGR_TASK) {
+		bpf_map__set_max_entries(skel->maps.task_data, con->map_nr_entries);
+		bpf_map__set_max_entries(skel->maps.stacks, 1);
+	} else {
+		bpf_map__set_max_entries(skel->maps.task_data, 1);
+		bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
+	}
 
 	if (target__has_cpu(target))
 		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
 	if (target__has_task(target))
 		ntasks = perf_thread_map__nr(evlist->core.threads);
+	if (con->filters->nr_types)
+		ntypes = con->filters->nr_types;
+
+	/* resolve lock name filters to addr */
+	if (con->filters->nr_syms) {
+		struct symbol *sym;
+		struct map *kmap;
+		unsigned long *addrs;
+
+		for (i = 0; i < con->filters->nr_syms; i++) {
+			sym = machine__find_kernel_symbol_by_name(con->machine,
+								  con->filters->syms[i],
+								  &kmap);
+			if (sym == NULL) {
+				pr_warning("ignore unknown symbol: %s\n",
+					   con->filters->syms[i]);
+				continue;
+			}
+
+			addrs = realloc(con->filters->addrs,
+					(con->filters->nr_addrs + 1) * sizeof(*addrs));
+			if (addrs == NULL) {
+				pr_warning("memory allocation failure\n");
+				continue;
+			}
+
+			addrs[con->filters->nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			con->filters->addrs = addrs;
+		}
+		naddrs = con->filters->nr_addrs;
+	}
 
 	bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 	bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+	bpf_map__set_max_entries(skel->maps.type_filter, ntypes);
+	bpf_map__set_max_entries(skel->maps.addr_filter, naddrs);
 
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
@@ -88,7 +123,29 @@ int lock_contention_prepare(struct lock_contention *con)
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 	}
 
+	if (con->filters->nr_types) {
+		u8 val = 1;
+
+		skel->bss->has_type = 1;
+		fd = bpf_map__fd(skel->maps.type_filter);
+
+		for (i = 0; i < con->filters->nr_types; i++)
+			bpf_map_update_elem(fd, &con->filters->types[i], &val, BPF_ANY);
+	}
+
+	if (con->filters->nr_addrs) {
+		u8 val = 1;
+
+		skel->bss->has_addr = 1;
+		fd = bpf_map__fd(skel->maps.addr_filter);
+
+		for (i = 0; i < con->filters->nr_addrs; i++)
+			bpf_map_update_elem(fd, &con->filters->addrs[i], &val, BPF_ANY);
+	}
+
+	/* these don't work well if in the rodata section */
 	skel->bss->stack_skip = con->stack_skip;
+	skel->bss->aggr_mode = con->aggr_mode;
 
 	lock_contention_bpf__attach(skel);
 	return 0;
@@ -108,28 +165,48 @@ int lock_contention_stop(void)
 
 int lock_contention_read(struct lock_contention *con)
 {
-	int fd, stack;
-	s32 prev_key, key;
-	struct lock_contention_data data;
-	struct lock_stat *st;
+	int fd, stack, task_fd, err = 0;
+	struct contention_key *prev_key, key;
+	struct contention_data data = {};
+	struct lock_stat *st = NULL;
 	struct machine *machine = con->machine;
-	u64 stack_trace[con->max_stack];
+	u64 *stack_trace;
+	size_t stack_size = con->max_stack * sizeof(*stack_trace);
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
+	task_fd = bpf_map__fd(skel->maps.task_data);
 
 	con->lost = skel->bss->lost;
 
-	prev_key = 0;
-	while (!bpf_map_get_next_key(fd, &prev_key, &key)) {
+	stack_trace = zalloc(stack_size);
+	if (stack_trace == NULL)
+		return -1;
+
+	if (con->aggr_mode == LOCK_AGGR_TASK) {
+		struct thread *idle = __machine__findnew_thread(machine,
+								/*pid=*/0,
+								/*tid=*/0);
+		thread__set_comm(idle, "swapper", /*timestamp=*/0);
+	}
+
+	/* make sure it loads the kernel map */
+	map__load(maps__first(machine->kmaps));
+
+	prev_key = NULL;
+	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
 		struct map *kmap;
 		struct symbol *sym;
 		int idx = 0;
+		s32 stack_id;
+
+		/* to handle errors in the loop body */
+		err = -1;
 
 		bpf_map_lookup_elem(fd, &key, &data);
 		st = zalloc(sizeof(*st));
 		if (st == NULL)
-			return -1;
+			break;
 
 		st->nr_contended = data.count;
 		st->wait_time_total = data.total_time;
@@ -140,11 +217,34 @@ int lock_contention_read(struct lock_contention *con)
 			st->avg_wait_time = data.total_time / data.count;
 
 		st->flags = data.flags;
+		st->addr = key.aggr_key;
 
-		bpf_map_lookup_elem(stack, &key, stack_trace);
+		if (con->aggr_mode == LOCK_AGGR_TASK) {
+			struct contention_task_data task;
+			struct thread *t;
+			int pid = key.aggr_key;
+
+			/* do not update idle comm which contains CPU number */
+			if (st->addr) {
+				bpf_map_lookup_elem(task_fd, &pid, &task);
+				t = __machine__findnew_thread(machine, /*pid=*/-1, pid);
+				thread__set_comm(t, task.comm, /*timestamp=*/0);
+			}
+			goto next;
+		}
+
+		if (con->aggr_mode == LOCK_AGGR_ADDR) {
+			sym = machine__find_kernel_symbol(machine, st->addr, &kmap);
+			if (sym)
+				st->name = strdup(sym->name);
+			goto next;
+		}
+
+		stack_id = key.aggr_key;
+		bpf_map_lookup_elem(stack, &stack_id, stack_trace);
 
 		/* skip lock internal functions */
-		while (is_lock_function(machine, stack_trace[idx]) &&
+		while (machine__is_lock_function(machine, stack_trace[idx]) &&
 		       idx < con->max_stack - 1)
 			idx++;
 
@@ -163,25 +263,32 @@ int lock_contention_read(struct lock_contention *con)
 				st->name = strdup(sym->name);
 
 			if (ret < 0 || st->name == NULL)
-				return -1;
+				break;
 		} else if (asprintf(&st->name, "%#lx", (unsigned long)st->addr) < 0) {
-			free(st);
-			return -1;
+			break;
 		}
 
-		if (verbose) {
-			st->callstack = memdup(stack_trace, sizeof(stack_trace));
-			if (st->callstack == NULL) {
-				free(st);
-				return -1;
-			}
+		if (verbose > 0) {
+			st->callstack = memdup(stack_trace, stack_size);
+			if (st->callstack == NULL)
+				break;
 		}
-
+next:
 		hlist_add_head(&st->hash_entry, con->result);
-		prev_key = key;
+		prev_key = &key;
+
+		/* we're fine now, reset the values */
+		st = NULL;
+		err = 0;
 	}
 
-	return 0;
+	free(stack_trace);
+	if (st) {
+		free(st->name);
+		free(st);
+	}
+
+	return err;
 }
 
 int lock_contention_finish(void)

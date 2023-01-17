@@ -50,6 +50,10 @@
 	};
 };
 
+&clk_pwm {
+	status = "okay";
+};
+
 &pronto {
 	iris {
 		compatible = "qcom,wcn3660b";
@@ -61,8 +65,12 @@
 	vdd-supply = <&reg_touch_key>;
 };
 
+&vibrator {
+	status = "okay";
+};
+
 &msmgpio {
-	tkey_en_default: tkey-en-default {
+	tkey_en_default: tkey-en-default-state {
 		pins = "gpio97";
 		function = "gpio";
 

@@ -11,7 +11,7 @@ maintainers:
 
 properties:
   compatible:
-    const: "qcom,qcs404-q6sstopcc"
+    const: qcom,qcs404-q6sstopcc
 
   reg:
     items:

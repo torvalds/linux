@@ -16,16 +16,25 @@ The acquisition orders for mutexes are as follows:
 - kvm->slots_lock is taken outside kvm->irq_lock, though acquiring
   them together is quite rare.
 
-- Unlike kvm->slots_lock, kvm->slots_arch_lock is released before
-  synchronize_srcu(&kvm->srcu).  Therefore kvm->slots_arch_lock
-  can be taken inside a kvm->srcu read-side critical section,
-  while kvm->slots_lock cannot.
-
 - kvm->mn_active_invalidate_count ensures that pairs of
   invalidate_range_start() and invalidate_range_end() callbacks
   use the same memslots array.  kvm->slots_lock and kvm->slots_arch_lock
   are taken on the waiting side in install_new_memslots, so MMU notifiers
   must not take either kvm->slots_lock or kvm->slots_arch_lock.
+
+For SRCU:
+
+- ``synchronize_srcu(&kvm->srcu)`` is called _inside_
+  the kvm->slots_lock critical section, therefore kvm->slots_lock
+  cannot be taken inside a kvm->srcu read-side critical section.
+  Instead, kvm->slots_arch_lock is released before the call
+  to ``synchronize_srcu()`` and _can_ be taken inside a
+  kvm->srcu read-side critical section.
+
+- kvm->lock is taken inside kvm->srcu, therefore
+  ``synchronize_srcu(&kvm->srcu)`` cannot be called inside
+  a kvm->lock critical section.  If you cannot delay the
+  call until after kvm->lock is released, use ``call_srcu``.
 
 On x86:
 

@@ -35,6 +35,7 @@ zstd_decompress-y := \
 		decompress/zstd_decompress_block.o \
 
 zstd_common-y := \
+		zstd_common_module.o \
 		common/debug.o \
 		common/entropy_common.o \
 		common/error_private.o \

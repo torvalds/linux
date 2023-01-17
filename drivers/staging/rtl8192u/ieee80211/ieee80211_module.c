@@ -159,9 +159,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		ieee->last_packet_time[i] = 0;
 	}
 
-/* These function were added to load crypte module autoly */
-	ieee80211_tkip_null();
-
 	return dev;
 
  failed:

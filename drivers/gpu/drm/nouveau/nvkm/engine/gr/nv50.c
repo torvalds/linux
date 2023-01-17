@@ -622,7 +622,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	struct nv50_gr *gr = nv50_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	u32 stat = nvkm_rd32(device, 0x400100);
 	u32 inst = nvkm_rd32(device, 0x40032c) & 0x0fffffff;
 	u32 addr = nvkm_rd32(device, 0x400704);
@@ -637,10 +637,10 @@ nv50_gr_intr(struct nvkm_gr *base)
 	char msg[128];
 	int chid = -1;
 
-	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+	chan = nvkm_chan_get_inst(&gr->base.engine, (u64)inst << 12, &flags);
 	if (chan)  {
-		name = chan->object.client->name;
-		chid = chan->chid;
+		name = chan->name;
+		chid = chan->id;
 	}
 
 	if (show & 0x00100000) {
@@ -672,7 +672,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	if (nvkm_rd32(device, 0x400824) & (1 << 31))
 		nvkm_wr32(device, 0x400824, nvkm_rd32(device, 0x400824) & ~(1 << 31));
 
-	nvkm_fifo_chan_put(device->fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 }
 
 int

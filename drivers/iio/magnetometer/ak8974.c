@@ -814,8 +814,7 @@ static const struct regmap_config ak8974_regmap_config = {
 	.precious_reg = ak8974_precious_reg,
 };
 
-static int ak8974_probe(struct i2c_client *i2c,
-			const struct i2c_device_id *id)
+static int ak8974_probe(struct i2c_client *i2c)
 {
 	struct iio_dev *indio_dev;
 	struct ak8974 *ak8974;
@@ -1047,7 +1046,7 @@ static struct i2c_driver ak8974_driver = {
 		.pm = pm_ptr(&ak8974_dev_pm_ops),
 		.of_match_table = ak8974_of_match,
 	},
-	.probe	  = ak8974_probe,
+	.probe_new = ak8974_probe,
 	.remove	  = ak8974_remove,
 	.id_table = ak8974_id,
 };

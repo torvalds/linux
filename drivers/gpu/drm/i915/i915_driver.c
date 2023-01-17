@@ -81,6 +81,7 @@
 #include "i915_drm_client.h"
 #include "i915_drv.h"
 #include "i915_getparam.h"
+#include "i915_hwmon.h"
 #include "i915_ioc32.h"
 #include "i915_ioctl.h"
 #include "i915_irq.h"
@@ -337,7 +338,8 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	intel_device_info_subplatform_init(dev_priv);
+	intel_device_info_runtime_init_early(dev_priv);
+
 	intel_step_init(dev_priv);
 
 	intel_uncore_mmio_debug_init_early(dev_priv);
@@ -369,8 +371,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	ret = intel_region_ttm_device_init(dev_priv);
 	if (ret)
 		goto err_ttm;
-
-	intel_wopcm_init_early(&dev_priv->wopcm);
 
 	ret = intel_root_gt_init_early(dev_priv);
 	if (ret < 0)
@@ -739,7 +739,6 @@ static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_register(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_gt *gt;
 	unsigned int i;
 
@@ -749,7 +748,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	intel_vgpu_register(dev_priv);
 
 	/* Reveal our presence to userspace */
-	if (drm_dev_register(dev, 0)) {
+	if (drm_dev_register(&dev_priv->drm, 0)) {
 		drm_err(&dev_priv->drm,
 			"Failed to register driver for userspace access!\n");
 		return;
@@ -763,6 +762,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_driver_register(gt);
+
+	i915_hwmon_register(dev_priv);
 
 	intel_display_driver_register(dev_priv);
 
@@ -795,6 +796,8 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_driver_unregister(gt);
+
+	i915_hwmon_unregister(dev_priv);
 
 	i915_perf_unregister(dev_priv);
 	i915_pmu_unregister(dev_priv);
@@ -893,10 +896,6 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i915 = i915_driver_create(pdev, ent);
 	if (IS_ERR(i915))
 		return PTR_ERR(i915);
-
-	/* Disable nuclear pageflip by default on pre-ILK */
-	if (!i915->params.nuclear_pageflip && DISPLAY_VER(i915) < 5)
-		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -1093,32 +1092,30 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder)
+	drm_modeset_lock_all(&dev_priv->drm);
+	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (encoder->suspend)
 			encoder->suspend(encoder);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder)
+	drm_modeset_lock_all(&dev_priv->drm);
+	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (encoder->shutdown)
 			encoder->shutdown(encoder);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 void i915_driver_shutdown(struct drm_i915_private *i915)
@@ -1662,7 +1659,8 @@ static int intel_runtime_suspend(struct device *kdev)
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
-		intel_gt_runtime_resume(to_gt(dev_priv));
+		for_each_gt(gt, dev_priv, i)
+			intel_gt_runtime_resume(gt);
 
 		enable_rpm_wakeref_asserts(rpm);
 

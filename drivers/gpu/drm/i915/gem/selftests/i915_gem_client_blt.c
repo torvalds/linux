@@ -13,6 +13,7 @@
 #include "gt/intel_gt_regs.h"
 #include "gem/i915_gem_lmem.h"
 
+#include "gem/selftests/igt_gem_utils.h"
 #include "selftests/igt_flush_test.h"
 #include "selftests/mock_drm.h"
 #include "selftests/i915_random.h"
@@ -457,21 +458,6 @@ static int verify_buffer(const struct tiled_blits *t,
 	return ret;
 }
 
-static int move_to_active(struct i915_vma *vma,
-			  struct i915_request *rq,
-			  unsigned int flags)
-{
-	int err;
-
-	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, false);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, flags);
-	i915_vma_unlock(vma);
-
-	return err;
-}
-
 static int pin_buffer(struct i915_vma *vma, u64 addr)
 {
 	int err;
@@ -525,11 +511,11 @@ tiled_blit(struct tiled_blits *t,
 		goto err_bb;
 	}
 
-	err = move_to_active(t->batch, rq, 0);
+	err = igt_vma_move_to_active_unlocked(t->batch, rq, 0);
 	if (!err)
-		err = move_to_active(src->vma, rq, 0);
+		err = igt_vma_move_to_active_unlocked(src->vma, rq, 0);
 	if (!err)
-		err = move_to_active(dst->vma, rq, 0);
+		err = igt_vma_move_to_active_unlocked(dst->vma, rq, 0);
 	if (!err)
 		err = rq->engine->emit_bb_start(rq,
 						t->batch->node.start,

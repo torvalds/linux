@@ -39,7 +39,6 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&gpio TEGRA234_MAIN_GPIO(A, 1) GPIO_ACTIVE_LOW>;
 		regulator-boot-on;
-		enable-active-low;
 	};
 
 	bus@0 {
@@ -53,6 +52,13 @@
 				spi-tx-bus-width = <4>;
 				spi-rx-bus-width = <4>;
 			};
+		};
+
+		mmc@3400000 {
+			status = "okay";
+			bus-width = <4>;
+			cd-gpios = <&gpio TEGRA234_MAIN_GPIO(G, 7) GPIO_ACTIVE_LOW>;
+			disable-wp;
 		};
 
 		mmc@3460000 {

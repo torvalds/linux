@@ -469,7 +469,7 @@ static ssize_t lp5521_selftest(struct device *dev,
 	ret = lp5521_run_selftest(chip, buf);
 	mutex_unlock(&chip->lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", ret ? "FAIL" : "OK");
+	return sysfs_emit(buf, "%s\n", ret ? "FAIL" : "OK");
 }
 
 /* device attributes */

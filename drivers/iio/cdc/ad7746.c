@@ -717,9 +717,9 @@ static const struct iio_info ad7746_info = {
 	.write_raw = ad7746_write_raw,
 };
 
-static int ad7746_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ad7746_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct ad7746_chip_info *chip;
 	struct iio_dev *indio_dev;
@@ -810,7 +810,7 @@ static struct i2c_driver ad7746_driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = ad7746_of_match,
 	},
-	.probe = ad7746_probe,
+	.probe_new = ad7746_probe,
 	.id_table = ad7746_id,
 };
 module_i2c_driver(ad7746_driver);

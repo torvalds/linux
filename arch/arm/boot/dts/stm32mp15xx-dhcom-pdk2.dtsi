@@ -242,7 +242,7 @@
 		sai2a_port: port {
 			sai2a_endpoint: endpoint {
 				remote-endpoint = <&sgtl5000_tx_endpoint>;
-				format = "i2s";
+				dai-format = "i2s";
 				mclk-fs = <512>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
@@ -260,7 +260,7 @@
 		sai2b_port: port {
 			sai2b_endpoint: endpoint {
 				remote-endpoint = <&sgtl5000_rx_endpoint>;
-				format = "i2s";
+				dai-format = "i2s";
 				mclk-fs = <512>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;

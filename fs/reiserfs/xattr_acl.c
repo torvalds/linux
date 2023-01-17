@@ -18,7 +18,7 @@ static int __reiserfs_set_acl(struct reiserfs_transaction_handle *th,
 
 
 int
-reiserfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+reiserfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	int error, error2;
@@ -26,6 +26,7 @@ reiserfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 	size_t jcreate_blocks;
 	int size = acl ? posix_acl_xattr_size(acl->a_count) : 0;
 	int update_mode = 0;
+	struct inode *inode = d_inode(dentry);
 	umode_t mode = inode->i_mode;
 
 	/*
@@ -371,7 +372,7 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	acl = get_acl(inode, ACL_TYPE_DEFAULT);
+	acl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 
 	if (acl && !IS_ERR(acl)) {
 		int size = reiserfs_acl_size(acl->a_count);
@@ -396,13 +397,15 @@ int reiserfs_cache_default_acl(struct inode *inode)
 /*
  * Called under i_mutex
  */
-int reiserfs_acl_chmod(struct inode *inode)
+int reiserfs_acl_chmod(struct dentry *dentry)
 {
+	struct inode *inode = d_inode(dentry);
+
 	if (IS_PRIVATE(inode))
 		return 0;
 	if (get_inode_sd_version(inode) == STAT_DATA_V1 ||
 	    !reiserfs_posixacl(inode->i_sb))
 		return 0;
 
-	return posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+	return posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
 }

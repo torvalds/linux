@@ -7,6 +7,7 @@
  * All rights reserved.
  */
 
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
@@ -218,10 +219,10 @@ out:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM
-
-int pcf50633_irq_suspend(struct pcf50633 *pcf)
+static int pcf50633_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int ret;
 	int i;
 	u8 res[5];
@@ -257,8 +258,10 @@ out:
 	return ret;
 }
 
-int pcf50633_irq_resume(struct pcf50633 *pcf)
+static int pcf50633_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int ret;
 
 	/* Write the saved mask registers */
@@ -273,7 +276,7 @@ int pcf50633_irq_resume(struct pcf50633 *pcf)
 	return ret;
 }
 
-#endif
+EXPORT_GPL_SIMPLE_DEV_PM_OPS(pcf50633_pm, pcf50633_suspend, pcf50633_resume);
 
 int pcf50633_irq_init(struct pcf50633 *pcf, int irq)
 {

@@ -237,18 +237,6 @@ static void __dump_pipe_config(struct atomisp_sub_device *asd,
 			"pipe_config.isp_pipe_version:%d.\n",
 			p_config->isp_pipe_version);
 		dev_dbg(isp->dev,
-			"pipe_config.acc_extension=%p.\n",
-			p_config->acc_extension);
-		dev_dbg(isp->dev,
-			"pipe_config.acc_stages=%p.\n",
-			p_config->acc_stages);
-		dev_dbg(isp->dev,
-			"pipe_config.num_acc_stages=%d.\n",
-			p_config->num_acc_stages);
-		dev_dbg(isp->dev,
-			"pipe_config.acc_num_execs=%d.\n",
-			p_config->acc_num_execs);
-		dev_dbg(isp->dev,
 			"pipe_config.default_capture_config.capture_mode=%d.\n",
 			p_config->default_capture_config.mode);
 		dev_dbg(isp->dev,
@@ -629,10 +617,6 @@ static void __apply_additional_pipe_config(
 		else
 			stream_env->pipe_configs[pipe_id].enable_dz = false;
 		break;
-	case IA_CSS_PIPE_ID_ACC:
-		stream_env->pipe_configs[pipe_id].mode = IA_CSS_PIPE_MODE_ACC;
-		stream_env->pipe_configs[pipe_id].enable_dz = false;
-		break;
 	default:
 		break;
 	}
@@ -644,7 +628,7 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 	if (!asd)
 		return false;
 
-	if (pipe_id == IA_CSS_PIPE_ID_ACC || pipe_id == IA_CSS_PIPE_ID_YUVPP)
+	if (pipe_id == IA_CSS_PIPE_ID_YUVPP)
 		return true;
 
 	if (asd->vfpp) {
@@ -718,12 +702,7 @@ static int __create_pipe(struct atomisp_sub_device *asd,
 	if (pipe_id >= IA_CSS_PIPE_ID_NUM)
 		return -EINVAL;
 
-	if (pipe_id != IA_CSS_PIPE_ID_ACC &&
-	    !stream_env->pipe_configs[pipe_id].output_info[0].res.width)
-		return 0;
-
-	if (pipe_id == IA_CSS_PIPE_ID_ACC &&
-	    !stream_env->pipe_configs[pipe_id].acc_extension)
+	if (!stream_env->pipe_configs[pipe_id].output_info[0].res.width)
 		return 0;
 
 	if (!is_pipe_valid_to_current_run_mode(asd, pipe_id))
@@ -885,46 +864,8 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 
 void atomisp_css_uninit(struct atomisp_device *isp)
 {
-	struct atomisp_sub_device *asd;
-	unsigned int i;
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		memset(&asd->params.config, 0, sizeof(asd->params.config));
-		asd->params.css_update_params_needed = false;
-	}
-
 	isp->css_initialized = false;
 	ia_css_uninit();
-}
-
-void atomisp_css_suspend(struct atomisp_device *isp)
-{
-	isp->css_initialized = false;
-	ia_css_uninit();
-}
-
-int atomisp_css_resume(struct atomisp_device *isp)
-{
-	unsigned int mmu_base_addr;
-	int ret;
-
-	ret = hmm_get_mmu_base_addr(isp->dev, &mmu_base_addr);
-	if (ret) {
-		dev_err(isp->dev, "get base address error.\n");
-		return -EINVAL;
-	}
-
-	ret = ia_css_init(isp->dev, &isp->css_env.isp_css_env, NULL,
-			  mmu_base_addr, IA_CSS_IRQ_TYPE_PULSE);
-	if (ret) {
-		dev_err(isp->dev, "re-init css failed.\n");
-		return -EINVAL;
-	}
-	ia_css_enable_isys_event_queue(true);
-
-	isp->css_initialized = true;
-	return 0;
 }
 
 int atomisp_css_irq_translate(struct atomisp_device *isp,
@@ -996,7 +937,7 @@ void atomisp_css_init_struct(struct atomisp_sub_device *asd)
 }
 
 int atomisp_q_video_buffer_to_css(struct atomisp_sub_device *asd,
-				  struct videobuf_vmalloc_memory *vm_mem,
+				  struct ia_css_frame *frame,
 				  enum atomisp_input_stream_id stream_id,
 				  enum ia_css_buffer_type css_buf_type,
 				  enum ia_css_pipe_id css_pipe_id)
@@ -1006,7 +947,7 @@ int atomisp_q_video_buffer_to_css(struct atomisp_sub_device *asd,
 	int err;
 
 	css_buf.type = css_buf_type;
-	css_buf.data.frame = vm_mem->vaddr;
+	css_buf.data.frame = frame;
 
 	err = ia_css_pipe_enqueue_buffer(
 		  stream_env->pipes[css_pipe_id], &css_buf);
@@ -2141,8 +2082,6 @@ static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(
 		return IA_CSS_PIPE_MODE_CAPTURE;
 	case IA_CSS_PIPE_ID_VIDEO:
 		return IA_CSS_PIPE_MODE_VIDEO;
-	case IA_CSS_PIPE_ID_ACC:
-		return IA_CSS_PIPE_MODE_ACC;
 	case IA_CSS_PIPE_ID_YUVPP:
 		return IA_CSS_PIPE_MODE_YUVPP;
 	default:
@@ -2688,7 +2627,7 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 
 	if (0 != ia_css_pipe_get_info(asd->stream_env[stream_index]
 		.pipes[pipe_index], &info)) {
-		dev_err(isp->dev, "ia_css_pipe_get_info FAILED");
+		dev_dbg(isp->dev, "ia_css_pipe_get_info FAILED");
 		return -EINVAL;
 	}
 
@@ -2762,29 +2701,6 @@ int atomisp_css_yuvpp_configure_output(struct atomisp_sub_device *asd,
 
 	__configure_output(asd, stream_index, width, height, padded_width,
 			   format, IA_CSS_PIPE_ID_YUVPP);
-	return 0;
-}
-
-int atomisp_css_yuvpp_configure_viewfinder(
-    struct atomisp_sub_device *asd,
-    unsigned int stream_index,
-    unsigned int width, unsigned int height,
-    unsigned int min_width,
-    enum ia_css_frame_format format)
-{
-	struct atomisp_stream_env *stream_env =
-		    &asd->stream_env[stream_index];
-	enum ia_css_pipe_id pipe_id = IA_CSS_PIPE_ID_YUVPP;
-
-	stream_env->pipe_configs[pipe_id].mode =
-	    __pipe_id_to_pipe_mode(asd, pipe_id);
-	stream_env->update_pipe[pipe_id] = true;
-
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].res.width = width;
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].res.height = height;
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].format = format;
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].padded_width =
-	    min_width;
 	return 0;
 }
 
@@ -3180,7 +3096,7 @@ static int atomisp_compare_dvs_grid(struct atomisp_sub_device *asd,
 	}
 
 	if (sizeof(*cur) != sizeof(*atomgrid)) {
-		dev_err(asd->isp->dev, "dvs grid mis-match!\n");
+		dev_err(asd->isp->dev, "dvs grid mismatch!\n");
 		return -EINVAL;
 	}
 

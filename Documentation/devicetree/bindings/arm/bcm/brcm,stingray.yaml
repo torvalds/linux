@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/bcm/brcm,stingray.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom Stingray device tree bindings
+title: Broadcom Stingray
 
 maintainers:
   - Ray Jui <rjui@broadcom.com>

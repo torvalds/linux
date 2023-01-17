@@ -468,8 +468,7 @@ again:
 	if (err < 0)
 		goto out;
 
-	set_memory_ro((long)im->image, 1);
-	set_memory_x((long)im->image, 1);
+	set_memory_rox((long)im->image, 1);
 
 	WARN_ON(tr->cur_image && tr->selector == 0);
 	WARN_ON(!tr->cur_image && tr->selector);
@@ -489,6 +488,10 @@ again:
 		/* reset fops->func and fops->trampoline for re-register */
 		tr->fops->func = NULL;
 		tr->fops->trampoline = 0;
+
+		/* reset im->image memory attr for arch_prepare_bpf_trampoline */
+		set_memory_nx((long)im->image, 1);
+		set_memory_rw((long)im->image, 1);
 		goto again;
 	}
 #endif

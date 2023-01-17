@@ -10,11 +10,10 @@ maintainers:
   - Bjorn Andersson <andersson@kernel.org>
 
 description: |
-  Qualcomm display clock control module which supports the clocks and
-  power domains on SM6115.
+  Qualcomm display clock control module provides the clocks and power domains
+  on SM6115.
 
-  See also:
-    include/dt-bindings/clock/qcom,sm6115-dispcc.h
+  See also:: include/dt-bindings/clock/qcom,sm6115-dispcc.h
 
 properties:
   compatible:

@@ -168,7 +168,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			/* SDMMC3 pinmux */
@@ -711,7 +711,7 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			/* GPIO keys pinmux */
@@ -805,7 +805,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			vi_d10_pt2 {
@@ -937,7 +937,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			vi_mclk_pt1 {
@@ -1509,7 +1509,6 @@
 
 	extcon-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		switch-dock-hall-sensor {
 			label = "Lid sensor";
@@ -1542,7 +1541,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		key-power {
 			label = "Power";

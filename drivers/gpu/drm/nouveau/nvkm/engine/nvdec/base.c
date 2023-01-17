@@ -37,7 +37,7 @@ nvkm_nvdec = {
 
 int
 nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
-		enum nvkm_subdev_type type, int inst, struct nvkm_nvdec **pnvdec)
+		enum nvkm_subdev_type type, int inst, u32 addr, struct nvkm_nvdec **pnvdec)
 {
 	struct nvkm_nvdec *nvdec;
 	int ret;
@@ -57,5 +57,5 @@ nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
 	nvdec->func = fwif->func;
 
 	return nvkm_falcon_ctor(nvdec->func->flcn, &nvdec->engine.subdev,
-				nvdec->engine.subdev.name, 0, &nvdec->falcon);
+				nvdec->engine.subdev.name, addr, &nvdec->falcon);
 };

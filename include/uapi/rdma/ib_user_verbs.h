@@ -105,6 +105,18 @@ enum {
 	IB_USER_VERBS_EX_CMD_MODIFY_CQ
 };
 
+/* see IBA A19.4.1.1 Placement Types */
+enum ib_placement_type {
+	IB_FLUSH_GLOBAL = 1U << 0,
+	IB_FLUSH_PERSISTENT = 1U << 1,
+};
+
+/* see IBA A19.4.1.2 Selectivity Level */
+enum ib_selectivity_level {
+	IB_FLUSH_RANGE = 0,
+	IB_FLUSH_MR,
+};
+
 /*
  * Make sure that all structs defined in this file remain laid out so
  * that they pack the same way on 32-bit and 64-bit architectures (to
@@ -466,6 +478,8 @@ enum ib_uverbs_wc_opcode {
 	IB_UVERBS_WC_BIND_MW = 5,
 	IB_UVERBS_WC_LOCAL_INV = 6,
 	IB_UVERBS_WC_TSO = 7,
+	IB_UVERBS_WC_FLUSH = 8,
+	IB_UVERBS_WC_ATOMIC_WRITE = 9,
 };
 
 struct ib_uverbs_wc {
@@ -784,6 +798,8 @@ enum ib_uverbs_wr_opcode {
 	IB_UVERBS_WR_RDMA_READ_WITH_INV = 11,
 	IB_UVERBS_WR_MASKED_ATOMIC_CMP_AND_SWP = 12,
 	IB_UVERBS_WR_MASKED_ATOMIC_FETCH_AND_ADD = 13,
+	IB_UVERBS_WR_FLUSH = 14,
+	IB_UVERBS_WR_ATOMIC_WRITE = 15,
 	/* Review enum ib_wr_opcode before modifying this */
 };
 
@@ -1331,6 +1347,11 @@ enum ib_uverbs_device_cap_flags {
 	/* Deprecated. Please use IB_UVERBS_RAW_PACKET_CAP_SCATTER_FCS. */
 	IB_UVERBS_DEVICE_RAW_SCATTER_FCS = 1ULL << 34,
 	IB_UVERBS_DEVICE_PCI_WRITE_END_PADDING = 1ULL << 36,
+	/* Flush placement types */
+	IB_UVERBS_DEVICE_FLUSH_GLOBAL = 1ULL << 38,
+	IB_UVERBS_DEVICE_FLUSH_PERSISTENT = 1ULL << 39,
+	/* Atomic write attributes */
+	IB_UVERBS_DEVICE_ATOMIC_WRITE = 1ULL << 40,
 };
 
 enum ib_uverbs_raw_packet_caps {

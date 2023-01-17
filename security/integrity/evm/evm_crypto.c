@@ -335,14 +335,15 @@ static int evm_is_immutable(struct dentry *dentry, struct inode *inode)
 				(char **)&xattr_data, 0, GFP_NOFS);
 	if (rc <= 0) {
 		if (rc == -ENODATA)
-			return 0;
-		return rc;
+			rc = 0;
+		goto out;
 	}
 	if (xattr_data->type == EVM_XATTR_PORTABLE_DIGSIG)
 		rc = 1;
 	else
 		rc = 0;
 
+out:
 	kfree(xattr_data);
 	return rc;
 }

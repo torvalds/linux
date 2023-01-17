@@ -14,6 +14,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/input-event-codes.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/leds.h>

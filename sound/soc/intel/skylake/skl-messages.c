@@ -53,17 +53,15 @@ static int skl_dsp_setup_spib(struct device *dev, unsigned int size,
 	struct hdac_bus *bus = dev_get_drvdata(dev);
 	struct hdac_stream *stream = snd_hdac_get_stream(bus,
 			SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
-	struct hdac_ext_stream *estream;
 
 	if (!stream)
 		return -EINVAL;
 
-	estream = stream_to_hdac_ext_stream(stream);
 	/* enable/disable SPIB for this hdac stream */
-	snd_hdac_ext_stream_spbcap_enable(bus, enable, stream->index);
+	snd_hdac_stream_spbcap_enable(bus, enable, stream->index);
 
 	/* set the spib value */
-	snd_hdac_ext_stream_set_spib(bus, estream, size);
+	snd_hdac_stream_set_spib(bus, stream, size);
 
 	return 0;
 }

@@ -14,7 +14,7 @@ fi
 
 case "$1" in
 binutils)
-	echo 2.23.0
+	echo 2.25.0
 	;;
 gcc)
 	echo 5.1.0

@@ -321,7 +321,7 @@ static int check_lock_range(struct file *filp, loff_t start, loff_t end,
 			    unsigned char type)
 {
 	struct file_lock *flock;
-	struct file_lock_context *ctx = file_inode(filp)->i_flctx;
+	struct file_lock_context *ctx = locks_inode_context(file_inode(filp));
 	int error = 0;
 
 	if (!ctx || list_empty_careful(&ctx->flc_posix))
@@ -1321,7 +1321,7 @@ int ksmbd_vfs_remove_acl_xattrs(struct user_namespace *user_ns,
 			     sizeof(XATTR_NAME_POSIX_ACL_ACCESS) - 1) ||
 		    !strncmp(name, XATTR_NAME_POSIX_ACL_DEFAULT,
 			     sizeof(XATTR_NAME_POSIX_ACL_DEFAULT) - 1)) {
-			err = ksmbd_vfs_remove_xattr(user_ns, dentry, name);
+			err = vfs_remove_acl(user_ns, dentry, name);
 			if (err)
 				ksmbd_debug(SMB,
 					    "remove acl xattr failed : %s\n", name);
@@ -1375,7 +1375,7 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct user_namespac
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL))
 		return NULL;
 
-	posix_acls = get_acl(inode, acl_type);
+	posix_acls = get_inode_acl(inode, acl_type);
 	if (!posix_acls)
 		return NULL;
 
@@ -1824,10 +1824,11 @@ void ksmbd_vfs_posix_lock_unblock(struct file_lock *flock)
 }
 
 int ksmbd_vfs_set_init_posix_acl(struct user_namespace *user_ns,
-				 struct inode *inode)
+				 struct dentry *dentry)
 {
 	struct posix_acl_state acl_state;
 	struct posix_acl *acls;
+	struct inode *inode = d_inode(dentry);
 	int rc;
 
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL))
@@ -1856,14 +1857,13 @@ int ksmbd_vfs_set_init_posix_acl(struct user_namespace *user_ns,
 		return -ENOMEM;
 	}
 	posix_state_to_acl(&acl_state, acls->a_entries);
-	rc = set_posix_acl(user_ns, inode, ACL_TYPE_ACCESS, acls);
+	rc = set_posix_acl(user_ns, dentry, ACL_TYPE_ACCESS, acls);
 	if (rc < 0)
 		ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_ACCESS) failed, rc : %d\n",
 			    rc);
 	else if (S_ISDIR(inode->i_mode)) {
 		posix_state_to_acl(&acl_state, acls->a_entries);
-		rc = set_posix_acl(user_ns, inode, ACL_TYPE_DEFAULT,
-				   acls);
+		rc = set_posix_acl(user_ns, dentry, ACL_TYPE_DEFAULT, acls);
 		if (rc < 0)
 			ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_DEFAULT) failed, rc : %d\n",
 				    rc);
@@ -1874,16 +1874,17 @@ int ksmbd_vfs_set_init_posix_acl(struct user_namespace *user_ns,
 }
 
 int ksmbd_vfs_inherit_posix_acl(struct user_namespace *user_ns,
-				struct inode *inode, struct inode *parent_inode)
+				struct dentry *dentry, struct inode *parent_inode)
 {
 	struct posix_acl *acls;
 	struct posix_acl_entry *pace;
+	struct inode *inode = d_inode(dentry);
 	int rc, i;
 
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL))
 		return -EOPNOTSUPP;
 
-	acls = get_acl(parent_inode, ACL_TYPE_DEFAULT);
+	acls = get_inode_acl(parent_inode, ACL_TYPE_DEFAULT);
 	if (!acls)
 		return -ENOENT;
 	pace = acls->a_entries;
@@ -1895,12 +1896,12 @@ int ksmbd_vfs_inherit_posix_acl(struct user_namespace *user_ns,
 		}
 	}
 
-	rc = set_posix_acl(user_ns, inode, ACL_TYPE_ACCESS, acls);
+	rc = set_posix_acl(user_ns, dentry, ACL_TYPE_ACCESS, acls);
 	if (rc < 0)
 		ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_ACCESS) failed, rc : %d\n",
 			    rc);
 	if (S_ISDIR(inode->i_mode)) {
-		rc = set_posix_acl(user_ns, inode, ACL_TYPE_DEFAULT,
+		rc = set_posix_acl(user_ns, dentry, ACL_TYPE_DEFAULT,
 				   acls);
 		if (rc < 0)
 			ksmbd_debug(SMB, "Set posix acl(ACL_TYPE_DEFAULT) failed, rc : %d\n",

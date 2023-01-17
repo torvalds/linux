@@ -13,7 +13,7 @@
 / {
 	leds {
 		compatible = "gpio-leds";
-		heartbeat {
+		led-heartbeat {
 			label = "overo:red:gpio21";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";

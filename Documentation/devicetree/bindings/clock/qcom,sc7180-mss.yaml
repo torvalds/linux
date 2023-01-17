@@ -4,16 +4,15 @@
 $id: http://devicetree.org/schemas/clock/qcom,sc7180-mss.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Modem Clock Controller Binding for SC7180
+title: Qualcomm Modem Clock Controller on SC7180
 
 maintainers:
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
-  Qualcomm modem clock control module which supports the clocks on SC7180.
+  Qualcomm modem clock control module provides the clocks on SC7180.
 
-  See also:
-  - dt-bindings/clock/qcom,mss-sc7180.h
+  See also:: include/dt-bindings/clock/qcom,mss-sc7180.h
 
 properties:
   compatible:

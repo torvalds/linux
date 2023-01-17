@@ -404,8 +404,7 @@ static void bu21013_disable_chip(void *_ts)
 	gpiod_set_value(ts->cs_gpiod, 0);
 }
 
-static int bu21013_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int bu21013_probe(struct i2c_client *client)
 {
 	struct bu21013_ts *ts;
 	struct input_dev *in_dev;
@@ -618,7 +617,7 @@ static struct i2c_driver bu21013_driver = {
 		.name	=	DRIVER_TP,
 		.pm	=	&bu21013_dev_pm_ops,
 	},
-	.probe		=	bu21013_probe,
+	.probe_new	=	bu21013_probe,
 	.remove		=	bu21013_remove,
 	.id_table	=	bu21013_id,
 };

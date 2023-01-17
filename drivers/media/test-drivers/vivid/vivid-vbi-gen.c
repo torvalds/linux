@@ -194,7 +194,6 @@ static void vivid_vbi_gen_set_time_of_day(u8 *packet)
 	for (checksum = i = 0; i <= 8; i++)
 		checksum += packet[i] & 0x7f;
 	packet[9] = calc_parity(0x100 - checksum);
-	checksum = 0;
 	packet[10] = calc_parity(0x07);
 	packet[11] = calc_parity(0x04);
 	if (sys_tz.tz_minuteswest >= 0)

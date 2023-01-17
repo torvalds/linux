@@ -74,6 +74,10 @@
 
 /* Register offsets specific for Gen3 */
 #define VNCSI_IFMD_REG		0x20 /* Video n CSI2 Interface Mode Register */
+#define VNUDS_CTRL_REG		0x80 /* Video n scaling control register */
+#define VNUDS_SCALE_REG		0x84 /* Video n scaling factor register */
+#define VNUDS_PASS_BWIDTH_REG	0x90 /* Video n passband register */
+#define VNUDS_CLIP_SIZE_REG	0xa4 /* Video n UDS output size clipping reg */
 
 /* Register bit fields for R-Car VIN */
 /* Video n Main Control Register bits */
@@ -140,6 +144,9 @@
 #define VNCSI_IFMD_DES0		(1 << 25)
 #define VNCSI_IFMD_CSI_CHSEL(n) (((n) & 0xf) << 0)
 
+/* Video n scaling control register (Gen3) */
+#define VNUDS_CTRL_AMD		(1 << 30)
+
 struct rvin_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
@@ -160,8 +167,16 @@ static u32 rvin_read(struct rvin_dev *vin, u32 offset)
 }
 
 /* -----------------------------------------------------------------------------
- * Crop and Scaling Gen2
+ * Crop and Scaling
  */
+
+static bool rvin_scaler_needed(const struct rvin_dev *vin)
+{
+	return !(vin->crop.width == vin->format.width &&
+		 vin->compose.width == vin->format.width &&
+		 vin->crop.height == vin->format.height &&
+		 vin->compose.height == vin->format.height);
+}
 
 struct vin_coeff {
 	unsigned short xs_value;
@@ -535,7 +550,7 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 	rvin_write(vin, p_set->coeff_set[23], VNC8C_REG);
 }
 
-static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
+void rvin_scaler_gen2(struct rvin_dev *vin)
 {
 	unsigned int crop_height;
 	u32 xs, ys;
@@ -583,6 +598,69 @@ static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 		0, 0);
 }
 
+static unsigned int rvin_uds_scale_ratio(unsigned int in, unsigned int out)
+{
+	unsigned int ratio;
+
+	ratio = in * 4096 / out;
+	return ratio >= 0x10000 ? 0xffff : ratio;
+}
+
+static unsigned int rvin_uds_filter_width(unsigned int ratio)
+{
+	if (ratio >= 0x1000)
+		return 64 * (ratio & 0xf000) / ratio;
+
+	return 64;
+}
+
+void rvin_scaler_gen3(struct rvin_dev *vin)
+{
+	unsigned int ratio_h, ratio_v;
+	unsigned int bwidth_h, bwidth_v;
+	u32 vnmc, clip_size;
+
+	vnmc = rvin_read(vin, VNMC_REG);
+
+	/* Disable scaler if not needed. */
+	if (!rvin_scaler_needed(vin)) {
+		rvin_write(vin, vnmc & ~VNMC_SCLE, VNMC_REG);
+		return;
+	}
+
+	ratio_h = rvin_uds_scale_ratio(vin->crop.width, vin->compose.width);
+	bwidth_h = rvin_uds_filter_width(ratio_h);
+
+	ratio_v = rvin_uds_scale_ratio(vin->crop.height, vin->compose.height);
+	bwidth_v = rvin_uds_filter_width(ratio_v);
+
+	clip_size = vin->compose.width << 16;
+
+	switch (vin->format.field) {
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
+	case V4L2_FIELD_INTERLACED:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
+		clip_size |= vin->compose.height / 2;
+		break;
+	default:
+		clip_size |= vin->compose.height;
+		break;
+	}
+
+	rvin_write(vin, vnmc | VNMC_SCLE, VNMC_REG);
+	rvin_write(vin, VNUDS_CTRL_AMD, VNUDS_CTRL_REG);
+	rvin_write(vin, (ratio_h << 16) | ratio_v, VNUDS_SCALE_REG);
+	rvin_write(vin, (bwidth_h << 16) | bwidth_v, VNUDS_PASS_BWIDTH_REG);
+	rvin_write(vin, clip_size, VNUDS_CLIP_SIZE_REG);
+
+	vin_dbg(vin, "Pre-Clip: %ux%u@%u:%u Post-Clip: %ux%u@%u:%u\n",
+		vin->crop.width, vin->crop.height, vin->crop.left,
+		vin->crop.top, vin->compose.width, vin->compose.height,
+		vin->compose.left, vin->compose.top);
+}
+
 void rvin_crop_scale_comp(struct rvin_dev *vin)
 {
 	const struct rvin_video_format *fmt;
@@ -594,9 +672,8 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	rvin_write(vin, vin->crop.top, VNSLPRC_REG);
 	rvin_write(vin, vin->crop.top + vin->crop.height - 1, VNELPRC_REG);
 
-	/* TODO: Add support for the UDS scaler. */
-	if (vin->info->model != RCAR_GEN3)
-		rvin_crop_scale_comp_gen2(vin);
+	if (vin->scaler)
+		vin->scaler(vin);
 
 	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 	stride = vin->format.bytesperline / fmt->bpp;
@@ -984,11 +1061,11 @@ static int rvin_capture_start(struct rvin_dev *vin)
 	for (slot = 0; slot < HW_BUFFER_NUM; slot++)
 		rvin_fill_hw_slot(vin, slot);
 
-	rvin_crop_scale_comp(vin);
-
 	ret = rvin_setup(vin);
 	if (ret)
 		return ret;
+
+	rvin_crop_scale_comp(vin);
 
 	vin_dbg(vin, "Starting to capture\n");
 
@@ -1234,9 +1311,16 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		return -EPIPE;
 	}
 
-	if (fmt.format.width != vin->format.width ||
-	    fmt.format.height != vin->format.height ||
-	    fmt.format.code != vin->mbus_code)
+	if (rvin_scaler_needed(vin)) {
+		if (!vin->scaler)
+			return -EPIPE;
+	} else {
+		if (fmt.format.width != vin->format.width ||
+		    fmt.format.height != vin->format.height)
+			return -EPIPE;
+	}
+
+	if (fmt.format.code != vin->mbus_code)
 		return -EPIPE;
 
 	return 0;

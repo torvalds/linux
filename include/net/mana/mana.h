@@ -412,6 +412,9 @@ int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 
+/* A CQ can be created not associated with any EQ */
+#define GDMA_CQ_NO_EQ  0xffff
+
 struct mana_obj_spec {
 	u32 queue_index;
 	u64 gdma_region;

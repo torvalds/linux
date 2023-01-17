@@ -67,7 +67,8 @@ struct amdgpu_vmid_mgr {
 	unsigned		num_ids;
 	struct list_head	ids_lru;
 	struct amdgpu_vmid	ids[AMDGPU_NUM_VMID];
-	atomic_t		reserved_vmid_num;
+	struct amdgpu_vmid	*reserved;
+	unsigned int		reserved_use_count;
 };
 
 int amdgpu_pasid_alloc(unsigned int bits);
@@ -84,8 +85,7 @@ void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
 			       struct amdgpu_vm *vm,
 			       unsigned vmhub);
 int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		     struct amdgpu_sync *sync, struct dma_fence *fence,
-		     struct amdgpu_job *job);
+		     struct amdgpu_job *job, struct dma_fence **fence);
 void amdgpu_vmid_reset(struct amdgpu_device *adev, unsigned vmhub,
 		       unsigned vmid);
 void amdgpu_vmid_reset_all(struct amdgpu_device *adev);

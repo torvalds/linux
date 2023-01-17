@@ -47,6 +47,17 @@ if [ -d "${NETDEVSIM_PATH}/devices/netdevsim${DEV_ADDR}" ]; then
 	exit 1
 fi
 
+check_netdev_down()
+{
+	state=$(cat /sys/class/net/${NETDEV}/flags)
+
+	if [ $((state & 1)) -ne 0 ]; then
+		echo "WARNING: unexpected interface UP, disable NetworkManager?"
+
+		ip link set dev $NETDEV down
+	fi
+}
+
 init_test()
 {
 	RET=0
@@ -151,6 +162,7 @@ trap_stats_test()
 
 	RET=0
 
+	check_netdev_down
 	for trap_name in $(devlink_traps_get); do
 		devlink_trap_stats_idle_test $trap_name
 		check_err $? "Stats of trap $trap_name not idle when netdev down"
@@ -254,6 +266,7 @@ trap_group_stats_test()
 
 	RET=0
 
+	check_netdev_down
 	for group_name in $(devlink_trap_groups_get); do
 		devlink_trap_group_stats_idle_test $group_name
 		check_err $? "Stats of trap group $group_name not idle when netdev down"

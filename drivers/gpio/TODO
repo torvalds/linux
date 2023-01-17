@@ -124,6 +124,13 @@ Work items:
   this with dry-coding and sending to maintainers to test
 
 
+Generic regmap GPIO
+
+In the very similar way to Generic MMIO GPIO convert the users which can
+take advantage of using regmap over direct IO accessors. Note, even in
+MMIO case the regmap MMIO with gpio-regmap.c is preferable over gpio-mmio.c.
+
+
 GPIOLIB irqchip
 
 The GPIOLIB irqchip is a helper irqchip for "simple cases" that should

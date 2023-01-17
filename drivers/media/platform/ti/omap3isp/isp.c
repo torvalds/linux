@@ -1884,8 +1884,7 @@ static int isp_initialize_modules(struct isp_device *isp)
 
 	ret = omap3isp_ccp2_init(isp);
 	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(isp->dev, "CCP2 initialization failed\n");
+		dev_err_probe(isp->dev, ret, "CCP2 initialization failed\n");
 		goto error_ccp2;
 	}
 

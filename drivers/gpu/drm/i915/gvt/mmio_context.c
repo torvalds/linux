@@ -34,6 +34,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
@@ -106,15 +107,15 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, GEN8_CS_CHICKEN1, 0xffff, true}, /* 0x2580 */
 	{RCS0, COMMON_SLICE_CHICKEN2, 0xffff, true}, /* 0x7014 */
 	{RCS0, GEN9_CS_DEBUG_MODE1, 0xffff, false}, /* 0x20ec */
-	{RCS0, GEN8_L3SQCREG4, 0, false}, /* 0xb118 */
-	{RCS0, GEN9_SCRATCH1, 0, false}, /* 0xb11c */
+	{RCS0, _MMIO(0xb118), 0, false}, /* GEN8_L3SQCREG4 */
+	{RCS0, _MMIO(0xb11c), 0, false}, /* GEN9_SCRATCH1 */
 	{RCS0, GEN9_SCRATCH_LNCF1, 0, false}, /* 0xb008 */
 	{RCS0, GEN7_HALF_SLICE_CHICKEN1, 0xffff, true}, /* 0xe100 */
-	{RCS0, HALF_SLICE_CHICKEN2, 0xffff, true}, /* 0xe180 */
-	{RCS0, HALF_SLICE_CHICKEN3, 0xffff, true}, /* 0xe184 */
-	{RCS0, GEN9_HALF_SLICE_CHICKEN5, 0xffff, true}, /* 0xe188 */
-	{RCS0, GEN9_HALF_SLICE_CHICKEN7, 0xffff, true}, /* 0xe194 */
-	{RCS0, GEN8_ROW_CHICKEN, 0xffff, true}, /* 0xe4f0 */
+	{RCS0, _MMIO(0xe180), 0xffff, true}, /* HALF_SLICE_CHICKEN2 */
+	{RCS0, _MMIO(0xe184), 0xffff, true}, /* GEN8_HALF_SLICE_CHICKEN3 */
+	{RCS0, _MMIO(0xe188), 0xffff, true}, /* GEN9_HALF_SLICE_CHICKEN5 */
+	{RCS0, _MMIO(0xe194), 0xffff, true}, /* GEN9_HALF_SLICE_CHICKEN7 */
+	{RCS0, _MMIO(0xe4f0), 0xffff, true}, /* GEN8_ROW_CHICKEN */
 	{RCS0, TRVATTL3PTRDW(0), 0, true}, /* 0x4de0 */
 	{RCS0, TRVATTL3PTRDW(1), 0, true}, /* 0x4de4 */
 	{RCS0, TRNULLDETCT, 0, true}, /* 0x4de8 */

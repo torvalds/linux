@@ -876,14 +876,10 @@ static int bma400_init(struct bma400_data *data)
 	ret = devm_regulator_bulk_get(data->dev,
 				      ARRAY_SIZE(data->regulators),
 				      data->regulators);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(data->dev,
-				"Failed to get regulators: %d\n",
-				ret);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "Failed to get regulators: %d\n",
+				     ret);
 
-		return ret;
-	}
 	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
 				    data->regulators);
 	if (ret) {

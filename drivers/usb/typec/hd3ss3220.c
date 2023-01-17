@@ -148,8 +148,7 @@ static const struct regmap_config config = {
 	.max_register = 0x0A,
 };
 
-static int hd3ss3220_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int hd3ss3220_probe(struct i2c_client *client)
 {
 	struct typec_capability typec_cap = { };
 	struct hd3ss3220 *hd3ss3220;
@@ -264,7 +263,7 @@ static struct i2c_driver hd3ss3220_driver = {
 		.name = "hd3ss3220",
 		.of_match_table = of_match_ptr(dev_ids),
 	},
-	.probe = hd3ss3220_probe,
+	.probe_new = hd3ss3220_probe,
 	.remove =  hd3ss3220_remove,
 };
 

@@ -84,8 +84,7 @@ static struct mfd_cell khadas_mcu_cells[] = {
 	{ .name = "khadas-mcu-user-mem", },
 };
 
-static int khadas_mcu_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int khadas_mcu_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct khadas_mcu *ddata;
@@ -135,7 +134,7 @@ static struct i2c_driver khadas_mcu_driver = {
 		.name = "khadas-mcu-core",
 		.of_match_table = of_match_ptr(khadas_mcu_of_match),
 	},
-	.probe = khadas_mcu_probe,
+	.probe_new = khadas_mcu_probe,
 };
 module_i2c_driver(khadas_mcu_driver);
 

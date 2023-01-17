@@ -136,7 +136,7 @@ static void uclogic_parse_ugee_v2_desc_case_desc(struct uclogic_parse_ugee_v2_de
 KUNIT_ARRAY_PARAM(uclogic_parse_ugee_v2_desc, uclogic_parse_ugee_v2_desc_cases,
 		  uclogic_parse_ugee_v2_desc_case_desc);
 
-static void uclogic_parse_ugee_v2_desc_test(struct kunit *test)
+static void hid_test_uclogic_parse_ugee_v2_desc(struct kunit *test)
 {
 	int res;
 	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
@@ -175,7 +175,7 @@ static void uclogic_parse_ugee_v2_desc_test(struct kunit *test)
 }
 
 static struct kunit_case hid_uclogic_params_test_cases[] = {
-	KUNIT_CASE_PARAM(uclogic_parse_ugee_v2_desc_test,
+	KUNIT_CASE_PARAM(hid_test_uclogic_parse_ugee_v2_desc,
 			 uclogic_parse_ugee_v2_desc_gen_params),
 	{}
 };

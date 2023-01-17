@@ -192,14 +192,12 @@ static void cdnsp_pci_remove(struct pci_dev *pdev)
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
 
-	if (!pci_is_enabled(func)) {
+	if (pci_is_enabled(func)) {
+		cdns_remove(cdnsp);
+	} else {
 		kfree(cdnsp);
-		goto pci_put;
 	}
 
-	cdns_remove(cdnsp);
-
-pci_put:
 	pci_dev_put(func);
 }
 

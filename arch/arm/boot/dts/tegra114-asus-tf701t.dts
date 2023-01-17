@@ -80,7 +80,7 @@
 	};
 
 	pinmux@70000868 {
-		asus_pad_ec_default: asus-pad-ec-default {
+		asus_pad_ec_default: pinmux-asus-pad-ec-default {
 			ec-interrupt {
 				nvidia,pins = "kb_col5_pq5";
 				nvidia,function = "kbc";
@@ -98,7 +98,7 @@
 			};
 		};
 
-		backlight_default: backlight-default {
+		backlight_default: pinmux-backlight-default {
 			backlight-enable {
 				nvidia,pins = "gmi_ad10_ph2";
 				nvidia,function = "gmi";
@@ -108,7 +108,7 @@
 			};
 		};
 
-		codec_default: codec-default {
+		codec_default: pinmux-codec-default {
 			ldo1-en {
 				nvidia,pins = "sdmmc1_wp_n_pv3";
 				nvidia,function = "sdmmc1";
@@ -127,7 +127,7 @@
 			};
 		};
 
-		gpio_keys_default: gpio-keys-default {
+		gpio_keys_default: pinmux-gpio-keys-default {
 			power {
 				nvidia,pins = "kb_col0_pq0";
 				nvidia,function = "kbc";
@@ -146,7 +146,7 @@
 			};
 		};
 
-		gpio_hall_sensor_default: gpio-hall-sensor-default {
+		gpio_hall_sensor_default: pinmux-gpio-hall-sensor-default {
 			ulpi_data4_po5 {
 				nvidia,pins = "ulpi_data4_po5";
 				nvidia,function = "spi2";
@@ -156,7 +156,7 @@
 			};
 		};
 
-		hp_det_default: hp-det-default {
+		hp_det_default: pinmux-hp-det-default {
 			gmi_iordy_pi5 {
 				nvidia,pins = "kb_row7_pr7";
 				nvidia,function = "rsvd2";
@@ -166,7 +166,7 @@
 			};
 		};
 
-		imu_default: imu-default {
+		imu_default: pinmux-imu-default {
 			kb_row3_pr3 {
 				nvidia,pins = "kb_row3_pr3";
 				nvidia,function = "rsvd3";
@@ -176,7 +176,7 @@
 			};
 		};
 
-		pwm_default: pwm-default {
+		pwm_default: pinmux-pwm-default {
 			gmi_ad9_ph1 {
 				nvidia,pins = "gmi_ad9_ph1";
 				nvidia,function = "pwm1";
@@ -187,7 +187,7 @@
 		};
 
 		/* XXX make this something more sensible */
-		pwm_sleep: pwm-sleep {
+		pwm_sleep: pinmux-pwm-sleep {
 			gmi_ad9_ph1 {
 				nvidia,pins = "gmi_ad9_ph1";
 				nvidia,function = "pwm1";
@@ -197,7 +197,7 @@
 			};
 		};
 
-		sdmmc3_default: sdmmc3-default {
+		sdmmc3_default: pinmux-sdmmc3-default {
 			sdmmc3_clk_pa6 {
 				nvidia,pins = "sdmmc3_clk_pa6";
 				nvidia,function = "sdmmc3";
@@ -233,7 +233,7 @@
 			};
 		};
 
-		sdmmc3_vdd_default: sdmmc3-vdd-default {
+		sdmmc3_vdd_default: pinmux-sdmmc3-vdd-default {
 			gmi_clk_pk1 {
 				nvidia,pins = "gmi_clk_pk1";
 				nvidia,function = "gmi";
@@ -243,7 +243,7 @@
 			};
 		};
 
-		vdd_lcd_default: vdd-lcd-default {
+		vdd_lcd_default: pinmux-vdd-lcd-default {
 			sdmmc4_clk_pcc4 {
 				nvidia,pins = "sdmmc4_clk_pcc4";
 				nvidia,function = "sdmmc4";

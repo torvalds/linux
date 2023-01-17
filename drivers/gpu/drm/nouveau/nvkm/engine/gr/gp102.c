@@ -26,7 +26,7 @@
 
 #include <nvif/class.h>
 
-static void
+void
 gp102_gr_zbc_clear_stencil(struct gf100_gr *gr, int zbc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -40,14 +40,14 @@ gp102_gr_zbc_clear_stencil(struct gf100_gr *gr, int zbc)
 			  gr->zbc_stencil[zbc].format << ((znum % 4) * 7));
 }
 
-static int
+int
 gp102_gr_zbc_stencil_get(struct gf100_gr *gr, int format,
 			 const u32 ds, const u32 l2)
 {
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
 	int zbc = -ENOSPC, i;
 
-	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+	for (i = ltc->zbc_depth_min; i <= ltc->zbc_depth_max; i++) {
 		if (gr->zbc_stencil[i].format) {
 			if (gr->zbc_stencil[i].format != format)
 				continue;
@@ -115,7 +115,10 @@ gp102_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gp100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.trap_mp = gf100_gr_trap_mp,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
 	.tpc_nr = 5,

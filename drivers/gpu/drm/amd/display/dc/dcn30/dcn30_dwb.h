@@ -27,21 +27,6 @@
 #define TO_DCN30_DWBC(dwbc_base) \
 	container_of(dwbc_base, struct dcn30_dwbc, base)
 
-/* DCN */
-#define BASE_INNER(seg) \
-	DCE_BASE__INST0_SEG ## seg
-
-#define BASE(seg) \
-	BASE_INNER(seg)
-
-#define SF_DWB(reg_name, block, id, field_name, post_fix)\
-	.field_name = block ## id ## _ ## reg_name ## __ ## field_name ## post_fix
-
- /* set field name */
-#define SF_DWB2(reg_name, block, id, field_name, post_fix)\
-	.field_name = reg_name ## __ ## field_name ## post_fix
-
-
 #define DWBC_COMMON_REG_LIST_DCN30(inst) \
 	SR(DWB_ENABLE_CLK_CTRL),\
 	SR(DWB_MEM_PWR_CTRL),\

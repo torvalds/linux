@@ -22,53 +22,99 @@
 #include "priv.h"
 
 #include <core/firmware.h>
-#include <subdev/top.h>
+#include <subdev/mc.h>
+#include <subdev/timer.h>
 
-static void
-nvkm_sec2_recv(struct work_struct *work)
+#include <nvfw/sec2.h>
+
+static int
+nvkm_sec2_finimsg(void *priv, struct nvfw_falcon_msg *hdr)
 {
-	struct nvkm_sec2 *sec2 = container_of(work, typeof(*sec2), work);
+	struct nvkm_sec2 *sec2 = priv;
 
-	if (!sec2->initmsg_received) {
-		int ret = sec2->func->initmsg(sec2);
-		if (ret) {
-			nvkm_error(&sec2->engine.subdev,
-				   "error parsing init message: %d\n", ret);
-			return;
-		}
-
-		sec2->initmsg_received = true;
-	}
-
-	nvkm_falcon_msgq_recv(sec2->msgq);
-}
-
-static void
-nvkm_sec2_intr(struct nvkm_engine *engine)
-{
-	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	sec2->func->intr(sec2);
+	atomic_set(&sec2->running, 0);
+	return 0;
 }
 
 static int
 nvkm_sec2_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+	struct nvkm_subdev *subdev = &sec2->engine.subdev;
+	struct nvkm_falcon *falcon = &sec2->falcon;
+	struct nvkm_falcon_cmdq *cmdq = sec2->cmdq;
+	struct nvfw_falcon_cmd cmd = {
+		.unit_id = sec2->func->unit_unload,
+		.size = sizeof(cmd),
+	};
+	int ret;
 
-	flush_work(&sec2->work);
+	if (!subdev->use.enabled)
+		return 0;
 
-	if (suspend) {
-		nvkm_falcon_cmdq_fini(sec2->cmdq);
-		sec2->initmsg_received = false;
+	if (atomic_read(&sec2->initmsg) == 1) {
+		ret = nvkm_falcon_cmdq_send(cmdq, &cmd, nvkm_sec2_finimsg, sec2,
+					    msecs_to_jiffies(1000));
+		WARN_ON(ret);
+
+		nvkm_msec(subdev->device, 2000,
+			if (nvkm_falcon_rd32(falcon, 0x100) & 0x00000010)
+				break;
+		);
 	}
 
+	nvkm_inth_block(&subdev->inth);
+
+	nvkm_falcon_cmdq_fini(cmdq);
+	falcon->func->disable(falcon);
+	nvkm_falcon_put(falcon, subdev);
 	return 0;
+}
+
+static int
+nvkm_sec2_init(struct nvkm_engine *engine)
+{
+	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+	struct nvkm_subdev *subdev = &sec2->engine.subdev;
+	struct nvkm_falcon *falcon = &sec2->falcon;
+	int ret;
+
+	ret = nvkm_falcon_get(falcon, subdev);
+	if (ret)
+		return ret;
+
+	nvkm_falcon_wr32(falcon, 0x014, 0xffffffff);
+	atomic_set(&sec2->initmsg, 0);
+	atomic_set(&sec2->running, 1);
+	nvkm_inth_allow(&subdev->inth);
+
+	nvkm_falcon_start(falcon);
+	return 0;
+}
+
+static int
+nvkm_sec2_oneinit(struct nvkm_engine *engine)
+{
+	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+	struct nvkm_subdev *subdev = &sec2->engine.subdev;
+	struct nvkm_intr *intr = &sec2->engine.subdev.device->mc->intr;
+	enum nvkm_intr_type type = NVKM_INTR_SUBDEV;
+
+	if (sec2->func->intr_vector) {
+		intr = sec2->func->intr_vector(sec2, &type);
+		if (IS_ERR(intr))
+			return PTR_ERR(intr);
+	}
+
+	return nvkm_inth_add(intr, type, NVKM_INTR_PRIO_NORMAL, subdev, sec2->func->intr,
+			     &subdev->inth);
 }
 
 static void *
 nvkm_sec2_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+
 	nvkm_falcon_msgq_del(&sec2->msgq);
 	nvkm_falcon_cmdq_del(&sec2->cmdq);
 	nvkm_falcon_qmgr_del(&sec2->qmgr);
@@ -79,8 +125,9 @@ nvkm_sec2_dtor(struct nvkm_engine *engine)
 static const struct nvkm_engine_func
 nvkm_sec2 = {
 	.dtor = nvkm_sec2_dtor,
+	.oneinit = nvkm_sec2_oneinit,
+	.init = nvkm_sec2_init,
 	.fini = nvkm_sec2_fini,
-	.intr = nvkm_sec2_intr,
 };
 
 int
@@ -113,6 +160,5 @@ nvkm_sec2_new_(const struct nvkm_sec2_fwif *fwif, struct nvkm_device *device,
 	    (ret = nvkm_falcon_msgq_new(sec2->qmgr, "msgq", &sec2->msgq)))
 		return ret;
 
-	INIT_WORK(&sec2->work, nvkm_sec2_recv);
 	return 0;
 };

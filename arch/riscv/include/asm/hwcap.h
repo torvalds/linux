@@ -59,8 +59,9 @@ enum riscv_isa_ext_id {
 	RISCV_ISA_EXT_ZIHINTPAUSE,
 	RISCV_ISA_EXT_SSTC,
 	RISCV_ISA_EXT_SVINVAL,
-	RISCV_ISA_EXT_ID_MAX = RISCV_ISA_EXT_MAX,
+	RISCV_ISA_EXT_ID_MAX
 };
+static_assert(RISCV_ISA_EXT_ID_MAX <= RISCV_ISA_EXT_MAX);
 
 /*
  * This enum represents the logical ID for each RISC-V ISA extension static

@@ -220,6 +220,11 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 			return NULL;
 		}
 
+		if (off + asize < off) {
+			/* overflow check */
+			return NULL;
+		}
+
 		attr = Add2Ptr(attr, asize);
 		off += asize;
 	}
@@ -258,6 +263,10 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 
 		t32 = le32_to_cpu(attr->res.data_size);
 		if (t16 + t32 > asize)
+			return NULL;
+
+		t32 = sizeof(short) * attr->name_len;
+		if (t32 && le16_to_cpu(attr->name_off) + t32 > t16)
 			return NULL;
 
 		return attr;
@@ -537,6 +546,10 @@ bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes)
 	return true;
 }
 
+/*
+ * Pack runs in MFT record.
+ * If failed record is not changed.
+ */
 int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
 		 struct runs_tree *run, CLST len)
 {

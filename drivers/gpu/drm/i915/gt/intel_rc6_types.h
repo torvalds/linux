@@ -13,9 +13,20 @@
 
 struct drm_i915_gem_object;
 
+/* RC6 residency types */
+enum intel_rc6_res_type {
+	INTEL_RC6_RES_RC6_LOCKED,
+	INTEL_RC6_RES_RC6,
+	INTEL_RC6_RES_RC6p,
+	INTEL_RC6_RES_RC6pp,
+	INTEL_RC6_RES_MAX,
+	INTEL_RC6_RES_VLV_MEDIA = INTEL_RC6_RES_RC6p,
+};
+
 struct intel_rc6 {
-	u64 prev_hw_residency[4];
-	u64 cur_residency[4];
+	i915_reg_t res_reg[INTEL_RC6_RES_MAX];
+	u64 prev_hw_residency[INTEL_RC6_RES_MAX];
+	u64 cur_residency[INTEL_RC6_RES_MAX];
 
 	u32 ctl_enable;
 

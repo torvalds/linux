@@ -17,4 +17,5 @@ perf-y += sockaddr.o
 perf-y += socket.o
 perf-y += statx.o
 perf-y += sync_file_range.o
+perf-y += timespec.o
 perf-y += tracepoints/

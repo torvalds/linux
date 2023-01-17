@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/can/can-transceiver.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: CAN transceiver Bindings
+title: CAN transceiver
 
 description: CAN transceiver generic properties bindings
 

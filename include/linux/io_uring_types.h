@@ -174,7 +174,9 @@ struct io_submit_state {
 	bool			plug_started;
 	bool			need_plug;
 	unsigned short		submit_nr;
+	unsigned int		cqes_count;
 	struct blk_plug		plug;
+	struct io_uring_cqe	cqes[16];
 };
 
 struct io_ev_fd {
@@ -206,6 +208,8 @@ struct io_ring_ctx {
 		unsigned int		drain_disabled: 1;
 		unsigned int		has_evfd: 1;
 		unsigned int		syscall_iopoll: 1;
+		/* all CQEs should be posted only by the submitter task */
+		unsigned int		task_complete: 1;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -324,6 +328,7 @@ struct io_ring_ctx {
 	struct io_rsrc_data		*buf_data;
 
 	struct delayed_work		rsrc_put_work;
+	struct callback_head		rsrc_put_tw;
 	struct llist_head		rsrc_put_llist;
 	struct list_head		rsrc_ref_list;
 	spinlock_t			rsrc_ref_lock;

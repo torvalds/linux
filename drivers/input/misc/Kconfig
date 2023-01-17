@@ -107,7 +107,7 @@ config INPUT_ATC260X_ONKEY
 
 config INPUT_ATMEL_CAPTOUCH
 	tristate "Atmel Capacitive Touch Button Driver"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on I2C
 	help
 	  Say Y here if an Atmel Capacitive Touch Button device which
@@ -330,7 +330,7 @@ config INPUT_CPCAP_PWRBUTTON
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
-	depends on X86_32
+	depends on X86_32 && !UML
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -467,6 +467,16 @@ config INPUT_TPS65218_PWRBUTTON
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called tps65218-pwrbutton.
+
+config INPUT_TPS65219_PWRBUTTON
+	tristate "TPS65219 Power button driver"
+	depends on MFD_TPS65219
+	help
+	  Say Y here if you want to enable power button reporting for
+	  TPS65219 Power Management IC devices.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called tps65219-pwrbutton.
 
 config INPUT_AXP20X_PEK
 	tristate "X-Powers AXP20X power button driver"
@@ -661,17 +671,6 @@ config INPUT_DA9063_ONKEY
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.
-
-config INPUT_DM355EVM
-	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
-	depends on MFD_DM355EVM_MSP
-	select INPUT_SPARSEKMAP
-	help
-	  Supports the pushbuttons and IR remote used with
-	  the DM355 EVM board.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dm355evm_keys.
 
 config INPUT_WM831X_ON
 	tristate "WM831X ON pin"

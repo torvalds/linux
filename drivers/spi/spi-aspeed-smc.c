@@ -734,13 +734,11 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	aspi->data = data;
 	aspi->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	aspi->regs = devm_ioremap_resource(dev, res);
+	aspi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(aspi->regs))
 		return PTR_ERR(aspi->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	aspi->ahb_base = devm_ioremap_resource(dev, res);
+	aspi->ahb_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
 	if (IS_ERR(aspi->ahb_base)) {
 		dev_err(dev, "missing AHB mapping window\n");
 		return PTR_ERR(aspi->ahb_base);

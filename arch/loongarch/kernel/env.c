@@ -11,6 +11,7 @@
 #include <asm/early_ioremap.h>
 #include <asm/bootinfo.h>
 #include <asm/loongson.h>
+#include <asm/setup.h>
 
 u64 efi_system_table;
 struct loongson_system_configuration loongson_sysconf;
@@ -27,6 +28,7 @@ void __init init_environ(void)
 		clear_bit(EFI_BOOT, &efi.flags);
 
 	strscpy(boot_command_line, cmdline, COMMAND_LINE_SIZE);
+	strscpy(init_command_line, cmdline, COMMAND_LINE_SIZE);
 	early_memunmap(cmdline, COMMAND_LINE_SIZE);
 
 	efi_system_table = fw_arg2;

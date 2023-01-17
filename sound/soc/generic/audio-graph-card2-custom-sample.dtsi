@@ -49,10 +49,13 @@
 	 *		+-+		+-+
 	 *
 	 * [DPCM]
+	 *
+	 *	CPU3/CPU4 are converting rate to 44100
+	 *
 	 *	FE		BE
 	 *		  ****
 	 *	cpu3 <-@--*  *--@-> codec3
-	 *	cpu4 <-@--*  *
+	 *	cpu4 <-@--*  *  (44.1kHz)
 	 *		  ****
 	 *
 	 * [DPCM-Multi]
@@ -286,7 +289,10 @@
 			port@2  { codec2_ep:  endpoint { remote-endpoint = <&mcodec2_ep>; }; };
 
 			/* [DPCM]::BE */
-			port@3  { codec3_ep:  endpoint { remote-endpoint = <&be00_ep>; }; };
+			port@3  {
+				convert-rate = <44100>;
+				codec3_ep:  endpoint { remote-endpoint = <&be00_ep>; };
+			};
 
 			/* [DPCM-Multi]::BE */
 			port@4  { codec4_ep:  endpoint { remote-endpoint = <&mbe1_ep>; }; };

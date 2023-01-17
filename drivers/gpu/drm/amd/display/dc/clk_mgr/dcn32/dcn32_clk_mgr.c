@@ -233,41 +233,6 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	DC_FP_END();
 }
 
-static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
-			struct dc_state *context,
-			int ref_dtbclk_khz)
-{
-	struct dccg *dccg = clk_mgr->dccg;
-	uint32_t tg_mask = 0;
-	int i;
-
-	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct dtbclk_dto_params dto_params = {0};
-
-		/* use mask to program DTO once per tg */
-		if (pipe_ctx->stream_res.tg &&
-				!(tg_mask & (1 << pipe_ctx->stream_res.tg->inst))) {
-			tg_mask |= (1 << pipe_ctx->stream_res.tg->inst);
-
-			dto_params.otg_inst = pipe_ctx->stream_res.tg->inst;
-			dto_params.ref_dtbclk_khz = ref_dtbclk_khz;
-
-			if (is_dp_128b_132b_signal(pipe_ctx)) {
-				dto_params.pixclk_khz = pipe_ctx->stream->phy_pix_clk;
-
-				if (pipe_ctx->stream_res.audio != NULL)
-					dto_params.req_audio_dtbclk_khz = 24000;
-			}
-			if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-				dto_params.is_hdmi = true;
-
-			dccg->funcs->set_dtbclk_dto(clk_mgr->dccg, &dto_params);
-			//dccg->funcs->set_audio_dtbclk_dto(clk_mgr->dccg, &dto_params);
-		}
-	}
-}
-
 /* Since DPPCLK request to PMFW needs to be exact (due to DPP DTO programming),
  * update DPPCLK to be the exact frequency that will be set after the DPPCLK
  * divider is updated. This will prevent rounding issues that could cause DPP
@@ -438,7 +403,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (!new_clocks->dtbclk_en) {
-		new_clocks->ref_dtbclk_khz = 0;
+		new_clocks->ref_dtbclk_khz = clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
 	}
 
 	/* clock limits are received with MHz precision, divide by 1000 to prevent setting clocks at every call */
@@ -447,8 +412,6 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		/* DCCG requires KHz precision for DTBCLK */
 		clk_mgr_base->clks.ref_dtbclk_khz =
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DTBCLK, khz_to_mhz_ceil(new_clocks->ref_dtbclk_khz));
-
-		dcn32_update_clocks_update_dtb_dto(clk_mgr, context, clk_mgr_base->clks.ref_dtbclk_khz);
 	}
 
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {

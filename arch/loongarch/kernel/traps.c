@@ -368,13 +368,40 @@ asmlinkage void noinstr do_ade(struct pt_regs *regs)
 	irqentry_exit(regs, state);
 }
 
+/* sysctl hooks */
+int unaligned_enabled __read_mostly = 1;	/* Enabled by default */
+int no_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
+
 asmlinkage void noinstr do_ale(struct pt_regs *regs)
 {
+	unsigned int *pc;
 	irqentry_state_t state = irqentry_enter(regs);
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, regs->csr_badvaddr);
+
+	/*
+	 * Did we catch a fault trying to load an instruction?
+	 */
+	if (regs->csr_badvaddr == regs->csr_era)
+		goto sigbus;
+	if (user_mode(regs) && !test_thread_flag(TIF_FIXADE))
+		goto sigbus;
+	if (!unaligned_enabled)
+		goto sigbus;
+	if (!no_unaligned_warning)
+		show_registers(regs);
+
+	pc = (unsigned int *)exception_era(regs);
+
+	emulate_load_store_insn(regs, (void __user *)regs->csr_badvaddr, pc);
+
+	goto out;
+
+sigbus:
 	die_if_kernel("Kernel ale access", regs);
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)regs->csr_badvaddr);
 
+out:
 	irqentry_exit(regs, state);
 }
 

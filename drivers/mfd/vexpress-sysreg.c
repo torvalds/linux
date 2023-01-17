@@ -61,35 +61,27 @@ static struct mfd_cell vexpress_sysreg_cells[] = {
 		.name = "basic-mmio-gpio",
 		.of_compatible = "arm,vexpress-sysreg,sys_led",
 		.num_resources = 1,
-		.resources = (struct resource []) {
-			DEFINE_RES_MEM_NAMED(SYS_LED, 0x4, "dat"),
-		},
+		.resources = &DEFINE_RES_MEM_NAMED(SYS_LED, 0x4, "dat"),
 		.platform_data = &vexpress_sysreg_sys_led_pdata,
 		.pdata_size = sizeof(vexpress_sysreg_sys_led_pdata),
 	}, {
 		.name = "basic-mmio-gpio",
 		.of_compatible = "arm,vexpress-sysreg,sys_mci",
 		.num_resources = 1,
-		.resources = (struct resource []) {
-			DEFINE_RES_MEM_NAMED(SYS_MCI, 0x4, "dat"),
-		},
+		.resources = &DEFINE_RES_MEM_NAMED(SYS_MCI, 0x4, "dat"),
 		.platform_data = &vexpress_sysreg_sys_mci_pdata,
 		.pdata_size = sizeof(vexpress_sysreg_sys_mci_pdata),
 	}, {
 		.name = "basic-mmio-gpio",
 		.of_compatible = "arm,vexpress-sysreg,sys_flash",
 		.num_resources = 1,
-		.resources = (struct resource []) {
-			DEFINE_RES_MEM_NAMED(SYS_FLASH, 0x4, "dat"),
-		},
+		.resources = &DEFINE_RES_MEM_NAMED(SYS_FLASH, 0x4, "dat"),
 		.platform_data = &vexpress_sysreg_sys_flash_pdata,
 		.pdata_size = sizeof(vexpress_sysreg_sys_flash_pdata),
 	}, {
 		.name = "vexpress-syscfg",
 		.num_resources = 1,
-		.resources = (struct resource []) {
-			DEFINE_RES_MEM(SYS_MISC, 0x4c),
-		},
+		.resources = &DEFINE_RES_MEM(SYS_MISC, 0x4c),
 	}
 };
 

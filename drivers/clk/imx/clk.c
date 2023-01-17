@@ -110,8 +110,7 @@ struct clk_hw *imx_obtain_fixed_clock_hw(
 	return __clk_get_hw(clk);
 }
 
-struct clk_hw * imx_obtain_fixed_clk_hw(struct device_node *np,
-					const char *name)
+struct clk_hw *imx_get_clk_hw_by_name(struct device_node *np, const char *name)
 {
 	struct clk *clk;
 
@@ -121,7 +120,7 @@ struct clk_hw * imx_obtain_fixed_clk_hw(struct device_node *np,
 
 	return __clk_get_hw(clk);
 }
-EXPORT_SYMBOL_GPL(imx_obtain_fixed_clk_hw);
+EXPORT_SYMBOL_GPL(imx_get_clk_hw_by_name);
 
 /*
  * This fixups the register CCM_CSCMR1 write value.
