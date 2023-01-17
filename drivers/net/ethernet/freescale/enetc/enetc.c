@@ -2489,6 +2489,46 @@ int enetc_close(struct net_device *ndev)
 	return 0;
 }
 
+static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended)
+{
+	struct enetc_bdr_resource *tx_res, *rx_res;
+	int err;
+
+	ASSERT_RTNL();
+
+	/* If the interface is down, do nothing. */
+	if (!netif_running(priv->ndev))
+		return 0;
+
+	tx_res = enetc_alloc_tx_resources(priv);
+	if (IS_ERR(tx_res)) {
+		err = PTR_ERR(tx_res);
+		goto out;
+	}
+
+	rx_res = enetc_alloc_rx_resources(priv, extended);
+	if (IS_ERR(rx_res)) {
+		err = PTR_ERR(rx_res);
+		goto out_free_tx_res;
+	}
+
+	enetc_stop(priv->ndev);
+	enetc_clear_bdrs(priv);
+	enetc_free_rxtx_rings(priv);
+
+	enetc_assign_tx_resources(priv, tx_res);
+	enetc_assign_rx_resources(priv, rx_res);
+	enetc_setup_bdrs(priv, extended);
+	enetc_start(priv->ndev);
+
+	return 0;
+
+out_free_tx_res:
+	enetc_free_tx_resources(tx_res, priv->num_tx_rings);
+out:
+	return err;
+}
+
 int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
@@ -2681,42 +2721,46 @@ void enetc_set_features(struct net_device *ndev, netdev_features_t features)
 static int enetc_hwtstamp_set(struct net_device *ndev, struct ifreq *ifr)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int err, new_offloads = priv->active_offloads;
 	struct hwtstamp_config config;
-	int ao;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
-		priv->active_offloads &= ~ENETC_F_TX_TSTAMP_MASK;
+		new_offloads &= ~ENETC_F_TX_TSTAMP_MASK;
 		break;
 	case HWTSTAMP_TX_ON:
-		priv->active_offloads &= ~ENETC_F_TX_TSTAMP_MASK;
-		priv->active_offloads |= ENETC_F_TX_TSTAMP;
+		new_offloads &= ~ENETC_F_TX_TSTAMP_MASK;
+		new_offloads |= ENETC_F_TX_TSTAMP;
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		priv->active_offloads &= ~ENETC_F_TX_TSTAMP_MASK;
-		priv->active_offloads |= ENETC_F_TX_ONESTEP_SYNC_TSTAMP;
+		new_offloads &= ~ENETC_F_TX_TSTAMP_MASK;
+		new_offloads |= ENETC_F_TX_ONESTEP_SYNC_TSTAMP;
 		break;
 	default:
 		return -ERANGE;
 	}
 
-	ao = priv->active_offloads;
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		priv->active_offloads &= ~ENETC_F_RX_TSTAMP;
+		new_offloads &= ~ENETC_F_RX_TSTAMP;
 		break;
 	default:
-		priv->active_offloads |= ENETC_F_RX_TSTAMP;
+		new_offloads |= ENETC_F_RX_TSTAMP;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
-	if (netif_running(ndev) && ao != priv->active_offloads) {
-		enetc_close(ndev);
-		enetc_open(ndev);
+	if ((new_offloads ^ priv->active_offloads) & ENETC_F_RX_TSTAMP) {
+		bool extended = !!(new_offloads & ENETC_F_RX_TSTAMP);
+
+		err = enetc_reconfigure(priv, extended);
+		if (err)
+			return err;
 	}
+
+	priv->active_offloads = new_offloads;
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	       -EFAULT : 0;
