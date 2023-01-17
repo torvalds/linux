@@ -115,6 +115,7 @@ struct sof_compr_stream {
 	u32 sampling_rate;
 	u16 channels;
 	u16 sample_container_bytes;
+	size_t posn_offset;
 };
 
 struct snd_sof_dev;
