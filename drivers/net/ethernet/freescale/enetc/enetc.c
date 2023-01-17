@@ -1880,9 +1880,6 @@ static void enetc_free_tx_ring(struct enetc_bdr *tx_ring)
 {
 	int i;
 
-	if (!tx_ring->tx_swbd)
-		return;
-
 	for (i = 0; i < tx_ring->bd_count; i++) {
 		struct enetc_tx_swbd *tx_swbd = &tx_ring->tx_swbd[i];
 
@@ -1893,9 +1890,6 @@ static void enetc_free_tx_ring(struct enetc_bdr *tx_ring)
 static void enetc_free_rx_ring(struct enetc_bdr *rx_ring)
 {
 	int i;
-
-	if (!rx_ring->rx_swbd)
-		return;
 
 	for (i = 0; i < rx_ring->bd_count; i++) {
 		struct enetc_rx_swbd *rx_swbd = &rx_ring->rx_swbd[i];
