@@ -110,7 +110,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(efivars_unregister);
 
-int efivar_supports_writes(void)
+bool efivar_supports_writes(void)
 {
 	return __efivars && __efivars->ops->set_variable;
 }
