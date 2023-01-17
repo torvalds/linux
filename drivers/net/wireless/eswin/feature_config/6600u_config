@@ -52,7 +52,7 @@ export CONFIG_STANDALONE_WIFI_BLE=y
 export CONFIG_ECRNX_HE=y
 
 # Enable P2P Listen
-export CONFIG_ECRNX_P2P=y
+export CONFIG_ECRNX_P2P=n
 # Enable 5G
 export CONFIG_ECRNX_5G=n
 
