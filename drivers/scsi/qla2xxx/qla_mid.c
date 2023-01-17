@@ -1091,7 +1091,7 @@ int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
 	qp->buf_pool.buf_map   = kcalloc(sz, sizeof(long), GFP_KERNEL);
 	if (!qp->buf_pool.buf_map) {
 		ql_log(ql_log_warn, vha, 0x0186,
-		    "Failed to allocate buf_map(%ld).\n", sz * sizeof(unsigned long));
+		    "Failed to allocate buf_map(%zd).\n", sz * sizeof(unsigned long));
 		return -ENOMEM;
 	}
 	sz = qp->req->length * sizeof(void *);
