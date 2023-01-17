@@ -1,0 +1,17 @@
+[
+    {
+        "ArchStdEvent": "FRONTEND_BOUND",
+        "MetricExpr": "((stall_slot_frontend) if (#slots - 5) else (stall_slot_frontend - cpu_cycles)) / (#slots * cpu_cycles)"
+    },
+    {
+        "ArchStdEvent": "BAD_SPECULATION",
+        "MetricExpr": "(1 - op_retired / op_spec) * (1 - (stall_slot if (#slots - 5) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
+    },
+    {
+        "ArchStdEvent": "RETIRING",
+        "MetricExpr": "(op_retired / op_spec) * (1 - (stall_slot if (#slots - 5) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
+    },
+    {
+        "ArchStdEvent": "BACKEND_BOUND"
+    }
+]
