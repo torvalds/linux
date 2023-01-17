@@ -902,12 +902,19 @@ static int lan9303_setup(struct dsa_switch *ds)
 {
 	struct lan9303 *chip = ds->priv;
 	int ret;
+	u32 reg;
 
 	/* Make sure that port 0 is the cpu port */
 	if (!dsa_is_cpu_port(ds, 0)) {
 		dev_err(chip->dev, "port 0 is not the CPU port\n");
 		return -EINVAL;
 	}
+
+	/* Virtual Phy: Remove Turbo 200Mbit mode */
+	lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &reg);
+
+	reg &= ~LAN9303_VIRT_SPECIAL_TURBO;
+	regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, reg);
 
 	ret = lan9303_setup_tagging(chip);
 	if (ret)
@@ -1052,7 +1059,6 @@ static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
 static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 				struct phy_device *phydev)
 {
-	struct lan9303 *chip = ds->priv;
 	int ctl;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
@@ -1075,14 +1081,6 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 		ctl &= ~BMCR_FULLDPLX;
 
 	lan9303_phy_write(ds, port, MII_BMCR, ctl);
-
-	if (port == chip->phy_addr_base) {
-		/* Virtual Phy: Remove Turbo 200Mbit mode */
-		lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &ctl);
-
-		ctl &= ~LAN9303_VIRT_SPECIAL_TURBO;
-		regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, ctl);
-	}
 }
 
 static int lan9303_port_enable(struct dsa_switch *ds, int port,
