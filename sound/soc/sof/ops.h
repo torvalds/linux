@@ -480,11 +480,11 @@ static inline int snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
 /* host side configuration of the stream's data offset in stream mailbox area */
 static inline int
 snd_sof_set_stream_data_offset(struct snd_sof_dev *sdev,
-			       struct snd_pcm_substream *substream,
+			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset)
 {
 	if (sof_ops(sdev) && sof_ops(sdev)->set_stream_data_offset)
-		return sof_ops(sdev)->set_stream_data_offset(sdev, substream,
+		return sof_ops(sdev)->set_stream_data_offset(sdev, sps,
 							     posn_offset);
 
 	return 0;

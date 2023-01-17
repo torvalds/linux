@@ -254,7 +254,7 @@ struct snd_sof_dsp_ops {
 
 	/* host side configuration of the stream's data offset in stream mailbox area */
 	int (*set_stream_data_offset)(struct snd_sof_dev *sdev,
-				      struct snd_pcm_substream *substream,
+				      struct snd_sof_pcm_stream *sps,
 				      size_t posn_offset); /* optional */
 
 	/* pre/post firmware run */
@@ -766,7 +766,7 @@ int sof_ipc_msg_data(struct snd_sof_dev *sdev,
 		     struct snd_sof_pcm_stream *sps,
 		     void *p, size_t sz);
 int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
-			       struct snd_pcm_substream *substream,
+			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset);
 
 int sof_stream_pcm_open(struct snd_sof_dev *sdev,
