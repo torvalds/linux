@@ -433,8 +433,8 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	inode = ntfs_create_inode(&nop_mnt_idmap, dir, dentry, uni, mode, 0,
 				  NULL, 0, fnd);
-	err = IS_ERR(inode) ? PTR_ERR(inode)
-			    : finish_open(file, dentry, ntfs_file_open);
+	err = IS_ERR(inode) ? PTR_ERR(inode) :
+				    finish_open(file, dentry, ntfs_file_open);
 	dput(d);
 
 out2:

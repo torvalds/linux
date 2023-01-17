@@ -22,20 +22,21 @@ static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 {
 	struct fstrim_range __user *user_range;
 	struct fstrim_range range;
+	struct block_device *dev;
 	int err;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!bdev_max_discard_sectors(sbi->sb->s_bdev))
+	dev = sbi->sb->s_bdev;
+	if (!bdev_max_discard_sectors(dev))
 		return -EOPNOTSUPP;
 
 	user_range = (struct fstrim_range __user *)arg;
 	if (copy_from_user(&range, user_range, sizeof(range)))
 		return -EFAULT;
 
-	range.minlen = max_t(u32, range.minlen,
-			     bdev_discard_granularity(sbi->sb->s_bdev));
+	range.minlen = max_t(u32, range.minlen, bdev_discard_granularity(dev));
 
 	err = ntfs_trim_fs(sbi, &range);
 	if (err < 0)
@@ -190,8 +191,8 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 
 	for (; idx < idx_end; idx += 1, from = 0) {
 		page_off = (loff_t)idx << PAGE_SHIFT;
-		to = (page_off + PAGE_SIZE) > vbo_to ? (vbo_to - page_off)
-						     : PAGE_SIZE;
+		to = (page_off + PAGE_SIZE) > vbo_to ? (vbo_to - page_off) :
+							     PAGE_SIZE;
 		iblock = page_off >> inode->i_blkbits;
 
 		page = find_or_create_page(mapping, idx,
@@ -564,13 +565,14 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		ni_unlock(ni);
 	} else {
 		/* Check new size. */
+		u8 cluster_bits = sbi->cluster_bits;
 
 		/* generic/213: expected -ENOSPC instead of -EFBIG. */
 		if (!is_supported_holes) {
 			loff_t to_alloc = new_size - inode_get_bytes(inode);
 
 			if (to_alloc > 0 &&
-			    (to_alloc >> sbi->cluster_bits) >
+			    (to_alloc >> cluster_bits) >
 				    wnd_zeroes(&sbi->used.bitmap)) {
 				err = -ENOSPC;
 				goto out;
@@ -591,7 +593,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		}
 
 		if (is_supported_holes) {
-			CLST vcn = vbo >> sbi->cluster_bits;
+			CLST vcn = vbo >> cluster_bits;
 			CLST cend = bytes_to_cluster(sbi, end);
 			CLST cend_v = bytes_to_cluster(sbi, ni->i_valid);
 			CLST lcn, clen;
@@ -1049,8 +1051,8 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out;
 
-	ret = is_compressed(ni) ? ntfs_compress_write(iocb, from)
-				: __generic_file_write_iter(iocb, from);
+	ret = is_compressed(ni) ? ntfs_compress_write(iocb, from) :
+					__generic_file_write_iter(iocb, from);
 
 out:
 	inode_unlock(inode);
@@ -1102,8 +1104,9 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 	int err = 0;
 
 	/* If we are last writer on the inode, drop the block reservation. */
-	if (sbi->options->prealloc && ((file->f_mode & FMODE_WRITE) &&
-				      atomic_read(&inode->i_writecount) == 1)) {
+	if (sbi->options->prealloc &&
+	    ((file->f_mode & FMODE_WRITE) &&
+	     atomic_read(&inode->i_writecount) == 1)) {
 		ni_lock(ni);
 		down_write(&ni->file.run_lock);
 

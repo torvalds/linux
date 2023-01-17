@@ -172,8 +172,8 @@ int ntfs_fix_post_read(struct NTFS_RECORD_HEADER *rhdr, size_t bytes,
 	u16 sample, fo, fn;
 
 	fo = le16_to_cpu(rhdr->fix_off);
-	fn = simple ? ((bytes >> SECTOR_SHIFT) + 1)
-		    : le16_to_cpu(rhdr->fix_num);
+	fn = simple ? ((bytes >> SECTOR_SHIFT) + 1) :
+			    le16_to_cpu(rhdr->fix_num);
 
 	/* Check errors. */
 	if ((fo & 1) || fo + fn * sizeof(short) > SECTOR_SIZE || !fn-- ||
@@ -849,14 +849,13 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 	u32 blocksize, bytes;
 	sector_t block1, block2;
 
-	if (!sb)
+	/*
+	 * sb can be NULL here. In this case sbi->flags should be 0 too.
+	 */
+	if (!sb || !(sbi->flags & NTFS_FLAGS_MFTMIRR))
 		return;
 
 	blocksize = sb->s_blocksize;
-
-	if (!(sbi->flags & NTFS_FLAGS_MFTMIRR))
-		return;
-
 	bytes = sbi->mft.recs_mirr << sbi->record_bits;
 	block1 = sbi->mft.lbo >> sb->s_blocksize_bits;
 	block2 = sbi->mft.lbo2 >> sb->s_blocksize_bits;

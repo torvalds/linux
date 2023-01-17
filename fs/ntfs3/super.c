@@ -39,10 +39,10 @@
  * To mount large volumes as ntfs one should use large cluster size (up to 2M)
  * The maximum volume size in this case is 2^32 * 2^21 = 2^53 = 8P
  *
- *     ntfs limits, cluster size is 2M (2^31)
+ *     ntfs limits, cluster size is 2M (2^21)
  * -----------------------------------------------------------------------------
- * | < 8P, 2^54    |  < 2^32  |  yes     |  yes   |   yes    |  yes   |  yes   |
- * | > 8P, 2^54    |  > 2^32  |  no      |  no    |   yes    |  yes   |  yes   |
+ * | < 8P, 2^53    |  < 2^32  |  yes     |  yes   |   yes    |  yes   |  yes   |
+ * | > 8P, 2^53    |  > 2^32  |  no      |  no    |   yes    |  yes   |  yes   |
  * ----------------------------------------------------------|------------------
  *
  */
@@ -115,9 +115,9 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 		return;
 
 	/* Use static allocated buffer, if possible. */
-	name = atomic_dec_and_test(&s_name_buf_cnt)
-		       ? s_name_buf
-		       : kmalloc(sizeof(s_name_buf), GFP_NOFS);
+	name = atomic_dec_and_test(&s_name_buf_cnt) ?
+			     s_name_buf :
+			     kmalloc(sizeof(s_name_buf), GFP_NOFS);
 
 	if (name) {
 		struct dentry *de = d_find_alias(inode);
@@ -369,7 +369,8 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 			fc->sb_flags |= SB_POSIXACL;
 #else
-			return invalf(fc, "ntfs3: Support for ACL not compiled in!");
+			return invalf(
+				fc, "ntfs3: Support for ACL not compiled in!");
 #endif
 		else
 			fc->sb_flags &= ~SB_POSIXACL;
@@ -404,24 +405,29 @@ static int ntfs_fs_reconfigure(struct fs_context *fc)
 
 	ro_rw = sb_rdonly(sb) && !(fc->sb_flags & SB_RDONLY);
 	if (ro_rw && (sbi->flags & NTFS_FLAGS_NEED_REPLAY)) {
-		errorf(fc, "ntfs3: Couldn't remount rw because journal is not replayed. Please umount/remount instead\n");
+		errorf(fc,
+		       "ntfs3: Couldn't remount rw because journal is not replayed. Please umount/remount instead\n");
 		return -EINVAL;
 	}
 
 	new_opts->nls = ntfs_load_nls(new_opts->nls_name);
 	if (IS_ERR(new_opts->nls)) {
 		new_opts->nls = NULL;
-		errorf(fc, "ntfs3: Cannot load iocharset %s", new_opts->nls_name);
+		errorf(fc, "ntfs3: Cannot load iocharset %s",
+		       new_opts->nls_name);
 		return -EINVAL;
 	}
 	if (new_opts->nls != sbi->options->nls)
-		return invalf(fc, "ntfs3: Cannot use different iocharset when remounting!");
+		return invalf(
+			fc,
+			"ntfs3: Cannot use different iocharset when remounting!");
 
 	sync_filesystem(sb);
 
 	if (ro_rw && (sbi->volume.flags & VOLUME_FLAG_DIRTY) &&
 	    !new_opts->force) {
-		errorf(fc, "ntfs3: Volume is dirty and \"force\" flag is not set!");
+		errorf(fc,
+		       "ntfs3: Volume is dirty and \"force\" flag is not set!");
 		return -EINVAL;
 	}
 
@@ -539,10 +545,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 	struct ntfs_mount_options *opts = sbi->options;
 	struct user_namespace *user_ns = seq_user_ns(m);
 
-	seq_printf(m, ",uid=%u",
-		  from_kuid_munged(user_ns, opts->fs_uid));
-	seq_printf(m, ",gid=%u",
-		  from_kgid_munged(user_ns, opts->fs_gid));
+	seq_printf(m, ",uid=%u", from_kuid_munged(user_ns, opts->fs_uid));
+	seq_printf(m, ",gid=%u", from_kgid_munged(user_ns, opts->fs_gid));
 	if (opts->fmask)
 		seq_printf(m, ",fmask=%04o", opts->fs_fmask_inv ^ 0xffff);
 	if (opts->dmask)
@@ -699,7 +703,7 @@ static u32 true_sectors_per_clst(const struct NTFS_BOOT *boot)
 	if (boot->sectors_per_clusters <= 0x80)
 		return boot->sectors_per_clusters;
 	if (boot->sectors_per_clusters >= 0xf4) /* limit shift to 2MB max */
-		return 1U << -(s8)boot->sectors_per_clusters;
+		return 1U << (-(s8)boot->sectors_per_clusters);
 	return -EINVAL;
 }
 
@@ -717,6 +721,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	struct buffer_head *bh;
 	struct MFT_REC *rec;
 	u16 fn, ao;
+	u8 cluster_bits;
 
 	sbi->volume.blocks = dev_size >> PAGE_SHIFT;
 
@@ -784,7 +789,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	if (boot_sector_size != sector_size) {
 		ntfs_warn(
 			sb,
-			"Different NTFS sector size (%u) and media sector size (%u)",
+			"Different NTFS sector size (%u) and media sector size (%u).",
 			boot_sector_size, sector_size);
 		dev_size += sector_size - 1;
 	}
@@ -792,8 +797,8 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	sbi->cluster_size = boot_sector_size * sct_per_clst;
 	sbi->cluster_bits = blksize_bits(sbi->cluster_size);
 
-	sbi->mft.lbo = mlcn << sbi->cluster_bits;
-	sbi->mft.lbo2 = mlcn2 << sbi->cluster_bits;
+	sbi->mft.lbo = mlcn << cluster_bits;
+	sbi->mft.lbo2 = mlcn2 << cluster_bits;
 
 	/* Compare boot's cluster and sector. */
 	if (sbi->cluster_size < boot_sector_size)
@@ -804,7 +809,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 		/* No way to use ntfs_get_block in this case. */
 		ntfs_err(
 			sb,
-			"Failed to mount 'cause NTFS's cluster size (%u) is less than media sector size (%u)",
+			"Failed to mount 'cause NTFS's cluster size (%u) is less than media sector size (%u).",
 			sbi->cluster_size, sector_size);
 		goto out;
 	}
@@ -840,18 +845,18 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 		gb0 = format_size_gb(dev_size, &mb0);
 		ntfs_warn(
 			sb,
-			"RAW NTFS volume: Filesystem size %u.%02u Gb > volume size %u.%02u Gb. Mount in read-only",
+			"RAW NTFS volume: Filesystem size %u.%02u Gb > volume size %u.%02u Gb. Mount in read-only.",
 			gb, mb, gb0, mb0);
 		sb->s_flags |= SB_RDONLY;
 	}
 
-	clusters = sbi->volume.size >> sbi->cluster_bits;
+	clusters = sbi->volume.size >> cluster_bits;
 #ifndef CONFIG_NTFS3_64BIT_CLUSTER
 	/* 32 bits per cluster. */
 	if (clusters >> 32) {
 		ntfs_notice(
 			sb,
-			"NTFS %u.%02u Gb is too big to use 32 bits per cluster",
+			"NTFS %u.%02u Gb is too big to use 32 bits per cluster.",
 			gb, mb);
 		goto out;
 	}
@@ -885,17 +890,17 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	sbi->volume.blocks = sbi->volume.size >> sb->s_blocksize_bits;
 
 	/* Maximum size for normal files. */
-	sbi->maxbytes = (clusters << sbi->cluster_bits) - 1;
+	sbi->maxbytes = (clusters << cluster_bits) - 1;
 
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
-	if (clusters >= (1ull << (64 - sbi->cluster_bits)))
+	if (clusters >= (1ull << (64 - cluster_bits)))
 		sbi->maxbytes = -1;
 	sbi->maxbytes_sparse = -1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 #else
 	/* Maximum size for sparse file. */
-	sbi->maxbytes_sparse = (1ull << (sbi->cluster_bits + 32)) - 1;
-	sb->s_maxbytes = 0xFFFFFFFFull << sbi->cluster_bits;
+	sbi->maxbytes_sparse = (1ull << (cluster_bits + 32)) - 1;
+	sb->s_maxbytes = 0xFFFFFFFFull << cluster_bits;
 #endif
 
 	/*
@@ -903,7 +908,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	 * It would be nice if we are able to allocate 1/8 of
 	 * total clusters for MFT but not more then 512 MB.
 	 */
-	sbi->zone_max = min_t(CLST, 0x20000000 >> sbi->cluster_bits, clusters >> 3);
+	sbi->zone_max = min_t(CLST, 0x20000000 >> cluster_bits, clusters >> 3);
 
 	err = 0;
 
@@ -1433,7 +1438,7 @@ static const struct fs_context_operations ntfs_context_ops = {
 };
 
 /*
- * ntfs_init_fs_context - Initialize spi and opts
+ * ntfs_init_fs_context - Initialize sbi and opts
  *
  * This will called when mount/remount. We will first initialize
  * options so that if remount we can use just that.
@@ -1506,7 +1511,8 @@ static int __init init_ntfs_fs(void)
 	if (IS_ENABLED(CONFIG_NTFS3_FS_POSIX_ACL))
 		pr_info("ntfs3: Enabled Linux POSIX ACLs support\n");
 	if (IS_ENABLED(CONFIG_NTFS3_64BIT_CLUSTER))
-		pr_notice("ntfs3: Warning: Activated 64 bits per cluster. Windows does not support this\n");
+		pr_notice(
+			"ntfs3: Warning: Activated 64 bits per cluster. Windows does not support this\n");
 	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
 		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
@@ -1549,7 +1555,9 @@ MODULE_DESCRIPTION("ntfs3 read/write filesystem");
 MODULE_INFO(behaviour, "Enabled Linux POSIX ACLs support");
 #endif
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
-MODULE_INFO(cluster, "Warning: Activated 64 bits per cluster. Windows does not support this");
+MODULE_INFO(
+	cluster,
+	"Warning: Activated 64 bits per cluster. Windows does not support this");
 #endif
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 MODULE_INFO(compression, "Read-only lzx/xpress compression included");

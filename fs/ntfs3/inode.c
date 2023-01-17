@@ -262,8 +262,8 @@ next_attr:
 		if (!attr->nres.alloc_size)
 			goto next_attr;
 
-		run = ino == MFT_REC_BITMAP ? &sbi->used.bitmap.run
-					    : &ni->file.run;
+		run = ino == MFT_REC_BITMAP ? &sbi->used.bitmap.run :
+						    &ni->file.run;
 		break;
 
 	case ATTR_ROOT:
@@ -290,9 +290,9 @@ next_attr:
 		if (err)
 			goto out;
 
-		mode = sb->s_root
-			       ? (S_IFDIR | (0777 & sbi->options->fs_dmask_inv))
-			       : (S_IFDIR | 0777);
+		mode = sb->s_root ?
+				     (S_IFDIR | (0777 & sbi->options->fs_dmask_inv)) :
+				     (S_IFDIR | 0777);
 		goto next_attr;
 
 	case ATTR_ALLOC:
@@ -449,8 +449,8 @@ end_enum:
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
 		inode->i_op = &ntfs_file_inode_operations;
 		inode->i_fop = &ntfs_file_operations;
-		inode->i_mapping->a_ops =
-			is_compressed(ni) ? &ntfs_aops_cmpr : &ntfs_aops;
+		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
+								    &ntfs_aops;
 		if (ino != MFT_REC_MFT)
 			init_rwsem(&ni->file.run_lock);
 	} else if (S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode) ||
@@ -786,8 +786,8 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	}
 
 	ret = blockdev_direct_IO(iocb, inode, iter,
-				 wr ? ntfs_get_block_direct_IO_W
-				    : ntfs_get_block_direct_IO_R);
+				 wr ? ntfs_get_block_direct_IO_W :
+					    ntfs_get_block_direct_IO_R);
 
 	if (ret > 0)
 		end = vbo + ret;
@@ -846,7 +846,7 @@ out:
 }
 
 static int ntfs_resident_writepage(struct folio *folio,
-		struct writeback_control *wbc, void *data)
+				   struct writeback_control *wbc, void *data)
 {
 	struct address_space *mapping = data;
 	struct ntfs_inode *ni = ntfs_i(mapping->host);
@@ -887,8 +887,8 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = NULL;
 	if (is_resident(ni)) {
-		struct page *page = grab_cache_page_write_begin(
-			mapping, pos >> PAGE_SHIFT);
+		struct page *page =
+			grab_cache_page_write_begin(mapping, pos >> PAGE_SHIFT);
 
 		if (!page) {
 			err = -ENOMEM;
@@ -920,9 +920,8 @@ out:
 /*
  * ntfs_write_end - Address_space_operations::write_end.
  */
-int ntfs_write_end(struct file *file, struct address_space *mapping,
-		   loff_t pos, u32 len, u32 copied, struct page *page,
-		   void *fsdata)
+int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
+		   u32 len, u32 copied, struct page *page, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct ntfs_inode *ni = ntfs_i(inode);
@@ -1605,8 +1604,8 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap,
 	} else if (S_ISREG(mode)) {
 		inode->i_op = &ntfs_file_inode_operations;
 		inode->i_fop = &ntfs_file_operations;
-		inode->i_mapping->a_ops =
-			is_compressed(ni) ? &ntfs_aops_cmpr : &ntfs_aops;
+		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
+								    &ntfs_aops;
 		init_rwsem(&ni->file.run_lock);
 	} else {
 		inode->i_op = &ntfs_special_inode_operations;
