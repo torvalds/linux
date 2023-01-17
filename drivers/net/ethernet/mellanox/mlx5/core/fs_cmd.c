@@ -272,8 +272,6 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	unsigned int size;
 	int err;
 
-	if (ft_attr->max_fte != POOL_NEXT_SIZE)
-		size = roundup_pow_of_two(ft_attr->max_fte);
 	size = mlx5_ft_pool_get_avail_sz(dev, ft->type, ft_attr->max_fte);
 	if (!size)
 		return -ENOSPC;
