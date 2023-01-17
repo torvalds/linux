@@ -19,6 +19,8 @@ extern "C" {
 #define DRM_IVPU_SET_PARAM		  0x01
 #define DRM_IVPU_BO_CREATE		  0x02
 #define DRM_IVPU_BO_INFO		  0x03
+#define DRM_IVPU_SUBMIT			  0x05
+#define DRM_IVPU_BO_WAIT		  0x06
 
 #define DRM_IOCTL_IVPU_GET_PARAM                                               \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_GET_PARAM, struct drm_ivpu_param)
@@ -31,6 +33,12 @@ extern "C" {
 
 #define DRM_IOCTL_IVPU_BO_INFO                                                 \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_INFO, struct drm_ivpu_bo_info)
+
+#define DRM_IOCTL_IVPU_SUBMIT                                                  \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_SUBMIT, struct drm_ivpu_submit)
+
+#define DRM_IOCTL_IVPU_BO_WAIT                                                 \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_WAIT, struct drm_ivpu_bo_wait)
 
 /**
  * DOC: contexts
@@ -205,6 +213,90 @@ struct drm_ivpu_bo_info {
 
 	/** @size: Returned GEM object size, aligned to PAGE_SIZE */
 	__u64 size;
+};
+
+/* drm_ivpu_submit engines */
+#define DRM_IVPU_ENGINE_COMPUTE 0
+#define DRM_IVPU_ENGINE_COPY    1
+
+/**
+ * struct drm_ivpu_submit - Submit commands to the VPU
+ *
+ * Execute a single command buffer on a given VPU engine.
+ * Handles to all referenced buffer objects have to be provided in @buffers_ptr.
+ *
+ * User space may wait on job completion using %DRM_IVPU_BO_WAIT ioctl.
+ */
+struct drm_ivpu_submit {
+	/**
+	 * @buffers_ptr:
+	 *
+	 * A pointer to an u32 array of GEM handles of the BOs required for this job.
+	 * The number of elements in the array must be equal to the value given by @buffer_count.
+	 *
+	 * The first BO is the command buffer. The rest of array has to contain all
+	 * BOs referenced from the command buffer.
+	 */
+	__u64 buffers_ptr;
+
+	/** @buffer_count: Number of elements in the @buffers_ptr */
+	__u32 buffer_count;
+
+	/**
+	 * @engine: Select the engine this job should be executed on
+	 *
+	 * %DRM_IVPU_ENGINE_COMPUTE:
+	 *
+	 * Performs Deep Learning Neural Compute Inference Operations
+	 *
+	 * %DRM_IVPU_ENGINE_COPY:
+	 *
+	 * Performs memory copy operations to/from system memory allocated for VPU
+	 */
+	__u32 engine;
+
+	/** @flags: Reserved for future use - must be zero */
+	__u32 flags;
+
+	/**
+	 * @commands_offset:
+	 *
+	 * Offset inside the first buffer in @buffers_ptr containing commands
+	 * to be executed. The offset has to be 8-byte aligned.
+	 */
+	__u32 commands_offset;
+};
+
+/* drm_ivpu_bo_wait job status codes */
+#define DRM_IVPU_JOB_STATUS_SUCCESS 0
+
+/**
+ * struct drm_ivpu_bo_wait - Wait for BO to become inactive
+ *
+ * Blocks until a given buffer object becomes inactive.
+ * With @timeout_ms set to 0 returns immediately.
+ */
+struct drm_ivpu_bo_wait {
+	/** @handle: Handle to the buffer object to be waited on */
+	__u32 handle;
+
+	/** @flags: Reserved for future use - must be zero */
+	__u32 flags;
+
+	/** @timeout_ns: Absolute timeout in nanoseconds (may be zero) */
+	__s64 timeout_ns;
+
+	/**
+	 * @job_status:
+	 *
+	 * Job status code which is updated after the job is completed.
+	 * &DRM_IVPU_JOB_STATUS_SUCCESS or device specific error otherwise.
+	 * Valid only if @handle points to a command buffer.
+	 */
+	__u32 job_status;
+
+	/** @pad: Padding - must be zero */
+	__u32 pad;
 };
 
 #if defined(__cplusplus)

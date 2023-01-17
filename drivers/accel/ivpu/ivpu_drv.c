@@ -20,6 +20,7 @@
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
+#include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
@@ -30,6 +31,8 @@
 #endif
 
 static const struct drm_driver driver;
+
+static struct lock_class_key submitted_jobs_xa_lock_class_key;
 
 int ivpu_dbg_mask;
 module_param_named(dbg_mask, ivpu_dbg_mask, int, 0644);
@@ -84,8 +87,11 @@ static void file_priv_release(struct kref *ref)
 
 	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u\n", file_priv->ctx.id);
 
+	ivpu_cmdq_release_all(file_priv);
+	ivpu_bo_remove_all_bos_from_context(&file_priv->ctx);
 	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
 	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
+	mutex_destroy(&file_priv->lock);
 	kfree(file_priv);
 }
 
@@ -209,10 +215,11 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 	file_priv->vdev = vdev;
 	file_priv->priority = DRM_IVPU_CONTEXT_PRIORITY_NORMAL;
 	kref_init(&file_priv->ref);
+	mutex_init(&file_priv->lock);
 
 	ret = ivpu_mmu_user_context_init(vdev, &file_priv->ctx, ctx_id);
 	if (ret)
-		goto err_free_file_priv;
+		goto err_mutex_destroy;
 
 	old = xa_store_irq(&vdev->context_xa, ctx_id, file_priv, GFP_KERNEL);
 	if (xa_is_err(old)) {
@@ -229,7 +236,8 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 
 err_ctx_fini:
 	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
-err_free_file_priv:
+err_mutex_destroy:
+	mutex_destroy(&file_priv->lock);
 	kfree(file_priv);
 err_xa_erase:
 	xa_erase_irq(&vdev->context_xa, ctx_id);
@@ -252,6 +260,8 @@ static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_SET_PARAM, ivpu_set_param_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_BO_CREATE, ivpu_bo_create_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_BO_INFO, ivpu_bo_info_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_SUBMIT, ivpu_submit_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_BO_WAIT, ivpu_bo_wait_ioctl, 0),
 };
 
 static int ivpu_wait_for_ready(struct ivpu_device *vdev)
@@ -458,6 +468,8 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	vdev->context_xa_limit.max = IVPU_CONTEXT_LIMIT;
 	atomic64_set(&vdev->unique_id_counter, 0);
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
+	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
+	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
 
 	ret = ivpu_pci_init(vdev);
 	if (ret) {
@@ -509,20 +521,30 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		goto err_fw_fini;
 	}
 
+	ret = ivpu_job_done_thread_init(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize job done thread: %d\n", ret);
+		goto err_ipc_fini;
+	}
+
 	ret = ivpu_fw_load(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to load firmware: %d\n", ret);
-		goto err_fw_fini;
+		goto err_job_done_thread_fini;
 	}
 
 	ret = ivpu_boot(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to boot: %d\n", ret);
-		goto err_fw_fini;
+		goto err_job_done_thread_fini;
 	}
 
 	return 0;
 
+err_job_done_thread_fini:
+	ivpu_job_done_thread_fini(vdev);
+err_ipc_fini:
+	ivpu_ipc_fini(vdev);
 err_fw_fini:
 	ivpu_fw_fini(vdev);
 err_mmu_gctx_fini:
@@ -530,6 +552,7 @@ err_mmu_gctx_fini:
 err_power_down:
 	ivpu_hw_power_down(vdev);
 err_xa_destroy:
+	xa_destroy(&vdev->submitted_jobs_xa);
 	xa_destroy(&vdev->context_xa);
 	return ret;
 }
@@ -537,10 +560,13 @@ err_xa_destroy:
 static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
 	ivpu_shutdown(vdev);
+	ivpu_job_done_thread_fini(vdev);
 	ivpu_ipc_fini(vdev);
 	ivpu_fw_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
 
+	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
+	xa_destroy(&vdev->submitted_jobs_xa);
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->context_xa));
 	xa_destroy(&vdev->context_xa);
 }

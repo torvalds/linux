@@ -94,6 +94,9 @@ struct ivpu_device {
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
+	struct xarray submitted_jobs_xa;
+	struct task_struct *job_done_thread;
+
 	atomic64_t unique_id_counter;
 
 	struct {
@@ -111,6 +114,8 @@ struct ivpu_device {
 struct ivpu_file_priv {
 	struct kref ref;
 	struct ivpu_device *vdev;
+	struct mutex lock; /* Protects cmdq */
+	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
 	struct ivpu_mmu_context ctx;
 	u32 priority;
 	bool has_mmu_faults;

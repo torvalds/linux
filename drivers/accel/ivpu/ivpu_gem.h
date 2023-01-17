@@ -30,6 +30,7 @@ struct ivpu_bo {
 	u32 handle;
 	u32 flags;
 	uintptr_t user_ptr;
+	u32 job_status;
 };
 
 enum ivpu_bo_type {

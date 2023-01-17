@@ -678,6 +678,32 @@ unlock:
 	return ret;
 }
 
+int ivpu_bo_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct drm_ivpu_bo_wait *args = data;
+	struct drm_gem_object *obj;
+	unsigned long timeout;
+	long ret;
+
+	timeout = drm_timeout_abs_to_jiffies(args->timeout_ns);
+
+	obj = drm_gem_object_lookup(file, args->handle);
+	if (!obj)
+		return -EINVAL;
+
+	ret = dma_resv_wait_timeout(obj->resv, DMA_RESV_USAGE_READ, true, timeout);
+	if (ret == 0) {
+		ret = -ETIMEDOUT;
+	} else if (ret > 0) {
+		ret = 0;
+		args->job_status = to_ivpu_bo(obj)->job_status;
+	}
+
+	drm_gem_object_put(obj);
+
+	return ret;
+}
+
 static void ivpu_bo_print_info(struct ivpu_bo *bo, struct drm_printer *p)
 {
 	unsigned long dma_refcount = 0;
