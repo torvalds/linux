@@ -2489,16 +2489,24 @@ int enetc_close(struct net_device *ndev)
 	return 0;
 }
 
-static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended)
+static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended,
+			     int (*cb)(struct enetc_ndev_priv *priv, void *ctx),
+			     void *ctx)
 {
 	struct enetc_bdr_resource *tx_res, *rx_res;
 	int err;
 
 	ASSERT_RTNL();
 
-	/* If the interface is down, do nothing. */
-	if (!netif_running(priv->ndev))
+	/* If the interface is down, run the callback right away,
+	 * without reconfiguration.
+	 */
+	if (!netif_running(priv->ndev)) {
+		if (cb)
+			cb(priv, ctx);
+
 		return 0;
+	}
 
 	tx_res = enetc_alloc_tx_resources(priv);
 	if (IS_ERR(tx_res)) {
@@ -2515,6 +2523,10 @@ static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended)
 	enetc_stop(priv->ndev);
 	enetc_clear_bdrs(priv);
 	enetc_free_rxtx_rings(priv);
+
+	/* Interface is down, run optional callback now */
+	if (cb)
+		cb(priv, ctx);
 
 	enetc_assign_tx_resources(priv, tx_res);
 	enetc_assign_rx_resources(priv, rx_res);
@@ -2586,20 +2598,10 @@ int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 	return 0;
 }
 
-static int enetc_setup_xdp_prog(struct net_device *ndev, struct bpf_prog *prog,
-				struct netlink_ext_ack *extack)
+static int enetc_reconfigure_xdp_cb(struct enetc_ndev_priv *priv, void *ctx)
 {
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct bpf_prog *old_prog;
-	bool is_up;
+	struct bpf_prog *old_prog, *prog = ctx;
 	int i;
-
-	/* The buffer layout is changing, so we need to drain the old
-	 * RX buffers and seed new ones.
-	 */
-	is_up = netif_running(ndev);
-	if (is_up)
-		dev_close(ndev);
 
 	old_prog = xchg(&priv->xdp_prog, prog);
 	if (old_prog)
@@ -2616,10 +2618,21 @@ static int enetc_setup_xdp_prog(struct net_device *ndev, struct bpf_prog *prog,
 			rx_ring->buffer_offset = ENETC_RXB_PAD;
 	}
 
-	if (is_up)
-		return dev_open(ndev, extack);
-
 	return 0;
+}
+
+static int enetc_setup_xdp_prog(struct net_device *ndev, struct bpf_prog *prog,
+				struct netlink_ext_ack *extack)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	bool extended;
+
+	extended = !!(priv->active_offloads & ENETC_F_RX_TSTAMP);
+
+	/* The buffer layout is changing, so we need to drain the old
+	 * RX buffers and seed new ones.
+	 */
+	return enetc_reconfigure(priv, extended, enetc_reconfigure_xdp_cb, prog);
 }
 
 int enetc_setup_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
@@ -2755,7 +2768,7 @@ static int enetc_hwtstamp_set(struct net_device *ndev, struct ifreq *ifr)
 	if ((new_offloads ^ priv->active_offloads) & ENETC_F_RX_TSTAMP) {
 		bool extended = !!(new_offloads & ENETC_F_RX_TSTAMP);
 
-		err = enetc_reconfigure(priv, extended);
+		err = enetc_reconfigure(priv, extended, NULL, NULL);
 		if (err)
 			return err;
 	}
