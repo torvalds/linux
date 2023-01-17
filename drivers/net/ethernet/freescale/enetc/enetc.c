@@ -2322,8 +2322,11 @@ static int enetc_phylink_connect(struct net_device *ndev)
 	struct ethtool_eee edata;
 	int err;
 
-	if (!priv->phylink)
-		return 0; /* phy-less mode */
+	if (!priv->phylink) {
+		/* phy-less mode */
+		netif_carrier_on(ndev);
+		return 0;
+	}
 
 	err = phylink_of_phy_connect(priv->phylink, priv->dev->of_node, 0);
 	if (err) {
@@ -2334,6 +2337,8 @@ static int enetc_phylink_connect(struct net_device *ndev)
 	/* disable EEE autoneg, until ENETC driver supports it */
 	memset(&edata, 0, sizeof(struct ethtool_eee));
 	phylink_ethtool_set_eee(priv->phylink, &edata);
+
+	phylink_start(priv->phylink);
 
 	return 0;
 }
@@ -2375,11 +2380,6 @@ void enetc_start(struct net_device *ndev)
 		napi_enable(&priv->int_vector[i]->napi);
 		enable_irq(irq);
 	}
-
-	if (priv->phylink)
-		phylink_start(priv->phylink);
-	else
-		netif_carrier_on(ndev);
 
 	netif_tx_start_all_queues(ndev);
 }
@@ -2461,11 +2461,6 @@ void enetc_stop(struct net_device *ndev)
 		napi_disable(&priv->int_vector[i]->napi);
 	}
 
-	if (priv->phylink)
-		phylink_stop(priv->phylink);
-	else
-		netif_carrier_off(ndev);
-
 	enetc_clear_interrupts(priv);
 }
 
@@ -2476,8 +2471,13 @@ int enetc_close(struct net_device *ndev)
 	enetc_stop(ndev);
 	enetc_clear_bdrs(priv);
 
-	if (priv->phylink)
+	if (priv->phylink) {
+		phylink_stop(priv->phylink);
 		phylink_disconnect_phy(priv->phylink);
+	} else {
+		netif_carrier_off(ndev);
+	}
+
 	enetc_free_rxtx_rings(priv);
 
 	/* Avoids dangling pointers and also frees old resources */
