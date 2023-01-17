@@ -665,6 +665,26 @@ static void mlx5e_rq_free_shampo(struct mlx5e_rq *rq)
 	mlx5e_rq_shampo_hd_free(rq);
 }
 
+static __be32 mlx5e_get_terminate_scatter_list_mkey(struct mlx5_core_dev *dev)
+{
+	u32 out[MLX5_ST_SZ_DW(query_special_contexts_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_special_contexts_in)] = {};
+	int res;
+
+	if (!MLX5_CAP_GEN(dev, terminate_scatter_list_mkey))
+		return MLX5_TERMINATE_SCATTER_LIST_LKEY;
+
+	MLX5_SET(query_special_contexts_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
+	res = mlx5_cmd_exec_inout(dev, query_special_contexts, in, out);
+	if (res)
+		return MLX5_TERMINATE_SCATTER_LIST_LKEY;
+
+	res = MLX5_GET(query_special_contexts_out, out,
+		       terminate_scatter_list_mkey);
+	return cpu_to_be32(res);
+}
+
 static int mlx5e_alloc_rq(struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk,
 			  struct mlx5e_rq_param *rqp,
@@ -829,8 +849,7 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 			/* check if num_frags is not a pow of two */
 			if (rq->wqe.info.num_frags < (1 << rq->wqe.info.log_num_frags)) {
 				wqe->data[f].byte_count = 0;
-				wqe->data[f].lkey =
-					MLX5_TERMINATE_SCATTER_LIST_LKEY;
+				wqe->data[f].lkey = mlx5e_get_terminate_scatter_list_mkey(mdev);
 				wqe->data[f].addr = 0;
 			}
 		}
