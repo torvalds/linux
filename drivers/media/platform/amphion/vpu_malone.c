@@ -68,6 +68,8 @@
 #define STREAM_CONFIG_NUM_DBE_SET(x, y)		CONFIG_SET(x, y, 30, 0x40000000)
 #define STREAM_CONFIG_FS_CTRL_MODE_SET(x, y)	CONFIG_SET(x, y, 31, 0x80000000)
 
+#define MALONE_DEC_FMT_RV_MASK			BIT(21)
+
 enum vpu_malone_stream_input_mode {
 	INVALID_MODE = 0,
 	FRAME_LVL,
@@ -478,6 +480,9 @@ u32 vpu_malone_get_version(struct vpu_shared_addr *shared)
 {
 	struct malone_iface *iface = shared->iface;
 
+	vpu_malone_enable_format(V4L2_PIX_FMT_RV30, iface->fw_version & MALONE_DEC_FMT_RV_MASK);
+	vpu_malone_enable_format(V4L2_PIX_FMT_RV40, iface->fw_version & MALONE_DEC_FMT_RV_MASK);
+
 	return iface->fw_version;
 }
 
@@ -563,7 +568,21 @@ static struct malone_fmt_mapping fmt_mappings[] = {
 	{V4L2_PIX_FMT_JPEG,        MALONE_FMT_JPG},
 	{V4L2_PIX_FMT_VP8,         MALONE_FMT_VP8},
 	{V4L2_PIX_FMT_SPK,         MALONE_FMT_SPK},
+	{V4L2_PIX_FMT_RV30,        MALONE_FMT_RV},
+	{V4L2_PIX_FMT_RV40,        MALONE_FMT_RV},
 };
+
+void vpu_malone_enable_format(u32 pixelformat, int enable)
+{
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(fmt_mappings); i++) {
+		if (pixelformat == fmt_mappings[i].pixelformat) {
+			fmt_mappings[i].is_disabled = enable ? 0 : 1;
+			return;
+		}
+	}
+}
 
 static enum vpu_malone_format vpu_malone_format_remap(u32 pixelformat)
 {
@@ -991,6 +1010,8 @@ static const struct malone_padding_scode padding_scodes[] = {
 	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_H263,        {0xb1010000, 0x0}},
 	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_VP8,         {0x34010000, 0x0}},
 	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_SPK,         {0x34010000, 0x0}},
+	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_RV30,        {0x34010000, 0x0}},
+	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_RV40,        {0x34010000, 0x0}},
 	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_JPEG,        {0xefff0000, 0x0}},
 	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_H264,        {0x0B010000, 0}},
 	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_H264_MVC,    {0x0B010000, 0}},
@@ -1003,6 +1024,8 @@ static const struct malone_padding_scode padding_scodes[] = {
 	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_H263,        {0xb1010000, 0x0}},
 	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_VP8,         {0x34010000, 0x0}},
 	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_SPK,         {0x34010000, 0x0}},
+	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_RV30,        {0x34010000, 0x0}},
+	{SCODE_PADDING_ABORT,    V4L2_PIX_FMT_RV40,        {0x34010000, 0x0}},
 	{SCODE_PADDING_EOS,      V4L2_PIX_FMT_JPEG,        {0x0, 0x0}},
 	{SCODE_PADDING_BUFFLUSH, V4L2_PIX_FMT_H264,        {0x15010000, 0x0}},
 	{SCODE_PADDING_BUFFLUSH, V4L2_PIX_FMT_H264_MVC,    {0x15010000, 0x0}},
