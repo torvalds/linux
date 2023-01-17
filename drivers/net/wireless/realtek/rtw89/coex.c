@@ -3847,7 +3847,7 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 	case BTC_BT_NOPROFILE:
 		if (_check_freerun(rtwdev))
 			_action_freerun(rtwdev);
-		else if (a2dp.active || pan.active)
+		else if (pan.active)
 			_action_bt_pan(rtwdev);
 		else
 			_action_bt_idle(rtwdev);
