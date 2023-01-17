@@ -1872,6 +1872,8 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		.have_delayed_delete_refs = false,
 	};
 	int level;
+	bool leaf_cached;
+	bool leaf_is_shared;
 
 	for (int i = 0; i < BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE; i++) {
 		if (ctx->prev_extents_cache[i].bytenr == bytenr)
@@ -1893,6 +1895,23 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		walk_ctx.time_seq = elem.seq;
 	}
 
+	ctx->use_path_cache = true;
+
+	/*
+	 * We may have previously determined that the current leaf is shared.
+	 * If it is, then we have a data extent that is shared due to a shared
+	 * subtree (caused by snapshotting) and we don't need to check for data
+	 * backrefs. If the leaf is not shared, then we must do backref walking
+	 * to determine if the data extent is shared through reflinks.
+	 */
+	leaf_cached = lookup_backref_shared_cache(ctx, root,
+						  ctx->curr_leaf_bytenr, 0,
+						  &leaf_is_shared);
+	if (leaf_cached && leaf_is_shared) {
+		ret = 1;
+		goto out_trans;
+	}
+
 	walk_ctx.ignore_extent_item_pos = true;
 	walk_ctx.trans = trans;
 	walk_ctx.fs_info = fs_info;
@@ -1901,7 +1920,6 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 	/* -1 means we are in the bytenr of the data extent. */
 	level = -1;
 	ULIST_ITER_INIT(&uiter);
-	ctx->use_path_cache = true;
 	while (1) {
 		bool is_shared;
 		bool cached;
@@ -1972,6 +1990,7 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		ctx->prev_extents_cache_slot = slot;
 	}
 
+out_trans:
 	if (trans) {
 		btrfs_put_tree_mod_seq(fs_info, &elem);
 		btrfs_end_transaction(trans);
