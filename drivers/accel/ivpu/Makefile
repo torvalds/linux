@@ -3,6 +3,7 @@
 
 intel_vpu-y := \
 	ivpu_drv.o \
+	ivpu_gem.o \
 	ivpu_hw_mtl.o \
 	ivpu_mmu.o \
 	ivpu_mmu_context.o

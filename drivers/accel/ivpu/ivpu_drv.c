@@ -12,8 +12,10 @@
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
+#include <drm/drm_prime.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
@@ -49,6 +51,24 @@ struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv)
 	return file_priv;
 }
 
+struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id)
+{
+	struct ivpu_file_priv *file_priv;
+
+	xa_lock_irq(&vdev->context_xa);
+	file_priv = xa_load(&vdev->context_xa, id);
+	/* file_priv may still be in context_xa during file_priv_release() */
+	if (file_priv && !kref_get_unless_zero(&file_priv->ref))
+		file_priv = NULL;
+	xa_unlock_irq(&vdev->context_xa);
+
+	if (file_priv)
+		ivpu_dbg(vdev, KREF, "file_priv get by id: ctx %u refcount %u\n",
+			 file_priv->ctx.id, kref_read(&file_priv->ref));
+
+	return file_priv;
+}
+
 static void file_priv_release(struct kref *ref)
 {
 	struct ivpu_file_priv *file_priv = container_of(ref, struct ivpu_file_priv, ref);
@@ -57,7 +77,7 @@ static void file_priv_release(struct kref *ref)
 	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u\n", file_priv->ctx.id);
 
 	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
-	WARN_ON(xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
+	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
 	kfree(file_priv);
 }
 
@@ -66,7 +86,7 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link)
 	struct ivpu_file_priv *file_priv = *link;
 	struct ivpu_device *vdev = file_priv->vdev;
 
-	WARN_ON(!file_priv);
+	drm_WARN_ON(&vdev->drm, !file_priv);
 
 	ivpu_dbg(vdev, KREF, "file_priv put: ctx %u refcount %u\n",
 		 file_priv->ctx.id, kref_read(&file_priv->ref));
@@ -200,6 +220,8 @@ static void ivpu_postclose(struct drm_device *dev, struct drm_file *file)
 static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_GET_PARAM, ivpu_get_param_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_SET_PARAM, ivpu_set_param_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_BO_CREATE, ivpu_bo_create_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_BO_INFO, ivpu_bo_info_ioctl, 0),
 };
 
 int ivpu_shutdown(struct ivpu_device *vdev)
@@ -227,6 +249,10 @@ static const struct drm_driver driver = {
 
 	.open = ivpu_open,
 	.postclose = ivpu_postclose,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = ivpu_gem_prime_import,
+	.gem_prime_mmap = drm_gem_prime_mmap,
 
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),

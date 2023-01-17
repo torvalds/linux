@@ -17,12 +17,20 @@ extern "C" {
 
 #define DRM_IVPU_GET_PARAM		  0x00
 #define DRM_IVPU_SET_PARAM		  0x01
+#define DRM_IVPU_BO_CREATE		  0x02
+#define DRM_IVPU_BO_INFO		  0x03
 
 #define DRM_IOCTL_IVPU_GET_PARAM                                               \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_GET_PARAM, struct drm_ivpu_param)
 
 #define DRM_IOCTL_IVPU_SET_PARAM                                               \
 	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_SET_PARAM, struct drm_ivpu_param)
+
+#define DRM_IOCTL_IVPU_BO_CREATE                                               \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_CREATE, struct drm_ivpu_bo_create)
+
+#define DRM_IOCTL_IVPU_BO_INFO                                                 \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_INFO, struct drm_ivpu_bo_info)
 
 /**
  * DOC: contexts
@@ -90,6 +98,92 @@ struct drm_ivpu_param {
 
 	/** @value: Param value */
 	__u64 value;
+};
+
+#define DRM_IVPU_BO_HIGH_MEM   0x00000001
+#define DRM_IVPU_BO_MAPPABLE   0x00000002
+
+#define DRM_IVPU_BO_CACHED     0x00000000
+#define DRM_IVPU_BO_UNCACHED   0x00010000
+#define DRM_IVPU_BO_WC	       0x00020000
+#define DRM_IVPU_BO_CACHE_MASK 0x00030000
+
+#define DRM_IVPU_BO_FLAGS \
+	(DRM_IVPU_BO_HIGH_MEM | \
+	 DRM_IVPU_BO_MAPPABLE | \
+	 DRM_IVPU_BO_CACHE_MASK)
+
+/**
+ * struct drm_ivpu_bo_create - Create BO backed by SHMEM
+ *
+ * Create GEM buffer object allocated in SHMEM memory.
+ */
+struct drm_ivpu_bo_create {
+	/** @size: The size in bytes of the allocated memory */
+	__u64 size;
+
+	/**
+	 * @flags:
+	 *
+	 * Supported flags:
+	 *
+	 * %DRM_IVPU_BO_HIGH_MEM:
+	 *
+	 * Allocate VPU address from >4GB range.
+	 * Buffer object with vpu address >4GB can be always accessed by the
+	 * VPU DMA engine, but some HW generation may not be able to access
+	 * this memory from then firmware running on the VPU management processor.
+	 * Suitable for input, output and some scratch buffers.
+	 *
+	 * %DRM_IVPU_BO_MAPPABLE:
+	 *
+	 * Buffer object can be mapped using mmap().
+	 *
+	 * %DRM_IVPU_BO_CACHED:
+	 *
+	 * Allocated BO will be cached on host side (WB) and snooped on the VPU side.
+	 * This is the default caching mode.
+	 *
+	 * %DRM_IVPU_BO_UNCACHED:
+	 *
+	 * Allocated BO will not be cached on host side nor snooped on the VPU side.
+	 *
+	 * %DRM_IVPU_BO_WC:
+	 *
+	 * Allocated BO will use write combining buffer for writes but reads will be
+	 * uncached.
+	 */
+	__u32 flags;
+
+	/** @handle: Returned GEM object handle */
+	__u32 handle;
+
+	/** @vpu_addr: Returned VPU virtual address */
+	__u64 vpu_addr;
+};
+
+/**
+ * struct drm_ivpu_bo_info - Query buffer object info
+ */
+struct drm_ivpu_bo_info {
+	/** @handle: Handle of the queried BO */
+	__u32 handle;
+
+	/** @flags: Returned flags used to create the BO */
+	__u32 flags;
+
+	/** @vpu_addr: Returned VPU virtual address */
+	__u64 vpu_addr;
+
+	/**
+	 * @mmap_offset:
+	 *
+	 * Returned offset to be used in mmap(). 0 in case the BO is not mappable.
+	 */
+	__u64 mmap_offset;
+
+	/** @size: Returned GEM object size, aligned to PAGE_SIZE */
+	__u64 size;
 };
 
 #if defined(__cplusplus)
