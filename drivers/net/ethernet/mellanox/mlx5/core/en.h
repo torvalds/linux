@@ -975,6 +975,7 @@ struct mlx5e_priv {
 
 struct mlx5e_dev {
 	struct mlx5e_priv *priv;
+	struct devlink_port dl_port;
 };
 
 struct mlx5e_rx_handlers {

@@ -5921,12 +5921,12 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 	priv->dfs_root = debugfs_create_dir("nic",
 					    mlx5_debugfs_get_dev_root(priv->mdev));
 
-	err = mlx5e_devlink_port_register(mlx5e_dev, priv, mdev);
+	err = mlx5e_devlink_port_register(mlx5e_dev, mdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_devlink_port_register failed, %d\n", err);
 		goto err_destroy_netdev;
 	}
-	SET_NETDEV_DEVLINK_PORT(netdev, mlx5e_devlink_get_dl_port(priv));
+	SET_NETDEV_DEVLINK_PORT(netdev, &mlx5e_dev->dl_port);
 
 	err = profile->init(mdev, netdev);
 	if (err) {
@@ -5956,7 +5956,7 @@ err_resume:
 err_profile_cleanup:
 	profile->cleanup(priv);
 err_devlink_cleanup:
-	mlx5e_devlink_port_unregister(priv);
+	mlx5e_devlink_port_unregister(mlx5e_dev);
 err_destroy_netdev:
 	debugfs_remove_recursive(priv->dfs_root);
 	mlx5e_destroy_netdev(priv);
@@ -5976,7 +5976,7 @@ static void mlx5e_remove(struct auxiliary_device *adev)
 	unregister_netdev(priv->netdev);
 	mlx5e_suspend(adev, state);
 	priv->profile->cleanup(priv);
-	mlx5e_devlink_port_unregister(priv);
+	mlx5e_devlink_port_unregister(mlx5e_dev);
 	debugfs_remove_recursive(priv->dfs_root);
 	mlx5e_destroy_netdev(priv);
 	mlx5e_destroy_devlink(mlx5e_dev);

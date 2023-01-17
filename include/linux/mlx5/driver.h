@@ -679,7 +679,6 @@ struct mlx5e_resources {
 		u32			   mkey;
 		struct mlx5_sq_bfreg       bfreg;
 	} hw_objs;
-	struct devlink_port dl_port;
 	struct net_device *uplink_netdev;
 	struct mutex uplink_netdev_lock;
 	struct mlx5_crypto_dek_priv *dek_priv;
