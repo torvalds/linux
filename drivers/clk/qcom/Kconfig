@@ -410,6 +410,15 @@ config SC_DISPCC_8280XP
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SA_GCC_8775P
+	tristate "SA8775 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SA8775 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SDCC, etc.
+
 config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
 	select QCOM_GDSC
