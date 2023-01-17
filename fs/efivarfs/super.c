@@ -256,7 +256,7 @@ static struct file_system_type efivarfs_type = {
 
 static __init int efivarfs_init(void)
 {
-	if (!efivars_kobject())
+	if (!efivar_is_available())
 		return -ENODEV;
 
 	return register_filesystem(&efivarfs_type);
