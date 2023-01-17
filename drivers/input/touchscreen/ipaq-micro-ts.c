@@ -143,8 +143,8 @@ static int micro_ts_resume(struct device *dev)
 	return 0;
 }
 
-static DEFINE_SIMPLE_DEV_PM(micro_ts_dev_pm_ops,
-			    micro_ts_suspend, micro_ts_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(micro_ts_dev_pm_ops,
+				micro_ts_suspend, micro_ts_resume);
 
 static struct platform_driver micro_ts_device_driver = {
 	.driver	= {
