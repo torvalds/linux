@@ -145,6 +145,7 @@ Hardware Monitoring Kernel Drivers
    max6697
    max8688
    mc13783-adc
+   mc34vr500
    mcp3021
    menf21bmc
    mlxreg-fan

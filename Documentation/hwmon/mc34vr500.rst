@@ -1,0 +1,32 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
+Kernel driver mc34vr500
+=======================
+
+Supported Chips:
+
+  * NXP MC34VR500
+
+    Prefix: 'mc34vr500'
+
+    Datasheet: https://www.nxp.com/docs/en/data-sheet/MC34VR500.pdf
+
+Author: Mario Kicherer <dev@kicherer.org>
+
+Description
+-----------
+
+This driver implements initial support for the NXP MC34VR500 PMIC. The MC34VR500
+monitors the temperature, input voltage and output currents and provides
+corresponding alarms. For the temperature, the chip can send interrupts if
+the temperature rises above one of the following values: 110°, 120°, 125° and
+130° Celsius. For the input voltage, an interrupt is sent when the voltage
+drops below 2.8V.
+
+Currently, this driver only implements the input voltage and temperature
+alarms. The interrupts are mapped as follows:
+
+<= 2.8V  -> in0_min_alarm
+>110°c   -> temp1_max_alarm
+>120°c   -> temp1_crit_alarm
+>130°c   -> temp1_emergency_alarm
