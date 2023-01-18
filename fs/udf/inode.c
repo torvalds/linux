@@ -68,6 +68,8 @@ static void udf_prealloc_extents(struct inode *, int, int,
 static void udf_merge_extents(struct inode *, struct kernel_long_ad *, int *);
 static int udf_update_extents(struct inode *, struct kernel_long_ad *, int,
 			      int, struct extent_position *);
+static int udf_get_block_wb(struct inode *inode, sector_t block,
+			    struct buffer_head *bh_result, int create);
 
 static void __udf_clear_extent_cache(struct inode *inode)
 {
@@ -186,7 +188,7 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 static int udf_writepages(struct address_space *mapping,
 			struct writeback_control *wbc)
 {
-	return mpage_writepages(mapping, wbc, udf_get_block);
+	return mpage_writepages(mapping, wbc, udf_get_block_wb);
 }
 
 static int udf_read_folio(struct file *file, struct folio *folio)
@@ -367,23 +369,15 @@ static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 	return err;
 }
 
-static int udf_get_block(struct inode *inode, sector_t block,
-			 struct buffer_head *bh_result, int create)
+static int __udf_get_block(struct inode *inode, sector_t block,
+			   struct buffer_head *bh_result, int flags)
 {
 	int err;
 	struct udf_map_rq map = {
 		.lblk = block,
-		.iflags = create ? UDF_MAP_CREATE : 0,
+		.iflags = flags,
 	};
 
-	/*
-	 * We preallocate blocks only for regular files. It also makes sense
-	 * for directories but there's a problem when to drop the
-	 * preallocation. We might use some delayed work for that but I feel
-	 * it's overengineering for a filesystem like UDF.
-	 */
-	if (!S_ISREG(inode->i_mode))
-		map.iflags |= UDF_MAP_NOPREALLOC;
 	err = udf_map_block(inode, &map);
 	if (err < 0)
 		return err;
@@ -393,6 +387,34 @@ static int udf_get_block(struct inode *inode, sector_t block,
 			set_buffer_new(bh_result);
 	}
 	return 0;
+}
+
+int udf_get_block(struct inode *inode, sector_t block,
+		  struct buffer_head *bh_result, int create)
+{
+	int flags = create ? UDF_MAP_CREATE : 0;
+
+	/*
+	 * We preallocate blocks only for regular files. It also makes sense
+	 * for directories but there's a problem when to drop the
+	 * preallocation. We might use some delayed work for that but I feel
+	 * it's overengineering for a filesystem like UDF.
+	 */
+	if (!S_ISREG(inode->i_mode))
+		flags |= UDF_MAP_NOPREALLOC;
+	return __udf_get_block(inode, block, bh_result, flags);
+}
+
+/*
+ * We shouldn't be allocating blocks on page writeback since we allocate them
+ * on page fault. We can spot dirty buffers without allocated blocks though
+ * when truncate expands file. These however don't have valid data so we can
+ * safely ignore them. So never allocate blocks from page writeback.
+ */
+static int udf_get_block_wb(struct inode *inode, sector_t block,
+			    struct buffer_head *bh_result, int create)
+{
+	return __udf_get_block(inode, block, bh_result, 0);
 }
 
 /* Extend the file with new blocks totaling 'new_block_bytes',
