@@ -169,6 +169,11 @@ struct xe_gt {
 		 * @seqno_recv: last received TLB invalidation seqno, protected by CT lock
 		 */
 		int seqno_recv;
+		/**
+		 * @pending_fences: list of pending fences waiting TLB
+		 * invaliations, protected by CT lock
+		 */
+		struct list_head pending_fences;
 	} tlb_invalidation;
 
 	/** @usm: unified shared memory state */

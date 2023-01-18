@@ -17,11 +17,27 @@ guc_to_gt(struct xe_guc *guc)
 int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 {
 	gt->tlb_invalidation.seqno = 1;
+	INIT_LIST_HEAD(&gt->tlb_invalidation.pending_fences);
 
 	return 0;
 }
 
-static int send_tlb_invalidation(struct xe_guc *guc)
+void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
+{
+	struct xe_gt_tlb_invalidation_fence *fence, *next;
+
+	mutex_lock(&gt->uc.guc.ct.lock);
+	list_for_each_entry_safe(fence, next,
+				 &gt->tlb_invalidation.pending_fences, link) {
+		list_del(&fence->link);
+		dma_fence_signal(&fence->base);
+		dma_fence_put(&fence->base);
+	}
+	mutex_unlock(&gt->uc.guc.ct.lock);
+}
+
+static int send_tlb_invalidation(struct xe_guc *guc,
+				 struct xe_gt_tlb_invalidation_fence *fence)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 action[] = {
@@ -41,6 +57,15 @@ static int send_tlb_invalidation(struct xe_guc *guc)
 	 */
 	mutex_lock(&guc->ct.lock);
 	seqno = gt->tlb_invalidation.seqno;
+	if (fence) {
+		/*
+		 * FIXME: How to deal TLB invalidation timeout, right now we
+		 * just have an endless fence which isn't ideal.
+		 */
+		fence->seqno = seqno;
+		list_add_tail(&fence->link,
+			      &gt->tlb_invalidation.pending_fences);
+	}
 	action[1] = seqno;
 	gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
 		TLB_INVALIDATION_SEQNO_MAX;
@@ -55,9 +80,10 @@ static int send_tlb_invalidation(struct xe_guc *guc)
 	return ret;
 }
 
-int xe_gt_tlb_invalidation(struct xe_gt *gt)
+int xe_gt_tlb_invalidation(struct xe_gt *gt,
+			   struct xe_gt_tlb_invalidation_fence *fence)
 {
-	return send_tlb_invalidation(&gt->uc.guc);
+	return send_tlb_invalidation(&gt->uc.guc, fence);
 }
 
 static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
@@ -97,7 +123,10 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
 int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_gt_tlb_invalidation_fence *fence;
 	int expected_seqno;
+
+	lockdep_assert_held(&guc->ct.lock);
 
 	if (unlikely(len != 1))
 		return -EPROTO;
@@ -110,6 +139,14 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	gt->tlb_invalidation.seqno_recv = msg[0];
 	smp_wmb();
 	wake_up_all(&guc->ct.wq);
+
+	fence = list_first_entry_or_null(&gt->tlb_invalidation.pending_fences,
+					 typeof(*fence), link);
+	if (fence && tlb_invalidation_seqno_past(gt, fence->seqno)) {
+		list_del(&fence->link);
+		dma_fence_signal(&fence->base);
+		dma_fence_put(&fence->base);
+	}
 
 	return 0;
 }

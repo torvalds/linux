@@ -99,7 +99,7 @@ static int invalidate_tlb(struct seq_file *m, void *data)
 	int seqno;
 	int ret = 0;
 
-	seqno = xe_gt_tlb_invalidation(gt);
+	seqno = xe_gt_tlb_invalidation(gt, NULL);
 	XE_WARN_ON(seqno < 0);
 	if (seqno > 0)
 		ret = xe_gt_tlb_invalidation_wait(gt, seqno);

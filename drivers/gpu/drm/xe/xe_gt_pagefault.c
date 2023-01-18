@@ -245,7 +245,7 @@ unlock_vm:
 		 * defer TLB invalidate + fault response to a callback of fence
 		 * too
 		 */
-		ret = xe_gt_tlb_invalidation(gt);
+		ret = xe_gt_tlb_invalidation(gt, NULL);
 		if (ret >= 0)
 			ret = 0;
 	}
