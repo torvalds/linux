@@ -2644,10 +2644,8 @@ static void sfp_cleanup(void *data)
 
 static int sfp_i2c_get(struct sfp *sfp)
 {
-	struct acpi_handle *acpi_handle;
 	struct fwnode_handle *h;
 	struct i2c_adapter *i2c;
-	struct device_node *np;
 	int err;
 
 	h = fwnode_find_reference(dev_fwnode(sfp->dev), "i2c-bus", 0);
@@ -2656,16 +2654,7 @@ static int sfp_i2c_get(struct sfp *sfp)
 		return -ENODEV;
 	}
 
-	if (is_acpi_device_node(h)) {
-		acpi_handle = ACPI_HANDLE_FWNODE(h);
-		i2c = i2c_acpi_find_adapter_by_handle(acpi_handle);
-	} else if ((np = to_of_node(h)) != NULL) {
-		i2c = of_find_i2c_adapter_by_node(np);
-	} else {
-		err = -EINVAL;
-		goto put;
-	}
-
+	i2c = i2c_get_adapter_by_fwnode(h);
 	if (!i2c) {
 		err = -EPROBE_DEFER;
 		goto put;
