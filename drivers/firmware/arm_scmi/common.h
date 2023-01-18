@@ -157,6 +157,8 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
 /**
  * struct scmi_chan_info - Structure representing a SCMI channel information
  *
+ * @id: An identifier for this channel: this matches the protocol number
+ *      used to initialize this channel
  * @dev: Reference to device in the SCMI hierarchy corresponding to this
  *	 channel
  * @rx_timeout_ms: The configured RX timeout in milliseconds.
@@ -168,6 +170,7 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
  * @transport_info: Transport layer related information
  */
 struct scmi_chan_info {
+	int id;
 	struct device *dev;
 	unsigned int rx_timeout_ms;
 	struct scmi_handle *handle;
