@@ -59,12 +59,12 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        ltc2992@6F {
+        ltc2992@6f {
                 #address-cells = <1>;
                 #size-cells = <0>;
 
                 compatible = "adi,ltc2992";
-                reg = <0x6F>;
+                reg = <0x6f>;
 
                 channel@0 {
                         reg = <0x0>;
