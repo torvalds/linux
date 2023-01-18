@@ -322,6 +322,7 @@ soc21_asic_reset_method(struct amdgpu_device *adev)
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
+	case IP_VERSION(13, 0, 10):
 		return AMD_RESET_METHOD_MODE1;
 	case IP_VERSION(13, 0, 4):
 		return AMD_RESET_METHOD_MODE2;
@@ -652,6 +653,16 @@ static int soc21_common_early_init(void *handle)
 		}
 		adev->external_rev_id = adev->rev_id + 0x20;
 		break;
+	case IP_VERSION(11, 0, 4):
+		adev->cg_flags = AMD_CG_SUPPORT_VCN_MGCG |
+			AMD_CG_SUPPORT_JPEG_MGCG;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_VCN_DPG |
+			AMD_PG_SUPPORT_GFX_PG |
+			AMD_PG_SUPPORT_JPEG;
+		adev->external_rev_id = adev->rev_id + 0x1;
+		break;
+
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
