@@ -222,26 +222,43 @@ i915_param_named_unsafe(lmem_size, uint, 0400,
 i915_param_named_unsafe(lmem_bar_size, uint, 0400,
 			"Set the lmem bar size(in MiB).");
 
-static __always_inline void _print_param(struct drm_printer *p,
-					 const char *name,
-					 const char *type,
-					 const void *x)
+static void _param_print_bool(struct drm_printer *p, const char *name,
+			      bool val)
 {
-	if (!__builtin_strcmp(type, "bool"))
-		drm_printf(p, "i915.%s=%s\n", name,
-			   str_yes_no(*(const bool *)x));
-	else if (!__builtin_strcmp(type, "int"))
-		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
-	else if (!__builtin_strcmp(type, "unsigned int"))
-		drm_printf(p, "i915.%s=%u\n", name, *(const unsigned int *)x);
-	else if (!__builtin_strcmp(type, "unsigned long"))
-		drm_printf(p, "i915.%s=%lu\n", name, *(const unsigned long *)x);
-	else if (!__builtin_strcmp(type, "char *"))
-		drm_printf(p, "i915.%s=%s\n", name, *(const char **)x);
-	else
-		WARN_ONCE(1, "no printer defined for param type %s (i915.%s)\n",
-			  type, name);
+	drm_printf(p, "i915.%s=%s\n", name, str_yes_no(val));
 }
+
+static void _param_print_int(struct drm_printer *p, const char *name,
+			     int val)
+{
+	drm_printf(p, "i915.%s=%d\n", name, val);
+}
+
+static void _param_print_uint(struct drm_printer *p, const char *name,
+			      unsigned int val)
+{
+	drm_printf(p, "i915.%s=%u\n", name, val);
+}
+
+static void _param_print_ulong(struct drm_printer *p, const char *name,
+			       unsigned long val)
+{
+	drm_printf(p, "i915.%s=%lu\n", name, val);
+}
+
+static void _param_print_charp(struct drm_printer *p, const char *name,
+			       const char *val)
+{
+	drm_printf(p, "i915.%s=%s\n", name, val);
+}
+
+#define _param_print(p, name, val)				\
+	_Generic(val,						\
+		 bool: _param_print_bool,			\
+		 int: _param_print_int,				\
+		 unsigned int: _param_print_uint,		\
+		 unsigned long: _param_print_ulong,		\
+		 char *: _param_print_charp)(p, name, val)
 
 /**
  * i915_params_dump - dump i915 modparams
@@ -252,7 +269,7 @@ static __always_inline void _print_param(struct drm_printer *p,
  */
 void i915_params_dump(const struct i915_params *params, struct drm_printer *p)
 {
-#define PRINT(T, x, ...) _print_param(p, #x, #T, &params->x);
+#define PRINT(T, x, ...) _param_print(p, #x, params->x);
 	I915_PARAMS_FOR_EACH(PRINT);
 #undef PRINT
 }
