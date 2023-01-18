@@ -7054,14 +7054,12 @@ out_put:
 			     PERF_SAMPLE_ID | PERF_SAMPLE_STREAM_ID |	\
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_IDENTIFIER)
 
-static void __perf_event_header__init_id(struct perf_event_header *header,
-					 struct perf_sample_data *data,
+static void __perf_event_header__init_id(struct perf_sample_data *data,
 					 struct perf_event *event,
 					 u64 sample_type)
 {
 	data->type = event->attr.sample_type;
 	data->sample_flags |= data->type & PERF_SAMPLE_ID_ALL;
-	header->size += event->id_header_size;
 
 	if (sample_type & PERF_SAMPLE_TID) {
 		/* namespace issues */
@@ -7088,8 +7086,10 @@ void perf_event_header__init_id(struct perf_event_header *header,
 				struct perf_sample_data *data,
 				struct perf_event *event)
 {
-	if (event->attr.sample_id_all)
-		__perf_event_header__init_id(header, data, event, event->attr.sample_type);
+	if (event->attr.sample_id_all) {
+		header->size += event->id_header_size;
+		__perf_event_header__init_id(data, event, event->attr.sample_type);
+	}
 }
 
 static void __perf_event__output_id_sample(struct perf_output_handle *handle,
@@ -7577,7 +7577,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 	u64 filtered_sample_type;
 
 	header->type = PERF_RECORD_SAMPLE;
-	header->size = sizeof(*header) + event->header_size;
+	header->size = sizeof(*header) + event->header_size + event->id_header_size;
 
 	header->misc = 0;
 	header->misc |= perf_misc_flags(regs);
@@ -7595,7 +7595,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 					   PERF_SAMPLE_REGS_USER);
 	filtered_sample_type &= ~data->sample_flags;
 
-	__perf_event_header__init_id(header, data, event, filtered_sample_type);
+	__perf_event_header__init_id(data, event, filtered_sample_type);
 
 	if (filtered_sample_type & PERF_SAMPLE_IP) {
 		data->ip = perf_instruction_pointer(regs);
