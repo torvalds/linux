@@ -405,14 +405,15 @@ static struct buffer_head *udf_getblk(struct inode *inode, udf_pblk_t block,
 				      int create, int *err)
 {
 	struct buffer_head *bh;
-	struct buffer_head dummy;
+	struct udf_map_rq map = {
+		.lblk = block,
+		.iflags = UDF_MAP_NOPREALLOC | (create ? UDF_MAP_CREATE : 0),
+	};
 
-	dummy.b_state = 0;
-	dummy.b_blocknr = -1000;
-	*err = udf_get_block(inode, block, &dummy, create);
-	if (!*err && buffer_mapped(&dummy)) {
-		bh = sb_getblk(inode->i_sb, dummy.b_blocknr);
-		if (buffer_new(&dummy)) {
+	*err = udf_map_block(inode, &map);
+	if (!*err && map.oflags & UDF_BLK_MAPPED) {
+		bh = sb_getblk(inode->i_sb, map.pblk);
+		if (map.oflags & UDF_BLK_NEW) {
 			lock_buffer(bh);
 			memset(bh->b_data, 0x00, inode->i_sb->s_blocksize);
 			set_buffer_uptodate(bh);
