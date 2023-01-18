@@ -58,7 +58,7 @@ static umode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
 static int udf_sync_inode(struct inode *inode);
 static int udf_alloc_i_data(struct inode *inode, size_t size);
-static sector_t inode_getblk(struct inode *, sector_t, int *, int *);
+static int inode_getblk(struct inode *inode, struct udf_map_rq *map);
 static int udf_insert_aext(struct inode *, struct extent_position,
 			   struct kernel_lb_addr, uint32_t);
 static void udf_split_extents(struct inode *, int *, int, udf_pblk_t,
@@ -336,7 +336,7 @@ struct udf_map_rq {
 
 static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 {
-	int err, new;
+	int err;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	map->oflags = 0;
@@ -367,14 +367,9 @@ static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 	if (((loff_t)map->lblk) << inode->i_blkbits > iinfo->i_lenExtents)
 		udf_discard_prealloc(inode);
 	udf_clear_extent_cache(inode);
-	map->pblk = inode_getblk(inode, map->lblk, &err, &new);
+	err = inode_getblk(inode, map);
 	up_write(&iinfo->i_data_sem);
-	if (err)
-		return err;
-	map->oflags |= UDF_BLK_MAPPED;
-	if (new)
-		map->oflags |= UDF_BLK_NEW;
-	return 0;
+	return err;
 }
 
 static int udf_get_block(struct inode *inode, sector_t block,
@@ -627,8 +622,7 @@ out:
 	return err;
 }
 
-static sector_t inode_getblk(struct inode *inode, sector_t block,
-			     int *err, int *new)
+static int inode_getblk(struct inode *inode, struct udf_map_rq *map)
 {
 	struct kernel_long_ad laarr[EXTENT_MERGE_SIZE];
 	struct extent_position prev_epos, cur_epos, next_epos;
@@ -637,21 +631,20 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	struct kernel_lb_addr eloc, tmpeloc;
 	int c = 1;
 	loff_t lbcount = 0, b_off = 0;
-	udf_pblk_t newblocknum, newblock = 0;
+	udf_pblk_t newblocknum;
 	sector_t offset = 0;
 	int8_t etype;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	udf_pblk_t goal = 0, pgoal = iinfo->i_location.logicalBlockNum;
 	int lastblock = 0;
 	bool isBeyondEOF;
+	int ret = 0;
 
-	*err = 0;
-	*new = 0;
 	prev_epos.offset = udf_file_entry_alloc_offset(inode);
 	prev_epos.block = iinfo->i_location;
 	prev_epos.bh = NULL;
 	cur_epos = next_epos = prev_epos;
-	b_off = (loff_t)block << inode->i_sb->s_blocksize_bits;
+	b_off = (loff_t)map->lblk << inode->i_sb->s_blocksize_bits;
 
 	/* find the extent which contains the block we are looking for.
 	   alternate between laarr[0] and laarr[1] for locations of the
@@ -715,13 +708,13 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 				      inode->i_sb->s_blocksize);
 			udf_write_aext(inode, &cur_epos, &eloc, elen, 1);
 		}
-		newblock = udf_get_lb_pblock(inode->i_sb, &eloc, offset);
+		map->oflags = UDF_BLK_MAPPED;
+		map->pblk = udf_get_lb_pblock(inode->i_sb, &eloc, offset);
 		goto out_free;
 	}
 
 	/* Are we beyond EOF and preallocated extent? */
 	if (etype == -1) {
-		int ret;
 		loff_t hole_len;
 
 		isBeyondEOF = true;
@@ -741,10 +734,8 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		/* Create extents for the hole between EOF and offset */
 		hole_len = (loff_t)offset << inode->i_blkbits;
 		ret = udf_do_extend_file(inode, &prev_epos, laarr, hole_len);
-		if (ret < 0) {
-			*err = ret;
+		if (ret < 0)
 			goto out_free;
-		}
 		c = 0;
 		offset = 0;
 		count += ret;
@@ -794,7 +785,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	if ((laarr[c].extLength >> 30) == (EXT_NOT_RECORDED_ALLOCATED >> 30))
 		newblocknum = laarr[c].extLocation.logicalBlockNum + offset;
 	else { /* otherwise, allocate a new block */
-		if (iinfo->i_next_alloc_block == block)
+		if (iinfo->i_next_alloc_block == map->lblk)
 			goal = iinfo->i_next_alloc_goal;
 
 		if (!goal) {
@@ -804,11 +795,9 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 
 		newblocknum = udf_new_block(inode->i_sb, inode,
 				iinfo->i_location.partitionReferenceNum,
-				goal, err);
-		if (!newblocknum) {
-			*err = -ENOSPC;
+				goal, &ret);
+		if (!newblocknum)
 			goto out_free;
-		}
 		if (isBeyondEOF)
 			iinfo->i_lenExtents += inode->i_sb->s_blocksize;
 	}
@@ -832,18 +821,18 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	/* write back the new extents, inserting new extents if the new number
 	 * of extents is greater than the old number, and deleting extents if
 	 * the new number of extents is less than the old number */
-	*err = udf_update_extents(inode, laarr, startnum, endnum, &prev_epos);
-	if (*err < 0)
+	ret = udf_update_extents(inode, laarr, startnum, endnum, &prev_epos);
+	if (ret < 0)
 		goto out_free;
 
-	newblock = udf_get_pblock(inode->i_sb, newblocknum,
+	map->pblk = udf_get_pblock(inode->i_sb, newblocknum,
 				iinfo->i_location.partitionReferenceNum, 0);
-	if (!newblock) {
-		*err = -EIO;
+	if (!map->pblk) {
+		ret = -EFSCORRUPTED;
 		goto out_free;
 	}
-	*new = 1;
-	iinfo->i_next_alloc_block = block + 1;
+	map->oflags = UDF_BLK_NEW | UDF_BLK_MAPPED;
+	iinfo->i_next_alloc_block = map->lblk + 1;
 	iinfo->i_next_alloc_goal = newblocknum + 1;
 	inode->i_ctime = current_time(inode);
 
@@ -851,11 +840,12 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		udf_sync_inode(inode);
 	else
 		mark_inode_dirty(inode);
+	ret = 0;
 out_free:
 	brelse(prev_epos.bh);
 	brelse(cur_epos.bh);
 	brelse(next_epos.bh);
-	return newblock;
+	return ret;
 }
 
 static void udf_split_extents(struct inode *inode, int *c, int offset,
