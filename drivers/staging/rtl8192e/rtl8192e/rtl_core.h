@@ -525,8 +525,6 @@ struct r8192_priv {
 	bool		force_lps;
 
 	bool		chan_forced;
-
-	u8		H2CTxCmdSeq;
 };
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
