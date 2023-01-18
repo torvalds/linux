@@ -30,6 +30,9 @@
 #define AP_QUEUE_UNASSIGNED "unassigned"
 #define AP_QUEUE_IN_USE "in use"
 
+#define MAX_RESET_CHECK_WAIT	200	/* Sleep max 200ms for reset check	*/
+#define AP_RESET_INTERVAL		20	/* Reset sleep interval (20ms)		*/
+
 static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable);
 static struct vfio_ap_queue *vfio_ap_find_queue(int apqn);
 static const struct vfio_device_ops vfio_ap_matrix_dev_ops;
@@ -1626,11 +1629,12 @@ static int apq_status_check(int apqn, struct ap_queue_status *status)
 
 static int apq_reset_check(struct vfio_ap_queue *q)
 {
-	int iters = 2, ret;
+	int ret;
+	int iters = MAX_RESET_CHECK_WAIT / AP_RESET_INTERVAL;
 	struct ap_queue_status status;
 
-	while (iters--) {
-		msleep(20);
+	for (; iters > 0; iters--) {
+		msleep(AP_RESET_INTERVAL);
 		status = ap_tapq(q->apqn, NULL);
 		ret = apq_status_check(q->apqn, &status);
 		if (ret != -EBUSY)
