@@ -127,7 +127,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 		Type = val[0];
 		RegRCR = rtl92e_readl(dev, RCR);
-		priv->ReceiveConfig = RegRCR;
+		priv->receive_config = RegRCR;
 
 		if (Type)
 			RegRCR |= (RCR_CBSSID);
@@ -135,7 +135,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			RegRCR &= (~RCR_CBSSID);
 
 		rtl92e_writel(dev, RCR, RegRCR);
-		priv->ReceiveConfig = RegRCR;
+		priv->receive_config = RegRCR;
 
 	}
 	break;
@@ -594,8 +594,8 @@ static void _rtl92e_hwconfig(struct net_device *dev)
 	rtl92e_writel(dev, RRSR, regRRSR);
 
 	rtl92e_writew(dev, RETRY_LIMIT,
-		      priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
-		      priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
+		      priv->short_retry_limit << RETRY_LIMIT_SHORT_SHIFT |
+		      priv->long_retry_limit << RETRY_LIMIT_LONG_SHIFT);
 }
 
 bool rtl92e_start_adapter(struct net_device *dev)
@@ -670,7 +670,7 @@ start:
 				  (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT)));
 	rtl92e_writel(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
 	rtl92e_writew(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
-	rtl92e_writel(dev, RCR, priv->ReceiveConfig);
+	rtl92e_writel(dev, RCR, priv->receive_config);
 
 	rtl92e_writel(dev, RQPN1, NUM_OF_PAGE_IN_FW_QUEUE_BK <<
 		      RSVD_FW_QUEUE_PAGE_BK_SHIFT |
@@ -860,9 +860,9 @@ void rtl92e_link_change(struct net_device *dev)
 			if (ieee->intel_promiscuous_md_info.promiscuous_on)
 				;
 			else
-				priv->ReceiveConfig = reg |= RCR_CBSSID;
+				priv->receive_config = reg |= RCR_CBSSID;
 		} else
-			priv->ReceiveConfig = reg &= ~RCR_CBSSID;
+			priv->receive_config = reg &= ~RCR_CBSSID;
 
 		rtl92e_writel(dev, RCR, reg);
 	}
@@ -874,12 +874,12 @@ void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (bAllowAllDA)
-		priv->ReceiveConfig |= RCR_AAP;
+		priv->receive_config |= RCR_AAP;
 	else
-		priv->ReceiveConfig &= ~RCR_AAP;
+		priv->receive_config &= ~RCR_AAP;
 
 	if (WriteIntoReg)
-		rtl92e_writel(dev, RCR, priv->ReceiveConfig);
+		rtl92e_writel(dev, RCR, priv->receive_config);
 }
 
 static u8 _rtl92e_rate_mgn_to_hw(u8 rate)
@@ -2010,10 +2010,10 @@ rtl92e_init_variables(struct net_device  *dev)
 
 	priv->rtllib->tx_headroom = sizeof(struct tx_fwinfo_8190pci);
 
-	priv->ShortRetryLimit = 0x30;
-	priv->LongRetryLimit = 0x30;
+	priv->short_retry_limit = 0x30;
+	priv->long_retry_limit = 0x30;
 
-	priv->ReceiveConfig = RCR_ADD3	|
+	priv->receive_config = RCR_ADD3	|
 		RCR_AMF | RCR_ADF |
 		RCR_AICV |
 		RCR_AB | RCR_AM | RCR_APM |

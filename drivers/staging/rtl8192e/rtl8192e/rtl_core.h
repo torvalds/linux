@@ -362,7 +362,7 @@ struct r8192_priv {
 
 	u64		LastRxDescTSF;
 
-	u32		ReceiveConfig;
+	u32 receive_config;
 	u8		retry_data;
 	u8		retry_rts;
 	u16		rts;
@@ -371,8 +371,8 @@ struct r8192_priv {
 	int		 txringcount;
 	atomic_t	tx_pending[0x10];
 
-	u16		ShortRetryLimit;
-	u16		LongRetryLimit;
+	u16 short_retry_limit;
+	u16 long_retry_limit;
 
 	bool		hw_radio_off;
 	bool		blinked_ingpio;
