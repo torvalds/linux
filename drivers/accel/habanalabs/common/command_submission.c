@@ -17,7 +17,7 @@
 			HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES)
 
 
-#define MAX_TS_ITER_NUM 10
+#define MAX_TS_ITER_NUM 100
 
 /**
  * enum hl_cs_wait_status - cs wait status
@@ -3145,6 +3145,7 @@ static int ts_buff_get_kernel_ts_record(struct hl_mmap_mem_buf *buf,
 			(ts_buff->kernel_buff_size / sizeof(struct hl_user_pending_interrupt));
 	unsigned long flags, iter_counter = 0;
 	u64 current_cq_counter;
+	ktime_t timestamp;
 
 	/* Validate ts_offset not exceeding last max */
 	if (requested_offset_record >= cb_last) {
@@ -3152,6 +3153,8 @@ static int ts_buff_get_kernel_ts_record(struct hl_mmap_mem_buf *buf,
 								(u64)(uintptr_t)cb_last);
 		return -EINVAL;
 	}
+
+	timestamp = ktime_get();
 
 start_over:
 	spin_lock_irqsave(wait_list_lock, flags);
@@ -3178,11 +3181,12 @@ start_over:
 
 			/* irq handling in the middle give it time to finish */
 			spin_unlock_irqrestore(wait_list_lock, flags);
-			usleep_range(1, 10);
+			usleep_range(100, 1000);
 			if (++iter_counter == MAX_TS_ITER_NUM) {
 				dev_err(buf->mmg->dev,
-					"handling registration interrupt took too long!!\n");
-				return -EINVAL;
+					"Timestamp offset processing reached timeout of %lld ms\n",
+					ktime_ms_delta(ktime_get(), timestamp));
+				return -EAGAIN;
 			}
 
 			goto start_over;
