@@ -33,7 +33,7 @@
 static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable);
 static struct vfio_ap_queue *vfio_ap_find_queue(int apqn);
 static const struct vfio_device_ops vfio_ap_matrix_dev_ops;
-static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q, unsigned int retry);
+static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q);
 
 /**
  * get_update_locks_for_kvm: Acquire the locks required to dynamically update a
@@ -1643,8 +1643,7 @@ static int apq_reset_check(struct vfio_ap_queue *q)
 	return ret;
 }
 
-static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q,
-				    unsigned int retry)
+static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 {
 	struct ap_queue_status status;
 	int ret;
@@ -1659,12 +1658,15 @@ retry_zapq:
 		ret = 0;
 		break;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
-		if (retry--) {
-			msleep(20);
-			goto retry_zapq;
-		}
-		ret = -EBUSY;
-		break;
+		/*
+		 * There is a reset issued by another process in progress. Let's wait
+		 * for that to complete. Since we have no idea whether it was a RAPQ or
+		 * ZAPQ, then if it completes successfully, let's issue the ZAPQ.
+		 */
+		ret = apq_reset_check(q);
+		if (ret)
+			break;
+		goto retry_zapq;
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
@@ -1699,7 +1701,7 @@ static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable)
 	struct vfio_ap_queue *q;
 
 	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode) {
-		ret = vfio_ap_mdev_reset_queue(q, 1);
+		ret = vfio_ap_mdev_reset_queue(q);
 		/*
 		 * Regardless whether a queue turns out to be busy, or
 		 * is not operational, we need to continue resetting
@@ -1950,7 +1952,7 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 		}
 	}
 
-	vfio_ap_mdev_reset_queue(q, 1);
+	vfio_ap_mdev_reset_queue(q);
 	dev_set_drvdata(&apdev->device, NULL);
 	kfree(q);
 	release_update_locks_for_mdev(matrix_mdev);
