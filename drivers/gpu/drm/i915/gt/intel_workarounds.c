@@ -30,6 +30,9 @@
  *   creation to have a "primed golden context", i.e. a context image that
  *   already contains the changes needed to all the registers.
  *
+ *   Context workarounds should be implemented in the *_ctx_workarounds_init()
+ *   variants respective to the targeted platforms.
+ *
  * - Engine workarounds: the list of these WAs is applied whenever the specific
  *   engine is reset. It's also possible that a set of engine classes share a
  *   common power domain and they are reset together. This happens on some
@@ -42,14 +45,27 @@
  *   saves/restores their values before/after the reset takes place. See
  *   ``drivers/gpu/drm/i915/gt/uc/intel_guc_ads.c`` for reference.
  *
+ *   Workarounds for registers specific to RCS and CCS should be implemented in
+ *   rcs_engine_wa_init() and ccs_engine_wa_init(), respectively; those for
+ *   registers belonging to BCS, VCS or VECS should be implemented in
+ *   xcs_engine_wa_init(). Workarounds for registers not belonging to a specific
+ *   engine's MMIO range but that are part of of the common RCS/CCS reset domain
+ *   should be implemented in general_render_compute_wa_init().
+ *
  * - GT workarounds: the list of these WAs is applied whenever these registers
  *   revert to their default values: on GPU reset, suspend/resume [1]_, etc.
+ *
+ *   GT workarounds should be implemented in the *_gt_workarounds_init()
+ *   variants respective to the targeted platforms.
  *
  * - Register whitelist: some workarounds need to be implemented in userspace,
  *   but need to touch privileged registers. The whitelist in the kernel
  *   instructs the hardware to allow the access to happen. From the kernel side,
  *   this is just a special case of a MMIO workaround (as we write the list of
  *   these to/be-whitelisted registers to some special HW registers).
+ *
+ *   Register whitelisting should be done in the *_whitelist_build() variants
+ *   respective to the targeted platforms.
  *
  * - Workaround batchbuffers: buffers that get executed automatically by the
  *   hardware on every HW context restore. These buffers are created and
