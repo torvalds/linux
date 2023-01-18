@@ -52,6 +52,8 @@
 #define FE_DELETE_PERMS	(FE_PERM_U_DELETE | FE_PERM_G_DELETE | \
 			 FE_PERM_O_DELETE)
 
+struct udf_map_rq;
+
 static umode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
 static int udf_sync_inode(struct inode *inode);
@@ -320,43 +322,67 @@ int udf_expand_file_adinicb(struct inode *inode)
 	return err;
 }
 
-static int udf_get_block(struct inode *inode, sector_t block,
-			 struct buffer_head *bh_result, int create)
+#define UDF_MAP_CREATE	0x01	/* Mapping can allocate new blocks */
+
+#define UDF_BLK_MAPPED	0x01	/* Block was successfully mapped */
+#define UDF_BLK_NEW	0x02	/* Block was freshly allocated */
+
+struct udf_map_rq {
+	sector_t lblk;
+	udf_pblk_t pblk;
+	int iflags;		/* UDF_MAP_ flags determining behavior */
+	int oflags;		/* UDF_BLK_ flags reporting results */
+};
+
+static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 {
 	int err, new;
-	sector_t phys = 0;
-	struct udf_inode_info *iinfo;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	if (!create) {
-		phys = udf_block_map(inode, block);
-		if (phys)
-			map_bh(bh_result, inode->i_sb, phys);
+	map->oflags = 0;
+	if (!(map->iflags & UDF_MAP_CREATE)) {
+		map->pblk = udf_block_map(inode, map->lblk);
+		if (map->pblk != 0)
+			map->oflags |= UDF_BLK_MAPPED;
 		return 0;
 	}
-
-	err = -EIO;
-	new = 0;
-	iinfo = UDF_I(inode);
 
 	down_write(&iinfo->i_data_sem);
 	/*
 	 * Block beyond EOF and prealloc extents? Just discard preallocation
 	 * as it is not useful and complicates things.
 	 */
-	if (((loff_t)block) << inode->i_blkbits > iinfo->i_lenExtents)
+	if (((loff_t)map->lblk) << inode->i_blkbits > iinfo->i_lenExtents)
 		udf_discard_prealloc(inode);
 	udf_clear_extent_cache(inode);
-	phys = inode_getblk(inode, block, &err, &new);
-	if (!phys)
-		goto abort;
-
-	if (new)
-		set_buffer_new(bh_result);
-	map_bh(bh_result, inode->i_sb, phys);
-
-abort:
+	map->pblk = inode_getblk(inode, map->lblk, &err, &new);
 	up_write(&iinfo->i_data_sem);
-	return err;
+	if (err)
+		return err;
+	map->oflags |= UDF_BLK_MAPPED;
+	if (new)
+		map->oflags |= UDF_BLK_NEW;
+	return 0;
+}
+
+static int udf_get_block(struct inode *inode, sector_t block,
+			 struct buffer_head *bh_result, int create)
+{
+	int err;
+	struct udf_map_rq map = {
+		.lblk = block,
+		.iflags = create ? UDF_MAP_CREATE : 0,
+	};
+
+	err = udf_map_block(inode, &map);
+	if (err < 0)
+		return err;
+	if (map.oflags & UDF_BLK_MAPPED) {
+		map_bh(bh_result, inode->i_sb, map.pblk);
+		if (map.oflags & UDF_BLK_NEW)
+			set_buffer_new(bh_result);
+	}
+	return 0;
 }
 
 static struct buffer_head *udf_getblk(struct inode *inode, udf_pblk_t block,
