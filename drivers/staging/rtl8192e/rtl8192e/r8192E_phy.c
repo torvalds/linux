@@ -603,8 +603,6 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 			ant_pwr_diff = priv->tx_pwr_level_ofdm_24g_c[channel - 1]
 				       - priv->tx_pwr_level_ofdm_24g_a[channel - 1];
 
-			priv->RF_C_TxPwDiff = ant_pwr_diff;
-
 			ant_pwr_diff &= 0xf;
 
 			priv->antenna_tx_pwr_diff[2] = 0;

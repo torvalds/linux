@@ -476,7 +476,6 @@ struct r8192_priv {
 	u8 tx_pwr_level_ofdm_24g_a[14];
 	u8 tx_pwr_level_ofdm_24g_c[14];
 	u8 legacy_ht_tx_pwr_diff;
-	s8		RF_C_TxPwDiff;
 	u8 antenna_tx_pwr_diff[3];
 
 	bool		dynamic_tx_high_pwr;
