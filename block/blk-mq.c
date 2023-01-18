@@ -2688,7 +2688,7 @@ static blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 	return __blk_mq_try_issue_directly(rq->mq_hctx, rq, true, last);
 }
 
-static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
+static void blk_mq_plug_issue_direct(struct blk_plug *plug)
 {
 	struct blk_mq_hw_ctx *hctx = NULL;
 	struct request *rq;
@@ -2701,7 +2701,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
 
 		if (hctx != rq->mq_hctx) {
 			if (hctx)
-				blk_mq_commit_rqs(hctx, &queued, from_schedule);
+				blk_mq_commit_rqs(hctx, &queued, false);
 			hctx = rq->mq_hctx;
 		}
 
@@ -2713,7 +2713,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
 		case BLK_STS_RESOURCE:
 		case BLK_STS_DEV_RESOURCE:
 			blk_mq_request_bypass_insert(rq, false, true);
-			blk_mq_commit_rqs(hctx, &queued, from_schedule);
+			blk_mq_commit_rqs(hctx, &queued, false);
 			return;
 		default:
 			blk_mq_end_request(rq, ret);
@@ -2727,7 +2727,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
 	 * there was more coming, but that turned out to be a lie.
 	 */
 	if (errors)
-		blk_mq_commit_rqs(hctx, &queued, from_schedule);
+		blk_mq_commit_rqs(hctx, &queued, false);
 }
 
 static void __blk_mq_flush_plug_list(struct request_queue *q,
@@ -2798,7 +2798,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		}
 
 		blk_mq_run_dispatch_ops(q,
-				blk_mq_plug_issue_direct(plug, false));
+				blk_mq_plug_issue_direct(plug));
 		if (rq_list_empty(plug->mq_list))
 			return;
 	}
