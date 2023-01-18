@@ -1256,8 +1256,10 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		break;
 	}
 
-	if (crtc_state->dsb)
+	if (crtc_state->dsb) {
 		intel_dsb_commit(crtc_state->dsb);
+		intel_dsb_wait(crtc_state->dsb);
+	}
 }
 
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)

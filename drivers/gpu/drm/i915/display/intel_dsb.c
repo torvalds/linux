@@ -235,7 +235,7 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
 		drm_err(&dev_priv->drm, "[CRTC:%d:%s] DSB %d is busy\n",
 			crtc->base.base.id, crtc->base.name, dsb->id);
-		goto reset;
+		return;
 	}
 
 	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id),
@@ -249,13 +249,20 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 		    "DSB execution started - head 0x%x, tail 0x%x\n",
 		    i915_ggtt_offset(dsb->vma),
 		    i915_ggtt_offset(dsb->vma) + tail);
+}
+
+void intel_dsb_wait(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
 	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1))
 		drm_err(&dev_priv->drm,
 			"[CRTC:%d:%s] DSB %d timed out waiting for idle\n",
 			crtc->base.base.id, crtc->base.name, dsb->id);
 
-reset:
+	/* Attempt to reset it */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
 	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
