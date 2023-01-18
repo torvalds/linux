@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2022, Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -3421,6 +3421,13 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct ufs_pa_layer_attr *dev_req_params = &host->dev_req_params;
 	int err = 0;
+
+	/*
+	 * PM functions invoke ufshcd_host_reset_and_restore() directly.
+	 * ufshcd_host_reset_and_restore() doesn't set the ufshcd_state.
+	 */
+	if (hba->pm_op_in_progress || hba->ufshcd_state == UFSHCD_STATE_RESET)
+		return 0;
 
 	if (status == PRE_CHANGE) {
 		err = ufshcd_uic_hibern8_enter(hba);
