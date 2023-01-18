@@ -109,27 +109,24 @@ static int udf_symlink_filler(struct file *file, struct folio *folio)
 	unsigned char *symlink;
 	int err;
 	unsigned char *p = page_address(page);
-	struct udf_inode_info *iinfo;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 	uint32_t pos;
 
 	/* We don't support symlinks longer than one block */
 	if (inode->i_size > inode->i_sb->s_blocksize) {
 		err = -ENAMETOOLONG;
-		goto out_unmap;
+		goto out_unlock;
 	}
 
-	iinfo = UDF_I(inode);
-	pos = udf_block_map(inode, 0);
-
-	down_read(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		symlink = iinfo->i_data + iinfo->i_lenEAttr;
 	} else {
+		pos = udf_block_map(inode, 0);
 		bh = sb_bread(inode->i_sb, pos);
 
 		if (!bh) {
 			err = -EIO;
-			goto out_unlock_inode;
+			goto out_err;
 		}
 
 		symlink = bh->b_data;
@@ -138,17 +135,15 @@ static int udf_symlink_filler(struct file *file, struct folio *folio)
 	err = udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p, PAGE_SIZE);
 	brelse(bh);
 	if (err)
-		goto out_unlock_inode;
+		goto out_err;
 
-	up_read(&iinfo->i_data_sem);
 	SetPageUptodate(page);
 	unlock_page(page);
 	return 0;
 
-out_unlock_inode:
-	up_read(&iinfo->i_data_sem);
+out_err:
 	SetPageError(page);
-out_unmap:
+out_unlock:
 	unlock_page(page);
 	return err;
 }
