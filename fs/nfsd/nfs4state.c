@@ -686,15 +686,6 @@ static struct nfsd_file *find_any_file_locked(struct nfs4_file *f)
 	return NULL;
 }
 
-static struct nfsd_file *find_deleg_file_locked(struct nfs4_file *f)
-{
-	lockdep_assert_held(&f->fi_lock);
-
-	if (f->fi_deleg_file)
-		return f->fi_deleg_file;
-	return NULL;
-}
-
 static atomic_long_t num_delegations;
 unsigned long max_delegations;
 
@@ -2703,7 +2694,7 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 	ds = delegstateid(st);
 	nf = st->sc_file;
 	spin_lock(&nf->fi_lock);
-	file = find_deleg_file_locked(nf);
+	file = nf->fi_deleg_file;
 	if (!file)
 		goto out;
 
