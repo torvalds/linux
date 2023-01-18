@@ -1383,6 +1383,9 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 	/* FIXME DSB has issues loading LUTs, disable it for now */
 	return;
 
+	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
+		return;
+
 	crtc_state->dsb = intel_dsb_prepare(crtc, 1024);
 }
 
