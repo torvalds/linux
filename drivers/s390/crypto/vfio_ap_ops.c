@@ -1670,17 +1670,15 @@ retry_zapq:
 		if (ret)
 			break;
 		goto retry_zapq;
-	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
-	case AP_RESPONSE_CHECKSTOPPED:
-		WARN_ONCE(status.irq_enabled,
-			  "PQAP/ZAPQ for %02x.%04x failed with rc=%u while IRQ enabled",
-			  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
-			  status.response_code);
-		ret = -EBUSY;
-		goto free_resources;
+		/*
+		 * When an AP adapter is deconfigured, the associated
+		 * queues are reset, so let's return a value indicating the reset
+		 * completed successfully.
+		 */
+		ret = 0;
+		break;
 	default:
-		/* things are really broken, give up */
 		WARN(true,
 		     "PQAP/ZAPQ for %02x.%04x failed with invalid rc=%u\n",
 		     AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
@@ -1688,7 +1686,6 @@ retry_zapq:
 		return -EIO;
 	}
 
-free_resources:
 	vfio_ap_free_aqic_resources(q);
 
 	return ret;
