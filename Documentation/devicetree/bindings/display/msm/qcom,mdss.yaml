@@ -44,18 +44,30 @@ properties:
       The MDSS power domain provided by GCC
 
   clocks:
-    minItems: 1
-    items:
-      - description: Display abh clock
-      - description: Display axi clock
-      - description: Display vsync clock
+    oneOf:
+      - minItems: 3
+        items:
+          - description: Display abh clock
+          - description: Display axi clock
+          - description: Display vsync clock
+          - description: Display core clock
+      - minItems: 1
+        items:
+          - description: Display abh clock
+          - description: Display core clock
 
   clock-names:
-    minItems: 1
-    items:
-      - const: iface
-      - const: bus
-      - const: vsync
+    oneOf:
+      - minItems: 3
+        items:
+          - const: iface
+          - const: bus
+          - const: vsync
+          - const: core
+      - minItems: 1
+        items:
+          - const: iface
+          - const: core
 
   "#address-cells":
     const: 1
