@@ -1779,6 +1779,47 @@ static void hl_unmap_dmabuf(struct dma_buf_attachment *attachment,
 	kfree(sgt);
 }
 
+static struct hl_vm_hash_node *memhash_node_export_get(struct hl_ctx *ctx, u64 addr)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_vm_hash_node *hnode;
+
+	/* get the memory handle */
+	mutex_lock(&ctx->mem_hash_lock);
+	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)addr)
+		if (addr == hnode->vaddr)
+			break;
+
+	if (!hnode) {
+		mutex_unlock(&ctx->mem_hash_lock);
+		dev_dbg(hdev->dev, "map address %#llx not found\n", addr);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (upper_32_bits(hnode->handle)) {
+		mutex_unlock(&ctx->mem_hash_lock);
+		dev_dbg(hdev->dev, "invalid handle %#llx for map address %#llx\n",
+				hnode->handle, addr);
+		return ERR_PTR(-EINVAL);
+	}
+
+	/*
+	 * node found, increase export count so this memory cannot be unmapped
+	 * and the hash node cannot be deleted.
+	 */
+	hnode->export_cnt++;
+	mutex_unlock(&ctx->mem_hash_lock);
+
+	return hnode;
+}
+
+static void memhash_node_export_put(struct hl_ctx *ctx, struct hl_vm_hash_node *hnode)
+{
+	mutex_lock(&ctx->mem_hash_lock);
+	hnode->export_cnt--;
+	mutex_unlock(&ctx->mem_hash_lock);
+}
+
 static void hl_release_dmabuf(struct dma_buf *dmabuf)
 {
 	struct hl_dmabuf_priv *hl_dmabuf = dmabuf->priv;
@@ -1789,11 +1830,8 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 
 	ctx = hl_dmabuf->ctx;
 
-	if (hl_dmabuf->memhash_hnode) {
-		mutex_lock(&ctx->mem_hash_lock);
-		hl_dmabuf->memhash_hnode->export_cnt--;
-		mutex_unlock(&ctx->mem_hash_lock);
-	}
+	if (hl_dmabuf->memhash_hnode)
+		memhash_node_export_put(ctx, hl_dmabuf->memhash_hnode);
 
 	hl_ctx_put(ctx);
 	kfree(hl_dmabuf);
@@ -1931,47 +1969,6 @@ static int validate_export_params(struct hl_device *hdev, u64 device_addr, u64 s
 	}
 
 	return 0;
-}
-
-static struct hl_vm_hash_node *memhash_node_export_get(struct hl_ctx *ctx, u64 addr)
-{
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm_hash_node *hnode;
-
-	/* get the memory handle */
-	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)addr)
-		if (addr == hnode->vaddr)
-			break;
-
-	if (!hnode) {
-		mutex_unlock(&ctx->mem_hash_lock);
-		dev_dbg(hdev->dev, "map address %#llx not found\n", addr);
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (upper_32_bits(hnode->handle)) {
-		mutex_unlock(&ctx->mem_hash_lock);
-		dev_dbg(hdev->dev, "invalid handle %#llx for map address %#llx\n",
-				hnode->handle, addr);
-		return ERR_PTR(-EINVAL);
-	}
-
-	/*
-	 * node found, increase export count so this memory cannot be unmapped
-	 * and the hash node cannot be deleted.
-	 */
-	hnode->export_cnt++;
-	mutex_unlock(&ctx->mem_hash_lock);
-
-	return hnode;
-}
-
-static void memhash_node_export_put(struct hl_ctx *ctx, struct hl_vm_hash_node *hnode)
-{
-	mutex_lock(&ctx->mem_hash_lock);
-	hnode->export_cnt--;
-	mutex_unlock(&ctx->mem_hash_lock);
 }
 
 static struct hl_vm_phys_pg_pack *get_phys_pg_pack_from_hash_node(struct hl_device *hdev,
