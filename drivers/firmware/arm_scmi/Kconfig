@@ -23,6 +23,13 @@ config ARM_SCMI_PROTOCOL
 
 if ARM_SCMI_PROTOCOL
 
+config ARM_SCMI_NEED_DEBUGFS
+	bool
+	help
+	  This declares whether at least one SCMI facility is configured
+	  which needs debugfs support. When selected causess the creation
+	  of a common SCMI debugfs root directory.
+
 config ARM_SCMI_HAVE_TRANSPORT
 	bool
 	help

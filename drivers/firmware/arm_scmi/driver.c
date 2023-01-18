@@ -17,6 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitmap.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/idr.h>
@@ -50,6 +51,8 @@ static LIST_HEAD(scmi_list);
 static DEFINE_MUTEX(scmi_list_mutex);
 /* Track the unique id for the transfers for debug & profiling purpose */
 static atomic_t transfer_last_id;
+
+static struct dentry *scmi_top_dentry;
 
 /**
  * struct scmi_xfers_info - Structure to manage transfer information
@@ -98,6 +101,20 @@ struct scmi_protocol_instance {
 #define ph_to_pi(h)	container_of(h, struct scmi_protocol_instance, ph)
 
 /**
+ * struct scmi_debug_info  - Debug common info
+ * @top_dentry: A reference to the top debugfs dentry
+ * @name: Name of this SCMI instance
+ * @type: Type of this SCMI instance
+ * @is_atomic: Flag to state if the transport of this instance is atomic
+ */
+struct scmi_debug_info {
+	struct dentry *top_dentry;
+	const char *name;
+	const char *type;
+	bool is_atomic;
+};
+
+/**
  * struct scmi_info - Structure representing a SCMI instance
  *
  * @id: A sequence number starting from zero identifying this instance
@@ -132,6 +149,7 @@ struct scmi_protocol_instance {
  * @dev_req_nb: A notifier to listen for device request/unrequest on the scmi
  *		bus
  * @devreq_mtx: A mutex to serialize device creation for this SCMI instance
+ * @dbg: A pointer to debugfs related data (if any)
  */
 struct scmi_info {
 	int id;
@@ -156,6 +174,7 @@ struct scmi_info {
 	struct notifier_block dev_req_nb;
 	/* Serialize device creation process for this instance */
 	struct mutex devreq_mtx;
+	struct scmi_debug_info *dbg;
 };
 
 #define handle_to_scmi_info(h)	container_of(h, struct scmi_info, handle)
@@ -2478,6 +2497,83 @@ static int scmi_device_request_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static void scmi_debugfs_common_cleanup(void *d)
+{
+	struct scmi_debug_info *dbg = d;
+
+	if (!dbg)
+		return;
+
+	debugfs_remove_recursive(dbg->top_dentry);
+	kfree(dbg->name);
+	kfree(dbg->type);
+}
+
+static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)
+{
+	char top_dir[16];
+	struct dentry *trans, *top_dentry;
+	struct scmi_debug_info *dbg;
+	const char *c_ptr = NULL;
+
+	dbg = devm_kzalloc(info->dev, sizeof(*dbg), GFP_KERNEL);
+	if (!dbg)
+		return NULL;
+
+	dbg->name = kstrdup(of_node_full_name(info->dev->of_node), GFP_KERNEL);
+	if (!dbg->name) {
+		devm_kfree(info->dev, dbg);
+		return NULL;
+	}
+
+	of_property_read_string(info->dev->of_node, "compatible", &c_ptr);
+	dbg->type = kstrdup(c_ptr, GFP_KERNEL);
+	if (!dbg->type) {
+		kfree(dbg->name);
+		devm_kfree(info->dev, dbg);
+		return NULL;
+	}
+
+	snprintf(top_dir, 16, "%d", info->id);
+	top_dentry = debugfs_create_dir(top_dir, scmi_top_dentry);
+	trans = debugfs_create_dir("transport", top_dentry);
+
+	dbg->is_atomic = info->desc->atomic_enabled &&
+				is_transport_polling_capable(info->desc);
+
+	debugfs_create_str("instance_name", 0400, top_dentry,
+			   (char **)&dbg->name);
+
+	debugfs_create_u32("atomic_threshold_us", 0400, top_dentry,
+			   &info->atomic_threshold);
+
+	debugfs_create_str("type", 0400, trans, (char **)&dbg->type);
+
+	debugfs_create_bool("is_atomic", 0400, trans, &dbg->is_atomic);
+
+	debugfs_create_u32("max_rx_timeout_ms", 0400, trans,
+			   (u32 *)&info->desc->max_rx_timeout_ms);
+
+	debugfs_create_u32("max_msg_size", 0400, trans,
+			   (u32 *)&info->desc->max_msg_size);
+
+	debugfs_create_u32("tx_max_msg", 0400, trans,
+			   (u32 *)&info->tx_minfo.max_msg);
+
+	debugfs_create_u32("rx_max_msg", 0400, trans,
+			   (u32 *)&info->rx_minfo.max_msg);
+
+	dbg->top_dentry = top_dentry;
+
+	if (devm_add_action_or_reset(info->dev,
+				     scmi_debugfs_common_cleanup, dbg)) {
+		scmi_debugfs_common_cleanup(dbg);
+		return NULL;
+	}
+
+	return dbg;
+}
+
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -2551,6 +2647,12 @@ static int scmi_probe(struct platform_device *pdev)
 	ret = scmi_xfer_info_init(info);
 	if (ret)
 		goto clear_dev_req_notifier;
+
+	if (scmi_top_dentry) {
+		info->dbg = scmi_debugfs_common_setup(info);
+		if (!info->dbg)
+			dev_warn(dev, "Failed to setup SCMI debugfs.\n");
+	}
 
 	if (scmi_notification_init(handle))
 		dev_err(dev, "SCMI Notifications NOT available.\n");
@@ -2781,6 +2883,19 @@ static void __exit scmi_transports_exit(void)
 	__scmi_transports_setup(false);
 }
 
+static struct dentry *scmi_debugfs_init(void)
+{
+	struct dentry *d;
+
+	d = debugfs_create_dir("scmi", NULL);
+	if (IS_ERR(d)) {
+		pr_err("Could NOT create SCMI top dentry.\n");
+		return NULL;
+	}
+
+	return d;
+}
+
 static int __init scmi_driver_init(void)
 {
 	int ret;
@@ -2793,6 +2908,9 @@ static int __init scmi_driver_init(void)
 	ret = scmi_transports_init();
 	if (ret)
 		return ret;
+
+	if (IS_ENABLED(CONFIG_ARM_SCMI_NEED_DEBUGFS))
+		scmi_top_dentry = scmi_debugfs_init();
 
 	scmi_base_register();
 
@@ -2825,6 +2943,8 @@ static void __exit scmi_driver_exit(void)
 	scmi_transports_exit();
 
 	platform_driver_unregister(&scmi_driver);
+
+	debugfs_remove_recursive(scmi_top_dentry);
 }
 module_exit(scmi_driver_exit);
 
