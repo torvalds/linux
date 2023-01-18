@@ -67,13 +67,6 @@
 struct drm_i915_clock_gating_funcs;
 struct vlv_s0ix_state;
 
-#define I915_GEM_GPU_DOMAINS \
-	(I915_GEM_DOMAIN_RENDER | \
-	 I915_GEM_DOMAIN_SAMPLER | \
-	 I915_GEM_DOMAIN_COMMAND | \
-	 I915_GEM_DOMAIN_INSTRUCTION | \
-	 I915_GEM_DOMAIN_VERTEX)
-
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
 #define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
