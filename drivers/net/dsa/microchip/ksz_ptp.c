@@ -416,9 +416,8 @@ int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 
 	prt = &dev->ports[port];
 
-	ret = copy_from_user(&config, ifr->ifr_data, sizeof(config));
-	if (ret)
-		return ret;
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
 
 	ret = ksz_set_hwtstamp_config(dev, prt, &config);
 	if (ret)
@@ -426,7 +425,10 @@ int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 
 	memcpy(&prt->tstamp_config, &config, sizeof(config));
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config));
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static ktime_t ksz_tstamp_reconstruct(struct ksz_device *dev, ktime_t tstamp)
