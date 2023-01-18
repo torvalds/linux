@@ -317,6 +317,12 @@ static void i2c_gpio_get_properties(struct device *dev,
 		device_property_read_bool(dev, "i2c-gpio,scl-open-drain");
 	pdata->scl_is_output_only =
 		device_property_read_bool(dev, "i2c-gpio,scl-output-only");
+	pdata->sda_is_output_only =
+		device_property_read_bool(dev, "i2c-gpio,sda-output-only");
+	pdata->sda_has_no_pullup =
+		device_property_read_bool(dev, "i2c-gpio,sda-has-no-pullup");
+	pdata->scl_has_no_pullup =
+		device_property_read_bool(dev, "i2c-gpio,scl-has-no-pullup");
 }
 
 static struct gpio_desc *i2c_gpio_get_desc(struct device *dev,
@@ -393,7 +399,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	 * handle them as we handle any other output. Else we enforce open
 	 * drain as this is required for an I2C bus.
 	 */
-	if (pdata->sda_is_open_drain)
+	if (pdata->sda_is_open_drain || pdata->sda_has_no_pullup)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
@@ -401,7 +407,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->sda))
 		return PTR_ERR(priv->sda);
 
-	if (pdata->scl_is_open_drain)
+	if (pdata->scl_is_open_drain || pdata->scl_has_no_pullup)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
@@ -419,7 +425,8 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 
 	if (!pdata->scl_is_output_only)
 		bit_data->getscl = i2c_gpio_getscl;
-	bit_data->getsda = i2c_gpio_getsda;
+	if (!pdata->sda_is_output_only)
+		bit_data->getsda = i2c_gpio_getsda;
 
 	if (pdata->udelay)
 		bit_data->udelay = pdata->udelay;
