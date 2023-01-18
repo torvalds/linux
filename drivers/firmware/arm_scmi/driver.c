@@ -2616,7 +2616,6 @@ static int scmi_debugfs_raw_mode_setup(struct scmi_info *info)
 	info->raw = scmi_raw_mode_init(&info->handle, info->dbg->top_dentry,
 				       info->id, info->desc,
 				       info->tx_minfo.max_msg);
-
 	if (IS_ERR(info->raw)) {
 		dev_err(info->dev, "Failed to initialize SCMI RAW Mode !\n");
 		ret = PTR_ERR(info->raw);
@@ -2706,11 +2705,20 @@ static int scmi_probe(struct platform_device *pdev)
 			dev_warn(dev, "Failed to setup SCMI debugfs.\n");
 
 		if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
-			ret = scmi_debugfs_raw_mode_setup(info);
-			if (ret)
-				goto clear_dev_req_notifier;
+			bool coex =
+			      IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
 
-			return 0;
+			ret = scmi_debugfs_raw_mode_setup(info);
+			if (!coex) {
+				if (ret)
+					goto clear_dev_req_notifier;
+
+				/* Bail out anyway when coex enabled */
+				return ret;
+			}
+
+			/* Coex enabled, carry on in any case. */
+			dev_info(dev, "SCMI RAW Mode COEX enabled !\n");
 		}
 	}
 

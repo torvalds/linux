@@ -26,7 +26,10 @@
  * In order to avoid possible interferences between the SCMI Raw transactions
  * originated from a test-suite and the normal operations of the SCMI drivers,
  * when Raw mode is enabled, by default, all the regular SCMI drivers are
- * inhibited.
+ * inhibited, unless CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX is enabled: in this
+ * latter case the regular SCMI stack drivers will be loaded as usual and it is
+ * up to the user of this interface to take care of manually inhibiting the
+ * regular SCMI drivers in order to avoid interferences during the test runs.
  *
  * The exposed API is as follows.
  *
