@@ -1069,8 +1069,8 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct mt76_connac_txp_common *txp;
 	struct mt76_txwi_cache *t;
-	struct mt7996_txp *txp;
 	int id, i, pid, nbuf = tx_info->nbuf - 1;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	u8 *txwi = (u8 *)txwi_ptr;
@@ -1104,35 +1104,35 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, pid,
 				      key, 0);
 
-	txp = (struct mt7996_txp *)(txwi + MT_TXD_SIZE);
+	txp = (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
 	for (i = 0; i < nbuf; i++) {
-		txp->buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
-		txp->len[i] = cpu_to_le16(tx_info->buf[i + 1].len);
+		txp->fw.buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
+		txp->fw.len[i] = cpu_to_le16(tx_info->buf[i + 1].len);
 	}
-	txp->nbuf = nbuf;
+	txp->fw.nbuf = nbuf;
 
-	txp->flags = cpu_to_le16(MT_CT_INFO_FROM_HOST);
+	txp->fw.flags = cpu_to_le16(MT_CT_INFO_FROM_HOST);
 
 	if (!is_8023 || pid >= MT_PACKET_ID_FIRST)
-		txp->flags |= cpu_to_le16(MT_CT_INFO_APPLY_TXD);
+		txp->fw.flags |= cpu_to_le16(MT_CT_INFO_APPLY_TXD);
 
 	if (!key)
-		txp->flags |= cpu_to_le16(MT_CT_INFO_NONE_CIPHER_FRAME);
+		txp->fw.flags |= cpu_to_le16(MT_CT_INFO_NONE_CIPHER_FRAME);
 
 	if (!is_8023 && ieee80211_is_mgmt(hdr->frame_control))
-		txp->flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
+		txp->fw.flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
 
 	if (vif) {
 		struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 
-		txp->bss_idx = mvif->mt76.idx;
+		txp->fw.bss_idx = mvif->mt76.idx;
 	}
 
-	txp->token = cpu_to_le16(id);
+	txp->fw.token = cpu_to_le16(id);
 	if (test_bit(MT_WCID_FLAG_4ADDR, &wcid->flags))
-		txp->rept_wds_wcid = cpu_to_le16(wcid->idx);
+		txp->fw.rept_wds_wcid = cpu_to_le16(wcid->idx);
 	else
-		txp->rept_wds_wcid = cpu_to_le16(0xfff);
+		txp->fw.rept_wds_wcid = cpu_to_le16(0xfff);
 	tx_info->skb = DMA_DUMMY_DATA;
 
 	/* pass partial skb header to fw */
@@ -1171,13 +1171,13 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 static void
 mt7996_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
-	struct mt7996_txp *txp;
+	struct mt76_connac_txp_common *txp;
 	int i;
 
 	txp = mt7996_txwi_to_txp(dev, t);
-	for (i = 0; i < txp->nbuf; i++)
-		dma_unmap_single(dev->dev, le32_to_cpu(txp->buf[i]),
-				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
+	for (i = 0; i < txp->fw.nbuf; i++)
+		dma_unmap_single(dev->dev, le32_to_cpu(txp->fw.buf[i]),
+				 le16_to_cpu(txp->fw.len[i]), DMA_TO_DEVICE);
 }
 
 static void
@@ -1554,11 +1554,11 @@ void mt7996_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 
 	/* error path */
 	if (e->skb == DMA_DUMMY_DATA) {
+		struct mt76_connac_txp_common *txp;
 		struct mt76_txwi_cache *t;
-		struct mt7996_txp *txp;
 
 		txp = mt7996_txwi_to_txp(mdev, e->txwi);
-		t = mt76_token_put(mdev, le16_to_cpu(txp->token));
+		t = mt76_token_put(mdev, le16_to_cpu(txp->fw.token));
 		e->skb = t ? t->skb : NULL;
 	}
 
