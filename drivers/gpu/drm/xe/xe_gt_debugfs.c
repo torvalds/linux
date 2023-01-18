@@ -11,12 +11,14 @@
 #include "xe_gt.h"
 #include "xe_gt_debugfs.h"
 #include "xe_gt_mcr.h"
-#include "xe_gt_pagefault.h"
-#include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
 #include "xe_macros.h"
 #include "xe_uc_debugfs.h"
+
+#ifdef CONFIG_DRM_XE_DEBUG
+#include "xe_gt_tlb_invalidation.h"
+#endif
 
 static struct xe_gt *node_to_gt(struct drm_info_node *node)
 {

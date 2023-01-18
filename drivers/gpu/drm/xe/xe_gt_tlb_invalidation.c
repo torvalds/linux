@@ -16,7 +16,7 @@ guc_to_gt(struct xe_guc *guc)
 
 int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 {
-	gt->usm.tlb_invalidation_seqno = 1;
+	gt->tlb_invalidation.seqno = 1;
 
 	return 0;
 }
@@ -40,12 +40,12 @@ static int send_tlb_invalidation(struct xe_guc *guc)
 	 * need to be updated.
 	 */
 	mutex_lock(&guc->ct.lock);
-	seqno = gt->usm.tlb_invalidation_seqno;
+	seqno = gt->tlb_invalidation.seqno;
 	action[1] = seqno;
-	gt->usm.tlb_invalidation_seqno = (gt->usm.tlb_invalidation_seqno + 1) %
+	gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
 		TLB_INVALIDATION_SEQNO_MAX;
-	if (!gt->usm.tlb_invalidation_seqno)
-		gt->usm.tlb_invalidation_seqno = 1;
+	if (!gt->tlb_invalidation.seqno)
+		gt->tlb_invalidation.seqno = 1;
 	ret = xe_guc_ct_send_locked(&guc->ct, action, ARRAY_SIZE(action),
 				    G2H_LEN_DW_TLB_INVALIDATE, 1);
 	if (!ret)
@@ -62,10 +62,10 @@ int xe_gt_tlb_invalidation(struct xe_gt *gt)
 
 static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
 {
-	if (gt->usm.tlb_invalidation_seqno_recv >= seqno)
+	if (gt->tlb_invalidation.seqno_recv >= seqno)
 		return true;
 
-	if (seqno - gt->usm.tlb_invalidation_seqno_recv >
+	if (seqno - gt->tlb_invalidation.seqno_recv >
 	    (TLB_INVALIDATION_SEQNO_MAX / 2))
 		return true;
 
@@ -87,7 +87,7 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
 				 HZ / 5);
 	if (!ret) {
 		drm_err(&xe->drm, "TLB invalidation time'd out, seqno=%d, recv=%d\n",
-			seqno, gt->usm.tlb_invalidation_seqno_recv);
+			seqno, gt->tlb_invalidation.seqno_recv);
 		return -ETIME;
 	}
 
@@ -103,11 +103,11 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 		return -EPROTO;
 
 	/* Sanity check on seqno */
-	expected_seqno = (gt->usm.tlb_invalidation_seqno_recv + 1) %
+	expected_seqno = (gt->tlb_invalidation.seqno_recv + 1) %
 		TLB_INVALIDATION_SEQNO_MAX;
 	XE_WARN_ON(expected_seqno != msg[0]);
 
-	gt->usm.tlb_invalidation_seqno_recv = msg[0];
+	gt->tlb_invalidation.seqno_recv = msg[0];
 	smp_wmb();
 	wake_up_all(&guc->ct.wq);
 
