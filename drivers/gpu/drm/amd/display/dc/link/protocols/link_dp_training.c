@@ -51,6 +51,7 @@
 
 #define POST_LT_ADJ_REQ_LIMIT 6
 #define POST_LT_ADJ_REQ_TIMEOUT 200
+#define LINK_TRAINING_RETRY_DELAY 50 /* ms */
 
 void dp_log_training_result(
 	struct dc_link *link,
@@ -1648,7 +1649,7 @@ bool perform_link_training_with_retries(
 		if (status == LINK_TRAINING_ABORT) {
 			enum dc_connection_type type = dc_connection_none;
 
-			dc_link_detect_sink(link, &type);
+			dc_link_detect_connection_type(link, &type);
 			if (type == dc_connection_none) {
 				DC_LOG_HW_LINK_TRAINING("%s: Aborting training because sink unplugged\n", __func__);
 				break;

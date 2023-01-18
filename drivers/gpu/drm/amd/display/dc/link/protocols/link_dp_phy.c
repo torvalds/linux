@@ -36,7 +36,7 @@
 #include "link_dp_capability.h"
 #include "clk_mgr.h"
 #include "resource.h"
-
+#include "link_enc_cfg.h"
 #define DC_LOGGER \
 	link->ctx->logger
 
@@ -94,9 +94,6 @@ void dp_disable_link_phy_mst(struct dc_link *link,
 		return;
 
 	dp_disable_link_phy(link, link_res, signal);
-
-	/* set the sink to SST mode after disabling the link */
-	dp_enable_mst_on_sink(link, false);
 }
 
 static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
@@ -142,3 +139,81 @@ void dp_set_drive_settings(
 	/* Notify DP sink the PHY settings from source */
 	dpcd_set_lane_settings(link, lt_settings, DPRX);
 }
+
+enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource *link_res, bool ready)
+{
+	/* FEC has to be "set ready" before the link training.
+	 * The policy is to always train with FEC
+	 * if the sink supports it and leave it enabled on link.
+	 * If FEC is not supported, disable it.
+	 */
+	struct link_encoder *link_enc = NULL;
+	enum dc_status status = DC_OK;
+	uint8_t fec_config = 0;
+
+	link_enc = link_enc_cfg_get_link_enc(link);
+	ASSERT(link_enc);
+
+	if (!dc_link_should_enable_fec(link))
+		return status;
+
+	if (link_enc->funcs->fec_set_ready &&
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		if (ready) {
+			fec_config = 1;
+			status = core_link_write_dpcd(link,
+					DP_FEC_CONFIGURATION,
+					&fec_config,
+					sizeof(fec_config));
+			if (status == DC_OK) {
+				link_enc->funcs->fec_set_ready(link_enc, true);
+				link->fec_state = dc_link_fec_ready;
+			} else {
+				link_enc->funcs->fec_set_ready(link_enc, false);
+				link->fec_state = dc_link_fec_not_ready;
+				dm_error("dpcd write failed to set fec_ready");
+			}
+		} else if (link->fec_state == dc_link_fec_ready) {
+			fec_config = 0;
+			status = core_link_write_dpcd(link,
+					DP_FEC_CONFIGURATION,
+					&fec_config,
+					sizeof(fec_config));
+			link_enc->funcs->fec_set_ready(link_enc, false);
+			link->fec_state = dc_link_fec_not_ready;
+		}
+	}
+
+	return status;
+}
+
+void dp_set_fec_enable(struct dc_link *link, bool enable)
+{
+	struct link_encoder *link_enc = NULL;
+
+	link_enc = link_enc_cfg_get_link_enc(link);
+	ASSERT(link_enc);
+
+	if (!dc_link_should_enable_fec(link))
+		return;
+
+	if (link_enc->funcs->fec_set_enable &&
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		if (link->fec_state == dc_link_fec_ready && enable) {
+			/* Accord to DP spec, FEC enable sequence can first
+			 * be transmitted anytime after 1000 LL codes have
+			 * been transmitted on the link after link training
+			 * completion. Using 1 lane RBR should have the maximum
+			 * time for transmitting 1000 LL codes which is 6.173 us.
+			 * So use 7 microseconds delay instead.
+			 */
+			udelay(7);
+			link_enc->funcs->fec_set_enable(link_enc, true);
+			link->fec_state = dc_link_fec_enabled;
+		} else if (link->fec_state == dc_link_fec_enabled && !enable) {
+			link_enc->funcs->fec_set_enable(link_enc, false);
+			link->fec_state = dc_link_fec_ready;
+		}
+	}
+}
+

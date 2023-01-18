@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,9 +23,13 @@
  *
  */
 
-#ifndef __DC_LINK_DP_IRQ_HANDLER_H__
-#define __DC_LINK_DP_IRQ_HANDLER_H__
+#ifndef __DC_LINK_DPMS_H__
+#define __DC_LINK_DPMS_H__
 
 #include "link.h"
-
-#endif /* __DC_LINK_DP_IRQ_HANDLER_H__ */
+bool link_set_dsc_pps_packet(struct pipe_ctx *pipe_ctx,
+		bool enable, bool immediate_update);
+struct fixed31_32 link_calculate_sst_avg_time_slots_per_mtp(
+		const struct dc_stream_state *stream,
+		const struct dc_link *link);
+#endif /* __DC_LINK_DPMS_H__ */

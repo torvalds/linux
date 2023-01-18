@@ -384,11 +384,6 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
-void dc_link_blank_all_dp_displays(struct dc *dc);
-void dc_link_blank_all_edp_displays(struct dc *dc);
-
-void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
-
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.
  * Return false for any type of detection failure or MST detection
@@ -407,9 +402,6 @@ enum dc_detect_reason {
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
-enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
-enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t req_pbn);
-enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t req_pbn);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -432,8 +424,8 @@ void dc_link_dp_handle_automated_test(struct dc_link *link);
 void dc_link_dp_handle_link_loss(struct dc_link *link);
 bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link);
 bool dc_link_check_link_loss_status(struct dc_link *link,
-				       union hpd_irq_data *hpd_irq_dpcd_data);
-enum dc_status dp_read_hpd_rx_irq_data(
+		union hpd_irq_data *hpd_irq_dpcd_data);
+enum dc_status dc_link_dp_read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data);
 struct dc_sink_init_data;
@@ -479,7 +471,7 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 bool dc_link_is_dp_sink_present(struct dc_link *link);
 
-bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type);
+bool dc_link_detect_connection_type(struct dc_link *link, enum dc_connection_type *type);
 /*
  * DPCD access interfaces
  */
@@ -561,7 +553,7 @@ struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 
 /* Destruct the mst topology of the link and reset the allocated payload table */
-bool reset_cur_dp_mst_topology(struct dc_link *link);
+bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
 
 /* Attempt to transfer the given aux payload. This function does not perform
  * retries or handle error states. The reply is returned in the payload->reply
@@ -580,55 +572,6 @@ bool dc_link_decide_edp_link_settings(struct dc_link *link,
 		uint32_t req_bw);
 void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
 		bool wait_for_hpd);
-
-#define LINK_TRAINING_ATTEMPTS 4
-#define LINK_TRAINING_RETRY_DELAY 50 /* ms */
-#define MAX_MTP_SLOT_COUNT 64
-#define TRAINING_AUX_RD_INTERVAL 100 //us
-#define LINK_AUX_WAKE_TIMEOUT_MS 1500 // Timeout when trying to wake unresponsive DPRX.
-
-struct dc_link;
-struct dc_stream_state;
-struct dc_link_settings;
-
-enum {
-	/*
-	 * Some receivers fail to train on first try and are good
-	 * on subsequent tries. 2 retries should be plenty. If we
-	 * don't have a successful training then we don't expect to
-	 * ever get one.
-	 */
-	LINK_TRAINING_MAX_VERIFY_RETRY = 2,
-	PEAK_FACTOR_X1000 = 1006,
-};
-
-bool dp_validate_mode_timing(
-	struct dc_link *link,
-	const struct dc_crtc_timing *timing);
-
-void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
-
-enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource *link_res, bool ready);
-void dp_set_fec_enable(struct dc_link *link, bool enable);
-bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
-bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_update);
-void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
-bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
-bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
-
-bool dpcd_write_128b_132b_sst_payload_allocation_table(
-		const struct dc_stream_state *stream,
-		struct dc_link *link,
-		struct link_mst_stream_allocation_table *proposed_table,
-		bool allocate);
-
-bool dpcd_poll_for_allocation_change_trigger(struct dc_link *link);
-
-struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
-		const struct dc_stream_state *stream,
-		const struct dc_link *link);
-void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
-void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
 
 /*
  *  USB4 DPIA BW ALLOCATION PUBLIC FUNCTIONS
@@ -657,4 +600,8 @@ void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
  */
 void dc_link_get_usb4_req_bw_resp(struct dc_link *link, uint8_t bw, uint8_t result);
 
+/* TODO: this is not meant to be exposed to DM. Should switch to stream update
+ * interface i.e stream_update->dsc_config
+ */
+bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx);
 #endif /* DC_LINK_H_ */

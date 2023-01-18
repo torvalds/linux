@@ -24,7 +24,8 @@
  */
 
 /* FILE POLICY AND INTENDED USAGE:
- *
+ * This file implements DP HPD short pulse handling sequence according to DP
+ * specifications
  *
  */
 
@@ -190,7 +191,7 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
 				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe)
-			core_link_disable_stream(pipe_ctx);
+			link_set_dpms_off(pipe_ctx);
 	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -206,12 +207,12 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 				pipe_ctx->link_config.dp_link_settings.link_spread =
 						link->verified_link_cap.link_spread;
 			}
-			core_link_enable_stream(link->dc->current_state, pipe_ctx);
+			link_set_dpms_on(link->dc->current_state, pipe_ctx);
 		}
 	}
 }
 
-enum dc_status dp_read_hpd_rx_irq_data(
+enum dc_status dc_link_dp_read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
 {
@@ -299,7 +300,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		 * dal_dpsst_ls_read_hpd_irq_data
 		 * Order of calls is important too
 		 */
-	result = dp_read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
+	result = dc_link_dp_read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
 	if (out_hpd_irq_dpcd_data)
 		*out_hpd_irq_dpcd_data = hpd_irq_dpcd_data;
 
@@ -398,4 +399,3 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	 */
 	return status;
 }
-

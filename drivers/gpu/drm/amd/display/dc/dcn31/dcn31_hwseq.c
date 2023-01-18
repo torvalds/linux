@@ -202,7 +202,7 @@ void dcn31_init_hw(struct dc *dc)
 		dmub_enable_outbox_notification(dc->ctx->dmub_srv);
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	link_blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -230,7 +230,7 @@ void dcn31_init_hw(struct dc *dc)
 				}
 
 				if (num_opps > 1) {
-					dc_link_blank_all_edp_displays(dc);
+					link_blank_all_edp_displays(dc);
 					break;
 				}
 			}
@@ -565,7 +565,7 @@ static void dcn31_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			core_link_disable_stream(pipe_ctx);
+			link_set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -584,7 +584,7 @@ static void dcn31_reset_back_end_for_pipe(
 			}
 		}
 	} else if (pipe_ctx->stream_res.dsc) {
-			dp_set_dsc_enable(pipe_ctx, false);
+			link_set_dsc_enable(pipe_ctx, false);
 	}
 
 	pipe_ctx->stream = NULL;

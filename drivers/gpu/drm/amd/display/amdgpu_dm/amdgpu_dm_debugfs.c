@@ -1257,7 +1257,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 
 	if (param[0] == 1) {
 
-		if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type) &&
+		if (!dc_link_detect_connection_type(aconnector->dc_link, &new_connection_type) &&
 			new_connection_type != dc_connection_none)
 			goto unlock;
 
@@ -1294,7 +1294,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 
 		/* If the aconnector is the root node in mst topology */
 		if (aconnector->mst_mgr.mst_state == true)
-			reset_cur_dp_mst_topology(link);
+			dc_link_reset_cur_dp_mst_topology(link);
 
 		drm_modeset_lock_all(dev);
 		dm_restore_drm_connector_state(dev, connector);

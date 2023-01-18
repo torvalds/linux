@@ -88,7 +88,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 				pipe->stream->link == link &&
 				!pipe->stream->dpms_off &&
 				!pipe->top_pipe && !pipe->prev_odm_pipe) {
-			core_link_disable_stream(pipe);
+			link_set_dpms_off(pipe);
 			pipe->link_config.dp_link_settings = *link_setting;
 			update_dp_encoder_resources_for_test_harness(
 					link->dc,
@@ -103,7 +103,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 				pipe->stream->link == link &&
 				!pipe->stream->dpms_off &&
 				!pipe->top_pipe && !pipe->prev_odm_pipe) {
-			core_link_enable_stream(
+			link_set_dpms_on(
 					pipe->stream->ctx->dc->current_state,
 					pipe);
 		}

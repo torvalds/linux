@@ -37,6 +37,7 @@
 #include "dm_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
 #include "link_dpcd.h"
+#include "link_dp_phy.h"
 #include "link_dp_training_8b_10b.h"
 #include "link_dp_capability.h"
 #include "dc_dmub_srv.h"
@@ -48,6 +49,8 @@
 
 /* Extend interval between training status checks for manual testing. */
 #define DPIA_DEBUG_EXTENDED_AUX_RD_INTERVAL_US 60000000
+
+#define TRAINING_AUX_RD_INTERVAL 100 //us
 
 /* SET_CONFIG message types sent by driver. */
 enum dpia_set_config_type {

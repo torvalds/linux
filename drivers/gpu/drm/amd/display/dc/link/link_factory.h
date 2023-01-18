@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,10 +22,8 @@
  * Authors: AMD
  *
  */
-
-#ifndef __DC_LINK_DP_IRQ_HANDLER_H__
-#define __DC_LINK_DP_IRQ_HANDLER_H__
-
+#ifndef __LINK_FACTORY_H__
+#define __LINK_FACTORY_H__
 #include "link.h"
 
-#endif /* __DC_LINK_DP_IRQ_HANDLER_H__ */
+#endif /* __LINK_FACTORY_H__ */

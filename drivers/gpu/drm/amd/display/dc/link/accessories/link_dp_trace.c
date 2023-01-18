@@ -22,8 +22,8 @@
  * Authors: AMD
  *
  */
-#include "dc_link.h"
 #include "link_dp_trace.h"
+#include "link/protocols/link_dpcd.h"
 
 void dp_trace_init(struct dc_link *link)
 {
@@ -163,4 +163,11 @@ uint64_t link_dp_trace_get_edp_poweron_timestamp(struct dc_link *link)
 uint64_t link_dp_trace_get_edp_poweroff_timestamp(struct dc_link *link)
 {
 	return link->dp_trace.edp_trace_power_timestamps.poweroff;
+}
+
+void link_dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode)
+{
+	if (link != NULL && link->dc->debug.enable_driver_sequence_debug)
+		core_link_write_dpcd(link, DP_SOURCE_SEQUENCE,
+					&dp_test_mode, sizeof(dp_test_mode));
 }
