@@ -5557,11 +5557,10 @@ static void fotg210_init(struct fotg210_hcd *fotg210)
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-int fotg210_hcd_probe(struct platform_device *pdev)
+int fotg210_hcd_probe(struct platform_device *pdev, struct fotg210 *fotg)
 {
 	struct device *dev = &pdev->dev;
 	struct usb_hcd *hcd;
-	struct resource *res;
 	int irq;
 	int retval;
 	struct fotg210_hcd *fotg210;
@@ -5585,18 +5584,14 @@ int fotg210_hcd_probe(struct platform_device *pdev)
 
 	hcd->has_tt = 1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(hcd->regs)) {
-		retval = PTR_ERR(hcd->regs);
-		goto failed_put_hcd;
-	}
+	hcd->regs = fotg->base;
 
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
+	hcd->rsrc_start = fotg->res->start;
+	hcd->rsrc_len = resource_size(fotg->res);
 
 	fotg210 = hcd_to_fotg210(hcd);
 
+	fotg210->fotg = fotg;
 	fotg210->caps = hcd->regs;
 
 	/* It's OK not to supply this clock */

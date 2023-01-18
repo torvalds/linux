@@ -33,9 +33,10 @@
 #define GEMINI_MISC_USB0_MINI_B		BIT(29)
 #define GEMINI_MISC_USB1_MINI_B		BIT(30)
 
-static int fotg210_gemini_init(struct device *dev, struct resource *res,
+static int fotg210_gemini_init(struct fotg210 *fotg, struct resource *res,
 			       enum usb_dr_mode mode)
 {
+	struct device *dev = fotg->dev;
 	struct device_node *np = dev->of_node;
 	struct regmap *map;
 	bool wakeup;
@@ -47,6 +48,7 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 		dev_err(dev, "no syscon\n");
 		return PTR_ERR(map);
 	}
+	fotg->map = map;
 	wakeup = of_property_read_bool(np, "wakeup-source");
 
 	/*
@@ -55,6 +57,7 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 	 */
 	mask = 0;
 	if (res->start == 0x69000000) {
+		fotg->port = GEMINI_PORT_1;
 		mask = GEMINI_MISC_USB1_VBUS_ON | GEMINI_MISC_USB1_MINI_B |
 			GEMINI_MISC_USB1_WAKEUP;
 		if (mode == USB_DR_MODE_HOST)
@@ -64,6 +67,7 @@ static int fotg210_gemini_init(struct device *dev, struct resource *res,
 		if (wakeup)
 			val |= GEMINI_MISC_USB1_WAKEUP;
 	} else {
+		fotg->port = GEMINI_PORT_0;
 		mask = GEMINI_MISC_USB0_VBUS_ON | GEMINI_MISC_USB0_MINI_B |
 			GEMINI_MISC_USB0_WAKEUP;
 		if (mode == USB_DR_MODE_HOST)
@@ -89,23 +93,34 @@ static int fotg210_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	enum usb_dr_mode mode;
+	struct fotg210 *fotg;
 	int ret;
+
+	fotg = devm_kzalloc(dev, sizeof(*fotg), GFP_KERNEL);
+	if (!fotg)
+		return -ENOMEM;
+	fotg->dev = dev;
+
+	fotg->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!fotg->res)
+		return -ENODEV;
+
+	fotg->base = devm_ioremap_resource(dev, fotg->res);
+	if (!fotg->base)
+		return -ENOMEM;
 
 	mode = usb_get_dr_mode(dev);
 
 	if (of_device_is_compatible(dev->of_node, "cortina,gemini-usb")) {
-		struct resource *res;
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		ret = fotg210_gemini_init(dev, res, mode);
+		ret = fotg210_gemini_init(fotg, fotg->res, mode);
 		if (ret)
 			return ret;
 	}
 
 	if (mode == USB_DR_MODE_PERIPHERAL)
-		ret = fotg210_udc_probe(pdev);
+		ret = fotg210_udc_probe(pdev, fotg);
 	else
-		ret = fotg210_hcd_probe(pdev);
+		ret = fotg210_hcd_probe(pdev, fotg);
 
 	return ret;
 }
