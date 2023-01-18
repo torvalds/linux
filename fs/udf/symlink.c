@@ -107,10 +107,9 @@ static int udf_symlink_filler(struct file *file, struct folio *folio)
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *bh = NULL;
 	unsigned char *symlink;
-	int err;
+	int err = 0;
 	unsigned char *p = page_address(page);
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	uint32_t pos;
 
 	/* We don't support symlinks longer than one block */
 	if (inode->i_size > inode->i_sb->s_blocksize) {
@@ -121,14 +120,12 @@ static int udf_symlink_filler(struct file *file, struct folio *folio)
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		symlink = iinfo->i_data + iinfo->i_lenEAttr;
 	} else {
-		pos = udf_block_map(inode, 0);
-		bh = sb_bread(inode->i_sb, pos);
-
+		bh = udf_bread(inode, 0, 0, &err);
 		if (!bh) {
-			err = -EIO;
+			if (!err)
+				err = -EFSCORRUPTED;
 			goto out_err;
 		}
-
 		symlink = bh->b_data;
 	}
 
