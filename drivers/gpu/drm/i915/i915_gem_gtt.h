@@ -18,6 +18,8 @@ struct drm_i915_gem_object;
 struct i915_address_space;
 struct i915_gem_ww_ctx;
 
+#define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
+
 int __must_check i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 					    struct sg_table *pages);
 void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
