@@ -274,16 +274,24 @@ void i915_params_dump(const struct i915_params *params, struct drm_printer *p)
 #undef PRINT
 }
 
-static __always_inline void dup_param(const char *type, void *x)
+static void _param_dup_charp(char **valp)
 {
-	if (!__builtin_strcmp(type, "char *"))
-		*(void **)x = kstrdup(*(void **)x, GFP_ATOMIC);
+	*valp = kstrdup(*valp, GFP_ATOMIC);
 }
+
+static void _param_nop(void *valp)
+{
+}
+
+#define _param_dup(valp)				\
+	_Generic(valp,					\
+		 char **: _param_dup_charp,		\
+		 default: _param_nop)(valp)
 
 void i915_params_copy(struct i915_params *dest, const struct i915_params *src)
 {
 	*dest = *src;
-#define DUP(T, x, ...) dup_param(#T, &dest->x);
+#define DUP(T, x, ...) _param_dup(&dest->x);
 	I915_PARAMS_FOR_EACH(DUP);
 #undef DUP
 }
