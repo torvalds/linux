@@ -6539,8 +6539,19 @@ void nfs4_put_cpntf_state(struct nfsd_net *nn, struct nfs4_cpntf_state *cps)
 	spin_unlock(&nn->s2s_cp_lock);
 }
 
-/*
- * Checks for stateid operations
+/**
+ * nfs4_preprocess_stateid_op - find and prep stateid for an operation
+ * @rqstp: incoming request from client
+ * @cstate: current compound state
+ * @fhp: filehandle associated with requested stateid
+ * @stateid: stateid (provided by client)
+ * @flags: flags describing type of operation to be done
+ * @nfp: optional nfsd_file return pointer (may be NULL)
+ * @cstid: optional returned nfs4_stid pointer (may be NULL)
+ *
+ * Given info from the client, look up a nfs4_stid for the operation. On
+ * success, it returns a reference to the nfs4_stid and/or the nfsd_file
+ * associated with it.
  */
 __be32
 nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
@@ -6729,8 +6740,18 @@ static __be32 nfs4_seqid_op_checks(struct nfsd4_compound_state *cstate, stateid_
 	return status;
 }
 
-/* 
- * Checks for sequence id mutating operations. 
+/**
+ * nfs4_preprocess_seqid_op - find and prep an ol_stateid for a seqid-morphing op
+ * @cstate: compund state
+ * @seqid: seqid (provided by client)
+ * @stateid: stateid (provided by client)
+ * @typemask: mask of allowable types for this operation
+ * @stpp: return pointer for the stateid found
+ * @nn: net namespace for request
+ *
+ * Given a stateid+seqid from a client, look up an nfs4_ol_stateid and
+ * return it in @stpp. On a nfs_ok return, the returned stateid will
+ * have its st_mutex locked.
  */
 static __be32
 nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
