@@ -412,7 +412,6 @@ struct r8192_priv {
 	u8 short_preamble;
 	u8 dot11_current_preamble_mode;
 	u8 slot_time;
-	u16 SifsTime;
 
 	bool autoload_fail_flag;
 
