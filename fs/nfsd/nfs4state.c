@@ -600,21 +600,15 @@ put_nfs4_file(struct nfs4_file *fi)
 }
 
 static struct nfsd_file *
-__nfs4_get_fd(struct nfs4_file *f, int oflag)
-{
-	return nfsd_file_get(f->fi_fds[oflag]);
-}
-
-static struct nfsd_file *
 find_writeable_file_locked(struct nfs4_file *f)
 {
 	struct nfsd_file *ret;
 
 	lockdep_assert_held(&f->fi_lock);
 
-	ret = __nfs4_get_fd(f, O_WRONLY);
+	ret = nfsd_file_get(f->fi_fds[O_WRONLY]);
 	if (!ret)
-		ret = __nfs4_get_fd(f, O_RDWR);
+		ret = nfsd_file_get(f->fi_fds[O_RDWR]);
 	return ret;
 }
 
@@ -637,9 +631,9 @@ find_readable_file_locked(struct nfs4_file *f)
 
 	lockdep_assert_held(&f->fi_lock);
 
-	ret = __nfs4_get_fd(f, O_RDONLY);
+	ret = nfsd_file_get(f->fi_fds[O_RDONLY]);
 	if (!ret)
-		ret = __nfs4_get_fd(f, O_RDWR);
+		ret = nfsd_file_get(f->fi_fds[O_RDWR]);
 	return ret;
 }
 
@@ -663,11 +657,11 @@ find_any_file(struct nfs4_file *f)
 	if (!f)
 		return NULL;
 	spin_lock(&f->fi_lock);
-	ret = __nfs4_get_fd(f, O_RDWR);
+	ret = nfsd_file_get(f->fi_fds[O_RDWR]);
 	if (!ret) {
-		ret = __nfs4_get_fd(f, O_WRONLY);
+		ret = nfsd_file_get(f->fi_fds[O_WRONLY]);
 		if (!ret)
-			ret = __nfs4_get_fd(f, O_RDONLY);
+			ret = nfsd_file_get(f->fi_fds[O_RDONLY]);
 	}
 	spin_unlock(&f->fi_lock);
 	return ret;
