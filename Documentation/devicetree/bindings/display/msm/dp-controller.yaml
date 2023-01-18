@@ -127,11 +127,10 @@ allOf:
             enum:
               - qcom,sc7280-edp
               - qcom,sc8180x-edp
+              - qcom,sc8280xp-edp
     then:
       properties:
         "#sound-dai-cells": false
-        reg:
-          maxItems: 4
     else:
       properties:
         aux-bus: false
