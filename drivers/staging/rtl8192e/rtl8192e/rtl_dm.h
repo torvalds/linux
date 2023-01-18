@@ -47,8 +47,6 @@
 #define		TX_RETRY_COUNT_REG		0x1ac
 #define		RegC38_TH				 20
 
-#define		DM_Type_ByDriver		1
-
 /*--------------------------Define Parameters-------------------------------*/
 
 

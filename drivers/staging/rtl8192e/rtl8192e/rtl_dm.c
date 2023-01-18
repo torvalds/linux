@@ -203,8 +203,6 @@ void rtl92e_dm_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->DM_Type = DM_Type_ByDriver;
-
 	priv->undecorated_smoothed_pwdb = -1;
 
 	_rtl92e_dm_init_dynamic_tx_power(dev);
