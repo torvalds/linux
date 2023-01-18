@@ -144,7 +144,7 @@ static const char *sm_state_to_str(unsigned short sm_state)
 	return sm_state_strings[sm_state];
 }
 
-static const char *gpio_of_names[] = {
+static const char *gpio_names[] = {
 	"mod-def0",
 	"los",
 	"tx-fault",
@@ -2563,7 +2563,7 @@ static void sfp_check_state(struct sfp *sfp)
 
 	for (i = 0; i < GPIO_MAX; i++)
 		if (changed & BIT(i))
-			dev_dbg(sfp->dev, "%s %u -> %u\n", gpio_of_names[i],
+			dev_dbg(sfp->dev, "%s %u -> %u\n", gpio_names[i],
 				!!(sfp->state & BIT(i)), !!(state & BIT(i)));
 
 	state |= sfp->state & (SFP_F_TX_DISABLE | SFP_F_RATE_SELECT);
@@ -2698,7 +2698,7 @@ static int sfp_probe(struct platform_device *pdev)
 	for (i = 0; i < GPIO_MAX; i++)
 		if (sff->gpios & BIT(i)) {
 			sfp->gpio[i] = devm_gpiod_get_optional(sfp->dev,
-					   gpio_of_names[i], gpio_flags[i]);
+					   gpio_names[i], gpio_flags[i]);
 			if (IS_ERR(sfp->gpio[i]))
 				return PTR_ERR(sfp->gpio[i]);
 		}
@@ -2753,7 +2753,7 @@ static int sfp_probe(struct platform_device *pdev)
 
 		sfp_irq_name = devm_kasprintf(sfp->dev, GFP_KERNEL,
 					      "%s-%s", dev_name(sfp->dev),
-					      gpio_of_names[i]);
+					      gpio_names[i]);
 
 		if (!sfp_irq_name)
 			return -ENOMEM;
