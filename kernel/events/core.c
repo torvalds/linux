@@ -7568,19 +7568,12 @@ static __always_inline u64 __cond_set(u64 flags, u64 s, u64 d)
 	return d * !!(flags & s);
 }
 
-void perf_prepare_sample(struct perf_event_header *header,
-			 struct perf_sample_data *data,
+void perf_prepare_sample(struct perf_sample_data *data,
 			 struct perf_event *event,
 			 struct pt_regs *regs)
 {
 	u64 sample_type = event->attr.sample_type;
 	u64 filtered_sample_type;
-
-	header->type = PERF_RECORD_SAMPLE;
-	header->size = sizeof(*header) + event->header_size + event->id_header_size;
-
-	header->misc = 0;
-	header->misc |= perf_misc_flags(regs);
 
 	/*
 	 * Add the sample flags that are dependent to others.  And clear the
@@ -7594,6 +7587,12 @@ void perf_prepare_sample(struct perf_event_header *header,
 	filtered_sample_type |= __cond_set(sample_type, PERF_SAMPLE_STACK_USER,
 					   PERF_SAMPLE_REGS_USER);
 	filtered_sample_type &= ~data->sample_flags;
+
+	if (filtered_sample_type == 0) {
+		/* Make sure it has the correct data->type for output */
+		data->type = event->attr.sample_type;
+		return;
+	}
 
 	__perf_event_header__init_id(data, event, filtered_sample_type);
 
@@ -7646,9 +7645,10 @@ void perf_prepare_sample(struct perf_event_header *header,
 		 * up the rest of the sample size.
 		 */
 		u16 stack_size = event->attr.sample_stack_user;
+		u16 header_size = perf_sample_data_size(data, event);
 		u16 size = sizeof(u64);
 
-		stack_size = perf_sample_ustack_size(stack_size, header->size,
+		stack_size = perf_sample_ustack_size(stack_size, header_size,
 						     data->regs_user.regs);
 
 		/*
@@ -7733,8 +7733,9 @@ void perf_prepare_sample(struct perf_event_header *header,
 
 	if (filtered_sample_type & PERF_SAMPLE_AUX) {
 		u64 size;
+		u16 header_size = perf_sample_data_size(data, event);
 
-		header->size += sizeof(u64); /* size */
+		header_size += sizeof(u64); /* size */
 
 		/*
 		 * Given the 16bit nature of header::size, an AUX sample can
@@ -7742,17 +7743,25 @@ void perf_prepare_sample(struct perf_event_header *header,
 		 * Make sure this doesn't happen by using up to U16_MAX bytes
 		 * per sample in total (rounded down to 8 byte boundary).
 		 */
-		size = min_t(size_t, U16_MAX - header->size,
+		size = min_t(size_t, U16_MAX - header_size,
 			     event->attr.aux_sample_size);
 		size = rounddown(size, 8);
 		size = perf_prepare_sample_aux(event, data, size);
 
-		WARN_ON_ONCE(size + header->size > U16_MAX);
+		WARN_ON_ONCE(size + header_size > U16_MAX);
 		data->dyn_size += size + sizeof(u64); /* size above */
 		data->sample_flags |= PERF_SAMPLE_AUX;
 	}
+}
 
-	header->size += data->dyn_size;
+void perf_prepare_header(struct perf_event_header *header,
+			 struct perf_sample_data *data,
+			 struct perf_event *event,
+			 struct pt_regs *regs)
+{
+	header->type = PERF_RECORD_SAMPLE;
+	header->size = perf_sample_data_size(data, event);
+	header->misc = perf_misc_flags(regs);
 
 	/*
 	 * If you're adding more sample types here, you likely need to do
@@ -7781,7 +7790,8 @@ __perf_event_output(struct perf_event *event,
 	/* protect the callchain buffers */
 	rcu_read_lock();
 
-	perf_prepare_sample(&header, data, event, regs);
+	perf_prepare_sample(data, event, regs);
+	perf_prepare_header(&header, data, event, regs);
 
 	err = output_begin(&handle, data, event, header.size);
 	if (err)

@@ -1250,6 +1250,17 @@ static inline void perf_sample_save_brstack(struct perf_sample_data *data,
 	data->sample_flags |= PERF_SAMPLE_BRANCH_STACK;
 }
 
+static inline u32 perf_sample_data_size(struct perf_sample_data *data,
+					struct perf_event *event)
+{
+	u32 size = sizeof(struct perf_event_header);
+
+	size += event->header_size + event->id_header_size;
+	size += data->dyn_size;
+
+	return size;
+}
+
 /*
  * Clear all bitfields in the perf_branch_entry.
  * The to and from fields are not cleared because they are
@@ -1271,7 +1282,10 @@ extern void perf_output_sample(struct perf_output_handle *handle,
 			       struct perf_event_header *header,
 			       struct perf_sample_data *data,
 			       struct perf_event *event);
-extern void perf_prepare_sample(struct perf_event_header *header,
+extern void perf_prepare_sample(struct perf_sample_data *data,
+				struct perf_event *event,
+				struct pt_regs *regs);
+extern void perf_prepare_header(struct perf_event_header *header,
 				struct perf_sample_data *data,
 				struct perf_event *event,
 				struct pt_regs *regs);

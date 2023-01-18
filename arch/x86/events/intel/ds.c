@@ -807,7 +807,8 @@ int intel_pmu_drain_bts_buffer(void)
 	 * the sample.
 	 */
 	rcu_read_lock();
-	perf_prepare_sample(&header, &data, event, &regs);
+	perf_prepare_sample(&data, event, &regs);
+	perf_prepare_header(&header, &data, event, &regs);
 
 	if (perf_output_begin(&handle, &data, event,
 			      header.size * (top - base - skip)))
