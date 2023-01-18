@@ -1044,6 +1044,20 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
 		verify_link_capability_non_destructive(link);
 }
 
+static void read_scdc_caps(struct ddc_service *ddc_service, struct dc_sink *sink)
+{
+	uint8_t slave_address = HDMI_SCDC_ADDRESS;
+	uint8_t offset = HDMI_SCDC_MANUFACTURER_OUI;
+
+	link_query_ddc_data(ddc_service, slave_address, &offset,
+			sizeof(offset), sink->scdc_caps.manufacturer_OUI.byte,
+			sizeof(sink->scdc_caps.manufacturer_OUI.byte));
+
+	offset = HDMI_SCDC_DEVICE_ID;
+
+	link_query_ddc_data(ddc_service, slave_address, &offset,
+			sizeof(offset), &(sink->scdc_caps.device_id.byte), sizeof(sink->scdc_caps.device_id.byte));
+}
 
 /**
  * detect_link_and_local_sink() - Detect if a sink is attached to a given link
@@ -1286,6 +1300,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 		if (sink->edid_caps.panel_patch.skip_scdc_overwrite)
 			link->ctx->dc->debug.hdmi20_disable = true;
+
+		if (dc_is_hdmi_signal(link->connector_signal))
+			read_scdc_caps(link->ddc, link->local_sink);
 
 		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
 		    sink_caps.transaction_type ==
