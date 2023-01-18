@@ -6,6 +6,7 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
 #include "xe_pt.h"
 #include "xe_pt_types.h"
@@ -1461,6 +1462,83 @@ static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
 	.pre_commit = xe_pt_userptr_pre_commit,
 };
 
+struct invalidation_fence {
+	struct xe_gt_tlb_invalidation_fence base;
+	struct xe_gt *gt;
+	struct dma_fence *fence;
+	struct dma_fence_cb cb;
+	struct work_struct work;
+};
+
+static const char *
+invalidation_fence_get_driver_name(struct dma_fence *dma_fence)
+{
+	return "xe";
+}
+
+static const char *
+invalidation_fence_get_timeline_name(struct dma_fence *dma_fence)
+{
+	return "invalidation_fence";
+}
+
+static const struct dma_fence_ops invalidation_fence_ops = {
+	.get_driver_name = invalidation_fence_get_driver_name,
+	.get_timeline_name = invalidation_fence_get_timeline_name,
+};
+
+static void invalidation_fence_cb(struct dma_fence *fence,
+				  struct dma_fence_cb *cb)
+{
+	struct invalidation_fence *ifence =
+		container_of(cb, struct invalidation_fence, cb);
+
+	queue_work(system_wq, &ifence->work);
+	dma_fence_put(ifence->fence);
+}
+
+static void invalidation_fence_work_func(struct work_struct *w)
+{
+	struct invalidation_fence *ifence =
+		container_of(w, struct invalidation_fence, work);
+
+	xe_gt_tlb_invalidation(ifence->gt, &ifence->base);
+}
+
+static int invalidation_fence_init(struct xe_gt *gt,
+				   struct invalidation_fence *ifence,
+				   struct dma_fence *fence)
+{
+	int ret;
+
+	spin_lock_irq(&gt->tlb_invalidation.lock);
+	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,
+		       &gt->tlb_invalidation.lock,
+		       gt->tlb_invalidation.fence_context,
+		       ++gt->tlb_invalidation.fence_seqno);
+	spin_unlock_irq(&gt->tlb_invalidation.lock);
+
+	INIT_LIST_HEAD(&ifence->base.link);
+
+	dma_fence_get(&ifence->base.base);	/* Ref for caller */
+	ifence->fence = fence;
+	ifence->gt = gt;
+
+	INIT_WORK(&ifence->work, invalidation_fence_work_func);
+	ret = dma_fence_add_callback(fence, &ifence->cb, invalidation_fence_cb);
+	if (ret == -ENOENT) {
+		dma_fence_put(ifence->fence);	/* Usually dropped in CB */
+		invalidation_fence_work_func(&ifence->work);
+	} else if (ret) {
+		dma_fence_put(&ifence->base.base);	/* Caller ref */
+		dma_fence_put(&ifence->base.base);	/* Creation ref */
+	}
+
+	XE_WARN_ON(ret && ret != -ENOENT);
+
+	return ret && ret != -ENOENT ? ret : 0;
+}
+
 /**
  * __xe_pt_unbind_vma() - Disconnect and free a page-table tree for the vma
  * address range.
@@ -1496,6 +1574,7 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 	struct xe_vm *vm = vma->vm;
 	u32 num_entries;
 	struct dma_fence *fence = NULL;
+	struct invalidation_fence *ifence;
 	LLIST_HEAD(deferred);
 
 	xe_bo_assert_held(vma->bo);
@@ -1511,6 +1590,10 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 
 	xe_vm_dbg_print_entries(gt_to_xe(gt), entries, num_entries);
 
+	ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
+	if (!ifence)
+		return ERR_PTR(-ENOMEM);
+
 	/*
 	 * Even if we were already evicted and unbind to destroy, we need to
 	 * clear again here. The eviction may have updated pagetables at a
@@ -1523,6 +1606,17 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 					   syncs, num_syncs,
 					   &unbind_pt_update.base);
 	if (!IS_ERR(fence)) {
+		int err;
+
+		/* TLB invalidation must be done before signaling unbind */
+		err = invalidation_fence_init(gt, ifence, fence);
+		if (err) {
+			dma_fence_put(fence);
+			kfree(ifence);
+			return ERR_PTR(err);
+		}
+		fence = &ifence->base.base;
+
 		/* add shared fence now for pagetable delayed destroy */
 		dma_resv_add_fence(&vm->resv, fence,
 				   DMA_RESV_USAGE_BOOKKEEP);
@@ -1534,6 +1628,8 @@ __xe_pt_unbind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 		xe_pt_commit_unbind(vma, entries, num_entries,
 				    unbind_pt_update.locked ? &deferred : NULL);
 		vma->gt_present &= ~BIT(gt->info.id);
+	} else {
+		kfree(ifence);
 	}
 
 	if (!vma->gt_present)

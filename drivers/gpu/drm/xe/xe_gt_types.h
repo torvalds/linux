@@ -174,6 +174,15 @@ struct xe_gt {
 		 * invaliations, protected by CT lock
 		 */
 		struct list_head pending_fences;
+		/** @fence_context: context for TLB invalidation fences */
+		u64 fence_context;
+		/**
+		 * @fence_seqno: seqno to TLB invalidation fences, protected by
+		 * tlb_invalidation.lock
+		 */
+		u32 fence_seqno;
+		/** @lock: protects TLB invalidation fences */
+		spinlock_t lock;
 	} tlb_invalidation;
 
 	/** @usm: unified shared memory state */

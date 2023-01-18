@@ -18,6 +18,8 @@ int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 {
 	gt->tlb_invalidation.seqno = 1;
 	INIT_LIST_HEAD(&gt->tlb_invalidation.pending_fences);
+	spin_lock_init(&gt->tlb_invalidation.lock);
+	gt->tlb_invalidation.fence_context = dma_fence_context_alloc(1);
 
 	return 0;
 }
