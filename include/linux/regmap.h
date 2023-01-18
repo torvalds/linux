@@ -38,6 +38,14 @@ struct regmap_field;
 struct snd_ac97;
 struct sdw_slave;
 
+/*
+ * regmap_mdio address encoding. IEEE 802.3ae clause 45 addresses consist of a
+ * device address and a register address.
+ */
+#define REGMAP_MDIO_C45_DEVAD_SHIFT	16
+#define REGMAP_MDIO_C45_DEVAD_MASK	GENMASK(20, 16)
+#define REGMAP_MDIO_C45_REGNUM_MASK	GENMASK(15, 0)
+
 /* An enum of all the supported cache types */
 enum regcache_type {
 	REGCACHE_NONE,
