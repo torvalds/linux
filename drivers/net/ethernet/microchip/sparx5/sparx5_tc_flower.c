@@ -35,11 +35,6 @@ struct sparx5_tc_flower_parse_usage {
 	unsigned int used_keys;
 };
 
-struct sparx5_tc_rule_pkt_cnt {
-	u64 cookie;
-	u32 pkts;
-};
-
 /* These protocols have dedicated keysets in IS2 and a TC dissector
  * ETH_P_ARP does not have a TC dissector
  */
@@ -947,44 +942,21 @@ static int sparx5_tc_flower_destroy(struct net_device *ndev,
 	return err;
 }
 
-/* Collect packet counts from all rules with the same cookie */
-static int sparx5_tc_rule_counter_cb(void *arg, struct vcap_rule *rule)
-{
-	struct sparx5_tc_rule_pkt_cnt *rinfo = arg;
-	struct vcap_counter counter;
-	int err = 0;
-
-	if (rule->cookie == rinfo->cookie) {
-		err = vcap_rule_get_counter(rule, &counter);
-		if (err)
-			return err;
-		rinfo->pkts += counter.value;
-		/* Reset the rule counter */
-		counter.value = 0;
-		vcap_rule_set_counter(rule, &counter);
-	}
-	return err;
-}
-
 static int sparx5_tc_flower_stats(struct net_device *ndev,
 				  struct flow_cls_offload *fco,
 				  struct vcap_admin *admin)
 {
 	struct sparx5_port *port = netdev_priv(ndev);
-	struct sparx5_tc_rule_pkt_cnt rinfo = {};
+	struct vcap_counter ctr = {};
 	struct vcap_control *vctrl;
 	ulong lastused = 0;
-	u64 drops = 0;
-	u32 pkts = 0;
 	int err;
 
-	rinfo.cookie = fco->cookie;
 	vctrl = port->sparx5->vcap_ctrl;
-	err = vcap_rule_iter(vctrl, sparx5_tc_rule_counter_cb, &rinfo);
+	err = vcap_get_rule_count_by_cookie(vctrl, &ctr, fco->cookie);
 	if (err)
 		return err;
-	pkts = rinfo.pkts;
-	flow_stats_update(&fco->stats, 0x0, pkts, drops, lastused,
+	flow_stats_update(&fco->stats, 0x0, ctr.value, 0, lastused,
 			  FLOW_ACTION_HW_STATS_IMMEDIATE);
 	return err;
 }

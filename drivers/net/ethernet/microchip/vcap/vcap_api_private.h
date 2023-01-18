@@ -118,4 +118,7 @@ int vcap_find_keystream_keysets(struct vcap_control *vctrl, enum vcap_type vt,
 /* Get the keysets that matches the rule key type/mask */
 int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
 			  struct vcap_keyset_list *matches);
+/* Decode a rule from the VCAP cache and return a copy */
+struct vcap_rule *vcap_decode_rule(struct vcap_rule_internal *elem);
+
 #endif /* __VCAP_API_PRIVATE__ */

@@ -202,6 +202,8 @@ int vcap_rule_add_action_u32(struct vcap_rule *rule,
 			     enum vcap_action_field action, u32 value);
 
 /* VCAP rule counter operations */
+int vcap_get_rule_count_by_cookie(struct vcap_control *vctrl,
+				  struct vcap_counter *ctr, u64 cookie);
 int vcap_rule_set_counter(struct vcap_rule *rule, struct vcap_counter *ctr);
 int vcap_rule_get_counter(struct vcap_rule *rule, struct vcap_counter *ctr);
 

@@ -295,7 +295,7 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 
 	vcap_show_admin_info(vctrl, admin, out);
 	list_for_each_entry(elem, &admin->rules, list) {
-		vrule = vcap_get_rule(vctrl, elem->data.id);
+		vrule = vcap_decode_rule(elem);
 		if (IS_ERR_OR_NULL(vrule)) {
 			ret = PTR_ERR(vrule);
 			break;
@@ -404,8 +404,12 @@ static int vcap_debugfs_show(struct seq_file *m, void *unused)
 		.prf = (void *)seq_printf,
 		.dst = m,
 	};
+	int ret;
 
-	return vcap_show_admin(info->vctrl, info->admin, &out);
+	mutex_lock(&info->admin->lock);
+	ret = vcap_show_admin(info->vctrl, info->admin, &out);
+	mutex_unlock(&info->admin->lock);
+	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(vcap_debugfs);
 
@@ -417,8 +421,12 @@ static int vcap_raw_debugfs_show(struct seq_file *m, void *unused)
 		.prf = (void *)seq_printf,
 		.dst = m,
 	};
+	int ret;
 
-	return vcap_show_admin_raw(info->vctrl, info->admin, &out);
+	mutex_lock(&info->admin->lock);
+	ret = vcap_show_admin_raw(info->vctrl, info->admin, &out);
+	mutex_unlock(&info->admin->lock);
+	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(vcap_raw_debugfs);
 
