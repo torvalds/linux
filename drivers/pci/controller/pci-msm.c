@@ -9841,7 +9841,7 @@ int msm_pcie_deregister_event(struct msm_pcie_register_event *reg)
 				 node) {
 		if (reg_itr->user == reg->user) {
 			list_del(&reg->node);
-			spin_unlock(&pcie_dev->evt_reg_list_lock);
+			spin_unlock_irqrestore(&pcie_dev->evt_reg_list_lock, flags);
 			PCIE_DBG(pcie_dev,
 				 "PCIe: RC%d: Event deregistered for BDF 0x%04x\n",
 				 pcie_dev->rc_idx,
