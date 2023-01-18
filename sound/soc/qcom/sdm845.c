@@ -588,6 +588,7 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
 
 static const struct of_device_id sdm845_snd_device_id[]  = {
 	{ .compatible = "qcom,sdm845-sndcard" },
+	/* Do not grow the list for compatible devices */
 	{ .compatible = "qcom,db845c-sndcard" },
 	{ .compatible = "lenovo,yoga-c630-sndcard" },
 	{},
