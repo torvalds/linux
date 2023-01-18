@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/clk.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/phy.h>
 
@@ -1134,9 +1133,6 @@ int fotg210_udc_remove(struct platform_device *pdev)
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++)
 		kfree(fotg210->ep[i]);
 
-	if (!IS_ERR(fotg210->pclk))
-		clk_disable_unprepare(fotg210->pclk);
-
 	kfree(fotg210);
 
 	return 0;
@@ -1164,34 +1160,17 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	fotg210->dev = dev;
 	fotg210->fotg = fotg;
 
-	/* It's OK not to supply this clock */
-	fotg210->pclk = devm_clk_get(dev, "PCLK");
-	if (!IS_ERR(fotg210->pclk)) {
-		ret = clk_prepare_enable(fotg210->pclk);
-		if (ret) {
-			dev_err(dev, "failed to enable PCLK\n");
-			goto err;
-		}
-	} else if (PTR_ERR(fotg210->pclk) == -EPROBE_DEFER) {
-		/*
-		 * Percolate deferrals, for anything else,
-		 * just live without the clocking.
-		 */
-		ret = -EPROBE_DEFER;
-		goto err;
-	}
-
 	fotg210->phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 	if (IS_ERR(fotg210->phy)) {
 		ret = PTR_ERR(fotg210->phy);
 		if (ret == -EPROBE_DEFER)
-			goto err_pclk;
+			goto err_free;
 		dev_info(dev, "no PHY found\n");
 		fotg210->phy = NULL;
 	} else {
 		ret = usb_phy_init(fotg210->phy);
 		if (ret)
-			goto err_pclk;
+			goto err_free;
 		dev_info(dev, "found and initialized PHY\n");
 	}
 
@@ -1288,11 +1267,8 @@ err_map:
 err_alloc:
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++)
 		kfree(fotg210->ep[i]);
-err_pclk:
-	if (!IS_ERR(fotg210->pclk))
-		clk_disable_unprepare(fotg210->pclk);
 
-err:
+err_free:
 	kfree(fotg210);
 	return ret;
 }

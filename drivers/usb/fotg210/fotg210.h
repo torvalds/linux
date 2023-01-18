@@ -12,6 +12,7 @@ struct fotg210 {
 	struct device *dev;
 	struct resource *res;
 	void __iomem *base;
+	struct clk *pclk;
 	struct regmap *map;
 	enum gemini_port port;
 };

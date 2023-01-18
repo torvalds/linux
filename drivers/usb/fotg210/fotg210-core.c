@@ -6,6 +6,7 @@
  * driver.
  */
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -108,6 +109,10 @@ static int fotg210_probe(struct platform_device *pdev)
 	fotg->base = devm_ioremap_resource(dev, fotg->res);
 	if (!fotg->base)
 		return -ENOMEM;
+
+	fotg->pclk = devm_clk_get_optional_enabled(dev, "PCLK");
+	if (IS_ERR(fotg->pclk))
+		return PTR_ERR(fotg->pclk);
 
 	mode = usb_get_dr_mode(dev);
 
