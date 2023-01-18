@@ -136,8 +136,51 @@ static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return ret;
 }
 
+static int ab8500_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+				struct pwm_state *state)
+{
+	u8 ctrl7, lower_val, higher_val;
+	int ret;
+	struct ab8500_pwm_chip *ab8500 = ab8500_pwm_from_chip(chip);
+	unsigned int div, duty_steps;
+
+	ret = abx500_get_register_interruptible(chip->dev, AB8500_MISC,
+						AB8500_PWM_OUT_CTRL7_REG,
+						&ctrl7);
+	if (ret)
+		return ret;
+
+	state->polarity = PWM_POLARITY_NORMAL;
+
+	if (!(ctrl7 & 1 << ab8500->hwid)) {
+		state->enabled = false;
+		return 0;
+	}
+
+	ret = abx500_get_register_interruptible(chip->dev, AB8500_MISC,
+						AB8500_PWM_OUT_CTRL1_REG + (ab8500->hwid * 2),
+						&lower_val);
+	if (ret)
+		return ret;
+
+	ret = abx500_get_register_interruptible(chip->dev, AB8500_MISC,
+						AB8500_PWM_OUT_CTRL2_REG + (ab8500->hwid * 2),
+						&higher_val);
+	if (ret)
+		return ret;
+
+	div = 32 - ((higher_val & 0xf0) >> 4);
+	duty_steps = ((higher_val & 3) << 8 | lower_val) + 1;
+
+	state->period = DIV64_U64_ROUND_UP((u64)div << 10, AB8500_PWM_CLKRATE);
+	state->duty_cycle = DIV64_U64_ROUND_UP((u64)div * duty_steps, AB8500_PWM_CLKRATE);
+
+	return 0;
+}
+
 static const struct pwm_ops ab8500_pwm_ops = {
 	.apply = ab8500_pwm_apply,
+	.get_state = ab8500_pwm_get_state,
 	.owner = THIS_MODULE,
 };
 
