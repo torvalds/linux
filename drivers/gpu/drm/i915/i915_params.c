@@ -296,18 +296,21 @@ void i915_params_copy(struct i915_params *dest, const struct i915_params *src)
 #undef DUP
 }
 
-static __always_inline void free_param(const char *type, void *x)
+static void _param_free_charp(char **valp)
 {
-	if (!__builtin_strcmp(type, "char *")) {
-		kfree(*(void **)x);
-		*(void **)x = NULL;
-	}
+	kfree(*valp);
+	*valp = NULL;
 }
+
+#define _param_free(valp)				\
+	_Generic(valp,					\
+		 char **: _param_free_charp,		\
+		 default: _param_nop)(valp)
 
 /* free the allocated members, *not* the passed in params itself */
 void i915_params_free(struct i915_params *params)
 {
-#define FREE(T, x, ...) free_param(#T, &params->x);
+#define FREE(T, x, ...) _param_free(&params->x);
 	I915_PARAMS_FOR_EACH(FREE);
 #undef FREE
 }
