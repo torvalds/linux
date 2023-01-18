@@ -199,7 +199,7 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	}
 }
 
-static u32 intel_dsb_align_tail(struct intel_dsb *dsb)
+static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
 
@@ -211,8 +211,11 @@ static u32 intel_dsb_align_tail(struct intel_dsb *dsb)
 		       aligned_tail - tail);
 
 	dsb->free_pos = aligned_tail / 4;
+}
 
-	return aligned_tail;
+void intel_dsb_finish(struct intel_dsb *dsb)
+{
+	intel_dsb_align_tail(dsb);
 }
 
 /**
@@ -228,8 +231,8 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 	enum pipe pipe = crtc->pipe;
 	u32 tail;
 
-	tail = intel_dsb_align_tail(dsb);
-	if (tail == 0)
+	tail = dsb->free_pos * 4;
+	if (drm_WARN_ON(&dev_priv->drm, !IS_ALIGNED(tail, CACHELINE_BYTES)))
 		return;
 
 	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
