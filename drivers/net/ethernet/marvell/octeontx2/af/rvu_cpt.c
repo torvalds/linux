@@ -70,6 +70,14 @@ static irqreturn_t cpt_af_flt_intr_handler(int vec, void *ptr)
 
 		rvu_write64(rvu, blkaddr, CPT_AF_EXEX_CTL2(eng), grp);
 		rvu_write64(rvu, blkaddr, CPT_AF_EXEX_CTL(eng), val | 1ULL);
+
+		spin_lock(&rvu->cpt_intr_lock);
+		block->cpt_flt_eng_map[vec] |= BIT_ULL(i);
+		val = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_STS(eng));
+		val = val & 0x3;
+		if (val == 0x1 || val == 0x2)
+			block->cpt_rcvrd_eng_map[vec] |= BIT_ULL(i);
+		spin_unlock(&rvu->cpt_intr_lock);
 	}
 	rvu_write64(rvu, blkaddr, CPT_AF_FLTX_INT(vec), reg);
 
@@ -884,6 +892,31 @@ int rvu_mbox_handler_cpt_lf_reset(struct rvu *rvu, struct cpt_lf_rst_req *req,
 	return 0;
 }
 
+int rvu_mbox_handler_cpt_flt_eng_info(struct rvu *rvu, struct cpt_flt_eng_info_req *req,
+				      struct cpt_flt_eng_info_rsp *rsp)
+{
+	struct rvu_block *block;
+	unsigned long flags;
+	int blkaddr, vec;
+
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
+
+	block = &rvu->hw->block[blkaddr];
+	for (vec = 0; vec < CPT_10K_AF_INT_VEC_RVU; vec++) {
+		spin_lock_irqsave(&rvu->cpt_intr_lock, flags);
+		rsp->flt_eng_map[vec] = block->cpt_flt_eng_map[vec];
+		rsp->rcvrd_eng_map[vec] = block->cpt_rcvrd_eng_map[vec];
+		if (req->reset) {
+			block->cpt_flt_eng_map[vec] = 0x0;
+			block->cpt_rcvrd_eng_map[vec] = 0x0;
+		}
+		spin_unlock_irqrestore(&rvu->cpt_intr_lock, flags);
+	}
+	return 0;
+}
+
 static void cpt_rxc_teardown(struct rvu *rvu, int blkaddr)
 {
 	struct cpt_rxc_time_cfg_req req;
@@ -1172,5 +1205,7 @@ int rvu_cpt_init(struct rvu *rvu)
 {
 	/* Retrieve CPT PF number */
 	rvu->cpt_pf_num = get_cpt_pf_num(rvu);
+	spin_lock_init(&rvu->cpt_intr_lock);
+
 	return 0;
 }
