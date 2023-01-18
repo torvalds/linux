@@ -72,10 +72,6 @@ properties:
     deprecated: true
     const: dsi
 
-  "#address-cells": true
-
-  "#size-cells": true
-
   syscon-sfpb:
     description: A phandle to mmss_sfpb syscon node (only for DSIv2).
     $ref: "/schemas/types.yaml#/definitions/phandle"
@@ -356,7 +352,7 @@ allOf:
             - const: iface
             - const: bus
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
