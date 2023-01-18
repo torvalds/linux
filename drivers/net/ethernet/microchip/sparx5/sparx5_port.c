@@ -1152,6 +1152,7 @@ int sparx5_port_qos_set(struct sparx5_port *port,
 	sparx5_port_qos_dscp_set(port, &qos->dscp);
 	sparx5_port_qos_pcp_set(port, &qos->pcp);
 	sparx5_port_qos_pcp_rewr_set(port, &qos->pcp_rewr);
+	sparx5_port_qos_dscp_rewr_set(port, &qos->dscp_rewr);
 	sparx5_port_qos_default_set(port, qos);
 
 	return 0;
@@ -1236,6 +1237,45 @@ int sparx5_port_qos_pcp_set(const struct sparx5_port *port,
 			 ANA_CL_PCP_DEI_MAP_CFG_PCP_DEI_QOS_VAL |
 			 ANA_CL_PCP_DEI_MAP_CFG_PCP_DEI_DP_VAL, sparx5,
 			 ANA_CL_PCP_DEI_MAP_CFG(port->portno, i));
+	}
+
+	return 0;
+}
+
+void sparx5_port_qos_dscp_rewr_mode_set(const struct sparx5_port *port,
+					int mode)
+{
+	spx5_rmw(ANA_CL_QOS_CFG_DSCP_REWR_MODE_SEL_SET(mode),
+		 ANA_CL_QOS_CFG_DSCP_REWR_MODE_SEL, port->sparx5,
+		 ANA_CL_QOS_CFG(port->portno));
+}
+
+int sparx5_port_qos_dscp_rewr_set(const struct sparx5_port *port,
+				  struct sparx5_port_qos_dscp_rewr *qos)
+{
+	struct sparx5 *sparx5 = port->sparx5;
+	bool rewr = false;
+	u16 dscp;
+	int i;
+
+	/* On egress, rewrite DSCP value to either classified DSCP or frame
+	 * DSCP. If enabled; classified DSCP, if disabled; frame DSCP.
+	 */
+	if (qos->enable)
+		rewr = true;
+
+	spx5_rmw(REW_DSCP_MAP_DSCP_UPDATE_ENA_SET(rewr),
+		 REW_DSCP_MAP_DSCP_UPDATE_ENA, sparx5,
+		 REW_DSCP_MAP(port->portno));
+
+	/* On ingress, map each classified QoS class and DP to classified DSCP
+	 * value. This mapping table is global for all ports.
+	 */
+	for (i = 0; i < ARRAY_SIZE(qos->map.map); i++) {
+		dscp = qos->map.map[i];
+		spx5_rmw(ANA_CL_QOS_MAP_CFG_DSCP_REWR_VAL_SET(dscp),
+			 ANA_CL_QOS_MAP_CFG_DSCP_REWR_VAL, sparx5,
+			 ANA_CL_QOS_MAP_CFG(i));
 	}
 
 	return 0;
