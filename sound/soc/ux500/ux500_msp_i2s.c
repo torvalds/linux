@@ -360,20 +360,6 @@ static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 				__func__, status);
 	}
 
-	/* Make sure the correct DMA-directions are configured */
-	if ((config->direction & MSP_DIR_RX) &&
-			!msp->capture_dma_data.dma_cfg) {
-		dev_err(msp->dev, "%s: ERROR: MSP RX-mode is not configured!",
-			__func__);
-		return -EINVAL;
-	}
-	if ((config->direction == MSP_DIR_TX) &&
-			!msp->playback_dma_data.dma_cfg) {
-		dev_err(msp->dev, "%s: ERROR: MSP TX-mode is not configured!",
-			__func__);
-		return -EINVAL;
-	}
-
 	reg_val_DMACR = readl(msp->registers + MSP_DMACR);
 	if (config->direction & MSP_DIR_RX)
 		reg_val_DMACR |= RX_DMA_ENABLE;
@@ -638,39 +624,16 @@ int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 
 }
 
-static int ux500_msp_i2s_of_init_msp(struct platform_device *pdev,
-				struct ux500_msp *msp);
-{
-	msp->playback_dma_data.dma_cfg = devm_kzalloc(&pdev->dev,
-					sizeof(struct stedma40_chan_cfg),
-					GFP_KERNEL);
-	if (!msp->playback_dma_data.dma_cfg)
-		return -ENOMEM;
-
-	msp->capture_dma_data.dma_cfg = devm_kzalloc(&pdev->dev,
-					sizeof(struct stedma40_chan_cfg),
-					GFP_KERNEL);
-	if (!msp->capture_dma_data.dma_cfg)
-		return -ENOMEM;
-
-	return 0;
-}
-
 int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct ux500_msp **msp_p)
 {
 	struct resource *res = NULL;
 	struct ux500_msp *msp;
-	int ret;
 
 	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
 	msp = *msp_p;
 	if (!msp)
 		return -ENOMEM;
-
-	ret = ux500_msp_i2s_of_init_msp(pdev, msp);
-	if (ret)
-		return ret;
 
 	msp->dev = &pdev->dev;
 
@@ -681,9 +644,7 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	msp->playback_dma_data.tx_rx_addr = res->start + MSP_DR;
-	msp->capture_dma_data.tx_rx_addr = res->start + MSP_DR;
-
+	msp->tx_rx_addr = res->start + MSP_DR;
 	msp->registers = devm_ioremap(&pdev->dev, res->start,
 				      resource_size(res));
 	if (msp->registers == NULL) {
