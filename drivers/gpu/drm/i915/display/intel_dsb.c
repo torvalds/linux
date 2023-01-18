@@ -249,11 +249,6 @@ void intel_dsb_commit(struct intel_dsb *dsb, bool wait_for_vblank)
 		       i915_ggtt_offset(dsb->vma));
 	intel_de_write(dev_priv, DSB_TAIL(pipe, dsb->id),
 		       i915_ggtt_offset(dsb->vma) + tail);
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "DSB execution started - head 0x%x, tail 0x%x\n",
-		    i915_ggtt_offset(dsb->vma),
-		    i915_ggtt_offset(dsb->vma) + tail);
 }
 
 void intel_dsb_wait(struct intel_dsb *dsb)
