@@ -600,9 +600,14 @@ struct mlx5e_icosq {
 	struct work_struct         recover_work;
 } ____cacheline_aligned_in_smp;
 
+struct mlx5e_frag_page {
+	struct page *page;
+	u16 frags;
+};
+
 struct mlx5e_wqe_frag_info {
 	union {
-		struct page **pagep;
+		struct mlx5e_frag_page *frag_page;
 		struct xdp_buff **xskp;
 	};
 	u32 offset;
@@ -610,6 +615,7 @@ struct mlx5e_wqe_frag_info {
 };
 
 union mlx5e_alloc_units {
+	DECLARE_FLEX_ARRAY(struct mlx5e_frag_page, frag_pages);
 	DECLARE_FLEX_ARRAY(struct page *, pages);
 	DECLARE_FLEX_ARRAY(struct xdp_buff *, xsk_buffs);
 };
@@ -666,7 +672,7 @@ struct mlx5e_rq_frags_info {
 struct mlx5e_dma_info {
 	dma_addr_t addr;
 	union {
-		struct page **pagep;
+		struct mlx5e_frag_page *frag_page;
 		struct page *page;
 	};
 };
@@ -674,7 +680,7 @@ struct mlx5e_dma_info {
 struct mlx5e_shampo_hd {
 	u32 mkey;
 	struct mlx5e_dma_info *info;
-	struct page **pages;
+	struct mlx5e_frag_page *pages;
 	u16 curr_page_index;
 	u16 hd_per_wq;
 	u16 hd_per_wqe;

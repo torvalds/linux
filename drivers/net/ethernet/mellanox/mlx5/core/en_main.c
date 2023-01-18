@@ -294,7 +294,7 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq, int node)
 	size_t alloc_size;
 
 	alloc_size = array_size(wq_sz, struct_size(rq->mpwqe.info,
-						   alloc_units.pages,
+						   alloc_units.frag_pages,
 						   rq->mpwqe.pages_per_wqe));
 
 	rq->mpwqe.info = kvzalloc_node(alloc_size, GFP_KERNEL, node);
@@ -509,7 +509,8 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 
 	WARN_ON(rq->xsk_pool);
 
-	next_frag.pagep = &rq->wqe.alloc_units->pages[0];
+	next_frag.frag_page = &rq->wqe.alloc_units->frag_pages[0];
+
 	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {
 		struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
 		struct mlx5e_wqe_frag_info *frag =
@@ -519,7 +520,7 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 		for (f = 0; f < rq->wqe.info.num_frags; f++, frag++) {
 			if (next_frag.offset + frag_info[f].frag_stride > PAGE_SIZE) {
 				/* Pages are assigned at runtime. */
-				next_frag.pagep++;
+				next_frag.frag_page++;
 				next_frag.offset = 0;
 				if (prev)
 					prev->last_in_page = true;
@@ -563,7 +564,7 @@ static int mlx5e_init_wqe_alloc_info(struct mlx5e_rq *rq, int node)
 	if (rq->xsk_pool)
 		aus_sz = sizeof(*aus->xsk_buffs);
 	else
-		aus_sz = sizeof(*aus->pages);
+		aus_sz = sizeof(*aus->frag_pages);
 
 	aus = kvzalloc_node(array_size(len, aus_sz), GFP_KERNEL, node);
 	if (!aus)
@@ -831,7 +832,7 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		struct page_pool_params pp_params = { 0 };
 
 		pp_params.order     = 0;
-		pp_params.flags     = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+		pp_params.flags     = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV | PP_FLAG_PAGE_FRAG;
 		pp_params.pool_size = pool_size;
 		pp_params.nid       = node;
 		pp_params.dev       = rq->pdev;
