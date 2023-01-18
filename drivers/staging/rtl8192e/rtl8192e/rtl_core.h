@@ -317,12 +317,12 @@ struct r8192_priv {
 
 	struct work_struct				reset_wq;
 
-	enum rt_customer_id CustomerID;
+	enum rt_customer_id customer_id;
 
 
 	enum rt_rf_type_819xu rf_chip;
-	enum ht_channel_width CurrentChannelBW;
-	struct bb_reg_definition PHYRegDef[4];
+	enum ht_channel_width current_chnl_bw;
+	struct bb_reg_definition phy_reg_def[4];
 	struct rate_adaptive rate_adaptive;
 
 	struct rt_firmware *fw_info;

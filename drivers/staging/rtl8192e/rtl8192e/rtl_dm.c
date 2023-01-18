@@ -292,7 +292,7 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 	pra->low_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M;
 	pra->low_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M;
 
-	if (priv->CustomerID == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819x_Netcore)
 		pra->ping_rssi_enable = 1;
 	else
 		pra->ping_rssi_enable = 0;
@@ -353,7 +353,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 				(pra->middle_rssi_threshold_ratr & (~BIT31)) |
 				((bshort_gi_enabled) ? BIT31 : 0);
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) {
 			pra->low_rssi_threshold_ratr =
 				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) |
 				((bshort_gi_enabled) ? BIT31 : 0);
@@ -368,15 +368,15 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 
 		if (pra->ratr_state == DM_RATR_STA_HIGH) {
 			HighRSSIThreshForRA = pra->high2low_rssi_thresh_for_ra;
-			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			LowRSSIThreshForRA = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		} else if (pra->ratr_state == DM_RATR_STA_LOW) {
 			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			LowRSSIThreshForRA = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low2high_rssi_thresh_for_ra40M) : (pra->low2high_rssi_thresh_for_ra20M);
 		} else {
 			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			LowRSSIThreshForRA = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		}
 
@@ -443,8 +443,8 @@ static void _rtl92e_dm_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 ||
-	   !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable)
+	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20 ||
+	    !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable)
 		return;
 	if (!priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz) {
 		if (priv->undecorated_smoothed_pwdb <=
@@ -715,7 +715,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 					= priv->rfa_txpowertrackingindex_real - priv->rfa_txpowertracking_default;
 			}
 
-			if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20)
 				priv->cck_present_attn =
 					 priv->cck_present_attn_20m_def +
 					 priv->cck_present_attn_diff;
@@ -818,7 +818,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		}
 		tmpCCK40Mindex = 0;
 	}
-	if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+	if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 		tmpCCKindex = tmpCCK40Mindex;
 	else
 		tmpCCKindex = tmpCCK20Mindex;
@@ -1150,7 +1150,7 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 	dm_digtable.rssi_val = 50;
 	dm_digtable.backoff_val = DM_DIG_BACKOFF;
 	dm_digtable.rx_gain_range_max = DM_DIG_MAX;
-	if (priv->CustomerID == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819x_Netcore)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN_Netcore;
 	else
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
@@ -1260,7 +1260,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 		rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x17);
 		rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x17);
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x00);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
@@ -1297,7 +1297,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x20);
 		}
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
@@ -1328,7 +1328,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 			return;
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
-		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
@@ -1342,7 +1342,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		     dm_digtable.rssi_high_power_lowthresh) &&
 		    (priv->undecorated_smoothed_pwdb >=
 		    dm_digtable.rssi_high_thresh)) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
@@ -1453,18 +1453,18 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 	if ((dm_digtable.prepd_thstate != dm_digtable.curpd_thstate) ||
 	    (initialized <= 3) || force_write) {
 		if (dm_digtable.curpd_thstate == DIG_PD_AT_LOW_POWER) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x00);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
 		} else if (dm_digtable.curpd_thstate ==
 			   DIG_PD_AT_NORMAL_POWER) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
 		} else if (dm_digtable.curpd_thstate == DIG_PD_AT_HIGH_POWER) {
-			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
+			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
@@ -1736,7 +1736,7 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 	DM_RxPathSelTable.Enable = 1;
 	DM_RxPathSelTable.SS_TH_low = RxPathSelection_SS_TH_low;
 	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
-	if (priv->CustomerID == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819x_Netcore)
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
 	else
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_1;

@@ -478,36 +478,36 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->chnl_plan = priv->reg_chnl_plan;
 
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
-		priv->CustomerID =  RT_CID_DLINK;
+		priv->customer_id =  RT_CID_DLINK;
 
 	switch (priv->eeprom_CustomerID) {
 	case EEPROM_CID_DEFAULT:
-		priv->CustomerID = RT_CID_DEFAULT;
+		priv->customer_id = RT_CID_DEFAULT;
 		break;
 	case EEPROM_CID_CAMEO:
-		priv->CustomerID = RT_CID_819x_CAMEO;
+		priv->customer_id = RT_CID_819x_CAMEO;
 		break;
 	case  EEPROM_CID_RUNTOP:
-		priv->CustomerID = RT_CID_819x_RUNTOP;
+		priv->customer_id = RT_CID_819x_RUNTOP;
 		break;
 	case EEPROM_CID_NetCore:
-		priv->CustomerID = RT_CID_819x_Netcore;
+		priv->customer_id = RT_CID_819x_Netcore;
 		break;
 	case EEPROM_CID_TOSHIBA:
-		priv->CustomerID = RT_CID_TOSHIBA;
+		priv->customer_id = RT_CID_TOSHIBA;
 		if (priv->eeprom_chnl_plan & 0x80)
 			priv->chnl_plan = priv->eeprom_chnl_plan & 0x7f;
 		else
 			priv->chnl_plan = 0x0;
 		break;
 	case EEPROM_CID_Nettronix:
-		priv->CustomerID = RT_CID_Nettronix;
+		priv->customer_id = RT_CID_Nettronix;
 		break;
 	case EEPROM_CID_Pronet:
-		priv->CustomerID = RT_CID_PRONET;
+		priv->customer_id = RT_CID_PRONET;
 		break;
 	case EEPROM_CID_DLINK:
-		priv->CustomerID = RT_CID_DLINK;
+		priv->customer_id = RT_CID_DLINK;
 		break;
 
 	case EEPROM_CID_WHQL:
@@ -1068,7 +1068,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ?
 			  (cb_desc->bRTSUseShortPreamble ? 1 : 0) :
 			  (cb_desc->bRTSUseShortGI ? 1 : 0);
-	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40) {
+	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (cb_desc->bPacketBW) {
 			pTxFwInfo->TxBandwidth = 1;
 			pTxFwInfo->TxSubCarrier = 0;
@@ -2101,16 +2101,16 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 	if (priv->undecorated_smoothed_pwdb >= (RateAdaptiveTH_High+5)) {
 		rx_chk_cnt = 0;
 	} else if ((priv->undecorated_smoothed_pwdb < (RateAdaptiveTH_High + 5))
-	  && (((priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) &&
+	  && (((priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) &&
 	  (priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_40M))
-	  || ((priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20) &&
+	  || ((priv->current_chnl_bw == HT_CHANNEL_WIDTH_20) &&
 	  (priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_20M)))) {
 		if (rx_chk_cnt < 2)
 			return bStuck;
 		rx_chk_cnt = 0;
-	} else if ((((priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) &&
+	} else if ((((priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) &&
 		  (priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_40M)) ||
-		((priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20) &&
+		((priv->current_chnl_bw == HT_CHANNEL_WIDTH_20) &&
 		 (priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_20M))) &&
 		priv->undecorated_smoothed_pwdb >= VeryLowRSSI) {
 		if (rx_chk_cnt < 4)

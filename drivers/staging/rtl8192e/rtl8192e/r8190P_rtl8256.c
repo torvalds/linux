@@ -70,7 +70,7 @@ bool rtl92e_config_rf(struct net_device *dev)
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 			continue;
 
-		pPhyReg = &priv->PHYRegDef[eRFPath];
+		pPhyReg = &priv->phy_reg_def[eRFPath];
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
@@ -151,7 +151,7 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 
 	TxAGC = powerlevel;
 	if (priv->dynamic_tx_low_pwr) {
-		if (priv->CustomerID == RT_CID_819x_Netcore)
+		if (priv->customer_id == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
 		else
 			TxAGC += priv->cck_pwr_enl;
