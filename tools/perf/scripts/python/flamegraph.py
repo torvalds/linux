@@ -19,12 +19,34 @@
 # pylint: disable=missing-function-docstring
 
 from __future__ import print_function
-import sys
-import os
-import io
 import argparse
+import hashlib
+import io
 import json
+import os
 import subprocess
+import sys
+import urllib.request
+
+minimal_html = """<head>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/d3-flame-graph@4.1.3/dist/d3-flamegraph.css">
+</head>
+<body>
+  <div id="chart"></div>
+  <script type="text/javascript" src="https://d3js.org/d3.v7.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/d3-flame-graph@4.1.3/dist/d3-flamegraph.min.js"></script>
+  <script type="text/javascript">
+  const stacks = [/** @flamegraph_json **/];
+  // Note, options is unused.
+  const options = [/** @options_json **/];
+
+  var chart = flamegraph();
+  d3.select("#chart")
+        .datum(stacks[0])
+        .call(chart);
+  </script>
+</body>
+"""
 
 # pylint: disable=too-few-public-methods
 class Node:
@@ -49,16 +71,6 @@ class FlameGraphCLI:
     def __init__(self, args):
         self.args = args
         self.stack = Node("all", "root")
-
-        if self.args.format == "html" and \
-                not os.path.isfile(self.args.template):
-            print("Flame Graph template {} does not exist. Please install "
-                  "the js-d3-flame-graph (RPM) or libjs-d3-flame-graph (deb) "
-                  "package, specify an existing flame graph template "
-                  "(--template PATH) or another output format "
-                  "(--format FORMAT).".format(self.args.template),
-                  file=sys.stderr)
-            sys.exit(1)
 
     @staticmethod
     def get_libtype_from_dso(dso):
@@ -128,16 +140,63 @@ class FlameGraphCLI:
             }
             options_json = json.dumps(options)
 
+            template_md5sum = None
+            if self.args.format == "html":
+                if os.path.isfile(self.args.template):
+                    template = f"file://{self.args.template}"
+                else:
+                    if not self.args.allow_download:
+                        print(f"""Warning: Flame Graph template '{self.args.template}'
+does not exist. To avoid this please install a package such as the
+js-d3-flame-graph or libjs-d3-flame-graph, specify an existing flame
+graph template (--template PATH) or use another output format (--format
+FORMAT).""",
+                              file=sys.stderr)
+                        if self.args.input == "-":
+                            print("""Not attempting to download Flame Graph template as script command line
+input is disabled due to using live mode. If you want to download the
+template retry without live mode. For example, use 'perf record -a -g
+-F 99 sleep 60' and 'perf script report flamegraph'. Alternatively,
+download the template from:
+https://cdn.jsdelivr.net/npm/d3-flame-graph@4.1.3/dist/templates/d3-flamegraph-base.html
+and place it at:
+/usr/share/d3-flame-graph/d3-flamegraph-base.html""",
+                                  file=sys.stderr)
+                            quit()
+                        s = None
+                        while s != "y" and s != "n":
+                            s = input("Do you wish to download a template from cdn.jsdelivr.net? (this warning can be suppressed with --allow-download) [yn] ").lower()
+                        if s == "n":
+                            quit()
+                    template = "https://cdn.jsdelivr.net/npm/d3-flame-graph@4.1.3/dist/templates/d3-flamegraph-base.html"
+                    template_md5sum = "143e0d06ba69b8370b9848dcd6ae3f36"
+
             try:
-                with io.open(self.args.template, encoding="utf-8") as template:
-                    output_str = (
-                        template.read()
-                        .replace("/** @options_json **/", options_json)
-                        .replace("/** @flamegraph_json **/", stacks_json)
-                    )
-            except IOError as err:
-                print("Error reading template file: {}".format(err), file=sys.stderr)
-                sys.exit(1)
+                with urllib.request.urlopen(template) as template:
+                    output_str = "".join([
+                        l.decode("utf-8") for l in template.readlines()
+                    ])
+            except Exception as err:
+                print(f"Error reading template {template}: {err}\n"
+                      "a minimal flame graph will be generated", file=sys.stderr)
+                output_str = minimal_html
+                template_md5sum = None
+
+            if template_md5sum:
+                download_md5sum = hashlib.md5(output_str.encode("utf-8")).hexdigest()
+                if download_md5sum != template_md5sum:
+                    s = None
+                    while s != "y" and s != "n":
+                        s = input(f"""Unexpected template md5sum.
+{download_md5sum} != {template_md5sum}, for:
+{output_str}
+continue?[yn] """).lower()
+                    if s == "n":
+                        quit()
+
+            output_str = output_str.replace("/** @options_json **/", options_json)
+            output_str = output_str.replace("/** @flamegraph_json **/", stacks_json)
+
             output_fn = self.args.output or "flamegraph.html"
         else:
             output_str = stacks_json
@@ -172,6 +231,10 @@ if __name__ == "__main__":
                         choices=["blue-green", "orange"])
     parser.add_argument("-i", "--input",
                         help=argparse.SUPPRESS)
+    parser.add_argument("--allow-download",
+                        default=False,
+                        action="store_true",
+                        help="allow unprompted downloading of HTML template")
 
     cli_args = parser.parse_args()
     cli = FlameGraphCLI(cli_args)
