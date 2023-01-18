@@ -123,7 +123,7 @@ properties:
             properties:
               data-lanes:
                 maxItems: 4
-                minItems: 4
+                minItems: 1
                 items:
                   enum: [ 0, 1, 2, 3 ]
 
@@ -139,7 +139,7 @@ properties:
             properties:
               data-lanes:
                 maxItems: 4
-                minItems: 4
+                minItems: 1
                 items:
                   enum: [ 0, 1, 2, 3 ]
 
