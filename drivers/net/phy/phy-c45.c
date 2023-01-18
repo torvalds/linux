@@ -999,8 +999,8 @@ EXPORT_SYMBOL_GPL(genphy_c45_plca_get_cfg);
 int genphy_c45_plca_set_cfg(struct phy_device *phydev,
 			    const struct phy_plca_cfg *plca_cfg)
 {
+	u16 val = 0;
 	int ret;
-	u16 val;
 
 	// PLCA IDVER is read-only
 	if (plca_cfg->version >= 0)
