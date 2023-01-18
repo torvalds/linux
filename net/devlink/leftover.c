@@ -7337,8 +7337,8 @@ __devlink_health_reporter_create(struct devlink *devlink,
 }
 
 /**
- *	devlink_port_health_reporter_create - create devlink health reporter for
- *	                                      specified port instance
+ *	devl_port_health_reporter_create - create devlink health reporter for
+ *	                                   specified port instance
  *
  *	@port: devlink_port which should contain the new reporter
  *	@ops: ops
@@ -7346,12 +7346,13 @@ __devlink_health_reporter_create(struct devlink *devlink,
  *	@priv: priv
  */
 struct devlink_health_reporter *
-devlink_port_health_reporter_create(struct devlink_port *port,
-				    const struct devlink_health_reporter_ops *ops,
-				    u64 graceful_period, void *priv)
+devl_port_health_reporter_create(struct devlink_port *port,
+				 const struct devlink_health_reporter_ops *ops,
+				 u64 graceful_period, void *priv)
 {
 	struct devlink_health_reporter *reporter;
 
+	devl_assert_locked(port->devlink);
 	mutex_lock(&port->reporters_lock);
 	if (__devlink_health_reporter_find_by_name(&port->reporter_list,
 						   &port->reporters_lock, ops->name)) {
@@ -7370,10 +7371,26 @@ unlock:
 	mutex_unlock(&port->reporters_lock);
 	return reporter;
 }
+EXPORT_SYMBOL_GPL(devl_port_health_reporter_create);
+
+struct devlink_health_reporter *
+devlink_port_health_reporter_create(struct devlink_port *port,
+				    const struct devlink_health_reporter_ops *ops,
+				    u64 graceful_period, void *priv)
+{
+	struct devlink_health_reporter *reporter;
+	struct devlink *devlink = port->devlink;
+
+	devl_lock(devlink);
+	reporter = devl_port_health_reporter_create(port, ops,
+						    graceful_period, priv);
+	devl_unlock(devlink);
+	return reporter;
+}
 EXPORT_SYMBOL_GPL(devlink_port_health_reporter_create);
 
 /**
- *	devlink_health_reporter_create - create devlink health reporter
+ *	devl_health_reporter_create - create devlink health reporter
  *
  *	@devlink: devlink
  *	@ops: ops
@@ -7381,12 +7398,13 @@ EXPORT_SYMBOL_GPL(devlink_port_health_reporter_create);
  *	@priv: priv
  */
 struct devlink_health_reporter *
-devlink_health_reporter_create(struct devlink *devlink,
-			       const struct devlink_health_reporter_ops *ops,
-			       u64 graceful_period, void *priv)
+devl_health_reporter_create(struct devlink *devlink,
+			    const struct devlink_health_reporter_ops *ops,
+			    u64 graceful_period, void *priv)
 {
 	struct devlink_health_reporter *reporter;
 
+	devl_assert_locked(devlink);
 	mutex_lock(&devlink->reporters_lock);
 	if (devlink_health_reporter_find_by_name(devlink, ops->name)) {
 		reporter = ERR_PTR(-EEXIST);
@@ -7401,6 +7419,21 @@ devlink_health_reporter_create(struct devlink *devlink,
 	list_add_tail(&reporter->list, &devlink->reporter_list);
 unlock:
 	mutex_unlock(&devlink->reporters_lock);
+	return reporter;
+}
+EXPORT_SYMBOL_GPL(devl_health_reporter_create);
+
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, void *priv)
+{
+	struct devlink_health_reporter *reporter;
+
+	devl_lock(devlink);
+	reporter = devl_health_reporter_create(devlink, ops,
+					       graceful_period, priv);
+	devl_unlock(devlink);
 	return reporter;
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_create);
@@ -7429,34 +7462,60 @@ __devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 }
 
 /**
- *	devlink_health_reporter_destroy - destroy devlink health reporter
+ *	devl_health_reporter_destroy - destroy devlink health reporter
  *
  *	@reporter: devlink health reporter to destroy
  */
 void
-devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+devl_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
 	struct mutex *lock = &reporter->devlink->reporters_lock;
+
+	devl_assert_locked(reporter->devlink);
 
 	mutex_lock(lock);
 	__devlink_health_reporter_destroy(reporter);
 	mutex_unlock(lock);
 }
+EXPORT_SYMBOL_GPL(devl_health_reporter_destroy);
+
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+	struct devlink *devlink = reporter->devlink;
+
+	devl_lock(devlink);
+	devl_health_reporter_destroy(reporter);
+	devl_unlock(devlink);
+}
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
 
 /**
- *	devlink_port_health_reporter_destroy - destroy devlink port health reporter
+ *	devl_port_health_reporter_destroy - destroy devlink port health reporter
  *
  *	@reporter: devlink health reporter to destroy
  */
 void
-devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
+devl_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
 	struct mutex *lock = &reporter->devlink_port->reporters_lock;
+
+	devl_assert_locked(reporter->devlink);
 
 	mutex_lock(lock);
 	__devlink_health_reporter_destroy(reporter);
 	mutex_unlock(lock);
+}
+EXPORT_SYMBOL_GPL(devl_port_health_reporter_destroy);
+
+void
+devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+	struct devlink *devlink = reporter->devlink;
+
+	devl_lock(devlink);
+	devl_port_health_reporter_destroy(reporter);
+	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_port_health_reporter_destroy);
 
@@ -7805,12 +7864,11 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 		unsigned long port_index;
 		int idx = 0;
 
+		devl_lock(devlink);
+		if (!devl_is_registered(devlink))
+			goto next_devlink;
+
 		mutex_lock(&devlink->reporters_lock);
-		if (!devl_is_registered(devlink)) {
-			mutex_unlock(&devlink->reporters_lock);
-			devlink_put(devlink);
-			continue;
-		}
 
 		list_for_each_entry(reporter, &devlink->reporter_list,
 				    list) {
@@ -7824,6 +7882,7 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 				NLM_F_MULTI);
 			if (err) {
 				mutex_unlock(&devlink->reporters_lock);
+				devl_unlock(devlink);
 				devlink_put(devlink);
 				state->idx = idx;
 				goto out;
@@ -7831,10 +7890,6 @@ devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
 			idx++;
 		}
 		mutex_unlock(&devlink->reporters_lock);
-
-		devl_lock(devlink);
-		if (!devl_is_registered(devlink))
-			goto next_devlink;
 
 		xa_for_each(&devlink->ports, port_index, port) {
 			mutex_lock(&port->reporters_lock);
