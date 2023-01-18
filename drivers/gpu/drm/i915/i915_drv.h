@@ -195,15 +195,6 @@ struct i915_gem_mm {
 
 #define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */
 
-unsigned long i915_fence_context_timeout(const struct drm_i915_private *i915,
-					 u64 context);
-
-static inline unsigned long
-i915_fence_timeout(const struct drm_i915_private *i915)
-{
-	return i915_fence_context_timeout(i915, U64_MAX);
-}
-
 #define HAS_HW_SAGV_WM(i915) (DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
 
 struct i915_virtual_gpu {
