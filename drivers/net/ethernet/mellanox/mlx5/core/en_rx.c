@@ -2570,10 +2570,8 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 
 static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 {
-	struct mlx5e_priv *priv = netdev_priv(rq->netdev);
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 	struct mlx5e_wqe_frag_info *wi;
-	struct devlink_port *dl_port;
 	struct sk_buff *skb;
 	u32 cqe_bcnt;
 	u16 trap_id;
@@ -2596,8 +2594,8 @@ static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 	skb_push(skb, ETH_HLEN);
 
-	dl_port = mlx5e_devlink_get_dl_port(priv);
-	mlx5_devlink_trap_report(rq->mdev, trap_id, skb, dl_port);
+	mlx5_devlink_trap_report(rq->mdev, trap_id, skb,
+				 rq->netdev->devlink_port);
 	dev_kfree_skb_any(skb);
 
 free_wqe:
