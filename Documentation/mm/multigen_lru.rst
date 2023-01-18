@@ -170,6 +170,22 @@ promotes hot pages. If the scan was done cacheline efficiently, it
 adds the PMD entry pointing to the PTE table to the Bloom filter. This
 forms a feedback loop between the eviction and the aging.
 
+Bloom Filters
+-------------
+Bloom filters are a space and memory efficient data structure for set
+membership test, i.e., test if an element is not in the set or may be
+in the set.
+
+In the eviction path, specifically, in ``lru_gen_look_around()``, if a
+PMD has a sufficient number of hot pages, its address is placed in the
+filter. In the aging path, set membership means that the PTE range
+will be scanned for young pages.
+
+Note that Bloom filters are probabilistic on set membership. If a test
+is false positive, the cost is an additional scan of a range of PTEs,
+which may yield hot pages anyway. Parameters of the filter itself can
+control the false positive rate in the limit.
+
 Summary
 -------
 The multi-gen LRU can be disassembled into the following parts:
