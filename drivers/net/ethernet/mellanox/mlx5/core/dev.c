@@ -349,7 +349,6 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&mlx5_intf_mutex);
 	priv->flags &= ~MLX5_PRIV_FLAGS_DETACH;
-	priv->flags |= MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	for (i = 0; i < ARRAY_SIZE(mlx5_adev_devices); i++) {
 		if (!priv->adev[i]) {
 			bool is_supported = false;
@@ -397,7 +396,6 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 			break;
 		}
 	}
-	priv->flags &= ~MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	mutex_unlock(&mlx5_intf_mutex);
 	return ret;
 }
@@ -412,7 +410,6 @@ void mlx5_detach_device(struct mlx5_core_dev *dev)
 
 	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&mlx5_intf_mutex);
-	priv->flags |= MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	for (i = ARRAY_SIZE(mlx5_adev_devices) - 1; i >= 0; i--) {
 		if (!priv->adev[i])
 			continue;
@@ -441,7 +438,6 @@ skip_suspend:
 		del_adev(&priv->adev[i]->adev);
 		priv->adev[i] = NULL;
 	}
-	priv->flags &= ~MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	priv->flags |= MLX5_PRIV_FLAGS_DETACH;
 	mutex_unlock(&mlx5_intf_mutex);
 }
@@ -540,22 +536,16 @@ del_adev:
 int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
-	int err = 0;
 
 	lockdep_assert_held(&mlx5_intf_mutex);
 	if (priv->flags & MLX5_PRIV_FLAGS_DETACH)
 		return 0;
 
-	priv->flags |= MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	delete_drivers(dev);
 	if (priv->flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)
-		goto out;
+		return 0;
 
-	err = add_drivers(dev);
-
-out:
-	priv->flags &= ~MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
-	return err;
+	return add_drivers(dev);
 }
 
 bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev)
