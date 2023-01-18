@@ -140,23 +140,23 @@ out_fail:
 
 static int minix_unlink(struct inode * dir, struct dentry *dentry)
 {
-	int err = -ENOENT;
 	struct inode * inode = d_inode(dentry);
 	struct page * page;
 	struct minix_dir_entry * de;
+	int err;
 
 	de = minix_find_entry(dentry, &page);
 	if (!de)
-		goto end_unlink;
-
+		return -ENOENT;
 	err = minix_delete_entry(de, page);
-	if (err)
-		goto end_unlink;
+	kunmap(page);
+	put_page(page);
 
+	if (err)
+		return err;
 	inode->i_ctime = dir->i_ctime;
 	inode_dec_link_count(inode);
-end_unlink:
-	return err;
+	return 0;
 }
 
 static int minix_rmdir(struct inode * dir, struct dentry *dentry)
@@ -213,7 +213,10 @@ static int minix_rename(struct user_namespace *mnt_userns,
 		new_de = minix_find_entry(new_dentry, &new_page);
 		if (!new_de)
 			goto out_dir;
+		err = 0;
 		minix_set_link(new_de, new_page, old_inode);
+		kunmap(new_page);
+		put_page(new_page);
 		new_inode->i_ctime = current_time(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -233,8 +236,6 @@ static int minix_rename(struct user_namespace *mnt_userns,
 		minix_set_link(dir_de, dir_page, new_dir);
 		inode_dec_link_count(old_dir);
 	}
-	return 0;
-
 out_dir:
 	if (dir_de) {
 		kunmap(dir_page);

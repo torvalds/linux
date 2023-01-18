@@ -306,7 +306,6 @@ int minix_delete_entry(struct minix_dir_entry *de, struct page *page)
 	} else {
 		unlock_page(page);
 	}
-	dir_put_page(page);
 	inode->i_ctime = inode->i_mtime = current_time(inode);
 	mark_inode_dirty(inode);
 	return err;
@@ -430,7 +429,6 @@ void minix_set_link(struct minix_dir_entry *de, struct page *page,
 	} else {
 		unlock_page(page);
 	}
-	dir_put_page(page);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
 }
