@@ -989,7 +989,6 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		goto out_err;
 	}
 
-	cpg_mssr_priv = priv;
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
@@ -1018,6 +1017,8 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	error = of_clk_add_provider(np, cpg_mssr_clk_src_twocell_get, priv);
 	if (error)
 		goto out_err;
+
+	cpg_mssr_priv = priv;
 
 	return 0;
 
