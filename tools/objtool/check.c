@@ -847,7 +847,14 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 	list_for_each_entry(insn, &file->endbr_list, call_node) {
 
 		int *site = (int *)sec->data->d_buf + idx;
+		struct symbol *sym = insn->sym;
 		*site = 0;
+
+		if (opts.module && sym && sym->type == STT_FUNC &&
+		    insn->offset == sym->offset &&
+		    (!strcmp(sym->name, "init_module") ||
+		     !strcmp(sym->name, "cleanup_module")))
+			WARN("%s(): not an indirect call target", sym->name);
 
 		if (elf_add_reloc_to_insn(file->elf, sec,
 					  idx * sizeof(int),
