@@ -371,17 +371,4 @@ struct mt7996_dfs_radar_spec {
 	struct mt7996_dfs_pattern radar_pattern[16];
 };
 
-static inline struct mt76_connac_txp_common *
-mt7996_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
-{
-	u8 *txwi;
-
-	if (!t)
-		return NULL;
-
-	txwi = mt76_get_txwi_ptr(dev, t);
-
-	return (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
-}
-
 #endif
