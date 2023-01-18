@@ -1463,6 +1463,8 @@ static int am65_cpsw_init_serdes_phy(struct device *dev, struct device_node *por
 	phy = devm_of_phy_get(dev, port_np, name);
 	if (PTR_ERR(phy) == -ENODEV)
 		return 0;
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
 
 	/* Serdes PHY exists. Store it. */
 	port->slave.serdes_phy = phy;
