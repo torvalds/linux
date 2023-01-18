@@ -2839,8 +2839,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 	 * the driver there was more coming, but that turned out to
 	 * be a lie.
 	 */
-	if ((!list_empty(list) || errors) &&
-	     hctx->queue->mq_ops->commit_rqs && queued)
+	if (errors && hctx->queue->mq_ops->commit_rqs && queued)
 		hctx->queue->mq_ops->commit_rqs(hctx);
 }
 
