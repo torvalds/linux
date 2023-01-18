@@ -680,28 +680,30 @@ static long ff400_copy_msg_to_user(struct snd_ff *ff, char __user *buf, long cou
 	struct ff400_msg_parser *parser = ff->msg_parser;
 	u32 type = SNDRV_FIREWIRE_EVENT_FF400_MESSAGE;
 	long consumed = 0;
+	int ret = 0;
 
 	if (count < 8)
 		return 0;
 
 	spin_unlock_irq(&ff->lock);
-
 	if (copy_to_user(buf, &type, sizeof(type)))
-		return -EFAULT;
-
+		ret = -EFAULT;
 	spin_lock_irq(&ff->lock);
+	if (ret)
+		return ret;
 
 	count -= sizeof(type);
 	consumed += sizeof(type);
 
 	while (count >= sizeof(*parser->msgs) && parser->pull_pos != parser->push_pos) {
 		spin_unlock_irq(&ff->lock);
-
 		if (copy_to_user(buf + consumed, parser->msgs + parser->pull_pos,
 				 sizeof(*parser->msgs)))
-			return -EFAULT;
-
+			ret = -EFAULT;
 		spin_lock_irq(&ff->lock);
+		if (ret)
+			return ret;
+
 		++parser->pull_pos;
 		if (parser->pull_pos >= FF400_QUEUE_SIZE)
 			parser->pull_pos = 0;
