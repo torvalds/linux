@@ -1176,7 +1176,6 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	struct udf_part_map *map = &sbi->s_partmaps[p_index];
 	struct buffer_head *bh = NULL;
 	struct udf_inode_info *vati;
-	uint32_t pos;
 	struct virtualAllocationTable20 *vat20;
 	sector_t blocks = sb_bdev_nr_blocks(sb);
 
@@ -1198,10 +1197,14 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	} else if (map->s_partition_type == UDF_VIRTUAL_MAP20) {
 		vati = UDF_I(sbi->s_vat_inode);
 		if (vati->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
-			pos = udf_block_map(sbi->s_vat_inode, 0);
-			bh = sb_bread(sb, pos);
-			if (!bh)
-				return -EIO;
+			int err = 0;
+
+			bh = udf_bread(sbi->s_vat_inode, 0, 0, &err);
+			if (!bh) {
+				if (!err)
+					err = -EFSCORRUPTED;
+				return err;
+			}
 			vat20 = (struct virtualAllocationTable20 *)bh->b_data;
 		} else {
 			vat20 = (struct virtualAllocationTable20 *)
