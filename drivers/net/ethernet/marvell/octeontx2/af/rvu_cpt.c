@@ -930,68 +930,63 @@ static void cpt_rxc_teardown(struct rvu *rvu, int blkaddr)
 		dev_warn(rvu->dev, "Poll for RXC zombie count hits hard loop counter\n");
 }
 
-#define INPROG_INFLIGHT(reg)    ((reg) & 0x1FF)
-#define INPROG_GRB_PARTIAL(reg) ((reg) & BIT_ULL(31))
-#define INPROG_GRB(reg)         (((reg) >> 32) & 0xFF)
-#define INPROG_GWB(reg)         (((reg) >> 40) & 0xFF)
+#define INFLIGHT   GENMASK_ULL(8, 0)
+#define GRB_CNT    GENMASK_ULL(39, 32)
+#define GWB_CNT    GENMASK_ULL(47, 40)
+#define XQ_XOR     GENMASK_ULL(63, 63)
+#define DQPTR      GENMASK_ULL(19, 0)
+#define NQPTR      GENMASK_ULL(51, 32)
 
 static void cpt_lf_disable_iqueue(struct rvu *rvu, int blkaddr, int slot)
 {
-	int i = 0, hard_lp_ctr = 100000;
-	u64 inprog, grp_ptr;
-	u16 nq_ptr, dq_ptr;
+	int timeout = 1000000;
+	u64 inprog, inst_ptr;
+	u64 qsize, pending;
+	int i = 0;
 
 	/* Disable instructions enqueuing */
 	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_CTL), 0x0);
 
-	/* Disable executions in the LF's queue */
 	inprog = rvu_read64(rvu, blkaddr,
 			    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
-	inprog &= ~BIT_ULL(16);
+	inprog |= BIT_ULL(16);
 	rvu_write64(rvu, blkaddr,
 		    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG), inprog);
 
+	qsize = rvu_read64(rvu, blkaddr,
+			   CPT_AF_BAR2_ALIASX(slot, CPT_LF_Q_SIZE)) & 0x7FFF;
+	do {
+		inst_ptr = rvu_read64(rvu, blkaddr,
+				      CPT_AF_BAR2_ALIASX(slot, CPT_LF_Q_INST_PTR));
+		pending = (FIELD_GET(XQ_XOR, inst_ptr) * qsize * 40) +
+			  FIELD_GET(NQPTR, inst_ptr) -
+			  FIELD_GET(DQPTR, inst_ptr);
+		udelay(1);
+		timeout--;
+	} while ((pending != 0) && (timeout != 0));
+
+	if (timeout == 0)
+		dev_warn(rvu->dev, "TIMEOUT: CPT poll on pending instructions\n");
+
+	timeout = 1000000;
 	/* Wait for CPT queue to become execution-quiescent */
 	do {
 		inprog = rvu_read64(rvu, blkaddr,
 				    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
-		if (INPROG_GRB_PARTIAL(inprog)) {
-			i = 0;
-			hard_lp_ctr--;
-		} else {
-			i++;
-		}
 
-		grp_ptr = rvu_read64(rvu, blkaddr,
-				     CPT_AF_BAR2_ALIASX(slot,
-							CPT_LF_Q_GRP_PTR));
-		nq_ptr = (grp_ptr >> 32) & 0x7FFF;
-		dq_ptr = grp_ptr & 0x7FFF;
-
-	} while (hard_lp_ctr && (i < 10) && (nq_ptr != dq_ptr));
-
-	if (hard_lp_ctr == 0)
-		dev_warn(rvu->dev, "CPT FLR hits hard loop counter\n");
-
-	i = 0;
-	hard_lp_ctr = 100000;
-	do {
-		inprog = rvu_read64(rvu, blkaddr,
-				    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
-
-		if ((INPROG_INFLIGHT(inprog) == 0) &&
-		    (INPROG_GWB(inprog) < 40) &&
-		    ((INPROG_GRB(inprog) == 0) ||
-		     (INPROG_GRB((inprog)) == 40))) {
+		if ((FIELD_GET(INFLIGHT, inprog) == 0) &&
+		    (FIELD_GET(GRB_CNT, inprog) == 0)) {
 			i++;
 		} else {
 			i = 0;
-			hard_lp_ctr--;
+			timeout--;
 		}
-	} while (hard_lp_ctr && (i < 10));
+	} while ((timeout != 0) && (i < 10));
 
-	if (hard_lp_ctr == 0)
-		dev_warn(rvu->dev, "CPT FLR hits hard loop counter\n");
+	if (timeout == 0)
+		dev_warn(rvu->dev, "TIMEOUT: CPT poll on inflight count\n");
+	/* Wait for 2 us to flush all queue writes to memory */
+	udelay(2);
 }
 
 int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf, int slot)
@@ -1001,18 +996,15 @@ int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int lf, int s
 	if (is_cpt_pf(rvu, pcifunc) || is_cpt_vf(rvu, pcifunc))
 		cpt_rxc_teardown(rvu, blkaddr);
 
+	mutex_lock(&rvu->alias_lock);
 	/* Enable BAR2 ALIAS for this pcifunc. */
 	reg = BIT_ULL(16) | pcifunc;
-	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
+	rvu_bar2_sel_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
 
 	cpt_lf_disable_iqueue(rvu, blkaddr, slot);
 
-	/* Set group drop to help clear out hardware */
-	reg = rvu_read64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
-	reg |= BIT_ULL(17);
-	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG), reg);
-
-	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
+	rvu_bar2_sel_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
+	mutex_unlock(&rvu->alias_lock);
 
 	return 0;
 }
@@ -1147,7 +1139,7 @@ int rvu_cpt_ctx_flush(struct rvu *rvu, u16 pcifunc)
 
 	/* Enable BAR2 ALIAS for this pcifunc. */
 	reg = BIT_ULL(16) | pcifunc;
-	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
+	rvu_bar2_sel_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
 
 	for (i = 0; i < max_ctx_entries; i++) {
 		cam_data = rvu_read64(rvu, blkaddr, CPT_AF_CTX_CAM_DATA(i));
@@ -1160,7 +1152,7 @@ int rvu_cpt_ctx_flush(struct rvu *rvu, u16 pcifunc)
 				    reg);
 		}
 	}
-	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
+	rvu_bar2_sel_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
 
 unlock:
 	mutex_unlock(&rvu->rsrc_lock);
