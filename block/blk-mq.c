@@ -2008,6 +2008,23 @@ static void blk_mq_release_budgets(struct request_queue *q,
 }
 
 /*
+ * blk_mq_commit_rqs will notify driver using bd->last that there is no
+ * more requests. (See comment in struct blk_mq_ops for commit_rqs for
+ * details)
+ * Attention, we should explicitly call this in unusual cases:
+ *  1) did not queue everything initially scheduled to queue
+ *  2) the last attempt to queue a request failed
+ */
+static void blk_mq_commit_rqs(struct blk_mq_hw_ctx *hctx, int queued,
+			      bool from_schedule)
+{
+	if (hctx->queue->mq_ops->commit_rqs && queued) {
+		trace_block_unplug(hctx->queue, queued, !from_schedule);
+		hctx->queue->mq_ops->commit_rqs(hctx);
+	}
+}
+
+/*
  * Returns true if we did some work AND can potentially do more.
  */
 bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
@@ -2555,16 +2572,6 @@ void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 	spin_unlock(&ctx->lock);
 }
 
-static void blk_mq_commit_rqs(struct blk_mq_hw_ctx *hctx, int *queued,
-			      bool from_schedule)
-{
-	if (hctx->queue->mq_ops->commit_rqs) {
-		trace_block_unplug(hctx->queue, *queued, !from_schedule);
-		hctx->queue->mq_ops->commit_rqs(hctx);
-	}
-	*queued = 0;
-}
-
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
 		unsigned int nr_segs)
 {
@@ -2700,8 +2707,10 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug)
 		blk_status_t ret;
 
 		if (hctx != rq->mq_hctx) {
-			if (hctx)
-				blk_mq_commit_rqs(hctx, &queued, false);
+			if (hctx) {
+				blk_mq_commit_rqs(hctx, queued, false);
+				queued = 0;
+			}
 			hctx = rq->mq_hctx;
 		}
 
@@ -2713,7 +2722,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug)
 		case BLK_STS_RESOURCE:
 		case BLK_STS_DEV_RESOURCE:
 			blk_mq_request_bypass_insert(rq, false, true);
-			blk_mq_commit_rqs(hctx, &queued, false);
+			blk_mq_commit_rqs(hctx, queued, false);
 			return;
 		default:
 			blk_mq_end_request(rq, ret);
@@ -2727,7 +2736,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug)
 	 * there was more coming, but that turned out to be a lie.
 	 */
 	if (errors)
-		blk_mq_commit_rqs(hctx, &queued, false);
+		blk_mq_commit_rqs(hctx, queued, false);
 }
 
 static void __blk_mq_flush_plug_list(struct request_queue *q,
