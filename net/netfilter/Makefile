@@ -98,6 +98,12 @@ nf_tables-objs += nft_set_pipapo_avx2.o
 endif
 endif
 
+ifdef CONFIG_NFT_CT
+ifdef CONFIG_RETPOLINE
+nf_tables-objs += nft_ct_fast.o
+endif
+endif
+
 obj-$(CONFIG_NF_TABLES)		+= nf_tables.o
 obj-$(CONFIG_NFT_COMPAT)	+= nft_compat.o
 obj-$(CONFIG_NFT_CONNLIMIT)	+= nft_connlimit.o
