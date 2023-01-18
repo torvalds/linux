@@ -168,6 +168,10 @@ static inline int ways_to_eiw(unsigned int ways, u8 *eiw)
 				 CXLDEV_EVENT_STATUS_FAIL |	\
 				 CXLDEV_EVENT_STATUS_FATAL)
 
+/* CXL rev 3.0 section 8.2.9.2.4; Table 8-52 */
+#define CXLDEV_EVENT_INT_MODE_MASK	GENMASK(1, 0)
+#define CXLDEV_EVENT_INT_MSGNUM_MASK	GENMASK(7, 4)
+
 /* CXL 2.0 8.2.8.4 Mailbox Registers */
 #define CXLDEV_MBOX_CAPS_OFFSET 0x00
 #define   CXLDEV_MBOX_CAP_PAYLOAD_SIZE_MASK GENMASK(4, 0)
