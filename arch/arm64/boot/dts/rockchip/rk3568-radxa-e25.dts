@@ -8,8 +8,7 @@
 	compatible = "radxa,e25", "rockchip,rk3568";
 
 	aliases {
-		mmc0 = &sdmmc0;
-		mmc1 = &sdhci;
+		mmc1 = &sdmmc0;
 	};
 
 	pwm-leds {
