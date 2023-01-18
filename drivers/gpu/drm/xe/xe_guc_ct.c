@@ -15,6 +15,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_gt_pagefault.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_guc_submit.h"
 #include "xe_map.h"
 #include "xe_trace.h"

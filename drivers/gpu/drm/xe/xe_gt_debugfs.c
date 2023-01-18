@@ -12,6 +12,7 @@
 #include "xe_gt_debugfs.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
 #include "xe_macros.h"

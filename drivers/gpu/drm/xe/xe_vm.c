@@ -19,6 +19,7 @@
 #include "xe_engine.h"
 #include "xe_gt.h"
 #include "xe_gt_pagefault.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"

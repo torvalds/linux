@@ -19,6 +19,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
 #include "xe_gt_sysfs.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
@@ -570,6 +571,10 @@ int xe_gt_init(struct xe_gt *gt)
 		gt->ring_ops[i] = xe_ring_ops_get(gt, i);
 		xe_hw_fence_irq_init(&gt->fence_irq[i]);
 	}
+
+	err = xe_gt_tlb_invalidation_init(gt);
+	if (err)
+		return err;
 
 	err = xe_gt_pagefault_init(gt);
 	if (err)
