@@ -1026,66 +1026,6 @@ out_unlock:
 }
 
 /**
- * dfs_cache_update_tgthint - update target hint of a DFS cache entry
- *
- * If it doesn't find the cache entry, then it will get a DFS referral for @path
- * and create a new entry.
- *
- * In case the cache entry exists but expired, it will get a DFS referral
- * for @path and then update the respective cache entry.
- *
- * @xid: syscall id
- * @ses: smb session
- * @cp: codepage
- * @remap: type of character remapping for paths
- * @path: path to lookup in DFS referral cache
- * @it: DFS target iterator
- *
- * Return zero if the target hint was updated successfully, otherwise non-zero.
- */
-int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
-			     const struct nls_table *cp, int remap, const char *path,
-			     const struct dfs_cache_tgt_iterator *it)
-{
-	struct cache_dfs_tgt *t;
-	struct cache_entry *ce;
-	const char *npath;
-	int rc = 0;
-
-	npath = dfs_cache_canonical_path(path, cp, remap);
-	if (IS_ERR(npath))
-		return PTR_ERR(npath);
-
-	cifs_dbg(FYI, "%s: update target hint - path: %s\n", __func__, npath);
-
-	ce = cache_refresh_path(xid, ses, npath, false);
-	if (IS_ERR(ce)) {
-		rc = PTR_ERR(ce);
-		goto out_free_path;
-	}
-
-	t = READ_ONCE(ce->tgthint);
-
-	if (likely(!strcasecmp(it->it_name, t->name)))
-		goto out_unlock;
-
-	list_for_each_entry(t, &ce->tlist, list) {
-		if (!strcasecmp(t->name, it->it_name)) {
-			WRITE_ONCE(ce->tgthint, t);
-			cifs_dbg(FYI, "%s: new target hint: %s\n", __func__,
-				 it->it_name);
-			break;
-		}
-	}
-
-out_unlock:
-	up_read(&htable_rw_lock);
-out_free_path:
-	kfree(npath);
-	return rc;
-}
-
-/**
  * dfs_cache_noreq_update_tgthint - update target hint of a DFS cache entry
  * without sending any requests to the currently connected server.
  *
