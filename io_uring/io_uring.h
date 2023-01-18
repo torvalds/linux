@@ -4,6 +4,7 @@
 #include <linux/errno.h>
 #include <linux/lockdep.h>
 #include <linux/resume_user_mode.h>
+#include <linux/kasan.h>
 #include <linux/io_uring_types.h>
 #include <uapi/linux/eventpoll.h>
 #include "io-wq.h"
@@ -347,12 +348,16 @@ static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
 	return true;
 }
 
+extern struct kmem_cache *req_cachep;
+
 static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 {
-	struct io_wq_work_node *node;
+	struct io_kiocb *req;
 
-	node = wq_stack_extract(&ctx->submit_state.free_list);
-	return container_of(node, struct io_kiocb, comp_list);
+	req = container_of(ctx->submit_state.free_list.next, struct io_kiocb, comp_list);
+	kasan_unpoison_object_data(req_cachep, req);
+	wq_stack_extract(&ctx->submit_state.free_list);
+	return req;
 }
 
 static inline bool io_allowed_defer_tw_run(struct io_ring_ctx *ctx)
