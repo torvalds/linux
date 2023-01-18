@@ -17,6 +17,8 @@ struct fotg210 {
 	enum gemini_port port;
 };
 
+void fotg210_vbus(struct fotg210 *fotg, bool enable);
+
 #ifdef CONFIG_USB_FOTG210_HCD
 int fotg210_hcd_probe(struct platform_device *pdev, struct fotg210 *fotg);
 int fotg210_hcd_remove(struct platform_device *pdev);
