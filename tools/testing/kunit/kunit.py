@@ -77,11 +77,8 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 	config_start = time.time()
 	success = linux.build_reconfig(request.build_dir, request.make_options)
 	config_end = time.time()
-	if not success:
-		return KunitResult(KunitStatus.CONFIG_FAILURE,
-				   config_end - config_start)
-	return KunitResult(KunitStatus.SUCCESS,
-			   config_end - config_start)
+	status = KunitStatus.SUCCESS if success else KunitStatus.CONFIG_FAILURE
+	return KunitResult(status, config_end - config_start)
 
 def build_tests(linux: kunit_kernel.LinuxSourceTree,
 		request: KunitBuildRequest) -> KunitResult:
@@ -92,14 +89,8 @@ def build_tests(linux: kunit_kernel.LinuxSourceTree,
 				     request.build_dir,
 				     request.make_options)
 	build_end = time.time()
-	if not success:
-		return KunitResult(KunitStatus.BUILD_FAILURE,
-				   build_end - build_start)
-	if not success:
-		return KunitResult(KunitStatus.BUILD_FAILURE,
-				   build_end - build_start)
-	return KunitResult(KunitStatus.SUCCESS,
-			   build_end - build_start)
+	status = KunitStatus.SUCCESS if success else KunitStatus.BUILD_FAILURE
+	return KunitResult(status, build_end - build_start)
 
 def config_and_build_tests(linux: kunit_kernel.LinuxSourceTree,
 			   request: KunitBuildRequest) -> KunitResult:
@@ -145,7 +136,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 		tests = _list_tests(linux, request)
 		if request.run_isolated == 'test':
 			filter_globs = tests
-		if request.run_isolated == 'suite':
+		elif request.run_isolated == 'suite':
 			filter_globs = _suites_from_test_list(tests)
 			# Apply the test-part of the user's glob, if present.
 			if '.' in request.filter_glob:
