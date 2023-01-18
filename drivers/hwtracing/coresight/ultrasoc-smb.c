@@ -455,7 +455,7 @@ static int smb_init_data_buffer(struct platform_device *pdev,
 	void *base;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, SMB_BUF_ADDR_RES);
-	if (IS_ERR(res)) {
+	if (!res) {
 		dev_err(&pdev->dev, "SMB device failed to get resource\n");
 		return -EINVAL;
 	}
