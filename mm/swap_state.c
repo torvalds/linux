@@ -94,6 +94,8 @@ int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 	unsigned long i, nr = folio_nr_pages(folio);
 	void *old;
 
+	xas_set_update(&xas, workingset_update_node);
+
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(folio_test_swapcache(folio), folio);
 	VM_BUG_ON_FOLIO(!folio_test_swapbacked(folio), folio);
@@ -144,6 +146,8 @@ void __delete_from_swap_cache(struct folio *folio,
 	long nr = folio_nr_pages(folio);
 	pgoff_t idx = swp_offset(entry);
 	XA_STATE(xas, &address_space->i_pages, idx);
+
+	xas_set_update(&xas, workingset_update_node);
 
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio), folio);
@@ -251,6 +255,8 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
 		swp_entry_t entry = swp_entry(type, curr);
 		struct address_space *address_space = swap_address_space(entry);
 		XA_STATE(xas, &address_space->i_pages, curr);
+
+		xas_set_update(&xas, workingset_update_node);
 
 		xa_lock_irq(&address_space->i_pages);
 		xas_for_each(&xas, old, end) {
