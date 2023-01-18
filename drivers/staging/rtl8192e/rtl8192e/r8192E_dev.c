@@ -2027,8 +2027,6 @@ rtl92e_init_variables(struct net_device  *dev)
 			    IMR_RDU | IMR_RXFOVW | IMR_TXFOVW |
 			    IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
-	priv->PwrDomainProtect = false;
-
 	priv->bfirst_after_down = false;
 }
 

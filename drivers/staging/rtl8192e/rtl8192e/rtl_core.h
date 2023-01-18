@@ -526,7 +526,6 @@ struct r8192_priv {
 
 	bool		chan_forced;
 
-	u8		PwrDomainProtect;
 	u8		H2CTxCmdSeq;
 };
 
