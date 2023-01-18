@@ -600,20 +600,27 @@ static int xgbe_phy_get_comm_ownership(struct xgbe_prv_data *pdata)
 	return -ETIMEDOUT;
 }
 
-static int xgbe_phy_mdio_mii_write(struct xgbe_prv_data *pdata, int addr,
-				   int reg, u16 val)
+static int xgbe_phy_mdio_mii_write_c22(struct xgbe_prv_data *pdata, int addr,
+				       int reg, u16 val)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	if (reg & MII_ADDR_C45) {
-		if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL45)
-			return -ENOTSUPP;
-	} else {
-		if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL22)
-			return -ENOTSUPP;
-	}
+	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL22)
+		return -EOPNOTSUPP;
 
-	return pdata->hw_if.write_ext_mii_regs(pdata, addr, reg, val);
+	return pdata->hw_if.write_ext_mii_regs_c22(pdata, addr, reg, val);
+}
+
+static int xgbe_phy_mdio_mii_write_c45(struct xgbe_prv_data *pdata, int addr,
+				       int devad, int reg, u16 val)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL45)
+		return -EOPNOTSUPP;
+
+	return pdata->hw_if.write_ext_mii_regs_c45(pdata, addr, devad,
+						   reg, val);
 }
 
 static int xgbe_phy_i2c_mii_write(struct xgbe_prv_data *pdata, int reg, u16 val)
@@ -638,7 +645,8 @@ static int xgbe_phy_i2c_mii_write(struct xgbe_prv_data *pdata, int reg, u16 val)
 	return ret;
 }
 
-static int xgbe_phy_mii_write(struct mii_bus *mii, int addr, int reg, u16 val)
+static int xgbe_phy_mii_write_c22(struct mii_bus *mii, int addr, int reg,
+				  u16 val)
 {
 	struct xgbe_prv_data *pdata = mii->priv;
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -651,29 +659,58 @@ static int xgbe_phy_mii_write(struct mii_bus *mii, int addr, int reg, u16 val)
 	if (phy_data->conn_type == XGBE_CONN_TYPE_SFP)
 		ret = xgbe_phy_i2c_mii_write(pdata, reg, val);
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
-		ret = xgbe_phy_mdio_mii_write(pdata, addr, reg, val);
+		ret = xgbe_phy_mdio_mii_write_c22(pdata, addr, reg, val);
 	else
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
 	return ret;
 }
 
-static int xgbe_phy_mdio_mii_read(struct xgbe_prv_data *pdata, int addr,
-				  int reg)
+static int xgbe_phy_mii_write_c45(struct mii_bus *mii, int addr, int devad,
+				  int reg, u16 val)
+{
+	struct xgbe_prv_data *pdata = mii->priv;
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	int ret;
+
+	ret = xgbe_phy_get_comm_ownership(pdata);
+	if (ret)
+		return ret;
+
+	if (phy_data->conn_type == XGBE_CONN_TYPE_SFP)
+		ret = -EOPNOTSUPP;
+	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
+		ret = xgbe_phy_mdio_mii_write_c45(pdata, addr, devad, reg, val);
+	else
+		ret = -EOPNOTSUPP;
+
+	xgbe_phy_put_comm_ownership(pdata);
+
+	return ret;
+}
+
+static int xgbe_phy_mdio_mii_read_c22(struct xgbe_prv_data *pdata, int addr,
+				      int reg)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	if (reg & MII_ADDR_C45) {
-		if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL45)
-			return -ENOTSUPP;
-	} else {
-		if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL22)
-			return -ENOTSUPP;
-	}
+	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL22)
+		return -EOPNOTSUPP;
 
-	return pdata->hw_if.read_ext_mii_regs(pdata, addr, reg);
+	return pdata->hw_if.read_ext_mii_regs_c22(pdata, addr, reg);
+}
+
+static int xgbe_phy_mdio_mii_read_c45(struct xgbe_prv_data *pdata, int addr,
+				      int devad, int reg)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	if (phy_data->phydev_mode != XGBE_MDIO_MODE_CL45)
+		return -EOPNOTSUPP;
+
+	return pdata->hw_if.read_ext_mii_regs_c45(pdata, addr, devad, reg);
 }
 
 static int xgbe_phy_i2c_mii_read(struct xgbe_prv_data *pdata, int reg)
@@ -698,7 +735,7 @@ static int xgbe_phy_i2c_mii_read(struct xgbe_prv_data *pdata, int reg)
 	return ret;
 }
 
-static int xgbe_phy_mii_read(struct mii_bus *mii, int addr, int reg)
+static int xgbe_phy_mii_read_c22(struct mii_bus *mii, int addr, int reg)
 {
 	struct xgbe_prv_data *pdata = mii->priv;
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -711,7 +748,30 @@ static int xgbe_phy_mii_read(struct mii_bus *mii, int addr, int reg)
 	if (phy_data->conn_type == XGBE_CONN_TYPE_SFP)
 		ret = xgbe_phy_i2c_mii_read(pdata, reg);
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
-		ret = xgbe_phy_mdio_mii_read(pdata, addr, reg);
+		ret = xgbe_phy_mdio_mii_read_c22(pdata, addr, reg);
+	else
+		ret = -EOPNOTSUPP;
+
+	xgbe_phy_put_comm_ownership(pdata);
+
+	return ret;
+}
+
+static int xgbe_phy_mii_read_c45(struct mii_bus *mii, int addr, int devad,
+				 int reg)
+{
+	struct xgbe_prv_data *pdata = mii->priv;
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	int ret;
+
+	ret = xgbe_phy_get_comm_ownership(pdata);
+	if (ret)
+		return ret;
+
+	if (phy_data->conn_type == XGBE_CONN_TYPE_SFP)
+		ret = -EOPNOTSUPP;
+	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
+		ret = xgbe_phy_mdio_mii_read_c45(pdata, addr, devad, reg);
 	else
 		ret = -ENOTSUPP;
 
@@ -1929,8 +1989,8 @@ static int xgbe_phy_set_redrv_mode_mdio(struct xgbe_prv_data *pdata,
 	redrv_reg = XGBE_PHY_REDRV_MODE_REG + (phy_data->redrv_lane * 0x1000);
 	redrv_val = (u16)mode;
 
-	return pdata->hw_if.write_ext_mii_regs(pdata, phy_data->redrv_addr,
-					       redrv_reg, redrv_val);
+	return pdata->hw_if.write_ext_mii_regs_c22(pdata, phy_data->redrv_addr,
+						   redrv_reg, redrv_val);
 }
 
 static int xgbe_phy_set_redrv_mode_i2c(struct xgbe_prv_data *pdata,
@@ -3502,8 +3562,10 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	mii->priv = pdata;
 	mii->name = "amd-xgbe-mii";
-	mii->read = xgbe_phy_mii_read;
-	mii->write = xgbe_phy_mii_write;
+	mii->read = xgbe_phy_mii_read_c22;
+	mii->write = xgbe_phy_mii_write_c22;
+	mii->read_c45 = xgbe_phy_mii_read_c45;
+	mii->write_c45 = xgbe_phy_mii_write_c45;
 	mii->parent = pdata->dev;
 	mii->phy_mask = ~0;
 	snprintf(mii->id, sizeof(mii->id), "%s", dev_name(pdata->dev));

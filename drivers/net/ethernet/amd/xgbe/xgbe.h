@@ -775,8 +775,11 @@ struct xgbe_hw_if {
 
 	int (*set_ext_mii_mode)(struct xgbe_prv_data *, unsigned int,
 				enum xgbe_mdio_mode);
-	int (*read_ext_mii_regs)(struct xgbe_prv_data *, int, int);
-	int (*write_ext_mii_regs)(struct xgbe_prv_data *, int, int, u16);
+	int (*read_ext_mii_regs_c22)(struct xgbe_prv_data *, int, int);
+	int (*write_ext_mii_regs_c22)(struct xgbe_prv_data *, int, int, u16);
+	int (*read_ext_mii_regs_c45)(struct xgbe_prv_data *, int, int, int);
+	int (*write_ext_mii_regs_c45)(struct xgbe_prv_data *, int, int, int,
+				      u16);
 
 	int (*set_gpio)(struct xgbe_prv_data *, unsigned int);
 	int (*clr_gpio)(struct xgbe_prv_data *, unsigned int);
