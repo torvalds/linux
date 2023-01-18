@@ -33,6 +33,10 @@ properties:
       open drain.
     maxItems: 1
 
+  i2c-gpio,sda-output-only:
+    description: sda as output only
+    type: boolean
+
   i2c-gpio,scl-output-only:
     description: scl as output only
     type: boolean
@@ -62,6 +66,28 @@ properties:
     description: this means that something outside of our control has put the
       GPIO line used for SCL into open drain mode, and that something is not
       the GPIO chip. It is essentially an inconsistency flag.
+
+  i2c-gpio,sda-has-no-pullup:
+    type: boolean
+    description: sda is used in a non-compliant way and has no pull-up.
+      Therefore disable open-drain. This property is mutually-exclusive
+      with i2c-gpio,sda-open-drain.
+
+  i2c-gpio,scl-has-no-pullup:
+    type: boolean
+    description: scl is used in a non-compliant way and has no pull-up.
+      Therefore disable open-drain. This property is mutually-exclusive
+      with i2c-gpio,scl-open-drain.
+
+dependencies:
+  i2c-gpio,sda-has-no-pullup:
+    not:
+      required:
+        - i2c-gpio,sda-open-drain
+  i2c-gpio,scl-has-no-pullup:
+    not:
+      required:
+        - i2c-gpio,scl-open-drain
 
 required:
   - compatible
