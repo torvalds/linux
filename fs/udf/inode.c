@@ -322,7 +322,8 @@ int udf_expand_file_adinicb(struct inode *inode)
 	return err;
 }
 
-#define UDF_MAP_CREATE	0x01	/* Mapping can allocate new blocks */
+#define UDF_MAP_CREATE		0x01	/* Mapping can allocate new blocks */
+#define UDF_MAP_NOPREALLOC	0x02	/* Do not preallocate blocks */
 
 #define UDF_BLK_MAPPED	0x01	/* Block was successfully mapped */
 #define UDF_BLK_NEW	0x02	/* Block was freshly allocated */
@@ -381,6 +382,14 @@ static int udf_get_block(struct inode *inode, sector_t block,
 		.iflags = create ? UDF_MAP_CREATE : 0,
 	};
 
+	/*
+	 * We preallocate blocks only for regular files. It also makes sense
+	 * for directories but there's a problem when to drop the
+	 * preallocation. We might use some delayed work for that but I feel
+	 * it's overengineering for a filesystem like UDF.
+	 */
+	if (!S_ISREG(inode->i_mode))
+		map.iflags |= UDF_MAP_NOPREALLOC;
 	err = udf_map_block(inode, &map);
 	if (err < 0)
 		return err;
@@ -808,11 +817,7 @@ static int inode_getblk(struct inode *inode, struct udf_map_rq *map)
 	 * block */
 	udf_split_extents(inode, &c, offset, newblocknum, laarr, &endnum);
 
-	/* We preallocate blocks only for regular files. It also makes sense
-	 * for directories but there's a problem when to drop the
-	 * preallocation. We might use some delayed work for that but I feel
-	 * it's overengineering for a filesystem like UDF. */
-	if (S_ISREG(inode->i_mode))
+	if (!(map->iflags & UDF_MAP_NOPREALLOC))
 		udf_prealloc_extents(inode, c, lastblock, laarr, &endnum);
 
 	/* merge any continuous blocks in laarr */
