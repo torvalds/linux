@@ -193,7 +193,6 @@ struct devlink_linecard;
 
 struct devlink_linecard *
 devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info);
-void devlink_linecard_put(struct devlink_linecard *linecard);
 
 /* Rates */
 extern const struct devlink_gen_cmd devl_gen_rate_get;
