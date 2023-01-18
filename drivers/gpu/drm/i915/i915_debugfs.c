@@ -648,6 +648,9 @@ i915_drop_caches_get(void *data, u64 *val)
 
 	return 0;
 }
+
+#define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */
+
 static int
 gt_drop_caches(struct intel_gt *gt, u64 val)
 {
