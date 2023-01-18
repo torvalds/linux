@@ -65,13 +65,6 @@
 #include "intel_uncore.h"
 
 struct drm_i915_clock_gating_funcs;
-struct drm_i915_gem_object;
-struct drm_i915_private;
-struct intel_connector;
-struct intel_dp;
-struct intel_encoder;
-struct intel_limit;
-struct intel_overlay_error_state;
 struct vlv_s0ix_state;
 
 #define I915_GEM_GPU_DOMAINS \
