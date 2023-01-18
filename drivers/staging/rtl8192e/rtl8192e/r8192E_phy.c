@@ -580,7 +580,6 @@ void rtl92e_get_tx_power(struct net_device *dev)
 	priv->def_initial_gain[3] = rtl92e_readb(dev, rOFDM0_XDAGCCore1);
 
 	priv->framesync = rtl92e_readb(dev, rOFDM0_RxDetector3);
-	priv->framesyncC34 = rtl92e_readl(dev, rOFDM0_RxDetector2);
 }
 
 void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
