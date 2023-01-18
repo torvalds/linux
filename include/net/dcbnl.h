@@ -19,6 +19,10 @@ struct dcb_app_type {
 	u8	dcbx;
 };
 
+u16 dcb_getrewr(struct net_device *dev, struct dcb_app *app);
+int dcb_setrewr(struct net_device *dev, struct dcb_app *app);
+int dcb_delrewr(struct net_device *dev, struct dcb_app *app);
+
 int dcb_setapp(struct net_device *, struct dcb_app *);
 u8 dcb_getapp(struct net_device *, struct dcb_app *);
 int dcb_ieee_setapp(struct net_device *, struct dcb_app *);
@@ -113,6 +117,10 @@ struct dcbnl_rtnl_ops {
 	/* apptrust */
 	int (*dcbnl_setapptrust)(struct net_device *, u8 *, int);
 	int (*dcbnl_getapptrust)(struct net_device *, u8 *, int *);
+
+	/* rewrite */
+	int (*dcbnl_setrewr)(struct net_device *dev, struct dcb_app *app);
+	int (*dcbnl_delrewr)(struct net_device *dev, struct dcb_app *app);
 };
 
 #endif /* __NET_DCBNL_H__ */
