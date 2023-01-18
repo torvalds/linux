@@ -88,7 +88,8 @@ static bool assert_dsb_has_room(struct intel_dsb *dsb)
 
 	/* each instruction is 2 dwords */
 	return !drm_WARN(&i915->drm, dsb->free_pos > dsb->size - 2,
-			 "DSB buffer overflow\n");
+			 "[CRTC:%d:%s] DSB %d buffer overflow\n",
+			 crtc->base.base.id, crtc->base.name, dsb->id);
 }
 
 static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
@@ -232,7 +233,8 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 		return;
 
 	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
-		drm_err(&dev_priv->drm, "DSB engine is busy.\n");
+		drm_err(&dev_priv->drm, "[CRTC:%d:%s] DSB %d is busy\n",
+			crtc->base.base.id, crtc->base.name, dsb->id);
 		goto reset;
 	}
 
@@ -250,7 +252,8 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 
 	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1))
 		drm_err(&dev_priv->drm,
-			"Timed out waiting for DSB workload completion.\n");
+			"[CRTC:%d:%s] DSB %d timed out waiting for idle\n",
+			crtc->base.base.id, crtc->base.name, dsb->id);
 
 reset:
 	dsb->free_pos = 0;
@@ -325,7 +328,8 @@ out_put_rpm:
 	kfree(dsb);
 out:
 	drm_info_once(&i915->drm,
-		      "DSB queue setup failed, will fallback to MMIO for display HW programming\n");
+		      "[CRTC:%d:%s] DSB %d queue setup failed, will fallback to MMIO for display HW programming\n",
+		      crtc->base.base.id, crtc->base.name, DSB1);
 
 	return NULL;
 }
