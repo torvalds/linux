@@ -138,6 +138,9 @@ struct scmi_xfer {
 	int state;
 #define SCMI_XFER_FLAG_IS_RAW	BIT(0)
 #define SCMI_XFER_IS_RAW(x)	((x)->flags & SCMI_XFER_FLAG_IS_RAW)
+#define SCMI_XFER_FLAG_CHAN_SET	BIT(1)
+#define SCMI_XFER_IS_CHAN_SET(x)	\
+	((x)->flags & SCMI_XFER_FLAG_CHAN_SET)
 	int flags;
 	/* A lock to protect state and busy fields */
 	spinlock_t lock;

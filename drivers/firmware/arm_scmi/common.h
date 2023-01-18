@@ -27,6 +27,8 @@
 #include "protocols.h"
 #include "notify.h"
 
+#define SCMI_MAX_CHANNELS		256
+
 #define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
 
 enum scmi_error_codes {

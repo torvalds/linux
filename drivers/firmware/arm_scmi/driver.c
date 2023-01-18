@@ -660,6 +660,7 @@ void scmi_xfer_raw_put(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	struct scmi_info *info = handle_to_scmi_info(handle);
 
 	xfer->flags &= ~SCMI_XFER_FLAG_IS_RAW;
+	xfer->flags &= ~SCMI_XFER_FLAG_CHAN_SET;
 	return __scmi_xfer_put(&info->tx_minfo, xfer);
 }
 
@@ -896,7 +897,8 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 
 	if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
 		xfer->hdr.seq = MSG_XTRACT_TOKEN(msg_hdr);
-		scmi_raw_message_report(info->raw, xfer, SCMI_RAW_NOTIF_QUEUE);
+		scmi_raw_message_report(info->raw, xfer, SCMI_RAW_NOTIF_QUEUE,
+					cinfo->id);
 	}
 
 	__scmi_xfer_put(minfo, xfer);
@@ -955,7 +957,9 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 		 * poll loop.
 		 */
 		if (!xfer->hdr.poll_completion)
-			scmi_raw_message_report(info->raw, xfer, SCMI_RAW_REPLY_QUEUE);
+			scmi_raw_message_report(info->raw, xfer,
+						SCMI_RAW_REPLY_QUEUE,
+						cinfo->id);
 	}
 
 	scmi_xfer_command_release(info, xfer);
@@ -1078,7 +1082,8 @@ static int scmi_wait_for_reply(struct device *dev, const struct scmi_desc *desc,
 					handle_to_scmi_info(cinfo->handle);
 
 				scmi_raw_message_report(info->raw, xfer,
-							SCMI_RAW_REPLY_QUEUE);
+							SCMI_RAW_REPLY_QUEUE,
+							cinfo->id);
 			}
 		}
 	} else {
@@ -2608,14 +2613,35 @@ static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)
 
 static int scmi_debugfs_raw_mode_setup(struct scmi_info *info)
 {
-	int ret = 0;
+	int id, num_chans = 0, ret = 0;
+	struct scmi_chan_info *cinfo;
+	u8 channels[SCMI_MAX_CHANNELS] = {};
+	DECLARE_BITMAP(protos, SCMI_MAX_CHANNELS) = {};
 
 	if (!info->dbg)
 		return -EINVAL;
 
+	/* Enumerate all channels to collect their ids */
+	idr_for_each_entry(&info->tx_idr, cinfo, id) {
+		/*
+		 * Cannot happen, but be defensive.
+		 * Zero as num_chans is ok, warn and carry on.
+		 */
+		if (num_chans >= SCMI_MAX_CHANNELS || !cinfo) {
+			dev_warn(info->dev,
+				 "SCMI RAW - Error enumerating channels\n");
+			break;
+		}
+
+		if (!test_bit(cinfo->id, protos)) {
+			channels[num_chans++] = cinfo->id;
+			set_bit(cinfo->id, protos);
+		}
+	}
+
 	info->raw = scmi_raw_mode_init(&info->handle, info->dbg->top_dentry,
-				       info->id, info->desc,
-				       info->tx_minfo.max_msg);
+				       info->id, channels, num_chans,
+				       info->desc, info->tx_minfo.max_msg);
 	if (IS_ERR(info->raw)) {
 		dev_err(info->dev, "Failed to initialize SCMI RAW Mode !\n");
 		ret = PTR_ERR(info->raw);

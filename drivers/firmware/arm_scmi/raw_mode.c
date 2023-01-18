@@ -37,10 +37,17 @@
  * which in turn is rooted under the corresponding underlying  SCMI instance.
  *
  * /sys/kernel/debug/scmi/
- * |-- 0
+ * `-- 0
  *     |-- atomic_threshold_us
  *     |-- instance_name
  *     |-- raw
+ *     |   |-- channels
+ *     |   |   |-- 0x10
+ *     |   |   |   |-- message
+ *     |   |   |   `-- message_async
+ *     |   |   `-- 0x13
+ *     |   |       |-- message
+ *     |   |       `-- message_async
  *     |   |-- errors
  *     |   |-- message
  *     |   |-- message_async
@@ -64,6 +71,15 @@
  *  - reset: used to flush the queues of messages (of any kind) still pending
  *	     to be read; this is useful at test-suite start/stop to get
  *	     rid of any unread messages from the previous run.
+ *
+ * with the per-channel entries rooted at /channels being present only on a
+ * system where multiple transport channels have been configured.
+ *
+ * Such per-channel entries can be used to explicitly choose a specific channel
+ * for SCMI bare message injection, in contrast with the general entries above
+ * where, instead, the selection of the proper channel to use is automatically
+ * performed based the protocol embedded in the injected message and on how the
+ * transport is configured on the system.
  *
  * Note that other common general entries are available under transport/ to let
  * the user applications properly make up their expectations in terms of
@@ -95,7 +111,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/export.h>
-#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -104,6 +119,7 @@
 #include <linux/poll.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/xarray.h>
 
 #include "common.h"
 
@@ -140,6 +156,7 @@ struct scmi_raw_queue {
  * @desc: Pointer to the transport descriptor to use
  * @tx_max_msg: Maximum number of concurrent TX in-flight messages
  * @q: An array of Raw queue descriptors
+ * @chans_q: An XArray mapping optional additional per-channel queues
  * @free_waiters: Head of freelist for unused waiters
  * @free_mtx: A mutex to protect the waiters freelist
  * @active_waiters: Head of list for currently active and used waiters
@@ -159,6 +176,7 @@ struct scmi_raw_mode_info {
 	const struct scmi_desc *desc;
 	int tx_max_msg;
 	struct scmi_raw_queue *q[SCMI_RAW_MAX_QUEUE];
+	struct xarray chans_q;
 	struct list_head free_waiters;
 	/* Protect free_waiters list */
 	struct mutex free_mtx;
@@ -208,6 +226,8 @@ struct scmi_raw_buffer {
  * struct scmi_dbg_raw_data  - Structure holding data needed by the debugfs
  * layer
  *
+ * @chan_id: The preferred channel to use: if zero the channel is automatically
+ *	     selected based on protocol.
  * @raw: A reference to the Raw instance.
  * @tx: A message buffer used to collect TX message on write.
  * @tx_size: The effective size of the TX message.
@@ -216,6 +236,7 @@ struct scmi_raw_buffer {
  * @rx_size: The effective size of the RX message.
  */
 struct scmi_dbg_raw_data {
+	u8 chan_id;
 	struct scmi_raw_mode_info *raw;
 	struct scmi_msg tx;
 	size_t tx_size;
@@ -223,6 +244,16 @@ struct scmi_dbg_raw_data {
 	struct scmi_msg rx;
 	size_t rx_size;
 };
+
+static struct scmi_raw_queue *
+scmi_raw_queue_select(struct scmi_raw_mode_info *raw, unsigned int idx,
+		      unsigned int chan_id)
+{
+	if (!chan_id)
+		return raw->q[idx];
+
+	return xa_load(&raw->chans_q, chan_id);
+}
 
 static struct scmi_raw_buffer *scmi_raw_buffer_get(struct scmi_raw_queue *q)
 {
@@ -563,6 +594,8 @@ static int scmi_xfer_raw_get_init(struct scmi_raw_mode_info *raw, void *buf,
  *
  * @raw: A reference to the Raw instance.
  * @xfer: The xfer to send
+ * @chan_id: The channel ID to use, if zero the channels is automatically
+ *	     selected based on the protocol used.
  * @async: A flag stating if an asynchronous command is required.
  *
  * This function send a previously built raw xfer using an appropriate channel
@@ -576,14 +609,20 @@ static int scmi_xfer_raw_get_init(struct scmi_raw_mode_info *raw, void *buf,
  * Return: 0 on Success
  */
 static int scmi_do_xfer_raw_start(struct scmi_raw_mode_info *raw,
-				  struct scmi_xfer *xfer, bool async)
+				  struct scmi_xfer *xfer, u8 chan_id,
+				  bool async)
 {
 	int ret;
 	struct scmi_chan_info *cinfo;
 	struct scmi_xfer_raw_waiter *rw;
 	struct device *dev = raw->handle->dev;
 
-	cinfo = scmi_xfer_raw_channel_get(raw->handle, xfer->hdr.protocol_id);
+	if (!chan_id)
+		chan_id = xfer->hdr.protocol_id;
+	else
+		xfer->flags |= SCMI_XFER_FLAG_CHAN_SET;
+
+	cinfo = scmi_xfer_raw_channel_get(raw->handle, chan_id);
 	if (IS_ERR(cinfo))
 		return PTR_ERR(cinfo);
 
@@ -630,12 +669,13 @@ static int scmi_do_xfer_raw_start(struct scmi_raw_mode_info *raw,
  * @buf: A buffer containing the whole SCMI message to send (including the
  *	 header) in little-endian binary format.
  * @len: Length of the message in @buf.
+ * @chan_id: The channel ID to use.
  * @async: A flag stating if an asynchronous command is required.
  *
  * Return: 0 on Success
  */
 static int scmi_raw_message_send(struct scmi_raw_mode_info *raw,
-				 void *buf, size_t len, bool async)
+				 void *buf, size_t len, u8 chan_id, bool async)
 {
 	int ret;
 	struct scmi_xfer *xfer;
@@ -644,7 +684,7 @@ static int scmi_raw_message_send(struct scmi_raw_mode_info *raw,
 	if (ret)
 		return ret;
 
-	ret = scmi_do_xfer_raw_start(raw, xfer, async);
+	ret = scmi_do_xfer_raw_start(raw, xfer, chan_id, async);
 	if (ret)
 		scmi_xfer_raw_put(raw->handle, xfer);
 
@@ -687,18 +727,23 @@ scmi_raw_message_dequeue(struct scmi_raw_queue *q, bool o_nonblock)
  * @len: Length of @buf.
  * @size: The effective size of the message copied into @buf
  * @idx: The index of the queue to pick the next queued message from.
+ * @chan_id: The channel ID to use.
  * @o_nonblock: A flag to request a non-blocking message dequeue.
  *
  * Return: 0 on Success
  */
 static int scmi_raw_message_receive(struct scmi_raw_mode_info *raw,
 				    void *buf, size_t len, size_t *size,
-				    unsigned int idx,
+				    unsigned int idx, unsigned int chan_id,
 				    bool o_nonblock)
 {
 	int ret = 0;
 	struct scmi_raw_buffer *rb;
-	struct scmi_raw_queue *q = raw->q[idx];
+	struct scmi_raw_queue *q;
+
+	q = scmi_raw_queue_select(raw, idx, chan_id);
+	if (!q)
+		return -ENODEV;
 
 	rb = scmi_raw_message_dequeue(q, o_nonblock);
 	if (IS_ERR(rb)) {
@@ -732,7 +777,7 @@ static ssize_t scmi_dbg_raw_mode_common_read(struct file *filp,
 		int ret;
 
 		ret = scmi_raw_message_receive(rd->raw, rd->rx.buf, rd->rx.len,
-					       &rd->rx_size, idx,
+					       &rd->rx_size, idx, rd->chan_id,
 					       filp->f_flags & O_NONBLOCK);
 		if (ret) {
 			rd->rx_size = 0;
@@ -782,7 +827,8 @@ static ssize_t scmi_dbg_raw_mode_common_write(struct file *filp,
 			return cnt;
 	}
 
-	ret = scmi_raw_message_send(rd->raw, rd->tx.buf, rd->tx_size, async);
+	ret = scmi_raw_message_send(rd->raw, rd->tx.buf, rd->tx_size,
+				    rd->chan_id, async);
 
 	/* Reset ppos for next message ... */
 	rd->tx_size = 0;
@@ -797,8 +843,12 @@ static __poll_t scmi_test_dbg_raw_common_poll(struct file *filp,
 {
 	unsigned long flags;
 	struct scmi_dbg_raw_data *rd = filp->private_data;
-	struct scmi_raw_queue *q = rd->raw->q[idx];
+	struct scmi_raw_queue *q;
 	__poll_t mask = 0;
+
+	q = scmi_raw_queue_select(rd->raw, idx, rd->chan_id);
+	if (!q)
+		return mask;
 
 	poll_wait(filp, &q->wq, wait);
 
@@ -833,8 +883,10 @@ static __poll_t scmi_dbg_raw_mode_message_poll(struct file *filp,
 
 static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 {
+	u8 id;
 	struct scmi_raw_mode_info *raw;
 	struct scmi_dbg_raw_data *rd;
+	const char *id_str = filp->f_path.dentry->d_parent->d_name.name;
 
 	if (!inode->i_private)
 		return -ENODEV;
@@ -858,6 +910,10 @@ static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 		kfree(rd);
 		return -ENOMEM;
 	}
+
+	/* Grab channel ID from debugfs entry naming if any */
+	if (!kstrtou8(id_str, 16, &id))
+		rd->chan_id = id;
 
 	rd->raw = raw;
 	filp->private_data = rd;
@@ -1028,7 +1084,8 @@ static int scmi_xfer_raw_worker_init(struct scmi_raw_mode_info *raw)
 	return 0;
 }
 
-static int scmi_raw_mode_setup(struct scmi_raw_mode_info *raw)
+static int scmi_raw_mode_setup(struct scmi_raw_mode_info *raw,
+			       u8 *channels, int num_chans)
 {
 	int ret, idx;
 	void *gid;
@@ -1046,15 +1103,43 @@ static int scmi_raw_mode_setup(struct scmi_raw_mode_info *raw)
 		}
 	}
 
+	xa_init(&raw->chans_q);
+	if (num_chans > 1) {
+		int i;
+
+		for (i = 0; i < num_chans; i++) {
+			void *xret;
+			struct scmi_raw_queue *q;
+
+			q = scmi_raw_queue_init(raw);
+			if (IS_ERR(q)) {
+				ret = PTR_ERR(q);
+				goto err_xa;
+			}
+
+			xret = xa_store(&raw->chans_q, channels[i], q,
+					GFP_KERNEL);
+			if (xa_err(xret)) {
+				dev_err(dev,
+					"Fail to allocate Raw queue 0x%02X\n",
+					channels[i]);
+				ret = xa_err(xret);
+				goto err_xa;
+			}
+		}
+	}
+
 	ret = scmi_xfer_raw_worker_init(raw);
 	if (ret)
-		goto err;
+		goto err_xa;
 
 	devres_close_group(dev, gid);
 	raw->gid = gid;
 
 	return 0;
 
+err_xa:
+	xa_destroy(&raw->chans_q);
 err:
 	devres_release_group(dev, gid);
 	return ret;
@@ -1067,6 +1152,8 @@ err:
  * @top_dentry: A reference to the top Raw debugfs dentry
  * @instance_id: The ID of the underlying SCMI platform instance represented by
  *		 this Raw instance
+ * @channels: The list of the existing channels
+ * @num_chans: The number of entries in @channels
  * @desc: Reference to the transport operations
  * @tx_max_msg: Max number of in-flight messages allowed by the transport
  *
@@ -1076,6 +1163,7 @@ err:
  */
 void *scmi_raw_mode_init(const struct scmi_handle *handle,
 			 struct dentry *top_dentry, int instance_id,
+			 u8 *channels, int num_chans,
 			 const struct scmi_desc *desc, int tx_max_msg)
 {
 	int ret;
@@ -1095,7 +1183,7 @@ void *scmi_raw_mode_init(const struct scmi_handle *handle,
 	raw->tx_max_msg = tx_max_msg;
 	raw->id = instance_id;
 
-	ret = scmi_raw_mode_setup(raw);
+	ret = scmi_raw_mode_setup(raw, channels, num_chans);
 	if (ret) {
 		devm_kfree(dev, raw);
 		return ERR_PTR(ret);
@@ -1118,6 +1206,32 @@ void *scmi_raw_mode_init(const struct scmi_handle *handle,
 	debugfs_create_file("errors", 0400, raw->dentry, raw,
 			    &scmi_dbg_raw_mode_errors_fops);
 
+	/*
+	 * Expose per-channel entries if multiple channels available.
+	 * Just ignore errors while setting up these interfaces since we
+	 * have anyway already a working core Raw support.
+	 */
+	if (num_chans > 1) {
+		int i;
+		struct dentry *top_chans;
+
+		top_chans = debugfs_create_dir("channels", raw->dentry);
+
+		for (i = 0; i < num_chans; i++) {
+			char cdir[8];
+			struct dentry *chd;
+
+			snprintf(cdir, 8, "0x%02X", channels[i]);
+			chd = debugfs_create_dir(cdir, top_chans);
+
+			debugfs_create_file("message", 0600, chd, raw,
+					    &scmi_dbg_raw_mode_message_fops);
+
+			debugfs_create_file("message_async", 0600, chd, raw,
+					    &scmi_dbg_raw_mode_message_async_fops);
+		}
+	}
+
 	dev_info(dev, "SCMI RAW Mode initialized for instance %d\n", raw->id);
 
 	return raw;
@@ -1139,6 +1253,7 @@ void scmi_raw_mode_cleanup(void *r)
 
 	cancel_work_sync(&raw->waiters_work);
 	destroy_workqueue(raw->wait_wq);
+	xa_destroy(&raw->chans_q);
 }
 
 static int scmi_xfer_raw_collect(void *msg, size_t *msg_len,
@@ -1178,6 +1293,7 @@ static int scmi_xfer_raw_collect(void *msg, size_t *msg_len,
  * @r: An opaque reference to the raw instance configuration
  * @xfer: The xfer containing the message to be reported
  * @idx: The index of the queue.
+ * @chan_id: The channel ID to use.
  *
  * If Raw mode is enabled, this is called from the SCMI core on the regular RX
  * path to save and enqueue the response/notification payload carried by this
@@ -1187,7 +1303,8 @@ static int scmi_xfer_raw_collect(void *msg, size_t *msg_len,
  * user can read back the raw message payload at its own pace (if ever) without
  * holding an xfer for too long.
  */
-void scmi_raw_message_report(void *r, struct scmi_xfer *xfer, unsigned int idx)
+void scmi_raw_message_report(void *r, struct scmi_xfer *xfer,
+			     unsigned int idx, unsigned int chan_id)
 {
 	int ret;
 	unsigned long flags;
@@ -1200,7 +1317,8 @@ void scmi_raw_message_report(void *r, struct scmi_xfer *xfer, unsigned int idx)
 		return;
 
 	dev = raw->handle->dev;
-	q = raw->q[idx];
+	q = scmi_raw_queue_select(raw, idx,
+				  SCMI_XFER_IS_CHAN_SET(xfer) ? chan_id : 0);
 
 	/*
 	 * Grab the msg_q_lock upfront to avoid a possible race between
@@ -1319,7 +1437,7 @@ void scmi_raw_error_report(void *r, struct scmi_chan_info *cinfo,
 		smp_store_mb(xfer.priv, priv);
 
 	scmi_xfer_raw_fill(raw, cinfo, &xfer, msg_hdr);
-	scmi_raw_message_report(raw, &xfer, SCMI_RAW_ERRS_QUEUE);
+	scmi_raw_message_report(raw, &xfer, SCMI_RAW_ERRS_QUEUE, 0);
 
 	kfree(xfer.rx.buf);
 }
