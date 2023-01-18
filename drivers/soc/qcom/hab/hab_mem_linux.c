@@ -8,6 +8,8 @@
 #include <linux/dma-buf.h>
 #include "hab_grantable.h"
 
+#define VFIO_DEV_DT_NAME "vfio_"
+
 enum hab_page_list_type {
 	HAB_PAGE_LIST_IMPORT = 0x1,
 	HAB_PAGE_LIST_EXPORT
@@ -692,14 +694,39 @@ static struct sg_table *hab_mem_map_dma_buf(
 		sg_set_page(sg, pages[i], PAGE_SIZE, 0);
 	}
 
+	if (strstr(dev_name(attachment->dev), VFIO_DEV_DT_NAME)) {
+		pr_info("detect %s for dma map %ld nent %ld pages\n",
+			dev_name(attachment->dev), sgt->nents, pglist->npages);
+		ret = dma_map_sg(attachment->dev, sgt->sgl, sgt->nents,
+				direction);
+		if (!ret) {
+			pr_err("kiumd map dmabuf failed %ld nent\n",
+				sgt->nents);
+			sg_free_table(sgt);
+			kfree(sgt);
+			sgt = NULL;
+		} else
+			pr_info("dma map OK nent old %ld new %ld\n", sgt->nents,
+				ret);
+	} else
+		pr_info("detect attach dev %s sgt nent %ld\n",
+			dev_name(attachment->dev), sgt->nents);
+
 	return sgt;
 }
-
 
 static void hab_mem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	struct sg_table *sgt,
 	enum dma_data_direction direction)
 {
+	pr_info("%s unmap dma %ld nent\n", dev_name(attachment->dev),
+		sgt->nents);
+
+	if (strstr(dev_name(attachment->dev), VFIO_DEV_DT_NAME)) {
+		dma_unmap_sg(attachment->dev, sgt->sgl, sgt->nents, direction);
+		pr_info("%s kiumd dma unmap done\n", dev_name(attachment->dev));
+	}
+
 	sg_free_table(sgt);
 	kfree(sgt);
 }
