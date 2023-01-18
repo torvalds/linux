@@ -891,8 +891,8 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 
 	priv->card_type = PCI;
 
-	priv->pFirmware = vzalloc(sizeof(struct rt_firmware));
-	if (!priv->pFirmware)
+	priv->fw_info = vzalloc(sizeof(struct rt_firmware));
+	if (!priv->fw_info)
 		netdev_err(dev,
 			   "rtl8192e: Unable to allocate space for firmware\n");
 
@@ -1807,9 +1807,9 @@ void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (stats->bIsAMPDU && !stats->bFirstMPDU)
-		stats->mac_time = priv->LastRxDescTSF;
+		stats->mac_time = priv->last_rx_desc_tsf;
 	else
-		priv->LastRxDescTSF = stats->mac_time;
+		priv->last_rx_desc_tsf = stats->mac_time;
 }
 
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index)
@@ -2386,8 +2386,8 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 		priv->polling_timer_on = 0;
 		_rtl92e_down(dev, true);
 		rtl92e_dm_deinit(dev);
-		vfree(priv->pFirmware);
-		priv->pFirmware = NULL;
+		vfree(priv->fw_info);
+		priv->fw_info = NULL;
 		_rtl92e_free_rx_ring(dev);
 		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 			_rtl92e_free_tx_ring(dev, i);

@@ -619,16 +619,16 @@ start:
 		rtl92e_writeb(dev, ANAPAR, 0x37);
 		mdelay(500);
 	}
-	priv->pFirmware->status = FW_STATUS_0_INIT;
+	priv->fw_info->status = FW_STATUS_0_INIT;
 
 	ulRegRead = rtl92e_readl(dev, CPU_GEN);
-	if (priv->pFirmware->status == FW_STATUS_0_INIT)
+	if (priv->fw_info->status == FW_STATUS_0_INIT)
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
-	else if (priv->pFirmware->status == FW_STATUS_5_READY)
+	else if (priv->fw_info->status == FW_STATUS_5_READY)
 		ulRegRead |= CPU_GEN_FIRMWARE_RESET;
 	else
 		netdev_err(dev, "%s(): undefined firmware state: %d.\n",
-			   __func__, priv->pFirmware->status);
+			   __func__, priv->fw_info->status);
 
 	rtl92e_writel(dev, CPU_GEN, ulRegRead);
 
@@ -647,13 +647,13 @@ start:
 		return rtStatus;
 	}
 
-	priv->LoopbackMode = RTL819X_NO_LOOPBACK;
+	priv->loopback_mode = RTL819X_NO_LOOPBACK;
 	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		ulRegRead = rtl92e_readl(dev, CPU_GEN);
-		if (priv->LoopbackMode == RTL819X_NO_LOOPBACK)
+		if (priv->loopback_mode == RTL819X_NO_LOOPBACK)
 			ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
 				    CPU_GEN_NO_LOOPBACK_SET;
-		else if (priv->LoopbackMode == RTL819X_MAC_LOOPBACK)
+		else if (priv->loopback_mode == RTL819X_MAC_LOOPBACK)
 			ulRegRead |= CPU_CCK_LOOPBACK;
 		else
 			netdev_err(dev, "%s: Invalid loopback mode setting.\n",

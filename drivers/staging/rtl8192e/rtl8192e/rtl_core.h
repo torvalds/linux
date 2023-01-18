@@ -325,8 +325,8 @@ struct r8192_priv {
 	struct bb_reg_definition PHYRegDef[4];
 	struct rate_adaptive rate_adaptive;
 
-	struct rt_firmware			*pFirmware;
-	enum rtl819x_loopback LoopbackMode;
+	struct rt_firmware *fw_info;
+	enum rtl819x_loopback loopback_mode;
 
 	struct timer_list			watch_dog_timer;
 	struct timer_list			fsync_timer;
@@ -360,7 +360,7 @@ struct r8192_priv {
 	int		rxringcount;
 	u16		rxbuffersize;
 
-	u64		LastRxDescTSF;
+	u64 last_rx_desc_tsf;
 
 	u32 receive_config;
 	u8		retry_data;
