@@ -133,12 +133,14 @@ static bool sparx5_dcb_apptrust_contains(int portno, u8 selector)
 
 static int sparx5_dcb_app_update(struct net_device *dev)
 {
+	struct dcb_rewr_prio_pcp_map pcp_rewr_map = {0};
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5_port_qos_dscp_map *dscp_map;
 	struct sparx5_port_qos_pcp_map *pcp_map;
 	struct sparx5_port_qos qos = {0};
 	struct dcb_app app_itr = {0};
 	int portno = port->portno;
+	bool pcp_rewr = false;
 	int i;
 
 	dscp_map = &qos.dscp.map;
@@ -163,10 +165,24 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 		pcp_map->map[i] = dcb_getapp(dev, &app_itr);
 	}
 
+	/* Get pcp rewrite mapping */
+	dcb_getrewr_prio_pcp_mask_map(dev, &pcp_rewr_map);
+	for (i = 0; i < ARRAY_SIZE(pcp_rewr_map.map); i++) {
+		if (!pcp_rewr_map.map[i])
+			continue;
+		pcp_rewr = true;
+		qos.pcp_rewr.map.map[i] = fls(pcp_rewr_map.map[i]) - 1;
+	}
+
 	/* Enable use of pcp for queue classification ? */
 	if (sparx5_dcb_apptrust_contains(portno, DCB_APP_SEL_PCP)) {
 		qos.pcp.qos_enable = true;
 		qos.pcp.dp_enable = qos.pcp.qos_enable;
+		/* Enable rewrite of PCP and DEI if PCP is trusted *and* rewrite
+		 * table is not empty.
+		 */
+		if (pcp_rewr)
+			qos.pcp_rewr.enable = true;
 	}
 
 	/* Enable use of dscp for queue classification ? */
@@ -178,16 +194,17 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 	return sparx5_port_qos_set(port, &qos);
 }
 
-/* Set or delete dscp app entry.
+/* Set or delete DSCP app entry.
  *
- * Dscp mapping is global for all ports, so set and delete app entries are
+ * DSCP mapping is global for all ports, so set and delete app entries are
  * replicated for each port.
  */
-static int sparx5_dcb_ieee_dscp_setdel_app(struct net_device *dev,
-					   struct dcb_app *app, bool del)
+static int sparx5_dcb_ieee_dscp_setdel(struct net_device *dev,
+				       struct dcb_app *app,
+				       int (*setdel)(struct net_device *,
+						     struct dcb_app *))
 {
 	struct sparx5_port *port = netdev_priv(dev);
-	struct dcb_app apps[SPX5_PORTS];
 	struct sparx5_port *port_itr;
 	int err, i;
 
@@ -195,11 +212,7 @@ static int sparx5_dcb_ieee_dscp_setdel_app(struct net_device *dev,
 		port_itr = port->sparx5->ports[i];
 		if (!port_itr)
 			continue;
-		memcpy(&apps[i], app, sizeof(struct dcb_app));
-		if (del)
-			err = dcb_ieee_delapp(port_itr->ndev, &apps[i]);
-		else
-			err = dcb_ieee_setapp(port_itr->ndev, &apps[i]);
+		err = setdel(port_itr->ndev, app);
 		if (err)
 			return err;
 	}
@@ -226,7 +239,7 @@ static int sparx5_dcb_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 	}
 
 	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
-		err = sparx5_dcb_ieee_dscp_setdel_app(dev, app, false);
+		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_ieee_setapp);
 	else
 		err = dcb_ieee_setapp(dev, app);
 
@@ -244,7 +257,7 @@ static int sparx5_dcb_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 	int err;
 
 	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
-		err = sparx5_dcb_ieee_dscp_setdel_app(dev, app, true);
+		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_ieee_delapp);
 	else
 		err = dcb_ieee_delapp(dev, app);
 
@@ -283,11 +296,60 @@ static int sparx5_dcb_getapptrust(struct net_device *dev, u8 *selectors,
 	return 0;
 }
 
+static int sparx5_dcb_delrewr(struct net_device *dev, struct dcb_app *app)
+{
+	int err;
+
+	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
+		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_delrewr);
+	else
+		err = dcb_delrewr(dev, app);
+
+	if (err < 0)
+		return err;
+
+	return sparx5_dcb_app_update(dev);
+}
+
+static int sparx5_dcb_setrewr(struct net_device *dev, struct dcb_app *app)
+{
+	struct dcb_app app_itr;
+	int err = 0;
+	u16 proto;
+
+	err = sparx5_dcb_app_validate(dev, app);
+	if (err)
+		goto out;
+
+	/* Delete current mapping, if it exists. */
+	proto = dcb_getrewr(dev, app);
+	if (proto) {
+		app_itr = *app;
+		app_itr.protocol = proto;
+		sparx5_dcb_delrewr(dev, &app_itr);
+	}
+
+	if (app->selector == IEEE_8021QAZ_APP_SEL_DSCP)
+		err = sparx5_dcb_ieee_dscp_setdel(dev, app, dcb_setrewr);
+	else
+		err = dcb_setrewr(dev, app);
+
+	if (err)
+		goto out;
+
+	sparx5_dcb_app_update(dev);
+
+out:
+	return err;
+}
+
 const struct dcbnl_rtnl_ops sparx5_dcbnl_ops = {
 	.ieee_setapp = sparx5_dcb_ieee_setapp,
 	.ieee_delapp = sparx5_dcb_ieee_delapp,
 	.dcbnl_setapptrust = sparx5_dcb_setapptrust,
 	.dcbnl_getapptrust = sparx5_dcb_getapptrust,
+	.dcbnl_setrewr = sparx5_dcb_setrewr,
+	.dcbnl_delrewr = sparx5_dcb_delrewr,
 };
 
 int sparx5_dcb_init(struct sparx5 *sparx5)

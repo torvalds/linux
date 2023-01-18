@@ -1151,7 +1151,64 @@ int sparx5_port_qos_set(struct sparx5_port *port,
 {
 	sparx5_port_qos_dscp_set(port, &qos->dscp);
 	sparx5_port_qos_pcp_set(port, &qos->pcp);
+	sparx5_port_qos_pcp_rewr_set(port, &qos->pcp_rewr);
 	sparx5_port_qos_default_set(port, qos);
+
+	return 0;
+}
+
+int sparx5_port_qos_pcp_rewr_set(const struct sparx5_port *port,
+				 struct sparx5_port_qos_pcp_rewr *qos)
+{
+	int i, mode = SPARX5_PORT_REW_TAG_CTRL_CLASSIFIED;
+	struct sparx5 *sparx5 = port->sparx5;
+	u8 pcp, dei;
+
+	/* Use mapping table, with classified QoS as index, to map QoS and DP
+	 * to tagged PCP and DEI, if PCP is trusted. Otherwise use classified
+	 * PCP. Classified PCP equals frame PCP.
+	 */
+	if (qos->enable)
+		mode = SPARX5_PORT_REW_TAG_CTRL_MAPPED;
+
+	spx5_rmw(REW_TAG_CTRL_TAG_PCP_CFG_SET(mode) |
+		 REW_TAG_CTRL_TAG_DEI_CFG_SET(mode),
+		 REW_TAG_CTRL_TAG_PCP_CFG | REW_TAG_CTRL_TAG_DEI_CFG,
+		 port->sparx5, REW_TAG_CTRL(port->portno));
+
+	for (i = 0; i < ARRAY_SIZE(qos->map.map); i++) {
+		/* Extract PCP and DEI */
+		pcp = qos->map.map[i];
+		if (pcp > SPARX5_PORT_QOS_PCP_COUNT)
+			dei = 1;
+		else
+			dei = 0;
+
+		/* Rewrite PCP and DEI, for each classified QoS class and DP
+		 * level. This table is only used if tag ctrl mode is set to
+		 * 'mapped'.
+		 *
+		 * 0:0nd   - prio=0 and dp:0 => pcp=0 and dei=0
+		 * 0:0de   - prio=0 and dp:1 => pcp=0 and dei=1
+		 */
+		if (dei) {
+			spx5_rmw(REW_PCP_MAP_DE1_PCP_DE1_SET(pcp),
+				 REW_PCP_MAP_DE1_PCP_DE1, sparx5,
+				 REW_PCP_MAP_DE1(port->portno, i));
+
+			spx5_rmw(REW_DEI_MAP_DE1_DEI_DE1_SET(dei),
+				 REW_DEI_MAP_DE1_DEI_DE1, port->sparx5,
+				 REW_DEI_MAP_DE1(port->portno, i));
+		} else {
+			spx5_rmw(REW_PCP_MAP_DE0_PCP_DE0_SET(pcp),
+				 REW_PCP_MAP_DE0_PCP_DE0, sparx5,
+				 REW_PCP_MAP_DE0(port->portno, i));
+
+			spx5_rmw(REW_DEI_MAP_DE0_DEI_DE0_SET(dei),
+				 REW_DEI_MAP_DE0_DEI_DE0, port->sparx5,
+				 REW_DEI_MAP_DE0(port->portno, i));
+		}
+	}
 
 	return 0;
 }

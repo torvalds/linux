@@ -9,6 +9,11 @@
 
 #include "sparx5_main.h"
 
+/* Port PCP rewrite mode */
+#define SPARX5_PORT_REW_TAG_CTRL_CLASSIFIED 0
+#define SPARX5_PORT_REW_TAG_CTRL_DEFAULT 1
+#define SPARX5_PORT_REW_TAG_CTRL_MAPPED  2
+
 static inline bool sparx5_port_is_2g5(int portno)
 {
 	return portno >= 16 && portno <= 47;
@@ -99,6 +104,10 @@ struct sparx5_port_qos_pcp_map {
 	u8 map[SPARX5_PORT_QOS_PCP_DEI_COUNT];
 };
 
+struct sparx5_port_qos_pcp_rewr_map {
+	u16 map[SPX5_PRIOS];
+};
+
 #define SPARX5_PORT_QOS_DSCP_COUNT 64
 struct sparx5_port_qos_dscp_map {
 	u8 map[SPARX5_PORT_QOS_DSCP_COUNT];
@@ -110,6 +119,11 @@ struct sparx5_port_qos_pcp {
 	bool dp_enable;
 };
 
+struct sparx5_port_qos_pcp_rewr {
+	struct sparx5_port_qos_pcp_rewr_map map;
+	bool enable;
+};
+
 struct sparx5_port_qos_dscp {
 	struct sparx5_port_qos_dscp_map map;
 	bool qos_enable;
@@ -118,6 +132,7 @@ struct sparx5_port_qos_dscp {
 
 struct sparx5_port_qos {
 	struct sparx5_port_qos_pcp pcp;
+	struct sparx5_port_qos_pcp_rewr pcp_rewr;
 	struct sparx5_port_qos_dscp dscp;
 	u8 default_prio;
 };
@@ -126,6 +141,9 @@ int sparx5_port_qos_set(struct sparx5_port *port, struct sparx5_port_qos *qos);
 
 int sparx5_port_qos_pcp_set(const struct sparx5_port *port,
 			    struct sparx5_port_qos_pcp *qos);
+
+int sparx5_port_qos_pcp_rewr_set(const struct sparx5_port *port,
+				 struct sparx5_port_qos_pcp_rewr *qos);
 
 int sparx5_port_qos_dscp_set(const struct sparx5_port *port,
 			     struct sparx5_port_qos_dscp *qos);
