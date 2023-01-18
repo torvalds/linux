@@ -1824,21 +1824,32 @@ out_err:
 	goto out;
 }
 
-struct nfsd4_copy *
+static struct nfsd4_copy *
+find_async_copy_locked(struct nfs4_client *clp, stateid_t *stateid)
+{
+	struct nfsd4_copy *copy;
+
+	lockdep_assert_held(&clp->async_lock);
+
+	list_for_each_entry(copy, &clp->async_copies, copies) {
+		if (memcmp(&copy->cp_stateid.cs_stid, stateid, NFS4_STATEID_SIZE))
+			continue;
+		return copy;
+	}
+	return NULL;
+}
+
+static struct nfsd4_copy *
 find_async_copy(struct nfs4_client *clp, stateid_t *stateid)
 {
 	struct nfsd4_copy *copy;
 
 	spin_lock(&clp->async_lock);
-	list_for_each_entry(copy, &clp->async_copies, copies) {
-		if (memcmp(&copy->cp_stateid.cs_stid, stateid, NFS4_STATEID_SIZE))
-			continue;
+	copy = find_async_copy_locked(clp, stateid);
+	if (copy)
 		refcount_inc(&copy->refcount);
-		spin_unlock(&clp->async_lock);
-		return copy;
-	}
 	spin_unlock(&clp->async_lock);
-	return NULL;
+	return copy;
 }
 
 static __be32
@@ -1925,22 +1936,24 @@ nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfsd_file_put(nf);
 	return status;
 }
+
 static __be32
 nfsd4_offload_status(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
 		     union nfsd4_op_u *u)
 {
 	struct nfsd4_offload_status *os = &u->offload_status;
-	__be32 status = 0;
+	__be32 status = nfs_ok;
 	struct nfsd4_copy *copy;
 	struct nfs4_client *clp = cstate->clp;
 
-	copy = find_async_copy(clp, &os->stateid);
-	if (copy) {
+	spin_lock(&clp->async_lock);
+	copy = find_async_copy_locked(clp, &os->stateid);
+	if (copy)
 		os->count = copy->cp_res.wr_bytes_written;
-		nfs4_put_copy(copy);
-	} else
+	else
 		status = nfserr_bad_stateid;
+	spin_unlock(&clp->async_lock);
 
 	return status;
 }
