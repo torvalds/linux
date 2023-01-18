@@ -178,6 +178,14 @@
 			#power-domain-cells = <0>;
 		};
 
+		pwc: pwc@a3700000 {
+			compatible = "renesas,r9a09g011-pwc", "renesas,rzv2m-pwc";
+			reg = <0 0xa3700000 0 0x800>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			status = "disabled";
+		};
+
 		sys: system-controller@a3f03000 {
 			compatible = "renesas,r9a09g011-sys";
 			reg = <0 0xa3f03000 0 0x400>;
