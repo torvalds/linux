@@ -7578,16 +7578,8 @@ void perf_prepare_sample(struct perf_event_header *header,
 	if (sample_type & (PERF_SAMPLE_IP | PERF_SAMPLE_CODE_PAGE_SIZE))
 		data->ip = perf_instruction_pointer(regs);
 
-	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
-		int size = 1;
-
-		if (filtered_sample_type & PERF_SAMPLE_CALLCHAIN)
-			data->callchain = perf_callchain(event, regs);
-
-		size += data->callchain->nr;
-
-		data->dyn_size += size * sizeof(u64);
-	}
+	if (filtered_sample_type & PERF_SAMPLE_CALLCHAIN)
+		perf_sample_save_callchain(data, event, regs);
 
 	if (sample_type & PERF_SAMPLE_RAW) {
 		struct perf_raw_record *raw = data->raw;
