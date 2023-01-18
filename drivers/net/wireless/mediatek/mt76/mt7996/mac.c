@@ -1169,18 +1169,6 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 }
 
 static void
-mt7996_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
-{
-	struct mt76_connac_txp_common *txp;
-	int i;
-
-	txp = mt7996_txwi_to_txp(dev, t);
-	for (i = 0; i < txp->fw.nbuf; i++)
-		dma_unmap_single(dev->dev, le32_to_cpu(txp->fw.buf[i]),
-				 le16_to_cpu(txp->fw.len[i]), DMA_TO_DEVICE);
-}
-
-static void
 mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
 		 struct ieee80211_sta *sta, struct list_head *free_list)
 {
@@ -1189,7 +1177,7 @@ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
 	__le32 *txwi;
 	u16 wcid_idx;
 
-	mt7996_txp_skb_unmap(mdev, t);
+	mt76_connac_txp_skb_unmap(mdev, t);
 	if (!t->skb)
 		goto out;
 
