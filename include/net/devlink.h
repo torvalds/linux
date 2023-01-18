@@ -1889,12 +1889,6 @@ devl_health_reporter_destroy(struct devlink_health_reporter *reporter);
 void
 devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
 
-void
-devl_port_health_reporter_destroy(struct devlink_health_reporter *reporter);
-
-void
-devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter);
-
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
 int devlink_health_report(struct devlink_health_reporter *reporter,

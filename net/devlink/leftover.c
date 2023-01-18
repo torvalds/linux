@@ -7442,13 +7442,6 @@ devlink_health_reporter_put(struct devlink_health_reporter *reporter)
 		devlink_health_reporter_free(reporter);
 }
 
-static void
-__devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
-{
-	list_del(&reporter->list);
-	devlink_health_reporter_put(reporter);
-}
-
 /**
  *	devl_health_reporter_destroy - destroy devlink health reporter
  *
@@ -7459,7 +7452,8 @@ devl_health_reporter_destroy(struct devlink_health_reporter *reporter)
 {
 	devl_assert_locked(reporter->devlink);
 
-	__devlink_health_reporter_destroy(reporter);
+	list_del(&reporter->list);
+	devlink_health_reporter_put(reporter);
 }
 EXPORT_SYMBOL_GPL(devl_health_reporter_destroy);
 
@@ -7473,31 +7467,6 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
-
-/**
- *	devl_port_health_reporter_destroy - destroy devlink port health reporter
- *
- *	@reporter: devlink health reporter to destroy
- */
-void
-devl_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
-{
-	devl_assert_locked(reporter->devlink);
-
-	__devlink_health_reporter_destroy(reporter);
-}
-EXPORT_SYMBOL_GPL(devl_port_health_reporter_destroy);
-
-void
-devlink_port_health_reporter_destroy(struct devlink_health_reporter *reporter)
-{
-	struct devlink *devlink = reporter->devlink;
-
-	devl_lock(devlink);
-	devl_port_health_reporter_destroy(reporter);
-	devl_unlock(devlink);
-}
-EXPORT_SYMBOL_GPL(devlink_port_health_reporter_destroy);
 
 static int
 devlink_nl_health_reporter_fill(struct sk_buff *msg,
