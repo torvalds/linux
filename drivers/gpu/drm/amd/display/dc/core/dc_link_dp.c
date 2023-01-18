@@ -47,7 +47,6 @@
 #include "link/link_dp_training_auxless.h"
 #include "link/link_dp_phy.h"
 #include "link/link_dp_capability.h"
-#include "resource.h"
 #define DC_LOGGER \
 	link->ctx->logger
 
