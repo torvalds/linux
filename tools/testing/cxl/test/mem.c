@@ -78,6 +78,8 @@ struct mock_event_log {
 	u16 clear_idx;
 	u16 cur_idx;
 	u16 nr_events;
+	u16 nr_overflow;
+	u16 overflow_reset;
 	struct cxl_event_record_raw *events[CXL_TEST_EVENT_CNT_MAX];
 };
 
@@ -116,6 +118,7 @@ static void event_reset_log(struct mock_event_log *log)
 {
 	log->cur_idx = 0;
 	log->clear_idx = 0;
+	log->nr_overflow = log->overflow_reset;
 }
 
 /* Handle can never be 0 use 1 based indexing for handle */
@@ -147,8 +150,12 @@ static void mes_add_event(struct mock_event_store *mes,
 		return;
 
 	log = &mes->mock_logs[log_type];
-	if (WARN_ON(log->nr_events >= CXL_TEST_EVENT_CNT_MAX))
+
+	if ((log->nr_events + 1) > CXL_TEST_EVENT_CNT_MAX) {
+		log->nr_overflow++;
+		log->overflow_reset = log->nr_overflow;
 		return;
+	}
 
 	log->events[log->nr_events] = event;
 	log->nr_events++;
@@ -159,6 +166,7 @@ static int mock_get_event(struct cxl_dev_state *cxlds,
 {
 	struct cxl_get_event_payload *pl;
 	struct mock_event_log *log;
+	u16 nr_overflow;
 	u8 log_type;
 	int i;
 
@@ -190,6 +198,19 @@ static int mock_get_event(struct cxl_dev_state *cxlds,
 	pl->record_count = cpu_to_le16(i);
 	if (!event_log_empty(log))
 		pl->flags |= CXL_GET_EVENT_FLAG_MORE_RECORDS;
+
+	if (log->nr_overflow) {
+		u64 ns;
+
+		pl->flags |= CXL_GET_EVENT_FLAG_OVERFLOW;
+		pl->overflow_err_count = cpu_to_le16(nr_overflow);
+		ns = ktime_get_real_ns();
+		ns -= 5000000000; /* 5s ago */
+		pl->first_overflow_timestamp = cpu_to_le64(ns);
+		ns = ktime_get_real_ns();
+		ns -= 1000000000; /* 1s ago */
+		pl->last_overflow_timestamp = cpu_to_le64(ns);
+	}
 
 	return 0;
 }
@@ -230,6 +251,9 @@ static int mock_clear_event(struct cxl_dev_state *cxlds,
 			return -EINVAL;
 		}
 	}
+
+	if (log->nr_overflow)
+		log->nr_overflow = 0;
 
 	/* Clear events */
 	log->clear_idx += pl->nr_recs;
@@ -352,6 +376,30 @@ static void cxl_mock_add_event_logs(struct mock_event_store *mes)
 	mes_add_event(mes, CXL_EVENT_TYPE_INFO,
 		      (struct cxl_event_record_raw *)&mem_module);
 	mes->ev_status |= CXLDEV_EVENT_STATUS_INFO;
+
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &maint_needed);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL,
+		      (struct cxl_event_record_raw *)&dram);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL,
+		      (struct cxl_event_record_raw *)&gen_media);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL,
+		      (struct cxl_event_record_raw *)&mem_module);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL,
+		      (struct cxl_event_record_raw *)&dram);
+	/* Overflow this log */
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes_add_event(mes, CXL_EVENT_TYPE_FAIL, &hardware_replace);
+	mes->ev_status |= CXLDEV_EVENT_STATUS_FAIL;
 
 	mes_add_event(mes, CXL_EVENT_TYPE_FATAL, &hardware_replace);
 	mes_add_event(mes, CXL_EVENT_TYPE_FATAL,
