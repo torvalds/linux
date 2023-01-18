@@ -186,9 +186,40 @@ is false positive, the cost is an additional scan of a range of PTEs,
 which may yield hot pages anyway. Parameters of the filter itself can
 control the false positive rate in the limit.
 
+Memcg LRU
+---------
+An memcg LRU is a per-node LRU of memcgs. It is also an LRU of LRUs,
+since each node and memcg combination has an LRU of folios (see
+``mem_cgroup_lruvec()``). Its goal is to improve the scalability of
+global reclaim, which is critical to system-wide memory overcommit in
+data centers. Note that memcg LRU only applies to global reclaim.
+
+The basic structure of an memcg LRU can be understood by an analogy to
+the active/inactive LRU (of folios):
+
+1. It has the young and the old (generations), i.e., the counterparts
+   to the active and the inactive;
+2. The increment of ``max_seq`` triggers promotion, i.e., the
+   counterpart to activation;
+3. Other events trigger similar operations, e.g., offlining an memcg
+   triggers demotion, i.e., the counterpart to deactivation.
+
+In terms of global reclaim, it has two distinct features:
+
+1. Sharding, which allows each thread to start at a random memcg (in
+   the old generation) and improves parallelism;
+2. Eventual fairness, which allows direct reclaim to bail out at will
+   and reduces latency without affecting fairness over some time.
+
+In terms of traversing memcgs during global reclaim, it improves the
+best-case complexity from O(n) to O(1) and does not affect the
+worst-case complexity O(n). Therefore, on average, it has a sublinear
+complexity.
+
 Summary
 -------
-The multi-gen LRU can be disassembled into the following parts:
+The multi-gen LRU (of folios) can be disassembled into the following
+parts:
 
 * Generations
 * Rmap walks
