@@ -1258,7 +1258,7 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 
 	if (crtc_state->dsb) {
 		intel_dsb_finish(crtc_state->dsb);
-		intel_dsb_commit(crtc_state->dsb);
+		intel_dsb_commit(crtc_state->dsb, false);
 		intel_dsb_wait(crtc_state->dsb);
 	}
 }

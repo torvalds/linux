@@ -221,10 +221,11 @@ void intel_dsb_finish(struct intel_dsb *dsb)
 /**
  * intel_dsb_commit() - Trigger workload execution of DSB.
  * @dsb: DSB context
+ * @wait_for_vblank: wait for vblank before executing
  *
  * This function is used to do actual write to hardware using DSB.
  */
-void intel_dsb_commit(struct intel_dsb *dsb)
+void intel_dsb_commit(struct intel_dsb *dsb, bool wait_for_vblank)
 {
 	struct intel_crtc *crtc = dsb->crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -242,6 +243,7 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 	}
 
 	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id),
+		       (wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0) |
 		       DSB_ENABLE);
 	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
 		       i915_ggtt_offset(dsb->vma));
