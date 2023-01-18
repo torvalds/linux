@@ -2108,9 +2108,9 @@ out:
 	/* If we didn't flush the entire list, we could have told the driver
 	 * there was more coming, but that turned out to be a lie.
 	 */
-	if ((!list_empty(list) || errors || needs_resource ||
-	     ret == BLK_STS_DEV_RESOURCE) && q->mq_ops->commit_rqs && queued)
-		q->mq_ops->commit_rqs(hctx);
+	if (!list_empty(list) || ret != BLK_STS_OK)
+		blk_mq_commit_rqs(hctx, queued, false);
+
 	/*
 	 * Any items that need requeuing? Stuff them into hctx->dispatch,
 	 * that is where we will continue on next queue run.
