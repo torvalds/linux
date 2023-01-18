@@ -277,6 +277,7 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	struct drm_dp_mst_atomic_payload *payload;
 	enum mst_progress_status set_flag = MST_ALLOCATE_NEW_PAYLOAD;
 	enum mst_progress_status clr_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
+	int ret = 0;
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
@@ -293,7 +294,10 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
 	}
 
-	if (enable && drm_dp_add_payload_part2(mst_mgr, mst_state->base.state, payload)) {
+	if (enable)
+		ret = drm_dp_add_payload_part2(mst_mgr, mst_state->base.state, payload);
+
+	if (ret) {
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			set_flag, false);
 	} else {
