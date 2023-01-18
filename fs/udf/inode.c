@@ -339,11 +339,6 @@ static int udf_get_block(struct inode *inode, sector_t block,
 	iinfo = UDF_I(inode);
 
 	down_write(&iinfo->i_data_sem);
-	if (block == iinfo->i_next_alloc_block + 1) {
-		iinfo->i_next_alloc_block++;
-		iinfo->i_next_alloc_goal++;
-	}
-
 	/*
 	 * Block beyond EOF and prealloc extents? Just discard preallocation
 	 * as it is not useful and complicates things.
@@ -810,8 +805,8 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		goto out_free;
 	}
 	*new = 1;
-	iinfo->i_next_alloc_block = block;
-	iinfo->i_next_alloc_goal = newblocknum;
+	iinfo->i_next_alloc_block = block + 1;
+	iinfo->i_next_alloc_goal = newblocknum + 1;
 	inode->i_ctime = current_time(inode);
 
 	if (IS_SYNC(inode))
