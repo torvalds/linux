@@ -154,7 +154,9 @@ managing and controlling ublk devices with help of several control commands:
   How to deal with userspace/kernel compatibility:
 
   1) if kernel is capable of handling ``UBLK_F_UNPRIVILEGED_DEV``
+
     If ublk server supports ``UBLK_F_UNPRIVILEGED_DEV``:
+
     ublk server should send ``UBLK_CMD_GET_DEV_INFO2``, given anytime
     unprivileged application needs to query devices the current user owns,
     when the application has no idea if ``UBLK_F_UNPRIVILEGED_DEV`` is set
@@ -162,16 +164,20 @@ managing and controlling ublk devices with help of several control commands:
     retrieve it via ``UBLK_CMD_GET_DEV_INFO2``
 
     If ublk server doesn't support ``UBLK_F_UNPRIVILEGED_DEV``:
+
     ``UBLK_CMD_GET_DEV_INFO`` is always sent to kernel, and the feature of
     UBLK_F_UNPRIVILEGED_DEV isn't available for user
 
   2) if kernel isn't capable of handling ``UBLK_F_UNPRIVILEGED_DEV``
+
     If ublk server supports ``UBLK_F_UNPRIVILEGED_DEV``:
+
     ``UBLK_CMD_GET_DEV_INFO2`` is tried first, and will be failed, then
     ``UBLK_CMD_GET_DEV_INFO`` needs to be retried given
     ``UBLK_F_UNPRIVILEGED_DEV`` can't be set
 
     If ublk server doesn't support ``UBLK_F_UNPRIVILEGED_DEV``:
+
     ``UBLK_CMD_GET_DEV_INFO`` is always sent to kernel, and the feature of
     ``UBLK_F_UNPRIVILEGED_DEV`` isn't available for user
 
