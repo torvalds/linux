@@ -1110,8 +1110,7 @@ fail:
 				.data = ibs_data.data,
 			},
 		};
-		data.raw = &raw;
-		data.sample_flags |= PERF_SAMPLE_RAW;
+		perf_sample_save_raw_data(&data, &raw);
 	}
 
 	if (perf_ibs == &perf_ibs_op)
