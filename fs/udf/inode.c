@@ -341,9 +341,21 @@ static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 
 	map->oflags = 0;
 	if (!(map->iflags & UDF_MAP_CREATE)) {
-		map->pblk = udf_block_map(inode, map->lblk);
-		if (map->pblk != 0)
+		struct kernel_lb_addr eloc;
+		uint32_t elen;
+		sector_t offset;
+		struct extent_position epos = {};
+
+		down_read(&iinfo->i_data_sem);
+		if (inode_bmap(inode, map->lblk, &epos, &eloc, &elen, &offset)
+				== (EXT_RECORDED_ALLOCATED >> 30)) {
+			map->pblk = udf_get_lb_pblock(inode->i_sb, &eloc,
+							offset);
 			map->oflags |= UDF_BLK_MAPPED;
+		}
+		up_read(&iinfo->i_data_sem);
+		brelse(epos.bh);
+
 		return 0;
 	}
 
@@ -2290,26 +2302,4 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 	*offset = (bcount + *elen - lbcount) >> blocksize_bits;
 
 	return etype;
-}
-
-udf_pblk_t udf_block_map(struct inode *inode, sector_t block)
-{
-	struct kernel_lb_addr eloc;
-	uint32_t elen;
-	sector_t offset;
-	struct extent_position epos = {};
-	udf_pblk_t ret;
-
-	down_read(&UDF_I(inode)->i_data_sem);
-
-	if (inode_bmap(inode, block, &epos, &eloc, &elen, &offset) ==
-						(EXT_RECORDED_ALLOCATED >> 30))
-		ret = udf_get_lb_pblock(inode->i_sb, &eloc, offset);
-	else
-		ret = 0;
-
-	up_read(&UDF_I(inode)->i_data_sem);
-	brelse(epos.bh);
-
-	return ret;
 }
