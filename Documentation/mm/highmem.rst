@@ -83,7 +83,7 @@ list shows them in order of preference of use.
   for pages which are known to not come from ZONE_HIGHMEM. However, it is
   always safe to use kmap_local_page() / kunmap_local().
 
-  While it is significantly faster than kmap(), for the higmem case it
+  While it is significantly faster than kmap(), for the highmem case it
   comes with restrictions about the pointers validity. Contrary to kmap()
   mappings, the local mappings are only valid in the context of the caller
   and cannot be handed to other contexts. This implies that users must
