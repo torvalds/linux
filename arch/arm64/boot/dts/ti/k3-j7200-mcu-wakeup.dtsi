@@ -386,7 +386,6 @@
 		dmas = <&mcu_udmap 0xf501>, <&mcu_udmap 0x7502>,
 		       <&mcu_udmap 0x7503>;
 		dma-names = "tx", "rx1", "rx2";
-		dma-coherent;
 
 		rng: rng@40910000 {
 			compatible = "inside-secure,safexcel-eip76";

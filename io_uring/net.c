@@ -479,6 +479,7 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		compat_ssize_t clen;
 
+		iomsg->free_iov = NULL;
 		if (msg.msg_iovlen == 0) {
 			sr->len = 0;
 		} else if (msg.msg_iovlen > 1) {
@@ -805,10 +806,10 @@ retry_multishot:
 		goto retry_multishot;
 
 	if (mshot_finished) {
-		io_netmsg_recycle(req, issue_flags);
 		/* fast path, check for non-NULL to avoid function call */
 		if (kmsg->free_iov)
 			kfree(kmsg->free_iov);
+		io_netmsg_recycle(req, issue_flags);
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
 
@@ -937,7 +938,8 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->flags = READ_ONCE(sqe->ioprio);
 	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST |
-			  IORING_RECVSEND_FIXED_BUF))
+			  IORING_RECVSEND_FIXED_BUF |
+			  IORING_SEND_ZC_REPORT_USAGE))
 		return -EINVAL;
 	notif = zc->notif = io_alloc_notif(ctx);
 	if (!notif)
@@ -954,6 +956,9 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		idx = array_index_nospec(idx, ctx->nr_user_bufs);
 		req->imu = READ_ONCE(ctx->user_bufs[idx]);
 		io_req_set_rsrc_node(notif, ctx, 0);
+	}
+	if (zc->flags & IORING_SEND_ZC_REPORT_USAGE) {
+		io_notif_to_data(notif)->zc_report = true;
 	}
 
 	if (req->opcode == IORING_OP_SEND_ZC) {

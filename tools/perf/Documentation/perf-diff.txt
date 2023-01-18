@@ -75,7 +75,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Do not show any message.  (Suppress -v)
+	Do not show any warnings or messages.  (Suppress -v)
 
 -f::
 --force::

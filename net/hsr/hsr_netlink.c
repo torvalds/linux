@@ -105,7 +105,6 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 static void hsr_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct hsr_priv *hsr = netdev_priv(dev);
-	int i;
 
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
@@ -114,8 +113,7 @@ static void hsr_dellink(struct net_device *dev, struct list_head *head)
 	hsr_del_ports(hsr);
 
 	hsr_del_self_node(hsr);
-	for (i = 0; i < hsr->hash_buckets; i++)
-		hsr_del_nodes(&hsr->node_db[i]);
+	hsr_del_nodes(&hsr->node_db);
 
 	unregister_netdevice_queue(dev, head);
 }

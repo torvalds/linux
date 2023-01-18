@@ -305,8 +305,12 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	brcmf_info("Firmware: %s %s\n", ri->chipname, buf);
 
 	/* locate firmware version number for ethtool */
-	ptr = strrchr(buf, ' ') + 1;
-	strscpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
+	ptr = strrchr(buf, ' ');
+	if (!ptr) {
+		bphy_err(drvr, "Retrieving version number failed");
+		goto done;
+	}
+	strscpy(ifp->drvr->fwver, ptr + 1, sizeof(ifp->drvr->fwver));
 
 	/* Query for 'clmver' to get CLM version info from firmware */
 	memset(buf, 0, sizeof(buf));

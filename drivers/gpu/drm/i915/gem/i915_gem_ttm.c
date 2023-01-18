@@ -279,7 +279,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	struct i915_ttm_tt *i915_tt;
 	int ret;
 
-	if (!obj)
+	if (i915_ttm_is_ghost_object(bo))
 		return NULL;
 
 	i915_tt = kzalloc(sizeof(*i915_tt), GFP_KERNEL);
@@ -362,7 +362,7 @@ static bool i915_ttm_eviction_valuable(struct ttm_buffer_object *bo,
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
-	if (!obj)
+	if (i915_ttm_is_ghost_object(bo))
 		return false;
 
 	/*
@@ -509,18 +509,9 @@ static int i915_ttm_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
 static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
-	intel_wakeref_t wakeref = 0;
 
-	if (bo->resource && likely(obj)) {
-		/* ttm_bo_release() already has dma_resv_lock */
-		if (i915_ttm_cpu_maps_iomem(bo->resource))
-			wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
-
+	if (bo->resource && !i915_ttm_is_ghost_object(bo)) {
 		__i915_gem_object_pages_fini(obj);
-
-		if (wakeref)
-			intel_runtime_pm_put(&to_i915(obj->base.dev)->runtime_pm, wakeref);
-
 		i915_ttm_free_cached_io_rsgt(obj);
 	}
 }
@@ -628,7 +619,7 @@ static void i915_ttm_swap_notify(struct ttm_buffer_object *bo)
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 	int ret;
 
-	if (!obj)
+	if (i915_ttm_is_ghost_object(bo))
 		return;
 
 	ret = i915_ttm_move_notify(bo);
@@ -661,7 +652,7 @@ static int i915_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource 
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(mem->bo);
 	bool unknown_state;
 
-	if (!obj)
+	if (i915_ttm_is_ghost_object(mem->bo))
 		return -EINVAL;
 
 	if (!kref_get_unless_zero(&obj->base.refcount))
@@ -694,7 +685,7 @@ static unsigned long i915_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 	unsigned long base;
 	unsigned int ofs;
 
-	GEM_BUG_ON(!obj);
+	GEM_BUG_ON(i915_ttm_is_ghost_object(bo));
 	GEM_WARN_ON(bo->ttm);
 
 	base = obj->mm.region->iomap.base - obj->mm.region->region.start;
@@ -994,13 +985,12 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	struct vm_area_struct *area = vmf->vma;
 	struct ttm_buffer_object *bo = area->vm_private_data;
 	struct drm_device *dev = bo->base.dev;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 	intel_wakeref_t wakeref = 0;
 	vm_fault_t ret;
 	int idx;
 
-	obj = i915_ttm_to_gem(bo);
-	if (!obj)
+	if (i915_ttm_is_ghost_object(bo))
 		return VM_FAULT_SIGBUS;
 
 	/* Sanity check that we allow writing into this object */
@@ -1057,16 +1047,19 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
 		goto out_rpm;
 
-	/* ttm_bo_vm_reserve() already has dma_resv_lock */
+	/*
+	 * ttm_bo_vm_reserve() already has dma_resv_lock.
+	 * userfault_count is protected by dma_resv lock and rpm wakeref.
+	 */
 	if (ret == VM_FAULT_NOPAGE && wakeref && !obj->userfault_count) {
 		obj->userfault_count = 1;
-		mutex_lock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
-		list_add(&obj->userfault_link, &to_gt(to_i915(obj->base.dev))->lmem_userfault_list);
-		mutex_unlock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+		spin_lock(&to_i915(obj->base.dev)->runtime_pm.lmem_userfault_lock);
+		list_add(&obj->userfault_link, &to_i915(obj->base.dev)->runtime_pm.lmem_userfault_list);
+		spin_unlock(&to_i915(obj->base.dev)->runtime_pm.lmem_userfault_lock);
 	}
 
 	if (wakeref & CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
-		intel_wakeref_auto(&to_gt(to_i915(obj->base.dev))->userfault_wakeref,
+		intel_wakeref_auto(&to_i915(obj->base.dev)->runtime_pm.userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 
 	i915_ttm_adjust_lru(obj);
@@ -1098,7 +1091,7 @@ static void ttm_vm_open(struct vm_area_struct *vma)
 	struct drm_i915_gem_object *obj =
 		i915_ttm_to_gem(vma->vm_private_data);
 
-	GEM_BUG_ON(!obj);
+	GEM_BUG_ON(i915_ttm_is_ghost_object(vma->vm_private_data));
 	i915_gem_object_get(obj);
 }
 
@@ -1107,7 +1100,7 @@ static void ttm_vm_close(struct vm_area_struct *vma)
 	struct drm_i915_gem_object *obj =
 		i915_ttm_to_gem(vma->vm_private_data);
 
-	GEM_BUG_ON(!obj);
+	GEM_BUG_ON(i915_ttm_is_ghost_object(vma->vm_private_data));
 	i915_gem_object_put(obj);
 }
 
@@ -1128,7 +1121,27 @@ static u64 i915_ttm_mmap_offset(struct drm_i915_gem_object *obj)
 
 static void i915_ttm_unmap_virtual(struct drm_i915_gem_object *obj)
 {
+	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	intel_wakeref_t wakeref = 0;
+
+	assert_object_held_shared(obj);
+
+	if (i915_ttm_cpu_maps_iomem(bo->resource)) {
+		wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
+
+		/* userfault_count is protected by obj lock and rpm wakeref. */
+		if (obj->userfault_count) {
+			spin_lock(&to_i915(obj->base.dev)->runtime_pm.lmem_userfault_lock);
+			list_del(&obj->userfault_link);
+			spin_unlock(&to_i915(obj->base.dev)->runtime_pm.lmem_userfault_lock);
+			obj->userfault_count = 0;
+		}
+	}
+
 	ttm_bo_unmap_virtual(i915_gem_to_ttm(obj));
+
+	if (wakeref)
+		intel_runtime_pm_put(&to_i915(obj->base.dev)->runtime_pm, wakeref);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {

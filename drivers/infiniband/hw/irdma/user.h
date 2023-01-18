@@ -173,14 +173,6 @@ struct irdma_post_send {
 	u32 ah_id;
 };
 
-struct irdma_post_inline_send {
-	void *data;
-	u32 len;
-	u32 qkey;
-	u32 dest_qp;
-	u32 ah_id;
-};
-
 struct irdma_post_rq_info {
 	u64 wr_id;
 	struct ib_sge *sg_list;
@@ -190,12 +182,6 @@ struct irdma_post_rq_info {
 struct irdma_rdma_write {
 	struct ib_sge *lo_sg_list;
 	u32 num_lo_sges;
-	struct ib_sge rem_addr;
-};
-
-struct irdma_inline_rdma_write {
-	void *data;
-	u32 len;
 	struct ib_sge rem_addr;
 };
 
@@ -241,8 +227,6 @@ struct irdma_post_sq_info {
 		struct irdma_rdma_read rdma_read;
 		struct irdma_bind_window bind_window;
 		struct irdma_inv_local_stag inv_local_stag;
-		struct irdma_inline_rdma_write inline_rdma_write;
-		struct irdma_post_inline_send inline_send;
 	} op;
 };
 
@@ -261,6 +245,7 @@ struct irdma_cq_poll_info {
 	u16 ud_vlan;
 	u8 ud_smac[6];
 	u8 op_type;
+	u8 q_type;
 	bool stag_invalid_set:1; /* or L_R_Key set */
 	bool push_dropped:1;
 	bool error:1;
@@ -291,7 +276,8 @@ int irdma_uk_stag_local_invalidate(struct irdma_qp_uk *qp,
 				   bool post_sq);
 
 struct irdma_wqe_uk_ops {
-	void (*iw_copy_inline_data)(u8 *dest, u8 *src, u32 len, u8 polarity);
+	void (*iw_copy_inline_data)(u8 *dest, struct ib_sge *sge_list,
+				    u32 num_sges, u8 polarity);
 	u16 (*iw_inline_data_size_to_quanta)(u32 data_size);
 	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct ib_sge *sge,
 				u8 valid);

@@ -390,6 +390,7 @@ struct ieee80211_mgd_auth_data {
 	bool done, waiting;
 	bool peer_confirmed;
 	bool timeout_started;
+	int link_id;
 
 	u8 ap_addr[ETH_ALEN] __aligned(2);
 
