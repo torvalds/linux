@@ -492,6 +492,52 @@ int hl_hpriv_put(struct hl_fpriv *hpriv)
 	return kref_put(&hpriv->refcount, hpriv_release);
 }
 
+static void compose_device_in_use_info(char **buf, size_t *buf_size, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	int size;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	size = snprintf(*buf, *buf_size, "%pV", &vaf);
+	if (size >= *buf_size)
+		size = *buf_size;
+
+	*buf += size;
+	*buf_size -= size;
+
+	va_end(args);
+}
+
+static void print_device_in_use_info(struct hl_device *hdev, const char *message)
+{
+	u32 active_cs_num, dmabuf_export_cnt;
+	char buf[64], *buf_ptr = buf;
+	size_t buf_size = sizeof(buf);
+	bool unknown_reason = true;
+
+	active_cs_num = hl_get_active_cs_num(hdev);
+	if (active_cs_num) {
+		unknown_reason = false;
+		compose_device_in_use_info(&buf_ptr, &buf_size, " [%u active CS]", active_cs_num);
+	}
+
+	dmabuf_export_cnt = atomic_read(&hdev->dmabuf_export_cnt);
+	if (dmabuf_export_cnt) {
+		unknown_reason = false;
+		compose_device_in_use_info(&buf_ptr, &buf_size, " [%u exported dma-buf]",
+						dmabuf_export_cnt);
+	}
+
+	if (unknown_reason)
+		compose_device_in_use_info(&buf_ptr, &buf_size, " [unknown reason]");
+
+	dev_notice(hdev->dev, "%s%s\n", message, buf);
+}
+
 /*
  * hl_device_release - release function for habanalabs device
  *
@@ -519,12 +565,11 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hdev->compute_ctx_in_release = 1;
 
 	if (!hl_hpriv_put(hpriv)) {
-		dev_notice(hdev->dev, "User process closed FD but device still in use\n");
+		print_device_in_use_info(hdev, "User process closed FD but device still in use");
 		hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	}
 
-	hdev->last_open_session_duration_jif =
-		jiffies - hdev->last_successful_open_jif;
+	hdev->last_open_session_duration_jif = jiffies - hdev->last_successful_open_jif;
 
 	return 0;
 }

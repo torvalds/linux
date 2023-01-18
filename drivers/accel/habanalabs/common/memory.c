@@ -1833,6 +1833,7 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 	if (hl_dmabuf->memhash_hnode)
 		memhash_node_export_put(ctx, hl_dmabuf->memhash_hnode);
 
+	atomic_dec(&ctx->hdev->dmabuf_export_cnt);
 	hl_ctx_put(ctx);
 	kfree(hl_dmabuf);
 }
@@ -1872,6 +1873,7 @@ static int export_dmabuf(struct hl_ctx *ctx,
 
 	hl_dmabuf->ctx = ctx;
 	hl_ctx_get(hl_dmabuf->ctx);
+	atomic_inc(&ctx->hdev->dmabuf_export_cnt);
 
 	*dmabuf_fd = fd;
 

@@ -1168,6 +1168,22 @@ static void cs_completion(struct work_struct *work)
 		hl_complete_job(hdev, job);
 }
 
+u32 hl_get_active_cs_num(struct hl_device *hdev)
+{
+	u32 active_cs_num = 0;
+	struct hl_cs *cs;
+
+	spin_lock(&hdev->cs_mirror_lock);
+
+	list_for_each_entry(cs, &hdev->cs_mirror_list, mirror_node)
+		if (!cs->completed)
+			active_cs_num++;
+
+	spin_unlock(&hdev->cs_mirror_lock);
+
+	return active_cs_num;
+}
+
 static int validate_queue_index(struct hl_device *hdev,
 				struct hl_cs_chunk *chunk,
 				enum hl_queue_type *queue_type,

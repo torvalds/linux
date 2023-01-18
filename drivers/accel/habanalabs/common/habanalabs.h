@@ -3200,6 +3200,7 @@ struct hl_reset_info {
  *                drams are binned-out
  * @tpc_binning: contains mask of tpc engines that is received from the f/w which indicates which
  *               tpc engines are binned-out
+ * @dmabuf_export_cnt: number of dma-buf exporting.
  * @card_type: Various ASICs have several card types. This indicates the card
  *             type of the current device.
  * @major: habanalabs kernel driver major.
@@ -3371,7 +3372,7 @@ struct hl_device {
 	u64				fw_comms_poll_interval_usec;
 	u64				dram_binning;
 	u64				tpc_binning;
-
+	atomic_t			dmabuf_export_cnt;
 	enum cpucp_card_types		card_type;
 	u32				major;
 	u32				high_pll;
@@ -3664,6 +3665,7 @@ bool cs_needs_timeout(struct hl_cs *cs);
 bool is_staged_cs_last_exists(struct hl_device *hdev, struct hl_cs *cs);
 struct hl_cs *hl_staged_cs_find_first(struct hl_device *hdev, u64 cs_seq);
 void hl_multi_cs_completion_init(struct hl_device *hdev);
+u32 hl_get_active_cs_num(struct hl_device *hdev);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 void gaudi_set_asic_funcs(struct hl_device *hdev);
