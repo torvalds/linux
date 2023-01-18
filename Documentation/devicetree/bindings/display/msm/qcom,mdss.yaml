@@ -88,7 +88,8 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: qcom,mdp5
+        contains:
+          const: qcom,mdp5
 
   "^dsi@[1-9a-f][0-9a-f]*$":
     type: object
