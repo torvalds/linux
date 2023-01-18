@@ -2685,19 +2685,11 @@ static int sfp_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	sff = sfp->type = &sfp_data;
+	sff = device_get_match_data(sfp->dev);
+	if (!sff)
+		sff = &sfp_data;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *id;
-
-		id = of_match_node(sfp_of_match, pdev->dev.of_node);
-		if (WARN_ON(!id))
-			return -EINVAL;
-
-		sff = sfp->type = id->data;
-	} else if (!has_acpi_companion(&pdev->dev)) {
-		return -EINVAL;
-	}
+	sfp->type = sff;
 
 	err = sfp_i2c_get(sfp);
 	if (err)
