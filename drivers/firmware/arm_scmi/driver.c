@@ -411,8 +411,6 @@ static int scmi_xfer_token_set(struct scmi_xfers_info *minfo,
 	if (xfer_id != next_token)
 		atomic_add((int)(xfer_id - next_token), &transfer_last_id);
 
-	/* Set in-flight */
-	set_bit(xfer_id, minfo->xfer_alloc_table);
 	xfer->hdr.seq = (u16)xfer_id;
 
 	return 0;
@@ -431,32 +429,76 @@ static inline void scmi_xfer_token_clear(struct scmi_xfers_info *minfo,
 }
 
 /**
+ * scmi_xfer_inflight_register_unlocked  - Register the xfer as in-flight
+ *
+ * @xfer: The xfer to register
+ * @minfo: Pointer to Tx/Rx Message management info based on channel type
+ *
+ * Note that this helper assumes that the xfer to be registered as in-flight
+ * had been built using an xfer sequence number which still corresponds to a
+ * free slot in the xfer_alloc_table.
+ *
+ * Context: Assumes to be called with @xfer_lock already acquired.
+ */
+static inline void
+scmi_xfer_inflight_register_unlocked(struct scmi_xfer *xfer,
+				     struct scmi_xfers_info *minfo)
+{
+	/* Set in-flight */
+	set_bit(xfer->hdr.seq, minfo->xfer_alloc_table);
+	hash_add(minfo->pending_xfers, &xfer->node, xfer->hdr.seq);
+	xfer->pending = true;
+}
+
+/**
+ * scmi_xfer_pending_set  - Pick a proper sequence number and mark the xfer
+ * as pending in-flight
+ *
+ * @xfer: The xfer to act upon
+ * @minfo: Pointer to Tx/Rx Message management info based on channel type
+ *
+ * Return: 0 on Success or error otherwise
+ */
+static inline int scmi_xfer_pending_set(struct scmi_xfer *xfer,
+					struct scmi_xfers_info *minfo)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&minfo->xfer_lock, flags);
+	/* Set a new monotonic token as the xfer sequence number */
+	ret = scmi_xfer_token_set(minfo, xfer);
+	if (!ret)
+		scmi_xfer_inflight_register_unlocked(xfer, minfo);
+	spin_unlock_irqrestore(&minfo->xfer_lock, flags);
+
+	return ret;
+}
+
+/**
  * scmi_xfer_get() - Allocate one message
  *
  * @handle: Pointer to SCMI entity handle
  * @minfo: Pointer to Tx/Rx Message management info based on channel type
- * @set_pending: If true a monotonic token is picked and the xfer is added to
- *		 the pending hash table.
  *
  * Helper function which is used by various message functions that are
  * exposed to clients of this driver for allocating a message traffic event.
  *
- * Picks an xfer from the free list @free_xfers (if any available) and, if
- * required, sets a monotonically increasing token and stores the inflight xfer
- * into the @pending_xfers hashtable for later retrieval.
+ * Picks an xfer from the free list @free_xfers (if any available) and perform
+ * a basic initialization.
+ *
+ * Note that, at this point, still no sequence number is assigned to the
+ * allocated xfer, nor it is registered as a pending transaction.
  *
  * The successfully initialized xfer is refcounted.
  *
- * Context: Holds @xfer_lock while manipulating @xfer_alloc_table and
- *	    @free_xfers.
+ * Context: Holds @xfer_lock while manipulating @free_xfers.
  *
- * Return: 0 if all went fine, else corresponding error.
+ * Return: An initialized xfer if all went fine, else pointer error.
  */
 static struct scmi_xfer *scmi_xfer_get(const struct scmi_handle *handle,
-				       struct scmi_xfers_info *minfo,
-				       bool set_pending)
+				       struct scmi_xfers_info *minfo)
 {
-	int ret;
 	unsigned long flags;
 	struct scmi_xfer *xfer;
 
@@ -476,25 +518,8 @@ static struct scmi_xfer *scmi_xfer_get(const struct scmi_handle *handle,
 	 */
 	xfer->transfer_id = atomic_inc_return(&transfer_last_id);
 
-	if (set_pending) {
-		/* Pick and set monotonic token */
-		ret = scmi_xfer_token_set(minfo, xfer);
-		if (!ret) {
-			hash_add(minfo->pending_xfers, &xfer->node,
-				 xfer->hdr.seq);
-			xfer->pending = true;
-		} else {
-			dev_err(handle->dev,
-				"Failed to get monotonic token %d\n", ret);
-			hlist_add_head(&xfer->node, &minfo->free_xfers);
-			xfer = ERR_PTR(ret);
-		}
-	}
-
-	if (!IS_ERR(xfer)) {
-		refcount_set(&xfer->users, 1);
-		atomic_set(&xfer->busy, SCMI_XFER_FREE);
-	}
+	refcount_set(&xfer->users, 1);
+	atomic_set(&xfer->busy, SCMI_XFER_FREE);
 	spin_unlock_irqrestore(&minfo->xfer_lock, flags);
 
 	return xfer;
@@ -752,7 +777,7 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 	ktime_t ts;
 
 	ts = ktime_get_boottime();
-	xfer = scmi_xfer_get(cinfo->handle, minfo, false);
+	xfer = scmi_xfer_get(cinfo->handle, minfo);
 	if (IS_ERR(xfer)) {
 		dev_err(dev, "failed to get free message slot (%ld)\n",
 			PTR_ERR(xfer));
@@ -1143,10 +1168,19 @@ static int xfer_get_init(const struct scmi_protocol_handle *ph,
 	    tx_size > info->desc->max_msg_size)
 		return -ERANGE;
 
-	xfer = scmi_xfer_get(pi->handle, minfo, true);
+	xfer = scmi_xfer_get(pi->handle, minfo);
 	if (IS_ERR(xfer)) {
 		ret = PTR_ERR(xfer);
 		dev_err(dev, "failed to get free message slot(%d)\n", ret);
+		return ret;
+	}
+
+	/* Pick a sequence number and register this xfer as in-flight */
+	ret = scmi_xfer_pending_set(xfer, minfo);
+	if (ret) {
+		dev_err(pi->handle->dev,
+			"Failed to get monotonic token %d\n", ret);
+		__scmi_xfer_put(minfo, xfer);
 		return ret;
 	}
 
