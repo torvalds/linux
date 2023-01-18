@@ -26,6 +26,7 @@
 
 /**
  * dpu_encoder_phys_wb_is_master - report wb always as master encoder
+ * @phys_enc:	Pointer to physical encoder
  */
 static bool dpu_encoder_phys_wb_is_master(struct dpu_encoder_phys *phys_enc)
 {
