@@ -207,7 +207,8 @@ int devlink_nl_instance_iter_dump(struct sk_buff *msg,
 
 	cmd = devl_gen_cmds[info->op.cmd];
 
-	devlink_dump_for_each_instance_get(msg, state, devlink) {
+	while ((devlink = devlinks_xa_find_get(sock_net(msg->sk),
+					       &state->instance))) {
 		devl_lock(devlink);
 
 		if (devl_is_registered(devlink))
@@ -220,6 +221,8 @@ int devlink_nl_instance_iter_dump(struct sk_buff *msg,
 
 		if (err)
 			break;
+
+		state->instance++;
 
 		/* restart sub-object walk for the next instance */
 		state->idx = 0;
