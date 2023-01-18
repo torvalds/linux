@@ -1099,6 +1099,41 @@ out:
 	return err;
 }
 
+/* Set or delete APP table or rewrite table entries. The APP struct is validated
+ * and the appropriate callback function is called.
+ */
+static int dcbnl_app_table_setdel(struct nlattr *attr,
+				  struct net_device *netdev,
+				  int (*setdel)(struct net_device *dev,
+						struct dcb_app *app))
+{
+	struct dcb_app *app_data;
+	enum ieee_attrs_app type;
+	struct nlattr *attr_itr;
+	int rem, err;
+
+	nla_for_each_nested(attr_itr, attr, rem) {
+		type = nla_type(attr_itr);
+
+		if (!dcbnl_app_attr_type_validate(type))
+			continue;
+
+		if (nla_len(attr_itr) < sizeof(struct dcb_app))
+			return -ERANGE;
+
+		app_data = nla_data(attr_itr);
+
+		if (!dcbnl_app_selector_validate(type, app_data->selector))
+			return -EINVAL;
+
+		err = setdel(netdev, app_data);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /* Handle IEEE 802.1Qaz/802.1Qau/802.1Qbb GET commands. */
 static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 {
@@ -1568,36 +1603,11 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 	}
 
 	if (ieee[DCB_ATTR_IEEE_APP_TABLE]) {
-		struct nlattr *attr;
-		int rem;
-
-		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
-			enum ieee_attrs_app type = nla_type(attr);
-			struct dcb_app *app_data;
-
-			if (!dcbnl_app_attr_type_validate(type))
-				continue;
-
-			if (nla_len(attr) < sizeof(struct dcb_app)) {
-				err = -ERANGE;
-				goto err;
-			}
-
-			app_data = nla_data(attr);
-
-			if (!dcbnl_app_selector_validate(type,
-							 app_data->selector)) {
-				err = -EINVAL;
-				goto err;
-			}
-
-			if (ops->ieee_setapp)
-				err = ops->ieee_setapp(netdev, app_data);
-			else
-				err = dcb_ieee_setapp(netdev, app_data);
-			if (err)
-				goto err;
-		}
+		err = dcbnl_app_table_setdel(ieee[DCB_ATTR_IEEE_APP_TABLE],
+					     netdev, ops->ieee_setapp ?:
+					     dcb_ieee_setapp);
+		if (err)
+			goto err;
 	}
 
 	if (ieee[DCB_ATTR_DCB_APP_TRUST_TABLE]) {
@@ -1684,31 +1694,11 @@ static int dcbnl_ieee_del(struct net_device *netdev, struct nlmsghdr *nlh,
 		return err;
 
 	if (ieee[DCB_ATTR_IEEE_APP_TABLE]) {
-		struct nlattr *attr;
-		int rem;
-
-		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
-			enum ieee_attrs_app type = nla_type(attr);
-			struct dcb_app *app_data;
-
-			if (!dcbnl_app_attr_type_validate(type))
-				continue;
-
-			app_data = nla_data(attr);
-
-			if (!dcbnl_app_selector_validate(type,
-							 app_data->selector)) {
-				err = -EINVAL;
-				goto err;
-			}
-
-			if (ops->ieee_delapp)
-				err = ops->ieee_delapp(netdev, app_data);
-			else
-				err = dcb_ieee_delapp(netdev, app_data);
-			if (err)
-				goto err;
-		}
+		err = dcbnl_app_table_setdel(ieee[DCB_ATTR_IEEE_APP_TABLE],
+					     netdev, ops->ieee_delapp ?:
+					     dcb_ieee_delapp);
+		if (err)
+			goto err;
 	}
 
 err:
