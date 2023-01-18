@@ -401,31 +401,6 @@ static int udf_get_block(struct inode *inode, sector_t block,
 	return 0;
 }
 
-static struct buffer_head *udf_getblk(struct inode *inode, udf_pblk_t block,
-				      int create, int *err)
-{
-	struct buffer_head *bh;
-	struct udf_map_rq map = {
-		.lblk = block,
-		.iflags = UDF_MAP_NOPREALLOC | (create ? UDF_MAP_CREATE : 0),
-	};
-
-	*err = udf_map_block(inode, &map);
-	if (!*err && map.oflags & UDF_BLK_MAPPED) {
-		bh = sb_getblk(inode->i_sb, map.pblk);
-		if (map.oflags & UDF_BLK_NEW) {
-			lock_buffer(bh);
-			memset(bh->b_data, 0x00, inode->i_sb->s_blocksize);
-			set_buffer_uptodate(bh);
-			unlock_buffer(bh);
-			mark_buffer_dirty_inode(bh, inode);
-		}
-		return bh;
-	}
-
-	return NULL;
-}
-
 /* Extend the file with new blocks totaling 'new_block_bytes',
  * return the number of extents added
  */
@@ -1140,10 +1115,28 @@ struct buffer_head *udf_bread(struct inode *inode, udf_pblk_t block,
 			      int create, int *err)
 {
 	struct buffer_head *bh = NULL;
+	struct udf_map_rq map = {
+		.lblk = block,
+		.iflags = UDF_MAP_NOPREALLOC | (create ? UDF_MAP_CREATE : 0),
+	};
 
-	bh = udf_getblk(inode, block, create, err);
-	if (!bh)
+	*err = udf_map_block(inode, &map);
+	if (*err || !(map.oflags & UDF_BLK_MAPPED))
 		return NULL;
+
+	bh = sb_getblk(inode->i_sb, map.pblk);
+	if (!bh) {
+		*err = -ENOMEM;
+		return NULL;
+	}
+	if (map.oflags & UDF_BLK_NEW) {
+		lock_buffer(bh);
+		memset(bh->b_data, 0x00, inode->i_sb->s_blocksize);
+		set_buffer_uptodate(bh);
+		unlock_buffer(bh);
+		mark_buffer_dirty_inode(bh, inode);
+		return bh;
+	}
 
 	if (bh_read(bh, 0) >= 0)
 		return bh;
