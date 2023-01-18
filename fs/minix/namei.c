@@ -213,10 +213,11 @@ static int minix_rename(struct user_namespace *mnt_userns,
 		new_de = minix_find_entry(new_dentry, &new_page);
 		if (!new_de)
 			goto out_dir;
-		err = 0;
-		minix_set_link(new_de, new_page, old_inode);
+		err = minix_set_link(new_de, new_page, old_inode);
 		kunmap(new_page);
 		put_page(new_page);
+		if (err)
+			goto out_dir;
 		new_inode->i_ctime = current_time(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -233,8 +234,9 @@ static int minix_rename(struct user_namespace *mnt_userns,
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
-		minix_set_link(dir_de, dir_page, new_dir);
-		inode_dec_link_count(old_dir);
+		err = minix_set_link(dir_de, dir_page, new_dir);
+		if (!err)
+			inode_dec_link_count(old_dir);
 	}
 out_dir:
 	if (dir_de) {
