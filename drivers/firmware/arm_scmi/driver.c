@@ -920,7 +920,8 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 	trace_scmi_msg_dump(info->id, cinfo->id, xfer->hdr.protocol_id,
 			    xfer->hdr.id,
 			    xfer->hdr.type == MSG_TYPE_DELAYED_RESP ?
-			    "DLYD" : "RESP",
+			    (!SCMI_XFER_IS_RAW(xfer) ? "DLYD" : "dlyd") :
+			    (!SCMI_XFER_IS_RAW(xfer) ? "RESP" : "resp"),
 			    xfer->hdr.seq, xfer->hdr.status,
 			    xfer->rx.buf, xfer->rx.len);
 
@@ -1045,7 +1046,8 @@ static int scmi_wait_for_reply(struct device *dev, const struct scmi_desc *desc,
 			/* Trace polled replies. */
 			trace_scmi_msg_dump(info->id, cinfo->id,
 					    xfer->hdr.protocol_id, xfer->hdr.id,
-					    "RESP",
+					    !SCMI_XFER_IS_RAW(xfer) ?
+					    "RESP" : "resp",
 					    xfer->hdr.seq, xfer->hdr.status,
 					    xfer->rx.buf, xfer->rx.len);
 		}

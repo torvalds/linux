@@ -30,6 +30,21 @@ config ARM_SCMI_NEED_DEBUGFS
 	  which needs debugfs support. When selected causess the creation
 	  of a common SCMI debugfs root directory.
 
+config ARM_SCMI_RAW_MODE_SUPPORT
+	bool "Enable support for SCMI Raw transmission mode"
+	depends on DEBUG_FS
+	select ARM_SCMI_NEED_DEBUGFS
+	help
+	  Enable support for SCMI Raw transmission mode.
+
+	  If enabled allows the direct injection and snooping of SCMI bare
+	  messages through a dedicated debugfs interface.
+	  It is meant to be used by SCMI compliance/testing suites.
+
+	  When enabled regular SCMI drivers interactions are inhibited in
+	  order to avoid unexpected interactions with the SCMI Raw message
+	  flow. If unsure say N.
+
 config ARM_SCMI_HAVE_TRANSPORT
 	bool
 	help
