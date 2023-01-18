@@ -37,6 +37,8 @@
 #include "common.h"
 #include "notify.h"
 
+#include "raw_mode.h"
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/scmi.h>
 
@@ -150,6 +152,7 @@ struct scmi_debug_info {
  *		bus
  * @devreq_mtx: A mutex to serialize device creation for this SCMI instance
  * @dbg: A pointer to debugfs related data (if any)
+ * @raw: An opaque reference handle used by SCMI Raw mode.
  */
 struct scmi_info {
 	int id;
@@ -175,6 +178,7 @@ struct scmi_info {
 	/* Serialize device creation process for this instance */
 	struct mutex devreq_mtx;
 	struct scmi_debug_info *dbg;
+	void *raw;
 };
 
 #define handle_to_scmi_info(h)	container_of(h, struct scmi_info, handle)
@@ -890,6 +894,11 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 			   xfer->hdr.protocol_id, xfer->hdr.seq,
 			   MSG_TYPE_NOTIFICATION);
 
+	if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
+		xfer->hdr.seq = MSG_XTRACT_TOKEN(msg_hdr);
+		scmi_raw_message_report(info->raw, xfer, SCMI_RAW_NOTIF_QUEUE);
+	}
+
 	__scmi_xfer_put(minfo, xfer);
 
 	scmi_clear_channel(info, cinfo);
@@ -903,6 +912,9 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 
 	xfer = scmi_xfer_command_acquire(cinfo, msg_hdr);
 	if (IS_ERR(xfer)) {
+		if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT))
+			scmi_raw_error_report(info->raw, cinfo, msg_hdr, priv);
+
 		if (MSG_XTRACT_TYPE(msg_hdr) == MSG_TYPE_DELAYED_RESP)
 			scmi_clear_channel(info, cinfo);
 		return;
@@ -934,6 +946,16 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 		complete(xfer->async_done);
 	} else {
 		complete(&xfer->done);
+	}
+
+	if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
+		/*
+		 * When in polling mode avoid to queue the Raw xfer on the IRQ
+		 * RX path since it will be already queued at the end of the TX
+		 * poll loop.
+		 */
+		if (!xfer->hdr.poll_completion)
+			scmi_raw_message_report(info->raw, xfer, SCMI_RAW_REPLY_QUEUE);
 	}
 
 	scmi_xfer_command_release(info, xfer);
@@ -1050,6 +1072,14 @@ static int scmi_wait_for_reply(struct device *dev, const struct scmi_desc *desc,
 					    "RESP" : "resp",
 					    xfer->hdr.seq, xfer->hdr.status,
 					    xfer->rx.buf, xfer->rx.len);
+
+			if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
+				struct scmi_info *info =
+					handle_to_scmi_info(cinfo->handle);
+
+				scmi_raw_message_report(info->raw, xfer,
+							SCMI_RAW_REPLY_QUEUE);
+			}
 		}
 	} else {
 		/* And we wait for the response. */
@@ -2576,6 +2606,26 @@ static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)
 	return dbg;
 }
 
+static int scmi_debugfs_raw_mode_setup(struct scmi_info *info)
+{
+	int ret = 0;
+
+	if (!info->dbg)
+		return -EINVAL;
+
+	info->raw = scmi_raw_mode_init(&info->handle, info->dbg->top_dentry,
+				       info->id, info->desc,
+				       info->tx_minfo.max_msg);
+
+	if (IS_ERR(info->raw)) {
+		dev_err(info->dev, "Failed to initialize SCMI RAW Mode !\n");
+		ret = PTR_ERR(info->raw);
+		info->raw = NULL;
+	}
+
+	return ret;
+}
+
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -2654,6 +2704,14 @@ static int scmi_probe(struct platform_device *pdev)
 		info->dbg = scmi_debugfs_common_setup(info);
 		if (!info->dbg)
 			dev_warn(dev, "Failed to setup SCMI debugfs.\n");
+
+		if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
+			ret = scmi_debugfs_raw_mode_setup(info);
+			if (ret)
+				goto clear_dev_req_notifier;
+
+			return 0;
+		}
 	}
 
 	if (scmi_notification_init(handle))
@@ -2713,6 +2771,8 @@ static int scmi_probe(struct platform_device *pdev)
 	return 0;
 
 notification_exit:
+	if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT))
+		scmi_raw_mode_cleanup(info->raw);
 	scmi_notification_exit(&info->handle);
 clear_dev_req_notifier:
 	blocking_notifier_chain_unregister(&scmi_requested_devices_nh,
@@ -2731,6 +2791,9 @@ static int scmi_remove(struct platform_device *pdev)
 	int id;
 	struct scmi_info *info = platform_get_drvdata(pdev);
 	struct device_node *child;
+
+	if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT))
+		scmi_raw_mode_cleanup(info->raw);
 
 	mutex_lock(&scmi_list_mutex);
 	if (info->users)
