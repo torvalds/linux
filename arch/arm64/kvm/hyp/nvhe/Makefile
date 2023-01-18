@@ -13,9 +13,6 @@ hyp-obj-$(CONFIG_DEBUG_LIST) += list_debug.o
 hyp-obj-$(CONFIG_MODULES) += modules.o
 hyp-obj-y += $(lib-objs)
 
-hyp-obj-$(CONFIG_KVM_S2MPU) += iommu/s2mpu.o
-hyp-obj-$(CONFIG_KVM_S2MPU) += iommu/io-mpt-s2mpu.o
-
 $(obj)/hyp.lds: $(src)/hyp.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
 

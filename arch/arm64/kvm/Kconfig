@@ -69,13 +69,4 @@ config PROTECTED_NVHE_STACKTRACE
 
 	  If unsure, or not using protected nVHE (pKVM), say N.
 
-config KVM_S2MPU
-	bool "Stage-2 Memory Protection Unit support"
-	depends on KVM
-	help
-	  Support for the Stage-2 Memory Protection Unit (S2MPU) and Stream
-	  Security Mapping Table (SSMT) devices in KVM. This allows the
-	  hypervisor to restrict DMA access to its memory and the memory of
-	  protected guests.
-
 endif # VIRTUALIZATION

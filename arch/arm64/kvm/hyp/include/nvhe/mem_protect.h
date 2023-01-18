@@ -99,6 +99,7 @@ int hyp_pin_shared_mem(void *from, void *to);
 void hyp_unpin_shared_mem(void *from, void *to);
 void reclaim_guest_pages(struct pkvm_hyp_vm *vm, struct kvm_hyp_memcache *mc);
 int hyp_protect_host_page(u64 pfn, enum kvm_pgtable_prot prot);
+int host_stage2_get_leaf(phys_addr_t phys, kvm_pte_t *ptep, u32 *level);
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc);
 
