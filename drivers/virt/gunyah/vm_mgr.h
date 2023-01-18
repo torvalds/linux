@@ -40,6 +40,7 @@ struct gh_vm {
 	struct device *parent;
 	enum gh_rm_vm_auth_mechanism auth;
 	struct gh_vm_dtb_config dtb_config;
+	struct gh_vm_firmware_config fw_config;
 
 	struct notifier_block nb;
 	enum gh_rm_vm_status vm_status;

@@ -264,4 +264,12 @@ struct gh_vcpu_run {
 #define GH_VM_ANDROID_LEND_USER_MEM	_IOW(GH_ANDROID_IOCTL_TYPE, 0x11, \
 						struct gh_userspace_memory_region)
 
+struct gh_vm_firmware_config {
+	__u64 guest_phys_addr;
+	__u64 size;
+};
+
+#define GH_VM_ANDROID_SET_FW_CONFIG	_IOW(GH_ANDROID_IOCTL_TYPE, 0x12, \
+						struct gh_vm_firmware_config)
+
 #endif

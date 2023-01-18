@@ -584,6 +584,23 @@ static int gh_vm_start(struct gh_vm *ghvm)
 		goto err;
 	}
 
+	if (ghvm->auth == GH_RM_VM_AUTH_QCOM_ANDROID_PVM) {
+		mapping = gh_vm_mem_find_by_addr(ghvm, ghvm->fw_config.guest_phys_addr,
+						ghvm->fw_config.size);
+		if (!mapping) {
+			pr_warn("Failed to find the memory handle for pVM firmware\n");
+			ret = -EINVAL;
+			goto err;
+		}
+		ret = gh_rm_vm_set_firmware_mem(ghvm->rm, ghvm->vmid, &mapping->parcel,
+				ghvm->fw_config.guest_phys_addr - mapping->guest_phys_addr,
+				ghvm->fw_config.size);
+		if (ret) {
+			pr_warn("Failed to configure pVM firmware\n");
+			goto err;
+		}
+	}
+
 	ret = gh_rm_vm_init(ghvm->rm, ghvm->vmid);
 	ghvm->vm_status = GH_RM_VM_STATUS_RESET;
 	if (ret) {
@@ -692,6 +709,15 @@ static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		ghvm->dtb_config = dtb_config;
 
+		r = 0;
+		break;
+	}
+	case GH_VM_ANDROID_SET_FW_CONFIG: {
+		r = -EFAULT;
+		if (copy_from_user(&ghvm->fw_config, argp, sizeof(ghvm->fw_config)))
+			break;
+
+		ghvm->auth = GH_RM_VM_AUTH_QCOM_ANDROID_PVM;
 		r = 0;
 		break;
 	}

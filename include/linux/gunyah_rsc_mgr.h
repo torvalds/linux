@@ -113,6 +113,8 @@ int gh_rm_dealloc_vmid(struct gh_rm *rm, u16 vmid);
 int gh_rm_vm_reset(struct gh_rm *rm, u16 vmid);
 int gh_rm_vm_start(struct gh_rm *rm, u16 vmid);
 int gh_rm_vm_stop(struct gh_rm *rm, u16 vmid);
+int gh_rm_vm_set_firmware_mem(struct gh_rm *rm, u16 vmid, struct gh_rm_mem_parcel *parcel,
+				u64 fw_offset, u64 fw_size);
 
 enum gh_rm_vm_auth_mechanism {
 	GH_RM_VM_AUTH_NONE		= 0,

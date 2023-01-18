@@ -22,6 +22,7 @@
 #define GH_RM_RPC_VM_INIT			0x5600000B
 #define GH_RM_RPC_VM_GET_HYP_RESOURCES		0x56000020
 #define GH_RM_RPC_VM_GET_VMID			0x56000024
+#define GH_RM_RPC_VM_SET_FIRMWARE_MEM		0x56000032
 
 struct gh_rm_vm_common_vmid_req {
 	__le16 vmid;
@@ -95,6 +96,15 @@ struct gh_rm_vm_config_image_req {
 	__le64 image_size;
 	__le64 dtb_offset;
 	__le64 dtb_size;
+} __packed;
+
+/* Call: VM_SET_FIRMWARE_MEM */
+struct gh_vm_set_firmware_mem_req {
+	__le16 vmid;
+	__le16 reserved;
+	__le32 mem_handle;
+	__le64 fw_offset;
+	__le64 fw_size;
 } __packed;
 
 #define GH_RM_MAX_MEM_ENTRIES	512
@@ -300,6 +310,28 @@ int gh_rm_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
 
 	return gh_rm_platform_post_mem_reclaim(rm, parcel);
 }
+
+/**
+ * gh_rm_vm_set_firmware_mem() - Set the location of firmware for GH_RM_VM_AUTH_QCOM_ANDROID_PVM VMs
+ * @rm: Handle to a Gunyah resource manager.
+ * @vmid: VM identifier allocated with gh_rm_alloc_vmid.
+ * @parcel: Memory parcel where the firmware should be loaded.
+ * @fw_offset: offset into the memory parcel where the firmware should be loaded.
+ * @fw_size: Maxmimum size of the fw that can be loaded.
+ */
+int gh_rm_vm_set_firmware_mem(struct gh_rm *rm, u16 vmid, struct gh_rm_mem_parcel *parcel,
+				u64 fw_offset, u64 fw_size)
+{
+	struct gh_vm_set_firmware_mem_req req = {
+		.vmid = cpu_to_le16(vmid),
+		.mem_handle = cpu_to_le32(parcel->mem_handle),
+		.fw_offset = cpu_to_le64(fw_offset),
+		.fw_size = cpu_to_le64(fw_size),
+	};
+
+	return gh_rm_call(rm, GH_RM_RPC_VM_SET_FIRMWARE_MEM, &req, sizeof(req), NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(gh_rm_vm_set_firmware_mem);
 
 /**
  * gh_rm_alloc_vmid() - Allocate a new VM in Gunyah. Returns the VM identifier.
