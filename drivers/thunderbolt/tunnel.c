@@ -2081,6 +2081,16 @@ static bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
 	return true;
 }
 
+/**
+ * tb_tunnel_maximum_bandwidth() - Return maximum possible bandwidth
+ * @tunnel: Tunnel to check
+ * @max_up: Maximum upstream bandwidth in Mb/s
+ * @max_down: Maximum downstream bandwidth in Mb/s
+ *
+ * Returns maximum possible bandwidth this tunnel can go if not limited
+ * by other bandwidth clients. If the tunnel does not support this
+ * returns %-EOPNOTSUPP.
+ */
 int tb_tunnel_maximum_bandwidth(struct tb_tunnel *tunnel, int *max_up,
 				int *max_down)
 {

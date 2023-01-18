@@ -29,7 +29,7 @@ enum tb_tunnel_type {
  * @init: Optional tunnel specific initialization
  * @deinit: Optional tunnel specific de-initialization
  * @activate: Optional tunnel specific activation/deactivation
- * @maximum_bandwidth:
+ * @maximum_bandwidth: Returns maximum possible bandwidth for this tunnel
  * @allocated_bandwidth: Return how much bandwidth is allocated for the tunnel
  * @alloc_bandwidth: Change tunnel bandwidth allocation
  * @consumed_bandwidth: Return how much bandwidth the tunnel consumes
