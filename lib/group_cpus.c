@@ -9,6 +9,8 @@
 #include <linux/sort.h>
 #include <linux/group_cpus.h>
 
+#ifdef CONFIG_SMP
+
 static void grp_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 				unsigned int cpus_per_grp)
 {
@@ -327,7 +329,6 @@ static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
 	return done;
 }
 
-#ifdef CONFIG_SMP
 /**
  * group_cpus_evenly - Group all CPUs evenly per NUMA/CPU locality
  * @numgrps: number of groups
@@ -422,7 +423,7 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps)
 	}
 	return masks;
 }
-#else
+#else /* CONFIG_SMP */
 struct cpumask *group_cpus_evenly(unsigned int numgrps)
 {
 	struct cpumask *masks = kcalloc(numgrps, sizeof(*masks), GFP_KERNEL);
@@ -434,4 +435,4 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps)
 	cpumask_copy(&masks[0], cpu_possible_mask);
 	return masks;
 }
-#endif
+#endif /* CONFIG_SMP */
