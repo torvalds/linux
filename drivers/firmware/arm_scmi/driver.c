@@ -891,36 +891,18 @@ static bool scmi_xfer_done_no_timeout(struct scmi_chan_info *cinfo,
 	       ktime_after(ktime_get(), stop);
 }
 
-/**
- * scmi_wait_for_message_response  - An helper to group all the possible ways of
- * waiting for a synchronous message response.
- *
- * @cinfo: SCMI channel info
- * @xfer: Reference to the transfer being waited for.
- *
- * Chooses waiting strategy (sleep-waiting vs busy-waiting) depending on
- * configuration flags like xfer->hdr.poll_completion.
- *
- * Return: 0 on Success, error otherwise.
- */
-static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
-					  struct scmi_xfer *xfer)
+static int scmi_wait_for_reply(struct device *dev, const struct scmi_desc *desc,
+			       struct scmi_chan_info *cinfo,
+			       struct scmi_xfer *xfer, unsigned int timeout_ms)
 {
-	struct scmi_info *info = handle_to_scmi_info(cinfo->handle);
-	struct device *dev = info->dev;
-	int ret = 0, timeout_ms = info->desc->max_rx_timeout_ms;
-
-	trace_scmi_xfer_response_wait(xfer->transfer_id, xfer->hdr.id,
-				      xfer->hdr.protocol_id, xfer->hdr.seq,
-				      timeout_ms,
-				      xfer->hdr.poll_completion);
+	int ret = 0;
 
 	if (xfer->hdr.poll_completion) {
 		/*
 		 * Real polling is needed only if transport has NOT declared
 		 * itself to support synchronous commands replies.
 		 */
-		if (!info->desc->sync_cmds_completed_on_ret) {
+		if (!desc->sync_cmds_completed_on_ret) {
 			/*
 			 * Poll on xfer using transport provided .poll_done();
 			 * assumes no completion interrupt was available.
@@ -946,7 +928,7 @@ static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
 			 */
 			spin_lock_irqsave(&xfer->lock, flags);
 			if (xfer->state == SCMI_XFER_SENT_OK) {
-				info->desc->ops->fetch_response(cinfo, xfer);
+				desc->ops->fetch_response(cinfo, xfer);
 				xfer->state = SCMI_XFER_RESP_OK;
 			}
 			spin_unlock_irqrestore(&xfer->lock, flags);
@@ -968,6 +950,33 @@ static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
 	}
 
 	return ret;
+}
+
+/**
+ * scmi_wait_for_message_response  - An helper to group all the possible ways of
+ * waiting for a synchronous message response.
+ *
+ * @cinfo: SCMI channel info
+ * @xfer: Reference to the transfer being waited for.
+ *
+ * Chooses waiting strategy (sleep-waiting vs busy-waiting) depending on
+ * configuration flags like xfer->hdr.poll_completion.
+ *
+ * Return: 0 on Success, error otherwise.
+ */
+static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
+					  struct scmi_xfer *xfer)
+{
+	struct scmi_info *info = handle_to_scmi_info(cinfo->handle);
+	struct device *dev = info->dev;
+
+	trace_scmi_xfer_response_wait(xfer->transfer_id, xfer->hdr.id,
+				      xfer->hdr.protocol_id, xfer->hdr.seq,
+				      info->desc->max_rx_timeout_ms,
+				      xfer->hdr.poll_completion);
+
+	return scmi_wait_for_reply(dev, info->desc, cinfo, xfer,
+				   info->desc->max_rx_timeout_ms);
 }
 
 /**
