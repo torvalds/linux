@@ -141,6 +141,21 @@ loop has detected outlying refaults from the tier this page is in. To
 this end, the feedback loop uses the first tier as the baseline, for
 the reason stated earlier.
 
+Working set protection
+----------------------
+Each generation is timestamped at birth. If ``lru_gen_min_ttl`` is
+set, an ``lruvec`` is protected from the eviction when its oldest
+generation was born within ``lru_gen_min_ttl`` milliseconds. In other
+words, it prevents the working set of ``lru_gen_min_ttl`` milliseconds
+from getting evicted. The OOM killer is triggered if this working set
+cannot be kept in memory.
+
+This time-based approach has the following advantages:
+
+1. It is easier to configure because it is agnostic to applications
+   and memory sizes.
+2. It is more reliable because it is directly wired to the OOM killer.
+
 Summary
 -------
 The multi-gen LRU can be disassembled into the following parts:
