@@ -18,7 +18,7 @@
 #include "tick-internal.h"
 
 /**
- * tick_program_event
+ * tick_program_event - program the CPU local timer device for the next event
  */
 int tick_program_event(ktime_t expires, int force)
 {
@@ -99,7 +99,7 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 }
 
 /**
- * tick_check_oneshot_mode - check whether the system is in oneshot mode
+ * tick_oneshot_mode_active - check whether the system is in oneshot mode
  *
  * returns 1 when either nohz or highres are enabled. otherwise 0.
  */

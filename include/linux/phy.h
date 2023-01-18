@@ -826,10 +826,7 @@ struct phy_driver {
 	 * whether to advertise lower-speed modes for that interface. It is
 	 * assumed that if a rate matching mode is supported on an interface,
 	 * then that interface's rate can be adapted to all slower link speeds
-	 * supported by the phy. If iface is %PHY_INTERFACE_MODE_NA, and the phy
-	 * supports any kind of rate matching for any interface, then it must
-	 * return that rate matching mode (preferring %RATE_MATCH_PAUSE to
-	 * %RATE_MATCH_CRS). If the interface is not supported, this should
+	 * supported by the phy. If the interface is not supported, this should
 	 * return %RATE_MATCH_NONE.
 	 */
 	int (*get_rate_matching)(struct phy_device *phydev,

@@ -3,7 +3,12 @@
 
 #include "dr_types.h"
 
+#if defined(CONFIG_FRAME_WARN) && (CONFIG_FRAME_WARN < 2048)
+/* don't try to optimize STE allocation if the stack is too constaraining */
+#define DR_RULE_MAX_STES_OPTIMIZED 0
+#else
 #define DR_RULE_MAX_STES_OPTIMIZED 5
+#endif
 #define DR_RULE_MAX_STE_CHAIN_OPTIMIZED (DR_RULE_MAX_STES_OPTIMIZED + DR_ACTION_MAX_STES)
 
 static int dr_rule_append_to_miss_list(struct mlx5dr_domain *dmn,
@@ -1218,10 +1223,7 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 
 	mlx5dr_domain_nic_unlock(nic_dmn);
 
-	if (unlikely(!hw_ste_arr_is_opt))
-		kfree(hw_ste_arr);
-
-	return 0;
+	goto out;
 
 free_rule:
 	dr_rule_clean_rule_members(rule, nic_rule);
@@ -1238,6 +1240,7 @@ remove_from_nic_tbl:
 free_hw_ste:
 	mlx5dr_domain_nic_unlock(nic_dmn);
 
+out:
 	if (unlikely(!hw_ste_arr_is_opt))
 		kfree(hw_ste_arr);
 

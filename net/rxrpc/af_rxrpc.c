@@ -155,10 +155,10 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 		if (service_id) {
 			write_lock(&local->services_lock);
-			if (rcu_access_pointer(local->service))
+			if (local->service)
 				goto service_in_use;
 			rx->local = local;
-			rcu_assign_pointer(local->service, rx);
+			local->service = rx;
 			write_unlock(&local->services_lock);
 
 			rx->sk.sk_state = RXRPC_SERVER_BOUND;
@@ -328,7 +328,6 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		mutex_unlock(&call->user_mutex);
 	}
 
-	rxrpc_put_peer(cp.peer, rxrpc_peer_put_discard_tmp);
 	_leave(" = %p", call);
 	return call;
 }
@@ -374,13 +373,17 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * @sock: The socket the call is on
  * @call: The call to check
  *
- * Allow a kernel service to find out whether a call is still alive -
- * ie. whether it has completed.
+ * Allow a kernel service to find out whether a call is still alive - whether
+ * it has completed successfully and all received data has been consumed.
  */
 bool rxrpc_kernel_check_life(const struct socket *sock,
 			     const struct rxrpc_call *call)
 {
-	return call->state != RXRPC_CALL_COMPLETE;
+	if (!rxrpc_call_is_complete(call))
+		return true;
+	if (call->completion != RXRPC_CALL_SUCCEEDED)
+		return false;
+	return !skb_queue_empty(&call->recvmsg_queue);
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
 
@@ -872,9 +875,9 @@ static int rxrpc_release_sock(struct sock *sk)
 
 	sk->sk_state = RXRPC_CLOSE;
 
-	if (rx->local && rcu_access_pointer(rx->local->service) == rx) {
+	if (rx->local && rx->local->service == rx) {
 		write_lock(&rx->local->services_lock);
-		rcu_assign_pointer(rx->local->service, NULL);
+		rx->local->service = NULL;
 		write_unlock(&rx->local->services_lock);
 	}
 
@@ -957,15 +960,8 @@ static const struct net_proto_family rxrpc_family_ops = {
 static int __init af_rxrpc_init(void)
 {
 	int ret = -1;
-	unsigned int tmp;
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > sizeof_field(struct sk_buff, cb));
-
-	get_random_bytes(&tmp, sizeof(tmp));
-	tmp &= 0x3fffffff;
-	if (tmp == 0)
-		tmp = 1;
-	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
 
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(
@@ -1062,7 +1058,6 @@ static void __exit af_rxrpc_exit(void)
 	 * are released.
 	 */
 	rcu_barrier();
-	rxrpc_destroy_client_conn_ids();
 
 	destroy_workqueue(rxrpc_workqueue);
 	rxrpc_exit_security();

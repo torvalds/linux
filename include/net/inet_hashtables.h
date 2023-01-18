@@ -108,6 +108,10 @@ struct inet_bind2_bucket {
 	struct hlist_node	node;
 	/* List of sockets hashed to this bucket */
 	struct hlist_head	owners;
+	/* bhash has twsk in owners, but bhash2 has twsk in
+	 * deathrow not to add a member in struct sock_common.
+	 */
+	struct hlist_head	deathrow;
 };
 
 static inline struct net *ib_net(const struct inet_bind_bucket *ib)
