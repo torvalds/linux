@@ -734,7 +734,7 @@ static int udf_check_vsd(struct super_block *sb)
 	 * added */
 	for (; !nsr && sector < VSD_MAX_SECTOR_OFFSET; sector += sectorsize) {
 		/* Read a block */
-		bh = udf_tread(sb, sector >> sb->s_blocksize_bits);
+		bh = sb_bread(sb, sector >> sb->s_blocksize_bits);
 		if (!bh)
 			break;
 
@@ -1839,10 +1839,6 @@ static int udf_check_anchor_block(struct super_block *sb, sector_t block,
 	uint16_t ident;
 	int ret;
 
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
-	    udf_fixed_to_variable(block) >= sb_bdev_nr_blocks(sb))
-		return -EAGAIN;
-
 	bh = udf_read_tagged(sb, block, block, &ident);
 	if (!bh)
 		return -EAGAIN;
@@ -1925,46 +1921,6 @@ static int udf_scan_anchors(struct super_block *sb, udf_pblk_t *lastblock,
 }
 
 /*
- * Find an anchor volume descriptor and load Volume Descriptor Sequence from
- * area specified by it. The function expects sbi->s_lastblock to be the last
- * block on the media.
- *
- * Return <0 on error, 0 if anchor found. -EAGAIN is special meaning anchor
- * was not found.
- */
-static int udf_find_anchor(struct super_block *sb,
-			   struct kernel_lb_addr *fileset)
-{
-	struct udf_sb_info *sbi = UDF_SB(sb);
-	sector_t lastblock = sbi->s_last_block;
-	int ret;
-
-	ret = udf_scan_anchors(sb, &lastblock, fileset);
-	if (ret != -EAGAIN)
-		goto out;
-
-	/* No anchor found? Try VARCONV conversion of block numbers */
-	UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
-	lastblock = udf_variable_to_fixed(sbi->s_last_block);
-	/* Firstly, we try to not convert number of the last block */
-	ret = udf_scan_anchors(sb, &lastblock, fileset);
-	if (ret != -EAGAIN)
-		goto out;
-
-	lastblock = sbi->s_last_block;
-	/* Secondly, we try with converted number of the last block */
-	ret = udf_scan_anchors(sb, &lastblock, fileset);
-	if (ret < 0) {
-		/* VARCONV didn't help. Clear it. */
-		UDF_CLEAR_FLAG(sb, UDF_FLAG_VARCONV);
-	}
-out:
-	if (ret == 0)
-		sbi->s_last_block = lastblock;
-	return ret;
-}
-
-/*
  * Check Volume Structure Descriptor, find Anchor block and load Volume
  * Descriptor Sequence.
  *
@@ -2004,7 +1960,7 @@ static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 
 	/* Look for anchor block and load Volume Descriptor Sequence */
 	sbi->s_anchor = uopt->anchor;
-	ret = udf_find_anchor(sb, fileset);
+	ret = udf_scan_anchors(sb, &sbi->s_last_block, fileset);
 	if (ret < 0) {
 		if (!silent && ret == -EAGAIN)
 			udf_warn(sb, "No anchor found\n");
@@ -2455,7 +2411,7 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 		if (bytes) {
 			brelse(bh);
 			newblock = udf_get_lb_pblock(sb, &loc, ++block);
-			bh = udf_tread(sb, newblock);
+			bh = sb_bread(sb, newblock);
 			if (!bh) {
 				udf_debug("read failed\n");
 				goto out;

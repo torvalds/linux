@@ -141,7 +141,7 @@ static void udf_readahead_dir(struct udf_fileident_iter *iter)
 	for (i = 0; i < ralen; i++) {
 		blk = udf_get_lb_pblock(iter->dir->i_sb, &iter->eloc,
 					iter->loffset + i);
-		tmp = udf_tgetblk(iter->dir->i_sb, blk);
+		tmp = sb_getblk(iter->dir->i_sb, blk);
 		if (tmp && !buffer_uptodate(tmp) && !buffer_locked(tmp))
 			bha[num++] = tmp;
 		else
@@ -160,7 +160,7 @@ static struct buffer_head *udf_fiiter_bread_blk(struct udf_fileident_iter *iter)
 
 	udf_readahead_dir(iter);
 	blk = udf_get_lb_pblock(iter->dir->i_sb, &iter->eloc, iter->loffset);
-	return udf_tread(iter->dir->i_sb, blk);
+	return sb_bread(iter->dir->i_sb, blk);
 }
 
 /*

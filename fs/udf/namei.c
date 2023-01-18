@@ -171,7 +171,7 @@ static struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
 				0);
 	if (!newblock)
 		return NULL;
-	dbh = udf_tgetblk(inode->i_sb, newblock);
+	dbh = sb_getblk(inode->i_sb, newblock);
 	if (!dbh)
 		return NULL;
 	lock_buffer(dbh);
@@ -623,7 +623,7 @@ static int udf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 		block = udf_get_pblock(sb, block,
 				iinfo->i_location.partitionReferenceNum,
 				0);
-		epos.bh = udf_tgetblk(sb, block);
+		epos.bh = sb_getblk(sb, block);
 		if (unlikely(!epos.bh)) {
 			err = -ENOMEM;
 			udf_free_blocks(sb, inode, &eloc, 0, 1);

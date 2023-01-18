@@ -34,9 +34,6 @@ extern __printf(3, 4) void _udf_warn(struct super_block *sb,
 #define udf_debug(fmt, ...)					\
 	pr_debug("%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
-#define udf_fixed_to_variable(x) ( ( ( (x) >> 5 ) * 39 ) + ( (x) & 0x0000001F ) )
-#define udf_variable_to_fixed(x) ( ( ( (x) / 39 ) << 5 ) + ( (x) % 39 ) )
-
 #define UDF_EXTENT_LENGTH_MASK	0x3FFFFFFF
 #define UDF_EXTENT_FLAG_MASK	0xC0000000
 
@@ -179,9 +176,6 @@ extern int8_t udf_current_aext(struct inode *, struct extent_position *,
 extern void udf_update_extra_perms(struct inode *inode, umode_t mode);
 
 /* misc.c */
-extern struct buffer_head *udf_tgetblk(struct super_block *sb,
-					udf_pblk_t block);
-extern struct buffer_head *udf_tread(struct super_block *sb, udf_pblk_t block);
 extern struct genericFormat *udf_add_extendedattr(struct inode *, uint32_t,
 						  uint32_t, uint8_t);
 extern struct genericFormat *udf_get_extendedattr(struct inode *, uint32_t,

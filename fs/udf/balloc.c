@@ -42,7 +42,7 @@ static int read_block_bitmap(struct super_block *sb,
 	loc.logicalBlockNum = bitmap->s_extPosition;
 	loc.partitionReferenceNum = UDF_SB(sb)->s_partition;
 
-	bh = udf_tread(sb, udf_get_lb_pblock(sb, &loc, block));
+	bh = sb_bread(sb, udf_get_lb_pblock(sb, &loc, block));
 	if (!bh)
 		retval = -EIO;
 

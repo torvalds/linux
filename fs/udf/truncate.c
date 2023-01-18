@@ -240,7 +240,7 @@ int udf_truncate_extents(struct inode *inode)
 			brelse(epos.bh);
 			epos.offset = sizeof(struct allocExtDesc);
 			epos.block = eloc;
-			epos.bh = udf_tread(sb,
+			epos.bh = sb_bread(sb,
 					udf_get_lb_pblock(sb, &eloc, 0));
 			/* Error reading indirect block? */
 			if (!epos.bh)

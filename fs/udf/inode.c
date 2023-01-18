@@ -1592,7 +1592,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	bh = udf_tgetblk(inode->i_sb,
+	bh = sb_getblk(inode->i_sb,
 			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
 		udf_debug("getblk failure\n");
@@ -1852,7 +1852,7 @@ int udf_setup_indirect_aext(struct inode *inode, udf_pblk_t block,
 	neloc.logicalBlockNum = block;
 	neloc.partitionReferenceNum = epos->block.partitionReferenceNum;
 
-	bh = udf_tgetblk(sb, udf_get_lb_pblock(sb, &neloc, 0));
+	bh = sb_getblk(sb, udf_get_lb_pblock(sb, &neloc, 0));
 	if (!bh)
 		return -EIO;
 	lock_buffer(bh);
@@ -2069,7 +2069,7 @@ int8_t udf_next_aext(struct inode *inode, struct extent_position *epos,
 		epos->offset = sizeof(struct allocExtDesc);
 		brelse(epos->bh);
 		block = udf_get_lb_pblock(inode->i_sb, &epos->block, 0);
-		epos->bh = udf_tread(inode->i_sb, block);
+		epos->bh = sb_bread(inode->i_sb, block);
 		if (!epos->bh) {
 			udf_debug("reading block %u failed!\n", block);
 			return -1;
@@ -2290,8 +2290,5 @@ udf_pblk_t udf_block_map(struct inode *inode, sector_t block)
 	up_read(&UDF_I(inode)->i_data_sem);
 	brelse(epos.bh);
 
-	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_VARCONV))
-		return udf_fixed_to_variable(ret);
-	else
-		return ret;
+	return ret;
 }
