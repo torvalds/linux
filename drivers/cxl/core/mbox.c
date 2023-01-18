@@ -8,6 +8,7 @@
 #include <cxl.h>
 
 #include "core.h"
+#include "trace.h"
 
 static bool cxl_raw_allow_all;
 
@@ -717,6 +718,152 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(cxl_enumerate_cmds, CXL);
 
+static int cxl_clear_event_record(struct cxl_dev_state *cxlds,
+				  enum cxl_event_log_type log,
+				  struct cxl_get_event_payload *get_pl)
+{
+	struct cxl_mbox_clear_event_payload *payload;
+	u16 total = le16_to_cpu(get_pl->record_count);
+	u8 max_handles = CXL_CLEAR_EVENT_MAX_HANDLES;
+	size_t pl_size = struct_size(payload, handles, max_handles);
+	struct cxl_mbox_cmd mbox_cmd;
+	u16 cnt;
+	int rc = 0;
+	int i;
+
+	/* Payload size may limit the max handles */
+	if (pl_size > cxlds->payload_size) {
+		max_handles = (cxlds->payload_size - sizeof(*payload)) /
+				sizeof(__le16);
+		pl_size = struct_size(payload, handles, max_handles);
+	}
+
+	payload = kvzalloc(pl_size, GFP_KERNEL);
+	if (!payload)
+		return -ENOMEM;
+
+	*payload = (struct cxl_mbox_clear_event_payload) {
+		.event_log = log,
+	};
+
+	mbox_cmd = (struct cxl_mbox_cmd) {
+		.opcode = CXL_MBOX_OP_CLEAR_EVENT_RECORD,
+		.payload_in = payload,
+		.size_in = pl_size,
+	};
+
+	/*
+	 * Clear Event Records uses u8 for the handle cnt while Get Event
+	 * Record can return up to 0xffff records.
+	 */
+	i = 0;
+	for (cnt = 0; cnt < total; cnt++) {
+		payload->handles[i++] = get_pl->records[cnt].hdr.handle;
+		dev_dbg(cxlds->dev, "Event log '%d': Clearing %u\n",
+			log, le16_to_cpu(payload->handles[i]));
+
+		if (i == max_handles) {
+			payload->nr_recs = i;
+			rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+			if (rc)
+				goto free_pl;
+			i = 0;
+		}
+	}
+
+	/* Clear what is left if any */
+	if (i) {
+		payload->nr_recs = i;
+		mbox_cmd.size_in = struct_size(payload, handles, i);
+		rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+		if (rc)
+			goto free_pl;
+	}
+
+free_pl:
+	kvfree(payload);
+	return rc;
+}
+
+static void cxl_mem_get_records_log(struct cxl_dev_state *cxlds,
+				    enum cxl_event_log_type type)
+{
+	struct cxl_get_event_payload *payload;
+	struct cxl_mbox_cmd mbox_cmd;
+	u8 log_type = type;
+	u16 nr_rec;
+
+	mutex_lock(&cxlds->event.log_lock);
+	payload = cxlds->event.buf;
+
+	mbox_cmd = (struct cxl_mbox_cmd) {
+		.opcode = CXL_MBOX_OP_GET_EVENT_RECORD,
+		.payload_in = &log_type,
+		.size_in = sizeof(log_type),
+		.payload_out = payload,
+		.size_out = cxlds->payload_size,
+		.min_out = struct_size(payload, records, 0),
+	};
+
+	do {
+		int rc, i;
+
+		rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+		if (rc) {
+			dev_err_ratelimited(cxlds->dev,
+				"Event log '%d': Failed to query event records : %d",
+				type, rc);
+			break;
+		}
+
+		nr_rec = le16_to_cpu(payload->record_count);
+		if (!nr_rec)
+			break;
+
+		for (i = 0; i < nr_rec; i++)
+			trace_cxl_generic_event(cxlds->dev, type,
+						&payload->records[i]);
+
+		if (payload->flags & CXL_GET_EVENT_FLAG_OVERFLOW)
+			trace_cxl_overflow(cxlds->dev, type, payload);
+
+		rc = cxl_clear_event_record(cxlds, type, payload);
+		if (rc) {
+			dev_err_ratelimited(cxlds->dev,
+				"Event log '%d': Failed to clear events : %d",
+				type, rc);
+			break;
+		}
+	} while (nr_rec);
+
+	mutex_unlock(&cxlds->event.log_lock);
+}
+
+/**
+ * cxl_mem_get_event_records - Get Event Records from the device
+ * @cxlds: The device data for the operation
+ *
+ * Retrieve all event records available on the device, report them as trace
+ * events, and clear them.
+ *
+ * See CXL rev 3.0 @8.2.9.2.2 Get Event Records
+ * See CXL rev 3.0 @8.2.9.2.3 Clear Event Records
+ */
+void cxl_mem_get_event_records(struct cxl_dev_state *cxlds, u32 status)
+{
+	dev_dbg(cxlds->dev, "Reading event logs: %x\n", status);
+
+	if (status & CXLDEV_EVENT_STATUS_FATAL)
+		cxl_mem_get_records_log(cxlds, CXL_EVENT_TYPE_FATAL);
+	if (status & CXLDEV_EVENT_STATUS_FAIL)
+		cxl_mem_get_records_log(cxlds, CXL_EVENT_TYPE_FAIL);
+	if (status & CXLDEV_EVENT_STATUS_WARN)
+		cxl_mem_get_records_log(cxlds, CXL_EVENT_TYPE_WARN);
+	if (status & CXLDEV_EVENT_STATUS_INFO)
+		cxl_mem_get_records_log(cxlds, CXL_EVENT_TYPE_INFO);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_mem_get_event_records, CXL);
+
 /**
  * cxl_mem_get_partition_info - Get partition info
  * @cxlds: The device data for the operation
@@ -868,6 +1015,7 @@ struct cxl_dev_state *cxl_dev_state_create(struct device *dev)
 	}
 
 	mutex_init(&cxlds->mbox_mutex);
+	mutex_init(&cxlds->event.log_lock);
 	cxlds->dev = dev;
 
 	return cxlds;
