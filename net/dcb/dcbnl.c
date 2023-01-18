@@ -2232,6 +2232,58 @@ int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
 }
 EXPORT_SYMBOL(dcb_ieee_delapp);
 
+/* dcb_getrewr_prio_pcp_mask_map - For a given device, find mapping from
+ * priorities to the PCP and DEI values assigned to that priority.
+ */
+void dcb_getrewr_prio_pcp_mask_map(const struct net_device *dev,
+				   struct dcb_rewr_prio_pcp_map *p_map)
+{
+	int ifindex = dev->ifindex;
+	struct dcb_app_type *itr;
+	u8 prio;
+
+	memset(p_map->map, 0, sizeof(p_map->map));
+
+	spin_lock_bh(&dcb_lock);
+	list_for_each_entry(itr, &dcb_rewr_list, list) {
+		if (itr->ifindex == ifindex &&
+		    itr->app.selector == DCB_APP_SEL_PCP &&
+		    itr->app.protocol < 16 &&
+		    itr->app.priority < IEEE_8021QAZ_MAX_TCS) {
+			prio = itr->app.priority;
+			p_map->map[prio] |= 1 << itr->app.protocol;
+		}
+	}
+	spin_unlock_bh(&dcb_lock);
+}
+EXPORT_SYMBOL(dcb_getrewr_prio_pcp_mask_map);
+
+/* dcb_getrewr_prio_dscp_mask_map - For a given device, find mapping from
+ * priorities to the DSCP values assigned to that priority.
+ */
+void dcb_getrewr_prio_dscp_mask_map(const struct net_device *dev,
+				    struct dcb_ieee_app_prio_map *p_map)
+{
+	int ifindex = dev->ifindex;
+	struct dcb_app_type *itr;
+	u8 prio;
+
+	memset(p_map->map, 0, sizeof(p_map->map));
+
+	spin_lock_bh(&dcb_lock);
+	list_for_each_entry(itr, &dcb_rewr_list, list) {
+		if (itr->ifindex == ifindex &&
+		    itr->app.selector == IEEE_8021QAZ_APP_SEL_DSCP &&
+		    itr->app.protocol < 64 &&
+		    itr->app.priority < IEEE_8021QAZ_MAX_TCS) {
+			prio = itr->app.priority;
+			p_map->map[prio] |= 1ULL << itr->app.protocol;
+		}
+	}
+	spin_unlock_bh(&dcb_lock);
+}
+EXPORT_SYMBOL(dcb_getrewr_prio_dscp_mask_map);
+
 /*
  * dcb_ieee_getapp_prio_dscp_mask_map - For a given device, find mapping from
  * priorities to the DSCP values assigned to that priority. Initialize p_map

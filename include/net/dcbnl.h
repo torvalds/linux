@@ -29,11 +29,21 @@ int dcb_ieee_setapp(struct net_device *, struct dcb_app *);
 int dcb_ieee_delapp(struct net_device *, struct dcb_app *);
 u8 dcb_ieee_getapp_mask(struct net_device *, struct dcb_app *);
 
+struct dcb_rewr_prio_pcp_map {
+	u16 map[IEEE_8021QAZ_MAX_TCS];
+};
+
+void dcb_getrewr_prio_pcp_mask_map(const struct net_device *dev,
+				   struct dcb_rewr_prio_pcp_map *p_map);
+
 struct dcb_ieee_app_prio_map {
 	u64 map[IEEE_8021QAZ_MAX_TCS];
 };
 void dcb_ieee_getapp_prio_dscp_mask_map(const struct net_device *dev,
 					struct dcb_ieee_app_prio_map *p_map);
+
+void dcb_getrewr_prio_dscp_mask_map(const struct net_device *dev,
+				    struct dcb_ieee_app_prio_map *p_map);
 
 struct dcb_ieee_app_dscp_map {
 	u8 map[64];
