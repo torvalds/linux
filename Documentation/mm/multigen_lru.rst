@@ -156,6 +156,20 @@ This time-based approach has the following advantages:
    and memory sizes.
 2. It is more reliable because it is directly wired to the OOM killer.
 
+Rmap/PT walk feedback
+---------------------
+Searching the rmap for PTEs mapping each page on an LRU list (to test
+and clear the accessed bit) can be expensive because pages from
+different VMAs (PA space) are not cache friendly to the rmap (VA
+space). For workloads mostly using mapped pages, searching the rmap
+can incur the highest CPU cost in the reclaim path.
+
+``lru_gen_look_around()`` exploits spatial locality to reduce the
+trips into the rmap. It scans the adjacent PTEs of a young PTE and
+promotes hot pages. If the scan was done cacheline efficiently, it
+adds the PMD entry pointing to the PTE table to the Bloom filter. This
+forms a feedback loop between the eviction and the aging.
+
 Summary
 -------
 The multi-gen LRU can be disassembled into the following parts:
