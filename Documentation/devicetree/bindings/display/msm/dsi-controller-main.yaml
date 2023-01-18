@@ -147,6 +147,14 @@ properties:
       - port@0
       - port@1
 
+  avdd-supply:
+    description:
+      Phandle to vdd regulator device node
+
+  vcca-supply:
+    description:
+      Phandle to vdd regulator device node
+
   vdd-supply:
     description:
       VDD regulator
