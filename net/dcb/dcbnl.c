@@ -1955,7 +1955,8 @@ static struct dcb_app_type *dcb_app_lookup(const struct dcb_app *app,
 	return NULL;
 }
 
-static int dcb_app_add(const struct dcb_app *app, int ifindex)
+static int dcb_app_add(struct list_head *list, const struct dcb_app *app,
+		       int ifindex)
 {
 	struct dcb_app_type *entry;
 
@@ -1965,7 +1966,7 @@ static int dcb_app_add(const struct dcb_app *app, int ifindex)
 
 	memcpy(&entry->app, app, sizeof(*app));
 	entry->ifindex = ifindex;
-	list_add(&entry->list, &dcb_app_list);
+	list_add(&entry->list, list);
 
 	return 0;
 }
@@ -2028,7 +2029,7 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 	/* App type does not exist add new application type */
 	if (new->priority)
-		err = dcb_app_add(new, dev->ifindex);
+		err = dcb_app_add(&dcb_app_list, new, dev->ifindex);
 out:
 	spin_unlock_bh(&dcb_lock);
 	if (!err)
@@ -2088,7 +2089,7 @@ int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 		goto out;
 	}
 
-	err = dcb_app_add(new, dev->ifindex);
+	err = dcb_app_add(&dcb_app_list, new, dev->ifindex);
 out:
 	spin_unlock_bh(&dcb_lock);
 	if (!err)
