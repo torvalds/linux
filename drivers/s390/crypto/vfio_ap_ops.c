@@ -1598,12 +1598,30 @@ static struct vfio_ap_queue *vfio_ap_find_queue(int apqn)
 	return q;
 }
 
+static int apq_reset_check(struct vfio_ap_queue *q)
+{
+	int iters = 2;
+	struct ap_queue_status status;
+
+	while (iters--) {
+		msleep(20);
+		status = ap_tapq(q->apqn, NULL);
+		if (status.queue_empty && !status.irq_enabled)
+			return 0;
+	}
+	WARN_ONCE(iters <= 0,
+		  "timeout verifying reset of queue %02x.%04x (%u, %u, %u)",
+		  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
+		  status.queue_empty, status.irq_enabled, status.response_code);
+
+	return -EBUSY;
+}
+
 static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q,
 				    unsigned int retry)
 {
 	struct ap_queue_status status;
 	int ret;
-	int retry2 = 2;
 
 	if (!q)
 		return 0;
@@ -1640,14 +1658,8 @@ retry_zapq:
 	}
 
 	/* wait for the reset to take effect */
-	while (retry2--) {
-		if (status.queue_empty && !status.irq_enabled)
-			break;
-		msleep(20);
-		status = ap_tapq(q->apqn, NULL);
-	}
-	WARN_ONCE(retry2 <= 0, "unable to verify reset of queue %02x.%04x",
-		  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn));
+	if (!(status.queue_empty && !status.irq_enabled))
+		ret = apq_reset_check(q);
 
 free_resources:
 	vfio_ap_free_aqic_resources(q);
