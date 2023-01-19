@@ -1000,18 +1000,16 @@ static struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri,
 		return duprule;
 
 	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list) {
-		newckf = kzalloc(sizeof(*newckf), GFP_KERNEL);
+		newckf = kmemdup(ckf, sizeof(*newckf), GFP_KERNEL);
 		if (!newckf)
 			return ERR_PTR(-ENOMEM);
-		memcpy(newckf, ckf, sizeof(*newckf));
 		list_add_tail(&newckf->ctrl.list, &duprule->data.keyfields);
 	}
 
 	list_for_each_entry(caf, &ri->data.actionfields, ctrl.list) {
-		newcaf = kzalloc(sizeof(*newcaf), GFP_KERNEL);
+		newcaf = kmemdup(caf, sizeof(*newcaf), GFP_KERNEL);
 		if (!newcaf)
 			return ERR_PTR(-ENOMEM);
-		memcpy(newcaf, caf, sizeof(*newcaf));
 		list_add_tail(&newcaf->ctrl.list, &duprule->data.actionfields);
 	}
 
