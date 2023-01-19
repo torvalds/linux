@@ -236,11 +236,13 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 	else if (timeout == 0)
 		return -EAGAIN;
 
-	fence = host1x_fence_create(sp, thresh);
+	fence = host1x_fence_create(sp, thresh, false);
 	if (IS_ERR(fence))
 		return PTR_ERR(fence);
 
 	wait_err = dma_fence_wait_timeout(fence, true, timeout);
+	if (wait_err == 0)
+		host1x_fence_cancel(fence);
 	dma_fence_put(fence);
 
 	if (value)

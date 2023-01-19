@@ -13,6 +13,7 @@ struct host1x_syncpt_fence {
 
 	struct host1x_syncpt *sp;
 	u32 threshold;
+	bool timeout;
 
 	struct delayed_work timeout_work;
 

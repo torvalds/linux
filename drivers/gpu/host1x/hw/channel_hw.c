@@ -325,7 +325,7 @@ static int channel_submit(struct host1x_job *job)
 	 * Create fence before submitting job to HW to avoid job completing
 	 * before the fence is set up.
 	 */
-	job->fence = host1x_fence_create(sp, syncval);
+	job->fence = host1x_fence_create(sp, syncval, true);
 	if (WARN(IS_ERR(job->fence), "Failed to create submit complete fence")) {
 		job->fence = NULL;
 	} else {

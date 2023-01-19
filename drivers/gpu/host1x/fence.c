@@ -37,8 +37,7 @@ static bool host1x_syncpt_fence_enable_signaling(struct dma_fence *f)
 	if (host1x_syncpt_is_expired(sf->sp, sf->threshold))
 		return false;
 
-	/* One reference for interrupt path, one for timeout path. */
-	dma_fence_get(f);
+	/* Reference for interrupt path. */
 	dma_fence_get(f);
 
 	/*
@@ -46,11 +45,15 @@ static bool host1x_syncpt_fence_enable_signaling(struct dma_fence *f)
 	 * reference to any fences for which 'enable_signaling' has been
 	 * called (and that have not been signalled).
 	 *
-	 * We cannot (for now) normally guarantee that all fences get signalled.
-	 * As such, setup a timeout, so that long-lasting fences will get
-	 * reaped eventually.
+	 * We cannot currently always guarantee that all fences get signalled
+	 * or cancelled. As such, for such situations, set up a timeout, so
+	 * that long-lasting fences will get reaped eventually.
 	 */
-	schedule_delayed_work(&sf->timeout_work, msecs_to_jiffies(30000));
+	if (sf->timeout) {
+		/* Reference for timeout path. */
+		dma_fence_get(f);
+		schedule_delayed_work(&sf->timeout_work, msecs_to_jiffies(30000));
+	}
 
 	host1x_intr_add_fence_locked(sf->sp->host, sf);
 
@@ -80,7 +83,7 @@ void host1x_fence_signal(struct host1x_syncpt_fence *f)
 		return;
 	}
 
-	if (cancel_delayed_work(&f->timeout_work)) {
+	if (f->timeout && cancel_delayed_work(&f->timeout_work)) {
 		/*
 		 * We know that the timeout path will not be entered.
 		 * Safe to drop the timeout path's reference now.
@@ -99,8 +102,9 @@ static void do_fence_timeout(struct work_struct *work)
 		container_of(dwork, struct host1x_syncpt_fence, timeout_work);
 
 	if (atomic_xchg(&f->signaling, 1)) {
-		/* Already on interrupt path, drop timeout path reference. */
-		dma_fence_put(&f->base);
+		/* Already on interrupt path, drop timeout path reference if any. */
+		if (f->timeout)
+			dma_fence_put(&f->base);
 		return;
 	}
 
@@ -114,12 +118,12 @@ static void do_fence_timeout(struct work_struct *work)
 
 	dma_fence_set_error(&f->base, -ETIMEDOUT);
 	dma_fence_signal(&f->base);
-
-	/* Drop timeout path reference. */
-	dma_fence_put(&f->base);
+	if (f->timeout)
+		dma_fence_put(&f->base);
 }
 
-struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold)
+struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold,
+				      bool timeout)
 {
 	struct host1x_syncpt_fence *fence;
 
@@ -129,6 +133,7 @@ struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold)
 
 	fence->sp = sp;
 	fence->threshold = threshold;
+	fence->timeout = timeout;
 
 	dma_fence_init(&fence->base, &host1x_syncpt_fence_ops, &sp->fences.lock,
 		       dma_fence_context_alloc(1), 0);
@@ -138,3 +143,12 @@ struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold)
 	return &fence->base;
 }
 EXPORT_SYMBOL(host1x_fence_create);
+
+void host1x_fence_cancel(struct dma_fence *f)
+{
+	struct host1x_syncpt_fence *sf = to_host1x_fence(f);
+
+	schedule_delayed_work(&sf->timeout_work, 0);
+	flush_delayed_work(&sf->timeout_work);
+}
+EXPORT_SYMBOL(host1x_fence_cancel);

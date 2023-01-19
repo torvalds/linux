@@ -654,7 +654,7 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 	args->syncpt.value = job->syncpt_end;
 
 	if (syncobj) {
-		struct dma_fence *fence = host1x_fence_create(job->syncpt, job->syncpt_end);
+		struct dma_fence *fence = host1x_fence_create(job->syncpt, job->syncpt_end, true);
 		if (IS_ERR(fence)) {
 			err = PTR_ERR(fence);
 			SUBMIT_ERR(context, "failed to create postfence: %d", err);
