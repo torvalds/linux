@@ -5250,7 +5250,7 @@ rtl8xxxu_fill_txdesc_v3(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 
 	tx_desc->txdw2 |= cpu_to_le32(TXDESC_ANTENNA_SELECT_A |
 				      TXDESC_ANTENNA_SELECT_B);
-	tx_desc->txdw7 |= cpu_to_le32(TXDESC_ANTENNA_SELECT_C);
+	tx_desc->txdw7 |= cpu_to_le16(TXDESC_ANTENNA_SELECT_C >> 16);
 }
 
 static void rtl8xxxu_tx(struct ieee80211_hw *hw,
