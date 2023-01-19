@@ -639,22 +639,17 @@ ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_channel *ch)
 /**
  * ice_vsi_alloc - Allocates the next available struct VSI in the PF
  * @pf: board private structure
- * @params: parameters to use when allocating the new VSI
  *
- * The VF pointer is used for ICE_VSI_VF and ICE_VSI_CTRL. For ICE_VSI_CTRL,
- * it may be NULL in the case there is no association with a VF. For
- * ICE_VSI_VF the VF pointer *must not* be NULL.
+ * Reserves a VSI index from the PF and allocates an empty VSI structure
+ * without a type. The VSI structure must later be initialized by calling
+ * ice_vsi_cfg().
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
-static struct ice_vsi *
-ice_vsi_alloc(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
+static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi = NULL;
-
-	if (WARN_ON(params->type == ICE_VSI_VF && !params->vf))
-		return NULL;
 
 	/* Need to protect the allocation of the VSIs at the PF level */
 	mutex_lock(&pf->sw_mutex);
@@ -672,11 +667,7 @@ ice_vsi_alloc(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
 	if (!vsi)
 		goto unlock_pf;
 
-	vsi->type = params->type;
 	vsi->back = pf;
-	vsi->port_info = params->pi;
-	/* For VSIs which don't have a connected VF, this will be NULL */
-	vsi->vf = params->vf;
 	set_bit(ICE_VSI_DOWN, vsi->state);
 
 	/* fill slot and make note of the index */
@@ -686,16 +677,6 @@ ice_vsi_alloc(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
 	/* prepare pf->next_vsi for next use */
 	pf->next_vsi = ice_get_free_slot(pf->vsi, pf->num_alloc_vsi,
 					 pf->next_vsi);
-
-	if (vsi->type == ICE_VSI_CTRL) {
-		if (vsi->vf) {
-			WARN_ON(vsi->vf->ctrl_vsi_idx != ICE_NO_VSI);
-			vsi->vf->ctrl_vsi_idx = vsi->idx;
-		} else {
-			WARN_ON(pf->ctrl_vsi_idx != ICE_NO_VSI);
-			pf->ctrl_vsi_idx = vsi->idx;
-		}
-	}
 
 unlock_pf:
 	mutex_unlock(&pf->sw_mutex);
@@ -2856,13 +2837,23 @@ unroll_vsi_alloc:
 }
 
 /**
- * ice_vsi_cfg - configure VSI and tc on it
+ * ice_vsi_cfg - configure a previously allocated VSI
  * @vsi: pointer to VSI
  * @params: parameters used to configure this VSI
  */
 int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 {
+	struct ice_pf *pf = vsi->back;
 	int ret;
+
+	if (WARN_ON(params->type == ICE_VSI_VF && !params->vf))
+		return -EINVAL;
+
+	vsi->type = params->type;
+	vsi->port_info = params->pi;
+
+	/* For VSIs which don't have a connected VF, this will be NULL */
+	vsi->vf = params->vf;
 
 	ret = ice_vsi_cfg_def(vsi, params);
 	if (ret)
@@ -2871,6 +2862,16 @@ int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 	ret = ice_vsi_cfg_tc_lan(vsi->back, vsi);
 	if (ret)
 		ice_vsi_decfg(vsi);
+
+	if (vsi->type == ICE_VSI_CTRL) {
+		if (vsi->vf) {
+			WARN_ON(vsi->vf->ctrl_vsi_idx != ICE_NO_VSI);
+			vsi->vf->ctrl_vsi_idx = vsi->idx;
+		} else {
+			WARN_ON(pf->ctrl_vsi_idx != ICE_NO_VSI);
+			pf->ctrl_vsi_idx = vsi->idx;
+		}
+	}
 
 	return ret;
 }
@@ -2956,7 +2957,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
 	    WARN_ON(!params->pi))
 		return NULL;
 
-	vsi = ice_vsi_alloc(pf, params);
+	vsi = ice_vsi_alloc(pf);
 	if (!vsi) {
 		dev_err(dev, "could not allocate VSI\n");
 		return NULL;
