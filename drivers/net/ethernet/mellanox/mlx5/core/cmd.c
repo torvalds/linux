@@ -1225,8 +1225,8 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 		goto out_free;
 
 	ds = ent->ts2 - ent->ts1;
-	if (ent->op < MLX5_CMD_OP_MAX) {
-		stats = &cmd->stats[ent->op];
+	stats = xa_load(&cmd->stats, ent->op);
+	if (stats) {
 		spin_lock_irq(&stats->lock);
 		stats->sum += ds;
 		++stats->n;
@@ -1695,8 +1695,8 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 
 			if (ent->callback) {
 				ds = ent->ts2 - ent->ts1;
-				if (ent->op < MLX5_CMD_OP_MAX) {
-					stats = &cmd->stats[ent->op];
+				stats = xa_load(&cmd->stats, ent->op);
+				if (stats) {
 					spin_lock_irqsave(&stats->lock, flags);
 					stats->sum += ds;
 					++stats->n;
@@ -1923,7 +1923,9 @@ static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status,
 	if (!err || !(strcmp(namep, "unknown command opcode")))
 		return;
 
-	stats = &dev->cmd.stats[opcode];
+	stats = xa_load(&dev->cmd.stats, opcode);
+	if (!stats)
+		return;
 	spin_lock_irq(&stats->lock);
 	stats->failed++;
 	if (err < 0)
@@ -2189,7 +2191,6 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	struct mlx5_cmd *cmd = &dev->cmd;
 	u32 cmd_l;
 	int err;
-	int i;
 
 	cmd->pool = dma_pool_create("mlx5_cmd", mlx5_core_dma_dev(dev), size, align, 0);
 	if (!cmd->pool)
@@ -2209,8 +2210,6 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	spin_lock_init(&cmd->alloc_lock);
 	spin_lock_init(&cmd->token_lock);
-	for (i = 0; i < MLX5_CMD_OP_MAX; i++)
-		spin_lock_init(&cmd->stats[i].lock);
 
 	create_msg_cache(dev);
 
