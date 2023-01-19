@@ -15,6 +15,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/compat.h>
+#include <linux/if_ether.h>
 #include <linux/netlink.h>
 #include <uapi/linux/ethtool.h>
 
@@ -1000,6 +1001,47 @@ void ethtool_aggregate_pause_stats(struct net_device *dev,
 				   struct ethtool_pause_stats *pause_stats);
 void ethtool_aggregate_rmon_stats(struct net_device *dev,
 				  struct ethtool_rmon_stats *rmon_stats);
+
+/**
+ * ethtool_mm_frag_size_add_to_min - Translate (standard) additional fragment
+ *	size expressed as multiplier into (absolute) minimum fragment size
+ *	value expressed in octets
+ * @val_add: Value of addFragSize multiplier
+ */
+static inline u32 ethtool_mm_frag_size_add_to_min(u32 val_add)
+{
+	return (ETH_ZLEN + ETH_FCS_LEN) * (1 + val_add) - ETH_FCS_LEN;
+}
+
+/**
+ * ethtool_mm_frag_size_min_to_add - Translate (absolute) minimum fragment size
+ *	expressed in octets into (standard) additional fragment size expressed
+ *	as multiplier
+ * @val_min: Value of addFragSize variable in octets
+ * @val_add: Pointer where the standard addFragSize value is to be returned
+ * @extack: Netlink extended ack
+ *
+ * Translate a value in octets to one of 0, 1, 2, 3 according to the reverse
+ * application of the 802.3 formula 64 * (1 + addFragSize) - 4. To be called
+ * by drivers which do not support programming the minimum fragment size to a
+ * continuous range. Returns error on other fragment length values.
+ */
+static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
+						  struct netlink_ext_ack *extack)
+{
+	u32 add_frag_size;
+
+	for (add_frag_size = 0; add_frag_size < 4; add_frag_size++) {
+		if (ethtool_mm_frag_size_add_to_min(add_frag_size) == val_min) {
+			*val_add = add_frag_size;
+			return 0;
+		}
+	}
+
+	NL_SET_ERR_MSG_MOD(extack,
+			   "minFragSize required to be one of 60, 124, 188 or 252");
+	return -EINVAL;
+}
 
 /**
  * ethtool_sprintf - Write formatted string to ethtool string data
