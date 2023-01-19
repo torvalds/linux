@@ -1294,6 +1294,7 @@
 					<&bpmp TEGRA194_POWER_DOMAIN_XUSBA>;
 			power-domain-names = "dev", "ss";
 			nvidia,xusb-padctl = <&xusb_padctl>;
+			dma-coherent;
 			status = "disabled";
 		};
 
