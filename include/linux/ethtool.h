@@ -106,11 +106,6 @@ enum ethtool_supported_ring_param {
 struct net_device;
 struct netlink_ext_ack;
 
-/* Some generic methods drivers may use in their ethtool_ops */
-u32 ethtool_op_get_link(struct net_device *dev);
-int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *eti);
-
-
 /* Link extended state and substate. */
 struct ethtool_link_ext_state_info {
 	enum ethtool_link_ext_state link_ext_state;
@@ -312,28 +307,30 @@ static inline void ethtool_stats_init(u64 *stats, unsigned int n)
  */
 struct ethtool_eth_mac_stats {
 	enum ethtool_mac_stats_src src;
-	u64 FramesTransmittedOK;
-	u64 SingleCollisionFrames;
-	u64 MultipleCollisionFrames;
-	u64 FramesReceivedOK;
-	u64 FrameCheckSequenceErrors;
-	u64 AlignmentErrors;
-	u64 OctetsTransmittedOK;
-	u64 FramesWithDeferredXmissions;
-	u64 LateCollisions;
-	u64 FramesAbortedDueToXSColls;
-	u64 FramesLostDueToIntMACXmitError;
-	u64 CarrierSenseErrors;
-	u64 OctetsReceivedOK;
-	u64 FramesLostDueToIntMACRcvError;
-	u64 MulticastFramesXmittedOK;
-	u64 BroadcastFramesXmittedOK;
-	u64 FramesWithExcessiveDeferral;
-	u64 MulticastFramesReceivedOK;
-	u64 BroadcastFramesReceivedOK;
-	u64 InRangeLengthErrors;
-	u64 OutOfRangeLengthField;
-	u64 FrameTooLongErrors;
+	struct_group(stats,
+		u64 FramesTransmittedOK;
+		u64 SingleCollisionFrames;
+		u64 MultipleCollisionFrames;
+		u64 FramesReceivedOK;
+		u64 FrameCheckSequenceErrors;
+		u64 AlignmentErrors;
+		u64 OctetsTransmittedOK;
+		u64 FramesWithDeferredXmissions;
+		u64 LateCollisions;
+		u64 FramesAbortedDueToXSColls;
+		u64 FramesLostDueToIntMACXmitError;
+		u64 CarrierSenseErrors;
+		u64 OctetsReceivedOK;
+		u64 FramesLostDueToIntMACRcvError;
+		u64 MulticastFramesXmittedOK;
+		u64 BroadcastFramesXmittedOK;
+		u64 FramesWithExcessiveDeferral;
+		u64 MulticastFramesReceivedOK;
+		u64 BroadcastFramesReceivedOK;
+		u64 InRangeLengthErrors;
+		u64 OutOfRangeLengthField;
+		u64 FrameTooLongErrors;
+	);
 };
 
 /* Basic IEEE 802.3 PHY statistics (30.3.2.1.*), not otherwise exposed
@@ -341,7 +338,9 @@ struct ethtool_eth_mac_stats {
  */
 struct ethtool_eth_phy_stats {
 	enum ethtool_mac_stats_src src;
-	u64 SymbolErrorDuringCarrier;
+	struct_group(stats,
+		u64 SymbolErrorDuringCarrier;
+	);
 };
 
 /* Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*), not otherwise exposed
@@ -349,9 +348,11 @@ struct ethtool_eth_phy_stats {
  */
 struct ethtool_eth_ctrl_stats {
 	enum ethtool_mac_stats_src src;
-	u64 MACControlFramesTransmitted;
-	u64 MACControlFramesReceived;
-	u64 UnsupportedOpcodesReceived;
+	struct_group(stats,
+		u64 MACControlFramesTransmitted;
+		u64 MACControlFramesReceived;
+		u64 UnsupportedOpcodesReceived;
+	);
 };
 
 /**
@@ -372,8 +373,10 @@ struct ethtool_eth_ctrl_stats {
  */
 struct ethtool_pause_stats {
 	enum ethtool_mac_stats_src src;
-	u64 tx_pause_frames;
-	u64 rx_pause_frames;
+	struct_group(stats,
+		u64 tx_pause_frames;
+		u64 rx_pause_frames;
+	);
 };
 
 #define ETHTOOL_MAX_LANES	8
@@ -441,13 +444,15 @@ struct ethtool_rmon_hist_range {
  */
 struct ethtool_rmon_stats {
 	enum ethtool_mac_stats_src src;
-	u64 undersize_pkts;
-	u64 oversize_pkts;
-	u64 fragments;
-	u64 jabbers;
+	struct_group(stats,
+		u64 undersize_pkts;
+		u64 oversize_pkts;
+		u64 fragments;
+		u64 jabbers;
 
-	u64 hist[ETHTOOL_RMON_HIST_MAX];
-	u64 hist_tx[ETHTOOL_RMON_HIST_MAX];
+		u64 hist[ETHTOOL_RMON_HIST_MAX];
+		u64 hist_tx[ETHTOOL_RMON_HIST_MAX];
+	);
 };
 
 #define ETH_MODULE_EEPROM_PAGE_LEN	128
@@ -980,6 +985,21 @@ ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
  * Return number of phc vclocks
  */
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
+
+/* Some generic methods drivers may use in their ethtool_ops */
+u32 ethtool_op_get_link(struct net_device *dev);
+int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *eti);
+
+void ethtool_aggregate_mac_stats(struct net_device *dev,
+				 struct ethtool_eth_mac_stats *mac_stats);
+void ethtool_aggregate_phy_stats(struct net_device *dev,
+				 struct ethtool_eth_phy_stats *phy_stats);
+void ethtool_aggregate_ctrl_stats(struct net_device *dev,
+				  struct ethtool_eth_ctrl_stats *ctrl_stats);
+void ethtool_aggregate_pause_stats(struct net_device *dev,
+				   struct ethtool_pause_stats *pause_stats);
+void ethtool_aggregate_rmon_stats(struct net_device *dev,
+				  struct ethtool_rmon_stats *rmon_stats);
 
 /**
  * ethtool_sprintf - Write formatted string to ethtool string data
