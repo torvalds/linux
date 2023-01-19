@@ -2206,8 +2206,9 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 
 static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
-	    rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
+	if ((rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
+	     rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT) ||
+	    rtwvif->tdls_peer)
 		return;
 
 	if (rtwvif->stats.tx_tfc_lv == RTW89_TFC_IDLE &&
@@ -2466,9 +2467,12 @@ int rtw89_core_sta_disassoc(struct rtw89_dev *rtwdev,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta)
 {
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 
 	rtwdev->total_sta_assoc--;
+	if (sta->tdls)
+		rtwvif->tdls_peer--;
 	rtwsta->disassoc = true;
 
 	return 0;
@@ -2587,6 +2591,8 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	}
 
 	rtwdev->total_sta_assoc++;
+	if (sta->tdls)
+		rtwvif->tdls_peer++;
 	rtw89_phy_ra_assoc(rtwdev, sta);
 	rtw89_mac_bf_assoc(rtwdev, vif, sta);
 	rtw89_mac_bf_monitor_calc(rtwdev, sta, false);

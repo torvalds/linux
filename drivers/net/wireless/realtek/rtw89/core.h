@@ -2452,6 +2452,7 @@ struct rtw89_vif {
 	bool last_a_ctrl;
 	bool dyn_tb_bedge_en;
 	u8 def_tri_idx;
+	u32 tdls_peer;
 	struct work_struct update_beacon_work;
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
