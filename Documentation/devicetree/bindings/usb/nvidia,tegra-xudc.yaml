@@ -112,6 +112,8 @@ properties:
   hvdd-usb-supply:
     description: USB controller power supply. Must supply 3.3 V.
 
+  dma-coherent: true
+
 required:
   - compatible
   - reg
@@ -163,6 +165,16 @@ allOf:
           maxItems: 4
         clock-names:
           maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-xudc
+    then:
+      required:
+        - dma-coherent
 
 additionalProperties: false
 
