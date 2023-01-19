@@ -500,9 +500,10 @@ nfs_create_subreq(struct nfs_page *req,
 {
 	struct nfs_page *last;
 	struct nfs_page *ret;
+	struct page *page = nfs_page_to_page(req, pgbase);
 
-	ret = __nfs_create_request(req->wb_lock_context, req->wb_page,
-			pgbase, offset, count);
+	ret = __nfs_create_request(req->wb_lock_context, page, pgbase, offset,
+				   count);
 	if (!IS_ERR(ret)) {
 		/* find the last request */
 		for (last = req->wb_head;
