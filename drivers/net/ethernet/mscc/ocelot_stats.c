@@ -228,6 +228,12 @@ static const struct ocelot_stat_layout ocelot_stats_layout[OCELOT_NUM_STATS] = {
 	OCELOT_COMMON_STATS,
 };
 
+static const struct ocelot_stat_layout *
+ocelot_get_stats_layout(struct ocelot *ocelot)
+{
+	return ocelot_stats_layout;
+}
+
 /* Read the counters from hardware and keep them in region->buf.
  * Caller must hold &ocelot->stat_view_lock.
  */
@@ -306,16 +312,19 @@ static void ocelot_check_stats_work(struct work_struct *work)
 
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 {
+	const struct ocelot_stat_layout *layout;
 	int i;
 
 	if (sset != ETH_SS_STATS)
 		return;
 
+	layout = ocelot_get_stats_layout(ocelot);
+
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (ocelot_stats_layout[i].name[0] == '\0')
+		if (layout[i].name[0] == '\0')
 			continue;
 
-		memcpy(data, ocelot_stats_layout[i].name, ETH_GSTRING_LEN);
+		memcpy(data, layout[i].name, ETH_GSTRING_LEN);
 		data += ETH_GSTRING_LEN;
 	}
 }
@@ -350,13 +359,16 @@ out_unlock:
 
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
+	const struct ocelot_stat_layout *layout;
 	int i, num_stats = 0;
 
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
+	layout = ocelot_get_stats_layout(ocelot);
+
 	for (i = 0; i < OCELOT_NUM_STATS; i++)
-		if (ocelot_stats_layout[i].name[0] != '\0')
+		if (layout[i].name[0] != '\0')
 			num_stats++;
 
 	return num_stats;
@@ -366,14 +378,17 @@ EXPORT_SYMBOL(ocelot_get_sset_count);
 static void ocelot_port_ethtool_stats_cb(struct ocelot *ocelot, int port,
 					 void *priv)
 {
+	const struct ocelot_stat_layout *layout;
 	u64 *data = priv;
 	int i;
+
+	layout = ocelot_get_stats_layout(ocelot);
 
 	/* Copy all supported counters */
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
 		int index = port * OCELOT_NUM_STATS + i;
 
-		if (ocelot_stats_layout[i].name[0] == '\0')
+		if (layout[i].name[0] == '\0')
 			continue;
 
 		*data++ = ocelot->stats[index];
@@ -602,16 +617,19 @@ EXPORT_SYMBOL(ocelot_port_get_stats64);
 static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 {
 	struct ocelot_stats_region *region = NULL;
+	const struct ocelot_stat_layout *layout;
 	unsigned int last = 0;
 	int i;
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
+	layout = ocelot_get_stats_layout(ocelot);
+
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (!ocelot_stats_layout[i].reg)
+		if (!layout[i].reg)
 			continue;
 
-		if (region && ocelot_stats_layout[i].reg == last + 4) {
+		if (region && layout[i].reg == last + 4) {
 			region->count++;
 		} else {
 			region = devm_kzalloc(ocelot->dev, sizeof(*region),
@@ -620,17 +638,17 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 				return -ENOMEM;
 
 			/* enum ocelot_stat must be kept sorted in the same
-			 * order as ocelot_stats_layout[i].reg in order to have
-			 * efficient bulking
+			 * order as layout[i].reg in order to have efficient
+			 * bulking
 			 */
-			WARN_ON(last >= ocelot_stats_layout[i].reg);
+			WARN_ON(last >= layout[i].reg);
 
-			region->base = ocelot_stats_layout[i].reg;
+			region->base = layout[i].reg;
 			region->count = 1;
 			list_add_tail(&region->node, &ocelot->stats_regions);
 		}
 
-		last = ocelot_stats_layout[i].reg;
+		last = layout[i].reg;
 	}
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
