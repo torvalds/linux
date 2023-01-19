@@ -556,23 +556,22 @@ const struct address_space_operations nfs_file_aops = {
  */
 static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 {
-	struct page *page = vmf->page;
 	struct file *filp = vmf->vma->vm_file;
 	struct inode *inode = file_inode(filp);
 	unsigned pagelen;
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 	struct address_space *mapping;
-	struct folio *folio = page_folio(page);
+	struct folio *folio = page_folio(vmf->page);
 
 	dfprintk(PAGECACHE, "NFS: vm_page_mkwrite(%pD2(%lu), offset %lld)\n",
-		filp, filp->f_mapping->host->i_ino,
-		(long long)page_offset(page));
+		 filp, filp->f_mapping->host->i_ino,
+		 (long long)folio_file_pos(folio));
 
 	sb_start_pagefault(inode->i_sb);
 
 	/* make sure the cache has finished storing the page */
-	if (PageFsCache(page) &&
-	    wait_on_page_fscache_killable(vmf->page) < 0) {
+	if (folio_test_fscache(folio) &&
+	    folio_wait_fscache_killable(folio) < 0) {
 		ret = VM_FAULT_RETRY;
 		goto out;
 	}
@@ -581,14 +580,14 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 			   nfs_wait_bit_killable,
 			   TASK_KILLABLE|TASK_FREEZABLE_UNSAFE);
 
-	lock_page(page);
-	mapping = page_file_mapping(page);
+	folio_lock(folio);
+	mapping = folio_file_mapping(folio);
 	if (mapping != inode->i_mapping)
 		goto out_unlock;
 
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
-	pagelen = nfs_page_length(page);
+	pagelen = nfs_folio_length(folio);
 	if (pagelen == 0)
 		goto out_unlock;
 
@@ -599,7 +598,7 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 
 	ret = VM_FAULT_SIGBUS;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
