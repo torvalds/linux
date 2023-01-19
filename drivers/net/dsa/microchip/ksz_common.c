@@ -1777,9 +1777,6 @@ static int ksz_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	u16 val;
 	int ret;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	ret = dev->dev_ops->r_phy(dev, addr, regnum, &val);
 	if (ret < 0)
 		return ret;
@@ -1791,9 +1788,6 @@ static int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 			     u16 val)
 {
 	struct ksz_device *dev = bus->priv;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	return dev->dev_ops->w_phy(dev, addr, regnum, val);
 }

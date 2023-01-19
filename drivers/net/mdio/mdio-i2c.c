@@ -297,9 +297,6 @@ static int i2c_mii_read_rollball(struct mii_bus *bus, int phy_id, int reg)
 	int bus_addr, ret;
 	u16 val;
 
-	if (!(reg & MII_ADDR_C45))
-		return -EOPNOTSUPP;
-
 	bus_addr = i2c_mii_phy_addr(phy_id);
 	if (bus_addr != ROLLBALL_PHY_I2C_ADDR)
 		return 0xffff;
@@ -330,9 +327,6 @@ static int i2c_mii_write_rollball(struct mii_bus *bus, int phy_id, int reg,
 {
 	int bus_addr, ret;
 	u8 buf[6];
-
-	if (!(reg & MII_ADDR_C45))
-		return -EOPNOTSUPP;
 
 	bus_addr = i2c_mii_phy_addr(phy_id);
 	if (bus_addr != ROLLBALL_PHY_I2C_ADDR)
