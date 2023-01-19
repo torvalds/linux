@@ -1008,18 +1008,18 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 
 	vf->num_mac++;
 
-	if (is_valid_ether_addr(vf->hw_lan_addr.addr)) {
-		status = ice_fltr_add_mac(vsi, vf->hw_lan_addr.addr,
+	if (is_valid_ether_addr(vf->hw_lan_addr)) {
+		status = ice_fltr_add_mac(vsi, vf->hw_lan_addr,
 					  ICE_FWD_TO_VSI);
 		if (status) {
 			dev_err(dev, "failed to add default unicast MAC filter %pM for VF %u, error %d\n",
-				&vf->hw_lan_addr.addr[0], vf->vf_id,
+				&vf->hw_lan_addr[0], vf->vf_id,
 				status);
 			return status;
 		}
 		vf->num_mac++;
 
-		ether_addr_copy(vf->dev_lan_addr.addr, vf->hw_lan_addr.addr);
+		ether_addr_copy(vf->dev_lan_addr, vf->hw_lan_addr);
 	}
 
 	return 0;

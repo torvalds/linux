@@ -71,17 +71,17 @@ void ice_eswitch_replay_vf_mac_rule(struct ice_vf *vf)
 	if (!ice_is_switchdev_running(vf->pf))
 		return;
 
-	if (is_valid_ether_addr(vf->hw_lan_addr.addr)) {
+	if (is_valid_ether_addr(vf->hw_lan_addr)) {
 		err = ice_eswitch_add_vf_mac_rule(vf->pf, vf,
-						  vf->hw_lan_addr.addr);
+						  vf->hw_lan_addr);
 		if (err) {
 			dev_err(ice_pf_to_dev(vf->pf), "Failed to add MAC %pM for VF %d\n, error %d\n",
-				vf->hw_lan_addr.addr, vf->vf_id, err);
+				vf->hw_lan_addr, vf->vf_id, err);
 			return;
 		}
 		vf->num_mac++;
 
-		ether_addr_copy(vf->dev_lan_addr.addr, vf->hw_lan_addr.addr);
+		ether_addr_copy(vf->dev_lan_addr, vf->hw_lan_addr);
 	}
 }
 
@@ -237,7 +237,7 @@ ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
 		ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
 		metadata_dst_free(vf->repr->dst);
 		vf->repr->dst = NULL;
-		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr,
+		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr,
 					       ICE_FWD_TO_VSI);
 
 		netif_napi_del(&vf->repr->q_vector->napi);
@@ -265,14 +265,14 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 						   GFP_KERNEL);
 		if (!vf->repr->dst) {
 			ice_fltr_add_mac_and_broadcast(vsi,
-						       vf->hw_lan_addr.addr,
+						       vf->hw_lan_addr,
 						       ICE_FWD_TO_VSI);
 			goto err;
 		}
 
 		if (ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof)) {
 			ice_fltr_add_mac_and_broadcast(vsi,
-						       vf->hw_lan_addr.addr,
+						       vf->hw_lan_addr,
 						       ICE_FWD_TO_VSI);
 			metadata_dst_free(vf->repr->dst);
 			vf->repr->dst = NULL;
@@ -281,7 +281,7 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 
 		if (ice_vsi_add_vlan_zero(vsi)) {
 			ice_fltr_add_mac_and_broadcast(vsi,
-						       vf->hw_lan_addr.addr,
+						       vf->hw_lan_addr,
 						       ICE_FWD_TO_VSI);
 			metadata_dst_free(vf->repr->dst);
 			vf->repr->dst = NULL;
@@ -338,7 +338,7 @@ void ice_eswitch_update_repr(struct ice_vsi *vsi)
 
 	ret = ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof);
 	if (ret) {
-		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr, ICE_FWD_TO_VSI);
+		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr, ICE_FWD_TO_VSI);
 		dev_err(ice_pf_to_dev(pf), "Failed to update VF %d port representor",
 			vsi->vf->vf_id);
 	}
