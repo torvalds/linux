@@ -158,8 +158,9 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 
 /* returns true if packet was consumed by xdp */
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct page *page,
-		      struct bpf_prog *prog, struct xdp_buff *xdp)
+		      struct bpf_prog *prog, struct mlx5e_xdp_buff *mxbuf)
 {
+	struct xdp_buff *xdp = &mxbuf->xdp;
 	u32 act;
 	int err;
 
