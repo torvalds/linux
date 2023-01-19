@@ -2279,6 +2279,8 @@ static int fbcon_get_font(struct vc_data *vc, struct console_font *font, unsigne
 
 	font->width = vc->vc_font.width;
 	font->height = vc->vc_font.height;
+	if (font->height > vpitch)
+		return -ENOSPC;
 	font->charcount = vc->vc_hi_font_mask ? 512 : 256;
 	if (!font->data)
 		return 0;

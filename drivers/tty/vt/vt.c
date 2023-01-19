@@ -4523,17 +4523,20 @@ void reset_palette(struct vc_data *vc)
 /*
  *  Font switching
  *
- *  Currently we only support fonts up to 32 pixels wide, at a maximum height
- *  of 32 pixels. Userspace fontdata is stored with 32 bytes (shorts/ints, 
- *  depending on width) reserved for each character which is kinda wasty, but 
- *  this is done in order to maintain compatibility with the EGA/VGA fonts. It 
- *  is up to the actual low-level console-driver convert data into its favorite
- *  format (maybe we should add a `fontoffset' field to the `display'
- *  structure so we won't have to convert the fontdata all the time.
+ *  Currently we only support fonts up to 128 pixels wide, at a maximum height
+ *  of 128 pixels. Userspace fontdata may have to be stored with 32 bytes
+ *  (shorts/ints, depending on width) reserved for each character which is
+ *  kinda wasty, but this is done in order to maintain compatibility with the
+ *  EGA/VGA fonts. It is up to the actual low-level console-driver convert data
+ *  into its favorite format (maybe we should add a `fontoffset' field to the
+ *  `display' structure so we won't have to convert the fontdata all the time.
  *  /Jes
  */
 
-#define max_font_size 65536
+#define max_font_width	64
+#define max_font_height	128
+#define max_font_glyphs	512
+#define max_font_size	(max_font_glyphs*max_font_width*max_font_height)
 
 static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 {
@@ -4543,7 +4546,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	unsigned int vpitch = op->op == KD_FONT_OP_GET_TALL ? op->height : 32;
 
 	if (op->data) {
-		font.data = kmalloc(max_font_size, GFP_KERNEL);
+		font.data = kvmalloc(max_font_size, GFP_KERNEL);
 		if (!font.data)
 			return -ENOMEM;
 	} else
@@ -4578,7 +4581,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 		rc = -EFAULT;
 
 out:
-	kfree(font.data);
+	kvfree(font.data);
 	return rc;
 }
 
@@ -4593,9 +4596,10 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 		return -EINVAL;
 	if (!op->data)
 		return -EINVAL;
-	if (op->charcount > 512)
+	if (op->charcount > max_font_glyphs)
 		return -EINVAL;
-	if (op->width <= 0 || op->width > 32 || !op->height || op->height > 32)
+	if (op->width <= 0 || op->width > max_font_width || !op->height ||
+	    op->height > max_font_height)
 		return -EINVAL;
 	if (vpitch < op->height)
 		return -EINVAL;
