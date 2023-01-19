@@ -555,6 +555,7 @@ static int udf_extend_file(struct inode *inode, loff_t newsize)
 	else
 		BUG();
 
+	down_write(&iinfo->i_data_sem);
 	/*
 	 * When creating hole in file, just don't bother with preserving
 	 * preallocation. It likely won't be very useful anyway.
@@ -599,6 +600,7 @@ static int udf_extend_file(struct inode *inode, loff_t newsize)
 	err = 0;
 out:
 	brelse(epos.bh);
+	up_write(&iinfo->i_data_sem);
 	return err;
 }
 
@@ -1160,20 +1162,17 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 			    (udf_file_entry_alloc_offset(inode) + newsize)) {
 				down_write(&iinfo->i_data_sem);
 				iinfo->i_lenAlloc = newsize;
+				up_write(&iinfo->i_data_sem);
 				goto set_size;
 			}
 			err = udf_expand_file_adinicb(inode);
 			if (err)
 				return err;
 		}
-		down_write(&iinfo->i_data_sem);
 		err = udf_extend_file(inode, newsize);
-		if (err) {
-			up_write(&iinfo->i_data_sem);
+		if (err)
 			return err;
-		}
 set_size:
-		up_write(&iinfo->i_data_sem);
 		truncate_setsize(inode, newsize);
 	} else {
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
