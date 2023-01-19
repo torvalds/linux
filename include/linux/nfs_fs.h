@@ -569,8 +569,9 @@ extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
 extern int  nfs_congestion_kb;
 extern int  nfs_writepage(struct page *page, struct writeback_control *wbc);
 extern int  nfs_writepages(struct address_space *, struct writeback_control *);
-extern int  nfs_flush_incompatible(struct file *file, struct page *page);
-extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned int);
+extern int  nfs_flush_incompatible(struct file *file, struct folio *folio);
+extern int  nfs_update_folio(struct file *file, struct folio *folio,
+			     unsigned int offset, unsigned int count);
 
 /*
  * Try to write back everything synchronously (but check the

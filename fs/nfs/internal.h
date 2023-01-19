@@ -760,17 +760,18 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
  * Record the page as unstable (an extra writeback period) and mark its
  * inode as dirty.
  */
-static inline
-void nfs_mark_page_unstable(struct page *page, struct nfs_commit_info *cinfo)
+static inline void nfs_folio_mark_unstable(struct folio *folio,
+					   struct nfs_commit_info *cinfo)
 {
-	if (!cinfo->dreq) {
-		struct inode *inode = page_file_mapping(page)->host;
+	if (folio && !cinfo->dreq) {
+		struct inode *inode = folio_file_mapping(folio)->host;
+		long nr = folio_nr_pages(folio);
 
 		/* This page is really still in write-back - just that the
 		 * writeback is happening on the server now.
 		 */
-		inc_node_page_state(page, NR_WRITEBACK);
-		inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
+		node_stat_mod_folio(folio, NR_WRITEBACK, nr);
+		wb_stat_mod(&inode_to_bdi(inode)->wb, WB_WRITEBACK, nr);
 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	}
 }

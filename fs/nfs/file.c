@@ -319,6 +319,7 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 	int ret;
 	pgoff_t index = pos >> PAGE_SHIFT;
 	struct page *page;
+	struct folio *folio;
 	int once_thru = 0;
 
 	dfprintk(PAGECACHE, "NFS: write_begin(%pD2(%lu), %u@%lld)\n",
@@ -329,15 +330,16 @@ start:
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
+	folio = page_folio(page);
 
-	ret = nfs_flush_incompatible(file, page);
+	ret = nfs_flush_incompatible(file, folio);
 	if (ret) {
 		unlock_page(page);
 		put_page(page);
 	} else if (!once_thru &&
 		   nfs_want_read_modify_write(file, page, pos, len)) {
 		once_thru = 1;
-		ret = nfs_read_folio(file, page_folio(page));
+		ret = nfs_read_folio(file, folio);
 		put_page(page);
 		if (!ret)
 			goto start;
@@ -351,6 +353,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 {
 	unsigned offset = pos & (PAGE_SIZE - 1);
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+	struct folio *folio = page_folio(page);
 	int status;
 
 	dfprintk(PAGECACHE, "NFS: write_end(%pD2(%lu), %u@%lld)\n",
@@ -376,7 +379,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 			zero_user_segment(page, pglen, PAGE_SIZE);
 	}
 
-	status = nfs_updatepage(file, page, offset, copied);
+	status = nfs_update_folio(file, folio, offset, copied);
 
 	unlock_page(page);
 	put_page(page);
@@ -552,6 +555,7 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 	unsigned pagelen;
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 	struct address_space *mapping;
+	struct folio *folio = page_folio(page);
 
 	dfprintk(PAGECACHE, "NFS: vm_page_mkwrite(%pD2(%lu), offset %lld)\n",
 		filp, filp->f_mapping->host->i_ino,
@@ -582,8 +586,8 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 		goto out_unlock;
 
 	ret = VM_FAULT_LOCKED;
-	if (nfs_flush_incompatible(filp, page) == 0 &&
-	    nfs_updatepage(filp, page, 0, pagelen) == 0)
+	if (nfs_flush_incompatible(filp, folio) == 0 &&
+	    nfs_update_folio(filp, folio, 0, pagelen) == 0)
 		goto out;
 
 	ret = VM_FAULT_SIGBUS;
