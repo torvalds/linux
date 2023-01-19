@@ -8288,43 +8288,6 @@ static bool rtl_check_vendor_ok(struct usb_interface *intf)
 	return true;
 }
 
-static bool rtl_vendor_mode(struct usb_interface *intf)
-{
-	struct usb_host_interface *alt = intf->cur_altsetting;
-	struct usb_device *udev;
-	struct usb_host_config *c;
-	int i, num_configs;
-
-	if (alt->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC)
-		return rtl_check_vendor_ok(intf);
-
-	/* The vendor mode is not always config #1, so to find it out. */
-	udev = interface_to_usbdev(intf);
-	c = udev->config;
-	num_configs = udev->descriptor.bNumConfigurations;
-	if (num_configs < 2)
-		return false;
-
-	for (i = 0; i < num_configs; (i++, c++)) {
-		struct usb_interface_descriptor	*desc = NULL;
-
-		if (c->desc.bNumInterfaces > 0)
-			desc = &c->intf_cache[0]->altsetting->desc;
-		else
-			continue;
-
-		if (desc->bInterfaceClass == USB_CLASS_VENDOR_SPEC) {
-			usb_driver_set_configuration(udev, c->desc.bConfigurationValue);
-			break;
-		}
-	}
-
-	if (i == num_configs)
-		dev_err(&intf->dev, "Unexpected Device\n");
-
-	return false;
-}
-
 static int rtl8152_pre_reset(struct usb_interface *intf)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
@@ -9686,7 +9649,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	if (intf->cur_altsetting->desc.bInterfaceClass != USB_CLASS_VENDOR_SPEC)
 		return -ENODEV;
 
-	if (!rtl_vendor_mode(intf))
+	if (!rtl_check_vendor_ok(intf))
 		return -ENODEV;
 
 	usb_reset_device(udev);
