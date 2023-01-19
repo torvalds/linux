@@ -156,6 +156,34 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	return true;
 }
 
+static int mlx5e_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
+{
+	const struct mlx5e_xdp_buff *_ctx = (void *)ctx;
+
+	if (unlikely(!mlx5e_rx_hw_stamp(_ctx->rq->tstamp)))
+		return -EOPNOTSUPP;
+
+	*timestamp =  mlx5e_cqe_ts_to_ns(_ctx->rq->ptp_cyc2time,
+					 _ctx->rq->clock, get_cqe_ts(_ctx->cqe));
+	return 0;
+}
+
+static int mlx5e_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash)
+{
+	const struct mlx5e_xdp_buff *_ctx = (void *)ctx;
+
+	if (unlikely(!(_ctx->xdp.rxq->dev->features & NETIF_F_RXHASH)))
+		return -EOPNOTSUPP;
+
+	*hash = be32_to_cpu(_ctx->cqe->rss_hash_result);
+	return 0;
+}
+
+const struct xdp_metadata_ops mlx5e_xdp_metadata_ops = {
+	.xmo_rx_timestamp		= mlx5e_xdp_rx_timestamp,
+	.xmo_rx_hash			= mlx5e_xdp_rx_hash,
+};
+
 /* returns true if packet was consumed by xdp */
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct page *page,
 		      struct bpf_prog *prog, struct mlx5e_xdp_buff *mxbuf)
