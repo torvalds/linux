@@ -248,11 +248,16 @@ void ice_free_vfs(struct ice_pf *pf)
  */
 static struct ice_vsi *ice_vf_vsi_setup(struct ice_vf *vf)
 {
-	struct ice_port_info *pi = ice_vf_get_port_info(vf);
+	struct ice_vsi_cfg_params params = {};
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
 
-	vsi = ice_vsi_setup(pf, pi, ICE_VSI_VF, vf, NULL);
+	params.type = ICE_VSI_VF;
+	params.pi = ice_vf_get_port_info(vf);
+	params.vf = vf;
+	params.flags = ICE_VSI_FLAG_INIT;
+
+	vsi = ice_vsi_setup(pf, &params);
 
 	if (!vsi) {
 		dev_err(ice_pf_to_dev(pf), "Failed to create VF VSI\n");

@@ -425,7 +425,13 @@ static void ice_eswitch_release_env(struct ice_pf *pf)
 static struct ice_vsi *
 ice_eswitch_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_SWITCHDEV_CTRL, NULL, NULL);
+	struct ice_vsi_cfg_params params = {};
+
+	params.type = ICE_VSI_SWITCHDEV_CTRL;
+	params.pi = pi;
+	params.flags = ICE_VSI_FLAG_INIT;
+
+	return ice_vsi_setup(pf, &params);
 }
 
 /**
