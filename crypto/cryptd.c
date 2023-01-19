@@ -272,7 +272,6 @@ static void cryptd_skcipher_encrypt(struct crypto_async_request *base,
 				   req->iv);
 
 	err = crypto_skcipher_encrypt(subreq);
-	skcipher_request_zero(subreq);
 
 	req->base.complete = rctx->complete;
 
@@ -300,7 +299,6 @@ static void cryptd_skcipher_decrypt(struct crypto_async_request *base,
 				   req->iv);
 
 	err = crypto_skcipher_decrypt(subreq);
-	skcipher_request_zero(subreq);
 
 	req->base.complete = rctx->complete;
 
