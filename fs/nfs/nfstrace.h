@@ -936,10 +936,10 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 TRACE_EVENT(nfs_aop_readpage,
 		TP_PROTO(
 			const struct inode *inode,
-			struct page *page
+			struct folio *folio
 		),
 
-		TP_ARGS(inode, page),
+		TP_ARGS(inode, folio),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -956,7 +956,7 @@ TRACE_EVENT(nfs_aop_readpage,
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->offset = page_index(page) << PAGE_SHIFT;
+			__entry->offset = folio_file_pos(folio);
 		),
 
 		TP_printk(
@@ -971,11 +971,11 @@ TRACE_EVENT(nfs_aop_readpage,
 TRACE_EVENT(nfs_aop_readpage_done,
 		TP_PROTO(
 			const struct inode *inode,
-			struct page *page,
+			struct folio *folio,
 			int ret
 		),
 
-		TP_ARGS(inode, page, ret),
+		TP_ARGS(inode, folio, ret),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -993,7 +993,7 @@ TRACE_EVENT(nfs_aop_readpage_done,
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->offset = page_index(page) << PAGE_SHIFT;
+			__entry->offset = folio_file_pos(folio);
 			__entry->ret = ret;
 		),
 

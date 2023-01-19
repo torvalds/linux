@@ -542,6 +542,36 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 	return ret;
 }
 
+/**
+ * nfs_page_create_from_folio - Create an NFS read/write request.
+ * @ctx: open context to use
+ * @folio: folio to write
+ * @offset: starting offset within the folio for the write
+ * @count: number of bytes to read/write
+ *
+ * The page must be locked by the caller. This makes sure we never
+ * create two different requests for the same page.
+ * User should ensure it is safe to sleep in this function.
+ */
+struct nfs_page *nfs_page_create_from_folio(struct nfs_open_context *ctx,
+					    struct folio *folio,
+					    unsigned int offset,
+					    unsigned int count)
+{
+	struct nfs_lock_context *l_ctx = nfs_get_lock_context(ctx);
+	struct nfs_page *ret;
+
+	if (IS_ERR(l_ctx))
+		return ERR_CAST(l_ctx);
+	ret = nfs_page_create(l_ctx, offset, folio_index(folio), offset, count);
+	if (!IS_ERR(ret)) {
+		nfs_page_assign_folio(ret, folio);
+		nfs_page_group_init(ret, NULL);
+	}
+	nfs_put_lock_context(l_ctx);
+	return ret;
+}
+
 static struct nfs_page *
 nfs_create_subreq(struct nfs_page *req,
 		  unsigned int pgbase,
