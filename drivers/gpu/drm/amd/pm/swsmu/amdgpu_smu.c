@@ -904,9 +904,8 @@ static int smu_alloc_dummy_read_table(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	dummy_read_1_table->size = 0x40000;
-	dummy_read_1_table->align = PAGE_SIZE;
-	dummy_read_1_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
+	if (!dummy_read_1_table->size)
+		return 0;
 
 	ret = amdgpu_bo_create_kernel(adev,
 				      dummy_read_1_table->size,
