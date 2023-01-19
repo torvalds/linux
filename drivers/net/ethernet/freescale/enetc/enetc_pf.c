@@ -590,10 +590,8 @@ static void enetc_configure_port_pmac(struct enetc_hw *hw)
 {
 	u32 temp;
 
-	/* Set pMAC step lock */
 	temp = enetc_port_rd(hw, ENETC_PFPMR);
-	enetc_port_wr(hw, ENETC_PFPMR,
-		      temp | ENETC_PFPMR_PMACE | ENETC_PFPMR_MWLM);
+	enetc_port_wr(hw, ENETC_PFPMR, temp | ENETC_PFPMR_PMACE);
 
 	temp = enetc_port_rd(hw, ENETC_MMCSR);
 	enetc_port_wr(hw, ENETC_MMCSR, temp | ENETC_MMCSR_ME);
