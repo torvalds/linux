@@ -311,6 +311,7 @@ static inline void ethtool_stats_init(u64 *stats, unsigned int n)
  * via a more targeted API.
  */
 struct ethtool_eth_mac_stats {
+	enum ethtool_mac_stats_src src;
 	u64 FramesTransmittedOK;
 	u64 SingleCollisionFrames;
 	u64 MultipleCollisionFrames;
@@ -339,6 +340,7 @@ struct ethtool_eth_mac_stats {
  * via a more targeted API.
  */
 struct ethtool_eth_phy_stats {
+	enum ethtool_mac_stats_src src;
 	u64 SymbolErrorDuringCarrier;
 };
 
@@ -346,6 +348,7 @@ struct ethtool_eth_phy_stats {
  * via a more targeted API.
  */
 struct ethtool_eth_ctrl_stats {
+	enum ethtool_mac_stats_src src;
 	u64 MACControlFramesTransmitted;
 	u64 MACControlFramesReceived;
 	u64 UnsupportedOpcodesReceived;
@@ -353,6 +356,8 @@ struct ethtool_eth_ctrl_stats {
 
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
+ * @src: input field denoting whether stats should be queried from the eMAC or
+ *	pMAC (if the MM layer is supported). To be ignored otherwise.
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
  *	as %ETHTOOL_A_PAUSE_STAT_TX_FRAMES.
  *
@@ -366,6 +371,7 @@ struct ethtool_eth_ctrl_stats {
  *	from the standard.
  */
 struct ethtool_pause_stats {
+	enum ethtool_mac_stats_src src;
 	u64 tx_pause_frames;
 	u64 rx_pause_frames;
 };
@@ -417,6 +423,8 @@ struct ethtool_rmon_hist_range {
 
 /**
  * struct ethtool_rmon_stats - selected RMON (RFC 2819) statistics
+ * @src: input field denoting whether stats should be queried from the eMAC or
+ *	pMAC (if the MM layer is supported). To be ignored otherwise.
  * @undersize_pkts: Equivalent to `etherStatsUndersizePkts` from the RFC.
  * @oversize_pkts: Equivalent to `etherStatsOversizePkts` from the RFC.
  * @fragments: Equivalent to `etherStatsFragments` from the RFC.
@@ -432,6 +440,7 @@ struct ethtool_rmon_hist_range {
  * ranges is left to the driver.
  */
 struct ethtool_rmon_stats {
+	enum ethtool_mac_stats_src src;
 	u64 undersize_pkts;
 	u64 oversize_pkts;
 	u64 fragments;

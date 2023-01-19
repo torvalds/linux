@@ -7,6 +7,7 @@
 struct stats_req_info {
 	struct ethnl_req_info		base;
 	DECLARE_BITMAP(stat_mask, __ETHTOOL_STATS_CNT);
+	enum ethtool_mac_stats_src	src;
 };
 
 #define STATS_REQINFO(__req_base) \
@@ -75,16 +76,19 @@ const char stats_rmon_names[__ETHTOOL_A_STATS_RMON_CNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_A_STATS_RMON_JABBER]		= "etherStatsJabbers",
 };
 
-const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_GROUPS + 1] = {
+const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_SRC + 1] = {
 	[ETHTOOL_A_STATS_HEADER]	=
 		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_STATS_GROUPS]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_STATS_SRC]		=
+		NLA_POLICY_MAX(NLA_U32, ETHTOOL_MAC_STATS_SRC_PMAC),
 };
 
 static int stats_parse_request(struct ethnl_req_info *req_base,
 			       struct nlattr **tb,
 			       struct netlink_ext_ack *extack)
 {
+	enum ethtool_mac_stats_src src = ETHTOOL_MAC_STATS_SRC_AGGREGATE;
 	struct stats_req_info *req_info = STATS_REQINFO(req_base);
 	bool mod = false;
 	int err;
@@ -100,6 +104,11 @@ static int stats_parse_request(struct ethnl_req_info *req_base,
 		return -EINVAL;
 	}
 
+	if (tb[ETHTOOL_A_STATS_SRC])
+		src = nla_get_u32(tb[ETHTOOL_A_STATS_SRC]);
+
+	req_info->src = src;
+
 	return 0;
 }
 
@@ -109,6 +118,8 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 {
 	const struct stats_req_info *req_info = STATS_REQINFO(req_base);
 	struct stats_reply_data *data = STATS_REPDATA(reply_base);
+	enum ethtool_mac_stats_src src = req_info->src;
+	struct netlink_ext_ack *extack = info->extack;
 	struct net_device *dev = reply_base->dev;
 	int ret;
 
@@ -116,10 +127,24 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 
+	if ((src == ETHTOOL_MAC_STATS_SRC_EMAC ||
+	     src == ETHTOOL_MAC_STATS_SRC_PMAC) &&
+	    !__ethtool_dev_mm_supported(dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Device does not support MAC merge layer");
+		ethnl_ops_complete(dev);
+		return -EOPNOTSUPP;
+	}
+
 	/* Mark all stats as unset (see ETHTOOL_STAT_NOT_SET) to prevent them
 	 * from being reported to user space in case driver did not set them.
 	 */
 	memset(&data->stats, 0xff, sizeof(data->stats));
+
+	data->phy_stats.src = src;
+	data->mac_stats.src = src;
+	data->ctrl_stats.src = src;
+	data->rmon_stats.src = src;
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask) &&
 	    dev->ethtool_ops->get_eth_phy_stats)
@@ -145,6 +170,8 @@ static int stats_reply_size(const struct ethnl_req_info *req_base,
 	const struct stats_req_info *req_info = STATS_REQINFO(req_base);
 	unsigned int n_grps = 0, n_stats = 0;
 	int len = 0;
+
+	len += nla_total_size(sizeof(u32)); /* _STATS_SRC */
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask)) {
 		n_stats += sizeof(struct ethtool_eth_phy_stats) / sizeof(u64);
@@ -378,6 +405,9 @@ static int stats_fill_reply(struct sk_buff *skb,
 	const struct stats_req_info *req_info = STATS_REQINFO(req_base);
 	const struct stats_reply_data *data = STATS_REPDATA(reply_base);
 	int ret = 0;
+
+	if (nla_put_u32(skb, ETHTOOL_A_STATS_SRC, req_info->src))
+		return -EMSGSIZE;
 
 	if (!ret && test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask))
 		ret = stats_put_stats(skb, data, ETHTOOL_STATS_ETH_PHY,

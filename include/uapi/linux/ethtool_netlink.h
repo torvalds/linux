@@ -428,6 +428,7 @@ enum {
 	ETHTOOL_A_PAUSE_RX,				/* u8 */
 	ETHTOOL_A_PAUSE_TX,				/* u8 */
 	ETHTOOL_A_PAUSE_STATS,				/* nest - _PAUSE_STAT_* */
+	ETHTOOL_A_PAUSE_STATS_SRC,			/* u32 */
 
 	/* add new constants above here */
 	__ETHTOOL_A_PAUSE_CNT,
@@ -743,6 +744,8 @@ enum {
 	ETHTOOL_A_STATS_GROUPS,			/* bitset */
 
 	ETHTOOL_A_STATS_GRP,			/* nest - _A_STATS_GRP_* */
+
+	ETHTOOL_A_STATS_SRC,			/* u32 */
 
 	/* add new constants above here */
 	__ETHTOOL_A_STATS_CNT,

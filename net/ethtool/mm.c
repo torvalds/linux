@@ -253,3 +253,19 @@ out_dev_put:
 	ethnl_parse_header_dev_put(&req_info);
 	return ret;
 }
+
+/* Returns whether a given device supports the MAC merge layer
+ * (has an eMAC and a pMAC). Must be called under rtnl_lock() and
+ * ethnl_ops_begin().
+ */
+bool __ethtool_dev_mm_supported(struct net_device *dev)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_mm_state state = {};
+	int ret = -EOPNOTSUPP;
+
+	if (ops && ops->get_mm)
+		ret = ops->get_mm(dev, &state);
+
+	return !!ret;
+}
