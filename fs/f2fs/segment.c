@@ -2913,16 +2913,12 @@ static void __allocate_new_segment(struct f2fs_sb_info *sbi, int type,
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int old_segno;
 
-	if (!curseg->inited)
-		goto alloc;
-
-	if (force || curseg->next_blkoff ||
-		get_valid_blocks(sbi, curseg->segno, new_sec))
-		goto alloc;
-
-	if (!get_ckpt_valid_blocks(sbi, curseg->segno, new_sec))
+	if (!force && curseg->inited &&
+	    !curseg->next_blkoff &&
+	    !get_valid_blocks(sbi, curseg->segno, new_sec) &&
+	    !get_ckpt_valid_blocks(sbi, curseg->segno, new_sec))
 		return;
-alloc:
+
 	old_segno = curseg->segno;
 	new_curseg(sbi, type, true);
 	stat_inc_seg_type(sbi, curseg);
