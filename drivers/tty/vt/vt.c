@@ -4540,6 +4540,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	struct console_font font;
 	int rc = -EINVAL;
 	int c;
+	unsigned int vpitch = op->op == KD_FONT_OP_GET_TALL ? op->height : 32;
 
 	if (op->data) {
 		font.data = kmalloc(max_font_size, GFP_KERNEL);
@@ -4552,7 +4553,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	if (vc->vc_mode != KD_TEXT)
 		rc = -EINVAL;
 	else if (vc->vc_sw->con_font_get)
-		rc = vc->vc_sw->con_font_get(vc, &font, 32);
+		rc = vc->vc_sw->con_font_get(vc, &font, vpitch);
 	else
 		rc = -ENOSYS;
 	console_unlock();
@@ -4560,7 +4561,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	if (rc)
 		goto out;
 
-	c = (font.width+7)/8 * 32 * font.charcount;
+	c = (font.width+7)/8 * vpitch * font.charcount;
 
 	if (op->data && font.charcount > op->charcount)
 		rc = -ENOSPC;
@@ -4586,6 +4587,7 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	struct console_font font;
 	int rc = -EINVAL;
 	int size;
+	unsigned int vpitch = op->op == KD_FONT_OP_SET_TALL ? op->height : 32;
 
 	if (vc->vc_mode != KD_TEXT)
 		return -EINVAL;
@@ -4595,7 +4597,9 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 		return -EINVAL;
 	if (op->width <= 0 || op->width > 32 || !op->height || op->height > 32)
 		return -EINVAL;
-	size = (op->width+7)/8 * 32 * op->charcount;
+	if (vpitch < op->height)
+		return -EINVAL;
+	size = (op->width+7)/8 * vpitch * op->charcount;
 	if (size > max_font_size)
 		return -ENOSPC;
 
@@ -4613,7 +4617,7 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	else if (vc->vc_sw->con_font_set) {
 		if (vc_is_sel(vc))
 			clear_selection();
-		rc = vc->vc_sw->con_font_set(vc, &font, 32, op->flags);
+		rc = vc->vc_sw->con_font_set(vc, &font, vpitch, op->flags);
 	} else
 		rc = -ENOSYS;
 	console_unlock();
@@ -4659,8 +4663,10 @@ int con_font_op(struct vc_data *vc, struct console_font_op *op)
 {
 	switch (op->op) {
 	case KD_FONT_OP_SET:
+	case KD_FONT_OP_SET_TALL:
 		return con_font_set(vc, op);
 	case KD_FONT_OP_GET:
+	case KD_FONT_OP_GET_TALL:
 		return con_font_get(vc, op);
 	case KD_FONT_OP_SET_DEFAULT:
 		return con_font_default(vc, op);
