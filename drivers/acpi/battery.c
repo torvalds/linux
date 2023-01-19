@@ -437,16 +437,25 @@ static int extract_package(struct acpi_battery *battery,
 		element = &package->package.elements[i];
 		if (offsets[i].mode) {
 			u8 *ptr = (u8 *)battery + offsets[i].offset;
+			u32 len = 32;
 
-			if (element->type == ACPI_TYPE_STRING ||
-			    element->type == ACPI_TYPE_BUFFER)
-				strscpy(ptr, element->string.pointer, 32);
-			else if (element->type == ACPI_TYPE_INTEGER) {
-				strncpy(ptr, (u8 *)&element->integer.value,
-					sizeof(u64));
-				ptr[sizeof(u64)] = 0;
-			} else
+			switch (element->type) {
+			case ACPI_TYPE_BUFFER:
+				if (len > element->buffer.length + 1)
+					len = element->buffer.length + 1;
+
+				fallthrough;
+			case ACPI_TYPE_STRING:
+				strscpy(ptr, element->string.pointer, len);
+
+				break;
+			case ACPI_TYPE_INTEGER:
+				strscpy(ptr, (u8 *)&element->integer.value, sizeof(u64) + 1);
+
+				break;
+			default:
 				*ptr = 0; /* don't have value */
+			}
 		} else {
 			int *x = (int *)((u8 *)battery + offsets[i].offset);
 			*x = (element->type == ACPI_TYPE_INTEGER) ?
