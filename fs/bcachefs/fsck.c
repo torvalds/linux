@@ -1797,7 +1797,8 @@ static int check_root_trans(struct btree_trans *trans)
 		ret = commit_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-			__bch2_btree_insert(trans, BTREE_ID_subvolumes, &root_subvol.k_i));
+			__bch2_btree_insert(trans, BTREE_ID_subvolumes,
+					    &root_subvol.k_i, 0));
 		if (ret) {
 			bch_err(c, "error writing root subvol: %s", bch2_err_str(ret));
 			goto err;

@@ -1748,7 +1748,8 @@ void bch2_trans_commit_hook(struct btree_trans *trans,
 }
 
 int __bch2_btree_insert(struct btree_trans *trans,
-			enum btree_id id, struct bkey_i *k)
+			enum btree_id id,
+			struct bkey_i *k, enum btree_update_flags flags)
 {
 	struct btree_iter iter;
 	int ret;
@@ -1756,7 +1757,7 @@ int __bch2_btree_insert(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, &iter, id, bkey_start_pos(&k->k),
 			     BTREE_ITER_INTENT);
 	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, k, 0);
+		bch2_trans_update(trans, &iter, k, flags);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -1774,7 +1775,7 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 		      u64 *journal_seq, int flags)
 {
 	return bch2_trans_do(c, disk_res, journal_seq, flags,
-			     __bch2_btree_insert(&trans, id, k));
+			     __bch2_btree_insert(&trans, id, k, 0));
 }
 
 int bch2_btree_delete_extent_at(struct btree_trans *trans, struct btree_iter *iter,
