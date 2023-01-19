@@ -78,6 +78,7 @@ struct mlxsw_core {
 		spinlock_t trans_list_lock; /* protects trans_list writes */
 		bool use_emad;
 		bool enable_string_tlv;
+		bool enable_latency_tlv;
 	} emad;
 	struct {
 		u16 *mapping; /* lag_id+port_index to local_port mapping */
@@ -477,6 +478,12 @@ static void mlxsw_emad_pack_op_tlv(char *op_tlv,
 	mlxsw_emad_op_tlv_tid_set(op_tlv, tid);
 }
 
+static void mlxsw_emad_pack_latency_tlv(char *latency_tlv)
+{
+	mlxsw_emad_latency_tlv_type_set(latency_tlv, MLXSW_EMAD_TLV_TYPE_LATENCY);
+	mlxsw_emad_latency_tlv_len_set(latency_tlv, MLXSW_EMAD_LATENCY_TLV_LEN);
+}
+
 static int mlxsw_emad_construct_eth_hdr(struct sk_buff *skb)
 {
 	char *eth_hdr = skb_push(skb, MLXSW_EMAD_ETH_HDR_LEN);
@@ -506,6 +513,11 @@ static void mlxsw_emad_construct(const struct mlxsw_core *mlxsw_core,
 	buf = skb_push(skb, reg->len + sizeof(u32));
 	mlxsw_emad_pack_reg_tlv(buf, reg, payload);
 
+	if (mlxsw_core->emad.enable_latency_tlv) {
+		buf = skb_push(skb, MLXSW_EMAD_LATENCY_TLV_LEN * sizeof(u32));
+		mlxsw_emad_pack_latency_tlv(buf);
+	}
+
 	if (mlxsw_core->emad.enable_string_tlv) {
 		buf = skb_push(skb, MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32));
 		mlxsw_emad_pack_string_tlv(buf);
@@ -520,6 +532,7 @@ static void mlxsw_emad_construct(const struct mlxsw_core *mlxsw_core,
 struct mlxsw_emad_tlv_offsets {
 	u16 op_tlv;
 	u16 string_tlv;
+	u16 latency_tlv;
 	u16 reg_tlv;
 };
 
@@ -530,6 +543,13 @@ static bool mlxsw_emad_tlv_is_string_tlv(const char *tlv)
 	return tlv_type == MLXSW_EMAD_TLV_TYPE_STRING;
 }
 
+static bool mlxsw_emad_tlv_is_latency_tlv(const char *tlv)
+{
+	u8 tlv_type = mlxsw_emad_latency_tlv_type_get(tlv);
+
+	return tlv_type == MLXSW_EMAD_TLV_TYPE_LATENCY;
+}
+
 static void mlxsw_emad_tlv_parse(struct sk_buff *skb)
 {
 	struct mlxsw_emad_tlv_offsets *offsets =
@@ -537,6 +557,8 @@ static void mlxsw_emad_tlv_parse(struct sk_buff *skb)
 
 	offsets->op_tlv = MLXSW_EMAD_ETH_HDR_LEN;
 	offsets->string_tlv = 0;
+	offsets->latency_tlv = 0;
+
 	offsets->reg_tlv = MLXSW_EMAD_ETH_HDR_LEN +
 			   MLXSW_EMAD_OP_TLV_LEN * sizeof(u32);
 
@@ -544,6 +566,11 @@ static void mlxsw_emad_tlv_parse(struct sk_buff *skb)
 	if (mlxsw_emad_tlv_is_string_tlv(skb->data + offsets->reg_tlv)) {
 		offsets->string_tlv = offsets->reg_tlv;
 		offsets->reg_tlv += MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32);
+	}
+
+	if (mlxsw_emad_tlv_is_latency_tlv(skb->data + offsets->reg_tlv)) {
+		offsets->latency_tlv = offsets->reg_tlv;
+		offsets->reg_tlv += MLXSW_EMAD_LATENCY_TLV_LEN * sizeof(u32);
 	}
 }
 
@@ -813,7 +840,7 @@ static const struct mlxsw_listener mlxsw_emad_rx_listener =
 static int mlxsw_emad_tlv_enable(struct mlxsw_core *mlxsw_core)
 {
 	char mgir_pl[MLXSW_REG_MGIR_LEN];
-	bool string_tlv;
+	bool string_tlv, latency_tlv;
 	int err;
 
 	mlxsw_reg_mgir_pack(mgir_pl);
@@ -824,11 +851,15 @@ static int mlxsw_emad_tlv_enable(struct mlxsw_core *mlxsw_core)
 	string_tlv = mlxsw_reg_mgir_fw_info_string_tlv_get(mgir_pl);
 	mlxsw_core->emad.enable_string_tlv = string_tlv;
 
+	latency_tlv = mlxsw_reg_mgir_fw_info_latency_tlv_get(mgir_pl);
+	mlxsw_core->emad.enable_latency_tlv = latency_tlv;
+
 	return 0;
 }
 
 static void mlxsw_emad_tlv_disable(struct mlxsw_core *mlxsw_core)
 {
+	mlxsw_core->emad.enable_latency_tlv = false;
 	mlxsw_core->emad.enable_string_tlv = false;
 }
 
@@ -902,6 +933,8 @@ static struct sk_buff *mlxsw_emad_alloc(const struct mlxsw_core *mlxsw_core,
 		    sizeof(u32) + mlxsw_core->driver->txhdr_len);
 	if (mlxsw_core->emad.enable_string_tlv)
 		emad_len += MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32);
+	if (mlxsw_core->emad.enable_latency_tlv)
+		emad_len +=  MLXSW_EMAD_LATENCY_TLV_LEN * sizeof(u32);
 	if (emad_len > MLXSW_EMAD_MAX_FRAME_LEN)
 		return NULL;
 
