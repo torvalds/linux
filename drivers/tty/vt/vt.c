@@ -4552,7 +4552,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	if (vc->vc_mode != KD_TEXT)
 		rc = -EINVAL;
 	else if (vc->vc_sw->con_font_get)
-		rc = vc->vc_sw->con_font_get(vc, &font);
+		rc = vc->vc_sw->con_font_get(vc, &font, 32);
 	else
 		rc = -ENOSYS;
 	console_unlock();
@@ -4613,7 +4613,7 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	else if (vc->vc_sw->con_font_set) {
 		if (vc_is_sel(vc))
 			clear_selection();
-		rc = vc->vc_sw->con_font_set(vc, &font, op->flags);
+		rc = vc->vc_sw->con_font_set(vc, &font, 32, op->flags);
 	} else
 		rc = -ENOSYS;
 	console_unlock();
