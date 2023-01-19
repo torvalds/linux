@@ -87,6 +87,9 @@ SECTIONS
 	/* Start of init data section */
 	__init_data_begin = .;
 	INIT_DATA_SECTION(16)
+	.init.bss : {
+		*(.init.bss)	/* from the EFI stub */
+	}
 	.exit.data :
 	{
 		EXIT_DATA
