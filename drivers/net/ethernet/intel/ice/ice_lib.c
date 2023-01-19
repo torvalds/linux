@@ -166,14 +166,14 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 /**
  * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
  * @vsi: the VSI being configured
- * @vf: the VF associated with this VSI, if any
  *
  * Return 0 on success and a negative value on error
  */
-static void ice_vsi_set_num_qs(struct ice_vsi *vsi, struct ice_vf *vf)
+static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 {
 	enum ice_vsi_type vsi_type = vsi->type;
 	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf = vsi->vf;
 
 	if (WARN_ON(vsi_type == ICE_VSI_VF && !vf))
 		return;
@@ -594,15 +594,13 @@ err_alloc_tx:
 /**
  * ice_vsi_alloc_def - set default values for already allocated VSI
  * @vsi: ptr to VSI
- * @vf: VF for ICE_VSI_VF and ICE_VSI_CTRL
  * @ch: ptr to channel
  */
 static int
-ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_vf *vf,
-		  struct ice_channel *ch)
+ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_channel *ch)
 {
 	if (vsi->type != ICE_VSI_CHNL) {
-		ice_vsi_set_num_qs(vsi, vf);
+		ice_vsi_set_num_qs(vsi);
 		if (ice_vsi_alloc_arrays(vsi))
 			return -ENOMEM;
 	}
@@ -2702,14 +2700,11 @@ static int ice_vsi_cfg_tc_lan(struct ice_pf *pf, struct ice_vsi *vsi)
 /**
  * ice_vsi_cfg_def - configure default VSI based on the type
  * @vsi: pointer to VSI
- * @vf: pointer to VF to which this VSI connects. This field is used primarily
- *      for the ICE_VSI_VF type. Other VSI types should pass NULL.
  * @ch: ptr to channel
  * @init_vsi: is this an initialization or a reconfigure of the VSI
  */
 static int
-ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
-		int init_vsi)
+ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_channel *ch, int init_vsi)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
 	struct ice_pf *pf = vsi->back;
@@ -2717,7 +2712,7 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
 
 	vsi->vsw = pf->first_sw;
 
-	ret = ice_vsi_alloc_def(vsi, vf, ch);
+	ret = ice_vsi_alloc_def(vsi, ch);
 	if (ret)
 		return ret;
 
@@ -2875,7 +2870,7 @@ int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
 {
 	int ret;
 
-	ret = ice_vsi_cfg_def(vsi, vf, ch, init_vsi);
+	ret = ice_vsi_cfg_def(vsi, ch, init_vsi);
 	if (ret)
 		return ret;
 
@@ -3506,7 +3501,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, int init_vsi)
 	prev_rxq = vsi->num_rxq;
 
 	ice_vsi_decfg(vsi);
-	ret = ice_vsi_cfg_def(vsi, vsi->vf, vsi->ch, init_vsi);
+	ret = ice_vsi_cfg_def(vsi, vsi->ch, init_vsi);
 	if (ret)
 		goto err_vsi_cfg;
 
