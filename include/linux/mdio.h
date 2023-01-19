@@ -10,14 +10,6 @@
 #include <linux/bitfield.h>
 #include <linux/mod_devicetable.h>
 
-/* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
- * IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips.
- */
-#define MII_ADDR_C45		(1<<30)
-#define MII_DEVADDR_C45_SHIFT	16
-#define MII_DEVADDR_C45_MASK	GENMASK(20, 16)
-#define MII_REGADDR_C45_MASK	GENMASK(15, 0)
-
 struct gpio_desc;
 struct mii_bus;
 struct reset_control;
@@ -461,16 +453,6 @@ static inline int mdiodev_modify_changed(struct mdio_device *mdiodev,
 {
 	return mdiobus_modify_changed(mdiodev->bus, mdiodev->addr, regnum,
 				      mask, set);
-}
-
-static inline u16 mdiobus_c45_regad(u32 regnum)
-{
-	return FIELD_GET(MII_REGADDR_C45_MASK, regnum);
-}
-
-static inline u16 mdiobus_c45_devad(u32 regnum)
-{
-	return FIELD_GET(MII_DEVADDR_C45_MASK, regnum);
 }
 
 static inline int mdiodev_c45_modify(struct mdio_device *mdiodev, int devad,
