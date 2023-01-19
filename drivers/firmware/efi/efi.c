@@ -478,7 +478,7 @@ void __init efi_find_mirror(void)
  * and if so, populate the supplied memory descriptor with the appropriate
  * data.
  */
-int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
+int __efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
 	efi_memory_desc_t *md;
 
@@ -511,6 +511,9 @@ int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 	}
 	return -ENOENT;
 }
+
+extern int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
+	__weak __alias(__efi_mem_desc_lookup);
 
 /*
  * Calculate the highest address of an efi memory descriptor.
