@@ -6784,24 +6784,6 @@ int drm_edid_connector_add_modes(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_edid_connector_add_modes);
 
-static int _drm_connector_update_edid_property(struct drm_connector *connector,
-					       const struct drm_edid *drm_edid)
-{
-	/*
-	 * Set the display info, using edid if available, otherwise resetting
-	 * the values to defaults. This duplicates the work done in
-	 * drm_add_edid_modes, but that function is not consistently called
-	 * before this one in all drivers and the computation is cheap enough
-	 * that it seems better to duplicate it rather than attempt to ensure
-	 * some arbitrary ordering of calls.
-	 */
-	update_display_info(connector, drm_edid);
-
-	_drm_update_tile_info(connector, drm_edid);
-
-	return _drm_edid_connector_property_update(connector, drm_edid);
-}
-
 /**
  * drm_connector_update_edid_property - update the edid property of a connector
  * @connector: drm connector
@@ -6823,8 +6805,7 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 {
 	struct drm_edid drm_edid;
 
-	return _drm_connector_update_edid_property(connector,
-						   drm_edid_legacy_init(&drm_edid, edid));
+	return drm_edid_connector_update(connector, drm_edid_legacy_init(&drm_edid, edid));
 }
 EXPORT_SYMBOL(drm_connector_update_edid_property);
 
