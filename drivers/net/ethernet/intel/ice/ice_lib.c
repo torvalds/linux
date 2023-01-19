@@ -1527,7 +1527,7 @@ static int ice_get_vf_ctrl_res(struct ice_pf *pf, struct ice_vsi *vsi)
  * ice_vsi_setup_vector_base - Set up the base vector for the given VSI
  * @vsi: ptr to the VSI
  *
- * This should only be called after ice_vsi_alloc() which allocates the
+ * This should only be called after ice_vsi_alloc_def() which allocates the
  * corresponding SW VSI structure and initializes num_queue_pairs for the
  * newly allocated VSI.
  *
