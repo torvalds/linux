@@ -899,8 +899,6 @@ static void mlx5e_tls_tx_debugfs_init(struct mlx5e_tls *tls,
 		return;
 
 	tls->debugfs.dfs_tx = debugfs_create_dir("tx", dfs_root);
-	if (!tls->debugfs.dfs_tx)
-		return;
 
 	debugfs_create_size_t("pool_size", 0400, tls->debugfs.dfs_tx,
 			      &tls->tx_pool->size);
