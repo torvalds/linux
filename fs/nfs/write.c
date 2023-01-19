@@ -2106,6 +2106,19 @@ out_error:
 	return ret;
 }
 
+/**
+ * nfs_wb_folio - Write back all requests on one page
+ * @inode: pointer to page
+ * @folio: pointer to folio
+ *
+ * Assumes that the folio has been locked by the caller, and will
+ * not unlock it.
+ */
+int nfs_wb_folio(struct inode *inode, struct folio *folio)
+{
+	return nfs_wb_page(inode, &folio->page);
+}
+
 #ifdef CONFIG_MIGRATION
 int nfs_migrate_folio(struct address_space *mapping, struct folio *dst,
 		struct folio *src, enum migrate_mode mode)

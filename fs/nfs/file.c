@@ -469,7 +469,7 @@ static int nfs_launder_folio(struct folio *folio)
 		inode->i_ino, folio_pos(folio));
 
 	folio_wait_fscache(folio);
-	return nfs_wb_page(inode, &folio->page);
+	return nfs_wb_folio(inode, folio);
 }
 
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
