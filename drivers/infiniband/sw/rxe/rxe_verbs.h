@@ -283,17 +283,6 @@ enum rxe_mr_lookup_type {
 	RXE_LOOKUP_REMOTE,
 };
 
-#define RXE_BUF_PER_MAP		(PAGE_SIZE / sizeof(struct rxe_phys_buf))
-
-struct rxe_phys_buf {
-	u64      addr;
-	u64      size;
-};
-
-struct rxe_map {
-	struct rxe_phys_buf	buf[RXE_BUF_PER_MAP];
-};
-
 static inline int rkey_is_mw(u32 rkey)
 {
 	u32 index = rkey >> 8;
@@ -311,22 +300,16 @@ struct rxe_mr {
 	u32			rkey;
 	enum rxe_mr_state	state;
 	int			access;
+	atomic_t		num_mw;
 
 	unsigned int		page_offset;
 	unsigned int		page_shift;
 	u64			page_mask;
-	int			map_shift;
-	int			map_mask;
 
 	u32			num_buf;
 	u32			nbuf;
 
-	u32			max_buf;
-	u32			num_map;
-
-	atomic_t		num_mw;
-
-	struct rxe_map		**map;
+	struct xarray		page_list;
 };
 
 static inline unsigned int mr_page_size(struct rxe_mr *mr)
