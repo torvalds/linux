@@ -378,6 +378,22 @@ MLXSW_ITEM32(emad, string_tlv, len, 0x00, 16, 11);
 MLXSW_ITEM_BUF(emad, string_tlv, string, 0x04,
 	       MLXSW_EMAD_STRING_TLV_STRING_LEN);
 
+/* emad_latency_tlv_type
+ * Type of the TLV.
+ * Must be set to 0x4 (latency TLV).
+ */
+MLXSW_ITEM32(emad, latency_tlv, type, 0x00, 27, 5);
+
+/* emad_latency_tlv_len
+ * Length of the latency TLV in u32.
+ */
+MLXSW_ITEM32(emad, latency_tlv, len, 0x00, 16, 11);
+
+/* emad_latency_tlv_latency_time
+ * EMAD latency time in units of uSec.
+ */
+MLXSW_ITEM32(emad, latency_tlv, latency_time, 0x04, 0, 32);
+
 /* emad_reg_tlv_type
  * Type of the TLV.
  * Must be set to 0x3 (register TLV).
