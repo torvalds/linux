@@ -184,7 +184,7 @@ enum sdw_command_response
 cdns_xfer_msg(struct sdw_bus *bus, struct sdw_msg *msg);
 
 enum sdw_command_response
-cdns_xfer_msg_defer(struct sdw_bus *bus, struct sdw_msg *msg);
+cdns_xfer_msg_defer(struct sdw_bus *bus);
 
 u32 cdns_read_ping_status(struct sdw_bus *bus);
 
