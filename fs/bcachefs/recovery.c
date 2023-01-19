@@ -1250,6 +1250,20 @@ use_clean:
 
 	bch2_stripes_heap_start(c);
 
+	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
+		err = "error creating root snapshot node";
+		ret = bch2_fs_initialize_subvolumes(c);
+		if (ret)
+			goto err;
+	}
+
+	bch_verbose(c, "reading snapshots table");
+	err = "error reading snapshots table";
+	ret = bch2_fs_snapshots_start(c);
+	if (ret)
+		goto err;
+	bch_verbose(c, "reading snapshots done");
+
 	if (c->opts.fsck) {
 		bool metadata_only = c->opts.norecovery;
 
@@ -1261,20 +1275,6 @@ use_clean:
 		bch_verbose(c, "done checking allocations");
 
 		set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
-
-		if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
-			err = "error creating root snapshot node";
-			ret = bch2_fs_initialize_subvolumes(c);
-			if (ret)
-				goto err;
-		}
-
-		bch_verbose(c, "reading snapshots table");
-		err = "error reading snapshots table";
-		ret = bch2_fs_snapshots_start(c);
-		if (ret)
-			goto err;
-		bch_verbose(c, "reading snapshots done");
 
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
@@ -1342,20 +1342,6 @@ use_clean:
 
 		if (c->opts.norecovery)
 			goto out;
-
-		if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
-			err = "error creating root snapshot node";
-			ret = bch2_fs_initialize_subvolumes(c);
-			if (ret)
-				goto err;
-		}
-
-		bch_verbose(c, "reading snapshots table");
-		err = "error reading snapshots table";
-		ret = bch2_fs_snapshots_start(c);
-		if (ret)
-			goto err;
-		bch_verbose(c, "reading snapshots done");
 
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
