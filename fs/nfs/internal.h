@@ -807,11 +807,10 @@ unsigned char nfs_umode_to_dtype(umode_t mode)
  * Determine the number of pages in an array of length 'len' and
  * with a base offset of 'base'
  */
-static inline
-unsigned int nfs_page_array_len(unsigned int base, size_t len)
+static inline unsigned int nfs_page_array_len(unsigned int base, size_t len)
 {
-	return ((unsigned long)len + (unsigned long)base +
-		PAGE_SIZE - 1) >> PAGE_SHIFT;
+	return ((unsigned long)len + (unsigned long)base + PAGE_SIZE - 1) >>
+	       PAGE_SHIFT;
 }
 
 /*

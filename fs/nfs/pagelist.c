@@ -31,6 +31,42 @@
 static struct kmem_cache *nfs_page_cachep;
 static const struct rpc_call_ops nfs_pgio_common_ops;
 
+struct nfs_page_iter_page {
+	const struct nfs_page *req;
+	size_t count;
+};
+
+static void nfs_page_iter_page_init(struct nfs_page_iter_page *i,
+				    const struct nfs_page *req)
+{
+	i->req = req;
+	i->count = 0;
+}
+
+static void nfs_page_iter_page_advance(struct nfs_page_iter_page *i, size_t sz)
+{
+	const struct nfs_page *req = i->req;
+	size_t tmp = i->count + sz;
+
+	i->count = (tmp < req->wb_bytes) ? tmp : req->wb_bytes;
+}
+
+static struct page *nfs_page_iter_page_get(struct nfs_page_iter_page *i)
+{
+	const struct nfs_page *req = i->req;
+	struct page *page;
+
+	if (i->count != req->wb_bytes) {
+		size_t base = i->count + req->wb_pgbase;
+		size_t len = PAGE_SIZE - offset_in_page(base);
+
+		page = nfs_page_to_page(req, base);
+		nfs_page_iter_page_advance(i, len);
+		return page;
+	}
+	return NULL;
+}
+
 static struct nfs_pgio_mirror *
 nfs_pgio_get_mirror(struct nfs_pageio_descriptor *desc, u32 idx)
 {
@@ -693,13 +729,14 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
 /**
  * nfs_pgio_rpcsetup - Set up arguments for a pageio call
  * @hdr: The pageio hdr
+ * @pgbase: base
  * @count: Number of bytes to read
  * @how: How to commit data (writes only)
  * @cinfo: Commit information for the call (writes only)
  */
-static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
-			      unsigned int count,
-			      int how, struct nfs_commit_info *cinfo)
+static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr, unsigned int pgbase,
+			      unsigned int count, int how,
+			      struct nfs_commit_info *cinfo)
 {
 	struct nfs_page *req = hdr->req;
 
@@ -710,7 +747,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	hdr->args.offset = req_offset(req);
 	/* pnfs_set_layoutcommit needs this */
 	hdr->mds_offset = hdr->args.offset;
-	hdr->args.pgbase = req->wb_pgbase;
+	hdr->args.pgbase = pgbase;
 	hdr->args.pages  = hdr->page_array.pagevec;
 	hdr->args.count  = count;
 	hdr->args.context = get_nfs_open_context(nfs_req_openctx(req));
@@ -896,9 +933,10 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	struct nfs_commit_info cinfo;
 	struct nfs_page_array *pg_array = &hdr->page_array;
 	unsigned int pagecount, pageused;
+	unsigned int pg_base = offset_in_page(mirror->pg_base);
 	gfp_t gfp_flags = nfs_io_gfp_mask();
 
-	pagecount = nfs_page_array_len(mirror->pg_base, mirror->pg_count);
+	pagecount = nfs_page_array_len(pg_base, mirror->pg_count);
 	pg_array->npages = pagecount;
 
 	if (pagecount <= ARRAY_SIZE(pg_array->page_array))
@@ -918,19 +956,26 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	last_page = NULL;
 	pageused = 0;
 	while (!list_empty(head)) {
+		struct nfs_page_iter_page i;
+		struct page *page;
+
 		req = nfs_list_entry(head->next);
 		nfs_list_move_request(req, &hdr->pages);
 
 		if (req->wb_pgbase == 0)
 			last_page = NULL;
 
-		if (!last_page || last_page != req->wb_page) {
-			pageused++;
-			if (pageused > pagecount)
-				break;
-			*pages++ = last_page = req->wb_page;
+		nfs_page_iter_page_init(&i, req);
+		while ((page = nfs_page_iter_page_get(&i)) != NULL) {
+			if (last_page != page) {
+				pageused++;
+				if (pageused > pagecount)
+					goto full;
+				*pages++ = last_page = page;
+			}
 		}
 	}
+full:
 	if (WARN_ON_ONCE(pageused != pagecount)) {
 		nfs_pgio_error(hdr);
 		desc->pg_error = -EINVAL;
@@ -942,7 +987,8 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
 
 	/* Set up the argument struct */
-	nfs_pgio_rpcsetup(hdr, mirror->pg_count, desc->pg_ioflags, &cinfo);
+	nfs_pgio_rpcsetup(hdr, pg_base, mirror->pg_count, desc->pg_ioflags,
+			  &cinfo);
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
