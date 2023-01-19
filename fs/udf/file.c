@@ -140,7 +140,6 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	int err;
 
 	inode_lock(inode);
 
@@ -151,12 +150,9 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
 				 iocb->ki_pos + iov_iter_count(from))) {
-		err = udf_expand_file_adinicb(inode);
-		if (err) {
-			inode_unlock(inode);
-			udf_debug("udf_expand_adinicb: err=%d\n", err);
-			return err;
-		}
+		retval = udf_expand_file_adinicb(inode);
+		if (retval)
+			goto out;
 	}
 
 	retval = __generic_file_write_iter(iocb, from);
