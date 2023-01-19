@@ -225,9 +225,9 @@ static inline int do_transfer(struct sdw_bus *bus, struct sdw_msg *msg)
 }
 
 static inline int do_transfer_defer(struct sdw_bus *bus,
-				    struct sdw_msg *msg,
-				    struct sdw_defer *defer)
+				    struct sdw_msg *msg)
 {
+	struct sdw_defer *defer = &bus->defer_msg;
 	int retry = bus->prop.err_threshold;
 	enum sdw_command_response resp;
 	int ret = 0, i;
@@ -315,19 +315,17 @@ EXPORT_SYMBOL(sdw_show_ping_status);
  * sdw_transfer_defer() - Asynchronously transfer message to a SDW Slave device
  * @bus: SDW bus
  * @msg: SDW message to be xfered
- * @defer: Defer block for signal completion
  *
  * Caller needs to hold the msg_lock lock while calling this
  */
-int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
-		       struct sdw_defer *defer)
+int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg)
 {
 	int ret;
 
 	if (!bus->ops->xfer_msg_defer)
 		return -ENOTSUPP;
 
-	ret = do_transfer_defer(bus, msg, defer);
+	ret = do_transfer_defer(bus, msg);
 	if (ret != 0 && ret != -ENODATA)
 		dev_err(bus->dev, "Defer trf on Slave %d failed:%d\n",
 			msg->dev_num, ret);

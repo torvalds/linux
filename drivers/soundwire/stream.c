@@ -684,8 +684,6 @@ static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 	if (!wr_msg)
 		return -ENOMEM;
 
-	bus->defer_msg.msg = wr_msg;
-
 	wbuf = kzalloc(sizeof(*wbuf), GFP_KERNEL);
 	if (!wbuf) {
 		ret = -ENOMEM;
@@ -713,7 +711,7 @@ static int sdw_bank_switch(struct sdw_bus *bus, int m_rt_count)
 	multi_link = bus->multi_link && (m_rt_count >= bus->hw_sync_min_links);
 
 	if (multi_link)
-		ret = sdw_transfer_defer(bus, wr_msg, &bus->defer_msg);
+		ret = sdw_transfer_defer(bus, wr_msg);
 	else
 		ret = sdw_transfer(bus, wr_msg);
 
