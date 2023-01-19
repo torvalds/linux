@@ -109,7 +109,6 @@ struct sdw_cdns_dai_runtime {
  * @instance: instance number
  * @response_buf: SoundWire response buffer
  * @tx_complete: Tx completion
- * @defer: Defer pointer
  * @ports: Data ports
  * @num_ports: Total number of data ports
  * @pcm: PCM streams
@@ -130,7 +129,6 @@ struct sdw_cdns {
 	u32 response_buf[CDNS_MCP_IP_MAX_CMD_LEN + 2];
 
 	struct completion tx_complete;
-	struct sdw_defer *defer;
 
 	struct sdw_cdns_port *ports;
 	int num_ports;
@@ -186,8 +184,7 @@ enum sdw_command_response
 cdns_xfer_msg(struct sdw_bus *bus, struct sdw_msg *msg);
 
 enum sdw_command_response
-cdns_xfer_msg_defer(struct sdw_bus *bus,
-		    struct sdw_msg *msg, struct sdw_defer *defer);
+cdns_xfer_msg_defer(struct sdw_bus *bus, struct sdw_msg *msg);
 
 u32 cdns_read_ping_status(struct sdw_bus *bus);
 

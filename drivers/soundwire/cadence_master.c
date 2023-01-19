@@ -750,7 +750,7 @@ EXPORT_SYMBOL(cdns_xfer_msg);
 
 enum sdw_command_response
 cdns_xfer_msg_defer(struct sdw_bus *bus,
-		    struct sdw_msg *msg, struct sdw_defer *defer)
+		    struct sdw_msg *msg)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
 	int cmd = 0, ret;
@@ -762,9 +762,6 @@ cdns_xfer_msg_defer(struct sdw_bus *bus,
 	ret = cdns_prep_msg(cdns, msg, &cmd);
 	if (ret)
 		return SDW_CMD_FAIL_OTHER;
-
-	cdns->defer = defer;
-	cdns->defer->length = msg->len;
 
 	return _cdns_xfer_msg(cdns, msg, cmd, 0, msg->len, true);
 }
@@ -879,13 +876,15 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (int_status & CDNS_MCP_INT_RX_WL) {
+		struct sdw_bus *bus = &cdns->bus;
+		struct sdw_defer *defer = &bus->defer_msg;
+
 		cdns_read_response(cdns);
 
-		if (cdns->defer) {
-			cdns_fill_msg_resp(cdns, cdns->defer->msg,
-					   cdns->defer->length, 0);
-			complete(&cdns->defer->complete);
-			cdns->defer = NULL;
+		if (defer && defer->msg) {
+			cdns_fill_msg_resp(cdns, defer->msg,
+					   defer->length, 0);
+			complete(&defer->complete);
 		} else {
 			complete(&cdns->tx_complete);
 		}
