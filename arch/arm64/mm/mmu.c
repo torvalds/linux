@@ -1630,3 +1630,24 @@ static int __init prevent_bootmem_remove_init(void)
 }
 early_initcall(prevent_bootmem_remove_init);
 #endif
+
+pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+{
+	if (IS_ENABLED(CONFIG_ARM64_ERRATUM_2645198) &&
+	    cpus_have_const_cap(ARM64_WORKAROUND_2645198)) {
+		/*
+		 * Break-before-make (BBM) is required for all user space mappings
+		 * when the permission changes from executable to non-executable
+		 * in cases where cpu is affected with errata #2645198.
+		 */
+		if (pte_user_exec(READ_ONCE(*ptep)))
+			return ptep_clear_flush(vma, addr, ptep);
+	}
+	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+}
+
+void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep,
+			     pte_t old_pte, pte_t pte)
+{
+	set_pte_at(vma->vm_mm, addr, ptep, pte);
+}

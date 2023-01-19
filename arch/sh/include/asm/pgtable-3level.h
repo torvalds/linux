@@ -28,7 +28,7 @@
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %016llx.\n", __FILE__, __LINE__, pmd_val(e))
 
-typedef struct {
+typedef union {
 	struct {
 		unsigned long pmd_low;
 		unsigned long pmd_high;
