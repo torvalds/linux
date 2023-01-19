@@ -2339,6 +2339,15 @@ bool f2fs_is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr)
 	return is_cp;
 }
 
+static unsigned short f2fs_curseg_valid_blocks(struct f2fs_sb_info *sbi, int type)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+
+	if (sbi->ckpt->alloc_type[type] == SSR)
+		return sbi->blocks_per_seg;
+	return curseg->next_blkoff;
+}
+
 /*
  * Calculate the number of current summary pages for writing
  */
@@ -2348,15 +2357,11 @@ int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra)
 	int i, sum_in_page;
 
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
-		if (sbi->ckpt->alloc_type[i] == SSR)
-			valid_sum_count += sbi->blocks_per_seg;
-		else {
-			if (for_ra)
-				valid_sum_count += le16_to_cpu(
-					F2FS_CKPT(sbi)->cur_data_blkoff[i]);
-			else
-				valid_sum_count += curseg_blkoff(sbi, i);
-		}
+		if (sbi->ckpt->alloc_type[i] != SSR && for_ra)
+			valid_sum_count +=
+				le16_to_cpu(F2FS_CKPT(sbi)->cur_data_blkoff[i]);
+		else
+			valid_sum_count += f2fs_curseg_valid_blocks(sbi, i);
 	}
 
 	sum_in_page = (PAGE_SIZE - 2 * SUM_JOURNAL_SIZE -
@@ -3877,15 +3882,8 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 
 	/* Step 3: write summary entries */
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
-		unsigned short blkoff;
-
 		seg_i = CURSEG_I(sbi, i);
-		if (sbi->ckpt->alloc_type[i] == SSR)
-			blkoff = sbi->blocks_per_seg;
-		else
-			blkoff = curseg_blkoff(sbi, i);
-
-		for (j = 0; j < blkoff; j++) {
+		for (j = 0; j < f2fs_curseg_valid_blocks(sbi, i); j++) {
 			if (!page) {
 				page = f2fs_grab_meta_page(sbi, blkaddr++);
 				kaddr = (unsigned char *)page_address(page);
