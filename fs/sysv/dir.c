@@ -28,7 +28,7 @@ const struct file_operations sysv_dir_operations = {
 	.fsync		= generic_file_fsync,
 };
 
-static inline void dir_put_page(struct page *page)
+inline void dir_put_page(struct page *page)
 {
 	kunmap(page);
 	put_page(page);
