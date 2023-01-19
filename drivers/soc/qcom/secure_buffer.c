@@ -484,37 +484,6 @@ out_free_source:
 }
 EXPORT_SYMBOL(hyp_assign_table);
 
-int hyp_assign_phys(phys_addr_t addr, u64 size, u32 *source_vm_list,
-			int source_nelems, int *dest_vmids,
-			int *dest_perms, int dest_nelems)
-{
-	struct qcom_scm_vmperm *newvm = NULL;
-	u64 source_vm = 0;
-	int i, ret;
-
-	if (!qcom_secure_buffer_dev)
-		return -EPROBE_DEFER;
-	if (dest_nelems <= 0 || !source_nelems)
-		return -EINVAL;
-
-	newvm = kcalloc(dest_nelems, sizeof(struct qcom_scm_vmperm),
-				GFP_KERNEL);
-	if (!newvm)
-		return -ENOMEM;
-	for (i = 0; i < source_nelems; i++)
-		source_vm |= BIT(*(source_vm_list + i));
-
-	for (i = 0; i < dest_nelems; i++) {
-		newvm[i].vmid = *(dest_vmids + i);
-		newvm[i].perm = *(dest_perms + i);
-	}
-	ret = qcom_scm_assign_mem(addr, size, &source_vm, newvm, dest_nelems);
-	kfree(newvm);
-
-	return ret;
-}
-EXPORT_SYMBOL(hyp_assign_phys);
-
 const char *msm_secure_vmid_to_string(int secure_vmid)
 {
 	switch (secure_vmid) {
