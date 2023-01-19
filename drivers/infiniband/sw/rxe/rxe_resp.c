@@ -723,52 +723,14 @@ static enum resp_states atomic_reply(struct rxe_qp *qp,
 	return RESPST_ACKNOWLEDGE;
 }
 
-#ifdef CONFIG_64BIT
-static enum resp_states do_atomic_write(struct rxe_qp *qp,
-					struct rxe_pkt_info *pkt)
-{
-	struct rxe_mr *mr = qp->resp.mr;
-	int payload = payload_size(pkt);
-	u64 src, *dst;
-
-	if (mr->state != RXE_MR_STATE_VALID)
-		return RESPST_ERR_RKEY_VIOLATION;
-
-	memcpy(&src, payload_addr(pkt), payload);
-
-	dst = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset, payload);
-	/* check vaddr is 8 bytes aligned. */
-	if (!dst || (uintptr_t)dst & 7)
-		return RESPST_ERR_MISALIGNED_ATOMIC;
-
-	/* Do atomic write after all prior operations have completed */
-	smp_store_release(dst, src);
-
-	/* decrease resp.resid to zero */
-	qp->resp.resid -= sizeof(payload);
-
-	qp->resp.msn++;
-
-	/* next expected psn, read handles this separately */
-	qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
-	qp->resp.ack_psn = qp->resp.psn;
-
-	qp->resp.opcode = pkt->opcode;
-	qp->resp.status = IB_WC_SUCCESS;
-	return RESPST_ACKNOWLEDGE;
-}
-#else
-static enum resp_states do_atomic_write(struct rxe_qp *qp,
-					struct rxe_pkt_info *pkt)
-{
-	return RESPST_ERR_UNSUPPORTED_OPCODE;
-}
-#endif /* CONFIG_64BIT */
-
 static enum resp_states atomic_write_reply(struct rxe_qp *qp,
 					   struct rxe_pkt_info *pkt)
 {
 	struct resp_res *res = qp->resp.res;
+	struct rxe_mr *mr;
+	u64 value;
+	u64 iova;
+	int err;
 
 	if (!res) {
 		res = rxe_prepare_res(qp, pkt, RXE_ATOMIC_WRITE_MASK);
@@ -777,7 +739,26 @@ static enum resp_states atomic_write_reply(struct rxe_qp *qp,
 
 	if (res->replay)
 		return RESPST_ACKNOWLEDGE;
-	return do_atomic_write(qp, pkt);
+
+	mr = qp->resp.mr;
+	value = *(u64 *)payload_addr(pkt);
+	iova = qp->resp.va + qp->resp.offset;
+
+	err = rxe_mr_do_atomic_write(mr, iova, value);
+	if (err)
+		return err;
+
+	qp->resp.resid = 0;
+	qp->resp.msn++;
+
+	/* next expected psn, read handles this separately */
+	qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
+	qp->resp.ack_psn = qp->resp.psn;
+
+	qp->resp.opcode = pkt->opcode;
+	qp->resp.status = IB_WC_SUCCESS;
+
+	return RESPST_ACKNOWLEDGE;
 }
 
 static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
