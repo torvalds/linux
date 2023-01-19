@@ -149,6 +149,7 @@ struct ptp_qoriq {
 	struct device *dev;
 	bool extts_fifo_support;
 	bool fiper3_support;
+	bool etsec;
 	int irq;
 	int phc_index;
 	u32 tclk_period;  /* nanoseconds */
