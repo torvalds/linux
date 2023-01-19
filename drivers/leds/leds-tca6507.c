@@ -695,8 +695,7 @@ tca6507_led_dt_init(struct device *dev)
 					    &led.default_trigger);
 
 		led.flags = 0;
-		if (fwnode_property_match_string(child, "compatible",
-						 "gpio") >= 0)
+		if (fwnode_device_is_compatible(child, "gpio"))
 			led.flags |= TCA6507_MAKE_GPIO;
 
 		ret = fwnode_property_read_u32(child, "reg", &reg);
