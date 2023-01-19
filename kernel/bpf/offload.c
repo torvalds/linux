@@ -187,10 +187,47 @@ static void __bpf_offload_dev_netdev_unregister(struct bpf_offload_dev *offdev,
 	kfree(ondev);
 }
 
-int bpf_prog_dev_bound_init(struct bpf_prog *prog, union bpf_attr *attr)
+static int __bpf_prog_dev_bound_init(struct bpf_prog *prog, struct net_device *netdev)
 {
 	struct bpf_offload_netdev *ondev;
 	struct bpf_prog_offload *offload;
+	int err;
+
+	offload = kzalloc(sizeof(*offload), GFP_USER);
+	if (!offload)
+		return -ENOMEM;
+
+	offload->prog = prog;
+	offload->netdev = netdev;
+
+	ondev = bpf_offload_find_netdev(offload->netdev);
+	if (!ondev) {
+		if (bpf_prog_is_offloaded(prog->aux)) {
+			err = -EINVAL;
+			goto err_free;
+		}
+
+		/* When only binding to the device, explicitly
+		 * create an entry in the hashtable.
+		 */
+		err = __bpf_offload_dev_netdev_register(NULL, offload->netdev);
+		if (err)
+			goto err_free;
+		ondev = bpf_offload_find_netdev(offload->netdev);
+	}
+	offload->offdev = ondev->offdev;
+	prog->aux->offload = offload;
+	list_add_tail(&offload->offloads, &ondev->progs);
+
+	return 0;
+err_free:
+	kfree(offload);
+	return err;
+}
+
+int bpf_prog_dev_bound_init(struct bpf_prog *prog, union bpf_attr *attr)
+{
+	struct net_device *netdev;
 	int err;
 
 	if (attr->prog_type != BPF_PROG_TYPE_SCHED_CLS &&
@@ -204,49 +241,48 @@ int bpf_prog_dev_bound_init(struct bpf_prog *prog, union bpf_attr *attr)
 	    attr->prog_flags & BPF_F_XDP_DEV_BOUND_ONLY)
 		return -EINVAL;
 
-	offload = kzalloc(sizeof(*offload), GFP_USER);
-	if (!offload)
-		return -ENOMEM;
+	netdev = dev_get_by_index(current->nsproxy->net_ns, attr->prog_ifindex);
+	if (!netdev)
+		return -EINVAL;
 
-	offload->prog = prog;
-
-	offload->netdev = dev_get_by_index(current->nsproxy->net_ns,
-					   attr->prog_ifindex);
-	err = bpf_dev_offload_check(offload->netdev);
+	err = bpf_dev_offload_check(netdev);
 	if (err)
-		goto err_maybe_put;
+		goto out;
 
 	prog->aux->offload_requested = !(attr->prog_flags & BPF_F_XDP_DEV_BOUND_ONLY);
 
 	down_write(&bpf_devs_lock);
-	ondev = bpf_offload_find_netdev(offload->netdev);
-	if (!ondev) {
-		if (bpf_prog_is_offloaded(prog->aux)) {
-			err = -EINVAL;
-			goto err_unlock;
-		}
+	err = __bpf_prog_dev_bound_init(prog, netdev);
+	up_write(&bpf_devs_lock);
 
-		/* When only binding to the device, explicitly
-		 * create an entry in the hashtable.
-		 */
-		err = __bpf_offload_dev_netdev_register(NULL, offload->netdev);
-		if (err)
-			goto err_unlock;
-		ondev = bpf_offload_find_netdev(offload->netdev);
+out:
+	dev_put(netdev);
+	return err;
+}
+
+int bpf_prog_dev_bound_inherit(struct bpf_prog *new_prog, struct bpf_prog *old_prog)
+{
+	int err;
+
+	if (!bpf_prog_is_dev_bound(old_prog->aux))
+		return 0;
+
+	if (bpf_prog_is_offloaded(old_prog->aux))
+		return -EINVAL;
+
+	new_prog->aux->dev_bound = old_prog->aux->dev_bound;
+	new_prog->aux->offload_requested = old_prog->aux->offload_requested;
+
+	down_write(&bpf_devs_lock);
+	if (!old_prog->aux->offload) {
+		err = -EINVAL;
+		goto out;
 	}
-	offload->offdev = ondev->offdev;
-	prog->aux->offload = offload;
-	list_add_tail(&offload->offloads, &ondev->progs);
-	dev_put(offload->netdev);
-	up_write(&bpf_devs_lock);
 
-	return 0;
-err_unlock:
+	err = __bpf_prog_dev_bound_init(new_prog, old_prog->aux->offload->netdev);
+
+out:
 	up_write(&bpf_devs_lock);
-err_maybe_put:
-	if (offload->netdev)
-		dev_put(offload->netdev);
-	kfree(offload);
 	return err;
 }
 
@@ -674,6 +710,22 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct net_device *netdev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(bpf_offload_dev_match);
+
+bool bpf_prog_dev_bound_match(const struct bpf_prog *lhs, const struct bpf_prog *rhs)
+{
+	bool ret;
+
+	if (bpf_prog_is_offloaded(lhs->aux) != bpf_prog_is_offloaded(rhs->aux))
+		return false;
+
+	down_read(&bpf_devs_lock);
+	ret = lhs->aux->offload && rhs->aux->offload &&
+	      lhs->aux->offload->netdev &&
+	      lhs->aux->offload->netdev == rhs->aux->offload->netdev;
+	up_read(&bpf_devs_lock);
+
+	return ret;
+}
 
 bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map)
 {

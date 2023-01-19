@@ -2605,6 +2605,13 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr)
 			goto free_prog_sec;
 	}
 
+	if (type == BPF_PROG_TYPE_EXT && dst_prog &&
+	    bpf_prog_is_dev_bound(dst_prog->aux)) {
+		err = bpf_prog_dev_bound_inherit(prog, dst_prog);
+		if (err)
+			goto free_prog_sec;
+	}
+
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
 	if (err < 0)
