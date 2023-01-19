@@ -41,21 +41,6 @@ static void ice_free_vf_entries(struct ice_pf *pf)
 }
 
 /**
- * ice_vf_vsi_release - invalidate the VF's VSI after freeing it
- * @vf: invalidate this VF's VSI after freeing it
- */
-static void ice_vf_vsi_release(struct ice_vf *vf)
-{
-	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
-
-	if (WARN_ON(!vsi))
-		return;
-
-	ice_vsi_release(vsi);
-	ice_vf_invalidate_vsi(vf);
-}
-
-/**
  * ice_free_vf_res - Free a VF's resources
  * @vf: pointer to the VF info
  */

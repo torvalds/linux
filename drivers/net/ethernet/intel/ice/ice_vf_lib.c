@@ -1144,6 +1144,24 @@ void ice_vf_invalidate_vsi(struct ice_vf *vf)
 }
 
 /**
+ * ice_vf_vsi_release - Release the VF VSI and invalidate indexes
+ * @vf: pointer to the VF structure
+ *
+ * Release the VF associated with this VSI and then invalidate the VSI
+ * indexes.
+ */
+void ice_vf_vsi_release(struct ice_vf *vf)
+{
+	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
+
+	if (WARN_ON(!vsi))
+		return;
+
+	ice_vsi_release(vsi);
+	ice_vf_invalidate_vsi(vf);
+}
+
+/**
  * ice_vf_set_initialized - VF is ready for VIRTCHNL communication
  * @vf: VF to set in initialized state
  *
