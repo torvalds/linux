@@ -589,13 +589,20 @@ static __init int match_config_table(const efi_guid_t *guid,
 	int i;
 
 	for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
-		if (!efi_guidcmp(*guid, table_types[i].guid)) {
-			*(table_types[i].ptr) = table;
+		if (efi_guidcmp(*guid, table_types[i].guid))
+			continue;
+
+		if (!efi_config_table_is_usable(guid, table)) {
 			if (table_types[i].name[0])
-				pr_cont("%s=0x%lx ",
+				pr_cont("(%s=0x%lx unusable) ",
 					table_types[i].name, table);
 			return 1;
 		}
+
+		*(table_types[i].ptr) = table;
+		if (table_types[i].name[0])
+			pr_cont("%s=0x%lx ", table_types[i].name, table);
+		return 1;
 	}
 
 	return 0;

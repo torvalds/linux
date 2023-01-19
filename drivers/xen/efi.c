@@ -328,3 +328,28 @@ int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 
 	return 0;
 }
+
+bool __init xen_efi_config_table_is_usable(const efi_guid_t *guid,
+                                           unsigned long table)
+{
+	efi_memory_desc_t md;
+	int rc;
+
+	if (!efi_enabled(EFI_PARAVIRT))
+		return true;
+
+	rc = efi_mem_desc_lookup(table, &md);
+	if (rc)
+		return false;
+
+	switch (md.type) {
+	case EFI_RUNTIME_SERVICES_CODE:
+	case EFI_RUNTIME_SERVICES_DATA:
+	case EFI_ACPI_RECLAIM_MEMORY:
+	case EFI_ACPI_MEMORY_NVS:
+	case EFI_RESERVED_TYPE:
+		return true;
+	default:
+		return false;
+	}
+}
