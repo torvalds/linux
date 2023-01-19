@@ -47,8 +47,7 @@ properties:
     items:
       - const: dsi
 
-  operating-points-v2:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+  operating-points-v2: true
 
   power-domains:
     maxItems: 1
