@@ -1,6 +1,7 @@
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load(":msm_common.bzl", "get_out_dir")
 
-def define_abl_dist(target):
+def define_abl_dist(target, msm_target, variant):
     """Creates ABL distribution target
 
     Args:
@@ -14,7 +15,7 @@ def define_abl_dist(target):
     copy_to_dist_dir(
         name = "{}_abl_dist".format(target),
         archives = ["{}_abl".format(target)],
-        dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-")),
+        dist_dir = "{}/dist".format(get_out_dir(msm_target, variant)),
         flat = True,
         wipe_dist_dir = False,
         log = "info",

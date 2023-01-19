@@ -20,7 +20,7 @@ load(
     "get_dtstree",
     "get_vendor_ramdisk_binaries",
 )
-load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines")
+load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
 load(":super_image.bzl", "super_image")
@@ -264,7 +264,7 @@ def _define_image_build(
         ],
     )
 
-def _define_kernel_dist(target, base_kernel):
+def _define_kernel_dist(target, msm_target, variant, base_kernel):
     """Creates distribution targets for kernel builds
 
     When Bazel builds everything, the outputs end up buried in `bazel-bin`.
@@ -273,10 +273,12 @@ def _define_kernel_dist(target, base_kernel):
 
     Args:
       target: name of main Bazel target (e.g. `kalama_gki`)
+      msm_target: name of just the platform target (e.g. `kalama`)
+      variant: name of just the variant (e.g. `gki`)
       base_kernel: base kernel to fetch artifacts from (e.g. `//common:kernel_aarch64`)
     """
 
-    dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-"))
+    dist_dir = get_out_dir(msm_target, variant) + "/dist"
 
     msm_dist_targets = [
         # do not sort
@@ -403,11 +405,11 @@ def define_msm_la(
         in_tree_module_list = in_tree_module_list,
     )
 
-    _define_kernel_dist(target, base_kernel)
+    _define_kernel_dist(target, msm_target, variant, base_kernel)
 
-    define_abl_dist(target)
+    define_abl_dist(target, msm_target, variant)
 
-    define_dtc_dist(target)
+    define_dtc_dist(target, msm_target, variant)
 
     define_uapi_library(target)
 

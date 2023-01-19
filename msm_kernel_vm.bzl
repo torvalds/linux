@@ -19,7 +19,7 @@ load(
     "get_dtstree",
     "get_vendor_ramdisk_binaries",
 )
-load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines")
+load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":image_opts.bzl", "vm_image_opts")
 load(":uapi_library.bzl", "define_uapi_library")
@@ -169,7 +169,7 @@ def _define_kernel_build(
             kernel_build = ":{}".format(target),
         )
 
-def _define_kernel_dist(target):
+def _define_kernel_dist(target, msm_target, variant):
     """Creates distribution targets for kernel builds
 
     When Bazel builds everything, the outputs end up buried in `bazel-bin`.
@@ -180,7 +180,7 @@ def _define_kernel_dist(target):
       target: name of main Bazel target (e.g. `kalama_gki`)
     """
 
-    dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-"))
+    dist_dir = get_out_dir(msm_target, variant) + "/dist"
 
     msm_dist_targets = [
         # do not sort
@@ -260,9 +260,9 @@ def define_msm_vm(
         define_compile_commands,
     )
 
-    _define_kernel_dist(target)
+    _define_kernel_dist(target, msm_target, variant)
 
-    define_dtc_dist(target)
+    define_dtc_dist(target, msm_target, variant)
 
     define_uapi_library(target)
 

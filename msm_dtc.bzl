@@ -1,6 +1,7 @@
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load(":msm_common.bzl", "get_out_dir")
 
-def define_dtc_dist(target):
+def define_dtc_dist(target, msm_target, variant):
     """Create distribution targets for device tree compiler and associated tools
 
     Args:
@@ -52,7 +53,7 @@ def define_dtc_dist(target):
     copy_to_dist_dir(
         name = "{}_dtc_dist".format(target),
         archives = [":{}_dtc_tarball".format(target)],
-        dist_dir = "out/msm-kernel-{}/host".format(target.replace("_", "-")),
+        dist_dir = "{}/host".format(get_out_dir(msm_target, variant)),
         flat = True,
         wipe_dist_dir = True,
         log = "info",
