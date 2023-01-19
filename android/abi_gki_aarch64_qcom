@@ -2849,6 +2849,7 @@
   set_capacity
   set_capacity_and_notify
   set_cpus_allowed_ptr
+  set_direct_map_range_uncached
   set_next_entity
   set_normalized_timespec64
   set_page_dirty_lock
