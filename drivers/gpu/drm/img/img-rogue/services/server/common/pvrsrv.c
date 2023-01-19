@@ -2144,6 +2144,7 @@ PVRSRV_ERROR PVRSRVCommonDeviceInitialise(PVRSRV_DEVICE_NODE *psDeviceNode)
 	eError = OSLockCreate(&psDeviceNode->hConnectionsLock);
 	PVR_LOG_RETURN_IF_ERROR(eError, "OSLockCreate");
 
+	PVRSRVSetSystemPowerState(psDeviceNode->psDevConfig, PVRSRV_SYS_POWER_STATE_ON);
 	/* Allocate process statistics */
 #if defined(PVRSRV_ENABLE_PROCESS_STATS) && !defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS)
 	eError = PVRSRVStatsRegisterProcess(&hProcessStats);

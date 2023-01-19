@@ -17,8 +17,8 @@
 
 #define STARFIVE_USE_SCU			BIT(0)
 
-#define SYS_IRQ_REG_SUSPENDED_NUM		11
-#define AON_IRQ_REG_SUSPENDED_NUM		6
+#define SYS_REG_SUSPENDED_NUM			174
+#define AON_REG_SUSPENDED_NUM			37
 
 struct platform_device;
 
@@ -78,8 +78,8 @@ struct starfive_pinctrl {
 	unsigned long enabled;
 	unsigned int trigger[MAX_GPIO];
 
-	u32 sys_irq_reg_suspended[SYS_IRQ_REG_SUSPENDED_NUM];
-	u32 aon_irq_reg_suspended[AON_IRQ_REG_SUSPENDED_NUM];
+	u32 sys_reg_suspended[SYS_REG_SUSPENDED_NUM];
+	u32 aon_reg_suspended[AON_REG_SUSPENDED_NUM];
 };
 
 struct starfive_pinctrl_soc_info {
