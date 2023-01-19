@@ -251,9 +251,9 @@ static int sysv_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 
 out_dir:
 	if (dir_de)
-		dir_put_page(dir_page);
+		dir_put_page(dir_page, dir_de);
 out_old:
-	dir_put_page(old_page);
+	dir_put_page(old_page, old_de);
 out:
 	return err;
 }
