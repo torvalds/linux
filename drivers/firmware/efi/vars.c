@@ -62,18 +62,27 @@ EXPORT_SYMBOL_GPL(efivar_is_available);
 int efivars_register(struct efivars *efivars,
 		     const struct efivar_operations *ops)
 {
+	int rv;
+
 	if (down_interruptible(&efivars_lock))
 		return -EINTR;
+
+	if (__efivars) {
+		pr_warn("efivars already registered\n");
+		rv = -EBUSY;
+		goto out;
+	}
 
 	efivars->ops = ops;
 
 	__efivars = efivars;
 
 	pr_info("Registered efivars operations\n");
-
+	rv = 0;
+out:
 	up(&efivars_lock);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL_GPL(efivars_register);
 
