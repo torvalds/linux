@@ -1131,8 +1131,6 @@ static void handle___pkvm_iommu_driver_init(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(void *, data, host_ctxt, 2);
 	DECLARE_REG(size_t, size, host_ctxt, 3);
 
-	/* __pkvm_iommu_driver_init expects hyp_va as it can be called from EL2 as a function. */
-	drv = kern_hyp_va(drv);
 	data = kern_hyp_va(data);
 
 	cpu_reg(host_ctxt, 1) = __pkvm_iommu_driver_init(drv, data, size);
@@ -1148,8 +1146,6 @@ static void handle___pkvm_iommu_register(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(void *, mem, host_ctxt, 6);
 	DECLARE_REG(size_t, mem_size, host_ctxt, 7);
 
-	/* drv_id is the hyp address of the driver. */
-	drv_id = kern_hyp_va(drv_id);
 	cpu_reg(host_ctxt, 1) = __pkvm_iommu_register(dev_id, drv_id, dev_pa,
 						      dev_size, parent_id,
 						      mem, mem_size);
@@ -1181,7 +1177,7 @@ static void handle___pkvm_map_module_page(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(void *, va, host_ctxt, 2);
 	DECLARE_REG(enum kvm_pgtable_prot, prot, host_ctxt, 3);
 
-	cpu_reg(host_ctxt, 1) = (u64)__pkvm_map_module_page(pfn, va, prot);
+	cpu_reg(host_ctxt, 1) = (u64)__pkvm_map_module_page(pfn, va, prot, false);
 }
 
 static void handle___pkvm_unmap_module_page(struct kvm_cpu_context *host_ctxt)
@@ -1229,6 +1225,13 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__kvm_tlb_flush_vmid_ipa),
 	HANDLE_FUNC(__kvm_tlb_flush_vmid),
 	HANDLE_FUNC(__kvm_flush_cpu_context),
+
+	HANDLE_FUNC(__pkvm_alloc_module_va),
+	HANDLE_FUNC(__pkvm_map_module_page),
+	HANDLE_FUNC(__pkvm_unmap_module_page),
+	HANDLE_FUNC(__pkvm_init_module),
+	HANDLE_FUNC(__pkvm_register_hcall),
+	HANDLE_FUNC(__pkvm_close_module_registration),
 	HANDLE_FUNC(__pkvm_prot_finalize),
 
 	HANDLE_FUNC(__pkvm_host_share_hyp),
@@ -1250,13 +1253,23 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_iommu_register),
 	HANDLE_FUNC(__pkvm_iommu_pm_notify),
 	HANDLE_FUNC(__pkvm_iommu_finalize),
-	HANDLE_FUNC(__pkvm_alloc_module_va),
-	HANDLE_FUNC(__pkvm_map_module_page),
-	HANDLE_FUNC(__pkvm_unmap_module_page),
-	HANDLE_FUNC(__pkvm_init_module),
-	HANDLE_FUNC(__pkvm_register_hcall),
-	HANDLE_FUNC(__pkvm_close_module_registration),
 };
+
+unsigned long pkvm_priv_hcall_limit __ro_after_init = __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize;
+
+int reset_pkvm_priv_hcall_limit(void)
+{
+	unsigned long *addr;
+
+	if (pkvm_priv_hcall_limit == __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize)
+		return -EACCES;
+
+	addr = hyp_fixmap_map(__hyp_pa(&pkvm_priv_hcall_limit));
+	*addr = KVM_HOST_SMCCC_FUNC(__pkvm_prot_finalize);
+	hyp_fixmap_unmap();
+
+	return 0;
+}
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 {
@@ -1277,7 +1290,7 @@ static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 	 * returns -EPERM after the first call for a given CPU.
 	 */
 	if (static_branch_unlikely(&kvm_protected_mode_initialized))
-		hcall_min = __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize;
+		hcall_min = pkvm_priv_hcall_limit;
 
 	id -= KVM_HOST_SMCCC_ID(0);
 

@@ -2234,3 +2234,14 @@ int host_stage2_protect_pages_locked(phys_addr_t addr, u64 size)
 
 	return ret;
 }
+
+int host_stage2_get_leaf(phys_addr_t phys, kvm_pte_t *ptep, u32 *level)
+{
+	int ret;
+
+	host_lock_component();
+	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, phys, ptep, level);
+	host_unlock_component();
+
+	return ret;
+}
