@@ -516,7 +516,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 				      "hisi_sccl%u_ddrc%u", ddrc_pmu->sccl_id,
 				      ddrc_pmu->index_id);
 
-	hisi_pmu_init(&ddrc_pmu->pmu, name, ddrc_pmu->pmu_events.attr_groups, THIS_MODULE);
+	hisi_pmu_init(ddrc_pmu, name, THIS_MODULE);
 
 	ret = perf_pmu_register(&ddrc_pmu->pmu, name, -1);
 	if (ret) {
