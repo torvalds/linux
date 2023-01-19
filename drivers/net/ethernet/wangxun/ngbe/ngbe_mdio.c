@@ -92,7 +92,7 @@ static int ngbe_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devn
 
 	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0x0);
 	/* setup and write the address cycle command */
-	command = NGBE_MSCA_RA(mdiobus_c45_regad(regnum)) |
+	command = NGBE_MSCA_RA(regnum) |
 		  NGBE_MSCA_PA(phy_addr) |
 		  NGBE_MSCA_DA(devnum);
 	wr32(wx, NGBE_MSCA, command);
@@ -121,7 +121,7 @@ static int ngbe_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
 
 	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0x0);
 	/* setup and write the address cycle command */
-	command = NGBE_MSCA_RA(mdiobus_c45_regad(regnum)) |
+	command = NGBE_MSCA_RA(regnum) |
 		  NGBE_MSCA_PA(phy_addr) |
 		  NGBE_MSCA_DA(devnum);
 	wr32(wx, NGBE_MSCA, command);
