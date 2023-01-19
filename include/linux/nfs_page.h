@@ -190,6 +190,19 @@ static inline struct page *nfs_page_to_page(const struct nfs_page *req,
 }
 
 /**
+ * nfs_page_to_inode - Retrieve an inode for the request
+ * @req: pointer to a struct nfs_page
+ */
+static inline struct inode *nfs_page_to_inode(const struct nfs_page *req)
+{
+	struct folio *folio = nfs_page_to_folio(req);
+
+	if (folio == NULL)
+		return page_file_mapping(req->wb_page)->host;
+	return folio_file_mapping(folio)->host;
+}
+
+/**
  * nfs_page_max_length - Retrieve the maximum possible length for a request
  * @req: pointer to a struct nfs_page
  *

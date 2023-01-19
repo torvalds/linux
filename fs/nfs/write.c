@@ -421,7 +421,7 @@ static void nfs_set_page_writeback(struct page *page)
 
 static void nfs_end_page_writeback(struct nfs_page *req)
 {
-	struct inode *inode = page_file_mapping(req->wb_page)->host;
+	struct inode *inode = nfs_page_to_inode(req);
 	struct nfs_server *nfss = NFS_SERVER(inode);
 	bool is_done;
 
@@ -592,8 +592,7 @@ nfs_lock_and_join_requests(struct page *page)
 
 static void nfs_write_error(struct nfs_page *req, int error)
 {
-	trace_nfs_write_error(page_file_mapping(req->wb_page)->host, req,
-			      error);
+	trace_nfs_write_error(nfs_page_to_inode(req), req, error);
 	nfs_mapping_set_error(req->wb_page, error);
 	nfs_inode_remove_request(req);
 	nfs_end_page_writeback(req);
@@ -1420,7 +1419,7 @@ static void nfs_initiate_write(struct nfs_pgio_header *hdr,
  */
 static void nfs_redirty_request(struct nfs_page *req)
 {
-	struct nfs_inode *nfsi = NFS_I(page_file_mapping(req->wb_page)->host);
+	struct nfs_inode *nfsi = NFS_I(nfs_page_to_inode(req));
 
 	/* Bump the transmission count */
 	req->wb_nio++;
