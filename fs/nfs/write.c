@@ -2115,11 +2115,6 @@ out_error:
 	return ret;
 }
 
-int nfs_wb_page(struct inode *inode, struct page *page)
-{
-	return nfs_wb_folio(inode, page_folio(page));
-}
-
 #ifdef CONFIG_MIGRATION
 int nfs_migrate_folio(struct address_space *mapping, struct folio *dst,
 		struct folio *src, enum migrate_mode mode)
