@@ -2348,6 +2348,33 @@ static int prctl_set_vma(unsigned long opt, unsigned long start,
 }
 #endif /* CONFIG_ANON_VMA_NAME */
 
+static inline int prctl_set_mdwe(unsigned long bits, unsigned long arg3,
+				 unsigned long arg4, unsigned long arg5)
+{
+	if (arg3 || arg4 || arg5)
+		return -EINVAL;
+
+	if (bits & ~(PR_MDWE_REFUSE_EXEC_GAIN))
+		return -EINVAL;
+
+	if (bits & PR_MDWE_REFUSE_EXEC_GAIN)
+		set_bit(MMF_HAS_MDWE, &current->mm->flags);
+	else if (test_bit(MMF_HAS_MDWE, &current->mm->flags))
+		return -EPERM; /* Cannot unset the flag */
+
+	return 0;
+}
+
+static inline int prctl_get_mdwe(unsigned long arg2, unsigned long arg3,
+				 unsigned long arg4, unsigned long arg5)
+{
+	if (arg2 || arg3 || arg4 || arg5)
+		return -EINVAL;
+
+	return test_bit(MMF_HAS_MDWE, &current->mm->flags) ?
+		PR_MDWE_REFUSE_EXEC_GAIN : 0;
+}
+
 SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		unsigned long, arg4, unsigned long, arg5)
 {
@@ -2623,6 +2650,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		error = sched_core_share_pid(arg2, arg3, arg4, arg5);
 		break;
 #endif
+	case PR_SET_MDWE:
+		error = prctl_set_mdwe(arg2, arg3, arg4, arg5);
+		break;
+	case PR_GET_MDWE:
+		error = prctl_get_mdwe(arg2, arg3, arg4, arg5);
+		break;
 	case PR_SET_VMA:
 		error = prctl_set_vma(arg2, arg3, arg4, arg5);
 		break;
