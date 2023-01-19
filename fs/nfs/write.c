@@ -2093,7 +2093,7 @@ int nfs_wb_folio(struct inode *inode, struct folio *folio)
 	};
 	int ret;
 
-	trace_nfs_writeback_page_enter(inode);
+	trace_nfs_writeback_folio(inode, folio);
 
 	for (;;) {
 		folio_wait_writeback(folio);
@@ -2111,7 +2111,7 @@ int nfs_wb_folio(struct inode *inode, struct folio *folio)
 			goto out_error;
 	}
 out_error:
-	trace_nfs_writeback_page_exit(inode, ret);
+	trace_nfs_writeback_folio_done(inode, folio, ret);
 	return ret;
 }
 

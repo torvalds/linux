@@ -152,8 +152,6 @@ DEFINE_NFS_INODE_EVENT(nfs_getattr_enter);
 DEFINE_NFS_INODE_EVENT_DONE(nfs_getattr_exit);
 DEFINE_NFS_INODE_EVENT(nfs_setattr_enter);
 DEFINE_NFS_INODE_EVENT_DONE(nfs_setattr_exit);
-DEFINE_NFS_INODE_EVENT(nfs_writeback_page_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_writeback_page_exit);
 DEFINE_NFS_INODE_EVENT(nfs_writeback_inode_enter);
 DEFINE_NFS_INODE_EVENT_DONE(nfs_writeback_inode_exit);
 DEFINE_NFS_INODE_EVENT(nfs_fsync_enter);
@@ -1031,6 +1029,9 @@ DECLARE_EVENT_CLASS(nfs_folio_event_done,
 
 DEFINE_NFS_FOLIO_EVENT(nfs_aop_readpage);
 DEFINE_NFS_FOLIO_EVENT_DONE(nfs_aop_readpage_done);
+
+DEFINE_NFS_FOLIO_EVENT(nfs_writeback_folio);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_writeback_folio_done);
 
 DEFINE_NFS_FOLIO_EVENT(nfs_invalidate_folio);
 DEFINE_NFS_FOLIO_EVENT_DONE(nfs_launder_folio_done);
