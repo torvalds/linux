@@ -68,7 +68,6 @@ static void udf_prealloc_extents(struct inode *, int, int,
 static void udf_merge_extents(struct inode *, struct kernel_long_ad *, int *);
 static int udf_update_extents(struct inode *, struct kernel_long_ad *, int,
 			      int, struct extent_position *);
-static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 static void __udf_clear_extent_cache(struct inode *inode)
 {

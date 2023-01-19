@@ -134,6 +134,57 @@ const struct address_space_operations udf_adinicb_aops = {
 	.direct_IO	= udf_adinicb_direct_IO,
 };
 
+static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct inode *inode = file_inode(vma->vm_file);
+	struct address_space *mapping = inode->i_mapping;
+	struct page *page = vmf->page;
+	loff_t size;
+	unsigned int end;
+	vm_fault_t ret = VM_FAULT_LOCKED;
+	int err;
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vma->vm_file);
+	filemap_invalidate_lock_shared(mapping);
+	lock_page(page);
+	size = i_size_read(inode);
+	if (page->mapping != inode->i_mapping || page_offset(page) >= size) {
+		unlock_page(page);
+		ret = VM_FAULT_NOPAGE;
+		goto out_unlock;
+	}
+	/* Space is already allocated for in-ICB file */
+	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		goto out_dirty;
+	if (page->index == size >> PAGE_SHIFT)
+		end = size & ~PAGE_MASK;
+	else
+		end = PAGE_SIZE;
+	err = __block_write_begin(page, 0, end, udf_get_block);
+	if (!err)
+		err = block_commit_write(page, 0, end);
+	if (err < 0) {
+		unlock_page(page);
+		ret = block_page_mkwrite_return(err);
+		goto out_unlock;
+	}
+out_dirty:
+	set_page_dirty(page);
+	wait_for_stable_page(page);
+out_unlock:
+	filemap_invalidate_unlock_shared(mapping);
+	sb_end_pagefault(inode->i_sb);
+	return ret;
+}
+
+static const struct vm_operations_struct udf_file_vm_ops = {
+	.fault		= filemap_fault,
+	.map_pages	= filemap_map_pages,
+	.page_mkwrite	= udf_page_mkwrite,
+};
+
 static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	ssize_t retval;
@@ -238,11 +289,19 @@ static int udf_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int udf_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	file_accessed(file);
+	vma->vm_ops = &udf_file_vm_ops;
+
+	return 0;
+}
+
 const struct file_operations udf_file_operations = {
 	.read_iter		= generic_file_read_iter,
 	.unlocked_ioctl		= udf_ioctl,
 	.open			= generic_file_open,
-	.mmap			= generic_file_mmap,
+	.mmap			= udf_file_mmap,
 	.write_iter		= udf_file_write_iter,
 	.release		= udf_release_file,
 	.fsync			= generic_file_fsync,
