@@ -64,15 +64,13 @@ static const struct i2c_algo_bit_data i2c_versatile_algo = {
 static int i2c_versatile_probe(struct platform_device *dev)
 {
 	struct i2c_versatile *i2c;
-	struct resource *r;
 	int ret;
 
 	i2c = devm_kzalloc(&dev->dev, sizeof(struct i2c_versatile), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	i2c->base = devm_ioremap_resource(&dev->dev, r);
+	i2c->base = devm_platform_get_and_ioremap_resource(dev, 0, NULL);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
