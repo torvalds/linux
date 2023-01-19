@@ -1489,6 +1489,7 @@
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
 			clock-names = "slave_iface";
 			#phy-cells = <0>;
+			#clock-cells = <0>;
 
 			status = "disabled";
 		};
