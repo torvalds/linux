@@ -920,6 +920,9 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		req = nfs_list_entry(head->next);
 		nfs_list_move_request(req, &hdr->pages);
 
+		if (req->wb_pgbase == 0)
+			last_page = NULL;
+
 		if (!last_page || last_page != req->wb_page) {
 			pageused++;
 			if (pageused > pagecount)
