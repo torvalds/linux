@@ -699,6 +699,32 @@ void ice_set_vf_state_qs_dis(struct ice_vf *vf)
 /* Private functions only accessed from other virtualization files */
 
 /**
+ * ice_initialize_vf_entry - Initialize a VF entry
+ * @vf: pointer to the VF structure
+ */
+void ice_initialize_vf_entry(struct ice_vf *vf)
+{
+	struct ice_pf *pf = vf->pf;
+	struct ice_vfs *vfs;
+
+	vfs = &pf->vfs;
+
+	/* assign default capabilities */
+	vf->spoofchk = true;
+	vf->num_vf_qs = vfs->num_qps_per;
+	ice_vc_set_default_allowlist(vf);
+	ice_virtchnl_set_dflt_ops(vf);
+
+	/* ctrl_vsi_idx will be set to a valid value only when iAVF
+	 * creates its first fdir rule.
+	 */
+	ice_vf_ctrl_invalidate_vsi(vf);
+	ice_vf_fdir_init(vf);
+
+	mutex_init(&vf->cfg_lock);
+}
+
+/**
  * ice_dis_vf_qs - Disable the VF queues
  * @vf: pointer to the VF structure
  */
