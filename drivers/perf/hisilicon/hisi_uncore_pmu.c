@@ -546,6 +546,7 @@ void hisi_pmu_init(struct pmu *pmu, const char *name,
 	pmu->stop               = hisi_uncore_pmu_stop;
 	pmu->read               = hisi_uncore_pmu_read;
 	pmu->attr_groups        = attr_groups;
+	pmu->capabilities       = PERF_PMU_CAP_NO_EXCLUDE;
 }
 EXPORT_SYMBOL_GPL(hisi_pmu_init);
 
