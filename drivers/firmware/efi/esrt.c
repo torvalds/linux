@@ -247,7 +247,7 @@ void __init efi_esrt_init(void)
 	int rc;
 	phys_addr_t end;
 
-	if (!efi_enabled(EFI_MEMMAP))
+	if (!efi_enabled(EFI_MEMMAP) && !efi_enabled(EFI_PARAVIRT))
 		return;
 
 	pr_debug("esrt-init: loading.\n");
@@ -258,7 +258,9 @@ void __init efi_esrt_init(void)
 	if (rc < 0 ||
 	    (!(md.attribute & EFI_MEMORY_RUNTIME) &&
 	     md.type != EFI_BOOT_SERVICES_DATA &&
-	     md.type != EFI_RUNTIME_SERVICES_DATA)) {
+	     md.type != EFI_RUNTIME_SERVICES_DATA &&
+	     md.type != EFI_ACPI_RECLAIM_MEMORY &&
+	     md.type != EFI_ACPI_MEMORY_NVS)) {
 		pr_warn("ESRT header is not in the memory map.\n");
 		return;
 	}
