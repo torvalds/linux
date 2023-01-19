@@ -3930,9 +3930,11 @@ static void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
 
 	/* adjust offset randomly to avoid beacon conflict */
 	offset = offset - offset / 4 + get_random_u32() % (offset / 2);
-	val = RTW89_PORT_OFFSET_MS_TO_32US((*n_offset)++, offset);
+	val = (*n_offset) * RTW89_PORT_OFFSET_TU_TO_32US(offset);
 	reg = rtw89_mac_reg_by_idx(R_AX_PORT0_TSF_SYNC + rtwvif->port * 4,
 				   rtwvif->mac_idx);
+
+	(*n_offset)++;
 
 	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_SRC, rtwvif_src->port);
 	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_OFFSET_VAL, val);
