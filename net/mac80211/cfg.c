@@ -4662,7 +4662,7 @@ void ieee80211_color_change_finish(struct ieee80211_vif *vif)
 EXPORT_SYMBOL_GPL(ieee80211_color_change_finish);
 
 void
-ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
+ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
 				       u64 color_bitmap, gfp_t gfp)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
@@ -4672,7 +4672,7 @@ ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
 
 	cfg80211_obss_color_collision_notify(sdata->dev, color_bitmap, gfp);
 }
-EXPORT_SYMBOL_GPL(ieeee80211_obss_color_collision_notify);
+EXPORT_SYMBOL_GPL(ieee80211_obss_color_collision_notify);
 
 static int
 ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
