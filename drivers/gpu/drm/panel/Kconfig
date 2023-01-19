@@ -696,6 +696,16 @@ config DRM_PANEL_SONY_ACX565AKM
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
 
+config DRM_PANEL_SONY_TD4353_JDI
+	tristate "Sony TD4353 JDI panel"
+	depends on GPIOLIB && OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sony Tama
+	  TD4353 JDI command mode panel as found on some Sony Xperia
+	  XZ2 and XZ2 Compact smartphones.
+
 config DRM_PANEL_SONY_TULIP_TRULY_NT35521
 	tristate "Sony Tulip Truly NT35521 panel"
 	depends on GPIOLIB && OF
