@@ -290,9 +290,8 @@ static int rpi_firmware_probe(struct platform_device *pdev)
 	fw->chan = mbox_request_channel(&fw->cl, 0);
 	if (IS_ERR(fw->chan)) {
 		int ret = PTR_ERR(fw->chan);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get mbox channel: %d\n", ret);
-		return ret;
+		kfree(fw);
+		return dev_err_probe(dev, ret, "Failed to get mbox channel\n");
 	}
 
 	init_completion(&fw->c);

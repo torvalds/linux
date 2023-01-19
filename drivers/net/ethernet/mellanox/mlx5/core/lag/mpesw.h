@@ -12,7 +12,6 @@ struct lag_mpesw {
 	atomic_t mpesw_rule_count;
 };
 
-void mlx5_mpesw_work(struct work_struct *work);
 int mlx5_lag_do_mirred(struct mlx5_core_dev *mdev, struct net_device *out_dev);
 bool mlx5_lag_mpesw_is_activated(struct mlx5_core_dev *dev);
 #if IS_ENABLED(CONFIG_MLX5_ESWITCH)

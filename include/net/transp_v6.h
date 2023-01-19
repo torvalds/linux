@@ -58,8 +58,6 @@ ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp, __u16 srcp,
 
 #define LOOPBACK4_IPV6 cpu_to_be32(0x7f000006)
 
-void inet6_destroy_sock(struct sock *sk);
-
 #define IPV6_SEQ_DGRAM_HEADER					       \
 	"  sl  "						       \
 	"local_address                         "		       \

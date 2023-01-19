@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/usb/ti,j721e-usb.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Bindings for the TI wrapper module for the Cadence USBSS-DRD controller
+title: TI wrapper module for the Cadence USBSS-DRD controller
 
 maintainers:
   - Roger Quadros <rogerq@kernel.org>

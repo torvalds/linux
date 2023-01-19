@@ -967,7 +967,7 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 	if (acpi_power_get_state(resource, &state_dummy))
 		__acpi_power_on(resource);
 
-	pr_info("%s [%s]\n", acpi_device_name(device), acpi_device_bid(device));
+	acpi_handle_info(handle, "New power resource\n");
 
 	result = acpi_tie_acpi_dev(device);
 	if (result)

@@ -26,6 +26,8 @@ struct ieee802154_local {
 	struct ieee802154_hw hw;
 	const struct ieee802154_ops *ops;
 
+	/* hardware address filter */
+	struct ieee802154_hw_addr_filt addr_filt;
 	/* ieee802154 phy */
 	struct wpan_phy *phy;
 
@@ -55,7 +57,7 @@ struct ieee802154_local {
 	struct sk_buff_head skb_queue;
 
 	struct sk_buff *tx_skb;
-	struct work_struct tx_work;
+	struct work_struct sync_tx_work;
 	/* A negative Linux error code or a null/positive MLME error status */
 	int tx_result;
 };
@@ -81,6 +83,16 @@ struct ieee802154_sub_if_data {
 
 	struct ieee802154_local *local;
 	struct net_device *dev;
+
+	/* Each interface starts and works in nominal state at a given filtering
+	 * level given by iface_default_filtering, which is set once for all at
+	 * the interface creation and should not evolve over time. For some MAC
+	 * operations however, the filtering level may change temporarily, as
+	 * reflected in the required_filtering field. The actual filtering at
+	 * the PHY level may be different and is shown in struct wpan_phy.
+	 */
+	enum ieee802154_filtering_level iface_default_filtering;
+	enum ieee802154_filtering_level required_filtering;
 
 	unsigned long state;
 	char name[IFNAMSIZ];
@@ -123,12 +135,52 @@ ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
 void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb);
-void ieee802154_xmit_worker(struct work_struct *work);
+void ieee802154_xmit_sync_worker(struct work_struct *work);
+int ieee802154_sync_and_hold_queue(struct ieee802154_local *local);
+int ieee802154_mlme_op_pre(struct ieee802154_local *local);
+int ieee802154_mlme_tx(struct ieee802154_local *local,
+		       struct ieee802154_sub_if_data *sdata,
+		       struct sk_buff *skb);
+void ieee802154_mlme_op_post(struct ieee802154_local *local);
+int ieee802154_mlme_tx_one(struct ieee802154_local *local,
+			   struct ieee802154_sub_if_data *sdata,
+			   struct sk_buff *skb);
 netdev_tx_t
 ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t
 ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer);
+
+/**
+ * ieee802154_hold_queue - hold ieee802154 queue
+ * @local: main mac object
+ *
+ * Hold a queue by incrementing an atomic counter and requesting the netif
+ * queues to be stopped. The queues cannot be woken up while the counter has not
+ * been reset with as any ieee802154_release_queue() calls as needed.
+ */
+void ieee802154_hold_queue(struct ieee802154_local *local);
+
+/**
+ * ieee802154_release_queue - release ieee802154 queue
+ * @local: main mac object
+ *
+ * Release a queue which is held by decrementing an atomic counter and wake it
+ * up only if the counter reaches 0.
+ */
+void ieee802154_release_queue(struct ieee802154_local *local);
+
+/**
+ * ieee802154_disable_queue - disable ieee802154 queue
+ * @local: main mac object
+ *
+ * When trying to sync the Tx queue, we cannot just stop the queue
+ * (which is basically a bit being set without proper lock handling)
+ * because it would be racy. We actually need to call netif_tx_disable()
+ * instead, which is done by this helper. Restarting the queue can
+ * however still be done with a regular wake call.
+ */
+void ieee802154_disable_queue(struct ieee802154_local *local);
 
 /* MIB callbacks */
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);

@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0-only
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021 - 2022 Intel Corporation
  */
 
 #ifndef __sap_h__
@@ -25,7 +25,7 @@
  *
  * Since this messaging system cannot support high amounts of
  * traffic, iwlwifi and the CSME firmware's WLAN driver have an
- * addtional communication pipe to exchange information. The body
+ * additional communication pipe to exchange information. The body
  * of the message is copied to a shared area and the message that
  * goes over the ME interface just signals the other side
  * that a new message is waiting in the shared area. The ME
@@ -55,7 +55,7 @@
 /**
  * DOC: Host and driver state messages
  *
- * In order to let CSME konw about the host state and the host driver state,
+ * In order to let CSME know about the host state and the host driver state,
  * the host sends messages that let CSME know about the host's state.
  * When the host driver is loaded, the host sends %SAP_MSG_NOTIF_WIFIDR_UP.
  * When the host driver is unloaded, the host sends %SAP_MSG_NOTIF_WIFIDR_DOWN.
@@ -76,7 +76,7 @@
  * DOC: Ownership
  *
  * The device can be controlled either by the CSME firmware or
- * by the host driver: iwlwifi. There is a negotiaion between
+ * by the host driver: iwlwifi. There is a negotiation between
  * those two entities to determine who controls (or owns) the
  * device. Since the CSME can control the device even when the
  * OS is not working or even missing, the CSME can request the
@@ -136,7 +136,7 @@ enum iwl_sap_me_msg_id {
  * struct iwl_sap_me_msg_hdr - the header of the ME message
  * @type: the type of the message, see &enum iwl_sap_me_msg_id.
  * @seq_num: a sequence number used for debug only.
- * @len: the length of the mssage.
+ * @len: the length of the message.
  */
 struct iwl_sap_me_msg_hdr {
 	__le32 type;
@@ -203,6 +203,7 @@ struct iwl_sap_me_msg_start_ok {
  * @SAP_MSG_NOTIF_NIC_OWNER: Payload is a DW. See &enum iwl_sap_nic_owner.
  * @SAP_MSG_NOTIF_CSME_CONN_STATUS: See &struct iwl_sap_notif_conn_status.
  * @SAP_MSG_NOTIF_NVM: See &struct iwl_sap_nvm.
+ * @SAP_MSG_NOTIF_PLDR_ACK: See &struct iwl_sap_pldr_ack_data.
  * @SAP_MSG_NOTIF_FROM_CSME_MAX: Not used.
  *
  * @SAP_MSG_NOTIF_FROM_HOST_MIN: Not used.
@@ -226,6 +227,8 @@ struct iwl_sap_me_msg_start_ok {
  * @SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED: No payload.
  * @SAP_MSG_NOTIF_SAR_LIMITS: See &struct iwl_sap_notif_sar_limits.
  * @SAP_MSG_NOTIF_GET_NVM: No payload. Triggers %SAP_MSG_NOTIF_NVM.
+ * @SAP_MSG_NOTIF_PLDR: See &struct iwl_sap_pldr_data.
+ * @SAP_MSG_NOTIF_PLDR_END: See &struct iwl_sap_pldr_end_data.
  * @SAP_MSG_NOTIF_FROM_HOST_MAX: Not used.
  *
  * @SAP_MSG_DATA_MIN: Not used.
@@ -258,6 +261,8 @@ enum iwl_sap_msg {
 	SAP_MSG_NOTIF_NIC_OWNER				= 511,
 	SAP_MSG_NOTIF_CSME_CONN_STATUS			= 512,
 	SAP_MSG_NOTIF_NVM				= 513,
+	/* 514 - 517 not supported */
+	SAP_MSG_NOTIF_PLDR_ACK				= 518,
 	SAP_MSG_NOTIF_FROM_CSME_MAX,
 
 	SAP_MSG_NOTIF_FROM_HOST_MIN			= 1000,
@@ -279,6 +284,9 @@ enum iwl_sap_msg {
 	SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED		= 1015,
 	SAP_MSG_NOTIF_SAR_LIMITS			= 1016,
 	SAP_MSG_NOTIF_GET_NVM				= 1017,
+	/* 1018 - 1023 not supported */
+	SAP_MSG_NOTIF_PLDR				= 1024,
+	SAP_MSG_NOTIF_PLDR_END				= 1025,
 	SAP_MSG_NOTIF_FROM_HOST_MAX,
 
 	SAP_MSG_DATA_MIN				= 2000,
@@ -334,12 +342,14 @@ enum iwl_sap_wifi_auth_type {
 /**
  * enum iwl_sap_wifi_cipher_alg
  * @SAP_WIFI_CIPHER_ALG_NONE: TBD
+ * @SAP_WIFI_CIPHER_ALG_TKIP: TBD
  * @SAP_WIFI_CIPHER_ALG_CCMP: TBD
  * @SAP_WIFI_CIPHER_ALG_GCMP: TBD
  * @SAP_WIFI_CIPHER_ALG_GCMP_256: TBD
  */
 enum iwl_sap_wifi_cipher_alg {
 	SAP_WIFI_CIPHER_ALG_NONE	= IWL_MEI_CIPHER_NONE,
+	SAP_WIFI_CIPHER_ALG_TKIP	= IWL_MEI_CIPHER_TKIP,
 	SAP_WIFI_CIPHER_ALG_CCMP	= IWL_MEI_CIPHER_CCMP,
 	SAP_WIFI_CIPHER_ALG_GCMP	= IWL_MEI_CIPHER_GCMP,
 	SAP_WIFI_CIPHER_ALG_GCMP_256	= IWL_MEI_CIPHER_GCMP_256,
@@ -729,5 +739,48 @@ struct iwl_sap_cb_data {
 	__le32 data_len;
 	u8 payload[];
 };
+
+/**
+ * struct iwl_sap_pldr_data - payload of %SAP_MSG_NOTIF_PLDR
+ * @hdr: The SAP header.
+ * @version: SAP message version
+ */
+struct iwl_sap_pldr_data {
+	struct iwl_sap_hdr hdr;
+	__le32 version;
+} __packed;
+
+/**
+ * enum iwl_sap_pldr_status -
+ * @SAP_PLDR_STATUS_SUCCESS: PLDR started/ended successfully
+ * @SAP_PLDR_STATUS_FAILURE: PLDR failed to start/end
+ */
+enum iwl_sap_pldr_status {
+	SAP_PLDR_STATUS_SUCCESS	= 0,
+	SAP_PLDR_STATUS_FAILURE	= 1,
+};
+
+/*
+ * struct iwl_sap_pldr_end_data - payload of %SAP_MSG_NOTIF_PLDR_END
+ * @hdr: The SAP header.
+ * @version: SAP message version
+ * @status: PLDR end status
+ */
+struct iwl_sap_pldr_end_data {
+	struct iwl_sap_hdr hdr;
+	__le32 version;
+	__le32 status;
+} __packed;
+
+/*
+ * struct iwl_sap_pldr_ack_data - payload of %SAP_MSG_NOTIF_PLDR_ACK
+ * @version: SAP message version
+ * @status: CSME accept/refuse to the PLDR request
+ */
+struct iwl_sap_pldr_ack_data {
+	struct iwl_sap_hdr hdr;
+	__le32 version;
+	__le32 status;
+} __packed;
 
 #endif /* __sap_h__ */

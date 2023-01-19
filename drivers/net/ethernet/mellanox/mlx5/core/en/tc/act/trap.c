@@ -3,6 +3,7 @@
 
 #include "act.h"
 #include "en/tc_priv.h"
+#include "eswitch.h"
 
 static bool
 tc_act_can_offload_trap(struct mlx5e_tc_act_parse_state *parse_state,
@@ -10,13 +11,6 @@ tc_act_can_offload_trap(struct mlx5e_tc_act_parse_state *parse_state,
 			int act_index,
 			struct mlx5_flow_attr *attr)
 {
-	struct netlink_ext_ack *extack = parse_state->extack;
-
-	if (parse_state->flow_action->num_entries != 1) {
-		NL_SET_ERR_MSG_MOD(extack, "action trap is supported as a sole action only");
-		return false;
-	}
-
 	return true;
 }
 
@@ -27,7 +21,7 @@ tc_act_parse_trap(struct mlx5e_tc_act_parse_state *parse_state,
 		  struct mlx5_flow_attr *attr)
 {
 	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	attr->flags |= MLX5_ATTR_FLAG_SLOW_PATH;
+	attr->dest_ft = mlx5_eswitch_get_slow_fdb(priv->mdev->priv.eswitch);
 
 	return 0;
 }

@@ -149,7 +149,7 @@ int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
 		}
 
 		hw = clk_hw_register_fixed_factor(NULL, ff->name, ff->parent_name,
-				CLK_SET_RATE_PARENT, ff->mult, ff->div);
+				ff->flags, ff->mult, ff->div);
 
 		if (IS_ERR(hw)) {
 			pr_err("Failed to register clk %s: %pe\n", ff->name,

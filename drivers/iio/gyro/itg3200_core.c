@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/delay.h>
 
 #include <linux/iio/iio.h>
@@ -131,6 +132,7 @@ static int itg3200_write_raw(struct iio_dev *indio_dev,
 			     int val2,
 			     long mask)
 {
+	struct itg3200 *st = iio_priv(indio_dev);
 	int ret;
 	u8 t;
 
@@ -139,11 +141,11 @@ static int itg3200_write_raw(struct iio_dev *indio_dev,
 		if (val == 0 || val2 != 0)
 			return -EINVAL;
 
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 
 		ret = itg3200_read_reg_8(indio_dev, ITG3200_REG_DLPF, &t);
 		if (ret) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&st->lock);
 			return ret;
 		}
 		t = ((t & ITG3200_DLPF_CFG_MASK) ? 1000u : 8000u) / val - 1;
@@ -152,7 +154,7 @@ static int itg3200_write_raw(struct iio_dev *indio_dev,
 					  ITG3200_REG_SAMPLE_RATE_DIV,
 					  t);
 
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		return ret;
 
 	default:
@@ -293,8 +295,7 @@ static const struct iio_info itg3200_info = {
 
 static const unsigned long itg3200_available_scan_masks[] = { 0xffffffff, 0x0 };
 
-static int itg3200_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int itg3200_probe(struct i2c_client *client)
 {
 	int ret;
 	struct itg3200 *st;
@@ -335,6 +336,8 @@ static int itg3200_probe(struct i2c_client *client,
 	ret = itg3200_initial_setup(indio_dev);
 	if (ret)
 		goto error_remove_trigger;
+
+	mutex_init(&st->lock);
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -402,7 +405,7 @@ static struct i2c_driver itg3200_driver = {
 		.pm	= pm_sleep_ptr(&itg3200_pm_ops),
 	},
 	.id_table	= itg3200_id,
-	.probe		= itg3200_probe,
+	.probe_new	= itg3200_probe,
 	.remove		= itg3200_remove,
 };
 

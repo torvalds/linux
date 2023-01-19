@@ -198,6 +198,11 @@ fw.bundle_id
 
 Unique identifier of the entire firmware bundle.
 
+fw.bootloader
+-------------
+
+Version of the bootloader.
+
 Future work
 ===========
 

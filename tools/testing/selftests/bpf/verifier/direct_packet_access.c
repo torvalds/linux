@@ -654,3 +654,57 @@
 	.result = ACCEPT,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
+{
+	"direct packet access: test30 (check_id() in regsafe(), bad access)",
+	.insns = {
+	/* r9 = ctx */
+	BPF_MOV64_REG(BPF_REG_9, BPF_REG_1),
+	/* r7 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_7, BPF_REG_0),
+	/* r6 = ktime_get_ns() */
+	BPF_EMIT_CALL(BPF_FUNC_ktime_get_ns),
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
+	/* r2 = ctx->data
+	 * r3 = ctx->data
+	 * r4 = ctx->data_end
+	 */
+	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_9, offsetof(struct __sk_buff, data)),
+	BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_9, offsetof(struct __sk_buff, data)),
+	BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_9, offsetof(struct __sk_buff, data_end)),
+	/* if r6 > 100 goto exit
+	 * if r7 > 100 goto exit
+	 */
+	BPF_JMP_IMM(BPF_JGT, BPF_REG_6, 100, 9),
+	BPF_JMP_IMM(BPF_JGT, BPF_REG_7, 100, 8),
+	/* r2 += r6              ; this forces assignment of ID to r2
+	 * r2 += 1               ; get some fixed off for r2
+	 * r3 += r7              ; this forces assignment of ID to r3
+	 * r3 += 1               ; get some fixed off for r3
+	 */
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_6),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_3, BPF_REG_7),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 1),
+	/* if r6 > r7 goto +1    ; no new information about the state is derived from
+	 *                       ; this check, thus produced verifier states differ
+	 *                       ; only in 'insn_idx'
+	 * r2 = r3               ; optionally share ID between r2 and r3
+	 */
+	BPF_JMP_REG(BPF_JNE, BPF_REG_6, BPF_REG_7, 1),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_3),
+	/* if r3 > ctx->data_end goto exit */
+	BPF_JMP_REG(BPF_JGT, BPF_REG_3, BPF_REG_4, 1),
+	/* r5 = *(u8 *) (r2 - 1) ; access packet memory using r2,
+	 *                       ; this is not always safe
+	 */
+	BPF_LDX_MEM(BPF_B, BPF_REG_5, BPF_REG_2, -1),
+	/* exit(0) */
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.flags = BPF_F_TEST_STATE_FREQ,
+	.result = REJECT,
+	.errstr = "invalid access to packet, off=0 size=1, R2",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},

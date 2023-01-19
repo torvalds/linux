@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/qcom,a7pll.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm A7 PLL Binding
+title: Qualcomm A7 PLL clock
 
 maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>

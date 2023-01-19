@@ -58,4 +58,11 @@ config RXKAD
 
 	  See Documentation/networking/rxrpc.rst.
 
+config RXPERF
+	tristate "RxRPC test service"
+	help
+	  Provide an rxperf service tester.  This listens on UDP port 7009 for
+	  incoming calls from the rxperf program (an example of which can be
+	  found in OpenAFS).
+
 endif

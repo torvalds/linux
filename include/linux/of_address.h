@@ -154,4 +154,15 @@ static inline const __be32 *of_get_pci_address(struct device_node *dev, int bar_
 	return __of_get_address(dev, -1, bar_no, size, flags);
 }
 
+static inline int of_address_count(struct device_node *np)
+{
+	struct resource res;
+	int count = 0;
+
+	while (of_address_to_resource(np, count, &res) == 0)
+		count++;
+
+	return count;
+}
+
 #endif /* __OF_ADDRESS_H */

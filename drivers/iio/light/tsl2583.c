@@ -809,8 +809,7 @@ static const struct iio_info tsl2583_info = {
 	.write_raw = tsl2583_write_raw,
 };
 
-static int tsl2583_probe(struct i2c_client *clientp,
-			 const struct i2c_device_id *idp)
+static int tsl2583_probe(struct i2c_client *clientp)
 {
 	int ret;
 	struct tsl2583_chip *chip;
@@ -943,7 +942,7 @@ static struct i2c_driver tsl2583_driver = {
 		.of_match_table = tsl2583_of_match,
 	},
 	.id_table = tsl2583_idtable,
-	.probe = tsl2583_probe,
+	.probe_new = tsl2583_probe,
 	.remove = tsl2583_remove,
 };
 module_i2c_driver(tsl2583_driver);

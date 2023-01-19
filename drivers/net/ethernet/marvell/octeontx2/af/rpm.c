@@ -8,7 +8,7 @@
 #include "cgx.h"
 #include "lmac_common.h"
 
-static struct mac_ops	rpm_mac_ops   = {
+static struct mac_ops		rpm_mac_ops   = {
 	.name		=       "rpm",
 	.csr_offset     =       0x4e00,
 	.lmac_offset    =       20,
@@ -20,12 +20,14 @@ static struct mac_ops	rpm_mac_ops   = {
 	.non_contiguous_serdes_lane = true,
 	.rx_stats_cnt   =       43,
 	.tx_stats_cnt   =       34,
+	.dmac_filter_count =	32,
 	.get_nr_lmacs	=	rpm_get_nr_lmacs,
 	.get_lmac_type  =       rpm_get_lmac_type,
 	.lmac_fifo_len	=	rpm_get_lmac_fifo_len,
 	.mac_lmac_intl_lbk =    rpm_lmac_internal_loopback,
 	.mac_get_rx_stats  =	rpm_get_rx_stats,
 	.mac_get_tx_stats  =	rpm_get_tx_stats,
+	.get_fec_stats	   =	rpm_get_fec_stats,
 	.mac_enadis_rx_pause_fwding =	rpm_lmac_enadis_rx_pause_fwding,
 	.mac_get_pause_frm_status =	rpm_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		rpm_lmac_enadis_pause_frm,
@@ -37,9 +39,50 @@ static struct mac_ops	rpm_mac_ops   = {
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
 };
 
-struct mac_ops *rpm_get_mac_ops(void)
+static struct mac_ops		rpm2_mac_ops   = {
+	.name		=       "rpm",
+	.csr_offset     =       RPM2_CSR_OFFSET,
+	.lmac_offset    =       20,
+	.int_register	=       RPM2_CMRX_SW_INT,
+	.int_set_reg    =       RPM2_CMRX_SW_INT_ENA_W1S,
+	.irq_offset     =       1,
+	.int_ena_bit    =       BIT_ULL(0),
+	.lmac_fwi	=	RPM_LMAC_FWI,
+	.non_contiguous_serdes_lane = true,
+	.rx_stats_cnt   =       43,
+	.tx_stats_cnt   =       34,
+	.dmac_filter_count =	64,
+	.get_nr_lmacs	=	rpm2_get_nr_lmacs,
+	.get_lmac_type  =       rpm_get_lmac_type,
+	.lmac_fifo_len	=	rpm2_get_lmac_fifo_len,
+	.mac_lmac_intl_lbk =    rpm_lmac_internal_loopback,
+	.mac_get_rx_stats  =	rpm_get_rx_stats,
+	.mac_get_tx_stats  =	rpm_get_tx_stats,
+	.get_fec_stats	   =	rpm_get_fec_stats,
+	.mac_enadis_rx_pause_fwding =	rpm_lmac_enadis_rx_pause_fwding,
+	.mac_get_pause_frm_status =	rpm_lmac_get_pause_frm_status,
+	.mac_enadis_pause_frm =		rpm_lmac_enadis_pause_frm,
+	.mac_pause_frm_config =		rpm_lmac_pause_frm_config,
+	.mac_enadis_ptp_config =	rpm_lmac_ptp_config,
+	.mac_rx_tx_enable =		rpm_lmac_rx_tx_enable,
+	.mac_tx_enable =		rpm_lmac_tx_enable,
+	.pfc_config =                   rpm_lmac_pfc_config,
+	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
+};
+
+bool is_dev_rpm2(void *rpmd)
 {
-	return &rpm_mac_ops;
+	rpm_t *rpm = rpmd;
+
+	return (rpm->pdev->device == PCI_DEVID_CN10KB_RPM);
+}
+
+struct mac_ops *rpm_get_mac_ops(rpm_t *rpm)
+{
+	if (is_dev_rpm2(rpm))
+		return &rpm2_mac_ops;
+	else
+		return &rpm_mac_ops;
 }
 
 static void rpm_write(rpm_t *rpm, u64 lmac, u64 offset, u64 val)
@@ -52,11 +95,28 @@ static u64 rpm_read(rpm_t *rpm, u64 lmac, u64 offset)
 	return	cgx_read(rpm, lmac, offset);
 }
 
+/* Read HW major version to determine RPM
+ * MAC type 100/USX
+ */
+static bool is_mac_rpmusx(void *rpmd)
+{
+	rpm_t *rpm = rpmd;
+
+	return rpm_read(rpm, 0, RPMX_CONST1) & 0x700ULL;
+}
+
 int rpm_get_nr_lmacs(void *rpmd)
 {
 	rpm_t *rpm = rpmd;
 
 	return hweight8(rpm_read(rpm, 0, CGXX_CMRX_RX_LMACS) & 0xFULL);
+}
+
+int rpm2_get_nr_lmacs(void *rpmd)
+{
+	rpm_t *rpm = rpmd;
+
+	return hweight8(rpm_read(rpm, 0, RPM2_CMRX_RX_LMACS) & 0xFFULL);
 }
 
 int rpm_lmac_tx_enable(void *rpmd, int lmac_id, bool enable)
@@ -222,6 +282,46 @@ static void rpm_cfg_pfc_quanta_thresh(rpm_t *rpm, int lmac_id,
 	}
 }
 
+static void rpm2_lmac_cfg_bp(rpm_t *rpm, int lmac_id, u8 tx_pause, u8 rx_pause)
+{
+	u64 cfg;
+
+	cfg = rpm_read(rpm, lmac_id, RPM2_CMR_RX_OVR_BP);
+	if (tx_pause) {
+		/* Configure CL0 Pause Quanta & threshold
+		 * for 802.3X frames
+		 */
+		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 1, true);
+		cfg &= ~RPM2_CMR_RX_OVR_BP_EN;
+	} else {
+		/* Disable all Pause Quanta & threshold values */
+		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xffff, false);
+		cfg |= RPM2_CMR_RX_OVR_BP_EN;
+		cfg &= ~RPM2_CMR_RX_OVR_BP_BP;
+	}
+	rpm_write(rpm, lmac_id, RPM2_CMR_RX_OVR_BP, cfg);
+}
+
+static void rpm_lmac_cfg_bp(rpm_t *rpm, int lmac_id, u8 tx_pause, u8 rx_pause)
+{
+	u64 cfg;
+
+	cfg = rpm_read(rpm, 0, RPMX_CMR_RX_OVR_BP);
+	if (tx_pause) {
+		/* Configure CL0 Pause Quanta & threshold for
+		 * 802.3X frames
+		 */
+		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 1, true);
+		cfg &= ~RPMX_CMR_RX_OVR_BP_EN(lmac_id);
+	} else {
+		/* Disable all Pause Quanta & threshold values */
+		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xffff, false);
+		cfg |= RPMX_CMR_RX_OVR_BP_EN(lmac_id);
+		cfg &= ~RPMX_CMR_RX_OVR_BP_BP(lmac_id);
+	}
+	rpm_write(rpm, 0, RPMX_CMR_RX_OVR_BP, cfg);
+}
+
 int rpm_lmac_enadis_pause_frm(void *rpmd, int lmac_id, u8 tx_pause,
 			      u8 rx_pause)
 {
@@ -243,18 +343,11 @@ int rpm_lmac_enadis_pause_frm(void *rpmd, int lmac_id, u8 tx_pause,
 	cfg |= tx_pause ? 0x0 : RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
-	cfg = rpm_read(rpm, 0, RPMX_CMR_RX_OVR_BP);
-	if (tx_pause) {
-		/* Configure CL0 Pause Quanta & threshold for 802.3X frames */
-		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 1, true);
-		cfg &= ~RPMX_CMR_RX_OVR_BP_EN(lmac_id);
-	} else {
-		/* Disable all Pause Quanta & threshold values */
-		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xffff, false);
-		cfg |= RPMX_CMR_RX_OVR_BP_EN(lmac_id);
-		cfg &= ~RPMX_CMR_RX_OVR_BP_BP(lmac_id);
-	}
-	rpm_write(rpm, 0, RPMX_CMR_RX_OVR_BP, cfg);
+	if (is_dev_rpm2(rpm))
+		rpm2_lmac_cfg_bp(rpm, lmac_id, tx_pause, rx_pause);
+	else
+		rpm_lmac_cfg_bp(rpm, lmac_id, tx_pause, rx_pause);
+
 	return 0;
 }
 
@@ -278,13 +371,16 @@ void rpm_lmac_pause_frm_config(void *rpmd, int lmac_id, bool enable)
 	cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
+	/* Enable channel mask for all LMACS */
+	if (is_dev_rpm2(rpm))
+		rpm_write(rpm, lmac_id, RPM2_CMR_CHAN_MSK_OR, 0xffff);
+	else
+		rpm_write(rpm, 0, RPMX_CMR_CHAN_MSK_OR, ~0ULL);
+
 	/* Disable all PFC classes */
 	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
 	cfg = FIELD_SET(RPM_PFC_CLASS_MASK, 0, cfg);
 	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, cfg);
-
-	/* Enable channel mask for all LMACS */
-	rpm_write(rpm, 0, RPMX_CMR_CHAN_MSK_OR, ~0ULL);
 }
 
 int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat)
@@ -292,7 +388,7 @@ int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat)
 	rpm_t *rpm = rpmd;
 	u64 val_lo, val_hi;
 
-	if (!rpm || lmac_id >= rpm->lmac_count)
+	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
 
 	mutex_lock(&rpm->lock);
@@ -320,7 +416,7 @@ int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat)
 	rpm_t *rpm = rpmd;
 	u64 val_lo, val_hi;
 
-	if (!rpm || lmac_id >= rpm->lmac_count)
+	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
 
 	mutex_lock(&rpm->lock);
@@ -380,13 +476,71 @@ u32 rpm_get_lmac_fifo_len(void *rpmd, int lmac_id)
 	return 0;
 }
 
+static int rpmusx_lmac_internal_loopback(rpm_t *rpm, int lmac_id, bool enable)
+{
+	u64 cfg;
+
+	cfg = rpm_read(rpm, lmac_id, RPM2_USX_PCSX_CONTROL1);
+
+	if (enable)
+		cfg |= RPM2_USX_PCS_LBK;
+	else
+		cfg &= ~RPM2_USX_PCS_LBK;
+	rpm_write(rpm, lmac_id, RPM2_USX_PCSX_CONTROL1, cfg);
+
+	return 0;
+}
+
+u32 rpm2_get_lmac_fifo_len(void *rpmd, int lmac_id)
+{
+	u64 hi_perf_lmac, lmac_info;
+	rpm_t *rpm = rpmd;
+	u8 num_lmacs;
+	u32 fifo_len;
+
+	lmac_info = rpm_read(rpm, 0, RPM2_CMRX_RX_LMACS);
+	/* LMACs are divided into two groups and each group
+	 * gets half of the FIFO
+	 * Group0 lmac_id range {0..3}
+	 * Group1 lmac_id range {4..7}
+	 */
+	fifo_len = rpm->mac_ops->fifo_len / 2;
+
+	if (lmac_id < 4) {
+		num_lmacs = hweight8(lmac_info & 0xF);
+		hi_perf_lmac = (lmac_info >> 8) & 0x3ULL;
+	} else {
+		num_lmacs = hweight8(lmac_info & 0xF0);
+		hi_perf_lmac = (lmac_info >> 10) & 0x3ULL;
+		hi_perf_lmac += 4;
+	}
+
+	switch (num_lmacs) {
+	case 1:
+		return fifo_len;
+	case 2:
+		return fifo_len / 2;
+	case 3:
+		/* LMAC marked as hi_perf gets half of the FIFO
+		 * and rest 1/4th
+		 */
+		if (lmac_id == hi_perf_lmac)
+			return fifo_len / 2;
+		return fifo_len / 4;
+	case 4:
+	default:
+		return fifo_len / 4;
+	}
+	return 0;
+}
+
 int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 {
 	rpm_t *rpm = rpmd;
 	u8 lmac_type;
 	u64 cfg;
 
-	if (!rpm || lmac_id >= rpm->lmac_count)
+	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
 	lmac_type = rpm->mac_ops->get_lmac_type(rpm, lmac_id);
 
@@ -394,6 +548,9 @@ int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 		dev_err(&rpm->pdev->dev, "loopback not supported for LPC mode\n");
 		return 0;
 	}
+
+	if (is_dev_rpm2(rpm) && is_mac_rpmusx(rpm))
+		return rpmusx_lmac_internal_loopback(rpm, lmac_id, enable);
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1);
 
@@ -439,8 +596,8 @@ void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable)
 
 int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 pfc_en)
 {
+	u64 cfg, class_en, pfc_class_mask_cfg;
 	rpm_t *rpm = rpmd;
-	u64 cfg, class_en;
 
 	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
@@ -476,7 +633,10 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
-	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, class_en);
+	pfc_class_mask_cfg = is_dev_rpm2(rpm) ? RPM2_CMRX_PRT_CBFC_CTL :
+						RPMX_CMRX_PRT_CBFC_CTL;
+
+	rpm_write(rpm, lmac_id, pfc_class_mask_cfg, class_en);
 
 	return 0;
 }
@@ -493,6 +653,62 @@ int  rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause, u8 *rx_paus
 	if (cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE) {
 		*rx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE);
 		*tx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE);
+	}
+
+	return 0;
+}
+
+int rpm_get_fec_stats(void *rpmd, int lmac_id, struct cgx_fec_stats_rsp *rsp)
+{
+	u64 val_lo, val_hi;
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_NONE)
+		return 0;
+
+	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_BASER) {
+		val_lo = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_VL0_CCW_LO);
+		val_hi = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_CW_HI);
+		rsp->fec_corr_blks = (val_hi << 16 | val_lo);
+
+		val_lo = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_VL0_NCCW_LO);
+		val_hi = rpm_read(rpm, lmac_id, RPMX_MTI_FCFECX_CW_HI);
+		rsp->fec_uncorr_blks = (val_hi << 16 | val_lo);
+
+		/* 50G uses 2 Physical serdes lines */
+		if (rpm->lmac_idmap[lmac_id]->link_info.lmac_type_id ==
+		    LMAC_MODE_50G_R) {
+			val_lo = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_VL1_CCW_LO);
+			val_hi = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_CW_HI);
+			rsp->fec_corr_blks += (val_hi << 16 | val_lo);
+
+			val_lo = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_VL1_NCCW_LO);
+			val_hi = rpm_read(rpm, lmac_id,
+					  RPMX_MTI_FCFECX_CW_HI);
+			rsp->fec_uncorr_blks += (val_hi << 16 | val_lo);
+		}
+	} else {
+		/* enable RS-FEC capture */
+		cfg = rpm_read(rpm, 0, RPMX_MTI_STAT_STATN_CONTROL);
+		cfg |= RPMX_RSFEC_RX_CAPTURE | BIT(lmac_id);
+		rpm_write(rpm, 0, RPMX_MTI_STAT_STATN_CONTROL, cfg);
+
+		val_lo = rpm_read(rpm, 0,
+				  RPMX_MTI_RSFEC_STAT_COUNTER_CAPTURE_2);
+		val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
+		rsp->fec_corr_blks = (val_hi << 32 | val_lo);
+
+		val_lo = rpm_read(rpm, 0,
+				  RPMX_MTI_RSFEC_STAT_COUNTER_CAPTURE_3);
+		val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
+		rsp->fec_uncorr_blks = (val_hi << 32 | val_lo);
 	}
 
 	return 0;

@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/socionext,synquacer-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext SynQuacer HS-SPI Controller
+
+maintainers:
+  - Masahisa Kojima <masahisa.kojima@linaro.org>
+  - Jassi Brar <jaswinder.singh@linaro.org>
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+properties:
+  compatible:
+    const: socionext,synquacer-spi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: core clock
+      - description: rate clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: iHCLK
+      - const: iPCLK
+
+  interrupts:
+    items:
+      - description: Receive Interrupt
+      - description: Transmit Interrupt
+      - description: Fault Interrupt
+
+  socionext,use-rtm:
+    type: boolean
+    description: Enable using "retimed clock" for RX
+
+  socionext,set-aces:
+    type: boolean
+    description: Enable same active clock edges field to be set
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    spi@ff110000 {
+        compatible = "socionext,synquacer-spi";
+        reg = <0xff110000 0x1000>;
+        interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+               <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+               <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clk_hsspi>;
+        clock-names = "iHCLK";
+        socionext,use-rtm;
+        socionext,set-aces;
+    };
+...

@@ -23,4 +23,9 @@ check_error 'p /bin/sh:10^%hoge'	# BAD_ADDR_SUFFIX
 check_error 'p /bin/sh:10(10)^%return'	# BAD_REFCNT_SUFFIX
 fi
 
+# symstr is not supported by uprobe
+if grep -q ".*symstr.*" README; then
+check_error 'p /bin/sh:10 $stack0:^symstr'	# BAD_TYPE
+fi
+
 exit 0

@@ -116,6 +116,10 @@ struct icp_qat_fw_comn_resp {
 #define ICP_QAT_FW_COMN_VALID_FLAG_BITPOS 7
 #define ICP_QAT_FW_COMN_VALID_FLAG_MASK 0x1
 #define ICP_QAT_FW_COMN_HDR_RESRVD_FLD_MASK 0x7F
+#define ICP_QAT_FW_COMN_CNV_FLAG_BITPOS 6
+#define ICP_QAT_FW_COMN_CNV_FLAG_MASK 0x1
+#define ICP_QAT_FW_COMN_CNVNR_FLAG_BITPOS 5
+#define ICP_QAT_FW_COMN_CNVNR_FLAG_MASK 0x1
 
 #define ICP_QAT_FW_COMN_OV_SRV_TYPE_GET(icp_qat_fw_comn_req_hdr_t) \
 	icp_qat_fw_comn_req_hdr_t.service_type
@@ -131,6 +135,26 @@ struct icp_qat_fw_comn_resp {
 
 #define ICP_QAT_FW_COMN_HDR_VALID_FLAG_GET(hdr_t) \
 	ICP_QAT_FW_COMN_VALID_FLAG_GET(hdr_t.hdr_flags)
+
+#define ICP_QAT_FW_COMN_HDR_CNVNR_FLAG_GET(hdr_flags) \
+	QAT_FIELD_GET(hdr_flags, \
+	ICP_QAT_FW_COMN_CNVNR_FLAG_BITPOS, \
+	ICP_QAT_FW_COMN_CNVNR_FLAG_MASK)
+
+#define ICP_QAT_FW_COMN_HDR_CNVNR_FLAG_SET(hdr_t, val) \
+	QAT_FIELD_SET((hdr_t.hdr_flags), (val), \
+	ICP_QAT_FW_COMN_CNVNR_FLAG_BITPOS, \
+	ICP_QAT_FW_COMN_CNVNR_FLAG_MASK)
+
+#define ICP_QAT_FW_COMN_HDR_CNV_FLAG_GET(hdr_flags) \
+	QAT_FIELD_GET(hdr_flags, \
+	ICP_QAT_FW_COMN_CNV_FLAG_BITPOS, \
+	ICP_QAT_FW_COMN_CNV_FLAG_MASK)
+
+#define ICP_QAT_FW_COMN_HDR_CNV_FLAG_SET(hdr_t, val) \
+	QAT_FIELD_SET((hdr_t.hdr_flags), (val), \
+	ICP_QAT_FW_COMN_CNV_FLAG_BITPOS, \
+	ICP_QAT_FW_COMN_CNV_FLAG_MASK)
 
 #define ICP_QAT_FW_COMN_HDR_VALID_FLAG_SET(hdr_t, val) \
 	ICP_QAT_FW_COMN_VALID_FLAG_SET(hdr_t, val)

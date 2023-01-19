@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/phy-stm32-usbphyc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 USB HS PHY controller binding
+title: STMicroelectronics STM32 USB HS PHY controller
 
 description:
 

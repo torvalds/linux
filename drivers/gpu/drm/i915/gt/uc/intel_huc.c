@@ -211,6 +211,30 @@ void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, struct bus_type *b
 	huc->delayed_load.nb.notifier_call = NULL;
 }
 
+static void delayed_huc_load_init(struct intel_huc *huc)
+{
+	/*
+	 * Initialize fence to be complete as this is expected to be complete
+	 * unless there is a delayed HuC load in progress.
+	 */
+	i915_sw_fence_init(&huc->delayed_load.fence,
+			   sw_fence_dummy_notify);
+	i915_sw_fence_commit(&huc->delayed_load.fence);
+
+	hrtimer_init(&huc->delayed_load.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	huc->delayed_load.timer.function = huc_delayed_load_timer_callback;
+}
+
+static void delayed_huc_load_fini(struct intel_huc *huc)
+{
+	/*
+	 * the fence is initialized in init_early, so we need to clean it up
+	 * even if HuC loading is off.
+	 */
+	delayed_huc_load_complete(huc);
+	i915_sw_fence_fini(&huc->delayed_load.fence);
+}
+
 static bool vcs_supported(struct intel_gt *gt)
 {
 	intel_engine_mask_t mask = gt->info.engine_mask;
@@ -241,6 +265,15 @@ void intel_huc_init_early(struct intel_huc *huc)
 
 	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC);
 
+	/*
+	 * we always init the fence as already completed, even if HuC is not
+	 * supported. This way we don't have to distinguish between HuC not
+	 * supported/disabled or already loaded, and can focus on if the load
+	 * is currently in progress (fence not complete) or not, which is what
+	 * we care about for stalling userspace submissions.
+	 */
+	delayed_huc_load_init(huc);
+
 	if (!vcs_supported(gt)) {
 		intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_NOT_SUPPORTED);
 		return;
@@ -255,17 +288,6 @@ void intel_huc_init_early(struct intel_huc *huc)
 		huc->status.mask = HUC_FW_VERIFIED;
 		huc->status.value = HUC_FW_VERIFIED;
 	}
-
-	/*
-	 * Initialize fence to be complete as this is expected to be complete
-	 * unless there is a delayed HuC reload in progress.
-	 */
-	i915_sw_fence_init(&huc->delayed_load.fence,
-			   sw_fence_dummy_notify);
-	i915_sw_fence_commit(&huc->delayed_load.fence);
-
-	hrtimer_init(&huc->delayed_load.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	huc->delayed_load.timer.function = huc_delayed_load_timer_callback;
 }
 
 #define HUC_LOAD_MODE_STRING(x) (x ? "GSC" : "legacy")
@@ -329,13 +351,14 @@ out:
 
 void intel_huc_fini(struct intel_huc *huc)
 {
-	if (!intel_uc_fw_is_loadable(&huc->fw))
-		return;
+	/*
+	 * the fence is initialized in init_early, so we need to clean it up
+	 * even if HuC loading is off.
+	 */
+	delayed_huc_load_fini(huc);
 
-	delayed_huc_load_complete(huc);
-
-	i915_sw_fence_fini(&huc->delayed_load.fence);
-	intel_uc_fw_fini(&huc->fw);
+	if (intel_uc_fw_is_loadable(&huc->fw))
+		intel_uc_fw_fini(&huc->fw);
 }
 
 void intel_huc_suspend(struct intel_huc *huc)

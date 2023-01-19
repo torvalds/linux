@@ -2007,6 +2007,17 @@
 			status = "okay";
 		};
 
+		serial@31d0000 {
+			current-speed = <115200>;
+			status = "okay";
+		};
+
+		pwm@32a0000 {
+			assigned-clocks = <&bpmp TEGRA234_CLK_PWM3>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			status = "okay";
+		};
+
 		hda@3510000 {
 			nvidia,model = "NVIDIA Jetson AGX Orin HDA";
 			status = "okay";
@@ -2014,7 +2025,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8";
+		bootargs = "console=ttyTCU0,115200n8";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -2183,5 +2194,13 @@
 		       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
 		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
 			    "p2u-5", "p2u-6", "p2u-7";
+	};
+
+	pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm3 0 45334>;
+
+		cooling-levels = <0 95 178 255>;
+		#cooling-cells = <2>;
 	};
 };

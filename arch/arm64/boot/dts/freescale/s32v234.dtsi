@@ -61,10 +61,12 @@
 
 		cluster0_l2_cache: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster1_l2_cache: l2-cache1 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 

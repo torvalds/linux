@@ -62,6 +62,10 @@ struct sigcontext {
  * context. Such structures must be placed after the rt_sigframe on the stack
  * and be 16-byte aligned. The last structure must be a dummy one with the
  * magic and size set to 0.
+ *
+ * Note that the values allocated for use as magic should be chosen to
+ * be meaningful in ASCII to aid manual parsing, ZA doesn't follow this
+ * convention due to oversight but it should be observed for future additions.
  */
 struct _aarch64_ctx {
 	__u32 magic;

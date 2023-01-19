@@ -84,8 +84,10 @@ enum sof_ipc_dai_type {
 	SOF_DAI_AMD_BT,			/**< AMD ACP BT*/
 	SOF_DAI_AMD_SP,			/**< AMD ACP SP */
 	SOF_DAI_AMD_DMIC,		/**< AMD ACP DMIC */
-	SOF_DAI_AMD_HS,			/**< Amd HS */
 	SOF_DAI_MEDIATEK_AFE,		/**< Mediatek AFE */
+	SOF_DAI_AMD_HS,			/**< Amd HS */
+	SOF_DAI_AMD_SP_VIRTUAL,		/**< AMD ACP SP VIRTUAL */
+	SOF_DAI_AMD_HS_VIRTUAL,		/**< AMD ACP HS VIRTUAL */
 };
 
 /* general purpose DAI configuration */

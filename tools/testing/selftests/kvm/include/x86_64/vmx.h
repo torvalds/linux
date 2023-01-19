@@ -437,11 +437,16 @@ static inline int vmresume(void)
 
 static inline void vmcall(void)
 {
-	/* Currently, L1 destroys our GPRs during vmexits.  */
-	__asm__ __volatile__("push %%rbp; vmcall; pop %%rbp" : : :
-			     "rax", "rbx", "rcx", "rdx",
-			     "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
-			     "r13", "r14", "r15");
+	/*
+	 * Stuff RAX and RCX with "safe" values to make sure L0 doesn't handle
+	 * it as a valid hypercall (e.g. Hyper-V L2 TLB flush) as the intended
+	 * use of this function is to exit to L1 from L2.  Clobber all other
+	 * GPRs as L1 doesn't correctly preserve them during vmexits.
+	 */
+	__asm__ __volatile__("push %%rbp; vmcall; pop %%rbp"
+			     : : "a"(0xdeadbeef), "c"(0xbeefdead)
+			     : "rbx", "rdx", "rsi", "rdi", "r8", "r9",
+			       "r10", "r11", "r12", "r13", "r14", "r15");
 }
 
 static inline int vmread(uint64_t encoding, uint64_t *value)
@@ -517,14 +522,6 @@ struct vmx_pages {
 	uint64_t vmwrite_gpa;
 	void *vmwrite;
 
-	void *vp_assist_hva;
-	uint64_t vp_assist_gpa;
-	void *vp_assist;
-
-	void *enlightened_vmcs_hva;
-	uint64_t enlightened_vmcs_gpa;
-	void *enlightened_vmcs;
-
 	void *eptp_hva;
 	uint64_t eptp_gpa;
 	void *eptp;
@@ -572,7 +569,7 @@ void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
 			uint32_t memslot);
 void nested_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
 			    uint64_t addr, uint64_t size);
-bool kvm_vm_has_ept(struct kvm_vm *vm);
+bool kvm_cpu_has_ept(void);
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot);
 void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm);

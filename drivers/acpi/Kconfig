@@ -90,7 +90,7 @@ config ACPI_SPCR_TABLE
 
 config ACPI_FPDT
 	bool "ACPI Firmware Performance Data Table (FPDT) support"
-	depends on X86_64
+	depends on X86_64 || ARM64
 	help
 	  Enable support for the Firmware Performance Data Table (FPDT).
 	  This table provides information on the timing of the system
@@ -563,6 +563,16 @@ config ACPI_PCC
 
 	  Enable this feature if you want to set up and install the PCC Address
 	  Space handler to handle PCC OpRegion in the firmware.
+
+config ACPI_FFH
+	bool "ACPI FFH Address Space"
+	default n
+	help
+	  The FFH(Fixed Function Hardware) Address Space also referred as FFH
+	  Operation Region allows to define platform specific opregion.
+
+	  Enable this feature if you want to set up and install the FFH Address
+	  Space handler to handle FFH OpRegion in the firmware.
 
 source "drivers/acpi/pmic/Kconfig"
 

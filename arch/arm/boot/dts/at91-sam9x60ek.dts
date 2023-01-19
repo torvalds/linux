@@ -76,7 +76,6 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
-		status = "okay";
 	};
 
 	vdd_1v15: fixed-regulator-vdd_1v15 {
@@ -85,7 +84,6 @@
 		regulator-min-microvolt = <1150000>;
 		regulator-max-microvolt = <1150000>;
 		regulator-always-on;
-		status = "okay";
 	};
 
 	vdd1_3v3: fixed-regulator-vdd1_3v3 {
@@ -94,7 +92,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
-		status = "okay";
 	};
 
 	vdd2_3v3: regulator-fixed-vdd2_3v3 {
@@ -103,7 +100,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
-		status = "okay";
 	};
 };
 

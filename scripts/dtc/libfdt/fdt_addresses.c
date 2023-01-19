@@ -73,7 +73,7 @@ int fdt_appendprop_addrrange(void *fdt, int parent, int nodeoffset,
 	/* check validity of address */
 	prop = data;
 	if (addr_cells == 1) {
-		if ((addr > UINT32_MAX) || ((UINT32_MAX + 1 - addr) < size))
+		if ((addr > UINT32_MAX) || (((uint64_t) UINT32_MAX + 1 - addr) < size))
 			return -FDT_ERR_BADVALUE;
 
 		fdt32_st(prop, (uint32_t)addr);

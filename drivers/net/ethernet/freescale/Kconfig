@@ -29,6 +29,7 @@ config FEC
 	select CRC32
 	select PHYLIB
 	select PAGE_POOL
+	select PAGE_POOL_STATS
 	imply NET_SELFTESTS
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet

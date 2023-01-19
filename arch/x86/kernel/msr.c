@@ -250,7 +250,7 @@ static int msr_device_destroy(unsigned int cpu)
 	return 0;
 }
 
-static char *msr_devnode(struct device *dev, umode_t *mode)
+static char *msr_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }

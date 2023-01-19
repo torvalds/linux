@@ -17,9 +17,8 @@
 #
 # Authors: Paul E. McKenney <paulmck@kernel.org>
 
-T=${TMPDIR-/tmp}/kvm-test-1-run-qemu.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm-test-1-run-qemu.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 resdir="$1"
 if ! test -d "$resdir"
@@ -109,7 +108,7 @@ do
 		if test $kruntime -lt $seconds
 		then
 			echo Completed in $kruntime vs. $seconds >> $resdir/Warnings 2>&1
-			grep "^(qemu) qemu:" $resdir/kvm-test-1-run.sh.out >> $resdir/Warnings 2>&1
+			grep "^(qemu) qemu:" $resdir/kvm-test-1-run*.sh.out >> $resdir/Warnings 2>&1
 			killpid="`sed -n "s/^(qemu) qemu: terminating on signal [0-9]* from pid \([0-9]*\).*$/\1/p" $resdir/Warnings`"
 			if test -n "$killpid"
 			then

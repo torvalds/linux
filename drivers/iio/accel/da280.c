@@ -105,9 +105,9 @@ static void da280_disable(void *client)
 	da280_enable(client, false);
 }
 
-static int da280_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int da280_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct iio_dev *indio_dev;
 	struct da280_data *data;
@@ -184,7 +184,7 @@ static struct i2c_driver da280_driver = {
 		.acpi_match_table = ACPI_PTR(da280_acpi_match),
 		.pm = pm_sleep_ptr(&da280_pm_ops),
 	},
-	.probe		= da280_probe,
+	.probe_new	= da280_probe,
 	.id_table	= da280_i2c_id,
 };
 

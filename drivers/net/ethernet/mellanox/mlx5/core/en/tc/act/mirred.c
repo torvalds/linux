@@ -334,4 +334,11 @@ tc_act_parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 struct mlx5e_tc_act mlx5e_tc_act_mirred = {
 	.can_offload = tc_act_can_offload_mirred,
 	.parse_action = tc_act_parse_mirred,
+	.is_terminating_action = false,
+};
+
+struct mlx5e_tc_act mlx5e_tc_act_redirect = {
+	.can_offload = tc_act_can_offload_mirred,
+	.parse_action = tc_act_parse_mirred,
+	.is_terminating_action = true,
 };

@@ -6,7 +6,11 @@
 #include <linux/bitops.h>
 #include <linux/magic.h>
 
-#define UDF_MAX_READ_VERSION		0x0250
+/*
+ * Even UDF 2.6 media should have version <= 0x250 but apparently there are
+ * some broken filesystems with version set to 0x260. Accommodate those.
+ */
+#define UDF_MAX_READ_VERSION		0x0260
 #define UDF_MAX_WRITE_VERSION		0x0201
 
 #define UDF_FLAG_USE_EXTENDED_FE	0

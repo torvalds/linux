@@ -22,14 +22,14 @@ struct {
 /* kprobe is NOT a stable ABI. If kernel internals change this bpf+kprobe
  * example will no longer be meaningful
  */
-SEC("kprobe/kfree_skb")
+SEC("kprobe/kfree_skb_reason")
 int bpf_prog2(struct pt_regs *ctx)
 {
 	long loc = 0;
 	long init_val = 1;
 	long *value;
 
-	/* read ip of kfree_skb caller.
+	/* read ip of kfree_skb_reason caller.
 	 * non-portable version of __builtin_return_address(0)
 	 */
 	BPF_KPROBE_READ_RET_IP(loc, ctx);

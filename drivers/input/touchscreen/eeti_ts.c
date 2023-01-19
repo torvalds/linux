@@ -158,8 +158,7 @@ static void eeti_ts_close(struct input_dev *dev)
 	eeti_ts_stop(eeti);
 }
 
-static int eeti_ts_probe(struct i2c_client *client,
-			 const struct i2c_device_id *idp)
+static int eeti_ts_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct eeti_ts *eeti;
@@ -292,7 +291,7 @@ static struct i2c_driver eeti_ts_driver = {
 		.pm = &eeti_ts_pm,
 		.of_match_table = of_match_ptr(of_eeti_ts_match),
 	},
-	.probe = eeti_ts_probe,
+	.probe_new = eeti_ts_probe,
 	.id_table = eeti_ts_id,
 };
 

@@ -9,6 +9,9 @@ title: Renesas FIFO-buffered Serial Interface (FSI)
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   $nodename:
     pattern: "^sound@.*"
@@ -64,7 +67,7 @@ required:
   - power-domains
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

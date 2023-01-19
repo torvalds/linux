@@ -65,7 +65,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->size = size;
 	ring->size_mask = size - 1;
 	ring->sp_stride = stride;
-	ring->full_size = ring->size - HEADROOM - MAX_DESC_TXBBS;
+	ring->full_size = ring->size - HEADROOM - MLX4_MAX_DESC_TXBBS;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = kvmalloc_node(tmp, GFP_KERNEL, node);
@@ -77,9 +77,11 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	en_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
 		 ring->tx_info, tmp);
 
-	ring->bounce_buf = kmalloc_node(MAX_DESC_SIZE, GFP_KERNEL, node);
+	ring->bounce_buf = kmalloc_node(MLX4_TX_BOUNCE_BUFFER_SIZE,
+					GFP_KERNEL, node);
 	if (!ring->bounce_buf) {
-		ring->bounce_buf = kmalloc(MAX_DESC_SIZE, GFP_KERNEL);
+		ring->bounce_buf = kmalloc(MLX4_TX_BOUNCE_BUFFER_SIZE,
+					   GFP_KERNEL);
 		if (!ring->bounce_buf) {
 			err = -ENOMEM;
 			goto err_info;
@@ -909,11 +911,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Align descriptor to TXBB size */
 	desc_size = ALIGN(real_size, TXBB_SIZE);
 	nr_txbb = desc_size >> LOG_TXBB_SIZE;
-	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
-		if (netif_msg_tx_err(priv))
-			en_warn(priv, "Oversized header or SG list\n");
-		goto tx_drop_count;
-	}
 
 	bf_ok = ring->bf_enabled;
 	if (skb_vlan_tag_present(skb)) {
@@ -941,6 +938,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(index + nr_txbb <= ring->size))
 		tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	else {
+		if (unlikely(nr_txbb > MLX4_MAX_DESC_TXBBS)) {
+			if (netif_msg_tx_err(priv))
+				en_warn(priv, "Oversized header or SG list\n");
+			goto tx_drop_count;
+		}
 		tx_desc = (struct mlx4_en_tx_desc *) ring->bounce_buf;
 		bounce = true;
 		bf_ok = false;

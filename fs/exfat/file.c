@@ -93,7 +93,7 @@ static int exfat_sanitize_mode(const struct exfat_sb_info *sbi,
 }
 
 /* resize the file length */
-int __exfat_truncate(struct inode *inode, loff_t new_size)
+int __exfat_truncate(struct inode *inode)
 {
 	unsigned int num_clusters_new, num_clusters_phys;
 	unsigned int last_clu = EXFAT_FREE_CLUSTER;
@@ -113,7 +113,7 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 
 	exfat_chain_set(&clu, ei->start_clu, num_clusters_phys, ei->flags);
 
-	if (new_size > 0) {
+	if (i_size_read(inode) > 0) {
 		/*
 		 * Truncate FAT chain num_clusters after the first cluster
 		 * num_clusters = min(new, phys);
@@ -142,8 +142,6 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 		ei->flags = ALLOC_NO_FAT_CHAIN;
 		ei->start_clu = EXFAT_EOF_CLUSTER;
 	}
-
-	i_size_write(inode, new_size);
 
 	if (ei->type == TYPE_FILE)
 		ei->attr |= ATTR_ARCHIVE;
@@ -189,7 +187,7 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	return 0;
 }
 
-void exfat_truncate(struct inode *inode, loff_t size)
+void exfat_truncate(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
@@ -207,7 +205,7 @@ void exfat_truncate(struct inode *inode, loff_t size)
 		goto write_size;
 	}
 
-	err = __exfat_truncate(inode, i_size_read(inode));
+	err = __exfat_truncate(inode);
 	if (err)
 		goto write_size;
 
@@ -310,7 +308,7 @@ int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 * __exfat_write_inode() is called from exfat_truncate(), inode
 		 * is already written by it, so mark_inode_dirty() is unneeded.
 		 */
-		exfat_truncate(inode, attr->ia_size);
+		exfat_truncate(inode);
 		up_write(&EXFAT_I(inode)->truncate_lock);
 	} else
 		mark_inode_dirty(inode);

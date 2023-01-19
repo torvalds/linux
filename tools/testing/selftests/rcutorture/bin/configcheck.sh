@@ -7,9 +7,8 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=${TMPDIR-/tmp}/abat-chk-config.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/configcheck.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 cat $1 > $T/.config
 

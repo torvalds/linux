@@ -50,6 +50,19 @@ struct lag_tracker {
 	enum netdev_lag_hash hash_type;
 };
 
+enum mpesw_op {
+	MLX5_MPESW_OP_ENABLE,
+	MLX5_MPESW_OP_DISABLE,
+};
+
+struct mlx5_mpesw_work_st {
+	struct work_struct work;
+	struct mlx5_lag    *lag;
+	enum mpesw_op	   op;
+	struct completion  comp;
+	int result;
+};
+
 /* LAG data of a ConnectX card.
  * It serves both its phys functions.
  */
@@ -66,7 +79,6 @@ struct mlx5_lag {
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
-	struct work_struct	  mpesw_work;
 	struct notifier_block     nb;
 	struct lag_mp             lag_mp;
 	struct mlx5_lag_port_sel  port_sel;

@@ -357,6 +357,11 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sdata != sta->sdata)
 			continue;
+
+		/* this is very temporary, but do it anyway */
+		__ieee80211_sta_recalc_aggregates(sta,
+						  old_active | active_links);
+
 		ret = drv_change_sta_links(local, sdata, &sta->sta,
 					   old_active,
 					   old_active | active_links);
@@ -369,10 +374,22 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sdata != sta->sdata)
 			continue;
+
+		__ieee80211_sta_recalc_aggregates(sta, active_links);
+
 		ret = drv_change_sta_links(local, sdata, &sta->sta,
 					   old_active | active_links,
 					   active_links);
 		WARN_ON_ONCE(ret);
+
+		/*
+		 * Do it again, just in case - the driver might very
+		 * well have called ieee80211_sta_recalc_aggregates()
+		 * from there when filling in the new links, which
+		 * would set it wrong since the vif's active links are
+		 * not switched yet...
+		 */
+		__ieee80211_sta_recalc_aggregates(sta, active_links);
 	}
 
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {

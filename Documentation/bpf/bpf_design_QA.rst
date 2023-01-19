@@ -298,3 +298,48 @@ A: NO.
 
 The BTF_ID macro does not cause a function to become part of the ABI
 any more than does the EXPORT_SYMBOL_GPL macro.
+
+Q: What is the compatibility story for special BPF types in map values?
+-----------------------------------------------------------------------
+Q: Users are allowed to embed bpf_spin_lock, bpf_timer fields in their BPF map
+values (when using BTF support for BPF maps). This allows to use helpers for
+such objects on these fields inside map values. Users are also allowed to embed
+pointers to some kernel types (with __kptr and __kptr_ref BTF tags). Will the
+kernel preserve backwards compatibility for these features?
+
+A: It depends. For bpf_spin_lock, bpf_timer: YES, for kptr and everything else:
+NO, but see below.
+
+For struct types that have been added already, like bpf_spin_lock and bpf_timer,
+the kernel will preserve backwards compatibility, as they are part of UAPI.
+
+For kptrs, they are also part of UAPI, but only with respect to the kptr
+mechanism. The types that you can use with a __kptr and __kptr_ref tagged
+pointer in your struct are NOT part of the UAPI contract. The supported types can
+and will change across kernel releases. However, operations like accessing kptr
+fields and bpf_kptr_xchg() helper will continue to be supported across kernel
+releases for the supported types.
+
+For any other supported struct type, unless explicitly stated in this document
+and added to bpf.h UAPI header, such types can and will arbitrarily change their
+size, type, and alignment, or any other user visible API or ABI detail across
+kernel releases. The users must adapt their BPF programs to the new changes and
+update them to make sure their programs continue to work correctly.
+
+NOTE: BPF subsystem specially reserves the 'bpf\_' prefix for type names, in
+order to introduce more special fields in the future. Hence, user programs must
+avoid defining types with 'bpf\_' prefix to not be broken in future releases.
+In other words, no backwards compatibility is guaranteed if one using a type
+in BTF with 'bpf\_' prefix.
+
+Q: What is the compatibility story for special BPF types in allocated objects?
+------------------------------------------------------------------------------
+Q: Same as above, but for allocated objects (i.e. objects allocated using
+bpf_obj_new for user defined types). Will the kernel preserve backwards
+compatibility for these features?
+
+A: NO.
+
+Unlike map value types, there are no stability guarantees for this case. The
+whole API to work with allocated objects and any support for special fields
+inside them is unstable (since it is exposed through kfuncs).

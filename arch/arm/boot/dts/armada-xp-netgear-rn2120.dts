@@ -121,11 +121,11 @@
 	};
 
 	clocks {
-	       g762_clk: g762-oscillator {
-			 compatible = "fixed-clock";
-			 #clock-cells = <0>;
-			 clock-frequency = <32768>;
-	       };
+		g762_clk: g762-oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	gpio-leds {

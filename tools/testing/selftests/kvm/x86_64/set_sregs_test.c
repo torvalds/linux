@@ -82,9 +82,6 @@ int main(int argc, char *argv[])
 	uint64_t cr4;
 	int rc;
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	/*
 	 * Create a dummy VM, specifically to avoid doing KVM_SET_CPUID2, and
 	 * use it to verify all supported CR4 bits can be set prior to defining

@@ -22,24 +22,24 @@
 #define SPT_GPI_IS		0x100
 #define SPT_GPI_IE		0x120
 
-#define SPT_COMMUNITY(b, s, e, pl, gs, gn, g, n)	\
-	{						\
-		.barno = (b),				\
-		.padown_offset = SPT_PAD_OWN,		\
-		.padcfglock_offset = (pl),		\
-		.hostown_offset = SPT_HOSTSW_OWN,	\
-		.is_offset = SPT_GPI_IS,		\
-		.ie_offset = SPT_GPI_IE,		\
-		.gpp_size = (gs),			\
-		.gpp_num_padown_regs = (gn),		\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-		.gpps = (g),				\
-		.ngpps = (n),				\
+#define SPT_COMMUNITY(b, s, e, g, n, v, gs, gn)			\
+	{							\
+		.barno = (b),					\
+		.padown_offset = SPT_PAD_OWN,			\
+		.padcfglock_offset = SPT_##v##_PADCFGLOCK,	\
+		.hostown_offset = SPT_HOSTSW_OWN,		\
+		.is_offset = SPT_GPI_IS,			\
+		.ie_offset = SPT_GPI_IE,			\
+		.gpp_size = (gs),				\
+		.gpp_num_padown_regs = (gn),			\
+		.pin_base = (s),				\
+		.npins = ((e) - (s) + 1),			\
+		.gpps = (g),					\
+		.ngpps = (n),					\
 	}
 
 #define SPT_LP_COMMUNITY(b, s, e)			\
-	SPT_COMMUNITY(b, s, e, SPT_LP_PADCFGLOCK, 24, 4, NULL, 0)
+	SPT_COMMUNITY(b, s, e, NULL, 0, LP, 24, 4)
 
 #define SPT_H_GPP(r, s, e, g)				\
 	{						\
@@ -50,7 +50,7 @@
 	}
 
 #define SPT_H_COMMUNITY(b, s, e, g)			\
-	SPT_COMMUNITY(b, s, e, SPT_H_PADCFGLOCK, 0, 0, g, ARRAY_SIZE(g))
+	SPT_COMMUNITY(b, s, e, g, ARRAY_SIZE(g), H, 0, 0)
 
 /* Sunrisepoint-LP */
 static const struct pinctrl_pin_desc sptlp_pins[] = {

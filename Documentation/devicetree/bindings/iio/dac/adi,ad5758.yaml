@@ -102,8 +102,7 @@ allOf:
   - if:
       properties:
         adi,dc-dc-mode:
-          contains:
-            enum: [1, 3]
+          enum: [1, 3]
     then:
       properties:
         adi,range-microvolt: false

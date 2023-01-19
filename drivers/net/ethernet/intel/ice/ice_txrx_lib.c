@@ -285,7 +285,7 @@ int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring)
 		ice_clean_xdp_irq(xdp_ring);
 
 	if (!unlikely(ICE_DESC_UNUSED(xdp_ring))) {
-		xdp_ring->tx_stats.tx_busy++;
+		xdp_ring->ring_stats->tx_stats.tx_busy++;
 		return ICE_XDP_CONSUMED;
 	}
 

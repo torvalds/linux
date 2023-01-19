@@ -411,6 +411,14 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 	if (dev->is_hotplug_bridge)
 		return;
 
+	/*
+	 * In the PCIe case, only Root Ports and Downstream Ports are capable of
+	 * accommodating hotplug devices, so avoid marking Upstream Ports as
+	 * "hotplug bridges".
+	 */
+	if (pci_is_pcie(dev) && pci_pcie_type(dev) == PCI_EXP_TYPE_UPSTREAM)
+		return;
+
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (PCI_FUNC(dev->devfn) == func->function) {
 			dev->is_hotplug_bridge = 1;

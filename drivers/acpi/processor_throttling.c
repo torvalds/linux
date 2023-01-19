@@ -50,7 +50,7 @@ static int __acpi_processor_set_throttling(struct acpi_processor *pr,
 
 static int acpi_processor_update_tsd_coord(void)
 {
-	int count, count_target;
+	int count_target;
 	int retval = 0;
 	unsigned int i, j;
 	cpumask_var_t covered_cpus;
@@ -107,7 +107,6 @@ static int acpi_processor_update_tsd_coord(void)
 
 		/* Validate the Domain info */
 		count_target = pdomain->num_processors;
-		count = 1;
 
 		for_each_possible_cpu(j) {
 			if (i == j)
@@ -140,7 +139,6 @@ static int acpi_processor_update_tsd_coord(void)
 
 			cpumask_set_cpu(j, covered_cpus);
 			cpumask_set_cpu(j, pthrottling->shared_cpu_map);
-			count++;
 		}
 		for_each_possible_cpu(j) {
 			if (i == j)

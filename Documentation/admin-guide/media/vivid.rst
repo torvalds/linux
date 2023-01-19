@@ -392,7 +392,7 @@ Which one is returned depends on the chosen channel, each next valid channel
 will cycle through the possible audio subchannel combinations. This allows
 you to test the various combinations by just switching channels..
 
-Finally, for these inputs the v4l2_timecode struct is filled in in the
+Finally, for these inputs the v4l2_timecode struct is filled in the
 dequeued v4l2_buffer struct.
 
 

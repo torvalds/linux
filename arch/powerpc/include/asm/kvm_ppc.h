@@ -1014,6 +1014,18 @@ static inline void kvmppc_fix_ee_before_entry(void)
 #endif
 }
 
+static inline void kvmppc_fix_ee_after_exit(void)
+{
+#ifdef CONFIG_PPC64
+	/* Only need to enable IRQs by hard enabling them after this */
+	local_paca->irq_happened = PACA_IRQ_HARD_DIS;
+	irq_soft_mask_set(IRQS_ALL_DISABLED);
+#endif
+
+	trace_hardirqs_off();
+}
+
+
 static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 {
 	ulong ea;

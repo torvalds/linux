@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/marvell,dfx-server.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Prestera DFX server
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: marvell,dfx-server
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - const: marvell,dfx-server
+      - const: simple-bus
+
+  reg:
+    maxItems: 1
+
+  ranges: true
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - ranges
+
+# The DFX server may expose clocks described as subnodes
+additionalProperties:
+  type: object
+
+examples:
+  - |
+
+    #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
+    bus@0 {
+        reg = <0 0>;
+        #address-cells = <2>;
+        #size-cells = <1>;
+
+        dfx-bus@ac000000 {
+            compatible = "marvell,dfx-server", "simple-bus";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges = <0 MBUS_ID(0x08, 0x00) 0 0x100000>;
+            reg = <MBUS_ID(0x08, 0x00) 0 0x100000>;
+        };
+    };

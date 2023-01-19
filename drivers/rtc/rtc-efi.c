@@ -271,6 +271,8 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 	set_bit(RTC_FEATURE_ALARM_WAKEUP_ONLY, rtc->features);
 
+	device_init_wakeup(&dev->dev, true);
+
 	return devm_rtc_register_device(rtc);
 }
 

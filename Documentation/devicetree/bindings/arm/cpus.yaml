@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/cpus.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM CPUs bindings
+title: ARM CPUs
 
 maintainers:
   - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
@@ -178,11 +178,13 @@ properties:
       - qcom,kryo250
       - qcom,kryo260
       - qcom,kryo280
+      - qcom,kryo360
       - qcom,kryo385
       - qcom,kryo468
       - qcom,kryo485
       - qcom,kryo560
       - qcom,kryo570
+      - qcom,kryo660
       - qcom,kryo685
       - qcom,kryo780
       - qcom,scorpion

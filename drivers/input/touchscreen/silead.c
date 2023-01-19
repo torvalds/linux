@@ -652,9 +652,9 @@ static void silead_disable_regulator(void *arg)
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
 }
 
-static int silead_ts_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int silead_ts_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct silead_ts_data *data;
 	struct device *dev = &client->dev;
 	int error;
@@ -826,7 +826,7 @@ MODULE_DEVICE_TABLE(of, silead_ts_of_match);
 #endif
 
 static struct i2c_driver silead_ts_driver = {
-	.probe = silead_ts_probe,
+	.probe_new = silead_ts_probe,
 	.id_table = silead_ts_id,
 	.driver = {
 		.name = SILEAD_TS_NAME,

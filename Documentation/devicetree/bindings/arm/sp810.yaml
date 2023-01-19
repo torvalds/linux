@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/sp810.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM Versatile Express SP810 System Controller bindings
+title: ARM Versatile Express SP810 System Controller
 
 maintainers:
   - Andre Przywara <andre.przywara@arm.com>

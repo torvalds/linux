@@ -1811,7 +1811,7 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 		}
 
 		/* skip entities that are already processed */
-		if (remote == dev_fwnode(vi->dev) ||
+		if (device_match_fwnode(vi->dev, remote) ||
 		    tegra_vi_graph_find_entity(chan, remote)) {
 			fwnode_handle_put(remote);
 			continue;

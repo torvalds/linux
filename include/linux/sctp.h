@@ -820,4 +820,9 @@ struct sctp_new_encap_port_hdr {
 	__be16 new_port;
 };
 
+/* Round an int up to the next multiple of 4.  */
+#define SCTP_PAD4(s) (((s)+3)&~3)
+/* Truncate to the previous multiple of 4.  */
+#define SCTP_TRUNC4(s) ((s)&~3)
+
 #endif /* __LINUX_SCTP_H__ */

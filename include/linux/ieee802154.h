@@ -276,6 +276,30 @@ enum {
 	IEEE802154_SYSTEM_ERROR = 0xff,
 };
 
+/**
+ * enum ieee802154_filtering_level - Filtering levels applicable to a PHY
+ *
+ * @IEEE802154_FILTERING_NONE: No filtering at all, what is received is
+ *	forwarded to the softMAC
+ * @IEEE802154_FILTERING_1_FCS: First filtering level, frames with an invalid
+ *	FCS should be dropped
+ * @IEEE802154_FILTERING_2_PROMISCUOUS: Second filtering level, promiscuous
+ *	mode as described in the spec, identical in terms of filtering to the
+ *	level one on PHY side, but at the MAC level the frame should be
+ *	forwarded to the upper layer directly
+ * @IEEE802154_FILTERING_3_SCAN: Third filtering level, scan related, where
+ *	only beacons must be processed, all remaining traffic gets dropped
+ * @IEEE802154_FILTERING_4_FRAME_FIELDS: Fourth filtering level actually
+ *	enforcing the validity of the content of the frame with various checks
+ */
+enum ieee802154_filtering_level {
+	IEEE802154_FILTERING_NONE,
+	IEEE802154_FILTERING_1_FCS,
+	IEEE802154_FILTERING_2_PROMISCUOUS,
+	IEEE802154_FILTERING_3_SCAN,
+	IEEE802154_FILTERING_4_FRAME_FIELDS,
+};
+
 /* frame control handling */
 #define IEEE802154_FCTL_FTYPE		0x0003
 #define IEEE802154_FCTL_ACKREQ		0x0020

@@ -4,16 +4,6 @@
 # Author: Shujuan Chen (shujuan.chen@stericsson.com)
 #
 
-config CRYPTO_DEV_UX500_CRYP
-	tristate "UX500 crypto driver for CRYP block"
-	depends on CRYPTO_DEV_UX500
-	select CRYPTO_ALGAPI
-	select CRYPTO_SKCIPHER
-	select CRYPTO_LIB_DES
-	help
-	This selects the crypto driver for the UX500_CRYP hardware. It supports
-	AES-ECB, CBC and CTR with keys sizes of 128, 192 and 256 bit sizes.
-
 config CRYPTO_DEV_UX500_HASH
 	tristate "UX500 crypto driver for HASH block"
 	depends on CRYPTO_DEV_UX500

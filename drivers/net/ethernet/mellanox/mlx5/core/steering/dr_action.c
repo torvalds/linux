@@ -44,6 +44,7 @@ static const char * const action_type_to_str[] = {
 	[DR_ACTION_TYP_INSERT_HDR] = "DR_ACTION_TYP_INSERT_HDR",
 	[DR_ACTION_TYP_REMOVE_HDR] = "DR_ACTION_TYP_REMOVE_HDR",
 	[DR_ACTION_TYP_ASO_FLOW_METER] = "DR_ACTION_TYP_ASO_FLOW_METER",
+	[DR_ACTION_TYP_RANGE] = "DR_ACTION_TYP_RANGE",
 	[DR_ACTION_TYP_MAX] = "DR_ACTION_UNKNOWN",
 };
 
@@ -61,6 +62,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
@@ -79,6 +81,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_DECAP,
@@ -94,6 +97,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ENCAP,
@@ -103,6 +107,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_MODIFY_HDR,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_MODIFY_HDR,
@@ -116,6 +121,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_POP_VLAN,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_POP_VLAN,
@@ -129,6 +135,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_PUSH_VLAN] = {
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_PUSH_VLAN,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_PUSH_VLAN,
@@ -141,6 +148,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
@@ -159,6 +167,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]             = DR_ACTION_STATE_ASO,
 		},
 		[DR_ACTION_STATE_TERM] = {
@@ -169,6 +178,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_NO_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -183,6 +193,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_DECAP] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_ASO_FLOW_METER]	= DR_ACTION_STATE_ASO,
@@ -190,6 +201,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_ENCAP] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_ASO_FLOW_METER]	= DR_ACTION_STATE_ASO,
@@ -197,6 +209,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_MODIFY_HDR] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_MODIFY_HDR,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -207,6 +220,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		},
 		[DR_ACTION_STATE_POP_VLAN] = {
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_POP_VLAN,
 			[DR_ACTION_TYP_POP_VLAN]	= DR_ACTION_STATE_POP_VLAN,
@@ -220,6 +234,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_PUSH_VLAN] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_PUSH_VLAN,
 			[DR_ACTION_TYP_PUSH_VLAN]	= DR_ACTION_STATE_PUSH_VLAN,
@@ -231,6 +246,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_NON_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -250,6 +266,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_CTR]             = DR_ACTION_STATE_ASO,
 			[DR_ACTION_TYP_DROP]            = DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]              = DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 		},
 		[DR_ACTION_STATE_TERM] = {
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_TERM,
@@ -259,6 +276,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_NO_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_TNL_L2_TO_L2]	= DR_ACTION_STATE_DECAP,
@@ -276,6 +294,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_DECAP] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_MODIFY_HDR]	= DR_ACTION_STATE_MODIFY_HDR,
@@ -291,6 +310,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_VPORT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ENCAP,
@@ -299,6 +319,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_MODIFY_HDR] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_MODIFY_HDR,
 			[DR_ACTION_TYP_VPORT]		= DR_ACTION_STATE_TERM,
@@ -311,6 +332,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_POP_VLAN] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_POP_VLAN]	= DR_ACTION_STATE_POP_VLAN,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_POP_VLAN,
@@ -324,6 +346,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_PUSH_VLAN] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_PUSH_VLAN]	= DR_ACTION_STATE_PUSH_VLAN,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_PUSH_VLAN,
@@ -337,6 +360,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_NON_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_TNL_L2_TO_L2]	= DR_ACTION_STATE_DECAP,
@@ -354,6 +378,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_ASO] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_VPORT]           = DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]             = DR_ACTION_STATE_ASO,
 		},
@@ -365,6 +390,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_NO_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_MODIFY_HDR]	= DR_ACTION_STATE_MODIFY_HDR,
@@ -380,6 +406,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_DECAP] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_VPORT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
@@ -388,6 +415,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_ENCAP] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_VPORT]		= DR_ACTION_STATE_TERM,
@@ -396,6 +424,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_MODIFY_HDR] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_MODIFY_HDR,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -407,6 +436,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		},
 		[DR_ACTION_STATE_POP_VLAN] = {
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_POP_VLAN,
 			[DR_ACTION_TYP_POP_VLAN]	= DR_ACTION_STATE_POP_VLAN,
@@ -421,6 +451,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_PUSH_VLAN] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_PUSH_VLAN]	= DR_ACTION_STATE_PUSH_VLAN,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_PUSH_VLAN,
@@ -433,6 +464,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		[DR_ACTION_STATE_NON_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
 			[DR_ACTION_TYP_MODIFY_HDR]	= DR_ACTION_STATE_MODIFY_HDR,
@@ -452,6 +484,7 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_PUSH_VLAN]       = DR_ACTION_STATE_PUSH_VLAN,
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
+			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_VPORT]           = DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_CTR]             = DR_ACTION_STATE_ASO,
 		},
@@ -634,6 +667,83 @@ static void dr_action_print_sequence(struct mlx5dr_domain *dmn,
 			   actions[i]->action_type);
 }
 
+static int dr_action_get_dest_fw_tbl_addr(struct mlx5dr_matcher *matcher,
+					  struct mlx5dr_action_dest_tbl *dest_tbl,
+					  bool is_rx_rule,
+					  u64 *final_icm_addr)
+{
+	struct mlx5dr_cmd_query_flow_table_details output;
+	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	int ret;
+
+	if (!dest_tbl->fw_tbl.rx_icm_addr) {
+		ret = mlx5dr_cmd_query_flow_table(dmn->mdev,
+						  dest_tbl->fw_tbl.type,
+						  dest_tbl->fw_tbl.id,
+						  &output);
+		if (ret) {
+			mlx5dr_err(dmn,
+				   "Failed mlx5_cmd_query_flow_table ret: %d\n",
+				   ret);
+			return ret;
+		}
+
+		dest_tbl->fw_tbl.tx_icm_addr = output.sw_owner_icm_root_1;
+		dest_tbl->fw_tbl.rx_icm_addr = output.sw_owner_icm_root_0;
+	}
+
+	*final_icm_addr = is_rx_rule ? dest_tbl->fw_tbl.rx_icm_addr :
+				       dest_tbl->fw_tbl.tx_icm_addr;
+	return 0;
+}
+
+static int dr_action_get_dest_sw_tbl_addr(struct mlx5dr_matcher *matcher,
+					  struct mlx5dr_action_dest_tbl *dest_tbl,
+					  bool is_rx_rule,
+					  u64 *final_icm_addr)
+{
+	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	struct mlx5dr_icm_chunk *chunk;
+
+	if (dest_tbl->tbl->dmn != dmn) {
+		mlx5dr_err(dmn,
+			   "Destination table belongs to a different domain\n");
+		return -EINVAL;
+	}
+
+	if (dest_tbl->tbl->level <= matcher->tbl->level) {
+		mlx5_core_dbg_once(dmn->mdev,
+				   "Connecting table to a lower/same level destination table\n");
+		mlx5dr_dbg(dmn,
+			   "Connecting table at level %d to a destination table at level %d\n",
+			   matcher->tbl->level,
+			   dest_tbl->tbl->level);
+	}
+
+	chunk = is_rx_rule ? dest_tbl->tbl->rx.s_anchor->chunk :
+			     dest_tbl->tbl->tx.s_anchor->chunk;
+
+	*final_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(chunk);
+	return 0;
+}
+
+static int dr_action_get_dest_tbl_addr(struct mlx5dr_matcher *matcher,
+				       struct mlx5dr_action_dest_tbl *dest_tbl,
+				       bool is_rx_rule,
+				       u64 *final_icm_addr)
+{
+	if (dest_tbl->is_fw_tbl)
+		return dr_action_get_dest_fw_tbl_addr(matcher,
+						      dest_tbl,
+						      is_rx_rule,
+						      final_icm_addr);
+
+	return dr_action_get_dest_sw_tbl_addr(matcher,
+					      dest_tbl,
+					      is_rx_rule,
+					      final_icm_addr);
+}
+
 #define WITH_VLAN_NUM_HW_ACTIONS 6
 
 int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
@@ -661,8 +771,6 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	action_domain = dr_action_get_action_domain(dmn->type, nic_dmn->type);
 
 	for (i = 0; i < num_actions; i++) {
-		struct mlx5dr_action_dest_tbl *dest_tbl;
-		struct mlx5dr_icm_chunk *chunk;
 		struct mlx5dr_action *action;
 		int max_actions_type = 1;
 		u32 action_type;
@@ -676,50 +784,27 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			break;
 		case DR_ACTION_TYP_FT:
 			dest_action = action;
-			dest_tbl = action->dest_tbl;
-			if (!dest_tbl->is_fw_tbl) {
-				if (dest_tbl->tbl->dmn != dmn) {
-					mlx5dr_err(dmn,
-						   "Destination table belongs to a different domain\n");
-					return -EINVAL;
-				}
-				if (dest_tbl->tbl->level <= matcher->tbl->level) {
-					mlx5_core_dbg_once(dmn->mdev,
-							   "Connecting table to a lower/same level destination table\n");
-					mlx5dr_dbg(dmn,
-						   "Connecting table at level %d to a destination table at level %d\n",
-						   matcher->tbl->level,
-						   dest_tbl->tbl->level);
-				}
-				chunk = rx_rule ? dest_tbl->tbl->rx.s_anchor->chunk :
-					dest_tbl->tbl->tx.s_anchor->chunk;
-				attr.final_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(chunk);
-			} else {
-				struct mlx5dr_cmd_query_flow_table_details output;
-				int ret;
+			ret = dr_action_get_dest_tbl_addr(matcher, action->dest_tbl,
+							  rx_rule, &attr.final_icm_addr);
+			if (ret)
+				return ret;
+			break;
+		case DR_ACTION_TYP_RANGE:
+			ret = dr_action_get_dest_tbl_addr(matcher,
+							  action->range->hit_tbl_action->dest_tbl,
+							  rx_rule, &attr.final_icm_addr);
+			if (ret)
+				return ret;
 
-				/* get the relevant addresses */
-				if (!action->dest_tbl->fw_tbl.rx_icm_addr) {
-					ret = mlx5dr_cmd_query_flow_table(dmn->mdev,
-									  dest_tbl->fw_tbl.type,
-									  dest_tbl->fw_tbl.id,
-									  &output);
-					if (!ret) {
-						dest_tbl->fw_tbl.tx_icm_addr =
-							output.sw_owner_icm_root_1;
-						dest_tbl->fw_tbl.rx_icm_addr =
-							output.sw_owner_icm_root_0;
-					} else {
-						mlx5dr_err(dmn,
-							   "Failed mlx5_cmd_query_flow_table ret: %d\n",
-							   ret);
-						return ret;
-					}
-				}
-				attr.final_icm_addr = rx_rule ?
-					dest_tbl->fw_tbl.rx_icm_addr :
-					dest_tbl->fw_tbl.tx_icm_addr;
-			}
+			ret = dr_action_get_dest_tbl_addr(matcher,
+							  action->range->miss_tbl_action->dest_tbl,
+							  rx_rule, &attr.range.miss_icm_addr);
+			if (ret)
+				return ret;
+
+			attr.range.definer_id = action->range->definer_id;
+			attr.range.min = action->range->min;
+			attr.range.max = action->range->max;
 			break;
 		case DR_ACTION_TYP_QP:
 			mlx5dr_info(dmn, "Domain doesn't support QP\n");
@@ -866,6 +951,7 @@ static unsigned int action_size[DR_ACTION_TYP_MAX] = {
 	[DR_ACTION_TYP_REMOVE_HDR]   = sizeof(struct mlx5dr_action_reformat),
 	[DR_ACTION_TYP_SAMPLER]      = sizeof(struct mlx5dr_action_sampler),
 	[DR_ACTION_TYP_ASO_FLOW_METER] = sizeof(struct mlx5dr_action_aso_flow_meter),
+	[DR_ACTION_TYP_RANGE]        = sizeof(struct mlx5dr_action_range),
 };
 
 static struct mlx5dr_action *
@@ -930,6 +1016,123 @@ mlx5dr_action_create_dest_table(struct mlx5dr_table *tbl)
 
 dec_ref:
 	refcount_dec(&tbl->refcount);
+	return NULL;
+}
+
+static void dr_action_range_definer_fill(u16 *format_id,
+					 u8 *dw_selectors,
+					 u8 *byte_selectors,
+					 u8 *match_mask)
+{
+	int i;
+
+	*format_id = MLX5_IFC_DEFINER_FORMAT_ID_SELECT;
+
+	dw_selectors[0] = MLX5_IFC_DEFINER_FORMAT_OFFSET_OUTER_ETH_PKT_LEN / 4;
+
+	for (i = 1; i < MLX5_IFC_DEFINER_DW_SELECTORS_NUM; i++)
+		dw_selectors[i] = MLX5_IFC_DEFINER_FORMAT_OFFSET_UNUSED;
+
+	for (i = 0; i < MLX5_IFC_DEFINER_BYTE_SELECTORS_NUM; i++)
+		byte_selectors[i] = MLX5_IFC_DEFINER_FORMAT_OFFSET_UNUSED;
+
+	MLX5_SET(match_definer_match_mask, match_mask,
+		 match_dw_0, 0xffffUL << 16);
+}
+
+static int dr_action_create_range_definer(struct mlx5dr_action *action)
+{
+	u8 match_mask[MLX5_FLD_SZ_BYTES(match_definer, match_mask)] = {};
+	u8 byte_selectors[MLX5_IFC_DEFINER_BYTE_SELECTORS_NUM] = {};
+	u8 dw_selectors[MLX5_IFC_DEFINER_DW_SELECTORS_NUM] = {};
+	struct mlx5dr_domain *dmn = action->range->dmn;
+	u32 definer_id;
+	u16 format_id;
+	int ret;
+
+	dr_action_range_definer_fill(&format_id,
+				     dw_selectors,
+				     byte_selectors,
+				     match_mask);
+
+	ret = mlx5dr_definer_get(dmn, format_id,
+				 dw_selectors, byte_selectors,
+				 match_mask, &definer_id);
+	if (ret)
+		return ret;
+
+	action->range->definer_id = definer_id;
+	return 0;
+}
+
+static void dr_action_destroy_range_definer(struct mlx5dr_action *action)
+{
+	mlx5dr_definer_put(action->range->dmn, action->range->definer_id);
+}
+
+struct mlx5dr_action *
+mlx5dr_action_create_dest_match_range(struct mlx5dr_domain *dmn,
+				      u32 field,
+				      struct mlx5_flow_table *hit_ft,
+				      struct mlx5_flow_table *miss_ft,
+				      u32 min,
+				      u32 max)
+{
+	struct mlx5dr_action *action;
+	int ret;
+
+	if (!mlx5dr_supp_match_ranges(dmn->mdev)) {
+		mlx5dr_dbg(dmn, "SELECT definer support is needed for match range\n");
+		return NULL;
+	}
+
+	if (field != MLX5_FLOW_DEST_RANGE_FIELD_PKT_LEN ||
+	    min > 0xffff || max > 0xffff) {
+		mlx5dr_err(dmn, "Invalid match range parameters\n");
+		return NULL;
+	}
+
+	action = dr_action_create_generic(DR_ACTION_TYP_RANGE);
+	if (!action)
+		return NULL;
+
+	action->range->hit_tbl_action =
+		mlx5dr_is_fw_table(hit_ft) ?
+			mlx5dr_action_create_dest_flow_fw_table(dmn, hit_ft) :
+			mlx5dr_action_create_dest_table(hit_ft->fs_dr_table.dr_table);
+
+	if (!action->range->hit_tbl_action)
+		goto free_action;
+
+	action->range->miss_tbl_action =
+		mlx5dr_is_fw_table(miss_ft) ?
+			mlx5dr_action_create_dest_flow_fw_table(dmn, miss_ft) :
+			mlx5dr_action_create_dest_table(miss_ft->fs_dr_table.dr_table);
+
+	if (!action->range->miss_tbl_action)
+		goto free_hit_tbl_action;
+
+	action->range->min = min;
+	action->range->max = max;
+	action->range->dmn = dmn;
+
+	ret = dr_action_create_range_definer(action);
+	if (ret)
+		goto free_miss_tbl_action;
+
+	/* No need to increase refcount on domain for this action,
+	 * the hit/miss table actions will do it internally.
+	 */
+
+	return action;
+
+free_miss_tbl_action:
+	mlx5dr_action_destroy(action->range->miss_tbl_action);
+free_hit_tbl_action:
+	mlx5dr_action_destroy(action->range->hit_tbl_action);
+free_action:
+	kfree(action);
+
 	return NULL;
 }
 
@@ -1979,6 +2182,11 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 		break;
 	case DR_ACTION_TYP_ASO_FLOW_METER:
 		refcount_dec(&action->aso->dmn->refcount);
+		break;
+	case DR_ACTION_TYP_RANGE:
+		dr_action_destroy_range_definer(action);
+		mlx5dr_action_destroy(action->range->miss_tbl_action);
+		mlx5dr_action_destroy(action->range->hit_tbl_action);
 		break;
 	default:
 		break;

@@ -26,7 +26,7 @@
 #include "hvc_console.h"
 
 #define hvc_rtas_cookie 0x67781e15
-struct hvc_struct *hvc_rtas_dev;
+static struct hvc_struct *hvc_rtas_dev;
 
 static int rtascons_put_char_token = RTAS_UNKNOWN_SERVICE;
 static int rtascons_get_char_token = RTAS_UNKNOWN_SERVICE;

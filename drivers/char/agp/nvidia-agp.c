@@ -404,28 +404,13 @@ static void agp_nvidia_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-#ifdef CONFIG_PM
-static int agp_nvidia_suspend(struct pci_dev *pdev, pm_message_t state)
+static int agp_nvidia_resume(struct device *dev)
 {
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
-	return 0;
-}
-
-static int agp_nvidia_resume(struct pci_dev *pdev)
-{
-	/* set power state 0 and restore PCI space */
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
 	/* reconfigure AGP hardware again */
 	nvidia_configure();
 
 	return 0;
 }
-#endif
-
 
 static const struct pci_device_id agp_nvidia_pci_table[] = {
 	{
@@ -449,15 +434,14 @@ static const struct pci_device_id agp_nvidia_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, agp_nvidia_pci_table);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(agp_nvidia_pm_ops, NULL, agp_nvidia_resume);
+
 static struct pci_driver agp_nvidia_pci_driver = {
 	.name		= "agpgart-nvidia",
 	.id_table	= agp_nvidia_pci_table,
 	.probe		= agp_nvidia_probe,
 	.remove		= agp_nvidia_remove,
-#ifdef CONFIG_PM
-	.suspend	= agp_nvidia_suspend,
-	.resume		= agp_nvidia_resume,
-#endif
+	.driver.pm	= &agp_nvidia_pm_ops,
 };
 
 static int __init agp_nvidia_init(void)

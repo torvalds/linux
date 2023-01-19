@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/melfas,mms114.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Melfas MMS114 family touchscreen controller bindings
+title: Melfas MMS114 family touchscreen controller
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>

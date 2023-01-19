@@ -72,6 +72,30 @@ argument as its size. By default, without __sz annotation, the size of the type
 of the pointer is used. Without __sz annotation, a kfunc cannot accept a void
 pointer.
 
+2.2.2 __k Annotation
+--------------------
+
+This annotation is only understood for scalar arguments, where it indicates that
+the verifier must check the scalar argument to be a known constant, which does
+not indicate a size parameter, and the value of the constant is relevant to the
+safety of the program.
+
+An example is given below::
+
+        void *bpf_obj_new(u32 local_type_id__k, ...)
+        {
+        ...
+        }
+
+Here, bpf_obj_new uses local_type_id argument to find out the size of that type
+ID in program's BTF and return a sized pointer to it. Each type ID will have a
+distinct size, hence it is crucial to treat each such call as distinct when
+values don't match during verifier state pruning checks.
+
+Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
+size parameter, and the value of the constant matters for program safety, __k
+suffix should be used.
+
 .. _BPF_kfunc_nodef:
 
 2.3 Using an existing kernel function
@@ -137,22 +161,20 @@ KF_ACQUIRE and KF_RET_NULL flags.
 --------------------------
 
 The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
-indicates that the all pointer arguments will always have a guaranteed lifetime,
-and pointers to kernel objects are always passed to helpers in their unmodified
-form (as obtained from acquire kfuncs).
+indicates that the all pointer arguments are valid, and that all pointers to
+BTF objects have been passed in their unmodified form (that is, at a zero
+offset, and without having been obtained from walking another pointer).
 
-It can be used to enforce that a pointer to a refcounted object acquired from a
-kfunc or BPF helper is passed as an argument to this kfunc without any
-modifications (e.g. pointer arithmetic) such that it is trusted and points to
-the original object.
+There are two types of pointers to kernel objects which are considered "valid":
 
-Meanwhile, it is also allowed pass pointers to normal memory to such kfuncs,
-but those can have a non-zero offset.
+1. Pointers which are passed as tracepoint or struct_ops callback arguments.
+2. Pointers which were returned from a KF_ACQUIRE or KF_KPTR_GET kfunc.
 
-This flag is often used for kfuncs that operate (change some property, perform
-some operation) on an object that was obtained using an acquire kfunc. Such
-kfuncs need an unchanged pointer to ensure the integrity of the operation being
-performed on the expected object.
+Pointers to non-BTF objects (e.g. scalar pointers) may also be passed to
+KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
+
+The definition of "valid" pointers is subject to change at any time, and has
+absolutely no ABI stability guarantees.
 
 2.4.6 KF_SLEEPABLE flag
 -----------------------
@@ -168,6 +190,15 @@ destructive to the system. For example such a call can result in system
 rebooting or panicking. Due to this additional restrictions apply to these
 calls. At the moment they only require CAP_SYS_BOOT capability, but more can be
 added later.
+
+2.4.8 KF_RCU flag
+-----------------
+
+The KF_RCU flag is used for kfuncs which have a rcu ptr as its argument.
+When used together with KF_ACQUIRE, it indicates the kfunc should have a
+single argument which must be a trusted argument or a MEM_RCU pointer.
+The argument may have reference count of 0 and the kfunc must take this
+into consideration.
 
 2.5 Registering the kfuncs
 --------------------------
@@ -191,3 +222,201 @@ type. An example is shown below::
                 return register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_task_kfunc_set);
         }
         late_initcall(init_subsystem);
+
+3. Core kfuncs
+==============
+
+The BPF subsystem provides a number of "core" kfuncs that are potentially
+applicable to a wide variety of different possible use cases and programs.
+Those kfuncs are documented here.
+
+3.1 struct task_struct * kfuncs
+-------------------------------
+
+There are a number of kfuncs that allow ``struct task_struct *`` objects to be
+used as kptrs:
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_task_acquire bpf_task_release
+
+These kfuncs are useful when you want to acquire or release a reference to a
+``struct task_struct *`` that was passed as e.g. a tracepoint arg, or a
+struct_ops callback arg. For example:
+
+.. code-block:: c
+
+	/**
+	 * A trivial example tracepoint program that shows how to
+	 * acquire and release a struct task_struct * pointer.
+	 */
+	SEC("tp_btf/task_newtask")
+	int BPF_PROG(task_acquire_release_example, struct task_struct *task, u64 clone_flags)
+	{
+		struct task_struct *acquired;
+
+		acquired = bpf_task_acquire(task);
+
+		/*
+		 * In a typical program you'd do something like store
+		 * the task in a map, and the map will automatically
+		 * release it later. Here, we release it manually.
+		 */
+		bpf_task_release(acquired);
+		return 0;
+	}
+
+----
+
+A BPF program can also look up a task from a pid. This can be useful if the
+caller doesn't have a trusted pointer to a ``struct task_struct *`` object that
+it can acquire a reference on with bpf_task_acquire().
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_task_from_pid
+
+Here is an example of it being used:
+
+.. code-block:: c
+
+	SEC("tp_btf/task_newtask")
+	int BPF_PROG(task_get_pid_example, struct task_struct *task, u64 clone_flags)
+	{
+		struct task_struct *lookup;
+
+		lookup = bpf_task_from_pid(task->pid);
+		if (!lookup)
+			/* A task should always be found, as %task is a tracepoint arg. */
+			return -ENOENT;
+
+		if (lookup->pid != task->pid) {
+			/* bpf_task_from_pid() looks up the task via its
+			 * globally-unique pid from the init_pid_ns. Thus,
+			 * the pid of the lookup task should always be the
+			 * same as the input task.
+			 */
+			bpf_task_release(lookup);
+			return -EINVAL;
+		}
+
+		/* bpf_task_from_pid() returns an acquired reference,
+		 * so it must be dropped before returning from the
+		 * tracepoint handler.
+		 */
+		bpf_task_release(lookup);
+		return 0;
+	}
+
+3.2 struct cgroup * kfuncs
+--------------------------
+
+``struct cgroup *`` objects also have acquire and release functions:
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_acquire bpf_cgroup_release
+
+These kfuncs are used in exactly the same manner as bpf_task_acquire() and
+bpf_task_release() respectively, so we won't provide examples for them.
+
+----
+
+You may also acquire a reference to a ``struct cgroup`` kptr that's already
+stored in a map using bpf_cgroup_kptr_get():
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_kptr_get
+
+Here's an example of how it can be used:
+
+.. code-block:: c
+
+	/* struct containing the struct task_struct kptr which is actually stored in the map. */
+	struct __cgroups_kfunc_map_value {
+		struct cgroup __kptr_ref * cgroup;
+	};
+
+	/* The map containing struct __cgroups_kfunc_map_value entries. */
+	struct {
+		__uint(type, BPF_MAP_TYPE_HASH);
+		__type(key, int);
+		__type(value, struct __cgroups_kfunc_map_value);
+		__uint(max_entries, 1);
+	} __cgroups_kfunc_map SEC(".maps");
+
+	/* ... */
+
+	/**
+	 * A simple example tracepoint program showing how a
+	 * struct cgroup kptr that is stored in a map can
+	 * be acquired using the bpf_cgroup_kptr_get() kfunc.
+	 */
+	 SEC("tp_btf/cgroup_mkdir")
+	 int BPF_PROG(cgroup_kptr_get_example, struct cgroup *cgrp, const char *path)
+	 {
+		struct cgroup *kptr;
+		struct __cgroups_kfunc_map_value *v;
+		s32 id = cgrp->self.id;
+
+		/* Assume a cgroup kptr was previously stored in the map. */
+		v = bpf_map_lookup_elem(&__cgroups_kfunc_map, &id);
+		if (!v)
+			return -ENOENT;
+
+		/* Acquire a reference to the cgroup kptr that's already stored in the map. */
+		kptr = bpf_cgroup_kptr_get(&v->cgroup);
+		if (!kptr)
+			/* If no cgroup was present in the map, it's because
+			 * we're racing with another CPU that removed it with
+			 * bpf_kptr_xchg() between the bpf_map_lookup_elem()
+			 * above, and our call to bpf_cgroup_kptr_get().
+			 * bpf_cgroup_kptr_get() internally safely handles this
+			 * race, and will return NULL if the task is no longer
+			 * present in the map by the time we invoke the kfunc.
+			 */
+			return -EBUSY;
+
+		/* Free the reference we just took above. Note that the
+		 * original struct cgroup kptr is still in the map. It will
+		 * be freed either at a later time if another context deletes
+		 * it from the map, or automatically by the BPF subsystem if
+		 * it's still present when the map is destroyed.
+		 */
+		bpf_cgroup_release(kptr);
+
+		return 0;
+        }
+
+----
+
+Another kfunc available for interacting with ``struct cgroup *`` objects is
+bpf_cgroup_ancestor(). This allows callers to access the ancestor of a cgroup,
+and return it as a cgroup kptr.
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_ancestor
+
+Eventually, BPF should be updated to allow this to happen with a normal memory
+load in the program itself. This is currently not possible without more work in
+the verifier. bpf_cgroup_ancestor() can be used as follows:
+
+.. code-block:: c
+
+	/**
+	 * Simple tracepoint example that illustrates how a cgroup's
+	 * ancestor can be accessed using bpf_cgroup_ancestor().
+	 */
+	SEC("tp_btf/cgroup_mkdir")
+	int BPF_PROG(cgrp_ancestor_example, struct cgroup *cgrp, const char *path)
+	{
+		struct cgroup *parent;
+
+		/* The parent cgroup resides at the level before the current cgroup's level. */
+		parent = bpf_cgroup_ancestor(cgrp, cgrp->level - 1);
+		if (!parent)
+			return -ENOENT;
+
+		bpf_printk("Parent id is %d", parent->self.id);
+
+		/* Return the parent cgroup that was acquired above. */
+		bpf_cgroup_release(parent);
+		return 0;
+	}

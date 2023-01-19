@@ -2,6 +2,7 @@
 #include "util/cputopo.h"
 #include "util/debug.h"
 #include "util/expr.h"
+#include "util/hashmap.h"
 #include "util/header.h"
 #include "util/smt.h"
 #include "tests.h"
@@ -130,12 +131,9 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 			expr__find_ids("FOO + BAR + BAZ + BOZO", "FOO",
 					ctx) == 0);
 	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 3);
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "BAR",
-						    (void **)&val_ptr));
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "BAZ",
-						    (void **)&val_ptr));
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "BOZO",
-						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "BAR", &val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "BAZ", &val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "BOZO", &val_ptr));
 
 	expr__ctx_clear(ctx);
 	ctx->sctx.runtime = 3;
@@ -143,20 +141,16 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 			expr__find_ids("EVENT1\\,param\\=?@ + EVENT2\\,param\\=?@",
 					NULL, ctx) == 0);
 	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 2);
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "EVENT1,param=3@",
-						    (void **)&val_ptr));
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "EVENT2,param=3@",
-						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "EVENT1,param=3@", &val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "EVENT2,param=3@", &val_ptr));
 
 	expr__ctx_clear(ctx);
 	TEST_ASSERT_VAL("find ids",
 			expr__find_ids("dash\\-event1 - dash\\-event2",
 				       NULL, ctx) == 0);
 	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 2);
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event1",
-						    (void **)&val_ptr));
-	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event2",
-						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event1", &val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event2", &val_ptr));
 
 	/* Only EVENT1 or EVENT2 need be measured depending on the value of smt_on. */
 	{
@@ -174,7 +168,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 		TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 1);
 		TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids,
 							  smton ? "EVENT1" : "EVENT2",
-							  (void **)&val_ptr));
+							  &val_ptr));
 
 		expr__ctx_clear(ctx);
 		TEST_ASSERT_VAL("find ids",
@@ -183,7 +177,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 		TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 1);
 		TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids,
 							  corewide ? "EVENT1" : "EVENT2",
-							  (void **)&val_ptr));
+							  &val_ptr));
 
 	}
 	/* The expression is a constant 1.0 without needing to evaluate EVENT1. */
@@ -220,8 +214,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 			expr__find_ids("source_count(EVENT1)",
 			NULL, ctx) == 0);
 	TEST_ASSERT_VAL("source count", hashmap__size(ctx->ids) == 1);
-	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1",
-							(void **)&val_ptr));
+	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1", &val_ptr));
 
 	expr__ctx_free(ctx);
 

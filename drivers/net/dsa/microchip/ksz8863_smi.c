@@ -152,11 +152,10 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 						  &regmap_smi[i], dev,
 						  &rc);
 		if (IS_ERR(dev->regmap[i])) {
-			ret = PTR_ERR(dev->regmap[i]);
-			dev_err(&mdiodev->dev,
-				"Failed to initialize regmap%i: %d\n",
-				ksz8863_regmap_config[i].val_bits, ret);
-			return ret;
+			return dev_err_probe(&mdiodev->dev,
+					     PTR_ERR(dev->regmap[i]),
+					     "Failed to initialize regmap%i\n",
+					     ksz8863_regmap_config[i].val_bits);
 		}
 	}
 

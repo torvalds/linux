@@ -42,4 +42,16 @@ config RAVB
 	  This driver supports the following SoCs:
 		- R8A779x.
 
+config RENESAS_ETHER_SWITCH
+	tristate "Renesas Ethernet Switch support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select CRC32
+	select MII
+	select PHYLINK
+	help
+	  Renesas Ethernet Switch device driver.
+	  This driver supports the following SoCs:
+		- R8A779Fx.
+
 endif # NET_VENDOR_RENESAS

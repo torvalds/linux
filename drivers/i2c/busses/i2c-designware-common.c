@@ -625,10 +625,5 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 	i2c_dw_release_lock(dev);
 }
 
-void i2c_dw_disable_int(struct dw_i2c_dev *dev)
-{
-	regmap_write(dev->map, DW_IC_INTR_MASK, 0);
-}
-
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
 MODULE_LICENSE("GPL");

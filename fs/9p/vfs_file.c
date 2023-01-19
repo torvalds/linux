@@ -18,7 +18,6 @@
 #include <linux/pagemap.h>
 #include <linux/utsname.h>
 #include <linux/uaccess.h>
-#include <linux/idr.h>
 #include <linux/uio.h>
 #include <linux/slab.h>
 #include <net/9p/9p.h>

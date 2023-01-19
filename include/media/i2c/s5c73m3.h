@@ -21,20 +21,8 @@
 #include <media/v4l2-mediabus.h>
 
 /**
- * struct s5c73m3_gpio - data structure describing a GPIO
- * @gpio:  GPIO number
- * @level: indicates active state of the @gpio
- */
-struct s5c73m3_gpio {
-	int gpio;
-	int level;
-};
-
-/**
  * struct s5c73m3_platform_data - s5c73m3 driver platform data
  * @mclk_frequency: sensor's master clock frequency in Hz
- * @gpio_reset:  GPIO driving RESET pin
- * @gpio_stby:   GPIO driving STBY pin
  * @bus_type:    bus type
  * @nlanes:      maximum number of MIPI-CSI lanes used
  * @horiz_flip:  default horizontal image flip value, non zero to enable
@@ -43,9 +31,6 @@ struct s5c73m3_gpio {
 
 struct s5c73m3_platform_data {
 	unsigned long mclk_frequency;
-
-	struct s5c73m3_gpio gpio_reset;
-	struct s5c73m3_gpio gpio_stby;
 
 	enum v4l2_mbus_type bus_type;
 	u8 nlanes;

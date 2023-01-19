@@ -156,6 +156,7 @@ void __init tegra_init_revision(void)
 	}
 
 	tegra_sku_info.sku_id = tegra_fuse_read_early(FUSE_SKU_INFO);
+	tegra_sku_info.platform = tegra_get_platform();
 }
 
 void __init tegra_init_apbmisc(void)

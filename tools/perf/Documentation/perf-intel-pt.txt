@@ -189,8 +189,16 @@ There is also script intel-pt-events.py which provides an example of how to
 unpack the raw data for power events and PTWRITE. The script also displays
 branches, and supports 2 additional modes selected by option:
 
- --insn-trace - instruction trace
- --src-trace - source trace
+ - --insn-trace - instruction trace
+ - --src-trace - source trace
+
+The intel-pt-events.py script also has options:
+
+ - --all-switch-events - display all switch events, not only the last consecutive.
+ - --interleave [<n>] - interleave sample output for the same timestamp so that
+ no more than n samples for a CPU are displayed in a row. 'n' defaults to 4.
+ Note this only affects the order of output, and only when the timestamp is the
+ same.
 
 As mentioned above, it is easy to capture too much data.  One way to limit the
 data captured is to use 'snapshot' mode which is explained further below.

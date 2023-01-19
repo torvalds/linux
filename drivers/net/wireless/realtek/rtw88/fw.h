@@ -81,6 +81,11 @@ struct rtw_c2h_adaptivity {
 	u8 option;
 } __packed;
 
+struct rtw_h2c_cmd {
+	__le32 msg;
+	__le32 msg_ext;
+} __packed;
+
 enum rtw_rsvd_packet_type {
 	RSVD_BEACON,
 	RSVD_DUMMY,
@@ -550,6 +555,8 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_AOAC_GLOBAL_INFO	0x82
 #define H2C_CMD_NLO_INFO		0x8C
 
+#define H2C_CMD_RECOVER_BT_DEV		0xD1
+
 #define SET_H2C_CMD_ID_CLASS(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(7, 0))
 
@@ -749,6 +756,9 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define SET_NLO_LOC_NLO_INFO(h2c_pkt, value)                                   \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
 
+#define SET_RECOVER_BT_DEV_EN(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
+
 #define GET_FW_DUMP_LEN(_header)					\
 	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(15, 0))
 #define GET_FW_DUMP_SEQ(_header)					\
@@ -838,6 +848,7 @@ void rtw_fw_set_aoac_global_info_cmd(struct rtw_dev *rtwdev,
 				     u8 group_key_enc);
 
 void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable);
+void rtw_fw_set_recover_bt_device(struct rtw_dev *rtwdev);
 void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
 				 struct cfg80211_ssid *ssid);
 void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable);

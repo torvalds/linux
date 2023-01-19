@@ -149,7 +149,6 @@ struct dc_link_settings {
 	enum dc_link_spread link_spread;
 	bool use_link_rate_set;
 	uint8_t link_rate_set;
-	bool dpcd_source_device_specific_field_support;
 };
 
 union dc_dp_ffe_preset {
@@ -925,6 +924,9 @@ struct dpcd_usb4_dp_tunneling_info {
 #endif
 #ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL
 #define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
+#endif
+#ifndef DP_LINK_SQUARE_PATTERN
+#define DP_LINK_SQUARE_PATTERN				0x10F
 #endif
 #ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
 #define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217

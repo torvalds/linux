@@ -265,7 +265,6 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 	struct thermal_zone_device *tzone = NULL;
 	int cpu = smp_processor_id();
 	struct zone_device *zonedev;
-	u64 msr_val, wr_val;
 
 	mutex_lock(&thermal_zone_mutex);
 	raw_spin_lock_irq(&pkg_temp_lock);
@@ -279,12 +278,8 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 	}
 	zonedev->work_scheduled = false;
 
-	rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr_val);
-	wr_val = msr_val & ~(THERM_LOG_THRESHOLD0 | THERM_LOG_THRESHOLD1);
-	if (wr_val != msr_val) {
-		wrmsrl(MSR_IA32_PACKAGE_THERM_STATUS, wr_val);
-		tzone = zonedev->tzone;
-	}
+	thermal_clear_package_intr_status(PACKAGE_LEVEL, THERM_LOG_THRESHOLD0 | THERM_LOG_THRESHOLD1);
+	tzone = zonedev->tzone;
 
 	enable_pkg_thres_interrupt();
 	raw_spin_unlock_irq(&pkg_temp_lock);

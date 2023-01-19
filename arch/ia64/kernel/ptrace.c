@@ -1481,12 +1481,10 @@ static void do_gpregs_set(struct unw_frame_info *info, void *arg)
 		return;
 	/* Skip r0 */
 	if (dst->pos < ELF_GR_OFFSET(1)) {
-		dst->ret = user_regset_copyin_ignore(&dst->pos, &dst->count,
-						       &dst->u.set.kbuf,
-						       &dst->u.set.ubuf,
-						       0, ELF_GR_OFFSET(1));
-		if (dst->ret)
-			return;
+		user_regset_copyin_ignore(&dst->pos, &dst->count,
+					  &dst->u.set.kbuf, &dst->u.set.ubuf,
+					  0, ELF_GR_OFFSET(1));
+		dst->ret = 0;
 	}
 
 	while (dst->count && dst->pos < ELF_AR_END_OFFSET) {
@@ -1560,11 +1558,11 @@ static void do_fpregs_set(struct unw_frame_info *info, void *arg)
 
 	/* Skip pos 0 and 1 */
 	if (dst->count > 0 && dst->pos < ELF_FP_OFFSET(2)) {
-		dst->ret = user_regset_copyin_ignore(&dst->pos, &dst->count,
-						       &dst->u.set.kbuf,
-						       &dst->u.set.ubuf,
-						       0, ELF_FP_OFFSET(2));
-		if (dst->count == 0 || dst->ret)
+		user_regset_copyin_ignore(&dst->pos, &dst->count,
+					  &dst->u.set.kbuf, &dst->u.set.ubuf,
+					  0, ELF_FP_OFFSET(2));
+		dst->ret = 0;
+		if (dst->count == 0)
 			return;
 	}
 

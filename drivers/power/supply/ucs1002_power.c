@@ -532,8 +532,7 @@ static const struct regulator_desc ucs1002_regulator_descriptor = {
 	.n_voltages	= 1,
 };
 
-static int ucs1002_probe(struct i2c_client *client,
-			 const struct i2c_device_id *dev_id)
+static int ucs1002_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct power_supply_config charger_config = {};
@@ -681,7 +680,7 @@ static struct i2c_driver ucs1002_driver = {
 		   .name = "ucs1002",
 		   .of_match_table = ucs1002_of_match,
 	},
-	.probe = ucs1002_probe,
+	.probe_new = ucs1002_probe,
 };
 module_i2c_driver(ucs1002_driver);
 

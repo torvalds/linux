@@ -2,6 +2,8 @@
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
+#include "bcm2835-rpi-common.dtsi"
+#include "bcm283x-rpi-led-deprecated.dtsi"
 #include "bcm283x-rpi-usb-host.dtsi"
 
 / {
@@ -11,12 +13,6 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0 0x10000000>;
-	};
-
-	leds {
-		led-act {
-			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
-		};
 	};
 };
 
@@ -100,6 +96,10 @@
 	hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
 	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
 	status = "okay";
+};
+
+&led_act {
+	gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
 };
 
 &pwm {

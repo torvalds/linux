@@ -1,0 +1,1 @@
+libsymbol-y += kallsyms.o

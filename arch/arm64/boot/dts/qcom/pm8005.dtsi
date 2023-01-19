@@ -11,7 +11,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm8005_gpio: gpios@c000 {
+		pm8005_gpio: gpio@c000 {
 			compatible = "qcom,pm8005-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;

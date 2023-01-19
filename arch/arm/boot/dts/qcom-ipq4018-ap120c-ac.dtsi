@@ -6,7 +6,7 @@
 
 / {
 	model = "ALFA Network AP120C-AC";
-	compatible = "alfa-network,ap120c-ac";
+	compatible = "alfa-network,ap120c-ac", "qcom,ipq4018";
 
 	keys {
 		compatible = "gpio-keys";

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/ti/k3.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments K3 Multicore SoC architecture device tree bindings
+title: Texas Instruments K3 Multicore SoC architecture
 
 maintainers:
   - Nishanth Menon <nm@ti.com>
@@ -61,6 +61,7 @@ properties:
           - const: ti,j721e
           - items:
               - enum:
+                  - beagle,j721e-beagleboneai64
                   - ti,j721e-evm
                   - ti,j721e-sk
               - const: ti,j721e

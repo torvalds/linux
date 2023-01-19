@@ -7,9 +7,6 @@
 
 struct rtw_dev;
 
-#define rtw_iterate_vifs(rtwdev, iterator, data)                               \
-	ieee80211_iterate_active_interfaces(rtwdev->hw,                        \
-			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
 #define rtw_iterate_vifs_atomic(rtwdev, iterator, data)                        \
 	ieee80211_iterate_active_interfaces_atomic(rtwdev->hw,                 \
 			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
@@ -19,6 +16,15 @@ struct rtw_dev;
 	ieee80211_iter_keys(rtwdev->hw, vif, iterator, data)
 #define rtw_iterate_keys_rcu(rtwdev, vif, iterator, data)		       \
 	ieee80211_iter_keys_rcu((rtwdev)->hw, vif, iterator, data)
+
+void rtw_iterate_vifs(struct rtw_dev *rtwdev,
+		      void (*iterator)(void *data, u8 *mac,
+				       struct ieee80211_vif *vif),
+		      void *data);
+void rtw_iterate_stas(struct rtw_dev *rtwdev,
+		      void (*iterator)(void *data,
+				       struct ieee80211_sta *sta),
+				       void *data);
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
 {

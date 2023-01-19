@@ -106,6 +106,9 @@ struct drm_device {
 	 */
 	struct drm_minor *render;
 
+	/** @accel: Compute Acceleration node */
+	struct drm_minor *accel;
+
 	/**
 	 * @registered:
 	 *

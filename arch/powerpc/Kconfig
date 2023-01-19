@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 source "arch/powerpc/platforms/Kconfig.cputype"
 
+config CC_HAS_ELFV2
+	def_bool PPC64 && $(cc-option, -mabi=elfv2)
+
 config 32BIT
 	bool
 	default y if PPC32
@@ -96,7 +99,7 @@ config LOCKDEP_SUPPORT
 config GENERIC_LOCKBREAK
 	bool
 	default y
-	depends on SMP && PREEMPTION
+	depends on SMP && PREEMPTION && !PPC_QUEUED_SPINLOCKS
 
 config GENERIC_HWEIGHT
 	bool
@@ -155,7 +158,6 @@ config PPC
 	select ARCH_USE_CMPXCHG_LOCKREF		if PPC64
 	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS		if PPC_QUEUED_SPINLOCKS
-	select ARCH_USE_QUEUED_SPINLOCKS	if PPC_QUEUED_SPINLOCKS
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_IRQS_OFF_ACTIVATE_MM
@@ -239,6 +241,8 @@ config PPC
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI				if PERF_EVENTS || (PPC64 && PPC_BOOK3S)
 	select HAVE_OPTPROBES
+	select HAVE_OBJTOOL			if PPC32 || MPROFILE_KERNEL
+	select HAVE_OBJTOOL_MCOUNT		if HAVE_OBJTOOL
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_EVENTS_NMI		if PPC64
 	select HAVE_PERF_REGS
@@ -293,6 +297,9 @@ config PPC_BARRIER_NOSPEC
 	bool
 	default y
 	depends on PPC_BOOK3S_64 || PPC_E500
+
+config PPC_HAS_LBARX_LHARX
+	bool
 
 config EARLY_PRINTK
 	bool
@@ -529,6 +536,15 @@ config HOTPLUG_CPU
 
 	  Say N if you are unsure.
 
+config INTERRUPT_SANITIZE_REGISTERS
+	bool "Clear gprs on interrupt arrival"
+	depends on PPC64 && ARCH_HAS_SYSCALL_WRAPPER
+	default PPC_BOOK3E_64 || PPC_PSERIES || PPC_POWERNV
+	help
+	  Reduce the influence of user register state on interrupt handlers and
+	  syscalls through clearing user state from registers before handling
+	  the exception.
+
 config PPC_QUEUED_SPINLOCKS
 	bool "Queued spinlocks" if EXPERT
 	depends on SMP
@@ -582,6 +598,24 @@ config KEXEC_FILE
 
 config ARCH_HAS_KEXEC_PURGATORY
 	def_bool KEXEC_FILE
+
+config PPC64_BIG_ENDIAN_ELF_ABI_V2
+	bool "Build big-endian kernel using ELF ABI V2 (EXPERIMENTAL)"
+	depends on PPC64 && CPU_BIG_ENDIAN
+	depends on CC_HAS_ELFV2
+	depends on LD_IS_BFD && LD_VERSION >= 22400
+	default n
+	help
+	  This builds the kernel image using the "Power Architecture 64-Bit ELF
+	  V2 ABI Specification", which has a reduced stack overhead and faster
+	  function calls. This internal kernel ABI option does not affect
+          userspace compatibility.
+
+	  The V2 ABI is standard for 64-bit little-endian, but for big-endian
+	  it is less well tested by kernel and toolchain. However some distros
+	  build userspace this way, and it can produce a functioning kernel.
+
+	  This requires GCC and binutils 2.24 or newer.
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
@@ -1011,19 +1045,6 @@ config PPC_SECVAR_SYSFS
 	  These variables are exposed to userspace via sysfs to enable
 	  read/write operations on these variables. Say Y if you have
 	  secure boot enabled and want to expose variables to userspace.
-
-config PPC_RTAS_FILTER
-	bool "Enable filtering of RTAS syscalls"
-	default y
-	depends on PPC_RTAS
-	help
-	  The RTAS syscall API has security issues that could be used to
-	  compromise system integrity. This option enforces restrictions on the
-	  RTAS calls and arguments passed by userspace programs to mitigate
-	  these issues.
-
-	  Say Y unless you know what you are doing and the filter is causing
-	  problems for you.
 
 endmenu
 

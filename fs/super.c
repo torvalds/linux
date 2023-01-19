@@ -1112,54 +1112,13 @@ static int test_single_super(struct super_block *s, struct fs_context *fc)
 	return 1;
 }
 
-/**
- * vfs_get_super - Get a superblock with a search key set in s_fs_info.
- * @fc: The filesystem context holding the parameters
- * @keying: How to distinguish superblocks
- * @fill_super: Helper to initialise a new superblock
- *
- * Search for a superblock and create a new one if not found.  The search
- * criterion is controlled by @keying.  If the search fails, a new superblock
- * is created and @fill_super() is called to initialise it.
- *
- * @keying can take one of a number of values:
- *
- * (1) vfs_get_single_super - Only one superblock of this type may exist on the
- *     system.  This is typically used for special system filesystems.
- *
- * (2) vfs_get_keyed_super - Multiple superblocks may exist, but they must have
- *     distinct keys (where the key is in s_fs_info).  Searching for the same
- *     key again will turn up the superblock for that key.
- *
- * (3) vfs_get_independent_super - Multiple superblocks may exist and are
- *     unkeyed.  Each call will get a new superblock.
- *
- * A permissions check is made by sget_fc() unless we're getting a superblock
- * for a kernel-internal mount or a submount.
- */
-int vfs_get_super(struct fs_context *fc,
-		  enum vfs_get_super_keying keying,
-		  int (*fill_super)(struct super_block *sb,
-				    struct fs_context *fc))
+static int vfs_get_super(struct fs_context *fc, bool reconf,
+		int (*test)(struct super_block *, struct fs_context *),
+		int (*fill_super)(struct super_block *sb,
+				  struct fs_context *fc))
 {
-	int (*test)(struct super_block *, struct fs_context *);
 	struct super_block *sb;
 	int err;
-
-	switch (keying) {
-	case vfs_get_single_super:
-	case vfs_get_single_reconf_super:
-		test = test_single_super;
-		break;
-	case vfs_get_keyed_super:
-		test = test_keyed_super;
-		break;
-	case vfs_get_independent_super:
-		test = NULL;
-		break;
-	default:
-		BUG();
-	}
 
 	sb = sget_fc(fc, test, set_anon_super_fc);
 	if (IS_ERR(sb))
@@ -1174,7 +1133,7 @@ int vfs_get_super(struct fs_context *fc,
 		fc->root = dget(sb->s_root);
 	} else {
 		fc->root = dget(sb->s_root);
-		if (keying == vfs_get_single_reconf_super) {
+		if (reconf) {
 			err = reconfigure_super(fc);
 			if (err < 0) {
 				dput(fc->root);
@@ -1190,13 +1149,12 @@ error:
 	deactivate_locked_super(sb);
 	return err;
 }
-EXPORT_SYMBOL(vfs_get_super);
 
 int get_tree_nodev(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, vfs_get_independent_super, fill_super);
+	return vfs_get_super(fc, false, NULL, fill_super);
 }
 EXPORT_SYMBOL(get_tree_nodev);
 
@@ -1204,7 +1162,7 @@ int get_tree_single(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, vfs_get_single_super, fill_super);
+	return vfs_get_super(fc, false, test_single_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_single);
 
@@ -1212,7 +1170,7 @@ int get_tree_single_reconf(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, vfs_get_single_reconf_super, fill_super);
+	return vfs_get_super(fc, true, test_single_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_single_reconf);
 
@@ -1222,7 +1180,7 @@ int get_tree_keyed(struct fs_context *fc,
 		void *key)
 {
 	fc->s_fs_info = key;
-	return vfs_get_super(fc, vfs_get_keyed_super, fill_super);
+	return vfs_get_super(fc, false, test_keyed_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_keyed);
 

@@ -38,26 +38,6 @@ static inline char *strncpy(char *dest, const char *src, size_t n)
 	return xdest;
 }
 
-#ifndef CONFIG_COLDFIRE
-#define __HAVE_ARCH_STRCMP
-static inline int strcmp(const char *cs, const char *ct)
-{
-	char res;
-
-	asm ("\n"
-		"1:	move.b	(%0)+,%2\n"	/* get *cs */
-		"	cmp.b	(%1)+,%2\n"	/* compare a byte */
-		"	jne	2f\n"		/* not equal, break out */
-		"	tst.b	%2\n"		/* at end of cs? */
-		"	jne	1b\n"		/* no, keep going */
-		"	jra	3f\n"		/* strings are equal */
-		"2:	sub.b	-(%1),%2\n"	/* *cs - *ct */
-		"3:"
-		: "+a" (cs), "+a" (ct), "=d" (res));
-	return res;
-}
-#endif /* CONFIG_COLDFIRE */
-
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *, const void *, __kernel_size_t);
 

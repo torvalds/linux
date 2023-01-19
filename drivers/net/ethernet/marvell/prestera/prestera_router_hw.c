@@ -330,7 +330,7 @@ prestera_nh_neigh_find(struct prestera_switch *sw,
 
 	nh_neigh = rhashtable_lookup_fast(&sw->router->nh_neigh_ht,
 					  key, __prestera_nh_neigh_ht_params);
-	return IS_ERR(nh_neigh) ? NULL : nh_neigh;
+	return nh_neigh;
 }
 
 struct prestera_nh_neigh *
@@ -484,7 +484,7 @@ __prestera_nexthop_group_find(struct prestera_switch *sw,
 
 	nh_grp = rhashtable_lookup_fast(&sw->router->nexthop_group_ht,
 					key, __prestera_nexthop_group_ht_params);
-	return IS_ERR(nh_grp) ? NULL : nh_grp;
+	return nh_grp;
 }
 
 static struct prestera_nexthop_group *

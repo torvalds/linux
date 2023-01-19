@@ -62,11 +62,11 @@
 };
 
 &gpio_leds {
-	power {
+	led-power {
 		label = "cobra:white:power";
 	};
 
-	sata {
+	led-sata {
 		label = "cobra:white:sata";
 	};
 };

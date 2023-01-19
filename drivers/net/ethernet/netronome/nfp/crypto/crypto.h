@@ -39,4 +39,27 @@ nfp_net_tls_rx_resync_req(struct net_device *netdev,
 }
 #endif
 
+/* IPsec related structures and functions */
+struct nfp_ipsec_offload {
+	u32 seq_hi;
+	u32 seq_low;
+	u32 handle;
+};
+
+#ifndef CONFIG_NFP_NET_IPSEC
+static inline void nfp_net_ipsec_init(struct nfp_net *nn)
+{
+}
+
+static inline void nfp_net_ipsec_clean(struct nfp_net *nn)
+{
+}
+#else
+void nfp_net_ipsec_init(struct nfp_net *nn);
+void nfp_net_ipsec_clean(struct nfp_net *nn);
+bool nfp_net_ipsec_tx_prep(struct nfp_net_dp *dp, struct sk_buff *skb,
+			   struct nfp_ipsec_offload *offload_info);
+int nfp_net_ipsec_rx(struct nfp_meta_parsed *meta, struct sk_buff *skb);
+#endif
+
 #endif

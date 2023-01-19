@@ -888,6 +888,17 @@ TEST_F(NCI, deinit)
 			   &msg);
 	ASSERT_EQ(rc, 0);
 	EXPECT_EQ(get_dev_enable_state(&msg), 0);
+
+	/* Test that operations that normally send packets to the driver
+	 * don't cause issues when the device is already closed.
+	 * Note: the send of NFC_CMD_DEV_UP itself still succeeds it's just
+	 * that the device won't actually be up.
+	 */
+	close(self->virtual_nci_fd);
+	self->virtual_nci_fd = -1;
+	rc = send_cmd_with_idx(self->sd, self->fid, self->pid,
+			       NFC_CMD_DEV_UP, self->dev_idex);
+	EXPECT_EQ(rc, 0);
 }
 
 TEST_HARNESS_MAIN

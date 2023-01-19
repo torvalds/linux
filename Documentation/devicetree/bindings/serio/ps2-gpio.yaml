@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serio/ps2-gpio.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for GPIO based PS/2
+title: GPIO based PS/2
 
 maintainers:
   - Danilo Krummrich <danilokrummrich@dk-develop.de>

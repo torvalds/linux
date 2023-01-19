@@ -77,6 +77,8 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 		 */
 		list_del(&act->list);
 	}
+	if (act->count)
+		efx_tc_flower_put_counter_index(efx, act->count);
 	kfree(act);
 }
 
@@ -124,48 +126,185 @@ static void efx_tc_flow_free(void *ptr, void *arg)
 	kfree(rule);
 }
 
+/* Boilerplate for the simple 'copy a field' cases */
+#define _MAP_KEY_AND_MASK(_name, _type, _tcget, _tcfield, _field)	\
+if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_##_name)) {		\
+	struct flow_match_##_type fm;					\
+									\
+	flow_rule_match_##_tcget(rule, &fm);				\
+	match->value._field = fm.key->_tcfield;				\
+	match->mask._field = fm.mask->_tcfield;				\
+}
+#define MAP_KEY_AND_MASK(_name, _type, _tcfield, _field)	\
+	_MAP_KEY_AND_MASK(_name, _type, _type, _tcfield, _field)
+#define MAP_ENC_KEY_AND_MASK(_name, _type, _tcget, _tcfield, _field)	\
+	_MAP_KEY_AND_MASK(ENC_##_name, _type, _tcget, _tcfield, _field)
+
 static int efx_tc_flower_parse_match(struct efx_nic *efx,
 				     struct flow_rule *rule,
 				     struct efx_tc_match *match,
 				     struct netlink_ext_ack *extack)
 {
 	struct flow_dissector *dissector = rule->match.dissector;
+	unsigned char ipv = 0;
 
+	/* Owing to internal TC infelicities, the IPV6_ADDRS key might be set
+	 * even on IPv4 filters; so rather than relying on dissector->used_keys
+	 * we check the addr_type in the CONTROL key.  If we don't find it (or
+	 * it's masked, which should never happen), we treat both IPV4_ADDRS
+	 * and IPV6_ADDRS as absent.
+	 */
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
 		struct flow_match_control fm;
 
 		flow_rule_match_control(rule, &fm);
+		if (IS_ALL_ONES(fm.mask->addr_type))
+			switch (fm.key->addr_type) {
+			case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+				ipv = 4;
+				break;
+			case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+				ipv = 6;
+				break;
+			default:
+				break;
+			}
 
-		if (fm.mask->flags) {
-			efx_tc_err(efx, "Unsupported match on control.flags %#x\n",
-				   fm.mask->flags);
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported match on control.flags");
+		if (fm.mask->flags & FLOW_DIS_IS_FRAGMENT) {
+			match->value.ip_frag = fm.key->flags & FLOW_DIS_IS_FRAGMENT;
+			match->mask.ip_frag = true;
+		}
+		if (fm.mask->flags & FLOW_DIS_FIRST_FRAG) {
+			match->value.ip_firstfrag = fm.key->flags & FLOW_DIS_FIRST_FRAG;
+			match->mask.ip_firstfrag = true;
+		}
+		if (fm.mask->flags & ~(FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
+					       fm.mask->flags);
 			return -EOPNOTSUPP;
 		}
 	}
 	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_BASIC))) {
-		efx_tc_err(efx, "Unsupported flower keys %#x\n", dissector->used_keys);
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported flower keys encountered");
+	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_TCP) |
+	      BIT(FLOW_DISSECTOR_KEY_IP))) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
+				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_match_basic fm;
-
-		flow_rule_match_basic(rule, &fm);
-		if (fm.mask->n_proto) {
-			EFX_TC_ERR_MSG(efx, extack, "Unsupported eth_proto match\n");
-			return -EOPNOTSUPP;
+	MAP_KEY_AND_MASK(BASIC, basic, n_proto, eth_proto);
+	/* Make sure we're IP if any L3/L4 keys used. */
+	if (!IS_ALL_ONES(match->mask.eth_proto) ||
+	    !(match->value.eth_proto == htons(ETH_P_IP) ||
+	      match->value.eth_proto == htons(ETH_P_IPV6)))
+		if (dissector->used_keys &
+		    (BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+		     BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+		     BIT(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT(FLOW_DISSECTOR_KEY_IP) |
+		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L3/L4 flower keys %#x require protocol ipv[46]",
+					       dissector->used_keys);
+			return -EINVAL;
 		}
-		if (fm.mask->ip_proto) {
-			EFX_TC_ERR_MSG(efx, extack, "Unsupported ip_proto match\n");
-			return -EOPNOTSUPP;
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan fm;
+
+		flow_rule_match_vlan(rule, &fm);
+		if (fm.mask->vlan_id || fm.mask->vlan_priority || fm.mask->vlan_tpid) {
+			match->value.vlan_proto[0] = fm.key->vlan_tpid;
+			match->mask.vlan_proto[0] = fm.mask->vlan_tpid;
+			match->value.vlan_tci[0] = cpu_to_be16(fm.key->vlan_priority << 13 |
+							       fm.key->vlan_id);
+			match->mask.vlan_tci[0] = cpu_to_be16(fm.mask->vlan_priority << 13 |
+							      fm.mask->vlan_id);
 		}
 	}
 
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_match_vlan fm;
+
+		flow_rule_match_cvlan(rule, &fm);
+		if (fm.mask->vlan_id || fm.mask->vlan_priority || fm.mask->vlan_tpid) {
+			match->value.vlan_proto[1] = fm.key->vlan_tpid;
+			match->mask.vlan_proto[1] = fm.mask->vlan_tpid;
+			match->value.vlan_tci[1] = cpu_to_be16(fm.key->vlan_priority << 13 |
+							       fm.key->vlan_id);
+			match->mask.vlan_tci[1] = cpu_to_be16(fm.mask->vlan_priority << 13 |
+							      fm.mask->vlan_id);
+		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs fm;
+
+		flow_rule_match_eth_addrs(rule, &fm);
+		ether_addr_copy(match->value.eth_saddr, fm.key->src);
+		ether_addr_copy(match->value.eth_daddr, fm.key->dst);
+		ether_addr_copy(match->mask.eth_saddr, fm.mask->src);
+		ether_addr_copy(match->mask.eth_daddr, fm.mask->dst);
+	}
+
+	MAP_KEY_AND_MASK(BASIC, basic, ip_proto, ip_proto);
+	/* Make sure we're TCP/UDP if any L4 keys used. */
+	if ((match->value.ip_proto != IPPROTO_UDP &&
+	     match->value.ip_proto != IPPROTO_TCP) || !IS_ALL_ONES(match->mask.ip_proto))
+		if (dissector->used_keys &
+		    (BIT(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L4 flower keys %#x require ipproto udp or tcp",
+					       dissector->used_keys);
+			return -EINVAL;
+		}
+	MAP_KEY_AND_MASK(IP, ip, tos, ip_tos);
+	MAP_KEY_AND_MASK(IP, ip, ttl, ip_ttl);
+	if (ipv == 4) {
+		MAP_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, src, src_ip);
+		MAP_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, dst, dst_ip);
+	}
+#ifdef CONFIG_IPV6
+	else if (ipv == 6) {
+		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, src, src_ip6);
+		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, dst, dst_ip6);
+	}
+#endif
+	MAP_KEY_AND_MASK(PORTS, ports, src, l4_sport);
+	MAP_KEY_AND_MASK(PORTS, ports, dst, l4_dport);
+	MAP_KEY_AND_MASK(TCP, tcp, flags, tcp_flags);
+
 	return 0;
+}
+
+/* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
+enum efx_tc_action_order {
+	EFX_TC_AO_COUNT,
+	EFX_TC_AO_DELIVER
+};
+/* Determine whether we can add @new action without violating order */
+static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
+					  enum efx_tc_action_order new)
+{
+	switch (new) {
+	case EFX_TC_AO_COUNT:
+		if (act->count)
+			return false;
+		fallthrough;
+	case EFX_TC_AO_DELIVER:
+		return !act->deliver;
+	default:
+		/* Bad caller.  Whatever they wanted to do, say they can't. */
+		WARN_ON_ONCE(1);
+		return false;
+	}
 }
 
 static int efx_tc_flower_replace(struct efx_nic *efx,
@@ -200,13 +339,9 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	if (efv != from_efv) {
 		/* can't happen */
-		efx_tc_err(efx, "for %s efv is %snull but from_efv is %snull\n",
-			   netdev_name(net_dev), efv ? "non-" : "",
-			   from_efv ? "non-" : "");
-		if (efv)
-			NL_SET_ERR_MSG_MOD(extack, "vfrep filter has PF net_dev (can't happen)");
-		else
-			NL_SET_ERR_MSG_MOD(extack, "PF filter has vfrep net_dev (can't happen)");
+		NL_SET_ERR_MSG_FMT_MOD(extack, "for %s efv is %snull but from_efv is %snull (can't happen)",
+				       netdev_name(net_dev), efv ? "non-" : "",
+				       from_efv ? "non-" : "");
 		return -EINVAL;
 	}
 
@@ -214,7 +349,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	memset(&match, 0, sizeof(match));
 	rc = efx_tc_flower_external_mport(efx, from_efv);
 	if (rc < 0) {
-		EFX_TC_ERR_MSG(efx, extack, "Failed to identify ingress m-port");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to identify ingress m-port");
 		return rc;
 	}
 	match.value.ingress_port = rc;
@@ -224,7 +359,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		return rc;
 
 	if (tc->common.chain_index) {
-		EFX_TC_ERR_MSG(efx, extack, "No support for nonzero chain_index");
+		NL_SET_ERR_MSG_MOD(extack, "No support for nonzero chain_index");
 		return -EOPNOTSUPP;
 	}
 	match.mask.recirc_id = 0xff;
@@ -261,16 +396,57 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 		if (!act) {
 			/* more actions after a non-pipe action */
-			EFX_TC_ERR_MSG(efx, extack, "Action follows non-pipe action");
+			NL_SET_ERR_MSG_MOD(extack, "Action follows non-pipe action");
 			rc = -EINVAL;
 			goto release;
+		}
+
+		if ((fa->id == FLOW_ACTION_REDIRECT ||
+		     fa->id == FLOW_ACTION_MIRRED ||
+		     fa->id == FLOW_ACTION_DROP) && fa->hw_stats) {
+			struct efx_tc_counter_index *ctr;
+
+			/* Currently the only actions that want stats are
+			 * mirred and gact (ok, shot, trap, goto-chain), which
+			 * means we want stats just before delivery.  Also,
+			 * note that tunnel_key set shouldn't change the length
+			 * — it's only the subsequent mirred that does that,
+			 * and the stats are taken _before_ the mirred action
+			 * happens.
+			 */
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_COUNT)) {
+				/* All supported actions that count either steal
+				 * (gact shot, mirred redirect) or clone act
+				 * (mirred mirror), so we should never get two
+				 * count actions on one action_set.
+				 */
+				NL_SET_ERR_MSG_MOD(extack, "Count-action conflict (can't happen)");
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+
+			if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
+				NL_SET_ERR_MSG_FMT_MOD(extack, "hw_stats_type %u not supported (only 'delayed')",
+						       fa->hw_stats);
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+
+			ctr = efx_tc_flower_get_counter_index(efx, tc->cookie,
+							      EFX_TC_COUNTER_TYPE_AR);
+			if (IS_ERR(ctr)) {
+				rc = PTR_ERR(ctr);
+				NL_SET_ERR_MSG_MOD(extack, "Failed to obtain a counter");
+				goto release;
+			}
+			act->count = ctr;
 		}
 
 		switch (fa->id) {
 		case FLOW_ACTION_DROP:
 			rc = efx_mae_alloc_action_set(efx, act);
 			if (rc) {
-				EFX_TC_ERR_MSG(efx, extack, "Failed to write action set to hw (drop)");
+				NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (drop)");
 				goto release;
 			}
 			list_add_tail(&act->list, &rule->acts.list);
@@ -279,22 +455,30 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		case FLOW_ACTION_REDIRECT:
 		case FLOW_ACTION_MIRRED:
 			save = *act;
+
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
+				/* can't happen */
+				rc = -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Deliver action violates action order (can't happen)");
+				goto release;
+			}
+
 			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
 			if (IS_ERR(to_efv)) {
-				EFX_TC_ERR_MSG(efx, extack, "Mirred egress device not on switch");
+				NL_SET_ERR_MSG_MOD(extack, "Mirred egress device not on switch");
 				rc = PTR_ERR(to_efv);
 				goto release;
 			}
 			rc = efx_tc_flower_external_mport(efx, to_efv);
 			if (rc < 0) {
-				EFX_TC_ERR_MSG(efx, extack, "Failed to identify egress m-port");
+				NL_SET_ERR_MSG_MOD(extack, "Failed to identify egress m-port");
 				goto release;
 			}
 			act->dest_mport = rc;
 			act->deliver = 1;
 			rc = efx_mae_alloc_action_set(efx, act);
 			if (rc) {
-				EFX_TC_ERR_MSG(efx, extack, "Failed to write action set to hw (mirred)");
+				NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (mirred)");
 				goto release;
 			}
 			list_add_tail(&act->list, &rule->acts.list);
@@ -302,6 +486,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			if (fa->id == FLOW_ACTION_REDIRECT)
 				break; /* end of the line */
 			/* Mirror, so continue on with saved act */
+			save.count = NULL;
 			act = kzalloc(sizeof(*act), GFP_USER);
 			if (!act) {
 				rc = -ENOMEM;
@@ -310,9 +495,9 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			*act = save;
 			break;
 		default:
-			efx_tc_err(efx, "Unhandled action %u\n", fa->id);
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
+					       fa->id);
 			rc = -EOPNOTSUPP;
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			goto release;
 		}
 	}
@@ -334,7 +519,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		act->deliver = 1;
 		rc = efx_mae_alloc_action_set(efx, act);
 		if (rc) {
-			EFX_TC_ERR_MSG(efx, extack, "Failed to write action set to hw (deliver)");
+			NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (deliver)");
 			goto release;
 		}
 		list_add_tail(&act->list, &rule->acts.list);
@@ -349,13 +534,13 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	rc = efx_mae_alloc_action_set_list(efx, &rule->acts);
 	if (rc) {
-		EFX_TC_ERR_MSG(efx, extack, "Failed to write action set list to hw");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to write action set list to hw");
 		goto release;
 	}
 	rc = efx_mae_insert_rule(efx, &rule->match, EFX_TC_PRIO_TC,
 				 rule->acts.fw_id, &rule->fw_id);
 	if (rc) {
-		EFX_TC_ERR_MSG(efx, extack, "Failed to insert rule in hw");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to insert rule in hw");
 		goto release_acts;
 	}
 	return 0;
@@ -410,6 +595,42 @@ static int efx_tc_flower_destroy(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_tc_flower_stats(struct efx_nic *efx, struct net_device *net_dev,
+			       struct flow_cls_offload *tc)
+{
+	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_counter_index *ctr;
+	struct efx_tc_counter *cnt;
+	u64 packets, bytes;
+
+	ctr = efx_tc_flower_find_counter_index(efx, tc->cookie);
+	if (!ctr) {
+		/* See comment in efx_tc_flower_destroy() */
+		if (!IS_ERR(efx_tc_flower_lookup_efv(efx, net_dev)))
+			if (net_ratelimit())
+				netif_warn(efx, drv, efx->net_dev,
+					   "Filter %lx not found for stats\n",
+					   tc->cookie);
+		NL_SET_ERR_MSG_MOD(extack, "Flow cookie not found in offloaded rules");
+		return -ENOENT;
+	}
+	if (WARN_ON(!ctr->cnt)) /* can't happen */
+		return -EIO;
+	cnt = ctr->cnt;
+
+	spin_lock_bh(&cnt->lock);
+	/* Report only new pkts/bytes since last time TC asked */
+	packets = cnt->packets;
+	bytes = cnt->bytes;
+	flow_stats_update(&tc->stats, bytes - cnt->old_bytes,
+			  packets - cnt->old_packets, 0, cnt->touched,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+	cnt->old_packets = packets;
+	cnt->old_bytes = bytes;
+	spin_unlock_bh(&cnt->lock);
+	return 0;
+}
+
 int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		  struct flow_cls_offload *tc, struct efx_rep *efv)
 {
@@ -425,6 +646,9 @@ int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		break;
 	case FLOW_CLS_DESTROY:
 		rc = efx_tc_flower_destroy(efx, net_dev, tc);
+		break;
+	case FLOW_CLS_STATS:
+		rc = efx_tc_flower_stats(efx, net_dev, tc);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
@@ -641,6 +865,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	INIT_LIST_HEAD(&efx->tc->block_list);
 
 	mutex_init(&efx->tc->mutex);
+	init_waitqueue_head(&efx->tc->flush_wq);
+	rc = efx_tc_init_counters(efx);
+	if (rc < 0)
+		goto fail_counters;
 	rc = rhashtable_init(&efx->tc->match_action_ht, &efx_tc_match_action_ht_params);
 	if (rc < 0)
 		goto fail_match_action_ht;
@@ -650,8 +878,11 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc->dflt.pf.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 	INIT_LIST_HEAD(&efx->tc->dflt.wire.acts.list);
 	efx->tc->dflt.wire.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
+	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
 fail_match_action_ht:
+	efx_tc_destroy_counters(efx);
+fail_counters:
 	mutex_destroy(&efx->tc->mutex);
 	kfree(efx->tc->caps);
 fail_alloc_caps:
@@ -672,6 +903,7 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,
 				    efx);
+	efx_tc_fini_counters(efx);
 	mutex_unlock(&efx->tc->mutex);
 	mutex_destroy(&efx->tc->mutex);
 	kfree(efx->tc->caps);

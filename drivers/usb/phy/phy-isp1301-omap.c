@@ -1471,7 +1471,7 @@ isp1301_start_hnp(struct usb_otg *otg)
 /*-------------------------------------------------------------------------*/
 
 static int
-isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+isp1301_probe(struct i2c_client *i2c)
 {
 	int			status;
 	struct isp1301		*isp;
@@ -1616,7 +1616,7 @@ static struct i2c_driver isp1301_driver = {
 	.driver = {
 		.name	= "isp1301_omap",
 	},
-	.probe		= isp1301_probe,
+	.probe_new	= isp1301_probe,
 	.remove		= isp1301_remove,
 	.id_table	= isp1301_id,
 };

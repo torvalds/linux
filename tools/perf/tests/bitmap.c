@@ -18,7 +18,7 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 
 	if (map && bm) {
 		for (i = 0; i < perf_cpu_map__nr(map); i++)
-			set_bit(perf_cpu_map__cpu(map, i).cpu, bm);
+			__set_bit(perf_cpu_map__cpu(map, i).cpu, bm);
 	}
 
 	if (map)

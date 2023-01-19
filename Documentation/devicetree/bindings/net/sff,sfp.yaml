@@ -22,7 +22,8 @@ properties:
       phandle of an I2C bus controller for the SFP two wire serial
 
   maximum-power-milliwatt:
-    maxItems: 1
+    minimum: 1000
+    default: 1000
     description:
       Maximum module power consumption Specifies the maximum power consumption
       allowable by a module in the slot, in milli-Watts. Presently, modules can

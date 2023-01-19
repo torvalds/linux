@@ -22,6 +22,9 @@ enum {
 	TCA_CT_NAT_PORT_MIN,	/* be16 */
 	TCA_CT_NAT_PORT_MAX,	/* be16 */
 	TCA_CT_PAD,
+	TCA_CT_HELPER_NAME,	/* string */
+	TCA_CT_HELPER_FAMILY,	/* u8 */
+	TCA_CT_HELPER_PROTO,	/* u8 */
 	__TCA_CT_MAX
 };
 

@@ -60,7 +60,8 @@ struct gve_rx_slot_page_info {
 	void *page_address;
 	u32 page_offset; /* offset to write to in page */
 	int pagecnt_bias; /* expected pagecnt if only the driver has a ref */
-	u8 can_flip;
+	u16 pad; /* adjustment for rx padding */
+	u8 can_flip; /* tracks if the networking stack is using the page */
 };
 
 /* A list of pages registered with the device during setup and used by a queue
@@ -149,10 +150,17 @@ struct gve_rx_ctx {
 	/* head and tail of skb chain for the current packet or NULL if none */
 	struct sk_buff *skb_head;
 	struct sk_buff *skb_tail;
-	u16 total_expected_size;
-	u8 expected_frag_cnt;
-	u8 curr_frag_cnt;
-	u8 reuse_frags;
+	u32 total_size;
+	u8 frag_cnt;
+	bool drop_pkt;
+};
+
+struct gve_rx_cnts {
+	u32 ok_pkt_bytes;
+	u16 ok_pkt_cnt;
+	u16 total_pkt_cnt;
+	u16 cont_pkt_cnt;
+	u16 desc_err_pkt_cnt;
 };
 
 /* Contains datapath state used to represent an RX queue. */
@@ -167,6 +175,10 @@ struct gve_rx_ring {
 			/* threshold for posting new buffs and descs */
 			u32 db_threshold;
 			u16 packet_buffer_size;
+
+			u32 qpl_copy_pool_mask;
+			u32 qpl_copy_pool_head;
+			struct gve_rx_slot_page_info *qpl_copy_pool;
 		};
 
 		/* DQO fields. */
@@ -216,7 +228,9 @@ struct gve_rx_ring {
 	u64 rx_desc_err_dropped_pkt; /* free-running count of packets dropped by descriptor error */
 	u64 rx_cont_packet_cnt; /* free-running multi-fragment packets received */
 	u64 rx_frag_flip_cnt; /* free-running count of rx segments where page_flip was used */
-	u64 rx_frag_copy_cnt; /* free-running count of rx segments copied into skb linear portion */
+	u64 rx_frag_copy_cnt; /* free-running count of rx segments copied */
+	u64 rx_frag_alloc_cnt; /* free-running count of rx page allocations */
+
 	u32 q_num; /* queue index */
 	u32 ntfy_id; /* notification block index */
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
@@ -549,6 +563,7 @@ struct gve_priv {
 	u32 adminq_report_stats_cnt;
 	u32 adminq_report_link_speed_cnt;
 	u32 adminq_get_ptype_map_cnt;
+	u32 adminq_verify_driver_compatibility_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */

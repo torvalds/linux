@@ -151,7 +151,7 @@ static int random_size_alloc_test(void)
 	int i;
 
 	for (i = 0; i < test_loop_count; i++) {
-		n = prandom_u32_max(100) + 1;
+		n = get_random_u32_inclusive(1, 100);
 		p = vmalloc(n * PAGE_SIZE);
 
 		if (!p)
@@ -291,12 +291,12 @@ pcpu_alloc_test(void)
 		return -1;
 
 	for (i = 0; i < 35000; i++) {
-		size = prandom_u32_max(PAGE_SIZE / 4) + 1;
+		size = get_random_u32_inclusive(1, PAGE_SIZE / 4);
 
 		/*
 		 * Maximum PAGE_SIZE
 		 */
-		align = 1 << (prandom_u32_max(11) + 1);
+		align = 1 << get_random_u32_inclusive(1, 11);
 
 		pcpu[i] = __alloc_percpu(size, align);
 		if (!pcpu[i])
@@ -391,7 +391,7 @@ static void shuffle_array(int *arr, int n)
 
 	for (i = n - 1; i > 0; i--)  {
 		/* Cut the range. */
-		j = prandom_u32_max(i);
+		j = get_random_u32_below(i);
 
 		/* Swap indexes. */
 		swap(arr[i], arr[j]);

@@ -11,6 +11,13 @@
 #define	MAIN_ANT_CGCS_RX	0
 #define	AUX_ANT_CGCS_RX	1
 
+#define SET_TX_DESC_ANTSEL_A_88E(__ptxdesc, __value)			\
+	le32p_replace_bits((__le32 *)(__ptxdesc + 8), __value, BIT(24))
+#define SET_TX_DESC_ANTSEL_B_88E(__ptxdesc, __value)			\
+	le32p_replace_bits((__le32 *)(__ptxdesc + 8), __value, BIT(25))
+#define SET_TX_DESC_ANTSEL_C_88E(__ptxdesc, __value)			\
+	le32p_replace_bits((__le32 *)(__ptxdesc + 28), __value, BIT(29))
+
 void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *pDM_Odm);
 
 void ODM_AntennaDiversity_88E(struct odm_dm_struct *pDM_Odm);

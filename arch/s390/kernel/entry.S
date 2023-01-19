@@ -122,24 +122,6 @@ _LPP_OFFSET	= __LC_LPP
 		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", 82
 	.endm
 
-	/*
-	 * The CHKSTG macro jumps to the provided label in case the
-	 * machine check interruption code reports one of unrecoverable
-	 * storage errors:
-	 * - Storage error uncorrected
-	 * - Storage key error uncorrected
-	 * - Storage degradation with Failing-storage-address validity
-	 */
-	.macro CHKSTG errlabel
-	TSTMSK	__LC_MCCK_CODE,(MCCK_CODE_STG_ERROR|MCCK_CODE_STG_KEY_ERROR)
-	jnz	\errlabel
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_DEGRAD
-	jz	.Loklabel\@
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_FAIL_ADDR
-	jnz	\errlabel
-.Loklabel\@:
-	.endm
-
 #if IS_ENABLED(CONFIG_KVM)
 	/*
 	 * The OUTSIDE macro jumps to the provided label in case the value
@@ -225,18 +207,20 @@ ENDPROC(__switch_to)
 
 #if IS_ENABLED(CONFIG_KVM)
 /*
- * sie64a calling convention:
- * %r2 pointer to sie control block
- * %r3 guest register save area
+ * __sie64a calling convention:
+ * %r2 pointer to sie control block phys
+ * %r3 pointer to sie control block virt
+ * %r4 guest register save area
  */
-ENTRY(sie64a)
+ENTRY(__sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
 	lg	%r12,__LC_CURRENT
-	stg	%r2,__SF_SIE_CONTROL(%r15)	# save control block pointer
-	stg	%r3,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
+	stg	%r2,__SF_SIE_CONTROL_PHYS(%r15)	# save sie block physical..
+	stg	%r3,__SF_SIE_CONTROL(%r15)	# ...and virtual addresses
+	stg	%r4,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
 	xc	__SF_SIE_REASON(8,%r15),__SF_SIE_REASON(%r15) # reason code = 0
 	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r12) # copy thread flags
-	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
+	lmg	%r0,%r13,0(%r4)			# load guest gprs 0-13
 	lg	%r14,__LC_GMAP			# get gmap pointer
 	ltgr	%r14,%r14
 	jz	.Lsie_gmap
@@ -248,6 +232,7 @@ ENTRY(sie64a)
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
+	lg	%r14,__SF_SIE_CONTROL_PHYS(%r15)	# get sie block phys addr
 	BPEXIT	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_entry:
 	sie	0(%r14)
@@ -258,13 +243,14 @@ ENTRY(sie64a)
 	BPOFF
 	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_skip:
+	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
 .Lsie_done:
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
-# Other instructions between sie64a and .Lsie_done should not cause program
+# Other instructions between __sie64a and .Lsie_done should not cause program
 # interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
 .Lrewind_pad6:
 	nopr	7
@@ -293,8 +279,8 @@ sie_exit:
 	EX_TABLE(.Lrewind_pad4,.Lsie_fault)
 	EX_TABLE(.Lrewind_pad2,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
-ENDPROC(sie64a)
-EXPORT_SYMBOL(sie64a)
+ENDPROC(__sie64a)
+EXPORT_SYMBOL(__sie64a)
 EXPORT_SYMBOL(sie_exit)
 #endif
 
@@ -373,7 +359,7 @@ ENTRY(pgm_check_handler)
 	j	3f			# -> fault in user space
 .Lpgm_skip_asce:
 #if IS_ENABLED(CONFIG_KVM)
-	# cleanup critical section for program checks in sie64a
+	# cleanup critical section for program checks in __sie64a
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,1f
 	SIEEXIT
 	lghi	%r10,_PIF_GUEST_FAULT
@@ -546,26 +532,18 @@ ENTRY(mcck_int_handler)
 3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
 	jno	.Lmcck_panic
 	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	6f
+	jnz	.Lmcck_user
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
-	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,6f
+	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_stack
 	OUTSIDE	%r9,.Lsie_entry,.Lsie_leave,4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-	j	5f
-4:	CHKSTG	.Lmcck_panic
-5:	larl	%r14,.Lstosm_tmp
-	stosm	0(%r14),0x04		# turn dat on, keep irqs off
-	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+4:	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	SIEEXIT
 	j	.Lmcck_stack
 #endif
-6:	CHKSTG	.Lmcck_panic
-	larl	%r14,.Lstosm_tmp
-	stosm	0(%r14),0x04		# turn dat on, keep irqs off
-	tmhh	%r8,0x0001		# interrupting from user ?
-	jz	.Lmcck_stack
+.Lmcck_user:
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 .Lmcck_stack:
 	lg	%r15,__LC_MCCK_STACK

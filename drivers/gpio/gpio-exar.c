@@ -141,6 +141,7 @@ static const struct regmap_config exar_regmap_config = {
 	.name		= "exar-gpio",
 	.reg_bits	= 16,
 	.val_bits	= 8,
+	.io_port	= true,
 };
 
 static int gpio_exar_probe(struct platform_device *pdev)

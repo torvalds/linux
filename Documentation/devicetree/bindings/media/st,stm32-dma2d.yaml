@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/st,stm32-dma2d.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Chrom-Art Accelerator DMA2D binding
+title: STMicroelectronics STM32 Chrom-Art Accelerator DMA2D
 
 description:
   Chrom-ART Accelerator(DMA2D), graphical hardware accelerator

@@ -59,6 +59,7 @@ struct aa_sk_ctx {
 	DEFINE_AUDIT_DATA(NAME,						  \
 			  ((SK) && (F) != AF_UNIX) ? LSM_AUDIT_DATA_NET : \
 						     LSM_AUDIT_DATA_NONE, \
+						     AA_CLASS_NET,        \
 			  OP);						  \
 	NAME.u.net = &(NAME ## _net);					  \
 	aad(&NAME)->net.type = (T);					  \

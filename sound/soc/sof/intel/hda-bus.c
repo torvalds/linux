@@ -18,11 +18,7 @@
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #include "../../codecs/hdac_hda.h"
 #define sof_hda_ext_ops	snd_soc_hdac_hda_get_ops()
-#else
-#define sof_hda_ext_ops	NULL
-#endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 static void update_codec_wake_enable(struct hdac_bus *bus, unsigned int addr, bool link_power)
 {
 	unsigned int mask = snd_hdac_chip_readw(bus, WAKEEN);
@@ -70,11 +66,13 @@ static const struct hdac_bus_ops bus_core_ops = {
 /*
  * This can be used for both with/without hda link support.
  */
-void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev)
+void sof_hda_bus_init(struct snd_sof_dev *sdev, struct device *dev)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	snd_hdac_ext_bus_init(bus, dev, &bus_core_ops, sof_hda_ext_ops);
-#else /* CONFIG_SND_SOC_SOF_HDA */
+#else /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
 
@@ -89,5 +87,14 @@ void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev)
 	bus->idx = 0;
 
 	spin_lock_init(&bus->reg_lock);
-#endif /* CONFIG_SND_SOC_SOF_HDA */
+#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
+}
+
+void sof_hda_bus_exit(struct snd_sof_dev *sdev)
+{
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+	snd_hdac_ext_bus_exit(bus);
+#endif
 }

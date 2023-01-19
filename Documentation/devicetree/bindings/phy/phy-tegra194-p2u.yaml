@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/phy/phy-tegra194-p2u.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: NVIDIA Tegra194 & Tegra234 P2U binding
+title: NVIDIA Tegra194 & Tegra234 P2U
 
 maintainers:
   - Thierry Reding <treding@nvidia.com>

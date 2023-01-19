@@ -6,7 +6,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 
-#include "shm_channel.h"
+#include <net/mana/shm_channel.h>
 
 #define PAGE_FRAME_L48_WIDTH_BYTES 6
 #define PAGE_FRAME_L48_WIDTH_BITS (PAGE_FRAME_L48_WIDTH_BYTES * 8)

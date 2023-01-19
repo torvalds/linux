@@ -17,13 +17,15 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/machine.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include "../core.h"
 #include "../pinctrl-utils.h"
@@ -38,7 +40,6 @@
  * @clk: clock control
  * @soc: reference to soc_data
  * @base: pinctrl register base address
- * @irq_chip: IRQ chip information
  * @num_irq: number of possible interrupts
  * @irq: interrupt numbers
  */
@@ -50,7 +51,6 @@ struct owl_pinctrl {
 	struct clk *clk;
 	const struct owl_pinctrl_soc_data *soc;
 	void __iomem *base;
-	struct irq_chip irq_chip;
 	unsigned int num_irq;
 	unsigned int *irq;
 };
@@ -722,10 +722,11 @@ static void owl_gpio_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct owl_pinctrl *pctrl = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 	const struct owl_gpio_port *port;
+	unsigned int gpio = hwirq;
 	void __iomem *gpio_base;
 	unsigned long flags;
-	unsigned int gpio = data->hwirq;
 	u32 val;
 
 	port = owl_gpio_get_port(pctrl, &gpio);
@@ -745,21 +746,26 @@ static void owl_gpio_irq_mask(struct irq_data *data)
 					OWL_GPIO_CTLR_ENABLE + port->shared_ctl_offset * 5, false);
 
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void owl_gpio_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct owl_pinctrl *pctrl = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 	const struct owl_gpio_port *port;
+	unsigned int gpio = hwirq;
 	void __iomem *gpio_base;
 	unsigned long flags;
-	unsigned int gpio = data->hwirq;
 	u32 value;
 
 	port = owl_gpio_get_port(pctrl, &gpio);
 	if (WARN_ON(port == NULL))
 		return;
+
+	gpiochip_enable_irq(gc, hwirq);
 
 	gpio_base = pctrl->base + port->offset;
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
@@ -780,20 +786,21 @@ static void owl_gpio_irq_ack(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct owl_pinctrl *pctrl = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 	const struct owl_gpio_port *port;
+	unsigned int gpio = hwirq;
 	void __iomem *gpio_base;
 	unsigned long flags;
-	unsigned int gpio = data->hwirq;
 
 	/*
 	 * Switch the interrupt edge to the opposite edge of the interrupt
 	 * which got triggered for the case of emulating both edges
 	 */
 	if (irqd_get_trigger_type(data) == IRQ_TYPE_EDGE_BOTH) {
-		if (owl_gpio_get(gc, gpio))
-			irq_set_type(pctrl, gpio, IRQ_TYPE_EDGE_FALLING);
+		if (owl_gpio_get(gc, hwirq))
+			irq_set_type(pctrl, hwirq, IRQ_TYPE_EDGE_FALLING);
 		else
-			irq_set_type(pctrl, gpio, IRQ_TYPE_EDGE_RISING);
+			irq_set_type(pctrl, hwirq, IRQ_TYPE_EDGE_RISING);
 	}
 
 	port = owl_gpio_get_port(pctrl, &gpio);
@@ -824,6 +831,16 @@ static int owl_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 
 	return 0;
 }
+
+static const struct irq_chip owl_gpio_irqchip = {
+	.name = "owl-irq",
+	.irq_ack = owl_gpio_irq_ack,
+	.irq_mask = owl_gpio_irq_mask,
+	.irq_unmask = owl_gpio_irq_unmask,
+	.irq_set_type = owl_gpio_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
 
 static void owl_gpio_irq_handler(struct irq_desc *desc)
 {
@@ -875,14 +892,8 @@ static int owl_gpio_init(struct owl_pinctrl *pctrl)
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
 
-	pctrl->irq_chip.name = chip->of_node->name;
-	pctrl->irq_chip.irq_ack = owl_gpio_irq_ack;
-	pctrl->irq_chip.irq_mask = owl_gpio_irq_mask;
-	pctrl->irq_chip.irq_unmask = owl_gpio_irq_unmask;
-	pctrl->irq_chip.irq_set_type = owl_gpio_irq_set_type;
-
 	gpio_irq = &chip->irq;
-	gpio_irq->chip = &pctrl->irq_chip;
+	gpio_irq_chip_set_chip(gpio_irq, &owl_gpio_irqchip);
 	gpio_irq->handler = handle_simple_irq;
 	gpio_irq->default_type = IRQ_TYPE_NONE;
 	gpio_irq->parent_handler = owl_gpio_irq_handler;

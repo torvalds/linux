@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/memory-controllers/ingenic,nemc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs NAND / External Memory Controller (NEMC) devicetree bindings
+title: Ingenic SoCs NAND / External Memory Controller (NEMC)
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/mfd/stmpe.h>

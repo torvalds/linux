@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/can/bosch,c_can.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bosch C_CAN/D_CAN controller Device Tree Bindings
+title: Bosch C_CAN/D_CAN controller
 
 description: Bosch C_CAN/D_CAN controller for CAN bus
 

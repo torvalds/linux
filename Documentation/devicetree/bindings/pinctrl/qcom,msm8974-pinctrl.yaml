@@ -1,0 +1,179 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,msm8974-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm MSM8974 TLMM pin controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm MSM8974 SoC.
+
+properties:
+  compatible:
+    const: qcom,msm8974-pinctrl
+
+  reg:
+    maxItems: 1
+
+  interrupts: true
+  interrupt-controller: true
+  "#interrupt-cells": true
+  gpio-controller: true
+  "#gpio-cells": true
+  gpio-ranges: true
+  wakeup-parent: true
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 73
+
+  gpio-line-names:
+    maxItems: 146
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-msm8974-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-msm8974-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-msm8974-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          oneOf:
+            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-3][0-9]|14[0-5])$"
+            - enum: [ hsic_data, hsic_strobe, sdc1_clk, sdc1_cmd, sdc1_data,
+                      sdc2_clk, sdc2_cmd, sdc2_data ]
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+
+        enum: [ gpio, cci_i2c0, cci_i2c1, uim1, uim2, uim_batt_alarm,
+                blsp_uim1, blsp_uart1, blsp_i2c1, blsp_spi1, blsp_uim2,
+                blsp_uart2, blsp_i2c2, blsp_spi2, blsp_uim3, blsp_uart3,
+                blsp_i2c3, blsp_spi3, blsp_uim4, blsp_uart4, blsp_i2c4,
+                blsp_spi4, blsp_uim5, blsp_uart5, blsp_i2c5, blsp_spi5,
+                blsp_uim6, blsp_uart6, blsp_i2c6, blsp_spi6, blsp_uim7,
+                blsp_uart7, blsp_i2c7, blsp_spi7, blsp_uim8, blsp_uart8,
+                blsp_i2c8, blsp_spi8, blsp_uim9, blsp_uart9, blsp_i2c9,
+                blsp_spi9, blsp_uim10, blsp_uart10, blsp_i2c10, blsp_spi10,
+                blsp_uim11, blsp_uart11, blsp_i2c11, blsp_spi11, blsp_uim12,
+                blsp_uart12, blsp_i2c12, blsp_spi12, blsp_spi1_cs1,
+                blsp_spi2_cs2, blsp_spi_cs3, blsp_spi2_cs1, blsp_spi2_cs2
+                blsp_spi2_cs3, blsp_spi10_cs1, blsp_spi10_cs2, blsp_spi10_cs3,
+                sdc3, sdc4, gcc_gp_clk1, gcc_gp_clk2, gcc_gp_clk3, cci_timer0,
+                cci_timer1, cci_timer2, cci_timer3, cci_async_in0,
+                cci_async_in1, cci_async_in2, cam_mckl0, cam_mclk1, cam_mclk2,
+                cam_mclk3, mdp_vsync, hdmi_cec, hdmi_ddc, hdmi_hpd, edp_hpd,
+                gp_pdm0, gp_pdm1, gp_pdm2, gp_pdm3, gp0_clk, gp1_clk, gp_mn,
+                tsif1, tsif2, hsic, grfc, audio_ref_clk, qua_mi2s, pri_mi2s,
+                spkr_mi2s, ter_mi2s, sec_mi2s, bt, fm, wlan, slimbus, hsic_ctl ]
+
+      bias-pull-down: true
+      bias-pull-up: true
+      bias-disable: true
+      drive-strength: true
+      input-enable: true
+      output-high: true
+      output-low: true
+
+    required:
+      - pins
+
+    allOf:
+      - if:
+          properties:
+            pins:
+              contains:
+                enum:
+                  - hsic_data
+                  - hsic_strobe
+          required:
+            - pins
+        then:
+          properties:
+            bias-pull-down: false
+            bias-pull-up: false
+            bias-disable: false
+            drive-strength: false
+            input-enable: false
+            output-high: false
+            output-low: false
+
+    additionalProperties: false
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    tlmm: pinctrl@fd510000 {
+        compatible = "qcom,msm8974-pinctrl";
+        reg = <0xfd510000 0x4000>;
+        gpio-controller;
+        gpio-ranges = <&tlmm 0 0 146>;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+
+        sdc1-off-state {
+            clk-pins {
+                pins = "sdc1_clk";
+                bias-disable;
+                drive-strength = <2>;
+            };
+
+            cmd-pins {
+                pins = "sdc1_cmd";
+                bias-pull-up;
+                drive-strength = <2>;
+            };
+
+            data-pins {
+                pins = "sdc1_data";
+                bias-pull-up;
+                drive-strength = <2>;
+            };
+        };
+
+        blsp2-uart1-sleep-state {
+            pins = "gpio41", "gpio42", "gpio43", "gpio44";
+            function = "gpio";
+            drive-strength = <2>;
+            bias-pull-down;
+        };
+
+        hsic-state {
+            pins = "hsic_data", "hsic_strobe";
+        };
+    };

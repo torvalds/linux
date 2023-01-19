@@ -90,9 +90,8 @@ static int sctp_sched_rr_init_sid(struct sctp_stream *stream, __u16 sid,
 	return 0;
 }
 
-static void sctp_sched_rr_free(struct sctp_stream *stream)
+static void sctp_sched_rr_free_sid(struct sctp_stream *stream, __u16 sid)
 {
-	sctp_sched_rr_unsched_all(stream);
 }
 
 static void sctp_sched_rr_enqueue(struct sctp_outq *q,
@@ -177,7 +176,7 @@ static struct sctp_sched_ops sctp_sched_rr = {
 	.get = sctp_sched_rr_get,
 	.init = sctp_sched_rr_init,
 	.init_sid = sctp_sched_rr_init_sid,
-	.free = sctp_sched_rr_free,
+	.free_sid = sctp_sched_rr_free_sid,
 	.enqueue = sctp_sched_rr_enqueue,
 	.dequeue = sctp_sched_rr_dequeue,
 	.dequeue_done = sctp_sched_rr_dequeue_done,

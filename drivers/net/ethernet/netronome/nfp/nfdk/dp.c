@@ -282,7 +282,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 	dma_len = skb_headlen(skb);
 	if (skb_is_gso(skb))
 		type = NFDK_DESC_TX_TYPE_TSO;
-	else if (!nr_frags && dma_len < NFDK_TX_MAX_DATA_PER_HEAD)
+	else if (!nr_frags && dma_len <= NFDK_TX_MAX_DATA_PER_HEAD)
 		type = NFDK_DESC_TX_TYPE_SIMPLE;
 	else
 		type = NFDK_DESC_TX_TYPE_GATHER;
@@ -927,7 +927,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 	dma_len = pkt_len;
 	dma_addr = rxbuf->dma_addr + dma_off;
 
-	if (dma_len < NFDK_TX_MAX_DATA_PER_HEAD)
+	if (dma_len <= NFDK_TX_MAX_DATA_PER_HEAD)
 		type = NFDK_DESC_TX_TYPE_SIMPLE;
 	else
 		type = NFDK_DESC_TX_TYPE_GATHER;
@@ -1325,7 +1325,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	txbuf = &tx_ring->ktxbufs[wr_idx];
 
 	dma_len = skb_headlen(skb);
-	if (dma_len < NFDK_TX_MAX_DATA_PER_HEAD)
+	if (dma_len <= NFDK_TX_MAX_DATA_PER_HEAD)
 		type = NFDK_DESC_TX_TYPE_SIMPLE;
 	else
 		type = NFDK_DESC_TX_TYPE_GATHER;

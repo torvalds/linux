@@ -50,7 +50,7 @@ static void do_simple_thread_func(int cnt, const char *fmt, ...)
 
 	trace_foo_with_template_print("I have to be different", cnt);
 
-	trace_foo_rel_loc("Hello __rel_loc", cnt, bitmask);
+	trace_foo_rel_loc("Hello __rel_loc", cnt, bitmask, current->cpus_ptr);
 }
 
 static void simple_thread_func(int cnt)

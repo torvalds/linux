@@ -80,11 +80,7 @@ struct fw_sysfs {
 	struct firmware *fw;
 	void *fw_upload_priv;
 };
-
-static inline struct fw_sysfs *to_fw_sysfs(struct device *dev)
-{
-	return container_of(dev, struct fw_sysfs, dev);
-}
+#define to_fw_sysfs(__dev)	container_of_const(__dev, struct fw_sysfs, dev)
 
 void __fw_load_abort(struct fw_priv *fw_priv);
 

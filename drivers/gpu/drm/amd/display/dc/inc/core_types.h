@@ -240,8 +240,11 @@ struct resource_funcs {
 			unsigned int pipe_cnt,
             unsigned int index);
 
-	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context);
+	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context, bool fast_update);
+	void (*retain_phantom_pipes)(struct dc *dc, struct dc_state *context);
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
+	void (*save_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
+	void (*restore_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
 };
 
 struct audio_support{
@@ -544,15 +547,6 @@ struct dc_state {
 	struct resource_context res_ctx;
 
 	/**
-	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
-	 *
-	 * Each context must have its own instance of VBA, and in order to
-	 * initialize and obtain IP and SOC, the base DML instance from DC is
-	 * initially copied into every context.
-	 */
-	struct bw_context bw_ctx;
-
-	/**
 	 * @pp_display_cfg: PowerPlay clocks and settings
 	 * Note: this is a big struct, do *not* put on stack!
 	 */
@@ -565,6 +559,15 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
 	struct clk_mgr *clk_mgr;
+
+	/**
+	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 *
+	 * Each context must have its own instance of VBA, and in order to
+	 * initialize and obtain IP and SOC, the base DML instance from DC is
+	 * initially copied into every context.
+	 */
+	struct bw_context bw_ctx;
 
 	/**
 	 * @refcount: refcount reference

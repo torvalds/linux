@@ -12,6 +12,7 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/vmalloc.h>
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
@@ -323,6 +324,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 		if (!prop->supports_advanced_cpucp_rc) {
 			dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n", rc, opcode);
+			rc = -EIO;
 			goto scrub_descriptor;
 		}
 
@@ -615,16 +617,12 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
-	/* All warnings should go here in order not to reach the unknown error validation */
 	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - EEPROM failure detected, default settings applied\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_EEPROM_FAIL;
+		dev_err(hdev->dev, "Device boot error - EEPROM failure detected\n");
+		err_exists = true;
 	}
 
+	/* All warnings should go here in order not to reach the unknown error validation */
 	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
 		dev_warn(hdev->dev,
 			"Device boot warning - Skipped DRAM initialization\n");
@@ -1782,6 +1780,8 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 
 	/* first send clear command to clean former commands */
 	rc = hl_fw_dynamic_send_clear_cmd(hdev, fw_loader);
+	if (rc)
+		return rc;
 
 	/* send the actual command */
 	hl_fw_dynamic_send_cmd(hdev, fw_loader, cmd, size);
@@ -1988,10 +1988,11 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader)
 {
 	struct lkd_fw_comms_desc *fw_desc;
+	void __iomem *src, *temp_fw_desc;
 	struct pci_mem_region *region;
 	struct fw_response *response;
+	u16 fw_data_size;
 	enum pci_region region_id;
-	void __iomem *src;
 	int rc;
 
 	fw_desc = &fw_loader->dynamic_loader.comm_desc;
@@ -2018,9 +2019,29 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 	fw_loader->dynamic_loader.fw_desc_valid = false;
 	src = hdev->pcie_bar[region->bar_id] + region->offset_in_bar +
 							response->ram_offset;
-	memcpy_fromio(fw_desc, src, sizeof(struct lkd_fw_comms_desc));
 
-	return hl_fw_dynamic_validate_descriptor(hdev, fw_loader, fw_desc);
+	/*
+	 * We do the copy of the fw descriptor in 2 phases:
+	 * 1. copy the header + data info according to our lkd_fw_comms_desc definition.
+	 *    then we're able to read the actual data size provided by fw.
+	 *    this is needed for cases where data in descriptor was changed(add/remove)
+	 *    in embedded specs header file before updating lkd copy of the header file
+	 * 2. copy descriptor to temporary buffer with aligned size and send it to validation
+	 */
+	memcpy_fromio(fw_desc, src, sizeof(struct lkd_fw_comms_desc));
+	fw_data_size = le16_to_cpu(fw_desc->header.size);
+
+	temp_fw_desc = vzalloc(sizeof(struct comms_desc_header) + fw_data_size);
+	if (!temp_fw_desc)
+		return -ENOMEM;
+
+	memcpy_fromio(temp_fw_desc, src, sizeof(struct comms_desc_header) + fw_data_size);
+
+	rc = hl_fw_dynamic_validate_descriptor(hdev, fw_loader,
+					(struct lkd_fw_comms_desc *) temp_fw_desc);
+	vfree(temp_fw_desc);
+
+	return rc;
 }
 
 /**
@@ -2507,7 +2528,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 					struct fw_load_mgr *fw_loader)
 {
 	struct cpu_dyn_regs *dyn_regs;
-	int rc;
+	int rc, fw_error_rc;
 
 	dev_info(hdev->dev,
 		"Loading %sfirmware to device, may take some time...\n",
@@ -2607,14 +2628,17 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 
 	hl_fw_dynamic_update_linux_interrupt_if(hdev);
 
-	return 0;
-
 protocol_err:
-	if (fw_loader->dynamic_loader.fw_desc_valid)
-		fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
+	if (fw_loader->dynamic_loader.fw_desc_valid) {
+		fw_error_rc = fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
 				le32_to_cpu(dyn_regs->cpu_boot_err1),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
+
+		if (fw_error_rc)
+			return fw_error_rc;
+	}
+
 	return rc;
 }
 
@@ -2983,7 +3007,7 @@ static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void
 	int rc;
 
 	req_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, size, &req_dma_addr);
-	if (!data) {
+	if (!req_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP packet %u\n", packet_id);
 		return -ENOMEM;

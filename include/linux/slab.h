@@ -76,6 +76,17 @@
  * rcu_read_lock before reading the address, then rcu_read_unlock after
  * taking the spinlock within the structure expected at that address.
  *
+ * Note that it is not possible to acquire a lock within a structure
+ * allocated with SLAB_TYPESAFE_BY_RCU without first acquiring a reference
+ * as described above.  The reason is that SLAB_TYPESAFE_BY_RCU pages
+ * are not zeroed before being given to the slab, which means that any
+ * locks must be initialized after each and every kmem_struct_alloc().
+ * Alternatively, make the ctor passed to kmem_cache_create() initialize
+ * the locks at page-allocation time, as is done in __i915_request_ctor(),
+ * sighand_ctor(), and anon_vma_ctor().  Such a ctor permits readers
+ * to safely acquire those ctor-initialized locks under rcu_read_lock()
+ * protection.
+ *
  * Note that SLAB_TYPESAFE_BY_RCU was originally named SLAB_DESTROY_BY_RCU.
  */
 /* Defer freeing slabs to RCU */
@@ -129,7 +140,11 @@
 
 /* The following flags affect the page allocator grouping pages by mobility */
 /* Objects are reclaimable */
+#ifndef CONFIG_SLUB_TINY
 #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000U)
+#else
+#define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0)
+#endif
 #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
 
 /*
@@ -336,12 +351,17 @@ enum kmalloc_cache_type {
 #endif
 #ifndef CONFIG_MEMCG_KMEM
 	KMALLOC_CGROUP = KMALLOC_NORMAL,
-#else
-	KMALLOC_CGROUP,
 #endif
+#ifdef CONFIG_SLUB_TINY
+	KMALLOC_RECLAIM = KMALLOC_NORMAL,
+#else
 	KMALLOC_RECLAIM,
+#endif
 #ifdef CONFIG_ZONE_DMA
 	KMALLOC_DMA,
+#endif
+#ifdef CONFIG_MEMCG_KMEM
+	KMALLOC_CGROUP,
 #endif
 	NR_KMALLOC_TYPES
 };
@@ -441,7 +461,18 @@ static_assert(PAGE_SHIFT <= 20);
 #endif /* !CONFIG_SLOB */
 
 void *__kmalloc(size_t size, gfp_t flags) __assume_kmalloc_alignment __alloc_size(1);
-void *kmem_cache_alloc(struct kmem_cache *s, gfp_t flags) __assume_slab_alignment __malloc;
+
+/**
+ * kmem_cache_alloc - Allocate an object
+ * @cachep: The cache to allocate from.
+ * @flags: See kmalloc().
+ *
+ * Allocate an object from this cache.
+ * See kmem_cache_zalloc() for a shortcut of adding __GFP_ZERO to flags.
+ *
+ * Return: pointer to the new object or %NULL in case of error
+ */
+void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags) __assume_slab_alignment __malloc;
 void *kmem_cache_alloc_lru(struct kmem_cache *s, struct list_lru *lru,
 			   gfp_t gfpflags) __assume_slab_alignment __malloc;
 void kmem_cache_free(struct kmem_cache *s, void *objp);
@@ -483,9 +514,9 @@ void *kmalloc_large_node(size_t size, gfp_t flags, int node) __assume_page_align
 							     __alloc_size(1);
 
 /**
- * kmalloc - allocate memory
+ * kmalloc - allocate kernel memory
  * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
+ * @flags: describe the allocation context
  *
  * kmalloc is the normal method of allocating memory
  * for objects smaller than page size in the kernel.
@@ -512,11 +543,11 @@ void *kmalloc_large_node(size_t size, gfp_t flags, int node) __assume_page_align
  * %GFP_ATOMIC
  *	Allocation will not sleep.  May use emergency pools.
  *
- * %GFP_HIGHUSER
- *	Allocate memory from high memory on behalf of user.
- *
  * Also it is possible to set different flags by OR'ing
  * in one or more of the following additional @flags:
+ *
+ * %__GFP_ZERO
+ *	Zero the allocated memory before returning. Also see kzalloc().
  *
  * %__GFP_HIGH
  *	This allocation has high priority and may use emergency pools.
@@ -536,42 +567,42 @@ void *kmalloc_large_node(size_t size, gfp_t flags, int node) __assume_page_align
  *	Try really hard to succeed the allocation but fail
  *	eventually.
  */
+#ifndef CONFIG_SLOB
 static __always_inline __alloc_size(1) void *kmalloc(size_t size, gfp_t flags)
 {
-	if (__builtin_constant_p(size)) {
-#ifndef CONFIG_SLOB
+	if (__builtin_constant_p(size) && size) {
 		unsigned int index;
-#endif
+
 		if (size > KMALLOC_MAX_CACHE_SIZE)
 			return kmalloc_large(size, flags);
-#ifndef CONFIG_SLOB
+
 		index = kmalloc_index(size);
-
-		if (!index)
-			return ZERO_SIZE_PTR;
-
 		return kmalloc_trace(
 				kmalloc_caches[kmalloc_type(flags)][index],
 				flags, size);
-#endif
 	}
 	return __kmalloc(size, flags);
 }
+#else
+static __always_inline __alloc_size(1) void *kmalloc(size_t size, gfp_t flags)
+{
+	if (__builtin_constant_p(size) && size > KMALLOC_MAX_CACHE_SIZE)
+		return kmalloc_large(size, flags);
+
+	return __kmalloc(size, flags);
+}
+#endif
 
 #ifndef CONFIG_SLOB
 static __always_inline __alloc_size(1) void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
-	if (__builtin_constant_p(size)) {
+	if (__builtin_constant_p(size) && size) {
 		unsigned int index;
 
 		if (size > KMALLOC_MAX_CACHE_SIZE)
 			return kmalloc_large_node(size, flags, node);
 
 		index = kmalloc_index(size);
-
-		if (!index)
-			return ZERO_SIZE_PTR;
-
 		return kmalloc_node_trace(
 				kmalloc_caches[kmalloc_type(flags)][index],
 				flags, node, size);

@@ -1406,7 +1406,7 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc)
 	struct ata_taskfile tf;
 	unsigned int err_mask;
 
-	if (qc->ap->pflags & ATA_PFLAG_FROZEN) {
+	if (ata_port_is_frozen(qc->ap)) {
 		ata_dev_warn(dev, "sense data available but port frozen\n");
 		return;
 	}
@@ -1428,8 +1428,10 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc)
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* Ignore err_mask; ATA_ERR might be set */
 	if (tf.status & ATA_SENSE) {
-		ata_scsi_set_sense(dev, cmd, tf.lbah, tf.lbam, tf.lbal);
-		qc->flags |= ATA_QCFLAG_SENSE_VALID;
+		if (ata_scsi_sense_is_valid(tf.lbah, tf.lbam, tf.lbal)) {
+			ata_scsi_set_sense(dev, cmd, tf.lbah, tf.lbam, tf.lbal);
+			qc->flags |= ATA_QCFLAG_SENSE_VALID;
+		}
 	} else {
 		ata_dev_warn(dev, "request sense failed stat %02x emask %x\n",
 			     tf.status, err_mask);
@@ -1574,11 +1576,17 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 	}
 
 	switch (qc->dev->class) {
-	case ATA_DEV_ZAC:
-		if (stat & ATA_SENSE)
-			ata_eh_request_sense(qc);
-		fallthrough;
 	case ATA_DEV_ATA:
+	case ATA_DEV_ZAC:
+		/*
+		 * Fetch the sense data explicitly if:
+		 * -It was a non-NCQ command that failed, or
+		 * -It was a NCQ command that failed, but the sense data
+		 *  was not included in the NCQ command error log
+		 *  (i.e. NCQ autosense is not supported by the device).
+		 */
+		if (!(qc->flags & ATA_QCFLAG_SENSE_VALID) && (stat & ATA_SENSE))
+			ata_eh_request_sense(qc);
 		if (err & ATA_ICRC)
 			qc->err_mask |= AC_ERR_ATA_BUS;
 		if (err & (ATA_UNC | ATA_AMNF))
@@ -1588,7 +1596,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_DEV_ATAPI:
-		if (!(qc->ap->pflags & ATA_PFLAG_FROZEN)) {
+		if (!ata_port_is_frozen(qc->ap)) {
 			tmp = atapi_eh_request_sense(qc->dev,
 						qc->scsicmd->sense_buffer,
 						qc->result_tf.error >> 4);
@@ -1947,6 +1955,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 
 	ata_qc_for_each_raw(ap, qc, tag) {
 		if (!(qc->flags & ATA_QCFLAG_FAILED) ||
+		    qc->flags & ATA_QCFLAG_RETRY ||
 		    ata_dev_phys_link(qc->dev) != link)
 			continue;
 
@@ -1995,7 +2004,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		ehc->i.flags |= ATA_EHI_QUIET;
 
 	/* enforce default EH actions */
-	if (ap->pflags & ATA_PFLAG_FROZEN ||
+	if (ata_port_is_frozen(ap) ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
 		ehc->i.action |= ATA_EH_RESET;
 	else if (((eflags & ATA_EFLAG_IS_IO) && all_err_mask) ||
@@ -2238,7 +2247,7 @@ static void ata_eh_link_report(struct ata_link *link)
 		return;
 
 	frozen = "";
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ata_port_is_frozen(ap))
 		frozen = " frozen";
 
 	if (ap->eh_tries < ATA_EH_MAX_TRIES)
@@ -2559,8 +2568,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		if (reset && !(ehc->i.action & ATA_EH_RESET)) {
 			ata_for_each_dev(dev, link, ALL)
 				classes[dev->devno] = ATA_DEV_NONE;
-			if ((ap->pflags & ATA_PFLAG_FROZEN) &&
-			    ata_is_host_link(link))
+			if (ata_port_is_frozen(ap) && ata_is_host_link(link))
 				ata_eh_thaw_port(ap);
 			rc = 0;
 			goto out;
@@ -2718,7 +2726,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 	spin_unlock_irqrestore(link->ap->lock, flags);
 
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ata_port_is_frozen(ap))
 		ata_eh_thaw_port(ap);
 
 	/*
@@ -3225,7 +3233,7 @@ static int ata_eh_maybe_retry_flush(struct ata_device *dev)
 		if (err_mask & AC_ERR_DEV) {
 			qc->err_mask |= AC_ERR_DEV;
 			qc->result_tf = tf;
-			if (!(ap->pflags & ATA_PFLAG_FROZEN))
+			if (!ata_port_is_frozen(ap))
 				rc = 0;
 		}
 	}
@@ -3402,7 +3410,7 @@ static int ata_eh_skip_recovery(struct ata_link *link)
 		return 1;
 
 	/* thaw frozen port and recover failed devices */
-	if ((ap->pflags & ATA_PFLAG_FROZEN) || ata_link_nr_enabled(link))
+	if (ata_port_is_frozen(ap) || ata_link_nr_enabled(link))
 		return 0;
 
 	/* reset at least once if reset is requested */
@@ -3757,7 +3765,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (dev)
 			ata_eh_handle_dev_fail(dev, rc);
 
-		if (ap->pflags & ATA_PFLAG_FROZEN) {
+		if (ata_port_is_frozen(ap)) {
 			/* PMP reset requires working host port.
 			 * Can't retry if it's frozen.
 			 */
@@ -3931,7 +3939,7 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 	ap->pflags &= ~ATA_PFLAG_PM_PENDING;
 	if (rc == 0)
 		ap->pflags |= ATA_PFLAG_SUSPENDED;
-	else if (ap->pflags & ATA_PFLAG_FROZEN)
+	else if (ata_port_is_frozen(ap))
 		ata_port_schedule_eh(ap);
 
 	spin_unlock_irqrestore(ap->lock, flags);

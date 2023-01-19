@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/edac/dmc-520.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM DMC-520 EDAC bindings
+title: ARM DMC-520 EDAC
 
 maintainers:
   - Lei Wang <lewan@microsoft.com>

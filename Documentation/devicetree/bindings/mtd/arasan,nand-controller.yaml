@@ -35,9 +35,6 @@ properties:
   interrupts:
     maxItems: 1
 
-  "#address-cells": true
-  "#size-cells": true
-
 required:
   - compatible
   - reg
@@ -45,7 +42,7 @@ required:
   - clock-names
   - interrupts
 
-additionalProperties: true
+unevaluatedProperties: true
 
 examples:
   - |

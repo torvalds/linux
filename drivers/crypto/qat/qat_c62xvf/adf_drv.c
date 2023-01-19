@@ -177,8 +177,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_err_dev_shutdown;
 
-	set_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
-
 	ret = adf_dev_start(accel_dev);
 	if (ret)
 		goto out_err_dev_stop;

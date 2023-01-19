@@ -18,10 +18,12 @@
 #endif
 
 /*
- * In send stream v1, no command is larger than 64K. In send stream v2, no limit
- * should be assumed.
+ * In send stream v1, no command is larger than 64K. In send stream v2, no
+ * limit should be assumed, the buffer size is set to be a header with
+ * compressed extent size.
  */
 #define BTRFS_SEND_BUF_SIZE_V1				SZ_64K
+#define BTRFS_SEND_BUF_SIZE_V2	ALIGN(SZ_16K + BTRFS_MAX_COMPRESSED, PAGE_SIZE)
 
 struct inode;
 struct btrfs_ioctl_send_args;

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/cci-control-port.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: CCI Interconnect Bus Masters binding
+title: CCI Interconnect Bus Masters
 
 maintainers:
   - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>

@@ -17,10 +17,11 @@ __efistub_efi_zboot_header:
 	.long		MZ_MAGIC
 	.ascii		"zimg"					// image type
 	.long		__efistub__gzdata_start - .Ldoshdr	// payload offset
-	.long		__efistub__gzdata_size - ZBOOT_SIZE_LEN	// payload size
+	.long		__efistub__gzdata_size - 12		// payload size
 	.long		0, 0					// reserved
 	.asciz		COMP_TYPE				// compression type
-	.org		.Ldoshdr + 0x3c
+	.org		.Ldoshdr + 0x38
+	.long		LINUX_PE_MAGIC
 	.long		.Lpehdr - .Ldoshdr			// PE header offset
 
 .Lpehdr:

@@ -33,7 +33,7 @@ function expect_fields(nf) {
 # Print a CPP macro definition, padded with spaces so that the macro bodies
 # line up in a column
 function define(name, val) {
-	printf "%-48s%s\n", "#define " name, val
+	printf "%-56s%s\n", "#define " name, val
 }
 
 # Print standard BITMASK/SHIFT/WIDTH CPP definitions for a field

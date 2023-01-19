@@ -1055,6 +1055,13 @@ config ADVANTECH_WDT
 	  feature. More information can be found at
 	  <https://www.advantech.com.tw/products/>
 
+config ADVANTECH_EC_WDT
+	tristate "Advantech Embedded Controller Watchdog Timer"
+	depends on X86
+	help
+		This driver supports Advantech products with ITE based Embedded Controller.
+		It does not support Advantech products with other ECs or without EC.
+
 config ALIM1535_WDT
 	tristate "ALi M1535 PMU Watchdog Timer"
 	depends on X86 && PCI

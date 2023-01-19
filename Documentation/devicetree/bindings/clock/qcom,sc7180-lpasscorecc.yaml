@@ -4,17 +4,16 @@
 $id: http://devicetree.org/schemas/clock/qcom,sc7180-lpasscorecc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm LPASS Core Clock Controller Binding for SC7180
+title: Qualcomm LPASS Core Clock Controller on SC7180
 
 maintainers:
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
-  Qualcomm LPASS core clock control module which supports the clocks and
-  power domains on SC7180.
+  Qualcomm LPASS core clock control module provides the clocks and power
+  domains on SC7180.
 
-  See also:
-  - dt-bindings/clock/qcom,lpasscorecc-sc7180.h
+  See also:: include/dt-bindings/clock/qcom,lpasscorecc-sc7180.h
 
 properties:
   compatible:

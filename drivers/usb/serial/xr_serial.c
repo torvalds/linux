@@ -749,8 +749,6 @@ static void xr_cdc_set_line_coding(struct tty_struct *tty,
 
 	if (tty->termios.c_ospeed)
 		lc->dwDTERate = cpu_to_le32(tty->termios.c_ospeed);
-	else if (old_termios)
-		lc->dwDTERate = cpu_to_le32(old_termios->c_ospeed);
 	else
 		lc->dwDTERate = cpu_to_le32(9600);
 

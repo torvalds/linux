@@ -87,6 +87,12 @@
 #define MVFR0_DP_BIT		(8)
 #define MVFR0_DP_MASK		(0xf << MVFR0_DP_BIT)
 
+/* MVFR1 bits */
+#define MVFR1_ASIMDHP_BIT	(20)
+#define MVFR1_ASIMDHP_MASK	(0xf << MVFR1_ASIMDHP_BIT)
+#define MVFR1_FPHP_BIT		(24)
+#define MVFR1_FPHP_MASK		(0xf << MVFR1_FPHP_BIT)
+
 /* Bit patterns for decoding the packaged operation descriptors */
 #define VFPOPDESC_LENGTH_BIT	(9)
 #define VFPOPDESC_LENGTH_MASK	(0x07 << VFPOPDESC_LENGTH_BIT)

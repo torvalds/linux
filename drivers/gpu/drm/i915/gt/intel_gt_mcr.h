@@ -37,12 +37,12 @@ void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
 				  unsigned int *group, unsigned int *instance);
 
-int intel_gt_mcr_wait_for_reg_fw(struct intel_gt *gt,
-				 i915_mcr_reg_t reg,
-				 u32 mask,
-				 u32 value,
-				 unsigned int fast_timeout_us,
-				 unsigned int slow_timeout_ms);
+int intel_gt_mcr_wait_for_reg(struct intel_gt *gt,
+			      i915_mcr_reg_t reg,
+			      u32 mask,
+			      u32 value,
+			      unsigned int fast_timeout_us,
+			      unsigned int slow_timeout_ms);
 
 /*
  * Helper for for_each_ss_steering loop.  On pre-Xe_HP platforms, subslice

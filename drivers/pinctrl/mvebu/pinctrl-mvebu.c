@@ -6,20 +6,22 @@
  *          Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  */
 
-#include <linux/platform_device.h>
-#include <linux/slab.h>
+#include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/err.h>
-#include <linux/gpio/driver.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
 
 #include "pinctrl-mvebu.h"
 

@@ -3,7 +3,6 @@
 #define __LINUX_GPIO_MACHINE_H
 
 #include <linux/types.h>
-#include <linux/list.h>
 
 enum gpio_lookup_flags {
 	GPIO_ACTIVE_HIGH		= (0 << 0),

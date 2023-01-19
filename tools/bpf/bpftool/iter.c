@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 // Copyright (C) 2020 Facebook
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+#include <errno.h>
 #include <unistd.h>
 #include <linux/err.h>
 #include <bpf/libbpf.h>
@@ -46,8 +49,8 @@ static int do_pin(int argc, char **argv)
 	}
 
 	obj = bpf_object__open(objfile);
-	err = libbpf_get_error(obj);
-	if (err) {
+	if (!obj) {
+		err = -errno;
 		p_err("can't open objfile %s", objfile);
 		goto close_map_fd;
 	}
@@ -60,13 +63,14 @@ static int do_pin(int argc, char **argv)
 
 	prog = bpf_object__next_program(obj, NULL);
 	if (!prog) {
+		err = -errno;
 		p_err("can't find bpf program in objfile %s", objfile);
 		goto close_obj;
 	}
 
 	link = bpf_program__attach_iter(prog, &iter_opts);
-	err = libbpf_get_error(link);
-	if (err) {
+	if (!link) {
+		err = -errno;
 		p_err("attach_iter failed for program %s",
 		      bpf_program__name(prog));
 		goto close_obj;

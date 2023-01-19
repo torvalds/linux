@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/rational.h>
 
 #include <dt-bindings/clock/ingenic,x1000-cgu.h>
 
@@ -168,6 +169,38 @@ static const struct clk_ops x1000_otg_phy_ops = {
 	.is_enabled	= x1000_usb_phy_is_enabled,
 };
 
+static void
+x1000_i2spll_calc_m_n_od(const struct ingenic_cgu_pll_info *pll_info,
+			 unsigned long rate, unsigned long parent_rate,
+			 unsigned int *pm, unsigned int *pn, unsigned int *pod)
+{
+	const unsigned long m_max = GENMASK(pll_info->m_bits - 1, 0);
+	const unsigned long n_max = GENMASK(pll_info->n_bits - 1, 0);
+	unsigned long m, n;
+
+	rational_best_approximation(rate, parent_rate, m_max, n_max, &m, &n);
+
+	/* n should not be less than 2*m */
+	if (n < 2 * m)
+		n = 2 * m;
+
+	*pm = m;
+	*pn = n;
+	*pod = 1;
+}
+
+static void
+x1000_i2spll_set_rate_hook(const struct ingenic_cgu_pll_info *pll_info,
+			   unsigned long rate, unsigned long parent_rate)
+{
+	/*
+	 * Writing 0 causes I2SCDR1.I2SDIV_D to be automatically recalculated
+	 * based on the current value of I2SCDR.I2SDIV_N, which is needed for
+	 * the divider to function correctly.
+	 */
+	writel(0, cgu->base + CGU_REG_I2SCDR1);
+}
+
 static const s8 pll_od_encoding[8] = {
 	0x0, 0x1, -1, 0x2, -1, -1, -1, 0x3,
 };
@@ -183,7 +216,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_APLL] = {
 		"apll", CGU_CLK_PLL,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.pll = {
 			.reg = CGU_REG_APLL,
 			.rate_multiplier = 1,
@@ -206,7 +239,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_MPLL] = {
 		"mpll", CGU_CLK_PLL,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.pll = {
 			.reg = CGU_REG_MPLL,
 			.rate_multiplier = 1,
@@ -256,7 +289,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		 * system; mark it critical.
 		 */
 		.flags = CLK_IS_CRITICAL,
-		.parents = { X1000_CLK_CPUMUX, -1, -1, -1 },
+		.parents = { X1000_CLK_CPUMUX },
 		.div = { CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 30 },
 	},
@@ -268,7 +301,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		 * disabling it or any parent clocks will hang the system.
 		 */
 		.flags = CLK_IS_CRITICAL,
-		.parents = { X1000_CLK_CPUMUX, -1, -1, -1 },
+		.parents = { X1000_CLK_CPUMUX },
 		.div = { CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1 },
 	},
 
@@ -287,13 +320,13 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_AHB2] = {
 		"ahb2", CGU_CLK_DIV,
-		.parents = { X1000_CLK_AHB2PMUX, -1, -1, -1 },
+		.parents = { X1000_CLK_AHB2PMUX },
 		.div = { CGU_REG_CPCCR, 12, 1, 4, 20, -1, -1 },
 	},
 
 	[X1000_CLK_PCLK] = {
 		"pclk", CGU_CLK_DIV | CGU_CLK_GATE,
-		.parents = { X1000_CLK_AHB2PMUX, -1, -1, -1 },
+		.parents = { X1000_CLK_AHB2PMUX },
 		.div = { CGU_REG_CPCCR, 16, 1, 4, 20, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 28 },
 	},
@@ -319,6 +352,37 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		.gate = { CGU_REG_CLKGR, 25 },
 	},
 
+	[X1000_CLK_I2SPLLMUX] = {
+		"i2s_pll_mux", CGU_CLK_MUX,
+		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL },
+		.mux = { CGU_REG_I2SCDR, 31, 1 },
+	},
+
+	[X1000_CLK_I2SPLL] = {
+		"i2s_pll", CGU_CLK_PLL,
+		.parents = { X1000_CLK_I2SPLLMUX },
+		.pll = {
+			.reg = CGU_REG_I2SCDR,
+			.rate_multiplier = 1,
+			.m_shift = 13,
+			.m_bits = 9,
+			.n_shift = 0,
+			.n_bits = 13,
+			.calc_m_n_od = x1000_i2spll_calc_m_n_od,
+			.set_rate_hook = x1000_i2spll_set_rate_hook,
+		},
+	},
+
+	[X1000_CLK_I2S] = {
+		"i2s", CGU_CLK_MUX,
+		.parents = { X1000_CLK_EXCLK, -1, -1, X1000_CLK_I2SPLL },
+		/*
+		 * NOTE: the mux is at bit 30; bit 29 enables the M/N divider.
+		 * Therefore, the divider is disabled when EXCLK is selected.
+		 */
+		.mux = { CGU_REG_I2SCDR, 29, 2 },
+	},
+
 	[X1000_CLK_LCD] = {
 		"lcd", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL },
@@ -329,13 +393,13 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_MSCMUX] = {
 		"msc_mux", CGU_CLK_MUX,
-		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL},
+		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL },
 		.mux = { CGU_REG_MSC0CDR, 31, 1 },
 	},
 
 	[X1000_CLK_MSC0] = {
 		"msc0", CGU_CLK_DIV | CGU_CLK_GATE,
-		.parents = { X1000_CLK_MSCMUX, -1, -1, -1 },
+		.parents = { X1000_CLK_MSCMUX },
 		.div = { CGU_REG_MSC0CDR, 0, 2, 8, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR, 4 },
 	},
@@ -349,8 +413,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_OTG] = {
 		"otg", CGU_CLK_DIV | CGU_CLK_GATE | CGU_CLK_MUX,
-		.parents = { X1000_CLK_EXCLK, -1,
-					 X1000_CLK_APLL, X1000_CLK_MPLL },
+		.parents = { X1000_CLK_EXCLK, -1, X1000_CLK_APLL, X1000_CLK_MPLL },
 		.mux = { CGU_REG_USBCDR, 30, 2 },
 		.div = { CGU_REG_USBCDR, 0, 1, 8, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR, 3 },
@@ -358,7 +421,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_SSIPLL] = {
 		"ssi_pll", CGU_CLK_MUX | CGU_CLK_DIV,
-		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL, -1, -1 },
+		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL },
 		.mux = { CGU_REG_SSICDR, 31, 1 },
 		.div = { CGU_REG_SSICDR, 0, 1, 8, 29, 28, 27 },
 	},
@@ -371,7 +434,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_SSIMUX] = {
 		"ssi_mux", CGU_CLK_MUX,
-		.parents = { X1000_CLK_EXCLK, X1000_CLK_SSIPLL_DIV2, -1, -1 },
+		.parents = { X1000_CLK_EXCLK, X1000_CLK_SSIPLL_DIV2 },
 		.mux = { CGU_REG_SSICDR, 30, 1 },
 	},
 
@@ -392,79 +455,85 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 
 	[X1000_CLK_EMC] = {
 		"emc", CGU_CLK_GATE,
-		.parents = { X1000_CLK_AHB2, -1, -1, -1 },
+		.parents = { X1000_CLK_AHB2 },
 		.gate = { CGU_REG_CLKGR, 0 },
 	},
 
 	[X1000_CLK_EFUSE] = {
 		"efuse", CGU_CLK_GATE,
-		.parents = { X1000_CLK_AHB2, -1, -1, -1 },
+		.parents = { X1000_CLK_AHB2 },
 		.gate = { CGU_REG_CLKGR, 1 },
 	},
 
 	[X1000_CLK_SFC] = {
 		"sfc", CGU_CLK_GATE,
-		.parents = { X1000_CLK_SSIPLL, -1, -1, -1 },
+		.parents = { X1000_CLK_SSIPLL },
 		.gate = { CGU_REG_CLKGR, 2 },
 	},
 
 	[X1000_CLK_I2C0] = {
 		"i2c0", CGU_CLK_GATE,
-		.parents = { X1000_CLK_PCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_PCLK },
 		.gate = { CGU_REG_CLKGR, 7 },
 	},
 
 	[X1000_CLK_I2C1] = {
 		"i2c1", CGU_CLK_GATE,
-		.parents = { X1000_CLK_PCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_PCLK },
 		.gate = { CGU_REG_CLKGR, 8 },
 	},
 
 	[X1000_CLK_I2C2] = {
 		"i2c2", CGU_CLK_GATE,
-		.parents = { X1000_CLK_PCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_PCLK },
 		.gate = { CGU_REG_CLKGR, 9 },
+	},
+
+	[X1000_CLK_AIC] = {
+		"aic", CGU_CLK_GATE,
+		.parents = { X1000_CLK_EXCLK },
+		.gate = { CGU_REG_CLKGR, 11 },
 	},
 
 	[X1000_CLK_UART0] = {
 		"uart0", CGU_CLK_GATE,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.gate = { CGU_REG_CLKGR, 14 },
 	},
 
 	[X1000_CLK_UART1] = {
 		"uart1", CGU_CLK_GATE,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK},
 		.gate = { CGU_REG_CLKGR, 15 },
 	},
 
 	[X1000_CLK_UART2] = {
 		"uart2", CGU_CLK_GATE,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.gate = { CGU_REG_CLKGR, 16 },
 	},
 
 	[X1000_CLK_TCU] = {
 		"tcu", CGU_CLK_GATE,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.gate = { CGU_REG_CLKGR, 18 },
 	},
 
 	[X1000_CLK_SSI] = {
 		"ssi", CGU_CLK_GATE,
-		.parents = { X1000_CLK_SSIMUX, -1, -1, -1 },
+		.parents = { X1000_CLK_SSIMUX },
 		.gate = { CGU_REG_CLKGR, 19 },
 	},
 
 	[X1000_CLK_OST] = {
 		"ost", CGU_CLK_GATE,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.gate = { CGU_REG_CLKGR, 20 },
 	},
 
 	[X1000_CLK_PDMA] = {
 		"pdma", CGU_CLK_GATE,
-		.parents = { X1000_CLK_EXCLK, -1, -1, -1 },
+		.parents = { X1000_CLK_EXCLK },
 		.gate = { CGU_REG_CLKGR, 21 },
 	},
 };

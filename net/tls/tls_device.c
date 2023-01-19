@@ -620,7 +620,7 @@ int tls_device_sendpage(struct sock *sk, struct page *page,
 	kaddr = kmap(page);
 	iov.iov_base = kaddr + offset;
 	iov.iov_len = size;
-	iov_iter_kvec(&msg_iter, WRITE, &iov, 1, size);
+	iov_iter_kvec(&msg_iter, ITER_SOURCE, &iov, 1, size);
 	iter_offset.msg_iter = &msg_iter;
 	rc = tls_push_data(sk, iter_offset, size, flags, TLS_RECORD_TYPE_DATA,
 			   NULL);
@@ -697,7 +697,7 @@ static int tls_device_push_pending_record(struct sock *sk, int flags)
 	union tls_iter_offset iter;
 	struct iov_iter msg_iter;
 
-	iov_iter_kvec(&msg_iter, WRITE, NULL, 0, 0);
+	iov_iter_kvec(&msg_iter, ITER_SOURCE, NULL, 0, 0);
 	iter.msg_iter = &msg_iter;
 	return tls_push_data(sk, iter, 0, flags, TLS_RECORD_TYPE_DATA, NULL);
 }

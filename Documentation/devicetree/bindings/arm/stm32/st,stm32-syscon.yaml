@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/stm32/st,stm32-syscon.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: STMicroelectronics STM32 Platforms System Controller bindings
+title: STMicroelectronics STM32 Platforms System Controller
 
 maintainers:
   - Alexandre Torgue <alexandre.torgue@foss.st.com>

@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/soc/qcom/qcom,smem.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Qualcomm Shared Memory Manager binding
+title: Qualcomm Shared Memory Manager
 
 maintainers:
   - Andy Gross <agross@kernel.org>

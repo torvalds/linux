@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/pwm-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: An external clock signal driven by a PWM pin.
+
+maintainers:
+  - Philipp Zabel <p.zabel@pengutronix.de>
+
+properties:
+  compatible:
+    const: pwm-clock
+
+  '#clock-cells':
+    const: 0
+
+  clock-frequency:
+    description: Exact output frequency, in case the PWM period is not exact
+      but was rounded to nanoseconds.
+
+  clock-output-names:
+    maxItems: 1
+
+  pwms:
+    maxItems: 1
+
+required:
+  - compatible
+  - '#clock-cells'
+  - pwms
+
+additionalProperties: false
+
+examples:
+  - |
+    clock {
+        compatible = "pwm-clock";
+        #clock-cells = <0>;
+        clock-frequency = <25000000>;
+        clock-output-names = "mipi_mclk";
+        pwms = <&pwm2 0 40>; /* 1 / 40 ns = 25 MHz */
+    };
+...

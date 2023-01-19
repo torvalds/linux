@@ -34,7 +34,6 @@
 static int tsi148_probe(struct pci_dev *, const struct pci_device_id *);
 static void tsi148_remove(struct pci_dev *);
 
-
 /* Module parameter */
 static bool err_chk;
 static int geoid;
@@ -673,7 +672,6 @@ static int tsi148_slave_get(struct vme_slave_resource *image, int *enabled,
 	/* Need granularity before we set the size */
 	*size = (unsigned long long)((vme_bound - *vme_base) + granularity);
 
-
 	if ((ctl & TSI148_LCSR_ITAT_2eSSTM_M) == TSI148_LCSR_ITAT_2eSSTM_160)
 		*cycle |= VME_2eSST160;
 	if ((ctl & TSI148_LCSR_ITAT_2eSSTM_M) == TSI148_LCSR_ITAT_2eSSTM_267)
@@ -1142,7 +1140,6 @@ static int __tsi148_master_get(struct vme_master_resource *image, int *enabled,
 	return 0;
 }
 
-
 static int tsi148_master_get(struct vme_master_resource *image, int *enabled,
 	unsigned long long *vme_base, unsigned long long *size, u32 *aspace,
 	u32 *cycle, u32 *dwidth)
@@ -1243,7 +1240,6 @@ out:
 
 	return retval;
 }
-
 
 static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	size_t count, loff_t offset)
@@ -1751,6 +1747,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	return 0;
 
 err_dma:
+	list_del(&entry->list);
 err_dest:
 err_source:
 err_align:
@@ -1998,7 +1995,6 @@ static int tsi148_lm_get(struct vme_lm_resource *lm,
 
 	if ((lm_ctl & TSI148_LCSR_LMAT_AS_M) == TSI148_LCSR_LMAT_AS_A64)
 		*aspace |= VME_A64;
-
 
 	if (lm_ctl & TSI148_LCSR_LMAT_SUPR)
 		*cycle |= VME_SUPER;
@@ -2549,7 +2545,6 @@ static void tsi148_remove(struct pci_dev *pdev)
 	struct vme_bridge *tsi148_bridge = pci_get_drvdata(pdev);
 
 	bridge = tsi148_bridge->driver_priv;
-
 
 	dev_dbg(&pdev->dev, "Driver is being unloaded.\n");
 

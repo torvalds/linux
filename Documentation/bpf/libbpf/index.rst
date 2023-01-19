@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
+.. _libbpf:
+
 libbpf
 ======
 
@@ -7,6 +9,7 @@ libbpf
    :maxdepth: 1
 
    API Documentation <https://libbpf.readthedocs.io/en/latest/api.html>
+   program_types
    libbpf_naming_convention
    libbpf_build
 

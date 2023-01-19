@@ -67,6 +67,7 @@ struct tc_action {
 #define TCA_ACT_FLAGS_BIND	(1U << (TCA_ACT_FLAGS_USER_BITS + 1))
 #define TCA_ACT_FLAGS_REPLACE	(1U << (TCA_ACT_FLAGS_USER_BITS + 2))
 #define TCA_ACT_FLAGS_NO_RTNL	(1U << (TCA_ACT_FLAGS_USER_BITS + 3))
+#define TCA_ACT_FLAGS_AT_INGRESS	(1U << (TCA_ACT_FLAGS_USER_BITS + 4))
 
 /* Update lastuse only if needed, to avoid dirtying a cache line.
  * We use a temp variable to avoid fetching jiffies twice.
@@ -99,11 +100,6 @@ static inline enum flow_action_hw_stats tc_act_hw_stats(u8 hw_stats)
 
 	return hw_stats;
 }
-
-#ifdef CONFIG_NET_CLS_ACT
-
-#define ACT_P_CREATED 1
-#define ACT_P_DELETED 1
 
 typedef void (*tc_action_priv_destructor)(void *priv);
 
@@ -138,6 +134,11 @@ struct tc_action_ops {
 				     u32 *index_inc, bool bind,
 				     struct netlink_ext_ack *extack);
 };
+
+#ifdef CONFIG_NET_CLS_ACT
+
+#define ACT_P_CREATED 1
+#define ACT_P_DELETED 1
 
 struct tc_action_net {
 	struct tcf_idrinfo *idrinfo;

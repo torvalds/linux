@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/can/bosch,m_can.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bosch MCAN controller Bindings
+title: Bosch MCAN controller
 
 description: Bosch MCAN controller for CAN bus
 

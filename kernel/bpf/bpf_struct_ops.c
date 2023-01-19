@@ -494,8 +494,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	refcount_set(&kvalue->refcnt, 1);
 	bpf_map_inc(map);
 
-	set_memory_ro((long)st_map->image, 1);
-	set_memory_x((long)st_map->image, 1);
+	set_memory_rox((long)st_map->image, 1);
 	err = st_ops->reg(kdata);
 	if (likely(!err)) {
 		/* Pair with smp_load_acquire() during lookup_elem().

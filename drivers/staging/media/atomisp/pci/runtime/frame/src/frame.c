@@ -88,12 +88,6 @@ ia_css_elems_bytes_from_info(
 **	CSS API functions, exposed by ia_css.h
 **************************************************************************/
 
-void ia_css_frame_zero(struct ia_css_frame *frame)
-{
-	assert(frame);
-	hmm_set(frame->data, 0, frame->data_bytes);
-}
-
 int ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 	const struct ia_css_frame_info *info)
 {
@@ -143,121 +137,6 @@ int ia_css_frame_allocate(struct ia_css_frame **frame,
 	return err;
 }
 
-int ia_css_frame_map(struct ia_css_frame **frame,
-				 const struct ia_css_frame_info *info,
-				 const void __user *data,
-				 unsigned int pgnr)
-{
-	int err = 0;
-	struct ia_css_frame *me;
-
-	assert(frame);
-
-	/* Create the frame structure */
-	err = ia_css_frame_create_from_info(&me, info);
-
-	if (err)
-		return err;
-
-	if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-		dev_err(atomisp_dev,
-			"user space memory size is less than the expected size..\n");
-		err = -ENOMEM;
-		goto error;
-	} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-		dev_err(atomisp_dev,
-			"user space memory size is large than the expected size..\n");
-		err = -ENOMEM;
-		goto error;
-	}
-
-	me->data = hmm_create_from_userdata(me->data_bytes, data);
-	if (me->data == mmgr_NULL)
-		err = -EINVAL;
-
-error:
-	if (err) {
-		kvfree(me);
-		me = NULL;
-	}
-
-	*frame = me;
-
-	return err;
-}
-
-int ia_css_frame_create_from_info(struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info)
-{
-	int err = 0;
-	struct ia_css_frame *me;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_create_from_info() enter:\n");
-	if (!frame || !info) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_create_from_info() leave: invalid arguments\n");
-		return -EINVAL;
-	}
-
-	me = frame_create(info->res.width,
-			  info->res.height,
-			  info->format,
-			  info->padded_width,
-			  info->raw_bit_depth,
-			  false);
-	if (!me) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_create_from_info() leave: frame create failed\n");
-		return -ENOMEM;
-	}
-
-	err = ia_css_frame_init_planes(me);
-
-	if (err) {
-		kvfree(me);
-		me = NULL;
-	}
-
-	*frame = me;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_create_from_info() leave:\n");
-
-	return err;
-}
-
-int ia_css_frame_set_data(struct ia_css_frame *frame,
-				      const ia_css_ptr mapped_data,
-				      size_t data_bytes)
-{
-	int err = 0;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_set_data() enter:\n");
-	if (!frame) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_set_data() leave: NULL frame\n");
-		return -EINVAL;
-	}
-
-	/* If we are setting a valid data.
-	 * Make sure that there is enough
-	 * room for the expected frame format
-	 */
-	if ((mapped_data != mmgr_NULL) && (frame->data_bytes > data_bytes)) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_set_data() leave: invalid arguments\n");
-		return -EINVAL;
-	}
-
-	frame->data = mapped_data;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_frame_set_data() leave:\n");
-
-	return err;
-}
-
 void ia_css_frame_free(struct ia_css_frame *frame)
 {
 	IA_CSS_ENTER_PRIVATE("frame = %p", frame);
@@ -286,32 +165,32 @@ int ia_css_frame_init_planes(struct ia_css_frame *frame)
 {
 	assert(frame);
 
-	switch (frame->info.format) {
+	switch (frame->frame_info.format) {
 	case IA_CSS_FRAME_FORMAT_MIPI:
 		dev_err(atomisp_dev,
 			"%s: unexpected use of IA_CSS_FRAME_FORMAT_MIPI\n", __func__);
 		return -EINVAL;
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
 		frame_init_raw_single_plane(frame, &frame->planes.raw,
-					    frame->info.res.height,
-					    frame->info.padded_width,
-					    frame->info.raw_bit_depth);
+					    frame->frame_info.res.height,
+					    frame->frame_info.padded_width,
+					    frame->frame_info.raw_bit_depth);
 		break;
 	case IA_CSS_FRAME_FORMAT_RAW:
 		frame_init_single_plane(frame, &frame->planes.raw,
-					frame->info.res.height,
-					frame->info.padded_width,
-					frame->info.raw_bit_depth <= 8 ? 1 : 2);
+					frame->frame_info.res.height,
+					frame->frame_info.padded_width,
+					frame->frame_info.raw_bit_depth <= 8 ? 1 : 2);
 		break;
 	case IA_CSS_FRAME_FORMAT_RGB565:
 		frame_init_single_plane(frame, &frame->planes.rgb,
-					frame->info.res.height,
-					frame->info.padded_width, 2);
+					frame->frame_info.res.height,
+					frame->frame_info.padded_width, 2);
 		break;
 	case IA_CSS_FRAME_FORMAT_RGBA888:
 		frame_init_single_plane(frame, &frame->planes.rgb,
-					frame->info.res.height,
-					frame->info.padded_width * 4, 1);
+					frame->frame_info.res.height,
+					frame->frame_info.padded_width * 4, 1);
 		break;
 	case IA_CSS_FRAME_FORMAT_PLANAR_RGB888:
 		frame_init_rgb_planes(frame, 1);
@@ -324,14 +203,14 @@ int ia_css_frame_init_planes(struct ia_css_frame *frame)
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_8:
 	case IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8:
 		frame_init_single_plane(frame, &frame->planes.yuyv,
-					frame->info.res.height,
-					frame->info.padded_width * 2, 1);
+					frame->frame_info.res.height,
+					frame->frame_info.padded_width * 2, 1);
 		break;
 	case IA_CSS_FRAME_FORMAT_YUV_LINE:
 		/* Needs 3 extra lines to allow vf_pp prefetching */
 		frame_init_single_plane(frame, &frame->planes.yuyv,
-					frame->info.res.height * 3 / 2 + 3,
-					frame->info.padded_width, 1);
+					frame->frame_info.res.height * 3 / 2 + 3,
+					frame->frame_info.padded_width, 1);
 		break;
 	case IA_CSS_FRAME_FORMAT_NV11:
 		frame_init_nv_planes(frame, 4, 1, 1);
@@ -380,8 +259,8 @@ int ia_css_frame_init_planes(struct ia_css_frame *frame)
 		break;
 	case IA_CSS_FRAME_FORMAT_BINARY_8:
 		frame_init_single_plane(frame, &frame->planes.binary.data,
-					frame->info.res.height,
-					frame->info.padded_width, 1);
+					frame->frame_info.res.height,
+					frame->frame_info.padded_width, 1);
 		frame->planes.binary.size = 0;
 		break;
 	default:
@@ -510,8 +389,8 @@ bool ia_css_frame_is_same_type(const struct ia_css_frame *frame_a,
 			       const struct ia_css_frame *frame_b)
 {
 	bool is_equal = false;
-	const struct ia_css_frame_info *info_a = &frame_a->info,
-						*info_b = &frame_b->info;
+	const struct ia_css_frame_info *info_a = &frame_a->frame_info;
+	const struct ia_css_frame_info *info_b = &frame_b->frame_info;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_frame_is_same_type() enter:\n");
@@ -613,8 +492,8 @@ static void frame_init_nv_planes(struct ia_css_frame *frame,
 				 unsigned int vertical_decimation,
 				 unsigned int bytes_per_element)
 {
-	unsigned int y_width = frame->info.padded_width;
-	unsigned int y_height = frame->info.res.height;
+	unsigned int y_width = frame->frame_info.padded_width;
+	unsigned int y_height = frame->frame_info.res.height;
 	unsigned int uv_width;
 	unsigned int uv_height;
 	unsigned int y_bytes;
@@ -627,7 +506,7 @@ static void frame_init_nv_planes(struct ia_css_frame *frame,
 	uv_width = 2 * (y_width / horizontal_decimation);
 	uv_height = y_height / vertical_decimation;
 
-	if (frame->info.format == IA_CSS_FRAME_FORMAT_NV12_TILEY) {
+	if (frame->frame_info.format == IA_CSS_FRAME_FORMAT_NV12_TILEY) {
 		y_width   = CEIL_MUL(y_width,   NV12_TILEY_TILE_WIDTH);
 		uv_width  = CEIL_MUL(uv_width,  NV12_TILEY_TILE_WIDTH);
 		y_height  = CEIL_MUL(y_height,  NV12_TILEY_TILE_HEIGHT);
@@ -652,8 +531,8 @@ static void frame_init_yuv_planes(struct ia_css_frame *frame,
 				  bool swap_uv,
 				  unsigned int bytes_per_element)
 {
-	unsigned int y_width = frame->info.padded_width,
-		     y_height = frame->info.res.height,
+	unsigned int y_width = frame->frame_info.padded_width,
+		     y_height = frame->frame_info.res.height,
 		     uv_width = y_width / horizontal_decimation,
 		     uv_height = y_height / vertical_decimation,
 		     y_stride, y_bytes, uv_bytes, uv_stride;
@@ -682,8 +561,8 @@ static void frame_init_yuv_planes(struct ia_css_frame *frame,
 static void frame_init_rgb_planes(struct ia_css_frame *frame,
 				  unsigned int bytes_per_element)
 {
-	unsigned int width = frame->info.res.width,
-		     height = frame->info.res.height, stride, bytes;
+	unsigned int width = frame->frame_info.res.width,
+		     height = frame->frame_info.res.height, stride, bytes;
 
 	stride = width * bytes_per_element;
 	bytes = stride * height;
@@ -698,8 +577,8 @@ static void frame_init_rgb_planes(struct ia_css_frame *frame,
 
 static void frame_init_qplane6_planes(struct ia_css_frame *frame)
 {
-	unsigned int width = frame->info.padded_width / 2,
-		     height = frame->info.res.height / 2, bytes, stride;
+	unsigned int width = frame->frame_info.padded_width / 2,
+		     height = frame->frame_info.res.height / 2, bytes, stride;
 
 	stride = width * 2;
 	bytes = stride * height;
@@ -781,11 +660,11 @@ static struct ia_css_frame *frame_create(unsigned int width,
 		return NULL;
 
 	memset(me, 0, sizeof(*me));
-	me->info.res.width = width;
-	me->info.res.height = height;
-	me->info.format = format;
-	me->info.padded_width = padded_width;
-	me->info.raw_bit_depth = raw_bit_depth;
+	me->frame_info.res.width = width;
+	me->frame_info.res.height = height;
+	me->frame_info.format = format;
+	me->frame_info.padded_width = padded_width;
+	me->frame_info.raw_bit_depth = raw_bit_depth;
 	me->valid = valid;
 	me->data_bytes = 0;
 	me->data = mmgr_NULL;
@@ -846,4 +725,20 @@ void ia_css_resolution_to_sp_resolution(
 {
 	to->width  = (uint16_t)from->width;
 	to->height = (uint16_t)from->height;
+}
+
+int ia_css_frame_init_from_info(struct ia_css_frame *frame,
+				const struct ia_css_frame_info *frame_info)
+{
+	frame->frame_info.res.width = frame_info->res.width;
+	frame->frame_info.res.height = frame_info->res.height;
+	frame->frame_info.format = frame_info->format;
+	frame->frame_info.padded_width = frame_info->padded_width;
+	frame->frame_info.raw_bit_depth = frame_info->raw_bit_depth;
+	frame->valid = true;
+	/* To indicate it is not valid frame. */
+	frame->dynamic_queue_id = SH_CSS_INVALID_QUEUE_ID;
+	frame->buf_type = IA_CSS_BUFFER_TYPE_INVALID;
+
+	return ia_css_frame_init_planes(frame);
 }

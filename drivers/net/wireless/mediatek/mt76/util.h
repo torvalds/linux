@@ -29,12 +29,6 @@ enum {
 
 int mt76_wcid_alloc(u32 *mask, int size);
 
-static inline bool
-mt76_wcid_mask_test(u32 *mask, int idx)
-{
-	return mask[idx / 32] & BIT(idx % 32);
-}
-
 static inline void
 mt76_wcid_mask_set(u32 *mask, int idx)
 {

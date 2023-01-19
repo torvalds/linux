@@ -162,9 +162,9 @@ static inline unsigned long max8998_i2c_get_driver_data(struct i2c_client *i2c,
 	return id->driver_data;
 }
 
-static int max8998_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int max8998_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max8998_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct max8998_dev *max8998;
 	int ret = 0;
@@ -348,7 +348,7 @@ static struct i2c_driver max8998_i2c_driver = {
 		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8998_dt_match),
 	},
-	.probe = max8998_i2c_probe,
+	.probe_new = max8998_i2c_probe,
 	.id_table = max8998_i2c_id,
 };
 

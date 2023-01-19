@@ -330,9 +330,9 @@ static const struct iio_info mcp3422_info = {
 	.attrs = &mcp3422_attribute_group,
 };
 
-static int mcp3422_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mcp3422_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct mcp3422 *adc;
 	int err;
@@ -417,7 +417,7 @@ static struct i2c_driver mcp3422_driver = {
 		.name = "mcp3422",
 		.of_match_table = mcp3422_of_match,
 	},
-	.probe = mcp3422_probe,
+	.probe_new = mcp3422_probe,
 	.id_table = mcp3422_id,
 };
 module_i2c_driver(mcp3422_driver);

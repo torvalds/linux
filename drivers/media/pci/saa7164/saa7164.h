@@ -493,8 +493,6 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev);
 /* saa7164-i2c.c                                               */
 extern int saa7164_i2c_register(struct saa7164_i2c *bus);
 extern int saa7164_i2c_unregister(struct saa7164_i2c *bus);
-extern void saa7164_call_i2c_clients(struct saa7164_i2c *bus,
-	unsigned int cmd, void *arg);
 
 /* ----------------------------------------------------------- */
 /* saa7164-bus.c                                               */

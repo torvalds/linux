@@ -28,6 +28,8 @@ u64 am65_cpts_ns_gettime(struct am65_cpts *cpts);
 int am65_cpts_estf_enable(struct am65_cpts *cpts, int idx,
 			  struct am65_cpts_estf_cfg *cfg);
 void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx);
+void am65_cpts_suspend(struct am65_cpts *cpts);
+void am65_cpts_resume(struct am65_cpts *cpts);
 #else
 static inline struct am65_cpts *am65_cpts_create(struct device *dev,
 						 void __iomem *regs,
@@ -67,6 +69,14 @@ static inline int am65_cpts_estf_enable(struct am65_cpts *cpts, int idx,
 }
 
 static inline void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx)
+{
+}
+
+static inline void am65_cpts_suspend(struct am65_cpts *cpts)
+{
+}
+
+static inline void am65_cpts_resume(struct am65_cpts *cpts)
 {
 }
 #endif

@@ -1044,6 +1044,7 @@ static int team_port_enter(struct team *team, struct team_port *port)
 			goto err_port_enter;
 		}
 	}
+	port->dev->priv_flags |= IFF_NO_ADDRCONF;
 
 	return 0;
 
@@ -1057,6 +1058,7 @@ static void team_port_leave(struct team *team, struct team_port *port)
 {
 	if (team->ops.port_leave)
 		team->ops.port_leave(team, port);
+	port->dev->priv_flags &= ~IFF_NO_ADDRCONF;
 	dev_put(team->dev);
 }
 
@@ -1865,13 +1867,13 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	for_each_possible_cpu(i) {
 		p = per_cpu_ptr(team->pcpu_stats, i);
 		do {
-			start = u64_stats_fetch_begin_irq(&p->syncp);
+			start = u64_stats_fetch_begin(&p->syncp);
 			rx_packets	= u64_stats_read(&p->rx_packets);
 			rx_bytes	= u64_stats_read(&p->rx_bytes);
 			rx_multicast	= u64_stats_read(&p->rx_multicast);
 			tx_packets	= u64_stats_read(&p->tx_packets);
 			tx_bytes	= u64_stats_read(&p->tx_bytes);
-		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
+		} while (u64_stats_fetch_retry(&p->syncp, start));
 
 		stats->rx_packets	+= rx_packets;
 		stats->rx_bytes		+= rx_bytes;

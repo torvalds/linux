@@ -92,13 +92,16 @@ The timeout handler is scsi_timeout().  When a timeout occurs, this function
  1. invokes optional hostt->eh_timed_out() callback.  Return value can
     be one of
 
-    - BLK_EH_RESET_TIMER
+    - SCSI_EH_RESET_TIMER
 	This indicates that more time is required to finish the
 	command.  Timer is restarted.
 
-    - BLK_EH_DONE
+    - SCSI_EH_NOT_HANDLED
         eh_timed_out() callback did not handle the command.
 	Step #2 is taken.
+
+    - SCSI_EH_DONE
+        eh_timed_out() completed the command.
 
  2. scsi_abort_command() is invoked to schedule an asynchronous abort which may
     issue a retry scmd->allowed + 1 times.  Asynchronous aborts are not invoked

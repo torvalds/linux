@@ -128,25 +128,23 @@ static ssize_t show_trans_table(struct cpufreq_policy *policy, char *buf)
 	ssize_t len = 0;
 	int i, j, count;
 
-	len += scnprintf(buf + len, PAGE_SIZE - len, "   From  :    To\n");
-	len += scnprintf(buf + len, PAGE_SIZE - len, "         : ");
+	len += sysfs_emit_at(buf, len, "   From  :    To\n");
+	len += sysfs_emit_at(buf, len, "         : ");
 	for (i = 0; i < stats->state_num; i++) {
 		if (len >= PAGE_SIZE)
 			break;
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%9u ",
-				stats->freq_table[i]);
+		len += sysfs_emit_at(buf, len, "%9u ", stats->freq_table[i]);
 	}
 	if (len >= PAGE_SIZE)
 		return PAGE_SIZE;
 
-	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 
 	for (i = 0; i < stats->state_num; i++) {
 		if (len >= PAGE_SIZE)
 			break;
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%9u: ",
-				stats->freq_table[i]);
+		len += sysfs_emit_at(buf, len, "%9u: ", stats->freq_table[i]);
 
 		for (j = 0; j < stats->state_num; j++) {
 			if (len >= PAGE_SIZE)
@@ -157,11 +155,11 @@ static ssize_t show_trans_table(struct cpufreq_policy *policy, char *buf)
 			else
 				count = stats->trans_table[i * stats->max_state + j];
 
-			len += scnprintf(buf + len, PAGE_SIZE - len, "%9u ", count);
+			len += sysfs_emit_at(buf, len, "%9u ", count);
 		}
 		if (len >= PAGE_SIZE)
 			break;
-		len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
+		len += sysfs_emit_at(buf, len, "\n");
 	}
 
 	if (len >= PAGE_SIZE) {

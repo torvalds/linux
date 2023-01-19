@@ -47,9 +47,13 @@
 #define HISI_PCIE_EVENT_M		GENMASK_ULL(15, 0)
 #define HISI_PCIE_THR_MODE_M		GENMASK_ULL(27, 27)
 #define HISI_PCIE_THR_M			GENMASK_ULL(31, 28)
+#define HISI_PCIE_LEN_M			GENMASK_ULL(35, 34)
 #define HISI_PCIE_TARGET_M		GENMASK_ULL(52, 36)
 #define HISI_PCIE_TRIG_MODE_M		GENMASK_ULL(53, 53)
 #define HISI_PCIE_TRIG_M		GENMASK_ULL(59, 56)
+
+/* Default config of TLP length mode, will count both TLP headers and payloads */
+#define HISI_PCIE_LEN_M_DEFAULT		3ULL
 
 #define HISI_PCIE_MAX_COUNTERS		8
 #define HISI_PCIE_REG_STEP		8
@@ -91,6 +95,7 @@ HISI_PCIE_PMU_FILTER_ATTR(thr_len, config1, 3, 0);
 HISI_PCIE_PMU_FILTER_ATTR(thr_mode, config1, 4, 4);
 HISI_PCIE_PMU_FILTER_ATTR(trig_len, config1, 8, 5);
 HISI_PCIE_PMU_FILTER_ATTR(trig_mode, config1, 9, 9);
+HISI_PCIE_PMU_FILTER_ATTR(len_mode, config1, 11, 10);
 HISI_PCIE_PMU_FILTER_ATTR(port, config2, 15, 0);
 HISI_PCIE_PMU_FILTER_ATTR(bdf, config2, 31, 16);
 
@@ -215,8 +220,8 @@ static void hisi_pcie_pmu_config_filter(struct perf_event *event)
 {
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
+	u64 port, trig_len, thr_len, len_mode;
 	u64 reg = HISI_PCIE_INIT_SET;
-	u64 port, trig_len, thr_len;
 
 	/* Config HISI_PCIE_EVENT_CTRL according to event. */
 	reg |= FIELD_PREP(HISI_PCIE_EVENT_M, hisi_pcie_get_real_event(event));
@@ -244,6 +249,12 @@ static void hisi_pcie_pmu_config_filter(struct perf_event *event)
 		reg |= FIELD_PREP(HISI_PCIE_THR_MODE_M, hisi_pcie_get_thr_mode(event));
 		reg |= HISI_PCIE_THR_EN;
 	}
+
+	len_mode = hisi_pcie_get_len_mode(event);
+	if (len_mode)
+		reg |= FIELD_PREP(HISI_PCIE_LEN_M, len_mode);
+	else
+		reg |= FIELD_PREP(HISI_PCIE_LEN_M, HISI_PCIE_LEN_M_DEFAULT);
 
 	hisi_pcie_pmu_writeq(pcie_pmu, HISI_PCIE_EVENT_CTRL, hwc->idx, reg);
 }
@@ -693,10 +704,10 @@ static struct attribute *hisi_pcie_pmu_events_attr[] = {
 	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_cnt, 0x10210),
 	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_latency, 0x0011),
 	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_cnt, 0x10011),
-	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_flux, 0x1005),
-	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_time, 0x11005),
-	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_flux, 0x2004),
-	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_time, 0x12004),
+	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_flux, 0x0804),
+	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_time, 0x10804),
+	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_flux, 0x0405),
+	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_time, 0x10405),
 	NULL
 };
 
@@ -711,6 +722,7 @@ static struct attribute *hisi_pcie_pmu_format_attr[] = {
 	HISI_PCIE_PMU_FORMAT_ATTR(thr_mode, "config1:4"),
 	HISI_PCIE_PMU_FORMAT_ATTR(trig_len, "config1:5-8"),
 	HISI_PCIE_PMU_FORMAT_ATTR(trig_mode, "config1:9"),
+	HISI_PCIE_PMU_FORMAT_ATTR(len_mode, "config1:10-11"),
 	HISI_PCIE_PMU_FORMAT_ATTR(port, "config2:0-15"),
 	HISI_PCIE_PMU_FORMAT_ATTR(bdf, "config2:16-31"),
 	NULL

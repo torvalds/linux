@@ -253,7 +253,7 @@ static long ceph_ioctl_lazyio(struct file *file)
 		spin_unlock(&ci->i_ceph_lock);
 		dout("ioctl_layzio: file %p marked lazy\n", file);
 
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 	} else {
 		dout("ioctl_layzio: file %p already lazy\n", file);
 	}

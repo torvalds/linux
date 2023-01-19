@@ -213,7 +213,7 @@ io_mapping_free(struct io_mapping *iomap)
 	kfree(iomap);
 }
 
-#endif /* _LINUX_IO_MAPPING_H */
-
 int io_mapping_map_user(struct io_mapping *iomap, struct vm_area_struct *vma,
 		unsigned long addr, unsigned long pfn, unsigned long size);
+
+#endif /* _LINUX_IO_MAPPING_H */

@@ -28,6 +28,9 @@
 #include "otx2_devlink.h"
 #include <rvu_trace.h>
 
+/* IPv4 flag more fragment bit */
+#define IPV4_FLAG_MORE				0x20
+
 /* PCI device IDs */
 #define PCI_DEVID_OCTEONTX2_RVU_PF              0xA063
 #define PCI_DEVID_OCTEONTX2_RVU_VF		0xA064
@@ -884,7 +887,7 @@ static inline void otx2_dma_unmap_page(struct otx2_nic *pfvf,
 static inline u16 otx2_get_smq_idx(struct otx2_nic *pfvf, u16 qidx)
 {
 #ifdef CONFIG_DCB
-	if (pfvf->pfc_alloc_status[qidx])
+	if (qidx < NIX_PF_PFC_PRIO_MAX && pfvf->pfc_alloc_status[qidx])
 		return pfvf->pfc_schq_list[NIX_TXSCH_LVL_SMQ][qidx];
 #endif
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger onmatch-onmax action
-# requires: set_event synthetic_events events/sched/sched_process_fork/hist
+# requires: set_event synthetic_events events/sched/sched_process_fork/hist ping:program
 
 fail() { #msg
     echo $1

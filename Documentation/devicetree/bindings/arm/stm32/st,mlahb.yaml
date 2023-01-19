@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/stm32/st,mlahb.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: STMicroelectronics STM32 ML-AHB interconnect bindings
+title: STMicroelectronics STM32 ML-AHB interconnect
 
 maintainers:
   - Fabien Dessenne <fabien.dessenne@foss.st.com>

@@ -389,8 +389,7 @@ static void s6sy761_power_off(void *data)
 						sdata->regulators);
 }
 
-static int s6sy761_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int s6sy761_probe(struct i2c_client *client)
 {
 	struct s6sy761_data *sdata;
 	unsigned int max_x, max_y;
@@ -540,7 +539,7 @@ static struct i2c_driver s6sy761_driver = {
 		.of_match_table = of_match_ptr(s6sy761_of_match),
 		.pm = &s6sy761_pm_ops,
 	},
-	.probe = s6sy761_probe,
+	.probe_new = s6sy761_probe,
 	.remove = s6sy761_remove,
 	.id_table = s6sy761_id,
 };

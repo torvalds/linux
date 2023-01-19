@@ -85,7 +85,7 @@ optprobe_template_op_address:
 	TEMPLATE_FOR_IMM_LOAD_INSNS
 
 	/* 2. pt_regs pointer in r4 */
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 
 	.global optprobe_template_call_handler
 optprobe_template_call_handler:
@@ -96,7 +96,7 @@ optprobe_template_call_handler:
 	 * Parameters for instruction emulation:
 	 * 1. Pass SP in register r3.
 	 */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 
 	.global optprobe_template_insn
 optprobe_template_insn:

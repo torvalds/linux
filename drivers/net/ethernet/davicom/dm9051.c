@@ -798,8 +798,10 @@ static int dm9051_loop_rx(struct board_info *db)
 		}
 
 		ret = dm9051_stop_mrcmd(db);
-		if (ret)
+		if (ret) {
+			dev_kfree_skb(skb);
 			return ret;
+		}
 
 		skb->protocol = eth_type_trans(skb, db->ndev);
 		if (db->ndev->features & NETIF_F_RXCSUM)

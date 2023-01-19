@@ -9,6 +9,7 @@
 #include <adf_common_drv.h>
 
 #include "adf_4xxx_hw_data.h"
+#include "qat_compression.h"
 #include "qat_crypto.h"
 #include "adf_transport_access_macros.h"
 
@@ -18,6 +19,16 @@ static const struct pci_device_id adf_pci_tbl[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
+
+enum configs {
+	DEV_CFG_CY = 0,
+	DEV_CFG_DC,
+};
+
+static const char * const services_operations[] = {
+	ADF_CFG_CY,
+	ADF_CFG_DC,
+};
 
 static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 {
@@ -53,7 +64,7 @@ static int adf_cfg_dev_init(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
-int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
+static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -67,14 +78,6 @@ int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 		instances = min(cpus, banks / 2);
 	else
 		instances = 0;
-
-	ret = adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC);
-	if (ret)
-		goto err;
-
-	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
-	if (ret)
-		goto err;
 
 	for (i = 0; i < instances; i++) {
 		val = i;
@@ -155,10 +158,128 @@ int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 	if (ret)
 		goto err;
 
-	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
+	val = 0;
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
+					  &val, ADF_DEC);
+	if (ret)
+		goto err;
+
 	return 0;
 err:
-	dev_err(&GET_DEV(accel_dev), "Failed to start QAT accel dev\n");
+	dev_err(&GET_DEV(accel_dev), "Failed to add configuration for crypto\n");
+	return ret;
+}
+
+static int adf_comp_dev_config(struct adf_accel_dev *accel_dev)
+{
+	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
+	int banks = GET_MAX_BANKS(accel_dev);
+	int cpus = num_online_cpus();
+	unsigned long val;
+	int instances;
+	int ret;
+	int i;
+
+	if (adf_hw_dev_has_compression(accel_dev))
+		instances = min(cpus, banks);
+	else
+		instances = 0;
+
+	for (i = 0; i < instances; i++) {
+		val = i;
+		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_BANK_NUM, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
+			goto err;
+
+		val = 512;
+		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_SIZE, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
+			goto err;
+
+		val = 0;
+		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_TX, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
+			goto err;
+
+		val = 1;
+		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_RX, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
+			goto err;
+
+		val = ADF_COALESCING_DEF_TIME;
+		snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
+						  key, &val, ADF_DEC);
+		if (ret)
+			goto err;
+	}
+
+	val = i;
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
+					  &val, ADF_DEC);
+	if (ret)
+		goto err;
+
+	val = 0;
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
+					  &val, ADF_DEC);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_err(&GET_DEV(accel_dev), "Failed to add configuration for compression\n");
+	return ret;
+}
+
+int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
+{
+	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
+	int ret;
+
+	ret = adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC);
+	if (ret)
+		goto err;
+
+	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
+	if (ret)
+		goto err;
+
+	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
+				      ADF_SERVICES_ENABLED, services);
+	if (ret)
+		goto err;
+
+	ret = sysfs_match_string(services_operations, services);
+	if (ret < 0)
+		goto err;
+
+	switch (ret) {
+	case DEV_CFG_CY:
+		ret = adf_crypto_dev_config(accel_dev);
+		break;
+	case DEV_CFG_DC:
+		ret = adf_comp_dev_config(accel_dev);
+		break;
+	}
+
+	if (ret)
+		goto err;
+
+	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
+
+	return ret;
+
+err:
+	dev_err(&GET_DEV(accel_dev), "Failed to configure QAT driver\n");
 	return ret;
 }
 
@@ -261,6 +382,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
 	if (!hw_data->accel_capabilities_mask) {
 		dev_err(&pdev->dev, "Failed to get capabilities mask.\n");
+		ret = -EINVAL;
 		goto out_err;
 	}
 
@@ -293,7 +415,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_err_disable_aer;
 
-	ret = adf_crypto_dev_config(accel_dev);
+	ret = hw_data->dev_config(accel_dev);
 	if (ret)
 		goto out_err_disable_aer;
 

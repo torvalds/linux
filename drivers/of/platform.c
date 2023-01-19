@@ -115,15 +115,14 @@ struct platform_device *of_device_alloc(struct device_node *np,
 {
 	struct platform_device *dev;
 	int rc, i, num_reg = 0;
-	struct resource *res, temp_res;
+	struct resource *res;
 
 	dev = platform_device_alloc("", PLATFORM_DEVID_NONE);
 	if (!dev)
 		return NULL;
 
 	/* count the io resources */
-	while (of_address_to_resource(np, num_reg, &temp_res) == 0)
-		num_reg++;
+	num_reg = of_address_count(np);
 
 	/* Populate the resource table */
 	if (num_reg) {

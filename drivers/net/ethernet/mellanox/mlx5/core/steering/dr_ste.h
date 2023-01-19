@@ -151,6 +151,7 @@ struct mlx5dr_ste_ctx {
 			 bool is_rx, u16 gvmi);
 	void (*set_next_lu_type)(u8 *hw_ste_p, u16 lu_type);
 	u16  (*get_next_lu_type)(u8 *hw_ste_p);
+	bool (*is_miss_addr_set)(u8 *hw_ste_p);
 	void (*set_miss_addr)(u8 *hw_ste_p, u64 miss_addr);
 	u64  (*get_miss_addr)(u8 *hw_ste_p);
 	void (*set_hit_addr)(u8 *hw_ste_p, u64 icm_addr, u32 ht_size);

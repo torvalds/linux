@@ -248,8 +248,8 @@ static ssize_t device_type_show(struct device *dev,
 	case ASIC_GAUDI2:
 		str = "GAUDI2";
 		break;
-	case ASIC_GAUDI2_SEC:
-		str = "GAUDI2 SEC";
+	case ASIC_GAUDI2B:
+		str = "GAUDI2B";
 		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",

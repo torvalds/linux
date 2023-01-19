@@ -54,7 +54,7 @@ u32 c4iw_id_alloc(struct c4iw_id_table *alloc)
 
 	if (obj < alloc->max) {
 		if (alloc->flags & C4IW_ID_TABLE_F_RANDOM)
-			alloc->last += prandom_u32_max(RANDOM_SKIP);
+			alloc->last += get_random_u32_below(RANDOM_SKIP);
 		else
 			alloc->last = obj + 1;
 		if (alloc->last >= alloc->max)
@@ -85,7 +85,7 @@ int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
 	alloc->start = start;
 	alloc->flags = flags;
 	if (flags & C4IW_ID_TABLE_F_RANDOM)
-		alloc->last = prandom_u32_max(RANDOM_SKIP);
+		alloc->last = get_random_u32_below(RANDOM_SKIP);
 	else
 		alloc->last = 0;
 	alloc->max = num;

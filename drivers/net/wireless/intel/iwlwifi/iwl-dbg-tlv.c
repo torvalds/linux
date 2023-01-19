@@ -371,7 +371,7 @@ void iwl_dbg_tlv_del_timers(struct iwl_trans *trans)
 	struct iwl_dbg_tlv_timer_node *node, *tmp;
 
 	list_for_each_entry_safe(node, tmp, timer_list, list) {
-		del_timer_sync(&node->timer);
+		timer_shutdown_sync(&node->timer);
 		list_del(&node->list);
 		kfree(node);
 	}
@@ -590,6 +590,9 @@ static int iwl_dbg_tlv_alloc_fragments(struct iwl_fw_runtime *fwrt,
 		if (alloc_id != IWL_FW_INI_ALLOCATION_ID_DBGC1)
 			return -EIO;
 		num_frags = 1;
+	} else if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ &&
+			   alloc_id > IWL_FW_INI_ALLOCATION_ID_DBGC3) {
+		return -EIO;
 	}
 
 	remain_pages = DIV_ROUND_UP(le32_to_cpu(fw_mon_cfg->req_size),
@@ -789,7 +792,7 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 	dram_info->second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
 
 	for (i = IWL_FW_INI_ALLOCATION_ID_DBGC1;
-	     i <= IWL_FW_INI_ALLOCATION_ID_DBGC3; i++) {
+	     i < IWL_FW_INI_ALLOCATION_NUM; i++) {
 		ret = iwl_dbg_tlv_update_dram(fwrt, i, dram_info);
 		if (!ret)
 			dram_alloc = true;
@@ -1324,7 +1327,7 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 			     "WRT: removing allocation id %d from region id %d\n",
 			     le32_to_cpu(reg->dram_alloc_id), i);
 
-		failed_alloc &= ~le32_to_cpu(reg->dram_alloc_id);
+		failed_alloc &= ~BIT(le32_to_cpu(reg->dram_alloc_id));
 		fwrt->trans->dbg.unsupported_region_msk |= BIT(i);
 
 		kfree(*active_reg);

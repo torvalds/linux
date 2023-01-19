@@ -5611,6 +5611,7 @@ static void mwl8k_sw_scan_complete(struct ieee80211_hw *hw,
 
 static const struct ieee80211_ops mwl8k_ops = {
 	.tx			= mwl8k_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= mwl8k_start,
 	.stop			= mwl8k_stop,
 	.add_interface		= mwl8k_add_interface,

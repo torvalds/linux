@@ -56,7 +56,7 @@ config DRM_RCAR_MIPI_DSI
 
 config DRM_RZG2L_MIPI_DSI
 	tristate "RZ/G2L MIPI DSI Encoder Support"
-	depends on DRM_BRIDGE && OF
+	depends on DRM && DRM_BRIDGE && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select DRM_MIPI_DSI
 	help

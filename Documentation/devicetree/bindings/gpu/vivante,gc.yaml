@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpu/vivante,gc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Vivante GPU Bindings
+title: Vivante GPU
 
 description: Vivante GPU core devices
 

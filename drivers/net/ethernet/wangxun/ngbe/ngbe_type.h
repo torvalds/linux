@@ -8,11 +8,6 @@
 #include <linux/netdevice.h>
 
 /************ NGBE_register.h ************/
-/* Vendor ID */
-#ifndef PCI_VENDOR_ID_WANGXUN
-#define PCI_VENDOR_ID_WANGXUN			0x8088
-#endif
-
 /* Device IDs */
 #define NGBE_DEV_ID_EM_WX1860AL_W		0x0100
 #define NGBE_DEV_ID_EM_WX1860A2			0x0101
@@ -47,4 +42,98 @@
 #define NGBE_WOL_SUP				0x4000
 #define NGBE_WOL_MASK				0x4000
 
+/**************** EM Registers ****************************/
+/* chip control Registers */
+#define NGBE_MIS_PRB_CTL			0x10010
+/* FMGR Registers */
+#define NGBE_SPI_ILDR_STATUS			0x10120
+#define NGBE_SPI_ILDR_STATUS_PERST		BIT(0) /* PCIE_PERST is done */
+#define NGBE_SPI_ILDR_STATUS_PWRRST		BIT(1) /* Power on reset is done */
+#define NGBE_SPI_ILDR_STATUS_LAN_SW_RST(_i)	BIT((_i) + 9) /* lan soft reset done */
+
+/* Checksum and EEPROM pointers */
+#define NGBE_CALSUM_COMMAND			0xE9
+#define NGBE_CALSUM_CAP_STATUS			0x10224
+#define NGBE_EEPROM_VERSION_STORE_REG		0x1022C
+#define NGBE_SAN_MAC_ADDR_PTR			0x18
+#define NGBE_DEVICE_CAPS			0x1C
+#define NGBE_EEPROM_VERSION_L			0x1D
+#define NGBE_EEPROM_VERSION_H			0x1E
+
+/* Media-dependent registers. */
+#define NGBE_MDIO_CLAUSE_SELECT			0x11220
+
+/* GPIO Registers */
+#define NGBE_GPIO_DR				0x14800
+#define NGBE_GPIO_DDR				0x14804
+/*GPIO bit */
+#define NGBE_GPIO_DR_0				BIT(0) /* SDP0 Data Value */
+#define NGBE_GPIO_DR_1				BIT(1) /* SDP1 Data Value */
+#define NGBE_GPIO_DDR_0				BIT(0) /* SDP0 IO direction */
+#define NGBE_GPIO_DDR_1				BIT(1) /* SDP1 IO direction */
+
+/* Wake up registers */
+#define NGBE_PSR_WKUP_CTL			0x15B80
+/* Wake Up Filter Control Bit */
+#define NGBE_PSR_WKUP_CTL_LNKC			BIT(0) /* Link Status Change Wakeup Enable*/
+#define NGBE_PSR_WKUP_CTL_MAG			BIT(1) /* Magic Packet Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_EX			BIT(2) /* Directed Exact Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_MC			BIT(3) /* Directed Multicast Wakeup Enable*/
+#define NGBE_PSR_WKUP_CTL_BC			BIT(4) /* Broadcast Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_ARP			BIT(5) /* ARP Request Packet Wakeup Enable*/
+#define NGBE_PSR_WKUP_CTL_IPV4			BIT(6) /* Directed IPv4 Pkt Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_IPV6			BIT(7) /* Directed IPv6 Pkt Wakeup Enable */
+
+#define NGBE_FW_EEPROM_CHECKSUM_CMD		0xE9
+#define NGBE_FW_NVM_DATA_OFFSET			3
+#define NGBE_FW_CMD_DEFAULT_CHECKSUM		0xFF /* checksum always 0xFF */
+#define NGBE_FW_CMD_ST_PASS			0x80658383
+#define NGBE_FW_CMD_ST_FAIL			0x70657376
+
+enum ngbe_phy_type {
+	ngbe_phy_unknown = 0,
+	ngbe_phy_none,
+	ngbe_phy_internal,
+	ngbe_phy_m88e1512,
+	ngbe_phy_m88e1512_sfi,
+	ngbe_phy_m88e1512_unknown,
+	ngbe_phy_yt8521s,
+	ngbe_phy_yt8521s_sfi,
+	ngbe_phy_internal_yt8521s_sfi,
+	ngbe_phy_generic
+};
+
+enum ngbe_media_type {
+	ngbe_media_type_unknown = 0,
+	ngbe_media_type_fiber,
+	ngbe_media_type_copper,
+	ngbe_media_type_backplane,
+};
+
+enum ngbe_mac_type {
+	ngbe_mac_type_unknown = 0,
+	ngbe_mac_type_mdi,
+	ngbe_mac_type_rgmii
+};
+
+struct ngbe_phy_info {
+	enum ngbe_phy_type type;
+	enum ngbe_media_type media_type;
+
+	u32 addr;
+	u32 id;
+
+	bool reset_if_overtemp;
+
+};
+
+struct ngbe_hw {
+	struct wx_hw wxhw;
+	struct ngbe_phy_info phy;
+	enum ngbe_mac_type mac_type;
+
+	bool wol_enabled;
+	bool ncsi_enabled;
+	bool gpio_ctrl;
+};
 #endif /* _NGBE_TYPE_H_ */

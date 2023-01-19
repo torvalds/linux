@@ -3618,6 +3618,33 @@
 #define UVD_RAS_MMSCH_FATAL_ERROR__POISONED_VF_MASK             0x7FFFFFFFL
 #define UVD_RAS_MMSCH_FATAL_ERROR__POISONED_PF_MASK             0x80000000L
 
+//VCN 2_6_0 VCN_RAS_CNTL
+#define VCN_RAS_CNTL__VCPU_VCODEC_IH_EN__SHIFT                                                                0x0
+#define VCN_RAS_CNTL__MMSCH_FATAL_ERROR_EN__SHIFT                                                             0x1
+#define VCN_RAS_CNTL__VCPU_VCODEC_PMI_EN__SHIFT                                                               0x4
+#define VCN_RAS_CNTL__MMSCH_PMI_EN__SHIFT                                                                     0x5
+#define VCN_RAS_CNTL__VCPU_VCODEC_REARM__SHIFT                                                                0x8
+#define VCN_RAS_CNTL__MMSCH_REARM__SHIFT                                                                      0x9
+#define VCN_RAS_CNTL__VCPU_VCODEC_STALL_EN__SHIFT                                                             0xc
+#define VCN_RAS_CNTL__VCPU_VCODEC_READY__SHIFT                                                                0x10
+#define VCN_RAS_CNTL__MMSCH_READY__SHIFT                                                                      0x11
+#define VCN_RAS_CNTL__VCPU_VCODEC_IH_EN_MASK                                                                  0x00000001L
+#define VCN_RAS_CNTL__MMSCH_FATAL_ERROR_EN_MASK                                                               0x00000002L
+#define VCN_RAS_CNTL__VCPU_VCODEC_PMI_EN_MASK                                                                 0x00000010L
+#define VCN_RAS_CNTL__MMSCH_PMI_EN_MASK                                                                       0x00000020L
+#define VCN_RAS_CNTL__VCPU_VCODEC_REARM_MASK                                                                  0x00000100L
+#define VCN_RAS_CNTL__MMSCH_REARM_MASK                                                                        0x00000200L
+#define VCN_RAS_CNTL__VCPU_VCODEC_STALL_EN_MASK                                                               0x00001000L
+#define VCN_RAS_CNTL__VCPU_VCODEC_READY_MASK                                                                  0x00010000L
+#define VCN_RAS_CNTL__MMSCH_READY_MASK                                                                        0x00020000L
+
+//VCN 2_6_0 UVD_VCPU_INT_EN
+#define UVD_VCPU_INT_EN__RASCNTL_VCPU_VCODEC_EN__SHIFT                                                        0x16
+#define UVD_VCPU_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK                                                          0x00400000L
+
+//VCN 2_6_0 UVD_SYS_INT_EN
+#define UVD_SYS_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK                                                           0x04000000L
+
 /* JPEG 2_6_0 UVD_RAS_JPEG0_STATUS */
 #define UVD_RAS_JPEG0_STATUS__POISONED_VF__SHIFT                0x0
 #define UVD_RAS_JPEG0_STATUS__POISONED_PF__SHIFT                0x1f

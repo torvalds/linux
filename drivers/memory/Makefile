@@ -33,8 +33,6 @@ obj-$(CONFIG_FPGA_DFL_EMIF)	+= dfl-emif.o
 
 ti-emif-sram-objs		:= ti-emif-pm.o ti-emif-sram-pm.o
 
-AFLAGS_ti-emif-sram-pm.o	:=-Wa,-march=armv7-a
-
 $(obj)/ti-emif-sram-pm.o: $(obj)/ti-emif-asm-offsets.h
 
 $(obj)/ti-emif-asm-offsets.h: $(obj)/emif-asm-offsets.s FORCE

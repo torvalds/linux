@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/mmc/arasan,sdhci.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Device Tree Bindings for the Arasan SDHCI Controller
+title: Arasan SDHCI Controller
 
 maintainers:
   - Adrian Hunter <adrian.hunter@intel.com>

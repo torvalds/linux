@@ -12,7 +12,7 @@
 
 #include "cs35l41_hda.h"
 
-static int cs35l41_hda_i2c_probe(struct i2c_client *clt, const struct i2c_device_id *id)
+static int cs35l41_hda_i2c_probe(struct i2c_client *clt)
 {
 	const char *device_name;
 
@@ -58,7 +58,7 @@ static struct i2c_driver cs35l41_i2c_driver = {
 		.pm		= &cs35l41_hda_pm_ops,
 	},
 	.id_table	= cs35l41_hda_i2c_id,
-	.probe		= cs35l41_hda_i2c_probe,
+	.probe_new	= cs35l41_hda_i2c_probe,
 	.remove		= cs35l41_hda_i2c_remove,
 };
 module_i2c_driver(cs35l41_i2c_driver);

@@ -30,6 +30,7 @@ config CAN_ESD_USB
 config CAN_ETAS_ES58X
 	tristate "ETAS ES58X CAN/USB interfaces"
 	select CRC16
+	select NET_DEVLINK
 	help
 	  This driver supports the ES581.4, ES582.1 and ES584.1 interfaces
 	  from ETAS GmbH (https://www.etas.com/en/products/es58x.php).
@@ -38,10 +39,13 @@ config CAN_ETAS_ES58X
 	  will be called etas_es58x.
 
 config CAN_GS_USB
-	tristate "Geschwister Schneider UG interfaces"
+	tristate "Geschwister Schneider UG and candleLight compatible interfaces"
 	help
-	  This driver supports the Geschwister Schneider and bytewerk.org
-	  candleLight USB CAN interfaces USB/CAN devices
+	  This driver supports the Geschwister Schneider and
+	  bytewerk.org candleLight compatible
+	  (https://github.com/candle-usb/candleLight_fw) USB/CAN
+	  interfaces.
+
 	  If unsure choose N,
 	  choose Y for built in support,
 	  M to compile as module (module will be named: gs_usb).

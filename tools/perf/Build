@@ -5,7 +5,6 @@ perf-y += builtin-diff.o
 perf-y += builtin-evlist.o
 perf-y += builtin-ftrace.o
 perf-y += builtin-help.o
-perf-y += builtin-sched.o
 perf-y += builtin-buildid-list.o
 perf-y += builtin-buildid-cache.o
 perf-y += builtin-kallsyms.o
@@ -13,11 +12,8 @@ perf-y += builtin-list.o
 perf-y += builtin-record.o
 perf-y += builtin-report.o
 perf-y += builtin-stat.o
-perf-y += builtin-timechart.o
 perf-y += builtin-top.o
 perf-y += builtin-script.o
-perf-y += builtin-kmem.o
-perf-y += builtin-lock.o
 perf-y += builtin-kvm.o
 perf-y += builtin-inject.o
 perf-y += builtin-mem.o
@@ -25,9 +21,18 @@ perf-y += builtin-data.o
 perf-y += builtin-version.o
 perf-y += builtin-c2c.o
 perf-y += builtin-daemon.o
-perf-y += builtin-kwork.o
 
-perf-$(CONFIG_TRACE) += builtin-trace.o
+perf-$(CONFIG_LIBTRACEEVENT) += builtin-kmem.o
+perf-$(CONFIG_LIBTRACEEVENT) += builtin-kwork.o
+perf-$(CONFIG_LIBTRACEEVENT) += builtin-lock.o
+perf-$(CONFIG_LIBTRACEEVENT) += builtin-sched.o
+perf-$(CONFIG_LIBTRACEEVENT) += builtin-timechart.o
+
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_TRACE) += builtin-trace.o
+  perf-$(CONFIG_TRACE) += trace/beauty/
+endif
+
 perf-$(CONFIG_LIBELF) += builtin-probe.o
 
 perf-y += bench/
@@ -51,7 +56,6 @@ CFLAGS_builtin-report.o	   += -DDOCDIR="BUILD_STR($(srcdir_SQ)/Documentation)"
 perf-y += util/
 perf-y += arch/
 perf-y += ui/
-perf-y += scripts/
-perf-$(CONFIG_TRACE) += trace/beauty/
+perf-$(CONFIG_LIBTRACEEVENT) += scripts/
 
 gtk-y += ui/gtk/

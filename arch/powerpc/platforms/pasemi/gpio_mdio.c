@@ -294,7 +294,7 @@ static struct platform_driver gpio_mdio_driver =
 	},
 };
 
-static int gpio_mdio_init(void)
+static int __init gpio_mdio_init(void)
 {
 	struct device_node *np;
 
@@ -314,7 +314,7 @@ static int gpio_mdio_init(void)
 }
 module_init(gpio_mdio_init);
 
-static void gpio_mdio_exit(void)
+static void __exit gpio_mdio_exit(void)
 {
 	platform_driver_unregister(&gpio_mdio_driver);
 	if (gpio_regs)

@@ -11,8 +11,10 @@
 #include <linux/ratelimit.h>
 #include <linux/error-injection.h>
 #include <linux/sched/mm.h>
-#include "misc.h"
 #include "ctree.h"
+#include "fs.h"
+#include "messages.h"
+#include "misc.h"
 #include "free-space-cache.h"
 #include "transaction.h"
 #include "disk-io.h"
@@ -24,10 +26,17 @@
 #include "discard.h"
 #include "subpage.h"
 #include "inode-item.h"
+#include "accessors.h"
+#include "file-item.h"
+#include "file.h"
+#include "super.h"
 
 #define BITS_PER_BITMAP		(PAGE_SIZE * 8UL)
 #define MAX_CACHE_BYTES_PER_GIG	SZ_64K
 #define FORCE_EXTENT_THRESHOLD	SZ_1M
+
+static struct kmem_cache *btrfs_free_space_cachep;
+static struct kmem_cache *btrfs_free_space_bitmap_cachep;
 
 struct btrfs_trim_range {
 	u64 start;
@@ -251,7 +260,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	}
 	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 	if (ret) {
-		btrfs_add_delayed_iput(inode);
+		btrfs_add_delayed_iput(BTRFS_I(inode));
 		goto out;
 	}
 	clear_nlink(inode);
@@ -265,7 +274,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 		spin_unlock(&block_group->lock);
 	}
 	/* One for the lookup ref */
-	btrfs_add_delayed_iput(inode);
+	btrfs_add_delayed_iput(BTRFS_I(inode));
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
 	key.type = 0;
@@ -1363,8 +1372,8 @@ int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 				     path, block_group->start);
 }
 
-/**
- * Write out cached info to an inode
+/*
+ * Write out cached info to an inode.
  *
  * @root:        root the inode belongs to
  * @inode:       freespace inode we are writing out
@@ -2717,8 +2726,7 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 		btrfs_mark_bg_unused(block_group);
 	} else if (bg_reclaim_threshold &&
 		   reclaimable_unusable >=
-		   div_factor_fine(block_group->zone_capacity,
-				   bg_reclaim_threshold)) {
+		   mult_perc(block_group->zone_capacity, bg_reclaim_threshold)) {
 		btrfs_mark_bg_to_reclaim(block_group);
 	}
 
@@ -3028,10 +3036,7 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group)
 
 }
 
-/**
- * btrfs_is_free_space_trimmed - see if everything is trimmed
- * @block_group: block_group of interest
- *
+/*
  * Walk @block_group's free space rb_tree to determine if everything is trimmed.
  */
 bool btrfs_is_free_space_trimmed(struct btrfs_block_group *block_group)
@@ -4130,6 +4135,31 @@ out:
 	clear_bit(BTRFS_FS_CLEANUP_SPACE_CACHE_V1, &fs_info->flags);
 
 	return ret;
+}
+
+int __init btrfs_free_space_init(void)
+{
+	btrfs_free_space_cachep = kmem_cache_create("btrfs_free_space",
+			sizeof(struct btrfs_free_space), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!btrfs_free_space_cachep)
+		return -ENOMEM;
+
+	btrfs_free_space_bitmap_cachep = kmem_cache_create("btrfs_free_space_bitmap",
+							PAGE_SIZE, PAGE_SIZE,
+							SLAB_MEM_SPREAD, NULL);
+	if (!btrfs_free_space_bitmap_cachep) {
+		kmem_cache_destroy(btrfs_free_space_cachep);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void __cold btrfs_free_space_exit(void)
+{
+	kmem_cache_destroy(btrfs_free_space_cachep);
+	kmem_cache_destroy(btrfs_free_space_bitmap_cachep);
 }
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS

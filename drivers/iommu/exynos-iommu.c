@@ -708,10 +708,6 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = iommu_device_register(&data->iommu, &exynos_iommu_ops, dev);
-	if (ret)
-		goto err_iommu_register;
-
 	platform_set_drvdata(pdev, data);
 
 	if (PG_ENT_SHIFT < 0) {
@@ -743,11 +739,13 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	ret = iommu_device_register(&data->iommu, &exynos_iommu_ops, dev);
+	if (ret)
+		goto err_dma_set_mask;
+
 	return 0;
 
 err_dma_set_mask:
-	iommu_device_unregister(&data->iommu);
-err_iommu_register:
 	iommu_device_sysfs_remove(&data->iommu);
 	return ret;
 }
@@ -1432,12 +1430,6 @@ static int __init exynos_iommu_init(void)
 		return -ENOMEM;
 	}
 
-	ret = platform_driver_register(&exynos_sysmmu_driver);
-	if (ret) {
-		pr_err("%s: Failed to register driver\n", __func__);
-		goto err_reg_driver;
-	}
-
 	zero_lv2_table = kmem_cache_zalloc(lv2table_kmem_cache, GFP_KERNEL);
 	if (zero_lv2_table == NULL) {
 		pr_err("%s: Failed to allocate zero level2 page table\n",
@@ -1446,10 +1438,16 @@ static int __init exynos_iommu_init(void)
 		goto err_zero_lv2;
 	}
 
+	ret = platform_driver_register(&exynos_sysmmu_driver);
+	if (ret) {
+		pr_err("%s: Failed to register driver\n", __func__);
+		goto err_reg_driver;
+	}
+
 	return 0;
-err_zero_lv2:
-	platform_driver_unregister(&exynos_sysmmu_driver);
 err_reg_driver:
+	platform_driver_unregister(&exynos_sysmmu_driver);
+err_zero_lv2:
 	kmem_cache_destroy(lv2table_kmem_cache);
 	return ret;
 }

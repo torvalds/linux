@@ -1,0 +1,17 @@
+# Format:
+#	MVENDORID-MARCHID-MIMPID,Version,JSON/file/pathname,Type
+#
+# where
+#	MVENDORID	JEDEC code of the core provider
+#	MARCHID		base microarchitecture of the hart
+#	MIMPID		unique encoding of the version
+#			of the processor implementation
+#	Version could be used to track version of JSON file
+#		but currently unused.
+#	JSON/file/pathname is the path to JSON file, relative
+#		to tools/perf/pmu-events/arch/riscv/.
+#	Type is core, uncore etc
+#
+#
+#MVENDORID-MARCHID-MIMPID,Version,Filename,EventType
+0x489-0x8000000000000007-0x[[:xdigit:]]+,v1,sifive/u74,core
