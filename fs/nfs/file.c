@@ -411,14 +411,16 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 				size_t length)
 {
+	struct inode *inode = folio_file_mapping(folio)->host;
 	dfprintk(PAGECACHE, "NFS: invalidate_folio(%lu, %zu, %zu)\n",
 		 folio->index, offset, length);
 
 	if (offset != 0 || length < folio_size(folio))
 		return;
 	/* Cancel any unstarted writes on this page */
-	nfs_wb_folio_cancel(folio->mapping->host, folio);
+	nfs_wb_folio_cancel(inode, folio);
 	folio_wait_fscache(folio);
+	trace_nfs_invalidate_folio(inode, folio);
 }
 
 /*
@@ -479,12 +481,15 @@ static void nfs_check_dirty_writeback(struct folio *folio,
 static int nfs_launder_folio(struct folio *folio)
 {
 	struct inode *inode = folio->mapping->host;
+	int ret;
 
 	dfprintk(PAGECACHE, "NFS: launder_folio(%ld, %llu)\n",
 		inode->i_ino, folio_pos(folio));
 
 	folio_wait_fscache(folio);
-	return nfs_wb_folio(inode, folio);
+	ret = nfs_wb_folio(inode, folio);
+	trace_nfs_launder_folio_done(inode, folio, ret);
+	return ret;
 }
 
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,

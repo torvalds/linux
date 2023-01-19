@@ -933,7 +933,7 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 		)
 );
 
-TRACE_EVENT(nfs_aop_readpage,
+DECLARE_EVENT_CLASS(nfs_folio_event,
 		TP_PROTO(
 			const struct inode *inode,
 			struct folio *folio
@@ -947,6 +947,7 @@ TRACE_EVENT(nfs_aop_readpage,
 			__field(u64, fileid)
 			__field(u64, version)
 			__field(loff_t, offset)
+			__field(u32, count)
 		),
 
 		TP_fast_assign(
@@ -957,18 +958,28 @@ TRACE_EVENT(nfs_aop_readpage,
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
 			__entry->offset = folio_file_pos(folio);
+			__entry->count = nfs_folio_length(folio);
 		),
 
 		TP_printk(
-			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu offset=%lld",
+			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu "
+			"offset=%lld count=%u",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
-			__entry->offset
+			__entry->offset, __entry->count
 		)
 );
 
-TRACE_EVENT(nfs_aop_readpage_done,
+#define DEFINE_NFS_FOLIO_EVENT(name) \
+	DEFINE_EVENT(nfs_folio_event, name, \
+			TP_PROTO( \
+				const struct inode *inode, \
+				struct folio *folio \
+			), \
+			TP_ARGS(inode, folio))
+
+DECLARE_EVENT_CLASS(nfs_folio_event_done,
 		TP_PROTO(
 			const struct inode *inode,
 			struct folio *folio,
@@ -984,6 +995,7 @@ TRACE_EVENT(nfs_aop_readpage_done,
 			__field(u64, fileid)
 			__field(u64, version)
 			__field(loff_t, offset)
+			__field(u32, count)
 		),
 
 		TP_fast_assign(
@@ -994,17 +1006,34 @@ TRACE_EVENT(nfs_aop_readpage_done,
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
 			__entry->offset = folio_file_pos(folio);
+			__entry->count = nfs_folio_length(folio);
 			__entry->ret = ret;
 		),
 
 		TP_printk(
-			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu offset=%lld ret=%d",
+			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu "
+			"offset=%lld count=%u ret=%d",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
-			__entry->offset, __entry->ret
+			__entry->offset, __entry->count, __entry->ret
 		)
 );
+
+#define DEFINE_NFS_FOLIO_EVENT_DONE(name) \
+	DEFINE_EVENT(nfs_folio_event_done, name, \
+			TP_PROTO( \
+				const struct inode *inode, \
+				struct folio *folio, \
+				int ret \
+			), \
+			TP_ARGS(inode, folio, ret))
+
+DEFINE_NFS_FOLIO_EVENT(nfs_aop_readpage);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_aop_readpage_done);
+
+DEFINE_NFS_FOLIO_EVENT(nfs_invalidate_folio);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_launder_folio_done);
 
 TRACE_EVENT(nfs_aop_readahead,
 		TP_PROTO(
