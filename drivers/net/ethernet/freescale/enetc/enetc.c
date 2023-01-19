@@ -11,6 +11,20 @@
 #include <net/pkt_sched.h>
 #include <net/tso.h>
 
+u32 enetc_port_mac_rd(struct enetc_si *si, u32 reg)
+{
+	return enetc_port_rd(&si->hw, reg);
+}
+EXPORT_SYMBOL_GPL(enetc_port_mac_rd);
+
+void enetc_port_mac_wr(struct enetc_si *si, u32 reg, u32 val)
+{
+	enetc_port_wr(&si->hw, reg, val);
+	if (si->hw_features & ENETC_SI_F_QBU)
+		enetc_port_wr(&si->hw, reg + ENETC_PMAC_OFFSET, val);
+}
+EXPORT_SYMBOL_GPL(enetc_port_mac_wr);
+
 static int enetc_num_stack_tx_queues(struct enetc_ndev_priv *priv)
 {
 	int num_tx_rings = priv->num_tx_rings;
@@ -243,8 +257,8 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb)
 			if (udp)
 				val |= ENETC_PM0_SINGLE_STEP_CH;
 
-			enetc_port_wr(hw, ENETC_PM0_SINGLE_STEP, val);
-			enetc_port_wr(hw, ENETC_PM1_SINGLE_STEP, val);
+			enetc_port_mac_wr(priv->si, ENETC_PM0_SINGLE_STEP,
+					  val);
 		} else if (do_twostep_tstamp) {
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			e_flags |= ENETC_TXBD_E_FLAGS_TWO_STEP_PTP;
