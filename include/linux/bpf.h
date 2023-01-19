@@ -2480,6 +2480,9 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct net_device *netdev);
 void unpriv_ebpf_notify(int new_state);
 
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
+int bpf_dev_bound_kfunc_check(struct bpf_verifier_log *log,
+			      struct bpf_prog_aux *prog_aux);
+void *bpf_dev_bound_resolve_kfunc(struct bpf_prog *prog, u32 func_id);
 int bpf_prog_dev_bound_init(struct bpf_prog *prog, union bpf_attr *attr);
 void bpf_dev_bound_netdev_unregister(struct net_device *dev);
 
@@ -2514,8 +2517,20 @@ void sock_map_unhash(struct sock *sk);
 void sock_map_destroy(struct sock *sk);
 void sock_map_close(struct sock *sk, long timeout);
 #else
+static inline int bpf_dev_bound_kfunc_check(struct bpf_verifier_log *log,
+					    struct bpf_prog_aux *prog_aux)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void *bpf_dev_bound_resolve_kfunc(struct bpf_prog *prog,
+						u32 func_id)
+{
+	return NULL;
+}
+
 static inline int bpf_prog_dev_bound_init(struct bpf_prog *prog,
-					union bpf_attr *attr)
+					  union bpf_attr *attr)
 {
 	return -EOPNOTSUPP;
 }

@@ -755,6 +755,50 @@ void bpf_dev_bound_netdev_unregister(struct net_device *dev)
 	up_write(&bpf_devs_lock);
 }
 
+int bpf_dev_bound_kfunc_check(struct bpf_verifier_log *log,
+			      struct bpf_prog_aux *prog_aux)
+{
+	if (!bpf_prog_is_dev_bound(prog_aux)) {
+		bpf_log(log, "metadata kfuncs require device-bound program\n");
+		return -EINVAL;
+	}
+
+	if (bpf_prog_is_offloaded(prog_aux)) {
+		bpf_log(log, "metadata kfuncs can't be offloaded\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void *bpf_dev_bound_resolve_kfunc(struct bpf_prog *prog, u32 func_id)
+{
+	const struct xdp_metadata_ops *ops;
+	void *p = NULL;
+
+	/* We don't hold bpf_devs_lock while resolving several
+	 * kfuncs and can race with the unregister_netdevice().
+	 * We rely on bpf_dev_bound_match() check at attach
+	 * to render this program unusable.
+	 */
+	down_read(&bpf_devs_lock);
+	if (!prog->aux->offload)
+		goto out;
+
+	ops = prog->aux->offload->netdev->xdp_metadata_ops;
+	if (!ops)
+		goto out;
+
+	if (func_id == bpf_xdp_metadata_kfunc_id(XDP_METADATA_KFUNC_RX_TIMESTAMP))
+		p = ops->xmo_rx_timestamp;
+	else if (func_id == bpf_xdp_metadata_kfunc_id(XDP_METADATA_KFUNC_RX_HASH))
+		p = ops->xmo_rx_hash;
+out:
+	up_read(&bpf_devs_lock);
+
+	return p;
+}
+
 static int __init bpf_offload_init(void)
 {
 	return rhashtable_init(&offdevs, &offdevs_params);
