@@ -150,7 +150,9 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
 				 iocb->ki_pos + iov_iter_count(from))) {
+		filemap_invalidate_lock(inode->i_mapping);
 		retval = udf_expand_file_adinicb(inode);
+		filemap_invalidate_unlock(inode->i_mapping);
 		if (retval)
 			goto out;
 	}
