@@ -4295,12 +4295,12 @@ rtw89_mac_c2h_mcc_rcv_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 	case H2C_FUNC_MCC_SET_DURATION:
 		break;
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_FW,
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MCC C2H RCV ACK: func %d\n", func);
 		return;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW,
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "MCC C2H RCV ACK: group %d, func %d\n", group, func);
 }
 
@@ -4328,12 +4328,12 @@ rtw89_mac_c2h_mcc_req_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 	case H2C_FUNC_DEL_MCC_GROUP:
 	case H2C_FUNC_RESET_MCC_GROUP:
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_FW,
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MCC C2H REQ ACK: func %d\n", func);
 		return;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW,
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "MCC C2H REQ ACK: group %d, func %d, return code %d\n",
 		    group, func, retcode);
 
@@ -4360,6 +4360,11 @@ rtw89_mac_c2h_mcc_tsf_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 	rpt->tsf_x_high = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_X(c2h->data);
 	rpt->tsf_y_low = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_Y(c2h->data);
 	rpt->tsf_y_high = RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_Y(c2h->data);
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC C2H TSF RPT: macid %d> %llu, macid %d> %llu\n",
+		    rpt->macid_x, (u64)rpt->tsf_x_high << 32 | rpt->tsf_x_low,
+		    rpt->macid_y, (u64)rpt->tsf_y_high << 32 | rpt->tsf_y_low);
 
 	cond = RTW89_MCC_WAIT_COND(group, H2C_FUNC_MCC_REQ_TSF);
 	rtw89_complete_cond(&rtwdev->mcc.wait, cond, &data);
@@ -4418,14 +4423,14 @@ rtw89_mac_c2h_mcc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 		rsp = false;
 		break;
 	default:
-		rtw89_debug(rtwdev, RTW89_DBG_FW,
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MCC C2H STS RPT: status %d\n", status);
 		return;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW,
-		    "MCC C2H STS RPT: group %d, macid %d, status %d, tsf {%d, %d}\n",
-		     group, macid, status, tsf_low, tsf_high);
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC C2H STS RPT: group %d, macid %d, status %d, tsf %llu\n",
+		     group, macid, status, (u64)tsf_high << 32 | tsf_low);
 
 	if (!rsp)
 		return;
