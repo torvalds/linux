@@ -2069,13 +2069,18 @@ int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio)
 	return ret;
 }
 
-/*
- * Write back all requests on one page - we do this before reading it.
+/**
+ * nfs_wb_folio - Write back all requests on one page
+ * @inode: pointer to page
+ * @folio: pointer to folio
+ *
+ * Assumes that the folio has been locked by the caller, and will
+ * not unlock it.
  */
-int nfs_wb_page(struct inode *inode, struct page *page)
+int nfs_wb_folio(struct inode *inode, struct folio *folio)
 {
-	loff_t range_start = page_file_offset(page);
-	loff_t range_end = range_start + (loff_t)(PAGE_SIZE - 1);
+	loff_t range_start = folio_file_pos(folio);
+	loff_t range_end = range_start + (loff_t)folio_size(folio) - 1;
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = 0,
@@ -2087,15 +2092,15 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 	trace_nfs_writeback_page_enter(inode);
 
 	for (;;) {
-		wait_on_page_writeback(page);
-		if (clear_page_dirty_for_io(page)) {
-			ret = nfs_writepage_locked(page, &wbc);
+		folio_wait_writeback(folio);
+		if (folio_clear_dirty_for_io(folio)) {
+			ret = nfs_writepage_locked(&folio->page, &wbc);
 			if (ret < 0)
 				goto out_error;
 			continue;
 		}
 		ret = 0;
-		if (!PagePrivate(page))
+		if (!folio_test_private(folio))
 			break;
 		ret = nfs_commit_inode(inode, FLUSH_SYNC);
 		if (ret < 0)
@@ -2106,17 +2111,9 @@ out_error:
 	return ret;
 }
 
-/**
- * nfs_wb_folio - Write back all requests on one page
- * @inode: pointer to page
- * @folio: pointer to folio
- *
- * Assumes that the folio has been locked by the caller, and will
- * not unlock it.
- */
-int nfs_wb_folio(struct inode *inode, struct folio *folio)
+int nfs_wb_page(struct inode *inode, struct page *page)
 {
-	return nfs_wb_page(inode, &folio->page);
+	return nfs_wb_folio(inode, page_folio(page));
 }
 
 #ifdef CONFIG_MIGRATION
