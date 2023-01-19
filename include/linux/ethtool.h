@@ -478,6 +478,98 @@ struct ethtool_module_power_mode_params {
 };
 
 /**
+ * struct ethtool_mm_state - 802.3 MAC merge layer state
+ * @verify_time:
+ *	wait time between verification attempts in ms (according to clause
+ *	30.14.1.6 aMACMergeVerifyTime)
+ * @max_verify_time:
+ *	maximum accepted value for the @verify_time variable in set requests
+ * @verify_status:
+ *	state of the verification state machine of the MM layer (according to
+ *	clause 30.14.1.2 aMACMergeStatusVerify)
+ * @tx_enabled:
+ *	set if the MM layer is administratively enabled in the TX direction
+ *	(according to clause 30.14.1.3 aMACMergeEnableTx)
+ * @tx_active:
+ *	set if the MM layer is enabled in the TX direction, which makes FP
+ *	possible (according to 30.14.1.5 aMACMergeStatusTx). This should be
+ *	true if MM is enabled, and the verification status is either verified,
+ *	or disabled.
+ * @pmac_enabled:
+ *	set if the preemptible MAC is powered on and is able to receive
+ *	preemptible packets and respond to verification frames.
+ * @verify_enabled:
+ *	set if the Verify function of the MM layer (which sends SMD-V
+ *	verification requests) is administratively enabled (regardless of
+ *	whether it is currently in the ETHTOOL_MM_VERIFY_STATUS_DISABLED state
+ *	or not), according to clause 30.14.1.4 aMACMergeVerifyDisableTx (but
+ *	using positive rather than negative logic). The device should always
+ *	respond to received SMD-V requests as long as @pmac_enabled is set.
+ * @tx_min_frag_size:
+ *	the minimum size of non-final mPacket fragments that the link partner
+ *	supports receiving, expressed in octets. Compared to the definition
+ *	from clause 30.14.1.7 aMACMergeAddFragSize which is expressed in the
+ *	range 0 to 3 (requiring a translation to the size in octets according
+ *	to the formula 64 * (1 + addFragSize) - 4), a value in a continuous and
+ *	unbounded range can be specified here.
+ * @rx_min_frag_size:
+ *	the minimum size of non-final mPacket fragments that this device
+ *	supports receiving, expressed in octets.
+ */
+struct ethtool_mm_state {
+	u32 verify_time;
+	u32 max_verify_time;
+	enum ethtool_mm_verify_status verify_status;
+	bool tx_enabled;
+	bool tx_active;
+	bool pmac_enabled;
+	bool verify_enabled;
+	u32 tx_min_frag_size;
+	u32 rx_min_frag_size;
+};
+
+/**
+ * struct ethtool_mm_cfg - 802.3 MAC merge layer configuration
+ * @verify_time: see struct ethtool_mm_state
+ * @verify_enabled: see struct ethtool_mm_state
+ * @tx_enabled: see struct ethtool_mm_state
+ * @pmac_enabled: see struct ethtool_mm_state
+ * @tx_min_frag_size: see struct ethtool_mm_state
+ */
+struct ethtool_mm_cfg {
+	u32 verify_time;
+	bool verify_enabled;
+	bool tx_enabled;
+	bool pmac_enabled;
+	u32 tx_min_frag_size;
+};
+
+/**
+ * struct ethtool_mm_stats - 802.3 MAC merge layer statistics
+ * @MACMergeFrameAssErrorCount:
+ *	received MAC frames with reassembly errors
+ * @MACMergeFrameSmdErrorCount:
+ *	received MAC frames/fragments rejected due to unknown or incorrect SMD
+ * @MACMergeFrameAssOkCount:
+ *	received MAC frames that were successfully reassembled and passed up
+ * @MACMergeFragCountRx:
+ *	number of additional correct SMD-C mPackets received due to preemption
+ * @MACMergeFragCountTx:
+ *	number of additional mPackets sent due to preemption
+ * @MACMergeHoldCount:
+ *	number of times the MM layer entered the HOLD state, which blocks
+ *	transmission of preemptible traffic
+ */
+struct ethtool_mm_stats {
+	u64 MACMergeFrameAssErrorCount;
+	u64 MACMergeFrameSmdErrorCount;
+	u64 MACMergeFrameAssOkCount;
+	u64 MACMergeFragCountRx;
+	u64 MACMergeFragCountTx;
+	u64 MACMergeHoldCount;
+};
+
+/**
  * struct ethtool_ops - optional netdev operations
  * @cap_link_lanes_supported: indicates if the driver supports lanes
  *	parameter.
@@ -649,6 +741,9 @@ struct ethtool_module_power_mode_params {
  *	plugged-in.
  * @set_module_power_mode: Set the power mode policy for the plug-in module
  *	used by the network device.
+ * @get_mm: Query the 802.3 MAC Merge layer state.
+ * @set_mm: Set the 802.3 MAC Merge layer parameters.
+ * @get_mm_stats: Query the 802.3 MAC Merge layer statistics.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -787,6 +882,10 @@ struct ethtool_ops {
 	int	(*set_module_power_mode)(struct net_device *dev,
 					 const struct ethtool_module_power_mode_params *params,
 					 struct netlink_ext_ack *extack);
+	int	(*get_mm)(struct net_device *dev, struct ethtool_mm_state *state);
+	int	(*set_mm)(struct net_device *dev, struct ethtool_mm_cfg *cfg,
+			  struct netlink_ext_ack *extack);
+	void	(*get_mm_stats)(struct net_device *dev, struct ethtool_mm_stats *stats);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
