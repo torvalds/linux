@@ -276,32 +276,42 @@ EXPORT_SYMBOL_GPL(nfs_file_fsync);
  * and that the new data won't completely replace the old data in
  * that range of the file.
  */
-static bool nfs_full_page_write(struct page *page, loff_t pos, unsigned int len)
+static bool nfs_folio_is_full_write(struct folio *folio, loff_t pos,
+				    unsigned int len)
 {
-	unsigned int pglen = nfs_page_length(page);
-	unsigned int offset = pos & (PAGE_SIZE - 1);
+	unsigned int pglen = nfs_folio_length(folio);
+	unsigned int offset = offset_in_folio(folio, pos);
 	unsigned int end = offset + len;
 
 	return !pglen || (end >= pglen && !offset);
 }
 
-static bool nfs_want_read_modify_write(struct file *file, struct page *page,
-			loff_t pos, unsigned int len)
+static bool nfs_want_read_modify_write(struct file *file, struct folio *folio,
+				       loff_t pos, unsigned int len)
 {
 	/*
 	 * Up-to-date pages, those with ongoing or full-page write
 	 * don't need read/modify/write
 	 */
-	if (PageUptodate(page) || PagePrivate(page) ||
-	    nfs_full_page_write(page, pos, len))
+	if (folio_test_uptodate(folio) || folio_test_private(folio) ||
+	    nfs_folio_is_full_write(folio, pos, len))
 		return false;
 
-	if (pnfs_ld_read_whole_page(file->f_mapping->host))
+	if (pnfs_ld_read_whole_page(file_inode(file)))
 		return true;
 	/* Open for reading too? */
 	if (file->f_mode & FMODE_READ)
 		return true;
 	return false;
+}
+
+static struct folio *
+nfs_folio_grab_cache_write_begin(struct address_space *mapping, pgoff_t index)
+{
+	unsigned fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
+
+	return __filemap_get_folio(mapping, index, fgp_flags,
+				   mapping_gfp_mask(mapping));
 }
 
 /*
@@ -313,34 +323,31 @@ static bool nfs_want_read_modify_write(struct file *file, struct page *page,
  * increment the page use counts until he is done with the page.
  */
 static int nfs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			   loff_t pos, unsigned len, struct page **pagep,
+			   void **fsdata)
 {
-	int ret;
-	pgoff_t index = pos >> PAGE_SHIFT;
-	struct page *page;
 	struct folio *folio;
 	int once_thru = 0;
+	int ret;
 
 	dfprintk(PAGECACHE, "NFS: write_begin(%pD2(%lu), %u@%lld)\n",
 		file, mapping->host->i_ino, len, (long long) pos);
 
 start:
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
+	folio = nfs_folio_grab_cache_write_begin(mapping, pos >> PAGE_SHIFT);
+	if (!folio)
 		return -ENOMEM;
-	*pagep = page;
-	folio = page_folio(page);
+	*pagep = &folio->page;
 
 	ret = nfs_flush_incompatible(file, folio);
 	if (ret) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 	} else if (!once_thru &&
-		   nfs_want_read_modify_write(file, page, pos, len)) {
+		   nfs_want_read_modify_write(file, folio, pos, len)) {
 		once_thru = 1;
 		ret = nfs_read_folio(file, folio);
-		put_page(page);
+		folio_put(folio);
 		if (!ret)
 			goto start;
 	}
@@ -348,12 +355,12 @@ start:
 }
 
 static int nfs_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			 loff_t pos, unsigned len, unsigned copied,
+			 struct page *page, void *fsdata)
 {
-	unsigned offset = pos & (PAGE_SIZE - 1);
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct folio *folio = page_folio(page);
+	unsigned offset = offset_in_folio(folio, pos);
 	int status;
 
 	dfprintk(PAGECACHE, "NFS: write_end(%pD2(%lu), %u@%lld)\n",
@@ -363,26 +370,26 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	 * Zero any uninitialised parts of the page, and then mark the page
 	 * as up to date if it turns out that we're extending the file.
 	 */
-	if (!PageUptodate(page)) {
-		unsigned pglen = nfs_page_length(page);
+	if (!folio_test_uptodate(folio)) {
+		size_t fsize = folio_size(folio);
+		unsigned pglen = nfs_folio_length(folio);
 		unsigned end = offset + copied;
 
 		if (pglen == 0) {
-			zero_user_segments(page, 0, offset,
-					end, PAGE_SIZE);
-			SetPageUptodate(page);
+			folio_zero_segments(folio, 0, offset, end, fsize);
+			folio_mark_uptodate(folio);
 		} else if (end >= pglen) {
-			zero_user_segment(page, end, PAGE_SIZE);
+			folio_zero_segment(folio, end, fsize);
 			if (offset == 0)
-				SetPageUptodate(page);
+				folio_mark_uptodate(folio);
 		} else
-			zero_user_segment(page, pglen, PAGE_SIZE);
+			folio_zero_segment(folio, pglen, fsize);
 	}
 
 	status = nfs_update_folio(file, folio, offset, copied);
 
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (status < 0)
 		return status;
