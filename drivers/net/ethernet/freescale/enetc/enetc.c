@@ -651,6 +651,7 @@ netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	return enetc_start_xmit(skb, ndev);
 }
+EXPORT_SYMBOL_GPL(enetc_xmit);
 
 static irqreturn_t enetc_msix(int irq, void *data)
 {
@@ -1388,6 +1389,7 @@ int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 
 	return xdp_tx_frm_cnt;
 }
+EXPORT_SYMBOL_GPL(enetc_xdp_xmit);
 
 static void enetc_map_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 				     struct xdp_buff *xdp_buff, u16 size)
@@ -1714,6 +1716,7 @@ void enetc_get_si_caps(struct enetc_si *si)
 	if (val & ENETC_SIPCAPR0_PSFP)
 		si->hw_features |= ENETC_SI_F_PSFP;
 }
+EXPORT_SYMBOL_GPL(enetc_get_si_caps);
 
 static int enetc_dma_alloc_bdr(struct enetc_bdr_resource *res)
 {
@@ -2029,6 +2032,7 @@ int enetc_configure_si(struct enetc_ndev_priv *priv)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(enetc_configure_si);
 
 void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 {
@@ -2048,6 +2052,7 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 	priv->ic_mode = ENETC_IC_RX_ADAPTIVE | ENETC_IC_TX_MANUAL;
 	priv->tx_ictt = ENETC_TXIC_TIMETHR;
 }
+EXPORT_SYMBOL_GPL(enetc_init_si_rings_params);
 
 int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 {
@@ -2060,11 +2065,13 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(enetc_alloc_si_resources);
 
 void enetc_free_si_resources(struct enetc_ndev_priv *priv)
 {
 	kfree(priv->cls_rules);
 }
+EXPORT_SYMBOL_GPL(enetc_free_si_resources);
 
 static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 {
@@ -2426,6 +2433,7 @@ void enetc_start(struct net_device *ndev)
 
 	netif_tx_start_all_queues(ndev);
 }
+EXPORT_SYMBOL_GPL(enetc_start);
 
 int enetc_open(struct net_device *ndev)
 {
@@ -2487,6 +2495,7 @@ err_phy_connect:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(enetc_open);
 
 void enetc_stop(struct net_device *ndev)
 {
@@ -2510,6 +2519,7 @@ void enetc_stop(struct net_device *ndev)
 
 	enetc_clear_interrupts(priv);
 }
+EXPORT_SYMBOL_GPL(enetc_stop);
 
 int enetc_close(struct net_device *ndev)
 {
@@ -2534,6 +2544,7 @@ int enetc_close(struct net_device *ndev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(enetc_close);
 
 static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended,
 			     int (*cb)(struct enetc_ndev_priv *priv, void *ctx),
@@ -2642,6 +2653,7 @@ int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(enetc_setup_tc_mqprio);
 
 static int enetc_reconfigure_xdp_cb(struct enetc_ndev_priv *priv, void *ctx)
 {
@@ -2691,6 +2703,7 @@ int enetc_setup_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(enetc_setup_bpf);
 
 struct net_device_stats *enetc_get_stats(struct net_device *ndev)
 {
@@ -2722,6 +2735,7 @@ struct net_device_stats *enetc_get_stats(struct net_device *ndev)
 
 	return stats;
 }
+EXPORT_SYMBOL_GPL(enetc_get_stats);
 
 static int enetc_set_rss(struct net_device *ndev, int en)
 {
@@ -2774,6 +2788,7 @@ void enetc_set_features(struct net_device *ndev, netdev_features_t features)
 		enetc_enable_txvlan(ndev,
 				    !!(features & NETIF_F_HW_VLAN_CTAG_TX));
 }
+EXPORT_SYMBOL_GPL(enetc_set_features);
 
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 static int enetc_hwtstamp_set(struct net_device *ndev, struct ifreq *ifr)
@@ -2861,6 +2876,7 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 
 	return phylink_mii_ioctl(priv->phylink, rq, cmd);
 }
+EXPORT_SYMBOL_GPL(enetc_ioctl);
 
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 {
@@ -2962,6 +2978,7 @@ fail:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(enetc_alloc_msix);
 
 void enetc_free_msix(struct enetc_ndev_priv *priv)
 {
@@ -2991,6 +3008,7 @@ void enetc_free_msix(struct enetc_ndev_priv *priv)
 	/* disable all MSIX for this device */
 	pci_free_irq_vectors(priv->si->pdev);
 }
+EXPORT_SYMBOL_GPL(enetc_free_msix);
 
 static void enetc_kfree_si(struct enetc_si *si)
 {
@@ -3080,6 +3098,7 @@ err_dma:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(enetc_pci_probe);
 
 void enetc_pci_remove(struct pci_dev *pdev)
 {
@@ -3091,3 +3110,6 @@ void enetc_pci_remove(struct pci_dev *pdev)
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
 }
+EXPORT_SYMBOL_GPL(enetc_pci_remove);
+
+MODULE_LICENSE("Dual BSD/GPL");
