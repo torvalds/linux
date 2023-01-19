@@ -148,7 +148,6 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (retval <= 0)
 		goto out;
 
-	down_write(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
 				 iocb->ki_pos + iov_iter_count(from))) {
@@ -158,15 +157,15 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			udf_debug("udf_expand_adinicb: err=%d\n", err);
 			return err;
 		}
-	} else
-		up_write(&iinfo->i_data_sem);
+	}
 
 	retval = __generic_file_write_iter(iocb, from);
 out:
-	down_write(&iinfo->i_data_sem);
-	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB && retval > 0)
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB && retval > 0) {
+		down_write(&iinfo->i_data_sem);
 		iinfo->i_lenAlloc = inode->i_size;
-	up_write(&iinfo->i_data_sem);
+		up_write(&iinfo->i_data_sem);
+	}
 	inode_unlock(inode);
 
 	if (retval > 0) {

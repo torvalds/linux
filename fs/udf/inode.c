@@ -247,7 +247,6 @@ const struct address_space_operations udf_aops = {
 /*
  * Expand file stored in ICB to a normal one-block-file
  *
- * This function requires i_data_sem for writing and releases it.
  * This function requires i_mutex held
  */
 int udf_expand_file_adinicb(struct inode *inode)
@@ -259,6 +258,7 @@ int udf_expand_file_adinicb(struct inode *inode)
 
 	WARN_ON_ONCE(!inode_is_locked(inode));
 	if (!iinfo->i_lenAlloc) {
+		down_write(&iinfo->i_data_sem);
 		if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_SHORT_AD))
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 		else
@@ -269,11 +269,6 @@ int udf_expand_file_adinicb(struct inode *inode)
 		mark_inode_dirty(inode);
 		return 0;
 	}
-	/*
-	 * Release i_data_sem so that we can lock a page - page lock ranks
-	 * above i_data_sem. i_mutex still protects us against file changes.
-	 */
-	up_write(&iinfo->i_data_sem);
 
 	page = find_or_create_page(inode->i_mapping, 0, GFP_NOFS);
 	if (!page)
@@ -1160,19 +1155,18 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 
 	iinfo = UDF_I(inode);
 	if (newsize > inode->i_size) {
-		down_write(&iinfo->i_data_sem);
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-			if (bsize <
+			if (bsize >=
 			    (udf_file_entry_alloc_offset(inode) + newsize)) {
-				err = udf_expand_file_adinicb(inode);
-				if (err)
-					return err;
 				down_write(&iinfo->i_data_sem);
-			} else {
 				iinfo->i_lenAlloc = newsize;
 				goto set_size;
 			}
+			err = udf_expand_file_adinicb(inode);
+			if (err)
+				return err;
 		}
+		down_write(&iinfo->i_data_sem);
 		err = udf_extend_file(inode, newsize);
 		if (err) {
 			up_write(&iinfo->i_data_sem);
