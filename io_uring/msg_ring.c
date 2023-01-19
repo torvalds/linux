@@ -65,20 +65,33 @@ static void io_msg_tw_complete(struct callback_head *head)
 	struct io_ring_ctx *target_ctx = req->file->private_data;
 	int ret = 0;
 
-	if (current->flags & PF_EXITING)
+	if (current->flags & PF_EXITING) {
 		ret = -EOWNERDEAD;
-	else if (!io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
-		ret = -EOVERFLOW;
+	} else {
+		/*
+		 * If the target ring is using IOPOLL mode, then we need to be
+		 * holding the uring_lock for posting completions. Other ring
+		 * types rely on the regular completion locking, which is
+		 * handled while posting.
+		 */
+		if (target_ctx->flags & IORING_SETUP_IOPOLL)
+			mutex_lock(&target_ctx->uring_lock);
+		if (!io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
+			ret = -EOVERFLOW;
+		if (target_ctx->flags & IORING_SETUP_IOPOLL)
+			mutex_unlock(&target_ctx->uring_lock);
+	}
 
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_queue_tw_complete(req, ret);
 }
 
-static int io_msg_ring_data(struct io_kiocb *req)
+static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *target_ctx = req->file->private_data;
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
+	int ret;
 
 	if (msg->src_fd || msg->dst_fd || msg->flags)
 		return -EINVAL;
@@ -93,10 +106,18 @@ static int io_msg_ring_data(struct io_kiocb *req)
 		return IOU_ISSUE_SKIP_COMPLETE;
 	}
 
-	if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
-		return 0;
-
-	return -EOVERFLOW;
+	ret = -EOVERFLOW;
+	if (target_ctx->flags & IORING_SETUP_IOPOLL) {
+		if (unlikely(io_double_lock_ctx(target_ctx, issue_flags)))
+			return -EAGAIN;
+		if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
+			ret = 0;
+		io_double_unlock_ctx(target_ctx);
+	} else {
+		if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
+			ret = 0;
+	}
+	return ret;
 }
 
 static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
@@ -223,7 +244,7 @@ int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 
 	switch (msg->cmd) {
 	case IORING_MSG_DATA:
-		ret = io_msg_ring_data(req);
+		ret = io_msg_ring_data(req, issue_flags);
 		break;
 	case IORING_MSG_SEND_FD:
 		ret = io_msg_send_fd(req, issue_flags);
