@@ -3918,27 +3918,36 @@ static void rtw89_mac_port_cfg_tbtt_shift(struct rtw89_dev *rtwdev,
 				B_AX_TBTT_SHIFT_OFST_MASK, val);
 }
 
-static void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
-				    struct rtw89_vif *rtwvif,
-				    struct rtw89_vif *rtwvif_src, u8 offset,
-				    int *n_offset)
+void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif,
+			     struct rtw89_vif *rtwvif_src,
+			     u16 offset_tu)
 {
 	u32 val, reg;
 
+	val = RTW89_PORT_OFFSET_TU_TO_32US(offset_tu);
+	reg = rtw89_mac_reg_by_idx(R_AX_PORT0_TSF_SYNC + rtwvif->port * 4,
+				   rtwvif->mac_idx);
+
+	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_SRC, rtwvif_src->port);
+	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_OFFSET_VAL, val);
+	rtw89_write32_set(rtwdev, reg, B_AX_SYNC_NOW);
+}
+
+static void rtw89_mac_port_tsf_sync_rand(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif *rtwvif,
+					 struct rtw89_vif *rtwvif_src,
+					 u8 offset, int *n_offset)
+{
 	if (rtwvif->net_type != RTW89_NET_TYPE_AP_MODE || rtwvif == rtwvif_src)
 		return;
 
 	/* adjust offset randomly to avoid beacon conflict */
 	offset = offset - offset / 4 + get_random_u32() % (offset / 2);
-	val = (*n_offset) * RTW89_PORT_OFFSET_TU_TO_32US(offset);
-	reg = rtw89_mac_reg_by_idx(R_AX_PORT0_TSF_SYNC + rtwvif->port * 4,
-				   rtwvif->mac_idx);
+	rtw89_mac_port_tsf_sync(rtwdev, rtwvif, rtwvif_src,
+				(*n_offset) * offset);
 
 	(*n_offset)++;
-
-	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_SRC, rtwvif_src->port);
-	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_OFFSET_VAL, val);
-	rtw89_write32_set(rtwdev, reg, B_AX_SYNC_NOW);
 }
 
 static void rtw89_mac_port_tsf_resync_all(struct rtw89_dev *rtwdev)
@@ -3960,7 +3969,7 @@ static void rtw89_mac_port_tsf_resync_all(struct rtw89_dev *rtwdev)
 	offset /= (vif_aps + 1);
 
 	rtw89_for_each_rtwvif(rtwdev, tmp)
-		rtw89_mac_port_tsf_sync(rtwdev, tmp, src, offset, &n_offset);
+		rtw89_mac_port_tsf_sync_rand(rtwdev, tmp, src, offset, &n_offset);
 }
 
 int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
