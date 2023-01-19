@@ -48,6 +48,7 @@ properties:
         items:
           - enum:
               - siemens,iot2050-advanced
+              - siemens,iot2050-advanced-m2
               - siemens,iot2050-advanced-pg2
               - siemens,iot2050-basic
               - siemens,iot2050-basic-pg2
