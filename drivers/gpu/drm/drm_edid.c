@@ -4713,7 +4713,6 @@ static int hdmi_vsdb_latency_length(const u8 *db)
 static int
 do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 {
-	struct drm_display_info *info = &connector->display_info;
 	int modes = 0, offset = 0, i, multi_present = 0, multi_len;
 	u8 vic_len, hdmi_3d_len = 0;
 	u16 mask;
@@ -4831,8 +4830,6 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 	}
 
 out:
-	if (modes > 0)
-		info->has_hdmi_infoframe = true;
 	return modes;
 }
 
@@ -6153,6 +6150,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	}
 }
 
+/* HDMI Vendor-Specific Data Block (HDMI VSDB, H14b-VSDB) */
 static void
 drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 {
@@ -6165,6 +6163,15 @@ drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 		info->dvi_dual = db[6] & 1;
 	if (len >= 7)
 		info->max_tmds_clock = db[7] * 5000;
+
+	/*
+	 * Try to infer whether the sink supports HDMI infoframes.
+	 *
+	 * HDMI infoframe support was first added in HDMI 1.4. Assume the sink
+	 * supports infoframes if HDMI_Video_present is set.
+	 */
+	if (len >= 8 && db[8] & BIT(5))
+		info->has_hdmi_infoframe = true;
 
 	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] HDMI: DVI dual %d, max TMDS clock %d kHz\n",
 		    connector->base.id, connector->name,
