@@ -27,6 +27,7 @@ static cpumask_t cpus_paused_by_us = { CPU_BITS_NONE };
 struct cluster_data {
 	bool			inited;
 	unsigned int		min_cpus;
+	unsigned int		min_partial_cpus;
 	unsigned int		max_cpus;
 	unsigned int		offline_delay_ms;
 	unsigned int		busy_up_thres[MAX_CPUS_PER_CLUSTER];
@@ -113,6 +114,25 @@ static ssize_t store_min_cpus(struct cluster_data *state,
 static ssize_t show_min_cpus(const struct cluster_data *state, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%u\n", state->min_cpus);
+}
+
+static ssize_t store_min_partial_cpus(struct cluster_data *state,
+				const char *buf, size_t count)
+{
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+
+	state->min_partial_cpus = min(val, state->num_cpus);
+	sysfs_param_changed(state);
+
+	return count;
+}
+
+static ssize_t show_min_partial_cpus(const struct cluster_data *state, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u\n", state->min_partial_cpus);
 }
 
 static ssize_t store_max_cpus(struct cluster_data *state,
@@ -527,6 +547,7 @@ static struct core_ctl_attr _name =		\
 __ATTR(_name, 0644, show_##_name, store_##_name)
 
 core_ctl_attr_rw(min_cpus);
+core_ctl_attr_rw(min_partial_cpus);
 core_ctl_attr_rw(max_cpus);
 core_ctl_attr_rw(offline_delay_ms);
 core_ctl_attr_rw(busy_up_thres);
@@ -544,6 +565,7 @@ core_ctl_attr_rw(assist_cpu_misfit_mask);
 
 static struct attribute *default_attrs[] = {
 	&min_cpus.attr,
+	&min_partial_cpus.attr,
 	&max_cpus.attr,
 	&offline_delay_ms.attr,
 	&busy_up_thres.attr,
@@ -1541,6 +1563,7 @@ static int cluster_init(const struct cpumask *mask)
 	}
 	cluster->first_cpu = first_cpu;
 	cluster->min_cpus = 1;
+	cluster->min_partial_cpus = 0;
 	cluster->max_cpus = cluster->num_cpus;
 	cluster->need_cpus = cluster->num_cpus;
 	cluster->offline_delay_ms = 100;
