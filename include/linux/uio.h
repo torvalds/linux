@@ -13,6 +13,8 @@
 struct page;
 struct pipe_inode_info;
 
+typedef unsigned int __bitwise iov_iter_extraction_t;
+
 struct kvec {
 	void *iov_base; /* and that should *never* hold a userland pointer */
 	size_t iov_len;
@@ -252,12 +254,12 @@ void iov_iter_xarray(struct iov_iter *i, unsigned int direction, struct xarray *
 		     loff_t start, size_t count);
 ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
 		size_t maxsize, unsigned maxpages, size_t *start,
-		unsigned gup_flags);
+		iov_iter_extraction_t extraction_flags);
 ssize_t iov_iter_get_pages2(struct iov_iter *i, struct page **pages,
 			size_t maxsize, unsigned maxpages, size_t *start);
 ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 		struct page ***pages, size_t maxsize, size_t *start,
-		unsigned gup_flags);
+		iov_iter_extraction_t extraction_flags);
 ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i, struct page ***pages,
 			size_t maxsize, size_t *start);
 int iov_iter_npages(const struct iov_iter *i, int maxpages);
@@ -359,5 +361,9 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 		.count = count
 	};
 }
+
+/* Flags for iov_iter_get/extract_pages*() */
+/* Allow P2PDMA on the extracted pages */
+#define ITER_ALLOW_P2PDMA	((__force iov_iter_extraction_t)0x01)
 
 #endif
