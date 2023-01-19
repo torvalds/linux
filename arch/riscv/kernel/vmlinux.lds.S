@@ -97,6 +97,10 @@ SECTIONS
 		*(.rel.dyn*)
 	}
 
+	.rela.dyn : {
+		*(.rela*)
+	}
+
 	__init_data_end = .;
 
 	. = ALIGN(8);
