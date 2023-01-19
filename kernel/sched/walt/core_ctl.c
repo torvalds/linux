@@ -1013,6 +1013,8 @@ static unsigned int get_active_cpu_count(const struct cluster_data *cluster)
 	cpumask_t cpus;
 
 	cpumask_andnot(&cpus, &cluster->cpu_mask, cpu_halt_mask);
+	cpumask_andnot(&cpus, &cpus, cpu_partial_halt_mask);
+
 	return cpumask_weight(&cpus);
 }
 
@@ -1021,12 +1023,14 @@ static unsigned int get_assist_active_cpu_count(const struct cluster_data *clust
 	cpumask_t cpus;
 
 	cpumask_andnot(&cpus, &cluster->assist_cpu_mask, cpu_halt_mask);
+	cpumask_andnot(&cpus, &cpus, cpu_partial_halt_mask);
+
 	return cpumask_weight(&cpus);
 }
 
 static bool is_active(const struct cpu_data *state)
 {
-	return cpu_active(state->cpu) && !cpu_halted(state->cpu);
+	return cpu_active(state->cpu) && !cpu_halted(state->cpu) && !cpu_partial_halted(state->cpu);
 }
 
 static bool adjustment_possible(const struct cluster_data *cluster,
@@ -1280,12 +1284,33 @@ static void try_to_partial_pause(struct cluster_data *cluster,
 				 struct cpumask *pause_cpus,
 				 struct cpumask *part_pause_cpus)
 {
+	struct cpu_data *c, *tmp;
+	int num_cpus = cluster->min_partial_cpus -
+		cpumask_weight(&cpus_part_paused_by_us);
+
+	if (num_cpus <= 0)
+		return;
+
+	list_for_each_entry_safe(c, tmp, &cluster->lru, sib) {
+		if (num_cpus <= 0)
+			break;
+
+		if (cpumask_test_cpu(c->cpu, pause_cpus)) {
+			if (!cpumask_test_cpu(c->cpu, &cpus_part_paused_by_us)) {
+				cpumask_set_cpu(c->cpu, part_pause_cpus);
+				num_cpus--;
+				move_cpu_lru(c);
+			}
+		}
+	}
 }
 
 static void try_to_partial_resume(struct cluster_data *cluster,
 				  struct cpumask *unpause_cpus,
 				  struct cpumask *part_unpause_cpus)
 {
+	/* track the partial cpus that need to be unpaused */
+	cpumask_and(part_unpause_cpus, unpause_cpus, &cpus_part_paused_by_us);
 }
 
 static void try_to_pause(struct cluster_data *cluster, unsigned int need,
@@ -1386,7 +1411,7 @@ static int __try_to_resume(struct cluster_data *cluster, unsigned int need,
 
 		if (!cpumask_test_cpu(c->cpu, &cpus_paused_by_us))
 			continue;
-		if ((cpu_active(c->cpu) && !cpu_halted(c->cpu)) ||
+		if (is_active(c) ||
 			(!force && c->not_preferred))
 			continue;
 		if (active_cpus + nr_pending == need)
