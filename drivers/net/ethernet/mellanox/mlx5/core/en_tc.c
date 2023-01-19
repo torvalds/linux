@@ -1124,8 +1124,6 @@ static void mlx5e_tc_debugfs_init(struct mlx5e_tc_table *tc,
 		return;
 
 	tc->dfs_root = debugfs_create_dir("tc", dfs_root);
-	if (!tc->dfs_root)
-		return;
 
 	debugfs_create_file("hairpin_num_queues", 0644, tc->dfs_root,
 			    &tc->hairpin_params, &fops_hairpin_queues);
