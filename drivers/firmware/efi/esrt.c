@@ -263,15 +263,8 @@ void __init efi_esrt_init(void)
 		return;
 	}
 
-	max = efi_mem_desc_end(&md);
-	if (max < efi.esrt) {
-		pr_err("EFI memory descriptor is invalid. (esrt: %p max: %p)\n",
-		       (void *)efi.esrt, (void *)max);
-		return;
-	}
-
+	max = efi_mem_desc_end(&md) - efi.esrt;
 	size = sizeof(*esrt);
-	max -= efi.esrt;
 
 	if (max < size) {
 		pr_err("ESRT header doesn't fit on single memory map entry. (size: %zu max: %zu)\n",

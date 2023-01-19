@@ -496,6 +496,12 @@ int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		u64 size;
 		u64 end;
 
+		/* skip bogus entries (including empty ones) */
+		if ((md->phys_addr & (EFI_PAGE_SIZE - 1)) ||
+		    (md->num_pages <= 0) ||
+		    (md->num_pages > (U64_MAX - md->phys_addr) >> EFI_PAGE_SHIFT))
+			continue;
+
 		size = md->num_pages << EFI_PAGE_SHIFT;
 		end = md->phys_addr + size;
 		if (phys_addr >= md->phys_addr && phys_addr < end) {
