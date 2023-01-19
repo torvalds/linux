@@ -794,6 +794,28 @@ static const struct mlxsw_listener mlxsw_emad_rx_listener =
 	MLXSW_RXL(mlxsw_emad_rx_listener_func, ETHEMAD, TRAP_TO_CPU, false,
 		  EMAD, DISCARD);
 
+static int mlxsw_emad_tlv_enable(struct mlxsw_core *mlxsw_core)
+{
+	char mgir_pl[MLXSW_REG_MGIR_LEN];
+	bool string_tlv;
+	int err;
+
+	mlxsw_reg_mgir_pack(mgir_pl);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgir), mgir_pl);
+	if (err)
+		return err;
+
+	string_tlv = mlxsw_reg_mgir_fw_info_string_tlv_get(mgir_pl);
+	mlxsw_core->emad.enable_string_tlv = string_tlv;
+
+	return 0;
+}
+
+static void mlxsw_emad_tlv_disable(struct mlxsw_core *mlxsw_core)
+{
+	mlxsw_core->emad.enable_string_tlv = false;
+}
+
 static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 {
 	struct workqueue_struct *emad_wq;
@@ -824,10 +846,17 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_trap_register;
 
+	err = mlxsw_emad_tlv_enable(mlxsw_core);
+	if (err)
+		goto err_emad_tlv_enable;
+
 	mlxsw_core->emad.use_emad = true;
 
 	return 0;
 
+err_emad_tlv_enable:
+	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
+				   mlxsw_core);
 err_trap_register:
 	destroy_workqueue(mlxsw_core->emad_wq);
 	return err;
@@ -840,6 +869,7 @@ static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 		return;
 
 	mlxsw_core->emad.use_emad = false;
+	mlxsw_emad_tlv_disable(mlxsw_core);
 	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
 				   mlxsw_core);
 	destroy_workqueue(mlxsw_core->emad_wq);
@@ -3376,12 +3406,6 @@ bool mlxsw_core_sdq_supports_cqe_v2(struct mlxsw_core *mlxsw_core)
 	return mlxsw_core->driver->sdq_supports_cqe_v2;
 }
 EXPORT_SYMBOL(mlxsw_core_sdq_supports_cqe_v2);
-
-void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core)
-{
-	mlxsw_core->emad.enable_string_tlv = true;
-}
-EXPORT_SYMBOL(mlxsw_core_emad_string_tlv_enable);
 
 static int __init mlxsw_core_module_init(void)
 {
