@@ -223,6 +223,8 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PSE_SET``               set PSE parameters
   ``ETHTOOL_MSG_PSE_GET``               get PSE parameters
   ``ETHTOOL_MSG_RSS_GET``               get RSS settings
+  ``ETHTOOL_MSG_MM_GET``                get MAC merge layer state
+  ``ETHTOOL_MSG_MM_SET``                set MAC merge layer parameters
   ===================================== =================================
 
 Kernel to userspace:
@@ -265,6 +267,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_MODULE_GET_REPLY``         transceiver module parameters
   ``ETHTOOL_MSG_PSE_GET_REPLY``            PSE parameters
   ``ETHTOOL_MSG_RSS_GET_REPLY``            RSS settings
+  ``ETHTOOL_MSG_MM_GET_REPLY``             MAC merge layer status
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -1868,6 +1871,90 @@ When set, the ``ETHTOOL_A_PLCA_STATUS`` attribute indicates whether the node is
 detecting the presence of the BEACON on the network. This flag is
 corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.2 aPLCAStatus.
 
+MM_GET
+======
+
+Retrieve 802.3 MAC Merge parameters.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_MM_HEADER``               nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  =================================  ======  ===================================
+  ``ETHTOOL_A_MM_HEADER``            nested  request header
+  ``ETHTOOL_A_MM_PMAC_ENABLED``      bool    set if RX of preemptible and SMD-V
+                                             frames is enabled
+  ``ETHTOOL_A_MM_TX_ENABLED``        bool    set if TX of preemptible frames is
+                                             administratively enabled (might be
+                                             inactive if verification failed)
+  ``ETHTOOL_A_MM_TX_ACTIVE``         bool    set if TX of preemptible frames is
+                                             operationally enabled
+  ``ETHTOOL_A_MM_TX_MIN_FRAG_SIZE``  u32     minimum size of transmitted
+                                             non-final fragments, in octets
+  ``ETHTOOL_A_MM_RX_MIN_FRAG_SIZE``  u32     minimum size of received non-final
+                                             fragments, in octets
+  ``ETHTOOL_A_MM_VERIFY_ENABLED``    bool    set if TX of SMD-V frames is
+                                             administratively enabled
+  ``ETHTOOL_A_MM_VERIFY_STATUS``     u8      state of the verification function
+  ``ETHTOOL_A_MM_VERIFY_TIME``       u32     delay between verification attempts
+  ``ETHTOOL_A_MM_MAX_VERIFY_TIME```  u32     maximum verification interval
+                                             supported by device
+  ``ETHTOOL_A_MM_STATS``             nested  IEEE 802.3-2018 subclause 30.14.1
+                                             oMACMergeEntity statistics counters
+  =================================  ======  ===================================
+
+The attributes are populated by the device driver through the following
+structure:
+
+.. kernel-doc:: include/linux/ethtool.h
+    :identifiers: ethtool_mm_state
+
+The ``ETHTOOL_A_MM_VERIFY_STATUS`` will report one of the values from
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_mm_verify_status
+
+If ``ETHTOOL_A_MM_VERIFY_ENABLED`` was passed as false in the ``MM_SET``
+command, ``ETHTOOL_A_MM_VERIFY_STATUS`` will report either
+``ETHTOOL_MM_VERIFY_STATUS_INITIAL`` or ``ETHTOOL_MM_VERIFY_STATUS_DISABLED``,
+otherwise it should report one of the other states.
+
+It is recommended that drivers start with the pMAC disabled, and enable it upon
+user space request. It is also recommended that user space does not depend upon
+the default values from ``ETHTOOL_MSG_MM_GET`` requests.
+
+``ETHTOOL_A_MM_STATS`` are reported if ``ETHTOOL_FLAG_STATS`` was set in
+``ETHTOOL_A_HEADER_FLAGS``. The attribute will be empty if driver did not
+report any statistics. Drivers fill in the statistics in the following
+structure:
+
+.. kernel-doc:: include/linux/ethtool.h
+    :identifiers: ethtool_mm_stats
+
+MM_SET
+======
+
+Modifies the configuration of the 802.3 MAC Merge layer.
+
+Request contents:
+
+  =================================  ======  ==========================
+  ``ETHTOOL_A_MM_VERIFY_TIME``       u32     see MM_GET description
+  ``ETHTOOL_A_MM_VERIFY_ENABLED``    bool    see MM_GET description
+  ``ETHTOOL_A_MM_TX_ENABLED``        bool    see MM_GET description
+  ``ETHTOOL_A_MM_PMAC_ENABLED``      bool    see MM_GET description
+  ``ETHTOOL_A_MM_TX_MIN_FRAG_SIZE``  u32     see MM_GET description
+  =================================  ======  ==========================
+
+The attributes are propagated to the driver through the following structure:
+
+.. kernel-doc:: include/linux/ethtool.h
+    :identifiers: ethtool_mm_cfg
+
 Request translation
 ===================
 
@@ -1972,4 +2059,6 @@ are netlink only.
   n/a                                 ``ETHTOOL_MSG_PLCA_GET_CFG``
   n/a                                 ``ETHTOOL_MSG_PLCA_SET_CFG``
   n/a                                 ``ETHTOOL_MSG_PLCA_GET_STATUS``
+  n/a                                 ``ETHTOOL_MSG_MM_GET``
+  n/a                                 ``ETHTOOL_MSG_MM_SET``
   =================================== =====================================
