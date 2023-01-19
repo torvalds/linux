@@ -1957,6 +1957,13 @@
 			status = "disabled";
 		};
 
+		watchdog@f017000 {
+			compatible = "qcom,apss-wdt-sm6115", "qcom,kpss-wdt";
+			reg = <0x0 0x0f017000 0x0 0x1000>;
+			clocks = <&sleep_clk>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
+		};
+
 		apcs_glb: mailbox@f111000 {
 			compatible = "qcom,sm6115-apcs-hmss-global";
 			reg = <0x0 0x0f111000 0x0 0x1000>;
