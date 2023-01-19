@@ -4061,6 +4061,24 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	return 0;
 }
 
+int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			   u64 *tsf)
+{
+	const struct rtw89_port_reg *p = &rtw_port_base;
+	u32 tsf_low, tsf_high;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, rtwvif->mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	tsf_low = rtw89_read32_port(rtwdev, rtwvif, p->tsftr_l);
+	tsf_high = rtw89_read32_port(rtwdev, rtwvif, p->tsftr_h);
+	*tsf = (u64)tsf_high << 32 | tsf_low;
+
+	return 0;
+}
+
 static void rtw89_mac_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
 						      struct cfg80211_bss *bss,
 						      void *data)

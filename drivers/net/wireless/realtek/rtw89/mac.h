@@ -828,6 +828,15 @@ static inline u32 rtw89_mac_reg_by_port(u32 base, u8 port, u8 mac_idx)
 }
 
 static inline u32
+rtw89_read32_port(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif, u32 base)
+{
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	return rtw89_read32(rtwdev, reg);
+}
+
+static inline u32
 rtw89_read32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		       u32 base, u32 mask)
 {
@@ -910,6 +919,8 @@ void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif,
 			     struct rtw89_vif *rtwvif_src,
 			     u16 offset_tu);
+int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			   u64 *tsf);
 void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 					struct ieee80211_vif *vif);
 void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
