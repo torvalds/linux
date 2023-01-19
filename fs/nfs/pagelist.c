@@ -1084,6 +1084,24 @@ static bool nfs_match_lock_context(const struct nfs_lock_context *l1,
 	return l1->lockowner == l2->lockowner;
 }
 
+static bool nfs_page_is_contiguous(const struct nfs_page *prev,
+				   const struct nfs_page *req)
+{
+	size_t prev_end = prev->wb_pgbase + prev->wb_bytes;
+
+	if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
+		return false;
+	if (req->wb_pgbase == 0)
+		return prev_end == nfs_page_max_length(prev);
+	if (req->wb_pgbase == prev_end) {
+		struct folio *folio = nfs_page_to_folio(req);
+		if (folio)
+			return folio == nfs_page_to_folio(prev);
+		return req->wb_page == prev->wb_page;
+	}
+	return false;
+}
+
 /**
  * nfs_coalesce_size - test two requests for compatibility
  * @prev: pointer to nfs_page
@@ -1112,16 +1130,8 @@ static unsigned int nfs_coalesce_size(struct nfs_page *prev,
 		    !nfs_match_lock_context(req->wb_lock_context,
 					    prev->wb_lock_context))
 			return 0;
-		if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
+		if (!nfs_page_is_contiguous(prev, req))
 			return 0;
-		if (req->wb_page == prev->wb_page) {
-			if (req->wb_pgbase != prev->wb_pgbase + prev->wb_bytes)
-				return 0;
-		} else {
-			if (req->wb_pgbase != 0 ||
-			    prev->wb_pgbase + prev->wb_bytes != PAGE_SIZE)
-				return 0;
-		}
 	}
 	return pgio->pg_ops->pg_test(pgio, prev, req);
 }

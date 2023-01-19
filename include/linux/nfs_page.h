@@ -189,6 +189,21 @@ static inline struct page *nfs_page_to_page(const struct nfs_page *req,
 	return folio_page(folio, pgbase >> PAGE_SHIFT);
 }
 
+/**
+ * nfs_page_max_length - Retrieve the maximum possible length for a request
+ * @req: pointer to a struct nfs_page
+ *
+ * Returns the maximum possible length of a request
+ */
+static inline size_t nfs_page_max_length(const struct nfs_page *req)
+{
+	struct folio *folio = nfs_page_to_folio(req);
+
+	if (folio == NULL)
+		return PAGE_SIZE;
+	return folio_size(folio);
+}
+
 /*
  * Lock the page of an asynchronous request
  */
