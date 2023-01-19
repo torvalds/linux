@@ -729,8 +729,10 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	unsigned irq_type;
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[ring_id];
 	unsigned int hw_prio;
+	uint32_t xcc_doorbell_start;
 
-	ring = &adev->gfx.compute_ring[ring_id];
+	ring = &adev->gfx.compute_ring[xcc_id * adev->gfx.num_compute_rings +
+				       ring_id];
 
 	/* mec0 is me1 */
 	ring->xcc_id = xcc_id;
@@ -740,9 +742,12 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
-	ring->doorbell_index = (adev->doorbell_index.mec_ring0 + ring_id) << 1;
-	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
-				+ (ring_id * GFX9_MEC_HPD_SIZE);
+	xcc_doorbell_start = adev->doorbell_index.mec_ring0 +
+			     xcc_id * adev->doorbell_index.xcc_doorbell_range;
+	ring->doorbell_index = (xcc_doorbell_start + ring_id) << 1;
+	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr +
+			     (ring_id + xcc_id * adev->gfx.num_compute_rings) *
+				     GFX9_MEC_HPD_SIZE;
 	ring->vm_hub = AMDGPU_GFXHUB(xcc_id);
 	sprintf(ring->name, "comp_%d.%d.%d.%d",
 			ring->xcc_id, ring->me, ring->pipe, ring->queue);
@@ -801,8 +806,8 @@ static int gfx_v9_4_3_sw_init(void *handle)
 	}
 
 	/* set up the compute queues - allocate horizontally across pipes */
-	ring_id = 0;
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		ring_id = 0;
 		for (i = 0; i < adev->gfx.mec.num_mec; ++i) {
 			for (j = 0; j < adev->gfx.mec.num_queue_per_pipe; j++) {
 				for (k = 0; k < adev->gfx.mec.num_pipe_per_mec;
@@ -1654,10 +1659,18 @@ static int gfx_v9_4_3_xcc_kiq_init_register(struct amdgpu_ring *ring,
 
 	/* enable the doorbell if requested */
 	if (ring->use_doorbell) {
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_LOWER,
-					(adev->doorbell_index.kiq * 2) << 2);
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_UPPER,
-				(adev->doorbell_index.userqueue_end * 2) << 2);
+		WREG32_SOC15(
+			GC, GET_INST(GC, xcc_id),
+			regCP_MEC_DOORBELL_RANGE_LOWER,
+			((adev->doorbell_index.kiq +
+			  xcc_id * adev->doorbell_index.xcc_doorbell_range) *
+			 2) << 2);
+		WREG32_SOC15(
+			GC, GET_INST(GC, xcc_id),
+			regCP_MEC_DOORBELL_RANGE_UPPER,
+			((adev->doorbell_index.userqueue_end +
+			  xcc_id * adev->doorbell_index.xcc_doorbell_range) *
+			 2) << 2);
 	}
 
 	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_DOORBELL_CONTROL,
