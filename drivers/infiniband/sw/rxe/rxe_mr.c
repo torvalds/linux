@@ -32,13 +32,15 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 
 	case IB_MR_TYPE_USER:
 	case IB_MR_TYPE_MEM_REG:
-		if (iova < mr->ibmr.iova || length > mr->ibmr.length ||
-		    iova > mr->ibmr.iova + mr->ibmr.length - length)
-			return -EFAULT;
+		if (iova < mr->ibmr.iova ||
+		    iova + length > mr->ibmr.iova + mr->ibmr.length) {
+			rxe_dbg_mr(mr, "iova/length out of range");
+			return -EINVAL;
+		}
 		return 0;
 
 	default:
-		rxe_dbg_mr(mr, "type (%d) not supported\n", mr->ibmr.type);
+		rxe_dbg_mr(mr, "mr type not supported\n");
 		return -EINVAL;
 	}
 }
@@ -299,37 +301,22 @@ void *iova_to_vaddr(struct rxe_mr *mr, u64 iova, int length)
 {
 	size_t offset;
 	int m, n;
-	void *addr;
 
-	if (mr->state != RXE_MR_STATE_VALID) {
-		rxe_dbg_mr(mr, "Not in valid state\n");
-		addr = NULL;
-		goto out;
-	}
+	if (mr->state != RXE_MR_STATE_VALID)
+		return NULL;
 
-	if (!mr->map) {
-		addr = (void *)(uintptr_t)iova;
-		goto out;
-	}
+	if (mr->ibmr.type == IB_MR_TYPE_DMA)
+		return (void *)(uintptr_t)iova;
 
-	if (mr_check_range(mr, iova, length)) {
-		rxe_dbg_mr(mr, "Range violation\n");
-		addr = NULL;
-		goto out;
-	}
+	if (mr_check_range(mr, iova, length))
+		return NULL;
 
 	lookup_iova(mr, iova, &m, &n, &offset);
 
-	if (offset + length > mr->map[m]->buf[n].size) {
-		rxe_dbg_mr(mr, "Crosses page boundary\n");
-		addr = NULL;
-		goto out;
-	}
+	if (offset + length > mr->map[m]->buf[n].size)
+		return NULL;
 
-	addr = (void *)(uintptr_t)mr->map[m]->buf[n].addr + offset;
-
-out:
-	return addr;
+	return (void *)(uintptr_t)mr->map[m]->buf[n].addr + offset;
 }
 
 int rxe_flush_pmem_iova(struct rxe_mr *mr, u64 iova, int length)
@@ -536,6 +523,46 @@ err2:
 		rxe_put(mr);
 err1:
 	return err;
+}
+
+/* Guarantee atomicity of atomic operations at the machine level. */
+static DEFINE_SPINLOCK(atomic_ops_lock);
+
+int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
+			u64 compare, u64 swap_add, u64 *orig_val)
+{
+	u64 *va;
+	u64 value;
+
+	if (mr->state != RXE_MR_STATE_VALID) {
+		rxe_dbg_mr(mr, "mr not in valid state");
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+
+	va = iova_to_vaddr(mr, iova, sizeof(u64));
+	if (!va) {
+		rxe_dbg_mr(mr, "iova out of range");
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+
+	if ((uintptr_t)va & 0x7) {
+		rxe_dbg_mr(mr, "iova not aligned");
+		return RESPST_ERR_MISALIGNED_ATOMIC;
+	}
+
+	spin_lock_bh(&atomic_ops_lock);
+	value = *orig_val = *va;
+
+	if (opcode == IB_OPCODE_RC_COMPARE_SWAP) {
+		if (value == compare)
+			*va = swap_add;
+	} else {
+		value += swap_add;
+		*va = value;
+	}
+	spin_unlock_bh(&atomic_ops_lock);
+
+	return 0;
 }
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length)
