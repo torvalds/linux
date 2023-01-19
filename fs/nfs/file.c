@@ -432,8 +432,13 @@ static bool nfs_release_folio(struct folio *folio, gfp_t gfp)
 	dfprintk(PAGECACHE, "NFS: release_folio(%p)\n", folio);
 
 	/* If the private flag is set, then the folio is not freeable */
-	if (folio_test_private(folio))
-		return false;
+	if (folio_test_private(folio)) {
+		if ((current_gfp_context(gfp) & GFP_KERNEL) != GFP_KERNEL ||
+		    current_is_kswapd())
+			return false;
+		if (nfs_wb_folio(folio_file_mapping(folio)->host, folio) < 0)
+			return false;
+	}
 	return nfs_fscache_release_folio(folio, gfp);
 }
 
