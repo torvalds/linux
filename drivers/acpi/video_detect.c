@@ -610,6 +610,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_native,
+	 /* HP EliteBook 8460p */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook 8460p"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
 	 /* HP Pavilion g6-1d80nr / B4U19UA */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
