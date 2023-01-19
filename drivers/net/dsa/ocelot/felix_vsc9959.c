@@ -6,6 +6,7 @@
 #include <soc/mscc/ocelot_qsys.h>
 #include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/ocelot_ana.h>
+#include <soc/mscc/ocelot_dev.h>
 #include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot_sys.h>
 #include <net/tc_act/tc_gate.h>
@@ -476,6 +477,9 @@ static const u32 vsc9959_dev_gmii_regmap[] = {
 	REG(DEV_MAC_FC_MAC_LOW_CFG,		0x3c),
 	REG(DEV_MAC_FC_MAC_HIGH_CFG,		0x40),
 	REG(DEV_MAC_STICKY,			0x44),
+	REG(DEV_MM_ENABLE_CONFIG,		0x48),
+	REG(DEV_MM_VERIF_CONFIG,		0x4C),
+	REG(DEV_MM_STATUS,			0x50),
 	REG_RESERVED(PCS1G_CFG),
 	REG_RESERVED(PCS1G_MODE_CFG),
 	REG_RESERVED(PCS1G_SD_CFG),
@@ -2599,19 +2603,18 @@ static const struct felix_info felix_info_vsc9959 = {
 	.tas_guard_bands_update	= vsc9959_tas_guard_bands_update,
 };
 
+/* The INTB interrupt is shared between for PTP TX timestamp availability
+ * notification and MAC Merge status change on each port.
+ */
 static irqreturn_t felix_irq_handler(int irq, void *data)
 {
 	struct ocelot *ocelot = (struct ocelot *)data;
-
-	/* The INTB interrupt is used for both PTP TX timestamp interrupt
-	 * and preemption status change interrupt on each port.
-	 *
-	 * - Get txtstamp if have
-	 * - TODO: handle preemption. Without handling it, driver may get
-	 *   interrupt storm.
-	 */
+	int port;
 
 	ocelot_get_txtstamp(ocelot);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++)
+		ocelot_port_mm_irq(ocelot, port);
 
 	return IRQ_HANDLED;
 }

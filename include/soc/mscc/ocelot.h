@@ -515,6 +515,9 @@ enum ocelot_reg {
 	DEV_MAC_FC_MAC_LOW_CFG,
 	DEV_MAC_FC_MAC_HIGH_CFG,
 	DEV_MAC_STICKY,
+	DEV_MM_ENABLE_CONFIG,
+	DEV_MM_VERIF_CONFIG,
+	DEV_MM_STATUS,
 	PCS1G_CFG,
 	PCS1G_MODE_CFG,
 	PCS1G_SD_CFG,
@@ -739,6 +742,12 @@ struct ocelot_mirror {
 	int to;
 };
 
+struct ocelot_mm_state {
+	struct mutex lock;
+	enum ethtool_mm_verify_status verify_status;
+	bool tx_active;
+};
+
 struct ocelot_port;
 
 struct ocelot_port {
@@ -863,6 +872,8 @@ struct ocelot {
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
 	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];
+
+	struct ocelot_mm_state		*mm;
 
 	struct ocelot_fdma		*fdma;
 };
@@ -1121,6 +1132,13 @@ int ocelot_migrate_mdbs(struct ocelot *ocelot, unsigned long from_mask,
 int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			    struct ocelot_policer *pol);
 int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix);
+
+void ocelot_port_mm_irq(struct ocelot *ocelot, int port);
+int ocelot_port_set_mm(struct ocelot *ocelot, int port,
+		       struct ethtool_mm_cfg *cfg,
+		       struct netlink_ext_ack *extack);
+int ocelot_port_get_mm(struct ocelot *ocelot, int port,
+		       struct ethtool_mm_state *state);
 
 #if IS_ENABLED(CONFIG_BRIDGE_MRP)
 int ocelot_mrp_add(struct ocelot *ocelot, int port,
