@@ -3219,16 +3219,16 @@ static inline struct rtw89_fw_c2h_attr *RTW89_SKB_C2H_CB(struct sk_buff *skb)
 	le32_get_bits(*((const __le32 *)(c2h) + 5), GENMASK(25, 24))
 
 #define RTW89_GET_MAC_C2H_MCC_RCV_ACK_GROUP(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(1, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
 #define RTW89_GET_MAC_C2H_MCC_RCV_ACK_H2C_FUNC(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 
 #define RTW89_GET_MAC_C2H_MCC_REQ_ACK_GROUP(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(1, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
 #define RTW89_GET_MAC_C2H_MCC_REQ_ACK_H2C_RETURN(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(7, 2))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 2))
 #define RTW89_GET_MAC_C2H_MCC_REQ_ACK_H2C_FUNC(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 
 struct rtw89_mac_mcc_tsf_rpt {
 	u32 macid_x;
@@ -3242,30 +3242,30 @@ struct rtw89_mac_mcc_tsf_rpt {
 static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE);
 
 #define RTW89_GET_MAC_C2H_MCC_TSF_RPT_MACID_X(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(7, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 0))
 #define RTW89_GET_MAC_C2H_MCC_TSF_RPT_MACID_Y(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 #define RTW89_GET_MAC_C2H_MCC_TSF_RPT_GROUP(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(17, 16))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(17, 16))
 #define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_X(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 1), GENMASK(31, 0))
-#define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_X(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 0))
-#define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_Y(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(31, 0))
-#define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_Y(c2h) \
+#define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_X(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 4), GENMASK(31, 0))
+#define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_LOW_Y(c2h) \
+	le32_get_bits(*((const __le32 *)(c2h) + 5), GENMASK(31, 0))
+#define RTW89_GET_MAC_C2H_MCC_TSF_RPT_TSF_HIGH_Y(c2h) \
+	le32_get_bits(*((const __le32 *)(c2h) + 6), GENMASK(31, 0))
 
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_STATUS(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(5, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(5, 0))
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_GROUP(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(7, 6))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 6))
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_MACID(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h)), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_LOW(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 1), GENMASK(31, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(31, 0))
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_HIGH(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 4), GENMASK(31, 0))
 
 #define RTW89_FW_HDR_SIZE 32
 #define RTW89_FW_SECTION_HDR_SIZE 16
