@@ -229,8 +229,9 @@ enum enetc_errata {
 	ENETC_ERR_UCMCSWP	= BIT(1),
 };
 
-#define ENETC_SI_F_QBV BIT(0)
-#define ENETC_SI_F_PSFP BIT(1)
+#define ENETC_SI_F_PSFP BIT(0)
+#define ENETC_SI_F_QBV  BIT(1)
+#define ENETC_SI_F_QBU  BIT(2)
 
 /* PCI IEP device data */
 struct enetc_si {
