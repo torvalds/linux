@@ -25,6 +25,28 @@ struct io_msg {
 	u32 flags;
 };
 
+static void io_double_unlock_ctx(struct io_ring_ctx *octx)
+{
+	mutex_unlock(&octx->uring_lock);
+}
+
+static int io_double_lock_ctx(struct io_ring_ctx *octx,
+			      unsigned int issue_flags)
+{
+	/*
+	 * To ensure proper ordering between the two ctxs, we can only
+	 * attempt a trylock on the target. If that fails and we already have
+	 * the source ctx lock, punt to io-wq.
+	 */
+	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
+		if (!mutex_trylock(&octx->uring_lock))
+			return -EAGAIN;
+		return 0;
+	}
+	mutex_lock(&octx->uring_lock);
+	return 0;
+}
+
 void io_msg_ring_cleanup(struct io_kiocb *req)
 {
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
@@ -77,29 +99,6 @@ static int io_msg_ring_data(struct io_kiocb *req)
 	return -EOVERFLOW;
 }
 
-static void io_double_unlock_ctx(struct io_ring_ctx *octx,
-				 unsigned int issue_flags)
-{
-	mutex_unlock(&octx->uring_lock);
-}
-
-static int io_double_lock_ctx(struct io_ring_ctx *octx,
-			      unsigned int issue_flags)
-{
-	/*
-	 * To ensure proper ordering between the two ctxs, we can only
-	 * attempt a trylock on the target. If that fails and we already have
-	 * the source ctx lock, punt to io-wq.
-	 */
-	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		if (!mutex_trylock(&octx->uring_lock))
-			return -EAGAIN;
-		return 0;
-	}
-	mutex_lock(&octx->uring_lock);
-	return 0;
-}
-
 static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
@@ -148,7 +147,7 @@ static int io_msg_install_complete(struct io_kiocb *req, unsigned int issue_flag
 	if (!io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
 		ret = -EOVERFLOW;
 out_unlock:
-	io_double_unlock_ctx(target_ctx, issue_flags);
+	io_double_unlock_ctx(target_ctx);
 	return ret;
 }
 
