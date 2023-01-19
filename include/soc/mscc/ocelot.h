@@ -362,6 +362,29 @@ enum ocelot_reg {
 	SYS_COUNT_RX_GREEN_PRIO_5,
 	SYS_COUNT_RX_GREEN_PRIO_6,
 	SYS_COUNT_RX_GREEN_PRIO_7,
+	SYS_COUNT_RX_ASSEMBLY_ERRS,
+	SYS_COUNT_RX_SMD_ERRS,
+	SYS_COUNT_RX_ASSEMBLY_OK,
+	SYS_COUNT_RX_MERGE_FRAGMENTS,
+	SYS_COUNT_RX_PMAC_OCTETS,
+	SYS_COUNT_RX_PMAC_UNICAST,
+	SYS_COUNT_RX_PMAC_MULTICAST,
+	SYS_COUNT_RX_PMAC_BROADCAST,
+	SYS_COUNT_RX_PMAC_SHORTS,
+	SYS_COUNT_RX_PMAC_FRAGMENTS,
+	SYS_COUNT_RX_PMAC_JABBERS,
+	SYS_COUNT_RX_PMAC_CRC_ALIGN_ERRS,
+	SYS_COUNT_RX_PMAC_SYM_ERRS,
+	SYS_COUNT_RX_PMAC_64,
+	SYS_COUNT_RX_PMAC_65_127,
+	SYS_COUNT_RX_PMAC_128_255,
+	SYS_COUNT_RX_PMAC_256_511,
+	SYS_COUNT_RX_PMAC_512_1023,
+	SYS_COUNT_RX_PMAC_1024_1526,
+	SYS_COUNT_RX_PMAC_1527_MAX,
+	SYS_COUNT_RX_PMAC_PAUSE,
+	SYS_COUNT_RX_PMAC_CONTROL,
+	SYS_COUNT_RX_PMAC_LONGS,
 	SYS_COUNT_TX_OCTETS,
 	SYS_COUNT_TX_UNICAST,
 	SYS_COUNT_TX_MULTICAST,
@@ -393,6 +416,20 @@ enum ocelot_reg {
 	SYS_COUNT_TX_GREEN_PRIO_6,
 	SYS_COUNT_TX_GREEN_PRIO_7,
 	SYS_COUNT_TX_AGED,
+	SYS_COUNT_TX_MM_HOLD,
+	SYS_COUNT_TX_MERGE_FRAGMENTS,
+	SYS_COUNT_TX_PMAC_OCTETS,
+	SYS_COUNT_TX_PMAC_UNICAST,
+	SYS_COUNT_TX_PMAC_MULTICAST,
+	SYS_COUNT_TX_PMAC_BROADCAST,
+	SYS_COUNT_TX_PMAC_PAUSE,
+	SYS_COUNT_TX_PMAC_64,
+	SYS_COUNT_TX_PMAC_65_127,
+	SYS_COUNT_TX_PMAC_128_255,
+	SYS_COUNT_TX_PMAC_256_511,
+	SYS_COUNT_TX_PMAC_512_1023,
+	SYS_COUNT_TX_PMAC_1024_1526,
+	SYS_COUNT_TX_PMAC_1527_MAX,
 	SYS_COUNT_DROP_LOCAL,
 	SYS_COUNT_DROP_TAIL,
 	SYS_COUNT_DROP_YELLOW_PRIO_0,
@@ -814,6 +851,7 @@ struct ocelot {
 	struct workqueue_struct		*owq;
 
 	u8				ptp:1;
+	u8				mm_supported:1;
 	struct ptp_clock		*ptp_clock;
 	struct ptp_clock_info		ptp_info;
 	struct hwtstamp_config		hwtstamp_config;
@@ -937,6 +975,8 @@ void ocelot_port_get_stats64(struct ocelot *ocelot, int port,
 			     struct rtnl_link_stats64 *stats);
 void ocelot_port_get_pause_stats(struct ocelot *ocelot, int port,
 				 struct ethtool_pause_stats *pause_stats);
+void ocelot_port_get_mm_stats(struct ocelot *ocelot, int port,
+			      struct ethtool_mm_stats *stats);
 void ocelot_port_get_rmon_stats(struct ocelot *ocelot, int port,
 				struct ethtool_rmon_stats *rmon_stats,
 				const struct ethtool_rmon_hist_range **ranges);
