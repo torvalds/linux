@@ -133,10 +133,9 @@ static int mtu3_ep_disable(struct mtu3_ep *mep)
 {
 	struct mtu3 *mtu = mep->mtu;
 
-	mtu3_qmu_stop(mep);
-
 	/* abort all pending requests */
 	nuke(mep, -ESHUTDOWN);
+	mtu3_qmu_stop(mep);
 	mtu3_deconfig_ep(mtu, mep);
 	mtu3_gpd_ring_free(mep);
 
