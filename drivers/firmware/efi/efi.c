@@ -541,6 +541,10 @@ void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
  */
 void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 {
+	/* efi_mem_reserve() does not work under Xen */
+	if (WARN_ON_ONCE(efi_enabled(EFI_PARAVIRT)))
+		return;
+
 	if (!memblock_is_region_reserved(addr, size))
 		memblock_reserve(addr, size);
 
