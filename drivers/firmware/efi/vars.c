@@ -6,6 +6,8 @@
  * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
  */
 
+#define pr_fmt(fmt) "efivars: " fmt
+
 #include <linux/types.h>
 #include <linux/sizes.h>
 #include <linux/errno.h>
@@ -90,7 +92,7 @@ int efivars_unregister(struct efivars *efivars)
 		return -EINTR;
 
 	if (!__efivars) {
-		printk(KERN_ERR "efivars not registered\n");
+		pr_err("efivars not registered\n");
 		rv = -EINVAL;
 		goto out;
 	}
