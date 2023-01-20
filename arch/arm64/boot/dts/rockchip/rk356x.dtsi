@@ -613,6 +613,17 @@
 		#iommu-cells = <0>;
 	};
 
+	rga: rga@fdeb0000 {
+		compatible = "rockchip,rk3568-rga", "rockchip,rk3288-rga";
+		reg = <0x0 0xfdeb0000 0x0 0x180>;
+		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_RGA_CORE>;
+		clock-names = "aclk", "hclk", "sclk";
+		resets = <&cru SRST_RGA_CORE>, <&cru SRST_A_RGA>, <&cru SRST_H_RGA>;
+		reset-names = "core", "axi", "ahb";
+		power-domains = <&power RK3568_PD_RGA>;
+	};
+
 	vepu: video-codec@fdee0000 {
 		compatible = "rockchip,rk3568-vepu";
 		reg = <0x0 0xfdee0000 0x0 0x800>;
