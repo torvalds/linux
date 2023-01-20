@@ -68,6 +68,22 @@ void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq);
 void ipa_interrupt_disable(struct ipa *ipa, enum ipa_irq_id ipa_irq);
 
 /**
+ * ipa_interrupt_irq_enable() - Enable IPA interrupts
+ * @ipa:	IPA pointer
+ *
+ * This enables the IPA interrupt line
+ */
+void ipa_interrupt_irq_enable(struct ipa *ipa);
+
+/**
+ * ipa_interrupt_irq_disable() - Disable IPA interrupts
+ * @ipa:	IPA pointer
+ *
+ * This disables the IPA interrupt line
+ */
+void ipa_interrupt_irq_disable(struct ipa *ipa);
+
+/**
  * ipa_interrupt_config() - Configure the IPA interrupt framework
  * @ipa:	IPA pointer
  *

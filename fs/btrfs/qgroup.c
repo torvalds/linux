@@ -2765,9 +2765,19 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 
 			/*
 			 * Old roots should be searched when inserting qgroup
-			 * extent record
+			 * extent record.
+			 *
+			 * But for INCONSISTENT (NO_ACCOUNTING) -> rescan case,
+			 * we may have some record inserted during
+			 * NO_ACCOUNTING (thus no old_roots populated), but
+			 * later we start rescan, which clears NO_ACCOUNTING,
+			 * leaving some inserted records without old_roots
+			 * populated.
+			 *
+			 * Those cases are rare and should not cause too much
+			 * time spent during commit_transaction().
 			 */
-			if (WARN_ON(!record->old_roots)) {
+			if (!record->old_roots) {
 				/* Search commit root to find old_roots */
 				ret = btrfs_find_all_roots(&ctx, false);
 				if (ret < 0)

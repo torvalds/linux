@@ -1104,7 +1104,6 @@ S:	Supported
 F:	arch/arm64/boot/dts/amd/
 
 AMD XGBE DRIVER
-M:	Tom Lendacky <thomas.lendacky@amd.com>
 M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -6948,7 +6947,7 @@ F:	drivers/gpu/drm/atmel-hlcdc/
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Andrzej Hajda <andrzej.hajda@intel.com>
 M:	Neil Armstrong <neil.armstrong@linaro.org>
-M:	Robert Foss <robert.foss@linaro.org>
+M:	Robert Foss <rfoss@kernel.org>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
 R:	Jonas Karlman <jonas@kwiboo.se>
 R:	Jernej Skrabec <jernej.skrabec@gmail.com>
@@ -11356,9 +11355,9 @@ F:	virt/kvm/*
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
 M:	Marc Zyngier <maz@kernel.org>
 R:	James Morse <james.morse@arm.com>
-R:	Alexandru Elisei <alexandru.elisei@arm.com>
 R:	Suzuki K Poulose <suzuki.poulose@arm.com>
 R:	Oliver Upton <oliver.upton@linux.dev>
+R:	Zenghui Yu <yuzenghui@huawei.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.linux.dev
 L:	kvmarm@lists.cs.columbia.edu (deprecated, moderated for non-subscribers)
@@ -14922,7 +14921,8 @@ T:	git://git.infradead.org/nvme.git
 F:	Documentation/nvme/
 F:	drivers/nvme/host/
 F:	drivers/nvme/common/
-F:	include/linux/nvme*
+F:	include/linux/nvme.h
+F:	include/linux/nvme-*.h
 F:	include/uapi/linux/nvme_ioctl.h
 
 NVM EXPRESS FABRICS AUTHENTICATION
@@ -15758,6 +15758,12 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/p54
 F:	drivers/net/wireless/intersil/p54/
+
+PACKET SOCKETS
+M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+S:	Maintained
+F:	include/uapi/linux/if_packet.h
+F:	net/packet/af_packet.c
 
 PACKING
 M:	Vladimir Oltean <olteanv@gmail.com>
@@ -17254,7 +17260,7 @@ F:	Documentation/devicetree/bindings/net/qcom,bam-dmux.yaml
 F:	drivers/net/wwan/qcom_bam_dmux.c
 
 QUALCOMM CAMERA SUBSYSTEM DRIVER
-M:	Robert Foss <robert.foss@linaro.org>
+M:	Robert Foss <rfoss@kernel.org>
 M:	Todor Tomov <todor.too@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -17334,7 +17340,7 @@ F:	drivers/dma/qcom/hidma*
 
 QUALCOMM I2C CCI DRIVER
 M:	Loic Poulain <loic.poulain@linaro.org>
-M:	Robert Foss <robert.foss@linaro.org>
+M:	Robert Foss <rfoss@kernel.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -19341,6 +19347,13 @@ SOCIONEXT UNIPHIER SOUND DRIVER
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Orphan
 F:	sound/soc/uniphier/
+
+SOCKET TIMESTAMPING
+M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+S:	Maintained
+F:	Documentation/networking/timestamping.rst
+F:	include/uapi/linux/net_tstamp.h
+F:	tools/testing/selftests/net/so_txtime.c
 
 SOEKRIS NET48XX LED SUPPORT
 M:	Chris Boot <bootc@bootc.net>
@@ -21761,6 +21774,13 @@ W:	http://royale.zerezo.com/zr364xx/
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/zr364xx*
 F:	drivers/staging/media/deprecated/zr364xx/
+
+USER DATAGRAM PROTOCOL (UDP)
+M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+S:	Maintained
+F:	include/linux/udp.h
+F:	net/ipv4/udp.c
+F:	net/ipv6/udp.c
 
 USER-MODE LINUX (UML)
 M:	Richard Weinberger <richard@nod.at>
