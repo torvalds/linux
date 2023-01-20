@@ -1702,14 +1702,11 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			}
 			break;
 		case CMD_ENTER_MODE:
-			if (adev && pdev) {
-				typec_altmode_update_active(pdev, true);
+			if (adev && pdev)
 				*adev_action = ADEV_QUEUE_VDM_SEND_EXIT_MODE_ON_FAIL;
-			}
 			return 0;
 		case CMD_EXIT_MODE:
 			if (adev && pdev) {
-				typec_altmode_update_active(pdev, false);
 				/* Back to USB Operation */
 				*adev_action = ADEV_NOTIFY_USB_AND_QUEUE_VDM;
 				return 0;
