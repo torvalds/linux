@@ -2010,7 +2010,8 @@ static int vcap_get_next_chain(struct vcap_control *vctrl,
 static bool vcap_path_exist(struct vcap_control *vctrl, struct net_device *ndev,
 			    int dst_cid)
 {
-	struct vcap_enabled_port *eport, *elem;
+	struct vcap_enabled_port *eport = NULL;
+	struct vcap_enabled_port *elem;
 	struct vcap_admin *admin;
 	int tmp;
 
