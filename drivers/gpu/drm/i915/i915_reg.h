@@ -1040,9 +1040,11 @@
 #define _MBUS_ABOX0_CTL			0x45038
 #define _MBUS_ABOX1_CTL			0x45048
 #define _MBUS_ABOX2_CTL			0x4504C
-#define MBUS_ABOX_CTL(x)		_MMIO(_PICK(x, _MBUS_ABOX0_CTL, \
-						    _MBUS_ABOX1_CTL, \
-						    _MBUS_ABOX2_CTL))
+#define MBUS_ABOX_CTL(x)							\
+	_MMIO(_PICK_EVEN_2RANGES(x, 2,						\
+				 _MBUS_ABOX0_CTL, _MBUS_ABOX1_CTL,		\
+				 _MBUS_ABOX2_CTL, _MBUS_ABOX2_CTL))
+
 #define MBUS_ABOX_BW_CREDIT_MASK	(3 << 20)
 #define MBUS_ABOX_BW_CREDIT(x)		((x) << 20)
 #define MBUS_ABOX_B_CREDIT_MASK		(0xF << 16)
