@@ -7,6 +7,7 @@
 #include <linux/perf_event.h>
 #include <linux/list.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "parse-events.h"
 #include "pmu-events/pmu-events.h"
 
@@ -22,7 +23,6 @@ enum {
 };
 
 #define PERF_PMU_FORMAT_BITS 64
-#define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
 #define MAX_PMU_NAME_LEN 128
 
 struct perf_event_attr;
@@ -262,5 +262,6 @@ double perf_pmu__cpu_slots_per_cycle(void);
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 				 const char *pmu_name, const char *filename);
+FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
 
 #endif /* __PMU_H */

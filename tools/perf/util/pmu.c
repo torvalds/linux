@@ -571,45 +571,31 @@ static void pmu_read_sysfs(void)
 	closedir(dir);
 }
 
-static struct perf_cpu_map *__pmu_cpumask(const char *path)
-{
-	FILE *file;
-	struct perf_cpu_map *cpus;
-
-	file = fopen(path, "r");
-	if (!file)
-		return NULL;
-
-	cpus = perf_cpu_map__read(file);
-	fclose(file);
-	return cpus;
-}
-
 /*
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
 #define SYS_TEMPLATE_ID	"./bus/event_source/devices/%s/identifier"
-#define CPUS_TEMPLATE_UNCORE	"%s/bus/event_source/devices/%s/cpumask"
 
 static struct perf_cpu_map *pmu_cpumask(const char *name)
 {
-	char path[PATH_MAX];
 	struct perf_cpu_map *cpus;
-	const char *sysfs = sysfs__mountpoint();
 	const char *templates[] = {
-		CPUS_TEMPLATE_UNCORE,
-		CPUS_TEMPLATE_CPU,
+		"cpumask",
+		"cpus",
 		NULL
 	};
 	const char **template;
+	char pmu_name[PATH_MAX];
+	struct perf_pmu pmu = {.name = pmu_name};
+	FILE *file;
 
-	if (!sysfs)
-		return NULL;
-
+	strlcpy(pmu_name, name, sizeof(pmu_name));
 	for (template = templates; *template; template++) {
-		snprintf(path, PATH_MAX, *template, sysfs, name);
-		cpus = __pmu_cpumask(path);
+		file = perf_pmu__open_file(&pmu, *template);
+		if (!file)
+			continue;
+		cpus = perf_cpu_map__read(file);
 		if (cpus)
 			return cpus;
 	}
@@ -620,13 +606,11 @@ static struct perf_cpu_map *pmu_cpumask(const char *name)
 static bool pmu_is_uncore(const char *name)
 {
 	char path[PATH_MAX];
-	const char *sysfs;
 
 	if (perf_pmu__hybrid_mounted(name))
 		return false;
 
-	sysfs = sysfs__mountpoint();
-	snprintf(path, PATH_MAX, CPUS_TEMPLATE_UNCORE, sysfs, name);
+	perf_pmu__pathname_scnprintf(path, sizeof(path), name, "cpumask");
 	return file_available(path);
 }
 
@@ -1737,7 +1721,7 @@ bool pmu_have_event(const char *pname, const char *name)
 	return false;
 }
 
-static FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
+FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
 {
 	char path[PATH_MAX];
 
