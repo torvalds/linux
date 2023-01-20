@@ -407,16 +407,15 @@ static void __remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 static void remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_stripe_hash_table *table;
-	unsigned long flags;
 
 	if (!test_bit(RBIO_CACHE_BIT, &rbio->flags))
 		return;
 
 	table = rbio->bioc->fs_info->stripe_hash_table;
 
-	spin_lock_irqsave(&table->cache_lock, flags);
+	spin_lock(&table->cache_lock);
 	__remove_rbio_from_cache(rbio);
-	spin_unlock_irqrestore(&table->cache_lock, flags);
+	spin_unlock(&table->cache_lock);
 }
 
 /*
@@ -425,19 +424,18 @@ static void remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 static void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
 {
 	struct btrfs_stripe_hash_table *table;
-	unsigned long flags;
 	struct btrfs_raid_bio *rbio;
 
 	table = info->stripe_hash_table;
 
-	spin_lock_irqsave(&table->cache_lock, flags);
+	spin_lock(&table->cache_lock);
 	while (!list_empty(&table->stripe_cache)) {
 		rbio = list_entry(table->stripe_cache.next,
 				  struct btrfs_raid_bio,
 				  stripe_cache);
 		__remove_rbio_from_cache(rbio);
 	}
-	spin_unlock_irqrestore(&table->cache_lock, flags);
+	spin_unlock(&table->cache_lock);
 }
 
 /*
@@ -467,14 +465,13 @@ void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info)
 static void cache_rbio(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_stripe_hash_table *table;
-	unsigned long flags;
 
 	if (!test_bit(RBIO_CACHE_READY_BIT, &rbio->flags))
 		return;
 
 	table = rbio->bioc->fs_info->stripe_hash_table;
 
-	spin_lock_irqsave(&table->cache_lock, flags);
+	spin_lock(&table->cache_lock);
 	spin_lock(&rbio->bio_list_lock);
 
 	/* bump our ref if we were not in the list before */
@@ -501,7 +498,7 @@ static void cache_rbio(struct btrfs_raid_bio *rbio)
 			__remove_rbio_from_cache(found);
 	}
 
-	spin_unlock_irqrestore(&table->cache_lock, flags);
+	spin_unlock(&table->cache_lock);
 }
 
 /*
@@ -530,15 +527,14 @@ static void run_xor(void **pages, int src_cnt, ssize_t len)
  */
 static int rbio_is_full(struct btrfs_raid_bio *rbio)
 {
-	unsigned long flags;
 	unsigned long size = rbio->bio_list_bytes;
 	int ret = 1;
 
-	spin_lock_irqsave(&rbio->bio_list_lock, flags);
+	spin_lock(&rbio->bio_list_lock);
 	if (size != rbio->nr_data * BTRFS_STRIPE_LEN)
 		ret = 0;
 	BUG_ON(size > rbio->nr_data * BTRFS_STRIPE_LEN);
-	spin_unlock_irqrestore(&rbio->bio_list_lock, flags);
+	spin_unlock(&rbio->bio_list_lock);
 
 	return ret;
 }
@@ -657,14 +653,13 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 	struct btrfs_stripe_hash *h;
 	struct btrfs_raid_bio *cur;
 	struct btrfs_raid_bio *pending;
-	unsigned long flags;
 	struct btrfs_raid_bio *freeit = NULL;
 	struct btrfs_raid_bio *cache_drop = NULL;
 	int ret = 0;
 
 	h = rbio->bioc->fs_info->stripe_hash_table->table + rbio_bucket(rbio);
 
-	spin_lock_irqsave(&h->lock, flags);
+	spin_lock(&h->lock);
 	list_for_each_entry(cur, &h->hash_list, hash_list) {
 		if (cur->bioc->raid_map[0] != rbio->bioc->raid_map[0])
 			continue;
@@ -724,7 +719,7 @@ lockit:
 	refcount_inc(&rbio->refs);
 	list_add(&rbio->hash_list, &h->hash_list);
 out:
-	spin_unlock_irqrestore(&h->lock, flags);
+	spin_unlock(&h->lock);
 	if (cache_drop)
 		remove_rbio_from_cache(cache_drop);
 	if (freeit)
@@ -742,7 +737,6 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 {
 	int bucket;
 	struct btrfs_stripe_hash *h;
-	unsigned long flags;
 	int keep_cache = 0;
 
 	bucket = rbio_bucket(rbio);
@@ -751,7 +745,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 	if (list_empty(&rbio->plug_list))
 		cache_rbio(rbio);
 
-	spin_lock_irqsave(&h->lock, flags);
+	spin_lock(&h->lock);
 	spin_lock(&rbio->bio_list_lock);
 
 	if (!list_empty(&rbio->hash_list)) {
@@ -788,7 +782,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			list_add(&next->hash_list, &h->hash_list);
 			refcount_inc(&next->refs);
 			spin_unlock(&rbio->bio_list_lock);
-			spin_unlock_irqrestore(&h->lock, flags);
+			spin_unlock(&h->lock);
 
 			if (next->operation == BTRFS_RBIO_READ_REBUILD)
 				start_async_work(next, recover_rbio_work_locked);
@@ -808,7 +802,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 	}
 done:
 	spin_unlock(&rbio->bio_list_lock);
-	spin_unlock_irqrestore(&h->lock, flags);
+	spin_unlock(&h->lock);
 
 done_nolock:
 	if (!keep_cache)
@@ -891,16 +885,16 @@ static struct sector_ptr *sector_in_rbio(struct btrfs_raid_bio *rbio,
 	index = stripe_nr * rbio->stripe_nsectors + sector_nr;
 	ASSERT(index >= 0 && index < rbio->nr_sectors);
 
-	spin_lock_irq(&rbio->bio_list_lock);
+	spin_lock(&rbio->bio_list_lock);
 	sector = &rbio->bio_sectors[index];
 	if (sector->page || bio_list_only) {
 		/* Don't return sector without a valid page pointer */
 		if (!sector->page)
 			sector = NULL;
-		spin_unlock_irq(&rbio->bio_list_lock);
+		spin_unlock(&rbio->bio_list_lock);
 		return sector;
 	}
-	spin_unlock_irq(&rbio->bio_list_lock);
+	spin_unlock(&rbio->bio_list_lock);
 
 	return &rbio->stripe_sectors[index];
 }
@@ -1148,11 +1142,11 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 {
 	struct bio *bio;
 
-	spin_lock_irq(&rbio->bio_list_lock);
+	spin_lock(&rbio->bio_list_lock);
 	bio_list_for_each(bio, &rbio->bio_list)
 		index_one_bio(rbio, bio);
 
-	spin_unlock_irq(&rbio->bio_list_lock);
+	spin_unlock(&rbio->bio_list_lock);
 }
 
 static void bio_get_trace_info(struct btrfs_raid_bio *rbio, struct bio *bio,
@@ -1895,9 +1889,9 @@ static int recover_sectors(struct btrfs_raid_bio *rbio)
 
 	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
 	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
-		spin_lock_irq(&rbio->bio_list_lock);
+		spin_lock(&rbio->bio_list_lock);
 		set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
-		spin_unlock_irq(&rbio->bio_list_lock);
+		spin_unlock(&rbio->bio_list_lock);
 	}
 
 	index_rbio_pages(rbio);
@@ -2265,9 +2259,9 @@ static void rmw_rbio(struct btrfs_raid_bio *rbio)
 	 * bio list any more, anyone else that wants to change this stripe
 	 * needs to do their own rmw.
 	 */
-	spin_lock_irq(&rbio->bio_list_lock);
+	spin_lock(&rbio->bio_list_lock);
 	set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
-	spin_unlock_irq(&rbio->bio_list_lock);
+	spin_unlock(&rbio->bio_list_lock);
 
 	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 
