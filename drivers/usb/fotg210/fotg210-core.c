@@ -135,11 +135,7 @@ static int fotg210_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	fotg->dev = dev;
 
-	fotg->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!fotg->res)
-		return -ENODEV;
-
-	fotg->base = devm_ioremap_resource(dev, fotg->res);
+	fotg->base = devm_platform_get_and_ioremap_resource(pdev, 0, &fotg->res);
 	if (!fotg->base)
 		return -ENOMEM;
 
