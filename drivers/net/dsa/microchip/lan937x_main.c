@@ -15,6 +15,7 @@
 
 #include "lan937x_reg.h"
 #include "ksz_common.h"
+#include "ksz9477.h"
 #include "lan937x.h"
 
 static int lan937x_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
@@ -179,6 +180,9 @@ void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	if (cpu_port)
 		lan937x_port_cfg(dev, port, REG_PORT_CTRL_0,
 				 PORT_TAIL_TAG_ENABLE, true);
+
+	/* Enable the Port Queue split */
+	ksz9477_port_queue_split(dev, port);
 
 	/* set back pressure for half duplex */
 	lan937x_port_cfg(dev, port, REG_PORT_MAC_CTRL_1, PORT_BACK_PRESSURE,

@@ -49,6 +49,7 @@ struct ksz_chip_data {
 	int cpu_ports;
 	int port_cnt;
 	u8 port_nirqs;
+	u8 num_tx_queues;
 	const struct ksz_dev_ops *ops;
 	bool phy_errata_9477;
 	bool ksz87xx_eee_link_erratum;

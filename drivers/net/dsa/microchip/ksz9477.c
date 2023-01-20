@@ -980,6 +980,22 @@ int ksz9477_set_ageing_time(struct ksz_device *dev, unsigned int msecs)
 	return ksz_write8(dev, REG_SW_LUE_CTRL_0, value);
 }
 
+void ksz9477_port_queue_split(struct ksz_device *dev, int port)
+{
+	u8 data;
+
+	if (dev->info->num_tx_queues == 8)
+		data = PORT_EIGHT_QUEUE;
+	else if (dev->info->num_tx_queues == 4)
+		data = PORT_FOUR_QUEUE;
+	else if (dev->info->num_tx_queues == 2)
+		data = PORT_TWO_QUEUE;
+	else
+		data = PORT_SINGLE_QUEUE;
+
+	ksz_prmw8(dev, port, REG_PORT_CTRL_0, PORT_QUEUE_SPLIT_MASK, data);
+}
+
 void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	struct dsa_switch *ds = dev->ds;
@@ -990,6 +1006,8 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	if (cpu_port)
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_TAIL_TAG_ENABLE,
 			     true);
+
+	ksz9477_port_queue_split(dev, port);
 
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_MAC_LOOPBACK, false);
 
