@@ -533,6 +533,25 @@ static void um_pci_irq_vq_cb(struct virtqueue *vq)
 	}
 }
 
+/* Copied from arch/x86/kernel/devicetree.c */
+struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
+{
+	struct device_node *np;
+
+	for_each_node_by_type(np, "pci") {
+		const void *prop;
+		unsigned int bus_min;
+
+		prop = of_get_property(np, "bus-range", NULL);
+		if (!prop)
+			continue;
+		bus_min = be32_to_cpup(prop);
+		if (bus->number == bus_min)
+			return np;
+	}
+	return NULL;
+}
+
 static int um_pci_init_vqs(struct um_pci_device *dev)
 {
 	struct virtqueue *vqs[2];
