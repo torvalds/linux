@@ -1180,10 +1180,8 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	int i;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		pr_err("could not get irq\n");
-		return -ENODEV;
-	}
+	if (irq < 0)
+		return irq;
 
 	/* initialize udc */
 	fotg210 = kzalloc(sizeof(struct fotg210_udc), GFP_KERNEL);
