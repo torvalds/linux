@@ -367,6 +367,34 @@ struct pt_regs;
 #ifndef __PT_PARM8_REG
 #define __PT_PARM8_REG __unsupported__
 #endif
+/*
+ * Similarly, syscall-specific conventions might differ between function call
+ * conventions within each architecutre. All supported architectures pass
+ * either 6 or 7 syscall arguments in registers.
+ *
+ * See syscall(2) manpage for succinct table with information on each arch.
+ */
+#ifndef __PT_PARM1_SYSCALL_REG
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#endif
+#ifndef __PT_PARM2_SYSCALL_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#endif
+#ifndef __PT_PARM3_SYSCALL_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#endif
+#ifndef __PT_PARM4_SYSCALL_REG
+#define __PT_PARM4_SYSCALL_REG __PT_PARM4_REG
+#endif
+#ifndef __PT_PARM5_SYSCALL_REG
+#define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG
+#endif
+#ifndef __PT_PARM6_SYSCALL_REG
+#define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG
+#endif
+#ifndef __PT_PARM7_SYSCALL_REG
+#define __PT_PARM7_SYSCALL_REG __unsupported__
+#endif
 
 #define PT_REGS_PARM1(x) (__PT_REGS_CAST(x)->__PT_PARM1_REG)
 #define PT_REGS_PARM2(x) (__PT_REGS_CAST(x)->__PT_PARM2_REG)
@@ -416,24 +444,33 @@ struct pt_regs;
 #endif
 
 #ifndef PT_REGS_PARM1_SYSCALL
-#define PT_REGS_PARM1_SYSCALL(x) PT_REGS_PARM1(x)
+#define PT_REGS_PARM1_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM1_SYSCALL_REG)
+#define PT_REGS_PARM1_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM1_SYSCALL_REG)
 #endif
-#define PT_REGS_PARM2_SYSCALL(x) PT_REGS_PARM2(x)
-#define PT_REGS_PARM3_SYSCALL(x) PT_REGS_PARM3(x)
+#ifndef PT_REGS_PARM2_SYSCALL
+#define PT_REGS_PARM2_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM2_SYSCALL_REG)
+#define PT_REGS_PARM2_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM2_SYSCALL_REG)
+#endif
+#ifndef PT_REGS_PARM3_SYSCALL
+#define PT_REGS_PARM3_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM3_SYSCALL_REG)
+#define PT_REGS_PARM3_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM3_SYSCALL_REG)
+#endif
 #ifndef PT_REGS_PARM4_SYSCALL
-#define PT_REGS_PARM4_SYSCALL(x) PT_REGS_PARM4(x)
+#define PT_REGS_PARM4_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM4_SYSCALL_REG)
+#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM4_SYSCALL_REG)
 #endif
-#define PT_REGS_PARM5_SYSCALL(x) PT_REGS_PARM5(x)
-
-#ifndef PT_REGS_PARM1_CORE_SYSCALL
-#define PT_REGS_PARM1_CORE_SYSCALL(x) PT_REGS_PARM1_CORE(x)
+#ifndef PT_REGS_PARM5_SYSCALL
+#define PT_REGS_PARM5_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM5_SYSCALL_REG)
+#define PT_REGS_PARM5_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM5_SYSCALL_REG)
 #endif
-#define PT_REGS_PARM2_CORE_SYSCALL(x) PT_REGS_PARM2_CORE(x)
-#define PT_REGS_PARM3_CORE_SYSCALL(x) PT_REGS_PARM3_CORE(x)
-#ifndef PT_REGS_PARM4_CORE_SYSCALL
-#define PT_REGS_PARM4_CORE_SYSCALL(x) PT_REGS_PARM4_CORE(x)
+#ifndef PT_REGS_PARM6_SYSCALL
+#define PT_REGS_PARM6_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM6_SYSCALL_REG)
+#define PT_REGS_PARM6_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM6_SYSCALL_REG)
 #endif
-#define PT_REGS_PARM5_CORE_SYSCALL(x) PT_REGS_PARM5_CORE(x)
+#ifndef PT_REGS_PARM7_SYSCALL
+#define PT_REGS_PARM7_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM7_SYSCALL_REG)
+#define PT_REGS_PARM7_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM7_SYSCALL_REG)
+#endif
 
 #else /* defined(bpf_target_defined) */
 
@@ -473,12 +510,16 @@ struct pt_regs;
 #define PT_REGS_PARM3_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM4_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM5_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM6_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM7_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 
 #define PT_REGS_PARM1_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM2_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM3_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM4_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM5_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM6_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM7_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 
 #endif /* defined(bpf_target_defined) */
 
@@ -723,6 +764,8 @@ static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
 #define ___bpf_syscall_args3(x, args...) ___bpf_syscall_args2(args), (void *)PT_REGS_PARM3_SYSCALL(regs)
 #define ___bpf_syscall_args4(x, args...) ___bpf_syscall_args3(args), (void *)PT_REGS_PARM4_SYSCALL(regs)
 #define ___bpf_syscall_args5(x, args...) ___bpf_syscall_args4(args), (void *)PT_REGS_PARM5_SYSCALL(regs)
+#define ___bpf_syscall_args6(x, args...) ___bpf_syscall_args5(args), (void *)PT_REGS_PARM6_SYSCALL(regs)
+#define ___bpf_syscall_args7(x, args...) ___bpf_syscall_args6(args), (void *)PT_REGS_PARM7_SYSCALL(regs)
 #define ___bpf_syscall_args(args...)     ___bpf_apply(___bpf_syscall_args, ___bpf_narg(args))(args)
 
 /* If kernel doesn't have CONFIG_ARCH_HAS_SYSCALL_WRAPPER, we have to BPF_CORE_READ from pt_regs */
@@ -732,6 +775,8 @@ static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
 #define ___bpf_syswrap_args3(x, args...) ___bpf_syswrap_args2(args), (void *)PT_REGS_PARM3_CORE_SYSCALL(regs)
 #define ___bpf_syswrap_args4(x, args...) ___bpf_syswrap_args3(args), (void *)PT_REGS_PARM4_CORE_SYSCALL(regs)
 #define ___bpf_syswrap_args5(x, args...) ___bpf_syswrap_args4(args), (void *)PT_REGS_PARM5_CORE_SYSCALL(regs)
+#define ___bpf_syswrap_args6(x, args...) ___bpf_syswrap_args5(args), (void *)PT_REGS_PARM6_CORE_SYSCALL(regs)
+#define ___bpf_syswrap_args7(x, args...) ___bpf_syswrap_args6(args), (void *)PT_REGS_PARM7_CORE_SYSCALL(regs)
 #define ___bpf_syswrap_args(args...)     ___bpf_apply(___bpf_syswrap_args, ___bpf_narg(args))(args)
 
 /*
