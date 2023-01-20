@@ -109,9 +109,10 @@ EXPORT_SYMBOL(mdiobus_unregister_device);
 
 struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr)
 {
+	bool addr_valid = addr >= 0 && addr < ARRAY_SIZE(bus->mdio_map);
 	struct mdio_device *mdiodev;
 
-	if (addr < 0 || addr >= ARRAY_SIZE(bus->mdio_map))
+	if (WARN_ONCE(!addr_valid, "addr %d out of range\n", addr))
 		return NULL;
 
 	mdiodev = bus->mdio_map[addr];
