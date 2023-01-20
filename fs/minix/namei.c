@@ -230,7 +230,10 @@ static int minix_rename(struct user_namespace *mnt_userns,
 			inode_inc_link_count(new_dir);
 	}
 
-	minix_delete_entry(old_de, old_page);
+	err = minix_delete_entry(old_de, old_page);
+	if (err)
+		goto out_dir;
+
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
