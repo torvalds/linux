@@ -199,6 +199,14 @@ struct pt_regs___s390 {
 #define __PT_PARM2_REG uregs[1]
 #define __PT_PARM3_REG uregs[2]
 #define __PT_PARM4_REG uregs[3]
+
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#define __PT_PARM4_SYSCALL_REG __PT_PARM4_REG
+#define __PT_PARM6_SYSCALL_REG uregs[5]
+#define __PT_PARM7_SYSCALL_REG uregs[6]
+
 #define __PT_RET_REG uregs[14]
 #define __PT_FP_REG uregs[11]	/* Works only with CONFIG_FRAME_POINTER */
 #define __PT_RC_REG uregs[0]
