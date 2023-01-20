@@ -892,8 +892,8 @@ static void __init mtk_infrasys_init(struct device_node *node)
 			       ARRAY_SIZE(infra_clks), clk_data);
 	mtk_clk_register_factors(infra_divs, ARRAY_SIZE(infra_divs), clk_data);
 
-	mtk_clk_register_cpumuxes(node, cpu_muxes, ARRAY_SIZE(cpu_muxes),
-				  clk_data);
+	mtk_clk_register_cpumuxes(NULL, node, cpu_muxes,
+				  ARRAY_SIZE(cpu_muxes), clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)
