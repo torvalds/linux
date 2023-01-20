@@ -426,7 +426,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 						     0xf0) >> 4;
 		} else if (priv->epromtype == EEPROM_93C56) {
 
-			for (i = 0; i < 3; i++) {
+			for (i = 0; i < 14; i++) {
 				priv->tx_pwr_level_cck_a[i] =
 					 priv->EEPROMRfACCKChnl1TxPwLevel[0];
 				priv->tx_pwr_level_ofdm_24g_a[i] =
@@ -435,26 +435,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 					 priv->EEPROMRfCCCKChnl1TxPwLevel[0];
 				priv->tx_pwr_level_ofdm_24g_c[i] =
 					 priv->EEPROMRfCOfdmChnlTxPwLevel[0];
-			}
-			for (i = 3; i < 9; i++) {
-				priv->tx_pwr_level_cck_a[i]  =
-					 priv->EEPROMRfACCKChnl1TxPwLevel[1];
-				priv->tx_pwr_level_ofdm_24g_a[i] =
-					 priv->EEPROMRfAOfdmChnlTxPwLevel[1];
-				priv->tx_pwr_level_cck_c[i] =
-					 priv->EEPROMRfCCCKChnl1TxPwLevel[1];
-				priv->tx_pwr_level_ofdm_24g_c[i] =
-					 priv->EEPROMRfCOfdmChnlTxPwLevel[1];
-			}
-			for (i = 9; i < 14; i++) {
-				priv->tx_pwr_level_cck_a[i]  =
-					 priv->EEPROMRfACCKChnl1TxPwLevel[2];
-				priv->tx_pwr_level_ofdm_24g_a[i] =
-					 priv->EEPROMRfAOfdmChnlTxPwLevel[2];
-				priv->tx_pwr_level_cck_c[i] =
-					 priv->EEPROMRfCCCKChnl1TxPwLevel[2];
-				priv->tx_pwr_level_ofdm_24g_c[i] =
-					 priv->EEPROMRfCOfdmChnlTxPwLevel[2];
 			}
 			priv->legacy_ht_tx_pwr_diff =
 				 priv->eeprom_legacy_ht_tx_pwr_diff;
