@@ -594,14 +594,13 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 		powerlevelOFDM24G = priv->tx_pwr_level_ofdm_24g[channel - 1];
 	} else if (priv->epromtype == EEPROM_93C56) {
 		if (priv->rf_type == RF_1T2R) {
-			powerlevel = priv->tx_pwr_level_cck_c[channel - 1];
-			powerlevelOFDM24G = priv->tx_pwr_level_ofdm_24g_c[channel - 1];
+			powerlevel = 0;
+			powerlevelOFDM24G = 0;
 		} else if (priv->rf_type == RF_2T4R) {
-			powerlevel = priv->tx_pwr_level_cck_a[channel - 1];
-			powerlevelOFDM24G = priv->tx_pwr_level_ofdm_24g_a[channel - 1];
+			powerlevel = 0;
+			powerlevelOFDM24G = 0;
 
-			ant_pwr_diff = priv->tx_pwr_level_ofdm_24g_c[channel - 1]
-				       - priv->tx_pwr_level_ofdm_24g_a[channel - 1];
+			ant_pwr_diff = 0;
 
 			ant_pwr_diff &= 0xf;
 

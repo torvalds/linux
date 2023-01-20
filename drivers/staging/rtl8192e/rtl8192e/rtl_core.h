@@ -464,11 +464,7 @@ struct r8192_priv {
 
 	u32 mcs_tx_pwr_level_org_offset[6];
 	u8 tx_pwr_level_cck[14];
-	u8 tx_pwr_level_cck_a[14];
-	u8 tx_pwr_level_cck_c[14];
 	u8 tx_pwr_level_ofdm_24g[14];
-	u8 tx_pwr_level_ofdm_24g_a[14];
-	u8 tx_pwr_level_ofdm_24g_c[14];
 	u8 legacy_ht_tx_pwr_diff;
 	u8 antenna_tx_pwr_diff[3];
 
