@@ -1742,6 +1742,16 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 	return ret;
 }
 
+bool perf_pmu__file_exists(struct perf_pmu *pmu, const char *name)
+{
+	char path[PATH_MAX];
+
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), pmu->name, name))
+		return false;
+
+	return file_available(path);
+}
+
 static int perf_pmu__new_caps(struct list_head *list, char *name, char *value)
 {
 	struct perf_pmu_caps *caps = zalloc(sizeof(*caps));
