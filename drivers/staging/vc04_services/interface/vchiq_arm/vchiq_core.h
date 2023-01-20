@@ -10,8 +10,8 @@
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
 #include <linux/wait.h>
-#include <linux/raspberrypi/vchiq.h>
 
+#include "../../include/linux/raspberrypi/vchiq.h"
 #include "vchiq_cfg.h"
 
 /* Do this so that we can test-build the code on non-rpi systems */
