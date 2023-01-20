@@ -541,9 +541,10 @@
 #define _BXT_PHY0_BASE			0x6C000
 #define _BXT_PHY1_BASE			0x162000
 #define _BXT_PHY2_BASE			0x163000
-#define BXT_PHY_BASE(phy)		_PHY3((phy), _BXT_PHY0_BASE, \
-						     _BXT_PHY1_BASE, \
-						     _BXT_PHY2_BASE)
+#define BXT_PHY_BASE(phy)							\
+	 _PICK_EVEN_2RANGES(phy, 1,						\
+			    _BXT_PHY0_BASE, _BXT_PHY0_BASE,			\
+			    _BXT_PHY1_BASE, _BXT_PHY2_BASE)
 
 #define _BXT_PHY(phy, reg)						\
 	_MMIO(BXT_PHY_BASE(phy) - _BXT_PHY0_BASE + (reg))
@@ -566,13 +567,14 @@
 #define BXT_PHY_CTL(port)		_MMIO_PORT(port, _BXT_PHY_CTL_DDI_A, \
 							 _BXT_PHY_CTL_DDI_B)
 
-#define _PHY_CTL_FAMILY_EDP		0x64C80
 #define _PHY_CTL_FAMILY_DDI		0x64C90
+#define _PHY_CTL_FAMILY_EDP		0x64C80
 #define _PHY_CTL_FAMILY_DDI_C		0x64CA0
 #define   COMMON_RESET_DIS		(1 << 31)
-#define BXT_PHY_CTL_FAMILY(phy)		_MMIO_PHY3((phy), _PHY_CTL_FAMILY_DDI, \
-							  _PHY_CTL_FAMILY_EDP, \
-							  _PHY_CTL_FAMILY_DDI_C)
+#define BXT_PHY_CTL_FAMILY(phy)							\
+	 _MMIO(_PICK_EVEN_2RANGES(phy, 1,					\
+				  _PHY_CTL_FAMILY_DDI, _PHY_CTL_FAMILY_DDI,	\
+				  _PHY_CTL_FAMILY_EDP, _PHY_CTL_FAMILY_DDI_C))
 
 /* BXT PHY PLL registers */
 #define _PORT_PLL_A			0x46074
