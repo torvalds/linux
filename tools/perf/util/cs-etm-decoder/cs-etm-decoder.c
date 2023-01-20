@@ -644,6 +644,9 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	case OCSD_GEN_TRC_ELEM_CUSTOM:
 	case OCSD_GEN_TRC_ELEM_SYNC_MARKER:
 	case OCSD_GEN_TRC_ELEM_MEMTRANS:
+#if (OCSD_VER_NUM >= 0x010400)
+	case OCSD_GEN_TRC_ELEM_INSTRUMENTATION:
+#endif
 	default:
 		break;
 	}
