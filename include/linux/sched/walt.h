@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LINUX_SCHED_WALT_H
@@ -185,15 +185,11 @@ struct notifier_block;
 extern void core_ctl_notifier_register(struct notifier_block *n);
 extern void core_ctl_notifier_unregister(struct notifier_block *n);
 extern int core_ctl_set_boost(bool boost);
-
-extern int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason);
-extern int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason);
-extern int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason);
-extern int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason);
 extern void walt_set_cpus_taken(struct cpumask *set);
 extern void walt_unset_cpus_taken(struct cpumask *unset);
 extern cpumask_t walt_get_cpus_taken(void);
-
+extern int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason);
+extern int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason);
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
@@ -231,11 +227,11 @@ static inline void core_ctl_notifier_unregister(struct notifier_block *n)
 {
 }
 
-inline int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason)
+static inline int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason)
 {
 	return 0;
 }
-inline int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason)
+static inline int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason)
 {
 	return 0;
 }

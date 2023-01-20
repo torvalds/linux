@@ -376,7 +376,7 @@ static void update_halt_cpus(struct cpumask *cpus)
 }
 
 /* cpus will be modified */
-int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason)
+static int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason)
 {
 	int ret = 0;
 	cpumask_t requested_cpus;
@@ -416,7 +416,7 @@ int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason)
 EXPORT_SYMBOL(walt_pause_cpus);
 
 /* cpus will be modified */
-int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason)
+static int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason)
 {
 	int ret = 0;
 	cpumask_t requested_cpus;
