@@ -29,6 +29,7 @@
 #define MAX_XCP 8
 
 #define AMDGPU_XCP_MODE_NONE -1
+#define AMDGPU_XCP_MODE_TRANS -2
 
 #define AMDGPU_XCP_FL_NONE 0
 #define AMDGPU_XCP_FL_LOCKED (1 << 0)
