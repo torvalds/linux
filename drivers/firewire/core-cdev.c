@@ -826,12 +826,12 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 
 	if (a->length != fw_get_response_length(r->request)) {
 		ret = -EINVAL;
-		kfree(r->request);
+		fw_request_put(r->request);
 		goto out;
 	}
 	if (copy_from_user(r->data, u64_to_uptr(a->data), a->length)) {
 		ret = -EFAULT;
-		kfree(r->request);
+		fw_request_put(r->request);
 		goto out;
 	}
 	fw_send_response(r->card, r->request, a->rcode);
