@@ -1290,25 +1290,26 @@ int xe_bo_pin(struct xe_bo *bo)
 		return err;
 
 	/*
-	 * For pinned objects in on DGFX, we expect these objects to be in
-	 * contiguous VRAM memory. Required eviction / restore during suspend /
-	 * resume (force restore to same physical address).
+	 * For pinned objects in on DGFX, which are also in vram, we expect
+	 * these to be in contiguous VRAM memory. Required eviction / restore
+	 * during suspend / resume (force restore to same physical address).
 	 */
 	if (IS_DGFX(xe) && !(IS_ENABLED(CONFIG_DRM_XE_DEBUG) &&
 	    bo->flags & XE_BO_INTERNAL_TEST)) {
 		struct ttm_place *place = &(bo->placements[0]);
 		bool lmem;
 
-		XE_BUG_ON(!(place->flags & TTM_PL_FLAG_CONTIGUOUS));
-		XE_BUG_ON(!mem_type_is_vram(place->mem_type) && place->mem_type != XE_PL_STOLEN);
+		if (mem_type_is_vram(place->mem_type)) {
+			XE_BUG_ON(!(place->flags & TTM_PL_FLAG_CONTIGUOUS));
 
-		place->fpfn = (xe_bo_addr(bo, 0, PAGE_SIZE, &lmem) -
-			       vram_region_io_offset(bo)) >> PAGE_SHIFT;
-		place->lpfn = place->fpfn + (bo->size >> PAGE_SHIFT);
+			place->fpfn = (xe_bo_addr(bo, 0, PAGE_SIZE, &lmem) -
+				       vram_region_io_offset(bo)) >> PAGE_SHIFT;
+			place->lpfn = place->fpfn + (bo->size >> PAGE_SHIFT);
 
-		spin_lock(&xe->pinned.lock);
-		list_add_tail(&bo->pinned_link, &xe->pinned.kernel_bo_present);
-		spin_unlock(&xe->pinned.lock);
+			spin_lock(&xe->pinned.lock);
+			list_add_tail(&bo->pinned_link, &xe->pinned.kernel_bo_present);
+			spin_unlock(&xe->pinned.lock);
+		}
 	}
 
 	ttm_bo_pin(&bo->ttm);
@@ -1364,11 +1365,15 @@ void xe_bo_unpin(struct xe_bo *bo)
 
 	if (IS_DGFX(xe) && !(IS_ENABLED(CONFIG_DRM_XE_DEBUG) &&
 	    bo->flags & XE_BO_INTERNAL_TEST)) {
-		XE_BUG_ON(list_empty(&bo->pinned_link));
+		struct ttm_place *place = &(bo->placements[0]);
 
-		spin_lock(&xe->pinned.lock);
-		list_del_init(&bo->pinned_link);
-		spin_unlock(&xe->pinned.lock);
+		if (mem_type_is_vram(place->mem_type)) {
+			XE_BUG_ON(list_empty(&bo->pinned_link));
+
+			spin_lock(&xe->pinned.lock);
+			list_del_init(&bo->pinned_link);
+			spin_unlock(&xe->pinned.lock);
+		}
 	}
 
 	ttm_bo_unpin(&bo->ttm);
