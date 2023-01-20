@@ -1937,11 +1937,6 @@ static int am65_cpsw_init_cpts(struct am65_cpsw_common *common)
 		int ret = PTR_ERR(cpts);
 
 		of_node_put(node);
-		if (ret == -EOPNOTSUPP) {
-			dev_info(dev, "cpts disabled\n");
-			return 0;
-		}
-
 		dev_err(dev, "cpts create err %d\n", ret);
 		return ret;
 	}
