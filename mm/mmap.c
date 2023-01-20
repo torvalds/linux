@@ -2388,7 +2388,7 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
 			goto map_count_exceeded;
 
-		error = __split_vma(mm, vma, start, 0);
+		error = vmi__split_vma(vmi, mm, vma, start, 0);
 		if (error)
 			goto start_split_failed;
 
@@ -2409,7 +2409,7 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		if (next->vm_end > end) {
 			struct vm_area_struct *split;
 
-			error = __split_vma(mm, next, end, 1);
+			error = vmi__split_vma(vmi, mm, next, end, 1);
 			if (error)
 				goto end_split_failed;
 
