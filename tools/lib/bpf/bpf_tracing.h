@@ -245,11 +245,16 @@ struct pt_regs___arm64 {
 
 #elif defined(bpf_target_sparc)
 
+/*
+ * https://en.wikipedia.org/wiki/Calling_convention#SPARC
+ */
+
 #define __PT_PARM1_REG u_regs[UREG_I0]
 #define __PT_PARM2_REG u_regs[UREG_I1]
 #define __PT_PARM3_REG u_regs[UREG_I2]
 #define __PT_PARM4_REG u_regs[UREG_I3]
 #define __PT_PARM5_REG u_regs[UREG_I4]
+#define __PT_PARM6_REG u_regs[UREG_I5]
 #define __PT_RET_REG u_regs[UREG_I7]
 #define __PT_FP_REG __unsupported__
 #define __PT_RC_REG u_regs[UREG_I0]
