@@ -1227,6 +1227,39 @@ static struct page_state error_states[] = {
 #undef slab
 #undef reserved
 
+static void update_per_node_mf_stats(unsigned long pfn,
+				     enum mf_result result)
+{
+	int nid = MAX_NUMNODES;
+	struct memory_failure_stats *mf_stats = NULL;
+
+	nid = pfn_to_nid(pfn);
+	if (unlikely(nid < 0 || nid >= MAX_NUMNODES)) {
+		WARN_ONCE(1, "Memory failure: pfn=%#lx, invalid nid=%d", pfn, nid);
+		return;
+	}
+
+	mf_stats = &NODE_DATA(nid)->mf_stats;
+	switch (result) {
+	case MF_IGNORED:
+		++mf_stats->ignored;
+		break;
+	case MF_FAILED:
+		++mf_stats->failed;
+		break;
+	case MF_DELAYED:
+		++mf_stats->delayed;
+		break;
+	case MF_RECOVERED:
+		++mf_stats->recovered;
+		break;
+	default:
+		WARN_ONCE(1, "Memory failure: mf_result=%d is not properly handled", result);
+		break;
+	}
+	++mf_stats->total;
+}
+
 /*
  * "Dirty/Clean" indication is not 100% accurate due to the possibility of
  * setting PG_dirty outside page lock. See also comment above set_page_dirty().
@@ -1237,6 +1270,9 @@ static int action_result(unsigned long pfn, enum mf_action_page_type type,
 	trace_memory_failure_event(pfn, type, result);
 
 	num_poisoned_pages_inc(pfn);
+
+	update_per_node_mf_stats(pfn, result);
+
 	pr_err("%#lx: recovery action for %s: %s\n",
 		pfn, action_page_types[type], action_name[result]);
 
