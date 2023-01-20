@@ -3,6 +3,7 @@
 #
 # In-place tunneling
 
+BPF_FILE="test_tc_tunnel.bpf.o"
 # must match the port that the bpf program filters on
 readonly port=8000
 
@@ -196,7 +197,7 @@ verify_data
 # client can no longer connect
 ip netns exec "${ns1}" tc qdisc add dev veth1 clsact
 ip netns exec "${ns1}" tc filter add dev veth1 egress \
-	bpf direct-action object-file ./test_tc_tunnel.o \
+	bpf direct-action object-file ${BPF_FILE} \
 	section "encap_${tuntype}_${mac}"
 echo "test bpf encap without decap (expect failure)"
 server_listen
@@ -296,7 +297,7 @@ fi
 ip netns exec "${ns2}" ip link del dev testtun0
 ip netns exec "${ns2}" tc qdisc add dev veth2 clsact
 ip netns exec "${ns2}" tc filter add dev veth2 ingress \
-	bpf direct-action object-file ./test_tc_tunnel.o section decap
+	bpf direct-action object-file ${BPF_FILE} section decap
 echo "test bpf encap with bpf decap"
 client_connect
 verify_data

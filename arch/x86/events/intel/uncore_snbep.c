@@ -2891,6 +2891,7 @@ static bool hswep_has_limit_sbox(unsigned int device)
 		return false;
 
 	pci_read_config_dword(dev, HSWEP_PCU_CAPID4_OFFET, &capid4);
+	pci_dev_put(dev);
 	if (!hswep_get_chop(capid4))
 		return true;
 
@@ -4492,6 +4493,8 @@ static int sad_cfg_iio_topology(struct intel_uncore_type *type, u8 *sad_pmon_map
 		type->topology = NULL;
 	}
 
+	pci_dev_put(dev);
+
 	return ret;
 }
 
@@ -4856,6 +4859,8 @@ static int snr_uncore_mmio_map(struct intel_uncore_box *box,
 	addr |= (pci_dword & SNR_IMC_MMIO_MEM0_MASK) << 12;
 
 	addr += box_ctl;
+
+	pci_dev_put(pdev);
 
 	box->io_addr = ioremap(addr, type->mmio_map_size);
 	if (!box->io_addr) {

@@ -96,6 +96,17 @@ config CRYPTO_SHA3_ARM64
 	  Architecture: arm64 using:
 	  - ARMv8.2 Crypto Extensions
 
+config CRYPTO_SM3_NEON
+	tristate "Hash functions: SM3 (NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_SM3
+	help
+	  SM3 (ShangMi 3) secure hash function (OSCCA GM/T 0004-2012)
+
+	  Architecture: arm64 using:
+	  - NEON (Advanced SIMD) extensions
+
 config CRYPTO_SM3_ARM64_CE
 	tristate "Hash functions: SM3 (ARMv8.2 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
