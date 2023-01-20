@@ -966,7 +966,14 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 			return 0;
 
 		switch (FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1])) {
-		case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
+		/*
+		 * FIXME: We really should process
+		 * XE_GUC_ACTION_TLB_INVALIDATION_DONE here in the fast-path as
+		 * these critical for page fault performance. We currently can't
+		 * due to TLB invalidation done algorithm expecting the seqno
+		 * returned in-order. With some small changes to the algorithm
+		 * and locking we should be able to support out-of-order seqno.
+		 */
 		case XE_GUC_ACTION_REPORT_PAGE_FAULT_REQ_DESC:
 			break;	/* Process these in fast-path */
 		default:
