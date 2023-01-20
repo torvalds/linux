@@ -99,6 +99,12 @@ static void lock_graph_up(struct lock_graph *g)
 	closure_put(&g->g[--g->nr].trans->ref);
 }
 
+static noinline void lock_graph_pop_all(struct lock_graph *g)
+{
+	while (g->nr)
+		lock_graph_up(g);
+}
+
 static void lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
 {
 	closure_get(&trans->ref);
@@ -274,8 +280,26 @@ next:
 
 			b = &READ_ONCE(path->l[top->level].b)->c;
 
-			if (unlikely(IS_ERR_OR_NULL(b))) {
-				BUG_ON(!lock_graph_remove_non_waiters(&g));
+			if (IS_ERR_OR_NULL(b)) {
+				/*
+				 * If we get here, it means we raced with the
+				 * other thread updating its btree_path
+				 * structures - which means it can't be blocked
+				 * waiting on a lock:
+				 */
+				if (!lock_graph_remove_non_waiters(&g)) {
+					/*
+					 * If lock_graph_remove_non_waiters()
+					 * didn't do anything, it must be
+					 * because we're being called by debugfs
+					 * checking for lock cycles, which
+					 * invokes us on btree_transactions that
+					 * aren't actually waiting on anything.
+					 * Just bail out:
+					 */
+					lock_graph_pop_all(&g);
+				}
+
 				goto next;
 			}
 
