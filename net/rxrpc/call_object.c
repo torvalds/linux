@@ -294,7 +294,7 @@ static void rxrpc_put_call_slot(struct rxrpc_call *call)
 static int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
 {
 	struct rxrpc_local *local = call->local;
-	int ret = 0;
+	int ret = -ENOMEM;
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
