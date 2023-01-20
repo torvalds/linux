@@ -87,12 +87,23 @@ struct ems_pci_card {
  */
 #define EMS_PCI_CDR             (CDR_CBP | CDR_CLKOUT_MASK)
 
-#define EMS_PCI_V1_BASE_BAR     1
-#define EMS_PCI_V1_CONF_SIZE    4096 /* size of PITA control area */
-#define EMS_PCI_V2_BASE_BAR     2
-#define EMS_PCI_V2_CONF_SIZE    128 /* size of PLX control area */
-#define EMS_PCI_CAN_BASE_OFFSET 0x400 /* offset where the controllers starts */
-#define EMS_PCI_CAN_CTRL_SIZE   0x200 /* memory size for each controller */
+#define EMS_PCI_V1_BASE_BAR 1
+#define EMS_PCI_V1_CONF_BAR 0
+#define EMS_PCI_V1_CONF_SIZE 4096 /* size of PITA control area */
+#define EMS_PCI_V1_CAN_BASE_OFFSET 0x400 /* offset where the controllers start */
+#define EMS_PCI_V1_CAN_CTRL_SIZE 0x200 /* memory size for each controller */
+
+#define EMS_PCI_V2_BASE_BAR 2
+#define EMS_PCI_V2_CONF_BAR 0
+#define EMS_PCI_V2_CONF_SIZE 128 /* size of PLX control area */
+#define EMS_PCI_V2_CAN_BASE_OFFSET 0x400 /* offset where the controllers start */
+#define EMS_PCI_V2_CAN_CTRL_SIZE 0x200 /* memory size for each controller */
+
+#define EMS_PCI_V3_BASE_BAR 0
+#define EMS_PCI_V3_CONF_BAR 5
+#define EMS_PCI_V3_CONF_SIZE 128 /* size of ASIX control area */
+#define EMS_PCI_V3_CAN_BASE_OFFSET 0x00 /* offset where the controllers starts */
+#define EMS_PCI_V3_CAN_CTRL_SIZE 0x100 /* memory size for each controller */
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
@@ -225,7 +236,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	struct sja1000_priv *priv;
 	struct net_device *dev;
 	struct ems_pci_card *card;
-	int max_chan, conf_size, base_bar;
+	int max_chan, conf_size, base_bar, conf_bar;
 	int err, i;
 
 	/* Enabling PCI device */
@@ -247,20 +258,28 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 
 	card->channels = 0;
 
-	if (pdev->vendor == PCI_VENDOR_ID_PLX) {
+	if (pdev->vendor == PCI_VENDOR_ID_ASIX) {
+		card->version = 3; /* CPC-PCI v3 */
+		max_chan = EMS_PCI_V3_MAX_CHAN;
+		base_bar = EMS_PCI_V3_BASE_BAR;
+		conf_bar = EMS_PCI_V3_CONF_BAR;
+		conf_size = EMS_PCI_V3_CONF_SIZE;
+	} else if (pdev->vendor == PCI_VENDOR_ID_PLX) {
 		card->version = 2; /* CPC-PCI v2 */
 		max_chan = EMS_PCI_V2_MAX_CHAN;
 		base_bar = EMS_PCI_V2_BASE_BAR;
+		conf_bar = EMS_PCI_V2_CONF_BAR;
 		conf_size = EMS_PCI_V2_CONF_SIZE;
 	} else {
 		card->version = 1; /* CPC-PCI v1 */
 		max_chan = EMS_PCI_V1_MAX_CHAN;
 		base_bar = EMS_PCI_V1_BASE_BAR;
+		conf_bar = EMS_PCI_V1_CONF_BAR;
 		conf_size = EMS_PCI_V1_CONF_SIZE;
 	}
 
 	/* Remap configuration space and controller memory area */
-	card->conf_addr = pci_iomap(pdev, 0, conf_size);
+	card->conf_addr = pci_iomap(pdev, conf_bar, conf_size);
 	if (!card->conf_addr) {
 		err = -ENOMEM;
 		goto failure_cleanup;
