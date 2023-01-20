@@ -932,6 +932,7 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 		    && can_vma_merge_after(prev, vm_flags, anon_vma, file,
 				   pgoff, vm_userfaultfd_ctx, anon_name)) {
 			merge_prev = true;
+			vma_prev(vmi);
 		}
 	}
 	/* Can we merge the successor? */
@@ -1022,9 +1023,6 @@ struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 	vma_iter_free(vmi);
 	validate_mm(mm);
 	khugepaged_enter_vma(res, vm_flags);
-
-	if (res)
-		vma_iter_set(vmi, end);
 
 	return res;
 }
