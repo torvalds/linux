@@ -26,6 +26,7 @@
 #include "mib.h"
 
 #include <trace/events/mptcp.h>
+#include <trace/events/sock.h>
 
 static void mptcp_subflow_ops_undo_override(struct sock *ssk);
 
@@ -1437,6 +1438,8 @@ static void subflow_data_ready(struct sock *sk)
 	u16 state = 1 << inet_sk_state_load(sk);
 	struct sock *parent = subflow->conn;
 	struct mptcp_sock *msk;
+
+	trace_sk_data_ready(sk);
 
 	msk = mptcp_sk(parent);
 	if (state & TCPF_LISTEN) {

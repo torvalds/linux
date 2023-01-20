@@ -263,6 +263,30 @@ TRACE_EVENT(inet_sk_error_report,
 		  __entry->error)
 );
 
+TRACE_EVENT(sk_data_ready,
+
+	TP_PROTO(const struct sock *sk),
+
+	TP_ARGS(sk),
+
+	TP_STRUCT__entry(
+		__field(const void *, skaddr)
+		__field(__u16, family)
+		__field(__u16, protocol)
+		__field(unsigned long, ip)
+	),
+
+	TP_fast_assign(
+		__entry->skaddr = sk;
+		__entry->family = sk->sk_family;
+		__entry->protocol = sk->sk_protocol;
+		__entry->ip = _RET_IP_;
+	),
+
+	TP_printk("family=%u protocol=%u func=%ps",
+		  __entry->family, __entry->protocol, (void *)__entry->ip)
+);
+
 /*
  * sock send/recv msg length
  */

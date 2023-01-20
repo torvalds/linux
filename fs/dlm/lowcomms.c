@@ -54,6 +54,7 @@
 #include <net/ipv6.h>
 
 #include <trace/events/dlm.h>
+#include <trace/events/sock.h>
 
 #include "dlm_internal.h"
 #include "lowcomms.h"
@@ -499,6 +500,8 @@ static void lowcomms_data_ready(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
 
+	trace_sk_data_ready(sk);
+
 	set_bit(CF_RECV_INTR, &con->flags);
 	lowcomms_queue_rwork(con);
 }
@@ -530,6 +533,8 @@ static void lowcomms_state_change(struct sock *sk)
 
 static void lowcomms_listen_data_ready(struct sock *sk)
 {
+	trace_sk_data_ready(sk);
+
 	queue_work(io_workqueue, &listen_con.rwork);
 }
 

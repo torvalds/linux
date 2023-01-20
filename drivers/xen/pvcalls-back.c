@@ -14,6 +14,7 @@
 #include <net/inet_common.h>
 #include <net/inet_connection_sock.h>
 #include <net/request_sock.h>
+#include <trace/events/sock.h>
 
 #include <xen/events.h>
 #include <xen/grant_table.h>
@@ -299,6 +300,8 @@ static void pvcalls_sk_data_ready(struct sock *sock)
 {
 	struct sock_mapping *map = sock->sk_user_data;
 	struct pvcalls_ioworker *iow;
+
+	trace_sk_data_ready(sock);
 
 	if (map == NULL)
 		return;
@@ -587,6 +590,8 @@ static void pvcalls_pass_sk_data_ready(struct sock *sock)
 	struct xen_pvcalls_response *rsp;
 	unsigned long flags;
 	int notify;
+
+	trace_sk_data_ready(sock);
 
 	if (mappass == NULL)
 		return;
