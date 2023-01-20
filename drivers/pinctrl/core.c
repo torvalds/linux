@@ -325,7 +325,12 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 {
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_gpio_range *range = NULL;
-	struct gpio_chip *chip = gpio_to_chip(gpio);
+	/*
+	 * FIXME: "gpio" here is a number in the global GPIO numberspace.
+	 * get rid of this from the ranges eventually and get the GPIO
+	 * descriptor from the gpio_chip.
+	 */
+	struct gpio_chip *chip = gpiod_to_chip(gpio_to_desc(gpio));
 
 	if (WARN(!chip, "no gpio_chip for gpio%i?", gpio))
 		return false;
@@ -1657,7 +1662,12 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 			}
 		}
 		if (gpio_num >= 0)
-			chip = gpio_to_chip(gpio_num);
+			/*
+			 * FIXME: gpio_num comes from the global GPIO numberspace.
+			 * we need to get rid of the range->base eventually and
+			 * get the descriptor directly from the gpio_chip.
+			 */
+			chip = gpiod_to_chip(gpio_to_desc(gpio_num));
 		else
 			chip = NULL;
 		if (chip)
