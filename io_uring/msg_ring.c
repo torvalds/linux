@@ -58,6 +58,25 @@ void io_msg_ring_cleanup(struct io_kiocb *req)
 	msg->src_file = NULL;
 }
 
+static inline bool io_msg_need_remote(struct io_ring_ctx *target_ctx)
+{
+	if (!target_ctx->task_complete)
+		return false;
+	return current != target_ctx->submitter_task;
+}
+
+static int io_msg_exec_remote(struct io_kiocb *req, task_work_func_t func)
+{
+	struct io_ring_ctx *ctx = req->file->private_data;
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
+
+	init_task_work(&msg->tw, func);
+	if (task_work_add(ctx->submitter_task, &msg->tw, TWA_SIGNAL))
+		return -EOWNERDEAD;
+
+	return IOU_ISSUE_SKIP_COMPLETE;
+}
+
 static void io_msg_tw_complete(struct callback_head *head)
 {
 	struct io_msg *msg = container_of(head, struct io_msg, tw);
@@ -96,15 +115,8 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 	if (msg->src_fd || msg->dst_fd || msg->flags)
 		return -EINVAL;
 
-	if (target_ctx->task_complete && current != target_ctx->submitter_task) {
-		init_task_work(&msg->tw, io_msg_tw_complete);
-		if (task_work_add(target_ctx->submitter_task, &msg->tw,
-				  TWA_SIGNAL_NO_IPI))
-			return -EOWNERDEAD;
-
-		atomic_or(IORING_SQ_TASKRUN, &target_ctx->rings->sq_flags);
-		return IOU_ISSUE_SKIP_COMPLETE;
-	}
+	if (io_msg_need_remote(target_ctx))
+		return io_msg_exec_remote(req, io_msg_tw_complete);
 
 	ret = -EOVERFLOW;
 	if (target_ctx->flags & IORING_SETUP_IOPOLL) {
@@ -202,14 +214,8 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	}
 
-	if (target_ctx->task_complete && current != target_ctx->submitter_task) {
-		init_task_work(&msg->tw, io_msg_tw_fd_complete);
-		if (task_work_add(target_ctx->submitter_task, &msg->tw,
-				  TWA_SIGNAL))
-			return -EOWNERDEAD;
-
-		return IOU_ISSUE_SKIP_COMPLETE;
-	}
+	if (io_msg_need_remote(target_ctx))
+		return io_msg_exec_remote(req, io_msg_tw_fd_complete);
 	return io_msg_install_complete(req, issue_flags);
 }
 
