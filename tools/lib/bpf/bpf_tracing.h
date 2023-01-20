@@ -359,13 +359,21 @@ struct pt_regs___arm64 {
 #define __PT_PARM6_REG a5
 #define __PT_PARM7_REG a6
 #define __PT_PARM8_REG a7
+
+/* riscv does not select ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ctx
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#define __PT_PARM4_SYSCALL_REG __PT_PARM4_REG
+#define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG
+#define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG
+
 #define __PT_RET_REG ra
 #define __PT_FP_REG s0
 #define __PT_RC_REG a0
 #define __PT_SP_REG sp
 #define __PT_IP_REG pc
-/* riscv does not select ARCH_HAS_SYSCALL_WRAPPER. */
-#define PT_REGS_SYSCALL_REGS(ctx) ctx
 
 #elif defined(bpf_target_arc)
 
