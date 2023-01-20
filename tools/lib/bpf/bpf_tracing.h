@@ -265,6 +265,14 @@ struct pt_regs___arm64 {
 #define __PT_PARM6_REG regs[9]
 #define __PT_PARM7_REG regs[10]
 #define __PT_PARM8_REG regs[11]
+
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#define __PT_PARM4_SYSCALL_REG __PT_PARM4_REG
+#define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG /* only N32/N64 */
+#define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG /* only N32/N64 */
+
 #define __PT_RET_REG regs[31]
 #define __PT_FP_REG regs[30]	/* Works only with CONFIG_FRAME_POINTER */
 #define __PT_RC_REG regs[2]
