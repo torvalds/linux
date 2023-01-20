@@ -61,7 +61,6 @@
 
 &gpu {
 	mali-supply = <&buck6_reg>;
-	status = "okay";
 };
 
 &serial_2 {
