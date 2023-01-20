@@ -115,18 +115,13 @@ unsigned long __weak memory_block_size_bytes(void)
 }
 EXPORT_SYMBOL_GPL(memory_block_size_bytes);
 
-/*
- * Show the first physical section index (number) of this memory block.
- */
+/* Show the memory block ID, relative to the memory block size */
 static ssize_t phys_index_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct memory_block *mem = to_memory_block(dev);
-	unsigned long phys_index;
 
-	phys_index = mem->start_section_nr / sections_per_block;
-
-	return sysfs_emit(buf, "%08lx\n", phys_index);
+	return sysfs_emit(buf, "%08lx\n", memory_block_id(mem->start_section_nr));
 }
 
 /*
