@@ -13,6 +13,17 @@
 #define RSWITCH_MAX_NUM_QUEUES	128
 
 #define RSWITCH_NUM_PORTS	3
+#define rswitch_for_each_enabled_port(priv, i)		\
+	for (i = 0; i < RSWITCH_NUM_PORTS; i++)		\
+		if (priv->rdev[i]->disabled)		\
+			continue;			\
+		else
+
+#define rswitch_for_each_enabled_port_continue_reverse(priv, i)	\
+	for (i--; i >= 0; i--)					\
+		if (priv->rdev[i]->disabled)			\
+			continue;				\
+		else
 
 #define TX_RING_SIZE		1024
 #define RX_RING_SIZE		1024
@@ -938,6 +949,7 @@ struct rswitch_device {
 	struct rswitch_gwca_queue *tx_queue;
 	struct rswitch_gwca_queue *rx_queue;
 	u8 ts_tag;
+	bool disabled;
 
 	int port;
 	struct rswitch_etha *etha;

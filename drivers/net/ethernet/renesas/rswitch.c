@@ -1074,8 +1074,11 @@ static struct device_node *rswitch_get_port_node(struct rswitch_device *rdev)
 			port = NULL;
 			goto out;
 		}
-		if (index == rdev->etha->index)
+		if (index == rdev->etha->index) {
+			if (!of_device_is_available(port))
+				port = NULL;
 			break;
+		}
 	}
 
 out:
@@ -1106,7 +1109,7 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 
 	port = rswitch_get_port_node(rdev);
 	if (!port)
-		return -ENODEV;
+		return 0;	/* ignored */
 
 	err = of_get_phy_mode(port, &rdev->etha->phy_interface);
 	of_node_put(port);
@@ -1324,13 +1327,13 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 {
 	int i, err;
 
-	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
+	rswitch_for_each_enabled_port(priv, i) {
 		err = rswitch_ether_port_init_one(priv->rdev[i]);
 		if (err)
 			goto err_init_one;
 	}
 
-	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
+	rswitch_for_each_enabled_port(priv, i) {
 		err = rswitch_serdes_init(priv->rdev[i]);
 		if (err)
 			goto err_serdes;
@@ -1339,12 +1342,12 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 	return 0;
 
 err_serdes:
-	for (i--; i >= 0; i--)
+	rswitch_for_each_enabled_port_continue_reverse(priv, i)
 		rswitch_serdes_deinit(priv->rdev[i]);
 	i = RSWITCH_NUM_PORTS;
 
 err_init_one:
-	for (i--; i >= 0; i--)
+	rswitch_for_each_enabled_port_continue_reverse(priv, i)
 		rswitch_ether_port_deinit_one(priv->rdev[i]);
 
 	return err;
@@ -1608,6 +1611,7 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 	netif_napi_add(ndev, &rdev->napi, rswitch_poll);
 
 	port = rswitch_get_port_node(rdev);
+	rdev->disabled = !port;
 	err = of_get_ethdev_address(port, ndev);
 	of_node_put(port);
 	if (err) {
@@ -1707,16 +1711,16 @@ static int rswitch_init(struct rswitch_private *priv)
 	if (err)
 		goto err_ether_port_init_all;
 
-	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
+	rswitch_for_each_enabled_port(priv, i) {
 		err = register_netdev(priv->rdev[i]->ndev);
 		if (err) {
-			for (i--; i >= 0; i--)
+			rswitch_for_each_enabled_port_continue_reverse(priv, i)
 				unregister_netdev(priv->rdev[i]->ndev);
 			goto err_register_netdev;
 		}
 	}
 
-	for (i = 0; i < RSWITCH_NUM_PORTS; i++)
+	rswitch_for_each_enabled_port(priv, i)
 		netdev_info(priv->rdev[i]->ndev, "MAC address %pM\n",
 			    priv->rdev[i]->ndev->dev_addr);
 
