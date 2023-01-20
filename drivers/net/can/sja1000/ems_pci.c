@@ -172,6 +172,24 @@ static void ems_pci_v2_post_irq(const struct sja1000_priv *priv)
 	writel(PLX_ICSR_ENA_CLR, card->conf_addr + PLX_ICSR);
 }
 
+static u8 ems_pci_v3_read_reg(const struct sja1000_priv *priv, int port)
+{
+	return readb(priv->reg_base + port);
+}
+
+static void ems_pci_v3_write_reg(const struct sja1000_priv *priv,
+				 int port, u8 val)
+{
+	writeb(val, priv->reg_base + port);
+}
+
+static void ems_pci_v3_post_irq(const struct sja1000_priv *priv)
+{
+	struct ems_pci_card *card = (struct ems_pci_card *)priv->priv;
+
+	writel(ASIX_LINTSR_INT0AC, card->conf_addr + ASIX_LINTSR);
+}
+
 /* Check if a CAN controller is present at the specified location
  * by trying to set 'em into the PeliCAN mode
  */
@@ -330,10 +348,14 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			priv->read_reg  = ems_pci_v1_read_reg;
 			priv->write_reg = ems_pci_v1_write_reg;
 			priv->post_irq  = ems_pci_v1_post_irq;
-		} else {
+		} else if (card->version == 2) {
 			priv->read_reg  = ems_pci_v2_read_reg;
 			priv->write_reg = ems_pci_v2_write_reg;
 			priv->post_irq  = ems_pci_v2_post_irq;
+		} else {
+			priv->read_reg  = ems_pci_v3_read_reg;
+			priv->write_reg = ems_pci_v3_write_reg;
+			priv->post_irq  = ems_pci_v3_post_irq;
 		}
 
 		/* Check if channel is present */
