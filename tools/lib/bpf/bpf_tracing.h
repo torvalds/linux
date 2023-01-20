@@ -90,14 +90,22 @@
 #define __PT_PARM4_REG cx
 #define __PT_PARM5_REG r8
 #define __PT_PARM6_REG r9
+/*
+ * Syscall uses r10 for PARM4. See arch/x86/entry/entry_64.S:entry_SYSCALL_64
+ * comments in Linux sources. And refer to syscall(2) manpage.
+ */
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#define __PT_PARM4_SYSCALL_REG r10
+#define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG
+#define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG
+
 #define __PT_RET_REG sp
 #define __PT_FP_REG bp
 #define __PT_RC_REG ax
 #define __PT_SP_REG sp
 #define __PT_IP_REG ip
-/* syscall uses r10 for PARM4 */
-#define PT_REGS_PARM4_SYSCALL(x) ((x)->r10)
-#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(x, r10)
 
 #else
 
@@ -121,14 +129,19 @@
 #define __PT_PARM4_REG rcx
 #define __PT_PARM5_REG r8
 #define __PT_PARM6_REG r9
+
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#define __PT_PARM4_SYSCALL_REG r10
+#define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG
+#define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG
+
 #define __PT_RET_REG rsp
 #define __PT_FP_REG rbp
 #define __PT_RC_REG rax
 #define __PT_SP_REG rsp
 #define __PT_IP_REG rip
-/* syscall uses r10 for PARM4 */
-#define PT_REGS_PARM4_SYSCALL(x) ((x)->r10)
-#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(x, r10)
 
 #endif /* __i386__ */
 
