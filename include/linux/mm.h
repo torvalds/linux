@@ -2839,6 +2839,9 @@ static inline int vma_adjust(struct vma_iterator *vmi,
 {
 	return __vma_adjust(vmi, vma, start, end, pgoff, NULL);
 }
+extern int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
+		      unsigned long start, unsigned long end, pgoff_t pgoff,
+		      struct vm_area_struct *next);
 extern struct vm_area_struct *vma_merge(struct vma_iterator *vmi,
 	struct mm_struct *, struct vm_area_struct *prev, unsigned long addr,
 	unsigned long end, unsigned long vm_flags, struct anon_vma *,
