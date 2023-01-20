@@ -239,6 +239,7 @@ define_db845c(
         "sound/soc/qcom/qdsp6/snd-q6apm.ko",
         "sound/soc/qcom/qdsp6/snd-q6dsp-common.ko",
         "sound/soc/qcom/snd-soc-qcom-common.ko",
+        "sound/soc/qcom/snd-soc-qcom-sdw.ko",
         "sound/soc/qcom/snd-soc-sdm845.ko",
         "sound/soc/qcom/snd-soc-sm8250.ko",
     ],
