@@ -40,6 +40,10 @@ properties:
   interrupts:
     maxItems: 1
 
+  interrupt-controller: true
+  '#interrupt-cells':
+    const: 3
+
   clocks:
     maxItems: 1
 
