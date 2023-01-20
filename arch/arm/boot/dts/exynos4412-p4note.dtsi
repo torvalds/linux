@@ -132,8 +132,6 @@
 		precharge-current-microamp = <250000>;
 		charge-term-current-microamp = <250000>;
 		constant-charge-voltage-max-microvolt = <4200000>;
-
-		power-supplies = <&power_supply>;
 	};
 
 	i2c-gpio-1 {
