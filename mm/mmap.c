@@ -719,10 +719,12 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	}
 
 	if (start != vma->vm_start) {
-		if ((vma->vm_start < start) &&
-		    (!insert || (insert->vm_end != start))) {
-			vma_iter_clear(vmi, vma->vm_start, start);
-			VM_WARN_ON(insert && insert->vm_start > vma->vm_start);
+		if (vma->vm_start < start) {
+			if (!insert || (insert->vm_end != start)) {
+				vma_iter_clear(vmi, vma->vm_start, start);
+				vma_iter_set(vmi, start);
+				VM_WARN_ON(insert && insert->vm_start > vma->vm_start);
+			}
 		} else {
 			vma_changed = true;
 		}
