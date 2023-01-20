@@ -418,7 +418,7 @@ static int mlock_fixup(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		goto out;
 
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-	*prev = vmi_vma_merge(vmi, mm, *prev, start, end, newflags,
+	*prev = vma_merge(vmi, mm, *prev, start, end, newflags,
 			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
 			vma->vm_userfaultfd_ctx, anon_vma_name(vma));
 	if (*prev) {
@@ -427,13 +427,13 @@ static int mlock_fixup(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	}
 
 	if (start != vma->vm_start) {
-		ret = vmi_split_vma(vmi, mm, vma, start, 1);
+		ret = split_vma(vmi, vma, start, 1);
 		if (ret)
 			goto out;
 	}
 
 	if (end != vma->vm_end) {
-		ret = vmi_split_vma(vmi, mm, vma, end, 0);
+		ret = split_vma(vmi, vma, end, 0);
 		if (ret)
 			goto out;
 	}

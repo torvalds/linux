@@ -1010,7 +1010,7 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
  * parameter) may establish ptes with the wrong permissions of NNNN
  * instead of the right permissions of XXXX.
  */
-struct vm_area_struct *vma_merge(struct mm_struct *mm,
+struct vm_area_struct *vma_merge(struct vma_iterator *vmi, struct mm_struct *mm,
 			struct vm_area_struct *prev, unsigned long addr,
 			unsigned long end, unsigned long vm_flags,
 			struct anon_vma *anon_vma, struct file *file,
@@ -1019,7 +1019,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 			struct anon_vma_name *anon_name)
 {
 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
-	struct vm_area_struct *mid, *next, *res;
+	struct vm_area_struct *mid, *next, *res = NULL;
 	int err = -1;
 	bool merge_prev = false;
 	bool merge_next = false;
@@ -1085,26 +1085,11 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	if (err)
 		return NULL;
 	khugepaged_enter_vma(res, vm_flags);
-	return res;
-}
 
-struct vm_area_struct *vmi_vma_merge(struct vma_iterator *vmi,
-			struct mm_struct *mm,
-			struct vm_area_struct *prev, unsigned long addr,
-			unsigned long end, unsigned long vm_flags,
-			struct anon_vma *anon_vma, struct file *file,
-			pgoff_t pgoff, struct mempolicy *policy,
-			struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-			struct anon_vma_name *anon_name)
-{
-	struct vm_area_struct *tmp;
-
-	tmp = vma_merge(mm, prev, addr, end, vm_flags, anon_vma, file, pgoff,
-			policy, vm_userfaultfd_ctx, anon_name);
-	if (tmp)
+	if (res)
 		vma_iter_set(vmi, end);
 
-	return tmp;
+	return res;
 }
 
 /*
@@ -2228,12 +2213,14 @@ static void unmap_region(struct mm_struct *mm, struct maple_tree *mt,
  * __split_vma() bypasses sysctl_max_map_count checking.  We use this where it
  * has already been checked or doesn't make sense to fail.
  */
-int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+int __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		unsigned long addr, int new_below)
 {
 	struct vm_area_struct *new;
 	int err;
-	validate_mm_mt(mm);
+	unsigned long end = vma->vm_end;
+
+	validate_mm_mt(vma->vm_mm);
 
 	if (vma->vm_ops && vma->vm_ops->may_split) {
 		err = vma->vm_ops->may_split(vma, addr);
@@ -2273,8 +2260,10 @@ int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
 
 	/* Success. */
-	if (!err)
+	if (!err) {
+		vma_iter_set(vmi, end);
 		return 0;
+	}
 
 	/* Avoid vm accounting in close() operation */
 	new->vm_start = new->vm_end;
@@ -2289,46 +2278,21 @@ int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	mpol_put(vma_policy(new));
  out_free_vma:
 	vm_area_free(new);
-	validate_mm_mt(mm);
+	validate_mm_mt(vma->vm_mm);
 	return err;
-}
-int vmi__split_vma(struct vma_iterator *vmi, struct mm_struct *mm,
-		   struct vm_area_struct *vma, unsigned long addr, int new_below)
-{
-	int ret;
-	unsigned long end = vma->vm_end;
-
-	ret = __split_vma(mm, vma, addr, new_below);
-	if (!ret)
-		vma_iter_set(vmi, end);
-
-	return ret;
 }
 
 /*
  * Split a vma into two pieces at address 'addr', a new vma is allocated
  * either for the first part or the tail.
  */
-int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	      unsigned long addr, int new_below)
 {
-	if (mm->map_count >= sysctl_max_map_count)
+	if (vma->vm_mm->map_count >= sysctl_max_map_count)
 		return -ENOMEM;
 
-	return __split_vma(mm, vma, addr, new_below);
-}
-
-int vmi_split_vma(struct vma_iterator *vmi, struct mm_struct *mm,
-		  struct vm_area_struct *vma, unsigned long addr, int new_below)
-{
-	int ret;
-	unsigned long end = vma->vm_end;
-
-	ret = split_vma(mm, vma, addr, new_below);
-	if (!ret)
-		vma_iter_set(vmi, end);
-
-	return ret;
+	return __split_vma(vmi, vma, addr, new_below);
 }
 
 static inline int munmap_sidetree(struct vm_area_struct *vma,
@@ -2388,7 +2352,7 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
 			goto map_count_exceeded;
 
-		error = vmi__split_vma(vmi, mm, vma, start, 0);
+		error = __split_vma(vmi, vma, start, 0);
 		if (error)
 			goto start_split_failed;
 
@@ -2409,7 +2373,7 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		if (next->vm_end > end) {
 			struct vm_area_struct *split;
 
-			error = vmi__split_vma(vmi, mm, next, end, 1);
+			error = __split_vma(vmi, next, end, 1);
 			if (error)
 				goto end_split_failed;
 
@@ -2690,9 +2654,10 @@ cannot_expand:
 		 * vma again as we may succeed this time.
 		 */
 		if (unlikely(vm_flags != vma->vm_flags && prev)) {
-			merge = vmi_vma_merge(&vmi, mm, prev, vma->vm_start,
-				vma->vm_end, vma->vm_flags, NULL, vma->vm_file,
-				vma->vm_pgoff, NULL, NULL_VM_UFFD_CTX, NULL);
+			merge = vma_merge(&vmi, mm, prev, vma->vm_start,
+				    vma->vm_end, vma->vm_flags, NULL,
+				    vma->vm_file, vma->vm_pgoff, NULL,
+				    NULL_VM_UFFD_CTX, NULL);
 			if (merge) {
 				/*
 				 * ->mmap() can change vma->vm_file and fput
@@ -3249,7 +3214,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	if (new_vma && new_vma->vm_start < addr + len)
 		return NULL;	/* should never get here */
 
-	new_vma = vmi_vma_merge(&vmi, mm, prev, addr, addr + len, vma->vm_flags,
+	new_vma = vma_merge(&vmi, mm, prev, addr, addr + len, vma->vm_flags,
 			    vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
 			    vma->vm_userfaultfd_ctx, anon_vma_name(vma));
 	if (new_vma) {

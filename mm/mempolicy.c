@@ -810,7 +810,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 
 		pgoff = vma->vm_pgoff +
 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
-		prev = vmi_vma_merge(&vmi, mm, prev, vmstart, vmend, vma->vm_flags,
+		prev = vma_merge(&vmi, mm, prev, vmstart, vmend, vma->vm_flags,
 				 vma->anon_vma, vma->vm_file, pgoff,
 				 new_pol, vma->vm_userfaultfd_ctx,
 				 anon_vma_name(vma));
@@ -819,12 +819,12 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 			goto replace;
 		}
 		if (vma->vm_start != vmstart) {
-			err = vmi_split_vma(&vmi, vma->vm_mm, vma, vmstart, 1);
+			err = split_vma(&vmi, vma, vmstart, 1);
 			if (err)
 				goto out;
 		}
 		if (vma->vm_end != vmend) {
-			err = vmi_split_vma(&vmi, vma->vm_mm, vma, vmend, 0);
+			err = split_vma(&vmi, vma, vmend, 0);
 			if (err)
 				goto out;
 		}

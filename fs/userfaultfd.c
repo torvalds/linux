@@ -909,7 +909,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 			continue;
 		}
 		new_flags = vma->vm_flags & ~__VM_UFFD_FLAGS;
-		prev = vmi_vma_merge(&vmi, mm, prev, vma->vm_start, vma->vm_end,
+		prev = vma_merge(&vmi, mm, prev, vma->vm_start, vma->vm_end,
 				 new_flags, vma->anon_vma,
 				 vma->vm_file, vma->vm_pgoff,
 				 vma_policy(vma),
@@ -1452,7 +1452,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		vma_end = min(end, vma->vm_end);
 
 		new_flags = (vma->vm_flags & ~__VM_UFFD_FLAGS) | vm_flags;
-		prev = vmi_vma_merge(&vmi, mm, prev, start, vma_end, new_flags,
+		prev = vma_merge(&vmi, mm, prev, start, vma_end, new_flags,
 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
 				 vma_policy(vma),
 				 ((struct vm_userfaultfd_ctx){ ctx }),
@@ -1463,12 +1463,12 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 			goto next;
 		}
 		if (vma->vm_start < start) {
-			ret = vmi_split_vma(&vmi, mm, vma, start, 1);
+			ret = split_vma(&vmi, vma, start, 1);
 			if (ret)
 				break;
 		}
 		if (vma->vm_end > end) {
-			ret = vmi_split_vma(&vmi, mm, vma, end, 0);
+			ret = split_vma(&vmi, vma, end, 0);
 			if (ret)
 				break;
 		}
@@ -1632,7 +1632,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 			uffd_wp_range(mm, vma, start, vma_end - start, false);
 
 		new_flags = vma->vm_flags & ~__VM_UFFD_FLAGS;
-		prev = vmi_vma_merge(&vmi, mm, prev, start, vma_end, new_flags,
+		prev = vma_merge(&vmi, mm, prev, start, vma_end, new_flags,
 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
 				 vma_policy(vma),
 				 NULL_VM_UFFD_CTX, anon_vma_name(vma));
@@ -1641,12 +1641,12 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 			goto next;
 		}
 		if (vma->vm_start < start) {
-			ret = vmi_split_vma(&vmi, mm, vma, start, 1);
+			ret = split_vma(&vmi, vma, start, 1);
 			if (ret)
 				break;
 		}
 		if (vma->vm_end > end) {
-			ret = vmi_split_vma(&vmi, mm, vma, end, 0);
+			ret = split_vma(&vmi, vma, end, 0);
 			if (ret)
 				break;
 		}

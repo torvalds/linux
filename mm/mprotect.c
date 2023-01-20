@@ -642,7 +642,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	 * First try to merge with previous and/or next vma.
 	 */
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-	*pprev = vmi_vma_merge(vmi, mm, *pprev, start, end, newflags,
+	*pprev = vma_merge(vmi, mm, *pprev, start, end, newflags,
 			   vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
 			   vma->vm_userfaultfd_ctx, anon_vma_name(vma));
 	if (*pprev) {
@@ -654,13 +654,13 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	*pprev = vma;
 
 	if (start != vma->vm_start) {
-		error = vmi_split_vma(vmi, mm, vma, start, 1);
+		error = split_vma(vmi, vma, start, 1);
 		if (error)
 			goto fail;
 	}
 
 	if (end != vma->vm_end) {
-		error = vmi_split_vma(vmi, mm, vma, end, 0);
+		error = split_vma(vmi, vma, end, 0);
 		if (error)
 			goto fail;
 	}

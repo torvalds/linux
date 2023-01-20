@@ -1043,12 +1043,10 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 			 * when a vma would be actually removed due to a merge.
 			 */
 			if (!vma->vm_ops || !vma->vm_ops->close) {
-				vma = vmi_vma_merge(&vmi, mm, vma,
-				       extension_start, extension_end,
-				       vma->vm_flags, vma->anon_vma,
-				       vma->vm_file, extension_pgoff,
-				       vma_policy(vma), vma->vm_userfaultfd_ctx,
-				       anon_vma_name(vma));
+				vma = vma_merge(&vmi, mm, vma, extension_start,
+					extension_end, vma->vm_flags, vma->anon_vma,
+					vma->vm_file, extension_pgoff, vma_policy(vma),
+					vma->vm_userfaultfd_ctx, anon_vma_name(vma));
 			} else if (vma_adjust(vma, vma->vm_start, addr + new_len,
 				   vma->vm_pgoff, NULL)) {
 				vma = NULL;
