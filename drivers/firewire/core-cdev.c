@@ -651,7 +651,7 @@ static void release_request(struct client *client,
 			struct inbound_transaction_resource, resource);
 
 	if (r->is_fcp)
-		kfree(r->data);
+		fw_request_put(r->request);
 	else
 		fw_send_response(r->card, r->request, RCODE_CONFLICT_ERROR);
 
@@ -669,11 +669,15 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	struct inbound_transaction_resource *r;
 	struct inbound_transaction_event *e;
 	size_t event_size0;
-	void *fcp_frame = NULL;
 	int ret;
 
 	/* card may be different from handler->client->device->card */
 	fw_card_get(card);
+
+	// Extend the lifetime of data for request so that its payload is safely accessible in
+	// the process context for the client.
+	if (is_fcp)
+		fw_request_get(request);
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
@@ -685,18 +689,6 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	r->is_fcp  = is_fcp;
 	r->data    = payload;
 	r->length  = length;
-
-	if (is_fcp) {
-		/*
-		 * FIXME: Let core-transaction.c manage a
-		 * single reference-counted copy?
-		 */
-		fcp_frame = kmemdup(payload, length, GFP_ATOMIC);
-		if (fcp_frame == NULL)
-			goto failed;
-
-		r->data = fcp_frame;
-	}
 
 	r->resource.release = release_request;
 	ret = add_client_resource(handler->client, &r->resource, GFP_ATOMIC);
@@ -739,10 +731,11 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
  failed:
 	kfree(r);
 	kfree(e);
-	kfree(fcp_frame);
 
 	if (!is_fcp)
 		fw_send_response(card, request, RCODE_CONFLICT_ERROR);
+	else
+		fw_request_put(request);
 
 	fw_card_put(card);
 }
@@ -818,7 +811,7 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 	r = container_of(resource, struct inbound_transaction_resource,
 			 resource);
 	if (r->is_fcp) {
-		kfree(r->data);
+		fw_request_put(r->request);
 		goto out;
 	}
 
