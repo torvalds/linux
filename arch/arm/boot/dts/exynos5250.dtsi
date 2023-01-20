@@ -390,7 +390,7 @@
 			reg = <0x122F0000 0x1ff>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_SATA>, <&clock CLK_SCLK_SATA>;
-			clock-names = "sata", "sclk_sata";
+			clock-names = "sata", "pclk";
 			phys = <&sata_phy>;
 			phy-names = "sata-phy";
 			ports-implemented = <0x1>;
