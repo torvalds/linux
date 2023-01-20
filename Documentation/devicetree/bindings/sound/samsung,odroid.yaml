@@ -43,9 +43,10 @@ properties:
     type: object
     properties:
       sound-dai:
+        minItems: 1
         items:
-          - description: phandle of the MAX98090 CODEC
           - description: phandle of the HDMI IP block node
+          - description: phandle of the MAX98090 CODEC
 
   samsung,audio-routing:
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
