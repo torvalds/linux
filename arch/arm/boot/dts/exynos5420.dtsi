@@ -42,7 +42,7 @@
 	 * by exynos5420-cpus.dtsi or exynos5422-cpus.dtsi.
 	 */
 
-	cluster_a15_opp_table: opp-table0 {
+	cluster_a15_opp_table: opp-table-0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -108,7 +108,7 @@
 		};
 	};
 
-	cluster_a7_opp_table: opp-table1 {
+	cluster_a7_opp_table: opp-table-1 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
