@@ -3,6 +3,7 @@
 #include <linux/clk.h>
 #include <linux/of_clk.h>
 #include <linux/minmax.h>
+#include <linux/of_address.h>
 #include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -182,6 +183,31 @@ simplefb_get_format_of(struct drm_device *dev, struct device_node *of_node)
 	if (ret)
 		return ERR_PTR(ret);
 	return simplefb_get_validated_format(dev, format);
+}
+
+static struct resource *
+simplefb_get_memory_of(struct drm_device *dev, struct device_node *of_node)
+{
+	struct device_node *np;
+	struct resource *res;
+	int err;
+
+	np = of_parse_phandle(of_node, "memory-region", 0);
+	if (!np)
+		return NULL;
+
+	res = devm_kzalloc(dev->dev, sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return ERR_PTR(-ENOMEM);
+
+	err = of_address_to_resource(np, 0, res);
+	if (err)
+		return ERR_PTR(err);
+
+	if (of_get_property(of_node, "reg", NULL))
+		drm_warn(dev, "preferring \"memory-region\" over \"reg\" property\n");
+
+	return res;
 }
 
 /*
@@ -604,8 +630,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	struct drm_device *dev;
 	int width, height, stride;
 	const struct drm_format_info *format;
-	struct resource *res, *mem;
-	void __iomem *screen_base;
+	struct resource *res, *mem = NULL;
 	struct drm_plane *primary_plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
@@ -657,6 +682,9 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 		format = simplefb_get_format_of(dev, of_node);
 		if (IS_ERR(format))
 			return ERR_CAST(format);
+		mem = simplefb_get_memory_of(dev, of_node);
+		if (IS_ERR(mem))
+			return ERR_CAST(mem);
 	} else {
 		drm_err(dev, "no simplefb configuration found\n");
 		return ERR_PTR(-ENODEV);
@@ -679,32 +707,55 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	 * Memory management
 	 */
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return ERR_PTR(-EINVAL);
+	if (mem) {
+		void *screen_base;
 
-	ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
-	if (ret) {
-		drm_err(dev, "could not acquire memory range %pr: error %d\n", res, ret);
-		return ERR_PTR(ret);
+		ret = devm_aperture_acquire_from_firmware(dev, mem->start, resource_size(mem));
+		if (ret) {
+			drm_err(dev, "could not acquire memory range %pr: %d\n", mem, ret);
+			return ERR_PTR(ret);
+		}
+
+		drm_dbg(dev, "using system memory framebuffer at %pr\n", mem);
+
+		screen_base = devm_memremap(dev->dev, mem->start, resource_size(mem), MEMREMAP_WC);
+		if (!screen_base)
+			return ERR_PTR(-ENOMEM);
+
+		iosys_map_set_vaddr(&sdev->screen_base, screen_base);
+	} else {
+		void __iomem *screen_base;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return ERR_PTR(-EINVAL);
+
+		ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
+		if (ret) {
+			drm_err(dev, "could not acquire memory range %pr: %d\n", &res, ret);
+			return ERR_PTR(ret);
+		}
+
+		drm_dbg(dev, "using I/O memory framebuffer at %pr\n", res);
+
+		mem = devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
+					      drv->name);
+		if (!mem) {
+			/*
+			 * We cannot make this fatal. Sometimes this comes from magic
+			 * spaces our resource handlers simply don't know about. Use
+			 * the I/O-memory resource as-is and try to map that instead.
+			 */
+			drm_warn(dev, "could not acquire memory region %pr\n", res);
+			mem = res;
+		}
+
+		screen_base = devm_ioremap_wc(&pdev->dev, mem->start, resource_size(mem));
+		if (!screen_base)
+			return ERR_PTR(-ENOMEM);
+
+		iosys_map_set_vaddr_iomem(&sdev->screen_base, screen_base);
 	}
-
-	mem = devm_request_mem_region(&pdev->dev, res->start, resource_size(res), drv->name);
-	if (!mem) {
-		/*
-		 * We cannot make this fatal. Sometimes this comes from magic
-		 * spaces our resource handlers simply don't know about. Use
-		 * the I/O-memory resource as-is and try to map that instead.
-		 */
-		drm_warn(dev, "could not acquire memory region %pr\n", res);
-		mem = res;
-	}
-
-	screen_base = devm_ioremap_wc(&pdev->dev, mem->start, resource_size(mem));
-	if (!screen_base)
-		return ERR_PTR(-ENOMEM);
-
-	iosys_map_set_vaddr_iomem(&sdev->screen_base, screen_base);
 
 	/*
 	 * Modesetting
