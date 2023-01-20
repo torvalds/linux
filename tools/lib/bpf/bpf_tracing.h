@@ -423,13 +423,21 @@ struct pt_regs___arm64 {
 #define __PT_PARM6_REG regs[9]
 #define __PT_PARM7_REG regs[10]
 #define __PT_PARM8_REG regs[11]
+
+/* loongarch does not select ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ctx
+#define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
+#define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
+#define __PT_PARM3_SYSCALL_REG __PT_PARM3_REG
+#define __PT_PARM4_SYSCALL_REG __PT_PARM4_REG
+#define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG
+#define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG
+
 #define __PT_RET_REG regs[1]
 #define __PT_FP_REG regs[22]
 #define __PT_RC_REG regs[4]
 #define __PT_SP_REG regs[3]
 #define __PT_IP_REG csr_era
-/* loongarch does not select ARCH_HAS_SYSCALL_WRAPPER. */
-#define PT_REGS_SYSCALL_REGS(ctx) ctx
 
 #endif
 
