@@ -8324,7 +8324,7 @@ int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *a
 	found_all = kallsyms_on_each_symbol(kallsyms_callback, &args);
 	if (found_all)
 		return 0;
-	found_all = module_kallsyms_on_each_symbol(kallsyms_callback, &args);
+	found_all = module_kallsyms_on_each_symbol(NULL, kallsyms_callback, &args);
 	return found_all ? 0 : -ESRCH;
 }
 

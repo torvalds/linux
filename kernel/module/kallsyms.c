@@ -494,7 +494,8 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 	return ret;
 }
 
-int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
+int module_kallsyms_on_each_symbol(const char *modname,
+				   int (*fn)(void *, const char *,
 					     struct module *, unsigned long),
 				   void *data)
 {
@@ -507,6 +508,9 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 		struct mod_kallsyms *kallsyms;
 
 		if (mod->state == MODULE_STATE_UNFORMED)
+			continue;
+
+		if (modname && strcmp(modname, mod->name))
 			continue;
 
 		/* Use rcu_dereference_sched() to remain compliant with the sparse tool */
@@ -525,6 +529,13 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 			if (ret != 0)
 				goto out;
 		}
+
+		/*
+		 * The given module is found, the subsequent modules do not
+		 * need to be compared.
+		 */
+		if (modname)
+			break;
 	}
 out:
 	mutex_unlock(&module_mutex);
