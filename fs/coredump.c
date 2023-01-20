@@ -1111,14 +1111,14 @@ whole:
  * Helper function for iterating across a vma list.  It ensures that the caller
  * will visit `gate_vma' prior to terminating the search.
  */
-static struct vm_area_struct *coredump_next_vma(struct ma_state *mas,
+static struct vm_area_struct *coredump_next_vma(struct vma_iterator *vmi,
 				       struct vm_area_struct *vma,
 				       struct vm_area_struct *gate_vma)
 {
 	if (gate_vma && (vma == gate_vma))
 		return NULL;
 
-	vma = mas_next(mas, ULONG_MAX);
+	vma = vma_next(vmi);
 	if (vma)
 		return vma;
 	return gate_vma;
@@ -1146,7 +1146,7 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 {
 	struct vm_area_struct *gate_vma, *vma = NULL;
 	struct mm_struct *mm = current->mm;
-	MA_STATE(mas, &mm->mm_mt, 0, 0);
+	VMA_ITERATOR(vmi, mm, 0);
 	int i = 0;
 
 	/*
@@ -1167,7 +1167,7 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 		return false;
 	}
 
-	while ((vma = coredump_next_vma(&mas, vma, gate_vma)) != NULL) {
+	while ((vma = coredump_next_vma(&vmi, vma, gate_vma)) != NULL) {
 		struct core_vma_metadata *m = cprm->vma_meta + i;
 
 		m->start = vma->vm_start;
