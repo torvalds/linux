@@ -808,15 +808,15 @@ static ssize_t webusb_use_store(struct config_item *item, const char *page,
 	int ret;
 	bool use;
 
-	mutex_lock(&gi->lock);
 	ret = kstrtobool(page, &use);
-	if (!ret) {
-		gi->use_webusb = use;
-		ret = len;
-	}
+	if (ret)
+		return ret;
+
+	mutex_lock(&gi->lock);
+	gi->use_webusb = use;
 	mutex_unlock(&gi->lock);
 
-	return ret;
+	return len;
 }
 
 static ssize_t webusb_bcdVersion_show(struct config_item *item, char *page)
@@ -832,10 +832,12 @@ static ssize_t webusb_bcdVersion_store(struct config_item *item,
 	u16 bcdVersion;
 	int ret;
 
-	mutex_lock(&gi->lock);
 	ret = kstrtou16(page, 0, &bcdVersion);
 	if (ret)
-		goto out;
+		return ret;
+
+	mutex_lock(&gi->lock);
+
 	ret = is_valid_bcd(bcdVersion);
 	if (ret)
 		goto out;
@@ -862,15 +864,15 @@ static ssize_t webusb_bVendorCode_store(struct config_item *item,
 	int ret;
 	u8 b_vendor_code;
 
-	mutex_lock(&gi->lock);
 	ret = kstrtou8(page, 0, &b_vendor_code);
-	if (!ret) {
-		gi->b_webusb_vendor_code = b_vendor_code;
-		ret = len;
-	}
+	if (ret)
+		return ret;
+
+	mutex_lock(&gi->lock);
+	gi->b_webusb_vendor_code = b_vendor_code;
 	mutex_unlock(&gi->lock);
 
-	return ret;
+	return len;
 }
 
 static ssize_t webusb_landingPage_show(struct config_item *item, char *page)
@@ -956,15 +958,15 @@ static ssize_t os_desc_use_store(struct config_item *item, const char *page,
 	int ret;
 	bool use;
 
-	mutex_lock(&gi->lock);
 	ret = kstrtobool(page, &use);
-	if (!ret) {
-		gi->use_os_desc = use;
-		ret = len;
-	}
+	if (ret)
+		return ret;
+
+	mutex_lock(&gi->lock);
+	gi->use_os_desc = use;
 	mutex_unlock(&gi->lock);
 
-	return ret;
+	return len;
 }
 
 static ssize_t os_desc_b_vendor_code_show(struct config_item *item, char *page)
@@ -980,15 +982,15 @@ static ssize_t os_desc_b_vendor_code_store(struct config_item *item,
 	int ret;
 	u8 b_vendor_code;
 
-	mutex_lock(&gi->lock);
 	ret = kstrtou8(page, 0, &b_vendor_code);
-	if (!ret) {
-		gi->b_vendor_code = b_vendor_code;
-		ret = len;
-	}
+	if (ret)
+		return ret;
+
+	mutex_lock(&gi->lock);
+	gi->b_vendor_code = b_vendor_code;
 	mutex_unlock(&gi->lock);
 
-	return ret;
+	return len;
 }
 
 static ssize_t os_desc_qw_sign_show(struct config_item *item, char *page)
@@ -1113,15 +1115,15 @@ static ssize_t ext_prop_type_store(struct config_item *item,
 	u8 type;
 	int ret;
 
-	if (desc->opts_mutex)
-		mutex_lock(desc->opts_mutex);
 	ret = kstrtou8(page, 0, &type);
 	if (ret)
-		goto end;
-	if (type < USB_EXT_PROP_UNICODE || type > USB_EXT_PROP_UNICODE_MULTI) {
-		ret = -EINVAL;
-		goto end;
-	}
+		return ret;
+
+	if (type < USB_EXT_PROP_UNICODE || type > USB_EXT_PROP_UNICODE_MULTI)
+		return -EINVAL;
+
+	if (desc->opts_mutex)
+		mutex_lock(desc->opts_mutex);
 
 	if ((ext_prop->type == USB_EXT_PROP_BINARY ||
 	    ext_prop->type == USB_EXT_PROP_LE32 ||
@@ -1138,12 +1140,10 @@ static ssize_t ext_prop_type_store(struct config_item *item,
 		   type == USB_EXT_PROP_BE32))
 		ext_prop->data_len >>= 1;
 	ext_prop->type = type;
-	ret = len;
 
-end:
 	if (desc->opts_mutex)
 		mutex_unlock(desc->opts_mutex);
-	return ret;
+	return len;
 }
 
 static ssize_t ext_prop_data_show(struct config_item *item, char *page)
