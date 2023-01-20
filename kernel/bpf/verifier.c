@@ -8820,8 +8820,36 @@ static int process_kf_arg_ptr_to_btf_id(struct bpf_verifier_env *env,
 		reg_ref_id = *reg2btf_ids[base_type(reg->type)];
 	}
 
-	if (is_kfunc_trusted_args(meta) || (is_kfunc_release(meta) && reg->ref_obj_id))
+	/* Enforce strict type matching for calls to kfuncs that are acquiring
+	 * or releasing a reference, or are no-cast aliases. We do _not_
+	 * enforce strict matching for plain KF_TRUSTED_ARGS kfuncs by default,
+	 * as we want to enable BPF programs to pass types that are bitwise
+	 * equivalent without forcing them to explicitly cast with something
+	 * like bpf_cast_to_kern_ctx().
+	 *
+	 * For example, say we had a type like the following:
+	 *
+	 * struct bpf_cpumask {
+	 *	cpumask_t cpumask;
+	 *	refcount_t usage;
+	 * };
+	 *
+	 * Note that as specified in <linux/cpumask.h>, cpumask_t is typedef'ed
+	 * to a struct cpumask, so it would be safe to pass a struct
+	 * bpf_cpumask * to a kfunc expecting a struct cpumask *.
+	 *
+	 * The philosophy here is similar to how we allow scalars of different
+	 * types to be passed to kfuncs as long as the size is the same. The
+	 * only difference here is that we're simply allowing
+	 * btf_struct_ids_match() to walk the struct at the 0th offset, and
+	 * resolve types.
+	 */
+	if (is_kfunc_acquire(meta) ||
+	    (is_kfunc_release(meta) && reg->ref_obj_id) ||
+	    btf_type_ids_nocast_alias(&env->log, reg_btf, reg_ref_id, meta->btf, ref_id))
 		strict_type_match = true;
+
+	WARN_ON_ONCE(is_kfunc_trusted_args(meta) && reg->off);
 
 	reg_ref_t = btf_type_skip_modifiers(reg_btf, reg_ref_id, &reg_ref_id);
 	reg_ref_tname = btf_name_by_offset(reg_btf, reg_ref_t->name_off);

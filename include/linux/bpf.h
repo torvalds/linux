@@ -2191,6 +2191,10 @@ bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 				const struct bpf_reg_state *reg,
 				int off);
 
+bool btf_type_ids_nocast_alias(struct bpf_verifier_log *log,
+			       const struct btf *reg_btf, u32 reg_id,
+			       const struct btf *arg_btf, u32 arg_id);
+
 int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 		   int relo_idx, void *insn);
 

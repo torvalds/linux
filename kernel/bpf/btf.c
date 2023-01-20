@@ -337,6 +337,12 @@ const char *btf_type_str(const struct btf_type *t)
 #define BTF_SHOW_NAME_SIZE		80
 
 /*
+ * The suffix of a type that indicates it cannot alias another type when
+ * comparing BTF IDs for kfunc invocations.
+ */
+#define NOCAST_ALIAS_SUFFIX		"___init"
+
+/*
  * Common data to all BTF show operations. Private show functions can add
  * their own data to a structure containing a struct btf_show and consult it
  * in the show callback.  See btf_type_show() below.
@@ -8287,4 +8293,59 @@ bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 	}
 
 	return false;
+}
+
+bool btf_type_ids_nocast_alias(struct bpf_verifier_log *log,
+			       const struct btf *reg_btf, u32 reg_id,
+			       const struct btf *arg_btf, u32 arg_id)
+{
+	const char *reg_name, *arg_name, *search_needle;
+	const struct btf_type *reg_type, *arg_type;
+	int reg_len, arg_len, cmp_len;
+	size_t pattern_len = sizeof(NOCAST_ALIAS_SUFFIX) - sizeof(char);
+
+	reg_type = btf_type_by_id(reg_btf, reg_id);
+	if (!reg_type)
+		return false;
+
+	arg_type = btf_type_by_id(arg_btf, arg_id);
+	if (!arg_type)
+		return false;
+
+	reg_name = btf_name_by_offset(reg_btf, reg_type->name_off);
+	arg_name = btf_name_by_offset(arg_btf, arg_type->name_off);
+
+	reg_len = strlen(reg_name);
+	arg_len = strlen(arg_name);
+
+	/* Exactly one of the two type names may be suffixed with ___init, so
+	 * if the strings are the same size, they can't possibly be no-cast
+	 * aliases of one another. If you have two of the same type names, e.g.
+	 * they're both nf_conn___init, it would be improper to return true
+	 * because they are _not_ no-cast aliases, they are the same type.
+	 */
+	if (reg_len == arg_len)
+		return false;
+
+	/* Either of the two names must be the other name, suffixed with ___init. */
+	if ((reg_len != arg_len + pattern_len) &&
+	    (arg_len != reg_len + pattern_len))
+		return false;
+
+	if (reg_len < arg_len) {
+		search_needle = strstr(arg_name, NOCAST_ALIAS_SUFFIX);
+		cmp_len = reg_len;
+	} else {
+		search_needle = strstr(reg_name, NOCAST_ALIAS_SUFFIX);
+		cmp_len = arg_len;
+	}
+
+	if (!search_needle)
+		return false;
+
+	/* ___init suffix must come at the end of the name */
+	if (*(search_needle + pattern_len) != '\0')
+		return false;
+
+	return !strncmp(reg_name, arg_name, cmp_len);
 }
