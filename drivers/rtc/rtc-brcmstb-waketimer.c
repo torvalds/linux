@@ -31,6 +31,8 @@ struct brcmstb_waketmr {
 	struct notifier_block reboot_notifier;
 	struct clk *clk;
 	u32 rate;
+	unsigned long rtc_alarm;
+	bool alarm_en;
 };
 
 #define BRCMSTB_WKTMR_EVENT		0x00
@@ -52,6 +54,11 @@ static inline bool brcmstb_waketmr_is_pending(struct brcmstb_waketmr *timer)
 
 static inline void brcmstb_waketmr_clear_alarm(struct brcmstb_waketmr *timer)
 {
+	u32 reg;
+
+	timer->alarm_en = false;
+	reg = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
+	writel_relaxed(reg - 1, timer->base + BRCMSTB_WKTMR_ALARM);
 	writel_relaxed(WKTMR_ALARM_EVENT, timer->base + BRCMSTB_WKTMR_EVENT);
 	(void)readl_relaxed(timer->base + BRCMSTB_WKTMR_EVENT);
 }
@@ -59,12 +66,22 @@ static inline void brcmstb_waketmr_clear_alarm(struct brcmstb_waketmr *timer)
 static void brcmstb_waketmr_set_alarm(struct brcmstb_waketmr *timer,
 				      unsigned int secs)
 {
+	unsigned int now;
+
 	brcmstb_waketmr_clear_alarm(timer);
 
 	/* Make sure we are actually counting in seconds */
 	writel_relaxed(timer->rate, timer->base + BRCMSTB_WKTMR_PRESCALER);
 
-	writel_relaxed(secs + 1, timer->base + BRCMSTB_WKTMR_ALARM);
+	writel_relaxed(secs, timer->base + BRCMSTB_WKTMR_ALARM);
+	now = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
+
+	while ((int)(secs - now) <= 0 &&
+		!brcmstb_waketmr_is_pending(timer)) {
+		secs = now + 1;
+		writel_relaxed(secs, timer->base + BRCMSTB_WKTMR_ALARM);
+		now = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
+	}
 }
 
 static irqreturn_t brcmstb_waketmr_irq(int irq, void *data)
@@ -155,27 +172,30 @@ static int brcmstb_waketmr_getalarm(struct device *dev,
 				    struct rtc_wkalrm *alarm)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
-	time64_t sec;
 
-	sec = readl_relaxed(timer->base + BRCMSTB_WKTMR_ALARM);
-	if (sec != 0) {
-		/* Alarm is enabled */
-		alarm->enabled = 1;
-		rtc_time64_to_tm(sec, &alarm->time);
-	}
+	alarm->enabled = timer->alarm_en;
+	rtc_time64_to_tm(timer->rtc_alarm, &alarm->time);
 
 	alarm->pending = brcmstb_waketmr_is_pending(timer);
 
 	return 0;
 }
 
-/*
- * Does not do much but keep the RTC class happy. We always support
- * alarms.
- */
 static int brcmstb_waketmr_alarm_enable(struct device *dev,
 					unsigned int enabled)
 {
+	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
+
+	if (enabled && !timer->alarm_en) {
+		if ((int)(readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER) -
+		    readl_relaxed(timer->base + BRCMSTB_WKTMR_ALARM)) >= 0 &&
+		    !brcmstb_waketmr_is_pending(timer))
+			return -EINVAL;
+		timer->alarm_en = true;
+	} else if (!enabled && timer->alarm_en) {
+		timer->alarm_en = false;
+	}
+
 	return 0;
 }
 
@@ -183,14 +203,10 @@ static int brcmstb_waketmr_setalarm(struct device *dev,
 				     struct rtc_wkalrm *alarm)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
-	time64_t sec;
 
-	if (alarm->enabled)
-		sec = rtc_tm_to_time64(&alarm->time);
-	else
-		sec = 0;
+	timer->rtc_alarm = rtc_tm_to_time64(&alarm->time);
 
-	brcmstb_waketmr_set_alarm(timer, sec);
+	brcmstb_waketmr_set_alarm(timer, timer->rtc_alarm);
 
 	return brcmstb_waketmr_alarm_enable(dev, alarm->enabled);
 }
