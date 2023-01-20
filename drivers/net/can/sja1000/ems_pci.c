@@ -326,6 +326,14 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 		}
 	}
 
+	if (card->version == 3) {
+		/* ASIX chip asserts local reset to CAN controllers
+		 * after bootup until it is deasserted
+		 */
+		writel(readl(card->conf_addr + ASIX_LIEMR) & ~ASIX_LIEMR_LRST,
+		       card->conf_addr + ASIX_LIEMR);
+	}
+
 	ems_pci_card_reset(card);
 
 	/* Detect available channels */
