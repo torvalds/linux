@@ -4943,6 +4943,25 @@ static int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val)
 	return 0;
 }
 
+#define BTF_TYPE_SAFE_NESTED(__type)  __PASTE(__type, __safe_fields)
+
+BTF_TYPE_SAFE_NESTED(struct task_struct) {
+	const cpumask_t *cpus_ptr;
+};
+
+static bool nested_ptr_is_trusted(struct bpf_verifier_env *env,
+				  struct bpf_reg_state *reg,
+				  int off)
+{
+	/* If its parent is not trusted, it can't regain its trusted status. */
+	if (!is_trusted_reg(reg))
+		return false;
+
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_NESTED(struct task_struct));
+
+	return btf_nested_type_is_trusted(&env->log, reg, off);
+}
+
 static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 				   struct bpf_reg_state *regs,
 				   int regno, int off, int size,
@@ -5031,10 +5050,17 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	if (type_flag(reg->type) & PTR_UNTRUSTED)
 		flag |= PTR_UNTRUSTED;
 
-	/* By default any pointer obtained from walking a trusted pointer is
-	 * no longer trusted except the rcu case below.
+	/* By default any pointer obtained from walking a trusted pointer is no
+	 * longer trusted, unless the field being accessed has explicitly been
+	 * marked as inheriting its parent's state of trust.
+	 *
+	 * An RCU-protected pointer can also be deemed trusted if we are in an
+	 * RCU read region. This case is handled below.
 	 */
-	flag &= ~PTR_TRUSTED;
+	if (nested_ptr_is_trusted(env, reg, off))
+		flag |= PTR_TRUSTED;
+	else
+		flag &= ~PTR_TRUSTED;
 
 	if (flag & MEM_RCU) {
 		/* Mark value register as MEM_RCU only if it is protected by

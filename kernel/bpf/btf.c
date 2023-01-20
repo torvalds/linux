@@ -8227,3 +8227,64 @@ out:
 	}
 	return err;
 }
+
+bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
+				const struct bpf_reg_state *reg,
+				int off)
+{
+	struct btf *btf = reg->btf;
+	const struct btf_type *walk_type, *safe_type;
+	const char *tname;
+	char safe_tname[64];
+	long ret, safe_id;
+	const struct btf_member *member, *m_walk = NULL;
+	u32 i;
+	const char *walk_name;
+
+	walk_type = btf_type_by_id(btf, reg->btf_id);
+	if (!walk_type)
+		return false;
+
+	tname = btf_name_by_offset(btf, walk_type->name_off);
+
+	ret = snprintf(safe_tname, sizeof(safe_tname), "%s__safe_fields", tname);
+	if (ret < 0)
+		return false;
+
+	safe_id = btf_find_by_name_kind(btf, safe_tname, BTF_INFO_KIND(walk_type->info));
+	if (safe_id < 0)
+		return false;
+
+	safe_type = btf_type_by_id(btf, safe_id);
+	if (!safe_type)
+		return false;
+
+	for_each_member(i, walk_type, member) {
+		u32 moff;
+
+		/* We're looking for the PTR_TO_BTF_ID member in the struct
+		 * type we're walking which matches the specified offset.
+		 * Below, we'll iterate over the fields in the safe variant of
+		 * the struct and see if any of them has a matching type /
+		 * name.
+		 */
+		moff = __btf_member_bit_offset(walk_type, member) / 8;
+		if (off == moff) {
+			m_walk = member;
+			break;
+		}
+	}
+	if (m_walk == NULL)
+		return false;
+
+	walk_name = __btf_name_by_offset(btf, m_walk->name_off);
+	for_each_member(i, safe_type, member) {
+		const char *m_name = __btf_name_by_offset(btf, member->name_off);
+
+		/* If we match on both type and name, the field is considered trusted. */
+		if (m_walk->type == member->type && !strcmp(walk_name, m_name))
+			return true;
+	}
+
+	return false;
+}

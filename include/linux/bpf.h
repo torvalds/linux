@@ -2187,6 +2187,10 @@ struct bpf_core_ctx {
 	const struct btf *btf;
 };
 
+bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
+				const struct bpf_reg_state *reg,
+				int off);
+
 int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 		   int relo_idx, void *insn);
 
