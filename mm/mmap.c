@@ -525,6 +525,10 @@ inline int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		vma_interval_tree_remove(vma, root);
 	}
 
+	/* VMA iterator points to previous, so set to start if necessary */
+	if (vma_iter_addr(vmi) != start)
+		vma_iter_set(vmi, start);
+
 	vma->vm_start = start;
 	vma->vm_end = end;
 	vma->vm_pgoff = pgoff;
@@ -2164,13 +2168,13 @@ static void unmap_region(struct mm_struct *mm, struct maple_tree *mt,
 /*
  * __split_vma() bypasses sysctl_max_map_count checking.  We use this where it
  * has already been checked or doesn't make sense to fail.
+ * VMA Iterator will point to the end VMA.
  */
 int __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		unsigned long addr, int new_below)
 {
 	struct vm_area_struct *new;
 	int err;
-	unsigned long end = vma->vm_end;
 
 	validate_mm_mt(vma->vm_mm);
 
@@ -2206,14 +2210,17 @@ int __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		new->vm_ops->open(new);
 
 	if (new_below)
-		err = vma_adjust(vma, addr, vma->vm_end, vma->vm_pgoff +
-			((addr - new->vm_start) >> PAGE_SHIFT), new);
+		err = __vma_adjust(vmi, vma, addr, vma->vm_end,
+		   vma->vm_pgoff + ((addr - new->vm_start) >> PAGE_SHIFT),
+		   new, NULL);
 	else
-		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
+		err = __vma_adjust(vmi, vma, vma->vm_start, addr, vma->vm_pgoff,
+				 new, NULL);
 
 	/* Success. */
 	if (!err) {
-		vma_iter_set(vmi, end);
+		if (new_below)
+			vma_next(vmi);
 		return 0;
 	}
 
@@ -2308,8 +2315,7 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		if (error)
 			goto start_split_failed;
 
-		vma_iter_set(vmi, start);
-		vma = vma_find(vmi, end);
+		vma = vma_iter_load(vmi);
 	}
 
 	prev = vma_prev(vmi);
@@ -2329,7 +2335,6 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 			if (error)
 				goto end_split_failed;
 
-			vma_iter_set(vmi, end);
 			split = vma_prev(vmi);
 			error = munmap_sidetree(split, &mas_detach);
 			if (error)
@@ -2573,6 +2578,7 @@ cannot_expand:
 		goto unacct_error;
 	}
 
+	vma_iter_set(&vmi, addr);
 	vma->vm_start = addr;
 	vma->vm_end = end;
 	vma->vm_flags = vm_flags;
