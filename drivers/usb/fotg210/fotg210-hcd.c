@@ -4702,8 +4702,10 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 	ssize_t ret;
 
 	fotg210 = hcd_to_fotg210(bus_to_hcd(dev_get_drvdata(dev)));
-	if (kstrtouint(buf, 0, &uframe_periodic_max) < 0)
-		return -EINVAL;
+
+	ret = kstrtouint(buf, 0, &uframe_periodic_max);
+	if (ret)
+		return ret;
 
 	if (uframe_periodic_max < 100 || uframe_periodic_max >= 125) {
 		fotg210_info(fotg210, "rejecting invalid request for uframe_periodic_max=%u\n",
