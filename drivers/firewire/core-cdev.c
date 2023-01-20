@@ -111,6 +111,7 @@ struct inbound_transaction_resource {
 	struct client_resource resource;
 	struct fw_card *card;
 	struct fw_request *request;
+	bool is_fcp;
 	void *data;
 	size_t length;
 };
@@ -643,18 +644,13 @@ static int ioctl_send_request(struct client *client, union ioctl_arg *arg)
 			    client->device->max_speed);
 }
 
-static inline bool is_fcp_request(struct fw_request *request)
-{
-	return request == NULL;
-}
-
 static void release_request(struct client *client,
 			    struct client_resource *resource)
 {
 	struct inbound_transaction_resource *r = container_of(resource,
 			struct inbound_transaction_resource, resource);
 
-	if (is_fcp_request(r->request))
+	if (r->is_fcp)
 		kfree(r->data);
 	else
 		fw_send_response(r->card, r->request, RCODE_CONFLICT_ERROR);
@@ -669,6 +665,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 			   void *payload, size_t length, void *callback_data)
 {
 	struct address_handler_resource *handler = callback_data;
+	bool is_fcp = is_in_fcp_region(offset, length);
 	struct inbound_transaction_resource *r;
 	struct inbound_transaction_event *e;
 	size_t event_size0;
@@ -685,10 +682,11 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 
 	r->card    = card;
 	r->request = request;
+	r->is_fcp  = is_fcp;
 	r->data    = payload;
 	r->length  = length;
 
-	if (is_fcp_request(request)) {
+	if (is_fcp) {
 		/*
 		 * FIXME: Let core-transaction.c manage a
 		 * single reference-counted copy?
@@ -743,7 +741,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	kfree(e);
 	kfree(fcp_frame);
 
-	if (!is_fcp_request(request))
+	if (!is_fcp)
 		fw_send_response(card, request, RCODE_CONFLICT_ERROR);
 
 	fw_card_put(card);
@@ -819,7 +817,7 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 
 	r = container_of(resource, struct inbound_transaction_resource,
 			 resource);
-	if (is_fcp_request(r->request)) {
+	if (r->is_fcp) {
 		kfree(r->data);
 		goto out;
 	}

@@ -535,12 +535,6 @@ const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
 #endif  /*  0  */
 
-static bool is_in_fcp_region(u64 offset, size_t length)
-{
-	return offset >= (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
-		offset + length <= (CSR_REGISTER_BASE | CSR_FCP_END);
-}
-
 /**
  * fw_core_add_address_handler() - register for incoming requests
  * @handler:	callback
@@ -822,12 +816,18 @@ static struct fw_request *allocate_request(struct fw_card *card,
 	return request;
 }
 
+/**
+ * fw_send_response: - send response packet for asynchronous transaction.
+ * @card:	interface to send the response at.
+ * @request:	firewire request data for the transaction.
+ * @rcode:	response code to send.
+ *
+ * Submit a response packet into the asynchronous response transmission queue. The @request
+ * is going to be released when the transmission successfully finishes later.
+ */
 void fw_send_response(struct fw_card *card,
 		      struct fw_request *request, int rcode)
 {
-	if (WARN_ONCE(!request, "invalid for FCP address handlers"))
-		return;
-
 	/* unified transaction or broadcast transaction: don't respond */
 	if (request->ack != ACK_PENDING ||
 	    HEADER_DESTINATION_IS_BROADCAST(request->request_header[0])) {
@@ -935,7 +935,7 @@ static void handle_fcp_region_request(struct fw_card *card,
 	rcu_read_lock();
 	list_for_each_entry_rcu(handler, &address_handler_list, link) {
 		if (is_enclosing_handler(handler, offset, request->length))
-			handler->address_callback(card, NULL, tcode,
+			handler->address_callback(card, request, tcode,
 						  destination, source,
 						  p->generation, offset,
 						  request->data,

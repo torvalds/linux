@@ -257,4 +257,10 @@ static inline bool is_ping_packet(u32 *data)
 	return (data[0] & 0xc0ffffff) == 0 && ~data[0] == data[1];
 }
 
+static inline bool is_in_fcp_region(u64 offset, size_t length)
+{
+	return offset >= (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
+		offset + length <= (CSR_REGISTER_BASE | CSR_FCP_END);
+}
+
 #endif /* _FIREWIRE_CORE_H */
