@@ -161,6 +161,10 @@ static bool enable_stb;
 module_param(enable_stb, bool, 0644);
 MODULE_PARM_DESC(enable_stb, "Enable the STB debug mechanism");
 
+static bool disable_workarounds;
+module_param(disable_workarounds, bool, 0644);
+MODULE_PARM_DESC(disable_workarounds, "Disable workarounds for platform bugs");
+
 static struct amd_pmc_dev pmc;
 static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg, bool ret);
 static int amd_pmc_read_stb(struct amd_pmc_dev *dev, u32 *buf);
@@ -743,8 +747,8 @@ static void amd_pmc_s2idle_prepare(void)
 	/* Reset and Start SMU logging - to monitor the s0i3 stats */
 	amd_pmc_setup_smu_logging(pdev);
 
-	/* Activate CZN specific RTC functionality */
-	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
+	/* Activate CZN specific platform bug workarounds */
+	if (pdev->cpu_id == AMD_CPU_ID_CZN && !disable_workarounds) {
 		rc = amd_pmc_verify_czn_rtc(pdev, &arg);
 		if (rc) {
 			dev_err(pdev->dev, "failed to set RTC: %d\n", rc);
@@ -815,7 +819,7 @@ static int __maybe_unused amd_pmc_suspend_handler(struct device *dev)
 {
 	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
 
-	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
+	if (pdev->cpu_id == AMD_CPU_ID_CZN && !disable_workarounds) {
 		int rc = amd_pmc_czn_wa_irq1(pdev);
 
 		if (rc) {
