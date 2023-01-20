@@ -245,6 +245,7 @@
 		pinctrl-0 = <&led_bl_reset>;
 		pinctrl-names = "default";
 		enable-gpios = <&gpm0 1 GPIO_ACTIVE_HIGH>;
+		power-supply = <&panel_vdd>;
 		pwms = <&pwm 1 78770 0>;
 		brightness-levels = <0 48 128 255>;
 		num-interpolated-steps = <8>;
