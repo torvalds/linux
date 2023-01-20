@@ -372,14 +372,21 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			SET_NETDEV_DEV(dev, &pdev->dev);
 			dev->dev_id = i;
 
-			if (card->version == 1)
+			if (card->version == 1) {
 				/* reset int flag of pita */
 				writel(PITA2_ICR_INT0_EN | PITA2_ICR_INT0,
 				       card->conf_addr + PITA2_ICR);
-			else
+			} else if (card->version == 2) {
 				/* enable IRQ in PLX 9030 */
 				writel(PLX_ICSR_ENA_CLR,
 				       card->conf_addr + PLX_ICSR);
+			} else {
+				/* Enable IRQ in AX99100 */
+				writel(ASIX_LINTSR_INT0AC, card->conf_addr + ASIX_LINTSR);
+				/* Enable local INT0 input enable */
+				writel(readl(card->conf_addr + ASIX_LIEMR) | ASIX_LIEMR_L0EINTEN,
+				       card->conf_addr + ASIX_LIEMR);
+			}
 
 			/* Register SJA1000 device */
 			err = register_sja1000dev(dev);
