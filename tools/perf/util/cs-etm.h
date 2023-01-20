@@ -82,7 +82,16 @@ enum {
  * added in header V1
  */
 enum {
-	CS_ETE_TRCDEVARCH = CS_ETMV4_PRIV_MAX,
+	/* Dynamic, configurable parameters */
+	CS_ETE_TRCCONFIGR = CS_ETM_COMMON_BLK_MAX_V1,
+	CS_ETE_TRCTRACEIDR,
+	/* RO, taken from sysFS */
+	CS_ETE_TRCIDR0,
+	CS_ETE_TRCIDR1,
+	CS_ETE_TRCIDR2,
+	CS_ETE_TRCIDR8,
+	CS_ETE_TRCAUTHSTATUS,
+	CS_ETE_TRCDEVARCH,
 	CS_ETE_PRIV_MAX
 };
 

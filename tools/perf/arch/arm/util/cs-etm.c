@@ -53,7 +53,15 @@ static const char * const metadata_etmv4_ro[] = {
 	[CS_ETMV4_TRCIDR2]		= "trcidr/trcidr2",
 	[CS_ETMV4_TRCIDR8]		= "trcidr/trcidr8",
 	[CS_ETMV4_TRCAUTHSTATUS]	= "mgmt/trcauthstatus",
-	[CS_ETE_TRCDEVARCH]		= "mgmt/trcdevarch"
+};
+
+static const char * const metadata_ete_ro[] = {
+	[CS_ETE_TRCIDR0]		= "trcidr/trcidr0",
+	[CS_ETE_TRCIDR1]		= "trcidr/trcidr1",
+	[CS_ETE_TRCIDR2]		= "trcidr/trcidr2",
+	[CS_ETE_TRCIDR8]		= "trcidr/trcidr8",
+	[CS_ETE_TRCAUTHSTATUS]		= "mgmt/trcauthstatus",
+	[CS_ETE_TRCDEVARCH]		= "mgmt/trcdevarch",
 };
 
 static bool cs_etm_is_etmv4(struct auxtrace_record *itr, int cpu);
@@ -617,7 +625,7 @@ static bool cs_etm_is_ete(struct auxtrace_record *itr, int cpu)
 {
 	struct cs_etm_recording *ptr = container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
-	int trcdevarch = cs_etm_get_ro(cs_etm_pmu, cpu, metadata_etmv4_ro[CS_ETE_TRCDEVARCH]);
+	int trcdevarch = cs_etm_get_ro(cs_etm_pmu, cpu, metadata_ete_ro[CS_ETE_TRCDEVARCH]);
 
 	/*
 	 * ETE if ARCHVER is 5 (ARCHVER is 4 for ETM) and ARCHPART is 0xA13.
@@ -648,6 +656,31 @@ static void cs_etm_save_etmv4_header(__u64 data[], struct auxtrace_record *itr, 
 						     metadata_etmv4_ro[CS_ETMV4_TRCAUTHSTATUS]);
 }
 
+static void cs_etm_save_ete_header(__u64 data[], struct auxtrace_record *itr, int cpu)
+{
+	struct cs_etm_recording *ptr = container_of(itr, struct cs_etm_recording, itr);
+	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
+
+	/* Get trace configuration register */
+	data[CS_ETE_TRCCONFIGR] = cs_etmv4_get_config(itr);
+	/* Get traceID from the framework */
+	data[CS_ETE_TRCTRACEIDR] = coresight_get_trace_id(cpu);
+	/* Get read-only information from sysFS */
+	data[CS_ETE_TRCIDR0] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					     metadata_ete_ro[CS_ETE_TRCIDR0]);
+	data[CS_ETE_TRCIDR1] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					     metadata_ete_ro[CS_ETE_TRCIDR1]);
+	data[CS_ETE_TRCIDR2] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					     metadata_ete_ro[CS_ETE_TRCIDR2]);
+	data[CS_ETE_TRCIDR8] = cs_etm_get_ro(cs_etm_pmu, cpu,
+					     metadata_ete_ro[CS_ETE_TRCIDR8]);
+	data[CS_ETE_TRCAUTHSTATUS] = cs_etm_get_ro(cs_etm_pmu, cpu,
+						   metadata_ete_ro[CS_ETE_TRCAUTHSTATUS]);
+	/* ETE uses the same registers as ETMv4 plus TRCDEVARCH */
+	data[CS_ETE_TRCDEVARCH] = cs_etm_get_ro(cs_etm_pmu, cpu,
+						metadata_ete_ro[CS_ETE_TRCDEVARCH]);
+}
+
 static void cs_etm_get_metadata(int cpu, u32 *offset,
 				struct auxtrace_record *itr,
 				struct perf_record_auxtrace_info *info)
@@ -661,11 +694,7 @@ static void cs_etm_get_metadata(int cpu, u32 *offset,
 	/* first see what kind of tracer this cpu is affined to */
 	if (cs_etm_is_ete(itr, cpu)) {
 		magic = __perf_cs_ete_magic;
-		/* ETE uses the same registers as ETMv4 plus TRCDEVARCH */
-		cs_etm_save_etmv4_header(&info->priv[*offset], itr, cpu);
-		info->priv[*offset + CS_ETE_TRCDEVARCH] =
-			cs_etm_get_ro(cs_etm_pmu, cpu,
-				      metadata_etmv4_ro[CS_ETE_TRCDEVARCH]);
+		cs_etm_save_ete_header(&info->priv[*offset], itr, cpu);
 
 		/* How much space was used */
 		increment = CS_ETE_PRIV_MAX;

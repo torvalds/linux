@@ -464,12 +464,12 @@ static void cs_etm__set_trace_param_ete(struct cs_etm_trace_params *t_params,
 	u64 **metadata = etm->metadata;
 
 	t_params[idx].protocol = CS_ETM_PROTO_ETE;
-	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETMV4_TRCIDR0];
-	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETMV4_TRCIDR1];
-	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETMV4_TRCIDR2];
-	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETMV4_TRCIDR8];
-	t_params[idx].ete.reg_configr = metadata[idx][CS_ETMV4_TRCCONFIGR];
-	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
+	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETE_TRCIDR0];
+	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETE_TRCIDR1];
+	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETE_TRCIDR2];
+	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETE_TRCIDR8];
+	t_params[idx].ete.reg_configr = metadata[idx][CS_ETE_TRCCONFIGR];
+	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETE_TRCTRACEIDR];
 	t_params[idx].ete.reg_devarch = metadata[idx][CS_ETE_TRCDEVARCH];
 }
 
