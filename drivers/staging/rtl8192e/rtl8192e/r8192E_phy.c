@@ -586,7 +586,6 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	powerlevel = 0, powerlevelOFDM24G = 0;
-	s8	ant_pwr_diff;
 	u32	u4RegValue;
 
 	if (priv->epromtype == EEPROM_93C46) {
@@ -600,12 +599,8 @@ void rtl92e_set_tx_power(struct net_device *dev, u8 channel)
 			powerlevel = 0;
 			powerlevelOFDM24G = 0;
 
-			ant_pwr_diff = 0;
-
-			ant_pwr_diff &= 0xf;
-
 			priv->antenna_tx_pwr_diff[2] = 0;
-			priv->antenna_tx_pwr_diff[1] = (u8)(ant_pwr_diff);
+			priv->antenna_tx_pwr_diff[1] = 0;
 			priv->antenna_tx_pwr_diff[0] = 0;
 
 			u4RegValue = priv->antenna_tx_pwr_diff[2] << 8 |
