@@ -169,6 +169,16 @@ static int brcmstb_waketmr_getalarm(struct device *dev,
 	return 0;
 }
 
+/*
+ * Does not do much but keep the RTC class happy. We always support
+ * alarms.
+ */
+static int brcmstb_waketmr_alarm_enable(struct device *dev,
+					unsigned int enabled)
+{
+	return 0;
+}
+
 static int brcmstb_waketmr_setalarm(struct device *dev,
 				     struct rtc_wkalrm *alarm)
 {
@@ -182,17 +192,7 @@ static int brcmstb_waketmr_setalarm(struct device *dev,
 
 	brcmstb_waketmr_set_alarm(timer, sec);
 
-	return 0;
-}
-
-/*
- * Does not do much but keep the RTC class happy. We always support
- * alarms.
- */
-static int brcmstb_waketmr_alarm_enable(struct device *dev,
-					unsigned int enabled)
-{
-	return 0;
+	return brcmstb_waketmr_alarm_enable(dev, alarm->enabled);
 }
 
 static const struct rtc_class_ops brcmstb_waketmr_ops = {
@@ -228,8 +228,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	 * Set wakeup capability before requesting wakeup interrupt, so we can
 	 * process boot-time "wakeups" (e.g., from S5 soft-off)
 	 */
-	device_set_wakeup_capable(dev, true);
-	device_wakeup_enable(dev);
+	device_init_wakeup(dev, true);
 
 	timer->irq = platform_get_irq(pdev, 0);
 	if (timer->irq < 0)
