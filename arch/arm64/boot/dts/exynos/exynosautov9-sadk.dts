@@ -65,13 +65,11 @@
 &ufs_0 {
 	status = "okay";
 	vcc-supply = <&ufs_0_fixed_vcc_reg>;
-	vcc-fixed-regulator;
 };
 
 &ufs_1 {
 	status = "okay";
 	vcc-supply = <&ufs_1_fixed_vcc_reg>;
-	vcc-fixed-regulator;
 };
 
 &usi_0 {
