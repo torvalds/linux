@@ -4274,6 +4274,12 @@ static void *smb2_get_aead_req(struct crypto_aead *tfm, const struct smb_rqst *r
 	sg_init_table(*sgl, num_sgs);
 	sg = *sgl;
 
+	/*
+	 * The first rqst has a transform header where the
+	 * first 20 bytes are not part of the encrypted blob.
+	 */
+	skip = 20;
+
 	/* Assumes the first rqst has a transform header as the first iov.
 	 * I.e.
 	 * rqst[0].rq_iov[0]  is transform header
@@ -4281,17 +4287,15 @@ static void *smb2_get_aead_req(struct crypto_aead *tfm, const struct smb_rqst *r
 	 * rqst[1+].rq_iov[0+] data to be encrypted/decrypted
 	 */
 	for (i = 0; i < num_rqst; i++) {
-		/*
-		 * The first rqst has a transform header where the
-		 * first 20 bytes are not part of the encrypted blob.
-		 */
 		for (j = 0; j < rqst[i].rq_nvec; j++) {
 			struct kvec *iov = &rqst[i].rq_iov[j];
 
-			skip = (i == 0) && (j == 0) ? 20 : 0;
 			addr = (unsigned long)iov->iov_base + skip;
 			len = iov->iov_len - skip;
 			sg = cifs_sg_set_buf(sg, (void *)addr, len);
+
+			/* See the above comment on the 'skip' assignment */
+			skip = 0;
 		}
 		for (j = 0; j < rqst[i].rq_npages; j++) {
 			rqst_page_get_length(&rqst[i], j, &len, &off);
