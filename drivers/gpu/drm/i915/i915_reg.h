@@ -7224,20 +7224,20 @@ enum skl_power_gate {
 							ADLS_DPCLKA_DDIK_SEL_MASK)
 
 /* ICL PLL */
-#define DPLL0_ENABLE		0x46010
-#define DPLL1_ENABLE		0x46014
+#define _DPLL0_ENABLE		0x46010
+#define _DPLL1_ENABLE		0x46014
 #define _ADLS_DPLL2_ENABLE	0x46018
 #define _ADLS_DPLL3_ENABLE	0x46030
-#define  PLL_ENABLE		(1 << 31)
-#define  PLL_LOCK		(1 << 30)
-#define  PLL_POWER_ENABLE	(1 << 27)
-#define  PLL_POWER_STATE	(1 << 26)
-#define ICL_DPLL_ENABLE(pll)	_MMIO_PLL3(pll, DPLL0_ENABLE, DPLL1_ENABLE, \
+#define   PLL_ENABLE		REG_BIT(31)
+#define   PLL_LOCK		REG_BIT(30)
+#define   PLL_POWER_ENABLE	REG_BIT(27)
+#define   PLL_POWER_STATE	REG_BIT(26)
+#define ICL_DPLL_ENABLE(pll)	_MMIO_PLL3(pll, _DPLL0_ENABLE, _DPLL1_ENABLE, \
 					   _ADLS_DPLL2_ENABLE, _ADLS_DPLL3_ENABLE)
 
 #define _DG2_PLL3_ENABLE	0x4601C
 
-#define DG2_PLL_ENABLE(pll) _MMIO_PLL3(pll, DPLL0_ENABLE, DPLL1_ENABLE, \
+#define DG2_PLL_ENABLE(pll) _MMIO_PLL3(pll, _DPLL0_ENABLE, _DPLL1_ENABLE, \
 				       _ADLS_DPLL2_ENABLE, _DG2_PLL3_ENABLE)
 
 #define TBT_PLL_ENABLE		_MMIO(0x46020)
@@ -7246,12 +7246,12 @@ enum skl_power_gate {
 #define _MG_PLL2_ENABLE		0x46034
 #define _MG_PLL3_ENABLE		0x46038
 #define _MG_PLL4_ENABLE		0x4603C
-/* Bits are the same as DPLL0_ENABLE */
+/* Bits are the same as _DPLL0_ENABLE */
 #define MG_PLL_ENABLE(tc_port)	_MMIO_PORT((tc_port), _MG_PLL1_ENABLE, \
 					   _MG_PLL2_ENABLE)
 
 /* DG1 PLL */
-#define DG1_DPLL_ENABLE(pll)    _MMIO_PLL3(pll, DPLL0_ENABLE, DPLL1_ENABLE, \
+#define DG1_DPLL_ENABLE(pll)    _MMIO_PLL3(pll, _DPLL0_ENABLE, _DPLL1_ENABLE, \
 					   _MG_PLL1_ENABLE, _MG_PLL2_ENABLE)
 
 /* ADL-P Type C PLL */
