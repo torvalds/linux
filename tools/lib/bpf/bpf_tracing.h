@@ -157,11 +157,14 @@ struct pt_regs___s390 {
 
 #elif defined(bpf_target_arm)
 
+/*
+ * https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst#machine-registers
+ */
+
 #define __PT_PARM1_REG uregs[0]
 #define __PT_PARM2_REG uregs[1]
 #define __PT_PARM3_REG uregs[2]
 #define __PT_PARM4_REG uregs[3]
-#define __PT_PARM5_REG uregs[4]
 #define __PT_RET_REG uregs[14]
 #define __PT_FP_REG uregs[11]	/* Works only with CONFIG_FRAME_POINTER */
 #define __PT_RC_REG uregs[0]
@@ -169,6 +172,10 @@ struct pt_regs___s390 {
 #define __PT_IP_REG uregs[12]
 
 #elif defined(bpf_target_arm64)
+
+/*
+ * https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst#machine-registers
+ */
 
 struct pt_regs___arm64 {
 	unsigned long orig_x0;
@@ -181,6 +188,9 @@ struct pt_regs___arm64 {
 #define __PT_PARM3_REG regs[2]
 #define __PT_PARM4_REG regs[3]
 #define __PT_PARM5_REG regs[4]
+#define __PT_PARM6_REG regs[5]
+#define __PT_PARM7_REG regs[6]
+#define __PT_PARM8_REG regs[7]
 #define __PT_RET_REG regs[30]
 #define __PT_FP_REG regs[29]	/* Works only with CONFIG_FRAME_POINTER */
 #define __PT_RC_REG regs[0]
