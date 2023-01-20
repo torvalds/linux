@@ -434,6 +434,10 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 			return 0;
 	}
 
+	if (shdr_rel_plt.sh_type != SHT_RELA &&
+	    shdr_rel_plt.sh_type != SHT_REL)
+		return 0;
+
 	if (shdr_rel_plt.sh_link != dynsym_idx)
 		goto out_elf_end;
 
@@ -466,34 +470,30 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 
 	ri.is_rela = shdr_rel_plt.sh_type == SHT_RELA;
 
-	if (shdr_rel_plt.sh_type == SHT_RELA ||
-	    shdr_rel_plt.sh_type == SHT_REL) {
-		for (idx = 0; idx < nr_rel_entries; idx++) {
-			const char *elf_name = NULL;
-			char *demangled = NULL;
+	for (idx = 0; idx < nr_rel_entries; idx++) {
+		const char *elf_name = NULL;
+		char *demangled = NULL;
 
-			gelf_getsym(syms, get_rel_symidx(&ri, idx), &sym);
+		gelf_getsym(syms, get_rel_symidx(&ri, idx), &sym);
 
-			elf_name = elf_sym__name(&sym, symstrs);
-			demangled = demangle_sym(dso, 0, elf_name);
-			if (demangled != NULL)
-				elf_name = demangled;
-			if (*elf_name)
-				snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
-			else
-				snprintf(sympltname, sizeof(sympltname),
-					 "offset_%#" PRIx64 "@plt", plt_offset);
-			free(demangled);
+		elf_name = elf_sym__name(&sym, symstrs);
+		demangled = demangle_sym(dso, 0, elf_name);
+		if (demangled)
+			elf_name = demangled;
+		if (*elf_name)
+			snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
+		else
+			snprintf(sympltname, sizeof(sympltname),
+				 "offset_%#" PRIx64 "@plt", plt_offset);
+		free(demangled);
 
-			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, STT_FUNC, sympltname);
-			if (!f)
-				goto out_elf_end;
+		f = symbol__new(plt_offset, plt_entry_size, STB_GLOBAL, STT_FUNC, sympltname);
+		if (!f)
+			goto out_elf_end;
 
-			plt_offset += plt_entry_size;
-			symbols__insert(&dso->symbols, f);
-			++nr;
-		}
+		plt_offset += plt_entry_size;
+		symbols__insert(&dso->symbols, f);
+		++nr;
 	}
 
 	err = 0;
