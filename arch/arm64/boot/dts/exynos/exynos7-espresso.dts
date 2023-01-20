@@ -78,6 +78,7 @@
 };
 
 &adc {
+	vdd-supply = <&ldo3_reg>;
 	status = "okay";
 };
 
