@@ -10,7 +10,7 @@ maintainers:
   - Shawn Guo <shawnguo@kernel.org>
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
 
 description: |
   The Enhanced Secure Digital Host Controller on Freescale i.MX family
@@ -112,7 +112,7 @@ properties:
     default: 0
 
   voltage-ranges:
-    $ref: '/schemas/types.yaml#/definitions/uint32-matrix'
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
     description: |
       Specify the voltage range in case there are software transparent level
       shifters on the outputs of the controller. Two cells are required, first
