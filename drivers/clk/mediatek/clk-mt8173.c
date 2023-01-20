@@ -546,8 +546,11 @@ static const struct mtk_composite cpu_muxes[] = {
 static const struct mtk_composite top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX(CLK_TOP_AXI_SEL, "axi_sel", axi_parents, 0x0040, 0, 3),
-	MUX(CLK_TOP_MEM_SEL, "mem_sel", mem_parents, 0x0040, 8, 1),
-	MUX_GATE(CLK_TOP_DDRPHYCFG_SEL, "ddrphycfg_sel", ddrphycfg_parents, 0x0040, 16, 1, 23),
+	MUX_FLAGS(CLK_TOP_MEM_SEL, "mem_sel", mem_parents, 0x0040, 8, 1,
+		  CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
+	MUX_GATE_FLAGS(CLK_TOP_DDRPHYCFG_SEL, "ddrphycfg_sel",
+		       ddrphycfg_parents, 0x0040, 16, 1, 23,
+		       CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE(CLK_TOP_MM_SEL, "mm_sel", mm_parents, 0x0040, 24, 4, 31),
 	/* CLK_CFG_1 */
 	MUX_GATE(CLK_TOP_PWM_SEL, "pwm_sel", pwm_parents, 0x0050, 0, 2, 7),
@@ -581,7 +584,9 @@ static const struct mtk_composite top_muxes[] = {
 	 */
 	MUX_GATE_FLAGS(CLK_TOP_DPI0_SEL, "dpi0_sel", dpi0_parents, 0x00a0, 0, 3, 7, 0),
 	MUX_GATE(CLK_TOP_IRDA_SEL, "irda_sel", irda_parents, 0x00a0, 8, 2, 15),
-	MUX_GATE(CLK_TOP_CCI400_SEL, "cci400_sel", cci400_parents, 0x00a0, 16, 3, 23),
+	MUX_GATE_FLAGS(CLK_TOP_CCI400_SEL, "cci400_sel",
+		       cci400_parents, 0x00a0, 16, 3, 23,
+		       CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE(CLK_TOP_AUD_1_SEL, "aud_1_sel", aud_1_parents, 0x00a0, 24, 2, 31),
 	/* CLK_CFG_7 */
 	MUX_GATE(CLK_TOP_AUD_2_SEL, "aud_2_sel", aud_2_parents, 0x00b0, 0, 2, 7),
@@ -596,7 +601,8 @@ static const struct mtk_composite top_muxes[] = {
 	MUX_GATE(CLK_TOP_MSDC50_2_H_SEL, "msdc50_2_h_sel", msdc50_2_h_parents, 0x00d0, 0, 3, 7),
 	MUX_GATE(CLK_TOP_HDCP_SEL, "hdcp_sel", hdcp_parents, 0x00d0, 8, 2, 15),
 	MUX_GATE(CLK_TOP_HDCP_24M_SEL, "hdcp_24m_sel", hdcp_24m_parents, 0x00d0, 16, 2, 23),
-	MUX(CLK_TOP_RTC_SEL, "rtc_sel", rtc_parents, 0x00d0, 24, 2),
+	MUX_FLAGS(CLK_TOP_RTC_SEL, "rtc_sel", rtc_parents, 0x00d0, 24, 2,
+		  CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 
 	DIV_GATE(CLK_TOP_APLL1_DIV0, "apll1_div0", "aud_1_sel", 0x12c, 8, 0x120, 4, 24),
 	DIV_GATE(CLK_TOP_APLL1_DIV1, "apll1_div1", "aud_1_sel", 0x12c, 9, 0x124, 8, 0),
@@ -846,22 +852,7 @@ static const struct mtk_clk_rst_desc clk_rst_desc[] = {
 	}
 };
 
-static struct clk_hw_onecell_data *mt8173_top_clk_data;
-static struct clk_hw_onecell_data *mt8173_pll_clk_data;
 static struct clk_hw_onecell_data *infra_clk_data;
-
-static void mtk_clk_enable_critical(void)
-{
-	if (!mt8173_top_clk_data || !mt8173_pll_clk_data)
-		return;
-
-	clk_prepare_enable(mt8173_pll_clk_data->hws[CLK_APMIXED_ARMCA15PLL]->clk);
-	clk_prepare_enable(mt8173_pll_clk_data->hws[CLK_APMIXED_ARMCA7PLL]->clk);
-	clk_prepare_enable(mt8173_top_clk_data->hws[CLK_TOP_MEM_SEL]->clk);
-	clk_prepare_enable(mt8173_top_clk_data->hws[CLK_TOP_DDRPHYCFG_SEL]->clk);
-	clk_prepare_enable(mt8173_top_clk_data->hws[CLK_TOP_CCI400_SEL]->clk);
-	clk_prepare_enable(mt8173_top_clk_data->hws[CLK_TOP_RTC_SEL]->clk);
-}
 
 static int clk_mt8173_topck_probe(struct platform_device *pdev)
 {
@@ -874,7 +865,7 @@ static int clk_mt8173_topck_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	mt8173_top_clk_data = clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
+	clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 	if (IS_ERR_OR_NULL(clk_data))
 		return -ENOMEM;
 
@@ -896,7 +887,6 @@ static int clk_mt8173_topck_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_composites;
 
-	mtk_clk_enable_critical();
 	return 0;
 
 unregister_composites:
@@ -1051,8 +1041,10 @@ static const struct mtk_pll_div_table mmpll_div_table[] = {
 };
 
 static const struct mtk_pll_data plls[] = {
-	PLL(CLK_APMIXED_ARMCA15PLL, "armca15pll", 0x200, 0x20c, 0, 0, 21, 0x204, 24, 0x0, 0x204, 0),
-	PLL(CLK_APMIXED_ARMCA7PLL, "armca7pll", 0x210, 0x21c, 0, 0, 21, 0x214, 24, 0x0, 0x214, 0),
+	PLL(CLK_APMIXED_ARMCA15PLL, "armca15pll", 0x200, 0x20c, 0, PLL_AO,
+	    21, 0x204, 24, 0x0, 0x204, 0),
+	PLL(CLK_APMIXED_ARMCA7PLL, "armca7pll", 0x210, 0x21c, 0, PLL_AO,
+	    21, 0x214, 24, 0x0, 0x214, 0),
 	PLL(CLK_APMIXED_MAINPLL, "mainpll", 0x220, 0x22c, 0xf0000100, HAVE_RST_BAR, 21, 0x220, 4, 0x0, 0x224, 0),
 	PLL(CLK_APMIXED_UNIVPLL, "univpll", 0x230, 0x23c, 0xfe000000, HAVE_RST_BAR, 7, 0x230, 4, 0x0, 0x234, 14),
 	PLL_B(CLK_APMIXED_MMPLL, "mmpll", 0x240, 0x24c, 0, 0, 21, 0x244, 24, 0x0, 0x244, 0, mmpll_div_table),
@@ -1079,7 +1071,7 @@ static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 	if (!base)
 		return PTR_ERR(base);
 
-	mt8173_pll_clk_data = clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
+	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (IS_ERR_OR_NULL(clk_data))
 		return -ENOMEM;
 
@@ -1104,7 +1096,6 @@ static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_ref2usb;
 
-	mtk_clk_enable_critical();
 	return 0;
 
 unregister_ref2usb:
