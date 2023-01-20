@@ -44,8 +44,8 @@ double perf_pmu__cpu_slots_per_cycle(void)
 	struct perf_pmu *pmu = pmu__find_core_pmu();
 
 	if (pmu) {
-		scnprintf(path, PATH_MAX,
-			EVENT_SOURCE_DEVICE_PATH "%s/caps/slots", pmu->name);
+		perf_pmu__pathname_scnprintf(path, sizeof(path),
+					     pmu->name, "caps/slots");
 		/*
 		 * The value of slots is not greater than 32 bits, but sysfs__read_int
 		 * can't read value with 0x prefix, so use sysfs__read_ull instead.

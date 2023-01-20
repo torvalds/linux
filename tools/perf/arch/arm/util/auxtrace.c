@@ -55,17 +55,16 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 
 static struct perf_pmu **find_all_hisi_ptt_pmus(int *nr_ptts, int *err)
 {
-	const char *sysfs = sysfs__mountpoint();
 	struct perf_pmu **hisi_ptt_pmus = NULL;
 	struct dirent *dent;
 	char path[PATH_MAX];
 	DIR *dir = NULL;
 	int idx = 0;
 
-	snprintf(path, PATH_MAX, "%s" EVENT_SOURCE_DEVICE_PATH, sysfs);
+	perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
 	dir = opendir(path);
 	if (!dir) {
-		pr_err("can't read directory '%s'\n", EVENT_SOURCE_DEVICE_PATH);
+		pr_err("can't read directory '%s'\n", path);
 		*err = -EINVAL;
 		return NULL;
 	}

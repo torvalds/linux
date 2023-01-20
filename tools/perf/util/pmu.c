@@ -108,13 +108,9 @@ int perf_pmu__format_parse(char *dir, struct list_head *head)
 static int pmu_format(const char *name, struct list_head *format)
 {
 	char path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "format"))
 		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/format", sysfs, name);
 
 	if (!file_available(path))
 		return 0;
@@ -514,13 +510,9 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 static int pmu_aliases(const char *name, struct list_head *head)
 {
 	char path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "events"))
 		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s/bus/event_source/devices/%s/events", sysfs, name);
 
 	if (!file_available(path))
 		return 0;
@@ -555,51 +547,15 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
 	return 0;
 }
 
-/*
- * Reading/parsing the default pmu type value, which should be
- * located at:
- * /sys/bus/event_source/devices/<dev>/type as sysfs attribute.
- */
-static int pmu_type(const char *name, __u32 *type)
-{
-	char path[PATH_MAX];
-	FILE *file;
-	int ret = 0;
-	const char *sysfs = sysfs__mountpoint();
-
-	if (!sysfs)
-		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/type", sysfs, name);
-
-	if (access(path, R_OK) < 0)
-		return -1;
-
-	file = fopen(path, "r");
-	if (!file)
-		return -EINVAL;
-
-	if (1 != fscanf(file, "%u", type))
-		ret = -1;
-
-	fclose(file);
-	return ret;
-}
-
 /* Add all pmus in sysfs to pmu list: */
 static void pmu_read_sysfs(void)
 {
 	char path[PATH_MAX];
 	DIR *dir;
 	struct dirent *dent;
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__event_source_devices_scnprintf(path, sizeof(path)))
 		return;
-
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH, sysfs);
 
 	dir = opendir(path);
 	if (!dir)
@@ -697,14 +653,9 @@ static char *pmu_id(const char *name)
 static int is_arm_pmu_core(const char *name)
 {
 	char path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), name, "cpus"))
 		return 0;
-
-	/* Look for cpu sysfs (specific to arm) */
-	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/cpus",
-				sysfs, name);
 	return file_available(path);
 }
 
@@ -970,11 +921,8 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 		return NULL;
 
 	/*
-	 * Check the type first to avoid unnecessary work.
+	 * Check the aliases first to avoid unnecessary work.
 	 */
-	if (pmu_type(name, &type))
-		return NULL;
-
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
@@ -984,7 +932,12 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 
 	pmu->cpus = pmu_cpumask(name);
 	pmu->name = strdup(name);
+
 	if (!pmu->name)
+		goto err;
+
+	/* Read type, and ensure that type value is successfully assigned (return 1) */
+	if (perf_pmu__scan_file(pmu, "type", "%u", &type) != 1)
 		goto err;
 
 	alias_name = pmu_find_alias_name(name);
@@ -1787,16 +1740,11 @@ bool pmu_have_event(const char *pname, const char *name)
 static FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name)
 {
 	char path[PATH_MAX];
-	const char *sysfs;
 
-	sysfs = sysfs__mountpoint();
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(path, sizeof(path), pmu->name, name) ||
+	    !file_available(path))
 		return NULL;
 
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/%s", sysfs, pmu->name, name);
-	if (!file_available(path))
-		return NULL;
 	return fopen(path, "r");
 }
 
@@ -1850,7 +1798,6 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 {
 	struct stat st;
 	char caps_path[PATH_MAX];
-	const char *sysfs = sysfs__mountpoint();
 	DIR *caps_dir;
 	struct dirent *evt_ent;
 
@@ -1859,11 +1806,8 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 
 	pmu->nr_caps = 0;
 
-	if (!sysfs)
+	if (!perf_pmu__pathname_scnprintf(caps_path, sizeof(caps_path), pmu->name, "caps"))
 		return -1;
-
-	snprintf(caps_path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/caps", sysfs, pmu->name);
 
 	if (stat(caps_path, &st) < 0) {
 		pmu->caps_initialized = true;
@@ -1998,4 +1942,32 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 double __weak perf_pmu__cpu_slots_per_cycle(void)
 {
 	return NAN;
+}
+
+int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size)
+{
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return 0;
+	return scnprintf(pathname, size, "%s/bus/event_source/devices/", sysfs);
+}
+
+/*
+ * Fill 'buf' with the path to a file or folder in 'pmu_name' in
+ * sysfs. For example if pmu_name = "cs_etm" and 'filename' = "format"
+ * then pathname will be filled with
+ * "/sys/bus/event_source/devices/cs_etm/format"
+ *
+ * Return 0 if the sysfs mountpoint couldn't be found or if no
+ * characters were written.
+ */
+int perf_pmu__pathname_scnprintf(char *buf, size_t size,
+				 const char *pmu_name, const char *filename)
+{
+	char base_path[PATH_MAX];
+
+	if (!perf_pmu__event_source_devices_scnprintf(base_path, sizeof(base_path)))
+		return 0;
+	return scnprintf(buf, size, "%s%s/%s", base_path, pmu_name, filename);
 }
