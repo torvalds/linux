@@ -575,8 +575,6 @@ static void pmu_read_sysfs(void)
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
-#define SYS_TEMPLATE_ID	"./bus/event_source/devices/%s/identifier"
-
 static struct perf_cpu_map *pmu_cpumask(const char *name)
 {
 	struct perf_cpu_map *cpus;
@@ -619,9 +617,9 @@ static char *pmu_id(const char *name)
 	char path[PATH_MAX], *str;
 	size_t len;
 
-	snprintf(path, PATH_MAX, SYS_TEMPLATE_ID, name);
+	perf_pmu__pathname_scnprintf(path, sizeof(path), name, "identifier");
 
-	if (sysfs__read_str(path, &str, &len) < 0)
+	if (filename__read_str(path, &str, &len) < 0)
 		return NULL;
 
 	str[len - 1] = 0; /* remove line feed */
@@ -867,16 +865,11 @@ pmu_find_alias_name(const char *name __maybe_unused)
 	return NULL;
 }
 
-static int pmu_max_precise(const char *name)
+static int pmu_max_precise(struct perf_pmu *pmu)
 {
-	char path[PATH_MAX];
 	int max_precise = -1;
 
-	scnprintf(path, PATH_MAX,
-		 "bus/event_source/devices/%s/caps/max_precise",
-		 name);
-
-	sysfs__read_int(path, &max_precise);
+	perf_pmu__scan_file(pmu, "caps/max_precise", "%d", &max_precise);
 	return max_precise;
 }
 
@@ -935,7 +928,7 @@ static struct perf_pmu *pmu_lookup(const char *lookup_name)
 	pmu->is_uncore = pmu_is_uncore(name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
-	pmu->max_precise = pmu_max_precise(name);
+	pmu->max_precise = pmu_max_precise(pmu);
 	pmu_add_cpu_aliases(&aliases, pmu);
 	pmu_add_sys_aliases(&aliases, pmu);
 
