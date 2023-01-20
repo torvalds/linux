@@ -26,11 +26,11 @@ properties:
     oneOf:
       - enum:
           - fsl,imx6q-gpc
-          - fsl,imx6qp-gpc
-          - fsl,imx6sl-gpc
-          - fsl,imx6sx-gpc
       - items:
           - enum:
+              - fsl,imx6qp-gpc
+              - fsl,imx6sl-gpc
+              - fsl,imx6sx-gpc
               - fsl,imx6ul-gpc
           - const: fsl,imx6q-gpc
 
