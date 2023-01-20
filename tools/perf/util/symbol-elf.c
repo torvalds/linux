@@ -384,7 +384,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	GElf_Ehdr ehdr;
 	char sympltname[1024];
 	Elf *elf;
-	int nr = 0, symidx, err = 0;
+	int nr = 0, symidx, err = -1;
 
 	if (!ss->dynsym)
 		return 0;
@@ -397,7 +397,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	dynsym_idx = ss->dynsym_idx;
 
 	if (scn_dynsym == NULL)
-		goto out_elf_end;
+		return 0;
 
 	scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 					  ".rela.plt", NULL);
@@ -405,10 +405,8 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 						  ".rel.plt", NULL);
 		if (scn_plt_rel == NULL)
-			goto out_elf_end;
+			return 0;
 	}
-
-	err = -1;
 
 	if (shdr_rel_plt.sh_link != dynsym_idx)
 		goto out_elf_end;
