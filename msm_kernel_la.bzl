@@ -371,7 +371,7 @@ def define_msm_la(
     dtb_list = get_dtb_list(msm_target)
     dtbo_list = get_dtbo_list(msm_target)
     dtstree = get_dtstree(msm_target)
-    vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(msm_target)
+    vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(target)
     gki_ramdisk_prebuilt_binary = get_gki_ramdisk_prebuilt_binary()
     build_config_fragments = get_build_config_fragments(msm_target)
 
