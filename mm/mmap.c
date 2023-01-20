@@ -2329,21 +2329,9 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	for_each_vma_range(*vmi, next, end) {
 		/* Does it split the end? */
 		if (next->vm_end > end) {
-			struct vm_area_struct *split;
-
-			error = __split_vma(vmi, next, end, 1);
+			error = __split_vma(vmi, next, end, 0);
 			if (error)
 				goto end_split_failed;
-
-			split = vma_prev(vmi);
-			error = munmap_sidetree(split, &mas_detach);
-			if (error)
-				goto munmap_sidetree_failed;
-
-			count++;
-			if (vma == next)
-				vma = split;
-			break;
 		}
 		error = munmap_sidetree(next, &mas_detach);
 		if (error)
@@ -2356,9 +2344,7 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 #endif
 	}
 
-	if (!next)
-		next = vma_next(vmi);
-
+	next = vma_next(vmi);
 	if (unlikely(uf)) {
 		/*
 		 * If userfaultfd_unmap_prep returns an error the vmas
