@@ -283,15 +283,17 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  struct cs_etm_packet_queue *packet_queue,
 				  const uint8_t trace_chan_id)
 {
+	u64 estimated_ts;
+
 	/* No timestamp packet has been received, nothing to do */
-	if (!packet_queue->cs_timestamp)
+	if (!packet_queue->next_cs_timestamp)
 		return OCSD_RESP_CONT;
 
-	packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
+	estimated_ts = packet_queue->cs_timestamp +
+			cs_etm_decoder__dec_instr_count_to_ns(&packet_queue->instr_count);
 
-	/* Estimate the timestamp for the next range packet */
-	packet_queue->next_cs_timestamp +=
-		cs_etm_decoder__dec_instr_count_to_ns(&packet_queue->instr_count);
+	/* Estimated TS can never be higher than the next real one in the trace */
+	packet_queue->cs_timestamp = min(packet_queue->next_cs_timestamp, estimated_ts);
 
 	/* Tell the front end which traceid_queue needs attention */
 	cs_etm__etmq_set_traceid_queue_timestamp(etmq, trace_chan_id);
@@ -307,6 +309,7 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 {
 	struct cs_etm_packet_queue *packet_queue;
 	u64 converted_timestamp;
+	u64 estimated_first_ts;
 
 	/* First get the packet queue for this traceID */
 	packet_queue = cs_etm__etmq_get_packet_queue(etmq, trace_chan_id);
@@ -325,7 +328,12 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 	 * Function do_soft_timestamp() will report the value to the front end,
 	 * hence asking the decoder to keep decoding rather than stopping.
 	 */
-	if (packet_queue->cs_timestamp) {
+	if (packet_queue->next_cs_timestamp) {
+		/*
+		 * What was next is now where new ranges start from, overwriting
+		 * any previous estimate in cs_timestamp
+		 */
+		packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
 		packet_queue->next_cs_timestamp = converted_timestamp;
 		return OCSD_RESP_CONT;
 	}
@@ -355,10 +363,12 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		 * or a discontinuity.  Since timestamps packets are generated *after*
 		 * range packets have been generated, we need to estimate the time at
 		 * which instructions started by subtracting the number of instructions
-		 * executed to the timestamp.
+		 * executed to the timestamp. Don't estimate earlier than the last used
+		 * timestamp though.
 		 */
-		packet_queue->cs_timestamp = converted_timestamp -
-						(packet_queue->instr_count / INSTR_PER_NS);
+		estimated_first_ts = converted_timestamp -
+					(packet_queue->instr_count / INSTR_PER_NS);
+		packet_queue->cs_timestamp = max(packet_queue->cs_timestamp, estimated_first_ts);
 	}
 	packet_queue->next_cs_timestamp = converted_timestamp;
 	packet_queue->instr_count = 0;
@@ -373,7 +383,6 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 static void
 cs_etm_decoder__reset_timestamp(struct cs_etm_packet_queue *packet_queue)
 {
-	packet_queue->cs_timestamp = 0;
 	packet_queue->next_cs_timestamp = 0;
 	packet_queue->instr_count = 0;
 }
