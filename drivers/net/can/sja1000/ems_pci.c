@@ -21,6 +21,7 @@
 #define DRV_NAME  "ems_pci"
 
 MODULE_AUTHOR("Sebastian Haas <support@ems-wuensche.com>");
+MODULE_AUTHOR("Gerhard Uttenthaler <uttenthaler@ems-wuensche.com>");
 MODULE_DESCRIPTION("Socket-CAN driver for EMS CPC-PCI/PCIe/104P CAN cards");
 MODULE_LICENSE("GPL v2");
 
