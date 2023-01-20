@@ -457,19 +457,41 @@ config COMMON_CLK_MT8167_VDECSYS
 	  This driver supports MediaTek MT8167 vdecsys clocks.
 
 config COMMON_CLK_MT8173
-	bool "Clock driver for MediaTek MT8173"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	tristate "Clock driver for MediaTek MT8173"
+	depends on ARM64 || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
 	default ARCH_MEDIATEK
 	help
-	  This driver supports MediaTek MT8173 clocks.
+	  This driver supports MediaTek MT8173 basic clocks and clocks
+	  required for various peripherals found on MediaTek.
 
-config COMMON_CLK_MT8173_MMSYS
-	bool "Clock driver for MediaTek MT8173 mmsys"
+config COMMON_CLK_MT8173_IMGSYS
+	tristate "Clock driver for MediaTek MT8173 imgsys"
 	depends on COMMON_CLK_MT8173
 	default COMMON_CLK_MT8173
 	help
-	  This driver supports MediaTek MT8173 mmsys clocks.
+	  This driver supports MediaTek MT8173 imgsys clocks.
+
+config COMMON_CLK_MT8173_MMSYS
+       tristate "Clock driver for MediaTek MT8173 mmsys"
+       depends on COMMON_CLK_MT8173
+	default COMMON_CLK_MT8173
+       help
+         This driver supports MediaTek MT8173 mmsys clocks.
+
+config COMMON_CLK_MT8173_VDECSYS
+	tristate "Clock driver for MediaTek MT8173 VDECSYS"
+	depends on COMMON_CLK_MT8173
+	default COMMON_CLK_MT8173
+	help
+	  This driver supports MediaTek MT8173 vdecsys clocks.
+
+config COMMON_CLK_MT8173_VENCSYS
+	tristate "Clock driver for MediaTek MT8173 VENCSYS"
+	depends on COMMON_CLK_MT8173
+	default COMMON_CLK_MT8173
+	help
+	  This driver supports MediaTek MT8173 vencsys clocks.
 
 config COMMON_CLK_MT8183
 	bool "Clock driver for MediaTek MT8183"
