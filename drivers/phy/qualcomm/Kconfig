@@ -133,6 +133,13 @@ config PHY_QCOM_UFS_V4_BLAIR
 	  This is required to enable UFS on Blair chipset.
           To compile this driver as a module, choose M here.
 
+config PHY_QCOM_UFS_V4_LAHAINA
+	tristate "Qualcomm Technologies, Inc. UFS Lahaina Phy Driver"
+	help
+	  Support for UFS phy present on QCOM Lahaina chipsets.
+	  This is required to enable UFS on Lahaina chipset.
+	  To compile this driver as a module, choose M here.
+
 endif
 
 config PHY_QCOM_QUSB2
