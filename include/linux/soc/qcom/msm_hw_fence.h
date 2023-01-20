@@ -46,6 +46,15 @@
 #define MSM_HW_FENCE_MAX_SIGNAL_PER_CLIENT 64
 
 /**
+ * MSM_HW_FENCE_DBG_DUMP_QUEUES: Dumps queues information
+ * MSM_HW_FENCE_DBG_DUMP_TABLE: Dumps hwfence table
+ * MSM_HW_FENCE_DBG_DUMP_EVENTS: Dumps hwfence ctl events
+ */
+#define MSM_HW_FENCE_DBG_DUMP_QUEUES        BIT(0)
+#define MSM_HW_FENCE_DBG_DUMP_TABLE         BIT(1)
+#define MSM_HW_FENCE_DBG_DUMP_EVENTS        BIT(2)
+
+/**
  * struct msm_hw_fence_create_params - Creation parameters.
  *
  * @name : Optional parameter associating a name with the object for debug purposes.
@@ -504,7 +513,41 @@ static inline int msm_hw_fence_trigger_signal(void *client_handle, u32 tx_client
 {
 	return -EINVAL;
 }
+#endif
 
+#if IS_ENABLED(CONFIG_DEBUG_FS) && IS_ENABLED(CONFIG_QTI_HW_FENCE)
+/**
+ * msm_hw_fence_dump_debug_data() - Dumps debug data information
+ * @client_handle: Hw fence driver client handle returned during 'msm_hw_fence_register'.
+ * @dump_flags: Flags to indicate which info to dump, see MSM_HW_FENCE_DBG_DUMP_** flags.
+ * @dump_clients_mask: Optional bitmask to indicate along with the caller of the api, which other
+ *                     clients to dump data from. E.g. a client like display might want to dump
+ *                     info of any all other clients from which it can receive fences, like gfx.
+ *
+ * Return: 0 on success or negative errno (-EINVAL)
+ */
+int msm_hw_fence_dump_debug_data(void *client_handle, u32 dump_flags, u32 dump_clients_mask);
+
+/**
+ * msm_hw_fence_dump_debug_data() - Dumps hw-fence information for dma-fence
+ * @client_handle: Hw fence driver client handle returned during 'msm_hw_fence_register'.
+ * @fence: dma_fence to dump hw-fence information
+ *
+ * Return: 0 on success or negative errno (-EINVAL)
+ */
+int msm_hw_fence_dump_fence(void *client_handle, struct dma_fence *fence);
+
+#else
+static inline int msm_hw_fence_dump_debug_data(void *client_handle, u32 dump_flags,
+	u32 dump_clients_mask)
+{
+	return -EINVAL;
+}
+
+static inline int msm_hw_fence_dump_fence(void *client_handle, struct dma_fence *fence)
+{
+	return -EINVAL;
+}
 #endif
 
 #endif
