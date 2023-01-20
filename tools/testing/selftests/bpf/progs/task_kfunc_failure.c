@@ -5,6 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_misc.h"
 #include "task_kfunc_common.h"
 
 char _license[] SEC("license") = "GPL";
@@ -27,6 +28,7 @@ static struct __tasks_kfunc_map_value *insert_lookup_task(struct task_struct *ta
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("R1 must be referenced or trusted")
 int BPF_PROG(task_kfunc_acquire_untrusted, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -44,6 +46,7 @@ int BPF_PROG(task_kfunc_acquire_untrusted, struct task_struct *task, u64 clone_f
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 pointer type STRUCT task_struct must point")
 int BPF_PROG(task_kfunc_acquire_fp, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired, *stack_task = (struct task_struct *)&clone_flags;
@@ -56,6 +59,7 @@ int BPF_PROG(task_kfunc_acquire_fp, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("kretprobe/free_task")
+__failure __msg("reg type unsupported for arg#0 function")
 int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -68,6 +72,7 @@ int BPF_PROG(task_kfunc_acquire_unsafe_kretprobe, struct task_struct *task, u64 
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("R1 must be referenced or trusted")
 int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -81,6 +86,7 @@ int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 cl
 
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 pointer type STRUCT task_struct must point")
 int BPF_PROG(task_kfunc_acquire_null, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -95,6 +101,7 @@ int BPF_PROG(task_kfunc_acquire_null, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("Unreleased reference")
 int BPF_PROG(task_kfunc_acquire_unreleased, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -107,6 +114,7 @@ int BPF_PROG(task_kfunc_acquire_unreleased, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 expected pointer to map value")
 int BPF_PROG(task_kfunc_get_non_kptr_param, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr;
@@ -122,6 +130,7 @@ int BPF_PROG(task_kfunc_get_non_kptr_param, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 expected pointer to map value")
 int BPF_PROG(task_kfunc_get_non_kptr_acquired, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr, *acquired;
@@ -140,6 +149,7 @@ int BPF_PROG(task_kfunc_get_non_kptr_acquired, struct task_struct *task, u64 clo
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 expected pointer to map value")
 int BPF_PROG(task_kfunc_get_null, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr;
@@ -155,6 +165,7 @@ int BPF_PROG(task_kfunc_get_null, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("Unreleased reference")
 int BPF_PROG(task_kfunc_xchg_unreleased, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr;
@@ -174,6 +185,7 @@ int BPF_PROG(task_kfunc_xchg_unreleased, struct task_struct *task, u64 clone_fla
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("Unreleased reference")
 int BPF_PROG(task_kfunc_get_unreleased, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *kptr;
@@ -193,6 +205,7 @@ int BPF_PROG(task_kfunc_get_unreleased, struct task_struct *task, u64 clone_flag
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 is untrusted_ptr_or_null_ expected ptr_ or socket")
 int BPF_PROG(task_kfunc_release_untrusted, struct task_struct *task, u64 clone_flags)
 {
 	struct __tasks_kfunc_map_value *v;
@@ -208,6 +221,7 @@ int BPF_PROG(task_kfunc_release_untrusted, struct task_struct *task, u64 clone_f
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 pointer type STRUCT task_struct must point")
 int BPF_PROG(task_kfunc_release_fp, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired = (struct task_struct *)&clone_flags;
@@ -219,6 +233,7 @@ int BPF_PROG(task_kfunc_release_fp, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
 int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 {
 	struct __tasks_kfunc_map_value local, *v;
@@ -251,6 +266,7 @@ int BPF_PROG(task_kfunc_release_null, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("release kernel function bpf_task_release expects")
 int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_flags)
 {
 	/* Cannot release trusted task pointer which was not acquired. */
@@ -260,6 +276,7 @@ int BPF_PROG(task_kfunc_release_unacquired, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
+__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
 int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -273,6 +290,7 @@ int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 cl
 }
 
 SEC("lsm/task_free")
+__failure __msg("reg type unsupported for arg#0 function")
 int BPF_PROG(task_kfunc_from_lsm_task_free, struct task_struct *task)
 {
 	struct task_struct *acquired;
