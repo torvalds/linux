@@ -334,7 +334,7 @@ static void dg1_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 	GEN3_IRQ_INIT(gt, GEN11_GU_MISC_, ~GEN11_GU_MISC_GSE,
 		      GEN11_GU_MISC_GSE);
 
-	if (gt->info.id + 1 == xe->info.tile_count)
+	if (gt->info.id == XE_GT0)
 		dg1_intr_enable(xe, true);
 }
 
