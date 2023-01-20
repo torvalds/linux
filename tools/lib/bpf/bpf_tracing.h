@@ -222,11 +222,19 @@ struct pt_regs___arm64 {
 
 #elif defined(bpf_target_powerpc)
 
+/*
+ * http://refspecs.linux-foundation.org/elf/elfspec_ppc.pdf (page 3-14,
+ * section "Function Calling Sequence")
+ */
+
 #define __PT_PARM1_REG gpr[3]
 #define __PT_PARM2_REG gpr[4]
 #define __PT_PARM3_REG gpr[5]
 #define __PT_PARM4_REG gpr[6]
 #define __PT_PARM5_REG gpr[7]
+#define __PT_PARM6_REG gpr[8]
+#define __PT_PARM7_REG gpr[9]
+#define __PT_PARM8_REG gpr[10]
 #define __PT_RET_REG regs[31]
 #define __PT_FP_REG __unsupported__
 #define __PT_RC_REG gpr[3]
