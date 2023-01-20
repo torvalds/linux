@@ -1538,6 +1538,11 @@ sub dodie {
     return if ($in_die);
     $in_die = 1;
 
+    if ($monitor_cnt) {
+	# restore terminal settings
+	system("stty $stty_orig");
+    }
+
     my $i = $iteration;
 
     doprint "CRITICAL FAILURE... [TEST $i] ", @_, "\n";
@@ -1582,11 +1587,6 @@ sub dodie {
 
 	send_email("KTEST: critical failure for test $i [$name]",
 		"Your test started at $script_start_time has failed with:\n@_\n", $log_file);
-    }
-
-    if ($monitor_cnt) {
-	# restore terminal settings
-	system("stty $stty_orig");
     }
 
     if (defined($post_test)) {
