@@ -66,10 +66,12 @@ User command examples:
 
 enable_roce: RoCE enablement state
 ----------------------------------
-RoCE enablement state controls driver support for RoCE traffic.
-When RoCE is disabled, there is no gid table, only raw ethernet QPs are supported and traffic on the well-known UDP RoCE port is handled as raw ethernet traffic.
+If the device supports RoCE disablement, RoCE enablement state controls device
+support for RoCE capability. Otherwise, the control occurs in the driver stack.
+When RoCE is disabled at the driver level, only raw ethernet QPs are supported.
 
-To change RoCE enablement state, a user must change the driverinit cmode value and run devlink reload.
+To change RoCE enablement state, a user must change the driverinit cmode value
+and run devlink reload.
 
 User command examples:
 
