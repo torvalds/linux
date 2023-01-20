@@ -1054,7 +1054,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 					vma->vm_file, extension_pgoff, vma_policy(vma),
 					vma->vm_userfaultfd_ctx, anon_vma_name(vma));
 			} else if (vma_adjust(&vmi, vma, vma->vm_start,
-					addr + new_len, vma->vm_pgoff, NULL)) {
+					addr + new_len, vma->vm_pgoff)) {
 				vma = NULL;
 			}
 			if (!vma) {
