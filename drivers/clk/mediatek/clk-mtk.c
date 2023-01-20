@@ -197,8 +197,8 @@ void mtk_clk_unregister_factors(const struct mtk_fixed_factor *clks, int num,
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_factors);
 
-static struct clk_hw *mtk_clk_register_composite(const struct mtk_composite *mc,
-		void __iomem *base, spinlock_t *lock)
+static struct clk_hw *mtk_clk_register_composite(struct device *dev,
+		const struct mtk_composite *mc, void __iomem *base, spinlock_t *lock)
 {
 	struct clk_hw *hw;
 	struct clk_mux *mux = NULL;
@@ -264,7 +264,7 @@ static struct clk_hw *mtk_clk_register_composite(const struct mtk_composite *mc,
 		div_ops = &clk_divider_ops;
 	}
 
-	hw = clk_hw_register_composite(NULL, mc->name, parent_names, num_parents,
+	hw = clk_hw_register_composite(dev, mc->name, parent_names, num_parents,
 		mux_hw, mux_ops,
 		div_hw, div_ops,
 		gate_hw, gate_ops,
@@ -308,7 +308,8 @@ static void mtk_clk_unregister_composite(struct clk_hw *hw)
 	kfree(mux);
 }
 
-int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
+int mtk_clk_register_composites(struct device *dev,
+				const struct mtk_composite *mcs, int num,
 				void __iomem *base, spinlock_t *lock,
 				struct clk_hw_onecell_data *clk_data)
 {
@@ -327,7 +328,7 @@ int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
 			continue;
 		}
 
-		hw = mtk_clk_register_composite(mc, base, lock);
+		hw = mtk_clk_register_composite(dev, mc, base, lock);
 
 		if (IS_ERR(hw)) {
 			pr_err("Failed to register clk %s: %pe\n", mc->name,
