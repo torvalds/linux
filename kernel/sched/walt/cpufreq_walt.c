@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2016, Intel Corporation
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -322,9 +322,13 @@ static void waltgov_walt_adjust(struct waltgov_cpu *wg_cpu, unsigned long cpu_ut
 	if (is_rtg_boost)
 		max_and_reason(util, wg_policy->rtg_boost_util, wg_cpu, CPUFREQ_REASON_RTG_BOOST);
 
+
 	is_hiload = (cpu_util >= mult_frac(wg_policy->avg_cap,
 					   wg_policy->tunables->hispeed_load,
 					   100));
+
+	if (cpu_should_help_mincpus(wg_cpu->cpu))
+		is_hiload = false;
 
 	if (is_hiload && !is_migration)
 		max_and_reason(util, wg_policy->hispeed_util, wg_cpu, CPUFREQ_REASON_HISPEED);
