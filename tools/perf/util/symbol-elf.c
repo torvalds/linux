@@ -389,6 +389,27 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	elf = ss->elf;
 	ehdr = ss->ehdr;
 
+	if (!elf_section_by_name(elf, &ehdr, &shdr_plt, ".plt", NULL))
+		return 0;
+
+	/*
+	 * A symbol from a previous section (e.g. .init) can have been expanded
+	 * by symbols__fixup_end() to overlap .plt. Truncate it before adding
+	 * a symbol for .plt header.
+	 */
+	f = dso__find_symbol_nocache(dso, shdr_plt.sh_offset);
+	if (f && f->start < shdr_plt.sh_offset && f->end > shdr_plt.sh_offset)
+		f->end = shdr_plt.sh_offset;
+
+	if (!get_plt_sizes(dso, &ehdr, &shdr_plt, &plt_header_size, &plt_entry_size))
+		return 0;
+
+	/* Add a symbol for .plt header */
+	f = symbol__new(shdr_plt.sh_offset, plt_header_size, STB_GLOBAL, STT_FUNC, ".plt");
+	if (!f)
+		goto out_elf_end;
+	symbols__insert(&dso->symbols, f);
+
 	scn_dynsym = ss->dynsym;
 	shdr_dynsym = ss->dynshdr;
 	dynsym_idx = ss->dynsym_idx;
@@ -406,9 +427,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	}
 
 	if (shdr_rel_plt.sh_link != dynsym_idx)
-		goto out_elf_end;
-
-	if (elf_section_by_name(elf, &ehdr, &shdr_plt, ".plt", NULL) == NULL)
 		goto out_elf_end;
 
 	/*
@@ -436,8 +454,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 
 	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 	plt_offset = shdr_plt.sh_offset;
-	if (!get_plt_sizes(dso, &ehdr, &shdr_plt, &plt_header_size, &plt_entry_size))
-		return 0;
 	plt_offset += plt_header_size;
 
 	if (shdr_rel_plt.sh_type == SHT_RELA) {
