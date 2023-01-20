@@ -45,9 +45,11 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 	if (pb->enabled)
 		return;
 
-	err = regulator_enable(pb->power_supply);
-	if (err < 0)
-		dev_err(pb->dev, "failed to enable power supply\n");
+	if (pb->power_supply) {
+		err = regulator_enable(pb->power_supply);
+		if (err < 0)
+			dev_err(pb->dev, "failed to enable power supply\n");
+	}
 
 	if (pb->post_pwm_on_delay)
 		msleep(pb->post_pwm_on_delay);
@@ -69,7 +71,8 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	if (pb->pwm_off_delay)
 		msleep(pb->pwm_off_delay);
 
-	regulator_disable(pb->power_supply);
+	if (pb->power_supply)
+		regulator_disable(pb->power_supply);
 	pb->enabled = false;
 }
 
@@ -109,8 +112,16 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_backlight_power_off(pb);
 
 		pwm_get_state(pb->pwm, &state);
-		state.enabled = false;
 		state.duty_cycle = 0;
+		/*
+		 * We cannot assume a disabled PWM to drive its output to the
+		 * inactive state. If we have an enable GPIO and/or a regulator
+		 * we assume that this isn't relevant and we can disable the PWM
+		 * to save power. If however there is neither an enable GPIO nor
+		 * a regulator keep the PWM on be sure to get a constant
+		 * inactive output.
+		 */
+		state.enabled = !pb->power_supply && !pb->enable_gpio;
 		pwm_apply_state(pb->pwm, &state);
 	}
 
@@ -408,7 +419,7 @@ static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
 	if (pb->enable_gpio && gpiod_get_value_cansleep(pb->enable_gpio) == 0)
 		active = false;
 
-	if (!regulator_is_enabled(pb->power_supply))
+	if (pb->power_supply && !regulator_is_enabled(pb->power_supply))
 		active = false;
 
 	if (!pwm_is_enabled(pb->pwm))
@@ -489,10 +500,13 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	pb->power_supply = devm_regulator_get(&pdev->dev, "power");
+	pb->power_supply = devm_regulator_get_optional(&pdev->dev, "power");
 	if (IS_ERR(pb->power_supply)) {
 		ret = PTR_ERR(pb->power_supply);
-		goto err_alloc;
+		if (ret == -ENODEV)
+			pb->power_supply = NULL;
+		else
+			goto err_alloc;
 	}
 
 	pb->pwm = devm_pwm_get(&pdev->dev, NULL);
