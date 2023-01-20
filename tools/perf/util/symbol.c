@@ -556,6 +556,11 @@ struct symbol *dso__find_symbol(struct dso *dso, u64 addr)
 	return dso->last_find_result.symbol;
 }
 
+struct symbol *dso__find_symbol_nocache(struct dso *dso, u64 addr)
+{
+	return symbols__find(&dso->symbols, addr);
+}
+
 struct symbol *dso__first_symbol(struct dso *dso)
 {
 	return symbols__first(&dso->symbols);

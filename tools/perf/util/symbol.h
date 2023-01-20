@@ -148,6 +148,7 @@ void dso__delete_symbol(struct dso *dso,
 			struct symbol *sym);
 
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
+struct symbol *dso__find_symbol_nocache(struct dso *dso, u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name);
 
 struct symbol *symbol__next_by_name(struct symbol *sym);
