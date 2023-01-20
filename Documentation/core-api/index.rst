@@ -127,6 +127,7 @@ Documents that don't fit elsewhere or which have yet to be categorized.
    :maxdepth: 1
 
    librs
+   netlink
 
 .. only:: subproject and html
 
