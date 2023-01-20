@@ -5575,8 +5575,7 @@ int fotg210_hcd_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	hcd = usb_create_hcd(&fotg210_fotg210_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {
-		dev_err(dev, "failed to create hcd\n");
-		retval = -ENOMEM;
+		retval = dev_err_probe(dev, -ENOMEM, "failed to create hcd\n");
 		goto fail_create_hcd;
 	}
 
@@ -5600,7 +5599,7 @@ int fotg210_hcd_probe(struct platform_device *pdev, struct fotg210 *fotg)
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval) {
-		dev_err(dev, "failed to add hcd with err %d\n", retval);
+		dev_err_probe(dev, retval, "failed to add hcd\n");
 		goto failed_put_hcd;
 	}
 	device_wakeup_enable(hcd->self.controller);
@@ -5611,8 +5610,7 @@ int fotg210_hcd_probe(struct platform_device *pdev, struct fotg210 *fotg)
 failed_put_hcd:
 	usb_put_hcd(hcd);
 fail_create_hcd:
-	dev_err(dev, "init %s fail, %d\n", dev_name(dev), retval);
-	return retval;
+	return dev_err_probe(dev, retval, "init %s fail\n", dev_name(dev));
 }
 
 /*

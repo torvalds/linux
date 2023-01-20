@@ -50,10 +50,8 @@ static int fotg210_gemini_init(struct fotg210 *fotg, struct resource *res,
 	int ret;
 
 	map = syscon_regmap_lookup_by_phandle(np, "syscon");
-	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon\n");
-		return PTR_ERR(map);
-	}
+	if (IS_ERR(map))
+		return dev_err_probe(dev, PTR_ERR(map), "no syscon\n");
 	fotg->map = map;
 	wakeup = of_property_read_bool(np, "wakeup-source");
 

@@ -1271,7 +1271,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	ret = request_irq(irq, fotg210_irq, IRQF_SHARED,
 			  udc_name, fotg210);
 	if (ret < 0) {
-		dev_err(dev, "request_irq error (%d)\n", ret);
+		dev_err_probe(dev, ret, "request_irq error\n");
 		goto err_req;
 	}
 
