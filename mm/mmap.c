@@ -458,6 +458,45 @@ static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 }
 
 /*
+ * init_multi_vma_prep() - Initializer for struct vma_prepare
+ * @vp: The vma_prepare struct
+ * @vma: The vma that will be altered once locked
+ * @next: The next vma if it is to be adjusted
+ * @remove: The first vma to be removed
+ * @remove2: The second vma to be removed
+ */
+static inline void init_multi_vma_prep(struct vma_prepare *vp,
+		struct vm_area_struct *vma, struct vm_area_struct *next,
+		struct vm_area_struct *remove, struct vm_area_struct *remove2)
+{
+	memset(vp, 0, sizeof(struct vma_prepare));
+	vp->vma = vma;
+	vp->anon_vma = vma->anon_vma;
+	vp->remove = remove;
+	vp->remove2 = remove2;
+	vp->adj_next = next;
+	if (!vp->anon_vma && next)
+		vp->anon_vma = next->anon_vma;
+
+	vp->file = vma->vm_file;
+	if (vp->file)
+		vp->mapping = vma->vm_file->f_mapping;
+
+}
+
+/*
+ * init_vma_prep() - Initializer wrapper for vma_prepare struct
+ * @vp: The vma_prepare struct
+ * @vma: The vma that will be altered once locked
+ */
+static inline void init_vma_prep(struct vma_prepare *vp,
+				 struct vm_area_struct *vma)
+{
+	init_multi_vma_prep(vp, vma, NULL, NULL, NULL);
+}
+
+
+/*
  * vma_prepare() - Helper function for handling locking VMAs prior to altering
  * @vp: The initialized vma_prepare struct
  */
@@ -566,7 +605,7 @@ again:
 
 		/*
 		 * In mprotect's case 6 (see comments on vma_merge),
-		 * we must remove next_next too.
+		 * we must remove the one after next as well.
 		 */
 		if (vp->remove2) {
 			vp->remove = vp->remove2;
@@ -599,17 +638,14 @@ inline int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		      unsigned long start, unsigned long end, pgoff_t pgoff,
 		      struct vm_area_struct *next)
 {
+	bool remove_next = false;
 	struct vma_prepare vp;
 
-	memset(&vp, 0, sizeof(vp));
-	vp.vma = vma;
-	vp.anon_vma = vma->anon_vma;
 	if (next && (vma != next) && (end == next->vm_end)) {
-		vp.remove = next;
+		remove_next = true;
 		if (next->anon_vma && !vma->anon_vma) {
 			int error;
 
-			vp.anon_vma = next->anon_vma;
 			vma->anon_vma = next->anon_vma;
 			error = anon_vma_clone(vma, next);
 			if (error)
@@ -617,6 +653,7 @@ inline int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		}
 	}
 
+	init_multi_vma_prep(&vp, vma, NULL, remove_next ? next : NULL, NULL);
 	/* Not merging but overwriting any part of next is not handled. */
 	VM_WARN_ON(next && !vp.remove &&
 		  next != vma && end > next->vm_start);
@@ -627,11 +664,6 @@ inline int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		goto nomem;
 
 	vma_adjust_trans_huge(vma, start, end, 0);
-
-	vp.file = vma->vm_file;
-	if (vp.file)
-		vp.mapping = vp.file->f_mapping;
-
 	/* VMA iterator points to previous, so set to start if necessary */
 	if (vma_iter_addr(vmi) != start)
 		vma_iter_set(vmi, start);
@@ -662,14 +694,13 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	struct vm_area_struct *insert, struct vm_area_struct *expand)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct vm_area_struct *next_next = NULL;	/* uninit var warning */
+	struct vm_area_struct *remove2 = NULL;
+	struct vm_area_struct *remove = NULL;
 	struct vm_area_struct *next = find_vma(mm, vma->vm_end);
 	struct vm_area_struct *orig_vma = vma;
-	struct anon_vma *anon_vma = NULL;
 	struct file *file = vma->vm_file;
 	bool vma_changed = false;
 	long adjust_next = 0;
-	int remove_next = 0;
 	struct vm_area_struct *exporter = NULL, *importer = NULL;
 	struct vma_prepare vma_prep;
 
@@ -688,25 +719,24 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 				 */
 				VM_WARN_ON(end != next->vm_end);
 				/*
-				 * remove_next == 3 means we're
-				 * removing "vma" and that to do so we
+				 * we're removing "vma" and that to do so we
 				 * swapped "vma" and "next".
 				 */
-				remove_next = 3;
 				VM_WARN_ON(file != next->vm_file);
 				swap(vma, next);
+				remove = next;
 			} else {
 				VM_WARN_ON(expand != vma);
 				/*
-				 * case 1, 6, 7, remove_next == 2 is case 6,
-				 * remove_next == 1 is case 1 or 7.
+				 * case 1, 6, 7, remove next.
+				 * case 6 also removes the one beyond next
 				 */
-				remove_next = 1 + (end > next->vm_end);
-				if (remove_next == 2)
-					next_next = find_vma(mm, next->vm_end);
+				remove = next;
+				if (end > next->vm_end)
+					remove2 = find_vma(mm, next->vm_end);
 
-				VM_WARN_ON(remove_next == 2 &&
-					   end != next_next->vm_end);
+				VM_WARN_ON(remove2 != NULL &&
+					   end != remove2->vm_end);
 			}
 
 			exporter = next;
@@ -716,8 +746,8 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 			 * If next doesn't have anon_vma, import from vma after
 			 * next, if the vma overlaps with it.
 			 */
-			if (remove_next == 2 && !next->anon_vma)
-				exporter = next_next;
+			if (remove2 != NULL && !next->anon_vma)
+				exporter = remove2;
 
 		} else if (end > next->vm_start) {
 			/*
@@ -758,30 +788,14 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	if (vma_iter_prealloc(vmi))
 		return -ENOMEM;
 
-	anon_vma = vma->anon_vma;
-	if (!anon_vma && adjust_next)
-		anon_vma = next->anon_vma;
-
-	if (anon_vma)
-		VM_WARN_ON(adjust_next && next->anon_vma &&
-			   anon_vma != next->anon_vma);
-
 	vma_adjust_trans_huge(orig_vma, start, end, adjust_next);
 
-	memset(&vma_prep, 0, sizeof(vma_prep));
-	vma_prep.vma = vma;
-	vma_prep.anon_vma = anon_vma;
-	vma_prep.file = file;
-	if (adjust_next)
-		vma_prep.adj_next = next;
-	if (file)
-		vma_prep.mapping = file->f_mapping;
-	vma_prep.insert = insert;
-	if (remove_next) {
-		vma_prep.remove = next;
-		vma_prep.remove2 = next_next;
-	}
+	init_multi_vma_prep(&vma_prep, vma, adjust_next ? next : NULL, remove,
+			    remove2);
+	VM_WARN_ON(vma_prep.anon_vma && adjust_next && next->anon_vma &&
+		   vma_prep.anon_vma != next->anon_vma);
 
+	vma_prep.insert = insert;
 	vma_prepare(&vma_prep);
 
 	if (start != vma->vm_start) {
