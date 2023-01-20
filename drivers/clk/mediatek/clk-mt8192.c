@@ -1127,8 +1127,8 @@ static int clk_mt8192_top_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_top_composites;
 
-	r = mtk_clk_register_gates_with_dev(node, top_clks, ARRAY_SIZE(top_clks),
-					    top_clk_data, &pdev->dev);
+	r = mtk_clk_register_gates(&pdev->dev, node, top_clks,
+				   ARRAY_SIZE(top_clks), top_clk_data);
 	if (r)
 		goto unregister_adj_divs_composites;
 
@@ -1171,8 +1171,8 @@ static int clk_mt8192_infra_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates_with_dev(node, infra_clks, ARRAY_SIZE(infra_clks),
-					    clk_data, &pdev->dev);
+	r = mtk_clk_register_gates(&pdev->dev, node, infra_clks,
+				   ARRAY_SIZE(infra_clks), clk_data);
 	if (r)
 		goto free_clk_data;
 
@@ -1203,8 +1203,8 @@ static int clk_mt8192_peri_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates_with_dev(node, peri_clks, ARRAY_SIZE(peri_clks),
-					    clk_data, &pdev->dev);
+	r = mtk_clk_register_gates(&pdev->dev, node, peri_clks,
+				   ARRAY_SIZE(peri_clks), clk_data);
 	if (r)
 		goto free_clk_data;
 
@@ -1232,9 +1232,8 @@ static int clk_mt8192_apmixed_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
-	r = mtk_clk_register_gates_with_dev(node, apmixed_clks,
-					    ARRAY_SIZE(apmixed_clks), clk_data,
-					    &pdev->dev);
+	r = mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
+				   ARRAY_SIZE(apmixed_clks), clk_data);
 	if (r)
 		goto free_clk_data;
 

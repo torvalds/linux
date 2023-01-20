@@ -459,8 +459,8 @@ int mtk_clk_simple_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates_with_dev(node, mcd->clks, mcd->num_clks,
-					    clk_data, &pdev->dev);
+	r = mtk_clk_register_gates(&pdev->dev, node, mcd->clks, mcd->num_clks,
+				   clk_data);
 	if (r)
 		goto free_data;
 
