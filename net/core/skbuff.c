@@ -999,8 +999,6 @@ kfree_skb_list_reason(struct sk_buff *segs, enum skb_drop_reason reason)
 	while (segs) {
 		struct sk_buff *next = segs->next;
 
-		skb_mark_not_on_list(segs);
-
 		if (__kfree_skb_reason(segs, reason))
 			kfree_skb_add_bulk(segs, &sa, reason);
 
