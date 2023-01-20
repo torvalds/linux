@@ -31,6 +31,7 @@
 #include "builtin-test-list.h"
 
 static bool dont_fork;
+const char *dso_to_test;
 
 struct test_suite *__weak arch_tests[] = {
 	NULL,
@@ -117,6 +118,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__dlfilter,
 	&suite__sigtrap,
 	&suite__event_groups,
+	&suite__symbols,
 	NULL,
 };
 
@@ -521,6 +523,7 @@ int cmd_test(int argc, const char **argv)
 	OPT_BOOLEAN('F', "dont-fork", &dont_fork,
 		    "Do not fork for testcase"),
 	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing"),
+	OPT_STRING(0, "dso", &dso_to_test, "dso", "dso to test"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };
