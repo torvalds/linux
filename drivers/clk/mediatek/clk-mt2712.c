@@ -1363,50 +1363,6 @@ static int clk_mt2712_top_probe(struct platform_device *pdev)
 	return r;
 }
 
-static int clk_mt2712_infra_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
-
-	mtk_clk_register_gates(&pdev->dev, node, infra_clks,
-			       ARRAY_SIZE(infra_clks), clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-
-	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
-
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc[0]);
-
-	return r;
-}
-
-static int clk_mt2712_peri_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
-
-	mtk_clk_register_gates(&pdev->dev, node, peri_clks,
-			       ARRAY_SIZE(peri_clks), clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-
-	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
-
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc[1]);
-
-	return r;
-}
-
 static int clk_mt2712_mcu_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
@@ -1445,12 +1401,6 @@ static const struct of_device_id of_match_clk_mt2712[] = {
 		.compatible = "mediatek,mt2712-topckgen",
 		.data = clk_mt2712_top_probe,
 	}, {
-		.compatible = "mediatek,mt2712-infracfg",
-		.data = clk_mt2712_infra_probe,
-	}, {
-		.compatible = "mediatek,mt2712-pericfg",
-		.data = clk_mt2712_peri_probe,
-	}, {
 		.compatible = "mediatek,mt2712-mcucfg",
 		.data = clk_mt2712_mcu_probe,
 	}, {
@@ -1476,6 +1426,33 @@ static int clk_mt2712_probe(struct platform_device *pdev)
 	return r;
 }
 
+static const struct mtk_clk_desc infra_desc = {
+	.clks = infra_clks,
+	.num_clks = ARRAY_SIZE(infra_clks),
+	.rst_desc = &clk_rst_desc[0],
+};
+
+static const struct mtk_clk_desc peri_desc = {
+	.clks = peri_clks,
+	.num_clks = ARRAY_SIZE(peri_clks),
+	.rst_desc = &clk_rst_desc[1],
+};
+
+static const struct of_device_id of_match_clk_mt2712_simple[] = {
+	{ .compatible = "mediatek,mt2712-infracfg", .data = &infra_desc },
+	{ .compatible = "mediatek,mt2712-pericfg", .data = &peri_desc, },
+	{ /* sentinel */ }
+};
+
+static struct platform_driver clk_mt2712_simple_drv = {
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
+	.driver = {
+		.name = "clk-mt2712-simple",
+		.of_match_table = of_match_clk_mt2712_simple,
+	},
+};
+
 static struct platform_driver clk_mt2712_drv = {
 	.probe = clk_mt2712_probe,
 	.driver = {
@@ -1486,7 +1463,11 @@ static struct platform_driver clk_mt2712_drv = {
 
 static int __init clk_mt2712_init(void)
 {
-	return platform_driver_register(&clk_mt2712_drv);
+	int ret = platform_driver_register(&clk_mt2712_drv);
+
+	if (ret)
+		return ret;
+	return platform_driver_register(&clk_mt2712_simple_drv);
 }
 
 arch_initcall(clk_mt2712_init);
