@@ -13,6 +13,7 @@
 #include "xe_pt_walk.h"
 #include "xe_vm.h"
 #include "xe_res_cursor.h"
+#include "xe_trace.h"
 #include "xe_ttm_stolen_mgr.h"
 
 struct xe_pt_dir {
@@ -1493,6 +1494,7 @@ static void invalidation_fence_cb(struct dma_fence *fence,
 	struct invalidation_fence *ifence =
 		container_of(cb, struct invalidation_fence, cb);
 
+	trace_xe_gt_tlb_invalidation_fence_cb(&ifence->base);
 	queue_work(system_wq, &ifence->work);
 	dma_fence_put(ifence->fence);
 }
@@ -1502,6 +1504,7 @@ static void invalidation_fence_work_func(struct work_struct *w)
 	struct invalidation_fence *ifence =
 		container_of(w, struct invalidation_fence, work);
 
+	trace_xe_gt_tlb_invalidation_fence_work_func(&ifence->base);
 	xe_gt_tlb_invalidation(ifence->gt, &ifence->base);
 }
 
@@ -1510,6 +1513,8 @@ static int invalidation_fence_init(struct xe_gt *gt,
 				   struct dma_fence *fence)
 {
 	int ret;
+
+	trace_xe_gt_tlb_invalidation_fence_create(&ifence->base);
 
 	spin_lock_irq(&gt->tlb_invalidation.lock);
 	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,

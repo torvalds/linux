@@ -16,9 +16,59 @@
 #include "xe_engine_types.h"
 #include "xe_gpu_scheduler_types.h"
 #include "xe_gt_types.h"
+#include "xe_gt_tlb_invalidation_types.h"
 #include "xe_guc_engine_types.h"
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"
+
+DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
+		    TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+		    TP_ARGS(fence),
+
+		    TP_STRUCT__entry(
+			     __field(u64, fence)
+			     __field(int, seqno)
+			     ),
+
+		    TP_fast_assign(
+			   __entry->fence = (u64)fence;
+			   __entry->seqno = fence->seqno;
+			   ),
+
+		    TP_printk("fence=0x%016llx, seqno=%d",
+			      __entry->fence, __entry->seqno)
+);
+
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_create,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
+
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence,
+	     xe_gt_tlb_invalidation_fence_work_func,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
+
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_cb,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
+
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_send,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
+
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_recv,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
+
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_signal,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
 
 DECLARE_EVENT_CLASS(xe_bo,
 		    TP_PROTO(struct xe_bo *bo),

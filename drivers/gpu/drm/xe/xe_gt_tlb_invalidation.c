@@ -7,6 +7,7 @@
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
+#include "xe_trace.h"
 
 static struct xe_gt *
 guc_to_gt(struct xe_guc *guc)
@@ -82,6 +83,7 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 		fence->seqno = seqno;
 		list_add_tail(&fence->link,
 			      &gt->tlb_invalidation.pending_fences);
+		trace_xe_gt_tlb_invalidation_fence_send(fence);
 	}
 	action[1] = seqno;
 	gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
@@ -194,7 +196,10 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 
 	fence = list_first_entry_or_null(&gt->tlb_invalidation.pending_fences,
 					 typeof(*fence), link);
+	if (fence)
+		trace_xe_gt_tlb_invalidation_fence_recv(fence);
 	if (fence && tlb_invalidation_seqno_past(gt, fence->seqno)) {
+		trace_xe_gt_tlb_invalidation_fence_signal(fence);
 		list_del(&fence->link);
 		dma_fence_signal(&fence->base);
 		dma_fence_put(&fence->base);
