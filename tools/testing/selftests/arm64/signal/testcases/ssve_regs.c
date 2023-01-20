@@ -92,6 +92,11 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 		return 1;
 	}
 
+	if (!(ssve->flags & SVE_SIG_FLAG_SM)) {
+		fprintf(stderr, "SVE_SIG_FLAG_SM not set in SVE record\n");
+		return 1;
+	}
+
 	/* The actual size validation is done in get_current_context() */
 	fprintf(stderr, "Got expected size %u and VL %d\n",
 		head->size, ssve->vl);
