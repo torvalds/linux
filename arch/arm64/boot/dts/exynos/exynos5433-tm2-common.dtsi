@@ -1291,7 +1291,7 @@
 		wlf,micd-detect-debounce = <300>;
 		wlf,micd-bias-start-time = <0x1>;
 		wlf,micd-rate = <0x7>;
-		wlf,micd-dbtime = <0x1>;
+		wlf,micd-dbtime = <0x2>;
 		wlf,micd-force-micbias;
 		wlf,micd-configs = <0x0 1 0>;
 		wlf,hpdet-channel = <1>;
