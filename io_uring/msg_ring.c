@@ -69,6 +69,10 @@ static int io_msg_exec_remote(struct io_kiocb *req, task_work_func_t func)
 {
 	struct io_ring_ctx *ctx = req->file->private_data;
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
+	struct task_struct *task = READ_ONCE(ctx->submitter_task);
+
+	if (unlikely(!task))
+		return -EOWNERDEAD;
 
 	init_task_work(&msg->tw, func);
 	if (task_work_add(ctx->submitter_task, &msg->tw, TWA_SIGNAL))
@@ -114,6 +118,8 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (msg->src_fd || msg->dst_fd || msg->flags)
 		return -EINVAL;
+	if (target_ctx->flags & IORING_SETUP_R_DISABLED)
+		return -EBADFD;
 
 	if (io_msg_need_remote(target_ctx))
 		return io_msg_exec_remote(req, io_msg_tw_complete);
@@ -206,6 +212,8 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (target_ctx == ctx)
 		return -EINVAL;
+	if (target_ctx->flags & IORING_SETUP_R_DISABLED)
+		return -EBADFD;
 	if (!src_file) {
 		src_file = io_msg_grab_file(req, issue_flags);
 		if (!src_file)
