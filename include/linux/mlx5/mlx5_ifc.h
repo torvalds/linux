@@ -9941,7 +9941,9 @@ struct mlx5_ifc_pcam_reg_bits {
 };
 
 struct mlx5_ifc_mcam_enhanced_features_bits {
-	u8         reserved_at_0[0x5d];
+	u8         reserved_at_0[0x51];
+	u8         mtutc_time_adjustment_extended_range[0x1];
+	u8         reserved_at_52[0xb];
 	u8         mcia_32dwords[0x1];
 	u8         out_pulse_duration_ns[0x1];
 	u8         npps_period[0x1];
