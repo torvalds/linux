@@ -2913,6 +2913,9 @@
 
 				phys = <&mdss_dsi0_phy>;
 
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 
 				dsi0_opp_table: opp-table {
@@ -3007,6 +3010,9 @@
 				power-domains = <&rpmhpd SM8350_MMCX>;
 
 				phys = <&mdss_dsi1_phy>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				status = "disabled";
 
