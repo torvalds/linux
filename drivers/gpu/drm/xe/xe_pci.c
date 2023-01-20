@@ -615,16 +615,23 @@ void xe_unregister_pci_driver(void)
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
-static int dev_to_xe_device_fn(struct device *dev, void *data)
+struct kunit_test_data {
+	int ndevs;
+	xe_device_fn xe_fn;
+};
+
+static int dev_to_xe_device_fn(struct device *dev, void *__data)
 
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	int (*xe_fn)(struct xe_device *xe) = data;
+	struct kunit_test_data *data = __data;
 	int ret = 0;
 	int idx;
 
+	data->ndevs++;
+
 	if (drm_dev_enter(drm, &idx))
-		ret = xe_fn(to_xe_device(dev_get_drvdata(dev)));
+		ret = data->xe_fn(to_xe_device(dev_get_drvdata(dev)));
 	drm_dev_exit(idx);
 
 	return ret;
@@ -645,7 +652,18 @@ static int dev_to_xe_device_fn(struct device *dev, void *data)
  */
 int xe_call_for_each_device(xe_device_fn xe_fn)
 {
-	return driver_for_each_device(&xe_pci_driver.driver, NULL,
-				      xe_fn, dev_to_xe_device_fn);
+	int ret;
+	struct kunit_test_data data = {
+	    .xe_fn = xe_fn,
+	    .ndevs = 0,
+	};
+
+	ret = driver_for_each_device(&xe_pci_driver.driver, NULL,
+				     &data, dev_to_xe_device_fn);
+
+	if (!data.ndevs)
+		kunit_skip(current->kunit_test, "test runs only on hardware\n");
+
+	return ret;
 }
 #endif
