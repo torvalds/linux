@@ -276,6 +276,9 @@ class BazelBuilder:
 
         self.clean_legacy_generated_files()
 
+        if self.skip_list:
+            self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
+
         logging.info("Building %s targets...", CPU)
         self.build_targets(
             cross_targets_to_build,
