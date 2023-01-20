@@ -53,6 +53,8 @@ static void class_release(struct kobject *kobj)
 
 	pr_debug("class '%s': release.\n", class->name);
 
+	class->p = NULL;
+
 	if (class->class_release)
 		class->class_release(class);
 	else
@@ -186,17 +188,21 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	cls->p = cp;
 
 	error = kset_register(&cp->subsys);
-	if (error) {
-		kfree(cp);
-		return error;
-	}
+	if (error)
+		goto err_out;
+
 	error = class_add_groups(class_get(cls), cls->class_groups);
 	class_put(cls);
 	if (error) {
 		kobject_del(&cp->subsys.kobj);
 		kfree_const(cp->subsys.kobj.name);
-		kfree(cp);
+		goto err_out;
 	}
+	return 0;
+
+err_out:
+	kfree(cp);
+	cls->p = NULL;
 	return error;
 }
 EXPORT_SYMBOL_GPL(__class_register);
