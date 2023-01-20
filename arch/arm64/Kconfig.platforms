@@ -95,7 +95,7 @@ config ARCH_BITMAIN
 	  This enables support for the Bitmain SoC Family.
 
 config ARCH_EXYNOS
-	bool "ARMv8 based Samsung Exynos SoC family"
+	bool "Samsung Exynos SoC family"
 	select COMMON_CLK_SAMSUNG
 	select CLKSRC_EXYNOS_MCT
 	select EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS
@@ -108,7 +108,7 @@ config ARCH_EXYNOS
 	  This enables support for ARMv8 based Samsung Exynos SoC family.
 
 config ARCH_SPARX5
-	bool "ARMv8 based Microchip Sparx5 SoC family"
+	bool "Microchip Sparx5 SoC family"
 	select PINCTRL
 	select DW_APB_TIMER_OF
 	help
@@ -199,13 +199,13 @@ menuconfig ARCH_NXP
 if ARCH_NXP
 
 config ARCH_LAYERSCAPE
-	bool "ARMv8 based Freescale Layerscape SoC family"
+	bool "Freescale Layerscape SoC family"
 	select EDAC_SUPPORT
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
 config ARCH_MXC
-	bool "ARMv8 based NXP i.MX SoC family"
+	bool "NXP i.MX SoC family"
 	select ARM64_ERRATUM_843419
 	select ARM64_ERRATUM_845719 if COMPAT
 	select IMX_GPCV2
@@ -296,7 +296,7 @@ config ARCH_TEGRA
 	  This enables support for the NVIDIA Tegra SoC family.
 
 config ARCH_TESLA_FSD
-	bool "ARMv8 based Tesla platform"
+	bool "Tesla platform"
 	depends on ARCH_EXYNOS
 	help
 	  Support for ARMv8 based Tesla platforms.
