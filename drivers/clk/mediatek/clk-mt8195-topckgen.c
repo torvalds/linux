@@ -1286,7 +1286,8 @@ static int clk_mt8195_topck_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_muxes;
 
-	r = mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks), top_clk_data);
+	r = mtk_clk_register_gates(&pdev->dev, node, top_clks,
+				   ARRAY_SIZE(top_clks), top_clk_data);
 	if (r)
 		goto unregister_composite_divs;
 

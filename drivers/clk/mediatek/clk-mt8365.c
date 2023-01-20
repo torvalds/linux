@@ -1019,8 +1019,8 @@ static int clk_mt8365_infra_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	ret = mtk_clk_register_gates(node, ifr_clks, ARRAY_SIZE(ifr_clks),
-				     clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, ifr_clks,
+				     ARRAY_SIZE(ifr_clks), clk_data);
 	if (ret)
 		goto free_clk_data;
 

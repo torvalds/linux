@@ -109,7 +109,8 @@ static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_clk_data;
 
-	ret = mtk_clk_register_gates(node, peri_gates, ARRAY_SIZE(peri_gates), clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, peri_gates,
+				     ARRAY_SIZE(peri_gates), clk_data);
 	if (ret)
 		goto free_clk_data;
 

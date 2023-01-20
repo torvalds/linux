@@ -69,7 +69,8 @@ static int clk_mt8186_mm_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates(node, mm_clks, ARRAY_SIZE(mm_clks), clk_data);
+	r = mtk_clk_register_gates(&pdev->dev, node, mm_clks,
+				   ARRAY_SIZE(mm_clks), clk_data);
 	if (r)
 		goto free_mm_data;
 
