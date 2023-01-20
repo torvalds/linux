@@ -323,30 +323,33 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	return demangled;
 }
 
-static void get_plt_sizes(GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
+static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 			  u64 *plt_header_size, u64 *plt_entry_size)
 {
 	switch (ehdr->e_machine) {
 	case EM_ARM:
 		*plt_header_size = 20;
 		*plt_entry_size = 12;
-		return;
+		return true;
 	case EM_AARCH64:
 		*plt_header_size = 32;
 		*plt_entry_size = 16;
-		return;
+		return true;
 	case EM_SPARC:
 		*plt_header_size = 48;
 		*plt_entry_size = 12;
-		return;
+		return true;
 	case EM_SPARCV9:
 		*plt_header_size = 128;
 		*plt_entry_size = 32;
-		return;
+		return true;
 	default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/xtensa need to be checked */
 		*plt_header_size = shdr_plt->sh_entsize;
 		*plt_entry_size = shdr_plt->sh_entsize;
-		return;
+		if (*plt_entry_size)
+			return true;
+		pr_debug("Missing PLT entry size for %s\n", dso->long_name);
+		return false;
 	}
 }
 
@@ -438,7 +441,8 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 
 	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 	plt_offset = shdr_plt.sh_offset;
-	get_plt_sizes(&ehdr, &shdr_plt, &plt_header_size, &plt_entry_size);
+	if (!get_plt_sizes(dso, &ehdr, &shdr_plt, &plt_header_size, &plt_entry_size))
+		return 0;
 	plt_offset += plt_header_size;
 
 	if (shdr_rel_plt.sh_type == SHT_RELA) {
