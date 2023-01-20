@@ -201,11 +201,19 @@ struct pt_regs___arm64 {
 
 #elif defined(bpf_target_mips)
 
+/*
+ * N64 ABI is assumed right now.
+ * https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions
+ */
+
 #define __PT_PARM1_REG regs[4]
 #define __PT_PARM2_REG regs[5]
 #define __PT_PARM3_REG regs[6]
 #define __PT_PARM4_REG regs[7]
 #define __PT_PARM5_REG regs[8]
+#define __PT_PARM6_REG regs[9]
+#define __PT_PARM7_REG regs[10]
+#define __PT_PARM8_REG regs[11]
 #define __PT_RET_REG regs[31]
 #define __PT_FP_REG regs[30]	/* Works only with CONFIG_FRAME_POINTER */
 #define __PT_RC_REG regs[2]
