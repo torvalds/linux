@@ -34,6 +34,7 @@ struct brcmstb_waketmr {
 };
 
 #define BRCMSTB_WKTMR_EVENT		0x00
+#define  WKTMR_ALARM_EVENT		BIT(0)
 #define BRCMSTB_WKTMR_COUNTER		0x04
 #define BRCMSTB_WKTMR_ALARM		0x08
 #define BRCMSTB_WKTMR_PRESCALER		0x0C
@@ -41,9 +42,17 @@ struct brcmstb_waketmr {
 
 #define BRCMSTB_WKTMR_DEFAULT_FREQ	27000000
 
+static inline bool brcmstb_waketmr_is_pending(struct brcmstb_waketmr *timer)
+{
+	u32 reg;
+
+	reg = readl_relaxed(timer->base + BRCMSTB_WKTMR_EVENT);
+	return !!(reg & WKTMR_ALARM_EVENT);
+}
+
 static inline void brcmstb_waketmr_clear_alarm(struct brcmstb_waketmr *timer)
 {
-	writel_relaxed(1, timer->base + BRCMSTB_WKTMR_EVENT);
+	writel_relaxed(WKTMR_ALARM_EVENT, timer->base + BRCMSTB_WKTMR_EVENT);
 	(void)readl_relaxed(timer->base + BRCMSTB_WKTMR_EVENT);
 }
 
@@ -147,7 +156,6 @@ static int brcmstb_waketmr_getalarm(struct device *dev,
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
 	time64_t sec;
-	u32 reg;
 
 	sec = readl_relaxed(timer->base + BRCMSTB_WKTMR_ALARM);
 	if (sec != 0) {
@@ -156,8 +164,7 @@ static int brcmstb_waketmr_getalarm(struct device *dev,
 		rtc_time64_to_tm(sec, &alarm->time);
 	}
 
-	reg = readl_relaxed(timer->base + BRCMSTB_WKTMR_EVENT);
-	alarm->pending = !!(reg & 1);
+	alarm->pending = brcmstb_waketmr_is_pending(timer);
 
 	return 0;
 }
