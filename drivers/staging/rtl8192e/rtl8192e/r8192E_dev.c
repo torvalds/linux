@@ -427,14 +427,10 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		} else if (priv->epromtype == EEPROM_93C56) {
 
 			for (i = 0; i < 14; i++) {
-				priv->tx_pwr_level_cck_a[i] =
-					 priv->EEPROMRfACCKChnl1TxPwLevel[0];
-				priv->tx_pwr_level_ofdm_24g_a[i] =
-					 priv->EEPROMRfAOfdmChnlTxPwLevel[0];
-				priv->tx_pwr_level_cck_c[i] =
-					 priv->EEPROMRfCCCKChnl1TxPwLevel[0];
-				priv->tx_pwr_level_ofdm_24g_c[i] =
-					 priv->EEPROMRfCOfdmChnlTxPwLevel[0];
+				priv->tx_pwr_level_cck_a[i] = 0;
+				priv->tx_pwr_level_ofdm_24g_a[i] = 0;
+				priv->tx_pwr_level_cck_c[i] = 0;
+				priv->tx_pwr_level_ofdm_24g_c[i] = 0;
 			}
 			priv->legacy_ht_tx_pwr_diff =
 				 priv->eeprom_legacy_ht_tx_pwr_diff;
