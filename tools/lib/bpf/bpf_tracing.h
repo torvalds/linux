@@ -291,6 +291,11 @@ struct pt_regs___arm64 {
 
 #elif defined(bpf_target_arc)
 
+/*
+ * Section "Function Calling Sequence" (page 24):
+ * https://raw.githubusercontent.com/wiki/foss-for-synopsys-dwc-arc-processors/toolchain/files/ARCv2_ABI.pdf
+ */
+
 /* arc provides struct user_pt_regs instead of struct pt_regs to userspace */
 #define __PT_REGS_CAST(x) ((const struct user_regs_struct *)(x))
 #define __PT_PARM1_REG scratch.r0
@@ -298,8 +303,11 @@ struct pt_regs___arm64 {
 #define __PT_PARM3_REG scratch.r2
 #define __PT_PARM4_REG scratch.r3
 #define __PT_PARM5_REG scratch.r4
+#define __PT_PARM6_REG scratch.r5
+#define __PT_PARM7_REG scratch.r6
+#define __PT_PARM8_REG scratch.r7
 #define __PT_RET_REG scratch.blink
-#define __PT_FP_REG __unsupported__
+#define __PT_FP_REG scratch.fp
 #define __PT_RC_REG scratch.r0
 #define __PT_SP_REG scratch.sp
 #define __PT_IP_REG scratch.ret
