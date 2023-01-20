@@ -98,12 +98,10 @@
 
 #ifdef __i386__
 
+/* i386 kernel is built with -mregparm=3 */
 #define __PT_PARM1_REG eax
 #define __PT_PARM2_REG edx
 #define __PT_PARM3_REG ecx
-/* i386 kernel is built with -mregparm=3 */
-#define __PT_PARM4_REG __unsupported__
-#define __PT_PARM5_REG __unsupported__
 #define __PT_RET_REG esp
 #define __PT_FP_REG ebp
 #define __PT_RC_REG eax
@@ -287,9 +285,29 @@ struct pt_regs___arm64 {
 
 struct pt_regs;
 
-/* allow some architecutres to override `struct pt_regs` */
+/* allow some architectures to override `struct pt_regs` */
 #ifndef __PT_REGS_CAST
 #define __PT_REGS_CAST(x) (x)
+#endif
+
+/*
+ * Different architectures support different number of arguments passed
+ * through registers. i386 supports just 3, some arches support up to 8.
+ */
+#ifndef __PT_PARM4_REG
+#define __PT_PARM4_REG __unsupported__
+#endif
+#ifndef __PT_PARM5_REG
+#define __PT_PARM5_REG __unsupported__
+#endif
+#ifndef __PT_PARM6_REG
+#define __PT_PARM6_REG __unsupported__
+#endif
+#ifndef __PT_PARM7_REG
+#define __PT_PARM7_REG __unsupported__
+#endif
+#ifndef __PT_PARM8_REG
+#define __PT_PARM8_REG __unsupported__
 #endif
 
 #define PT_REGS_PARM1(x) (__PT_REGS_CAST(x)->__PT_PARM1_REG)
@@ -297,6 +315,9 @@ struct pt_regs;
 #define PT_REGS_PARM3(x) (__PT_REGS_CAST(x)->__PT_PARM3_REG)
 #define PT_REGS_PARM4(x) (__PT_REGS_CAST(x)->__PT_PARM4_REG)
 #define PT_REGS_PARM5(x) (__PT_REGS_CAST(x)->__PT_PARM5_REG)
+#define PT_REGS_PARM6(x) (__PT_REGS_CAST(x)->__PT_PARM6_REG)
+#define PT_REGS_PARM7(x) (__PT_REGS_CAST(x)->__PT_PARM7_REG)
+#define PT_REGS_PARM8(x) (__PT_REGS_CAST(x)->__PT_PARM8_REG)
 #define PT_REGS_RET(x) (__PT_REGS_CAST(x)->__PT_RET_REG)
 #define PT_REGS_FP(x) (__PT_REGS_CAST(x)->__PT_FP_REG)
 #define PT_REGS_RC(x) (__PT_REGS_CAST(x)->__PT_RC_REG)
@@ -308,6 +329,9 @@ struct pt_regs;
 #define PT_REGS_PARM3_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM3_REG)
 #define PT_REGS_PARM4_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM4_REG)
 #define PT_REGS_PARM5_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM5_REG)
+#define PT_REGS_PARM6_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM6_REG)
+#define PT_REGS_PARM7_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM7_REG)
+#define PT_REGS_PARM8_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM8_REG)
 #define PT_REGS_RET_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_RET_REG)
 #define PT_REGS_FP_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_FP_REG)
 #define PT_REGS_RC_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_RC_REG)
@@ -360,6 +384,9 @@ struct pt_regs;
 #define PT_REGS_PARM3(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM4(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM5(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM6(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM7(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM8(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_RET(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_FP(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_RC(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
@@ -371,6 +398,9 @@ struct pt_regs;
 #define PT_REGS_PARM3_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM4_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM5_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM6_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM7_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM8_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_RET_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_FP_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_RC_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
@@ -576,6 +606,9 @@ struct pt_regs;
 #define ___bpf_kprobe_args3(x, args...) ___bpf_kprobe_args2(args), (void *)PT_REGS_PARM3(ctx)
 #define ___bpf_kprobe_args4(x, args...) ___bpf_kprobe_args3(args), (void *)PT_REGS_PARM4(ctx)
 #define ___bpf_kprobe_args5(x, args...) ___bpf_kprobe_args4(args), (void *)PT_REGS_PARM5(ctx)
+#define ___bpf_kprobe_args6(x, args...) ___bpf_kprobe_args5(args), (void *)PT_REGS_PARM6(ctx)
+#define ___bpf_kprobe_args7(x, args...) ___bpf_kprobe_args6(args), (void *)PT_REGS_PARM7(ctx)
+#define ___bpf_kprobe_args8(x, args...) ___bpf_kprobe_args7(args), (void *)PT_REGS_PARM8(ctx)
 #define ___bpf_kprobe_args(args...)     ___bpf_apply(___bpf_kprobe_args, ___bpf_narg(args))(args)
 
 /*
