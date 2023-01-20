@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2020-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -153,6 +153,9 @@ static void gunyah_rx_peak(struct gunyah_pipe *pipe, void *data,
 	tail += offset;
 	if (tail >= pipe->length)
 		tail -= pipe->length;
+
+	if (WARN_ON_ONCE(tail > pipe->length))
+		return;
 
 	len = min_t(size_t, count, pipe->length - tail);
 	if (len)
