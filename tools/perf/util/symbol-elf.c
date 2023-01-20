@@ -470,8 +470,11 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 			demangled = demangle_sym(dso, 0, elf_name);
 			if (demangled != NULL)
 				elf_name = demangled;
-			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_name);
+			if (*elf_name)
+				snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
+			else
+				snprintf(sympltname, sizeof(sympltname),
+					 "offset_%#" PRIx64 "@plt", plt_offset);
 			free(demangled);
 
 			f = symbol__new(plt_offset, plt_entry_size,
@@ -496,8 +499,11 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 			demangled = demangle_sym(dso, 0, elf_name);
 			if (demangled != NULL)
 				elf_name = demangled;
-			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_name);
+			if (*elf_name)
+				snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
+			else
+				snprintf(sympltname, sizeof(sympltname),
+					 "offset_%#" PRIx64 "@plt", plt_offset);
 			free(demangled);
 
 			f = symbol__new(plt_offset, plt_entry_size,
