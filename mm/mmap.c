@@ -487,10 +487,10 @@ static inline void vma_mas_szero(struct ma_state *mas, unsigned long start,
 
 static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	MA_STATE(mas, &mm->mm_mt, 0, 0);
+	VMA_ITERATOR(vmi, mm, 0);
 	struct address_space *mapping = NULL;
 
-	if (mas_preallocate(&mas, GFP_KERNEL))
+	if (vma_iter_prealloc(&vmi))
 		return -ENOMEM;
 
 	if (vma->vm_file) {
@@ -498,7 +498,7 @@ static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 		i_mmap_lock_write(mapping);
 	}
 
-	vma_mas_store(vma, &mas);
+	vma_iter_store(&vmi, vma);
 
 	if (mapping) {
 		__vma_link_file(vma, mapping);
