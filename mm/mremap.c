@@ -978,14 +978,14 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	/*
 	 * Always allow a shrinking remap: that just unmaps
 	 * the unnecessary pages..
-	 * do_mas_munmap does all the needed commit accounting, and
+	 * do_vmi_munmap does all the needed commit accounting, and
 	 * downgrades mmap_lock to read if so directed.
 	 */
 	if (old_len >= new_len) {
 		int retval;
-		MA_STATE(mas, &mm->mm_mt, addr + new_len, addr + new_len);
+		VMA_ITERATOR(vmi, mm, addr + new_len);
 
-		retval = do_mas_munmap(&mas, mm, addr + new_len,
+		retval = do_vmi_munmap(&vmi, mm, addr + new_len,
 				       old_len - new_len, &uf_unmap, true);
 		/* Returning 1 indicates mmap_lock is downgraded to read. */
 		if (retval == 1) {

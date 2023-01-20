@@ -2305,8 +2305,8 @@ static inline int munmap_sidetree(struct vm_area_struct *vma,
 }
 
 /*
- * do_mas_align_munmap() - munmap the aligned region from @start to @end.
- * @mas: The maple_state, ideally set up to alter the correct tree location.
+ * do_vmi_align_munmap() - munmap the aligned region from @start to @end.
+ * @vmi: The vma iterator
  * @vma: The starting vm_area_struct
  * @mm: The mm_struct
  * @start: The aligned start address to munmap.
@@ -2317,7 +2317,7 @@ static inline int munmap_sidetree(struct vm_area_struct *vma,
  * If @downgrade is true, check return code for potential release of the lock.
  */
 static int
-do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
+do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		    struct mm_struct *mm, unsigned long start,
 		    unsigned long end, struct list_head *uf, bool downgrade)
 {
@@ -2329,7 +2329,6 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	mt_init_flags(&mt_detach, MT_FLAGS_LOCK_EXTERN);
 	mt_set_external_lock(&mt_detach, &mm->mmap_lock);
 
-	mas->last = end - 1;
 	/*
 	 * If we need to split any vma, do it now to save pain later.
 	 *
@@ -2349,27 +2348,23 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 		if (end < vma->vm_end && mm->map_count >= sysctl_max_map_count)
 			goto map_count_exceeded;
 
-		/*
-		 * mas_pause() is not needed since mas->index needs to be set
-		 * differently than vma->vm_end anyways.
-		 */
 		error = __split_vma(mm, vma, start, 0);
 		if (error)
 			goto start_split_failed;
 
-		mas_set(mas, start);
-		vma = mas_walk(mas);
+		vma_iter_set(vmi, start);
+		vma = vma_find(vmi, end);
 	}
 
-	prev = mas_prev(mas, 0);
+	prev = vma_prev(vmi);
 	if (unlikely((!prev)))
-		mas_set(mas, start);
+		vma_iter_set(vmi, start);
 
 	/*
 	 * Detach a range of VMAs from the mm. Using next as a temp variable as
 	 * it is always overwritten.
 	 */
-	mas_for_each(mas, next, end - 1) {
+	for_each_vma_range(*vmi, next, end) {
 		/* Does it split the end? */
 		if (next->vm_end > end) {
 			struct vm_area_struct *split;
@@ -2378,8 +2373,8 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 			if (error)
 				goto end_split_failed;
 
-			mas_set(mas, end);
-			split = mas_prev(mas, 0);
+			vma_iter_set(vmi, end);
+			split = vma_prev(vmi);
 			error = munmap_sidetree(split, &mas_detach);
 			if (error)
 				goto munmap_sidetree_failed;
@@ -2401,7 +2396,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	}
 
 	if (!next)
-		next = mas_next(mas, ULONG_MAX);
+		next = vma_next(vmi);
 
 	if (unlikely(uf)) {
 		/*
@@ -2426,10 +2421,10 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 		struct vm_area_struct *vma_mas, *vma_test;
 		int test_count = 0;
 
-		mas_set_range(mas, start, end - 1);
+		vma_iter_set(vmi, start);
 		rcu_read_lock();
 		vma_test = mas_find(&test, end - 1);
-		mas_for_each(mas, vma_mas, end - 1) {
+		for_each_vma_range(*vmi, vma_mas, end) {
 			BUG_ON(vma_mas != vma_test);
 			test_count++;
 			vma_test = mas_next(&test, end - 1);
@@ -2439,8 +2434,8 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	}
 #endif
 	/* Point of no return */
-	mas_set_range(mas, start, end - 1);
-	if (mas_store_gfp(mas, NULL, GFP_KERNEL))
+	vma_iter_set(vmi, start);
+	if (vma_iter_clear_gfp(vmi, start, end, GFP_KERNEL))
 		return -ENOMEM;
 
 	mm->map_count -= count;
@@ -2478,8 +2473,8 @@ map_count_exceeded:
 }
 
 /*
- * do_mas_munmap() - munmap a given range.
- * @mas: The maple state
+ * do_vmi_munmap() - munmap a given range.
+ * @vmi: The vma iterator
  * @mm: The mm_struct
  * @start: The start address to munmap
  * @len: The length of the range to munmap
@@ -2493,7 +2488,7 @@ map_count_exceeded:
  *
  * Returns: -EINVAL on failure, 1 on success and unlock, 0 otherwise.
  */
-int do_mas_munmap(struct ma_state *mas, struct mm_struct *mm,
+int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
 		  unsigned long start, size_t len, struct list_head *uf,
 		  bool downgrade)
 {
@@ -2511,11 +2506,11 @@ int do_mas_munmap(struct ma_state *mas, struct mm_struct *mm,
 	arch_unmap(mm, start, end);
 
 	/* Find the first overlapping VMA */
-	vma = mas_find(mas, end - 1);
+	vma = vma_find(vmi, end);
 	if (!vma)
 		return 0;
 
-	return do_mas_align_munmap(mas, vma, mm, start, end, uf, downgrade);
+	return do_vmi_align_munmap(vmi, vma, mm, start, end, uf, downgrade);
 }
 
 /* do_munmap() - Wrapper function for non-maple tree aware do_munmap() calls.
@@ -2527,9 +2522,9 @@ int do_mas_munmap(struct ma_state *mas, struct mm_struct *mm,
 int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 	      struct list_head *uf)
 {
-	MA_STATE(mas, &mm->mm_mt, start, start);
+	VMA_ITERATOR(vmi, mm, start);
 
-	return do_mas_munmap(&mas, mm, start, len, uf, false);
+	return do_vmi_munmap(&vmi, mm, start, len, uf, false);
 }
 
 unsigned long mmap_region(struct file *file, unsigned long addr,
@@ -2545,7 +2540,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	unsigned long merge_start = addr, merge_end = end;
 	pgoff_t vm_pgoff;
 	int error;
-	MA_STATE(mas, &mm->mm_mt, addr, end - 1);
+	VMA_ITERATOR(vmi, mm, addr);
 
 	/* Check against address space limit. */
 	if (!may_expand_vm(mm, vm_flags, len >> PAGE_SHIFT)) {
@@ -2563,7 +2558,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	}
 
 	/* Unmap any existing mapping in the area */
-	if (do_mas_munmap(&mas, mm, addr, len, uf, false))
+	if (do_vmi_munmap(&vmi, mm, addr, len, uf, false))
 		return -ENOMEM;
 
 	/*
@@ -2576,8 +2571,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		vm_flags |= VM_ACCOUNT;
 	}
 
-	next = mas_next(&mas, ULONG_MAX);
-	prev = mas_prev(&mas, 0);
+	next = vma_next(&vmi);
+	prev = vma_prev(&vmi);
 	if (vm_flags & VM_SPECIAL)
 		goto cannot_expand;
 
@@ -2605,13 +2600,11 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 
 	/* Actually expand, if possible */
 	if (vma &&
-	    !vma_expand(&mas, vma, merge_start, merge_end, vm_pgoff, next)) {
+	    !vma_expand(&vmi.mas, vma, merge_start, merge_end, vm_pgoff, next)) {
 		khugepaged_enter_vma(vma, vm_flags);
 		goto expanded;
 	}
 
-	mas.index = addr;
-	mas.last = end - 1;
 cannot_expand:
 	/*
 	 * Determine the object being mapped and call the appropriate
@@ -2650,7 +2643,7 @@ cannot_expand:
 			error = -EINVAL;
 			goto close_and_free_vma;
 		}
-		mas_reset(&mas);
+		vma_iter_set(&vmi, addr);
 
 		/*
 		 * If vm_flags changed after call_mmap(), we should try merge
@@ -2706,7 +2699,7 @@ cannot_expand:
 			goto free_vma;
 	}
 
-	if (mas_preallocate(&mas, GFP_KERNEL)) {
+	if (vma_iter_prealloc(&vmi)) {
 		error = -ENOMEM;
 		if (file)
 			goto close_and_free_vma;
@@ -2719,7 +2712,7 @@ cannot_expand:
 	if (vma->vm_file)
 		i_mmap_lock_write(vma->vm_file->f_mapping);
 
-	vma_mas_store(vma, &mas);
+	vma_iter_store(&vmi, vma);
 	mm->map_count++;
 	if (vma->vm_file) {
 		if (vma->vm_flags & VM_SHARED)
@@ -2780,7 +2773,7 @@ unmap_and_free_vma:
 	vma->vm_file = NULL;
 
 	/* Undo any partial mapping done by a device driver. */
-	unmap_region(mm, mas.tree, vma, prev, next, vma->vm_start, vma->vm_end);
+	unmap_region(mm, &mm->mm_mt, vma, prev, next, vma->vm_start, vma->vm_end);
 	if (file && (vm_flags & VM_SHARED))
 		mapping_unmap_writable(file->f_mapping);
 free_vma:
@@ -2797,12 +2790,12 @@ static int __vm_munmap(unsigned long start, size_t len, bool downgrade)
 	int ret;
 	struct mm_struct *mm = current->mm;
 	LIST_HEAD(uf);
-	MA_STATE(mas, &mm->mm_mt, start, start);
+	VMA_ITERATOR(vmi, mm, start);
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
-	ret = do_mas_munmap(&mas, mm, start, len, &uf, downgrade);
+	ret = do_vmi_munmap(&vmi, mm, start, len, &uf, downgrade);
 	/*
 	 * Returning 1 indicates mmap_lock is downgraded.
 	 * But 1 is not legal return value of vm_munmap() and munmap(), reset
@@ -2934,7 +2927,7 @@ static int do_brk_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	int ret;
 
 	arch_unmap(mm, newbrk, oldbrk);
-	ret = do_mas_align_munmap(&vmi->mas, vma, mm, newbrk, oldbrk, uf, true);
+	ret = do_vmi_align_munmap(vmi, vma, mm, newbrk, oldbrk, uf, true);
 	validate_mm_mt(mm);
 	return ret;
 }
@@ -3057,7 +3050,7 @@ int vm_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
 	if (ret)
 		goto limits_failed;
 
-	ret = do_mas_munmap(&vmi.mas, mm, addr, len, &uf, 0);
+	ret = do_vmi_munmap(&vmi, mm, addr, len, &uf, 0);
 	if (ret)
 		goto munmap_failed;
 
