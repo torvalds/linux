@@ -4686,13 +4686,10 @@ static ssize_t uframe_periodic_max_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct fotg210_hcd *fotg210;
-	int n;
 
 	fotg210 = hcd_to_fotg210(bus_to_hcd(dev_get_drvdata(dev)));
-	n = scnprintf(buf, PAGE_SIZE, "%d\n", fotg210->uframe_periodic_max);
-	return n;
+	return sysfs_emit(buf, "%d\n", fotg210->uframe_periodic_max);
 }
-
 
 static ssize_t uframe_periodic_max_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
