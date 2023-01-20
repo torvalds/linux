@@ -1996,7 +1996,6 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 	if (err < 0)
 		return err;
 
-	/* cppcheck-suppress unreadVariable */
 	protocol = vlan_get_protocol(skb);
 
 	if (eth_p_mpls(protocol))
@@ -2033,8 +2032,6 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		}
 
 		/* reset pointers to inner headers */
-
-		/* cppcheck-suppress unreadVariable */
 		ip.hdr = skb_inner_network_header(skb);
 		l4.hdr = skb_inner_transport_header(skb);
 
