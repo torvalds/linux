@@ -26,6 +26,7 @@ MODULE_LICENSE("GPL v2");
 
 #define EMS_PCI_V1_MAX_CHAN 2
 #define EMS_PCI_V2_MAX_CHAN 4
+#define EMS_PCI_V3_MAX_CHAN 4
 #define EMS_PCI_MAX_CHAN    EMS_PCI_V2_MAX_CHAN
 
 struct ems_pci_card {
@@ -61,6 +62,15 @@ struct ems_pci_card {
 #define PLX_ICSR_ENA_CLR    (PLX_ICSR_LINTI1_ENA | PLX_ICSR_PCIINT_ENA | \
 			     PLX_ICSR_LINTI1_CLR)
 
+/* Register definitions for the ASIX99100
+ */
+#define ASIX_LINTSR 0x28 /* Interrupt Control/Status register */
+#define ASIX_LINTSR_INT0AC BIT(0) /* Writing 1 enables or clears interrupt */
+
+#define ASIX_LIEMR 0x24 /* Local Interrupt Enable / Miscellaneous Register */
+#define ASIX_LIEMR_L0EINTEN BIT(16) /* Local INT0 input assertion enable */
+#define ASIX_LIEMR_LRST BIT(14) /* Local Reset assert */
+
 /* The board configuration is probably following:
  * RX1 is connected to ground.
  * TX1 is not connected.
@@ -86,6 +96,13 @@ struct ems_pci_card {
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
+#ifndef PCI_VENDOR_ID_ASIX
+#define PCI_VENDOR_ID_ASIX 0x125b
+#define PCI_DEVICE_ID_ASIX_9110 0x9110
+#define PCI_SUBVENDOR_ID_ASIX 0xa000
+#endif
+#define PCI_SUBDEVICE_ID_EMS 0x4010
+
 static const struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-PCI v1 */
 	{PCI_VENDOR_ID_SIEMENS, 0x2104, PCI_ANY_ID, PCI_ANY_ID,},
@@ -93,6 +110,8 @@ static const struct pci_device_id ems_pci_tbl[] = {
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030, PCI_VENDOR_ID_PLX, 0x4000},
 	/* CPC-104P v2 */
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030, PCI_VENDOR_ID_PLX, 0x4002},
+	/* CPC-PCIe v3 */
+	{PCI_VENDOR_ID_ASIX, PCI_DEVICE_ID_ASIX_9110, PCI_SUBVENDOR_ID_ASIX, PCI_SUBDEVICE_ID_EMS},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, ems_pci_tbl);
