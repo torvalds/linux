@@ -618,6 +618,29 @@ again:
 }
 
 /*
+ * dup_anon_vma() - Helper function to duplicate anon_vma
+ * @dst: The destination VMA
+ * @src: The source VMA
+ *
+ * Returns: 0 on success.
+ */
+static inline int dup_anon_vma(struct vm_area_struct *dst,
+			       struct vm_area_struct *src)
+{
+	/*
+	 * Easily overlooked: when mprotect shifts the boundary, make sure the
+	 * expanding vma has anon_vma set if the shrinking vma had, to cover any
+	 * anon pages imported.
+	 */
+	if (src->anon_vma && !dst->anon_vma) {
+		dst->anon_vma = src->anon_vma;
+		return anon_vma_clone(dst, src);
+	}
+
+	return 0;
+}
+
+/*
  * vma_expand - Expand an existing VMA
  *
  * @vmi: The vma iterator
@@ -642,15 +665,12 @@ int vma_expand(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	struct vma_prepare vp;
 
 	if (next && (vma != next) && (end == next->vm_end)) {
-		remove_next = true;
-		if (next->anon_vma && !vma->anon_vma) {
-			int error;
+		int ret;
 
-			vma->anon_vma = next->anon_vma;
-			error = anon_vma_clone(vma, next);
-			if (error)
-				return error;
-		}
+		remove_next = true;
+		ret = dup_anon_vma(vma, next);
+		if (ret)
+			return ret;
 	}
 
 	init_multi_vma_prep(&vp, vma, NULL, remove_next ? next : NULL, NULL);
@@ -739,10 +759,11 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	struct file *file = vma->vm_file;
 	bool vma_changed = false;
 	long adjust_next = 0;
-	struct vm_area_struct *exporter = NULL, *importer = NULL;
 	struct vma_prepare vma_prep;
 
 	if (next) {
+		int error = 0;
+
 		if (end >= next->vm_end) {
 			/*
 			 * vma expands, overlapping all the next, and
@@ -777,15 +798,14 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 					   end != remove2->vm_end);
 			}
 
-			exporter = next;
-			importer = vma;
-
 			/*
 			 * If next doesn't have anon_vma, import from vma after
 			 * next, if the vma overlaps with it.
 			 */
-			if (remove2 != NULL && !next->anon_vma)
-				exporter = remove2;
+			if (remove != NULL && !next->anon_vma)
+				error = dup_anon_vma(vma, remove2);
+			else
+				error = dup_anon_vma(vma, remove);
 
 		} else if (end > next->vm_start) {
 			/*
@@ -793,9 +813,8 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 			 * mprotect case 5 shifting the boundary up.
 			 */
 			adjust_next = (end - next->vm_start);
-			exporter = next;
-			importer = vma;
-			VM_WARN_ON(expand != importer);
+			VM_WARN_ON(expand != vma);
+			error = dup_anon_vma(vma, next);
 		} else if (end < vma->vm_end) {
 			/*
 			 * vma shrinks, and !insert tells it's not
@@ -803,24 +822,11 @@ int __vma_adjust(struct vma_iterator *vmi, struct vm_area_struct *vma,
 			 * mprotect case 4 shifting the boundary down.
 			 */
 			adjust_next = -(vma->vm_end - end);
-			exporter = vma;
-			importer = next;
-			VM_WARN_ON(expand != importer);
+			VM_WARN_ON(expand != next);
+			error = dup_anon_vma(next, vma);
 		}
-
-		/*
-		 * Easily overlooked: when mprotect shifts the boundary,
-		 * make sure the expanding vma has anon_vma set if the
-		 * shrinking vma had, to cover any anon pages imported.
-		 */
-		if (exporter && exporter->anon_vma && !importer->anon_vma) {
-			int error;
-
-			importer->anon_vma = exporter->anon_vma;
-			error = anon_vma_clone(importer, exporter);
-			if (error)
-				return error;
-		}
+		if (error)
+			return error;
 	}
 
 	if (vma_iter_prealloc(vmi))
