@@ -19,6 +19,7 @@
 # Collect arguments from Makefile
 TARGET=$1
 SRCTREE=$2
+SYMBOL_LIST=$3
 
 set -e
 
@@ -47,8 +48,14 @@ generate_header() {
 		rm -f -- "${header_file}"
 	fi
 
-	# Find Maximum symbol name length if valid symbol_file exist
+	# If symbol_file exist preprocess it and find maximum name length
 	if [  -s "${symbol_file}" ]; then
+		# Remove White Spaces, empty lines and symbol list markers if any
+		sed -i '/^[[:space:]]*$/d; /^#/d; /\[abi_symbol_list\]/d' "${symbol_file}"
+
+		# Sort in byte order for kernel binary search at runtime
+		LC_ALL=C sort -o "${symbol_file}" "${symbol_file}"
+
 		# Trim white spaces & +1 for null termination
 		local max_name_len=$(awk '
 				{
@@ -88,13 +95,12 @@ generate_header() {
 }
 
 if [ "$(basename "${TARGET}")" = "gki_module_unprotected.h" ]; then
-	# Sorted list of vendor symbols
-	GKI_VENDOR_SYMBOLS="${OUT_DIR}/abi_symbollist.raw"
-
+	# Union of vendor symbol lists
+	GKI_VENDOR_SYMBOLS="${SYMBOL_LIST}"
 	generate_header "${TARGET}" "${GKI_VENDOR_SYMBOLS}" "unprotected"
 else
 	# Sorted list of exported symbols
-	GKI_EXPORTED_SYMBOLS="${SRCTREE}/android/abi_gki_protected_exports"
+	GKI_EXPORTED_SYMBOLS="${SYMBOL_LIST}"
 
 	generate_header "${TARGET}" "${GKI_EXPORTED_SYMBOLS}" "protected_exports"
 fi
