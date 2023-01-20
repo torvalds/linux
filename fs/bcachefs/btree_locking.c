@@ -226,6 +226,10 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 
 		while (g->nr)
 			lock_graph_up(g);
+
+		if (cycle)
+			return 0;
+
 		trace_and_count(trans->c, trans_restart_would_deadlock_recursion_limit, trans, _RET_IP_);
 		return btree_trans_restart(orig_trans, BCH_ERR_transaction_restart_deadlock_recursion_limit);
 	}
@@ -248,6 +252,9 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	int ret;
 
 	if (trans->lock_must_abort) {
+		if (cycle)
+			return -1;
+
 		trace_and_count(trans->c, trans_restart_would_deadlock, trans, _RET_IP_);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
 	}
