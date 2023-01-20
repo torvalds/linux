@@ -36,6 +36,7 @@ static const char * const cs_etmv4_priv_fmts[] = {
 	[CS_ETMV4_TRCIDR2]	= "	TRCIDR2			       %llx\n",
 	[CS_ETMV4_TRCIDR8]	= "	TRCIDR8			       %llx\n",
 	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
+	[CS_ETMV4_TS_SOURCE]	= "	TS_SOURCE		       %lld\n",
 };
 
 static const char * const cs_ete_priv_fmts[] = {
@@ -50,6 +51,7 @@ static const char * const cs_ete_priv_fmts[] = {
 	[CS_ETE_TRCIDR8]	= "	TRCIDR8			       %llx\n",
 	[CS_ETE_TRCAUTHSTATUS]	= "	TRCAUTHSTATUS		       %llx\n",
 	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n",
+	[CS_ETE_TS_SOURCE]	= "	TS_SOURCE                      %lld\n",
 };
 
 static const char * const param_unk_fmt =
