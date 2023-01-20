@@ -1213,17 +1213,23 @@ not_found:
 		     "  missing range %llu-%llu",
 		     (bch2_bkey_val_to_text(&buf, c, p.s_c), buf.buf),
 		     *idx, next_idx)) {
-		struct bkey_i_error new;
+		struct bkey_i_error *new;
 
-		bkey_init(&new.k);
-		new.k.type	= KEY_TYPE_error;
-		new.k.p		= bkey_start_pos(p.k);
-		new.k.p.offset += *idx - start;
-		bch2_key_resize(&new.k, next_idx - *idx);
-		ret = __bch2_btree_insert(trans, BTREE_ID_extents, &new.k_i);
+		new = bch2_trans_kmalloc(trans, sizeof(*new));
+		ret = PTR_ERR_OR_ZERO(new);
+		if (ret)
+			goto err;
+
+		bkey_init(&new->k);
+		new->k.type	= KEY_TYPE_error;
+		new->k.p		= bkey_start_pos(p.k);
+		new->k.p.offset += *idx - start;
+		bch2_key_resize(&new->k, next_idx - *idx);
+		ret = __bch2_btree_insert(trans, BTREE_ID_extents, &new->k_i);
 	}
 
 	*idx = next_idx;
+err:
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
