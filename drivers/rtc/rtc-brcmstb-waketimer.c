@@ -27,7 +27,7 @@ struct brcmstb_waketmr {
 	struct rtc_device *rtc;
 	struct device *dev;
 	void __iomem *base;
-	int irq;
+	unsigned int wake_irq;
 	struct notifier_block reboot_notifier;
 	struct clk *clk;
 	u32 rate;
@@ -117,7 +117,7 @@ static int brcmstb_waketmr_prepare_suspend(struct brcmstb_waketmr *timer)
 	int ret = 0;
 
 	if (device_may_wakeup(dev)) {
-		ret = enable_irq_wake(timer->irq);
+		ret = enable_irq_wake(timer->wake_irq);
 		if (ret) {
 			dev_err(dev, "failed to enable wake-up interrupt\n");
 			return ret;
@@ -246,9 +246,10 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	 */
 	device_init_wakeup(dev, true);
 
-	timer->irq = platform_get_irq(pdev, 0);
-	if (timer->irq < 0)
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		return -ENODEV;
+	timer->wake_irq = (unsigned int)ret;
 
 	timer->clk = devm_clk_get(dev, NULL);
 	if (!IS_ERR(timer->clk)) {
@@ -263,7 +264,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 		timer->clk = NULL;
 	}
 
-	ret = devm_request_irq(dev, timer->irq, brcmstb_waketmr_irq, 0,
+	ret = devm_request_irq(dev, timer->wake_irq, brcmstb_waketmr_irq, 0,
 			       "brcmstb-waketimer", timer);
 	if (ret < 0)
 		goto err_clk;
@@ -277,8 +278,6 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	ret = devm_rtc_register_device(timer->rtc);
 	if (ret)
 		goto err_notifier;
-
-	dev_info(dev, "registered, with irq %d\n", timer->irq);
 
 	return 0;
 
@@ -317,7 +316,7 @@ static int brcmstb_waketmr_resume(struct device *dev)
 	if (!device_may_wakeup(dev))
 		return 0;
 
-	ret = disable_irq_wake(timer->irq);
+	ret = disable_irq_wake(timer->wake_irq);
 
 	brcmstb_waketmr_clear_alarm(timer);
 
