@@ -323,6 +323,23 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	return demangled;
 }
 
+struct rel_info {
+	bool		is_rela;
+	Elf_Data	*reldata;
+	GElf_Rela	rela;
+	GElf_Rel	rel;
+};
+
+static u32 get_rel_symidx(struct rel_info *ri, u32 idx)
+{
+	if (ri->is_rela) {
+		gelf_getrela(ri->reldata, idx, &ri->rela);
+		return GELF_R_SYM(ri->rela.r_info);
+	}
+	gelf_getrel(ri->reldata, idx, &ri->rel);
+	return GELF_R_SYM(ri->rel.r_info);
+}
+
 static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 			  u64 *plt_header_size, u64 *plt_entry_size)
 {
@@ -353,16 +370,6 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 	}
 }
 
-#define elf_section__for_each_rel(reldata, pos, pos_mem, idx, nr_entries) \
-	for (idx = 0, pos = gelf_getrel(reldata, 0, &pos_mem); \
-	     idx < nr_entries; \
-	     ++idx, pos = gelf_getrel(reldata, idx, &pos_mem))
-
-#define elf_section__for_each_rela(reldata, pos, pos_mem, idx, nr_entries) \
-	for (idx = 0, pos = gelf_getrela(reldata, 0, &pos_mem); \
-	     idx < nr_entries; \
-	     ++idx, pos = gelf_getrela(reldata, idx, &pos_mem))
-
 /*
  * We need to check if we have a .dynsym, so that we can handle the
  * .plt, synthesizing its symbols, that aren't on the symtabs (be it
@@ -378,13 +385,14 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	GElf_Shdr shdr_plt;
 	struct symbol *f;
 	GElf_Shdr shdr_rel_plt, shdr_dynsym;
-	Elf_Data *reldata, *syms, *symstrs;
+	Elf_Data *syms, *symstrs;
 	Elf_Scn *scn_plt_rel, *scn_symstrs, *scn_dynsym;
 	size_t dynsym_idx;
 	GElf_Ehdr ehdr;
 	char sympltname[1024];
 	Elf *elf;
-	int nr = 0, symidx, err = -1;
+	int nr = 0, err = -1;
+	struct rel_info ri = { .is_rela = false };
 
 	elf = ss->elf;
 	ehdr = ss->ehdr;
@@ -433,8 +441,8 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	 * Fetch the relocation section to find the idxes to the GOT
 	 * and the symbols in the .dynsym they refer to.
 	 */
-	reldata = elf_getdata(scn_plt_rel, NULL);
-	if (reldata == NULL)
+	ri.reldata = elf_getdata(scn_plt_rel, NULL);
+	if (!ri.reldata)
 		goto out_elf_end;
 
 	syms = elf_getdata(scn_dynsym, NULL);
@@ -456,44 +464,15 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	plt_offset = shdr_plt.sh_offset;
 	plt_offset += plt_header_size;
 
-	if (shdr_rel_plt.sh_type == SHT_RELA) {
-		GElf_Rela pos_mem, *pos;
+	ri.is_rela = shdr_rel_plt.sh_type == SHT_RELA;
 
-		elf_section__for_each_rela(reldata, pos, pos_mem, idx,
-					   nr_rel_entries) {
+	if (shdr_rel_plt.sh_type == SHT_RELA ||
+	    shdr_rel_plt.sh_type == SHT_REL) {
+		for (idx = 0; idx < nr_rel_entries; idx++) {
 			const char *elf_name = NULL;
 			char *demangled = NULL;
-			symidx = GELF_R_SYM(pos->r_info);
-			gelf_getsym(syms, symidx, &sym);
 
-			elf_name = elf_sym__name(&sym, symstrs);
-			demangled = demangle_sym(dso, 0, elf_name);
-			if (demangled != NULL)
-				elf_name = demangled;
-			if (*elf_name)
-				snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
-			else
-				snprintf(sympltname, sizeof(sympltname),
-					 "offset_%#" PRIx64 "@plt", plt_offset);
-			free(demangled);
-
-			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, STT_FUNC, sympltname);
-			if (!f)
-				goto out_elf_end;
-
-			plt_offset += plt_entry_size;
-			symbols__insert(&dso->symbols, f);
-			++nr;
-		}
-	} else if (shdr_rel_plt.sh_type == SHT_REL) {
-		GElf_Rel pos_mem, *pos;
-		elf_section__for_each_rel(reldata, pos, pos_mem, idx,
-					  nr_rel_entries) {
-			const char *elf_name = NULL;
-			char *demangled = NULL;
-			symidx = GELF_R_SYM(pos->r_info);
-			gelf_getsym(syms, symidx, &sym);
+			gelf_getsym(syms, get_rel_symidx(&ri, idx), &sym);
 
 			elf_name = elf_sym__name(&sym, symstrs);
 			demangled = demangle_sym(dso, 0, elf_name);
