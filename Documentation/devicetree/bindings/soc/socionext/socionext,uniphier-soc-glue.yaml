@@ -32,7 +32,6 @@ properties:
   reg:
     maxItems: 1
 
-patternProperties:
   pinctrl:
     $ref: /schemas/pinctrl/socionext,uniphier-pinctrl.yaml#
 
