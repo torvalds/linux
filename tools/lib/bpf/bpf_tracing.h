@@ -268,12 +268,19 @@ struct pt_regs___arm64 {
 
 #elif defined(bpf_target_riscv)
 
+/*
+ * https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#risc-v-calling-conventions
+ */
+
 #define __PT_REGS_CAST(x) ((const struct user_regs_struct *)(x))
 #define __PT_PARM1_REG a0
 #define __PT_PARM2_REG a1
 #define __PT_PARM3_REG a2
 #define __PT_PARM4_REG a3
 #define __PT_PARM5_REG a4
+#define __PT_PARM6_REG a5
+#define __PT_PARM7_REG a6
+#define __PT_PARM8_REG a7
 #define __PT_RET_REG ra
 #define __PT_FP_REG s0
 #define __PT_RC_REG a0
