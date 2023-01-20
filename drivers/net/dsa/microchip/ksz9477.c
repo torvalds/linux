@@ -1184,6 +1184,13 @@ u32 ksz9477_get_port_addr(int port, int offset)
 	return PORT_CTRL_ADDR(port, offset);
 }
 
+int ksz9477_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val)
+{
+	val = val >> 8;
+
+	return ksz_pwrite16(dev, port, REG_PORT_MTI_CREDIT_INCREMENT, val);
+}
+
 int ksz9477_switch_init(struct ksz_device *dev)
 {
 	u8 data8;
