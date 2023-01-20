@@ -436,6 +436,8 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_hw_fence_irq;
 
+	setup_private_ppat(gt);
+
 	if (!xe_gt_is_media_type(gt)) {
 		err = xe_ggtt_init(gt, gt->mem.ggtt);
 		if (err)
@@ -487,8 +489,6 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (err)
 		goto err_hw_fence_irq;
-
-	setup_private_ppat(gt);
 
 	xe_reg_sr_apply_mmio(&gt->reg_sr, gt);
 
