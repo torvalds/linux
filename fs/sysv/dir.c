@@ -249,10 +249,12 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct page *page)
 
 	lock_page(page);
 	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
-	BUG_ON(err);
+	if (err) {
+		unlock_page(page);
+		return err;
+	}
 	de->inode = 0;
 	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
-	dir_put_page(page, de);
 	inode->i_ctime = inode->i_mtime = current_time(inode);
 	mark_inode_dirty(inode);
 	return sysv_handle_dirsync(inode);
@@ -335,7 +337,7 @@ not_empty:
 }
 
 /* Releases the page */
-void sysv_set_link(struct sysv_dir_entry *de, struct page *page,
+int sysv_set_link(struct sysv_dir_entry *de, struct page *page,
 	struct inode *inode)
 {
 	struct inode *dir = page->mapping->host;
@@ -344,13 +346,15 @@ void sysv_set_link(struct sysv_dir_entry *de, struct page *page,
 
 	lock_page(page);
 	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
-	BUG_ON(err);
+	if (err) {
+		unlock_page(page);
+		return err;
+	}
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
 	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
-	dir_put_page(page, de);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
-	sysv_handle_dirsync(inode);
+	return sysv_handle_dirsync(inode);
 }
 
 /*
