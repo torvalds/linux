@@ -1855,9 +1855,10 @@ static void io_clean_op(struct io_kiocb *req)
 	req->flags &= ~IO_REQ_CLEAN_FLAGS;
 }
 
-static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
+static bool io_assign_file(struct io_kiocb *req, const struct io_issue_def *def,
+			   unsigned int issue_flags)
 {
-	if (req->file || !io_issue_defs[req->opcode].needs_file)
+	if (req->file || !def->needs_file)
 		return true;
 
 	if (req->flags & REQ_F_FIXED_FILE)
@@ -1874,7 +1875,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
-	if (unlikely(!io_assign_file(req, issue_flags)))
+	if (unlikely(!io_assign_file(req, def, issue_flags)))
 		return -EBADF;
 
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
@@ -1943,7 +1944,7 @@ fail:
 		io_req_task_queue_fail(req, err);
 		return;
 	}
-	if (!io_assign_file(req, issue_flags)) {
+	if (!io_assign_file(req, def, issue_flags)) {
 		err = -EBADF;
 		work->flags |= IO_WQ_WORK_CANCEL;
 		goto fail;
