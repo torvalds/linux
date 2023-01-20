@@ -115,6 +115,14 @@
 #define __PT_PARM1_REG eax
 #define __PT_PARM2_REG edx
 #define __PT_PARM3_REG ecx
+/* i386 syscall ABI is very different, refer to syscall(2) manpage */
+#define __PT_PARM1_SYSCALL_REG ebx
+#define __PT_PARM2_SYSCALL_REG ecx
+#define __PT_PARM3_SYSCALL_REG edx
+#define __PT_PARM4_SYSCALL_REG esi
+#define __PT_PARM5_SYSCALL_REG edi
+#define __PT_PARM6_SYSCALL_REG ebp
+
 #define __PT_RET_REG esp
 #define __PT_FP_REG ebp
 #define __PT_RC_REG eax
