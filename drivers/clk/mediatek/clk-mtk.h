@@ -149,7 +149,8 @@ struct mtk_composite {
 		.flags = 0,						\
 	}
 
-int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
+int mtk_clk_register_composites(struct device *dev,
+				const struct mtk_composite *mcs, int num,
 				void __iomem *base, spinlock_t *lock,
 				struct clk_hw_onecell_data *clk_data);
 void mtk_clk_unregister_composites(const struct mtk_composite *mcs, int num,

@@ -1251,11 +1251,13 @@ static int clk_mt6779_top_probe(struct platform_device *pdev)
 	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes),
 			       node, &mt6779_clk_lock, clk_data);
 
-	mtk_clk_register_composites(top_aud_muxes, ARRAY_SIZE(top_aud_muxes),
-				    base, &mt6779_clk_lock, clk_data);
+	mtk_clk_register_composites(&pdev->dev, top_aud_muxes,
+				    ARRAY_SIZE(top_aud_muxes), base,
+				    &mt6779_clk_lock, clk_data);
 
-	mtk_clk_register_composites(top_aud_divs, ARRAY_SIZE(top_aud_divs),
-				    base, &mt6779_clk_lock, clk_data);
+	mtk_clk_register_composites(&pdev->dev, top_aud_divs,
+				    ARRAY_SIZE(top_aud_divs), base,
+				    &mt6779_clk_lock, clk_data);
 
 	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
