@@ -1068,7 +1068,7 @@ static int shmem_getattr(struct mnt_idmap *idmap,
 	stat->attributes_mask |= (STATX_ATTR_APPEND |
 			STATX_ATTR_IMMUTABLE |
 			STATX_ATTR_NODUMP);
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(idmap, inode, stat);
 
 	if (shmem_is_huge(NULL, inode, 0, false))
 		stat->blksize = HPAGE_PMD_SIZE;
@@ -1091,7 +1091,7 @@ static int shmem_setattr(struct mnt_idmap *idmap,
 	bool update_mtime = false;
 	bool update_ctime = true;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -1129,9 +1129,9 @@ static int shmem_setattr(struct mnt_idmap *idmap,
 		}
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
+	setattr_copy(idmap, inode, attr);
 	if (attr->ia_valid & ATTR_MODE)
-		error = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
+		error = posix_acl_chmod(idmap, dentry, inode->i_mode);
 	if (!error && update_ctime) {
 		inode->i_ctime = current_time(inode);
 		if (update_mtime)
@@ -2329,8 +2329,9 @@ static void shmem_set_inode_flags(struct inode *inode, unsigned int fsflags)
 #define shmem_initxattrs NULL
 #endif
 
-static struct inode *shmem_get_inode(struct super_block *sb, struct inode *dir,
-				     umode_t mode, dev_t dev, unsigned long flags)
+static struct inode *shmem_get_inode(struct mnt_idmap *idmap, struct super_block *sb,
+				     struct inode *dir, umode_t mode, dev_t dev,
+				     unsigned long flags)
 {
 	struct inode *inode;
 	struct shmem_inode_info *info;
@@ -2343,7 +2344,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, struct inode *dir,
 	inode = new_inode(sb);
 	if (inode) {
 		inode->i_ino = ino;
-		inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
+		inode_init_owner(idmap, inode, dir, mode);
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inode->i_generation = get_random_u32();
@@ -2921,7 +2922,7 @@ shmem_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode *inode;
 	int error = -ENOSPC;
 
-	inode = shmem_get_inode(dir->i_sb, dir, mode, dev, VM_NORESERVE);
+	inode = shmem_get_inode(idmap, dir->i_sb, dir, mode, dev, VM_NORESERVE);
 	if (inode) {
 		error = simple_acl_create(dir, inode);
 		if (error)
@@ -2952,7 +2953,7 @@ shmem_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode *inode;
 	int error = -ENOSPC;
 
-	inode = shmem_get_inode(dir->i_sb, dir, mode, 0, VM_NORESERVE);
+	inode = shmem_get_inode(idmap, dir->i_sb, dir, mode, 0, VM_NORESERVE);
 	if (inode) {
 		error = security_inode_init_security(inode, dir,
 						     NULL,
@@ -2975,8 +2976,8 @@ static int shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 {
 	int error;
 
-	if ((error = shmem_mknod(&nop_mnt_idmap, dir, dentry,
-				 mode | S_IFDIR, 0)))
+	error = shmem_mknod(idmap, dir, dentry, mode | S_IFDIR, 0);
+	if (error)
 		return error;
 	inc_nlink(dir);
 	return 0;
@@ -2985,7 +2986,7 @@ static int shmem_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 static int shmem_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return shmem_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
+	return shmem_mknod(idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
 /*
@@ -3055,7 +3056,7 @@ static int shmem_whiteout(struct mnt_idmap *idmap,
 	if (!whiteout)
 		return -ENOMEM;
 
-	error = shmem_mknod(&nop_mnt_idmap, old_dir, whiteout,
+	error = shmem_mknod(idmap, old_dir, whiteout,
 			    S_IFCHR | WHITEOUT_MODE, WHITEOUT_DEV);
 	dput(whiteout);
 	if (error)
@@ -3098,7 +3099,7 @@ static int shmem_rename2(struct mnt_idmap *idmap,
 	if (flags & RENAME_WHITEOUT) {
 		int error;
 
-		error = shmem_whiteout(&nop_mnt_idmap, old_dir, old_dentry);
+		error = shmem_whiteout(idmap, old_dir, old_dentry);
 		if (error)
 			return error;
 	}
@@ -3136,7 +3137,7 @@ static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	if (len > PAGE_SIZE)
 		return -ENAMETOOLONG;
 
-	inode = shmem_get_inode(dir->i_sb, dir, S_IFLNK | 0777, 0,
+	inode = shmem_get_inode(idmap, dir->i_sb, dir, S_IFLNK | 0777, 0,
 				VM_NORESERVE);
 	if (!inode)
 		return -ENOSPC;
@@ -3819,7 +3820,8 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 #endif
 	uuid_gen(&sb->s_uuid);
 
-	inode = shmem_get_inode(sb, NULL, S_IFDIR | sbinfo->mode, 0, VM_NORESERVE);
+	inode = shmem_get_inode(&nop_mnt_idmap, sb, NULL, S_IFDIR | sbinfo->mode, 0,
+				VM_NORESERVE);
 	if (!inode)
 		goto failed;
 	inode->i_uid = sbinfo->uid;
@@ -4044,7 +4046,11 @@ static struct file_system_type shmem_fs_type = {
 	.parameters	= shmem_fs_parameters,
 #endif
 	.kill_sb	= kill_litter_super,
+#ifdef CONFIG_SHMEM
+	.fs_flags	= FS_USERNS_MOUNT | FS_ALLOW_IDMAP,
+#else
 	.fs_flags	= FS_USERNS_MOUNT,
+#endif
 };
 
 void __init shmem_init(void)
@@ -4196,7 +4202,7 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 #define shmem_vm_ops				generic_file_vm_ops
 #define shmem_anon_vm_ops			generic_file_vm_ops
 #define shmem_file_operations			ramfs_file_operations
-#define shmem_get_inode(sb, dir, mode, dev, flags)	ramfs_get_inode(sb, dir, mode, dev)
+#define shmem_get_inode(idmap, sb, dir, mode, dev, flags) ramfs_get_inode(sb, dir, mode, dev)
 #define shmem_acct_size(flags, size)		0
 #define shmem_unacct_size(flags, size)		do {} while (0)
 
@@ -4219,8 +4225,11 @@ static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, l
 	if (shmem_acct_size(flags, size))
 		return ERR_PTR(-ENOMEM);
 
-	inode = shmem_get_inode(mnt->mnt_sb, NULL, S_IFREG | S_IRWXUGO, 0,
-				flags);
+	if (is_idmapped_mnt(mnt))
+		return ERR_PTR(-EINVAL);
+
+	inode = shmem_get_inode(&nop_mnt_idmap, mnt->mnt_sb, NULL,
+				S_IFREG | S_IRWXUGO, 0, flags);
 	if (unlikely(!inode)) {
 		shmem_unacct_size(flags, size);
 		return ERR_PTR(-ENOSPC);
