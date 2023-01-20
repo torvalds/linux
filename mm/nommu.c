@@ -560,44 +560,6 @@ static void setup_vma_to_mm(struct vm_area_struct *vma, struct mm_struct *mm)
 	}
 }
 
-/*
- * vmi_add_vma_to_mm() - VMA Iterator variant of add_vmi_to_mm().
- * @vmi: The VMA iterator
- * @mm: The mm_struct
- * @vma: The vma to add
- *
- */
-static void vmi_add_vma_to_mm(struct vma_iterator *vmi, struct mm_struct *mm,
-			      struct vm_area_struct *vma)
-{
-	BUG_ON(!vma->vm_region);
-
-	setup_vma_to_mm(vma, mm);
-	mm->map_count++;
-
-	/* add the VMA to the tree */
-	vma_iter_store(vmi, vma);
-}
-
-/*
- * add a VMA into a process's mm_struct in the appropriate place in the list
- * and tree and add to the address space's page tree also if not an anonymous
- * page
- * - should be called with mm->mmap_lock held writelocked
- */
-static int add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
-{
-	VMA_ITERATOR(vmi, mm, vma->vm_start);
-
-	if (vma_iter_prealloc(&vmi)) {
-		pr_warn("Allocation of vma tree for process %d failed\n",
-		       current->pid);
-		return -ENOMEM;
-	}
-	vmi_add_vma_to_mm(&vmi, mm, vma);
-	return 0;
-}
-
 static void cleanup_vma_from_mm(struct vm_area_struct *vma)
 {
 	vma->vm_mm->map_count--;
@@ -1221,7 +1183,11 @@ unsigned long do_mmap(struct file *file,
 	current->mm->total_vm += len >> PAGE_SHIFT;
 
 share:
-	vmi_add_vma_to_mm(&vmi, current->mm, vma);
+	BUG_ON(!vma->vm_region);
+	setup_vma_to_mm(vma, current->mm);
+	current->mm->map_count++;
+	/* add the VMA to the tree */
+	vma_iter_store(&vmi, vma);
 
 	/* we flush the region from the icache only when the first executable
 	 * mapping of it is made  */
@@ -1406,7 +1372,7 @@ err_vma_dup:
  * shrink a VMA by removing the specified chunk from either the beginning or
  * the end
  */
-static int shrink_vma(struct mm_struct *mm,
+static int vmi_shrink_vma(struct vma_iterator *vmi,
 		      struct vm_area_struct *vma,
 		      unsigned long from, unsigned long to)
 {
@@ -1414,14 +1380,19 @@ static int shrink_vma(struct mm_struct *mm,
 
 	/* adjust the VMA's pointers, which may reposition it in the MM's tree
 	 * and list */
-	if (delete_vma_from_mm(vma))
+	if (vma_iter_prealloc(vmi)) {
+		pr_warn("Allocation of vma tree for process %d failed\n",
+		       current->pid);
 		return -ENOMEM;
-	if (from > vma->vm_start)
+	}
+
+	if (from > vma->vm_start) {
+		vma_iter_clear(vmi, from, vma->vm_end);
 		vma->vm_end = from;
-	else
+	} else {
+		vma_iter_clear(vmi, vma->vm_start, to);
 		vma->vm_start = to;
-	if (add_vma_to_mm(mm, vma))
-		return -ENOMEM;
+	}
 
 	/* cut the backing region down to size */
 	region = vma->vm_region;
@@ -1498,7 +1469,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len, struct list
 			if (ret < 0)
 				return ret;
 		}
-		return shrink_vma(mm, vma, start, end);
+		return vmi_shrink_vma(&vmi, vma, start, end);
 	}
 
 erase_whole_vma:
