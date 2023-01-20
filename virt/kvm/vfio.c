@@ -336,7 +336,7 @@ static int kvm_vfio_has_attr(struct kvm_device *dev,
 	return -ENXIO;
 }
 
-static void kvm_vfio_destroy(struct kvm_device *dev)
+static void kvm_vfio_release(struct kvm_device *dev)
 {
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_group *kvg, *tmp;
@@ -355,7 +355,7 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 	kvm_vfio_update_coherency(dev);
 
 	kfree(kv);
-	kfree(dev); /* alloc by kvm_ioctl_create_device, free by .destroy */
+	kfree(dev); /* alloc by kvm_ioctl_create_device, free by .release */
 }
 
 static int kvm_vfio_create(struct kvm_device *dev, u32 type);
@@ -363,7 +363,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type);
 static struct kvm_device_ops kvm_vfio_ops = {
 	.name = "kvm-vfio",
 	.create = kvm_vfio_create,
-	.destroy = kvm_vfio_destroy,
+	.release = kvm_vfio_release,
 	.set_attr = kvm_vfio_set_attr,
 	.has_attr = kvm_vfio_has_attr,
 };
