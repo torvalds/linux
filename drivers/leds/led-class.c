@@ -215,26 +215,9 @@ static int led_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(leds_class_dev_pm_ops, led_suspend, led_resume);
 
-/**
- * of_led_get() - request a LED device via the LED framework
- * @np: device node to get the LED device from
- * @index: the index of the LED
- *
- * Returns the LED device parsed from the phandle specified in the "leds"
- * property of a device tree node or a negative error-code on failure.
- */
-struct led_classdev *of_led_get(struct device_node *np, int index)
+static struct led_classdev *led_module_get(struct device *led_dev)
 {
-	struct device *led_dev;
 	struct led_classdev *led_cdev;
-	struct device_node *led_node;
-
-	led_node = of_parse_phandle(np, "leds", index);
-	if (!led_node)
-		return ERR_PTR(-ENOENT);
-
-	led_dev = class_find_device_by_of_node(leds_class, led_node);
-	of_node_put(led_node);
 
 	if (!led_dev)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -247,6 +230,29 @@ struct led_classdev *of_led_get(struct device_node *np, int index)
 	}
 
 	return led_cdev;
+}
+
+/**
+ * of_led_get() - request a LED device via the LED framework
+ * @np: device node to get the LED device from
+ * @index: the index of the LED
+ *
+ * Returns the LED device parsed from the phandle specified in the "leds"
+ * property of a device tree node or a negative error-code on failure.
+ */
+struct led_classdev *of_led_get(struct device_node *np, int index)
+{
+	struct device *led_dev;
+	struct device_node *led_node;
+
+	led_node = of_parse_phandle(np, "leds", index);
+	if (!led_node)
+		return ERR_PTR(-ENOENT);
+
+	led_dev = class_find_device_by_of_node(leds_class, led_node);
+	of_node_put(led_node);
+
+	return led_module_get(led_dev);
 }
 EXPORT_SYMBOL_GPL(of_led_get);
 
