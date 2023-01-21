@@ -327,6 +327,8 @@ void gcov_info_add(struct gcov_info *dst, struct gcov_info *src)
 
 		for (i = 0; i < sfn_ptr->num_counters; i++)
 			dfn_ptr->counters[i] += sfn_ptr->counters[i];
+
+		sfn_ptr = list_next_entry(sfn_ptr, head);
 	}
 }
 
