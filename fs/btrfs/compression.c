@@ -258,55 +258,12 @@ static void btrfs_finish_compressed_write_work(struct work_struct *work)
 static void end_compressed_bio_write(struct btrfs_bio *bbio)
 {
 	struct compressed_bio *cb = bbio->private;
+	struct btrfs_fs_info *fs_info = btrfs_sb(cb->inode->i_sb);
 
-	if (bbio->bio.bi_status)
-		cb->status = bbio->bio.bi_status;
+	cb->status = bbio->bio.bi_status;
+	queue_work(fs_info->compressed_write_workers, &cb->write_end_work);
 
-	if (refcount_dec_and_test(&cb->pending_ios)) {
-		struct btrfs_fs_info *fs_info = btrfs_sb(cb->inode->i_sb);
-
-		queue_work(fs_info->compressed_write_workers, &cb->write_end_work);
-	}
 	bio_put(&bbio->bio);
-}
-
-/*
- * Allocate a compressed_bio, which will be used to read/write on-disk
- * (aka, compressed) * data.
- *
- * @cb:                 The compressed_bio structure, which records all the needed
- *                      information to bind the compressed data to the uncompressed
- *                      page cache.
- * @disk_byten:         The logical bytenr where the compressed data will be read
- *                      from or written to.
- * @endio_func:         The endio function to call after the IO for compressed data
- *                      is finished.
- */
-static struct bio *alloc_compressed_bio(struct compressed_bio *cb, u64 disk_bytenr,
-					blk_opf_t opf,
-					btrfs_bio_end_io_t endio_func)
-{
-	struct bio *bio;
-
-	bio = btrfs_bio_alloc(BIO_MAX_VECS, opf, BTRFS_I(cb->inode), endio_func,
-			      cb);
-	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
-
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-		struct btrfs_fs_info *fs_info = btrfs_sb(cb->inode->i_sb);
-		struct btrfs_device *device;
-
-		device = btrfs_zoned_get_device(fs_info, disk_bytenr,
-						fs_info->sectorsize);
-		if (IS_ERR(device)) {
-			bio_put(bio);
-			return ERR_CAST(device);
-		}
-
-		bio_set_dev(bio, device->bdev);
-	}
-	refcount_inc(&cb->pending_ios);
-	return bio;
 }
 
 /*
@@ -332,16 +289,12 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	struct compressed_bio *cb;
 	u64 cur_disk_bytenr = disk_start;
 	blk_status_t ret = BLK_STS_OK;
-	const bool use_append = btrfs_use_zone_append(inode, disk_start);
-	const enum req_op bio_op = REQ_BTRFS_ONE_ORDERED |
-				   (use_append ? REQ_OP_ZONE_APPEND : REQ_OP_WRITE);
 
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
 	       IS_ALIGNED(len, fs_info->sectorsize));
 	cb = kmalloc(sizeof(struct compressed_bio), GFP_NOFS);
 	if (!cb)
 		return BLK_STS_RESOURCE;
-	refcount_set(&cb->pending_ios, 1);
 	cb->status = BLK_STS_OK;
 	cb->inode = &inode->vfs_inode;
 	cb->start = start;
@@ -352,8 +305,16 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	INIT_WORK(&cb->write_end_work, btrfs_finish_compressed_write_work);
 	cb->nr_pages = nr_pages;
 
-	if (blkcg_css)
+	if (blkcg_css) {
 		kthread_associate_blkcg(blkcg_css);
+		write_flags |= REQ_CGROUP_PUNT;
+	}
+
+	write_flags |= REQ_BTRFS_ONE_ORDERED;
+	bio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_WRITE | write_flags,
+			      BTRFS_I(cb->inode), end_compressed_bio_write, cb);
+	bio->bi_iter.bi_sector = cur_disk_bytenr >> SECTOR_SHIFT;
+	btrfs_bio(bio)->file_offset = start;
 
 	while (cur_disk_bytenr < disk_start + compressed_len) {
 		u64 offset = cur_disk_bytenr - disk_start;
@@ -361,20 +322,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 		unsigned int real_size;
 		unsigned int added;
 		struct page *page = compressed_pages[index];
-		bool submit = false;
 
-		/* Allocate new bio if submitted or not yet allocated */
-		if (!bio) {
-			bio = alloc_compressed_bio(cb, cur_disk_bytenr,
-				bio_op | write_flags, end_compressed_bio_write);
-			if (IS_ERR(bio)) {
-				ret = errno_to_blk_status(PTR_ERR(bio));
-				break;
-			}
-			btrfs_bio(bio)->file_offset = start;
-			if (blkcg_css)
-				bio->bi_opf |= REQ_CGROUP_PUNT;
-		}
 		/*
 		 * We have various limits on the real read size:
 		 * - page boundary
@@ -384,35 +332,20 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 		real_size = min_t(u64, real_size, compressed_len - offset);
 		ASSERT(IS_ALIGNED(real_size, fs_info->sectorsize));
 
-		if (use_append)
-			added = bio_add_zone_append_page(bio, page, real_size,
-					offset_in_page(offset));
-		else
-			added = bio_add_page(bio, page, real_size,
-					offset_in_page(offset));
-		/* Reached zoned boundary */
-		if (added == 0)
-			submit = true;
-
+		added = bio_add_page(bio, page, real_size, offset_in_page(offset));
+		/*
+		 * Maximum compressed extent is smaller than bio size limit,
+		 * thus bio_add_page() should always success.
+		 */
+		ASSERT(added == real_size);
 		cur_disk_bytenr += added;
-
-		/* Finished the range */
-		if (cur_disk_bytenr == disk_start + compressed_len)
-			submit = true;
-
-		if (submit) {
-			ASSERT(bio->bi_iter.bi_size);
-			btrfs_submit_bio(bio, 0);
-			bio = NULL;
-		}
-		cond_resched();
 	}
 
+	/* Finished the range. */
+	ASSERT(bio->bi_iter.bi_size);
+	btrfs_submit_bio(bio, 0);
 	if (blkcg_css)
 		kthread_associate_blkcg(NULL);
-
-	if (refcount_dec_and_test(&cb->pending_ios))
-		finish_compressed_bio_write(cb);
 	return ret;
 }
 
@@ -624,7 +557,6 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		goto out;
 	}
 
-	refcount_set(&cb->pending_ios, 1);
 	cb->status = BLK_STS_OK;
 	cb->inode = inode;
 

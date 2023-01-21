@@ -59,13 +59,22 @@ struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
 	return bio;
 }
 
-static struct bio *btrfs_split_bio(struct bio *orig, u64 map_length)
+static struct bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
+				   struct bio *orig, u64 map_length,
+				   bool use_append)
 {
 	struct btrfs_bio *orig_bbio = btrfs_bio(orig);
 	struct bio *bio;
 
-	bio = bio_split(orig, map_length >> SECTOR_SHIFT, GFP_NOFS,
-			&btrfs_clone_bioset);
+	if (use_append) {
+		unsigned int nr_segs;
+
+		bio = bio_split_rw(orig, &fs_info->limits, &nr_segs,
+				   &btrfs_clone_bioset, map_length);
+	} else {
+		bio = bio_split(orig, map_length >> SECTOR_SHIFT, GFP_NOFS,
+				&btrfs_clone_bioset);
+	}
 	btrfs_bio_init(btrfs_bio(bio), orig_bbio->inode, NULL, orig_bbio);
 
 	btrfs_bio(bio)->file_offset = orig_bbio->file_offset;
@@ -397,16 +406,10 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 	 */
 	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 		u64 physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
+		u64 zone_start = round_down(physical, dev->fs_info->zone_size);
 
-		if (btrfs_dev_is_sequential(dev, physical)) {
-			u64 zone_start = round_down(physical,
-						    dev->fs_info->zone_size);
-
-			bio->bi_iter.bi_sector = zone_start >> SECTOR_SHIFT;
-		} else {
-			bio->bi_opf &= ~REQ_OP_ZONE_APPEND;
-			bio->bi_opf |= REQ_OP_WRITE;
-		}
+		ASSERT(btrfs_dev_is_sequential(dev, physical));
+		bio->bi_iter.bi_sector = zone_start >> SECTOR_SHIFT;
 	}
 	btrfs_debug_in_rcu(dev->fs_info,
 	"%s: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
@@ -603,11 +606,13 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 static bool btrfs_submit_chunk(struct bio *bio, int mirror_num)
 {
 	struct btrfs_bio *bbio = btrfs_bio(bio);
-	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+	struct btrfs_inode *inode = bbio->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_bio *orig_bbio = bbio;
 	u64 logical = bio->bi_iter.bi_sector << 9;
 	u64 length = bio->bi_iter.bi_size;
 	u64 map_length = length;
+	bool use_append = btrfs_use_zone_append(inode, logical);
 	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_io_stripe smap;
 	blk_status_t ret;
@@ -622,8 +627,11 @@ static bool btrfs_submit_chunk(struct bio *bio, int mirror_num)
 	}
 
 	map_length = min(map_length, length);
+	if (use_append)
+		map_length = min(map_length, fs_info->max_zone_append_size);
+
 	if (map_length < length) {
-		bio = btrfs_split_bio(bio, map_length);
+		bio = btrfs_split_bio(fs_info, bio, map_length, use_append);
 		bbio = btrfs_bio(bio);
 	}
 
@@ -639,7 +647,9 @@ static bool btrfs_submit_chunk(struct bio *bio, int mirror_num)
 	}
 
 	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+		if (use_append) {
+			bio->bi_opf &= ~REQ_OP_WRITE;
+			bio->bi_opf |= REQ_OP_ZONE_APPEND;
 			ret = btrfs_extract_ordered_extent(btrfs_bio(bio));
 			if (ret)
 				goto fail_put_bio;
@@ -649,9 +659,9 @@ static bool btrfs_submit_chunk(struct bio *bio, int mirror_num)
 		 * Csum items for reloc roots have already been cloned at this
 		 * point, so they are handled as part of the no-checksum case.
 		 */
-		if (!(bbio->inode->flags & BTRFS_INODE_NODATASUM) &&
+		if (!(inode->flags & BTRFS_INODE_NODATASUM) &&
 		    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
-		    !btrfs_is_data_reloc_root(bbio->inode->root)) {
+		    !btrfs_is_data_reloc_root(inode->root)) {
 			if (should_async_write(bbio) &&
 			    btrfs_wq_submit_bio(bbio, bioc, &smap, mirror_num))
 				goto done;
