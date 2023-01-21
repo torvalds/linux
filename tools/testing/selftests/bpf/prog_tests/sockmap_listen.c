@@ -563,8 +563,7 @@ close_s1:
 /* Exercise the code path where we destroy child sockets that never
  * got accept()'ed, aka orphans, when parent socket gets closed.
  */
-static void test_destroy_orphan_child(struct test_sockmap_listen *skel __always_unused,
-				      int family, int sotype, int mapfd)
+static void do_destroy_orphan_child(int family, int sotype, int mapfd)
 {
 	struct sockaddr_storage addr;
 	socklen_t len;
@@ -593,6 +592,33 @@ static void test_destroy_orphan_child(struct test_sockmap_listen *skel __always_
 	xclose(c);
 close_srv:
 	xclose(s);
+}
+
+static void test_destroy_orphan_child(struct test_sockmap_listen *skel,
+				      int family, int sotype, int mapfd)
+{
+	int msg_verdict = bpf_program__fd(skel->progs.prog_msg_verdict);
+	int skb_verdict = bpf_program__fd(skel->progs.prog_skb_verdict);
+	const struct test {
+		int progfd;
+		enum bpf_attach_type atype;
+	} tests[] = {
+		{ -1, -1 },
+		{ msg_verdict, BPF_SK_MSG_VERDICT },
+		{ skb_verdict, BPF_SK_SKB_VERDICT },
+	};
+	const struct test *t;
+
+	for (t = tests; t < tests + ARRAY_SIZE(tests); t++) {
+		if (t->progfd != -1 &&
+		    xbpf_prog_attach(t->progfd, mapfd, t->atype, 0) != 0)
+			return;
+
+		do_destroy_orphan_child(family, sotype, mapfd);
+
+		if (t->progfd != -1)
+			xbpf_prog_detach2(t->progfd, mapfd, t->atype);
+	}
 }
 
 /* Perform a passive open after removing listening socket from SOCKMAP
