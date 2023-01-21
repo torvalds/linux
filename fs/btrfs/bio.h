@@ -45,8 +45,6 @@ struct btrfs_bio {
 	struct btrfs_inode *inode;
 	u64 file_offset;
 
-	/* @device is for stripe IO submission. */
-	struct btrfs_device *device;
 	union {
 		/* For data checksum verification. */
 		struct {

@@ -263,18 +263,19 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	if (bbio->bio.bi_opf & REQ_META)
 		bbio->end_io(bbio);
 	else
-		btrfs_check_read_bio(bbio, bbio->device);
+		btrfs_check_read_bio(bbio, bbio->bio.bi_private);
 }
 
 static void btrfs_simple_end_io(struct bio *bio)
 {
-	struct btrfs_fs_info *fs_info = bio->bi_private;
 	struct btrfs_bio *bbio = btrfs_bio(bio);
+	struct btrfs_device *dev = bio->bi_private;
+	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
 
 	btrfs_bio_counter_dec(fs_info);
 
 	if (bio->bi_status)
-		btrfs_log_dev_io_error(bio, bbio->device);
+		btrfs_log_dev_io_error(bio, dev);
 
 	if (bio_op(bio) == REQ_OP_READ) {
 		INIT_WORK(&bbio->end_io_work, btrfs_end_bio_work);
@@ -440,9 +441,8 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 	if (!bioc) {
 		/* Single mirror read/write fast path */
 		bbio->mirror_num = mirror_num;
-		bbio->device = smap.dev;
 		bio->bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
-		bio->bi_private = fs_info;
+		bio->bi_private = smap.dev;
 		bio->bi_end_io = btrfs_simple_end_io;
 		btrfs_submit_dev_bio(smap.dev, bio);
 	} else if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
