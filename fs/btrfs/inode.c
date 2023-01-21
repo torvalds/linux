@@ -100,9 +100,6 @@ struct btrfs_dio_private {
 	 */
 	refcount_t refs;
 
-	/* Array of checksums */
-	u8 *csums;
-
 	/* This must be last */
 	struct bio bio;
 };
@@ -7907,7 +7904,6 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 			      dip->file_offset + dip->bytes - 1, NULL);
 	}
 
-	kfree(dip->csums);
 	bio_endio(&dip->bio);
 }
 
@@ -7990,7 +7986,6 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct btrfs_inode *inode,
 				 u64 file_offset, int async_submit)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_dio_private *dip = btrfs_bio(bio)->private;
 	blk_status_t ret;
 
 	/* Save the original iter for read repair */
@@ -8017,8 +8012,11 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct btrfs_inode *inode,
 			return;
 		}
 	} else {
-		btrfs_bio(bio)->csum = btrfs_csum_ptr(fs_info, dip->csums,
-						      file_offset - dip->file_offset);
+		ret = btrfs_lookup_bio_sums(&inode->vfs_inode, bio, NULL);
+		if (ret) {
+			btrfs_bio_end_io(btrfs_bio(bio), ret);
+			return;
+		}
 	}
 map:
 	btrfs_submit_bio(fs_info, bio, 0);
@@ -8030,7 +8028,6 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 	struct btrfs_dio_private *dip =
 		container_of(dio_bio, struct btrfs_dio_private, bio);
 	struct inode *inode = iter->inode;
-	const bool write = (btrfs_op(dio_bio) == BTRFS_MAP_WRITE);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	const bool raid56 = (btrfs_data_alloc_profile(fs_info) &
 			     BTRFS_BLOCK_GROUP_RAID56_MASK);
@@ -8051,25 +8048,6 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 	dip->file_offset = file_offset;
 	dip->bytes = dio_bio->bi_iter.bi_size;
 	refcount_set(&dip->refs, 1);
-	dip->csums = NULL;
-
-	if (!write && !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-		unsigned int nr_sectors =
-			(dio_bio->bi_iter.bi_size >> fs_info->sectorsize_bits);
-
-		/*
-		 * Load the csums up front to reduce csum tree searches and
-		 * contention when submitting bios.
-		 */
-		status = BLK_STS_RESOURCE;
-		dip->csums = kcalloc(nr_sectors, fs_info->csum_size, GFP_NOFS);
-		if (!dip->csums)
-			goto out_err;
-
-		status = btrfs_lookup_bio_sums(inode, dio_bio, dip->csums);
-		if (status != BLK_STS_OK)
-			goto out_err;
-	}
 
 	start_sector = dio_bio->bi_iter.bi_sector;
 	submit_len = dio_bio->bi_iter.bi_size;
