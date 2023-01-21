@@ -14,6 +14,7 @@
 #include "dev-replace.h"
 #include "rcu-string.h"
 #include "zoned.h"
+#include "file-item.h"
 
 static struct bio_set btrfs_bioset;
 
@@ -253,9 +254,16 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 		BUG();
 	}
 
-	/* Save the iter for the end_io handler for data reads. */
-	if (bio_op(bio) == REQ_OP_READ && !(bio->bi_opf & REQ_META))
+	/*
+	 * Save the iter for the end_io handler and preload the checksums for
+	 * data reads.
+	 */
+	if (bio_op(bio) == REQ_OP_READ && !(bio->bi_opf & REQ_META)) {
 		bbio->iter = bio->bi_iter;
+		ret = btrfs_lookup_bio_sums(bbio);
+		if (ret)
+			goto fail;
+	}
 
 	if (!bioc) {
 		/* Single mirror read/write fast path */

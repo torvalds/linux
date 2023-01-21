@@ -797,12 +797,6 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			 */
 			btrfs_bio(comp_bio)->file_offset = file_offset;
 
-			ret = btrfs_lookup_bio_sums(btrfs_bio(comp_bio));
-			if (ret) {
-				btrfs_bio_end_io(btrfs_bio(comp_bio), ret);
-				break;
-			}
-
 			ASSERT(comp_bio->bi_iter.bi_size);
 			btrfs_submit_bio(fs_info, comp_bio, mirror_num);
 			comp_bio = NULL;
