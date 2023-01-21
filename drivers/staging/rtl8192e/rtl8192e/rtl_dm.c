@@ -768,7 +768,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	u8 tmpOFDMindex, tmpCCKindex, tmpCCK20Mindex, tmpCCK40Mindex, tmpval;
 	int i = 0, CCKSwingNeedUpdate = 0;
 
-	if (!priv->btxpower_trackingInit) {
+	if (!priv->tx_pwr_tracking_init) {
 		tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
 					    bMaskDWord);
 		for (i = 0; i < OFDM_Table_Length; i++) {
@@ -783,7 +783,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 				break;
 			}
 		}
-		priv->btxpower_trackingInit = true;
+		priv->tx_pwr_tracking_init = true;
 		return;
 	}
 
@@ -868,7 +868,7 @@ static void _rtl92e_dm_initialize_tx_power_tracking_tssi(struct net_device *dev)
 
 	priv->btxpower_tracking = true;
 	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = false;
+	priv->tx_pwr_tracking_init = false;
 
 }
 
@@ -882,7 +882,7 @@ static void _rtl92e_dm_init_tx_power_tracking_thermal(struct net_device *dev)
 	else
 		priv->btxpower_tracking = false;
 	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = false;
+	priv->tx_pwr_tracking_init = false;
 }
 
 void rtl92e_dm_init_txpower_tracking(struct net_device *dev)
@@ -1073,7 +1073,7 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 		ratr_value &= ~(RATE_ALL_OFDM_2SS);
 	rtl92e_writel(dev, RATR0, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
-	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
+	if (priv->tx_pwr_tracking_init && priv->btxpower_tracking)
 		_rtl92e_dm_tx_power_reset_recovery(dev);
 
 	_rtl92e_dm_bb_initialgain_restore(dev);

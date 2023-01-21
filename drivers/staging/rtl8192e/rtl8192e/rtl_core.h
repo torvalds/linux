@@ -229,8 +229,8 @@ struct rt_stats {
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
 	long rxSNRdB[4];
-	u32 Slide_Beacon_pwdb[100];
-	u32 Slide_Beacon_Total;
+	u32 slide_beacon_pwdb[100];
+	u32 slide_beacon_total;
 	u32	CurrentShowTxate;
 };
 
@@ -481,7 +481,7 @@ struct r8192_priv {
 	bool		bcck_in_ch14;
 
 	u8		txpower_count;
-	bool		btxpower_trackingInit;
+	bool		tx_pwr_tracking_init;
 
 	u8		ofdm_index[2];
 	u8		cck_index;

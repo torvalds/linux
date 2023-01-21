@@ -1574,17 +1574,17 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		    PHY_Beacon_RSSI_SLID_WIN_MAX) {
 			slide_beacon_adc_pwdb_statistics =
 					 PHY_Beacon_RSSI_SLID_WIN_MAX;
-			last_beacon_adc_pwdb = priv->stats.Slide_Beacon_pwdb
+			last_beacon_adc_pwdb = priv->stats.slide_beacon_pwdb
 					       [slide_beacon_adc_pwdb_index];
-			priv->stats.Slide_Beacon_Total -= last_beacon_adc_pwdb;
+			priv->stats.slide_beacon_total -= last_beacon_adc_pwdb;
 		}
-		priv->stats.Slide_Beacon_Total += prev_st->RxPWDBAll;
-		priv->stats.Slide_Beacon_pwdb[slide_beacon_adc_pwdb_index] =
+		priv->stats.slide_beacon_total += prev_st->RxPWDBAll;
+		priv->stats.slide_beacon_pwdb[slide_beacon_adc_pwdb_index] =
 							 prev_st->RxPWDBAll;
 		slide_beacon_adc_pwdb_index++;
 		if (slide_beacon_adc_pwdb_index >= PHY_Beacon_RSSI_SLID_WIN_MAX)
 			slide_beacon_adc_pwdb_index = 0;
-		prev_st->RxPWDBAll = priv->stats.Slide_Beacon_Total /
+		prev_st->RxPWDBAll = priv->stats.slide_beacon_total /
 				     slide_beacon_adc_pwdb_statistics;
 		if (prev_st->RxPWDBAll >= 3)
 			prev_st->RxPWDBAll -= 3;
