@@ -2651,45 +2651,6 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
 	set_area_direct_map(area, set_direct_map_default_noflush);
 }
 
-static void __vunmap(const void *addr, int deallocate_pages)
-{
-	struct vm_struct *area;
-
-	if (!addr)
-		return;
-
-	area = remove_vm_area(addr);
-	if (unlikely(!area)) {
-		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
-				addr);
-		return;
-	}
-
-	vm_remove_mappings(area, deallocate_pages);
-
-	if (deallocate_pages) {
-		int i;
-
-		for (i = 0; i < area->nr_pages; i++) {
-			struct page *page = area->pages[i];
-
-			BUG_ON(!page);
-			mod_memcg_page_state(page, MEMCG_VMALLOC, -1);
-			/*
-			 * High-order allocs for huge vmallocs are split, so
-			 * can be freed as an array of order-0 allocations
-			 */
-			__free_pages(page, 0);
-			cond_resched();
-		}
-		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
-
-		kvfree(area->pages);
-	}
-
-	kfree(area);
-}
-
 static void delayed_vfree_work(struct work_struct *w)
 {
 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
@@ -2742,6 +2703,9 @@ void vfree_atomic(const void *addr)
  */
 void vfree(const void *addr)
 {
+	struct vm_struct *vm;
+	int i;
+
 	if (unlikely(in_interrupt())) {
 		vfree_atomic(addr);
 		return;
@@ -2751,8 +2715,32 @@ void vfree(const void *addr)
 	kmemleak_free(addr);
 	might_sleep();
 
-	if (addr)
-		__vunmap(addr, 1);
+	if (!addr)
+		return;
+
+	vm = remove_vm_area(addr);
+	if (unlikely(!vm)) {
+		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
+				addr);
+		return;
+	}
+
+	vm_remove_mappings(vm, true);
+	for (i = 0; i < vm->nr_pages; i++) {
+		struct page *page = vm->pages[i];
+
+		BUG_ON(!page);
+		mod_memcg_page_state(page, MEMCG_VMALLOC, -1);
+		/*
+		 * High-order allocs for huge vmallocs are split, so
+		 * can be freed as an array of order-0 allocations
+		 */
+		__free_pages(page, 0);
+		cond_resched();
+	}
+	atomic_long_sub(vm->nr_pages, &nr_vmalloc_pages);
+	kvfree(vm->pages);
+	kfree(vm);
 }
 EXPORT_SYMBOL(vfree);
 
@@ -2767,10 +2755,20 @@ EXPORT_SYMBOL(vfree);
  */
 void vunmap(const void *addr)
 {
+	struct vm_struct *vm;
+
 	BUG_ON(in_interrupt());
 	might_sleep();
-	if (addr)
-		__vunmap(addr, 0);
+
+	if (!addr)
+		return;
+	vm = remove_vm_area(addr);
+	if (unlikely(!vm)) {
+		WARN(1, KERN_ERR "Trying to vunmap() nonexistent vm area (%p)\n",
+				addr);
+		return;
+	}
+	kfree(vm);
 }
 EXPORT_SYMBOL(vunmap);
 
