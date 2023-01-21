@@ -180,10 +180,23 @@ config USB_RENESAS_USBHS_UDC
 	   dynamically linked module called "renesas_usbhs" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RZV2M_USB3DRD
+	tristate 'Renesas USB3.1 DRD controller'
+	depends on ARCH_R9A09G011 || COMPILE_TEST
+	default USB_XHCI_RZV2M
+	default USB_RENESAS_USB3
+	help
+	   Renesas USB3.1 DRD controller is a USB DRD controller
+	   that supports both host and device switching.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "rzv2m_usb3drd".
+
 config USB_RENESAS_USB3
 	tristate 'Renesas USB3.0 Peripheral controller'
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on EXTCON
+	select USB_RZV2M_USB3DRD if ARCH_R9A09G011
 	select USB_ROLE_SWITCH
 	help
 	   Renesas USB3.0 Peripheral controller is a USB peripheral controller
