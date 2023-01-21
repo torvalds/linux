@@ -355,7 +355,6 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	u64 cur_disk_bytenr = disk_start;
 	u64 next_stripe_start;
 	blk_status_t ret = BLK_STS_OK;
-	int skip_sum = inode->flags & BTRFS_INODE_NODATASUM;
 	const bool use_append = btrfs_use_zone_append(inode, disk_start);
 	const enum req_op bio_op = REQ_BTRFS_ONE_ORDERED |
 				   (use_append ? REQ_OP_ZONE_APPEND : REQ_OP_WRITE);
@@ -437,14 +436,6 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 			submit = true;
 
 		if (submit) {
-			if (!skip_sum) {
-				ret = btrfs_csum_one_bio(btrfs_bio(bio));
-				if (ret) {
-					btrfs_bio_end_io(btrfs_bio(bio), ret);
-					break;
-				}
-			}
-
 			ASSERT(bio->bi_iter.bi_size);
 			btrfs_submit_bio(fs_info, bio, 0);
 			bio = NULL;

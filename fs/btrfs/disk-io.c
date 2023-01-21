@@ -52,7 +52,6 @@
 #include "relocation.h"
 #include "scrub.h"
 #include "super.h"
-#include "file-item.h"
 
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\
@@ -78,23 +77,6 @@ static void btrfs_free_csum_hash(struct btrfs_fs_info *fs_info)
 	if (fs_info->csum_shash)
 		crypto_free_shash(fs_info->csum_shash);
 }
-
-/*
- * async submit bios are used to offload expensive checksumming
- * onto the worker threads.  They checksum file and metadata bios
- * just before they are sent down the IO stack.
- */
-struct async_submit_bio {
-	struct btrfs_inode *inode;
-	struct bio *bio;
-	enum btrfs_wq_submit_cmd submit_cmd;
-	int mirror_num;
-
-	/* Optional parameter for used by direct io */
-	u64 dio_file_offset;
-	struct btrfs_work work;
-	blk_status_t status;
-};
 
 /*
  * Compute the csum of a btree block and store the result to provided buffer.
@@ -456,7 +438,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 	return csum_one_extent_buffer(eb);
 }
 
-static blk_status_t btree_csum_one_bio(struct bio *bio)
+blk_status_t btree_csum_one_bio(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	struct btrfs_root *root;
@@ -719,143 +701,10 @@ err:
 	return ret;
 }
 
-static void run_one_async_start(struct btrfs_work *work)
-{
-	struct async_submit_bio *async;
-	blk_status_t ret;
-
-	async = container_of(work, struct  async_submit_bio, work);
-	switch (async->submit_cmd) {
-	case WQ_SUBMIT_METADATA:
-		ret = btree_csum_one_bio(async->bio);
-		break;
-	case WQ_SUBMIT_DATA:
-	case WQ_SUBMIT_DATA_DIO:
-		ret = btrfs_csum_one_bio(btrfs_bio(async->bio));
-		break;
-	default:
-		/* Can't happen so return something that would prevent the IO. */
-		ret = BLK_STS_IOERR;
-		ASSERT(0);
-	}
-	if (ret)
-		async->status = ret;
-}
-
-/*
- * In order to insert checksums into the metadata in large chunks, we wait
- * until bio submission time.   All the pages in the bio are checksummed and
- * sums are attached onto the ordered extent record.
- *
- * At IO completion time the csums attached on the ordered extent record are
- * inserted into the tree.
- */
-static void run_one_async_done(struct btrfs_work *work)
-{
-	struct async_submit_bio *async =
-		container_of(work, struct  async_submit_bio, work);
-	struct btrfs_inode *inode = async->inode;
-	struct btrfs_bio *bbio = btrfs_bio(async->bio);
-
-	/* If an error occurred we just want to clean up the bio and move on */
-	if (async->status) {
-		btrfs_bio_end_io(bbio, async->status);
-		return;
-	}
-
-	/*
-	 * All of the bios that pass through here are from async helpers.
-	 * Use REQ_CGROUP_PUNT to issue them from the owning cgroup's context.
-	 * This changes nothing when cgroups aren't in use.
-	 */
-	async->bio->bi_opf |= REQ_CGROUP_PUNT;
-	btrfs_submit_bio(inode->root->fs_info, async->bio, async->mirror_num);
-}
-
-static void run_one_async_free(struct btrfs_work *work)
-{
-	struct async_submit_bio *async;
-
-	async = container_of(work, struct  async_submit_bio, work);
-	kfree(async);
-}
-
-/*
- * Submit bio to an async queue.
- *
- * Return:
- * - true if the work has been successfully submitted
- * - false in case of error
- */
-bool btrfs_wq_submit_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num,
-			 u64 dio_file_offset, enum btrfs_wq_submit_cmd cmd)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct async_submit_bio *async;
-
-	async = kmalloc(sizeof(*async), GFP_NOFS);
-	if (!async)
-		return false;
-
-	async->inode = inode;
-	async->bio = bio;
-	async->mirror_num = mirror_num;
-	async->submit_cmd = cmd;
-
-	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
-			run_one_async_free);
-
-	async->dio_file_offset = dio_file_offset;
-
-	async->status = 0;
-
-	if (op_is_sync(bio->bi_opf))
-		btrfs_queue_work(fs_info->hipri_workers, &async->work);
-	else
-		btrfs_queue_work(fs_info->workers, &async->work);
-	return true;
-}
-
-static bool should_async_write(struct btrfs_fs_info *fs_info,
-			     struct btrfs_inode *bi)
-{
-	if (btrfs_is_zoned(fs_info))
-		return false;
-	if (atomic_read(&bi->sync_writers))
-		return false;
-	if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags))
-		return false;
-	return true;
-}
-
 void btrfs_submit_metadata_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_bio *bbio = btrfs_bio(bio);
-	blk_status_t ret;
-
 	bio->bi_opf |= REQ_META;
-
-	if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
-		btrfs_submit_bio(fs_info, bio, mirror_num);
-		return;
-	}
-
-	/*
-	 * Kthread helpers are used to submit writes so that checksumming can
-	 * happen in parallel across all CPUs.
-	 */
-	if (should_async_write(fs_info, inode) &&
-	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_METADATA))
-		return;
-
-	ret = btree_csum_one_bio(bio);
-	if (ret) {
-		btrfs_bio_end_io(bbio, ret);
-		return;
-	}
-
-	btrfs_submit_bio(fs_info, bio, mirror_num);
+	btrfs_submit_bio(inode->root->fs_info, bio, mirror_num);
 }
 
 #ifdef CONFIG_MIGRATION

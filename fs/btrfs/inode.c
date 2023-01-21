@@ -2721,27 +2721,6 @@ void btrfs_submit_data_write_bio(struct btrfs_inode *inode, struct bio *bio, int
 		}
 	}
 
-	/*
-	 * If we need to checksum, and the I/O is not issued by fsync and
-	 * friends, that is ->sync_writers != 0, defer the submission to a
-	 * workqueue to parallelize it.
-	 *
-	 * Csum items for reloc roots have already been cloned at this point,
-	 * so they are handled as part of the no-checksum case.
-	 */
-	if (!(inode->flags & BTRFS_INODE_NODATASUM) &&
-	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
-	    !btrfs_is_data_reloc_root(inode->root)) {
-		if (!atomic_read(&inode->sync_writers) &&
-		    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_DATA))
-			return;
-
-		ret = btrfs_csum_one_bio(btrfs_bio(bio));
-		if (ret) {
-			btrfs_bio_end_io(btrfs_bio(bio), ret);
-			return;
-		}
-	}
 	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
@@ -7843,36 +7822,6 @@ static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
 	btrfs_dio_private_put(dip);
 }
 
-static void btrfs_submit_dio_bio(struct bio *bio, struct btrfs_inode *inode,
-				 u64 file_offset, int async_submit)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	blk_status_t ret;
-
-	if (inode->flags & BTRFS_INODE_NODATASUM)
-		goto map;
-
-	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-		/* Check btrfs_submit_data_write_bio() for async submit rules */
-		if (async_submit && !atomic_read(&inode->sync_writers) &&
-		    btrfs_wq_submit_bio(inode, bio, 0, file_offset,
-					WQ_SUBMIT_DATA_DIO))
-			return;
-
-		/*
-		 * If we aren't doing async submit, calculate the csum of the
-		 * bio now.
-		 */
-		ret = btrfs_csum_one_bio(btrfs_bio(bio));
-		if (ret) {
-			btrfs_bio_end_io(btrfs_bio(bio), ret);
-			return;
-		}
-	}
-map:
-	btrfs_submit_bio(fs_info, bio, 0);
-}
-
 static void btrfs_submit_direct(const struct iomap_iter *iter,
 		struct bio *dio_bio, loff_t file_offset)
 {
@@ -7880,11 +7829,8 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		container_of(dio_bio, struct btrfs_dio_private, bio);
 	struct inode *inode = iter->inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	const bool raid56 = (btrfs_data_alloc_profile(fs_info) &
-			     BTRFS_BLOCK_GROUP_RAID56_MASK);
 	struct bio *bio;
 	u64 start_sector;
-	int async_submit = 0;
 	u64 submit_len;
 	u64 clone_offset = 0;
 	u64 clone_len;
@@ -7951,19 +7897,10 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		 * We transfer the initial reference to the last bio, so we
 		 * don't need to increment the reference count for the last one.
 		 */
-		if (submit_len > 0) {
+		if (submit_len > 0)
 			refcount_inc(&dip->refs);
-			/*
-			 * If we are submitting more than one bio, submit them
-			 * all asynchronously. The exception is RAID 5 or 6, as
-			 * asynchronous checksums make it difficult to collect
-			 * full stripe writes.
-			 */
-			if (!raid56)
-				async_submit = 1;
-		}
 
-		btrfs_submit_dio_bio(bio, BTRFS_I(inode), file_offset, async_submit);
+		btrfs_submit_bio(fs_info, bio, 0);
 
 		dio_data->submitted += clone_len;
 		clone_offset += clone_len;

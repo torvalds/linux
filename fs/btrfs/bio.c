@@ -401,6 +401,166 @@ static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
 	btrfs_submit_dev_bio(bioc->stripes[dev_nr].dev, bio);
 }
 
+static void __btrfs_submit_bio(struct bio *bio, struct btrfs_io_context *bioc,
+			       struct btrfs_io_stripe *smap, int mirror_num)
+{
+	/* Do not leak our private flag into the block layer. */
+	bio->bi_opf &= ~REQ_BTRFS_ONE_ORDERED;
+
+	if (!bioc) {
+		/* Single mirror read/write fast path. */
+		btrfs_bio(bio)->mirror_num = mirror_num;
+		bio->bi_iter.bi_sector = smap->physical >> SECTOR_SHIFT;
+		bio->bi_private = smap->dev;
+		bio->bi_end_io = btrfs_simple_end_io;
+		btrfs_submit_dev_bio(smap->dev, bio);
+	} else if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		/* Parity RAID write or read recovery. */
+		bio->bi_private = bioc;
+		bio->bi_end_io = btrfs_raid56_end_io;
+		if (bio_op(bio) == REQ_OP_READ)
+			raid56_parity_recover(bio, bioc, mirror_num);
+		else
+			raid56_parity_write(bio, bioc);
+	} else {
+		/* Write to multiple mirrors. */
+		int total_devs = bioc->num_stripes;
+
+		bioc->orig_bio = bio;
+		for (int dev_nr = 0; dev_nr < total_devs; dev_nr++)
+			btrfs_submit_mirrored_bio(bioc, dev_nr);
+	}
+}
+
+static blk_status_t btrfs_bio_csum(struct btrfs_bio *bbio)
+{
+	if (bbio->bio.bi_opf & REQ_META)
+		return btree_csum_one_bio(&bbio->bio);
+	return btrfs_csum_one_bio(bbio);
+}
+
+/*
+ * Async submit bios are used to offload expensive checksumming onto the worker
+ * threads.
+ */
+struct async_submit_bio {
+	struct btrfs_bio *bbio;
+	struct btrfs_io_context *bioc;
+	struct btrfs_io_stripe smap;
+	int mirror_num;
+	struct btrfs_work work;
+};
+
+/*
+ * In order to insert checksums into the metadata in large chunks, we wait
+ * until bio submission time.   All the pages in the bio are checksummed and
+ * sums are attached onto the ordered extent record.
+ *
+ * At IO completion time the csums attached on the ordered extent record are
+ * inserted into the btree.
+ */
+static void run_one_async_start(struct btrfs_work *work)
+{
+	struct async_submit_bio *async =
+		container_of(work, struct async_submit_bio, work);
+	blk_status_t ret;
+
+	ret = btrfs_bio_csum(async->bbio);
+	if (ret)
+		async->bbio->bio.bi_status = ret;
+}
+
+/*
+ * In order to insert checksums into the metadata in large chunks, we wait
+ * until bio submission time.   All the pages in the bio are checksummed and
+ * sums are attached onto the ordered extent record.
+ *
+ * At IO completion time the csums attached on the ordered extent record are
+ * inserted into the tree.
+ */
+static void run_one_async_done(struct btrfs_work *work)
+{
+	struct async_submit_bio *async =
+		container_of(work, struct async_submit_bio, work);
+	struct bio *bio = &async->bbio->bio;
+
+	/* If an error occurred we just want to clean up the bio and move on. */
+	if (bio->bi_status) {
+		btrfs_bio_end_io(async->bbio, bio->bi_status);
+		return;
+	}
+
+	/*
+	 * All of the bios that pass through here are from async helpers.
+	 * Use REQ_CGROUP_PUNT to issue them from the owning cgroup's context.
+	 * This changes nothing when cgroups aren't in use.
+	 */
+	bio->bi_opf |= REQ_CGROUP_PUNT;
+	__btrfs_submit_bio(bio, async->bioc, &async->smap, async->mirror_num);
+}
+
+static void run_one_async_free(struct btrfs_work *work)
+{
+	kfree(container_of(work, struct async_submit_bio, work));
+}
+
+static bool should_async_write(struct btrfs_bio *bbio)
+{
+	/*
+	 * If the I/O is not issued by fsync and friends, (->sync_writers != 0),
+	 * then try to defer the submission to a workqueue to parallelize the
+	 * checksum calculation.
+	 */
+	if (atomic_read(&bbio->inode->sync_writers))
+		return false;
+
+	/*
+	 * Submit metadata writes synchronously if the checksum implementation
+	 * is fast, or we are on a zoned device that wants I/O to be submitted
+	 * in order.
+	 */
+	if (bbio->bio.bi_opf & REQ_META) {
+		struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+
+		if (btrfs_is_zoned(fs_info))
+			return false;
+		if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags))
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Submit bio to an async queue.
+ *
+ * Return true if the work has been succesfuly submitted, else false.
+ */
+static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
+				struct btrfs_io_context *bioc,
+				struct btrfs_io_stripe *smap, int mirror_num)
+{
+	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
+	struct async_submit_bio *async;
+
+	async = kmalloc(sizeof(*async), GFP_NOFS);
+	if (!async)
+		return false;
+
+	async->bbio = bbio;
+	async->bioc = bioc;
+	async->smap = *smap;
+	async->mirror_num = mirror_num;
+
+	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
+			run_one_async_free);
+	if (op_is_sync(bbio->bio.bi_opf))
+		btrfs_queue_work(fs_info->hipri_workers, &async->work);
+	else
+		btrfs_queue_work(fs_info->workers, &async->work);
+	return true;
+}
+
 void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror_num)
 {
 	struct btrfs_bio *bbio = btrfs_bio(bio);
@@ -438,33 +598,25 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 			goto fail;
 	}
 
-	/* Do not leak our private flag into the block layer. */
-	bio->bi_opf &= ~REQ_BTRFS_ONE_ORDERED;
+	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
+		/*
+		 * Csum items for reloc roots have already been cloned at this
+		 * point, so they are handled as part of the no-checksum case.
+		 */
+		if (!(bbio->inode->flags & BTRFS_INODE_NODATASUM) &&
+		    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
+		    !btrfs_is_data_reloc_root(bbio->inode->root)) {
+			if (should_async_write(bbio) &&
+			    btrfs_wq_submit_bio(bbio, bioc, &smap, mirror_num))
+				return;
 
-	if (!bioc) {
-		/* Single mirror read/write fast path */
-		bbio->mirror_num = mirror_num;
-		bio->bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
-		bio->bi_private = smap.dev;
-		bio->bi_end_io = btrfs_simple_end_io;
-		btrfs_submit_dev_bio(smap.dev, bio);
-	} else if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		/* Parity RAID write or read recovery */
-		bio->bi_private = bioc;
-		bio->bi_end_io = btrfs_raid56_end_io;
-		if (bio_op(bio) == REQ_OP_READ)
-			raid56_parity_recover(bio, bioc, mirror_num);
-		else
-			raid56_parity_write(bio, bioc);
-	} else {
-		/* Write to multiple mirrors */
-		int total_devs = bioc->num_stripes;
-		int dev_nr;
-
-		bioc->orig_bio = bio;
-		for (dev_nr = 0; dev_nr < total_devs; dev_nr++)
-			btrfs_submit_mirrored_bio(bioc, dev_nr);
+			ret = btrfs_bio_csum(bbio);
+			if (ret)
+				goto fail;
+		}
 	}
+
+	__btrfs_submit_bio(bio, bioc, &smap, mirror_num);
 	return;
 
 fail:
