@@ -907,8 +907,8 @@ static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 	u32 delay = 0;
 
 	while (!_rtl92e_phy_switch_channel_step(dev, channel,
-						&priv->SwChnlStage,
-						&priv->SwChnlStep, &delay)) {
+						&priv->sw_chnl_stage,
+						&priv->sw_chnl_step, &delay)) {
 		if (delay > 0)
 			msleep(delay);
 		if (!priv->up)
@@ -971,8 +971,8 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 
 	priv->chan = channel;
 
-	priv->SwChnlStage = 0;
-	priv->SwChnlStep = 0;
+	priv->sw_chnl_stage = 0;
+	priv->sw_chnl_step = 0;
 
 	if (priv->up)
 		_rtl92e_phy_switch_channel_work_item(dev);

@@ -417,7 +417,7 @@ struct r8192_priv {
 	short	epromtype;
 	u16 eeprom_vid;
 	u16 eeprom_did;
-	u8 eeprom_CustomerID;
+	u8 eeprom_customer_id;
 	u16 eeprom_chnl_plan;
 
 	u8 eeprom_tx_pwr_level_cck[14];
@@ -432,8 +432,8 @@ struct r8192_priv {
 	u8 thermal_meter[2];
 
 	u8 sw_chnl_in_progress;
-	u8 SwChnlStage;
-	u8 SwChnlStep;
+	u8 sw_chnl_stage;
+	u8 sw_chnl_step;
 	u8 set_bw_mode_in_progress;
 
 	u8 n_cur_40mhz_prime_sc;

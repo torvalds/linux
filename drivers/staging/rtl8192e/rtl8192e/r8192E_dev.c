@@ -303,7 +303,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 		usValue = rtl92e_eeprom_read(dev,
 					     (EEPROM_Customer_ID >> 1)) >> 8;
-		priv->eeprom_CustomerID = usValue & 0xff;
+		priv->eeprom_customer_id = usValue & 0xff;
 		usValue = rtl92e_eeprom_read(dev,
 					     EEPROM_ICVersion_ChannelPlan>>1);
 		priv->eeprom_chnl_plan = usValue&0xff;
@@ -327,7 +327,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->card_8192_version = VERSION_8190_BD;
 		priv->eeprom_vid = 0;
 		priv->eeprom_did = 0;
-		priv->eeprom_CustomerID = 0;
+		priv->eeprom_customer_id = 0;
 		priv->eeprom_chnl_plan = 0;
 	}
 
@@ -449,7 +449,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->customer_id =  RT_CID_DLINK;
 
-	switch (priv->eeprom_CustomerID) {
+	switch (priv->eeprom_customer_id) {
 	case EEPROM_CID_DEFAULT:
 		priv->customer_id = RT_CID_DEFAULT;
 		break;
