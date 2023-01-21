@@ -692,16 +692,13 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 	priv->rtllib->ieee_up = 1;
 
 	priv->up_first_time = 0;
-	priv->bfirst_init = true;
 	init_status = priv->ops->initialize_adapter(dev);
 	if (!init_status) {
 		netdev_err(dev, "%s(): Initialization failed!\n", __func__);
-		priv->bfirst_init = false;
 		return -1;
 	}
 
 	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
-	priv->bfirst_init = false;
 
 	if (priv->polling_timer_on == 0)
 		rtl92e_check_rfctrl_gpio_timer(&priv->gpio_polling_timer);
@@ -837,7 +834,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->blinked_ingpio = false;
 	priv->being_init_adapter = false;
 	priv->bdisable_nic = false;
-	priv->bfirst_init = false;
 	priv->txringcount = 64;
 	priv->rxbuffersize = 9100;
 	priv->rxringcount = MAX_RX_COUNT;
@@ -2423,7 +2419,6 @@ bool rtl92e_enable_nic(struct net_device *dev)
 		return false;
 	}
 
-	priv->bfirst_init = true;
 	init_status = priv->ops->initialize_adapter(dev);
 	if (!init_status) {
 		netdev_warn(dev, "%s(): Initialization failed!\n", __func__);
@@ -2431,7 +2426,6 @@ bool rtl92e_enable_nic(struct net_device *dev)
 		return false;
 	}
 	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
-	priv->bfirst_init = false;
 
 	rtl92e_irq_enable(dev);
 	priv->bdisable_nic = false;

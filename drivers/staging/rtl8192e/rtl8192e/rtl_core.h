@@ -298,7 +298,6 @@ struct r8192_priv {
 	struct pci_dev *pdev;
 	struct pci_dev *bridge_pdev;
 
-	bool		bfirst_init;
 	bool		bfirst_after_down;
 	bool		being_init_adapter;
 
