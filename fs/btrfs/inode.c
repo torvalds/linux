@@ -3496,6 +3496,44 @@ zeroit:
 }
 
 /*
+ * Verify the checksum of a single data sector.
+ *
+ * @bbio:	btrfs_io_bio which contains the csum
+ * @dev:	device the sector is on
+ * @bio_offset:	offset to the beginning of the bio (in bytes)
+ * @bv:		bio_vec to check
+ *
+ * Check if the checksum on a data block is valid.  When a checksum mismatch is
+ * detected, report the error and fill the corrupted range with zero.
+ *
+ * Return %true if the sector is ok or had no checksum to start with, else %false.
+ */
+bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
+			u32 bio_offset, struct bio_vec *bv)
+{
+	struct btrfs_inode *inode = bbio->inode;
+	u64 file_offset = bbio->file_offset + bio_offset;
+	u64 end = file_offset + bv->bv_len - 1;
+
+	if (!bbio->csum)
+		return true;
+
+	if (btrfs_is_data_reloc_root(inode->root) &&
+	    test_range_bit(&inode->io_tree, file_offset, end, EXTENT_NODATASUM,
+			   1, NULL)) {
+		/* Skip the range without csum for data reloc inode */
+		clear_extent_bits(&inode->io_tree, file_offset, end,
+				  EXTENT_NODATASUM);
+		return true;
+	}
+
+	if (btrfs_check_data_csum(inode, bbio, bio_offset, bv->bv_page,
+				  bv->bv_offset) < 0)
+		return false;
+	return true;
+}
+
+/*
  * When reads are done, we need to check csums to verify the data is correct.
  * if there's a match, we allow the bio to finish.  If not, the code in
  * extent_io.c will try to find good copies for us.
