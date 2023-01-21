@@ -60,11 +60,9 @@ enum {
 #define BITMAP_LAST_BYTE_MASK(nbits) \
 	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
 
-struct btrfs_bio;
 struct btrfs_root;
 struct btrfs_inode;
 struct btrfs_fs_info;
-struct io_failure_record;
 struct extent_io_tree;
 struct btrfs_tree_parent_check;
 
@@ -278,35 +276,6 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array);
 
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
-
-/*
- * When IO fails, either with EIO or csum verification fails, we
- * try other mirrors that might have a good copy of the data.  This
- * io_failure_record is used to record state as we go through all the
- * mirrors.  If another mirror has good data, the sector is set up to date
- * and things continue.  If a good mirror can't be found, the original
- * bio end_io callback is called to indicate things have failed.
- */
-struct io_failure_record {
-	/* Use rb_simple_node for search/insert */
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	};
-	struct page *page;
-	u64 len;
-	u64 logical;
-	int this_mirror;
-	int failed_mirror;
-	int num_copies;
-};
-
-int btrfs_repair_one_sector(struct btrfs_inode *inode, struct btrfs_bio *failed_bbio,
-			    u32 bio_offset, struct page *page, unsigned int pgoff,
-			    bool submit_buffered);
-void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end);
-int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
-			   struct page *page, unsigned int pg_offset);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 bool find_lock_delalloc_range(struct inode *inode,
