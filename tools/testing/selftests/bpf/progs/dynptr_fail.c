@@ -420,7 +420,7 @@ int invalid_write1(void *ctx)
  * offset
  */
 SEC("?raw_tp")
-__failure __msg("Expected an initialized dynptr as arg #3")
+__failure __msg("cannot overwrite referenced dynptr")
 int invalid_write2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -444,7 +444,7 @@ int invalid_write2(void *ctx)
  * non-const offset
  */
 SEC("?raw_tp")
-__failure __msg("Expected an initialized dynptr as arg #1")
+__failure __msg("cannot overwrite referenced dynptr")
 int invalid_write3(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -476,7 +476,7 @@ static int invalid_write4_callback(__u32 index, void *data)
  * be invalidated as a dynptr
  */
 SEC("?raw_tp")
-__failure __msg("arg 1 is an unacquired reference")
+__failure __msg("cannot overwrite referenced dynptr")
 int invalid_write4(void *ctx)
 {
 	struct bpf_dynptr ptr;
