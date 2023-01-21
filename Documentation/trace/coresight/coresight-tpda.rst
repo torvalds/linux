@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-==============================
-The trace performance monitoring and diagnostics aggregator(TPDA).
-==============================
+=================================================================
+The trace performance monitoring and diagnostics aggregator(TPDA)
+=================================================================
 
     :Author:   Jinlong Mao <quic_jinlmao@quicinc.com>
     :Date:     January 2023

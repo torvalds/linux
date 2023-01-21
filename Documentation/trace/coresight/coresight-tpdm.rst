@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-==============================
-Trace performance monitoring and diagnostics monitor(TPDM).
-==============================
+==========================================================
+Trace performance monitoring and diagnostics monitor(TPDM)
+==========================================================
 
     :Author:   Jinlong Mao <quic_jinlmao@quicinc.com>
     :Date:     January 2023
