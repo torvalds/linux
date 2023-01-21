@@ -89,6 +89,18 @@
 	status = "okay";
 };
 
+&usb3drd {
+	status = "okay";
+};
+
+&usb3host {
+	status = "okay";
+};
+
+&usb3peri {
+	status = "okay";
+};
+
 &wdt0 {
 	status = "okay";
 };
