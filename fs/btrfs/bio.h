@@ -26,9 +26,8 @@ struct btrfs_fs_info;
 typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
 
 /*
- * Additional info to pass along bio.
- *
- * Mostly for btrfs specific features like csum and mirror_num.
+ * Highlevel btrfs I/O structure.  It is allocated by btrfs_bio_alloc and
+ * passed to btrfs_submit_bio for mapping to the physical devices.
  */
 struct btrfs_bio {
 	unsigned int mirror_num:7;
@@ -42,7 +41,7 @@ struct btrfs_bio {
 	unsigned int is_metadata:1;
 	struct bvec_iter iter;
 
-	/* for direct I/O */
+	/* File offset that this I/O operates on. */
 	u64 file_offset;
 
 	/* @device is for stripe IO submission. */
@@ -62,7 +61,7 @@ struct btrfs_bio {
 	btrfs_bio_end_io_t end_io;
 	void *private;
 
-	/* For read end I/O handling */
+	/* For internal use in read end I/O handling */
 	struct work_struct end_io_work;
 
 	/*
