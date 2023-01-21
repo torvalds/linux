@@ -7,6 +7,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/extcon-provider.h>
@@ -2366,6 +2367,9 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 
 	usb3 = gadget_to_renesas_usb3(gadget);
 
+	if (usb3->is_rzv2m && usb3_is_a_device(usb3))
+		return -EBUSY;
+
 	/* hook up the driver */
 	usb3->driver = driver;
 
@@ -2373,6 +2377,10 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 		phy_init(usb3->phy);
 
 	pm_runtime_get_sync(usb3_to_dev(usb3));
+
+	/* Peripheral Reset */
+	if (usb3->is_rzv2m)
+		rzv2m_usb3drd_reset(usb3_to_dev(usb3)->parent, false);
 
 	renesas_usb3_init_controller(usb3);
 
@@ -2386,8 +2394,10 @@ static int renesas_usb3_stop(struct usb_gadget *gadget)
 	usb3->softconnect = false;
 	usb3->gadget.speed = USB_SPEED_UNKNOWN;
 	usb3->driver = NULL;
-	renesas_usb3_stop_controller(usb3);
+	if (usb3->is_rzv2m)
+		rzv2m_usb3drd_reset(usb3_to_dev(usb3)->parent, false);
 
+	renesas_usb3_stop_controller(usb3);
 	if (usb3->phy)
 		phy_exit(usb3->phy);
 
@@ -2447,18 +2457,29 @@ static void handle_ext_role_switch_states(struct device *dev,
 	switch (role) {
 	case USB_ROLE_NONE:
 		usb3->connection_state = USB_ROLE_NONE;
-		if (cur_role == USB_ROLE_HOST)
+		if (!usb3->is_rzv2m && cur_role == USB_ROLE_HOST)
 			device_release_driver(host);
-		if (usb3->driver)
+		if (usb3->driver) {
+			if (usb3->is_rzv2m)
+				rzv2m_usb3drd_reset(dev->parent, false);
 			usb3_disconnect(usb3);
+		}
 		usb3_vbus_out(usb3, false);
+
+		if (usb3->is_rzv2m) {
+			rzv2m_usb3drd_reset(dev->parent, true);
+			device_release_driver(host);
+		}
 		break;
 	case USB_ROLE_DEVICE:
 		if (usb3->connection_state == USB_ROLE_NONE) {
 			usb3->connection_state = USB_ROLE_DEVICE;
 			usb3_set_mode(usb3, false);
-			if (usb3->driver)
+			if (usb3->driver) {
+				if (usb3->is_rzv2m)
+					renesas_usb3_init_controller(usb3);
 				usb3_connect(usb3);
+			}
 		} else if (cur_role == USB_ROLE_HOST)  {
 			device_release_driver(host);
 			usb3_set_mode(usb3, false);
@@ -2469,8 +2490,11 @@ static void handle_ext_role_switch_states(struct device *dev,
 		break;
 	case USB_ROLE_HOST:
 		if (usb3->connection_state == USB_ROLE_NONE) {
-			if (usb3->driver)
+			if (usb3->driver) {
+				if (usb3->is_rzv2m)
+					rzv2m_usb3drd_reset(dev->parent, false);
 				usb3_disconnect(usb3);
+			}
 
 			usb3->connection_state = USB_ROLE_HOST;
 			usb3_set_mode(usb3, true);
