@@ -900,3 +900,195 @@ int dynptr_partial_slot_invalidate(struct __sk_buff *ctx)
 	);
 	return 0;
 }
+
+/* Test that it is allowed to overwrite unreferenced dynptr. */
+SEC("?raw_tp")
+__success
+int dynptr_overwrite_unref(void *ctx)
+{
+	struct bpf_dynptr ptr;
+
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+
+	return 0;
+}
+
+/* Test that slices are invalidated on reinitializing a dynptr. */
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
+int dynptr_invalidate_slice_reinit(void *ctx)
+{
+	struct bpf_dynptr ptr;
+	__u8 *p;
+
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+	p = bpf_dynptr_data(&ptr, 0, 1);
+	if (!p)
+		return 0;
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+	/* this should fail */
+	return *p;
+}
+
+/* Invalidation of dynptr slices on destruction of dynptr should not miss
+ * mem_or_null pointers.
+ */
+SEC("?raw_tp")
+__failure __msg("R1 type=scalar expected=percpu_ptr_")
+int dynptr_invalidate_slice_or_null(void *ctx)
+{
+	struct bpf_dynptr ptr;
+	__u8 *p;
+
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+
+	p = bpf_dynptr_data(&ptr, 0, 1);
+	*(__u8 *)&ptr = 0;
+	/* this should fail */
+	bpf_this_cpu_ptr(p);
+	return 0;
+}
+
+/* Destruction of dynptr should also any slices obtained from it */
+SEC("?raw_tp")
+__failure __msg("R7 invalid mem access 'scalar'")
+int dynptr_invalidate_slice_failure(void *ctx)
+{
+	struct bpf_dynptr ptr1;
+	struct bpf_dynptr ptr2;
+	__u8 *p1, *p2;
+
+	if (get_map_val_dynptr(&ptr1))
+		return 0;
+	if (get_map_val_dynptr(&ptr2))
+		return 0;
+
+	p1 = bpf_dynptr_data(&ptr1, 0, 1);
+	if (!p1)
+		return 0;
+	p2 = bpf_dynptr_data(&ptr2, 0, 1);
+	if (!p2)
+		return 0;
+
+	*(__u8 *)&ptr1 = 0;
+	/* this should fail */
+	return *p1;
+}
+
+/* Invalidation of slices should be scoped and should not prevent dereferencing
+ * slices of another dynptr after destroying unrelated dynptr
+ */
+SEC("?raw_tp")
+__success
+int dynptr_invalidate_slice_success(void *ctx)
+{
+	struct bpf_dynptr ptr1;
+	struct bpf_dynptr ptr2;
+	__u8 *p1, *p2;
+
+	if (get_map_val_dynptr(&ptr1))
+		return 1;
+	if (get_map_val_dynptr(&ptr2))
+		return 1;
+
+	p1 = bpf_dynptr_data(&ptr1, 0, 1);
+	if (!p1)
+		return 1;
+	p2 = bpf_dynptr_data(&ptr2, 0, 1);
+	if (!p2)
+		return 1;
+
+	*(__u8 *)&ptr1 = 0;
+	return *p2;
+}
+
+/* Overwriting referenced dynptr should be rejected */
+SEC("?raw_tp")
+__failure __msg("cannot overwrite referenced dynptr")
+int dynptr_overwrite_ref(void *ctx)
+{
+	struct bpf_dynptr ptr;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 64, 0, &ptr);
+	/* this should fail */
+	if (get_map_val_dynptr(&ptr))
+		bpf_ringbuf_discard_dynptr(&ptr, 0);
+	return 0;
+}
+
+/* Reject writes to dynptr slot from bpf_dynptr_read */
+SEC("?raw_tp")
+__failure __msg("potential write to dynptr at off=-16")
+int dynptr_read_into_slot(void *ctx)
+{
+	union {
+		struct {
+			char _pad[48];
+			struct bpf_dynptr ptr;
+		};
+		char buf[64];
+	} data;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 64, 0, &data.ptr);
+	/* this should fail */
+	bpf_dynptr_read(data.buf, sizeof(data.buf), &data.ptr, 0, 0);
+
+	return 0;
+}
+
+/* Reject writes to dynptr slot for uninit arg */
+SEC("?raw_tp")
+__failure __msg("potential write to dynptr at off=-16")
+int uninit_write_into_slot(void *ctx)
+{
+	struct {
+		char buf[64];
+		struct bpf_dynptr ptr;
+	} data;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 80, 0, &data.ptr);
+	/* this should fail */
+	bpf_get_current_comm(data.buf, 80);
+
+	return 0;
+}
+
+static int callback(__u32 index, void *data)
+{
+        *(__u32 *)data = 123;
+
+        return 0;
+}
+
+/* If the dynptr is written into in a callback function, its data
+ * slices should be invalidated as well.
+ */
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
+int invalid_data_slices(void *ctx)
+{
+	struct bpf_dynptr ptr;
+	__u32 *slice;
+
+	if (get_map_val_dynptr(&ptr))
+		return 0;
+
+	slice = bpf_dynptr_data(&ptr, 0, sizeof(__u32));
+	if (!slice)
+		return 0;
+
+	bpf_loop(10, callback, &ptr, 0);
+
+	/* this should fail */
+	*slice = 1;
+
+	return 0;
+}
