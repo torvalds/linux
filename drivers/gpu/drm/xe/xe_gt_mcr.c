@@ -23,12 +23,12 @@
  *
  * MMIO accesses to MCR registers are controlled according to the settings
  * programmed in the platform's MCR_SELECTOR register(s).  MMIO writes to MCR
- * registers can be done in either a (i.e., a single write updates all
+ * registers can be done in either multicast (a single write updates all
  * instances of the register to the same value) or unicast (a write updates only
- * one specific instance).  Reads of MCR registers always operate in a unicast
- * manner regardless of how the multicast/unicast bit is set in MCR_SELECTOR.
- * Selection of a specific MCR instance for unicast operations is referred to
- * as "steering."
+ * one specific instance) form.  Reads of MCR registers always operate in a
+ * unicast manner regardless of how the multicast/unicast bit is set in
+ * MCR_SELECTOR.  Selection of a specific MCR instance for unicast operations is
+ * referred to as "steering."
  *
  * If MCR register operations are steered toward a hardware unit that is
  * fused off or currently powered down due to power gating, the MMIO operation
