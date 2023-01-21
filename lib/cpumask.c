@@ -110,7 +110,7 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 #endif
 
 /**
- * cpumask_local_spread - select the i'th cpu with local numa cpu's first
+ * cpumask_local_spread - select the i'th cpu based on NUMA distances
  * @i: index number
  * @node: local numa_node
  *
@@ -132,15 +132,7 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 		if (cpu < nr_cpu_ids)
 			return cpu;
 	} else {
-		/* NUMA first. */
-		cpu = cpumask_nth_and(i, cpu_online_mask, cpumask_of_node(node));
-		if (cpu < nr_cpu_ids)
-			return cpu;
-
-		i -= cpumask_weight_and(cpu_online_mask, cpumask_of_node(node));
-
-		/* Skip NUMA nodes, done above. */
-		cpu = cpumask_nth_andnot(i, cpu_online_mask, cpumask_of_node(node));
+		cpu = sched_numa_find_nth_cpu(cpu_online_mask, i, node);
 		if (cpu < nr_cpu_ids)
 			return cpu;
 	}
