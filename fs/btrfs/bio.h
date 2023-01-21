@@ -41,7 +41,8 @@ struct btrfs_bio {
 	unsigned int is_metadata:1;
 	struct bvec_iter iter;
 
-	/* File offset that this I/O operates on. */
+	/* Inode and offset into it that this I/O operates on. */
+	struct btrfs_inode *inode;
 	u64 file_offset;
 
 	/* @device is for stripe IO submission. */
@@ -80,8 +81,10 @@ int __init btrfs_bioset_init(void);
 void __cold btrfs_bioset_exit(void);
 
 struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+			    struct btrfs_inode *inode,
 			    btrfs_bio_end_io_t end_io, void *private);
 struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
+				    struct btrfs_inode *inode,
 				    btrfs_bio_end_io_t end_io, void *private);
 
 

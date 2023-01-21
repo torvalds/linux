@@ -740,7 +740,8 @@ int btrfs_repair_one_sector(struct btrfs_inode *inode, struct btrfs_bio *failed_
 		return -EIO;
 	}
 
-	repair_bio = btrfs_bio_alloc(1, REQ_OP_READ, failed_bbio->end_io,
+	repair_bio = btrfs_bio_alloc(1, REQ_OP_READ, failed_bbio->inode,
+				     failed_bbio->end_io,
 				     failed_bbio->private);
 	repair_bbio = btrfs_bio(repair_bio);
 	repair_bbio->file_offset = start;
@@ -1394,9 +1395,8 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	struct bio *bio;
 	int ret;
 
-	ASSERT(bio_ctrl->end_io_func);
-
-	bio = btrfs_bio_alloc(BIO_MAX_VECS, opf, bio_ctrl->end_io_func, NULL);
+	bio = btrfs_bio_alloc(BIO_MAX_VECS, opf, inode, bio_ctrl->end_io_func,
+			      NULL);
 	/*
 	 * For compressed page range, its disk_bytenr is always @disk_bytenr
 	 * passed in, no matter if we have added any range into previous bio.

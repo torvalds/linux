@@ -22,9 +22,11 @@ static struct bio_set btrfs_bioset;
  * is already initialized by the block layer.
  */
 static inline void btrfs_bio_init(struct btrfs_bio *bbio,
+				  struct btrfs_inode *inode,
 				  btrfs_bio_end_io_t end_io, void *private)
 {
 	memset(bbio, 0, offsetof(struct btrfs_bio, bio));
+	bbio->inode = inode;
 	bbio->end_io = end_io;
 	bbio->private = private;
 }
@@ -37,16 +39,18 @@ static inline void btrfs_bio_init(struct btrfs_bio *bbio,
  * a mempool.
  */
 struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+			    struct btrfs_inode *inode,
 			    btrfs_bio_end_io_t end_io, void *private)
 {
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(NULL, nr_vecs, opf, GFP_NOFS, &btrfs_bioset);
-	btrfs_bio_init(btrfs_bio(bio), end_io, private);
+	btrfs_bio_init(btrfs_bio(bio), inode, end_io, private);
 	return bio;
 }
 
 struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
+				    struct btrfs_inode *inode,
 				    btrfs_bio_end_io_t end_io, void *private)
 {
 	struct bio *bio;
@@ -56,7 +60,7 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
 
 	bio = bio_alloc_clone(orig->bi_bdev, orig, GFP_NOFS, &btrfs_bioset);
 	bbio = btrfs_bio(bio);
-	btrfs_bio_init(bbio, end_io, private);
+	btrfs_bio_init(bbio, inode, end_io, private);
 
 	bio_trim(bio, offset >> 9, size >> 9);
 	bbio->iter = bio->bi_iter;

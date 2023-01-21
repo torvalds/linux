@@ -8097,7 +8097,8 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		 * the allocation is backed by btrfs_bioset.
 		 */
 		bio = btrfs_bio_clone_partial(dio_bio, clone_offset, clone_len,
-					      btrfs_end_dio_bio, dip);
+					      BTRFS_I(inode), btrfs_end_dio_bio,
+					      dip);
 		btrfs_bio(bio)->file_offset = file_offset;
 
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
@@ -10409,6 +10410,7 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 
 			if (!bio) {
 				bio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ,
+						      inode,
 						      btrfs_encoded_read_endio,
 						      &priv);
 				bio->bi_iter.bi_sector =
