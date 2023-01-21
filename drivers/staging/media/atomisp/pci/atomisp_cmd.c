@@ -679,7 +679,8 @@ void atomisp_buffer_done(struct ia_css_frame *frame, enum vb2_buffer_state state
 	vb2_buffer_done(&frame->vb.vb2_buf, state);
 }
 
-void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_frames)
+void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, enum vb2_buffer_state state,
+			      bool warn_on_css_frames)
 {
 	struct ia_css_frame *frame, *_frame;
 	unsigned long irqflags;
@@ -689,15 +690,15 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_
 	list_for_each_entry_safe(frame, _frame, &pipe->buffers_in_css, queue) {
 		if (warn_on_css_frames)
 			dev_warn(pipe->isp->dev, "Warning: CSS frames queued on flush\n");
-		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+		atomisp_buffer_done(frame, state);
 	}
 
 	list_for_each_entry_safe(frame, _frame, &pipe->activeq, queue)
-		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+		atomisp_buffer_done(frame, state);
 
 	list_for_each_entry_safe(frame, _frame, &pipe->buffers_waiting_for_param, queue) {
 		pipe->frame_request_config_id[frame->vb.vb2_buf.index] = 0;
-		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
+		atomisp_buffer_done(frame, state);
 	}
 
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
@@ -706,10 +707,10 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_
 /* Returns queued buffers back to video-core */
 void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd)
 {
-	atomisp_flush_video_pipe(&asd->video_out_capture, false);
-	atomisp_flush_video_pipe(&asd->video_out_vf, false);
-	atomisp_flush_video_pipe(&asd->video_out_preview, false);
-	atomisp_flush_video_pipe(&asd->video_out_video_capture, false);
+	atomisp_flush_video_pipe(&asd->video_out_capture, VB2_BUF_STATE_ERROR, false);
+	atomisp_flush_video_pipe(&asd->video_out_vf, VB2_BUF_STATE_ERROR, false);
+	atomisp_flush_video_pipe(&asd->video_out_preview, VB2_BUF_STATE_ERROR, false);
+	atomisp_flush_video_pipe(&asd->video_out_video_capture, VB2_BUF_STATE_ERROR, false);
 }
 
 /* clean out the parameters that did not apply */

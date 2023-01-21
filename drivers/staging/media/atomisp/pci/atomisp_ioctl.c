@@ -1354,7 +1354,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = atomisp_css_start(asd, css_pipe_id, false);
 	if (ret) {
-		atomisp_flush_video_pipe(pipe, true);
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
 	}
 
@@ -1530,7 +1530,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 	atomisp_css_stop(asd, css_pipe_id, false);
 
-	atomisp_flush_video_pipe(pipe, true);
+	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
 
 	atomisp_subdev_cleanup_pending_events(asd);
 stopsensor:
