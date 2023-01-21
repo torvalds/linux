@@ -22,6 +22,7 @@
  * @size:      Size of the shared memory buffer.
  * @iova:      Device VA of shared memory buffer.
  * @is_mapped: Shared memory buffer is managed by the co-processor.
+ * @private:   Private data pointer for the parent driver.
  */
 
 struct apple_rtkit_shmem {
@@ -30,6 +31,7 @@ struct apple_rtkit_shmem {
 	size_t size;
 	dma_addr_t iova;
 	bool is_mapped;
+	void *private;
 };
 
 /*
