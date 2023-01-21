@@ -230,20 +230,21 @@ static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
 
 void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror_num)
 {
+	struct btrfs_bio *bbio = btrfs_bio(bio);
 	u64 logical = bio->bi_iter.bi_sector << 9;
 	u64 length = bio->bi_iter.bi_size;
 	u64 map_length = length;
 	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_io_stripe smap;
-	int ret;
+	blk_status_t ret;
+	int error;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = __btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
-				&bioc, &smap, &mirror_num, 1);
-	if (ret) {
-		btrfs_bio_counter_dec(fs_info);
-		btrfs_bio_end_io(btrfs_bio(bio), errno_to_blk_status(ret));
-		return;
+	error = __btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
+				  &bioc, &smap, &mirror_num, 1);
+	if (error) {
+		ret = errno_to_blk_status(error);
+		goto fail;
 	}
 
 	if (map_length < length) {
@@ -255,8 +256,8 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 
 	if (!bioc) {
 		/* Single mirror read/write fast path */
-		btrfs_bio(bio)->mirror_num = mirror_num;
-		btrfs_bio(bio)->device = smap.dev;
+		bbio->mirror_num = mirror_num;
+		bbio->device = smap.dev;
 		bio->bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
 		bio->bi_private = fs_info;
 		bio->bi_end_io = btrfs_simple_end_io;
@@ -278,6 +279,11 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 		for (dev_nr = 0; dev_nr < total_devs; dev_nr++)
 			btrfs_submit_mirrored_bio(bioc, dev_nr);
 	}
+	return;
+
+fail:
+	btrfs_bio_counter_dec(fs_info);
+	btrfs_bio_end_io(bbio, ret);
 }
 
 /*
