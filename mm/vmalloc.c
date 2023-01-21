@@ -2754,20 +2754,6 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	kfree(area);
 }
 
-static inline void __vfree_deferred(const void *addr)
-{
-	/*
-	 * Use raw_cpu_ptr() because this can be called from preemptible
-	 * context. Preemption is absolutely fine here, because the llist_add()
-	 * implementation is lockless, so it works even if we are adding to
-	 * another cpu's list. schedule_work() should be fine with this too.
-	 */
-	struct vfree_deferred *p = raw_cpu_ptr(&vfree_deferred);
-
-	if (llist_add((struct llist_node *)addr, &p->list))
-		schedule_work(&p->wq);
-}
-
 /**
  * vfree_atomic - release memory allocated by vmalloc()
  * @addr:	  memory base address
@@ -2777,13 +2763,19 @@ static inline void __vfree_deferred(const void *addr)
  */
 void vfree_atomic(const void *addr)
 {
-	BUG_ON(in_nmi());
+	struct vfree_deferred *p = raw_cpu_ptr(&vfree_deferred);
 
+	BUG_ON(in_nmi());
 	kmemleak_free(addr);
 
-	if (!addr)
-		return;
-	__vfree_deferred(addr);
+	/*
+	 * Use raw_cpu_ptr() because this can be called from preemptible
+	 * context. Preemption is absolutely fine here, because the llist_add()
+	 * implementation is lockless, so it works even if we are adding to
+	 * another cpu's list. schedule_work() should be fine with this too.
+	 */
+	if (addr && llist_add((struct llist_node *)addr, &p->list))
+		schedule_work(&p->wq);
 }
 
 /**
@@ -2805,17 +2797,16 @@ void vfree_atomic(const void *addr)
  */
 void vfree(const void *addr)
 {
-	BUG_ON(in_nmi());
-
-	kmemleak_free(addr);
-
-	might_sleep_if(!in_interrupt());
-
-	if (!addr)
+	if (unlikely(in_interrupt())) {
+		vfree_atomic(addr);
 		return;
-	if (unlikely(in_interrupt()))
-		__vfree_deferred(addr);
-	else
+	}
+
+	BUG_ON(in_nmi());
+	kmemleak_free(addr);
+	might_sleep();
+
+	if (addr)
 		__vunmap(addr, 1);
 }
 EXPORT_SYMBOL(vfree);
