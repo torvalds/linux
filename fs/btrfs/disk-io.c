@@ -846,7 +846,6 @@ void btrfs_submit_metadata_bio(struct btrfs_inode *inode, struct bio *bio, int m
 	blk_status_t ret;
 
 	bio->bi_opf |= REQ_META;
-	bbio->is_metadata = 1;
 
 	if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
 		btrfs_submit_bio(fs_info, bio, mirror_num);

@@ -30,16 +30,6 @@ typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
  * passed to btrfs_submit_bio for mapping to the physical devices.
  */
 struct btrfs_bio {
-	unsigned int mirror_num:7;
-
-	/*
-	 * Extra indicator for metadata bios.
-	 * For some btrfs bios they use pages without a mapping, thus
-	 * we can not rely on page->mapping->host to determine if
-	 * it's a metadata bio.
-	 */
-	unsigned int is_metadata:1;
-
 	/* Inode and offset into it that this I/O operates on. */
 	struct btrfs_inode *inode;
 	u64 file_offset;
@@ -64,6 +54,7 @@ struct btrfs_bio {
 	void *private;
 
 	/* For internal use in read end I/O handling */
+	unsigned int mirror_num;
 	struct work_struct end_io_work;
 
 	/*
