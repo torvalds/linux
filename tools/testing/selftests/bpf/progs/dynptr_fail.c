@@ -794,3 +794,43 @@ int dynptr_pruning_type_confusion(struct __sk_buff *ctx)
 	);
 	return 0;
 }
+
+SEC("?tc")
+__failure __msg("dynptr has to be at a constant offset") __log_level(2)
+int dynptr_var_off_overwrite(struct __sk_buff *ctx)
+{
+	asm volatile (
+		"r9 = 16;				\
+		 *(u32 *)(r10 - 4) = r9;		\
+		 r8 = *(u32 *)(r10 - 4);		\
+		 if r8 >= 0 goto vjmp1;			\
+		 r0 = 1;				\
+		 exit;					\
+	vjmp1:						\
+		 if r8 <= 16 goto vjmp2;		\
+		 r0 = 1;				\
+		 exit;					\
+	vjmp2:						\
+		 r8 &= 16;				\
+		 r1 = %[ringbuf] ll;			\
+		 r2 = 8;				\
+		 r3 = 0;				\
+		 r4 = r10;				\
+		 r4 += -32;				\
+		 r4 += r8;				\
+		 call %[bpf_ringbuf_reserve_dynptr];	\
+		 r9 = 0xeB9F;				\
+		 *(u64 *)(r10 - 16) = r9;		\
+		 r1 = r10;				\
+		 r1 += -32;				\
+		 r1 += r8;				\
+		 r2 = 0;				\
+		 call %[bpf_ringbuf_discard_dynptr];	"
+		:
+		: __imm(bpf_ringbuf_reserve_dynptr),
+		  __imm(bpf_ringbuf_discard_dynptr),
+		  __imm_addr(ringbuf)
+		: __clobber_all
+	);
+	return 0;
+}
