@@ -801,7 +801,7 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			 */
 			btrfs_bio(comp_bio)->file_offset = file_offset;
 
-			ret = btrfs_lookup_bio_sums(inode, comp_bio, NULL);
+			ret = btrfs_lookup_bio_sums(btrfs_bio(comp_bio));
 			if (ret) {
 				btrfs_bio_end_io(btrfs_bio(comp_bio), ret);
 				break;

@@ -2780,7 +2780,7 @@ void btrfs_submit_data_read_bio(struct btrfs_inode *inode, struct bio *bio,
 	 * Lookup bio sums does extra checks around whether we need to csum or
 	 * not, which is why we ignore skip_sum here.
 	 */
-	ret = btrfs_lookup_bio_sums(&inode->vfs_inode, bio, NULL);
+	ret = btrfs_lookup_bio_sums(btrfs_bio(bio));
 	if (ret) {
 		btrfs_bio_end_io(btrfs_bio(bio), ret);
 		return;
@@ -8012,7 +8012,7 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct btrfs_inode *inode,
 			return;
 		}
 	} else {
-		ret = btrfs_lookup_bio_sums(&inode->vfs_inode, bio, NULL);
+		ret = btrfs_lookup_bio_sums(btrfs_bio(bio));
 		if (ret) {
 			btrfs_bio_end_io(btrfs_bio(bio), ret);
 			return;
@@ -10279,7 +10279,7 @@ static blk_status_t submit_encoded_read_bio(struct btrfs_inode *inode,
 	blk_status_t ret;
 
 	if (!priv->skip_csum) {
-		ret = btrfs_lookup_bio_sums(&inode->vfs_inode, bio, NULL);
+		ret = btrfs_lookup_bio_sums(btrfs_bio(bio));
 		if (ret)
 			return ret;
 	}
