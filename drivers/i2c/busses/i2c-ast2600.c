@@ -982,6 +982,7 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 				dma_map_single(i2c_bus->dev, i2c_bus->master_safe_buf, msg->len, DMA_FROM_DEVICE);
 			if (dma_mapping_error(i2c_bus->dev, i2c_bus->master_dma_addr)) {
 				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, false);
+				i2c_bus->master_safe_buf = NULL;
 				return -ENOMEM;
 			}
 			writel(i2c_bus->master_dma_addr, i2c_bus->reg_base + AST2600_I2CM_RX_DMA);
@@ -1043,6 +1044,7 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 						       DMA_TO_DEVICE);
 				if (dma_mapping_error(i2c_bus->dev, i2c_bus->master_dma_addr)) {
 					i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, false);
+					i2c_bus->master_safe_buf = NULL;
 					return -ENOMEM;
 				}
 				writel(i2c_bus->master_dma_addr,
@@ -1170,6 +1172,7 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
 						 DMA_TO_DEVICE);
 				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+				i2c_bus->master_safe_buf = NULL;
 			}
 			i2c_bus->msgs_index++;
 			if (i2c_bus->msgs_index == i2c_bus->msgs_count) {
@@ -1290,6 +1293,7 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
 						 DMA_FROM_DEVICE);
 				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+				i2c_bus->master_safe_buf = NULL;
 			}
 
 			for (i = 0; i < msg->len; i++)
@@ -1519,6 +1523,11 @@ static int ast2600_i2c_master_xfer(struct i2c_adapter *adap,
 	dev_dbg(i2c_bus->dev, "bus%d-m: %d end\n", i2c_bus->adap.nr, i2c_bus->cmd_err);
 
 master_out:
+	if (i2c_bus->mode == DMA_MODE) {
+		kfree(i2c_bus->master_safe_buf);
+		i2c_bus->master_safe_buf = NULL;
+	}
+
 	return ret;
 }
 
