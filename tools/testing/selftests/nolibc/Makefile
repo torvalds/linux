@@ -14,6 +14,7 @@ endif
 
 # kernel image names by architecture
 IMAGE_i386    = arch/x86/boot/bzImage
+IMAGE_x86_64  = arch/x86/boot/bzImage
 IMAGE_x86     = arch/x86/boot/bzImage
 IMAGE_arm64   = arch/arm64/boot/Image
 IMAGE_arm     = arch/arm/boot/zImage
@@ -25,6 +26,7 @@ IMAGE_NAME    = $(notdir $(IMAGE))
 
 # default kernel configurations that appear to be usable
 DEFCONFIG_i386    = defconfig
+DEFCONFIG_x86_64  = defconfig
 DEFCONFIG_x86     = defconfig
 DEFCONFIG_arm64   = defconfig
 DEFCONFIG_arm     = multi_v7_defconfig
@@ -38,6 +40,7 @@ TEST =
 
 # QEMU_ARCH: arch names used by qemu
 QEMU_ARCH_i386    = i386
+QEMU_ARCH_x86_64  = x86_64
 QEMU_ARCH_x86     = x86_64
 QEMU_ARCH_arm64   = aarch64
 QEMU_ARCH_arm     = arm
@@ -48,6 +51,7 @@ QEMU_ARCH         = $(QEMU_ARCH_$(ARCH))
 
 # QEMU_ARGS : some arch-specific args to pass to qemu
 QEMU_ARGS_i386    = -M pc -append "console=ttyS0,9600 i8042.noaux panic=-1 $(TEST:%=NOLIBC_TEST=%)"
+QEMU_ARGS_x86_64  = -M pc -append "console=ttyS0,9600 i8042.noaux panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_x86     = -M pc -append "console=ttyS0,9600 i8042.noaux panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_arm64   = -M virt -cpu cortex-a53 -append "panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_arm     = -M virt -append "panic=-1 $(TEST:%=NOLIBC_TEST=%)"
