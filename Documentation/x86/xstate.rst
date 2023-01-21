@@ -143,3 +143,32 @@ entry if the feature is in its initial configuration.  This differs from
 non-dynamic features which are always written regardless of their
 configuration.  Signal handlers can examine the XSAVE buffer's XSTATE_BV
 field to determine if a features was written.
+
+Dynamic features for virtual machines
+-------------------------------------
+
+The permission for the guest state component needs to be managed separately
+from the host, as they are exclusive to each other. A coupled of options
+are extended to control the guest permission:
+
+-ARCH_GET_XCOMP_GUEST_PERM
+
+ arch_prctl(ARCH_GET_XCOMP_GUEST_PERM, &features);
+
+ ARCH_GET_XCOMP_GUEST_PERM is a variant of ARCH_GET_XCOMP_PERM. So it
+ provides the same semantics and functionality but for the guest
+ components.
+
+-ARCH_REQ_XCOMP_GUEST_PERM
+
+ arch_prctl(ARCH_REQ_XCOMP_GUEST_PERM, feature_nr);
+
+ ARCH_REQ_XCOMP_GUEST_PERM is a variant of ARCH_REQ_XCOMP_PERM. It has the
+ same semantics for the guest permission. While providing a similar
+ functionality, this comes with a constraint. Permission is frozen when the
+ first VCPU is created. Any attempt to change permission after that point
+ is going to be rejected. So, the permission has to be requested before the
+ first VCPU creation.
+
+Note that some VMMs may have already established a set of supported state
+components. These options are not presumed to support any particular VMM.
