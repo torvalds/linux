@@ -54,6 +54,7 @@ config USB_XHCI_PCI_RENESAS
 config USB_XHCI_PLATFORM
 	tristate "Generic xHCI driver for a platform device"
 	select USB_XHCI_RCAR if ARCH_RENESAS
+	select USB_XHCI_RZV2M if ARCH_R9A09G011
 	help
 	  Adds an xHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -94,6 +95,15 @@ config USB_XHCI_RCAR
 	help
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
+
+config USB_XHCI_RZV2M
+	tristate "xHCI support for Renesas RZ/V2M SoC"
+	depends on USB_XHCI_PLATFORM
+	depends on ARCH_R9A09G011 || COMPILE_TEST
+	select USB_RZV2M_USB3DRD
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Renesas RZ/V2M SoC.
 
 config USB_XHCI_TEGRA
 	tristate "xHCI support for NVIDIA Tegra SoCs"
