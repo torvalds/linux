@@ -88,12 +88,18 @@ properties:
         items:
           - enum:
               - armadeus,imx28-apf28      # APF28 SoM
-              - armadeus,imx28-apf28dev   # APF28 SoM on APF28Dev board
               - fsl,imx28-evk
               - i2se,duckbill
               - i2se,duckbill-2
               - technologic,imx28-ts4600
           - const: fsl,imx28
+
+      - description: i.MX28 Armadeus Systems APF28Dev Board
+        items:
+          - const: armadeus,imx28-apf28dev
+          - const: armadeus,imx28-apf28
+          - const: fsl,imx28
+
       - description: i.MX28 Duckbill 2 based Boards
         items:
           - enum:
