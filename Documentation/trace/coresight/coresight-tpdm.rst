@@ -41,3 +41,5 @@ Root: ``/sys/bus/coresight/devices/tpdm<N>``
     value -  1 or 2.
 
 ----
+
+.. This text is intentionally added to make Sphinx happy.
