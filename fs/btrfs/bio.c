@@ -281,6 +281,8 @@ static void btrfs_simple_end_io(struct bio *bio)
 		INIT_WORK(&bbio->end_io_work, btrfs_end_bio_work);
 		queue_work(btrfs_end_io_wq(fs_info, bio), &bbio->end_io_work);
 	} else {
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+			btrfs_record_physical_zoned(bbio);
 		bbio->end_io(bbio);
 	}
 }
@@ -599,6 +601,12 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 	}
 
 	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+			ret = btrfs_extract_ordered_extent(btrfs_bio(bio));
+			if (ret)
+				goto fail;
+		}
+
 		/*
 		 * Csum items for reloc roots have already been cloned at this
 		 * point, so they are handled as part of the no-checksum case.

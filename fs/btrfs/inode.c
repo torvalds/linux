@@ -2647,19 +2647,19 @@ out:
 	return ret;
 }
 
-static blk_status_t extract_ordered_extent(struct btrfs_inode *inode,
-					   struct bio *bio, loff_t file_offset)
+blk_status_t btrfs_extract_ordered_extent(struct btrfs_bio *bbio)
 {
+	u64 start = (u64)bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
+	u64 len = bbio->bio.bi_iter.bi_size;
+	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_ordered_extent *ordered;
-	u64 start = (u64)bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 file_len;
-	u64 len = bio->bi_iter.bi_size;
 	u64 end = start + len;
 	u64 ordered_end;
 	u64 pre, post;
 	int ret = 0;
 
-	ordered = btrfs_lookup_ordered_extent(inode, file_offset);
+	ordered = btrfs_lookup_ordered_extent(inode, bbio->file_offset);
 	if (WARN_ON_ONCE(!ordered))
 		return BLK_STS_IOERR;
 
@@ -2699,7 +2699,7 @@ static blk_status_t extract_ordered_extent(struct btrfs_inode *inode,
 	ret = btrfs_split_ordered_extent(ordered, pre, post);
 	if (ret)
 		goto out;
-	ret = split_zoned_em(inode, file_offset, file_len, pre, post);
+	ret = split_zoned_em(inode, bbio->file_offset, file_len, pre, post);
 
 out:
 	btrfs_put_ordered_extent(ordered);
@@ -2709,19 +2709,7 @@ out:
 
 void btrfs_submit_data_write_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	blk_status_t ret;
-
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-		ret = extract_ordered_extent(inode, bio,
-				page_offset(bio_first_bvec_all(bio)->bv_page));
-		if (ret) {
-			btrfs_bio_end_io(btrfs_bio(bio), ret);
-			return;
-		}
-	}
-
-	btrfs_submit_bio(fs_info, bio, mirror_num);
+	btrfs_submit_bio(inode->root->fs_info, bio, mirror_num);
 }
 
 void btrfs_submit_data_read_bio(struct btrfs_inode *inode, struct bio *bio,
@@ -7816,8 +7804,6 @@ static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
 		dip->bio.bi_status = err;
 	}
 
-	btrfs_record_physical_zoned(&dip->inode->vfs_inode, bbio->file_offset, bio);
-
 	bio_put(bio);
 	btrfs_dio_private_put(dip);
 }
@@ -7875,15 +7861,6 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 					      BTRFS_I(inode), btrfs_end_dio_bio,
 					      dip);
 		btrfs_bio(bio)->file_offset = file_offset;
-
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-			status = extract_ordered_extent(BTRFS_I(inode), bio,
-							file_offset);
-			if (status) {
-				bio_put(bio);
-				goto out_err;
-			}
-		}
 
 		ASSERT(submit_len >= clone_len);
 		submit_len -= clone_len;

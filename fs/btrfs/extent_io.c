@@ -586,7 +586,6 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 	u64 start;
 	u64 end;
 	struct bvec_iter_all iter_all;
-	bool first_bvec = true;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, iter_all) {
@@ -607,11 +606,6 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 
 		start = page_offset(page) + bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
-
-		if (first_bvec) {
-			btrfs_record_physical_zoned(inode, start, bio);
-			first_bvec = false;
-		}
 
 		end_extent_writepage(page, error, start, end);
 

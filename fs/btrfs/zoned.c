@@ -17,6 +17,7 @@
 #include "space-info.h"
 #include "fs.h"
 #include "accessors.h"
+#include "bio.h"
 
 /* Maximum number of zones to report per blkdev_report_zones() call */
 #define BTRFS_REPORT_NR_ZONES   4096
@@ -1660,21 +1661,17 @@ bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
 	return ret;
 }
 
-void btrfs_record_physical_zoned(struct inode *inode, u64 file_offset,
-				 struct bio *bio)
+void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 {
+	const u64 physical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	struct btrfs_ordered_extent *ordered;
-	const u64 physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 
-	if (bio_op(bio) != REQ_OP_ZONE_APPEND)
-		return;
-
-	ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode), file_offset);
+	ordered = btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
 	if (WARN_ON(!ordered))
 		return;
 
 	ordered->physical = physical;
-	ordered->bdev = bio->bi_bdev;
+	ordered->bdev = bbio->bio.bi_bdev;
 
 	btrfs_put_ordered_extent(ordered);
 }
