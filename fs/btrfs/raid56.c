@@ -1425,10 +1425,9 @@ static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bi
 	int total_sector_nr = get_bio_sector_nr(rbio, bio);
 	u32 bio_size = 0;
 	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
 	int i;
 
-	bio_for_each_segment_all(bvec, bio, iter_all)
+	bio_for_each_bvec_all(bvec, bio, i)
 		bio_size += bvec->bv_len;
 
 	/*
