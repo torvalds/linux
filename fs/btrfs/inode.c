@@ -3457,45 +3457,6 @@ static u8 *btrfs_csum_ptr(const struct btrfs_fs_info *fs_info, u8 *csums, u64 of
 }
 
 /*
- * check_data_csum - verify checksum of one sector of uncompressed data
- * @inode:	inode
- * @bbio:	btrfs_bio which contains the csum
- * @bio_offset:	offset to the beginning of the bio (in bytes)
- * @page:	page where is the data to be verified
- * @pgoff:	offset inside the page
- *
- * The length of such check is always one sector size.
- *
- * When csum mismatch is detected, we will also report the error and fill the
- * corrupted range with zero. (Thus it needs the extra parameters)
- */
-int btrfs_check_data_csum(struct btrfs_inode *inode, struct btrfs_bio *bbio,
-			  u32 bio_offset, struct page *page, u32 pgoff)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	u32 len = fs_info->sectorsize;
-	u8 *csum_expected;
-	u8 csum[BTRFS_CSUM_SIZE];
-
-	ASSERT(pgoff + len <= PAGE_SIZE);
-
-	csum_expected = btrfs_csum_ptr(fs_info, bbio->csum, bio_offset);
-
-	if (btrfs_check_sector_csum(fs_info, page, pgoff, csum, csum_expected))
-		goto zeroit;
-	return 0;
-
-zeroit:
-	btrfs_print_data_csum_error(inode, bbio->file_offset + bio_offset,
-				    csum, csum_expected, bbio->mirror_num);
-	if (bbio->device)
-		btrfs_dev_stat_inc_and_print(bbio->device,
-					     BTRFS_DEV_STAT_CORRUPTION_ERRS);
-	memzero_page(page, pgoff, len);
-	return -EIO;
-}
-
-/*
  * Verify the checksum of a single data sector.
  *
  * @bbio:	btrfs_io_bio which contains the csum
@@ -3512,8 +3473,13 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 			u32 bio_offset, struct bio_vec *bv)
 {
 	struct btrfs_inode *inode = bbio->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 file_offset = bbio->file_offset + bio_offset;
 	u64 end = file_offset + bv->bv_len - 1;
+	u8 *csum_expected;
+	u8 csum[BTRFS_CSUM_SIZE];
+
+	ASSERT(bv->bv_len == fs_info->sectorsize);
 
 	if (!bbio->csum)
 		return true;
@@ -3527,77 +3493,19 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 		return true;
 	}
 
-	if (btrfs_check_data_csum(inode, bbio, bio_offset, bv->bv_page,
-				  bv->bv_offset) < 0)
-		return false;
+	csum_expected = btrfs_csum_ptr(fs_info, bbio->csum, bio_offset);
+	if (btrfs_check_sector_csum(fs_info, bv->bv_page, bv->bv_offset, csum,
+				    csum_expected))
+		goto zeroit;
 	return true;
-}
 
-/*
- * When reads are done, we need to check csums to verify the data is correct.
- * if there's a match, we allow the bio to finish.  If not, the code in
- * extent_io.c will try to find good copies for us.
- *
- * @bio_offset:	offset to the beginning of the bio (in bytes)
- * @start:	file offset of the range start
- * @end:	file offset of the range end (inclusive)
- *
- * Return a bitmap where bit set means a csum mismatch, and bit not set means
- * csum match.
- */
-unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
-				    u32 bio_offset, struct page *page,
-				    u64 start, u64 end)
-{
-	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
-	struct btrfs_root *root = inode->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct extent_io_tree *io_tree = &inode->io_tree;
-	const u32 sectorsize = root->fs_info->sectorsize;
-	u32 pg_off;
-	unsigned int result = 0;
-
-	/*
-	 * This only happens for NODATASUM or compressed read.
-	 * Normally this should be covered by above check for compressed read
-	 * or the next check for NODATASUM.  Just do a quicker exit here.
-	 */
-	if (bbio->csum == NULL)
-		return 0;
-
-	if (inode->flags & BTRFS_INODE_NODATASUM)
-		return 0;
-
-	if (unlikely(test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state)))
-		return 0;
-
-	ASSERT(page_offset(page) <= start &&
-	       end <= page_offset(page) + PAGE_SIZE - 1);
-	for (pg_off = offset_in_page(start);
-	     pg_off < offset_in_page(end);
-	     pg_off += sectorsize, bio_offset += sectorsize) {
-		u64 file_offset = pg_off + page_offset(page);
-		int ret;
-
-		if (btrfs_is_data_reloc_root(root) &&
-		    test_range_bit(io_tree, file_offset,
-				   file_offset + sectorsize - 1,
-				   EXTENT_NODATASUM, 1, NULL)) {
-			/* Skip the range without csum for data reloc inode */
-			clear_extent_bits(io_tree, file_offset,
-					  file_offset + sectorsize - 1,
-					  EXTENT_NODATASUM);
-			continue;
-		}
-		ret = btrfs_check_data_csum(inode, bbio, bio_offset, page, pg_off);
-		if (ret < 0) {
-			const int nr_bit = (pg_off - offset_in_page(start)) >>
-				     root->fs_info->sectorsize_bits;
-
-			result |= (1U << nr_bit);
-		}
-	}
-	return result;
+zeroit:
+	btrfs_print_data_csum_error(inode, file_offset, csum, csum_expected,
+				    bbio->mirror_num);
+	if (dev)
+		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_CORRUPTION_ERRS);
+	memzero_bvec(bv);
+	return false;
 }
 
 /*
