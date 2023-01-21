@@ -39,17 +39,20 @@ struct btrfs_bio {
 	 * it's a metadata bio.
 	 */
 	unsigned int is_metadata:1;
-	struct bvec_iter iter;
 
 	/* Inode and offset into it that this I/O operates on. */
 	struct btrfs_inode *inode;
 	u64 file_offset;
 
 	union {
-		/* For data checksum verification. */
+		/*
+		 * Data checksumming and original I/O information for internal
+		 * use in the btrfs_submit_bio machinery.
+		 */
 		struct {
 			u8 *csum;
 			u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+			struct bvec_iter saved_iter;
 		};
 
 		/* For metadata parentness verification. */

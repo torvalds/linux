@@ -109,7 +109,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 	if (repair_bbio->bio.bi_status ||
 	    !btrfs_data_csum_ok(repair_bbio, dev, 0, bv)) {
 		bio_reset(&repair_bbio->bio, NULL, REQ_OP_READ);
-		repair_bbio->bio.bi_iter = repair_bbio->iter;
+		repair_bbio->bio.bi_iter = repair_bbio->saved_iter;
 
 		mirror = next_repair_mirror(fbio, mirror);
 		if (mirror == fbio->bbio->mirror_num) {
@@ -126,7 +126,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 		mirror = prev_repair_mirror(fbio, mirror);
 		btrfs_repair_io_failure(fs_info, btrfs_ino(inode),
 				  repair_bbio->file_offset, fs_info->sectorsize,
-				  repair_bbio->iter.bi_sector << SECTOR_SHIFT,
+				  repair_bbio->saved_iter.bi_sector << SECTOR_SHIFT,
 				  bv->bv_page, bv->bv_offset, mirror);
 	} while (mirror != fbio->bbio->mirror_num);
 
@@ -150,7 +150,7 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 	struct btrfs_inode *inode = failed_bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
-	const u64 logical = (failed_bbio->iter.bi_sector << SECTOR_SHIFT);
+	const u64 logical = (failed_bbio->saved_iter.bi_sector << SECTOR_SHIFT);
 	struct btrfs_bio *repair_bbio;
 	struct bio *repair_bio;
 	int num_copies;
@@ -177,7 +177,7 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 
 	repair_bio = bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS,
 				      &btrfs_repair_bioset);
-	repair_bio->bi_iter.bi_sector = failed_bbio->iter.bi_sector;
+	repair_bio->bi_iter.bi_sector = failed_bbio->saved_iter.bi_sector;
 	bio_add_page(repair_bio, bv->bv_page, bv->bv_len, bv->bv_offset);
 
 	repair_bbio = btrfs_bio(repair_bio);
@@ -195,7 +195,7 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u32 sectorsize = fs_info->sectorsize;
-	struct bvec_iter *iter = &bbio->iter;
+	struct bvec_iter *iter = &bbio->saved_iter;
 	blk_status_t status = bbio->bio.bi_status;
 	struct btrfs_failed_bio *fbio = NULL;
 	u32 offset = 0;
@@ -432,7 +432,7 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 	 * data reads.
 	 */
 	if (bio_op(bio) == REQ_OP_READ && !(bio->bi_opf & REQ_META)) {
-		bbio->iter = bio->bi_iter;
+		bbio->saved_iter = bio->bi_iter;
 		ret = btrfs_lookup_bio_sums(bbio);
 		if (ret)
 			goto fail;
