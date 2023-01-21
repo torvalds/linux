@@ -99,7 +99,6 @@ struct btrfs_bio_ctrl {
 	struct bio *bio;
 	int mirror_num;
 	enum btrfs_compression_type compress_type;
-	u32 len_to_stripe_boundary;
 	u32 len_to_oe_boundary;
 	btrfs_bio_end_io_t end_io_func;
 
@@ -900,7 +899,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 
 	ASSERT(bio);
 	/* The limit should be calculated when bio_ctrl->bio is allocated */
-	ASSERT(bio_ctrl->len_to_oe_boundary && bio_ctrl->len_to_stripe_boundary);
+	ASSERT(bio_ctrl->len_to_oe_boundary);
 	if (bio_ctrl->compress_type != compress_type)
 		return 0;
 
@@ -936,9 +935,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	if (!contig)
 		return 0;
 
-	real_size = min(bio_ctrl->len_to_oe_boundary,
-			bio_ctrl->len_to_stripe_boundary) - bio_size;
-	real_size = min(real_size, size);
+	real_size = min(bio_ctrl->len_to_oe_boundary - bio_size, size);
 
 	/*
 	 * If real_size is 0, never call bio_add_*_page(), as even size is 0,
@@ -955,58 +952,30 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	return ret;
 }
 
-static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
-			       struct btrfs_inode *inode, u64 file_offset)
+static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
+				struct btrfs_inode *inode, u64 file_offset)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_io_geometry geom;
 	struct btrfs_ordered_extent *ordered;
-	struct extent_map *em;
 	u64 logical = (bio_ctrl->bio->bi_iter.bi_sector << SECTOR_SHIFT);
-	int ret;
 
 	/*
-	 * Pages for compressed extent are never submitted to disk directly,
-	 * thus it has no real boundary, just set them to U32_MAX.
-	 *
-	 * The split happens for real compressed bio, which happens in
-	 * btrfs_submit_compressed_read/write().
+	 * Limit the extent to the ordered boundary for Zone Append.
+	 * Compressed bios aren't submitted directly, so it doesn't apply to
+	 * them.
 	 */
-	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE) {
-		bio_ctrl->len_to_oe_boundary = U32_MAX;
-		bio_ctrl->len_to_stripe_boundary = U32_MAX;
-		return 0;
-	}
-	em = btrfs_get_chunk_map(fs_info, logical, fs_info->sectorsize);
-	if (IS_ERR(em))
-		return PTR_ERR(em);
-	ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(bio_ctrl->bio),
-				    logical, &geom);
-	free_extent_map(em);
-	if (ret < 0) {
-		return ret;
-	}
-	if (geom.len > U32_MAX)
-		bio_ctrl->len_to_stripe_boundary = U32_MAX;
-	else
-		bio_ctrl->len_to_stripe_boundary = (u32)geom.len;
-
-	if (bio_op(bio_ctrl->bio) != REQ_OP_ZONE_APPEND) {
-		bio_ctrl->len_to_oe_boundary = U32_MAX;
-		return 0;
+	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
+	    bio_op(bio_ctrl->bio) == REQ_OP_ZONE_APPEND) {
+		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
+		if (ordered) {
+			bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
+					ordered->disk_bytenr +
+					ordered->disk_num_bytes - logical);
+			btrfs_put_ordered_extent(ordered);
+			return;
+		}
 	}
 
-	/* Ordered extent not yet created, so we're good */
-	ordered = btrfs_lookup_ordered_extent(inode, file_offset);
-	if (!ordered) {
-		bio_ctrl->len_to_oe_boundary = U32_MAX;
-		return 0;
-	}
-
-	bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
-		ordered->disk_bytenr + ordered->disk_num_bytes - logical);
-	btrfs_put_ordered_extent(ordered);
-	return 0;
+	bio_ctrl->len_to_oe_boundary = U32_MAX;
 }
 
 static int alloc_new_bio(struct btrfs_inode *inode,
@@ -1032,9 +1001,7 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
 	bio_ctrl->bio = bio;
 	bio_ctrl->compress_type = compress_type;
-	ret = calc_bio_boundaries(bio_ctrl, inode, file_offset);
-	if (ret < 0)
-		goto error;
+	calc_bio_boundaries(bio_ctrl, inode, file_offset);
 
 	if (wbc) {
 		/*
