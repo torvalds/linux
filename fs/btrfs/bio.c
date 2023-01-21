@@ -31,9 +31,8 @@ struct btrfs_failed_bio {
  * Initialize a btrfs_bio structure.  This skips the embedded bio itself as it
  * is already initialized by the block layer.
  */
-static inline void btrfs_bio_init(struct btrfs_bio *bbio,
-				  struct btrfs_inode *inode,
-				  btrfs_bio_end_io_t end_io, void *private)
+void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
+		    btrfs_bio_end_io_t end_io, void *private)
 {
 	memset(bbio, 0, offsetof(struct btrfs_bio, bio));
 	bbio->inode = inode;
@@ -57,23 +56,6 @@ struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
 
 	bio = bio_alloc_bioset(NULL, nr_vecs, opf, GFP_NOFS, &btrfs_bioset);
 	btrfs_bio_init(btrfs_bio(bio), inode, end_io, private);
-	return bio;
-}
-
-struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
-				    struct btrfs_inode *inode,
-				    btrfs_bio_end_io_t end_io, void *private)
-{
-	struct bio *bio;
-	struct btrfs_bio *bbio;
-
-	ASSERT(offset <= UINT_MAX && size <= UINT_MAX);
-
-	bio = bio_alloc_clone(orig->bi_bdev, orig, GFP_NOFS, &btrfs_bioset);
-	bbio = btrfs_bio(bio);
-	btrfs_bio_init(bbio, inode, end_io, private);
-
-	bio_trim(bio, offset >> 9, size >> 9);
 	return bio;
 }
 
