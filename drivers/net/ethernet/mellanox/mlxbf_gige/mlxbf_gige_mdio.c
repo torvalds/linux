@@ -213,9 +213,6 @@ static int mlxbf_gige_mdio_read(struct mii_bus *bus, int phy_add, int phy_reg)
 	int ret;
 	u32 val;
 
-	if (phy_reg & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	/* Send mdio read request */
 	cmd = mlxbf_gige_mdio_create_cmd(priv->mdio_gw, 0, phy_add, phy_reg,
 					 MLXBF_GIGE_MDIO_CL22_READ);
@@ -248,9 +245,6 @@ static int mlxbf_gige_mdio_write(struct mii_bus *bus, int phy_add,
 	u32 temp;
 	u32 cmd;
 	int ret;
-
-	if (phy_reg & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	/* Send mdio write request */
 	cmd = mlxbf_gige_mdio_create_cmd(priv->mdio_gw, val, phy_add, phy_reg,
