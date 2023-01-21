@@ -11,6 +11,22 @@ are enabled by XCR0 as well, but the first use of related instruction is
 trapped by the kernel because by default the required large XSTATE buffers
 are not allocated automatically.
 
+The purpose for dynamic features
+--------------------------------
+
+Legacy userspace libraries often have hard-coded, static sizes for
+alternate signal stacks, often using MINSIGSTKSZ which is typically 2KB.
+That stack must be able to store at *least* the signal frame that the
+kernel sets up before jumping into the signal handler. That signal frame
+must include an XSAVE buffer defined by the CPU.
+
+However, that means that the size of signal stacks is dynamic, not static,
+because different CPUs have differently-sized XSAVE buffers. A compiled-in
+size of 2KB with existing applications is too small for new CPU features
+like AMX. Instead of universally requiring larger stack, with the dynamic
+enabling, the kernel can enforce userspace applications to have
+properly-sized altstacks.
+
 Using dynamically enabled XSTATE features in user space applications
 --------------------------------------------------------------------
 
