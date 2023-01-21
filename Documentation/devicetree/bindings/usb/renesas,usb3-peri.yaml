@@ -34,20 +34,7 @@ properties:
     maxItems: 1
 
   interrupts:
-    minItems: 1
-    items:
-      - description: Combined interrupt for DMA, SYS and ERR
-      - description: Dual Role Device (DRD)
-      - description: Battery Charging
-      - description: Global Purpose Input
-
-  interrupt-names:
-    minItems: 1
-    items:
-      - const: all_p
-      - const: drd
-      - const: bc
-      - const: gpi
+    maxItems: 1
 
   clocks:
     minItems: 1
@@ -58,7 +45,7 @@ properties:
   clock-names:
     minItems: 1
     items:
-      - const: aclk
+      - const: axi
       - const: reg
 
   phys:
@@ -71,15 +58,7 @@ properties:
     maxItems: 1
 
   resets:
-    minItems: 1
-    items:
-      - description: Peripheral reset
-      - description: DRD reset
-
-  reset-names:
-    items:
-      - const: aresetn_p
-      - const: drd_reset
+    maxItems: 1
 
   usb-role-switch:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -127,24 +106,12 @@ allOf:
           minItems: 2
         clock-names:
           minItems: 2
-        interrupts:
-          minItems: 4
-        interrupt-names:
-          minItems: 4
-        resets:
-          minItems: 2
       required:
         - clock-names
-        - interrupt-names
         - resets
-        - reset-names
     else:
       properties:
         clocks:
-          maxItems: 1
-        interrupts:
-          maxItems: 1
-        resets:
           maxItems: 1
 
 additionalProperties: false
