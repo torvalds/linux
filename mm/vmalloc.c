@@ -2556,20 +2556,6 @@ struct vm_struct *find_vm_area(const void *addr)
 	return va->vm;
 }
 
-static struct vm_struct *__remove_vm_area(struct vmap_area *va)
-{
-	struct vm_struct *vm;
-
-	if (!va || !va->vm)
-		return NULL;
-
-	vm = va->vm;
-	kasan_free_module_shadow(vm);
-	free_unmap_vmap_area(va);
-
-	return vm;
-}
-
 /**
  * remove_vm_area - find and remove a continuous kernel virtual area
  * @addr:	    base address
@@ -2582,10 +2568,18 @@ static struct vm_struct *__remove_vm_area(struct vmap_area *va)
  */
 struct vm_struct *remove_vm_area(const void *addr)
 {
+	struct vmap_area *va;
+	struct vm_struct *vm;
+
 	might_sleep();
 
-	return __remove_vm_area(
-		find_unlink_vmap_area((unsigned long) addr));
+	va = find_unlink_vmap_area((unsigned long)addr);
+	if (!va || !va->vm)
+		return NULL;
+	vm = va->vm;
+	kasan_free_module_shadow(vm);
+	free_unmap_vmap_area(va);
+	return vm;
 }
 
 static inline void set_area_direct_map(const struct vm_struct *area,
@@ -2651,7 +2645,6 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
 static void __vunmap(const void *addr, int deallocate_pages)
 {
 	struct vm_struct *area;
-	struct vmap_area *va;
 
 	if (!addr)
 		return;
@@ -2660,20 +2653,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
 			addr))
 		return;
 
-	va = find_unlink_vmap_area((unsigned long)addr);
-	if (unlikely(!va)) {
+	area = remove_vm_area(addr);
+	if (unlikely(!area)) {
 		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
 				addr);
 		return;
 	}
 
-	area = va->vm;
 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 
 	kasan_poison_vmalloc(area->addr, get_vm_area_size(area));
 
-	__remove_vm_area(va);
 	vm_remove_mappings(area, deallocate_pages);
 
 	if (deallocate_pages) {
