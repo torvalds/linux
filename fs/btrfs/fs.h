@@ -3,6 +3,7 @@
 #ifndef BTRFS_FS_H
 #define BTRFS_FS_H
 
+#include <linux/blkdev.h>
 #include <linux/fs.h>
 #include <linux/btrfs_tree.h>
 #include <linux/sizes.h>
@@ -748,8 +749,10 @@ struct btrfs_fs_info {
 	 */
 	u64 zone_size;
 
-	/* Max size to emit ZONE_APPEND write command */
+	/* Constraints for ZONE_APPEND commands: */
+	struct queue_limits limits;
 	u64 max_zone_append_size;
+
 	struct mutex zoned_meta_io_lock;
 	spinlock_t treelog_bg_lock;
 	u64 treelog_bg;
