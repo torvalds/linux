@@ -2697,14 +2697,12 @@ out:
 
 void btrfs_submit_data_write_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
-	btrfs_submit_bio(inode->root->fs_info, bio, mirror_num);
+	btrfs_submit_bio(bio, mirror_num);
 }
 
 void btrfs_submit_data_read_bio(struct btrfs_inode *inode, struct bio *bio,
 			int mirror_num, enum btrfs_compression_type compress_type)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-
 	if (compress_type != BTRFS_COMPRESS_NONE) {
 		/*
 		 * btrfs_submit_compressed_read will handle completing the bio
@@ -2714,7 +2712,7 @@ void btrfs_submit_data_read_bio(struct btrfs_inode *inode, struct bio *bio,
 		return;
 	}
 
-	btrfs_submit_bio(fs_info, bio, mirror_num);
+	btrfs_submit_bio(bio, mirror_num);
 }
 
 /*
@@ -7795,7 +7793,7 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 	dip->bytes = bio->bi_iter.bi_size;
 
 	dio_data->submitted += bio->bi_iter.bi_size;
-	btrfs_submit_bio(btrfs_sb(iter->inode->i_sb), bio, 0);
+	btrfs_submit_bio(bio, 0);
 }
 
 static const struct iomap_ops btrfs_dio_iomap_ops = {
@@ -9960,7 +9958,6 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 					  u64 file_offset, u64 disk_bytenr,
 					  u64 disk_io_size, struct page **pages)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_encoded_read_private priv = {
 		.inode = inode,
 		.file_offset = file_offset,
@@ -9990,7 +9987,7 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 			if (!bytes ||
 			    bio_add_page(bio, pages[i], bytes, 0) < bytes) {
 				atomic_inc(&priv.pending);
-				btrfs_submit_bio(fs_info, bio, 0);
+				btrfs_submit_bio(bio, 0);
 				bio = NULL;
 				continue;
 			}

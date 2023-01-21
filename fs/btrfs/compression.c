@@ -402,7 +402,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 
 		if (submit) {
 			ASSERT(bio->bi_iter.bi_size);
-			btrfs_submit_bio(fs_info, bio, 0);
+			btrfs_submit_bio(bio, 0);
 			bio = NULL;
 		}
 		cond_resched();
@@ -698,7 +698,7 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	btrfs_bio(comp_bio)->file_offset = file_offset;
 
 	ASSERT(comp_bio->bi_iter.bi_size);
-	btrfs_submit_bio(fs_info, comp_bio, mirror_num);
+	btrfs_submit_bio(comp_bio, mirror_num);
 	return;
 
 fail:

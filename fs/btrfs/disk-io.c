@@ -702,7 +702,7 @@ err:
 void btrfs_submit_metadata_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
 	bio->bi_opf |= REQ_META;
-	btrfs_submit_bio(inode->root->fs_info, bio, mirror_num);
+	btrfs_submit_bio(bio, mirror_num);
 }
 
 #ifdef CONFIG_MIGRATION
