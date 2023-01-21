@@ -192,7 +192,7 @@ static inline void arch_local_irq_enable(void)
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	return irq_soft_mask_set_return(IRQS_DISABLED);
+	return irq_soft_mask_or_return(IRQS_DISABLED);
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
