@@ -17,6 +17,14 @@
 #include "file-item.h"
 
 static struct bio_set btrfs_bioset;
+static struct bio_set btrfs_repair_bioset;
+static mempool_t btrfs_failed_bio_pool;
+
+struct btrfs_failed_bio {
+	struct btrfs_bio *bbio;
+	int num_copies;
+	atomic_t repair_count;
+};
 
 /*
  * Initialize a btrfs_bio structure.  This skips the embedded bio itself as it
@@ -67,6 +75,162 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
 	return bio;
 }
 
+static int next_repair_mirror(struct btrfs_failed_bio *fbio, int cur_mirror)
+{
+	if (cur_mirror == fbio->num_copies)
+		return cur_mirror + 1 - fbio->num_copies;
+	return cur_mirror + 1;
+}
+
+static int prev_repair_mirror(struct btrfs_failed_bio *fbio, int cur_mirror)
+{
+	if (cur_mirror == 1)
+		return fbio->num_copies;
+	return cur_mirror - 1;
+}
+
+static void btrfs_repair_done(struct btrfs_failed_bio *fbio)
+{
+	if (atomic_dec_and_test(&fbio->repair_count)) {
+		fbio->bbio->end_io(fbio->bbio);
+		mempool_free(fbio, &btrfs_failed_bio_pool);
+	}
+}
+
+static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
+				 struct btrfs_device *dev)
+{
+	struct btrfs_failed_bio *fbio = repair_bbio->private;
+	struct btrfs_inode *inode = repair_bbio->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct bio_vec *bv = bio_first_bvec_all(&repair_bbio->bio);
+	int mirror = repair_bbio->mirror_num;
+
+	if (repair_bbio->bio.bi_status ||
+	    !btrfs_data_csum_ok(repair_bbio, dev, 0, bv)) {
+		bio_reset(&repair_bbio->bio, NULL, REQ_OP_READ);
+		repair_bbio->bio.bi_iter = repair_bbio->iter;
+
+		mirror = next_repair_mirror(fbio, mirror);
+		if (mirror == fbio->bbio->mirror_num) {
+			btrfs_debug(fs_info, "no mirror left");
+			fbio->bbio->bio.bi_status = BLK_STS_IOERR;
+			goto done;
+		}
+
+		btrfs_submit_bio(fs_info, &repair_bbio->bio, mirror);
+		return;
+	}
+
+	do {
+		mirror = prev_repair_mirror(fbio, mirror);
+		btrfs_repair_io_failure(fs_info, btrfs_ino(inode),
+				  repair_bbio->file_offset, fs_info->sectorsize,
+				  repair_bbio->iter.bi_sector << SECTOR_SHIFT,
+				  bv->bv_page, bv->bv_offset, mirror);
+	} while (mirror != fbio->bbio->mirror_num);
+
+done:
+	btrfs_repair_done(fbio);
+	bio_put(&repair_bbio->bio);
+}
+
+/*
+ * Try to kick off a repair read to the next available mirror for a bad sector.
+ *
+ * This primarily tries to recover good data to serve the actual read request,
+ * but also tries to write the good data back to the bad mirror(s) when a
+ * read succeeded to restore the redundancy.
+ */
+static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
+						  u32 bio_offset,
+						  struct bio_vec *bv,
+						  struct btrfs_failed_bio *fbio)
+{
+	struct btrfs_inode *inode = failed_bbio->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 sectorsize = fs_info->sectorsize;
+	const u64 logical = (failed_bbio->iter.bi_sector << SECTOR_SHIFT);
+	struct btrfs_bio *repair_bbio;
+	struct bio *repair_bio;
+	int num_copies;
+	int mirror;
+
+	btrfs_debug(fs_info, "repair read error: read error at %llu",
+		    failed_bbio->file_offset + bio_offset);
+
+	num_copies = btrfs_num_copies(fs_info, logical, sectorsize);
+	if (num_copies == 1) {
+		btrfs_debug(fs_info, "no copy to repair from");
+		failed_bbio->bio.bi_status = BLK_STS_IOERR;
+		return fbio;
+	}
+
+	if (!fbio) {
+		fbio = mempool_alloc(&btrfs_failed_bio_pool, GFP_NOFS);
+		fbio->bbio = failed_bbio;
+		fbio->num_copies = num_copies;
+		atomic_set(&fbio->repair_count, 1);
+	}
+
+	atomic_inc(&fbio->repair_count);
+
+	repair_bio = bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS,
+				      &btrfs_repair_bioset);
+	repair_bio->bi_iter.bi_sector = failed_bbio->iter.bi_sector;
+	bio_add_page(repair_bio, bv->bv_page, bv->bv_len, bv->bv_offset);
+
+	repair_bbio = btrfs_bio(repair_bio);
+	btrfs_bio_init(repair_bbio, failed_bbio->inode, NULL, fbio);
+	repair_bbio->file_offset = failed_bbio->file_offset + bio_offset;
+
+	mirror = next_repair_mirror(fbio, failed_bbio->mirror_num);
+	btrfs_debug(fs_info, "submitting repair read to mirror %d", mirror);
+	btrfs_submit_bio(fs_info, repair_bio, mirror);
+	return fbio;
+}
+
+static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *dev)
+{
+	struct btrfs_inode *inode = bbio->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	u32 sectorsize = fs_info->sectorsize;
+	struct bvec_iter *iter = &bbio->iter;
+	blk_status_t status = bbio->bio.bi_status;
+	struct btrfs_failed_bio *fbio = NULL;
+	u32 offset = 0;
+
+	/*
+	 * Hand off repair bios to the repair code as there is no upper level
+	 * submitter for them.
+	 */
+	if (bbio->bio.bi_pool == &btrfs_repair_bioset) {
+		btrfs_end_repair_bio(bbio, dev);
+		return;
+	}
+
+	/* Clear the I/O error. A failed repair will reset it. */
+	bbio->bio.bi_status = BLK_STS_OK;
+
+	while (iter->bi_size) {
+		struct bio_vec bv = bio_iter_iovec(&bbio->bio, *iter);
+
+		bv.bv_len = min(bv.bv_len, sectorsize);
+		if (status || !btrfs_data_csum_ok(bbio, dev, offset, &bv))
+			fbio = repair_one_sector(bbio, offset, &bv, fbio);
+
+		bio_advance_iter_single(&bbio->bio, iter, sectorsize);
+		offset += sectorsize;
+	}
+
+	btrfs_bio_free_csum(bbio);
+
+	if (fbio)
+		btrfs_repair_done(fbio);
+	else
+		bbio->end_io(bbio);
+}
+
 static void btrfs_log_dev_io_error(struct bio *bio, struct btrfs_device *dev)
 {
 	if (!dev || !dev->bdev)
@@ -94,7 +258,11 @@ static void btrfs_end_bio_work(struct work_struct *work)
 {
 	struct btrfs_bio *bbio = container_of(work, struct btrfs_bio, end_io_work);
 
-	bbio->end_io(bbio);
+	/* Metadata reads are checked and repaired by the submitter. */
+	if (bbio->bio.bi_opf & REQ_META)
+		bbio->end_io(bbio);
+	else
+		btrfs_check_read_bio(bbio, bbio->device);
 }
 
 static void btrfs_simple_end_io(struct bio *bio)
@@ -122,7 +290,10 @@ static void btrfs_raid56_end_io(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	bbio->mirror_num = bioc->mirror_num;
-	bbio->end_io(bbio);
+	if (bio_op(bio) == REQ_OP_READ && !(bbio->bio.bi_opf & REQ_META))
+		btrfs_check_read_bio(bbio, NULL);
+	else
+		bbio->end_io(bbio);
 
 	btrfs_put_bioc(bioc);
 }
@@ -402,10 +573,25 @@ int __init btrfs_bioset_init(void)
 			offsetof(struct btrfs_bio, bio),
 			BIOSET_NEED_BVECS))
 		return -ENOMEM;
+	if (bioset_init(&btrfs_repair_bioset, BIO_POOL_SIZE,
+			offsetof(struct btrfs_bio, bio),
+			BIOSET_NEED_BVECS))
+		goto out_free_bioset;
+	if (mempool_init_kmalloc_pool(&btrfs_failed_bio_pool, BIO_POOL_SIZE,
+				      sizeof(struct btrfs_failed_bio)))
+		goto out_free_repair_bioset;
 	return 0;
+
+out_free_repair_bioset:
+	bioset_exit(&btrfs_repair_bioset);
+out_free_bioset:
+	bioset_exit(&btrfs_bioset);
+	return -ENOMEM;
 }
 
 void __cold btrfs_bioset_exit(void)
 {
+	mempool_exit(&btrfs_failed_bio_pool);
+	bioset_exit(&btrfs_repair_bioset);
 	bioset_exit(&btrfs_bioset);
 }
