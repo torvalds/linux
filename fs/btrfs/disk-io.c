@@ -52,6 +52,7 @@
 #include "relocation.h"
 #include "scrub.h"
 #include "super.h"
+#include "file-item.h"
 
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\
@@ -455,6 +456,24 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 	return csum_one_extent_buffer(eb);
 }
 
+static blk_status_t btree_csum_one_bio(struct bio *bio)
+{
+	struct bio_vec *bvec;
+	struct btrfs_root *root;
+	struct bvec_iter_all iter_all;
+	int ret = 0;
+
+	ASSERT(!bio_flagged(bio, BIO_CLONED));
+	bio_for_each_segment_all(bvec, bio, iter_all) {
+		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
+		ret = csum_dirty_buffer(root->fs_info, bvec);
+		if (ret)
+			break;
+	}
+
+	return errno_to_blk_status(ret);
+}
+
 static int check_tree_block_fsid(struct extent_buffer *eb)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
@@ -708,14 +727,14 @@ static void run_one_async_start(struct btrfs_work *work)
 	async = container_of(work, struct  async_submit_bio, work);
 	switch (async->submit_cmd) {
 	case WQ_SUBMIT_METADATA:
-		ret = btree_submit_bio_start(async->bio);
+		ret = btree_csum_one_bio(async->bio);
 		break;
 	case WQ_SUBMIT_DATA:
-		ret = btrfs_submit_bio_start(async->inode, async->bio);
+		ret = btrfs_csum_one_bio(async->inode, async->bio, (u64)-1, false);
 		break;
 	case WQ_SUBMIT_DATA_DIO:
-		ret = btrfs_submit_bio_start_direct_io(async->inode,
-				async->bio, async->dio_file_offset);
+		ret = btrfs_csum_one_bio(async->inode, async->bio,
+					 async->dio_file_offset, false);
 		break;
 	default:
 		/* Can't happen so return something that would prevent the IO. */
@@ -798,33 +817,6 @@ bool btrfs_wq_submit_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_
 	else
 		btrfs_queue_work(fs_info->workers, &async->work);
 	return true;
-}
-
-static blk_status_t btree_csum_one_bio(struct bio *bio)
-{
-	struct bio_vec *bvec;
-	struct btrfs_root *root;
-	int ret = 0;
-	struct bvec_iter_all iter_all;
-
-	ASSERT(!bio_flagged(bio, BIO_CLONED));
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
-		ret = csum_dirty_buffer(root->fs_info, bvec);
-		if (ret)
-			break;
-	}
-
-	return errno_to_blk_status(ret);
-}
-
-blk_status_t btree_submit_bio_start(struct bio *bio)
-{
-	/*
-	 * when we're called for a write, we're already in the async
-	 * submission context.  Just jump into btrfs_submit_bio.
-	 */
-	return btree_csum_one_bio(bio);
 }
 
 static bool should_async_write(struct btrfs_fs_info *fs_info,

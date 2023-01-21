@@ -2533,19 +2533,6 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 }
 
 /*
- * in order to insert checksums into the metadata in large chunks,
- * we wait until bio submission time.   All the pages in the bio are
- * checksummed and sums are attached onto the ordered extent record.
- *
- * At IO completion time the cums attached on the ordered extent record
- * are inserted into the btree
- */
-blk_status_t btrfs_submit_bio_start(struct btrfs_inode *inode, struct bio *bio)
-{
-	return btrfs_csum_one_bio(inode, bio, (u64)-1, false);
-}
-
-/*
  * Split an extent_map at [start, start + len]
  *
  * This function is intended to be used only for extract_ordered_extent().
@@ -7833,13 +7820,6 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	}
 
 	bio_endio(&dip->bio);
-}
-
-blk_status_t btrfs_submit_bio_start_direct_io(struct btrfs_inode *inode,
-					      struct bio *bio,
-					      u64 dio_file_offset)
-{
-	return btrfs_csum_one_bio(inode, bio, dio_file_offset, false);
 }
 
 static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
