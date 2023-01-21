@@ -706,7 +706,7 @@ config INGENIC_OST
 
 config MICROCHIP_PIT64B
 	bool "Microchip PIT64B support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select TIMER_OF
 	help
 	  This option enables Microchip PIT64B timer for Atmel
