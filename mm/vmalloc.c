@@ -89,17 +89,6 @@ struct vfree_deferred {
 };
 static DEFINE_PER_CPU(struct vfree_deferred, vfree_deferred);
 
-static void __vunmap(const void *, int);
-
-static void free_work(struct work_struct *w)
-{
-	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-	struct llist_node *t, *llnode;
-
-	llist_for_each_safe(llnode, t, llist_del_all(&p->list))
-		__vunmap((void *)llnode, 1);
-}
-
 /*** Page table manipulation functions ***/
 static int vmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 			phys_addr_t phys_addr, pgprot_t prot,
@@ -2434,48 +2423,6 @@ static void vmap_init_free_space(void)
 	}
 }
 
-void __init vmalloc_init(void)
-{
-	struct vmap_area *va;
-	struct vm_struct *tmp;
-	int i;
-
-	/*
-	 * Create the cache for vmap_area objects.
-	 */
-	vmap_area_cachep = KMEM_CACHE(vmap_area, SLAB_PANIC);
-
-	for_each_possible_cpu(i) {
-		struct vmap_block_queue *vbq;
-		struct vfree_deferred *p;
-
-		vbq = &per_cpu(vmap_block_queue, i);
-		spin_lock_init(&vbq->lock);
-		INIT_LIST_HEAD(&vbq->free);
-		p = &per_cpu(vfree_deferred, i);
-		init_llist_head(&p->list);
-		INIT_WORK(&p->wq, free_work);
-	}
-
-	/* Import existing vmlist entries. */
-	for (tmp = vmlist; tmp; tmp = tmp->next) {
-		va = kmem_cache_zalloc(vmap_area_cachep, GFP_NOWAIT);
-		if (WARN_ON_ONCE(!va))
-			continue;
-
-		va->va_start = (unsigned long)tmp->addr;
-		va->va_end = va->va_start + tmp->size;
-		va->vm = tmp;
-		insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
-	}
-
-	/*
-	 * Now we can initialize a free vmap space.
-	 */
-	vmap_init_free_space();
-	vmap_initialized = true;
-}
-
 static inline void setup_vmalloc_vm_locked(struct vm_struct *vm,
 	struct vmap_area *va, unsigned long flags, const void *caller)
 {
@@ -2752,6 +2699,15 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	}
 
 	kfree(area);
+}
+
+static void delayed_vfree_work(struct work_struct *w)
+{
+	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
+	struct llist_node *t, *llnode;
+
+	llist_for_each_safe(llnode, t, llist_del_all(&p->list))
+		__vunmap((void *)llnode, 1);
 }
 
 /**
@@ -4209,3 +4165,45 @@ static int __init proc_vmalloc_init(void)
 module_init(proc_vmalloc_init);
 
 #endif
+
+void __init vmalloc_init(void)
+{
+	struct vmap_area *va;
+	struct vm_struct *tmp;
+	int i;
+
+	/*
+	 * Create the cache for vmap_area objects.
+	 */
+	vmap_area_cachep = KMEM_CACHE(vmap_area, SLAB_PANIC);
+
+	for_each_possible_cpu(i) {
+		struct vmap_block_queue *vbq;
+		struct vfree_deferred *p;
+
+		vbq = &per_cpu(vmap_block_queue, i);
+		spin_lock_init(&vbq->lock);
+		INIT_LIST_HEAD(&vbq->free);
+		p = &per_cpu(vfree_deferred, i);
+		init_llist_head(&p->list);
+		INIT_WORK(&p->wq, delayed_vfree_work);
+	}
+
+	/* Import existing vmlist entries. */
+	for (tmp = vmlist; tmp; tmp = tmp->next) {
+		va = kmem_cache_zalloc(vmap_area_cachep, GFP_NOWAIT);
+		if (WARN_ON_ONCE(!va))
+			continue;
+
+		va->va_start = (unsigned long)tmp->addr;
+		va->va_end = va->va_start + tmp->size;
+		va->vm = tmp;
+		insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
+	}
+
+	/*
+	 * Now we can initialize a free vmap space.
+	 */
+	vmap_init_free_space();
+	vmap_initialized = true;
+}
