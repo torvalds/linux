@@ -834,3 +834,69 @@ int dynptr_var_off_overwrite(struct __sk_buff *ctx)
 	);
 	return 0;
 }
+
+SEC("?tc")
+__failure __msg("cannot overwrite referenced dynptr") __log_level(2)
+int dynptr_partial_slot_invalidate(struct __sk_buff *ctx)
+{
+	asm volatile (
+		"r6 = %[ringbuf] ll;			\
+		 r7 = %[array_map4] ll;			\
+		 r1 = r7;				\
+		 r2 = r10;				\
+		 r2 += -8;				\
+		 r9 = 0;				\
+		 *(u64 *)(r2 + 0) = r9;			\
+		 r3 = r2;				\
+		 r4 = 0;				\
+		 r8 = r2;				\
+		 call %[bpf_map_update_elem];		\
+		 r1 = r7;				\
+		 r2 = r8;				\
+		 call %[bpf_map_lookup_elem];		\
+		 if r0 != 0 goto sjmp1;			\
+		 exit;					\
+	sjmp1:						\
+		 r7 = r0;				\
+		 r1 = r6;				\
+		 r2 = 8;				\
+		 r3 = 0;				\
+		 r4 = r10;				\
+		 r4 += -24;				\
+		 call %[bpf_ringbuf_reserve_dynptr];	\
+		 *(u64 *)(r10 - 16) = r9;		\
+		 r1 = r7;				\
+		 r2 = 8;				\
+		 r3 = 0;				\
+		 r4 = r10;				\
+		 r4 += -16;				\
+		 call %[bpf_dynptr_from_mem];		\
+		 r1 = r10;				\
+		 r1 += -512;				\
+		 r2 = 488;				\
+		 r3 = r10;				\
+		 r3 += -24;				\
+		 r4 = 0;				\
+		 r5 = 0;				\
+		 call %[bpf_dynptr_read];		\
+		 r8 = 1;				\
+		 if r0 != 0 goto sjmp2;			\
+		 r8 = 0;				\
+	sjmp2:						\
+		 r1 = r10;				\
+		 r1 += -24;				\
+		 r2 = 0;				\
+		 call %[bpf_ringbuf_discard_dynptr];	"
+		:
+		: __imm(bpf_map_update_elem),
+		  __imm(bpf_map_lookup_elem),
+		  __imm(bpf_ringbuf_reserve_dynptr),
+		  __imm(bpf_ringbuf_discard_dynptr),
+		  __imm(bpf_dynptr_from_mem),
+		  __imm(bpf_dynptr_read),
+		  __imm_addr(ringbuf),
+		  __imm_addr(array_map4)
+		: __clobber_all
+	);
+	return 0;
+}
