@@ -55,6 +55,7 @@ struct btrfs_bio {
 
 	/* For internal use in read end I/O handling */
 	unsigned int mirror_num;
+	atomic_t pending_ios;
 	struct work_struct end_io_work;
 
 	/*
