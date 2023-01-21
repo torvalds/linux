@@ -438,6 +438,9 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 			goto fail;
 	}
 
+	/* Do not leak our private flag into the block layer. */
+	bio->bi_opf &= ~REQ_BTRFS_ONE_ORDERED;
+
 	if (!bioc) {
 		/* Single mirror read/write fast path */
 		bbio->mirror_num = mirror_num;

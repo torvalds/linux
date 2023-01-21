@@ -730,11 +730,8 @@ static void run_one_async_start(struct btrfs_work *work)
 		ret = btree_csum_one_bio(async->bio);
 		break;
 	case WQ_SUBMIT_DATA:
-		ret = btrfs_csum_one_bio(async->inode, async->bio, (u64)-1, false);
-		break;
 	case WQ_SUBMIT_DATA_DIO:
-		ret = btrfs_csum_one_bio(async->inode, async->bio,
-					 async->dio_file_offset, false);
+		ret = btrfs_csum_one_bio(btrfs_bio(async->bio));
 		break;
 	default:
 		/* Can't happen so return something that would prevent the IO. */
