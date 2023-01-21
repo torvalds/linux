@@ -125,7 +125,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 {
 	struct bio *bio;
 	struct bio_vec *bv;
-	struct btrfs_inode *inode;
+	struct inode *inode;
 	int mirror_num;
 
 	if (!bio_ctrl->bio)
@@ -133,7 +133,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	bio = bio_ctrl->bio;
 	bv = bio_first_bvec_all(bio);
-	inode = BTRFS_I(bv->bv_page->mapping->host);
+	inode = bv->bv_page->mapping->host;
 	mirror_num = bio_ctrl->mirror_num;
 
 	/* Caller should ensure the bio has at least some range added */
@@ -141,7 +141,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	btrfs_bio(bio)->file_offset = page_offset(bv->bv_page) + bv->bv_offset;
 
-	if (!is_data_inode(&inode->vfs_inode)) {
+	if (!is_data_inode(inode)) {
 		if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
 			/*
 			 * For metadata read, we should have the parent_check,
@@ -152,13 +152,14 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 			       bio_ctrl->parent_check,
 			       sizeof(struct btrfs_tree_parent_check));
 		}
-		btrfs_submit_metadata_bio(inode, bio, mirror_num);
-	} else if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-		btrfs_submit_data_write_bio(inode, bio, mirror_num);
-	} else {
-		btrfs_submit_data_read_bio(inode, bio, mirror_num,
-					   bio_ctrl->compress_type);
+		bio->bi_opf |= REQ_META;
 	}
+
+	if (btrfs_op(bio) == BTRFS_MAP_READ &&
+	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
+		btrfs_submit_compressed_read(inode, bio, mirror_num);
+	else
+		btrfs_submit_bio(bio, mirror_num);
 
 	/* The bio is owned by the end_io handler now */
 	bio_ctrl->bio = NULL;

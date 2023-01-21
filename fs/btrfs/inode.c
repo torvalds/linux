@@ -2695,26 +2695,6 @@ out:
 	return errno_to_blk_status(ret);
 }
 
-void btrfs_submit_data_write_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
-{
-	btrfs_submit_bio(bio, mirror_num);
-}
-
-void btrfs_submit_data_read_bio(struct btrfs_inode *inode, struct bio *bio,
-			int mirror_num, enum btrfs_compression_type compress_type)
-{
-	if (compress_type != BTRFS_COMPRESS_NONE) {
-		/*
-		 * btrfs_submit_compressed_read will handle completing the bio
-		 * if there were any errors, so just return here.
-		 */
-		btrfs_submit_compressed_read(&inode->vfs_inode, bio, mirror_num);
-		return;
-	}
-
-	btrfs_submit_bio(bio, mirror_num);
-}
-
 /*
  * given a list of ordered sums record them in the inode.  This happens
  * at IO completion time based on sums calculated at bio submission time.
