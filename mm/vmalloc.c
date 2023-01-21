@@ -2599,17 +2599,14 @@ static inline void set_area_direct_map(const struct vm_struct *area,
 			set_direct_map(area->pages[i]);
 }
 
-/* Handle removing and resetting vm mappings related to the VA's vm_struct. */
-static void va_remove_mappings(struct vmap_area *va, int deallocate_pages)
+/* Handle removing and resetting vm mappings related to the vm_struct. */
+static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
 {
-	struct vm_struct *area = va->vm;
 	unsigned long start = ULONG_MAX, end = 0;
 	unsigned int page_order = vm_area_page_order(area);
 	int flush_reset = area->flags & VM_FLUSH_RESET_PERMS;
 	int flush_dmap = 0;
 	int i;
-
-	__remove_vm_area(va);
 
 	/* If this is not VM_FLUSH_RESET_PERMS memory, no need for the below. */
 	if (!flush_reset)
@@ -2676,7 +2673,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
 
 	kasan_poison_vmalloc(area->addr, get_vm_area_size(area));
 
-	va_remove_mappings(va, deallocate_pages);
+	__remove_vm_area(va);
+	vm_remove_mappings(area, deallocate_pages);
 
 	if (deallocate_pages) {
 		int i;
