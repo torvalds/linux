@@ -789,10 +789,6 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			submit = true;
 
 		if (submit) {
-			/* Save the original iter for read repair */
-			if (bio_op(comp_bio) == REQ_OP_READ)
-				btrfs_bio(comp_bio)->iter = comp_bio->bi_iter;
-
 			/*
 			 * Save the initial offset of this chunk, as there
 			 * is no direct correlation between compressed pages and

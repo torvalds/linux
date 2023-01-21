@@ -63,7 +63,6 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
 	btrfs_bio_init(bbio, inode, end_io, private);
 
 	bio_trim(bio, offset >> 9, size >> 9);
-	bbio->iter = bio->bi_iter;
 	return bio;
 }
 
@@ -253,6 +252,10 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 			   logical, length, map_length);
 		BUG();
 	}
+
+	/* Save the iter for the end_io handler for data reads. */
+	if (bio_op(bio) == REQ_OP_READ && !(bio->bi_opf & REQ_META))
+		bbio->iter = bio->bi_iter;
 
 	if (!bioc) {
 		/* Single mirror read/write fast path */

@@ -756,7 +756,6 @@ int btrfs_repair_one_sector(struct btrfs_inode *inode, struct btrfs_bio *failed_
 	}
 
 	bio_add_page(repair_bio, page, failrec->len, pgoff);
-	repair_bbio->iter = repair_bio->bi_iter;
 
 	btrfs_debug(fs_info,
 		    "repair read error: submitting new read to mirror %d",
