@@ -88,16 +88,54 @@ properties:
         items:
           - enum:
               - armadeus,imx28-apf28      # APF28 SoM
+              - bluegiga,apx4devkit       # Bluegiga APx4 SoM on dev board
+              - crystalfontz,cfa10036     # Crystalfontz CFA-10036 SoM
+              - eukrea,mbmx28lc
               - fsl,imx28-evk
               - i2se,duckbill
               - i2se,duckbill-2
+              - karo,tx28                 # Ka-Ro electronics TX28 module
+              - lwn,imx28-xea
+              - msr,m28cu3                # M28 SoM with custom base board
+              - schulercontrol,imx28-sps1
               - technologic,imx28-ts4600
+          - const: fsl,imx28
+
+      - description: i.MX28 Aries M28 SoM Board
+        items:
+          - const: aries,m28
+          - const: denx,m28
+          - const: fsl,imx28
+
+      - description: i.MX28 Aries M28EVK Board
+        items:
+          - const: aries,m28evk
+          - const: denx,m28evk
           - const: fsl,imx28
 
       - description: i.MX28 Armadeus Systems APF28Dev Board
         items:
           - const: armadeus,imx28-apf28dev
           - const: armadeus,imx28-apf28
+          - const: fsl,imx28
+
+      - description: i.MX28 Crystalfontz CFA-10036 based Boards
+        items:
+          - enum:
+              - crystalfontz,cfa10037
+              - crystalfontz,cfa10049
+              - crystalfontz,cfa10057
+              - crystalfontz,cfa10058
+          - const: crystalfontz,cfa10036
+          - const: fsl,imx28
+
+      - description: i.MX28 Crystalfontz CFA-10037 based Boards
+        items:
+          - enum:
+              - crystalfontz,cfa10055
+              - crystalfontz,cfa10056
+          - const: crystalfontz,cfa10037
+          - const: crystalfontz,cfa10036
           - const: fsl,imx28
 
       - description: i.MX28 Duckbill 2 based Boards
@@ -107,6 +145,19 @@ properties:
               - i2se,duckbill-2-enocean
               - i2se,duckbill-2-spi
           - const: i2se,duckbill-2
+          - const: fsl,imx28
+
+      - description: i.MX28 Eukrea Electromatique MBMX283LC Board
+        items:
+          - const: eukrea,mbmx283lc
+          - const: eukrea,mbmx28lc
+          - const: fsl,imx28
+
+      - description: i.MX28 Eukrea Electromatique MBMX287LC Board
+        items:
+          - const: eukrea,mbmx287lc
+          - const: eukrea,mbmx283lc
+          - const: eukrea,mbmx28lc
           - const: fsl,imx28
 
       - description: i.MX31 based Boards
