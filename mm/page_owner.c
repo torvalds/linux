@@ -163,6 +163,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 {
 	struct page_owner *page_owner;
 	int i;
+	u64 ts_nsec = local_clock();
 
 	for (i = 0; i < (1 << order); i++) {
 		page_owner = get_page_owner(page_ext);
@@ -172,7 +173,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 		page_owner->last_migrate_reason = -1;
 		page_owner->pid = current->pid;
 		page_owner->tgid = current->tgid;
-		page_owner->ts_nsec = local_clock();
+		page_owner->ts_nsec = ts_nsec;
 		strscpy(page_owner->comm, current->comm,
 			sizeof(page_owner->comm));
 		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
