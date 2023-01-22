@@ -499,7 +499,7 @@ EXPORT_SYMBOL_GPL(crypto_engine_stop);
  *                This has the form:
  *                callback(struct crypto_engine *engine)
  *                where:
- *                @engine: the crypto engine structure.
+ *                engine: the crypto engine structure.
  * @rt: whether this queue is set to run as a realtime task
  * @qlen: maximum size of the crypto-engine queue
  *
