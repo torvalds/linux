@@ -672,3 +672,31 @@ static void mmhub_v1_8_query_ras_error_count(struct amdgpu_device *adev,
 	for_each_inst(i, inst_mask)
 		mmhub_v1_8_inst_query_ras_error_count(adev, i, ras_err_status);
 }
+
+static void mmhub_v1_8_inst_reset_ras_error_count(struct amdgpu_device *adev,
+						  uint32_t mmhub_inst)
+{
+	amdgpu_ras_inst_reset_ras_error_count(adev,
+					mmhub_v1_8_ce_reg_list,
+					ARRAY_SIZE(mmhub_v1_8_ce_reg_list),
+					mmhub_inst);
+	amdgpu_ras_inst_reset_ras_error_count(adev,
+					mmhub_v1_8_ue_reg_list,
+					ARRAY_SIZE(mmhub_v1_8_ue_reg_list),
+					mmhub_inst);
+}
+
+static void mmhub_v1_8_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t inst_mask;
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
+		dev_warn(adev->dev, "MMHUB RAS is not supported\n");
+		return;
+	}
+
+	inst_mask = adev->aid_mask;
+	for_each_inst(i, inst_mask)
+		mmhub_v1_8_inst_reset_ras_error_count(adev, i);
+}
