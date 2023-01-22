@@ -700,3 +700,59 @@ static void mmhub_v1_8_reset_ras_error_count(struct amdgpu_device *adev)
 	for_each_inst(i, inst_mask)
 		mmhub_v1_8_inst_reset_ras_error_count(adev, i);
 }
+
+static const uint32_t mmhub_v1_8_mmea_err_status_reg[] = {
+	regMMEA0_ERR_STATUS,
+	regMMEA1_ERR_STATUS,
+	regMMEA2_ERR_STATUS,
+	regMMEA3_ERR_STATUS,
+	regMMEA4_ERR_STATUS,
+};
+
+static void mmhub_v1_8_inst_query_ras_err_status(struct amdgpu_device *adev,
+						 uint32_t mmhub_inst)
+{
+	uint32_t reg_value;
+	uint32_t mmea_err_status_addr_dist;
+	uint32_t i;
+
+	/* query mmea ras err status */
+	mmea_err_status_addr_dist = regMMEA1_ERR_STATUS - regMMEA0_ERR_STATUS;
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_8_mmea_err_status_reg); i++) {
+		reg_value = RREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+						regMMEA0_ERR_STATUS,
+						i * mmea_err_status_addr_dist);
+		if (REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_RDRSP_STATUS) ||
+		    REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_WRRSP_STATUS) ||
+		    REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_RDRSP_DATAPARITY_ERROR)) {
+			dev_warn(adev->dev,
+				 "Detected MMEA%d err in MMHUB%d, status: 0x%x\n",
+				 i, mmhub_inst, reg_value);
+		}
+	}
+
+	/* query mm_cane ras err status */
+	reg_value = RREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ERR_STATUS);
+	if (REG_GET_FIELD(reg_value, MM_CANE_ERR_STATUS, SDPM_RDRSP_STATUS) ||
+	    REG_GET_FIELD(reg_value, MM_CANE_ERR_STATUS, SDPM_WRRSP_STATUS) ||
+	    REG_GET_FIELD(reg_value, MM_CANE_ERR_STATUS, SDPM_RDRSP_DATAPARITY_ERROR)) {
+		dev_warn(adev->dev,
+			 "Detected MM CANE err in MMHUB%d, status: 0x%x\n",
+			 mmhub_inst, reg_value);
+	}
+}
+
+static void mmhub_v1_8_query_ras_error_status(struct amdgpu_device *adev)
+{
+	uint32_t inst_mask;
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
+		dev_warn(adev->dev, "MMHUB RAS is not supported\n");
+		return;
+	}
+
+	inst_mask = adev->aid_mask;
+	for_each_inst(i, inst_mask)
+		mmhub_v1_8_inst_query_ras_err_status(adev, i);
+}
