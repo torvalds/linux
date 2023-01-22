@@ -7297,7 +7297,7 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 }
 
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
-					bool razwi, u64 *event_mask)
+					bool check_razwi, u64 *event_mask)
 {
 	bool is_read = false, is_write = false;
 	u16 engine_id[2], num_of_razwi_eng = 0;
@@ -7316,7 +7316,7 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
-	if (razwi) {
+	if (check_razwi) {
 		gaudi_print_and_get_razwi_info(hdev, &engine_id[0], &engine_id[1], &is_read,
 						&is_write);
 		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, event_mask);
@@ -7333,8 +7333,9 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 				num_of_razwi_eng = 1;
 		}
 
-		hl_handle_razwi(hdev, razwi_addr, engine_id, num_of_razwi_eng, razwi_flags,
-				event_mask);
+		if (razwi_flags)
+			hl_handle_razwi(hdev, razwi_addr, engine_id, num_of_razwi_eng,
+					razwi_flags, event_mask);
 	}
 }
 
