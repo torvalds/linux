@@ -18,8 +18,7 @@ $ref: /schemas/display/msm/mdss-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,sdm845-mdss
+    const: qcom,sdm845-mdss
 
   clocks:
     items:
@@ -47,6 +46,12 @@ patternProperties:
       compatible:
         const: qcom,sdm845-dpu
 
+  "^displayport-controller@[0-9a-f]+$":
+    type: object
+    properties:
+      compatible:
+        const: qcom,sdm845-dp
+
   "^dsi@[0-9a-f]+$":
     type: object
     properties:
@@ -58,6 +63,9 @@ patternProperties:
     properties:
       compatible:
         const: qcom,dsi-phy-10nm
+
+required:
+  - compatible
 
 unevaluatedProperties: false
 

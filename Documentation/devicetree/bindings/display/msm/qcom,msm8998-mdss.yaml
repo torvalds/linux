@@ -18,8 +18,7 @@ $ref: /schemas/display/msm/mdss-common.yaml#
 
 properties:
   compatible:
-    items:
-      - const: qcom,msm8998-mdss
+    const: qcom,msm8998-mdss
 
   clocks:
     items:
@@ -54,6 +53,9 @@ patternProperties:
     properties:
       compatible:
         const: qcom,dsi-phy-10nm-8998
+
+required:
+  - compatible
 
 unevaluatedProperties: false
 
