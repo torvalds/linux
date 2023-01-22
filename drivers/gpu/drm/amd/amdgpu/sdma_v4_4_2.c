@@ -2135,3 +2135,26 @@ static void sdma_v4_4_2_query_ras_error_count(struct amdgpu_device *adev,
 		dev_warn(adev->dev, "SDMA RAS is not supported\n");
 	}
 }
+
+static void sdma_v4_4_2_inst_reset_ras_error_count(struct amdgpu_device *adev,
+						   uint32_t sdma_inst)
+{
+	amdgpu_ras_inst_reset_ras_error_count(adev,
+					sdma_v4_2_2_ue_reg_list,
+					ARRAY_SIZE(sdma_v4_2_2_ue_reg_list),
+					sdma_inst);
+}
+
+static void sdma_v4_4_2_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t inst_mask;
+	int i = 0;
+
+	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for_each_inst(i, inst_mask)
+			sdma_v4_4_2_inst_reset_ras_error_count(adev, i);
+	} else {
+		dev_warn(adev->dev, "SDMA RAS is not supported\n");
+	}
+}
