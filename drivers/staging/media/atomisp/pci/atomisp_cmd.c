@@ -4992,7 +4992,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct v4l2_subdev_format vformat = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
-	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
 	struct v4l2_rect isp_sink_crop;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
 	struct v4l2_subdev_fh fh;
@@ -5031,17 +5030,17 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	/* Ensure that the resolution is equal or below the maximum supported */
 
 	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	v4l2_fill_mbus_format(ffmt, &f->fmt.pix, format_bridge->mbus_code);
-	ffmt->height += padding_h;
-	ffmt->width += padding_w;
+	v4l2_fill_mbus_format(&vformat.format, &f->fmt.pix, format_bridge->mbus_code);
+	vformat.format.height += padding_h;
+	vformat.format.width += padding_w;
 
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
 			       set_fmt, NULL, &vformat);
 	if (ret)
 		return ret;
 
-	f->fmt.pix.width = ffmt->width - padding_w;
-	f->fmt.pix.height = ffmt->height - padding_h;
+	f->fmt.pix.width = vformat.format.width - padding_w;
+	f->fmt.pix.height = vformat.format.height - padding_h;
 
 	snr_fmt = f->fmt.pix;
 	backup_fmt = snr_fmt;
