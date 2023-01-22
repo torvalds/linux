@@ -102,6 +102,9 @@ static const struct drm_bridge_funcs dp_bridge_ops = {
 	.get_modes    = dp_bridge_get_modes,
 	.detect       = dp_bridge_detect,
 	.atomic_check = dp_bridge_atomic_check,
+	.hpd_enable   = dp_bridge_hpd_enable,
+	.hpd_disable  = dp_bridge_hpd_disable,
+	.hpd_notify   = dp_bridge_hpd_notify,
 };
 
 struct drm_bridge *dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,

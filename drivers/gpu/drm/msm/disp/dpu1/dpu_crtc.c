@@ -748,7 +748,7 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 	int i;
 
 
-	if (!state->color_mgmt_changed)
+	if (!state->color_mgmt_changed && !drm_atomic_crtc_needs_modeset(state))
 		return;
 
 	for (i = 0; i < cstate->num_mixers; i++) {
@@ -1517,16 +1517,12 @@ DEFINE_SHOW_ATTRIBUTE(dpu_crtc_debugfs_state);
 static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	struct dentry *debugfs_root;
-
-	debugfs_root = debugfs_create_dir(dpu_crtc->name,
-			crtc->dev->primary->debugfs_root);
 
 	debugfs_create_file("status", 0400,
-			debugfs_root,
+			crtc->debugfs_entry,
 			dpu_crtc, &_dpu_debugfs_status_fops);
 	debugfs_create_file("state", 0600,
-			debugfs_root,
+			crtc->debugfs_entry,
 			&dpu_crtc->base,
 			&dpu_crtc_debugfs_state_fops);
 
