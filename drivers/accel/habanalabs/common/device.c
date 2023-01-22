@@ -617,7 +617,7 @@ static void device_release_func(struct device *dev)
  * device_init_cdev - Initialize cdev and device for habanalabs device
  *
  * @hdev: pointer to habanalabs device structure
- * @hclass: pointer to the class object of the device
+ * @class: pointer to the class object of the device
  * @minor: minor number of the specific device
  * @fpos: file operations to install for this device
  * @name: name of the device as it will appear in the filesystem
@@ -626,7 +626,7 @@ static void device_release_func(struct device *dev)
  *
  * Initialize a cdev and a Linux device for habanalabs's device.
  */
-static int device_init_cdev(struct hl_device *hdev, struct class *hclass,
+static int device_init_cdev(struct hl_device *hdev, struct class *class,
 				int minor, const struct file_operations *fops,
 				char *name, struct cdev *cdev,
 				struct device **dev)
@@ -640,7 +640,7 @@ static int device_init_cdev(struct hl_device *hdev, struct class *hclass,
 
 	device_initialize(*dev);
 	(*dev)->devt = MKDEV(hdev->major, minor);
-	(*dev)->class = hclass;
+	(*dev)->class = class;
 	(*dev)->release = device_release_func;
 	dev_set_drvdata(*dev, hdev);
 	dev_set_name(*dev, "%s", name);
@@ -1939,7 +1939,7 @@ void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask)
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
-static int create_cdev(struct hl_device *hdev, struct class *hclass)
+static int create_cdev(struct hl_device *hdev)
 {
 	char *name;
 	int rc;
@@ -1953,7 +1953,7 @@ static int create_cdev(struct hl_device *hdev, struct class *hclass)
 	}
 
 	/* Initialize cdev and device structures */
-	rc = device_init_cdev(hdev, hclass, hdev->id, &hl_ops, name,
+	rc = device_init_cdev(hdev, hdev->hclass, hdev->id, &hl_ops, name,
 				&hdev->cdev, &hdev->dev);
 
 	kfree(name);
@@ -1968,7 +1968,7 @@ static int create_cdev(struct hl_device *hdev, struct class *hclass)
 	}
 
 	/* Initialize cdev and device structures for control device */
-	rc = device_init_cdev(hdev, hclass, hdev->id_control, &hl_ctrl_ops,
+	rc = device_init_cdev(hdev, hdev->hclass, hdev->id_control, &hl_ctrl_ops,
 				name, &hdev->cdev_ctrl, &hdev->dev_ctrl);
 
 	kfree(name);
@@ -1993,12 +1993,12 @@ out_err:
  * ASIC specific initialization functions. Finally, create the cdev and the
  * Linux device to expose it to the user
  */
-int hl_device_init(struct hl_device *hdev, struct class *hclass)
+int hl_device_init(struct hl_device *hdev)
 {
 	int i, rc, cq_cnt, user_interrupt_cnt, cq_ready_cnt;
 	bool add_cdev_sysfs_on_err = false;
 
-	rc = create_cdev(hdev, hclass);
+	rc = create_cdev(hdev);
 	if (rc)
 		goto out_disabled;
 
