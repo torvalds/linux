@@ -54,6 +54,7 @@ static void sdma_v4_4_2_set_ring_funcs(struct amdgpu_device *adev);
 static void sdma_v4_4_2_set_buffer_funcs(struct amdgpu_device *adev);
 static void sdma_v4_4_2_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void sdma_v4_4_2_set_irq_funcs(struct amdgpu_device *adev);
+static void sdma_v4_4_2_set_ras_funcs(struct amdgpu_device *adev);
 
 static u32 sdma_v4_4_2_get_reg_offset(struct amdgpu_device *adev,
 		u32 instance, u32 offset)
@@ -1254,6 +1255,7 @@ static int sdma_v4_4_2_early_init(void *handle)
 	sdma_v4_4_2_set_buffer_funcs(adev);
 	sdma_v4_4_2_set_vm_pte_funcs(adev);
 	sdma_v4_4_2_set_irq_funcs(adev);
+	sdma_v4_4_2_set_ras_funcs(adev);
 
 	return 0;
 }
@@ -1375,6 +1377,11 @@ static int sdma_v4_4_2_sw_init(void *handle)
 			if (r)
 				return r;
 		}
+	}
+
+	if (amdgpu_sdma_ras_sw_init(adev)) {
+		dev_err(adev->dev, "fail to initialize sdma ras block\n");
+		return -EINVAL;
 	}
 
 	return r;
@@ -1558,7 +1565,7 @@ static int sdma_v4_4_2_process_ras_data_cb(struct amdgpu_device *adev,
 	 * be disabled and the driver should only look for the aggregated
 	 * interrupt via sync flood
 	 */
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA))
 		goto out;
 
 	instance = sdma_v4_4_2_irq_id_to_seq(entry->client_id);
@@ -1597,15 +1604,22 @@ static int sdma_v4_4_2_set_ecc_irq_state(struct amdgpu_device *adev,
 					unsigned type,
 					enum amdgpu_interrupt_state state)
 {
-	u32 sdma_edc_config;
+	u32 sdma_cntl;
 
-	sdma_edc_config = RREG32_SDMA(type, regCC_SDMA_EDC_CONFIG);
-	/*
-	 * FIXME: This was inherited from Aldebaran, but no this field
-	 * definition in the regspec of both Aldebaran and SDMA 4.4.2
-	 */
-	sdma_edc_config |= (state == AMDGPU_IRQ_STATE_ENABLE) ? (1 << 2) : 0;
-	WREG32_SDMA(type, regCC_SDMA_EDC_CONFIG, sdma_edc_config);
+	sdma_cntl = RREG32_SDMA(type, regSDMA_CNTL);
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		sdma_cntl = REG_SET_FIELD(sdma_cntl, SDMA_CNTL,
+					  DRAM_ECC_INT_ENABLE, 0);
+		WREG32_SDMA(type, regSDMA_CNTL, sdma_cntl);
+		break;
+	/* sdma ecc interrupt is enabled by default
+	 * driver doesn't need to do anything to
+	 * enable the interrupt */
+	case AMDGPU_IRQ_STATE_ENABLE:
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -2157,4 +2171,20 @@ static void sdma_v4_4_2_reset_ras_error_count(struct amdgpu_device *adev)
 	} else {
 		dev_warn(adev->dev, "SDMA RAS is not supported\n");
 	}
+}
+
+static const struct amdgpu_ras_block_hw_ops sdma_v4_4_2_ras_hw_ops = {
+	.query_ras_error_count = sdma_v4_4_2_query_ras_error_count,
+	.reset_ras_error_count = sdma_v4_4_2_reset_ras_error_count,
+};
+
+static struct amdgpu_sdma_ras sdma_v4_4_2_ras = {
+	.ras_block = {
+		.hw_ops = &sdma_v4_4_2_ras_hw_ops,
+	},
+};
+
+static void sdma_v4_4_2_set_ras_funcs(struct amdgpu_device *adev)
+{
+	adev->sdma.ras = &sdma_v4_4_2_ras;
 }
