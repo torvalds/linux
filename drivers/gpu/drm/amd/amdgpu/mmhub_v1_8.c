@@ -756,3 +756,94 @@ static void mmhub_v1_8_query_ras_error_status(struct amdgpu_device *adev)
 	for_each_inst(i, inst_mask)
 		mmhub_v1_8_inst_query_ras_err_status(adev, i);
 }
+
+static const uint32_t mmhub_v1_8_mmea_cgtt_clk_cntl_reg[] = {
+	regMMEA0_CGTT_CLK_CTRL,
+	regMMEA1_CGTT_CLK_CTRL,
+	regMMEA2_CGTT_CLK_CTRL,
+	regMMEA3_CGTT_CLK_CTRL,
+	regMMEA4_CGTT_CLK_CTRL,
+};
+
+static void mmhub_v1_8_inst_reset_ras_err_status(struct amdgpu_device *adev,
+						 uint32_t mmhub_inst)
+{
+	uint32_t mmea_cgtt_clk_cntl_addr_dist;
+	uint32_t mmea_err_status_addr_dist;
+	uint32_t reg_value;
+	uint32_t i;
+
+	/* reset mmea ras err status */
+	mmea_cgtt_clk_cntl_addr_dist = regMMEA1_CGTT_CLK_CTRL - regMMEA0_CGTT_CLK_CTRL;
+	mmea_err_status_addr_dist = regMMEA1_ERR_STATUS - regMMEA0_ERR_STATUS;
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_8_mmea_err_status_reg); i ++) {
+		/* force clk branch on for response path
+		 * set MMEA0_CGTT_CLK_CTRL.SOFT_OVERRIDE_RETURN = 1 */
+		reg_value = RREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+						regMMEA0_CGTT_CLK_CTRL,
+						i * mmea_cgtt_clk_cntl_addr_dist);
+		reg_value = REG_SET_FIELD(reg_value, MMEA0_CGTT_CLK_CTRL,
+					  SOFT_OVERRIDE_RETURN, 1);
+		WREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+				    regMMEA0_CGTT_CLK_CTRL,
+				    i * mmea_cgtt_clk_cntl_addr_dist,
+				    reg_value);
+
+		/* set MMEA0_ERR_STATUS.CLEAR_ERROR_STATUS = 1 */
+		reg_value = RREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+						regMMEA0_ERR_STATUS,
+						i * mmea_err_status_addr_dist);
+		reg_value = REG_SET_FIELD(reg_value, MMEA0_ERR_STATUS,
+					  CLEAR_ERROR_STATUS, 1);
+		WREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+				    regMMEA0_ERR_STATUS,
+				    i * mmea_err_status_addr_dist,
+				    reg_value);
+
+		/* set MMEA0_CGTT_CLK_CTRL.SOFT_OVERRIDE_RETURN = 0 */
+		reg_value = RREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+						regMMEA0_CGTT_CLK_CTRL,
+						i * mmea_cgtt_clk_cntl_addr_dist);
+		reg_value = REG_SET_FIELD(reg_value, MMEA0_CGTT_CLK_CTRL,
+					  SOFT_OVERRIDE_RETURN, 0);
+		WREG32_SOC15_OFFSET(MMHUB, mmhub_inst,
+				    regMMEA0_CGTT_CLK_CTRL,
+				    i * mmea_cgtt_clk_cntl_addr_dist,
+				    reg_value);
+	}
+
+	/* reset mm_cane ras err status
+	 * force clk branch on for response path
+	 * set MM_CANE_ICG_CTRL.SOFT_OVERRIDE_ATRET = 1 */
+	reg_value = RREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ICG_CTRL);
+	reg_value = REG_SET_FIELD(reg_value, MM_CANE_ICG_CTRL,
+				  SOFT_OVERRIDE_ATRET, 1);
+	WREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ICG_CTRL, reg_value);
+
+	/* set MM_CANE_ERR_STATUS.CLEAR_ERROR_STATUS = 1 */
+	reg_value = RREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ERR_STATUS);
+	reg_value = REG_SET_FIELD(reg_value, MM_CANE_ERR_STATUS,
+				  CLEAR_ERROR_STATUS, 1);
+	WREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ERR_STATUS, reg_value);
+
+	/* set MM_CANE_ICG_CTRL.SOFT_OVERRIDE_ATRET = 0 */
+	reg_value = RREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ICG_CTRL);
+	reg_value = REG_SET_FIELD(reg_value, MM_CANE_ICG_CTRL,
+				  SOFT_OVERRIDE_ATRET, 0);
+	WREG32_SOC15(MMHUB, mmhub_inst, regMM_CANE_ICG_CTRL, reg_value);
+}
+
+static void mmhub_v1_8_reset_ras_error_status(struct amdgpu_device *adev)
+{
+	uint32_t inst_mask;
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
+		dev_warn(adev->dev, "MMHUB RAS is not supported\n");
+		return;
+	}
+
+	inst_mask = adev->aid_mask;
+	for_each_inst(i, inst_mask)
+		mmhub_v1_8_inst_reset_ras_err_status(adev, i);
+}
