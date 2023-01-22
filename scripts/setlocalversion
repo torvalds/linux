@@ -121,8 +121,7 @@ elif [ "${LOCALVERSION+set}" != "set" ]; then
 	#
 	# If the variable LOCALVERSION is set (including being set
 	# to an empty string), we don't want to append a plus sign.
-	scm=$(scm_version --short)
-	res="$res${scm:++}"
+	res="$res$(scm_version --short)"
 fi
 
 echo "$res"
