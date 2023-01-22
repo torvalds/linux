@@ -3419,7 +3419,7 @@ static void ahash_done(void *cbk_ctx, u32 status)
 			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
 			     ctx->ctx_len, 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static void ahash_done_bi(void *cbk_ctx, u32 status)
@@ -3457,7 +3457,7 @@ static void ahash_done_bi(void *cbk_ctx, u32 status)
 				     DUMP_PREFIX_ADDRESS, 16, 4, req->result,
 				     crypto_ahash_digestsize(ahash), 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static void ahash_done_ctx_src(void *cbk_ctx, u32 status)
@@ -3484,7 +3484,7 @@ static void ahash_done_ctx_src(void *cbk_ctx, u32 status)
 			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
 			     ctx->ctx_len, 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static void ahash_done_ctx_dst(void *cbk_ctx, u32 status)
@@ -3522,7 +3522,7 @@ static void ahash_done_ctx_dst(void *cbk_ctx, u32 status)
 				     DUMP_PREFIX_ADDRESS, 16, 4, req->result,
 				     crypto_ahash_digestsize(ahash), 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static int ahash_update_ctx(struct ahash_request *req)

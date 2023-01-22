@@ -614,7 +614,7 @@ static inline void ahash_done_cpy(struct device *jrdev, u32 *desc, u32 err,
 	 * by CAAM, not crypto engine.
 	 */
 	if (!has_bklog)
-		req->base.complete(&req->base, ecode);
+		ahash_request_complete(req, ecode);
 	else
 		crypto_finalize_hash_request(jrp->engine, req, ecode);
 }
@@ -676,7 +676,7 @@ static inline void ahash_done_switch(struct device *jrdev, u32 *desc, u32 err,
 	 * by CAAM, not crypto engine.
 	 */
 	if (!has_bklog)
-		req->base.complete(&req->base, ecode);
+		ahash_request_complete(req, ecode);
 	else
 		crypto_finalize_hash_request(jrp->engine, req, ecode);
 
