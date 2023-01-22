@@ -65,6 +65,7 @@ acumulative||accumulative
 acumulator||accumulator
 acutally||actually
 adapater||adapter
+adderted||asserted
 addional||additional
 additionaly||additionally
 additonal||additional
@@ -122,6 +123,7 @@ alue||value
 ambigious||ambiguous
 ambigous||ambiguous
 amoung||among
+amount of times||number of times
 amout||amount
 amplifer||amplifier
 amplifyer||amplifier
@@ -287,6 +289,7 @@ capapbilities||capabilities
 caputure||capture
 carefuly||carefully
 cariage||carriage
+casued||caused
 catagory||category
 cehck||check
 challange||challenge
@@ -370,6 +373,7 @@ conbination||combination
 conditionaly||conditionally
 conditon||condition
 condtion||condition
+condtional||conditional
 conected||connected
 conector||connector
 configration||configuration
@@ -423,6 +427,7 @@ cound||could
 couter||counter
 coutner||counter
 cryptocraphic||cryptographic
+cummulative||cumulative
 cunter||counter
 curently||currently
 cylic||cyclic
@@ -627,6 +632,7 @@ existant||existent
 exixt||exist
 exlcude||exclude
 exlcusive||exclusive
+exlusive||exclusive
 exmaple||example
 expecially||especially
 experies||expires
@@ -840,6 +846,7 @@ integrety||integrity
 integrey||integrity
 intendet||intended
 intented||intended
+interal||internal
 interanl||internal
 interchangable||interchangeable
 interferring||interfering
@@ -1025,6 +1032,7 @@ negotation||negotiation
 nerver||never
 nescessary||necessary
 nessessary||necessary
+none existent||non-existent
 noticable||noticeable
 notication||notification
 notications||notifications
@@ -1046,6 +1054,7 @@ occured||occurred
 occurence||occurrence
 occure||occurred
 occuring||occurring
+ocurrence||occurrence
 offser||offset
 offet||offset
 offlaod||offload
@@ -1057,6 +1066,7 @@ omitt||omit
 ommiting||omitting
 ommitted||omitted
 onself||oneself
+onthe||on the
 ony||only
 openning||opening
 operatione||operation
@@ -1337,6 +1347,7 @@ sacrifying||sacrificing
 safly||safely
 safty||safety
 satify||satisfy
+satisifed||satisfied
 savable||saveable
 scaleing||scaling
 scaned||scanned
@@ -1618,6 +1629,7 @@ unuseful||useless
 unvalid||invalid
 upate||update
 upsupported||unsupported
+upto||up to
 useable||usable
 usefule||useful
 usefull||useful
