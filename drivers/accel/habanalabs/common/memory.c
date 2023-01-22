@@ -1835,6 +1835,10 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 
 	atomic_dec(&ctx->hdev->dmabuf_export_cnt);
 	hl_ctx_put(ctx);
+
+	/* Paired with get_file() in export_dmabuf() */
+	fput(ctx->hpriv->filp);
+
 	kfree(hl_dmabuf);
 }
 
@@ -1874,6 +1878,12 @@ static int export_dmabuf(struct hl_ctx *ctx,
 	hl_dmabuf->ctx = ctx;
 	hl_ctx_get(hl_dmabuf->ctx);
 	atomic_inc(&ctx->hdev->dmabuf_export_cnt);
+
+	/* Get compute device file to enforce release order, such that all exported dma-buf will be
+	 * released first and only then the compute device.
+	 * Paired with fput() in hl_release_dmabuf().
+	 */
+	get_file(ctx->hpriv->filp);
 
 	*dmabuf_fd = fd;
 
