@@ -31,3 +31,5 @@ rm -f scripts/kconfig/[gmnq]conf-cfg
 rm -f rust/target.json
 
 rm -f scripts/bin2c
+
+rm -f .scmversion
