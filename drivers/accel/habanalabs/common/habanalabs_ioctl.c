@@ -107,6 +107,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.server_type = prop->server_type;
 	hw_ip.security_enabled = prop->fw_security_enabled;
 	hw_ip.revision_id = hdev->pdev->revision;
+	hw_ip.engine_core_interrupt_reg_addr = prop->engine_core_interrupt_reg_addr;
 
 	return copy_to_user(out, &hw_ip,
 		min((size_t) size, sizeof(hw_ip))) ? -EFAULT : 0;

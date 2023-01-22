@@ -592,6 +592,8 @@ struct hl_hints_range {
  * @host_base_address: host physical start address for host DMA from device
  * @host_end_address: host physical end address for host DMA from device
  * @max_freq_value: current max clk frequency.
+ * @engine_core_interrupt_reg_addr: interrupt register address for engine core to use
+ *                                  in order to raise events toward FW.
  * @clk_pll_index: clock PLL index that specify which PLL determines the clock
  *                 we display to the user
  * @mmu_pgt_size: MMU page tables total size.
@@ -739,6 +741,7 @@ struct asic_fixed_properties {
 	u64				host_base_address;
 	u64				host_end_address;
 	u64				max_freq_value;
+	u64				engine_core_interrupt_reg_addr;
 	u32				clk_pll_index;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;

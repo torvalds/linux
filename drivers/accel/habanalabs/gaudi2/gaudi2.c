@@ -2933,6 +2933,7 @@ static bool gaudi2_is_arc_tpc_owned(u64 arc_id)
 
 static void gaudi2_init_arcs(struct hl_device *hdev)
 {
+	struct cpu_dyn_regs *dyn_regs = &hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	u64 arc_id;
 	u32 i;
@@ -2962,6 +2963,10 @@ static void gaudi2_init_arcs(struct hl_device *hdev)
 
 		gaudi2_set_arc_id_cap(hdev, arc_id);
 	}
+
+	/* Fetch ARC scratchpad address */
+	hdev->asic_prop.engine_core_interrupt_reg_addr =
+		CFG_BASE + le32_to_cpu(dyn_regs->eng_arc_irq_ctrl);
 }
 
 static int gaudi2_scrub_arc_dccm(struct hl_device *hdev, u32 cpu_id)
