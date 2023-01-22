@@ -98,9 +98,13 @@ properties:
             # LED alters the brightness for the specified duration with one software
             # timer (requires "led-pattern" property)
           - pattern
-        # LED is triggered by SD/MMC activity
-      - pattern: "^mmc[0-9]+$"
       - pattern: "^cpu[0-9]*$"
+      - pattern: "^hci[0-9]+-power$"
+        # LED is triggered by Bluetooth activity
+      - pattern: "^mmc[0-9]+$"
+        # LED is triggered by SD/MMC activity
+      - pattern: "^phy[0-9]+tx$"
+        # LED is triggered by WLAN activity
 
   led-pattern:
     description: |
