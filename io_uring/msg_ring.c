@@ -99,6 +99,11 @@ static void io_msg_tw_complete(struct callback_head *head)
 	if (current->flags & PF_EXITING) {
 		ret = -EOWNERDEAD;
 	} else {
+		u32 flags = 0;
+
+		if (msg->flags & IORING_MSG_RING_FLAGS_PASS)
+			flags = msg->cqe_flags;
+
 		/*
 		 * If the target ring is using IOPOLL mode, then we need to be
 		 * holding the uring_lock for posting completions. Other ring
@@ -107,7 +112,7 @@ static void io_msg_tw_complete(struct callback_head *head)
 		 */
 		if (target_ctx->flags & IORING_SETUP_IOPOLL)
 			mutex_lock(&target_ctx->uring_lock);
-		if (!io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
+		if (!io_post_aux_cqe(target_ctx, msg->user_data, msg->len, flags))
 			ret = -EOVERFLOW;
 		if (target_ctx->flags & IORING_SETUP_IOPOLL)
 			mutex_unlock(&target_ctx->uring_lock);
