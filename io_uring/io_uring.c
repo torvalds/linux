@@ -5761,10 +5761,12 @@ static int io_arm_poll_handler(struct io_kiocb *req)
 		mask |= POLLOUT | POLLWRNORM;
 	}
 
-	if (req->flags & REQ_F_POLLED)
+	if (req->flags & REQ_F_POLLED) {
 		apoll = req->apoll;
-	else
+		kfree(apoll->double_poll);
+	} else {
 		apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
+	}
 	if (unlikely(!apoll))
 		return IO_APOLL_ABORTED;
 	apoll->double_poll = NULL;
