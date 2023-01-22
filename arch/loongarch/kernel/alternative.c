@@ -74,7 +74,7 @@ static void __init_or_module recompute_jump(union loongarch_instruction *buf,
 	switch (src->reg0i26_format.opcode) {
 	case b_op:
 	case bl_op:
-		jump_addr = cur_pc + sign_extend((si_h << 16 | si_l) << 2, 27);
+		jump_addr = cur_pc + sign_extend64((si_h << 16 | si_l) << 2, 27);
 		if (in_alt_jump(jump_addr, start, end))
 			return;
 		offset = jump_addr - pc;
@@ -93,7 +93,7 @@ static void __init_or_module recompute_jump(union loongarch_instruction *buf,
 		fallthrough;
 	case beqz_op:
 	case bnez_op:
-		jump_addr = cur_pc + sign_extend((si_h << 16 | si_l) << 2, 22);
+		jump_addr = cur_pc + sign_extend64((si_h << 16 | si_l) << 2, 22);
 		if (in_alt_jump(jump_addr, start, end))
 			return;
 		offset = jump_addr - pc;
@@ -112,7 +112,7 @@ static void __init_or_module recompute_jump(union loongarch_instruction *buf,
 	case bge_op:
 	case bltu_op:
 	case bgeu_op:
-		jump_addr = cur_pc + sign_extend(si << 2, 17);
+		jump_addr = cur_pc + sign_extend64(si << 2, 17);
 		if (in_alt_jump(jump_addr, start, end))
 			return;
 		offset = jump_addr - pc;

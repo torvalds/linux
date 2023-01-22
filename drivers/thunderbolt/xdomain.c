@@ -1419,12 +1419,19 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 	 * registered, we notify the userspace that it has changed.
 	 */
 	if (!update) {
-		struct tb_port *port;
+		/*
+		 * Now disable lane 1 if bonding was not enabled. Do
+		 * this only if bonding was possible at the beginning
+		 * (that is we are the connection manager and there are
+		 * two lanes).
+		 */
+		if (xd->bonding_possible) {
+			struct tb_port *port;
 
-		/* Now disable lane 1 if bonding was not enabled */
-		port = tb_port_at(xd->route, tb_xdomain_parent(xd));
-		if (!port->bonded)
-			tb_port_disable(port->dual_link_port);
+			port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+			if (!port->bonded)
+				tb_port_disable(port->dual_link_port);
+		}
 
 		if (device_add(&xd->dev)) {
 			dev_err(&xd->dev, "failed to add XDomain device\n");

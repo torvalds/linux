@@ -179,6 +179,7 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		bo->validated_shader = NULL;
 	}
 
+	mutex_destroy(&bo->madv_lock);
 	drm_gem_dma_free(&bo->base);
 }
 
@@ -394,7 +395,6 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo;
-	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
 		return ERR_PTR(-ENODEV);
@@ -406,9 +406,7 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	bo->madv = VC4_MADV_WILLNEED;
 	refcount_set(&bo->usecnt, 0);
 
-	ret = drmm_mutex_init(dev, &bo->madv_lock);
-	if (ret)
-		return ERR_PTR(ret);
+	mutex_init(&bo->madv_lock);
 
 	mutex_lock(&vc4->bo_lock);
 	bo->label = VC4_BO_TYPE_KERNEL;

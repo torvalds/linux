@@ -637,7 +637,7 @@ mlx5e_htb_update_children(struct mlx5e_htb *htb, struct mlx5e_qos_node *node,
 		if (child->bw_share == old_bw_share)
 			continue;
 
-		err_one = mlx5_qos_update_node(htb->mdev, child->hw_id, child->bw_share,
+		err_one = mlx5_qos_update_node(htb->mdev, child->bw_share,
 					       child->max_average_bw, child->hw_id);
 		if (!err && err_one) {
 			err = err_one;
@@ -671,7 +671,7 @@ mlx5e_htb_node_modify(struct mlx5e_htb *htb, u16 classid, u64 rate, u64 ceil,
 	mlx5e_htb_convert_rate(htb, rate, node->parent, &bw_share);
 	mlx5e_htb_convert_ceil(htb, ceil, &max_average_bw);
 
-	err = mlx5_qos_update_node(htb->mdev, node->parent->hw_id, bw_share,
+	err = mlx5_qos_update_node(htb->mdev, bw_share,
 				   max_average_bw, node->hw_id);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Firmware error when modifying a node.");

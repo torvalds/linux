@@ -1043,11 +1043,6 @@ static int lan966x_probe(struct platform_device *pdev)
 		lan966x->base_mac[5] &= 0xf0;
 	}
 
-	ports = device_get_named_child_node(&pdev->dev, "ethernet-ports");
-	if (!ports)
-		return dev_err_probe(&pdev->dev, -ENODEV,
-				     "no ethernet-ports child found\n");
-
 	err = lan966x_create_targets(pdev, lan966x);
 	if (err)
 		return dev_err_probe(&pdev->dev, err,
@@ -1125,6 +1120,11 @@ static int lan966x_probe(struct platform_device *pdev)
 		}
 	}
 
+	ports = device_get_named_child_node(&pdev->dev, "ethernet-ports");
+	if (!ports)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "no ethernet-ports child found\n");
+
 	/* init switch */
 	lan966x_init(lan966x);
 	lan966x_stats_init(lan966x);
@@ -1162,6 +1162,8 @@ static int lan966x_probe(struct platform_device *pdev)
 			goto cleanup_ports;
 	}
 
+	fwnode_handle_put(ports);
+
 	lan966x_mdb_init(lan966x);
 	err = lan966x_fdb_init(lan966x);
 	if (err)
@@ -1191,6 +1193,7 @@ cleanup_fdb:
 	lan966x_fdb_deinit(lan966x);
 
 cleanup_ports:
+	fwnode_handle_put(ports);
 	fwnode_handle_put(portnp);
 
 	lan966x_cleanup_ports(lan966x);

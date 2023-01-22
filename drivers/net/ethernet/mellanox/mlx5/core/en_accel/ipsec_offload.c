@@ -320,7 +320,6 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 	if (ret)
 		goto unlock;
 
-	aso->use_cache = true;
 	if (attrs->esn_trigger &&
 	    !MLX5_GET(ipsec_aso, aso->ctx, esn_event_arm)) {
 		u32 mode_param = MLX5_GET(ipsec_aso, aso->ctx, mode_parameter);
@@ -333,7 +332,6 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm) ||
 		    !MLX5_GET(ipsec_aso, aso->ctx, remove_flow_enable))
 			xfrm_state_check_expire(sa_entry->x);
-	aso->use_cache = false;
 
 unlock:
 	spin_unlock(&sa_entry->x->lock);
@@ -398,6 +396,7 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 		goto err_aso_create;
 	}
 
+	spin_lock_init(&aso->lock);
 	ipsec->nb.notifier_call = mlx5e_ipsec_event;
 	mlx5_notifier_register(mdev, &ipsec->nb);
 
@@ -456,13 +455,12 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct mlx5e_hw_objs *res;
 	struct mlx5_aso_wqe *wqe;
 	u8 ds_cnt;
+	int ret;
 
 	lockdep_assert_held(&sa_entry->x->lock);
-	if (aso->use_cache)
-		return 0;
-
 	res = &mdev->mlx5e_res.hw_objs;
 
+	spin_lock_bh(&aso->lock);
 	memset(aso->ctx, 0, sizeof(aso->ctx));
 	wqe = mlx5_aso_get_wqe(aso->aso);
 	ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
@@ -477,7 +475,9 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	mlx5e_ipsec_aso_copy(ctrl, data);
 
 	mlx5_aso_post_wqe(aso->aso, false, &wqe->ctrl);
-	return mlx5_aso_poll_cq(aso->aso, false);
+	ret = mlx5_aso_poll_cq(aso->aso, false);
+	spin_unlock_bh(&aso->lock);
+	return ret;
 }
 
 void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
