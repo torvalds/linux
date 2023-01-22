@@ -161,6 +161,14 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	 * tickled during suspend/resume.  This has caused power and
 	 * performance issues on multiple devices.
 	 */
+
+	/*
+	 * Turn off the device before disabling ACPI power resources
+	 * (the sensor driver has already probed it at this point).
+	 * This avoids leaking the reference count of the (possibly shared)
+	 * ACPI power resources which were enabled/referenced before probe().
+	 */
+	acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
 	adev->power.flags.power_resources = 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
