@@ -714,85 +714,8 @@ static void isp_subdev_init_params(struct atomisp_sub_device *asd)
 	}
 }
 
-/*
-* isp_subdev_link_setup - Setup isp subdev connections
-* @entity: ispsubdev media entity
-* @local: Pad at the local end of the link
-* @remote: Pad at the remote end of the link
-* @flags: Link flags
-*
-* return -EINVAL or zero on success
-*/
-static int isp_subdev_link_setup(struct media_entity *entity,
-				 const struct media_pad *local,
-				 const struct media_pad *remote, u32 flags)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
-	struct atomisp_device *isp = isp_sd->isp;
-	unsigned int i;
-
-	switch (local->index | is_media_entity_v4l2_subdev(remote->entity)) {
-	case ATOMISP_SUBDEV_PAD_SINK | MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN:
-		/* Read from the sensor CSI2-ports. */
-		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
-			isp_sd->input = ATOMISP_SUBDEV_INPUT_NONE;
-			break;
-		}
-
-		if (isp_sd->input != ATOMISP_SUBDEV_INPUT_NONE)
-			return -EBUSY;
-
-		for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
-			if (remote->entity != &isp->csi2_port[i].subdev.entity)
-				continue;
-
-			isp_sd->input = ATOMISP_SUBDEV_INPUT_CSI2_PORT1 + i;
-			return 0;
-		}
-
-		return -EINVAL;
-
-	case ATOMISP_SUBDEV_PAD_SINK | MEDIA_ENT_F_OLD_BASE:
-		/* read from memory */
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (isp_sd->input >= ATOMISP_SUBDEV_INPUT_CSI2_PORT1 &&
-			    isp_sd->input < (ATOMISP_SUBDEV_INPUT_CSI2_PORT1
-					     + ATOMISP_CAMERA_NR_PORTS))
-				return -EBUSY;
-			isp_sd->input = ATOMISP_SUBDEV_INPUT_MEMORY;
-		} else {
-			if (isp_sd->input == ATOMISP_SUBDEV_INPUT_MEMORY)
-				isp_sd->input = ATOMISP_SUBDEV_INPUT_NONE;
-		}
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_VF | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* media operations */
 static const struct media_entity_operations isp_subdev_media_ops = {
-	.link_setup = isp_subdev_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
 	/*	 .set_power = v4l2_subdev_set_power,	*/
 };
@@ -1070,8 +993,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	struct media_pad *pads = asd->pads;
 	struct media_entity *me = &sd->entity;
 	int ret;
-
-	asd->input = ATOMISP_SUBDEV_INPUT_NONE;
 
 	v4l2_subdev_init(sd, &isp_subdev_v4l2_ops);
 	sprintf(sd->name, "ATOMISP_SUBDEV_%d", asd->index);
