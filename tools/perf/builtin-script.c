@@ -1301,7 +1301,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 		goto out;
 
 	/*
-	 * Print final block upto sample
+	 * Print final block up to sample
 	 *
 	 * Due to pipeline delays the LBRs might be missing a branch
 	 * or two, which can result in very large or negative blocks
