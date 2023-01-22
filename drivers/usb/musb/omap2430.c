@@ -411,8 +411,10 @@ static int omap2430_probe(struct platform_device *pdev)
 		memset(musb_res, 0, sizeof(*musb_res) * ARRAY_SIZE(musb_res));
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
+		if (!res) {
+			ret = -EINVAL;
 			goto err2;
+		}
 
 		musb_res[i].start = res->start;
 		musb_res[i].end = res->end;

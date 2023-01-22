@@ -160,7 +160,6 @@ static void scmi_vio_channel_cleanup_sync(struct scmi_vio_channel *vioch)
 	}
 
 	vioch->shutdown_done = &vioch_shutdown_done;
-	virtio_break_device(vioch->vqueue->vdev);
 	if (!vioch->is_rx && vioch->deferred_tx_wq)
 		/* Cannot be kicked anymore after this...*/
 		vioch->deferred_tx_wq = NULL;
@@ -482,6 +481,12 @@ static int virtio_chan_free(int id, void *p, void *data)
 	struct scmi_chan_info *cinfo = p;
 	struct scmi_vio_channel *vioch = cinfo->transport_info;
 
+	/*
+	 * Break device to inhibit further traffic flowing while shutting down
+	 * the channels: doing it later holding vioch->lock creates unsafe
+	 * locking dependency chains as reported by LOCKDEP.
+	 */
+	virtio_break_device(vioch->vqueue->vdev);
 	scmi_vio_channel_cleanup_sync(vioch);
 
 	scmi_free_channel(cinfo, data, id);

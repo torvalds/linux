@@ -16,7 +16,6 @@ properties:
   compatible:
     enum:
       - qcom,usb-hs-28nm-femtophy
-      - qcom,usb-hs-28nm-mdm9607
 
   reg:
     maxItems: 1
