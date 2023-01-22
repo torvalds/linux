@@ -2243,7 +2243,9 @@ static int asus_wmi_fan_init(struct asus_wmi *asus)
 	asus->fan_type = FAN_TYPE_NONE;
 	asus->agfn_pwm = -1;
 
-	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_CPU_FAN_CTRL))
+	if (asus->driver->quirks->wmi_ignore_fan)
+		asus->fan_type = FAN_TYPE_NONE;
+	else if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_CPU_FAN_CTRL))
 		asus->fan_type = FAN_TYPE_SPEC83;
 	else if (asus_wmi_has_agfn_fan(asus))
 		asus->fan_type = FAN_TYPE_AGFN;
@@ -2435,6 +2437,9 @@ static int fan_curve_check_present(struct asus_wmi *asus, bool *available,
 	int err;
 
 	*available = false;
+
+	if (asus->fan_type == FAN_TYPE_NONE)
+		return 0;
 
 	err = fan_curve_get_factory_default(asus, fan_dev);
 	if (err) {

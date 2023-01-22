@@ -360,14 +360,13 @@ static int tpmfront_probe(struct xenbus_device *dev,
 	return tpm_chip_register(priv->chip);
 }
 
-static int tpmfront_remove(struct xenbus_device *dev)
+static void tpmfront_remove(struct xenbus_device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
 	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	tpm_chip_unregister(chip);
 	ring_free(priv);
 	dev_set_drvdata(&chip->dev, NULL);
-	return 0;
 }
 
 static int tpmfront_resume(struct xenbus_device *dev)
