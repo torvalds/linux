@@ -847,3 +847,16 @@ static void mmhub_v1_8_reset_ras_error_status(struct amdgpu_device *adev)
 	for_each_inst(i, inst_mask)
 		mmhub_v1_8_inst_reset_ras_err_status(adev, i);
 }
+
+static const struct amdgpu_ras_block_hw_ops mmhub_v1_8_ras_hw_ops = {
+	.query_ras_error_count = mmhub_v1_8_query_ras_error_count,
+	.reset_ras_error_count = mmhub_v1_8_reset_ras_error_count,
+	.query_ras_error_status = mmhub_v1_8_query_ras_error_status,
+	.reset_ras_error_status = mmhub_v1_8_reset_ras_error_status,
+};
+
+struct amdgpu_mmhub_ras mmhub_v1_8_ras = {
+	.ras_block = {
+		.hw_ops = &mmhub_v1_8_ras_hw_ops,
+	},
+};

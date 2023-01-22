@@ -1419,6 +1419,9 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 2):
 		adev->mmhub.ras = &mmhub_v1_7_ras;
 		break;
+	case IP_VERSION(1, 8, 0):
+		adev->mmhub.ras = &mmhub_v1_8_ras;
+		break;
 	default:
 		/* mmhub ras is not available */
 		break;
