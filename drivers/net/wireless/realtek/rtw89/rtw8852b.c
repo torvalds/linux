@@ -2430,6 +2430,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.chip_id		= RTL8852B,
 	.ops			= &rtw8852b_chip_ops,
 	.fw_name		= "rtw89/rtw8852b_fw.bin",
+	.try_ce_fw		= true,
 	.fifo_size		= 196608,
 	.dle_scc_rsvd_size	= 98304,
 	.max_amsdu_limit	= 3500,

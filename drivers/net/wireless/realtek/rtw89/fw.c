@@ -152,7 +152,7 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 
 static
 int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
-			struct rtw89_fw_suit *fw_suit)
+			struct rtw89_fw_suit *fw_suit, bool nowarn)
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const u8 *mfw = fw_info->firmware->data;
@@ -183,7 +183,8 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 		return 0;
 	}
 
-	rtw89_err(rtwdev, "no suitable firmware found\n");
+	if (!nowarn)
+		rtw89_err(rtwdev, "no suitable firmware found\n");
 	return -ENOENT;
 }
 
@@ -211,12 +212,13 @@ static void rtw89_fw_update_ver(struct rtw89_dev *rtwdev,
 }
 
 static
-int __rtw89_fw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
+int __rtw89_fw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
+			 bool nowarn)
 {
 	struct rtw89_fw_suit *fw_suit = rtw89_fw_suit_get(rtwdev, type);
 	int ret;
 
-	ret = rtw89_mfw_recognize(rtwdev, type, fw_suit);
+	ret = rtw89_mfw_recognize(rtwdev, type, fw_suit, nowarn);
 	if (ret)
 		return ret;
 
@@ -343,14 +345,22 @@ out:
 
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	int ret;
 
-	ret = __rtw89_fw_recognize(rtwdev, RTW89_FW_NORMAL);
+	if (chip->try_ce_fw) {
+		ret = __rtw89_fw_recognize(rtwdev, RTW89_FW_NORMAL_CE, true);
+		if (!ret)
+			goto normal_done;
+	}
+
+	ret = __rtw89_fw_recognize(rtwdev, RTW89_FW_NORMAL, false);
 	if (ret)
 		return ret;
 
+normal_done:
 	/* It still works if wowlan firmware isn't existing. */
-	__rtw89_fw_recognize(rtwdev, RTW89_FW_WOWLAN);
+	__rtw89_fw_recognize(rtwdev, RTW89_FW_WOWLAN, false);
 
 	rtw89_fw_recognize_features(rtwdev);
 

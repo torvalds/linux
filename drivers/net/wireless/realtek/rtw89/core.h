@@ -2848,6 +2848,7 @@ struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
 	const char *fw_name;
+	bool try_ce_fw;
 	u32 fifo_size;
 	u32 dle_scc_rsvd_size;
 	u16 max_amsdu_limit;
@@ -3014,6 +3015,7 @@ static inline void rtw89_init_wait(struct rtw89_wait_info *wait)
 enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
+	RTW89_FW_NORMAL_CE = 5,
 };
 
 enum rtw89_fw_feature {
