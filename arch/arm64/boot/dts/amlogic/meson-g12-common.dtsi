@@ -2321,7 +2321,7 @@
 			};
 		};
 
-		sd_emmc_a: sd@ffe03000 {
+		sd_emmc_a: mmc@ffe03000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xffe03000 0x0 0x800>;
 			interrupts = <GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;
@@ -2333,7 +2333,7 @@
 			resets = <&reset RESET_SD_EMMC_A>;
 		};
 
-		sd_emmc_b: sd@ffe05000 {
+		sd_emmc_b: mmc@ffe05000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xffe05000 0x0 0x800>;
 			interrupts = <GIC_SPI 190 IRQ_TYPE_EDGE_RISING>;
