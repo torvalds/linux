@@ -770,20 +770,6 @@ cdns_xfer_msg_defer(struct sdw_bus *bus,
 }
 EXPORT_SYMBOL(cdns_xfer_msg_defer);
 
-enum sdw_command_response
-cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num)
-{
-	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	struct sdw_msg msg;
-
-	/* Create dummy message with valid device number */
-	memset(&msg, 0, sizeof(msg));
-	msg.dev_num = dev_num;
-
-	return cdns_program_scp_addr(cdns, &msg);
-}
-EXPORT_SYMBOL(cdns_reset_page_addr);
-
 u32 cdns_read_ping_status(struct sdw_bus *bus)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
