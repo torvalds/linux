@@ -2024,6 +2024,31 @@ static int felix_port_del_dscp_prio(struct dsa_switch *ds, int port, u8 dscp,
 	return ocelot_port_del_dscp_prio(ocelot, port, dscp, prio);
 }
 
+static int felix_get_mm(struct dsa_switch *ds, int port,
+			struct ethtool_mm_state *state)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_port_get_mm(ocelot, port, state);
+}
+
+static int felix_set_mm(struct dsa_switch *ds, int port,
+			struct ethtool_mm_cfg *cfg,
+			struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_port_set_mm(ocelot, port, cfg, extack);
+}
+
+static void felix_get_mm_stats(struct dsa_switch *ds, int port,
+			       struct ethtool_mm_stats *stats)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	ocelot_port_get_mm_stats(ocelot, port, stats);
+}
+
 const struct dsa_switch_ops felix_switch_ops = {
 	.get_tag_protocol		= felix_get_tag_protocol,
 	.change_tag_protocol		= felix_change_tag_protocol,
@@ -2031,6 +2056,9 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.setup				= felix_setup,
 	.teardown			= felix_teardown,
 	.set_ageing_time		= felix_set_ageing_time,
+	.get_mm				= felix_get_mm,
+	.set_mm				= felix_set_mm,
+	.get_mm_stats			= felix_get_mm_stats,
 	.get_stats64			= felix_get_stats64,
 	.get_pause_stats		= felix_get_pause_stats,
 	.get_rmon_stats			= felix_get_rmon_stats,

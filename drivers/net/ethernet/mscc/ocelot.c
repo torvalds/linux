@@ -2738,10 +2738,8 @@ int ocelot_init(struct ocelot *ocelot)
 		return -ENOMEM;
 
 	ret = ocelot_stats_init(ocelot);
-	if (ret) {
-		destroy_workqueue(ocelot->owq);
-		return ret;
-	}
+	if (ret)
+		goto err_stats_init;
 
 	INIT_LIST_HEAD(&ocelot->multicast);
 	INIT_LIST_HEAD(&ocelot->pgids);
@@ -2755,6 +2753,12 @@ int ocelot_init(struct ocelot *ocelot)
 
 	if (ocelot->ops->psfp_init)
 		ocelot->ops->psfp_init(ocelot);
+
+	if (ocelot->mm_supported) {
+		ret = ocelot_mm_init(ocelot);
+		if (ret)
+			goto err_mm_init;
+	}
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Clear all counters (5 groups) */
@@ -2853,6 +2857,12 @@ int ocelot_init(struct ocelot *ocelot)
 				 ANA_CPUQ_8021_CFG, i);
 
 	return 0;
+
+err_mm_init:
+	ocelot_stats_deinit(ocelot);
+err_stats_init:
+	destroy_workqueue(ocelot->owq);
+	return ret;
 }
 EXPORT_SYMBOL(ocelot_init);
 
