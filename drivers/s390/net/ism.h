@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/ism.h>
 #include <net/smc.h>
 #include <asm/pci_insn.h>
 
