@@ -1346,8 +1346,10 @@ static void exynos_iommu_release_device(struct device *dev)
 		struct iommu_group *group = iommu_group_get(dev);
 
 		if (group) {
+#ifndef CONFIG_ARM
 			WARN_ON(owner->domain !=
 				iommu_group_default_domain(group));
+#endif
 			exynos_iommu_detach_device(owner->domain, dev);
 			iommu_group_put(group);
 		}
@@ -1398,6 +1400,9 @@ static int exynos_iommu_of_xlate(struct device *dev,
 static const struct iommu_ops exynos_iommu_ops = {
 	.domain_alloc = exynos_iommu_domain_alloc,
 	.device_group = generic_device_group,
+#ifdef CONFIG_ARM
+	.set_platform_dma_ops = exynos_iommu_release_device,
+#endif
 	.probe_device = exynos_iommu_probe_device,
 	.release_device = exynos_iommu_release_device,
 	.pgsize_bitmap = SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
