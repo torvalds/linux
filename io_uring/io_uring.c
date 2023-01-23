@@ -2368,7 +2368,7 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
  * used, it's important that those reads are done through READ_ONCE() to
  * prevent a re-load down the line.
  */
-static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
+static bool io_get_sqe(struct io_ring_ctx *ctx, const struct io_uring_sqe **sqe)
 {
 	unsigned head, mask = ctx->sq_entries - 1;
 	unsigned sq_idx = ctx->cached_sq_head++ & mask;
@@ -2386,14 +2386,15 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 		/* double index for 128-byte SQEs, twice as long */
 		if (ctx->flags & IORING_SETUP_SQE128)
 			head <<= 1;
-		return &ctx->sq_sqes[head];
+		*sqe = &ctx->sq_sqes[head];
+		return true;
 	}
 
 	/* drop invalid entries */
 	ctx->cq_extra--;
 	WRITE_ONCE(ctx->rings->sq_dropped,
 		   READ_ONCE(ctx->rings->sq_dropped) + 1);
-	return NULL;
+	return false;
 }
 
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
@@ -2417,8 +2418,7 @@ int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		if (unlikely(!io_alloc_req_refill(ctx)))
 			break;
 		req = io_alloc_req(ctx);
-		sqe = io_get_sqe(ctx);
-		if (unlikely(!sqe)) {
+		if (unlikely(!io_get_sqe(ctx, &sqe))) {
 			io_req_add_to_cache(req, ctx);
 			break;
 		}
