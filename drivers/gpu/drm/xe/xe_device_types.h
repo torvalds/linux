@@ -173,7 +173,7 @@ struct xe_device {
 		/** @lock: protect the ref count */
 		struct mutex lock;
 		/** @ref: ref count of memory accesses */
-		u32 ref;
+		s32 ref;
 		/** @hold_rpm: need to put rpm ref back at the end */
 		bool hold_rpm;
 	} mem_access;

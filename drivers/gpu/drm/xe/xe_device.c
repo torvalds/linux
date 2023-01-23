@@ -351,7 +351,7 @@ void xe_device_mem_access_get(struct xe_device *xe)
 	if (resumed)
 		xe_pm_runtime_put(xe);
 
-	XE_WARN_ON(xe->mem_access.ref == U32_MAX);
+	XE_WARN_ON(xe->mem_access.ref == S32_MAX);
 }
 
 void xe_device_mem_access_put(struct xe_device *xe)
