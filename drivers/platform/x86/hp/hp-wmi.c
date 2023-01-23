@@ -552,7 +552,7 @@ static int __init hp_wmi_enable_hotkeys(void)
 
 static int hp_wmi_set_block(void *data, bool blocked)
 {
-	enum hp_wmi_radio r = (enum hp_wmi_radio) data;
+	enum hp_wmi_radio r = (long)data;
 	int query = BIT(r + 8) | ((!blocked) << r);
 	int ret;
 
