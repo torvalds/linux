@@ -281,7 +281,7 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 
 	vfree(pxmitpriv->pallocated_xmit_extbuf);
 
-	rtw_free_hwxmits(padapter);
+	kfree(pxmitpriv->hwxmits);
 
 	mutex_destroy(&pxmitpriv->ack_tx_mutex);
 }
@@ -1473,15 +1473,6 @@ int rtw_alloc_hwxmits(struct adapter *padapter)
 	hwxmits[3].sta_list = &pxmitpriv->bk_pending;
 
 	return 0;
-}
-
-void rtw_free_hwxmits(struct adapter *padapter)
-{
-	struct hw_xmit *hwxmits;
-	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-
-	hwxmits = pxmitpriv->hwxmits;
-	kfree(hwxmits);
 }
 
 static int rtw_br_client_tx(struct adapter *padapter, struct sk_buff **pskb)
