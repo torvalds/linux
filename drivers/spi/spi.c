@@ -2310,7 +2310,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	if (!of_property_read_u32(nc, "spi-max-frequency", &value))
 		spi->max_speed_hz = value;
 
-	if (!of_property_read_u16(nc, "spi-cs-setup-ns", &cs_setup)) {
+	if (!of_property_read_u16(nc, "spi-cs-setup-delay-ns", &cs_setup)) {
 		spi->cs_setup.value = cs_setup;
 		spi->cs_setup.unit = SPI_DELAY_UNIT_NSECS;
 	}

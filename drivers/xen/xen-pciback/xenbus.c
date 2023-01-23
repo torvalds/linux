@@ -716,14 +716,12 @@ out:
 	return err;
 }
 
-static int xen_pcibk_xenbus_remove(struct xenbus_device *dev)
+static void xen_pcibk_xenbus_remove(struct xenbus_device *dev)
 {
 	struct xen_pcibk_device *pdev = dev_get_drvdata(&dev->dev);
 
 	if (pdev != NULL)
 		free_pdev(pdev);
-
-	return 0;
 }
 
 static const struct xenbus_device_id xen_pcibk_ids[] = {

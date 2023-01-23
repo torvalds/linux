@@ -295,6 +295,7 @@ static int ksmbd_tcp_readv(struct tcp_transport *t, struct kvec *iov_orig,
 	struct msghdr ksmbd_msg;
 	struct kvec *iov;
 	struct ksmbd_conn *conn = KSMBD_TRANS(t)->conn;
+	int max_retry = 2;
 
 	iov = get_conn_iovec(t, nr_segs);
 	if (!iov)
@@ -321,9 +322,11 @@ static int ksmbd_tcp_readv(struct tcp_transport *t, struct kvec *iov_orig,
 		} else if (conn->status == KSMBD_SESS_NEED_RECONNECT) {
 			total_read = -EAGAIN;
 			break;
-		} else if (length == -ERESTARTSYS || length == -EAGAIN) {
+		} else if ((length == -ERESTARTSYS || length == -EAGAIN) &&
+			   max_retry) {
 			usleep_range(1000, 2000);
 			length = 0;
+			max_retry--;
 			continue;
 		} else if (length <= 0) {
 			total_read = -EAGAIN;

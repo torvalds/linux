@@ -45,6 +45,8 @@ config MACH_PXA27X_DT
 config MACH_PXA3XX_DT
 	bool "Support PXA3xx platforms from device tree"
 	select CPU_PXA300
+	select CPU_PXA310
+	select CPU_PXA320
 	select PINCTRL
 	select POWER_SUPPLY
 	select PXA3xx

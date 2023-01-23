@@ -122,11 +122,8 @@ struct mlx5e_ipsec_aso {
 	u8 ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
 	dma_addr_t dma_addr;
 	struct mlx5_aso *aso;
-	/* IPsec ASO caches data on every query call,
-	 * so in nested calls, we can use this boolean to save
-	 * recursive calls to mlx5e_ipsec_aso_query()
-	 */
-	u8 use_cache : 1;
+	/* Protect ASO WQ access, as it is global to whole IPsec */
+	spinlock_t lock;
 };
 
 struct mlx5e_ipsec {

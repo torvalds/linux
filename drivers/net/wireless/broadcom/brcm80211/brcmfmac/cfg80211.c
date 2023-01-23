@@ -7937,6 +7937,9 @@ cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 
+	if (chan->flags & IEEE80211_CHAN_DISABLED)
+		return -EINVAL;
+
 	/* set_channel */
 	chspec = channel_to_chanspec(&cfg->d11inf, chan);
 	if (chspec != INVCHANSPEC) {
@@ -7961,7 +7964,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct brcmf_dump_survey survey = {};
 	struct ieee80211_supported_band *band;
-	struct ieee80211_channel *chan;
+	enum nl80211_band band_id;
 	struct cca_msrmnt_query req;
 	u32 noise;
 	int err;
@@ -7974,26 +7977,25 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 		return -EBUSY;
 	}
 
-	band = wiphy->bands[NL80211_BAND_2GHZ];
-	if (band && idx >= band->n_channels) {
-		idx -= band->n_channels;
-		band = NULL;
-	}
+	for (band_id = 0; band_id < NUM_NL80211_BANDS; band_id++) {
+		band = wiphy->bands[band_id];
+		if (!band)
+			continue;
+		if (idx >= band->n_channels) {
+			idx -= band->n_channels;
+			continue;
+		}
 
-	if (!band || idx >= band->n_channels) {
-		band = wiphy->bands[NL80211_BAND_5GHZ];
-		if (idx >= band->n_channels)
-			return -ENOENT;
+		info->channel = &band->channels[idx];
+		break;
 	}
+	if (band_id == NUM_NL80211_BANDS)
+		return -ENOENT;
 
 	/* Setting current channel to the requested channel */
-	chan = &band->channels[idx];
-	err = cfg80211_set_channel(wiphy, ndev, chan, NL80211_CHAN_HT20);
-	if (err) {
-		info->channel = chan;
-		info->filled = 0;
+	info->filled = 0;
+	if (cfg80211_set_channel(wiphy, ndev, info->channel, NL80211_CHAN_HT20))
 		return 0;
-	}
 
 	/* Disable mpc */
 	brcmf_set_mpc(ifp, 0);
@@ -8028,7 +8030,6 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	if (err)
 		goto exit;
 
-	info->channel = chan;
 	info->noise = noise;
 	info->time = ACS_MSRMNT_DELAY;
 	info->time_busy = ACS_MSRMNT_DELAY - survey.idle;
@@ -8040,7 +8041,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 		SURVEY_INFO_TIME_TX;
 
 	brcmf_dbg(INFO, "OBSS dump: channel %d: survey duration %d\n",
-		  ieee80211_frequency_to_channel(chan->center_freq),
+		  ieee80211_frequency_to_channel(info->channel->center_freq),
 		  ACS_MSRMNT_DELAY);
 	brcmf_dbg(INFO, "noise(%d) busy(%llu) rx(%llu) tx(%llu)\n",
 		  info->noise, info->time_busy, info->time_rx, info->time_tx);
