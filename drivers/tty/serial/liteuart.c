@@ -46,7 +46,6 @@
 struct liteuart_port {
 	struct uart_port port;
 	struct timer_list timer;
-	u32 id;
 	u8 irq_reg;
 };
 
@@ -314,7 +313,6 @@ static int liteuart_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	uart->id = dev_id;
 	/* values not from device tree */
 	port->dev = &pdev->dev;
 	port->iotype = UPIO_MEM;
@@ -334,7 +332,7 @@ static int liteuart_probe(struct platform_device *pdev)
 	return 0;
 
 err_erase_id:
-	xa_erase(&liteuart_array, uart->id);
+	xa_erase(&liteuart_array, dev_id);
 
 	return ret;
 }
@@ -342,10 +340,10 @@ err_erase_id:
 static int liteuart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
-	struct liteuart_port *uart = to_liteuart_port(port);
+	unsigned int line = port->line;
 
 	uart_remove_one_port(&liteuart_driver, port);
-	xa_erase(&liteuart_array, uart->id);
+	xa_erase(&liteuart_array, line);
 
 	return 0;
 }
