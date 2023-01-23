@@ -930,9 +930,14 @@ static int rv3032_probe(struct i2c_client *client)
 		return PTR_ERR(rv3032->rtc);
 
 	if (client->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, rv3032_handle_irq,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						irqflags | IRQF_ONESHOT,
 						"rv3032", rv3032);
 		if (ret) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
