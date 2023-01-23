@@ -452,7 +452,14 @@ static void jadard_dsi_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id jadard_of_match[] = {
-	{ .compatible = "chongzhou,cz101b4001", .data = &cz101b4001_desc },
+	{
+		.compatible = "chongzhou,cz101b4001",
+		.data = &cz101b4001_desc
+	},
+	{
+		.compatible = "radxa,display-10hd-ad001",
+		.data = &cz101b4001_desc
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, jadard_of_match);
