@@ -209,7 +209,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
  * | NOP      | MOV X9, LR | MOV X9, LR |
  * | NOP      | NOP        | BL <entry> |
  *
- * The LR value will be recovered by ftrace_regs_entry, and restored into LR
+ * The LR value will be recovered by ftrace_caller, and restored into LR
  * before returning to the regular function prologue. When a function is not
  * being traced, the MOV is not harmful given x9 is not live per the AAPCS.
  *
