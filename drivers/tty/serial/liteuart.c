@@ -286,6 +286,23 @@ static int liteuart_probe(struct platform_device *pdev)
 	struct xa_limit limit;
 	int dev_id, ret;
 
+	uart = devm_kzalloc(&pdev->dev, sizeof(struct liteuart_port), GFP_KERNEL);
+	if (!uart)
+		return -ENOMEM;
+
+	port = &uart->port;
+
+	/* get membase */
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
+
+	ret = platform_get_irq_optional(pdev, 0);
+	if (ret < 0 && ret != -ENXIO)
+		return ret;
+	if (ret > 0)
+		port->irq = ret;
+
 	/* look for aliases; auto-enumerate for free index if not found */
 	dev_id = of_alias_get_id(pdev->dev.of_node, "serial");
 	if (dev_id < 0)
@@ -293,30 +310,11 @@ static int liteuart_probe(struct platform_device *pdev)
 	else
 		limit = XA_LIMIT(dev_id, dev_id);
 
-	uart = devm_kzalloc(&pdev->dev, sizeof(struct liteuart_port), GFP_KERNEL);
-	if (!uart)
-		return -ENOMEM;
-
 	ret = xa_alloc(&liteuart_array, &dev_id, uart, limit, GFP_KERNEL);
 	if (ret)
 		return ret;
 
 	uart->id = dev_id;
-	port = &uart->port;
-
-	/* get membase */
-	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(port->membase)) {
-		ret = PTR_ERR(port->membase);
-		goto err_erase_id;
-	}
-
-	ret = platform_get_irq_optional(pdev, 0);
-	if (ret < 0 && ret != -ENXIO)
-		goto err_erase_id;
-	if (ret > 0)
-		port->irq = ret;
-
 	/* values not from device tree */
 	port->dev = &pdev->dev;
 	port->iotype = UPIO_MEM;
