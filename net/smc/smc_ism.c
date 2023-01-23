@@ -296,7 +296,7 @@ int smcd_nl_get_device(struct sk_buff *skb, struct netlink_callback *cb)
 struct smc_ism_event_work {
 	struct work_struct work;
 	struct smcd_dev *smcd;
-	struct smcd_event event;
+	struct ism_event event;
 };
 
 #define ISM_EVENT_REQUEST		0x0001
@@ -490,7 +490,7 @@ EXPORT_SYMBOL_GPL(smcd_free_dev);
  * Context:
  * - Function called in IRQ context from ISM device driver event handler.
  */
-void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
+void smcd_handle_event(struct smcd_dev *smcd, struct ism_event *event)
 {
 	struct smc_ism_event_work *wrk;
 

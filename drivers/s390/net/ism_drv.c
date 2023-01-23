@@ -15,9 +15,6 @@
 #include <linux/err.h>
 #include <linux/ctype.h>
 #include <linux/processor.h>
-#include <net/smc.h>
-
-#include <asm/debug.h>
 
 #include "ism.h"
 
@@ -34,6 +31,84 @@ static const struct pci_device_id ism_device_table[] = {
 MODULE_DEVICE_TABLE(pci, ism_device_table);
 
 static debug_info_t *ism_debug_info;
+static const struct smcd_ops ism_ops;
+
+#define NO_CLIENT		0xff		/* must be >= MAX_CLIENTS */
+static struct ism_client *clients[MAX_CLIENTS];	/* use an array rather than */
+						/* a list for fast mapping  */
+static u8 max_client;
+static DEFINE_SPINLOCK(clients_lock);
+struct ism_dev_list {
+	struct list_head list;
+	struct mutex mutex; /* protects ism device list */
+};
+
+static struct ism_dev_list ism_dev_list = {
+	.list = LIST_HEAD_INIT(ism_dev_list.list),
+	.mutex = __MUTEX_INITIALIZER(ism_dev_list.mutex),
+};
+
+int ism_register_client(struct ism_client *client)
+{
+	struct ism_dev *ism;
+	unsigned long flags;
+	int i, rc = -ENOSPC;
+
+	mutex_lock(&ism_dev_list.mutex);
+	spin_lock_irqsave(&clients_lock, flags);
+	for (i = 0; i < MAX_CLIENTS; ++i) {
+		if (!clients[i]) {
+			clients[i] = client;
+			client->id = i;
+			if (i == max_client)
+				max_client++;
+			rc = 0;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&clients_lock, flags);
+	if (i < MAX_CLIENTS) {
+		/* initialize with all devices that we got so far */
+		list_for_each_entry(ism, &ism_dev_list.list, list) {
+			ism->priv[i] = NULL;
+			client->add(ism);
+		}
+	}
+	mutex_unlock(&ism_dev_list.mutex);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ism_register_client);
+
+int ism_unregister_client(struct ism_client *client)
+{
+	struct ism_dev *ism;
+	unsigned long flags;
+	int rc = 0;
+
+	mutex_lock(&ism_dev_list.mutex);
+	spin_lock_irqsave(&clients_lock, flags);
+	clients[client->id] = NULL;
+	if (client->id + 1 == max_client)
+		max_client--;
+	spin_unlock_irqrestore(&clients_lock, flags);
+	list_for_each_entry(ism, &ism_dev_list.list, list) {
+		for (int i = 0; i < ISM_NR_DMBS; ++i) {
+			if (ism->sba_client_arr[i] == client->id) {
+				pr_err("%s: attempt to unregister client '%s'"
+				       "with registered dmb(s)\n", __func__,
+				       client->name);
+				rc = -EBUSY;
+				goto out;
+			}
+		}
+	}
+out:
+	mutex_unlock(&ism_dev_list.mutex);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ism_unregister_client);
 
 static int ism_cmd(struct ism_dev *ism, void *cmd)
 {
@@ -193,7 +268,7 @@ static int ism_read_local_gid(struct ism_dev *ism)
 	if (ret)
 		goto out;
 
-	ism->smcd->local_gid = cmd.response.gid;
+	ism->local_gid = cmd.response.gid;
 out:
 	return ret;
 }
@@ -437,7 +512,8 @@ static u16 ism_get_chid(struct smcd_dev *smcd)
 
 static void ism_handle_event(struct ism_dev *ism)
 {
-	struct smcd_event *entry;
+	struct ism_event *entry;
+	int i;
 
 	while ((ism->ieq_idx + 1) != READ_ONCE(ism->ieq->header.idx)) {
 		if (++(ism->ieq_idx) == ARRAY_SIZE(ism->ieq->entry))
@@ -445,13 +521,18 @@ static void ism_handle_event(struct ism_dev *ism)
 
 		entry = &ism->ieq->entry[ism->ieq_idx];
 		debug_event(ism_debug_info, 2, entry, sizeof(*entry));
-		smcd_handle_event(ism->smcd, entry);
+		spin_lock(&clients_lock);
+		for (i = 0; i < max_client; ++i)
+			if (clients[i])
+				clients[i]->handle_event(ism, entry);
+		spin_unlock(&clients_lock);
 	}
 }
 
 static irqreturn_t ism_handle_irq(int irq, void *data)
 {
 	struct ism_dev *ism = data;
+	struct ism_client *clt;
 	unsigned long bit, end;
 	unsigned long *bv;
 	u16 dmbemask;
@@ -471,7 +552,8 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 		dmbemask = ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET];
 		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 		barrier();
-		smcd_handle_irq(ism->smcd, bit + ISM_DMB_BIT_OFFSET, dmbemask);
+		clt = clients[ism->sba_client_arr[bit]];
+		clt->handle_irq(ism, bit + ISM_DMB_BIT_OFFSET, dmbemask);
 	}
 
 	if (ism->sba->e) {
@@ -497,10 +579,21 @@ static const struct smcd_ops ism_ops = {
 	.get_chid = ism_get_chid,
 };
 
+static void ism_dev_add_work_func(struct work_struct *work)
+{
+	struct ism_client *client = container_of(work, struct ism_client,
+						 add_work);
+
+	client->add(client->tgt_ism);
+	atomic_dec(&client->tgt_ism->add_dev_cnt);
+	wake_up(&client->tgt_ism->waitq);
+}
+
 static int ism_dev_init(struct ism_dev *ism)
 {
 	struct pci_dev *pdev = ism->pdev;
-	int ret;
+	unsigned long flags;
+	int i, ret;
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 	if (ret <= 0)
@@ -526,6 +619,28 @@ static int ism_dev_init(struct ism_dev *ism)
 	if (!ism_add_vlan_id(ism->smcd, ISM_RESERVED_VLANID))
 		/* hardware is V2 capable */
 		ism_create_system_eid();
+
+	init_waitqueue_head(&ism->waitq);
+	atomic_set(&ism->free_clients_cnt, 0);
+	atomic_set(&ism->add_dev_cnt, 0);
+
+	wait_event(ism->waitq, !atomic_read(&ism->add_dev_cnt));
+	spin_lock_irqsave(&clients_lock, flags);
+	for (i = 0; i < max_client; ++i)
+		if (clients[i]) {
+			INIT_WORK(&clients[i]->add_work,
+				  ism_dev_add_work_func);
+			clients[i]->tgt_ism = ism;
+			atomic_inc(&ism->add_dev_cnt);
+			schedule_work(&clients[i]->add_work);
+		}
+	spin_unlock_irqrestore(&clients_lock, flags);
+
+	wait_event(ism->waitq, !atomic_read(&ism->add_dev_cnt));
+
+	mutex_lock(&ism_dev_list.mutex);
+	list_add(&ism->list, &ism_dev_list.list);
+	mutex_unlock(&ism_dev_list.mutex);
 
 	ret = smcd_register_dev(ism->smcd);
 	if (ret)
@@ -602,9 +717,36 @@ err:
 	return ret;
 }
 
+static void ism_dev_remove_work_func(struct work_struct *work)
+{
+	struct ism_client *client = container_of(work, struct ism_client,
+						 remove_work);
+
+	client->remove(client->tgt_ism);
+	atomic_dec(&client->tgt_ism->free_clients_cnt);
+	wake_up(&client->tgt_ism->waitq);
+}
+
+/* Callers must hold ism_dev_list.mutex */
 static void ism_dev_exit(struct ism_dev *ism)
 {
 	struct pci_dev *pdev = ism->pdev;
+	unsigned long flags;
+	int i;
+
+	wait_event(ism->waitq, !atomic_read(&ism->free_clients_cnt));
+	spin_lock_irqsave(&clients_lock, flags);
+	for (i = 0; i < max_client; ++i)
+		if (clients[i]) {
+			INIT_WORK(&clients[i]->remove_work,
+				  ism_dev_remove_work_func);
+			clients[i]->tgt_ism = ism;
+			atomic_inc(&ism->free_clients_cnt);
+			schedule_work(&clients[i]->remove_work);
+		}
+	spin_unlock_irqrestore(&clients_lock, flags);
+
+	wait_event(ism->waitq, !atomic_read(&ism->free_clients_cnt));
 
 	smcd_unregister_dev(ism->smcd);
 	if (SYSTEM_EID.serial_number[0] != '0' ||
@@ -614,18 +756,22 @@ static void ism_dev_exit(struct ism_dev *ism)
 	unregister_sba(ism);
 	free_irq(pci_irq_vector(pdev, 0), ism);
 	pci_free_irq_vectors(pdev);
+	list_del_init(&ism->list);
 }
 
 static void ism_remove(struct pci_dev *pdev)
 {
 	struct ism_dev *ism = dev_get_drvdata(&pdev->dev);
 
+	mutex_lock(&ism_dev_list.mutex);
 	ism_dev_exit(ism);
+	mutex_unlock(&ism_dev_list.mutex);
 
 	smcd_free_dev(ism->smcd);
 	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
+	device_del(&ism->dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 	kfree(ism);
 }
@@ -645,6 +791,8 @@ static int __init ism_init(void)
 	if (!ism_debug_info)
 		return -ENODEV;
 
+	memset(clients, 0, sizeof(clients));
+	max_client = 0;
 	debug_register_view(ism_debug_info, &debug_hex_ascii_view);
 	ret = pci_register_driver(&ism_driver);
 	if (ret)
@@ -655,6 +803,14 @@ static int __init ism_init(void)
 
 static void __exit ism_exit(void)
 {
+	struct ism_dev *ism;
+
+	mutex_lock(&ism_dev_list.mutex);
+	list_for_each_entry(ism, &ism_dev_list.list, list) {
+		ism_dev_exit(ism);
+	}
+	mutex_unlock(&ism_dev_list.mutex);
+
 	pci_unregister_driver(&ism_driver);
 	debug_unregister(ism_debug_info);
 }

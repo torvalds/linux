@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include "linux/ism.h"
 
 struct sock;
 
@@ -47,14 +48,6 @@ struct smcd_dmb {
 #define ISM_RESERVED_VLANID	0x1FFF
 
 #define ISM_ERROR	0xFFFF
-
-struct smcd_event {
-	u32 type;
-	u32 code;
-	u64 tok;
-	u64 time;
-	u64 info;
-};
 
 struct smcd_dev;
 
@@ -100,6 +93,6 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 int smcd_register_dev(struct smcd_dev *smcd);
 void smcd_unregister_dev(struct smcd_dev *smcd);
 void smcd_free_dev(struct smcd_dev *smcd);
-void smcd_handle_event(struct smcd_dev *dev, struct smcd_event *event);
+void smcd_handle_event(struct smcd_dev *dev, struct ism_event *event);
 void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit, u16 dmbemask);
 #endif	/* _SMC_H */
