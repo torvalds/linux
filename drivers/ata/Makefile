@@ -114,6 +114,8 @@ obj-$(CONFIG_PATA_SAMSUNG_CF)	+= pata_samsung_cf.o
 
 obj-$(CONFIG_PATA_PXA)		+= pata_pxa.o
 
+obj-$(CONFIG_PATA_PARPORT)	+= pata_parport.o
+
 # Should be last but two libata driver
 obj-$(CONFIG_PATA_ACPI)		+= pata_acpi.o
 # Should be last but one libata driver

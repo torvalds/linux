@@ -2,6 +2,9 @@
 Linux and parallel port IDE devices
 ===================================
 
+Most of this document describes the old paride driver. For the new libata
+pata_parport drivrer, jump to the section 4 at the end.
+
 PARIDE v1.03   (c) 1997-8  Grant Guenther <grant@torque.net>
 
 1. Introduction
@@ -437,3 +440,52 @@ You might also find some useful information on the linux-parport
 web pages (although they are not always up to date) at
 
 	http://web.archive.org/web/%2E/http://www.torque.net/parport/
+
+4. pata_parport driver
+======================
+pata_parport is a libata-based driver that uses the same low-level protocol
+drivers as PARIDE but there are no high-level drivers (pd, pcd, pf, pt, pg).
+The IDE devices behind parallel port adapters are handled by the ATA layer.
+
+The device creation is also changed - no protocol numbers or parport I/O
+addresses are used.
+
+All parports and all protocol drivers are probed automatically unless probe=0
+parameter is used. So just "modprobe epat" is enough for a Imation SuperDisk
+drive to work.
+
+Manual device creation::
+
+	# echo "port protocol mode unit delay" >/sys/bus/pata_parport/new_device
+
+where:
+
+	======== ================================================
+	port	 parport name (or "auto" for all parports)
+	protocol protocol name (or "auto" for all protocols)
+	mode	 mode number (protocol-specific) or -1 for probe
+	unit	 unit number (see the paride documentation above)
+	delay	 I/O delay (see the paride documentation above)
+	======== ================================================
+
+If you omit the parameters from the end, defaults will be used, e.g.:
+
+Probe all parports with all protocols::
+
+	# echo auto >/sys/bus/pata_parport/new_device
+
+Probe parport0 using protocol epat and mode 4 (EPP-16)::
+
+	# echo "parport0 epat 4" >/sys/bus/pata_parport/new_device
+
+Probe parport0 using all protocols::
+
+	# echo "parport0 auto" >/sys/bus/pata_parport/new_device
+
+Probe all parports using protoocol epat::
+
+	# echo "auto epat" >/sys/bus/pata_parport/new_device
+
+Deleting devices::
+
+	# echo pata_parport.0 >/sys/bus/pata_parport/delete_device

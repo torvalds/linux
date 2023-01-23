@@ -1,3 +1,15 @@
+/*
+ * The low-level protocol modules are used by either paride or pata_parport.
+ * These two are mutually exclusive because the compiled low-level protocol
+ * modules are not compatible.
+ * When PATA_PARPORT is enabled, include pata_parport.h instead of the rest
+ * of this file.
+ */
+
+#if IS_ENABLED(CONFIG_PATA_PARPORT)
+#include <linux/pata_parport.h>
+
+#else
 #ifndef __DRIVERS_PARIDE_H__
 #define __DRIVERS_PARIDE_H__
 
@@ -170,3 +182,4 @@ void pi_unregister_driver(void *);
 
 #endif /* __DRIVERS_PARIDE_H__ */
 /* end of paride.h */
+#endif /* IS_ENABLED(CONFIG_PATA_PARPORT) */
