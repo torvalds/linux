@@ -822,7 +822,14 @@ static struct page **__iommu_dma_alloc_noncontiguous(struct device *dev,
 	if (!iova)
 		goto out_free_pages;
 
-	if (sg_alloc_table_from_pages(sgt, pages, count, 0, size, GFP_KERNEL))
+	/*
+	 * Remove the zone/policy flags from the GFP - these are applied to the
+	 * __iommu_dma_alloc_pages() but are not used for the supporting
+	 * internal allocations that follow.
+	 */
+	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM | __GFP_COMP);
+
+	if (sg_alloc_table_from_pages(sgt, pages, count, 0, size, gfp))
 		goto out_free_iova;
 
 	if (!(ioprot & IOMMU_CACHE)) {
@@ -834,7 +841,7 @@ static struct page **__iommu_dma_alloc_noncontiguous(struct device *dev,
 	}
 
 	ret = iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents, ioprot,
-			   GFP_ATOMIC);
+			   gfp);
 	if (ret < 0 || ret < size)
 		goto out_free_sg;
 
