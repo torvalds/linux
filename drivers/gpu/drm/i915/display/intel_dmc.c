@@ -63,8 +63,10 @@
 #define DG2_DMC_PATH			DMC_LEGACY_PATH(dg2, 2, 08)
 MODULE_FIRMWARE(DG2_DMC_PATH);
 
-#define ADLP_DMC_PATH			DMC_LEGACY_PATH(adlp, 2, 16)
+#define ADLP_DMC_PATH			DMC_PATH(adlp)
+#define ADLP_DMC_FALLBACK_PATH		DMC_LEGACY_PATH(adlp, 2, 16)
 MODULE_FIRMWARE(ADLP_DMC_PATH);
+MODULE_FIRMWARE(ADLP_DMC_FALLBACK_PATH);
 
 #define ADLS_DMC_PATH			DMC_LEGACY_PATH(adls, 2, 01)
 MODULE_FIRMWARE(ADLS_DMC_PATH);
@@ -855,7 +857,9 @@ static void intel_dmc_runtime_pm_put(struct drm_i915_private *dev_priv)
 
 static const char *dmc_fallback_path(struct drm_i915_private *i915)
 {
-	/* No fallback paths for now. */
+	if (IS_ALDERLAKE_P(i915))
+		return ADLP_DMC_FALLBACK_PATH;
+
 	return NULL;
 }
 
