@@ -2593,9 +2593,10 @@ INDIRECT_CALLABLE_SCOPE struct rt6_info *ip6_pol_route_output(struct net *net,
 	return ip6_pol_route(net, table, fl6->flowi6_oif, fl6, skb, flags);
 }
 
-struct dst_entry *ip6_route_output_flags_noref(struct net *net,
-					       const struct sock *sk,
-					       struct flowi6 *fl6, int flags)
+static struct dst_entry *ip6_route_output_flags_noref(struct net *net,
+						      const struct sock *sk,
+						      struct flowi6 *fl6,
+						      int flags)
 {
 	bool any_src;
 
@@ -2624,7 +2625,6 @@ struct dst_entry *ip6_route_output_flags_noref(struct net *net,
 
 	return fib6_rule_lookup(net, fl6, NULL, flags, ip6_pol_route_output);
 }
-EXPORT_SYMBOL_GPL(ip6_route_output_flags_noref);
 
 struct dst_entry *ip6_route_output_flags(struct net *net,
 					 const struct sock *sk,
