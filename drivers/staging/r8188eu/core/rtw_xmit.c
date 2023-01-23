@@ -1384,15 +1384,11 @@ struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmi
 	struct xmit_frame *pxmitframe = NULL;
 	struct adapter *padapter = pxmitpriv->adapter;
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
-	int i, inx[4];
-
-	inx[0] = 0; inx[1] = 1; inx[2] = 2; inx[3] = 3;
+	int i, inx[] = { 0, 1, 2, 3 };
 
 	if (pregpriv->wifi_spec == 1) {
-		int j;
-
-		for (j = 0; j < 4; j++)
-			inx[j] = pxmitpriv->wmm_para_seq[j];
+		for (i = 0; i < ARRAY_SIZE(inx); i++)
+			inx[i] = pxmitpriv->wmm_para_seq[i];
 	}
 
 	spin_lock_bh(&pxmitpriv->lock);
