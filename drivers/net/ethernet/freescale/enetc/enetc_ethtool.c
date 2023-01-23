@@ -649,6 +649,7 @@ void enetc_set_rss_key(struct enetc_hw *hw, const u8 *bytes)
 	for (i = 0; i < ENETC_RSSHASH_KEY_SIZE / 4; i++)
 		enetc_port_wr(hw, ENETC_PRSSK(i), ((u32 *)bytes)[i]);
 }
+EXPORT_SYMBOL_GPL(enetc_set_rss_key);
 
 static int enetc_set_rxfh(struct net_device *ndev, const u32 *indir,
 			  const u8 *key, const u8 hfunc)
@@ -924,3 +925,4 @@ void enetc_set_ethtool_ops(struct net_device *ndev)
 	else
 		ndev->ethtool_ops = &enetc_vf_ethtool_ops;
 }
+EXPORT_SYMBOL_GPL(enetc_set_ethtool_ops);

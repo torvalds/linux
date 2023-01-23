@@ -229,8 +229,9 @@ enum enetc_errata {
 	ENETC_ERR_UCMCSWP	= BIT(1),
 };
 
-#define ENETC_SI_F_QBV BIT(0)
-#define ENETC_SI_F_PSFP BIT(1)
+#define ENETC_SI_F_PSFP BIT(0)
+#define ENETC_SI_F_QBV  BIT(1)
+#define ENETC_SI_F_QBU  BIT(2)
 
 /* PCI IEP device data */
 struct enetc_si {
@@ -396,6 +397,8 @@ struct enetc_msg_cmd_set_primary_mac {
 extern int enetc_phc_index;
 
 /* SI common */
+u32 enetc_port_mac_rd(struct enetc_si *si, u32 reg);
+void enetc_port_mac_wr(struct enetc_si *si, u32 reg, u32 val);
 int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv);
 void enetc_pci_remove(struct pci_dev *pdev);
 int enetc_alloc_msix(struct enetc_ndev_priv *priv);
