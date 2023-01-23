@@ -125,7 +125,6 @@ s32 rtl8188eu_hal_xmit(struct adapter *padapter, struct xmit_frame *frame);
 s32 rtl8188eu_mgnt_xmit(struct adapter *padapter, struct xmit_frame *frame);
 s32 rtl8188eu_xmit_buf_handler(struct adapter *padapter);
 void rtl8188eu_xmit_tasklet(unsigned long priv);
-bool rtl8188eu_xmitframe_complete(struct adapter *padapter,
-				 struct xmit_priv *pxmitpriv);
+bool rtl8188eu_xmitframe_complete(struct adapter *padapter);
 
 #endif /* __RTL8188E_XMIT_H__ */

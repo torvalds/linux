@@ -463,7 +463,6 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 void rtl8188eu_xmit_tasklet(unsigned long priv)
 {
 	struct adapter *adapt = (struct adapter *)priv;
-	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
 	if (check_fwstate(&adapt->mlmepriv, _FW_UNDER_SURVEY))
 		return;
@@ -471,5 +470,5 @@ void rtl8188eu_xmit_tasklet(unsigned long priv)
 	do {
 		if (adapt->bDriverStopped || adapt->bSurpriseRemoved || adapt->bWritePortCancel)
 			break;
-	} while (rtl8188eu_xmitframe_complete(adapt, pxmitpriv));
+	} while (rtl8188eu_xmitframe_complete(adapt));
 }
