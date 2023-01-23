@@ -17,12 +17,6 @@
 #include <linux/usb/ch9.h>
 
 struct intf_priv;
-struct intf_hdl;
-
-struct	intf_hdl {
-	struct adapter *padapter;
-	struct dvobj_priv *pintf_dev;
-};
 
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data);
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data);
