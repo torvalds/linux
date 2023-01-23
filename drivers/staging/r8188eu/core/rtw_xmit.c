@@ -1365,11 +1365,7 @@ static struct xmit_frame *dequeue_one_xmitframe(struct tx_servq *ptxservq, struc
 
 	if (xmitframe_phead != xmitframe_plist) {
 		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
-
-		xmitframe_plist = xmitframe_plist->next;
-
 		list_del_init(&pxmitframe->list);
-
 		ptxservq->qcnt--;
 	}
 	return pxmitframe;
