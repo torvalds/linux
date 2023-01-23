@@ -666,7 +666,6 @@ static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 	}
 }
 
-/* Returns true if there are no backlogged entries after the flush */
 static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 {
 	size_t cqe_size = sizeof(struct io_uring_cqe);
