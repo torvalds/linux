@@ -11,25 +11,22 @@ maintainers:
 
 select: false
 
-allOf:
-  - $ref: /schemas/graph.yaml#/$defs/port-base
+definitions:
+  port-base:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    properties:
+      prefix:
+        description: "device name prefix"
+        $ref: /schemas/types.yaml#/definitions/string
+      convert-rate:
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
+      convert-channels:
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
+      convert-sample-format:
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
 
-properties:
-  prefix:
-    description: "device name prefix"
-    $ref: /schemas/types.yaml#/definitions/string
-  convert-rate:
-    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
-  convert-channels:
-    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
-  convert-sample-format:
-    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
-
-patternProperties:
-  "^endpoint(@[0-9a-f]+)?":
+  endpoint-base:
     $ref: /schemas/graph.yaml#/$defs/endpoint-base
-    unevaluatedProperties: false
-
     properties:
       mclk-fs:
         description: |
@@ -99,5 +96,13 @@ patternProperties:
               description: Slot count
               minimum: 1
               maximum: 64
+
+allOf:
+  - $ref: "#/definitions/port-base"
+
+patternProperties:
+  "^endpoint(@[0-9a-f]+)?":
+    $ref: "#/definitions/endpoint-base"
+    unevaluatedProperties: false
 
 additionalProperties: true
