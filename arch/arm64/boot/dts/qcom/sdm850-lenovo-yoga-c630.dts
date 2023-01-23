@@ -512,7 +512,7 @@
 };
 
 &sound {
-	compatible = "qcom,db845c-sndcard";
+	compatible = "lenovo,yoga-c630-sndcard", "qcom,sdm845-sndcard";
 	model = "Lenovo-YOGA-C630-13Q50";
 
 	audio-routing =
