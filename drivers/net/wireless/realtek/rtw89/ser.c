@@ -611,6 +611,7 @@ bottom:
 	ser_reset_mac_binding(rtwdev);
 	rtw89_core_stop(rtwdev);
 	rtw89_entity_init(rtwdev);
+	rtw89_fw_release_general_pkt_list(rtwdev, false);
 	INIT_LIST_HEAD(&rtwdev->rtwvifs_list);
 }
 
