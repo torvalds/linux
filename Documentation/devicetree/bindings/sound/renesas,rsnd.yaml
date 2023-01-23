@@ -193,10 +193,6 @@ properties:
                   enum:
                     - tx
                     - rx
-        required:
-          - interrupts
-          - dmas
-          - dma-names
     additionalProperties: false
 
   rcar_sound,ssiu:
