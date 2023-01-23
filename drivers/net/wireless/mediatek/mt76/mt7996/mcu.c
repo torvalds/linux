@@ -2247,6 +2247,26 @@ mt7996_firmware_state(struct mt7996_dev *dev, bool wa)
 	return 0;
 }
 
+static int
+mt7996_mcu_restart(struct mt76_dev *dev)
+{
+	struct {
+		u8 __rsv1[4];
+
+		__le16 tag;
+		__le16 len;
+		u8 power_mode;
+		u8 __rsv2[3];
+	} __packed req = {
+		.tag = cpu_to_le16(UNI_POWER_OFF),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.power_mode = 1,
+	};
+
+	return mt76_mcu_send_msg(dev, MCU_WM_UNI_CMD(POWER_CTRL), &req,
+				 sizeof(req), false);
+}
+
 static int mt7996_load_firmware(struct mt7996_dev *dev)
 {
 	int ret;
@@ -2254,7 +2274,7 @@ static int mt7996_load_firmware(struct mt7996_dev *dev)
 	/* make sure fw is download state */
 	if (mt7996_firmware_state(dev, false)) {
 		/* restart firmware once */
-		__mt76_mcu_restart(&dev->mt76);
+		mt7996_mcu_restart(&dev->mt76);
 		ret = mt7996_firmware_state(dev, false);
 		if (ret) {
 			dev_err(dev->mt76.dev,
@@ -2383,33 +2403,12 @@ mt7996_mcu_init_rx_airtime(struct mt7996_dev *dev)
 				     MCU_WM_UNI_CMD(VOW), true);
 }
 
-static int
-mt7996_mcu_restart(struct mt76_dev *dev)
-{
-	struct {
-		u8 __rsv1[4];
-
-		__le16 tag;
-		__le16 len;
-		u8 power_mode;
-		u8 __rsv2[3];
-	} __packed req = {
-		.tag = cpu_to_le16(UNI_POWER_OFF),
-		.len = cpu_to_le16(sizeof(req) - 4),
-		.power_mode = 1,
-	};
-
-	return mt76_mcu_send_msg(dev, MCU_WM_UNI_CMD(POWER_CTRL), &req,
-				 sizeof(req), false);
-}
-
 int mt7996_mcu_init(struct mt7996_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7996_mcu_ops = {
 		.headroom = sizeof(struct mt76_connac2_mcu_txd), /* reuse */
 		.mcu_skb_send_msg = mt7996_mcu_send_message,
 		.mcu_parse_response = mt7996_mcu_parse_response,
-		.mcu_restart = mt7996_mcu_restart,
 	};
 	int ret;
 
@@ -2457,7 +2456,7 @@ int mt7996_mcu_init(struct mt7996_dev *dev)
 
 void mt7996_mcu_exit(struct mt7996_dev *dev)
 {
-	__mt76_mcu_restart(&dev->mt76);
+	mt7996_mcu_restart(&dev->mt76);
 	if (mt7996_firmware_state(dev, false)) {
 		dev_err(dev->mt76.dev, "Failed to exit mcu\n");
 		goto out;
