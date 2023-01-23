@@ -125,6 +125,33 @@ struct ftrace_ops global_ops;
 void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct ftrace_regs *fregs);
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+/*
+ * Stub used to invoke the list ops without requiring a separate trampoline.
+ */
+const struct ftrace_ops ftrace_list_ops = {
+	.func	= ftrace_ops_list_func,
+	.flags	= FTRACE_OPS_FL_STUB,
+};
+
+static void ftrace_ops_nop_func(unsigned long ip, unsigned long parent_ip,
+				struct ftrace_ops *op,
+				struct ftrace_regs *fregs)
+{
+	/* do nothing */
+}
+
+/*
+ * Stub used when a call site is disabled. May be called transiently by threads
+ * which have made it into ftrace_caller but haven't yet recovered the ops at
+ * the point the call site is disabled.
+ */
+const struct ftrace_ops ftrace_nop_ops = {
+	.func	= ftrace_ops_nop_func,
+	.flags  = FTRACE_OPS_FL_STUB,
+};
+#endif
+
 static inline void ftrace_ops_init(struct ftrace_ops *ops)
 {
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -1814,6 +1841,18 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 * if rec count is zero.
 			 */
 		}
+
+		/*
+		 * If the rec has a single associated ops, and ops->func can be
+		 * called directly, allow the call site to call via the ops.
+		 */
+		if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS) &&
+		    ftrace_rec_count(rec) == 1 &&
+		    ftrace_ops_get_func(ops) == ops->func)
+			rec->flags |= FTRACE_FL_CALL_OPS;
+		else
+			rec->flags &= ~FTRACE_FL_CALL_OPS;
+
 		count++;
 
 		/* Must match FTRACE_UPDATE_CALLS in ftrace_modify_all_code() */
@@ -2108,8 +2147,9 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 		struct ftrace_ops *ops = NULL;
 
 		pr_info("ftrace record flags: %lx\n", rec->flags);
-		pr_cont(" (%ld)%s", ftrace_rec_count(rec),
-			rec->flags & FTRACE_FL_REGS ? " R" : "  ");
+		pr_cont(" (%ld)%s%s", ftrace_rec_count(rec),
+			rec->flags & FTRACE_FL_REGS ? " R" : "  ",
+			rec->flags & FTRACE_FL_CALL_OPS ? " O" : "  ");
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			ops = ftrace_find_tramp_ops_any(rec);
 			if (ops) {
@@ -2177,6 +2217,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 		 * want the direct enabled (it will be done via the
 		 * direct helper). But if DIRECT_EN is set, and
 		 * the count is not one, we need to clear it.
+		 *
 		 */
 		if (ftrace_rec_count(rec) == 1) {
 			if (!(rec->flags & FTRACE_FL_DIRECT) !=
@@ -2184,6 +2225,19 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 				flag |= FTRACE_FL_DIRECT;
 		} else if (rec->flags & FTRACE_FL_DIRECT_EN) {
 			flag |= FTRACE_FL_DIRECT;
+		}
+
+		/*
+		 * Ops calls are special, as count matters.
+		 * As with direct calls, they must only be enabled when count
+		 * is one, otherwise they'll be handled via the list ops.
+		 */
+		if (ftrace_rec_count(rec) == 1) {
+			if (!(rec->flags & FTRACE_FL_CALL_OPS) !=
+			    !(rec->flags & FTRACE_FL_CALL_OPS_EN))
+				flag |= FTRACE_FL_CALL_OPS;
+		} else if (rec->flags & FTRACE_FL_CALL_OPS_EN) {
+			flag |= FTRACE_FL_CALL_OPS;
 		}
 	}
 
@@ -2229,6 +2283,21 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 					rec->flags &= ~FTRACE_FL_DIRECT_EN;
 				}
 			}
+
+			if (flag & FTRACE_FL_CALL_OPS) {
+				if (ftrace_rec_count(rec) == 1) {
+					if (rec->flags & FTRACE_FL_CALL_OPS)
+						rec->flags |= FTRACE_FL_CALL_OPS_EN;
+					else
+						rec->flags &= ~FTRACE_FL_CALL_OPS_EN;
+				} else {
+					/*
+					 * Can only call directly if there's
+					 * only one set of associated ops.
+					 */
+					rec->flags &= ~FTRACE_FL_CALL_OPS_EN;
+				}
+			}
 		}
 
 		/*
@@ -2258,7 +2327,8 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 			 * and REGS states. The _EN flags must be disabled though.
 			 */
 			rec->flags &= ~(FTRACE_FL_ENABLED | FTRACE_FL_TRAMP_EN |
-					FTRACE_FL_REGS_EN | FTRACE_FL_DIRECT_EN);
+					FTRACE_FL_REGS_EN | FTRACE_FL_DIRECT_EN |
+					FTRACE_FL_CALL_OPS_EN);
 	}
 
 	ftrace_bug_type = FTRACE_BUG_NOP;
@@ -2429,6 +2499,25 @@ ftrace_find_tramp_ops_new(struct dyn_ftrace *rec)
 	} while_for_each_ftrace_op(op);
 
 	return NULL;
+}
+
+struct ftrace_ops *
+ftrace_find_unique_ops(struct dyn_ftrace *rec)
+{
+	struct ftrace_ops *op, *found = NULL;
+	unsigned long ip = rec->ip;
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+
+		if (hash_contains_ip(ip, op->func_hash)) {
+			if (found)
+				return NULL;
+			found = op;
+		}
+
+	} while_for_each_ftrace_op(op);
+
+	return found;
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
@@ -3780,11 +3869,12 @@ static int t_show(struct seq_file *m, void *v)
 	if (iter->flags & FTRACE_ITER_ENABLED) {
 		struct ftrace_ops *ops;
 
-		seq_printf(m, " (%ld)%s%s%s",
+		seq_printf(m, " (%ld)%s%s%s%s",
 			   ftrace_rec_count(rec),
 			   rec->flags & FTRACE_FL_REGS ? " R" : "  ",
 			   rec->flags & FTRACE_FL_IPMODIFY ? " I" : "  ",
-			   rec->flags & FTRACE_FL_DIRECT ? " D" : "  ");
+			   rec->flags & FTRACE_FL_DIRECT ? " D" : "  ",
+			   rec->flags & FTRACE_FL_CALL_OPS ? " O" : "  ");
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			ops = ftrace_find_tramp_ops_any(rec);
 			if (ops) {
@@ -3799,6 +3889,15 @@ static int t_show(struct seq_file *m, void *v)
 				seq_puts(m, "\ttramp: ERROR!");
 		} else {
 			add_trampoline_func(m, NULL, rec);
+		}
+		if (rec->flags & FTRACE_FL_CALL_OPS_EN) {
+			ops = ftrace_find_unique_ops(rec);
+			if (ops) {
+				seq_printf(m, "\tops: %pS (%pS)",
+					   ops, ops->func);
+			} else {
+				seq_puts(m, "\tops: ERROR!");
+			}
 		}
 		if (rec->flags & FTRACE_FL_DIRECT) {
 			unsigned long direct;
