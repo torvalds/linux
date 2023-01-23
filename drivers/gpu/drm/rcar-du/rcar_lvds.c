@@ -17,6 +17,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 
@@ -61,6 +62,7 @@ struct rcar_lvds_device_info {
 struct rcar_lvds {
 	struct device *dev;
 	const struct rcar_lvds_device_info *info;
+	struct reset_control *rstc;
 
 	struct drm_bridge bridge;
 
@@ -845,6 +847,11 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	lvds->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(lvds->rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lvds->rstc),
+				     "failed to get cpg reset\n");
+
 	pm_runtime_enable(&pdev->dev);
 
 	drm_bridge_add(&lvds->bridge);
@@ -924,6 +931,8 @@ static int rcar_lvds_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(lvds->clocks.mod);
 
+	reset_control_assert(lvds->rstc);
+
 	return 0;
 }
 
@@ -932,11 +941,20 @@ static int rcar_lvds_runtime_resume(struct device *dev)
 	struct rcar_lvds *lvds = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(lvds->clocks.mod);
-	if (ret < 0)
+	ret = reset_control_deassert(lvds->rstc);
+	if (ret)
 		return ret;
 
+	ret = clk_prepare_enable(lvds->clocks.mod);
+	if (ret < 0)
+		goto err_reset_assert;
+
 	return 0;
+
+err_reset_assert:
+	reset_control_assert(lvds->rstc);
+
+	return ret;
 }
 
 static const struct dev_pm_ops rcar_lvds_pm_ops = {
