@@ -33,10 +33,10 @@ struct vmlinux_info {
 };
 
 void startup_kernel(void);
-unsigned long detect_memory(void);
+unsigned long detect_memory(unsigned long *safe_addr);
 bool is_ipl_block_dump(void);
 void store_ipl_parmblock(void);
-unsigned long read_ipl_report(unsigned long safe_offset);
+unsigned long read_ipl_report(unsigned long safe_addr);
 void setup_boot_command_line(void);
 void parse_boot_command_line(void);
 void verify_facilities(void);
