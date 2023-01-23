@@ -596,7 +596,7 @@ static s32 pre_xmitframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	return true;
 
 enqueue:
-	res = rtw_xmitframe_enqueue(adapt, pxmitframe);
+	res = rtw_xmit_classifier(adapt, pxmitframe);
 	spin_unlock_bh(&pxmitpriv->lock);
 
 	if (res != _SUCCESS) {

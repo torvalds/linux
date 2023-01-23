@@ -1345,11 +1345,6 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 	spin_unlock_bh(&pframequeue->lock);
 }
 
-s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
-{
-	return rtw_xmit_classifier(padapter, pxmitframe);
-}
-
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i)
 {
 	struct hw_xmit *phwxmit;
