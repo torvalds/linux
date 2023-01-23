@@ -2415,9 +2415,8 @@ int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
 
-		if (unlikely(!io_alloc_req_refill(ctx)))
+		if (unlikely(!io_alloc_req(ctx, &req)))
 			break;
-		req = io_alloc_req(ctx);
 		if (unlikely(!io_get_sqe(ctx, &sqe))) {
 			io_req_add_to_cache(req, ctx);
 			break;
@@ -2736,14 +2735,14 @@ static int io_eventfd_unregister(struct io_ring_ctx *ctx)
 
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
+	struct io_kiocb *req;
 	int nr = 0;
 
 	mutex_lock(&ctx->uring_lock);
 	io_flush_cached_locked_reqs(ctx, &ctx->submit_state);
 
 	while (!io_req_cache_empty(ctx)) {
-		struct io_kiocb *req = io_alloc_req(ctx);
-
+		req = io_extract_req(ctx);
 		kmem_cache_free(req_cachep, req);
 		nr++;
 	}

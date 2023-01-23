@@ -341,16 +341,9 @@ static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
 	return !ctx->submit_state.free_list.next;
 }
 
-static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
-{
-	if (unlikely(io_req_cache_empty(ctx)))
-		return __io_alloc_req_refill(ctx);
-	return true;
-}
-
 extern struct kmem_cache *req_cachep;
 
-static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
+static inline struct io_kiocb *io_extract_req(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
 
@@ -358,6 +351,16 @@ static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 	kasan_unpoison_object_data(req_cachep, req);
 	wq_stack_extract(&ctx->submit_state.free_list);
 	return req;
+}
+
+static inline bool io_alloc_req(struct io_ring_ctx *ctx, struct io_kiocb **req)
+{
+	if (unlikely(io_req_cache_empty(ctx))) {
+		if (!__io_alloc_req_refill(ctx))
+			return false;
+	}
+	*req = io_extract_req(ctx);
+	return true;
 }
 
 static inline bool io_allowed_defer_tw_run(struct io_ring_ctx *ctx)
