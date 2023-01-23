@@ -763,7 +763,6 @@
 
 		serial0: serial@1c020000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c020000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -774,7 +773,6 @@
 
 		serial1: serial@1c021000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c021000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -785,7 +783,6 @@
 
 		serial2: serial@1c022000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c022000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -796,7 +793,6 @@
 
 		serial3: serial@1c023000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c023000 0x0 0x1000>;
 			reg-shift = <2>;
