@@ -310,16 +310,6 @@ static const struct clk_parent_data gcc_parent_data_9[] = {
 	{ .index = DT_BI_TCXO },
 };
 
-static const struct parent_map gcc_parent_map_10[] = {
-	{ P_PCIE_0_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_10[] = {
-	{ .index = DT_PCIE_0_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
 static const struct parent_map gcc_parent_map_11[] = {
 	{ P_PCIE_PHY_AUX_CLK, 1 },
 	{ P_BI_TCXO, 2 },
@@ -327,16 +317,6 @@ static const struct parent_map gcc_parent_map_11[] = {
 
 static const struct clk_parent_data gcc_parent_data_11[] = {
 	{ .index = DT_PCIE_PHY_AUX_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
-static const struct parent_map gcc_parent_map_12[] = {
-	{ P_PCIE_1_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_12[] = {
-	{ .index = DT_PCIE_1_PIPE_CLK },
 	{ .index = DT_BI_TCXO },
 };
 
