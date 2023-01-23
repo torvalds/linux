@@ -48,6 +48,15 @@ definitions:
         oneOf:
           - $ref: /schemas/types.yaml#/definitions/flag
           - $ref: /schemas/types.yaml#/definitions/phandle
+      clocks:
+        description: Indicates system clock
+        $ref: /schemas/types.yaml#/definitions/phandle
+      system-clock-frequency:
+        $ref: "simple-card.yaml#/definitions/system-clock-frequency"
+      system-clock-direction-out:
+        $ref: "simple-card.yaml#/definitions/system-clock-direction-out"
+      system-clock-fixed:
+        $ref: "simple-card.yaml#/definitions/system-clock-fixed"
 
       dai-format:
         description: audio format.
