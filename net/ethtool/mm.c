@@ -225,7 +225,7 @@ int ethnl_set_mm(struct sk_buff *skb, struct genl_info *info)
 	ethnl_update_u32(&cfg.verify_time, tb[ETHTOOL_A_MM_VERIFY_TIME], &mod);
 	ethnl_update_bool(&cfg.tx_enabled, tb[ETHTOOL_A_MM_TX_ENABLED], &mod);
 	ethnl_update_bool(&cfg.pmac_enabled, tb[ETHTOOL_A_MM_PMAC_ENABLED],
-			  &mod);
+			    &mod);
 	ethnl_update_u32(&cfg.tx_min_frag_size,
 			 tb[ETHTOOL_A_MM_TX_MIN_FRAG_SIZE], &mod);
 
