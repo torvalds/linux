@@ -1401,10 +1401,8 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
 
-	if (gfs2_holder_initialized(&gh)) {
-		glock_clear_object(ip->i_gl, ip);
+	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
-	}
 	if (ret && ret != GLR_TRYFAILED && ret != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", ret);
 out:
