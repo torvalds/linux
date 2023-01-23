@@ -54,17 +54,6 @@
 	(t)__ReS;							\
 })
 
-#define __S390_SYS_STUBx(x, name, ...)						\
-	long __s390_sys##name(struct pt_regs *regs);				\
-	ALLOW_ERROR_INJECTION(__s390_sys##name, ERRNO);				\
-	long __s390_sys##name(struct pt_regs *regs)				\
-	{									\
-		long ret = __do_sys##name(SYSCALL_PT_ARGS(x, regs,		\
-			__SC_COMPAT_CAST, __MAP(x, __SC_TYPE, __VA_ARGS__)));	\
-		__MAP(x,__SC_TEST,__VA_ARGS__);					\
-		return ret;							\
-	}
-
 /*
  * To keep the naming coherent, re-define SYSCALL_DEFINE0 to create an alias
  * named __s390x_sys_*()
@@ -121,9 +110,18 @@
 #define COMPAT_SYS_NI(name)						\
 	SYSCALL_ALIAS(__s390_compat_sys_##name, sys_ni_posix_timers)
 
-#else /* CONFIG_COMPAT */
+#define __S390_SYS_STUBx(x, name, ...)						\
+	long __s390_sys##name(struct pt_regs *regs);				\
+	ALLOW_ERROR_INJECTION(__s390_sys##name, ERRNO);				\
+	long __s390_sys##name(struct pt_regs *regs)				\
+	{									\
+		long ret = __do_sys##name(SYSCALL_PT_ARGS(x, regs,		\
+			__SC_COMPAT_CAST, __MAP(x, __SC_TYPE, __VA_ARGS__)));	\
+		__MAP(x,__SC_TEST,__VA_ARGS__);					\
+		return ret;							\
+	}
 
-#define __S390_SYS_STUBx(x, fullname, name, ...)
+#else /* CONFIG_COMPAT */
 
 #define SYSCALL_DEFINE0(sname)						\
 	SYSCALL_METADATA(_##sname, 0);					\
@@ -136,6 +134,8 @@
 
 #define SYS_NI(name)							\
 	SYSCALL_ALIAS(__s390x_sys_##name, sys_ni_posix_timers);
+
+#define __S390_SYS_STUBx(x, fullname, name, ...)
 
 #endif /* CONFIG_COMPAT */
 
