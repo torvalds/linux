@@ -165,6 +165,7 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 	state->tx_enabled = !!(val & DEV_MM_CONFIG_ENABLE_CONFIG_MM_TX_ENA);
 
 	val = ocelot_port_readl(ocelot_port, DEV_MM_VERIF_CONFIG);
+	state->verify_enabled = !(val & DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_DIS);
 	state->verify_time = DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_TIME_X(val);
 	state->max_verify_time = 128;
 
