@@ -581,7 +581,7 @@
 				status = "disabled";
 			};
 
-			uart0: uart@9000 {
+			uart0: serial@9000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x9000 0x100>;
 				interrupts = <8>;
@@ -592,7 +592,7 @@
 				status = "disabled";
 			};
 
-			uart1: uart@a000 {
+			uart1: serial@a000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0xa000 0x100>;
 				interrupts = <9>;
