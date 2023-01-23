@@ -1576,7 +1576,6 @@ static int arm_cmn_event_init(struct perf_event *event)
 			hw->dn++;
 			continue;
 		}
-		hw->dtcs_used |= arm_cmn_node_to_xp(cmn, dn)->dtc;
 		hw->num_dns++;
 		if (bynodeid)
 			break;
@@ -1589,6 +1588,12 @@ static int arm_cmn_event_init(struct perf_event *event)
 			nodeid, nid.x, nid.y, nid.port, nid.dev, type);
 		return -EINVAL;
 	}
+	/*
+	 * Keep assuming non-cycles events count in all DTC domains; turns out
+	 * it's hard to make a worthwhile optimisation around this, short of
+	 * going all-in with domain-local counter allocation as well.
+	 */
+	hw->dtcs_used = (1U << cmn->num_dtcs) - 1;
 
 	return arm_cmn_validate_group(cmn, event);
 }
