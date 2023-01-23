@@ -289,7 +289,7 @@
 				};
 			};
 
-			uart0: uart@d000 {
+			uart0: serial@d000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0xd000 0x100>;
 				interrupts = <8>;
