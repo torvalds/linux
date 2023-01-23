@@ -68,7 +68,10 @@ struct imx_media_fim {
 	bool              stream_on;
 };
 
-#define icap_enabled(fim) ((fim)->icap_flags != IRQ_TYPE_NONE)
+static bool icap_enabled(struct imx_media_fim *fim)
+{
+	return fim->icap_flags != IRQ_TYPE_NONE;
+}
 
 static void update_fim_nominal(struct imx_media_fim *fim,
 			       const struct v4l2_fract *fi)
