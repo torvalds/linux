@@ -52,7 +52,7 @@ static struct iommu_domain *s390_domain_alloc(unsigned domain_type)
 	if (!s390_domain)
 		return NULL;
 
-	s390_domain->dma_table = dma_alloc_cpu_table(GFP_ATOMIC);
+	s390_domain->dma_table = dma_alloc_cpu_table(GFP_KERNEL);
 	if (!s390_domain->dma_table) {
 		kfree(s390_domain);
 		return NULL;

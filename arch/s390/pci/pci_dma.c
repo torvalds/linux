@@ -579,7 +579,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 
 	spin_lock_init(&zdev->iommu_bitmap_lock);
 
-	zdev->dma_table = dma_alloc_cpu_table(GFP_ATOMIC);
+	zdev->dma_table = dma_alloc_cpu_table(GFP_KERNEL);
 	if (!zdev->dma_table) {
 		rc = -ENOMEM;
 		goto out;
