@@ -9,6 +9,7 @@
 enum {
 	APPLE_RTKIT_PWR_STATE_OFF = 0x00, /* power off, cannot be restarted */
 	APPLE_RTKIT_PWR_STATE_SLEEP = 0x01, /* sleeping, can be restarted */
+	APPLE_RTKIT_PWR_STATE_IDLE = 0x201, /* sleeping, retain state */
 	APPLE_RTKIT_PWR_STATE_QUIESCED = 0x10, /* running but no communication */
 	APPLE_RTKIT_PWR_STATE_ON = 0x20, /* normal operating state */
 };
@@ -880,6 +881,26 @@ int apple_rtkit_shutdown(struct apple_rtkit *rtk)
 	return apple_rtkit_reinit(rtk);
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_shutdown);
+
+int apple_rtkit_idle(struct apple_rtkit *rtk)
+{
+	int ret;
+
+	/* if OFF is used here the co-processor will not wake up again */
+	ret = apple_rtkit_set_ap_power_state(rtk,
+					     APPLE_RTKIT_PWR_STATE_IDLE);
+	if (ret)
+		return ret;
+
+	ret = apple_rtkit_set_iop_power_state(rtk, APPLE_RTKIT_PWR_STATE_IDLE);
+	if (ret)
+		return ret;
+
+	rtk->iop_power_state = APPLE_RTKIT_PWR_STATE_IDLE;
+	rtk->ap_power_state = APPLE_RTKIT_PWR_STATE_IDLE;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(apple_rtkit_idle);
 
 int apple_rtkit_quiesce(struct apple_rtkit *rtk)
 {

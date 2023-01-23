@@ -105,6 +105,11 @@ int apple_rtkit_wake(struct apple_rtkit *rtk);
 int apple_rtkit_shutdown(struct apple_rtkit *rtk);
 
 /*
+ * Put the co-processor into idle mode
+ */
+int apple_rtkit_idle(struct apple_rtkit *rtk);
+
+/*
  * Checks if RTKit is running and ready to handle messages.
  */
 bool apple_rtkit_is_running(struct apple_rtkit *rtk);
