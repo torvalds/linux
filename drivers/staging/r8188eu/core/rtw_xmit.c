@@ -1355,18 +1355,6 @@ s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitfram
 	return _SUCCESS;
 }
 
-static struct xmit_frame *dequeue_one_xmitframe(struct list_head *xframe_list)
-{
-	struct xmit_frame *pxmitframe;
-
-	if (list_empty(xframe_list))
-		return NULL;
-
-	pxmitframe = container_of(xframe_list->next, struct xmit_frame, list);
-	list_del_init(&pxmitframe->list);
-	return pxmitframe;
-}
-
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i)
 {
 	struct list_head *sta_phead;
@@ -1391,19 +1379,21 @@ struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmi
 		sta_phead = get_list_head(phwxmit->sta_queue);
 
 		list_for_each_entry_safe(ptxservq, tmp_txservq, sta_phead, tx_pending) {
-
 			xframe_list = get_list_head(&ptxservq->sta_pending);
-			pxmitframe = dequeue_one_xmitframe(xframe_list);
+			if (list_empty(xframe_list))
+				continue;
 
-			if (pxmitframe) {
-				phwxmit->accnt--;
-				ptxservq->qcnt--;
+			pxmitframe = container_of(xframe_list->next, struct xmit_frame, list);
+			list_del_init(&pxmitframe->list);
 
-				/* Remove sta node when there are no pending packets. */
-				if (list_empty(xframe_list))
-					list_del_init(&ptxservq->tx_pending);
-				goto exit;
-			}
+			phwxmit->accnt--;
+			ptxservq->qcnt--;
+
+			/* Remove sta node when there are no pending packets. */
+			if (list_empty(xframe_list))
+				list_del_init(&ptxservq->tx_pending);
+
+			goto exit;
 		}
 	}
 exit:
