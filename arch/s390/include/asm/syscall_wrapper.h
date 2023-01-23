@@ -35,8 +35,6 @@
 #define SYSCALL_PT_ARGS(x, ...) SYSCALL_PT_ARG##x(__VA_ARGS__)
 
 #ifdef CONFIG_COMPAT
-#define __SC_COMPAT_TYPE(t, a) \
-	__typeof(__builtin_choose_expr(sizeof(t) > 4, 0L, (t)0)) a
 
 #define __SC_COMPAT_CAST(t, a)						\
 ({									\
