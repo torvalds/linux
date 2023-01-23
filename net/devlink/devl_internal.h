@@ -135,7 +135,7 @@ int devlink_nl_instance_iter_dump(struct sk_buff *msg,
 static inline struct devlink_nl_dump_state *
 devlink_dump_state(struct netlink_callback *cb)
 {
-	NL_ASSET_DUMP_CTX_FITS(struct devlink_nl_dump_state);
+	NL_ASSERT_DUMP_CTX_FITS(struct devlink_nl_dump_state);
 
 	return (struct devlink_nl_dump_state *)cb->ctx;
 }
