@@ -1055,11 +1055,11 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
 	uport->fifosize =
 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
 
-	if (port->rx_fifo && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
-		port->rx_fifo = devm_krealloc(uport->dev, port->rx_fifo,
-					      port->rx_fifo_depth * sizeof(u32),
-					      GFP_KERNEL);
-		if (!port->rx_fifo)
+	if (port->rx_buf && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
+		port->rx_buf = devm_krealloc(uport->dev, port->rx_buf,
+					     port->rx_fifo_depth * sizeof(u32),
+					     GFP_KERNEL);
+		if (!port->rx_buf)
 			return -ENOMEM;
 	}
 
