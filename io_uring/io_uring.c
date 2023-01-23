@@ -713,7 +713,8 @@ static void io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 		io_cqring_do_overflow_flush(ctx);
 }
 
-static void __io_put_task(struct task_struct *task, int nr)
+/* can be called by any task */
+static void io_put_task_remote(struct task_struct *task, int nr)
 {
 	struct io_uring_task *tctx = task->io_uring;
 
@@ -723,13 +724,19 @@ static void __io_put_task(struct task_struct *task, int nr)
 	put_task_struct_many(task, nr);
 }
 
+/* used by a task to put its own references */
+static void io_put_task_local(struct task_struct *task, int nr)
+{
+	task->io_uring->cached_refs += nr;
+}
+
 /* must to be called somewhat shortly after putting a request */
 static inline void io_put_task(struct task_struct *task, int nr)
 {
 	if (likely(task == current))
-		task->io_uring->cached_refs += nr;
+		io_put_task_local(task, nr);
 	else
-		__io_put_task(task, nr);
+		io_put_task_remote(task, nr);
 }
 
 void io_task_refs_refill(struct io_uring_task *tctx)
@@ -982,7 +989,7 @@ static void __io_req_complete_post(struct io_kiocb *req)
 		 * we don't hold ->completion_lock. Clean them here to avoid
 		 * deadlocks.
 		 */
-		io_put_task(req->task, 1);
+		io_put_task_remote(req->task, 1);
 		wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 		ctx->locked_free_nr++;
 	}
@@ -1105,7 +1112,7 @@ __cold void io_free_req(struct io_kiocb *req)
 
 	io_req_put_rsrc(req);
 	io_dismantle_req(req);
-	io_put_task(req->task, 1);
+	io_put_task_remote(req->task, 1);
 
 	spin_lock(&ctx->completion_lock);
 	wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
