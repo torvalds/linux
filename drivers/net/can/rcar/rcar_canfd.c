@@ -21,23 +21,23 @@
  * wherever it is modified to a readable name.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/errno.h>
-#include <linux/ethtool.h>
-#include <linux/netdevice.h>
-#include <linux/platform_device.h>
-#include <linux/can/dev.h>
-#include <linux/clk.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
+#include <linux/can/dev.h>
+#include <linux/clk.h>
+#include <linux/errno.h>
+#include <linux/ethtool.h>
+#include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/netdevice.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/types.h>
 
 #define RCANFD_DRV_NAME			"rcar_canfd"
 
