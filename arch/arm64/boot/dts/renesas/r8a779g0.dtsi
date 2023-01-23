@@ -1761,6 +1761,115 @@
 			};
 		};
 
+		ipmmu_rt0: iommu@ee480000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xee480000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_rt1: iommu@ee4c0000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xee4c0000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_ds0: iommu@eed00000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeed00000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_hc: iommu@eed40000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeed40000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_ir: iommu@eed80000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeed80000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_A3IR>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_vc: iommu@eedc0000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeedc0000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_3dg: iommu@eee00000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeee00000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_vi0: iommu@eee80000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeee80000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_vi1: iommu@eeec0000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeeec0000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_vip0: iommu@eef00000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeef00000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_vip1: iommu@eef40000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeef40000 0 0x20000>;
+			renesas,ipmmu-main = <&ipmmu_mm>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
+		ipmmu_mm: iommu@eefc0000 {
+			compatible = "renesas,ipmmu-r8a779g0",
+				     "renesas,rcar-gen4-ipmmu-vmsa";
+			reg = <0 0xeefc0000 0 0x20000>;
+			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			#iommu-cells = <1>;
+		};
+
 		mmc0: mmc@ee140000 {
 			compatible = "renesas,sdhi-r8a779g0",
 				     "renesas,rcar-gen4-sdhi";
