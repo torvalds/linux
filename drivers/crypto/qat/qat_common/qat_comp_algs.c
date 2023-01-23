@@ -233,6 +233,9 @@ static int qat_comp_alg_compress_decompress(struct acomp_req *areq,
 	size_t ovf_buff_sz;
 	int ret;
 
+	params.sskip = 0;
+	params.dskip = 0;
+
 	if (!areq->src || !slen)
 		return -EINVAL;
 

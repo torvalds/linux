@@ -53,6 +53,8 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 				struct qat_request_buffs *buf,
 				dma_addr_t extra_dst_buff,
 				size_t sz_extra_dst_buff,
+				unsigned int sskip,
+				unsigned int dskip,
 				gfp_t flags)
 {
 	struct device *dev = &GET_DEV(accel_dev);
@@ -65,6 +67,7 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	struct scatterlist *sg;
 	size_t sz_out, sz = struct_size(bufl, buffers, n);
 	int node = dev_to_node(&GET_DEV(accel_dev));
+	unsigned int left;
 	int bufl_dma_dir;
 
 	if (unlikely(!n))
@@ -88,19 +91,29 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	for (i = 0; i < n; i++)
 		bufl->buffers[i].addr = DMA_MAPPING_ERROR;
 
+	left = sskip;
+
 	for_each_sg(sgl, sg, n, i) {
 		int y = sg_nctr;
 
 		if (!sg->length)
 			continue;
 
-		bufl->buffers[y].addr = dma_map_single(dev, sg_virt(sg),
-						       sg->length,
+		if (left >= sg->length) {
+			left -= sg->length;
+			continue;
+		}
+		bufl->buffers[y].addr = dma_map_single(dev, sg_virt(sg) + left,
+						       sg->length - left,
 						       bufl_dma_dir);
 		bufl->buffers[y].len = sg->length;
 		if (unlikely(dma_mapping_error(dev, bufl->buffers[y].addr)))
 			goto err_in;
 		sg_nctr++;
+		if (left) {
+			bufl->buffers[y].len -= left;
+			left = 0;
+		}
 	}
 	bufl->num_bufs = sg_nctr;
 	blp = dma_map_single(dev, bufl, sz, DMA_TO_DEVICE);
@@ -117,6 +130,8 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 
 		n = n_sglout + extra_buff;
 		sz_out = struct_size(buflout, buffers, n);
+		left = dskip;
+
 		sg_nctr = 0;
 
 		if (n > QAT_MAX_BUFF_DESC) {
@@ -139,13 +154,21 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 			if (!sg->length)
 				continue;
 
-			buffers[y].addr = dma_map_single(dev, sg_virt(sg),
-							 sg->length,
+			if (left >= sg->length) {
+				left -= sg->length;
+				continue;
+			}
+			buffers[y].addr = dma_map_single(dev, sg_virt(sg) + left,
+							 sg->length - left,
 							 DMA_FROM_DEVICE);
 			if (unlikely(dma_mapping_error(dev, buffers[y].addr)))
 				goto err_out;
 			buffers[y].len = sg->length;
 			sg_nctr++;
+			if (left) {
+				buffers[y].len -= left;
+				left = 0;
+			}
 		}
 		if (extra_buff) {
 			buffers[sg_nctr].addr = extra_dst_buff;
@@ -212,15 +235,19 @@ int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 {
 	dma_addr_t extra_dst_buff = 0;
 	size_t sz_extra_dst_buff = 0;
+	unsigned int sskip = 0;
+	unsigned int dskip = 0;
 
 	if (params) {
 		extra_dst_buff = params->extra_dst_buff;
 		sz_extra_dst_buff = params->sz_extra_dst_buff;
+		sskip = params->sskip;
+		dskip = params->dskip;
 	}
 
 	return __qat_bl_sgl_to_bufl(accel_dev, sgl, sglout, buf,
 				    extra_dst_buff, sz_extra_dst_buff,
-				    flags);
+				    sskip, dskip, flags);
 }
 
 static void qat_bl_sgl_unmap(struct adf_accel_dev *accel_dev,

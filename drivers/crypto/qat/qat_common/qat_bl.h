@@ -42,6 +42,8 @@ struct qat_request_buffs {
 struct qat_sgl_to_bufl_params {
 	dma_addr_t extra_dst_buff;
 	size_t sz_extra_dst_buff;
+	unsigned int sskip;
+	unsigned int dskip;
 };
 
 void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
