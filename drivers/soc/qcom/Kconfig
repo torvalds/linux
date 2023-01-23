@@ -72,7 +72,7 @@ config QCOM_LLCC
 
 config QCOM_KRYO_L2_ACCESSORS
 	bool
-	depends on ARCH_QCOM && ARM64 || COMPILE_TEST
+	depends on (ARCH_QCOM || COMPILE_TEST) && ARM64
 
 config QCOM_MDT_LOADER
 	tristate
