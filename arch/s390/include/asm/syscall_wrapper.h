@@ -133,7 +133,7 @@
 	cond_syscall(__s390x_sys_##name)
 
 #define SYS_NI(name)							\
-	SYSCALL_ALIAS(__s390x_sys_##name, sys_ni_posix_timers);
+	SYSCALL_ALIAS(__s390x_sys_##name, sys_ni_posix_timers)
 
 #define __S390_SYS_STUBx(x, fullname, name, ...)
 
