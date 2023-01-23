@@ -1363,7 +1363,7 @@ static struct xmit_frame *dequeue_one_xmitframe(struct tx_servq *ptxservq, struc
 	xmitframe_phead = get_list_head(pframe_queue);
 	xmitframe_plist = xmitframe_phead->next;
 
-	if (xmitframe_phead != xmitframe_plist) {
+	if (!list_empty(xmitframe_phead)) {
 		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
