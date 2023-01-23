@@ -72,7 +72,6 @@
  * named __s390x_sys_*()
  */
 #define COMPAT_SYSCALL_DEFINE0(sname)					\
-	SYSCALL_METADATA(_##sname, 0);					\
 	long __s390_compat_sys_##sname(void);				\
 	ALLOW_ERROR_INJECTION(__s390_compat_sys_##sname, ERRNO);	\
 	long __s390_compat_sys_##sname(void)
