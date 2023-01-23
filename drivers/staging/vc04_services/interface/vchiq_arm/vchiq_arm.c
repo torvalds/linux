@@ -541,9 +541,15 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	channelbase = slot_phys;
 	err = rpi_firmware_property(fw, RPI_FIRMWARE_VCHIQ_INIT,
 				    &channelbase, sizeof(channelbase));
-	if (err || channelbase) {
-		dev_err(dev, "failed to set channelbase\n");
-		return err ? : -ENXIO;
+	if (err) {
+		dev_err(dev, "failed to send firmware property: %d\n", err);
+		return err;
+	}
+
+	if (channelbase) {
+		dev_err(dev, "failed to set channelbase (response: %x)\n",
+			channelbase);
+		return -ENXIO;
 	}
 
 	vchiq_log_info(vchiq_arm_log_level, "vchiq_init - done (slots %pK, phys %pad)",
