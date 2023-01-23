@@ -43,6 +43,8 @@ properties:
               - qcom,sc8280xp-smmu-500
               - qcom,sdm670-smmu-500
               - qcom,sdm845-smmu-500
+              - qcom,sdx55-smmu-500
+              - qcom,sdx65-smmu-500
               - qcom,sm6115-smmu-500
               - qcom,sm6125-smmu-500
               - qcom,sm6350-smmu-500
@@ -52,14 +54,6 @@ properties:
               - qcom,sm8350-smmu-500
               - qcom,sm8450-smmu-500
           - const: qcom,smmu-500
-          - const: arm,mmu-500
-
-      - description: Qcom SoCs implementing "arm,mmu-500" (non-qcom implementation)
-        deprecated: true
-        items:
-          - enum:
-              - qcom,sdx55-smmu-500
-              - qcom,sdx65-smmu-500
           - const: arm,mmu-500
 
       - description: Qcom SoCs implementing "arm,mmu-500" (legacy binding)
