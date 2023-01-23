@@ -60,6 +60,7 @@ struct int3400_thermal_priv {
 	int odvp_count;
 	int *odvp;
 	u32 os_uuid_mask;
+	int production_mode;
 	struct odvp_attr *odvp_attrs;
 };
 
@@ -307,6 +308,44 @@ static int int3400_thermal_get_uuids(struct int3400_thermal_priv *priv)
 end:
 	kfree(buf.pointer);
 	return result;
+}
+
+static ssize_t production_mode_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct int3400_thermal_priv *priv = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", priv->production_mode);
+}
+
+static DEVICE_ATTR_RO(production_mode);
+
+static int production_mode_init(struct int3400_thermal_priv *priv)
+{
+	unsigned long long mode;
+	acpi_status status;
+	int ret;
+
+	priv->production_mode = -1;
+
+	status = acpi_evaluate_integer(priv->adev->handle, "DCFG", NULL, &mode);
+	/* If the method is not present, this is not an error */
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	ret = sysfs_create_file(&priv->pdev->dev.kobj, &dev_attr_production_mode.attr);
+	if (ret)
+		return ret;
+
+	priv->production_mode = mode;
+
+	return 0;
+}
+
+static void production_mode_exit(struct int3400_thermal_priv *priv)
+{
+	if (priv->production_mode >= 0)
+		sysfs_remove_file(&priv->pdev->dev.kobj, &dev_attr_production_mode.attr);
 }
 
 static ssize_t odvp_show(struct device *dev, struct device_attribute *attr,
@@ -604,8 +643,15 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (result)
 		goto free_sysfs;
 
+	result = production_mode_init(priv);
+	if (result)
+		goto free_notify;
+
 	return 0;
 
+free_notify:
+	acpi_remove_notify_handler(priv->adev->handle, ACPI_DEVICE_NOTIFY,
+				   int3400_notify);
 free_sysfs:
 	cleanup_odvp(priv);
 	if (!ZERO_OR_NULL_PTR(priv->data_vault)) {
@@ -631,6 +677,8 @@ free_priv:
 static int int3400_thermal_remove(struct platform_device *pdev)
 {
 	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+
+	production_mode_exit(priv);
 
 	acpi_remove_notify_handler(
 			priv->adev->handle, ACPI_DEVICE_NOTIFY,
