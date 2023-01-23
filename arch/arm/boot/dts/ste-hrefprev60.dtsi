@@ -17,7 +17,7 @@
 
 	soc {
 		/* Enable UART1 on this board */
-		uart@80121000 {
+		serial@80121000 {
 			status = "okay";
 		};
 

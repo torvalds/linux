@@ -186,7 +186,7 @@
 		};
 
 		/* BT UART */
-		uart@80120000 {
+		serial@80120000 {
 			status = "okay";
 
 			pinctrl-names = "default", "sleep";
@@ -209,7 +209,7 @@
 		};
 
 		/* GPF UART */
-		uart@80121000 {
+		serial@80121000 {
 			status = "okay";
 
 			pinctrl-names = "default", "sleep";
@@ -218,7 +218,7 @@
 		};
 
 		/* Debugging console UART */
-		uart@80007000 {
+		serial@80007000 {
 			status = "okay";
 
 			pinctrl-names = "default", "sleep";
