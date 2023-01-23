@@ -86,5 +86,6 @@ xdp_adjust_tail                          # case-128 err 0 errno 28 retval 1 size
 xdp_bonding                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
 xdp_bpf2bpf                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
 xdp_do_redirect                          # prog_run_max_size unexpected error: -22 (errno 22)
+xdp_metadata                             # JIT does not support calling kernel function                                (kfunc)
 xdp_synproxy                             # JIT does not support calling kernel function                                (kfunc)
 xfrm_info                                # JIT does not support calling kernel function                                (kfunc)
