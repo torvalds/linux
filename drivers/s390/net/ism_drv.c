@@ -273,10 +273,9 @@ out:
 	return ret;
 }
 
-static int ism_query_rgid(struct smcd_dev *smcd, u64 rgid, u32 vid_valid,
+static int ism_query_rgid(struct ism_dev *ism, u64 rgid, u32 vid_valid,
 			  u32 vid)
 {
-	struct ism_dev *ism = smcd->priv;
 	union ism_query_rgid cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -288,6 +287,11 @@ static int ism_query_rgid(struct smcd_dev *smcd, u64 rgid, u32 vid_valid,
 	cmd.request.vlan_id = vid;
 
 	return ism_cmd(ism, &cmd);
+}
+
+static int smcd_query_rgid(struct smcd_dev *smcd, u64 rgid, u32 vid_valid, u32 vid)
+{
+	return ism_query_rgid(smcd->priv, rgid, vid_valid, vid);
 }
 
 static void ism_free_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
@@ -326,9 +330,9 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 	return dmb->cpu_addr ? 0 : -ENOMEM;
 }
 
-static int ism_register_dmb(struct smcd_dev *smcd, struct ism_dmb *dmb)
+int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
+		     struct ism_client *client)
 {
-	struct ism_dev *ism = smcd->priv;
 	union ism_reg_dmb cmd;
 	int ret;
 
@@ -353,18 +357,19 @@ static int ism_register_dmb(struct smcd_dev *smcd, struct ism_dmb *dmb)
 		goto out;
 	}
 	dmb->dmb_tok = cmd.response.dmb_tok;
+	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = client->id;
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ism_register_dmb);
 
 static int smcd_register_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
 {
-	return ism_register_dmb(smcd, (struct ism_dmb *)dmb);
+	return ism_register_dmb(smcd->priv, (struct ism_dmb *)dmb, NULL);
 }
 
-static int ism_unregister_dmb(struct smcd_dev *smcd, struct ism_dmb *dmb)
+int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 {
-	struct ism_dev *ism = smcd->priv;
 	union ism_unreg_dmb cmd;
 	int ret;
 
@@ -374,6 +379,8 @@ static int ism_unregister_dmb(struct smcd_dev *smcd, struct ism_dmb *dmb)
 
 	cmd.request.dmb_tok = dmb->dmb_tok;
 
+	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = NO_CLIENT;
+
 	ret = ism_cmd(ism, &cmd);
 	if (ret && ret != ISM_ERROR)
 		goto out;
@@ -382,15 +389,15 @@ static int ism_unregister_dmb(struct smcd_dev *smcd, struct ism_dmb *dmb)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ism_unregister_dmb);
 
 static int smcd_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
 {
-	return ism_unregister_dmb(smcd, (struct ism_dmb *)dmb);
+	return ism_unregister_dmb(smcd->priv, (struct ism_dmb *)dmb);
 }
 
-static int ism_add_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
+static int ism_add_vlan_id(struct ism_dev *ism, u64 vlan_id)
 {
-	struct ism_dev *ism = smcd->priv;
 	union ism_set_vlan_id cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -402,9 +409,13 @@ static int ism_add_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
 	return ism_cmd(ism, &cmd);
 }
 
-static int ism_del_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
+static int smcd_add_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
 {
-	struct ism_dev *ism = smcd->priv;
+	return ism_add_vlan_id(smcd->priv, vlan_id);
+}
+
+static int ism_del_vlan_id(struct ism_dev *ism, u64 vlan_id)
+{
 	union ism_set_vlan_id cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -414,6 +425,11 @@ static int ism_del_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
 	cmd.request.vlan_id = vlan_id;
 
 	return ism_cmd(ism, &cmd);
+}
+
+static int smcd_del_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
+{
+	return ism_del_vlan_id(smcd->priv, vlan_id);
 }
 
 static int ism_set_vlan_required(struct smcd_dev *smcd)
@@ -426,8 +442,8 @@ static int ism_reset_vlan_required(struct smcd_dev *smcd)
 	return ism_cmd_simple(smcd->priv, ISM_RESET_VLAN);
 }
 
-static int ism_signal_ieq(struct smcd_dev *smcd, u64 rgid, u32 trigger_irq,
-			  u32 event_code, u64 info)
+static int smcd_signal_ieq(struct smcd_dev *smcd, u64 rgid, u32 trigger_irq,
+			   u32 event_code, u64 info)
 {
 	struct ism_dev *ism = smcd->priv;
 	union ism_sig_ieq cmd;
@@ -450,8 +466,9 @@ static unsigned int max_bytes(unsigned int start, unsigned int len,
 	return min(boundary - (start & (boundary - 1)), len);
 }
 
-static int ism_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
-		    bool sf, unsigned int offset, void *data, unsigned int size)
+static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
+		     bool sf, unsigned int offset, void *data,
+		     unsigned int size)
 {
 	struct ism_dev *ism = smcd->priv;
 	unsigned int bytes;
@@ -495,14 +512,15 @@ static void ism_create_system_eid(void)
 	memcpy(&SYSTEM_EID.type, tmp, 4);
 }
 
-static u8 *ism_get_system_eid(void)
+u8 *ism_get_seid(void)
 {
 	return SYSTEM_EID.seid_string;
 }
+EXPORT_SYMBOL_GPL(ism_get_seid);
 
-static u16 ism_get_chid(struct smcd_dev *smcd)
+static u16 smcd_get_chid(struct smcd_dev *smcd)
 {
-	struct ism_dev *ism = (struct ism_dev *)smcd->priv;
+	struct ism_dev *ism = smcd->priv;
 
 	if (!ism || !ism->pdev)
 		return 0;
@@ -565,18 +583,26 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static u64 smcd_get_local_gid(struct smcd_dev *smcd)
+{
+	struct ism_dev *ism = smcd->priv;
+
+	return ism->local_gid;
+}
+
 static const struct smcd_ops ism_ops = {
-	.query_remote_gid = ism_query_rgid,
+	.query_remote_gid = smcd_query_rgid,
 	.register_dmb = smcd_register_dmb,
 	.unregister_dmb = smcd_unregister_dmb,
-	.add_vlan_id = ism_add_vlan_id,
-	.del_vlan_id = ism_del_vlan_id,
+	.add_vlan_id = smcd_add_vlan_id,
+	.del_vlan_id = smcd_del_vlan_id,
 	.set_vlan_required = ism_set_vlan_required,
 	.reset_vlan_required = ism_reset_vlan_required,
-	.signal_event = ism_signal_ieq,
-	.move_data = ism_move,
-	.get_system_eid = ism_get_system_eid,
-	.get_chid = ism_get_chid,
+	.signal_event = smcd_signal_ieq,
+	.move_data = smcd_move,
+	.get_system_eid = ism_get_seid,
+	.get_local_gid = smcd_get_local_gid,
+	.get_chid = smcd_get_chid,
 };
 
 static void ism_dev_add_work_func(struct work_struct *work)
@@ -599,10 +625,15 @@ static int ism_dev_init(struct ism_dev *ism)
 	if (ret <= 0)
 		goto out;
 
+	ism->sba_client_arr = kzalloc(ISM_NR_DMBS, GFP_KERNEL);
+	if (!ism->sba_client_arr)
+		goto free_vectors;
+	memset(ism->sba_client_arr, NO_CLIENT, ISM_NR_DMBS);
+
 	ret = request_irq(pci_irq_vector(pdev, 0), ism_handle_irq, 0,
 			  pci_name(pdev), ism);
 	if (ret)
-		goto free_vectors;
+		goto free_client_arr;
 
 	ret = register_sba(ism);
 	if (ret)
@@ -616,7 +647,7 @@ static int ism_dev_init(struct ism_dev *ism)
 	if (ret)
 		goto unreg_ieq;
 
-	if (!ism_add_vlan_id(ism->smcd, ISM_RESERVED_VLANID))
+	if (!ism_add_vlan_id(ism, ISM_RESERVED_VLANID))
 		/* hardware is V2 capable */
 		ism_create_system_eid();
 
@@ -651,6 +682,8 @@ unreg_sba:
 	unregister_sba(ism);
 free_irq:
 	free_irq(pci_irq_vector(pdev, 0), ism);
+free_client_arr:
+	kfree(ism->sba_client_arr);
 free_vectors:
 	pci_free_irq_vectors(pdev);
 out:
@@ -746,10 +779,11 @@ static void ism_dev_exit(struct ism_dev *ism)
 
 	if (SYSTEM_EID.serial_number[0] != '0' ||
 	    SYSTEM_EID.type[0] != '0')
-		ism_del_vlan_id(ism->smcd, ISM_RESERVED_VLANID);
+		ism_del_vlan_id(ism, ISM_RESERVED_VLANID);
 	unregister_ieq(ism);
 	unregister_sba(ism);
 	free_irq(pci_irq_vector(pdev, 0), ism);
+	kfree(ism->sba_client_arr);
 	pci_free_irq_vectors(pdev);
 	list_del_init(&ism->list);
 }

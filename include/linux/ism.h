@@ -87,4 +87,11 @@ static inline void ism_set_priv(struct ism_dev *dev, struct ism_client *client,
 	dev->priv[client->id] = priv;
 }
 
+int  ism_register_dmb(struct ism_dev *dev, struct ism_dmb *dmb,
+		      struct ism_client *client);
+int  ism_unregister_dmb(struct ism_dev *dev, struct ism_dmb *dmb);
+int  ism_move(struct ism_dev *dev, u64 dmb_tok, unsigned int idx, bool sf,
+	      unsigned int offset, void *data, unsigned int size);
+u8  *ism_get_seid(void);
+
 #endif	/* _ISM_H */

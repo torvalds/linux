@@ -66,14 +66,15 @@ struct smcd_ops {
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
 	u8* (*get_system_eid)(void);
+	u64 (*get_local_gid)(struct smcd_dev *dev);
 	u16 (*get_chid)(struct smcd_dev *dev);
 };
 
 struct smcd_dev {
 	const struct smcd_ops *ops;
 	struct device dev;
+	struct ism_dev *ism;
 	void *priv;
-	u64 local_gid;
 	struct list_head list;
 	spinlock_t lock;
 	struct smc_connection **conn;

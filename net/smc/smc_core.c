@@ -500,6 +500,7 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 				struct netlink_callback *cb)
 {
 	char smc_pnet[SMC_MAX_PNETID_LEN + 1];
+	struct smcd_dev *smcd = lgr->smcd;
 	struct nlattr *attrs;
 	void *nlh;
 
@@ -515,8 +516,9 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 
 	if (nla_put_u32(skb, SMC_NLA_LGR_D_ID, *((u32 *)&lgr->id)))
 		goto errattr;
-	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_GID, lgr->smcd->local_gid,
-			      SMC_NLA_LGR_D_PAD))
+	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_GID,
+			      smcd->ops->get_local_gid(smcd),
+				  SMC_NLA_LGR_D_PAD))
 		goto errattr;
 	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_PEER_GID, lgr->peer_gid,
 			      SMC_NLA_LGR_D_PAD))
