@@ -1355,7 +1355,7 @@ s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitfram
 	return _SUCCESS;
 }
 
-static struct xmit_frame *dequeue_one_xmitframe(struct tx_servq *ptxservq, struct __queue *pframe_queue)
+static struct xmit_frame *dequeue_one_xmitframe(struct __queue *pframe_queue)
 {
 	struct list_head *xmitframe_plist, *xmitframe_phead;
 	struct xmit_frame *pxmitframe;
@@ -1367,7 +1367,6 @@ static struct xmit_frame *dequeue_one_xmitframe(struct tx_servq *ptxservq, struc
 	xmitframe_plist = xmitframe_phead->next;
 	pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 	list_del_init(&pxmitframe->list);
-	ptxservq->qcnt--;
 	return pxmitframe;
 }
 
@@ -1398,10 +1397,11 @@ struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmi
 
 			pframe_queue = &ptxservq->sta_pending;
 
-			pxmitframe = dequeue_one_xmitframe(ptxservq, pframe_queue);
+			pxmitframe = dequeue_one_xmitframe(pframe_queue);
 
 			if (pxmitframe) {
 				phwxmit->accnt--;
+				ptxservq->qcnt--;
 
 				/* Remove sta node when there are no pending packets. */
 				if (list_empty(&pframe_queue->queue))
