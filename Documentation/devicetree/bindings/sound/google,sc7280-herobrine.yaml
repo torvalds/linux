@@ -75,6 +75,18 @@ patternProperties:
 
         additionalProperties: false
 
+      platform:
+        description: Holds subnode which includes the phandle of q6apm platform device.
+        type: object
+        properties:
+          sound-dai:
+            maxItems: 1
+
+        required:
+          - sound-dai
+
+        additionalProperties: false
+
     required:
       - link-name
       - cpu
