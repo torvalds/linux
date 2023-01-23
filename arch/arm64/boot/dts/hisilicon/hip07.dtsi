@@ -1254,7 +1254,7 @@
 			};
 		};
 
-		uart0: uart@602b0000 {
+		uart0: serial@602b0000 {
 			compatible = "arm,sbsa-uart";
 			reg = <0x0 0x602b0000 0x0 0x1000>;
 			interrupt-parent = <&mbigen_uart>;
