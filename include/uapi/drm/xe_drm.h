@@ -511,21 +511,21 @@ struct drm_xe_engine_set_property {
 	__u32 engine_id;
 
 	/** @property: property to set */
-#define XE_ENGINE_PROPERTY_PRIORITY			0
-#define XE_ENGINE_PROPERTY_TIMESLICE			1
-#define XE_ENGINE_PROPERTY_PREEMPTION_TIMEOUT		2
+#define XE_ENGINE_SET_PROPERTY_PRIORITY			0
+#define XE_ENGINE_SET_PROPERTY_TIMESLICE		1
+#define XE_ENGINE_SET_PROPERTY_PREEMPTION_TIMEOUT	2
 	/*
 	 * Long running or ULLS engine mode. DMA fences not allowed in this
 	 * mode. Must match the value of DRM_XE_VM_CREATE_COMPUTE_MODE, serves
 	 * as a sanity check the UMD knows what it is doing. Can only be set at
 	 * engine create time.
 	 */
-#define XE_ENGINE_PROPERTY_COMPUTE_MODE			3
-#define XE_ENGINE_PROPERTY_PERSISTENCE			4
-#define XE_ENGINE_PROPERTY_JOB_TIMEOUT			5
-#define XE_ENGINE_PROPERTY_ACC_TRIGGER			6
-#define XE_ENGINE_PROPERTY_ACC_NOTIFY			7
-#define XE_ENGINE_PROPERTY_ACC_GRANULARITY		8
+#define XE_ENGINE_SET_PROPERTY_COMPUTE_MODE		3
+#define XE_ENGINE_SET_PROPERTY_PERSISTENCE		4
+#define XE_ENGINE_SET_PROPERTY_JOB_TIMEOUT		5
+#define XE_ENGINE_SET_PROPERTY_ACC_TRIGGER		6
+#define XE_ENGINE_SET_PROPERTY_ACC_NOTIFY		7
+#define XE_ENGINE_SET_PROPERTY_ACC_GRANULARITY		8
 	__u32 property;
 
 	/** @value: property value */
