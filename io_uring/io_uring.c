@@ -2886,7 +2886,7 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	 * pushes them to do the flush.
 	 */
 
-	if (io_cqring_events(ctx) || io_has_work(ctx))
+	if (__io_cqring_events_user(ctx) || io_has_work(ctx))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
