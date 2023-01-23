@@ -333,7 +333,7 @@
 				};
 			};
 
-			uart1: uart@20000 {
+			uart1: serial@20000 {
 				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart1";
 				reg = <0x20000 0x2000>;
@@ -343,7 +343,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			uart2: uart@22000 {
+			uart2: serial@22000 {
 				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart2";
 				reg = <0x22000 0x2000>;
@@ -353,7 +353,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			uart3: uart@24000 {
+			uart3: serial@24000 {
 				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart3";
 				reg = <0x24000 0x2000>;
