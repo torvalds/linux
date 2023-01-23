@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/syscore_ops.h>
@@ -3156,6 +3156,9 @@ static int __sched_set_group_id(struct task_struct *p, unsigned int group_id)
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	if (group_id >= MAX_NUM_CGROUP_COLOC_ID)
+		return -EINVAL;
+
+	if (unlikely(!walt_flag_test(p, WALT_INIT)))
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
