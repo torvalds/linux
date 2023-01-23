@@ -468,8 +468,6 @@ extern struct iommu_domain *iommu_get_domain_for_dev(struct device *dev);
 extern struct iommu_domain *iommu_get_dma_domain(struct device *dev);
 extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		     phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
-extern int iommu_map_atomic(struct iommu_domain *domain, unsigned long iova,
-			    phys_addr_t paddr, size_t size, int prot);
 extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 			  size_t size);
 extern size_t iommu_unmap_fast(struct iommu_domain *domain,
@@ -774,13 +772,6 @@ static inline struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
 
 static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
 			    phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
-{
-	return -ENODEV;
-}
-
-static inline int iommu_map_atomic(struct iommu_domain *domain,
-				   unsigned long iova, phys_addr_t paddr,
-				   size_t size, int prot)
 {
 	return -ENODEV;
 }

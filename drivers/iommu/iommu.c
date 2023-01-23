@@ -2381,13 +2381,6 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 EXPORT_SYMBOL_GPL(iommu_map);
 
-int iommu_map_atomic(struct iommu_domain *domain, unsigned long iova,
-	      phys_addr_t paddr, size_t size, int prot)
-{
-	return iommu_map(domain, iova, paddr, size, prot, GFP_ATOMIC);
-}
-EXPORT_SYMBOL_GPL(iommu_map_atomic);
-
 static size_t __iommu_unmap_pages(struct iommu_domain *domain,
 				  unsigned long iova, size_t size,
 				  struct iommu_iotlb_gather *iotlb_gather)
