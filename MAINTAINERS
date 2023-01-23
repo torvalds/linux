@@ -17247,7 +17247,8 @@ F:	drivers/clk/qcom/
 F:	include/dt-bindings/clock/qcom,*
 
 QUALCOMM CORE POWER REDUCTION (CPR) AVS DRIVER
-M:	Niklas Cassel <nks@flawful.org>
+M:	Bjorn Andersson <andersson@kernel.org>
+M:	Konrad Dybcio <konrad.dybcio@linaro.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
