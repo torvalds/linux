@@ -582,6 +582,7 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_free:
 	smcd_free_dev(ism->smcd);
 err_resource:
+	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 err_disable:
 	pci_disable_device(pdev);
@@ -612,6 +613,7 @@ static void ism_remove(struct pci_dev *pdev)
 	ism_dev_exit(ism);
 
 	smcd_free_dev(ism->smcd);
+	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
 	dev_set_drvdata(&pdev->dev, NULL);
