@@ -11,7 +11,7 @@
 
 / {
 	model = "Radxa Compute Module 3(CM3) IO Board";
-	compatible = "radxa,radxa-cm3-io", "radxa,radxa-cm3", "rockchip,rk3566";
+	compatible = "radxa,cm3-io", "radxa,cm3", "rockchip,rk3566";
 
 	aliases {
 		mmc1 = &sdmmc0;

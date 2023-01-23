@@ -8,7 +8,7 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	compatible = "radxa,radxa-cm3", "rockchip,rk3566";
+	compatible = "radxa,cm3", "rockchip,rk3566";
 
 	aliases {
 		mmc0 = &sdhci;
