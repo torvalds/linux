@@ -1238,6 +1238,15 @@ void tctx_task_work(struct callback_head *cb)
 		loops++;
 		node = io_llist_xchg(&tctx->task_list, &fake);
 		count += handle_tw_list(node, &ctx, &uring_locked, &fake);
+
+		/* skip expensive cmpxchg if there are items in the list */
+		if (READ_ONCE(tctx->task_list.first) != &fake)
+			continue;
+		if (uring_locked && !wq_list_empty(&ctx->submit_state.compl_reqs)) {
+			io_submit_flush_completions(ctx);
+			if (READ_ONCE(tctx->task_list.first) != &fake)
+				continue;
+		}
 		node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
 	} while (node != &fake);
 
