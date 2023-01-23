@@ -457,7 +457,7 @@ static int batch_iommu_map_small(struct iommu_domain *domain,
 
 	while (size) {
 		rc = iommu_map(domain, iova, paddr, PAGE_SIZE, prot,
-			       GFP_KERNEL);
+			       GFP_KERNEL_ACCOUNT);
 		if (rc)
 			goto err_unmap;
 		iova += PAGE_SIZE;
@@ -502,7 +502,7 @@ static int batch_to_domain(struct pfn_batch *batch, struct iommu_domain *domain,
 			rc = iommu_map(domain, iova,
 				       PFN_PHYS(batch->pfns[cur]) + page_offset,
 				       next_iova - iova, area->iommu_prot,
-				       GFP_KERNEL);
+				       GFP_KERNEL_ACCOUNT);
 		if (rc)
 			goto err_unmap;
 		iova = next_iova;
