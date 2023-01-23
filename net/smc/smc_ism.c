@@ -231,9 +231,11 @@ static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
 	struct smc_pci_dev smc_pci_dev;
 	struct nlattr *port_attrs;
 	struct nlattr *attrs;
+	struct ism_dev *ism;
 	int use_cnt = 0;
 	void *nlh;
 
+	ism = smcd->priv;
 	nlh = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &smc_gen_nl_family, NLM_F_MULTI,
 			  SMC_NETLINK_GET_DEV_SMCD);
@@ -248,7 +250,7 @@ static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
 	if (nla_put_u8(skb, SMC_NLA_DEV_IS_CRIT, use_cnt > 0))
 		goto errattr;
 	memset(&smc_pci_dev, 0, sizeof(smc_pci_dev));
-	smc_set_pci_values(to_pci_dev(smcd->dev.parent), &smc_pci_dev);
+	smc_set_pci_values(to_pci_dev(ism->dev.parent), &smc_pci_dev);
 	if (nla_put_u32(skb, SMC_NLA_DEV_PCI_FID, smc_pci_dev.pci_fid))
 		goto errattr;
 	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_CHID, smc_pci_dev.pci_pchid))
@@ -377,41 +379,24 @@ static void smc_ism_event_work(struct work_struct *work)
 	kfree(wrk);
 }
 
-static void smcd_release(struct device *dev)
-{
-	struct smcd_dev *smcd = container_of(dev, struct smcd_dev, dev);
-
-	kfree(smcd->conn);
-	kfree(smcd);
-}
-
-struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
-				const struct smcd_ops *ops, int max_dmbs)
+static struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
+				       const struct smcd_ops *ops, int max_dmbs)
 {
 	struct smcd_dev *smcd;
 
-	smcd = kzalloc(sizeof(*smcd), GFP_KERNEL);
+	smcd = devm_kzalloc(parent, sizeof(*smcd), GFP_KERNEL);
 	if (!smcd)
 		return NULL;
-	smcd->conn = kcalloc(max_dmbs, sizeof(struct smc_connection *),
-			     GFP_KERNEL);
-	if (!smcd->conn) {
-		kfree(smcd);
+	smcd->conn = devm_kcalloc(parent, max_dmbs,
+				  sizeof(struct smc_connection *), GFP_KERNEL);
+	if (!smcd->conn)
 		return NULL;
-	}
 
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
 						 WQ_MEM_RECLAIM, name);
-	if (!smcd->event_wq) {
-		kfree(smcd->conn);
-		kfree(smcd);
+	if (!smcd->event_wq)
 		return NULL;
-	}
 
-	smcd->dev.parent = parent;
-	smcd->dev.release = smcd_release;
-	device_initialize(&smcd->dev);
-	dev_set_name(&smcd->dev, name);
 	smcd->ops = ops;
 
 	spin_lock_init(&smcd->lock);
@@ -421,13 +406,6 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	init_waitqueue_head(&smcd->lgrs_deleted);
 	return smcd;
 }
-EXPORT_SYMBOL_GPL(smcd_alloc_dev);
-
-void smcd_free_dev(struct smcd_dev *smcd)
-{
-	put_device(&smcd->dev);
-}
-EXPORT_SYMBOL_GPL(smcd_free_dev);
 
 static void smcd_register_dev(struct ism_dev *ism)
 {
@@ -465,15 +443,8 @@ static void smcd_register_dev(struct ism_dev *ism)
 	mutex_unlock(&smcd_dev_list.mutex);
 
 	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
-			    dev_name(&smcd->dev), smcd->pnetid,
+			    dev_name(&ism->dev), smcd->pnetid,
 			    smcd->pnetid_by_user ? " (user defined)" : "");
-
-	if (device_add(&smcd->dev)) {
-		mutex_lock(&smcd_dev_list.mutex);
-		list_del(&smcd->list);
-		mutex_unlock(&smcd_dev_list.mutex);
-		smcd_free_dev(smcd);
-	}
 
 	return;
 }
@@ -483,15 +454,13 @@ static void smcd_unregister_dev(struct ism_dev *ism)
 	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
 
 	pr_warn_ratelimited("smc: removing smcd device %s\n",
-			    dev_name(&smcd->dev));
+			    dev_name(&ism->dev));
 	smcd->going_away = 1;
 	smc_smcd_terminate_all(smcd);
 	mutex_lock(&smcd_dev_list.mutex);
 	list_del_init(&smcd->list);
 	mutex_unlock(&smcd_dev_list.mutex);
 	destroy_workqueue(smcd->event_wq);
-
-	device_del(&smcd->dev);
 }
 
 /* SMCD Device event handler. Called from ISM device interrupt handler.

@@ -30,7 +30,6 @@ struct ism_dev {
 	spinlock_t lock; /* protects the ism device */
 	struct list_head list;
 	struct pci_dev *pdev;
-	struct smcd_dev *smcd;
 
 	struct ism_sba *sba;
 	dma_addr_t sba_dma_addr;

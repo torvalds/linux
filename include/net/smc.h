@@ -70,11 +70,11 @@ struct smcd_ops {
 	u8* (*get_system_eid)(void);
 	u64 (*get_local_gid)(struct smcd_dev *dev);
 	u16 (*get_chid)(struct smcd_dev *dev);
+	struct device* (*get_dev)(struct smcd_dev *dev);
 };
 
 struct smcd_dev {
 	const struct smcd_ops *ops;
-	struct device dev;
 	void *priv;
 	struct list_head list;
 	spinlock_t lock;
@@ -89,9 +89,5 @@ struct smcd_dev {
 	wait_queue_head_t lgrs_deleted;
 	u8 going_away : 1;
 };
-
-struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
-				const struct smcd_ops *ops, int max_dmbs);
-void smcd_free_dev(struct smcd_dev *smcd);
 
 #endif	/* _SMC_H */

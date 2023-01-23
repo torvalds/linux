@@ -646,6 +646,12 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&ism->lock);
 	dev_set_drvdata(&pdev->dev, ism);
 	ism->pdev = pdev;
+	ism->dev.parent = &pdev->dev;
+	device_initialize(&ism->dev);
+	dev_set_name(&ism->dev, dev_name(&pdev->dev));
+	ret = device_add(&ism->dev);
+	if (ret)
+		goto err_dev;
 
 	ret = pci_enable_device_mem(pdev);
 	if (ret)
@@ -663,30 +669,23 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dma_set_max_seg_size(&pdev->dev, SZ_1M);
 	pci_set_master(pdev);
 
-	ism->smcd = smcd_alloc_dev(&pdev->dev, dev_name(&pdev->dev), &ism_ops,
-				   ISM_NR_DMBS);
-	if (!ism->smcd) {
-		ret = -ENOMEM;
-		goto err_resource;
-	}
-
-	ism->smcd->priv = ism;
 	ret = ism_dev_init(ism);
 	if (ret)
-		goto err_free;
+		goto err_resource;
 
 	return 0;
 
-err_free:
-	smcd_free_dev(ism->smcd);
 err_resource:
 	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 err_disable:
 	pci_disable_device(pdev);
 err:
-	kfree(ism);
+	device_del(&ism->dev);
+err_dev:
 	dev_set_drvdata(&pdev->dev, NULL);
+	kfree(ism);
+
 	return ret;
 }
 
@@ -740,7 +739,6 @@ static void ism_remove(struct pci_dev *pdev)
 	ism_dev_exit(ism);
 	mutex_unlock(&ism_dev_list.mutex);
 
-	smcd_free_dev(ism->smcd);
 	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);
@@ -874,6 +872,7 @@ static const struct smcd_ops ism_ops = {
 	.get_system_eid = ism_get_seid,
 	.get_local_gid = smcd_get_local_gid,
 	.get_chid = smcd_get_chid,
+	.get_dev = smcd_get_dev,
 };
 
 const struct smcd_ops *ism_get_smcd_ops(void)
