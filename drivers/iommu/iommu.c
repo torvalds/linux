@@ -2470,15 +2470,22 @@ size_t iommu_unmap_fast(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 
-static ssize_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-		struct scatterlist *sg, unsigned int nents, int prot,
-		gfp_t gfp)
+ssize_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+		     struct scatterlist *sg, unsigned int nents, int prot,
+		     gfp_t gfp)
 {
 	const struct iommu_domain_ops *ops = domain->ops;
 	size_t len = 0, mapped = 0;
 	phys_addr_t start;
 	unsigned int i = 0;
 	int ret;
+
+	might_sleep_if(gfpflags_allow_blocking(gfp));
+
+	/* Discourage passing strange GFP flags */
+	if (WARN_ON_ONCE(gfp & (__GFP_COMP | __GFP_DMA | __GFP_DMA32 |
+				__GFP_HIGHMEM)))
+		return -EINVAL;
 
 	while (i <= nents) {
 		phys_addr_t s_phys = sg_phys(sg);
@@ -2519,20 +2526,7 @@ out_err:
 
 	return ret;
 }
-
-ssize_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-		     struct scatterlist *sg, unsigned int nents, int prot)
-{
-	might_sleep();
-	return __iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
-}
 EXPORT_SYMBOL_GPL(iommu_map_sg);
-
-ssize_t iommu_map_sg_atomic(struct iommu_domain *domain, unsigned long iova,
-		    struct scatterlist *sg, unsigned int nents, int prot)
-{
-	return __iommu_map_sg(domain, iova, sg, nents, prot, GFP_ATOMIC);
-}
 
 /**
  * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
