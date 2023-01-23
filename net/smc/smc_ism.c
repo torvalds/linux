@@ -27,6 +27,7 @@ struct smcd_dev_list smcd_dev_list = {
 static bool smc_ism_v2_capable;
 static u8 smc_ism_v2_system_eid[SMC_MAX_EID_LEN];
 
+#if IS_ENABLED(CONFIG_ISM)
 static void smcd_register_dev(struct ism_dev *ism);
 static void smcd_unregister_dev(struct ism_dev *ism);
 static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event);
@@ -40,6 +41,7 @@ static struct ism_client smc_ism_client = {
 	.handle_event = smcd_handle_event,
 	.handle_irq = smcd_handle_irq,
 };
+#endif
 
 /* Test if an ISM communication is possible - same CPC */
 int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
@@ -198,6 +200,7 @@ int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
 			 struct smc_buf_desc *dmb_desc)
 {
+#if IS_ENABLED(CONFIG_ISM)
 	struct smcd_dmb dmb;
 	int rc;
 
@@ -206,7 +209,7 @@ int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
 	dmb.sba_idx = dmb_desc->sba_idx;
 	dmb.vlan_id = lgr->vlan_id;
 	dmb.rgid = lgr->peer_gid;
-	rc = lgr->smcd->ops->register_dmb(lgr->smcd, &dmb);
+	rc = lgr->smcd->ops->register_dmb(lgr->smcd, &dmb, &smc_ism_client);
 	if (!rc) {
 		dmb_desc->sba_idx = dmb.sba_idx;
 		dmb_desc->token = dmb.dmb_tok;
@@ -215,6 +218,9 @@ int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
 		dmb_desc->len = dmb.dmb_len;
 	}
 	return rc;
+#else
+	return 0;
+#endif
 }
 
 static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
@@ -308,6 +314,7 @@ int smcd_nl_get_device(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
+#if IS_ENABLED(CONFIG_ISM)
 struct smc_ism_event_work {
 	struct work_struct work;
 	struct smcd_dev *smcd;
@@ -349,24 +356,6 @@ static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 			}
 		break;
 	}
-}
-
-int smc_ism_signal_shutdown(struct smc_link_group *lgr)
-{
-	int rc;
-	union smcd_sw_event_info ev_info;
-
-	if (lgr->peer_shutdown)
-		return 0;
-
-	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
-	ev_info.vlan_id = lgr->vlan_id;
-	ev_info.code = ISM_EVENT_REQUEST;
-	rc = lgr->smcd->ops->signal_event(lgr->smcd, lgr->peer_gid,
-					  ISM_EVENT_REQUEST_IR,
-					  ISM_EVENT_CODE_SHUTDOWN,
-					  ev_info.info);
-	return rc;
 }
 
 /* worker for SMC-D events */
@@ -442,8 +431,11 @@ EXPORT_SYMBOL_GPL(smcd_free_dev);
 
 static void smcd_register_dev(struct ism_dev *ism)
 {
-	const struct smcd_ops *ops = NULL;
+	const struct smcd_ops *ops = ism_get_smcd_ops();
 	struct smcd_dev *smcd;
+
+	if (!ops)
+		return;
 
 	smcd = smcd_alloc_dev(&ism->pdev->dev, dev_name(&ism->pdev->dev), ops,
 			      ISM_NR_DMBS);
@@ -550,16 +542,39 @@ static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
+#endif
+
+int smc_ism_signal_shutdown(struct smc_link_group *lgr)
+{
+	int rc = 0;
+#if IS_ENABLED(CONFIG_ISM)
+	union smcd_sw_event_info ev_info;
+
+	if (lgr->peer_shutdown)
+		return 0;
+
+	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
+	ev_info.vlan_id = lgr->vlan_id;
+	ev_info.code = ISM_EVENT_REQUEST;
+	rc = lgr->smcd->ops->signal_event(lgr->smcd, lgr->peer_gid,
+					  ISM_EVENT_REQUEST_IR,
+					  ISM_EVENT_CODE_SHUTDOWN,
+					  ev_info.info);
+#endif
+	return rc;
+}
 
 int smc_ism_init(void)
 {
+	int rc = 0;
+
+#if IS_ENABLED(CONFIG_ISM)
 	smc_ism_v2_capable = false;
 	memset(smc_ism_v2_system_eid, 0, SMC_MAX_EID_LEN);
-#if IS_ENABLED(CONFIG_ISM)
-	return ism_register_client(&smc_ism_client);
-#else
-	return 0;
+
+	rc = ism_register_client(&smc_ism_client);
 #endif
+	return rc;
 }
 
 void smc_ism_exit(void)

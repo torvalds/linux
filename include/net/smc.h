@@ -50,11 +50,13 @@ struct smcd_dmb {
 #define ISM_ERROR	0xFFFF
 
 struct smcd_dev;
+struct ism_client;
 
 struct smcd_ops {
 	int (*query_remote_gid)(struct smcd_dev *dev, u64 rgid, u32 vid_valid,
 				u32 vid);
-	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
+	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb,
+			    struct ism_client *client);
 	int (*unregister_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
 	int (*add_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
 	int (*del_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
@@ -73,7 +75,6 @@ struct smcd_ops {
 struct smcd_dev {
 	const struct smcd_ops *ops;
 	struct device dev;
-	struct ism_dev *ism;
 	void *priv;
 	struct list_head list;
 	spinlock_t lock;

@@ -289,11 +289,6 @@ static int ism_query_rgid(struct ism_dev *ism, u64 rgid, u32 vid_valid,
 	return ism_cmd(ism, &cmd);
 }
 
-static int smcd_query_rgid(struct smcd_dev *smcd, u64 rgid, u32 vid_valid, u32 vid)
-{
-	return ism_query_rgid(smcd->priv, rgid, vid_valid, vid);
-}
-
 static void ism_free_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 {
 	clear_bit(dmb->sba_idx, ism->sba_bitmap);
@@ -363,11 +358,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(ism_register_dmb);
 
-static int smcd_register_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
-{
-	return ism_register_dmb(smcd->priv, (struct ism_dmb *)dmb, NULL);
-}
-
 int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 {
 	union ism_unreg_dmb cmd;
@@ -391,11 +381,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(ism_unregister_dmb);
 
-static int smcd_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
-{
-	return ism_unregister_dmb(smcd->priv, (struct ism_dmb *)dmb);
-}
-
 static int ism_add_vlan_id(struct ism_dev *ism, u64 vlan_id)
 {
 	union ism_set_vlan_id cmd;
@@ -407,11 +392,6 @@ static int ism_add_vlan_id(struct ism_dev *ism, u64 vlan_id)
 	cmd.request.vlan_id = vlan_id;
 
 	return ism_cmd(ism, &cmd);
-}
-
-static int smcd_add_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
-{
-	return ism_add_vlan_id(smcd->priv, vlan_id);
 }
 
 static int ism_del_vlan_id(struct ism_dev *ism, u64 vlan_id)
@@ -427,25 +407,9 @@ static int ism_del_vlan_id(struct ism_dev *ism, u64 vlan_id)
 	return ism_cmd(ism, &cmd);
 }
 
-static int smcd_del_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
+static int ism_signal_ieq(struct ism_dev *ism, u64 rgid, u32 trigger_irq,
+			  u32 event_code, u64 info)
 {
-	return ism_del_vlan_id(smcd->priv, vlan_id);
-}
-
-static int ism_set_vlan_required(struct smcd_dev *smcd)
-{
-	return ism_cmd_simple(smcd->priv, ISM_SET_VLAN);
-}
-
-static int ism_reset_vlan_required(struct smcd_dev *smcd)
-{
-	return ism_cmd_simple(smcd->priv, ISM_RESET_VLAN);
-}
-
-static int smcd_signal_ieq(struct smcd_dev *smcd, u64 rgid, u32 trigger_irq,
-			   u32 event_code, u64 info)
-{
-	struct ism_dev *ism = smcd->priv;
 	union ism_sig_ieq cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -466,11 +430,9 @@ static unsigned int max_bytes(unsigned int start, unsigned int len,
 	return min(boundary - (start & (boundary - 1)), len);
 }
 
-static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
-		     bool sf, unsigned int offset, void *data,
-		     unsigned int size)
+int ism_move(struct ism_dev *ism, u64 dmb_tok, unsigned int idx, bool sf,
+	     unsigned int offset, void *data, unsigned int size)
 {
-	struct ism_dev *ism = smcd->priv;
 	unsigned int bytes;
 	u64 dmb_req;
 	int ret;
@@ -491,6 +453,7 @@ static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ism_move);
 
 static struct ism_systemeid SYSTEM_EID = {
 	.seid_string = "IBM-SYSZ-ISMSEID00000000",
@@ -518,10 +481,8 @@ u8 *ism_get_seid(void)
 }
 EXPORT_SYMBOL_GPL(ism_get_seid);
 
-static u16 smcd_get_chid(struct smcd_dev *smcd)
+static u16 ism_get_chid(struct ism_dev *ism)
 {
-	struct ism_dev *ism = smcd->priv;
-
 	if (!ism || !ism->pdev)
 		return 0;
 
@@ -583,27 +544,10 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static u64 smcd_get_local_gid(struct smcd_dev *smcd)
+static u64 ism_get_local_gid(struct ism_dev *ism)
 {
-	struct ism_dev *ism = smcd->priv;
-
 	return ism->local_gid;
 }
-
-static const struct smcd_ops ism_ops = {
-	.query_remote_gid = smcd_query_rgid,
-	.register_dmb = smcd_register_dmb,
-	.unregister_dmb = smcd_unregister_dmb,
-	.add_vlan_id = smcd_add_vlan_id,
-	.del_vlan_id = smcd_del_vlan_id,
-	.set_vlan_required = ism_set_vlan_required,
-	.reset_vlan_required = ism_reset_vlan_required,
-	.signal_event = smcd_signal_ieq,
-	.move_data = smcd_move,
-	.get_system_eid = ism_get_seid,
-	.get_local_gid = smcd_get_local_gid,
-	.get_chid = smcd_get_chid,
-};
 
 static void ism_dev_add_work_func(struct work_struct *work)
 {
@@ -846,3 +790,95 @@ static void __exit ism_exit(void)
 
 module_init(ism_init);
 module_exit(ism_exit);
+
+/*************************** SMC-D Implementation *****************************/
+
+#if IS_ENABLED(CONFIG_SMC)
+static int smcd_query_rgid(struct smcd_dev *smcd, u64 rgid, u32 vid_valid,
+			   u32 vid)
+{
+	return ism_query_rgid(smcd->priv, rgid, vid_valid, vid);
+}
+
+static int smcd_register_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb,
+			     struct ism_client *client)
+{
+	return ism_register_dmb(smcd->priv, (struct ism_dmb *)dmb, client);
+}
+
+static int smcd_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
+{
+	return ism_unregister_dmb(smcd->priv, (struct ism_dmb *)dmb);
+}
+
+static int smcd_add_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
+{
+	return ism_add_vlan_id(smcd->priv, vlan_id);
+}
+
+static int smcd_del_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
+{
+	return ism_del_vlan_id(smcd->priv, vlan_id);
+}
+
+static int smcd_set_vlan_required(struct smcd_dev *smcd)
+{
+	return ism_cmd_simple(smcd->priv, ISM_SET_VLAN);
+}
+
+static int smcd_reset_vlan_required(struct smcd_dev *smcd)
+{
+	return ism_cmd_simple(smcd->priv, ISM_RESET_VLAN);
+}
+
+static int smcd_signal_ieq(struct smcd_dev *smcd, u64 rgid, u32 trigger_irq,
+			   u32 event_code, u64 info)
+{
+	return ism_signal_ieq(smcd->priv, rgid, trigger_irq, event_code, info);
+}
+
+static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
+		     bool sf, unsigned int offset, void *data,
+		     unsigned int size)
+{
+	return ism_move(smcd->priv, dmb_tok, idx, sf, offset, data, size);
+}
+
+static u64 smcd_get_local_gid(struct smcd_dev *smcd)
+{
+	return ism_get_local_gid(smcd->priv);
+}
+
+static u16 smcd_get_chid(struct smcd_dev *smcd)
+{
+	return ism_get_chid(smcd->priv);
+}
+
+static inline struct device *smcd_get_dev(struct smcd_dev *dev)
+{
+	struct ism_dev *ism = dev->priv;
+
+	return &ism->dev;
+}
+
+static const struct smcd_ops ism_ops = {
+	.query_remote_gid = smcd_query_rgid,
+	.register_dmb = smcd_register_dmb,
+	.unregister_dmb = smcd_unregister_dmb,
+	.add_vlan_id = smcd_add_vlan_id,
+	.del_vlan_id = smcd_del_vlan_id,
+	.set_vlan_required = smcd_set_vlan_required,
+	.reset_vlan_required = smcd_reset_vlan_required,
+	.signal_event = smcd_signal_ieq,
+	.move_data = smcd_move,
+	.get_system_eid = ism_get_seid,
+	.get_local_gid = smcd_get_local_gid,
+	.get_chid = smcd_get_chid,
+};
+
+const struct smcd_ops *ism_get_smcd_ops(void)
+{
+	return &ism_ops;
+}
+EXPORT_SYMBOL_GPL(ism_get_smcd_ops);
+#endif
