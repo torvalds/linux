@@ -16,6 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 
@@ -316,8 +317,8 @@ int rcar_lvds_pclk_enable(struct drm_bridge *bridge, unsigned long freq)
 
 	dev_dbg(lvds->dev, "enabling LVDS PLL, freq=%luHz\n", freq);
 
-	ret = clk_prepare_enable(lvds->clocks.mod);
-	if (ret < 0)
+	ret = pm_runtime_resume_and_get(lvds->dev);
+	if (ret)
 		return ret;
 
 	__rcar_lvds_pll_setup_d3_e3(lvds, freq, true);
@@ -337,7 +338,7 @@ void rcar_lvds_pclk_disable(struct drm_bridge *bridge)
 
 	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
-	clk_disable_unprepare(lvds->clocks.mod);
+	pm_runtime_put_sync(lvds->dev);
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_pclk_disable);
 
@@ -396,8 +397,8 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 	u32 lvdcr0;
 	int ret;
 
-	ret = clk_prepare_enable(lvds->clocks.mod);
-	if (ret < 0)
+	ret = pm_runtime_resume_and_get(lvds->dev);
+	if (ret)
 		return;
 
 	/* Enable the companion LVDS encoder in dual-link mode. */
@@ -551,7 +552,7 @@ static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
 		lvds->companion->funcs->atomic_disable(lvds->companion,
 						       old_bridge_state);
 
-	clk_disable_unprepare(lvds->clocks.mod);
+	pm_runtime_put_sync(lvds->dev);
 }
 
 static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
@@ -844,6 +845,8 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	pm_runtime_enable(&pdev->dev);
+
 	drm_bridge_add(&lvds->bridge);
 
 	return 0;
@@ -854,6 +857,8 @@ static int rcar_lvds_remove(struct platform_device *pdev)
 	struct rcar_lvds *lvds = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&lvds->bridge);
+
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -913,11 +918,37 @@ static const struct of_device_id rcar_lvds_of_table[] = {
 
 MODULE_DEVICE_TABLE(of, rcar_lvds_of_table);
 
+static int rcar_lvds_runtime_suspend(struct device *dev)
+{
+	struct rcar_lvds *lvds = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(lvds->clocks.mod);
+
+	return 0;
+}
+
+static int rcar_lvds_runtime_resume(struct device *dev)
+{
+	struct rcar_lvds *lvds = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(lvds->clocks.mod);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static const struct dev_pm_ops rcar_lvds_pm_ops = {
+	SET_RUNTIME_PM_OPS(rcar_lvds_runtime_suspend, rcar_lvds_runtime_resume, NULL)
+};
+
 static struct platform_driver rcar_lvds_platform_driver = {
 	.probe		= rcar_lvds_probe,
 	.remove		= rcar_lvds_remove,
 	.driver		= {
 		.name	= "rcar-lvds",
+		.pm	= &rcar_lvds_pm_ops,
 		.of_match_table = rcar_lvds_of_table,
 	},
 };
