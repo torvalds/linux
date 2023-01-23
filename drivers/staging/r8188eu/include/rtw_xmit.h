@@ -273,7 +273,6 @@ struct	xmit_priv {
 	u64	last_tx_bytes;
 	u64	last_tx_pkts;
 	struct hw_xmit *hwxmits;
-	u8	hwxmit_entry;
 	u8	wmm_para_seq[4];/* sequence for wmm ac parameter strength
 				 * from large to small. it's value is 0->vo,
 				 * 1->vi, 2->be, 3->bk. */
@@ -324,7 +323,7 @@ struct tx_servq *rtw_get_sta_pending(struct adapter *padapter,
 s32 rtw_xmitframe_enqueue(struct adapter *padapter,
 			  struct xmit_frame *pxmitframe);
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv,
-				      struct hw_xmit *phwxmit_i, int entry);
+				      struct hw_xmit *phwxmit_i);
 
 s32 rtw_xmit_classifier(struct adapter *padapter,
 			struct xmit_frame *pxmitframe);
