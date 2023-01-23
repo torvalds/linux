@@ -84,6 +84,10 @@ patternProperties:
       The controller supports multiple channels and each is represented as a
       child node.  Each channel can be enabled/disabled individually.
 
+    properties:
+      phys:
+        maxItems: 1
+
     additionalProperties: false
 
 required:
