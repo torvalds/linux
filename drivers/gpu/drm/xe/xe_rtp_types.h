@@ -24,10 +24,6 @@ enum {
 struct xe_rtp_regval {
 	/** @reg: Register */
 	u32		reg;
-	/*
-	 * TODO: maybe we need a union here with a func pointer for cases
-	 * that are too specific to be generalized
-	 */
 	/** @clr_bits: bits to clear when updating register */
 	u32		clr_bits;
 	/** @set_bits: bits to set when updating register */
