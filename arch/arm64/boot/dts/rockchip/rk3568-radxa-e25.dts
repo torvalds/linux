@@ -5,7 +5,7 @@
 
 / {
 	model = "Radxa E25";
-	compatible = "radxa,e25", "rockchip,rk3568";
+	compatible = "radxa,e25", "radxa,cm3i", "rockchip,rk3568";
 
 	aliases {
 		mmc1 = &sdmmc0;
