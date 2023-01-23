@@ -2739,8 +2739,8 @@ static int scmi_probe(struct platform_device *pdev)
 				if (ret)
 					goto clear_dev_req_notifier;
 
-				/* Bail out anyway when coex enabled */
-				return ret;
+				/* Bail out anyway when coex disabled. */
+				return 0;
 			}
 
 			/* Coex enabled, carry on in any case. */
