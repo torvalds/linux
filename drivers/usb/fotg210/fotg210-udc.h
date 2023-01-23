@@ -58,6 +58,8 @@
 
 /* Device Mask of Interrupt Group Register (0x130) */
 #define FOTG210_DMIGR		0x130
+#define DMIGR_MINT_G2		(1 << 2)
+#define DMIGR_MINT_G1		(1 << 1)
 #define DMIGR_MINT_G0		(1 << 0)
 
 /* Device Mask of Interrupt Source Group 0(0x134) */

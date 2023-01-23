@@ -7,6 +7,7 @@
  * Author : Yuan-Hsin Chen <yhchen@faraday-tech.com>
  */
 
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -1023,6 +1024,11 @@ static int fotg210_udc_start(struct usb_gadget *g,
 			dev_err(fotg210->dev, "can't bind to phy\n");
 	}
 
+	/* chip enable */
+	value = ioread32(fotg210->reg + FOTG210_DMCR);
+	value |= DMCR_CHIP_EN;
+	iowrite32(value, fotg210->reg + FOTG210_DMCR);
+
 	/* enable device global interrupt */
 	value = ioread32(fotg210->reg + FOTG210_DMCR);
 	value |= DMCR_GLINT_EN;
@@ -1038,6 +1044,15 @@ static void fotg210_init(struct fotg210_udc *fotg210)
 	/* disable global interrupt and set int polarity to active high */
 	iowrite32(GMIR_MHC_INT | GMIR_MOTG_INT | GMIR_INT_POLARITY,
 		  fotg210->reg + FOTG210_GMIR);
+
+	/* mask interrupts for groups other than 0-2 */
+	iowrite32(~(DMIGR_MINT_G0 | DMIGR_MINT_G1 | DMIGR_MINT_G2),
+		  fotg210->reg + FOTG210_DMIGR);
+
+	/* udc software reset */
+	iowrite32(DMCR_SFRST, fotg210->reg + FOTG210_DMCR);
+	/* Better wait a bit, but without a datasheet, no idea how long. */
+	usleep_range(100, 200);
 
 	/* disable device global interrupt */
 	value = ioread32(fotg210->reg + FOTG210_DMCR);
