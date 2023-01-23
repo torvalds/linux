@@ -1746,11 +1746,15 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 		goto unlock;
 	}
 
-	requested_bw = usb4_dp_port_requested_bw(in);
-	if (requested_bw < 0) {
-		tb_port_dbg(in, "no bandwidth request active\n");
+	ret = usb4_dp_port_requested_bw(in);
+	if (ret < 0) {
+		if (ret == -ENODATA)
+			tb_port_dbg(in, "no bandwidth request active\n");
+		else
+			tb_port_warn(in, "failed to read requested bandwidth\n");
 		goto unlock;
 	}
+	requested_bw = ret;
 
 	tb_port_dbg(in, "requested bandwidth %d Mb/s\n", requested_bw);
 

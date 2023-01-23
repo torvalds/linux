@@ -2732,7 +2732,8 @@ int usb4_dp_port_allocate_bw(struct tb_port *port, int bw)
  * Reads the DPCD (graphics driver) requested bandwidth and returns it
  * in Mb/s. Takes the programmed granularity into account. In case of
  * error returns negative errno. Specifically returns %-EOPNOTSUPP if
- * the adapter does not support bandwidth allocation mode.
+ * the adapter does not support bandwidth allocation mode, and %ENODATA
+ * if there is no active bandwidth request from the graphics driver.
  */
 int usb4_dp_port_requested_bw(struct tb_port *port)
 {
@@ -2750,10 +2751,10 @@ int usb4_dp_port_requested_bw(struct tb_port *port)
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_8, 1);
 	if (ret)
-		return 0;
+		return ret;
 
 	if (!(val & ADP_DP_CS_8_DR))
-		return 0;
+		return -ENODATA;
 
 	return (val & ADP_DP_CS_8_REQUESTED_BW_MASK) * granularity;
 }
