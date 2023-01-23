@@ -174,7 +174,6 @@ unsigned long get_random_base(unsigned long safe_addr)
 {
 	unsigned long memory_limit = get_mem_detect_end();
 	unsigned long base_pos, max_pos, kernel_size;
-	unsigned long kasan_needs;
 	int i;
 
 	memory_limit = min(memory_limit, ident_map_size);
@@ -186,12 +185,7 @@ unsigned long get_random_base(unsigned long safe_addr)
 	 */
 	memory_limit -= kasan_estimate_memory_needs(memory_limit);
 
-	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && initrd_data.start && initrd_data.size) {
-		if (safe_addr < initrd_data.start + initrd_data.size)
-			safe_addr = initrd_data.start + initrd_data.size;
-	}
 	safe_addr = ALIGN(safe_addr, THREAD_SIZE);
-
 	kernel_size = vmlinux.image_size + vmlinux.bss_size;
 	if (safe_addr + kernel_size > memory_limit)
 		return 0;
