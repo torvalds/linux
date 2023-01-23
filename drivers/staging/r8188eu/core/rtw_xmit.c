@@ -1347,12 +1347,7 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 
 s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	if (rtw_xmit_classifier(padapter, pxmitframe) == _FAIL) {
-/* 		pxmitframe->pkt = NULL; */
-		return _FAIL;
-	}
-
-	return _SUCCESS;
+	return rtw_xmit_classifier(padapter, pxmitframe);
 }
 
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i)
