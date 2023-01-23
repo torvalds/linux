@@ -245,12 +245,29 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		       | DPLLCR_N(dpll.n) | DPLLCR_M(dpll.m)
 		       | DPLLCR_STBY;
 
-		if (rcrtc->index == 1)
+		if (rcrtc->index == 1) {
 			dpllcr |= DPLLCR_PLCS1
 			       |  DPLLCR_INCS_DOTCLKIN1;
-		else
-			dpllcr |= DPLLCR_PLCS0
+		} else {
+			dpllcr |= DPLLCR_PLCS0_PLL
 			       |  DPLLCR_INCS_DOTCLKIN0;
+
+			/*
+			 * On ES2.x we have a single mux controlled via bit 21,
+			 * which selects between DCLKIN source (bit 21 = 0) and
+			 * a PLL source (bit 21 = 1), where the PLL is always
+			 * PLL1.
+			 *
+			 * On ES1.x we have an additional mux, controlled
+			 * via bit 20, for choosing between PLL0 (bit 20 = 0)
+			 * and PLL1 (bit 20 = 1). We always want to use PLL1,
+			 * so on ES1.x, in addition to setting bit 21, we need
+			 * to set the bit 20.
+			 */
+
+			if (rcdu->info->quirks & RCAR_DU_QUIRK_H3_ES1_PLL)
+				dpllcr |= DPLLCR_PLCS0_H3ES1X_PLL1;
+		}
 
 		rcar_du_group_write(rcrtc->group, DPLLCR, dpllcr);
 
