@@ -455,6 +455,8 @@
 			 */
 			pinctrl-names = "default";
 			pinctrl-0 = <&usb_default_pins>;
+			/* Default to host mode */
+			dr_mode = "host";
 			syscon = <&syscon>;
 			status = "disabled";
 		};
