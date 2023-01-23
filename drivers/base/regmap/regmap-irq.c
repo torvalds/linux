@@ -722,6 +722,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	int i;
 	int ret = -ENOMEM;
 	int num_type_reg;
+	int num_regs;
 	u32 reg;
 
 	if (chip->num_regs <= 0)
@@ -796,14 +797,20 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			goto err_alloc;
 	}
 
-	num_type_reg = chip->type_in_mask ? chip->num_regs : chip->num_type_reg;
-	if (num_type_reg) {
-		d->type_buf_def = kcalloc(num_type_reg,
+	/*
+	 * Use num_config_regs if defined, otherwise fall back to num_type_reg
+	 * to maintain backward compatibility.
+	 */
+	num_type_reg = chip->num_config_regs ? chip->num_config_regs
+			: chip->num_type_reg;
+	num_regs = chip->type_in_mask ? chip->num_regs : num_type_reg;
+	if (num_regs) {
+		d->type_buf_def = kcalloc(num_regs,
 					  sizeof(*d->type_buf_def), GFP_KERNEL);
 		if (!d->type_buf_def)
 			goto err_alloc;
 
-		d->type_buf = kcalloc(num_type_reg, sizeof(*d->type_buf),
+		d->type_buf = kcalloc(num_regs, sizeof(*d->type_buf),
 				      GFP_KERNEL);
 		if (!d->type_buf)
 			goto err_alloc;

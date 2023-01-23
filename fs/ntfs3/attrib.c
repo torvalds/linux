@@ -101,6 +101,10 @@ static int attr_load_runs(struct ATTRIB *attr, struct ntfs_inode *ni,
 
 	asize = le32_to_cpu(attr->size);
 	run_off = le16_to_cpu(attr->nres.run_off);
+
+	if (run_off > asize)
+		return -EINVAL;
+
 	err = run_unpack_ex(run, ni->mi.sbi, ni->mi.rno, svcn, evcn,
 			    vcn ? *vcn : svcn, Add2Ptr(attr, run_off),
 			    asize - run_off);
@@ -1217,6 +1221,11 @@ int attr_load_runs_vcn(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	CLST svcn, evcn;
 	u16 ro;
 
+	if (!ni) {
+		/* Is record corrupted? */
+		return -ENOENT;
+	}
+
 	attr = ni_find_attr(ni, NULL, NULL, type, name, name_len, &vcn, NULL);
 	if (!attr) {
 		/* Is record corrupted? */
@@ -1232,6 +1241,10 @@ int attr_load_runs_vcn(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	}
 
 	ro = le16_to_cpu(attr->nres.run_off);
+
+	if (ro > le32_to_cpu(attr->size))
+		return -EINVAL;
+
 	err = run_unpack_ex(run, ni->mi.sbi, ni->mi.rno, svcn, evcn, svcn,
 			    Add2Ptr(attr, ro), le32_to_cpu(attr->size) - ro);
 	if (err < 0)
@@ -1900,6 +1913,11 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		} else {
 			u16 le_sz;
 			u16 roff = le16_to_cpu(attr->nres.run_off);
+
+			if (roff > le32_to_cpu(attr->size)) {
+				err = -EINVAL;
+				goto out;
+			}
 
 			run_unpack_ex(RUN_DEALLOCATE, sbi, ni->mi.rno, svcn,
 				      evcn1 - 1, svcn, Add2Ptr(attr, roff),

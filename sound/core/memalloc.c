@@ -720,7 +720,6 @@ static const struct snd_malloc_ops snd_dma_sg_wc_ops = {
 struct snd_dma_sg_fallback {
 	size_t count;
 	struct page **pages;
-	dma_addr_t *addrs;
 };
 
 static void __snd_dma_sg_fallback_free(struct snd_dma_buffer *dmab,
@@ -732,38 +731,49 @@ static void __snd_dma_sg_fallback_free(struct snd_dma_buffer *dmab,
 	for (i = 0; i < sgbuf->count && sgbuf->pages[i]; i++)
 		do_free_pages(page_address(sgbuf->pages[i]), PAGE_SIZE, wc);
 	kvfree(sgbuf->pages);
-	kvfree(sgbuf->addrs);
 	kfree(sgbuf);
 }
 
 static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	struct snd_dma_sg_fallback *sgbuf;
-	struct page **pages;
-	size_t i, count;
+	struct page **pagep, *curp;
+	size_t chunk, npages;
+	dma_addr_t addr;
 	void *p;
 	bool wc = dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK;
 
 	sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
 	if (!sgbuf)
 		return NULL;
-	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	pages = kvcalloc(count, sizeof(*pages), GFP_KERNEL);
-	if (!pages)
-		goto error;
-	sgbuf->pages = pages;
-	sgbuf->addrs = kvcalloc(count, sizeof(*sgbuf->addrs), GFP_KERNEL);
-	if (!sgbuf->addrs)
+	size = PAGE_ALIGN(size);
+	sgbuf->count = size >> PAGE_SHIFT;
+	sgbuf->pages = kvcalloc(sgbuf->count, sizeof(*sgbuf->pages), GFP_KERNEL);
+	if (!sgbuf->pages)
 		goto error;
 
-	for (i = 0; i < count; sgbuf->count++, i++) {
-		p = do_alloc_pages(dmab->dev.dev, PAGE_SIZE, &sgbuf->addrs[i], wc);
-		if (!p)
-			goto error;
-		sgbuf->pages[i] = virt_to_page(p);
+	pagep = sgbuf->pages;
+	chunk = size;
+	while (size > 0) {
+		chunk = min(size, chunk);
+		p = do_alloc_pages(dmab->dev.dev, chunk, &addr, wc);
+		if (!p) {
+			if (chunk <= PAGE_SIZE)
+				goto error;
+			chunk >>= 1;
+			chunk = PAGE_SIZE << get_order(chunk);
+			continue;
+		}
+
+		size -= chunk;
+		/* fill pages */
+		npages = chunk >> PAGE_SHIFT;
+		curp = virt_to_page(p);
+		while (npages--)
+			*pagep++ = curp++;
 	}
 
-	p = vmap(pages, count, VM_MAP, PAGE_KERNEL);
+	p = vmap(sgbuf->pages, sgbuf->count, VM_MAP, PAGE_KERNEL);
 	if (!p)
 		goto error;
 	dmab->private_data = sgbuf;

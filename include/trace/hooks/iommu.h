@@ -35,6 +35,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_iommu_iovad_init_alloc_algo,
 	TP_PROTO(struct device *dev, struct iova_domain *iovad),
 	TP_ARGS(dev, iovad), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_iommu_limit_align_shift,
+	TP_PROTO(struct iova_domain *iovad, unsigned long size,
+		unsigned long *shift),
+	TP_ARGS(iovad, size, shift), 1);
+
 #endif /* _TRACE_HOOK_IOMMU_H */
 
 /* This part must be outside protection */

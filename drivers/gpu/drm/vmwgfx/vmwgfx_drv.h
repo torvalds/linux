@@ -30,6 +30,7 @@
 
 #include <linux/suspend.h>
 #include <linux/sync_file.h>
+#include <linux/hashtable.h>
 
 #include <drm/drm_auth.h>
 #include <drm/drm_device.h>
@@ -42,7 +43,6 @@
 #include "ttm_object.h"
 
 #include "vmwgfx_fence.h"
-#include "vmwgfx_hashtab.h"
 #include "vmwgfx_reg.h"
 #include "vmwgfx_validation.h"
 
@@ -93,6 +93,7 @@
 #define VMW_RES_STREAM ttm_driver_type2
 #define VMW_RES_FENCE ttm_driver_type3
 #define VMW_RES_SHADER ttm_driver_type4
+#define VMW_RES_HT_ORDER 12
 
 #define MKSSTAT_CAPACITY_LOG2 5U
 #define MKSSTAT_CAPACITY (1U << MKSSTAT_CAPACITY_LOG2)
@@ -100,6 +101,11 @@
 struct vmw_fpriv {
 	struct ttm_object_file *tfile;
 	bool gb_aware; /* user-space is guest-backed aware */
+};
+
+struct vmwgfx_hash_item {
+	struct hlist_node head;
+	unsigned long key;
 };
 
 /**
@@ -425,8 +431,7 @@ struct vmw_ctx_validation_info;
  * @ctx: The validation context
  */
 struct vmw_sw_context{
-	struct vmwgfx_open_hash res_ht;
-	bool res_ht_initialized;
+	DECLARE_HASHTABLE(res_ht, VMW_RES_HT_ORDER);
 	bool kernel;
 	struct vmw_fpriv *fp;
 	struct drm_file *filp;
@@ -821,12 +826,7 @@ extern int vmw_user_resource_lookup_handle(
 	uint32_t handle,
 	const struct vmw_user_resource_conv *converter,
 	struct vmw_resource **p_res);
-extern struct vmw_resource *
-vmw_user_resource_noref_lookup_handle(struct vmw_private *dev_priv,
-				      struct ttm_object_file *tfile,
-				      uint32_t handle,
-				      const struct vmw_user_resource_conv *
-				      converter);
+
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -863,15 +863,6 @@ int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 static inline bool vmw_resource_mob_attached(const struct vmw_resource *res)
 {
 	return !RB_EMPTY_NODE(&res->mob_node);
-}
-
-/**
- * vmw_user_resource_noref_release - release a user resource pointer looked up
- * without reference
- */
-static inline void vmw_user_resource_noref_release(void)
-{
-	ttm_base_object_noref_release();
 }
 
 /**
@@ -925,8 +916,6 @@ extern void vmw_bo_unmap(struct vmw_buffer_object *vbo);
 extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			       struct ttm_resource *mem);
 extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
-extern struct vmw_buffer_object *
-vmw_user_bo_noref_lookup(struct drm_file *filp, u32 handle);
 
 /**
  * vmw_bo_adjust_prio - Adjust the buffer object eviction priority

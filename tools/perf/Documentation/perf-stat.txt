@@ -354,8 +354,8 @@ forbids the event merging logic from sharing events between groups and
 may be used to increase accuracy in this case.
 
 --quiet::
-Don't print output. This is useful with perf stat record below to only
-write data to the perf.data file.
+Don't print output, warnings or messages. This is useful with perf stat
+record below to only write data to the perf.data file.
 
 STAT RECORD
 -----------

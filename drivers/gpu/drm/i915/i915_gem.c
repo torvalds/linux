@@ -843,7 +843,7 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 		__i915_gem_object_release_mmap_gtt(obj);
 
 	list_for_each_entry_safe(obj, on,
-				 &to_gt(i915)->lmem_userfault_list, userfault_link)
+				 &i915->runtime_pm.lmem_userfault_list, userfault_link)
 		i915_gem_object_runtime_pm_release_mmap_offset(obj);
 
 	/*
@@ -1128,6 +1128,8 @@ void i915_gem_drain_workqueue(struct drm_i915_private *i915)
 
 int i915_gem_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_gt *gt;
+	unsigned int i;
 	int ret;
 
 	/* We need to fallback to 4K pages if host doesn't support huge gtt. */
@@ -1158,9 +1160,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_init_clock_gating(dev_priv);
 
-	ret = intel_gt_init(to_gt(dev_priv));
-	if (ret)
-		goto err_unlock;
+	for_each_gt(gt, dev_priv, i) {
+		ret = intel_gt_init(gt);
+		if (ret)
+			goto err_unlock;
+	}
 
 	return 0;
 
@@ -1173,8 +1177,13 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 err_unlock:
 	i915_gem_drain_workqueue(dev_priv);
 
-	if (ret != -EIO)
-		intel_uc_cleanup_firmwares(&to_gt(dev_priv)->uc);
+	if (ret != -EIO) {
+		for_each_gt(gt, dev_priv, i) {
+			intel_gt_driver_remove(gt);
+			intel_gt_driver_release(gt);
+			intel_uc_cleanup_firmwares(&gt->uc);
+		}
+	}
 
 	if (ret == -EIO) {
 		/*
@@ -1182,10 +1191,12 @@ err_unlock:
 		 * as wedged. But we only want to do this when the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
-		if (!intel_gt_is_wedged(to_gt(dev_priv))) {
-			i915_probe_error(dev_priv,
-					 "Failed to initialize GPU, declaring it wedged!\n");
-			intel_gt_set_wedged(to_gt(dev_priv));
+		for_each_gt(gt, dev_priv, i) {
+			if (!intel_gt_is_wedged(gt)) {
+				i915_probe_error(dev_priv,
+						 "Failed to initialize GPU, declaring it wedged!\n");
+				intel_gt_set_wedged(gt);
+			}
 		}
 
 		/* Minimal basic recovery for KMS */
@@ -1213,10 +1224,12 @@ void i915_gem_driver_unregister(struct drm_i915_private *i915)
 
 void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 {
-	intel_wakeref_auto_fini(&to_gt(dev_priv)->userfault_wakeref);
+	struct intel_gt *gt;
+	unsigned int i;
 
 	i915_gem_suspend_late(dev_priv);
-	intel_gt_driver_remove(to_gt(dev_priv));
+	for_each_gt(gt, dev_priv, i)
+		intel_gt_driver_remove(gt);
 	dev_priv->uabi_engines = RB_ROOT;
 
 	/* Flush any outstanding unpin_work. */
@@ -1227,9 +1240,13 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
-	intel_gt_driver_release(to_gt(dev_priv));
+	struct intel_gt *gt;
+	unsigned int i;
 
-	intel_uc_cleanup_firmwares(&to_gt(dev_priv)->uc);
+	for_each_gt(gt, dev_priv, i) {
+		intel_gt_driver_release(gt);
+		intel_uc_cleanup_firmwares(&gt->uc);
+	}
 
 	/* Flush any outstanding work, including i915_gem_context.release_work. */
 	i915_gem_drain_workqueue(dev_priv);

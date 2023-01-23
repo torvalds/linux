@@ -37,7 +37,7 @@
 		pinctrl-0 = <&wcd_reset_n>, <&us_euro_hs_sel>;
 		pinctrl-1 = <&wcd_reset_n_sleep>, <&us_euro_hs_sel>;
 
-		reset-gpios = <&tlmm 83 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 83 GPIO_ACTIVE_LOW>;
 		us-euro-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
 
 		qcom,rx-device = <&wcd_rx>;
