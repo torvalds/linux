@@ -97,7 +97,7 @@ union txdesc {
 };
 
 struct	hw_xmit	{
-	struct __queue *sta_queue;
+	struct list_head *sta_list;
 	int	accnt;
 };
 
@@ -257,10 +257,10 @@ struct agg_pkt_info {
 
 struct	xmit_priv {
 	spinlock_t lock;
-	struct __queue be_pending;
-	struct __queue bk_pending;
-	struct __queue vi_pending;
-	struct __queue vo_pending;
+	struct list_head be_pending;
+	struct list_head bk_pending;
+	struct list_head vi_pending;
+	struct list_head vo_pending;
 	u8 *pallocated_frame_buf;
 	u8 *pxmit_frame_buf;
 	uint free_xmitframe_cnt;

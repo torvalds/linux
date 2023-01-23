@@ -76,10 +76,10 @@ int _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 
 	pxmitpriv->adapter = padapter;
 
-	rtw_init_queue(&pxmitpriv->be_pending);
-	rtw_init_queue(&pxmitpriv->bk_pending);
-	rtw_init_queue(&pxmitpriv->vi_pending);
-	rtw_init_queue(&pxmitpriv->vo_pending);
+	INIT_LIST_HEAD(&pxmitpriv->be_pending);
+	INIT_LIST_HEAD(&pxmitpriv->bk_pending);
+	INIT_LIST_HEAD(&pxmitpriv->vi_pending);
+	INIT_LIST_HEAD(&pxmitpriv->vo_pending);
 
 	rtw_init_queue(&pxmitpriv->free_xmit_queue);
 
@@ -881,10 +881,10 @@ s32 rtw_txframes_pending(struct adapter *padapter)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	return (!list_empty(&pxmitpriv->be_pending.queue) ||
-			!list_empty(&pxmitpriv->bk_pending.queue) ||
-			!list_empty(&pxmitpriv->vi_pending.queue) ||
-			!list_empty(&pxmitpriv->vo_pending.queue));
+	return (!list_empty(&pxmitpriv->be_pending) ||
+		!list_empty(&pxmitpriv->bk_pending) ||
+		!list_empty(&pxmitpriv->vi_pending) ||
+		!list_empty(&pxmitpriv->vo_pending));
 }
 
 s32 rtw_txframes_sta_ac_pending(struct adapter *padapter, struct pkt_attrib *pattrib)
@@ -1357,7 +1357,6 @@ s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitfram
 
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i)
 {
-	struct list_head *sta_phead;
 	struct hw_xmit *phwxmit;
 	struct tx_servq *ptxservq, *tmp_txservq;
 	struct list_head *xframe_list;
@@ -1375,10 +1374,7 @@ struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmi
 
 	for (i = 0; i < HWXMIT_ENTRY; i++) {
 		phwxmit = phwxmit_i + inx[i];
-
-		sta_phead = get_list_head(phwxmit->sta_queue);
-
-		list_for_each_entry_safe(ptxservq, tmp_txservq, sta_phead, tx_pending) {
+		list_for_each_entry_safe(ptxservq, tmp_txservq, phwxmit->sta_list, tx_pending) {
 			xframe_list = get_list_head(&ptxservq->sta_pending);
 			if (list_empty(xframe_list))
 				continue;
@@ -1460,7 +1456,7 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	ptxservq = rtw_get_sta_pending(padapter, psta, pattrib->priority, (u8 *)(&ac_index));
 
 	if (list_empty(&ptxservq->tx_pending))
-		list_add_tail(&ptxservq->tx_pending, get_list_head(phwxmits[ac_index].sta_queue));
+		list_add_tail(&ptxservq->tx_pending, phwxmits[ac_index].sta_list);
 
 	list_add_tail(&pxmitframe->list, get_list_head(&ptxservq->sta_pending));
 	ptxservq->qcnt++;
@@ -1481,10 +1477,10 @@ int rtw_alloc_hwxmits(struct adapter *padapter)
 
 	hwxmits = pxmitpriv->hwxmits;
 
-	hwxmits[0].sta_queue = &pxmitpriv->vo_pending;
-	hwxmits[1].sta_queue = &pxmitpriv->vi_pending;
-	hwxmits[2].sta_queue = &pxmitpriv->be_pending;
-	hwxmits[3].sta_queue = &pxmitpriv->bk_pending;
+	hwxmits[0].sta_list = &pxmitpriv->vo_pending;
+	hwxmits[1].sta_list = &pxmitpriv->vi_pending;
+	hwxmits[2].sta_list = &pxmitpriv->be_pending;
+	hwxmits[3].sta_list = &pxmitpriv->bk_pending;
 
 	return 0;
 }
