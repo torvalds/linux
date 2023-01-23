@@ -190,6 +190,8 @@ struct module;
 
 #ifdef BUILD_FIPS140_KO
 
+#include <linux/atomic.h>
+
 static inline int static_key_count(struct static_key *key)
 {
 	return atomic_read(&key->enabled);

@@ -2448,6 +2448,7 @@ static ssize_t f_uvc_opts_string_##cname##_store(struct config_item *item,\
 					  const char *page, size_t len)	\
 {									\
 	struct f_uvc_opts *opts = to_f_uvc_opts(item);			\
+	int size = min(sizeof(opts->aname), len + 1);			\
 	int ret = 0;							\
 									\
 	mutex_lock(&opts->lock);					\
@@ -2456,8 +2457,9 @@ static ssize_t f_uvc_opts_string_##cname##_store(struct config_item *item,\
 		goto end;						\
 	}								\
 									\
-	ret = snprintf(opts->aname, min(sizeof(opts->aname), len),	\
-			"%s", page);					\
+	ret = strscpy(opts->aname, page, size);				\
+	if (ret == -E2BIG)						\
+		ret = size - 1;						\
 									\
 end:									\
 	mutex_unlock(&opts->lock);					\

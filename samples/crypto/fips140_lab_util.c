@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <limits.h>
 #include <linux/if_alg.h>
 #include <stdarg.h>
@@ -45,6 +46,8 @@
  * ---------------------------------------------------------------------------*/
 
 #define ARRAY_SIZE(A)	(sizeof(A) / sizeof((A)[0]))
+#define MIN(a, b)	((a) < (b) ? (a) : (b))
+#define MAX(a, b)	((a) > (b) ? (a) : (b))
 
 static void __attribute__((noreturn))
 do_die(const char *format, va_list va, int err)
@@ -108,6 +111,23 @@ static const char *bytes_to_hex(const uint8_t *bytes, size_t count)
 		sprintf(&hex[2*i], "%02x", bytes[i]);
 	return hex;
 }
+
+static void full_write(int fd, const void *buf, size_t count)
+{
+	while (count) {
+		ssize_t ret = write(fd, buf, count);
+
+		if (ret < 0)
+			die_errno("write failed");
+		buf += ret;
+		count -= ret;
+	}
+}
+
+enum {
+	OPT_AMOUNT,
+	OPT_ITERATIONS,
+};
 
 static void usage(void);
 
@@ -224,6 +244,68 @@ static int get_req_fd(int alg_fd, const char *alg_name)
 		die_errno("Failed to get request file descriptor for %s",
 			  alg_name);
 	return req_fd;
+}
+
+/* ---------------------------------------------------------------------------
+ *			   dump_jitterentropy command
+ * ---------------------------------------------------------------------------*/
+
+static void dump_from_jent_fd(int fd, size_t count)
+{
+	uint8_t buf[AF_ALG_MAX_RNG_REQUEST_SIZE];
+
+	while (count) {
+		ssize_t ret;
+
+		memset(buf, 0, sizeof(buf));
+		ret = read(fd, buf, MIN(count, sizeof(buf)));
+		if (ret < 0)
+			die_errno("error reading from jitterentropy_rng");
+		full_write(STDOUT_FILENO, buf, ret);
+		count -= ret;
+	}
+}
+
+static int cmd_dump_jitterentropy(int argc, char *argv[])
+{
+	static const struct option longopts[] = {
+		{ "amount", required_argument, NULL, OPT_AMOUNT },
+		{ "iterations", required_argument, NULL, OPT_ITERATIONS },
+		{ NULL, 0, NULL, 0 },
+	};
+	size_t amount = 128;
+	size_t iterations = 1;
+	size_t i;
+	int c;
+
+	while ((c = getopt_long(argc, argv, "", longopts, NULL)) != -1) {
+		switch (c) {
+		case OPT_AMOUNT:
+			amount = strtoul(optarg, NULL, 0);
+			if (amount <= 0 || amount >= ULONG_MAX)
+				die("invalid argument to --amount");
+			break;
+		case OPT_ITERATIONS:
+			iterations = strtoul(optarg, NULL, 0);
+			if (iterations <= 0 || iterations >= ULONG_MAX)
+				die("invalid argument to --iterations");
+			break;
+		default:
+			usage();
+			return 1;
+		}
+	}
+
+	for (i = 0; i < iterations; i++) {
+		int alg_fd = get_alg_fd("rng", "jitterentropy_rng");
+		int req_fd = get_req_fd(alg_fd, "jitterentropy_rng");
+
+		dump_from_jent_fd(req_fd, amount);
+
+		close(req_fd);
+		close(alg_fd);
+	}
+	return 0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -510,6 +592,7 @@ static const struct command {
 	const char *name;
 	int (*func)(int argc, char *argv[]);
 } commands[] = {
+	{ "dump_jitterentropy", cmd_dump_jitterentropy },
 	{ "show_invalid_inputs", cmd_show_invalid_inputs },
 	{ "show_module_version", cmd_show_module_version },
 	{ "show_service_indicators", cmd_show_service_indicators },
@@ -519,9 +602,14 @@ static void usage(void)
 {
 	fprintf(stderr,
 "Usage:\n"
+"       fips140_lab_util dump_jitterentropy [OPTION]...\n"
 "       fips140_lab_util show_invalid_inputs\n"
 "       fips140_lab_util show_module_version\n"
 "       fips140_lab_util show_service_indicators [SERVICE]...\n"
+"\n"
+"Options for dump_jitterentropy:\n"
+"  --amount=AMOUNT      Amount to dump in bytes per iteration (default 128)\n"
+"  --iterations=COUNT   Number of start-up iterations (default 1)\n"
 	);
 }
 

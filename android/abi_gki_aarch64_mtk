@@ -412,6 +412,7 @@
   devm_kasprintf
   devm_kfree
   devm_kmalloc
+  devm_led_classdev_flash_register_ext
   devm_led_classdev_register_ext
   devm_led_classdev_unregister
   devm_mbox_controller_register
@@ -1149,7 +1150,9 @@
   kvmalloc_node
   led_classdev_flash_register_ext
   led_classdev_flash_unregister
+  led_colors
   led_get_flash_fault
+  led_set_brightness
   led_set_brightness_sync
   led_set_flash_brightness
   led_set_flash_timeout
@@ -1159,6 +1162,7 @@
   led_update_brightness
   led_update_flash_brightness
   linear_range_get_max_value
+  linear_range_get_selector_high
   linear_range_get_value
   __list_add_valid
   __list_del_entry_valid
@@ -1704,6 +1708,7 @@
   regulator_enable
   regulator_enable_regmap
   regulator_get
+  regulator_get_bypass_regmap
   regulator_get_current_limit_regmap
   regulator_get_mode
   regulator_get_optional
@@ -1721,6 +1726,7 @@
   regulator_notifier_call_chain
   regulator_put
   regulator_set_active_discharge_regmap
+  regulator_set_bypass_regmap
   regulator_set_current_limit
   regulator_set_current_limit_regmap
   regulator_set_load
@@ -2973,6 +2979,7 @@
   platform_find_device_by_driver
   pm_wq
   power_supply_is_system_supplied
+  power_supply_register_no_ws
   power_supply_unreg_notifier
   prepare_to_wait
   printk_deferred

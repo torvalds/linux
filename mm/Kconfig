@@ -843,7 +843,7 @@ config SPECULATIVE_PAGE_FAULT
        bool "Speculative page faults"
        default y
        depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
-       depends on MMU && SMP
+       depends on MMU && SMP && !NUMA
        help
          Try to handle user space page faults without holding the mmap_sem.
 

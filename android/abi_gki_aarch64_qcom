@@ -129,6 +129,7 @@
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
+  check_move_unevictable_pages
   __check_object_size
   check_preempt_curr
   check_zeroed_user
@@ -1659,6 +1660,7 @@
   page_endio
   page_mapping
   __page_pinner_migration_failed
+  __pagevec_release
   panic
   panic_notifier_list
   panic_timeout
@@ -2581,7 +2583,6 @@
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_logbuf_pr_cont
-  __tracepoint_android_vh_madvise_cold_or_pageout
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_rproc_recovery
   __traceiter_android_vh_rproc_recovery_set
@@ -2703,6 +2704,7 @@
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_logbuf_pr_cont
+  __tracepoint_android_vh_madvise_cold_or_pageout
   __tracepoint_android_vh_oom_check_panic
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
@@ -3026,6 +3028,7 @@
   wait_for_completion_interruptible_timeout
   wait_for_completion_killable
   wait_for_completion_timeout
+  wait_on_page_bit
   __wait_rcu_gp
   wait_woken
   __wake_up
