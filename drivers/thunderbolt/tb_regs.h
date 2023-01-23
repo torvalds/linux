@@ -450,6 +450,9 @@ struct tb_regs_port_header {
 #define DP_COMMON_CAP_1_LANE			0x0
 #define DP_COMMON_CAP_2_LANES			0x1
 #define DP_COMMON_CAP_4_LANES			0x2
+#define DP_COMMON_CAP_UHBR10			BIT(17)
+#define DP_COMMON_CAP_UHBR20			BIT(18)
+#define DP_COMMON_CAP_UHBR13_5			BIT(19)
 #define DP_COMMON_CAP_LTTPR_NS			BIT(27)
 #define DP_COMMON_CAP_BW_MODE			BIT(28)
 #define DP_COMMON_CAP_DPRX_DONE			BIT(31)
