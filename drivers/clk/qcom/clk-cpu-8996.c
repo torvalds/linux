@@ -60,6 +60,8 @@
 #include <linux/regmap.h>
 #include <soc/qcom/kryo-l2-accessors.h>
 
+#include <asm/cputype.h>
+
 #include "clk-alpha-pll.h"
 #include "clk-regmap.h"
 #include "clk-regmap-mux.h"
