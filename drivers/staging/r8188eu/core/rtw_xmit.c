@@ -1357,15 +1357,13 @@ s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitfram
 
 static struct xmit_frame *dequeue_one_xmitframe(struct __queue *pframe_queue)
 {
-	struct list_head *xmitframe_plist, *xmitframe_phead;
+	struct list_head *xmitframe_phead = get_list_head(pframe_queue);
 	struct xmit_frame *pxmitframe;
 
-	xmitframe_phead = get_list_head(pframe_queue);
 	if (list_empty(xmitframe_phead))
 		return NULL;
 
-	xmitframe_plist = xmitframe_phead->next;
-	pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
+	pxmitframe = container_of(xmitframe_phead->next, struct xmit_frame, list);
 	list_del_init(&pxmitframe->list);
 	return pxmitframe;
 }
