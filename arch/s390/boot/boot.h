@@ -44,7 +44,7 @@ void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
-void setup_vmem(unsigned long online_end, unsigned long asce_limit);
+void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void error(char *m);
 

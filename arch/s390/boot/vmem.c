@@ -39,7 +39,7 @@ static void boot_check_oom(void)
 		error("out of memory on boot\n");
 }
 
-static void pgtable_populate_begin(unsigned long online_end)
+static void pgtable_populate_begin(unsigned long ident_map_size)
 {
 	unsigned long initrd_end;
 	unsigned long kernel_end;
@@ -51,7 +51,7 @@ static void pgtable_populate_begin(unsigned long online_end)
 		pgalloc_low = max(pgalloc_low, initrd_end);
 	}
 
-	pgalloc_end = round_down(online_end, PAGE_SIZE);
+	pgalloc_end = round_down(min(ident_map_size, get_mem_detect_end()), PAGE_SIZE);
 	pgalloc_pos = pgalloc_end;
 
 	boot_check_oom();
@@ -247,10 +247,12 @@ static void pgtable_populate_end(void)
 	} while (pgalloc_pos < pgalloc_pos_prev);
 }
 
-void setup_vmem(unsigned long online_end, unsigned long asce_limit)
+void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit)
 {
+	unsigned long start, end;
 	unsigned long asce_type;
 	unsigned long asce_bits;
+	int i;
 
 	if (asce_limit == _REGION1_SIZE) {
 		asce_type = _REGION2_ENTRY_EMPTY;
@@ -272,9 +274,13 @@ void setup_vmem(unsigned long online_end, unsigned long asce_limit)
 	 * No further pgtable_populate() calls are allowed after the value
 	 * of pgalloc_pos finalized with a call to pgtable_populate_end().
 	 */
-	pgtable_populate_begin(online_end);
+	pgtable_populate_begin(ident_map_size);
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
-	pgtable_populate(0, online_end, POPULATE_ONE2ONE);
+	for_each_mem_detect_block(i, &start, &end) {
+		if (start >= ident_map_size)
+			break;
+		pgtable_populate(start, min(end, ident_map_size), POPULATE_ONE2ONE);
+	}
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,

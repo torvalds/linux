@@ -278,7 +278,6 @@ void startup_kernel(void)
 	unsigned long random_lma;
 	unsigned long safe_addr;
 	unsigned long asce_limit;
-	unsigned long online_end;
 	void *img;
 	psw_t psw;
 
@@ -303,7 +302,6 @@ void startup_kernel(void)
 	setup_ident_map_size(detect_memory());
 	setup_vmalloc_size();
 	asce_limit = setup_kernel_memory_layout();
-	online_end = min(get_mem_detect_end(), ident_map_size);
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base(safe_addr);
@@ -335,7 +333,7 @@ void startup_kernel(void)
 	 */
 	clear_bss_section();
 	handle_relocs(__kaslr_offset);
-	setup_vmem(online_end, asce_limit);
+	setup_vmem(ident_map_size, asce_limit);
 	copy_bootdata();
 
 	if (__kaslr_offset) {
