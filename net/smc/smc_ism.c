@@ -462,11 +462,11 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 {
 	pr_warn_ratelimited("smc: removing smcd device %s\n",
 			    dev_name(&smcd->dev));
+	smcd->going_away = 1;
+	smc_smcd_terminate_all(smcd);
 	mutex_lock(&smcd_dev_list.mutex);
 	list_del_init(&smcd->list);
 	mutex_unlock(&smcd_dev_list.mutex);
-	smcd->going_away = 1;
-	smc_smcd_terminate_all(smcd);
 	destroy_workqueue(smcd->event_wq);
 
 	device_del(&smcd->dev);
