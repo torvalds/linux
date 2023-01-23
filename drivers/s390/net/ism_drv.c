@@ -642,10 +642,6 @@ static int ism_dev_init(struct ism_dev *ism)
 	list_add(&ism->list, &ism_dev_list.list);
 	mutex_unlock(&ism_dev_list.mutex);
 
-	ret = smcd_register_dev(ism->smcd);
-	if (ret)
-		goto unreg_ieq;
-
 	query_info(ism);
 	return 0;
 
@@ -748,7 +744,6 @@ static void ism_dev_exit(struct ism_dev *ism)
 
 	wait_event(ism->waitq, !atomic_read(&ism->free_clients_cnt));
 
-	smcd_unregister_dev(ism->smcd);
 	if (SYSTEM_EID.serial_number[0] != '0' ||
 	    SYSTEM_EID.type[0] != '0')
 		ism_del_vlan_id(ism->smcd, ISM_RESERVED_VLANID);

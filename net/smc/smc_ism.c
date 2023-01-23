@@ -17,6 +17,7 @@
 #include "smc_ism.h"
 #include "smc_pnet.h"
 #include "smc_netlink.h"
+#include "linux/ism.h"
 
 struct smcd_dev_list smcd_dev_list = {
 	.list = LIST_HEAD_INIT(smcd_dev_list.list),
@@ -25,6 +26,20 @@ struct smcd_dev_list smcd_dev_list = {
 
 static bool smc_ism_v2_capable;
 static u8 smc_ism_v2_system_eid[SMC_MAX_EID_LEN];
+
+static void smcd_register_dev(struct ism_dev *ism);
+static void smcd_unregister_dev(struct ism_dev *ism);
+static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event);
+static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
+			    u16 dmbemask);
+
+static struct ism_client smc_ism_client = {
+	.name = "SMC-D",
+	.add = smcd_register_dev,
+	.remove = smcd_unregister_dev,
+	.handle_event = smcd_handle_event,
+	.handle_irq = smcd_handle_irq,
+};
 
 /* Test if an ISM communication is possible - same CPC */
 int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
@@ -409,8 +424,6 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	device_initialize(&smcd->dev);
 	dev_set_name(&smcd->dev, name);
 	smcd->ops = ops;
-	if (smc_pnetid_by_dev_port(parent, 0, smcd->pnetid))
-		smc_pnetid_by_table_smcd(smcd);
 
 	spin_lock_init(&smcd->lock);
 	spin_lock_init(&smcd->lgr_lock);
@@ -421,9 +434,25 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 }
 EXPORT_SYMBOL_GPL(smcd_alloc_dev);
 
-int smcd_register_dev(struct smcd_dev *smcd)
+void smcd_free_dev(struct smcd_dev *smcd)
 {
-	int rc;
+	put_device(&smcd->dev);
+}
+EXPORT_SYMBOL_GPL(smcd_free_dev);
+
+static void smcd_register_dev(struct ism_dev *ism)
+{
+	const struct smcd_ops *ops = NULL;
+	struct smcd_dev *smcd;
+
+	smcd = smcd_alloc_dev(&ism->pdev->dev, dev_name(&ism->pdev->dev), ops,
+			      ISM_NR_DMBS);
+	if (!smcd)
+		return;
+	smcd->priv = ism;
+	ism_set_priv(ism, &smc_ism_client, smcd);
+	if (smc_pnetid_by_dev_port(&ism->pdev->dev, 0, smcd->pnetid))
+		smc_pnetid_by_table_smcd(smcd);
 
 	mutex_lock(&smcd_dev_list.mutex);
 	if (list_empty(&smcd_dev_list.list)) {
@@ -447,19 +476,20 @@ int smcd_register_dev(struct smcd_dev *smcd)
 			    dev_name(&smcd->dev), smcd->pnetid,
 			    smcd->pnetid_by_user ? " (user defined)" : "");
 
-	rc = device_add(&smcd->dev);
-	if (rc) {
+	if (device_add(&smcd->dev)) {
 		mutex_lock(&smcd_dev_list.mutex);
 		list_del(&smcd->list);
 		mutex_unlock(&smcd_dev_list.mutex);
+		smcd_free_dev(smcd);
 	}
 
-	return rc;
+	return;
 }
-EXPORT_SYMBOL_GPL(smcd_register_dev);
 
-void smcd_unregister_dev(struct smcd_dev *smcd)
+static void smcd_unregister_dev(struct ism_dev *ism)
 {
+	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
+
 	pr_warn_ratelimited("smc: removing smcd device %s\n",
 			    dev_name(&smcd->dev));
 	smcd->going_away = 1;
@@ -471,16 +501,9 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 
 	device_del(&smcd->dev);
 }
-EXPORT_SYMBOL_GPL(smcd_unregister_dev);
-
-void smcd_free_dev(struct smcd_dev *smcd)
-{
-	put_device(&smcd->dev);
-}
-EXPORT_SYMBOL_GPL(smcd_free_dev);
 
 /* SMCD Device event handler. Called from ISM device interrupt handler.
- * Parameters are smcd device pointer,
+ * Parameters are ism device pointer,
  * - event->type (0 --> DMB, 1 --> GID),
  * - event->code (event code),
  * - event->tok (either DMB token when event type 0, or GID when event type 1)
@@ -490,8 +513,9 @@ EXPORT_SYMBOL_GPL(smcd_free_dev);
  * Context:
  * - Function called in IRQ context from ISM device driver event handler.
  */
-void smcd_handle_event(struct smcd_dev *smcd, struct ism_event *event)
+static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event)
 {
+	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
 	struct smc_ism_event_work *wrk;
 
 	if (smcd->going_away)
@@ -505,17 +529,18 @@ void smcd_handle_event(struct smcd_dev *smcd, struct ism_event *event)
 	wrk->event = *event;
 	queue_work(smcd->event_wq, &wrk->work);
 }
-EXPORT_SYMBOL_GPL(smcd_handle_event);
 
 /* SMCD Device interrupt handler. Called from ISM device interrupt handler.
- * Parameters are smcd device pointer, DMB number, and the DMBE bitmask.
+ * Parameters are the ism device pointer, DMB number, and the DMBE bitmask.
  * Find the connection and schedule the tasklet for this connection.
  *
  * Context:
  * - Function called in IRQ context from ISM device driver IRQ handler.
  */
-void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno, u16 dmbemask)
+static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
+			    u16 dmbemask)
 {
+	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
 	struct smc_connection *conn = NULL;
 	unsigned long flags;
 
@@ -525,10 +550,21 @@ void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno, u16 dmbemask)
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
-EXPORT_SYMBOL_GPL(smcd_handle_irq);
 
-void __init smc_ism_init(void)
+int smc_ism_init(void)
 {
 	smc_ism_v2_capable = false;
 	memset(smc_ism_v2_system_eid, 0, SMC_MAX_EID_LEN);
+#if IS_ENABLED(CONFIG_ISM)
+	return ism_register_client(&smc_ism_client);
+#else
+	return 0;
+#endif
+}
+
+void smc_ism_exit(void)
+{
+#if IS_ENABLED(CONFIG_ISM)
+	ism_unregister_client(&smc_ism_client);
+#endif
 }

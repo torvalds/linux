@@ -90,9 +90,6 @@ struct smcd_dev {
 
 struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 				const struct smcd_ops *ops, int max_dmbs);
-int smcd_register_dev(struct smcd_dev *smcd);
-void smcd_unregister_dev(struct smcd_dev *smcd);
 void smcd_free_dev(struct smcd_dev *smcd);
-void smcd_handle_event(struct smcd_dev *dev, struct ism_event *event);
-void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit, u16 dmbemask);
+
 #endif	/* _SMC_H */
