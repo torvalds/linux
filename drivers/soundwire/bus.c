@@ -247,23 +247,6 @@ static inline int do_transfer_defer(struct sdw_bus *bus,
 	return ret;
 }
 
-static int sdw_reset_page(struct sdw_bus *bus, u16 dev_num)
-{
-	int retry = bus->prop.err_threshold;
-	enum sdw_command_response resp;
-	int ret = 0, i;
-
-	for (i = 0; i <= retry; i++) {
-		resp = bus->ops->reset_page_addr(bus, dev_num);
-		ret = find_response_code(resp);
-		/* if cmd is ok or ignored return */
-		if (ret == 0 || ret == -ENODATA)
-			return ret;
-	}
-
-	return ret;
-}
-
 static int sdw_transfer_unlocked(struct sdw_bus *bus, struct sdw_msg *msg)
 {
 	int ret;
@@ -274,9 +257,6 @@ static int sdw_transfer_unlocked(struct sdw_bus *bus, struct sdw_msg *msg)
 			msg->dev_num, ret,
 			(msg->flags & SDW_MSG_FLAG_WRITE) ? "write" : "read",
 			msg->addr, msg->len);
-
-	if (msg->page)
-		sdw_reset_page(bus, msg->dev_num);
 
 	return ret;
 }
@@ -351,9 +331,6 @@ int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
 	if (ret != 0 && ret != -ENODATA)
 		dev_err(bus->dev, "Defer trf on Slave %d failed:%d\n",
 			msg->dev_num, ret);
-
-	if (msg->page)
-		sdw_reset_page(bus, msg->dev_num);
 
 	return ret;
 }
