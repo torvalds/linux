@@ -1189,13 +1189,13 @@ void coresight_disable(struct coresight_device *csdev)
 			pr_err("Path is not found for %s\n", dev_name(&csdev->dev));
 			goto out;
 		}
+		idr_remove(&path_idr, hash);
 		break;
 	default:
 		/* We can't be here */
 		break;
 	}
 
-	idr_remove(&path_idr, hash);
 	coresight_disable_path(path);
 	coresight_release_path(path);
 
