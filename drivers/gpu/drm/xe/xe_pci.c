@@ -584,15 +584,8 @@ static int xe_pci_runtime_idle(struct device *dev)
 }
 
 static const struct dev_pm_ops xe_pm_ops = {
-	.suspend = xe_pci_suspend,
-	.resume = xe_pci_resume,
-	.freeze = xe_pci_suspend,
-	.thaw = xe_pci_resume,
-	.poweroff = xe_pci_suspend,
-	.restore = xe_pci_resume,
-	.runtime_suspend = xe_pci_runtime_suspend,
-	.runtime_resume = xe_pci_runtime_resume,
-	.runtime_idle = xe_pci_runtime_idle,
+	SET_SYSTEM_SLEEP_PM_OPS(xe_pci_suspend, xe_pci_resume)
+	SET_RUNTIME_PM_OPS(xe_pci_runtime_suspend, xe_pci_runtime_resume, xe_pci_runtime_idle)
 };
 
 static struct pci_driver xe_pci_driver = {
