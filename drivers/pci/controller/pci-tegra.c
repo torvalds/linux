@@ -1330,11 +1330,8 @@ static struct phy *devm_of_phy_optional_get_index(struct device *dev,
 	if (!name)
 		return ERR_PTR(-ENOMEM);
 
-	phy = devm_of_phy_get(dev, np, name);
+	phy = devm_of_phy_optional_get(dev, np, name);
 	kfree(name);
-
-	if (PTR_ERR(phy) == -ENODEV)
-		phy = NULL;
 
 	return phy;
 }
