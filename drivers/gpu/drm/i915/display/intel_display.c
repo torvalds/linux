@@ -5383,6 +5383,12 @@ intel_compare_dp_vsc_sdp(const struct drm_dp_vsc_sdp *a,
 	return memcmp(a, b, sizeof(*a)) == 0;
 }
 
+static bool
+intel_compare_buffer(const u8 *a, const u8 *b, size_t len)
+{
+	return memcmp(a, b, len) == 0;
+}
+
 static void
 pipe_config_infoframe_mismatch(struct drm_i915_private *dev_priv,
 			       bool fastset, const char *name,
@@ -5430,6 +5436,30 @@ pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *dev_priv,
 		drm_dp_vsc_sdp_log(KERN_ERR, dev_priv->drm.dev, a);
 		drm_err(&dev_priv->drm, "found:\n");
 		drm_dp_vsc_sdp_log(KERN_ERR, dev_priv->drm.dev, b);
+	}
+}
+
+static void
+pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
+			    bool fastset, const char *name,
+			    const u8 *a, const u8 *b, size_t len)
+{
+	if (fastset) {
+		if (!drm_debug_enabled(DRM_UT_KMS))
+			return;
+
+		drm_dbg_kms(&dev_priv->drm,
+			    "fastset mismatch in %s buffer\n", name);
+		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_NONE,
+			       16, 0, a, len, false);
+		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_NONE,
+			       16, 0, b, len, false);
+	} else {
+		drm_err(&dev_priv->drm, "mismatch in %s buffer\n", name);
+		print_hex_dump(KERN_ERR, "expected: ", DUMP_PREFIX_NONE,
+			       16, 0, a, len, false);
+		print_hex_dump(KERN_ERR, "found: ", DUMP_PREFIX_NONE,
+			       16, 0, b, len, false);
 	}
 }
 
@@ -5631,6 +5661,18 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	} \
 } while (0)
 
+#define PIPE_CONF_CHECK_BUFFER(name, len) do { \
+	BUILD_BUG_ON(sizeof(current_config->name) != (len)); \
+	BUILD_BUG_ON(sizeof(pipe_config->name) != (len)); \
+	if (!intel_compare_buffer(current_config->name, pipe_config->name, (len))) { \
+		pipe_config_buffer_mismatch(dev_priv, fastset, __stringify(name), \
+					    current_config->name, \
+					    pipe_config->name, \
+					    (len)); \
+		ret = false; \
+	} \
+} while (0)
+
 #define PIPE_CONF_CHECK_COLOR_LUT(lut, is_pre_csc_lut) do { \
 	if (current_config->gamma_mode == pipe_config->gamma_mode && \
 	    !intel_color_lut_equal(current_config, \
@@ -5702,6 +5744,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(fec_enable);
 
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
+	PIPE_CONF_CHECK_BUFFER(eld, MAX_ELD_BYTES);
 
 	PIPE_CONF_CHECK_X(gmch_pfit.control);
 	/* pfit ratios are autocomputed by the hw on gen4+ */
