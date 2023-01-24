@@ -326,7 +326,7 @@ config DRM_TI_DLPC3433
 	  input that produces a DMD output in RGB565, RGB666, RGB888
 	  formats.
 
-	  It supports upto 720p resolution with 60 and 120 Hz refresh
+	  It supports up to 720p resolution with 60 and 120 Hz refresh
 	  rates.
 
 config DRM_TI_TFP410
