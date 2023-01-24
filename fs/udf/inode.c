@@ -204,7 +204,8 @@ static int udf_adinicb_writepage(struct page *page,
 	return 0;
 }
 
-int udf_writepages(struct address_space *mapping, struct writeback_control *wbc)
+static int udf_writepages(struct address_space *mapping,
+			  struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
@@ -214,7 +215,7 @@ int udf_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	return write_cache_pages(mapping, wbc, udf_adinicb_writepage, NULL);
 }
 
-int udf_read_folio(struct file *file, struct folio *folio)
+static int udf_read_folio(struct file *file, struct folio *folio)
 {
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
 
@@ -231,9 +232,9 @@ static void udf_readahead(struct readahead_control *rac)
 	mpage_readahead(rac, udf_get_block);
 }
 
-int udf_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+static int udf_write_begin(struct file *file, struct address_space *mapping,
+			   loff_t pos, unsigned len,
+			   struct page **pagep, void **fsdata)
 {
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
 	struct page *page;
@@ -257,9 +258,9 @@ int udf_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
-int udf_write_end(struct file *file, struct address_space *mapping,
-		  loff_t pos, unsigned len, unsigned copied,
-		  struct page *page, void *fsdata)
+static int udf_write_end(struct file *file, struct address_space *mapping,
+			 loff_t pos, unsigned len, unsigned copied,
+			 struct page *page, void *fsdata)
 {
 	struct inode *inode = file_inode(file);
 	loff_t last_pos;
@@ -277,7 +278,7 @@ int udf_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+static ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
