@@ -2261,8 +2261,6 @@ extern int mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
  */
 int get_user_pages_fast_only(unsigned long start, int nr_pages,
 			     unsigned int gup_flags, struct page **pages);
-int pin_user_pages_fast_only(unsigned long start, int nr_pages,
-			     unsigned int gup_flags, struct page **pages);
 
 static inline bool get_user_page_fast_only(unsigned long addr,
 			unsigned int gup_flags, struct page **pagep)

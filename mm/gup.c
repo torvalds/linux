@@ -3102,39 +3102,6 @@ int pin_user_pages_fast(unsigned long start, int nr_pages,
 }
 EXPORT_SYMBOL_GPL(pin_user_pages_fast);
 
-/*
- * This is the FOLL_PIN equivalent of get_user_pages_fast_only(). Behavior
- * is the same, except that this one sets FOLL_PIN instead of FOLL_GET.
- *
- * The API rules are the same, too: no negative values may be returned.
- */
-int pin_user_pages_fast_only(unsigned long start, int nr_pages,
-			     unsigned int gup_flags, struct page **pages)
-{
-	int nr_pinned;
-
-	/*
-	 * FOLL_FAST_ONLY is required in order to match the API description of
-	 * this routine: no fall back to regular ("slow") GUP.
-	 */
-	if (!is_valid_gup_args(pages, NULL, NULL, &gup_flags,
-			       FOLL_PIN | FOLL_FAST_ONLY))
-		return 0;
-
-	nr_pinned = internal_get_user_pages_fast(start, nr_pages, gup_flags,
-						 pages);
-	/*
-	 * This routine is not allowed to return negative values. However,
-	 * internal_get_user_pages_fast() *can* return -errno. Therefore,
-	 * correct for that here:
-	 */
-	if (nr_pinned < 0)
-		nr_pinned = 0;
-
-	return nr_pinned;
-}
-EXPORT_SYMBOL_GPL(pin_user_pages_fast_only);
-
 /**
  * pin_user_pages_remote() - pin pages of a remote process
  *
