@@ -7,6 +7,29 @@
 
 enum { CQ_OK = 0, CQ_EMPTY = -1, CQ_POLL_ERR = -2 };
 
+static int mlx5vf_is_migratable(struct mlx5_core_dev *mdev, u16 func_id)
+{
+	int query_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
+	void *query_cap = NULL, *cap;
+	int ret;
+
+	query_cap = kzalloc(query_sz, GFP_KERNEL);
+	if (!query_cap)
+		return -ENOMEM;
+
+	ret = mlx5_vport_get_other_func_cap(mdev, func_id, query_cap,
+					    MLX5_CAP_GENERAL_2);
+	if (ret)
+		goto out;
+
+	cap = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
+	if (!MLX5_GET(cmd_hca_cap_2, cap, migratable))
+		ret = -EOPNOTSUPP;
+out:
+	kfree(query_cap);
+	return ret;
+}
+
 static int mlx5vf_cmd_get_vhca_id(struct mlx5_core_dev *mdev, u16 function_id,
 				  u16 *vhca_id);
 static void
@@ -193,6 +216,10 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 
 	mvdev->vf_id = pci_iov_vf_id(pdev);
 	if (mvdev->vf_id < 0)
+		goto end;
+
+	ret = mlx5vf_is_migratable(mvdev->mdev, mvdev->vf_id + 1);
+	if (ret)
 		goto end;
 
 	if (mlx5vf_cmd_get_vhca_id(mvdev->mdev, mvdev->vf_id + 1,

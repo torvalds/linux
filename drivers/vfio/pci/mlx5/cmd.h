@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/vfio_pci_core.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/vport.h>
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 
