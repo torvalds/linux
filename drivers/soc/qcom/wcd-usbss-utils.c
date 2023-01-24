@@ -46,6 +46,7 @@ static int wcd_usbss_i2c_write_device(struct wcd_usbss_ctxt *ctxt, u16 reg, u8 *
 		}
 	}
 	pr_debug("write success register = %x val = %x\n", reg, data[1]);
+	ret = 0;
 fail:
 	kfree(data);
 	return ret;
