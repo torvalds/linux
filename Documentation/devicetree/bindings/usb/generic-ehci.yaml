@@ -74,6 +74,7 @@ properties:
           - const: usb-ehci
       - enum:
           - generic-ehci
+          - ti,ehci-omap
           - usb-ehci
 
   reg:
