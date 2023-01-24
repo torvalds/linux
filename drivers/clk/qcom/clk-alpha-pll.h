@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2015, 2018, 2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #ifndef __QCOM_CLK_ALPHA_PLL_H__
 #define __QCOM_CLK_ALPHA_PLL_H__
@@ -87,6 +88,7 @@ struct clk_alpha_pll {
 #define SUPPORTS_DYNAMIC_UPDATE	BIT(3)
 #define SUPPORTS_FSM_LEGACY_MODE	BIT(4)
 #define DISABLE_TO_OFF		BIT(5)
+#define ENABLE_IN_PREPARE	BIT(6)
 	u8 flags;
 
 	struct clk_regmap clkr;
@@ -182,6 +184,14 @@ extern const struct clk_ops clk_alpha_pll_postdiv_lucid_evo_ops;
 #define clk_alpha_pll_lucid_ole_ops clk_alpha_pll_lucid_evo_ops
 #define clk_alpha_pll_fixed_lucid_ole_ops clk_alpha_pll_fixed_lucid_evo_ops
 #define clk_alpha_pll_postdiv_lucid_ole_ops clk_alpha_pll_postdiv_lucid_evo_ops
+
+extern const struct clk_ops clk_alpha_pll_crm_lucid_evo_ops;
+extern const struct clk_ops clk_alpha_pll_crm_fixed_lucid_evo_ops;
+extern const struct clk_ops clk_alpha_pll_crm_postdiv_lucid_evo_ops;
+
+#define clk_alpha_pll_crm_lucid_ole_ops clk_alpha_pll_crm_lucid_evo_ops
+#define clk_alpha_pll_crm_fixed_lucid_ole_ops clk_alpha_pll_crm_fixed_lucid_evo_ops
+#define clk_alpha_pll_crm_postdiv_lucid_ole_ops clk_alpha_pll_crm_postdiv_lucid_evo_ops
 
 extern const struct clk_ops clk_alpha_pll_rivian_evo_ops;
 #define clk_alpha_pll_rivian_ole_ops clk_alpha_pll_rivian_evo_ops

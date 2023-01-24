@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <soc/qcom/crm.h>
 
 enum branch_mem_flags {
 	CLKFLAG_RETAIN_PERIPH,
@@ -25,5 +26,7 @@ void qcom_clk_dump(struct clk *clk, struct regulator *regulator,
 		   bool calltrace);
 void qcom_clk_bulk_dump(int num_clks, struct clk_bulk_data *clks,
 			struct regulator *regulator, bool calltrace);
-
+int qcom_clk_crm_set_rate(struct clk *clk,
+			  enum crm_drv_type client_type, u32 client_idx,
+			  u32 pwr_st, unsigned long rate);
 #endif  /* __LINUX_CLK_QCOM_H_ */

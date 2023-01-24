@@ -3044,6 +3044,7 @@ int clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll,
 		struct regmap *regmap, const struct alpha_pll_config *config)
 {
 	int ret;
+	u32 regval;
 
 	ret = regmap_update_bits(regmap, PLL_USER_CTL(pll), PLL_OUT_MASK, PLL_OUT_MASK);
 	if (ret)
@@ -3052,6 +3053,11 @@ int clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll,
 	ret = trion_pll_is_enabled(pll, regmap);
 	if (ret)
 		return ret;
+
+	regmap_read(regmap, PLL_L_VAL(pll), &regval);
+	regval &= LUCID_EVO_PLL_L_VAL_MASK;
+	if (regval)
+		return 0;
 
 	if (config->l)
 		ret |= regmap_update_bits(regmap, PLL_L_VAL(pll),
@@ -3131,7 +3137,7 @@ int clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll,
 }
 EXPORT_SYMBOL(clk_lucid_evo_pll_configure);
 
-static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
+static int _alpha_pll_lucid_evo_enable(struct clk_hw *hw)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
 	struct regmap *regmap = pll->clkr.regmap;
@@ -3178,6 +3184,16 @@ static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
 	/* Ensure that the write above goes through before returning. */
 	mb();
 	return ret;
+}
+
+static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+
+	if (!(pll->flags & ENABLE_IN_PREPARE))
+		return _alpha_pll_lucid_evo_enable(hw);
+
+	return 0;
 }
 
 static void _alpha_pll_lucid_evo_disable(struct clk_hw *hw, bool reset)
@@ -3231,7 +3247,7 @@ static int _alpha_pll_lucid_evo_prepare(struct clk_hw *hw, bool reset)
 
 	/* Return early if calibration is not needed. */
 	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &regval);
-	if (!(regval & LUCID_EVO_PCAL_NOT_DONE))
+	if (!(regval & LUCID_EVO_PCAL_NOT_DONE) && !(pll->flags & ENABLE_IN_PREPARE))
 		return 0;
 
 	if (pll->config) {
@@ -3261,11 +3277,13 @@ static int _alpha_pll_lucid_evo_prepare(struct clk_hw *hw, bool reset)
 	if (!prate)
 		return -EINVAL;
 
-	ret = alpha_pll_lucid_evo_enable(hw);
+	ret = _alpha_pll_lucid_evo_enable(hw);
 	if (ret)
 		return ret;
 
-	_alpha_pll_lucid_evo_disable(hw, reset);
+	/* Do not disable pll if ENABLE_IN_PREPARE*/
+	if (!(pll->flags & ENABLE_IN_PREPARE))
+		_alpha_pll_lucid_evo_disable(hw, reset);
 
 	return 0;
 }
@@ -3391,12 +3409,24 @@ static int clk_lucid_evo_pll_init(struct clk_hw *hw)
 
 static void alpha_pll_lucid_evo_disable(struct clk_hw *hw)
 {
-	_alpha_pll_lucid_evo_disable(hw, false);
-}
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
 
+	if (!(pll->flags & ENABLE_IN_PREPARE))
+		_alpha_pll_lucid_evo_disable(hw, false);
+}
 static int alpha_pll_lucid_evo_prepare(struct clk_hw *hw)
 {
 	return _alpha_pll_lucid_evo_prepare(hw, false);
+}
+
+static void alpha_pll_lucid_evo_unprepare(struct clk_hw *hw)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+
+	if (pll->flags & ENABLE_IN_PREPARE)
+		_alpha_pll_lucid_evo_disable(hw, false);
+
+	clk_unprepare_regmap(hw);
 }
 
 static void alpha_pll_reset_lucid_evo_disable(struct clk_hw *hw)
@@ -3453,7 +3483,7 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_lucid_evo_ops);
 
 const struct clk_ops clk_alpha_pll_lucid_evo_ops = {
 	.prepare = alpha_pll_lucid_evo_prepare,
-	.unprepare = clk_unprepare_regmap,
+	.unprepare = alpha_pll_lucid_evo_unprepare,
 	.pre_rate_change = clk_pre_change_regmap,
 	.post_rate_change = clk_post_change_regmap,
 	.enable = alpha_pll_lucid_evo_enable,
@@ -3477,6 +3507,77 @@ const struct clk_ops clk_alpha_pll_reset_lucid_evo_ops = {
 	.set_rate = alpha_pll_lucid_5lpe_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_reset_lucid_evo_ops);
+
+unsigned long lucid_evo_calc_pll(struct clk_hw *hw, u32 l, u64 a)
+{
+	struct clk_hw *p;
+	unsigned long prate;
+
+	p = clk_hw_get_parent(hw);
+	if (!p)
+		return 0;
+
+	prate = clk_hw_get_rate(p);
+	return alpha_pll_calc_rate(prate, l, a, ALPHA_REG_16BIT_WIDTH);
+}
+
+static struct clk_regmap_ops clk_lucid_evo_pll_crm_regmap_ops = {
+	.list_registers = lucid_evo_pll_list_registers,
+	.calc_pll = lucid_evo_calc_pll,
+};
+
+unsigned long lucid_evo_calc_pll_out(struct clk_hw *hw, u32 l, u64 a)
+{
+	struct clk_hw *p;
+	unsigned long parent_rate;
+
+	p = clk_hw_get_parent(hw);
+	if (!p)
+		return 0;
+
+	parent_rate = lucid_evo_calc_pll(p, l, a);
+
+	return clk_alpha_pll_postdiv_fabia_recalc_rate(hw, parent_rate);
+}
+
+static struct clk_regmap_ops clk_lucid_evo_pll_crm_postdiv_regmap_ops = {
+	.calc_pll = lucid_evo_calc_pll_out,
+};
+
+static int clk_lucid_evo_pll_crm_init(struct clk_hw *hw)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+
+	if (!rclk->ops)
+		rclk->ops = &clk_lucid_evo_pll_crm_regmap_ops;
+
+	return 0;
+}
+
+const struct clk_ops clk_alpha_pll_crm_lucid_evo_ops = {
+	.recalc_rate = alpha_pll_lucid_evo_recalc_rate,
+	.round_rate = clk_alpha_pll_round_rate,
+	.debug_init = clk_common_debug_init,
+	.init = clk_lucid_evo_pll_crm_init,
+};
+EXPORT_SYMBOL(clk_alpha_pll_crm_lucid_evo_ops);
+
+static int clk_lucid_evo_pll_crm_postdiv_init(struct clk_hw *hw)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+
+	if (!rclk->ops)
+		rclk->ops = &clk_lucid_evo_pll_crm_postdiv_regmap_ops;
+
+	return 0;
+}
+
+const struct clk_ops clk_alpha_pll_crm_postdiv_lucid_evo_ops = {
+	.recalc_rate = clk_alpha_pll_postdiv_fabia_recalc_rate,
+	.round_rate = clk_alpha_pll_postdiv_fabia_round_rate,
+	.init = clk_lucid_evo_pll_crm_postdiv_init,
+};
+EXPORT_SYMBOL(clk_alpha_pll_crm_postdiv_lucid_evo_ops);
 
 int clk_rivian_evo_pll_configure(struct clk_alpha_pll *pll,
 		struct regmap *regmap, const struct alpha_pll_config *config)
