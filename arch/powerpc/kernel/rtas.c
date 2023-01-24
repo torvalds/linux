@@ -60,9 +60,17 @@ static inline void do_enter_rtas(unsigned long args)
 	srr_regs_clobbered(); /* rtas uses SRRs, invalidate */
 }
 
-struct rtas_t rtas = {
-	.lock = __ARCH_SPIN_LOCK_UNLOCKED
-};
+struct rtas_t rtas;
+
+/*
+ * Nearly all RTAS calls need to be serialized. All uses of the
+ * default rtas_args block must hold rtas_lock.
+ *
+ * Exceptions to the RTAS serialization requirement (e.g. stop-self)
+ * must use a separate rtas_args structure.
+ */
+static arch_spinlock_t rtas_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+static struct rtas_args rtas_args;
 
 DEFINE_SPINLOCK(rtas_data_buf_lock);
 EXPORT_SYMBOL_GPL(rtas_data_buf_lock);
@@ -90,13 +98,13 @@ static unsigned long lock_rtas(void)
 
 	local_irq_save(flags);
 	preempt_disable();
-	arch_spin_lock(&rtas.lock);
+	arch_spin_lock(&rtas_lock);
 	return flags;
 }
 
 static void unlock_rtas(unsigned long flags)
 {
-	arch_spin_unlock(&rtas.lock);
+	arch_spin_unlock(&rtas_lock);
 	local_irq_restore(flags);
 	preempt_enable();
 }
@@ -114,7 +122,7 @@ static void call_rtas_display_status(unsigned char c)
 		return;
 
 	s = lock_rtas();
-	rtas_call_unlocked(&rtas.args, 10, 1, 1, NULL, c);
+	rtas_call_unlocked(&rtas_args, 10, 1, 1, NULL, c);
 	unlock_rtas(s);
 }
 
@@ -384,7 +392,7 @@ static int rtas_last_error_token;
  *  most recent failed call to rtas.  Because the error text
  *  might go stale if there are any other intervening rtas calls,
  *  this routine must be called atomically with whatever produced
- *  the error (i.e. with rtas.lock still held from the previous call).
+ *  the error (i.e. with rtas_lock still held from the previous call).
  */
 static char *__fetch_rtas_last_error(char *altbuf)
 {
@@ -404,13 +412,13 @@ static char *__fetch_rtas_last_error(char *altbuf)
 	err_args.args[1] = cpu_to_be32(bufsz);
 	err_args.args[2] = 0;
 
-	save_args = rtas.args;
-	rtas.args = err_args;
+	save_args = rtas_args;
+	rtas_args = err_args;
 
-	do_enter_rtas(__pa(&rtas.args));
+	do_enter_rtas(__pa(&rtas_args));
 
-	err_args = rtas.args;
-	rtas.args = save_args;
+	err_args = rtas_args;
+	rtas_args = save_args;
 
 	/* Log the error in the unlikely case that there was one. */
 	if (unlikely(err_args.args[2] == 0)) {
@@ -532,7 +540,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	va_list list;
 	int i;
 	unsigned long s;
-	struct rtas_args *rtas_args;
+	struct rtas_args *args;
 	char *buff_copy = NULL;
 	int ret;
 
@@ -557,21 +565,21 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	s = lock_rtas();
 
 	/* We use the global rtas args buffer */
-	rtas_args = &rtas.args;
+	args = &rtas_args;
 
 	va_start(list, outputs);
-	va_rtas_call_unlocked(rtas_args, token, nargs, nret, list);
+	va_rtas_call_unlocked(args, token, nargs, nret, list);
 	va_end(list);
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
-	if (be32_to_cpu(rtas_args->rets[0]) == -1)
+	if (be32_to_cpu(args->rets[0]) == -1)
 		buff_copy = __fetch_rtas_last_error(NULL);
 
 	if (nret > 1 && outputs != NULL)
 		for (i = 0; i < nret-1; ++i)
-			outputs[i] = be32_to_cpu(rtas_args->rets[i+1]);
-	ret = (nret > 0)? be32_to_cpu(rtas_args->rets[0]): 0;
+			outputs[i] = be32_to_cpu(args->rets[i + 1]);
+	ret = (nret > 0) ? be32_to_cpu(args->rets[0]) : 0;
 
 	unlock_rtas(s);
 
@@ -1265,9 +1273,9 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 
 	flags = lock_rtas();
 
-	rtas.args = args;
-	do_enter_rtas(__pa(&rtas.args));
-	args = rtas.args;
+	rtas_args = args;
+	do_enter_rtas(__pa(&rtas_args));
+	args = rtas_args;
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */
