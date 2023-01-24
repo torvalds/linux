@@ -193,7 +193,7 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	int error;
 
-	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
+	if (!rgd || !test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return 0;
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
@@ -222,9 +222,12 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	const unsigned bsize = sdp->sd_sb.sb_bsize;
-	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
-	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
+	loff_t start, end;
 
+	if (!rgd)
+		return;
+	start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 	gfs2_rgrp_brelse(rgd);
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
 	truncate_inode_pages_range(mapping, start, end);
