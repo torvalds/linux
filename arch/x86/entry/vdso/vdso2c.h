@@ -179,6 +179,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 
 	fprintf(outfile, "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n\n");
 	fprintf(outfile, "#include <linux/linkage.h>\n");
+	fprintf(outfile, "#include <linux/init.h>\n");
 	fprintf(outfile, "#include <asm/page_types.h>\n");
 	fprintf(outfile, "#include <asm/vdso.h>\n");
 	fprintf(outfile, "\n");
@@ -218,5 +219,10 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 			fprintf(outfile, "\t.sym_%s = %" PRIi64 ",\n",
 				required_syms[i].name, (int64_t)syms[i]);
 	}
+	fprintf(outfile, "};\n\n");
+	fprintf(outfile, "static __init int init_%s(void) {\n", image_name);
+	fprintf(outfile, "\treturn init_vdso_image(&%s);\n", image_name);
 	fprintf(outfile, "};\n");
+	fprintf(outfile, "subsys_initcall(init_%s);\n", image_name);
+
 }
