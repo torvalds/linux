@@ -38,7 +38,7 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-static void __udf_adinicb_readpage(struct page *page)
+void udf_adinicb_readpage(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
@@ -55,15 +55,6 @@ static void __udf_adinicb_readpage(struct page *page)
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap_atomic(kaddr);
-}
-
-static int udf_adinicb_read_folio(struct file *file, struct folio *folio)
-{
-	BUG_ON(!folio_test_locked(folio));
-	__udf_adinicb_readpage(&folio->page);
-	folio_unlock(folio);
-
-	return 0;
 }
 
 static int udf_adinicb_writepage(struct page *page,
@@ -100,7 +91,7 @@ static int udf_adinicb_write_begin(struct file *file,
 	*pagep = page;
 
 	if (!PageUptodate(page))
-		__udf_adinicb_readpage(page);
+		udf_adinicb_readpage(page);
 	return 0;
 }
 
@@ -127,7 +118,7 @@ static int udf_adinicb_write_end(struct file *file, struct address_space *mappin
 const struct address_space_operations udf_adinicb_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.read_folio	= udf_adinicb_read_folio,
+	.read_folio	= udf_read_folio,
 	.writepage	= udf_adinicb_writepage,
 	.write_begin	= udf_adinicb_write_begin,
 	.write_end	= udf_adinicb_write_end,

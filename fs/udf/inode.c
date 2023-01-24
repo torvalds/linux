@@ -191,8 +191,15 @@ static int udf_writepages(struct address_space *mapping,
 	return mpage_writepages(mapping, wbc, udf_get_block_wb);
 }
 
-static int udf_read_folio(struct file *file, struct folio *folio)
+int udf_read_folio(struct file *file, struct folio *folio)
 {
+	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
+
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		udf_adinicb_readpage(&folio->page);
+		folio_unlock(folio);
+		return 0;
+	}
 	return mpage_read_folio(folio, udf_get_block);
 }
 
