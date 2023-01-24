@@ -18,7 +18,7 @@ struct cpumask __cpu_halt_mask;
 static DEFINE_RAW_SPINLOCK(halt_lock);
 
 struct halt_cpu_state {
-	u8		reason;
+	u8		client_vote_mask;
 };
 
 static DEFINE_PER_CPU(struct halt_cpu_state, halt_state);
@@ -325,8 +325,8 @@ static int start_cpus(struct cpumask *cpus)
 	return 0;
 }
 
-/* update reason for cpus in yield/halt mask */
-static void update_reasons(struct cpumask *cpus, bool halt, enum pause_reason reason)
+/* update client for cpus in yield/halt mask */
+static void update_clients(struct cpumask *cpus, bool halt, enum pause_client client)
 {
 	int cpu;
 	struct halt_cpu_state *halt_cpu_state;
@@ -334,9 +334,9 @@ static void update_reasons(struct cpumask *cpus, bool halt, enum pause_reason re
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
 		if (halt)
-			halt_cpu_state->reason |=  reason;
+			halt_cpu_state->client_vote_mask |=  client;
 		else
-			halt_cpu_state->reason &= ~reason;
+			halt_cpu_state->client_vote_mask &= ~client;
 	}
 }
 
@@ -348,13 +348,13 @@ static void update_halt_cpus(struct cpumask *cpus)
 
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
-		if (halt_cpu_state->reason)
+		if (halt_cpu_state->client_vote_mask)
 			cpumask_clear_cpu(cpu, cpus);
 	}
 }
 
 /* cpus will be modified */
-static int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason)
+static int walt_halt_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	int ret = 0;
 	cpumask_t requested_cpus;
@@ -368,7 +368,7 @@ static int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason)
 	update_halt_cpus(cpus);
 
 	if (cpumask_empty(cpus)) {
-		update_reasons(&requested_cpus, true, reason);
+		update_clients(&requested_cpus, true, client);
 		goto unlock;
 	}
 
@@ -378,23 +378,23 @@ static int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason)
 		pr_debug("halt_cpus failure ret=%d cpus=%*pbl\n", ret,
 			 cpumask_pr_args(&requested_cpus));
 	else
-		update_reasons(&requested_cpus, true, reason);
+		update_clients(&requested_cpus, true, client);
 unlock:
 	raw_spin_unlock_irqrestore(&halt_lock, flags);
 
 	return ret;
 }
 
-int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason)
+int walt_pause_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	if (walt_disabled)
 		return -EAGAIN;
-	return walt_halt_cpus(cpus, reason);
+	return walt_halt_cpus(cpus, client);
 }
 EXPORT_SYMBOL(walt_pause_cpus);
 
 /* cpus will be modified */
-static int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason)
+static int walt_start_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	int ret = 0;
 	cpumask_t requested_cpus;
@@ -402,7 +402,7 @@ static int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason)
 
 	raw_spin_lock_irqsave(&halt_lock, flags);
 	cpumask_copy(&requested_cpus, cpus);
-	update_reasons(&requested_cpus, false, reason);
+	update_clients(&requested_cpus, false, client);
 
 	/* remove cpus that should still be halted */
 	update_halt_cpus(cpus);
@@ -413,7 +413,7 @@ static int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason)
 		pr_debug("halt_cpus failure ret=%d cpus=%*pbl\n", ret,
 			 cpumask_pr_args(&requested_cpus));
 		/* restore/increment ref counts in case of error */
-		update_reasons(&requested_cpus, true, reason);
+		update_clients(&requested_cpus, true, client);
 	}
 
 	raw_spin_unlock_irqrestore(&halt_lock, flags);
@@ -421,11 +421,11 @@ static int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason)
 	return ret;
 }
 
-int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason)
+int walt_resume_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	if (walt_disabled)
 		return -EAGAIN;
-	return walt_start_cpus(cpus, reason);
+	return walt_start_cpus(cpus, client);
 }
 EXPORT_SYMBOL(walt_resume_cpus);
 

@@ -11,7 +11,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/cpumask.h>
 
-enum pause_reason {
+enum pause_client {
 	PAUSE_CORE_CTL	= 0x01,
 	PAUSE_THERMAL	= 0x02,
 	PAUSE_HYP	= 0x04,
@@ -188,8 +188,9 @@ extern int core_ctl_set_boost(bool boost);
 extern void walt_set_cpus_taken(struct cpumask *set);
 extern void walt_unset_cpus_taken(struct cpumask *unset);
 extern cpumask_t walt_get_cpus_taken(void);
-extern int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason);
-extern int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason);
+
+extern int walt_pause_cpus(struct cpumask *cpus, enum pause_client client);
+extern int walt_resume_cpus(struct cpumask *cpus, enum pause_client client);
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
@@ -227,11 +228,11 @@ static inline void core_ctl_notifier_unregister(struct notifier_block *n)
 {
 }
 
-static inline int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason)
+static inline int walt_pause_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	return 0;
 }
-static inline int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason)
+static inline int walt_resume_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	return 0;
 }
