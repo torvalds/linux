@@ -28,6 +28,7 @@ struct brcmstb_waketmr {
 	struct device *dev;
 	void __iomem *base;
 	unsigned int wake_irq;
+	unsigned int alarm_irq;
 	struct notifier_block reboot_notifier;
 	struct clk *clk;
 	u32 rate;
@@ -56,6 +57,8 @@ static inline void brcmstb_waketmr_clear_alarm(struct brcmstb_waketmr *timer)
 {
 	u32 reg;
 
+	if (timer->alarm_en && timer->alarm_irq)
+		disable_irq(timer->alarm_irq);
 	timer->alarm_en = false;
 	reg = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
 	writel_relaxed(reg - 1, timer->base + BRCMSTB_WKTMR_ALARM);
@@ -88,7 +91,25 @@ static irqreturn_t brcmstb_waketmr_irq(int irq, void *data)
 {
 	struct brcmstb_waketmr *timer = data;
 
-	pm_wakeup_event(timer->dev, 0);
+	if (!timer->alarm_irq)
+		pm_wakeup_event(timer->dev, 0);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t brcmstb_alarm_irq(int irq, void *data)
+{
+	struct brcmstb_waketmr *timer = data;
+
+	/* Ignore spurious interrupts */
+	if (!brcmstb_waketmr_is_pending(timer))
+		return IRQ_HANDLED;
+
+	if (timer->alarm_en) {
+		if (!device_may_wakeup(timer->dev))
+			writel_relaxed(WKTMR_ALARM_EVENT,
+				       timer->base + BRCMSTB_WKTMR_EVENT);
+		rtc_update_irq(timer->rtc, 1, RTC_IRQF | RTC_AF);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -114,7 +135,7 @@ static void wktmr_read(struct brcmstb_waketmr *timer,
 static int brcmstb_waketmr_prepare_suspend(struct brcmstb_waketmr *timer)
 {
 	struct device *dev = timer->dev;
-	int ret = 0;
+	int ret;
 
 	if (device_may_wakeup(dev)) {
 		ret = enable_irq_wake(timer->wake_irq);
@@ -122,9 +143,17 @@ static int brcmstb_waketmr_prepare_suspend(struct brcmstb_waketmr *timer)
 			dev_err(dev, "failed to enable wake-up interrupt\n");
 			return ret;
 		}
+		if (timer->alarm_en && timer->alarm_irq) {
+			ret = enable_irq_wake(timer->alarm_irq);
+			if (ret) {
+				dev_err(dev, "failed to enable rtc interrupt\n");
+				disable_irq_wake(timer->wake_irq);
+				return ret;
+			}
+		}
 	}
 
-	return ret;
+	return 0;
 }
 
 /* If enabled as a wakeup-source, arm the timer when powering off */
@@ -192,7 +221,11 @@ static int brcmstb_waketmr_alarm_enable(struct device *dev,
 		    !brcmstb_waketmr_is_pending(timer))
 			return -EINVAL;
 		timer->alarm_en = true;
+		if (timer->alarm_irq)
+			enable_irq(timer->alarm_irq);
 	} else if (!enabled && timer->alarm_en) {
+		if (timer->alarm_irq)
+			disable_irq(timer->alarm_irq);
 		timer->alarm_en = false;
 	}
 
@@ -269,6 +302,19 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk;
 
+	brcmstb_waketmr_clear_alarm(timer);
+
+	/* Attempt to initialize non-wake irq */
+	ret = platform_get_irq(pdev, 1);
+	if (ret > 0) {
+		timer->alarm_irq = (unsigned int)ret;
+		ret = devm_request_irq(dev, timer->alarm_irq, brcmstb_alarm_irq,
+				       IRQF_NO_AUTOEN, "brcmstb-waketimer-rtc",
+				       timer);
+		if (ret < 0)
+			timer->alarm_irq = 0;
+	}
+
 	timer->reboot_notifier.notifier_call = brcmstb_waketmr_reboot;
 	register_reboot_notifier(&timer->reboot_notifier);
 
@@ -317,6 +363,8 @@ static int brcmstb_waketmr_resume(struct device *dev)
 		return 0;
 
 	ret = disable_irq_wake(timer->wake_irq);
+	if (timer->alarm_en && timer->alarm_irq)
+		disable_irq_wake(timer->alarm_irq);
 
 	brcmstb_waketmr_clear_alarm(timer);
 
@@ -346,4 +394,5 @@ module_platform_driver(brcmstb_waketmr_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Brian Norris");
 MODULE_AUTHOR("Markus Mayer");
+MODULE_AUTHOR("Doug Berger");
 MODULE_DESCRIPTION("Wake-up timer driver for STB chips");
