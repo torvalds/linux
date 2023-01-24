@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/usb/typec.h>
@@ -171,8 +171,9 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SELECT0, 0x3C, 0x14);
 	/* Enable DNL_SWITCHES and DPR_SWITCHES */
 	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x18);
-	/* Enable Equalizer */
-	regmap_update_bits(priv->regmap, WCD_USBSS_EQUALIZER1, 0x80, 0x80);
+	/* Disable Equalizer */
+	regmap_update_bits(priv->regmap, WCD_USBSS_EQUALIZER1,
+			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
 	/* Once plug-out done, restore to MANUAL mode */
 	audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 	return 0;
@@ -198,6 +199,10 @@ static void wcd_usbss_update_reg_init(struct regmap *regmap)
 	/* Enable dynamic boosting for MG2 OVP */
 	regmap_update_bits(wcd_usbss_ctxt_->regmap,
 						WCD_USBSS_MG2_MISC, 0x20, 0x20);
+
+	/* Disable Equalizer */
+	regmap_update_bits(regmap, WCD_USBSS_EQUALIZER1,
+			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
 }
 
 static int wcd_usbss_display_port_switch_update(struct wcd_usbss_ctxt *priv,
