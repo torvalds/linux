@@ -32,10 +32,26 @@ enum mlx5_vf_load_state {
 	MLX5_VF_LOAD_STATE_LOAD_IMAGE,
 };
 
+struct mlx5_vf_migration_tag_stop_copy_data {
+	__le64 stop_copy_size;
+};
+
+enum mlx5_vf_migf_header_flags {
+	MLX5_MIGF_HEADER_FLAGS_TAG_MANDATORY = 0,
+	MLX5_MIGF_HEADER_FLAGS_TAG_OPTIONAL = 1 << 0,
+};
+
+enum mlx5_vf_migf_header_tag {
+	MLX5_MIGF_HEADER_TAG_FW_DATA = 0,
+	MLX5_MIGF_HEADER_TAG_STOP_COPY_SIZE = 1 << 0,
+};
+
 struct mlx5_vf_migration_header {
-	__le64 image_size;
+	__le64 record_size;
 	/* For future use in case we may need to change the kernel protocol */
-	__le64 flags;
+	__le32 flags; /* Use mlx5_vf_migf_header_flags */
+	__le32 tag; /* Use mlx5_vf_migf_header_tag */
+	__u8 data[]; /* Its size is given in the record_size */
 };
 
 struct mlx5_vhca_data_buffer {
@@ -73,6 +89,7 @@ struct mlx5_vf_migration_file {
 	enum mlx5_vf_load_state load_state;
 	u32 pdn;
 	loff_t max_pos;
+	u64 pre_copy_initial_bytes;
 	struct mlx5_vhca_data_buffer *buf;
 	struct mlx5_vhca_data_buffer *buf_header;
 	spinlock_t list_lock;
