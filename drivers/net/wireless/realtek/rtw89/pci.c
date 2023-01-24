@@ -1384,7 +1384,7 @@ static int rtw89_pci_ops_tx_write(struct rtw89_dev *rtwdev, struct rtw89_core_tx
 	return 0;
 }
 
-static const struct rtw89_pci_bd_ram bd_ram_table[RTW89_TXCH_NUM] = {
+const struct rtw89_pci_bd_ram rtw89_bd_ram_table_dual[RTW89_TXCH_NUM] = {
 	[RTW89_TXCH_ACH0] = {.start_idx = 0,  .max_num = 5, .min_num = 2},
 	[RTW89_TXCH_ACH1] = {.start_idx = 5,  .max_num = 5, .min_num = 2},
 	[RTW89_TXCH_ACH2] = {.start_idx = 10, .max_num = 5, .min_num = 2},
@@ -1399,11 +1399,24 @@ static const struct rtw89_pci_bd_ram bd_ram_table[RTW89_TXCH_NUM] = {
 	[RTW89_TXCH_CH11] = {.start_idx = 55, .max_num = 5, .min_num = 1},
 	[RTW89_TXCH_CH12] = {.start_idx = 60, .max_num = 4, .min_num = 1},
 };
+EXPORT_SYMBOL(rtw89_bd_ram_table_dual);
+
+const struct rtw89_pci_bd_ram rtw89_bd_ram_table_single[RTW89_TXCH_NUM] = {
+	[RTW89_TXCH_ACH0] = {.start_idx = 0,  .max_num = 5, .min_num = 2},
+	[RTW89_TXCH_ACH1] = {.start_idx = 5,  .max_num = 5, .min_num = 2},
+	[RTW89_TXCH_ACH2] = {.start_idx = 10, .max_num = 5, .min_num = 2},
+	[RTW89_TXCH_ACH3] = {.start_idx = 15, .max_num = 5, .min_num = 2},
+	[RTW89_TXCH_CH8]  = {.start_idx = 20, .max_num = 4, .min_num = 1},
+	[RTW89_TXCH_CH9]  = {.start_idx = 24, .max_num = 4, .min_num = 1},
+	[RTW89_TXCH_CH12] = {.start_idx = 28, .max_num = 4, .min_num = 1},
+};
+EXPORT_SYMBOL(rtw89_bd_ram_table_single);
 
 static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_bd_ram *bd_ram_table = *info->bd_ram_table;
 	struct rtw89_pci_tx_ring *tx_ring;
 	struct rtw89_pci_rx_ring *rx_ring;
 	struct rtw89_pci_dma_ring *bd_ring;

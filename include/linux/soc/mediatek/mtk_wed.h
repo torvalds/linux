@@ -103,7 +103,6 @@ struct mtk_wed_device {
 
 	struct {
 		int size;
-		struct page_frag_cache rx_page;
 		struct mtk_rxbm_desc *desc;
 		dma_addr_t desc_phys;
 	} rx_buf_ring;

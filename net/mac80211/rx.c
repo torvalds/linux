@@ -3219,9 +3219,9 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 		color = le32_get_bits(he_oper->he_oper_params,
 				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
 		if (color == bss_conf->he_bss_color.color)
-			ieeee80211_obss_color_collision_notify(&rx->sdata->vif,
-							       BIT_ULL(color),
-							       GFP_ATOMIC);
+			ieee80211_obss_color_collision_notify(&rx->sdata->vif,
+							      BIT_ULL(color),
+							      GFP_ATOMIC);
 	}
 }
 
@@ -5192,6 +5192,15 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 				      status->nss > 8,
 				      "Rate marked as an HE rate but data is invalid: MCS: %d, NSS: %d\n",
 				      status->rate_idx, status->nss))
+				goto drop;
+			break;
+		case RX_ENC_EHT:
+			if (WARN_ONCE(status->rate_idx > 15 ||
+				      !status->nss ||
+				      status->nss > 8 ||
+				      status->eht.gi > NL80211_RATE_INFO_EHT_GI_3_2,
+				      "Rate marked as an EHT rate but data is invalid: MCS:%d, NSS:%d, GI:%d\n",
+				      status->rate_idx, status->nss, status->eht.gi))
 				goto drop;
 			break;
 		default:

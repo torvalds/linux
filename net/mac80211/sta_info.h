@@ -936,6 +936,7 @@ enum sta_stats_type {
 	STA_STATS_RATE_TYPE_VHT,
 	STA_STATS_RATE_TYPE_HE,
 	STA_STATS_RATE_TYPE_S1G,
+	STA_STATS_RATE_TYPE_EHT,
 };
 
 #define STA_STATS_FIELD_HT_MCS		GENMASK( 7,  0)
@@ -945,12 +946,16 @@ enum sta_stats_type {
 #define STA_STATS_FIELD_VHT_NSS		GENMASK( 7,  4)
 #define STA_STATS_FIELD_HE_MCS		GENMASK( 3,  0)
 #define STA_STATS_FIELD_HE_NSS		GENMASK( 7,  4)
-#define STA_STATS_FIELD_BW		GENMASK(11,  8)
-#define STA_STATS_FIELD_SGI		GENMASK(12, 12)
-#define STA_STATS_FIELD_TYPE		GENMASK(15, 13)
-#define STA_STATS_FIELD_HE_RU		GENMASK(18, 16)
-#define STA_STATS_FIELD_HE_GI		GENMASK(20, 19)
-#define STA_STATS_FIELD_HE_DCM		GENMASK(21, 21)
+#define STA_STATS_FIELD_EHT_MCS		GENMASK( 3,  0)
+#define STA_STATS_FIELD_EHT_NSS		GENMASK( 7,  4)
+#define STA_STATS_FIELD_BW		GENMASK(12,  8)
+#define STA_STATS_FIELD_SGI		GENMASK(13, 13)
+#define STA_STATS_FIELD_TYPE		GENMASK(16, 14)
+#define STA_STATS_FIELD_HE_RU		GENMASK(19, 17)
+#define STA_STATS_FIELD_HE_GI		GENMASK(21, 20)
+#define STA_STATS_FIELD_HE_DCM		GENMASK(22, 22)
+#define STA_STATS_FIELD_EHT_RU		GENMASK(20, 17)
+#define STA_STATS_FIELD_EHT_GI		GENMASK(22, 21)
 
 #define STA_STATS_FIELD(_n, _v)		FIELD_PREP(STA_STATS_FIELD_ ## _n, _v)
 #define STA_STATS_GET(_n, _v)		FIELD_GET(STA_STATS_FIELD_ ## _n, _v)
@@ -988,6 +993,13 @@ static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 		r |= STA_STATS_FIELD(HE_GI, s->he_gi);
 		r |= STA_STATS_FIELD(HE_RU, s->he_ru);
 		r |= STA_STATS_FIELD(HE_DCM, s->he_dcm);
+		break;
+	case RX_ENC_EHT:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_EHT);
+		r |= STA_STATS_FIELD(EHT_NSS, s->nss);
+		r |= STA_STATS_FIELD(EHT_MCS, s->rate_idx);
+		r |= STA_STATS_FIELD(EHT_GI, s->eht.gi);
+		r |= STA_STATS_FIELD(EHT_RU, s->eht.ru);
 		break;
 	default:
 		WARN_ON(1);

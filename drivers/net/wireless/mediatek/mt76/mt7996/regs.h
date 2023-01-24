@@ -463,7 +463,6 @@ enum base_rev {
 #define MT_CBTOP1_PHY_START			0x70000000
 #define MT_CBTOP1_PHY_END			0x77ffffff
 #define MT_CBTOP2_PHY_START			0xf0000000
-#define MT_CBTOP2_PHY_END			0xffffffff
 #define MT_INFRA_MCU_START			0x7c000000
 #define MT_INFRA_MCU_END			0x7c3fffff
 

@@ -2423,7 +2423,7 @@ static const struct rtw89_chip_ops rtw8852b_chip_ops = {
 	.btc_update_bt_cnt	= rtw8852b_btc_update_bt_cnt,
 	.btc_wl_s1_standby	= rtw8852b_btc_wl_s1_standby,
 	.btc_set_wl_rx_gain	= rtw8852b_btc_set_wl_rx_gain,
-	.btc_set_policy		= rtw89_btc_set_policy,
+	.btc_set_policy		= rtw89_btc_set_policy_v1,
 };
 
 const struct rtw89_chip_info rtw8852b_chip_info = {
@@ -2437,6 +2437,8 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.rsvd_ple_ofst		= 0x2f800,
 	.hfc_param_ini		= rtw8852b_hfc_param_ini_pcie,
 	.dle_mem		= rtw8852b_dle_mem_pcie,
+	.wde_qempty_acq_num	= 4,
+	.wde_qempty_mgq_sel	= 4,
 	.rf_base_addr		= {0xe000, 0xf000},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
@@ -2483,20 +2485,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.btcx_desired		= 0x5,
 	.scbd			= 0x1,
 	.mailbox		= 0x1,
-	.btc_fwinfo_buf		= 1024,
 
-	.fcxbtcrpt_ver		= 1,
-	.fcxtdma_ver		= 1,
-	.fcxslots_ver		= 1,
-	.fcxcysta_ver		= 2,
-	.fcxstep_ver		= 2,
-	.fcxnullsta_ver		= 1,
-	.fcxmreg_ver		= 1,
-	.fcxgpiodbg_ver		= 1,
-	.fcxbtver_ver		= 1,
-	.fcxbtscan_ver		= 1,
-	.fcxbtafh_ver		= 1,
-	.fcxbtdevinfo_ver	= 1,
 	.afh_guard_ch		= 6,
 	.wl_rssi_thres		= rtw89_btc_8852b_wl_rssi_thres,
 	.bt_rssi_thres		= rtw89_btc_8852b_bt_rssi_thres,
@@ -2525,6 +2514,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.dcfo_comp_sft		= 3,
 	.imr_info		= &rtw8852b_imr_info,
 	.rrsr_cfgs		= &rtw8852b_rrsr_cfgs,
+	.bss_clr_map_reg	= R_BSS_CLR_MAP_V1,
 	.dma_ch_mask		= BIT(RTW89_DMA_ACH4) | BIT(RTW89_DMA_ACH5) |
 				  BIT(RTW89_DMA_ACH6) | BIT(RTW89_DMA_ACH7) |
 				  BIT(RTW89_DMA_B1MG) | BIT(RTW89_DMA_B1HI),

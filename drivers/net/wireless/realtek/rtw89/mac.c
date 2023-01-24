@@ -4865,9 +4865,16 @@ EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v1);
 
 bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 {
-	u8 val = rtw89_read8(rtwdev, R_AX_SYS_SDIO_CTRL + 3);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 val = 0;
 
-	return FIELD_GET(B_AX_LTE_MUX_CTRL_PATH >> 24, val);
+	if (chip->chip_id == RTL8852C)
+		return false;
+	else if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+		val = rtw89_read8_mask(rtwdev, R_AX_SYS_SDIO_CTRL + 3,
+				       B_AX_LTE_MUX_CTRL_PATH >> 24);
+
+	return !!val;
 }
 
 u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band)

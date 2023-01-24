@@ -1075,7 +1075,6 @@ struct survey_info {
 	s8 noise;
 };
 
-#define CFG80211_MAX_WEP_KEYS	4
 #define CFG80211_MAX_NUM_AKM_SUITES	10
 
 /**
@@ -1099,9 +1098,6 @@ struct survey_info {
  *	port frames over NL80211 instead of the network interface.
  * @control_port_no_preauth: disables pre-auth rx over the nl80211 control
  *	port for mac80211
- * @wep_keys: static WEP keys, if not NULL points to an array of
- *	CFG80211_MAX_WEP_KEYS WEP keys
- * @wep_tx_key: key index (0..3) of the default TX static WEP key
  * @psk: PSK (for devices supporting 4-way-handshake offload)
  * @sae_pwd: password for SAE authentication (for devices supporting SAE
  *	offload)
@@ -1134,8 +1130,6 @@ struct cfg80211_crypto_settings {
 	bool control_port_no_encrypt;
 	bool control_port_over_nl80211;
 	bool control_port_no_preauth;
-	struct key_params *wep_keys;
-	int wep_tx_key;
 	const u8 *psk;
 	const u8 *sae_pwd;
 	u8 sae_pwd_len;
@@ -4683,13 +4677,12 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
  * @WIPHY_FLAG_HAS_CHANNEL_SWITCH: Device supports channel switch in
  *	beaconing mode (AP, IBSS, Mesh, ...).
- * @WIPHY_FLAG_HAS_STATIC_WEP: The device supports static WEP key installation
- *	before connection.
  * @WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK: The device supports bigger kek and kck keys
  * @WIPHY_FLAG_SUPPORTS_MLO: This is a temporary flag gating the MLO APIs,
  *	in order to not have them reachable in normal drivers, until we have
  *	complete feature/interface combinations/etc. advertisement. No driver
  *	should set this flag for now.
+ * @WIPHY_FLAG_SUPPORTS_EXT_KCK_32: The device supports 32-byte KCK keys.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK		= BIT(0),
@@ -4702,7 +4695,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
 	WIPHY_FLAG_IBSS_RSN			= BIT(8),
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
-	/* use hole at 11 */
+	WIPHY_FLAG_SUPPORTS_EXT_KCK_32          = BIT(11),
 	/* use hole at 12 */
 	WIPHY_FLAG_SUPPORTS_FW_ROAM		= BIT(13),
 	WIPHY_FLAG_AP_UAPSD			= BIT(14),
@@ -4715,7 +4708,6 @@ enum wiphy_flags {
 	WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL	= BIT(21),
 	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(22),
 	WIPHY_FLAG_HAS_CHANNEL_SWITCH		= BIT(23),
-	WIPHY_FLAG_HAS_STATIC_WEP		= BIT(24),
 };
 
 /**
@@ -7783,7 +7775,7 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 /**
  * cfg80211_del_sta_sinfo - notify userspace about deletion of a station
  * @dev: the netdev
- * @mac_addr: the station's address
+ * @mac_addr: the station's address. For MLD station, MLD address is used.
  * @sinfo: the station information/statistics
  * @gfp: allocation flags
  */
@@ -7794,7 +7786,7 @@ void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
  * cfg80211_del_sta - notify userspace about deletion of a station
  *
  * @dev: the netdev
- * @mac_addr: the station's address
+ * @mac_addr: the station's address. For MLD station, MLD address is used.
  * @gfp: allocation flags
  */
 static inline void cfg80211_del_sta(struct net_device *dev,

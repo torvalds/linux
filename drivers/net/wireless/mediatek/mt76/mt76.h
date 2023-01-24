@@ -731,6 +731,13 @@ struct mt76_phy {
 	} rx_amsdu[__MT_RXQ_MAX];
 
 	struct mt76_freq_range_power *frp;
+
+	struct {
+		struct led_classdev cdev;
+		char name[32];
+		bool al;
+		u8 pin;
+	} leds;
 };
 
 struct mt76_dev {
@@ -811,11 +818,6 @@ struct mt76_dev {
 	enum nl80211_dfs_regions region;
 
 	u32 debugfs_reg;
-
-	struct led_classdev led_cdev;
-	char led_name[32];
-	bool led_al;
-	u8 led_pin;
 
 	u8 csa_complete;
 

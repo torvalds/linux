@@ -855,8 +855,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 			       ETH_ALEN);
 	}
 
-	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
-		cfg80211_upload_connect_keys(wdev);
+	cfg80211_upload_connect_keys(wdev);
 
 	rcu_read_lock();
 	for_each_valid_link(cr, link) {
@@ -1462,9 +1461,6 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 				connect->crypto.ciphers_pairwise[0] = cipher;
 			}
 		}
-
-		connect->crypto.wep_keys = connkeys->params;
-		connect->crypto.wep_tx_key = connkeys->def;
 	} else {
 		if (WARN_ON(connkeys))
 			return -EINVAL;

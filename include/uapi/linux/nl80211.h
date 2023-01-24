@@ -424,7 +424,8 @@
  *	interface identified by %NL80211_ATTR_IFINDEX.
  * @NL80211_CMD_DEL_STATION: Remove a station identified by %NL80211_ATTR_MAC
  *	or, if no MAC address given, all stations, on the interface identified
- *	by %NL80211_ATTR_IFINDEX. %NL80211_ATTR_MGMT_SUBTYPE and
+ *	by %NL80211_ATTR_IFINDEX. For MLD station, MLD address is used in
+ *	%NL80211_ATTR_MAC. %NL80211_ATTR_MGMT_SUBTYPE and
  *	%NL80211_ATTR_REASON_CODE can optionally be used to specify which type
  *	of disconnection indication should be sent to the station
  *	(Deauthentication or Disassociation frame and reason code for that
@@ -5869,6 +5870,7 @@ enum plink_actions {
 #define NL80211_KEK_LEN			16
 #define NL80211_KCK_EXT_LEN		24
 #define NL80211_KEK_EXT_LEN		32
+#define NL80211_KCK_EXT_LEN_32		32
 #define NL80211_REPLAY_CTR_LEN		8
 
 /**

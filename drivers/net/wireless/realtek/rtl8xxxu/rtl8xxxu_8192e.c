@@ -704,21 +704,12 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 	rtl8192eu_log_next_device_info(priv, "Product", efuse->device_info, &record_offset);
 	rtl8192eu_log_next_device_info(priv, "Serial", efuse->device_info, &record_offset);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
-		unsigned char *raw = priv->efuse_wifi.raw;
-
-		dev_info(&priv->udev->dev,
-			 "%s: dumping efuse (0x%02zx bytes):\n",
-			 __func__, sizeof(struct rtl8192eu_efuse));
-		for (i = 0; i < sizeof(struct rtl8192eu_efuse); i += 8)
-			dev_info(&priv->udev->dev, "%02x: %8ph\n", i, &raw[i]);
-	}
 	return 0;
 }
 
 static int rtl8192eu_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	fw_name = "rtlwifi/rtl8192eu_nic.bin";
@@ -1744,6 +1735,11 @@ static void rtl8192e_enable_rf(struct rtl8xxxu_priv *priv)
 	val8 = rtl8xxxu_read8(priv, REG_PAD_CTRL1);
 	val8 &= ~BIT(0);
 	rtl8xxxu_write8(priv, REG_PAD_CTRL1, val8);
+
+	/*
+	 * Fix transmission failure of rtl8192e.
+	 */
+	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
 static s8 rtl8192e_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
@@ -1755,8 +1751,8 @@ static s8 rtl8192e_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 	u8 vga_idx, lna_idx;
 	s8 lna_gain = 0;
 
-	lna_idx = (cck_agc_rpt & 0xE0) >> 5;
-	vga_idx = cck_agc_rpt & 0x1F;
+	lna_idx = u8_get_bits(cck_agc_rpt, CCK_AGC_RPT_LNA_IDX_MASK);
+	vga_idx = u8_get_bits(cck_agc_rpt, CCK_AGC_RPT_VGA_IDX_MASK);
 
 	if (priv->cck_agc_report_type == 0)
 		lna_gain = lna_gain_table_0[lna_idx];
@@ -1788,6 +1784,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.set_tx_power = rtl8192e_set_tx_power,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
+	.report_rssi = rtl8xxxu_gen2_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.set_crystal_cap = rtl8723a_set_crystal_cap,
 	.cck_rssi = rtl8192e_cck_rssi,
