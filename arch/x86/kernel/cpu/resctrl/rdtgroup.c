@@ -1453,17 +1453,17 @@ static void mon_event_config_read(void *info)
 {
 	struct mon_config_info *mon_info = info;
 	unsigned int index;
-	u32 h;
+	u64 msrval;
 
 	index = mon_event_config_index_get(mon_info->evtid);
 	if (index == INVALID_CONFIG_INDEX) {
 		pr_warn_once("Invalid event id %d\n", mon_info->evtid);
 		return;
 	}
-	rdmsr(MSR_IA32_EVT_CFG_BASE + index, mon_info->mon_config, h);
+	rdmsrl(MSR_IA32_EVT_CFG_BASE + index, msrval);
 
 	/* Report only the valid event configuration bits */
-	mon_info->mon_config &= MAX_EVT_CONFIG_BITS;
+	mon_info->mon_config = msrval & MAX_EVT_CONFIG_BITS;
 }
 
 static void mondata_config_read(struct rdt_domain *d, struct mon_config_info *mon_info)
