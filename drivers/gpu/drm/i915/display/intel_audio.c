@@ -459,17 +459,6 @@ hsw_audio_config_update(struct intel_encoder *encoder,
 		hsw_hdmi_audio_config_update(encoder, crtc_state);
 }
 
-/* ELD buffer size in dwords */
-static int hsw_eld_buffer_size(struct drm_i915_private *i915,
-			       enum transcoder cpu_transcoder)
-{
-	u32 tmp;
-
-	tmp = intel_de_read(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder));
-
-	return REG_FIELD_GET(IBX_ELD_BUFFER_SIZE_MASK, tmp);
-}
-
 static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
@@ -618,10 +607,7 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_connector *connector = conn_state->connector;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	const u32 *eld = (const u32 *)connector->eld;
-	int eld_buffer_size, len, i;
 
 	mutex_lock(&i915->display.audio.mutex);
 
@@ -639,25 +625,10 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
 		     AUDIO_ELD_VALID(cpu_transcoder), 0);
 
-	/* Reset ELD address */
-	intel_de_rmw(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder),
-		     IBX_ELD_ADDRESS_MASK, 0);
-
-	eld_buffer_size = hsw_eld_buffer_size(i915, cpu_transcoder);
-	len = min(drm_eld_size(connector->eld) / 4, eld_buffer_size);
-
-	for (i = 0; i < len; i++)
-		intel_de_write(i915, HSW_AUD_EDID_DATA(cpu_transcoder), eld[i]);
-	for (; i < eld_buffer_size; i++)
-		intel_de_write(i915, HSW_AUD_EDID_DATA(cpu_transcoder), 0);
-
-	drm_WARN_ON(&i915->drm,
-		    (intel_de_read(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder)) &
-		     IBX_ELD_ADDRESS_MASK) != 0);
-
-	/* ELD valid */
-	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
-		     0, AUDIO_ELD_VALID(cpu_transcoder));
+	/*
+	 * The audio componenent is used to convey the ELD
+	 * instead using of the hardware ELD buffer.
+	 */
 
 	/* Enable timestamps */
 	hsw_audio_config_update(encoder, crtc_state);
