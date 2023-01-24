@@ -47,7 +47,7 @@ properties:
   cdns,fifo-depth:
     description:
       Size of the data FIFO in words.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 128, 256 ]
     default: 128
 

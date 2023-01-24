@@ -15,7 +15,7 @@ description: |
   SPI) of the AST2400, AST2500 and AST2600 SOCs.
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:

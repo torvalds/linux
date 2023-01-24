@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Sunplus sp7021 SPI controller
 
 allOf:
-  - $ref: "spi-controller.yaml"
+  - $ref: spi-controller.yaml
 
 maintainers:
   - Li-hao Kuo <lhjeff911@gmail.com>
