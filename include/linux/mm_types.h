@@ -1104,5 +1104,6 @@ typedef unsigned int __bitwise zap_flags_t;
 #define FOLL_FAST_ONLY	0x80000	/* gup_fast: prevent fall-back to slow gup */
 #define FOLL_PCI_P2PDMA	0x100000 /* allow returning PCI P2PDMA pages */
 #define FOLL_INTERRUPTIBLE  0x200000 /* allow interrupts from generic signals */
+#define FOLL_UNLOCKABLE	0x400000 /* allow unlocking the mmap lock (internal only) */
 
 #endif /* _LINUX_MM_TYPES_H */

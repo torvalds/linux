@@ -896,7 +896,7 @@ static int faultin_page(struct vm_area_struct *vma,
 		fault_flags |= FAULT_FLAG_WRITE;
 	if (*flags & FOLL_REMOTE)
 		fault_flags |= FAULT_FLAG_REMOTE;
-	if (locked) {
+	if (*flags & FOLL_UNLOCKABLE) {
 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 		/*
 		 * FAULT_FLAG_INTERRUPTIBLE is opt-in. GUP callers must set
@@ -1382,9 +1382,11 @@ static __always_inline long __get_user_pages_locked(struct mm_struct *mm,
 	for (;;) {
 		ret = __get_user_pages(mm, start, nr_pages, flags, pages,
 				       vmas, locked);
-		if (!locked)
+		if (!(flags & FOLL_UNLOCKABLE)) {
 			/* VM_FAULT_RETRY couldn't trigger, bypass */
-			return ret;
+			pages_done = ret;
+			break;
+		}
 
 		/* VM_FAULT_RETRY or VM_FAULT_COMPLETED cannot return errors */
 		if (!*locked) {
@@ -1532,6 +1534,9 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 	if (vma_is_accessible(vma))
 		gup_flags |= FOLL_FORCE;
 
+	if (locked)
+		gup_flags |= FOLL_UNLOCKABLE;
+
 	/*
 	 * We made sure addr is within a VMA, so the following will
 	 * not result in a stack expansion that recurses back here.
@@ -1583,7 +1588,7 @@ long faultin_vma_page_range(struct vm_area_struct *vma, unsigned long start,
 	 *		  a poisoned page.
 	 * !FOLL_FORCE: Require proper access permissions.
 	 */
-	gup_flags = FOLL_TOUCH | FOLL_HWPOISON;
+	gup_flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_UNLOCKABLE;
 	if (write)
 		gup_flags |= FOLL_WRITE;
 
@@ -2107,12 +2112,20 @@ static bool is_valid_gup_args(struct page **pages, struct vm_area_struct **vmas,
 	 * interfaces:
 	 * - FOLL_PIN/FOLL_TRIED/FOLL_FAST_ONLY are internal only
 	 * - FOLL_REMOTE is internal only and used on follow_page()
+	 * - FOLL_UNLOCKABLE is internal only and used if locked is !NULL
 	 */
-	if (WARN_ON_ONCE(gup_flags & (FOLL_PIN | FOLL_TRIED |
+	if (WARN_ON_ONCE(gup_flags & (FOLL_PIN | FOLL_TRIED | FOLL_UNLOCKABLE |
 				      FOLL_REMOTE | FOLL_FAST_ONLY)))
 		return false;
 
 	gup_flags |= to_set;
+	if (locked) {
+		/* At the external interface locked must be set */
+		if (WARN_ON_ONCE(*locked != 1))
+			return false;
+
+		gup_flags |= FOLL_UNLOCKABLE;
+	}
 
 	/* FOLL_GET and FOLL_PIN are mutually exclusive. */
 	if (WARN_ON_ONCE((gup_flags & (FOLL_PIN | FOLL_GET)) ==
@@ -2127,10 +2140,6 @@ static bool is_valid_gup_args(struct page **pages, struct vm_area_struct **vmas,
 	if (WARN_ON_ONCE((gup_flags & (FOLL_GET | FOLL_PIN)) && !pages))
 		return false;
 
-	/* At the external interface locked must be set */
-	if (WARN_ON_ONCE(locked && *locked != 1))
-		return false;
-
 	/* We want to allow the pgmap to be hot-unplugged at all times */
 	if (WARN_ON_ONCE((gup_flags & FOLL_LONGTERM) &&
 			 (gup_flags & FOLL_PCI_P2PDMA)))
@@ -2140,7 +2149,7 @@ static bool is_valid_gup_args(struct page **pages, struct vm_area_struct **vmas,
 	 * Can't use VMAs with locked, as locked allows GUP to unlock
 	 * which invalidates the vmas array
 	 */
-	if (WARN_ON_ONCE(vmas && locked))
+	if (WARN_ON_ONCE(vmas && (gup_flags & FOLL_UNLOCKABLE)))
 		return false;
 
 	*gup_flags_p = gup_flags;
@@ -2280,7 +2289,8 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 {
 	int locked = 0;
 
-	if (!is_valid_gup_args(pages, NULL, NULL, &gup_flags, FOLL_TOUCH))
+	if (!is_valid_gup_args(pages, NULL, NULL, &gup_flags,
+			       FOLL_TOUCH | FOLL_UNLOCKABLE))
 		return -EINVAL;
 
 	return __get_user_pages_locked(current->mm, start, nr_pages, pages,
@@ -2968,7 +2978,7 @@ static int internal_get_user_pages_fast(unsigned long start,
 	pages += nr_pinned;
 	ret = __gup_longterm_locked(current->mm, start, nr_pages - nr_pinned,
 				    pages, NULL, &locked,
-				    gup_flags | FOLL_TOUCH);
+				    gup_flags | FOLL_TOUCH | FOLL_UNLOCKABLE);
 	if (ret < 0) {
 		/*
 		 * The caller has to unpin the pages we already pinned so
@@ -3195,7 +3205,7 @@ long pin_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 	int locked = 0;
 
 	if (!is_valid_gup_args(pages, NULL, NULL, &gup_flags,
-			       FOLL_PIN | FOLL_TOUCH))
+			       FOLL_PIN | FOLL_TOUCH | FOLL_UNLOCKABLE))
 		return 0;
 
 	return __gup_longterm_locked(current->mm, start, nr_pages, pages, NULL,
