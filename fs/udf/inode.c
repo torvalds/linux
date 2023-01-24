@@ -222,12 +222,12 @@ static void udf_adinicb_readpage(struct page *page)
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	loff_t isize = i_size_read(inode);
 
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_page(page);
 	memcpy(kaddr, iinfo->i_data + iinfo->i_lenEAttr, isize);
 	memset(kaddr + isize, 0, PAGE_SIZE - isize);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 }
 
 static int udf_read_folio(struct file *file, struct folio *folio)
