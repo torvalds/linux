@@ -257,6 +257,26 @@ int udf_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
+int udf_write_end(struct file *file, struct address_space *mapping,
+		  loff_t pos, unsigned len, unsigned copied,
+		  struct page *page, void *fsdata)
+{
+	struct inode *inode = file_inode(file);
+	loff_t last_pos;
+
+	if (UDF_I(inode)->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
+		return generic_write_end(file, mapping, pos, len, copied, page,
+					 fsdata);
+	last_pos = pos + copied;
+	if (last_pos > inode->i_size)
+		i_size_write(inode, last_pos);
+	set_page_dirty(page);
+	unlock_page(page);
+	put_page(page);
+
+	return copied;
+}
+
 ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
@@ -286,7 +306,7 @@ const struct address_space_operations udf_aops = {
 	.readahead	= udf_readahead,
 	.writepages	= udf_writepages,
 	.write_begin	= udf_write_begin,
-	.write_end	= generic_write_end,
+	.write_end	= udf_write_end,
 	.direct_IO	= udf_direct_IO,
 	.bmap		= udf_bmap,
 	.migrate_folio	= buffer_migrate_folio,
