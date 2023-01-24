@@ -231,16 +231,30 @@ static void udf_readahead(struct readahead_control *rac)
 	mpage_readahead(rac, udf_get_block);
 }
 
-static int udf_write_begin(struct file *file, struct address_space *mapping,
+int udf_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
+	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
+	struct page *page;
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, pagep, udf_get_block);
-	if (unlikely(ret))
-		udf_write_failed(mapping, pos + len);
-	return ret;
+	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
+		ret = block_write_begin(mapping, pos, len, pagep,
+					udf_get_block);
+		if (unlikely(ret))
+			udf_write_failed(mapping, pos + len);
+		return ret;
+	}
+	if (WARN_ON_ONCE(pos >= PAGE_SIZE))
+		return -EIO;
+	page = grab_cache_page_write_begin(mapping, 0);
+	if (!page)
+		return -ENOMEM;
+	*pagep = page;
+	if (!PageUptodate(page))
+		udf_adinicb_readpage(page);
+	return 0;
 }
 
 ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
