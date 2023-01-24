@@ -10566,6 +10566,7 @@ F:	drivers/watchdog/mei_wdt.c
 F:	include/linux/mei_aux.h
 F:	include/linux/mei_cl_bus.h
 F:	include/uapi/linux/mei.h
+F:	include/uapi/linux/uuid.h
 F:	samples/mei/*
 
 INTEL MAX 10 BMC MFD DRIVER
@@ -21829,7 +21830,6 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.infradead.org/users/hch/uuid.git
 F:	include/linux/uuid.h
-F:	include/uapi/linux/uuid.h
 F:	lib/test_uuid.c
 F:	lib/uuid.c
 
