@@ -136,8 +136,7 @@ static struct dentry *udf_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-static struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
-					udf_pblk_t *block, int *err)
+static int udf_expand_dir_adinicb(struct inode *inode, udf_pblk_t *block)
 {
 	udf_pblk_t newblock;
 	struct buffer_head *dbh = NULL;
@@ -157,23 +156,23 @@ static struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
 	if (!inode->i_size) {
 		iinfo->i_alloc_type = alloctype;
 		mark_inode_dirty(inode);
-		return NULL;
+		return 0;
 	}
 
 	/* alloc block, and copy data to it */
 	*block = udf_new_block(inode->i_sb, inode,
 			       iinfo->i_location.partitionReferenceNum,
-			       iinfo->i_location.logicalBlockNum, err);
+			       iinfo->i_location.logicalBlockNum, &ret);
 	if (!(*block))
-		return NULL;
+		return ret;
 	newblock = udf_get_pblock(inode->i_sb, *block,
 				  iinfo->i_location.partitionReferenceNum,
 				0);
-	if (!newblock)
-		return NULL;
+	if (newblock == 0xffffffff)
+		return -EFSCORRUPTED;
 	dbh = sb_getblk(inode->i_sb, newblock);
 	if (!dbh)
-		return NULL;
+		return -ENOMEM;
 	lock_buffer(dbh);
 	memcpy(dbh->b_data, iinfo->i_data, inode->i_size);
 	memset(dbh->b_data + inode->i_size, 0,
@@ -195,9 +194,9 @@ static struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
 	ret = udf_add_aext(inode, &epos, &eloc, inode->i_size, 0);
 	brelse(epos.bh);
 	if (ret < 0) {
-		*err = ret;
+		brelse(dbh);
 		udf_free_blocks(inode->i_sb, inode, &eloc, 0, 1);
-		return NULL;
+		return ret;
 	}
 	mark_inode_dirty(inode);
 
@@ -213,6 +212,7 @@ static struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
 			impuse = NULL;
 		udf_fiiter_write_fi(&iter, impuse);
 	}
+	brelse(dbh);
 	/*
 	 * We don't expect the iteration to fail as the directory has been
 	 * already verified to be correct
@@ -220,7 +220,7 @@ static struct buffer_head *udf_expand_dir_adinicb(struct inode *inode,
 	WARN_ON_ONCE(ret);
 	udf_fiiter_release(&iter);
 
-	return dbh;
+	return 0;
 }
 
 static int udf_fiiter_add_entry(struct inode *dir, struct dentry *dentry,
@@ -266,17 +266,10 @@ static int udf_fiiter_add_entry(struct inode *dir, struct dentry *dentry,
 	}
 	if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
 	    blksize - udf_ext0_offset(dir) - iter->pos < nfidlen) {
-		struct buffer_head *retbh;
-
 		udf_fiiter_release(iter);
-		/*
-		 * FIXME: udf_expand_dir_adinicb does not need to return bh
-		 * once other users are gone
-		 */
-		retbh = udf_expand_dir_adinicb(dir, &block, &ret);
-		if (!retbh)
+		ret = udf_expand_dir_adinicb(dir, &block);
+		if (ret)
 			return ret;
-		brelse(retbh);
 		ret = udf_fiiter_init(iter, dir, dir->i_size);
 		if (ret < 0)
 			return ret;
