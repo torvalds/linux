@@ -1582,6 +1582,7 @@ static int __cmd_report(bool display_info)
 
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
+	symbol_conf.allow_aliases = true;
 	symbol__init(&session->header.env);
 
 	if (!perf_session__has_traces(session, "lock record"))
@@ -1660,6 +1661,7 @@ static int __cmd_contention(int argc, const char **argv)
 
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
+	symbol_conf.allow_aliases = true;
 	symbol__init(&session->header.env);
 
 	if (use_bpf) {
@@ -1869,7 +1871,7 @@ int cmd_lock(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any warnings or messages"),
 	OPT_END()
 	};
 

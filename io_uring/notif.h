@@ -13,6 +13,9 @@ struct io_notif_data {
 	struct file		*file;
 	struct ubuf_info	uarg;
 	unsigned long		account_pages;
+	bool			zc_report;
+	bool			zc_used;
+	bool			zc_copied;
 };
 
 void io_notif_flush(struct io_kiocb *notif);

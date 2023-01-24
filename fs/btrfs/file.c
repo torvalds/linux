@@ -696,7 +696,10 @@ next_slot:
 						args->start - extent_offset,
 						0, false);
 				ret = btrfs_inc_extent_ref(trans, &ref);
-				BUG_ON(ret); /* -ENOMEM */
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
+					break;
+				}
 			}
 			key.offset = args->start;
 		}
@@ -783,7 +786,10 @@ delete_extent_item:
 						key.offset - extent_offset, 0,
 						false);
 				ret = btrfs_free_extent(trans, &ref);
-				BUG_ON(ret); /* -ENOMEM */
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
+					break;
+				}
 				args->bytes_found += extent_end - key.offset;
 			}
 
@@ -3665,7 +3671,7 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 	u64 prev_delalloc_end = 0;
 	bool ret = false;
 
-	while (cur_offset < end) {
+	while (cur_offset <= end) {
 		u64 delalloc_start;
 		u64 delalloc_end;
 		bool delalloc;

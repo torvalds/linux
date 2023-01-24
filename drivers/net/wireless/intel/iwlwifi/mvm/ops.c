@@ -1375,7 +1375,7 @@ void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 	iwl_trans_stop_device(mvm->trans);
 	iwl_free_fw_paging(&mvm->fwrt);
 	iwl_fw_dump_conf_clear(&mvm->fwrt);
-	iwl_mvm_mei_device_down(mvm);
+	iwl_mvm_mei_device_state(mvm, false);
 }
 
 static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)

@@ -305,6 +305,27 @@ struct guc_update_context_policy {
 
 #define GLOBAL_POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
 
+/*
+ * GuC converts the timeout to clock ticks internally. Different platforms have
+ * different GuC clocks. Thus, the maximum value before overflow is platform
+ * dependent. Current worst case scenario is about 110s. So, the spec says to
+ * limit to 100s to be safe.
+ */
+#define GUC_POLICY_MAX_EXEC_QUANTUM_US		(100 * 1000 * 1000UL)
+#define GUC_POLICY_MAX_PREEMPT_TIMEOUT_US	(100 * 1000 * 1000UL)
+
+static inline u32 guc_policy_max_exec_quantum_ms(void)
+{
+	BUILD_BUG_ON(GUC_POLICY_MAX_EXEC_QUANTUM_US >= UINT_MAX);
+	return GUC_POLICY_MAX_EXEC_QUANTUM_US / 1000;
+}
+
+static inline u32 guc_policy_max_preempt_timeout_ms(void)
+{
+	BUILD_BUG_ON(GUC_POLICY_MAX_PREEMPT_TIMEOUT_US >= UINT_MAX);
+	return GUC_POLICY_MAX_PREEMPT_TIMEOUT_US / 1000;
+}
+
 struct guc_policies {
 	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
 	/* In micro seconds. How much time to allow before DPC processing is

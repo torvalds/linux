@@ -1090,15 +1090,6 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 			goto out_free_tfm;
 		}
 
-
-	for (i = 0; i < num_mb; ++i)
-		if (testmgr_alloc_buf(data[i].xbuf)) {
-			while (i--)
-				testmgr_free_buf(data[i].xbuf);
-			goto out_free_tfm;
-		}
-
-
 	for (i = 0; i < num_mb; ++i) {
 		data[i].req = skcipher_request_alloc(tfm, GFP_KERNEL);
 		if (!data[i].req) {
@@ -1471,387 +1462,387 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		}
 
 		for (i = 1; i < 200; i++)
-			ret += do_test(NULL, 0, 0, i, num_mb);
+			ret = min(ret, do_test(NULL, 0, 0, i, num_mb));
 		break;
 
 	case 1:
-		ret += tcrypt_test("md5");
+		ret = min(ret, tcrypt_test("md5"));
 		break;
 
 	case 2:
-		ret += tcrypt_test("sha1");
+		ret = min(ret, tcrypt_test("sha1"));
 		break;
 
 	case 3:
-		ret += tcrypt_test("ecb(des)");
-		ret += tcrypt_test("cbc(des)");
-		ret += tcrypt_test("ctr(des)");
+		ret = min(ret, tcrypt_test("ecb(des)"));
+		ret = min(ret, tcrypt_test("cbc(des)"));
+		ret = min(ret, tcrypt_test("ctr(des)"));
 		break;
 
 	case 4:
-		ret += tcrypt_test("ecb(des3_ede)");
-		ret += tcrypt_test("cbc(des3_ede)");
-		ret += tcrypt_test("ctr(des3_ede)");
+		ret = min(ret, tcrypt_test("ecb(des3_ede)"));
+		ret = min(ret, tcrypt_test("cbc(des3_ede)"));
+		ret = min(ret, tcrypt_test("ctr(des3_ede)"));
 		break;
 
 	case 5:
-		ret += tcrypt_test("md4");
+		ret = min(ret, tcrypt_test("md4"));
 		break;
 
 	case 6:
-		ret += tcrypt_test("sha256");
+		ret = min(ret, tcrypt_test("sha256"));
 		break;
 
 	case 7:
-		ret += tcrypt_test("ecb(blowfish)");
-		ret += tcrypt_test("cbc(blowfish)");
-		ret += tcrypt_test("ctr(blowfish)");
+		ret = min(ret, tcrypt_test("ecb(blowfish)"));
+		ret = min(ret, tcrypt_test("cbc(blowfish)"));
+		ret = min(ret, tcrypt_test("ctr(blowfish)"));
 		break;
 
 	case 8:
-		ret += tcrypt_test("ecb(twofish)");
-		ret += tcrypt_test("cbc(twofish)");
-		ret += tcrypt_test("ctr(twofish)");
-		ret += tcrypt_test("lrw(twofish)");
-		ret += tcrypt_test("xts(twofish)");
+		ret = min(ret, tcrypt_test("ecb(twofish)"));
+		ret = min(ret, tcrypt_test("cbc(twofish)"));
+		ret = min(ret, tcrypt_test("ctr(twofish)"));
+		ret = min(ret, tcrypt_test("lrw(twofish)"));
+		ret = min(ret, tcrypt_test("xts(twofish)"));
 		break;
 
 	case 9:
-		ret += tcrypt_test("ecb(serpent)");
-		ret += tcrypt_test("cbc(serpent)");
-		ret += tcrypt_test("ctr(serpent)");
-		ret += tcrypt_test("lrw(serpent)");
-		ret += tcrypt_test("xts(serpent)");
+		ret = min(ret, tcrypt_test("ecb(serpent)"));
+		ret = min(ret, tcrypt_test("cbc(serpent)"));
+		ret = min(ret, tcrypt_test("ctr(serpent)"));
+		ret = min(ret, tcrypt_test("lrw(serpent)"));
+		ret = min(ret, tcrypt_test("xts(serpent)"));
 		break;
 
 	case 10:
-		ret += tcrypt_test("ecb(aes)");
-		ret += tcrypt_test("cbc(aes)");
-		ret += tcrypt_test("lrw(aes)");
-		ret += tcrypt_test("xts(aes)");
-		ret += tcrypt_test("ctr(aes)");
-		ret += tcrypt_test("rfc3686(ctr(aes))");
-		ret += tcrypt_test("ofb(aes)");
-		ret += tcrypt_test("cfb(aes)");
-		ret += tcrypt_test("xctr(aes)");
+		ret = min(ret, tcrypt_test("ecb(aes)"));
+		ret = min(ret, tcrypt_test("cbc(aes)"));
+		ret = min(ret, tcrypt_test("lrw(aes)"));
+		ret = min(ret, tcrypt_test("xts(aes)"));
+		ret = min(ret, tcrypt_test("ctr(aes)"));
+		ret = min(ret, tcrypt_test("rfc3686(ctr(aes))"));
+		ret = min(ret, tcrypt_test("ofb(aes)"));
+		ret = min(ret, tcrypt_test("cfb(aes)"));
+		ret = min(ret, tcrypt_test("xctr(aes)"));
 		break;
 
 	case 11:
-		ret += tcrypt_test("sha384");
+		ret = min(ret, tcrypt_test("sha384"));
 		break;
 
 	case 12:
-		ret += tcrypt_test("sha512");
+		ret = min(ret, tcrypt_test("sha512"));
 		break;
 
 	case 13:
-		ret += tcrypt_test("deflate");
+		ret = min(ret, tcrypt_test("deflate"));
 		break;
 
 	case 14:
-		ret += tcrypt_test("ecb(cast5)");
-		ret += tcrypt_test("cbc(cast5)");
-		ret += tcrypt_test("ctr(cast5)");
+		ret = min(ret, tcrypt_test("ecb(cast5)"));
+		ret = min(ret, tcrypt_test("cbc(cast5)"));
+		ret = min(ret, tcrypt_test("ctr(cast5)"));
 		break;
 
 	case 15:
-		ret += tcrypt_test("ecb(cast6)");
-		ret += tcrypt_test("cbc(cast6)");
-		ret += tcrypt_test("ctr(cast6)");
-		ret += tcrypt_test("lrw(cast6)");
-		ret += tcrypt_test("xts(cast6)");
+		ret = min(ret, tcrypt_test("ecb(cast6)"));
+		ret = min(ret, tcrypt_test("cbc(cast6)"));
+		ret = min(ret, tcrypt_test("ctr(cast6)"));
+		ret = min(ret, tcrypt_test("lrw(cast6)"));
+		ret = min(ret, tcrypt_test("xts(cast6)"));
 		break;
 
 	case 16:
-		ret += tcrypt_test("ecb(arc4)");
+		ret = min(ret, tcrypt_test("ecb(arc4)"));
 		break;
 
 	case 17:
-		ret += tcrypt_test("michael_mic");
+		ret = min(ret, tcrypt_test("michael_mic"));
 		break;
 
 	case 18:
-		ret += tcrypt_test("crc32c");
+		ret = min(ret, tcrypt_test("crc32c"));
 		break;
 
 	case 19:
-		ret += tcrypt_test("ecb(tea)");
+		ret = min(ret, tcrypt_test("ecb(tea)"));
 		break;
 
 	case 20:
-		ret += tcrypt_test("ecb(xtea)");
+		ret = min(ret, tcrypt_test("ecb(xtea)"));
 		break;
 
 	case 21:
-		ret += tcrypt_test("ecb(khazad)");
+		ret = min(ret, tcrypt_test("ecb(khazad)"));
 		break;
 
 	case 22:
-		ret += tcrypt_test("wp512");
+		ret = min(ret, tcrypt_test("wp512"));
 		break;
 
 	case 23:
-		ret += tcrypt_test("wp384");
+		ret = min(ret, tcrypt_test("wp384"));
 		break;
 
 	case 24:
-		ret += tcrypt_test("wp256");
+		ret = min(ret, tcrypt_test("wp256"));
 		break;
 
 	case 26:
-		ret += tcrypt_test("ecb(anubis)");
-		ret += tcrypt_test("cbc(anubis)");
+		ret = min(ret, tcrypt_test("ecb(anubis)"));
+		ret = min(ret, tcrypt_test("cbc(anubis)"));
 		break;
 
 	case 30:
-		ret += tcrypt_test("ecb(xeta)");
+		ret = min(ret, tcrypt_test("ecb(xeta)"));
 		break;
 
 	case 31:
-		ret += tcrypt_test("pcbc(fcrypt)");
+		ret = min(ret, tcrypt_test("pcbc(fcrypt)"));
 		break;
 
 	case 32:
-		ret += tcrypt_test("ecb(camellia)");
-		ret += tcrypt_test("cbc(camellia)");
-		ret += tcrypt_test("ctr(camellia)");
-		ret += tcrypt_test("lrw(camellia)");
-		ret += tcrypt_test("xts(camellia)");
+		ret = min(ret, tcrypt_test("ecb(camellia)"));
+		ret = min(ret, tcrypt_test("cbc(camellia)"));
+		ret = min(ret, tcrypt_test("ctr(camellia)"));
+		ret = min(ret, tcrypt_test("lrw(camellia)"));
+		ret = min(ret, tcrypt_test("xts(camellia)"));
 		break;
 
 	case 33:
-		ret += tcrypt_test("sha224");
+		ret = min(ret, tcrypt_test("sha224"));
 		break;
 
 	case 35:
-		ret += tcrypt_test("gcm(aes)");
+		ret = min(ret, tcrypt_test("gcm(aes)"));
 		break;
 
 	case 36:
-		ret += tcrypt_test("lzo");
+		ret = min(ret, tcrypt_test("lzo"));
 		break;
 
 	case 37:
-		ret += tcrypt_test("ccm(aes)");
+		ret = min(ret, tcrypt_test("ccm(aes)"));
 		break;
 
 	case 38:
-		ret += tcrypt_test("cts(cbc(aes))");
+		ret = min(ret, tcrypt_test("cts(cbc(aes))"));
 		break;
 
         case 39:
-		ret += tcrypt_test("xxhash64");
+		ret = min(ret, tcrypt_test("xxhash64"));
 		break;
 
         case 40:
-		ret += tcrypt_test("rmd160");
+		ret = min(ret, tcrypt_test("rmd160"));
 		break;
 
 	case 42:
-		ret += tcrypt_test("blake2b-512");
+		ret = min(ret, tcrypt_test("blake2b-512"));
 		break;
 
 	case 43:
-		ret += tcrypt_test("ecb(seed)");
+		ret = min(ret, tcrypt_test("ecb(seed)"));
 		break;
 
 	case 45:
-		ret += tcrypt_test("rfc4309(ccm(aes))");
+		ret = min(ret, tcrypt_test("rfc4309(ccm(aes))"));
 		break;
 
 	case 46:
-		ret += tcrypt_test("ghash");
+		ret = min(ret, tcrypt_test("ghash"));
 		break;
 
 	case 47:
-		ret += tcrypt_test("crct10dif");
+		ret = min(ret, tcrypt_test("crct10dif"));
 		break;
 
 	case 48:
-		ret += tcrypt_test("sha3-224");
+		ret = min(ret, tcrypt_test("sha3-224"));
 		break;
 
 	case 49:
-		ret += tcrypt_test("sha3-256");
+		ret = min(ret, tcrypt_test("sha3-256"));
 		break;
 
 	case 50:
-		ret += tcrypt_test("sha3-384");
+		ret = min(ret, tcrypt_test("sha3-384"));
 		break;
 
 	case 51:
-		ret += tcrypt_test("sha3-512");
+		ret = min(ret, tcrypt_test("sha3-512"));
 		break;
 
 	case 52:
-		ret += tcrypt_test("sm3");
+		ret = min(ret, tcrypt_test("sm3"));
 		break;
 
 	case 53:
-		ret += tcrypt_test("streebog256");
+		ret = min(ret, tcrypt_test("streebog256"));
 		break;
 
 	case 54:
-		ret += tcrypt_test("streebog512");
+		ret = min(ret, tcrypt_test("streebog512"));
 		break;
 
 	case 55:
-		ret += tcrypt_test("gcm(sm4)");
+		ret = min(ret, tcrypt_test("gcm(sm4)"));
 		break;
 
 	case 56:
-		ret += tcrypt_test("ccm(sm4)");
+		ret = min(ret, tcrypt_test("ccm(sm4)"));
 		break;
 
 	case 57:
-		ret += tcrypt_test("polyval");
+		ret = min(ret, tcrypt_test("polyval"));
 		break;
 
 	case 58:
-		ret += tcrypt_test("gcm(aria)");
+		ret = min(ret, tcrypt_test("gcm(aria)"));
 		break;
 
 	case 100:
-		ret += tcrypt_test("hmac(md5)");
+		ret = min(ret, tcrypt_test("hmac(md5)"));
 		break;
 
 	case 101:
-		ret += tcrypt_test("hmac(sha1)");
+		ret = min(ret, tcrypt_test("hmac(sha1)"));
 		break;
 
 	case 102:
-		ret += tcrypt_test("hmac(sha256)");
+		ret = min(ret, tcrypt_test("hmac(sha256)"));
 		break;
 
 	case 103:
-		ret += tcrypt_test("hmac(sha384)");
+		ret = min(ret, tcrypt_test("hmac(sha384)"));
 		break;
 
 	case 104:
-		ret += tcrypt_test("hmac(sha512)");
+		ret = min(ret, tcrypt_test("hmac(sha512)"));
 		break;
 
 	case 105:
-		ret += tcrypt_test("hmac(sha224)");
+		ret = min(ret, tcrypt_test("hmac(sha224)"));
 		break;
 
 	case 106:
-		ret += tcrypt_test("xcbc(aes)");
+		ret = min(ret, tcrypt_test("xcbc(aes)"));
 		break;
 
 	case 108:
-		ret += tcrypt_test("hmac(rmd160)");
+		ret = min(ret, tcrypt_test("hmac(rmd160)"));
 		break;
 
 	case 109:
-		ret += tcrypt_test("vmac64(aes)");
+		ret = min(ret, tcrypt_test("vmac64(aes)"));
 		break;
 
 	case 111:
-		ret += tcrypt_test("hmac(sha3-224)");
+		ret = min(ret, tcrypt_test("hmac(sha3-224)"));
 		break;
 
 	case 112:
-		ret += tcrypt_test("hmac(sha3-256)");
+		ret = min(ret, tcrypt_test("hmac(sha3-256)"));
 		break;
 
 	case 113:
-		ret += tcrypt_test("hmac(sha3-384)");
+		ret = min(ret, tcrypt_test("hmac(sha3-384)"));
 		break;
 
 	case 114:
-		ret += tcrypt_test("hmac(sha3-512)");
+		ret = min(ret, tcrypt_test("hmac(sha3-512)"));
 		break;
 
 	case 115:
-		ret += tcrypt_test("hmac(streebog256)");
+		ret = min(ret, tcrypt_test("hmac(streebog256)"));
 		break;
 
 	case 116:
-		ret += tcrypt_test("hmac(streebog512)");
+		ret = min(ret, tcrypt_test("hmac(streebog512)"));
 		break;
 
 	case 150:
-		ret += tcrypt_test("ansi_cprng");
+		ret = min(ret, tcrypt_test("ansi_cprng"));
 		break;
 
 	case 151:
-		ret += tcrypt_test("rfc4106(gcm(aes))");
+		ret = min(ret, tcrypt_test("rfc4106(gcm(aes))"));
 		break;
 
 	case 152:
-		ret += tcrypt_test("rfc4543(gcm(aes))");
+		ret = min(ret, tcrypt_test("rfc4543(gcm(aes))"));
 		break;
 
 	case 153:
-		ret += tcrypt_test("cmac(aes)");
+		ret = min(ret, tcrypt_test("cmac(aes)"));
 		break;
 
 	case 154:
-		ret += tcrypt_test("cmac(des3_ede)");
+		ret = min(ret, tcrypt_test("cmac(des3_ede)"));
 		break;
 
 	case 155:
-		ret += tcrypt_test("authenc(hmac(sha1),cbc(aes))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha1),cbc(aes))"));
 		break;
 
 	case 156:
-		ret += tcrypt_test("authenc(hmac(md5),ecb(cipher_null))");
+		ret = min(ret, tcrypt_test("authenc(hmac(md5),ecb(cipher_null))"));
 		break;
 
 	case 157:
-		ret += tcrypt_test("authenc(hmac(sha1),ecb(cipher_null))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha1),ecb(cipher_null))"));
 		break;
 
 	case 158:
-		ret += tcrypt_test("cbcmac(sm4)");
+		ret = min(ret, tcrypt_test("cbcmac(sm4)"));
 		break;
 
 	case 159:
-		ret += tcrypt_test("cmac(sm4)");
+		ret = min(ret, tcrypt_test("cmac(sm4)"));
 		break;
 
 	case 181:
-		ret += tcrypt_test("authenc(hmac(sha1),cbc(des))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha1),cbc(des))"));
 		break;
 	case 182:
-		ret += tcrypt_test("authenc(hmac(sha1),cbc(des3_ede))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha1),cbc(des3_ede))"));
 		break;
 	case 183:
-		ret += tcrypt_test("authenc(hmac(sha224),cbc(des))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha224),cbc(des))"));
 		break;
 	case 184:
-		ret += tcrypt_test("authenc(hmac(sha224),cbc(des3_ede))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha224),cbc(des3_ede))"));
 		break;
 	case 185:
-		ret += tcrypt_test("authenc(hmac(sha256),cbc(des))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha256),cbc(des))"));
 		break;
 	case 186:
-		ret += tcrypt_test("authenc(hmac(sha256),cbc(des3_ede))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha256),cbc(des3_ede))"));
 		break;
 	case 187:
-		ret += tcrypt_test("authenc(hmac(sha384),cbc(des))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha384),cbc(des))"));
 		break;
 	case 188:
-		ret += tcrypt_test("authenc(hmac(sha384),cbc(des3_ede))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha384),cbc(des3_ede))"));
 		break;
 	case 189:
-		ret += tcrypt_test("authenc(hmac(sha512),cbc(des))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha512),cbc(des))"));
 		break;
 	case 190:
-		ret += tcrypt_test("authenc(hmac(sha512),cbc(des3_ede))");
+		ret = min(ret, tcrypt_test("authenc(hmac(sha512),cbc(des3_ede))"));
 		break;
 	case 191:
-		ret += tcrypt_test("ecb(sm4)");
-		ret += tcrypt_test("cbc(sm4)");
-		ret += tcrypt_test("cfb(sm4)");
-		ret += tcrypt_test("ctr(sm4)");
+		ret = min(ret, tcrypt_test("ecb(sm4)"));
+		ret = min(ret, tcrypt_test("cbc(sm4)"));
+		ret = min(ret, tcrypt_test("cfb(sm4)"));
+		ret = min(ret, tcrypt_test("ctr(sm4)"));
 		break;
 	case 192:
-		ret += tcrypt_test("ecb(aria)");
-		ret += tcrypt_test("cbc(aria)");
-		ret += tcrypt_test("cfb(aria)");
-		ret += tcrypt_test("ctr(aria)");
+		ret = min(ret, tcrypt_test("ecb(aria)"));
+		ret = min(ret, tcrypt_test("cbc(aria)"));
+		ret = min(ret, tcrypt_test("cfb(aria)"));
+		ret = min(ret, tcrypt_test("ctr(aria)"));
 		break;
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,

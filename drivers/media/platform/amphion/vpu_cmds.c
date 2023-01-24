@@ -269,7 +269,7 @@ exit:
 	return flag;
 }
 
-static int sync_session_response(struct vpu_inst *inst, unsigned long key)
+static int sync_session_response(struct vpu_inst *inst, unsigned long key, long timeout, int try)
 {
 	struct vpu_core *core;
 
@@ -279,10 +279,12 @@ static int sync_session_response(struct vpu_inst *inst, unsigned long key)
 	core = inst->core;
 
 	call_void_vop(inst, wait_prepare);
-	wait_event_timeout(core->ack_wq, check_is_responsed(inst, key), VPU_TIMEOUT);
+	wait_event_timeout(core->ack_wq, check_is_responsed(inst, key), timeout);
 	call_void_vop(inst, wait_finish);
 
 	if (!check_is_responsed(inst, key)) {
+		if (try)
+			return -EINVAL;
 		dev_err(inst->dev, "[%d] sync session timeout\n", inst->id);
 		set_bit(inst->id, &core->hang_mask);
 		mutex_lock(&inst->core->cmd_lock);
@@ -292,6 +294,19 @@ static int sync_session_response(struct vpu_inst *inst, unsigned long key)
 	}
 
 	return 0;
+}
+
+static void vpu_core_keep_active(struct vpu_core *core)
+{
+	struct vpu_rpc_event pkt;
+
+	memset(&pkt, 0, sizeof(pkt));
+	vpu_iface_pack_cmd(core, &pkt, 0, VPU_CMD_ID_NOOP, NULL);
+
+	dev_dbg(core->dev, "try to wake up\n");
+	mutex_lock(&core->cmd_lock);
+	vpu_cmd_send(core, &pkt);
+	mutex_unlock(&core->cmd_lock);
 }
 
 static int vpu_session_send_cmd(struct vpu_inst *inst, u32 id, void *data)
@@ -304,9 +319,25 @@ static int vpu_session_send_cmd(struct vpu_inst *inst, u32 id, void *data)
 		return -EINVAL;
 
 	ret = vpu_request_cmd(inst, id, data, &key, &sync);
-	if (!ret && sync)
-		ret = sync_session_response(inst, key);
+	if (ret)
+		goto exit;
 
+	/* workaround for a firmware issue,
+	 * firmware should be waked up by start or configure command,
+	 * but there is a very small change that firmware failed to wakeup.
+	 * in such case, try to wakeup firmware again by sending a noop command
+	 */
+	if (sync && (id == VPU_CMD_ID_CONFIGURE_CODEC || id == VPU_CMD_ID_START)) {
+		if (sync_session_response(inst, key, VPU_TIMEOUT_WAKEUP, 1))
+			vpu_core_keep_active(inst->core);
+		else
+			goto exit;
+	}
+
+	if (sync)
+		ret = sync_session_response(inst, key, VPU_TIMEOUT, 0);
+
+exit:
 	if (ret)
 		dev_err(inst->dev, "[%d] send cmd(0x%x) fail\n", inst->id, id);
 

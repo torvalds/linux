@@ -2983,7 +2983,7 @@ static int hl_fw_get_sec_attest_data(struct hl_device *hdev, u32 packet_id, void
 	int rc;
 
 	req_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, size, &req_dma_addr);
-	if (!data) {
+	if (!req_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP packet %u\n", packet_id);
 		return -ENOMEM;

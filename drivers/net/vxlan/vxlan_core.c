@@ -2917,16 +2917,23 @@ static int vxlan_init(struct net_device *dev)
 		vxlan_vnigroup_init(vxlan);
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
-	err = gro_cells_init(&vxlan->gro_cells, dev);
-	if (err) {
-		free_percpu(dev->tstats);
-		return err;
+	if (!dev->tstats) {
+		err = -ENOMEM;
+		goto err_vnigroup_uninit;
 	}
 
+	err = gro_cells_init(&vxlan->gro_cells, dev);
+	if (err)
+		goto err_free_percpu;
+
 	return 0;
+
+err_free_percpu:
+	free_percpu(dev->tstats);
+err_vnigroup_uninit:
+	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER)
+		vxlan_vnigroup_uninit(vxlan);
+	return err;
 }
 
 static void vxlan_fdb_delete_default(struct vxlan_dev *vxlan, __be32 vni)

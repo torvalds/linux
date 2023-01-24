@@ -30,7 +30,7 @@ static inline struct intel_gt *kobj_to_gt(struct kobject *kobj)
 
 void intel_gt_sysfs_register(struct intel_gt *gt);
 void intel_gt_sysfs_unregister(struct intel_gt *gt);
-struct intel_gt *intel_gt_sysfs_get_drvdata(struct device *dev,
+struct intel_gt *intel_gt_sysfs_get_drvdata(struct kobject *kobj,
 					    const char *name);
 
 #endif /* SYSFS_GT_H */
