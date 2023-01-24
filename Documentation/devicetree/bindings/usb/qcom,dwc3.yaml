@@ -121,6 +121,7 @@ properties:
 patternProperties:
   "^usb@[0-9a-f]+$":
     $ref: snps,dwc3.yaml#
+    unevaluatedProperties: false
 
     properties:
       wakeup-source: false

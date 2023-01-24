@@ -72,6 +72,7 @@ patternProperties:
   '^mailbox@[0-9a-f]+$':
     description: Internal ipi mailbox node
     type: object  # DT nodes are json objects
+    additionalProperties: false
     properties:
       xlnx,ipi-id:
         description:

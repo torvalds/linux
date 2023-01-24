@@ -28,6 +28,7 @@ properties:
 patternProperties:
   '^(ac|usb)$':
     type: object
+    additionalProperties: false
     description: USB/AC charging parameters
     properties:
       charger-type:

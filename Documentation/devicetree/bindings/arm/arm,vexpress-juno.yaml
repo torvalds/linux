@@ -144,6 +144,7 @@ patternProperties:
       it is stricter and always has two compatibles.
     type: object
     $ref: '/schemas/simple-bus.yaml'
+    unevaluatedProperties: false
 
     properties:
       compatible:

@@ -234,6 +234,7 @@ properties:
     patternProperties:
       "^[a-z0-9]+$":
         type: object
+        additionalProperties: false
 
         properties:
           clocks:
@@ -251,6 +252,9 @@ properties:
               Must contain an entry for each reset required by the PMC
               for controlling a power-gate.
               See ../reset/reset.txt for more details.
+
+          power-domains:
+            maxItems: 1
 
           '#power-domain-cells':
             const: 0

@@ -130,6 +130,7 @@ patternProperties:
       PRU-ICSS configuration space. CFG sub-module represented as a SysCon.
 
     type: object
+    additionalProperties: false
 
     properties:
       compatible:

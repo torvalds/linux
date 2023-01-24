@@ -36,6 +36,7 @@ patternProperties:
   # All other properties should be child nodes with unit-address and 'reg'
   "@[0-9a-f]+$":
     type: object
+    additionalProperties: true
     properties:
       reg:
         maxItems: 1

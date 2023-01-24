@@ -73,6 +73,7 @@ properties:
 patternProperties:
   "@[0-7],[a-f0-9]+$":
     type: object
+    additionalProperties: true
     description: |
       The child device node represents the controller connected to the SMC
       bus. The controller can be a NAND controller or a pair of any memory
