@@ -69,7 +69,7 @@ struct rtas_t rtas;
  * Exceptions to the RTAS serialization requirement (e.g. stop-self)
  * must use a separate rtas_args structure.
  */
-static arch_spinlock_t rtas_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+static DEFINE_RAW_SPINLOCK(rtas_lock);
 static struct rtas_args rtas_args;
 
 DEFINE_SPINLOCK(rtas_data_buf_lock);
@@ -87,28 +87,6 @@ unsigned long rtas_rmo_buf;
 void (*rtas_flash_term_hook)(int);
 EXPORT_SYMBOL_GPL(rtas_flash_term_hook);
 
-/* RTAS use home made raw locking instead of spin_lock_irqsave
- * because those can be called from within really nasty contexts
- * such as having the timebase stopped which would lockup with
- * normal locks and spinlock debugging enabled
- */
-static unsigned long lock_rtas(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	preempt_disable();
-	arch_spin_lock(&rtas_lock);
-	return flags;
-}
-
-static void unlock_rtas(unsigned long flags)
-{
-	arch_spin_unlock(&rtas_lock);
-	local_irq_restore(flags);
-	preempt_enable();
-}
-
 /*
  * call_rtas_display_status and call_rtas_display_status_delay
  * are designed only for very early low-level debugging, which
@@ -116,14 +94,14 @@ static void unlock_rtas(unsigned long flags)
  */
 static void call_rtas_display_status(unsigned char c)
 {
-	unsigned long s;
+	unsigned long flags;
 
 	if (!rtas.base)
 		return;
 
-	s = lock_rtas();
+	raw_spin_lock_irqsave(&rtas_lock, flags);
 	rtas_call_unlocked(&rtas_args, 10, 1, 1, NULL, c);
-	unlock_rtas(s);
+	raw_spin_unlock_irqrestore(&rtas_lock, flags);
 }
 
 static void call_rtas_display_status_delay(char c)
@@ -539,7 +517,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
 	va_list list;
 	int i;
-	unsigned long s;
+	unsigned long flags;
 	struct rtas_args *args;
 	char *buff_copy = NULL;
 	int ret;
@@ -562,8 +540,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 		return -1;
 	}
 
-	s = lock_rtas();
-
+	raw_spin_lock_irqsave(&rtas_lock, flags);
 	/* We use the global rtas args buffer */
 	args = &rtas_args;
 
@@ -581,7 +558,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 			outputs[i] = be32_to_cpu(args->rets[i + 1]);
 	ret = (nret > 0) ? be32_to_cpu(args->rets[0]) : 0;
 
-	unlock_rtas(s);
+	raw_spin_unlock_irqrestore(&rtas_lock, flags);
 
 	if (buff_copy) {
 		log_error(buff_copy, ERR_TYPE_RTAS_LOG, 0);
@@ -1271,7 +1248,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 
 	buff_copy = get_errorlog_buffer();
 
-	flags = lock_rtas();
+	raw_spin_lock_irqsave(&rtas_lock, flags);
 
 	rtas_args = args;
 	do_enter_rtas(__pa(&rtas_args));
@@ -1282,7 +1259,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 	if (be32_to_cpu(args.rets[0]) == -1)
 		errbuf = __fetch_rtas_last_error(buff_copy);
 
-	unlock_rtas(flags);
+	raw_spin_unlock_irqrestore(&rtas_lock, flags);
 
 	if (buff_copy) {
 		if (errbuf)
@@ -1404,19 +1381,18 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	return 1;
 }
 
-static arch_spinlock_t timebase_lock;
+static DEFINE_RAW_SPINLOCK(timebase_lock);
 static u64 timebase = 0;
 
 void rtas_give_timebase(void)
 {
 	unsigned long flags;
 
-	local_irq_save(flags);
+	raw_spin_lock_irqsave(&timebase_lock, flags);
 	hard_irq_disable();
-	arch_spin_lock(&timebase_lock);
 	rtas_call(rtas_token("freeze-time-base"), 0, 1, NULL);
 	timebase = get_tb();
-	arch_spin_unlock(&timebase_lock);
+	raw_spin_unlock(&timebase_lock);
 
 	while (timebase)
 		barrier();
@@ -1428,8 +1404,8 @@ void rtas_take_timebase(void)
 {
 	while (!timebase)
 		barrier();
-	arch_spin_lock(&timebase_lock);
+	raw_spin_lock(&timebase_lock);
 	set_tb(timebase >> 32, timebase & 0xffffffff);
 	timebase = 0;
-	arch_spin_unlock(&timebase_lock);
+	raw_spin_unlock(&timebase_lock);
 }
