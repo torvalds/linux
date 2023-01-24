@@ -473,8 +473,8 @@ EXPORT_SYMBOL(drm_fb_helper_init);
  * drm_fb_helper_alloc_info - allocate fb_info and some of its members
  * @fb_helper: driver-allocated fbdev helper
  *
- * A helper to alloc fb_info and the members cmap and apertures. Called
- * by the driver within the fb_probe fb_helper callback function. Drivers do not
+ * A helper to alloc fb_info and the member cmap. Called by the driver
+ * within the fb_probe fb_helper callback function. Drivers do not
  * need to release the allocated fb_info structure themselves, this is
  * automatically done when calling drm_fb_helper_fini().
  *
@@ -496,27 +496,11 @@ struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 	if (ret)
 		goto err_release;
 
-	/*
-	 * TODO: We really should be smarter here and alloc an aperture
-	 * for each IORESOURCE_MEM resource helper->dev->dev has and also
-	 * init the ranges of the appertures based on the resources.
-	 * Note some drivers currently count on there being only 1 empty
-	 * aperture and fill this themselves, these will need to be dealt
-	 * with somehow when fixing this.
-	 */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto err_free_cmap;
-	}
-
 	fb_helper->info = info;
 	info->skip_vt_switch = true;
 
 	return info;
 
-err_free_cmap:
-	fb_dealloc_cmap(&info->cmap);
 err_release:
 	framebuffer_release(info);
 	return ERR_PTR(ret);

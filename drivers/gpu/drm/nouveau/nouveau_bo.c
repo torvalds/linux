@@ -922,6 +922,7 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 	struct nouveau_mem *mem = new_reg ? nouveau_mem(new_reg) : NULL;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_vma *vma;
+	long ret;
 
 	/* ttm can now (stupidly) pass the driver bos it didn't create... */
 	if (bo->destroy != nouveau_bo_del_ttm)
@@ -936,7 +937,10 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 		}
 	} else {
 		list_for_each_entry(vma, &nvbo->vma_list, head) {
-			WARN_ON(ttm_bo_wait(bo, false, false));
+			ret = dma_resv_wait_timeout(bo->base.resv,
+						    DMA_RESV_USAGE_BOOKKEEP,
+						    false, 15 * HZ);
+			WARN_ON(ret <= 0);
 			nouveau_vma_unmap(vma);
 		}
 	}

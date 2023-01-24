@@ -31,10 +31,11 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/export.h>
+#include <linux/fb.h> /* for KHZ2PICOS() */
 #include <linux/list.h>
 #include <linux/list_sort.h>
-#include <linux/export.h>
-#include <linux/fb.h>
+#include <linux/of.h>
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>

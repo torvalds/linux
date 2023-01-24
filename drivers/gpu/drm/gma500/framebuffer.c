@@ -19,10 +19,12 @@
 
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modeset_helper.h>
 
 #include "framebuffer.h"
 #include "gem.h"
@@ -296,11 +298,6 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	/* Accessed stolen memory directly */
 	info->screen_base = dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
-
-	if (dev_priv->gtt.stolen_size) {
-		info->apertures->ranges[0].base = dev_priv->fb_base;
-		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
-	}
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 

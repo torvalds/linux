@@ -1087,46 +1087,34 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 /**
- * ttm_bo_wait - wait for buffer idle.
+ * ttm_bo_wait_ctx - wait for buffer idle.
  *
  * @bo:  The buffer object.
- * @interruptible:  Use interruptible wait.
- * @no_wait:  Return immediately if buffer is busy.
+ * @ctx: defines how to wait
  *
- * This function must be called with the bo::mutex held, and makes
- * sure any previous rendering to the buffer is completed.
- * Note: It might be necessary to block validations before the
- * wait by reserving the buffer.
- * Returns -EBUSY if no_wait is true and the buffer is busy.
- * Returns -ERESTARTSYS if interrupted by a signal.
+ * Waits for the buffer to be idle. Used timeout depends on the context.
+ * Returns -EBUSY if wait timed outt, -ERESTARTSYS if interrupted by a signal or
+ * zero on success.
  */
-int ttm_bo_wait(struct ttm_buffer_object *bo,
-		bool interruptible, bool no_wait)
+int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
 {
-	long timeout = 15 * HZ;
+	long ret;
 
-	if (no_wait) {
-		if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP))
+	if (ctx->no_wait_gpu) {
+		if (dma_resv_test_signaled(bo->base.resv,
+					   DMA_RESV_USAGE_BOOKKEEP))
 			return 0;
 		else
 			return -EBUSY;
 	}
 
-	timeout = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
-					interruptible, timeout);
-	if (timeout < 0)
-		return timeout;
-
-	if (timeout == 0)
+	ret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				    ctx->interruptible, 15 * HZ);
+	if (unlikely(ret < 0))
+		return ret;
+	if (unlikely(ret == 0))
 		return -EBUSY;
-
 	return 0;
-}
-EXPORT_SYMBOL(ttm_bo_wait);
-
-int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
-{
-	return ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 }
 EXPORT_SYMBOL(ttm_bo_wait_ctx);
 
@@ -1135,7 +1123,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 {
 	struct ttm_place place;
 	bool locked;
-	int ret;
+	long ret;
 
 	/*
 	 * While the bo may already reside in SYSTEM placement, set

@@ -29,6 +29,8 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_tt.h>
@@ -125,9 +127,8 @@ EXPORT_SYMBOL(ttm_move_memcpy);
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
- * @new_mem: struct ttm_resource indicating where to move.
+ * @ctx: operation context
+ * @dst_mem: struct ttm_resource indicating where to move.
  *
  * Fallback move function for a mappable buffer object in mappable memory.
  * The function will, if successful,
@@ -279,8 +280,8 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 /**
  * ttm_io_prot
  *
- * bo: ttm buffer object
- * res: ttm resource object
+ * @bo: ttm buffer object
+ * @res: ttm resource object
  * @tmp: Page protection flag for a normal, cached mapping.
  *
  * Utility function that returns the pgprot_t that should be used for
@@ -547,9 +548,13 @@ EXPORT_SYMBOL(ttm_bo_vunmap);
 static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
 				 bool dst_use_tt)
 {
-	int ret;
-	ret = ttm_bo_wait(bo, false, false);
-	if (ret)
+	long ret;
+
+	ret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				    false, 15 * HZ);
+	if (ret == 0)
+		return -EBUSY;
+	if (ret < 0)
 		return ret;
 
 	if (!dst_use_tt)
@@ -619,7 +624,7 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 }
 
 /**
- * ttm_bo_move_accel_cleanup.
+ * ttm_bo_move_accel_cleanup - cleanup helper for hw copies
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @fence: A fence object that signals when moving is complete.
@@ -663,7 +668,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
 /**
- * ttm_bo_move_sync_cleanup.
+ * ttm_bo_move_sync_cleanup - cleanup by waiting for the move to finish
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @new_mem: struct ttm_resource indicating where to move.
@@ -710,8 +715,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 		return ret;
 
 	/* If already idle, no need for ghost object dance. */
-	ret = ttm_bo_wait(bo, false, true);
-	if (ret != -EBUSY) {
+	if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP)) {
 		if (!bo->ttm) {
 			/* See comment below about clearing. */
 			ret = ttm_tt_create(bo, true);
@@ -748,8 +752,10 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 
 	ret = dma_resv_copy_fences(&ghost->base._resv, bo->base.resv);
 	/* Last resort, wait for the BO to be idle when we are OOM */
-	if (ret)
-		ttm_bo_wait(bo, false, false);
+	if (ret) {
+		dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				      false, MAX_SCHEDULE_TIMEOUT);
+	}
 
 	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);

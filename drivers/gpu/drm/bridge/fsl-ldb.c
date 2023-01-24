@@ -66,6 +66,14 @@ static inline struct fsl_ldb *to_fsl_ldb(struct drm_bridge *bridge)
 	return container_of(bridge, struct fsl_ldb, bridge);
 }
 
+static unsigned long fsl_ldb_link_frequency(struct fsl_ldb *fsl_ldb, int clock)
+{
+	if (fsl_ldb->lvds_dual_link)
+		return clock * 3500;
+	else
+		return clock * 7000;
+}
+
 static int fsl_ldb_attach(struct drm_bridge *bridge,
 			  enum drm_bridge_attach_flags flags)
 {
@@ -85,6 +93,8 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 	const struct drm_display_mode *mode;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
+	unsigned long configured_link_freq;
+	unsigned long requested_link_freq;
 	bool lvds_format_24bpp;
 	bool lvds_format_jeida;
 	u32 reg;
@@ -128,10 +138,15 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	mode = &crtc_state->adjusted_mode;
 
-	if (fsl_ldb->lvds_dual_link)
-		clk_set_rate(fsl_ldb->clk, mode->clock * 3500);
-	else
-		clk_set_rate(fsl_ldb->clk, mode->clock * 7000);
+	requested_link_freq = fsl_ldb_link_frequency(fsl_ldb, mode->clock);
+	clk_set_rate(fsl_ldb->clk, requested_link_freq);
+
+	configured_link_freq = clk_get_rate(fsl_ldb->clk);
+	if (configured_link_freq != requested_link_freq)
+		dev_warn(fsl_ldb->dev, "Configured LDB clock (%lu Hz) does not match requested LVDS clock: %lu Hz",
+			 configured_link_freq,
+			 requested_link_freq);
+
 	clk_prepare_enable(fsl_ldb->clk);
 
 	/* Program LDB_CTRL */

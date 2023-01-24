@@ -605,9 +605,6 @@ void __drm_err(const char *format, ...);
 #define drm_dbg_kms_ratelimited(drm, fmt, ...) \
 	__DRM_DEFINE_DBG_RATELIMITED(KMS, drm, fmt, ## __VA_ARGS__)
 
-/* NOTE: this is deprecated in favor of drm_dbg_kms_ratelimited(NULL, ...). */
-#define DRM_DEBUG_KMS_RATELIMITED(fmt, ...) drm_dbg_kms_ratelimited(NULL, fmt, ## __VA_ARGS__)
-
 /*
  * struct drm_device based WARNs
  *

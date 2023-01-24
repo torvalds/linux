@@ -26,6 +26,8 @@
 
 #include <linux/module.h>
 
+#include <drm/drm_crtc_helper.h>
+
 #include "ch7006_priv.h"
 
 /* DRM encoder functions */

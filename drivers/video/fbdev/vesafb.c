@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -31,6 +32,8 @@
 
 struct vesafb_par {
 	u32 pseudo_palette[256];
+	resource_size_t base;
+	resource_size_t size;
 	int wc_cookie;
 	struct resource *region;
 };
@@ -140,7 +143,7 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *  (according to the entries in the `var' structure). Return
 	 *  != 0 for invalid regno.
 	 */
-	
+
 	if (regno >= info->cmap.len)
 		return 1;
 
@@ -191,7 +194,7 @@ static void vesafb_destroy(struct fb_info *info)
 	arch_phys_wc_del(par->wc_cookie);
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	release_mem_region(par->base, par->size);
 
 	framebuffer_release(info);
 }
@@ -209,13 +212,13 @@ static struct fb_ops vesafb_ops = {
 static int vesafb_setup(char *options)
 {
 	char *this_opt;
-	
+
 	if (!options || !*options)
 		return 0;
-	
+
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		if (!*this_opt) continue;
-		
+
 		if (! strcmp(this_opt, "inverse"))
 			inverse=1;
 		else if (! strcmp(this_opt, "redraw"))
@@ -316,14 +319,8 @@ static int vesafb_probe(struct platform_device *dev)
 	par = info->par;
 	info->pseudo_palette = par->pseudo_palette;
 
-	/* set vesafb aperture size for generic probing */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		err = -ENOMEM;
-		goto err;
-	}
-	info->apertures->ranges[0].base = screen_info.lfb_base;
-	info->apertures->ranges[0].size = size_total;
+	par->base = screen_info.lfb_base;
+	par->size = size_total;
 
 	printk(KERN_INFO "vesafb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
 	       vesafb_defined.xres, vesafb_defined.yres, vesafb_defined.bits_per_pixel, vesafb_fix.line_length, screen_info.pages);
@@ -381,7 +378,7 @@ static int vesafb_probe(struct platform_device *dev)
 	vesafb_defined.pixclock     = 10000000 / vesafb_defined.xres * 1000 / vesafb_defined.yres;
 	vesafb_defined.left_margin  = (vesafb_defined.xres / 8) & 0xf8;
 	vesafb_defined.hsync_len    = (vesafb_defined.xres / 8) & 0xf8;
-	
+
 	vesafb_defined.red.offset    = screen_info.red_pos;
 	vesafb_defined.red.length    = screen_info.red_size;
 	vesafb_defined.green.offset  = screen_info.green_pos;
@@ -460,27 +457,29 @@ static int vesafb_probe(struct platform_device *dev)
 	info->fbops = &vesafb_ops;
 	info->var = vesafb_defined;
 	info->fix = vesafb_fix;
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE |
-		(ypan ? FBINFO_HWACCEL_YPAN : 0);
+	info->flags = FBINFO_FLAG_DEFAULT | (ypan ? FBINFO_HWACCEL_YPAN : 0);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
 		err = -ENOMEM;
 		goto err_release_region;
 	}
+	err = devm_aperture_acquire_for_platform_device(dev, par->base, par->size);
+	if (err)
+		goto err_fb_dealloc_cmap;
 	if (register_framebuffer(info)<0) {
 		err = -EINVAL;
-		fb_dealloc_cmap(&info->cmap);
-		goto err_release_region;
+		goto err_fb_dealloc_cmap;
 	}
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
+err_fb_dealloc_cmap:
+	fb_dealloc_cmap(&info->cmap);
 err_release_region:
 	arch_phys_wc_del(par->wc_cookie);
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	if (par->region)
 		release_region(0x3c0, 32);
-err:
 	framebuffer_release(info);
 	release_mem_region(vesafb_fix.smem_start, size_total);
 	return err;

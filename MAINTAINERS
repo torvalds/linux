@@ -6579,11 +6579,6 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/ilitek,ili9486.yaml
 F:	drivers/gpu/drm/tiny/ili9486.c
 
-DRM DRIVER FOR INTEL I810 VIDEO CARDS
-S:	Orphan / Obsolete
-F:	drivers/gpu/drm/i810/
-F:	include/uapi/drm/i810_drm.h
-
 DRM DRIVER FOR JADARD JD9365DA-H3 MIPI-DSI LCD PANELS
 M:	Jagan Teki <jagan@edgeble.ai>
 S:	Maintained
@@ -6611,11 +6606,6 @@ R:	Purism Kernel Team <kernel@puri.sm>
 S:	Maintained
 F:	Documentation/devicetree/bindings/display/panel/mantix,mlaf057we51-x.yaml
 F:	drivers/gpu/drm/panel/panel-mantix-mlaf057we51.c
-
-DRM DRIVER FOR MATROX G200/G400 GRAPHICS CARDS
-S:	Orphan / Obsolete
-F:	drivers/gpu/drm/mga/
-F:	include/uapi/drm/mga_drm.h
 
 DRM DRIVER FOR MGA G200 GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
@@ -6735,11 +6725,6 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/qxl/
 F:	include/uapi/drm/qxl_drm.h
 
-DRM DRIVER FOR RAGE 128 VIDEO CARDS
-S:	Orphan / Obsolete
-F:	drivers/gpu/drm/r128/
-F:	include/uapi/drm/r128_drm.h
-
 DRM DRIVER FOR RAYDIUM RM67191 PANELS
 M:	Robert Chiras <robert.chiras@nxp.com>
 S:	Maintained
@@ -6767,11 +6752,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/display/panel/rocktech,jh057n00900.yaml
 F:	drivers/gpu/drm/panel/panel-sitronix-st7703.c
 
-DRM DRIVER FOR SAVAGE VIDEO CARDS
-S:	Orphan / Obsolete
-F:	drivers/gpu/drm/savage/
-F:	include/uapi/drm/savage_drm.h
-
 DRM DRIVER FOR FIRMWARE FRAMEBUFFERS
 M:	Thomas Zimmermann <tzimmermann@suse.de>
 M:	Javier Martinez Canillas <javierm@redhat.com>
@@ -6786,11 +6766,6 @@ F:	drivers/video/nomodeset.c
 F:	include/drm/drm_aperture.h
 F:	include/linux/aperture.h
 F:	include/video/nomodeset.h
-
-DRM DRIVER FOR SIS VIDEO CARDS
-S:	Orphan / Obsolete
-F:	drivers/gpu/drm/sis/
-F:	include/uapi/drm/sis_drm.h
 
 DRM DRIVER FOR SITRONIX ST7586 PANELS
 M:	David Lechner <david@lechnology.com>
@@ -6818,10 +6793,6 @@ S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/ste,mcde.yaml
 F:	drivers/gpu/drm/mcde/
-
-DRM DRIVER FOR TDFX VIDEO CARDS
-S:	Orphan / Obsolete
-F:	drivers/gpu/drm/tdfx/
 
 DRM DRIVER FOR TI DLPC3433 MIPI DSI TO DMD BRIDGE
 M:	Jagan Teki <jagan@amarulasolutions.com>

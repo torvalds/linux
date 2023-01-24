@@ -347,7 +347,6 @@ static inline void *ttm_kmap_obj_virtual(struct ttm_bo_kmap_obj *map,
 	return map->virtual;
 }
 
-int ttm_bo_wait(struct ttm_buffer_object *bo, bool interruptible, bool no_wait);
 int ttm_bo_wait_ctx(struct ttm_buffer_object *bo,
 		    struct ttm_operation_ctx *ctx);
 int ttm_bo_validate(struct ttm_buffer_object *bo,
