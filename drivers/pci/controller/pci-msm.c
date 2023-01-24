@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
 #include <linux/aer.h>
@@ -3361,29 +3361,117 @@ static void msm_pcie_vreg_deinit(struct msm_pcie_dev_t *dev)
 	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
 }
 
-static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
+/* This function will initialize gdsc core and gdsc phy regulators */
+static int msm_pcie_gdsc_init(struct msm_pcie_dev_t *dev)
+{
+	int rc = 0;
+
+	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
+
+	if (dev->gdsc_core) {
+		rc = regulator_enable(dev->gdsc_core);
+		if (rc) {
+			PCIE_ERR(dev,
+			"PCIe: fail to enable GDSC-CORE for RC%d (%s)\n",
+						dev->rc_idx, dev->pdev->name);
+			return rc;
+		}
+	}
+
+	if (dev->gdsc_phy) {
+		rc = regulator_enable(dev->gdsc_phy);
+		if (rc) {
+			PCIE_ERR(dev,
+			"PCIe: fail to enable GDSC-PHY for RC%d (%s)\n",
+						dev->rc_idx, dev->pdev->name);
+			return rc;
+		}
+	}
+
+	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
+
+	return 0;
+}
+
+/* This function will de-initialize gdsc core and gdsc phy regulators */
+static int msm_pcie_gdsc_deinit(struct msm_pcie_dev_t *dev)
+{
+	int rc = 0;
+
+	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
+
+	if (dev->gdsc_core) {
+		rc = regulator_disable(dev->gdsc_core);
+		if (rc) {
+			PCIE_ERR(dev,
+				"PCIe:RC%d fail to disable GDSC-CORE (%s)\n",
+						dev->rc_idx, dev->pdev->name);
+			return rc;
+		}
+	}
+
+	if (dev->gdsc_phy) {
+		rc = regulator_disable(dev->gdsc_phy);
+		if (rc) {
+			PCIE_ERR(dev,
+				"PCIe:RC%d fail to disable GDSC-PHY (%s)\n",
+						dev->rc_idx, dev->pdev->name);
+			return rc;
+		}
+	}
+
+	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
+
+	return 0;
+}
+
+/* This function will reset pcie controller and phy */
+static int msm_pcie_core_phy_reset(struct msm_pcie_dev_t *dev)
 {
 	int i, rc = 0;
-	struct msm_pcie_clk_info_t *info;
 	struct msm_pcie_reset_info_t *reset_info;
 
 	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
 
-	rc = regulator_enable(dev->gdsc_core);
+	for (i = 0; i < MSM_PCIE_MAX_RESET; i++) {
+		reset_info = &dev->reset[i];
+		if (reset_info->hdl) {
+			rc = reset_control_assert(reset_info->hdl);
+			if (rc)
+				PCIE_ERR(dev,
+					"PCIe: RC%d failed to assert reset for %s.\n",
+					dev->rc_idx, reset_info->name);
+			else
+				PCIE_DBG2(dev,
+					"PCIe: RC%d successfully asserted reset for %s.\n",
+					dev->rc_idx, reset_info->name);
 
-	if (rc) {
-		PCIE_ERR(dev, "PCIe: fail to enable GDSC-CORE for RC%d (%s)\n",
-			dev->rc_idx, dev->pdev->name);
-		return rc;
+			/* add a 1ms delay to ensure the reset is asserted */
+			usleep_range(1000, 1005);
+
+			rc = reset_control_deassert(reset_info->hdl);
+			if (rc)
+				PCIE_ERR(dev,
+					"PCIe: RC%d failed to deassert reset for %s.\n",
+					dev->rc_idx, reset_info->name);
+			else
+				PCIE_DBG2(dev,
+					"PCIe: RC%d successfully deasserted reset for %s.\n",
+					dev->rc_idx, reset_info->name);
+		}
 	}
 
-	rc = regulator_enable(dev->gdsc_phy);
+	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
 
-	if (rc) {
-		PCIE_ERR(dev, "PCIe: fail to enable GDSC-PHY for RC%d (%s)\n",
-			dev->rc_idx, dev->pdev->name);
-		return rc;
-	}
+	return rc;
+}
+
+static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
+{
+	int i, rc = 0;
+	struct msm_pcie_clk_info_t *info;
+
+	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
 
 	/* switch pipe clock source after gdsc-core is turned on */
 	if (dev->pipe_clk_mux && dev->pipe_clk_ext_src)
@@ -3427,12 +3515,13 @@ static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 
 		rc = clk_prepare_enable(info->hdl);
 
-		if (rc)
+		if (rc) {
 			PCIE_ERR(dev, "PCIe: RC%d failed to enable clk %s\n",
 				dev->rc_idx, info->name);
-		else
-			PCIE_DBG2(dev, "enable clk %s for RC%d.\n",
-				info->name, dev->rc_idx);
+			break;
+		}
+		PCIE_DBG2(dev, "enable clk %s for RC%d.\n", info->name,
+								dev->rc_idx);
 	}
 
 	if (rc) {
@@ -3448,37 +3537,6 @@ static int msm_pcie_clk_init(struct msm_pcie_dev_t *dev)
 		/* switch pipe clock mux to xo before turning off gdsc-core */
 		if (dev->pipe_clk_mux && dev->ref_clk_src)
 			clk_set_parent(dev->pipe_clk_mux, dev->ref_clk_src);
-
-		regulator_disable(dev->gdsc_phy);
-		regulator_disable(dev->gdsc_core);
-	}
-
-	for (i = 0; i < MSM_PCIE_MAX_RESET; i++) {
-		reset_info = &dev->reset[i];
-		if (reset_info->hdl) {
-			rc = reset_control_assert(reset_info->hdl);
-			if (rc)
-				PCIE_ERR(dev,
-					"PCIe: RC%d failed to assert reset for %s.\n",
-					dev->rc_idx, reset_info->name);
-			else
-				PCIE_DBG2(dev,
-					"PCIe: RC%d successfully asserted reset for %s.\n",
-					dev->rc_idx, reset_info->name);
-
-			/* add a 1ms delay to ensure the reset is asserted */
-			usleep_range(1000, 1005);
-
-			rc = reset_control_deassert(reset_info->hdl);
-			if (rc)
-				PCIE_ERR(dev,
-					"PCIe: RC%d failed to deassert reset for %s.\n",
-					dev->rc_idx, reset_info->name);
-			else
-				PCIE_DBG2(dev,
-					"PCIe: RC%d successfully deasserted reset for %s.\n",
-					dev->rc_idx, reset_info->name);
-		}
 	}
 
 	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
@@ -3520,57 +3578,16 @@ static void msm_pcie_clk_deinit(struct msm_pcie_dev_t *dev)
 	if (dev->pipe_clk_mux && dev->ref_clk_src)
 		clk_set_parent(dev->pipe_clk_mux, dev->ref_clk_src);
 
-	regulator_disable(dev->gdsc_phy);
-	regulator_disable(dev->gdsc_core);
-
 	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
 }
 
-static int msm_pcie_pipe_clk_init(struct msm_pcie_dev_t *dev)
+/* This function will assert, de-assert pipe reset signal */
+static int msm_pcie_pipe_reset(struct msm_pcie_dev_t *dev)
 {
 	int i, rc = 0;
-	struct msm_pcie_clk_info_t *info;
 	struct msm_pcie_reset_info_t *pipe_reset_info;
 
 	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
-
-	for (i = 0; i < dev->num_pipe_clk; i++) {
-		info = &dev->pipe_clk[i];
-
-		if (!info->hdl)
-			continue;
-
-		if (info->freq) {
-			rc = clk_set_rate(info->hdl, info->freq);
-			if (rc) {
-				PCIE_ERR(dev,
-					"PCIe: RC%d can't set rate for clk %s: %d.\n",
-					dev->rc_idx, info->name, rc);
-				break;
-			}
-
-			PCIE_DBG2(dev,
-				"PCIe: RC%d set rate for clk %s: %d.\n",
-				dev->rc_idx, info->name, rc);
-		}
-
-		rc = clk_prepare_enable(info->hdl);
-
-		if (rc)
-			PCIE_ERR(dev, "PCIe: RC%d failed to enable clk %s.\n",
-				dev->rc_idx, info->name);
-		else
-			PCIE_DBG2(dev, "RC%d enabled pipe clk %s.\n",
-				dev->rc_idx, info->name);
-	}
-
-	if (rc) {
-		PCIE_DBG(dev, "RC%d disable pipe clocks for error handling.\n",
-			dev->rc_idx);
-		while (i--)
-			if (dev->pipe_clk[i].hdl)
-				clk_disable_unprepare(dev->pipe_clk[i].hdl);
-	}
 
 	for (i = 0; i < MSM_PCIE_MAX_PIPE_RESET; i++) {
 		pipe_reset_info = &dev->pipe_reset[i];
@@ -3599,6 +3616,57 @@ static int msm_pcie_pipe_clk_init(struct msm_pcie_dev_t *dev)
 					"PCIe: RC%d successfully deasserted pipe reset for %s.\n",
 					dev->rc_idx, pipe_reset_info->name);
 		}
+	}
+
+	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
+
+	return rc;
+}
+
+static int msm_pcie_pipe_clk_init(struct msm_pcie_dev_t *dev)
+{
+	int i, rc = 0;
+	struct msm_pcie_clk_info_t *info;
+
+	PCIE_DBG(dev, "RC%d: entry\n", dev->rc_idx);
+
+	for (i = 0; i < dev->num_pipe_clk; i++) {
+		info = &dev->pipe_clk[i];
+
+		if (!info->hdl)
+			continue;
+
+		if (info->freq) {
+			rc = clk_set_rate(info->hdl, info->freq);
+			if (rc) {
+				PCIE_ERR(dev,
+					"PCIe: RC%d can't set rate for clk %s: %d.\n",
+					dev->rc_idx, info->name, rc);
+				break;
+			}
+
+			PCIE_DBG2(dev,
+				"PCIe: RC%d set rate for clk %s: %d.\n",
+				dev->rc_idx, info->name, rc);
+		}
+
+		rc = clk_prepare_enable(info->hdl);
+
+		if (rc) {
+			PCIE_ERR(dev, "PCIe: RC%d failed to enable clk %s.\n",
+				dev->rc_idx, info->name);
+			break;
+		}
+		PCIE_DBG2(dev, "RC%d enabled pipe clk %s.\n", dev->rc_idx,
+								info->name);
+	}
+
+	if (rc) {
+		PCIE_DBG(dev, "RC%d disable pipe clocks for error handling.\n",
+			dev->rc_idx);
+		while (i--)
+			if (dev->pipe_clk[i].hdl)
+				clk_disable_unprepare(dev->pipe_clk[i].hdl);
 	}
 
 	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
@@ -3660,6 +3728,12 @@ static int pcie_phy_init(struct msm_pcie_dev_t *dev)
 
 	/* Enable the pipe clock */
 	ret = msm_pcie_pipe_clk_init(dev);
+
+	/* ensure that changes propagated to the hardware */
+	wmb();
+
+	/* Assert, De-assert the pipe reset */
+	ret = msm_pcie_pipe_reset(dev);
 
 	/* ensure that changes propagated to the hardware */
 	wmb();
@@ -4684,12 +4758,24 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	if (ret)
 		goto out;
 
+	/* enable core, phy gdsc */
+	ret = msm_pcie_gdsc_init(dev);
+	if (ret)
+		goto gdsc_fail;
+
 	/* enable clocks */
 	ret = msm_pcie_clk_init(dev);
 	/* ensure that changes propagated to the hardware */
 	wmb();
 	if (ret)
 		goto clk_fail;
+
+	/* reset pcie controller and phy */
+	ret = msm_pcie_core_phy_reset(dev);
+	/* ensure that changes propagated to the hardware */
+	wmb();
+	if (ret)
+		goto reset_fail;
 
 	/* RUMI PCIe reset sequence */
 	if (dev->rumi_init)
@@ -4862,8 +4948,11 @@ link_fail:
 		msm_pcie_write_reg(dev->phy, dev->phy_power_down_offset, 0);
 
 	msm_pcie_pipe_clk_deinit(dev);
+reset_fail:
 	msm_pcie_clk_deinit(dev);
 clk_fail:
+	msm_pcie_gdsc_deinit(dev);
+gdsc_fail:
 	msm_pcie_vreg_deinit(dev);
 out:
 	mutex_unlock(&dev->setup_lock);
@@ -4912,6 +5001,7 @@ static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, 0, BIT(0));
 
 	msm_pcie_clk_deinit(dev);
+	msm_pcie_gdsc_deinit(dev);
 	msm_pcie_vreg_deinit(dev);
 	msm_pcie_pipe_clk_deinit(dev);
 
@@ -6997,6 +7087,7 @@ static int msm_pcie_remove(struct platform_device *pdev)
 	msm_pcie_irq_deinit(&msm_pcie_dev[rc_idx]);
 	msm_pcie_vreg_deinit(&msm_pcie_dev[rc_idx]);
 	msm_pcie_clk_deinit(&msm_pcie_dev[rc_idx]);
+	msm_pcie_gdsc_deinit(&msm_pcie_dev[rc_idx]);
 	msm_pcie_gpio_deinit(&msm_pcie_dev[rc_idx]);
 	msm_pcie_release_resources(&msm_pcie_dev[rc_idx]);
 
@@ -8174,11 +8265,13 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 
 	PCIE_DBG(pcie_dev, "PCIe: RC%d:enable gdsc-core\n", pcie_dev->rc_idx);
 
-	ret = regulator_enable(pcie_dev->gdsc_core);
-	if (ret)
-		PCIE_ERR(pcie_dev,
+	if (pcie_dev->gdsc_core) {
+		ret = regulator_enable(pcie_dev->gdsc_core);
+		if (ret)
+			PCIE_ERR(pcie_dev,
 			"PCIe: RC%d: failed to enable GDSC: ret %d\n",
 			pcie_dev->rc_idx, ret);
+	}
 
 	PCIE_DBG(pcie_dev, "PCIe: RC%d:set ICC path vote\n", pcie_dev->rc_idx);
 
@@ -8382,7 +8475,8 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 				pcie_dev->rc_idx, ret);
 	}
 
-	regulator_disable(pcie_dev->gdsc_core);
+	if (pcie_dev->gdsc_core)
+		regulator_disable(pcie_dev->gdsc_core);
 
 	msm_pcie_vreg_deinit(pcie_dev);
 
