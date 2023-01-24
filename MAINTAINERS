@@ -14562,8 +14562,10 @@ Q:	https://patchwork.kernel.org/project/netdevbpf/list/
 B:	mailto:netdev@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
+F:	Documentation/core-api/netlink.rst
 F:	Documentation/networking/
 F:	Documentation/process/maintainer-netdev.rst
+F:	Documentation/userspace-api/netlink/
 F:	include/linux/in.h
 F:	include/linux/net.h
 F:	include/linux/netdevice.h
@@ -14575,6 +14577,7 @@ F:	include/uapi/linux/netdevice.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
+F:	tools/net/
 F:	tools/testing/selftests/net/
 
 NETWORKING [IPSEC]
