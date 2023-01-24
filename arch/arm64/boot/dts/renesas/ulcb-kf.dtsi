@@ -126,7 +126,7 @@
 };
 
 &i2c2 {
-	i2cswitch2: i2c-switch@71 {
+	i2cmux2: i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -317,7 +317,7 @@
 };
 
 &i2c4 {
-	i2cswitch4: i2c-switch@71 {
+	i2cmux4: i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
