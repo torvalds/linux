@@ -112,6 +112,53 @@ static void cfdiag_trailer(struct cf_trailer_entry *te)
 	te->timestamp = get_tod_clock_fast();
 }
 
+/*
+ * Return the maximum possible counter set size (in number of 8 byte counters)
+ * depending on type and model number.
+ */
+static size_t cpum_cf_ctrset_size(enum cpumf_ctr_set ctrset,
+				  struct cpumf_ctr_info *info)
+{
+	size_t ctrset_size = 0;
+
+	switch (ctrset) {
+	case CPUMF_CTR_SET_BASIC:
+		if (info->cfvn >= 1)
+			ctrset_size = 6;
+		break;
+	case CPUMF_CTR_SET_USER:
+		if (info->cfvn == 1)
+			ctrset_size = 6;
+		else if (info->cfvn >= 3)
+			ctrset_size = 2;
+		break;
+	case CPUMF_CTR_SET_CRYPTO:
+		if (info->csvn >= 1 && info->csvn <= 5)
+			ctrset_size = 16;
+		else if (info->csvn == 6 || info->csvn == 7)
+			ctrset_size = 20;
+		break;
+	case CPUMF_CTR_SET_EXT:
+		if (info->csvn == 1)
+			ctrset_size = 32;
+		else if (info->csvn == 2)
+			ctrset_size = 48;
+		else if (info->csvn >= 3 && info->csvn <= 5)
+			ctrset_size = 128;
+		else if (info->csvn == 6 || info->csvn == 7)
+			ctrset_size = 160;
+		break;
+	case CPUMF_CTR_SET_MT_DIAG:
+		if (info->csvn > 3)
+			ctrset_size = 48;
+		break;
+	case CPUMF_CTR_SET_MAX:
+		break;
+	}
+
+	return ctrset_size;
+}
+
 /* Read a counter set. The counter set number determines the counter set and
  * the CPUM-CF first and second version number determine the number of
  * available counters in each counter set.
