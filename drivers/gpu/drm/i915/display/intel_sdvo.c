@@ -1732,9 +1732,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 
 	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_AUDIO_STAT,
 				 &val, 1)) {
-		u8 mask = SDVO_AUDIO_ELD_VALID | SDVO_AUDIO_PRESENCE_DETECT;
-
-		if ((val & mask) == mask)
+		if (val & SDVO_AUDIO_PRESENCE_DETECT)
 			pipe_config->has_audio = true;
 	}
 
