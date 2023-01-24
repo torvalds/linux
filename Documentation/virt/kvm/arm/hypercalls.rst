@@ -17,7 +17,7 @@ Specific Hypervisor Service Call" range with a UID of
 guest using the standard "Call UID" function for the service range in
 order to determine that the KVM/arm64-specific hypercalls are available.
 
-``ARM_SMCCC_VENDOR_HYP_KVM_FEATURES_FUNC_ID``
+``ARM_SMCCC_KVM_FUNC_FEATURES``
 ---------------------------------------------
 
 Provides a discovery mechanism for other KVM/arm64 hypercalls.
@@ -40,7 +40,7 @@ Provides a discovery mechanism for other KVM/arm64 hypercalls.
 |                     | (uint32) | R3 | Bitmap of available function numbers 96-127 |
 +---------------------+----------+----+---------------------------------------------+
 
-``ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID``
+``ARM_SMCCC_KVM_FUNC_PTP``
 ----------------------------------------
 
 See ptp_kvm.rst
