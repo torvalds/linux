@@ -1558,12 +1558,7 @@ long populate_vma_page_range(struct vm_area_struct *vma,
  * code on error (see __get_user_pages()).
  *
  * vma->vm_mm->mmap_lock must be held. The range must be page-aligned and
- * covered by the VMA.
- *
- * If @locked is NULL, it may be held for read or write and will be unperturbed.
- *
- * If @locked is non-NULL, it must held for read only and may be released.  If
- * it's released, *@locked will be set to 0.
+ * covered by the VMA. If it's released, *@locked will be set to 0.
  */
 long faultin_vma_page_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end, bool write, int *locked)
