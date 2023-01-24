@@ -832,7 +832,7 @@ static int __init cpumf_pmu_init(void)
 {
 	int rc;
 
-	if (!kernel_cpumcf_avail())
+	if (!cpum_cf_avail())
 		return -ENODEV;
 
 	/* Setup s390dbf facility */
