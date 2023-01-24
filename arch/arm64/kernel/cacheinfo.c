@@ -67,9 +67,6 @@ int init_cache_level(unsigned int cpu)
 			fw_level = 0;
 	}
 
-	if (fw_level < 0)
-		return fw_level;
-
 	if (level < fw_level) {
 		/*
 		 * some external caches not specified in CLIDR_EL1
