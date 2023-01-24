@@ -1175,15 +1175,23 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	gfs2_glock_dq_wait(gh);
 
 	/*
-	 * If there are no other lock holders, we'll get the lock immediately.
+	 * If there are no other lock holders, we will immediately get
+	 * exclusive access to the iopen glock here.
+	 *
 	 * Otherwise, the other nodes holding the lock will be notified about
-	 * our locking request.  If they don't have the inode open, they'll
-	 * evict the cached inode and release the lock.  Otherwise, if they
-	 * poke the inode glock, we'll take this as an indication that they
-	 * still need the iopen glock and that they'll take care of deleting
-	 * the inode when they're done.  As a last resort, if another node
-	 * keeps holding the iopen glock without showing any activity on the
-	 * inode glock, we'll eventually time out.
+	 * our locking request.  If they do not have the inode open, they are
+	 * expected to evict the cached inode and release the lock, allowing us
+	 * to proceed.
+	 *
+	 * Otherwise, if they cannot evict the inode, they are expected to poke
+	 * the inode glock (note: not the iopen glock).  We will notice that
+	 * and stop waiting for the iopen glock immediately.  The other node(s)
+	 * are then expected to take care of deleting the inode when they no
+	 * longer use it.
+	 *
+	 * As a last resort, if another node keeps holding the iopen glock
+	 * without showing any activity on the inode glock, we will eventually
+	 * time out and fail the iopen glock upgrade.
 	 *
 	 * Note that we're passing the LM_FLAG_TRY_1CB flag to the first
 	 * locking request as an optimization to notify lock holders as soon as
