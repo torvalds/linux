@@ -16,8 +16,8 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/io.h>
+#include <linux/perf_event.h>
 
-#include <asm/cpu_mcf.h>
 #include <asm/ctl_reg.h>
 #include <asm/pai.h>
 #include <asm/debug.h>

@@ -2,7 +2,7 @@
 /*
  * Performance event support for s390x - CPU-measurement Counter Facility
  *
- *  Copyright IBM Corp. 2012, 2022
+ *  Copyright IBM Corp. 2012, 2023
  *  Author(s): Hendrik Brueckner <brueckner@linux.ibm.com>
  *	       Thomas Richter <tmricht@linux.ibm.com>
  */
@@ -16,10 +16,81 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/miscdevice.h>
+#include <linux/perf_event.h>
 
-#include <asm/cpu_mcf.h>
+#include <asm/cpu_mf.h>
 #include <asm/hwctrset.h>
 #include <asm/debug.h>
+
+enum cpumf_ctr_set {
+	CPUMF_CTR_SET_BASIC   = 0,    /* Basic Counter Set */
+	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
+	CPUMF_CTR_SET_CRYPTO  = 2,    /* Crypto-Activity Counter Set */
+	CPUMF_CTR_SET_EXT     = 3,    /* Extended Counter Set */
+	CPUMF_CTR_SET_MT_DIAG = 4,    /* MT-diagnostic Counter Set */
+
+	/* Maximum number of counter sets */
+	CPUMF_CTR_SET_MAX,
+};
+
+#define CPUMF_LCCTL_ENABLE_SHIFT    16
+#define CPUMF_LCCTL_ACTCTL_SHIFT     0
+
+static inline void ctr_set_enable(u64 *state, u64 ctrsets)
+{
+	*state |= ctrsets << CPUMF_LCCTL_ENABLE_SHIFT;
+}
+
+static inline void ctr_set_disable(u64 *state, u64 ctrsets)
+{
+	*state &= ~(ctrsets << CPUMF_LCCTL_ENABLE_SHIFT);
+}
+
+static inline void ctr_set_start(u64 *state, u64 ctrsets)
+{
+	*state |= ctrsets << CPUMF_LCCTL_ACTCTL_SHIFT;
+}
+
+static inline void ctr_set_stop(u64 *state, u64 ctrsets)
+{
+	*state &= ~(ctrsets << CPUMF_LCCTL_ACTCTL_SHIFT);
+}
+
+static inline int ctr_stcctm(enum cpumf_ctr_set set, u64 range, u64 *dest)
+{
+	switch (set) {
+	case CPUMF_CTR_SET_BASIC:
+		return stcctm(BASIC, range, dest);
+	case CPUMF_CTR_SET_USER:
+		return stcctm(PROBLEM_STATE, range, dest);
+	case CPUMF_CTR_SET_CRYPTO:
+		return stcctm(CRYPTO_ACTIVITY, range, dest);
+	case CPUMF_CTR_SET_EXT:
+		return stcctm(EXTENDED, range, dest);
+	case CPUMF_CTR_SET_MT_DIAG:
+		return stcctm(MT_DIAG_CLEARING, range, dest);
+	case CPUMF_CTR_SET_MAX:
+		return 3;
+	}
+	return 3;
+}
+
+struct cpu_cf_events {
+	struct cpumf_ctr_info	info;
+	atomic_t		ctr_set[CPUMF_CTR_SET_MAX];
+	u64			state;		/* For perf_event_open SVC */
+	u64			dev_state;	/* For /dev/hwctr */
+	unsigned int		flags;
+	size_t used;			/* Bytes used in data */
+	size_t usedss;			/* Bytes used in start/stop */
+	unsigned char start[PAGE_SIZE];	/* Counter set at event add */
+	unsigned char stop[PAGE_SIZE];	/* Counter set at event delete */
+	unsigned char data[PAGE_SIZE];	/* Counter set at /dev/hwctr */
+	unsigned int sets;		/* # Counter set saved in memory */
+};
+
+/* Per-CPU event structure for the counter facility */
+static DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events);
 
 static unsigned int cfdiag_cpu_speed;	/* CPU speed for CF_DIAG trailer */
 static debug_info_t *cf_dbg;
@@ -435,6 +506,51 @@ static void cpumf_pmu_disable(struct pmu *pmu)
 	cpuhw->flags &= ~PMU_F_ENABLED;
 }
 
+#define PMC_INIT      0
+#define PMC_RELEASE   1
+
+static void cpum_cf_setup_cpu(void *flags)
+{
+	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
+
+	switch (*((int *)flags)) {
+	case PMC_INIT:
+		memset(&cpuhw->info, 0, sizeof(cpuhw->info));
+		qctri(&cpuhw->info);
+		cpuhw->flags |= PMU_F_RESERVED;
+		break;
+
+	case PMC_RELEASE:
+		cpuhw->flags &= ~PMU_F_RESERVED;
+		break;
+	}
+
+	/* Disable CPU counter sets */
+	lcctl(0);
+	debug_sprintf_event(cf_dbg, 5, "%s flags %#x flags %#x state %#llx\n",
+			    __func__, *(int *)flags, cpuhw->flags,
+			    cpuhw->state);
+}
+
+/* Initialize the CPU-measurement counter facility */
+static int __kernel_cpumcf_begin(void)
+{
+	int flags = PMC_INIT;
+
+	on_each_cpu(cpum_cf_setup_cpu, &flags, 1);
+	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+
+	return 0;
+}
+
+/* Release the CPU-measurement counter facility */
+static void __kernel_cpumcf_end(void)
+{
+	int flags = PMC_RELEASE;
+
+	on_each_cpu(cpum_cf_setup_cpu, &flags, 1);
+	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
+}
 
 /* Number of perf events counting hardware events */
 static atomic_t num_events = ATOMIC_INIT(0);
@@ -821,10 +937,68 @@ static struct pmu cpumf_pmu = {
 	.read	      = cpumf_pmu_read,
 };
 
+static int cpum_cf_setup(unsigned int cpu, int flags)
+{
+	local_irq_disable();
+	cpum_cf_setup_cpu(&flags);
+	local_irq_enable();
+	return 0;
+}
+
+static int cfset_online_cpu(unsigned int cpu);
+static int cpum_cf_online_cpu(unsigned int cpu)
+{
+	debug_sprintf_event(cf_dbg, 4, "%s cpu %d in_irq %ld\n", __func__,
+			    cpu, in_interrupt());
+	cpum_cf_setup(cpu, PMC_INIT);
+	return cfset_online_cpu(cpu);
+}
+
+static int cfset_offline_cpu(unsigned int cpu);
+static int cpum_cf_offline_cpu(unsigned int cpu)
+{
+	debug_sprintf_event(cf_dbg, 4, "%s cpu %d\n", __func__, cpu);
+	cfset_offline_cpu(cpu);
+	return cpum_cf_setup(cpu, PMC_RELEASE);
+}
+
 /* Return true if store counter set multiple instruction is available */
 static inline int stccm_avail(void)
 {
 	return test_facility(142);
+}
+
+/* CPU-measurement alerts for the counter facility */
+static void cpumf_measurement_alert(struct ext_code ext_code,
+				    unsigned int alert, unsigned long unused)
+{
+	struct cpu_cf_events *cpuhw;
+
+	if (!(alert & CPU_MF_INT_CF_MASK))
+		return;
+
+	inc_irq_stat(IRQEXT_CMC);
+	cpuhw = this_cpu_ptr(&cpu_cf_events);
+
+	/*
+	 * Measurement alerts are shared and might happen when the PMU
+	 * is not reserved.  Ignore these alerts in this case.
+	 */
+	if (!(cpuhw->flags & PMU_F_RESERVED))
+		return;
+
+	/* counter authorization change alert */
+	if (alert & CPU_MF_INT_CF_CACA)
+		qctri(&cpuhw->info);
+
+	/* loss of counter data alert */
+	if (alert & CPU_MF_INT_CF_LCDA)
+		pr_err("CPU[%i] Counter data was lost\n", smp_processor_id());
+
+	/* loss of MT counter data alert */
+	if (alert & CPU_MF_INT_CF_MTDA)
+		pr_warn("CPU[%i] MT counter data was lost\n",
+			smp_processor_id());
 }
 
 static int cfset_init(void);
@@ -835,23 +1009,48 @@ static int __init cpumf_pmu_init(void)
 	if (!cpum_cf_avail())
 		return -ENODEV;
 
+	/*
+	 * Clear bit 15 of cr0 to unauthorize problem-state to
+	 * extract measurement counters
+	 */
+	ctl_clear_bit(0, 48);
+
+	/* register handler for measurement-alert interruptions */
+	rc = register_external_irq(EXT_IRQ_MEASURE_ALERT,
+				   cpumf_measurement_alert);
+	if (rc) {
+		pr_err("Registering for CPU-measurement alerts failed with rc=%i\n", rc);
+		return rc;
+	}
+
 	/* Setup s390dbf facility */
 	cf_dbg = debug_register(KMSG_COMPONENT, 2, 1, 128);
 	if (!cf_dbg) {
 		pr_err("Registration of s390dbf(cpum_cf) failed\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out1;
 	}
 	debug_register_view(cf_dbg, &debug_sprintf_view);
 
 	cpumf_pmu.attr_groups = cpumf_cf_event_group();
 	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", -1);
 	if (rc) {
-		debug_unregister_view(cf_dbg, &debug_sprintf_view);
-		debug_unregister(cf_dbg);
 		pr_err("Registering the cpum_cf PMU failed with rc=%i\n", rc);
+		goto out2;
 	} else if (stccm_avail()) {	/* Setup counter set device */
 		cfset_init();
 	}
+
+	rc = cpuhp_setup_state(CPUHP_AP_PERF_S390_CF_ONLINE,
+			       "perf/s390/cf:online",
+			       cpum_cf_online_cpu, cpum_cf_offline_cpu);
+	return rc;
+
+out2:
+	debug_unregister_view(cf_dbg, &debug_sprintf_view);
+	debug_unregister(cf_dbg);
+out1:
+	unregister_external_irq(EXT_IRQ_MEASURE_ALERT, cpumf_measurement_alert);
 	return rc;
 }
 
@@ -1068,7 +1267,6 @@ static int cfset_all_start(struct cfset_request *req)
 	free_cpumask_var(mask);
 	return rc;
 }
-
 
 /* Return the maximum required space for all possible CPUs in case one
  * CPU will be onlined during the START, READ, STOP cycles.
@@ -1332,7 +1530,7 @@ static struct miscdevice cfset_dev = {
 /* Hotplug add of a CPU. Scan through all active processes and add
  * that CPU to the list of CPUs supplied with ioctl(..., START, ...).
  */
-int cfset_online_cpu(unsigned int cpu)
+static int cfset_online_cpu(unsigned int cpu)
 {
 	struct cfset_call_on_cpu_parm p;
 	struct cfset_request *rp;
@@ -1352,7 +1550,7 @@ int cfset_online_cpu(unsigned int cpu)
 /* Hotplug remove of a CPU. Scan through all active processes and clear
  * that CPU from the list of CPUs supplied with ioctl(..., START, ...).
  */
-int cfset_offline_cpu(unsigned int cpu)
+static int cfset_offline_cpu(unsigned int cpu)
 {
 	struct cfset_call_on_cpu_parm p;
 	struct cfset_request *rp;
