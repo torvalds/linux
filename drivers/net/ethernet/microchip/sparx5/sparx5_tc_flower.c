@@ -850,6 +850,84 @@ static int sparx5_tc_set_actionset(struct vcap_admin *admin,
 	return err;
 }
 
+/* Add the VCAP key to match on for a rule target value */
+static int sparx5_tc_add_rule_link_target(struct vcap_admin *admin,
+					  struct vcap_rule *vrule,
+					  int target_cid)
+{
+	int link_val = target_cid % VCAP_CID_LOOKUP_SIZE;
+	int err;
+
+	if (!link_val)
+		return 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		/* Add NXT_IDX key for chaining rules between IS0 instances */
+		err = vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_GEN_IDX_SEL,
+					    1, /* enable */
+					    ~0);
+		if (err)
+			return err;
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_GEN_IDX,
+					     link_val, /* target */
+					     ~0);
+	case VCAP_TYPE_IS2:
+		/* Add PAG key for chaining rules from IS0 */
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
+					     link_val, /* target */
+					     ~0);
+	default:
+		break;
+	}
+	return 0;
+}
+
+/* Add the VCAP action that adds a target value to a rule */
+static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
+				   struct vcap_admin *admin,
+				   struct vcap_rule *vrule,
+				   int from_cid, int to_cid)
+{
+	struct vcap_admin *to_admin = vcap_find_admin(vctrl, to_cid);
+	int diff, err = 0;
+
+	diff = vcap_chain_offset(vctrl, from_cid, to_cid);
+	if (!(to_admin && diff > 0)) {
+		pr_err("%s:%d: unsupported chain direction: %d\n",
+		       __func__, __LINE__, to_cid);
+		return -EINVAL;
+	}
+	if (admin->vtype == VCAP_TYPE_IS0 &&
+	    to_admin->vtype == VCAP_TYPE_IS0) {
+		/* Between IS0 instances the G_IDX value is used */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_NXT_IDX, diff);
+		if (err)
+			goto out;
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_NXT_IDX_CTRL,
+					       1); /* Replace */
+		if (err)
+			goto out;
+	} else if (admin->vtype == VCAP_TYPE_IS0 &&
+		   to_admin->vtype == VCAP_TYPE_IS2) {
+		/* Between IS0 and IS2 the PAG value is used */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_PAG_VAL, diff);
+		if (err)
+			goto out;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_PAG_OVERRIDE_MASK,
+					       0xff);
+		if (err)
+			goto out;
+	} else {
+		pr_err("%s:%d: unsupported chain destination: %d\n",
+		       __func__, __LINE__, to_cid);
+		err = -EOPNOTSUPP;
+	}
+out:
+	return err;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin)
@@ -885,10 +963,21 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	if (err)
 		goto out;
 
+	err = sparx5_tc_add_rule_link_target(admin, vrule,
+					     fco->common.chain_index);
+	if (err)
+		goto out;
+
 	frule = flow_cls_offload_flow_rule(fco);
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_TRAP:
+			if (admin->vtype != VCAP_TYPE_IS2) {
+				NL_SET_ERR_MSG_MOD(fco->common.extack,
+						   "Trap action not supported in this VCAP");
+				err = -EOPNOTSUPP;
+				goto out;
+			}
 			err = vcap_rule_add_action_bit(vrule,
 						       VCAP_AF_CPU_COPY_ENA,
 						       VCAP_BIT_1);
@@ -917,7 +1006,9 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			err = sparx5_tc_set_actionset(admin, vrule);
 			if (err)
 				goto out;
-			/* Links between VCAPs will be added later */
+			sparx5_tc_add_rule_link(vctrl, admin, vrule,
+						fco->common.chain_index,
+						act->chain_index);
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(fco->common.extack,

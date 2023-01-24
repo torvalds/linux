@@ -1601,6 +1601,40 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
 
+/* Is this the last admin instance ordered by chain id */
+static bool vcap_admin_is_last(struct vcap_control *vctrl,
+			       struct vcap_admin *admin)
+{
+	struct vcap_admin *iter, *last = NULL;
+	int max_cid = 0;
+
+	list_for_each_entry(iter, &vctrl->list, list) {
+		if (iter->first_cid > max_cid) {
+			last = iter;
+			max_cid = iter->first_cid;
+		}
+	}
+	if (!last)
+		return false;
+
+	return admin == last;
+}
+
+/* Calculate the value used for chaining VCAP rules */
+int vcap_chain_offset(struct vcap_control *vctrl, int from_cid, int to_cid)
+{
+	int diff = to_cid - from_cid;
+
+	if (diff < 0) /* Wrong direction */
+		return diff;
+	to_cid %= VCAP_CID_LOOKUP_SIZE;
+	if (to_cid == 0)  /* Destination aligned to a lookup == no chaining */
+		return 0;
+	diff %= VCAP_CID_LOOKUP_SIZE;  /* Limit to a value within a lookup */
+	return diff;
+}
+EXPORT_SYMBOL_GPL(vcap_chain_offset);
+
 /* Is the next chain id in one of the following lookups
  * For now this does not support filters linked to other filters using
  * keys and actions. That will be added later.
@@ -2825,6 +2859,7 @@ out:
 static int vcap_enable_rules(struct vcap_control *vctrl,
 			     struct net_device *ndev, int chain)
 {
+	int next_chain = chain + VCAP_CID_LOOKUP_SIZE;
 	struct vcap_rule_internal *ri;
 	struct vcap_admin *admin;
 	int err = 0;
@@ -2836,8 +2871,11 @@ static int vcap_enable_rules(struct vcap_control *vctrl,
 		/* Found the admin, now find the offloadable rules */
 		mutex_lock(&admin->lock);
 		list_for_each_entry(ri, &admin->rules, list) {
-			if (ri->data.vcap_chain_id != chain)
+			/* Is the rule in the lookup defined by the chain */
+			if (!(ri->data.vcap_chain_id >= chain &&
+			      ri->data.vcap_chain_id < next_chain)) {
 				continue;
+			}
 
 			if (ri->ndev != ndev)
 				continue;
@@ -3052,6 +3090,9 @@ bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
 
 	admin = vcap_find_admin(vctrl, cid);
 	if (!admin)
+		return false;
+
+	if (!vcap_admin_is_last(vctrl, admin))
 		return false;
 
 	/* This must be the last lookup in this VCAP type */
