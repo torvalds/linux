@@ -2029,7 +2029,7 @@ static void tc_clk_disable(void *data)
 	clk_disable_unprepare(refclk);
 }
 
-static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int tc_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tc_data *tc;
@@ -2209,7 +2209,7 @@ static struct i2c_driver tc358767_driver = {
 		.of_match_table = tc358767_of_ids,
 	},
 	.id_table = tc358767_i2c_ids,
-	.probe = tc_probe,
+	.probe_new = tc_probe,
 	.remove	= tc_remove,
 };
 module_i2c_driver(tc358767_driver);

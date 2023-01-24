@@ -7,6 +7,7 @@
 
 #include <linux/atomic.h>
 #include <linux/io-pgtable.h>
+#include <linux/pm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
 #include <drm/drm_device.h>
@@ -172,8 +173,7 @@ int panfrost_device_init(struct panfrost_device *pfdev);
 void panfrost_device_fini(struct panfrost_device *pfdev);
 void panfrost_device_reset(struct panfrost_device *pfdev);
 
-int panfrost_device_resume(struct device *dev);
-int panfrost_device_suspend(struct device *dev);
+extern const struct dev_pm_ops panfrost_pm_ops;
 
 enum drm_panfrost_exception_type {
 	DRM_PANFROST_EXCEPTION_OK = 0x00,

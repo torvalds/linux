@@ -1389,6 +1389,9 @@ enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &dc_ctx->res_ctx.pipe_ctx[i];
 
+		if (pipe_ctx->top_pipe)
+			continue;
+
 		if (pipe_ctx->stream != dc_stream)
 			continue;
 

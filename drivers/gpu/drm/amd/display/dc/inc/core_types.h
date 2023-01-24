@@ -547,15 +547,6 @@ struct dc_state {
 	struct resource_context res_ctx;
 
 	/**
-	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
-	 *
-	 * Each context must have its own instance of VBA, and in order to
-	 * initialize and obtain IP and SOC, the base DML instance from DC is
-	 * initially copied into every context.
-	 */
-	struct bw_context bw_ctx;
-
-	/**
 	 * @pp_display_cfg: PowerPlay clocks and settings
 	 * Note: this is a big struct, do *not* put on stack!
 	 */
@@ -568,6 +559,15 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
 	struct clk_mgr *clk_mgr;
+
+	/**
+	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 *
+	 * Each context must have its own instance of VBA, and in order to
+	 * initialize and obtain IP and SOC, the base DML instance from DC is
+	 * initially copied into every context.
+	 */
+	struct bw_context bw_ctx;
 
 	/**
 	 * @refcount: refcount reference

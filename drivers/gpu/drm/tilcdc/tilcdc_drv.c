@@ -496,7 +496,6 @@ static const struct drm_driver tilcdc_driver = {
  * Power management:
  */
 
-#ifdef CONFIG_PM_SLEEP
 static int tilcdc_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
@@ -518,11 +517,9 @@ static int tilcdc_pm_resume(struct device *dev)
 	pinctrl_pm_select_default_state(dev);
 	return  drm_mode_config_helper_resume(ddev);
 }
-#endif
 
-static const struct dev_pm_ops tilcdc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tilcdc_pm_suspend, tilcdc_pm_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(tilcdc_pm_ops,
+				tilcdc_pm_suspend, tilcdc_pm_resume);
 
 /*
  * Platform driver:
@@ -597,7 +594,7 @@ static struct platform_driver tilcdc_platform_driver = {
 	.remove     = tilcdc_pdev_remove,
 	.driver     = {
 		.name   = "tilcdc",
-		.pm     = &tilcdc_pm_ops,
+		.pm     = pm_sleep_ptr(&tilcdc_pm_ops),
 		.of_match_table = tilcdc_of_match,
 	},
 };

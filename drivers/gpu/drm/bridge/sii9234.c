@@ -886,8 +886,7 @@ static const struct drm_bridge_funcs sii9234_bridge_funcs = {
 	.mode_valid = sii9234_mode_valid,
 };
 
-static int sii9234_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sii9234_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct sii9234 *ctx;
@@ -961,7 +960,7 @@ static struct i2c_driver sii9234_driver = {
 		.name	= "sii9234",
 		.of_match_table = sii9234_dt_match,
 	},
-	.probe = sii9234_probe,
+	.probe_new = sii9234_probe,
 	.remove = sii9234_remove,
 	.id_table = sii9234_id,
 };

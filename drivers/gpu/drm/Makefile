@@ -126,7 +126,7 @@ obj-$(CONFIG_DRM_KMS_HELPER) += drm_kms_helper.o
 # Drivers and the rest
 #
 
-obj-$(CONFIG_DRM_KUNIT_TEST) += tests/
+obj-y			+= tests/
 
 obj-$(CONFIG_DRM_MIPI_DBI) += drm_mipi_dbi.o
 obj-$(CONFIG_DRM_MIPI_DSI) += drm_mipi_dsi.o

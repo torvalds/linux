@@ -112,6 +112,7 @@ bool dcn32_subvp_in_use(struct dc *dc,
 bool dcn32_mpo_in_use(struct dc_state *context);
 
 bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
+bool dcn32_is_center_timing(struct pipe_ctx *pipe);
 
 struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 		struct dc_state *state,

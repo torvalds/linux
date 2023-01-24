@@ -126,6 +126,7 @@ enum dmub_notification_type {
 	DMUB_NOTIFICATION_HPD,
 	DMUB_NOTIFICATION_HPD_IRQ,
 	DMUB_NOTIFICATION_SET_CONFIG_REPLY,
+	DMUB_NOTIFICATION_DPIA_NOTIFICATION,
 	DMUB_NOTIFICATION_MAX
 };
 
@@ -453,6 +454,7 @@ struct dmub_srv {
  * @pending_notification: Indicates there are other pending notifications
  * @aux_reply: aux reply
  * @hpd_status: hpd status
+ * @bw_alloc_reply: BW Allocation reply from CM/DPIA
  */
 struct dmub_notification {
 	enum dmub_notification_type type;
@@ -463,6 +465,7 @@ struct dmub_notification {
 		struct aux_reply_data aux_reply;
 		enum dp_hpd_status hpd_status;
 		enum set_config_status sc_status;
+		struct dpia_notification_reply_data bw_alloc_reply;
 	};
 };
 

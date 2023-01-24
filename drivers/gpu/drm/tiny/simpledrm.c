@@ -446,25 +446,6 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
  * Modesetting
  */
 
-/*
- * Support all formats of simplefb and maybe more; in order
- * of preference. The display's update function will do any
- * conversion necessary.
- *
- * TODO: Add blit helpers for remaining formats and uncomment
- *       constants.
- */
-static const uint32_t simpledrm_primary_plane_formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_RGB565,
-	//DRM_FORMAT_XRGB1555,
-	//DRM_FORMAT_ARGB1555,
-	DRM_FORMAT_RGB888,
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_ARGB2101010,
-};
-
 static const uint64_t simpledrm_primary_plane_format_modifiers[] = {
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID
@@ -739,14 +720,12 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	dev->mode_config.max_width = max_width;
 	dev->mode_config.min_height = height;
 	dev->mode_config.max_height = max_height;
-	dev->mode_config.preferred_depth = format->cpp[0] * 8;
+	dev->mode_config.preferred_depth = format->depth;
 	dev->mode_config.funcs = &simpledrm_mode_config_funcs;
 
 	/* Primary plane */
 
 	nformats = drm_fb_build_fourcc_list(dev, &format->format, 1,
-					    simpledrm_primary_plane_formats,
-					    ARRAY_SIZE(simpledrm_primary_plane_formats),
 					    sdev->formats, ARRAY_SIZE(sdev->formats));
 
 	primary_plane = &sdev->primary_plane;
@@ -823,6 +802,7 @@ static int simpledrm_probe(struct platform_device *pdev)
 {
 	struct simpledrm_device *sdev;
 	struct drm_device *dev;
+	unsigned int color_mode;
 	int ret;
 
 	sdev = simpledrm_device_create(&simpledrm_driver, pdev);
@@ -834,7 +814,11 @@ static int simpledrm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, 0);
+	color_mode = drm_format_info_bpp(sdev->format, 0);
+	if (color_mode == 16)
+		color_mode = sdev->format->depth; // can be 15 or 16
+
+	drm_fbdev_generic_setup(dev, color_mode);
 
 	return 0;
 }

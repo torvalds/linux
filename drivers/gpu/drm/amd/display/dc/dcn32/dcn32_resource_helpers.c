@@ -255,6 +255,19 @@ bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
+bool dcn32_is_center_timing(struct pipe_ctx *pipe)
+{
+	bool is_center_timing = false;
+
+	if (pipe->stream) {
+		if (pipe->stream->timing.v_addressable != pipe->stream->dst.height ||
+				pipe->stream->timing.v_addressable != pipe->stream->src.height) {
+			is_center_timing = true;
+		}
+	}
+	return is_center_timing;
+}
+
 /**
  * *******************************************************************************************
  * dcn32_determine_det_override: Determine DET allocation for each pipe
@@ -357,6 +370,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
+	bool disable_unbounded_requesting = dc->debug.disable_z9_mpc || dc->debug.disable_unbounded_requesting;
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 
@@ -373,7 +387,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 	 */
 	if (pipe_cnt == 1) {
 		pipes[0].pipe.src.det_size_override = DCN3_2_MAX_DET_SIZE;
-		if (pipe->plane_state && !dc->debug.disable_z9_mpc && pipe->plane_state->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
+		if (pipe->plane_state && !disable_unbounded_requesting && pipe->plane_state->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
 			if (!is_dual_plane(pipe->plane_state->format)) {
 				pipes[0].pipe.src.det_size_override = DCN3_2_DEFAULT_DET_SIZE;
 				pipes[0].pipe.src.unbounded_req_mode = true;

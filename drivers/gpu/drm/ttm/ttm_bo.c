@@ -31,8 +31,10 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_tt.h>
+
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -280,14 +282,13 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 		ret = 0;
 	}
 
-	if (ret || unlikely(list_empty(&bo->ddestroy))) {
+	if (ret) {
 		if (unlock_resv)
 			dma_resv_unlock(bo->base.resv);
 		spin_unlock(&bo->bdev->lru_lock);
 		return ret;
 	}
 
-	list_del_init(&bo->ddestroy);
 	spin_unlock(&bo->bdev->lru_lock);
 	ttm_bo_cleanup_memtype_use(bo);
 
@@ -300,47 +301,21 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 }
 
 /*
- * Traverse the delayed list, and call ttm_bo_cleanup_refs on all
- * encountered buffers.
+ * Block for the dma_resv object to become idle, lock the buffer and clean up
+ * the resource and tt object.
  */
-bool ttm_bo_delayed_delete(struct ttm_device *bdev, bool remove_all)
+static void ttm_bo_delayed_delete(struct work_struct *work)
 {
-	struct list_head removed;
-	bool empty;
+	struct ttm_buffer_object *bo;
 
-	INIT_LIST_HEAD(&removed);
+	bo = container_of(work, typeof(*bo), delayed_delete);
 
-	spin_lock(&bdev->lru_lock);
-	while (!list_empty(&bdev->ddestroy)) {
-		struct ttm_buffer_object *bo;
-
-		bo = list_first_entry(&bdev->ddestroy, struct ttm_buffer_object,
-				      ddestroy);
-		list_move_tail(&bo->ddestroy, &removed);
-		if (!ttm_bo_get_unless_zero(bo))
-			continue;
-
-		if (remove_all || bo->base.resv != &bo->base._resv) {
-			spin_unlock(&bdev->lru_lock);
-			dma_resv_lock(bo->base.resv, NULL);
-
-			spin_lock(&bdev->lru_lock);
-			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
-
-		} else if (dma_resv_trylock(bo->base.resv)) {
-			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
-		} else {
-			spin_unlock(&bdev->lru_lock);
-		}
-
-		ttm_bo_put(bo);
-		spin_lock(&bdev->lru_lock);
-	}
-	list_splice_tail(&removed, &bdev->ddestroy);
-	empty = list_empty(&bdev->ddestroy);
-	spin_unlock(&bdev->lru_lock);
-
-	return empty;
+	dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP, false,
+			      MAX_SCHEDULE_TIMEOUT);
+	dma_resv_lock(bo->base.resv, NULL);
+	ttm_bo_cleanup_memtype_use(bo);
+	dma_resv_unlock(bo->base.resv);
+	ttm_bo_put(bo);
 }
 
 static void ttm_bo_release(struct kref *kref)
@@ -369,68 +344,57 @@ static void ttm_bo_release(struct kref *kref)
 
 		drm_vma_offset_remove(bdev->vma_manager, &bo->base.vma_node);
 		ttm_mem_io_free(bdev, bo->resource);
-	}
 
-	if (!dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP) ||
-	    !dma_resv_trylock(bo->base.resv)) {
-		/* The BO is not idle, resurrect it for delayed destroy */
-		ttm_bo_flush_all_fences(bo);
-		bo->deleted = true;
+		if (!dma_resv_test_signaled(bo->base.resv,
+					    DMA_RESV_USAGE_BOOKKEEP) ||
+		    !dma_resv_trylock(bo->base.resv)) {
+			/* The BO is not idle, resurrect it for delayed destroy */
+			ttm_bo_flush_all_fences(bo);
+			bo->deleted = true;
 
-		spin_lock(&bo->bdev->lru_lock);
+			spin_lock(&bo->bdev->lru_lock);
 
-		/*
-		 * Make pinned bos immediately available to
-		 * shrinkers, now that they are queued for
-		 * destruction.
-		 *
-		 * FIXME: QXL is triggering this. Can be removed when the
-		 * driver is fixed.
-		 */
-		if (bo->pin_count) {
-			bo->pin_count = 0;
-			ttm_resource_move_to_lru_tail(bo->resource);
+			/*
+			 * Make pinned bos immediately available to
+			 * shrinkers, now that they are queued for
+			 * destruction.
+			 *
+			 * FIXME: QXL is triggering this. Can be removed when the
+			 * driver is fixed.
+			 */
+			if (bo->pin_count) {
+				bo->pin_count = 0;
+				ttm_resource_move_to_lru_tail(bo->resource);
+			}
+
+			kref_init(&bo->kref);
+			spin_unlock(&bo->bdev->lru_lock);
+
+			INIT_WORK(&bo->delayed_delete, ttm_bo_delayed_delete);
+			queue_work(bdev->wq, &bo->delayed_delete);
+			return;
 		}
 
-		kref_init(&bo->kref);
-		list_add_tail(&bo->ddestroy, &bdev->ddestroy);
-		spin_unlock(&bo->bdev->lru_lock);
-
-		schedule_delayed_work(&bdev->wq,
-				      ((HZ / 100) < 1) ? 1 : HZ / 100);
-		return;
+		ttm_bo_cleanup_memtype_use(bo);
+		dma_resv_unlock(bo->base.resv);
 	}
-
-	spin_lock(&bo->bdev->lru_lock);
-	list_del(&bo->ddestroy);
-	spin_unlock(&bo->bdev->lru_lock);
-
-	ttm_bo_cleanup_memtype_use(bo);
-	dma_resv_unlock(bo->base.resv);
 
 	atomic_dec(&ttm_glob.bo_count);
 	bo->destroy(bo);
 }
 
+/**
+ * ttm_bo_put
+ *
+ * @bo: The buffer object.
+ *
+ * Unreference a buffer object.
+ */
 void ttm_bo_put(struct ttm_buffer_object *bo)
 {
 	kref_put(&bo->kref, ttm_bo_release);
 }
 EXPORT_SYMBOL(ttm_bo_put);
-
-int ttm_bo_lock_delayed_workqueue(struct ttm_device *bdev)
-{
-	return cancel_delayed_work_sync(&bdev->wq);
-}
-EXPORT_SYMBOL(ttm_bo_lock_delayed_workqueue);
-
-void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched)
-{
-	if (resched)
-		schedule_delayed_work(&bdev->wq,
-				      ((HZ / 100) < 1) ? 1 : HZ / 100);
-}
-EXPORT_SYMBOL(ttm_bo_unlock_delayed_workqueue);
 
 static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
 				     struct ttm_resource **mem,
@@ -475,7 +439,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	bdev->funcs->evict_flags(bo, &placement);
 
 	if (!placement.num_placement && !placement.num_busy_placement) {
-		ret = ttm_bo_wait(bo, true, false);
+		ret = ttm_bo_wait_ctx(bo, ctx);
 		if (ret)
 			return ret;
 
@@ -512,6 +476,14 @@ out:
 	return ret;
 }
 
+/**
+ * ttm_bo_eviction_valuable
+ *
+ * @bo: The buffer object to evict
+ * @place: the placement we need to make room for
+ *
+ * Check if it is valuable to evict the BO to make room for the given placement.
+ */
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place)
 {
@@ -771,13 +743,23 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 	return ttm_bo_add_move_fence(bo, man, *mem, ctx->no_wait_gpu);
 }
 
-/*
- * Creates space for memory region @mem according to its type.
+/**
+ * ttm_bo_mem_space
  *
- * This function first searches for free space in compatible memory types in
- * the priority order defined by the driver.  If free space isn't found, then
- * ttm_bo_mem_force_space is attempted in priority order to evict and find
- * space.
+ * @bo: Pointer to a struct ttm_buffer_object. the data of which
+ * we want to allocate space for.
+ * @proposed_placement: Proposed new placement for the buffer object.
+ * @mem: A struct ttm_resource.
+ * @ctx: if and how to sleep, lock buffers and alloc memory
+ *
+ * Allocate memory space for the buffer object pointed to by @bo, using
+ * the placement flags in @placement, potentially evicting other idle buffer objects.
+ * This function may sleep while waiting for space to become available.
+ * Returns:
+ * -EBUSY: No space available (only if no_wait == 1).
+ * -ENOMEM: Could not allocate memory for the buffer object, either due to
+ * fragmentation or concurrent allocators.
+ * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
 int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			struct ttm_placement *placement,
@@ -883,6 +865,21 @@ out:
 	return ret;
 }
 
+/**
+ * ttm_bo_validate
+ *
+ * @bo: The buffer object.
+ * @placement: Proposed placement for the buffer object.
+ * @ctx: validation parameters.
+ *
+ * Changes placement and caching policy of the buffer object
+ * according proposed placement.
+ * Returns
+ * -EINVAL on invalid proposed placement.
+ * -ENOMEM on out-of-memory condition.
+ * -EBUSY if no_wait is true and buffer busy.
+ * -ERESTARTSYS if interrupted by a signal.
+ */
 int ttm_bo_validate(struct ttm_buffer_object *bo,
 		    struct ttm_placement *placement,
 		    struct ttm_operation_ctx *ctx)
@@ -960,7 +957,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,
 	int ret;
 
 	kref_init(&bo->kref);
-	INIT_LIST_HEAD(&bo->ddestroy);
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->page_alignment = alignment;
@@ -1076,6 +1072,11 @@ EXPORT_SYMBOL(ttm_bo_init_validate);
  * buffer object vm functions.
  */
 
+/**
+ * ttm_bo_unmap_virtual
+ *
+ * @bo: tear down the virtual mappings for this BO
+ */
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 {
 	struct ttm_device *bdev = bo->bdev;
@@ -1085,6 +1086,20 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
+/**
+ * ttm_bo_wait - wait for buffer idle.
+ *
+ * @bo:  The buffer object.
+ * @interruptible:  Use interruptible wait.
+ * @no_wait:  Return immediately if buffer is busy.
+ *
+ * This function must be called with the bo::mutex held, and makes
+ * sure any previous rendering to the buffer is completed.
+ * Note: It might be necessary to block validations before the
+ * wait by reserving the buffer.
+ * Returns -EBUSY if no_wait is true and the buffer is busy.
+ * Returns -ERESTARTSYS if interrupted by a signal.
+ */
 int ttm_bo_wait(struct ttm_buffer_object *bo,
 		bool interruptible, bool no_wait)
 {
@@ -1108,6 +1123,12 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);
+
+int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
+{
+	return ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+}
+EXPORT_SYMBOL(ttm_bo_wait_ctx);
 
 int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		   gfp_t gfp_flags)
@@ -1169,7 +1190,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	/*
 	 * Make sure BO is idle.
 	 */
-	ret = ttm_bo_wait(bo, false, false);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (unlikely(ret != 0))
 		goto out;
 

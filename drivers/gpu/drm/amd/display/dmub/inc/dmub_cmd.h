@@ -770,6 +770,7 @@ enum dmub_out_cmd_type {
 	 * Command type used for SET_CONFIG Reply notification
 	 */
 	DMUB_OUT_CMD__SET_CONFIG_REPLY = 3,
+	DMUB_OUT_CMD__DPIA_NOTIFICATION = 5
 };
 
 /* DMUB_CMD__DPIA command sub-types. */
@@ -1514,6 +1515,84 @@ struct dp_hpd_data {
 	 * Alignment only
 	 */
 	uint8_t pad;
+};
+
+/**
+ * DPIA NOTIFICATION Response Type
+ */
+enum dpia_notify_bw_alloc_status {
+
+	DPIA_BW_REQ_FAILED = 0,
+	DPIA_BW_REQ_SUCCESS,
+	DPIA_EST_BW_CHANGED,
+	DPIA_BW_ALLOC_CAPS_CHANGED
+};
+
+/* DMUB_OUT_CMD__DPIA_NOTIFY Reply command - OutBox Cmd */
+/**
+ * Data passed to driver from FW in a DMUB_OUT_CMD__DPIA_NOTIFY command.
+ */
+struct dpia_notification_reply_data {
+	uint8_t allocated_bw;
+	uint8_t estimated_bw;
+};
+
+struct dpia_notification_common {
+	bool shared;
+};
+
+struct dpia_bw_allocation_notify_data {
+	union {
+		struct {
+			uint16_t cm_bw_alloc_support: 1;	/**< USB4 CM BW Allocation mode support */
+			uint16_t bw_request_failed: 1;		/**< BW_Request_Failed */
+			uint16_t bw_request_succeeded: 1;	/**< BW_Request_Succeeded */
+			uint16_t est_bw_changed: 1;			/**< Estimated_BW changed */
+			uint16_t bw_alloc_cap_changed: 1;	/**< BW_Allocation_Capabiity_Changed */
+			uint16_t reserved: 11;
+		} bits;
+		uint16_t flags;
+	};
+	uint8_t cm_id;			/**< CM ID */
+	uint8_t group_id;		/**< Group ID */
+	uint8_t granularity;	/**< BW Allocation Granularity */
+	uint8_t estimated_bw;	/**< Estimated_BW */
+	uint8_t allocated_bw;	/**< Allocated_BW */
+	uint8_t reserved;
+};
+
+union dpia_notification_data {
+	struct dpia_notification_common common_data;
+	struct dpia_bw_allocation_notify_data dpia_bw_alloc;	/**< Used for DPIA BW Allocation mode notification */
+};
+
+enum dmub_cmd_dpia_notification_type {
+	DPIA_NOTIFY__BW_ALLOCATION = 0,
+};
+
+struct dpia_notification_header {
+	uint8_t instance;							/**< DPIA Instance */
+	uint8_t reserved[3];
+	enum dmub_cmd_dpia_notification_type type;	/**< DPIA notification type */
+};
+
+struct dpia_notification_payload {
+	struct dpia_notification_header  header;
+	union dpia_notification_data      data;   /**< DPIA notification data */
+};
+
+/**
+ * Definition of a DMUB_OUT_CMD__DPIA_NOTIFY command.
+ */
+struct dmub_rb_cmd_dpia_notification {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;  /**< DPIA notification header */
+	/**
+	 * Data passed to driver from FW in a DMUB_OUT_CMD__DPIA_NOTIFY command.
+	 */
+	struct dpia_notification_payload payload; /**< DPIA notification payload */
 };
 
 /**
@@ -3422,6 +3501,10 @@ union dmub_rb_out_cmd {
 	 * SET_CONFIG reply command.
 	 */
 	struct dmub_rb_cmd_dp_set_config_reply set_config_reply;
+	/**
+	 * BW ALLOCATION notification command.
+	 */
+	struct dmub_rb_cmd_dpia_notification dpia_notify;
 };
 #pragma pack(pop)
 

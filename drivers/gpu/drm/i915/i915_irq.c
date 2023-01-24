@@ -1974,7 +1974,10 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	if (ddi_hotplug_trigger) {
 		u32 dig_hotplug_reg;
 
+		/* Locking due to DSI native GPIO sequences */
+		spin_lock(&dev_priv->irq_lock);
 		dig_hotplug_reg = intel_uncore_rmw(&dev_priv->uncore, SHOTPLUG_CTL_DDI, 0, 0);
+		spin_unlock(&dev_priv->irq_lock);
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   ddi_hotplug_trigger, dig_hotplug_reg,
@@ -2448,8 +2451,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			ret = IRQ_HANDLED;
 			gen8_de_misc_irq_handler(dev_priv, iir);
 		} else {
-			drm_err(&dev_priv->drm,
-				"The master control interrupt lied (DE MISC)!\n");
+			drm_err_ratelimited(&dev_priv->drm,
+					    "The master control interrupt lied (DE MISC)!\n");
 		}
 	}
 
@@ -2460,8 +2463,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			ret = IRQ_HANDLED;
 			gen11_hpd_irq_handler(dev_priv, iir);
 		} else {
-			drm_err(&dev_priv->drm,
-				"The master control interrupt lied, (DE HPD)!\n");
+			drm_err_ratelimited(&dev_priv->drm,
+					    "The master control interrupt lied, (DE HPD)!\n");
 		}
 	}
 
@@ -2510,12 +2513,12 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			}
 
 			if (!found)
-				drm_err(&dev_priv->drm,
-					"Unexpected DE Port interrupt\n");
+				drm_err_ratelimited(&dev_priv->drm,
+						    "Unexpected DE Port interrupt\n");
 		}
 		else
-			drm_err(&dev_priv->drm,
-				"The master control interrupt lied (DE PORT)!\n");
+			drm_err_ratelimited(&dev_priv->drm,
+					    "The master control interrupt lied (DE PORT)!\n");
 	}
 
 	for_each_pipe(dev_priv, pipe) {
@@ -2526,8 +2529,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 		iir = intel_uncore_read(&dev_priv->uncore, GEN8_DE_PIPE_IIR(pipe));
 		if (!iir) {
-			drm_err(&dev_priv->drm,
-				"The master control interrupt lied (DE PIPE)!\n");
+			drm_err_ratelimited(&dev_priv->drm,
+					    "The master control interrupt lied (DE PIPE)!\n");
 			continue;
 		}
 
@@ -2548,10 +2551,10 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 		fault_errors = iir & gen8_de_pipe_fault_mask(dev_priv);
 		if (fault_errors)
-			drm_err(&dev_priv->drm,
-				"Fault errors on pipe %c: 0x%08x\n",
-				pipe_name(pipe),
-				fault_errors);
+			drm_err_ratelimited(&dev_priv->drm,
+					    "Fault errors on pipe %c: 0x%08x\n",
+					    pipe_name(pipe),
+					    fault_errors);
 	}
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_PCH_NOP(dev_priv) &&

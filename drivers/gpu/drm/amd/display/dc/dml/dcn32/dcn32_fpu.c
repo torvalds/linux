@@ -691,7 +691,7 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		 *   to combine this with SubVP can cause issues with the scheduling).
 		 * - Not TMZ surface
 		 */
-		if (pipe->plane_state && !pipe->top_pipe &&
+		if (pipe->plane_state && !pipe->top_pipe && !dcn32_is_center_timing(pipe) &&
 				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 && !pipe->plane_state->address.tmz_surface &&
 				vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
 			while (pipe) {
@@ -979,8 +979,11 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 	}
 	// Use ignore_msa_timing_param flag to identify as DRR
 	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param) {
-		// SUBVP + DRR case
-		schedulable = subvp_drr_schedulable(dc, context, &context->res_ctx.pipe_ctx[vblank_index]);
+		// SUBVP + DRR case -- don't enable SubVP + DRR for HDMI VRR cases
+		if (context->res_ctx.pipe_ctx[vblank_index].stream->allow_freesync)
+			schedulable = subvp_drr_schedulable(dc, context, &context->res_ctx.pipe_ctx[vblank_index]);
+		else
+			schedulable = false;
 	} else if (found) {
 		main_timing = &subvp_pipe->stream->timing;
 		phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
@@ -1169,6 +1172,16 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			pipes[0].clks_cfg.dppclk_mhz = get_dppclk_calculated(&context->bw_ctx.dml, pipes, *pipe_cnt, 0);
 			*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 
+			/* Check that vlevel requested supports pstate or not
+			 * if not, select the lowest vlevel that supports it
+			 */
+			for (i = *vlevel; i < context->bw_ctx.dml.soc.num_states; i++) {
+				if (vba->DRAMClockChangeSupport[i][vba->maxMpcComb] != dm_dram_clock_change_unsupported) {
+					*vlevel = i;
+					break;
+				}
+			}
+
 			if (*vlevel < context->bw_ctx.dml.soc.num_states &&
 			    vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] != dm_dram_clock_change_unsupported
 			    && subvp_validate_static_schedulability(dc, context, *vlevel)) {
@@ -1185,7 +1198,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 					    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 						non_subvp_pipes++;
 						// Use ignore_msa_timing_param flag to identify as DRR
-						if (pipe->stream->ignore_msa_timing_param) {
+						if (pipe->stream->ignore_msa_timing_param && pipe->stream->allow_freesync) {
 							drr_pipe_found = true;
 							drr_pipe_index = i;
 						}
@@ -1551,6 +1564,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
 			dm_prefetch_support_fclk_and_stutter;
 
+		context->bw_ctx.dml.validate_max_state = fast_validate;
 		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
 		/* Last attempt with Prefetch mode 2 (dm_prefetch_support_stutter == 3) */
@@ -1559,6 +1573,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				dm_prefetch_support_stutter;
 			vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 		}
+		context->bw_ctx.dml.validate_max_state = false;
 
 		if (vlevel < context->bw_ctx.dml.soc.num_states) {
 			memset(split, 0, sizeof(split));
@@ -1645,6 +1660,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				dcn20_release_dsc(&context->res_ctx, dc->res_pool, &pipe->stream_res.dsc);
 			memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 			memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
+			memset(&pipe->link_res, 0, sizeof(pipe->link_res));
 			repopulate_pipes = true;
 		} else if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
 			struct pipe_ctx *top_pipe = pipe->top_pipe;
@@ -1660,6 +1676,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 			pipe->stream = NULL;
 			memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 			memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
+			memset(&pipe->link_res, 0, sizeof(pipe->link_res));
 			repopulate_pipes = true;
 		} else
 			ASSERT(0); /* Should never try to merge master pipe */

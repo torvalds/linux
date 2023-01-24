@@ -1905,10 +1905,10 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 
 		tv_format_names[i] = tv_modes[i].name;
 	}
-	drm_mode_create_tv_properties(&i915->drm, i, tv_format_names);
+	drm_mode_create_tv_properties_legacy(&i915->drm, i, tv_format_names);
 
 	drm_object_attach_property(&connector->base,
-				   i915->drm.mode_config.tv_mode_property,
+				   i915->drm.mode_config.legacy_tv_mode_property,
 				   conn_state->tv.mode);
 	drm_object_attach_property(&connector->base,
 				   i915->drm.mode_config.tv_left_margin_property,

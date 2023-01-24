@@ -291,7 +291,7 @@ struct intel_vbt_panel_data {
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
 	/* Feature bits */
-	unsigned int panel_type:4;
+	int panel_type;
 	unsigned int lvds_dither:1;
 	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
 
@@ -330,7 +330,7 @@ struct intel_vbt_panel_data {
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
-		u8 controller;		/* brightness controller number */
+		s8 controller;		/* brightness controller number */
 		enum intel_backlight_type type;
 	} backlight;
 
@@ -1295,6 +1295,8 @@ struct intel_crtc_state {
 	/* Forward Error correction State */
 	bool fec_enable;
 
+	bool sdp_split_enable;
+
 	/* Pointer to master transcoder in case of tiled displays */
 	enum transcoder master_transcoder;
 
@@ -1568,11 +1570,19 @@ struct intel_pps {
 	ktime_t panel_power_off_time;
 	intel_wakeref_t vdd_wakeref;
 
-	/*
-	 * Pipe whose power sequencer is currently locked into
-	 * this port. Only relevant on VLV/CHV.
-	 */
-	enum pipe pps_pipe;
+	union {
+		/*
+		 * Pipe whose power sequencer is currently locked into
+		 * this port. Only relevant on VLV/CHV.
+		 */
+		enum pipe pps_pipe;
+
+		/*
+		 * Power sequencer index. Only relevant on BXT+.
+		 */
+		int pps_idx;
+	};
+
 	/*
 	 * Pipe currently driving the port. Used for preventing
 	 * the use of the PPS for any pipe currentrly driving
@@ -1581,7 +1591,7 @@ struct intel_pps {
 	enum pipe active_pipe;
 	/*
 	 * Set if the sequencer may be reset due to a power transition,
-	 * requiring a reinitialization. Only relevant on BXT.
+	 * requiring a reinitialization. Only relevant on BXT+.
 	 */
 	bool pps_reset;
 	struct edp_power_seq pps_delays;

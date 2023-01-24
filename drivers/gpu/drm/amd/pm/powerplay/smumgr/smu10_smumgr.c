@@ -250,9 +250,8 @@ static int smu10_smu_init(struct pp_hwmgr *hwmgr)
 
 	/* allocate space for watermarks table */
 	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
-			sizeof(Watermarks_t),
-			PAGE_SIZE,
-			AMDGPU_GEM_DOMAIN_VRAM,
+			sizeof(Watermarks_t), PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT,
 			&priv->smu_tables.entry[SMU10_WMTABLE].handle,
 			&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
 			&priv->smu_tables.entry[SMU10_WMTABLE].table);
@@ -266,9 +265,8 @@ static int smu10_smu_init(struct pp_hwmgr *hwmgr)
 
 	/* allocate space for watermarks table */
 	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
-			sizeof(DpmClocks_t),
-			PAGE_SIZE,
-			AMDGPU_GEM_DOMAIN_VRAM,
+			sizeof(DpmClocks_t), PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT,
 			&priv->smu_tables.entry[SMU10_CLOCKTABLE].handle,
 			&priv->smu_tables.entry[SMU10_CLOCKTABLE].mc_addr,
 			&priv->smu_tables.entry[SMU10_CLOCKTABLE].table);

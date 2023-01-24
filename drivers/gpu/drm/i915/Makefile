@@ -48,9 +48,7 @@ i915-y += i915_driver.o \
 	  i915_sysfs.o \
 	  i915_utils.o \
 	  intel_device_info.o \
-	  intel_dram.o \
 	  intel_memory_region.o \
-	  intel_pch.o \
 	  intel_pcode.o \
 	  intel_pm.o \
 	  intel_region_ttm.o \
@@ -61,6 +59,11 @@ i915-y += i915_driver.o \
 	  intel_wakeref.o \
 	  vlv_sideband.o \
 	  vlv_suspend.o
+
+# core peripheral code
+i915-y += \
+	soc/intel_dram.o \
+	soc/intel_pch.o
 
 # core library code
 i915-y += \

@@ -188,7 +188,8 @@ static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
 
     /* First, check no-memory-request case */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (dc->current_state->stream_status[i].plane_count)
+		if ((dc->current_state->stream_status[i].plane_count) &&
+			(dc->current_state->streams[i]->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED))
 			/* Fail eligibility on a visible stream */
 			break;
 	}
@@ -1447,6 +1448,42 @@ void dcn32_update_dsc_pg(struct dc *dc,
 			if (is_dsc_ungated) {
 				hws->funcs.dsc_pg_control(hws, dsc->inst, false);
 			}
+		}
+	}
+}
+
+void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
+{
+	unsigned int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		/* If an active, non-phantom pipe is being transitioned into a phantom
+		 * pipe, wait for the double buffer update to complete first before we do
+		 * ANY phantom pipe programming.
+		 */
+		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM &&
+				old_pipe->stream && old_pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			old_pipe->stream_res.tg->funcs->wait_for_state(
+					old_pipe->stream_res.tg,
+					CRTC_STATE_VBLANK);
+			old_pipe->stream_res.tg->funcs->wait_for_state(
+					old_pipe->stream_res.tg,
+					CRTC_STATE_VACTIVE);
+		}
+	}
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			// If old context or new context has phantom pipes, apply
+			// the phantom timings now. We can't change the phantom
+			// pipe configuration safely without driver acquiring
+			// the DMCUB lock first.
+			dc->hwss.apply_ctx_to_hw(dc, context);
+			break;
 		}
 	}
 }

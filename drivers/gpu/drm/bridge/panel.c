@@ -357,12 +357,15 @@ struct drm_bridge *devm_drm_panel_bridge_add_typed(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	bridge = drm_panel_bridge_add_typed(panel, connector_type);
-	if (!IS_ERR(bridge)) {
-		*ptr = bridge;
-		devres_add(dev, ptr);
-	} else {
+	if (IS_ERR(bridge)) {
 		devres_free(ptr);
+		return bridge;
 	}
+
+	bridge->pre_enable_prev_first = panel->prepare_prev_first;
+
+	*ptr = bridge;
+	devres_add(dev, ptr);
 
 	return bridge;
 }
@@ -401,6 +404,8 @@ struct drm_bridge *drmm_panel_bridge_add(struct drm_device *drm,
 				       bridge);
 	if (ret)
 		return ERR_PTR(ret);
+
+	bridge->pre_enable_prev_first = panel->prepare_prev_first;
 
 	return bridge;
 }

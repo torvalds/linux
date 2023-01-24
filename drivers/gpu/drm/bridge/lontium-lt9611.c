@@ -259,6 +259,7 @@ static int lt9611_pll_setup(struct lt9611 *lt9611, const struct drm_display_mode
 		{ 0x8126, 0x55 },
 		{ 0x8127, 0x66 },
 		{ 0x8128, 0x88 },
+		{ 0x812a, 0x20 },
 	};
 
 	regmap_multi_reg_write(lt9611->regmap, reg_cfg, ARRAY_SIZE(reg_cfg));
@@ -1108,8 +1109,7 @@ static void lt9611_audio_exit(struct lt9611 *lt9611)
 	}
 }
 
-static int lt9611_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lt9611_probe(struct i2c_client *client)
 {
 	struct lt9611 *lt9611;
 	struct device *dev = &client->dev;
@@ -1248,7 +1248,7 @@ static struct i2c_driver lt9611_driver = {
 		.name = "lt9611",
 		.of_match_table = lt9611_match_table,
 	},
-	.probe = lt9611_probe,
+	.probe_new = lt9611_probe,
 	.remove = lt9611_remove,
 	.id_table = lt9611_id,
 };

@@ -68,11 +68,12 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags);
  * @wf: the wakeref
  *
  * Acquire a hold on the wakeref. The first user to do so, will acquire
- * the runtime pm wakeref and then call the @fn underneath the wakeref
- * mutex.
+ * the runtime pm wakeref and then call the intel_wakeref_ops->get()
+ * underneath the wakeref mutex.
  *
- * Note that @fn is allowed to fail, in which case the runtime-pm wakeref
- * will be released and the acquisition unwound, and an error reported.
+ * Note that intel_wakeref_ops->get() is allowed to fail, in which case
+ * the runtime-pm wakeref will be released and the acquisition unwound,
+ * and an error reported.
  *
  * Returns: 0 if the wakeref was acquired successfully, or a negative error
  * code otherwise.
@@ -130,19 +131,17 @@ intel_wakeref_might_get(struct intel_wakeref *wf)
 }
 
 /**
- * intel_wakeref_put_flags: Release the wakeref
+ * __intel_wakeref_put: Release the wakeref
  * @wf: the wakeref
  * @flags: control flags
  *
  * Release our hold on the wakeref. When there are no more users,
- * the runtime pm wakeref will be released after the @fn callback is called
- * underneath the wakeref mutex.
+ * the runtime pm wakeref will be released after the intel_wakeref_ops->put()
+ * callback is called underneath the wakeref mutex.
  *
- * Note that @fn is allowed to fail, in which case the runtime-pm wakeref
- * is retained and an error reported.
+ * Note that intel_wakeref_ops->put() is allowed to fail, in which case the
+ * runtime-pm wakeref is retained.
  *
- * Returns: 0 if the wakeref was released successfully, or a negative error
- * code otherwise.
  */
 static inline void
 __intel_wakeref_put(struct intel_wakeref *wf, unsigned long flags)

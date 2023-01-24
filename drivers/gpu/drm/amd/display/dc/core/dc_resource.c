@@ -3810,6 +3810,8 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 	int i;
 	struct pipe_ctx *pipe_ctx, *pipe_ctx_check;
 
+	DC_LOGGER_INIT(dc->ctx->logger);
+
 	pipe_ctx = &context->res_ctx.pipe_ctx[disabled_master_pipe_idx];
 	if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx) != disabled_master_pipe_idx) ||
 		!IS_PIPE_SYNCD_VALID(pipe_ctx))
@@ -3820,9 +3822,16 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 		pipe_ctx_check = &context->res_ctx.pipe_ctx[i];
 
 		if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_check) == disabled_master_pipe_idx) &&
-			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
-			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
-				i, disabled_master_pipe_idx);
+			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx)) {
+			/* On dcn32, this error isn't fatal since hw supports odm transition in fast update*/
+			if (dc->ctx->dce_version == DCN_VERSION_3_2 ||
+					dc->ctx->dce_version == DCN_VERSION_3_21)
+				DC_LOG_DEBUG("DC: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
+					i, disabled_master_pipe_idx);
+			else
+				DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
+					i, disabled_master_pipe_idx);
+		}
 	}
 }
 
@@ -3981,3 +3990,42 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
 
 	return true;
 }
+
+enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx)
+{
+	if (dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc == NULL) {
+			pipe_ctx->stream_res.hpo_dp_stream_enc =
+					find_first_free_match_hpo_dp_stream_enc_for_link(
+							&context->res_ctx, dc->res_pool, pipe_ctx->stream);
+
+			if (!pipe_ctx->stream_res.hpo_dp_stream_enc)
+				return DC_NO_STREAM_ENC_RESOURCE;
+
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					true);
+		}
+
+		if (pipe_ctx->link_res.hpo_dp_link_enc == NULL) {
+			if (!add_hpo_dp_link_enc_to_ctx(&context->res_ctx, dc->res_pool, pipe_ctx, pipe_ctx->stream))
+				return DC_NO_LINK_ENC_RESOURCE;
+		}
+	} else {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc) {
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					false);
+			pipe_ctx->stream_res.hpo_dp_stream_enc = NULL;
+		}
+		if (pipe_ctx->link_res.hpo_dp_link_enc)
+			remove_hpo_dp_link_enc_from_ctx(&context->res_ctx, pipe_ctx, pipe_ctx->stream);
+	}
+
+	return DC_OK;
+}
+

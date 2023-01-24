@@ -44,18 +44,18 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 	}
 }
 
-void intel_snps_phy_update_psr_power_state(struct drm_i915_private *dev_priv,
+void intel_snps_phy_update_psr_power_state(struct drm_i915_private *i915,
 					   enum phy phy, bool enable)
 {
 	u32 val;
 
-	if (!intel_phy_is_snps(dev_priv, phy))
+	if (!intel_phy_is_snps(i915, phy))
 		return;
 
 	val = REG_FIELD_PREP(SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR,
 			     enable ? 2 : 3);
-	intel_uncore_rmw(&dev_priv->uncore, SNPS_PHY_TX_REQ(phy),
-			 SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR, val);
+	intel_de_rmw(i915, SNPS_PHY_TX_REQ(phy),
+		     SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR, val);
 }
 
 void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
@@ -1785,7 +1785,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 */
 
 	/* 5. Software sets DPLL_ENABLE [PLL Enable] to "1". */
-	intel_uncore_rmw(&dev_priv->uncore, enable_reg, 0, PLL_ENABLE);
+	intel_de_rmw(dev_priv, enable_reg, 0, PLL_ENABLE);
 
 	/*
 	 * 9. Software sets SNPS_PHY_MPLLB_DIV dp_mpllb_force_en to "1". This
@@ -1830,14 +1830,13 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 	 */
 
 	/* 2. Software programs DPLL_ENABLE [PLL Enable] to "0" */
-	intel_uncore_rmw(&i915->uncore, enable_reg, PLL_ENABLE, 0);
+	intel_de_rmw(i915, enable_reg, PLL_ENABLE, 0);
 
 	/*
 	 * 4. Software programs SNPS_PHY_MPLLB_DIV dp_mpllb_force_en to "0".
 	 * This will allow the PLL to stop running.
 	 */
-	intel_uncore_rmw(&i915->uncore, SNPS_PHY_MPLLB_DIV(phy),
-			 SNPS_PHY_MPLLB_FORCE_EN, 0);
+	intel_de_rmw(i915, SNPS_PHY_MPLLB_DIV(phy), SNPS_PHY_MPLLB_FORCE_EN, 0);
 
 	/*
 	 * 5. Software polls DPLL_ENABLE [PLL Lock] for PHY acknowledgment

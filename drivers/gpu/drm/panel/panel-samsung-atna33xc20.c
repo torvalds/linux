@@ -53,7 +53,7 @@ static void atana33xc20_wait(ktime_t start_ktime, unsigned int min_ms)
 	ktime_t now_ktime, min_ktime;
 
 	min_ktime = ktime_add(start_ktime, ms_to_ktime(min_ms));
-	now_ktime = ktime_get();
+	now_ktime = ktime_get_boottime();
 
 	if (ktime_before(now_ktime, min_ktime))
 		msleep(ktime_to_ms(ktime_sub(min_ktime, now_ktime)) + 1);
@@ -75,7 +75,7 @@ static int atana33xc20_suspend(struct device *dev)
 	ret = regulator_disable(p->supply);
 	if (ret)
 		return ret;
-	p->powered_off_time = ktime_get();
+	p->powered_off_time = ktime_get_boottime();
 	p->el3_was_on = false;
 
 	return 0;
@@ -93,7 +93,7 @@ static int atana33xc20_resume(struct device *dev)
 	ret = regulator_enable(p->supply);
 	if (ret)
 		return ret;
-	p->powered_on_time = ktime_get();
+	p->powered_on_time = ktime_get_boottime();
 
 	if (p->no_hpd) {
 		msleep(HPD_MAX_MS);
@@ -142,7 +142,7 @@ static int atana33xc20_disable(struct drm_panel *panel)
 		return 0;
 
 	gpiod_set_value_cansleep(p->el_on3_gpio, 0);
-	p->el_on3_off_time = ktime_get();
+	p->el_on3_off_time = ktime_get_boottime();
 	p->enabled = false;
 
 	/*
@@ -310,7 +310,7 @@ static int atana33xc20_probe(struct dp_aux_ep_device *aux_ep)
 	ret = devm_add_action_or_reset(dev,  atana33xc20_runtime_disable, dev);
 	if (ret)
 		return ret;
-	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_set_autosuspend_delay(dev, 2000);
 	pm_runtime_use_autosuspend(dev);
 	ret = devm_add_action_or_reset(dev,  atana33xc20_dont_use_autosuspend, dev);
 	if (ret)

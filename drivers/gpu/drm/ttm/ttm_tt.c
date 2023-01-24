@@ -36,7 +36,8 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <drm/drm_cache.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "ttm_module.h"
 

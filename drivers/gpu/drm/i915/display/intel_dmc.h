@@ -25,7 +25,6 @@ enum {
 struct intel_dmc {
 	struct work_struct work;
 	const char *fw_path;
-	u32 required_version;
 	u32 max_fw_size; /* bytes */
 	u32 version;
 	struct dmc_fw_info {
