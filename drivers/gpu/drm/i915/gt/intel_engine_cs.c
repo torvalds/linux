@@ -1584,11 +1584,8 @@ static u32 __cs_pending_mi_force_wakes(struct intel_engine_cs *engine)
 	};
 	u32 val;
 
-	if (!_reg[engine->id].reg) {
-		drm_err(&engine->i915->drm,
-			"MSG IDLE undefined for engine id %u\n", engine->id);
+	if (!_reg[engine->id].reg)
 		return 0;
-	}
 
 	val = intel_uncore_read(engine->uncore, _reg[engine->id]);
 
