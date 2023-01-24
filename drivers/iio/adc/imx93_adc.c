@@ -315,7 +315,7 @@ static int imx93_adc_probe(struct platform_device *pdev)
 	adc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->regs))
 		return dev_err_probe(dev, PTR_ERR(adc->regs),
-				     "Failed geting ioremap resource\n");
+				     "Failed getting ioremap resource\n");
 
 	/* The third irq is for ADC conversion usage */
 	adc->irq = platform_get_irq(pdev, 2);
