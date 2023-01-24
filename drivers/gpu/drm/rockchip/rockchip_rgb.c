@@ -22,13 +22,11 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_rgb.h"
 
-#define encoder_to_rgb(c) container_of(c, struct rockchip_rgb, encoder)
-
 struct rockchip_rgb {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct drm_bridge *bridge;
-	struct drm_encoder encoder;
+	struct rockchip_encoder encoder;
 	struct drm_connector connector;
 	int output_mode;
 };
@@ -125,7 +123,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 		return ERR_PTR(ret);
 	}
 
-	encoder = &rgb->encoder;
+	encoder = &rgb->encoder.encoder;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_NONE);
@@ -161,6 +159,8 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 		goto err_free_encoder;
 	}
 
+	rgb->encoder.crtc_endpoint_id = endpoint_id;
+
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		DRM_DEV_ERROR(drm_dev->dev,
@@ -182,6 +182,6 @@ void rockchip_rgb_fini(struct rockchip_rgb *rgb)
 {
 	drm_panel_bridge_remove(rgb->bridge);
 	drm_connector_cleanup(&rgb->connector);
-	drm_encoder_cleanup(&rgb->encoder);
+	drm_encoder_cleanup(&rgb->encoder.encoder);
 }
 EXPORT_SYMBOL_GPL(rockchip_rgb_fini);
