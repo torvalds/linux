@@ -57,16 +57,6 @@ void udf_adinicb_readpage(struct page *page)
 	kunmap_atomic(kaddr);
 }
 
-const struct address_space_operations udf_adinicb_aops = {
-	.dirty_folio	= block_dirty_folio,
-	.invalidate_folio = block_invalidate_folio,
-	.read_folio	= udf_read_folio,
-	.writepages	= udf_writepages,
-	.write_begin	= udf_write_begin,
-	.write_end	= udf_write_end,
-	.direct_IO	= udf_direct_IO,
-};
-
 static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;

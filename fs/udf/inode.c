@@ -364,8 +364,6 @@ int udf_expand_file_adinicb(struct inode *inode)
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 	else
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
-	/* from now on we have normal address_space methods */
-	inode->i_data.a_ops = &udf_aops;
 	set_page_dirty(page);
 	unlock_page(page);
 	up_write(&iinfo->i_data_sem);
@@ -379,7 +377,6 @@ int udf_expand_file_adinicb(struct inode *inode)
 		kunmap_atomic(kaddr);
 		unlock_page(page);
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
-		inode->i_data.a_ops = &udf_adinicb_aops;
 		iinfo->i_lenAlloc = inode->i_size;
 		up_write(&iinfo->i_data_sem);
 	}
@@ -1566,10 +1563,7 @@ reread:
 	case ICBTAG_FILE_TYPE_REGULAR:
 	case ICBTAG_FILE_TYPE_UNDEF:
 	case ICBTAG_FILE_TYPE_VAT20:
-		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
-			inode->i_data.a_ops = &udf_adinicb_aops;
-		else
-			inode->i_data.a_ops = &udf_aops;
+		inode->i_data.a_ops = &udf_aops;
 		inode->i_op = &udf_file_inode_operations;
 		inode->i_fop = &udf_file_operations;
 		inode->i_mode |= S_IFREG;
