@@ -5,6 +5,7 @@
  *
  * KVM Xen emulation
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "x86.h"
 #include "xen.h"

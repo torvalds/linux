@@ -15,6 +15,7 @@
  *
  * Based on Xen 3.1 code, Copyright (c) 2004, Intel Corporation.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
@@ -941,8 +942,7 @@ static void kvm_apic_disabled_lapic_found(struct kvm *kvm)
 {
 	if (!kvm->arch.disabled_lapic_found) {
 		kvm->arch.disabled_lapic_found = true;
-		printk(KERN_INFO
-		       "Disabled LAPIC found during irq injection\n");
+		pr_info("Disabled LAPIC found during irq injection\n");
 	}
 }
 
@@ -1560,7 +1560,7 @@ static void limit_periodic_timer_frequency(struct kvm_lapic *apic)
 
 		if (apic->lapic_timer.period < min_period) {
 			pr_info_ratelimited(
-			    "kvm: vcpu %i: requested %lld ns "
+			    "vcpu %i: requested %lld ns "
 			    "lapic timer period limited to %lld ns\n",
 			    apic->vcpu->vcpu_id,
 			    apic->lapic_timer.period, min_period);
@@ -1845,7 +1845,7 @@ static bool set_target_expiration(struct kvm_lapic *apic, u32 count_reg)
 				deadline = apic->lapic_timer.period;
 			else if (unlikely(deadline > apic->lapic_timer.period)) {
 				pr_info_ratelimited(
-				    "kvm: vcpu %i: requested lapic timer restore with "
+				    "vcpu %i: requested lapic timer restore with "
 				    "starting count register %#x=%u (%lld ns) > initial count (%lld ns). "
 				    "Using initial count to start timer.\n",
 				    apic->vcpu->vcpu_id,

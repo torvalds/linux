@@ -100,8 +100,8 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 	return value;
 
 do_fail:
-	WARN_ONCE(1, "kvm: vmread failed: field=%lx\n", field);
-	pr_warn_ratelimited("kvm: vmread failed: field=%lx\n", field);
+	WARN_ONCE(1, KBUILD_MODNAME ": vmread failed: field=%lx\n", field);
+	pr_warn_ratelimited(KBUILD_MODNAME ": vmread failed: field=%lx\n", field);
 	return 0;
 
 do_exception:
