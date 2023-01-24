@@ -5666,7 +5666,7 @@ static int haptics_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(chip->debugfs_dir);
 #endif
-	input_ff_destroy(chip->input_dev);
+	input_unregister_device(chip->input_dev);
 	dev_set_drvdata(chip->dev, NULL);
 
 	return 0;
