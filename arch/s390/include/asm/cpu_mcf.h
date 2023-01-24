@@ -99,12 +99,6 @@ static inline void kernel_cpumcf_end(void)
 	preempt_enable();
 }
 
-/* Return true if store counter set multiple instruction is available */
-static inline int stccm_avail(void)
-{
-	return test_facility(142);
-}
-
 int cfset_online_cpu(unsigned int cpu);
 int cfset_offline_cpu(unsigned int cpu);
 #endif /* _ASM_S390_CPU_MCF_H */

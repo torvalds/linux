@@ -821,6 +821,12 @@ static struct pmu cpumf_pmu = {
 	.read	      = cpumf_pmu_read,
 };
 
+/* Return true if store counter set multiple instruction is available */
+static inline int stccm_avail(void)
+{
+	return test_facility(142);
+}
+
 static int cfset_init(void);
 static int __init cpumf_pmu_init(void)
 {
