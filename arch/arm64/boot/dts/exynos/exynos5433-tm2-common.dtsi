@@ -96,10 +96,10 @@
 		max98504: amplifier@31 {
 			compatible = "maxim,max98504";
 			reg = <0x31>;
-			maxim,rx-path = <1>;
-			maxim,tx-path = <1>;
-			maxim,tx-channel-mask = <3>;
-			maxim,tx-channel-source = <2>;
+
+			DIOVDD-supply = <&ldo3_reg>;
+			DVDD-supply = <&ldo3_reg>;
+			/* PVDD-supply to VPH_PWR */
 		};
 	};
 
@@ -925,7 +925,6 @@
 			compatible = "maxim,max77843-haptic";
 			haptic-supply = <&ldo38_reg>;
 			pwms = <&pwm 0 33670 0>;
-			pwm-names = "haptic";
 		};
 	};
 };
@@ -1315,7 +1314,7 @@
 		reg = <0x0>;
 		spi-max-frequency = <5000000>;
 		power-supply = <&irda_regulator>;
-		duty-cycle = <60>;
+		duty-cycle = /bits/ 8 <60>;
 		led-active-low;
 
 		controller-data {
