@@ -655,6 +655,14 @@ config REGULATOR_MAX20086
 	  protectorvia I2C bus. The regulator has 2 or 4 outputs depending on
 	  the device model. This driver is only capable to turn on/off them.
 
+config REGULATOR_MAX20411
+	tristate "Maxim MAX20411 High-Efficiency Single Step-Down Converter"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls the Maxim MAX20411 family of high-efficiency,
+	  syncrhonous step-down converters.
+
 config REGULATOR_MAX77686
 	tristate "Maxim 77686 regulator"
 	depends on MFD_MAX77686 || COMPILE_TEST
