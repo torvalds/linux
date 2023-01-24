@@ -759,6 +759,8 @@
 };
 
 &swr0 {
+	status = "okay";
+
 	left_spkr: speaker@0,3 {
 		compatible = "sdw10217211000";
 		reg = <0 3>;
@@ -890,5 +892,9 @@
 };
 
 &venus {
+	status = "okay";
+};
+
+&wsamacro {
 	status = "okay";
 };
