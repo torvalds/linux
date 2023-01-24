@@ -108,6 +108,9 @@ it. This framework provides the following APIs to get a reference to the PHY.
 					  const char *string);
 	struct phy *devm_of_phy_get(struct device *dev, struct device_node *np,
 				    const char *con_id);
+	struct phy *devm_of_phy_optional_get(struct device *dev,
+					     struct device_node *np,
+					     const char *con_id);
 	struct phy *devm_of_phy_get_by_index(struct device *dev,
 					     struct device_node *np,
 					     int index);
@@ -119,8 +122,8 @@ non-dt boot, it should contain the label of the PHY.  The two
 devm_phy_get associates the device with the PHY using devres on
 successful PHY get. On driver detach, release function is invoked on
 the devres data and devres data is freed.
-devm_phy_optional_get should be used when the phy is optional. This
-function will never return -ENODEV, but instead returns NULL when
+The _optional_get variants should be used when the phy is optional. These
+functions will never return -ENODEV, but instead return NULL when
 the phy cannot be found.
 Some generic drivers, such as ehci, may use multiple phys. In this case,
 devm_of_phy_get or devm_of_phy_get_by_index can be used to get a phy
