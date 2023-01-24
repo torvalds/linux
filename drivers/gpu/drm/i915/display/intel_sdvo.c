@@ -39,6 +39,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
+#include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -1378,7 +1379,9 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->has_hdmi_sink = intel_has_hdmi_sink(intel_sdvo, conn_state);
 
-	pipe_config->has_audio = intel_sdvo_has_audio(encoder, pipe_config, conn_state);
+	pipe_config->has_audio =
+		intel_sdvo_has_audio(encoder, pipe_config, conn_state) &&
+		intel_audio_compute_config(encoder, pipe_config, conn_state);
 
 	pipe_config->limited_color_range =
 		intel_sdvo_limited_color_range(encoder, pipe_config,
@@ -1753,12 +1756,7 @@ static void intel_sdvo_enable_audio(struct intel_sdvo *intel_sdvo,
 				    const struct intel_crtc_state *crtc_state,
 				    const struct drm_connector_state *conn_state)
 {
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-	struct drm_connector *connector = conn_state->connector;
-	u8 *eld = connector->eld;
-
-	eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
+	const u8 *eld = crtc_state->eld;
 
 	intel_sdvo_set_audio_state(intel_sdvo, 0);
 
