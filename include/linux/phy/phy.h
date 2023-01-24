@@ -250,7 +250,6 @@ static inline void phy_set_bus_width(struct phy *phy, int bus_width)
 	phy->attrs.bus_width = bus_width;
 }
 struct phy *phy_get(struct device *dev, const char *string);
-struct phy *phy_optional_get(struct device *dev, const char *string);
 struct phy *devm_phy_get(struct device *dev, const char *string);
 struct phy *devm_phy_optional_get(struct device *dev, const char *string);
 struct phy *devm_of_phy_get(struct device *dev, struct device_node *np,
@@ -422,12 +421,6 @@ static inline void phy_set_bus_width(struct phy *phy, int bus_width)
 }
 
 static inline struct phy *phy_get(struct device *dev, const char *string)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static inline struct phy *phy_optional_get(struct device *dev,
-					   const char *string)
 {
 	return ERR_PTR(-ENOSYS);
 }

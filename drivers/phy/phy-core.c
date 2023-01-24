@@ -767,27 +767,6 @@ struct phy *phy_get(struct device *dev, const char *string)
 EXPORT_SYMBOL_GPL(phy_get);
 
 /**
- * phy_optional_get() - lookup and obtain a reference to an optional phy.
- * @dev: device that requests this phy
- * @string: the phy name as given in the dt data or the name of the controller
- * port for non-dt case
- *
- * Returns the phy driver, after getting a refcount to it; or
- * NULL if there is no such phy.  The caller is responsible for
- * calling phy_put() to release that count.
- */
-struct phy *phy_optional_get(struct device *dev, const char *string)
-{
-	struct phy *phy = phy_get(dev, string);
-
-	if (PTR_ERR(phy) == -ENODEV)
-		phy = NULL;
-
-	return phy;
-}
-EXPORT_SYMBOL_GPL(phy_optional_get);
-
-/**
  * devm_phy_get() - lookup and obtain a reference to a phy.
  * @dev: device that requests this phy
  * @string: the phy name as given in the dt data or phy device name
