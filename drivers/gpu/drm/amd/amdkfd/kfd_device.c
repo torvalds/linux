@@ -729,26 +729,12 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* TODO: Needs to be updated for memory partitioning */
 	svm_migrate_init(kfd->adev);
 
-	/* Allocate the KFD node */
-	node = kzalloc(sizeof(struct kfd_node), GFP_KERNEL);
-	if (!node) {
-		dev_err(kfd_device, "Error allocating KFD node\n");
-		goto node_alloc_error;
-	}
-
-	node->adev = kfd->adev;
-	node->kfd = kfd;
-	node->kfd2kgd = kfd->kfd2kgd;
-	node->vm_info.vmid_num_kfd = vmid_num_kfd;
-	node->vm_info.first_vmid_kfd = first_vmid_kfd;
-	node->vm_info.last_vmid_kfd = last_vmid_kfd;
-	node->max_proc_per_quantum = max_proc_per_quantum;
-	atomic_set(&node->sram_ecc_flag, 0);
-
 	amdgpu_amdkfd_get_local_mem_info(kfd->adev, &kfd->local_mem_info);
 
 	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
 				kfd->num_nodes);
+
+	/* Allocate the KFD nodes */
 	for (i = 0; i < kfd->num_nodes; i++) {
 		node = kzalloc(sizeof(struct kfd_node), GFP_KERNEL);
 		if (!node)
