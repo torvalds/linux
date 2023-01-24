@@ -57,25 +57,6 @@ void udf_adinicb_readpage(struct page *page)
 	kunmap_atomic(kaddr);
 }
 
-static int udf_adinicb_writepage(struct page *page,
-				 struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	char *kaddr;
-	struct udf_inode_info *iinfo = UDF_I(inode);
-
-	BUG_ON(!PageLocked(page));
-
-	kaddr = kmap_atomic(page);
-	memcpy(iinfo->i_data + iinfo->i_lenEAttr, kaddr, i_size_read(inode));
-	SetPageUptodate(page);
-	kunmap_atomic(kaddr);
-	mark_inode_dirty(inode);
-	unlock_page(page);
-
-	return 0;
-}
-
 static int udf_adinicb_write_begin(struct file *file,
 			struct address_space *mapping, loff_t pos,
 			unsigned len, struct page **pagep,
@@ -119,7 +100,7 @@ const struct address_space_operations udf_adinicb_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio	= udf_read_folio,
-	.writepage	= udf_adinicb_writepage,
+	.writepages	= udf_writepages,
 	.write_begin	= udf_adinicb_write_begin,
 	.write_end	= udf_adinicb_write_end,
 	.direct_IO	= udf_adinicb_direct_IO,

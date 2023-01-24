@@ -185,10 +185,33 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int udf_writepages(struct address_space *mapping,
-			struct writeback_control *wbc)
+static int udf_adinicb_writepage(struct page *page,
+				 struct writeback_control *wbc, void *data)
 {
-	return mpage_writepages(mapping, wbc, udf_get_block_wb);
+	struct inode *inode = page->mapping->host;
+	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	BUG_ON(!PageLocked(page));
+
+	kaddr = kmap_atomic(page);
+	memcpy(iinfo->i_data + iinfo->i_lenEAttr, kaddr, i_size_read(inode));
+	SetPageUptodate(page);
+	kunmap_atomic(kaddr);
+	unlock_page(page);
+	mark_inode_dirty(inode);
+
+	return 0;
+}
+
+int udf_writepages(struct address_space *mapping, struct writeback_control *wbc)
+{
+	struct inode *inode = mapping->host;
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
+		return mpage_writepages(mapping, wbc, udf_get_block_wb);
+	return write_cache_pages(mapping, wbc, udf_adinicb_writepage, NULL);
 }
 
 int udf_read_folio(struct file *file, struct folio *folio)
