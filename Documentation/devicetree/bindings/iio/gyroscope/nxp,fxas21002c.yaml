@@ -65,7 +65,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -81,7 +81,7 @@ examples:
           interrupt-names = "INT1";
         };
     };
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
