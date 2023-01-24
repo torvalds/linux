@@ -3604,12 +3604,46 @@ static void rcu_torture_init_srcu_lockdep(void)
 		return;
 	}
 
+#ifdef CONFIG_TASKS_TRACE_RCU
+	if (testtype == 3) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU and Tasks Trace RCU %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		if (deadlock && cyclelen == 1)
+			pr_info("%s: Expect hang.\n", __func__);
+		for (i = 0; i < cyclelen; i++) {
+			char *fl = i == 0 ? "rcu_read_lock_trace" : "srcu_read_lock";
+			char *fs = i == cyclelen - 1 ? "synchronize_rcu_tasks_trace"
+						     : "synchronize_srcu";
+			char *fu = i == 0 ? "rcu_read_unlock_trace" : "srcu_read_unlock";
+
+			j = srcu_lockdep_next(__func__, fl, fs, fu, i, cyclelen, deadlock);
+			if (i == 0)
+				rcu_read_lock_trace();
+			else
+				idx = srcu_read_lock(srcus[i]);
+			if (j >= 0) {
+				if (i == cyclelen - 1)
+					synchronize_rcu_tasks_trace();
+				else
+					synchronize_srcu(srcus[j]);
+			}
+			if (i == 0)
+				rcu_read_unlock_trace();
+			else
+				srcu_read_unlock(srcus[i], idx);
+		}
+		return;
+	}
+#endif // #ifdef CONFIG_TASKS_TRACE_RCU
+
 err_out:
 	pr_info("%s: test_srcu_lockdep = %05d does nothing.\n", __func__, test_srcu_lockdep);
 	pr_info("%s: test_srcu_lockdep = DNNL.\n", __func__);
 	pr_info("%s: D: Deadlock if nonzero.\n", __func__);
-	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem.\n", __func__);
+	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU.\n", __func__);
 	pr_info("%s: L: Cycle length.\n", __func__);
+	if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU))
+		pr_info("%s: NN=3 disallowed because kernel is built with CONFIG_TASKS_TRACE_RCU=n\n", __func__);
 }
 
 static int __init
