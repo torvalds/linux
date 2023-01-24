@@ -497,34 +497,33 @@ static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
 	mlx5e_ipsec_aso_update_curlft(sa_entry, &x->curlft.packets);
 }
 
-static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x)
+static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
+				      struct netlink_ext_ack *extack)
 {
-	struct net_device *netdev = x->xdo.real_dev;
-
 	if (x->type != XFRM_POLICY_TYPE_MAIN) {
-		netdev_info(netdev, "Cannot offload non-main policy types\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot offload non-main policy types");
 		return -EINVAL;
 	}
 
 	/* Please pay attention that we support only one template */
 	if (x->xfrm_nr > 1) {
-		netdev_info(netdev, "Cannot offload more than one template\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot offload more than one template");
 		return -EINVAL;
 	}
 
 	if (x->xdo.dir != XFRM_DEV_OFFLOAD_IN &&
 	    x->xdo.dir != XFRM_DEV_OFFLOAD_OUT) {
-		netdev_info(netdev, "Cannot offload forward policy\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot offload forward policy");
 		return -EINVAL;
 	}
 
 	if (!x->xfrm_vec[0].reqid) {
-		netdev_info(netdev, "Cannot offload policy without reqid\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot offload policy without reqid");
 		return -EINVAL;
 	}
 
 	if (x->xdo.type != XFRM_DEV_OFFLOAD_PACKET) {
-		netdev_info(netdev, "Unsupported xfrm offload type\n");
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported xfrm offload type");
 		return -EINVAL;
 	}
 
@@ -559,10 +558,12 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	int err;
 
 	priv = netdev_priv(netdev);
-	if (!priv->ipsec)
+	if (!priv->ipsec) {
+		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support IPsec packet offload");
 		return -EOPNOTSUPP;
+	}
 
-	err = mlx5e_xfrm_validate_policy(x);
+	err = mlx5e_xfrm_validate_policy(x, extack);
 	if (err)
 		return err;
 
@@ -583,6 +584,7 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 
 err_fs:
 	kfree(pol_entry);
+	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
 	return err;
 }
 
