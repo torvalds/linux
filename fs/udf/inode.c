@@ -296,6 +296,10 @@ ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static sector_t udf_bmap(struct address_space *mapping, sector_t block)
 {
+	struct udf_inode_info *iinfo = UDF_I(mapping->host);
+
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return -EINVAL;
 	return generic_block_bmap(mapping, block, udf_get_block);
 }
 
