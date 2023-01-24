@@ -157,9 +157,9 @@ static inline void img_hash_write(struct img_hash_dev *hdev,
 	writel_relaxed(value, hdev->io_base + offset);
 }
 
-static inline u32 img_hash_read_result_queue(struct img_hash_dev *hdev)
+static inline __be32 img_hash_read_result_queue(struct img_hash_dev *hdev)
 {
-	return be32_to_cpu(img_hash_read(hdev, CR_RESULT_QUEUE));
+	return cpu_to_be32(img_hash_read(hdev, CR_RESULT_QUEUE));
 }
 
 static void img_hash_start(struct img_hash_dev *hdev, bool dma)
@@ -283,10 +283,10 @@ static int img_hash_finish(struct ahash_request *req)
 static void img_hash_copy_hash(struct ahash_request *req)
 {
 	struct img_hash_request_ctx *ctx = ahash_request_ctx(req);
-	u32 *hash = (u32 *)ctx->digest;
+	__be32 *hash = (__be32 *)ctx->digest;
 	int i;
 
-	for (i = (ctx->digsize / sizeof(u32)) - 1; i >= 0; i--)
+	for (i = (ctx->digsize / sizeof(*hash)) - 1; i >= 0; i--)
 		hash[i] = img_hash_read_result_queue(ctx->hdev);
 }
 
