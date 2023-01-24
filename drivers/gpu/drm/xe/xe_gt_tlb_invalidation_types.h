@@ -21,6 +21,8 @@ struct xe_gt_tlb_invalidation_fence {
 	struct list_head link;
 	/** @seqno: seqno of TLB invalidation to signal fence one */
 	int seqno;
+	/** @invalidation_time: time of TLB invalidation */
+	ktime_t invalidation_time;
 };
 
 #endif

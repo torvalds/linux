@@ -70,6 +70,11 @@ DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_signal,
 	     TP_ARGS(fence)
 );
 
+DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_timeout,
+	     TP_PROTO(struct xe_gt_tlb_invalidation_fence *fence),
+	     TP_ARGS(fence)
+);
+
 DECLARE_EVENT_CLASS(xe_bo,
 		    TP_PROTO(struct xe_bo *bo),
 		    TP_ARGS(bo),

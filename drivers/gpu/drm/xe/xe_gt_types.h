@@ -174,6 +174,11 @@ struct xe_gt {
 		 * invaliations, protected by CT lock
 		 */
 		struct list_head pending_fences;
+		/**
+		 * @fence_tdr: schedules a delayed call to
+		 * xe_gt_tlb_fence_timeout after the timeut interval is over.
+		 */
+		struct delayed_work fence_tdr;
 		/** @fence_context: context for TLB invalidation fences */
 		u64 fence_context;
 		/**
