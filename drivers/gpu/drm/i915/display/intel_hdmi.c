@@ -44,6 +44,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
+#include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
@@ -2271,7 +2272,8 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pixel_multiplier = 2;
 
 	pipe_config->has_audio =
-		intel_hdmi_has_audio(encoder, pipe_config, conn_state);
+		intel_hdmi_has_audio(encoder, pipe_config, conn_state) &&
+		intel_audio_compute_config(encoder, pipe_config, conn_state);
 
 	/*
 	 * Try to respect downstream TMDS clock limits first, if

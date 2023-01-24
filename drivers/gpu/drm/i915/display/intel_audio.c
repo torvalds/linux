@@ -335,8 +335,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_connector *connector = conn_state->connector;
-	const u32 *eld = (const u32 *)connector->eld;
+	const u32 *eld = (const u32 *)crtc_state->eld;
 	int eld_buffer_size, len, i;
 
 	intel_crtc_wait_for_next_vblank(crtc);
@@ -345,7 +344,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 		     G4X_ELD_VALID | G4X_ELD_ADDRESS_MASK, 0);
 
 	eld_buffer_size = g4x_eld_buffer_size(i915);
-	len = min(drm_eld_size(connector->eld) / 4, eld_buffer_size);
+	len = min(drm_eld_size(crtc_state->eld) / 4, eld_buffer_size);
 
 	for (i = 0; i < len; i++)
 		intel_de_write(i915, G4X_HDMIW_HDMIEDID, eld[i]);
@@ -749,6 +748,28 @@ void intel_audio_sdp_split_update(struct intel_encoder *encoder,
 			     crtc_state->sdp_split_enable ? AUD_ENABLE_SDP_SPLIT : 0);
 }
 
+bool intel_audio_compute_config(struct intel_encoder *encoder,
+				struct intel_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct drm_connector *connector = conn_state->connector;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!connector->eld[0])
+		drm_dbg_kms(&i915->drm,
+			    "Bogus ELD on [CONNECTOR:%d:%s]\n",
+			    connector->base.id, connector->name);
+
+	BUILD_BUG_ON(sizeof(crtc_state->eld) != sizeof(connector->eld));
+	memcpy(crtc_state->eld, connector->eld, sizeof(crtc_state->eld));
+
+	crtc_state->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
+
+	return true;
+}
+
 /**
  * intel_audio_codec_enable - Enable the audio codec for HD audio
  * @encoder: encoder on which to enable audio
@@ -766,8 +787,6 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	struct i915_audio_component *acomp = i915->display.audio.component;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
 	struct intel_audio_state *audio_state;
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
@@ -779,15 +798,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 		    connector->base.base.id, connector->base.name,
 		    encoder->base.base.id, encoder->base.name,
 		    crtc->base.base.id, crtc->base.name,
-		    drm_eld_size(connector->base.eld));
-
-	/* FIXME precompute the ELD in .compute_config() */
-	if (!connector->base.eld[0])
-		drm_dbg_kms(&i915->drm,
-			    "Bogus ELD on [CONNECTOR:%d:%s]\n",
-			    connector->base.base.id, connector->base.name);
-
-	connector->base.eld[6] = drm_av_sync_delay(&connector->base, adjusted_mode) / 2;
+		    drm_eld_size(crtc_state->eld));
 
 	if (i915->display.funcs.audio)
 		i915->display.funcs.audio->audio_codec_enable(encoder,
@@ -799,7 +810,8 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	audio_state = &i915->display.audio.state[pipe];
 
 	audio_state->encoder = encoder;
-	audio_state->connector = connector;
+	BUILD_BUG_ON(sizeof(audio_state->eld) != sizeof(crtc_state->eld));
+	memcpy(audio_state->eld, crtc_state->eld, sizeof(audio_state->eld));
 
 	mutex_unlock(&i915->display.audio.mutex);
 
@@ -812,7 +824,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 						      (int)port, (int)pipe);
 	}
 
-	intel_lpe_audio_notify(i915, pipe, port, connector->base.eld,
+	intel_lpe_audio_notify(i915, pipe, port, crtc_state->eld,
 			       crtc_state->port_clock,
 			       intel_crtc_has_dp_encoder(crtc_state));
 }
@@ -856,7 +868,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	audio_state = &i915->display.audio.state[pipe];
 
 	audio_state->encoder = NULL;
-	audio_state->connector = NULL;
+	memset(audio_state->eld, 0, sizeof(audio_state->eld));
 
 	mutex_unlock(&i915->display.audio.mutex);
 
@@ -1183,9 +1195,9 @@ static int i915_audio_component_get_eld(struct device *kdev, int port,
 		return -EINVAL;
 	}
 
-	*enabled = audio_state->connector != NULL;
+	*enabled = audio_state->encoder != NULL;
 	if (*enabled) {
-		const u8 *eld = audio_state->connector->base.eld;
+		const u8 *eld = audio_state->eld;
 
 		ret = drm_eld_size(eld);
 		memcpy(buf, eld, min(max_bytes, ret));

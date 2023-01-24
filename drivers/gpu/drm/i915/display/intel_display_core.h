@@ -89,7 +89,7 @@ struct intel_wm_funcs {
 
 struct intel_audio_state {
 	struct intel_encoder *encoder;
-	struct intel_connector *connector;
+	u8 eld[MAX_ELD_BYTES];
 };
 
 struct intel_audio {
