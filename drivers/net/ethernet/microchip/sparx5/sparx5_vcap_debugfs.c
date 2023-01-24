@@ -13,10 +13,113 @@
 #include "sparx5_vcap_impl.h"
 #include "sparx5_vcap_ag_api.h"
 
-static void sparx5_vcap_port_keys(struct sparx5 *sparx5,
-				  struct vcap_admin *admin,
-				  struct sparx5_port *port,
-				  struct vcap_output_print *out)
+static const char *sparx5_vcap_is0_etype_str(u32 value)
+{
+	switch (value) {
+	case VCAP_IS0_PS_ETYPE_DEFAULT:
+		return "default";
+	case VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE:
+		return "normal_7tuple";
+	case VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4:
+		return "normal_5tuple_ip4";
+	case VCAP_IS0_PS_ETYPE_MLL:
+		return "mll";
+	case VCAP_IS0_PS_ETYPE_LL_FULL:
+		return "ll_full";
+	case VCAP_IS0_PS_ETYPE_PURE_5TUPLE_IP4:
+		return "pure_5tuple_ip4";
+	case VCAP_IS0_PS_ETYPE_ETAG:
+		return "etag";
+	case VCAP_IS0_PS_ETYPE_NO_LOOKUP:
+		return "no lookup";
+	default:
+		return "unknown";
+	}
+}
+
+static const char *sparx5_vcap_is0_mpls_str(u32 value)
+{
+	switch (value) {
+	case VCAP_IS0_PS_MPLS_FOLLOW_ETYPE:
+		return "follow_etype";
+	case VCAP_IS0_PS_MPLS_NORMAL_7TUPLE:
+		return "normal_7tuple";
+	case VCAP_IS0_PS_MPLS_NORMAL_5TUPLE_IP4:
+		return "normal_5tuple_ip4";
+	case VCAP_IS0_PS_MPLS_MLL:
+		return "mll";
+	case VCAP_IS0_PS_MPLS_LL_FULL:
+		return "ll_full";
+	case VCAP_IS0_PS_MPLS_PURE_5TUPLE_IP4:
+		return "pure_5tuple_ip4";
+	case VCAP_IS0_PS_MPLS_ETAG:
+		return "etag";
+	case VCAP_IS0_PS_MPLS_NO_LOOKUP:
+		return "no lookup";
+	default:
+		return "unknown";
+	}
+}
+
+static const char *sparx5_vcap_is0_mlbs_str(u32 value)
+{
+	switch (value) {
+	case VCAP_IS0_PS_MLBS_FOLLOW_ETYPE:
+		return "follow_etype";
+	case VCAP_IS0_PS_MLBS_NO_LOOKUP:
+		return "no lookup";
+	default:
+		return "unknown";
+	}
+}
+
+static void sparx5_vcap_is0_port_keys(struct sparx5 *sparx5,
+				      struct vcap_admin *admin,
+				      struct sparx5_port *port,
+				      struct vcap_output_print *out)
+{
+	int lookup;
+	u32 value, val;
+
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+		 netdev_name(port->ndev));
+	for (lookup = 0; lookup < admin->lookups; ++lookup) {
+		out->prf(out->dst, "\n    Lookup %d: ", lookup);
+
+		/* Get lookup state */
+		value = spx5_rd(sparx5,
+				ANA_CL_ADV_CL_CFG(port->portno, lookup));
+		out->prf(out->dst, "\n      state: ");
+		if (ANA_CL_ADV_CL_CFG_LOOKUP_ENA_GET(value))
+			out->prf(out->dst, "on");
+		else
+			out->prf(out->dst, "off");
+		val = ANA_CL_ADV_CL_CFG_ETYPE_CLM_KEY_SEL_GET(value);
+		out->prf(out->dst, "\n      etype: %s",
+			 sparx5_vcap_is0_etype_str(val));
+		val = ANA_CL_ADV_CL_CFG_IP4_CLM_KEY_SEL_GET(value);
+		out->prf(out->dst, "\n      ipv4: %s",
+			 sparx5_vcap_is0_etype_str(val));
+		val = ANA_CL_ADV_CL_CFG_IP6_CLM_KEY_SEL_GET(value);
+		out->prf(out->dst, "\n      ipv6: %s",
+			 sparx5_vcap_is0_etype_str(val));
+		val = ANA_CL_ADV_CL_CFG_MPLS_UC_CLM_KEY_SEL_GET(value);
+		out->prf(out->dst, "\n      mpls_uc: %s",
+			 sparx5_vcap_is0_mpls_str(val));
+		val = ANA_CL_ADV_CL_CFG_MPLS_MC_CLM_KEY_SEL_GET(value);
+		out->prf(out->dst, "\n      mpls_mc: %s",
+			 sparx5_vcap_is0_mpls_str(val));
+		val = ANA_CL_ADV_CL_CFG_MLBS_CLM_KEY_SEL_GET(value);
+		out->prf(out->dst, "\n      mlbs: %s",
+			 sparx5_vcap_is0_mlbs_str(val));
+	}
+	out->prf(out->dst, "\n");
+}
+
+static void sparx5_vcap_is2_port_keys(struct sparx5 *sparx5,
+				      struct vcap_admin *admin,
+				      struct sparx5_port *port,
+				      struct vcap_output_print *out)
 {
 	int lookup;
 	u32 value;
@@ -126,9 +229,9 @@ static void sparx5_vcap_port_keys(struct sparx5 *sparx5,
 	out->prf(out->dst, "\n");
 }
 
-static void sparx5_vcap_port_stickies(struct sparx5 *sparx5,
-				      struct vcap_admin *admin,
-				      struct vcap_output_print *out)
+static void sparx5_vcap_is2_port_stickies(struct sparx5 *sparx5,
+					  struct vcap_admin *admin,
+					  struct vcap_output_print *out)
 {
 	int lookup;
 	u32 value;
@@ -194,7 +297,17 @@ int sparx5_port_info(struct net_device *ndev,
 	vctrl = sparx5->vcap_ctrl;
 	vcap = &vctrl->vcaps[admin->vtype];
 	out->prf(out->dst, "%s:\n", vcap->name);
-	sparx5_vcap_port_keys(sparx5, admin, port, out);
-	sparx5_vcap_port_stickies(sparx5, admin, out);
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		sparx5_vcap_is0_port_keys(sparx5, admin, port, out);
+		break;
+	case VCAP_TYPE_IS2:
+		sparx5_vcap_is2_port_keys(sparx5, admin, port, out);
+		sparx5_vcap_is2_port_stickies(sparx5, admin, out);
+		break;
+	default:
+		out->prf(out->dst, "  no info\n");
+		break;
+	}
 	return 0;
 }
