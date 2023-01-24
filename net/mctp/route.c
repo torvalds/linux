@@ -317,8 +317,8 @@ static int mctp_frag_queue(struct mctp_sk_key *key, struct sk_buff *skb)
 
 static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 {
+	struct mctp_sk_key *key, *any_key = NULL;
 	struct net *net = dev_net(skb->dev);
-	struct mctp_sk_key *key;
 	struct mctp_sock *msk;
 	struct mctp_hdr *mh;
 	unsigned long f;
@@ -363,13 +363,11 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			 * key for reassembly - we'll create a more specific
 			 * one for future packets if required (ie, !EOM).
 			 */
-			key = mctp_lookup_key(net, skb, MCTP_ADDR_ANY, &f);
-			if (key) {
-				msk = container_of(key->sk,
+			any_key = mctp_lookup_key(net, skb, MCTP_ADDR_ANY, &f);
+			if (any_key) {
+				msk = container_of(any_key->sk,
 						   struct mctp_sock, sk);
-				spin_unlock_irqrestore(&key->lock, f);
-				mctp_key_unref(key);
-				key = NULL;
+				spin_unlock_irqrestore(&any_key->lock, f);
 			}
 		}
 
@@ -475,6 +473,8 @@ out_unlock:
 		spin_unlock_irqrestore(&key->lock, f);
 		mctp_key_unref(key);
 	}
+	if (any_key)
+		mctp_key_unref(any_key);
 out:
 	if (rc)
 		kfree_skb(skb);
