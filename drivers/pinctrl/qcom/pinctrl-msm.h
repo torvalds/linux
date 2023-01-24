@@ -171,6 +171,7 @@ struct msm_pinctrl_soc_data {
 	unsigned int nqup_regs;
 	unsigned int gpio_func;
 	unsigned int egpio_func;
+	u32 *dir_conn_addr;
 };
 
 extern const struct dev_pm_ops msm_pinctrl_dev_pm_ops;
