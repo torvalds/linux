@@ -7081,8 +7081,10 @@ static void kvm_init_msr_list(void)
 	for (i = 0; i < ARRAY_SIZE(msrs_to_save_base); i++)
 		kvm_probe_msr_to_save(msrs_to_save_base[i]);
 
-	for (i = 0; i < ARRAY_SIZE(msrs_to_save_pmu); i++)
-		kvm_probe_msr_to_save(msrs_to_save_pmu[i]);
+	if (enable_pmu) {
+		for (i = 0; i < ARRAY_SIZE(msrs_to_save_pmu); i++)
+			kvm_probe_msr_to_save(msrs_to_save_pmu[i]);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(emulated_msrs_all); i++) {
 		if (!static_call(kvm_x86_has_emulated_msr)(NULL, emulated_msrs_all[i]))
