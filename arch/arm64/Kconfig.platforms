@@ -260,6 +260,30 @@ config ARCH_PINEAPPLE
 	  chipset. If you do not wish to build a kernel that runs on this
 	  chipset or if you are unsure, say 'N' here.
 
+config ARCH_SA8155
+        bool "Enable Support for Qualcomm Technologies, Inc. SA8155"
+	depends on ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Technologies, Inc.'s
+	  SA8155 chipset. If you do not wish to build a kernel that
+	  runs on this chipset or if you are unsure, say 'N' here.
+
+config ARCH_SA8195
+        bool "Enable Support for Qualcomm Technologies, Inc. SA8195"
+	depends on ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Technologies, Inc.'s
+	  SA8195 chipset. If you do not wish to build a kernel that
+	  runs on this chipset or if you are unsure, say 'N' here.
+
+config ARCH_SA6155
+        bool "Enable Support for Qualcomm Technologies, Inc. SA6155"
+	depends on ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Technologies, Inc.'s
+	  SA6155 chipset. If you do not wish to build a kernel that
+	  runs on this chipset or if you are unsure, say 'N' here.
+
 config ARCH_KALAMA
 	bool "Enable Support for Qualcomm Technologies, Inc. KALAMA"
 	depends on ARCH_QCOM
