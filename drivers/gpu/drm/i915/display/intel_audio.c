@@ -666,21 +666,21 @@ static void ibx_audio_regs_init(struct drm_i915_private *i915,
 				enum pipe pipe,
 				struct ibx_audio_regs *regs)
 {
-	if (HAS_PCH_IBX(i915)) {
-		regs->hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
-		regs->aud_config = IBX_AUD_CFG(pipe);
-		regs->aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
-		regs->aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
-	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
 		regs->hdmiw_hdmiedid = VLV_HDMIW_HDMIEDID(pipe);
 		regs->aud_config = VLV_AUD_CFG(pipe);
 		regs->aud_cntl_st = VLV_AUD_CNTL_ST(pipe);
 		regs->aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
-	} else {
+	} else if (HAS_PCH_CPT(i915)) {
 		regs->hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
 		regs->aud_config = CPT_AUD_CFG(pipe);
 		regs->aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
 		regs->aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
+	} else if (HAS_PCH_IBX(i915)) {
+		regs->hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
+		regs->aud_config = IBX_AUD_CFG(pipe);
+		regs->aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
+		regs->aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	}
 }
 
@@ -965,12 +965,11 @@ void intel_audio_hooks_init(struct drm_i915_private *i915)
 {
 	if (IS_G4X(i915))
 		i915->display.funcs.audio = &g4x_audio_funcs;
-	else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+	else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915) ||
+		 HAS_PCH_CPT(i915) || HAS_PCH_IBX(i915))
 		i915->display.funcs.audio = &ibx_audio_funcs;
 	else if (IS_HASWELL(i915) || DISPLAY_VER(i915) >= 8)
 		i915->display.funcs.audio = &hsw_audio_funcs;
-	else if (HAS_PCH_SPLIT(i915))
-		i915->display.funcs.audio = &ibx_audio_funcs;
 }
 
 struct aud_ts_cdclk_m_n {
