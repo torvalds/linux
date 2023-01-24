@@ -344,7 +344,7 @@ void rtl8188eu_recv_tasklet(unsigned long priv)
 	}
 }
 
-static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_read_port_complete(struct urb *purb)
 {
 	struct recv_buf	*precvbuf = (struct recv_buf *)purb->context;
 	struct adapter	*adapt = (struct adapter *)precvbuf->adapter;
