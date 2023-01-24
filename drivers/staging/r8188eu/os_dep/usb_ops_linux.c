@@ -4,7 +4,6 @@
 #define _USB_OPS_LINUX_C_
 
 #include "../include/drv_types.h"
-#include "../include/usb_ops_linux.h"
 #include "../include/rtl8188e_recv.h"
 
 static unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)

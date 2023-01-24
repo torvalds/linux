@@ -7,6 +7,10 @@
 #include "../include/usb_ops.h"
 #include "../include/rtl8188e_hal.h"
 
+#define VENDOR_CMD_MAX_DATA_LEN	254
+
+#define RTW_USB_CONTROL_MSG_TIMEOUT	500/* ms */
+
 static int usb_read(struct adapter *adapt, u16 value, void *data, u8 size)
 {
 	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
