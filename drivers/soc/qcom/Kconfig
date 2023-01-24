@@ -236,6 +236,8 @@ config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
 
+source "drivers/soc/qcom/memshare/Kconfig"
+
 config QCOM_RMTFS_MEM
 	tristate "Qualcomm Remote Filesystem memory driver"
 	depends on ARCH_QCOM
