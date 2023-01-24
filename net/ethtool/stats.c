@@ -117,9 +117,9 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 			      struct genl_info *info)
 {
 	const struct stats_req_info *req_info = STATS_REQINFO(req_base);
+	struct netlink_ext_ack *extack = info ? info->extack : NULL;
 	struct stats_reply_data *data = STATS_REPDATA(reply_base);
 	enum ethtool_mac_stats_src src = req_info->src;
-	struct netlink_ext_ack *extack = info->extack;
 	struct net_device *dev = reply_base->dev;
 	int ret;
 
