@@ -815,4 +815,5 @@ struct kvm_pmu_ops intel_pmu_ops __initdata = {
 	.deliver_pmi = intel_pmu_deliver_pmi,
 	.cleanup = intel_pmu_cleanup,
 	.EVENTSEL_EVENT = ARCH_PERFMON_EVENTSEL_EVENT,
+	.MAX_NR_GP_COUNTERS = KVM_INTEL_PMC_MAX_GENERIC,
 };
