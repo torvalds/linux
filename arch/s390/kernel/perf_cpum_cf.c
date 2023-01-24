@@ -397,12 +397,10 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 /* Release the PMU if event is the last perf event */
 static void hw_perf_event_destroy(struct perf_event *event)
 {
-	if (!atomic_add_unless(&num_events, -1, 1)) {
-		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_dec_return(&num_events) == 0)
-			__kernel_cpumcf_end();
-		mutex_unlock(&pmc_reserve_mutex);
-	}
+	mutex_lock(&pmc_reserve_mutex);
+	if (atomic_dec_return(&num_events) == 0)
+		__kernel_cpumcf_end();
+	mutex_unlock(&pmc_reserve_mutex);
 }
 
 /* CPUMF <-> perf event mappings for kernel+userspace (basic set) */
