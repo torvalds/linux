@@ -1311,7 +1311,12 @@ inval:
 
 static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 {
+	struct pkvm_hyp_vcpu *hyp_vcpu;
 	bool handled;
+
+	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
+	if (hyp_vcpu && hyp_vcpu->vcpu.arch.fp_state == FP_STATE_GUEST_OWNED)
+		fpsimd_host_restore();
 
 	handled = kvm_host_psci_handler(host_ctxt);
 	if (!handled)
