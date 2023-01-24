@@ -158,6 +158,11 @@ class BazelBuilder:
                 else:
                     cross_target_list.append(target)
 
+        # Sort build targets by string length to guarantee the base target goes
+        # first when copying to output directory
+        cross_target_list.sort(key=len)
+        host_target_list.sort(key=len)
+
         return (cross_target_list, host_target_list)
 
     def get_cross_toolchain(self):
