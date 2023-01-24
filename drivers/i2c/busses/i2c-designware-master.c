@@ -865,6 +865,7 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
 	unsigned long irq_flags;
+	unsigned int ic_con;
 	int ret;
 
 	init_completion(&dev->cmd_complete);
@@ -883,6 +884,25 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	ret = i2c_dw_set_fifo_size(dev);
 	if (ret)
 		return ret;
+
+	/* Lock the bus for accessing DW_IC_CON */
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	/*
+	 * On AMD platforms BIOS advertises the bus clear feature
+	 * and enables the SCL/SDA stuck low. SMU FW does the
+	 * bus recovery process. Driver should not ignore this BIOS
+	 * advertisement of bus clear feature.
+	 */
+	ret = regmap_read(dev->map, DW_IC_CON, &ic_con);
+	i2c_dw_release_lock(dev);
+	if (ret)
+		return ret;
+
+	if (ic_con & DW_IC_CON_BUS_CLEAR_CTRL)
+		dev->master_cfg |= DW_IC_CON_BUS_CLEAR_CTRL;
 
 	ret = dev->init(dev);
 	if (ret)
