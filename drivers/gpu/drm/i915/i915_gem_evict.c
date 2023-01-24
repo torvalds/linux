@@ -43,16 +43,25 @@ static bool dying_vma(struct i915_vma *vma)
 	return !kref_read(&vma->obj->base.refcount);
 }
 
-static int ggtt_flush(struct intel_gt *gt)
+static int ggtt_flush(struct i915_address_space *vm)
 {
-	/*
-	 * Not everything in the GGTT is tracked via vma (otherwise we
-	 * could evict as required with minimal stalling) so we are forced
-	 * to idle the GPU and explicitly retire outstanding requests in
-	 * the hopes that we can then remove contexts and the like only
-	 * bound by their active reference.
-	 */
-	return intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
+	struct intel_gt *gt;
+	int ret = 0;
+
+	list_for_each_entry(gt, &ggtt->gt_list, ggtt_link) {
+		/*
+		 * Not everything in the GGTT is tracked via vma (otherwise we
+		 * could evict as required with minimal stalling) so we are forced
+		 * to idle the GPU and explicitly retire outstanding requests in
+		 * the hopes that we can then remove contexts and the like only
+		 * bound by their active reference.
+		 */
+		ret = intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
+		if (ret)
+			return ret;
+	}
+	return ret;
 }
 
 static bool grab_vma(struct i915_vma *vma, struct i915_gem_ww_ctx *ww)
@@ -149,6 +158,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct drm_mm_node *node;
 	enum drm_mm_insert_mode mode;
 	struct i915_vma *active;
+	struct intel_gt *gt;
 	int ret;
 
 	lockdep_assert_held(&vm->mutex);
@@ -174,7 +184,14 @@ i915_gem_evict_something(struct i915_address_space *vm,
 				    min_size, alignment, color,
 				    start, end, mode);
 
-	intel_gt_retire_requests(vm->gt);
+	if (i915_is_ggtt(vm)) {
+		struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
+
+		list_for_each_entry(gt, &ggtt->gt_list, ggtt_link)
+			intel_gt_retire_requests(gt);
+	} else {
+		intel_gt_retire_requests(vm->gt);
+	}
 
 search_again:
 	active = NULL;
@@ -246,7 +263,7 @@ search_again:
 	if (I915_SELFTEST_ONLY(igt_evict_ctl.fail_if_busy))
 		return -EBUSY;
 
-	ret = ggtt_flush(vm->gt);
+	ret = ggtt_flush(vm);
 	if (ret)
 		return ret;
 
@@ -332,7 +349,15 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	 * a stray pin (preventing eviction) that can only be resolved by
 	 * retiring.
 	 */
-	intel_gt_retire_requests(vm->gt);
+	if (i915_is_ggtt(vm)) {
+		struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
+		struct intel_gt *gt;
+
+		list_for_each_entry(gt, &ggtt->gt_list, ggtt_link)
+			intel_gt_retire_requests(gt);
+	} else {
+		intel_gt_retire_requests(vm->gt);
+	}
 
 	if (i915_vm_has_cache_coloring(vm)) {
 		/* Expand search to cover neighbouring guard pages (or lack!) */
@@ -444,7 +469,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww,
 	 * switch otherwise is ineffective.
 	 */
 	if (i915_is_ggtt(vm)) {
-		ret = ggtt_flush(vm->gt);
+		ret = ggtt_flush(vm);
 		if (ret)
 			return ret;
 	}

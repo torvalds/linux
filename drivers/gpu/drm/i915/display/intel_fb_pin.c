@@ -91,7 +91,7 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 		goto err;
 	}
 
-	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
+	vma->display_alignment = max(vma->display_alignment, alignment);
 
 	i915_gem_object_flush_if_display(obj);
 

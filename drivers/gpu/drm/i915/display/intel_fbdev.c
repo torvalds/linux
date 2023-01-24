@@ -286,7 +286,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 		/* Our framebuffer is the entirety of fbdev's system memory */
 		info->fix.smem_start =
-			(unsigned long)(ggtt->gmadr.start + vma->node.start);
+			(unsigned long)(ggtt->gmadr.start + i915_ggtt_offset(vma));
 		info->fix.smem_len = vma->size;
 	}
 

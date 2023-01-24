@@ -12,6 +12,7 @@
 #include "i915_drv.h"
 #include "i915_sysfs.h"
 #include "intel_gt.h"
+#include "intel_gt_print.h"
 #include "intel_gt_sysfs.h"
 #include "intel_gt_sysfs_pm.h"
 #include "intel_gt_types.h"
@@ -105,8 +106,7 @@ void intel_gt_sysfs_register(struct intel_gt *gt)
 
 exit_fail:
 	kobject_put(&gt->sysfs_gt);
-	drm_warn(&gt->i915->drm,
-		 "failed to initialize gt%d sysfs root\n", gt->info.id);
+	gt_warn(gt, "failed to initialize sysfs root\n");
 }
 
 void intel_gt_sysfs_unregister(struct intel_gt *gt)

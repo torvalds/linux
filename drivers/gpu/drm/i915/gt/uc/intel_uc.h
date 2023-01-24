@@ -6,6 +6,7 @@
 #ifndef _INTEL_UC_H_
 #define _INTEL_UC_H_
 
+#include "intel_gsc_uc.h"
 #include "intel_guc.h"
 #include "intel_guc_rc.h"
 #include "intel_guc_submission.h"
@@ -27,6 +28,7 @@ struct intel_uc_ops {
 
 struct intel_uc {
 	struct intel_uc_ops const *ops;
+	struct intel_gsc_uc gsc;
 	struct intel_guc guc;
 	struct intel_huc huc;
 
@@ -87,6 +89,7 @@ uc_state_checkers(huc, huc);
 uc_state_checkers(guc, guc_submission);
 uc_state_checkers(guc, guc_slpc);
 uc_state_checkers(guc, guc_rc);
+uc_state_checkers(gsc, gsc_uc);
 
 #undef uc_state_checkers
 #undef __uc_state_checker

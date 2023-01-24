@@ -208,13 +208,25 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	if (flags & I915_BO_ALLOC_CONTIGUOUS)
 		place.flags |= TTM_PL_FLAG_CONTIGUOUS;
 	if (offset != I915_BO_INVALID_OFFSET) {
+		if (WARN_ON(overflows_type(offset >> PAGE_SHIFT, place.fpfn))) {
+			ret = -E2BIG;
+			goto out;
+		}
 		place.fpfn = offset >> PAGE_SHIFT;
+		if (WARN_ON(overflows_type(place.fpfn + (size >> PAGE_SHIFT), place.lpfn))) {
+			ret = -E2BIG;
+			goto out;
+		}
 		place.lpfn = place.fpfn + (size >> PAGE_SHIFT);
 	} else if (mem->io_size && mem->io_size < mem->total) {
 		if (flags & I915_BO_ALLOC_GPU_ONLY) {
 			place.flags |= TTM_PL_FLAG_TOPDOWN;
 		} else {
 			place.fpfn = 0;
+			if (WARN_ON(overflows_type(mem->io_size >> PAGE_SHIFT, place.lpfn))) {
+				ret = -E2BIG;
+				goto out;
+			}
 			place.lpfn = mem->io_size >> PAGE_SHIFT;
 		}
 	}
@@ -223,6 +235,8 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	mock_bo.bdev = &mem->i915->bdev;
 
 	ret = man->func->alloc(man, &mock_bo, &place, &res);
+
+out:
 	if (ret == -ENOSPC)
 		ret = -ENXIO;
 	if (!ret)
