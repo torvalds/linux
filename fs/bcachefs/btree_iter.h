@@ -206,6 +206,7 @@ int bch2_btree_path_relock_intent(struct btree_trans *, struct btree_path *);
 void bch2_path_put(struct btree_trans *, struct btree_path *, bool);
 
 int bch2_trans_relock(struct btree_trans *);
+int bch2_trans_relock_notrace(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
 bool bch2_trans_locked(struct btree_trans *);
 

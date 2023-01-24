@@ -691,6 +691,21 @@ int bch2_trans_relock(struct btree_trans *trans)
 	return 0;
 }
 
+int bch2_trans_relock_notrace(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	if (unlikely(trans->restarted))
+		return -((int) trans->restarted);
+
+	trans_for_each_path(trans, path)
+		if (path->should_be_locked &&
+		    !bch2_btree_path_relock_norestart(trans, path, _RET_IP_)) {
+			return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
+		}
+	return 0;
+}
+
 void bch2_trans_unlock(struct btree_trans *trans)
 {
 	struct btree_path *path;

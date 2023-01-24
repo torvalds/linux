@@ -995,7 +995,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 				     GFP_KERNEL);
 		*discard_pos_done = iter.pos;
 
-		ret = bch2_trans_relock(trans);
+		ret = bch2_trans_relock_notrace(trans);
 		if (ret)
 			goto out;
 	}
