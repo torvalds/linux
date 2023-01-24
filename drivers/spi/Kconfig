@@ -247,7 +247,7 @@ config SPI_CADENCE_XSPI
 	  Enable support for the Cadence XSPI Flash controller.
 
 	  Cadence XSPI is a specialized controller for connecting an SPI
-	  Flash over upto 8bit wide bus. Enable this option if you have a
+	  Flash over up to 8-bit wide bus. Enable this option if you have a
 	  device with a Cadence XSPI controller and want to access the
 	  Flash as an MTD device.
 
