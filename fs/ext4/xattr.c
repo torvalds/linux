@@ -482,11 +482,12 @@ ext4_xattr_inode_verify_hashes(struct inode *ea_inode,
 		 */
 		e_hash = ext4_xattr_hash_entry_signed(entry->e_name, entry->e_name_len,
 							&tmp_data, 1);
-		if (e_hash == entry->e_hash)
-			return 0;
-
 		/* Still no match - bad */
-		return -EFSCORRUPTED;
+		if (e_hash != entry->e_hash)
+			return -EFSCORRUPTED;
+
+		/* Let people know about old hash */
+		pr_warn_once("ext4: filesystem with signed xattr name hash");
 	}
 	return 0;
 }
@@ -3096,7 +3097,7 @@ static __le32 ext4_xattr_hash_entry(char *name, size_t name_len, __le32 *value,
 	while (name_len--) {
 		hash = (hash << NAME_HASH_SHIFT) ^
 		       (hash >> (8*sizeof(hash) - NAME_HASH_SHIFT)) ^
-		       *name++;
+		       (unsigned char)*name++;
 	}
 	while (value_count--) {
 		hash = (hash << VALUE_HASH_SHIFT) ^
