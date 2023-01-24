@@ -144,7 +144,7 @@ config SND_SOC_TEGRA210_SFC
 	  Config to enable the Sampling Frequency Converter (SFC) which
 	  converts the sampling frequency of input signal to another
 	  frequency. It supports sampling frequency conversion of streams
-	  upto 2 channels (stereo).
+	  up to 2 channels (stereo).
 	  Say Y or M if you want to add support for Tegra210 SFC module.
 
 config SND_SOC_TEGRA210_AMX
@@ -171,7 +171,7 @@ config SND_SOC_TEGRA210_MIXER
 	tristate "Tegra210 Mixer module"
 	help
 	  Config to enable the Mixer module which can help to mix multiple
-	  audio streams. It supports mixing of upto 10 input streams,
+	  audio streams. It supports mixing of up to 10 input streams,
 	  where each stream can contain maximum of 8 channels. It supports
 	  5 output each of which can be a mix of any combination of 10
 	  input streams.
