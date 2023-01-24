@@ -522,7 +522,7 @@ static struct sdw_dpn_prop wsa_sink_dpn_prop[WSA883X_MAX_SWR_PORTS] = {
 	}
 };
 
-static struct sdw_port_config wsa883x_pconfig[WSA883X_MAX_SWR_PORTS] = {
+static const struct sdw_port_config wsa883x_pconfig[WSA883X_MAX_SWR_PORTS] = {
 	{
 		.num = 1,
 		.ch_mask = 0x1,
