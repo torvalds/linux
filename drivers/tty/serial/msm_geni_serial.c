@@ -26,6 +26,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/ioctl.h>
@@ -4872,6 +4873,32 @@ static int msm_geni_serial_sys_suspend(struct device *dev)
 	return 0;
 }
 
+static int msm_geni_serial_sys_hib_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
+	struct uart_port *uport = &port->uport;
+
+	if (uart_console(uport)) {
+		uart_resume_port((struct uart_driver *)uport->private_data, uport);
+		/*
+		 * For hibernation usecase clients for
+		 * console UART won't call port setup during restore.
+		 * Hence call port setup for console uart.
+		 */
+		msm_geni_serial_port_setup(uport);
+	} else {
+		/*
+		 * Peripheral register settings are lost during hibernation.
+		 * Update setup flag such that port setup happens again
+		 * during next session. Clients of HS-UART will close and
+		 * open the port during hibernation.
+		 */
+		port->port_setup = false;
+	}
+	return 0;
+}
+
 static int msm_geni_serial_sys_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -4894,32 +4921,6 @@ static int msm_geni_serial_sys_resume(struct device *dev)
 	return 0;
 }
 
-static int msm_geni_serial_sys_hib_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
-	struct uart_port *uport = &port->uport;
-
-	if (uart_console(uport)) {
-		uart_resume_port((struct uart_driver *)uport->private_data,
-									uport);
-		/*
-		 * For hibernation usecase clients for
-		 * console UART won't call port setup during restore.
-		 * Hence call port setup for console uart.
-		 */
-		msm_geni_serial_port_setup(uport);
-	} else {
-		/*
-		 * Peripheral register settings are lost during hibernation.
-		 * Update setup flag such that port setup happens again
-		 * during next session. Clients of HS-UART will close and
-		 * open the port during hibernation.
-		 */
-		port->port_setup = false;
-	}
-	return 0;
-}
 #else
 static int msm_geni_serial_runtime_suspend(struct device *dev)
 {
