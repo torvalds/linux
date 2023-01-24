@@ -1673,6 +1673,39 @@ static int vcap_add_type_keyfield(struct vcap_rule *rule)
 	return 0;
 }
 
+/* Add the actionset typefield to the list of rule actionfields */
+static int vcap_add_type_actionfield(struct vcap_rule *rule)
+{
+	enum vcap_actionfield_set actionset = rule->actionset;
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_field *fields;
+	const struct vcap_set *aset;
+	int ret = -EINVAL;
+
+	aset = vcap_actionfieldset(ri->vctrl, vt, actionset);
+	if (!aset)
+		return ret;
+	if (aset->type_id == (u8)-1)  /* No type field is needed */
+		return 0;
+
+	fields = vcap_actionfields(ri->vctrl, vt, actionset);
+	if (!fields)
+		return -EINVAL;
+	if (fields[VCAP_AF_TYPE].width > 1) {
+		ret = vcap_rule_add_action_u32(rule, VCAP_AF_TYPE,
+					       aset->type_id);
+	} else {
+		if (aset->type_id)
+			ret = vcap_rule_add_action_bit(rule, VCAP_AF_TYPE,
+						       VCAP_BIT_1);
+		else
+			ret = vcap_rule_add_action_bit(rule, VCAP_AF_TYPE,
+						       VCAP_BIT_0);
+	}
+	return ret;
+}
+
 /* Add a keyset to a keyset list */
 bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
 			  enum vcap_keyfield_set keyset)
@@ -1856,6 +1889,7 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 		return -EINVAL;
 	}
 	vcap_add_type_keyfield(rule);
+	vcap_add_type_actionfield(rule);
 	/* Add default fields to this rule */
 	ri->vctrl->ops->add_default_fields(ri->ndev, ri->admin, rule);
 
