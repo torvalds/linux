@@ -283,9 +283,15 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 
 		ret = perf_pmu__scan_file(pmu, path, "%x", &hash);
 		if (ret != 1) {
-			pr_err("failed to set sink \"%s\" on event %s with %d (%s)\n",
-			       sink, evsel__name(evsel), errno,
-			       str_error_r(errno, msg, sizeof(msg)));
+			if (errno == ENOENT)
+				pr_err("Couldn't find sink \"%s\" on event %s\n"
+				       "Missing kernel or device support?\n\n"
+				       "Hint: An appropriate sink will be picked automatically if one isn't specified.\n",
+				       sink, evsel__name(evsel));
+			else
+				pr_err("Failed to set sink \"%s\" on event %s with %d (%s)\n",
+				       sink, evsel__name(evsel), errno,
+				       str_error_r(errno, msg, sizeof(msg)));
 			return ret;
 		}
 
