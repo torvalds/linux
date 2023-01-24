@@ -421,12 +421,15 @@ again:
 
 	ca->alloc_cursor = alloc_cursor;
 
+	if (!ob && ret)
+		ob = ERR_PTR(ret);
+
 	if (!ob && alloc_cursor > alloc_start) {
 		alloc_cursor = alloc_start;
 		goto again;
 	}
 
-	return ob ?: ERR_PTR(ret ?: -BCH_ERR_no_buckets_found);
+	return ob;
 }
 
 static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
