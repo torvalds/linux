@@ -456,18 +456,19 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 
 	byte_clk_rate = dsi_byte_clk_get_rate(host, IS_BONDED_DSI(), mode);
 
-	/*
-	 * fail all errors except -ENODEV as that could mean that opp
-	 * table is not yet implemented
-	 */
 	opp = dev_pm_opp_find_freq_ceil(&pdev->dev, &byte_clk_rate);
-	if (IS_ERR(opp)) {
-		if (PTR_ERR(opp) == -ERANGE)
-			return MODE_CLOCK_RANGE;
-		else if (PTR_ERR(opp) != -ENODEV)
-			return MODE_ERROR;
-	} else {
+	if (!IS_ERR(opp)) {
 		dev_pm_opp_put(opp);
+	} else if (PTR_ERR(opp) == -ERANGE) {
+		/*
+		 * An empty table is created by devm_pm_opp_set_clkname() even
+		 * if there is none. Thus find_freq_ceil will still return
+		 * -ERANGE in such case.
+		 */
+		if (dev_pm_opp_get_opp_count(&pdev->dev) != 0)
+			return MODE_CLOCK_RANGE;
+	} else {
+			return MODE_ERROR;
 	}
 
 	return msm_dsi_host_check_dsc(host, mode);
