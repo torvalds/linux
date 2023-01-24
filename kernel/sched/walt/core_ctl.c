@@ -661,8 +661,11 @@ static int compute_cluster_nr_run(int index)
 
 	cluster = &cluster_state[index];
 
-	for_each_cpu(cpu, &cluster->nrrun_cpu_mask)
+	for_each_cpu(cpu, &cluster->nrrun_cpu_mask) {
+		if (cpu_partial_halted(cpu))
+			continue;
 		nr_need += nr_stats[cpu].nr;
+	}
 
 	return nr_need;
 }
@@ -683,8 +686,11 @@ static int compute_cluster_nr_misfit(int index)
 
 	cluster = &cluster_state[index];
 
-	for_each_cpu(cpu, &cluster->nrrun_cpu_misfit_mask)
+	for_each_cpu(cpu, &cluster->nrrun_cpu_misfit_mask) {
+		if (cpu_partial_halted(cpu))
+			continue;
 		prev_misfit_need += nr_stats[cpu].nr_misfit;
+	}
 
 	return prev_misfit_need;
 }
@@ -704,8 +710,11 @@ static int compute_cluster_max_nr(int index)
 	struct cluster_data *cluster = &cluster_state[index];
 	int max_nr = 0;
 
-	for_each_cpu(cpu, &cluster->cpu_mask)
+	for_each_cpu(cpu, &cluster->cpu_mask) {
+		if (cpu_partial_halted(cpu))
+			continue;
 		max_nr = max(max_nr, nr_stats[cpu].nr_max);
+	}
 
 	return max_nr;
 }
@@ -768,8 +777,11 @@ static int compute_cluster_nr_run_assist(int index)
 	struct cluster_data *cluster = &cluster_state[index];
 	int nr_assist = 0;
 
-	for_each_cpu(cpu, &cluster->assist_cpu_mask)
+	for_each_cpu(cpu, &cluster->assist_cpu_mask) {
+		if (cpu_partial_halted(cpu))
+			continue;
 		nr_assist += nr_stats[cpu].nr;
+	}
 
 	return nr_assist;
 }
@@ -792,8 +804,11 @@ static int compute_cluster_nr_misfit_assist(int index)
 	struct cluster_data *cluster = &cluster_state[index];
 	int nr_misfit_assist = 0;
 
-	for_each_cpu(cpu, &cluster->assist_cpu_misfit_mask)
+	for_each_cpu(cpu, &cluster->assist_cpu_misfit_mask) {
+		if (cpu_partial_halted(cpu))
+			continue;
 		nr_misfit_assist += nr_stats[cpu].nr;
+	}
 
 	return nr_misfit_assist;
 }
@@ -816,11 +831,17 @@ static int cluster_real_big_tasks(int index)
 	struct cluster_data *cluster = &cluster_state[index];
 
 	if (index == 0) {
-		for_each_cpu(cpu, &cluster->cpu_mask)
+		for_each_cpu(cpu, &cluster->cpu_mask) {
+			if (cpu_partial_halted(cpu))
+				continue;
 			nr_big += nr_stats[cpu].nr_misfit;
+		}
 	} else {
-		for_each_cpu(cpu, &cluster->cpu_mask)
+		for_each_cpu(cpu, &cluster->cpu_mask) {
+			if (cpu_partial_halted(cpu))
+				continue;
 			nr_big += nr_stats[cpu].nr;
+		}
 	}
 
 	return nr_big;
@@ -851,8 +872,11 @@ static int compute_cluster_nr_strict_need(int index)
 		int nr_scaled = 0;
 		int active_cpus = cluster->active_cpus;
 
-		for_each_cpu(cpu, &cluster->cpu_mask)
+		for_each_cpu(cpu, &cluster->cpu_mask) {
+			if (cpu_partial_halted(cpu))
+				continue;
 			nr_scaled += nr_stats[cpu].nr_scaled;
+		}
 
 		nr_scaled /= 100;
 
