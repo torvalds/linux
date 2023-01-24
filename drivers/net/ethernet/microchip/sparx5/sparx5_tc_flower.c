@@ -309,6 +309,51 @@ out:
 }
 
 static int
+sparx5_tc_flower_handler_cvlan_usage(struct sparx5_tc_flower_parse_usage *st)
+{
+	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID0;
+	enum vcap_key_field pcp_key = VCAP_KF_8021Q_PCP0;
+	struct flow_match_vlan mt;
+	u16 tpid;
+	int err;
+
+	if (st->admin->vtype != VCAP_TYPE_IS0)
+		return -EINVAL;
+
+	flow_rule_match_cvlan(st->frule, &mt);
+
+	tpid = be16_to_cpu(mt.key->vlan_tpid);
+
+	if (tpid == ETH_P_8021Q) {
+		vid_key = VCAP_KF_8021Q_VID1;
+		pcp_key = VCAP_KF_8021Q_PCP1;
+	}
+
+	if (mt.mask->vlan_id) {
+		err = vcap_rule_add_key_u32(st->vrule, vid_key,
+					    mt.key->vlan_id,
+					    mt.mask->vlan_id);
+		if (err)
+			goto out;
+	}
+
+	if (mt.mask->vlan_priority) {
+		err = vcap_rule_add_key_u32(st->vrule, pcp_key,
+					    mt.key->vlan_priority,
+					    mt.mask->vlan_priority);
+		if (err)
+			goto out;
+	}
+
+	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
+
+	return 0;
+out:
+	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "cvlan parse error");
+	return err;
+}
+
+static int
 sparx5_tc_flower_handler_vlan_usage(struct sparx5_tc_flower_parse_usage *st)
 {
 	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID_CLS;
@@ -317,6 +362,11 @@ sparx5_tc_flower_handler_vlan_usage(struct sparx5_tc_flower_parse_usage *st)
 	int err;
 
 	flow_rule_match_vlan(st->frule, &mt);
+
+	if (st->admin->vtype == VCAP_TYPE_IS0) {
+		vid_key = VCAP_KF_8021Q_VID0;
+		pcp_key = VCAP_KF_8021Q_PCP0;
+	}
 
 	if (mt.mask->vlan_id) {
 		err = vcap_rule_add_key_u32(st->vrule, vid_key,
@@ -513,6 +563,7 @@ static int (*sparx5_tc_flower_usage_handlers[])(struct sparx5_tc_flower_parse_us
 	[FLOW_DISSECTOR_KEY_CONTROL] = sparx5_tc_flower_handler_control_usage,
 	[FLOW_DISSECTOR_KEY_PORTS] = sparx5_tc_flower_handler_portnum_usage,
 	[FLOW_DISSECTOR_KEY_BASIC] = sparx5_tc_flower_handler_basic_usage,
+	[FLOW_DISSECTOR_KEY_CVLAN] = sparx5_tc_flower_handler_cvlan_usage,
 	[FLOW_DISSECTOR_KEY_VLAN] = sparx5_tc_flower_handler_vlan_usage,
 	[FLOW_DISSECTOR_KEY_TCP] = sparx5_tc_flower_handler_tcp_usage,
 	[FLOW_DISSECTOR_KEY_ARP] = sparx5_tc_flower_handler_arp_usage,
