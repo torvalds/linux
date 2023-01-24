@@ -858,6 +858,21 @@ int migrate_device_coherent_page(struct page *page);
 struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags);
 int __must_check try_grab_page(struct page *page, unsigned int flags);
 
+enum {
+	/* mark page accessed */
+	FOLL_TOUCH = 1 << 16,
+	/* a retry, previous pass started an IO */
+	FOLL_TRIED = 1 << 17,
+	/* we are working on non-current tsk/mm */
+	FOLL_REMOTE = 1 << 18,
+	/* pages must be released via unpin_user_page */
+	FOLL_PIN = 1 << 19,
+	/* gup_fast: prevent fall-back to slow gup */
+	FOLL_FAST_ONLY = 1 << 20,
+	/* allow unlocking the mmap lock */
+	FOLL_UNLOCKABLE = 1 << 21,
+};
+
 /*
  * Indicates for which pages that are write-protected in the page table,
  * whether GUP has to trigger unsharing via FAULT_FLAG_UNSHARE such that the

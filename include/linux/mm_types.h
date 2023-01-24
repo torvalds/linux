@@ -1040,9 +1040,6 @@ typedef unsigned int __bitwise zap_flags_t;
  * FOLL_PIN and FOLL_LONGTERM may be used in various combinations with each
  * other. Here is what they mean, and how to use them:
  *
- * FOLL_LONGTERM indicates that the page will be held for an indefinite time
- * period _often_ under userspace control.  This is in contrast to
- * iov_iter_get_pages(), whose usages are transient.
  *
  * FIXME: For pages which are part of a filesystem, mappings are subject to the
  * lifetime enforced by the filesystem and we need guarantees that longterm
@@ -1086,24 +1083,40 @@ typedef unsigned int __bitwise zap_flags_t;
  * Please see Documentation/core-api/pin_user_pages.rst for more information.
  */
 
-#define FOLL_WRITE	0x01	/* check pte is writable */
-#define FOLL_TOUCH	0x02	/* mark page accessed */
-#define FOLL_GET	0x04	/* do get_page on page */
-#define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
-#define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
-#define FOLL_NOWAIT	0x20	/* if a disk transfer is needed, start the IO
-				 * and return without waiting upon it */
-#define FOLL_NOFAULT	0x80	/* do not fault in pages */
-#define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
-#define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
-#define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
-#define FOLL_ANON	0x8000	/* don't do file mappings */
-#define FOLL_LONGTERM	0x10000	/* mapping lifetime is indefinite: see below */
-#define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
-#define FOLL_PIN	0x40000	/* pages must be released via unpin_user_page */
-#define FOLL_FAST_ONLY	0x80000	/* gup_fast: prevent fall-back to slow gup */
-#define FOLL_PCI_P2PDMA	0x100000 /* allow returning PCI P2PDMA pages */
-#define FOLL_INTERRUPTIBLE  0x200000 /* allow interrupts from generic signals */
-#define FOLL_UNLOCKABLE	0x400000 /* allow unlocking the mmap lock (internal only) */
+enum {
+	/* check pte is writable */
+	FOLL_WRITE = 1 << 0,
+	/* do get_page on page */
+	FOLL_GET = 1 << 1,
+	/* give error on hole if it would be zero */
+	FOLL_DUMP = 1 << 2,
+	/* get_user_pages read/write w/o permission */
+	FOLL_FORCE = 1 << 3,
+	/*
+	 * if a disk transfer is needed, start the IO and return without waiting
+	 * upon it
+	 */
+	FOLL_NOWAIT = 1 << 4,
+	/* do not fault in pages */
+	FOLL_NOFAULT = 1 << 5,
+	/* check page is hwpoisoned */
+	FOLL_HWPOISON = 1 << 6,
+	/* don't do file mappings */
+	FOLL_ANON = 1 << 7,
+	/*
+	 * FOLL_LONGTERM indicates that the page will be held for an indefinite
+	 * time period _often_ under userspace control.  This is in contrast to
+	 * iov_iter_get_pages(), whose usages are transient.
+	 */
+	FOLL_LONGTERM = 1 << 8,
+	/* split huge pmd before returning */
+	FOLL_SPLIT_PMD = 1 << 9,
+	/* allow returning PCI P2PDMA pages */
+	FOLL_PCI_P2PDMA = 1 << 10,
+	/* allow interrupts from generic signals */
+	FOLL_INTERRUPTIBLE = 1 << 11,
+
+	/* See also internal only FOLL flags in mm/internal.h */
+};
 
 #endif /* _LINUX_MM_TYPES_H */
