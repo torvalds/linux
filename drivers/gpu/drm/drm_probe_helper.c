@@ -282,7 +282,8 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 	bool poll = false;
 	unsigned long delay = DRM_OUTPUT_POLL_PERIOD;
 
-	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
+	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll ||
+	    dev->mode_config.poll_running)
 		return;
 
 	poll = drm_kms_helper_enable_hpd(dev);
@@ -304,6 +305,8 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 
 	if (poll)
 		schedule_delayed_work(&dev->mode_config.output_poll_work, delay);
+
+	dev->mode_config.poll_running = true;
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
@@ -592,10 +595,7 @@ retry:
 	}
 
 	/* Re-enable polling in case the global poll config changed. */
-	if (drm_kms_helper_poll != dev->mode_config.poll_running)
-		drm_kms_helper_poll_enable(dev);
-
-	dev->mode_config.poll_running = drm_kms_helper_poll;
+	drm_kms_helper_poll_enable(dev);
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
@@ -735,8 +735,11 @@ static void output_poll_execute(struct work_struct *work)
 	changed = dev->mode_config.delayed_event;
 	dev->mode_config.delayed_event = false;
 
-	if (!drm_kms_helper_poll)
+	if (!drm_kms_helper_poll && dev->mode_config.poll_running) {
+		drm_kms_helper_disable_hpd(dev);
+		dev->mode_config.poll_running = false;
 		goto out;
+	}
 
 	if (!mutex_trylock(&dev->mode_config.mutex)) {
 		repoll = true;
@@ -833,19 +836,6 @@ bool drm_kms_helper_is_poll_worker(void)
 }
 EXPORT_SYMBOL(drm_kms_helper_is_poll_worker);
 
-static void drm_kms_helper_poll_disable_fini(struct drm_device *dev, bool fini)
-{
-	if (!dev->mode_config.poll_enabled)
-		return;
-
-	if (fini)
-		dev->mode_config.poll_enabled = false;
-
-	drm_kms_helper_disable_hpd(dev);
-
-	cancel_delayed_work_sync(&dev->mode_config.output_poll_work);
-}
-
 /**
  * drm_kms_helper_poll_disable - disable output polling
  * @dev: drm_device
@@ -862,7 +852,12 @@ static void drm_kms_helper_poll_disable_fini(struct drm_device *dev, bool fini)
  */
 void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
-	drm_kms_helper_poll_disable_fini(dev, false);
+	if (dev->mode_config.poll_running)
+		drm_kms_helper_disable_hpd(dev);
+
+	cancel_delayed_work_sync(&dev->mode_config.output_poll_work);
+
+	dev->mode_config.poll_running = false;
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_disable);
 
@@ -900,7 +895,12 @@ EXPORT_SYMBOL(drm_kms_helper_poll_init);
  */
 void drm_kms_helper_poll_fini(struct drm_device *dev)
 {
-	drm_kms_helper_poll_disable_fini(dev, true);
+	if (!dev->mode_config.poll_enabled)
+		return;
+
+	drm_kms_helper_poll_disable(dev);
+
+	dev->mode_config.poll_enabled = false;
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
