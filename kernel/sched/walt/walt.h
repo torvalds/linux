@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _WALT_H
@@ -1003,6 +1003,18 @@ extern struct cpumask __cpu_partial_halt_mask;
 /* a partially halted may be used for helping smaller cpus with small tasks */
 #define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
 
+/* determine if this task should be allowed to use a partially halted cpu */
+static inline bool task_reject_partialhalt_cpu(struct task_struct *p, int cpu)
+{
+	if (p->prio < MAX_RT_PRIO)
+		return false;
+
+	if (cpu_partial_halted(cpu) && !task_fits_capacity(p, 0))
+		return true;
+
+	return false;
+}
+
 /* walt_find_and_choose_cluster_packing_cpu - Return a packing_cpu choice common for this cluster.
  * @start_cpu:  The cpu from the cluster to choose from
  *
@@ -1027,7 +1039,6 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 		return -1;
 	if (!sysctl_sched_cluster_util_thres_pct)
 		return -1;
-
 
 	/* find all unhalted active cpus */
 	cpumask_andnot(&unhalted_cpus, cpu_active_mask, cpu_halt_mask);
@@ -1060,6 +1071,9 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 
 	/* don't pack big tasks */
 	if (task_util(p) >= sysctl_sched_idle_enough)
+		return -1;
+
+	if (task_reject_partialhalt_cpu(p, packing_cpu))
 		return -1;
 
 	/* don't pack if running at a freq higher than 43.9pct of its fmax */

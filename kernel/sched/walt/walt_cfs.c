@@ -250,6 +250,9 @@ static inline bool walt_should_reject_fbt_cpu(struct walt_rq *wrq, struct task_s
 	if (cpu_halted(cpu))
 		return true;
 
+	if (order_index != 0 && cpu_partial_halted(cpu))
+		return true;
+
 	/*
 	 * This CPU is the target of an active migration that's
 	 * yet to complete. Avoid placing another task on it.
@@ -328,8 +331,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 				cpu_active(prev_cpu) &&
 				available_idle_cpu(prev_cpu) &&
 				cpumask_test_cpu(prev_cpu, p->cpus_ptr) &&
-				!cpu_halted(prev_cpu)) {
-
+				!cpu_halted(prev_cpu) &&
+				(order_index == 0 || !cpu_partial_halted(prev_cpu))) {
 		fbt_env->fastpath = PREV_CPU_FASTPATH;
 		cpumask_set_cpu(prev_cpu, candidates);
 		goto out;
