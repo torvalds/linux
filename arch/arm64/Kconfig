@@ -1485,7 +1485,7 @@ config ARCH_FORCE_MAX_ORDER
 	  This config option is actually maximum order plus one. For example,
 	  a value of 11 means that the largest free memory block is 2^10 pages.
 
-	  We make sure that we can allocate upto a HugePage size for each configuration.
+	  We make sure that we can allocate up to a HugePage size for each configuration.
 	  Hence we have :
 		MAX_ORDER = (PMD_SHIFT - PAGE_SHIFT) + 1 => PAGE_SHIFT - 2
 
