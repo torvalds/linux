@@ -142,7 +142,7 @@ examples:
             pullup-ohm = <47000>;
             pulldown-ohm = <0>;
             io-channels = <&adc 4>;
-          };
+        };
     };
 
   - |

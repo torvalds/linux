@@ -58,11 +58,11 @@ examples:
         #size-cells = <0>;
 
         frequency@0 {
-                compatible = "adi,adf4371";
-                reg = <0>;
-                spi-max-frequency = <1000000>;
-                clocks = <&adf4371_clkin>;
-                clock-names = "clkin";
+            compatible = "adi,adf4371";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            clocks = <&adf4371_clkin>;
+            clock-names = "clkin";
         };
     };
 ...

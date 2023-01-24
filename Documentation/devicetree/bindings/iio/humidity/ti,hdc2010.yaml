@@ -36,11 +36,11 @@ additionalProperties: false
 examples:
   - |
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      humidity@40 {
-          compatible = "ti,hdc2010";
-          reg = <0x40>;
-      };
+        humidity@40 {
+            compatible = "ti,hdc2010";
+            reg = <0x40>;
+        };
     };
