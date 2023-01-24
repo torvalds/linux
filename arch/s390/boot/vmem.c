@@ -39,7 +39,7 @@ static void boot_check_oom(void)
 		error("out of memory on boot\n");
 }
 
-static void pgtable_populate_begin(unsigned long ident_map_size)
+static void pgtable_populate_init(unsigned long ident_map_size)
 {
 	unsigned long initrd_end;
 	unsigned long kernel_end;
@@ -226,27 +226,6 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	}
 }
 
-/*
- * The pgtables are located in the range [pgalloc_pos, pgalloc_end).
- * That range must stay intact and is later reserved in the memblock.
- * Therefore pgtable_populate(pgalloc_pos, pgalloc_end) is needed to
- * finalize pgalloc_pos pointer. However that call can decrease the
- * value of pgalloc_pos pointer itself. Therefore, pgtable_populate()
- * needs to be called repeatedly until pgtables are complete and
- * pgalloc_pos does not grow left anymore.
- */
-static void pgtable_populate_end(void)
-{
-	unsigned long pgalloc_end_curr = pgalloc_end;
-	unsigned long pgalloc_pos_prev;
-
-	do {
-		pgalloc_pos_prev = pgalloc_pos;
-		pgtable_populate(pgalloc_pos, pgalloc_end_curr, POPULATE_ONE2ONE);
-		pgalloc_end_curr = pgalloc_pos_prev;
-	} while (pgalloc_pos < pgalloc_pos_prev);
-}
-
 void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit)
 {
 	unsigned long start, end;
@@ -270,11 +249,8 @@ void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit)
 	 * To allow prefixing the lowcore must be mapped with 4KB pages.
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
-	 *
-	 * No further pgtable_populate() calls are allowed after the value
-	 * of pgalloc_pos finalized with a call to pgtable_populate_end().
 	 */
-	pgtable_populate_begin(ident_map_size);
+	pgtable_populate_init(ident_map_size);
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
 	for_each_mem_detect_block(i, &start, &end) {
 		if (start >= ident_map_size)
@@ -286,7 +262,6 @@ void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit)
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
 			 POPULATE_NONE);
 	memcpy_real_ptep = __virt_to_kpte(__memcpy_real_area);
-	pgtable_populate_end();
 
 	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
