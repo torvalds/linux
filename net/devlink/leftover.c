@@ -7116,8 +7116,8 @@ devlink_fmsg_prepare_skb(struct devlink_fmsg *fmsg, struct sk_buff *skb,
 {
 	struct devlink_fmsg_item *item;
 	struct nlattr *fmsg_nlattr;
+	int err = 0;
 	int i = 0;
-	int err;
 
 	fmsg_nlattr = nla_nest_start_noflag(skb, DEVLINK_ATTR_FMSG);
 	if (!fmsg_nlattr)
