@@ -506,14 +506,14 @@ static void cpumf_pmu_disable(struct pmu *pmu)
 	cpuhw->flags &= ~PMU_F_ENABLED;
 }
 
-#define PMC_INIT      0
-#define PMC_RELEASE   1
+#define PMC_INIT      0UL
+#define PMC_RELEASE   1UL
 
 static void cpum_cf_setup_cpu(void *flags)
 {
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 
-	switch (*((int *)flags)) {
+	switch ((unsigned long)flags) {
 	case PMC_INIT:
 		memset(&cpuhw->info, 0, sizeof(cpuhw->info));
 		qctri(&cpuhw->info);
@@ -535,9 +535,7 @@ static void cpum_cf_setup_cpu(void *flags)
 /* Initialize the CPU-measurement counter facility */
 static int __kernel_cpumcf_begin(void)
 {
-	int flags = PMC_INIT;
-
-	on_each_cpu(cpum_cf_setup_cpu, &flags, 1);
+	on_each_cpu(cpum_cf_setup_cpu, (void *)PMC_INIT, 1);
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 
 	return 0;
@@ -546,9 +544,7 @@ static int __kernel_cpumcf_begin(void)
 /* Release the CPU-measurement counter facility */
 static void __kernel_cpumcf_end(void)
 {
-	int flags = PMC_RELEASE;
-
-	on_each_cpu(cpum_cf_setup_cpu, &flags, 1);
+	on_each_cpu(cpum_cf_setup_cpu, (void *)PMC_RELEASE, 1);
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 }
 
@@ -937,10 +933,10 @@ static struct pmu cpumf_pmu = {
 	.read	      = cpumf_pmu_read,
 };
 
-static int cpum_cf_setup(unsigned int cpu, int flags)
+static int cpum_cf_setup(unsigned int cpu, unsigned long flags)
 {
 	local_irq_disable();
-	cpum_cf_setup_cpu(&flags);
+	cpum_cf_setup_cpu((void *)flags);
 	local_irq_enable();
 	return 0;
 }
