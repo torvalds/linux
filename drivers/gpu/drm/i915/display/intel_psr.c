@@ -1842,6 +1842,12 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	if (full_update)
 		goto skip_sel_fetch_set_loop;
 
+	/* Wa_14014971492 */
+	if ((IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
+	     IS_ALDERLAKE_P(dev_priv) || IS_TIGERLAKE(dev_priv)) &&
+	    crtc_state->splitter.enable)
+		pipe_clip.y1 = 0;
+
 	ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
 	if (ret)
 		return ret;
