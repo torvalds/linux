@@ -136,4 +136,7 @@ int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 				u16 l3_proto,
 				struct vcap_keyset_list *kslist);
 
+/* Check if the ethertype is supported by the vcap port classification */
+bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype);
+
 #endif /* __SPARX5_VCAP_IMPL_H__ */

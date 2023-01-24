@@ -106,6 +106,21 @@ static struct sparx5_vcap_inst {
 	},
 };
 
+/* These protocols have dedicated keysets in IS0 and a TC dissector */
+static u16 sparx5_vcap_is0_known_etypes[] = {
+	ETH_P_ALL,
+	ETH_P_IP,
+	ETH_P_IPV6,
+};
+
+/* These protocols have dedicated keysets in IS2 and a TC dissector */
+static u16 sparx5_vcap_is2_known_etypes[] = {
+	ETH_P_ALL,
+	ETH_P_ARP,
+	ETH_P_IP,
+	ETH_P_IPV6,
+};
+
 static void sparx5_vcap_type_err(struct sparx5 *sparx5,
 				 struct vcap_admin *admin,
 				 const char *fname)
@@ -277,10 +292,6 @@ static int sparx5_vcap_is0_get_port_keysets(struct net_device *ndev,
 
 	value = spx5_rd(sparx5, ANA_CL_ADV_CL_CFG(portno, lookup));
 
-	/* Check if the port keyset selection is enabled */
-	if (!ANA_CL_ADV_CL_CFG_LOOKUP_ENA_GET(value))
-		return -ENOENT;
-
 	/* Collect all keysets for the port in a list */
 	if (l3_proto == ETH_P_ALL)
 		sparx5_vcap_is0_get_port_etype_keysets(keysetlist, value);
@@ -333,10 +344,7 @@ static int sparx5_vcap_is2_get_port_keysets(struct net_device *ndev,
 	int portno = port->portno;
 	u32 value;
 
-	/* Check if the port keyset selection is enabled */
 	value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
-	if (!ANA_ACL_VCAP_S2_KEY_SEL_KEY_SEL_ENA_GET(value))
-		return -ENOENT;
 
 	/* Collect all keysets for the port in a list */
 	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_ARP) {
@@ -454,6 +462,30 @@ int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 		break;
 	}
 	return err;
+}
+
+/* Check if the ethertype is supported by the vcap port classification */
+bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype)
+{
+	const u16 *known_etypes;
+	int size, idx;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		known_etypes = sparx5_vcap_is0_known_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_is0_known_etypes);
+		break;
+	case VCAP_TYPE_IS2:
+		known_etypes = sparx5_vcap_is2_known_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_is2_known_etypes);
+		break;
+	default:
+		return false;
+	}
+	for (idx = 0; idx < size; ++idx)
+		if (known_etypes[idx] == etype)
+			return true;
+	return false;
 }
 
 /* API callback used for validating a field keyset (check the port keysets) */

@@ -36,16 +36,6 @@ struct sparx5_tc_flower_parse_usage {
 	unsigned int used_keys;
 };
 
-/* These protocols have dedicated keysets in IS2 and a TC dissector
- * ETH_P_ARP does not have a TC dissector
- */
-static u16 sparx5_tc_known_etypes[] = {
-	ETH_P_ALL,
-	ETH_P_ARP,
-	ETH_P_IP,
-	ETH_P_IPV6,
-};
-
 enum sparx5_is2_arp_opcode {
 	SPX5_IS2_ARP_REQUEST,
 	SPX5_IS2_ARP_REPLY,
@@ -58,18 +48,6 @@ enum tc_arp_opcode {
 	TC_ARP_OP_REQUEST,
 	TC_ARP_OP_REPLY,
 };
-
-static bool sparx5_tc_is_known_etype(u16 etype)
-{
-	int idx;
-
-	/* For now this only knows about IS2 traffic classification */
-	for (idx = 0; idx < ARRAY_SIZE(sparx5_tc_known_etypes); ++idx)
-		if (sparx5_tc_known_etypes[idx] == etype)
-			return true;
-
-	return false;
-}
 
 static int sparx5_tc_flower_handler_ethaddr_usage(struct sparx5_tc_flower_parse_usage *st)
 {
@@ -273,7 +251,7 @@ sparx5_tc_flower_handler_basic_usage(struct sparx5_tc_flower_parse_usage *st)
 
 	if (mt.mask->n_proto) {
 		st->l3_proto = be16_to_cpu(mt.key->n_proto);
-		if (!sparx5_tc_is_known_etype(st->l3_proto)) {
+		if (!sparx5_vcap_is_known_etype(st->admin, st->l3_proto)) {
 			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
 						    st->l3_proto, ~0);
 			if (err)
