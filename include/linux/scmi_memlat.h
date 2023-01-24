@@ -50,7 +50,9 @@ struct scmi_memlat_vendor_ops {
 			     u32 hw_type, u32 index, u32 val);
 	int (*freq_scale_pct)(const struct scmi_protocol_handle *ph,
 			     u32 hw_type, u32 index, u32 val);
-	int (*freq_scale_limit_mhz)(const struct scmi_protocol_handle *ph,
+	int (*freq_scale_ceil_mhz)(const struct scmi_protocol_handle *ph,
+			     u32 hw_type, u32 index, u32 val);
+	int (*freq_scale_floor_mhz)(const struct scmi_protocol_handle *ph,
 			     u32 hw_type, u32 index, u32 val);
 	int (*sample_ms)(const struct scmi_protocol_handle *ph, u32 val);
 	int (*freq_map)(const struct scmi_protocol_handle *ph,
