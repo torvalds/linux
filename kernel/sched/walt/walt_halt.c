@@ -18,7 +18,6 @@ struct cpumask __cpu_halt_mask;
 static DEFINE_RAW_SPINLOCK(halt_lock);
 
 struct halt_cpu_state {
-	u64		last_halt;
 	u8		reason;
 };
 
@@ -215,21 +214,6 @@ static int cpu_drain_rq(unsigned int cpu)
 	return stop_one_cpu(cpu, drain_rq_cpu_stop, NULL);
 }
 
-/*
- * returns true if last halt is within threshold
- * note: do not take halt_lock, called from atomic context
- */
-bool walt_halt_check_last(int cpu)
-{
-	u64 last_halt = per_cpu_ptr(&halt_state, cpu)->last_halt;
-
-	/* last_halt is valid, check it against sched_clock */
-	if (last_halt != 0 && sched_clock() - last_halt >  WALT_HALT_CHECK_THRESHOLD_NS)
-		return false;
-
-	return true;
-}
-
 struct drain_thread_data {
 	cpumask_t cpus_to_drain;
 };
@@ -296,10 +280,8 @@ static int halt_cpus(struct cpumask *cpus)
 		/* set the cpu as halted */
 		cpumask_set_cpu(cpu, cpu_halt_mask);
 
-		/* guarantee mask written before updating last_halt */
+		/* guarantee mask written at this time */
 		wmb();
-
-		halt_cpu_state->last_halt = start_time;
 	}
 
 	/* signal and wakeup the drain kthread */
@@ -315,10 +297,7 @@ out:
 	return ret;
 }
 
-/*
- * 1) remove the cpus from the halt mask
- *
- */
+/* start the cpus again, and kick them to balance */
 static int start_cpus(struct cpumask *cpus)
 {
 	u64 start_time = sched_clock();
@@ -329,10 +308,9 @@ static int start_cpus(struct cpumask *cpus)
 
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
-		halt_cpu_state->last_halt = 0;
-		wmb();
 
-		/* wmb to guarantee zero'd last_halt before clearing from the mask */
+		/* guarantee the halt state is updated */
+		wmb();
 
 		cpumask_clear_cpu(cpu, cpu_halt_mask);
 
