@@ -76,12 +76,6 @@ static int udf_adinicb_write_begin(struct file *file,
 	return 0;
 }
 
-static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
-{
-	/* Fallback to buffered I/O. */
-	return 0;
-}
-
 static int udf_adinicb_write_end(struct file *file, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
 				 struct page *page, void *fsdata)
@@ -103,7 +97,7 @@ const struct address_space_operations udf_adinicb_aops = {
 	.writepages	= udf_writepages,
 	.write_begin	= udf_adinicb_write_begin,
 	.write_end	= udf_adinicb_write_end,
-	.direct_IO	= udf_adinicb_direct_IO,
+	.direct_IO	= udf_direct_IO,
 };
 
 static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
