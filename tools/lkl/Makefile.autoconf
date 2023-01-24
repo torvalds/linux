@@ -142,7 +142,7 @@ define kasan_enable
   $(if $(filter yes,$(kasan_test)), $(call kasan_test_enable))
 endef
 
-define do_autoconf
+define do_autoconf_gnu
   export CROSS_COMPILE := $(CROSS_COMPILE)
   export CC := $(CROSS_COMPILE)gcc
   export LD := $(CROSS_COMPILE)ld
@@ -150,6 +150,27 @@ define do_autoconf
   $(eval LD := $(CROSS_COMPILE)ld)
   $(eval CC := $(CROSS_COMPILE)gcc)
   $(eval LD_FMT := $(shell $(LD) -r -print-output-format))
+endef
+
+define llvm_target_to_ld_fmt
+  $(if $(filter $(CROSS_COMPILE),x86_64-linux-gnu),elf64-x86-64,\
+    $(error Unsupported LLVM target $(CROSS_COMPILE)))
+endef
+
+define do_autoconf_llvm
+  $(eval LLVM_PREFIX := $(if $(filter %/,$(LLVM)),$(LLVM)))
+  $(eval LLVM_SUFFIX := $(if $(filter -%,$(LLVM)),$(LLVM)))
+  export CROSS_COMPILE := $(CROSS_COMPILE)
+  export CC := $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
+  export LD := $(LLVM_PREFIX)ld.lld$(LLVM_SUFFIX)
+  export AR := $(LLVM_PREFIX)llvm-ar$(LLVM_SUFFIX)
+  $(eval LD := $(LLVM_PREFIX)ld.lld$(LLVM_SUFFIX))
+  $(eval CC := $(LLVM_PREFIX)clang$(LLVM_SUFFIX))
+  $(eval LD_FMT := $(call llvm_target_to_ld_fmt))
+endef
+
+define do_autoconf
+  $(if $(LLVM),$(call do_autoconf_llvm),$(call do_autoconf_gnu))
   $(eval EXEC_FMT := $(shell echo $(LD_FMT) | cut -d "-" -f1))
   $(call set_kernel_config,OUTPUT_FORMAT,\"$(LD_FMT)\")
   $(if $(or $(filter $(EXEC_FMT),elf64),$(filter $(LD_FMT),pe-x86-64)),$(call 64bit_host))

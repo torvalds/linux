@@ -105,6 +105,7 @@ $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
 	$(Q)if ! [ -e $@ ]; then ln -s $< $@; fi
 
 clean:
+	$(call QUIET_CLEAN, vmlinux)$(MAKE) -C ../.. ARCH=lkl $(KOPT) clean
 	$(call QUIET_CLEAN, objects)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd'\
 	 -delete -o -name '\.*.d' -delete
 	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/
@@ -113,6 +114,8 @@ clean:
 
 clean-conf: clean
 	$(call QUIET_CLEAN, Makefile.conf)$(RM) $(OUTPUT)/Makefile.conf
+	$(call QUIET_CLEAN, kernel_config.h)$(RM) $(OUTPUT)/include/kernel_config.h
+	$(call QUIET_CLEAN, kernel.config)$(RM) $(OUTPUT)/kernel.config
 
 headers_install: $(TARGETS)
 	$(call QUIET_INSTALL, headers) \
