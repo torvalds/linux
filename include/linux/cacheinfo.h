@@ -100,7 +100,7 @@ static inline
 int acpi_get_cache_info(unsigned int cpu,
 			unsigned int *levels, unsigned int *split_levels)
 {
-	return 0;
+	return -ENOENT;
 }
 #else
 int acpi_get_cache_info(unsigned int cpu,

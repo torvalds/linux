@@ -64,7 +64,7 @@ int init_cache_level(unsigned int cpu)
 	} else {
 		ret = acpi_get_cache_info(cpu, &fw_level, NULL);
 		if (ret < 0)
-			return ret;
+			fw_level = 0;
 	}
 
 	if (fw_level < 0)
