@@ -256,7 +256,7 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	xe_ggtt_invalidate(ggtt->gt);
 }
 
-int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
+static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo, u64 start, u64 end)
 {
 	int err;
 
@@ -271,12 +271,22 @@ int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 		return err;
 
 	mutex_lock(&ggtt->lock);
-	err = drm_mm_insert_node(&ggtt->mm, &bo->ggtt_node, bo->size);
+	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node, bo->size, 0, 0, start, end, 0);
 	if (!err)
 		xe_ggtt_map_bo(ggtt, bo);
 	mutex_unlock(&ggtt->lock);
 
-	return 0;
+	return err;
+}
+
+int xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo, u64 ofs)
+{
+	return __xe_ggtt_insert_bo_at(ggtt, bo, ofs, ofs + bo->size);
+}
+
+int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
+{
+	return __xe_ggtt_insert_bo_at(ggtt, bo, 0, U64_MAX);
 }
 
 void xe_ggtt_remove_node(struct xe_ggtt *ggtt, struct drm_mm_node *node)
