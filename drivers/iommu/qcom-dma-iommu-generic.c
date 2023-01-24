@@ -7,6 +7,7 @@
  *	Marek Szyprowski <m.szyprowski@samsung.com>
  *	Michal Nazarewicz <mina86@mina86.com>
  * Copyright (C) 2012, 2014-2015 ARM Ltd.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -691,7 +692,7 @@ int qcom_iommu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 	if (off >= nr_pages || vma_pages(vma) > nr_pages - off)
 		return -ENXIO;
 
-	if (IS_ENABLED(CONFIG_DMA_REMAP) && is_vmalloc_addr(cpu_addr)) {
+	if (is_vmalloc_addr(cpu_addr)) {
 		struct page **pages = qcom_dma_common_find_pages(cpu_addr);
 
 		if (pages)
@@ -713,7 +714,7 @@ int qcom_iommu_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 	struct page *page;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_DMA_REMAP) && is_vmalloc_addr(cpu_addr)) {
+	if (is_vmalloc_addr(cpu_addr)) {
 		struct page **pages = qcom_dma_common_find_pages(cpu_addr);
 
 		if (pages) {
