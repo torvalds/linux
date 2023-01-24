@@ -376,6 +376,8 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 	 * pool from the original queue to allocate the bvecs from.
 	 */
 	bio = bio_split_to_limits(bio);
+	if (!bio)
+		return;
 
 	srcu_idx = srcu_read_lock(&head->srcu);
 	ns = nvme_find_path(head);

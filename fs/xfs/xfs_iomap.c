@@ -83,7 +83,7 @@ xfs_iomap_valid(
 	return true;
 }
 
-const struct iomap_page_ops xfs_iomap_page_ops = {
+static const struct iomap_page_ops xfs_iomap_page_ops = {
 	.iomap_valid		= xfs_iomap_valid,
 };
 

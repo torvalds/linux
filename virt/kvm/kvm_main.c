@@ -3954,6 +3954,13 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	}
 
 	mutex_lock(&kvm->lock);
+
+#ifdef CONFIG_LOCKDEP
+	/* Ensure that lockdep knows vcpu->mutex is taken *inside* kvm->lock */
+	mutex_lock(&vcpu->mutex);
+	mutex_unlock(&vcpu->mutex);
+#endif
+
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
 		goto unlock_vcpu_destroy;
