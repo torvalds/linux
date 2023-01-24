@@ -46,6 +46,10 @@ const char *migrate_type_names[] = {
 
 #define NEW_TASK_ACTIVE_TIME 100000000
 
+cpumask_t walt_cpus_taken_mask = { CPU_BITS_NONE };
+DEFINE_SPINLOCK(cpus_taken_lock);
+DEFINE_PER_CPU(int, cpus_taken_refcount);
+
 DEFINE_PER_CPU(struct walt_rq, walt_rq);
 
 unsigned int sysctl_sched_user_hint;
@@ -4512,6 +4516,42 @@ static void walt_do_sched_yield(void *unused, struct rq *rq)
 	if (per_cpu(rt_task_arrival_time, cpu_of(rq)))
 		per_cpu(rt_task_arrival_time, cpu_of(rq)) = 0;
 }
+
+void walt_set_cpus_taken(struct cpumask *set)
+{
+	unsigned long flags;
+	int cpu;
+
+	spin_lock_irqsave(&cpus_taken_lock, flags);
+	for_each_cpu(cpu, set) {
+		per_cpu(cpus_taken_refcount, cpu)++;
+	}
+	cpumask_or(&walt_cpus_taken_mask, &walt_cpus_taken_mask, set);
+	spin_unlock_irqrestore(&cpus_taken_lock, flags);
+}
+EXPORT_SYMBOL(walt_set_cpus_taken);
+
+void walt_unset_cpus_taken(struct cpumask *unset)
+{
+	unsigned long flags;
+	int cpu;
+
+	spin_lock_irqsave(&cpus_taken_lock, flags);
+	for_each_cpu(cpu, unset) {
+		if (per_cpu(cpus_taken_refcount, cpu) >= 1)
+			per_cpu(cpus_taken_refcount, cpu)--;
+		if (!per_cpu(cpus_taken_refcount, cpu))
+			cpumask_clear_cpu(cpu, &walt_cpus_taken_mask);
+	}
+	spin_unlock_irqrestore(&cpus_taken_lock, flags);
+}
+EXPORT_SYMBOL(walt_unset_cpus_taken);
+
+cpumask_t walt_get_cpus_taken(void)
+{
+	return walt_cpus_taken_mask;
+}
+EXPORT_SYMBOL(walt_get_cpus_taken);
 
 static void register_walt_hooks(void)
 {

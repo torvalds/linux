@@ -191,6 +191,10 @@ extern int walt_pause_cpus(struct cpumask *cpus, enum pause_reason reason);
 extern int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason);
 extern int walt_halt_cpus(struct cpumask *cpus, enum pause_reason reason);
 extern int walt_start_cpus(struct cpumask *cpus, enum pause_reason reason);
+extern void walt_set_cpus_taken(struct cpumask *set);
+extern void walt_unset_cpus_taken(struct cpumask *unset);
+extern cpumask_t walt_get_cpus_taken(void);
+
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
@@ -236,6 +240,21 @@ inline int walt_resume_cpus(struct cpumask *cpus, enum pause_reason reason)
 {
 	return 0;
 }
+
+static inline void walt_set_cpus_taken(struct cpumask *set)
+{
+}
+
+static inline void walt_unset_cpus_taken(struct cpumask *unset)
+{
+}
+
+static inline cpumask_t walt_get_cpus_taken(void)
+{
+	cpumask_t t = { CPU_BITS_NONE };
+	return t;
+}
+
 #endif
 
 #endif /* _LINUX_SCHED_WALT_H */
