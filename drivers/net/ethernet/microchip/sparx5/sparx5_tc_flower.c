@@ -30,6 +30,7 @@ struct sparx5_tc_flower_parse_usage {
 	struct flow_cls_offload *fco;
 	struct flow_rule *frule;
 	struct vcap_rule *vrule;
+	struct vcap_admin *admin;
 	u16 l3_proto;
 	u8 l4_proto;
 	unsigned int used_keys;
@@ -304,6 +305,13 @@ sparx5_tc_flower_handler_basic_usage(struct sparx5_tc_flower_parse_usage *st)
 						    VCAP_BIT_0);
 			if (err)
 				goto out;
+			if (st->admin->vtype == VCAP_TYPE_IS0) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_TCP_UDP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
 		} else {
 			err = vcap_rule_add_key_u32(st->vrule,
 						    VCAP_KF_L3_IP_PROTO,
@@ -542,6 +550,7 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 		.fco = fco,
 		.vrule = vrule,
 		.l3_proto = ETH_P_ALL,
+		.admin = admin,
 	};
 	int idx, err = 0;
 
@@ -623,18 +632,21 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 	return 0;
 }
 
-/* Add a rule counter action - only IS2 is considered for now */
+/* Add a rule counter action */
 static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 				      struct vcap_rule *vrule)
 {
 	int err;
 
-	err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID, vrule->id);
-	if (err)
-		return err;
+	if (admin->vtype == VCAP_TYPE_IS2) {
+		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID,
+					       vrule->id);
+		if (err)
+			return err;
+		vcap_rule_set_counter_id(vrule, vrule->id);
+	}
 
-	vcap_rule_set_counter_id(vrule, vrule->id);
-	return err;
+	return 0;
 }
 
 /* Collect all port keysets and apply the first of them, possibly wildcarded */
@@ -815,6 +827,29 @@ static int sparx5_tc_add_remaining_rules(struct vcap_control *vctrl,
 	return err;
 }
 
+/* Add the actionset that is the default for the VCAP type */
+static int sparx5_tc_set_actionset(struct vcap_admin *admin,
+				   struct vcap_rule *vrule)
+{
+	enum vcap_actionfield_set aset;
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		aset = VCAP_AFS_CLASSIFICATION;
+		break;
+	case VCAP_TYPE_IS2:
+		aset = VCAP_AFS_BASE_TYPE;
+		break;
+	default:
+		return -EINVAL;
+	}
+	/* Do not overwrite any current actionset */
+	if (vrule->actionset == VCAP_AFS_NO_VALUE)
+		err = vcap_set_rule_set_actionset(vrule, aset);
+	return err;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin)
@@ -874,13 +909,14 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 				goto out;
 			break;
 		case FLOW_ACTION_ACCEPT:
-			/* For now the actionset is hardcoded */
-			err = vcap_set_rule_set_actionset(vrule,
-							  VCAP_AFS_BASE_TYPE);
+			err = sparx5_tc_set_actionset(admin, vrule);
 			if (err)
 				goto out;
 			break;
 		case FLOW_ACTION_GOTO:
+			err = sparx5_tc_set_actionset(admin, vrule);
+			if (err)
+				goto out;
 			/* Links between VCAPs will be added later */
 			break;
 		default:
