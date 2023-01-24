@@ -658,13 +658,13 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	mutex_unlock(&i915->display.audio.mutex);
 }
 
-struct ilk_audio_regs {
+struct ibx_audio_regs {
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 };
 
-static void ilk_audio_regs_init(struct drm_i915_private *i915,
+static void ibx_audio_regs_init(struct drm_i915_private *i915,
 				enum pipe pipe,
-				struct ilk_audio_regs *regs)
+				struct ibx_audio_regs *regs)
 {
 	if (HAS_PCH_IBX(i915)) {
 		regs->hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
@@ -684,7 +684,7 @@ static void ilk_audio_regs_init(struct drm_i915_private *i915,
 	}
 }
 
-static void ilk_audio_codec_disable(struct intel_encoder *encoder,
+static void ibx_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
 {
@@ -692,12 +692,12 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
-	struct ilk_audio_regs regs;
+	struct ibx_audio_regs regs;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
 		return;
 
-	ilk_audio_regs_init(i915, pipe, &regs);
+	ibx_audio_regs_init(i915, pipe, &regs);
 
 	mutex_lock(&i915->display.audio.mutex);
 
@@ -720,7 +720,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	intel_crtc_wait_for_next_vblank(crtc);
 }
 
-static void ilk_audio_codec_enable(struct intel_encoder *encoder,
+static void ibx_audio_codec_enable(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct drm_connector_state *conn_state)
 {
@@ -728,14 +728,14 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
-	struct ilk_audio_regs regs;
+	struct ibx_audio_regs regs;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
 		return;
 
 	intel_crtc_wait_for_next_vblank(crtc);
 
-	ilk_audio_regs_init(i915, pipe, &regs);
+	ibx_audio_regs_init(i915, pipe, &regs);
 
 	mutex_lock(&i915->display.audio.mutex);
 
@@ -945,9 +945,9 @@ static const struct intel_audio_funcs g4x_audio_funcs = {
 	.audio_codec_get_config = g4x_audio_codec_get_config,
 };
 
-static const struct intel_audio_funcs ilk_audio_funcs = {
-	.audio_codec_enable = ilk_audio_codec_enable,
-	.audio_codec_disable = ilk_audio_codec_disable,
+static const struct intel_audio_funcs ibx_audio_funcs = {
+	.audio_codec_enable = ibx_audio_codec_enable,
+	.audio_codec_disable = ibx_audio_codec_disable,
 	.audio_codec_get_config = intel_acomp_get_config,
 };
 
@@ -966,11 +966,11 @@ void intel_audio_hooks_init(struct drm_i915_private *i915)
 	if (IS_G4X(i915))
 		i915->display.funcs.audio = &g4x_audio_funcs;
 	else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
-		i915->display.funcs.audio = &ilk_audio_funcs;
+		i915->display.funcs.audio = &ibx_audio_funcs;
 	else if (IS_HASWELL(i915) || DISPLAY_VER(i915) >= 8)
 		i915->display.funcs.audio = &hsw_audio_funcs;
 	else if (HAS_PCH_SPLIT(i915))
-		i915->display.funcs.audio = &ilk_audio_funcs;
+		i915->display.funcs.audio = &ibx_audio_funcs;
 }
 
 struct aud_ts_cdclk_m_n {
