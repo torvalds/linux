@@ -23,6 +23,11 @@ Note that on Intel systems the memory latency reported is the use-latency,
 not the pure load (or store latency). Use latency includes any pipeline
 queueing delays in addition to the memory subsystem latency.
 
+On Arm64 this uses SPE to sample load and store operations, therefore hardware
+and kernel support is required. See linkperf:perf-arm-spe[1] for a setup guide.
+Due to the statistical nature of SPE sampling, not every memory operation will
+be sampled.
+
 OPTIONS
 -------
 <command>...::
@@ -93,4 +98,4 @@ all perf record options.
 
 SEE ALSO
 --------
-linkperf:perf-record[1], linkperf:perf-report[1]
+linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-arm-spe[1]
