@@ -3593,18 +3593,15 @@ out_power_off:
 	return err;
 }
 
-static int arm_smmu_device_remove(struct platform_device *pdev)
+static void arm_smmu_device_shutdown(struct platform_device *pdev)
 {
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
 
 	if (!smmu)
-		return -ENODEV;
+		return;
 
 	if (!bitmap_empty(smmu->context_map, ARM_SMMU_MAX_CBS))
 		dev_notice(&pdev->dev, "disabling translation\n");
-
-	iommu_device_unregister(&smmu->iommu);
-	iommu_device_sysfs_remove(&smmu->iommu);
 
 	if (smmu->impl && smmu->impl->device_remove)
 		smmu->impl->device_remove(smmu);
@@ -3618,13 +3615,21 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 		pm_runtime_force_suspend(smmu->dev);
 	else
 		arm_smmu_power_off(smmu, smmu->pwr);
-
-	return 0;
 }
 
-static void arm_smmu_device_shutdown(struct platform_device *pdev)
+static int arm_smmu_device_remove(struct platform_device *pdev)
 {
-	arm_smmu_device_remove(pdev);
+	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
+
+	if (!smmu)
+		return -ENODEV;
+
+	iommu_device_unregister(&smmu->iommu);
+	iommu_device_sysfs_remove(&smmu->iommu);
+
+	arm_smmu_device_shutdown(pdev);
+
+	return 0;
 }
 
 static int __maybe_unused arm_smmu_runtime_resume(struct device *dev)
