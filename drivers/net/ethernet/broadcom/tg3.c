@@ -11166,7 +11166,7 @@ static void tg3_reset_task(struct work_struct *work)
 	rtnl_lock();
 	tg3_full_lock(tp, 0);
 
-	if (!netif_running(tp->dev)) {
+	if (tp->pcierr_recovery || !netif_running(tp->dev)) {
 		tg3_flag_clear(tp, RESET_TASK_PENDING);
 		tg3_full_unlock(tp);
 		rtnl_unlock();
@@ -18101,6 +18101,9 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	netdev_info(netdev, "PCI I/O error detected\n");
 
+	/* Want to make sure that the reset task doesn't run */
+	tg3_reset_task_cancel(tp);
+
 	rtnl_lock();
 
 	/* Could be second call or maybe we don't have netdev yet */
@@ -18116,9 +18119,6 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 	tg3_netif_stop(tp);
 
 	tg3_timer_stop(tp);
-
-	/* Want to make sure that the reset task doesn't run */
-	tg3_reset_task_cancel(tp);
 
 	netif_device_detach(netdev);
 
