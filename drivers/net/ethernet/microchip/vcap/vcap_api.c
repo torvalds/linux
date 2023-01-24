@@ -1757,6 +1757,22 @@ bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
 }
 EXPORT_SYMBOL_GPL(vcap_keyset_list_add);
 
+/* Add a actionset to a actionset list */
+static bool vcap_actionset_list_add(struct vcap_actionset_list *actionsetlist,
+				    enum vcap_actionfield_set actionset)
+{
+	int idx;
+
+	if (actionsetlist->cnt < actionsetlist->max) {
+		/* Avoid duplicates */
+		for (idx = 0; idx < actionsetlist->cnt; ++idx)
+			if (actionsetlist->actionsets[idx] == actionset)
+				return actionsetlist->cnt < actionsetlist->max;
+		actionsetlist->actionsets[actionsetlist->cnt++] = actionset;
+	}
+	return actionsetlist->cnt < actionsetlist->max;
+}
+
 /* map keyset id to a string with the keyset name */
 const char *vcap_keyset_name(struct vcap_control *vctrl,
 			     enum vcap_keyfield_set keyset)
@@ -1865,6 +1881,75 @@ bool vcap_rule_find_keysets(struct vcap_rule *rule,
 }
 EXPORT_SYMBOL_GPL(vcap_rule_find_keysets);
 
+/* Return the actionfield that matches a action in a actionset */
+static const struct vcap_field *
+vcap_find_actionset_actionfield(struct vcap_control *vctrl,
+				enum vcap_type vtype,
+				enum vcap_actionfield_set actionset,
+				enum vcap_action_field action)
+{
+	const struct vcap_field *fields;
+	int idx, count;
+
+	fields = vcap_actionfields(vctrl, vtype, actionset);
+	if (!fields)
+		return NULL;
+
+	/* Iterate the actionfields of the actionset */
+	count = vcap_actionfield_count(vctrl, vtype, actionset);
+	for (idx = 0; idx < count; ++idx) {
+		if (fields[idx].width == 0)
+			continue;
+
+		if (action == idx)
+			return &fields[idx];
+	}
+
+	return NULL;
+}
+
+/* Match a list of actions against the actionsets available in a vcap type */
+static bool vcap_rule_find_actionsets(struct vcap_rule_internal *ri,
+				      struct vcap_actionset_list *matches)
+{
+	int actionset, found, actioncount, map_size;
+	const struct vcap_client_actionfield *ckf;
+	const struct vcap_field **map;
+	enum vcap_type vtype;
+
+	vtype = ri->admin->vtype;
+	map = ri->vctrl->vcaps[vtype].actionfield_set_map;
+	map_size = ri->vctrl->vcaps[vtype].actionfield_set_size;
+
+	/* Get a count of the actionfields we want to match */
+	actioncount = 0;
+	list_for_each_entry(ckf, &ri->data.actionfields, ctrl.list)
+		++actioncount;
+
+	matches->cnt = 0;
+	/* Iterate the actionsets of the VCAP */
+	for (actionset = 0; actionset < map_size; ++actionset) {
+		if (!map[actionset])
+			continue;
+
+		/* Iterate the actions in the rule */
+		found = 0;
+		list_for_each_entry(ckf, &ri->data.actionfields, ctrl.list)
+			if (vcap_find_actionset_actionfield(ri->vctrl, vtype,
+							    actionset,
+							    ckf->ctrl.action))
+				++found;
+
+		/* Save the actionset if all actionfields were found */
+		if (found == actioncount)
+			if (!vcap_actionset_list_add(matches, actionset))
+				/* bail out when the quota is filled */
+				break;
+	}
+
+	return matches->cnt > 0;
+}
+
 /* Validate a rule with respect to available port keys */
 int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 {
@@ -1916,11 +2001,23 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 		return ret;
 	}
 	if (ri->data.actionset == VCAP_AFS_NO_VALUE) {
-		/* Later also actionsets will be matched against actions in
-		 * the rule, and the type will be set accordingly
-		 */
-		ri->data.exterr = VCAP_ERR_NO_ACTIONSET_MATCH;
-		return -EINVAL;
+		struct vcap_actionset_list matches = {};
+		enum vcap_actionfield_set actionsets[10];
+
+		matches.actionsets = actionsets;
+		matches.max = ARRAY_SIZE(actionsets);
+
+		/* Find an actionset that fits the rule actions */
+		if (!vcap_rule_find_actionsets(ri, &matches)) {
+			ri->data.exterr = VCAP_ERR_NO_ACTIONSET_MATCH;
+			return -EINVAL;
+		}
+		ret = vcap_set_rule_set_actionset(rule, actionsets[0]);
+		if (ret < 0) {
+			pr_err("%s:%d: actionset was not updated: %d\n",
+			       __func__, __LINE__, ret);
+			return ret;
+		}
 	}
 	vcap_add_type_keyfield(rule);
 	vcap_add_type_actionfield(rule);

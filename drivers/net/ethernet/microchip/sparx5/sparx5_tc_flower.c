@@ -991,11 +991,6 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 						       SPX5_PMM_REPLACE_ALL);
 			if (err)
 				goto out;
-			/* For now the actionset is hardcoded */
-			err = vcap_set_rule_set_actionset(vrule,
-							  VCAP_AFS_BASE_TYPE);
-			if (err)
-				goto out;
 			break;
 		case FLOW_ACTION_ACCEPT:
 			err = sparx5_tc_set_actionset(admin, vrule);
