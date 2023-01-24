@@ -46,12 +46,14 @@ static int st_ilps22qs_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id st_ilps22qs_ids[] = {
 	{ ST_ILPS22QS_DEV_NAME },
+	{ ST_ILPS28QWS_DEV_NAME },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, st_ilps22qs_ids);
 
 static const struct of_device_id st_ilps22qs_id_table[] = {
 	{ .compatible = "st," ST_ILPS22QS_DEV_NAME },
+	{ .compatible = "st," ST_ILPS28QWS_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_ilps22qs_id_table);

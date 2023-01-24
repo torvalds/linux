@@ -20,6 +20,7 @@
 #include <linux/workqueue.h>
 
 #define ST_ILPS22QS_DEV_NAME			"ilps22qs"
+#define ST_ILPS28QWS_DEV_NAME			"ilps28qws"
 
 #define ST_ILPS22QS_WHO_AM_I_ADDR		0x0f
 #define ST_ILPS22QS_WHOAMI_VAL			0xb4
