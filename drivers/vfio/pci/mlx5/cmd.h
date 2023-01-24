@@ -27,6 +27,8 @@ enum mlx5_vf_migf_state {
 enum mlx5_vf_load_state {
 	MLX5_VF_LOAD_STATE_READ_IMAGE_NO_HEADER,
 	MLX5_VF_LOAD_STATE_READ_HEADER,
+	MLX5_VF_LOAD_STATE_PREP_HEADER_DATA,
+	MLX5_VF_LOAD_STATE_READ_HEADER_DATA,
 	MLX5_VF_LOAD_STATE_PREP_IMAGE,
 	MLX5_VF_LOAD_STATE_READ_IMAGE,
 	MLX5_VF_LOAD_STATE_LOAD_IMAGE,
@@ -59,7 +61,6 @@ struct mlx5_vhca_data_buffer {
 	loff_t start_pos;
 	u64 length;
 	u64 allocated_length;
-	u64 header_image_size;
 	u32 mkey;
 	enum dma_data_direction dma_dir;
 	u8 dmaed:1;
@@ -89,6 +90,9 @@ struct mlx5_vf_migration_file {
 	enum mlx5_vf_load_state load_state;
 	u32 pdn;
 	loff_t max_pos;
+	u64 record_size;
+	u32 record_tag;
+	u64 stop_copy_prep_size;
 	u64 pre_copy_initial_bytes;
 	struct mlx5_vhca_data_buffer *buf;
 	struct mlx5_vhca_data_buffer *buf_header;

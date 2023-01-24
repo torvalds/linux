@@ -704,6 +704,56 @@ mlx5vf_resume_read_image(struct mlx5_vf_migration_file *migf,
 }
 
 static int
+mlx5vf_resume_read_header_data(struct mlx5_vf_migration_file *migf,
+			       struct mlx5_vhca_data_buffer *vhca_buf,
+			       const char __user **buf, size_t *len,
+			       loff_t *pos, ssize_t *done)
+{
+	size_t copy_len, to_copy;
+	size_t required_data;
+	u8 *to_buff;
+	int ret;
+
+	required_data = migf->record_size - vhca_buf->length;
+	to_copy = min_t(size_t, *len, required_data);
+	copy_len = to_copy;
+	while (to_copy) {
+		ret = mlx5vf_append_page_to_mig_buf(vhca_buf, buf, &to_copy, pos,
+						    done);
+		if (ret)
+			return ret;
+	}
+
+	*len -= copy_len;
+	if (vhca_buf->length == migf->record_size) {
+		switch (migf->record_tag) {
+		case MLX5_MIGF_HEADER_TAG_STOP_COPY_SIZE:
+		{
+			struct page *page;
+
+			page = mlx5vf_get_migration_page(vhca_buf, 0);
+			if (!page)
+				return -EINVAL;
+			to_buff = kmap_local_page(page);
+			migf->stop_copy_prep_size = min_t(u64,
+				le64_to_cpup((__le64 *)to_buff), MAX_LOAD_SIZE);
+			kunmap_local(to_buff);
+			break;
+		}
+		default:
+			/* Optional tag */
+			break;
+		}
+
+		migf->load_state = MLX5_VF_LOAD_STATE_READ_HEADER;
+		migf->max_pos += migf->record_size;
+		vhca_buf->length = 0;
+	}
+
+	return 0;
+}
+
+static int
 mlx5vf_resume_read_header(struct mlx5_vf_migration_file *migf,
 			  struct mlx5_vhca_data_buffer *vhca_buf,
 			  const char __user **buf,
@@ -733,23 +783,38 @@ mlx5vf_resume_read_header(struct mlx5_vf_migration_file *migf,
 	*len -= copy_len;
 	vhca_buf->length += copy_len;
 	if (vhca_buf->length == sizeof(struct mlx5_vf_migration_header)) {
-		u64 flags;
+		u64 record_size;
+		u32 flags;
 
-		vhca_buf->header_image_size = le64_to_cpup((__le64 *)to_buff);
-		if (vhca_buf->header_image_size > MAX_LOAD_SIZE) {
+		record_size = le64_to_cpup((__le64 *)to_buff);
+		if (record_size > MAX_LOAD_SIZE) {
 			ret = -ENOMEM;
 			goto end;
 		}
 
-		flags = le64_to_cpup((__le64 *)(to_buff +
+		migf->record_size = record_size;
+		flags = le32_to_cpup((__le32 *)(to_buff +
 			    offsetof(struct mlx5_vf_migration_header, flags)));
-		if (flags) {
-			ret = -EOPNOTSUPP;
-			goto end;
+		migf->record_tag = le32_to_cpup((__le32 *)(to_buff +
+			    offsetof(struct mlx5_vf_migration_header, tag)));
+		switch (migf->record_tag) {
+		case MLX5_MIGF_HEADER_TAG_FW_DATA:
+			migf->load_state = MLX5_VF_LOAD_STATE_PREP_IMAGE;
+			break;
+		case MLX5_MIGF_HEADER_TAG_STOP_COPY_SIZE:
+			migf->load_state = MLX5_VF_LOAD_STATE_PREP_HEADER_DATA;
+			break;
+		default:
+			if (!(flags & MLX5_MIGF_HEADER_FLAGS_TAG_OPTIONAL)) {
+				ret = -EOPNOTSUPP;
+				goto end;
+			}
+			/* We may read and skip this optional record data */
+			migf->load_state = MLX5_VF_LOAD_STATE_PREP_HEADER_DATA;
 		}
 
-		migf->load_state = MLX5_VF_LOAD_STATE_PREP_IMAGE;
 		migf->max_pos += vhca_buf->length;
+		vhca_buf->length = 0;
 		*has_work = true;
 	}
 end:
@@ -793,9 +858,34 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 			if (ret)
 				goto out_unlock;
 			break;
+		case MLX5_VF_LOAD_STATE_PREP_HEADER_DATA:
+			if (vhca_buf_header->allocated_length < migf->record_size) {
+				mlx5vf_free_data_buffer(vhca_buf_header);
+
+				migf->buf_header = mlx5vf_alloc_data_buffer(migf,
+						migf->record_size, DMA_NONE);
+				if (IS_ERR(migf->buf_header)) {
+					ret = PTR_ERR(migf->buf_header);
+					migf->buf_header = NULL;
+					goto out_unlock;
+				}
+
+				vhca_buf_header = migf->buf_header;
+			}
+
+			vhca_buf_header->start_pos = migf->max_pos;
+			migf->load_state = MLX5_VF_LOAD_STATE_READ_HEADER_DATA;
+			break;
+		case MLX5_VF_LOAD_STATE_READ_HEADER_DATA:
+			ret = mlx5vf_resume_read_header_data(migf, vhca_buf_header,
+							&buf, &len, pos, &done);
+			if (ret)
+				goto out_unlock;
+			break;
 		case MLX5_VF_LOAD_STATE_PREP_IMAGE:
 		{
-			u64 size = vhca_buf_header->header_image_size;
+			u64 size = max(migf->record_size,
+				       migf->stop_copy_prep_size);
 
 			if (vhca_buf->allocated_length < size) {
 				mlx5vf_free_data_buffer(vhca_buf);
@@ -824,7 +914,7 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 			break;
 		case MLX5_VF_LOAD_STATE_READ_IMAGE:
 			ret = mlx5vf_resume_read_image(migf, vhca_buf,
-						vhca_buf_header->header_image_size,
+						migf->record_size,
 						&buf, &len, pos, &done, &has_work);
 			if (ret)
 				goto out_unlock;
@@ -837,7 +927,6 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 
 			/* prep header buf for next image */
 			vhca_buf_header->length = 0;
-			vhca_buf_header->header_image_size = 0;
 			/* prep data buf for next image */
 			vhca_buf->length = 0;
 
