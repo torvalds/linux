@@ -1276,8 +1276,8 @@ choice
 		depends on MACH_STM32MP157
 		select DEBUG_STM32_UART
 		help
-		  Say Y here if you want kernel low-level debugging support
-		  on STM32MP1 based platforms, wich default UART is wired on
+		  Say Y here if you want kernel low-level debugging support on
+		  STM32MP1-based platforms, where the default UART is wired to
 		  UART4, but another UART instance can be selected by modifying
 		  CONFIG_DEBUG_UART_PHYS and CONFIG_DEBUG_UART_VIRT.
 

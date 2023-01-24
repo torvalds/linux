@@ -743,7 +743,7 @@ config SWP_EMULATE
 	  If unsure, say Y.
 
 choice
-	prompt "CPU Endianess"
+	prompt "CPU Endianness"
 	default CPU_LITTLE_ENDIAN
 
 config CPU_LITTLE_ENDIAN
