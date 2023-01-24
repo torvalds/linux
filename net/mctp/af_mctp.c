@@ -544,9 +544,6 @@ static int mctp_sk_init(struct sock *sk)
 
 static void mctp_sk_close(struct sock *sk, long timeout)
 {
-	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
-
-	del_timer_sync(&msk->key_expiry);
 	sk_common_release(sk);
 }
 
@@ -581,6 +578,12 @@ static void mctp_sk_unhash(struct sock *sk)
 		__mctp_key_remove(key, net, fl2, MCTP_TRACE_KEY_CLOSED);
 	}
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
+
+	/* Since there are no more tag allocations (we have removed all of the
+	 * keys), stop any pending expiry events. the timer cannot be re-queued
+	 * as the sk is no longer observable
+	 */
+	del_timer_sync(&msk->key_expiry);
 }
 
 static struct proto mctp_proto = {
