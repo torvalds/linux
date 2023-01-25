@@ -81,7 +81,7 @@
 #define SSD130X_SET_PRECHARGE_PERIOD2_MASK	GENMASK(7, 4)
 #define SSD130X_SET_PRECHARGE_PERIOD2_SET(val)	FIELD_PREP(SSD130X_SET_PRECHARGE_PERIOD2_MASK, (val))
 #define SSD130X_SET_COM_PINS_CONFIG1_MASK	GENMASK(4, 4)
-#define SSD130X_SET_COM_PINS_CONFIG1_SET(val)	FIELD_PREP(SSD130X_SET_COM_PINS_CONFIG1_MASK, !(val))
+#define SSD130X_SET_COM_PINS_CONFIG1_SET(val)	FIELD_PREP(SSD130X_SET_COM_PINS_CONFIG1_MASK, (val))
 #define SSD130X_SET_COM_PINS_CONFIG2_MASK	GENMASK(5, 5)
 #define SSD130X_SET_COM_PINS_CONFIG2_SET(val)	FIELD_PREP(SSD130X_SET_COM_PINS_CONFIG2_MASK, (val))
 
@@ -298,6 +298,7 @@ static void ssd130x_power_off(struct ssd130x_device *ssd130x)
 static int ssd130x_init(struct ssd130x_device *ssd130x)
 {
 	u32 precharge, dclk, com_invdir, compins, chargepump, seg_remap;
+	bool scan_mode;
 	int ret;
 
 	/* Set initial contrast */
@@ -360,7 +361,13 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 
 	/* Set COM pins configuration */
 	compins = BIT(1);
-	compins |= (SSD130X_SET_COM_PINS_CONFIG1_SET(ssd130x->com_seq) |
+	/*
+	 * The COM scan mode field values are the inverse of the boolean DT
+	 * property "solomon,com-seq". The value 0b means scan from COM0 to
+	 * COM[N - 1] while 1b means scan from COM[N - 1] to COM0.
+	 */
+	scan_mode = !ssd130x->com_seq;
+	compins |= (SSD130X_SET_COM_PINS_CONFIG1_SET(scan_mode) |
 		    SSD130X_SET_COM_PINS_CONFIG2_SET(ssd130x->com_lrremap));
 	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_COM_PINS_CONFIG, compins);
 	if (ret < 0)
