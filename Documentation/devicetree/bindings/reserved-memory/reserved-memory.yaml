@@ -31,17 +31,17 @@ properties:
   reg: true
 
   size:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-    minItems: 1
-    maxItems: 2
+    oneOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - $ref: /schemas/types.yaml#/definitions/uint64
     description: >
       Length based on parent's \#size-cells. Size in bytes of memory to
       reserve.
 
   alignment:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-    minItems: 1
-    maxItems: 2
+    oneOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - $ref: /schemas/types.yaml#/definitions/uint64
     description: >
       Length based on parent's \#size-cells. Address boundary for
       alignment of allocation.
