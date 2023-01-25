@@ -20,19 +20,19 @@
 #define CHTDC_TI_GPADC		0x5a
 
 static struct pmic_table chtdc_ti_power_table[] = {
-	{ .address = 0x00, .reg = 0x41 },
-	{ .address = 0x04, .reg = 0x42 },
-	{ .address = 0x08, .reg = 0x43 },
-	{ .address = 0x0c, .reg = 0x45 },
-	{ .address = 0x10, .reg = 0x46 },
-	{ .address = 0x14, .reg = 0x47 },
-	{ .address = 0x18, .reg = 0x48 },
-	{ .address = 0x1c, .reg = 0x49 },
-	{ .address = 0x20, .reg = 0x4a },
-	{ .address = 0x24, .reg = 0x4b },
-	{ .address = 0x28, .reg = 0x4c },
-	{ .address = 0x2c, .reg = 0x4d },
-	{ .address = 0x30, .reg = 0x4e },
+	{ .address = 0x00, .reg = 0x41 }, /* LDO1 */
+	{ .address = 0x04, .reg = 0x42 }, /* LDO2 */
+	{ .address = 0x08, .reg = 0x43 }, /* LDO3 */
+	{ .address = 0x0c, .reg = 0x45 }, /* LDO5 */
+	{ .address = 0x10, .reg = 0x46 }, /* LDO6 */
+	{ .address = 0x14, .reg = 0x47 }, /* LDO7 */
+	{ .address = 0x18, .reg = 0x48 }, /* LDO8 */
+	{ .address = 0x1c, .reg = 0x49 }, /* LDO9 */
+	{ .address = 0x20, .reg = 0x4a }, /* LD10 */
+	{ .address = 0x24, .reg = 0x4b }, /* LD11 */
+	{ .address = 0x28, .reg = 0x4c }, /* LD12 */
+	{ .address = 0x2c, .reg = 0x4d }, /* LD13 */
+	{ .address = 0x30, .reg = 0x4e }, /* LD14 */
 };
 
 static struct pmic_table chtdc_ti_thermal_table[] = {
