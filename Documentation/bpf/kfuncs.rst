@@ -1,3 +1,7 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+.. _kfuncs-header-label:
+
 =============================
 BPF Kernel Functions (kfuncs)
 =============================
@@ -420,3 +424,10 @@ the verifier. bpf_cgroup_ancestor() can be used as follows:
 		bpf_cgroup_release(parent);
 		return 0;
 	}
+
+3.3 struct cpumask * kfuncs
+---------------------------
+
+BPF provides a set of kfuncs that can be used to query, allocate, mutate, and
+destroy struct cpumask * objects. Please refer to :ref:`cpumasks-header-label`
+for more details.
