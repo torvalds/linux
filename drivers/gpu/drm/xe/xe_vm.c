@@ -1429,10 +1429,12 @@ static void vm_destroy_work_func(struct work_struct *w)
 		xe_device_mem_access_put(xe);
 		xe_pm_runtime_put(xe);
 
-		mutex_lock(&xe->usm.lock);
-		lookup = xa_erase(&xe->usm.asid_to_vm, vm->usm.asid);
-		XE_WARN_ON(lookup != vm);
-		mutex_unlock(&xe->usm.lock);
+		if (xe->info.supports_usm) {
+			mutex_lock(&xe->usm.lock);
+			lookup = xa_erase(&xe->usm.asid_to_vm, vm->usm.asid);
+			XE_WARN_ON(lookup != vm);
+			mutex_unlock(&xe->usm.lock);
+		}
 	}
 
 	/*
@@ -1917,16 +1919,18 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 		return err;
 	}
 
-	mutex_lock(&xe->usm.lock);
-	err = xa_alloc_cyclic(&xe->usm.asid_to_vm, &asid, vm,
-			      XA_LIMIT(0, XE_MAX_ASID - 1),
-			      &xe->usm.next_asid, GFP_KERNEL);
-	mutex_unlock(&xe->usm.lock);
-	if (err) {
-		xe_vm_close_and_put(vm);
-		return err;
+	if (xe->info.supports_usm) {
+		mutex_lock(&xe->usm.lock);
+		err = xa_alloc_cyclic(&xe->usm.asid_to_vm, &asid, vm,
+				      XA_LIMIT(0, XE_MAX_ASID - 1),
+				      &xe->usm.next_asid, GFP_KERNEL);
+		mutex_unlock(&xe->usm.lock);
+		if (err) {
+			xe_vm_close_and_put(vm);
+			return err;
+		}
+		vm->usm.asid = asid;
 	}
-	vm->usm.asid = asid;
 
 	args->vm_id = id;
 
