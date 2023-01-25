@@ -991,17 +991,6 @@ int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
 u32 ethtool_op_get_link(struct net_device *dev);
 int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *eti);
 
-void ethtool_aggregate_mac_stats(struct net_device *dev,
-				 struct ethtool_eth_mac_stats *mac_stats);
-void ethtool_aggregate_phy_stats(struct net_device *dev,
-				 struct ethtool_eth_phy_stats *phy_stats);
-void ethtool_aggregate_ctrl_stats(struct net_device *dev,
-				  struct ethtool_eth_ctrl_stats *ctrl_stats);
-void ethtool_aggregate_pause_stats(struct net_device *dev,
-				   struct ethtool_pause_stats *pause_stats);
-void ethtool_aggregate_rmon_stats(struct net_device *dev,
-				  struct ethtool_rmon_stats *rmon_stats);
-
 /**
  * ethtool_mm_frag_size_add_to_min - Translate (standard) additional fragment
  *	size expressed as multiplier into (absolute) minimum fragment size
