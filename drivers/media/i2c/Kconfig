@@ -784,15 +784,6 @@ config VIDEO_S5K6A3
 	  This is a V4L2 sensor driver for Samsung S5K6A3 raw
 	  camera sensor.
 
-config VIDEO_S5K6AA
-	tristate "Samsung S5K6AAFX sensor support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  This is a V4L2 sensor driver for Samsung S5K6AA(FX) 1.3M
-	  camera sensor with an embedded SoC image signal processor.
-
 config VIDEO_SR030PC30
 	tristate "Siliconfile SR030PC30 sensor support"
 	depends on I2C && VIDEO_DEV
