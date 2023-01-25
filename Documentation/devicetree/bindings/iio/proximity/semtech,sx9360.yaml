@@ -36,7 +36,7 @@ properties:
     const: 1
 
   semtech,resolution:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [8, 16, 32, 64, 128, 256, 512, 1024]
     description:
       Capacitance measurement resolution. For both phases, "reference" and
