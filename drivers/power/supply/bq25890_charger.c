@@ -126,6 +126,7 @@ struct bq25890_device {
 	bool read_back_init_data;
 	bool force_hiz;
 	u32 pump_express_vbus_max;
+	u32 iinlim_percentage;
 	enum bq25890_chip_version chip_version;
 	struct bq25890_init_data init_data;
 	struct bq25890_state state;
@@ -727,6 +728,18 @@ static int bq25890_power_supply_property_is_writeable(struct power_supply *psy,
 	}
 }
 
+/*
+ * If there are multiple chargers the maximum current the external power-supply
+ * can deliver needs to be divided over the chargers. This is done according
+ * to the bq->iinlim_percentage setting.
+ */
+static int bq25890_charger_get_scaled_iinlim_regval(struct bq25890_device *bq,
+						    int iinlim_ua)
+{
+	iinlim_ua = iinlim_ua * bq->iinlim_percentage / 100;
+	return bq25890_find_idx(iinlim_ua, TBL_IINLIM);
+}
+
 /* On the BQ25892 try to get charger-type info from our supplier */
 static void bq25890_charger_external_power_changed(struct power_supply *psy)
 {
@@ -745,7 +758,7 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 
 	switch (val.intval) {
 	case POWER_SUPPLY_USB_TYPE_DCP:
-		input_current_limit = bq25890_find_idx(2000000, TBL_IINLIM);
+		input_current_limit = bq25890_charger_get_scaled_iinlim_regval(bq, 2000000);
 		if (bq->pump_express_vbus_max) {
 			queue_delayed_work(system_power_efficient_wq,
 					   &bq->pump_express_work,
@@ -754,11 +767,11 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 		break;
 	case POWER_SUPPLY_USB_TYPE_CDP:
 	case POWER_SUPPLY_USB_TYPE_ACA:
-		input_current_limit = bq25890_find_idx(1500000, TBL_IINLIM);
+		input_current_limit = bq25890_charger_get_scaled_iinlim_regval(bq, 1500000);
 		break;
 	case POWER_SUPPLY_USB_TYPE_SDP:
 	default:
-		input_current_limit = bq25890_find_idx(500000, TBL_IINLIM);
+		input_current_limit = bq25890_charger_get_scaled_iinlim_regval(bq, 500000);
 	}
 
 	bq25890_field_write(bq, F_IINLIM, input_current_limit);
@@ -1378,6 +1391,7 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 	int ret;
 	struct bq25890_init_data *init = &bq->init_data;
 	const char *str;
+	u32 val;
 
 	ret = device_property_read_string(bq->dev, "linux,secondary-charger-name", &str);
 	if (ret == 0) {
@@ -1389,6 +1403,17 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 	/* Optional, left at 0 if property is not present */
 	device_property_read_u32(bq->dev, "linux,pump-express-vbus-max",
 				 &bq->pump_express_vbus_max);
+
+	ret = device_property_read_u32(bq->dev, "linux,iinlim-percentage", &val);
+	if (ret == 0) {
+		if (val > 100) {
+			dev_err(bq->dev, "Error linux,iinlim-percentage %u > 100\n", val);
+			return -EINVAL;
+		}
+		bq->iinlim_percentage = val;
+	} else {
+		bq->iinlim_percentage = 100;
+	}
 
 	bq->skip_reset = device_property_read_bool(bq->dev, "linux,skip-reset");
 	bq->read_back_init_data = device_property_read_bool(bq->dev,
