@@ -73,8 +73,8 @@ do {									\
 #define bch2_trans_inconsistent(trans, ...)				\
 ({									\
 	bch_err(trans->c, __VA_ARGS__);					\
-	bch2_inconsistent_error(trans->c);				\
 	bch2_dump_trans_updates(trans);					\
+	bch2_inconsistent_error(trans->c);				\
 })
 
 #define bch2_trans_inconsistent_on(cond, trans, ...)			\
