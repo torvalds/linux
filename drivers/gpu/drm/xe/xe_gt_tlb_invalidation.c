@@ -92,16 +92,10 @@ int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 }
 
 static int send_tlb_invalidation(struct xe_guc *guc,
-				 struct xe_gt_tlb_invalidation_fence *fence)
+				 struct xe_gt_tlb_invalidation_fence *fence,
+				 u32 *action, int len)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
-	u32 action[] = {
-		XE_GUC_ACTION_TLB_INVALIDATION,
-		0,
-		XE_GUC_TLB_INVAL_FULL << XE_GUC_TLB_INVAL_TYPE_SHIFT |
-		XE_GUC_TLB_INVAL_MODE_HEAVY << XE_GUC_TLB_INVAL_MODE_SHIFT |
-		XE_GUC_TLB_INVAL_FLUSH_CACHE,
-	};
 	int seqno;
 	int ret;
 	bool queue_work;
@@ -125,7 +119,7 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 		TLB_INVALIDATION_SEQNO_MAX;
 	if (!gt->tlb_invalidation.seqno)
 		gt->tlb_invalidation.seqno = 1;
-	ret = xe_guc_ct_send_locked(&guc->ct, action, ARRAY_SIZE(action),
+	ret = xe_guc_ct_send_locked(&guc->ct, action, len,
 				    G2H_LEN_DW_TLB_INVALIDATE, 1);
 	if (!ret && fence) {
 		fence->invalidation_time = ktime_get();
@@ -146,18 +140,83 @@ static int send_tlb_invalidation(struct xe_guc *guc,
  * @gt: graphics tile
  * @fence: invalidation fence which will be signal on TLB invalidation
  * completion, can be NULL
+ * @vma: VMA to invalidate
  *
- * Issue a full TLB invalidation on the GT. Completion of TLB is asynchronous
- * and caller can either use the invalidation fence or seqno +
- * xe_gt_tlb_invalidation_wait to wait for completion.
+ * Issue a range based TLB invalidation if supported, if not fallback to a full
+ * TLB invalidation. Completion of TLB is asynchronous and caller can either use
+ * the invalidation fence or seqno + xe_gt_tlb_invalidation_wait to wait for
+ * completion.
  *
  * Return: Seqno which can be passed to xe_gt_tlb_invalidation_wait on success,
  * negative error code on error.
  */
 int xe_gt_tlb_invalidation(struct xe_gt *gt,
-			   struct xe_gt_tlb_invalidation_fence *fence)
+			   struct xe_gt_tlb_invalidation_fence *fence,
+			   struct xe_vma *vma)
 {
-	return send_tlb_invalidation(&gt->uc.guc, fence);
+	struct xe_device *xe = gt_to_xe(gt);
+#define MAX_TLB_INVALIDATION_LEN	7
+	u32 action[MAX_TLB_INVALIDATION_LEN];
+	int len = 0;
+
+	XE_BUG_ON(!vma);
+
+	if (!xe->info.has_range_tlb_invalidation) {
+		action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
+		action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
+#define MAKE_INVAL_OP(type)	((type << XE_GUC_TLB_INVAL_TYPE_SHIFT) | \
+		XE_GUC_TLB_INVAL_MODE_HEAVY << XE_GUC_TLB_INVAL_MODE_SHIFT | \
+		XE_GUC_TLB_INVAL_FLUSH_CACHE)
+		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL);
+	} else {
+		u64 start = vma->start;
+		u64 length = vma->end - vma->start + 1;
+		u64 align, end;
+
+		if (length < SZ_4K)
+			length = SZ_4K;
+
+		/*
+		 * We need to invalidate a higher granularity if start address
+		 * is not aligned to length. When start is not aligned with
+		 * length we need to find the length large enough to create an
+		 * address mask covering the required range.
+		 */
+		align = roundup_pow_of_two(length);
+		start = ALIGN_DOWN(vma->start, align);
+		end = ALIGN(vma->start + length, align);
+		length = align;
+		while (start + length < end) {
+			length <<= 1;
+			start = ALIGN_DOWN(vma->start, length);
+		}
+
+		/*
+		 * Minimum invalidation size for a 2MB page that the hardware
+		 * expects is 16MB
+		 */
+		if (length >= SZ_2M) {
+			length = max_t(u64, SZ_16M, length);
+			start = ALIGN_DOWN(vma->start, length);
+		}
+
+		XE_BUG_ON(length < SZ_4K);
+		XE_BUG_ON(!is_power_of_2(length));
+		XE_BUG_ON(length & GENMASK(ilog2(SZ_16M) - 1, ilog2(SZ_2M) + 1));
+		XE_BUG_ON(!IS_ALIGNED(start, length));
+
+		action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
+		action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
+		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_PAGE_SELECTIVE);
+		action[len++] = vma->vm->usm.asid;
+		action[len++] = lower_32_bits(start);
+		action[len++] = upper_32_bits(start);
+		action[len++] = ilog2(length) - ilog2(SZ_4K);
+	}
+
+	XE_BUG_ON(len > MAX_TLB_INVALIDATION_LEN);
+
+	return send_tlb_invalidation(&gt->uc.guc, fence, action, len);
 }
 
 static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)

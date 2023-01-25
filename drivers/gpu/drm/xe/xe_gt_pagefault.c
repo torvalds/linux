@@ -240,12 +240,7 @@ unlock_vm:
 		goto retry_userptr;
 
 	if (!ret) {
-		/*
-		 * FIXME: Doing a full TLB invalidation for now, likely could
-		 * defer TLB invalidate + fault response to a callback of fence
-		 * too
-		 */
-		ret = xe_gt_tlb_invalidation(gt, NULL);
+		ret = xe_gt_tlb_invalidation(gt, NULL, vma);
 		if (ret >= 0)
 			ret = 0;
 	}
