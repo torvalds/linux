@@ -28,7 +28,7 @@ static struct __tasks_kfunc_map_value *insert_lookup_task(struct task_struct *ta
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("R1 must be referenced or trusted")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_acquire_untrusted, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
@@ -86,7 +86,7 @@ int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 cl
 
 
 SEC("tp_btf/task_newtask")
-__failure __msg("arg#0 pointer type STRUCT task_struct must point")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(task_kfunc_acquire_null, struct task_struct *task, u64 clone_flags)
 {
 	struct task_struct *acquired;
