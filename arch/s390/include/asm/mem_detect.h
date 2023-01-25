@@ -40,11 +40,8 @@ void add_mem_detect_block(u64 start, u64 end);
 static inline int __get_mem_detect_block(u32 n, unsigned long *start,
 					 unsigned long *end)
 {
-	if (n >= mem_detect.count) {
-		*start = 0;
-		*end = 0;
+	if (n >= mem_detect.count)
 		return -1;
-	}
 
 	if (n < MEM_INLINED_ENTRIES) {
 		*start = (unsigned long)mem_detect.entries[n].start;
