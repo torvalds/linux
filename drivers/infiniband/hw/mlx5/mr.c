@@ -292,11 +292,13 @@ static void set_cache_mkc(struct mlx5_cache_ent *ent, void *mkc)
 	set_mkc_access_pd_addr_fields(mkc, 0, 0, ent->dev->umrc.pd);
 	MLX5_SET(mkc, mkc, free, 1);
 	MLX5_SET(mkc, mkc, umr_en, 1);
-	MLX5_SET(mkc, mkc, access_mode_1_0, ent->access_mode & 0x3);
-	MLX5_SET(mkc, mkc, access_mode_4_2, (ent->access_mode >> 2) & 0x7);
+	MLX5_SET(mkc, mkc, access_mode_1_0, ent->rb_key.access_mode & 0x3);
+	MLX5_SET(mkc, mkc, access_mode_4_2,
+		(ent->rb_key.access_mode >> 2) & 0x7);
 
 	MLX5_SET(mkc, mkc, translations_octword_size,
-		 get_mkc_octo_size(ent->access_mode, ent->ndescs));
+		 get_mkc_octo_size(ent->rb_key.access_mode,
+				   ent->rb_key.ndescs));
 	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
 }
 
@@ -594,8 +596,8 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 			if (err != -EAGAIN) {
 				mlx5_ib_warn(
 					dev,
-					"command failed order %d, err %d\n",
-					ent->order, err);
+					"add keys command failed, err %d\n",
+					err);
 				queue_delayed_work(cache->wq, &ent->dwork,
 						   msecs_to_jiffies(1000));
 			}
@@ -641,22 +643,49 @@ static void delayed_cache_work_func(struct work_struct *work)
 	__cache_work_func(ent);
 }
 
+static int cache_ent_key_cmp(struct mlx5r_cache_rb_key key1,
+			     struct mlx5r_cache_rb_key key2)
+{
+	int res;
+
+	res = key1.ats - key2.ats;
+	if (res)
+		return res;
+
+	res = key1.access_mode - key2.access_mode;
+	if (res)
+		return res;
+
+	res = key1.access_flags - key2.access_flags;
+	if (res)
+		return res;
+
+	/*
+	 * keep ndescs the last in the compare table since the find function
+	 * searches for an exact match on all properties and only closest
+	 * match in size.
+	 */
+	return key1.ndescs - key2.ndescs;
+}
+
 static int mlx5_cache_ent_insert(struct mlx5_mkey_cache *cache,
 				 struct mlx5_cache_ent *ent)
 {
 	struct rb_node **new = &cache->rb_root.rb_node, *parent = NULL;
 	struct mlx5_cache_ent *cur;
+	int cmp;
 
 	mutex_lock(&cache->rb_lock);
 	/* Figure out where to put new node */
 	while (*new) {
 		cur = rb_entry(*new, struct mlx5_cache_ent, node);
 		parent = *new;
-		if (ent->order < cur->order)
+		cmp = cache_ent_key_cmp(cur->rb_key, ent->rb_key);
+		if (cmp > 0)
 			new = &((*new)->rb_left);
-		if (ent->order > cur->order)
+		if (cmp < 0)
 			new = &((*new)->rb_right);
-		if (ent->order == cur->order) {
+		if (cmp == 0) {
 			mutex_unlock(&cache->rb_lock);
 			return -EEXIST;
 		}
@@ -670,39 +699,44 @@ static int mlx5_cache_ent_insert(struct mlx5_mkey_cache *cache,
 	return 0;
 }
 
-static struct mlx5_cache_ent *mkey_cache_ent_from_order(struct mlx5_ib_dev *dev,
-							unsigned int order)
+static struct mlx5_cache_ent *
+mkey_cache_ent_from_rb_key(struct mlx5_ib_dev *dev,
+			   struct mlx5r_cache_rb_key rb_key)
 {
 	struct rb_node *node = dev->cache.rb_root.rb_node;
 	struct mlx5_cache_ent *cur, *smallest = NULL;
+	int cmp;
 
 	/*
 	 * Find the smallest ent with order >= requested_order.
 	 */
 	while (node) {
 		cur = rb_entry(node, struct mlx5_cache_ent, node);
-		if (cur->order > order) {
+		cmp = cache_ent_key_cmp(cur->rb_key, rb_key);
+		if (cmp > 0) {
 			smallest = cur;
 			node = node->rb_left;
 		}
-		if (cur->order < order)
+		if (cmp < 0)
 			node = node->rb_right;
-		if (cur->order == order)
+		if (cmp == 0)
 			return cur;
 	}
 
-	return smallest;
+	return (smallest &&
+		smallest->rb_key.access_mode == rb_key.access_mode &&
+		smallest->rb_key.access_flags == rb_key.access_flags &&
+		smallest->rb_key.ats == rb_key.ats) ?
+		       smallest :
+		       NULL;
 }
 
-struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
-				       struct mlx5_cache_ent *ent,
-				       int access_flags)
+static struct mlx5_ib_mr *_mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
+					struct mlx5_cache_ent *ent,
+					int access_flags)
 {
 	struct mlx5_ib_mr *mr;
 	int err;
-
-	if (!mlx5r_umr_can_reconfig(dev, 0, access_flags))
-		return ERR_PTR(-EOPNOTSUPP);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
@@ -734,12 +768,44 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	return mr;
 }
 
-struct mlx5_ib_mr *mlx5_mr_cache_alloc_order(struct mlx5_ib_dev *dev,
-					     u32 order, int access_flags)
+static int get_unchangeable_access_flags(struct mlx5_ib_dev *dev,
+					 int access_flags)
 {
-	struct mlx5_cache_ent *ent = mkey_cache_ent_from_order(dev, order);
+	int ret = 0;
 
-	return mlx5_mr_cache_alloc(dev, ent, access_flags);
+	if ((access_flags & IB_ACCESS_REMOTE_ATOMIC) &&
+	    MLX5_CAP_GEN(dev->mdev, atomic) &&
+	    MLX5_CAP_GEN(dev->mdev, umr_modify_atomic_disabled))
+		ret |= IB_ACCESS_REMOTE_ATOMIC;
+
+	if ((access_flags & IB_ACCESS_RELAXED_ORDERING) &&
+	    MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write) &&
+	    !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write_umr))
+		ret |= IB_ACCESS_RELAXED_ORDERING;
+
+	if ((access_flags & IB_ACCESS_RELAXED_ORDERING) &&
+	    MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read) &&
+	    !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_umr))
+		ret |= IB_ACCESS_RELAXED_ORDERING;
+
+	return ret;
+}
+
+struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
+				       int access_flags, int access_mode,
+				       int ndescs)
+{
+	struct mlx5r_cache_rb_key rb_key = {
+		.ndescs = ndescs,
+		.access_mode = access_mode,
+		.access_flags = get_unchangeable_access_flags(dev, access_flags)
+	};
+	struct mlx5_cache_ent *ent = mkey_cache_ent_from_rb_key(dev, rb_key);
+
+	if (!ent)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return _mlx5_mr_cache_alloc(dev, ent, access_flags);
 }
 
 static void clean_keys(struct mlx5_ib_dev *dev, struct mlx5_cache_ent *ent)
@@ -766,28 +832,32 @@ static void mlx5_mkey_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
 	dev->cache.fs_root = NULL;
 }
 
+static void mlx5_mkey_cache_debugfs_add_ent(struct mlx5_ib_dev *dev,
+					    struct mlx5_cache_ent *ent)
+{
+	int order = order_base_2(ent->rb_key.ndescs);
+	struct dentry *dir;
+
+	if (ent->rb_key.access_mode == MLX5_MKC_ACCESS_MODE_KSM)
+		order = MLX5_IMR_KSM_CACHE_ENTRY + 2;
+
+	sprintf(ent->name, "%d", order);
+	dir = debugfs_create_dir(ent->name, dev->cache.fs_root);
+	debugfs_create_file("size", 0600, dir, ent, &size_fops);
+	debugfs_create_file("limit", 0600, dir, ent, &limit_fops);
+	debugfs_create_ulong("cur", 0400, dir, &ent->stored);
+	debugfs_create_u32("miss", 0600, dir, &ent->miss);
+}
+
 static void mlx5_mkey_cache_debugfs_init(struct mlx5_ib_dev *dev)
 {
+	struct dentry *dbg_root = mlx5_debugfs_get_dev_root(dev->mdev);
 	struct mlx5_mkey_cache *cache = &dev->cache;
-	struct mlx5_cache_ent *ent;
-	struct dentry *dir;
-	int i;
 
 	if (!mlx5_debugfs_root || dev->is_rep)
 		return;
 
-	dir = mlx5_debugfs_get_dev_root(dev->mdev);
-	cache->fs_root = debugfs_create_dir("mr_cache", dir);
-
-	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++) {
-		ent = mkey_cache_ent_from_order(dev, i);
-		sprintf(ent->name, "%d", ent->order);
-		dir = debugfs_create_dir(ent->name, cache->fs_root);
-		debugfs_create_file("size", 0600, dir, ent, &size_fops);
-		debugfs_create_file("limit", 0600, dir, ent, &limit_fops);
-		debugfs_create_ulong("cur", 0400, dir, &ent->stored);
-		debugfs_create_u32("miss", 0600, dir, &ent->miss);
-	}
+	cache->fs_root = debugfs_create_dir("mr_cache", dbg_root);
 }
 
 static void delay_time_func(struct timer_list *t)
@@ -798,9 +868,11 @@ static void delay_time_func(struct timer_list *t)
 }
 
 struct mlx5_cache_ent *mlx5r_cache_create_ent(struct mlx5_ib_dev *dev,
-					      int order)
+					      struct mlx5r_cache_rb_key rb_key,
+					      bool persistent_entry)
 {
 	struct mlx5_cache_ent *ent;
+	int order;
 	int ret;
 
 	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
@@ -808,7 +880,7 @@ struct mlx5_cache_ent *mlx5r_cache_create_ent(struct mlx5_ib_dev *dev,
 		return ERR_PTR(-ENOMEM);
 
 	xa_init_flags(&ent->mkeys, XA_FLAGS_LOCK_IRQ);
-	ent->order = order;
+	ent->rb_key = rb_key;
 	ent->dev = dev;
 
 	INIT_DELAYED_WORK(&ent->dwork, delayed_cache_work_func);
@@ -818,13 +890,36 @@ struct mlx5_cache_ent *mlx5r_cache_create_ent(struct mlx5_ib_dev *dev,
 		kfree(ent);
 		return ERR_PTR(ret);
 	}
+
+	if (persistent_entry) {
+		if (rb_key.access_mode == MLX5_MKC_ACCESS_MODE_KSM)
+			order = MLX5_IMR_KSM_CACHE_ENTRY;
+		else
+			order = order_base_2(rb_key.ndescs) - 2;
+
+		if ((dev->mdev->profile.mask & MLX5_PROF_MASK_MR_CACHE) &&
+		    !dev->is_rep && mlx5_core_is_pf(dev->mdev) &&
+		    mlx5r_umr_can_load_pas(dev, 0))
+			ent->limit = dev->mdev->profile.mr_cache[order].limit;
+		else
+			ent->limit = 0;
+
+		mlx5_mkey_cache_debugfs_add_ent(dev, ent);
+	}
+
 	return ent;
 }
 
 int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_mkey_cache *cache = &dev->cache;
+	struct rb_root *root = &dev->cache.rb_root;
+	struct mlx5r_cache_rb_key rb_key = {
+		.access_mode = MLX5_MKC_ACCESS_MODE_MTT,
+	};
 	struct mlx5_cache_ent *ent;
+	struct rb_node *node;
+	int ret;
 	int i;
 
 	mutex_init(&dev->slow_path_mutex);
@@ -838,33 +933,32 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 
 	mlx5_cmd_init_async_ctx(dev->mdev, &dev->async_ctx);
 	timer_setup(&dev->delay_timer, delay_time_func, 0);
-	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++) {
-		ent = mlx5r_cache_create_ent(dev, i);
-
-		if (i > MKEY_CACHE_LAST_STD_ENTRY) {
-			mlx5_odp_init_mkey_cache_entry(ent);
-			continue;
+	mlx5_mkey_cache_debugfs_init(dev);
+	for (i = 0; i <= mkey_cache_max_order(dev); i++) {
+		rb_key.ndescs = 1 << (i + 2);
+		ent = mlx5r_cache_create_ent(dev, rb_key, true);
+		if (IS_ERR(ent)) {
+			ret = PTR_ERR(ent);
+			goto err;
 		}
+	}
 
-		if (ent->order > mkey_cache_max_order(dev))
-			continue;
+	ret = mlx5_odp_init_mkey_cache(dev);
+	if (ret)
+		goto err;
 
-		ent->ndescs = 1 << ent->order;
-		ent->access_mode = MLX5_MKC_ACCESS_MODE_MTT;
-		if ((dev->mdev->profile.mask & MLX5_PROF_MASK_MR_CACHE) &&
-		    !dev->is_rep && mlx5_core_is_pf(dev->mdev) &&
-		    mlx5r_umr_can_load_pas(dev, 0))
-			ent->limit = dev->mdev->profile.mr_cache[i].limit;
-		else
-			ent->limit = 0;
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		ent = rb_entry(node, struct mlx5_cache_ent, node);
 		xa_lock_irq(&ent->mkeys);
 		queue_adjust_cache_locked(ent);
 		xa_unlock_irq(&ent->mkeys);
 	}
 
-	mlx5_mkey_cache_debugfs_init(dev);
-
 	return 0;
+
+err:
+	mlx5_ib_warn(dev, "failed to create mkey cache entry\n");
+	return ret;
 }
 
 int mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
@@ -965,7 +1059,7 @@ static int get_octo_len(u64 addr, u64 len, int page_shift)
 static int mkey_cache_max_order(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, umr_extended_translation_offset))
-		return MKEY_CACHE_LAST_STD_ENTRY + 2;
+		return MKEY_CACHE_LAST_STD_ENTRY;
 	return MLX5_MAX_UMR_SHIFT;
 }
 
@@ -995,6 +1089,9 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 					     struct ib_umem *umem, u64 iova,
 					     int access_flags)
 {
+	struct mlx5r_cache_rb_key rb_key = {
+		.access_mode = MLX5_MKC_ACCESS_MODE_MTT,
+	};
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_cache_ent *ent;
 	struct mlx5_ib_mr *mr;
@@ -1007,8 +1104,11 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 						     0, iova);
 	if (WARN_ON(!page_size))
 		return ERR_PTR(-EINVAL);
-	ent = mkey_cache_ent_from_order(
-		dev, order_base_2(ib_umem_num_dma_blocks(umem, page_size)));
+
+	rb_key.ndescs = ib_umem_num_dma_blocks(umem, page_size);
+	rb_key.ats = mlx5_umem_needs_ats(dev, umem, access_flags);
+	rb_key.access_flags = get_unchangeable_access_flags(dev, access_flags);
+	ent = mkey_cache_ent_from_rb_key(dev, rb_key);
 	/*
 	 * Matches access in alloc_cache_mr(). If the MR can't come from the
 	 * cache then synchronously create an uncached one.
@@ -1022,7 +1122,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 		return mr;
 	}
 
-	mr = mlx5_mr_cache_alloc(dev, ent, access_flags);
+	mr = _mlx5_mr_cache_alloc(dev, ent, access_flags);
 	if (IS_ERR(mr))
 		return mr;
 
@@ -1451,7 +1551,7 @@ static bool can_use_umr_rereg_pas(struct mlx5_ib_mr *mr,
 		mlx5_umem_find_best_pgsz(new_umem, mkc, log_page_size, 0, iova);
 	if (WARN_ON(!*page_size))
 		return false;
-	return (1ULL << mr->mmkey.cache_ent->order) >=
+	return (mr->mmkey.cache_ent->rb_key.ndescs) >=
 	       ib_umem_num_dma_blocks(new_umem, *page_size);
 }
 
