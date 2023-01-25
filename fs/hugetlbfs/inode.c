@@ -819,8 +819,9 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		 * This is supposed to be the vaddr where the page is being
 		 * faulted in, but we have no vaddr here.
 		 */
-		struct page *page;
+		struct folio *folio;
 		unsigned long addr;
+		bool present;
 
 		cond_resched();
 
@@ -844,48 +845,49 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
 
 		/* See if already present in mapping to avoid alloc/free */
-		page = find_get_page(mapping, index);
-		if (page) {
-			put_page(page);
+		rcu_read_lock();
+		present = page_cache_next_miss(mapping, index, 1) != index;
+		rcu_read_unlock();
+		if (present) {
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 			hugetlb_drop_vma_policy(&pseudo_vma);
 			continue;
 		}
 
 		/*
-		 * Allocate page without setting the avoid_reserve argument.
+		 * Allocate folio without setting the avoid_reserve argument.
 		 * There certainly are no reserves associated with the
 		 * pseudo_vma.  However, there could be shared mappings with
 		 * reserves for the file at the inode level.  If we fallocate
-		 * pages in these areas, we need to consume the reserves
+		 * folios in these areas, we need to consume the reserves
 		 * to keep reservation accounting consistent.
 		 */
-		page = alloc_huge_page(&pseudo_vma, addr, 0);
+		folio = alloc_hugetlb_folio(&pseudo_vma, addr, 0);
 		hugetlb_drop_vma_policy(&pseudo_vma);
-		if (IS_ERR(page)) {
+		if (IS_ERR(folio)) {
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-			error = PTR_ERR(page);
+			error = PTR_ERR(folio);
 			goto out;
 		}
-		clear_huge_page(page, addr, pages_per_huge_page(h));
-		__SetPageUptodate(page);
-		error = hugetlb_add_to_page_cache(page, mapping, index);
+		clear_huge_page(&folio->page, addr, pages_per_huge_page(h));
+		__folio_mark_uptodate(folio);
+		error = hugetlb_add_to_page_cache(&folio->page, mapping, index);
 		if (unlikely(error)) {
-			restore_reserve_on_error(h, &pseudo_vma, addr, page);
-			put_page(page);
+			restore_reserve_on_error(h, &pseudo_vma, addr, &folio->page);
+			folio_put(folio);
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 			goto out;
 		}
 
 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 
-		SetHPageMigratable(page);
+		folio_set_hugetlb_migratable(folio);
 		/*
-		 * unlock_page because locked by hugetlb_add_to_page_cache()
-		 * put_page() due to reference from alloc_huge_page()
+		 * folio_unlock because locked by hugetlb_add_to_page_cache()
+		 * folio_put() due to reference from alloc_hugetlb_folio()
 		 */
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)

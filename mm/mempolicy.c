@@ -1210,9 +1210,11 @@ static struct page *new_page(struct page *page, unsigned long start)
 			break;
 	}
 
-	if (folio_test_hugetlb(src))
-		return alloc_huge_page_vma(page_hstate(&src->page),
+	if (folio_test_hugetlb(src)) {
+		dst = alloc_hugetlb_folio_vma(folio_hstate(src),
 				vma, address);
+		return &dst->page;
+	}
 
 	if (folio_test_large(src))
 		gfp = GFP_TRANSHUGE;
