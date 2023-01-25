@@ -217,7 +217,9 @@ static int udf_fiiter_load_bhs(struct udf_fileident_iter *iter)
 	/* Need to fetch next block to get name? */
 	if (off + udf_dir_entry_len(fi) > blksize) {
 fetch_next:
-		udf_fiiter_advance_blk(iter);
+		err = udf_fiiter_advance_blk(iter);
+		if (err)
+			goto out_brelse;
 		iter->bh[1] = udf_fiiter_bread_blk(iter);
 		if (!iter->bh[1]) {
 			err = -ENOMEM;
@@ -296,7 +298,9 @@ int udf_fiiter_advance(struct udf_fileident_iter *iter)
 				iter->bh[0] = iter->bh[1];
 				iter->bh[1] = NULL;
 			} else {
-				udf_fiiter_advance_blk(iter);
+				err = udf_fiiter_advance_blk(iter);
+				if (err < 0)
+					return err;
 			}
 		}
 		err = udf_fiiter_load_bhs(iter);
