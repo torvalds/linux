@@ -520,7 +520,7 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 
 		ret = flush_buf(i);
 		if (ret)
-			return ret;
+			break;
 
 		bch2_btree_trans_to_text(&i->buf, trans);
 
@@ -711,7 +711,7 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 
 		ret = flush_buf(i);
 		if (ret)
-			return ret;
+			break;
 
 		bch2_check_for_deadlock(trans, &i->buf);
 
