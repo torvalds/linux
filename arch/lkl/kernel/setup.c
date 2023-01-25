@@ -200,7 +200,11 @@ static int __init fs_setup(void)
 {
 	int fd;
 
-	fd = sys_open("/init", O_CREAT, 0700);
+	// Pad '/init' to make sure it's 8 bytes, otherwise KASan would
+	// emit an error. The kernel's strncpy implementation attempts to read
+	// 8 bytes at once and, thus, triggers KASan violation for the 6-byte
+	// string.
+	fd = sys_open("/init\0\0", O_CREAT, 0700);
 	WARN_ON(fd < 0);
 	sys_close(fd);
 
