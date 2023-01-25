@@ -787,6 +787,51 @@ static void uniquify_counter(struct perf_stat_config *config, struct evsel *coun
 		uniquify_event_name(counter);
 }
 
+/**
+ * should_skip_zero_count() - Check if the event should print 0 values.
+ * @config: The perf stat configuration (including aggregation mode).
+ * @counter: The evsel with its associated cpumap.
+ * @id: The aggregation id that is being queried.
+ *
+ * Due to mismatch between the event cpumap or thread-map and the
+ * aggregation mode, sometimes it'd iterate the counter with the map
+ * which does not contain any values.
+ *
+ * For example, uncore events have dedicated CPUs to manage them,
+ * result for other CPUs should be zero and skipped.
+ *
+ * Return: %true if the value should NOT be printed, %false if the value
+ * needs to be printed like "<not counted>" or "<not supported>".
+ */
+static bool should_skip_zero_counter(struct perf_stat_config *config,
+				     struct evsel *counter,
+				     const struct aggr_cpu_id *id)
+{
+	struct perf_cpu cpu;
+	int idx;
+
+	/*
+	 * Skip value 0 when enabling --per-thread globally,
+	 * otherwise it will have too many 0 output.
+	 */
+	if (config->aggr_mode == AGGR_THREAD && config->system_wide)
+		return true;
+	/*
+	 * Skip value 0 when it's an uncore event and the given aggr id
+	 * does not belong to the PMU cpumask.
+	 */
+	if (!counter->pmu || !counter->pmu->is_uncore)
+		return false;
+
+	perf_cpu_map__for_each_cpu(cpu, idx, counter->pmu->cpus) {
+		struct aggr_cpu_id own_id = config->aggr_get_id(config, cpu);
+
+		if (aggr_cpu_id__equal(id, &own_id))
+			return false;
+	}
+	return true;
+}
+
 static void print_counter_aggrdata(struct perf_stat_config *config,
 				   struct evsel *counter, int s,
 				   struct outstate *os)
@@ -814,11 +859,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	ena = aggr->counts.ena;
 	run = aggr->counts.run;
 
-	/*
-	 * Skip value 0 when enabling --per-thread globally, otherwise it will
-	 * have too many 0 output.
-	 */
-	if (val == 0 && config->aggr_mode == AGGR_THREAD && config->system_wide)
+	if (val == 0 && should_skip_zero_counter(config, counter, &id))
 		return;
 
 	if (!metric_only) {
