@@ -184,9 +184,6 @@ enum reset_type {
 
 struct rt_stats {
 	unsigned long received_rate_histogram[4][32];
-	unsigned long num_process_phyinfo;
-	unsigned long received_bwtype[5];
-	unsigned long rxoverflow;
 	unsigned long rxint;
 	unsigned long ints;
 	unsigned long shints;

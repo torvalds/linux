@@ -1296,9 +1296,8 @@ static void _rtl92e_query_rxphystatus(
 {
 	struct phy_sts_ofdm_819xpci *pofdm_buf;
 	struct phy_sts_cck_819xpci *pcck_buf;
-	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *prxsc;
 	u8 *prxpkt;
-	u8 i, max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
+	u8 i, max_spatial_stream, tmp_rxsnr, tmp_rxevm;
 	s8 rx_pwr[4], rx_pwr_all = 0;
 	s8 rx_snrX, rx_evmX;
 	u8 evm, pwdb_all;
@@ -1464,15 +1463,6 @@ static void _rtl92e_query_rxphystatus(
 				precord_stats->RxMIMOSignalQuality[i] = evm & 0xff;
 			}
 		}
-
-
-		rxsc_sgien_exflg = pofdm_buf->rxsc_sgien_exflg;
-		prxsc = (struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *)
-			&rxsc_sgien_exflg;
-		if (pdrvinfo->BW)
-			priv->stats.received_bwtype[1+prxsc->rxsc]++;
-		else
-			priv->stats.received_bwtype[0]++;
 	}
 
 	if (is_cck_rate) {
@@ -1535,7 +1525,6 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	if (!bcheck)
 		return;
 
-	priv->stats.num_process_phyinfo++;
 	if (!prev_st->bIsCCK && prev_st->bPacketToSelf) {
 		for (rfpath = RF90_PATH_A; rfpath < RF90_PATH_C; rfpath++) {
 			if (!rtl92e_is_legal_rf_path(priv->rtllib->dev, rfpath))
