@@ -1,18 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2021. Huawei Technologies Co., Ltd */
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-
-struct bpf_dummy_ops_state {
-	int val;
-} __attribute__((preserve_access_index));
-
-struct bpf_dummy_ops {
-	int (*test_1)(struct bpf_dummy_ops_state *state);
-	int (*test_2)(struct bpf_dummy_ops_state *state, int a1, unsigned short a2,
-		      char a3, unsigned long a4);
-};
 
 char _license[] SEC("license") = "GPL";
 
@@ -43,8 +33,15 @@ int BPF_PROG(test_2, struct bpf_dummy_ops_state *state, int a1, unsigned short a
 	return 0;
 }
 
+SEC("struct_ops.s/test_sleepable")
+int BPF_PROG(test_sleepable, struct bpf_dummy_ops_state *state)
+{
+	return 0;
+}
+
 SEC(".struct_ops")
 struct bpf_dummy_ops dummy_1 = {
 	.test_1 = (void *)test_1,
 	.test_2 = (void *)test_2,
+	.test_sleepable = (void *)test_sleepable,
 };
