@@ -105,7 +105,6 @@ s5c73m3       Samsung S5C73M3 sensor
 s5k4ecgx      Samsung S5K4ECGX sensor
 s5k5baf       Samsung S5K5BAF sensor
 s5k6a3        Samsung S5K6A3 sensor
-vs6624        ST VS6624 sensor
 ============  ==========================================================
 
 Flash devices
