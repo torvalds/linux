@@ -83,6 +83,11 @@ int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf)
 	return 0;
 }
 
+bool is_pprof_balanced(struct amd_pmf_dev *pmf)
+{
+	return (pmf->current_profile == PLATFORM_PROFILE_BALANCED) ? true : false;
+}
+
 static int amd_pmf_profile_get(struct platform_profile_handler *pprof,
 			       enum platform_profile_option *profile)
 {
