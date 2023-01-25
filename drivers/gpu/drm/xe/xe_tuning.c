@@ -3,7 +3,7 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include "xe_wa.h"
+#include "xe_tuning.h"
 
 #include "xe_platform_types.h"
 #include "xe_gt_types.h"
