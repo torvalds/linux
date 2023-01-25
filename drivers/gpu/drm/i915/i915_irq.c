@@ -3532,6 +3532,9 @@ static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
 	if (eir_stuck)
 		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%04x, masked\n",
 			eir_stuck);
+
+	drm_dbg(&dev_priv->drm, "PGTBL_ER: 0x%08x\n",
+		intel_uncore_read(&dev_priv->uncore, PGTBL_ER));
 }
 
 static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
@@ -3569,6 +3572,9 @@ static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
 	if (eir_stuck)
 		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%08x, masked\n",
 			eir_stuck);
+
+	drm_dbg(&dev_priv->drm, "PGTBL_ER: 0x%08x\n",
+		intel_uncore_read(&dev_priv->uncore, PGTBL_ER));
 }
 
 static irqreturn_t i8xx_irq_handler(int irq, void *arg)
