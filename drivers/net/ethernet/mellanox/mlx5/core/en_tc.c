@@ -3423,114 +3423,59 @@ struct ipv6_hoplimit_word {
 };
 
 static bool
-is_action_keys_supported(const struct flow_action_entry *act, bool ct_flow,
-			 bool *modify_ip_header, bool *modify_tuple,
-			 struct netlink_ext_ack *extack)
+is_flow_action_modify_ip_header(struct flow_action *flow_action)
 {
+	const struct flow_action_entry *act;
 	u32 mask, offset;
 	u8 htype;
+	int i;
 
-	htype = act->mangle.htype;
-	offset = act->mangle.offset;
-	mask = ~act->mangle.mask;
 	/* For IPv4 & IPv6 header check 4 byte word,
 	 * to determine that modified fields
 	 * are NOT ttl & hop_limit only.
 	 */
-	if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP4) {
-		struct ip_ttl_word *ttl_word =
-			(struct ip_ttl_word *)&mask;
+	flow_action_for_each(i, act, flow_action) {
+		if (act->id != FLOW_ACTION_MANGLE &&
+		    act->id != FLOW_ACTION_ADD)
+			continue;
 
-		if (offset != offsetof(struct iphdr, ttl) ||
-		    ttl_word->protocol ||
-		    ttl_word->check) {
-			*modify_ip_header = true;
-		}
+		htype = act->mangle.htype;
+		offset = act->mangle.offset;
+		mask = ~act->mangle.mask;
 
-		if (offset >= offsetof(struct iphdr, saddr))
-			*modify_tuple = true;
+		if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP4) {
+			struct ip_ttl_word *ttl_word =
+				(struct ip_ttl_word *)&mask;
 
-		if (ct_flow && *modify_tuple) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "can't offload re-write of ipv4 address with action ct");
-			return false;
-		}
-	} else if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP6) {
-		struct ipv6_hoplimit_word *hoplimit_word =
-			(struct ipv6_hoplimit_word *)&mask;
+			if (offset != offsetof(struct iphdr, ttl) ||
+			    ttl_word->protocol ||
+			    ttl_word->check)
+				return true;
+		} else if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP6) {
+			struct ipv6_hoplimit_word *hoplimit_word =
+				(struct ipv6_hoplimit_word *)&mask;
 
-		if (offset != offsetof(struct ipv6hdr, payload_len) ||
-		    hoplimit_word->payload_len ||
-		    hoplimit_word->nexthdr) {
-			*modify_ip_header = true;
-		}
-
-		if (ct_flow && offset >= offsetof(struct ipv6hdr, saddr))
-			*modify_tuple = true;
-
-		if (ct_flow && *modify_tuple) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "can't offload re-write of ipv6 address with action ct");
-			return false;
-		}
-	} else if (htype == FLOW_ACT_MANGLE_HDR_TYPE_TCP ||
-		   htype == FLOW_ACT_MANGLE_HDR_TYPE_UDP) {
-		*modify_tuple = true;
-		if (ct_flow) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "can't offload re-write of transport header ports with action ct");
-			return false;
+			if (offset != offsetof(struct ipv6hdr, payload_len) ||
+			    hoplimit_word->payload_len ||
+			    hoplimit_word->nexthdr)
+				return true;
 		}
 	}
 
-	return true;
-}
-
-static bool modify_tuple_supported(bool modify_tuple, bool ct_clear,
-				   bool ct_flow, struct netlink_ext_ack *extack,
-				   struct mlx5e_priv *priv,
-				   struct mlx5_flow_spec *spec)
-{
-	if (!modify_tuple || ct_clear)
-		return true;
-
-	if (ct_flow) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "can't offload tuple modification with non-clear ct()");
-		netdev_info(priv->netdev,
-			    "can't offload tuple modification with non-clear ct()");
-		return false;
-	}
-
-	/* Add ct_state=-trk match so it will be offloaded for non ct flows
-	 * (or after clear action), as otherwise, since the tuple is changed,
-	 * we can't restore ct state
-	 */
-	if (mlx5_tc_ct_add_no_trk_match(spec)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "can't offload tuple modification with ct matches and no ct(clear) action");
-		netdev_info(priv->netdev,
-			    "can't offload tuple modification with ct matches and no ct(clear) action");
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 static bool modify_header_match_supported(struct mlx5e_priv *priv,
 					  struct mlx5_flow_spec *spec,
 					  struct flow_action *flow_action,
-					  u32 actions, bool ct_flow,
-					  bool ct_clear,
+					  u32 actions,
 					  struct netlink_ext_ack *extack)
 {
-	const struct flow_action_entry *act;
-	bool modify_ip_header, modify_tuple;
+	bool modify_ip_header;
 	void *headers_c;
 	void *headers_v;
 	u16 ethertype;
 	u8 ip_proto;
-	int i;
 
 	headers_c = mlx5e_get_match_headers_criteria(actions, spec);
 	headers_v = mlx5e_get_match_headers_value(actions, spec);
@@ -3541,23 +3486,7 @@ static bool modify_header_match_supported(struct mlx5e_priv *priv,
 	    ethertype != ETH_P_IP && ethertype != ETH_P_IPV6)
 		goto out_ok;
 
-	modify_ip_header = false;
-	modify_tuple = false;
-	flow_action_for_each(i, act, flow_action) {
-		if (act->id != FLOW_ACTION_MANGLE &&
-		    act->id != FLOW_ACTION_ADD)
-			continue;
-
-		if (!is_action_keys_supported(act, ct_flow,
-					      &modify_ip_header,
-					      &modify_tuple, extack))
-			return false;
-	}
-
-	if (!modify_tuple_supported(modify_tuple, ct_clear, ct_flow, extack,
-				    priv, spec))
-		return false;
-
+	modify_ip_header = is_flow_action_modify_ip_header(flow_action);
 	ip_proto = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ip_protocol);
 	if (modify_ip_header && ip_proto != IPPROTO_TCP &&
 	    ip_proto != IPPROTO_UDP && ip_proto != IPPROTO_ICMP) {
@@ -3611,14 +3540,9 @@ actions_match_supported(struct mlx5e_priv *priv,
 			struct mlx5e_tc_flow *flow,
 			struct netlink_ext_ack *extack)
 {
-	bool ct_flow, ct_clear;
-
-	ct_clear = flow->attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
-	ct_flow = flow_flag_test(flow, CT) && !ct_clear;
-
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
-	    !modify_header_match_supported(priv, &parse_attr->spec, flow_action,
-					   actions, ct_flow, ct_clear, extack))
+	    !modify_header_match_supported(priv, &parse_attr->spec, flow_action, actions,
+					   extack))
 		return false;
 
 	if (mlx5e_is_eswitch_flow(flow) &&
