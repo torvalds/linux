@@ -14,7 +14,8 @@
 #include "tb.h"
 #include "sb_regs.h"
 
-#define PORT_CAP_PCIE_LEN	1
+#define PORT_CAP_V1_PCIE_LEN	1
+#define PORT_CAP_V2_PCIE_LEN	2
 #define PORT_CAP_POWER_LEN	2
 #define PORT_CAP_LANE_LEN	3
 #define PORT_CAP_USB3_LEN	5
@@ -1175,7 +1176,10 @@ static void port_cap_show(struct tb_port *port, struct seq_file *s,
 
 	case TB_PORT_CAP_ADAP:
 		if (tb_port_is_pcie_down(port) || tb_port_is_pcie_up(port)) {
-			length = PORT_CAP_PCIE_LEN;
+			if (usb4_switch_version(port->sw) < 2)
+				length = PORT_CAP_V1_PCIE_LEN;
+			else
+				length = PORT_CAP_V2_PCIE_LEN;
 		} else if (tb_port_is_dpin(port)) {
 			if (usb4_switch_version(port->sw) < 2)
 				length = PORT_CAP_DP_V1_LEN;
