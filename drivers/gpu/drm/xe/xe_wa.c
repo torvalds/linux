@@ -35,9 +35,6 @@
  *   creation to have a "primed golden context", i.e. a context image that
  *   already contains the changes needed to all the registers.
  *
- *   TODO: Although these workarounds are maintained here, they are not
- *   currently being applied.
- *
  * - Engine workarounds: the list of these WAs is applied whenever the specific
  *   engine is reset. It's also possible that a set of engine classes share a
  *   common power domain and they are reset together. This happens on some
