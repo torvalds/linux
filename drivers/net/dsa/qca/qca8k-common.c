@@ -150,11 +150,12 @@ static int qca8k_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
 
 static int qca8k_fdb_read(struct qca8k_priv *priv, struct qca8k_fdb *fdb)
 {
-	u32 reg[3];
+	u32 reg[QCA8K_ATU_TABLE_SIZE];
 	int ret;
 
 	/* load the ARL table into an array */
-	ret = qca8k_bulk_read(priv, QCA8K_REG_ATU_DATA0, reg, sizeof(reg));
+	ret = qca8k_bulk_read(priv, QCA8K_REG_ATU_DATA0, reg,
+			      QCA8K_ATU_TABLE_SIZE * sizeof(u32));
 	if (ret)
 		return ret;
 
@@ -178,7 +179,7 @@ static int qca8k_fdb_read(struct qca8k_priv *priv, struct qca8k_fdb *fdb)
 static void qca8k_fdb_write(struct qca8k_priv *priv, u16 vid, u8 port_mask,
 			    const u8 *mac, u8 aging)
 {
-	u32 reg[3] = { 0 };
+	u32 reg[QCA8K_ATU_TABLE_SIZE] = { 0 };
 
 	/* vid - 83:72 */
 	reg[2] = FIELD_PREP(QCA8K_ATU_VID_MASK, vid);
@@ -195,7 +196,8 @@ static void qca8k_fdb_write(struct qca8k_priv *priv, u16 vid, u8 port_mask,
 	reg[0] |= FIELD_PREP(QCA8K_ATU_ADDR5_MASK, mac[5]);
 
 	/* load the array into the ARL table */
-	qca8k_bulk_write(priv, QCA8K_REG_ATU_DATA0, reg, sizeof(reg));
+	qca8k_bulk_write(priv, QCA8K_REG_ATU_DATA0, reg,
+			 QCA8K_ATU_TABLE_SIZE * sizeof(u32));
 }
 
 static int qca8k_fdb_access(struct qca8k_priv *priv, enum qca8k_fdb_cmd cmd,
