@@ -167,7 +167,8 @@ KF_ACQUIRE and KF_RET_NULL flags.
 The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
 indicates that the all pointer arguments are valid, and that all pointers to
 BTF objects have been passed in their unmodified form (that is, at a zero
-offset, and without having been obtained from walking another pointer).
+offset, and without having been obtained from walking another pointer, with one
+exception described below).
 
 There are two types of pointers to kernel objects which are considered "valid":
 
@@ -179,6 +180,25 @@ KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
 
 The definition of "valid" pointers is subject to change at any time, and has
 absolutely no ABI stability guarantees.
+
+As mentioned above, a nested pointer obtained from walking a trusted pointer is
+no longer trusted, with one exception. If a struct type has a field that is
+guaranteed to be valid as long as its parent pointer is trusted, the
+``BTF_TYPE_SAFE_NESTED`` macro can be used to express that to the verifier as
+follows:
+
+.. code-block:: c
+
+	BTF_TYPE_SAFE_NESTED(struct task_struct) {
+		const cpumask_t *cpus_ptr;
+	};
+
+In other words, you must:
+
+1. Wrap the trusted pointer type in the ``BTF_TYPE_SAFE_NESTED`` macro.
+
+2. Specify the type and name of the trusted nested field. This field must match
+   the field in the original type definition exactly.
 
 2.4.6 KF_SLEEPABLE flag
 -----------------------
