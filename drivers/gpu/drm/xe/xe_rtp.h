@@ -199,21 +199,21 @@ struct xe_reg_sr;
  * XE_RTP_WR - Helper to write a value to the register, overriding all the bits
  * @reg_: Register
  * @val_: Value to set
- * @...: Additional fields to override in the struct xe_rtp_regval entry
+ * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * The correspondent notation in bspec is:
  *
  *	REGNAME = VALUE
  */
 #define XE_RTP_WR(reg_, val_, ...)						\
-	.regval = { .reg = reg_, .clr_bits = ~0u, .set_bits = (val_),		\
+	.action = { .reg = reg_, .clr_bits = ~0u, .set_bits = (val_),		\
 		    .read_mask = (~0u), ##__VA_ARGS__ }
 
 /**
  * XE_RTP_SET - Set bits from @val_ in the register.
  * @reg_: Register
  * @val_: Bits to set in the register
- * @...: Additional fields to override in the struct xe_rtp_regval entry
+ * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * For masked registers this translates to a single write, while for other
  * registers it's a RMW. The correspondent bspec notation is (example for bits 2
@@ -223,14 +223,14 @@ struct xe_reg_sr;
  *	REGNAME[5] = 1
  */
 #define XE_RTP_SET(reg_, val_, ...)						\
-	.regval = { .reg = reg_, .clr_bits = (val_), .set_bits = (val_),	\
+	.action = { .reg = reg_, .clr_bits = (val_), .set_bits = (val_),	\
 		    .read_mask = (val_), ##__VA_ARGS__ }
 
 /**
  * XE_RTP_CLR: Clear bits from @val_ in the register.
  * @reg_: Register
  * @val_: Bits to clear in the register
- * @...: Additional fields to override in the struct xe_rtp_regval entry
+ * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * For masked registers this translates to a single write, while for other
  * registers it's a RMW. The correspondent bspec notation is (example for bits 2
@@ -240,7 +240,7 @@ struct xe_reg_sr;
  *	REGNAME[5] = 0
  */
 #define XE_RTP_CLR(reg_, val_, ...)						\
-	.regval = { .reg = reg_, .clr_bits = (val_), .set_bits = 0,		\
+	.action = { .reg = reg_, .clr_bits = (val_), .set_bits = 0,		\
 		    .read_mask = (val_), ##__VA_ARGS__ }
 
 /**
@@ -248,7 +248,7 @@ struct xe_reg_sr;
  * @reg_: Register
  * @mask_bits_: Mask of bits to be changed in the register, forming a field
  * @val_: Value to set in the field denoted by @mask_bits_
- * @...: Additional fields to override in the struct xe_rtp_regval entry
+ * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * For masked registers this translates to a single write, while for other
  * registers it's a RMW. The correspondent bspec notation is:
@@ -256,25 +256,25 @@ struct xe_reg_sr;
  *	REGNAME[<end>:<start>] = VALUE
  */
 #define XE_RTP_FIELD_SET(reg_, mask_bits_, val_, ...)				\
-	.regval = { .reg = reg_, .clr_bits = (mask_bits_), .set_bits = (val_),\
+	.action = { .reg = reg_, .clr_bits = (mask_bits_), .set_bits = (val_),\
 		    .read_mask = (mask_bits_), ##__VA_ARGS__ }
 
 #define XE_RTP_FIELD_SET_NO_READ_MASK(reg_, mask_bits_, val_, ...)		\
-	.regval = { .reg = reg_, .clr_bits = (mask_bits_), .set_bits = (val_),\
+	.action = { .reg = reg_, .clr_bits = (mask_bits_), .set_bits = (val_),\
 		    .read_mask = 0, ##__VA_ARGS__ }
 
 /**
  * XE_WHITELIST_REGISTER - Add register to userspace whitelist
  * @reg_: Register
  * @flags_: Whitelist-specific flags to set
- * @...: Additional fields to override in the struct xe_rtp_regval entry
+ * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * Add a register to the whitelist, allowing userspace to modify the ster with
  * regular user privileges.
  */
 #define XE_WHITELIST_REGISTER(reg_, flags_, ...)				\
 	/* TODO fail build if ((flags) & ~(RING_FORCE_TO_NONPRIV_MASK_VALID)) */\
-	.regval = { .reg = reg_, .set_bits = (flags_),			\
+	.action = { .reg = reg_, .set_bits = (flags_),			\
 		    .clr_bits = RING_FORCE_TO_NONPRIV_MASK_VALID,		\
 		    ##__VA_ARGS__ }
 
@@ -287,12 +287,12 @@ struct xe_reg_sr;
 #define XE_RTP_NAME(s_)	.name = (s_)
 
 /**
- * XE_RTP_FLAG - Helper to add multiple flags to a struct xe_rtp_regval entry
+ * XE_RTP_FLAG - Helper to add multiple flags to a struct xe_rtp_action entry
  * @f1_: Last part of a ``XE_RTP_FLAG_*``
  * @...: Additional flags, defined like @f1_
  *
  * Helper to automatically add a ``XE_RTP_FLAG_`` prefix to @f1_ so it can be
- * easily used to define struct xe_rtp_regval entries. Example:
+ * easily used to define struct xe_rtp_action entries. Example:
  *
  * .. code-block:: c
  *

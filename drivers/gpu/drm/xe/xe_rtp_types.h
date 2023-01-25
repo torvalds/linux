@@ -19,9 +19,12 @@ enum {
 };
 
 /**
- * struct xe_rtp_regval - register and value for rtp table
+ * struct xe_rtp_action - action to take for any matching rule
+ *
+ * This struct records what action should be taken in a register that has a
+ * matching rule. Example of actions: set/clear bits.
  */
-struct xe_rtp_regval {
+struct xe_rtp_action {
 	/** @reg: Register */
 	u32		reg;
 	/** @clr_bits: bits to clear when updating register */
@@ -93,7 +96,7 @@ struct xe_rtp_rule {
 /** struct xe_rtp_entry - Entry in an rtp table */
 struct xe_rtp_entry {
 	const char *name;
-	const struct xe_rtp_regval regval;
+	const struct xe_rtp_action action;
 	const struct xe_rtp_rule *rules;
 	unsigned int n_rules;
 };

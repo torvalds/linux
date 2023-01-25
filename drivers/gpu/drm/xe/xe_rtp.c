@@ -91,13 +91,13 @@ static void rtp_add_sr_entry(const struct xe_rtp_entry *entry,
 			     u32 mmio_base,
 			     struct xe_reg_sr *sr)
 {
-	u32 reg = entry->regval.reg + mmio_base;
+	u32 reg = entry->action.reg + mmio_base;
 	struct xe_reg_sr_entry sr_entry = {
-		.clr_bits = entry->regval.clr_bits,
-		.set_bits = entry->regval.set_bits,
-		.read_mask = entry->regval.read_mask,
-		.masked_reg = entry->regval.flags & XE_RTP_FLAG_MASKED_REG,
-		.reg_type = entry->regval.reg_type,
+		.clr_bits = entry->action.clr_bits,
+		.set_bits = entry->action.set_bits,
+		.read_mask = entry->action.read_mask,
+		.masked_reg = entry->action.flags & XE_RTP_FLAG_MASKED_REG,
+		.reg_type = entry->action.reg_type,
 	};
 
 	xe_reg_sr_add(sr, reg, &sr_entry);
@@ -124,7 +124,7 @@ void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 	for (entry = entries; entry && entry->name; entry++) {
 		u32 mmio_base = 0;
 
-		if (entry->regval.flags & XE_RTP_FLAG_FOREACH_ENGINE) {
+		if (entry->action.flags & XE_RTP_FLAG_FOREACH_ENGINE) {
 			struct xe_hw_engine *each_hwe;
 			enum xe_hw_engine_id id;
 
@@ -135,7 +135,7 @@ void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 					rtp_add_sr_entry(entry, gt, mmio_base, sr);
 			}
 		} else if (rule_matches(gt, hwe, entry)) {
-			if (entry->regval.flags & XE_RTP_FLAG_ENGINE_BASE)
+			if (entry->action.flags & XE_RTP_FLAG_ENGINE_BASE)
 				mmio_base = hwe->mmio_base;
 
 			rtp_add_sr_entry(entry, gt, mmio_base, sr);
