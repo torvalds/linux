@@ -67,6 +67,7 @@ int test_dwarf_unwind__compare(void *p1, void *p2);
 int test_dwarf_unwind__krava_3(struct thread *thread);
 int test_dwarf_unwind__krava_2(struct thread *thread);
 int test_dwarf_unwind__krava_1(struct thread *thread);
+int test__dwarf_unwind(struct test_suite *test, int subtest);
 
 #define MAX_STACK 8
 
@@ -195,8 +196,8 @@ NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_1(struct thread *th
 	return ret;
 }
 
-static int test__dwarf_unwind(struct test_suite *test __maybe_unused,
-			      int subtest __maybe_unused)
+noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
+				int subtest __maybe_unused)
 {
 	struct machine *machine;
 	struct thread *thread;
