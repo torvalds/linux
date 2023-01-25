@@ -169,6 +169,7 @@ struct amd_pmf_dev {
 	struct mutex update_mutex; /* protects race between ACPI handler and metrics thread */
 	bool cnqf_enabled;
 	bool cnqf_supported;
+	struct notifier_block pwr_src_notifier;
 };
 
 struct apmf_sps_prop_granular {
