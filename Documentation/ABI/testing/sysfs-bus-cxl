@@ -90,6 +90,21 @@ Description:
 		capability.
 
 
+What:		/sys/bus/cxl/devices/{port,endpoint}X/parent_dport
+Date:		January, 2023
+KernelVersion:	v6.3
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) CXL port objects are instantiated for each upstream port in
+		a CXL/PCIe switch, and for each endpoint to map the
+		corresponding memory device into the CXL port hierarchy. When a
+		descendant CXL port (switch or endpoint) is enumerated it is
+		useful to know which 'dport' object in the parent CXL port
+		routes to this descendant. The 'parent_dport' symlink points to
+		the device representing the downstream port of a CXL switch that
+		routes to {port,endpoint}X.
+
+
 What:		/sys/bus/cxl/devices/portX/dportY
 Date:		June, 2021
 KernelVersion:	v5.14
