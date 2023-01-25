@@ -19,7 +19,7 @@ struct cxl_cxims_data {
 
 /*
  * Find a targets entry (n) in the host bridge interleave list.
- * CXL Specfication 3.0 Table 9-22
+ * CXL Specification 3.0 Table 9-22
  */
 static int cxl_xor_calc_n(u64 hpa, struct cxl_cxims_data *cximsd, int iw,
 			  int ig)

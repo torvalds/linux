@@ -116,7 +116,7 @@ config CXL_REGION_INVALIDATION_TEST
 	depends on CXL_REGION
 	help
 	  CXL Region management and security operations potentially invalidate
-	  the content of CPU caches without notifiying those caches to
+	  the content of CPU caches without notifying those caches to
 	  invalidate the affected cachelines. The CXL Region driver attempts
 	  to invalidate caches when those events occur.  If that invalidation
 	  fails the region will fail to enable.  Reasons for cache

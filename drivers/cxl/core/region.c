@@ -414,7 +414,7 @@ static ssize_t interleave_granularity_store(struct device *dev,
 	 * When the host-bridge is interleaved, disallow region granularity !=
 	 * root granularity. Regions with a granularity less than the root
 	 * interleave result in needing multiple endpoints to support a single
-	 * slot in the interleave (possible to suport in the future). Regions
+	 * slot in the interleave (possible to support in the future). Regions
 	 * with a granularity greater than the root interleave result in invalid
 	 * DPA translations (invalid to support).
 	 */

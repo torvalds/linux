@@ -1164,7 +1164,7 @@ static struct cxl_port *find_cxl_port_at(struct cxl_port *parent_port,
 }
 
 /*
- * All users of grandparent() are using it to walk PCIe-like swich port
+ * All users of grandparent() are using it to walk PCIe-like switch port
  * hierarchy. A PCIe switch is comprised of a bridge device representing the
  * upstream switch port and N bridges representing downstream switch ports. When
  * bridges stack the grand-parent of a downstream switch port is another
