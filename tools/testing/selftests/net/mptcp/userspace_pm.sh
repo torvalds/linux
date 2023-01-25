@@ -43,6 +43,11 @@ rndh=$(printf %x "$sec")-$(mktemp -u XXXXXX)
 ns1="ns1-$rndh"
 ns2="ns2-$rndh"
 
+print_title()
+{
+	stdbuf -o0 -e0 printf "INFO: %s\n" "${1}"
+}
+
 kill_wait()
 {
 	kill $1 > /dev/null 2>&1
@@ -51,7 +56,7 @@ kill_wait()
 
 cleanup()
 {
-	echo "cleanup"
+	print_title "Cleanup"
 
 	rm -rf $file $client_evts $server_evts
 
@@ -78,6 +83,8 @@ cleanup()
 	for netns in "$ns1" "$ns2" ;do
 		ip netns del "$netns"
 	done
+
+	stdbuf -o0 -e0 printf "Done\n"
 }
 
 trap cleanup EXIT
@@ -108,6 +115,7 @@ ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 nodad
 ip -net "$ns2" addr add dead:beef:2::2/64 dev ns2eth1 nodad
 ip -net "$ns2" link set ns2eth1 up
 
+print_title "Init"
 stdbuf -o0 -e0 printf "Created network namespaces ns1, ns2         \t\t\t[OK]\n"
 
 make_file()
@@ -255,6 +263,8 @@ verify_announce_event()
 
 test_announce()
 {
+	print_title "Announce tests"
+
 	# Capture events on the network namespace running the server
 	:>"$server_evts"
 
@@ -359,6 +369,8 @@ verify_remove_event()
 
 test_remove()
 {
+	print_title "Remove tests"
+
 	# Capture events on the network namespace running the server
 	:>"$server_evts"
 
@@ -521,6 +533,8 @@ verify_subflow_events()
 
 test_subflows()
 {
+	print_title "Subflows v4 or v6 only tests"
+
 	# Capture events on the network namespace running the server
 	:>"$server_evts"
 
@@ -754,6 +768,8 @@ test_subflows()
 
 test_subflows_v4_v6_mix()
 {
+	print_title "Subflows v4 and v6 mix tests"
+
 	# Attempt to add a listener at 10.0.2.1:<subflow-port>
 	ip netns exec "$ns1" ./pm_nl_ctl listen 10.0.2.1\
 	   $app6_port > /dev/null 2>&1 &
@@ -800,6 +816,8 @@ test_subflows_v4_v6_mix()
 
 test_prio()
 {
+	print_title "Prio tests"
+
 	local count
 
 	# Send MP_PRIO signal from client to server machine
@@ -876,6 +894,8 @@ verify_listener_events()
 
 test_listener()
 {
+	print_title "Listener tests"
+
 	# Capture events on the network namespace running the client
 	:>$client_evts
 
@@ -902,8 +922,10 @@ test_listener()
 	verify_listener_events $client_evts $LISTENER_CLOSED $AF_INET 10.0.2.2 $client4_port
 }
 
+print_title "Make connections"
 make_connection
 make_connection "v6"
+
 test_announce
 test_remove
 test_subflows
