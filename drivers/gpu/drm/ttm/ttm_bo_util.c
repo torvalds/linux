@@ -704,9 +704,15 @@ EXPORT_SYMBOL(ttm_bo_move_sync_cleanup);
  */
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 {
+	static const struct ttm_place sys_mem = { .mem_type = TTM_PL_SYSTEM };
 	struct ttm_buffer_object *ghost;
+	struct ttm_resource *sys_res;
 	struct ttm_tt *ttm;
 	int ret;
+
+	ret = ttm_resource_alloc(bo, &sys_mem, &sys_res);
+	if (ret)
+		return ret;
 
 	/* If already idle, no need for ghost object dance. */
 	if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP)) {
@@ -714,13 +720,14 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 			/* See comment below about clearing. */
 			ret = ttm_tt_create(bo, true);
 			if (ret)
-				return ret;
+				goto error_free_sys_mem;
 		} else {
 			ttm_tt_unpopulate(bo->bdev, bo->ttm);
 			if (bo->type == ttm_bo_type_device)
 				ttm_tt_mark_for_clear(bo->ttm);
 		}
 		ttm_resource_free(bo, &bo->resource);
+		ttm_bo_assign_mem(bo, sys_res);
 		return 0;
 	}
 
@@ -737,7 +744,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	ret = ttm_tt_create(bo, true);
 	swap(bo->ttm, ttm);
 	if (ret)
-		return ret;
+		goto error_free_sys_mem;
 
 	ret = ttm_buffer_object_transfer(bo, &ghost);
 	if (ret)
@@ -753,9 +760,13 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);
 	bo->ttm = ttm;
+	ttm_bo_assign_mem(bo, sys_res);
 	return 0;
 
 error_destroy_tt:
 	ttm_tt_destroy(bo->bdev, ttm);
+
+error_free_sys_mem:
+	ttm_resource_free(bo, &sys_res);
 	return ret;
 }
