@@ -222,7 +222,6 @@ Video encoders
 ============  ==========================================================
 Driver        Name
 ============  ==========================================================
-ad9389b       Analog Devices AD9389B encoder
 adv7170       Analog Devices ADV7170 video encoder
 adv7175       Analog Devices ADV7175 video encoder
 adv7343       ADV7343 video encoder

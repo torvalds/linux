@@ -1454,20 +1454,6 @@ endmenu
 menu "Video encoders"
 	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
-config VIDEO_AD9389B
-	tristate "Analog Devices AD9389B encoder"
-	depends on VIDEO_DEV && I2C
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-
-	help
-	  Support for the Analog Devices AD9389B video encoder.
-
-	  This is a Analog Devices HDMI transmitter.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad9389b.
-
 config VIDEO_ADV7170
 	tristate "Analog Devices ADV7170 video encoder"
 	depends on VIDEO_DEV && I2C
