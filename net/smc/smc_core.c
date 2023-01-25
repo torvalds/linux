@@ -500,6 +500,7 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 				struct netlink_callback *cb)
 {
 	char smc_pnet[SMC_MAX_PNETID_LEN + 1];
+	struct smcd_dev *smcd = lgr->smcd;
 	struct nlattr *attrs;
 	void *nlh;
 
@@ -515,8 +516,9 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 
 	if (nla_put_u32(skb, SMC_NLA_LGR_D_ID, *((u32 *)&lgr->id)))
 		goto errattr;
-	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_GID, lgr->smcd->local_gid,
-			      SMC_NLA_LGR_D_PAD))
+	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_GID,
+			      smcd->ops->get_local_gid(smcd),
+				  SMC_NLA_LGR_D_PAD))
 		goto errattr;
 	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_PEER_GID, lgr->peer_gid,
 			      SMC_NLA_LGR_D_PAD))
@@ -820,6 +822,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 {
 	struct smc_link_group *lgr;
 	struct list_head *lgr_list;
+	struct smcd_dev *smcd;
 	struct smc_link *lnk;
 	spinlock_t *lgr_lock;
 	u8 link_idx;
@@ -866,7 +869,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	lgr->conns_all = RB_ROOT;
 	if (ini->is_smcd) {
 		/* SMC-D specific settings */
-		get_device(&ini->ism_dev[ini->ism_selected]->dev);
+		smcd = ini->ism_dev[ini->ism_selected];
+		get_device(smcd->ops->get_dev(smcd));
 		lgr->peer_gid = ini->ism_peer_gid[ini->ism_selected];
 		lgr->smcd = ini->ism_dev[ini->ism_selected];
 		lgr_list = &ini->ism_dev[ini->ism_selected]->lgr_list;
@@ -1385,7 +1389,7 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	destroy_workqueue(lgr->tx_wq);
 	if (lgr->is_smcd) {
 		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
-		put_device(&lgr->smcd->dev);
+		put_device(lgr->smcd->ops->get_dev(lgr->smcd));
 	}
 	smc_lgr_put(lgr); /* theoretically last lgr_put */
 }
@@ -2595,6 +2599,7 @@ static int smc_core_reboot_event(struct notifier_block *this,
 {
 	smc_lgrs_shutdown();
 	smc_ib_unregister_client();
+	smc_ism_exit();
 	return 0;
 }
 

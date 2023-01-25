@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include "linux/ism.h"
 
 struct sock;
 
@@ -48,20 +49,14 @@ struct smcd_dmb {
 
 #define ISM_ERROR	0xFFFF
 
-struct smcd_event {
-	u32 type;
-	u32 code;
-	u64 tok;
-	u64 time;
-	u64 info;
-};
-
 struct smcd_dev;
+struct ism_client;
 
 struct smcd_ops {
 	int (*query_remote_gid)(struct smcd_dev *dev, u64 rgid, u32 vid_valid,
 				u32 vid);
-	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
+	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb,
+			    struct ism_client *client);
 	int (*unregister_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
 	int (*add_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
 	int (*del_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
@@ -73,14 +68,14 @@ struct smcd_ops {
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
 	u8* (*get_system_eid)(void);
+	u64 (*get_local_gid)(struct smcd_dev *dev);
 	u16 (*get_chid)(struct smcd_dev *dev);
+	struct device* (*get_dev)(struct smcd_dev *dev);
 };
 
 struct smcd_dev {
 	const struct smcd_ops *ops;
-	struct device dev;
 	void *priv;
-	u64 local_gid;
 	struct list_head list;
 	spinlock_t lock;
 	struct smc_connection **conn;
@@ -95,11 +90,4 @@ struct smcd_dev {
 	u8 going_away : 1;
 };
 
-struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
-				const struct smcd_ops *ops, int max_dmbs);
-int smcd_register_dev(struct smcd_dev *smcd);
-void smcd_unregister_dev(struct smcd_dev *smcd);
-void smcd_free_dev(struct smcd_dev *smcd);
-void smcd_handle_event(struct smcd_dev *dev, struct smcd_event *event);
-void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit, u16 dmbemask);
 #endif	/* _SMC_H */
