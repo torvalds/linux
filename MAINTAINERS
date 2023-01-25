@@ -8411,14 +8411,6 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/fujitsu-laptop.c
 
-FUJITSU M-5MO LS CAMERA ISP DRIVER
-M:	Kyungmin Park <kyungmin.park@samsung.com>
-M:	Heungjun Kim <riverful.kim@samsung.com>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-F:	drivers/media/i2c/m5mols/
-F:	include/media/i2c/m5mols.h
-
 FUJITSU TABLET EXTRAS
 M:	Robert Gerlach <khnz@gmx.de>
 L:	platform-driver-x86@vger.kernel.org
