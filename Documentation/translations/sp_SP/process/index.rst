@@ -16,3 +16,4 @@
    code-of-conduct
    kernel-enforcement-statement
    email-clients
+   magic-number
