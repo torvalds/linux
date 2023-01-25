@@ -14168,14 +14168,6 @@ L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/devices/docg3*
 
-MT9M032 APTINA SENSOR DRIVER
-M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/i2c/mt9m032.c
-F:	include/media/i2c/mt9m032.h
-
 MT9P031 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org

@@ -73,7 +73,6 @@ imx334        Sony IMX334 sensor
 imx355        Sony IMX355 sensor
 imx412        Sony IMX412 sensor
 mt9m001       mt9m001
-mt9m032       MT9M032 camera sensor
 mt9m111       mt9m111, mt9m112 and mt9m131
 mt9p031       Aptina MT9P031
 mt9t001       Aptina MT9T001
