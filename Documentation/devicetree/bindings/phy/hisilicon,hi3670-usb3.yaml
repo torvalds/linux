@@ -32,7 +32,8 @@ properties:
     description: phandle of syscon used to control phy deep sleep.
 
   hisilicon,eye-diagram-param:
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 1
     description: Eye diagram for phy.
 
   hisilicon,tx-vboost-lvl:
