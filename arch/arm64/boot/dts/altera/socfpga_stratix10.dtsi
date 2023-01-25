@@ -134,9 +134,8 @@
 		ranges = <0 0 0 0xffffffff>;
 
 		base_fpga_region {
-			#address-cells = <0x1>;
-			#size-cells = <0x1>;
-
+			#address-cells = <0x2>;
+			#size-cells = <0x2>;
 			compatible = "fpga-region";
 			fpga-mgr = <&fpga_mgr>;
 		};
