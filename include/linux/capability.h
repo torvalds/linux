@@ -157,6 +157,16 @@ static inline bool cap_isclear(const kernel_cap_t a)
 	return true;
 }
 
+static inline bool cap_isidentical(const kernel_cap_t a, const kernel_cap_t b)
+{
+	unsigned __capi;
+	CAP_FOR_EACH_U32(__capi) {
+		if (a.cap[__capi] != b.cap[__capi])
+			return false;
+	}
+	return true;
+}
+
 /*
  * Check if "a" is a subset of "set".
  * return true if ALL of the capabilities in "a" are also in "set"
