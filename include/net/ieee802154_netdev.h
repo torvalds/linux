@@ -129,12 +129,24 @@ enum ieee802154_frame_version {
 	IEEE802154_MULTIPURPOSE_STD = IEEE802154_2003_STD,
 };
 
+enum ieee802154_addressing_mode {
+	IEEE802154_NO_ADDRESSING,
+	IEEE802154_RESERVED,
+	IEEE802154_SHORT_ADDRESSING,
+	IEEE802154_EXTENDED_ADDRESSING,
+};
+
 struct ieee802154_hdr {
 	struct ieee802154_hdr_fc fc;
 	u8 seq;
 	struct ieee802154_addr source;
 	struct ieee802154_addr dest;
 	struct ieee802154_sechdr sec;
+};
+
+struct ieee802154_beacon_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_beacon_hdr mac_pl;
 };
 
 /* pushes hdr onto the skb. fields of hdr->fc that can be calculated from
@@ -161,6 +173,10 @@ int ieee802154_hdr_peek_addrs(const struct sk_buff *skb,
  * header_ops.parse
  */
 int ieee802154_hdr_peek(const struct sk_buff *skb, struct ieee802154_hdr *hdr);
+
+/* pushes a beacon frame into an skb */
+int ieee802154_beacon_push(struct sk_buff *skb,
+			   struct ieee802154_beacon_frame *beacon);
 
 int ieee802154_max_payload(const struct ieee802154_hdr *hdr);
 

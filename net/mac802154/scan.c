@@ -16,6 +16,11 @@
 #include "driver-ops.h"
 #include "../ieee802154/nl802154.h"
 
+#define IEEE802154_BEACON_MHR_SZ 13
+#define IEEE802154_BEACON_PL_SZ 4
+#define IEEE802154_BEACON_SKB_SZ (IEEE802154_BEACON_MHR_SZ + \
+				  IEEE802154_BEACON_PL_SZ)
+
 /* mac802154_scan_cleanup_locked() must be called upon scan completion or abort.
  * - Completions are asynchronous, not locked by the rtnl and decided by the
  *   scan worker.
@@ -283,6 +288,152 @@ int mac802154_process_beacon(struct ieee802154_local *local,
 	if (likely(scan_req))
 		nl802154_scan_event(scan_req->wpan_phy, scan_req->wpan_dev, &desc);
 	rcu_read_unlock();
+
+	return 0;
+}
+
+static int mac802154_transmit_beacon(struct ieee802154_local *local,
+				     struct wpan_dev *wpan_dev)
+{
+	struct cfg802154_beacon_request *beacon_req;
+	struct ieee802154_sub_if_data *sdata;
+	struct sk_buff *skb;
+	int ret;
+
+	/* Update the sequence number */
+	local->beacon.mhr.seq = atomic_inc_return(&wpan_dev->bsn) & 0xFF;
+
+	skb = alloc_skb(IEEE802154_BEACON_SKB_SZ, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	rcu_read_lock();
+	beacon_req = rcu_dereference(local->beacon_req);
+	if (unlikely(!beacon_req)) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(beacon_req->wpan_dev);
+	skb->dev = sdata->dev;
+
+	rcu_read_unlock();
+
+	ret = ieee802154_beacon_push(skb, &local->beacon);
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	return ieee802154_subif_start_xmit(skb, sdata->dev);
+}
+
+void mac802154_beacon_worker(struct work_struct *work)
+{
+	struct ieee802154_local *local =
+		container_of(work, struct ieee802154_local, beacon_work.work);
+	struct cfg802154_beacon_request *beacon_req;
+	struct ieee802154_sub_if_data *sdata;
+	struct wpan_dev *wpan_dev;
+	int ret;
+
+	rcu_read_lock();
+	beacon_req = rcu_dereference(local->beacon_req);
+	if (unlikely(!beacon_req)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(beacon_req->wpan_dev);
+
+	/* Wait an arbitrary amount of time in case we cannot use the device */
+	if (local->suspended || !ieee802154_sdata_running(sdata)) {
+		rcu_read_unlock();
+		queue_delayed_work(local->mac_wq, &local->beacon_work,
+				   msecs_to_jiffies(1000));
+		return;
+	}
+
+	wpan_dev = beacon_req->wpan_dev;
+
+	rcu_read_unlock();
+
+	dev_dbg(&sdata->dev->dev, "Sending beacon\n");
+	ret = mac802154_transmit_beacon(local, wpan_dev);
+	if (ret)
+		dev_err(&sdata->dev->dev,
+			"Beacon could not be transmitted (%d)\n", ret);
+
+	if (local->beacon_interval >= 0)
+		queue_delayed_work(local->mac_wq, &local->beacon_work,
+				   local->beacon_interval);
+}
+
+int mac802154_stop_beacons_locked(struct ieee802154_local *local,
+				  struct ieee802154_sub_if_data *sdata)
+{
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct cfg802154_beacon_request *request;
+
+	ASSERT_RTNL();
+
+	if (!mac802154_is_beaconing(local))
+		return -ESRCH;
+
+	clear_bit(IEEE802154_IS_BEACONING, &local->ongoing);
+	cancel_delayed_work(&local->beacon_work);
+	request = rcu_replace_pointer(local->beacon_req, NULL, 1);
+	if (!request)
+		return 0;
+	kfree_rcu(request);
+
+	nl802154_beaconing_done(wpan_dev);
+
+	return 0;
+}
+
+int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
+				  struct cfg802154_beacon_request *request)
+{
+	struct ieee802154_local *local = sdata->local;
+
+	ASSERT_RTNL();
+
+	if (mac802154_is_beaconing(local))
+		mac802154_stop_beacons_locked(local, sdata);
+
+	/* Store beaconing parameters */
+	rcu_assign_pointer(local->beacon_req, request);
+
+	set_bit(IEEE802154_IS_BEACONING, &local->ongoing);
+
+	memset(&local->beacon, 0, sizeof(local->beacon));
+	local->beacon.mhr.fc.type = IEEE802154_FC_TYPE_BEACON;
+	local->beacon.mhr.fc.security_enabled = 0;
+	local->beacon.mhr.fc.frame_pending = 0;
+	local->beacon.mhr.fc.ack_request = 0;
+	local->beacon.mhr.fc.intra_pan = 0;
+	local->beacon.mhr.fc.dest_addr_mode = IEEE802154_NO_ADDRESSING;
+	local->beacon.mhr.fc.version = IEEE802154_2003_STD;
+	local->beacon.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	atomic_set(&request->wpan_dev->bsn, -1);
+	local->beacon.mhr.source.mode = IEEE802154_ADDR_LONG;
+	local->beacon.mhr.source.pan_id = cpu_to_le16(request->wpan_dev->pan_id);
+	local->beacon.mhr.source.extended_addr = cpu_to_le64(request->wpan_dev->extended_addr);
+	local->beacon.mac_pl.beacon_order = request->interval;
+	local->beacon.mac_pl.superframe_order = request->interval;
+	local->beacon.mac_pl.final_cap_slot = 0xf;
+	local->beacon.mac_pl.battery_life_ext = 0;
+	/* TODO: Fill this field depending on the coordinator capacity */
+	local->beacon.mac_pl.pan_coordinator = 1;
+	local->beacon.mac_pl.assoc_permit = 1;
+
+	/* Start the beacon work */
+	local->beacon_interval =
+		mac802154_scan_get_channel_time(request->interval,
+						request->wpan_phy->symbol_duration);
+	queue_delayed_work(local->mac_wq, &local->beacon_work, 0);
 
 	return 0;
 }

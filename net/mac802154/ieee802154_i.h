@@ -23,6 +23,7 @@
 
 enum ieee802154_ongoing {
 	IEEE802154_IS_SCANNING = BIT(0),
+	IEEE802154_IS_BEACONING = BIT(1),
 };
 
 /* mac802154 device private data */
@@ -59,6 +60,12 @@ struct ieee802154_local {
 	u8 scan_channel;
 	struct cfg802154_scan_request __rcu *scan_req;
 	struct delayed_work scan_work;
+
+	/* Beaconing */
+	unsigned int beacon_interval;
+	struct ieee802154_beacon_frame beacon;
+	struct cfg802154_beacon_request __rcu *beacon_req;
+	struct delayed_work beacon_work;
 
 	/* Asynchronous tasks */
 	struct list_head rx_beacon_list;
@@ -255,6 +262,17 @@ void mac802154_rx_beacon_worker(struct work_struct *work);
 static inline bool mac802154_is_scanning(struct ieee802154_local *local)
 {
 	return test_bit(IEEE802154_IS_SCANNING, &local->ongoing);
+}
+
+void mac802154_beacon_worker(struct work_struct *work);
+int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
+				  struct cfg802154_beacon_request *request);
+int mac802154_stop_beacons_locked(struct ieee802154_local *local,
+				  struct ieee802154_sub_if_data *sdata);
+
+static inline bool mac802154_is_beaconing(struct ieee802154_local *local)
+{
+	return test_bit(IEEE802154_IS_BEACONING, &local->ongoing);
 }
 
 /* interface handling */
