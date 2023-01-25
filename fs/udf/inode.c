@@ -189,15 +189,11 @@ static int udf_adinicb_writepage(struct page *page,
 				 struct writeback_control *wbc, void *data)
 {
 	struct inode *inode = page->mapping->host;
-	char *kaddr;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	BUG_ON(!PageLocked(page));
-
-	kaddr = kmap_atomic(page);
-	memcpy(iinfo->i_data + iinfo->i_lenEAttr, kaddr, i_size_read(inode));
-	SetPageUptodate(page);
-	kunmap_atomic(kaddr);
+	memcpy_to_page(page, 0, iinfo->i_data + iinfo->i_lenEAttr,
+		       i_size_read(inode));
 	unlock_page(page);
 	mark_inode_dirty(inode);
 
