@@ -488,15 +488,6 @@ mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int err;
 
-	if (attr->flags & MLX5_ATTR_FLAG_CT) {
-		struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts =
-			&attr->parse_attr->mod_hdr_acts;
-
-		return mlx5_tc_ct_flow_offload(get_ct_priv(priv),
-					       spec, attr,
-					       mod_hdr_acts);
-	}
-
 	if (!is_mdev_switchdev_mode(priv->mdev))
 		return mlx5e_add_offloaded_nic_rule(priv, spec, attr);
 
@@ -518,11 +509,6 @@ mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
 			struct mlx5_flow_attr *attr)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-
-	if (attr->flags & MLX5_ATTR_FLAG_CT) {
-		mlx5_tc_ct_delete_flow(get_ct_priv(priv), attr);
-		return;
-	}
 
 	if (!is_mdev_switchdev_mode(priv->mdev)) {
 		mlx5e_del_offloaded_nic_rule(priv, rule, attr);
@@ -1396,13 +1382,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	if (attr->flags & MLX5_ATTR_FLAG_CT)
-		flow->rule[0] = mlx5_tc_ct_flow_offload(get_ct_priv(priv), &parse_attr->spec,
-							attr, &parse_attr->mod_hdr_acts);
-	else
-		flow->rule[0] = mlx5e_add_offloaded_nic_rule(priv, &parse_attr->spec,
-							     attr);
-
+	flow->rule[0] = mlx5e_add_offloaded_nic_rule(priv, &parse_attr->spec, attr);
 	return PTR_ERR_OR_ZERO(flow->rule[0]);
 }
 
@@ -1433,9 +1413,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 
 	flow_flag_clear(flow, OFFLOADED);
 
-	if (attr->flags & MLX5_ATTR_FLAG_CT)
-		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);
-	else if (!IS_ERR_OR_NULL(flow->rule[0]))
+	if (!IS_ERR_OR_NULL(flow->rule[0]))
 		mlx5e_del_offloaded_nic_rule(priv, flow->rule[0], attr);
 
 	/* Remove root table if no rules are left to avoid
@@ -3734,6 +3712,7 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 	attr2->dest_chain = 0;
 	attr2->dest_ft = NULL;
 	attr2->act_id_restore_rule = NULL;
+	memset(&attr2->ct_attr, 0, sizeof(attr2->ct_attr));
 
 	if (ns_type == MLX5_FLOW_NAMESPACE_FDB) {
 		attr2->esw_attr->out_count = 0;
@@ -4443,6 +4422,8 @@ mlx5_free_flow_attr_actions(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *a
 		mlx5e_tc_detach_mod_hdr(flow->priv, flow, attr);
 	}
 
+	mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);
+
 	free_branch_attr(flow, attr->branch_true);
 	free_branch_attr(flow, attr->branch_false);
 }
@@ -4906,7 +4887,7 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		goto errout;
 	}
 
-	if (mlx5e_is_offloaded_flow(flow) || flow_flag_test(flow, CT)) {
+	if (mlx5e_is_offloaded_flow(flow)) {
 		if (flow_flag_test(flow, USE_ACT_STATS)) {
 			f->use_act_stats = true;
 		} else {
