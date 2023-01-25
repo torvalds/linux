@@ -1100,8 +1100,11 @@
 #define XEHP_MERT_MOD_CTRL			MCR_REG(0xcf28)
 #define RENDER_MOD_CTRL				MCR_REG(0xcf2c)
 #define COMP_MOD_CTRL				MCR_REG(0xcf30)
-#define VDBX_MOD_CTRL				MCR_REG(0xcf34)
-#define VEBX_MOD_CTRL				MCR_REG(0xcf38)
+#define XELPMP_GSC_MOD_CTRL			_MMIO(0xcf30)	/* media GT only */
+#define XEHP_VDBX_MOD_CTRL			MCR_REG(0xcf34)
+#define XELPMP_VDBX_MOD_CTRL			_MMIO(0xcf34)
+#define XEHP_VEBX_MOD_CTRL			MCR_REG(0xcf38)
+#define XELPMP_VEBX_MOD_CTRL			_MMIO(0xcf38)
 #define   FORCE_MISS_FTLB			REG_BIT(3)
 
 #define GEN12_GAMSTLB_CTRL			_MMIO(0xcf4c)
