@@ -3503,9 +3503,7 @@ static void i8xx_error_irq_ack(struct drm_i915_private *i915,
 	u16 emr;
 
 	*eir = intel_uncore_read16(uncore, EIR);
-
-	if (*eir)
-		intel_uncore_write16(uncore, EIR, *eir);
+	intel_uncore_write16(uncore, EIR, *eir);
 
 	*eir_stuck = intel_uncore_read16(uncore, EIR);
 	if (*eir_stuck == 0)
@@ -3541,7 +3539,8 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 {
 	u32 emr;
 
-	*eir = intel_uncore_rmw(&dev_priv->uncore, EIR, 0, 0);
+	*eir = intel_uncore_read(&dev_priv->uncore, EIR);
+	intel_uncore_write(&dev_priv->uncore, EIR, *eir);
 
 	*eir_stuck = intel_uncore_read(&dev_priv->uncore, EIR);
 	if (*eir_stuck == 0)
@@ -3557,7 +3556,8 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 	 * (or by a GPU reset) so we mask any bit that
 	 * remains set.
 	 */
-	emr = intel_uncore_rmw(&dev_priv->uncore, EMR, ~0, 0xffffffff);
+	emr = intel_uncore_read(&dev_priv->uncore, EMR);
+	intel_uncore_write(&dev_priv->uncore, EMR, 0xffffffff);
 	intel_uncore_write(&dev_priv->uncore, EMR, emr | *eir_stuck);
 }
 
