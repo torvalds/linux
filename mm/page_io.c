@@ -51,10 +51,9 @@ static void end_swap_bio_write(struct bio *bio)
 	bio_put(bio);
 }
 
-static void end_swap_bio_read(struct bio *bio)
+static void __end_swap_bio_read(struct bio *bio)
 {
 	struct page *page = bio_first_page_all(bio);
-	struct task_struct *waiter = bio->bi_private;
 
 	if (bio->bi_status) {
 		SetPageError(page);
@@ -62,18 +61,16 @@ static void end_swap_bio_read(struct bio *bio)
 		pr_alert_ratelimited("Read-error on swap-device (%u:%u:%llu)\n",
 				     MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
 				     (unsigned long long)bio->bi_iter.bi_sector);
-		goto out;
+	} else {
+		SetPageUptodate(page);
 	}
-
-	SetPageUptodate(page);
-out:
 	unlock_page(page);
-	WRITE_ONCE(bio->bi_private, NULL);
+}
+
+static void end_swap_bio_read(struct bio *bio)
+{
+	__end_swap_bio_read(bio);
 	bio_put(bio);
-	if (waiter) {
-		blk_wake_io_task(waiter);
-		put_task_struct(waiter);
-	}
 }
 
 int generic_swapfile_activate(struct swap_info_struct *sis,
@@ -444,7 +441,33 @@ static void swap_readpage_fs(struct page *page,
 		*plug = sio;
 }
 
-static void swap_readpage_bdev(struct page *page, bool synchronous,
+static void swap_readpage_bdev_sync(struct page *page,
+		struct swap_info_struct *sis)
+{
+	struct bio_vec bv;
+	struct bio bio;
+
+	if ((sis->flags & SWP_SYNCHRONOUS_IO) &&
+	    !bdev_read_page(sis->bdev, swap_page_sector(page), page)) {
+		count_vm_event(PSWPIN);
+		return;
+	}
+
+	bio_init(&bio, sis->bdev, &bv, 1, REQ_OP_READ);
+	bio.bi_iter.bi_sector = swap_page_sector(page);
+	bio_add_page(&bio, page, thp_size(page), 0);
+	/*
+	 * Keep this task valid during swap readpage because the oom killer may
+	 * attempt to access it in the page fault retry time check.
+	 */
+	get_task_struct(current);
+	count_vm_event(PSWPIN);
+	submit_bio_wait(&bio);
+	__end_swap_bio_read(&bio);
+	put_task_struct(current);
+}
+
+static void swap_readpage_bdev_async(struct page *page,
 		struct swap_info_struct *sis)
 {
 	struct bio *bio;
@@ -459,26 +482,8 @@ static void swap_readpage_bdev(struct page *page, bool synchronous,
 	bio->bi_iter.bi_sector = swap_page_sector(page);
 	bio->bi_end_io = end_swap_bio_read;
 	bio_add_page(bio, page, thp_size(page), 0);
-	/*
-	 * Keep this task valid during swap readpage because the oom killer may
-	 * attempt to access it in the page fault retry time check.
-	 */
-	if (synchronous) {
-		get_task_struct(current);
-		bio->bi_private = current;
-	}
 	count_vm_event(PSWPIN);
-	bio_get(bio);
 	submit_bio(bio);
-	while (synchronous) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!READ_ONCE(bio->bi_private))
-			break;
-
-		blk_io_schedule();
-	}
-	__set_current_state(TASK_RUNNING);
-	bio_put(bio);
 }
 
 void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
@@ -508,8 +513,10 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 		unlock_page(page);
 	} else if (data_race(sis->flags & SWP_FS_OPS)) {
 		swap_readpage_fs(page, plug);
+	} else if (synchronous) {
+		swap_readpage_bdev_sync(page, sis);
 	} else {
-		swap_readpage_bdev(page, synchronous, sis);
+		swap_readpage_bdev_async(page, sis);
 	}
 
 	if (workingset) {
