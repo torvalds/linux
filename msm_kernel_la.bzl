@@ -401,7 +401,7 @@ def define_msm_la(
         base_kernel,
         build_boot = True,
         build_dtbo = True if dtbo_list else False,
-        build_initramfs = True if vendor_ramdisk_binaries else False,
+        build_initramfs = True,
         build_vendor_boot = True if dtbo_list else False,
         dtbo_list = dtbo_list,
         vendor_ramdisk_binaries = vendor_ramdisk_binaries,
