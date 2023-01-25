@@ -315,6 +315,22 @@ TRACE_EVENT(802154_rdev_trigger_scan,
 		  WPAN_PHY_PR_ARG, __entry->page, __entry->channels, __entry->duration)
 );
 
+TRACE_EVENT(802154_rdev_send_beacons,
+	TP_PROTO(struct wpan_phy *wpan_phy,
+		 struct cfg802154_beacon_request *request),
+	TP_ARGS(wpan_phy, request),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		__field(u8, interval)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		__entry->interval = request->interval;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", sending beacons (interval order: %d)",
+		  WPAN_PHY_PR_ARG, __entry->interval)
+);
+
 DECLARE_EVENT_CLASS(802154_wdev_template,
 	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev),
 	TP_ARGS(wpan_phy, wpan_dev),
@@ -331,6 +347,11 @@ DECLARE_EVENT_CLASS(802154_wdev_template,
 );
 
 DEFINE_EVENT(802154_wdev_template, 802154_rdev_abort_scan,
+	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev),
+	TP_ARGS(wpan_phy, wpan_dev)
+);
+
+DEFINE_EVENT(802154_wdev_template, 802154_rdev_stop_beacons,
 	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev),
 	TP_ARGS(wpan_phy, wpan_dev)
 );
