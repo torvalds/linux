@@ -52,7 +52,7 @@ static struct iommu_domain *s390_domain_alloc(unsigned domain_type)
 	if (!s390_domain)
 		return NULL;
 
-	s390_domain->dma_table = dma_alloc_cpu_table();
+	s390_domain->dma_table = dma_alloc_cpu_table(GFP_KERNEL);
 	if (!s390_domain->dma_table) {
 		kfree(s390_domain);
 		return NULL;
@@ -257,7 +257,8 @@ static void s390_iommu_iotlb_sync_map(struct iommu_domain *domain,
 
 static int s390_iommu_validate_trans(struct s390_domain *s390_domain,
 				     phys_addr_t pa, dma_addr_t dma_addr,
-				     unsigned long nr_pages, int flags)
+				     unsigned long nr_pages, int flags,
+				     gfp_t gfp)
 {
 	phys_addr_t page_addr = pa & PAGE_MASK;
 	unsigned long *entry;
@@ -265,7 +266,8 @@ static int s390_iommu_validate_trans(struct s390_domain *s390_domain,
 	int rc;
 
 	for (i = 0; i < nr_pages; i++) {
-		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr);
+		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr,
+					   gfp);
 		if (unlikely(!entry)) {
 			rc = -ENOMEM;
 			goto undo_cpu_trans;
@@ -281,7 +283,7 @@ undo_cpu_trans:
 	while (i-- > 0) {
 		dma_addr -= PAGE_SIZE;
 		entry = dma_walk_cpu_trans(s390_domain->dma_table,
-					   dma_addr);
+					   dma_addr, gfp);
 		if (!entry)
 			break;
 		dma_update_cpu_trans(entry, 0, ZPCI_PTE_INVALID);
@@ -298,7 +300,8 @@ static int s390_iommu_invalidate_trans(struct s390_domain *s390_domain,
 	int rc = 0;
 
 	for (i = 0; i < nr_pages; i++) {
-		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr);
+		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr,
+					   GFP_ATOMIC);
 		if (unlikely(!entry)) {
 			rc = -EINVAL;
 			break;
@@ -336,7 +339,7 @@ static int s390_iommu_map_pages(struct iommu_domain *domain,
 		flags |= ZPCI_TABLE_PROTECTED;
 
 	rc = s390_iommu_validate_trans(s390_domain, paddr, iova,
-				       pgcount, flags);
+				       pgcount, flags, gfp);
 	if (!rc)
 		*mapped = size;
 
