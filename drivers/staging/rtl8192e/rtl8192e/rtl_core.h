@@ -184,9 +184,6 @@ enum reset_type {
 
 struct rt_stats {
 	unsigned long received_rate_histogram[4][32];
-	unsigned long txbeaconerr;
-	unsigned long txmanageokint;
-	unsigned long txcmdpktokint;
 	unsigned long txbytesmulticast;
 	unsigned long txbytesbroadcast;
 	unsigned long txbytesunicast;
