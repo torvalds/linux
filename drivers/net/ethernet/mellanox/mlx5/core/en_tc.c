@@ -177,7 +177,8 @@ static struct lock_class_key tc_ht_wq_key;
 
 static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow);
 static void free_flow_post_acts(struct mlx5e_tc_flow *flow);
-static void mlx5_free_flow_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr);
+static void mlx5_free_flow_attr_actions(struct mlx5e_tc_flow *flow,
+					struct mlx5_flow_attr *attr);
 
 void
 mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
@@ -2021,7 +2022,7 @@ static void free_branch_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *
 	if (!attr)
 		return;
 
-	mlx5_free_flow_attr(flow, attr);
+	mlx5_free_flow_attr_actions(flow, attr);
 	kvfree(attr->parse_attr);
 	kfree(attr);
 }
@@ -2053,17 +2054,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow->decap_route)
 		mlx5e_detach_decap_route(priv, flow);
 
-	clean_encap_dests(priv, flow, attr);
-
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
-
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
-		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
-	}
-
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
-		mlx5_fc_destroy(esw_attr->counter_dev, attr->counter);
 
 	if (esw_attr->int_port)
 		mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(priv), esw_attr->int_port);
@@ -2077,8 +2068,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	mlx5e_tc_act_stats_del_flow(get_act_stats_handle(priv), flow);
 
 	free_flow_post_acts(flow);
-	free_branch_attr(flow, attr->branch_true);
-	free_branch_attr(flow, attr->branch_false);
+	mlx5_free_flow_attr_actions(flow, attr);
 
 	kvfree(attr->esw_attr->rx_tun_attr);
 	kvfree(attr->parse_attr);
@@ -3797,9 +3787,7 @@ free_flow_post_acts(struct mlx5e_tc_flow *flow)
 		if (list_is_last(&attr->list, &flow->attrs))
 			break;
 
-		mlx5_free_flow_attr(flow, attr);
-		free_branch_attr(flow, attr->branch_true);
-		free_branch_attr(flow, attr->branch_false);
+		mlx5_free_flow_attr_actions(flow, attr);
 
 		list_del(&attr->list);
 		kvfree(attr->parse_attr);
@@ -4434,7 +4422,7 @@ mlx5_alloc_flow_attr(enum mlx5_flow_namespace_type type)
 }
 
 static void
-mlx5_free_flow_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
+mlx5_free_flow_attr_actions(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
 {
 	struct mlx5_core_dev *counter_dev = get_flow_counter_dev(flow);
 
@@ -4453,6 +4441,9 @@ mlx5_free_flow_attr(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
 		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
 		mlx5e_tc_detach_mod_hdr(flow->priv, flow, attr);
 	}
+
+	free_branch_attr(flow, attr->branch_true);
+	free_branch_attr(flow, attr->branch_false);
 }
 
 static int
