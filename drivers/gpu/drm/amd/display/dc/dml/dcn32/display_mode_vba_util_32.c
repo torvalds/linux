@@ -3480,7 +3480,7 @@ bool dml32_CalculatePrefetchSchedule(
 	double  prefetch_sw_bytes;
 	double  bytes_pp;
 	double  dep_bytes;
-	unsigned int max_vratio_pre = __DML_MAX_VRATIO_PRE__;
+	unsigned int max_vratio_pre = v->MaxVRatioPre;
 	double  min_Lsw;
 	double  Tsw_est1 = 0;
 	double  Tsw_est3 = 0;
@@ -6150,7 +6150,9 @@ void dml32_CalculatePrefetchBandwithSupport(unsigned int NumberOfActiveSurfaces,
 		bool *PrefetchBandwidthSupport)
 {
 	unsigned int k;
+	double ActiveBandwidthPerSurface;
 	bool NotEnoughUrgentLatencyHiding = false;
+	double TotalActiveBandwidth = 0;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (NotUrgentLatencyHiding[k]) {
 			NotEnoughUrgentLatencyHiding = true;
@@ -6159,12 +6161,16 @@ void dml32_CalculatePrefetchBandwithSupport(unsigned int NumberOfActiveSurfaces,
 
 	*PrefetchBandwidth = 0;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
+		ActiveBandwidthPerSurface = ReadBandwidthLuma[k] * UrgentBurstFactorLuma[k] + ReadBandwidthChroma[k] * UrgentBurstFactorChroma[k] + cursor_bw[k] * UrgentBurstFactorCursor[k] + NumberOfDPP[k] * (meta_row_bandwidth[k] + dpte_row_bandwidth[k]);
+
+		TotalActiveBandwidth += ActiveBandwidthPerSurface;
+
 		*PrefetchBandwidth = *PrefetchBandwidth + dml_max3(NumberOfDPP[k] * prefetch_vmrow_bw[k],
-				ReadBandwidthLuma[k] * UrgentBurstFactorLuma[k] + ReadBandwidthChroma[k] * UrgentBurstFactorChroma[k] + cursor_bw[k] * UrgentBurstFactorCursor[k] + NumberOfDPP[k] * (meta_row_bandwidth[k] + dpte_row_bandwidth[k]),
+				ActiveBandwidthPerSurface,
 				NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * UrgentBurstFactorLumaPre[k] + PrefetchBandwidthChroma[k] * UrgentBurstFactorChromaPre[k]) + cursor_bw_pre[k] * UrgentBurstFactorCursorPre[k]);
 	}
 
-	*PrefetchBandwidthSupport = (*PrefetchBandwidth <= ReturnBW) && !NotEnoughUrgentLatencyHiding;
+	*PrefetchBandwidthSupport = (*PrefetchBandwidth <= ReturnBW) &&  (*PrefetchBandwidth <= TotalActiveBandwidth * __DML_MAX_BW_RATIO_PRE__) && !NotEnoughUrgentLatencyHiding;
 	*FractionOfUrgentBandwidth = *PrefetchBandwidth / ReturnBW;
 }
 

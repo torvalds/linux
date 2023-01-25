@@ -896,8 +896,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			if (v->DestinationLinesForPrefetch[k] < 2)
 				DestinationLineTimesForPrefetchLessThan2 = true;
 
-			if (v->VRatioPrefetchY[k] > __DML_MAX_VRATIO_PRE__
-					|| v->VRatioPrefetchC[k] > __DML_MAX_VRATIO_PRE__)
+			if (v->VRatioPrefetchY[k] > v->MaxVRatioPre
+					|| v->VRatioPrefetchC[k] > v->MaxVRatioPre)
 				VRatioPrefetchMoreThanMax = true;
 
 			//bool DestinationLinesToRequestVMInVBlankEqualOrMoreThan32 = false;
@@ -3397,8 +3397,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 				mode_lib->vba.VRatioInPrefetchSupported[i][j] = true;
 				for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
-					if (mode_lib->vba.VRatioPreY[i][j][k] > __DML_MAX_VRATIO_PRE__
-							|| mode_lib->vba.VRatioPreC[i][j][k] > __DML_MAX_VRATIO_PRE__
+					if (mode_lib->vba.VRatioPreY[i][j][k] > mode_lib->vba.MaxVRatioPre
+							|| mode_lib->vba.VRatioPreC[i][j][k] > mode_lib->vba.MaxVRatioPre
 							|| mode_lib->vba.NoTimeForPrefetch[i][j][k] == true) {
 						mode_lib->vba.VRatioInPrefetchSupported[i][j] = false;
 					}
