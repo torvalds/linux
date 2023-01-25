@@ -1182,8 +1182,8 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 			val |= ipa_reg_encode(reg, STATUS_ENDP,
 					      status_endpoint_id);
 		}
-		/* STATUS_LOCATION is 0, meaning status element precedes
-		 * packet (not present for IPA v4.5+)
+		/* STATUS_LOCATION is 0, meaning IPA packet status
+		 * precedes the packet (not present for IPA v4.5+)
 		 */
 		/* STATUS_PKT_SUPPRESS_FMASK is 0 (not present for v4.0+) */
 	}
@@ -1339,8 +1339,8 @@ static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
 	return skb != NULL;
 }
 
-/* The format of a packet status element is the same for several status
- * types (opcodes).  Other types aren't currently supported.
+ /* The format of an IPA packet status structure is the same for several
+  * status types (opcodes).  Other types aren't currently supported.
  */
 static bool ipa_status_format_packet(enum ipa_status_opcode opcode)
 {
@@ -1358,9 +1358,11 @@ static bool ipa_status_format_packet(enum ipa_status_opcode opcode)
 static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
 				     const struct ipa_status *status)
 {
+	enum ipa_status_opcode opcode;
 	u32 endpoint_id;
 
-	if (!ipa_status_format_packet(status->opcode))
+	opcode = status->opcode;
+	if (!ipa_status_format_packet(opcode))
 		return true;
 
 	endpoint_id = u8_get_bits(status->endp_dst_idx,
@@ -1371,14 +1373,16 @@ static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
 	return false;	/* Don't skip this packet, process it */
 }
 
-static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
-				    const struct ipa_status *status)
+static bool ipa_endpoint_status_tag_valid(struct ipa_endpoint *endpoint,
+					  const struct ipa_status *status)
 {
 	struct ipa_endpoint *command_endpoint;
+	enum ipa_status_mask status_mask;
 	struct ipa *ipa = endpoint->ipa;
 	u32 endpoint_id;
 
-	if (!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID))
+	status_mask = le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID);
+	if (!status_mask)
 		return false;	/* No valid tag */
 
 	/* The status contains a valid tag.  We know the packet was sent to
@@ -1404,20 +1408,23 @@ static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
 static bool ipa_endpoint_status_drop(struct ipa_endpoint *endpoint,
 				     const struct ipa_status *status)
 {
-	u32 val;
+	enum ipa_status_exception exception;
+	u32 rule;
 
 	/* If the status indicates a tagged transfer, we'll drop the packet */
-	if (ipa_endpoint_status_tag(endpoint, status))
+	if (ipa_endpoint_status_tag_valid(endpoint, status))
 		return true;
 
 	/* Deaggregation exceptions we drop; all other types we consume */
-	if (status->exception)
-		return status->exception == IPA_STATUS_EXCEPTION_DEAGGR;
+	exception = status->exception;
+	if (exception)
+		return exception == IPA_STATUS_EXCEPTION_DEAGGR;
 
 	/* Drop the packet if it fails to match a routing rule; otherwise no */
-	val = le32_get_bits(status->flags1, IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK);
+	rule = le32_get_bits(status->flags1,
+			     IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK);
 
-	return val == field_max(IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK);
+	return rule == field_max(IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK);
 }
 
 static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
@@ -1443,15 +1450,15 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 
 		/* Skip over status packets that lack packet data */
 		length = le16_to_cpu(status->pkt_len);
-		if (!length || ipa_endpoint_status_skip(endpoint, status)) {
+		if (!length || ipa_endpoint_status_skip(endpoint, data)) {
 			data += IPA_STATUS_SIZE;
 			resid -= IPA_STATUS_SIZE;
 			continue;
 		}
 
 		/* Compute the amount of buffer space consumed by the packet,
-		 * including the status element.  If the hardware is configured
-		 * to pad packet data to an aligned boundary, account for that.
+		 * including the status.  If the hardware is configured to
+		 * pad packet data to an aligned boundary, account for that.
 		 * And if checksum offload is enabled a trailer containing
 		 * computed checksum information will be appended.
 		 */
@@ -1460,7 +1467,7 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 		if (endpoint->config.checksum)
 			len += sizeof(struct rmnet_map_dl_csum_trailer);
 
-		if (!ipa_endpoint_status_drop(endpoint, status)) {
+		if (!ipa_endpoint_status_drop(endpoint, data)) {
 			void *data2;
 			u32 extra;
 
