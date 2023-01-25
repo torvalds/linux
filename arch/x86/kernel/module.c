@@ -187,10 +187,6 @@ static int __apply_relocate_add(Elf64_Shdr *sechdrs,
 				goto invalid_relocation;
 			val -= (u64)loc;
 			write(loc, &val, 4);
-#if 0
-			if ((s64)val != *(s32 *)loc)
-				goto overflow;
-#endif
 			break;
 		case R_X86_64_PC64:
 			if (*(u64 *)loc != 0)
