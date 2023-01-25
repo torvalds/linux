@@ -27,7 +27,7 @@
 #include <linux/delayacct.h>
 #include "swap.h"
 
-static void end_swap_bio_write(struct bio *bio)
+static void __end_swap_bio_write(struct bio *bio)
 {
 	struct page *page = bio_first_page_all(bio);
 
@@ -48,6 +48,11 @@ static void end_swap_bio_write(struct bio *bio)
 		ClearPageReclaim(page);
 	}
 	end_page_writeback(page);
+}
+
+static void end_swap_bio_write(struct bio *bio)
+{
+	__end_swap_bio_write(bio);
 	bio_put(bio);
 }
 
@@ -326,15 +331,31 @@ static void swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 		*wbc->swap_plug = sio;
 }
 
-static void swap_writepage_bdev(struct page *page,
+static void swap_writepage_bdev_sync(struct page *page,
+		struct writeback_control *wbc, struct swap_info_struct *sis)
+{
+	struct bio_vec bv;
+	struct bio bio;
+
+	bio_init(&bio, sis->bdev, &bv, 1,
+		 REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc));
+	bio.bi_iter.bi_sector = swap_page_sector(page);
+	bio_add_page(&bio, page, thp_size(page), 0);
+
+	bio_associate_blkg_from_page(&bio, page);
+	count_swpout_vm_event(page);
+
+	set_page_writeback(page);
+	unlock_page(page);
+
+	submit_bio_wait(&bio);
+	__end_swap_bio_write(&bio);
+}
+
+static void swap_writepage_bdev_async(struct page *page,
 		struct writeback_control *wbc, struct swap_info_struct *sis)
 {
 	struct bio *bio;
-
-	if (!bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc)) {
-		count_swpout_vm_event(page);
-		return;
-	}
 
 	bio = bio_alloc(sis->bdev, 1,
 			REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc),
@@ -362,8 +383,10 @@ void __swap_writepage(struct page *page, struct writeback_control *wbc)
 	 */
 	if (data_race(sis->flags & SWP_FS_OPS))
 		swap_writepage_fs(page, wbc);
+	else if (sis->flags & SWP_SYNCHRONOUS_IO)
+		swap_writepage_bdev_sync(page, wbc, sis);
 	else
-		swap_writepage_bdev(page, wbc, sis);
+		swap_writepage_bdev_async(page, wbc, sis);
 }
 
 void swap_write_unplug(struct swap_iocb *sio)
@@ -447,12 +470,6 @@ static void swap_readpage_bdev_sync(struct page *page,
 	struct bio_vec bv;
 	struct bio bio;
 
-	if ((sis->flags & SWP_SYNCHRONOUS_IO) &&
-	    !bdev_read_page(sis->bdev, swap_page_sector(page), page)) {
-		count_vm_event(PSWPIN);
-		return;
-	}
-
 	bio_init(&bio, sis->bdev, &bv, 1, REQ_OP_READ);
 	bio.bi_iter.bi_sector = swap_page_sector(page);
 	bio_add_page(&bio, page, thp_size(page), 0);
@@ -471,12 +488,6 @@ static void swap_readpage_bdev_async(struct page *page,
 		struct swap_info_struct *sis)
 {
 	struct bio *bio;
-
-	if ((sis->flags & SWP_SYNCHRONOUS_IO) &&
-	    !bdev_read_page(sis->bdev, swap_page_sector(page), page)) {
-		count_vm_event(PSWPIN);
-		return;
-	}
 
 	bio = bio_alloc(sis->bdev, 1, REQ_OP_READ, GFP_KERNEL);
 	bio->bi_iter.bi_sector = swap_page_sector(page);
@@ -513,7 +524,7 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 		unlock_page(page);
 	} else if (data_race(sis->flags & SWP_FS_OPS)) {
 		swap_readpage_fs(page, plug);
-	} else if (synchronous) {
+	} else if (synchronous || (sis->flags & SWP_SYNCHRONOUS_IO)) {
 		swap_readpage_bdev_sync(page, sis);
 	} else {
 		swap_readpage_bdev_async(page, sis);

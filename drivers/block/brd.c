@@ -309,23 +309,9 @@ static void brd_submit_bio(struct bio *bio)
 	bio_endio(bio);
 }
 
-static int brd_rw_page(struct block_device *bdev, sector_t sector,
-		       struct page *page, enum req_op op)
-{
-	struct brd_device *brd = bdev->bd_disk->private_data;
-	int err;
-
-	if (PageTransHuge(page))
-		return -ENOTSUPP;
-	err = brd_do_bvec(brd, page, PAGE_SIZE, 0, op, sector);
-	page_endio(page, op_is_write(op), err);
-	return err;
-}
-
 static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
 	.submit_bio =		brd_submit_bio,
-	.rw_page =		brd_rw_page,
 };
 
 /*
@@ -411,6 +397,7 @@ static int brd_alloc(int i)
 
 	/* Tell the block layer that this is not a rotational device */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, disk->queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, disk->queue);
 	err = add_disk(disk);
 	if (err)
