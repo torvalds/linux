@@ -367,6 +367,8 @@ static void udf_copy_fi_to_bufs(char *buf1, int len1, char *buf2, int len2,
 	int fioff = off;
 	int crcoff = off + sizeof(struct tag);
 	unsigned int crclen = udf_dir_entry_len(fi) - sizeof(struct tag);
+	char zeros[UDF_NAME_PAD] = {};
+	int endoff = off + udf_dir_entry_len(fi);
 
 	udf_copy_to_bufs(buf1, len1, buf2, len2, off, fi,
 			 sizeof(struct fileIdentDesc));
@@ -375,9 +377,13 @@ static void udf_copy_fi_to_bufs(char *buf1, int len1, char *buf2, int len2,
 		udf_copy_to_bufs(buf1, len1, buf2, len2, off, impuse,
 				 le16_to_cpu(fi->lengthOfImpUse));
 	off += le16_to_cpu(fi->lengthOfImpUse);
-	if (name)
+	if (name) {
 		udf_copy_to_bufs(buf1, len1, buf2, len2, off, name,
 				 fi->lengthFileIdent);
+		off += fi->lengthFileIdent;
+		udf_copy_to_bufs(buf1, len1, buf2, len2, off, zeros,
+				 endoff - off);
+	}
 
 	crc = udf_crc_fi_bufs(buf1, len1, buf2, len2, crcoff, crclen);
 	fi->descTag.descCRC = cpu_to_le16(crc);
