@@ -41,9 +41,7 @@ static int int340x_thermal_get_trip_temp(struct thermal_zone_device *zone,
 					 int trip, int *temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
-	int i, ret = 0;
-
-	mutex_lock(&d->trip_mutex);
+	int i;
 
 	if (trip < d->aux_trip_nr)
 		*temp = d->aux_trips[trip];
@@ -62,12 +60,10 @@ static int int340x_thermal_get_trip_temp(struct thermal_zone_device *zone,
 			}
 		}
 		if (i == INT340X_THERMAL_MAX_ACT_TRIP_COUNT)
-			ret = -EINVAL;
+			return -EINVAL;
 	}
 
-	mutex_unlock(&d->trip_mutex);
-
-	return ret;
+	return 0;
 }
 
 static int int340x_thermal_get_trip_type(struct thermal_zone_device *zone,
@@ -75,9 +71,7 @@ static int int340x_thermal_get_trip_type(struct thermal_zone_device *zone,
 					 enum thermal_trip_type *type)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
-	int i, ret = 0;
-
-	mutex_lock(&d->trip_mutex);
+	int i;
 
 	if (trip < d->aux_trip_nr)
 		*type = THERMAL_TRIP_PASSIVE;
@@ -96,12 +90,10 @@ static int int340x_thermal_get_trip_type(struct thermal_zone_device *zone,
 			}
 		}
 		if (i == INT340X_THERMAL_MAX_ACT_TRIP_COUNT)
-			ret = -EINVAL;
+			return -EINVAL;
 	}
 
-	mutex_unlock(&d->trip_mutex);
-
-	return ret;
+	return 0;
 }
 
 static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
@@ -222,8 +214,6 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	if (!int34x_thermal_zone)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&int34x_thermal_zone->trip_mutex);
-
 	int34x_thermal_zone->adev = adev;
 
 	int34x_thermal_zone->ops = kmemdup(&int340x_thermal_zone_ops,
@@ -286,7 +276,6 @@ err_thermal_zone:
 err_trip_alloc:
 	kfree(int34x_thermal_zone->ops);
 err_ops_alloc:
-	mutex_destroy(&int34x_thermal_zone->trip_mutex);
 	kfree(int34x_thermal_zone);
 	return ERR_PTR(ret);
 }
@@ -299,7 +288,6 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone
 	acpi_lpat_free_conversion_table(int34x_thermal_zone->lpat_table);
 	kfree(int34x_thermal_zone->aux_trips);
 	kfree(int34x_thermal_zone->ops);
-	mutex_destroy(&int34x_thermal_zone->trip_mutex);
 	kfree(int34x_thermal_zone);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);
@@ -309,7 +297,7 @@ void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
 	acpi_handle zone_handle = int34x_zone->adev->handle;
 	int i, err;
 
-	mutex_lock(&int34x_zone->trip_mutex);
+	mutex_lock(&int34x_zone->zone->lock);
 
 	if (int34x_zone->crt_trip_id > 0) {
 		err = int340x_thermal_get_trip_config(zone_handle, "_CRT",
@@ -344,7 +332,7 @@ void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
 			int34x_zone->act_trips[i].temp = THERMAL_TEMP_INVALID;
 	}
 
-	mutex_unlock(&int34x_zone->trip_mutex);
+	mutex_unlock(&int34x_zone->zone->lock);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_update_trips);
 
