@@ -79,7 +79,6 @@ mt9t112       Aptina MT9T111/MT9T112
 mt9v011       Micron mt9v011 sensor
 mt9v032       Micron MT9V032 sensor
 mt9v111       Aptina MT9V111 sensor
-noon010pc30   Siliconfile NOON010PC30 sensor
 ov13858       OmniVision OV13858 sensor
 ov13b10       OmniVision OV13B10 sensor
 ov2640        OmniVision OV2640 sensor
