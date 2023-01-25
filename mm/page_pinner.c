@@ -236,7 +236,7 @@ print_page_pinner(bool longterm, char __user *buf, size_t count, struct captured
 		ret = snprintf(kbuf, count, "Page pinned for %lld us\n",
 			       record->elapsed);
 	} else {
-		s64 ts_usec = record->ts_usec;
+		u64 ts_usec = record->ts_usec;
 		unsigned long rem_usec = do_div(ts_usec, 1000000);
 
 		ret = snprintf(kbuf, count,
@@ -291,7 +291,7 @@ void __dump_page_pinner(struct page *page)
 	unsigned long pfn;
 	int count;
 	unsigned long rem_usec;
-	s64 ts_usec;
+	u64 ts_usec;
 
 	if (unlikely(!page_ext)) {
 		pr_alert("There is not page extension available.\n");
