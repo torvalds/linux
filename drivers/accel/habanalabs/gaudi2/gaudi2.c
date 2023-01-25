@@ -3923,7 +3923,6 @@ static void gaudi2_dec_disable_msix(struct hl_device *hdev, u32 max_irq_num)
 static int gaudi2_dec_enable_msix(struct hl_device *hdev)
 {
 	int rc, i, irq_init_cnt, irq, relative_idx;
-	irq_handler_t irq_handler;
 	struct hl_dec *dec;
 
 	for (i = GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM, irq_init_cnt = 0;
@@ -3933,20 +3932,24 @@ static int gaudi2_dec_enable_msix(struct hl_device *hdev)
 		irq = pci_irq_vector(hdev->pdev, i);
 		relative_idx = i - GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM;
 
-		irq_handler = (relative_idx % 2) ?
-				hl_irq_handler_dec_abnrm :
-				hl_irq_handler_user_interrupt;
-
-		dec = hdev->dec + relative_idx / 2;
-
 		/* We pass different structures depending on the irq handler. For the abnormal
 		 * interrupt we pass hl_dec and for the regular interrupt we pass the relevant
 		 * user_interrupt entry
+		 *
+		 * TODO: change the dec abnrm to threaded irq
 		 */
-		rc = request_irq(irq, irq_handler, 0, gaudi2_irq_name(i),
-				((relative_idx % 2) ?
-				(void *) dec :
-				(void *) &hdev->user_interrupt[dec->core_id]));
+
+		dec = hdev->dec + relative_idx / 2;
+		if (relative_idx % 2) {
+			rc = request_irq(irq, hl_irq_handler_dec_abnrm, 0,
+						gaudi2_irq_name(i), (void *) dec);
+		} else {
+			rc = request_threaded_irq(irq, hl_irq_handler_user_interrupt,
+					hl_irq_user_interrupt_thread_handler, IRQF_ONESHOT,
+					gaudi2_irq_name(i),
+					(void *) &hdev->user_interrupt[dec->core_id]);
+		}
+
 		if (rc) {
 			dev_err(hdev->dev, "Failed to request IRQ %d", irq);
 			goto free_dec_irqs;
@@ -4008,7 +4011,9 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 		irq = pci_irq_vector(hdev->pdev, i);
 		irq_handler = hl_irq_handler_user_interrupt;
 
-		rc = request_irq(irq, irq_handler, 0, gaudi2_irq_name(i), &hdev->user_interrupt[j]);
+		rc = request_threaded_irq(irq, irq_handler, hl_irq_user_interrupt_thread_handler,
+				IRQF_ONESHOT, gaudi2_irq_name(i), &hdev->user_interrupt[j]);
+
 		if (rc) {
 			dev_err(hdev->dev, "Failed to request IRQ %d", irq);
 			goto free_user_irq;

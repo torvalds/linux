@@ -335,6 +335,19 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
  */
 irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 {
+	return IRQ_WAKE_THREAD;
+}
+
+/**
+ * hl_irq_user_interrupt_thread_handler - irq thread handler for user interrupts.
+ * This function is invoked by threaded irq mechanism
+ *
+ * @irq: irq number
+ * @arg: pointer to user interrupt structure
+ *
+ */
+irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
+{
 	struct hl_user_interrupt *user_int = arg;
 	struct hl_device *hdev = user_int->hdev;
 
