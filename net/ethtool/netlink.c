@@ -279,6 +279,7 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_CHANNELS_GET]	= &ethnl_channels_request_ops,
 	[ETHTOOL_MSG_COALESCE_GET]	= &ethnl_coalesce_request_ops,
 	[ETHTOOL_MSG_PAUSE_GET]		= &ethnl_pause_request_ops,
+	[ETHTOOL_MSG_PAUSE_SET]		= &ethnl_pause_request_ops,
 	[ETHTOOL_MSG_EEE_GET]		= &ethnl_eee_request_ops,
 	[ETHTOOL_MSG_FEC_GET]		= &ethnl_fec_request_ops,
 	[ETHTOOL_MSG_TSINFO_GET]	= &ethnl_tsinfo_request_ops,
@@ -589,6 +590,52 @@ static int ethnl_default_done(struct netlink_callback *cb)
 	kfree(ctx->req_info);
 
 	return 0;
+}
+
+static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	const struct ethnl_request_ops *ops;
+	struct ethnl_req_info req_info = {};
+	const u8 cmd = info->genlhdr->cmd;
+	int ret;
+
+	ops = ethnl_default_requests[cmd];
+	if (WARN_ONCE(!ops, "cmd %u has no ethnl_request_ops\n", cmd))
+		return -EOPNOTSUPP;
+	if (GENL_REQ_ATTR_CHECK(info, ops->hdr_attr))
+		return -EINVAL;
+
+	ret = ethnl_parse_header_dev_get(&req_info, info->attrs[ops->hdr_attr],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+
+	if (ops->set_validate) {
+		ret = ops->set_validate(&req_info, info);
+		/* 0 means nothing to do */
+		if (ret <= 0)
+			goto out_dev;
+	}
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(req_info.dev);
+	if (ret < 0)
+		goto out_rtnl;
+
+	ret = ops->set(&req_info, info);
+	if (ret <= 0)
+		goto out_ops;
+	ethtool_notify(req_info.dev, ops->set_ntf_cmd, NULL);
+
+	ret = 0;
+out_ops:
+	ethnl_ops_complete(req_info.dev);
+out_rtnl:
+	rtnl_unlock();
+out_dev:
+	ethnl_parse_header_dev_put(&req_info);
+	return ret;
 }
 
 static const struct ethnl_request_ops *
@@ -921,7 +968,7 @@ static const struct genl_ops ethtool_genl_ops[] = {
 	{
 		.cmd	= ETHTOOL_MSG_PAUSE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
-		.doit	= ethnl_set_pause,
+		.doit	= ethnl_default_set_doit,
 		.policy = ethnl_pause_set_policy,
 		.maxattr = ARRAY_SIZE(ethnl_pause_set_policy) - 1,
 	},
