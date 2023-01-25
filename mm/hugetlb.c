@@ -7300,13 +7300,13 @@ int get_huge_page_for_hwpoison(unsigned long pfn, int flags,
 	return ret;
 }
 
-void putback_active_hugepage(struct page *page)
+void folio_putback_active_hugetlb(struct folio *folio)
 {
 	spin_lock_irq(&hugetlb_lock);
-	SetHPageMigratable(page);
-	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
+	folio_set_hugetlb_migratable(folio);
+	list_move_tail(&folio->lru, &(folio_hstate(folio))->hugepage_activelist);
 	spin_unlock_irq(&hugetlb_lock);
-	put_page(page);
+	folio_put(folio);
 }
 
 void move_hugetlb_state(struct folio *old_folio, struct folio *new_folio, int reason)
