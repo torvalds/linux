@@ -54,6 +54,7 @@
 #define UNIPHIER_SDCTRL_CHOFFSET	0x200
 #define UNIPHIER_SDCTRL_MODE		0x30
 #define   UNIPHIER_SDCTRL_MODE_UHS1MOD		BIT(15)
+#define   UNIPHIER_SDCTRL_MODE_SDRSEL		BIT(14)
 
 /*
  * IP is extended to support various features: built-in DMA engine,
@@ -429,6 +430,25 @@ static void uniphier_sd_hw_reset(struct mmc_host *mmc)
 	usleep_range(300, 1000);
 }
 
+static void uniphier_sd_speed_switch(struct tmio_mmc_host *host)
+{
+	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
+	unsigned int offset;
+	u32 val = 0;
+
+	if (!(host->mmc->caps & MMC_CAP_UHS))
+		return;
+
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR50 ||
+	    host->mmc->ios.timing == MMC_TIMING_UHS_SDR104)
+		val = UNIPHIER_SDCTRL_MODE_SDRSEL;
+
+	offset = UNIPHIER_SDCTRL_CHOFFSET * priv->sdctrl_ch
+		+ UNIPHIER_SDCTRL_MODE;
+	regmap_write_bits(priv->sdctrl_regmap, offset,
+			  UNIPHIER_SDCTRL_MODE_SDRSEL, val);
+}
+
 static void uniphier_sd_uhs_enable(struct tmio_mmc_host *host, bool uhs_en)
 {
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
@@ -458,6 +478,8 @@ static void uniphier_sd_set_clock(struct tmio_mmc_host *host,
 	/* stop the clock before changing its rate to avoid a glitch signal */
 	tmp &= ~CLK_CTL_SCLKEN;
 	writel(tmp, host->ctl + (CTL_SD_CARD_CLK_CTL << 1));
+
+	uniphier_sd_speed_switch(host);
 
 	if (clock == 0)
 		return;
