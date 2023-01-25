@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -1097,7 +1098,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 
 	if (fwnode_property_read_bool(fwnode, "qcom,ratiometric"))
 		prop->cal_method = ADC5_RATIOMETRIC_CAL;
-	else if (of_property_read_bool(node, "qcom,no-cal"))
+	else if (fwnode_property_read_bool(fwnode, "qcom,no-cal"))
 		prop->cal_method = ADC5_NO_CAL;
 	else
 		prop->cal_method = ADC5_ABSOLUTE_CAL;
@@ -1291,7 +1292,7 @@ static int adc5_probe(struct platform_device *pdev)
 		adc->cmn_base = be32_to_cpu(*prop_addr);
 
 
-	if (of_device_is_compatible(node, "qcom,spmi-adc7-sw-calib")) {
+	if (of_device_is_compatible(dev->of_node, "qcom,spmi-adc7-sw-calib")) {
 		if (!adc->cmn_base) {
 			pr_err("ADC_CMN undefined\n");
 			return -ENODEV;
@@ -1323,7 +1324,7 @@ static int adc5_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (of_device_is_compatible(node, "qcom,spmi-adc7-sw-calib")) {
+	if (of_device_is_compatible(dev->of_node, "qcom,spmi-adc7-sw-calib")) {
 		ret = adc7_calib(adc);
 		if (ret)
 			return ret;
