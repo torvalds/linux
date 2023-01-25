@@ -477,10 +477,11 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
+	const struct drm_edid *fixed_edid = intel_connector->panel.fixed_edid;
 
-	/* use cached edid if we have one */
-	if (!IS_ERR_OR_NULL(intel_connector->edid)) {
-		drm_edid_connector_update(connector, intel_connector->edid);
+	/* Use panel fixed edid if we have one */
+	if (!IS_ERR_OR_NULL(fixed_edid)) {
+		drm_edid_connector_update(connector, fixed_edid);
 
 		return drm_edid_connector_add_modes(connector);
 	}
@@ -974,8 +975,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	} else {
 		drm_edid = ERR_PTR(-ENOENT);
 	}
-	intel_connector->edid = drm_edid;
-
 	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, NULL,
 				   IS_ERR(drm_edid) ? NULL : drm_edid);
 
@@ -1000,7 +999,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		goto failed;
 
-	intel_panel_init(intel_connector);
+	intel_panel_init(intel_connector, drm_edid);
 
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 

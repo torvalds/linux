@@ -350,6 +350,9 @@ struct intel_vbt_panel_data {
 };
 
 struct intel_panel {
+	/* Fixed EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
+	const struct drm_edid *fixed_edid;
+
 	struct list_head fixed_modes;
 
 	/* backlight */
@@ -590,8 +593,7 @@ struct intel_connector {
 	/* Panel info for eDP and LVDS */
 	struct intel_panel panel;
 
-	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
-	const struct drm_edid *edid;
+	/* Cached EDID for detect. */
 	const struct drm_edid *detect_edid;
 
 	/* Number of times hotplug detection was tried after an HPD interrupt */

@@ -554,6 +554,6 @@ void intel_dvo_init(struct drm_i915_private *i915)
 		 */
 		intel_panel_add_encoder_fixed_mode(connector, encoder);
 
-		intel_panel_init(connector);
+		intel_panel_init(connector, NULL);
 	}
 }

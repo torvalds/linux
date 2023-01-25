@@ -4479,18 +4479,19 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 static const struct drm_edid *
 intel_dp_get_edid(struct intel_dp *intel_dp)
 {
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct intel_connector *connector = intel_dp->attached_connector;
+	const struct drm_edid *fixed_edid = connector->panel.fixed_edid;
 
-	/* use cached edid if we have one */
-	if (intel_connector->edid) {
+	/* Use panel fixed edid if we have one */
+	if (fixed_edid) {
 		/* invalid edid */
-		if (IS_ERR(intel_connector->edid))
+		if (IS_ERR(fixed_edid))
 			return NULL;
 
-		return drm_edid_dup(intel_connector->edid);
-	} else
-		return drm_edid_read_ddc(&intel_connector->base,
-					 &intel_dp->aux.ddc);
+		return drm_edid_dup(fixed_edid);
+	}
+
+	return drm_edid_read_ddc(&connector->base, &intel_dp->aux.ddc);
 }
 
 static void
@@ -5315,7 +5316,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	} else {
 		drm_edid = ERR_PTR(-ENOENT);
 	}
-	intel_connector->edid = drm_edid;
 
 	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata,
 				   IS_ERR(drm_edid) ? NULL : drm_edid);
@@ -5342,7 +5342,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		goto out_vdd_off;
 	}
 
-	intel_panel_init(intel_connector);
+	intel_panel_init(intel_connector, drm_edid);
 
 	intel_edp_backlight_setup(intel_dp, intel_connector);
 
