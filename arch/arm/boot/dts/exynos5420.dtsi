@@ -665,7 +665,7 @@
 			#sound-dai-cells = <0>;
 		};
 
-		hdmiphy: hdmiphy@145d0000 {
+		hdmiphy: hdmi-phy@145d0000 {
 			reg = <0x145D0000 0x20>;
 		};
 

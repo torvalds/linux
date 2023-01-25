@@ -470,7 +470,7 @@
 			clock-names = "i2c";
 			status = "disabled";
 
-			hdmiphy: hdmiphy@38 {
+			hdmiphy: hdmi-phy@38 {
 				compatible = "samsung,exynos4212-hdmiphy";
 				reg = <0x38>;
 			};

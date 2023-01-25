@@ -352,7 +352,7 @@
 			status = "disabled";
 		};
 
-		exynos_usbphy: exynos-usbphy@125b0000 {
+		exynos_usbphy: usb-phy@125b0000 {
 			compatible = "samsung,exynos4210-usb2-phy";
 			reg = <0x125B0000 0x100>;
 			samsung,pmureg-phandle = <&pmu_system_controller>;
@@ -604,7 +604,7 @@
 			clock-names = "i2c";
 			status = "disabled";
 
-			hdmi_i2c_phy: hdmiphy@38 {
+			hdmi_i2c_phy: hdmi-phy@38 {
 				compatible = "samsung,exynos4210-hdmiphy";
 				reg = <0x38>;
 			};
