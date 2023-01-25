@@ -288,8 +288,7 @@ struct smbd_mr {
 	struct list_head	list;
 	enum mr_state		state;
 	struct ib_mr		*mr;
-	struct scatterlist	*sgl;
-	int			sgl_count;
+	struct sg_table		sgt;
 	enum dma_data_direction	dir;
 	union {
 		struct ib_reg_wr	wr;
