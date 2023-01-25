@@ -294,7 +294,7 @@ static inline int deadline_check_fifo(struct dd_per_prio *per_prio,
 /*
  * Check if rq has a sequential request preceding it.
  */
-static bool deadline_is_seq_writes(struct deadline_data *dd, struct request *rq)
+static bool deadline_is_seq_write(struct deadline_data *dd, struct request *rq)
 {
 	struct request *prev = deadline_earlier_request(rq);
 
@@ -353,7 +353,7 @@ deadline_fifo_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 	list_for_each_entry(rq, &per_prio->fifo_list[DD_WRITE], queuelist) {
 		if (blk_req_can_dispatch_to_zone(rq) &&
 		    (blk_queue_nonrot(rq->q) ||
-		     !deadline_is_seq_writes(dd, rq)))
+		     !deadline_is_seq_write(dd, rq)))
 			goto out;
 	}
 	rq = NULL;
