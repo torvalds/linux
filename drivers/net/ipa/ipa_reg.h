@@ -382,11 +382,11 @@ enum ipa_reg_endp_init_nat_field_id {
 	NAT_EN,
 };
 
-/** enum ipa_nat_en - ENDP_INIT_NAT register NAT_EN field value */
-enum ipa_nat_en {
-	IPA_NAT_BYPASS				= 0x0,
-	IPA_NAT_SRC				= 0x1,
-	IPA_NAT_DST				= 0x2,
+/** enum ipa_nat_type - ENDP_INIT_NAT register NAT_EN field value */
+enum ipa_nat_type {
+	IPA_NAT_TYPE_BYPASS			= 0,
+	IPA_NAT_TYPE_SRC			= 1,
+	IPA_NAT_TYPE_DST			= 2,
 };
 
 /* ENDP_INIT_HDR register */
