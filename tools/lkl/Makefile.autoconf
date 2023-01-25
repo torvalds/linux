@@ -170,6 +170,7 @@ define do_autoconf_llvm
 endef
 
 define do_autoconf_fuzzing
+  export KCONFIG := fuzzing_defconfig
   export LLVM := 1
   export CROSS_COMPILE := x86_64-linux-gnu
   $(eval LLVM := 1)
