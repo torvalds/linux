@@ -16,10 +16,6 @@
 #include "xe_macros.h"
 #include "xe_uc_debugfs.h"
 
-#ifdef CONFIG_DRM_XE_DEBUG
-#include "xe_gt_tlb_invalidation.h"
-#endif
-
 static struct xe_gt *node_to_gt(struct drm_info_node *node)
 {
 	return node->info_ent->data;
@@ -92,32 +88,12 @@ static int steering(struct seq_file *m, void *data)
 	return 0;
 }
 
-#ifdef CONFIG_DRM_XE_DEBUG
-static int invalidate_tlb(struct seq_file *m, void *data)
-{
-	struct xe_gt *gt = node_to_gt(m->private);
-	int seqno;
-	int ret = 0;
-
-	seqno = xe_gt_tlb_invalidation(gt, NULL);
-	XE_WARN_ON(seqno < 0);
-	if (seqno > 0)
-		ret = xe_gt_tlb_invalidation_wait(gt, seqno);
-	XE_WARN_ON(ret < 0);
-
-	return 0;
-}
-#endif
-
 static const struct drm_info_list debugfs_list[] = {
 	{"hw_engines", hw_engines, 0},
 	{"force_reset", force_reset, 0},
 	{"sa_info", sa_info, 0},
 	{"topology", topology, 0},
 	{"steering", steering, 0},
-#ifdef CONFIG_DRM_XE_DEBUG
-	{"invalidate_tlb", invalidate_tlb, 0},
-#endif
 };
 
 void xe_gt_debugfs_register(struct xe_gt *gt)
