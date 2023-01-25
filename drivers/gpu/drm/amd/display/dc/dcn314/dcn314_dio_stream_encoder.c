@@ -30,7 +30,7 @@
 #include "dcn314_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "inc/link_dpcd.h"
+#include "dc_link_dp.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \
@@ -281,7 +281,8 @@ static void enc314_stream_encoder_dp_blank(
 	enc1_stream_encoder_dp_blank(link, enc);
 
 	/* Disable FIFO after the DP vid stream is disabled to avoid corruption. */
-	enc314_disable_fifo(enc);
+	if (enc->ctx->dc->debug.dig_fifo_off_in_blank)
+		enc314_disable_fifo(enc);
 }
 
 static void enc314_stream_encoder_dp_unblank(

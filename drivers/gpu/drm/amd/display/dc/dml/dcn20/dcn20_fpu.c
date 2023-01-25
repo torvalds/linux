@@ -32,6 +32,7 @@
 #include "dcn21/dcn21_resource.h"
 #include "clk_mgr/dcn21/rn_clk_mgr.h"
 
+#include "link.h"
 #include "dcn20_fpu.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -938,7 +939,7 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-		if (is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
+		if (link_is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
 			return true;
 	}
 	return false;
@@ -1302,7 +1303,7 @@ int dcn20_populate_dml_pipes_from_context(
 		case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		case SIGNAL_TYPE_DISPLAY_PORT:
 			pipes[pipe_cnt].dout.output_type = dm_dp;
-			if (is_dp_128b_132b_signal(&res_ctx->pipe_ctx[i]))
+			if (link_is_dp_128b_132b_signal(&res_ctx->pipe_ctx[i]))
 				pipes[pipe_cnt].dout.output_type = dm_dp2p0;
 			break;
 		case SIGNAL_TYPE_EDP:

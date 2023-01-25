@@ -336,7 +336,7 @@ static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
 
 	if (db_header.cookie != PSP_RUNTIME_DB_COOKIE_ID) {
 		/* runtime db doesn't exist, exit */
-		dev_warn(adev->dev, "PSP runtime database doesn't exist\n");
+		dev_dbg(adev->dev, "PSP runtime database doesn't exist\n");
 		return false;
 	}
 

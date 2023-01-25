@@ -920,9 +920,6 @@ static struct amdgpu_ras_block_object *amdgpu_ras_get_ras_block(struct amdgpu_de
 	if (block >= AMDGPU_RAS_BLOCK__LAST)
 		return NULL;
 
-	if (!amdgpu_ras_is_supported(adev, block))
-		return NULL;
-
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		if (!node->ras_obj) {
 			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
@@ -1620,14 +1617,14 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
 
-	if (!block_obj || !block_obj->hw_ops)
+	if (!block_obj)
 		return;
 
 	/* both query_poison_status and handle_poison_consumption are optional,
 	 * but at least one of them should be implemented if we need poison
 	 * consumption handler
 	 */
-	if (block_obj->hw_ops->query_poison_status) {
+	if (block_obj->hw_ops && block_obj->hw_ops->query_poison_status) {
 		poison_stat = block_obj->hw_ops->query_poison_status(adev);
 		if (!poison_stat) {
 			/* Not poison consumption interrupt, no need to handle it */
@@ -1641,7 +1638,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	if (!adev->gmc.xgmi.connected_to_cpu)
 		amdgpu_umc_poison_handler(adev, false);
 
-	if (block_obj->hw_ops->handle_poison_consumption)
+	if (block_obj->hw_ops && block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
 
 	/* gpu reset is fallback for failed and default cases */
@@ -1649,6 +1646,8 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
 				block_obj->ras_comm.name);
 		amdgpu_ras_reset_gpu(adev);
+	} else {
+		amdgpu_gfx_poison_consumption_handler(adev, entry);
 	}
 }
 
@@ -3023,11 +3022,26 @@ int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_co
 int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 		unsigned int block)
 {
+	int ret = 0;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	if (block >= AMDGPU_RAS_BLOCK_COUNT)
 		return 0;
-	return ras && (adev->ras_enabled & (1 << block));
+
+	ret = ras && (adev->ras_enabled & (1 << block));
+
+	/* For the special asic with mem ecc enabled but sram ecc
+	 * not enabled, even if the ras block is not supported on
+	 * .ras_enabled, if the asic supports poison mode and the
+	 * ras block has ras configuration, it can be considered
+	 * that the ras block supports ras function.
+	 */
+	if (!ret &&
+	    amdgpu_ras_is_poison_mode_supported(adev) &&
+	    amdgpu_ras_get_ras_block(adev, block, 0))
+		ret = 1;
+
+	return ret;
 }
 
 int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)

@@ -46,6 +46,7 @@
 #include "clearstate_gfx11.h"
 #include "v11_structs.h"
 #include "gfx_v11_0.h"
+#include "gfx_v11_0_3.h"
 #include "nbio_v4_3.h"
 #include "mes_v11_0.h"
 
@@ -815,7 +816,14 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
+		adev->gfx.config.max_hw_contexts = 8;
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
+		break;
 	case IP_VERSION(11, 0, 3):
+		adev->gfx.ras = &gfx_v11_0_3_ras;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1251,14 +1259,21 @@ static int gfx_v11_0_sw_init(void *handle)
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
-	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
-	case IP_VERSION(11, 0, 4):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
 		adev->gfx.mec.num_mec = 2;
+		adev->gfx.mec.num_pipe_per_mec = 4;
+		adev->gfx.mec.num_queue_per_pipe = 4;
+		break;
+	case IP_VERSION(11, 0, 1):
+	case IP_VERSION(11, 0, 4):
+		adev->gfx.me.num_me = 1;
+		adev->gfx.me.num_pipe_per_me = 1;
+		adev->gfx.me.num_queue_per_pipe = 1;
+		adev->gfx.mec.num_mec = 1;
 		adev->gfx.mec.num_pipe_per_mec = 4;
 		adev->gfx.mec.num_queue_per_pipe = 4;
 		break;
@@ -1290,6 +1305,20 @@ static int gfx_v11_0_sw_init(void *handle)
 	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GRBM_CP,
 			      GFX_11_0_0__SRCID__CP_PRIV_INSTR_FAULT,
 			      &adev->gfx.priv_inst_irq);
+	if (r)
+		return r;
+
+	/* ECC error */
+	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GRBM_CP,
+				  GFX_11_0_0__SRCID__CP_ECC_ERROR,
+				  &adev->gfx.cp_ecc_error_irq);
+	if (r)
+		return r;
+
+	/* FED error */
+	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
+				  GFX_11_0_0__SRCID__RLC_GC_FED_INTERRUPT,
+				  &adev->gfx.rlc_gc_fed_irq);
 	if (r)
 		return r;
 
@@ -1379,6 +1408,11 @@ static int gfx_v11_0_sw_init(void *handle)
 	r = gfx_v11_0_gpu_early_init(adev);
 	if (r)
 		return r;
+
+	if (amdgpu_gfx_ras_sw_init(adev)) {
+		dev_err(adev->dev, "Failed to initialize gfx ras block!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -4372,6 +4406,7 @@ static int gfx_v11_0_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
+	amdgpu_irq_put(adev, &adev->gfx.cp_ecc_error_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 
@@ -5803,6 +5838,36 @@ static void gfx_v11_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev
 	}
 }
 
+#define CP_ME1_PIPE_INST_ADDR_INTERVAL  0x1
+#define SET_ECC_ME_PIPE_STATE(reg_addr, state) \
+	do { \
+		uint32_t tmp = RREG32_SOC15_IP(GC, reg_addr); \
+		tmp = REG_SET_FIELD(tmp, CP_ME1_PIPE0_INT_CNTL, CP_ECC_ERROR_INT_ENABLE, state); \
+		WREG32_SOC15_IP(GC, reg_addr, tmp); \
+	} while (0)
+
+static int gfx_v11_0_set_cp_ecc_error_state(struct amdgpu_device *adev,
+							struct amdgpu_irq_src *source,
+							unsigned type,
+							enum amdgpu_interrupt_state state)
+{
+	uint32_t ecc_irq_state = 0;
+	uint32_t pipe0_int_cntl_addr = 0;
+	int i = 0;
+
+	ecc_irq_state = (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0;
+
+	pipe0_int_cntl_addr = SOC15_REG_OFFSET(GC, 0, regCP_ME1_PIPE0_INT_CNTL);
+
+	WREG32_FIELD15_PREREG(GC, 0, CP_INT_CNTL_RING0, CP_ECC_ERROR_INT_ENABLE, ecc_irq_state);
+
+	for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++)
+		SET_ECC_ME_PIPE_STATE(pipe0_int_cntl_addr + i * CP_ME1_PIPE_INST_ADDR_INTERVAL,
+					ecc_irq_state);
+
+	return 0;
+}
+
 static int gfx_v11_0_set_eop_interrupt_state(struct amdgpu_device *adev,
 					    struct amdgpu_irq_src *src,
 					    unsigned type,
@@ -5976,6 +6041,16 @@ static int gfx_v11_0_priv_inst_irq(struct amdgpu_device *adev,
 {
 	DRM_ERROR("Illegal instruction in command stream\n");
 	gfx_v11_0_handle_priv_fault(adev, entry);
+	return 0;
+}
+
+static int gfx_v11_0_rlc_gc_fed_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry)
+{
+	if (adev->gfx.ras && adev->gfx.ras->rlc_gc_fed_irq)
+		return adev->gfx.ras->rlc_gc_fed_irq(adev, source, entry);
+
 	return 0;
 }
 
@@ -6209,6 +6284,15 @@ static const struct amdgpu_irq_src_funcs gfx_v11_0_priv_inst_irq_funcs = {
 	.process = gfx_v11_0_priv_inst_irq,
 };
 
+static const struct amdgpu_irq_src_funcs gfx_v11_0_cp_ecc_error_irq_funcs = {
+	.set = gfx_v11_0_set_cp_ecc_error_state,
+	.process = amdgpu_gfx_cp_ecc_error_irq,
+};
+
+static const struct amdgpu_irq_src_funcs gfx_v11_0_rlc_gc_fed_irq_funcs = {
+	.process = gfx_v11_0_rlc_gc_fed_irq,
+};
+
 static void gfx_v11_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gfx.eop_irq.num_types = AMDGPU_CP_IRQ_LAST;
@@ -6219,6 +6303,13 @@ static void gfx_v11_0_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.priv_inst_irq.num_types = 1;
 	adev->gfx.priv_inst_irq.funcs = &gfx_v11_0_priv_inst_irq_funcs;
+
+	adev->gfx.cp_ecc_error_irq.num_types = 1; /* CP ECC error */
+	adev->gfx.cp_ecc_error_irq.funcs = &gfx_v11_0_cp_ecc_error_irq_funcs;
+
+	adev->gfx.rlc_gc_fed_irq.num_types = 1; /* 0x80 FED error */
+	adev->gfx.rlc_gc_fed_irq.funcs = &gfx_v11_0_rlc_gc_fed_irq_funcs;
+
 }
 
 static void gfx_v11_0_set_imu_funcs(struct amdgpu_device *adev)

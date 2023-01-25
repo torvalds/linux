@@ -106,9 +106,10 @@
  * - 3.49.0 - Add gang submit into CS IOCTL
  * - 3.50.0 - Update AMDGPU_INFO_DEV_INFO IOCTL for minimum engine and memory clock
  *            Update AMDGPU_INFO_SENSOR IOCTL for PEAK_PSTATE engine and memory clock
+ *   3.51.0 - Return the PCIe gen and lanes from the INFO ioctl
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	50
+#define KMS_DRIVER_MINOR	51
 #define KMS_DRIVER_PATCHLEVEL	0
 
 unsigned int amdgpu_vram_limit = UINT_MAX;

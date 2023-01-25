@@ -35,6 +35,7 @@
 #include "resource.h"
 #include "dsc.h"
 #include "dc_link_dp.h"
+#include "dc_link.h"
 #include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
 
@@ -3395,7 +3396,7 @@ static int trigger_hpd_mst_set(void *data, u64 val)
 				continue;
 
 			link = aconnector->dc_link;
-			dp_receiver_power_ctrl(link, false);
+			dc_link_dp_receiver_power_ctrl(link, false);
 			drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_port->mst_mgr, false);
 			link->mst_stream_alloc_table.stream_count = 0;
 			memset(link->mst_stream_alloc_table.stream_allocations, 0,

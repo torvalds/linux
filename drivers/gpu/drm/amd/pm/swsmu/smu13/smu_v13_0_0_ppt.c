@@ -1904,15 +1904,51 @@ static int smu_v13_0_0_set_df_cstate(struct smu_context *smu,
 					       NULL);
 }
 
+static void smu_v13_0_0_set_mode1_reset_param(struct smu_context *smu,
+						uint32_t supported_version,
+						uint32_t *param)
+{
+	uint32_t smu_version;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+
+	if ((smu_version >= supported_version) &&
+			ras && atomic_read(&ras->in_recovery))
+		/* Set RAS fatal error reset flag */
+		*param = 1 << 16;
+	else
+		*param = 0;
+}
+
 static int smu_v13_0_0_mode1_reset(struct smu_context *smu)
 {
 	int ret;
+	uint32_t param;
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
-		ret = smu_cmn_send_debug_smc_msg(smu, DEBUGSMC_MSG_Mode1Reset);
-	else
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+		/* SMU 13_0_0 PMFW supports RAS fatal error reset from 78.77 */
+		smu_v13_0_0_set_mode1_reset_param(smu, 0x004e4d00, &param);
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						SMU_MSG_Mode1Reset, param, NULL);
+		break;
+
+	case IP_VERSION(13, 0, 10):
+		/* SMU 13_0_10 PMFW supports RAS fatal error reset from 80.28 */
+		smu_v13_0_0_set_mode1_reset_param(smu, 0x00501c00, &param);
+
+		ret = smu_cmn_send_debug_smc_msg_with_param(smu,
+						DEBUGSMC_MSG_Mode1Reset, param);
+		break;
+
+	default:
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+		break;
+	}
 
 	if (!ret)
 		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);

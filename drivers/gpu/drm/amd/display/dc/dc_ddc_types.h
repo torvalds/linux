@@ -77,6 +77,32 @@ struct aux_reply_transaction_data {
 	uint8_t *data;
 };
 
+struct aux_payload {
+	/* set following flag to read/write I2C data,
+	 * reset it to read/write DPCD data */
+	bool i2c_over_aux;
+	/* set following flag to write data,
+	 * reset it to read data */
+	bool write;
+	bool mot;
+	bool write_status_update;
+
+	uint32_t address;
+	uint32_t length;
+	uint8_t *data;
+	/*
+	 * used to return the reply type of the transaction
+	 * ignored if NULL
+	 */
+	uint8_t *reply;
+	/* expressed in milliseconds
+	 * zero means "use default value"
+	 */
+	uint32_t defer_delay;
+
+};
+#define DEFAULT_AUX_MAX_DATA_SIZE 16
+
 struct i2c_payload {
 	bool write;
 	uint8_t address;
@@ -89,6 +115,8 @@ enum i2c_command_engine {
 	I2C_COMMAND_ENGINE_SW,
 	I2C_COMMAND_ENGINE_HW
 };
+
+#define DDC_I2C_COMMAND_ENGINE I2C_COMMAND_ENGINE_SW
 
 struct i2c_command {
 	struct i2c_payload *payloads;
