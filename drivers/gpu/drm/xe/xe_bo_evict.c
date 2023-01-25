@@ -147,8 +147,11 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 			return ret;
 		}
 
-		if (bo->flags & XE_BO_CREATE_GGTT_BIT)
+		if (bo->flags & XE_BO_CREATE_GGTT_BIT) {
+			mutex_lock(&bo->gt->mem.ggtt->lock);
 			xe_ggtt_map_bo(bo->gt->mem.ggtt, bo);
+			mutex_unlock(&bo->gt->mem.ggtt->lock);
+		}
 
 		/*
 		 * We expect validate to trigger a move VRAM and our move code
