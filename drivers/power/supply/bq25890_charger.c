@@ -108,6 +108,7 @@ struct bq25890_device {
 	struct i2c_client *client;
 	struct device *dev;
 	struct power_supply *charger;
+	struct power_supply *secondary_chrg;
 	struct power_supply_desc desc;
 	char name[28]; /* "bq25890-charger-%d" */
 	int id;
@@ -1042,9 +1043,16 @@ static void bq25890_pump_express_work(struct work_struct *data)
 {
 	struct bq25890_device *bq =
 		container_of(data, struct bq25890_device, pump_express_work.work);
+	union power_supply_propval value;
 	int voltage, i, ret;
 
 	dev_dbg(bq->dev, "Start to request input voltage increasing\n");
+
+	/* If there is a second charger put in Hi-Z mode */
+	if (bq->secondary_chrg) {
+		value.intval = 0;
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &value);
+	}
 
 	/* Enable current pulse voltage control protocol */
 	ret = bq25890_field_write(bq, F_PUMPX_EN, 1);
@@ -1076,6 +1084,11 @@ static void bq25890_pump_express_work(struct work_struct *data)
 	}
 
 	bq25890_field_write(bq, F_PUMPX_EN, 0);
+
+	if (bq->secondary_chrg) {
+		value.intval = 1;
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &value);
+	}
 
 	dev_info(bq->dev, "Hi-voltage charging requested, input voltage is %d mV\n",
 		 voltage);
@@ -1123,6 +1136,17 @@ static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
 static int bq25890_vbus_enable(struct regulator_dev *rdev)
 {
 	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+	union power_supply_propval val = {
+		.intval = 0,
+	};
+
+	/*
+	 * When enabling 5V boost / Vbus output, we need to put the secondary
+	 * charger in Hi-Z mode to avoid it trying to charge the secondary
+	 * battery from the 5V boost output.
+	 */
+	if (bq->secondary_chrg)
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &val);
 
 	return bq25890_set_otg_cfg(bq, 1);
 }
@@ -1130,8 +1154,19 @@ static int bq25890_vbus_enable(struct regulator_dev *rdev)
 static int bq25890_vbus_disable(struct regulator_dev *rdev)
 {
 	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+	union power_supply_propval val = {
+		.intval = 1,
+	};
+	int ret;
 
-	return bq25890_set_otg_cfg(bq, 0);
+	ret = bq25890_set_otg_cfg(bq, 0);
+	if (ret)
+		return ret;
+
+	if (bq->secondary_chrg)
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &val);
+
+	return 0;
 }
 
 static int bq25890_vbus_is_enabled(struct regulator_dev *rdev)
@@ -1342,6 +1377,14 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 {
 	int ret;
 	struct bq25890_init_data *init = &bq->init_data;
+	const char *str;
+
+	ret = device_property_read_string(bq->dev, "linux,secondary-charger-name", &str);
+	if (ret == 0) {
+		bq->secondary_chrg = power_supply_get_by_name(str);
+		if (!bq->secondary_chrg)
+			return -EPROBE_DEFER;
+	}
 
 	/* Optional, left at 0 if property is not present */
 	device_property_read_u32(bq->dev, "linux,pump-express-vbus-max",
