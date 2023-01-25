@@ -299,7 +299,5 @@ void amd_pmf_deinit_auto_mode(struct amd_pmf_dev *dev)
 void amd_pmf_init_auto_mode(struct amd_pmf_dev *dev)
 {
 	amd_pmf_load_defaults_auto_mode(dev);
-	/* update the thermal limits for Automode */
-	amd_pmf_set_automode(dev, config_store.current_mode, NULL);
 	amd_pmf_init_metrics_table(dev);
 }
