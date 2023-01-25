@@ -351,7 +351,7 @@
 		compatible = "arm,psci";
 		method = "smc";
 		cpu_off = <0x84000002>;
-		cpu_on = <0xC4000003>;
+		cpu_on = <0xc4000003>;
 	};
 
 	soc: soc@0 {
@@ -1020,7 +1020,7 @@
 
 		dsi: dsi@13900000 {
 			compatible = "samsung,exynos5433-mipi-dsi";
-			reg = <0x13900000 0xC0>;
+			reg = <0x13900000 0xc0>;
 			interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&mipi_phy 1>;
 			phy-names = "dsim";
@@ -1272,7 +1272,7 @@
 
 		mfc: codec@152e0000 {
 			compatible = "samsung,exynos5433-mfc";
-			reg = <0x152E0000 0x10000>;
+			reg = <0x152e0000 0x10000>;
 			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "pclk", "aclk", "aclk_xiu";
 			clocks = <&cmu_mfc CLK_PCLK_MFC>,
@@ -1329,7 +1329,7 @@
 
 		sysmmu_gscl0: sysmmu@13c80000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x13C80000 0x1000>;
+			reg = <0x13c80000 0x1000>;
 			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "aclk", "pclk";
 			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL0>,
@@ -1340,7 +1340,7 @@
 
 		sysmmu_gscl1: sysmmu@13c90000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x13C90000 0x1000>;
+			reg = <0x13c90000 0x1000>;
 			interrupts = <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "aclk", "pclk";
 			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL1>,
@@ -1351,7 +1351,7 @@
 
 		sysmmu_gscl2: sysmmu@13ca0000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x13CA0000 0x1000>;
+			reg = <0x13ca0000 0x1000>;
 			interrupts = <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "aclk", "pclk";
 			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL2>,
