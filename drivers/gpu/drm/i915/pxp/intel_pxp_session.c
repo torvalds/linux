@@ -115,11 +115,11 @@ static int pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 	return ret;
 }
 
-static void pxp_terminate(struct intel_pxp *pxp)
+void intel_pxp_terminate(struct intel_pxp *pxp, bool post_invalidation_needs_restart)
 {
 	int ret;
 
-	pxp->hw_state_invalidated = true;
+	pxp->hw_state_invalidated = post_invalidation_needs_restart;
 
 	/*
 	 * if we fail to submit the termination there is no point in waiting for
@@ -167,7 +167,7 @@ static void pxp_session_work(struct work_struct *work)
 
 	if (events & PXP_TERMINATION_REQUEST) {
 		events &= ~PXP_TERMINATION_COMPLETE;
-		pxp_terminate(pxp);
+		intel_pxp_terminate(pxp, true);
 	}
 
 	if (events & PXP_TERMINATION_COMPLETE)
