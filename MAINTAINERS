@@ -14177,14 +14177,6 @@ F:	Documentation/devicetree/bindings/media/i2c/aptina,mt9p031.yaml
 F:	drivers/media/i2c/mt9p031.c
 F:	include/media/i2c/mt9p031.h
 
-MT9T001 APTINA CAMERA SENSOR
-M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/i2c/mt9t001.c
-F:	include/media/i2c/mt9t001.h
-
 MT9T112 APTINA CAMERA SENSOR
 M:	Jacopo Mondi <jacopo@jmondi.org>
 L:	linux-media@vger.kernel.org

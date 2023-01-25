@@ -75,7 +75,6 @@ imx412        Sony IMX412 sensor
 mt9m001       mt9m001
 mt9m111       mt9m111, mt9m112 and mt9m131
 mt9p031       Aptina MT9P031
-mt9t001       Aptina MT9T001
 mt9t112       Aptina MT9T111/MT9T112
 mt9v011       Micron mt9v011 sensor
 mt9v032       Micron MT9V032 sensor
