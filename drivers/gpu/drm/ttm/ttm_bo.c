@@ -894,18 +894,14 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	if (!placement->num_placement && !placement->num_busy_placement)
 		return ttm_bo_pipeline_gutting(bo);
 
-	/* Check whether we need to move buffer. */
-	if (bo->resource && ttm_resource_compat(bo->resource, placement))
-		return 0;
-
-	/* Moving of pinned BOs is forbidden */
-	if (bo->pin_count)
-		return -EINVAL;
-
-	ret = ttm_bo_move_buffer(bo, placement, ctx);
-	if (ret)
-		return ret;
-
+	/*
+	 * Check whether we need to move buffer.
+	 */
+	if (!bo->resource || !ttm_resource_compat(bo->resource, placement)) {
+		ret = ttm_bo_move_buffer(bo, placement, ctx);
+		if (ret)
+			return ret;
+	}
 	/*
 	 * We might need to add a TTM.
 	 */

@@ -361,6 +361,7 @@ bool ttm_resource_compat(struct ttm_resource *res,
 
 	return false;
 }
+EXPORT_SYMBOL(ttm_resource_compat);
 
 void ttm_resource_set_bo(struct ttm_resource *res,
 			 struct ttm_buffer_object *bo)
