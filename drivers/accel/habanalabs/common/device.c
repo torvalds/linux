@@ -778,14 +778,14 @@ static void device_hard_reset_pending(struct work_struct *work)
 
 static void device_release_watchdog_func(struct work_struct *work)
 {
-	struct hl_device_reset_work *device_release_watchdog_work =
-				container_of(work, struct hl_device_reset_work, reset_work.work);
-	struct hl_device *hdev = device_release_watchdog_work->hdev;
+	struct hl_device_reset_work *watchdog_work =
+			container_of(work, struct hl_device_reset_work, reset_work.work);
+	struct hl_device *hdev = watchdog_work->hdev;
 	u32 flags;
 
-	dev_dbg(hdev->dev, "Device wasn't released in time. Initiate device reset.\n");
+	dev_dbg(hdev->dev, "Device wasn't released in time. Initiate hard-reset.\n");
 
-	flags = device_release_watchdog_work->flags | HL_DRV_RESET_FROM_WD_THR;
+	flags = watchdog_work->flags | HL_DRV_RESET_HARD | HL_DRV_RESET_FROM_WD_THR;
 
 	hl_device_reset(hdev, flags);
 }
@@ -1555,15 +1555,17 @@ do_reset:
 
 		/* Cancel the device release watchdog work if required.
 		 * In case of reset-upon-device-release while the release watchdog work is
-		 * scheduled, do hard-reset instead of compute-reset.
+		 * scheduled due to a hard-reset, do hard-reset instead of compute-reset.
 		 */
 		if ((hard_reset || from_dev_release) && hdev->reset_info.watchdog_active) {
+			struct hl_device_reset_work *watchdog_work =
+					&hdev->device_release_watchdog_work;
+
 			hdev->reset_info.watchdog_active = 0;
 			if (!from_watchdog_thread)
-				cancel_delayed_work_sync(
-						&hdev->device_release_watchdog_work.reset_work);
+				cancel_delayed_work_sync(&watchdog_work->reset_work);
 
-			if (from_dev_release) {
+			if (from_dev_release && (watchdog_work->flags & HL_DRV_RESET_HARD)) {
 				hdev->reset_info.in_compute_reset = 0;
 				flags |= HL_DRV_RESET_HARD;
 				flags &= ~HL_DRV_RESET_DEV_RELEASE;
@@ -1890,10 +1892,6 @@ int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask)
 {
 	struct hl_ctx *ctx = NULL;
 
-	/* Device release watchdog is only for hard reset */
-	if (!(flags & HL_DRV_RESET_HARD) && hdev->asic_prop.allow_inference_soft_reset)
-		goto device_reset;
-
 	/* F/W reset cannot be postponed */
 	if (flags & HL_DRV_RESET_BYPASS_REQ_TO_FW)
 		goto device_reset;
@@ -1921,7 +1919,7 @@ int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask)
 		goto out;
 
 	hdev->device_release_watchdog_work.flags = flags;
-	dev_dbg(hdev->dev, "Device is going to be reset in %u sec unless being released\n",
+	dev_dbg(hdev->dev, "Device is going to be hard-reset in %u sec unless being released\n",
 		hdev->device_release_watchdog_timeout_sec);
 	schedule_delayed_work(&hdev->device_release_watchdog_work.reset_work,
 				msecs_to_jiffies(hdev->device_release_watchdog_timeout_sec * 1000));
