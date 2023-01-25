@@ -183,8 +183,6 @@ enum reset_type {
 };
 
 struct rt_stats {
-	unsigned long rxdatacrcerr;
-	unsigned long rxmgmtcrcerr;
 	unsigned long rxcrcerrmin;
 	unsigned long rxcrcerrmid;
 	unsigned long rxcrcerrmax;
