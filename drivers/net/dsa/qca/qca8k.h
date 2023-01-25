@@ -330,9 +330,6 @@ struct qca8k_priv;
 
 struct qca8k_info_ops {
 	int (*autocast_mib)(struct dsa_switch *ds, int port, u64 *data);
-	/* TODO: remove these extra ops when we can support regmap bulk read/write */
-	int (*read_eth)(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
-	int (*write_eth)(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
 };
 
 struct qca8k_match_data {
