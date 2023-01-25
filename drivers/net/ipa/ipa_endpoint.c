@@ -70,6 +70,9 @@ struct ipa_status {
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
 #define IPA_STATUS_FLAGS2_TAG_FMASK		GENMASK_ULL(63, 16)
 
+/* Size in bytes of an IPA packet status structure */
+#define IPA_STATUS_SIZE			sizeof(__le32[4])
+
 /* Compute the aggregation size value to use for a given buffer size */
 static u32 ipa_aggr_size_kb(u32 rx_buffer_size, bool aggr_hard_limit)
 {
@@ -1397,18 +1400,18 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 		u32 align;
 		u32 len;
 
-		if (resid < sizeof(*status)) {
+		if (resid < IPA_STATUS_SIZE) {
 			dev_err(&endpoint->ipa->pdev->dev,
 				"short message (%u bytes < %zu byte status)\n",
-				resid, sizeof(*status));
+				resid, IPA_STATUS_SIZE);
 			break;
 		}
 
 		/* Skip over status packets that lack packet data */
 		length = le16_to_cpu(status->pkt_len);
 		if (!length || ipa_endpoint_status_skip(endpoint, status)) {
-			data += sizeof(*status);
-			resid -= sizeof(*status);
+			data += IPA_STATUS_SIZE;
+			resid -= IPA_STATUS_SIZE;
 			continue;
 		}
 
@@ -1419,7 +1422,7 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 		 * computed checksum information will be appended.
 		 */
 		align = endpoint->config.rx.pad_align ? : 1;
-		len = sizeof(*status) + ALIGN(length, align);
+		len = IPA_STATUS_SIZE + ALIGN(length, align);
 		if (endpoint->config.checksum)
 			len += sizeof(struct rmnet_map_dl_csum_trailer);
 
@@ -1428,7 +1431,7 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 			u32 extra;
 
 			/* Client receives only packet data (no status) */
-			data2 = data + sizeof(*status);
+			data2 = data + IPA_STATUS_SIZE;
 
 			/* Have the true size reflect the extra unused space in
 			 * the original receive buffer.  Distribute the "cost"
