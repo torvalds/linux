@@ -91,33 +91,10 @@
 			/* 8MB of flash */
 			reg = <0x30000000 0x00800000>;
 
-			partition@0 {
-				label = "RedBoot";
-				reg = <0x00000000 0x00020000>;
-				read-only;
-			};
-			partition@20000 {
-				label = "kernel";
-				reg = <0x00020000 0x00100000>;
-			};
-			partition@120000 {
-				label = "rootfs";
-				reg = <0x00120000 0x006a0000>;
-			};
-			partition@7c0000 {
-				label = "VCTL";
-				reg = <0x007c0000 0x00010000>;
-				read-only;
-			};
-			partition@7d0000 {
-				label = "cfg";
-				reg = <0x007d0000 0x00010000>;
-				read-only;
-			};
-			partition@7e0000 {
-				label = "FIS";
-				reg = <0x007e0000 0x00010000>;
-				read-only;
+			partitions {
+				compatible = "redboot-fis";
+				/* Eraseblock at 0x7e0000 */
+				fis-index-block = <0x3f>;
 			};
 		};
 
