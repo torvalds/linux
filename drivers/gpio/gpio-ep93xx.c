@@ -148,7 +148,7 @@ static void ep93xx_gpio_f_irq_handler(struct irq_desc *desc)
 	 */
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
-	int port_f_idx = ((irq + 1) & 7) ^ 4; /* {19..22,47..50} -> {0..7} */
+	int port_f_idx = (irq & 7) ^ 4; /* {20..23,48..51} -> {0..7} */
 	int gpio_irq = EP93XX_GPIO_F_IRQ_BASE + port_f_idx;
 
 	chained_irq_enter(irqchip, desc);
