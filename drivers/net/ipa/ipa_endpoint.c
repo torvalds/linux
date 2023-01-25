@@ -34,18 +34,31 @@
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
 
-/** enum ipa_status_opcode - status element opcode hardware values */
-enum ipa_status_opcode {
-	IPA_STATUS_OPCODE_PACKET		= 0x01,
-	IPA_STATUS_OPCODE_DROPPED_PACKET	= 0x04,
-	IPA_STATUS_OPCODE_SUSPENDED_PACKET	= 0x08,
-	IPA_STATUS_OPCODE_PACKET_2ND_PASS	= 0x40,
+/** enum ipa_status_opcode - IPA status opcode field hardware values */
+enum ipa_status_opcode {				/* *Not* a bitmask */
+	IPA_STATUS_OPCODE_PACKET		= 1,
+	IPA_STATUS_OPCODE_NEW_RULE_PACKET	= 2,
+	IPA_STATUS_OPCODE_DROPPED_PACKET	= 4,
+	IPA_STATUS_OPCODE_SUSPENDED_PACKET	= 8,
+	IPA_STATUS_OPCODE_LOG			= 16,
+	IPA_STATUS_OPCODE_DCMP			= 32,
+	IPA_STATUS_OPCODE_PACKET_2ND_PASS	= 64,
 };
 
-/** enum ipa_status_exception - status element exception type */
-enum ipa_status_exception {
+/** enum ipa_status_exception - IPA status exception field hardware values */
+enum ipa_status_exception {				/* *Not* a bitmask */
 	/* 0 means no exception */
-	IPA_STATUS_EXCEPTION_DEAGGR		= 0x01,
+	IPA_STATUS_EXCEPTION_DEAGGR		= 1,
+	IPA_STATUS_EXCEPTION_IPTYPE		= 4,
+	IPA_STATUS_EXCEPTION_PACKET_LENGTH	= 8,
+	IPA_STATUS_EXCEPTION_FRAG_RULE_MISS	= 16,
+	IPA_STATUS_EXCEPTION_SW_FILTER		= 32,
+	IPA_STATUS_EXCEPTION_NAT		= 64,		/* IPv4 */
+	IPA_STATUS_EXCEPTION_IPV6_CONN_TRACK	= 64,		/* IPv6 */
+	IPA_STATUS_EXCEPTION_UC			= 128,
+	IPA_STATUS_EXCEPTION_INVALID_ENDPOINT	= 129,
+	IPA_STATUS_EXCEPTION_HEADER_INSERT	= 136,
+	IPA_STATUS_EXCEPTION_CHEKCSUM		= 229,
 };
 
 /** enum ipa_status_mask - IPA status mask field bitmask hardware values */
