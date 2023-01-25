@@ -1685,10 +1685,6 @@ static void _rtl92e_translate_rx_signal_stats(struct net_device *dev,
 			 ether_addr_equal(praddr, priv->rtllib->dev->dev_addr);
 	if (WLAN_FC_GET_FRAMETYPE(fc) == RTLLIB_STYPE_BEACON)
 		bPacketBeacon = true;
-	if (bpacket_match_bssid)
-		priv->stats.numpacket_matchbssid++;
-	if (bpacket_toself)
-		priv->stats.numpacket_toself++;
 	_rtl92e_process_phyinfo(priv, tmp_buf, &previous_stats, pstats);
 	_rtl92e_query_rxphystatus(priv, pstats, pdesc, pdrvinfo,
 				  &previous_stats, bpacket_match_bssid,
@@ -1703,17 +1699,11 @@ static void _rtl92e_update_received_rate_histogram_stats(
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	u32 rcvType = 1;
 	u32 rateIndex;
-	u32 preamble_guardinterval;
 
 	if (pstats->bCRC)
 		rcvType = 2;
 	else if (pstats->bICV)
 		rcvType = 3;
-
-	if (pstats->bShortPreamble)
-		preamble_guardinterval = 1;
-	else
-		preamble_guardinterval = 0;
 
 	switch (pstats->rate) {
 	case MGN_1M:
@@ -1804,7 +1794,6 @@ static void _rtl92e_update_received_rate_histogram_stats(
 		rateIndex = 28;
 		break;
 	}
-	priv->stats.received_preamble_GI[preamble_guardinterval][rateIndex]++;
 	priv->stats.received_rate_histogram[0][rateIndex]++;
 	priv->stats.received_rate_histogram[rcvType][rateIndex]++;
 }

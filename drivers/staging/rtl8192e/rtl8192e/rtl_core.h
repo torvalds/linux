@@ -184,9 +184,6 @@ enum reset_type {
 
 struct rt_stats {
 	unsigned long received_rate_histogram[4][32];
-	unsigned long received_preamble_GI[2][32];
-	unsigned long numpacket_matchbssid;
-	unsigned long numpacket_toself;
 	unsigned long num_process_phyinfo;
 	unsigned long numqry_phystatus;
 	unsigned long numqry_phystatusCCK;
