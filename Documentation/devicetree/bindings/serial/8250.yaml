@@ -200,7 +200,8 @@ properties:
     deprecated: true
 
   aspeed,lpc-io-reg:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: '/schemas/types.yaml#/definitions/uint32-array'
+    maxItems: 1
     description: |
       The VUART LPC address.  Only applicable to aspeed,ast2500-vuart.
 
