@@ -184,8 +184,6 @@ enum reset_type {
 
 struct rt_stats {
 	unsigned long received_rate_histogram[4][32];
-	unsigned long txbytesmulticast;
-	unsigned long txbytesbroadcast;
 	unsigned long txbytesunicast;
 	unsigned long rxbytesunicast;
 	unsigned long txretrycount;
@@ -195,7 +193,6 @@ struct rt_stats {
 	unsigned long	slide_rssi_total;
 	unsigned long slide_evm_total;
 	long signal_strength;
-	long signal_quality;
 	long last_signal_strength_inpercent;
 	long	recv_signal_power;
 	u8 rx_rssi_percentage[4];

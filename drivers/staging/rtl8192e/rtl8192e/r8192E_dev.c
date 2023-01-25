@@ -1613,7 +1613,6 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 
 			tmp_val = priv->stats.slide_evm_total /
 				  slide_evm_statistics;
-			priv->stats.signal_quality = tmp_val;
 			priv->stats.last_signal_strength_inpercent = tmp_val;
 		}
 
