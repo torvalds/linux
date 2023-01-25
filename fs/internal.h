@@ -120,6 +120,7 @@ extern bool trylock_super(struct super_block *sb);
 struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
+int sb_init_dio_done_wq(struct super_block *sb);
 
 /*
  * open.c
@@ -186,9 +187,6 @@ extern void mnt_pin_kill(struct mount *m);
  * fs/nsfs.c
  */
 extern const struct dentry_operations ns_dentry_operations;
-
-/* direct-io.c: */
-int sb_init_dio_done_wq(struct super_block *sb);
 
 /*
  * fs/stat.c:
