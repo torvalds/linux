@@ -247,6 +247,49 @@ type. An example is shown below::
         }
         late_initcall(init_subsystem);
 
+2.6  Specifying no-cast aliases with ___init
+--------------------------------------------
+
+The verifier will always enforce that the BTF type of a pointer passed to a
+kfunc by a BPF program, matches the type of pointer specified in the kfunc
+definition. The verifier, does, however, allow types that are equivalent
+according to the C standard to be passed to the same kfunc arg, even if their
+BTF_IDs differ.
+
+For example, for the following type definition:
+
+.. code-block:: c
+
+	struct bpf_cpumask {
+		cpumask_t cpumask;
+		refcount_t usage;
+	};
+
+The verifier would allow a ``struct bpf_cpumask *`` to be passed to a kfunc
+taking a ``cpumask_t *`` (which is a typedef of ``struct cpumask *``). For
+instance, both ``struct cpumask *`` and ``struct bpf_cpmuask *`` can be passed
+to bpf_cpumask_test_cpu().
+
+In some cases, this type-aliasing behavior is not desired. ``struct
+nf_conn___init`` is one such example:
+
+.. code-block:: c
+
+	struct nf_conn___init {
+		struct nf_conn ct;
+	};
+
+The C standard would consider these types to be equivalent, but it would not
+always be safe to pass either type to a trusted kfunc. ``struct
+nf_conn___init`` represents an allocated ``struct nf_conn`` object that has
+*not yet been initialized*, so it would therefore be unsafe to pass a ``struct
+nf_conn___init *`` to a kfunc that's expecting a fully initialized ``struct
+nf_conn *`` (e.g. ``bpf_ct_change_timeout()``).
+
+In order to accommodate such requirements, the verifier will enforce strict
+PTR_TO_BTF_ID type matching if two types have the exact same name, with one
+being suffixed with ``___init``.
+
 3. Core kfuncs
 ==============
 
