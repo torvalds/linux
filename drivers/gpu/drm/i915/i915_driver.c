@@ -73,6 +73,8 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"
 
+#include "pxp/intel_pxp.h"
+#include "pxp/intel_pxp_debugfs.h"
 #include "pxp/intel_pxp_pm.h"
 
 #include "soc/intel_dram.h"
@@ -102,9 +104,6 @@
 #include "intel_pm.h"
 #include "intel_region_ttm.h"
 #include "vlv_suspend.h"
-
-/* Intel Rapid Start Technology ACPI device name */
-static const char irst_name[] = "INT3392";
 
 static const struct drm_driver i915_drm_driver;
 
@@ -613,10 +612,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	i915_perf_init(dev_priv);
 
-	ret = intel_gt_assign_ggtt(to_gt(dev_priv));
-	if (ret)
-		goto err_perf;
-
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
 		goto err_perf;
@@ -764,6 +759,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_driver_register(gt);
 
+	intel_pxp_debugfs_register(dev_priv->pxp);
+
 	i915_hwmon_register(dev_priv);
 
 	intel_display_driver_register(dev_priv);
@@ -794,6 +791,8 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	intel_power_domains_disable(dev_priv);
 
 	intel_display_driver_unregister(dev_priv);
+
+	intel_pxp_fini(dev_priv);
 
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_driver_unregister(gt);
@@ -937,6 +936,8 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = i915_gem_init(i915);
 	if (ret)
 		goto out_cleanup_modeset2;
+
+	intel_pxp_init(i915);
 
 	ret = intel_modeset_init(i915);
 	if (ret)
@@ -1173,6 +1174,8 @@ static int i915_drm_prepare(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
 
+	intel_pxp_suspend_prepare(i915->pxp);
+
 	/*
 	 * NB intel_display_suspend() may issue new requests after we've
 	 * ostensibly marked the GPU as ready-to-sleep here. We need to
@@ -1253,6 +1256,8 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	disable_rpm_wakeref_asserts(rpm);
 
+	intel_pxp_suspend(dev_priv->pxp);
+
 	i915_gem_suspend_late(dev_priv);
 
 	for_each_gt(gt, dev_priv, i)
@@ -1317,7 +1322,8 @@ int i915_driver_suspend_switcheroo(struct drm_i915_private *i915,
 static int i915_drm_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
+	struct intel_gt *gt;
+	int ret, i;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1332,6 +1338,11 @@ static int i915_drm_resume(struct drm_device *dev)
 		drm_err(&dev_priv->drm, "failed to re-enable GGTT\n");
 
 	i915_ggtt_resume(to_gt(dev_priv)->ggtt);
+
+	for_each_gt(gt, dev_priv, i)
+		if (GRAPHICS_VER(gt->i915) >= 8)
+			setup_private_pat(gt);
+
 	/* Must be called after GGTT is resumed. */
 	intel_dpt_resume(dev_priv);
 
@@ -1358,6 +1369,8 @@ static int i915_drm_resume(struct drm_device *dev)
 		drm_mode_config_reset(dev);
 
 	i915_gem_resume(dev_priv);
+
+	intel_pxp_resume(dev_priv->pxp);
 
 	intel_modeset_init_hw(dev_priv);
 	intel_init_clock_gating(dev_priv);
@@ -1495,8 +1508,6 @@ static int i915_pm_suspend(struct device *kdev)
 		return -ENODEV;
 	}
 
-	i915_ggtt_mark_pte_lost(i915, false);
-
 	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
@@ -1548,14 +1559,6 @@ static int i915_pm_resume(struct device *kdev)
 
 	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
-
-	/*
-	 * If IRST is enabled, or if we can't detect whether it's enabled,
-	 * then we must assume we lost the GGTT page table entries, since
-	 * they are not retained if IRST decided to enter S4.
-	 */
-	if (!IS_ENABLED(CONFIG_ACPI) || acpi_dev_present(irst_name, NULL, -1))
-		i915_ggtt_mark_pte_lost(i915, true);
 
 	return i915_drm_resume(&i915->drm);
 }
@@ -1616,9 +1619,6 @@ static int i915_pm_restore_early(struct device *kdev)
 
 static int i915_pm_restore(struct device *kdev)
 {
-	struct drm_i915_private *i915 = kdev_to_i915(kdev);
-
-	i915_ggtt_mark_pte_lost(i915, true);
 	return i915_pm_resume(kdev);
 }
 
@@ -1641,6 +1641,8 @@ static int intel_runtime_suspend(struct device *kdev)
 	 * an RPM reference.
 	 */
 	i915_gem_runtime_suspend(dev_priv);
+
+	intel_pxp_runtime_suspend(dev_priv->pxp);
 
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_runtime_suspend(gt);
@@ -1745,6 +1747,8 @@ static int intel_runtime_resume(struct device *kdev)
 	 */
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_runtime_resume(gt);
+
+	intel_pxp_runtime_resume(dev_priv->pxp);
 
 	/*
 	 * On VLV/CHV display interrupts are part of the display

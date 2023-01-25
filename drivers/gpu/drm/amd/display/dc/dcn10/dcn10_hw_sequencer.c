@@ -57,7 +57,7 @@
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
 #include "inc/dc_link_dp.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -921,7 +921,7 @@ enum dc_status dcn10_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
-			dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;

@@ -23,7 +23,11 @@
 # It abstracts the control and status of back end pipe such as DIO, HPO, DPIA,
 # PHY, HPD, DDC and etc).
 
-LINK = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o link_dp_trace.o
+LINK = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o link_dp_trace.o \
+link_hpd.o link_ddc.o link_dpcd.o link_dp_dpia.o link_dp_training.o \
+link_dp_training_8b_10b.o link_dp_training_128b_132b.o link_dp_training_dpia.o \
+link_dp_training_auxless.o link_dp_training_fixed_vs_pe_retimer.o link_dp_phy.o \
+link_dp_capability.o
 
 AMD_DAL_LINK = $(addprefix $(AMDDALPATH)/dc/link/,$(LINK))
 

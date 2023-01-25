@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: MIT
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,76 +23,70 @@
  *
  */
 
+/* FILE POLICY AND INTENDED USAGE:
+ * This module implements functionality for training DPIA links.
+ */
+#include "link_dp_training_dpia.h"
 #include "dc.h"
-#include "dc_link_dpia.h"
 #include "inc/core_status.h"
 #include "dc_link.h"
 #include "dc_link_dp.h"
 #include "dpcd_defs.h"
+
+#include "link_dp_dpia.h"
 #include "link_hwss.h"
 #include "dm_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
-#include "inc/link_dpcd.h"
+#include "link_dpcd.h"
+#include "link_dp_training_8b_10b.h"
+#include "link_dp_capability.h"
 #include "dc_dmub_srv.h"
-
 #define DC_LOGGER \
 	link->ctx->logger
 
-enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
-{
-	enum dc_status status = DC_OK;
-	uint8_t dpcd_dp_tun_data[3] = {0};
-	uint8_t dpcd_topology_data[DPCD_USB4_TOPOLOGY_ID_LEN] = {0};
-	uint8_t i = 0;
+/* The approximate time (us) it takes to transmit 9 USB4 DP clock sync packets. */
+#define DPIA_CLK_SYNC_DELAY 16000
 
-	status = core_link_read_dpcd(link,
-			DP_TUNNELING_CAPABILITIES_SUPPORT,
-			dpcd_dp_tun_data,
-			sizeof(dpcd_dp_tun_data));
+/* Extend interval between training status checks for manual testing. */
+#define DPIA_DEBUG_EXTENDED_AUX_RD_INTERVAL_US 60000000
 
-	status = core_link_read_dpcd(link,
-			DP_USB4_ROUTER_TOPOLOGY_ID,
-			dpcd_topology_data,
-			sizeof(dpcd_topology_data));
+/* SET_CONFIG message types sent by driver. */
+enum dpia_set_config_type {
+	DPIA_SET_CFG_SET_LINK = 0x01,
+	DPIA_SET_CFG_SET_PHY_TEST_MODE = 0x05,
+	DPIA_SET_CFG_SET_TRAINING = 0x18,
+	DPIA_SET_CFG_SET_VSPE = 0x19
+};
 
-	link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.raw =
-			dpcd_dp_tun_data[DP_TUNNELING_CAPABILITIES_SUPPORT -
-					 DP_TUNNELING_CAPABILITIES_SUPPORT];
-	link->dpcd_caps.usb4_dp_tun_info.dpia_info.raw =
-			dpcd_dp_tun_data[DP_IN_ADAPTER_INFO - DP_TUNNELING_CAPABILITIES_SUPPORT];
-	link->dpcd_caps.usb4_dp_tun_info.usb4_driver_id =
-			dpcd_dp_tun_data[DP_USB4_DRIVER_ID - DP_TUNNELING_CAPABILITIES_SUPPORT];
+/* Training stages (TS) in SET_CONFIG(SET_TRAINING) message. */
+enum dpia_set_config_ts {
+	DPIA_TS_DPRX_DONE = 0x00, /* Done training DPRX. */
+	DPIA_TS_TPS1 = 0x01,
+	DPIA_TS_TPS2 = 0x02,
+	DPIA_TS_TPS3 = 0x03,
+	DPIA_TS_TPS4 = 0x07,
+	DPIA_TS_UFP_DONE = 0xff /* Done training DPTX-to-DPIA hop. */
+};
 
-	for (i = 0; i < DPCD_USB4_TOPOLOGY_ID_LEN; i++)
-		link->dpcd_caps.usb4_dp_tun_info.usb4_topology_id[i] = dpcd_topology_data[i];
+/* SET_CONFIG message data associated with messages sent by driver. */
+union dpia_set_config_data {
+	struct {
+		uint8_t mode : 1;
+		uint8_t reserved : 7;
+	} set_link;
+	struct {
+		uint8_t stage;
+	} set_training;
+	struct {
+		uint8_t swing : 2;
+		uint8_t max_swing_reached : 1;
+		uint8_t pre_emph : 2;
+		uint8_t max_pre_emph_reached : 1;
+		uint8_t reserved : 2;
+	} set_vspe;
+	uint8_t raw;
+};
 
-	return status;
-}
-
-bool dc_link_dpia_query_hpd_status(struct dc_link *link)
-{
-	union dmub_rb_cmd cmd = {0};
-	struct dc_dmub_srv *dmub_srv = link->ctx->dmub_srv;
-	bool is_hpd_high = false;
-
-	/* prepare QUERY_HPD command */
-	cmd.query_hpd.header.type = DMUB_CMD__QUERY_HPD_STATE;
-	cmd.query_hpd.data.instance = link->link_id.enum_id - ENUM_ID_1;
-	cmd.query_hpd.data.ch_type = AUX_CHANNEL_DPIA;
-
-	/* Return HPD status reported by DMUB if query successfully executed. */
-	if (dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd) && cmd.query_hpd.data.status == AUX_RET_SUCCESS)
-		is_hpd_high = cmd.query_hpd.data.result;
-
-	DC_LOG_DEBUG("%s: link(%d) dpia(%d) cmd_status(%d) result(%d)\n",
-		__func__,
-		link->link_index,
-		link->link_id.enum_id - ENUM_ID_1,
-		cmd.query_hpd.data.status,
-		cmd.query_hpd.data.result);
-
-	return is_hpd_high;
-}
 
 /* Configure link as prescribed in link_setting; set LTTPR mode; and
  * Initialize link training settings.
@@ -113,11 +106,12 @@ static enum link_training_result dpia_configure_link(
 	bool fec_enable;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) configuring\n - LTTPR mode(%d)\n",
-				__func__,
-				link->link_id.enum_id - ENUM_ID_1,
-				lt_settings->lttpr_mode);
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		lt_settings->lttpr_mode);
 
-	dp_decide_training_settings(link,
+	dp_decide_training_settings(
+		link,
 		link_setting,
 		lt_settings);
 
@@ -137,7 +131,7 @@ static enum link_training_result dpia_configure_link(
 	if (status != DC_OK && link->is_hpd_pending)
 		return LINK_TRAINING_ABORT;
 
-	if (link->preferred_training_settings.fec_enable)
+	if (link->preferred_training_settings.fec_enable != NULL)
 		fec_enable = *link->preferred_training_settings.fec_enable;
 	else
 		fec_enable = true;
@@ -148,7 +142,8 @@ static enum link_training_result dpia_configure_link(
 	return LINK_TRAINING_SUCCESS;
 }
 
-static enum dc_status core_link_send_set_config(struct dc_link *link,
+static enum dc_status core_link_send_set_config(
+	struct dc_link *link,
 	uint8_t msg_type,
 	uint8_t msg_data)
 {
@@ -160,8 +155,8 @@ static enum dc_status core_link_send_set_config(struct dc_link *link,
 	payload.msg_data = msg_data;
 
 	if (!link->ddc->ddc_pin && !link->aux_access_disabled &&
-	    (dm_helpers_dmub_set_config_sync(link->ctx, link,
-					     &payload, &set_config_result) == -1)) {
+			(dm_helpers_dmub_set_config_sync(link->ctx,
+			link, &payload, &set_config_result) == -1)) {
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -170,7 +165,8 @@ static enum dc_status core_link_send_set_config(struct dc_link *link,
 }
 
 /* Build SET_CONFIG message data payload for specified message type. */
-static uint8_t dpia_build_set_config_data(enum dpia_set_config_type type,
+static uint8_t dpia_build_set_config_data(
+		enum dpia_set_config_type type,
 		struct dc_link *link,
 		struct link_training_settings *lt_settings)
 {
@@ -189,11 +185,9 @@ static uint8_t dpia_build_set_config_data(enum dpia_set_config_type type,
 		data.set_vspe.swing = lt_settings->hw_lane_settings[0].VOLTAGE_SWING;
 		data.set_vspe.pre_emph = lt_settings->hw_lane_settings[0].PRE_EMPHASIS;
 		data.set_vspe.max_swing_reached =
-			lt_settings->hw_lane_settings[0].VOLTAGE_SWING ==
-			VOLTAGE_SWING_MAX_LEVEL ? 1 : 0;
+				lt_settings->hw_lane_settings[0].VOLTAGE_SWING == VOLTAGE_SWING_MAX_LEVEL ? 1 : 0;
 		data.set_vspe.max_pre_emph_reached =
-			lt_settings->hw_lane_settings[0].PRE_EMPHASIS ==
-			PRE_EMPHASIS_MAX_LEVEL ? 1 : 0;
+				lt_settings->hw_lane_settings[0].PRE_EMPHASIS == PRE_EMPHASIS_MAX_LEVEL ? 1 : 0;
 		break;
 	default:
 		ASSERT(false); /* Message type not supported by helper function. */
@@ -235,7 +229,8 @@ static enum dc_status convert_trng_ptn_to_trng_stg(enum dc_dp_training_pattern t
 }
 
 /* Write training pattern to DPCD. */
-static enum dc_status dpcd_set_lt_pattern(struct dc_link *link,
+static enum dc_status dpcd_set_lt_pattern(
+	struct dc_link *link,
 	enum dc_dp_training_pattern pattern,
 	uint32_t hop)
 {
@@ -249,28 +244,29 @@ static enum dc_status dpcd_set_lt_pattern(struct dc_link *link,
 
 	/* DpcdAddress_TrainingPatternSet */
 	dpcd_pattern.v1_4.TRAINING_PATTERN_SET =
-		dc_dp_training_pattern_to_dpcd_training_pattern(link, pattern);
+		dp_training_pattern_to_dpcd_training_pattern(link, pattern);
 
 	dpcd_pattern.v1_4.SCRAMBLING_DISABLE =
-		dc_dp_initialize_scrambling_data_symbols(link, pattern);
+		dp_initialize_scrambling_data_symbols(link, pattern);
 
 	if (hop != DPRX) {
 		DC_LOG_HW_LINK_TRAINING("%s\n LTTPR Repeater ID: %d\n 0x%X pattern = %x\n",
-					__func__,
-					hop,
-					dpcd_tps_offset,
-					dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
+			__func__,
+			hop,
+			dpcd_tps_offset,
+			dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 	} else {
 		DC_LOG_HW_LINK_TRAINING("%s\n 0x%X pattern = %x\n",
-					__func__,
-					dpcd_tps_offset,
-					dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
+			__func__,
+			dpcd_tps_offset,
+			dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 	}
 
-	status = core_link_write_dpcd(link,
-				      dpcd_tps_offset,
-				      &dpcd_pattern.raw,
-				      sizeof(dpcd_pattern.raw));
+	status = core_link_write_dpcd(
+			link,
+			dpcd_tps_offset,
+			&dpcd_pattern.raw,
+			sizeof(dpcd_pattern.raw));
 
 	return status;
 }
@@ -284,7 +280,7 @@ static enum dc_status dpcd_set_lt_pattern(struct dc_link *link,
  *
  * @param link DPIA link being trained.
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_cr_non_transparent(
 		struct dc_link *link,
@@ -297,8 +293,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 	enum dc_status status;
 	uint32_t retries_cr = 0; /* Number of consecutive attempts with same VS or PE. */
 	uint32_t retry_count = 0;
-	/* From DP spec, CR read interval is always 100us. */
-	uint32_t wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
+	uint32_t wait_time_microsec = TRAINING_AUX_RD_INTERVAL; /* From DP spec, CR read interval is always 100us. */
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
@@ -306,7 +301,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 	uint8_t set_cfg_data;
 	enum dpia_set_config_ts ts;
 
-	repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	/* Cap of LINK_TRAINING_MAX_CR_RETRY attempts at clock recovery.
 	 * Fix inherited from perform_clock_recovery_sequence() -
@@ -316,17 +311,20 @@ static enum link_training_result dpia_training_cr_non_transparent(
 	 * continuously.
 	 */
 	while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
-	       (retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
+			(retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
+
 		/* DPTX-to-DPIA */
 		if (hop == repeater_cnt) {
 			/* Send SET_CONFIG(SET_LINK:LC,LR,LTTPR) to notify DPOA that
 			 * non-transparent link training has started.
 			 * This also enables the transmission of clk_sync packets.
 			 */
-			set_cfg_data = dpia_build_set_config_data(DPIA_SET_CFG_SET_LINK,
+			set_cfg_data = dpia_build_set_config_data(
+					DPIA_SET_CFG_SET_LINK,
 					link,
 					lt_settings);
-			status = core_link_send_set_config(link,
+			status = core_link_send_set_config(
+					link,
 					DPIA_SET_CFG_SET_LINK,
 					set_cfg_data);
 			/* CR for this hop is considered successful as long as
@@ -347,6 +345,14 @@ static enum link_training_result dpia_training_cr_non_transparent(
 				result = LINK_TRAINING_ABORT;
 				break;
 			}
+			status = core_link_send_set_config(
+					link,
+					DPIA_SET_CFG_SET_TRAINING,
+					ts);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
 			status = dpcd_set_lt_pattern(link, lt_settings->pattern_for_cr, hop);
 			if (status != DC_OK) {
 				result = LINK_TRAINING_ABORT;
@@ -358,10 +364,12 @@ static enum link_training_result dpia_training_cr_non_transparent(
 		 * drive settings for hops immediately downstream.
 		 */
 		if (hop == repeater_cnt - 1) {
-			set_cfg_data = dpia_build_set_config_data(DPIA_SET_CFG_SET_VSPE,
+			set_cfg_data = dpia_build_set_config_data(
+					DPIA_SET_CFG_SET_VSPE,
 					link,
 					lt_settings);
-			status = core_link_send_set_config(link,
+			status = core_link_send_set_config(
+					link,
 					DPIA_SET_CFG_SET_VSPE,
 					set_cfg_data);
 			if (status != DC_OK) {
@@ -468,7 +476,8 @@ static enum link_training_result dpia_training_cr_transparent(
 	 * continuously.
 	 */
 	while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
-	       (retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
+			(retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
+
 		/* Write TPS1 (not VS or PE) to DPCD to start CR phase.
 		 * DPIA sends SET_CONFIG(SET_LINK) to notify DPOA to
 		 * start link training.
@@ -529,8 +538,7 @@ static enum link_training_result dpia_training_cr_transparent(
 	if (link->is_hpd_pending)
 		result = LINK_TRAINING_ABORT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) clock recovery\n"
-		" -hop(%d)\n - result(%d)\n - retries(%d)\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) clock recovery\n -hop(%d)\n - result(%d)\n - retries(%d)\n",
 		__func__,
 		link->link_id.enum_id - ENUM_ID_1,
 		DPRX,
@@ -545,7 +553,7 @@ static enum link_training_result dpia_training_cr_transparent(
  *
  * @param link DPIA link being trained.
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_cr_phase(
 		struct dc_link *link,
@@ -564,7 +572,8 @@ static enum link_training_result dpia_training_cr_phase(
 }
 
 /* Return status read interval during equalization phase. */
-static uint32_t dpia_get_eq_aux_rd_interval(const struct dc_link *link,
+static uint32_t dpia_get_eq_aux_rd_interval(
+		const struct dc_link *link,
 		const struct link_training_settings *lt_settings,
 		uint32_t hop)
 {
@@ -590,12 +599,11 @@ static uint32_t dpia_get_eq_aux_rd_interval(const struct dc_link *link,
  * - TPSx is transmitted for any hops downstream of DPOA.
  * - Drive (VS/PE) only transmitted for the hop immediately downstream of DPOA.
  * - EQ for the first hop (DPTX-to-DPIA) is assumed to be successful.
- * - DPRX EQ only reported successful when both DPRX and DPIA requirements
- * (clk sync packets sent) fulfilled.
+ * - DPRX EQ only reported successful when both DPRX and DPIA requirements (clk sync packets sent) fulfilled.
  *
  * @param link DPIA link being trained.
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_eq_non_transparent(
 		struct dc_link *link,
@@ -624,9 +632,10 @@ static enum link_training_result dpia_training_eq_non_transparent(
 	else
 		tr_pattern = DP_TRAINING_PATTERN_SEQUENCE_4;
 
-	repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	for (retries_eq = 0; retries_eq < LINK_TRAINING_MAX_RETRY_COUNT; retries_eq++) {
+
 		/* DPTX-to-DPIA equalization always successful. */
 		if (hop == repeater_cnt) {
 			result = LINK_TRAINING_SUCCESS;
@@ -640,7 +649,8 @@ static enum link_training_result dpia_training_eq_non_transparent(
 				result = LINK_TRAINING_ABORT;
 				break;
 			}
-			status = core_link_send_set_config(link,
+			status = core_link_send_set_config(
+					link,
 					DPIA_SET_CFG_SET_TRAINING,
 					ts);
 			if (status != DC_OK) {
@@ -658,12 +668,14 @@ static enum link_training_result dpia_training_eq_non_transparent(
 		 * drive settings for hop immediately downstream.
 		 */
 		if (hop == repeater_cnt - 1) {
-			set_cfg_data = dpia_build_set_config_data(DPIA_SET_CFG_SET_VSPE,
-								  link,
-								  lt_settings);
-			status = core_link_send_set_config(link,
-							   DPIA_SET_CFG_SET_VSPE,
-							   set_cfg_data);
+			set_cfg_data = dpia_build_set_config_data(
+					DPIA_SET_CFG_SET_VSPE,
+					link,
+					lt_settings);
+			status = core_link_send_set_config(
+					link,
+					DPIA_SET_CFG_SET_VSPE,
+					set_cfg_data);
 			if (status != DC_OK) {
 				result = LINK_TRAINING_ABORT;
 				break;
@@ -679,7 +691,7 @@ static enum link_training_result dpia_training_eq_non_transparent(
 		 * ensure clock sync packets have been sent.
 		 */
 		if (hop == DPRX && retries_eq == 1)
-			wait_time_microsec = max(wait_time_microsec, (uint32_t)DPIA_CLK_SYNC_DELAY);
+			wait_time_microsec = max(wait_time_microsec, (uint32_t) DPIA_CLK_SYNC_DELAY);
 		else
 			wait_time_microsec = dpia_get_eq_aux_rd_interval(link, lt_settings, hop);
 
@@ -705,8 +717,8 @@ static enum link_training_result dpia_training_eq_non_transparent(
 		}
 
 		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
-		    dp_is_symbol_locked(link->cur_link_settings.lane_count, dpcd_lane_status) &&
-		    dp_is_interlane_aligned(dpcd_lane_status_updated)) {
+				dp_is_symbol_locked(link->cur_link_settings.lane_count, dpcd_lane_status) &&
+				dp_is_interlane_aligned(dpcd_lane_status_updated)) {
 			result =  LINK_TRAINING_SUCCESS;
 			break;
 		}
@@ -741,7 +753,7 @@ static enum link_training_result dpia_training_eq_non_transparent(
  *
  * @param link DPIA link being trained.
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_eq_transparent(
 		struct dc_link *link,
@@ -761,6 +773,7 @@ static enum link_training_result dpia_training_eq_transparent(
 	wait_time_microsec = dpia_get_eq_aux_rd_interval(link, lt_settings, DPRX);
 
 	for (retries_eq = 0; retries_eq < LINK_TRAINING_MAX_RETRY_COUNT; retries_eq++) {
+
 		if (retries_eq == 0) {
 			status = dpcd_set_lt_pattern(link, tr_pattern, DPRX);
 			if (status != DC_OK) {
@@ -810,8 +823,7 @@ static enum link_training_result dpia_training_eq_transparent(
 	if (link->is_hpd_pending)
 		result = LINK_TRAINING_ABORT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) equalization\n"
-		" - hop(%d)\n - result(%d)\n - retries(%d)\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) equalization\n - hop(%d)\n - result(%d)\n - retries(%d)\n",
 		__func__,
 		link->link_id.enum_id - ENUM_ID_1,
 		DPRX,
@@ -826,7 +838,7 @@ static enum link_training_result dpia_training_eq_transparent(
  *
  * @param link DPIA link being trained.
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_eq_phase(
 		struct dc_link *link,
@@ -845,7 +857,9 @@ static enum link_training_result dpia_training_eq_phase(
 }
 
 /* End training of specified hop in display path. */
-static enum dc_status dpcd_clear_lt_pattern(struct dc_link *link, uint32_t hop)
+static enum dc_status dpcd_clear_lt_pattern(
+	struct dc_link *link,
+	uint32_t hop)
 {
 	union dpcd_training_pattern dpcd_pattern = {0};
 	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
@@ -855,7 +869,8 @@ static enum dc_status dpcd_clear_lt_pattern(struct dc_link *link, uint32_t hop)
 		dpcd_tps_offset = DP_TRAINING_PATTERN_SET_PHY_REPEATER1 +
 			((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (hop - 1));
 
-	status = core_link_write_dpcd(link,
+	status = core_link_write_dpcd(
+			link,
 			dpcd_tps_offset,
 			&dpcd_pattern.raw,
 			sizeof(dpcd_pattern.raw));
@@ -873,9 +888,10 @@ static enum dc_status dpcd_clear_lt_pattern(struct dc_link *link, uint32_t hop)
  * (DPTX-to-DPIA) and last hop (DPRX).
  *
  * @param link DPIA link being trained.
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
-static enum link_training_result dpia_training_end(struct dc_link *link,
+static enum link_training_result dpia_training_end(
+		struct dc_link *link,
 		struct link_training_settings *lt_settings,
 		uint32_t hop)
 {
@@ -884,13 +900,15 @@ static enum link_training_result dpia_training_end(struct dc_link *link,
 	enum dc_status status;
 
 	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		if (hop == repeater_cnt) { /* DPTX-to-DPIA */
 			/* Send SET_CONFIG(SET_TRAINING:0xff) to notify DPOA that
 			 * DPTX-to-DPIA hop trained. No DPCD write needed for first hop.
 			 */
-			status = core_link_send_set_config(link,
+			status = core_link_send_set_config(
+					link,
 					DPIA_SET_CFG_SET_TRAINING,
 					DPIA_TS_UFP_DONE);
 			if (status != DC_OK)
@@ -904,7 +922,8 @@ static enum link_training_result dpia_training_end(struct dc_link *link,
 
 		/* Notify DPOA that non-transparent link training of DPRX done. */
 		if (hop == DPRX && result != LINK_TRAINING_ABORT) {
-			status = core_link_send_set_config(link,
+			status = core_link_send_set_config(
+					link,
 					DPIA_SET_CFG_SET_TRAINING,
 					DPIA_TS_DPRX_DONE);
 			if (status != DC_OK)
@@ -912,18 +931,20 @@ static enum link_training_result dpia_training_end(struct dc_link *link,
 		}
 
 	} else { /* non-LTTPR or transparent LTTPR. */
+
 		/* Write 0x0 to TRAINING_PATTERN_SET */
 		status = dpcd_clear_lt_pattern(link, hop);
 		if (status != DC_OK)
 			result = LINK_TRAINING_ABORT;
+
 	}
 
 	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) end\n - hop(%d)\n - result(%d)\n - LTTPR mode(%d)\n",
-				__func__,
-				link->link_id.enum_id - ENUM_ID_1,
-				hop,
-				result,
-				lt_settings->lttpr_mode);
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		hop,
+		result,
+		lt_settings->lttpr_mode);
 
 	return result;
 }
@@ -933,20 +954,21 @@ static enum link_training_result dpia_training_end(struct dc_link *link,
  * - Sending SET_CONFIG(SET_LINK) with lane count and link rate set to 0.
  *
  * @param link DPIA link being trained.
- * @param hop The Hop in display path. DPRX = 0.
+ * @param hop Hop in display path. DPRX = 0.
  */
-static void dpia_training_abort(struct dc_link *link,
-	struct link_training_settings *lt_settings,
-	uint32_t hop)
+static void dpia_training_abort(
+		struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t hop)
 {
 	uint8_t data = 0;
 	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) aborting\n - LTTPR mode(%d)\n - HPD(%d)\n",
-				__func__,
-				link->link_id.enum_id - ENUM_ID_1,
-				lt_settings->lttpr_mode,
-				link->is_hpd_pending);
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		lt_settings->lttpr_mode,
+		link->is_hpd_pending);
 
 	/* Abandon clean-up if sink unplugged. */
 	if (link->is_hpd_pending)
@@ -975,7 +997,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 
 	struct dc_link_settings link_settings = *link_setting; // non-const copy to pass in
 
-	lt_settings.lttpr_mode = dp_decide_lttpr_mode(link, &link_settings);
+	lt_settings.lttpr_mode = dc_link_decide_lttpr_mode(link, &link_settings);
 
 	/* Configure link as prescribed in link_setting and set LTTPR mode. */
 	result = dpia_configure_link(link, link_res, link_setting, &lt_settings);
@@ -983,7 +1005,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 		return result;
 
 	if (lt_settings.lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	/* Train each hop in turn starting with the one closest to DPTX.
 	 * In transparent or non-LTTPR mode, train only the final hop (DPRX).
@@ -1014,10 +1036,10 @@ enum link_training_result dc_link_dpia_perform_link_training(
 		msleep(5);
 		if (!link->is_automated)
 			result = dp_check_link_loss_status(link, &lt_settings);
-	} else if (result == LINK_TRAINING_ABORT) {
+	} else if (result == LINK_TRAINING_ABORT)
 		dpia_training_abort(link, &lt_settings, repeater_id);
-	} else {
+	else
 		dpia_training_end(link, &lt_settings, repeater_id);
-	}
+
 	return result;
 }

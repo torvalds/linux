@@ -33,6 +33,7 @@
 #include "fixed31_32.h"
 #include "irq_types.h"
 #include "dc_dp_types.h"
+#include "dc_hdmi_types.h"
 #include "dc_hw_types.h"
 #include "dal_types.h"
 #include "grph_object_defs.h"

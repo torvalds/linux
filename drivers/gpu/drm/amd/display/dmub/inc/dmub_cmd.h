@@ -770,7 +770,10 @@ enum dmub_out_cmd_type {
 	 * Command type used for SET_CONFIG Reply notification
 	 */
 	DMUB_OUT_CMD__SET_CONFIG_REPLY = 3,
-	DMUB_OUT_CMD__DPIA_NOTIFICATION = 5
+	/**
+	 * Command type used for USB4 DPIA notification
+	 */
+	DMUB_OUT_CMD__DPIA_NOTIFICATION = 5,
 };
 
 /* DMUB_CMD__DPIA command sub-types. */
@@ -778,6 +781,11 @@ enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
 	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
+};
+
+/* DMUB_OUT_CMD__DPIA_NOTIFICATION command types. */
+enum dmub_cmd_dpia_notification_type {
+	DPIA_NOTIFY__BW_ALLOCATION = 0,
 };
 
 #pragma pack(push, 1)
@@ -1518,84 +1526,6 @@ struct dp_hpd_data {
 };
 
 /**
- * DPIA NOTIFICATION Response Type
- */
-enum dpia_notify_bw_alloc_status {
-
-	DPIA_BW_REQ_FAILED = 0,
-	DPIA_BW_REQ_SUCCESS,
-	DPIA_EST_BW_CHANGED,
-	DPIA_BW_ALLOC_CAPS_CHANGED
-};
-
-/* DMUB_OUT_CMD__DPIA_NOTIFY Reply command - OutBox Cmd */
-/**
- * Data passed to driver from FW in a DMUB_OUT_CMD__DPIA_NOTIFY command.
- */
-struct dpia_notification_reply_data {
-	uint8_t allocated_bw;
-	uint8_t estimated_bw;
-};
-
-struct dpia_notification_common {
-	bool shared;
-};
-
-struct dpia_bw_allocation_notify_data {
-	union {
-		struct {
-			uint16_t cm_bw_alloc_support: 1;	/**< USB4 CM BW Allocation mode support */
-			uint16_t bw_request_failed: 1;		/**< BW_Request_Failed */
-			uint16_t bw_request_succeeded: 1;	/**< BW_Request_Succeeded */
-			uint16_t est_bw_changed: 1;			/**< Estimated_BW changed */
-			uint16_t bw_alloc_cap_changed: 1;	/**< BW_Allocation_Capabiity_Changed */
-			uint16_t reserved: 11;
-		} bits;
-		uint16_t flags;
-	};
-	uint8_t cm_id;			/**< CM ID */
-	uint8_t group_id;		/**< Group ID */
-	uint8_t granularity;	/**< BW Allocation Granularity */
-	uint8_t estimated_bw;	/**< Estimated_BW */
-	uint8_t allocated_bw;	/**< Allocated_BW */
-	uint8_t reserved;
-};
-
-union dpia_notification_data {
-	struct dpia_notification_common common_data;
-	struct dpia_bw_allocation_notify_data dpia_bw_alloc;	/**< Used for DPIA BW Allocation mode notification */
-};
-
-enum dmub_cmd_dpia_notification_type {
-	DPIA_NOTIFY__BW_ALLOCATION = 0,
-};
-
-struct dpia_notification_header {
-	uint8_t instance;							/**< DPIA Instance */
-	uint8_t reserved[3];
-	enum dmub_cmd_dpia_notification_type type;	/**< DPIA notification type */
-};
-
-struct dpia_notification_payload {
-	struct dpia_notification_header  header;
-	union dpia_notification_data      data;   /**< DPIA notification data */
-};
-
-/**
- * Definition of a DMUB_OUT_CMD__DPIA_NOTIFY command.
- */
-struct dmub_rb_cmd_dpia_notification {
-	/**
-	 * Command header.
-	 */
-	struct dmub_cmd_header header;  /**< DPIA notification header */
-	/**
-	 * Data passed to driver from FW in a DMUB_OUT_CMD__DPIA_NOTIFY command.
-	 */
-	struct dpia_notification_payload payload; /**< DPIA notification payload */
-};
-
-/**
  * Definition of a DMUB_OUT_CMD__DP_HPD_NOTIFY command.
  */
 struct dmub_rb_cmd_dp_hpd_notify {
@@ -1634,6 +1564,79 @@ struct set_config_reply_control_data {
 struct dmub_rb_cmd_dp_set_config_reply {
 	struct dmub_cmd_header header;
 	struct set_config_reply_control_data set_config_reply_control;
+};
+
+/**
+ * Definition of a DPIA notification header
+ */
+struct dpia_notification_header {
+	uint8_t instance; /**< DPIA Instance */
+	uint8_t reserved[3];
+	enum dmub_cmd_dpia_notification_type type; /**< DPIA notification type */
+};
+
+/**
+ * Definition of the common data struct of DPIA notification
+ */
+struct dpia_notification_common {
+	uint8_t cmd_buffer[DMUB_RB_CMD_SIZE - sizeof(struct dmub_cmd_header)
+								- sizeof(struct dpia_notification_header)];
+};
+
+/**
+ * Definition of a DPIA notification data
+ */
+struct dpia_bw_allocation_notify_data {
+	union {
+		struct {
+			uint16_t cm_bw_alloc_support: 1; /**< USB4 CM BW Allocation mode support */
+			uint16_t bw_request_failed: 1; /**< BW_Request_Failed */
+			uint16_t bw_request_succeeded: 1; /**< BW_Request_Succeeded */
+			uint16_t est_bw_changed: 1; /**< Estimated_BW changed */
+			uint16_t bw_alloc_cap_changed: 1; /**< BW_Allocation_Capabiity_Changed */
+			uint16_t reserved: 11; /**< Reserved */
+		} bits;
+
+		uint16_t flags;
+	};
+
+	uint8_t cm_id; /**< CM ID */
+	uint8_t group_id; /**< Group ID */
+	uint8_t granularity; /**< BW Allocation Granularity */
+	uint8_t estimated_bw; /**< Estimated_BW */
+	uint8_t allocated_bw; /**< Allocated_BW */
+	uint8_t reserved;
+};
+
+/**
+ * union dpia_notify_data_type - DPIA Notification in Outbox command
+ */
+union dpia_notification_data {
+	/**
+	 * DPIA Notification for common data struct
+	 */
+	struct dpia_notification_common common_data;
+
+	/**
+	 * DPIA Notification for DP BW Allocation support
+	 */
+	struct dpia_bw_allocation_notify_data dpia_bw_alloc;
+};
+
+/**
+ * Definition of a DPIA notification payload
+ */
+struct dpia_notification_payload {
+	struct dpia_notification_header header;
+	union dpia_notification_data data; /**< DPIA notification payload data */
+};
+
+/**
+ * Definition of a DMUB_OUT_CMD__DPIA_NOTIFICATION command.
+ */
+struct dmub_rb_cmd_dpia_notification {
+	struct dmub_cmd_header header; /**< DPIA notification header */
+	struct dpia_notification_payload payload; /**< DPIA notification payload */
 };
 
 /**
@@ -3108,7 +3111,8 @@ struct dmub_rb_cmd_panel_cntl {
  */
 struct dmub_cmd_lvtma_control_data {
 	uint8_t uc_pwr_action; /**< LVTMA_ACTION */
-	uint8_t reserved_0[3]; /**< For future use */
+	uint8_t bypass_panel_control_wait;
+	uint8_t reserved_0[2];
 	uint8_t panel_inst; /**< LVTMA control instance */
 	uint8_t reserved_1[3]; /**< For future use */
 };
@@ -3502,9 +3506,9 @@ union dmub_rb_out_cmd {
 	 */
 	struct dmub_rb_cmd_dp_set_config_reply set_config_reply;
 	/**
-	 * BW ALLOCATION notification command.
+	 * DPIA notification command.
 	 */
-	struct dmub_rb_cmd_dpia_notification dpia_notify;
+	struct dmub_rb_cmd_dpia_notification dpia_notification;
 };
 #pragma pack(pop)
 

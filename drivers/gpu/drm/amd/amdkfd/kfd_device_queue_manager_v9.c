@@ -59,30 +59,27 @@ static int update_qpd_v9(struct device_queue_manager *dqm,
 
 	/* check if sh_mem_config register already configured */
 	if (qpd->sh_mem_config == 0) {
-		qpd->sh_mem_config =
-				SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
+		qpd->sh_mem_config = SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 					SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
 
-		if (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 2)) {
-			/* Aldebaran can safely support different XNACK modes
-			 * per process
-			 */
-			if (!pdd->process->xnack_enabled)
-				qpd->sh_mem_config |=
-					1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
-		} else if (dqm->dev->noretry &&
-			   !dqm->dev->use_iommu_v2) {
-			qpd->sh_mem_config |=
-				1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
-		}
+		if (dqm->dev->noretry && !dqm->dev->use_iommu_v2)
+			qpd->sh_mem_config |= 1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
 
 		qpd->sh_mem_ape1_limit = 0;
 		qpd->sh_mem_ape1_base = 0;
 	}
 
+	if (KFD_SUPPORT_XNACK_PER_PROCESS(dqm->dev)) {
+		if (!pdd->process->xnack_enabled)
+			qpd->sh_mem_config |= 1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+		else
+			qpd->sh_mem_config &= ~(1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT);
+	}
+
 	qpd->sh_mem_bases = compute_sh_mem_bases_64bit(pdd);
 
-	pr_debug("sh_mem_bases 0x%X\n", qpd->sh_mem_bases);
+	pr_debug("sh_mem_bases 0x%X sh_mem_config 0x%X\n", qpd->sh_mem_bases,
+		 qpd->sh_mem_config);
 
 	return 0;
 }

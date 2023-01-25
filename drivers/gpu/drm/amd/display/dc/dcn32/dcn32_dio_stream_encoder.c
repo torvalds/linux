@@ -29,7 +29,7 @@
 #include "dcn32_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "inc/link_dpcd.h"
+#include "dc_link_dp.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \
@@ -421,6 +421,33 @@ static void enc32_set_dig_input_mode(struct stream_encoder *enc, unsigned int pi
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, pix_per_container == 2 ? 0x1 : 0x0);
 }
 
+static void enc32_reset_fifo(struct stream_encoder *enc, bool reset)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t reset_val = reset ? 1 : 0;
+	uint32_t is_symclk_on;
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, reset_val);
+	REG_GET(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, &is_symclk_on);
+
+	if (is_symclk_on)
+		REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, reset_val, 10, 5000);
+	else
+		udelay(10);
+}
+
+static void enc32_enable_fifo(struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
+
+	enc32_reset_fifo(enc, true);
+	enc32_reset_fifo(enc, false);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
+}
+
 static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.dp_set_odm_combine =
 		enc32_dp_set_odm_combine,
@@ -466,6 +493,7 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 
 	.set_input_mode = enc32_set_dig_input_mode,
+	.enable_fifo = enc32_enable_fifo,
 };
 
 void dcn32_dio_stream_encoder_construct(

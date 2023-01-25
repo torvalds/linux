@@ -23,60 +23,38 @@
  *
  */
 
-#ifndef __DAL_I2CAUX_INTERFACE_H__
-#define __DAL_I2CAUX_INTERFACE_H__
+#ifndef __DAL_DDC_SERVICE_H__
+#define __DAL_DDC_SERVICE_H__
 
-#include "dc_types.h"
-#include "gpio_service_interface.h"
+#include "link.h"
 
+#define AUX_POWER_UP_WA_DELAY 500
+#define I2C_OVER_AUX_DEFER_WA_DELAY 70
+#define DPVGA_DONGLE_AUX_DEFER_WA_DELAY 40
+#define I2C_OVER_AUX_DEFER_WA_DELAY_1MS 1
+#define LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD 3200 /*us*/
 
-#define DEFAULT_AUX_MAX_DATA_SIZE 16
-#define AUX_MAX_DEFER_WRITE_RETRY 20
+#define EDID_SEGMENT_SIZE 256
 
-struct aux_payload {
-	/* set following flag to read/write I2C data,
-	 * reset it to read/write DPCD data */
-	bool i2c_over_aux;
-	/* set following flag to write data,
-	 * reset it to read data */
-	bool write;
-	bool mot;
-	bool write_status_update;
+void set_ddc_transaction_type(
+		struct ddc_service *ddc,
+		enum ddc_transaction_type type);
 
-	uint32_t address;
-	uint32_t length;
-	uint8_t *data;
-	/*
-	 * used to return the reply type of the transaction
-	 * ignored if NULL
-	 */
-	uint8_t *reply;
-	/* expressed in milliseconds
-	 * zero means "use default value"
-	 */
-	uint32_t defer_delay;
+bool try_to_configure_aux_timeout(struct ddc_service *ddc,
+		uint32_t timeout);
 
-};
+void write_scdc_data(
+		struct ddc_service *ddc_service,
+		uint32_t pix_clk,
+		bool lte_340_scramble);
 
-struct aux_command {
-	struct aux_payload *payloads;
-	uint8_t number_of_payloads;
+void read_scdc_data(
+		struct ddc_service *ddc_service);
 
-	/* expressed in milliseconds
-	 * zero means "use default value" */
-	uint32_t defer_delay;
+void set_dongle_type(struct ddc_service *ddc,
+		enum display_dongle_type dongle_type);
 
-	/* zero means "use default value" */
-	uint32_t max_defer_write_retry;
+struct ddc *get_ddc_pin(struct ddc_service *ddc_service);
 
-	enum i2c_mot_mode mot;
-};
+#endif /* __DAL_DDC_SERVICE_H__ */
 
-union aux_config {
-	struct {
-		uint32_t ALLOW_AUX_WHEN_HPD_LOW:1;
-	} bits;
-	uint32_t raw;
-};
-
-#endif

@@ -6,7 +6,6 @@
 #include "intel_ggtt_gmch.h"
 
 #include <drm/intel-gtt.h>
-#include <drm/i915_drm.h>
 
 #include <linux/agp_backend.h>
 

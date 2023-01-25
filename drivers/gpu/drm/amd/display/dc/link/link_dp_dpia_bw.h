@@ -26,13 +26,13 @@
 #ifndef DC_INC_LINK_DP_DPIA_BW_H_
 #define DC_INC_LINK_DP_DPIA_BW_H_
 
-// XXX: TODO: Re-add for Phase 2
-/* Number of Host Routers per motherboard is 2 and 2 DPIA per host router */
-#define MAX_HR_NUM 2
-
-struct dc_host_router_bw_alloc {
-	int max_bw[MAX_HR_NUM];             // The Max BW that each Host Router has available to be shared btw DPIAs
-	int total_estimated_bw[MAX_HR_NUM]; // The Total Verified and available BW that Host Router has
+/*
+ * Host Router BW type
+ */
+enum bw_type {
+	HOST_ROUTER_BW_ESTIMATED,
+	HOST_ROUTER_BW_ALLOCATED,
+	HOST_ROUTER_BW_INVALID,
 };
 
 /*
@@ -61,9 +61,40 @@ void set_usb4_req_bw_req(struct dc_link *link, int req_bw);
  * find out the result of allocating on CM and update structs accordingly
  *
  * @link: pointer to the dc_link struct instance
+ * @bw: Allocated or Estimated BW depending on the result
+ * @result: Response type
  *
  * return: none
  */
-void get_usb4_req_bw_resp(struct dc_link *link);
+void get_usb4_req_bw_resp(struct dc_link *link, uint8_t bw, uint8_t result);
+
+/*
+ * Return the response_ready flag from dc_link struct
+ *
+ * @link: pointer to the dc_link struct instance
+ *
+ * return: response_ready flag from dc_link struct
+ */
+bool get_cm_response_ready_flag(struct dc_link *link);
+
+/*
+ * Get the Max Available BW or Max Estimated BW for each Host Router
+ *
+ * @link: pointer to the dc_link struct instance
+ * @type: ESTIMATD BW or MAX AVAILABLE BW
+ *
+ * return: response_ready flag from dc_link struct
+ */
+int get_host_router_total_bw(struct dc_link *link, uint8_t type);
+
+/*
+ * Cleanup function for when the dpia is unplugged to reset struct
+ * and perform any required clean up
+ *
+ * @link: pointer to the dc_link struct instance
+ *
+ * return: none
+ */
+bool dpia_bw_alloc_unplug(struct dc_link *link);
 
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

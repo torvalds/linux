@@ -9,6 +9,8 @@
 #include "intel_gt_types.h"
 
 void intel_gt_mcr_init(struct intel_gt *gt);
+void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags);
+void intel_gt_mcr_unlock(struct intel_gt *gt, unsigned long flags);
 
 u32 intel_gt_mcr_read(struct intel_gt *gt,
 		      i915_mcr_reg_t reg,

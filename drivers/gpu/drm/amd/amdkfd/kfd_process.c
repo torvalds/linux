@@ -1330,7 +1330,7 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * per-process XNACK mode selection. But let the dev->noretry
 		 * setting still influence the default XNACK mode.
 		 */
-		if (supported && KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
+		if (supported && KFD_SUPPORT_XNACK_PER_PROCESS(dev))
 			continue;
 
 		/* GFXv10 and later GPUs do not support shader preemption

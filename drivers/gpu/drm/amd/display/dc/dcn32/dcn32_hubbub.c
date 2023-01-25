@@ -945,6 +945,35 @@ void hubbub32_force_wm_propagate_to_pipes(struct hubbub *hubbub)
 			DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
 }
 
+void hubbub32_init(struct hubbub *hubbub)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	/* Enable clock gate*/
+	if (hubbub->ctx->dc->debug.disable_clock_gate) {
+		/*done in hwseq*/
+		/*REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);*/
+
+		REG_UPDATE_2(DCHUBBUB_CLOCK_CNTL,
+			DISPCLK_R_DCHUBBUB_GATE_DIS, 0,
+			DCFCLK_R_DCHUBBUB_GATE_DIS, 0);
+	}
+	/*
+	ignore the "df_pre_cstate_req" from the SDP port control.
+	only the DCN will determine when to connect the SDP port
+	*/
+	REG_UPDATE(DCHUBBUB_SDPIF_CFG0,
+			SDPIF_PORT_CONTROL, 1);
+	/*Set SDP's max outstanding request to 512
+	must set the register back to 0 (max outstanding = 256) in zero frame buffer mode*/
+	REG_UPDATE(DCHUBBUB_SDPIF_CFG1,
+			SDPIF_MAX_NUM_OUTSTANDING, 1);
+	/*must set the registers back to 256 in zero frame buffer mode*/
+	REG_UPDATE_2(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
+			DCHUBBUB_ARB_MAX_REQ_OUTSTAND, 512,
+			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 512);
+}
+
 static const struct hubbub_funcs hubbub32_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,

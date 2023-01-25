@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,21 +23,19 @@
  *
  */
 
-#ifndef __LINK_DPCD_H__
-#define __LINK_DPCD_H__
-#include <inc/core_status.h>
-#include <dc_link.h>
-#include <dc_link_dp.h>
 
-enum dc_status core_link_read_dpcd(
-		struct dc_link *link,
-		uint32_t address,
-		uint8_t *data,
-		uint32_t size);
+#ifndef __DC_LINK_DP_TRAINING_DPIA_H__
+#define __DC_LINK_DP_TRAINING_DPIA_H__
+#include "link_dp_training.h"
 
-enum dc_status core_link_write_dpcd(
-		struct dc_link *link,
-		uint32_t address,
-		const uint8_t *data,
-		uint32_t size);
-#endif
+/* Train DP tunneling link for USB4 DPIA display endpoint.
+ * DPIA equivalent of dc_link_dp_perfrorm_link_training.
+ * Aborts link training upon detection of sink unplug.
+ */
+enum link_training_result dc_link_dpia_perform_link_training(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	const struct dc_link_settings *link_setting,
+	bool skip_video_pattern);
+
+#endif /* __DC_LINK_DP_TRAINING_DPIA_H__ */

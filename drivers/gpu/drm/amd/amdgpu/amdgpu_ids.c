@@ -497,6 +497,7 @@ void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
 	    !--id_mgr->reserved_use_count) {
 		/* give the reserved ID back to normal round robin */
 		list_add(&id_mgr->reserved->list, &id_mgr->ids_lru);
+		id_mgr->reserved = NULL;
 	}
 	vm->reserved_vmid[vmhub] = false;
 	mutex_unlock(&id_mgr->lock);
