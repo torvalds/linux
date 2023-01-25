@@ -19,7 +19,8 @@
 #define PORT_CAP_LANE_LEN	3
 #define PORT_CAP_USB3_LEN	5
 #define PORT_CAP_DP_LEN		8
-#define PORT_CAP_TMU_LEN	8
+#define PORT_CAP_TMU_V1_LEN	8
+#define PORT_CAP_TMU_V2_LEN	10
 #define PORT_CAP_BASIC_LEN	9
 #define PORT_CAP_USB4_LEN	20
 
@@ -1161,7 +1162,10 @@ static void port_cap_show(struct tb_port *port, struct seq_file *s,
 		break;
 
 	case TB_PORT_CAP_TIME1:
-		length = PORT_CAP_TMU_LEN;
+		if (usb4_switch_version(port->sw) < 2)
+			length = PORT_CAP_TMU_V1_LEN;
+		else
+			length = PORT_CAP_TMU_V2_LEN;
 		break;
 
 	case TB_PORT_CAP_POWER:
