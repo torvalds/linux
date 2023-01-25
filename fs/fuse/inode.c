@@ -311,7 +311,8 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 		fuse_dax_dontcache(inode, attr->flags);
 }
 
-static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
+static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr,
+			    struct fuse_conn *fc)
 {
 	inode->i_mode = attr->mode & S_IFMT;
 	inode->i_size = attr->size;
@@ -333,6 +334,12 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 				   new_decode_dev(attr->rdev));
 	} else
 		BUG();
+	/*
+	 * Ensure that we don't cache acls for daemons without FUSE_POSIX_ACL
+	 * so they see the exact same behavior as before.
+	 */
+	if (!fc->posix_acl)
+		inode->i_acl = inode->i_default_acl = ACL_DONT_CACHE;
 }
 
 static int fuse_inode_eq(struct inode *inode, void *_nodeidp)
@@ -372,7 +379,7 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 		if (!inode)
 			return NULL;
 
-		fuse_init_inode(inode, attr);
+		fuse_init_inode(inode, attr, fc);
 		get_fuse_inode(inode)->nodeid = nodeid;
 		inode->i_flags |= S_AUTOMOUNT;
 		goto done;
@@ -388,7 +395,7 @@ retry:
 		if (!fc->writeback_cache || !S_ISREG(attr->mode))
 			inode->i_flags |= S_NOCMTIME;
 		inode->i_generation = generation;
-		fuse_init_inode(inode, attr);
+		fuse_init_inode(inode, attr, fc);
 		unlock_new_inode(inode);
 	} else if (fuse_stale_inode(inode, generation, attr)) {
 		/* nodeid was reused, any I/O on the old inode should fail */
@@ -1174,7 +1181,6 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 			if ((flags & FUSE_POSIX_ACL)) {
 				fc->default_permissions = 1;
 				fc->posix_acl = 1;
-				fm->sb->s_xattr = fuse_acl_xattr_handlers;
 			}
 			if (flags & FUSE_CACHE_SYMLINKS)
 				fc->cache_symlinks = 1;
@@ -1420,13 +1426,6 @@ static void fuse_sb_defaults(struct super_block *sb)
 	if (sb->s_user_ns != &init_user_ns)
 		sb->s_iflags |= SB_I_UNTRUSTED_MOUNTER;
 	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
-
-	/*
-	 * If we are not in the initial user namespace posix
-	 * acls must be translated.
-	 */
-	if (sb->s_user_ns != &init_user_ns)
-		sb->s_xattr = fuse_no_acl_xattr_handlers;
 }
 
 static int fuse_fill_super_submount(struct super_block *sb,
