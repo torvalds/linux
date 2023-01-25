@@ -329,6 +329,13 @@ config HID_ELO
 	Support for the ELO USB 4000/4500 touchscreens. Note that this is for
 	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
 
+config HID_EVISION
+	tristate "EVision Keyboards Support"
+	depends on HID
+	help
+	Support for some EVision keyboards. Note that this is needed only when
+	applying customization using userspace programs.
+
 config HID_EZKEY
 	tristate "Ezkey BTC 8193 keyboard"
 	default !EXPERT
