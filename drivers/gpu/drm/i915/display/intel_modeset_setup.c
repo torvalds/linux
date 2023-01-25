@@ -22,6 +22,7 @@
 #include "intel_display.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_fifo_underrun.h"
 #include "intel_modeset_setup.h"
 #include "intel_pch_display.h"
 #include "intel_pm.h"
@@ -236,12 +237,9 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	if (!crtc_state->hw.active && !HAS_GMCH(i915))
-		return;
-
 	/*
-	 * We start out with underrun reporting disabled to avoid races.
-	 * For correct bookkeeping mark this on active crtcs.
+	 * We start out with underrun reporting disabled on active
+	 * pipes to avoid races.
 	 *
 	 * Also on gmch platforms we dont have any hardware bits to
 	 * disable the underrun reporting. Which means we need to start
@@ -252,19 +250,9 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	 * No protection against concurrent access is required - at
 	 * worst a fifo underrun happens which also sets this to false.
 	 */
-	crtc->cpu_fifo_underrun_disabled = true;
-
-	/*
-	 * We track the PCH trancoder underrun reporting state
-	 * within the crtc. With crtc for pipe A housing the underrun
-	 * reporting state for PCH transcoder A, crtc for pipe B housing
-	 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
-	 * and marking underrun reporting as disabled for the non-existing
-	 * PCH transcoders B and C would prevent enabling the south
-	 * error interrupt (see cpt_can_enable_serr_int()).
-	 */
-	if (intel_has_pch_trancoder(i915, crtc->pipe))
-		crtc->pch_fifo_underrun_disabled = true;
+	intel_init_fifo_underrun_reporting(i915, crtc,
+					   !crtc_state->hw.active &&
+					   !HAS_GMCH(i915));
 }
 
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
