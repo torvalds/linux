@@ -129,9 +129,30 @@ SYM_CODE_START_LOCAL(record_mmu_state)
 	mrs	x19, sctlr_el1
 	b.ne	0f
 	mrs	x19, sctlr_el2
-0:	tst	x19, #SCTLR_ELx_C		// Z := (C == 0)
+0:
+CPU_LE( tbnz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
+CPU_BE( tbz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
+	tst	x19, #SCTLR_ELx_C		// Z := (C == 0)
 	and	x19, x19, #SCTLR_ELx_M		// isolate M bit
 	csel	x19, xzr, x19, eq		// clear x19 if Z
+	ret
+
+	/*
+	 * Set the correct endianness early so all memory accesses issued
+	 * before init_kernel_el() occur in the correct byte order. Note that
+	 * this means the MMU must be disabled, or the active ID map will end
+	 * up getting interpreted with the wrong byte order.
+	 */
+1:	eor	x19, x19, #SCTLR_ELx_EE
+	bic	x19, x19, #SCTLR_ELx_M
+	b.ne	2f
+	pre_disable_mmu_workaround
+	msr	sctlr_el2, x19
+	b	3f
+	pre_disable_mmu_workaround
+2:	msr	sctlr_el1, x19
+3:	isb
+	mov	x19, xzr
 	ret
 SYM_CODE_END(record_mmu_state)
 
