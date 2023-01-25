@@ -1598,7 +1598,7 @@ int mlx5_odp_init_mkey_cache(struct mlx5_ib_dev *dev)
 	if (!(dev->odp_caps.general_caps & IB_ODP_SUPPORT_IMPLICIT))
 		return 0;
 
-	ent = mlx5r_cache_create_ent(dev, rb_key, true);
+	ent = mlx5r_cache_create_ent_locked(dev, rb_key, true);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 
