@@ -50,6 +50,9 @@ print_title()
 
 kill_wait()
 {
+	[ $1 -eq 0 ] && return 0
+
+	kill -SIGUSR1 $1 > /dev/null 2>&1
 	kill $1 > /dev/null 2>&1
 	wait $1 2>/dev/null
 }
@@ -58,31 +61,20 @@ cleanup()
 {
 	print_title "Cleanup"
 
-	rm -rf $file $client_evts $server_evts
-
 	# Terminate the MPTCP connection and related processes
-	if [ $client4_pid -ne 0 ]; then
-		kill -SIGUSR1 $client4_pid > /dev/null 2>&1
-	fi
-	if [ $server4_pid -ne 0 ]; then
-		kill_wait $server4_pid
-	fi
-	if [ $client6_pid -ne 0 ]; then
-		kill -SIGUSR1 $client6_pid > /dev/null 2>&1
-	fi
-	if [ $server6_pid -ne 0 ]; then
-		kill_wait $server6_pid
-	fi
-	if [ $server_evts_pid -ne 0 ]; then
-		kill_wait $server_evts_pid
-	fi
-	if [ $client_evts_pid -ne 0 ]; then
-		kill_wait $client_evts_pid
-	fi
+	local pid
+	for pid in $client4_pid $server4_pid $client6_pid $server6_pid\
+		   $server_evts_pid $client_evts_pid
+	do
+		kill_wait $pid
+	done
+
 	local netns
 	for netns in "$ns1" "$ns2" ;do
 		ip netns del "$netns"
 	done
+
+	rm -rf $file $client_evts $server_evts
 
 	stdbuf -o0 -e0 printf "Done\n"
 }
