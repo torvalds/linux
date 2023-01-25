@@ -756,8 +756,8 @@ static void core_set_region_sync(struct dm_dirty_log *log, region_t region,
 	log_clear_bit(lc, lc->recovering_bits, region);
 	if (in_sync) {
 		log_set_bit(lc, lc->sync_bits, region);
-                lc->sync_count++;
-        } else if (log_test_bit(lc->sync_bits, region)) {
+		lc->sync_count++;
+	} else if (log_test_bit(lc->sync_bits, region)) {
 		lc->sync_count--;
 		log_clear_bit(lc, lc->sync_bits, region);
 	}
@@ -765,9 +765,9 @@ static void core_set_region_sync(struct dm_dirty_log *log, region_t region,
 
 static region_t core_get_sync_count(struct dm_dirty_log *log)
 {
-        struct log_c *lc = (struct log_c *) log->context;
+	struct log_c *lc = (struct log_c *) log->context;
 
-        return lc->sync_count;
+	return lc->sync_count;
 }
 
 #define	DMEMIT_SYNC \

@@ -726,7 +726,7 @@ static int shadow_child(struct dm_btree_info *info, struct dm_btree_value_type *
  * nodes, so saves metadata space.
  */
 static int split_two_into_three(struct shadow_spine *s, unsigned int parent_index,
-                                struct dm_btree_value_type *vt, uint64_t key)
+				struct dm_btree_value_type *vt, uint64_t key)
 {
 	int r;
 	unsigned int middle_index;
@@ -781,7 +781,7 @@ static int split_two_into_three(struct shadow_spine *s, unsigned int parent_inde
 		if (shadow_current(s) != right)
 			unlock_block(s->info, right);
 
-	        return r;
+		return r;
 	}
 
 
@@ -1216,7 +1216,7 @@ int btree_get_overwrite_leaf(struct dm_btree_info *info, dm_block_t root,
 static bool need_insert(struct btree_node *node, uint64_t *keys,
 			unsigned int level, unsigned int index)
 {
-        return ((index >= le32_to_cpu(node->header.nr_entries)) ||
+	return ((index >= le32_to_cpu(node->header.nr_entries)) ||
 		(le64_to_cpu(node->keys[index]) != keys[level]));
 }
 

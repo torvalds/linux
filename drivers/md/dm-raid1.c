@@ -902,7 +902,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	if (IS_ERR(ms->io_client)) {
 		ti->error = "Error creating dm_io client";
 		kfree(ms);
- 		return NULL;
+		return NULL;
 	}
 
 	ms->rh = dm_region_hash_create(ms, dispatch_bios, wakeup_mirrord,

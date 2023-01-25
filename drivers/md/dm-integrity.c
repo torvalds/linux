@@ -2367,7 +2367,6 @@ offload_to_thread:
 		else
 skip_check:
 			dec_in_flight(dio);
-
 	} else {
 		INIT_WORK(&dio->work, integrity_metadata);
 		queue_work(ic->metadata_wq, &dio->work);
@@ -4151,7 +4150,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 		} else if (sscanf(opt_string, "block_size:%u%c", &val, &dummy) == 1) {
 			if (val < 1 << SECTOR_SHIFT ||
 			    val > MAX_SECTORS_PER_BLOCK << SECTOR_SHIFT ||
-			    (val & (val -1))) {
+			    (val & (val - 1))) {
 				r = -EINVAL;
 				ti->error = "Invalid block_size argument";
 				goto bad;
@@ -4477,7 +4476,7 @@ try_smaller_buffer:
 	if (ic->internal_hash) {
 		size_t recalc_tags_size;
 		ic->recalc_wq = alloc_workqueue("dm-integrity-recalc", WQ_MEM_RECLAIM, 1);
-		if (!ic->recalc_wq ) {
+		if (!ic->recalc_wq) {
 			ti->error = "Cannot allocate workqueue";
 			r = -ENOMEM;
 			goto bad;
