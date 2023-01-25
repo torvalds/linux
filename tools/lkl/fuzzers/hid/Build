@@ -1,0 +1,2 @@
+hid-fuzzer-y += hid-fuzzer.o
+CFLAGS_hid-fuzzer.o += -O0
