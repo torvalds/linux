@@ -608,12 +608,12 @@ how we can measure the latency in cycles of reading from this region and
 visualize this data with a histogram that is available if CONFIG_HIST_TRIGGERS
 is set::
 
-  # :> /sys/kernel/debug/tracing/trace
-  # echo 'hist:keys=latency' > /sys/kernel/debug/tracing/events/resctrl/pseudo_lock_mem_latency/trigger
-  # echo 1 > /sys/kernel/debug/tracing/events/resctrl/pseudo_lock_mem_latency/enable
+  # :> /sys/kernel/tracing/trace
+  # echo 'hist:keys=latency' > /sys/kernel/tracing/events/resctrl/pseudo_lock_mem_latency/trigger
+  # echo 1 > /sys/kernel/tracing/events/resctrl/pseudo_lock_mem_latency/enable
   # echo 1 > /sys/kernel/debug/resctrl/newlock/pseudo_lock_measure
-  # echo 0 > /sys/kernel/debug/tracing/events/resctrl/pseudo_lock_mem_latency/enable
-  # cat /sys/kernel/debug/tracing/events/resctrl/pseudo_lock_mem_latency/hist
+  # echo 0 > /sys/kernel/tracing/events/resctrl/pseudo_lock_mem_latency/enable
+  # cat /sys/kernel/tracing/events/resctrl/pseudo_lock_mem_latency/hist
 
   # event histogram
   #
@@ -642,11 +642,11 @@ cache of a platform. Here is how we can obtain details of the cache hits
 and misses using the platform's precision counters.
 ::
 
-  # :> /sys/kernel/debug/tracing/trace
-  # echo 1 > /sys/kernel/debug/tracing/events/resctrl/pseudo_lock_l2/enable
+  # :> /sys/kernel/tracing/trace
+  # echo 1 > /sys/kernel/tracing/events/resctrl/pseudo_lock_l2/enable
   # echo 2 > /sys/kernel/debug/resctrl/newlock/pseudo_lock_measure
-  # echo 0 > /sys/kernel/debug/tracing/events/resctrl/pseudo_lock_l2/enable
-  # cat /sys/kernel/debug/tracing/trace
+  # echo 0 > /sys/kernel/tracing/events/resctrl/pseudo_lock_l2/enable
+  # cat /sys/kernel/tracing/trace
 
   # tracer: nop
   #

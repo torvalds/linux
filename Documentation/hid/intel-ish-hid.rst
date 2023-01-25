@@ -344,8 +344,8 @@ Documentation/ABI/testing/sysfs-bus-iio for IIO ABIs to user space.
 
 To debug ISH, event tracing mechanism is used. To enable debug logs::
 
-  echo 1 > /sys/kernel/debug/tracing/events/intel_ish/enable
-  cat /sys/kernel/debug/tracing/trace
+  echo 1 > /sys/kernel/tracing/events/intel_ish/enable
+  cat /sys/kernel/tracing/trace
 
 3.8 ISH IIO sysfs Example on Lenovo thinkpad Yoga 260
 -----------------------------------------------------

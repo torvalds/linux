@@ -17,10 +17,10 @@ To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.
 
 Similar to the event tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via
-/sys/kernel/debug/tracing/kprobe_events, and enable it via
-/sys/kernel/debug/tracing/events/kprobes/<EVENT>/enable.
+/sys/kernel/tracing/kprobe_events, and enable it via
+/sys/kernel/tracing/events/kprobes/<EVENT>/enable.
 
-You can also use /sys/kernel/debug/tracing/dynamic_events instead of
+You can also use /sys/kernel/tracing/dynamic_events instead of
 kprobe_events. That interface will provide unified access to other
 dynamic events too.
 
@@ -153,7 +153,7 @@ trigger:
 Event Profiling
 ---------------
 You can check the total number of probe hits and probe miss-hits via
-/sys/kernel/debug/tracing/kprobe_profile.
+/sys/kernel/tracing/kprobe_profile.
 The first column is event name, the second is the number of probe hits,
 the third is the number of probe miss-hits.
 
@@ -177,7 +177,7 @@ Usage examples
 To add a probe as a new event, write a new definition to kprobe_events
 as below::
 
-  echo 'p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack)' > /sys/kernel/debug/tracing/kprobe_events
+  echo 'p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack)' > /sys/kernel/tracing/kprobe_events
 
 This sets a kprobe on the top of do_sys_open() function with recording
 1st to 4th arguments as "myprobe" event. Note, which register/stack entry is
@@ -187,15 +187,15 @@ under tools/perf/).
 As this example shows, users can choose more familiar names for each arguments.
 ::
 
-  echo 'r:myretprobe do_sys_open $retval' >> /sys/kernel/debug/tracing/kprobe_events
+  echo 'r:myretprobe do_sys_open $retval' >> /sys/kernel/tracing/kprobe_events
 
 This sets a kretprobe on the return point of do_sys_open() function with
 recording return value as "myretprobe" event.
 You can see the format of these events via
-/sys/kernel/debug/tracing/events/kprobes/<EVENT>/format.
+/sys/kernel/tracing/events/kprobes/<EVENT>/format.
 ::
 
-  cat /sys/kernel/debug/tracing/events/kprobes/myprobe/format
+  cat /sys/kernel/tracing/events/kprobes/myprobe/format
   name: myprobe
   ID: 780
   format:
@@ -218,7 +218,7 @@ You can see the format of these events via
 You can see that the event has 4 arguments as in the expressions you specified.
 ::
 
-  echo > /sys/kernel/debug/tracing/kprobe_events
+  echo > /sys/kernel/tracing/kprobe_events
 
 This clears all probe points.
 
@@ -233,8 +233,8 @@ Right after definition, each event is disabled by default. For tracing these
 events, you need to enable it.
 ::
 
-  echo 1 > /sys/kernel/debug/tracing/events/kprobes/myprobe/enable
-  echo 1 > /sys/kernel/debug/tracing/events/kprobes/myretprobe/enable
+  echo 1 > /sys/kernel/tracing/events/kprobes/myprobe/enable
+  echo 1 > /sys/kernel/tracing/events/kprobes/myretprobe/enable
 
 Use the following command to start tracing in an interval.
 ::
@@ -243,10 +243,10 @@ Use the following command to start tracing in an interval.
     Open something...
     # echo 0 > tracing_on
 
-And you can see the traced information via /sys/kernel/debug/tracing/trace.
+And you can see the traced information via /sys/kernel/tracing/trace.
 ::
 
-  cat /sys/kernel/debug/tracing/trace
+  cat /sys/kernel/tracing/trace
   # tracer: nop
   #
   #           TASK-PID    CPU#    TIMESTAMP  FUNCTION

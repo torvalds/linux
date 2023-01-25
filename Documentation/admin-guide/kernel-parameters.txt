@@ -6288,7 +6288,7 @@
 			that can be enabled or disabled just as if you were
 			to echo the option name into
 
-			    /sys/kernel/debug/tracing/trace_options
+			    /sys/kernel/tracing/trace_options
 
 			For example, to enable stacktrace option (to dump the
 			stack trace of each event), add to the command line:
@@ -6321,7 +6321,7 @@
 			[FTRACE] enable this option to disable tracing when a
 			warning is hit. This turns off "tracing_on". Tracing can
 			be enabled again by echoing '1' into the "tracing_on"
-			file located in /sys/kernel/debug/tracing/
+			file located in /sys/kernel/tracing/
 
 			This option is useful, as it disables the trace before
 			the WARNING dump is called, which prevents the trace to

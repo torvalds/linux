@@ -3,7 +3,7 @@
 # page reclaim. It makes an attempt to extract some high-level information on
 # what is going on. The accuracy of the parser may vary
 #
-# Example usage: trace-vmscan-postprocess.pl < /sys/kernel/debug/tracing/trace_pipe
+# Example usage: trace-vmscan-postprocess.pl < /sys/kernel/tracing/trace_pipe
 # other options
 #   --read-procstat	If the trace lacks process info, get it from /proc
 #   --ignore-pid	Aggregate processes of the same name together
@@ -140,7 +140,7 @@ sub generate_traceevent_regex {
 	my $regex;
 
 	# Read the event format or use the default
-	if (!open (FORMAT, "/sys/kernel/debug/tracing/events/$event/format")) {
+	if (!open (FORMAT, "/sys/kernel/tracing/events/$event/format")) {
 		print("WARNING: Event $event format string not found\n");
 		return $default;
 	} else {
