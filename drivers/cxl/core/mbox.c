@@ -610,11 +610,12 @@ static void cxl_walk_cel(struct cxl_dev_state *cxlds, size_t size, u8 *cel)
 
 		if (!cmd) {
 			dev_dbg(cxlds->dev,
-				"Opcode 0x%04x unsupported by driver", opcode);
+				"Opcode 0x%04x unsupported by driver\n", opcode);
 			continue;
 		}
 
 		set_bit(cmd->info.id, cxlds->enabled_cmds);
+		dev_dbg(cxlds->dev, "Opcode 0x%04x enabled\n", opcode);
 	}
 }
 
