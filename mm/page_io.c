@@ -177,11 +177,11 @@ bad_bmap:
 int swap_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct folio *folio = page_folio(page);
-	int ret = 0;
+	int ret;
 
 	if (folio_free_swap(folio)) {
 		folio_unlock(folio);
-		goto out;
+		return 0;
 	}
 	/*
 	 * Arch code may have to preserve more data than just the page
@@ -191,17 +191,16 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 	if (ret) {
 		folio_mark_dirty(folio);
 		folio_unlock(folio);
-		goto out;
+		return ret;
 	}
 	if (frontswap_store(&folio->page) == 0) {
 		folio_start_writeback(folio);
 		folio_unlock(folio);
 		folio_end_writeback(folio);
-		goto out;
+		return 0;
 	}
-	ret = __swap_writepage(&folio->page, wbc);
-out:
-	return ret;
+	__swap_writepage(&folio->page, wbc);
+	return 0;
 }
 
 static inline void count_swpout_vm_event(struct page *page)
@@ -288,7 +287,7 @@ static void sio_write_complete(struct kiocb *iocb, long ret)
 	mempool_free(sio, sio_pool);
 }
 
-static int swap_writepage_fs(struct page *page, struct writeback_control *wbc)
+static void swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 {
 	struct swap_iocb *sio = NULL;
 	struct swap_info_struct *sis = page_swap_info(page);
@@ -325,11 +324,9 @@ static int swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 	}
 	if (wbc->swap_plug)
 		*wbc->swap_plug = sio;
-
-	return 0;
 }
 
-int __swap_writepage(struct page *page, struct writeback_control *wbc)
+void __swap_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct bio *bio;
 	int ret;
@@ -347,7 +344,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc)
 	ret = bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc);
 	if (!ret) {
 		count_swpout_vm_event(page);
-		return 0;
+		return;
 	}
 
 	bio = bio_alloc(sis->bdev, 1,
@@ -362,8 +359,6 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc)
 	set_page_writeback(page);
 	unlock_page(page);
 	submit_bio(bio);
-
-	return 0;
 }
 
 void swap_write_unplug(struct swap_iocb *sio)
