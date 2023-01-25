@@ -32,7 +32,7 @@
 
 	firmware@204f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0204F000 0x1000>;
+		reg = <0x0204f000 0x1000>;
 	};
 
 	fixed-rate-clocks {
@@ -198,7 +198,7 @@
 			stmpe_adc {
 				compatible = "st,stmpe-adc";
 				#io-channel-cells = <1>;
-				st,norequest-mask = <0x2F>;
+				st,norequest-mask = <0x2f>;
 			};
 		};
 	};

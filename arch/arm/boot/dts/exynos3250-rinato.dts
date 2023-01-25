@@ -36,7 +36,7 @@
 
 	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0205F000 0x1000>;
+		reg = <0x0205f000 0x1000>;
 	};
 
 	gpio-keys {

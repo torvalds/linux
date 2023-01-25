@@ -55,7 +55,7 @@
 		cpu0: cpu@a00 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
-			reg = <0xA00>;
+			reg = <0xa00>;
 			clocks = <&clock CLK_ARM_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
@@ -65,7 +65,7 @@
 		cpu1: cpu@a01 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
-			reg = <0xA01>;
+			reg = <0xa01>;
 			clocks = <&clock CLK_ARM_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
@@ -75,7 +75,7 @@
 		cpu2: cpu@a02 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
-			reg = <0xA02>;
+			reg = <0xa02>;
 			clocks = <&clock CLK_ARM_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
@@ -85,7 +85,7 @@
 		cpu3: cpu@a03 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
-			reg = <0xA03>;
+			reg = <0xa03>;
 			clocks = <&clock CLK_ARM_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
@@ -201,7 +201,7 @@
 
 		pinctrl_3: pinctrl@106e0000 {
 			compatible = "samsung,exynos4x12-pinctrl";
-			reg = <0x106E0000 0x1000>;
+			reg = <0x106e0000 0x1000>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
@@ -225,7 +225,7 @@
 
 		pd_isp: power-domain@10023ca0 {
 			compatible = "samsung,exynos4210-pd";
-			reg = <0x10023CA0 0x20>;
+			reg = <0x10023ca0 0x20>;
 			#power-domain-cells = <0>;
 			label = "ISP";
 		};
@@ -285,7 +285,7 @@
 
 		adc: adc@126c0000 {
 			compatible = "samsung,exynos4212-adc";
-			reg = <0x126C0000 0x100>;
+			reg = <0x126c0000 0x100>;
 			interrupt-parent = <&combiner>;
 			interrupts = <10 3>;
 			clocks = <&clock CLK_TSADC>;
@@ -318,7 +318,7 @@
 
 		sysmmu_g2d: sysmmu@10a40000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x10A40000 0x1000>;
+			reg = <0x10a40000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <4 7>;
 			clock-names = "sysmmu", "master";
@@ -350,7 +350,7 @@
 
 		sysmmu_fimc_fd: sysmmu@122a0000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x122A0000 0x1000>;
+			reg = <0x122a0000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <16 4>;
 			power-domains = <&pd_isp>;
@@ -361,7 +361,7 @@
 
 		sysmmu_fimc_mcuctl: sysmmu@122b0000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x122B0000 0x1000>;
+			reg = <0x122b0000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <16 5>;
 			power-domains = <&pd_isp>;
@@ -372,7 +372,7 @@
 
 		sysmmu_fimc_lite0: sysmmu@123b0000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x123B0000 0x1000>;
+			reg = <0x123b0000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <16 0>;
 			power-domains = <&pd_isp>;
@@ -384,7 +384,7 @@
 
 		sysmmu_fimc_lite1: sysmmu@123c0000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x123C0000 0x1000>;
+			reg = <0x123c0000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <16 1>;
 			power-domains = <&pd_isp>;
@@ -615,7 +615,7 @@
 
 	fimc_lite_1: fimc-lite@123a0000 {
 		compatible = "samsung,exynos4212-fimc-lite";
-		reg = <0x123A0000 0x1000>;
+		reg = <0x123a0000 0x1000>;
 		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&pd_isp>;
 		clocks = <&isp_clock CLK_ISP_FIMC_LITE1>;
@@ -812,7 +812,7 @@
 	compatible = "samsung,exynos4412-tmu";
 	interrupt-parent = <&combiner>;
 	interrupts = <2 4>;
-	reg = <0x100C0000 0x100>;
+	reg = <0x100c0000 0x100>;
 	clocks = <&clock CLK_TMU_APBIF>;
 	clock-names = "tmu_apbif";
 	status = "disabled";

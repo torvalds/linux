@@ -103,7 +103,7 @@
 
 		pd_lcd1: power-domain@10023ca0 {
 			compatible = "samsung,exynos4210-pd";
-			reg = <0x10023CA0 0x20>;
+			reg = <0x10023ca0 0x20>;
 			#power-domain-cells = <0>;
 			label = "LCD1";
 		};
@@ -195,7 +195,7 @@
 
 		sysmmu_g2d: sysmmu@12a20000 {
 			compatible = "samsung,exynos-sysmmu";
-			reg = <0x12A20000 0x1000>;
+			reg = <0x12a20000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <4 7>;
 			clock-names = "sysmmu", "master";
