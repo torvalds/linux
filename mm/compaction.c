@@ -2439,6 +2439,12 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 			}
 		}
 
+		/* Stop if a page has been captured */
+		if (capc && capc->page) {
+			ret = COMPACT_SUCCESS;
+			break;
+		}
+
 check_drain:
 		/*
 		 * Has the migration scanner moved away from the previous
@@ -2456,12 +2462,6 @@ check_drain:
 				/* No more flushing until we migrate again */
 				last_migrated_pfn = 0;
 			}
-		}
-
-		/* Stop if a page has been captured */
-		if (capc && capc->page) {
-			ret = COMPACT_SUCCESS;
-			break;
 		}
 	}
 
