@@ -1,0 +1,53 @@
+# The post-link vmlinux pass is only relevant when LKL is being built with
+# libFuzzer instrumentation (-fsanitize=fuzzer). SanitizerCoverage
+# emits GRP_COMDAT sections in the generated object files to group sections
+# with instrumented code, coverage counters and relocations respectively.
+# The linker semantics for incremental linking with section groups is unclear
+# and results in the link-time errors. This extra post-link pass implements a
+# workaround for this problem:
+#
+# 1) Vmlinux is incrementally linked with an empty linker script. Thus, the input
+#    sections aren't merged in the generated vmlinux image (ld and lld do still
+#    merge some common sections such as .text. .rela.text, .data and etc but it
+#    doesn't casue a problem).
+#
+# 2) Remove GRP_COMDAT group sections with name .group from the original vmlinux.
+#
+# 3) Relink the stripped vmlinux using the original LKL linker script.
+#    As there is no group sections in the input object, merging sections doesn't
+#    cause any issues.
+#
+# TODO: The above steps aren't solution to the problem but rather a short-term
+# workaround. At the moment removing .group sections from the incrementally
+# linked vmlinux doesn't seem to cause any issues as the only GRP_COMDAT sections
+# present in the object files are the ones emited by SanitizerCoverage
+# instrumentation. However, here is a couple of other things to take into
+# consideration:
+#
+#  * --gc-sections linker option could remove __sancov_pcs sections, thus, this
+#    option shouldn't be used when building fuzzers.
+#
+#  * If the linker removes a function there might be 'dangling' __sancov_xxx
+#    sections. However, this isn't an issue for fuzzing.
+#
+#  * __sancov_pcs and __sancov_cntrs sections need to be merged in the corresponding
+#    order (so that the value of the counters match to values of PC of their
+#    corresponding basic blocks). With this workaround this seem to be the case
+#    (while the linker might not guarantee this). However, even if these sections
+#    aren't merged in the order, technically, this won't be a problem for fuzzing.
+ifneq ($(LKL_FUZZING),)
+include scripts/Kbuild.include
+
+LKL_FUZZING_LDS := arch/lkl/kernel/vmlinux-fuzzing-postlink.lds
+
+.PHONY: vmlinux
+vmlinux: $(LKL_FUZZING_LDS)
+	$(OBJCOPY) --remove-section=.group $@ $@.no_groups
+	$(LD) -r --build-id=sha1 -o $@ -T $< $@.no_groups
+
+clean: ; rm -rf $(LKL_FUZZING_LDS) vmlinux.no_groups
+else # LKL_FUZZING
+clean: ;
+endif # LKL_FUZZING
+
+.PHONY: clean

@@ -1,4 +1,5 @@
 extra-y := vmlinux.lds
+extra-y += vmlinux-fuzzing-postlink.lds
 
 KASAN_SANITIZE_init.o := n
 KASAN_SANITIZE_stacktrace.o := n
