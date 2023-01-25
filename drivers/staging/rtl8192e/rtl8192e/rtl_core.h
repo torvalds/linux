@@ -183,9 +183,6 @@ enum reset_type {
 };
 
 struct rt_stats {
-	unsigned long rxcrcerrmin;
-	unsigned long rxcrcerrmid;
-	unsigned long rxcrcerrmax;
 	unsigned long received_rate_histogram[4][32];
 	unsigned long received_preamble_GI[2][32];
 	unsigned long numpacket_matchbssid;

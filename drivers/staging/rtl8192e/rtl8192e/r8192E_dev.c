@@ -1812,7 +1812,6 @@ static void _rtl92e_update_received_rate_histogram_stats(
 bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 			 struct rx_desc *pdesc, struct sk_buff *skb)
 {
-	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_fwinfo *pDrvInfo = NULL;
 
 	stats->bICV = pdesc->ICV;
@@ -1825,15 +1824,6 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 
 	if (stats->bHwError) {
 		stats->bShift = false;
-
-		if (pdesc->CRC32) {
-			if (pdesc->Length < 500)
-				priv->stats.rxcrcerrmin++;
-			else if (pdesc->Length > 1000)
-				priv->stats.rxcrcerrmax++;
-			else
-				priv->stats.rxcrcerrmid++;
-		}
 		return false;
 	}
 
