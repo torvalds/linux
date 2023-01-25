@@ -38,7 +38,7 @@ struct int34x_thermal_zone {
 struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *,
 				int (*get_temp) (struct thermal_zone_device *, int *));
 void int340x_thermal_zone_remove(struct int34x_thermal_zone *);
-int int340x_thermal_read_trips(struct int34x_thermal_zone *int34x_zone);
+void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone);
 
 static inline void int340x_thermal_zone_set_priv_data(
 			struct int34x_thermal_zone *tzone, void *priv_data)

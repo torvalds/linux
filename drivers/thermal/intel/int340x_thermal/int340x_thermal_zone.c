@@ -168,12 +168,10 @@ static int int340x_thermal_get_trip_config(acpi_handle handle, char *name,
 	return 0;
 }
 
-int int340x_thermal_read_trips(struct int34x_thermal_zone *int34x_zone)
+static int int340x_thermal_read_trips(struct int34x_thermal_zone *int34x_zone)
 {
 	int trip_cnt = int34x_zone->aux_trip_nr;
 	int i;
-
-	mutex_lock(&int34x_zone->trip_mutex);
 
 	int34x_zone->crt_trip_id = -1;
 	if (!int340x_thermal_get_trip_config(int34x_zone->adev->handle, "_CRT",
@@ -202,11 +200,8 @@ int int340x_thermal_read_trips(struct int34x_thermal_zone *int34x_zone)
 		int34x_zone->act_trips[i].valid = true;
 	}
 
-	mutex_unlock(&int34x_zone->trip_mutex);
-
 	return trip_cnt;
 }
-EXPORT_SYMBOL_GPL(int340x_thermal_read_trips);
 
 static struct thermal_zone_params int340x_thermal_params = {
 	.governor_name = "user_space",
@@ -308,6 +303,50 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone
 	kfree(int34x_thermal_zone);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);
+
+void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
+{
+	acpi_handle zone_handle = int34x_zone->adev->handle;
+	int i, err;
+
+	mutex_lock(&int34x_zone->trip_mutex);
+
+	if (int34x_zone->crt_trip_id > 0) {
+		err = int340x_thermal_get_trip_config(zone_handle, "_CRT",
+						      &int34x_zone->crt_temp);
+		if (err)
+			int34x_zone->crt_temp = THERMAL_TEMP_INVALID;
+	}
+
+	if (int34x_zone->hot_trip_id > 0) {
+		err = int340x_thermal_get_trip_config(zone_handle, "_HOT",
+						      &int34x_zone->hot_temp);
+		if (err)
+			int34x_zone->hot_temp = THERMAL_TEMP_INVALID;
+	}
+
+	if (int34x_zone->psv_trip_id > 0) {
+		err = int340x_thermal_get_trip_config(zone_handle, "_PSV",
+						      &int34x_zone->psv_temp);
+		if (err)
+			int34x_zone->psv_temp = THERMAL_TEMP_INVALID;
+	}
+
+	for (i = 0; i < INT340X_THERMAL_MAX_ACT_TRIP_COUNT; i++) {
+		char name[5] = { '_', 'A', 'C', '0' + i, '\0' };
+
+		if (!int34x_zone->act_trips[i].valid)
+			break;
+
+		err = int340x_thermal_get_trip_config(zone_handle, name,
+						      &int34x_zone->act_trips[i].temp);
+		if (err)
+			int34x_zone->act_trips[i].temp = THERMAL_TEMP_INVALID;
+	}
+
+	mutex_unlock(&int34x_zone->trip_mutex);
+}
+EXPORT_SYMBOL_GPL(int340x_thermal_update_trips);
 
 MODULE_AUTHOR("Aaron Lu <aaron.lu@intel.com>");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
