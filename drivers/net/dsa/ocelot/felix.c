@@ -2131,6 +2131,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_set_host_flood		= felix_port_set_host_flood,
 	.port_change_master		= felix_port_change_master,
 };
+EXPORT_SYMBOL_GPL(felix_switch_ops);
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
 {
@@ -2142,6 +2143,7 @@ struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
 
 	return dsa_to_port(ds, port)->slave;
 }
+EXPORT_SYMBOL_GPL(felix_port_to_netdev);
 
 int felix_netdev_to_port(struct net_device *dev)
 {
@@ -2153,3 +2155,7 @@ int felix_netdev_to_port(struct net_device *dev)
 
 	return dp->index;
 }
+EXPORT_SYMBOL_GPL(felix_netdev_to_port);
+
+MODULE_DESCRIPTION("Felix DSA library");
+MODULE_LICENSE("GPL");
