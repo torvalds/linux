@@ -18,7 +18,8 @@
 #define PORT_CAP_POWER_LEN	2
 #define PORT_CAP_LANE_LEN	3
 #define PORT_CAP_USB3_LEN	5
-#define PORT_CAP_DP_LEN		8
+#define PORT_CAP_DP_V1_LEN	9
+#define PORT_CAP_DP_V2_LEN	14
 #define PORT_CAP_TMU_V1_LEN	8
 #define PORT_CAP_TMU_V2_LEN	10
 #define PORT_CAP_BASIC_LEN	9
@@ -1175,11 +1176,13 @@ static void port_cap_show(struct tb_port *port, struct seq_file *s,
 	case TB_PORT_CAP_ADAP:
 		if (tb_port_is_pcie_down(port) || tb_port_is_pcie_up(port)) {
 			length = PORT_CAP_PCIE_LEN;
-		} else if (tb_port_is_dpin(port) || tb_port_is_dpout(port)) {
-			if (usb4_dp_port_bw_mode_supported(port))
-				length = PORT_CAP_DP_LEN + 1;
+		} else if (tb_port_is_dpin(port)) {
+			if (usb4_switch_version(port->sw) < 2)
+				length = PORT_CAP_DP_V1_LEN;
 			else
-				length = PORT_CAP_DP_LEN;
+				length = PORT_CAP_DP_V2_LEN;
+		} else if (tb_port_is_dpout(port)) {
+			length = PORT_CAP_DP_V1_LEN;
 		} else if (tb_port_is_usb3_down(port) ||
 			   tb_port_is_usb3_up(port)) {
 			length = PORT_CAP_USB3_LEN;
