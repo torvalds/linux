@@ -1308,8 +1308,6 @@ static void _rtl92e_query_rxphystatus(
 	static	u8 check_reg824;
 	static	u32 reg824_bit9;
 
-	priv->stats.numqry_phystatus++;
-
 	is_cck_rate = rx_hal_is_cck_rate(pdrvinfo);
 	memset(precord_stats, 0, sizeof(struct rtllib_rx_stats));
 	pstats->bPacketMatchBSSID = precord_stats->bPacketMatchBSSID =
@@ -1341,7 +1339,6 @@ static void _rtl92e_query_rxphystatus(
 	if (is_cck_rate) {
 		u8 report;
 
-		priv->stats.numqry_phystatusCCK++;
 		if (!reg824_bit9) {
 			report = pcck_buf->cck_agc_rpt & 0xc0;
 			report >>= 6;
@@ -1416,7 +1413,6 @@ static void _rtl92e_query_rxphystatus(
 			precord_stats->RxMIMOSignalQuality[1] = -1;
 		}
 	} else {
-		priv->stats.numqry_phystatusHT++;
 		for (i = RF90_PATH_A; i < RF90_PATH_MAX; i++) {
 			if (priv->brfpath_rxenable[i])
 				rf_rx_num++;
