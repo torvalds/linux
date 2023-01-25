@@ -18,6 +18,10 @@ config VALIDATE_FS_PARSER
 config FS_IOMAP
 	bool
 
+# old blockdev_direct_IO implementation.  Use iomap for new code instead
+config LEGACY_DIRECT_IO
+	bool
+
 if BLOCK
 
 source "fs/ext2/Kconfig"
