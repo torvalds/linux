@@ -89,7 +89,7 @@ struct dm_bufio_client {
 	unsigned long n_buffers[LIST_SIZE];
 
 	struct block_device *bdev;
-	unsigned block_size;
+	unsigned int block_size;
 	s8 sectors_per_block_bits;
 	void (*alloc_callback)(struct dm_buffer *);
 	void (*write_callback)(struct dm_buffer *);
@@ -98,9 +98,9 @@ struct dm_bufio_client {
 	struct dm_io_client *dm_io;
 
 	struct list_head reserved_buffers;
-	unsigned need_reserved_buffers;
+	unsigned int need_reserved_buffers;
 
-	unsigned minimum_buffers;
+	unsigned int minimum_buffers;
 
 	struct rb_root buffer_tree;
 	wait_queue_head_t free_buffer_wait;
@@ -145,14 +145,14 @@ struct dm_buffer {
 	unsigned char list_mode;		/* LIST_* */
 	blk_status_t read_error;
 	blk_status_t write_error;
-	unsigned accessed;
-	unsigned hold_count;
+	unsigned int accessed;
+	unsigned int hold_count;
 	unsigned long state;
 	unsigned long last_accessed;
-	unsigned dirty_start;
-	unsigned dirty_end;
-	unsigned write_start;
-	unsigned write_end;
+	unsigned int dirty_start;
+	unsigned int dirty_end;
+	unsigned int write_start;
+	unsigned int write_end;
 	struct dm_bufio_client *c;
 	struct list_head write_list;
 	void (*end_io)(struct dm_buffer *, blk_status_t);
@@ -220,7 +220,7 @@ static unsigned long global_num = 0;
 /*
  * Buffers are freed after this timeout
  */
-static unsigned dm_bufio_max_age = DM_BUFIO_DEFAULT_AGE_SECS;
+static unsigned int dm_bufio_max_age = DM_BUFIO_DEFAULT_AGE_SECS;
 static unsigned long dm_bufio_retain_bytes = DM_BUFIO_DEFAULT_RETAIN_BYTES;
 
 static unsigned long dm_bufio_peak_allocated;
@@ -438,7 +438,7 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 	 * as if GFP_NOIO was specified.
 	 */
 	if (gfp_mask & __GFP_NORETRY) {
-		unsigned noio_flag = memalloc_noio_save();
+		unsigned int noio_flag = memalloc_noio_save();
 		void *ptr = __vmalloc(c->block_size, gfp_mask);
 
 		memalloc_noio_restore(noio_flag);
@@ -591,7 +591,7 @@ static void dmio_complete(unsigned long error, void *context)
 }
 
 static void use_dmio(struct dm_buffer *b, enum req_op op, sector_t sector,
-		     unsigned n_sectors, unsigned offset)
+		     unsigned int n_sectors, unsigned int offset)
 {
 	int r;
 	struct dm_io_request io_req = {
@@ -629,11 +629,11 @@ static void bio_complete(struct bio *bio)
 }
 
 static void use_bio(struct dm_buffer *b, enum req_op op, sector_t sector,
-		    unsigned n_sectors, unsigned offset)
+		    unsigned int n_sectors, unsigned int offset)
 {
 	struct bio *bio;
 	char *ptr;
-	unsigned vec_size, len;
+	unsigned int vec_size, len;
 
 	vec_size = b->c->block_size >> PAGE_SHIFT;
 	if (unlikely(b->c->sectors_per_block_bits < PAGE_SHIFT - SECTOR_SHIFT))
@@ -654,7 +654,7 @@ dmio:
 	len = n_sectors << SECTOR_SHIFT;
 
 	do {
-		unsigned this_step = min((unsigned)(PAGE_SIZE - offset_in_page(ptr)), len);
+		unsigned int this_step = min((unsigned int)(PAGE_SIZE - offset_in_page(ptr)), len);
 		if (!bio_add_page(bio, virt_to_page(ptr), this_step,
 				  offset_in_page(ptr))) {
 			bio_put(bio);
@@ -684,9 +684,9 @@ static inline sector_t block_to_sector(struct dm_bufio_client *c, sector_t block
 static void submit_io(struct dm_buffer *b, enum req_op op,
 		      void (*end_io)(struct dm_buffer *, blk_status_t))
 {
-	unsigned n_sectors;
+	unsigned int n_sectors;
 	sector_t sector;
-	unsigned offset, end;
+	unsigned int offset, end;
 
 	b->end_io = end_io;
 
@@ -1156,7 +1156,7 @@ void *dm_bufio_new(struct dm_bufio_client *c, sector_t block,
 EXPORT_SYMBOL_GPL(dm_bufio_new);
 
 void dm_bufio_prefetch(struct dm_bufio_client *c,
-		       sector_t block, unsigned n_blocks)
+		       sector_t block, unsigned int n_blocks)
 {
 	struct blk_plug plug;
 
@@ -1232,7 +1232,7 @@ void dm_bufio_release(struct dm_buffer *b)
 EXPORT_SYMBOL_GPL(dm_bufio_release);
 
 void dm_bufio_mark_partial_buffer_dirty(struct dm_buffer *b,
-					unsigned start, unsigned end)
+					unsigned int start, unsigned int end)
 {
 	struct dm_bufio_client *c = b->c;
 
@@ -1529,13 +1529,13 @@ void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t
 }
 EXPORT_SYMBOL_GPL(dm_bufio_forget_buffers);
 
-void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n)
+void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned int n)
 {
 	c->minimum_buffers = n;
 }
 EXPORT_SYMBOL_GPL(dm_bufio_set_minimum_buffers);
 
-unsigned dm_bufio_get_block_size(struct dm_bufio_client *c)
+unsigned int dm_bufio_get_block_size(struct dm_bufio_client *c)
 {
 	return c->block_size;
 }
@@ -1734,15 +1734,15 @@ static unsigned long dm_bufio_shrink_count(struct shrinker *shrink, struct shrin
 /*
  * Create the buffering interface
  */
-struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsigned block_size,
-					       unsigned reserved_buffers, unsigned aux_size,
+struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsigned int block_size,
+					       unsigned int reserved_buffers, unsigned int aux_size,
 					       void (*alloc_callback)(struct dm_buffer *),
 					       void (*write_callback)(struct dm_buffer *),
 					       unsigned int flags)
 {
 	int r;
 	struct dm_bufio_client *c;
-	unsigned i;
+	unsigned int i;
 	char slab_name[27];
 
 	if (!block_size || block_size & ((1 << SECTOR_SHIFT) - 1)) {
@@ -1796,7 +1796,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 
 	if (block_size <= KMALLOC_MAX_SIZE &&
 	    (block_size < PAGE_SIZE || !is_power_of_2(block_size))) {
-		unsigned align = min(1U << __ffs(block_size), (unsigned)PAGE_SIZE);
+		unsigned int align = min(1U << __ffs(block_size), (unsigned int)PAGE_SIZE);
 		snprintf(slab_name, sizeof slab_name, "dm_bufio_cache-%u", block_size);
 		c->slab_cache = kmem_cache_create(slab_name, block_size, align,
 						  SLAB_RECLAIM_ACCOUNT, NULL);
@@ -1872,7 +1872,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_client_create);
  */
 void dm_bufio_client_destroy(struct dm_bufio_client *c)
 {
-	unsigned i;
+	unsigned int i;
 
 	drop_buffers(c);
 
@@ -1920,9 +1920,9 @@ void dm_bufio_set_sector_offset(struct dm_bufio_client *c, sector_t start)
 }
 EXPORT_SYMBOL_GPL(dm_bufio_set_sector_offset);
 
-static unsigned get_max_age_hz(void)
+static unsigned int get_max_age_hz(void)
 {
-	unsigned max_age = READ_ONCE(dm_bufio_max_age);
+	unsigned int max_age = READ_ONCE(dm_bufio_max_age);
 
 	if (max_age > UINT_MAX / HZ)
 		max_age = UINT_MAX / HZ;
@@ -1973,7 +1973,7 @@ static void do_global_cleanup(struct work_struct *w)
 	struct dm_bufio_client *locked_client = NULL;
 	struct dm_bufio_client *current_client;
 	struct dm_buffer *b;
-	unsigned spinlock_hold_count;
+	unsigned int spinlock_hold_count;
 	unsigned long threshold = dm_bufio_cache_size -
 		dm_bufio_cache_size / DM_BUFIO_LOW_WATERMARK_RATIO;
 	unsigned long loops = global_num * 2;

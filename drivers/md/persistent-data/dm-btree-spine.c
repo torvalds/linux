@@ -234,12 +234,12 @@ dm_block_t shadow_root(struct shadow_spine *s)
 	return s->root;
 }
 
-static void le64_inc(void *context, const void *value_le, unsigned count)
+static void le64_inc(void *context, const void *value_le, unsigned int count)
 {
 	dm_tm_with_runs(context, value_le, count, dm_tm_inc_range);
 }
 
-static void le64_dec(void *context, const void *value_le, unsigned count)
+static void le64_dec(void *context, const void *value_le, unsigned int count)
 {
 	dm_tm_with_runs(context, value_le, count, dm_tm_dec_range);
 }

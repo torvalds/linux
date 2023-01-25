@@ -142,7 +142,7 @@ static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 		fill_pkg(msg, NULL);
 	else if (msg->len < sizeof(*tfr))
 		DMERR("Incomplete message received (expected %u, got %u): [%u]",
-		      (unsigned)sizeof(*tfr), msg->len, msg->seq);
+		      (unsigned int)sizeof(*tfr), msg->len, msg->seq);
 	else
 		fill_pkg(NULL, tfr);
 	spin_unlock(&receiving_list_lock);

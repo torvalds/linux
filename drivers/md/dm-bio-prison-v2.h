@@ -44,8 +44,8 @@ struct dm_cell_key_v2 {
 struct dm_bio_prison_cell_v2 {
 	// FIXME: pack these
 	bool exclusive_lock;
-	unsigned exclusive_level;
-	unsigned shared_count;
+	unsigned int exclusive_level;
+	unsigned int shared_count;
 	struct work_struct *quiesce_continuation;
 
 	struct rb_node node;
@@ -86,7 +86,7 @@ void dm_bio_prison_free_cell_v2(struct dm_bio_prison_v2 *prison,
  */
 bool dm_cell_get_v2(struct dm_bio_prison_v2 *prison,
 		    struct dm_cell_key_v2 *key,
-		    unsigned lock_level,
+		    unsigned int lock_level,
 		    struct bio *inmate,
 		    struct dm_bio_prison_cell_v2 *cell_prealloc,
 		    struct dm_bio_prison_cell_v2 **cell_result);
@@ -114,7 +114,7 @@ bool dm_cell_put_v2(struct dm_bio_prison_v2 *prison,
  */
 int dm_cell_lock_v2(struct dm_bio_prison_v2 *prison,
 		    struct dm_cell_key_v2 *key,
-		    unsigned lock_level,
+		    unsigned int lock_level,
 		    struct dm_bio_prison_cell_v2 *cell_prealloc,
 		    struct dm_bio_prison_cell_v2 **cell_result);
 
@@ -132,7 +132,7 @@ void dm_cell_quiesce_v2(struct dm_bio_prison_v2 *prison,
  */
 int dm_cell_lock_promote_v2(struct dm_bio_prison_v2 *prison,
 			    struct dm_bio_prison_cell_v2 *cell,
-			    unsigned new_lock_level);
+			    unsigned int new_lock_level);
 
 /*
  * Adds any held bios to the bio list.

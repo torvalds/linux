@@ -82,7 +82,7 @@ struct mirror_set {
 
 	struct work_struct trigger_event;
 
-	unsigned nr_mirrors;
+	unsigned int nr_mirrors;
 	struct mirror mirror[];
 };
 
@@ -327,7 +327,7 @@ static void recovery_complete(int read_err, unsigned long write_err,
 
 static void recover(struct mirror_set *ms, struct dm_region *reg)
 {
-	unsigned i;
+	unsigned int i;
 	struct dm_io_region from, to[DM_KCOPYD_MAX_REGIONS], *dest;
 	struct mirror *m;
 	unsigned long flags = 0;
@@ -593,7 +593,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 
 static void write_callback(unsigned long error, void *context)
 {
-	unsigned i;
+	unsigned int i;
 	struct bio *bio = (struct bio *) context;
 	struct mirror_set *ms;
 	int should_wake = 0;
@@ -963,10 +963,10 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
  * Create dirty log: log_type #log_params <log_params>
  */
 static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
-					     unsigned argc, char **argv,
-					     unsigned *args_used)
+					     unsigned int argc, char **argv,
+					     unsigned int *args_used)
 {
-	unsigned param_count;
+	unsigned int param_count;
 	struct dm_dirty_log *dl;
 	char dummy;
 
@@ -997,10 +997,10 @@ static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 	return dl;
 }
 
-static int parse_features(struct mirror_set *ms, unsigned argc, char **argv,
-			  unsigned *args_used)
+static int parse_features(struct mirror_set *ms, unsigned int argc, char **argv,
+			  unsigned int *args_used)
 {
-	unsigned num_features;
+	unsigned int num_features;
 	struct dm_target *ti = ms->ti;
 	char dummy;
 	int i;
@@ -1389,7 +1389,7 @@ static char device_status_char(struct mirror *m)
 
 
 static void mirror_status(struct dm_target *ti, status_type_t type,
-			  unsigned status_flags, char *result, unsigned maxlen)
+			  unsigned int status_flags, char *result, unsigned int maxlen)
 {
 	unsigned int m, sz = 0;
 	int num_feature_args = 0;
@@ -1458,7 +1458,7 @@ static int mirror_iterate_devices(struct dm_target *ti,
 {
 	struct mirror_set *ms = ti->private;
 	int ret = 0;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; !ret && i < ms->nr_mirrors; i++)
 		ret = fn(ti, ms->mirror[i].dev,

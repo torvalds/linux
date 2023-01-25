@@ -303,7 +303,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 {
 	int r;
 	struct disk_header *dh;
-	unsigned chunk_size;
+	unsigned int chunk_size;
 	int chunk_size_supplied = 1;
 	char *chunk_err;
 
@@ -895,11 +895,11 @@ err_workqueue:
 	return r;
 }
 
-static unsigned persistent_status(struct dm_exception_store *store,
+static unsigned int persistent_status(struct dm_exception_store *store,
 				  status_type_t status, char *result,
-				  unsigned maxlen)
+				  unsigned int maxlen)
 {
-	unsigned sz = 0;
+	unsigned int sz = 0;
 
 	switch (status) {
 	case STATUSTYPE_INFO:

@@ -57,10 +57,10 @@ struct waiter {
 	int wants_write;
 };
 
-static unsigned __find_holder(struct block_lock *lock,
+static unsigned int __find_holder(struct block_lock *lock,
 			      struct task_struct *task)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < MAX_HOLDERS; i++)
 		if (lock->holders[i] == task)
@@ -73,7 +73,7 @@ static unsigned __find_holder(struct block_lock *lock,
 /* call this *after* you increment lock->count */
 static void __add_holder(struct block_lock *lock, struct task_struct *task)
 {
-	unsigned h = __find_holder(lock, NULL);
+	unsigned int h = __find_holder(lock, NULL);
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 	struct stack_store *t;
 #endif
@@ -90,14 +90,14 @@ static void __add_holder(struct block_lock *lock, struct task_struct *task)
 /* call this *before* you decrement lock->count */
 static void __del_holder(struct block_lock *lock, struct task_struct *task)
 {
-	unsigned h = __find_holder(lock, task);
+	unsigned int h = __find_holder(lock, task);
 	lock->holders[h] = NULL;
 	put_task_struct(task);
 }
 
 static int __check_holder(struct block_lock *lock)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < MAX_HOLDERS; i++) {
 		if (lock->holders[i] == current) {
@@ -376,8 +376,8 @@ struct dm_block_manager {
 };
 
 struct dm_block_manager *dm_block_manager_create(struct block_device *bdev,
-						 unsigned block_size,
-						 unsigned max_held_per_thread)
+						 unsigned int block_size,
+						 unsigned int max_held_per_thread)
 {
 	int r;
 	struct dm_block_manager *bm;
@@ -415,7 +415,7 @@ void dm_block_manager_destroy(struct dm_block_manager *bm)
 }
 EXPORT_SYMBOL_GPL(dm_block_manager_destroy);
 
-unsigned dm_bm_block_size(struct dm_block_manager *bm)
+unsigned int dm_bm_block_size(struct dm_block_manager *bm)
 {
 	return dm_bufio_get_block_size(bm->bufio);
 }

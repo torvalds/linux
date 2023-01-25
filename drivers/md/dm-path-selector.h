@@ -52,7 +52,7 @@ struct path_selector_type {
 	/*
 	 * Constructs a path selector object, takes custom arguments
 	 */
-	int (*create) (struct path_selector *ps, unsigned argc, char **argv);
+	int (*create) (struct path_selector *ps, unsigned int argc, char **argv);
 	void (*destroy) (struct path_selector *ps);
 
 	/*

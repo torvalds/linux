@@ -126,7 +126,7 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 }
 
 int dm_table_create(struct dm_table **result, fmode_t mode,
-		    unsigned num_targets, struct mapped_device *md)
+		    unsigned int num_targets, struct mapped_device *md)
 {
 	struct dm_table *t = kzalloc(sizeof(*t), GFP_KERNEL);
 
@@ -470,10 +470,10 @@ static int adjoin(struct dm_table *t, struct dm_target *ti)
  * On the other hand, dm-switch needs to process bulk data using messages and
  * excessive use of GFP_NOIO could cause trouble.
  */
-static char **realloc_argv(unsigned *size, char **old_argv)
+static char **realloc_argv(unsigned int *size, char **old_argv)
 {
 	char **argv;
-	unsigned new_size;
+	unsigned int new_size;
 	gfp_t gfp;
 
 	if (*size) {
@@ -499,7 +499,7 @@ static char **realloc_argv(unsigned *size, char **old_argv)
 int dm_split_args(int *argc, char ***argvp, char *input)
 {
 	char *start, *end = input, *out, **argv = NULL;
-	unsigned array_size = 0;
+	unsigned int array_size = 0;
 
 	*argc = 0;
 
@@ -732,9 +732,8 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 /*
  * Target argument parsing helpers.
  */
-static int validate_next_arg(const struct dm_arg *arg,
-			     struct dm_arg_set *arg_set,
-			     unsigned *value, char **error, unsigned grouped)
+static int validate_next_arg(const struct dm_arg *arg, struct dm_arg_set *arg_set,
+			     unsigned int *value, char **error, unsigned int grouped)
 {
 	const char *arg_str = dm_shift_arg(arg_set);
 	char dummy;
@@ -752,14 +751,14 @@ static int validate_next_arg(const struct dm_arg *arg,
 }
 
 int dm_read_arg(const struct dm_arg *arg, struct dm_arg_set *arg_set,
-		unsigned *value, char **error)
+		unsigned int *value, char **error)
 {
 	return validate_next_arg(arg, arg_set, value, error, 0);
 }
 EXPORT_SYMBOL(dm_read_arg);
 
 int dm_read_arg_group(const struct dm_arg *arg, struct dm_arg_set *arg_set,
-		      unsigned *value, char **error)
+		      unsigned int *value, char **error)
 {
 	return validate_next_arg(arg, arg_set, value, error, 1);
 }
@@ -780,7 +779,7 @@ const char *dm_shift_arg(struct dm_arg_set *as)
 }
 EXPORT_SYMBOL(dm_shift_arg);
 
-void dm_consume_args(struct dm_arg_set *as, unsigned num_args)
+void dm_consume_args(struct dm_arg_set *as, unsigned int num_args)
 {
 	BUG_ON(as->argc < num_args);
 	as->argc -= num_args;
@@ -856,7 +855,7 @@ static int device_is_rq_stackable(struct dm_target *ti, struct dm_dev *dev,
 
 static int dm_table_determine_type(struct dm_table *t)
 {
-	unsigned bio_based = 0, request_based = 0, hybrid = 0;
+	unsigned int bio_based = 0, request_based = 0, hybrid = 0;
 	struct dm_target *ti;
 	struct list_head *devices = dm_table_get_devices(t);
 	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
@@ -1535,7 +1534,7 @@ static bool dm_table_any_dev_attr(struct dm_table *t,
 static int count_device(struct dm_target *ti, struct dm_dev *dev,
 			sector_t start, sector_t len, void *data)
 {
-	unsigned *num_devices = data;
+	unsigned int *num_devices = data;
 
 	(*num_devices)++;
 
@@ -1565,7 +1564,7 @@ bool dm_table_has_no_data_devices(struct dm_table *t)
 {
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
-		unsigned num_devices = 0;
+		unsigned int num_devices = 0;
 
 		if (!ti->type->iterate_devices)
 			return false;

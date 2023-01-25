@@ -154,7 +154,7 @@ const char *dm_cache_policy_get_name(struct dm_cache_policy *p)
 }
 EXPORT_SYMBOL_GPL(dm_cache_policy_get_name);
 
-const unsigned *dm_cache_policy_get_version(struct dm_cache_policy *p)
+const unsigned int *dm_cache_policy_get_version(struct dm_cache_policy *p)
 {
 	struct dm_cache_policy_type *t = p->private;
 

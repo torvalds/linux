@@ -792,10 +792,10 @@ static int normal_end_io(struct dm_target *ti, struct bio *bio,
  * INFO format: <logged entries> <highest allocated sector>
  */
 static void log_writes_status(struct dm_target *ti, status_type_t type,
-			      unsigned status_flags, char *result,
-			      unsigned maxlen)
+			      unsigned int status_flags, char *result,
+			      unsigned int maxlen)
 {
-	unsigned sz = 0;
+	unsigned int sz = 0;
 	struct log_writes_c *lc = ti->private;
 
 	switch (type) {
@@ -844,8 +844,8 @@ static int log_writes_iterate_devices(struct dm_target *ti,
  * Messages supported:
  *   mark <mark data> - specify the marked data.
  */
-static int log_writes_message(struct dm_target *ti, unsigned argc, char **argv,
-			      char *result, unsigned maxlen)
+static int log_writes_message(struct dm_target *ti, unsigned int argc, char **argv,
+			      char *result, unsigned int maxlen)
 {
 	int r = -EINVAL;
 	struct log_writes_c *lc = ti->private;
