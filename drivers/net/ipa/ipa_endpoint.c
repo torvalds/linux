@@ -48,11 +48,31 @@ enum ipa_status_exception {
 	IPA_STATUS_EXCEPTION_DEAGGR		= 0x01,
 };
 
+/** enum ipa_status_mask - IPA status mask field bitmask hardware values */
+enum ipa_status_mask {
+	IPA_STATUS_MASK_FRAG_PROCESS		= BIT(0),
+	IPA_STATUS_MASK_FILT_PROCESS		= BIT(1),
+	IPA_STATUS_MASK_NAT_PROCESS		= BIT(2),
+	IPA_STATUS_MASK_ROUTE_PROCESS		= BIT(3),
+	IPA_STATUS_MASK_TAG_VALID		= BIT(4),
+	IPA_STATUS_MASK_FRAGMENT		= BIT(5),
+	IPA_STATUS_MASK_FIRST_FRAGMENT		= BIT(6),
+	IPA_STATUS_MASK_V4			= BIT(7),
+	IPA_STATUS_MASK_CKSUM_PROCESS		= BIT(8),
+	IPA_STATUS_MASK_AGGR_PROCESS		= BIT(9),
+	IPA_STATUS_MASK_DEST_EOT		= BIT(10),
+	IPA_STATUS_MASK_DEAGGR_PROCESS		= BIT(11),
+	IPA_STATUS_MASK_DEAGG_FIRST		= BIT(12),
+	IPA_STATUS_MASK_SRC_EOT			= BIT(13),
+	IPA_STATUS_MASK_PREV_EOT		= BIT(14),
+	IPA_STATUS_MASK_BYTE_LIMIT		= BIT(15),
+};
+
 /* Status element provided by hardware */
 struct ipa_status {
 	u8 opcode;		/* enum ipa_status_opcode */
 	u8 exception;		/* enum ipa_status_exception */
-	__le16 mask;
+	__le16 mask;		/* enum ipa_status_bit (bitmask) */
 	__le16 pkt_len;
 	u8 endp_src_idx;
 	u8 endp_dst_idx;
@@ -64,7 +84,6 @@ struct ipa_status {
 };
 
 /* Field masks for struct ipa_status structure fields */
-#define IPA_STATUS_MASK_TAG_VALID_FMASK		GENMASK(4, 4)
 #define IPA_STATUS_SRC_IDX_FMASK		GENMASK(4, 0)
 #define IPA_STATUS_DST_IDX_FMASK		GENMASK(4, 0)
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
@@ -1344,7 +1363,7 @@ static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
 	struct ipa *ipa = endpoint->ipa;
 	u32 endpoint_id;
 
-	if (!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID_FMASK))
+	if (!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID))
 		return false;	/* No valid tag */
 
 	/* The status contains a valid tag.  We know the packet was sent to
