@@ -487,6 +487,8 @@ retry:
 	path->l[0].lock_seq	= ck->c.lock.state.seq;
 	path->l[0].b		= (void *) ck;
 fill:
+	path->uptodate = BTREE_ITER_UPTODATE;
+
 	if (!ck->valid && !(flags & BTREE_ITER_CACHED_NOFILL)) {
 		/*
 		 * Using the underscore version because we haven't set
@@ -502,16 +504,23 @@ fill:
 		ret = btree_key_cache_fill(trans, path, ck);
 		if (ret)
 			goto err;
+
+		ret = bch2_btree_path_relock(trans, path, _THIS_IP_);
+		if (ret)
+			goto err;
+
+		path->uptodate = BTREE_ITER_UPTODATE;
 	}
 
 	if (!test_bit(BKEY_CACHED_ACCESSED, &ck->flags))
 		set_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 
-	path->uptodate = BTREE_ITER_UPTODATE;
 	BUG_ON(btree_node_locked_type(path, 0) != btree_lock_want(path, 0));
+	BUG_ON(path->uptodate);
 
 	return ret;
 err:
+	path->uptodate = BTREE_ITER_NEED_TRAVERSE;
 	if (!bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 		btree_node_unlock(trans, path, 0);
 		path->l[0].b = ERR_PTR(ret);
