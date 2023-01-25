@@ -42,6 +42,26 @@ config LKL
        select GENERIC_STRNLEN_USER
        select HAVE_ARCH_KASAN
 
+config LKL_FUZZING
+       bool "LLVM fuzzing instrumentation"
+       default n
+       help
+         This configuration option enables fuzzing instrumentation
+         for the Linux kernel source files to enable coverage-guided
+         fuzzing. At the moment LKL supports libFuzzer fuzzing
+         engine only.
+
+config LKL_LINE_COV
+       bool "Code coverage instrumentation for fuzzers"
+       depends on LKL_FUZZING && CC_IS_CLANG
+       default n
+       help
+         This configuration option enables line code coverage
+         instrumentation for the Linux kernel to generate fuzzing
+         code coverage reports. When this option is enabled the
+         kernel source files are built with LLVM SanitizerCoverage
+         instrumentation.
+
 config OUTPUT_FORMAT
        string "Output format"
        default ""

@@ -140,6 +140,12 @@ install: headers_install libraries_install programs_install
 run-tests:
 	./tests/run.py $(tests)
 
+# Enable libFuzzer fuzzing instrumentation for the LKL fuzzers
+$(OUTPUT)fuzzers/%$(EXESUF): LDFLAGS += -fsanitize=fuzzer --coverage
+
+FUZZ_TARGETS := $(fuzzers-y:%=$(OUTPUT)%$(EXESUF))
+fuzzers: $(FUZZ_TARGETS)
+
 FORCE: ;
 .PHONY: all clean FORCE run-tests
 .PHONY: headers_install libraries_install programs_install install
