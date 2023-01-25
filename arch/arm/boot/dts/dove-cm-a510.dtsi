@@ -101,7 +101,7 @@
 		pinctrl-0 = <&pmx_nand_gpo>;
 		pinctrl-names = "default";
 
-		system {
+		led-system {
 			label = "cm-a510:system:green";
 			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
