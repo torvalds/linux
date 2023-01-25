@@ -502,6 +502,7 @@ static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 static int restore_r2(const char *name, u32 *instruction, struct module *me)
 {
 	u32 *prev_insn = instruction - 1;
+	u32 insn_val = *instruction;
 
 	if (is_mprofile_ftrace_call(name))
 		return 0;
@@ -514,9 +515,18 @@ static int restore_r2(const char *name, u32 *instruction, struct module *me)
 	if (!instr_is_relative_link_branch(ppc_inst(*prev_insn)))
 		return 0;
 
-	if (*instruction != PPC_RAW_NOP()) {
+	/*
+	 * For livepatch, the restore r2 instruction might have already been
+	 * written previously, if the referenced symbol is in a previously
+	 * unloaded module which is now being loaded again.  In that case, skip
+	 * the warning and the instruction write.
+	 */
+	if (insn_val == PPC_INST_LD_TOC)
+		return 0;
+
+	if (insn_val != PPC_RAW_NOP()) {
 		pr_err("%s: Expected nop after call, got %08x at %pS\n",
-			me->name, *instruction, instruction);
+			me->name, insn_val, instruction);
 		return -ENOEXEC;
 	}
 
