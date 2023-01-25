@@ -3507,19 +3507,6 @@ actions_match_supported_fdb(struct mlx5e_priv *priv,
 			    struct netlink_ext_ack *extack)
 {
 	struct mlx5_esw_flow_attr *esw_attr = flow->attr->esw_attr;
-	bool ct_flow, ct_clear;
-
-	ct_clear = flow->attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
-	ct_flow = flow_flag_test(flow, CT) && !ct_clear;
-
-	if (esw_attr->split_count && ct_flow &&
-	    !MLX5_CAP_GEN(esw_attr->in_mdev, reg_c_preserve)) {
-		/* All registers used by ct are cleared when using
-		 * split rules.
-		 */
-		NL_SET_ERR_MSG_MOD(extack, "Can't offload mirroring with action ct");
-		return false;
-	}
 
 	if (esw_attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
 		NL_SET_ERR_MSG_MOD(extack,
