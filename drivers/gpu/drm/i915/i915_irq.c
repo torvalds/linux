@@ -3466,8 +3466,23 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 
 static u32 i9xx_error_mask(struct drm_i915_private *i915)
 {
-	return ~(I915_ERROR_PAGE_TABLE |
-		 I915_ERROR_MEMORY_REFRESH);
+	/*
+	 * On gen2/3 FBC generates (seemingly spurious)
+	 * display INVALID_GTT/INVALID_GTT_PTE table errors.
+	 *
+	 * Also gen3 bspec has this to say:
+	 * "DISPA_INVALID_GTT_PTE
+	 "  [DevNapa] : Reserved. This bit does not reflect the page
+	 "              table error for the display plane A."
+	 *
+	 * Unfortunately we can't mask off individual PGTBL_ER bits,
+	 * so we just have to mask off all page table errors via EMR.
+	 */
+	if (HAS_FBC(i915))
+		return ~I915_ERROR_MEMORY_REFRESH;
+	else
+		return ~(I915_ERROR_PAGE_TABLE |
+			 I915_ERROR_MEMORY_REFRESH);
 }
 
 static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3755,6 +3770,9 @@ static u32 i965_error_mask(struct drm_i915_private *i915)
 	/*
 	 * Enable some error detection, note the instruction error mask
 	 * bit is reserved, so we leave it masked.
+	 *
+	 * i965 FBC no longer generates spurious GTT errors,
+	 * so we can always enable the page table errors.
 	 */
 	if (IS_G4X(i915))
 		return ~(GM45_ERROR_PAGE_TABLE |
