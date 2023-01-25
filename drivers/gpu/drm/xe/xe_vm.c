@@ -1641,6 +1641,7 @@ err_fences:
 
 struct async_op_fence {
 	struct dma_fence fence;
+	struct dma_fence *wait_fence;
 	struct dma_fence_cb cb;
 	struct xe_vm *vm;
 	wait_queue_head_t wq;
@@ -1668,8 +1669,10 @@ static void async_op_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	struct async_op_fence *afence =
 		container_of(cb, struct async_op_fence, cb);
 
+	afence->fence.error = afence->wait_fence->error;
 	dma_fence_signal(&afence->fence);
 	xe_vm_put(afence->vm);
+	dma_fence_put(afence->wait_fence);
 	dma_fence_put(&afence->fence);
 }
 
@@ -1685,13 +1688,17 @@ static void add_async_op_fence_cb(struct xe_vm *vm,
 		wake_up_all(&afence->wq);
 	}
 
+	afence->wait_fence = dma_fence_get(fence);
 	afence->vm = xe_vm_get(vm);
 	dma_fence_get(&afence->fence);
 	ret = dma_fence_add_callback(fence, &afence->cb, async_op_fence_cb);
-	if (ret == -ENOENT)
+	if (ret == -ENOENT) {
+		afence->fence.error = afence->wait_fence->error;
 		dma_fence_signal(&afence->fence);
+	}
 	if (ret) {
 		xe_vm_put(vm);
+		dma_fence_put(afence->wait_fence);
 		dma_fence_put(&afence->fence);
 	}
 	XE_WARN_ON(ret && ret != -ENOENT);
