@@ -829,7 +829,7 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	if (cdev->use_webusb) {
 		struct usb_plat_dev_cap_descriptor *webusb_cap;
 		struct usb_webusb_cap_data *webusb_cap_data;
-		uuid_t webusb_uuid = WEBUSB_UUID;
+		guid_t webusb_uuid = WEBUSB_UUID;
 
 		webusb_cap = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
 		webusb_cap_data = (struct usb_webusb_cap_data *) webusb_cap->CapabilityData;
@@ -841,7 +841,7 @@ static int bos_desc(struct usb_composite_dev *cdev)
 		webusb_cap->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
 		webusb_cap->bDevCapabilityType = USB_PLAT_DEV_CAP_TYPE;
 		webusb_cap->bReserved = 0;
-		export_uuid(webusb_cap->UUID, &webusb_uuid);
+		export_guid(webusb_cap->UUID, &webusb_uuid);
 
 		if (cdev->bcd_webusb_version != 0)
 			webusb_cap_data->bcdVersion = cpu_to_le16(cdev->bcd_webusb_version);

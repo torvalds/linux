@@ -11,15 +11,12 @@
 #include "uapi/linux/usb/ch9.h"
 
 /*
- * little endian PlatformCapablityUUID for WebUSB
+ * Little Endian PlatformCapablityUUID for WebUSB
  * 3408b638-09a9-47a0-8bfd-a0768815b665
- * to identify Platform Device Capability descriptors as referring to WebUSB
- *
- * the UUID above MUST be sent over the wire as the byte sequence:
- * {0x38, 0xB6, 0x08, 0x34, 0xA9, 0x09, 0xA0, 0x47, 0x8B, 0xFD, 0xA0, 0x76, 0x88, 0x15, 0xB6, 0x65}.
+ * to identify Platform Device Capability descriptors as referring to WebUSB.
  */
 #define WEBUSB_UUID \
-	UUID_INIT(0x38b60834, 0xa909, 0xa047, 0x8b, 0xfd, 0xa0, 0x76, 0x88, 0x15, 0xb6, 0x65)
+	GUID_INIT(0x3408b638, 0x09a9, 0x47a0, 0x8b, 0xfd, 0xa0, 0x76, 0x88, 0x15, 0xb6, 0x65)
 
 /*
  * WebUSB Platform Capability data
