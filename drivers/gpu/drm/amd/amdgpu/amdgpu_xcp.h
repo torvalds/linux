@@ -108,4 +108,35 @@ int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode);
 int amdgpu_xcp_get_partition(struct amdgpu_xcp_mgr *xcp_mgr,
 			     enum AMDGPU_XCP_IP_BLOCK ip, int instance);
 
+int amdgpu_xcp_get_inst_details(struct amdgpu_xcp *xcp,
+				enum AMDGPU_XCP_IP_BLOCK ip,
+				uint32_t *inst_mask);
+
+static inline int amdgpu_xcp_get_num_xcp(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	if (!xcp_mgr)
+		return 1;
+	else
+		return xcp_mgr->num_xcps;
+}
+
+static inline struct amdgpu_xcp *
+amdgpu_get_next_xcp(struct amdgpu_xcp_mgr *xcp_mgr, int *from)
+{
+	if (!xcp_mgr)
+		return NULL;
+
+	while (*from < MAX_XCP) {
+		if (xcp_mgr->xcp[*from].valid)
+			return &xcp_mgr->xcp[*from];
+		++(*from);
+	}
+
+	return NULL;
+}
+
+#define for_each_xcp(xcp_mgr, xcp, i)                            \
+	for (i = 0, xcp = amdgpu_get_next_xcp(xcp_mgr, &i); xcp; \
+	     xcp = amdgpu_get_next_xcp(xcp_mgr, &i))
+
 #endif

@@ -256,3 +256,15 @@ int amdgpu_xcp_get_partition(struct amdgpu_xcp_mgr *xcp_mgr,
 
 	return id_mask;
 }
+
+int amdgpu_xcp_get_inst_details(struct amdgpu_xcp *xcp,
+				enum AMDGPU_XCP_IP_BLOCK ip,
+				uint32_t *inst_mask)
+{
+	if (!xcp->valid || !inst_mask || !(xcp->ip[ip].valid))
+		return -EINVAL;
+
+	*inst_mask = xcp->ip[ip].inst_mask;
+
+	return 0;
+}
