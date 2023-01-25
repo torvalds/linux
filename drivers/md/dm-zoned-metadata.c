@@ -1430,7 +1430,7 @@ static int dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
 	int idx;
 	sector_t zone_offset = 0;
 
-	for(idx = 0; idx < dev->nr_zones; idx++) {
+	for (idx = 0; idx < dev->nr_zones; idx++) {
 		struct dm_zone *zone;
 
 		zone = dmz_insert(zmd, idx, dev);
@@ -1457,7 +1457,7 @@ static void dmz_drop_zones(struct dmz_metadata *zmd)
 {
 	int idx;
 
-	for(idx = 0; idx < zmd->nr_zones; idx++) {
+	for (idx = 0; idx < zmd->nr_zones; idx++) {
 		struct dm_zone *zone = xa_load(&zmd->zones, idx);
 
 		kfree(zone);

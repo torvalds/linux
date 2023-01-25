@@ -94,7 +94,7 @@ static int rr_status(struct path_selector *ps, struct dm_path *path,
 	if (!path)
 		DMEMIT("0 ");
 	else {
-		switch(type) {
+		switch (type) {
 		case STATUSTYPE_INFO:
 			break;
 		case STATUSTYPE_TABLE:

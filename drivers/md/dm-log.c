@@ -784,7 +784,7 @@ static int core_status(struct dm_dirty_log *log, status_type_t status,
 	int sz = 0;
 	struct log_c *lc = log->context;
 
-	switch(status) {
+	switch (status) {
 	case STATUSTYPE_INFO:
 		DMEMIT("1 %s", log->type->name);
 		break;
@@ -809,7 +809,7 @@ static int disk_status(struct dm_dirty_log *log, status_type_t status,
 	int sz = 0;
 	struct log_c *lc = log->context;
 
-	switch(status) {
+	switch (status) {
 	case STATUSTYPE_INFO:
 		DMEMIT("3 %s %s %c", log->type->name, lc->log_dev->name,
 		       lc->log_dev_flush_failed ? 'F' :

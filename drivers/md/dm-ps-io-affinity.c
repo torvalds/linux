@@ -162,7 +162,7 @@ static int ioa_status(struct path_selector *ps, struct dm_path *path,
 		return sz;
 	}
 
-	switch(type) {
+	switch (type) {
 	case STATUSTYPE_INFO:
 		DMEMIT("%d ", atomic_read(&s->map_misses));
 		break;

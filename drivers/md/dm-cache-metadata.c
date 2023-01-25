@@ -1010,13 +1010,13 @@ static bool cmd_write_lock(struct dm_cache_metadata *cmd)
 	do {					\
 		if (!cmd_write_lock((cmd)))	\
 			return -EINVAL;		\
-	} while(0)
+	} while (0)
 
 #define WRITE_LOCK_VOID(cmd)			\
 	do {					\
 		if (!cmd_write_lock((cmd)))	\
 			return;			\
-	} while(0)
+	} while (0)
 
 #define WRITE_UNLOCK(cmd) \
 	up_write(&(cmd)->root_lock)
@@ -1035,13 +1035,13 @@ static bool cmd_read_lock(struct dm_cache_metadata *cmd)
 	do {					\
 		if (!cmd_read_lock((cmd)))	\
 			return -EINVAL;		\
-	} while(0)
+	} while (0)
 
 #define READ_LOCK_VOID(cmd)			\
 	do {					\
 		if (!cmd_read_lock((cmd)))	\
 			return;			\
-	} while(0)
+	} while (0)
 
 #define READ_UNLOCK(cmd) \
 	up_read(&(cmd)->root_lock)
