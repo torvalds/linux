@@ -51,7 +51,6 @@
 #include "../dcn20/dcn20_hwseq.h"
 #include "dcn30_resource.h"
 #include "inc/dc_link_dp.h"
-#include "inc/link_dpcd.h"
 
 
 

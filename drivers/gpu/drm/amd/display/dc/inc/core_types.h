@@ -450,10 +450,11 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_e2e_pipe_params_st dml_input;
 	int det_buffer_size_kb;
 	bool unbounded_req;
+	unsigned int surface_size_in_mall_bytes;
 
-	union pipe_update_flags update_flags;
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
+	union pipe_update_flags update_flags;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -507,6 +508,9 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
+	unsigned int mall_ss_size_bytes;
+	unsigned int mall_ss_psr_active_size_bytes;
+	unsigned int mall_subvp_size_bytes;
 	unsigned int legacy_svp_drr_stream_index;
 	bool legacy_svp_drr_stream_index_valid;
 };
@@ -547,15 +551,6 @@ struct dc_state {
 	struct resource_context res_ctx;
 
 	/**
-	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
-	 *
-	 * Each context must have its own instance of VBA, and in order to
-	 * initialize and obtain IP and SOC, the base DML instance from DC is
-	 * initially copied into every context.
-	 */
-	struct bw_context bw_ctx;
-
-	/**
 	 * @pp_display_cfg: PowerPlay clocks and settings
 	 * Note: this is a big struct, do *not* put on stack!
 	 */
@@ -568,6 +563,15 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
 	struct clk_mgr *clk_mgr;
+
+	/**
+	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 *
+	 * Each context must have its own instance of VBA, and in order to
+	 * initialize and obtain IP and SOC, the base DML instance from DC is
+	 * initially copied into every context.
+	 */
+	struct bw_context bw_ctx;
 
 	/**
 	 * @refcount: refcount reference

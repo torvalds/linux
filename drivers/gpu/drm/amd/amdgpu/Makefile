@@ -81,7 +81,8 @@ amdgpu-y += \
 # add DF block
 amdgpu-y += \
 	df_v1_7.o \
-	df_v3_6.o
+	df_v3_6.o \
+	df_v4_3.o
 
 # add GMC block
 amdgpu-y += \
@@ -136,6 +137,7 @@ amdgpu-y += \
 	gfx_v10_0.o \
 	imu_v11_0.o \
 	gfx_v11_0.o \
+	gfx_v11_0_3.o \
 	imu_v11_0_3.o
 
 # add async DMA block

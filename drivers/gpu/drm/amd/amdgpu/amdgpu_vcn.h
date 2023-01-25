@@ -369,6 +369,7 @@ enum vcn_ring_type {
 	VCN_UNIFIED_RING,
 };
 
+int amdgpu_vcn_early_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);
 int amdgpu_vcn_suspend(struct amdgpu_device *adev);

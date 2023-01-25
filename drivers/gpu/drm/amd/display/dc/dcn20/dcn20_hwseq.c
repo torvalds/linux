@@ -52,10 +52,10 @@
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "hw_sequencer.h"
-#include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
 #include "inc/link_enc_cfg.h"
 #include "link_hwss.h"
+#include "link.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -582,6 +582,9 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.gsl_group != 0)
 		dcn20_setup_gsl_group_as_lock(dc, pipe_ctx, false);
 
+	if (hubp->funcs->hubp_update_mall_sel)
+		hubp->funcs->hubp_update_mall_sel(hubp, 0, false);
+
 	dc->hwss.set_flip_control_gsl(pipe_ctx, false);
 
 	hubp->funcs->hubp_clk_cntl(hubp, false);
@@ -605,12 +608,21 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	bool is_phantom = pipe_ctx->plane_state && pipe_ctx->plane_state->is_phantom;
+	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
+
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;
 
 	dcn20_plane_atomic_disable(dc, pipe_ctx);
+
+	/* Turn back off the phantom OTG after the phantom plane is fully disabled
+	 */
+	if (is_phantom)
+		if (tg && tg->funcs->disable_phantom_crtc)
+			tg->funcs->disable_phantom_crtc(tg);
 
 	DC_LOG_DC("Power down front end %d\n",
 					pipe_ctx->pipe_idx);
@@ -700,7 +712,7 @@ enum dc_status dcn20_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
-			dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1803,6 +1815,18 @@ void dcn20_program_front_end_for_ctx(
 		dcn20_detect_pipe_changes(&dc->current_state->res_ctx.pipe_ctx[i],
 				&context->res_ctx.pipe_ctx[i]);
 
+	/* When disabling phantom pipes, turn on phantom OTG first (so we can get double
+	 * buffer updates properly)
+	 */
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable
+				&& dc->current_state->res_ctx.pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			struct timing_generator *tg = dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg;
+
+			if (tg->funcs->enable_crtc)
+				tg->funcs->enable_crtc(tg);
+		}
+
 	/* OTG blank before disabling all front ends */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable
@@ -2359,7 +2383,7 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
@@ -2615,6 +2639,37 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->mpcc_id = mpcc_id;
 }
 
+static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
+{
+	switch (link->link_enc->transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return PHYD32CLKA;
+	case TRANSMITTER_UNIPHY_B:
+		return PHYD32CLKB;
+	case TRANSMITTER_UNIPHY_C:
+		return PHYD32CLKC;
+	case TRANSMITTER_UNIPHY_D:
+		return PHYD32CLKD;
+	case TRANSMITTER_UNIPHY_E:
+		return PHYD32CLKE;
+	default:
+		return PHYD32CLKA;
+	}
+}
+
+static int get_odm_segment_count(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
+	int count = 1;
+
+	while (odm_pipe != NULL) {
+		count++;
+		odm_pipe = odm_pipe->next_odm_pipe;
+	}
+
+	return count;
+}
+
 void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
@@ -2628,10 +2683,41 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dtbclk_dto_params dto_params = {0};
+	struct dccg *dccg = dc->res_pool->dccg;
+	enum phyd32clk_clock_source phyd32clk;
+	int dp_hpo_inst;
+	struct dce_hwseq *hws = dc->hwseq;
+	unsigned int k1_div = PIXEL_RATE_DIV_NA;
+	unsigned int k2_div = PIXEL_RATE_DIV_NA;
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		if (dc->hwseq->funcs.setup_hpo_hw_control)
 			dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, true);
+	}
+
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
+		dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, dp_hpo_inst);
+
+		phyd32clk = get_phyd32clk_src(link);
+		dccg->funcs->enable_symclk32_se(dccg, dp_hpo_inst, phyd32clk);
+
+		dto_params.otg_inst = tg->inst;
+		dto_params.pixclk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
+		dto_params.num_odm_segments = get_odm_segment_count(pipe_ctx);
+		dto_params.timing = &pipe_ctx->stream->timing;
+		dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);
+		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+	}
+
+	if (hws->funcs.calculate_dccg_k1_k2_values && dc->res_pool->dccg->funcs->set_pixel_rate_div) {
+		hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
+
+		dc->res_pool->dccg->funcs->set_pixel_rate_div(
+			dc->res_pool->dccg,
+			pipe_ctx->stream_res.tg->inst,
+			k1_div, k2_div);
 	}
 
 	link_hwss->setup_stream_encoder(pipe_ctx);

@@ -32,6 +32,8 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_syncobj.h>
+#include <drm/ttm/ttm_tt.h>
+
 #include "amdgpu_cs.h"
 #include "amdgpu.h"
 #include "amdgpu_trace.h"

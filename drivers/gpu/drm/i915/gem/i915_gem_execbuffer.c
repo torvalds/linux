@@ -379,22 +379,25 @@ eb_vma_misplaced(const struct drm_i915_gem_exec_object2 *entry,
 		 const struct i915_vma *vma,
 		 unsigned int flags)
 {
-	if (vma->node.size < entry->pad_to_size)
+	const u64 start = i915_vma_offset(vma);
+	const u64 size = i915_vma_size(vma);
+
+	if (size < entry->pad_to_size)
 		return true;
 
-	if (entry->alignment && !IS_ALIGNED(vma->node.start, entry->alignment))
+	if (entry->alignment && !IS_ALIGNED(start, entry->alignment))
 		return true;
 
 	if (flags & EXEC_OBJECT_PINNED &&
-	    vma->node.start != entry->offset)
+	    start != entry->offset)
 		return true;
 
 	if (flags & __EXEC_OBJECT_NEEDS_BIAS &&
-	    vma->node.start < BATCH_OFFSET_BIAS)
+	    start < BATCH_OFFSET_BIAS)
 		return true;
 
 	if (!(flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) &&
-	    (vma->node.start + vma->node.size + 4095) >> 32)
+	    (start + size + 4095) >> 32)
 		return true;
 
 	if (flags & __EXEC_OBJECT_NEEDS_MAP &&
@@ -440,7 +443,7 @@ eb_pin_vma(struct i915_execbuffer *eb,
 	int err;
 
 	if (vma->node.size)
-		pin_flags = vma->node.start;
+		pin_flags =  __i915_vma_offset(vma);
 	else
 		pin_flags = entry->offset & PIN_OFFSET_MASK;
 
@@ -663,8 +666,8 @@ static int eb_reserve_vma(struct i915_execbuffer *eb,
 	if (err)
 		return err;
 
-	if (entry->offset != vma->node.start) {
-		entry->offset = vma->node.start | UPDATE;
+	if (entry->offset != i915_vma_offset(vma)) {
+		entry->offset = i915_vma_offset(vma) | UPDATE;
 		eb->args->flags |= __EXEC_HAS_RELOC;
 	}
 
@@ -730,32 +733,69 @@ static int eb_reserve(struct i915_execbuffer *eb)
 	bool unpinned;
 
 	/*
-	 * Attempt to pin all of the buffers into the GTT.
-	 * This is done in 2 phases:
+	 * We have one more buffers that we couldn't bind, which could be due to
+	 * various reasons. To resolve this we have 4 passes, with every next
+	 * level turning the screws tighter:
 	 *
-	 * 1. Unbind all objects that do not match the GTT constraints for
-	 *    the execbuffer (fenceable, mappable, alignment etc).
-	 * 2. Bind new objects.
+	 * 0. Unbind all objects that do not match the GTT constraints for the
+	 * execbuffer (fenceable, mappable, alignment etc). Bind all new
+	 * objects.  This avoids unnecessary unbinding of later objects in order
+	 * to make room for the earlier objects *unless* we need to defragment.
 	 *
-	 * This avoid unnecessary unbinding of later objects in order to make
-	 * room for the earlier objects *unless* we need to defragment.
+	 * 1. Reorder the buffers, where objects with the most restrictive
+	 * placement requirements go first (ignoring fixed location buffers for
+	 * now).  For example, objects needing the mappable aperture (the first
+	 * 256M of GTT), should go first vs objects that can be placed just
+	 * about anywhere. Repeat the previous pass.
 	 *
-	 * Defragmenting is skipped if all objects are pinned at a fixed location.
+	 * 2. Consider buffers that are pinned at a fixed location. Also try to
+	 * evict the entire VM this time, leaving only objects that we were
+	 * unable to lock. Try again to bind the buffers. (still using the new
+	 * buffer order).
+	 *
+	 * 3. We likely have object lock contention for one or more stubborn
+	 * objects in the VM, for which we need to evict to make forward
+	 * progress (perhaps we are fighting the shrinker?). When evicting the
+	 * VM this time around, anything that we can't lock we now track using
+	 * the busy_bo, using the full lock (after dropping the vm->mutex to
+	 * prevent deadlocks), instead of trylock. We then continue to evict the
+	 * VM, this time with the stubborn object locked, which we can now
+	 * hopefully unbind (if still bound in the VM). Repeat until the VM is
+	 * evicted. Finally we should be able bind everything.
 	 */
-	for (pass = 0; pass <= 2; pass++) {
+	for (pass = 0; pass <= 3; pass++) {
 		int pin_flags = PIN_USER | PIN_VALIDATE;
 
 		if (pass == 0)
 			pin_flags |= PIN_NONBLOCK;
 
 		if (pass >= 1)
-			unpinned = eb_unbind(eb, pass == 2);
+			unpinned = eb_unbind(eb, pass >= 2);
 
 		if (pass == 2) {
 			err = mutex_lock_interruptible(&eb->context->vm->mutex);
 			if (!err) {
-				err = i915_gem_evict_vm(eb->context->vm, &eb->ww);
+				err = i915_gem_evict_vm(eb->context->vm, &eb->ww, NULL);
 				mutex_unlock(&eb->context->vm->mutex);
+			}
+			if (err)
+				return err;
+		}
+
+		if (pass == 3) {
+retry:
+			err = mutex_lock_interruptible(&eb->context->vm->mutex);
+			if (!err) {
+				struct drm_i915_gem_object *busy_bo = NULL;
+
+				err = i915_gem_evict_vm(eb->context->vm, &eb->ww, &busy_bo);
+				mutex_unlock(&eb->context->vm->mutex);
+				if (err && busy_bo) {
+					err = i915_gem_object_lock(busy_bo, &eb->ww);
+					i915_gem_object_put(busy_bo);
+					if (!err)
+						goto retry;
+				}
 			}
 			if (err)
 				return err;
@@ -869,7 +909,7 @@ static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 		 */
 		if (i915_gem_context_uses_protected_content(eb->gem_context) &&
 		    i915_gem_object_is_protected(obj)) {
-			err = intel_pxp_key_check(&vm->gt->pxp, obj, true);
+			err = intel_pxp_key_check(eb->i915->pxp, obj, true);
 			if (err) {
 				i915_gem_object_put(obj);
 				return ERR_PTR(err);
@@ -984,8 +1024,8 @@ static int eb_validate_vmas(struct i915_execbuffer *eb)
 			return err;
 
 		if (!err) {
-			if (entry->offset != vma->node.start) {
-				entry->offset = vma->node.start | UPDATE;
+			if (entry->offset != i915_vma_offset(vma)) {
+				entry->offset = i915_vma_offset(vma) | UPDATE;
 				eb->args->flags |= __EXEC_HAS_RELOC;
 			}
 		} else {
@@ -1066,7 +1106,7 @@ static inline u64
 relocation_target(const struct drm_i915_gem_relocation_entry *reloc,
 		  const struct i915_vma *target)
 {
-	return gen8_canonical_addr((int)reloc->delta + target->node.start);
+	return gen8_canonical_addr((int)reloc->delta + i915_vma_offset(target));
 }
 
 static void reloc_cache_init(struct reloc_cache *cache,
@@ -1275,7 +1315,7 @@ static void *reloc_iomap(struct i915_vma *batch,
 			if (err) /* no inactive aperture space, use cpu reloc */
 				return NULL;
 		} else {
-			cache->node.start = vma->node.start;
+			cache->node.start = i915_ggtt_offset(vma);
 			cache->node.mm = (void *)vma;
 		}
 	}
@@ -1438,7 +1478,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	 * more work needs to be done.
 	 */
 	if (!DBG_FORCE_RELOC &&
-	    gen8_canonical_addr(target->vma->node.start) == reloc->presumed_offset)
+	    gen8_canonical_addr(i915_vma_offset(target->vma)) == reloc->presumed_offset)
 		return 0;
 
 	/* Check that the relocation address is valid... */
@@ -2368,7 +2408,7 @@ static int eb_request_submit(struct i915_execbuffer *eb,
 	}
 
 	err = rq->context->engine->emit_bb_start(rq,
-						 batch->node.start +
+						 i915_vma_offset(batch) +
 						 eb->batch_start_offset,
 						 batch_len,
 						 eb->batch_flags);
@@ -2379,7 +2419,7 @@ static int eb_request_submit(struct i915_execbuffer *eb,
 		GEM_BUG_ON(intel_context_is_parallel(rq->context));
 		GEM_BUG_ON(eb->batch_start_offset);
 		err = rq->context->engine->emit_bb_start(rq,
-							 eb->trampoline->node.start +
+							 i915_vma_offset(eb->trampoline) +
 							 batch_len, 0, 0);
 		if (err)
 			return err;

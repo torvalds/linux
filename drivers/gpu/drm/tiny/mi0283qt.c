@@ -141,10 +141,7 @@ out_exit:
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
-	.mode_valid = mipi_dbi_pipe_mode_valid,
-	.enable = mi0283qt_enable,
-	.disable = mipi_dbi_pipe_disable,
-	.update = mipi_dbi_pipe_update,
+	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(mi0283qt_enable),
 };
 
 static const struct drm_display_mode mi0283qt_mode = {

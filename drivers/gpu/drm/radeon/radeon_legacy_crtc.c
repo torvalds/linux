@@ -24,11 +24,10 @@
  *          Alex Deucher
  */
 
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
 
@@ -322,7 +321,7 @@ static void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 */
 	if (rdev->flags & RADEON_SINGLE_CRTC)
 		crtc_ext_cntl = RADEON_CRTC_CRT_ON;
-	
+
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		radeon_crtc->enabled = true;

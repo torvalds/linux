@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_IMX
+	tristate "DRM Support for Freescale i.MX"
+	select DRM_KMS_HELPER
+	select VIDEOMODE_HELPERS
+	select DRM_GEM_DMA_HELPER
+	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM || COMPILE_TEST)
+	depends on IMX_IPUV3_CORE
+	help
+	  enable i.MX graphics support
+
+config DRM_IMX_PARALLEL_DISPLAY
+	tristate "Support for parallel displays"
+	select DRM_PANEL
+	depends on DRM_IMX
+	select VIDEOMODE_HELPERS
+
+config DRM_IMX_TVE
+	tristate "Support for TV and VGA displays"
+	depends on DRM_IMX
+	depends on COMMON_CLK
+	select REGMAP_MMIO
+	help
+	  Choose this to enable the internal Television Encoder (TVe)
+	  found on i.MX53 processors.
+
+config DRM_IMX_LDB
+	tristate "Support for LVDS displays"
+	depends on DRM_IMX && MFD_SYSCON
+	depends on COMMON_CLK
+	select DRM_PANEL
+	help
+	  Choose this to enable the internal LVDS Display Bridge (LDB)
+	  found on i.MX53 and i.MX6 processors.
+
+config DRM_IMX_HDMI
+	tristate "Freescale i.MX DRM HDMI"
+	select DRM_DW_HDMI
+	depends on DRM_IMX && OF
+	help
+	  Choose this if you want to use HDMI on i.MX6.

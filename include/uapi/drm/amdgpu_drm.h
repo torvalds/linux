@@ -832,6 +832,10 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK		0x8
 	/* Subquery id: Query GPU stable pstate memory clock */
 	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK		0x9
+	/* Subquery id: Query GPU peak pstate shader clock */
+	#define AMDGPU_INFO_SENSOR_PEAK_PSTATE_GFX_SCLK			0xa
+	/* Subquery id: Query GPU peak pstate memory clock */
+	#define AMDGPU_INFO_SENSOR_PEAK_PSTATE_GFX_MCLK			0xb
 /* Number of VRAM page faults on CPU access. */
 #define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
 #define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
@@ -1049,7 +1053,8 @@ struct drm_amdgpu_info_device {
 	__u32 enabled_rb_pipes_mask;
 	__u32 num_rb_pipes;
 	__u32 num_hw_gfx_contexts;
-	__u32 _pad;
+	/* PCIe version (the smaller of the GPU and the CPU/motherboard) */
+	__u32 pcie_gen;
 	__u64 ids_flags;
 	/** Starting virtual address for UMDs. */
 	__u64 virtual_address_offset;
@@ -1096,7 +1101,8 @@ struct drm_amdgpu_info_device {
 	__u32 gs_prim_buffer_depth;
 	/* max gs wavefront per vgt*/
 	__u32 max_gs_waves_per_vgt;
-	__u32 _pad1;
+	/* PCIe number of lanes (the smaller of the GPU and the CPU/motherboard) */
+	__u32 pcie_num_lanes;
 	/* always on cu bitmap */
 	__u32 cu_ao_bitmap[4][4];
 	/** Starting high virtual address for UMDs. */
@@ -1107,6 +1113,8 @@ struct drm_amdgpu_info_device {
 	__u32 pa_sc_tile_steering_override;
 	/* disabled TCCs */
 	__u64 tcc_disabled_mask;
+	__u64 min_engine_clock;
+	__u64 min_memory_clock;
 };
 
 struct drm_amdgpu_info_hw_ip {

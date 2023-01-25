@@ -232,7 +232,8 @@ int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev)
 		return 0;
 
 	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM,
+				    AMDGPU_GEM_DOMAIN_VRAM |
+				    AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->virt.mm_table.bo,
 				    &adev->virt.mm_table.gpu_addr,
 				    (void *)&adev->virt.mm_table.cpu_addr);

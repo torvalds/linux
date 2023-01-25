@@ -213,6 +213,7 @@ static struct cmn2asic_mapping smu_v13_0_0_feature_mask_map[SMU_FEATURE_COUNT] =
 	FEA_MAP(SOC_PCC),
 	[SMU_FEATURE_DPM_VCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
 	[SMU_FEATURE_DPM_DCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
+	[SMU_FEATURE_PPT_BIT] = {1, FEATURE_THROTTLERS_BIT},
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_table_map[SMU_TABLE_COUNT] = {
@@ -240,6 +241,7 @@ static struct cmn2asic_mapping smu_v13_0_0_workload_map[PP_SMC_POWER_PROFILE_COU
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_WINDOW3D,		WORKLOAD_PPLIB_WINDOW_3D_BIT),
 };
 
 static const uint8_t smu_v13_0_0_throttler_map[] = {
@@ -1555,7 +1557,7 @@ static int smu_v13_0_0_get_power_profile_mode(struct smu_context *smu,
 			title[0], title[1], title[2], title[3], title[4], title[5],
 			title[6], title[7], title[8], title[9]);
 
-	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+	for (i = 0; i < PP_SMC_POWER_PROFILE_COUNT; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 		workload_type = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_WORKLOAD,
@@ -1617,7 +1619,7 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
 
 	smu->power_profile_mode = input[size];
 
-	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+	if (smu->power_profile_mode >= PP_SMC_POWER_PROFILE_COUNT) {
 		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
 	}
@@ -1902,15 +1904,51 @@ static int smu_v13_0_0_set_df_cstate(struct smu_context *smu,
 					       NULL);
 }
 
+static void smu_v13_0_0_set_mode1_reset_param(struct smu_context *smu,
+						uint32_t supported_version,
+						uint32_t *param)
+{
+	uint32_t smu_version;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+
+	if ((smu_version >= supported_version) &&
+			ras && atomic_read(&ras->in_recovery))
+		/* Set RAS fatal error reset flag */
+		*param = 1 << 16;
+	else
+		*param = 0;
+}
+
 static int smu_v13_0_0_mode1_reset(struct smu_context *smu)
 {
 	int ret;
+	uint32_t param;
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
-		ret = smu_cmn_send_debug_smc_msg(smu, DEBUGSMC_MSG_Mode1Reset);
-	else
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+		/* SMU 13_0_0 PMFW supports RAS fatal error reset from 78.77 */
+		smu_v13_0_0_set_mode1_reset_param(smu, 0x004e4d00, &param);
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						SMU_MSG_Mode1Reset, param, NULL);
+		break;
+
+	case IP_VERSION(13, 0, 10):
+		/* SMU 13_0_10 PMFW supports RAS fatal error reset from 80.28 */
+		smu_v13_0_0_set_mode1_reset_param(smu, 0x00501c00, &param);
+
+		ret = smu_cmn_send_debug_smc_msg_with_param(smu,
+						DEBUGSMC_MSG_Mode1Reset, param);
+		break;
+
+	default:
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+		break;
+	}
 
 	if (!ret)
 		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);

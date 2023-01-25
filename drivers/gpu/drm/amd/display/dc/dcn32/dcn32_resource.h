@@ -96,8 +96,17 @@ void dcn32_calculate_wm_and_dlg(
 		int pipe_cnt,
 		int vlevel);
 
-uint32_t dcn32_helper_calculate_num_ways_for_subvp
-		(struct dc *dc,
+uint32_t dcn32_helper_mall_bytes_to_ways(
+		struct dc *dc,
+		uint32_t total_size_in_mall_bytes);
+
+uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool ignore_cursor_buf);
+
+uint32_t dcn32_helper_calculate_num_ways_for_subvp(
+		struct dc *dc,
 		struct dc_state *context);
 
 void dcn32_merge_pipes_for_subvp(struct dc *dc,
@@ -112,6 +121,7 @@ bool dcn32_subvp_in_use(struct dc *dc,
 bool dcn32_mpo_in_use(struct dc_state *context);
 
 bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
+bool dcn32_is_center_timing(struct pipe_ctx *pipe);
 
 struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 		struct dc_state *state,
@@ -133,6 +143,8 @@ void dcn32_save_mall_state(struct dc *dc,
 void dcn32_restore_mall_state(struct dc *dc,
 		struct dc_state *context,
 		struct mall_temp_config *temp_config);
+
+bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
 
 /* definitions for run time init of reg offsets */
 

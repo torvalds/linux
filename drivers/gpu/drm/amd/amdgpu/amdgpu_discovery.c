@@ -33,6 +33,7 @@
 #include "gmc_v9_0.h"
 #include "df_v1_7.h"
 #include "df_v3_6.h"
+#include "df_v4_3.h"
 #include "nbio_v6_1.h"
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
@@ -2328,6 +2329,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 1):
 	case IP_VERSION(3, 5, 2):
 		adev->df.funcs = &df_v1_7_funcs;
+		break;
+	case IP_VERSION(4, 3, 0):
+		adev->df.funcs = &df_v4_3_funcs;
 		break;
 	default:
 		break;

@@ -14,6 +14,7 @@
 #include <asm/intel-mid.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "intel_bios.h"

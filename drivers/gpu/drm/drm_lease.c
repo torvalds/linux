@@ -6,7 +6,7 @@
 #include <linux/uaccess.h>
 
 #include <drm/drm_auth.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_lease.h>
@@ -213,11 +213,11 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 	int id;
 	void *entry;
 
-	DRM_DEBUG_LEASE("lessor %d\n", lessor->lessee_id);
+	drm_dbg_lease(dev, "lessor %d\n", lessor->lessee_id);
 
 	lessee = drm_master_create(lessor->dev);
 	if (!lessee) {
-		DRM_DEBUG_LEASE("drm_master_create failed\n");
+		drm_dbg_lease(dev, "drm_master_create failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -231,7 +231,7 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 			error = -EBUSY;
 
 		if (error != 0) {
-			DRM_DEBUG_LEASE("object %d failed %d\n", object, error);
+			drm_dbg_lease(dev, "object %d failed %d\n", object, error);
 			goto out_lessee;
 		}
 	}
@@ -249,7 +249,8 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 
 	/* Move the leases over */
 	lessee->leases = *leases;
-	DRM_DEBUG_LEASE("new lessee %d %p, lessor %d %p\n", lessee->lessee_id, lessee, lessor->lessee_id, lessor);
+	drm_dbg_lease(dev, "new lessee %d %p, lessor %d %p\n",
+		      lessee->lessee_id, lessee, lessor->lessee_id, lessor);
 
 	mutex_unlock(&dev->mode_config.idr_mutex);
 	return lessee;
@@ -268,7 +269,7 @@ void drm_lease_destroy(struct drm_master *master)
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 
-	DRM_DEBUG_LEASE("drm_lease_destroy %d\n", master->lessee_id);
+	drm_dbg_lease(dev, "drm_lease_destroy %d\n", master->lessee_id);
 
 	/* This master is referenced by all lessees, hence it cannot be destroyed
 	 * until all of them have been
@@ -277,7 +278,8 @@ void drm_lease_destroy(struct drm_master *master)
 
 	/* Remove this master from the lessee idr in the owner */
 	if (master->lessee_id != 0) {
-		DRM_DEBUG_LEASE("remove master %d from device list of lessees\n", master->lessee_id);
+		drm_dbg_lease(dev, "remove master %d from device list of lessees\n",
+			      master->lessee_id);
 		idr_remove(&(drm_lease_owner(master)->lessee_idr), master->lessee_id);
 	}
 
@@ -292,7 +294,7 @@ void drm_lease_destroy(struct drm_master *master)
 		drm_master_put(&master->lessor);
 	}
 
-	DRM_DEBUG_LEASE("drm_lease_destroy done %d\n", master->lessee_id);
+	drm_dbg_lease(dev, "drm_lease_destroy done %d\n", master->lessee_id);
 }
 
 static void _drm_lease_revoke(struct drm_master *top)
@@ -308,7 +310,8 @@ static void _drm_lease_revoke(struct drm_master *top)
 	 * the tree is fully connected, we can do this without recursing
 	 */
 	for (;;) {
-		DRM_DEBUG_LEASE("revoke leases for %p %d\n", master, master->lessee_id);
+		drm_dbg_lease(master->dev, "revoke leases for %p %d\n",
+			      master, master->lessee_id);
 
 		/* Evacuate the lease */
 		idr_for_each_entry(&master->leases, entry, object)
@@ -408,7 +411,7 @@ static int fill_object_idr(struct drm_device *dev,
 
 	ret = validate_lease(dev, object_count, objects, universal_planes);
 	if (ret) {
-		DRM_DEBUG_LEASE("lease validation failed\n");
+		drm_dbg_lease(dev, "lease validation failed\n");
 		goto out_free_objects;
 	}
 
@@ -418,7 +421,7 @@ static int fill_object_idr(struct drm_device *dev,
 		struct drm_mode_object *obj = objects[o];
 		u32 object_id = objects[o]->id;
 
-		DRM_DEBUG_LEASE("Adding object %d to lease\n", object_id);
+		drm_dbg_lease(dev, "Adding object %d to lease\n", object_id);
 
 		/*
 		 * We're using an IDR to hold the set of leased
@@ -430,8 +433,8 @@ static int fill_object_idr(struct drm_device *dev,
 		 */
 		ret = idr_alloc(leases, &drm_lease_idr_object , object_id, object_id + 1, GFP_KERNEL);
 		if (ret < 0) {
-			DRM_DEBUG_LEASE("Object %d cannot be inserted into leases (%d)\n",
-					object_id, ret);
+			drm_dbg_lease(dev, "Object %d cannot be inserted into leases (%d)\n",
+				      object_id, ret);
 			goto out_free_objects;
 		}
 		if (obj->type == DRM_MODE_OBJECT_CRTC && !universal_planes) {
@@ -439,15 +442,15 @@ static int fill_object_idr(struct drm_device *dev,
 
 			ret = idr_alloc(leases, &drm_lease_idr_object, crtc->primary->base.id, crtc->primary->base.id + 1, GFP_KERNEL);
 			if (ret < 0) {
-				DRM_DEBUG_LEASE("Object primary plane %d cannot be inserted into leases (%d)\n",
-						object_id, ret);
+				drm_dbg_lease(dev, "Object primary plane %d cannot be inserted into leases (%d)\n",
+					      object_id, ret);
 				goto out_free_objects;
 			}
 			if (crtc->cursor) {
 				ret = idr_alloc(leases, &drm_lease_idr_object, crtc->cursor->base.id, crtc->cursor->base.id + 1, GFP_KERNEL);
 				if (ret < 0) {
-					DRM_DEBUG_LEASE("Object cursor plane %d cannot be inserted into leases (%d)\n",
-							object_id, ret);
+					drm_dbg_lease(dev, "Object cursor plane %d cannot be inserted into leases (%d)\n",
+						      object_id, ret);
 					goto out_free_objects;
 				}
 			}
@@ -490,14 +493,14 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 		return -EOPNOTSUPP;
 
 	if (cl->flags && (cl->flags & ~(O_CLOEXEC | O_NONBLOCK))) {
-		DRM_DEBUG_LEASE("invalid flags\n");
+		drm_dbg_lease(dev, "invalid flags\n");
 		return -EINVAL;
 	}
 
 	lessor = drm_file_get_master(lessor_priv);
 	/* Do not allow sub-leases */
 	if (lessor->lessor) {
-		DRM_DEBUG_LEASE("recursive leasing not allowed\n");
+		drm_dbg_lease(dev, "recursive leasing not allowed\n");
 		ret = -EINVAL;
 		goto out_lessor;
 	}
@@ -520,7 +523,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 				      object_count, object_ids);
 		kfree(object_ids);
 		if (ret) {
-			DRM_DEBUG_LEASE("lease object lookup failed: %i\n", ret);
+			drm_dbg_lease(dev, "lease object lookup failed: %i\n", ret);
 			idr_destroy(&leases);
 			goto out_lessor;
 		}
@@ -534,7 +537,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 		goto out_lessor;
 	}
 
-	DRM_DEBUG_LEASE("Creating lease\n");
+	drm_dbg_lease(dev, "Creating lease\n");
 	/* lessee will take the ownership of leases */
 	lessee = drm_lease_create(lessor, &leases);
 
@@ -545,7 +548,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 	}
 
 	/* Clone the lessor file to create a new file for us */
-	DRM_DEBUG_LEASE("Allocating lease file\n");
+	drm_dbg_lease(dev, "Allocating lease file\n");
 	lessee_file = file_clone_open(lessor_file);
 	if (IS_ERR(lessee_file)) {
 		ret = PTR_ERR(lessee_file);
@@ -560,7 +563,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 	lessee_priv->authenticated = 1;
 
 	/* Pass fd back to userspace */
-	DRM_DEBUG_LEASE("Returning fd %d id %d\n", fd, lessee->lessee_id);
+	drm_dbg_lease(dev, "Returning fd %d id %d\n", fd, lessee->lessee_id);
 	cl->fd = fd;
 	cl->lessee_id = lessee->lessee_id;
 
@@ -568,7 +571,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 	fd_install(fd, lessee_file);
 
 	drm_master_put(&lessor);
-	DRM_DEBUG_LEASE("drm_mode_create_lease_ioctl succeeded\n");
+	drm_dbg_lease(dev, "drm_mode_create_lease_ioctl succeeded\n");
 	return 0;
 
 out_lessee:
@@ -579,7 +582,7 @@ out_leases:
 
 out_lessor:
 	drm_master_put(&lessor);
-	DRM_DEBUG_LEASE("drm_mode_create_lease_ioctl failed: %d\n", ret);
+	drm_dbg_lease(dev, "drm_mode_create_lease_ioctl failed: %d\n", ret);
 	return ret;
 }
 
@@ -601,7 +604,7 @@ int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 		return -EOPNOTSUPP;
 
 	lessor = drm_file_get_master(lessor_priv);
-	DRM_DEBUG_LEASE("List lessees for %d\n", lessor->lessee_id);
+	drm_dbg_lease(dev, "List lessees for %d\n", lessor->lessee_id);
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 
@@ -610,7 +613,8 @@ int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 		/* Only list un-revoked leases */
 		if (!idr_is_empty(&lessee->leases)) {
 			if (count_lessees > count) {
-				DRM_DEBUG_LEASE("Add lessee %d\n", lessee->lessee_id);
+				drm_dbg_lease(dev, "Add lessee %d\n",
+					      lessee->lessee_id);
 				ret = put_user(lessee->lessee_id, lessee_ids + count);
 				if (ret)
 					break;
@@ -619,7 +623,7 @@ int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 		}
 	}
 
-	DRM_DEBUG_LEASE("Lessor leases to %d\n", count);
+	drm_dbg_lease(dev, "Lessor leases to %d\n", count);
 	if (ret == 0)
 		arg->count_lessees = count;
 
@@ -651,7 +655,7 @@ int drm_mode_get_lease_ioctl(struct drm_device *dev,
 		return -EOPNOTSUPP;
 
 	lessee = drm_file_get_master(lessee_priv);
-	DRM_DEBUG_LEASE("get lease for %d\n", lessee->lessee_id);
+	drm_dbg_lease(dev, "get lease for %d\n", lessee->lessee_id);
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 
@@ -665,7 +669,7 @@ int drm_mode_get_lease_ioctl(struct drm_device *dev,
 	count = 0;
 	idr_for_each_entry(object_idr, entry, object) {
 		if (count_objects > count) {
-			DRM_DEBUG_LEASE("adding object %d\n", object);
+			drm_dbg_lease(dev, "adding object %d\n", object);
 			ret = put_user(object, object_ids + count);
 			if (ret)
 				break;
@@ -696,7 +700,7 @@ int drm_mode_revoke_lease_ioctl(struct drm_device *dev,
 	struct drm_master *lessee;
 	int ret = 0;
 
-	DRM_DEBUG_LEASE("revoke lease for %d\n", arg->lessee_id);
+	drm_dbg_lease(dev, "revoke lease for %d\n", arg->lessee_id);
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))

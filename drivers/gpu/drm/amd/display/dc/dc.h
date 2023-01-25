@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.215"
+#define DC_VER "3.2.218"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -872,6 +872,8 @@ struct dc_debug_options {
 	enum lttpr_mode lttpr_mode_override;
 	unsigned int dsc_delay_factor_wa_x1000;
 	unsigned int min_prefetch_in_strobe_ns;
+	bool disable_unbounded_requesting;
+	bool dig_fifo_off_in_blank;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

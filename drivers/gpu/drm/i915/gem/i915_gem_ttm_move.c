@@ -3,7 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "i915_deps.h"
 #include "i915_drv.h"

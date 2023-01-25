@@ -543,9 +543,8 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *nom_v_pos);
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-bool dc_stream_forward_crc_window(struct dc *dc,
+bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
 		struct rect *rect,
-		struct dc_stream_state *stream,
 		bool is_stop);
 #endif
 

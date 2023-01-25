@@ -29,7 +29,7 @@
 
 #include "dcn10/dcn10_resource.h"
 
-#include "dc_link_ddc.h"
+#include "link.h"
 
 #include "dce/dce_abm.h"
 #include "dce/dce_audio.h"
@@ -1054,7 +1054,7 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 		dcn_dccg_destroy(&pool->dccg);
 
 	if (pool->oem_device != NULL)
-		dal_ddc_service_destroy(&pool->oem_device);
+		link_destroy_ddc_service(&pool->oem_device);
 }
 
 static void dcn303_destroy_resource_pool(struct resource_pool **pool)
@@ -1421,7 +1421,7 @@ static bool dcn303_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->oem_device = dal_ddc_service_create(&ddc_init_data);
+		pool->oem_device = link_create_ddc_service(&ddc_init_data);
 	} else {
 		pool->oem_device = NULL;
 	}

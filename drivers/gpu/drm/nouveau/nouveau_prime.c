@@ -23,6 +23,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"

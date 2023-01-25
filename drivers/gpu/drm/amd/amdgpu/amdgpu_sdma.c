@@ -154,15 +154,10 @@ int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
 
 static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 {
-	int err = 0;
 	uint16_t version_major;
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 	const struct sdma_firmware_header_v2_0 *hdr_v2;
-
-	err = amdgpu_ucode_validate(sdma_inst->fw);
-	if (err)
-		return err;
 
 	header = (const struct common_firmware_header *)
 		sdma_inst->fw->data;
@@ -195,7 +190,7 @@ void amdgpu_sdma_destroy_inst_ctx(struct amdgpu_device *adev,
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		release_firmware(adev->sdma.instance[i].fw);
+		amdgpu_ucode_release(&adev->sdma.instance[i].fw);
 		if (duplicate)
 			break;
 	}
@@ -205,16 +200,22 @@ void amdgpu_sdma_destroy_inst_ctx(struct amdgpu_device *adev,
 }
 
 int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
-			       char *fw_name, u32 instance,
-			       bool duplicate)
+			       u32 instance, bool duplicate)
 {
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
-	int err = 0, i;
+	int err, i;
 	const struct sdma_firmware_header_v2_0 *sdma_hdr;
 	uint16_t version_major;
+	char ucode_prefix[30];
+	char fw_name[40];
 
-	err = request_firmware(&adev->sdma.instance[instance].fw, fw_name, adev->dev);
+	amdgpu_ucode_ip_version_decode(adev, SDMA0_HWIP, ucode_prefix, sizeof(ucode_prefix));
+	if (instance == 0)
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
+	else
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s%d.bin", ucode_prefix, instance);
+	err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw, fw_name);
 	if (err)
 		goto out;
 
@@ -279,10 +280,8 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	}
 
 out:
-	if (err) {
-		DRM_ERROR("SDMA: Failed to init firmware \"%s\"\n", fw_name);
+	if (err)
 		amdgpu_sdma_destroy_inst_ctx(adev, duplicate);
-	}
 	return err;
 }
 
@@ -305,4 +304,39 @@ void amdgpu_sdma_unset_buffer_funcs_helper(struct amdgpu_device *adev)
 			break;
 		}
 	}
+}
+
+int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err = 0;
+	struct amdgpu_sdma_ras *ras = NULL;
+
+	/* adev->sdma.ras is NULL, which means sdma does not
+	 * support ras function, then do nothing here.
+	 */
+	if (!adev->sdma.ras)
+		return 0;
+
+	ras = adev->sdma.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register sdma ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "sdma");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__SDMA;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->sdma.ras_if = &ras->ras_block.ras_comm;
+
+	/* If not define special ras_late_init function, use default ras_late_init */
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_sdma_ras_late_init;
+
+	/* If not defined special ras_cb function, use default ras_cb */
+	if (!ras->ras_block.ras_cb)
+		ras->ras_block.ras_cb = amdgpu_sdma_process_ras_data_cb;
+
+	return 0;
 }

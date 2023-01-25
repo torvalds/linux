@@ -22,7 +22,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -692,8 +691,7 @@ static bool anx6345_get_chip_id(struct anx6345 *anx6345)
 	return false;
 }
 
-static int anx6345_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int anx6345_i2c_probe(struct i2c_client *client)
 {
 	struct anx6345 *anx6345;
 	struct device *dev;
@@ -817,7 +815,7 @@ static struct i2c_driver anx6345_driver = {
 		   .name = "anx6345",
 		   .of_match_table = of_match_ptr(anx6345_match_table),
 		  },
-	.probe = anx6345_i2c_probe,
+	.probe_new = anx6345_i2c_probe,
 	.remove = anx6345_i2c_remove,
 	.id_table = anx6345_id,
 };

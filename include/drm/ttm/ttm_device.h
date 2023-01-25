@@ -252,11 +252,6 @@ struct ttm_device {
 	spinlock_t lru_lock;
 
 	/**
-	 * @ddestroy: Destroyed but not yet cleaned up buffer objects.
-	 */
-	struct list_head ddestroy;
-
-	/**
 	 * @pinned: Buffer objects which are pinned and so not on any LRU list.
 	 */
 	struct list_head pinned;
@@ -270,7 +265,7 @@ struct ttm_device {
 	/**
 	 * @wq: Work queue structure for the delayed delete workqueue.
 	 */
-	struct delayed_work wq;
+	struct workqueue_struct *wq;
 };
 
 int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags);

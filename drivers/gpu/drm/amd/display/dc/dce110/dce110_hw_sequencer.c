@@ -46,6 +46,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 #include "link_hwss.h"
+#include "link.h"
 #include "dc_link_dp.h"
 #include "dccg.h"
 #include "clock_source.h"
@@ -54,7 +55,6 @@
 #include "audio.h"
 #include "reg_helper.h"
 #include "panel_cntl.h"
-#include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
@@ -737,7 +737,7 @@ void dce110_edp_wait_for_hpd_ready(
 
 	/* obtain HPD */
 	/* TODO what to do with this? */
-	hpd = get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
+	hpd = link_get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
 
 	if (!hpd) {
 		BREAK_TO_DEBUGGER();
@@ -875,14 +875,16 @@ void dce110_edp_power_control(
 
 		if (ctx->dc->ctx->dmub_srv &&
 				ctx->dc->debug.dmub_command_table) {
-			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON) {
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 						LVTMA_CONTROL_POWER_ON,
-						panel_instance);
-			else
+						panel_instance, link->link_powered_externally);
+			} else {
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 						LVTMA_CONTROL_POWER_OFF,
-						panel_instance);
+						panel_instance, link->link_powered_externally);
+			}
 		}
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
@@ -941,7 +943,6 @@ void dce110_edp_wait_for_T12(
 			msleep(t12_duration - time_since_edp_poweroff_ms);
 	}
 }
-
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
@@ -1020,16 +1021,20 @@ void dce110_edp_backlight_control(
 			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
 	}
 
+	/* Setting link_powered_externally will bypass delays in the backlight
+	 * as they are not required if the link is being powered by a different
+	 * source.
+	 */
 	if (ctx->dc->ctx->dmub_srv &&
 			ctx->dc->debug.dmub_command_table) {
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLON,
-					panel_instance);
+					panel_instance, link->link_powered_externally);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLOFF,
-					panel_instance);
+					panel_instance, link->link_powered_externally);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
@@ -1142,6 +1147,10 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	struct dccg *dccg = dc->res_pool->dccg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct dtbclk_dto_params dto_params = {0};
+	int dp_hpo_inst;
 
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
@@ -1150,7 +1159,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc);
 	}
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->stop_dp_info_packets(
 					pipe_ctx->stream_res.hpo_dp_stream_enc);
 	} else if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1161,7 +1170,16 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 
 	link_hwss->reset_stream_encoder(pipe_ctx);
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+		dto_params.otg_inst = tg->inst;
+		dto_params.timing = &pipe_ctx->stream->timing;
+		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
+		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+		dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
+		dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
+	}
+
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO: This looks like a bug to me as we are disabling HPO IO when
 		 * we are just disabling a single HPO stream. Shouldn't we disable HPO
 		 * HW control only when HPOs for all streams are disabled?
@@ -1203,7 +1221,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_blank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc);
@@ -1408,7 +1426,7 @@ static enum dc_status dce110_enable_stream_timing(
 		if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 				pipe_ctx->clock_source,
 				&pipe_ctx->stream_res.pix_clk_params,
-				dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+				link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 				&pipe_ctx->pll_settings)) {
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
@@ -1512,7 +1530,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
 	 * function core_link_enable_stream
 	 */
-	if (!(hws->wa.dp_hpo_and_otg_sequence && is_dp_128b_132b_signal(pipe_ctx)))
+	if (!(hws->wa.dp_hpo_and_otg_sequence && link_is_dp_128b_132b_signal(pipe_ctx)))
 		/*  */
 		/* Do not touch stream timing on seamless boot optimization. */
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
@@ -1554,7 +1572,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
 	 * function core_link_enable_stream
 	 */
-	if (hws->wa.dp_hpo_and_otg_sequence && is_dp_128b_132b_signal(pipe_ctx)) {
+	if (hws->wa.dp_hpo_and_otg_sequence && link_is_dp_128b_132b_signal(pipe_ctx)) {
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
 			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 	}
@@ -3034,13 +3052,13 @@ void dce110_enable_dp_link_output(
 				pipes[i].clock_source->funcs->program_pix_clk(
 						pipes[i].clock_source,
 						&pipes[i].stream_res.pix_clk_params,
-						dp_get_link_encoding_format(link_settings),
+						link_dp_get_encoding_format(link_settings),
 						&pipes[i].pll_settings);
 			}
 		}
 	}
 
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
 		if (dc->clk_mgr->funcs->notify_link_rate_change)
 			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
 	}

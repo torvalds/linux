@@ -18,6 +18,8 @@ config DRM_I915
 	select DRM_PANEL
 	select DRM_MIPI_DSI
 	select RELAY
+	select I2C
+	select I2C_ALGOBIT
 	select IRQ_WORK
 	# i915 depends on ACPI_VIDEO when ACPI is enabled
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick

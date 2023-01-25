@@ -169,7 +169,7 @@ static void gfxhub_v3_0_3_init_system_aperture_regs(struct amdgpu_device *adev)
 		     adev->gmc.vram_end >> 18);
 
 	/* Set default page address. */
-	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start
+	value = adev->mem_scratch.gpu_addr - adev->gmc.vram_start
 		+ adev->vm_manager.vram_base_offset;
 	WREG32_SOC15(GC, 0, regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 		     (u32)(value >> 12));

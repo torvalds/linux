@@ -24,6 +24,7 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/backlight.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
 #include <linux/pm_runtime.h>
@@ -31,7 +32,6 @@
 #include <acpi/video.h>
 #include <acpi/actbl.h>
 
-#include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_display.h"

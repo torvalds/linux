@@ -29,7 +29,7 @@
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_reg.h"
-#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include "vmwgfx_so.h"
 #include "vmwgfx_binding.h"
