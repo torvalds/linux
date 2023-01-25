@@ -336,7 +336,6 @@ const struct address_space_operations udf_aops = {
 int udf_expand_file_adinicb(struct inode *inode)
 {
 	struct page *page;
-	char *kaddr;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	int err;
 
@@ -358,16 +357,8 @@ int udf_expand_file_adinicb(struct inode *inode)
 	if (!page)
 		return -ENOMEM;
 
-	if (!PageUptodate(page)) {
-		kaddr = kmap_atomic(page);
-		memset(kaddr + iinfo->i_lenAlloc, 0x00,
-		       PAGE_SIZE - iinfo->i_lenAlloc);
-		memcpy(kaddr, iinfo->i_data + iinfo->i_lenEAttr,
-			iinfo->i_lenAlloc);
-		flush_dcache_page(page);
-		SetPageUptodate(page);
-		kunmap_atomic(kaddr);
-	}
+	if (!PageUptodate(page))
+		udf_adinicb_readpage(page);
 	down_write(&iinfo->i_data_sem);
 	memset(iinfo->i_data + iinfo->i_lenEAttr, 0x00,
 	       iinfo->i_lenAlloc);
@@ -384,9 +375,8 @@ int udf_expand_file_adinicb(struct inode *inode)
 		/* Restore everything back so that we don't lose data... */
 		lock_page(page);
 		down_write(&iinfo->i_data_sem);
-		kaddr = kmap_atomic(page);
-		memcpy(iinfo->i_data + iinfo->i_lenEAttr, kaddr, inode->i_size);
-		kunmap_atomic(kaddr);
+		memcpy_to_page(page, 0, iinfo->i_data + iinfo->i_lenEAttr,
+			       inode->i_size);
 		unlock_page(page);
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
 		iinfo->i_lenAlloc = inode->i_size;
