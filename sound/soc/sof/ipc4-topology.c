@@ -1241,8 +1241,11 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			struct sof_ipc4_copier_data *alh_data;
 			struct sof_ipc4_copier *alh_copier;
 			struct snd_sof_widget *w;
+			u32 ch_count = 0;
 			u32 ch_mask = 0;
 			u32 ch_map;
+			u32 step;
+			u32 mask;
 			int i;
 
 			blob = (struct sof_ipc4_alh_configuration_blob *)ipc4_copier->copier_config;
@@ -1252,11 +1255,15 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			/* Get channel_mask from ch_map */
 			ch_map = copier_data->base_config.audio_fmt.ch_map;
 			for (i = 0; ch_map; i++) {
-				if ((ch_map & 0xf) != 0xf)
+				if ((ch_map & 0xf) != 0xf) {
 					ch_mask |= BIT(i);
+					ch_count++;
+				}
 				ch_map >>= 4;
 			}
 
+			step = ch_count / blob->alh_cfg.count;
+			mask =  GENMASK(step - 1, 0);
 			/*
 			 * Set each gtw_cfg.node_id to blob->alh_cfg.mapping[]
 			 * for all widgets with the same stream name
@@ -1271,7 +1278,22 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				alh_copier = (struct sof_ipc4_copier *)dai->private;
 				alh_data = &alh_copier->data;
 				blob->alh_cfg.mapping[i].alh_id = alh_data->gtw_cfg.node_id;
-				blob->alh_cfg.mapping[i].channel_mask = ch_mask;
+				/*
+				 * Set the same channel mask for playback as the audio data is
+				 * duplicated for all speakers. For capture, split the channels
+				 * among the aggregated DAIs. For example, with 4 channels on 2
+				 * aggregated DAIs, the channel_mask should be 0x3 and 0xc for the
+				 * two DAI's.
+				 * The channel masks used depend on the cpu_dais used in the
+				 * dailink at the machine driver level, which actually comes from
+				 * the tables in soc_acpi files depending on the _ADR and devID
+				 * registers for each codec.
+				 */
+				if (w->id == snd_soc_dapm_dai_in)
+					blob->alh_cfg.mapping[i].channel_mask = ch_mask;
+				else
+					blob->alh_cfg.mapping[i].channel_mask = mask << (step * i);
+
 				i++;
 			}
 			if (blob->alh_cfg.count > 1) {
