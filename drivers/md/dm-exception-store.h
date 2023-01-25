@@ -97,9 +97,9 @@ struct dm_exception_store_type {
 	 */
 	void (*drop_snapshot) (struct dm_exception_store *store);
 
-	unsigned (*status) (struct dm_exception_store *store,
-			    status_type_t status, char *result,
-			    unsigned maxlen);
+	unsigned int (*status) (struct dm_exception_store *store,
+				status_type_t status, char *result,
+				unsigned int maxlen);
 
 	/*
 	 * Return how full the snapshot is.
@@ -119,9 +119,9 @@ struct dm_exception_store {
 	struct dm_snapshot *snap;
 
 	/* Size of data blocks saved - must be a power of 2 */
-	unsigned chunk_size;
-	unsigned chunk_mask;
-	unsigned chunk_shift;
+	unsigned int chunk_size;
+	unsigned int chunk_mask;
+	unsigned int chunk_shift;
 
 	void *context;
 
@@ -145,7 +145,7 @@ static inline chunk_t dm_chunk_number(chunk_t chunk)
 	return chunk & (chunk_t)((1ULL << DM_CHUNK_NUMBER_BITS) - 1ULL);
 }
 
-static inline unsigned dm_consecutive_chunk_count(struct dm_exception *e)
+static inline unsigned int dm_consecutive_chunk_count(struct dm_exception *e)
 {
 	return e->new_chunk >> DM_CHUNK_NUMBER_BITS;
 }
@@ -182,12 +182,12 @@ int dm_exception_store_type_register(struct dm_exception_store_type *type);
 int dm_exception_store_type_unregister(struct dm_exception_store_type *type);
 
 int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
-				      unsigned chunk_size,
+				      unsigned int chunk_size,
 				      char **error);
 
 int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 			      struct dm_snapshot *snap,
-			      unsigned *args_used,
+			      unsigned int *args_used,
 			      struct dm_exception_store **store);
 void dm_exception_store_destroy(struct dm_exception_store *store);
 

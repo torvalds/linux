@@ -57,7 +57,7 @@ static void dm_bio_integrity_rewind(struct bio *bio, unsigned int bytes_done)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
-	unsigned bytes = bio_integrity_bytes(bi, bytes_done >> 9);
+	unsigned int bytes = bio_integrity_bytes(bi, bytes_done >> 9);
 
 	bip->bip_iter.bi_sector -= bio_integrity_intervals(bi, bytes_done >> 9);
 	dm_bvec_iter_rewind(bip->bip_vec, &bip->bip_iter, bytes);
@@ -131,7 +131,7 @@ static inline void dm_bio_rewind_iter(const struct bio *bio,
  * rewinding from end of bio and restoring its original position.
  * Caller is also responsibile for restoring bio's size.
  */
-static void dm_bio_rewind(struct bio *bio, unsigned bytes)
+static void dm_bio_rewind(struct bio *bio, unsigned int bytes)
 {
 	if (bio_integrity(bio))
 		dm_bio_integrity_rewind(bio, bytes);

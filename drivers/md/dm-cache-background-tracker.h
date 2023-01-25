@@ -33,7 +33,7 @@ struct background_tracker;
  * Create a new tracker, it will not be able to queue more than
  * 'max_work' entries.
  */
-struct background_tracker *btracker_create(unsigned max_work);
+struct background_tracker *btracker_create(unsigned int max_work);
 
 /*
  * Destroy the tracker. No issued, but not complete, work should
@@ -42,8 +42,8 @@ struct background_tracker *btracker_create(unsigned max_work);
  */
 void btracker_destroy(struct background_tracker *b);
 
-unsigned btracker_nr_writebacks_queued(struct background_tracker *b);
-unsigned btracker_nr_demotions_queued(struct background_tracker *b);
+unsigned int btracker_nr_writebacks_queued(struct background_tracker *b);
+unsigned int btracker_nr_demotions_queued(struct background_tracker *b);
 
 /*
  * Queue some work within the tracker. 'work' should point to the work

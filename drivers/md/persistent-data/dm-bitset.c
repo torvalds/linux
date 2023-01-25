@@ -42,7 +42,7 @@ EXPORT_SYMBOL_GPL(dm_bitset_empty);
 
 struct packer_context {
 	bit_value_fn fn;
-	unsigned nr_bits;
+	unsigned int nr_bits;
 	void *context;
 };
 
@@ -50,7 +50,7 @@ static int pack_bits(uint32_t index, void *value, void *context)
 {
 	int r;
 	struct packer_context *p = context;
-	unsigned bit, nr = min(64u, p->nr_bits - (index * 64));
+	unsigned int bit, nr = min(64u, p->nr_bits - (index * 64));
 	uint64_t word = 0;
 	bool bv;
 
@@ -148,7 +148,7 @@ static int get_array_entry(struct dm_disk_bitset *info, dm_block_t root,
 			   uint32_t index, dm_block_t *new_root)
 {
 	int r;
-	unsigned array_index = index / BITS_PER_ARRAY_ENTRY;
+	unsigned int array_index = index / BITS_PER_ARRAY_ENTRY;
 
 	if (info->current_index_set) {
 		if (info->current_index == array_index)
@@ -166,7 +166,7 @@ int dm_bitset_set_bit(struct dm_disk_bitset *info, dm_block_t root,
 		      uint32_t index, dm_block_t *new_root)
 {
 	int r;
-	unsigned b = index % BITS_PER_ARRAY_ENTRY;
+	unsigned int b = index % BITS_PER_ARRAY_ENTRY;
 
 	r = get_array_entry(info, root, index, new_root);
 	if (r)
@@ -183,7 +183,7 @@ int dm_bitset_clear_bit(struct dm_disk_bitset *info, dm_block_t root,
 			uint32_t index, dm_block_t *new_root)
 {
 	int r;
-	unsigned b = index % BITS_PER_ARRAY_ENTRY;
+	unsigned int b = index % BITS_PER_ARRAY_ENTRY;
 
 	r = get_array_entry(info, root, index, new_root);
 	if (r)
@@ -200,7 +200,7 @@ int dm_bitset_test_bit(struct dm_disk_bitset *info, dm_block_t root,
 		       uint32_t index, dm_block_t *new_root, bool *result)
 {
 	int r;
-	unsigned b = index % BITS_PER_ARRAY_ENTRY;
+	unsigned int b = index % BITS_PER_ARRAY_ENTRY;
 
 	r = get_array_entry(info, root, index, new_root);
 	if (r)

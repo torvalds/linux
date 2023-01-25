@@ -124,7 +124,7 @@ retry:
 }
 
 static int build_constructor_string(struct dm_target *ti,
-				    unsigned argc, char **argv,
+				    unsigned int argc, char **argv,
 				    char **ctr_str)
 {
 	int i, str_size;
@@ -189,7 +189,7 @@ static void do_flush(struct work_struct *work)
  * to the userspace ctr function.
  */
 static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
-			 unsigned argc, char **argv)
+			 unsigned int argc, char **argv)
 {
 	int r = 0;
 	int str_size;
@@ -793,7 +793,7 @@ static region_t userspace_get_sync_count(struct dm_dirty_log *log)
  * Returns: amount of space consumed
  */
 static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
-			    char *result, unsigned maxlen)
+			    char *result, unsigned int maxlen)
 {
 	int r = 0;
 	char *table_args;
