@@ -24,6 +24,14 @@ config ARM_PSCI_CPUIDLE
 	  It provides an idle driver that is capable of detecting and
 	  managing idle states through the PSCI firmware interface.
 
+	  The driver has limitations when used with PREEMPT_RT:
+	  - If the idle states are described with the non-hierarchical layout,
+	    all idle states are still available.
+
+	  - If the idle states are described with the hierarchical layout,
+	    only the idle states defined per CPU are available, but not the ones
+	    being shared among a group of CPUs (aka cluster idle states).
+
 config ARM_PSCI_CPUIDLE_DOMAIN
 	bool "PSCI CPU idle Domain"
 	depends on ARM_PSCI_CPUIDLE
