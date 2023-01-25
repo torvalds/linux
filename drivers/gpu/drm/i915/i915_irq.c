@@ -3464,15 +3464,18 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 	dev_priv->irq_mask = ~0u;
 }
 
+static u32 i9xx_error_mask(struct drm_i915_private *i915)
+{
+	return ~(I915_ERROR_PAGE_TABLE |
+		 I915_ERROR_MEMORY_REFRESH);
+}
+
 static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u16 enable_mask;
 
-	intel_uncore_write16(uncore,
-			     EMR,
-			     ~(I915_ERROR_PAGE_TABLE |
-			       I915_ERROR_MEMORY_REFRESH));
+	intel_uncore_write16(uncore, EMR, i9xx_error_mask(dev_priv));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
@@ -3644,8 +3647,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 enable_mask;
 
-	intel_uncore_write(uncore, EMR, ~(I915_ERROR_PAGE_TABLE |
-					  I915_ERROR_MEMORY_REFRESH));
+	intel_uncore_write(uncore, EMR, i9xx_error_mask(dev_priv));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
@@ -3748,26 +3750,28 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 	dev_priv->irq_mask = ~0u;
 }
 
-static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
+static u32 i965_error_mask(struct drm_i915_private *i915)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u32 enable_mask;
-	u32 error_mask;
-
 	/*
 	 * Enable some error detection, note the instruction error mask
 	 * bit is reserved, so we leave it masked.
 	 */
-	if (IS_G4X(dev_priv)) {
-		error_mask = ~(GM45_ERROR_PAGE_TABLE |
-			       GM45_ERROR_MEM_PRIV |
-			       GM45_ERROR_CP_PRIV |
-			       I915_ERROR_MEMORY_REFRESH);
-	} else {
-		error_mask = ~(I915_ERROR_PAGE_TABLE |
-			       I915_ERROR_MEMORY_REFRESH);
-	}
-	intel_uncore_write(uncore, EMR, error_mask);
+	if (IS_G4X(i915))
+		return ~(GM45_ERROR_PAGE_TABLE |
+			 GM45_ERROR_MEM_PRIV |
+			 GM45_ERROR_CP_PRIV |
+			 I915_ERROR_MEMORY_REFRESH);
+	else
+		return ~(I915_ERROR_PAGE_TABLE |
+			 I915_ERROR_MEMORY_REFRESH);
+}
+
+static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
+{
+	struct intel_uncore *uncore = &dev_priv->uncore;
+	u32 enable_mask;
+
+	intel_uncore_write(uncore, EMR, i965_error_mask(dev_priv));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
