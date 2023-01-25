@@ -392,7 +392,7 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 	if (!drm_drv_uses_atomic_modeset(dev))
 		drm_helper_disable_unused_functions(dev);
 
-	ret = drm_fb_helper_initial_config(fb_helper, fb_helper->preferred_bpp);
+	ret = drm_fb_helper_initial_config(fb_helper);
 	if (ret)
 		goto err_cleanup;
 
@@ -454,28 +454,13 @@ void drm_fbdev_generic_setup(struct drm_device *dev,
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
 	if (!fb_helper)
 		return;
-	drm_fb_helper_prepare(dev, fb_helper, &drm_fb_helper_generic_funcs);
+	drm_fb_helper_prepare(dev, fb_helper, preferred_bpp, &drm_fb_helper_generic_funcs);
 
 	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
 	if (ret) {
 		drm_err(dev, "Failed to register client: %d\n", ret);
 		goto err_drm_client_init;
 	}
-
-	/*
-	 * Pick a preferred bpp of 32 if no value has been given. This
-	 * will select XRGB8888 for the framebuffer formats. All drivers
-	 * have to support XRGB8888 for backwards compatibility with legacy
-	 * userspace, so it's the safe choice here.
-	 *
-	 * TODO: Replace struct drm_mode_config.preferred_depth and this
-	 *       bpp value with a preferred format that is given as struct
-	 *       drm_format_info. Then derive all other values from the
-	 *       format.
-	 */
-	if (!preferred_bpp)
-		preferred_bpp = 32;
-	fb_helper->preferred_bpp = preferred_bpp;
 
 	ret = drm_fbdev_client_hotplug(&fb_helper->client);
 	if (ret)

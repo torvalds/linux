@@ -239,13 +239,13 @@ void omap_fbdev_init(struct drm_device *dev)
 
 	helper = &fbdev->base;
 
-	drm_fb_helper_prepare(dev, helper, &omap_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, helper, 32, &omap_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper);
 	if (ret)
 		goto fail;
 
-	ret = drm_fb_helper_initial_config(helper, 32);
+	ret = drm_fb_helper_initial_config(helper);
 	if (ret)
 		goto fini;
 

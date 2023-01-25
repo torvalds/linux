@@ -348,7 +348,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	rfbdev->rdev = rdev;
 	rdev->mode_info.rfbdev = rfbdev;
 
-	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper,
+	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper, bpp_sel,
 			      &radeon_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper);
@@ -358,7 +358,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(rdev->ddev);
 
-	ret = drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
+	ret = drm_fb_helper_initial_config(&rfbdev->helper);
 	if (ret)
 		goto fini;
 
