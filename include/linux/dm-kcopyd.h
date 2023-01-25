@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2001 - 2003 Sistina Software
  * Copyright (C) 2004 - 2008 Red Hat, Inc. All rights reserved.

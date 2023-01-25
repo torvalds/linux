@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2012 by Dell Inc.  All rights reserved.
  * Copyright (C) 2011-2013 Red Hat, Inc.

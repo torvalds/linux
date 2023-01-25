@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2011 Neil Brown
  * Copyright (C) 2010-2018 Red Hat, Inc. All rights reserved.
