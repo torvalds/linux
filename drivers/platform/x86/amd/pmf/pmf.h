@@ -394,6 +394,7 @@ int apmf_get_static_slider_granular(struct amd_pmf_dev *pdev,
 
 
 int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx);
+int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf);
 
 /* Auto Mode Layer */
 int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data);

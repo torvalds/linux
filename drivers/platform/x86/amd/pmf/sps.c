@@ -70,6 +70,19 @@ void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 	}
 }
 
+int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf)
+{
+	int mode;
+
+	mode = amd_pmf_get_pprof_modes(pmf);
+	if (mode < 0)
+		return mode;
+
+	amd_pmf_update_slider(pmf, SLIDER_OP_SET, mode, NULL);
+
+	return 0;
+}
+
 static int amd_pmf_profile_get(struct platform_profile_handler *pprof,
 			       enum platform_profile_option *profile)
 {
@@ -105,15 +118,10 @@ static int amd_pmf_profile_set(struct platform_profile_handler *pprof,
 			       enum platform_profile_option profile)
 {
 	struct amd_pmf_dev *pmf = container_of(pprof, struct amd_pmf_dev, pprof);
-	int mode;
 
 	pmf->current_profile = profile;
-	mode = amd_pmf_get_pprof_modes(pmf);
-	if (mode < 0)
-		return mode;
 
-	amd_pmf_update_slider(pmf, SLIDER_OP_SET, mode, NULL);
-	return 0;
+	return amd_pmf_set_sps_power_limits(pmf);
 }
 
 int amd_pmf_init_sps(struct amd_pmf_dev *dev)
