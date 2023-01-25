@@ -326,23 +326,12 @@ static void swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 		*wbc->swap_plug = sio;
 }
 
-void __swap_writepage(struct page *page, struct writeback_control *wbc)
+static void swap_writepage_bdev(struct page *page,
+		struct writeback_control *wbc, struct swap_info_struct *sis)
 {
 	struct bio *bio;
-	int ret;
-	struct swap_info_struct *sis = page_swap_info(page);
 
-	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-	/*
-	 * ->flags can be updated non-atomicially (scan_swap_map_slots),
-	 * but that will never affect SWP_FS_OPS, so the data_race
-	 * is safe.
-	 */
-	if (data_race(sis->flags & SWP_FS_OPS))
-		return swap_writepage_fs(page, wbc);
-
-	ret = bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc);
-	if (!ret) {
+	if (!bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc)) {
 		count_swpout_vm_event(page);
 		return;
 	}
@@ -359,6 +348,22 @@ void __swap_writepage(struct page *page, struct writeback_control *wbc)
 	set_page_writeback(page);
 	unlock_page(page);
 	submit_bio(bio);
+}
+
+void __swap_writepage(struct page *page, struct writeback_control *wbc)
+{
+	struct swap_info_struct *sis = page_swap_info(page);
+
+	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+	/*
+	 * ->flags can be updated non-atomicially (scan_swap_map_slots),
+	 * but that will never affect SWP_FS_OPS, so the data_race
+	 * is safe.
+	 */
+	if (data_race(sis->flags & SWP_FS_OPS))
+		swap_writepage_fs(page, wbc);
+	else
+		swap_writepage_bdev(page, wbc, sis);
 }
 
 void swap_write_unplug(struct swap_iocb *sio)
