@@ -442,26 +442,12 @@ extern const struct nla_policy ethnl_plca_get_status_policy[ETHTOOL_A_PLCA_HEADE
 extern const struct nla_policy ethnl_mm_get_policy[ETHTOOL_A_MM_HEADER + 1];
 extern const struct nla_policy ethnl_mm_set_policy[ETHTOOL_A_MM_MAX + 1];
 
-int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_wol(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_features(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_privflags(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info);
 int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info);
 int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info);
 int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info);
 int ethnl_tunnel_info_start(struct netlink_callback *cb);
 int ethnl_tunnel_info_dumpit(struct sk_buff *skb, struct netlink_callback *cb);
-int ethnl_set_fec(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_module(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_pse(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_plca_cfg(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_mm(struct sk_buff *skb, struct genl_info *info);
 
 extern const char stats_std_names[__ETHTOOL_STATS_CNT][ETH_GSTRING_LEN];
 extern const char stats_eth_phy_names[__ETHTOOL_A_STATS_ETH_PHY_CNT][ETH_GSTRING_LEN];

@@ -146,18 +146,6 @@ static int mm_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
-const struct ethnl_request_ops ethnl_mm_request_ops = {
-	.request_cmd		= ETHTOOL_MSG_MM_GET,
-	.reply_cmd		= ETHTOOL_MSG_MM_GET_REPLY,
-	.hdr_attr		= ETHTOOL_A_MM_HEADER,
-	.req_info_size		= sizeof(struct mm_req_info),
-	.reply_data_size	= sizeof(struct mm_reply_data),
-
-	.prepare_data		= mm_prepare_data,
-	.reply_size		= mm_reply_size,
-	.fill_reply		= mm_fill_reply,
-};
-
 const struct nla_policy ethnl_mm_set_policy[ETHTOOL_A_MM_MAX + 1] = {
 	[ETHTOOL_A_MM_HEADER]		= NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_MM_VERIFY_ENABLED]	= NLA_POLICY_MAX(NLA_U8, 1),
@@ -184,39 +172,27 @@ static void mm_state_to_cfg(const struct ethtool_mm_state *state,
 	cfg->tx_min_frag_size = state->tx_min_frag_size;
 }
 
-int ethnl_set_mm(struct sk_buff *skb, struct genl_info *info)
+static int
+ethnl_set_mm_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+
+	return ops->get_mm && ops->set_mm ? 1 : -EOPNOTSUPP;
+}
+
+static int ethnl_set_mm(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
-	struct ethnl_req_info req_info = {};
+	struct net_device *dev = req_info->dev;
 	struct ethtool_mm_state state = {};
 	struct nlattr **tb = info->attrs;
 	struct ethtool_mm_cfg cfg = {};
-	const struct ethtool_ops *ops;
-	struct net_device *dev;
 	bool mod = false;
 	int ret;
 
-	ret = ethnl_parse_header_dev_get(&req_info, tb[ETHTOOL_A_MM_HEADER],
-					 genl_info_net(info), extack, true);
+	ret = dev->ethtool_ops->get_mm(dev, &state);
 	if (ret)
 		return ret;
-
-	dev = req_info.dev;
-	ops = dev->ethtool_ops;
-
-	if (!ops->get_mm || !ops->set_mm) {
-		ret = -EOPNOTSUPP;
-		goto out_dev_put;
-	}
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl_unlock;
-
-	ret = ops->get_mm(dev, &state);
-	if (ret)
-		goto out_complete;
 
 	mm_state_to_cfg(&state, &cfg);
 
@@ -225,34 +201,38 @@ int ethnl_set_mm(struct sk_buff *skb, struct genl_info *info)
 	ethnl_update_u32(&cfg.verify_time, tb[ETHTOOL_A_MM_VERIFY_TIME], &mod);
 	ethnl_update_bool(&cfg.tx_enabled, tb[ETHTOOL_A_MM_TX_ENABLED], &mod);
 	ethnl_update_bool(&cfg.pmac_enabled, tb[ETHTOOL_A_MM_PMAC_ENABLED],
-			    &mod);
+			  &mod);
 	ethnl_update_u32(&cfg.tx_min_frag_size,
 			 tb[ETHTOOL_A_MM_TX_MIN_FRAG_SIZE], &mod);
 
 	if (!mod)
-		goto out_complete;
+		return 0;
 
 	if (cfg.verify_time > state.max_verify_time) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_MM_VERIFY_TIME],
 				    "verifyTime exceeds device maximum");
-		ret = -ERANGE;
-		goto out_complete;
+		return -ERANGE;
 	}
 
-	ret = ops->set_mm(dev, &cfg, extack);
-	if (ret)
-		goto out_complete;
-
-	ethtool_notify(dev, ETHTOOL_MSG_MM_NTF, NULL);
-
-out_complete:
-	ethnl_ops_complete(dev);
-out_rtnl_unlock:
-	rtnl_unlock();
-out_dev_put:
-	ethnl_parse_header_dev_put(&req_info);
-	return ret;
+	ret = dev->ethtool_ops->set_mm(dev, &cfg, extack);
+	return ret < 0 ? ret : 1;
 }
+
+const struct ethnl_request_ops ethnl_mm_request_ops = {
+	.request_cmd		= ETHTOOL_MSG_MM_GET,
+	.reply_cmd		= ETHTOOL_MSG_MM_GET_REPLY,
+	.hdr_attr		= ETHTOOL_A_MM_HEADER,
+	.req_info_size		= sizeof(struct mm_req_info),
+	.reply_data_size	= sizeof(struct mm_reply_data),
+
+	.prepare_data		= mm_prepare_data,
+	.reply_size		= mm_reply_size,
+	.fill_reply		= mm_fill_reply,
+
+	.set_validate		= ethnl_set_mm_validate,
+	.set			= ethnl_set_mm,
+	.set_ntf_cmd		= ETHTOOL_MSG_MM_NTF,
+};
 
 /* Returns whether a given device supports the MAC merge layer
  * (has an eMAC and a pMAC). Must be called under rtnl_lock() and
