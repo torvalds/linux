@@ -5651,17 +5651,15 @@ out_release_old:
 static bool hugetlbfs_pagecache_present(struct hstate *h,
 			struct vm_area_struct *vma, unsigned long address)
 {
-	struct address_space *mapping;
-	pgoff_t idx;
-	struct page *page;
+	struct address_space *mapping = vma->vm_file->f_mapping;
+	pgoff_t idx = vma_hugecache_offset(h, vma, address);
+	bool present;
 
-	mapping = vma->vm_file->f_mapping;
-	idx = vma_hugecache_offset(h, vma, address);
+	rcu_read_lock();
+	present = page_cache_next_miss(mapping, idx, 1) != idx;
+	rcu_read_unlock();
 
-	page = find_get_page(mapping, idx);
-	if (page)
-		put_page(page);
-	return page != NULL;
+	return present;
 }
 
 int hugetlb_add_to_page_cache(struct page *page, struct address_space *mapping,
