@@ -436,7 +436,7 @@ retry:
 	r = ti->type->prepare_ioctl(ti, bdev);
 	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
 		dm_put_live_table(md, *srcu_idx);
-		msleep(10);
+		fsleep(10000);
 		goto retry;
 	}
 
@@ -2455,7 +2455,7 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 		set_bit(DMF_POST_SUSPENDING, &md->flags);
 		dm_table_postsuspend_targets(map);
 	}
-	/* dm_put_live_table must be before msleep, otherwise deadlock is possible */
+	/* dm_put_live_table must be before fsleep, otherwise deadlock is possible */
 	dm_put_live_table(md, srcu_idx);
 	mutex_unlock(&md->suspend_lock);
 
@@ -2467,7 +2467,7 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	 */
 	if (wait)
 		while (atomic_read(&md->holders))
-			msleep(1);
+			fsleep(1000);
 	else if (atomic_read(&md->holders))
 		DMWARN("%s: Forcibly removing mapped_device still in use! (%d users)",
 		       dm_device_name(md), atomic_read(&md->holders));
@@ -2544,7 +2544,7 @@ static int dm_wait_for_completion(struct mapped_device *md, unsigned int task_st
 			break;
 		}
 
-		msleep(5);
+		fsleep(5000);
 	}
 
 	return r;

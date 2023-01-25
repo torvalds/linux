@@ -298,12 +298,12 @@ static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
 
 /*
  * This conflicting I/O is extremely improbable in the caller,
- * so msleep(1) is sufficient and there is no need for a wait queue.
+ * so fsleep(1000) is sufficient and there is no need for a wait queue.
  */
 static void __check_for_conflicting_io(struct dm_snapshot *s, chunk_t chunk)
 {
 	while (__chunk_is_tracked(s, chunk))
-		msleep(1);
+		fsleep(1000);
 }
 
 /*
@@ -1494,7 +1494,7 @@ static void snapshot_dtr(struct dm_target *ti)
 	unregister_snapshot(s);
 
 	while (atomic_read(&s->pending_exceptions_count))
-		msleep(1);
+		fsleep(1000);
 	/*
 	 * Ensure instructions in mempool_exit aren't reordered
 	 * before atomic_read.

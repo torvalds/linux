@@ -110,7 +110,7 @@ static DEFINE_SPINLOCK(throttle_spinlock);
  * The reason for this is unknown but possibly due to jiffies rounding errors
  * or read/write cache inside the disk.
  */
-#define SLEEP_MSEC			100
+#define SLEEP_USEC			100000
 
 /*
  * Maximum number of sleep events. There is a theoretical livelock if more
@@ -158,7 +158,7 @@ try_again:
 	if (unlikely(skew > 0) && slept < MAX_SLEEPS) {
 		slept++;
 		spin_unlock_irq(&throttle_spinlock);
-		msleep(SLEEP_MSEC);
+		fsleep(SLEEP_USEC);
 		goto try_again;
 	}
 

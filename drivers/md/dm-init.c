@@ -296,7 +296,7 @@ static int __init dm_init_init(void)
 		if (waitfor[i]) {
 			DMINFO("waiting for device %s ...", waitfor[i]);
 			while (!dm_get_dev_t(waitfor[i]))
-				msleep(5);
+				fsleep(5000);
 		}
 	}
 
