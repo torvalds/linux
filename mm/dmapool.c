@@ -274,6 +274,9 @@ static void pool_initialise_page(struct dma_pool *pool, struct dma_page *page)
 	unsigned int offset = 0;
 	unsigned int next_boundary = pool->boundary;
 
+	pool_init_page(pool, page);
+	page->in_use = 0;
+	page->offset = 0;
 	do {
 		unsigned int next = offset + pool->size;
 		if (unlikely((next + pool->size) >= next_boundary)) {
@@ -300,11 +303,7 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
 		return NULL;
 	}
 
-	pool_init_page(pool, page);
 	pool_initialise_page(pool, page);
-	page->in_use = 0;
-	page->offset = 0;
-
 	return page;
 }
 
