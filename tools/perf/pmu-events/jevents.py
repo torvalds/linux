@@ -3,6 +3,7 @@
 """Convert directories of JSON events to C code."""
 import argparse
 import csv
+from functools import lru_cache
 import json
 import metric
 import os
@@ -337,18 +338,28 @@ class JsonEvent:
     s = self.build_c_string()
     return f'{{ { _bcs.offsets[s] } }}, /* {s} */\n'
 
-
+@lru_cache(maxsize=None)
 def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
   """Read json events from the specified file."""
-
   try:
-    result = json.load(open(path), object_hook=JsonEvent)
+    events = json.load(open(path), object_hook=JsonEvent)
   except BaseException as err:
     print(f"Exception processing {path}")
     raise
-  for event in result:
+  metrics: list[Tuple[str, metric.Expression]] = []
+  for event in events:
     event.topic = topic
-  return result
+    if event.metric_name and '-' not in event.metric_name:
+      metrics.append((event.metric_name, event.metric_expr))
+  updates = metric.RewriteMetricsInTermsOfOthers(metrics)
+  if updates:
+    for event in events:
+      if event.metric_name in updates:
+        # print(f'Updated {event.metric_name} from\n"{event.metric_expr}"\n'
+        #       f'to\n"{updates[event.metric_name]}"')
+        event.metric_expr = updates[event.metric_name]
+
+  return events
 
 def preprocess_arch_std_files(archpath: str) -> None:
   """Read in all architecture standard events."""
