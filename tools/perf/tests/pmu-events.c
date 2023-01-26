@@ -840,7 +840,7 @@ struct metric {
 	struct metric_ref metric_ref;
 };
 
-static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_events_table *table,
+static int test__parsing_callback(const struct pmu_metric *pm, const struct pmu_events_table *table,
 				  void *data)
 {
 	int *failures = data;
@@ -854,10 +854,10 @@ static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_e
 	};
 	int err = 0;
 
-	if (!pe->metric_expr)
+	if (!pm->metric_expr)
 		return 0;
 
-	pr_debug("Found metric '%s'\n", pe->metric_name);
+	pr_debug("Found metric '%s'\n", pm->metric_name);
 	(*failures)++;
 
 	/*
@@ -877,14 +877,14 @@ static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_e
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
 	runtime_stat__init(&st);
 
-	err = metricgroup__parse_groups_test(evlist, table, pe->metric_name,
+	err = metricgroup__parse_groups_test(evlist, table, pm->metric_name,
 					     false, false,
 					     &metric_events);
 	if (err) {
-		if (!strcmp(pe->metric_name, "M1") || !strcmp(pe->metric_name, "M2") ||
-		    !strcmp(pe->metric_name, "M3")) {
+		if (!strcmp(pm->metric_name, "M1") || !strcmp(pm->metric_name, "M2") ||
+		    !strcmp(pm->metric_name, "M3")) {
 			(*failures)--;
-			pr_debug("Expected broken metric %s skipping\n", pe->metric_name);
+			pr_debug("Expected broken metric %s skipping\n", pm->metric_name);
 			err = 0;
 		}
 		goto out_err;
@@ -912,7 +912,7 @@ static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_e
 			struct metric_expr *mexp;
 
 			list_for_each_entry (mexp, &me->head, nd) {
-				if (strcmp(mexp->metric_name, pe->metric_name))
+				if (strcmp(mexp->metric_name, pm->metric_name))
 					continue;
 				pr_debug("Result %f\n", test_generic_metric(mexp, 0, &st));
 				err = 0;
@@ -921,11 +921,11 @@ static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_e
 			}
 		}
 	}
-	pr_debug("Didn't find parsed metric %s", pe->metric_name);
+	pr_debug("Didn't find parsed metric %s", pm->metric_name);
 	err = 1;
 out_err:
 	if (err)
-		pr_debug("Broken metric %s\n", pe->metric_name);
+		pr_debug("Broken metric %s\n", pm->metric_name);
 
 	/* ... cleanup. */
 	metricgroup__rblist_exit(&metric_events);
@@ -941,8 +941,8 @@ static int test__parsing(struct test_suite *test __maybe_unused,
 {
 	int failures = 0;
 
-	pmu_for_each_core_event(test__parsing_callback, &failures);
-	pmu_for_each_sys_event(test__parsing_callback, &failures);
+	pmu_for_each_core_metric(test__parsing_callback, &failures);
+	pmu_for_each_sys_metric(test__parsing_callback, &failures);
 
 	return failures == 0 ? TEST_OK : TEST_FAIL;
 }
@@ -1021,14 +1021,11 @@ out:
 	return ret;
 }
 
-static int test__parsing_fake_callback(const struct pmu_event *pe,
+static int test__parsing_fake_callback(const struct pmu_metric *pm,
 				       const struct pmu_events_table *table __maybe_unused,
 				       void *data __maybe_unused)
 {
-	if (!pe->metric_expr)
-		return 0;
-
-	return metric_parse_fake(pe->metric_name, pe->metric_expr);
+	return metric_parse_fake(pm->metric_name, pm->metric_expr);
 }
 
 /*
@@ -1047,11 +1044,11 @@ static int test__parsing_fake(struct test_suite *test __maybe_unused,
 			return err;
 	}
 
-	err = pmu_for_each_core_event(test__parsing_fake_callback, NULL);
+	err = pmu_for_each_core_metric(test__parsing_fake_callback, NULL);
 	if (err)
 		return err;
 
-	return pmu_for_each_sys_event(test__parsing_fake_callback, NULL);
+	return pmu_for_each_sys_metric(test__parsing_fake_callback, NULL);
 }
 
 static struct test_case pmu_events_tests[] = {

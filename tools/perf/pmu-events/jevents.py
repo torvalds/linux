@@ -564,7 +564,19 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
 \t},
 };
 
-static void decompress(int offset, struct pmu_event *pe)
+static void decompress_event(int offset, struct pmu_event *pe)
+{
+\tconst char *p = &big_c_string[offset];
+""")
+  for attr in _json_event_attributes:
+    _args.output_file.write(f"""
+\tpe->{attr} = (*p == '\\0' ? NULL : p);
+""")
+    if attr == _json_event_attributes[-1]:
+      continue
+    _args.output_file.write('\twhile (*p++);')
+  _args.output_file.write("""}
+static void decompress_metric(int offset, struct pmu_metric *pe)
 {
 \tconst char *p = &big_c_string[offset];
 """)
@@ -585,8 +597,28 @@ int pmu_events_table_for_each_event(const struct pmu_events_table *table,
                 struct pmu_event pe;
                 int ret;
 
-                decompress(table->entries[i].offset, &pe);
+                decompress_event(table->entries[i].offset, &pe);
+                if (!pe.name)
+                        continue;
                 ret = fn(&pe, table, data);
+                if (ret)
+                        return ret;
+        }
+        return 0;
+}
+
+int pmu_events_table_for_each_metric(const struct pmu_events_table *table,
+                                     pmu_metric_iter_fn fn,
+                                     void *data)
+{
+        for (size_t i = 0; i < table->length; i++) {
+                struct pmu_metric pm;
+                int ret;
+
+                decompress_metric(table->entries[i].offset, &pm);
+                if (!pm.metric_expr)
+                        continue;
+                ret = fn(&pm, table, data);
                 if (ret)
                         return ret;
         }
@@ -644,6 +676,19 @@ int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
         return 0;
 }
 
+int pmu_for_each_core_metric(pmu_metric_iter_fn fn, void *data)
+{
+        for (const struct pmu_events_map *tables = &pmu_events_map[0];
+             tables->arch;
+             tables++) {
+                int ret = pmu_events_table_for_each_metric(&tables->table, fn, data);
+
+                if (ret)
+                        return ret;
+        }
+        return 0;
+}
+
 const struct pmu_events_table *find_sys_events_table(const char *name)
 {
         for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
@@ -661,6 +706,19 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
              tables->name;
              tables++) {
                 int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
+
+                if (ret)
+                        return ret;
+        }
+        return 0;
+}
+
+int pmu_for_each_sys_metric(pmu_metric_iter_fn fn, void *data)
+{
+        for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
+             tables->name;
+             tables++) {
+                int ret = pmu_events_table_for_each_metric(&tables->table, fn, data);
 
                 if (ret)
                         return ret;

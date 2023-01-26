@@ -181,6 +181,11 @@ struct pmu_events_table {
 	const struct pmu_event *entries;
 };
 
+/* Struct used to make the PMU metric table implementation opaque to callers. */
+struct pmu_metrics_table {
+	const struct pmu_metric *entries;
+};
+
 /*
  * Map a CPU to its table of PMU events. The CPU is identified by the
  * cpuid field, which is an arch-specific identifier for the CPU.
@@ -254,11 +259,29 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
 int pmu_events_table_for_each_event(const struct pmu_events_table *table, pmu_event_iter_fn fn,
 				    void *data)
 {
-	for (const struct pmu_event *pe = &table->entries[0];
-	     pe->name || pe->metric_group || pe->metric_name;
-	     pe++) {
-		int ret = fn(pe, table, data);
+	for (const struct pmu_event *pe = &table->entries[0]; pe->name || pe->metric_expr; pe++) {
+		int ret;
 
+		if (!pe->name)
+			continue;
+		ret = fn(pe, table, data);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+int pmu_events_table_for_each_metric(const struct pmu_events_table *etable, pmu_metric_iter_fn fn,
+				     void *data)
+{
+	struct pmu_metrics_table *table = (struct pmu_metrics_table *)etable;
+
+	for (const struct pmu_metric *pm = &table->entries[0]; pm->name || pm->metric_expr; pm++) {
+		int ret;
+
+		if (!pm->metric_expr)
+			continue;
+		ret = fn(pm, etable, data);
 		if (ret)
 			return ret;
 	}
@@ -306,10 +329,21 @@ const struct pmu_events_table *find_core_events_table(const char *arch, const ch
 
 int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
 {
+	for (const struct pmu_events_map *tables = &pmu_events_map[0]; tables->arch; tables++) {
+		int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
+
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+int pmu_for_each_core_metric(pmu_metric_iter_fn fn, void *data)
+{
 	for (const struct pmu_events_map *tables = &pmu_events_map[0];
 	     tables->arch;
 	     tables++) {
-		int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
+		int ret = pmu_events_table_for_each_metric(&tables->table, fn, data);
 
 		if (ret)
 			return ret;
@@ -338,5 +372,10 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
 		if (ret)
 			return ret;
 	}
+	return 0;
+}
+
+int pmu_for_each_sys_metric(pmu_metric_iter_fn fn __maybe_unused, void *data __maybe_unused)
+{
 	return 0;
 }
