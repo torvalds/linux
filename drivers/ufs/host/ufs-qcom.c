@@ -1538,7 +1538,6 @@ static int ufs_qcom_get_outstanding_cqs(struct ufs_hba *hba,
 	return 0;
 }
 
-#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 static void ufs_qcom_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
 {
 	struct device *dev = msi_desc_to_dev(desc);
@@ -1625,13 +1624,6 @@ out:
 
 	return ret;
 }
-
-#else
-static int ufs_qcom_config_esi(struct ufs_hba *hba)
-{
-	return -EOPNOTSUPP;
-}
-#endif
 
 /*
  * struct ufs_hba_qcom_vops - UFS QCOM specific variant operations
