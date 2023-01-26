@@ -555,16 +555,20 @@ svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 	bp.flags |= AMDGPU_GEM_CREATE_DISCARDABLE;
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
+	if (node->xcp)
+		bp.mem_id_plus1 = node->xcp->mem_id + 1;
 
-	/* TODO: Allocate memory from the right memory partition. We can sort
-	 * out the details later, once basic memory partitioning is working
-	 */
 	r = amdgpu_bo_create_user(node->adev, &bp, &ubo);
 	if (r) {
 		pr_debug("failed %d to create bo\n", r);
 		goto create_bo_failed;
 	}
 	bo = &ubo->bo;
+
+	pr_debug("alloc bo at offset 0x%lx size 0x%lx on partition %d\n",
+		 bo->tbo.resource->start << PAGE_SHIFT, bp.size,
+		 bp.mem_id_plus1 - 1);
+
 	r = amdgpu_bo_reserve(bo, true);
 	if (r) {
 		pr_debug("failed %d to reserve bo\n", r);
