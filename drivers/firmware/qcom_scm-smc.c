@@ -118,6 +118,7 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 {
 	struct completion *wq = NULL;
 	struct qcom_scm *qscm;
+	struct arm_smccc_args original = *smc;
 	u32 wq_ctx, smc_call_ctx, flags;
 
 	do {
@@ -149,7 +150,8 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 				continue;
 			}
 		} else if ((long)res->a0 < 0) {
-			/* Error, simply return to caller */
+			/* Error, return to caller with original SMC call */
+			*smc = original;
 			break;
 		} else {
 			/*
