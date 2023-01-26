@@ -165,6 +165,14 @@ static const struct dmi_system_id cht_wc_model_dmi_ids[] = {
 			/* Non exact match to match all versions */
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9"),
 		},
+	}, {
+		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YT3_X90,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
+		},
 	},
 	{ }
 };
