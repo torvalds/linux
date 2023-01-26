@@ -799,6 +799,14 @@
 			};
 		};
 
+		ppu: power-controller@7001000 {
+			compatible = "allwinner,sun20i-d1-ppu";
+			reg = <0x7001000 0x1000>;
+			clocks = <&r_ccu CLK_BUS_R_PPU>;
+			resets = <&r_ccu RST_BUS_R_PPU>;
+			#power-domain-cells = <1>;
+		};
+
 		r_ccu: clock-controller@7010000 {
 			compatible = "allwinner,sun20i-d1-r-ccu";
 			reg = <0x7010000 0x400>;
