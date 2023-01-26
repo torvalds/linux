@@ -560,9 +560,10 @@ static void mipi_csis_system_enable(struct mipi_csis_device *csis, int on)
 }
 
 /* Called with the csis.lock mutex held */
-static void __mipi_csis_set_format(struct mipi_csis_device *csis)
+static void __mipi_csis_set_format(struct mipi_csis_device *csis,
+				   const struct v4l2_mbus_framefmt *format,
+				   const struct csis_pix_format *csis_fmt)
 {
-	struct v4l2_mbus_framefmt *mf = &csis->format_mbus[CSIS_PAD_SINK];
 	u32 val;
 
 	/* Color format */
@@ -583,25 +584,26 @@ static void __mipi_csis_set_format(struct mipi_csis_device *csis)
 	 *
 	 * TODO: Verify which other formats require DUAL (or QUAD) modes.
 	 */
-	if (csis->csis_fmt->data_type == MIPI_CSI2_DATA_TYPE_YUV422_8)
+	if (csis_fmt->data_type == MIPI_CSI2_DATA_TYPE_YUV422_8)
 		val |= MIPI_CSIS_ISPCFG_PIXEL_MODE_DUAL;
 
-	val |= MIPI_CSIS_ISPCFG_FMT(csis->csis_fmt->data_type);
+	val |= MIPI_CSIS_ISPCFG_FMT(csis_fmt->data_type);
 	mipi_csis_write(csis, MIPI_CSIS_ISP_CONFIG_CH(0), val);
 
 	/* Pixel resolution */
-	val = mf->width | (mf->height << 16);
+	val = format->width | (format->height << 16);
 	mipi_csis_write(csis, MIPI_CSIS_ISP_RESOL_CH(0), val);
 }
 
-static int mipi_csis_calculate_params(struct mipi_csis_device *csis)
+static int mipi_csis_calculate_params(struct mipi_csis_device *csis,
+				      const struct csis_pix_format *csis_fmt)
 {
 	s64 link_freq;
 	u32 lane_rate;
 
 	/* Calculate the line rate from the pixel rate. */
 	link_freq = v4l2_get_link_freq(csis->src_sd->ctrl_handler,
-				       csis->csis_fmt->width,
+				       csis_fmt->width,
 				       csis->bus.num_data_lanes * 2);
 	if (link_freq < 0) {
 		dev_err(csis->dev, "Unable to obtain link frequency: %d\n",
@@ -643,7 +645,9 @@ static int mipi_csis_calculate_params(struct mipi_csis_device *csis)
 	return 0;
 }
 
-static void mipi_csis_set_params(struct mipi_csis_device *csis)
+static void mipi_csis_set_params(struct mipi_csis_device *csis,
+				 const struct v4l2_mbus_framefmt *format,
+				 const struct csis_pix_format *csis_fmt)
 {
 	int lanes = csis->bus.num_data_lanes;
 	u32 val;
@@ -655,7 +659,7 @@ static void mipi_csis_set_params(struct mipi_csis_device *csis)
 		val |= MIPI_CSIS_CMN_CTRL_INTER_MODE;
 	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL, val);
 
-	__mipi_csis_set_format(csis);
+	__mipi_csis_set_format(csis, format, csis_fmt);
 
 	mipi_csis_write(csis, MIPI_CSIS_DPHY_CMN_CTRL,
 			MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE(csis->hs_settle) |
@@ -728,10 +732,12 @@ static int mipi_csis_clk_get(struct mipi_csis_device *csis)
 	return ret;
 }
 
-static void mipi_csis_start_stream(struct mipi_csis_device *csis)
+static void mipi_csis_start_stream(struct mipi_csis_device *csis,
+				   const struct v4l2_mbus_framefmt *format,
+				   const struct csis_pix_format *csis_fmt)
 {
 	mipi_csis_sw_reset(csis);
-	mipi_csis_set_params(csis);
+	mipi_csis_set_params(csis, format, csis_fmt);
 	mipi_csis_system_enable(csis, true);
 	mipi_csis_enable_interrupts(csis, true);
 }
@@ -935,6 +941,8 @@ static struct mipi_csis_device *sd_to_mipi_csis_device(struct v4l2_subdev *sdev)
 static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
+	const struct v4l2_mbus_framefmt *format = &csis->format_mbus[CSIS_PAD_SINK];
+	const struct csis_pix_format *csis_fmt = csis->csis_fmt;
 	int ret;
 
 	if (!enable) {
@@ -953,7 +961,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 		return 0;
 	}
 
-	ret = mipi_csis_calculate_params(csis);
+	ret = mipi_csis_calculate_params(csis, csis_fmt);
 	if (ret < 0)
 		return ret;
 
@@ -965,7 +973,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&csis->lock);
 
-	mipi_csis_start_stream(csis);
+	mipi_csis_start_stream(csis, format, csis_fmt);
 	ret = v4l2_subdev_call(csis->src_sd, video, s_stream, 1);
 	if (ret < 0)
 		goto error;
