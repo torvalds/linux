@@ -206,6 +206,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_SI476X
 	imply SND_SOC_SIMPLE_AMPLIFIER
 	imply SND_SOC_SIMPLE_MUX
+	imply SND_SOC_SMA1303
 	imply SND_SOC_SPDIF
 	imply SND_SOC_SRC4XXX_I2C
 	imply SND_SOC_SSM2305
@@ -1491,6 +1492,12 @@ config SND_SOC_SIMPLE_AMPLIFIER
 config SND_SOC_SIMPLE_MUX
 	tristate "Simple Audio Mux"
 	depends on GPIOLIB
+
+config SND_SOC_SMA1303
+	tristate "Iron Device SMA1303 Audio Amplifier"
+	depends on I2C
+	help
+	  Enable support for Iron Device SMA1303 Boosted Class-D amplifier
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
