@@ -16,12 +16,70 @@
 #include "vcap_api.h"
 #include "vcap_api_client.h"
 
+#define SPARX5_VCAP_CID_IS0_L0 VCAP_CID_INGRESS_L0 /* IS0/CLM lookup 0 */
+#define SPARX5_VCAP_CID_IS0_L1 VCAP_CID_INGRESS_L1 /* IS0/CLM lookup 1 */
+#define SPARX5_VCAP_CID_IS0_L2 VCAP_CID_INGRESS_L2 /* IS0/CLM lookup 2 */
+#define SPARX5_VCAP_CID_IS0_L3 VCAP_CID_INGRESS_L3 /* IS0/CLM lookup 3 */
+#define SPARX5_VCAP_CID_IS0_L4 VCAP_CID_INGRESS_L4 /* IS0/CLM lookup 4 */
+#define SPARX5_VCAP_CID_IS0_L5 VCAP_CID_INGRESS_L5 /* IS0/CLM lookup 5 */
+#define SPARX5_VCAP_CID_IS0_MAX \
+	(VCAP_CID_INGRESS_L5 + VCAP_CID_LOOKUP_SIZE - 1) /* IS0/CLM Max */
+
 #define SPARX5_VCAP_CID_IS2_L0 VCAP_CID_INGRESS_STAGE2_L0 /* IS2 lookup 0 */
 #define SPARX5_VCAP_CID_IS2_L1 VCAP_CID_INGRESS_STAGE2_L1 /* IS2 lookup 1 */
 #define SPARX5_VCAP_CID_IS2_L2 VCAP_CID_INGRESS_STAGE2_L2 /* IS2 lookup 2 */
 #define SPARX5_VCAP_CID_IS2_L3 VCAP_CID_INGRESS_STAGE2_L3 /* IS2 lookup 3 */
 #define SPARX5_VCAP_CID_IS2_MAX \
 	(VCAP_CID_INGRESS_STAGE2_L3 + VCAP_CID_LOOKUP_SIZE - 1) /* IS2 Max */
+
+/* IS0 port keyset selection control */
+
+/* IS0 ethernet, IPv4, IPv6 traffic type keyset generation */
+enum vcap_is0_port_sel_etype {
+	VCAP_IS0_PS_ETYPE_DEFAULT, /* None or follow depending on class */
+	VCAP_IS0_PS_ETYPE_MLL,
+	VCAP_IS0_PS_ETYPE_SGL_MLBS,
+	VCAP_IS0_PS_ETYPE_DBL_MLBS,
+	VCAP_IS0_PS_ETYPE_TRI_MLBS,
+	VCAP_IS0_PS_ETYPE_TRI_VID,
+	VCAP_IS0_PS_ETYPE_LL_FULL,
+	VCAP_IS0_PS_ETYPE_NORMAL_SRC,
+	VCAP_IS0_PS_ETYPE_NORMAL_DST,
+	VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE,
+	VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4,
+	VCAP_IS0_PS_ETYPE_PURE_5TUPLE_IP4,
+	VCAP_IS0_PS_ETYPE_DBL_VID_IDX,
+	VCAP_IS0_PS_ETYPE_ETAG,
+	VCAP_IS0_PS_ETYPE_NO_LOOKUP,
+};
+
+/* IS0 MPLS traffic type keyset generation */
+enum vcap_is0_port_sel_mpls_uc_mc {
+	VCAP_IS0_PS_MPLS_FOLLOW_ETYPE,
+	VCAP_IS0_PS_MPLS_MLL,
+	VCAP_IS0_PS_MPLS_SGL_MLBS,
+	VCAP_IS0_PS_MPLS_DBL_MLBS,
+	VCAP_IS0_PS_MPLS_TRI_MLBS,
+	VCAP_IS0_PS_MPLS_TRI_VID,
+	VCAP_IS0_PS_MPLS_LL_FULL,
+	VCAP_IS0_PS_MPLS_NORMAL_SRC,
+	VCAP_IS0_PS_MPLS_NORMAL_DST,
+	VCAP_IS0_PS_MPLS_NORMAL_7TUPLE,
+	VCAP_IS0_PS_MPLS_NORMAL_5TUPLE_IP4,
+	VCAP_IS0_PS_MPLS_PURE_5TUPLE_IP4,
+	VCAP_IS0_PS_MPLS_DBL_VID_IDX,
+	VCAP_IS0_PS_MPLS_ETAG,
+	VCAP_IS0_PS_MPLS_NO_LOOKUP,
+};
+
+/* IS0 MBLS traffic type keyset generation */
+enum vcap_is0_port_sel_mlbs {
+	VCAP_IS0_PS_MLBS_FOLLOW_ETYPE,
+	VCAP_IS0_PS_MLBS_SGL_MLBS,
+	VCAP_IS0_PS_MLBS_DBL_MLBS,
+	VCAP_IS0_PS_MLBS_TRI_MLBS,
+	VCAP_IS0_PS_MLBS_NO_LOOKUP = 17,
+};
 
 /* IS2 port keyset selection control */
 
@@ -77,5 +135,8 @@ int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 				int cid,
 				u16 l3_proto,
 				struct vcap_keyset_list *kslist);
+
+/* Check if the ethertype is supported by the vcap port classification */
+bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype);
 
 #endif /* __SPARX5_VCAP_IMPL_H__ */

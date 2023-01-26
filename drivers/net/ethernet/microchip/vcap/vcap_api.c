@@ -1601,6 +1601,40 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
 
+/* Is this the last admin instance ordered by chain id */
+static bool vcap_admin_is_last(struct vcap_control *vctrl,
+			       struct vcap_admin *admin)
+{
+	struct vcap_admin *iter, *last = NULL;
+	int max_cid = 0;
+
+	list_for_each_entry(iter, &vctrl->list, list) {
+		if (iter->first_cid > max_cid) {
+			last = iter;
+			max_cid = iter->first_cid;
+		}
+	}
+	if (!last)
+		return false;
+
+	return admin == last;
+}
+
+/* Calculate the value used for chaining VCAP rules */
+int vcap_chain_offset(struct vcap_control *vctrl, int from_cid, int to_cid)
+{
+	int diff = to_cid - from_cid;
+
+	if (diff < 0) /* Wrong direction */
+		return diff;
+	to_cid %= VCAP_CID_LOOKUP_SIZE;
+	if (to_cid == 0)  /* Destination aligned to a lookup == no chaining */
+		return 0;
+	diff %= VCAP_CID_LOOKUP_SIZE;  /* Limit to a value within a lookup */
+	return diff;
+}
+EXPORT_SYMBOL_GPL(vcap_chain_offset);
+
 /* Is the next chain id in one of the following lookups
  * For now this does not support filters linked to other filters using
  * keys and actions. That will be added later.
@@ -1673,6 +1707,39 @@ static int vcap_add_type_keyfield(struct vcap_rule *rule)
 	return 0;
 }
 
+/* Add the actionset typefield to the list of rule actionfields */
+static int vcap_add_type_actionfield(struct vcap_rule *rule)
+{
+	enum vcap_actionfield_set actionset = rule->actionset;
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_field *fields;
+	const struct vcap_set *aset;
+	int ret = -EINVAL;
+
+	aset = vcap_actionfieldset(ri->vctrl, vt, actionset);
+	if (!aset)
+		return ret;
+	if (aset->type_id == (u8)-1)  /* No type field is needed */
+		return 0;
+
+	fields = vcap_actionfields(ri->vctrl, vt, actionset);
+	if (!fields)
+		return -EINVAL;
+	if (fields[VCAP_AF_TYPE].width > 1) {
+		ret = vcap_rule_add_action_u32(rule, VCAP_AF_TYPE,
+					       aset->type_id);
+	} else {
+		if (aset->type_id)
+			ret = vcap_rule_add_action_bit(rule, VCAP_AF_TYPE,
+						       VCAP_BIT_1);
+		else
+			ret = vcap_rule_add_action_bit(rule, VCAP_AF_TYPE,
+						       VCAP_BIT_0);
+	}
+	return ret;
+}
+
 /* Add a keyset to a keyset list */
 bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
 			  enum vcap_keyfield_set keyset)
@@ -1689,6 +1756,22 @@ bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
 	return keysetlist->cnt < keysetlist->max;
 }
 EXPORT_SYMBOL_GPL(vcap_keyset_list_add);
+
+/* Add a actionset to a actionset list */
+static bool vcap_actionset_list_add(struct vcap_actionset_list *actionsetlist,
+				    enum vcap_actionfield_set actionset)
+{
+	int idx;
+
+	if (actionsetlist->cnt < actionsetlist->max) {
+		/* Avoid duplicates */
+		for (idx = 0; idx < actionsetlist->cnt; ++idx)
+			if (actionsetlist->actionsets[idx] == actionset)
+				return actionsetlist->cnt < actionsetlist->max;
+		actionsetlist->actionsets[actionsetlist->cnt++] = actionset;
+	}
+	return actionsetlist->cnt < actionsetlist->max;
+}
 
 /* map keyset id to a string with the keyset name */
 const char *vcap_keyset_name(struct vcap_control *vctrl,
@@ -1798,6 +1881,75 @@ bool vcap_rule_find_keysets(struct vcap_rule *rule,
 }
 EXPORT_SYMBOL_GPL(vcap_rule_find_keysets);
 
+/* Return the actionfield that matches a action in a actionset */
+static const struct vcap_field *
+vcap_find_actionset_actionfield(struct vcap_control *vctrl,
+				enum vcap_type vtype,
+				enum vcap_actionfield_set actionset,
+				enum vcap_action_field action)
+{
+	const struct vcap_field *fields;
+	int idx, count;
+
+	fields = vcap_actionfields(vctrl, vtype, actionset);
+	if (!fields)
+		return NULL;
+
+	/* Iterate the actionfields of the actionset */
+	count = vcap_actionfield_count(vctrl, vtype, actionset);
+	for (idx = 0; idx < count; ++idx) {
+		if (fields[idx].width == 0)
+			continue;
+
+		if (action == idx)
+			return &fields[idx];
+	}
+
+	return NULL;
+}
+
+/* Match a list of actions against the actionsets available in a vcap type */
+static bool vcap_rule_find_actionsets(struct vcap_rule_internal *ri,
+				      struct vcap_actionset_list *matches)
+{
+	int actionset, found, actioncount, map_size;
+	const struct vcap_client_actionfield *ckf;
+	const struct vcap_field **map;
+	enum vcap_type vtype;
+
+	vtype = ri->admin->vtype;
+	map = ri->vctrl->vcaps[vtype].actionfield_set_map;
+	map_size = ri->vctrl->vcaps[vtype].actionfield_set_size;
+
+	/* Get a count of the actionfields we want to match */
+	actioncount = 0;
+	list_for_each_entry(ckf, &ri->data.actionfields, ctrl.list)
+		++actioncount;
+
+	matches->cnt = 0;
+	/* Iterate the actionsets of the VCAP */
+	for (actionset = 0; actionset < map_size; ++actionset) {
+		if (!map[actionset])
+			continue;
+
+		/* Iterate the actions in the rule */
+		found = 0;
+		list_for_each_entry(ckf, &ri->data.actionfields, ctrl.list)
+			if (vcap_find_actionset_actionfield(ri->vctrl, vtype,
+							    actionset,
+							    ckf->ctrl.action))
+				++found;
+
+		/* Save the actionset if all actionfields were found */
+		if (found == actioncount)
+			if (!vcap_actionset_list_add(matches, actionset))
+				/* bail out when the quota is filled */
+				break;
+	}
+
+	return matches->cnt > 0;
+}
+
 /* Validate a rule with respect to available port keys */
 int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 {
@@ -1849,13 +2001,26 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 		return ret;
 	}
 	if (ri->data.actionset == VCAP_AFS_NO_VALUE) {
-		/* Later also actionsets will be matched against actions in
-		 * the rule, and the type will be set accordingly
-		 */
-		ri->data.exterr = VCAP_ERR_NO_ACTIONSET_MATCH;
-		return -EINVAL;
+		struct vcap_actionset_list matches = {};
+		enum vcap_actionfield_set actionsets[10];
+
+		matches.actionsets = actionsets;
+		matches.max = ARRAY_SIZE(actionsets);
+
+		/* Find an actionset that fits the rule actions */
+		if (!vcap_rule_find_actionsets(ri, &matches)) {
+			ri->data.exterr = VCAP_ERR_NO_ACTIONSET_MATCH;
+			return -EINVAL;
+		}
+		ret = vcap_set_rule_set_actionset(rule, actionsets[0]);
+		if (ret < 0) {
+			pr_err("%s:%d: actionset was not updated: %d\n",
+			       __func__, __LINE__, ret);
+			return ret;
+		}
 	}
 	vcap_add_type_keyfield(rule);
+	vcap_add_type_actionfield(rule);
 	/* Add default fields to this rule */
 	ri->vctrl->ops->add_default_fields(ri->ndev, ri->admin, rule);
 
@@ -2791,6 +2956,7 @@ out:
 static int vcap_enable_rules(struct vcap_control *vctrl,
 			     struct net_device *ndev, int chain)
 {
+	int next_chain = chain + VCAP_CID_LOOKUP_SIZE;
 	struct vcap_rule_internal *ri;
 	struct vcap_admin *admin;
 	int err = 0;
@@ -2802,8 +2968,11 @@ static int vcap_enable_rules(struct vcap_control *vctrl,
 		/* Found the admin, now find the offloadable rules */
 		mutex_lock(&admin->lock);
 		list_for_each_entry(ri, &admin->rules, list) {
-			if (ri->data.vcap_chain_id != chain)
+			/* Is the rule in the lookup defined by the chain */
+			if (!(ri->data.vcap_chain_id >= chain &&
+			      ri->data.vcap_chain_id < next_chain)) {
 				continue;
+			}
 
 			if (ri->ndev != ndev)
 				continue;
@@ -3018,6 +3187,9 @@ bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
 
 	admin = vcap_find_admin(vctrl, cid);
 	if (!admin)
+		return false;
+
+	if (!vcap_admin_is_last(vctrl, admin))
 		return false;
 
 	/* This must be the last lookup in this VCAP type */

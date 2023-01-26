@@ -30,19 +30,10 @@ struct sparx5_tc_flower_parse_usage {
 	struct flow_cls_offload *fco;
 	struct flow_rule *frule;
 	struct vcap_rule *vrule;
+	struct vcap_admin *admin;
 	u16 l3_proto;
 	u8 l4_proto;
 	unsigned int used_keys;
-};
-
-/* These protocols have dedicated keysets in IS2 and a TC dissector
- * ETH_P_ARP does not have a TC dissector
- */
-static u16 sparx5_tc_known_etypes[] = {
-	ETH_P_ALL,
-	ETH_P_ARP,
-	ETH_P_IP,
-	ETH_P_IPV6,
 };
 
 enum sparx5_is2_arp_opcode {
@@ -57,18 +48,6 @@ enum tc_arp_opcode {
 	TC_ARP_OP_REQUEST,
 	TC_ARP_OP_REPLY,
 };
-
-static bool sparx5_tc_is_known_etype(u16 etype)
-{
-	int idx;
-
-	/* For now this only knows about IS2 traffic classification */
-	for (idx = 0; idx < ARRAY_SIZE(sparx5_tc_known_etypes); ++idx)
-		if (sparx5_tc_known_etypes[idx] == etype)
-			return true;
-
-	return false;
-}
 
 static int sparx5_tc_flower_handler_ethaddr_usage(struct sparx5_tc_flower_parse_usage *st)
 {
@@ -272,7 +251,7 @@ sparx5_tc_flower_handler_basic_usage(struct sparx5_tc_flower_parse_usage *st)
 
 	if (mt.mask->n_proto) {
 		st->l3_proto = be16_to_cpu(mt.key->n_proto);
-		if (!sparx5_tc_is_known_etype(st->l3_proto)) {
+		if (!sparx5_vcap_is_known_etype(st->admin, st->l3_proto)) {
 			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
 						    st->l3_proto, ~0);
 			if (err)
@@ -304,6 +283,13 @@ sparx5_tc_flower_handler_basic_usage(struct sparx5_tc_flower_parse_usage *st)
 						    VCAP_BIT_0);
 			if (err)
 				goto out;
+			if (st->admin->vtype == VCAP_TYPE_IS0) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_TCP_UDP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
 		} else {
 			err = vcap_rule_add_key_u32(st->vrule,
 						    VCAP_KF_L3_IP_PROTO,
@@ -323,6 +309,51 @@ out:
 }
 
 static int
+sparx5_tc_flower_handler_cvlan_usage(struct sparx5_tc_flower_parse_usage *st)
+{
+	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID0;
+	enum vcap_key_field pcp_key = VCAP_KF_8021Q_PCP0;
+	struct flow_match_vlan mt;
+	u16 tpid;
+	int err;
+
+	if (st->admin->vtype != VCAP_TYPE_IS0)
+		return -EINVAL;
+
+	flow_rule_match_cvlan(st->frule, &mt);
+
+	tpid = be16_to_cpu(mt.key->vlan_tpid);
+
+	if (tpid == ETH_P_8021Q) {
+		vid_key = VCAP_KF_8021Q_VID1;
+		pcp_key = VCAP_KF_8021Q_PCP1;
+	}
+
+	if (mt.mask->vlan_id) {
+		err = vcap_rule_add_key_u32(st->vrule, vid_key,
+					    mt.key->vlan_id,
+					    mt.mask->vlan_id);
+		if (err)
+			goto out;
+	}
+
+	if (mt.mask->vlan_priority) {
+		err = vcap_rule_add_key_u32(st->vrule, pcp_key,
+					    mt.key->vlan_priority,
+					    mt.mask->vlan_priority);
+		if (err)
+			goto out;
+	}
+
+	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
+
+	return 0;
+out:
+	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "cvlan parse error");
+	return err;
+}
+
+static int
 sparx5_tc_flower_handler_vlan_usage(struct sparx5_tc_flower_parse_usage *st)
 {
 	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID_CLS;
@@ -331,6 +362,11 @@ sparx5_tc_flower_handler_vlan_usage(struct sparx5_tc_flower_parse_usage *st)
 	int err;
 
 	flow_rule_match_vlan(st->frule, &mt);
+
+	if (st->admin->vtype == VCAP_TYPE_IS0) {
+		vid_key = VCAP_KF_8021Q_VID0;
+		pcp_key = VCAP_KF_8021Q_PCP0;
+	}
 
 	if (mt.mask->vlan_id) {
 		err = vcap_rule_add_key_u32(st->vrule, vid_key,
@@ -527,6 +563,7 @@ static int (*sparx5_tc_flower_usage_handlers[])(struct sparx5_tc_flower_parse_us
 	[FLOW_DISSECTOR_KEY_CONTROL] = sparx5_tc_flower_handler_control_usage,
 	[FLOW_DISSECTOR_KEY_PORTS] = sparx5_tc_flower_handler_portnum_usage,
 	[FLOW_DISSECTOR_KEY_BASIC] = sparx5_tc_flower_handler_basic_usage,
+	[FLOW_DISSECTOR_KEY_CVLAN] = sparx5_tc_flower_handler_cvlan_usage,
 	[FLOW_DISSECTOR_KEY_VLAN] = sparx5_tc_flower_handler_vlan_usage,
 	[FLOW_DISSECTOR_KEY_TCP] = sparx5_tc_flower_handler_tcp_usage,
 	[FLOW_DISSECTOR_KEY_ARP] = sparx5_tc_flower_handler_arp_usage,
@@ -542,6 +579,7 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 		.fco = fco,
 		.vrule = vrule,
 		.l3_proto = ETH_P_ALL,
+		.admin = admin,
 	};
 	int idx, err = 0;
 
@@ -623,18 +661,21 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 	return 0;
 }
 
-/* Add a rule counter action - only IS2 is considered for now */
+/* Add a rule counter action */
 static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 				      struct vcap_rule *vrule)
 {
 	int err;
 
-	err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID, vrule->id);
-	if (err)
-		return err;
+	if (admin->vtype == VCAP_TYPE_IS2) {
+		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID,
+					       vrule->id);
+		if (err)
+			return err;
+		vcap_rule_set_counter_id(vrule, vrule->id);
+	}
 
-	vcap_rule_set_counter_id(vrule, vrule->id);
-	return err;
+	return 0;
 }
 
 /* Collect all port keysets and apply the first of them, possibly wildcarded */
@@ -815,6 +856,107 @@ static int sparx5_tc_add_remaining_rules(struct vcap_control *vctrl,
 	return err;
 }
 
+/* Add the actionset that is the default for the VCAP type */
+static int sparx5_tc_set_actionset(struct vcap_admin *admin,
+				   struct vcap_rule *vrule)
+{
+	enum vcap_actionfield_set aset;
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		aset = VCAP_AFS_CLASSIFICATION;
+		break;
+	case VCAP_TYPE_IS2:
+		aset = VCAP_AFS_BASE_TYPE;
+		break;
+	default:
+		return -EINVAL;
+	}
+	/* Do not overwrite any current actionset */
+	if (vrule->actionset == VCAP_AFS_NO_VALUE)
+		err = vcap_set_rule_set_actionset(vrule, aset);
+	return err;
+}
+
+/* Add the VCAP key to match on for a rule target value */
+static int sparx5_tc_add_rule_link_target(struct vcap_admin *admin,
+					  struct vcap_rule *vrule,
+					  int target_cid)
+{
+	int link_val = target_cid % VCAP_CID_LOOKUP_SIZE;
+	int err;
+
+	if (!link_val)
+		return 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		/* Add NXT_IDX key for chaining rules between IS0 instances */
+		err = vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_GEN_IDX_SEL,
+					    1, /* enable */
+					    ~0);
+		if (err)
+			return err;
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_GEN_IDX,
+					     link_val, /* target */
+					     ~0);
+	case VCAP_TYPE_IS2:
+		/* Add PAG key for chaining rules from IS0 */
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
+					     link_val, /* target */
+					     ~0);
+	default:
+		break;
+	}
+	return 0;
+}
+
+/* Add the VCAP action that adds a target value to a rule */
+static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
+				   struct vcap_admin *admin,
+				   struct vcap_rule *vrule,
+				   int from_cid, int to_cid)
+{
+	struct vcap_admin *to_admin = vcap_find_admin(vctrl, to_cid);
+	int diff, err = 0;
+
+	diff = vcap_chain_offset(vctrl, from_cid, to_cid);
+	if (!(to_admin && diff > 0)) {
+		pr_err("%s:%d: unsupported chain direction: %d\n",
+		       __func__, __LINE__, to_cid);
+		return -EINVAL;
+	}
+	if (admin->vtype == VCAP_TYPE_IS0 &&
+	    to_admin->vtype == VCAP_TYPE_IS0) {
+		/* Between IS0 instances the G_IDX value is used */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_NXT_IDX, diff);
+		if (err)
+			goto out;
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_NXT_IDX_CTRL,
+					       1); /* Replace */
+		if (err)
+			goto out;
+	} else if (admin->vtype == VCAP_TYPE_IS0 &&
+		   to_admin->vtype == VCAP_TYPE_IS2) {
+		/* Between IS0 and IS2 the PAG value is used */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_PAG_VAL, diff);
+		if (err)
+			goto out;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_PAG_OVERRIDE_MASK,
+					       0xff);
+		if (err)
+			goto out;
+	} else {
+		pr_err("%s:%d: unsupported chain destination: %d\n",
+		       __func__, __LINE__, to_cid);
+		err = -EOPNOTSUPP;
+	}
+out:
+	return err;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin)
@@ -850,10 +992,21 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	if (err)
 		goto out;
 
+	err = sparx5_tc_add_rule_link_target(admin, vrule,
+					     fco->common.chain_index);
+	if (err)
+		goto out;
+
 	frule = flow_cls_offload_flow_rule(fco);
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_TRAP:
+			if (admin->vtype != VCAP_TYPE_IS2) {
+				NL_SET_ERR_MSG_MOD(fco->common.extack,
+						   "Trap action not supported in this VCAP");
+				err = -EOPNOTSUPP;
+				goto out;
+			}
 			err = vcap_rule_add_action_bit(vrule,
 						       VCAP_AF_CPU_COPY_ENA,
 						       VCAP_BIT_1);
@@ -867,21 +1020,19 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 						       SPX5_PMM_REPLACE_ALL);
 			if (err)
 				goto out;
-			/* For now the actionset is hardcoded */
-			err = vcap_set_rule_set_actionset(vrule,
-							  VCAP_AFS_BASE_TYPE);
-			if (err)
-				goto out;
 			break;
 		case FLOW_ACTION_ACCEPT:
-			/* For now the actionset is hardcoded */
-			err = vcap_set_rule_set_actionset(vrule,
-							  VCAP_AFS_BASE_TYPE);
+			err = sparx5_tc_set_actionset(admin, vrule);
 			if (err)
 				goto out;
 			break;
 		case FLOW_ACTION_GOTO:
-			/* Links between VCAPs will be added later */
+			err = sparx5_tc_set_actionset(admin, vrule);
+			if (err)
+				goto out;
+			sparx5_tc_add_rule_link(vctrl, admin, vrule,
+						fco->common.chain_index,
+						act->chain_index);
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(fco->common.extack,

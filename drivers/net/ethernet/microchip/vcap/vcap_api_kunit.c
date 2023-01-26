@@ -296,7 +296,7 @@ test_vcap_xn_rule_creator(struct kunit *test, int cid, enum vcap_user user,
 	ret = vcap_set_rule_set_keyset(rule, keyset);
 
 	/* Add rule actions : there must be at least one action */
-	ret = vcap_rule_add_action_u32(rule, VCAP_AF_COSID_VAL, 0);
+	ret = vcap_rule_add_action_u32(rule, VCAP_AF_ISDX_VAL, 0);
 
 	/* Override rule actionset */
 	ret = vcap_set_rule_set_actionset(rule, actionset);

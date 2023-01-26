@@ -201,6 +201,13 @@ struct vcap_keyset_list {
 	enum vcap_keyfield_set *keysets; /* the list of keysets */
 };
 
+/* List of actionsets */
+struct vcap_actionset_list {
+	int max; /* size of the actionset list */
+	int cnt; /* count of actionsets actually in the list */
+	enum vcap_actionfield_set *actionsets; /* the list of actionsets */
+};
+
 /* Client output printf-like function with destination */
 struct vcap_output_print {
 	__printf(2, 3)
