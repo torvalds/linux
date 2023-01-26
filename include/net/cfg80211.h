@@ -1876,6 +1876,24 @@ struct cfg80211_tid_stats {
  *	received packet with an FCS error matches the peer MAC address.
  * @airtime_link_metric: mesh airtime link metric.
  * @connected_to_as: true if mesh STA has a path to authentication server
+ * @mlo_params_valid: Indicates @assoc_link_id and @mld_addr fields are filled
+ *	by driver. Drivers use this only in cfg80211_new_sta() calls when AP
+ *	MLD's MLME/SME is offload to driver. Drivers won't fill this
+ *	information in cfg80211_del_sta_sinfo(), get_station() and
+ *	dump_station() callbacks.
+ * @assoc_link_id: Indicates MLO link ID of the AP, with which the station
+ *	completed (re)association. This information filled for both MLO
+ *	and non-MLO STA connections when the AP affiliated with an MLD.
+ * @mld_addr: For MLO STA connection, filled with MLD address of the station.
+ *	For non-MLO STA connection, filled with all zeros.
+ * @assoc_resp_ies: IEs from (Re)Association Response.
+ *	This is used only when in AP mode with drivers that do not use user
+ *	space MLME/SME implementation. The information is provided only for the
+ *	cfg80211_new_sta() calls to notify user space of the IEs. Drivers won't
+ *	fill this information in cfg80211_del_sta_sinfo(), get_station() and
+ *	dump_station() callbacks. User space needs this information to determine
+ *	the accepted and rejected affiliated links of the connected station.
+ * @assoc_resp_ies_len: Length of @assoc_resp_ies buffer in octets.
  */
 struct station_info {
 	u64 filled;
@@ -1935,6 +1953,12 @@ struct station_info {
 	u32 airtime_link_metric;
 
 	u8 connected_to_as;
+
+	bool mlo_params_valid;
+	u8 assoc_link_id;
+	u8 mld_addr[ETH_ALEN] __aligned(2);
+	const u8 *assoc_resp_ies;
+	size_t assoc_resp_ies_len;
 };
 
 /**
