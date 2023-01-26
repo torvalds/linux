@@ -56,6 +56,8 @@ struct amdgpu_bo_param {
 	bool				no_wait_gpu;
 	struct dma_resv			*resv;
 	void				(*destroy)(struct ttm_buffer_object *bo);
+	/* memory partition number plus 1, 0 means any partition */
+	int8_t				mem_id_plus1;
 };
 
 /* bo virtual addresses in a vm */
@@ -108,6 +110,9 @@ struct amdgpu_bo {
 	struct mmu_interval_notifier	notifier;
 #endif
 	struct kgd_mem                  *kfd_bo;
+
+	/* memory partition number, -1 means any partition */
+	int8_t				mem_id;
 };
 
 struct amdgpu_bo_user {

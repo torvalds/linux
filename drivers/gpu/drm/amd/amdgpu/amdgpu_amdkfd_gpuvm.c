@@ -290,7 +290,7 @@ create_dmamap_sg_bo(struct amdgpu_device *adev,
 
 	ret = amdgpu_gem_object_create(adev, mem->bo->tbo.base.size, 1,
 			AMDGPU_GEM_DOMAIN_CPU, AMDGPU_GEM_CREATE_PREEMPTIBLE | flags,
-			ttm_bo_type_sg, mem->bo->tbo.base.resv, &gem_obj);
+			ttm_bo_type_sg, mem->bo->tbo.base.resv, &gem_obj, 0);
 
 	amdgpu_bo_unreserve(mem->bo);
 
@@ -1721,7 +1721,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 			va, (*mem)->aql_queue ? size << 1 : size, domain_string(alloc_domain));
 
 	ret = amdgpu_gem_object_create(adev, aligned_size, 1, alloc_domain, alloc_flags,
-				       bo_type, NULL, &gobj);
+				       bo_type, NULL, &gobj, 0);
 	if (ret) {
 		pr_debug("Failed to create BO on domain %s. ret %d\n",
 			 domain_string(alloc_domain), ret);

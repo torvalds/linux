@@ -574,6 +574,9 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 
 	bo->flags = bp->flags;
 
+	/* bo->mem_id -1 means any partition */
+	bo->mem_id = bp->mem_id_plus1 - 1;
+
 	if (!amdgpu_bo_support_uswc(bo->flags))
 		bo->flags &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 

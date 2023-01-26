@@ -336,7 +336,7 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 
 	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,
 				       AMDGPU_GEM_DOMAIN_CPU, flags,
-				       ttm_bo_type_sg, resv, &gobj);
+				       ttm_bo_type_sg, resv, &gobj, 0);
 	if (ret)
 		goto error;
 
