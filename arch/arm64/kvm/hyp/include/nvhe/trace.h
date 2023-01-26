@@ -1,8 +1,13 @@
 #ifndef __ARM64_KVM_HYP_NVHE_TRACE_H
 #define __ARM64_KVM_HYP_NVHE_TRACE_H
+
+#include <nvhe/trace.h>
+
+#include <linux/trace_events.h>
 #include <linux/ring_buffer.h>
 
 #include <asm/kvm_hyptrace.h>
+#include <asm/kvm_hypevents_defs.h>
 #include <asm/percpu.h>
 
 #ifdef CONFIG_TRACING
@@ -57,6 +62,30 @@ int __pkvm_start_tracing(unsigned long pack_va, size_t pack_size);
 void __pkvm_stop_tracing(void);
 int __pkvm_rb_swap_reader_page(int cpu);
 int __pkvm_rb_update_footers(int cpu);
+int __pkvm_enable_event(unsigned short id, bool enable);
+
+#define HYP_EVENT(__name, __proto, __struct, __assign, __printk)		\
+	HYP_EVENT_FORMAT(__name, __struct);					\
+	extern atomic_t __name##_enabled;					\
+	extern unsigned short hyp_event_id_##__name;				\
+	static inline void trace_##__name(__proto)				\
+	{									\
+		size_t length = sizeof(struct trace_hyp_format_##__name);	\
+		struct hyp_rb_per_cpu *rb = this_cpu_ptr(&trace_rb);		\
+		struct trace_hyp_format_##__name *__entry;			\
+										\
+		if (!atomic_read(&__name##_enabled))				\
+			return;							\
+		if (!__start_write_hyp_rb(rb))					\
+			return;							\
+		__entry = rb_reserve_trace_entry(rb, length);			\
+		__entry->hdr.id = hyp_event_id_##__name;			\
+		__assign							\
+		__stop_write_hyp_rb(rb);					\
+	}
+
+/* TODO: atomic_t to static_branch */
+
 #else
 static inline int __pkvm_start_tracing(unsigned long pack_va, size_t pack_size)
 {
@@ -71,6 +100,14 @@ static inline int __pkvm_rb_swap_reader_page(int cpu)
 }
 
 static inline int __pkvm_rb_update_footers(int cpu)
+{
+	return -ENODEV;
+}
+
+#define HYP_EVENT(__name, __proto, __struct, __assign, __printk)	\
+	static inline void trace_##__name(__proto) {}
+
+static inline int __pkvm_enable_event(unsigned short id, bool enable)
 {
 	return -ENODEV;
 }

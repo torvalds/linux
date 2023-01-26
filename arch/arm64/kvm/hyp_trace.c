@@ -7,10 +7,12 @@
 #include <linux/list.h>
 #include <linux/percpu-defs.h>
 #include <linux/ring_buffer.h>
+#include <linux/trace_events.h>
 #include <linux/tracefs.h>
 
 #include <asm/kvm_host.h>
 #include <asm/kvm_hyptrace.h>
+#include <asm/kvm_hypevents_defs.h>
 
 #include "hyp_constants.h"
 #include "hyp_trace.h"
@@ -365,8 +367,12 @@ static void ht_print_trace_time(struct ht_iterator *iter)
 			 (unsigned long)ts_ns, usecs_rem);
 }
 
+extern struct trace_event *ftrace_find_event(int type);
+
 static void ht_print_trace_fmt(struct ht_iterator *iter)
 {
+	struct trace_event *e;
+
 	if (iter->lost_events)
 		trace_seq_printf(&iter->seq, "CPU:%d [LOST %lu EVENTS]\n",
 				 iter->cpu, iter->lost_events);
@@ -374,6 +380,14 @@ static void ht_print_trace_fmt(struct ht_iterator *iter)
 	/* TODO: format bin/hex/raw */
 
 	ht_print_trace_time(iter);
+
+	e = ftrace_find_event(iter->ent->id);
+	if (e) {
+		e->funcs->trace((struct trace_iterator *)iter, 0, e);
+		return;
+	}
+
+	trace_seq_printf(&iter->seq, "Unknown event id %d\n", iter->ent->id);
 };
 
 static void *ht_next(struct seq_file *m, void *v, loff_t *pos)
@@ -636,6 +650,8 @@ static void hyp_tracefs_create_cpu_file(const char *file_name,
 		pr_warn("Failed to create tracefs %pd/%s\n", parent, file_name);
 }
 
+void kvm_hyp_init_events_tracefs(struct dentry *parent);
+
 int init_hyp_tracefs(void)
 {
 	struct dentry *d, *root_dir, *per_cpu_root_dir;
@@ -685,6 +701,8 @@ int init_hyp_tracefs(void)
 		hyp_tracefs_create_cpu_file("trace_pipe", cpu,
 					    &hyp_trace_pipe_fops, dir);
 	}
+
+	kvm_hyp_init_events_tracefs(root_dir);
 
 	return 0;
 }
