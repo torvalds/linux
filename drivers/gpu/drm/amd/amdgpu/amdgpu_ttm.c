@@ -1060,7 +1060,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 		return NULL;
 	}
 	gtt->gobj = &bo->base;
-	gtt->pool_id = NUMA_NO_NODE;
+	gtt->pool_id = abo->mem_id;
 
 	if (abo->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
 		caching = ttm_write_combined;
@@ -1153,24 +1153,6 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 		pool = &adev->mman.bdev.pool;
 
 	return ttm_pool_free(pool, ttm);
-}
-
-/**
- * amdgpu_ttm_tt_set_mem_pool - Set the TTM memory pool for the TTM BO
- * @tbo: The ttm_buffer_object that backs the VRAM bo
- * @mem_id: to select the initialized ttm pool corresponding to the memory partition
- */
-int amdgpu_ttm_tt_set_mem_pool(struct ttm_buffer_object *tbo, int mem_id)
-{
-	struct ttm_tt *ttm = tbo->ttm;
-	struct amdgpu_ttm_tt *gtt;
-
-	if (!ttm && !ttm_tt_is_populated(ttm))
-		return -EINVAL;
-
-	gtt = ttm_to_amdgpu_ttm_tt(ttm);
-	gtt->pool_id = mem_id;
-	return 0;
 }
 
 /**

@@ -1641,9 +1641,9 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	struct drm_gem_object *gobj = NULL;
 	u32 domain, alloc_domain;
 	uint64_t aligned_size;
+	int8_t mem_id = -1;
 	u64 alloc_flags;
 	int ret;
-	int mem_id = 0; /* Fixme : to be changed when mem_id support patch lands, until then NPS1, SPX only */
 
 	/*
 	 * Check on which domain to allocate BO
@@ -1653,13 +1653,14 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 		if (adev->gmc.is_app_apu) {
 			domain = AMDGPU_GEM_DOMAIN_GTT;
-			alloc_domain = AMDGPU_GEM_DOMAIN_CPU;
+			alloc_domain = AMDGPU_GEM_DOMAIN_GTT;
 			alloc_flags = 0;
 		} else {
 			alloc_flags = AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE;
 			alloc_flags |= (flags & KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC) ?
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED : 0;
 		}
+		mem_id = avm->mem_id;
 	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_GTT) {
 		domain = alloc_domain = AMDGPU_GEM_DOMAIN_GTT;
 		alloc_flags = 0;
@@ -1717,11 +1718,12 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		goto err_reserve_limit;
 	}
 
-	pr_debug("\tcreate BO VA 0x%llx size 0x%llx domain %s\n",
-			va, (*mem)->aql_queue ? size << 1 : size, domain_string(alloc_domain));
+	pr_debug("\tcreate BO VA 0x%llx size 0x%llx domain %s mem_id %d\n",
+		 va, (*mem)->aql_queue ? size << 1 : size,
+		 domain_string(alloc_domain), mem_id);
 
 	ret = amdgpu_gem_object_create(adev, aligned_size, 1, alloc_domain, alloc_flags,
-				       bo_type, NULL, &gobj, 0);
+				       bo_type, NULL, &gobj, mem_id + 1);
 	if (ret) {
 		pr_debug("Failed to create BO on domain %s. ret %d\n",
 			 domain_string(alloc_domain), ret);
@@ -1746,17 +1748,6 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	(*mem)->domain = domain;
 	(*mem)->mapped_to_gpu_memory = 0;
 	(*mem)->process_info = avm->process_info;
-
-	if (adev->gmc.is_app_apu &&
-	    ((*mem)->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)) {
-		bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
-		bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
-		ret = amdgpu_ttm_tt_set_mem_pool(&bo->tbo, mem_id);
-		if (ret) {
-			pr_debug("failed to set ttm mem pool %d\n", ret);
-			goto err_set_mem_partition;
-		}
-	}
 
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, user_addr);
 
@@ -1784,7 +1775,6 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 allocate_init_user_pages_failed:
 err_pin_bo:
 	remove_kgd_mem_from_kfd_bo_list(*mem, avm->process_info);
-err_set_mem_partition:
 	drm_vma_node_revoke(&gobj->vma_node, drm_priv);
 err_node_allow:
 	/* Don't unreserve system mem limit twice */
