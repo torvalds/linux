@@ -116,6 +116,7 @@ struct hwmon_node {
 	unsigned int		hist_memory;
 	unsigned int		hyst_trigger_count;
 	unsigned int		hyst_length;
+	unsigned int		idle_length;
 	unsigned int		idle_mbps;
 	unsigned int		ab_scale;
 	unsigned int		mbps_zones[NUM_MBPS_ZONES];
@@ -128,6 +129,7 @@ struct hwmon_node {
 	unsigned long		hyst_mbps;
 	unsigned long		hyst_trig_win;
 	unsigned long		hyst_en;
+	unsigned long		idle_en;
 	unsigned long		prev_req;
 	unsigned int		wake;
 	unsigned int		down_cnt;
