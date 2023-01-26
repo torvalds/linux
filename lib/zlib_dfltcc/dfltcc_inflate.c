@@ -2,7 +2,7 @@
 
 #include "../zlib_inflate/inflate.h"
 #include "dfltcc_util.h"
-#include "dfltcc.h"
+#include "dfltcc_inflate.h"
 #include <asm/setup.h>
 #include <linux/export.h>
 #include <linux/zutil.h>
@@ -31,6 +31,14 @@ int dfltcc_can_inflate(
                is_bit_set(dfltcc_state->af.fmts, DFLTCC_FMT0);
 }
 EXPORT_SYMBOL(dfltcc_can_inflate);
+
+void dfltcc_reset_inflate_state(z_streamp strm) {
+    struct inflate_state *state = (struct inflate_state *)strm->state;
+    struct dfltcc_state *dfltcc_state = GET_DFLTCC_STATE(state);
+
+    dfltcc_reset_state(dfltcc_state);
+}
+EXPORT_SYMBOL(dfltcc_reset_inflate_state);
 
 static int dfltcc_was_inflate_used(
     z_streamp strm

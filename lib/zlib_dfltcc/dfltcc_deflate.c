@@ -2,10 +2,12 @@
 
 #include "../zlib_deflate/defutil.h"
 #include "dfltcc_util.h"
-#include "dfltcc.h"
+#include "dfltcc_deflate.h"
 #include <asm/setup.h>
 #include <linux/export.h>
 #include <linux/zutil.h>
+
+#define GET_DFLTCC_DEFLATE_STATE(state) ((struct dfltcc_deflate_state *)GET_DFLTCC_STATE(state))
 
 /*
  * Compress.
@@ -15,7 +17,7 @@ int dfltcc_can_deflate(
 )
 {
     deflate_state *state = (deflate_state *)strm->state;
-    struct dfltcc_state *dfltcc_state = GET_DFLTCC_STATE(state);
+    struct dfltcc_deflate_state *dfltcc_state = GET_DFLTCC_DEFLATE_STATE(state);
 
     /* Check for kernel dfltcc command line parameter */
     if (zlib_dfltcc_support == ZLIB_DFLTCC_DISABLED ||
@@ -28,14 +30,31 @@ int dfltcc_can_deflate(
         return 0;
 
     /* Unsupported hardware */
-    if (!is_bit_set(dfltcc_state->af.fns, DFLTCC_GDHT) ||
-            !is_bit_set(dfltcc_state->af.fns, DFLTCC_CMPR) ||
-            !is_bit_set(dfltcc_state->af.fmts, DFLTCC_FMT0))
+    if (!is_bit_set(dfltcc_state->common.af.fns, DFLTCC_GDHT) ||
+            !is_bit_set(dfltcc_state->common.af.fns, DFLTCC_CMPR) ||
+            !is_bit_set(dfltcc_state->common.af.fmts, DFLTCC_FMT0))
         return 0;
 
     return 1;
 }
 EXPORT_SYMBOL(dfltcc_can_deflate);
+
+void dfltcc_reset_deflate_state(z_streamp strm) {
+    deflate_state *state = (deflate_state *)strm->state;
+    struct dfltcc_deflate_state *dfltcc_state = GET_DFLTCC_DEFLATE_STATE(state);
+
+    dfltcc_reset_state(&dfltcc_state->common);
+
+    /* Initialize tuning parameters */
+    if (zlib_dfltcc_support == ZLIB_DFLTCC_FULL_DEBUG)
+        dfltcc_state->level_mask = DFLTCC_LEVEL_MASK_DEBUG;
+    else
+        dfltcc_state->level_mask = DFLTCC_LEVEL_MASK;
+    dfltcc_state->block_size = DFLTCC_BLOCK_SIZE;
+    dfltcc_state->block_threshold = DFLTCC_FIRST_FHT_BLOCK_SIZE;
+    dfltcc_state->dht_threshold = DFLTCC_DHT_MIN_SAMPLE_SIZE;
+}
+EXPORT_SYMBOL(dfltcc_reset_deflate_state);
 
 static void dfltcc_gdht(
     z_streamp strm
@@ -104,8 +123,8 @@ int dfltcc_deflate(
 )
 {
     deflate_state *state = (deflate_state *)strm->state;
-    struct dfltcc_state *dfltcc_state = GET_DFLTCC_STATE(state);
-    struct dfltcc_param_v0 *param = &dfltcc_state->param;
+    struct dfltcc_deflate_state *dfltcc_state = GET_DFLTCC_DEFLATE_STATE(state);
+    struct dfltcc_param_v0 *param = &dfltcc_state->common.param;
     uInt masked_avail_in;
     dfltcc_cc cc;
     int need_empty_block;
@@ -244,7 +263,7 @@ again:
     } while (cc == DFLTCC_CC_AGAIN);
 
     /* Translate parameter block to stream */
-    strm->msg = oesc_msg(dfltcc_state->msg, param->oesc);
+    strm->msg = oesc_msg(dfltcc_state->common.msg, param->oesc);
     state->bi_valid = param->sbb;
     if (state->bi_valid == 0)
         state->bi_buf = 0; /* Avoid accessing next_out */

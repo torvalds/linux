@@ -54,7 +54,7 @@
 
 /* architecture-specific bits */
 #ifdef CONFIG_ZLIB_DFLTCC
-#  include "../zlib_dfltcc/dfltcc.h"
+#  include "../zlib_dfltcc/dfltcc_deflate.h"
 #else
 #define DEFLATE_RESET_HOOK(strm) do {} while (0)
 #define DEFLATE_HOOK(strm, flush, bstate) 0
@@ -106,7 +106,7 @@ typedef struct deflate_workspace {
     deflate_state deflate_memory;
 #ifdef CONFIG_ZLIB_DFLTCC
     /* State memory for s390 hardware deflate */
-    struct dfltcc_state dfltcc_memory;
+    struct dfltcc_deflate_state dfltcc_memory;
 #endif
     Byte *window_memory;
     Pos *prev_memory;
