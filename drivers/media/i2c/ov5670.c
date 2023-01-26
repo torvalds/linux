@@ -2,6 +2,7 @@
 // Copyright (c) 2017 Intel Corporation.
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -11,6 +12,8 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
+
+#define OV5670_XVCLK_FREQ		19200000
 
 #define OV5670_REG_CHIP_ID		0x300a
 #define OV5670_CHIP_ID			0x005670
@@ -1830,6 +1833,9 @@ struct ov5670 {
 	/* Current mode */
 	const struct ov5670_mode *cur_mode;
 
+	/* xvclk input clock */
+	struct clk *xvclk;
+
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
@@ -2478,15 +2484,27 @@ static int ov5670_probe(struct i2c_client *client)
 	bool full_power;
 	int ret;
 
-	device_property_read_u32(&client->dev, "clock-frequency", &input_clk);
-	if (input_clk != 19200000)
-		return -EINVAL;
-
 	ov5670 = devm_kzalloc(&client->dev, sizeof(*ov5670), GFP_KERNEL);
 	if (!ov5670) {
 		ret = -ENOMEM;
 		err_msg = "devm_kzalloc() error";
 		goto error_print;
+	}
+
+	ov5670->xvclk = devm_clk_get(&client->dev, NULL);
+	if (!IS_ERR_OR_NULL(ov5670->xvclk))
+		input_clk = clk_get_rate(ov5670->xvclk);
+	else if (PTR_ERR(ov5670->xvclk) == -ENOENT)
+		device_property_read_u32(&client->dev, "clock-frequency",
+					 &input_clk);
+	else
+		return dev_err_probe(&client->dev, PTR_ERR(ov5670->xvclk),
+				     "error getting clock\n");
+
+	if (input_clk != OV5670_XVCLK_FREQ) {
+		dev_err(&client->dev,
+			"Unsupported clock frequency %u\n", input_clk);
+		return -EINVAL;
 	}
 
 	/* Initialize subdev */
