@@ -624,11 +624,12 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 					   value);
 }
 
-static const struct devlink_param enable_eth_param =
+static const struct devlink_param mlx5_devlink_eth_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_ETH, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
-			      NULL, NULL, NULL);
+			      NULL, NULL, NULL),
+};
 
-static int mlx5_devlink_eth_param_register(struct devlink *devlink)
+static int mlx5_devlink_eth_params_register(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
@@ -637,7 +638,8 @@ static int mlx5_devlink_eth_param_register(struct devlink *devlink)
 	if (!mlx5_eth_supported(dev))
 		return 0;
 
-	err = devlink_param_register(devlink, &enable_eth_param);
+	err = devlink_params_register(devlink, mlx5_devlink_eth_params,
+				      ARRAY_SIZE(mlx5_devlink_eth_params));
 	if (err)
 		return err;
 
@@ -648,14 +650,15 @@ static int mlx5_devlink_eth_param_register(struct devlink *devlink)
 	return 0;
 }
 
-static void mlx5_devlink_eth_param_unregister(struct devlink *devlink)
+static void mlx5_devlink_eth_params_unregister(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
 	if (!mlx5_eth_supported(dev))
 		return;
 
-	devlink_param_unregister(devlink, &enable_eth_param);
+	devlink_params_unregister(devlink, mlx5_devlink_eth_params,
+				  ARRAY_SIZE(mlx5_devlink_eth_params));
 }
 
 static int mlx5_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
@@ -670,11 +673,12 @@ static int mlx5_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
 	return 0;
 }
 
-static const struct devlink_param enable_rdma_param =
+static const struct devlink_param mlx5_devlink_rdma_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_RDMA, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
-			      NULL, NULL, mlx5_devlink_enable_rdma_validate);
+			      NULL, NULL, mlx5_devlink_enable_rdma_validate),
+};
 
-static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
+static int mlx5_devlink_rdma_params_register(struct devlink *devlink)
 {
 	union devlink_param_value value;
 	int err;
@@ -682,7 +686,8 @@ static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
 	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return 0;
 
-	err = devlink_param_register(devlink, &enable_rdma_param);
+	err = devlink_params_register(devlink, mlx5_devlink_rdma_params,
+				      ARRAY_SIZE(mlx5_devlink_rdma_params));
 	if (err)
 		return err;
 
@@ -693,19 +698,21 @@ static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
 	return 0;
 }
 
-static void mlx5_devlink_rdma_param_unregister(struct devlink *devlink)
+static void mlx5_devlink_rdma_params_unregister(struct devlink *devlink)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return;
 
-	devlink_param_unregister(devlink, &enable_rdma_param);
+	devlink_params_unregister(devlink, mlx5_devlink_rdma_params,
+				  ARRAY_SIZE(mlx5_devlink_rdma_params));
 }
 
-static const struct devlink_param enable_vnet_param =
+static const struct devlink_param mlx5_devlink_vnet_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_VNET, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
-			      NULL, NULL, NULL);
+			      NULL, NULL, NULL),
+};
 
-static int mlx5_devlink_vnet_param_register(struct devlink *devlink)
+static int mlx5_devlink_vnet_params_register(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
@@ -714,7 +721,8 @@ static int mlx5_devlink_vnet_param_register(struct devlink *devlink)
 	if (!mlx5_vnet_supported(dev))
 		return 0;
 
-	err = devlink_param_register(devlink, &enable_vnet_param);
+	err = devlink_params_register(devlink, mlx5_devlink_vnet_params,
+				      ARRAY_SIZE(mlx5_devlink_vnet_params));
 	if (err)
 		return err;
 
@@ -725,45 +733,46 @@ static int mlx5_devlink_vnet_param_register(struct devlink *devlink)
 	return 0;
 }
 
-static void mlx5_devlink_vnet_param_unregister(struct devlink *devlink)
+static void mlx5_devlink_vnet_params_unregister(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
 	if (!mlx5_vnet_supported(dev))
 		return;
 
-	devlink_param_unregister(devlink, &enable_vnet_param);
+	devlink_params_unregister(devlink, mlx5_devlink_vnet_params,
+				  ARRAY_SIZE(mlx5_devlink_vnet_params));
 }
 
 static int mlx5_devlink_auxdev_params_register(struct devlink *devlink)
 {
 	int err;
 
-	err = mlx5_devlink_eth_param_register(devlink);
+	err = mlx5_devlink_eth_params_register(devlink);
 	if (err)
 		return err;
 
-	err = mlx5_devlink_rdma_param_register(devlink);
+	err = mlx5_devlink_rdma_params_register(devlink);
 	if (err)
 		goto rdma_err;
 
-	err = mlx5_devlink_vnet_param_register(devlink);
+	err = mlx5_devlink_vnet_params_register(devlink);
 	if (err)
 		goto vnet_err;
 	return 0;
 
 vnet_err:
-	mlx5_devlink_rdma_param_unregister(devlink);
+	mlx5_devlink_rdma_params_unregister(devlink);
 rdma_err:
-	mlx5_devlink_eth_param_unregister(devlink);
+	mlx5_devlink_eth_params_unregister(devlink);
 	return err;
 }
 
 static void mlx5_devlink_auxdev_params_unregister(struct devlink *devlink)
 {
-	mlx5_devlink_vnet_param_unregister(devlink);
-	mlx5_devlink_rdma_param_unregister(devlink);
-	mlx5_devlink_eth_param_unregister(devlink);
+	mlx5_devlink_vnet_params_unregister(devlink);
+	mlx5_devlink_rdma_params_unregister(devlink);
+	mlx5_devlink_eth_params_unregister(devlink);
 }
 
 static int mlx5_devlink_max_uc_list_validate(struct devlink *devlink, u32 id,
@@ -791,11 +800,12 @@ static int mlx5_devlink_max_uc_list_validate(struct devlink *devlink, u32 id,
 	return 0;
 }
 
-static const struct devlink_param max_uc_list_param =
+static const struct devlink_param mlx5_devlink_max_uc_list_params[] = {
 	DEVLINK_PARAM_GENERIC(MAX_MACS, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
-			      NULL, NULL, mlx5_devlink_max_uc_list_validate);
+			      NULL, NULL, mlx5_devlink_max_uc_list_validate),
+};
 
-static int mlx5_devlink_max_uc_list_param_register(struct devlink *devlink)
+static int mlx5_devlink_max_uc_list_params_register(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
@@ -804,7 +814,8 @@ static int mlx5_devlink_max_uc_list_param_register(struct devlink *devlink)
 	if (!MLX5_CAP_GEN_MAX(dev, log_max_current_uc_list_wr_supported))
 		return 0;
 
-	err = devlink_param_register(devlink, &max_uc_list_param);
+	err = devlink_params_register(devlink, mlx5_devlink_max_uc_list_params,
+				      ARRAY_SIZE(mlx5_devlink_max_uc_list_params));
 	if (err)
 		return err;
 
@@ -816,14 +827,15 @@ static int mlx5_devlink_max_uc_list_param_register(struct devlink *devlink)
 }
 
 static void
-mlx5_devlink_max_uc_list_param_unregister(struct devlink *devlink)
+mlx5_devlink_max_uc_list_params_unregister(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
 	if (!MLX5_CAP_GEN_MAX(dev, log_max_current_uc_list_wr_supported))
 		return;
 
-	devlink_param_unregister(devlink, &max_uc_list_param);
+	devlink_params_unregister(devlink, mlx5_devlink_max_uc_list_params,
+				  ARRAY_SIZE(mlx5_devlink_max_uc_list_params));
 }
 
 #define MLX5_TRAP_DROP(_id, _group_id)					\
@@ -885,7 +897,7 @@ int mlx5_devlink_params_register(struct devlink *devlink)
 	if (err)
 		goto auxdev_reg_err;
 
-	err = mlx5_devlink_max_uc_list_param_register(devlink);
+	err = mlx5_devlink_max_uc_list_params_register(devlink);
 	if (err)
 		goto max_uc_list_err;
 
@@ -904,7 +916,7 @@ auxdev_reg_err:
 
 void mlx5_devlink_params_unregister(struct devlink *devlink)
 {
-	mlx5_devlink_max_uc_list_param_unregister(devlink);
+	mlx5_devlink_max_uc_list_params_unregister(devlink);
 	mlx5_devlink_auxdev_params_unregister(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
