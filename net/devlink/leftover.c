@@ -10898,16 +10898,18 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 {
 	struct devlink_param_item *param_item;
 
-	if (!devlink_reload_supported(devlink->ops))
+	if (WARN_ON(!devlink_reload_supported(devlink->ops)))
 		return -EOPNOTSUPP;
 
 	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
 	if (!param_item)
 		return -EINVAL;
 
-	if (!param_item->driverinit_value_valid ||
-	    !devlink_param_cmode_is_supported(param_item->param,
-					      DEVLINK_PARAM_CMODE_DRIVERINIT))
+	if (!param_item->driverinit_value_valid)
+		return -EOPNOTSUPP;
+
+	if (WARN_ON(!devlink_param_cmode_is_supported(param_item->param,
+						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
 		return -EOPNOTSUPP;
 
 	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
