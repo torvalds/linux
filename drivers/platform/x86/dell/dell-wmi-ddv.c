@@ -26,7 +26,8 @@
 
 #define DRIVER_NAME	"dell-wmi-ddv"
 
-#define DELL_DDV_SUPPORTED_INTERFACE 2
+#define DELL_DDV_SUPPORTED_VERSION_MIN	2
+#define DELL_DDV_SUPPORTED_VERSION_MAX	3
 #define DELL_DDV_GUID	"8A42EA14-4F2A-FD45-6422-0087F7A7E608"
 
 #define DELL_EPPID_LENGTH	20
@@ -49,6 +50,7 @@ enum dell_ddv_method {
 	DELL_DDV_BATTERY_RAW_ANALYTICS_START	= 0x0E,
 	DELL_DDV_BATTERY_RAW_ANALYTICS		= 0x0F,
 	DELL_DDV_BATTERY_DESIGN_VOLTAGE		= 0x10,
+	DELL_DDV_BATTERY_RAW_ANALYTICS_A_BLOCK	= 0x11, /* version 3 */
 
 	DELL_DDV_INTERFACE_VERSION		= 0x12,
 
@@ -340,7 +342,7 @@ static int dell_wmi_ddv_probe(struct wmi_device *wdev, const void *context)
 		return ret;
 
 	dev_dbg(&wdev->dev, "WMI interface version: %d\n", version);
-	if (version != DELL_DDV_SUPPORTED_INTERFACE)
+	if (version < DELL_DDV_SUPPORTED_VERSION_MIN || version > DELL_DDV_SUPPORTED_VERSION_MAX)
 		return -ENODEV;
 
 	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
