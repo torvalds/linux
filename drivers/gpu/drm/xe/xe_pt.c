@@ -1496,7 +1496,13 @@ static void invalidation_fence_cb(struct dma_fence *fence,
 		container_of(cb, struct invalidation_fence, cb);
 
 	trace_xe_gt_tlb_invalidation_fence_cb(&ifence->base);
-	queue_work(system_wq, &ifence->work);
+	if (!ifence->fence->error) {
+		queue_work(system_wq, &ifence->work);
+	} else {
+		ifence->base.base.error = ifence->fence->error;
+		dma_fence_signal(&ifence->base.base);
+		dma_fence_put(&ifence->base.base);
+	}
 	dma_fence_put(ifence->fence);
 }
 
