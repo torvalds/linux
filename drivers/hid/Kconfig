@@ -1018,10 +1018,10 @@ config HID_SPEEDLINK
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
 config HID_STEAM
-	tristate "Steam Controller support"
+	tristate "Steam Controller/Deck support"
 	select POWER_SUPPLY
 	help
-	Say Y here if you have a Steam Controller if you want to use it
+	Say Y here if you have a Steam Controller or Deck if you want to use it
 	without running the Steam Client. It supports both the wired and
 	the wireless adaptor.
 
