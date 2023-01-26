@@ -35,10 +35,12 @@ struct dm_file {
 	volatile unsigned int global_event_nr;
 };
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * The ioctl interface needs to be able to look up devices by
  * name or uuid.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 struct hash_cell {
 	struct rb_node name_node;
 	struct rb_node uuid_node;
@@ -79,9 +81,11 @@ static void dm_hash_exit(void)
 	dm_hash_remove_all(false, false, false);
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Code for looking up a device by name
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static struct hash_cell *__get_name_cell(const char *str)
 {
 	struct rb_node *n = name_rb_tree.rb_node;
@@ -196,9 +200,11 @@ static struct hash_cell *__get_dev_cell(uint64_t dev)
 	return hc;
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Inserting, removing and renaming a device.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static struct hash_cell *alloc_cell(const char *name, const char *uuid,
 				    struct mapped_device *md)
 {
@@ -501,9 +507,11 @@ void dm_deferred_remove(void)
 	dm_hash_remove_all(true, false, true);
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Implementation of the ioctl commands
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 /*
  * All the ioctl commands get dispatched to functions with this
  * prototype.
@@ -1764,10 +1772,11 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 #define IOCTL_FLAGS_NO_PARAMS		1
 #define IOCTL_FLAGS_ISSUE_GLOBAL_EVENT	2
 
-/*-----------------------------------------------------------------
- * Implementation of open/close/ioctl on the special char
- * device.
- *---------------------------------------------------------------*/
+/*
+ *---------------------------------------------------------------
+ * Implementation of open/close/ioctl on the special char device.
+ *---------------------------------------------------------------
+ */
 static ioctl_fn lookup_ioctl(unsigned int cmd, int *ioctl_flags)
 {
 	static const struct {

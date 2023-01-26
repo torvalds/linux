@@ -97,7 +97,7 @@ struct dm_dirty_log_type {
 	 * Do not confuse this function with 'in_sync()', one
 	 * tells you if an area is synchronised, the other
 	 * assigns recovery work.
-	*/
+	 */
 	int (*get_resync_work)(struct dm_dirty_log *log, region_t *region);
 
 	/*

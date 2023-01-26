@@ -183,10 +183,12 @@ void dm_dirty_log_destroy(struct dm_dirty_log *log)
 }
 EXPORT_SYMBOL(dm_dirty_log_destroy);
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Persistent and core logs share a lot of their implementation.
  * FIXME: need a reload method to be called from a resume
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 /*
  * Magic for persistent mirrors: "MiRr"
  */
@@ -275,9 +277,11 @@ static inline void log_clear_bit(struct log_c *l,
 	l->touched_dirtied = 1;
 }
 
-/*----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Header IO
- *--------------------------------------------------------------*/
+ *--------------------------------------------------------------
+ */
 static void header_to_disk(struct log_header_core *core, struct log_header_disk *disk)
 {
 	disk->magic = cpu_to_le32(core->magic);
@@ -353,11 +357,13 @@ static int _check_region_size(struct dm_target *ti, uint32_t region_size)
 	return 1;
 }
 
-/*----------------------------------------------------------------
+/*
+ *--------------------------------------------------------------
  * core log constructor/destructor
  *
  * argv contains region_size followed optionally by [no]sync
- *--------------------------------------------------------------*/
+ *--------------------------------------------------------------
+ */
 #define BYTE_SHIFT 3
 static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 			      unsigned int argc, char **argv,
@@ -532,11 +538,13 @@ static void core_dtr(struct dm_dirty_log *log)
 	destroy_log_context(lc);
 }
 
-/*----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------------
  * disk log constructor/destructor
  *
  * argv contains log_device region_size followed optionally by [no]sync
- *--------------------------------------------------------------*/
+ *---------------------------------------------------------------------
+ */
 static int disk_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		    unsigned int argc, char **argv)
 {

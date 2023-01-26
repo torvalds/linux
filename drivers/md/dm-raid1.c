@@ -33,9 +33,11 @@
 
 static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Mirror set structures.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 enum dm_raid1_error {
 	DM_RAID1_WRITE_ERROR,
 	DM_RAID1_FLUSH_ERROR,
@@ -286,13 +288,15 @@ static int mirror_flush(struct dm_target *ti)
 	return 0;
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Recovery.
  *
  * When a mirror is first activated we may find that some regions
  * are in the no-sync state.  We have to recover these by
  * recopying from the default mirror to all the others.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static void recovery_complete(int read_err, unsigned long write_err,
 			      void *context)
 {
@@ -409,9 +413,11 @@ static void do_recovery(struct mirror_set *ms)
 	}
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Reads
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static struct mirror *choose_mirror(struct mirror_set *ms, sector_t sector)
 {
 	struct mirror *m = get_default_mirror(ms);
@@ -499,9 +505,11 @@ static void hold_bio(struct mirror_set *ms, struct bio *bio)
 	spin_unlock_irq(&ms->lock);
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Reads
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static void read_callback(unsigned long error, void *context)
 {
 	struct bio *bio = context;
@@ -580,7 +588,8 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 	}
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------------
  * Writes.
  *
  * We do different things with the write io depending on the
@@ -589,9 +598,8 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
  * SYNC: 	increment pending, use kcopyd to write to *all* mirrors
  * RECOVERING:	delay the io until recovery completes
  * NOSYNC:	increment pending, just write to the default mirror
- *---------------------------------------------------------------*/
-
-
+ *---------------------------------------------------------------------
+ */
 static void write_callback(unsigned long error, void *context)
 {
 	unsigned int i;
@@ -843,9 +851,11 @@ static void trigger_event(struct work_struct *work)
 	dm_table_event(ms->ti->table);
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * kmirrord
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static void do_mirror(struct work_struct *work)
 {
 	struct mirror_set *ms = container_of(work, struct mirror_set,
@@ -869,9 +879,11 @@ static void do_mirror(struct work_struct *work)
 	do_failures(ms, &failures);
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Target functions
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 					uint32_t region_size,
 					struct dm_target *ti,

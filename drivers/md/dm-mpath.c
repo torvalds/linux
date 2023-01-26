@@ -118,10 +118,11 @@ static void activate_path_work(struct work_struct *work);
 static void process_queued_bios(struct work_struct *work);
 static void queue_if_no_path_timeout_work(struct timer_list *t);
 
-/*-----------------------------------------------
+/*
+ *-----------------------------------------------
  * Multipath state flags.
- *-----------------------------------------------*/
-
+ *-----------------------------------------------
+ */
 #define MPATHF_QUEUE_IO 0			/* Must we queue all I/O? */
 #define MPATHF_QUEUE_IF_NO_PATH 1		/* Queue I/O if last path fails? */
 #define MPATHF_SAVED_QUEUE_IF_NO_PATH 2		/* Saved state during suspension */
@@ -144,10 +145,11 @@ static bool mpath_double_check_test_bit(int MPATHF_bit, struct multipath *m)
 	return r;
 }
 
-/*-----------------------------------------------
+/*
+ *-----------------------------------------------
  * Allocation routines
- *-----------------------------------------------*/
-
+ *-----------------------------------------------
+ */
 static struct pgpath *alloc_pgpath(void)
 {
 	struct pgpath *pgpath = kzalloc(sizeof(*pgpath), GFP_KERNEL);
@@ -303,10 +305,11 @@ static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mp
 	dm_bio_record(bio_details, bio);
 }
 
-/*-----------------------------------------------
+/*
+ *-----------------------------------------------
  * Path selection
- *-----------------------------------------------*/
-
+ *-----------------------------------------------
+ */
 static int __pg_init_all_paths(struct multipath *m)
 {
 	struct pgpath *pgpath;
@@ -826,7 +829,8 @@ static void trigger_event(struct work_struct *work)
 	dm_table_event(m->ti->table);
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Constructor/argument parsing:
  * <#multipath feature args> [<arg>]*
  * <#hw_handler args> [hw_handler [<arg>]*]
@@ -835,7 +839,8 @@ static void trigger_event(struct work_struct *work)
  *     [<selector> <#selector args> [<arg>]*
  *      <#paths> <#per-path selector args>
  *         [<path> [<arg>]* ]+ ]+
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static int parse_path_selector(struct dm_arg_set *as, struct priority_group *pg,
 			       struct dm_target *ti)
 {
@@ -2169,9 +2174,11 @@ static int multipath_busy(struct dm_target *ti)
 	return busy;
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Module setup
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 static struct target_type multipath_target = {
 	.name = "multipath",
 	.version = {1, 14, 0},

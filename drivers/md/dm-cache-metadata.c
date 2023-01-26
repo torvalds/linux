@@ -163,10 +163,11 @@ struct dm_cache_metadata {
 	struct dm_bitset_cursor dirty_cursor;
 };
 
-/*-------------------------------------------------------------------
+/*
+ *-----------------------------------------------------------------
  * superblock validator
- *-----------------------------------------------------------------*/
-
+ *-----------------------------------------------------------------
+ */
 #define SUPERBLOCK_CSUM_XOR 9031977
 
 static void sb_prepare_for_write(struct dm_block_validator *v,

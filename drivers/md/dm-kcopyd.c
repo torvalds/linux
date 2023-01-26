@@ -51,10 +51,12 @@ static unsigned int dm_get_kcopyd_subjob_size(void)
 	return sub_job_size_kb << 1;
 }
 
-/*-----------------------------------------------------------------
+/*
+ *----------------------------------------------------------------
  * Each kcopyd client has its own little pool of preallocated
  * pages for kcopyd io.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 struct dm_kcopyd_client {
 	struct page_list *pages;
 	unsigned int nr_reserved_pages;
@@ -334,11 +336,13 @@ static void client_free_pages(struct dm_kcopyd_client *kc)
 	kc->nr_free_pages = kc->nr_reserved_pages = 0;
 }
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * kcopyd_jobs need to be allocated by the *clients* of kcopyd,
  * for this reason we use a mempool to prevent the client from
  * ever having to do io (which could cause a deadlock).
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 struct kcopyd_job {
 	struct dm_kcopyd_client *kc;
 	struct list_head list;
@@ -901,9 +905,11 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 }
 #endif  /*  0  */
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Client setup
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *throttle)
 {
 	int r;

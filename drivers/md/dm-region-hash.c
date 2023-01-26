@@ -19,7 +19,8 @@
 
 #define	DM_MSG_PREFIX	"region hash"
 
-/*-----------------------------------------------------------------
+/*
+ *------------------------------------------------------------------
  * Region hash
  *
  * The mirror splits itself up into discrete regions.  Each
@@ -54,7 +55,8 @@
  *   lists in the region_hash, with the 'state', 'list' and
  *   'delayed_bios' fields of the regions.  This is used from irq
  *   context, so all other uses will have to suspend local irqs.
- *---------------------------------------------------------------*/
+ *------------------------------------------------------------------
+ */
 struct dm_region_hash {
 	uint32_t region_size;
 	unsigned int region_shift;

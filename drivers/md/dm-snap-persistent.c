@@ -22,10 +22,12 @@
 
 #define DM_PREFETCH_CHUNKS		12
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Persistent snapshots, by persistent we mean that the snapshot
  * will survive a reboot.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 
 /*
  * We need to store a record of which parts of the origin have

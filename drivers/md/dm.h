@@ -48,9 +48,11 @@ struct dm_md_mempools;
 struct dm_target_io;
 struct dm_io;
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Internal table functions.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 void dm_table_event_callback(struct dm_table *t,
 			     void (*fn)(void *), void *context);
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector);
@@ -119,9 +121,11 @@ static inline int dm_zone_map_bio(struct dm_target_io *tio)
 }
 #endif
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * A registry of target types.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 int dm_target_init(void);
 void dm_target_exit(void);
 struct target_type *dm_get_target_type(const char *name);

@@ -434,10 +434,12 @@ const char *dm_shift_arg(struct dm_arg_set *as);
  */
 void dm_consume_args(struct dm_arg_set *as, unsigned int num_args);
 
-/*-----------------------------------------------------------------
+/*
+ *----------------------------------------------------------------
  * Functions for creating and manipulating mapped devices.
  * Drop the reference with dm_put when you finish with the object.
- *---------------------------------------------------------------*/
+ *----------------------------------------------------------------
+ */
 
 /*
  * DM_ANY_MINOR chooses the next available minor number.
@@ -518,9 +520,11 @@ struct queue_limits *dm_get_queue_limits(struct mapped_device *md);
 int dm_get_geometry(struct mapped_device *md, struct hd_geometry *geo);
 int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo);
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Functions for manipulating device-mapper tables.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 
 /*
  * First create an empty table.
@@ -594,9 +598,11 @@ struct dm_table *dm_swap_table(struct mapped_device *md,
  */
 void dm_destroy_crypto_profile(struct blk_crypto_profile *profile);
 
-/*-----------------------------------------------------------------
+/*
+ *---------------------------------------------------------------
  * Macros.
- *---------------------------------------------------------------*/
+ *---------------------------------------------------------------
+ */
 #define DM_NAME "device-mapper"
 
 #define DM_FMT(fmt) DM_NAME ": " DM_MSG_PREFIX ": " fmt "\n"
