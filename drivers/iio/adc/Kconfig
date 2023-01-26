@@ -919,6 +919,16 @@ config QCOM_SPMI_ADC5_GEN3
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-spmi-adc5-gen3.
 
+config QTI_GLINK_ADC
+	tristate "Qualcomm Technologies Inc. PMIC Glink ADC"
+	depends on QTI_PMIC_GLINK
+	help
+	  This is the IIO PMIC Glink ADC driver for Qualcomm Technologies, Inc.
+	  PMICs.  It supports reading multiple ADC channels using the Glink
+	  interface to communicate with charger firmware.  Channel value
+	  conversion is performed in firmware.  Both converted and raw values
+	  can be read.
+
 config RCAR_GYRO_ADC
 	tristate "Renesas R-Car GyroADC driver"
 	depends on ARCH_RCAR_GEN2 || COMPILE_TEST
