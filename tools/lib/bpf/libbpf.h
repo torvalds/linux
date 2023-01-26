@@ -233,11 +233,30 @@ LIBBPF_API int bpf_object__load(struct bpf_object *obj);
  */
 LIBBPF_API void bpf_object__close(struct bpf_object *obj);
 
-/* pin_maps and unpin_maps can both be called with a NULL path, in which case
- * they will use the pin_path attribute of each map (and ignore all maps that
- * don't have a pin_path set).
+/**
+ * @brief **bpf_object__pin_maps()** pins each map contained within
+ * the BPF object at the passed directory.
+ * @param obj Pointer to a valid BPF object
+ * @param path A directory where maps should be pinned.
+ * @return 0, on success; negative error code, otherwise
+ *
+ * If `path` is NULL `bpf_map__pin` (which is being used on each map)
+ * will use the pin_path attribute of each map. In this case, maps that
+ * don't have a pin_path set will be ignored.
  */
 LIBBPF_API int bpf_object__pin_maps(struct bpf_object *obj, const char *path);
+
+/**
+ * @brief **bpf_object__unpin_maps()** unpins each map contained within
+ * the BPF object found in the passed directory.
+ * @param obj Pointer to a valid BPF object
+ * @param path A directory where pinned maps should be searched for.
+ * @return 0, on success; negative error code, otherwise
+ *
+ * If `path` is NULL `bpf_map__unpin` (which is being used on each map)
+ * will use the pin_path attribute of each map. In this case, maps that
+ * don't have a pin_path set will be ignored.
+ */
 LIBBPF_API int bpf_object__unpin_maps(struct bpf_object *obj,
 				      const char *path);
 LIBBPF_API int bpf_object__pin_programs(struct bpf_object *obj,
@@ -848,10 +867,57 @@ LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize
  * @return true, if the map is an internal map; false, otherwise
  */
 LIBBPF_API bool bpf_map__is_internal(const struct bpf_map *map);
+
+/**
+ * @brief **bpf_map__set_pin_path()** sets the path attribute that tells where the
+ * BPF map should be pinned. This does not actually create the 'pin'.
+ * @param map The bpf_map
+ * @param path The path
+ * @return 0, on success; negative error, otherwise
+ */
 LIBBPF_API int bpf_map__set_pin_path(struct bpf_map *map, const char *path);
+
+/**
+ * @brief **bpf_map__pin_path()** gets the path attribute that tells where the
+ * BPF map should be pinned.
+ * @param map The bpf_map
+ * @return The path string; which can be NULL
+ */
 LIBBPF_API const char *bpf_map__pin_path(const struct bpf_map *map);
+
+/**
+ * @brief **bpf_map__is_pinned()** tells the caller whether or not the
+ * passed map has been pinned via a 'pin' file.
+ * @param map The bpf_map
+ * @return true, if the map is pinned; false, otherwise
+ */
 LIBBPF_API bool bpf_map__is_pinned(const struct bpf_map *map);
+
+/**
+ * @brief **bpf_map__pin()** creates a file that serves as a 'pin'
+ * for the BPF map. This increments the reference count on the
+ * BPF map which will keep the BPF map loaded even after the
+ * userspace process which loaded it has exited.
+ * @param map The bpf_map to pin
+ * @param path A file path for the 'pin'
+ * @return 0, on success; negative error, otherwise
+ *
+ * If `path` is NULL the maps `pin_path` attribute will be used. If this is
+ * also NULL, an error will be returned and the map will not be pinned.
+ */
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
+
+/**
+ * @brief **bpf_map__unpin()** removes the file that serves as a
+ * 'pin' for the BPF map.
+ * @param map The bpf_map to unpin
+ * @param path A file path for the 'pin'
+ * @return 0, on success; negative error, otherwise
+ *
+ * The `path` parameter can be NULL, in which case the `pin_path`
+ * map attribute is unpinned. If both the `path` parameter and
+ * `pin_path` map attribute are set, they must be equal.
+ */
 LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
 
 LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
