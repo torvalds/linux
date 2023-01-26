@@ -37,6 +37,11 @@ _json_event_attributes = [
     'metric_constraint', 'metric_expr', 'long_desc'
 ]
 
+# Attributes that are in pmu_metric rather than pmu_event.
+_json_metric_attributes = [
+    'metric_name', 'metric_group', 'metric_constraint', 'metric_expr', 'desc',
+    'long_desc', 'unit', 'compat', 'aggr_mode'
+]
 
 def removesuffix(s: str, suffix: str) -> str:
   """Remove the suffix from a string
@@ -569,21 +574,28 @@ static void decompress_event(int offset, struct pmu_event *pe)
 \tconst char *p = &big_c_string[offset];
 """)
   for attr in _json_event_attributes:
-    _args.output_file.write(f"""
+    if attr in _json_metric_attributes and 'metric_' in attr:
+      _args.output_file.write(f'\n\t/* Skip {attr} */\n')
+    else:
+      _args.output_file.write(f"""
 \tpe->{attr} = (*p == '\\0' ? NULL : p);
 """)
     if attr == _json_event_attributes[-1]:
       continue
     _args.output_file.write('\twhile (*p++);')
   _args.output_file.write("""}
-static void decompress_metric(int offset, struct pmu_metric *pe)
+
+static void decompress_metric(int offset, struct pmu_metric *pm)
 {
 \tconst char *p = &big_c_string[offset];
 """)
   for attr in _json_event_attributes:
-    _args.output_file.write(f"""
-\tpe->{attr} = (*p == '\\0' ? NULL : p);
+    if attr in _json_metric_attributes:
+      _args.output_file.write(f"""
+\tpm->{attr} = (*p == '\\0' ? NULL : p);
 """)
+    else:
+      _args.output_file.write(f'\n\t/* Skip {attr} */\n')
     if attr == _json_event_attributes[-1]:
       continue
     _args.output_file.write('\twhile (*p++);')

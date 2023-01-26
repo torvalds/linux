@@ -132,8 +132,6 @@ extern struct perf_pmu perf_pmu__fake;
 
 struct perf_pmu_info {
 	const char *unit;
-	const char *metric_expr;
-	const char *metric_name;
 	double scale;
 	bool per_pkg;
 	bool snapshot;
@@ -187,13 +185,6 @@ struct perf_pmu_alias {
 	 * default.
 	 */
 	bool deprecated;
-	/**
-	 * @metric_expr: A metric expression associated with an event. Doing
-	 * this makes little sense due to scale and unit applying to both.
-	 */
-	char *metric_expr;
-	/** @metric_name: A name for the metric. unit applying to both. */
-	char *metric_name;
 	/** @pmu_name: The name copied from struct perf_pmu. */
 	char *pmu_name;
 };

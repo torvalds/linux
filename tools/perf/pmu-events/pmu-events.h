@@ -23,29 +23,19 @@ struct pmu_event {
 	const char *unit;
 	const char *perpkg;
 	const char *aggr_mode;
-	const char *metric_expr;
-	const char *metric_name;
-	const char *metric_group;
 	const char *deprecated;
-	const char *metric_constraint;
 };
 
 struct pmu_metric {
-	const char *name;
-	const char *compat;
-	const char *event;
-	const char *desc;
-	const char *topic;
-	const char *long_desc;
-	const char *pmu;
-	const char *unit;
-	const char *perpkg;
-	const char *aggr_mode;
-	const char *metric_expr;
 	const char *metric_name;
 	const char *metric_group;
-	const char *deprecated;
+	const char *metric_expr;
+	const char *unit;
+	const char *compat;
+	const char *aggr_mode;
 	const char *metric_constraint;
+	const char *desc;
+	const char *long_desc;
 };
 
 struct pmu_events_table;
