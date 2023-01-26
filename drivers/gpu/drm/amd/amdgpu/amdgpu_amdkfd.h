@@ -330,6 +330,11 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 void amdgpu_amdkfd_unreserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 alloc_flag);
 
+#define KFD_XCP_MEMORY_SIZE(n) ((n)->adev->gmc.num_mem_partitions ?\
+		(n)->adev->gmc.mem_partitions[(n)->xcp->mem_id].size /\
+		(n)->adev->xcp_mgr->num_xcp_per_mem_partition :\
+		(n)->adev->gmc.real_vram_size)
+
 #if IS_ENABLED(CONFIG_HSA_AMD)
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,

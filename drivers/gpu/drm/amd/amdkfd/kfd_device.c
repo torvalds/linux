@@ -724,7 +724,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_cwsr_init(kfd);
 
-	/* TODO: Needs to be updated for memory partitioning */
 	svm_migrate_init(kfd->adev);
 
 	amdgpu_amdkfd_get_local_mem_info(kfd->adev, &kfd->local_mem_info);
@@ -752,6 +751,12 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		} else {
 			node->xcc_mask =
 				(1U << NUM_XCC(kfd->adev->gfx.xcc_mask)) - 1;
+		}
+
+		if (node->xcp) {
+			dev_info(kfd_device, "KFD node %d partition %d size %lldM\n",
+				node->node_id, node->xcp->mem_id,
+				KFD_XCP_MEMORY_SIZE(node) >> 20);
 		}
 
 		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
