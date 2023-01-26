@@ -14,6 +14,7 @@
 #include <linux/printk.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/capability.h>
 #include <linux/set_memory.h>
 #include <linux/kallsyms.h>
