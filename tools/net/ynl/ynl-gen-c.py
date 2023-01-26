@@ -565,6 +565,7 @@ class EnumEntry:
             self.doc = yaml.get('doc', '')
 
         self.yaml = yaml
+        self.enum_set = enum_set
         self.c_name = c_upper(enum_set.value_pfx + self.name)
 
         if 'value' in yaml:
@@ -572,10 +573,13 @@ class EnumEntry:
             if prev:
                 self.value_change = (self.value != prev.value + 1)
         elif prev:
+            self.value_change = False
             self.value = prev.value + 1
         else:
             self.value = value_start
             self.value_change = (self.value != 0)
+
+        self.value_change = self.value_change or self.enum_set['type'] == 'flags'
 
     def __getitem__(self, key):
         return self.yaml[key]
@@ -585,6 +589,17 @@ class EnumEntry:
 
     def has_doc(self):
         return bool(self.doc)
+
+    # raw value, i.e. the id in the enum, unlike user value which is a mask for flags
+    def raw_value(self):
+        return self.value
+
+    # user value, same as raw value for enums, for flags it's the mask
+    def user_value(self):
+        if self.enum_set['type'] == 'flags':
+            return 1 << self.value
+        else:
+            return self.value
 
 
 class EnumSet:
@@ -824,7 +839,7 @@ class Family:
 
     def _dictify(self):
         for elem in self.yaml['definitions']:
-            if elem['type'] == 'enum':
+            if elem['type'] == 'enum' or elem['type'] == 'flags':
                 self.consts[elem['name']] = EnumSet(self, elem)
             else:
                 self.consts[elem['name']] = elem
@@ -1973,7 +1988,8 @@ def render_uapi(family, cw):
             defines = []
             cw.nl()
 
-        if const['type'] == 'enum':
+        # Write kdoc for enum and flags (one day maybe also structs)
+        if const['type'] == 'enum' or const['type'] == 'flags':
             enum = family.consts[const['name']]
 
             if enum.has_doc():
@@ -1989,13 +2005,11 @@ def render_uapi(family, cw):
                 cw.p(' */')
 
             uapi_enum_start(family, cw, const, 'name')
-            first = True
             name_pfx = const.get('name-prefix', f"{family.name}-{const['name']}-")
             for entry in enum.entry_list:
                 suffix = ','
-                if first and 'value-start' in const:
-                    suffix = f" = {const['value-start']}" + suffix
-                first = False
+                if entry.value_change:
+                    suffix = f" = {entry.user_value()}" + suffix
                 cw.p(entry.c_name + suffix)
 
             if const.get('render-max', False):
@@ -2003,17 +2017,6 @@ def render_uapi(family, cw):
                 max_name = c_upper(name_pfx + 'max')
                 cw.p('__' + max_name + ',')
                 cw.p(max_name + ' = (__' + max_name + ' - 1)')
-            cw.block_end(line=';')
-            cw.nl()
-        elif const['type'] == 'flags':
-            uapi_enum_start(family, cw, const, 'name')
-            i = const.get('value-start', 0)
-            for item in const['entries']:
-                item_name = item
-                if 'name-prefix' in const:
-                    item_name = c_upper(const['name-prefix'] + item)
-                cw.p(f'{item_name} = {1 << i},')
-                i += 1
             cw.block_end(line=';')
             cw.nl()
         elif const['type'] == 'const':
