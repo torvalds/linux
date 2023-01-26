@@ -868,8 +868,8 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 
 }
 
-void btrfs_clean_tree_block(struct btrfs_trans_handle *trans,
-			    struct extent_buffer *buf)
+void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
+			      struct extent_buffer *buf)
 {
 	struct btrfs_fs_info *fs_info = buf->fs_info;
 	if (!trans || btrfs_header_generation(buf) == trans->transid) {
@@ -4998,7 +4998,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
 
 			btrfs_tree_lock(eb);
 			wait_on_extent_buffer_writeback(eb);
-			btrfs_clean_tree_block(NULL, eb);
+			btrfs_clear_buffer_dirty(NULL, eb);
 			btrfs_tree_unlock(eb);
 
 			free_extent_buffer_stale(eb);

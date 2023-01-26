@@ -4838,7 +4838,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	btrfs_set_buffer_lockdep_class(lockdep_owner, buf, level);
 
 	__btrfs_tree_lock(buf, nest);
-	btrfs_clean_tree_block(trans, buf);
+	btrfs_clear_buffer_dirty(trans, buf);
 	clear_bit(EXTENT_BUFFER_STALE, &buf->bflags);
 	clear_bit(EXTENT_BUFFER_NO_CHECK, &buf->bflags);
 
@@ -5468,12 +5468,12 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 				}
 			}
 		}
-		/* make block locked assertion in btrfs_clean_tree_block happy */
+		/* Make block locked assertion in btrfs_clear_buffer_dirty happy. */
 		if (!path->locks[level]) {
 			btrfs_tree_lock(eb);
 			path->locks[level] = BTRFS_WRITE_LOCK;
 		}
-		btrfs_clean_tree_block(trans, eb);
+		btrfs_clear_buffer_dirty(trans, eb);
 	}
 
 	if (eb == root->node) {

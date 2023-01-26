@@ -2624,7 +2624,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 				}
 
 				btrfs_tree_lock(next);
-				btrfs_clean_tree_block(trans, next);
+				btrfs_clear_buffer_dirty(trans, next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 
@@ -2693,7 +2693,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				next = path->nodes[*level];
 
 				btrfs_tree_lock(next);
-				btrfs_clean_tree_block(trans, next);
+				btrfs_clear_buffer_dirty(trans, next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 
@@ -2774,7 +2774,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 			next = path->nodes[orig_level];
 
 			btrfs_tree_lock(next);
-			btrfs_clean_tree_block(trans, next);
+			btrfs_clear_buffer_dirty(trans, next);
 			btrfs_wait_tree_block_writeback(next);
 			btrfs_tree_unlock(next);
 
