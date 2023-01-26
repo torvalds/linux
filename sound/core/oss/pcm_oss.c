@@ -2910,7 +2910,7 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 	}
 	/* set VM_READ access as well to fix memset() routines that do
 	   reads before writes (to improve performance) */
-	area->vm_flags |= VM_READ;
+	vm_flags_set(area, VM_READ);
 	if (substream == NULL)
 		return -ENXIO;
 	runtime = substream->runtime;

@@ -530,8 +530,7 @@ int drm_gem_dma_mmap(struct drm_gem_dma_object *dma_obj, struct vm_area_struct *
 	 * the whole buffer.
 	 */
 	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_flags |= VM_DONTEXPAND;
+	vm_flags_mod(vma, VM_DONTEXPAND, VM_PFNMAP);
 
 	if (dma_obj->map_noncoherent) {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);

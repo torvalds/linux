@@ -662,7 +662,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 
 	/* Conceal VM_ACCOUNT so old reservation is not undone */
 	if (vm_flags & VM_ACCOUNT && !(flags & MREMAP_DONTUNMAP)) {
-		vma->vm_flags &= ~VM_ACCOUNT;
+		vm_flags_clear(vma, VM_ACCOUNT);
 		if (vma->vm_start < old_addr)
 			account_start = vma->vm_start;
 		if (vma->vm_end > old_addr + old_len)
@@ -719,12 +719,12 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	/* Restore VM_ACCOUNT if one or two pieces of vma left */
 	if (account_start) {
 		vma = vma_prev(&vmi);
-		vma->vm_flags |= VM_ACCOUNT;
+		vm_flags_set(vma, VM_ACCOUNT);
 	}
 
 	if (account_end) {
 		vma = vma_next(&vmi);
-		vma->vm_flags |= VM_ACCOUNT;
+		vm_flags_set(vma, VM_ACCOUNT);
 	}
 
 	return new_addr;

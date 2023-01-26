@@ -113,7 +113,7 @@ static void userfaultfd_set_vm_flags(struct vm_area_struct *vma,
 {
 	const bool uffd_wp_changed = (vma->vm_flags ^ flags) & VM_UFFD_WP;
 
-	vma->vm_flags = flags;
+	vm_flags_reset(vma, flags);
 	/*
 	 * For shared mappings, we want to enable writenotify while
 	 * userfaultfd-wp is enabled (see vma_wants_writenotify()). We'll simply

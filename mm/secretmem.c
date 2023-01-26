@@ -128,7 +128,7 @@ static int secretmem_mmap(struct file *file, struct vm_area_struct *vma)
 	if (mlock_future_check(vma->vm_mm, vma->vm_flags | VM_LOCKED, len))
 		return -EAGAIN;
 
-	vma->vm_flags |= VM_LOCKED | VM_DONTDUMP;
+	vm_flags_set(vma, VM_LOCKED | VM_DONTDUMP);
 	vma->vm_ops = &secretmem_vm_ops;
 
 	return 0;

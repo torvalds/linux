@@ -391,7 +391,7 @@ void __init map_vsyscall(void)
 	}
 
 	if (vsyscall_mode == XONLY)
-		gate_vma.vm_flags = VM_EXEC;
+		vm_flags_init(&gate_vma, VM_EXEC);
 
 	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=
 		     (unsigned long)VSYSCALL_ADDR);
