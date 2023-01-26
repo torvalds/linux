@@ -26,7 +26,7 @@ DECLARE_STATIC_CALL(pv_sched_clock, dummy_sched_clock);
 
 void paravirt_set_sched_clock(u64 (*func)(void));
 
-static inline u64 paravirt_sched_clock(void)
+static __always_inline u64 paravirt_sched_clock(void)
 {
 	return static_call(pv_sched_clock)();
 }
