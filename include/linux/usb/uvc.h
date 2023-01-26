@@ -154,6 +154,6 @@ struct uvc_format_desc {
 	u32 fcc;
 };
 
-struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16]);
+const struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16]);
 
 #endif /* __LINUX_V4L2_UVC_H */

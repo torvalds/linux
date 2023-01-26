@@ -27,10 +27,10 @@
 #include "uvc_v4l2.h"
 #include "uvc_configfs.h"
 
-static struct uvc_format_desc *to_uvc_format(struct uvcg_format *uformat)
+static const struct uvc_format_desc *to_uvc_format(struct uvcg_format *uformat)
 {
 	char guid[16] = UVC_GUID_FORMAT_MJPEG;
-	struct uvc_format_desc *format;
+	const struct uvc_format_desc *format;
 	struct uvcg_uncompressed *unc;
 
 	if (uformat->type == UVCG_UNCOMPRESSED) {
@@ -119,7 +119,7 @@ static struct uvcg_format *find_format_by_pix(struct uvc_device *uvc,
 	struct uvcg_format *uformat = NULL;
 
 	list_for_each_entry(format, &uvc->header->formats, entry) {
-		struct uvc_format_desc *fmtdesc = to_uvc_format(format->fmt);
+		const struct uvc_format_desc *fmtdesc = to_uvc_format(format->fmt);
 
 		if (fmtdesc->fcc == pixelformat) {
 			uformat = format->fmt;
@@ -364,7 +364,7 @@ uvc_v4l2_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
-	struct uvc_format_desc *fmtdesc;
+	const struct uvc_format_desc *fmtdesc;
 	struct uvcg_format *uformat;
 
 	if (f->index >= uvc->header->num_fmt)

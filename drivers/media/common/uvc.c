@@ -11,7 +11,7 @@
  * Video formats
  */
 
-static struct uvc_format_desc uvc_fmts[] = {
+static const struct uvc_format_desc uvc_fmts[] = {
 	{
 		.name		= "YUV 4:2:2 (YUYV)",
 		.guid		= UVC_GUID_FORMAT_YUY2,
@@ -204,7 +204,7 @@ static struct uvc_format_desc uvc_fmts[] = {
 	},
 };
 
-struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16])
+const struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16])
 {
 	unsigned int len = ARRAY_SIZE(uvc_fmts);
 	unsigned int i;
