@@ -180,9 +180,6 @@ static int check_brk_limits(unsigned long addr, unsigned long len)
 
 	return mlock_future_check(current->mm, current->mm->def_flags, len);
 }
-static int do_brk_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
-			 unsigned long newbrk, unsigned long oldbrk,
-			 struct list_head *uf);
 static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *brkvma,
 		unsigned long addr, unsigned long request, unsigned long flags);
 SYSCALL_DEFINE1(brk, unsigned long, brk)
@@ -236,7 +233,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 
 	/*
 	 * Always allow shrinking brk.
-	 * do_brk_munmap() may downgrade mmap_lock to read.
+	 * do_vma_munmap() may downgrade mmap_lock to read.
 	 */
 	if (brk <= mm->brk) {
 		int ret;
@@ -248,11 +245,11 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 			goto out; /* mapping intersects with an existing non-brk vma. */
 		/*
 		 * mm->brk must be protected by write mmap_lock.
-		 * do_brk_munmap() may downgrade the lock,  so update it
-		 * before calling do_brk_munmap().
+		 * do_vma_munmap() may downgrade the lock,  so update it
+		 * before calling do_vma_munmap().
 		 */
 		mm->brk = brk;
-		ret = do_brk_munmap(&vmi, brkvma, newbrk, oldbrk, &uf);
+		ret = do_vma_munmap(&vmi, brkvma, newbrk, oldbrk, &uf, true);
 		if (ret == 1)  {
 			downgraded = true;
 			goto success;
@@ -2951,26 +2948,27 @@ out:
 }
 
 /*
- * brk_munmap() - Unmap a full or partial vma.
- * @vmi: The vma iterator
- * @vma: The vma to be modified
- * @newbrk: the start of the address to unmap
- * @oldbrk: The end of the address to unmap
+ * do_vma_munmap() - Unmap a full or partial vma.
+ * @vmi: The vma iterator pointing at the vma
+ * @vma: The first vma to be munmapped
+ * @start: the start of the address to unmap
+ * @end: The end of the address to unmap
  * @uf: The userfaultfd list_head
+ * @downgrade: Attempt to downgrade or not
  *
- * Returns: 1 on success.
- * unmaps a partial VMA mapping.  Does not handle alignment, downgrades lock if
- * possible.
+ * Returns: 0 on success and not downgraded, 1 on success and downgraded.
+ * unmaps a VMA mapping when the vma iterator is already in position.
+ * Does not handle alignment.
  */
-static int do_brk_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
-			 unsigned long newbrk, unsigned long oldbrk,
-			 struct list_head *uf)
+int do_vma_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
+		  unsigned long start, unsigned long end,
+		  struct list_head *uf, bool downgrade)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	int ret;
 
-	arch_unmap(mm, newbrk, oldbrk);
-	ret = do_vmi_align_munmap(vmi, vma, mm, newbrk, oldbrk, uf, true);
+	arch_unmap(mm, start, end);
+	ret = do_vmi_align_munmap(vmi, vma, mm, start, end, uf, downgrade);
 	validate_mm_mt(mm);
 	return ret;
 }
