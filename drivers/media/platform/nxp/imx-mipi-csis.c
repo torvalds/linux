@@ -1496,20 +1496,20 @@ static int mipi_csis_probe(struct platform_device *pdev)
 			       dev_name(dev), csis);
 	if (ret) {
 		dev_err(dev, "Interrupt request failed\n");
-		goto disable_clock;
+		goto err_disable_clock;
 	}
 
 	/* Initialize and register the subdev. */
 	ret = mipi_csis_subdev_init(csis);
 	if (ret < 0)
-		goto disable_clock;
+		goto err_disable_clock;
 
 	platform_set_drvdata(pdev, &csis->sd);
 
 	ret = mipi_csis_async_register(csis);
 	if (ret < 0) {
 		dev_err(dev, "async register failed: %d\n", ret);
-		goto cleanup;
+		goto err_cleanup;
 	}
 
 	/* Initialize debugfs. */
@@ -1520,7 +1520,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	if (!pm_runtime_enabled(dev)) {
 		ret = mipi_csis_runtime_resume(dev);
 		if (ret < 0)
-			goto unregister_all;
+			goto err_unregister_all;
 	}
 
 	dev_info(dev, "lanes: %d, freq: %u\n",
@@ -1528,14 +1528,14 @@ static int mipi_csis_probe(struct platform_device *pdev)
 
 	return 0;
 
-unregister_all:
+err_unregister_all:
 	mipi_csis_debugfs_exit(csis);
-cleanup:
+err_cleanup:
 	media_entity_cleanup(&csis->sd.entity);
 	v4l2_async_nf_unregister(&csis->notifier);
 	v4l2_async_nf_cleanup(&csis->notifier);
 	v4l2_async_unregister_subdev(&csis->sd);
-disable_clock:
+err_disable_clock:
 	mipi_csis_clk_disable(csis);
 	fwnode_handle_put(csis->sd.fwnode);
 	mutex_destroy(&csis->lock);
