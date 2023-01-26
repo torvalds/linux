@@ -790,8 +790,10 @@ class Family:
         self.mcgrps = self.yaml.get('mcast-groups', {'list': []})
 
         self.consts = dict()
+        # list of all operations
+        self.msg_list = []
+        # dict of operations which have their own message type (have attributes)
         self.ops = dict()
-        self.ops_list = []
         self.attr_sets = dict()
         self.attr_sets_list = []
 
@@ -858,7 +860,7 @@ class Family:
             op = Operation(self, elem, val)
             val += 1
 
-            self.ops_list.append((elem['name'], op),)
+            self.msg_list.append(op)
             if 'notify' in elem:
                 ntf.append(op)
                 continue
@@ -2063,7 +2065,7 @@ def render_uapi(family, cw):
     max_value = f"({cnt_name} - 1)"
 
     uapi_enum_start(family, cw, family['operations'], 'enum-name')
-    for _, op in family.ops_list:
+    for op in family.msg_list:
         if separate_ntf and ('notify' in op or 'event' in op):
             continue
 
@@ -2082,7 +2084,7 @@ def render_uapi(family, cw):
 
     if separate_ntf:
         uapi_enum_start(family, cw, family['operations'], enum_name='async-enum')
-        for _, op in family.ops_list:
+        for op in family.msg_list:
             if separate_ntf and not ('notify' in op or 'event' in op):
                 continue
 
