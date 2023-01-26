@@ -8,11 +8,12 @@
 #ifndef _NET_FLOW_H
 #define _NET_FLOW_H
 
-#include <linux/socket.h>
 #include <linux/in6.h>
 #include <linux/atomic.h>
-#include <net/flow_dissector.h>
+#include <linux/container_of.h>
 #include <linux/uidgid.h>
+
+struct flow_keys;
 
 /*
  * ifindex generation is per-net namespace, and loopback is
