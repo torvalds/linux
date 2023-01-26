@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import collections
 import jsonschema
 import os
 import yaml
@@ -793,7 +794,7 @@ class Family:
         # list of all operations
         self.msg_list = []
         # dict of operations which have their own message type (have attributes)
-        self.ops = dict()
+        self.ops = collections.OrderedDict()
         self.attr_sets = dict()
         self.attr_sets_list = []
 
