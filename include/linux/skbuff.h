@@ -25,7 +25,6 @@
 #include <linux/spinlock.h>
 #include <net/checksum.h>
 #include <linux/rcupdate.h>
-#include <linux/hrtimer.h>
 #include <linux/dma-mapping.h>
 #include <linux/netdev_features.h>
 #include <net/flow_dissector.h>
