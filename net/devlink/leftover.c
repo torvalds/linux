@@ -10793,6 +10793,43 @@ static int devlink_param_verify(const struct devlink_param *param)
 		return devlink_param_driver_verify(param);
 }
 
+static int devlink_param_register(struct devlink *devlink,
+				  const struct devlink_param *param)
+{
+	struct devlink_param_item *param_item;
+
+	WARN_ON(devlink_param_verify(param));
+	WARN_ON(devlink_param_find_by_name(&devlink->param_list, param->name));
+
+	if (param->supported_cmodes == BIT(DEVLINK_PARAM_CMODE_DRIVERINIT))
+		WARN_ON(param->get || param->set);
+	else
+		WARN_ON(!param->get || !param->set);
+
+	param_item = kzalloc(sizeof(*param_item), GFP_KERNEL);
+	if (!param_item)
+		return -ENOMEM;
+
+	param_item->param = param;
+
+	list_add_tail(&param_item->list, &devlink->param_list);
+	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
+	return 0;
+}
+
+static void devlink_param_unregister(struct devlink *devlink,
+				     const struct devlink_param *param)
+{
+	struct devlink_param_item *param_item;
+
+	param_item =
+		devlink_param_find_by_name(&devlink->param_list, param->name);
+	WARN_ON(!param_item);
+	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_DEL);
+	list_del(&param_item->list);
+	kfree(param_item);
+}
+
 /**
  *	devlink_params_register - register configuration parameters
  *
@@ -10843,59 +10880,6 @@ void devlink_params_unregister(struct devlink *devlink,
 		devlink_param_unregister(devlink, param);
 }
 EXPORT_SYMBOL_GPL(devlink_params_unregister);
-
-/**
- * devlink_param_register - register one configuration parameter
- *
- * @devlink: devlink
- * @param: one configuration parameter
- *
- * Register the configuration parameter supported by the driver.
- * Return: returns 0 on successful registration or error code otherwise.
- */
-int devlink_param_register(struct devlink *devlink,
-			   const struct devlink_param *param)
-{
-	struct devlink_param_item *param_item;
-
-	WARN_ON(devlink_param_verify(param));
-	WARN_ON(devlink_param_find_by_name(&devlink->param_list, param->name));
-
-	if (param->supported_cmodes == BIT(DEVLINK_PARAM_CMODE_DRIVERINIT))
-		WARN_ON(param->get || param->set);
-	else
-		WARN_ON(!param->get || !param->set);
-
-	param_item = kzalloc(sizeof(*param_item), GFP_KERNEL);
-	if (!param_item)
-		return -ENOMEM;
-
-	param_item->param = param;
-
-	list_add_tail(&param_item->list, &devlink->param_list);
-	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(devlink_param_register);
-
-/**
- * devlink_param_unregister - unregister one configuration parameter
- * @devlink: devlink
- * @param: configuration parameter to unregister
- */
-void devlink_param_unregister(struct devlink *devlink,
-			      const struct devlink_param *param)
-{
-	struct devlink_param_item *param_item;
-
-	param_item =
-		devlink_param_find_by_name(&devlink->param_list, param->name);
-	WARN_ON(!param_item);
-	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_DEL);
-	list_del(&param_item->list);
-	kfree(param_item);
-}
-EXPORT_SYMBOL_GPL(devlink_param_unregister);
 
 /**
  *	devlink_param_driverinit_value_get - get configuration parameter
