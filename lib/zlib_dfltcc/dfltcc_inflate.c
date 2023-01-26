@@ -95,8 +95,10 @@ dfltcc_inflate_action dfltcc_inflate(
     struct dfltcc_param_v0 *param = &dfltcc_state->param;
     dfltcc_cc cc;
 
-    if (flush == Z_BLOCK) {
-        /* DFLTCC does not support stopping on block boundaries */
+    if (flush == Z_BLOCK || flush == Z_PACKET_FLUSH) {
+        /* DFLTCC does not support stopping on block boundaries (Z_BLOCK flush option)
+         * as well as the use of Z_PACKET_FLUSH option (used exclusively by PPP driver)
+         */
         if (dfltcc_inflate_disable(strm)) {
             *ret = Z_STREAM_ERROR;
             return DFLTCC_INFLATE_BREAK;
