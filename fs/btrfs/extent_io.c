@@ -1912,13 +1912,6 @@ static void set_btree_ioerr(struct page *page, struct extent_buffer *eb)
 	mapping_set_error(page->mapping, -EIO);
 
 	/*
-	 * If we error out, we should add back the dirty_metadata_bytes
-	 * to make it consistent.
-	 */
-	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes,
-				 eb->len, fs_info->dirty_metadata_batch);
-
-	/*
 	 * If writeback for a btree extent that doesn't belong to a log tree
 	 * failed, increment the counter transaction->eb_write_errors.
 	 * We do this because while the transaction is running and before it's
