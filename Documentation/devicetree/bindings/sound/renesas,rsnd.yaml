@@ -18,8 +18,7 @@ properties:
           - enum:
               - renesas,rcar_sound-r8a7778   # R-Car M1A
               - renesas,rcar_sound-r8a7779   # R-Car H1
-          - enum:
-              - renesas,rcar_sound-gen1
+          - const: renesas,rcar_sound-gen1
       # for Gen2 SoC
       - items:
           - enum:
@@ -32,8 +31,7 @@ properties:
               - renesas,rcar_sound-r8a7791   # R-Car M2-W
               - renesas,rcar_sound-r8a7793   # R-Car M2-N
               - renesas,rcar_sound-r8a7794   # R-Car E2
-          - enum:
-              - renesas,rcar_sound-gen2
+          - const: renesas,rcar_sound-gen2
       # for Gen3 SoC
       - items:
           - enum:
@@ -47,14 +45,12 @@ properties:
               - renesas,rcar_sound-r8a77965  # R-Car M3-N
               - renesas,rcar_sound-r8a77990  # R-Car E3
               - renesas,rcar_sound-r8a77995  # R-Car D3
-          - enum:
-              - renesas,rcar_sound-gen3
+          - const: renesas,rcar_sound-gen3
       # for Generic
-      - items:
-          - enum:
-              - renesas,rcar_sound-gen1
-              - renesas,rcar_sound-gen2
-              - renesas,rcar_sound-gen3
+      - enum:
+          - renesas,rcar_sound-gen1
+          - renesas,rcar_sound-gen2
+          - renesas,rcar_sound-gen3
 
   reg:
     minItems: 1
