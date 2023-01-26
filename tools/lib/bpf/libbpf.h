@@ -1064,7 +1064,8 @@ struct user_ring_buffer_opts {
 
 #define user_ring_buffer_opts__last_field sz
 
-/* @brief **user_ring_buffer__new()** creates a new instance of a user ring
+/**
+ * @brief **user_ring_buffer__new()** creates a new instance of a user ring
  * buffer.
  *
  * @param map_fd A file descriptor to a BPF_MAP_TYPE_USER_RINGBUF map.
@@ -1075,7 +1076,8 @@ struct user_ring_buffer_opts {
 LIBBPF_API struct user_ring_buffer *
 user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts);
 
-/* @brief **user_ring_buffer__reserve()** reserves a pointer to a sample in the
+/**
+ * @brief **user_ring_buffer__reserve()** reserves a pointer to a sample in the
  * user ring buffer.
  * @param rb A pointer to a user ring buffer.
  * @param size The size of the sample, in bytes.
@@ -1095,7 +1097,8 @@ user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts);
  */
 LIBBPF_API void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 size);
 
-/* @brief **user_ring_buffer__reserve_blocking()** reserves a record in the
+/**
+ * @brief **user_ring_buffer__reserve_blocking()** reserves a record in the
  * ring buffer, possibly blocking for up to @timeout_ms until a sample becomes
  * available.
  * @param rb The user ring buffer.
@@ -1139,7 +1142,8 @@ LIBBPF_API void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb,
 						    __u32 size,
 						    int timeout_ms);
 
-/* @brief **user_ring_buffer__submit()** submits a previously reserved sample
+/**
+ * @brief **user_ring_buffer__submit()** submits a previously reserved sample
  * into the ring buffer.
  * @param rb The user ring buffer.
  * @param sample A reserved sample.
@@ -1149,7 +1153,8 @@ LIBBPF_API void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb,
  */
 LIBBPF_API void user_ring_buffer__submit(struct user_ring_buffer *rb, void *sample);
 
-/* @brief **user_ring_buffer__discard()** discards a previously reserved sample.
+/**
+ * @brief **user_ring_buffer__discard()** discards a previously reserved sample.
  * @param rb The user ring buffer.
  * @param sample A reserved sample.
  *
@@ -1158,7 +1163,8 @@ LIBBPF_API void user_ring_buffer__submit(struct user_ring_buffer *rb, void *samp
  */
 LIBBPF_API void user_ring_buffer__discard(struct user_ring_buffer *rb, void *sample);
 
-/* @brief **user_ring_buffer__free()** frees a ring buffer that was previously
+/**
+ * @brief **user_ring_buffer__free()** frees a ring buffer that was previously
  * created with **user_ring_buffer__new()**.
  * @param rb The user ring buffer being freed.
  */
