@@ -29,7 +29,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdev_features.h>
 #include <net/flow_dissector.h>
-#include <linux/splice.h>
 #include <linux/in6.h>
 #include <linux/if_packet.h>
 #include <linux/llist.h>
