@@ -5469,8 +5469,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			}
 		}
 		/* make block locked assertion in btrfs_clean_tree_block happy */
-		if (!path->locks[level] &&
-		    btrfs_header_generation(eb) == trans->transid) {
+		if (!path->locks[level]) {
 			btrfs_tree_lock(eb);
 			path->locks[level] = BTRFS_WRITE_LOCK;
 		}
