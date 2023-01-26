@@ -1047,7 +1047,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 
 		ret = reserve_pfn_range(paddr, size, prot, 0);
 		if (ret == 0 && vma)
-			vma->vm_flags |= VM_PAT;
+			vm_flags_set(vma, VM_PAT);
 		return ret;
 	}
 
@@ -1113,7 +1113,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 	}
 	free_pfn_range(paddr, size);
 	if (vma)
-		vma->vm_flags &= ~VM_PAT;
+		vm_flags_clear(vma, VM_PAT);
 }
 
 /*
@@ -1123,7 +1123,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
  */
 void untrack_pfn_moved(struct vm_area_struct *vma)
 {
-	vma->vm_flags &= ~VM_PAT;
+	vm_flags_clear(vma, VM_PAT);
 }
 
 pgprot_t pgprot_writecombine(pgprot_t prot)

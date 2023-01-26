@@ -183,7 +183,7 @@ success:
 	/*
 	 * vm_flags is protected by the mmap_lock held in write mode.
 	 */
-	vma->vm_flags = new_flags;
+	vm_flags_reset(vma, new_flags);
 	if (!vma->vm_file) {
 		error = replace_anon_vma_name(vma, anon_name);
 		if (error)
