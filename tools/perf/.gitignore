@@ -38,6 +38,7 @@ arch/*/include/generated/
 trace/beauty/generated/
 pmu-events/pmu-events.c
 pmu-events/jevents
+pmu-events/metric_test.log
 feature/
 libapi/
 libbpf/
