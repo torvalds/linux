@@ -435,7 +435,7 @@ static int __s5c73m3_s_stream(struct s5c73m3 *state, struct v4l2_subdev *sd,
 	state->streaming = !!on;
 
 	if (!on)
-		return ret;
+		return 0;
 
 	if (state->apply_fiv) {
 		ret = s5c73m3_set_frame_rate(state);
