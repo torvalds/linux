@@ -1700,7 +1700,6 @@ static void taprio_reset(struct Qdisc *sch)
 	int i;
 
 	hrtimer_cancel(&q->advance_timer);
-	qdisc_synchronize(sch);
 
 	if (q->qdiscs) {
 		for (i = 0; i < dev->num_tx_queues; i++)
