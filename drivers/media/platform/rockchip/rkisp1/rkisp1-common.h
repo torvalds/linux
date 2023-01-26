@@ -190,20 +190,14 @@ struct rkisp1_csi {
  * @sd:				v4l2_subdev variable
  * @rkisp1:			pointer to rkisp1_device
  * @pads:			media pads
- * @pad_cfg:			pads configurations
  * @sink_fmt:			input format
- * @src_fmt:			output format
- * @ops_lock:			ops serialization
  * @frame_sequence:		used to synchronize frame_id between video devices.
  */
 struct rkisp1_isp {
 	struct v4l2_subdev sd;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_mbus_info *sink_fmt;
-	const struct rkisp1_mbus_info *src_fmt;
-	struct mutex ops_lock; /* serialize the subdevice ops */
 	__u32 frame_sequence;
 };
 
