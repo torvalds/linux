@@ -393,12 +393,13 @@ error_alloc_mhi_buf:
 }
 
 static void mhi_firmware_copy(struct mhi_controller *mhi_cntrl,
-			      const struct firmware *firmware,
+			      const u8 *img_buf,
+			      size_t img_size,
 			      struct image_info *img_info)
 {
-	size_t remainder = firmware->size;
+	size_t remainder = img_size;
 	size_t to_cpy;
-	const u8 *buf = firmware->data;
+	const u8 *buf = img_buf;
 	struct mhi_buf *mhi_buf = img_info->mhi_buf;
 	struct bhi_vec_entry *bhi_vec = img_info->bhi_vec;
 
@@ -422,8 +423,9 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	const char *fw_name;
 	void *buf;
 	dma_addr_t dma_addr;
-	size_t size;
+	size_t size, img_size;
 	int i, ret;
+	const u8 *img_buf;
 
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
 		MHI_ERR(dev, "Device MHI is not in valid state\n");
@@ -517,15 +519,23 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	 * device transitioning into MHI READY state
 	 */
 	if (mhi_cntrl->fbc_download) {
-		ret = mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image,
-					   firmware->size);
+		img_size = firmware->size;
+		img_buf = firmware->data;
+		MHI_LOG(dev, "tme_supported_image:%s\n",
+				(mhi_cntrl->tme_supported_image ? "True" : "False"));
+		if (mhi_cntrl->tme_supported_image) {
+			img_buf = firmware->data + mhi_cntrl->sbl_size;
+			img_size = img_size - mhi_cntrl->sbl_size;
+		}
+
+		ret = mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image, img_size);
 		if (ret) {
 			release_firmware(firmware);
 			goto error_fw_load;
 		}
 
 		/* Load the firmware into BHIE vec table */
-		mhi_firmware_copy(mhi_cntrl, firmware, mhi_cntrl->fbc_image);
+		mhi_firmware_copy(mhi_cntrl, img_buf, img_size, mhi_cntrl->fbc_image);
 	}
 
 	release_firmware(firmware);
