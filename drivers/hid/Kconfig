@@ -1025,6 +1025,14 @@ config HID_STEAM
 	without running the Steam Client. It supports both the wired and
 	the wireless adaptor.
 
+config STEAM_FF
+	bool "Steam Deck force feedback support"
+	depends on HID_STEAM
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for the Steam
+	Deck.
+
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
 	help

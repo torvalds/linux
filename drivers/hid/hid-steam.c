@@ -91,6 +91,7 @@ static LIST_HEAD(steam_devices);
 #define STEAM_CMD_FORCEFEEDBAK		0x8f
 #define STEAM_CMD_REQUEST_COMM_STATUS	0xb4
 #define STEAM_CMD_GET_SERIAL		0xae
+#define STEAM_CMD_HAPTIC_RUMBLE		0xeb
 
 /* Some useful register ids */
 #define STEAM_REG_LPAD_MODE		0x07
@@ -134,6 +135,9 @@ struct steam_device {
 	u8 battery_charge;
 	u16 voltage;
 	struct delayed_work heartbeat;
+	struct work_struct rumble_work;
+	u16 rumble_left;
+	u16 rumble_right;
 };
 
 static int steam_recv_report(struct steam_device *steam,
@@ -289,6 +293,45 @@ static inline int steam_request_conn_status(struct steam_device *steam)
 {
 	return steam_send_report_byte(steam, STEAM_CMD_REQUEST_COMM_STATUS);
 }
+
+static inline int steam_haptic_rumble(struct steam_device *steam,
+				u16 intensity, u16 left_speed, u16 right_speed,
+				u8 left_gain, u8 right_gain)
+{
+	u8 report[11] = {STEAM_CMD_HAPTIC_RUMBLE, 9};
+
+	report[3] = intensity & 0xFF;
+	report[4] = intensity >> 8;
+	report[5] = left_speed & 0xFF;
+	report[6] = left_speed >> 8;
+	report[7] = right_speed & 0xFF;
+	report[8] = right_speed >> 8;
+	report[9] = left_gain;
+	report[10] = right_gain;
+
+	return steam_send_report(steam, report, sizeof(report));
+}
+
+static void steam_haptic_rumble_cb(struct work_struct *work)
+{
+	struct steam_device *steam = container_of(work, struct steam_device,
+							rumble_work);
+	steam_haptic_rumble(steam, 0, steam->rumble_left,
+		steam->rumble_right, 2, 0);
+}
+
+#ifdef CONFIG_STEAM_FF
+static int steam_play_effect(struct input_dev *dev, void *data,
+				struct ff_effect *effect)
+{
+	struct steam_device *steam = input_get_drvdata(dev);
+
+	steam->rumble_left = effect->u.rumble.strong_magnitude;
+	steam->rumble_right = effect->u.rumble.weak_magnitude;
+
+	return schedule_work(&steam->rumble_work);
+}
+#endif
 
 static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 {
@@ -539,6 +582,15 @@ static int steam_input_register(struct steam_device *steam)
 	}
 	input_abs_set_res(input, ABS_HAT0X, STEAM_PAD_RESOLUTION);
 	input_abs_set_res(input, ABS_HAT0Y, STEAM_PAD_RESOLUTION);
+
+#ifdef CONFIG_STEAM_FF
+	if (steam->quirks & STEAM_QUIRK_DECK) {
+		input_set_capability(input, EV_FF, FF_RUMBLE);
+		ret = input_ff_create_memless(input, NULL, steam_play_effect);
+		if (ret)
+			goto input_register_fail;
+	}
+#endif
 
 	ret = input_register_device(input);
 	if (ret)
@@ -841,6 +893,7 @@ static int steam_probe(struct hid_device *hdev,
 	INIT_WORK(&steam->work_connect, steam_work_connect_cb);
 	INIT_LIST_HEAD(&steam->list);
 	INIT_DEFERRABLE_WORK(&steam->heartbeat, steam_lizard_mode_heartbeat);
+	INIT_WORK(&steam->rumble_work, steam_haptic_rumble_cb);
 
 	steam->client_hdev = steam_create_client_hid(hdev);
 	if (IS_ERR(steam->client_hdev)) {
@@ -897,6 +950,7 @@ hid_hw_start_fail:
 client_hdev_fail:
 	cancel_work_sync(&steam->work_connect);
 	cancel_delayed_work_sync(&steam->heartbeat);
+	cancel_work_sync(&steam->rumble_work);
 steam_alloc_fail:
 	hid_err(hdev, "%s: failed with error %d\n",
 			__func__, ret);
