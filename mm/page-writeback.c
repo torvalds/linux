@@ -2470,7 +2470,7 @@ continue_unlock:
 				goto continue_unlock;
 
 			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
-			error = writepage(&folio->page, wbc, data);
+			error = writepage(folio, wbc, data);
 			if (unlikely(error)) {
 				/*
 				 * Handle errors according to the type of
@@ -2528,11 +2528,11 @@ continue_unlock:
 }
 EXPORT_SYMBOL(write_cache_pages);
 
-static int writepage_cb(struct page *page, struct writeback_control *wbc,
+static int writepage_cb(struct folio *folio, struct writeback_control *wbc,
 		void *data)
 {
 	struct address_space *mapping = data;
-	int ret = mapping->a_ops->writepage(page, wbc);
+	int ret = mapping->a_ops->writepage(&folio->page, wbc);
 	mapping_set_error(mapping, ret);
 	return ret;
 }

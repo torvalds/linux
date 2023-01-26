@@ -2675,14 +2675,14 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 static int
 cifs_writepage_locked(struct page *page, struct writeback_control *wbc);
 
-static int cifs_write_one_page(struct page *page, struct writeback_control *wbc,
-		void *data)
+static int cifs_write_one_page(struct folio *folio,
+		struct writeback_control *wbc, void *data)
 {
 	struct address_space *mapping = data;
 	int ret;
 
-	ret = cifs_writepage_locked(page, wbc);
-	unlock_page(page);
+	ret = cifs_writepage_locked(&folio->page, wbc);
+	folio_unlock(folio);
 	mapping_set_error(mapping, ret);
 	return ret;
 }

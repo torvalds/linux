@@ -2711,10 +2711,10 @@ out:
 	return err;
 }
 
-static int ext4_writepage_cb(struct page *page, struct writeback_control *wbc,
+static int ext4_writepage_cb(struct folio *folio, struct writeback_control *wbc,
 			     void *data)
 {
-	return ext4_writepage(page, wbc);
+	return ext4_writepage(&folio->page, wbc);
 }
 
 static int ext4_do_writepages(struct mpage_da_data *mpd)

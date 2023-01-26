@@ -832,7 +832,7 @@ out:
 	return err;
 }
 
-static int ntfs_resident_writepage(struct page *page,
+static int ntfs_resident_writepage(struct folio *folio,
 		struct writeback_control *wbc, void *data)
 {
 	struct address_space *mapping = data;
@@ -840,11 +840,11 @@ static int ntfs_resident_writepage(struct page *page,
 	int ret;
 
 	ni_lock(ni);
-	ret = attr_data_write_resident(ni, page);
+	ret = attr_data_write_resident(ni, &folio->page);
 	ni_unlock(ni);
 
 	if (ret != E_NTFS_NONRESIDENT)
-		unlock_page(page);
+		folio_unlock(folio);
 	mapping_set_error(mapping, ret);
 	return ret;
 }

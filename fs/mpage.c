@@ -440,9 +440,10 @@ void clean_page_buffers(struct page *page)
 	clean_buffers(page, ~0U);
 }
 
-static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 		      void *data)
 {
+	struct page *page = &folio->page;
 	struct mpage_data *mpd = data;
 	struct bio *bio = mpd->bio;
 	struct address_space *mapping = page->mapping;

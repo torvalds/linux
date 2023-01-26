@@ -482,7 +482,7 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
  *
  * However, we may have to redirty a page (see below.)
  */
-static int ext4_journalled_writepage_callback(struct page *page,
+static int ext4_journalled_writepage_callback(struct folio *folio,
 					      struct writeback_control *wbc,
 					      void *data)
 {
@@ -490,7 +490,7 @@ static int ext4_journalled_writepage_callback(struct page *page,
 	struct buffer_head *bh, *head;
 	struct journal_head *jh;
 
-	bh = head = page_buffers(page);
+	bh = head = folio_buffers(folio);
 	do {
 		/*
 		 * We have to redirty a page in these cases:
@@ -509,7 +509,7 @@ static int ext4_journalled_writepage_callback(struct page *page,
 		if (buffer_dirty(bh) ||
 		    (jh && (jh->b_transaction != transaction ||
 			    jh->b_next_transaction))) {
-			redirty_page_for_writepage(wbc, page);
+			folio_redirty_for_writepage(wbc, folio);
 			goto out;
 		}
 	} while ((bh = bh->b_this_page) != head);
