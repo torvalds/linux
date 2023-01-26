@@ -187,6 +187,12 @@ CONTENTION OPTIONS
 --lock-filter=<value>::
 	Show lock contention only for given lock addresses or names (comma separated list).
 
+-S::
+--callstack-filter=<value>::
+	Show lock contention only if the callstack contains the given string.
+	Note that it matches the substring so 'rq' would match both 'raw_spin_rq_lock'
+	and 'irq_enter_rcu'.
+
 
 SEE ALSO
 --------

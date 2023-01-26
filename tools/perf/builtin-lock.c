@@ -63,10 +63,21 @@ static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
+static LIST_HEAD(callstack_filters);
+
+struct callstack_filter {
+	struct list_head list;
+	char name[];
+};
 
 static struct lock_filter filters;
 
 static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
+
+static bool needs_callstack(void)
+{
+	return verbose > 0 || !list_empty(&callstack_filters);
+}
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -1060,7 +1071,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		if (!ls)
 			return -ENOMEM;
 
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
+		if (aggr_mode == LOCK_AGGR_CALLER && needs_callstack()) {
 			ls->callstack = get_callstack(sample, max_stack_depth);
 			if (ls->callstack == NULL)
 				return -ENOMEM;
@@ -1595,6 +1606,31 @@ static void print_contention_result(struct lock_contention *con)
 		if (!st->wait_time_total)
 			continue;
 
+		if (aggr_mode == LOCK_AGGR_CALLER && !list_empty(&callstack_filters)) {
+			struct map *kmap;
+			struct symbol *sym;
+			u64 ip;
+
+			for (int i = 0; i < max_stack_depth; i++) {
+				struct callstack_filter *filter;
+
+				if (!st->callstack || !st->callstack[i])
+					break;
+
+				ip = st->callstack[i];
+				sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
+				if (sym == NULL)
+					continue;
+
+				list_for_each_entry(filter, &callstack_filters, list) {
+					if (strstr(sym->name, filter->name))
+						goto found;
+				}
+			}
+			continue;
+		}
+
+found:
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
 			pr_info(" ");
@@ -1743,6 +1779,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
 		.filters = &filters,
+		.save_callstack = needs_callstack(),
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -2123,6 +2160,33 @@ static int parse_lock_addr(const struct option *opt __maybe_unused, const char *
 	return ret;
 }
 
+static int parse_call_stack(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		struct callstack_filter *entry;
+
+		entry = malloc(sizeof(*entry) + strlen(tok) + 1);
+		if (entry == NULL) {
+			pr_err("Memory allocation failure\n");
+			return -1;
+		}
+
+		strcpy(entry->name, tok);
+		list_add_tail(&entry->list, &callstack_filters);
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -2190,6 +2254,8 @@ int cmd_lock(int argc, const char **argv)
 		     "Filter specific type of locks", parse_lock_type),
 	OPT_CALLBACK('L', "lock-filter", NULL, "ADDRS/NAMES",
 		     "Filter specific address/symbol of locks", parse_lock_addr),
+	OPT_CALLBACK('S', "callstack-filter", NULL, "NAMES",
+		     "Filter specific function in the callstack", parse_call_stack),
 	OPT_PARENT(lock_options)
 	};
 
