@@ -1143,11 +1143,9 @@ static __init int cxl_test_init(void)
 	if (interleave_arithmetic == 1) {
 		cfmws_start = CFMWS_XOR_ARRAY_START;
 		cfmws_end = CFMWS_XOR_ARRAY_END;
-		dev_dbg(NULL, "cxl_test loading xor math option\n");
 	} else {
 		cfmws_start = CFMWS_MOD_ARRAY_START;
 		cfmws_end = CFMWS_MOD_ARRAY_END;
-		dev_dbg(NULL, "cxl_test loading modulo math option\n");
 	}
 
 	rc = populate_cedt();
@@ -1334,7 +1332,7 @@ static __exit void cxl_test_exit(void)
 	unregister_cxl_mock_ops(&cxl_mock_ops);
 }
 
-module_param(interleave_arithmetic, int, 0000);
+module_param(interleave_arithmetic, int, 0444);
 MODULE_PARM_DESC(interleave_arithmetic, "Modulo:0, XOR:1");
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
