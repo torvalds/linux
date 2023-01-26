@@ -36,6 +36,7 @@
 #include "file.h"
 #include "dev-replace.h"
 #include "super.h"
+#include "transaction.h"
 
 static struct kmem_cache *extent_buffer_cache;
 
@@ -4268,11 +4269,24 @@ static void clear_subpage_extent_buffer_dirty(const struct extent_buffer *eb)
 	WARN_ON(atomic_read(&eb->refs) == 0);
 }
 
-void clear_extent_buffer_dirty(const struct extent_buffer *eb)
+void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
+			      struct extent_buffer *eb)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int i;
 	int num_pages;
 	struct page *page;
+
+	btrfs_assert_tree_write_locked(eb);
+
+	if (trans && btrfs_header_generation(eb) != trans->transid)
+		return;
+
+	if (!test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags))
+		return;
+
+	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, -eb->len,
+				 fs_info->dirty_metadata_batch);
 
 	if (eb->fs_info->nodesize < PAGE_SIZE)
 		return clear_subpage_extent_buffer_dirty(eb);
