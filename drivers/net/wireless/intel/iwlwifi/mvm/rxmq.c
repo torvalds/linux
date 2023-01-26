@@ -1736,10 +1736,11 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 
 		rx_status->rate_idx = rate;
 
-		if ((rate < 0 || rate > 0xFF) && net_ratelimit()) {
-			IWL_ERR(mvm, "Invalid rate flags 0x%x, band %d,\n",
-				rate_n_flags, rx_status->band);
+		if ((rate < 0 || rate > 0xFF)) {
 			rx_status->rate_idx = 0;
+			if (net_ratelimit())
+				IWL_ERR(mvm, "Invalid rate flags 0x%x, band %d,\n",
+					rate_n_flags, rx_status->band);
 		}
 
 		break;
