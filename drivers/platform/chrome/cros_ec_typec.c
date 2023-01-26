@@ -1015,6 +1015,14 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 		if (ret < 0)
 			dev_warn(typec->dev, "Failed VDM Reply event clear, port: %d\n", port_num);
 	}
+
+	if (resp.events & PD_STATUS_EVENT_VDM_ATTENTION) {
+		cros_typec_handle_vdm_attention(typec, port_num);
+		ret = cros_typec_send_clear_event(typec, port_num, PD_STATUS_EVENT_VDM_ATTENTION);
+		if (ret < 0)
+			dev_warn(typec->dev, "Failed VDM Attenetion event clear, port: %d\n",
+				 port_num);
+	}
 }
 
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
