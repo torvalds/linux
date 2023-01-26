@@ -170,11 +170,16 @@ again:
             param->bcf = 0;
             dfltcc_state->block_threshold =
                 strm->total_in + dfltcc_state->block_size;
-            if (strm->avail_out == 0) {
-                *result = need_more;
-                return 1;
-            }
         }
+    }
+
+    /* No space for compressed data. If we proceed, dfltcc_cmpr() will return
+     * DFLTCC_CC_OP1_TOO_SHORT without buffering header bits, but we will still
+     * set BCF=1, which is wrong. Avoid complications and return early.
+     */
+    if (strm->avail_out == 0) {
+        *result = need_more;
+        return 1;
     }
 
     /* The caller gave us too much data. Pass only one block worth of
