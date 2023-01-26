@@ -371,6 +371,7 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 		mlx5_core_err(dev, "PCI link not ready (0x%04x) after %llu ms\n",
 			      reg16, mlx5_tout_ms(dev, PCI_TOGGLE));
 		err = -ETIMEDOUT;
+		goto restore;
 	}
 
 	do {
