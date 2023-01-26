@@ -484,9 +484,9 @@ static int max_uc_list_get_devlink_param(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
-						 &val);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					      &val);
 	if (!err)
 		return val.vu32;
 	mlx5_core_dbg(dev, "Failed to get param. err = %d\n", err);
@@ -499,9 +499,9 @@ bool mlx5_is_roce_on(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
-						 &val);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
+					      &val);
 
 	if (!err)
 		return val.vbool;

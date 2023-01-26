@@ -1190,9 +1190,9 @@ static void mlx5_eswitch_get_devlink_param(struct mlx5_eswitch *esw)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
-						 &val);
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
+					      &val);
 	if (!err) {
 		esw->params.large_group_num = val.vu32;
 	} else {

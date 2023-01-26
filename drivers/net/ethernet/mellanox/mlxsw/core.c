@@ -1243,9 +1243,9 @@ static int mlxsw_core_fw_rev_validate(struct mlxsw_core *mlxsw_core,
 		return 0;
 
 	/* Don't check if devlink 'fw_load_policy' param is 'flash' */
-	err = devlink_param_driverinit_value_get(priv_to_devlink(mlxsw_core),
-						 DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
-						 &value);
+	err = devl_param_driverinit_value_get(priv_to_devlink(mlxsw_core),
+					      DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
+					      &value);
 	if (err)
 		return err;
 	if (value.vu8 == DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH)
@@ -1316,20 +1316,22 @@ static int mlxsw_core_fw_params_register(struct mlxsw_core *mlxsw_core)
 	union devlink_param_value value;
 	int err;
 
-	err = devlink_params_register(devlink, mlxsw_core_fw_devlink_params,
-				      ARRAY_SIZE(mlxsw_core_fw_devlink_params));
+	err = devl_params_register(devlink, mlxsw_core_fw_devlink_params,
+				   ARRAY_SIZE(mlxsw_core_fw_devlink_params));
 	if (err)
 		return err;
 
 	value.vu8 = DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER;
-	devlink_param_driverinit_value_set(devlink, DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY, value);
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
+					value);
 	return 0;
 }
 
 static void mlxsw_core_fw_params_unregister(struct mlxsw_core *mlxsw_core)
 {
-	devlink_params_unregister(priv_to_devlink(mlxsw_core), mlxsw_core_fw_devlink_params,
-				  ARRAY_SIZE(mlxsw_core_fw_devlink_params));
+	devl_params_unregister(priv_to_devlink(mlxsw_core), mlxsw_core_fw_devlink_params,
+			       ARRAY_SIZE(mlxsw_core_fw_devlink_params));
 }
 
 static void *__dl_port(struct devlink_port *devlink_port)
