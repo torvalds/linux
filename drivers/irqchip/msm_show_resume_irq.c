@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011, 2014-2016, 2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cpuidle.h>
@@ -79,13 +79,25 @@ static struct syscore_ops gic_syscore_ops = {
 
 static int msm_show_resume_probe(struct platform_device *pdev)
 {
-	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	base = of_iomap(pdev->dev.of_node, 0);
 	if (IS_ERR(base)) {
-		pr_err("%pOF: unable to map GICD registers\n", pdev->dev.of_node);
+		pr_err("%pOF: error %d: unable to map GICD registers\n",
+				pdev->dev.of_node, PTR_ERR(base));
 		return -ENXIO;
 	}
 
+	register_trace_prio_android_vh_cpuidle_psci_enter(gic_s2idle_enter, NULL, INT_MAX);
+	register_trace_prio_android_vh_cpuidle_psci_exit(gic_s2idle_exit, NULL, INT_MAX);
 	register_syscore_ops(&gic_syscore_ops);
+	return 0;
+}
+
+static int msm_show_resume_remove(struct platform_device *pdev)
+{
+	unregister_trace_android_vh_cpuidle_psci_enter(gic_s2idle_enter, NULL);
+	unregister_trace_android_vh_cpuidle_psci_exit(gic_s2idle_exit, NULL);
+	unregister_syscore_ops(&gic_syscore_ops);
+	iounmap(base);
 	return 0;
 }
 
@@ -97,26 +109,13 @@ MODULE_DEVICE_TABLE(of, msm_show_resume_match_table);
 
 static struct platform_driver msm_show_resume_dev_driver = {
 	.probe  = msm_show_resume_probe,
+	.remove = msm_show_resume_remove,
 	.driver = {
 		.name = "show-resume-irqs",
 		.of_match_table = msm_show_resume_match_table,
 	},
 };
-
-static int __init msm_show_resume_init(void)
-{
-	register_trace_prio_android_vh_cpuidle_psci_enter(gic_s2idle_enter, NULL, INT_MAX);
-	register_trace_prio_android_vh_cpuidle_psci_exit(gic_s2idle_exit, NULL, INT_MAX);
-
-	return platform_driver_register(&msm_show_resume_dev_driver);
-}
-
-
-#if IS_MODULE(CONFIG_QCOM_SHOW_RESUME_IRQ)
-module_init(msm_show_resume_init);
-#else
-pure_initcall(msm_show_resume_init);
-#endif
+module_platform_driver(msm_show_resume_dev_driver);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. MSM Show resume IRQ");
 MODULE_LICENSE("GPL");
