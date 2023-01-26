@@ -10931,18 +10931,18 @@ EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_get);
  *	This function should be used by the driver to set driverinit
  *	configuration mode default value.
  */
-int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
-				       union devlink_param_value init_val)
+void devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
+					union devlink_param_value init_val)
 {
 	struct devlink_param_item *param_item;
 
 	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
-	if (!param_item)
-		return -EINVAL;
+	if (WARN_ON(!param_item))
+		return;
 
-	if (!devlink_param_cmode_is_supported(param_item->param,
-					      DEVLINK_PARAM_CMODE_DRIVERINIT))
-		return -EOPNOTSUPP;
+	if (WARN_ON(!devlink_param_cmode_is_supported(param_item->param,
+						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
+		return;
 
 	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
 		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
@@ -10951,7 +10951,6 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	param_item->driverinit_value_valid = true;
 
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
 
