@@ -24,6 +24,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/udp.h>
 #include <linux/sockios.h>
+#include <linux/net_tstamp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <poll.h>
@@ -278,11 +279,51 @@ static int rxq_num(const char *ifname)
 
 	ret = ioctl(fd, SIOCETHTOOL, &ifr);
 	if (ret < 0)
-		error(-1, errno, "socket");
+		error(-1, errno, "ioctl(SIOCETHTOOL)");
 
 	close(fd);
 
 	return ch.rx_count + ch.combined_count;
+}
+
+static void hwtstamp_ioctl(int op, const char *ifname, struct hwtstamp_config *cfg)
+{
+	struct ifreq ifr = {
+		.ifr_data = (void *)cfg,
+	};
+	strcpy(ifr.ifr_name, ifname);
+	int fd, ret;
+
+	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if (fd < 0)
+		error(-1, errno, "socket");
+
+	ret = ioctl(fd, op, &ifr);
+	if (ret < 0)
+		error(-1, errno, "ioctl(%d)", op);
+
+	close(fd);
+}
+
+static struct hwtstamp_config saved_hwtstamp_cfg;
+static const char *saved_hwtstamp_ifname;
+
+static void hwtstamp_restore(void)
+{
+	hwtstamp_ioctl(SIOCSHWTSTAMP, saved_hwtstamp_ifname, &saved_hwtstamp_cfg);
+}
+
+static void hwtstamp_enable(const char *ifname)
+{
+	struct hwtstamp_config cfg = {
+		.rx_filter = HWTSTAMP_FILTER_ALL,
+	};
+
+	hwtstamp_ioctl(SIOCGHWTSTAMP, ifname, &saved_hwtstamp_cfg);
+	saved_hwtstamp_ifname = strdup(ifname);
+	atexit(hwtstamp_restore);
+
+	hwtstamp_ioctl(SIOCSHWTSTAMP, ifname, &cfg);
 }
 
 static void cleanup(void)
@@ -340,6 +381,8 @@ int main(int argc, char *argv[])
 	rxq = rxq_num(ifname);
 
 	printf("rxq: %d\n", rxq);
+
+	hwtstamp_enable(ifname);
 
 	rx_xsk = malloc(sizeof(struct xsk) * rxq);
 	if (!rx_xsk)
