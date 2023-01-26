@@ -223,7 +223,7 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 }
 
-static void __exit tpdm_remove(struct amba_device *adev)
+static void tpdm_remove(struct amba_device *adev)
 {
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
