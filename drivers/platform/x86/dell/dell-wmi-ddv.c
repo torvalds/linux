@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/math.h>
@@ -125,21 +126,27 @@ static int dell_wmi_ddv_query_buffer(struct wmi_device *wdev, enum dell_ddv_meth
 	if (ret < 0)
 		return ret;
 
-	if (obj->package.count != 2)
-		goto err_free;
+	if (obj->package.count != 2 ||
+	    obj->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    obj->package.elements[1].type != ACPI_TYPE_BUFFER) {
+		ret = -ENOMSG;
 
-	if (obj->package.elements[0].type != ACPI_TYPE_INTEGER)
 		goto err_free;
+	}
 
 	buffer_size = obj->package.elements[0].integer.value;
 
-	if (obj->package.elements[1].type != ACPI_TYPE_BUFFER)
+	if (!buffer_size) {
+		ret = -ENODATA;
+
 		goto err_free;
+	}
 
 	if (buffer_size > obj->package.elements[1].buffer.length) {
 		dev_warn(&wdev->dev,
 			 FW_WARN "WMI buffer size (%llu) exceeds ACPI buffer size (%d)\n",
 			 buffer_size, obj->package.elements[1].buffer.length);
+		ret = -EMSGSIZE;
 
 		goto err_free;
 	}
@@ -151,7 +158,7 @@ static int dell_wmi_ddv_query_buffer(struct wmi_device *wdev, enum dell_ddv_meth
 err_free:
 	kfree(obj);
 
-	return -EIO;
+	return ret;
 }
 
 static int dell_wmi_ddv_query_string(struct wmi_device *wdev, enum dell_ddv_method method,
