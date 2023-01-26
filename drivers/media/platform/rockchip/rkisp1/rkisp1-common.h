@@ -390,10 +390,7 @@ struct rkisp1_params {
  * @id:	       id of the resizer, one of RKISP1_SELFPATH, RKISP1_MAINPATH
  * @rkisp1:    pointer to the rkisp1 device
  * @pads:      media pads
- * @pad_cfg:   configurations for the pads
  * @config:    the set of registers to configure the resizer
- * @pixel_enc: pixel encoding of the resizer
- * @ops_lock:  a lock for the subdev ops
  */
 struct rkisp1_resizer {
 	struct v4l2_subdev sd;
@@ -401,10 +398,7 @@ struct rkisp1_resizer {
 	enum rkisp1_stream_id id;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_RSZ_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_RSZ_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
-	enum v4l2_pixel_encoding pixel_enc;
-	struct mutex ops_lock; /* serialize the subdevice ops */
 };
 
 /*
