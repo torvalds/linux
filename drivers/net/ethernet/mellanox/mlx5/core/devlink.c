@@ -541,24 +541,6 @@ static int mlx5_devlink_esw_port_metadata_validate(struct devlink *devlink, u32 
 
 #endif
 
-static int mlx5_devlink_enable_remote_dev_reset_set(struct devlink *devlink, u32 id,
-						    struct devlink_param_gset_ctx *ctx)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-
-	mlx5_fw_reset_enable_remote_dev_reset_set(dev, ctx->val.vbool);
-	return 0;
-}
-
-static int mlx5_devlink_enable_remote_dev_reset_get(struct devlink *devlink, u32 id,
-						    struct devlink_param_gset_ctx *ctx)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-
-	ctx->val.vbool = mlx5_fw_reset_enable_remote_dev_reset_get(dev);
-	return 0;
-}
-
 static int mlx5_devlink_eq_depth_validate(struct devlink *devlink, u32 id,
 					  union devlink_param_value val,
 					  struct netlink_ext_ack *extack)
@@ -587,9 +569,6 @@ static const struct devlink_param mlx5_devlink_params[] = {
 			     mlx5_devlink_esw_port_metadata_set,
 			     mlx5_devlink_esw_port_metadata_validate),
 #endif
-	DEVLINK_PARAM_GENERIC(ENABLE_REMOTE_DEV_RESET, BIT(DEVLINK_PARAM_CMODE_RUNTIME),
-			      mlx5_devlink_enable_remote_dev_reset_get,
-			      mlx5_devlink_enable_remote_dev_reset_set, NULL),
 	DEVLINK_PARAM_GENERIC(IO_EQ_SIZE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx5_devlink_eq_depth_validate),
 	DEVLINK_PARAM_GENERIC(EVENT_EQ_SIZE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
