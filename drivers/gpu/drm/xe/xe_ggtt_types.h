@@ -16,6 +16,9 @@ struct xe_ggtt {
 
 	u64 size;
 
+#define XE_GGTT_FLAGS_64K BIT(0)
+	unsigned int flags;
+
 	struct xe_bo *scratch;
 
 	struct mutex lock;
