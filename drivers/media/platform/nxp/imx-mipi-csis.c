@@ -989,32 +989,6 @@ err_unlock:
 	return ret;
 }
 
-static int mipi_csis_init_cfg(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_state *sd_state)
-{
-	struct v4l2_mbus_framefmt *fmt_sink;
-	struct v4l2_mbus_framefmt *fmt_source;
-
-	fmt_sink = v4l2_subdev_get_pad_format(sd, sd_state, CSIS_PAD_SINK);
-	fmt_source = v4l2_subdev_get_pad_format(sd, sd_state, CSIS_PAD_SOURCE);
-
-	fmt_sink->code = MEDIA_BUS_FMT_UYVY8_1X16;
-	fmt_sink->width = MIPI_CSIS_DEF_PIX_WIDTH;
-	fmt_sink->height = MIPI_CSIS_DEF_PIX_HEIGHT;
-	fmt_sink->field = V4L2_FIELD_NONE;
-
-	fmt_sink->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt_sink->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt_sink->colorspace);
-	fmt_sink->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt_sink->colorspace);
-	fmt_sink->quantization =
-		V4L2_MAP_QUANTIZATION_DEFAULT(false, fmt_sink->colorspace,
-					      fmt_sink->ycbcr_enc);
-
-	*fmt_source = *fmt_sink;
-
-	return 0;
-}
-
 static int mipi_csis_enum_mbus_code(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_mbus_code_enum *code)
@@ -1101,6 +1075,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	fmt->code = csis_fmt->code;
 	fmt->width = sdformat->format.width;
 	fmt->height = sdformat->format.height;
+	fmt->field = V4L2_FIELD_NONE;
 	fmt->colorspace = sdformat->format.colorspace;
 	fmt->quantization = sdformat->format.quantization;
 	fmt->xfer_func = sdformat->format.xfer_func;
@@ -1145,6 +1120,27 @@ static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	entry->bus.csi2.dt = csis_fmt->data_type;
 
 	return 0;
+}
+
+static int mipi_csis_init_cfg(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
+{
+	struct v4l2_subdev_format fmt = {
+		.pad = CSIS_PAD_SINK,
+	};
+
+	fmt.format.code = mipi_csis_formats[0].code;
+	fmt.format.width = MIPI_CSIS_DEF_PIX_WIDTH;
+	fmt.format.height = MIPI_CSIS_DEF_PIX_HEIGHT;
+
+	fmt.format.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	fmt.format.xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt.format.colorspace);
+	fmt.format.ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt.format.colorspace);
+	fmt.format.quantization =
+		V4L2_MAP_QUANTIZATION_DEFAULT(false, fmt.format.colorspace,
+					      fmt.format.ycbcr_enc);
+
+	return mipi_csis_set_fmt(sd, sd_state, &fmt);
 }
 
 static int mipi_csis_log_status(struct v4l2_subdev *sd)
