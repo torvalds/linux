@@ -112,30 +112,36 @@ int dfltcc_deflate(
     int soft_bcc;
     int no_flush;
 
-    if (!dfltcc_can_deflate(strm))
+    if (!dfltcc_can_deflate(strm)) {
+        /* Clear history. */
+        if (flush == Z_FULL_FLUSH)
+            param->hl = 0;
         return 0;
+    }
 
 again:
     masked_avail_in = 0;
     soft_bcc = 0;
     no_flush = flush == Z_NO_FLUSH;
 
-    /* Trailing empty block. Switch to software, except when Continuation Flag
-     * is set, which means that DFLTCC has buffered some output in the
-     * parameter block and needs to be called again in order to flush it.
+    /* No input data. Return, except when Continuation Flag is set, which means
+     * that DFLTCC has buffered some output in the parameter block and needs to
+     * be called again in order to flush it.
      */
-    if (flush == Z_FINISH && strm->avail_in == 0 && !param->cf) {
-        if (param->bcf) {
-            /* A block is still open, and the hardware does not support closing
-             * blocks without adding data. Thus, close it manually.
-             */
+    if (strm->avail_in == 0 && !param->cf) {
+        /* A block is still open, and the hardware does not support closing
+         * blocks without adding data. Thus, close it manually.
+         */
+        if (!no_flush && param->bcf) {
             send_eobs(strm, param);
             param->bcf = 0;
         }
-        return 0;
-    }
-
-    if (strm->avail_in == 0 && !param->cf) {
+        /* Let one of deflate_* functions write a trailing empty block. */
+        if (flush == Z_FINISH)
+            return 0;
+        /* Clear history. */
+        if (flush == Z_FULL_FLUSH)
+            param->hl = 0;
         *result = need_more;
         return 1;
     }
@@ -189,7 +195,7 @@ again:
     param->cvt = CVT_ADLER32;
     if (!no_flush)
         /* We need to close a block. Always do this in software - when there is
-         * no input data, the hardware will not nohor BCC. */
+         * no input data, the hardware will not hohor BCC. */
         soft_bcc = 1;
     if (flush == Z_FINISH && !param->bcf)
         /* We are about to open a BFINAL block, set Block Header Final bit
@@ -204,8 +210,8 @@ again:
     param->sbb = (unsigned int)state->bi_valid;
     if (param->sbb > 0)
         *strm->next_out = (Byte)state->bi_buf;
-    if (param->hl)
-        param->nt = 0; /* Honor history */
+    /* Honor history and check value */
+    param->nt = 0;
     param->cv = strm->adler;
 
     /* When opening a block, choose a Huffman-Table Type */
