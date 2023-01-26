@@ -34,6 +34,10 @@
 #define DELL_EPPID_LENGTH	20
 #define DELL_EPPID_EXT_LENGTH	23
 
+static bool force;
+module_param_unsafe(force, bool, 0);
+MODULE_PARM_DESC(force, "Force loading without checking for supported WMI interface versions");
+
 enum dell_ddv_method {
 	DELL_DDV_BATTERY_DESIGN_CAPACITY	= 0x01,
 	DELL_DDV_BATTERY_FULL_CHARGE_CAPACITY	= 0x02,
@@ -349,8 +353,13 @@ static int dell_wmi_ddv_probe(struct wmi_device *wdev, const void *context)
 		return ret;
 
 	dev_dbg(&wdev->dev, "WMI interface version: %d\n", version);
-	if (version < DELL_DDV_SUPPORTED_VERSION_MIN || version > DELL_DDV_SUPPORTED_VERSION_MAX)
-		return -ENODEV;
+	if (version < DELL_DDV_SUPPORTED_VERSION_MIN || version > DELL_DDV_SUPPORTED_VERSION_MAX) {
+		if (!force)
+			return -ENODEV;
+
+		dev_warn(&wdev->dev, "Loading despite unsupported WMI interface version (%u)\n",
+			 version);
+	}
 
 	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
