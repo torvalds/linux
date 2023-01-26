@@ -662,6 +662,7 @@ qtnf_event_handle_update_owe(struct qtnf_vif *vif,
 	memcpy(ie, owe_ev->ies, ie_len);
 	owe_info.ie_len = ie_len;
 	owe_info.ie = ie;
+	owe_info.assoc_link_id = -1;
 
 	pr_info("%s: external OWE processing: peer=%pM\n",
 		vif->netdev->name, owe_ev->peer);
