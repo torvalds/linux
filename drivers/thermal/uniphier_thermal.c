@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * uniphier_thermal.c - Socionext UniPhier thermal driver
  * Copyright 2014      Panasonic Corporation
  * Copyright 2016-2017 Socionext Inc.
