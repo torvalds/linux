@@ -53,6 +53,8 @@
 
 #define ALH_MAX_NUMBER_OF_GTW   16
 
+#define SOF_IPC4_INVALID_NODE_ID	0xffffffff
+
 /*
  * The base of multi-gateways. Multi-gateways addressing starts from
  * ALH_MULTI_GTW_BASE and there are ALH_MULTI_GTW_COUNT multi-sources
