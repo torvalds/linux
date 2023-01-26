@@ -7050,7 +7050,7 @@ M:	Thierry Reding <thierry.reding@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-tegra@vger.kernel.org
 S:	Supported
-T:	git git://anongit.freedesktop.org/tegra/linux.git
+T:	git https://gitlab.freedesktop.org/drm/tegra.git
 F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.yaml
 F:	Documentation/devicetree/bindings/gpu/host1x/
 F:	drivers/gpu/drm/tegra/
