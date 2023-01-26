@@ -10824,7 +10824,8 @@ static void devlink_param_unregister(struct devlink *devlink,
 
 	param_item =
 		devlink_param_find_by_name(&devlink->param_list, param->name);
-	WARN_ON(!param_item);
+	if (WARN_ON(!param_item))
+		return;
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_DEL);
 	list_del(&param_item->list);
 	kfree(param_item);
