@@ -23,6 +23,15 @@ static struct perf_pmu *pmu__find_core_pmu(void)
 
 		return pmu;
 	}
+	return NULL;
+}
+
+const struct pmu_metrics_table *pmu_metrics_table__find(void)
+{
+	struct perf_pmu *pmu = pmu__find_core_pmu();
+
+	if (pmu)
+		return perf_pmu__find_metrics_table(pmu);
 
 	return NULL;
 }
