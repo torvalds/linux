@@ -15,6 +15,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
+#include <linux/sockptr.h>
 #include <uapi/linux/igmp.h>
 
 static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
