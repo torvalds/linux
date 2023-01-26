@@ -76,3 +76,35 @@ runlitmushist.sh
 README
 
 	This file
+
+Testing a change to LKMM might go as follows:
+
+	# Populate expected results without that change, and
+	# runs for about an hour on an 8-CPU x86 system:
+	scripts/initlitmushist.sh --timeout 10m --procs 10
+	# Incorporate the change:
+	git am -s -3 /path/to/patch # Or whatever it takes.
+
+	# Test the new version of LKMM as follows...
+
+	# Runs in seconds, good smoke test:
+	scripts/checkalllitmus.sh
+
+	# Compares results to those produced by initlitmushist.sh,
+	# and runs for about an hour on an 8-CPU x86 system:
+	scripts/checklitmushist.sh --timeout 10m --procs 10
+
+	# Checks results against Result tags, runs in minutes:
+	scripts/checkghlitmus.sh --timeout 10m --procs 10
+
+The checkghlitmus.sh should not report errors in cases where the
+checklitmushist.sh script did not also report a change.  However,
+this check is nevertheless valuable because it can find errors in the
+original version of LKMM.  Note however, that given the above procedure,
+an error in the original LKMM version that is fixed by the patch will
+be reported both as a mismatch by checklitmushist.sh and as an error
+by checkghlitmus.sh.  One exception to this rule of thumb is when the
+test fails completely on the original version of LKMM and passes on the
+new version.  In this case, checklitmushist.sh will report a mismatch
+and checkghlitmus.sh will report success.  This happens when the change
+to LKMM introduces a new primitive for which litmus tests already existed.
