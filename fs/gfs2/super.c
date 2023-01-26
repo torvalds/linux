@@ -935,6 +935,7 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
 	if (inode->i_nlink &&
 	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
@@ -958,6 +959,12 @@ static int gfs2_drop_inode(struct inode *inode)
 			gfs2_glock_queue_put(gl);
 		return 0;
 	}
+
+	/*
+	 * No longer cache inodes when trying to evict them all.
+	 */
+	if (test_bit(SDF_EVICTING, &sdp->sd_flags))
+		return 1;
 
 	return generic_drop_inode(inode);
 }
