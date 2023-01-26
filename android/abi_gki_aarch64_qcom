@@ -399,6 +399,7 @@
   _copy_to_iter
   __cpu_active_mask
   cpu_bit_bitmap
+  __cpu_dying_mask
   cpufreq_cpu_get
   cpufreq_cpu_get_raw
   cpufreq_cpu_put

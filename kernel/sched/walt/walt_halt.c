@@ -538,11 +538,6 @@ static void android_rvh_rto_next_cpu(void *unused, int rto_cpu, struct cpumask *
 
 /**
  * android_rvh_is_cpu_allowed: disallow cpus that are halted
- *
- * Caveat: For 32 bit tasks that are being directed to a halted cpu, allow the halted cpu
- *         in a particular case (32 bit task, in execve, moving to a 32 bit cpu)
- *         This is to handle the call to is_cpu_allowed() from __migrate_task, in the
- *         event that a 32bit task is being execve'd.
  */
 static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int cpu, bool *allowed)
 {
@@ -550,31 +545,33 @@ static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int 
 		return;
 
 	if (cpumask_test_cpu(cpu, cpu_halt_mask)) {
+		cpumask_t cpus_to_avoid;
 
 		/* default reject for any halted cpu */
 		*allowed = false;
 
-		if (is_compat_thread(task_thread_info(p)) &&
-		    p->in_execve) {
-			/*
-			 * the task is 32 bit capable and
-			 * the context is execve. allow this cpu.
-			 */
+		if (unlikely(is_compat_thread(task_thread_info(p)) && p->in_execve)) {
+			/* 32bit task in execve. allow this cpu. */
 			*allowed = true;
-		} else {
-			cpumask_t active_unhalted_cpus;
+			return;
+		}
 
-			/* make sure there is a cpu to handle this task */
-			cpumask_andnot(&active_unhalted_cpus, cpu_active_mask, cpu_halt_mask);
+		cpumask_complement(&cpus_to_avoid, cpu_active_mask);
+		cpumask_or(&cpus_to_avoid, &cpus_to_avoid, cpu_halt_mask);
 
-			if (cpumask_weight(&active_unhalted_cpus) == 0) {
-				/*
-				 * there must be at least one active unhalted cpu in the system
-				 * if not, blanket allow this cpu, regardless of halt status
-				 */
+		if (!(p->flags & PF_KTHREAD)) {
+			if (cpumask_weight(&cpus_to_avoid) == WALT_NR_CPUS) {
+				/* all cpus are inactive or halted. allow for userspace threads */
 				*allowed = true;
-				return;
 			}
+			return;
+		}
+
+		/* kthreads. extend avoided cpus to include the dying mask */
+		cpumask_or(&cpus_to_avoid, &cpus_to_avoid, cpu_dying_mask);
+		if (cpumask_weight(&cpus_to_avoid) == WALT_NR_CPUS) {
+			/* all cpus inactive or halted or dying. allow for kthreads */
+			*allowed = true;
 		}
 	}
 }
