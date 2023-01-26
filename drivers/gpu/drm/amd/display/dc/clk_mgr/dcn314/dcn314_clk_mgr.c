@@ -572,24 +572,15 @@ static void dcn314_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *cl
 {
 	struct clk_bw_params *bw_params = clk_mgr->base.bw_params;
 	struct clk_limit_table_entry def_max = bw_params->clk_table.entries[bw_params->clk_table.num_entries - 1];
-	uint32_t max_pstate = 0, max_fclk = 0, max_dispclk = 0, max_dppclk = 0;
-	uint32_t min_pstate = 0, min_fclk = clock_table->DfPstateTable[0].FClk;
+	uint32_t max_pstate = 0,  max_fclk = 0,  min_pstate = 0, max_dispclk = 0, max_dppclk = 0;
 	int i;
 
-	/* Find highest and lowest valid fclk pstate */
+	/* Find highest valid fclk pstate */
 	for (i = 0; i < clock_table->NumDfPstatesEnabled; i++) {
 		if (is_valid_clock_value(clock_table->DfPstateTable[i].FClk) &&
 		    clock_table->DfPstateTable[i].FClk > max_fclk) {
 			max_fclk = clock_table->DfPstateTable[i].FClk;
 			max_pstate = i;
-		}
-	}
-
-	for (i = 0; i < clock_table->NumDfPstatesEnabled; i++) {
-		if (is_valid_clock_value(clock_table->DfPstateTable[i].FClk) &&
-		    clock_table->DfPstateTable[i].FClk < min_fclk) {
-			min_fclk = clock_table->DfPstateTable[i].FClk;
-			min_pstate = i;
 		}
 	}
 
@@ -608,17 +599,15 @@ static void dcn314_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *cl
 
 	/* Base the clock table on dcfclk, need at least one entry regardless of pmfw table */
 	for (i = 0; i < clock_table->NumDcfClkLevelsEnabled; i++) {
-		uint32_t max_level_fclk = clock_table->DfPstateTable[0].FClk;
-		uint32_t max_level_pstate = 0;
+		uint32_t min_fclk = clock_table->DfPstateTable[0].FClk;
 		int j;
 
-		/* Look for the maximum supported FCLK for the current voltage. */
 		for (j = 1; j < clock_table->NumDfPstatesEnabled; j++) {
 			if (is_valid_clock_value(clock_table->DfPstateTable[j].FClk) &&
-			    clock_table->DfPstateTable[j].FClk > max_level_fclk &&
+			    clock_table->DfPstateTable[j].FClk < min_fclk &&
 			    clock_table->DfPstateTable[j].Voltage <= clock_table->SocVoltage[i]) {
-				max_level_fclk = clock_table->DfPstateTable[j].FClk;
-				max_level_pstate = j;
+				min_fclk = clock_table->DfPstateTable[j].FClk;
+				min_pstate = j;
 			}
 		}
 
@@ -632,15 +621,15 @@ static void dcn314_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *cl
 		bw_params->clk_table.entries[i].dtbclk_mhz = bw_params->clk_table.entries[j].dtbclk_mhz;
 
 		/* Now update clocks we do read */
-		bw_params->clk_table.entries[i].fclk_mhz = max_level_fclk;
-		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[max_level_pstate].MemClk;
-		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[max_level_pstate].Voltage;
+		bw_params->clk_table.entries[i].fclk_mhz = min_fclk;
+		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[min_pstate].MemClk;
+		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[min_pstate].Voltage;
 		bw_params->clk_table.entries[i].dcfclk_mhz = clock_table->DcfClocks[i];
 		bw_params->clk_table.entries[i].socclk_mhz = clock_table->SocClocks[i];
 		bw_params->clk_table.entries[i].dispclk_mhz = max_dispclk;
 		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
 		bw_params->clk_table.entries[i].wck_ratio = convert_wck_ratio(
-			clock_table->DfPstateTable[max_level_pstate].WckRatio);
+			clock_table->DfPstateTable[min_pstate].WckRatio);
 	}
 
 	/* Make sure to include at least one entry at highest pstate */
