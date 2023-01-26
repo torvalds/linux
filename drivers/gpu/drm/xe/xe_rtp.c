@@ -86,18 +86,18 @@ static bool rule_matches(struct xe_gt *gt,
 	return true;
 }
 
-static void rtp_add_sr_entry(const struct xe_rtp_entry *entry,
+static void rtp_add_sr_entry(const struct xe_rtp_action *action,
 			     struct xe_gt *gt,
 			     u32 mmio_base,
 			     struct xe_reg_sr *sr)
 {
-	u32 reg = entry->action.reg + mmio_base;
+	u32 reg = action->reg + mmio_base;
 	struct xe_reg_sr_entry sr_entry = {
-		.clr_bits = entry->action.clr_bits,
-		.set_bits = entry->action.set_bits,
-		.read_mask = entry->action.read_mask,
-		.masked_reg = entry->action.flags & XE_RTP_ACTION_FLAG_MASKED_REG,
-		.reg_type = entry->action.reg_type,
+		.clr_bits = action->clr_bits,
+		.set_bits = action->set_bits,
+		.read_mask = action->read_mask,
+		.masked_reg = action->flags & XE_RTP_ACTION_FLAG_MASKED_REG,
+		.reg_type = action->reg_type,
 	};
 
 	xe_reg_sr_add(sr, reg, &sr_entry);
@@ -106,18 +106,22 @@ static void rtp_add_sr_entry(const struct xe_rtp_entry *entry,
 static void rtp_process_one(const struct xe_rtp_entry *entry, struct xe_gt *gt,
 			    struct xe_hw_engine *hwe, struct xe_reg_sr *sr)
 {
+	const struct xe_rtp_action *action;
 	u32 mmio_base;
+	unsigned int i;
 
 	if (!rule_matches(gt, hwe, entry))
 		return;
 
-	if ((entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) ||
-	    (entry->action.flags & XE_RTP_ACTION_FLAG_ENGINE_BASE))
-		mmio_base = hwe->mmio_base;
-	else
-		mmio_base = 0;
+	for (action = &entry->actions[0]; i < entry->n_actions; action++, i++) {
+		if ((entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) ||
+		    (action->flags & XE_RTP_ACTION_FLAG_ENGINE_BASE))
+			mmio_base = hwe->mmio_base;
+		else
+			mmio_base = 0;
 
-	rtp_add_sr_entry(entry, gt, mmio_base, sr);
+		rtp_add_sr_entry(action, gt, mmio_base, sr);
+	}
 }
 
 /**

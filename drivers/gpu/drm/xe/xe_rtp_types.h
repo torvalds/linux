@@ -95,9 +95,10 @@ struct xe_rtp_rule {
 /** struct xe_rtp_entry - Entry in an rtp table */
 struct xe_rtp_entry {
 	const char *name;
-	const struct xe_rtp_action action;
+	const struct xe_rtp_action *actions;
 	const struct xe_rtp_rule *rules;
 	u8 n_rules;
+	u8 n_actions;
 #define XE_RTP_ENTRY_FLAG_FOREACH_ENGINE	BIT(0)
 	u8 flags;
 };

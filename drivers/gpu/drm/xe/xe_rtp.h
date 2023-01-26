@@ -44,10 +44,8 @@ struct xe_reg_sr;
 #define CALL_FOR_EACH(MACRO_, x, ...)						\
 	_CALL_FOR_EACH(COUNT_ARGS(x, ##__VA_ARGS__), MACRO_, x, ##__VA_ARGS__)
 
-#define _XE_RTP_REG(x_)	(x_),						\
-			.reg_type = XE_RTP_REG_REGULAR
-#define _XE_RTP_MCR_REG(x_) (x_),					\
-			    .reg_type = XE_RTP_REG_MCR
+#define _XE_RTP_REG(x_)	(x_), XE_RTP_REG_REGULAR
+#define _XE_RTP_MCR_REG(x_) (x_), XE_RTP_REG_MCR
 
 /*
  * Helper macros for concatenating prefix - do not use them directly outside
@@ -56,6 +54,7 @@ struct xe_reg_sr;
 #define __ADD_XE_RTP_ENTRY_FLAG_PREFIX(x) CONCATENATE(XE_RTP_ENTRY_FLAG_, x) |
 #define __ADD_XE_RTP_ACTION_FLAG_PREFIX(x) CONCATENATE(XE_RTP_ACTION_FLAG_, x) |
 #define __ADD_XE_RTP_RULE_PREFIX(x) CONCATENATE(XE_RTP_RULE_, x) ,
+#define __ADD_XE_RTP_ACTION_PREFIX(x) CONCATENATE(XE_RTP_ACTION_, x) ,
 
 /*
  * Macros to encode rules to match against platform, IP version, stepping, etc.
@@ -197,8 +196,10 @@ struct xe_reg_sr;
 	{ .match_type = XE_RTP_MATCH_DISCRETE }
 
 /**
- * XE_RTP_WR - Helper to write a value to the register, overriding all the bits
+ * XE_RTP_ACTION_WR - Helper to write a value to the register, overriding all
+ *                    the bits
  * @reg_: Register
+ * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
  * @val_: Value to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -206,13 +207,15 @@ struct xe_reg_sr;
  *
  *	REGNAME = VALUE
  */
-#define XE_RTP_WR(reg_, val_, ...)						\
-	.action = { .reg = reg_, .clr_bits = ~0u, .set_bits = (val_),		\
-		    .read_mask = (~0u), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_WR(reg_, reg_type_, val_, ...)				\
+	{ .reg = (reg_), .reg_type = (reg_type_),				\
+	  .clr_bits = ~0u, .set_bits = (val_),					\
+	  .read_mask = (~0u), ##__VA_ARGS__ }
 
 /**
- * XE_RTP_SET - Set bits from @val_ in the register.
+ * XE_RTP_ACTION_SET - Set bits from @val_ in the register.
  * @reg_: Register
+ * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
  * @val_: Bits to set in the register
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -223,13 +226,15 @@ struct xe_reg_sr;
  *	REGNAME[2] = 1
  *	REGNAME[5] = 1
  */
-#define XE_RTP_SET(reg_, val_, ...)						\
-	.action = { .reg = reg_, .clr_bits = (val_), .set_bits = (val_),	\
-		    .read_mask = (val_), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_SET(reg_, reg_type_, val_, ...)				\
+	{ .reg = (reg_), .reg_type = (reg_type_),				\
+	  .clr_bits = (val_), .set_bits = (val_),				\
+	  .read_mask = (val_), ##__VA_ARGS__ }
 
 /**
- * XE_RTP_CLR: Clear bits from @val_ in the register.
+ * XE_RTP_ACTION_CLR: Clear bits from @val_ in the register.
  * @reg_: Register
+ * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
  * @val_: Bits to clear in the register
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
@@ -240,13 +245,15 @@ struct xe_reg_sr;
  *	REGNAME[2] = 0
  *	REGNAME[5] = 0
  */
-#define XE_RTP_CLR(reg_, val_, ...)						\
-	.action = { .reg = reg_, .clr_bits = (val_), .set_bits = 0,		\
-		    .read_mask = (val_), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_CLR(reg_, reg_type_, val_, ...)				\
+	{ .reg = (reg_), .reg_type = (reg_type_),				\
+	  .clr_bits = (val_), .set_bits = 0,					\
+	  .read_mask = (val_), ##__VA_ARGS__ }
 
 /**
- * XE_RTP_FIELD_SET: Set a bit range, defined by @mask_bits_, to the value in
+ * XE_RTP_ACTION_FIELD_SET: Set a bit range
  * @reg_: Register
+ * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
  * @mask_bits_: Mask of bits to be changed in the register, forming a field
  * @val_: Value to set in the field denoted by @mask_bits_
  * @...: Additional fields to override in the struct xe_rtp_action entry
@@ -256,28 +263,31 @@ struct xe_reg_sr;
  *
  *	REGNAME[<end>:<start>] = VALUE
  */
-#define XE_RTP_FIELD_SET(reg_, mask_bits_, val_, ...)				\
-	.action = { .reg = reg_, .clr_bits = (mask_bits_), .set_bits = (val_),\
-		    .read_mask = (mask_bits_), ##__VA_ARGS__ }
+#define XE_RTP_ACTION_FIELD_SET(reg_, reg_type_, mask_bits_, val_, ...)		\
+	{ .reg = (reg_), .reg_type = (reg_type_),				\
+	  .clr_bits = (mask_bits_), .set_bits = (val_),				\
+	  .read_mask = (mask_bits_), ##__VA_ARGS__ }
 
-#define XE_RTP_FIELD_SET_NO_READ_MASK(reg_, mask_bits_, val_, ...)		\
-	.action = { .reg = reg_, .clr_bits = (mask_bits_), .set_bits = (val_),\
-		    .read_mask = 0, ##__VA_ARGS__ }
+#define XE_RTP_ACTION_FIELD_SET_NO_READ_MASK(reg_, reg_type_, mask_bits_, val_, ...)	\
+	{ .reg = (reg_), .reg_type = (reg_type_),				\
+	  .clr_bits = (mask_bits_), .set_bits = (val_),				\
+	  .read_mask = 0, ##__VA_ARGS__ }
 
 /**
- * XE_WHITELIST_REGISTER - Add register to userspace whitelist
+ * XE_RTP_ACTION_WHITELIST - Add register to userspace whitelist
  * @reg_: Register
- * @flags_: Whitelist-specific flags to set
+ * @reg_type_: Register type - automatically expanded by MCR_REG/_MMIO
+ * @val_: Whitelist-specific flags to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * Add a register to the whitelist, allowing userspace to modify the ster with
  * regular user privileges.
  */
-#define XE_WHITELIST_REGISTER(reg_, flags_, ...)				\
+#define XE_RTP_ACTION_WHITELIST(reg_, reg_type_, val_, ...)			\
 	/* TODO fail build if ((flags) & ~(RING_FORCE_TO_NONPRIV_MASK_VALID)) */\
-	.action = { .reg = reg_, .set_bits = (flags_),			\
-		    .clr_bits = RING_FORCE_TO_NONPRIV_MASK_VALID,		\
-		    ##__VA_ARGS__ }
+	{ .reg = (reg_), .reg_type = (reg_type_), .set_bits = (val_),		\
+	  .clr_bits = RING_FORCE_TO_NONPRIV_MASK_VALID,				\
+	  ##__VA_ARGS__ }
 
 /**
  * XE_RTP_NAME - Helper to set the name in xe_rtp_entry
@@ -324,7 +334,7 @@ struct xe_reg_sr;
  *		...
  *		{ XE_RTP_NAME("test-entry"),
  *		  ...
- *		  XE_RTP_SET(..., XE_RTP_ACTION_FLAG(FOREACH_ENGINE)),
+ *		  XE_RTP_ACTION_SET(..., XE_RTP_ACTION_FLAG(FOREACH_ENGINE)),
  *		  ...
  *		},
  *		...
@@ -357,6 +367,33 @@ struct xe_reg_sr;
 	.n_rules = COUNT_ARGS(r1, ##__VA_ARGS__),				\
 	.rules = (struct xe_rtp_rule[]) {					\
 		CALL_FOR_EACH(__ADD_XE_RTP_RULE_PREFIX, r1, ##__VA_ARGS__)	\
+	}
+
+/**
+ * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry
+ * @a1: Action to take. Last part of XE_RTP_ACTION_*
+ * @...: Additional rules, defined like @r1
+ *
+ * At least one rule is needed and up to 4 are supported. Multiple rules are
+ * AND'ed together, i.e. all the rules must evaluate to true for the entry to
+ * be processed. See XE_RTP_MATCH_* for the possible match rules. Example:
+ *
+ * .. code-block:: c
+ *
+ *	const struct xe_rtp_entry wa_entries[] = {
+ *		...
+ *		{ XE_RTP_NAME("test-entry"),
+ *		  XE_RTP_RULES(...),
+ *		  XE_RTP_ACTIONS(SET(..), SET(...), CLR(...)),
+ *		  ...
+ *		},
+ *		...
+ *	};
+ */
+#define XE_RTP_ACTIONS(a1, ...)							\
+	.n_actions = COUNT_ARGS(a1, ##__VA_ARGS__),				\
+	.actions = (struct xe_rtp_action[]) {					\
+		CALL_FOR_EACH(__ADD_XE_RTP_ACTION_PREFIX, a1, ##__VA_ARGS__)	\
 	}
 
 void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
