@@ -5898,7 +5898,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 	struct mlx5e_priv *priv;
 	int err;
 
-	mlx5e_dev = mlx5e_create_devlink(&adev->dev);
+	mlx5e_dev = mlx5e_create_devlink(&adev->dev, mdev);
 	if (IS_ERR(mlx5e_dev))
 		return PTR_ERR(mlx5e_dev);
 	auxiliary_set_drvdata(adev, mlx5e_dev);

@@ -7,12 +7,14 @@
 static const struct devlink_ops mlx5e_devlink_ops = {
 };
 
-struct mlx5e_dev *mlx5e_create_devlink(struct device *dev)
+struct mlx5e_dev *mlx5e_create_devlink(struct device *dev,
+				       struct mlx5_core_dev *mdev)
 {
 	struct mlx5e_dev *mlx5e_dev;
 	struct devlink *devlink;
 
-	devlink = devlink_alloc(&mlx5e_devlink_ops, sizeof(*mlx5e_dev), dev);
+	devlink = devlink_alloc_ns(&mlx5e_devlink_ops, sizeof(*mlx5e_dev),
+				   devlink_net(priv_to_devlink(mdev)), dev);
 	if (!devlink)
 		return ERR_PTR(-ENOMEM);
 	devlink_register(devlink);
