@@ -18,6 +18,8 @@ bool bch2_bucket_nocow_is_locked(struct bucket_nocow_lock_table *t, struct bpos 
 	return false;
 }
 
+#define sign(v)		(v < 0 ? -1 : v > 0 ? 1 : 0)
+
 void bch2_bucket_nocow_unlock(struct bucket_nocow_lock_table *t, struct bpos bucket, int flags)
 {
 	u64 dev_bucket = bucket_to_u64(bucket);
@@ -27,6 +29,8 @@ void bch2_bucket_nocow_unlock(struct bucket_nocow_lock_table *t, struct bpos buc
 
 	for (i = 0; i < ARRAY_SIZE(l->b); i++)
 		if (l->b[i] == dev_bucket) {
+			BUG_ON(sign(atomic_read(&l->l[i])) != lock_val);
+
 			if (!atomic_sub_return(lock_val, &l->l[i]))
 				closure_wake_up(&l->wait);
 			return;
