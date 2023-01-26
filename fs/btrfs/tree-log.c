@@ -279,12 +279,6 @@ void btrfs_end_log_trans(struct btrfs_root *root)
 	}
 }
 
-static void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
-{
-	filemap_fdatawait_range(buf->pages[0]->mapping,
-			        buf->start, buf->start + buf->len - 1);
-}
-
 /*
  * the walk control struct is used to pass state down the chain when
  * processing the log tree.  The stage field tells us which part
@@ -2625,7 +2619,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 				btrfs_tree_lock(next);
 				btrfs_clear_buffer_dirty(trans, next);
-				btrfs_wait_tree_block_writeback(next);
+				wait_on_extent_buffer_writeback(next);
 				btrfs_tree_unlock(next);
 
 				if (trans) {
@@ -2694,7 +2688,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 
 				btrfs_tree_lock(next);
 				btrfs_clear_buffer_dirty(trans, next);
-				btrfs_wait_tree_block_writeback(next);
+				wait_on_extent_buffer_writeback(next);
 				btrfs_tree_unlock(next);
 
 				if (trans) {
@@ -2775,7 +2769,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 
 			btrfs_tree_lock(next);
 			btrfs_clear_buffer_dirty(trans, next);
-			btrfs_wait_tree_block_writeback(next);
+			wait_on_extent_buffer_writeback(next);
 			btrfs_tree_unlock(next);
 
 			if (trans) {
