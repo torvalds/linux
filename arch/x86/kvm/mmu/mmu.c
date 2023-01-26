@@ -261,13 +261,14 @@ static inline bool kvm_available_flush_tlb_with_range(void)
 	return kvm_x86_ops.tlb_remote_flush_with_range;
 }
 
-void kvm_flush_remote_tlbs_range(struct kvm *kvm, u64 start_gfn, u64 pages)
+void kvm_flush_remote_tlbs_range(struct kvm *kvm, gfn_t start_gfn,
+				 gfn_t nr_pages)
 {
 	struct kvm_tlb_range range;
 	int ret = -EOPNOTSUPP;
 
 	range.start_gfn = start_gfn;
-	range.pages = pages;
+	range.pages = nr_pages;
 
 	if (kvm_x86_ops.tlb_remote_flush_with_range)
 		ret = static_call(kvm_x86_tlb_remote_flush_with_range)(kvm, &range);
