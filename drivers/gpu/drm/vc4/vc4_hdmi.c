@@ -1466,6 +1466,12 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 	if (!drm_dev_enter(drm, &idx))
 		goto out;
 
+	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
+	if (ret < 0) {
+		DRM_ERROR("Failed to retain power domain: %d\n", ret);
+		goto err_dev_exit;
+	}
+
 	/*
 	 * As stated in RPi's vc4 firmware "HDMI state machine (HSM) clock must
 	 * be faster than pixel clock, infinitesimally faster, tested in
@@ -1488,13 +1494,7 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 	ret = clk_set_min_rate(vc4_hdmi->hsm_clock, hsm_rate);
 	if (ret) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", ret);
-		goto err_dev_exit;
-	}
-
-	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
-	if (ret < 0) {
-		DRM_ERROR("Failed to retain power domain: %d\n", ret);
-		goto err_dev_exit;
+		goto err_put_runtime_pm;
 	}
 
 	ret = clk_set_rate(vc4_hdmi->pixel_clock, tmds_char_rate);
