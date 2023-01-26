@@ -54,7 +54,8 @@ static struct irq_domain *um_pci_inner_domain;
 static struct irq_domain *um_pci_msi_domain;
 static unsigned long um_pci_msi_used[BITS_TO_LONGS(MAX_MSI_VECTORS)];
 
-#define UM_VIRT_PCI_MAXDELAY 40000
+static unsigned int um_pci_max_delay_us = 40000;
+module_param_named(max_delay_us, um_pci_max_delay_us, uint, 0644);
 
 struct um_pci_message_buffer {
 	struct virtio_pcidev_msg hdr;
@@ -155,7 +156,7 @@ static int um_pci_send_cmd(struct um_pci_device *dev,
 			kfree(completed);
 
 		if (WARN_ONCE(virtqueue_is_broken(dev->cmd_vq) ||
-			      ++delay_count > UM_VIRT_PCI_MAXDELAY,
+			      ++delay_count > um_pci_max_delay_us,
 			      "um virt-pci delay: %d", delay_count)) {
 			ret = -EIO;
 			break;
