@@ -3398,7 +3398,7 @@ static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 	if (ret)
 		rtw89_err(rtwdev, "failed to set CLKREQ Delay\n");
 
-	if (chip_id == RTL8852A) {
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
 		if (enable)
 			ret = rtw89_pci_config_byte_set(rtwdev,
 							RTW89_PCIE_L1_CTRL,
