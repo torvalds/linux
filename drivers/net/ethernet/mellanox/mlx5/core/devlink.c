@@ -869,7 +869,7 @@ void mlx5_devlink_traps_unregister(struct devlink *devlink)
 				    ARRAY_SIZE(mlx5_trap_groups_arr));
 }
 
-int mlx5_devlink_register(struct devlink *devlink)
+int mlx5_devlink_params_register(struct devlink *devlink)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	int err;
@@ -902,7 +902,7 @@ auxdev_reg_err:
 	return err;
 }
 
-void mlx5_devlink_unregister(struct devlink *devlink)
+void mlx5_devlink_params_unregister(struct devlink *devlink)
 {
 	mlx5_devlink_max_uc_list_param_unregister(devlink);
 	mlx5_devlink_auxdev_params_unregister(devlink);

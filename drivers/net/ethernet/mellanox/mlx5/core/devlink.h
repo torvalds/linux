@@ -35,7 +35,7 @@ void mlx5_devlink_traps_unregister(struct devlink *devlink);
 
 struct devlink *mlx5_devlink_alloc(struct device *dev);
 void mlx5_devlink_free(struct devlink *devlink);
-int mlx5_devlink_register(struct devlink *devlink);
-void mlx5_devlink_unregister(struct devlink *devlink);
+int mlx5_devlink_params_register(struct devlink *devlink);
+void mlx5_devlink_params_unregister(struct devlink *devlink);
 
 #endif /* __MLX5_DEVLINK_H__ */
