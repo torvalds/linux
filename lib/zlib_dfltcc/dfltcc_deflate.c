@@ -142,7 +142,8 @@ again:
         /* Clear history. */
         if (flush == Z_FULL_FLUSH)
             param->hl = 0;
-        *result = need_more;
+        /* Trigger block post-processing if necessary. */
+        *result = no_flush ? need_more : block_done;
         return 1;
     }
 
