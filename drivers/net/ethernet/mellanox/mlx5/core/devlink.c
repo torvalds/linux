@@ -396,70 +396,6 @@ void mlx5_devlink_free(struct devlink *devlink)
 	devlink_free(devlink);
 }
 
-static int mlx5_devlink_fs_mode_validate(struct devlink *devlink, u32 id,
-					 union devlink_param_value val,
-					 struct netlink_ext_ack *extack)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-	char *value = val.vstr;
-	int err = 0;
-
-	if (!strcmp(value, "dmfs")) {
-		return 0;
-	} else if (!strcmp(value, "smfs")) {
-		u8 eswitch_mode;
-		bool smfs_cap;
-
-		eswitch_mode = mlx5_eswitch_mode(dev);
-		smfs_cap = mlx5_fs_dr_is_supported(dev);
-
-		if (!smfs_cap) {
-			err = -EOPNOTSUPP;
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Software managed steering is not supported by current device");
-		}
-
-		else if (eswitch_mode == MLX5_ESWITCH_OFFLOADS) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Software managed steering is not supported when eswitch offloads enabled.");
-			err = -EOPNOTSUPP;
-		}
-	} else {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Bad parameter: supported values are [\"dmfs\", \"smfs\"]");
-		err = -EINVAL;
-	}
-
-	return err;
-}
-
-static int mlx5_devlink_fs_mode_set(struct devlink *devlink, u32 id,
-				    struct devlink_param_gset_ctx *ctx)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-	enum mlx5_flow_steering_mode mode;
-
-	if (!strcmp(ctx->val.vstr, "smfs"))
-		mode = MLX5_FLOW_STEERING_MODE_SMFS;
-	else
-		mode = MLX5_FLOW_STEERING_MODE_DMFS;
-	dev->priv.steering->mode = mode;
-
-	return 0;
-}
-
-static int mlx5_devlink_fs_mode_get(struct devlink *devlink, u32 id,
-				    struct devlink_param_gset_ctx *ctx)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-
-	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS)
-		strcpy(ctx->val.vstr, "smfs");
-	else
-		strcpy(ctx->val.vstr, "dmfs");
-	return 0;
-}
-
 static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 					     union devlink_param_value val,
 					     struct netlink_ext_ack *extack)
@@ -549,11 +485,6 @@ static int mlx5_devlink_eq_depth_validate(struct devlink *devlink, u32 id,
 }
 
 static const struct devlink_param mlx5_devlink_params[] = {
-	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
-			     "flow_steering_mode", DEVLINK_PARAM_TYPE_STRING,
-			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
-			     mlx5_devlink_fs_mode_get, mlx5_devlink_fs_mode_set,
-			     mlx5_devlink_fs_mode_validate),
 	DEVLINK_PARAM_GENERIC(ENABLE_ROCE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx5_devlink_enable_roce_validate),
 #ifdef CONFIG_MLX5_ESWITCH
