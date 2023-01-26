@@ -1412,13 +1412,14 @@ static void imx7_csi_video_buf_queue(struct vb2_buffer *vb)
 
 static int imx7_csi_video_validate_fmt(struct imx7_csi *csi)
 {
-	struct v4l2_subdev_format fmt_src;
+	struct v4l2_subdev_format fmt_src = {
+		.pad = IMX7_CSI_PAD_SRC,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	const struct imx7_csi_pixfmt *cc;
 	int ret;
 
 	/* Retrieve the media bus format on the source subdev. */
-	fmt_src.pad = IMX7_CSI_PAD_SRC;
-	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(&csi->sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret)
 		return ret;
