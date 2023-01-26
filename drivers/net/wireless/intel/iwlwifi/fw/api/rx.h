@@ -645,6 +645,7 @@ struct iwl_rx_mpdu_desc {
 
 #define RX_NO_DATA_RX_VEC0_HE_NSTS_MSK	0x03800000
 #define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
+#define RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK	0x00f00000
 
 /**
  * struct iwl_rx_no_data - RX no data descriptor
@@ -669,6 +670,33 @@ struct iwl_rx_no_data {
 	__le32 rx_vec[2];
 } __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
 	       RX_NO_DATA_NTFY_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_no_data_ver_3 - RX no data descriptor
+ * @info: 7:0 frame type, 15:8 RX error type
+ * @rssi: 7:0 energy chain-A,
+ *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
+ * @on_air_rise_time: GP2 during on air rise
+ * @fr_time: frame time
+ * @rate: rate/mcs of frame
+ * @phy_info: &enum iwl_rx_phy_data0 and &enum iwl_rx_phy_info_type
+ * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
+ *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
+ *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
+ *	for EHT: OFDM_RX_VECTOR_USIG_A1_OUT, OFDM_RX_VECTOR_USIG_A2_OUT,
+ *	OFDM_RX_VECTOR_EHT_OUT, OFDM_RX_VECTOR_EHT_USER_FIELD_OUT
+ */
+struct iwl_rx_no_data_ver_3 {
+	__le32 info;
+	__le32 rssi;
+	__le32 on_air_rise_time;
+	__le32 fr_time;
+	__le32 rate;
+	__le32 phy_info[2];
+	__le32 rx_vec[4];
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
+	       RX_NO_DATA_NTFY_API_S_VER_2
+	       RX_NO_DATA_NTFY_API_S_VER_3 */
 
 struct iwl_frame_release {
 	u8 baid;
