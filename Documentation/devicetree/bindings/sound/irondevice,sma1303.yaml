@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/irondevice,sma1303.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Iron Device SMA1303 Audio Amplifier
+
+maintainers:
+  - Kiseok Jo <kiseok.jo@irondevice.com>
+
+description:
+  SMA1303 digital class-D audio amplifier with an integrated boost converter.
+
+allOf:
+  - $ref: name-prefix.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: true
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c_bus {
+		sma1303_amp: sma1303@1e {
+			compatible = "irondevice,sma1303";
+			reg = <0x1e>;
+		};
+	};
