@@ -77,13 +77,6 @@ const char *perf_env__arch(struct perf_env *env __maybe_unused)
 }
 
 /*
- * Add this one here not to drag util/stat-shadow.c
- */
-void perf_stat__collect_metric_expr(struct evlist *evsel_list)
-{
-}
-
-/*
  * These ones are needed not to drag the PMU bandwagon, jevents generated
  * pmu_sys_event_tables, etc and evsel__find_pmu() is used so far just for
  * doing per PMU perf_event_attr.exclude_guest handling, not really needed, so
