@@ -53,7 +53,8 @@ struct xe_reg_sr;
  * Helper macros for concatenating prefix - do not use them directly outside
  * this header
  */
-#define __ADD_XE_RTP_FLAG_PREFIX(x) CONCATENATE(XE_RTP_FLAG_, x) |
+#define __ADD_XE_RTP_ENTRY_FLAG_PREFIX(x) CONCATENATE(XE_RTP_ENTRY_FLAG_, x) |
+#define __ADD_XE_RTP_ACTION_FLAG_PREFIX(x) CONCATENATE(XE_RTP_ACTION_FLAG_, x) |
 #define __ADD_XE_RTP_RULE_PREFIX(x) CONCATENATE(XE_RTP_RULE_, x) ,
 
 /*
@@ -287,26 +288,50 @@ struct xe_reg_sr;
 #define XE_RTP_NAME(s_)	.name = (s_)
 
 /**
- * XE_RTP_FLAG - Helper to add multiple flags to a struct xe_rtp_action entry
- * @f1_: Last part of a ``XE_RTP_FLAG_*``
+ * XE_RTP_ENTRY_FLAG - Helper to add multiple flags to a struct xe_rtp_entry
+ * @f1_: Last part of a ``XE_RTP_ENTRY_FLAG_*``
  * @...: Additional flags, defined like @f1_
  *
- * Helper to automatically add a ``XE_RTP_FLAG_`` prefix to @f1_ so it can be
- * easily used to define struct xe_rtp_action entries. Example:
+ * Helper to automatically add a ``XE_RTP_ENTRY_FLAG_`` prefix to @f1_ so it can
+ * be easily used to define struct xe_rtp_action entries. Example:
  *
  * .. code-block:: c
  *
  *	const struct xe_rtp_entry wa_entries[] = {
  *		...
  *		{ XE_RTP_NAME("test-entry"),
- *		  XE_RTP_FLAG(FOREACH_ENGINE, MASKED_REG),
+ *		  ...
+ *		  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE),
  *		  ...
  *		},
  *		...
  *	};
  */
-#define XE_RTP_FLAG(f1_, ...)							\
-	.flags = (CALL_FOR_EACH(__ADD_XE_RTP_FLAG_PREFIX, f1_, ##__VA_ARGS__) 0)
+#define XE_RTP_ENTRY_FLAG(f1_, ...)						\
+	.flags = (CALL_FOR_EACH(__ADD_XE_RTP_ENTRY_FLAG_PREFIX, f1_, ##__VA_ARGS__) 0)
+
+/**
+ * XE_RTP_ACTION_FLAG - Helper to add multiple flags to a struct xe_rtp_action
+ * @f1_: Last part of a ``XE_RTP_ENTRY_*``
+ * @...: Additional flags, defined like @f1_
+ *
+ * Helper to automatically add a ``XE_RTP_ACTION_FLAG_`` prefix to @f1_ so it
+ * can be easily used to define struct xe_rtp_action entries. Example:
+ *
+ * .. code-block:: c
+ *
+ *	const struct xe_rtp_entry wa_entries[] = {
+ *		...
+ *		{ XE_RTP_NAME("test-entry"),
+ *		  ...
+ *		  XE_RTP_SET(..., XE_RTP_ACTION_FLAG(FOREACH_ENGINE)),
+ *		  ...
+ *		},
+ *		...
+ *	};
+ */
+#define XE_RTP_ACTION_FLAG(f1_, ...)						\
+	.flags = (CALL_FOR_EACH(__ADD_XE_RTP_ACTION_FLAG_PREFIX, f1_, ##__VA_ARGS__) 0)
 
 /**
  * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry entry

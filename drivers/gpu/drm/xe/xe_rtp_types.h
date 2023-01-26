@@ -34,9 +34,8 @@ struct xe_rtp_action {
 #define XE_RTP_NOCHECK		.read_mask = 0
 	/** @read_mask: mask for bits to consider when reading value back */
 	u32		read_mask;
-#define XE_RTP_FLAG_FOREACH_ENGINE	BIT(0)
-#define XE_RTP_FLAG_MASKED_REG		BIT(1)
-#define XE_RTP_FLAG_ENGINE_BASE		BIT(2)
+#define XE_RTP_ACTION_FLAG_MASKED_REG		BIT(0)
+#define XE_RTP_ACTION_FLAG_ENGINE_BASE		BIT(1)
 	/** @flags: flags to apply on rule evaluation or action */
 	u8		flags;
 	/** @reg_type: register type, see ``XE_RTP_REG_*`` */
@@ -98,7 +97,9 @@ struct xe_rtp_entry {
 	const char *name;
 	const struct xe_rtp_action action;
 	const struct xe_rtp_rule *rules;
-	unsigned int n_rules;
+	u8 n_rules;
+#define XE_RTP_ENTRY_FLAG_FOREACH_ENGINE	BIT(0)
+	u8 flags;
 };
 
 #endif
