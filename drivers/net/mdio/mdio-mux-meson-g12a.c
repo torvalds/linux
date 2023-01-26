@@ -53,7 +53,6 @@
 #define MESON_G12A_MDIO_INTERNAL_ID 1
 
 struct g12a_mdio_mux {
-	bool pll_is_enabled;
 	void __iomem *regs;
 	void *mux_handle;
 	struct clk *pll;
@@ -154,13 +153,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	int ret;
 
 	/* Enable the phy clock */
-	if (!priv->pll_is_enabled) {
+	if (!__clk_is_enabled(priv->pll)) {
 		ret = clk_prepare_enable(priv->pll);
 		if (ret)
 			return ret;
 	}
-
-	priv->pll_is_enabled = true;
 
 	/* Initialize ephy control */
 	writel(EPHY_G12A_ID, priv->regs + ETH_PHY_CNTL0);
@@ -192,10 +189,8 @@ static int g12a_enable_external_mdio(struct g12a_mdio_mux *priv)
 	writel_relaxed(0x0, priv->regs + ETH_PHY_CNTL2);
 
 	/* Disable the phy clock if enabled */
-	if (priv->pll_is_enabled) {
+	if (__clk_is_enabled(priv->pll))
 		clk_disable_unprepare(priv->pll);
-		priv->pll_is_enabled = false;
-	}
 
 	return 0;
 }
@@ -347,7 +342,7 @@ static int g12a_mdio_mux_remove(struct platform_device *pdev)
 
 	mdio_mux_uninit(priv->mux_handle);
 
-	if (priv->pll_is_enabled)
+	if (__clk_is_enabled(priv->pll))
 		clk_disable_unprepare(priv->pll);
 
 	return 0;
