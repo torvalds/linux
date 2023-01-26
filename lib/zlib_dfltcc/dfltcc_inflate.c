@@ -22,10 +22,6 @@ int dfltcc_can_inflate(
             zlib_dfltcc_support == ZLIB_DFLTCC_DEFLATE_ONLY)
         return 0;
 
-    /* Unsupported compression settings */
-    if (state->wbits != HB_BITS)
-        return 0;
-
     /* Unsupported hardware */
     return is_bit_set(dfltcc_state->af.fns, DFLTCC_XPND) &&
                is_bit_set(dfltcc_state->af.fmts, DFLTCC_FMT0);
@@ -129,8 +125,6 @@ dfltcc_inflate_action dfltcc_inflate(
     /* Translate stream to parameter block */
     param->cvt = CVT_ADLER32;
     param->sbb = state->bits;
-    param->hl = state->whave; /* Software and hardware history formats match */
-    param->ho = (state->write - state->whave) & ((1 << HB_BITS) - 1);
     if (param->hl)
         param->nt = 0; /* Honor history for the first block */
     param->cv = state->check;
@@ -144,8 +138,6 @@ dfltcc_inflate_action dfltcc_inflate(
     strm->msg = oesc_msg(dfltcc_state->msg, param->oesc);
     state->last = cc == DFLTCC_CC_OK;
     state->bits = param->sbb;
-    state->whave = param->hl;
-    state->write = (param->ho + param->hl) & ((1 << HB_BITS) - 1);
     state->check = param->cv;
     if (cc == DFLTCC_CC_OP2_CORRUPT && param->oesc != 0) {
         /* Report an error if stream is corrupted */
