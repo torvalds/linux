@@ -100,8 +100,9 @@ struct dfltcc_state {
     char msg[64];                      /* Buffer for strm->msg */
 };
 
+#define ALIGN_UP(p, size) (__typeof__(p))(((uintptr_t)(p) + ((size) - 1)) & ~((size) - 1))
 /* Resides right after inflate_state or deflate_state */
-#define GET_DFLTCC_STATE(state) ((struct dfltcc_state *)((state) + 1))
+#define GET_DFLTCC_STATE(state) ((struct dfltcc_state *)((char *)(state) + ALIGN_UP(sizeof(*state), 8)))
 
 /* External functions */
 int dfltcc_can_deflate(z_streamp strm);
