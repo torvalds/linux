@@ -341,7 +341,6 @@ int rtas_service_present(const char *service)
 {
 	return rtas_token(service) != RTAS_UNKNOWN_SERVICE;
 }
-EXPORT_SYMBOL(rtas_service_present);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 
@@ -356,7 +355,6 @@ int rtas_get_error_log_max(void)
 {
 	return rtas_error_log_max;
 }
-EXPORT_SYMBOL(rtas_get_error_log_max);
 
 static void __init init_error_log_max(void)
 {
@@ -622,7 +620,6 @@ unsigned int rtas_busy_delay_time(int status)
 
 	return ms;
 }
-EXPORT_SYMBOL(rtas_busy_delay_time);
 
 /**
  * rtas_busy_delay() - helper for RTAS busy and extended delay statuses
@@ -820,7 +817,6 @@ bool rtas_indicator_present(int token, int *maxindex)
 
 	return false;
 }
-EXPORT_SYMBOL(rtas_indicator_present);
 
 int rtas_set_indicator(int indicator, int index, int new_value)
 {
