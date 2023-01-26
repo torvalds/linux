@@ -136,6 +136,7 @@ enum qcom_slim_ngd_state {
 	QCOM_SLIM_NGD_CTRL_IDLE,
 	QCOM_SLIM_NGD_CTRL_ASLEEP,
 	QCOM_SLIM_NGD_CTRL_DOWN,
+	QCOM_SLIM_NGD_CTRL_SSR_GOING_DOWN,
 };
 
 struct qcom_slim_ngd_qmi {
@@ -694,8 +695,11 @@ static void qcom_slim_ngd_rx(struct qcom_slim_ngd_ctrl *ctrl, u8 *buf)
 static void qcom_slim_ngd_rx_msgq_cb(void *args)
 {
 	struct qcom_slim_ngd_dma_desc *desc = args;
-	struct qcom_slim_ngd_ctrl *ctrl = desc->ctrl;
+	struct qcom_slim_ngd_ctrl *ctrl;
 
+	if (!desc)
+		return;
+	ctrl = desc->ctrl;
 	qcom_slim_ngd_rx(ctrl, (u8 *)desc->base);
 	/* Add descriptor back to the queue */
 	desc->desc = dmaengine_prep_slave_single(ctrl->dma_rx_channel,
@@ -972,6 +976,21 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 			txn->rl > SLIM_MSGQ_BUF_LEN) {
 		SLIM_ERR(ctrl, "msg exceeds HW limit\n");
 		return -EINVAL;
+	}
+
+	/*
+	 * As part of SSR/PDR notify when ngd is going down tx_lock is
+	 * acquired and is waiting for ctrl_lock. While in parallel for
+	 * slim_get_logical_addr request from codecs ctrl_lock is acquired
+	 * first followed by qcom_slim_ngd_xfer_msg.
+	 * In qcom_slim_ngd_xfer_msg check if tx lock is already acquired
+	 * as part of SSR/PDR notify and ngd is going down to avoid deadlock
+	 * scenario if there is a get logical address request.
+	 */
+	if (mutex_is_locked(&ctrl->tx_lock) &&
+			    ctrl->state == QCOM_SLIM_NGD_CTRL_SSR_GOING_DOWN) {
+		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again!\n");
+		return -EAGAIN;
 	}
 
 	mutex_lock(&ctrl->tx_lock);
@@ -1784,6 +1803,8 @@ static int qcom_slim_ngd_ssr_pdr_notify(struct qcom_slim_ngd_ctrl *ctrl,
 		mutex_lock(&ctrl->tx_lock);
 		SLIM_INFO(ctrl, "SLIM SSR Before Shutdown\n");
 		if (ctrl->state != QCOM_SLIM_NGD_CTRL_DOWN) {
+			ctrl->state = QCOM_SLIM_NGD_CTRL_SSR_GOING_DOWN;
+			SLIM_INFO(ctrl, "SLIM SSR going down\n");
 			pm_runtime_get_noresume(ctrl->ctrl.dev);
 			SLIM_INFO(ctrl, "SLIM %s: PM get_no_resume count:%d\n",
 				__func__, atomic_read(&ctrl->ctrl.dev->power.usage_count));
