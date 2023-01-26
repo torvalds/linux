@@ -559,7 +559,6 @@ void vma_mas_remove(struct vm_area_struct *vma, struct ma_state *mas)
 
 static void setup_vma_to_mm(struct vm_area_struct *vma, struct mm_struct *mm)
 {
-	mm->map_count++;
 	vma->vm_mm = mm;
 
 	/* add the VMA to the mapping */
@@ -587,6 +586,7 @@ static void mas_add_vma_to_mm(struct ma_state *mas, struct mm_struct *mm,
 	BUG_ON(!vma->vm_region);
 
 	setup_vma_to_mm(vma, mm);
+	mm->map_count++;
 
 	/* add the VMA to the tree */
 	vma_mas_store(vma, mas);
@@ -1240,6 +1240,7 @@ share:
 error_just_free:
 	up_write(&nommu_region_sem);
 error:
+	mas_destroy(&mas);
 	if (region->vm_file)
 		fput(region->vm_file);
 	kmem_cache_free(vm_region_jar, region);
@@ -1250,7 +1251,6 @@ error:
 
 sharing_violation:
 	up_write(&nommu_region_sem);
-	mas_destroy(&mas);
 	pr_warn("Attempt to share mismatched mappings\n");
 	ret = -EINVAL;
 	goto error;
@@ -1347,6 +1347,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (vma->vm_file)
 		return -ENOMEM;
 
+	mm = vma->vm_mm;
 	if (mm->map_count >= sysctl_max_map_count)
 		return -ENOMEM;
 
@@ -1398,6 +1399,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	mas_set_range(&mas, vma->vm_start, vma->vm_end - 1);
 	mas_store(&mas, vma);
 	vma_mas_store(new, &mas);
+	mm->map_count++;
 	return 0;
 
 err_mas_preallocate:
@@ -1509,7 +1511,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len, struct list
 erase_whole_vma:
 	if (delete_vma_from_mm(vma))
 		ret = -ENOMEM;
-	delete_vma(mm, vma);
+	else
+		delete_vma(mm, vma);
 	return ret;
 }
 

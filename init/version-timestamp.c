@@ -2,7 +2,6 @@
 
 #include <generated/compile.h>
 #include <generated/utsrelease.h>
-#include <linux/version.h>
 #include <linux/proc_ns.h>
 #include <linux/refcount.h>
 #include <linux/uts.h>

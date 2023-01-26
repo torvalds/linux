@@ -7092,7 +7092,7 @@ next:
 		 * Other members are not utilized for inline extents.
 		 */
 		ASSERT(em->block_start == EXTENT_MAP_INLINE);
-		ASSERT(em->len = fs_info->sectorsize);
+		ASSERT(em->len == fs_info->sectorsize);
 
 		ret = read_inline_extent(inode, path, page);
 		if (ret < 0)

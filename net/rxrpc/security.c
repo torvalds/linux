@@ -97,38 +97,31 @@ found:
  */
 int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 {
-	const struct rxrpc_security *sec;
 	struct rxrpc_key_token *token;
 	struct key *key = conn->key;
-	int ret;
+	int ret = 0;
 
 	_enter("{%d},{%x}", conn->debug_id, key_serial(key));
 
-	if (!key)
-		return 0;
-
-	ret = key_validate(key);
-	if (ret < 0)
-		return ret;
-
 	for (token = key->payload.data[0]; token; token = token->next) {
-		sec = rxrpc_security_lookup(token->security_index);
-		if (sec)
+		if (token->security_index == conn->security->security_index)
 			goto found;
 	}
 	return -EKEYREJECTED;
 
 found:
-	conn->security = sec;
-
-	ret = conn->security->init_connection_security(conn, token);
-	if (ret < 0) {
-		conn->security = &rxrpc_no_security;
-		return ret;
+	mutex_lock(&conn->security_lock);
+	if (conn->state == RXRPC_CONN_CLIENT_UNSECURED) {
+		ret = conn->security->init_connection_security(conn, token);
+		if (ret == 0) {
+			spin_lock(&conn->state_lock);
+			if (conn->state == RXRPC_CONN_CLIENT_UNSECURED)
+				conn->state = RXRPC_CONN_CLIENT;
+			spin_unlock(&conn->state_lock);
+		}
 	}
-
-	_leave(" = 0");
-	return 0;
+	mutex_unlock(&conn->security_lock);
+	return ret;
 }
 
 /*
@@ -144,21 +137,15 @@ const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *rx,
 
 	sec = rxrpc_security_lookup(sp->hdr.securityIndex);
 	if (!sec) {
-		trace_rxrpc_abort(0, "SVS",
-				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-				  RX_INVALID_OPERATION, EKEYREJECTED);
-		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
-		skb->priority = RX_INVALID_OPERATION;
+		rxrpc_direct_abort(skb, rxrpc_abort_unsupported_security,
+				   RX_INVALID_OPERATION, -EKEYREJECTED);
 		return NULL;
 	}
 
 	if (sp->hdr.securityIndex != RXRPC_SECURITY_NONE &&
 	    !rx->securities) {
-		trace_rxrpc_abort(0, "SVR",
-				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-				  RX_INVALID_OPERATION, EKEYREJECTED);
-		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
-		skb->priority = sec->no_key_abort;
+		rxrpc_direct_abort(skb, rxrpc_abort_no_service_key,
+				   sec->no_key_abort, -EKEYREJECTED);
 		return NULL;
 	}
 
@@ -191,9 +178,9 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 		sprintf(kdesc, "%u:%u",
 			sp->hdr.serviceId, sp->hdr.securityIndex);
 
-	rcu_read_lock();
+	read_lock(&conn->local->services_lock);
 
-	rx = rcu_dereference(conn->local->service);
+	rx = conn->local->service;
 	if (!rx)
 		goto out;
 
@@ -215,6 +202,6 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 	}
 
 out:
-	rcu_read_unlock();
+	read_unlock(&conn->local->services_lock);
 	return key;
 }

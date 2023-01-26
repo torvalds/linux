@@ -42,8 +42,11 @@ static char *normalize(char *str, int runtime)
 	char *dst = str;
 
 	while (*str) {
-		if (*str == '\\')
+		if (*str == '\\') {
 			*dst++ = *++str;
+			if (!*str)
+				break;
+		}
 		else if (*str == '?') {
 			char *paramval;
 			int i = 0;

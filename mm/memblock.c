@@ -836,7 +836,7 @@ void __init_memblock memblock_free(void *ptr, size_t size)
  * @base: phys starting address of the  boot memory block
  * @size: size of the boot memory block in bytes
  *
- * Free boot memory block previously allocated by memblock_alloc_xx() API.
+ * Free boot memory block previously allocated by memblock_phys_alloc_xx() API.
  * The freeing memory will not be released to the buddy allocator.
  */
 int __init_memblock memblock_phys_free(phys_addr_t base, phys_addr_t size)
@@ -1640,7 +1640,13 @@ void __init memblock_free_late(phys_addr_t base, phys_addr_t size)
 	end = PFN_DOWN(base + size);
 
 	for (; cursor < end; cursor++) {
-		memblock_free_pages(pfn_to_page(cursor), cursor, 0);
+		/*
+		 * Reserved pages are always initialized by the end of
+		 * memblock_free_all() (by memmap_init() and, if deferred
+		 * initialization is enabled, memmap_init_reserved_pages()), so
+		 * these pages can be released directly to the buddy allocator.
+		 */
+		__free_pages_core(pfn_to_page(cursor), 0);
 		totalram_pages_inc();
 	}
 }

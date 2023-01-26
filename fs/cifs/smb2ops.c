@@ -530,7 +530,6 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 	p = buf;
 
 	spin_lock(&ses->iface_lock);
-	ses->iface_count = 0;
 	/*
 	 * Go through iface_list and do kref_put to remove
 	 * any unused ifaces. ifaces in use will be removed
@@ -540,6 +539,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 				 iface_head) {
 		iface->is_active = 0;
 		kref_put(&iface->refcount, release_iface);
+		ses->iface_count--;
 	}
 	spin_unlock(&ses->iface_lock);
 
@@ -618,6 +618,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 				/* just get a ref so that it doesn't get picked/freed */
 				iface->is_active = 1;
 				kref_get(&iface->refcount);
+				ses->iface_count++;
 				spin_unlock(&ses->iface_lock);
 				goto next_iface;
 			} else if (ret < 0) {
@@ -4488,17 +4489,12 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, int num_rqst,
 
 		/* copy pages form the old */
 		for (j = 0; j < npages; j++) {
-			char *dst, *src;
 			unsigned int offset, len;
 
 			rqst_page_get_length(new, j, &len, &offset);
 
-			dst = kmap_local_page(new->rq_pages[j]) + offset;
-			src = kmap_local_page(old->rq_pages[j]) + offset;
-
-			memcpy(dst, src, len);
-			kunmap(new->rq_pages[j]);
-			kunmap(old->rq_pages[j]);
+			memcpy_page(new->rq_pages[j], offset,
+				    old->rq_pages[j], offset, len);
 		}
 	}
 

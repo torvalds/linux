@@ -126,7 +126,7 @@ r8a779f0_eth_serdes_chan_setting(struct r8a779f0_eth_serdes_channel *channel)
 		r8a779f0_eth_serdes_write32(channel->addr, 0x0160, 0x180, 0x0007);
 		r8a779f0_eth_serdes_write32(channel->addr, 0x01ac, 0x180, 0x0000);
 		r8a779f0_eth_serdes_write32(channel->addr, 0x00c4, 0x180, 0x0310);
-		r8a779f0_eth_serdes_write32(channel->addr, 0x00c8, 0x380, 0x0101);
+		r8a779f0_eth_serdes_write32(channel->addr, 0x00c8, 0x180, 0x0101);
 		ret = r8a779f0_eth_serdes_reg_wait(channel, 0x00c8, 0x0180, BIT(0), 0);
 		if (ret)
 			return ret;

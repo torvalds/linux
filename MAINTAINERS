@@ -383,7 +383,7 @@ ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	Robert Moore <robert.moore@intel.com>
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 L:	linux-acpi@vger.kernel.org
-L:	devel@acpica.org
+L:	acpica-devel@lists.linuxfoundation.org
 S:	Supported
 W:	https://acpica.org/
 W:	https://github.com/acpica/acpica/
@@ -1104,7 +1104,6 @@ S:	Supported
 F:	arch/arm64/boot/dts/amd/
 
 AMD XGBE DRIVER
-M:	Tom Lendacky <thomas.lendacky@amd.com>
 M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -6948,7 +6947,7 @@ F:	drivers/gpu/drm/atmel-hlcdc/
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Andrzej Hajda <andrzej.hajda@intel.com>
 M:	Neil Armstrong <neil.armstrong@linaro.org>
-M:	Robert Foss <robert.foss@linaro.org>
+M:	Robert Foss <rfoss@kernel.org>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
 R:	Jonas Karlman <jonas@kwiboo.se>
 R:	Jernej Skrabec <jernej.skrabec@gmail.com>
@@ -9299,7 +9298,7 @@ F:	net/dsa/tag_hellcreek.c
 
 HISILICON DMA DRIVER
 M:	Zhou Wang <wangzhou1@hisilicon.com>
-M:	Jie Hai <haijie1@hisilicon.com>
+M:	Jie Hai <haijie1@huawei.com>
 L:	dmaengine@vger.kernel.org
 S:	Maintained
 F:	drivers/dma/hisi_dma.c
@@ -11356,9 +11355,9 @@ F:	virt/kvm/*
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
 M:	Marc Zyngier <maz@kernel.org>
 R:	James Morse <james.morse@arm.com>
-R:	Alexandru Elisei <alexandru.elisei@arm.com>
 R:	Suzuki K Poulose <suzuki.poulose@arm.com>
 R:	Oliver Upton <oliver.upton@linux.dev>
+R:	Zenghui Yu <yuzenghui@huawei.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.linux.dev
 L:	kvmarm@lists.cs.columbia.edu (deprecated, moderated for non-subscribers)
@@ -13620,7 +13619,7 @@ F:	arch/microblaze/
 
 MICROCHIP AT91 DMA DRIVERS
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+M:	Tudor Ambarus <tudor.ambarus@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	dmaengine@vger.kernel.org
 S:	Supported
@@ -13665,7 +13664,7 @@ F:	Documentation/devicetree/bindings/media/microchip,csi2dc.yaml
 F:	drivers/media/platform/microchip/microchip-csi2dc.c
 
 MICROCHIP ECC DRIVER
-M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+M:	Tudor Ambarus <tudor.ambarus@linaro.org>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/crypto/atmel-ecc.*
@@ -13762,7 +13761,7 @@ S:	Maintained
 F:	drivers/mmc/host/atmel-mci.c
 
 MICROCHIP NAND DRIVER
-M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+M:	Tudor Ambarus <tudor.ambarus@linaro.org>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
@@ -13814,7 +13813,7 @@ S:	Supported
 F:	drivers/power/reset/at91-sama5d2_shdwc.c
 
 MICROCHIP SPI DRIVER
-M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+M:	Tudor Ambarus <tudor.ambarus@linaro.org>
 S:	Supported
 F:	drivers/spi/spi-atmel.*
 
@@ -14919,7 +14918,8 @@ T:	git://git.infradead.org/nvme.git
 F:	Documentation/nvme/
 F:	drivers/nvme/host/
 F:	drivers/nvme/common/
-F:	include/linux/nvme*
+F:	include/linux/nvme.h
+F:	include/linux/nvme-*.h
 F:	include/uapi/linux/nvme_ioctl.h
 
 NVM EXPRESS FABRICS AUTHENTICATION
@@ -15748,6 +15748,12 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/p54
 F:	drivers/net/wireless/intersil/p54/
+
+PACKET SOCKETS
+M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+S:	Maintained
+F:	include/uapi/linux/if_packet.h
+F:	net/packet/af_packet.c
 
 PACKING
 M:	Vladimir Oltean <olteanv@gmail.com>
@@ -16610,6 +16616,13 @@ S:	Supported
 F:	Documentation/devicetree/bindings/input/pine64,pinephone-keyboard.yaml
 F:	drivers/input/keyboard/pinephone-keyboard.c
 
+PKTCDVD DRIVER
+M:	linux-block@vger.kernel.org
+S:	Orphan
+F:	drivers/block/pktcdvd.c
+F:	include/linux/pktcdvd.h
+F:	include/uapi/linux/pktcdvd.h
+
 PLANTOWER PMS7003 AIR POLLUTION SENSOR DRIVER
 M:	Tomasz Duszynski <tduszyns@gmail.com>
 S:	Maintained
@@ -17230,7 +17243,7 @@ F:	Documentation/devicetree/bindings/net/qcom,bam-dmux.yaml
 F:	drivers/net/wwan/qcom_bam_dmux.c
 
 QUALCOMM CAMERA SUBSYSTEM DRIVER
-M:	Robert Foss <robert.foss@linaro.org>
+M:	Robert Foss <rfoss@kernel.org>
 M:	Todor Tomov <todor.too@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -17310,7 +17323,7 @@ F:	drivers/dma/qcom/hidma*
 
 QUALCOMM I2C CCI DRIVER
 M:	Loic Poulain <loic.poulain@linaro.org>
-M:	Robert Foss <robert.foss@linaro.org>
+M:	Robert Foss <rfoss@kernel.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -19318,6 +19331,13 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Orphan
 F:	sound/soc/uniphier/
 
+SOCKET TIMESTAMPING
+M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+S:	Maintained
+F:	Documentation/networking/timestamping.rst
+F:	include/uapi/linux/net_tstamp.h
+F:	tools/testing/selftests/net/so_txtime.c
+
 SOEKRIS NET48XX LED SUPPORT
 M:	Chris Boot <bootc@bootc.net>
 S:	Maintained
@@ -19665,7 +19685,7 @@ F:	drivers/clk/spear/
 F:	drivers/pinctrl/spear/
 
 SPI NOR SUBSYSTEM
-M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+M:	Tudor Ambarus <tudor.ambarus@linaro.org>
 M:	Pratyush Yadav <pratyush@kernel.org>
 R:	Michael Walle <michael@walle.cc>
 L:	linux-mtd@lists.infradead.org
@@ -21738,6 +21758,13 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/zr364xx*
 F:	drivers/staging/media/deprecated/zr364xx/
 
+USER DATAGRAM PROTOCOL (UDP)
+M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+S:	Maintained
+F:	include/linux/udp.h
+F:	net/ipv4/udp.c
+F:	net/ipv6/udp.c
+
 USER-MODE LINUX (UML)
 M:	Richard Weinberger <richard@nod.at>
 M:	Anton Ivanov <anton.ivanov@cambridgegreys.com>
@@ -22246,7 +22273,9 @@ F:	drivers/scsi/vmw_pvscsi.c
 F:	drivers/scsi/vmw_pvscsi.h
 
 VMWARE VIRTUAL PTP CLOCK DRIVER
-M:	Vivek Thampi <vithampi@vmware.com>
+M:	Srivatsa S. Bhat (VMware) <srivatsa@csail.mit.edu>
+M:	Deep Shah <sdeep@vmware.com>
+R:	Alexey Makhalov <amakhalov@vmware.com>
 R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
 L:	netdev@vger.kernel.org
 S:	Supported

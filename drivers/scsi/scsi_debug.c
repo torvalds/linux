@@ -1511,8 +1511,6 @@ static int inquiry_vpd_b0(unsigned char *arr)
 	put_unaligned_be64(sdebug_write_same_length, &arr[32]);
 
 	return 0x3c; /* Mandatory page length for Logical Block Provisioning */
-
-	return sizeof(vpdb0_data);
 }
 
 /* Block device characteristics VPD page (SBC-3) */

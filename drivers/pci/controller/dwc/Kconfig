@@ -225,7 +225,7 @@ config PCIE_ARTPEC6_EP
 config PCIE_BT1
 	tristate "Baikal-T1 PCIe controller"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	select PCIE_DW_HOST
 	help
 	  Enables support for the PCIe controller in the Baikal-T1 SoC to work

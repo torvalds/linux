@@ -829,7 +829,23 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 			apple_nvme_remove_cq(anv);
 		}
 
-		nvme_disable_ctrl(&anv->ctrl, shutdown);
+		/*
+		 * Always disable the NVMe controller after shutdown.
+		 * We need to do this to bring it back up later anyway, and we
+		 * can't do it while the firmware is not running (e.g. in the
+		 * resume reset path before RTKit is initialized), so for Apple
+		 * controllers it makes sense to unconditionally do it here.
+		 * Additionally, this sequence of events is reliable, while
+		 * others (like disabling after bringing back the firmware on
+		 * resume) seem to run into trouble under some circumstances.
+		 *
+		 * Both U-Boot and m1n1 also use this convention (i.e. an ANS
+		 * NVMe controller is handed off with firmware shut down, in an
+		 * NVMe disabled state, after a clean shutdown).
+		 */
+		if (shutdown)
+			nvme_disable_ctrl(&anv->ctrl, shutdown);
+		nvme_disable_ctrl(&anv->ctrl, false);
 	}
 
 	WRITE_ONCE(anv->ioq.enabled, false);
@@ -985,11 +1001,11 @@ static void apple_nvme_reset_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (anv->ctrl.ctrl_config & NVME_CC_ENABLE)
-		apple_nvme_disable(anv, false);
-
 	/* RTKit must be shut down cleanly for the (soft)-reset to work */
 	if (apple_rtkit_is_running(anv->rtk)) {
+		/* reset the controller if it is enabled */
+		if (anv->ctrl.ctrl_config & NVME_CC_ENABLE)
+			apple_nvme_disable(anv, false);
 		dev_dbg(anv->dev, "Trying to shut down RTKit before reset.");
 		ret = apple_rtkit_shutdown(anv->rtk);
 		if (ret)
@@ -1493,7 +1509,7 @@ static int apple_nvme_probe(struct platform_device *pdev)
 	}
 
 	ret = nvme_init_ctrl(&anv->ctrl, anv->dev, &nvme_ctrl_ops,
-			     NVME_QUIRK_SKIP_CID_GEN);
+			     NVME_QUIRK_SKIP_CID_GEN | NVME_QUIRK_IDENTIFY_CNS);
 	if (ret) {
 		dev_err_probe(dev, ret, "Failed to initialize nvme_ctrl");
 		goto put_dev;

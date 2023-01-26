@@ -1201,6 +1201,8 @@ int fotg210_udc_probe(struct platform_device *pdev)
 		dev_info(dev, "found and initialized PHY\n");
 	}
 
+	ret = -ENOMEM;
+
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
 		fotg210->ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);
 		if (!fotg210->ep[i])

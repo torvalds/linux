@@ -24,21 +24,22 @@ The acquisition orders for mutexes are as follows:
 
 For SRCU:
 
-- ``synchronize_srcu(&kvm->srcu)`` is called _inside_
-  the kvm->slots_lock critical section, therefore kvm->slots_lock
-  cannot be taken inside a kvm->srcu read-side critical section.
-  Instead, kvm->slots_arch_lock is released before the call
-  to ``synchronize_srcu()`` and _can_ be taken inside a
-  kvm->srcu read-side critical section.
+- ``synchronize_srcu(&kvm->srcu)`` is called inside critical sections
+  for kvm->lock, vcpu->mutex and kvm->slots_lock.  These locks _cannot_
+  be taken inside a kvm->srcu read-side critical section; that is, the
+  following is broken::
 
-- kvm->lock is taken inside kvm->srcu, therefore
-  ``synchronize_srcu(&kvm->srcu)`` cannot be called inside
-  a kvm->lock critical section.  If you cannot delay the
-  call until after kvm->lock is released, use ``call_srcu``.
+      srcu_read_lock(&kvm->srcu);
+      mutex_lock(&kvm->slots_lock);
+
+- kvm->slots_arch_lock instead is released before the call to
+  ``synchronize_srcu()``.  It _can_ therefore be taken inside a
+  kvm->srcu read-side critical section, for example while processing
+  a vmexit.
 
 On x86:
 
-- vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock
+- vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock and kvm->arch.xen.xen_lock
 
 - kvm->arch.mmu_lock is an rwlock.  kvm->arch.tdp_mmu_pages_lock and
   kvm->arch.mmu_unsync_pages_lock are taken inside kvm->arch.mmu_lock, and

@@ -307,18 +307,4 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 #define ttm_prime_object_kfree(__obj, __prime)		\
 	kfree_rcu(__obj, __prime.base.rhead)
 
-struct ttm_base_object *
-ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint64_t key);
-
-/**
- * ttm_base_object_noref_release - release a base object pointer looked up
- * without reference
- *
- * Releases a base object pointer looked up with ttm_base_object_noref_lookup().
- */
-static inline void ttm_base_object_noref_release(void)
-{
-	__acquire(RCU);
-	rcu_read_unlock();
-}
 #endif
