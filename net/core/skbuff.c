@@ -79,6 +79,7 @@
 #include <linux/capability.h>
 #include <linux/user_namespace.h>
 #include <linux/indirect_call_wrapper.h>
+#include <linux/textsearch.h>
 
 #include "dev.h"
 #include "sock_destructor.h"
