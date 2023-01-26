@@ -69,6 +69,15 @@ int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 	return 0;
 }
 
+static void
+invalidation_fence_signal(struct xe_gt_tlb_invalidation_fence *fence)
+{
+	trace_xe_gt_tlb_invalidation_fence_signal(fence);
+	list_del(&fence->link);
+	dma_fence_signal(&fence->base);
+	dma_fence_put(&fence->base);
+}
+
 /**
  * xe_gt_tlb_invalidation_reset - Initialize GT TLB invalidation reset
  * @gt: graphics tile
@@ -83,11 +92,8 @@ int xe_gt_tlb_invalidation_init(struct xe_gt *gt)
 
 	mutex_lock(&gt->uc.guc.ct.lock);
 	list_for_each_entry_safe(fence, next,
-				 &gt->tlb_invalidation.pending_fences, link) {
-		list_del(&fence->link);
-		dma_fence_signal(&fence->base);
-		dma_fence_put(&fence->base);
-	}
+				 &gt->tlb_invalidation.pending_fences, link)
+		invalidation_fence_signal(fence);
 	mutex_unlock(&gt->uc.guc.ct.lock);
 }
 
@@ -130,6 +136,8 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	}
 	if (!ret)
 		ret = seqno;
+	if (ret < 0 && fence)
+		invalidation_fence_signal(fence);
 	mutex_unlock(&guc->ct.lock);
 
 	return ret;
@@ -321,16 +329,13 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	if (fence)
 		trace_xe_gt_tlb_invalidation_fence_recv(fence);
 	if (fence && tlb_invalidation_seqno_past(gt, fence->seqno)) {
-		trace_xe_gt_tlb_invalidation_fence_signal(fence);
-		list_del(&fence->link);
+		invalidation_fence_signal(fence);
 		if (!list_empty(&gt->tlb_invalidation.pending_fences))
 			mod_delayed_work(system_wq,
 					 &gt->tlb_invalidation.fence_tdr,
 					 TLB_TIMEOUT);
 		else
 			cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
-		dma_fence_signal(&fence->base);
-		dma_fence_put(&fence->base);
 	}
 
 	return 0;
