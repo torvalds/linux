@@ -185,6 +185,7 @@ config SAMPLE_UHID
 
 config SAMPLE_VFIO_MDEV_MTTY
 	tristate "Build VFIO mtty example mediated device sample code"
+	depends on VFIO
 	select VFIO_MDEV
 	help
 	  Build a virtual tty sample driver for use as a VFIO
@@ -192,6 +193,7 @@ config SAMPLE_VFIO_MDEV_MTTY
 
 config SAMPLE_VFIO_MDEV_MDPY
 	tristate "Build VFIO mdpy example mediated device sample code"
+	depends on VFIO
 	select VFIO_MDEV
 	help
 	  Build a virtual display sample driver for use as a VFIO
@@ -209,6 +211,7 @@ config SAMPLE_VFIO_MDEV_MDPY_FB
 
 config SAMPLE_VFIO_MDEV_MBOCHS
 	tristate "Build VFIO mdpy example mediated device sample code"
+	depends on VFIO
 	select VFIO_MDEV
 	select DMA_SHARED_BUFFER
 	help
