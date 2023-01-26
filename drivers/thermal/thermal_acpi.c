@@ -64,13 +64,14 @@ static int thermal_acpi_trip_init(struct acpi_device *adev,
 		return -ENODATA;
 	}
 
-	if (temp < TEMP_MIN_DECIK || temp >= TEMP_MAX_DECIK) {
+	if (temp >= TEMP_MIN_DECIK && temp <= TEMP_MAX_DECIK) {
+		trip->temperature = deci_kelvin_to_millicelsius(temp);
+	} else {
 		acpi_handle_debug(adev->handle, "%s result %llu out of range\n",
 				  obj_name, temp);
-		return -ENODATA;
+		trip->temperature = THERMAL_TEMP_INVALID;
 	}
 
-	trip->temperature = deci_kelvin_to_millicelsius(temp);
 	trip->hysteresis = 0;
 	trip->type = type;
 
