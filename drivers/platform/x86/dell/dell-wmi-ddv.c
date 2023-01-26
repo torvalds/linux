@@ -87,7 +87,7 @@ static int dell_wmi_ddv_query_type(struct wmi_device *wdev, enum dell_ddv_method
 
 	if (obj->type != type) {
 		kfree(obj);
-		return -EIO;
+		return -ENOMSG;
 	}
 
 	*result = obj;
