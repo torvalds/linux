@@ -1348,40 +1348,34 @@ static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
-	int ret = 0;
-
-	mutex_lock(&csis->lock);
+	int ret;
 
 	ret = mipi_csis_phy_disable(csis);
 	if (ret)
-		goto unlock;
+		return -EAGAIN;
 
 	mipi_csis_clk_disable(csis);
 
-unlock:
-	mutex_unlock(&csis->lock);
-
-	return ret ? -EAGAIN : 0;
+	return 0;
 }
 
 static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
-	int ret = 0;
-
-	mutex_lock(&csis->lock);
+	int ret;
 
 	ret = mipi_csis_phy_enable(csis);
 	if (ret)
-		goto unlock;
+		return -EAGAIN;
 
-	mipi_csis_clk_enable(csis);
+	ret = mipi_csis_clk_enable(csis);
+	if (ret) {
+		mipi_csis_phy_disable(csis);
+		return ret;
+	}
 
-unlock:
-	mutex_unlock(&csis->lock);
-
-	return ret ? -EAGAIN : 0;
+	return 0;
 }
 
 static const struct dev_pm_ops mipi_csis_pm_ops = {
