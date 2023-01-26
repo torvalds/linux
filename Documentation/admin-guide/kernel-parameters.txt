@@ -478,8 +478,10 @@
 			See Documentation/block/cmdline-partition.rst
 
 	boot_delay=	Milliseconds to delay each printk during boot.
-			Values larger than 10 seconds (10000) are changed to
-			no delay (0).
+			Only works if CONFIG_BOOT_PRINTK_DELAY is enabled,
+			and you may also have to specify "lpj=".  Boot_delay
+			values larger than 10 seconds (10000) are assumed
+			erroneous and ignored.
 			Format: integer
 
 	bootconfig	[KNL]
