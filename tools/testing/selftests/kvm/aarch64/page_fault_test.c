@@ -304,7 +304,7 @@ static struct uffd_args {
 
 /* Returns true to continue the test, and false if it should be skipped. */
 static int uffd_generic_handler(int uffd_mode, int uffd, struct uffd_msg *msg,
-				struct uffd_args *args, bool expect_write)
+				struct uffd_args *args)
 {
 	uint64_t addr = msg->arg.pagefault.address;
 	uint64_t flags = msg->arg.pagefault.flags;
@@ -313,7 +313,6 @@ static int uffd_generic_handler(int uffd_mode, int uffd, struct uffd_msg *msg,
 
 	TEST_ASSERT(uffd_mode == UFFDIO_REGISTER_MODE_MISSING,
 		    "The only expected UFFD mode is MISSING");
-	ASSERT_EQ(!!(flags & UFFD_PAGEFAULT_FLAG_WRITE), expect_write);
 	ASSERT_EQ(addr, (uint64_t)args->hva);
 
 	pr_debug("uffd fault: addr=%p write=%d\n",
@@ -337,19 +336,14 @@ static int uffd_generic_handler(int uffd_mode, int uffd, struct uffd_msg *msg,
 	return 0;
 }
 
-static int uffd_pt_write_handler(int mode, int uffd, struct uffd_msg *msg)
+static int uffd_pt_handler(int mode, int uffd, struct uffd_msg *msg)
 {
-	return uffd_generic_handler(mode, uffd, msg, &pt_args, true);
+	return uffd_generic_handler(mode, uffd, msg, &pt_args);
 }
 
-static int uffd_data_write_handler(int mode, int uffd, struct uffd_msg *msg)
+static int uffd_data_handler(int mode, int uffd, struct uffd_msg *msg)
 {
-	return uffd_generic_handler(mode, uffd, msg, &data_args, true);
-}
-
-static int uffd_data_read_handler(int mode, int uffd, struct uffd_msg *msg)
-{
-	return uffd_generic_handler(mode, uffd, msg, &data_args, false);
+	return uffd_generic_handler(mode, uffd, msg, &data_args);
 }
 
 static void setup_uffd_args(struct userspace_mem_region *region,
@@ -822,7 +816,7 @@ static void help(char *name)
 	.mem_mark_cmd		= CMD_HOLE_DATA | CMD_HOLE_PT,			\
 	.guest_test_check	= { _CHECK(_with_af), _test_check },		\
 	.uffd_data_handler	= _uffd_data_handler,				\
-	.uffd_pt_handler	= uffd_pt_write_handler,			\
+	.uffd_pt_handler	= uffd_pt_handler,				\
 	.expected_events	= { .uffd_faults = _uffd_faults, },		\
 }
 
@@ -878,7 +872,7 @@ static void help(char *name)
 	.guest_prepare		= { _PREPARE(_access) },			\
 	.guest_test		= _access,					\
 	.uffd_data_handler	= _uffd_data_handler,				\
-	.uffd_pt_handler	= uffd_pt_write_handler,			\
+	.uffd_pt_handler	= uffd_pt_handler,				\
 	.mmio_handler		= _mmio_handler,				\
 	.expected_events	= { .mmio_exits = _mmio_exits,			\
 				    .uffd_faults = _uffd_faults },		\
@@ -892,7 +886,7 @@ static void help(char *name)
 	.mem_mark_cmd		= CMD_HOLE_DATA | CMD_HOLE_PT,			\
 	.guest_test		= _access,					\
 	.uffd_data_handler	= _uffd_data_handler,				\
-	.uffd_pt_handler	= uffd_pt_write_handler,			\
+	.uffd_pt_handler	= uffd_pt_handler,			\
 	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_no_syndrome_handler,	\
 	.expected_events	= { .fail_vcpu_runs = 1,			\
 				    .uffd_faults = _uffd_faults },		\
@@ -933,29 +927,27 @@ static struct test_desc tests[] = {
 	 * (S1PTW).
 	 */
 	TEST_UFFD(guest_read64, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_read_handler, uffd_pt_write_handler, 2),
-	/* no_af should also lead to a PT write. */
+		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_read64, no_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_read_handler, uffd_pt_write_handler, 2),
-	/* Note how that cas invokes the read handler. */
+		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_cas, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_read_handler, uffd_pt_write_handler, 2),
+		  uffd_data_handler, uffd_pt_handler, 2),
 	/*
 	 * Can't test guest_at with_af as it's IMPDEF whether the AF is set.
 	 * The S1PTW fault should still be marked as a write.
 	 */
 	TEST_UFFD(guest_at, no_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_read_handler, uffd_pt_write_handler, 1),
+		  uffd_no_handler, uffd_pt_handler, 1),
 	TEST_UFFD(guest_ld_preidx, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_read_handler, uffd_pt_write_handler, 2),
+		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_write64, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_write_handler, uffd_pt_write_handler, 2),
+		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_dc_zva, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_write_handler, uffd_pt_write_handler, 2),
+		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_st_preidx, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_write_handler, uffd_pt_write_handler, 2),
+		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_exec, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_data_read_handler, uffd_pt_write_handler, 2),
+		  uffd_data_handler, uffd_pt_handler, 2),
 
 	/*
 	 * Try accesses when the data and PT memory regions are both
@@ -980,25 +972,25 @@ static struct test_desc tests[] = {
 	 * fault, and nothing in the dirty log.  Any S1PTW should result in
 	 * a write in the dirty log and a userfaultfd write.
 	 */
-	TEST_UFFD_AND_DIRTY_LOG(guest_read64, with_af, uffd_data_read_handler, 2,
+	TEST_UFFD_AND_DIRTY_LOG(guest_read64, with_af, uffd_data_handler, 2,
 				guest_check_no_write_in_dirty_log),
 	/* no_af should also lead to a PT write. */
-	TEST_UFFD_AND_DIRTY_LOG(guest_read64, no_af, uffd_data_read_handler, 2,
+	TEST_UFFD_AND_DIRTY_LOG(guest_read64, no_af, uffd_data_handler, 2,
 				guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_ld_preidx, with_af, uffd_data_read_handler,
+	TEST_UFFD_AND_DIRTY_LOG(guest_ld_preidx, with_af, uffd_data_handler,
 				2, guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_at, with_af, 0, 1,
+	TEST_UFFD_AND_DIRTY_LOG(guest_at, with_af, uffd_no_handler, 1,
 				guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_exec, with_af, uffd_data_read_handler, 2,
+	TEST_UFFD_AND_DIRTY_LOG(guest_exec, with_af, uffd_data_handler, 2,
 				guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_write64, with_af, uffd_data_write_handler,
+	TEST_UFFD_AND_DIRTY_LOG(guest_write64, with_af, uffd_data_handler,
 				2, guest_check_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_cas, with_af, uffd_data_read_handler, 2,
+	TEST_UFFD_AND_DIRTY_LOG(guest_cas, with_af, uffd_data_handler, 2,
 				guest_check_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_dc_zva, with_af, uffd_data_write_handler,
+	TEST_UFFD_AND_DIRTY_LOG(guest_dc_zva, with_af, uffd_data_handler,
 				2, guest_check_write_in_dirty_log),
 	TEST_UFFD_AND_DIRTY_LOG(guest_st_preidx, with_af,
-				uffd_data_write_handler, 2,
+				uffd_data_handler, 2,
 				guest_check_write_in_dirty_log),
 
 	/*
@@ -1051,22 +1043,15 @@ static struct test_desc tests[] = {
 	 * no userfaultfd write fault. Reads result in userfaultfd getting
 	 * triggered.
 	 */
-	TEST_RO_MEMSLOT_AND_UFFD(guest_read64, 0, 0,
-				 uffd_data_read_handler, 2),
-	TEST_RO_MEMSLOT_AND_UFFD(guest_ld_preidx, 0, 0,
-				 uffd_data_read_handler, 2),
-	TEST_RO_MEMSLOT_AND_UFFD(guest_at, 0, 0,
-				 uffd_no_handler, 1),
-	TEST_RO_MEMSLOT_AND_UFFD(guest_exec, 0, 0,
-				 uffd_data_read_handler, 2),
+	TEST_RO_MEMSLOT_AND_UFFD(guest_read64, 0, 0, uffd_data_handler, 2),
+	TEST_RO_MEMSLOT_AND_UFFD(guest_ld_preidx, 0, 0, uffd_data_handler, 2),
+	TEST_RO_MEMSLOT_AND_UFFD(guest_at, 0, 0, uffd_no_handler, 1),
+	TEST_RO_MEMSLOT_AND_UFFD(guest_exec, 0, 0, uffd_data_handler, 2),
 	TEST_RO_MEMSLOT_AND_UFFD(guest_write64, mmio_on_test_gpa_handler, 1,
-				 uffd_data_write_handler, 2),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_cas,
-					     uffd_data_read_handler, 2),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_dc_zva,
-					     uffd_no_handler, 1),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_st_preidx,
-					     uffd_no_handler, 1),
+				 uffd_data_handler, 2),
+	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_cas, uffd_data_handler, 2),
+	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_dc_zva, uffd_no_handler, 1),
+	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_st_preidx, uffd_no_handler, 1),
 
 	{ 0 }
 };
