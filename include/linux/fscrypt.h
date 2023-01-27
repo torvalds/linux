@@ -257,8 +257,8 @@ int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num, gfp_t gfp_flags);
 
-int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
-				     unsigned int offs);
+int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
+				     size_t offs);
 int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num);
@@ -420,9 +420,8 @@ static inline int fscrypt_encrypt_block_inplace(const struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
-static inline int fscrypt_decrypt_pagecache_blocks(struct page *page,
-						   unsigned int len,
-						   unsigned int offs)
+static inline int fscrypt_decrypt_pagecache_blocks(struct folio *folio,
+						   size_t len, size_t offs)
 {
 	return -EOPNOTSUPP;
 }
