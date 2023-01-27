@@ -2,3 +2,8 @@
 *.example.dts
 /processed-schema*.yaml
 /processed-schema*.json
+
+#
+# We don't want to ignore the following even if they are dot-files
+#
+!.yamllint
