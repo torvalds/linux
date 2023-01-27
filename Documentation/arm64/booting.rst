@@ -223,7 +223,7 @@ Before jumping into the kernel, the following conditions must be met:
   For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
 
-      - ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
+      - ICC_SRE_EL3.Enable (bit 3) must be initialised to 0b1.
       - ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
       - ICC_CTLR_EL3.PMHE (bit 6) must be set to the same value across
         all CPUs the kernel is executing on, and must stay constant
