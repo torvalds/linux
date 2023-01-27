@@ -25,7 +25,9 @@ properties:
       - const: south
       - const: north
 
-  interrupts: true
+  interrupts:
+    maxItems: 1
+
   interrupt-controller: true
   "#interrupt-cells": true
   gpio-controller: true

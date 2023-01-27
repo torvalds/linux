@@ -16,8 +16,9 @@ description:
 properties:
   interrupts:
     description:
-      Specifies the TLMM summary IRQ
-    maxItems: 1
+      TLMM summary IRQ and dirconn interrupts.
+    minItems: 1
+    maxItems: 9
 
   interrupt-controller: true
 
