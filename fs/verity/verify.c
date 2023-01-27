@@ -266,20 +266,23 @@ out:
 
 static bool
 verify_data_blocks(struct inode *inode, struct fsverity_info *vi,
-		   struct ahash_request *req, struct page *data_page,
-		   unsigned int len, unsigned int offset,
-		   unsigned long max_ra_pages)
+		   struct ahash_request *req, struct folio *data_folio,
+		   size_t len, size_t offset, unsigned long max_ra_pages)
 {
 	const unsigned int block_size = vi->tree_params.block_size;
-	u64 pos = (u64)data_page->index << PAGE_SHIFT;
+	u64 pos = (u64)data_folio->index << PAGE_SHIFT;
 
 	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offset, block_size)))
 		return false;
-	if (WARN_ON_ONCE(!PageLocked(data_page) || PageUptodate(data_page)))
+	if (WARN_ON_ONCE(!folio_test_locked(data_folio) ||
+			 folio_test_uptodate(data_folio)))
 		return false;
 	do {
-		if (!verify_data_block(inode, vi, req, data_page,
-				       pos + offset, offset, max_ra_pages))
+		struct page *data_page =
+			folio_page(data_folio, offset >> PAGE_SHIFT);
+
+		if (!verify_data_block(inode, vi, req, data_page, pos + offset,
+				       offset & ~PAGE_MASK, max_ra_pages))
 			return false;
 		offset += block_size;
 		len -= block_size;
@@ -288,21 +291,20 @@ verify_data_blocks(struct inode *inode, struct fsverity_info *vi,
 }
 
 /**
- * fsverity_verify_blocks() - verify data in a page
- * @page: the page containing the data to verify
- * @len: the length of the data to verify in the page
- * @offset: the offset of the data to verify in the page
+ * fsverity_verify_blocks() - verify data in a folio
+ * @folio: the folio containing the data to verify
+ * @len: the length of the data to verify in the folio
+ * @offset: the offset of the data to verify in the folio
  *
  * Verify data that has just been read from a verity file.  The data must be
- * located in a pagecache page that is still locked and not yet uptodate.  The
+ * located in a pagecache folio that is still locked and not yet uptodate.  The
  * length and offset of the data must be Merkle tree block size aligned.
  *
  * Return: %true if the data is valid, else %false.
  */
-bool fsverity_verify_blocks(struct page *page, unsigned int len,
-			    unsigned int offset)
+bool fsverity_verify_blocks(struct folio *folio, size_t len, size_t offset)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct fsverity_info *vi = inode->i_verity_info;
 	struct ahash_request *req;
 	bool valid;
@@ -310,7 +312,7 @@ bool fsverity_verify_blocks(struct page *page, unsigned int len,
 	/* This allocation never fails, since it's mempool-backed. */
 	req = fsverity_alloc_hash_request(vi->tree_params.hash_alg, GFP_NOFS);
 
-	valid = verify_data_blocks(inode, vi, req, page, len, offset, 0);
+	valid = verify_data_blocks(inode, vi, req, folio, len, offset, 0);
 
 	fsverity_free_hash_request(vi->tree_params.hash_alg, req);
 
@@ -338,8 +340,7 @@ void fsverity_verify_bio(struct bio *bio)
 	struct inode *inode = bio_first_page_all(bio)->mapping->host;
 	struct fsverity_info *vi = inode->i_verity_info;
 	struct ahash_request *req;
-	struct bio_vec *bv;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 	unsigned long max_ra_pages = 0;
 
 	/* This allocation never fails, since it's mempool-backed. */
@@ -358,9 +359,9 @@ void fsverity_verify_bio(struct bio *bio)
 		max_ra_pages = bio->bi_iter.bi_size >> (PAGE_SHIFT + 2);
 	}
 
-	bio_for_each_segment_all(bv, bio, iter_all) {
-		if (!verify_data_blocks(inode, vi, req, bv->bv_page, bv->bv_len,
-					bv->bv_offset, max_ra_pages)) {
+	bio_for_each_folio_all(fi, bio) {
+		if (!verify_data_blocks(inode, vi, req, fi.folio, fi.length,
+					fi.offset, max_ra_pages)) {
 			bio->bi_status = BLK_STS_IOERR;
 			break;
 		}
