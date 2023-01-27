@@ -1649,7 +1649,7 @@ static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 	return 0;
 }
 
-static int at91_gpio_suspend(struct device *dev)
+static int __maybe_unused at91_gpio_suspend(struct device *dev)
 {
 	struct at91_gpio_chip *at91_chip = dev_get_drvdata(dev);
 	void __iomem *pio = at91_chip->regbase;
@@ -1667,7 +1667,7 @@ static int at91_gpio_suspend(struct device *dev)
 	return 0;
 }
 
-static int at91_gpio_resume(struct device *dev)
+static int __maybe_unused at91_gpio_resume(struct device *dev)
 {
 	struct at91_gpio_chip *at91_chip = dev_get_drvdata(dev);
 	void __iomem *pio = at91_chip->regbase;
