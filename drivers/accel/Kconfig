@@ -6,9 +6,10 @@
 # as, but not limited to, Machine-Learning and Deep-Learning acceleration
 # devices
 #
+if DRM
+
 menuconfig DRM_ACCEL
 	bool "Compute Acceleration Framework"
-	depends on DRM
 	help
 	  Framework for device drivers of compute acceleration devices, such
 	  as, but not limited to, Machine-Learning and Deep-Learning
@@ -24,3 +25,5 @@ menuconfig DRM_ACCEL
 	  and debugfs).
 
 source "drivers/accel/ivpu/Kconfig"
+
+endif
