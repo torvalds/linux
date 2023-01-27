@@ -4235,12 +4235,11 @@ static void devlink_param_notify(struct devlink *devlink,
 				 struct devlink_param_item *param_item,
 				 enum devlink_command cmd);
 
-static void devlink_ns_change_notify(struct devlink *devlink,
-				     struct net *dest_net, struct net *curr_net,
-				     bool new)
+static void devlink_reload_netns_change(struct devlink *devlink,
+					struct net *curr_net,
+					struct net *dest_net)
 {
 	struct devlink_param_item *param_item;
-	enum devlink_command cmd;
 
 	/* Userspace needs to be notified about devlink objects
 	 * removed from original and entering new network namespace.
@@ -4248,18 +4247,19 @@ static void devlink_ns_change_notify(struct devlink *devlink,
 	 * reload process so the notifications are generated separatelly.
 	 */
 
-	if (!dest_net || net_eq(dest_net, curr_net))
-		return;
-
-	if (new)
-		devlink_notify(devlink, DEVLINK_CMD_NEW);
-
-	cmd = new ? DEVLINK_CMD_PARAM_NEW : DEVLINK_CMD_PARAM_DEL;
 	list_for_each_entry(param_item, &devlink->param_list, list)
-		devlink_param_notify(devlink, 0, param_item, cmd);
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_DEL);
+	devlink_notify(devlink, DEVLINK_CMD_DEL);
 
-	if (!new)
-		devlink_notify(devlink, DEVLINK_CMD_DEL);
+	move_netdevice_notifier_net(curr_net, dest_net,
+				    &devlink->netdevice_nb);
+	write_pnet(&devlink->_net, dest_net);
+
+	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	list_for_each_entry(param_item, &devlink->param_list, list)
+		devlink_param_notify(devlink, 0, param_item,
+				     DEVLINK_CMD_PARAM_NEW);
 }
 
 static void devlink_reload_failed_set(struct devlink *devlink,
@@ -4341,24 +4341,19 @@ int devlink_reload(struct devlink *devlink, struct net *dest_net,
 	memcpy(remote_reload_stats, devlink->stats.remote_reload_stats,
 	       sizeof(remote_reload_stats));
 
-	curr_net = devlink_net(devlink);
-	devlink_ns_change_notify(devlink, dest_net, curr_net, false);
 	err = devlink->ops->reload_down(devlink, !!dest_net, action, limit, extack);
 	if (err)
 		return err;
 
-	if (dest_net && !net_eq(dest_net, curr_net)) {
-		move_netdevice_notifier_net(curr_net, dest_net,
-					    &devlink->netdevice_nb);
-		write_pnet(&devlink->_net, dest_net);
-	}
+	curr_net = devlink_net(devlink);
+	if (dest_net && !net_eq(dest_net, curr_net))
+		devlink_reload_netns_change(devlink, curr_net, dest_net);
 
 	err = devlink->ops->reload_up(devlink, action, limit, actions_performed, extack);
 	devlink_reload_failed_set(devlink, !!err);
 	if (err)
 		return err;
 
-	devlink_ns_change_notify(devlink, dest_net, curr_net, true);
 	WARN_ON(!(*actions_performed & BIT(action)));
 	/* Catch driver on updating the remote action within devlink reload */
 	WARN_ON(memcmp(remote_reload_stats, devlink->stats.remote_reload_stats,
