@@ -470,9 +470,12 @@ static bool handle_cmd(struct kvm_vm *vm, int cmd)
 {
 	struct userspace_mem_region *data_region, *pt_region;
 	bool continue_test = true;
+	uint64_t pte_gpa, pte_pg;
 
 	data_region = vm_get_mem_region(vm, MEM_REGION_TEST_DATA);
 	pt_region = vm_get_mem_region(vm, MEM_REGION_PT);
+	pte_gpa = addr_hva2gpa(vm, virt_get_pte_hva(vm, TEST_GVA));
+	pte_pg = (pte_gpa - pt_region->region.guest_phys_addr) / getpagesize();
 
 	if (cmd == CMD_SKIP_TEST)
 		continue_test = false;
@@ -485,13 +488,13 @@ static bool handle_cmd(struct kvm_vm *vm, int cmd)
 		TEST_ASSERT(check_write_in_dirty_log(vm, data_region, 0),
 			    "Missing write in dirty log");
 	if (cmd & CMD_CHECK_S1PTW_WR_IN_DIRTY_LOG)
-		TEST_ASSERT(check_write_in_dirty_log(vm, pt_region, 0),
+		TEST_ASSERT(check_write_in_dirty_log(vm, pt_region, pte_pg),
 			    "Missing s1ptw write in dirty log");
 	if (cmd & CMD_CHECK_NO_WRITE_IN_DIRTY_LOG)
 		TEST_ASSERT(!check_write_in_dirty_log(vm, data_region, 0),
 			    "Unexpected write in dirty log");
 	if (cmd & CMD_CHECK_NO_S1PTW_WR_IN_DIRTY_LOG)
-		TEST_ASSERT(!check_write_in_dirty_log(vm, pt_region, 0),
+		TEST_ASSERT(!check_write_in_dirty_log(vm, pt_region, pte_pg),
 			    "Unexpected s1ptw write in dirty log");
 
 	return continue_test;
