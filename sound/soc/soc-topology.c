@@ -76,9 +76,6 @@ struct soc_tplg {
 	struct snd_soc_tplg_ops *ops;
 };
 
-static int soc_tplg_process_headers(struct soc_tplg *tplg);
-static int soc_tplg_complete(struct soc_tplg *tplg);
-
 /* check we dont overflow the data for this control chunk */
 static int soc_tplg_check_elem_count(struct soc_tplg *tplg, size_t elem_size,
 	unsigned int count, size_t bytes, const char *elem_type)
