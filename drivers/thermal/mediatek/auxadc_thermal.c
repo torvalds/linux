@@ -816,14 +816,6 @@ static int mtk_thermal_bank_temperature(struct mtk_thermal_bank *bank)
 			mt, conf->bank_data[bank->id].sensors[i], raw);
 
 
-		/*
-		 * The first read of a sensor often contains very high bogus
-		 * temperature value. Filter these out so that the system does
-		 * not immediately shut down.
-		 */
-		if (temp > 200000)
-			temp = 0;
-
 		if (temp > max)
 			max = temp;
 	}
@@ -1280,6 +1272,9 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 					      auxadc_phys_base, ctrl_id);
 
 	platform_set_drvdata(pdev, mt);
+
+	/* Delay for thermal banks to be ready */
+	msleep(30);
 
 	tzdev = devm_thermal_of_zone_register(&pdev->dev, 0, mt,
 					      &mtk_thermal_ops);
