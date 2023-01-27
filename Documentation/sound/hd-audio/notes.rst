@@ -500,7 +500,7 @@ add_jack_modes (bool)
     change the headphone amp and mic bias VREF capabilities
 power_save_node (bool)
     advanced power management for each widget, controlling the power
-    sate (D0/D3) of each widget node depending on the actual pin and
+    state (D0/D3) of each widget node depending on the actual pin and
     stream states
 power_down_unused (bool)
     power down the unused widgets, a subset of power_save_node, and

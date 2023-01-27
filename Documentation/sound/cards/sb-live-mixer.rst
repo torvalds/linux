@@ -31,7 +31,7 @@ Digital mixer controls
 ======================
 
 These controls are built using the DSP instructions. They offer extended
-functionality. Only the default build-in code in the ALSA driver is described
+functionality. Only the default built-in code in the ALSA driver is described
 here. Note that the controls work as attenuators: the maximum value is the 
 neutral position leaving the signal unchanged. Note that if the  same destination 
 is mentioned in multiple controls, the signal is accumulated and can be wrapped 
