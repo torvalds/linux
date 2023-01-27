@@ -222,7 +222,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	if (!trigger_list)
 		return -ENOMEM;
 
-	mutex_lock(&ipc4_data->trigger_mutex);
+	mutex_lock(&ipc4_data->pipeline_state_mutex);
 
 	/*
 	 * IPC4 requires pipelines to be triggered in order starting at the sink and
@@ -289,7 +289,7 @@ skip_pause_transition:
 	}
 
 free:
-	mutex_unlock(&ipc4_data->trigger_mutex);
+	mutex_unlock(&ipc4_data->pipeline_state_mutex);
 	kfree(trigger_list);
 	return ret;
 }

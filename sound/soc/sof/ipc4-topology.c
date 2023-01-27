@@ -1625,7 +1625,10 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	int ret = 0;
+
+	mutex_lock(&ipc4_data->pipeline_state_mutex);
 
 	/* freeing a pipeline frees all the widgets associated with it */
 	if (swidget->id == snd_soc_dapm_scheduler) {
@@ -1651,6 +1654,8 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 	} else {
 		ida_free(&fw_module->m_ida, swidget->instance_id);
 	}
+
+	mutex_unlock(&ipc4_data->pipeline_state_mutex);
 
 	return ret;
 }
