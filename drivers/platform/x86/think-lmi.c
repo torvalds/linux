@@ -317,8 +317,8 @@ static int tlmi_get_pwd_settings(struct tlmi_pwdcfg *pwdcfg)
 		return -EIO;
 	}
 
-	copy_size = obj->buffer.length < sizeof(struct tlmi_pwdcfg) ?
-		obj->buffer.length : sizeof(struct tlmi_pwdcfg);
+	copy_size = min_t(size_t, obj->buffer.length, sizeof(struct tlmi_pwdcfg));
+
 	memcpy(pwdcfg, obj->buffer.pointer, copy_size);
 	kfree(obj);
 
