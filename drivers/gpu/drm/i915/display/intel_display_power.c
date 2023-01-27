@@ -1581,9 +1581,8 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 
 	if (IS_ALDERLAKE_S(dev_priv) ||
 	    IS_DG1_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
-	    IS_RKL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
-	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0))
-		/* Wa_1409767108:tgl,dg1,adl-s */
+	    IS_RKL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+		/* Wa_1409767108 */
 		table = wa_1409767108_buddy_page_masks;
 	else
 		table = tgl_buddy_page_masks;

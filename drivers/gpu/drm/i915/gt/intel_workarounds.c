@@ -1441,31 +1441,6 @@ gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
-tgl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
-{
-	struct drm_i915_private *i915 = gt->i915;
-
-	gen12_gt_workarounds_init(gt, wal);
-
-	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_mcr_write_or(wal,
-				SUBSLICE_UNIT_LEVEL_CLKGATE2,
-				CPSSUNIT_CLKGATE_DIS);
-
-	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal,
-			    GEN11_SLICE_UNIT_LEVEL_CLKGATE,
-			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
-
-	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			    VSUNIT_CLKGATE_DIS_TGL);
-}
-
-static void
 dg1_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
@@ -1700,8 +1675,6 @@ gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 		xehpsdv_gt_workarounds_init(gt, wal);
 	else if (IS_DG1(i915))
 		dg1_gt_workarounds_init(gt, wal);
-	else if (IS_TIGERLAKE(i915))
-		tgl_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 12)
 		gen12_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2450,25 +2423,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			   true);
 	}
 
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
-	    IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
+	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
 		/*
-		 * Wa_1607138336:tgl[a0],dg1[a0]
-		 * Wa_1607063988:tgl[a0],dg1[a0]
+		 * Wa_1607138336
+		 * Wa_1607063988
 		 */
 		wa_write_or(wal,
 			    GEN9_CTX_PREEMPT_REG,
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
-	}
-
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
-		/*
-		 * Wa_1606679103:tgl
-		 * (see also Wa_1606682166:icl)
-		 */
-		wa_write_or(wal,
-			    GEN7_SARCHKMD,
-			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
 	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||

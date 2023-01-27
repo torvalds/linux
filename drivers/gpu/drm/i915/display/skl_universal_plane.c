@@ -2182,7 +2182,7 @@ static bool gen12_plane_has_mc_ccs(struct drm_i915_private *i915,
 	if (DISPLAY_VER(i915) < 12)
 		return false;
 
-	/* Wa_14010477008:tgl[a0..c0],rkl[all],dg1[all] */
+	/* Wa_14010477008 */
 	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) ||
 	    IS_TGL_DISPLAY_STEP(i915, STEP_A0, STEP_D0))
 		return false;

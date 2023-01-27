@@ -653,14 +653,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_TIGERLAKE(__i915) && \
 	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_TGL_UY_GRAPHICS_STEP(__i915, since, until) \
-	(IS_TGL_UY(__i915) && \
-	 IS_GRAPHICS_STEP(__i915, since, until))
-
-#define IS_TGL_GRAPHICS_STEP(__i915, since, until) \
-	(IS_TIGERLAKE(__i915) && !IS_TGL_UY(__i915)) && \
-	 IS_GRAPHICS_STEP(__i915, since, until))
-
 #define IS_RKL_DISPLAY_STEP(p, since, until) \
 	(IS_ROCKETLAKE(p) && IS_DISPLAY_STEP(p, since, until))
 

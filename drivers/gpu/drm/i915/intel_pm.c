@@ -4336,10 +4336,6 @@ static void gen12lp_init_clock_gating(struct drm_i915_private *dev_priv)
 		intel_uncore_write(&dev_priv->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
 				   DPFC_CHICKEN_COMP_DUMMY_PIXEL);
 
-	/* Wa_1409825376:tgl (pre-prod)*/
-	if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0))
-		intel_uncore_rmw(&dev_priv->uncore, GEN9_CLKGATE_DIS_3, 0, TGL_VRH_GATING_DIS);
-
 	/* Wa_14013723622:tgl,rkl,dg1,adl-s */
 	if (DISPLAY_VER(dev_priv) == 12)
 		intel_uncore_rmw(&dev_priv->uncore, CLKREQ_POLICY,
