@@ -1424,6 +1424,84 @@ static int umc_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 	return cs_mode;
 }
 
+static int umc_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
+				    unsigned int cs_mode, int csrow_nr)
+{
+	u32 addr_mask_orig, addr_mask_deinterleaved;
+	u32 msb, weight, num_zero_bits;
+	int cs_mask_nr = csrow_nr;
+	int dimm, size = 0;
+
+	/* No Chip Selects are enabled. */
+	if (!cs_mode)
+		return size;
+
+	/* Requested size of an even CS but none are enabled. */
+	if (!(cs_mode & CS_EVEN) && !(csrow_nr & 1))
+		return size;
+
+	/* Requested size of an odd CS but none are enabled. */
+	if (!(cs_mode & CS_ODD) && (csrow_nr & 1))
+		return size;
+
+	/*
+	 * Family 17h introduced systems with one mask per DIMM,
+	 * and two Chip Selects per DIMM.
+	 *
+	 *	CS0 and CS1 -> MASK0 / DIMM0
+	 *	CS2 and CS3 -> MASK1 / DIMM1
+	 *
+	 * Family 19h Model 10h introduced systems with one mask per Chip Select,
+	 * and two Chip Selects per DIMM.
+	 *
+	 *	CS0 -> MASK0 -> DIMM0
+	 *	CS1 -> MASK1 -> DIMM0
+	 *	CS2 -> MASK2 -> DIMM1
+	 *	CS3 -> MASK3 -> DIMM1
+	 *
+	 * Keep the mask number equal to the Chip Select number for newer systems,
+	 * and shift the mask number for older systems.
+	 */
+	dimm = csrow_nr >> 1;
+
+	if (!fam_type->flags.zn_regs_v2)
+		cs_mask_nr >>= 1;
+
+	/* Asymmetric dual-rank DIMM support. */
+	if ((csrow_nr & 1) && (cs_mode & CS_ODD_SECONDARY))
+		addr_mask_orig = pvt->csels[umc].csmasks_sec[cs_mask_nr];
+	else
+		addr_mask_orig = pvt->csels[umc].csmasks[cs_mask_nr];
+
+	/*
+	 * The number of zero bits in the mask is equal to the number of bits
+	 * in a full mask minus the number of bits in the current mask.
+	 *
+	 * The MSB is the number of bits in the full mask because BIT[0] is
+	 * always 0.
+	 *
+	 * In the special 3 Rank interleaving case, a single bit is flipped
+	 * without swapping with the most significant bit. This can be handled
+	 * by keeping the MSB where it is and ignoring the single zero bit.
+	 */
+	msb = fls(addr_mask_orig) - 1;
+	weight = hweight_long(addr_mask_orig);
+	num_zero_bits = msb - weight - !!(cs_mode & CS_3R_INTERLEAVE);
+
+	/* Take the number of zero bits off from the top of the mask. */
+	addr_mask_deinterleaved = GENMASK_ULL(msb - num_zero_bits, 1);
+
+	edac_dbg(1, "CS%d DIMM%d AddrMasks:\n", csrow_nr, dimm);
+	edac_dbg(1, "  Original AddrMask: 0x%x\n", addr_mask_orig);
+	edac_dbg(1, "  Deinterleaved AddrMask: 0x%x\n", addr_mask_deinterleaved);
+
+	/* Register [31:1] = Address [39:9]. Size is in kBs here. */
+	size = (addr_mask_deinterleaved >> 2) + 1;
+
+	/* Return size in MBs. */
+	return size >> 10;
+}
+
 static void umc_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 {
 	int dimm, size0, size1, cs0, cs1, cs_mode;
@@ -1436,8 +1514,8 @@ static void umc_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 
 		cs_mode = umc_get_cs_mode(dimm, ctrl, pvt);
 
-		size0 = pvt->ops->dbam_to_cs(pvt, ctrl, cs_mode, cs0);
-		size1 = pvt->ops->dbam_to_cs(pvt, ctrl, cs_mode, cs1);
+		size0 = umc_addr_mask_to_cs_size(pvt, ctrl, cs_mode, cs0);
+		size1 = umc_addr_mask_to_cs_size(pvt, ctrl, cs_mode, cs1);
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
 				cs0,	size0,
@@ -2139,84 +2217,6 @@ static int f16_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
 		return ddr3_cs_size(cs_mode, false);
 }
 
-static int f17_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
-				    unsigned int cs_mode, int csrow_nr)
-{
-	u32 addr_mask_orig, addr_mask_deinterleaved;
-	u32 msb, weight, num_zero_bits;
-	int cs_mask_nr = csrow_nr;
-	int dimm, size = 0;
-
-	/* No Chip Selects are enabled. */
-	if (!cs_mode)
-		return size;
-
-	/* Requested size of an even CS but none are enabled. */
-	if (!(cs_mode & CS_EVEN) && !(csrow_nr & 1))
-		return size;
-
-	/* Requested size of an odd CS but none are enabled. */
-	if (!(cs_mode & CS_ODD) && (csrow_nr & 1))
-		return size;
-
-	/*
-	 * Family 17h introduced systems with one mask per DIMM,
-	 * and two Chip Selects per DIMM.
-	 *
-	 *	CS0 and CS1 -> MASK0 / DIMM0
-	 *	CS2 and CS3 -> MASK1 / DIMM1
-	 *
-	 * Family 19h Model 10h introduced systems with one mask per Chip Select,
-	 * and two Chip Selects per DIMM.
-	 *
-	 *	CS0 -> MASK0 -> DIMM0
-	 *	CS1 -> MASK1 -> DIMM0
-	 *	CS2 -> MASK2 -> DIMM1
-	 *	CS3 -> MASK3 -> DIMM1
-	 *
-	 * Keep the mask number equal to the Chip Select number for newer systems,
-	 * and shift the mask number for older systems.
-	 */
-	dimm = csrow_nr >> 1;
-
-	if (!fam_type->flags.zn_regs_v2)
-		cs_mask_nr >>= 1;
-
-	/* Asymmetric dual-rank DIMM support. */
-	if ((csrow_nr & 1) && (cs_mode & CS_ODD_SECONDARY))
-		addr_mask_orig = pvt->csels[umc].csmasks_sec[cs_mask_nr];
-	else
-		addr_mask_orig = pvt->csels[umc].csmasks[cs_mask_nr];
-
-	/*
-	 * The number of zero bits in the mask is equal to the number of bits
-	 * in a full mask minus the number of bits in the current mask.
-	 *
-	 * The MSB is the number of bits in the full mask because BIT[0] is
-	 * always 0.
-	 *
-	 * In the special 3 Rank interleaving case, a single bit is flipped
-	 * without swapping with the most significant bit. This can be handled
-	 * by keeping the MSB where it is and ignoring the single zero bit.
-	 */
-	msb = fls(addr_mask_orig) - 1;
-	weight = hweight_long(addr_mask_orig);
-	num_zero_bits = msb - weight - !!(cs_mode & CS_3R_INTERLEAVE);
-
-	/* Take the number of zero bits off from the top of the mask. */
-	addr_mask_deinterleaved = GENMASK_ULL(msb - num_zero_bits, 1);
-
-	edac_dbg(1, "CS%d DIMM%d AddrMasks:\n", csrow_nr, dimm);
-	edac_dbg(1, "  Original AddrMask: 0x%x\n", addr_mask_orig);
-	edac_dbg(1, "  Deinterleaved AddrMask: 0x%x\n", addr_mask_deinterleaved);
-
-	/* Register [31:1] = Address [39:9]. Size is in kBs here. */
-	size = (addr_mask_deinterleaved >> 2) + 1;
-
-	/* Return size in MBs. */
-	return size >> 10;
-}
-
 static void read_dram_ctl_register(struct amd64_pvt *pvt)
 {
 
@@ -2813,59 +2813,35 @@ static struct amd64_family_type family_types[] = {
 	[F17_CPUS] = {
 		.ctl_name = "F17h",
 		.max_mcs = 2,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F17_M10H_CPUS] = {
 		.ctl_name = "F17h_M10h",
 		.max_mcs = 2,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F17_M30H_CPUS] = {
 		.ctl_name = "F17h_M30h",
 		.max_mcs = 8,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F17_M60H_CPUS] = {
 		.ctl_name = "F17h_M60h",
 		.max_mcs = 2,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F17_M70H_CPUS] = {
 		.ctl_name = "F17h_M70h",
 		.max_mcs = 2,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F19_CPUS] = {
 		.ctl_name = "F19h",
 		.max_mcs = 8,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F19_M10H_CPUS] = {
 		.ctl_name = "F19h_M10h",
 		.max_mcs = 12,
 		.flags.zn_regs_v2 = 1,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 	[F19_M50H_CPUS] = {
 		.ctl_name = "F19h_M50h",
 		.max_mcs = 2,
-		.ops = {
-			.dbam_to_cs		= f17_addr_mask_to_cs_size,
-		}
 	},
 };
 
@@ -3414,7 +3390,7 @@ static u32 umc_get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_or
 
 	cs_mode = umc_get_cs_mode(csrow_nr >> 1, dct, pvt);
 
-	nr_pages   = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, csrow_nr);
+	nr_pages   = umc_addr_mask_to_cs_size(pvt, dct, cs_mode, csrow_nr);
 	nr_pages <<= 20 - PAGE_SHIFT;
 
 	edac_dbg(0, "csrow: %d, channel: %d, cs_mode %d\n",
