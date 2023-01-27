@@ -174,6 +174,8 @@ struct socinfo {
 	__le32  pcode;
 	__le32  npartnamemap_offset;
 	__le32  nnum_partname_mapping;
+	/* Version 17 */
+	__le32 oem_variant;
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -196,6 +198,7 @@ struct socinfo_params {
 	u32 nmodem_supported;
 	u32 feature_code;
 	u32 pcode;
+	u32 oem_variant;
 };
 
 struct smem_image_version {
@@ -593,6 +596,11 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 17):
+		qcom_socinfo->info.oem_variant = __le32_to_cpu(info->oem_variant);
+		debugfs_create_u32("oem_variant", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.oem_variant);
+		fallthrough;
 	case SOCINFO_VERSION(0, 16):
 		qcom_socinfo->info.feature_code = __le32_to_cpu(info->feature_code);
 		qcom_socinfo->info.pcode = __le32_to_cpu(info->pcode);
