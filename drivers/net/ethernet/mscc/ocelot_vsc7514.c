@@ -26,19 +26,6 @@
 #define VSC7514_VCAP_POLICER_BASE			128
 #define VSC7514_VCAP_POLICER_MAX			191
 
-static const u32 *ocelot_regmap[TARGET_MAX] = {
-	[ANA] = vsc7514_ana_regmap,
-	[QS] = vsc7514_qs_regmap,
-	[QSYS] = vsc7514_qsys_regmap,
-	[REW] = vsc7514_rew_regmap,
-	[SYS] = vsc7514_sys_regmap,
-	[S0] = vsc7514_vcap_regmap,
-	[S1] = vsc7514_vcap_regmap,
-	[S2] = vsc7514_vcap_regmap,
-	[PTP] = vsc7514_ptp_regmap,
-	[DEV_GMII] = vsc7514_dev_gmii_regmap,
-};
-
 static void ocelot_pll5_init(struct ocelot *ocelot)
 {
 	/* Configure PLL5. This will need a proper CCF driver
@@ -72,7 +59,7 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 {
 	int ret;
 
-	ocelot->map = ocelot_regmap;
+	ocelot->map = vsc7514_regmap;
 	ocelot->num_mact_rows = 1024;
 	ocelot->ops = ops;
 

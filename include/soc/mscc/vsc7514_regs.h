@@ -23,6 +23,8 @@ extern const u32 vsc7514_vcap_regmap[];
 extern const u32 vsc7514_ptp_regmap[];
 extern const u32 vsc7514_dev_gmii_regmap[];
 
+extern const u32 *vsc7514_regmap[TARGET_MAX];
+
 extern const struct vcap_field vsc7514_vcap_es0_keys[];
 extern const struct vcap_field vsc7514_vcap_es0_actions[];
 extern const struct vcap_field vsc7514_vcap_is1_keys[];

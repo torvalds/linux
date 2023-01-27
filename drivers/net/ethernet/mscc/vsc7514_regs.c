@@ -429,6 +429,20 @@ const u32 vsc7514_dev_gmii_regmap[] = {
 };
 EXPORT_SYMBOL(vsc7514_dev_gmii_regmap);
 
+const u32 *vsc7514_regmap[TARGET_MAX] = {
+	[ANA] = vsc7514_ana_regmap,
+	[QS] = vsc7514_qs_regmap,
+	[QSYS] = vsc7514_qsys_regmap,
+	[REW] = vsc7514_rew_regmap,
+	[SYS] = vsc7514_sys_regmap,
+	[S0] = vsc7514_vcap_regmap,
+	[S1] = vsc7514_vcap_regmap,
+	[S2] = vsc7514_vcap_regmap,
+	[PTP] = vsc7514_ptp_regmap,
+	[DEV_GMII] = vsc7514_dev_gmii_regmap,
+};
+EXPORT_SYMBOL(vsc7514_regmap);
+
 const struct vcap_field vsc7514_vcap_es0_keys[] = {
 	[VCAP_ES0_EGR_PORT]			= { 0,   4 },
 	[VCAP_ES0_IGR_PORT]			= { 4,   4 },
