@@ -346,7 +346,6 @@ struct amd64_pvt {
 	u8 stepping;		/* ... stepping */
 
 	int ext_model;		/* extended model value of this node */
-	int channel_count;
 
 	/* Raw registers */
 	u32 dclr0;		/* DRAM Configuration Low DCT0 reg */
@@ -466,7 +465,6 @@ struct ecc_settings {
  * functions and per device encoding/decoding logic.
  */
 struct low_ops {
-	int (*early_channel_count)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
 					 struct err_info *);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct,

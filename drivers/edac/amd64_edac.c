@@ -1703,24 +1703,6 @@ ddr3:
 	pvt->dram_type = (pvt->dclr0 & BIT(16)) ? MEM_DDR3 : MEM_RDDR3;
 }
 
-/* Get the number of DCT channels the memory controller is using. */
-static int k8_early_channel_count(struct amd64_pvt *pvt)
-{
-	int flag;
-
-	if (pvt->ext_model >= K8_REV_F)
-		/* RevF (NPT) and later */
-		flag = pvt->dclr0 & WIDTH_128;
-	else
-		/* RevE and earlier */
-		flag = pvt->dclr0 & REVE_WIDTH_128;
-
-	/* not used */
-	pvt->dclr1 = 0;
-
-	return (flag) ? 2 : 1;
-}
-
 /* On F10h and later ErrAddr is MC4_ADDR[47:1] */
 static u64 get_error_address(struct amd64_pvt *pvt, struct mce *m)
 {
@@ -1970,69 +1952,6 @@ static int k8_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
 		WARN_ON(cs_mode > 6);
 		return 32 << cs_mode;
 	}
-}
-
-/*
- * Get the number of DCT channels in use.
- *
- * Return:
- *	number of Memory Channels in operation
- * Pass back:
- *	contents of the DCL0_LOW register
- */
-static int f1x_early_channel_count(struct amd64_pvt *pvt)
-{
-	int i, j, channels = 0;
-
-	/* On F10h, if we are in 128 bit mode, then we are using 2 channels */
-	if (pvt->fam == 0x10 && (pvt->dclr0 & WIDTH_128))
-		return 2;
-
-	/*
-	 * Need to check if in unganged mode: In such, there are 2 channels,
-	 * but they are not in 128 bit mode and thus the above 'dclr0' status
-	 * bit will be OFF.
-	 *
-	 * Need to check DCT0[0] and DCT1[0] to see if only one of them has
-	 * their CSEnable bit on. If so, then SINGLE DIMM case.
-	 */
-	edac_dbg(0, "Data width is not 128 bits - need more decoding\n");
-
-	/*
-	 * Check DRAM Bank Address Mapping values for each DIMM to see if there
-	 * is more than just one DIMM present in unganged mode. Need to check
-	 * both controllers since DIMMs can be placed in either one.
-	 */
-	for (i = 0; i < 2; i++) {
-		u32 dbam = (i ? pvt->dbam1 : pvt->dbam0);
-
-		for (j = 0; j < 4; j++) {
-			if (DBAM_DIMM(j, dbam) > 0) {
-				channels++;
-				break;
-			}
-		}
-	}
-
-	if (channels > 2)
-		channels = 2;
-
-	amd64_info("MCT channel count: %d\n", channels);
-
-	return channels;
-}
-
-static int f17_early_channel_count(struct amd64_pvt *pvt)
-{
-	int i, channels = 0;
-
-	/* SDP Control bit 31 (SdpInit) is clear for unused UMC channels */
-	for_each_umc(i)
-		channels += !!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT);
-
-	amd64_info("MCT channel count: %d\n", channels);
-
-	return channels;
 }
 
 static int ddr3_cs_size(unsigned i, bool dct_width)
@@ -2829,7 +2748,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= k8_early_channel_count,
 			.map_sysaddr_to_csrow	= k8_map_sysaddr_to_csrow,
 			.dbam_to_cs		= k8_dbam_to_chip_select,
 		}
@@ -2840,7 +2758,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_10H_NB_DRAM,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f10_dbam_to_chip_select,
 		}
@@ -2851,7 +2768,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_15H_NB_F2,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f15_dbam_to_chip_select,
 		}
@@ -2862,7 +2778,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_15H_M30H_NB_F2,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
 		}
@@ -2873,7 +2788,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F2,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f15_m60h_dbam_to_chip_select,
 		}
@@ -2884,7 +2798,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_16H_NB_F2,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
 		}
@@ -2895,7 +2808,6 @@ static struct amd64_family_type family_types[] = {
 		.f2_id = PCI_DEVICE_ID_AMD_16H_M30H_NB_F2,
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
 		}
@@ -2904,7 +2816,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h",
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2912,7 +2823,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M10h",
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2920,7 +2830,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M30h",
 		.max_mcs = 8,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2928,7 +2837,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M60h",
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2936,7 +2844,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M70h",
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2944,7 +2851,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F19h",
 		.max_mcs = 8,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2953,7 +2859,6 @@ static struct amd64_family_type family_types[] = {
 		.max_mcs = 12,
 		.flags.zn_regs_v2 = 1,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -2961,7 +2866,6 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F19h_M50h",
 		.max_mcs = 2,
 		.ops = {
-			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
@@ -3620,7 +3524,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 					: EDAC_SECDED;
 		}
 
-		for (j = 0; j < pvt->channel_count; j++) {
+		for (j = 0; j < fam_type->max_mcs; j++) {
 			dimm = csrow->channels[j]->dimm;
 			dimm->mtype = pvt->dram_type;
 			dimm->edac_mode = edac_mode;
@@ -4057,28 +3961,12 @@ static int init_one_instance(struct amd64_pvt *pvt)
 {
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
-	int ret = -EINVAL;
+	int ret = -ENOMEM;
 
-	/*
-	 * We need to determine how many memory channels there are. Then use
-	 * that information for calculating the size of the dynamic instance
-	 * tables in the 'mci' structure.
-	 */
-	pvt->channel_count = pvt->ops->early_channel_count(pvt);
-	if (pvt->channel_count < 0)
-		return ret;
-
-	ret = -ENOMEM;
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
 	layers[0].size = pvt->csels[0].b_cnt;
 	layers[0].is_virt_csrow = true;
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
-
-	/*
-	 * Always allocate two channels since we can have setups with DIMMs on
-	 * only one channel. Also, this simplifies handling later for the price
-	 * of a couple of KBs tops.
-	 */
 	layers[1].size = fam_type->max_mcs;
 	layers[1].is_virt_csrow = false;
 
