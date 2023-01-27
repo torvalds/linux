@@ -3586,7 +3586,7 @@ static bool umc_ecc_enabled(struct amd64_pvt *pvt)
 }
 
 static inline void
-f17h_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
+umc_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
 {
 	u8 i, ecc_en = 1, cpk_en = 1, dev_x4 = 1, dev_x16 = 1;
 
@@ -3647,7 +3647,7 @@ static void umc_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->mtype_cap		= MEM_FLAG_DDR4 | MEM_FLAG_RDDR4;
 	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
 
-	f17h_determine_edac_ctl_cap(mci, pvt);
+	umc_determine_edac_ctl_cap(mci, pvt);
 
 	mci->edac_cap		= determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
