@@ -13,11 +13,9 @@ module_param(ecc_enable_override, int, 0644);
 
 static struct msr __percpu *msrs;
 
-static struct amd64_family_type *fam_type;
-
-static inline u32 get_umc_reg(u32 reg)
+static inline u32 get_umc_reg(struct amd64_pvt *pvt, u32 reg)
 {
-	if (!fam_type->flags.zn_regs_v2)
+	if (!pvt->flags.zn_regs_v2)
 		return reg;
 
 	switch (reg) {
@@ -437,7 +435,7 @@ static void get_cs_base_and_mask(struct amd64_pvt *pvt, int csrow, u8 dct,
 	for (i = 0; i < pvt->csels[dct].m_cnt; i++)
 
 #define for_each_umc(i) \
-	for (i = 0; i < fam_type->max_mcs; i++)
+	for (i = 0; i < pvt->max_mcs; i++)
 
 /*
  * @input_addr is an InputAddr associated with the node given by mci. Return the
@@ -1464,7 +1462,7 @@ static int umc_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 	 */
 	dimm = csrow_nr >> 1;
 
-	if (!fam_type->flags.zn_regs_v2)
+	if (!pvt->flags.zn_regs_v2)
 		cs_mask_nr >>= 1;
 
 	/* Asymmetric dual-rank DIMM support. */
@@ -1556,7 +1554,7 @@ static void __dump_misc_regs_df(struct amd64_pvt *pvt)
 
 		if (umc->dram_type == MEM_LRDDR4 || umc->dram_type == MEM_LRDDR5) {
 			amd_smn_read(pvt->mc_node_id,
-				     umc_base + get_umc_reg(UMCCH_ADDR_CFG),
+				     umc_base + get_umc_reg(pvt, UMCCH_ADDR_CFG),
 				     &tmp);
 			edac_dbg(1, "UMC%d LRDIMM %dx rank multiply\n",
 					i, 1 << ((tmp >> 4) & 0x3));
@@ -1629,7 +1627,7 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
 
 		for_each_umc(umc) {
 			pvt->csels[umc].b_cnt = 4;
-			pvt->csels[umc].m_cnt = fam_type->flags.zn_regs_v2 ? 4 : 2;
+			pvt->csels[umc].m_cnt = pvt->flags.zn_regs_v2 ? 4 : 2;
 		}
 
 	} else {
@@ -1669,7 +1667,7 @@ static void read_umc_base_mask(struct amd64_pvt *pvt)
 		}
 
 		umc_mask_reg = get_umc_base(umc) + UMCCH_ADDR_MASK;
-		umc_mask_reg_sec = get_umc_base(umc) + get_umc_reg(UMCCH_ADDR_MASK_SEC);
+		umc_mask_reg_sec = get_umc_base(umc) + get_umc_reg(pvt, UMCCH_ADDR_MASK_SEC);
 
 		for_each_chip_select_mask(cs, umc, pvt) {
 			mask = &pvt->csels[umc].csmasks[cs];
@@ -1757,7 +1755,7 @@ static void determine_memory_type_df(struct amd64_pvt *pvt)
 		 * Check if the system supports the "DDR Type" field in UMC Config
 		 * and has DDR5 DIMMs in use.
 		 */
-		if (fam_type->flags.zn_regs_v2 && ((umc->umc_cfg & GENMASK(2, 0)) == 0x1)) {
+		if (pvt->flags.zn_regs_v2 && ((umc->umc_cfg & GENMASK(2, 0)) == 0x1)) {
 			if (umc->dimm_cfg & BIT(5))
 				umc->dram_type = MEM_LRDDR5;
 			else if (umc->dimm_cfg & BIT(4))
@@ -2739,112 +2737,6 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
 }
 
-static struct amd64_family_type family_types[] = {
-	[K8_CPUS] = {
-		.ctl_name = "K8",
-		.f1_id = PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP,
-		.f2_id = PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= k8_map_sysaddr_to_csrow,
-			.dbam_to_cs		= k8_dbam_to_chip_select,
-		}
-	},
-	[F10_CPUS] = {
-		.ctl_name = "F10h",
-		.f1_id = PCI_DEVICE_ID_AMD_10H_NB_MAP,
-		.f2_id = PCI_DEVICE_ID_AMD_10H_NB_DRAM,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f10_dbam_to_chip_select,
-		}
-	},
-	[F15_CPUS] = {
-		.ctl_name = "F15h",
-		.f1_id = PCI_DEVICE_ID_AMD_15H_NB_F1,
-		.f2_id = PCI_DEVICE_ID_AMD_15H_NB_F2,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f15_dbam_to_chip_select,
-		}
-	},
-	[F15_M30H_CPUS] = {
-		.ctl_name = "F15h_M30h",
-		.f1_id = PCI_DEVICE_ID_AMD_15H_M30H_NB_F1,
-		.f2_id = PCI_DEVICE_ID_AMD_15H_M30H_NB_F2,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f16_dbam_to_chip_select,
-		}
-	},
-	[F15_M60H_CPUS] = {
-		.ctl_name = "F15h_M60h",
-		.f1_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F1,
-		.f2_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F2,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f15_m60h_dbam_to_chip_select,
-		}
-	},
-	[F16_CPUS] = {
-		.ctl_name = "F16h",
-		.f1_id = PCI_DEVICE_ID_AMD_16H_NB_F1,
-		.f2_id = PCI_DEVICE_ID_AMD_16H_NB_F2,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f16_dbam_to_chip_select,
-		}
-	},
-	[F16_M30H_CPUS] = {
-		.ctl_name = "F16h_M30h",
-		.f1_id = PCI_DEVICE_ID_AMD_16H_M30H_NB_F1,
-		.f2_id = PCI_DEVICE_ID_AMD_16H_M30H_NB_F2,
-		.max_mcs = 2,
-		.ops = {
-			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
-			.dbam_to_cs		= f16_dbam_to_chip_select,
-		}
-	},
-	[F17_CPUS] = {
-		.ctl_name = "F17h",
-		.max_mcs = 2,
-	},
-	[F17_M10H_CPUS] = {
-		.ctl_name = "F17h_M10h",
-		.max_mcs = 2,
-	},
-	[F17_M30H_CPUS] = {
-		.ctl_name = "F17h_M30h",
-		.max_mcs = 8,
-	},
-	[F17_M60H_CPUS] = {
-		.ctl_name = "F17h_M60h",
-		.max_mcs = 2,
-	},
-	[F17_M70H_CPUS] = {
-		.ctl_name = "F17h_M70h",
-		.max_mcs = 2,
-	},
-	[F19_CPUS] = {
-		.ctl_name = "F19h",
-		.max_mcs = 8,
-	},
-	[F19_M10H_CPUS] = {
-		.ctl_name = "F19h_M10h",
-		.max_mcs = 12,
-		.flags.zn_regs_v2 = 1,
-	},
-	[F19_M50H_CPUS] = {
-		.ctl_name = "F19h_M50h",
-		.max_mcs = 2,
-	},
-};
-
 /*
  * These are tables of eigenvectors (one per line) which can be used for the
  * construction of the syndrome tables. The modified syndrome search algorithm
@@ -3226,7 +3118,7 @@ static void __read_mc_regs_df(struct amd64_pvt *pvt)
 		umc_base = get_umc_base(i);
 		umc = &pvt->umc[i];
 
-		amd_smn_read(nid, umc_base + get_umc_reg(UMCCH_DIMM_CFG), &umc->dimm_cfg);
+		amd_smn_read(nid, umc_base + get_umc_reg(pvt, UMCCH_DIMM_CFG), &umc->dimm_cfg);
 		amd_smn_read(nid, umc_base + UMCCH_UMC_CFG, &umc->umc_cfg);
 		amd_smn_read(nid, umc_base + UMCCH_SDP_CTRL, &umc->sdp_ctrl);
 		amd_smn_read(nid, umc_base + UMCCH_ECC_CTRL, &umc->ecc_ctrl);
@@ -3495,7 +3387,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 					: EDAC_SECDED;
 		}
 
-		for (j = 0; j < fam_type->max_mcs; j++) {
+		for (j = 0; j < pvt->max_mcs; j++) {
 			dimm = csrow->channels[j]->dimm;
 			dimm->mtype = pvt->dram_type;
 			dimm->edac_mode = edac_mode;
@@ -3767,7 +3659,7 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
 
 	mci->edac_cap		= determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
-	mci->ctl_name		= fam_type->ctl_name;
+	mci->ctl_name		= pvt->ctl_name;
 	mci->dev_name		= pci_name(pvt->F3);
 	mci->ctl_page_to_phys	= NULL;
 
@@ -3779,114 +3671,145 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->get_sdram_scrub_rate = get_scrub_rate;
 }
 
-/*
- * returns a pointer to the family descriptor on success, NULL otherwise.
- */
-static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
+static struct low_ops umc_ops = {
+};
+
+/* Use Family 16h versions for defaults and adjust as needed below. */
+static struct low_ops dct_ops = {
+	.map_sysaddr_to_csrow		= f1x_map_sysaddr_to_csrow,
+	.dbam_to_cs			= f16_dbam_to_chip_select,
+};
+
+static int per_family_init(struct amd64_pvt *pvt)
 {
 	pvt->ext_model  = boot_cpu_data.x86_model >> 4;
 	pvt->stepping	= boot_cpu_data.x86_stepping;
 	pvt->model	= boot_cpu_data.x86_model;
 	pvt->fam	= boot_cpu_data.x86;
+	pvt->max_mcs	= 2;
+
+	/*
+	 * Decide on which ops group to use here and do any family/model
+	 * overrides below.
+	 */
+	if (pvt->fam >= 0x17)
+		pvt->ops = &umc_ops;
+	else
+		pvt->ops = &dct_ops;
 
 	switch (pvt->fam) {
 	case 0xf:
-		fam_type	= &family_types[K8_CPUS];
-		pvt->ops	= &family_types[K8_CPUS].ops;
+		pvt->ctl_name				= (pvt->ext_model >= K8_REV_F) ?
+							  "K8 revF or later" : "K8 revE or earlier";
+		pvt->f1_id				= PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP;
+		pvt->f2_id				= PCI_DEVICE_ID_AMD_K8_NB_MEMCTL;
+		pvt->ops->map_sysaddr_to_csrow		= k8_map_sysaddr_to_csrow;
+		pvt->ops->dbam_to_cs			= k8_dbam_to_chip_select;
 		break;
 
 	case 0x10:
-		fam_type	= &family_types[F10_CPUS];
-		pvt->ops	= &family_types[F10_CPUS].ops;
+		pvt->ctl_name				= "F10h";
+		pvt->f1_id				= PCI_DEVICE_ID_AMD_10H_NB_MAP;
+		pvt->f2_id				= PCI_DEVICE_ID_AMD_10H_NB_DRAM;
+		pvt->ops->dbam_to_cs			= f10_dbam_to_chip_select;
 		break;
 
 	case 0x15:
-		if (pvt->model == 0x30) {
-			fam_type = &family_types[F15_M30H_CPUS];
-			pvt->ops = &family_types[F15_M30H_CPUS].ops;
+		switch (pvt->model) {
+		case 0x30:
+			pvt->ctl_name			= "F15h_M30h";
+			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_M30H_NB_F1;
+			pvt->f2_id			= PCI_DEVICE_ID_AMD_15H_M30H_NB_F2;
 			break;
-		} else if (pvt->model == 0x60) {
-			fam_type = &family_types[F15_M60H_CPUS];
-			pvt->ops = &family_types[F15_M60H_CPUS].ops;
+		case 0x60:
+			pvt->ctl_name			= "F15h_M60h";
+			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_M60H_NB_F1;
+			pvt->f2_id			= PCI_DEVICE_ID_AMD_15H_M60H_NB_F2;
+			pvt->ops->dbam_to_cs		= f15_m60h_dbam_to_chip_select;
 			break;
-		/* Richland is only client */
-		} else if (pvt->model == 0x13) {
-			return NULL;
-		} else {
-			fam_type	= &family_types[F15_CPUS];
-			pvt->ops	= &family_types[F15_CPUS].ops;
+		case 0x13:
+			/* Richland is only client */
+			return -ENODEV;
+		default:
+			pvt->ctl_name			= "F15h";
+			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_NB_F1;
+			pvt->f2_id			= PCI_DEVICE_ID_AMD_15H_NB_F2;
+			pvt->ops->dbam_to_cs		= f15_dbam_to_chip_select;
+			break;
 		}
 		break;
 
 	case 0x16:
-		if (pvt->model == 0x30) {
-			fam_type = &family_types[F16_M30H_CPUS];
-			pvt->ops = &family_types[F16_M30H_CPUS].ops;
+		switch (pvt->model) {
+		case 0x30:
+			pvt->ctl_name			= "F16h_M30h";
+			pvt->f1_id			= PCI_DEVICE_ID_AMD_16H_M30H_NB_F1;
+			pvt->f2_id			= PCI_DEVICE_ID_AMD_16H_M30H_NB_F2;
+			break;
+		default:
+			pvt->ctl_name			= "F16h";
+			pvt->f1_id			= PCI_DEVICE_ID_AMD_16H_NB_F1;
+			pvt->f2_id			= PCI_DEVICE_ID_AMD_16H_NB_F2;
 			break;
 		}
-		fam_type	= &family_types[F16_CPUS];
-		pvt->ops	= &family_types[F16_CPUS].ops;
 		break;
 
 	case 0x17:
-		if (pvt->model >= 0x10 && pvt->model <= 0x2f) {
-			fam_type = &family_types[F17_M10H_CPUS];
-			pvt->ops = &family_types[F17_M10H_CPUS].ops;
+		switch (pvt->model) {
+		case 0x10 ... 0x2f:
+			pvt->ctl_name			= "F17h_M10h";
 			break;
-		} else if (pvt->model >= 0x30 && pvt->model <= 0x3f) {
-			fam_type = &family_types[F17_M30H_CPUS];
-			pvt->ops = &family_types[F17_M30H_CPUS].ops;
+		case 0x30 ... 0x3f:
+			pvt->ctl_name			= "F17h_M30h";
+			pvt->max_mcs			= 8;
 			break;
-		} else if (pvt->model >= 0x60 && pvt->model <= 0x6f) {
-			fam_type = &family_types[F17_M60H_CPUS];
-			pvt->ops = &family_types[F17_M60H_CPUS].ops;
+		case 0x60 ... 0x6f:
+			pvt->ctl_name			= "F17h_M60h";
 			break;
-		} else if (pvt->model >= 0x70 && pvt->model <= 0x7f) {
-			fam_type = &family_types[F17_M70H_CPUS];
-			pvt->ops = &family_types[F17_M70H_CPUS].ops;
+		case 0x70 ... 0x7f:
+			pvt->ctl_name			= "F17h_M70h";
+			break;
+		default:
+			pvt->ctl_name			= "F17h";
 			break;
 		}
-		fallthrough;
-	case 0x18:
-		fam_type	= &family_types[F17_CPUS];
-		pvt->ops	= &family_types[F17_CPUS].ops;
+		break;
 
-		if (pvt->fam == 0x18)
-			family_types[F17_CPUS].ctl_name = "F18h";
+	case 0x18:
+		pvt->ctl_name				= "F18h";
 		break;
 
 	case 0x19:
-		if (pvt->model >= 0x10 && pvt->model <= 0x1f) {
-			fam_type = &family_types[F19_M10H_CPUS];
-			pvt->ops = &family_types[F19_M10H_CPUS].ops;
+		switch (pvt->model) {
+		case 0x00 ... 0x0f:
+			pvt->ctl_name			= "F19h";
+			pvt->max_mcs			= 8;
 			break;
-		} else if (pvt->model >= 0x20 && pvt->model <= 0x2f) {
-			fam_type = &family_types[F17_M70H_CPUS];
-			pvt->ops = &family_types[F17_M70H_CPUS].ops;
-			fam_type->ctl_name = "F19h_M20h";
+		case 0x10 ... 0x1f:
+			pvt->ctl_name			= "F19h_M10h";
+			pvt->max_mcs			= 12;
+			pvt->flags.zn_regs_v2		= 1;
 			break;
-		} else if (pvt->model >= 0x50 && pvt->model <= 0x5f) {
-			fam_type = &family_types[F19_M50H_CPUS];
-			pvt->ops = &family_types[F19_M50H_CPUS].ops;
-			fam_type->ctl_name = "F19h_M50h";
+		case 0x20 ... 0x2f:
+			pvt->ctl_name			= "F19h_M20h";
 			break;
-		} else if (pvt->model >= 0xa0 && pvt->model <= 0xaf) {
-			fam_type = &family_types[F19_M10H_CPUS];
-			pvt->ops = &family_types[F19_M10H_CPUS].ops;
-			fam_type->ctl_name = "F19h_MA0h";
+		case 0x50 ... 0x5f:
+			pvt->ctl_name			= "F19h_M50h";
+			break;
+		case 0xa0 ... 0xaf:
+			pvt->ctl_name			= "F19h_MA0h";
+			pvt->max_mcs			= 12;
+			pvt->flags.zn_regs_v2		= 1;
 			break;
 		}
-		fam_type	= &family_types[F19_CPUS];
-		pvt->ops	= &family_types[F19_CPUS].ops;
-		family_types[F19_CPUS].ctl_name = "F19h";
 		break;
 
 	default:
 		amd64_err("Unsupported family!\n");
-		return NULL;
+		return -ENODEV;
 	}
 
-	return fam_type;
+	return 0;
 }
 
 static const struct attribute_group *amd64_edac_attr_groups[] = {
@@ -3903,12 +3826,12 @@ static int hw_info_get(struct amd64_pvt *pvt)
 	int ret;
 
 	if (pvt->fam >= 0x17) {
-		pvt->umc = kcalloc(fam_type->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
+		pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
 		if (!pvt->umc)
 			return -ENOMEM;
 	} else {
-		pci_id1 = fam_type->f1_id;
-		pci_id2 = fam_type->f2_id;
+		pci_id1 = pvt->f1_id;
+		pci_id2 = pvt->f2_id;
 	}
 
 	ret = reserve_mc_sibling_devs(pvt, pci_id1, pci_id2);
@@ -3938,7 +3861,7 @@ static int init_one_instance(struct amd64_pvt *pvt)
 	layers[0].size = pvt->csels[0].b_cnt;
 	layers[0].is_virt_csrow = true;
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
-	layers[1].size = fam_type->max_mcs;
+	layers[1].size = pvt->max_mcs;
 	layers[1].is_virt_csrow = false;
 
 	mci = edac_mc_alloc(pvt->mc_node_id, ARRAY_SIZE(layers), layers, 0);
@@ -3968,7 +3891,7 @@ static bool instance_has_memory(struct amd64_pvt *pvt)
 	bool cs_enabled = false;
 	int cs = 0, dct = 0;
 
-	for (dct = 0; dct < fam_type->max_mcs; dct++) {
+	for (dct = 0; dct < pvt->max_mcs; dct++) {
 		for_each_chip_select(cs, dct, pvt)
 			cs_enabled |= csrow_enabled(cs, dct, pvt);
 	}
@@ -3997,9 +3920,8 @@ static int probe_one_instance(unsigned int nid)
 	pvt->mc_node_id	= nid;
 	pvt->F3 = F3;
 
-	ret = -ENODEV;
-	fam_type = per_family_init(pvt);
-	if (!fam_type)
+	ret = per_family_init(pvt);
+	if (ret < 0)
 		goto err_enable;
 
 	ret = hw_info_get(pvt);
@@ -4038,11 +3960,7 @@ static int probe_one_instance(unsigned int nid)
 		goto err_enable;
 	}
 
-	amd64_info("%s %sdetected (node %d).\n", fam_type->ctl_name,
-		     (pvt->fam == 0xf ?
-				(pvt->ext_model >= K8_REV_F  ? "revF or later "
-							     : "revE or earlier ")
-				 : ""), pvt->mc_node_id);
+	amd64_info("%s detected (node %d).\n", pvt->ctl_name, pvt->mc_node_id);
 
 	dump_misc_regs(pvt);
 
