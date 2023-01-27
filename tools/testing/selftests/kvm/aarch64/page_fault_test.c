@@ -237,6 +237,11 @@ static void guest_check_s1ptw_wr_in_dirty_log(void)
 	GUEST_SYNC(CMD_CHECK_S1PTW_WR_IN_DIRTY_LOG);
 }
 
+static void guest_check_no_s1ptw_wr_in_dirty_log(void)
+{
+	GUEST_SYNC(CMD_CHECK_NO_S1PTW_WR_IN_DIRTY_LOG);
+}
+
 static void guest_exec(void)
 {
 	int (*code)(void) = (int (*)(void))TEST_EXEC_GVA;
@@ -791,7 +796,7 @@ static void help(char *name)
 	.expected_events	= { .uffd_faults = _uffd_faults, },		\
 }
 
-#define TEST_DIRTY_LOG(_access, _with_af, _test_check)				\
+#define TEST_DIRTY_LOG(_access, _with_af, _test_check, _pt_check)		\
 {										\
 	.name			= SCAT3(dirty_log, _access, _with_af),		\
 	.data_memslot_flags	= KVM_MEM_LOG_DIRTY_PAGES,			\
@@ -799,13 +804,12 @@ static void help(char *name)
 	.guest_prepare		= { _PREPARE(_with_af),				\
 				    _PREPARE(_access) },			\
 	.guest_test		= _access,					\
-	.guest_test_check	= { _CHECK(_with_af), _test_check,		\
-				    guest_check_s1ptw_wr_in_dirty_log},		\
+	.guest_test_check	= { _CHECK(_with_af), _test_check, _pt_check },	\
 	.expected_events	= { 0 },					\
 }
 
 #define TEST_UFFD_AND_DIRTY_LOG(_access, _with_af, _uffd_data_handler,		\
-				_uffd_faults, _test_check)			\
+				_uffd_faults, _test_check, _pt_check)		\
 {										\
 	.name			= SCAT3(uffd_and_dirty_log, _access, _with_af),	\
 	.data_memslot_flags	= KVM_MEM_LOG_DIRTY_PAGES,			\
@@ -814,7 +818,7 @@ static void help(char *name)
 				    _PREPARE(_access) },			\
 	.guest_test		= _access,					\
 	.mem_mark_cmd		= CMD_HOLE_DATA | CMD_HOLE_PT,			\
-	.guest_test_check	= { _CHECK(_with_af), _test_check },		\
+	.guest_test_check	= { _CHECK(_with_af), _test_check, _pt_check },	\
 	.uffd_data_handler	= _uffd_data_handler,				\
 	.uffd_pt_handler	= uffd_pt_handler,				\
 	.expected_events	= { .uffd_faults = _uffd_faults, },		\
@@ -953,16 +957,25 @@ static struct test_desc tests[] = {
 	 * Try accesses when the data and PT memory regions are both
 	 * tracked for dirty logging.
 	 */
-	TEST_DIRTY_LOG(guest_read64, with_af, guest_check_no_write_in_dirty_log),
-	/* no_af should also lead to a PT write. */
-	TEST_DIRTY_LOG(guest_read64, no_af, guest_check_no_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_ld_preidx, with_af, guest_check_no_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_at, no_af, guest_check_no_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_exec, with_af, guest_check_no_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_write64, with_af, guest_check_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_cas, with_af, guest_check_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_dc_zva, with_af, guest_check_write_in_dirty_log),
-	TEST_DIRTY_LOG(guest_st_preidx, with_af, guest_check_write_in_dirty_log),
+	TEST_DIRTY_LOG(guest_read64, with_af, guest_check_no_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_read64, no_af, guest_check_no_write_in_dirty_log,
+		       guest_check_no_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_ld_preidx, with_af,
+		       guest_check_no_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_at, no_af, guest_check_no_write_in_dirty_log,
+		       guest_check_no_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_exec, with_af, guest_check_no_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_write64, with_af, guest_check_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_cas, with_af, guest_check_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_dc_zva, with_af, guest_check_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_st_preidx, with_af, guest_check_write_in_dirty_log,
+		       guest_check_s1ptw_wr_in_dirty_log),
 
 	/*
 	 * Access when the data and PT memory regions are both marked for
@@ -972,27 +985,41 @@ static struct test_desc tests[] = {
 	 * fault, and nothing in the dirty log.  Any S1PTW should result in
 	 * a write in the dirty log and a userfaultfd write.
 	 */
-	TEST_UFFD_AND_DIRTY_LOG(guest_read64, with_af, uffd_data_handler, 2,
-				guest_check_no_write_in_dirty_log),
-	/* no_af should also lead to a PT write. */
-	TEST_UFFD_AND_DIRTY_LOG(guest_read64, no_af, uffd_data_handler, 2,
-				guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_ld_preidx, with_af, uffd_data_handler,
-				2, guest_check_no_write_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_read64, with_af,
+				uffd_data_handler, 2,
+				guest_check_no_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_read64, no_af,
+				uffd_data_handler, 2,
+				guest_check_no_write_in_dirty_log,
+				guest_check_no_s1ptw_wr_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_ld_preidx, with_af,
+				uffd_data_handler,
+				2, guest_check_no_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
 	TEST_UFFD_AND_DIRTY_LOG(guest_at, with_af, uffd_no_handler, 1,
-				guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_exec, with_af, uffd_data_handler, 2,
-				guest_check_no_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_write64, with_af, uffd_data_handler,
-				2, guest_check_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_cas, with_af, uffd_data_handler, 2,
-				guest_check_write_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_dc_zva, with_af, uffd_data_handler,
-				2, guest_check_write_in_dirty_log),
+				guest_check_no_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_exec, with_af,
+				uffd_data_handler, 2,
+				guest_check_no_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_write64, with_af,
+				uffd_data_handler,
+				2, guest_check_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_cas, with_af,
+				uffd_data_handler, 2,
+				guest_check_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
+	TEST_UFFD_AND_DIRTY_LOG(guest_dc_zva, with_af,
+				uffd_data_handler,
+				2, guest_check_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
 	TEST_UFFD_AND_DIRTY_LOG(guest_st_preidx, with_af,
 				uffd_data_handler, 2,
-				guest_check_write_in_dirty_log),
-
+				guest_check_write_in_dirty_log,
+				guest_check_s1ptw_wr_in_dirty_log),
 	/*
 	 * Try accesses when the data memory region is marked read-only
 	 * (with KVM_MEM_READONLY). Writes with a syndrome result in an
