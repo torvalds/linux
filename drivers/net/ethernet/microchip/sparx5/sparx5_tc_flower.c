@@ -325,8 +325,11 @@ sparx5_tc_flower_handler_cvlan_usage(struct sparx5_tc_flower_parse_usage *st)
 	u16 tpid;
 	int err;
 
-	if (st->admin->vtype != VCAP_TYPE_IS0)
+	if (st->admin->vtype != VCAP_TYPE_IS0) {
+		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
+				   "cvlan not supported in this VCAP");
 		return -EINVAL;
+	}
 
 	flow_rule_match_cvlan(st->frule, &mt);
 
