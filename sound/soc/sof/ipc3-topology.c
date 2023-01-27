@@ -2426,6 +2426,24 @@ static int sof_ipc3_parse_manifest(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
+static int sof_ipc3_link_setup(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link)
+{
+	if (link->no_pcm)
+		return 0;
+
+	/*
+	 * set default trigger order for all links. Exceptions to
+	 * the rule will be handled in sof_pcm_dai_link_fixup()
+	 * For playback, the sequence is the following: start FE,
+	 * start BE, stop BE, stop FE; for Capture the sequence is
+	 * inverted start BE, start FE, stop FE, stop BE
+	 */
+	link->trigger[SNDRV_PCM_STREAM_PLAYBACK] = SND_SOC_DPCM_TRIGGER_PRE;
+	link->trigger[SNDRV_PCM_STREAM_CAPTURE] = SND_SOC_DPCM_TRIGGER_POST;
+
+	return 0;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2537,4 +2555,5 @@ const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
 	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
 	.parse_manifest = sof_ipc3_parse_manifest,
+	.link_setup = sof_ipc3_link_setup,
 };

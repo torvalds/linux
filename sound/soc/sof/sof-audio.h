@@ -180,6 +180,7 @@ struct sof_ipc_tplg_widget_ops {
  * @set_up_all_pipelines: Function pointer for setting up all topology pipelines
  * @tear_down_all_pipelines: Function pointer for tearing down all topology pipelines
  * @parse_manifest: Function pointer for ipc4 specific parsing of topology manifest
+ * @link_setup: Function pointer for IPC-specific DAI link set up
  *
  * Note: function pointers (ops) are optional
  */
@@ -201,6 +202,7 @@ struct sof_ipc_tplg_ops {
 	int (*tear_down_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
 	int (*parse_manifest)(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_tplg_manifest *man);
+	int (*link_setup)(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link);
 };
 
 /** struct snd_sof_tuple - Tuple info
