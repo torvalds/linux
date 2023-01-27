@@ -1638,7 +1638,7 @@ static void umc_prep_chip_selects(struct amd64_pvt *pvt)
 	}
 }
 
-static void read_umc_base_mask(struct amd64_pvt *pvt)
+static void umc_read_base_mask(struct amd64_pvt *pvt)
 {
 	u32 umc_base_reg, umc_base_reg_sec;
 	u32 umc_mask_reg, umc_mask_reg_sec;
@@ -1692,12 +1692,9 @@ static void read_umc_base_mask(struct amd64_pvt *pvt)
 /*
  * Function 2 Offset F10_DCSB0; read in the DCS Base and DCS Mask registers
  */
-static void read_dct_base_mask(struct amd64_pvt *pvt)
+static void dct_read_base_mask(struct amd64_pvt *pvt)
 {
 	int cs;
-
-	if (pvt->umc)
-		return read_umc_base_mask(pvt);
 
 	for_each_chip_select(cs, 0, pvt) {
 		int reg0   = DCSB0 + (cs * 4);
@@ -3185,7 +3182,6 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	}
 
 skip:
-	read_dct_base_mask(pvt);
 
 	determine_memory_type(pvt);
 
@@ -3666,6 +3662,7 @@ static int dct_hw_info_get(struct amd64_pvt *pvt)
 		return ret;
 
 	dct_prep_chip_selects(pvt);
+	dct_read_base_mask(pvt);
 	read_mc_regs(pvt);
 
 	return 0;
@@ -3678,6 +3675,7 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 		return -ENOMEM;
 
 	umc_prep_chip_selects(pvt);
+	umc_read_base_mask(pvt);
 	read_mc_regs(pvt);
 
 	return 0;
