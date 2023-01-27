@@ -3616,22 +3616,18 @@ f17h_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
 	}
 }
 
-static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
+static void dct_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 
 	mci->mtype_cap		= MEM_FLAG_DDR2 | MEM_FLAG_RDDR2;
 	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
 
-	if (pvt->umc) {
-		f17h_determine_edac_ctl_cap(mci, pvt);
-	} else {
-		if (pvt->nbcap & NBCAP_SECDED)
-			mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
+	if (pvt->nbcap & NBCAP_SECDED)
+		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
 
-		if (pvt->nbcap & NBCAP_CHIPKILL)
-			mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
-	}
+	if (pvt->nbcap & NBCAP_CHIPKILL)
+		mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
 
 	mci->edac_cap		= determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
@@ -3639,12 +3635,25 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->dev_name		= pci_name(pvt->F3);
 	mci->ctl_page_to_phys	= NULL;
 
-	if (pvt->fam >= 0x17)
-		return;
-
 	/* memory scrubber interface */
 	mci->set_sdram_scrub_rate = set_scrub_rate;
 	mci->get_sdram_scrub_rate = get_scrub_rate;
+}
+
+static void umc_setup_mci_misc_attrs(struct mem_ctl_info *mci)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+
+	mci->mtype_cap		= MEM_FLAG_DDR4 | MEM_FLAG_RDDR4;
+	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
+
+	f17h_determine_edac_ctl_cap(mci, pvt);
+
+	mci->edac_cap		= determine_edac_cap(pvt);
+	mci->mod_name		= EDAC_MOD_STR;
+	mci->ctl_name		= pvt->ctl_name;
+	mci->dev_name		= pci_name(pvt->F3);
+	mci->ctl_page_to_phys	= NULL;
 }
 
 static int dct_hw_info_get(struct amd64_pvt *pvt)
@@ -3686,6 +3695,7 @@ static void hw_info_put(struct amd64_pvt *pvt)
 static struct low_ops umc_ops = {
 	.hw_info_get			= umc_hw_info_get,
 	.ecc_enabled			= umc_ecc_enabled,
+	.setup_mci_misc_attrs		= umc_setup_mci_misc_attrs,
 };
 
 /* Use Family 16h versions for defaults and adjust as needed below. */
@@ -3694,6 +3704,7 @@ static struct low_ops dct_ops = {
 	.dbam_to_cs			= f16_dbam_to_chip_select,
 	.hw_info_get			= dct_hw_info_get,
 	.ecc_enabled			= dct_ecc_enabled,
+	.setup_mci_misc_attrs		= dct_setup_mci_misc_attrs,
 };
 
 static int per_family_init(struct amd64_pvt *pvt)
@@ -3856,7 +3867,7 @@ static int init_one_instance(struct amd64_pvt *pvt)
 	mci->pvt_info = pvt;
 	mci->pdev = &pvt->F3->dev;
 
-	setup_mci_misc_attrs(mci);
+	pvt->ops->setup_mci_misc_attrs(mci);
 
 	if (init_csrows(mci))
 		mci->edac_cap = EDAC_FLAG_NONE;
