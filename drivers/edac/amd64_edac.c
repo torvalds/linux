@@ -3250,13 +3250,12 @@ static u32 umc_get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_or
 	return nr_pages;
 }
 
-static int init_csrows_df(struct mem_ctl_info *mci)
+static void umc_init_csrows(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	enum edac_type edac_mode = EDAC_NONE;
 	enum dev_type dev_type = DEV_UNKNOWN;
 	struct dimm_info *dimm;
-	int empty = 1;
 	u8 umc, cs;
 
 	if (mci->edac_ctl_cap & EDAC_FLAG_S16ECD16ED) {
@@ -3277,7 +3276,6 @@ static int init_csrows_df(struct mem_ctl_info *mci)
 			if (!csrow_enabled(cs, umc, pvt))
 				continue;
 
-			empty = 0;
 			dimm = mci->csrows[cs]->channels[umc]->dimm;
 
 			edac_dbg(1, "MC node: %d, csrow: %d\n",
@@ -3290,26 +3288,21 @@ static int init_csrows_df(struct mem_ctl_info *mci)
 			dimm->grain = 64;
 		}
 	}
-
-	return empty;
 }
 
 /*
  * Initialize the array of csrow attribute instances, based on the values
  * from pci config hardware registers.
  */
-static int init_csrows(struct mem_ctl_info *mci)
+static void dct_init_csrows(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	enum edac_type edac_mode = EDAC_NONE;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
-	int i, j, empty = 1;
 	int nr_pages = 0;
+	int i, j;
 	u32 val;
-
-	if (pvt->umc)
-		return init_csrows_df(mci);
 
 	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
@@ -3333,7 +3326,6 @@ static int init_csrows(struct mem_ctl_info *mci)
 			continue;
 
 		csrow = mci->csrows[i];
-		empty = 0;
 
 		edac_dbg(1, "MC node: %d, csrow: %d\n",
 			    pvt->mc_node_id, i);
@@ -3367,8 +3359,6 @@ static int init_csrows(struct mem_ctl_info *mci)
 			dimm->grain = 64;
 		}
 	}
-
-	return empty;
 }
 
 /* get all cores on this DCT */
@@ -3642,6 +3632,8 @@ static void dct_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	/* memory scrubber interface */
 	mci->set_sdram_scrub_rate = set_scrub_rate;
 	mci->get_sdram_scrub_rate = get_scrub_rate;
+
+	dct_init_csrows(mci);
 }
 
 static void umc_setup_mci_misc_attrs(struct mem_ctl_info *mci)
@@ -3658,6 +3650,8 @@ static void umc_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->ctl_name		= pvt->ctl_name;
 	mci->dev_name		= pci_name(pvt->F3);
 	mci->ctl_page_to_phys	= NULL;
+
+	umc_init_csrows(mci);
 }
 
 static int dct_hw_info_get(struct amd64_pvt *pvt)
@@ -3872,9 +3866,6 @@ static int init_one_instance(struct amd64_pvt *pvt)
 	mci->pdev = &pvt->F3->dev;
 
 	pvt->ops->setup_mci_misc_attrs(mci);
-
-	if (init_csrows(mci))
-		mci->edac_cap = EDAC_FLAG_NONE;
 
 	ret = -ENODEV;
 	if (edac_mc_add_mc_with_groups(mci, amd64_edac_attr_groups)) {
