@@ -1600,17 +1600,15 @@ static struct imx7_csi_vb2_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi)
 
 static int imx7_csi_video_init_format(struct imx7_csi *csi)
 {
-	struct v4l2_subdev_format fmt_src = {
-		.pad = IMX7_CSI_PAD_SRC,
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
-	fmt_src.format.code = IMX7_CSI_DEF_MBUS_CODE;
-	fmt_src.format.width = IMX7_CSI_DEF_PIX_WIDTH;
-	fmt_src.format.height = IMX7_CSI_DEF_PIX_HEIGHT;
+	struct v4l2_mbus_framefmt format = { };
 
-	imx7_csi_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &fmt_src.format, NULL);
-	csi->vdev_compose.width = fmt_src.format.width;
-	csi->vdev_compose.height = fmt_src.format.height;
+	format.code = IMX7_CSI_DEF_MBUS_CODE;
+	format.width = IMX7_CSI_DEF_PIX_WIDTH;
+	format.height = IMX7_CSI_DEF_PIX_HEIGHT;
+
+	imx7_csi_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &format, NULL);
+	csi->vdev_compose.width = format.width;
+	csi->vdev_compose.height = format.height;
 
 	csi->vdev_cc = imx7_csi_find_pixel_format(csi->vdev_fmt.pixelformat);
 
