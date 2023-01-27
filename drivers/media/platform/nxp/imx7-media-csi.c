@@ -228,7 +228,6 @@ struct imx7_csi {
 	struct media_pad pad[IMX7_CSI_PADS_NUM];
 
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
-	const struct imx7_csi_pixfmt *cc[IMX7_CSI_PADS_NUM];
 
 	/* Video device */
 	struct video_device *vdev;		/* Video device */
@@ -1807,8 +1806,6 @@ static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
 		mf->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(mf->colorspace);
 		mf->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(!cc->yuv,
 					mf->colorspace, mf->ycbcr_enc);
-
-		csi->cc[i] = cc;
 	}
 
 	return 0;
@@ -2016,13 +2013,7 @@ static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
 		outfmt = imx7_csi_get_format(csi, sd_state, IMX7_CSI_PAD_SRC,
 					     sdformat->which);
 		*outfmt = format.format;
-
-		if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-			csi->cc[IMX7_CSI_PAD_SRC] = outcc;
 	}
-
-	if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		csi->cc[sdformat->pad] = cc;
 
 out_unlock:
 	mutex_unlock(&csi->lock);
