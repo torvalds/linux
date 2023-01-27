@@ -23,8 +23,6 @@ static int skl_int3472_clk_prepare(struct clk_hw *hw)
 	struct int3472_gpio_clock *clk = to_int3472_clk(hw);
 
 	gpiod_set_value_cansleep(clk->ena_gpio, 1);
-	gpiod_set_value_cansleep(clk->led_gpio, 1);
-
 	return 0;
 }
 
@@ -33,7 +31,6 @@ static void skl_int3472_clk_unprepare(struct clk_hw *hw)
 	struct int3472_gpio_clock *clk = to_int3472_clk(hw);
 
 	gpiod_set_value_cansleep(clk->ena_gpio, 0);
-	gpiod_set_value_cansleep(clk->led_gpio, 0);
 }
 
 static int skl_int3472_clk_enable(struct clk_hw *hw)
