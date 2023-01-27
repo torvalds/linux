@@ -89,6 +89,7 @@ EXPORT_SYMBOL(sof_widget_free);
 int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
+	bool use_count_decremented = false;
 	int ret;
 
 	/* skip if there is no private data */
@@ -160,13 +161,16 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 widget_free:
 	/* widget use_count and core ref_count will both be decremented by sof_widget_free() */
 	sof_widget_free(sdev, swidget);
+	use_count_decremented = true;
 core_put:
 	snd_sof_dsp_core_put(sdev, swidget->core);
 pipe_widget_free:
 	if (swidget->id != snd_soc_dapm_scheduler)
 		sof_widget_free(sdev, swidget->spipe->pipe_widget);
 use_count_dec:
-	swidget->use_count--;
+	if (!use_count_decremented)
+		swidget->use_count--;
+
 	return ret;
 }
 EXPORT_SYMBOL(sof_widget_setup);
