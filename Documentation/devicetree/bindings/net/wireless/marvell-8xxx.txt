@@ -1,4 +1,4 @@
-Marvell 8787/8897/8997 (sd8787/sd8897/sd8997/pcie8997) SDIO/PCIE devices
+Marvell 8787/8897/8978/8997 (sd8787/sd8897/sd8978/sd8997/pcie8997) SDIO/PCIE devices
 ------
 
 This node provides properties for controlling the Marvell SDIO/PCIE wireless device.
@@ -10,7 +10,9 @@ Required properties:
   - compatible : should be one of the following:
 	* "marvell,sd8787"
 	* "marvell,sd8897"
+	* "marvell,sd8978"
 	* "marvell,sd8997"
+	* "nxp,iw416"
 	* "pci11ab,2b42"
 	* "pci1b4b,2b42"
 
