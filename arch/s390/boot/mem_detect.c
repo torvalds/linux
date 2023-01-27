@@ -176,7 +176,7 @@ unsigned long detect_memory(void)
 
 	if (!diag260()) {
 		mem_detect.info_source = MEM_DETECT_DIAG260;
-		return max_physmem_end;
+		return max_physmem_end ?: get_mem_detect_end();
 	}
 
 	if (max_physmem_end) {
