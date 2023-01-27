@@ -1291,7 +1291,65 @@ static unsigned long determine_edac_cap(struct amd64_pvt *pvt)
 	return edac_cap;
 }
 
-static void debug_display_dimm_sizes(struct amd64_pvt *, u8);
+/*
+ * debug routine to display the memory sizes of all logical DIMMs and its
+ * CSROWs
+ */
+static void dct_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
+{
+	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
+	u32 dbam  = ctrl ? pvt->dbam1 : pvt->dbam0;
+	int dimm, size0, size1;
+
+	if (pvt->fam == 0xf) {
+		/* K8 families < revF not supported yet */
+		if (pvt->ext_model < K8_REV_F)
+			return;
+
+		WARN_ON(ctrl != 0);
+	}
+
+	if (pvt->fam == 0x10) {
+		dbam = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->dbam1
+							   : pvt->dbam0;
+		dcsb = (ctrl && !dct_ganging_enabled(pvt)) ?
+				 pvt->csels[1].csbases :
+				 pvt->csels[0].csbases;
+	} else if (ctrl) {
+		dbam = pvt->dbam0;
+		dcsb = pvt->csels[1].csbases;
+	}
+	edac_dbg(1, "F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n",
+		 ctrl, dbam);
+
+	edac_printk(KERN_DEBUG, EDAC_MC, "DCT%d chip selects:\n", ctrl);
+
+	/* Dump memory sizes for DIMM and its CSROWs */
+	for (dimm = 0; dimm < 4; dimm++) {
+		size0 = 0;
+		if (dcsb[dimm * 2] & DCSB_CS_ENABLE)
+			/*
+			 * For F15m60h, we need multiplier for LRDIMM cs_size
+			 * calculation. We pass dimm value to the dbam_to_cs
+			 * mapper so we can find the multiplier from the
+			 * corresponding DCSM.
+			 */
+			size0 = pvt->ops->dbam_to_cs(pvt, ctrl,
+						     DBAM_DIMM(dimm, dbam),
+						     dimm);
+
+		size1 = 0;
+		if (dcsb[dimm * 2 + 1] & DCSB_CS_ENABLE)
+			size1 = pvt->ops->dbam_to_cs(pvt, ctrl,
+						     DBAM_DIMM(dimm, dbam),
+						     dimm);
+
+		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
+			   dimm * 2,     size0,
+			   dimm * 2 + 1, size1);
+	}
+}
+
 
 static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 {
@@ -1366,7 +1424,7 @@ static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 	return cs_mode;
 }
 
-static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
+static void umc_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 {
 	int dimm, size0, size1, cs0, cs1, cs_mode;
 
@@ -1426,7 +1484,7 @@ static void __dump_misc_regs_df(struct amd64_pvt *pvt)
 					i, 1 << ((tmp >> 4) & 0x3));
 		}
 
-		debug_display_dimm_sizes_df(pvt, i);
+		umc_debug_display_dimm_sizes(pvt, i);
 	}
 }
 
@@ -1451,13 +1509,13 @@ static void __dump_misc_regs(struct amd64_pvt *pvt)
 		 (pvt->fam == 0xf) ? k8_dhar_offset(pvt)
 				   : f10_dhar_offset(pvt));
 
-	debug_display_dimm_sizes(pvt, 0);
+	dct_debug_display_dimm_sizes(pvt, 0);
 
 	/* everything below this point is Fam10h and above */
 	if (pvt->fam == 0xf)
 		return;
 
-	debug_display_dimm_sizes(pvt, 1);
+	dct_debug_display_dimm_sizes(pvt, 1);
 
 	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
@@ -2679,66 +2737,6 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	 */
 	if (dct_ganging_enabled(pvt))
 		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
-}
-
-/*
- * debug routine to display the memory sizes of all logical DIMMs and its
- * CSROWs
- */
-static void debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
-{
-	int dimm, size0, size1;
-	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
-	u32 dbam  = ctrl ? pvt->dbam1 : pvt->dbam0;
-
-	if (pvt->fam == 0xf) {
-		/* K8 families < revF not supported yet */
-	       if (pvt->ext_model < K8_REV_F)
-			return;
-	       else
-		       WARN_ON(ctrl != 0);
-	}
-
-	if (pvt->fam == 0x10) {
-		dbam = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->dbam1
-							   : pvt->dbam0;
-		dcsb = (ctrl && !dct_ganging_enabled(pvt)) ?
-				 pvt->csels[1].csbases :
-				 pvt->csels[0].csbases;
-	} else if (ctrl) {
-		dbam = pvt->dbam0;
-		dcsb = pvt->csels[1].csbases;
-	}
-	edac_dbg(1, "F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n",
-		 ctrl, dbam);
-
-	edac_printk(KERN_DEBUG, EDAC_MC, "DCT%d chip selects:\n", ctrl);
-
-	/* Dump memory sizes for DIMM and its CSROWs */
-	for (dimm = 0; dimm < 4; dimm++) {
-
-		size0 = 0;
-		if (dcsb[dimm*2] & DCSB_CS_ENABLE)
-			/*
-			 * For F15m60h, we need multiplier for LRDIMM cs_size
-			 * calculation. We pass dimm value to the dbam_to_cs
-			 * mapper so we can find the multiplier from the
-			 * corresponding DCSM.
-			 */
-			size0 = pvt->ops->dbam_to_cs(pvt, ctrl,
-						     DBAM_DIMM(dimm, dbam),
-						     dimm);
-
-		size1 = 0;
-		if (dcsb[dimm*2 + 1] & DCSB_CS_ENABLE)
-			size1 = pvt->ops->dbam_to_cs(pvt, ctrl,
-						     DBAM_DIMM(dimm, dbam),
-						     dimm);
-
-		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
-				dimm * 2,     size0,
-				dimm * 2 + 1, size1);
-	}
 }
 
 static struct amd64_family_type family_types[] = {
