@@ -1525,7 +1525,7 @@ static void umc_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 	}
 }
 
-static void __dump_misc_regs_df(struct amd64_pvt *pvt)
+static void umc_dump_misc_regs(struct amd64_pvt *pvt)
 {
 	struct amd64_umc *umc;
 	u32 i, tmp, umc_base;
@@ -1568,8 +1568,7 @@ static void __dump_misc_regs_df(struct amd64_pvt *pvt)
 	}
 }
 
-/* Display and decode various NB registers for debug purposes. */
-static void __dump_misc_regs(struct amd64_pvt *pvt)
+static void dct_dump_misc_regs(struct amd64_pvt *pvt)
 {
 	edac_dbg(1, "F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
@@ -1604,15 +1603,6 @@ static void __dump_misc_regs(struct amd64_pvt *pvt)
 	edac_dbg(1, "  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
 
 	amd64_info("using x%u syndromes.\n", pvt->ecc_sym_sz);
-}
-
-/* Display and decode various NB registers for debug purposes. */
-static void dump_misc_regs(struct amd64_pvt *pvt)
-{
-	if (pvt->umc)
-		__dump_misc_regs_df(pvt);
-	else
-		__dump_misc_regs(pvt);
 }
 
 /*
@@ -3694,6 +3684,7 @@ static struct low_ops umc_ops = {
 	.hw_info_get			= umc_hw_info_get,
 	.ecc_enabled			= umc_ecc_enabled,
 	.setup_mci_misc_attrs		= umc_setup_mci_misc_attrs,
+	.dump_misc_regs			= umc_dump_misc_regs,
 };
 
 /* Use Family 16h versions for defaults and adjust as needed below. */
@@ -3703,6 +3694,7 @@ static struct low_ops dct_ops = {
 	.hw_info_get			= dct_hw_info_get,
 	.ecc_enabled			= dct_ecc_enabled,
 	.setup_mci_misc_attrs		= dct_setup_mci_misc_attrs,
+	.dump_misc_regs			= dct_dump_misc_regs,
 };
 
 static int per_family_init(struct amd64_pvt *pvt)
@@ -3953,7 +3945,8 @@ static int probe_one_instance(unsigned int nid)
 
 	amd64_info("%s detected (node %d).\n", pvt->ctl_name, pvt->mc_node_id);
 
-	dump_misc_regs(pvt);
+	/* Display and decode various registers for debug purposes. */
+	pvt->ops->dump_misc_regs(pvt);
 
 	return ret;
 
