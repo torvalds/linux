@@ -14,14 +14,14 @@
 #include "ipc4-topology.h"
 
 static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state,
-					     struct ipc4_pipeline_set_state_data *data)
+					     struct ipc4_pipeline_set_state_data *trigger_list)
 {
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 primary, ipc_size;
 
 	/* trigger a single pipeline */
-	if (data->count == 1)
-		return sof_ipc4_set_pipeline_state(sdev, data->pipeline_ids[0], state);
+	if (trigger_list->count == 1)
+		return sof_ipc4_set_pipeline_state(sdev, trigger_list->pipeline_ids[0], state);
 
 	primary = state;
 	primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_SET_PIPELINE_STATE);
@@ -33,9 +33,9 @@ static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state
 	msg.extension = SOF_IPC4_GLB_PIPE_STATE_EXT_MULTI;
 
 	/* ipc_size includes the count and the pipeline IDs for the number of pipelines */
-	ipc_size = sizeof(u32) * (data->count + 1);
+	ipc_size = sizeof(u32) * (trigger_list->count + 1);
 	msg.data_size = ipc_size;
-	msg.data_ptr = data;
+	msg.data_ptr = trigger_list;
 
 	return sof_ipc_tx_message(sdev->ipc, &msg, ipc_size, NULL, 0);
 }
@@ -65,7 +65,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
-	struct ipc4_pipeline_set_state_data *data;
+	struct ipc4_pipeline_set_state_data *trigger_list;
 	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
 	struct snd_sof_pipeline *spipe;
@@ -84,8 +84,9 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		return 0;
 
 	/* allocate memory for the pipeline data */
-	data = kzalloc(struct_size(data, pipeline_ids, pipeline_list->count), GFP_KERNEL);
-	if (!data)
+	trigger_list = kzalloc(struct_size(trigger_list, pipeline_ids, pipeline_list->count),
+			       GFP_KERNEL);
+	if (!trigger_list)
 		return -ENOMEM;
 
 	/*
@@ -101,12 +102,13 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		pipe_widget = spipe->pipe_widget;
 		pipeline = pipe_widget->private;
 		if (pipeline->state != state && !pipeline->skip_during_fe_trigger)
-			data->pipeline_ids[data->count++] = pipe_widget->instance_id;
+			trigger_list->pipeline_ids[trigger_list->count++] =
+				pipe_widget->instance_id;
 	}
 
 	/* return if all pipelines are in the requested state already */
-	if (!data->count) {
-		kfree(data);
+	if (!trigger_list->count) {
+		kfree(trigger_list);
 		return 0;
 	}
 
@@ -115,20 +117,20 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 * they are already paused. But it helps keep the logic simpler and the firmware handles
 	 * the repeated pause gracefully. This can be optimized in the future if needed.
 	 */
-	ret = sof_ipc4_set_multi_pipeline_state(sdev, SOF_IPC4_PIPE_PAUSED, data);
+	ret = sof_ipc4_set_multi_pipeline_state(sdev, SOF_IPC4_PIPE_PAUSED, trigger_list);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to pause all pipelines\n");
 		goto free;
 	}
 
 	/* update PAUSED state for all pipelines that were just triggered */
-	for (i = 0; i < data->count; i++) {
+	for (i = 0; i < trigger_list->count; i++) {
 		for (j = 0; j < pipeline_list->count; j++) {
 			spipe = pipeline_list->pipelines[j];
 			pipe_widget = spipe->pipe_widget;
 			pipeline = pipe_widget->private;
 
-			if (data->pipeline_ids[i] == pipe_widget->instance_id) {
+			if (trigger_list->pipeline_ids[i] == pipe_widget->instance_id) {
 				pipeline->state = SOF_IPC4_PIPE_PAUSED;
 				break;
 			}
@@ -140,20 +142,20 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		goto free;
 
 	/* else set the final state in the DSP */
-	ret = sof_ipc4_set_multi_pipeline_state(sdev, state, data);
+	ret = sof_ipc4_set_multi_pipeline_state(sdev, state, trigger_list);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to set final state %d for all pipelines\n", state);
 		goto free;
 	}
 
 	/* update final state for all pipelines that were just triggered */
-	for (i = 0; i < data->count; i++) {
+	for (i = 0; i < trigger_list->count; i++) {
 		for (j = 0; j < pipeline_list->count; j++) {
 			spipe = pipeline_list->pipelines[j];
 			pipe_widget = spipe->pipe_widget;
 			pipeline = pipe_widget->private;
 
-			if (data->pipeline_ids[i] == pipe_widget->instance_id) {
+			if (trigger_list->pipeline_ids[i] == pipe_widget->instance_id) {
 				pipeline->state = state;
 				break;
 			}
@@ -161,7 +163,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	}
 
 free:
-	kfree(data);
+	kfree(trigger_list);
 	return ret;
 }
 
