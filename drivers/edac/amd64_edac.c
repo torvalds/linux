@@ -1614,7 +1614,7 @@ static void dump_misc_regs(struct amd64_pvt *pvt)
 /*
  * See BKDG, F2x[1,0][5C:40], F2[1,0][6C:60]
  */
-static void prep_chip_selects(struct amd64_pvt *pvt)
+static void dct_prep_chip_selects(struct amd64_pvt *pvt)
 {
 	if (pvt->fam == 0xf && pvt->ext_model < K8_REV_F) {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 8;
@@ -1622,17 +1622,19 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
 	} else if (pvt->fam == 0x15 && pvt->model == 0x30) {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 4;
 		pvt->csels[0].m_cnt = pvt->csels[1].m_cnt = 2;
-	} else if (pvt->fam >= 0x17) {
-		int umc;
-
-		for_each_umc(umc) {
-			pvt->csels[umc].b_cnt = 4;
-			pvt->csels[umc].m_cnt = pvt->flags.zn_regs_v2 ? 4 : 2;
-		}
-
 	} else {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 8;
 		pvt->csels[0].m_cnt = pvt->csels[1].m_cnt = 4;
+	}
+}
+
+static void umc_prep_chip_selects(struct amd64_pvt *pvt)
+{
+	int umc;
+
+	for_each_umc(umc) {
+		pvt->csels[umc].b_cnt = 4;
+		pvt->csels[umc].m_cnt = pvt->flags.zn_regs_v2 ? 4 : 2;
 	}
 }
 
@@ -1693,8 +1695,6 @@ static void read_umc_base_mask(struct amd64_pvt *pvt)
 static void read_dct_base_mask(struct amd64_pvt *pvt)
 {
 	int cs;
-
-	prep_chip_selects(pvt);
 
 	if (pvt->umc)
 		return read_umc_base_mask(pvt);
@@ -3665,6 +3665,7 @@ static int dct_hw_info_get(struct amd64_pvt *pvt)
 	if (ret)
 		return ret;
 
+	dct_prep_chip_selects(pvt);
 	read_mc_regs(pvt);
 
 	return 0;
@@ -3676,6 +3677,7 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 	if (!pvt->umc)
 		return -ENOMEM;
 
+	umc_prep_chip_selects(pvt);
 	read_mc_regs(pvt);
 
 	return 0;
