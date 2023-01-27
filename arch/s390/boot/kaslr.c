@@ -172,16 +172,18 @@ static unsigned long position_to_address(unsigned long pos, unsigned long kernel
 
 unsigned long get_random_base(unsigned long safe_addr)
 {
+	unsigned long online_mem_total = get_mem_detect_online_total();
 	unsigned long memory_limit = get_mem_detect_end();
 	unsigned long base_pos, max_pos, kernel_size;
 	int i;
 
 	/*
 	 * Avoid putting kernel in the end of physical memory
-	 * which kasan will use for shadow memory and early pgtable
-	 * mapping allocations.
+	 * which vmem and kasan code will use for shadow memory and
+	 * pgtable mapping allocations.
 	 */
 	memory_limit -= kasan_estimate_memory_needs(memory_limit);
+	memory_limit -= vmem_estimate_memory_needs(online_mem_total);
 
 	safe_addr = ALIGN(safe_addr, THREAD_SIZE);
 	kernel_size = vmlinux.image_size + vmlinux.bss_size;

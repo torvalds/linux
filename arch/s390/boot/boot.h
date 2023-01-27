@@ -46,6 +46,7 @@ void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
 void setup_vmem(unsigned long asce_limit);
+unsigned long vmem_estimate_memory_needs(unsigned long online_mem_total);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void error(char *m);
 

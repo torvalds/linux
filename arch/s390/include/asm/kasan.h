@@ -20,9 +20,9 @@ extern void kasan_early_init(void);
  * at the very end of available physical memory. To estimate
  * that, we take into account that kasan would require
  * 1/8 of available physical memory (for shadow memory) +
- * creating page tables for the whole memory + shadow memory
- * region (1 + 1/8). To keep page tables estimates simple take
- * the double of combined ptes size.
+ * creating page tables for the shadow memory region.
+ * To keep page tables estimates simple take the double of
+ * combined ptes size.
  *
  * physmem parameter has to be already adjusted if not entire physical memory
  * would be used (e.g. due to effect of "mem=" option).
@@ -34,7 +34,7 @@ static inline unsigned long kasan_estimate_memory_needs(unsigned long physmem)
 	/* for shadow memory */
 	kasan_needs = round_up(physmem / 8, PAGE_SIZE);
 	/* for paging structures */
-	pages = DIV_ROUND_UP(physmem + kasan_needs, PAGE_SIZE);
+	pages = DIV_ROUND_UP(kasan_needs, PAGE_SIZE);
 	kasan_needs += DIV_ROUND_UP(pages, _PAGE_ENTRIES) * _PAGE_TABLE_SIZE * 2;
 
 	return kasan_needs;

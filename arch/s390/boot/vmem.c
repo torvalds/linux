@@ -269,3 +269,10 @@ void setup_vmem(unsigned long asce_limit)
 
 	init_mm.context.asce = S390_lowcore.kernel_asce;
 }
+
+unsigned long vmem_estimate_memory_needs(unsigned long online_mem_total)
+{
+	unsigned long pages = DIV_ROUND_UP(online_mem_total, PAGE_SIZE);
+
+	return DIV_ROUND_UP(pages, _PAGE_ENTRIES) * _PAGE_TABLE_SIZE * 2;
+}
