@@ -1392,7 +1392,7 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 #define CS_EVEN			(CS_EVEN_PRIMARY | CS_EVEN_SECONDARY)
 #define CS_ODD			(CS_ODD_PRIMARY | CS_ODD_SECONDARY)
 
-static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
+static int umc_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 {
 	u8 base, count = 0;
 	int cs_mode = 0;
@@ -1434,7 +1434,7 @@ static void umc_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 		cs0 = dimm * 2;
 		cs1 = dimm * 2 + 1;
 
-		cs_mode = f17_get_cs_mode(dimm, ctrl, pvt);
+		cs_mode = umc_get_cs_mode(dimm, ctrl, pvt);
 
 		size0 = pvt->ops->dbam_to_cs(pvt, ctrl, cs_mode, cs0);
 		size1 = pvt->ops->dbam_to_cs(pvt, ctrl, cs_mode, cs1);
@@ -3389,24 +3389,36 @@ skip:
  *	encompasses
  *
  */
-static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_orig)
+static u32 dct_get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 {
 	u32 dbam = dct ? pvt->dbam1 : pvt->dbam0;
-	int csrow_nr = csrow_nr_orig;
 	u32 cs_mode, nr_pages;
 
-	if (!pvt->umc) {
-		csrow_nr >>= 1;
-		cs_mode = DBAM_DIMM(csrow_nr, dbam);
-	} else {
-		cs_mode = f17_get_cs_mode(csrow_nr >> 1, dct, pvt);
-	}
+	csrow_nr >>= 1;
+	cs_mode = DBAM_DIMM(csrow_nr, dbam);
 
 	nr_pages   = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, csrow_nr);
 	nr_pages <<= 20 - PAGE_SHIFT;
 
 	edac_dbg(0, "csrow: %d, channel: %d, DBAM idx: %d\n",
-		    csrow_nr_orig, dct,  cs_mode);
+		    csrow_nr, dct,  cs_mode);
+	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
+
+	return nr_pages;
+}
+
+static u32 umc_get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_orig)
+{
+	int csrow_nr = csrow_nr_orig;
+	u32 cs_mode, nr_pages;
+
+	cs_mode = umc_get_cs_mode(csrow_nr >> 1, dct, pvt);
+
+	nr_pages   = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, csrow_nr);
+	nr_pages <<= 20 - PAGE_SHIFT;
+
+	edac_dbg(0, "csrow: %d, channel: %d, cs_mode %d\n",
+		 csrow_nr_orig, dct,  cs_mode);
 	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
 
 	return nr_pages;
@@ -3445,7 +3457,7 @@ static int init_csrows_df(struct mem_ctl_info *mci)
 			edac_dbg(1, "MC node: %d, csrow: %d\n",
 					pvt->mc_node_id, cs);
 
-			dimm->nr_pages = get_csrow_nr_pages(pvt, umc, cs);
+			dimm->nr_pages = umc_get_csrow_nr_pages(pvt, umc, cs);
 			dimm->mtype = pvt->umc[umc].dram_type;
 			dimm->edac_mode = edac_mode;
 			dimm->dtype = dev_type;
@@ -3501,13 +3513,13 @@ static int init_csrows(struct mem_ctl_info *mci)
 			    pvt->mc_node_id, i);
 
 		if (row_dct0) {
-			nr_pages = get_csrow_nr_pages(pvt, 0, i);
+			nr_pages = dct_get_csrow_nr_pages(pvt, 0, i);
 			csrow->channels[0]->dimm->nr_pages = nr_pages;
 		}
 
 		/* K8 has only one DCT */
 		if (pvt->fam != 0xf && row_dct1) {
-			int row_dct1_pages = get_csrow_nr_pages(pvt, 1, i);
+			int row_dct1_pages = dct_get_csrow_nr_pages(pvt, 1, i);
 
 			csrow->channels[1]->dimm->nr_pages = row_dct1_pages;
 			nr_pages += row_dct1_pages;
