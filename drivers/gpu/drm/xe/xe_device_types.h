@@ -81,6 +81,8 @@ struct xe_device {
 		u8 media_ver;
 		/** @supports_usm: Supports unified shared memory */
 		bool supports_usm;
+		/** @has_asid: Has address space ID */
+		bool has_asid;
 		/** @enable_guc: GuC submission enabled */
 		bool enable_guc;
 		/** @has_flat_ccs: Whether flat CCS metadata is used */

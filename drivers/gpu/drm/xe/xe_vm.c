@@ -1429,7 +1429,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 		xe_device_mem_access_put(xe);
 		xe_pm_runtime_put(xe);
 
-		if (xe->info.supports_usm) {
+		if (xe->info.has_asid) {
 			mutex_lock(&xe->usm.lock);
 			lookup = xa_erase(&xe->usm.asid_to_vm, vm->usm.asid);
 			XE_WARN_ON(lookup != vm);
@@ -1926,7 +1926,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 		return err;
 	}
 
-	if (xe->info.supports_usm) {
+	if (xe->info.has_asid) {
 		mutex_lock(&xe->usm.lock);
 		err = xa_alloc_cyclic(&xe->usm.asid_to_vm, &asid, vm,
 				      XA_LIMIT(0, XE_MAX_ASID - 1),

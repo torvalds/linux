@@ -682,14 +682,14 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
 	xe_lrc_write_ctx_reg(lrc, CTX_RING_CTL,
 			     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
-	if (xe->info.supports_usm && vm) {
+	if (xe->info.has_asid && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID,
 				     (e->usm.acc_granularity <<
 				      ACC_GRANULARITY_S) | vm->usm.asid);
+	if (xe->info.supports_usm && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ACC_CTR_THOLD,
 				     (e->usm.acc_notify << ACC_NOTIFY_S) |
 				     e->usm.acc_trigger);
-	}
 
 	lrc->desc = GEN8_CTX_VALID;
 	lrc->desc |= INTEL_LEGACY_64B_CONTEXT << GEN8_CTX_ADDRESSING_MODE_SHIFT;
