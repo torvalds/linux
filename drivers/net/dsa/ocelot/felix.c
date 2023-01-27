@@ -1315,6 +1315,13 @@ static struct regmap *felix_request_regmap_by_name(struct felix *felix,
 	struct resource res;
 	int i;
 
+	/* In an MFD configuration, regmaps are registered directly to the
+	 * parent device before the child devices are probed, so there is no
+	 * need to initialize a new one.
+	 */
+	if (!felix->info->resources)
+		return dev_get_regmap(ocelot->dev->parent, resource_name);
+
 	for (i = 0; i < felix->info->num_resources; i++) {
 		if (strcmp(resource_name, felix->info->resources[i].name))
 			continue;
