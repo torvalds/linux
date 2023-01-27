@@ -96,8 +96,7 @@ static const struct regulator_desc max20411_desc = {
 	.n_ramp_values = ARRAY_SIZE(max20411_slew_rates),
 };
 
-static int max20411_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max20411_probe(struct i2c_client *client)
 {
 	struct regulator_init_data *init_data;
 	struct device *dev = &client->dev;
@@ -156,7 +155,7 @@ static struct i2c_driver max20411_i2c_driver = {
 		.name = "max20411",
 		.of_match_table	= of_max20411_match_tbl,
 	},
-	.probe = max20411_probe,
+	.probe_new = max20411_probe,
 	.id_table = max20411_id,
 };
 module_i2c_driver(max20411_i2c_driver);
