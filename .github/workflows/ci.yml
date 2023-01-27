@@ -26,6 +26,11 @@ jobs:
             os: windows
             runs_on: windows-2019
             shell: msys2 {0}
+          - displayTargetName: clang-build
+            os: unix
+            runs_on: ubuntu-22.04
+            shell: bash
+            build_options: "LLVM=1 CROSS_COMPILE=x86_64-linux-gnu"
     timeout-minutes: 100
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -93,6 +98,11 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install -y ccache libjsmn-dev
+      - name: Install clang toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update -y
+          sudo apt install -y clang lld llvm
       - name: Install patched binutils for Windows
         if: runner.os == 'Windows'
         run: |
