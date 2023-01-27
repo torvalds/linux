@@ -28,7 +28,8 @@ static void sof_reset_route_setup_status(struct snd_sof_dev *sdev, struct snd_so
 		}
 }
 
-int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
+				    struct snd_sof_widget *swidget)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	struct snd_sof_widget *pipe_widget;
@@ -70,7 +71,7 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	 * skip for static pipelines
 	 */
 	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
-		ret = sof_widget_free(sdev, pipe_widget);
+		ret = sof_widget_free_unlocked(sdev, pipe_widget);
 		if (ret < 0 && !err)
 			err = ret;
 	}
@@ -84,9 +85,21 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 
 	return err;
 }
+
+int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	int ret;
+
+	mutex_lock(&swidget->setup_mutex);
+	ret = sof_widget_free_unlocked(sdev, swidget);
+	mutex_unlock(&swidget->setup_mutex);
+
+	return ret;
+}
 EXPORT_SYMBOL(sof_widget_free);
 
-int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+static int sof_widget_setup_unlocked(struct snd_sof_dev *sdev,
+				     struct snd_sof_widget *swidget)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	bool use_count_decremented = false;
@@ -116,7 +129,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 			goto use_count_dec;
 		}
 
-		ret = sof_widget_setup(sdev, swidget->spipe->pipe_widget);
+		ret = sof_widget_setup_unlocked(sdev, swidget->spipe->pipe_widget);
 		if (ret < 0)
 			goto use_count_dec;
 	}
@@ -160,16 +173,27 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 
 widget_free:
 	/* widget use_count and core ref_count will both be decremented by sof_widget_free() */
-	sof_widget_free(sdev, swidget);
+	sof_widget_free_unlocked(sdev, swidget);
 	use_count_decremented = true;
 core_put:
 	snd_sof_dsp_core_put(sdev, swidget->core);
 pipe_widget_free:
 	if (swidget->id != snd_soc_dapm_scheduler)
-		sof_widget_free(sdev, swidget->spipe->pipe_widget);
+		sof_widget_free_unlocked(sdev, swidget->spipe->pipe_widget);
 use_count_dec:
 	if (!use_count_decremented)
 		swidget->use_count--;
+
+	return ret;
+}
+
+int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
+{
+	int ret;
+
+	mutex_lock(&swidget->setup_mutex);
+	ret = sof_widget_setup_unlocked(sdev, swidget);
+	mutex_unlock(&swidget->setup_mutex);
 
 	return ret;
 }

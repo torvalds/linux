@@ -1405,6 +1405,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	swidget->id = w->id;
 	swidget->pipeline_id = index;
 	swidget->private = NULL;
+	mutex_init(&swidget->setup_mutex);
+
 	ida_init(&swidget->src_queue_ida);
 	ida_init(&swidget->sink_queue_ida);
 

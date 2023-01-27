@@ -387,7 +387,16 @@ struct snd_sof_widget {
 	 * up in the DSP.
 	 */
 	bool prepared;
-	int use_count; /* use_count will be protected by the PCM mutex held by the core */
+
+	struct mutex setup_mutex; /* to protect the swidget setup and free operations */
+
+	/*
+	 * use_count is protected by the PCM mutex held by the core and the
+	 * setup_mutex against non stream domain races (kcontrol access for
+	 * example)
+	 */
+	int use_count;
+
 	int core;
 	int id; /* id is the DAPM widget type */
 	/*
