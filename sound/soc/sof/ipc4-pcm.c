@@ -215,8 +215,44 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static void sof_ipc4_pcm_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm)
+{
+	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
+	int stream;
+
+	for_each_pcm_streams(stream) {
+		pipeline_list = &spcm->stream[stream].pipeline_list;
+		kfree(pipeline_list->pipe_widgets);
+		pipeline_list->pipe_widgets = NULL;
+	}
+}
+
+static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm)
+{
+	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	int stream;
+
+	for_each_pcm_streams(stream) {
+		pipeline_list = &spcm->stream[stream].pipeline_list;
+
+		/* allocate memory for max number of pipeline IDs */
+		pipeline_list->pipe_widgets = kcalloc(ipc4_data->max_num_pipelines,
+						      sizeof(struct snd_sof_widget *),
+						      GFP_KERNEL);
+		if (!pipeline_list->pipe_widgets) {
+			sof_ipc4_pcm_free(sdev, spcm);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
 	.trigger = sof_ipc4_pcm_trigger,
 	.hw_free = sof_ipc4_pcm_hw_free,
 	.dai_link_fixup = sof_ipc4_pcm_dai_link_fixup,
+	.pcm_setup = sof_ipc4_pcm_setup,
+	.pcm_free = sof_ipc4_pcm_free,
 };
