@@ -1736,9 +1736,6 @@ static int imx7_csi_s_stream(struct v4l2_subdev *sd, int enable)
 		goto out_unlock;
 	}
 
-	if (csi->is_streaming == !!enable)
-		goto out_unlock;
-
 	if (enable) {
 		ret = imx7_csi_init(csi);
 		if (ret < 0)
