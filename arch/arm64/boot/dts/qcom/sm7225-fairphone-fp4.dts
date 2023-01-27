@@ -115,7 +115,7 @@
 };
 
 &apps_rsc {
-	pm6350-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm6350-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -244,7 +244,7 @@
 		};
 	};
 
-	pm6150l-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm6150l-rpmh-regulators";
 		qcom,pmic-id = "e";
 
