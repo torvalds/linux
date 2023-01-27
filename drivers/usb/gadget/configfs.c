@@ -836,19 +836,15 @@ static ssize_t webusb_bcdVersion_store(struct config_item *item,
 	if (ret)
 		return ret;
 
-	mutex_lock(&gi->lock);
-
 	ret = is_valid_bcd(bcdVersion);
 	if (ret)
-		goto out;
+		return ret;
 
+	mutex_lock(&gi->lock);
 	gi->bcd_webusb_version = bcdVersion;
-	ret = len;
-
-out:
 	mutex_unlock(&gi->lock);
 
-	return ret;
+	return len;
 }
 
 static ssize_t webusb_bVendorCode_show(struct config_item *item, char *page)
