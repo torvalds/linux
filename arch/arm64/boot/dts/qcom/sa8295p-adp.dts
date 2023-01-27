@@ -111,7 +111,7 @@
 };
 
 &apps_rsc {
-	pmm8540-a-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8150-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -151,7 +151,7 @@
 		};
 	};
 
-	pmm8540-c-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8150-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -224,7 +224,7 @@
 		};
 	};
 
-	pmm8540-g-regulators {
+	regulators-2 {
 		compatible = "qcom,pm8150-rpmh-regulators";
 		qcom,pmic-id = "g";
 
