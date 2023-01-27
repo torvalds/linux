@@ -783,6 +783,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 						    GPIOD_OUT_HIGH);
 	if (IS_ERR(nvmem->wp_gpio)) {
 		rval = PTR_ERR(nvmem->wp_gpio);
+		nvmem->wp_gpio = NULL;
 		goto err_put_device;
 	}
 
