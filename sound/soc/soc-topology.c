@@ -2389,9 +2389,6 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 static int soc_tplg_valid_header(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	if (soc_tplg_get_hdr_offset(tplg) >= tplg->fw->size)
-		return 0;
-
 	if (le32_to_cpu(hdr->size) != sizeof(*hdr)) {
 		dev_err(tplg->dev,
 			"ASoC: invalid header size for type %d at offset 0x%lx size 0x%zx.\n",
@@ -2442,7 +2439,7 @@ static int soc_tplg_valid_header(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	return 1;
+	return 0;
 }
 
 /* check header type and call appropriate handler */
@@ -2528,8 +2525,6 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 				dev_err(tplg->dev,
 					"ASoC: topology: invalid header: %d\n", ret);
 				return ret;
-			} else if (ret == 0) {
-				break;
 			}
 
 			/* load the header object */
