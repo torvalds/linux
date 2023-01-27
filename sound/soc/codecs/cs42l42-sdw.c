@@ -447,7 +447,9 @@ static int __maybe_unused cs42l42_sdw_handle_unattach(struct cs42l42_private *cs
 
 static int __maybe_unused cs42l42_sdw_runtime_resume(struct device *dev)
 {
+	static const unsigned int ts_dbnce_ms[] = { 0, 125, 250, 500, 750, 1000, 1250, 1500};
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(dev);
+	unsigned int dbnce;
 	int ret;
 
 	dev_dbg(dev, "Runtime resume\n");
@@ -456,8 +458,14 @@ static int __maybe_unused cs42l42_sdw_runtime_resume(struct device *dev)
 		return 0;
 
 	ret = cs42l42_sdw_handle_unattach(cs42l42);
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
+	} else if (ret > 0) {
+		dbnce = max(cs42l42->ts_dbnc_rise, cs42l42->ts_dbnc_fall);
+
+		if (dbnce > 0)
+			msleep(ts_dbnce_ms[dbnce]);
+	}
 
 	regcache_cache_only(cs42l42->regmap, false);
 
