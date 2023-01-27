@@ -185,7 +185,7 @@ static const struct soc_tplg_map dapm_map[] = {
 	{SND_SOC_TPLG_DAPM_DECODER, snd_soc_dapm_decoder},
 };
 
-static int tplc_chan_get_reg(struct soc_tplg *tplg,
+static int tplg_chan_get_reg(struct soc_tplg *tplg,
 	struct snd_soc_tplg_channel *chan, int map)
 {
 	int i;
@@ -198,7 +198,7 @@ static int tplc_chan_get_reg(struct soc_tplg *tplg,
 	return -EINVAL;
 }
 
-static int tplc_chan_get_shift(struct soc_tplg *tplg,
+static int tplg_chan_get_shift(struct soc_tplg *tplg,
 	struct snd_soc_tplg_channel *chan, int map)
 {
 	int i;
@@ -779,10 +779,10 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 	kc.access = le32_to_cpu(mc->hdr.access);
 
 	/* we only support FL/FR channel mapping atm */
-	sm->reg = tplc_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FL);
-	sm->rreg = tplc_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FR);
-	sm->shift = tplc_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FL);
-	sm->rshift = tplc_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FR);
+	sm->reg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FL);
+	sm->rreg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FR);
+	sm->shift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FL);
+	sm->rshift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FR);
 
 	sm->max = le32_to_cpu(mc->max);
 	sm->min = le32_to_cpu(mc->min);
@@ -926,10 +926,10 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 	kc.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kc.access = le32_to_cpu(ec->hdr.access);
 
-	se->reg = tplc_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_l = tplc_chan_get_shift(tplg, ec->channel,
+	se->reg = tplg_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
+	se->shift_l = tplg_chan_get_shift(tplg, ec->channel,
 		SNDRV_CHMAP_FL);
-	se->shift_r = tplc_chan_get_shift(tplg, ec->channel,
+	se->shift_r = tplg_chan_get_shift(tplg, ec->channel,
 		SNDRV_CHMAP_FL);
 
 	se->mask = le32_to_cpu(ec->mask);
@@ -1160,13 +1160,13 @@ static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_
 	kc->access = le32_to_cpu(mc->hdr.access);
 
 	/* we only support FL/FR channel mapping atm */
-	sm->reg = tplc_chan_get_reg(tplg, mc->channel,
+	sm->reg = tplg_chan_get_reg(tplg, mc->channel,
 				    SNDRV_CHMAP_FL);
-	sm->rreg = tplc_chan_get_reg(tplg, mc->channel,
+	sm->rreg = tplg_chan_get_reg(tplg, mc->channel,
 				     SNDRV_CHMAP_FR);
-	sm->shift = tplc_chan_get_shift(tplg, mc->channel,
+	sm->shift = tplg_chan_get_shift(tplg, mc->channel,
 					SNDRV_CHMAP_FL);
-	sm->rshift = tplc_chan_get_shift(tplg, mc->channel,
+	sm->rshift = tplg_chan_get_shift(tplg, mc->channel,
 					 SNDRV_CHMAP_FR);
 
 	sm->max = le32_to_cpu(mc->max);
@@ -1232,10 +1232,10 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 	kc->access = le32_to_cpu(ec->hdr.access);
 
 	/* we only support FL/FR channel mapping atm */
-	se->reg = tplc_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_l = tplc_chan_get_shift(tplg, ec->channel,
+	se->reg = tplg_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
+	se->shift_l = tplg_chan_get_shift(tplg, ec->channel,
 					  SNDRV_CHMAP_FL);
-	se->shift_r = tplc_chan_get_shift(tplg, ec->channel,
+	se->shift_r = tplg_chan_get_shift(tplg, ec->channel,
 					  SNDRV_CHMAP_FR);
 
 	se->items = le32_to_cpu(ec->items);
