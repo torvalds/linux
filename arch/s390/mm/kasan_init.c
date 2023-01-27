@@ -271,38 +271,34 @@ void __init kasan_early_init(void)
 	}
 	/*
 	 * Current memory layout:
-	 * +- 0 -------------+	   +- shadow start -+
-	 * | 1:1 ram mapping |	  /| 1/8 ram	    |
-	 * |		     |	 / |		    |
-	 * +- end of ram ----+	/  +----------------+
-	 * | ... gap ...     | /   |		    |
-	 * |		     |/    |	kasan	    |
-	 * +- shadow start --+	   |	zero	    |
-	 * | 1/8 addr space  |	   |	page	    |
-	 * +- shadow end    -+	   |	mapping	    |
-	 * | ... gap ...     |\    |  (untracked)   |
-	 * +- vmalloc area  -+ \   |		    |
-	 * | vmalloc_size    |	\  |		    |
-	 * +- modules vaddr -+	 \ +----------------+
-	 * | 2Gb	     |	  \|	  unmapped  | allocated per module
-	 * +-----------------+	   +- shadow end ---+
+	 * +- 0 -------------+	       +- shadow start -+
+	 * |1:1 ident mapping|	      /|1/8 of ident map|
+	 * |		     |	     / |		|
+	 * +-end of ident map+	    /  +----------------+
+	 * | ... gap ...     |	   /   |    kasan	|
+	 * |		     |	  /    |  zero page	|
+	 * +- vmalloc area  -+	 /     |   mapping	|
+	 * | vmalloc_size    |	/      | (untracked)	|
+	 * +- modules vaddr -+ /       +----------------+
+	 * | 2Gb	     |/        |    unmapped	| allocated per module
+	 * +- shadow start  -+	       +----------------+
+	 * | 1/8 addr space  |	       | zero pg mapping| (untracked)
+	 * +- shadow end ----+---------+- shadow end ---+
 	 *
 	 * Current memory layout (KASAN_VMALLOC):
-	 * +- 0 -------------+	   +- shadow start -+
-	 * | 1:1 ram mapping |	  /| 1/8 ram	    |
-	 * |		     |	 / |		    |
-	 * +- end of ram ----+	/  +----------------+
-	 * | ... gap ...     | /   |	kasan	    |
-	 * |		     |/    |	zero	    |
-	 * +- shadow start --+	   |	page	    |
-	 * | 1/8 addr space  |	   |	mapping     |
-	 * +- shadow end    -+	   |  (untracked)   |
-	 * | ... gap ...     |\    |		    |
-	 * +- vmalloc area  -+ \   +- vmalloc area -+
-	 * | vmalloc_size    |	\  |shallow populate|
-	 * +- modules vaddr -+	 \ +- modules area -+
-	 * | 2Gb	     |	  \|shallow populate|
-	 * +-----------------+	   +- shadow end ---+
+	 * +- 0 -------------+	       +- shadow start -+
+	 * |1:1 ident mapping|	      /|1/8 of ident map|
+	 * |		     |	     / |		|
+	 * +-end of ident map+	    /  +----------------+
+	 * | ... gap ...     |	   /   | kasan zero page| (untracked)
+	 * |		     |	  /    | mapping	|
+	 * +- vmalloc area  -+	 /     +----------------+
+	 * | vmalloc_size    |	/      |shallow populate|
+	 * +- modules vaddr -+ /       +----------------+
+	 * | 2Gb	     |/        |shallow populate|
+	 * +- shadow start  -+	       +----------------+
+	 * | 1/8 addr space  |	       | zero pg mapping| (untracked)
+	 * +- shadow end ----+---------+- shadow end ---+
 	 */
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
 	kasan_early_pgtable_populate(__sha(0), __sha(memsize), POPULATE_MAP);
