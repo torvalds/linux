@@ -855,7 +855,7 @@ sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widg
 
 	total = SOF_IPC4_FW_PAGE(task_mem + queue_mem);
 
-	pipe_widget = swidget->pipe_widget;
+	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage += total;
 }
@@ -969,7 +969,7 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 	struct sof_ipc4_pipeline *pipeline;
 
 	/* reset pipeline memory usage */
-	pipe_widget = swidget->pipe_widget;
+	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage = 0;
 
@@ -1136,7 +1136,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		struct snd_sof_widget *pipe_widget;
 		struct sof_ipc4_pipeline *pipeline;
 
-		pipe_widget = swidget->pipe_widget;
+		pipe_widget = swidget->spipe->pipe_widget;
 		pipeline = pipe_widget->private;
 		ipc4_copier = (struct sof_ipc4_copier *)swidget->private;
 		gtw_attr = ipc4_copier->gtw_attr;
@@ -1495,7 +1495,7 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_pipeline *pipeline;
 	struct sof_ipc4_msg *msg;
@@ -1815,7 +1815,7 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	 * routes belonging to the same pipeline will be disconnected by the FW when the pipeline
 	 * is freed. So avoid sending this IPC which will be ignored by the FW anyway.
 	 */
-	if (src_widget->pipe_widget == sink_widget->pipe_widget)
+	if (src_widget->spipe->pipe_widget == sink_widget->spipe->pipe_widget)
 		goto out;
 
 	header = src_fw_module->man4_module_entry.id;
@@ -1846,7 +1846,7 @@ out:
 static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 			       unsigned int flags, struct snd_sof_dai_config_data *data)
 {
-	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 	struct snd_sof_dai *dai = swidget->private;
 	struct sof_ipc4_gtw_attributes *gtw_attr;

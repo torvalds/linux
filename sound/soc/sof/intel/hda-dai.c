@@ -468,7 +468,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 
 	w = snd_soc_dai_get_widget(dai, substream->stream);
 	swidget = w->dobj.private;
-	pipe_widget = swidget->pipe_widget;
+	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 
 	switch (cmd) {

@@ -31,6 +31,7 @@ static void sof_reset_route_setup_status(struct snd_sof_dev *sdev, struct snd_so
 int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
+	struct snd_sof_widget *pipe_widget;
 	int err = 0;
 	int ret;
 
@@ -42,6 +43,8 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	/* only free when use_count is 0 */
 	if (--swidget->use_count)
 		return 0;
+
+	pipe_widget = swidget->spipe->pipe_widget;
 
 	/* reset route setup status for all routes that contain this widget */
 	sof_reset_route_setup_status(sdev, swidget);
@@ -67,11 +70,14 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	 * skip for static pipelines
 	 */
 	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
-		ret = sof_widget_free(sdev, swidget->pipe_widget);
+		ret = sof_widget_free(sdev, pipe_widget);
 		if (ret < 0 && !err)
 			err = ret;
-		swidget->pipe_widget->complete = 0;
 	}
+
+	/* clear pipeline complete */
+	if (swidget->id == snd_soc_dapm_scheduler)
+		swidget->spipe->complete = 0;
 
 	if (!err)
 		dev_dbg(sdev->dev, "widget %s freed\n", swidget->widget->name);
@@ -103,14 +109,13 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	 * widget in the pipeline is freed. Skip setting up scheduler widget for static pipelines.
 	 */
 	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
-		if (!swidget->pipe_widget) {
-			dev_err(sdev->dev, "No scheduler widget set for %s\n",
-				swidget->widget->name);
+		if (!swidget->spipe || !swidget->spipe->pipe_widget) {
+			dev_err(sdev->dev, "No pipeline set for %s\n", swidget->widget->name);
 			ret = -EINVAL;
 			goto use_count_dec;
 		}
 
-		ret = sof_widget_setup(sdev, swidget->pipe_widget);
+		ret = sof_widget_setup(sdev, swidget->spipe->pipe_widget);
 		if (ret < 0)
 			goto use_count_dec;
 	}
@@ -159,7 +164,7 @@ core_put:
 	snd_sof_dsp_core_put(sdev, swidget->core);
 pipe_widget_free:
 	if (swidget->id != snd_soc_dapm_scheduler)
-		sof_widget_free(sdev, swidget->pipe_widget);
+		sof_widget_free(sdev, swidget->spipe->pipe_widget);
 use_count_dec:
 	swidget->use_count--;
 	return ret;
@@ -408,7 +413,7 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list = &spcm->stream[dir].pipeline_list;
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
 	struct snd_sof_widget *swidget = widget->dobj.private;
-	struct snd_sof_widget *pipe_widget;
+	struct snd_sof_pipeline *spipe;
 	struct snd_soc_dapm_path *p;
 	int ret;
 
@@ -420,7 +425,7 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 			return ret;
 
 		/* skip populating the pipe_widgets array if it is NULL */
-		if (!pipeline_list->pipe_widgets)
+		if (!pipeline_list->pipelines)
 			goto sink_setup;
 
 		/*
@@ -429,14 +434,14 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 		 * order source to sink.
 		 */
 		for (i = 0; i < pipeline_list->count; i++) {
-			pipe_widget = pipeline_list->pipe_widgets[i];
-			if (pipe_widget == swidget->pipe_widget)
+			spipe = pipeline_list->pipelines[i];
+			if (spipe == swidget->spipe)
 				break;
 		}
 
 		if (i == pipeline_list->count) {
 			pipeline_list->count++;
-			pipeline_list->pipe_widgets[i] = swidget->pipe_widget;
+			pipeline_list->pipelines[i] = swidget->spipe;
 		}
 	}
 
@@ -571,11 +576,20 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 	for_each_dapm_widgets(list, i, widget) {
 		struct snd_sof_widget *swidget = widget->dobj.private;
 		struct snd_sof_widget *pipe_widget;
+		struct snd_sof_pipeline *spipe;
 
 		if (!swidget)
 			continue;
 
-		pipe_widget = swidget->pipe_widget;
+		spipe = swidget->spipe;
+		if (!spipe) {
+			dev_err(sdev->dev, "no pipeline found for %s\n",
+				swidget->widget->name);
+			ret = -EINVAL;
+			goto widget_free;
+		}
+
+		pipe_widget = spipe->pipe_widget;
 		if (!pipe_widget) {
 			dev_err(sdev->dev, "error: no pipeline widget found for %s\n",
 				swidget->widget->name);
@@ -583,13 +597,13 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 			goto widget_free;
 		}
 
-		if (pipe_widget->complete)
+		if (spipe->complete)
 			continue;
 
 		if (tplg_ops && tplg_ops->pipeline_complete) {
-			pipe_widget->complete = tplg_ops->pipeline_complete(sdev, pipe_widget);
-			if (pipe_widget->complete < 0) {
-				ret = pipe_widget->complete;
+			spipe->complete = tplg_ops->pipeline_complete(sdev, pipe_widget);
+			if (spipe->complete < 0) {
+				ret = spipe->complete;
 				goto widget_free;
 			}
 		}

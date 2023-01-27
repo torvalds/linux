@@ -68,6 +68,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	struct ipc4_pipeline_set_state_data *data;
 	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
+	struct snd_sof_pipeline *spipe;
 	struct snd_sof_pcm *spcm;
 	int ret;
 	int i, j;
@@ -79,7 +80,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	pipeline_list = &spcm->stream[substream->stream].pipeline_list;
 
 	/* nothing to trigger if the list is empty */
-	if (!pipeline_list->pipe_widgets)
+	if (!pipeline_list->pipelines)
 		return 0;
 
 	/* allocate memory for the pipeline data */
@@ -96,7 +97,8 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 * sink->source would still be guaranteed for each fork independently.
 	 */
 	for (i = pipeline_list->count - 1; i >= 0; i--) {
-		pipe_widget = pipeline_list->pipe_widgets[i];
+		spipe = pipeline_list->pipelines[i];
+		pipe_widget = spipe->pipe_widget;
 		pipeline = pipe_widget->private;
 		if (pipeline->state != state && !pipeline->skip_during_fe_trigger)
 			data->pipeline_ids[data->count++] = pipe_widget->instance_id;
@@ -122,7 +124,8 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	/* update PAUSED state for all pipelines that were just triggered */
 	for (i = 0; i < data->count; i++) {
 		for (j = 0; j < pipeline_list->count; j++) {
-			pipe_widget = pipeline_list->pipe_widgets[j];
+			spipe = pipeline_list->pipelines[j];
+			pipe_widget = spipe->pipe_widget;
 			pipeline = pipe_widget->private;
 
 			if (data->pipeline_ids[i] == pipe_widget->instance_id) {
@@ -146,7 +149,8 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	/* update final state for all pipelines that were just triggered */
 	for (i = 0; i < data->count; i++) {
 		for (j = 0; j < pipeline_list->count; j++) {
-			pipe_widget = pipeline_list->pipe_widgets[j];
+			spipe = pipeline_list->pipelines[j];
+			pipe_widget = spipe->pipe_widget;
 			pipeline = pipe_widget->private;
 
 			if (data->pipeline_ids[i] == pipe_widget->instance_id) {
@@ -274,8 +278,8 @@ static void sof_ipc4_pcm_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 
 	for_each_pcm_streams(stream) {
 		pipeline_list = &spcm->stream[stream].pipeline_list;
-		kfree(pipeline_list->pipe_widgets);
-		pipeline_list->pipe_widgets = NULL;
+		kfree(pipeline_list->pipelines);
+		pipeline_list->pipelines = NULL;
 	}
 }
 
@@ -289,10 +293,9 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		pipeline_list = &spcm->stream[stream].pipeline_list;
 
 		/* allocate memory for max number of pipeline IDs */
-		pipeline_list->pipe_widgets = kcalloc(ipc4_data->max_num_pipelines,
-						      sizeof(struct snd_sof_widget *),
-						      GFP_KERNEL);
-		if (!pipeline_list->pipe_widgets) {
+		pipeline_list->pipelines = kcalloc(ipc4_data->max_num_pipelines,
+						   sizeof(struct snd_sof_widget *), GFP_KERNEL);
+		if (!pipeline_list->pipelines) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
 		}

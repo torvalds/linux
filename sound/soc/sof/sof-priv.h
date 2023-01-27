@@ -578,6 +578,7 @@ struct snd_sof_dev {
 	struct list_head pcm_list;
 	struct list_head kcontrol_list;
 	struct list_head widget_list;
+	struct list_head pipeline_list;
 	struct list_head dai_list;
 	struct list_head dai_link_list;
 	struct list_head route_list;
