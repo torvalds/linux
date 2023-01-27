@@ -4370,12 +4370,12 @@ static int __init amd64_edac_init(void)
 	}
 
 	/* register stuff with EDAC MCE */
-	if (boot_cpu_data.x86 >= 0x17)
+	if (boot_cpu_data.x86 >= 0x17) {
 		amd_register_ecc_decoder(decode_umc_error);
-	else
+	} else {
 		amd_register_ecc_decoder(decode_bus_error);
-
-	setup_pci_device();
+		setup_pci_device();
+	}
 
 #ifdef CONFIG_X86_32
 	amd64_err("%s on 32-bit is unsupported. USE AT YOUR OWN RISK!\n", EDAC_MOD_STR);
