@@ -307,7 +307,7 @@ sysfs path: ``/sys/bus/hid/devices/xxxx:yyyy:zzzz:0000``)
 
 We can not rely on hidraw to bind a BPF program to a HID device. hidraw is an
 artefact of the processing of the HID device, and is not stable. Some drivers
-even disable it, so that removes the tracing capabilies on those devices
+even disable it, so that removes the tracing capabilities on those devices
 (where it is interesting to get the non-hidraw traces).
 
 On the other hand, the ``hid_id`` is stable for the entire life of the HID device,
