@@ -551,8 +551,7 @@ config HW_RANDOM_CN10K
 
 config HW_RANDOM_JH7110
 	tristate "StarFive JH7110 Random Number Generator support"
-	depends on SOC_STARFIVE
-	depends on HW_RANDOM
+	depends on SOC_STARFIVE || COMPILE_TEST
 	help
 	  This driver provides support for the True Random Number
 	  Generator in StarFive JH7110 SoCs.
