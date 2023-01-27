@@ -183,7 +183,6 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct sof_ipc4_copier *ipc4_copier;
-	struct snd_soc_dpcm *dpcm;
 
 	if (!dai) {
 		dev_err(component->dev, "%s: No DAI found with name %s\n", __func__,
@@ -204,17 +203,6 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	rate->min = ipc4_copier->available_fmt.base_config->audio_fmt.sampling_frequency;
 	rate->max = rate->min;
-
-	/*
-	 * Set trigger order for capture to SND_SOC_DPCM_TRIGGER_PRE. This is required
-	 * to ensure that the BE DAI pipeline gets stopped/suspended before the FE DAI
-	 * pipeline gets triggered and the pipeline widgets are freed.
-	 */
-	for_each_dpcm_fe(rtd, SNDRV_PCM_STREAM_CAPTURE, dpcm) {
-		struct snd_soc_pcm_runtime *fe = dpcm->fe;
-
-		fe->dai_link->trigger[SNDRV_PCM_STREAM_CAPTURE] = SND_SOC_DPCM_TRIGGER_PRE;
-	}
 
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_SSP:

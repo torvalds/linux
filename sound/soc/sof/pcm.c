@@ -282,7 +282,6 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	const struct sof_ipc_pcm_ops *pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	struct snd_sof_pcm *spcm;
 	bool reset_hw_params = false;
-	bool free_widget_list = false;
 	bool ipc_first = false;
 	int ret = 0;
 
@@ -326,7 +325,6 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = true;
 			return 0;
 		}
-		free_widget_list = true;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		ipc_first = true;
@@ -353,8 +351,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
 	if (!ret && reset_hw_params)
-		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream,
-					  free_widget_list);
+		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream, false);
 
 	return ret;
 }

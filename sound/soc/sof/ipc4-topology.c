@@ -2025,7 +2025,7 @@ static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 		for_each_pcm_streams(dir) {
 			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
 
-			if (!substream || !substream->runtime)
+			if (!substream || !substream->runtime || spcm->stream[dir].suspend_ignored)
 				continue;
 
 			if (spcm->stream[dir].list) {
