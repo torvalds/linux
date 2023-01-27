@@ -1256,13 +1256,25 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
  * Determine if the DIMMs have ECC enabled. ECC is enabled ONLY if all the DIMMs
  * are ECC capable.
  */
-static unsigned long determine_edac_cap(struct amd64_pvt *pvt)
+static unsigned long dct_determine_edac_cap(struct amd64_pvt *pvt)
 {
 	unsigned long edac_cap = EDAC_FLAG_NONE;
 	u8 bit;
 
-	if (pvt->umc) {
-		u8 i, umc_en_mask = 0, dimm_ecc_en_mask = 0;
+	bit = (pvt->fam > 0xf || pvt->ext_model >= K8_REV_F)
+		? 19
+		: 17;
+
+	if (pvt->dclr0 & BIT(bit))
+		edac_cap = EDAC_FLAG_SECDED;
+
+	return edac_cap;
+}
+
+static unsigned long umc_determine_edac_cap(struct amd64_pvt *pvt)
+{
+	u8 i, umc_en_mask = 0, dimm_ecc_en_mask = 0;
+	unsigned long edac_cap = EDAC_FLAG_NONE;
 
 		for_each_umc(i) {
 			if (!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT))
@@ -1277,14 +1289,6 @@ static unsigned long determine_edac_cap(struct amd64_pvt *pvt)
 
 		if (umc_en_mask == dimm_ecc_en_mask)
 			edac_cap = EDAC_FLAG_SECDED;
-	} else {
-		bit = (pvt->fam > 0xf || pvt->ext_model >= K8_REV_F)
-			? 19
-			: 17;
-
-		if (pvt->dclr0 & BIT(bit))
-			edac_cap = EDAC_FLAG_SECDED;
-	}
 
 	return edac_cap;
 }
@@ -3629,7 +3633,7 @@ static void dct_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	if (pvt->nbcap & NBCAP_CHIPKILL)
 		mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
 
-	mci->edac_cap		= determine_edac_cap(pvt);
+	mci->edac_cap		= dct_determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
 	mci->ctl_name		= pvt->ctl_name;
 	mci->dev_name		= pci_name(pvt->F3);
@@ -3649,7 +3653,7 @@ static void umc_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 
 	umc_determine_edac_ctl_cap(mci, pvt);
 
-	mci->edac_cap		= determine_edac_cap(pvt);
+	mci->edac_cap		= umc_determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
 	mci->ctl_name		= pvt->ctl_name;
 	mci->dev_name		= pci_name(pvt->F3);
