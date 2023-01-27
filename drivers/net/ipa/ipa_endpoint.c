@@ -34,41 +34,181 @@
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
 
-/** enum ipa_status_opcode - status element opcode hardware values */
-enum ipa_status_opcode {
-	IPA_STATUS_OPCODE_PACKET		= 0x01,
-	IPA_STATUS_OPCODE_DROPPED_PACKET	= 0x04,
-	IPA_STATUS_OPCODE_SUSPENDED_PACKET	= 0x08,
-	IPA_STATUS_OPCODE_PACKET_2ND_PASS	= 0x40,
+/** enum ipa_status_opcode - IPA status opcode field hardware values */
+enum ipa_status_opcode {				/* *Not* a bitmask */
+	IPA_STATUS_OPCODE_PACKET		= 1,
+	IPA_STATUS_OPCODE_NEW_RULE_PACKET	= 2,
+	IPA_STATUS_OPCODE_DROPPED_PACKET	= 4,
+	IPA_STATUS_OPCODE_SUSPENDED_PACKET	= 8,
+	IPA_STATUS_OPCODE_LOG			= 16,
+	IPA_STATUS_OPCODE_DCMP			= 32,
+	IPA_STATUS_OPCODE_PACKET_2ND_PASS	= 64,
 };
 
-/** enum ipa_status_exception - status element exception type */
-enum ipa_status_exception {
+/** enum ipa_status_exception - IPA status exception field hardware values */
+enum ipa_status_exception {				/* *Not* a bitmask */
 	/* 0 means no exception */
-	IPA_STATUS_EXCEPTION_DEAGGR		= 0x01,
+	IPA_STATUS_EXCEPTION_DEAGGR		= 1,
+	IPA_STATUS_EXCEPTION_IPTYPE		= 4,
+	IPA_STATUS_EXCEPTION_PACKET_LENGTH	= 8,
+	IPA_STATUS_EXCEPTION_FRAG_RULE_MISS	= 16,
+	IPA_STATUS_EXCEPTION_SW_FILTER		= 32,
+	IPA_STATUS_EXCEPTION_NAT		= 64,		/* IPv4 */
+	IPA_STATUS_EXCEPTION_IPV6_CONN_TRACK	= 64,		/* IPv6 */
+	IPA_STATUS_EXCEPTION_UC			= 128,
+	IPA_STATUS_EXCEPTION_INVALID_ENDPOINT	= 129,
+	IPA_STATUS_EXCEPTION_HEADER_INSERT	= 136,
+	IPA_STATUS_EXCEPTION_CHEKCSUM		= 229,
 };
 
-/* Status element provided by hardware */
-struct ipa_status {
-	u8 opcode;		/* enum ipa_status_opcode */
-	u8 exception;		/* enum ipa_status_exception */
-	__le16 mask;
-	__le16 pkt_len;
-	u8 endp_src_idx;
-	u8 endp_dst_idx;
-	__le32 metadata;
-	__le32 flags1;
-	__le64 flags2;
-	__le32 flags3;
-	__le32 flags4;
+/** enum ipa_status_mask - IPA status mask field bitmask hardware values */
+enum ipa_status_mask {
+	IPA_STATUS_MASK_FRAG_PROCESS		= BIT(0),
+	IPA_STATUS_MASK_FILT_PROCESS		= BIT(1),
+	IPA_STATUS_MASK_NAT_PROCESS		= BIT(2),
+	IPA_STATUS_MASK_ROUTE_PROCESS		= BIT(3),
+	IPA_STATUS_MASK_TAG_VALID		= BIT(4),
+	IPA_STATUS_MASK_FRAGMENT		= BIT(5),
+	IPA_STATUS_MASK_FIRST_FRAGMENT		= BIT(6),
+	IPA_STATUS_MASK_V4			= BIT(7),
+	IPA_STATUS_MASK_CKSUM_PROCESS		= BIT(8),
+	IPA_STATUS_MASK_AGGR_PROCESS		= BIT(9),
+	IPA_STATUS_MASK_DEST_EOT		= BIT(10),
+	IPA_STATUS_MASK_DEAGGR_PROCESS		= BIT(11),
+	IPA_STATUS_MASK_DEAGG_FIRST		= BIT(12),
+	IPA_STATUS_MASK_SRC_EOT			= BIT(13),
+	IPA_STATUS_MASK_PREV_EOT		= BIT(14),
+	IPA_STATUS_MASK_BYTE_LIMIT		= BIT(15),
 };
 
-/* Field masks for struct ipa_status structure fields */
-#define IPA_STATUS_MASK_TAG_VALID_FMASK		GENMASK(4, 4)
-#define IPA_STATUS_SRC_IDX_FMASK		GENMASK(4, 0)
-#define IPA_STATUS_DST_IDX_FMASK		GENMASK(4, 0)
-#define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
-#define IPA_STATUS_FLAGS2_TAG_FMASK		GENMASK_ULL(63, 16)
+/* Special IPA filter/router rule field value indicating "rule miss" */
+#define IPA_STATUS_RULE_MISS	0x3ff	/* 10-bit filter/router rule fields */
+
+/** The IPA status nat_type field uses enum ipa_nat_type hardware values */
+
+/* enum ipa_status_field_id - IPA packet status structure field identifiers */
+enum ipa_status_field_id {
+	STATUS_OPCODE,			/* enum ipa_status_opcode */
+	STATUS_EXCEPTION,		/* enum ipa_status_exception */
+	STATUS_MASK,			/* enum ipa_status_mask (bitmask) */
+	STATUS_LENGTH,
+	STATUS_SRC_ENDPOINT,
+	STATUS_DST_ENDPOINT,
+	STATUS_METADATA,
+	STATUS_FILTER_LOCAL,		/* Boolean */
+	STATUS_FILTER_HASH,		/* Boolean */
+	STATUS_FILTER_GLOBAL,		/* Boolean */
+	STATUS_FILTER_RETAIN,		/* Boolean */
+	STATUS_FILTER_RULE_INDEX,
+	STATUS_ROUTER_LOCAL,		/* Boolean */
+	STATUS_ROUTER_HASH,		/* Boolean */
+	STATUS_UCP,			/* Boolean */
+	STATUS_ROUTER_TABLE,
+	STATUS_ROUTER_RULE_INDEX,
+	STATUS_NAT_HIT,			/* Boolean */
+	STATUS_NAT_INDEX,
+	STATUS_NAT_TYPE,		/* enum ipa_nat_type */
+	STATUS_TAG_LOW32,		/* Low-order 32 bits of 48-bit tag */
+	STATUS_TAG_HIGH16,		/* High-order 16 bits of 48-bit tag */
+	STATUS_SEQUENCE,
+	STATUS_TIME_OF_DAY,
+	STATUS_HEADER_LOCAL,		/* Boolean */
+	STATUS_HEADER_OFFSET,
+	STATUS_FRAG_HIT,		/* Boolean */
+	STATUS_FRAG_RULE_INDEX,
+};
+
+/* Size in bytes of an IPA packet status structure */
+#define IPA_STATUS_SIZE			sizeof(__le32[4])
+
+/* IPA status structure decoder; looks up field values for a structure */
+static u32 ipa_status_extract(struct ipa *ipa, const void *data,
+			      enum ipa_status_field_id field)
+{
+	enum ipa_version version = ipa->version;
+	const __le32 *word = data;
+
+	switch (field) {
+	case STATUS_OPCODE:
+		return le32_get_bits(word[0], GENMASK(7, 0));
+	case STATUS_EXCEPTION:
+		return le32_get_bits(word[0], GENMASK(15, 8));
+	case STATUS_MASK:
+		return le32_get_bits(word[0], GENMASK(31, 16));
+	case STATUS_LENGTH:
+		return le32_get_bits(word[1], GENMASK(15, 0));
+	case STATUS_SRC_ENDPOINT:
+		if (version < IPA_VERSION_5_0)
+			return le32_get_bits(word[1], GENMASK(20, 16));
+		return le32_get_bits(word[1], GENMASK(23, 16));
+	/* Status word 1, bits 21-23 are reserved (not IPA v5.0+) */
+	/* Status word 1, bits 24-26 are reserved (IPA v5.0+) */
+	case STATUS_DST_ENDPOINT:
+		if (version < IPA_VERSION_5_0)
+			return le32_get_bits(word[1], GENMASK(28, 24));
+		return le32_get_bits(word[7], GENMASK(23, 16));
+	/* Status word 1, bits 29-31 are reserved */
+	case STATUS_METADATA:
+		return le32_to_cpu(word[2]);
+	case STATUS_FILTER_LOCAL:
+		return le32_get_bits(word[3], GENMASK(0, 0));
+	case STATUS_FILTER_HASH:
+		return le32_get_bits(word[3], GENMASK(1, 1));
+	case STATUS_FILTER_GLOBAL:
+		return le32_get_bits(word[3], GENMASK(2, 2));
+	case STATUS_FILTER_RETAIN:
+		return le32_get_bits(word[3], GENMASK(3, 3));
+	case STATUS_FILTER_RULE_INDEX:
+		return le32_get_bits(word[3], GENMASK(13, 4));
+	/* ROUTER_TABLE is in word 3, bits 14-21 (IPA v5.0+) */
+	case STATUS_ROUTER_LOCAL:
+		if (version < IPA_VERSION_5_0)
+			return le32_get_bits(word[3], GENMASK(14, 14));
+		return le32_get_bits(word[1], GENMASK(27, 27));
+	case STATUS_ROUTER_HASH:
+		if (version < IPA_VERSION_5_0)
+			return le32_get_bits(word[3], GENMASK(15, 15));
+		return le32_get_bits(word[1], GENMASK(28, 28));
+	case STATUS_UCP:
+		if (version < IPA_VERSION_5_0)
+			return le32_get_bits(word[3], GENMASK(16, 16));
+		return le32_get_bits(word[7], GENMASK(31, 31));
+	case STATUS_ROUTER_TABLE:
+		if (version < IPA_VERSION_5_0)
+			return le32_get_bits(word[3], GENMASK(21, 17));
+		return le32_get_bits(word[3], GENMASK(21, 14));
+	case STATUS_ROUTER_RULE_INDEX:
+		return le32_get_bits(word[3], GENMASK(31, 22));
+	case STATUS_NAT_HIT:
+		return le32_get_bits(word[4], GENMASK(0, 0));
+	case STATUS_NAT_INDEX:
+		return le32_get_bits(word[4], GENMASK(13, 1));
+	case STATUS_NAT_TYPE:
+		return le32_get_bits(word[4], GENMASK(15, 14));
+	case STATUS_TAG_LOW32:
+		return le32_get_bits(word[4], GENMASK(31, 16)) |
+			(le32_get_bits(word[5], GENMASK(15, 0)) << 16);
+	case STATUS_TAG_HIGH16:
+		return le32_get_bits(word[5], GENMASK(31, 16));
+	case STATUS_SEQUENCE:
+		return le32_get_bits(word[6], GENMASK(7, 0));
+	case STATUS_TIME_OF_DAY:
+		return le32_get_bits(word[6], GENMASK(31, 8));
+	case STATUS_HEADER_LOCAL:
+		return le32_get_bits(word[7], GENMASK(0, 0));
+	case STATUS_HEADER_OFFSET:
+		return le32_get_bits(word[7], GENMASK(10, 1));
+	case STATUS_FRAG_HIT:
+		return le32_get_bits(word[7], GENMASK(11, 11));
+	case STATUS_FRAG_RULE_INDEX:
+		return le32_get_bits(word[7], GENMASK(15, 12));
+	/* Status word 7, bits 16-30 are reserved */
+	/* Status word 7, bit 31 is reserved (not IPA v5.0+) */
+	default:
+		WARN(true, "%s: bad field_id %u\n", __func__, field);
+		return 0;
+	}
+}
 
 /* Compute the aggregation size value to use for a given buffer size */
 static u32 ipa_aggr_size_kb(u32 rx_buffer_size, bool aggr_hard_limit)
@@ -548,7 +688,7 @@ static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
 		return;
 
 	reg = ipa_reg(ipa, ENDP_INIT_NAT);
-	val = ipa_reg_encode(reg, NAT_EN, IPA_NAT_BYPASS);
+	val = ipa_reg_encode(reg, NAT_EN, IPA_NAT_TYPE_BYPASS);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));
 }
@@ -1145,8 +1285,8 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 			val |= ipa_reg_encode(reg, STATUS_ENDP,
 					      status_endpoint_id);
 		}
-		/* STATUS_LOCATION is 0, meaning status element precedes
-		 * packet (not present for IPA v4.5+)
+		/* STATUS_LOCATION is 0, meaning IPA packet status
+		 * precedes the packet (not present for IPA v4.5+)
 		 */
 		/* STATUS_PKT_SUPPRESS_FMASK is 0 (not present for v4.0+) */
 	}
@@ -1302,8 +1442,8 @@ static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
 	return skb != NULL;
 }
 
-/* The format of a packet status element is the same for several status
- * types (opcodes).  Other types aren't currently supported.
+ /* The format of an IPA packet status structure is the same for several
+  * status types (opcodes).  Other types aren't currently supported.
  */
 static bool ipa_status_format_packet(enum ipa_status_opcode opcode)
 {
@@ -1318,31 +1458,34 @@ static bool ipa_status_format_packet(enum ipa_status_opcode opcode)
 	}
 }
 
-static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
-				     const struct ipa_status *status)
+static bool
+ipa_endpoint_status_skip(struct ipa_endpoint *endpoint, const void *data)
 {
+	struct ipa *ipa = endpoint->ipa;
+	enum ipa_status_opcode opcode;
 	u32 endpoint_id;
 
-	if (!ipa_status_format_packet(status->opcode))
+	opcode = ipa_status_extract(ipa, data, STATUS_OPCODE);
+	if (!ipa_status_format_packet(opcode))
 		return true;
-	if (!status->pkt_len)
-		return true;
-	endpoint_id = u8_get_bits(status->endp_dst_idx,
-				  IPA_STATUS_DST_IDX_FMASK);
+
+	endpoint_id = ipa_status_extract(ipa, data, STATUS_DST_ENDPOINT);
 	if (endpoint_id != endpoint->endpoint_id)
 		return true;
 
 	return false;	/* Don't skip this packet, process it */
 }
 
-static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
-				    const struct ipa_status *status)
+static bool
+ipa_endpoint_status_tag_valid(struct ipa_endpoint *endpoint, const void *data)
 {
 	struct ipa_endpoint *command_endpoint;
+	enum ipa_status_mask status_mask;
 	struct ipa *ipa = endpoint->ipa;
 	u32 endpoint_id;
 
-	if (!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID_FMASK))
+	status_mask = ipa_status_extract(ipa, data, STATUS_MASK);
+	if (!status_mask)
 		return false;	/* No valid tag */
 
 	/* The status contains a valid tag.  We know the packet was sent to
@@ -1350,8 +1493,7 @@ static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
 	 * If the packet came from the AP->command TX endpoint we know
 	 * this packet was sent as part of the pipeline clear process.
 	 */
-	endpoint_id = u8_get_bits(status->endp_src_idx,
-				  IPA_STATUS_SRC_IDX_FMASK);
+	endpoint_id = ipa_status_extract(ipa, data, STATUS_SRC_ENDPOINT);
 	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 	if (endpoint_id == command_endpoint->endpoint_id) {
 		complete(&ipa->completion);
@@ -1365,23 +1507,26 @@ static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
 }
 
 /* Return whether the status indicates the packet should be dropped */
-static bool ipa_endpoint_status_drop(struct ipa_endpoint *endpoint,
-				     const struct ipa_status *status)
+static bool
+ipa_endpoint_status_drop(struct ipa_endpoint *endpoint, const void *data)
 {
-	u32 val;
+	enum ipa_status_exception exception;
+	struct ipa *ipa = endpoint->ipa;
+	u32 rule;
 
 	/* If the status indicates a tagged transfer, we'll drop the packet */
-	if (ipa_endpoint_status_tag(endpoint, status))
+	if (ipa_endpoint_status_tag_valid(endpoint, data))
 		return true;
 
 	/* Deaggregation exceptions we drop; all other types we consume */
-	if (status->exception)
-		return status->exception == IPA_STATUS_EXCEPTION_DEAGGR;
+	exception = ipa_status_extract(ipa, data, STATUS_EXCEPTION);
+	if (exception)
+		return exception == IPA_STATUS_EXCEPTION_DEAGGR;
 
 	/* Drop the packet if it fails to match a routing rule; otherwise no */
-	val = le32_get_bits(status->flags1, IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK);
+	rule = ipa_status_extract(ipa, data, STATUS_ROUTER_RULE_INDEX);
 
-	return val == field_max(IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK);
+	return rule == IPA_STATUS_RULE_MISS;
 }
 
 static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
@@ -1390,47 +1535,46 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 	u32 buffer_size = endpoint->config.rx.buffer_size;
 	void *data = page_address(page) + NET_SKB_PAD;
 	u32 unused = buffer_size - total_len;
+	struct ipa *ipa = endpoint->ipa;
 	u32 resid = total_len;
 
 	while (resid) {
-		const struct ipa_status *status = data;
+		u32 length;
 		u32 align;
 		u32 len;
 
-		if (resid < sizeof(*status)) {
+		if (resid < IPA_STATUS_SIZE) {
 			dev_err(&endpoint->ipa->pdev->dev,
 				"short message (%u bytes < %zu byte status)\n",
-				resid, sizeof(*status));
+				resid, IPA_STATUS_SIZE);
 			break;
 		}
 
 		/* Skip over status packets that lack packet data */
-		if (ipa_endpoint_status_skip(endpoint, status)) {
-			data += sizeof(*status);
-			resid -= sizeof(*status);
+		length = ipa_status_extract(ipa, data, STATUS_LENGTH);
+		if (!length || ipa_endpoint_status_skip(endpoint, data)) {
+			data += IPA_STATUS_SIZE;
+			resid -= IPA_STATUS_SIZE;
 			continue;
 		}
 
 		/* Compute the amount of buffer space consumed by the packet,
-		 * including the status element.  If the hardware is configured
-		 * to pad packet data to an aligned boundary, account for that.
+		 * including the status.  If the hardware is configured to
+		 * pad packet data to an aligned boundary, account for that.
 		 * And if checksum offload is enabled a trailer containing
 		 * computed checksum information will be appended.
 		 */
 		align = endpoint->config.rx.pad_align ? : 1;
-		len = le16_to_cpu(status->pkt_len);
-		len = sizeof(*status) + ALIGN(len, align);
+		len = IPA_STATUS_SIZE + ALIGN(length, align);
 		if (endpoint->config.checksum)
 			len += sizeof(struct rmnet_map_dl_csum_trailer);
 
-		if (!ipa_endpoint_status_drop(endpoint, status)) {
+		if (!ipa_endpoint_status_drop(endpoint, data)) {
 			void *data2;
 			u32 extra;
-			u32 len2;
 
 			/* Client receives only packet data (no status) */
-			data2 = data + sizeof(*status);
-			len2 = le16_to_cpu(status->pkt_len);
+			data2 = data + IPA_STATUS_SIZE;
 
 			/* Have the true size reflect the extra unused space in
 			 * the original receive buffer.  Distribute the "cost"
@@ -1438,7 +1582,7 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 			 * buffer.
 			 */
 			extra = DIV_ROUND_CLOSEST(unused * len, total_len);
-			ipa_endpoint_skb_copy(endpoint, data2, len2, extra);
+			ipa_endpoint_skb_copy(endpoint, data2, length, extra);
 		}
 
 		/* Consume status and the full packet it describes */
