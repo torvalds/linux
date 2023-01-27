@@ -1417,10 +1417,12 @@ void io_req_task_submit(struct io_kiocb *req, bool *locked)
 {
 	io_tw_lock(req->ctx, locked);
 	/* req->task == current here, checking PF_EXITING is safe */
-	if (likely(!(req->task->flags & PF_EXITING)))
-		io_queue_sqe(req);
-	else
+	if (unlikely(req->task->flags & PF_EXITING))
 		io_req_defer_failed(req, -EFAULT);
+	else if (req->flags & REQ_F_FORCE_ASYNC)
+		io_queue_iowq(req, locked);
+	else
+		io_queue_sqe(req);
 }
 
 void io_req_task_queue_fail(struct io_kiocb *req, int ret)
