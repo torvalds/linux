@@ -68,6 +68,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L45_I2C
 	imply SND_SOC_CS35L45_SPI
 	imply SND_SOC_CS42L42
+	imply SND_SOC_CS42L42_SDW
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
 	imply SND_SOC_CS42L56
@@ -703,6 +704,13 @@ config SND_SOC_CS42L42
 	select REGMAP
 	select REGMAP_I2C
 	select SND_SOC_CS42L42_CORE
+
+config SND_SOC_CS42L42_SDW
+	tristate "Cirrus Logic CS42L42 CODEC on Soundwire"
+	depends on SOUNDWIRE
+	select SND_SOC_CS42L42_CORE
+	help
+	  Enable support for Cirrus Logic CS42L42 codec with Soundwire control
 
 config SND_SOC_CS42L51
 	tristate

@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/soundwire/sdw.h>
 #include <sound/jack.h>
 #include <sound/cs42l42.h>
 #include <sound/soc-component.h>
@@ -30,11 +31,13 @@ struct  cs42l42_private {
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
+	struct sdw_slave *sdw_peripheral;
 	struct mutex irq_lock;
 	int devid;
 	int irq;
 	int pll_config;
 	u32 sclk;
+	u32 sample_rate;
 	u32 bclk_ratio;
 	u8 plug_state;
 	u8 hs_type;

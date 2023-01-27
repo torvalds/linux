@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
@@ -525,6 +526,10 @@ static const struct snd_soc_dapm_widget cs42l42_dapm_widgets[] = {
 
 	/* Playback/Capture Requirements */
 	SND_SOC_DAPM_SUPPLY("SCLK", CS42L42_ASP_CLK_CFG, CS42L42_ASP_SCLK_EN_SHIFT, 0, NULL, 0),
+
+	/* Soundwire SRC power control */
+	SND_SOC_DAPM_PGA("DACSRC", CS42L42_PWR_CTL2, CS42L42_DAC_SRC_PDNB_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ADCSRC", CS42L42_PWR_CTL2, CS42L42_ADC_SRC_PDNB_SHIFT, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route cs42l42_audio_map[] = {
@@ -1660,9 +1665,11 @@ irqreturn_t cs42l42_irq_thread(int irq, void *data)
 	unsigned int current_button_status;
 	unsigned int i;
 
+	pm_runtime_get_sync(cs42l42->dev);
 	mutex_lock(&cs42l42->irq_lock);
 	if (cs42l42->suspended || !cs42l42->init_done) {
 		mutex_unlock(&cs42l42->irq_lock);
+		pm_runtime_put_autosuspend(cs42l42->dev);
 		return IRQ_NONE;
 	}
 
@@ -1765,6 +1772,8 @@ irqreturn_t cs42l42_irq_thread(int irq, void *data)
 	}
 
 	mutex_unlock(&cs42l42->irq_lock);
+	pm_runtime_mark_last_busy(cs42l42->dev);
+	pm_runtime_put_autosuspend(cs42l42->dev);
 
 	return IRQ_HANDLED;
 }
@@ -2144,6 +2153,9 @@ int cs42l42_suspend(struct device *dev)
 	u8 save_regs[ARRAY_SIZE(cs42l42_shutdown_seq)];
 	int i, ret;
 
+	if (!cs42l42->init_done)
+		return 0;
+
 	/*
 	 * Wait for threaded irq handler to be idle and stop it processing
 	 * future interrupts. This ensures a safe disable if the interrupt
@@ -2203,6 +2215,9 @@ int cs42l42_resume(struct device *dev)
 {
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(dev);
 	int ret;
+
+	if (!cs42l42->init_done)
+		return 0;
 
 	/*
 	 * If jack was unplugged and re-plugged during suspend it could
@@ -2387,6 +2402,18 @@ int cs42l42_init(struct cs42l42_private *cs42l42)
 	ret = cs42l42_handle_device_data(cs42l42->dev, cs42l42);
 	if (ret != 0)
 		goto err_shutdown;
+
+	/*
+	 * SRC power is linked to ASP power so doesn't work in Soundwire mode.
+	 * Override it and use DAPM to control SRC power for Soundwire.
+	 */
+	if (cs42l42->sdw_peripheral) {
+		regmap_update_bits(cs42l42->regmap, CS42L42_PWR_CTL2,
+				   CS42L42_SRC_PDN_OVERRIDE_MASK |
+				   CS42L42_DAC_SRC_PDNB_MASK |
+				   CS42L42_ADC_SRC_PDNB_MASK,
+				   CS42L42_SRC_PDN_OVERRIDE_MASK);
+	}
 
 	/* Setup headset detection */
 	cs42l42_setup_hs_type_detect(cs42l42);
