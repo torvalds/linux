@@ -359,8 +359,8 @@ static void soc_tplg_remove_kcontrol(struct snd_soc_component *comp, struct snd_
 	if (pass != SOC_TPLG_PASS_CONTROL)
 		return;
 
-	if (dobj->ops && dobj->ops->control_unload)
-		dobj->ops->control_unload(comp, dobj);
+	if (dobj->unload)
+		dobj->unload(comp, dobj);
 
 	snd_ctl_remove(card, dobj->control.kcontrol);
 	list_del(&dobj->list);
@@ -373,8 +373,8 @@ static void soc_tplg_remove_route(struct snd_soc_component *comp,
 	if (pass != SOC_TPLG_PASS_GRAPH)
 		return;
 
-	if (dobj->ops && dobj->ops->dapm_route_unload)
-		dobj->ops->dapm_route_unload(comp, dobj);
+	if (dobj->unload)
+		dobj->unload(comp, dobj);
 
 	list_del(&dobj->list);
 }
@@ -391,8 +391,8 @@ static void soc_tplg_remove_widget(struct snd_soc_component *comp,
 	if (pass != SOC_TPLG_PASS_WIDGET)
 		return;
 
-	if (dobj->ops && dobj->ops->widget_unload)
-		dobj->ops->widget_unload(comp, dobj);
+	if (dobj->unload)
+		dobj->unload(comp, dobj);
 
 	if (!w->kcontrols)
 		goto free_news;
@@ -418,8 +418,8 @@ static void soc_tplg_remove_dai(struct snd_soc_component *comp,
 	if (pass != SOC_TPLG_PASS_PCM_DAI)
 		return;
 
-	if (dobj->ops && dobj->ops->dai_unload)
-		dobj->ops->dai_unload(comp, dobj);
+	if (dobj->unload)
+		dobj->unload(comp, dobj);
 
 	for_each_component_dais_safe(comp, dai, _dai)
 		if (dai->driver == dai_drv)
@@ -438,8 +438,8 @@ static void soc_tplg_remove_link(struct snd_soc_component *comp,
 	if (pass != SOC_TPLG_PASS_PCM_DAI)
 		return;
 
-	if (dobj->ops && dobj->ops->link_unload)
-		dobj->ops->link_unload(comp, dobj);
+	if (dobj->unload)
+		dobj->unload(comp, dobj);
 
 	list_del(&dobj->list);
 	snd_soc_remove_pcm_runtime(comp->card,
@@ -453,8 +453,8 @@ static void remove_backend_link(struct snd_soc_component *comp,
 	if (pass != SOC_TPLG_PASS_LINK)
 		return;
 
-	if (dobj->ops && dobj->ops->link_unload)
-		dobj->ops->link_unload(comp, dobj);
+	if (dobj->unload)
+		dobj->unload(comp, dobj);
 
 	/*
 	 * We don't free the link here as what soc_tplg_remove_link() do since BE
@@ -678,7 +678,8 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 
 	sbe->max = le32_to_cpu(be->max);
 	sbe->dobj.type = SND_SOC_DOBJ_BYTES;
-	sbe->dobj.ops = tplg->ops;
+	if (tplg->ops)
+		sbe->dobj.unload = tplg->ops->control_unload;
 	INIT_LIST_HEAD(&sbe->dobj.list);
 
 	/* map io handlers */
@@ -754,8 +755,9 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 	sm->invert = le32_to_cpu(mc->invert);
 	sm->platform_max = le32_to_cpu(mc->platform_max);
 	sm->dobj.index = tplg->index;
-	sm->dobj.ops = tplg->ops;
 	sm->dobj.type = SND_SOC_DOBJ_MIXER;
+	if (tplg->ops)
+		sm->dobj.unload = tplg->ops->control_unload;
 	INIT_LIST_HEAD(&sm->dobj.list);
 
 	/* map io handlers */
@@ -900,7 +902,8 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 	se->mask = le32_to_cpu(ec->mask);
 	se->dobj.index = tplg->index;
 	se->dobj.type = SND_SOC_DOBJ_ENUM;
-	se->dobj.ops = tplg->ops;
+	if (tplg->ops)
+		se->dobj.unload = tplg->ops->control_unload;
 	INIT_LIST_HEAD(&se->dobj.list);
 
 	switch (le32_to_cpu(ec->hdr.ops.info)) {
@@ -1077,7 +1080,8 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 
 		/* add route dobj to dobj_list */
 		route->dobj.type = SND_SOC_DOBJ_GRAPH;
-		route->dobj.ops = tplg->ops;
+		if (tplg->ops)
+			route->dobj.unload = tplg->ops->control_unload;
 		route->dobj.index = tplg->index;
 		list_add(&route->dobj.list, &tplg->comp->dobj_list);
 
@@ -1443,7 +1447,8 @@ widget:
 
 	widget->dobj.type = SND_SOC_DOBJ_WIDGET;
 	widget->dobj.widget.kcontrol_type = kcontrol_type;
-	widget->dobj.ops = tplg->ops;
+	if (tplg->ops)
+		widget->dobj.unload = tplg->ops->widget_unload;
 	widget->dobj.index = tplg->index;
 	list_add(&widget->dobj.list, &tplg->comp->dobj_list);
 
@@ -1621,8 +1626,9 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	}
 
 	dai_drv->dobj.index = tplg->index;
-	dai_drv->dobj.ops = tplg->ops;
 	dai_drv->dobj.type = SND_SOC_DOBJ_PCM;
+	if (tplg->ops)
+		dai_drv->dobj.unload = tplg->ops->dai_unload;
 	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
 
 	/* register the DAI to the component */
@@ -1691,8 +1697,9 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	link->num_platforms = 1;
 
 	link->dobj.index = tplg->index;
-	link->dobj.ops = tplg->ops;
 	link->dobj.type = SND_SOC_DOBJ_DAI_LINK;
+	if (tplg->ops)
+		link->dobj.unload = tplg->ops->link_unload;
 
 	if (strlen(pcm->pcm_name)) {
 		link->name = devm_kstrdup(tplg->dev, pcm->pcm_name, GFP_KERNEL);
@@ -2099,8 +2106,9 @@ static int soc_tplg_link_config(struct soc_tplg *tplg,
 
 	/* for unloading it in snd_soc_tplg_component_remove */
 	link->dobj.index = tplg->index;
-	link->dobj.ops = tplg->ops;
 	link->dobj.type = SND_SOC_DOBJ_BACKEND_LINK;
+	if (tplg->ops)
+		link->dobj.unload = tplg->ops->link_unload;
 	list_add(&link->dobj.list, &tplg->comp->dobj_list);
 
 	return 0;
