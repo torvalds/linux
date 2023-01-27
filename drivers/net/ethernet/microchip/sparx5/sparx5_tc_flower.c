@@ -266,6 +266,14 @@ sparx5_tc_flower_handler_basic_usage(struct sparx5_tc_flower_parse_usage *st)
 						    VCAP_BIT_0);
 			if (err)
 				goto out;
+			if (st->admin->vtype == VCAP_TYPE_IS0) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_IP_SNAP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
+
 		}
 	}
 
