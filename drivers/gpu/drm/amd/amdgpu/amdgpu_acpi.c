@@ -38,6 +38,43 @@
 #include "amd_acpi.h"
 #include "atom.h"
 
+/* Declare GUID for AMD _DSM method for XCCs */
+static const guid_t amd_xcc_dsm_guid = GUID_INIT(0x8267f5d5, 0xa556, 0x44f2,
+						 0xb8, 0xb4, 0x45, 0x56, 0x2e,
+						 0x8c, 0x5b, 0xec);
+
+#define AMD_XCC_HID_START 3000
+#define AMD_XCC_DSM_GET_NUM_FUNCS 0
+#define AMD_XCC_DSM_GET_SUPP_MODE 1
+#define AMD_XCC_DSM_GET_XCP_MODE 2
+#define AMD_XCC_DSM_GET_VF_XCC_MAPPING 4
+#define AMD_XCC_DSM_GET_TMR_INFO 5
+#define AMD_XCC_DSM_NUM_FUNCS 5
+
+#define AMD_XCC_MAX_HID 24
+
+/* Encapsulates the XCD acpi object information */
+struct amdgpu_acpi_xcc_info {
+	struct list_head list;
+	int mem_node;
+	uint8_t xcp_node;
+	uint8_t phy_id;
+	acpi_handle handle;
+};
+
+struct amdgpu_acpi_dev_info {
+	struct list_head list;
+	struct list_head xcc_list;
+	uint16_t bdf;
+	uint16_t supp_xcp_mode;
+	uint16_t xcp_mode;
+	uint16_t mem_mode;
+	uint64_t tmr_base;
+	uint64_t tmr_size;
+};
+
+struct list_head amdgpu_acpi_dev_list;
+
 struct amdgpu_atif_notification_cfg {
 	bool enabled;
 	int command_code;
@@ -802,6 +839,240 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
 }
 
 /**
+ * amdgpu_acpi_get_node_id - obtain the NUMA node id for corresponding amdgpu
+ * acpi device handle
+ *
+ * @handle: acpi handle
+ * @nid: NUMA Node id returned by the platform firmware
+ *
+ * Queries the ACPI interface to fetch the corresponding NUMA Node ID for a
+ * given amdgpu acpi device.
+ *
+ * Returns ACPI STATUS OK with Node ID on success or the corresponding failure reason
+ */
+acpi_status amdgpu_acpi_get_node_id(acpi_handle handle, int *nid)
+{
+#ifdef CONFIG_ACPI_NUMA
+	u64 pxm;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(handle, "_PXM", NULL, &pxm);
+
+	if (ACPI_FAILURE(status))
+		return status;
+
+	*nid = pxm_to_node(pxm);
+
+	return_ACPI_STATUS(AE_OK);
+#else
+	return_ACPI_STATUS(AE_NOT_EXIST);
+#endif
+}
+
+struct amdgpu_acpi_dev_info *amdgpu_acpi_get_dev(u16 bdf)
+{
+	struct amdgpu_acpi_dev_info *acpi_dev;
+
+	if (list_empty(&amdgpu_acpi_dev_list))
+		return NULL;
+
+	list_for_each_entry(acpi_dev, &amdgpu_acpi_dev_list, list)
+		if (acpi_dev->bdf == bdf)
+			return acpi_dev;
+
+	return NULL;
+}
+
+static int amdgpu_acpi_dev_init(struct amdgpu_acpi_dev_info **dev_info,
+				struct amdgpu_acpi_xcc_info *xcc_info, u16 bdf)
+{
+	struct amdgpu_acpi_dev_info *tmp;
+	union acpi_object *obj;
+	int ret = -ENOENT;
+
+	*dev_info = NULL;
+	tmp = kzalloc(sizeof(struct amdgpu_acpi_dev_info), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&tmp->xcc_list);
+	INIT_LIST_HEAD(&tmp->list);
+	tmp->bdf = bdf;
+
+	obj = acpi_evaluate_dsm_typed(xcc_info->handle, &amd_xcc_dsm_guid, 0,
+				      AMD_XCC_DSM_GET_SUPP_MODE, NULL,
+				      ACPI_TYPE_INTEGER);
+
+	if (!obj) {
+		acpi_handle_debug(xcc_info->handle,
+				  "_DSM function %d evaluation failed",
+				  AMD_XCC_DSM_GET_SUPP_MODE);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	tmp->supp_xcp_mode = obj->integer.value & 0xFFFF;
+	ACPI_FREE(obj);
+
+	obj = acpi_evaluate_dsm_typed(xcc_info->handle, &amd_xcc_dsm_guid, 0,
+				      AMD_XCC_DSM_GET_XCP_MODE, NULL,
+				      ACPI_TYPE_INTEGER);
+
+	if (!obj) {
+		acpi_handle_debug(xcc_info->handle,
+				  "_DSM function %d evaluation failed",
+				  AMD_XCC_DSM_GET_XCP_MODE);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	tmp->xcp_mode = obj->integer.value & 0xFFFF;
+	tmp->mem_mode = (obj->integer.value >> 32) & 0xFFFF;
+	ACPI_FREE(obj);
+
+	/* Evaluate DSMs and fill XCC information */
+	obj = acpi_evaluate_dsm_typed(xcc_info->handle, &amd_xcc_dsm_guid, 0,
+				      AMD_XCC_DSM_GET_TMR_INFO, NULL,
+				      ACPI_TYPE_PACKAGE);
+
+	if (!obj || obj->package.count < 2) {
+		acpi_handle_debug(xcc_info->handle,
+				  "_DSM function %d evaluation failed",
+				  AMD_XCC_DSM_GET_TMR_INFO);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	tmp->tmr_base = obj->package.elements[0].integer.value;
+	tmp->tmr_size = obj->package.elements[1].integer.value;
+	ACPI_FREE(obj);
+
+	DRM_DEBUG_DRIVER(
+		"New dev(%x): Supported xcp mode: %x curr xcp_mode : %x mem mode : %x, tmr base: %llx tmr size: %llx  ",
+		tmp->bdf, tmp->supp_xcp_mode, tmp->xcp_mode, tmp->mem_mode,
+		tmp->tmr_base, tmp->tmr_size);
+	list_add_tail(&tmp->list, &amdgpu_acpi_dev_list);
+	*dev_info = tmp;
+
+	return 0;
+
+out:
+	if (obj)
+		ACPI_FREE(obj);
+	kfree(tmp);
+
+	return ret;
+}
+
+static int amdgpu_acpi_get_xcc_info(struct amdgpu_acpi_xcc_info *xcc_info,
+				    u16 *bdf)
+{
+	union acpi_object *obj;
+	acpi_status status;
+	int ret = -ENOENT;
+
+	obj = acpi_evaluate_dsm_typed(xcc_info->handle, &amd_xcc_dsm_guid, 0,
+				      AMD_XCC_DSM_GET_NUM_FUNCS, NULL,
+				      ACPI_TYPE_INTEGER);
+
+	if (!obj || obj->integer.value != AMD_XCC_DSM_NUM_FUNCS)
+		goto out;
+	ACPI_FREE(obj);
+
+	/* Evaluate DSMs and fill XCC information */
+	obj = acpi_evaluate_dsm_typed(xcc_info->handle, &amd_xcc_dsm_guid, 0,
+				      AMD_XCC_DSM_GET_VF_XCC_MAPPING, NULL,
+				      ACPI_TYPE_INTEGER);
+
+	if (!obj) {
+		acpi_handle_debug(xcc_info->handle,
+				  "_DSM function %d evaluation failed",
+				  AMD_XCC_DSM_GET_VF_XCC_MAPPING);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* PF xcc id [39:32] */
+	xcc_info->phy_id = (obj->integer.value >> 32) & 0xFF;
+	/* xcp node of this xcc [47:40] */
+	xcc_info->xcp_node = (obj->integer.value >> 40) & 0xFF;
+	/* PF bus/dev/fn of this xcc [63:48] */
+	*bdf = (obj->integer.value >> 48) & 0xFFFF;
+	ACPI_FREE(obj);
+	obj = NULL;
+
+	status = amdgpu_acpi_get_node_id(xcc_info->handle, &xcc_info->mem_node);
+
+	/* TODO: check if this check is required */
+	if (ACPI_SUCCESS(status))
+		ret = 0;
+out:
+	if (obj)
+		ACPI_FREE(obj);
+
+	return ret;
+}
+
+static int amdgpu_acpi_enumerate_xcc(void)
+{
+	struct amdgpu_acpi_dev_info *dev_info = NULL;
+	struct amdgpu_acpi_xcc_info *xcc_info;
+	struct acpi_device *acpi_dev;
+	char hid[ACPI_ID_LEN];
+	int ret, id;
+	u16 bdf;
+
+	INIT_LIST_HEAD(&amdgpu_acpi_dev_list);
+
+	for (id = 0; id < AMD_XCC_MAX_HID; id++) {
+		sprintf(hid, "%s%d", "AMD", AMD_XCC_HID_START + id);
+		acpi_dev = acpi_dev_get_first_match_dev(hid, NULL, -1);
+		/* These ACPI objects are expected to be in sequential order. If
+		 * one is not found, no need to check the rest.
+		 */
+		if (!acpi_dev) {
+			DRM_DEBUG_DRIVER("No matching acpi device found for %s",
+					 hid);
+			break;
+		}
+
+		xcc_info = kzalloc(sizeof(struct amdgpu_acpi_xcc_info),
+				   GFP_KERNEL);
+		if (!xcc_info) {
+			DRM_ERROR("Failed to allocate memory for xcc info\n");
+			return -ENOMEM;
+		}
+
+		INIT_LIST_HEAD(&xcc_info->list);
+		xcc_info->handle = acpi_device_handle(acpi_dev);
+		acpi_dev_put(acpi_dev);
+
+		ret = amdgpu_acpi_get_xcc_info(xcc_info, &bdf);
+		if (ret) {
+			kfree(xcc_info);
+			continue;
+		}
+
+		dev_info = amdgpu_acpi_get_dev(bdf);
+
+		if (!dev_info)
+			ret = amdgpu_acpi_dev_init(&dev_info, xcc_info, bdf);
+
+		if (ret == -ENOMEM)
+			return ret;
+
+		if (!dev_info) {
+			kfree(xcc_info);
+			continue;
+		}
+
+		list_add_tail(&xcc_info->list, &dev_info->xcc_list);
+	}
+
+	return 0;
+}
+
+/**
  * amdgpu_acpi_event - handle notify events
  *
  * @nb: notifier block
@@ -1053,6 +1324,29 @@ void amdgpu_acpi_detect(void)
 		}
 	} else {
 		atif->backlight_caps.caps_valid = false;
+	}
+
+	amdgpu_acpi_enumerate_xcc();
+}
+
+void amdgpu_acpi_release(void)
+{
+	struct amdgpu_acpi_dev_info *dev_info, *dev_tmp;
+	struct amdgpu_acpi_xcc_info *xcc_info, *xcc_tmp;
+
+	if (list_empty(&amdgpu_acpi_dev_list))
+		return;
+
+	list_for_each_entry_safe(dev_info, dev_tmp, &amdgpu_acpi_dev_list,
+				 list) {
+		list_for_each_entry_safe(xcc_info, xcc_tmp, &dev_info->xcc_list,
+					 list) {
+			list_del(&xcc_info->list);
+			kfree(xcc_info);
+		}
+
+		list_del(&dev_info->list);
+		kfree(dev_info);
 	}
 }
 

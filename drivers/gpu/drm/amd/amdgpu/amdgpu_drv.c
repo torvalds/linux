@@ -2898,6 +2898,7 @@ static void __exit amdgpu_exit(void)
 	amdgpu_amdkfd_fini();
 	pci_unregister_driver(&amdgpu_kms_pci_driver);
 	amdgpu_unregister_atpx_handler();
+	amdgpu_acpi_release();
 	amdgpu_sync_fini();
 	amdgpu_fence_slab_fini();
 	mmu_notifier_synchronize();
