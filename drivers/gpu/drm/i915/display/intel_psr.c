@@ -1178,13 +1178,8 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	 */
 	if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
 	    IS_DISPLAY_VER(dev_priv, 12, 13)) {
-		u16 vtotal, vblank;
-
-		vtotal = crtc_state->uapi.adjusted_mode.crtc_vtotal -
-			crtc_state->uapi.adjusted_mode.crtc_vdisplay;
-		vblank = crtc_state->uapi.adjusted_mode.crtc_vblank_end -
-			crtc_state->uapi.adjusted_mode.crtc_vblank_start;
-		if (vblank > vtotal)
+		if (crtc_state->hw.adjusted_mode.crtc_vblank_start !=
+		    crtc_state->hw.adjusted_mode.crtc_vdisplay)
 			intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1, 0,
 				     wa_16013835468_bit_get(intel_dp));
 	}
