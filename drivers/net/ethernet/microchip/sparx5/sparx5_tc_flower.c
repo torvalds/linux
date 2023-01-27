@@ -680,7 +680,7 @@ static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 {
 	int err;
 
-	if (admin->vtype == VCAP_TYPE_IS2) {
+	if (admin->vtype == VCAP_TYPE_IS2 || admin->vtype == VCAP_TYPE_ES2) {
 		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID,
 					       vrule->id);
 		if (err)
@@ -883,6 +883,9 @@ static int sparx5_tc_set_actionset(struct vcap_admin *admin,
 	case VCAP_TYPE_IS2:
 		aset = VCAP_AFS_BASE_TYPE;
 		break;
+	case VCAP_TYPE_ES2:
+		aset = VCAP_AFS_BASE_TYPE;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -918,6 +921,10 @@ static int sparx5_tc_add_rule_link_target(struct vcap_admin *admin,
 		/* Add PAG key for chaining rules from IS0 */
 		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
 					     link_val, /* target */
+					     ~0);
+	case VCAP_TYPE_ES2:
+		/* Add ISDX key for chaining rules from IS0 */
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_ISDX_CLS, link_val,
 					     ~0);
 	default:
 		break;
@@ -959,6 +966,18 @@ static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
 		err = vcap_rule_add_action_u32(vrule,
 					       VCAP_AF_PAG_OVERRIDE_MASK,
 					       0xff);
+		if (err)
+			goto out;
+	} else if (admin->vtype == VCAP_TYPE_IS0 &&
+		   to_admin->vtype == VCAP_TYPE_ES2) {
+		/* Between IS0 and ES2 the ISDX value is used */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_ISDX_VAL,
+					       diff);
+		if (err)
+			goto out;
+		err = vcap_rule_add_action_bit(vrule,
+					       VCAP_AF_ISDX_ADD_REPLACE_SEL,
+					       VCAP_BIT_1);
 		if (err)
 			goto out;
 	} else {
@@ -1015,7 +1034,8 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_TRAP:
-			if (admin->vtype != VCAP_TYPE_IS2) {
+			if (admin->vtype != VCAP_TYPE_IS2 &&
+			    admin->vtype != VCAP_TYPE_ES2) {
 				NL_SET_ERR_MSG_MOD(fco->common.extack,
 						   "Trap action not supported in this VCAP");
 				err = -EOPNOTSUPP;
@@ -1030,8 +1050,11 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 						       VCAP_AF_CPU_QUEUE_NUM, 0);
 			if (err)
 				goto out;
-			err = vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE,
-						       SPX5_PMM_REPLACE_ALL);
+			if (admin->vtype != VCAP_TYPE_IS2)
+				break;
+			err = vcap_rule_add_action_u32(vrule,
+						       VCAP_AF_MASK_MODE,
+				SPX5_PMM_REPLACE_ALL);
 			if (err)
 				goto out;
 			break;

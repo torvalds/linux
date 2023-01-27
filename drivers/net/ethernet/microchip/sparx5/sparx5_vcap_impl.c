@@ -143,6 +143,14 @@ static u16 sparx5_vcap_is2_known_etypes[] = {
 	ETH_P_IPV6,
 };
 
+/* These protocols have dedicated keysets in ES2 and a TC dissector */
+static u16 sparx5_vcap_es2_known_etypes[] = {
+	ETH_P_ALL,
+	ETH_P_ARP,
+	ETH_P_IP,
+	ETH_P_IPV6,
+};
+
 static void sparx5_vcap_type_err(struct sparx5 *sparx5,
 				 struct vcap_admin *admin,
 				 const char *fname)
@@ -666,6 +674,10 @@ bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype)
 	case VCAP_TYPE_IS2:
 		known_etypes = sparx5_vcap_is2_known_etypes;
 		size = ARRAY_SIZE(sparx5_vcap_is2_known_etypes);
+		break;
+	case VCAP_TYPE_ES2:
+		known_etypes = sparx5_vcap_es2_known_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_es2_known_etypes);
 		break;
 	default:
 		return false;
