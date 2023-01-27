@@ -67,7 +67,7 @@ That may involve turning on a special signal handling logic within the platform
 during system sleep so as to trigger a system wakeup when needed.  For example,
 the platform may include a dedicated interrupt controller used specifically for
 handling system wakeup events.  Then, if a given interrupt line is supposed to
-wake up the system from sleep sates, the corresponding input of that interrupt
+wake up the system from sleep states, the corresponding input of that interrupt
 controller needs to be enabled to receive signals from the line in question.
 After wakeup, it generally is better to disable that input to prevent the
 dedicated controller from triggering interrupts unnecessarily.
