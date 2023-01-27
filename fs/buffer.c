@@ -308,7 +308,8 @@ static void verify_bh(struct work_struct *work)
 	struct buffer_head *bh = ctx->bh;
 	bool valid;
 
-	valid = fsverity_verify_blocks(bh->b_page, bh->b_size, bh_offset(bh));
+	valid = fsverity_verify_blocks(page_folio(bh->b_page), bh->b_size,
+				       bh_offset(bh));
 	end_buffer_async_read(bh, valid);
 	kfree(ctx);
 }

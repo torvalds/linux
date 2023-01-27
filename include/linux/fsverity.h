@@ -12,6 +12,7 @@
 #define _LINUX_FSVERITY_H
 
 #include <linux/fs.h>
+#include <linux/mm.h>
 #include <crypto/hash_info.h>
 #include <crypto/sha2.h>
 #include <uapi/linux/fsverity.h>
@@ -169,8 +170,7 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg);
 
 /* verify.c */
 
-bool fsverity_verify_blocks(struct page *page, unsigned int len,
-			    unsigned int offset);
+bool fsverity_verify_blocks(struct folio *folio, size_t len, size_t offset);
 void fsverity_verify_bio(struct bio *bio);
 void fsverity_enqueue_verify_work(struct work_struct *work);
 
@@ -230,8 +230,8 @@ static inline int fsverity_ioctl_read_metadata(struct file *filp,
 
 /* verify.c */
 
-static inline bool fsverity_verify_blocks(struct page *page, unsigned int len,
-					  unsigned int offset)
+static inline bool fsverity_verify_blocks(struct folio *folio, size_t len,
+					  size_t offset)
 {
 	WARN_ON(1);
 	return false;
@@ -249,9 +249,14 @@ static inline void fsverity_enqueue_verify_work(struct work_struct *work)
 
 #endif	/* !CONFIG_FS_VERITY */
 
+static inline bool fsverity_verify_folio(struct folio *folio)
+{
+	return fsverity_verify_blocks(folio, folio_size(folio), 0);
+}
+
 static inline bool fsverity_verify_page(struct page *page)
 {
-	return fsverity_verify_blocks(page, PAGE_SIZE, 0);
+	return fsverity_verify_blocks(page_folio(page), PAGE_SIZE, 0);
 }
 
 /**

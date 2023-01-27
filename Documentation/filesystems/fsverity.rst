@@ -568,22 +568,22 @@ Pagecache
 ~~~~~~~~~
 
 For filesystems using Linux's pagecache, the ``->read_folio()`` and
-``->readahead()`` methods must be modified to verify pages before they
-are marked Uptodate.  Merely hooking ``->read_iter()`` would be
+``->readahead()`` methods must be modified to verify folios before
+they are marked Uptodate.  Merely hooking ``->read_iter()`` would be
 insufficient, since ``->read_iter()`` is not used for memory maps.
 
 Therefore, fs/verity/ provides the function fsverity_verify_blocks()
 which verifies data that has been read into the pagecache of a verity
-inode.  The containing page must still be locked and not Uptodate, so
+inode.  The containing folio must still be locked and not Uptodate, so
 it's not yet readable by userspace.  As needed to do the verification,
 fsverity_verify_blocks() will call back into the filesystem to read
 hash blocks via fsverity_operations::read_merkle_tree_page().
 
 fsverity_verify_blocks() returns false if verification failed; in this
-case, the filesystem must not set the page Uptodate.  Following this,
+case, the filesystem must not set the folio Uptodate.  Following this,
 as per the usual Linux pagecache behavior, attempts by userspace to
-read() from the part of the file containing the page will fail with
-EIO, and accesses to the page within a memory map will raise SIGBUS.
+read() from the part of the file containing the folio will fail with
+EIO, and accesses to the folio within a memory map will raise SIGBUS.
 
 In principle, verifying a data block requires verifying the entire
 path in the Merkle tree from the data block to the root hash.
@@ -624,8 +624,8 @@ each bio and store it in ``->bi_private``::
 verity, or both is enabled.  After the bio completes, for each needed
 postprocessing step the filesystem enqueues the bio_post_read_ctx on a
 workqueue, and then the workqueue work does the decryption or
-verification.  Finally, pages where no decryption or verity error
-occurred are marked Uptodate, and the pages are unlocked.
+verification.  Finally, folios where no decryption or verity error
+occurred are marked Uptodate, and the folios are unlocked.
 
 On many filesystems, files can contain holes.  Normally,
 ``->readahead()`` simply zeroes hole blocks and considers the
@@ -791,9 +791,9 @@ weren't already directly answered in other parts of this document.
 :A: There are many reasons why this is not possible or would be very
     difficult, including the following:
 
-    - To prevent bypassing verification, pages must not be marked
+    - To prevent bypassing verification, folios must not be marked
       Uptodate until they've been verified.  Currently, each
-      filesystem is responsible for marking pages Uptodate via
+      filesystem is responsible for marking folios Uptodate via
       ``->readahead()``.  Therefore, currently it's not possible for
       the VFS to do the verification on its own.  Changing this would
       require significant changes to the VFS and all filesystems.
