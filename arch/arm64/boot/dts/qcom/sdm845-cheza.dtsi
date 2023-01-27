@@ -351,7 +351,7 @@
 
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -633,7 +633,7 @@
 		};
 	};
 
-	pm8005-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8005-rpmh-regulators";
 		qcom,pmic-id = "c";
 
