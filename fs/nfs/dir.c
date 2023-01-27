@@ -203,14 +203,14 @@ static void nfs_readdir_page_init_array(struct page *page, u64 last_cookie,
 {
 	struct nfs_cache_array *array;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	array->change_attr = change_attr;
 	array->last_cookie = last_cookie;
 	array->size = 0;
 	array->page_full = 0;
 	array->page_is_eof = 0;
 	array->cookies_are_ordered = 1;
-	kunmap_atomic(array);
+	kunmap_local(array);
 }
 
 /*
@@ -221,11 +221,11 @@ static void nfs_readdir_clear_array(struct page *page)
 	struct nfs_cache_array *array;
 	unsigned int i;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	for (i = 0; i < array->size; i++)
 		kfree(array->array[i].name);
 	array->size = 0;
-	kunmap_atomic(array);
+	kunmap_local(array);
 }
 
 static void nfs_readdir_free_folio(struct folio *folio)
@@ -371,14 +371,14 @@ static pgoff_t nfs_readdir_page_cookie_hash(u64 cookie)
 static bool nfs_readdir_page_validate(struct page *page, u64 last_cookie,
 				      u64 change_attr)
 {
-	struct nfs_cache_array *array = kmap_atomic(page);
+	struct nfs_cache_array *array = kmap_local_page(page);
 	int ret = true;
 
 	if (array->change_attr != change_attr)
 		ret = false;
 	if (nfs_readdir_array_index_cookie(array) != last_cookie)
 		ret = false;
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return ret;
 }
 
@@ -418,9 +418,9 @@ static u64 nfs_readdir_page_last_cookie(struct page *page)
 	struct nfs_cache_array *array;
 	u64 ret;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	ret = array->last_cookie;
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return ret;
 }
 
@@ -429,9 +429,9 @@ static bool nfs_readdir_page_needs_filling(struct page *page)
 	struct nfs_cache_array *array;
 	bool ret;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	ret = !nfs_readdir_array_is_full(array);
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return ret;
 }
 
@@ -439,9 +439,9 @@ static void nfs_readdir_page_set_eof(struct page *page)
 {
 	struct nfs_cache_array *array;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	nfs_readdir_array_set_eof(array);
-	kunmap_atomic(array);
+	kunmap_local(array);
 }
 
 static struct page *nfs_readdir_page_get_next(struct address_space *mapping,
@@ -568,14 +568,14 @@ static int nfs_readdir_search_array(struct nfs_readdir_descriptor *desc)
 	struct nfs_cache_array *array;
 	int status;
 
-	array = kmap_atomic(desc->page);
+	array = kmap_local_page(desc->page);
 
 	if (desc->dir_cookie == 0)
 		status = nfs_readdir_search_for_pos(array, desc);
 	else
 		status = nfs_readdir_search_for_cookie(array, desc);
 
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return status;
 }
 
