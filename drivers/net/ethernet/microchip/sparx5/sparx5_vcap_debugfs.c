@@ -284,6 +284,119 @@ static void sparx5_vcap_is2_port_stickies(struct sparx5 *sparx5,
 	out->prf(out->dst, "\n");
 }
 
+static void sparx5_vcap_es2_port_keys(struct sparx5 *sparx5,
+				      struct vcap_admin *admin,
+				      struct sparx5_port *port,
+				      struct vcap_output_print *out)
+{
+	int lookup;
+	u32 value;
+
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+	   netdev_name(port->ndev));
+	for (lookup = 0; lookup < admin->lookups; ++lookup) {
+		out->prf(out->dst, "\n    Lookup %d: ", lookup);
+
+		/* Get lookup state */
+		value = spx5_rd(sparx5, EACL_VCAP_ES2_KEY_SEL(port->portno,
+							      lookup));
+		out->prf(out->dst, "\n      state: ");
+		if (EACL_VCAP_ES2_KEY_SEL_KEY_ENA_GET(value))
+			out->prf(out->dst, "on");
+		else
+			out->prf(out->dst, "off");
+
+		out->prf(out->dst, "\n      arp: ");
+		switch (EACL_VCAP_ES2_KEY_SEL_ARP_KEY_SEL_GET(value)) {
+		case VCAP_ES2_PS_ARP_MAC_ETYPE:
+			out->prf(out->dst, "mac_etype");
+			break;
+		case VCAP_ES2_PS_ARP_ARP:
+			out->prf(out->dst, "arp");
+			break;
+		}
+		out->prf(out->dst, "\n      ipv4: ");
+		switch (EACL_VCAP_ES2_KEY_SEL_IP4_KEY_SEL_GET(value)) {
+		case VCAP_ES2_PS_IPV4_MAC_ETYPE:
+			out->prf(out->dst, "mac_etype");
+			break;
+		case VCAP_ES2_PS_IPV4_IP_7TUPLE:
+			out->prf(out->dst, "ip_7tuple");
+			break;
+		case VCAP_ES2_PS_IPV4_IP4_TCP_UDP_VID:
+			out->prf(out->dst, "ip4_tcp_udp ip4_vid");
+			break;
+		case VCAP_ES2_PS_IPV4_IP4_TCP_UDP_OTHER:
+			out->prf(out->dst, "ip4_tcp_udp ip4_other");
+			break;
+		case VCAP_ES2_PS_IPV4_IP4_VID:
+			out->prf(out->dst, "ip4_vid");
+			break;
+		case VCAP_ES2_PS_IPV4_IP4_OTHER:
+			out->prf(out->dst, "ip4_other");
+			break;
+		}
+		out->prf(out->dst, "\n      ipv6: ");
+		switch (EACL_VCAP_ES2_KEY_SEL_IP6_KEY_SEL_GET(value)) {
+		case VCAP_ES2_PS_IPV6_MAC_ETYPE:
+			out->prf(out->dst, "mac_etype");
+			break;
+		case VCAP_ES2_PS_IPV6_IP_7TUPLE:
+			out->prf(out->dst, "ip_7tuple");
+			break;
+		case VCAP_ES2_PS_IPV6_IP_7TUPLE_VID:
+			out->prf(out->dst, "ip_7tuple ip6_vid");
+			break;
+		case VCAP_ES2_PS_IPV6_IP_7TUPLE_STD:
+			out->prf(out->dst, "ip_7tuple ip6_std");
+			break;
+		case VCAP_ES2_PS_IPV6_IP6_VID:
+			out->prf(out->dst, "ip6_vid");
+			break;
+		case VCAP_ES2_PS_IPV6_IP6_STD:
+			out->prf(out->dst, "ip6_std");
+			break;
+		case VCAP_ES2_PS_IPV6_IP4_DOWNGRADE:
+			out->prf(out->dst, "ip4_downgrade");
+			break;
+		}
+	}
+	out->prf(out->dst, "\n");
+}
+
+static void sparx5_vcap_es2_port_stickies(struct sparx5 *sparx5,
+					  struct vcap_admin *admin,
+					  struct vcap_output_print *out)
+{
+	int lookup;
+	u32 value;
+
+	out->prf(out->dst, "  Sticky bits: ");
+	for (lookup = 0; lookup < admin->lookups; ++lookup) {
+		value = spx5_rd(sparx5, EACL_SEC_LOOKUP_STICKY(lookup));
+		out->prf(out->dst, "\n    Lookup %d: ", lookup);
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_IP_7TUPLE_STICKY_GET(value))
+			out->prf(out->dst, " ip_7tuple");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_IP6_VID_STICKY_GET(value))
+			out->prf(out->dst, " ip6_vid");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_IP6_STD_STICKY_GET(value))
+			out->prf(out->dst, " ip6_std");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_IP4_TCPUDP_STICKY_GET(value))
+			out->prf(out->dst, " ip4_tcp_udp");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_IP4_VID_STICKY_GET(value))
+			out->prf(out->dst, " ip4_vid");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_IP4_OTHER_STICKY_GET(value))
+			out->prf(out->dst, " ip4_other");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_ARP_STICKY_GET(value))
+			out->prf(out->dst, " arp");
+		if (EACL_SEC_LOOKUP_STICKY_SEC_TYPE_MAC_ETYPE_STICKY_GET(value))
+			out->prf(out->dst, " mac_etype");
+		/* Clear stickies */
+		spx5_wr(value, sparx5, EACL_SEC_LOOKUP_STICKY(lookup));
+	}
+	out->prf(out->dst, "\n");
+}
+
 /* Provide port information via a callback interface */
 int sparx5_port_info(struct net_device *ndev,
 		     struct vcap_admin *admin,
@@ -304,6 +417,10 @@ int sparx5_port_info(struct net_device *ndev,
 	case VCAP_TYPE_IS2:
 		sparx5_vcap_is2_port_keys(sparx5, admin, port, out);
 		sparx5_vcap_is2_port_stickies(sparx5, admin, out);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_port_keys(sparx5, admin, port, out);
+		sparx5_vcap_es2_port_stickies(sparx5, admin, out);
 		break;
 	default:
 		out->prf(out->dst, "  no info\n");

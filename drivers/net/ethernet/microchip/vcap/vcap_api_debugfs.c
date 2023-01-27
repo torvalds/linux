@@ -44,11 +44,14 @@ static void vcap_debugfs_show_rule_keyfield(struct vcap_control *vctrl,
 			out->prf(out->dst, "%pI4h/%pI4h", &data->u32.value,
 				 &data->u32.mask);
 		} else if (key == VCAP_KF_ETYPE ||
-			   key == VCAP_KF_IF_IGR_PORT_MASK) {
+			   key == VCAP_KF_IF_IGR_PORT_MASK ||
+			   key == VCAP_KF_IF_EGR_PORT_MASK) {
 			hex = true;
 		} else {
 			u32 fmsk = (1 << keyfield[key].width) - 1;
 
+			if (keyfield[key].width == 32)
+				fmsk = ~0;
 			out->prf(out->dst, "%u/%u", data->u32.value & fmsk,
 				 data->u32.mask & fmsk);
 		}
