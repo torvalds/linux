@@ -1156,6 +1156,96 @@ static const struct xe_migrate_pt_update_ops userptr_bind_ops = {
 	.pre_commit = xe_pt_userptr_pre_commit,
 };
 
+struct invalidation_fence {
+	struct xe_gt_tlb_invalidation_fence base;
+	struct xe_gt *gt;
+	struct xe_vma *vma;
+	struct dma_fence *fence;
+	struct dma_fence_cb cb;
+	struct work_struct work;
+};
+
+static const char *
+invalidation_fence_get_driver_name(struct dma_fence *dma_fence)
+{
+	return "xe";
+}
+
+static const char *
+invalidation_fence_get_timeline_name(struct dma_fence *dma_fence)
+{
+	return "invalidation_fence";
+}
+
+static const struct dma_fence_ops invalidation_fence_ops = {
+	.get_driver_name = invalidation_fence_get_driver_name,
+	.get_timeline_name = invalidation_fence_get_timeline_name,
+};
+
+static void invalidation_fence_cb(struct dma_fence *fence,
+				  struct dma_fence_cb *cb)
+{
+	struct invalidation_fence *ifence =
+		container_of(cb, struct invalidation_fence, cb);
+
+	trace_xe_gt_tlb_invalidation_fence_cb(&ifence->base);
+	if (!ifence->fence->error) {
+		queue_work(system_wq, &ifence->work);
+	} else {
+		ifence->base.base.error = ifence->fence->error;
+		dma_fence_signal(&ifence->base.base);
+		dma_fence_put(&ifence->base.base);
+	}
+	dma_fence_put(ifence->fence);
+}
+
+static void invalidation_fence_work_func(struct work_struct *w)
+{
+	struct invalidation_fence *ifence =
+		container_of(w, struct invalidation_fence, work);
+
+	trace_xe_gt_tlb_invalidation_fence_work_func(&ifence->base);
+	xe_gt_tlb_invalidation_vma(ifence->gt, &ifence->base, ifence->vma);
+}
+
+static int invalidation_fence_init(struct xe_gt *gt,
+				   struct invalidation_fence *ifence,
+				   struct dma_fence *fence,
+				   struct xe_vma *vma)
+{
+	int ret;
+
+	trace_xe_gt_tlb_invalidation_fence_create(&ifence->base);
+
+	spin_lock_irq(&gt->tlb_invalidation.lock);
+	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,
+		       &gt->tlb_invalidation.lock,
+		       gt->tlb_invalidation.fence_context,
+		       ++gt->tlb_invalidation.fence_seqno);
+	spin_unlock_irq(&gt->tlb_invalidation.lock);
+
+	INIT_LIST_HEAD(&ifence->base.link);
+
+	dma_fence_get(&ifence->base.base);	/* Ref for caller */
+	ifence->fence = fence;
+	ifence->gt = gt;
+	ifence->vma = vma;
+
+	INIT_WORK(&ifence->work, invalidation_fence_work_func);
+	ret = dma_fence_add_callback(fence, &ifence->cb, invalidation_fence_cb);
+	if (ret == -ENOENT) {
+		dma_fence_put(ifence->fence);	/* Usually dropped in CB */
+		invalidation_fence_work_func(&ifence->work);
+	} else if (ret) {
+		dma_fence_put(&ifence->base.base);	/* Caller ref */
+		dma_fence_put(&ifence->base.base);	/* Creation ref */
+	}
+
+	XE_WARN_ON(ret && ret != -ENOENT);
+
+	return ret && ret != -ENOENT ? ret : 0;
+}
+
 /**
  * __xe_pt_bind_vma() - Build and connect a page-table tree for the vma
  * address range.
@@ -1194,6 +1284,7 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 	struct xe_vm *vm = vma->vm;
 	u32 num_entries;
 	struct dma_fence *fence;
+	struct invalidation_fence *ifence = NULL;
 	int err;
 
 	bind_pt_update.locked = false;
@@ -1212,6 +1303,12 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 
 	xe_vm_dbg_print_entries(gt_to_xe(gt), entries, num_entries);
 
+	if (rebind && !xe_vm_no_dma_fences(vma->vm)) {
+		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
+		if (!ifence)
+			return ERR_PTR(-ENOMEM);
+	}
+
 	fence = xe_migrate_update_pgtables(gt->migrate,
 					   vm, vma->bo,
 					   e ? e : vm->eng[gt->info.id],
@@ -1220,6 +1317,18 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 					   &bind_pt_update.base);
 	if (!IS_ERR(fence)) {
 		LLIST_HEAD(deferred);
+
+		/* TLB invalidation must be done before signaling rebind */
+		if (rebind && !xe_vm_no_dma_fences(vma->vm)) {
+			int err = invalidation_fence_init(gt, ifence, fence,
+							  vma);
+			if (err) {
+				dma_fence_put(fence);
+				kfree(ifence);
+				return ERR_PTR(err);
+			}
+			fence = &ifence->base.base;
+		}
 
 		/* add shared fence now for pagetable delayed destroy */
 		dma_resv_add_fence(&vm->resv, fence, !rebind &&
@@ -1246,6 +1355,7 @@ __xe_pt_bind_vma(struct xe_gt *gt, struct xe_vma *vma, struct xe_engine *e,
 			queue_work(vm->xe->ordered_wq,
 				   &vm->preempt.rebind_work);
 	} else {
+		kfree(ifence);
 		if (bind_pt_update.locked)
 			up_read(&vm->userptr.notifier_lock);
 		xe_pt_abort_bind(vma, entries, num_entries);
@@ -1462,96 +1572,6 @@ static const struct xe_migrate_pt_update_ops userptr_unbind_ops = {
 	.populate = xe_migrate_clear_pgtable_callback,
 	.pre_commit = xe_pt_userptr_pre_commit,
 };
-
-struct invalidation_fence {
-	struct xe_gt_tlb_invalidation_fence base;
-	struct xe_gt *gt;
-	struct xe_vma *vma;
-	struct dma_fence *fence;
-	struct dma_fence_cb cb;
-	struct work_struct work;
-};
-
-static const char *
-invalidation_fence_get_driver_name(struct dma_fence *dma_fence)
-{
-	return "xe";
-}
-
-static const char *
-invalidation_fence_get_timeline_name(struct dma_fence *dma_fence)
-{
-	return "invalidation_fence";
-}
-
-static const struct dma_fence_ops invalidation_fence_ops = {
-	.get_driver_name = invalidation_fence_get_driver_name,
-	.get_timeline_name = invalidation_fence_get_timeline_name,
-};
-
-static void invalidation_fence_cb(struct dma_fence *fence,
-				  struct dma_fence_cb *cb)
-{
-	struct invalidation_fence *ifence =
-		container_of(cb, struct invalidation_fence, cb);
-
-	trace_xe_gt_tlb_invalidation_fence_cb(&ifence->base);
-	if (!ifence->fence->error) {
-		queue_work(system_wq, &ifence->work);
-	} else {
-		ifence->base.base.error = ifence->fence->error;
-		dma_fence_signal(&ifence->base.base);
-		dma_fence_put(&ifence->base.base);
-	}
-	dma_fence_put(ifence->fence);
-}
-
-static void invalidation_fence_work_func(struct work_struct *w)
-{
-	struct invalidation_fence *ifence =
-		container_of(w, struct invalidation_fence, work);
-
-	trace_xe_gt_tlb_invalidation_fence_work_func(&ifence->base);
-	xe_gt_tlb_invalidation_vma(ifence->gt, &ifence->base, ifence->vma);
-}
-
-static int invalidation_fence_init(struct xe_gt *gt,
-				   struct invalidation_fence *ifence,
-				   struct dma_fence *fence,
-				   struct xe_vma *vma)
-{
-	int ret;
-
-	trace_xe_gt_tlb_invalidation_fence_create(&ifence->base);
-
-	spin_lock_irq(&gt->tlb_invalidation.lock);
-	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,
-		       &gt->tlb_invalidation.lock,
-		       gt->tlb_invalidation.fence_context,
-		       ++gt->tlb_invalidation.fence_seqno);
-	spin_unlock_irq(&gt->tlb_invalidation.lock);
-
-	INIT_LIST_HEAD(&ifence->base.link);
-
-	dma_fence_get(&ifence->base.base);	/* Ref for caller */
-	ifence->fence = fence;
-	ifence->gt = gt;
-	ifence->vma = vma;
-
-	INIT_WORK(&ifence->work, invalidation_fence_work_func);
-	ret = dma_fence_add_callback(fence, &ifence->cb, invalidation_fence_cb);
-	if (ret == -ENOENT) {
-		dma_fence_put(ifence->fence);	/* Usually dropped in CB */
-		invalidation_fence_work_func(&ifence->work);
-	} else if (ret) {
-		dma_fence_put(&ifence->base.base);	/* Caller ref */
-		dma_fence_put(&ifence->base.base);	/* Creation ref */
-	}
-
-	XE_WARN_ON(ret && ret != -ENOENT);
-
-	return ret && ret != -ENOENT ? ret : 0;
-}
 
 /**
  * __xe_pt_unbind_vma() - Disconnect and free a page-table tree for the vma
