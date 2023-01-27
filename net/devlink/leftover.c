@@ -4230,36 +4230,20 @@ static struct net *devlink_netns_get(struct sk_buff *skb,
 	return net;
 }
 
-static void devlink_param_notify(struct devlink *devlink,
-				 unsigned int port_index,
-				 struct devlink_param_item *param_item,
-				 enum devlink_command cmd);
-
 static void devlink_reload_netns_change(struct devlink *devlink,
 					struct net *curr_net,
 					struct net *dest_net)
 {
-	struct devlink_param_item *param_item;
-
 	/* Userspace needs to be notified about devlink objects
 	 * removed from original and entering new network namespace.
 	 * The rest of the devlink objects are re-created during
 	 * reload process so the notifications are generated separatelly.
 	 */
-
-	list_for_each_entry(param_item, &devlink->param_list, list)
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_DEL);
-	devlink_notify(devlink, DEVLINK_CMD_DEL);
-
+	devlink_notify_unregister(devlink);
 	move_netdevice_notifier_net(curr_net, dest_net,
 				    &devlink->netdevice_nb);
 	write_pnet(&devlink->_net, dest_net);
-
-	devlink_notify(devlink, DEVLINK_CMD_NEW);
-	list_for_each_entry(param_item, &devlink->param_list, list)
-		devlink_param_notify(devlink, 0, param_item,
-				     DEVLINK_CMD_PARAM_NEW);
+	devlink_notify_register(devlink);
 }
 
 static void devlink_reload_failed_set(struct devlink *devlink,
