@@ -124,8 +124,7 @@ static void ktz8866_init(struct ktz8866 *ktz)
 		ktz8866_write(ktz, LCD_BIAS_CFG1, LCD_BIAS_EN);
 }
 
-static int ktz8866_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ktz8866_probe(struct i2c_client *client)
 {
 	struct backlight_device *backlight_dev;
 	struct backlight_properties props;
@@ -197,7 +196,7 @@ static struct i2c_driver ktz8866_driver = {
 		.name = "ktz8866",
 		.of_match_table = ktz8866_match_table,
 	},
-	.probe = ktz8866_probe,
+	.probe_new = ktz8866_probe,
 	.remove = ktz8866_remove,
 	.id_table = ktz8866_ids,
 };
