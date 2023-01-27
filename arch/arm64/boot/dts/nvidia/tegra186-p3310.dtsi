@@ -145,6 +145,7 @@
 	/* SDMMC3 (SDIO) */
 	mmc@3440000 {
 		status = "okay";
+		vqmmc-supply = <&vddio_sdmmc3>;
 	};
 
 	/* SDMMC4 (eMMC) */
