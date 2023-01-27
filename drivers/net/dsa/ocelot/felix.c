@@ -1273,10 +1273,15 @@ static int felix_parse_ports_node(struct felix *felix,
 
 		err = felix_validate_phy_mode(felix, port, phy_mode);
 		if (err < 0) {
-			dev_err(dev, "Unsupported PHY mode %s on port %d\n",
-				phy_modes(phy_mode), port);
+			dev_info(dev, "Unsupported PHY mode %s on port %d\n",
+				 phy_modes(phy_mode), port);
 			of_node_put(child);
-			return err;
+
+			/* Leave port_phy_modes[port] = 0, which is also
+			 * PHY_INTERFACE_MODE_NA. This will perform a
+			 * best-effort to bring up as many ports as possible.
+			 */
+			continue;
 		}
 
 		port_phy_modes[port] = phy_mode;
