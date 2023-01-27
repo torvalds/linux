@@ -1669,6 +1669,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_pcm_ops *ipc_pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	struct snd_soc_tplg_stream_caps *caps;
 	struct snd_soc_tplg_private *private = &pcm->priv;
 	struct snd_sof_pcm *spcm;
@@ -1695,6 +1696,13 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 
 	spcm->pcm = *pcm;
 	dev_dbg(scomp->dev, "tplg: load pcm %s\n", pcm->dai_name);
+
+	/* perform pcm set op */
+	if (ipc_pcm_ops && ipc_pcm_ops->pcm_setup) {
+		ret = ipc_pcm_ops->pcm_setup(sdev, spcm);
+		if (ret < 0)
+			return ret;
+	}
 
 	dai_drv->dobj.private = spcm;
 	list_add(&spcm->list, &sdev->pcm_list);
@@ -1773,6 +1781,8 @@ free_playback_tables:
 static int sof_dai_unload(struct snd_soc_component *scomp,
 			  struct snd_soc_dobj *dobj)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_pcm_ops *ipc_pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	struct snd_sof_pcm *spcm = dobj->private;
 
 	/* free PCM DMA pages */
@@ -1781,6 +1791,10 @@ static int sof_dai_unload(struct snd_soc_component *scomp,
 
 	if (spcm->pcm.capture)
 		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_CAPTURE].page_table);
+
+	/* perform pcm free op */
+	if (ipc_pcm_ops && ipc_pcm_ops->pcm_free)
+		ipc_pcm_ops->pcm_free(sdev, spcm);
 
 	/* remove from list and free spcm */
 	list_del(&spcm->list);

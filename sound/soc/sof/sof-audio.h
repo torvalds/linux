@@ -85,6 +85,7 @@ struct snd_sof_widget;
 struct snd_sof_route;
 struct snd_sof_control;
 struct snd_sof_dai;
+struct snd_sof_pcm;
 
 struct snd_sof_dai_config_data {
 	int dai_index;
@@ -97,6 +98,10 @@ struct snd_sof_dai_config_data {
  * @hw_free: Function pointer for hw_free
  * @trigger: Function pointer for trigger
  * @dai_link_fixup: Function pointer for DAI link fixup
+ * @pcm_setup: Function pointer for IPC-specific PCM set up that can be used for allocating
+ *	       additional memory in the SOF PCM stream structure
+ * @pcm_free: Function pointer for PCM free that can be used for freeing any
+ *	       additional memory in the SOF PCM stream structure
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -106,6 +111,8 @@ struct sof_ipc_pcm_ops {
 	int (*trigger)(struct snd_soc_component *component,  struct snd_pcm_substream *substream,
 		       int cmd);
 	int (*dai_link_fixup)(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
+	int (*pcm_setup)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
+	void (*pcm_free)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
 };
 
 /**
