@@ -1556,7 +1556,7 @@ endif
 # *.ko are usually independent of vmlinux, but CONFIG_DEBUG_INFOBTF_MODULES
 # is an exception.
 ifdef CONFIG_DEBUG_INFO_BTF_MODULES
-modules: vmlinux
+modules: $(mixed-build-prefix)vmlinux
 endif
 
 modules: modules_prepare
