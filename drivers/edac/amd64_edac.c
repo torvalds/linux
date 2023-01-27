@@ -3089,7 +3089,7 @@ static void determine_ecc_sym_sz(struct amd64_pvt *pvt)
 /*
  * Retrieve the hardware registers of the memory controller.
  */
-static void __read_mc_regs_df(struct amd64_pvt *pvt)
+static void umc_read_mc_regs(struct amd64_pvt *pvt)
 {
 	u8 nid = pvt->mc_node_id;
 	struct amd64_umc *umc;
@@ -3113,7 +3113,7 @@ static void __read_mc_regs_df(struct amd64_pvt *pvt)
  * Retrieve the hardware registers of the memory controller (this includes the
  * 'Address Map' and 'Misc' device regs)
  */
-static void read_mc_regs(struct amd64_pvt *pvt)
+static void dct_read_mc_regs(struct amd64_pvt *pvt)
 {
 	unsigned int range;
 	u64 msr_val;
@@ -3132,12 +3132,6 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 		edac_dbg(0, "  TOP_MEM2: 0x%016llx\n", pvt->top_mem2);
 	} else {
 		edac_dbg(0, "  TOP_MEM2 disabled\n");
-	}
-
-	if (pvt->umc) {
-		__read_mc_regs_df(pvt);
-
-		goto skip;
 	}
 
 	amd64_read_pci_cfg(pvt->F3, NBCAP, &pvt->nbcap);
@@ -3179,9 +3173,6 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 		amd64_read_dct_pci_cfg(pvt, 1, DCLR0, &pvt->dclr1);
 		amd64_read_dct_pci_cfg(pvt, 1, DCHR0, &pvt->dchr1);
 	}
-
-skip:
-
 
 	determine_ecc_sym_sz(pvt);
 }
@@ -3658,7 +3649,7 @@ static int dct_hw_info_get(struct amd64_pvt *pvt)
 
 	dct_prep_chip_selects(pvt);
 	dct_read_base_mask(pvt);
-	read_mc_regs(pvt);
+	dct_read_mc_regs(pvt);
 	dct_determine_memory_type(pvt);
 
 	return 0;
@@ -3672,7 +3663,7 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 
 	umc_prep_chip_selects(pvt);
 	umc_read_base_mask(pvt);
-	read_mc_regs(pvt);
+	umc_read_mc_regs(pvt);
 	umc_determine_memory_type(pvt);
 
 	return 0;
