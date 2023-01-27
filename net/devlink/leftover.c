@@ -4387,9 +4387,6 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	u32 actions_performed;
 	int err;
 
-	if (!(devlink->features & DEVLINK_F_RELOAD))
-		return -EOPNOTSUPP;
-
 	err = devlink_resources_validate(devlink, NULL, info);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(info->extack, "resources size validation failed");

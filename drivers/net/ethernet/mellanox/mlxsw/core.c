@@ -2285,7 +2285,6 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	}
 
 	if (!reload) {
-		devlink_set_features(devlink, DEVLINK_F_RELOAD);
 		devl_unlock(devlink);
 		devlink_register(devlink);
 	}

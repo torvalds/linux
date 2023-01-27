@@ -38,7 +38,6 @@ struct devlink {
 	struct list_head trap_policer_list;
 	struct list_head linecard_list;
 	const struct devlink_ops *ops;
-	u64 features;
 	struct xarray snapshot_ids;
 	struct devlink_dev_stats stats;
 	struct device *dev;
