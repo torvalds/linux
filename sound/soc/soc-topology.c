@@ -1563,7 +1563,7 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 		dev_err(tplg->dev, "ASoC: failed to create new widgets %d\n",
 			ret);
 
-	return 0;
+	return ret;
 }
 
 static int set_stream_info(struct soc_tplg *tplg, struct snd_soc_pcm_stream *stream,
