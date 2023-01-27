@@ -350,41 +350,9 @@ static int soc_tplg_add_kcontrol(struct soc_tplg *tplg,
 				tplg->dev, k, comp->name_prefix, comp, kcontrol);
 }
 
-/* remove a mixer kcontrol */
-static void soc_tplg_remove_mixer(struct snd_soc_component *comp,
-	struct snd_soc_dobj *dobj, int pass)
-{
-	struct snd_card *card = comp->card->snd_card;
-
-	if (pass != SOC_TPLG_PASS_CONTROL)
-		return;
-
-	if (dobj->ops && dobj->ops->control_unload)
-		dobj->ops->control_unload(comp, dobj);
-
-	snd_ctl_remove(card, dobj->control.kcontrol);
-	list_del(&dobj->list);
-}
-
-/* remove an enum kcontrol */
-static void soc_tplg_remove_enum(struct snd_soc_component *comp,
-	struct snd_soc_dobj *dobj, int pass)
-{
-	struct snd_card *card = comp->card->snd_card;
-
-	if (pass != SOC_TPLG_PASS_CONTROL)
-		return;
-
-	if (dobj->ops && dobj->ops->control_unload)
-		dobj->ops->control_unload(comp, dobj);
-
-	snd_ctl_remove(card, dobj->control.kcontrol);
-	list_del(&dobj->list);
-}
-
-/* remove a byte kcontrol */
-static void soc_tplg_remove_bytes(struct snd_soc_component *comp,
-	struct snd_soc_dobj *dobj, int pass)
+/* remove kcontrol */
+static void soc_tplg_remove_kcontrol(struct snd_soc_component *comp, struct snd_soc_dobj *dobj,
+				     int pass)
 {
 	struct snd_card *card = comp->card->snd_card;
 
@@ -2618,14 +2586,10 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 			list) {
 
 			switch (dobj->type) {
-			case SND_SOC_DOBJ_MIXER:
-				soc_tplg_remove_mixer(comp, dobj, pass);
-				break;
-			case SND_SOC_DOBJ_ENUM:
-				soc_tplg_remove_enum(comp, dobj, pass);
-				break;
 			case SND_SOC_DOBJ_BYTES:
-				soc_tplg_remove_bytes(comp, dobj, pass);
+			case SND_SOC_DOBJ_ENUM:
+			case SND_SOC_DOBJ_MIXER:
+				soc_tplg_remove_kcontrol(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_GRAPH:
 				soc_tplg_remove_route(comp, dobj, pass);
