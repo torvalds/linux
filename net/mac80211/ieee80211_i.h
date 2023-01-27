@@ -2481,7 +2481,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
 int __must_check
 ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
 				const struct cfg80211_chan_def *chandef,
-				u32 *changed);
+				u64 *changed);
 void ieee80211_link_release_channel(struct ieee80211_link_data *link);
 void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link);
 void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
