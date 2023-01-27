@@ -70,7 +70,7 @@ static int lan966x_tc_block_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSMATCHALL:
 		return lan966x_tc_matchall(port, type_data, ingress);
 	case TC_SETUP_CLSFLOWER:
-		return lan966x_tc_flower(port, type_data);
+		return lan966x_tc_flower(port, type_data, ingress);
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -618,7 +618,8 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 
 static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 					 struct net_device *ndev,
-					 struct flow_cls_offload *fco)
+					 struct flow_cls_offload *fco,
+					 bool ingress)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(fco);
 	struct flow_action_entry *actent, *last_actent = NULL;
@@ -655,7 +656,8 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 					   "Invalid goto chain");
 			return -EINVAL;
 		}
-	} else if (!vcap_is_last_chain(vctrl, fco->common.chain_index)) {
+	} else if (!vcap_is_last_chain(vctrl, fco->common.chain_index,
+				       ingress)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
 				   "Last action must be 'goto'");
 		return -EINVAL;
@@ -970,7 +972,8 @@ out:
 
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
-				    struct vcap_admin *admin)
+				    struct vcap_admin *admin,
+				    bool ingress)
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5_multiple_rules multi = {};
@@ -983,7 +986,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 
 	vctrl = port->sparx5->vcap_ctrl;
 
-	err = sparx5_tc_flower_action_check(vctrl, ndev, fco);
+	err = sparx5_tc_flower_action_check(vctrl, ndev, fco, ingress);
 	if (err)
 		return err;
 
@@ -1141,7 +1144,7 @@ int sparx5_tc_flower(struct net_device *ndev, struct flow_cls_offload *fco,
 
 	switch (fco->command) {
 	case FLOW_CLS_REPLACE:
-		return sparx5_tc_flower_replace(ndev, fco, admin);
+		return sparx5_tc_flower_replace(ndev, fco, admin, ingress);
 	case FLOW_CLS_DESTROY:
 		return sparx5_tc_flower_destroy(ndev, fco, admin);
 	case FLOW_CLS_STATS:

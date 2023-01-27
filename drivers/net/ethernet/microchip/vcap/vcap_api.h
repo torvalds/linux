@@ -176,6 +176,7 @@ struct vcap_admin {
 	int first_valid_addr; /* bottom of address range to be used */
 	int last_used_addr;  /* address of lowest added rule */
 	bool w32be; /* vcap uses "32bit-word big-endian" encoding */
+	bool ingress; /* chain traffic direction */
 	struct vcap_cache_data cache; /* encoded rule data */
 };
 

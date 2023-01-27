@@ -280,6 +280,7 @@ static void vcap_show_admin_info(struct vcap_control *vctrl,
 	out->prf(out->dst, "version: %d\n", vcap->version);
 	out->prf(out->dst, "vtype: %d\n", admin->vtype);
 	out->prf(out->dst, "vinst: %d\n", admin->vinst);
+	out->prf(out->dst, "ingress: %d\n", admin->ingress);
 	out->prf(out->dst, "first_cid: %d\n", admin->first_cid);
 	out->prf(out->dst, "last_cid: %d\n", admin->last_cid);
 	out->prf(out->dst, "lookups: %d\n", admin->lookups);

@@ -1601,15 +1601,17 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
 
-/* Is this the last admin instance ordered by chain id */
+/* Is this the last admin instance ordered by chain id and direction */
 static bool vcap_admin_is_last(struct vcap_control *vctrl,
-			       struct vcap_admin *admin)
+			       struct vcap_admin *admin,
+			       bool ingress)
 {
 	struct vcap_admin *iter, *last = NULL;
 	int max_cid = 0;
 
 	list_for_each_entry(iter, &vctrl->list, list) {
-		if (iter->first_cid > max_cid) {
+		if (iter->first_cid > max_cid &&
+		    iter->ingress == ingress) {
 			last = iter;
 			max_cid = iter->first_cid;
 		}
@@ -3177,7 +3179,7 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 EXPORT_SYMBOL_GPL(vcap_enable_lookups);
 
 /* Is this chain id the last lookup of all VCAPs */
-bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
+bool vcap_is_last_chain(struct vcap_control *vctrl, int cid, bool ingress)
 {
 	struct vcap_admin *admin;
 	int lookup;
@@ -3189,7 +3191,7 @@ bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
 	if (!admin)
 		return false;
 
-	if (!vcap_admin_is_last(vctrl, admin))
+	if (!vcap_admin_is_last(vctrl, admin, ingress))
 		return false;
 
 	/* This must be the last lookup in this VCAP type */

@@ -55,6 +55,7 @@ static struct sparx5_vcap_inst {
 	int map_id; /* id in the super vcap block mapping (if applicable) */
 	int blockno; /* starting block in super vcap (if applicable) */
 	int blocks; /* number of blocks in super vcap (if applicable) */
+	bool ingress; /* is vcap in the ingress path */
 } sparx5_vcap_inst_cfg[] = {
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-0 */
@@ -66,6 +67,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS0_L2 - 1,
 		.blockno = 8, /* Maps block 8-9 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-1 */
@@ -77,6 +79,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS0_L4 - 1,
 		.blockno = 6, /* Maps block 6-7 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-2 */
@@ -88,6 +91,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS0_MAX,
 		.blockno = 4, /* Maps block 4-5 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS2, /* IS2-0 */
@@ -99,6 +103,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS2_L2 - 1,
 		.blockno = 0, /* Maps block 0-1 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS2, /* IS2-1 */
@@ -110,6 +115,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS2_MAX,
 		.blockno = 2, /* Maps block 2-3 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_ES2,
@@ -118,6 +124,7 @@ static struct sparx5_vcap_inst {
 		.first_cid = SPARX5_VCAP_CID_ES2_L0,
 		.last_cid = SPARX5_VCAP_CID_ES2_MAX,
 		.count = 12288, /* Addresses according to datasheet */
+		.ingress = false,
 	},
 };
 
@@ -1413,6 +1420,7 @@ sparx5_vcap_admin_alloc(struct sparx5 *sparx5, struct vcap_control *ctrl,
 	mutex_init(&admin->lock);
 	admin->vtype = cfg->vtype;
 	admin->vinst = cfg->vinst;
+	admin->ingress = cfg->ingress;
 	admin->lookups = cfg->lookups;
 	admin->lookups_per_instance = cfg->lookups_per_instance;
 	admin->first_cid = cfg->first_cid;

@@ -23,6 +23,7 @@ static struct lan966x_vcap_inst {
 	int first_cid; /* first chain id in this vcap */
 	int last_cid; /* last chain id in this vcap */
 	int count; /* number of available addresses */
+	bool ingress; /* is vcap in the ingress path */
 } lan966x_vcap_inst_cfg[] = {
 	{
 		.vtype = VCAP_TYPE_IS2, /* IS2-0 */
@@ -31,6 +32,7 @@ static struct lan966x_vcap_inst {
 		.first_cid = LAN966X_VCAP_CID_IS2_L0,
 		.last_cid = LAN966X_VCAP_CID_IS2_MAX,
 		.count = 256,
+		.ingress = true,
 	},
 };
 
@@ -431,6 +433,7 @@ lan966x_vcap_admin_alloc(struct lan966x *lan966x, struct vcap_control *ctrl,
 
 	admin->vtype = cfg->vtype;
 	admin->vinst = 0;
+	admin->ingress = cfg->ingress;
 	admin->w32be = true;
 	admin->tgt_inst = cfg->tgt_inst;
 

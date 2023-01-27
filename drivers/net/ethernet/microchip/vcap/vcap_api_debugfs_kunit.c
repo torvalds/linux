@@ -389,6 +389,7 @@ static const char * const test_admin_info_expect[] = {
 	"version: 1\n",
 	"vtype: 2\n",
 	"vinst: 0\n",
+	"ingress: 1\n",
 	"first_cid: 10000\n",
 	"last_cid: 19999\n",
 	"lookups: 4\n",
@@ -407,6 +408,7 @@ static void vcap_api_show_admin_test(struct kunit *test)
 		.last_valid_addr = 3071,
 		.first_valid_addr = 0,
 		.last_used_addr = 794,
+		.ingress = true,
 	};
 	struct vcap_output_print out = {
 		.prf = (void *)test_prf,
@@ -435,6 +437,7 @@ static const char * const test_admin_expect[] = {
 	"version: 1\n",
 	"vtype: 2\n",
 	"vinst: 0\n",
+	"ingress: 1\n",
 	"first_cid: 8000000\n",
 	"last_cid: 8199999\n",
 	"lookups: 4\n",
@@ -496,6 +499,7 @@ static void vcap_api_show_admin_rule_test(struct kunit *test)
 		.last_valid_addr = 3071,
 		.first_valid_addr = 0,
 		.last_used_addr = 794,
+		.ingress = true,
 		.cache = {
 			.keystream = keydata,
 			.maskstream = mskdata,
