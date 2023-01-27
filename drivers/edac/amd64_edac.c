@@ -1735,7 +1735,7 @@ static void dct_read_base_mask(struct amd64_pvt *pvt)
 	}
 }
 
-static void determine_memory_type_df(struct amd64_pvt *pvt)
+static void umc_determine_memory_type(struct amd64_pvt *pvt)
 {
 	struct amd64_umc *umc;
 	u32 i;
@@ -1772,12 +1772,9 @@ static void determine_memory_type_df(struct amd64_pvt *pvt)
 	}
 }
 
-static void determine_memory_type(struct amd64_pvt *pvt)
+static void dct_determine_memory_type(struct amd64_pvt *pvt)
 {
 	u32 dram_ctrl, dcsm;
-
-	if (pvt->umc)
-		return determine_memory_type_df(pvt);
 
 	switch (pvt->fam) {
 	case 0xf:
@@ -1828,6 +1825,8 @@ static void determine_memory_type(struct amd64_pvt *pvt)
 		WARN(1, KERN_ERR "%s: Family??? 0x%x\n", __func__, pvt->fam);
 		pvt->dram_type = MEM_EMPTY;
 	}
+
+	edac_dbg(1, "  DIMM type: %s\n", edac_mem_types[pvt->dram_type]);
 	return;
 
 ddr3:
@@ -3183,10 +3182,6 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 
 skip:
 
-	determine_memory_type(pvt);
-
-	if (!pvt->umc)
-		edac_dbg(1, "  DIMM type: %s\n", edac_mem_types[pvt->dram_type]);
 
 	determine_ecc_sym_sz(pvt);
 }
@@ -3664,6 +3659,7 @@ static int dct_hw_info_get(struct amd64_pvt *pvt)
 	dct_prep_chip_selects(pvt);
 	dct_read_base_mask(pvt);
 	read_mc_regs(pvt);
+	dct_determine_memory_type(pvt);
 
 	return 0;
 }
@@ -3677,6 +3673,7 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 	umc_prep_chip_selects(pvt);
 	umc_read_base_mask(pvt);
 	read_mc_regs(pvt);
+	umc_determine_memory_type(pvt);
 
 	return 0;
 }
