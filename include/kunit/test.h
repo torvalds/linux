@@ -683,8 +683,9 @@ do {									       \
 		.right_text = #right,					       \
 	};								       \
 									       \
-	if (likely(memcmp(__left, __right, __size) op 0))		       \
-		break;							       \
+	if (likely(__left && __right))					       \
+		if (likely(memcmp(__left, __right, __size) op 0))	       \
+			break;						       \
 									       \
 	_KUNIT_FAILED(test,						       \
 		      assert_type,					       \
