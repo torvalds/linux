@@ -1072,6 +1072,26 @@ static int amdgpu_acpi_enumerate_xcc(void)
 	return 0;
 }
 
+int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev, u64 *tmr_offset,
+			     u64 *tmr_size)
+{
+	struct amdgpu_acpi_dev_info *dev_info;
+	u16 bdf;
+
+	if (!tmr_offset || !tmr_size)
+		return -EINVAL;
+
+	bdf = (adev->pdev->bus->number << 8) | adev->pdev->devfn;
+	dev_info = amdgpu_acpi_get_dev(bdf);
+	if (!dev_info)
+		return -ENOENT;
+
+	*tmr_offset = dev_info->tmr_base;
+	*tmr_size = dev_info->tmr_size;
+
+	return 0;
+}
+
 /**
  * amdgpu_acpi_event - handle notify events
  *
