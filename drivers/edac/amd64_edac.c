@@ -3045,9 +3045,6 @@ log_error:
 static int
 reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 {
-	if (pvt->umc)
-		return 0;
-
 	/* Reserve the ADDRESS MAP Device */
 	pvt->F1 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 	if (!pvt->F1) {
@@ -3073,16 +3070,6 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 	edac_dbg(1, "F3: %s\n", pci_name(pvt->F3));
 
 	return 0;
-}
-
-static void free_mc_sibling_devs(struct amd64_pvt *pvt)
-{
-	if (pvt->umc) {
-		return;
-	} else {
-		pci_dev_put(pvt->F1);
-		pci_dev_put(pvt->F2);
-	}
 }
 
 static void determine_ecc_sym_sz(struct amd64_pvt *pvt)
@@ -3671,13 +3658,45 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->get_sdram_scrub_rate = get_scrub_rate;
 }
 
+static int dct_hw_info_get(struct amd64_pvt *pvt)
+{
+	int ret = reserve_mc_sibling_devs(pvt, pvt->f1_id, pvt->f2_id);
+
+	if (ret)
+		return ret;
+
+	read_mc_regs(pvt);
+
+	return 0;
+}
+
+static int umc_hw_info_get(struct amd64_pvt *pvt)
+{
+	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
+	if (!pvt->umc)
+		return -ENOMEM;
+
+	read_mc_regs(pvt);
+
+	return 0;
+}
+
+static void hw_info_put(struct amd64_pvt *pvt)
+{
+	pci_dev_put(pvt->F1);
+	pci_dev_put(pvt->F2);
+	kfree(pvt->umc);
+}
+
 static struct low_ops umc_ops = {
+	.hw_info_get			= umc_hw_info_get,
 };
 
 /* Use Family 16h versions for defaults and adjust as needed below. */
 static struct low_ops dct_ops = {
 	.map_sysaddr_to_csrow		= f1x_map_sysaddr_to_csrow,
 	.dbam_to_cs			= f16_dbam_to_chip_select,
+	.hw_info_get			= dct_hw_info_get,
 };
 
 static int per_family_init(struct amd64_pvt *pvt)
@@ -3820,37 +3839,6 @@ static const struct attribute_group *amd64_edac_attr_groups[] = {
 	NULL
 };
 
-static int hw_info_get(struct amd64_pvt *pvt)
-{
-	u16 pci_id1 = 0, pci_id2 = 0;
-	int ret;
-
-	if (pvt->fam >= 0x17) {
-		pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
-		if (!pvt->umc)
-			return -ENOMEM;
-	} else {
-		pci_id1 = pvt->f1_id;
-		pci_id2 = pvt->f2_id;
-	}
-
-	ret = reserve_mc_sibling_devs(pvt, pci_id1, pci_id2);
-	if (ret)
-		return ret;
-
-	read_mc_regs(pvt);
-
-	return 0;
-}
-
-static void hw_info_put(struct amd64_pvt *pvt)
-{
-	if (pvt->F1)
-		free_mc_sibling_devs(pvt);
-
-	kfree(pvt->umc);
-}
-
 static int init_one_instance(struct amd64_pvt *pvt)
 {
 	struct mem_ctl_info *mci = NULL;
@@ -3924,7 +3912,7 @@ static int probe_one_instance(unsigned int nid)
 	if (ret < 0)
 		goto err_enable;
 
-	ret = hw_info_get(pvt);
+	ret = pvt->ops->hw_info_get(pvt);
 	if (ret < 0)
 		goto err_enable;
 
