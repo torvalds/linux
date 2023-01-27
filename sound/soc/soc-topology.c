@@ -354,7 +354,7 @@ static int soc_tplg_add_kcontrol(struct soc_tplg *tplg,
 }
 
 /* remove a mixer kcontrol */
-static void remove_mixer(struct snd_soc_component *comp,
+static void soc_tplg_remove_mixer(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_card *card = comp->card->snd_card;
@@ -370,7 +370,7 @@ static void remove_mixer(struct snd_soc_component *comp,
 }
 
 /* remove an enum kcontrol */
-static void remove_enum(struct snd_soc_component *comp,
+static void soc_tplg_remove_enum(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_card *card = comp->card->snd_card;
@@ -386,7 +386,7 @@ static void remove_enum(struct snd_soc_component *comp,
 }
 
 /* remove a byte kcontrol */
-static void remove_bytes(struct snd_soc_component *comp,
+static void soc_tplg_remove_bytes(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_card *card = comp->card->snd_card;
@@ -402,7 +402,7 @@ static void remove_bytes(struct snd_soc_component *comp,
 }
 
 /* remove a route */
-static void remove_route(struct snd_soc_component *comp,
+static void soc_tplg_remove_route(struct snd_soc_component *comp,
 			 struct snd_soc_dobj *dobj, int pass)
 {
 	if (pass != SOC_TPLG_PASS_GRAPH)
@@ -415,7 +415,7 @@ static void remove_route(struct snd_soc_component *comp,
 }
 
 /* remove a widget and it's kcontrols - routes must be removed first */
-static void remove_widget(struct snd_soc_component *comp,
+static void soc_tplg_remove_widget(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_card *card = comp->card->snd_card;
@@ -443,7 +443,7 @@ free_news:
 }
 
 /* remove DAI configurations */
-static void remove_dai(struct snd_soc_component *comp,
+static void soc_tplg_remove_dai(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_soc_dai_driver *dai_drv =
@@ -464,7 +464,7 @@ static void remove_dai(struct snd_soc_component *comp,
 }
 
 /* remove link configurations */
-static void remove_link(struct snd_soc_component *comp,
+static void soc_tplg_remove_link(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_soc_dai_link *link =
@@ -492,7 +492,7 @@ static void remove_backend_link(struct snd_soc_component *comp,
 		dobj->ops->link_unload(comp, dobj);
 
 	/*
-	 * We don't free the link here as what remove_link() do since BE
+	 * We don't free the link here as what soc_tplg_remove_link() do since BE
 	 * links are not allocated by topology.
 	 * We however need to reset the dobj type to its initial values
 	 */
@@ -1492,7 +1492,7 @@ widget:
 	return 0;
 
 ready_err:
-	remove_widget(widget->dapm->component, &widget->dobj, SOC_TPLG_PASS_WIDGET);
+	soc_tplg_remove_widget(widget->dapm->component, &widget->dobj, SOC_TPLG_PASS_WIDGET);
 	snd_soc_dapm_free_widget(widget);
 hdr_err:
 	kfree(template.sname);
@@ -2627,25 +2627,25 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 
 			switch (dobj->type) {
 			case SND_SOC_DOBJ_MIXER:
-				remove_mixer(comp, dobj, pass);
+				soc_tplg_remove_mixer(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_ENUM:
-				remove_enum(comp, dobj, pass);
+				soc_tplg_remove_enum(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_BYTES:
-				remove_bytes(comp, dobj, pass);
+				soc_tplg_remove_bytes(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_GRAPH:
-				remove_route(comp, dobj, pass);
+				soc_tplg_remove_route(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_WIDGET:
-				remove_widget(comp, dobj, pass);
+				soc_tplg_remove_widget(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_PCM:
-				remove_dai(comp, dobj, pass);
+				soc_tplg_remove_dai(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_DAI_LINK:
-				remove_link(comp, dobj, pass);
+				soc_tplg_remove_link(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_BACKEND_LINK:
 				/*
