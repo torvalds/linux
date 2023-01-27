@@ -2974,10 +2974,14 @@ static inline void decode_bus_error(int node_id, struct mce *m)
  * Currently, we can derive the channel number by looking at the 6th nibble in
  * the instance_id. For example, instance_id=0xYXXXXX where Y is the channel
  * number.
+ *
+ * For DRAM ECC errors, the Chip Select number is given in bits [2:0] of
+ * the MCA_SYND[ErrorInformation] field.
  */
-static int find_umc_channel(struct mce *m)
+static void umc_get_err_info(struct mce *m, struct err_info *err)
 {
-	return (m->ipid & GENMASK(31, 0)) >> 20;
+	err->channel = (m->ipid & GENMASK(31, 0)) >> 20;
+	err->csrow = m->synd & 0x7;
 }
 
 static void decode_umc_error(int node_id, struct mce *m)
@@ -2999,8 +3003,6 @@ static void decode_umc_error(int node_id, struct mce *m)
 	if (m->status & MCI_STATUS_DEFERRED)
 		ecc_type = 3;
 
-	err.channel = find_umc_channel(m);
-
 	if (!(m->status & MCI_STATUS_SYNDV)) {
 		err.err_code = ERR_SYND;
 		goto log_error;
@@ -3015,7 +3017,7 @@ static void decode_umc_error(int node_id, struct mce *m)
 			err.err_code = ERR_CHANNEL;
 	}
 
-	err.csrow = m->synd & 0x7;
+	pvt->ops->get_err_info(m, &err);
 
 	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
 		err.err_code = ERR_NORM_ADDR;
@@ -3685,6 +3687,7 @@ static struct low_ops umc_ops = {
 	.ecc_enabled			= umc_ecc_enabled,
 	.setup_mci_misc_attrs		= umc_setup_mci_misc_attrs,
 	.dump_misc_regs			= umc_dump_misc_regs,
+	.get_err_info			= umc_get_err_info,
 };
 
 /* Use Family 16h versions for defaults and adjust as needed below. */
