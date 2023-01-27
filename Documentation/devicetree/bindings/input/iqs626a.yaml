@@ -564,16 +564,6 @@ patternProperties:
           2: Partial
           3: Full
 
-      azoteq,ati-base:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 6
-        maxItems: 9
-        items:
-          minimum: 45
-          maximum: 300
-        default: [45, 45, 45, 45, 45, 45, 45, 45, 45]
-        description: Specifies each individual trackpad channel's ATI base.
-
       azoteq,ati-target:
         $ref: /schemas/types.yaml#/definitions/uint32
         multipleOf: 32
@@ -619,17 +609,6 @@ patternProperties:
         type: boolean
         description:
           Tightens the ATI band from 1/8 to 1/16 of the desired target.
-
-      azoteq,thresh:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 6
-        maxItems: 9
-        items:
-          minimum: 0
-          maximum: 255
-        default: [0, 0, 0, 0, 0, 0, 0, 0, 0]
-        description:
-          Specifies each individual trackpad channel's touch threshold.
 
       azoteq,hyst:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -720,6 +699,28 @@ patternProperties:
           Specifies the number of points across which an axial gesture must
           travel in order to be interpreted as a flick or swipe.
 
+    patternProperties:
+      "^channel-[0-8]$":
+        type: object
+        description: Represents a single trackpad channel.
+
+        properties:
+          azoteq,thresh:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 255
+            default: 0
+            description: Specifies the threshold for the channel.
+
+          azoteq,ati-base:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 45
+            maximum: 300
+            default: 45
+            description: Specifies the channel's ATI base.
+
+        additionalProperties: false
+
     dependencies:
       azoteq,gesture-swipe: ["linux,keycodes"]
       azoteq,timeout-tap-ms: ["linux,keycodes"]
@@ -780,14 +781,8 @@ examples:
                             azoteq,filt-str-lp-cnt = <1>;
 
                             azoteq,hyst = <4>;
-                            azoteq,thresh = <35>, <40>, <40>,
-                                            <38>, <33>, <38>,
-                                            <35>, <35>, <35>;
 
                             azoteq,ati-mode = <3>;
-                            azoteq,ati-base = <195>, <195>, <195>,
-                                              <195>, <195>, <195>,
-                                              <195>, <195>, <195>;
                             azoteq,ati-target = <512>;
 
                             azoteq,proj-bias = <1>;
@@ -804,6 +799,51 @@ examples:
                             azoteq,timeout-swipe-ms = <800>;
                             azoteq,timeout-tap-ms = <400>;
                             azoteq,thresh-swipe = <40>;
+
+                            channel-0 {
+                                    azoteq,thresh = <35>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-1 {
+                                    azoteq,thresh = <40>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-2 {
+                                    azoteq,thresh = <40>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-3 {
+                                    azoteq,thresh = <38>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-4 {
+                                    azoteq,thresh = <33>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-5 {
+                                    azoteq,thresh = <38>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-6 {
+                                    azoteq,thresh = <35>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-7 {
+                                    azoteq,thresh = <35>;
+                                    azoteq,ati-base = <195>;
+                            };
+
+                            channel-8 {
+                                    azoteq,thresh = <35>;
+                                    azoteq,ati-base = <195>;
+                            };
                     };
 
                     /*
