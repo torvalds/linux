@@ -1709,11 +1709,6 @@ void mq_clear_sbinfo(struct ipc_namespace *ns)
 	ns->mq_mnt->mnt_sb->s_fs_info = NULL;
 }
 
-void mq_put_mnt(struct ipc_namespace *ns)
-{
-	kern_unmount(ns->mq_mnt);
-}
-
 static int __init init_mqueue_fs(void)
 {
 	int error;
