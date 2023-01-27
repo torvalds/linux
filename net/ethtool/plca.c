@@ -112,18 +112,6 @@ static int plca_get_cfg_fill_reply(struct sk_buff *skb,
 	return 0;
 };
 
-const struct ethnl_request_ops ethnl_plca_cfg_request_ops = {
-	.request_cmd		= ETHTOOL_MSG_PLCA_GET_CFG,
-	.reply_cmd		= ETHTOOL_MSG_PLCA_GET_CFG_REPLY,
-	.hdr_attr		= ETHTOOL_A_PLCA_HEADER,
-	.req_info_size		= sizeof(struct plca_req_info),
-	.reply_data_size	= sizeof(struct plca_reply_data),
-
-	.prepare_data		= plca_get_cfg_prepare_data,
-	.reply_size		= plca_get_cfg_reply_size,
-	.fill_reply		= plca_get_cfg_fill_reply,
-};
-
 // PLCA set configuration message ------------------------------------------- //
 
 const struct nla_policy ethnl_plca_set_cfg_policy[] = {
@@ -137,42 +125,23 @@ const struct nla_policy ethnl_plca_set_cfg_policy[] = {
 	[ETHTOOL_A_PLCA_BURST_TMR]	= NLA_POLICY_MAX(NLA_U32, 255),
 };
 
-int ethnl_set_plca_cfg(struct sk_buff *skb, struct genl_info *info)
+static int
+ethnl_set_plca(struct ethnl_req_info *req_info, struct genl_info *info)
 {
-	struct ethnl_req_info req_info = {};
-	struct nlattr **tb = info->attrs;
+	struct net_device *dev = req_info->dev;
 	const struct ethtool_phy_ops *ops;
+	struct nlattr **tb = info->attrs;
 	struct phy_plca_cfg plca_cfg;
-	struct net_device *dev;
 	bool mod = false;
 	int ret;
 
-	ret = ethnl_parse_header_dev_get(&req_info,
-					 tb[ETHTOOL_A_PLCA_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
-	if (ret < 0)
-		return ret;
-
-	dev = req_info.dev;
-
-	rtnl_lock();
-
 	// check that the PHY device is available and connected
-	if (!dev->phydev) {
-		ret = -EOPNOTSUPP;
-		goto out_rtnl;
-	}
+	if (!dev->phydev)
+		return -EOPNOTSUPP;
 
 	ops = ethtool_phy_ops;
-	if (!ops || !ops->set_plca_cfg) {
-		ret = -EOPNOTSUPP;
-		goto out_rtnl;
-	}
-
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
+	if (!ops || !ops->set_plca_cfg)
+		return -EOPNOTSUPP;
 
 	memset(&plca_cfg, 0xff, sizeof(plca_cfg));
 	plca_update_sint(&plca_cfg.enabled, tb[ETHTOOL_A_PLCA_ENABLED], &mod);
@@ -183,25 +152,27 @@ int ethnl_set_plca_cfg(struct sk_buff *skb, struct genl_info *info)
 			 &mod);
 	plca_update_sint(&plca_cfg.burst_tmr, tb[ETHTOOL_A_PLCA_BURST_TMR],
 			 &mod);
-
-	ret = 0;
 	if (!mod)
-		goto out_ops;
+		return 0;
 
 	ret = ops->set_plca_cfg(dev->phydev, &plca_cfg, info->extack);
-	if (ret < 0)
-		goto out_ops;
-
-	ethtool_notify(dev, ETHTOOL_MSG_PLCA_NTF, NULL);
-
-out_ops:
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-	ethnl_parse_header_dev_put(&req_info);
-
-	return ret;
+	return ret < 0 ? ret : 1;
 }
+
+const struct ethnl_request_ops ethnl_plca_cfg_request_ops = {
+	.request_cmd		= ETHTOOL_MSG_PLCA_GET_CFG,
+	.reply_cmd		= ETHTOOL_MSG_PLCA_GET_CFG_REPLY,
+	.hdr_attr		= ETHTOOL_A_PLCA_HEADER,
+	.req_info_size		= sizeof(struct plca_req_info),
+	.reply_data_size	= sizeof(struct plca_reply_data),
+
+	.prepare_data		= plca_get_cfg_prepare_data,
+	.reply_size		= plca_get_cfg_reply_size,
+	.fill_reply		= plca_get_cfg_fill_reply,
+
+	.set			= ethnl_set_plca,
+	.set_ntf_cmd		= ETHTOOL_MSG_PLCA_NTF,
+};
 
 // PLCA get status message -------------------------------------------------- //
 

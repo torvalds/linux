@@ -161,6 +161,46 @@ static int pause_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
+/* PAUSE_SET */
+
+const struct nla_policy ethnl_pause_set_policy[] = {
+	[ETHTOOL_A_PAUSE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_U8 },
+	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_U8 },
+	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_U8 },
+};
+
+static int
+ethnl_set_pause_validate(struct ethnl_req_info *req_info,
+			 struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+
+	return ops->get_pauseparam && ops->set_pauseparam ? 1 : -EOPNOTSUPP;
+}
+
+static int
+ethnl_set_pause(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	struct net_device *dev = req_info->dev;
+	struct ethtool_pauseparam params = {};
+	struct nlattr **tb = info->attrs;
+	bool mod = false;
+	int ret;
+
+	dev->ethtool_ops->get_pauseparam(dev, &params);
+
+	ethnl_update_bool32(&params.autoneg, tb[ETHTOOL_A_PAUSE_AUTONEG], &mod);
+	ethnl_update_bool32(&params.rx_pause, tb[ETHTOOL_A_PAUSE_RX], &mod);
+	ethnl_update_bool32(&params.tx_pause, tb[ETHTOOL_A_PAUSE_TX], &mod);
+	if (!mod)
+		return 0;
+
+	ret = dev->ethtool_ops->set_pauseparam(dev, &params);
+	return ret < 0 ? ret : 1;
+}
+
 const struct ethnl_request_ops ethnl_pause_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_PAUSE_GET,
 	.reply_cmd		= ETHTOOL_MSG_PAUSE_GET_REPLY,
@@ -172,63 +212,8 @@ const struct ethnl_request_ops ethnl_pause_request_ops = {
 	.prepare_data		= pause_prepare_data,
 	.reply_size		= pause_reply_size,
 	.fill_reply		= pause_fill_reply,
+
+	.set_validate		= ethnl_set_pause_validate,
+	.set			= ethnl_set_pause,
+	.set_ntf_cmd		= ETHTOOL_MSG_PAUSE_NTF,
 };
-
-/* PAUSE_SET */
-
-const struct nla_policy ethnl_pause_set_policy[] = {
-	[ETHTOOL_A_PAUSE_HEADER]		=
-		NLA_POLICY_NESTED(ethnl_header_policy),
-	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_U8 },
-	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_U8 },
-	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_U8 },
-};
-
-int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info)
-{
-	struct ethtool_pauseparam params = {};
-	struct ethnl_req_info req_info = {};
-	struct nlattr **tb = info->attrs;
-	const struct ethtool_ops *ops;
-	struct net_device *dev;
-	bool mod = false;
-	int ret;
-
-	ret = ethnl_parse_header_dev_get(&req_info,
-					 tb[ETHTOOL_A_PAUSE_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
-	if (ret < 0)
-		return ret;
-	dev = req_info.dev;
-	ops = dev->ethtool_ops;
-	ret = -EOPNOTSUPP;
-	if (!ops->get_pauseparam || !ops->set_pauseparam)
-		goto out_dev;
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
-	ops->get_pauseparam(dev, &params);
-
-	ethnl_update_bool32(&params.autoneg, tb[ETHTOOL_A_PAUSE_AUTONEG], &mod);
-	ethnl_update_bool32(&params.rx_pause, tb[ETHTOOL_A_PAUSE_RX], &mod);
-	ethnl_update_bool32(&params.tx_pause, tb[ETHTOOL_A_PAUSE_TX], &mod);
-	ret = 0;
-	if (!mod)
-		goto out_ops;
-
-	ret = dev->ethtool_ops->set_pauseparam(dev, &params);
-	if (ret < 0)
-		goto out_ops;
-	ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
-
-out_ops:
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-out_dev:
-	ethnl_parse_header_dev_put(&req_info);
-	return ret;
-}
