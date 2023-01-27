@@ -606,9 +606,17 @@ struct mlx5e_icosq {
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_wqe_frag_info {
-	union mlx5e_alloc_unit *au;
+	union {
+		struct page **pagep;
+		struct xdp_buff **xskp;
+	};
 	u32 offset;
 	bool last_in_page;
+};
+
+union mlx5e_alloc_units {
+	DECLARE_FLEX_ARRAY(struct page *, pages);
+	DECLARE_FLEX_ARRAY(struct xdp_buff *, xsk_buffs);
 };
 
 struct mlx5e_mpw_info {
@@ -702,7 +710,7 @@ struct mlx5e_rq {
 		struct {
 			struct mlx5_wq_cyc          wq;
 			struct mlx5e_wqe_frag_info *frags;
-			union mlx5e_alloc_unit     *alloc_units;
+			union mlx5e_alloc_units    *alloc_units;
 			struct mlx5e_rq_frags_info  info;
 			mlx5e_fp_skb_from_cqe       skb_from_cqe;
 		} wqe;

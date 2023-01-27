@@ -163,13 +163,10 @@ int mlx5e_xsk_alloc_rx_wqes_batched(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 	u32 contig, alloc;
 	int i;
 
-	/* mlx5e_init_frags_partition creates a 1:1 mapping between
-	 * rq->wqe.frags and rq->wqe.alloc_units, which allows us to
-	 * allocate XDP buffers straight into alloc_units.
+	/* Each rq->wqe.frags->xskp is 1:1 mapped to an element inside the
+	 * rq->wqe.alloc_units->xsk_buffs array allocated here.
 	 */
-	BUILD_BUG_ON(sizeof(rq->wqe.alloc_units[0]) !=
-		     sizeof(rq->wqe.alloc_units[0].xsk));
-	buffs = (struct xdp_buff **)rq->wqe.alloc_units;
+	buffs = rq->wqe.alloc_units->xsk_buffs;
 	contig = mlx5_wq_cyc_get_size(wq) - ix;
 	if (wqe_bulk <= contig) {
 		alloc = xsk_buff_alloc_batch(rq->xsk_pool, buffs + ix, wqe_bulk);
@@ -189,7 +186,7 @@ int mlx5e_xsk_alloc_rx_wqes_batched(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 		/* Assumes log_num_frags == 0. */
 		frag = &rq->wqe.frags[j];
 
-		addr = xsk_buff_xdp_get_frame_dma(frag->au->xsk);
+		addr = xsk_buff_xdp_get_frame_dma(*frag->xskp);
 		wqe->data[0].addr = cpu_to_be64(addr + rq->buff.headroom);
 	}
 
@@ -211,11 +208,11 @@ int mlx5e_xsk_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 		/* Assumes log_num_frags == 0. */
 		frag = &rq->wqe.frags[j];
 
-		frag->au->xsk = xsk_buff_alloc(rq->xsk_pool);
-		if (unlikely(!frag->au->xsk))
+		*frag->xskp = xsk_buff_alloc(rq->xsk_pool);
+		if (unlikely(!*frag->xskp))
 			return i;
 
-		addr = xsk_buff_xdp_get_frame_dma(frag->au->xsk);
+		addr = xsk_buff_xdp_get_frame_dma(*frag->xskp);
 		wqe->data[0].addr = cpu_to_be64(addr + rq->buff.headroom);
 	}
 
@@ -306,7 +303,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      struct mlx5_cqe64 *cqe,
 					      u32 cqe_bcnt)
 {
-	struct mlx5e_xdp_buff *mxbuf = xsk_buff_to_mxbuf(wi->au->xsk);
+	struct mlx5e_xdp_buff *mxbuf = xsk_buff_to_mxbuf(*wi->xskp);
 	struct bpf_prog *prog;
 
 	/* wi->offset is not used in this function, because xdp->data and the
