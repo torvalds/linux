@@ -13,6 +13,33 @@
 #include "ipc4-priv.h"
 #include "ipc4-topology.h"
 
+static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state,
+					     struct ipc4_pipeline_set_state_data *data)
+{
+	struct sof_ipc4_msg msg = {{ 0 }};
+	u32 primary, ipc_size;
+
+	/* trigger a single pipeline */
+	if (data->count == 1)
+		return sof_ipc4_set_pipeline_state(sdev, data->pipeline_ids[0], state);
+
+	primary = state;
+	primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_SET_PIPELINE_STATE);
+	primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
+	msg.primary = primary;
+
+	/* trigger multiple pipelines with a single IPC */
+	msg.extension = SOF_IPC4_GLB_PIPE_STATE_EXT_MULTI;
+
+	/* ipc_size includes the count and the pipeline IDs for the number of pipelines */
+	ipc_size = sizeof(u32) * (data->count + 1);
+	msg.data_size = ipc_size;
+	msg.data_ptr = data;
+
+	return sof_ipc_tx_message(sdev->ipc, &msg, ipc_size, NULL, 0);
+}
+
 int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 id, u32 state)
 {
 	struct sof_ipc4_msg msg = {{ 0 }};
@@ -37,60 +64,100 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_sof_widget *pipeline_widget;
-	struct snd_soc_dapm_widget_list *list;
-	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
+	struct ipc4_pipeline_set_state_data *data;
+	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
-	struct snd_sof_widget *swidget;
 	struct snd_sof_pcm *spcm;
-	int ret = 0;
-	int num_widgets;
+	int ret;
+	int i, j;
 
 	spcm = snd_sof_find_spcm_dai(component, rtd);
 	if (!spcm)
 		return -EINVAL;
 
-	list = spcm->stream[substream->stream].list;
+	pipeline_list = &spcm->stream[substream->stream].pipeline_list;
 
-	for_each_dapm_widgets(list, num_widgets, widget) {
-		swidget = widget->dobj.private;
+	/* nothing to trigger if the list is empty */
+	if (!pipeline_list->pipe_widgets)
+		return 0;
 
-		if (!swidget)
-			continue;
+	/* allocate memory for the pipeline data */
+	data = kzalloc(struct_size(data, pipeline_ids, pipeline_list->count), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-		pipeline_widget = swidget->pipe_widget;
-		pipeline = (struct sof_ipc4_pipeline *)pipeline_widget->private;
-
-		if (pipeline->state == state || pipeline->skip_during_fe_trigger)
-			continue;
-
-		/* first set the pipeline to PAUSED state */
-		if (pipeline->state != SOF_IPC4_PIPE_PAUSED) {
-			ret = sof_ipc4_set_pipeline_state(sdev, pipeline_widget->instance_id,
-							  SOF_IPC4_PIPE_PAUSED);
-			if (ret < 0) {
-				dev_err(sdev->dev, "failed to pause pipeline %d\n",
-					swidget->pipeline_id);
-				return ret;
-			}
-		}
-
-		pipeline->state = SOF_IPC4_PIPE_PAUSED;
-
-		if (pipeline->state == state)
-			continue;
-
-		/* then set the final state */
-		ret = sof_ipc4_set_pipeline_state(sdev, pipeline_widget->instance_id, state);
-		if (ret < 0) {
-			dev_err(sdev->dev, "failed to set state %d for pipeline %d\n",
-				state, swidget->pipeline_id);
-			break;
-		}
-
-		pipeline->state = state;
+	/*
+	 * IPC4 requires pipelines to be triggered in order starting at the sink and
+	 * walking all the way to the source. So traverse the pipeline_list in the reverse order.
+	 * Skip the pipelines that have their skip_during_fe_trigger flag set or if they're already
+	 * in the requested state. If there is a fork in the pipeline, the order of triggering
+	 * between the left/right paths will be indeterministic. But the sink->source trigger order
+	 * sink->source would still be guaranteed for each fork independently.
+	 */
+	for (i = pipeline_list->count - 1; i >= 0; i--) {
+		pipe_widget = pipeline_list->pipe_widgets[i];
+		pipeline = pipe_widget->private;
+		if (pipeline->state != state && !pipeline->skip_during_fe_trigger)
+			data->pipeline_ids[data->count++] = pipe_widget->instance_id;
 	}
 
+	/* return if all pipelines are in the requested state already */
+	if (!data->count) {
+		kfree(data);
+		return 0;
+	}
+
+	/*
+	 * Pause all pipelines. This could result in an extra IPC to pause all pipelines even if
+	 * they are already paused. But it helps keep the logic simpler and the firmware handles
+	 * the repeated pause gracefully. This can be optimized in the future if needed.
+	 */
+	ret = sof_ipc4_set_multi_pipeline_state(sdev, SOF_IPC4_PIPE_PAUSED, data);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to pause all pipelines\n");
+		goto free;
+	}
+
+	/* update PAUSED state for all pipelines that were just triggered */
+	for (i = 0; i < data->count; i++) {
+		for (j = 0; j < pipeline_list->count; j++) {
+			pipe_widget = pipeline_list->pipe_widgets[j];
+			pipeline = pipe_widget->private;
+
+			if (data->pipeline_ids[i] == pipe_widget->instance_id) {
+				pipeline->state = SOF_IPC4_PIPE_PAUSED;
+				break;
+			}
+		}
+	}
+
+	/* return if this is the final state */
+	if (state == SOF_IPC4_PIPE_PAUSED)
+		goto free;
+
+	/* else set the final state in the DSP */
+	ret = sof_ipc4_set_multi_pipeline_state(sdev, state, data);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to set final state %d for all pipelines\n", state);
+		goto free;
+	}
+
+	/* update final state for all pipelines that were just triggered */
+	for (i = 0; i < data->count; i++) {
+		for (j = 0; j < pipeline_list->count; j++) {
+			pipe_widget = pipeline_list->pipe_widgets[j];
+			pipeline = pipe_widget->private;
+
+			if (data->pipeline_ids[i] == pipe_widget->instance_id) {
+				pipeline->state = state;
+				break;
+			}
+		}
+	}
+
+free:
+	kfree(data);
 	return ret;
 }
 

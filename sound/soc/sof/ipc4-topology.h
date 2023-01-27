@@ -85,6 +85,16 @@ struct sof_ipc4_pipeline {
 };
 
 /**
+ * struct sof_ipc4_multi_pipeline_data - multi pipeline trigger IPC data
+ * @count: Number of pipelines to be triggered
+ * @pipeline_ids: Flexible array of IDs of the pipelines to be triggered
+ */
+struct ipc4_pipeline_set_state_data {
+	u32 count;
+	DECLARE_FLEX_ARRAY(u32, pipeline_ids);
+} __packed;
+
+/**
  * struct sof_ipc4_available_audio_format - Available audio formats
  * @base_config: Available base config
  * @out_audio_fmt: Available output audio format
