@@ -22,13 +22,13 @@ properties:
 
   samsung,pmu-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
+    deprecated: true
     description:
-      Phandle to PMU system controller interface.
+      Phandle to PMU system controller interface (if not a child of PMU).
 
 required:
   - compatible
   - "#phy-cells"
-  - samsung,pmu-syscon
 
 additionalProperties: false
 
@@ -36,6 +36,5 @@ examples:
   - |
     phy {
         compatible = "samsung,exynos5420-dp-video-phy";
-        samsung,pmu-syscon = <&pmu_system_controller>;
         #phy-cells = <0>;
     };
