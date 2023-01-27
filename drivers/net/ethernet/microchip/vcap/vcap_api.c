@@ -3264,6 +3264,28 @@ static int vcap_rule_get_key(struct vcap_rule *rule,
 	return 0;
 }
 
+/* Find a keyset having the same size as the provided rule, where the keyset
+ * does not have a type id.
+ */
+static int vcap_rule_get_untyped_keyset(struct vcap_rule_internal *ri,
+					struct vcap_keyset_list *matches)
+{
+	struct vcap_control *vctrl = ri->vctrl;
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_set *keyfield_set;
+	int idx;
+
+	keyfield_set = vctrl->vcaps[vt].keyfield_set;
+	for (idx = 0; idx < vctrl->vcaps[vt].keyfield_set_size; ++idx) {
+		if (keyfield_set[idx].sw_per_item == ri->keyset_sw &&
+		    keyfield_set[idx].type_id == (u8)-1) {
+			vcap_keyset_list_add(matches, idx);
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 /* Get the keysets that matches the rule key type/mask */
 int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
 			  struct vcap_keyset_list *matches)
@@ -3277,7 +3299,7 @@ int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
 
 	err = vcap_rule_get_key(&ri->data, VCAP_KF_TYPE, &kf);
 	if (err)
-		return err;
+		return vcap_rule_get_untyped_keyset(ri, matches);
 
 	if (kf.ctrl.type == VCAP_FIELD_BIT) {
 		value = kf.data.u1.value;
