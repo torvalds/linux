@@ -38,6 +38,7 @@ struct v4l2_subdev;
 struct v4l2_subdev_fh;
 struct tuner_setup;
 struct v4l2_mbus_frame_desc;
+struct led_classdev;
 
 /**
  * struct v4l2_decode_vbi_line - used to decode_vbi_line
@@ -941,6 +942,7 @@ struct v4l2_subdev_platform_data {
  * @state_lock: A pointer to a lock used for all the subdev's states, set by the
  *		driver. This is	optional. If NULL, each state instance will get
  *		a lock of its own.
+ * @privacy_led: Optional pointer to a LED classdev for the privacy LED for sensors.
  * @active_state: Active state for the subdev (NULL for subdevs tracking the
  *		  state internally). Initialized by calling
  *		  v4l2_subdev_init_finalize().
@@ -981,6 +983,8 @@ struct v4l2_subdev {
 	 * The fields below are private, and should only be accessed via
 	 * appropriate functions.
 	 */
+
+	struct led_classdev *privacy_led;
 
 	/*
 	 * TODO: active_state should most likely be changed from a pointer to an
