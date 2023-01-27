@@ -2899,7 +2899,7 @@ void dcn10_blank_pixel_data(
 			dc->hwss.set_pipe(pipe_ctx);
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
-	} else if (blank) {
+	} else {
 		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 		if (stream_res->tg->funcs->set_blank) {
 			stream_res->tg->funcs->wait_for_state(stream_res->tg, CRTC_STATE_VBLANK);
