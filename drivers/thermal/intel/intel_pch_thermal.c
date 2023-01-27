@@ -100,16 +100,17 @@ static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
 				      int *nr_trips)
 {
 	struct acpi_device *adev;
-	int ret;
+	int temp;
 
 	adev = ACPI_COMPANION(&ptd->pdev->dev);
 	if (!adev)
 		return;
 
-	ret = thermal_acpi_trip_passive(adev, &ptd->trips[*nr_trips]);
-	if (ret || ptd->trips[*nr_trips].temperature <= 0)
+	if (thermal_acpi_passive_trip_temp(adev, &temp) || temp <= 0)
 		return;
 
+	ptd->trips[*nr_trips].type = THERMAL_TRIP_PASSIVE;
+	ptd->trips[*nr_trips].temperature = temp;
 	++(*nr_trips);
 }
 #else

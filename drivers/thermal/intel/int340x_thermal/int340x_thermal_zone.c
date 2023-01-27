@@ -70,24 +70,35 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 {
 	int i, ret;
 
-	ret = thermal_acpi_trip_critical(zone_adev, &zone_trips[trip_cnt]);
-	if (!ret)
+	ret = thermal_acpi_critical_trip_temp(zone_adev,
+					      &zone_trips[trip_cnt].temperature);
+	if (!ret) {
+		zone_trips[trip_cnt].type = THERMAL_TRIP_CRITICAL;
 		trip_cnt++;
+	}
 
-	ret = thermal_acpi_trip_hot(zone_adev, &zone_trips[trip_cnt]);
-	if (!ret)
+	ret = thermal_acpi_hot_trip_temp(zone_adev,
+					 &zone_trips[trip_cnt].temperature);
+	if (!ret) {
+		zone_trips[trip_cnt].type = THERMAL_TRIP_HOT;
 		trip_cnt++;
+	}
 
-	ret = thermal_acpi_trip_passive(zone_adev, &zone_trips[trip_cnt]);
-	if (!ret)
+	ret = thermal_acpi_passive_trip_temp(zone_adev,
+					     &zone_trips[trip_cnt].temperature);
+	if (!ret) {
+		zone_trips[trip_cnt].type = THERMAL_TRIP_PASSIVE;
 		trip_cnt++;
+	}
 
 	for (i = 0; i < INT340X_THERMAL_MAX_ACT_TRIP_COUNT; i++) {
 
-		ret = thermal_acpi_trip_active(zone_adev, i, &zone_trips[trip_cnt]);
+		ret = thermal_acpi_active_trip_temp(zone_adev, i,
+						    &zone_trips[trip_cnt].temperature);
 		if (ret)
 			break;
 
+		zone_trips[trip_cnt].type = THERMAL_TRIP_ACTIVE;
 		trip_cnt++;
 	}
 
@@ -213,22 +224,21 @@ void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
 	mutex_lock(&int34x_zone->zone->lock);
 
 	for (i = int34x_zone->aux_trip_nr; i < trip_cnt; i++) {
-		struct thermal_trip trip;
-		int err;
+		int temp, err;
 
 		switch (zone_trips[i].type) {
 		case THERMAL_TRIP_CRITICAL:
-			err = thermal_acpi_trip_critical(zone_adev, &trip);
+			err = thermal_acpi_critical_trip_temp(zone_adev, &temp);
 			break;
 		case THERMAL_TRIP_HOT:
-			err = thermal_acpi_trip_hot(zone_adev, &trip);
+			err = thermal_acpi_hot_trip_temp(zone_adev, &temp);
 			break;
 		case THERMAL_TRIP_PASSIVE:
-			err = thermal_acpi_trip_passive(zone_adev, &trip);
+			err = thermal_acpi_passive_trip_temp(zone_adev, &temp);
 			break;
 		case THERMAL_TRIP_ACTIVE:
-			err = thermal_acpi_trip_active(zone_adev, act_trip_nr++,
-						       &trip);
+			err = thermal_acpi_active_trip_temp(zone_adev, act_trip_nr++,
+							    &temp);
 			break;
 		default:
 			err = -ENODEV;
@@ -238,7 +248,7 @@ void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
 			continue;
 		}
 
-		zone_trips[i].temperature = trip.temperature;
+		zone_trips[i].temperature = temp;
 	}
 
 	mutex_unlock(&int34x_zone->zone->lock);
