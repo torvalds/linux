@@ -3898,23 +3898,23 @@ static int mlxsw_sp2_params_register(struct mlxsw_core *mlxsw_core)
 	union devlink_param_value value;
 	int err;
 
-	err = devlink_params_register(devlink, mlxsw_sp2_devlink_params,
-				      ARRAY_SIZE(mlxsw_sp2_devlink_params));
+	err = devl_params_register(devlink, mlxsw_sp2_devlink_params,
+				   ARRAY_SIZE(mlxsw_sp2_devlink_params));
 	if (err)
 		return err;
 
 	value.vu32 = 0;
-	devlink_param_driverinit_value_set(devlink,
-					   MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
+					value);
 	return 0;
 }
 
 static void mlxsw_sp2_params_unregister(struct mlxsw_core *mlxsw_core)
 {
-	devlink_params_unregister(priv_to_devlink(mlxsw_core),
-				  mlxsw_sp2_devlink_params,
-				  ARRAY_SIZE(mlxsw_sp2_devlink_params));
+	devl_params_unregister(priv_to_devlink(mlxsw_core),
+			       mlxsw_sp2_devlink_params,
+			       ARRAY_SIZE(mlxsw_sp2_devlink_params));
 }
 
 static void mlxsw_sp_ptp_transmitted(struct mlxsw_core *mlxsw_core,

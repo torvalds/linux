@@ -114,9 +114,9 @@ static bool is_eth_enabled(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
-						 DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
-						 &val);
+	err = devl_param_driverinit_value_get(priv_to_devlink(dev),
+					      DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+					      &val);
 	return err ? false : val.vbool;
 }
 
@@ -147,9 +147,9 @@ static bool is_vnet_enabled(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
-						 DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
-						 &val);
+	err = devl_param_driverinit_value_get(priv_to_devlink(dev),
+					      DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+					      &val);
 	return err ? false : val.vbool;
 }
 
@@ -221,9 +221,9 @@ static bool is_ib_enabled(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
-						 DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
-						 &val);
+	err = devl_param_driverinit_value_get(priv_to_devlink(dev),
+					      DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+					      &val);
 	return err ? false : val.vbool;
 }
 

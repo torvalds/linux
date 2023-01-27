@@ -34,12 +34,14 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/eswitch.h>
+#include <net/devlink.h>
 
 #include "mlx5_core.h"
 #include "fs_core.h"
 #include "fs_cmd.h"
 #include "fs_ft_pool.h"
 #include "diag/fs_tracepoint.h"
+#include "devlink.h"
 
 #define INIT_TREE_NODE_ARRAY_SIZE(...)	(sizeof((struct init_tree_node[]){__VA_ARGS__}) /\
 					 sizeof(struct init_tree_node))
@@ -3143,6 +3145,78 @@ cleanup:
 	return err;
 }
 
+static int mlx5_fs_mode_validate(struct devlink *devlink, u32 id,
+				 union devlink_param_value val,
+				 struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	char *value = val.vstr;
+	int err = 0;
+
+	if (!strcmp(value, "dmfs")) {
+		return 0;
+	} else if (!strcmp(value, "smfs")) {
+		u8 eswitch_mode;
+		bool smfs_cap;
+
+		eswitch_mode = mlx5_eswitch_mode(dev);
+		smfs_cap = mlx5_fs_dr_is_supported(dev);
+
+		if (!smfs_cap) {
+			err = -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Software managed steering is not supported by current device");
+		}
+
+		else if (eswitch_mode == MLX5_ESWITCH_OFFLOADS) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Software managed steering is not supported when eswitch offloads enabled.");
+			err = -EOPNOTSUPP;
+		}
+	} else {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Bad parameter: supported values are [\"dmfs\", \"smfs\"]");
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
+static int mlx5_fs_mode_set(struct devlink *devlink, u32 id,
+			    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	enum mlx5_flow_steering_mode mode;
+
+	if (!strcmp(ctx->val.vstr, "smfs"))
+		mode = MLX5_FLOW_STEERING_MODE_SMFS;
+	else
+		mode = MLX5_FLOW_STEERING_MODE_DMFS;
+	dev->priv.steering->mode = mode;
+
+	return 0;
+}
+
+static int mlx5_fs_mode_get(struct devlink *devlink, u32 id,
+			    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS)
+		strcpy(ctx->val.vstr, "smfs");
+	else
+		strcpy(ctx->val.vstr, "dmfs");
+	return 0;
+}
+
+static const struct devlink_param mlx5_fs_params[] = {
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
+			     "flow_steering_mode", DEVLINK_PARAM_TYPE_STRING,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     mlx5_fs_mode_get, mlx5_fs_mode_set,
+			     mlx5_fs_mode_validate),
+};
+
 void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
@@ -3155,12 +3229,20 @@ void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev)
 	cleanup_root_ns(steering->rdma_rx_root_ns);
 	cleanup_root_ns(steering->rdma_tx_root_ns);
 	cleanup_root_ns(steering->egress_root_ns);
+
+	devl_params_unregister(priv_to_devlink(dev), mlx5_fs_params,
+			       ARRAY_SIZE(mlx5_fs_params));
 }
 
 int mlx5_fs_core_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
-	int err = 0;
+	int err;
+
+	err = devl_params_register(priv_to_devlink(dev), mlx5_fs_params,
+				   ARRAY_SIZE(mlx5_fs_params));
+	if (err)
+		return err;
 
 	if ((((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
 	      (MLX5_CAP_GEN(dev, nic_flow_table))) ||

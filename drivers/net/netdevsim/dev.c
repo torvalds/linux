@@ -527,13 +527,13 @@ static void nsim_devlink_set_params_init_values(struct nsim_dev *nsim_dev,
 	union devlink_param_value value;
 
 	value.vu32 = nsim_dev->max_macs;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					value);
 	value.vbool = nsim_dev->test1;
-	devlink_param_driverinit_value_set(devlink,
-					   NSIM_DEVLINK_PARAM_ID_TEST1,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					NSIM_DEVLINK_PARAM_ID_TEST1,
+					value);
 }
 
 static void nsim_devlink_param_load_driverinit_values(struct devlink *devlink)
@@ -542,14 +542,14 @@ static void nsim_devlink_param_load_driverinit_values(struct devlink *devlink)
 	union devlink_param_value saved_value;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					      &saved_value);
 	if (!err)
 		nsim_dev->max_macs = saved_value.vu32;
-	err = devlink_param_driverinit_value_get(devlink,
-						 NSIM_DEVLINK_PARAM_ID_TEST1,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      NSIM_DEVLINK_PARAM_ID_TEST1,
+					      &saved_value);
 	if (!err)
 		nsim_dev->test1 = saved_value.vbool;
 }
@@ -1564,8 +1564,8 @@ int nsim_drv_probe(struct nsim_bus_dev *nsim_bus_dev)
 	if (err)
 		goto err_dl_unregister;
 
-	err = devlink_params_register(devlink, nsim_devlink_params,
-				      ARRAY_SIZE(nsim_devlink_params));
+	err = devl_params_register(devlink, nsim_devlink_params,
+				   ARRAY_SIZE(nsim_devlink_params));
 	if (err)
 		goto err_resource_unregister;
 	nsim_devlink_set_params_init_values(nsim_dev, devlink);
@@ -1630,8 +1630,8 @@ err_traps_exit:
 err_dummy_region_exit:
 	nsim_dev_dummy_region_exit(nsim_dev);
 err_params_unregister:
-	devlink_params_unregister(devlink, nsim_devlink_params,
-				  ARRAY_SIZE(nsim_devlink_params));
+	devl_params_unregister(devlink, nsim_devlink_params,
+			       ARRAY_SIZE(nsim_devlink_params));
 err_resource_unregister:
 	devl_resources_unregister(devlink);
 err_dl_unregister:
@@ -1678,8 +1678,8 @@ void nsim_drv_remove(struct nsim_bus_dev *nsim_bus_dev)
 
 	nsim_bpf_dev_exit(nsim_dev);
 	nsim_dev_debugfs_exit(nsim_dev);
-	devlink_params_unregister(devlink, nsim_devlink_params,
-				  ARRAY_SIZE(nsim_devlink_params));
+	devl_params_unregister(devlink, nsim_devlink_params,
+			       ARRAY_SIZE(nsim_devlink_params));
 	devl_resources_unregister(devlink);
 	devl_unregister(devlink);
 	kfree(nsim_dev->vfconfigs);

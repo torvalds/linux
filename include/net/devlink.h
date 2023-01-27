@@ -1767,21 +1767,23 @@ void devl_resource_occ_get_unregister(struct devlink *devlink,
 
 void devlink_resource_occ_get_unregister(struct devlink *devlink,
 					 u64 resource_id);
+int devl_params_register(struct devlink *devlink,
+			 const struct devlink_param *params,
+			 size_t params_count);
 int devlink_params_register(struct devlink *devlink,
+			    const struct devlink_param *params,
+			    size_t params_count);
+void devl_params_unregister(struct devlink *devlink,
 			    const struct devlink_param *params,
 			    size_t params_count);
 void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count);
-int devlink_param_register(struct devlink *devlink,
-			   const struct devlink_param *param);
-void devlink_param_unregister(struct devlink *devlink,
-			      const struct devlink_param *param);
-int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				       union devlink_param_value *init_val);
-int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
-				       union devlink_param_value init_val);
-void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
+				    union devlink_param_value *init_val);
+void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
+				     union devlink_param_value init_val);
+void devl_param_value_changed(struct devlink *devlink, u32 param_id);
 struct devlink_region *devl_region_create(struct devlink *devlink,
 					  const struct devlink_region_ops *ops,
 					  u32 region_max_snapshots,

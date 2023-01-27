@@ -629,9 +629,9 @@ static u16 async_eq_depth_devlink_param_get(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_EVENT_EQ_SIZE,
-						 &val);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_EVENT_EQ_SIZE,
+					      &val);
 	if (!err)
 		return val.vu32;
 	mlx5_core_dbg(dev, "Failed to get param. using default. err = %d\n", err);
@@ -874,9 +874,9 @@ static u16 comp_eq_depth_devlink_param_get(struct mlx5_core_dev *dev)
 	union devlink_param_value val;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_IO_EQ_SIZE,
-						 &val);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_IO_EQ_SIZE,
+					      &val);
 	if (!err)
 		return val.vu32;
 	mlx5_core_dbg(dev, "Failed to get param. using default. err = %d\n", err);

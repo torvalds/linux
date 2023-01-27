@@ -2403,7 +2403,7 @@ static void mlx5_esw_offloads_rep_cleanup(struct mlx5_eswitch *esw,
 	kfree(rep);
 }
 
-void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
+static void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
 {
 	struct mlx5_eswitch_rep *rep;
 	unsigned long i;
@@ -2413,7 +2413,7 @@ void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
 	xa_destroy(&esw->offloads.vport_reps);
 }
 
-int esw_offloads_init_reps(struct mlx5_eswitch *esw)
+static int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
 	unsigned long i;
@@ -2431,6 +2431,94 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 err:
 	esw_offloads_cleanup_reps(esw);
 	return err;
+}
+
+static int esw_port_metadata_set(struct devlink *devlink, u32 id,
+				 struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	int err = 0;
+
+	down_write(&esw->mode_lock);
+	if (mlx5_esw_is_fdb_created(esw)) {
+		err = -EBUSY;
+		goto done;
+	}
+	if (!mlx5_esw_vport_match_metadata_supported(esw)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+	if (ctx->val.vbool)
+		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
+	else
+		esw->flags &= ~MLX5_ESWITCH_VPORT_MATCH_METADATA;
+done:
+	up_write(&esw->mode_lock);
+	return err;
+}
+
+static int esw_port_metadata_get(struct devlink *devlink, u32 id,
+				 struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	ctx->val.vbool = mlx5_eswitch_vport_match_metadata_enabled(dev->priv.eswitch);
+	return 0;
+}
+
+static int esw_port_metadata_validate(struct devlink *devlink, u32 id,
+				      union devlink_param_value val,
+				      struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	u8 esw_mode;
+
+	esw_mode = mlx5_eswitch_mode(dev);
+	if (esw_mode == MLX5_ESWITCH_OFFLOADS) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "E-Switch must either disabled or non switchdev mode");
+		return -EBUSY;
+	}
+	return 0;
+}
+
+static const struct devlink_param esw_devlink_params[] = {
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_ESW_PORT_METADATA,
+			     "esw_port_metadata", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     esw_port_metadata_get,
+			     esw_port_metadata_set,
+			     esw_port_metadata_validate),
+};
+
+int esw_offloads_init(struct mlx5_eswitch *esw)
+{
+	int err;
+
+	err = esw_offloads_init_reps(esw);
+	if (err)
+		return err;
+
+	err = devl_params_register(priv_to_devlink(esw->dev),
+				   esw_devlink_params,
+				   ARRAY_SIZE(esw_devlink_params));
+	if (err)
+		goto err_params;
+
+	return 0;
+
+err_params:
+	esw_offloads_cleanup_reps(esw);
+	return err;
+}
+
+void esw_offloads_cleanup(struct mlx5_eswitch *esw)
+{
+	devl_params_unregister(priv_to_devlink(esw->dev),
+			       esw_devlink_params,
+			       ARRAY_SIZE(esw_devlink_params));
+	esw_offloads_cleanup_reps(esw);
 }
 
 static void __esw_offloads_unload_rep(struct mlx5_eswitch *esw,
