@@ -2389,7 +2389,7 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 }
 
 /* validate header magic, size and type */
-static int soc_valid_header(struct soc_tplg *tplg,
+static int soc_tplg_valid_header(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
 	if (soc_tplg_get_hdr_offset(tplg) >= tplg->fw->size)
@@ -2526,7 +2526,7 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 		while (!soc_tplg_is_eof(tplg)) {
 
 			/* make sure header is valid before loading */
-			ret = soc_valid_header(tplg, hdr);
+			ret = soc_tplg_valid_header(tplg, hdr);
 			if (ret < 0) {
 				dev_err(tplg->dev,
 					"ASoC: topology: invalid header: %d\n", ret);
