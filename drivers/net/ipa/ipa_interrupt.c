@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 
 #include "ipa.h"
 #include "ipa_reg.h"
@@ -269,9 +270,9 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 		goto err_kfree;
 	}
 
-	ret = enable_irq_wake(irq);
+	ret = dev_pm_set_wake_irq(dev, irq);
 	if (ret) {
-		dev_err(dev, "error %d enabling wakeup for \"ipa\" IRQ\n", ret);
+		dev_err(dev, "error %d registering \"ipa\" IRQ as wakeirq\n", ret);
 		goto err_free_irq;
 	}
 
@@ -289,11 +290,8 @@ err_kfree:
 void ipa_interrupt_deconfig(struct ipa_interrupt *interrupt)
 {
 	struct device *dev = &interrupt->ipa->pdev->dev;
-	int ret;
 
-	ret = disable_irq_wake(interrupt->irq);
-	if (ret)
-		dev_err(dev, "error %d disabling \"ipa\" IRQ wakeup\n", ret);
+	dev_pm_clear_wake_irq(dev);
 	free_irq(interrupt->irq, interrupt);
 	kfree(interrupt);
 }
