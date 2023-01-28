@@ -171,3 +171,21 @@ unsigned long detect_memory(unsigned long *safe_addr)
 
 	return max_physmem_end;
 }
+
+void mem_detect_truncate(unsigned long limit)
+{
+	struct mem_detect_block *block;
+	int i;
+
+	for (i = 0; i < mem_detect.count; i++) {
+		block = __get_mem_detect_block_ptr(i);
+		if (block->start >= limit) {
+			mem_detect.count = i;
+			break;
+		} else if (block->end > limit) {
+			block->end = (u64)limit;
+			mem_detect.count = i + 1;
+			break;
+		}
+	}
+}

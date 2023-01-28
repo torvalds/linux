@@ -34,6 +34,7 @@ struct vmlinux_info {
 
 void startup_kernel(void);
 unsigned long detect_memory(unsigned long *safe_addr);
+void mem_detect_truncate(unsigned long limit);
 bool is_ipl_block_dump(void);
 void store_ipl_parmblock(void);
 unsigned long read_ipl_report(unsigned long safe_addr);
@@ -44,7 +45,7 @@ void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
-void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit);
+void setup_vmem(unsigned long asce_limit);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void error(char *m);
 

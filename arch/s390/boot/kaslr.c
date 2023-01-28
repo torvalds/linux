@@ -176,8 +176,6 @@ unsigned long get_random_base(unsigned long safe_addr)
 	unsigned long base_pos, max_pos, kernel_size;
 	int i;
 
-	memory_limit = min(memory_limit, ident_map_size);
-
 	/*
 	 * Avoid putting kernel in the end of physical memory
 	 * which kasan will use for shadow memory and early pgtable

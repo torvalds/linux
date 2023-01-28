@@ -247,8 +247,6 @@ void __init kasan_early_init(void)
 	 * The rest [memsize, ident_map_size] if memsize < ident_map_size
 	 * could be mapped/unmapped dynamically later during memory hotplug.
 	 */
-	memsize = min(memsize, ident_map_size);
-
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
 

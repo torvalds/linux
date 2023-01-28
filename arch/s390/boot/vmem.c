@@ -39,7 +39,7 @@ static void boot_check_oom(void)
 		error("out of memory on boot\n");
 }
 
-static void pgtable_populate_init(unsigned long ident_map_size)
+static void pgtable_populate_init(void)
 {
 	unsigned long initrd_end;
 	unsigned long kernel_end;
@@ -51,7 +51,7 @@ static void pgtable_populate_init(unsigned long ident_map_size)
 		pgalloc_low = max(pgalloc_low, initrd_end);
 	}
 
-	pgalloc_end = round_down(min(ident_map_size, get_mem_detect_end()), PAGE_SIZE);
+	pgalloc_end = round_down(get_mem_detect_end(), PAGE_SIZE);
 	pgalloc_pos = pgalloc_end;
 
 	boot_check_oom();
@@ -226,7 +226,7 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	}
 }
 
-void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit)
+void setup_vmem(unsigned long asce_limit)
 {
 	unsigned long start, end;
 	unsigned long asce_type;
@@ -250,13 +250,10 @@ void setup_vmem(unsigned long ident_map_size, unsigned long asce_limit)
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
-	pgtable_populate_init(ident_map_size);
+	pgtable_populate_init();
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
-	for_each_mem_detect_block(i, &start, &end) {
-		if (start >= ident_map_size)
-			break;
-		pgtable_populate(start, min(end, ident_map_size), POPULATE_ONE2ONE);
-	}
+	for_each_mem_detect_block(i, &start, &end)
+		pgtable_populate(start, end, POPULATE_ONE2ONE);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
