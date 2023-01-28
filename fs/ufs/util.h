@@ -455,9 +455,11 @@ static inline unsigned _ubh_find_last_zero_bit_(
 	return (base << uspi->s_bpfshift) + pos - begin;
 } 	
 
-static inline int ubh_isblockset(struct ufs_sb_private_info * uspi,
-	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
+static inline int ubh_isblockset(struct ufs_sb_private_info *uspi,
+	struct ufs_cg_private_info *ucpi, unsigned block)
 {
+	struct ufs_buffer_head *ubh = UCPI_UBH(ucpi);
+	unsigned begin = ucpi->c_freeoff;
 	u8 mask;
 	switch (uspi->s_fpb) {
 	case 8:
@@ -475,9 +477,11 @@ static inline int ubh_isblockset(struct ufs_sb_private_info * uspi,
 	return 0;	
 }
 
-static inline void ubh_clrblock(struct ufs_sb_private_info * uspi,
-	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
+static inline void ubh_clrblock(struct ufs_sb_private_info *uspi,
+	struct ufs_cg_private_info *ucpi, unsigned block)
 {
+	struct ufs_buffer_head *ubh = UCPI_UBH(ucpi);
+	unsigned begin = ucpi->c_freeoff;
 	switch (uspi->s_fpb) {
 	case 8:
 	    	*ubh_get_addr (ubh, begin + block) = 0x00;
@@ -495,8 +499,10 @@ static inline void ubh_clrblock(struct ufs_sb_private_info * uspi,
 }
 
 static inline void ubh_setblock(struct ufs_sb_private_info * uspi,
-	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
+	struct ufs_cg_private_info *ucpi, unsigned block)
 {
+	struct ufs_buffer_head *ubh = UCPI_UBH(ucpi);
+	unsigned begin = ucpi->c_freeoff;
 	switch (uspi->s_fpb) {
 	case 8:
 	    	*ubh_get_addr(ubh, begin + block) = 0xff;
