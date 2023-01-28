@@ -455,10 +455,7 @@ static inline unsigned _ubh_find_last_zero_bit_(
 	return (base << uspi->s_bpfshift) + pos - begin;
 } 	
 
-#define ubh_isblockclear(ubh,begin,block) (!_ubh_isblockset_(uspi,ubh,begin,block))
-
-#define ubh_isblockset(ubh,begin,block) _ubh_isblockset_(uspi,ubh,begin,block)
-static inline int _ubh_isblockset_(struct ufs_sb_private_info * uspi,
+static inline int ubh_isblockset(struct ufs_sb_private_info * uspi,
 	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
 {
 	u8 mask;
@@ -478,8 +475,7 @@ static inline int _ubh_isblockset_(struct ufs_sb_private_info * uspi,
 	return 0;	
 }
 
-#define ubh_clrblock(ubh,begin,block) _ubh_clrblock_(uspi,ubh,begin,block)
-static inline void _ubh_clrblock_(struct ufs_sb_private_info * uspi,
+static inline void ubh_clrblock(struct ufs_sb_private_info * uspi,
 	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
 {
 	switch (uspi->s_fpb) {
@@ -498,8 +494,7 @@ static inline void _ubh_clrblock_(struct ufs_sb_private_info * uspi,
 	}
 }
 
-#define ubh_setblock(ubh,begin,block) _ubh_setblock_(uspi,ubh,begin,block)
-static inline void _ubh_setblock_(struct ufs_sb_private_info * uspi,
+static inline void ubh_setblock(struct ufs_sb_private_info * uspi,
 	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
 {
 	switch (uspi->s_fpb) {
