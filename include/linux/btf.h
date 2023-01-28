@@ -236,6 +236,16 @@ static inline bool btf_type_is_small_int(const struct btf_type *t)
 	return btf_type_is_int(t) && t->size <= sizeof(u64);
 }
 
+static inline u8 btf_int_encoding(const struct btf_type *t)
+{
+	return BTF_INT_ENCODING(*(u32 *)(t + 1));
+}
+
+static inline bool btf_type_is_signed_int(const struct btf_type *t)
+{
+	return btf_type_is_int(t) && (btf_int_encoding(t) & BTF_INT_SIGNED);
+}
+
 static inline bool btf_type_is_enum(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM;
@@ -304,11 +314,6 @@ static inline bool btf_is_ptr(const struct btf_type *t)
 static inline u8 btf_int_offset(const struct btf_type *t)
 {
 	return BTF_INT_OFFSET(*(u32 *)(t + 1));
-}
-
-static inline u8 btf_int_encoding(const struct btf_type *t)
-{
-	return BTF_INT_ENCODING(*(u32 *)(t + 1));
 }
 
 static inline bool btf_type_is_scalar(const struct btf_type *t)
