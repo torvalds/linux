@@ -62,7 +62,7 @@ static void dfltcc_gdht(
 {
     deflate_state *state = (deflate_state *)strm->state;
     struct dfltcc_param_v0 *param = &GET_DFLTCC_STATE(state)->param;
-    size_t avail_in = avail_in = strm->avail_in;
+    size_t avail_in = strm->avail_in;
 
     dfltcc(DFLTCC_GDHT,
            param, NULL, NULL,
