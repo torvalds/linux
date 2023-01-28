@@ -456,65 +456,68 @@ static inline unsigned _ubh_find_last_zero_bit_(
 } 	
 
 static inline int ubh_isblockset(struct ufs_sb_private_info *uspi,
-	struct ufs_cg_private_info *ucpi, unsigned block)
+	struct ufs_cg_private_info *ucpi, unsigned int frag)
 {
 	struct ufs_buffer_head *ubh = UCPI_UBH(ucpi);
-	unsigned begin = ucpi->c_freeoff;
+	u8 *p = ubh_get_addr(ubh, ucpi->c_freeoff + (frag >> 3));
 	u8 mask;
+
 	switch (uspi->s_fpb) {
 	case 8:
-	    	return (*ubh_get_addr (ubh, begin + block) == 0xff);
+		return *p == 0xff;
 	case 4:
-		mask = 0x0f << ((block & 0x01) << 2);
-		return (*ubh_get_addr (ubh, begin + (block >> 1)) & mask) == mask;
+		mask = 0x0f << (frag & 4);
+		return (*p & mask) == mask;
 	case 2:
-		mask = 0x03 << ((block & 0x03) << 1);
-		return (*ubh_get_addr (ubh, begin + (block >> 2)) & mask) == mask;
+		mask = 0x03 << (frag & 6);
+		return (*p & mask) == mask;
 	case 1:
-		mask = 0x01 << (block & 0x07);
-		return (*ubh_get_addr (ubh, begin + (block >> 3)) & mask) == mask;
+		mask = 0x01 << (frag & 7);
+		return (*p & mask) == mask;
 	}
 	return 0;	
 }
 
 static inline void ubh_clrblock(struct ufs_sb_private_info *uspi,
-	struct ufs_cg_private_info *ucpi, unsigned block)
+	struct ufs_cg_private_info *ucpi, unsigned int frag)
 {
 	struct ufs_buffer_head *ubh = UCPI_UBH(ucpi);
-	unsigned begin = ucpi->c_freeoff;
+	u8 *p = ubh_get_addr(ubh, ucpi->c_freeoff + (frag >> 3));
+
 	switch (uspi->s_fpb) {
 	case 8:
-	    	*ubh_get_addr (ubh, begin + block) = 0x00;
+		*p = 0x00;
 	    	return; 
 	case 4:
-		*ubh_get_addr (ubh, begin + (block >> 1)) &= ~(0x0f << ((block & 0x01) << 2));
+		*p &= ~(0x0f << (frag & 4));
 		return;
 	case 2:
-		*ubh_get_addr (ubh, begin + (block >> 2)) &= ~(0x03 << ((block & 0x03) << 1));
+		*p &= ~(0x03 << (frag & 6));
 		return;
 	case 1:
-		*ubh_get_addr (ubh, begin + (block >> 3)) &= ~(0x01 << ((block & 0x07)));
+		*p &= ~(0x01 << (frag & 7));
 		return;
 	}
 }
 
 static inline void ubh_setblock(struct ufs_sb_private_info * uspi,
-	struct ufs_cg_private_info *ucpi, unsigned block)
+	struct ufs_cg_private_info *ucpi, unsigned int frag)
 {
 	struct ufs_buffer_head *ubh = UCPI_UBH(ucpi);
-	unsigned begin = ucpi->c_freeoff;
+	u8 *p = ubh_get_addr(ubh, ucpi->c_freeoff + (frag >> 3));
+
 	switch (uspi->s_fpb) {
 	case 8:
-	    	*ubh_get_addr(ubh, begin + block) = 0xff;
+		*p = 0xff;
 	    	return;
 	case 4:
-		*ubh_get_addr(ubh, begin + (block >> 1)) |= (0x0f << ((block & 0x01) << 2));
+		*p |= 0x0f << (frag & 4);
 		return;
 	case 2:
-		*ubh_get_addr(ubh, begin + (block >> 2)) |= (0x03 << ((block & 0x03) << 1));
+		*p |= 0x03 << (frag & 6);
 		return;
 	case 1:
-		*ubh_get_addr(ubh, begin + (block >> 3)) |= (0x01 << ((block & 0x07)));
+		*p |= 0x01 << (frag & 7);
 		return;
 	}
 }
