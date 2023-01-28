@@ -52,6 +52,9 @@ struct bpf_cpumask *bpf_cpumask_create(void)
 {
 	struct bpf_cpumask *cpumask;
 
+	/* cpumask must be the first element so struct bpf_cpumask be cast to struct cpumask. */
+	BUILD_BUG_ON(offsetof(struct bpf_cpumask, cpumask) != 0);
+
 	cpumask = bpf_mem_alloc(&bpf_cpumask_ma, sizeof(*cpumask));
 	if (!cpumask)
 		return NULL;
