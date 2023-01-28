@@ -297,10 +297,7 @@ static void try_free_pmd_table(pud_t *pud, unsigned long start)
 	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
 	if (end > VMALLOC_START)
 		return;
-#ifdef CONFIG_KASAN
-	if (start < KASAN_SHADOW_END && end > KASAN_SHADOW_START)
-		return;
-#endif
+
 	pmd = pmd_offset(pud, start);
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++)
 		if (!pmd_none(*pmd))
@@ -372,10 +369,6 @@ static void try_free_pud_table(p4d_t *p4d, unsigned long start)
 	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
 	if (end > VMALLOC_START)
 		return;
-#ifdef CONFIG_KASAN
-	if (start < KASAN_SHADOW_END && end > KASAN_SHADOW_START)
-		return;
-#endif
 
 	pud = pud_offset(p4d, start);
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
@@ -426,10 +419,6 @@ static void try_free_p4d_table(pgd_t *pgd, unsigned long start)
 	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
 	if (end > VMALLOC_START)
 		return;
-#ifdef CONFIG_KASAN
-	if (start < KASAN_SHADOW_END && end > KASAN_SHADOW_START)
-		return;
-#endif
 
 	p4d = p4d_offset(pgd, start);
 	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
