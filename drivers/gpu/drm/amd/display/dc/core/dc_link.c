@@ -46,7 +46,6 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "dsc.h"
-#include "opp.h"
 #include "hw/clk_mgr.h"
 #include "dce/dmub_psr.h"
 #include "dmub/dmub_srv.h"
