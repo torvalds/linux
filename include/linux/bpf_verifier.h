@@ -70,7 +70,10 @@ struct bpf_reg_state {
 			u32 btf_id;
 		};
 
-		u32 mem_size; /* for PTR_TO_MEM | PTR_TO_MEM_OR_NULL */
+		struct { /* for PTR_TO_MEM | PTR_TO_MEM_OR_NULL */
+			u32 mem_size;
+			u32 dynptr_id; /* for dynptr slices */
+		};
 
 		/* For dynptr stack slots */
 		struct {

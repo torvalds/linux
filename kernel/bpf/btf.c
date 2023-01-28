@@ -337,6 +337,12 @@ const char *btf_type_str(const struct btf_type *t)
 #define BTF_SHOW_NAME_SIZE		80
 
 /*
+ * The suffix of a type that indicates it cannot alias another type when
+ * comparing BTF IDs for kfunc invocations.
+ */
+#define NOCAST_ALIAS_SUFFIX		"___init"
+
+/*
  * Common data to all BTF show operations. Private show functions can add
  * their own data to a structure containing a struct btf_show and consult it
  * in the show callback.  See btf_type_show() below.
@@ -1397,12 +1403,18 @@ __printf(4, 5) static void __btf_verifier_log_type(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
-	/* btf verifier prints all types it is processing via
-	 * btf_verifier_log_type(..., fmt = NULL).
-	 * Skip those prints for in-kernel BTF verification.
-	 */
-	if (log->level == BPF_LOG_KERNEL && !fmt)
-		return;
+	if (log->level == BPF_LOG_KERNEL) {
+		/* btf verifier prints all types it is processing via
+		 * btf_verifier_log_type(..., fmt = NULL).
+		 * Skip those prints for in-kernel BTF verification.
+		 */
+		if (!fmt)
+			return;
+
+		/* Skip logging when loading module BTF with mismatches permitted */
+		if (env->btf->base_btf && IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+			return;
+	}
 
 	__btf_verifier_log(log, "[%u] %s %s%s",
 			   env->log_type_id,
@@ -1441,8 +1453,15 @@ static void btf_verifier_log_member(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
-	if (log->level == BPF_LOG_KERNEL && !fmt)
-		return;
+	if (log->level == BPF_LOG_KERNEL) {
+		if (!fmt)
+			return;
+
+		/* Skip logging when loading module BTF with mismatches permitted */
+		if (env->btf->base_btf && IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+			return;
+	}
+
 	/* The CHECK_META phase already did a btf dump.
 	 *
 	 * If member is logged again, it must hit an error in
@@ -7261,11 +7280,14 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 		}
 		btf = btf_parse_module(mod->name, mod->btf_data, mod->btf_data_size);
 		if (IS_ERR(btf)) {
-			pr_warn("failed to validate module [%s] BTF: %ld\n",
-				mod->name, PTR_ERR(btf));
 			kfree(btf_mod);
-			if (!IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+			if (!IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH)) {
+				pr_warn("failed to validate module [%s] BTF: %ld\n",
+					mod->name, PTR_ERR(btf));
 				err = PTR_ERR(btf);
+			} else {
+				pr_warn_once("Kernel module BTF mismatch detected, BTF debug info may be unavailable for some modules\n");
+			}
 			goto out;
 		}
 		err = btf_alloc_id(btf);
@@ -8210,4 +8232,120 @@ out:
 			print_cand_cache(ctx->log);
 	}
 	return err;
+}
+
+bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
+				const struct bpf_reg_state *reg,
+				int off)
+{
+	struct btf *btf = reg->btf;
+	const struct btf_type *walk_type, *safe_type;
+	const char *tname;
+	char safe_tname[64];
+	long ret, safe_id;
+	const struct btf_member *member, *m_walk = NULL;
+	u32 i;
+	const char *walk_name;
+
+	walk_type = btf_type_by_id(btf, reg->btf_id);
+	if (!walk_type)
+		return false;
+
+	tname = btf_name_by_offset(btf, walk_type->name_off);
+
+	ret = snprintf(safe_tname, sizeof(safe_tname), "%s__safe_fields", tname);
+	if (ret < 0)
+		return false;
+
+	safe_id = btf_find_by_name_kind(btf, safe_tname, BTF_INFO_KIND(walk_type->info));
+	if (safe_id < 0)
+		return false;
+
+	safe_type = btf_type_by_id(btf, safe_id);
+	if (!safe_type)
+		return false;
+
+	for_each_member(i, walk_type, member) {
+		u32 moff;
+
+		/* We're looking for the PTR_TO_BTF_ID member in the struct
+		 * type we're walking which matches the specified offset.
+		 * Below, we'll iterate over the fields in the safe variant of
+		 * the struct and see if any of them has a matching type /
+		 * name.
+		 */
+		moff = __btf_member_bit_offset(walk_type, member) / 8;
+		if (off == moff) {
+			m_walk = member;
+			break;
+		}
+	}
+	if (m_walk == NULL)
+		return false;
+
+	walk_name = __btf_name_by_offset(btf, m_walk->name_off);
+	for_each_member(i, safe_type, member) {
+		const char *m_name = __btf_name_by_offset(btf, member->name_off);
+
+		/* If we match on both type and name, the field is considered trusted. */
+		if (m_walk->type == member->type && !strcmp(walk_name, m_name))
+			return true;
+	}
+
+	return false;
+}
+
+bool btf_type_ids_nocast_alias(struct bpf_verifier_log *log,
+			       const struct btf *reg_btf, u32 reg_id,
+			       const struct btf *arg_btf, u32 arg_id)
+{
+	const char *reg_name, *arg_name, *search_needle;
+	const struct btf_type *reg_type, *arg_type;
+	int reg_len, arg_len, cmp_len;
+	size_t pattern_len = sizeof(NOCAST_ALIAS_SUFFIX) - sizeof(char);
+
+	reg_type = btf_type_by_id(reg_btf, reg_id);
+	if (!reg_type)
+		return false;
+
+	arg_type = btf_type_by_id(arg_btf, arg_id);
+	if (!arg_type)
+		return false;
+
+	reg_name = btf_name_by_offset(reg_btf, reg_type->name_off);
+	arg_name = btf_name_by_offset(arg_btf, arg_type->name_off);
+
+	reg_len = strlen(reg_name);
+	arg_len = strlen(arg_name);
+
+	/* Exactly one of the two type names may be suffixed with ___init, so
+	 * if the strings are the same size, they can't possibly be no-cast
+	 * aliases of one another. If you have two of the same type names, e.g.
+	 * they're both nf_conn___init, it would be improper to return true
+	 * because they are _not_ no-cast aliases, they are the same type.
+	 */
+	if (reg_len == arg_len)
+		return false;
+
+	/* Either of the two names must be the other name, suffixed with ___init. */
+	if ((reg_len != arg_len + pattern_len) &&
+	    (arg_len != reg_len + pattern_len))
+		return false;
+
+	if (reg_len < arg_len) {
+		search_needle = strstr(arg_name, NOCAST_ALIAS_SUFFIX);
+		cmp_len = reg_len;
+	} else {
+		search_needle = strstr(reg_name, NOCAST_ALIAS_SUFFIX);
+		cmp_len = arg_len;
+	}
+
+	if (!search_needle)
+		return false;
+
+	/* ___init suffix must come at the end of the name */
+	if (*(search_needle + pattern_len) != '\0')
+		return false;
+
+	return !strncmp(reg_name, arg_name, cmp_len);
 }

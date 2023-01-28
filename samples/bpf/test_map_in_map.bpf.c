@@ -6,15 +6,16 @@
  * License as published by the Free Software Foundation.
  */
 #define KBUILD_MODNAME "foo"
-#include <linux/ptrace.h>
+#include "vmlinux.h"
 #include <linux/version.h>
-#include <uapi/linux/bpf.h>
-#include <uapi/linux/in6.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
 #define MAX_NR_PORTS 65536
+
+#define EINVAL 22
+#define ENOENT 2
 
 /* map #0 */
 struct inner_a {

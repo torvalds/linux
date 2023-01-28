@@ -271,7 +271,7 @@ class HeaderParser(object):
             if capture:
                 fn_defines_str += self.line
                 helper_name = capture.expand(r'bpf_\1')
-                self.helper_enum_vals[helper_name] = int(capture[2])
+                self.helper_enum_vals[helper_name] = int(capture.group(2))
                 self.helper_enum_pos[helper_name] = i
                 i += 1
             else:

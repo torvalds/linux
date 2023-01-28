@@ -38,6 +38,10 @@ static const int cfg_udp_src = 20000;
 #define	VXLAN_FLAGS     0x8
 #define	VXLAN_VNI       1
 
+#ifndef NEXTHDR_DEST
+#define NEXTHDR_DEST	60
+#endif
+
 /* MPLS label 1000 with S bit (last label) set and ttl of 255. */
 static const __u32 mpls_label = __bpf_constant_htonl(1000 << 12 |
 						     MPLS_LS_S_MASK | 0xff);
@@ -363,6 +367,61 @@ static __always_inline int __encap_ipv6(struct __sk_buff *skb, __u8 encap_proto,
 	return TC_ACT_OK;
 }
 
+static int encap_ipv6_ipip6(struct __sk_buff *skb)
+{
+	struct iphdr iph_inner;
+	struct v6hdr h_outer;
+	struct tcphdr tcph;
+	struct ethhdr eth;
+	__u64 flags;
+	int olen;
+
+	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
+			       sizeof(iph_inner)) < 0)
+		return TC_ACT_OK;
+
+	/* filter only packets we want */
+	if (bpf_skb_load_bytes(skb, ETH_HLEN + (iph_inner.ihl << 2),
+			       &tcph, sizeof(tcph)) < 0)
+		return TC_ACT_OK;
+
+	if (tcph.dest != __bpf_constant_htons(cfg_port))
+		return TC_ACT_OK;
+
+	olen = sizeof(h_outer.ip);
+
+	flags = BPF_F_ADJ_ROOM_FIXED_GSO | BPF_F_ADJ_ROOM_ENCAP_L3_IPV6;
+
+	/* add room between mac and network header */
+	if (bpf_skb_adjust_room(skb, olen, BPF_ADJ_ROOM_MAC, flags))
+		return TC_ACT_SHOT;
+
+	/* prepare new outer network header */
+	memset(&h_outer.ip, 0, sizeof(h_outer.ip));
+	h_outer.ip.version = 6;
+	h_outer.ip.hop_limit = iph_inner.ttl;
+	h_outer.ip.saddr.s6_addr[1] = 0xfd;
+	h_outer.ip.saddr.s6_addr[15] = 1;
+	h_outer.ip.daddr.s6_addr[1] = 0xfd;
+	h_outer.ip.daddr.s6_addr[15] = 2;
+	h_outer.ip.payload_len = iph_inner.tot_len;
+	h_outer.ip.nexthdr = IPPROTO_IPIP;
+
+	/* store new outer network header */
+	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
+				BPF_F_INVALIDATE_HASH) < 0)
+		return TC_ACT_SHOT;
+
+	/* update eth->h_proto */
+	if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0)
+		return TC_ACT_SHOT;
+	eth.h_proto = bpf_htons(ETH_P_IPV6);
+	if (bpf_skb_store_bytes(skb, 0, &eth, sizeof(eth), 0) < 0)
+		return TC_ACT_SHOT;
+
+	return TC_ACT_OK;
+}
+
 static __always_inline int encap_ipv6(struct __sk_buff *skb, __u8 encap_proto,
 				      __u16 l2_proto)
 {
@@ -461,6 +520,15 @@ int __encap_ip6tnl_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
+SEC("encap_ipip6_none")
+int __encap_ipip6_none(struct __sk_buff *skb)
+{
+	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
+		return encap_ipv6_ipip6(skb);
+	else
+		return TC_ACT_OK;
+}
+
 SEC("encap_ip6gre_none")
 int __encap_ip6gre_none(struct __sk_buff *skb)
 {
@@ -528,13 +596,33 @@ int __encap_ip6vxlan_eth(struct __sk_buff *skb)
 
 static int decap_internal(struct __sk_buff *skb, int off, int len, char proto)
 {
+	__u64 flags = BPF_F_ADJ_ROOM_FIXED_GSO;
+	struct ipv6_opt_hdr ip6_opt_hdr;
 	struct gre_hdr greh;
 	struct udphdr udph;
 	int olen = len;
 
 	switch (proto) {
 	case IPPROTO_IPIP:
+		flags |= BPF_F_ADJ_ROOM_DECAP_L3_IPV4;
+		break;
 	case IPPROTO_IPV6:
+		flags |= BPF_F_ADJ_ROOM_DECAP_L3_IPV6;
+		break;
+	case NEXTHDR_DEST:
+		if (bpf_skb_load_bytes(skb, off + len, &ip6_opt_hdr,
+				       sizeof(ip6_opt_hdr)) < 0)
+			return TC_ACT_OK;
+		switch (ip6_opt_hdr.nexthdr) {
+		case IPPROTO_IPIP:
+			flags |= BPF_F_ADJ_ROOM_DECAP_L3_IPV4;
+			break;
+		case IPPROTO_IPV6:
+			flags |= BPF_F_ADJ_ROOM_DECAP_L3_IPV6;
+			break;
+		default:
+			return TC_ACT_OK;
+		}
 		break;
 	case IPPROTO_GRE:
 		olen += sizeof(struct gre_hdr);
@@ -569,8 +657,7 @@ static int decap_internal(struct __sk_buff *skb, int off, int len, char proto)
 		return TC_ACT_OK;
 	}
 
-	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_MAC,
-				BPF_F_ADJ_ROOM_FIXED_GSO))
+	if (bpf_skb_adjust_room(skb, -olen, BPF_ADJ_ROOM_MAC, flags))
 		return TC_ACT_SHOT;
 
 	return TC_ACT_OK;

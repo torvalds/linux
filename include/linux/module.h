@@ -879,11 +879,13 @@ static inline bool module_sig_ok(struct module *module)
 #endif	/* CONFIG_MODULE_SIG */
 
 #if defined(CONFIG_MODULES) && defined(CONFIG_KALLSYMS)
-int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
+int module_kallsyms_on_each_symbol(const char *modname,
+				   int (*fn)(void *, const char *,
 					     struct module *, unsigned long),
 				   void *data);
 #else
-static inline int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
+static inline int module_kallsyms_on_each_symbol(const char *modname,
+						 int (*fn)(void *, const char *,
 						 struct module *, unsigned long),
 						 void *data)
 {
