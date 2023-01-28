@@ -725,6 +725,7 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 	unsigned int al;
+	u32 br;
 
 	/*
 	 * if ECC was not chosen in DT, decide whether to use HW or SW ECC from
@@ -763,6 +764,13 @@ static int fsl_elbc_attach_chip(struct nand_chip *chip)
 	default:
 		return -EINVAL;
 	}
+
+	/* enable/disable HW ECC checking and generating based on if HW ECC was chosen */
+	br = in_be32(&lbc->bank[priv->bank].br) & ~BR_DECC;
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
+		out_be32(&lbc->bank[priv->bank].br, br | BR_DECC_CHK_GEN);
+	else
+		out_be32(&lbc->bank[priv->bank].br, br | BR_DECC_OFF);
 
 	/* calculate FMR Address Length field */
 	al = 0;
