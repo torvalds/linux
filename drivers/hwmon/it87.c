@@ -277,7 +277,7 @@ static const u8 IT87_REG_AUTO_BASE[] = { 0x60, 0x68, 0x70, 0x78, 0xa0, 0xa8 };
 
 struct it87_devices {
 	const char *name;
-	const char * const suffix;
+	const char * const model;
 	u32 features;
 	u8 peci_mask;
 	u8 old_peci_mask;
@@ -313,24 +313,24 @@ struct it87_devices {
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
 		.name = "it87",
-		.suffix = "F",
+		.model = "IT87F",
 		.features = FEAT_OLD_AUTOPWM,	/* may need to overwrite */
 	},
 	[it8712] = {
 		.name = "it8712",
-		.suffix = "F",
+		.model = "IT8712F",
 		.features = FEAT_OLD_AUTOPWM | FEAT_VID,
 						/* may need to overwrite */
 	},
 	[it8716] = {
 		.name = "it8716",
-		.suffix = "F",
+		.model = "IT8716F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET | FEAT_VID
 		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS | FEAT_PWM_FREQ2,
 	},
 	[it8718] = {
 		.name = "it8718",
-		.suffix = "F",
+		.model = "IT8718F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET | FEAT_VID
 		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS
 		  | FEAT_PWM_FREQ2,
@@ -338,7 +338,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8720] = {
 		.name = "it8720",
-		.suffix = "F",
+		.model = "IT8720F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET | FEAT_VID
 		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS
 		  | FEAT_PWM_FREQ2,
@@ -346,7 +346,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8721] = {
 		.name = "it8721",
-		.suffix = "F",
+		.model = "IT8721F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
 		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS | FEAT_IN7_INTERNAL
@@ -356,7 +356,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8728] = {
 		.name = "it8728",
-		.suffix = "F",
+		.model = "IT8728F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
 		  | FEAT_IN7_INTERNAL | FEAT_PWM_FREQ2,
@@ -364,7 +364,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8732] = {
 		.name = "it8732",
-		.suffix = "F",
+		.model = "IT8732F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
 		  | FEAT_10_9MV_ADC | FEAT_IN7_INTERNAL,
@@ -373,7 +373,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8771] = {
 		.name = "it8771",
-		.suffix = "E",
+		.model = "IT8771E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
 		  | FEAT_PWM_FREQ2,
@@ -385,7 +385,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8772] = {
 		.name = "it8772",
-		.suffix = "E",
+		.model = "IT8772E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
 		  | FEAT_PWM_FREQ2,
@@ -397,28 +397,28 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8781] = {
 		.name = "it8781",
-		.suffix = "F",
+		.model = "IT8781F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
 		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8782] = {
 		.name = "it8782",
-		.suffix = "F",
+		.model = "IT8782F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
 		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8783] = {
 		.name = "it8783",
-		.suffix = "E/F",
+		.model = "IT8783E/F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
 		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8786] = {
 		.name = "it8786",
-		.suffix = "E",
+		.model = "IT8786E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
 		  | FEAT_PWM_FREQ2,
@@ -426,7 +426,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8790] = {
 		.name = "it8790",
-		.suffix = "E",
+		.model = "IT8790E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
 		  | FEAT_PWM_FREQ2 | FEAT_CONF_NOEXIT,
@@ -434,7 +434,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8792] = {
 		.name = "it8792",
-		.suffix = "E",
+		.model = "IT8792E/IT8795E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
 		  | FEAT_10_9MV_ADC | FEAT_IN7_INTERNAL | FEAT_CONF_NOEXIT,
@@ -443,7 +443,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8603] = {
 		.name = "it8603",
-		.suffix = "E",
+		.model = "IT8603E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
 		  | FEAT_AVCC3 | FEAT_PWM_FREQ2,
@@ -451,7 +451,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8620] = {
 		.name = "it8620",
-		.suffix = "E",
+		.model = "IT8620E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
@@ -460,7 +460,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8622] = {
 		.name = "it8622",
-		.suffix = "E",
+		.model = "IT8622E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
 		  | FEAT_FIVE_PWM | FEAT_IN7_INTERNAL | FEAT_PWM_FREQ2
@@ -469,7 +469,7 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8628] = {
 		.name = "it8628",
-		.suffix = "E",
+		.model = "IT8628E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
@@ -2516,8 +2516,8 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	err = 0;
 	sio_data->sioaddr = sioaddr;
 	sio_data->revision = superio_inb(sioaddr, DEVREV) & 0x0f;
-	pr_info("Found IT%04x%s chip at 0x%x, revision %d\n", chip_type,
-		it87_devices[sio_data->type].suffix,
+	pr_info("Found %s chip at 0x%x, revision %d\n",
+		it87_devices[sio_data->type].model,
 		*address, sio_data->revision);
 
 	/* in7 (VSB or VCCH5V) is always internal on some chips */
