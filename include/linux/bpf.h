@@ -939,7 +939,9 @@ struct btf_func_model {
 /* Each call __bpf_prog_enter + call bpf_func + call __bpf_prog_exit is ~50
  * bytes on x86.
  */
-#define BPF_MAX_TRAMP_LINKS 38
+enum {
+	BPF_MAX_TRAMP_LINKS = 38,
+};
 
 struct bpf_tramp_links {
 	struct bpf_tramp_link *links[BPF_MAX_TRAMP_LINKS];
