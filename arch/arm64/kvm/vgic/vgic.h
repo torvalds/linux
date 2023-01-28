@@ -331,5 +331,6 @@ int vgic_v4_init(struct kvm *kvm);
 void vgic_v4_teardown(struct kvm *kvm);
 void vgic_v4_configure_vsgis(struct kvm *kvm);
 void vgic_v4_get_vlpi_state(struct vgic_irq *irq, bool *val);
+int vgic_v4_request_vpe_irq(struct kvm_vcpu *vcpu, int irq);
 
 #endif

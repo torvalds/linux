@@ -267,16 +267,15 @@ static inline void *usb_get_intfdata(struct usb_interface *intf)
 }
 
 /**
- * usb_set_intfdata() - associate driver-specific data with the interface
- * @intf: the usb interface
- * @data: pointer to the device priv structure or %NULL
+ * usb_set_intfdata() - associate driver-specific data with an interface
+ * @intf: USB interface
+ * @data: driver data
  *
- * Drivers should use this function in their probe() to associate their
- * driver-specific data with the usb interface.
+ * Drivers can use this function in their probe() callbacks to associate
+ * driver-specific data with an interface.
  *
- * When disconnecting, the core will take care of setting @intf back to %NULL,
- * so no actions are needed on the driver side. The interface should not be set
- * to %NULL before all actions completed (e.g. no outsanding URB remaining).
+ * Note that there is generally no need to clear the driver-data pointer even
+ * if some drivers do so for historical or implementation-specific reasons.
  */
 static inline void usb_set_intfdata(struct usb_interface *intf, void *data)
 {
@@ -774,11 +773,14 @@ extern struct device *usb_intf_get_dma_device(struct usb_interface *intf);
 extern int usb_acpi_set_power_state(struct usb_device *hdev, int index,
 	bool enable);
 extern bool usb_acpi_power_manageable(struct usb_device *hdev, int index);
+extern int usb_acpi_port_lpm_incapable(struct usb_device *hdev, int index);
 #else
 static inline int usb_acpi_set_power_state(struct usb_device *hdev, int index,
 	bool enable) { return 0; }
 static inline bool usb_acpi_power_manageable(struct usb_device *hdev, int index)
 	{ return true; }
+static inline int usb_acpi_port_lpm_incapable(struct usb_device *hdev, int index)
+	{ return 0; }
 #endif
 
 /* USB autosuspend and autoresume */
