@@ -34,6 +34,7 @@
  *            IT8786E  Super I/O chip w/LPC interface
  *            IT8790E  Super I/O chip w/LPC interface
  *            IT8792E  Super I/O chip w/LPC interface
+ *            IT87952E  Super I/O chip w/LPC interface
  *            Sis950   A clone of the IT8705F
  *
  *  Copyright (C) 2001 Chris Gauthron
@@ -63,7 +64,7 @@
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8732,
 	     it8771, it8772, it8781, it8782, it8783, it8786, it8790,
-	     it8792, it8603, it8620, it8622, it8628 };
+	     it8792, it8603, it8620, it8622, it8628, it87952 };
 
 static struct platform_device *it87_pdev[2];
 
@@ -160,6 +161,7 @@ static inline void superio_exit(int ioreg, bool noexit)
 #define IT8622E_DEVID 0x8622
 #define IT8623E_DEVID 0x8623
 #define IT8628E_DEVID 0x8628
+#define IT87952E_DEVID 0x8695
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -476,6 +478,15 @@ static const struct it87_devices it87_devices[] = {
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
 		  | FEAT_SIX_TEMP | FEAT_VIN3_5V,
 		.peci_mask = 0x07,
+	},
+	[it87952] = {
+		.name = "it87952",
+		.model = "IT87952E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
+		  | FEAT_10_9MV_ADC | FEAT_IN7_INTERNAL | FEAT_CONF_NOEXIT,
+		.peci_mask = 0x07,
+		.old_peci_mask = 0x02,	/* Actually reports PCH */
 	},
 };
 
@@ -2496,6 +2507,9 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		break;
 	case IT8628E_DEVID:
 		sio_data->type = it8628;
+		break;
+	case IT87952E_DEVID:
+		sio_data->type = it87952;
 		break;
 	case 0xffff:	/* No device at all */
 		goto exit;
