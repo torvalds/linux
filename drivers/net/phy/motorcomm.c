@@ -1804,7 +1804,7 @@ static const struct mdio_device_id __maybe_unused motorcomm_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8511) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8521) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531S) },
-	{ /* sentinal */ }
+	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(mdio, motorcomm_tbl);
