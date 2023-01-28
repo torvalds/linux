@@ -2092,12 +2092,11 @@ static void __exit ublk_exit(void)
 	struct ublk_device *ub;
 	int id;
 
-	class_destroy(ublk_chr_class);
-
-	misc_deregister(&ublk_misc);
-
 	idr_for_each_entry(&ublk_index_idr, ub, id)
 		ublk_remove(ub);
+
+	class_destroy(ublk_chr_class);
+	misc_deregister(&ublk_misc);
 
 	idr_destroy(&ublk_index_idr);
 	unregister_chrdev_region(ublk_chr_devt, UBLK_MINORS);
