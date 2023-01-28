@@ -510,7 +510,7 @@ static void bpf_skip(struct bpf_jit *jit, int size)
  * Emit function prologue
  *
  * Save registers and create stack frame if necessary.
- * See stack frame layout desription in "bpf_jit.h"!
+ * See stack frame layout description in "bpf_jit.h"!
  */
 static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 {
