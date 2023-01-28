@@ -476,7 +476,8 @@ static int psp_sw_init(void *handle)
 		return ret;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_FENCE_BUFFER_SIZE, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &psp->fence_buf_bo,
 				      &psp->fence_buf_mc_addr,
 				      &psp->fence_buf);
@@ -484,7 +485,8 @@ static int psp_sw_init(void *handle)
 		goto failed1;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_CMD_BUFFER_SIZE, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &psp->cmd_buf_bo, &psp->cmd_buf_mc_addr,
 				      (void **)&psp->cmd_buf_mem);
 	if (ret)

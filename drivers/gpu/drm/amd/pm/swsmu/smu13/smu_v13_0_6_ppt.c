@@ -220,10 +220,12 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(MetricsTable_t),
-		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+		       PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_I2C_COMMANDS, sizeof(SwI2cRequest_t),
-		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+		       PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
 	smu_table->metrics_table = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)

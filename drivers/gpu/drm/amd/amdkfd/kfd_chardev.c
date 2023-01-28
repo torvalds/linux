@@ -1026,6 +1026,12 @@ bool kfd_dev_is_large_bar(struct kfd_node *dev)
 	if (dev->kfd->local_mem_info.local_mem_size_private == 0 &&
 	    dev->kfd->local_mem_info.local_mem_size_public > 0)
 		return true;
+
+	if (dev->kfd->local_mem_info.local_mem_size_public == 0 && dev->kfd->adev->gmc.is_app_apu) {
+		pr_debug("APP APU, Consider like a large bar system\n");
+		return true;
+	}
+
 	return false;
 }
 
