@@ -372,7 +372,6 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct wmt_i2c_dev *i2c_dev;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	int err;
 	u32 clk_rate;
 
@@ -380,8 +379,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	if (!i2c_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c_dev->base))
 		return PTR_ERR(i2c_dev->base);
 
