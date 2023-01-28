@@ -199,9 +199,8 @@ error_snd_soc_component_update_bits:
 	return ret;
 }
 
-static int tas5720_mute(struct snd_soc_dai *dai, int mute, int direction)
+static int tas5720_mute_soc_component(struct snd_soc_component *component, int mute)
 {
-	struct snd_soc_component *component = dai->component;
 	int ret;
 
 	ret = snd_soc_component_update_bits(component, TAS5720_DIGITAL_CTRL2_REG,
@@ -212,6 +211,11 @@ static int tas5720_mute(struct snd_soc_dai *dai, int mute, int direction)
 	}
 
 	return 0;
+}
+
+static int tas5720_mute(struct snd_soc_dai *dai, int mute, int direction)
+{
+	return tas5720_mute_soc_component(dai->component, mute);
 }
 
 static void tas5720_fault_check_work(struct work_struct *work)
@@ -318,8 +322,7 @@ static int tas5720_codec_probe(struct snd_soc_component *component)
 			 expected_device_id, device_id);
 
 	/* Set device to mute */
-	ret = snd_soc_component_update_bits(component, TAS5720_DIGITAL_CTRL2_REG,
-				  TAS5720_MUTE, TAS5720_MUTE);
+	ret = tas5720_mute_soc_component(component, 1);
 	if (ret < 0)
 		goto error_snd_soc_component_update_bits;
 
