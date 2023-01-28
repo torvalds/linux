@@ -264,11 +264,6 @@ ufs_inode_getfrag(struct inode *inode, unsigned index,
 	unsigned nfrags = uspi->s_fpb;
 	void *p;
 
-        /* TODO : to be done for write support
-        if ( (flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
-             goto ufs2;
-         */
-
 	p = ufs_get_direct_data_ptr(uspi, ufsi, index);
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 	if (tmp)
@@ -303,21 +298,6 @@ ufs_inode_getfrag(struct inode *inode, unsigned index,
 	mark_inode_dirty(inode);
 out:
 	return tmp + uspi->s_sbbase;
-
-     /* This part : To be implemented ....
-        Required only for writing, not required for READ-ONLY.
-ufs2:
-
-	u2_block = ufs_fragstoblks(fragment);
-	u2_blockoff = ufs_fragnum(fragment);
-	p = ufsi->i_u1.u2_i_data + block;
-	goal = 0;
-
-repeat2:
-	tmp = fs32_to_cpu(sb, *p);
-	lastfrag = ufsi->i_lastfrag;
-
-     */
 }
 
 /**
