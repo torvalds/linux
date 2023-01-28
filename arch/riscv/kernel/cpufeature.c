@@ -281,6 +281,7 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 						  unsigned int stage)
 {
 	struct alt_entry *alt;
+	void *oldptr, *altptr;
 
 	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
 		return;
@@ -297,9 +298,10 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		if (!__riscv_isa_extension_available(NULL, alt->errata_id))
 			continue;
 
-		patch_text_nosync(alt->old_ptr, alt->alt_ptr, alt->alt_len);
-		riscv_alternative_fix_offsets(alt->old_ptr, alt->alt_len,
-					      alt->old_ptr - alt->alt_ptr);
+		oldptr = ALT_OLD_PTR(alt);
+		altptr = ALT_ALT_PTR(alt);
+		patch_text_nosync(oldptr, altptr, alt->alt_len);
+		riscv_alternative_fix_offsets(oldptr, alt->alt_len, oldptr - altptr);
 	}
 }
 #endif
