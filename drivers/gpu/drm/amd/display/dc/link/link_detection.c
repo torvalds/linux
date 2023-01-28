@@ -30,6 +30,7 @@
  * directly from connected receivers.
  */
 
+#include "link_dpms.h"
 #include "link_detection.h"
 #include "link_hwss.h"
 #include "protocols/link_edp_panel_control.h"
@@ -755,34 +756,6 @@ static void restore_phy_clocks_for_destructive_link_verification(const struct dc
 	clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
 }
 
-static void set_all_streams_dpms_off_for_link(struct dc_link *link)
-{
-	int i;
-	struct pipe_ctx *pipe_ctx;
-	struct dc_stream_update stream_update;
-	bool dpms_off = true;
-	struct link_resource link_res = {0};
-
-	memset(&stream_update, 0, sizeof(stream_update));
-	stream_update.dpms_off = &dpms_off;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
-				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			stream_update.stream = pipe_ctx->stream;
-			dc_commit_updates_for_stream(link->ctx->dc, NULL, 0,
-					pipe_ctx->stream, &stream_update,
-					link->ctx->dc->current_state);
-		}
-	}
-
-	/* link can be also enabled by vbios. In this case it is not recorded
-	 * in pipe_ctx. Disable link phy here to make sure it is completely off
-	 */
-	dp_disable_link_phy(link, &link_res, link->connector_signal);
-}
-
 static void verify_link_capability_destructive(struct dc_link *link,
 		struct dc_sink *sink,
 		enum dc_detect_reason reason)
@@ -796,7 +769,7 @@ static void verify_link_capability_destructive(struct dc_link *link,
 	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
 		struct dc_link_settings known_limit_link_setting =
 				dp_get_max_link_cap(link);
-		set_all_streams_dpms_off_for_link(link);
+		link_set_all_streams_dpms_off_for_link(link);
 		dp_verify_link_cap_with_retries(
 				link, &known_limit_link_setting,
 				LINK_TRAINING_MAX_VERIFY_RETRY);

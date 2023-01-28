@@ -140,10 +140,74 @@ void link_blank_dp_stream(struct dc_link *link, bool hw_init)
 	}
 }
 
+void link_set_all_streams_dpms_off_for_link(struct dc_link *link)
+{
+	struct pipe_ctx *pipes[MAX_PIPES];
+	struct dc_state *state = link->dc->current_state;
+	uint8_t count;
+	int i;
+	struct dc_stream_update stream_update;
+	bool dpms_off = true;
+	struct link_resource link_res = {0};
+
+	memset(&stream_update, 0, sizeof(stream_update));
+	stream_update.dpms_off = &dpms_off;
+
+	link_get_master_pipes_with_dpms_on(link, state, &count, pipes);
+
+	for (i = 0; i < count; i++) {
+		stream_update.stream = pipes[i]->stream;
+		dc_commit_updates_for_stream(link->ctx->dc, NULL, 0,
+				pipes[i]->stream, &stream_update,
+				state);
+	}
+
+	/* link can be also enabled by vbios. In this case it is not recorded
+	 * in pipe_ctx. Disable link phy here to make sure it is completely off
+	 */
+	dp_disable_link_phy(link, &link_res, link->connector_signal);
+}
+
 void link_resume(struct dc_link *link)
 {
 	if (link->connector_signal != SIGNAL_TYPE_VIRTUAL)
 		program_hpd_filter(link);
+}
+
+/* This function returns true if the pipe is used to feed video signal directly
+ * to the link.
+ */
+static bool is_master_pipe_for_link(const struct dc_link *link,
+		const struct pipe_ctx *pipe)
+{
+	return (pipe->stream &&
+			pipe->stream->link &&
+			pipe->stream->link == link &&
+			pipe->top_pipe == NULL &&
+			pipe->prev_odm_pipe == NULL);
+}
+
+/*
+ * This function finds all master pipes feeding to a given link with dpms set to
+ * on in given dc state.
+ */
+void link_get_master_pipes_with_dpms_on(const struct dc_link *link,
+		struct dc_state *state,
+		uint8_t *count,
+		struct pipe_ctx *pipes[MAX_PIPES])
+{
+	int i;
+	struct pipe_ctx *pipe = NULL;
+
+	*count = 0;
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &state->res_ctx.pipe_ctx[i];
+
+		if (is_master_pipe_for_link(link, pipe) &&
+				pipe->stream->dpms_off == false) {
+			pipes[(*count)++] = pipe;
+		}
+	}
 }
 
 static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
@@ -2176,6 +2240,8 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->sink->link;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 
+	ASSERT(is_master_pipe_for_link(link, pipe_ctx));
+
 	if (link_is_dp_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
 
@@ -2279,6 +2345,8 @@ void link_set_dpms_on(
 	enum otg_out_mux_dest otg_out_dest = OUT_MUX_DIO;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+
+	ASSERT(is_master_pipe_for_link(link, pipe_ctx));
 
 	if (link_is_dp_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
@@ -2463,4 +2531,3 @@ void link_set_dpms_on(
 		set_avmute(pipe_ctx, false);
 	}
 }
-

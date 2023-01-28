@@ -27,6 +27,7 @@
 #include "link/protocols/link_dp_training.h"
 #include "link/protocols/link_dp_phy.h"
 #include "link/protocols/link_dp_training_fixed_vs_pe_retimer.h"
+#include "link/link_dpms.h"
 #include "resource.h"
 #include "dm_helpers.h"
 #include "dc_dmub_srv.h"
@@ -77,37 +78,26 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			struct dc_link_settings *link_setting,
 			bool skip_video_pattern)
 {
-	struct pipe_ctx *pipe;
-	unsigned int i;
+	struct pipe_ctx *pipes[MAX_PIPES];
+	struct dc_state *state = link->dc->current_state;
+	uint8_t count;
+	int i;
 
 	udelay(100);
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe->stream != NULL &&
-				pipe->stream->link == link &&
-				!pipe->stream->dpms_off &&
-				!pipe->top_pipe && !pipe->prev_odm_pipe) {
-			link_set_dpms_off(pipe);
-			pipe->link_config.dp_link_settings = *link_setting;
-			update_dp_encoder_resources_for_test_harness(
-					link->dc,
-					pipe->stream->ctx->dc->current_state,
-					pipe);
-		}
+	link_get_master_pipes_with_dpms_on(link, state, &count, pipes);
+
+	for (i = 0; i < count; i++) {
+		link_set_dpms_off(pipes[i]);
+		pipes[i]->link_config.dp_link_settings = *link_setting;
+		update_dp_encoder_resources_for_test_harness(
+				link->dc,
+				state,
+				pipes[i]);
 	}
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe->stream != NULL &&
-				pipe->stream->link == link &&
-				!pipe->stream->dpms_off &&
-				!pipe->top_pipe && !pipe->prev_odm_pipe) {
-			link_set_dpms_on(
-					pipe->stream->ctx->dc->current_state,
-					pipe);
-		}
-	}
+	for (i = count-1; i >= 0; i--)
+		link_set_dpms_on(state, pipes[i]);
 }
 
 static void dp_test_send_link_training(struct dc_link *link)
