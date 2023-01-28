@@ -128,10 +128,12 @@ static inline int superio_enter(int ioreg)
 	return 0;
 }
 
-static inline void superio_exit(int ioreg)
+static inline void superio_exit(int ioreg, bool noexit)
 {
-	outb(0x02, ioreg);
-	outb(0x02, ioreg + 1);
+	if (!noexit) {
+		outb(0x02, ioreg);
+		outb(0x02, ioreg + 1);
+	}
 	release_region(ioreg, 2);
 }
 
@@ -300,6 +302,13 @@ struct it87_devices {
 #define FEAT_PWM_FREQ2		BIT(16)	/* Separate pwm freq 2 */
 #define FEAT_SIX_TEMP		BIT(17)	/* Up to 6 temp sensors */
 #define FEAT_VIN3_5V		BIT(18)	/* VIN3 connected to +5V */
+/*
+ * Disabling configuration mode on some chips can result in system
+ * hang-ups and access failures to the Super-IO chip at the
+ * second SIO address. Never exit configuration mode on these
+ * chips to avoid the problem.
+ */
+#define FEAT_CONF_NOEXIT	BIT(19)	/* Chip should not exit conf mode */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -493,6 +502,7 @@ static const struct it87_devices it87_devices[] = {
 #define has_pwm_freq2(data)	((data)->features & FEAT_PWM_FREQ2)
 #define has_six_temp(data)	((data)->features & FEAT_SIX_TEMP)
 #define has_vin3_5v(data)	((data)->features & FEAT_VIN3_5V)
+#define has_conf_noexit(data)	((data)->features & FEAT_CONF_NOEXIT)
 
 struct it87_sio_data {
 	int sioaddr;
@@ -2404,7 +2414,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 {
 	int err;
 	u16 chip_type;
-	const struct it87_devices *config;
+	const struct it87_devices *config = NULL;
 
 	err = superio_enter(sioaddr);
 	if (err)
@@ -2489,6 +2499,8 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		goto exit;
 	}
 
+	config = &it87_devices[sio_data->type];
+
 	superio_select(sioaddr, PME);
 	if (!(superio_inb(sioaddr, IT87_ACT_REG) & 0x01)) {
 		pr_info("Device not activated, skipping\n");
@@ -2507,8 +2519,6 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	pr_info("Found IT%04x%s chip at 0x%x, revision %d\n", chip_type,
 		it87_devices[sio_data->type].suffix,
 		*address, sio_data->revision);
-
-	config = &it87_devices[sio_data->type];
 
 	/* in7 (VSB or VCCH5V) is always internal on some chips */
 	if (has_in7_internal(config))
@@ -2827,7 +2837,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		sio_data->skip_pwm |= dmi_data->skip_pwm;
 
 exit:
-	superio_exit(sioaddr);
+	superio_exit(sioaddr, config ? has_conf_noexit(config) : false);
 	return err;
 }
 
@@ -3213,7 +3223,7 @@ static void it87_resume_sio(struct platform_device *pdev)
 			     reg2c);
 	}
 
-	superio_exit(data->sioaddr);
+	superio_exit(data->sioaddr, has_conf_noexit(data));
 }
 
 static int it87_resume(struct device *dev)
