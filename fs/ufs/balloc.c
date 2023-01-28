@@ -43,7 +43,6 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 	struct ufs_cg_private_info * ucpi;
 	struct ufs_cylinder_group * ucg;
 	unsigned cgno, bit, end_bit, bbase, blkmap, i;
-	u64 blkno;
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -94,13 +93,12 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 	/*
 	 * Trying to reassemble free fragments into block
 	 */
-	blkno = ufs_fragstoblks (bbase);
 	if (ubh_isblockset(uspi, ucpi, bbase)) {
 		fs32_sub(sb, &ucg->cg_cs.cs_nffree, uspi->s_fpb);
 		uspi->cs_total.cs_nffree -= uspi->s_fpb;
 		fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, uspi->s_fpb);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
-			ufs_clusteracct (sb, ucpi, blkno, 1);
+			ufs_clusteracct(sb, ucpi, bbase, 1);
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
 		uspi->cs_total.cs_nbfree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
@@ -139,7 +137,6 @@ void ufs_free_blocks(struct inode *inode, u64 fragment, unsigned count)
 	struct ufs_cg_private_info * ucpi;
 	struct ufs_cylinder_group * ucg;
 	unsigned overflow, cgno, bit, end_bit, i;
-	u64 blkno;
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -181,14 +178,13 @@ do_more:
 	}
 
 	for (i = bit; i < end_bit; i += uspi->s_fpb) {
-		blkno = ufs_fragstoblks(i);
 		if (ubh_isblockset(uspi, ucpi, i)) {
 			ufs_error(sb, "ufs_free_blocks", "freeing free fragment");
 		}
 		ubh_setblock(uspi, ucpi, i);
 		inode_sub_bytes(inode, uspi->s_fpb << uspi->s_fshift);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
-			ufs_clusteracct (sb, ucpi, blkno, 1);
+			ufs_clusteracct(sb, ucpi, i, 1);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
 		uspi->cs_total.cs_nbfree++;
@@ -698,7 +694,7 @@ static u64 ufs_alloccg_block(struct inode *inode,
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_cylinder_group * ucg;
-	u64 result, blkno;
+	u64 result;
 
 	UFSD("ENTER, goal %llu\n", (unsigned long long)goal);
 
@@ -729,10 +725,9 @@ norot:
 gotit:
 	if (!try_add_frags(inode, uspi->s_fpb))
 		return 0;
-	blkno = ufs_fragstoblks(result);
 	ubh_clrblock(uspi, ucpi, result);
 	if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
-		ufs_clusteracct (sb, ucpi, blkno, -1);
+		ufs_clusteracct(sb, ucpi, result, -1);
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nbfree, 1);
 	uspi->cs_total.cs_nbfree--;
@@ -863,12 +858,12 @@ static u64 ufs_bitmap_search(struct super_block *sb,
 }
 
 static void ufs_clusteracct(struct super_block * sb,
-	struct ufs_cg_private_info * ucpi, unsigned blkno, int cnt)
+	struct ufs_cg_private_info * ucpi, unsigned frag, int cnt)
 {
-	struct ufs_sb_private_info * uspi;
+	struct ufs_sb_private_info * uspi = UFS_SB(sb)->s_uspi;
 	int i, start, end, forw, back;
+	unsigned blkno = ufs_fragstoblks(frag);
 	
-	uspi = UFS_SB(sb)->s_uspi;
 	if (uspi->s_contigsumsize <= 0)
 		return;
 
