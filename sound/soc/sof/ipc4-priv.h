@@ -70,6 +70,7 @@ struct sof_ipc4_fw_library {
  *		    base firmware
  *
  * @load_library: Callback function for platform dependent library loading
+ * @pipeline_state_mutex: Mutex to protect pipeline triggers, ref counts, states and deletion
  */
 struct sof_ipc4_fw_data {
 	u32 manifest_fw_hdr_offset;
@@ -82,6 +83,7 @@ struct sof_ipc4_fw_data {
 
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
+	struct mutex pipeline_state_mutex; /* protect pipeline triggers, ref counts and states */
 };
 
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;

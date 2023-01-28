@@ -1337,7 +1337,7 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	return NULL;
 }
 
-static int widget_in_list(struct snd_soc_dapm_widget_list *list,
+int widget_in_list(struct snd_soc_dapm_widget_list *list,
 		struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
@@ -1349,6 +1349,7 @@ static int widget_in_list(struct snd_soc_dapm_widget_list *list,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(widget_in_list);
 
 bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir)
 {

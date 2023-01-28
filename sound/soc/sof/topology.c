@@ -1402,10 +1402,11 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	swidget->scomp = scomp;
 	swidget->widget = w;
 	swidget->comp_id = sdev->next_comp_id++;
-	swidget->complete = 0;
 	swidget->id = w->id;
 	swidget->pipeline_id = index;
 	swidget->private = NULL;
+	mutex_init(&swidget->setup_mutex);
+
 	ida_init(&swidget->src_queue_ida);
 	ida_init(&swidget->sink_queue_ida);
 
@@ -1553,6 +1554,23 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		}
 	}
 
+	/* create and add pipeline for scheduler type widgets */
+	if (w->id == snd_soc_dapm_scheduler) {
+		struct snd_sof_pipeline *spipe;
+
+		spipe = kzalloc(sizeof(*spipe), GFP_KERNEL);
+		if (!spipe) {
+			kfree(swidget->private);
+			kfree(swidget->tuples);
+			kfree(swidget);
+			return -ENOMEM;
+		}
+
+		spipe->pipe_widget = swidget;
+		swidget->spipe = spipe;
+		list_add(&spipe->list, &sdev->pipeline_list);
+	}
+
 	w->dobj.private = swidget;
 	list_add(&swidget->list, &sdev->widget_list);
 	return ret;
@@ -1608,6 +1626,15 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		sof_disconnect_dai_widget(scomp, widget);
 
 		break;
+	case snd_soc_dapm_scheduler:
+	{
+		struct snd_sof_pipeline *spipe = swidget->spipe;
+
+		list_del(&spipe->list);
+		kfree(spipe);
+		swidget->spipe = NULL;
+		break;
+	}
 	default:
 		break;
 	}
@@ -1669,6 +1696,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_pcm_ops *ipc_pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	struct snd_soc_tplg_stream_caps *caps;
 	struct snd_soc_tplg_private *private = &pcm->priv;
 	struct snd_sof_pcm *spcm;
@@ -1695,6 +1723,13 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 
 	spcm->pcm = *pcm;
 	dev_dbg(scomp->dev, "tplg: load pcm %s\n", pcm->dai_name);
+
+	/* perform pcm set op */
+	if (ipc_pcm_ops && ipc_pcm_ops->pcm_setup) {
+		ret = ipc_pcm_ops->pcm_setup(sdev, spcm);
+		if (ret < 0)
+			return ret;
+	}
 
 	dai_drv->dobj.private = spcm;
 	list_add(&spcm->list, &sdev->pcm_list);
@@ -1773,6 +1808,8 @@ free_playback_tables:
 static int sof_dai_unload(struct snd_soc_component *scomp,
 			  struct snd_soc_dobj *dobj)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_pcm_ops *ipc_pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	struct snd_sof_pcm *spcm = dobj->private;
 
 	/* free PCM DMA pages */
@@ -1781,6 +1818,10 @@ static int sof_dai_unload(struct snd_soc_component *scomp,
 
 	if (spcm->pcm.capture)
 		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_CAPTURE].page_table);
+
+	/* perform pcm free op */
+	if (ipc_pcm_ops && ipc_pcm_ops->pcm_free)
+		ipc_pcm_ops->pcm_free(sdev, spcm);
 
 	/* remove from list and free spcm */
 	list_del(&spcm->list);
@@ -1813,26 +1854,15 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	}
 	link->platforms->name = dev_name(scomp->dev);
 
-	/*
-	 * Set nonatomic property for FE dai links as their trigger action
-	 * involves IPC's.
-	 */
+	if (tplg_ops && tplg_ops->link_setup) {
+		ret = tplg_ops->link_setup(sdev, link);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Set nonatomic property for FE dai links as their trigger action involves IPC's */
 	if (!link->no_pcm) {
 		link->nonatomic = true;
-
-		/*
-		 * set default trigger order for all links. Exceptions to
-		 * the rule will be handled in sof_pcm_dai_link_fixup()
-		 * For playback, the sequence is the following: start FE,
-		 * start BE, stop BE, stop FE; for Capture the sequence is
-		 * inverted start BE, start FE, stop FE, stop BE
-		 */
-		link->trigger[SNDRV_PCM_STREAM_PLAYBACK] =
-					SND_SOC_DPCM_TRIGGER_PRE;
-		link->trigger[SNDRV_PCM_STREAM_CAPTURE] =
-					SND_SOC_DPCM_TRIGGER_POST;
-
-		/* nothing more to do for FE dai links */
 		return 0;
 	}
 
@@ -2079,18 +2109,19 @@ err:
 }
 
 /**
- * sof_set_pipe_widget - Set pipe_widget for a component
+ * sof_set_widget_pipeline - Set pipeline for a component
  * @sdev: pointer to struct snd_sof_dev
- * @pipe_widget: pointer to struct snd_sof_widget of type snd_soc_dapm_scheduler
+ * @spipe: pointer to struct snd_sof_pipeline
  * @swidget: pointer to struct snd_sof_widget that has the same pipeline ID as @pipe_widget
  *
  * Return: 0 if successful, -EINVAL on error.
  * The function checks if @swidget is associated with any volatile controls. If so, setting
  * the dynamic_pipeline_widget is disallowed.
  */
-static int sof_set_pipe_widget(struct snd_sof_dev *sdev, struct snd_sof_widget *pipe_widget,
-			       struct snd_sof_widget *swidget)
+static int sof_set_widget_pipeline(struct snd_sof_dev *sdev, struct snd_sof_pipeline *spipe,
+				   struct snd_sof_widget *swidget)
 {
+	struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
 	struct snd_sof_control *scontrol;
 
 	if (pipe_widget->dynamic_pipeline_widget) {
@@ -2105,8 +2136,8 @@ static int sof_set_pipe_widget(struct snd_sof_dev *sdev, struct snd_sof_widget *
 			}
 	}
 
-	/* set the pipe_widget and apply the dynamic_pipeline_widget_flag */
-	swidget->pipe_widget = pipe_widget;
+	/* set the pipeline and apply the dynamic_pipeline_widget_flag */
+	swidget->spipe = spipe;
 	swidget->dynamic_pipeline_widget = pipe_widget->dynamic_pipeline_widget;
 
 	return 0;
@@ -2120,6 +2151,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 	struct snd_sof_widget *swidget, *comp_swidget;
 	const struct sof_ipc_tplg_widget_ops *widget_ops;
 	struct snd_sof_control *scontrol;
+	struct snd_sof_pipeline *spipe;
 	int ret;
 
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
@@ -2152,23 +2184,21 @@ static int sof_complete(struct snd_soc_component *scomp)
 	}
 
 	/* set the pipe_widget and apply the dynamic_pipeline_widget_flag */
-	list_for_each_entry(swidget, &sdev->widget_list, list) {
-		switch (swidget->id) {
-		case snd_soc_dapm_scheduler:
-			/*
-			 * Apply the dynamic_pipeline_widget flag and set the pipe_widget field
-			 * for all widgets that have the same pipeline ID as the scheduler widget
-			 */
-			list_for_each_entry(comp_swidget, &sdev->widget_list, list)
-				if (comp_swidget->pipeline_id == swidget->pipeline_id) {
-					ret = sof_set_pipe_widget(sdev, swidget, comp_swidget);
-					if (ret < 0)
-						return ret;
-				}
-			break;
-		default:
-			break;
-		}
+	list_for_each_entry(spipe, &sdev->pipeline_list, list) {
+		struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
+
+		/*
+		 * Apply the dynamic_pipeline_widget flag and set the pipe_widget field
+		 * for all widgets that have the same pipeline ID as the scheduler widget.
+		 * Skip the scheduler widgets as they have their pipeline set during widget_ready
+		 */
+		list_for_each_entry(comp_swidget, &sdev->widget_list, list)
+			if (comp_swidget->widget->id != snd_soc_dapm_scheduler &&
+			    comp_swidget->pipeline_id == pipe_widget->pipeline_id) {
+				ret = sof_set_widget_pipeline(sdev, spipe, comp_swidget);
+				if (ret < 0)
+					return ret;
+			}
 	}
 
 	/* verify topology components loading including dynamic pipelines */

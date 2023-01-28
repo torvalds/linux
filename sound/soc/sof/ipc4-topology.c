@@ -855,7 +855,7 @@ sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widg
 
 	total = SOF_IPC4_FW_PAGE(task_mem + queue_mem);
 
-	pipe_widget = swidget->pipe_widget;
+	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage += total;
 }
@@ -969,7 +969,7 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 	struct sof_ipc4_pipeline *pipeline;
 
 	/* reset pipeline memory usage */
-	pipe_widget = swidget->pipe_widget;
+	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage = 0;
 
@@ -1136,7 +1136,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		struct snd_sof_widget *pipe_widget;
 		struct sof_ipc4_pipeline *pipeline;
 
-		pipe_widget = swidget->pipe_widget;
+		pipe_widget = swidget->spipe->pipe_widget;
 		pipeline = pipe_widget->private;
 		ipc4_copier = (struct sof_ipc4_copier *)swidget->private;
 		gtw_attr = ipc4_copier->gtw_attr;
@@ -1495,7 +1495,7 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_pipeline *pipeline;
 	struct sof_ipc4_msg *msg;
@@ -1625,7 +1625,10 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	int ret = 0;
+
+	mutex_lock(&ipc4_data->pipeline_state_mutex);
 
 	/* freeing a pipeline frees all the widgets associated with it */
 	if (swidget->id == snd_soc_dapm_scheduler) {
@@ -1651,6 +1654,8 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 	} else {
 		ida_free(&fw_module->m_ida, swidget->instance_id);
 	}
+
+	mutex_unlock(&ipc4_data->pipeline_state_mutex);
 
 	return ret;
 }
@@ -1805,11 +1810,18 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 header, extension;
-	int ret;
+	int ret = 0;
 
 	dev_dbg(sdev->dev, "unbind modules %s:%d -> %s:%d\n",
 		src_widget->widget->name, sroute->src_queue_id,
 		sink_widget->widget->name, sroute->dst_queue_id);
+
+	/*
+	 * routes belonging to the same pipeline will be disconnected by the FW when the pipeline
+	 * is freed. So avoid sending this IPC which will be ignored by the FW anyway.
+	 */
+	if (src_widget->spipe->pipe_widget == sink_widget->spipe->pipe_widget)
+		goto out;
 
 	header = src_fw_module->man4_module_entry.id;
 	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
@@ -1829,7 +1841,7 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to unbind modules %s -> %s\n",
 			src_widget->widget->name, sink_widget->widget->name);
-
+out:
 	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_SINK);
 	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_SOURCE);
 
@@ -1839,7 +1851,7 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 			       unsigned int flags, struct snd_sof_dai_config_data *data)
 {
-	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 	struct snd_sof_dai *dai = swidget->private;
 	struct sof_ipc4_gtw_attributes *gtw_attr;
@@ -1862,6 +1874,7 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	case SOF_DAI_INTEL_HDA:
 		gtw_attr = ipc4_copier->gtw_attr;
 		gtw_attr->lp_buffer_alloc = pipeline->lp_mode;
+		pipeline->skip_during_fe_trigger = true;
 		fallthrough;
 	case SOF_DAI_INTEL_ALH:
 		copier_data->gtw_cfg.node_id &= ~SOF_IPC4_NODE_INDEX_MASK;
@@ -2018,7 +2031,7 @@ static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 		for_each_pcm_streams(dir) {
 			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
 
-			if (!substream || !substream->runtime)
+			if (!substream || !substream->runtime || spcm->stream[dir].suspend_ignored)
 				continue;
 
 			if (spcm->stream[dir].list) {
@@ -2028,6 +2041,24 @@ static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 			}
 		}
 	}
+	return 0;
+}
+
+static int sof_ipc4_link_setup(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link)
+{
+	if (link->no_pcm)
+		return 0;
+
+	/*
+	 * set default trigger order for all links. Exceptions to
+	 * the rule will be handled in sof_pcm_dai_link_fixup()
+	 * For playback, the sequence is the following: start BE,
+	 * start FE, stop FE, stop BE; for Capture the sequence is
+	 * inverted start FE, start BE, stop BE, stop FE
+	 */
+	link->trigger[SNDRV_PCM_STREAM_PLAYBACK] = SND_SOC_DPCM_TRIGGER_POST;
+	link->trigger[SNDRV_PCM_STREAM_CAPTURE] = SND_SOC_DPCM_TRIGGER_PRE;
+
 	return 0;
 }
 
@@ -2137,4 +2168,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.parse_manifest = sof_ipc4_parse_manifest,
 	.dai_get_clk = sof_ipc4_dai_get_clk,
 	.tear_down_all_pipelines = sof_ipc4_tear_down_all_pipelines,
+	.link_setup = sof_ipc4_link_setup,
 };
