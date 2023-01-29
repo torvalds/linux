@@ -11,6 +11,17 @@ maintainers:
 
 allOf:
   - $ref: rtc.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - ingenic,jz4770-rtc
+                - ingenic,jz4780-rtc
+    then:
+      properties:
+        "#clock-cells": false
 
 properties:
   compatible:
@@ -38,6 +49,9 @@ properties:
 
   clock-names:
     const: rtc
+
+  "#clock-cells":
+    const: 0
 
   system-power-controller:
     description: |
@@ -82,4 +96,19 @@ examples:
 
       clocks = <&cgu JZ4740_CLK_RTC>;
       clock-names = "rtc";
+    };
+
+  - |
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
+    rtc: rtc@10003000 {
+      compatible = "ingenic,jz4780-rtc", "ingenic,jz4760-rtc";
+      reg = <0x10003000 0x4c>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <32>;
+
+      clocks = <&cgu JZ4780_CLK_RTCLK>;
+      clock-names = "rtc";
+
+      #clock-cells = <0>;
     };
