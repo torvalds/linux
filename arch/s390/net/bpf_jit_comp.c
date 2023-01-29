@@ -58,7 +58,6 @@ struct bpf_jit {
 #define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
 #define SEEN_LITERAL	BIT(1)		/* code uses literals */
 #define SEEN_FUNC	BIT(2)		/* calls C functions */
-#define SEEN_TAIL_CALL	BIT(3)		/* code uses tail calls */
 #define SEEN_STACK	(SEEN_FUNC | SEEN_MEM)
 
 /*
@@ -549,20 +548,23 @@ static void bpf_jit_plt(void *plt, void *ret, void *target)
  * Save registers and create stack frame if necessary.
  * See stack frame layout description in "bpf_jit.h"!
  */
-static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
+static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp,
+			     u32 stack_depth)
 {
 	/* No-op for hotpatching */
 	/* brcl 0,prologue_plt */
 	EMIT6_PCREL_RILC(0xc0040000, 0, jit->prologue_plt);
 	jit->prologue_plt_ret = jit->prg;
 
-	if (jit->seen & SEEN_TAIL_CALL) {
+	if (fp->aux->func_idx == 0) {
+		/* Initialize the tail call counter in the main program. */
 		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
 		_EMIT6(0xd703f000 | STK_OFF_TCCNT, 0xf000 | STK_OFF_TCCNT);
 	} else {
 		/*
-		 * There are no tail calls. Insert nops in order to have
-		 * tail_call_start at a predictable offset.
+		 * Skip the tail call counter initialization in subprograms.
+		 * Insert nops in order to have tail_call_start at a
+		 * predictable offset.
 		 */
 		bpf_skip(jit, 6);
 	}
@@ -1410,6 +1412,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 
 		REG_SET_SEEN(BPF_REG_5);
 		jit->seen |= SEEN_FUNC;
+		/*
+		 * Copy the tail call counter to where the callee expects it.
+		 *
+		 * Note 1: The callee can increment the tail call counter, but
+		 * we do not load it back, since the x86 JIT does not do this
+		 * either.
+		 *
+		 * Note 2: We assume that the verifier does not let us call the
+		 * main program, which clears the tail call counter on entry.
+		 */
+		/* mvc STK_OFF_TCCNT(4,%r15),N(%r15) */
+		_EMIT6(0xd203f000 | STK_OFF_TCCNT,
+		       0xf000 | (STK_OFF_TCCNT + STK_OFF + stack_depth));
 		/* lgrl %w1,func */
 		EMIT6_PCREL_RILB(0xc4080000, REG_W1, _EMIT_CONST_U64(func));
 		/* %r1() */
@@ -1426,10 +1441,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		 *  B1: pointer to ctx
 		 *  B2: pointer to bpf_array
 		 *  B3: index in bpf_array
-		 */
-		jit->seen |= SEEN_TAIL_CALL;
-
-		/*
+		 *
 		 * if (index >= array->map.max_entries)
 		 *         goto out;
 		 */
@@ -1793,7 +1805,7 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 	jit->prg = 0;
 	jit->excnt = 0;
 
-	bpf_jit_prologue(jit, stack_depth);
+	bpf_jit_prologue(jit, fp, stack_depth);
 	if (bpf_set_addr(jit, 0) < 0)
 		return -1;
 	for (i = 0; i < fp->len; i += insn_count) {
@@ -2461,4 +2473,9 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	}
 
 	return ret;
+}
+
+bool bpf_jit_supports_subprog_tailcalls(void)
+{
+	return true;
 }
