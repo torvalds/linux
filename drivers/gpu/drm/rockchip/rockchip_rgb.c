@@ -54,7 +54,7 @@
 #define RK3288_LVDS_CON_CLKINV(x)	HIWORD_UPDATE(x,  8,  8)
 #define RK3288_LVDS_CON_TTL_EN(x)	HIWORD_UPDATE(x,  6,  6)
 
-#define RK3562_GRF_IOC_VO_IO_CON	0x500
+#define RK3562_GRF_IOC_VO_IO_CON	0x10500
 #define RK3562_RGB_DATA_BYPASS(v)	HIWORD_UPDATE(v, 6, 6)
 
 #define RK3568_GRF_VO_CON1		0X0364
@@ -542,8 +542,15 @@ static void rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
 	struct rockchip_drm_private *priv;
 
 	drm_for_each_crtc(crtc, drm_dev) {
-		if (of_get_parent(crtc->port) == np_crtc)
+		/*
+		 * Support to find crtc device for both vop and vop3:
+		 * vop  -> rgb out
+		 * vop3 -> vp -> rgb out
+		 */
+		if (of_get_parent(of_get_parent(crtc->port)) == np_crtc ||
+		    of_get_parent(crtc->port) == np_crtc) {
 			break;
+		}
 	}
 
 	pipe = drm_crtc_index(crtc);
