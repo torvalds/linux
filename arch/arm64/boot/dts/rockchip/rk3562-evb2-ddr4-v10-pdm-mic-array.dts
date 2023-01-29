@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3562-evb2-ddr4-v10.dts"
+
+&pdm {
+	/* The pin pdmm0_clk1 is conflict with i2s0_mclk which used by rk809_codec */
+	pinctrl-0 = <&pdmm0_clk0
+		     &pdmm0_sdi0
+		     &pdmm0_sdi1
+		     &pdmm0_sdi2
+		     &pdmm0_sdi3>;
+	status = "okay";
+};
+
+&pdm_mic_array {
+	status = "okay";
+};
+

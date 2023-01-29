@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3562-evb1-lp4x-v10.dts"
+
+&spdif_8ch {
+	/* The pin is conflict with sdmmc0 cmd */
+	pinctrl-0 = <&spdifm2_pins>;
+	status = "okay";
+};
+
+&sdmmc0 {
+	status = "disabled";
+};
