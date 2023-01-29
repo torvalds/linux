@@ -242,7 +242,7 @@ enum ap_fi_flags {
 
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
-	unsigned long long psmid;	/* Message id. */
+	unsigned long psmid;		/* Message id. */
 	void *msg;			/* Pointer to message buffer. */
 	unsigned int len;		/* actual msg len in msg buffer */
 	unsigned int bufsize;		/* allocated msg buffer size */
@@ -285,8 +285,8 @@ static inline void ap_release_message(struct ap_message *ap_msg)
  * for the first time. Otherwise the ap message queue will get
  * confused.
  */
-int ap_send(ap_qid_t, unsigned long long, void *, size_t);
-int ap_recv(ap_qid_t, unsigned long long *, void *, size_t);
+int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t length);
+int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t length);
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);

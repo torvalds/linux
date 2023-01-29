@@ -386,7 +386,7 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
  * *resgr0 is to be used instead of qid to further process this entry.
  */
 static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
-					     unsigned long long *psmid,
+					     unsigned long *psmid,
 					     void *msg, size_t length,
 					     size_t *reslength,
 					     unsigned long *resgr0)
@@ -429,7 +429,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		if (resgr0)
 			*resgr0 = reg0;
 	} else {
-		*psmid = (((unsigned long long)rp1.even) << 32) + rp1.odd;
+		*psmid = (rp1.even << 32) + rp1.odd;
 		if (resgr0)
 			*resgr0 = 0;
 	}

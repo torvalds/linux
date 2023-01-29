@@ -1034,7 +1034,7 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 		return -ENOMEM;
 	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
 	ap_msg->private = &resp_type;
 	rc = icamex_msg_to_type6mex_msgx(zq, ap_msg, mex);
@@ -1084,7 +1084,7 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 		return -ENOMEM;
 	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
 	ap_msg->private = &resp_type;
 	rc = icacrt_msg_to_type6crt_msgx(zq, ap_msg, crt);
@@ -1135,7 +1135,7 @@ int prep_cca_ap_msg(bool userspace, struct ica_xcRB *xcrb,
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
@@ -1216,7 +1216,7 @@ int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive_ep11;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
@@ -1326,7 +1326,7 @@ int prep_rng_ap_msg(struct ap_message *ap_msg, int *func_code,
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_msgtype6_receive;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)

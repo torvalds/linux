@@ -181,7 +181,7 @@ static const struct attribute_group cca_queue_attr_grp = {
 static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 {
 	struct ap_message ap_msg;
-	unsigned long long psmid;
+	unsigned long psmid;
 	unsigned int domain;
 	struct {
 		struct type86_hdr hdr;
@@ -209,7 +209,7 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	msg = ap_msg.msg;
 	msg->cprbx.domain = AP_QID_QUEUE(aq->qid);
 
-	rc = ap_send(aq->qid, 0x0102030405060708ULL, ap_msg.msg, ap_msg.len);
+	rc = ap_send(aq->qid, 0x0102030405060708UL, ap_msg.msg, ap_msg.len);
 	if (rc)
 		goto out_free;
 
@@ -217,7 +217,7 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	for (i = 0; i < 2 * HZ; i++) {
 		msleep(1000 / HZ);
 		rc = ap_recv(aq->qid, &psmid, ap_msg.msg, 4096);
-		if (rc == 0 && psmid == 0x0102030405060708ULL)
+		if (rc == 0 && psmid == 0x0102030405060708UL)
 			break;
 	}
 

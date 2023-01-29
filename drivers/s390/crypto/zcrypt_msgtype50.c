@@ -476,7 +476,7 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_queue *zq,
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_cex2a_receive;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
 	ap_msg->private = &work;
 	rc = ICAMEX_msg_to_type50MEX_msg(zq, ap_msg, mex);
@@ -527,7 +527,7 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_queue *zq,
 	if (!ap_msg->msg)
 		return -ENOMEM;
 	ap_msg->receive = zcrypt_cex2a_receive;
-	ap_msg->psmid = (((unsigned long long)current->pid) << 32) +
+	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
 	ap_msg->private = &work;
 	rc = ICACRT_msg_to_type50CRT_msg(zq, ap_msg, crt);
