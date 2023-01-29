@@ -8,8 +8,8 @@
 #define R8180_HW
 
 enum baseband_config {
-	BaseBand_Config_PHY_REG = 0,
-	BaseBand_Config_AGC_TAB = 1,
+	BB_CONFIG_PHY_REG = 0,
+	BB_CONFIG_AGC_TAB = 1,
 };
 
 #define	RTL8187_REQT_READ	0xc0
