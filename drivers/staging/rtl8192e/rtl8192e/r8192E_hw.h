@@ -129,7 +129,7 @@ enum _RTL8192PCI_HW {
 #define	IMR_ROK				BIT0
 	ISR			= 0x0f8,
 	TP_POLL			= 0x0fd,
-#define TPPoll_CQ		BIT5
+#define TP_POLL_CQ		BIT5
 	PSR			= 0x0ff,
 	CPU_GEN			= 0x100,
 #define	CPU_CCK_LOOPBACK	0x00030000
@@ -142,8 +142,8 @@ enum _RTL8192PCI_HW {
 #define	CPU_GEN_PWR_STB_CPU	0x00000004
 #define CPU_GEN_NO_LOOPBACK_MSK	0xFFF8FFFF
 #define CPU_GEN_NO_LOOPBACK_SET	0x00080000
-	AcmHwCtrl		= 0x171,
-#define	AcmHw_BeqEn		BIT1
+	ACM_HW_CTRL		= 0x171,
+#define	ACM_HW_BEQ_EN		BIT1
 #define	AcmHw_ViqEn		BIT2
 #define	AcmHw_VoqEn		BIT3
 	RQPN1			= 0x180,

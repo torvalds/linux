@@ -216,12 +216,12 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		union aci_aifsn *pAciAifsn = (union aci_aifsn *)&
 					      (qos_parameters->aifs[0]);
 		u8 acm = pAciAifsn->f.acm;
-		u8 AcmCtrl = rtl92e_readb(dev, AcmHwCtrl);
+		u8 AcmCtrl = rtl92e_readb(dev, ACM_HW_CTRL);
 
 		if (acm) {
 			switch (eACI) {
 			case AC0_BE:
-				AcmCtrl |= AcmHw_BeqEn;
+				AcmCtrl |= ACM_HW_BEQ_EN;
 				break;
 
 			case AC2_VI:
@@ -235,7 +235,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 		} else {
 			switch (eACI) {
 			case AC0_BE:
-				AcmCtrl &= (~AcmHw_BeqEn);
+				AcmCtrl &= (~ACM_HW_BEQ_EN);
 				break;
 
 			case AC2_VI:
@@ -243,14 +243,14 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 				break;
 
 			case AC3_VO:
-				AcmCtrl &= (~AcmHw_BeqEn);
+				AcmCtrl &= (~ACM_HW_BEQ_EN);
 				break;
 
 			default:
 				break;
 			}
 		}
-		rtl92e_writeb(dev, AcmHwCtrl, AcmCtrl);
+		rtl92e_writeb(dev, ACM_HW_CTRL, AcmCtrl);
 		break;
 	}
 
