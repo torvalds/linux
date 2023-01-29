@@ -1401,9 +1401,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	 */
 	case BPF_JMP | BPF_CALL:
 	{
-		u64 func;
+		const struct btf_func_model *m;
 		bool func_addr_fixed;
-		int ret;
+		int j, ret;
+		u64 func;
 
 		ret = bpf_jit_get_func_addr(fp, insn, extra_pass,
 					    &func, &func_addr_fixed);
@@ -1425,6 +1426,21 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		/* mvc STK_OFF_TCCNT(4,%r15),N(%r15) */
 		_EMIT6(0xd203f000 | STK_OFF_TCCNT,
 		       0xf000 | (STK_OFF_TCCNT + STK_OFF + stack_depth));
+
+		/* Sign-extend the kfunc arguments. */
+		if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
+			m = bpf_jit_find_kfunc_model(fp, insn);
+			if (!m)
+				return -1;
+
+			for (j = 0; j < m->nr_args; j++) {
+				if (sign_extend(jit, BPF_REG_1 + j,
+						m->arg_size[j],
+						m->arg_flags[j]))
+					return -1;
+			}
+		}
+
 		/* lgrl %w1,func */
 		EMIT6_PCREL_RILB(0xc4080000, REG_W1, _EMIT_CONST_U64(func));
 		/* %r1() */
@@ -1978,6 +1994,11 @@ out:
 		bpf_jit_prog_release_other(fp, fp == orig_fp ?
 					   tmp : orig_fp);
 	return fp;
+}
+
+bool bpf_jit_supports_kfunc_call(void)
+{
+	return true;
 }
 
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
