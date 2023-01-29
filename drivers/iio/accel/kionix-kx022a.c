@@ -162,7 +162,6 @@ struct kx022a_data {
 	int inc_reg;
 	int ien_reg;
 
-	unsigned int g_range;
 	unsigned int state;
 	unsigned int odr_ns;
 
