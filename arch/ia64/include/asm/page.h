@@ -95,10 +95,6 @@ do {						\
 
 #include <asm-generic/memory_model.h>
 
-#ifdef CONFIG_FLATMEM
-# define pfn_valid(pfn)		((pfn) < max_mapnr)
-#endif
-
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)

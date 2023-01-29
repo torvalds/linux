@@ -108,7 +108,6 @@ extern unsigned long uml_physmem;
 #define phys_to_pfn(p) ((p) >> PAGE_SHIFT)
 #define pfn_to_phys(pfn) PFN_PHYS(pfn)
 
-#define pfn_valid(pfn) ((pfn) < max_mapnr)
 #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
 
 #include <asm-generic/memory_model.h>
