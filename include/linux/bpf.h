@@ -944,7 +944,11 @@ struct btf_func_model {
  * bytes on x86.
  */
 enum {
+#if defined(__s390x__)
+	BPF_MAX_TRAMP_LINKS = 27,
+#else
 	BPF_MAX_TRAMP_LINKS = 38,
+#endif
 };
 
 struct bpf_tramp_links {
