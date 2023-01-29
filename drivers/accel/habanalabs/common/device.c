@@ -1452,7 +1452,7 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 		 */
 		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0))
 			dev_warn(hdev->dev,
-				"Failed to disable PCI access by F/W\n");
+				"Failed to disable FW's PCI access\n");
 	}
 }
 
@@ -1530,14 +1530,14 @@ do_reset:
 
 	/*
 	 * Prevent concurrency in this function - only one reset should be
-	 * done at any given time. Only need to perform this if we didn't
-	 * get from the dedicated hard reset thread
+	 * done at any given time. We need to perform this only if we didn't
+	 * get here from a dedicated hard reset thread.
 	 */
 	if (!from_hard_reset_thread) {
 		/* Block future CS/VM/JOB completion operations */
 		spin_lock(&hdev->reset_info.lock);
 		if (hdev->reset_info.in_reset) {
-			/* We only allow scheduling of a hard reset during compute reset */
+			/* We allow scheduling of a hard reset only during a compute reset */
 			if (hard_reset && hdev->reset_info.in_compute_reset)
 				hdev->reset_info.hard_reset_schedule_flags = flags;
 			spin_unlock(&hdev->reset_info.lock);
@@ -1574,6 +1574,7 @@ do_reset:
 		if (delay_reset)
 			usleep_range(HL_RESET_DELAY_USEC, HL_RESET_DELAY_USEC << 1);
 
+escalate_reset_flow:
 		handle_reset_trigger(hdev, flags);
 
 		/* This also blocks future CS/VM/JOB completion operations */
@@ -1589,7 +1590,6 @@ do_reset:
 			dev_dbg(hdev->dev, "Going to reset engines of inference device\n");
 	}
 
-again:
 	if ((hard_reset) && (!from_hard_reset_thread)) {
 		hdev->reset_info.hard_reset_pending = true;
 
@@ -1837,7 +1837,7 @@ kill_processes:
 			hdev->disabled = true;
 			hard_reset = true;
 			handle_reset_trigger(hdev, flags);
-			goto again;
+			goto escalate_reset_flow;
 		}
 	}
 
@@ -1860,14 +1860,14 @@ out_err:
 		flags |= HL_DRV_RESET_HARD;
 		flags &= ~HL_DRV_RESET_DEV_RELEASE;
 		hard_reset = true;
-		goto again;
+		goto escalate_reset_flow;
 	} else {
 		spin_unlock(&hdev->reset_info.lock);
 		dev_err(hdev->dev, "Failed to do compute reset\n");
 		hdev->reset_info.compute_reset_cnt++;
 		flags |= HL_DRV_RESET_HARD;
 		hard_reset = true;
-		goto again;
+		goto escalate_reset_flow;
 	}
 
 	hdev->reset_info.in_reset = 0;
