@@ -246,7 +246,7 @@ struct usb_ep {
 	u8			address;
 	const struct usb_endpoint_descriptor	*desc;
 	const struct usb_ss_ep_comp_descriptor	*comp_desc;
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+#ifdef CONFIG_ARCH_ROCKCHIP
 	u8			transfer_type;
 #endif
 
