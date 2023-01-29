@@ -2624,7 +2624,8 @@ release_con:
 
 int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev)
 {
-	if (adev->gmc.xgmi.connected_to_cpu)
+	if (adev->gmc.xgmi.connected_to_cpu ||
+	    adev->gmc.is_app_apu)
 		return 1;
 	return 0;
 }
