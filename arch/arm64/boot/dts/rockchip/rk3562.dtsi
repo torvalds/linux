@@ -777,6 +777,16 @@
 				};
 			};
 		};
+	};
+
+	peri_grf: syscon@ff040000 {
+		compatible = "rockchip,rk3562-peri-grf", "syscon";
+		reg = <0x0 0xff040000 0x0 0x10000>;
+	};
+
+	ioc_grf: syscon@ff060000 {
+		compatible = "rockchip,rk3562-ioc-grf", "syscon", "simple-mfd";
+		reg = <0x0 0xff060000 0x0 0x30000>;
 
 		rgb: rgb {
 			compatible = "rockchip,rk3562-rgb";
@@ -807,16 +817,6 @@
 				};
 			};
 		};
-	};
-
-	peri_grf: syscon@ff040000 {
-		compatible = "rockchip,rk3562-peri-grf", "syscon";
-		reg = <0x0 0xff040000 0x0 0x10000>;
-	};
-
-	ioc_grf: syscon@ff060000 {
-		compatible = "rockchip,rk3562-ioc-grf", "syscon";
-		reg = <0x0 0xff060000 0x0 0x30000>;
 	};
 
 	usbphy_grf: syscon@ff090000 {
@@ -1365,7 +1365,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			port@0 {
+			vp0: port@0 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0>;
@@ -1386,7 +1386,7 @@
 				};
 			};
 
-			port@1 {
+			vp1: port@1 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <1>;
