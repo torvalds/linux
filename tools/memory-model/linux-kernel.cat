@@ -49,7 +49,8 @@ let mb = ([M] ; fencerel(Mb) ; [M]) |
  * also affected by the fence.
  *)
 	([M] ; po-unlock-lock-po ;
-		[After-unlock-lock] ; po ; [M])
+		[After-unlock-lock] ; po ; [M]) |
+	([M] ; po? ; [Srcu-unlock] ; fencerel(After-srcu-read-unlock) ; [M])
 let gp = po ; [Sync-rcu | Sync-srcu] ; po?
 let strong-fence = mb | gp
 

@@ -31,7 +31,8 @@ enum Barriers = 'wmb (*smp_wmb*) ||
 		'before-atomic (*smp_mb__before_atomic*) ||
 		'after-atomic (*smp_mb__after_atomic*) ||
 		'after-spinlock (*smp_mb__after_spinlock*) ||
-		'after-unlock-lock (*smp_mb__after_unlock_lock*)
+		'after-unlock-lock (*smp_mb__after_unlock_lock*) ||
+		'after-srcu-read-unlock (*smp_mb__after_srcu_read_unlock*)
 instructions F[Barriers]
 
 (* SRCU *)
