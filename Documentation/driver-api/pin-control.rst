@@ -882,7 +882,7 @@ hardware and shall be put into different subsystems:
 
 Depending on the exact HW register design, some functions exposed by the
 GPIO subsystem may call into the pinctrl subsystem in order to
-co-ordinate register settings across HW modules. In particular, this may
+coordinate register settings across HW modules. In particular, this may
 be needed for HW with separate GPIO and pin controller HW modules, where
 e.g. GPIO direction is determined by a register in the pin controller HW
 module rather than the GPIO HW module.
