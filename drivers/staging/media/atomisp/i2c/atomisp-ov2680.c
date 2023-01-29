@@ -781,6 +781,7 @@ static void ov2680_remove(struct i2c_client *client)
 
 static int ov2680_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct ov2680_device *sensor;
 	int ret;
 	void *pdata;
@@ -802,10 +803,10 @@ static int ov2680_probe(struct i2c_client *client)
 		goto out_free;
 	}
 
-	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
-	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
 
 	ret = ov2680_s_config(&sensor->sd, client->irq, pdata);
 	if (ret)
