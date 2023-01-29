@@ -174,7 +174,7 @@ Multicast flooding
 ==================
 CPU port mcast_flooding is always on
 
-Turning flooding on/off on swithch ports:
+Turning flooding on/off on switch ports:
 bridge link set dev sw0p1 mcast_flood on/off
 
 Access and Trunk port

@@ -61,7 +61,7 @@ e.g.
 IPvlan has two modes of operation - L2 and L3. For a given master device,
 you can select one of these two modes and all slaves on that master will
 operate in the same (selected) mode. The RX mode is almost identical except
-that in L3 mode the slaves wont receive any multicast / broadcast traffic.
+that in L3 mode the slaves won't receive any multicast / broadcast traffic.
 L3 mode is more restrictive since routing is controlled from the other (mostly)
 default namespace.
 

@@ -66,7 +66,7 @@ An example::
   iw reg set CR
 
 This will request the kernel to set the regulatory domain to
-the specificied alpha2. The kernel in turn will then ask userspace
+the specified alpha2. The kernel in turn will then ask userspace
 to provide a regulatory domain for the alpha2 specified by the user
 by sending a uevent.
 
@@ -158,7 +158,7 @@ kmalloc() a structure big enough to hold your regulatory domain
 structure and you should then fill it with your data. Finally you simply
 call regulatory_hint() with the regulatory domain structure in it.
 
-Bellow is a simple example, with a regulatory domain cached using the stack.
+Below is a simple example, with a regulatory domain cached using the stack.
 Your implementation may vary (read EEPROM cache instead, for example).
 
 Example cache of some regulatory domain::

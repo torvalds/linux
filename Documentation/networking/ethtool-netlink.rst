@@ -106,7 +106,7 @@ modifying a bitmap, the former changes the bit set in mask to values set in
 value and preserves the rest; the latter sets the bits set in the bitmap and
 clears the rest.
 
-Compact form: nested (bitset) atrribute contents:
+Compact form: nested (bitset) attribute contents:
 
   ============================  ======  ============================
   ``ETHTOOL_A_BITSET_NOMASK``   flag    no mask, only a list
@@ -783,7 +783,7 @@ Kernel response contents:
   ``ETHTOOL_A_FEATURES_ACTIVE``         bitset  diff old vs. new active
   ====================================  ======  ==========================
 
-Request constains only one bitset which can be either value/mask pair (request
+Request contains only one bitset which can be either value/mask pair (request
 to change specific feature bits and leave the rest) or only a value (request
 to set all features to specified set).
 
@@ -1823,7 +1823,7 @@ aPLCATransmitOpportunityTimer. The valid range for this attribute is
 When set, the optional ``ETHTOOL_A_PLCA_BURST_CNT`` attribute indicates the
 configured number of extra packets that the node is allowed to send during a
 single transmit opportunity. By default, this attribute is 0, meaning that
-the node can only send a sigle frame per TO. When greater than 0, the PLCA RS
+the node can only send a single frame per TO. When greater than 0, the PLCA RS
 keeps the TO after any transmission, waiting for the MAC to send a new frame
 for up to aPLCABurstTimer BTs. This can only happen a number of times per PLCA
 cycle up to the value of this parameter. After that, the burst is over and the
