@@ -1297,9 +1297,9 @@ static void _rtl92e_query_rxphystatus(
 	struct phy_sts_ofdm_819xpci *pofdm_buf;
 	struct phy_sts_cck_819xpci *pcck_buf;
 	u8 *prxpkt;
-	u8 i, max_spatial_stream, tmp_rxsnr, tmp_rxevm;
+	u8 i, max_spatial_stream, tmp_rxevm;
 	s8 rx_pwr[4], rx_pwr_all = 0;
-	s8 rx_snrX, rx_evmX;
+	s8 rx_evmX;
 	u8 evm, pwdb_all;
 	u32 RSSI, total_rssi = 0;
 	u8 is_cck_rate = 0;
@@ -1418,11 +1418,6 @@ static void _rtl92e_query_rxphystatus(
 
 			rx_pwr[i] = ((pofdm_buf->trsw_gain_X[i] & 0x3F) *
 				     2) - 110;
-
-			tmp_rxsnr = pofdm_buf->rxsnr_X[i];
-			rx_snrX = (s8)(tmp_rxsnr);
-			rx_snrX /= 2;
-			priv->stats.rxSNRdB[i] = (long)rx_snrX;
 
 			RSSI = rtl92e_rx_db_to_percent(rx_pwr[i]);
 			if (priv->brfpath_rxenable[i])

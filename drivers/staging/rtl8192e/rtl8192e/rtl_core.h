@@ -197,7 +197,6 @@ struct rt_stats {
 	long	recv_signal_power;
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
-	long rxSNRdB[4];
 	u32 slide_beacon_pwdb[100];
 	u32 slide_beacon_total;
 	u32	CurrentShowTxate;
