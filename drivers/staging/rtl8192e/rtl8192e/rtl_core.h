@@ -94,7 +94,7 @@
 #define CCK_TX_BB_GAIN_TABLE_LEN		23
 
 #define CHANNEL_PLAN_LEN			10
-#define sCrcLng					4
+#define S_CRC_LEN				4
 
 #define NIC_SEND_HANG_THRESHOLD_NORMAL		4
 #define NIC_SEND_HANG_THRESHOLD_POWERSAVE	8

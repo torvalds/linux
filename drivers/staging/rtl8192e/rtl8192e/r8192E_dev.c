@@ -1827,7 +1827,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	stats->RxIs40MHzPacket = pDrvInfo->BW;
 
 	_rtl92e_translate_rx_signal_stats(dev, skb, stats, pdesc, pDrvInfo);
-	skb_trim(skb, skb->len - 4/*sCrcLng*/);
+	skb_trim(skb, skb->len - S_CRC_LEN);
 
 
 	stats->packetlength = stats->Length-4;

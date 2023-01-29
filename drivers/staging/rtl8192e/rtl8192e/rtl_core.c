@@ -1906,7 +1906,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		skb_put(skb, pdesc->Length);
 		skb_reserve(skb, stats.RxDrvInfoSize +
 			stats.RxBufShift);
-		skb_trim(skb, skb->len - 4/*sCrcLng*/);
+		skb_trim(skb, skb->len - S_CRC_LEN);
 		rtllib_hdr = (struct rtllib_hdr_1addr *)skb->data;
 		if (!is_multicast_ether_addr(rtllib_hdr->addr1)) {
 			/* unicast packet */
