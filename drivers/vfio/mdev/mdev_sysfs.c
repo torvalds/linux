@@ -96,7 +96,7 @@ static MDEV_TYPE_ATTR_RO(device_api);
 static ssize_t name_show(struct mdev_type *mtype,
 			 struct mdev_type_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n",
+	return sysfs_emit(buf, "%s\n",
 		mtype->pretty_name ? mtype->pretty_name : mtype->sysfs_name);
 }
 
