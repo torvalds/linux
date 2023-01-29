@@ -54,22 +54,16 @@ static void _rtl92e_update_msr(struct net_device *dev)
 	switch (priv->rtllib->iw_mode) {
 	case IW_MODE_INFRA:
 		if (priv->rtllib->state == RTLLIB_LINKED)
-			msr |= (MSR_LINK_MANAGED << MSR_LINK_SHIFT);
-		else
-			msr |= (MSR_LINK_NONE << MSR_LINK_SHIFT);
+			msr |= MSR_LINK_MANAGED;
 		LedAction = LED_CTL_LINK;
 		break;
 	case IW_MODE_ADHOC:
 		if (priv->rtllib->state == RTLLIB_LINKED)
-			msr |= (MSR_LINK_ADHOC << MSR_LINK_SHIFT);
-		else
-			msr |= (MSR_LINK_NONE << MSR_LINK_SHIFT);
+			msr |= MSR_LINK_ADHOC;
 		break;
 	case IW_MODE_MASTER:
 		if (priv->rtllib->state == RTLLIB_LINKED)
-			msr |= (MSR_LINK_MASTER << MSR_LINK_SHIFT);
-		else
-			msr |= (MSR_LINK_NONE << MSR_LINK_SHIFT);
+			msr |= MSR_LINK_MASTER;
 		break;
 	default:
 		break;

@@ -172,8 +172,6 @@ enum _RTL8192Pci_HW {
 	MSR			= 0x303,
 #define MSR_LINK_MASK      ((1<<0)|(1<<1))
 #define MSR_LINK_MANAGED   2
-#define MSR_LINK_NONE      0
-#define MSR_LINK_SHIFT     0
 #define MSR_LINK_ADHOC     1
 #define MSR_LINK_MASTER    3
 
