@@ -175,47 +175,8 @@ static const struct v4l2_subdev_ops csi2_ops = {
 	.pad = &csi2_pad_ops,
 };
 
-/*
- * csi2_link_setup - Setup CSI2 connections.
- * @entity : Pointer to media entity structure
- * @local  : Pointer to local pad array
- * @remote : Pointer to remote pad array
- * @flags  : Link flags
- * return -EINVAL or zero on success
- */
-static int csi2_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct atomisp_mipi_csi2_device *csi2 = v4l2_get_subdevdata(sd);
-	u32 result = local->index | is_media_entity_v4l2_subdev(remote->entity);
-
-	switch (result) {
-	case CSI2_PAD_SOURCE | MEDIA_ENT_F_OLD_BASE:
-		/* not supported yet */
-		return -EINVAL;
-
-	case CSI2_PAD_SOURCE | MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN:
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (csi2->output & ~CSI2_OUTPUT_ISP_SUBDEV)
-				return -EBUSY;
-			csi2->output |= CSI2_OUTPUT_ISP_SUBDEV;
-		} else {
-			csi2->output &= ~CSI2_OUTPUT_ISP_SUBDEV;
-		}
-		break;
-
-	default:
-		/* Link from camera to CSI2 is fixed... */
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /* media operations */
 static const struct media_entity_operations csi2_media_ops = {
-	.link_setup = csi2_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
 };
 
