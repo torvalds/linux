@@ -21,10 +21,10 @@ so for our purposes the following rules apply:
    single-letter extensions and before any higher-privileged extensions.
 
 #. For additional standard extensions, the first letter following the 'Z'
-  conventionally indicates the most closely related alphabetical
-  extension category. If multiple 'Z' extensions are named, they will be ordered
-  first by category, in canonical order, as listed above, then alphabetically
-  within a category.
+   conventionally indicates the most closely related alphabetical
+   extension category. If multiple 'Z' extensions are named, they will be
+   ordered first by category, in canonical order, as listed above, then
+   alphabetically within a category.
 
 #. Standard supervisor-level extensions (starting with 'S') will be listed
    after standard unprivileged extensions.  If multiple supervisor-level
