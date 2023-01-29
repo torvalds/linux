@@ -1,5 +1,5 @@
-Buffer Sharing and Synchronization
-==================================
+Buffer Sharing and Synchronization (dma-buf)
+============================================
 
 The dma-buf subsystem provides the framework for sharing buffers for
 hardware (DMA) access across multiple device drivers and subsystems, and
