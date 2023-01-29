@@ -39,7 +39,7 @@ output voltage as a positive or negative offset in the interval 50mV to 400mV
 in 50mV steps. This means that the absolute values of the limits will change
 when the commanded output voltage changes. Also, care should be taken when
 writing to those limits since in the worst case the commanded output voltage
-could change at the same time as the limit is written to, wich will lead to
+could change at the same time as the limit is written to, which will lead to
 unpredictable results.
 
 
