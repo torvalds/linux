@@ -499,8 +499,7 @@ static int xdbc_bulk_transfer(void *data, int size, bool read)
 		addr = xdbc.in_dma;
 		xdbc.flags |= XDBC_FLAGS_IN_PROCESS;
 	} else {
-		memset(xdbc.out_buf, 0, XDBC_MAX_PACKET);
-		memcpy(xdbc.out_buf, data, size);
+		memcpy_and_pad(xdbc.out_buf, XDBC_MAX_PACKET, data, size, 0);
 		addr = xdbc.out_dma;
 		xdbc.flags |= XDBC_FLAGS_OUT_PROCESS;
 	}
