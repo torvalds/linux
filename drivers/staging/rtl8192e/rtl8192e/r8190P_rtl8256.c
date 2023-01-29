@@ -151,7 +151,7 @@ void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
 
 	TxAGC = powerlevel;
 	if (priv->dynamic_tx_low_pwr) {
-		if (priv->customer_id == RT_CID_819x_Netcore)
+		if (priv->customer_id == RT_CID_819X_NETCORE)
 			TxAGC = 0x22;
 		else
 			TxAGC += priv->cck_pwr_enl;

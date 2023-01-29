@@ -90,8 +90,8 @@
 
 #define	PHY_RSSI_SLID_WIN_MAX			100
 
-#define TxBBGainTableLength			37
-#define CCKTxBBGainTableLength			23
+#define TX_BB_GAIN_TABLE_LEN			37
+#define CCK_TX_BB_GAIN_TABLE_LEN		23
 
 #define CHANNEL_PLAN_LEN			10
 #define sCrcLng					4
@@ -154,7 +154,7 @@ enum rt_customer_id {
 	RT_CID_819x_RUNTOP      = 7,
 	RT_CID_819x_Senao       = 8,
 	RT_CID_TOSHIBA	  = 9,
-	RT_CID_819x_Netcore     = 10,
+	RT_CID_819X_NETCORE     = 10,
 	RT_CID_Nettronix	= 11,
 	RT_CID_DLINK	    = 12,
 	RT_CID_PRONET	   = 13,

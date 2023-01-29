@@ -991,9 +991,9 @@ static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 			    priv->cck_present_attn_diff;
 
 		if (priv->cck_present_attn >
-		    (CCKTxBBGainTableLength-1))
+		    (CCK_TX_BB_GAIN_TABLE_LEN - 1))
 			priv->cck_present_attn =
-					 CCKTxBBGainTableLength-1;
+					 CCK_TX_BB_GAIN_TABLE_LEN - 1;
 		if (priv->cck_present_attn < 0)
 			priv->cck_present_attn = 0;
 
@@ -1016,9 +1016,9 @@ static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 			priv->cck_present_attn_diff;
 
 		if (priv->cck_present_attn >
-		    (CCKTxBBGainTableLength - 1))
+		    (CCK_TX_BB_GAIN_TABLE_LEN - 1))
 			priv->cck_present_attn =
-					 CCKTxBBGainTableLength-1;
+					 CCK_TX_BB_GAIN_TABLE_LEN - 1;
 		if (priv->cck_present_attn < 0)
 			priv->cck_present_attn = 0;
 

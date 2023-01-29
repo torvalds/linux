@@ -460,7 +460,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->customer_id = RT_CID_819x_RUNTOP;
 		break;
 	case EEPROM_CID_NetCore:
-		priv->customer_id = RT_CID_819x_Netcore;
+		priv->customer_id = RT_CID_819X_NETCORE;
 		break;
 	case EEPROM_CID_TOSHIBA:
 		priv->customer_id = RT_CID_TOSHIBA;
@@ -741,7 +741,7 @@ start:
 						    bMaskDWord);
 			rtl92e_get_bb_reg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord);
 
-			for (i = 0; i < TxBBGainTableLength; i++) {
+			for (i = 0; i < TX_BB_GAIN_TABLE_LEN; i++) {
 				if (tmpRegA == dm_tx_bb_gain[i]) {
 					priv->rfa_txpowertrackingindex = i;
 					priv->rfa_txpowertrackingindex_real = i;
@@ -754,7 +754,7 @@ start:
 			TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1,
 						    bMaskByte2);
 
-			for (i = 0; i < CCKTxBBGainTableLength; i++) {
+			for (i = 0; i < CCK_TX_BB_GAIN_TABLE_LEN; i++) {
 				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
 					priv->cck_present_attn_20m_def = i;
 					break;

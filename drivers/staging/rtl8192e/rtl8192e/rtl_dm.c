@@ -46,7 +46,7 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
 	0x5e4332
 };
 
-const u32 dm_tx_bb_gain[TxBBGainTableLength] = {
+const u32 dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN] = {
 	0x7f8001fe, /* 12 dB */
 	0x788001e2, /* 11 dB */
 	0x71c001c7,
@@ -86,7 +86,7 @@ const u32 dm_tx_bb_gain[TxBBGainTableLength] = {
 	0x10000040, /* -24 dB */
 };
 
-const u8 dm_cck_tx_bb_gain[CCKTxBBGainTableLength][8] = {
+const u8 dm_cck_tx_bb_gain[CCK_TX_BB_GAIN_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04},
 	{0x33, 0x32, 0x2b, 0x23, 0x1a, 0x11, 0x08, 0x04},
 	{0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03},
@@ -112,7 +112,7 @@ const u8 dm_cck_tx_bb_gain[CCKTxBBGainTableLength][8] = {
 	{0x0f, 0x0f, 0x0d, 0x0b, 0x08, 0x05, 0x03, 0x01}
 };
 
-const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8] = {
+const u8 dm_cck_tx_bb_gain_ch14[CCK_TX_BB_GAIN_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x1b, 0x00, 0x00, 0x00, 0x00},
 	{0x33, 0x32, 0x2b, 0x19, 0x00, 0x00, 0x00, 0x00},
 	{0x30, 0x2f, 0x29, 0x18, 0x00, 0x00, 0x00, 0x00},
@@ -290,7 +290,7 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 	pra->low_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M;
 	pra->low_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M;
 
-	if (priv->customer_id == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819X_NETCORE)
 		pra->ping_rssi_enable = 1;
 	else
 		pra->ping_rssi_enable = 0;
@@ -568,8 +568,8 @@ static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev,
 	struct r8192_priv *p = rtllib_priv(dev);
 
 	if (RF_Type == RF_2T4R) {
-		if ((p->rfa_txpowertrackingindex < TxBBGainTableLength - 1) &&
-		    (p->rfc_txpowertrackingindex < TxBBGainTableLength - 1)) {
+		if ((p->rfa_txpowertrackingindex < TX_BB_GAIN_TABLE_LEN - 1) &&
+		    (p->rfc_txpowertrackingindex < TX_BB_GAIN_TABLE_LEN - 1)) {
 			p->rfa_txpowertrackingindex++;
 			p->rfa_txpowertrackingindex_real++;
 			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
@@ -583,13 +583,13 @@ static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev,
 		} else {
 			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
 					  bMaskDWord,
-					  dm_tx_bb_gain[TxBBGainTableLength - 1]);
+					  dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN - 1]);
 			rtl92e_set_bb_reg(dev, rOFDM0_XCTxIQImbalance,
 					  bMaskDWord,
-					  dm_tx_bb_gain[TxBBGainTableLength - 1]);
+					  dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN - 1]);
 		}
 	} else {
-		if (p->rfa_txpowertrackingindex < (TxBBGainTableLength - 1)) {
+		if (p->rfa_txpowertrackingindex < (TX_BB_GAIN_TABLE_LEN - 1)) {
 			p->rfa_txpowertrackingindex++;
 			p->rfa_txpowertrackingindex_real++;
 			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
@@ -598,7 +598,7 @@ static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev,
 		} else {
 			rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance,
 					  bMaskDWord,
-					  dm_tx_bb_gain[TxBBGainTableLength - 1]);
+					  dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN - 1]);
 		}
 	}
 }
@@ -722,13 +722,13 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 					 priv->cck_present_attn_40m_def +
 					 priv->cck_present_attn_diff;
 
-			if (priv->cck_present_attn > (CCKTxBBGainTableLength-1))
-				priv->cck_present_attn = CCKTxBBGainTableLength-1;
+			if (priv->cck_present_attn > (CCK_TX_BB_GAIN_TABLE_LEN - 1))
+				priv->cck_present_attn = CCK_TX_BB_GAIN_TABLE_LEN - 1;
 			if (priv->cck_present_attn < 0)
 				priv->cck_present_attn = 0;
 
 			if (priv->cck_present_attn > -1 &&
-			    priv->cck_present_attn < CCKTxBBGainTableLength) {
+			    priv->cck_present_attn < CCK_TX_BB_GAIN_TABLE_LEN) {
 				if (priv->rtllib->current_network.channel == 14 &&
 				    !priv->bcck_in_ch14) {
 					priv->bcck_in_ch14 = true;
@@ -1148,7 +1148,7 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 	dm_digtable.rssi_val = 50;
 	dm_digtable.backoff_val = DM_DIG_BACKOFF;
 	dm_digtable.rx_gain_range_max = DM_DIG_MAX;
-	if (priv->customer_id == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819X_NETCORE)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN_Netcore;
 	else
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
@@ -1734,7 +1734,7 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 	DM_RxPathSelTable.Enable = 1;
 	DM_RxPathSelTable.SS_TH_low = RxPathSelection_SS_TH_low;
 	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
-	if (priv->customer_id == RT_CID_819x_Netcore)
+	if (priv->customer_id == RT_CID_819X_NETCORE)
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
 	else
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_1;
