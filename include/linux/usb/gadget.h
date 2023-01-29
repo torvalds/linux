@@ -222,7 +222,6 @@ struct usb_ep_caps {
  *	enabled and remains valid until the endpoint is disabled.
  * @comp_desc: In case of SuperSpeed support, this is the endpoint companion
  *	descriptor that is used to configure the endpoint
- * @transfer_type: Used to specify transfer type of EP.
  *
  * the bus controller driver lists all the general purpose endpoints in
  * gadget->ep_list.  the control endpoint (gadget->ep0) is not in that list,
@@ -246,9 +245,6 @@ struct usb_ep {
 	u8			address;
 	const struct usb_endpoint_descriptor	*desc;
 	const struct usb_ss_ep_comp_descriptor	*comp_desc;
-#ifdef CONFIG_ARCH_ROCKCHIP
-	u8			transfer_type;
-#endif
 
 	ANDROID_KABI_RESERVE(1);
 };
