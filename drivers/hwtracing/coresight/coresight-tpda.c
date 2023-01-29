@@ -145,8 +145,8 @@ static int tpda_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_set_drvdata(dev, drvdata);
 
 	base = devm_ioremap_resource(dev, &adev->res);
-	if (!base)
-		return -ENOMEM;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 	drvdata->base = base;
 
 	spin_lock_init(&drvdata->spinlock);
