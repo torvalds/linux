@@ -881,7 +881,7 @@ static void early_xdbc_write(struct console *con, const char *str, u32 n)
 
 	if (!xdbc.xdbc_reg)
 		return;
-	memset(buf, 0, XDBC_MAX_PACKET);
+
 	while (n > 0) {
 		for (chunk = 0; chunk < XDBC_MAX_PACKET && n > 0; str++, chunk++, n--) {
 
