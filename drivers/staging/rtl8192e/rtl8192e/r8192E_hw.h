@@ -12,63 +12,27 @@ enum baseband_config {
 	BB_CONFIG_AGC_TAB = 1,
 };
 
-#define	RTL8187_REQT_READ	0xc0
-#define	RTL8187_REQT_WRITE	0x40
-#define	RTL8187_REQ_GET_REGS	0x05
-#define	RTL8187_REQ_SET_REGS	0x05
-
-#define MAX_TX_URB 5
-#define MAX_RX_URB 16
-#define RX_URB_SIZE 9100
-
-#define BB_ANTATTEN_CHAN14	0x0c
-#define BB_ANTENNA_B 0x40
-
-#define BB_HOST_BANG (1<<30)
-#define BB_HOST_BANG_EN (1<<2)
-#define BB_HOST_BANG_CLK (1<<1)
-#define BB_HOST_BANG_RW (1<<3)
-#define BB_HOST_BANG_DATA	 1
-
 #define RTL8190_EEPROM_ID	0x8129
 #define EEPROM_VID		0x02
 #define EEPROM_DID		0x04
 #define EEPROM_NODE_ADDRESS_BYTE_0	0x0C
 
-#define EEPROM_TxPowerDiff	0x1F
-
-
-#define EEPROM_PwDiff		0x21
-#define EEPROM_CrystalCap	0x22
-
-
-
-#define EEPROM_TxPwIndex_CCK_V1		0x29
-#define EEPROM_TxPwIndex_OFDM_24G_V1	0x2C
-#define EEPROM_TxPwIndex_Ver		0x27
-
-#define EEPROM_Default_TxPowerDiff		0x0
 #define EEPROM_Default_ThermalMeter		0x77
 #define EEPROM_Default_AntTxPowerDiff		0x0
 #define EEPROM_Default_TxPwDiff_CrystalCap	0x5
-#define EEPROM_Default_PwDiff			0x4
-#define EEPROM_Default_CrystalCap		0x5
 #define EEPROM_Default_TxPower			0x1010
 #define EEPROM_ICVersion_ChannelPlan	0x7C
 #define EEPROM_Customer_ID			0x7B
 #define EEPROM_RFInd_PowerDiff			0x28
+
 #define EEPROM_ThermalMeter			0x29
 #define EEPROM_TxPwDiff_CrystalCap		0x2A
 #define EEPROM_TxPwIndex_CCK			0x2C
 #define EEPROM_TxPwIndex_OFDM_24G	0x3A
-#define EEPROM_Default_TxPowerLevel		0x10
-#define EEPROM_IC_VER				0x7d
-#define EEPROM_CRC				0x7e
 
 #define EEPROM_CID_DEFAULT			0x0
 #define EEPROM_CID_CAMEO				0x1
 #define EEPROM_CID_RUNTOP				0x2
-#define EEPROM_CID_Senao				0x3
 #define EEPROM_CID_TOSHIBA				0x4
 #define EEPROM_CID_NetCore				0x5
 #define EEPROM_CID_Nettronix			0x6
