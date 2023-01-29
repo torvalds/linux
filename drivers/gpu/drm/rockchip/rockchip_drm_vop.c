@@ -186,15 +186,6 @@ struct vop_plane_state {
 	struct vop_dump_list *planlist;
 };
 
-struct rockchip_mcu_timing {
-	int mcu_pix_total;
-	int mcu_cs_pst;
-	int mcu_cs_pend;
-	int mcu_rw_pst;
-	int mcu_rw_pend;
-	int mcu_hold_mode;
-};
-
 struct vop_win {
 	struct vop_win *parent;
 	struct drm_plane base;

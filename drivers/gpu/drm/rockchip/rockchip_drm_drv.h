@@ -273,6 +273,15 @@ struct rockchip_logo {
 	int count;
 };
 
+struct rockchip_mcu_timing {
+	int mcu_pix_total;
+	int mcu_cs_pst;
+	int mcu_cs_pend;
+	int mcu_rw_pst;
+	int mcu_rw_pend;
+	int mcu_hold_mode;
+};
+
 struct loader_cubic_lut {
 	bool enable;
 	u32 offset;

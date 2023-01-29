@@ -562,6 +562,7 @@ struct vop2_wb_connector_state {
 
 struct vop2_video_port {
 	struct rockchip_crtc rockchip_crtc;
+	struct rockchip_mcu_timing mcu_timing;
 	struct vop2 *vop2;
 	struct reset_control *dclk_rst;
 	struct clk *dclk;
@@ -5635,16 +5636,97 @@ static void vop2_crtc_line_flag_irq_disable(struct vop2_video_port *vp)
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 }
 
-static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
+static void vop3_mcu_mode_setup(struct drm_crtc *crtc)
 {
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	VOP_MODULE_SET(vop2, vp, mcu_type, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_hold_mode, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_pix_total, vp->mcu_timing.mcu_pix_total);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pst, vp->mcu_timing.mcu_cs_pst);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pend, vp->mcu_timing.mcu_cs_pend);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pst, vp->mcu_timing.mcu_rw_pst);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pend, vp->mcu_timing.mcu_rw_pend);
+}
+
+static void vop3_mcu_bypass_mode_setup(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	VOP_MODULE_SET(vop2, vp, mcu_type, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_hold_mode, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_pix_total, 53);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pst, 6);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pend, 48);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pst, 12);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pend, 30);
+}
+
+static u32 vop3_mode_done(struct vop2_video_port *vp)
+{
+	return VOP_MODULE_GET(vp->vop2, vp, out_mode);
+}
+
+static void vop3_set_out_mode(struct drm_crtc *crtc, u32 out_mode)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int ret;
+	u32 val;
+
+	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
+	vop2_cfg_done(crtc);
+	ret = readx_poll_timeout(vop3_mode_done, vp, val, val == out_mode,
+				 1000, 500 * 1000);
+	if (ret)
+		dev_err(vop2->dev, "wait mode 0x%x timeout\n", out_mode);
+}
+
+static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_display_mode *adjusted_mode;
+	struct rockchip_crtc_state *vcstate;
 	struct vop2_video_port *vp;
 	struct vop2 *vop2;
 
 	if (!crtc)
 		return;
 
+	crtc_state = crtc->state;
+	adjusted_mode = &crtc_state->adjusted_mode;
+	vcstate = to_rockchip_crtc_state(crtc->state);
 	vp = to_vop2_video_port(crtc);
 	vop2 = vp->vop2;
+
+	switch (vcstate->output_mode) {
+	case ROCKCHIP_OUT_MODE_P565:
+	case ROCKCHIP_OUT_MODE_S888:
+		/*
+		 * Send cmds for both rgb3x8_m0 and rgb3x8_m1.
+		 */
+		value = (((value & 0x1f) << 3) | ((value & 0xe0) << 5)) |
+			(((value & 0x7) << 13) | ((value & 0xf8) << 16));
+		break;
+	case ROCKCHIP_OUT_MODE_P666:
+		value = ((value & 0x3f) << 2) | ((value & 0xc0) << 4);
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * 1.set output mode to AAAA when start sending cmds.
+	 * 2.set mcu bypass mode timing.
+	 * 3.set dclk rate to 150M.
+	 */
+	if ((type == MCU_SETBYPASS) && value) {
+		vop3_set_out_mode(crtc, ROCKCHIP_OUT_MODE_AAAA);
+		vop3_mcu_bypass_mode_setup(crtc);
+		clk_set_rate(vp->dclk, 150000000);
+	}
 
 	mutex_lock(&vop2->vop2_lock);
 	if (vop2 && vop2->is_enabled) {
@@ -5666,6 +5748,17 @@ static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 		}
 	}
 	mutex_unlock(&vop2->vop2_lock);
+
+	/*
+	 * 1.restore output mode at the end.
+	 * 2.restore mcu data mode timing.
+	 * 3.restore dclk rate to crtc_clock.
+	 */
+	if ((type == MCU_SETBYPASS) && !value) {
+		vop3_set_out_mode(crtc, vcstate->output_mode);
+		vop3_mcu_mode_setup(crtc);
+		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
+	}
 }
 
 static int vop2_crtc_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
@@ -6393,6 +6486,13 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		adj_mode->crtc_clock *= 2;
+
+	if (vp->mcu_timing.mcu_pix_total) {
+		if (vcstate->output_mode == ROCKCHIP_OUT_MODE_S888)
+			adj_mode->crtc_clock *= 3;
+		else if (vcstate->output_mode == ROCKCHIP_OUT_MODE_S888_DUMMY)
+			adj_mode->crtc_clock *= 4;
+	}
 
 	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
@@ -7243,6 +7343,14 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 	}
 }
 
+static int vop2_get_vrefresh(struct vop2_video_port *vp, const struct drm_display_mode *mode)
+{
+	if (vp->mcu_timing.mcu_pix_total)
+		return drm_mode_vrefresh(mode) / vp->mcu_timing.mcu_pix_total;
+	else
+		return drm_mode_vrefresh(mode);
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -7291,7 +7399,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x) for vp%d dclk: %d\n",
 		     hdisplay, adjusted_mode->vdisplay, interlaced ? "i" : "p",
-		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vcstate->output_if,
+		     vop2_get_vrefresh(vp, adjusted_mode), vcstate->output_type, vcstate->output_if,
 		     vp->id, adjusted_mode->crtc_clock * 1000);
 
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
@@ -7324,6 +7432,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vcstate->mode_update = vop2_crtc_mode_update(crtc);
 	if (vcstate->mode_update)
 		vop2_disable_all_planes_for_crtc(crtc);
+
+	if (vp->mcu_timing.mcu_pix_total)
+		vop3_mcu_mode_setup(crtc);
 
 	dclk_inv = (vcstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
@@ -9471,6 +9582,9 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 	vop2_wb_commit(crtc);
 	vop2_cfg_done(crtc);
 
+	if (vp->mcu_timing.mcu_pix_total)
+		VOP_MODULE_SET(vop2, vp, mcu_hold_mode, 0);
+
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 
 	/*
@@ -11134,6 +11248,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	int num_wins = 0;
 	int registered_num_crtcs;
 	struct device_node *vop_out_node;
+	struct device_node *mcu_timing_node;
 
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
@@ -11264,6 +11379,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			u32 plane_mask = 0;
 			u32 primary_plane_phy_id = 0;
 			u32 vp_id = 0;
+			u32 val = 0;
 
 			of_property_read_u32(child, "rockchip,plane-mask", &plane_mask);
 			of_property_read_u32(child, "rockchip,primary-plane", &primary_plane_phy_id);
@@ -11281,6 +11397,22 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			if (ret) {
 				DRM_DEV_ERROR(dev, "Failed to set clock defaults %d\n", ret);
 				return ret;
+			}
+
+			mcu_timing_node = of_get_child_by_name(child, "mcu-timing");
+			if (mcu_timing_node) {
+				if (!of_property_read_u32(mcu_timing_node, "mcu-pix-total", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_pix_total = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-cs-pst", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_cs_pst = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-cs-pend", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_cs_pend = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-rw-pst", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_rw_pst = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-rw-pend", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_rw_pend = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-hold-mode", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_hold_mode = val;
 			}
 
 			DRM_DEV_INFO(dev, "vp%d assign plane mask: 0x%x, primary plane phy id: %d\n",
