@@ -1,0 +1,241 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3562-evb1-lp4x-v10.dtsi"
+#include "rk3562-android.dtsi"
+#include "rk3562-rk817.dtsi"
+
+/ {
+	model = "Rockchip RK3562 EVB2 DDR4 V10 Board + RK EVB MCU PANLE DISPLAY Ext Board";
+	compatible = "rockchip,rk3562-evb2-ddr4-v10-mcu-k350c4516t", "rockchip,rk3562";
+};
+
+&backlight {
+	status = "okay";
+	pwms = <&pwm9 0 25000 0>;
+};
+
+&dsi {
+	status = "disabled";
+};
+
+&dsi_in_vp0 {
+	status = "disabled";
+};
+
+/*
+ * The pins of pcie2x1 and rgb are multiplexed
+ */
+&pcie2x1 {
+	status = "disabled";
+};
+
+&pwm9 {
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+	rockchip,data-sync-bypass;
+	pinctrl-names = "default";
+	/*
+	 * rgb3x8_pins_m0/rgb3x8_pins_m1 for serial mcu
+	 * rgb565_pins for parallel mcu
+	 */
+	pinctrl-0 = <&rgb565_pins>;
+
+	/*
+	 * 320x480 RGB/MCU screen K350C4516T
+	 */
+	mcu_panel: mcu-panel {
+		/*
+		 * MEDIA_BUS_FMT_RGB888_3X8  for serial mcu
+		 * MEDIA_BUS_FMT_RGB565_1X16 for parallel mcu
+		 */
+		bus-format = <MEDIA_BUS_FMT_RGB565_1X16>;
+		backlight = <&backlight>;
+		bl-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		enable-delay-ms = <20>;
+		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+		reset-value = <0>;
+		reset-delay-ms = <10>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		width-mm = <217>;
+		height-mm = <136>;
+
+		// type:0 is cmd, 1 is data
+		panel-init-sequence = [
+			//type delay num val1 val2 val3
+			  00   00  01  e0
+			  01   00  01  00
+			  01   00  01  07
+			  01   00  01  0f
+			  01   00  01  0d
+			  01   00  01  1b
+			  01   00  01  0a
+			  01   00  01  3c
+			  01   00  01  78
+			  01   00  01  4a
+			  01   00  01  07
+			  01   00  01  0e
+			  01   00  01  09
+			  01   00  01  1b
+			  01   00  01  1e
+			  01   00  01  0f
+			  00   00  01  e1
+			  01   00  01  00
+			  01   00  01  22
+			  01   00  01  24
+			  01   00  01  06
+			  01   00  01  12
+			  01   00  01  07
+			  01   00  01  36
+			  01   00  01  47
+			  01   00  01  47
+			  01   00  01  06
+			  01   00  01  0a
+			  01   00  01  07
+			  01   00  01  30
+			  01   00  01  37
+			  01   00  01  0f
+
+			  00   00  01  c0
+			  01   00  01  10
+			  01   00  01  10
+
+			  00   00  01  c1
+			  01   00  01  41
+
+			  00   00  01  c5
+			  01   00  01  00
+			  01   00  01  22
+			  01   00  01  80
+
+			  00   00  01  36
+			  01   00  01  48
+
+			  00   00  01  3a  //interface mode control
+			  01   00  01  55  //spi rgb:66(r1 r4 r5) mcu parallel: 55(r2 r3 r6)
+					   //                     mcu serial:   77(r1 r3 r6)
+
+			  00   00  01  b0  //interface mode control
+			  01   00  01  00
+
+			  00   00  01  b1  //frame rate 70hz
+			  01   00  01  b0
+			  01   00  01  11
+			  00   00  01  b4
+			  01   00  01  02
+			  00   00  01  B6  //RGB/MCU Interface Control
+			  01   00  01  02  //02 mcu, 32 rgb
+			  01   00  01  02
+
+			  00   00  01  b7
+			  01   00  01  c6
+
+			  00   00  01  be
+			  01   00  01  00
+			  01   00  01  04
+
+			  00   00  01  e9
+			  01   00  01  00
+
+			  00   00  01  f7
+			  01   00  01  a9
+			  01   00  01  51
+			  01   00  01  2c
+			  01   00  01  82
+
+			  00   78  01  11
+			  00   32  01  29
+			  00   00  01  2c
+		];
+
+		panel-exit-sequence = [
+			//type delay num val1 val2 val3
+			00   0a  01  28
+			00   78  01  10
+		];
+
+		display-timings {
+			native-mode = <&kd050fwfba002_timing>;
+
+			kd050fwfba002_timing: timing0 {
+				clock-frequency = <80000000>;
+				hactive = <320>;
+				vactive = <480>;
+				hback-porch = <10>;
+				hfront-porch = <5>;
+				vback-porch = <10>;
+				vfront-porch = <5>;
+				hsync-len = <10>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <1>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+
+	ports {
+		rgb_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp0 {
+	status = "okay";
+};
+
+&rgb_in_vp1 {
+	status = "disabled";
+};
+
+/*
+ * The pins of sai0 and backlight are multiplexed
+ */
+&sai0 {
+	status = "disabled";
+};
+
+&video_phy {
+	status = "disabled";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vp0 {
+	mcu-timing {
+		mcu-pix-total = <9>;
+		mcu-cs-pst = <1>;
+		mcu-cs-pend = <8>;
+		mcu-rw-pst = <2>;
+		mcu-rw-pend = <5>;
+
+		mcu-hold-mode = <0>; // default set to 0
+	};
+};
