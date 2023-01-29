@@ -90,6 +90,10 @@ properties:
       where the "sleep" configuration may describe the state
       the pins should be in during system suspend.
 
+  rockchip,poll-only:
+    description: Add this property to set the transmission method as CPU polling.
+    type: boolean
+
 required:
   - compatible
   - reg
