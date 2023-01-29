@@ -593,6 +593,7 @@ static struct attribute *ipl_eckd_attrs[] = {
 	&sys_ipl_type_attr.attr,
 	&sys_ipl_eckd_bootprog_attr.attr,
 	&sys_ipl_eckd_br_chr_attr.attr,
+	&sys_ipl_ccw_loadparm_attr.attr,
 	&sys_ipl_device_attr.attr,
 	&sys_ipl_secure_attr.attr,
 	&sys_ipl_has_secure_attr.attr,
@@ -908,6 +909,7 @@ DEFINE_GENERIC_LOADPARM(fcp);
 DEFINE_GENERIC_LOADPARM(nvme);
 DEFINE_GENERIC_LOADPARM(ccw);
 DEFINE_GENERIC_LOADPARM(nss);
+DEFINE_GENERIC_LOADPARM(eckd);
 
 static ssize_t reipl_fcp_clear_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *page)
@@ -1129,6 +1131,7 @@ static struct attribute *reipl_eckd_attrs[] = {
 	&sys_reipl_eckd_device_attr.attr,
 	&sys_reipl_eckd_bootprog_attr.attr,
 	&sys_reipl_eckd_br_chr_attr.attr,
+	&sys_reipl_eckd_loadparm_attr.attr,
 	NULL,
 };
 
