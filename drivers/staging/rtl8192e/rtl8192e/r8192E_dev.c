@@ -629,8 +629,8 @@ start:
 	_rtl92e_hwconfig(dev);
 	rtl92e_writeb(dev, CMDR, CR_RE | CR_TE);
 
-	rtl92e_writeb(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
-				  (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT)));
+	rtl92e_writeb(dev, PCIF, ((MXDMA2_NO_LIMIT << MXDMA2_RX_SHIFT) |
+				  (MXDMA2_NO_LIMIT << MXDMA2_TX_SHIFT)));
 	rtl92e_writel(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
 	rtl92e_writew(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
 	rtl92e_writel(dev, RCR, priv->receive_config);

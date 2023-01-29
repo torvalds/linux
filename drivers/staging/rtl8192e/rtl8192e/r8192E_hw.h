@@ -39,11 +39,11 @@ enum baseband_config {
 #define EEPROM_CID_Pronet				0x7
 #define EEPROM_CID_DLINK				0x8
 #define EEPROM_CID_WHQL					0xFE
-enum _RTL8192Pci_HW {
+enum _RTL8192PCI_HW {
 	MAC0			= 0x000,
 	MAC4			= 0x004,
 	PCIF			= 0x009,
-#define MXDMA2_NoLimit		0x7
+#define MXDMA2_NO_LIMIT		0x7
 
 #define	MXDMA2_RX_SHIFT		4
 #define	MXDMA2_TX_SHIFT		0
@@ -128,7 +128,7 @@ enum _RTL8192Pci_HW {
 #define	IMR_VODOK			BIT1
 #define	IMR_ROK				BIT0
 	ISR			= 0x0f8,
-	TPPoll			= 0x0fd,
+	TP_POLL			= 0x0fd,
 #define TPPoll_CQ		BIT5
 	PSR			= 0x0ff,
 	CPU_GEN			= 0x100,
