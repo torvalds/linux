@@ -30,6 +30,7 @@
 #include <asm/facility.h>
 #include <asm/nospec-branch.h>
 #include <asm/set_memory.h>
+#include <asm/text-patching.h>
 #include "bpf_jit.h"
 
 struct bpf_jit {
@@ -50,6 +51,8 @@ struct bpf_jit {
 	int r14_thunk_ip;	/* Address of expoline thunk for 'br %r14' */
 	int tail_call_start;	/* Tail call start offset */
 	int excnt;		/* Number of exception table entries */
+	int prologue_plt_ret;	/* Return address for prologue hotpatch PLT */
+	int prologue_plt;	/* Start of prologue hotpatch PLT */
 };
 
 #define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
@@ -507,6 +510,36 @@ static void bpf_skip(struct bpf_jit *jit, int size)
 }
 
 /*
+ * PLT for hotpatchable calls. The calling convention is the same as for the
+ * ftrace hotpatch trampolines: %r0 is return address, %r1 is clobbered.
+ */
+extern const char bpf_plt[];
+extern const char bpf_plt_ret[];
+extern const char bpf_plt_target[];
+extern const char bpf_plt_end[];
+#define BPF_PLT_SIZE 32
+asm(
+	".pushsection .rodata\n"
+	"	.align 8\n"
+	"bpf_plt:\n"
+	"	lgrl %r0,bpf_plt_ret\n"
+	"	lgrl %r1,bpf_plt_target\n"
+	"	br %r1\n"
+	"	.align 8\n"
+	"bpf_plt_ret: .quad 0\n"
+	"bpf_plt_target: .quad 0\n"
+	"bpf_plt_end:\n"
+	"	.popsection\n"
+);
+
+static void bpf_jit_plt(void *plt, void *ret, void *target)
+{
+	memcpy(plt, bpf_plt, BPF_PLT_SIZE);
+	*(void **)((char *)plt + (bpf_plt_ret - bpf_plt)) = ret;
+	*(void **)((char *)plt + (bpf_plt_target - bpf_plt)) = target;
+}
+
+/*
  * Emit function prologue
  *
  * Save registers and create stack frame if necessary.
@@ -514,6 +547,11 @@ static void bpf_skip(struct bpf_jit *jit, int size)
  */
 static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 {
+	/* No-op for hotpatching */
+	/* brcl 0,prologue_plt */
+	EMIT6_PCREL_RILC(0xc0040000, 0, jit->prologue_plt);
+	jit->prologue_plt_ret = jit->prg;
+
 	if (jit->seen & SEEN_TAIL_CALL) {
 		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
 		_EMIT6(0xd703f000 | STK_OFF_TCCNT, 0xf000 | STK_OFF_TCCNT);
@@ -589,6 +627,13 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 		/* br %r1 */
 		_EMIT2(0x07f1);
 	}
+
+	jit->prg = ALIGN(jit->prg, 8);
+	jit->prologue_plt = jit->prg;
+	if (jit->prg_buf)
+		bpf_jit_plt(jit->prg_buf + jit->prg,
+			    jit->prg_buf + jit->prologue_plt_ret, NULL);
+	jit->prg += BPF_PLT_SIZE;
 }
 
 static int get_probe_mem_regno(const u8 *insn)
@@ -1776,6 +1821,9 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	struct bpf_jit jit;
 	int pass;
 
+	if (WARN_ON_ONCE(bpf_plt_end - bpf_plt != BPF_PLT_SIZE))
+		return orig_fp;
+
 	if (!fp->jit_requested)
 		return orig_fp;
 
@@ -1866,4 +1914,53 @@ out:
 		bpf_jit_prog_release_other(fp, fp == orig_fp ?
 					   tmp : orig_fp);
 	return fp;
+}
+
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
+		       void *old_addr, void *new_addr)
+{
+	struct {
+		u16 opc;
+		s32 disp;
+	} __packed insn;
+	char expected_plt[BPF_PLT_SIZE];
+	char current_plt[BPF_PLT_SIZE];
+	char *plt;
+	int err;
+
+	/* Verify the branch to be patched. */
+	err = copy_from_kernel_nofault(&insn, ip, sizeof(insn));
+	if (err < 0)
+		return err;
+	if (insn.opc != (0xc004 | (old_addr ? 0xf0 : 0)))
+		return -EINVAL;
+
+	if (t == BPF_MOD_JUMP &&
+	    insn.disp == ((char *)new_addr - (char *)ip) >> 1) {
+		/*
+		 * The branch already points to the destination,
+		 * there is no PLT.
+		 */
+	} else {
+		/* Verify the PLT. */
+		plt = (char *)ip + (insn.disp << 1);
+		err = copy_from_kernel_nofault(current_plt, plt, BPF_PLT_SIZE);
+		if (err < 0)
+			return err;
+		bpf_jit_plt(expected_plt, (char *)ip + 6, old_addr);
+		if (memcmp(current_plt, expected_plt, BPF_PLT_SIZE))
+			return -EINVAL;
+		/* Adjust the call address. */
+		s390_kernel_write(plt + (bpf_plt_target - bpf_plt),
+				  &new_addr, sizeof(void *));
+	}
+
+	/* Adjust the mask of the branch. */
+	insn.opc = 0xc004 | (new_addr ? 0xf0 : 0);
+	s390_kernel_write((char *)ip + 1, (char *)&insn.opc + 1, 1);
+
+	/* Make the new code visible to the other CPUs. */
+	text_poke_sync_lock();
+
+	return 0;
 }
