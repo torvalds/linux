@@ -670,7 +670,7 @@
 			Sets the size of kernel per-numa memory area for
 			contiguous memory allocations. A value of 0 disables
 			per-numa CMA altogether. And If this option is not
-			specificed, the default value is 0.
+			specified, the default value is 0.
 			With per-numa CMA enabled, DMA users on node nid will
 			first try to allocate buffer from the pernuma area
 			which is located in node nid, if the allocation fails,
@@ -942,7 +942,7 @@
 			driver code when a CPU writes to (or reads from) a
 			random memory location. Note that there exists a class
 			of memory corruptions problems caused by buggy H/W or
-			F/W or by drivers badly programing DMA (basically when
+			F/W or by drivers badly programming DMA (basically when
 			memory is written at bus level and the CPU MMU is
 			bypassed) which are not detectable by
 			CONFIG_DEBUG_PAGEALLOC, hence this option will not help
@@ -1726,7 +1726,7 @@
 			boot-time allocation of gigantic hugepages is skipped.
 
 	hugetlb_free_vmemmap=
-			[KNL] Reguires CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+			[KNL] Requires CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 			enabled.
 			Control if HugeTLB Vmemmap Optimization (HVO) is enabled.
 			Allows heavy hugetlb users to free up some more
@@ -3684,7 +3684,7 @@
 			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
 			to be effective. This is useful on platforms where the
 			sleep(SH) or wfi(ARM,ARM64) instructions do not work
-			correctly or when doing power measurements to evalute
+			correctly or when doing power measurements to evaluate
 			the impact of the sleep instructions. This is also
 			useful when using JTAG debugger.
 

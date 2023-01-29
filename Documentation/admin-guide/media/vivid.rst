@@ -580,7 +580,7 @@ Metadata Capture
 ----------------
 
 The Metadata capture generates UVC format metadata. The PTS and SCR are
-transmitted based on the values set in vivid contols.
+transmitted based on the values set in vivid controls.
 
 The Metadata device will only work for the Webcam input, it will give
 back an error for all other inputs.

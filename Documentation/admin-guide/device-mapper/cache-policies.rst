@@ -70,7 +70,7 @@ the entries (each hotspot block covers a larger area than a single
 cache block).
 
 All this means smq uses ~25bytes per cache block.  Still a lot of
-memory, but a substantial improvement nontheless.
+memory, but a substantial improvement nonetheless.
 
 Level balancing
 ^^^^^^^^^^^^^^^

@@ -84,7 +84,7 @@ by increasing or decreasing the value of ``nr_hugepages``.
 
 Note: When the feature of freeing unused vmemmap pages associated with each
 hugetlb page is enabled, we can fail to free the huge pages triggered by
-the user when ths system is under memory pressure.  Please try again later.
+the user when the system is under memory pressure.  Please try again later.
 
 Pages that are used as huge pages are reserved inside the kernel and cannot
 be used for other purposes.  Huge pages cannot be swapped out under
