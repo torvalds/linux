@@ -172,6 +172,12 @@
 
 #define ROCKCHIP_SPI_REGISTER_SIZE		0x1000
 
+enum rockchip_spi_xfer_mode {
+	ROCKCHIP_SPI_DMA,
+	ROCKCHIP_SPI_IRQ,
+	ROCKCHIP_SPI_POLL,
+};
+
 struct rockchip_spi_quirks {
 	u32 max_baud_div_in_cpha;
 };
@@ -205,6 +211,7 @@ struct rockchip_spi {
 	u8 n_bytes;
 	u8 rsd;
 	u8 csm;
+	bool poll; /* only support transfer data by cpu polling */
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
@@ -390,8 +397,6 @@ static int rockchip_spi_prepare_irq(struct rockchip_spi *rs,
 				    struct spi_controller *ctlr,
 				    struct spi_transfer *xfer)
 {
-	rs->tx = xfer->tx_buf;
-	rs->rx = xfer->rx_buf;
 	rs->tx_left = rs->tx ? xfer->len / rs->n_bytes : 0;
 	rs->rx_left = xfer->len / rs->n_bytes;
 
@@ -467,9 +472,6 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 
 	atomic_set(&rs->state, 0);
 
-	rs->tx = xfer->tx_buf;
-	rs->rx = xfer->rx_buf;
-
 	rxdesc = NULL;
 	if (xfer->rx_buf) {
 		struct dma_slave_config rxconf = {
@@ -539,9 +541,59 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 	return 1;
 }
 
+static int rockchip_spi_pio_transfer(struct rockchip_spi *rs,
+		struct spi_controller *ctlr, struct spi_transfer *xfer)
+{
+	unsigned long time, timeout;
+	u32 speed_hz = xfer->speed_hz;
+	unsigned long long ms;
+	int ret = 0;
+
+	if (!speed_hz)
+		speed_hz = 100000;
+
+	ms = 8LL * 1000LL * xfer->len;
+	do_div(ms, speed_hz);
+	ms += ms + 200; /* some tolerance */
+
+	if (ms > UINT_MAX || ctlr->slave)
+		ms = UINT_MAX;
+
+	timeout = jiffies + msecs_to_jiffies(ms);
+	time = jiffies;
+	rs->tx_left = rs->tx ? xfer->len / rs->n_bytes : 0;
+	rs->rx_left = rs->rx ? xfer->len / rs->n_bytes : 0;
+
+	spi_enable_chip(rs, true);
+
+	while (rs->tx_left || rs->rx_left) {
+		if (rs->tx)
+			rockchip_spi_pio_writer(rs);
+
+		if (rs->rx)
+			rockchip_spi_pio_reader(rs);
+
+		cpu_relax();
+
+		if (time_after(time, timeout)) {
+			ret = -EIO;
+			goto out;
+		}
+	};
+
+	/* If tx, wait until the FIFO data completely. */
+	if (rs->tx)
+		wait_for_tx_idle(rs, ctlr->slave);
+
+out:
+	spi_enable_chip(rs, false);
+
+	return ret;
+}
+
 static int rockchip_spi_config(struct rockchip_spi *rs,
 		struct spi_device *spi, struct spi_transfer *xfer,
-		bool use_dma, bool slave_mode)
+		enum rockchip_spi_xfer_mode xfer_mode, bool slave_mode)
 {
 	u32 cr0 = CR0_FRF_SPI  << CR0_FRF_OFFSET
 	        | CR0_BHT_8BIT << CR0_BHT_OFFSET
@@ -562,12 +614,23 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 	if (spi->mode & SPI_CS_HIGH)
 		cr0 |= BIT(spi->chip_select) << CR0_SOI_OFFSET;
 
-	if (xfer->rx_buf && xfer->tx_buf)
+	if (xfer->rx_buf && xfer->tx_buf) {
 		cr0 |= CR0_XFM_TR << CR0_XFM_OFFSET;
-	else if (xfer->rx_buf)
+	} else if (xfer->rx_buf) {
 		cr0 |= CR0_XFM_RO << CR0_XFM_OFFSET;
-	else if (use_dma)
-		cr0 |= CR0_XFM_TO << CR0_XFM_OFFSET;
+	} else if (xfer->tx_buf) {
+		/*
+		 * Use the water line of rx fifo in full duplex mode to trigger
+		 * the interruption of tx irq transmission completion.
+		 */
+		if (xfer_mode == ROCKCHIP_SPI_IRQ)
+			cr0 |= CR0_XFM_TR << CR0_XFM_OFFSET;
+		else
+			cr0 |= CR0_XFM_TO << CR0_XFM_OFFSET;
+	} else {
+		dev_err(rs->dev, "no transmission buffer\n");
+		return -EINVAL;
+	}
 
 	switch (xfer->bits_per_word) {
 	case 4:
@@ -592,7 +655,7 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 		return -EINVAL;
 	}
 
-	if (use_dma) {
+	if (xfer_mode == ROCKCHIP_SPI_DMA) {
 		if (xfer->tx_buf)
 			dmacr |= TF_DMA_EN;
 		if (xfer->rx_buf)
@@ -718,6 +781,7 @@ static int rockchip_spi_transfer_one(
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 	int ret;
 	bool use_dma;
+	enum rockchip_spi_xfer_mode xfer_mode;
 
 	/* Zero length transfers won't trigger an interrupt on completion */
 	if (!xfer->len) {
@@ -740,16 +804,31 @@ static int rockchip_spi_transfer_one(
 
 	rs->n_bytes = xfer->bits_per_word <= 8 ? 1 : 2;
 	rs->xfer = xfer;
-	use_dma = ctlr->can_dma ? ctlr->can_dma(ctlr, spi, xfer) : false;
+	if (rs->poll) {
+		xfer_mode = ROCKCHIP_SPI_POLL;
+	} else {
+		use_dma = ctlr->can_dma ? ctlr->can_dma(ctlr, spi, xfer) : false;
+		if (use_dma)
+			xfer_mode = ROCKCHIP_SPI_DMA;
+		else
+			xfer_mode = ROCKCHIP_SPI_IRQ;
+	}
 
-	ret = rockchip_spi_config(rs, spi, xfer, use_dma, ctlr->slave);
+	ret = rockchip_spi_config(rs, spi, xfer, xfer_mode, ctlr->slave);
 	if (ret)
 		return ret;
 
-	if (use_dma)
-		return rockchip_spi_prepare_dma(rs, ctlr, xfer);
+	rs->tx = xfer->tx_buf;
+	rs->rx = xfer->rx_buf;
 
-	return rockchip_spi_prepare_irq(rs, ctlr, xfer);
+	switch (xfer_mode) {
+	case ROCKCHIP_SPI_POLL:
+		return rockchip_spi_pio_transfer(rs, ctlr, xfer);
+	case ROCKCHIP_SPI_DMA:
+		return rockchip_spi_prepare_dma(rs, ctlr, xfer);
+	default:
+		return rockchip_spi_prepare_irq(rs, ctlr, xfer);
+	}
 }
 
 static bool rockchip_spi_can_dma(struct spi_controller *ctlr,
@@ -1041,6 +1120,8 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->can_dma = rockchip_spi_can_dma;
 	}
 
+	rs->poll = device_property_read_bool(&pdev->dev, "rockchip,poll-only");
+
 	switch (rs->version) {
 	case ROCKCHIP_SPI_VER2_TYPE2:
 		rs->cs_high_supported = true;
@@ -1085,6 +1166,8 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		else
 			dev_info(&pdev->dev, "register misc device %s\n", misc_name);
 	}
+
+	dev_info(rs->dev, "probed, poll=%d, rsd=%d\n", rs->poll, rs->rsd);
 
 	return 0;
 
