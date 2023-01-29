@@ -152,7 +152,7 @@ int atomisp_tpg_init(struct atomisp_device *isp)
 	v4l2_set_subdevdata(sd, tpg);
 
 	pads[0].flags = MEDIA_PAD_FL_SINK;
-	me->function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
+	me->function = MEDIA_ENT_F_PROC_VIDEO_ISP;
 
 	ret = media_entity_pads_init(me, 1, pads);
 	if (ret < 0)
