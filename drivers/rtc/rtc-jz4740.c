@@ -7,6 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -69,19 +70,15 @@ static inline uint32_t jz4740_rtc_reg_read(struct jz4740_rtc *rtc, size_t reg)
 static int jz4740_rtc_wait_write_ready(struct jz4740_rtc *rtc)
 {
 	uint32_t ctrl;
-	int timeout = 10000;
 
-	do {
-		ctrl = jz4740_rtc_reg_read(rtc, JZ_REG_RTC_CTRL);
-	} while (!(ctrl & JZ_RTC_CTRL_WRDY) && --timeout);
-
-	return timeout ? 0 : -EIO;
+	return readl_poll_timeout(rtc->base + JZ_REG_RTC_CTRL, ctrl,
+				  ctrl & JZ_RTC_CTRL_WRDY, 0, 1000);
 }
 
 static inline int jz4780_rtc_enable_write(struct jz4740_rtc *rtc)
 {
 	uint32_t ctrl;
-	int ret, timeout = 10000;
+	int ret;
 
 	ret = jz4740_rtc_wait_write_ready(rtc);
 	if (ret != 0)
@@ -89,11 +86,8 @@ static inline int jz4780_rtc_enable_write(struct jz4740_rtc *rtc)
 
 	writel(JZ_RTC_WENR_MAGIC, rtc->base + JZ_REG_RTC_WENR);
 
-	do {
-		ctrl = readl(rtc->base + JZ_REG_RTC_WENR);
-	} while (!(ctrl & JZ_RTC_WENR_WEN) && --timeout);
-
-	return timeout ? 0 : -EIO;
+	return readl_poll_timeout(rtc->base + JZ_REG_RTC_WENR, ctrl,
+				  ctrl & JZ_RTC_WENR_WEN, 0, 1000);
 }
 
 static inline int jz4740_rtc_reg_write(struct jz4740_rtc *rtc, size_t reg,
