@@ -118,9 +118,8 @@ int aa_profile_af_perm(struct aa_profile *profile,
 
 	AA_BUG(family >= AF_MAX);
 	AA_BUG(type < 0 || type >= SOCK_MAX);
+	AA_BUG(profile_unconfined(profile));
 
-	if (profile_unconfined(profile))
-		return 0;
 	state = RULE_MEDIATES(rules, AA_CLASS_NET);
 	if (!state)
 		return 0;
