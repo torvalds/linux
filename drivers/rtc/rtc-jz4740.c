@@ -329,17 +329,13 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(dev, 1);
 
 	ret = dev_pm_set_wake_irq(dev, irq);
-	if (ret) {
-		dev_err(dev, "Failed to set wake irq: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to set wake irq\n");
 
 	rtc->rtc = devm_rtc_allocate_device(dev);
-	if (IS_ERR(rtc->rtc)) {
-		ret = PTR_ERR(rtc->rtc);
-		dev_err(dev, "Failed to allocate rtc device: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(rtc->rtc))
+		return dev_err_probe(dev, PTR_ERR(rtc->rtc),
+				     "Failed to allocate rtc device\n");
 
 	rtc->rtc->ops = &jz4740_rtc_ops;
 	rtc->rtc->range_max = U32_MAX;
@@ -356,10 +352,8 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, jz4740_rtc_irq, 0,
 			       pdev->name, rtc);
-	if (ret) {
-		dev_err(dev, "Failed to request rtc irq: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request rtc irq\n");
 
 	if (of_device_is_system_power_controller(np)) {
 		dev_for_power_off = dev;
