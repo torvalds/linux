@@ -2105,7 +2105,7 @@ static ssize_t vhost_scsi_tpg_attrib_fabric_prot_type_show(
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
 
-	return sprintf(page, "%d\n", tpg->tv_fabric_prot_type);
+	return sysfs_emit(page, "%d\n", tpg->tv_fabric_prot_type);
 }
 
 CONFIGFS_ATTR(vhost_scsi_tpg_attrib_, fabric_prot_type);
@@ -2215,7 +2215,7 @@ static ssize_t vhost_scsi_tpg_nexus_show(struct config_item *item, char *page)
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		return -ENODEV;
 	}
-	ret = snprintf(page, PAGE_SIZE, "%s\n",
+	ret = sysfs_emit(page, "%s\n",
 			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
@@ -2440,7 +2440,7 @@ static void vhost_scsi_drop_tport(struct se_wwn *wwn)
 static ssize_t
 vhost_scsi_wwn_version_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "TCM_VHOST fabric module %s on %s/%s"
+	return sysfs_emit(page, "TCM_VHOST fabric module %s on %s/%s"
 		"on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
 		utsname()->machine);
 }
