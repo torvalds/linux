@@ -296,6 +296,11 @@ static void rockchip_spi_handle_err(struct spi_controller *ctlr,
 {
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 
+	dev_err(rs->dev, "state=%x\n", atomic_read(&rs->state));
+	dev_err(rs->dev, "tx_left=%x\n", rs->tx_left);
+	dev_err(rs->dev, "rx_left=%x\n", rs->rx_left);
+	print_hex_dump(KERN_ERR, "regs ", DUMP_PREFIX_OFFSET, 4, 4, rs->regs, 0x4c, 0);
+
 	/* stop running spi transfer
 	 * this also flushes both rx and tx fifos
 	 */
