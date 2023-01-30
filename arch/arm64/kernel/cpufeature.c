@@ -2534,7 +2534,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		 * Depends on having GICv3
 		 */
 		.desc = "IRQ priority masking",
-		.capability = ARM64_HAS_IRQ_PRIO_MASKING,
+		.capability = ARM64_HAS_GIC_PRIO_MASKING,
 		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
 		.matches = can_use_gic_priorities,
 		.sys_reg = SYS_ID_AA64PFR0_EL1,

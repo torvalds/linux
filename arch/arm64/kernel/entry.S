@@ -312,7 +312,7 @@ alternative_else_nop_endif
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 	/* Save pmr */
-alternative_if ARM64_HAS_IRQ_PRIO_MASKING
+alternative_if ARM64_HAS_GIC_PRIO_MASKING
 	mrs_s	x20, SYS_ICC_PMR_EL1
 	str	x20, [sp, #S_PMR_SAVE]
 	mov	x20, #GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET
@@ -337,7 +337,7 @@ alternative_else_nop_endif
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 	/* Restore pmr */
-alternative_if ARM64_HAS_IRQ_PRIO_MASKING
+alternative_if ARM64_HAS_GIC_PRIO_MASKING
 	ldr	x20, [sp, #S_PMR_SAVE]
 	msr_s	SYS_ICC_PMR_EL1, x20
 	mrs_s	x21, SYS_ICC_CTLR_EL1
