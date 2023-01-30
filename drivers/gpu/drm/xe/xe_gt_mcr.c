@@ -249,12 +249,12 @@ static const struct {
 	const char *name;
 	void (*init)(struct xe_gt *);
 } xe_steering_types[] = {
-	{ "L3BANK",	init_steering_l3bank },
-	{ "MSLICE",	init_steering_mslice },
-	{ "LNCF",	NULL },		/* initialized by mslice init */
-	{ "DSS",	init_steering_dss },
-	{ "OADDRM",	init_steering_oaddrm },
-	{ "INSTANCE 0",	init_steering_inst0 },
+	[L3BANK] =	{ "L3BANK",	init_steering_l3bank },
+	[MSLICE] =	{ "MSLICE",	init_steering_mslice },
+	[LNCF] =	{ "LNCF",	NULL }, /* initialized by mslice init */
+	[DSS] =		{ "DSS",	init_steering_dss },
+	[OADDRM] =	{ "OADDRM",	init_steering_oaddrm },
+	[INSTANCE0] =	{ "INSTANCE 0",	init_steering_inst0 },
 };
 
 void xe_gt_mcr_init(struct xe_gt *gt)
