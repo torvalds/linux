@@ -85,6 +85,18 @@ impl<T: 'static> ForeignOwnable for Box<T> {
     }
 }
 
+impl ForeignOwnable for () {
+    type Borrowed<'a> = ();
+
+    fn into_foreign(self) -> *const core::ffi::c_void {
+        core::ptr::NonNull::dangling().as_ptr()
+    }
+
+    unsafe fn borrow<'a>(_: *const core::ffi::c_void) -> Self::Borrowed<'a> {}
+
+    unsafe fn from_foreign(_: *const core::ffi::c_void) -> Self {}
+}
+
 /// Runs a cleanup function/closure when dropped.
 ///
 /// The [`ScopeGuard::dismiss`] function prevents the cleanup function from running.
