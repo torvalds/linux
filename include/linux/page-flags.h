@@ -926,9 +926,14 @@ static inline bool is_page_hwpoison(struct page *page)
 #define PageType(page, flag)						\
 	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
 
+static inline int page_type_has_type(unsigned int page_type)
+{
+	return (int)page_type < PAGE_MAPCOUNT_RESERVE;
+}
+
 static inline int page_has_type(struct page *page)
 {
-	return (int)page->page_type < PAGE_MAPCOUNT_RESERVE;
+	return page_type_has_type(page->page_type);
 }
 
 #define PAGE_TYPE_OPS(uname, lname)					\
