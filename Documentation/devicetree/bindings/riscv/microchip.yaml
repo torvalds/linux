@@ -27,6 +27,7 @@ properties:
 
       - items:
           - enum:
+              - aldec,tysom-m-mpfs250t-rev2
               - aries,m100pfsevp
               - microchip,mpfs-sev-kit
               - sundance,polarberry
