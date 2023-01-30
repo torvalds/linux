@@ -309,8 +309,7 @@ s32 rtw_put_snap(u8 *data, u16 h_proto);
 struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv);
 s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv,
 		       struct xmit_frame *pxmitframe);
-void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
-			      struct __queue *pframequeue);
+void rtw_free_xmitframe_list(struct xmit_priv *pxmitpriv, struct list_head *xframe_list);
 struct tx_servq *rtw_get_sta_pending(struct adapter *padapter,
 				     struct sta_info *psta, int up, u8 *ac);
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv,

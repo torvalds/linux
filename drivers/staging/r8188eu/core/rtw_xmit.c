@@ -1325,15 +1325,14 @@ exit:
 	return _SUCCESS;
 }
 
-void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pframequeue)
+void rtw_free_xmitframe_list(struct xmit_priv *pxmitpriv, struct list_head *xframe_list)
 {
-	struct list_head *plist, *phead;
+	struct list_head *plist;
 	struct	xmit_frame	*pxmitframe;
 
-	phead = get_list_head(pframequeue);
-	plist = phead->next;
+	plist = xframe_list->next;
 
-	while (phead != plist) {
+	while (xframe_list != plist) {
 		pxmitframe = container_of(plist, struct xmit_frame, list);
 
 		plist = plist->next;

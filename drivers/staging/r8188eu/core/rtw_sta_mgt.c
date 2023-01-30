@@ -260,22 +260,22 @@ void rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 	spin_lock_bh(&pxmitpriv->lock);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &psta->sleep_q);
+	rtw_free_xmitframe_list(pxmitpriv, get_list_head(&psta->sleep_q));
 	psta->sleepq_len = 0;
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, get_list_head(&pstaxmitpriv->vo_q.sta_pending));
 
 	list_del_init(&pstaxmitpriv->vo_q.tx_pending);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, get_list_head(&pstaxmitpriv->vi_q.sta_pending));
 
 	list_del_init(&pstaxmitpriv->vi_q.tx_pending);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, get_list_head(&pstaxmitpriv->bk_q.sta_pending));
 
 	list_del_init(&pstaxmitpriv->bk_q.tx_pending);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, get_list_head(&pstaxmitpriv->be_q.sta_pending));
 
 	list_del_init(&pstaxmitpriv->be_q.tx_pending);
 
