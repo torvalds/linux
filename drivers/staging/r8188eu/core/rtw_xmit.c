@@ -1327,18 +1327,10 @@ exit:
 
 void rtw_free_xmitframe_list(struct xmit_priv *pxmitpriv, struct list_head *xframe_list)
 {
-	struct list_head *plist;
-	struct	xmit_frame	*pxmitframe;
+	struct	xmit_frame *pxmitframe, *tmp_xmitframe;
 
-	plist = xframe_list->next;
-
-	while (xframe_list != plist) {
-		pxmitframe = container_of(plist, struct xmit_frame, list);
-
-		plist = plist->next;
-
+	list_for_each_entry_safe(pxmitframe, tmp_xmitframe, xframe_list, list)
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
-	}
 }
 
 struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i)
