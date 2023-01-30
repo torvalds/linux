@@ -2,6 +2,7 @@
 
 //! Kernel types.
 
+use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
     mem::MaybeUninit,
@@ -60,6 +61,28 @@ pub trait ForeignOwnable: Sized {
     /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow`] and
     /// [`ForeignOwnable::borrow_mut`] for this object must have been dropped.
     unsafe fn from_foreign(ptr: *const core::ffi::c_void) -> Self;
+}
+
+impl<T: 'static> ForeignOwnable for Box<T> {
+    type Borrowed<'a> = &'a T;
+
+    fn into_foreign(self) -> *const core::ffi::c_void {
+        Box::into_raw(self) as _
+    }
+
+    unsafe fn borrow<'a>(ptr: *const core::ffi::c_void) -> &'a T {
+        // SAFETY: The safety requirements for this function ensure that the object is still alive,
+        // so it is safe to dereference the raw pointer.
+        // The safety requirements of `from_foreign` also ensure that the object remains alive for
+        // the lifetime of the returned value.
+        unsafe { &*ptr.cast() }
+    }
+
+    unsafe fn from_foreign(ptr: *const core::ffi::c_void) -> Self {
+        // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
+        // call to `Self::into_foreign`.
+        unsafe { Box::from_raw(ptr as _) }
+    }
 }
 
 /// Runs a cleanup function/closure when dropped.
