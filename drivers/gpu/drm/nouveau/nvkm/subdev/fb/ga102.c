@@ -40,12 +40,6 @@ ga102_fb_vpr_scrub(struct nvkm_fb *fb)
 	return ret;
 }
 
-static bool
-ga102_fb_vpr_scrub_required(struct nvkm_fb *fb)
-{
-	return (nvkm_rd32(fb->subdev.device, 0x1fa80c) & 0x00000010) != 0;
-}
-
 static const struct nvkm_fb_func
 ga102_fb = {
 	.dtor = gf100_fb_dtor,
@@ -56,7 +50,7 @@ ga102_fb = {
 	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = ga102_ram_new,
 	.default_bigpage = 16,
-	.vpr.scrub_required = ga102_fb_vpr_scrub_required,
+	.vpr.scrub_required = tu102_fb_vpr_scrub_required,
 	.vpr.scrub = ga102_fb_vpr_scrub,
 };
 
