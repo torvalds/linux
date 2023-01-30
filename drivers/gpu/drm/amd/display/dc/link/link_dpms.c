@@ -1782,37 +1782,36 @@ enum dc_status link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_
 	return DC_OK;
 }
 
-static void disable_link(struct dc_link *link, const struct link_resource *link_res,
+static void disable_link_dp(struct dc_link *link,
+		const struct link_resource *link_res,
 		enum signal_type signal)
 {
-	/*
-	 * TODO: implement call for dp_set_hw_test_pattern
-	 * it is needed for compliance testing
-	 */
+	struct dc_link_settings link_settings = link->cur_link_settings;
 
-	/* Here we need to specify that encoder output settings
-	 * need to be calculated as for the set mode,
-	 * it will lead to querying dynamic link capabilities
-	 * which should be done before enable output
-	 */
+	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST &&
+			link->mst_stream_alloc_table.stream_count > 0)
+		/* disable MST link only when last vc payload is deallocated */
+		return;
 
+	dp_disable_link_phy(link, link_res, signal);
+
+	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+		/* set the sink to SST mode after disabling the link */
+		enable_mst_on_sink(link, false);
+
+	if (link_dp_get_encoding_format(&link_settings) ==
+			DP_8b_10b_ENCODING) {
+		dp_set_fec_enable(link, false);
+		dp_set_fec_ready(link, link_res, false);
+	}
+}
+
+static void disable_link(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
 	if (dc_is_dp_signal(signal)) {
-		/* SST DP, eDP */
-		struct dc_link_settings link_settings = link->cur_link_settings;
-		if (dc_is_dp_sst_signal(signal)) {
-			dp_disable_link_phy(link, link_res, signal);
-		} else {
-			dp_disable_link_phy_mst(link, link_res, signal);
-			/* set the sink to SST mode after disabling the link */
-			enable_mst_on_sink(link, false);
-		}
-		if (dc_is_dp_sst_signal(signal) ||
-				link->mst_stream_alloc_table.stream_count == 0) {
-			if (link_dp_get_encoding_format(&link_settings) == DP_8b_10b_ENCODING) {
-				dp_set_fec_enable(link, false);
-				dp_set_fec_ready(link, link_res, false);
-			}
-		}
+		disable_link_dp(link, link_res, signal);
 	} else if (signal != SIGNAL_TYPE_VIRTUAL) {
 		link->dc->hwss.disable_link_output(link, link_res, signal);
 	}

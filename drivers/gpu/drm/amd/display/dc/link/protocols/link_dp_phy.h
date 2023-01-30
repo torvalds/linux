@@ -38,10 +38,6 @@ void dp_disable_link_phy(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal);
 
-void dp_disable_link_phy_mst(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal);
-
 void dp_set_hw_lane_settings(
 		struct dc_link *link,
 		const struct link_resource *link_res,

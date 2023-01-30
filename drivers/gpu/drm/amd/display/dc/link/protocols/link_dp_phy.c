@@ -85,17 +85,6 @@ void dp_disable_link_phy(struct dc_link *link,
 		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
 }
 
-void dp_disable_link_phy_mst(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal)
-{
-	/* MST disable link only when no stream use the link */
-	if (link->mst_stream_alloc_table.stream_count > 0)
-		return;
-
-	dp_disable_link_phy(link, link_res, signal);
-}
-
 static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
 {
 	return (dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) ==
