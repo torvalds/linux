@@ -90,34 +90,31 @@ struct pch_thermal_device {
 };
 
 #ifdef CONFIG_ACPI
-
 /*
  * On some platforms, there is a companion ACPI device, which adds
  * passive trip temperature using _PSV method. There is no specific
  * passive temperature setting in MMIO interface of this PCI device.
  */
-static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
-				      int *nr_trips)
+static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 {
 	struct acpi_device *adev;
 	int temp;
 
 	adev = ACPI_COMPANION(&ptd->pdev->dev);
 	if (!adev)
-		return;
+		return 0;
 
 	if (thermal_acpi_passive_trip_temp(adev, &temp) || temp <= 0)
-		return;
+		return 0;
 
-	ptd->trips[*nr_trips].type = THERMAL_TRIP_PASSIVE;
-	ptd->trips[*nr_trips].temperature = temp;
-	++(*nr_trips);
+	ptd->trips[trip].type = THERMAL_TRIP_PASSIVE;
+	ptd->trips[trip].temperature = temp;
+	return 1;
 }
 #else
-static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
-				      int *nr_trips)
+static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 {
-
+	return 0;
 }
 #endif
 
@@ -167,7 +164,7 @@ read_trips:
 		++(*nr_trips);
 	}
 
-	pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
+	*nr_trips += pch_wpt_add_acpi_psv_trip(ptd, *nr_trips);
 
 	return 0;
 }
