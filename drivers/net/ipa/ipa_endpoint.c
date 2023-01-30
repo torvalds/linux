@@ -965,7 +965,7 @@ static u32 aggr_time_limit_encode(struct ipa *ipa, const struct ipa_reg *reg,
 		ret = ipa_qtime_val(microseconds, max);
 		if (ret < 0) {
 			val = -ret;
-			gran_sel = ipa_reg_bit(reg, AGGR_GRAN_SEL);
+			gran_sel = ipa_reg_encode(reg, AGGR_GRAN_SEL, 1);
 		} else {
 			val = ret;
 			gran_sel = 0;
@@ -1057,7 +1057,7 @@ static u32 hol_block_timer_encode(struct ipa *ipa, const struct ipa_reg *reg,
 		ret = ipa_qtime_val(microseconds, max);
 		if (ret < 0) {
 			val = -ret;
-			gran_sel = ipa_reg_bit(reg, TIMER_GRAN_SEL);
+			gran_sel = ipa_reg_encode(reg, TIMER_GRAN_SEL, 1);
 		} else {
 			val = ret;
 			gran_sel = 0;
