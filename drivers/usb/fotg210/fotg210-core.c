@@ -136,8 +136,8 @@ static int fotg210_probe(struct platform_device *pdev)
 	fotg->dev = dev;
 
 	fotg->base = devm_platform_get_and_ioremap_resource(pdev, 0, &fotg->res);
-	if (!fotg->base)
-		return -ENOMEM;
+	if (IS_ERR(fotg->base))
+		return PTR_ERR(fotg->base);
 
 	fotg->pclk = devm_clk_get_optional_enabled(dev, "PCLK");
 	if (IS_ERR(fotg->pclk))
