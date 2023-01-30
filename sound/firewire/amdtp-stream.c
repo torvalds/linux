@@ -910,7 +910,7 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 	unsigned int dbc = s->data_block_counter;
 	unsigned int packet_index = s->packet_index;
 	unsigned int queue_size = s->queue_size;
-	u32 curr_cycle_time;
+	u32 curr_cycle_time = 0;
 	int i;
 	int err;
 
