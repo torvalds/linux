@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -359,13 +359,22 @@ int ipa_table_hash_flush(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
-	offset = ipa_reg_offset(reg);
+	if (ipa->version < IPA_VERSION_5_0) {
+		reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+		offset = ipa_reg_offset(reg);
 
-	val = ipa_reg_bit(reg, IPV6_ROUTER_HASH);
-	val |= ipa_reg_bit(reg, IPV6_FILTER_HASH);
-	val |= ipa_reg_bit(reg, IPV4_ROUTER_HASH);
-	val |= ipa_reg_bit(reg, IPV4_FILTER_HASH);
+		val = ipa_reg_bit(reg, IPV6_ROUTER_HASH);
+		val |= ipa_reg_bit(reg, IPV6_FILTER_HASH);
+		val |= ipa_reg_bit(reg, IPV4_ROUTER_HASH);
+		val |= ipa_reg_bit(reg, IPV4_FILTER_HASH);
+	} else {
+		reg = ipa_reg(ipa, FILT_ROUT_CACHE_FLUSH);
+		offset = ipa_reg_offset(reg);
+
+		/* IPA v5.0+ uses a unified cache (both IPv4 and IPv6) */
+		val = ipa_reg_bit(reg, ROUTER_CACHE);
+		val |= ipa_reg_bit(reg, FILTER_CACHE);
+	}
 
 	ipa_cmd_register_write_add(trans, offset, val, val, false);
 

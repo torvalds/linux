@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -432,6 +432,11 @@ static void ipa_hardware_config_hashing(struct ipa *ipa)
 {
 	const struct ipa_reg *reg;
 
+	/* Other than IPA v4.2, all versions enable "hashing".  Starting
+	 * with IPA v5.0, the filter and router tables are implemented
+	 * differently, but the default configuration enables this feature
+	 * (now referred to as "cacheing"), so there's nothing to do here.
+	 */
 	if (ipa->version != IPA_VERSION_4_2)
 		return;
 

@@ -295,7 +295,11 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	 * offset will fit in a register write IPA immediate command.
 	 */
 	if (ipa_table_hash_support(ipa)) {
-		reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+		if (ipa->version < IPA_VERSION_5_0)
+			reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+		else
+			reg = ipa_reg(ipa, FILT_ROUT_CACHE_FLUSH);
+
 		offset = ipa_reg_offset(reg);
 		name = "filter/route hash flush";
 		if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
