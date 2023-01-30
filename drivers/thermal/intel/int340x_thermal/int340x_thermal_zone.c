@@ -30,15 +30,16 @@ static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 			return conv_temp;
 
 		*temp = (unsigned long)conv_temp * 10;
-	} else
+	} else {
 		/* _TMP returns the temperature in tenths of degrees Kelvin */
 		*temp = deci_kelvin_to_millicelsius(tmp);
+	}
 
 	return 0;
 }
 
 static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
-				      int trip, int temp)
+					 int trip, int temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
 	acpi_status status;
@@ -46,7 +47,7 @@ static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
 
 	snprintf(name, sizeof(name), "PAT%d", trip);
 	status = acpi_execute_simple_method(d->adev->handle, name,
-			millicelsius_to_deci_kelvin(temp));
+					    millicelsius_to_deci_kelvin(temp));
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -92,7 +93,6 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 	}
 
 	for (i = 0; i < INT340X_THERMAL_MAX_ACT_TRIP_COUNT; i++) {
-
 		ret = thermal_acpi_active_trip_temp(zone_adev, i,
 						    &zone_trips[trip_cnt].temperature);
 		if (ret)
@@ -121,8 +121,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	acpi_status status;
 	int i, ret;
 
-	int34x_thermal_zone = kzalloc(sizeof(*int34x_thermal_zone),
-				      GFP_KERNEL);
+	int34x_thermal_zone = kzalloc(sizeof(*int34x_thermal_zone), GFP_KERNEL);
 	if (!int34x_thermal_zone)
 		return ERR_PTR(-ENOMEM);
 
@@ -139,7 +138,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 		int34x_thermal_zone->ops->get_temp = get_temp;
 
 	status = acpi_evaluate_integer(adev->handle, "PATC", NULL, &trip_cnt);
-	if (!ACPI_FAILURE(status)) {
+	if (ACPI_SUCCESS(status)) {
 		int34x_thermal_zone->aux_trip_nr = trip_cnt;
 		trip_mask = BIT(trip_cnt) - 1;
 	}
@@ -169,8 +168,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 
 	int34x_thermal_zone->trips = zone_trips;
 
-	int34x_thermal_zone->lpat_table = acpi_lpat_get_conversion_table(
-								adev->handle);
+	int34x_thermal_zone->lpat_table = acpi_lpat_get_conversion_table(adev->handle);
 
 	int34x_thermal_zone->zone = thermal_zone_device_register_with_trips(
 						acpi_device_bid(adev),
