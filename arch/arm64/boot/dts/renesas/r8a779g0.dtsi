@@ -39,6 +39,12 @@
 			clock-latency-ns = <500000>;
 			opp-suspend;
 		};
+		opp-1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <880000>;
+			clock-latency-ns = <500000>;
+			turbo-mode;
+		};
 	};
 
 	cpus {

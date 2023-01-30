@@ -5,6 +5,7 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "r8a779f0.dtsi"
 
 / {
@@ -30,6 +31,12 @@
 	memory@480000000 {
 		device_type = "memory";
 		reg = <0x4 0x80000000 0x0 0x80000000>;
+	};
+
+	rc21012_ufs: clk-rc21012-ufs {
+		compatible = "fixed-clock";
+		clock-frequency = <38400000>;
+		#clock-cells = <0>;
 	};
 
 	reg_1p8v: regulator-1p8v {
@@ -65,6 +72,21 @@
 
 	uart-has-rtscts;
 	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	gpio_exp_20: gpio@20 {
+		compatible = "ti,tca9554";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
 
 &i2c4 {
@@ -112,6 +134,11 @@
 		function = "hscif0";
 	};
 
+	i2c0_pins: i2c0 {
+		groups = "i2c0";
+		function = "i2c0";
+	};
+
 	i2c4_pins: i2c4 {
 		groups = "i2c4";
 		function = "i2c4";
@@ -149,4 +176,15 @@
 
 &scif_clk {
 	clock-frequency = <24000000>;
+};
+
+&ufs {
+	status = "okay";
+};
+
+&ufs30_clk {
+	compatible = "gpio-gate-clock";
+	clocks = <&rc21012_ufs>;
+	enable-gpios = <&gpio_exp_20 4 GPIO_ACTIVE_LOW>;
+	/delete-property/ clock-frequency;
 };
