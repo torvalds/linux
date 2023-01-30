@@ -119,7 +119,7 @@ struct regval_t {
 };
 
 struct reg_table {
-	const struct regval_t *regval;
+	struct regval_t *regval;
 	int regval_num;
 };
 
@@ -207,6 +207,7 @@ struct stf_isp_dev {
 	struct isp_ctrls ctrls;
 	struct mutex setfile_lock;
 	struct isp_setfile setfile;
+	struct reg_table *context_regs;
 };
 
 extern int stf_isp_subdev_init(struct stfcamss *stfcamss);
