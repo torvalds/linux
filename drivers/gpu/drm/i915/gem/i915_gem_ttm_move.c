@@ -711,6 +711,10 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 
 	assert_object_held(dst);
 	assert_object_held(src);
+
+	if (GEM_WARN_ON(!src_bo->resource || !dst_bo->resource))
+		return -EINVAL;
+
 	i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
 
 	ret = dma_resv_reserve_fences(src_bo->base.resv, 1);
