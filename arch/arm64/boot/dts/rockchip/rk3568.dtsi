@@ -2605,7 +2605,7 @@
 	};
 
 	sdhci: sdhci@fe310000 {
-		compatible = "rockchip,dwcmshc-sdhci", "snps,dwcmshc-sdhci";
+		compatible = "rockchip,rk3568-dwcmshc", "rockchip,dwcmshc-sdhci";
 		reg = <0x0 0xfe310000 0x0 0x10000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		assigned-clocks = <&cru BCLK_EMMC>, <&cru TCLK_EMMC>,
