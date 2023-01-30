@@ -119,6 +119,11 @@ void intel_device_info_print(const struct intel_device_info *info,
 		drm_printf(p, "display version: %u\n",
 			   runtime->display.ip.ver);
 
+	drm_printf(p, "graphics stepping: %s\n", intel_step_name(runtime->step.graphics_step));
+	drm_printf(p, "media stepping: %s\n", intel_step_name(runtime->step.media_step));
+	drm_printf(p, "display stepping: %s\n", intel_step_name(runtime->step.display_step));
+	drm_printf(p, "base die stepping: %s\n", intel_step_name(runtime->step.basedie_step));
+
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "memory-regions: %x\n", runtime->memory_regions);
 	drm_printf(p, "page-sizes: %x\n", runtime->page_sizes);
