@@ -931,7 +931,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	} else {
 		/* If it is not an EDT M06/M12 touchscreen, then the model
 		 * detection is a bit hairy. The different ft5x06
-		 * firmares around don't reliably implement the
+		 * firmwares around don't reliably implement the
 		 * identification registers. Well, we'll take a shot.
 		 *
 		 * The main difference between generic focaltec based
