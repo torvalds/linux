@@ -409,10 +409,10 @@ static int __reload_late(void *info)
 		goto wait_for_siblings;
 
 	if (err >= UCODE_NFOUND) {
-		if (err == UCODE_ERROR)
+		if (err == UCODE_ERROR) {
 			pr_warn("Error reloading microcode on CPU %d\n", cpu);
-
-		ret = -1;
+			ret = -1;
+		}
 	}
 
 wait_for_siblings:
