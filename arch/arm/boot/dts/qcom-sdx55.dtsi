@@ -62,7 +62,13 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	firmware {
+		scm {
+			compatible = "qcom,scm-sdx55", "qcom,scm";
+		};
+	};
+
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -84,12 +90,6 @@
 		opp-1555200000 {
 			opp-hz = /bits/ 64 <1555200000>;
 			required-opps = <&rpmhpd_opp_turbo>;
-		};
-	};
-
-	firmware {
-		scm {
-			compatible = "qcom,scm-sdx55", "qcom,scm";
 		};
 	};
 
@@ -214,7 +214,8 @@
 		};
 
 		usb_hsphy: phy@ff4000 {
-			compatible = "qcom,usb-snps-hs-7nm-phy";
+			compatible = "qcom,sdx55-usb-hs-phy",
+				     "qcom,usb-snps-hs-7nm-phy";
 			reg = <0x00ff4000 0x114>;
 			status = "disabled";
 			#phy-cells = <0>;
