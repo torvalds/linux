@@ -23,6 +23,7 @@ config SUNXI_SRAM
 config SUN20I_PPU
 	bool "Allwinner D1 PPU power domain driver"
 	depends on ARCH_SUNXI || COMPILE_TEST
+	select PM
 	select PM_GENERIC_DOMAINS
 	help
 	  Say y to enable the PPU power domain driver. This saves power
