@@ -210,7 +210,7 @@ config SAMPLE_VFIO_MDEV_MDPY_FB
 	  Guest fbdev driver for the virtual display sample driver.
 
 config SAMPLE_VFIO_MDEV_MBOCHS
-	tristate "Build VFIO mdpy example mediated device sample code"
+	tristate "Build VFIO mbochs example mediated device sample code"
 	depends on VFIO
 	select VFIO_MDEV
 	select DMA_SHARED_BUFFER
