@@ -19909,7 +19909,7 @@ STARFIVE TRNG DRIVER
 M:	Jia Jie Ho <jiajie.ho@starfivetech.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/rng/starfive*
-F:	drivers/char/hw_random/starfive-trng.c
+F:	drivers/char/hw_random/jh7110-trng.c
 
 STATIC BRANCH/CALL
 M:	Peter Zijlstra <peterz@infradead.org>
