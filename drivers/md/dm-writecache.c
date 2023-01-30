@@ -85,12 +85,12 @@ struct wc_entry {
 	unsigned short wc_list_contiguous;
 	bool write_in_progress
 #if BITS_PER_LONG == 64
-		:1
+		: 1
 #endif
 	;
 	unsigned long index
 #if BITS_PER_LONG == 64
-		:47
+		: 47
 #endif
 	;
 	unsigned long age;
