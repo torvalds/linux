@@ -259,7 +259,7 @@ static const struct hid_ll_driver tf103c_dock_hid_ll_driver = {
 	.raw_request = tf103c_dock_hid_raw_request,
 };
 
-static int tf103c_dock_toprow_codes[13][2] = {
+static const int tf103c_dock_toprow_codes[13][2] = {
 	/* Normal,            AltGr pressed */
 	{ KEY_POWER,          KEY_F1 },
 	{ KEY_RFKILL,         KEY_F2 },
