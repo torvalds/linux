@@ -227,7 +227,6 @@ struct tx_servq {
 
 struct sta_xmit_priv {
 	spinlock_t lock;
-	int	option;
 	struct tx_servq	be_q;			/* priority == 0,3 */
 	struct tx_servq	bk_q;			/* priority == 1,2 */
 	struct tx_servq	vi_q;			/* priority == 4,5 */
