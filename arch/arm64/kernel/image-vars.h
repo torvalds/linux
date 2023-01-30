@@ -67,9 +67,7 @@ KVM_NVHE_ALIAS(__hyp_stub_vectors);
 KVM_NVHE_ALIAS(vgic_v2_cpuif_trap);
 KVM_NVHE_ALIAS(vgic_v3_cpuif_trap);
 
-/* Static key checked in pmr_sync(). */
 #ifdef CONFIG_ARM64_PSEUDO_NMI
-KVM_NVHE_ALIAS(gic_pmr_sync);
 /* Static key checked in GIC_PRIO_IRQOFF. */
 KVM_NVHE_ALIAS(gic_nonsecure_priorities);
 #endif

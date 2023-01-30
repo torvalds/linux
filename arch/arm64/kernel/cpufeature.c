@@ -2056,6 +2056,34 @@ static bool can_use_gic_priorities(const struct arm64_cpu_capabilities *entry,
 
 	return enable_pseudo_nmi;
 }
+
+static bool has_gic_prio_relaxed_sync(const struct arm64_cpu_capabilities *entry,
+				      int scope)
+{
+	/*
+	 * If we're not using priority masking then we won't be poking PMR_EL1,
+	 * and there's no need to relax synchronization of writes to it, and
+	 * ICC_CTLR_EL1 might not be accessible and we must avoid reads from
+	 * that.
+	 *
+	 * ARM64_HAS_GIC_PRIO_MASKING has a lower index, and is a boot CPU
+	 * feature, so will be detected earlier.
+	 */
+	BUILD_BUG_ON(ARM64_HAS_GIC_PRIO_RELAXED_SYNC <= ARM64_HAS_GIC_PRIO_MASKING);
+	if (!cpus_have_cap(ARM64_HAS_GIC_PRIO_MASKING))
+		return false;
+
+	/*
+	 * When Priority Mask Hint Enable (PMHE) == 0b0, PMR is not used as a
+	 * hint for interrupt distribution, a DSB is not necessary when
+	 * unmasking IRQs via PMR, and we can relax the barrier to a NOP.
+	 *
+	 * Linux itself doesn't use 1:N distribution, so has no need to
+	 * set PMHE. The only reason to have it set is if EL3 requires it
+	 * (and we can't change it).
+	 */
+	return (gic_read_ctlr() & ICC_CTLR_EL1_PMHE_MASK) == 0;
+}
 #endif
 
 #ifdef CONFIG_ARM64_BTI
@@ -2545,6 +2573,14 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_GIC_PRIO_MASKING,
 		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
 		.matches = can_use_gic_priorities,
+	},
+	{
+		/*
+		 * Depends on ARM64_HAS_GIC_PRIO_MASKING
+		 */
+		.capability = ARM64_HAS_GIC_PRIO_RELAXED_SYNC,
+		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
+		.matches = has_gic_prio_relaxed_sync,
 	},
 #endif
 #ifdef CONFIG_ARM64_E0PD
