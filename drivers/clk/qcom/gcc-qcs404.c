@@ -60,7 +60,6 @@ static struct clk_fixed_factor cxo = {
 		.name = "cxo",
 		.parent_data = gcc_parent_data_1,
 		.num_parents = ARRAY_SIZE(gcc_parent_data_1),
-		.num_parents = 1,
 		.ops = &clk_fixed_factor_ops,
 	},
 };
