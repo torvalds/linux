@@ -1,102 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # PARIDE configuration
-#
-# PARIDE doesn't need PARPORT, but if PARPORT is configured as a module,
-# PARIDE must also be a module.
-# PARIDE only supports PC style parports. Tough for USB or other parports...
-
-comment "Parallel IDE high-level drivers"
-	depends on PARIDE
-
-config PARIDE_PD
-	tristate "Parallel port IDE disks"
-	depends on PARIDE
-	help
-	  This option enables the high-level driver for IDE-type disk devices
-	  connected through a parallel port. If you chose to build PARIDE
-	  support into your kernel, you may answer Y here to build in the
-	  parallel port IDE driver, otherwise you should answer M to build
-	  it as a loadable module. The module will be called pd. You
-	  must also have at least one parallel port protocol driver in your
-	  system. Among the devices supported by this driver are the SyQuest
-	  EZ-135, EZ-230 and SparQ drives, the Avatar Shark and the backpack
-	  hard drives from MicroSolutions.
-
-config PARIDE_PCD
-	tristate "Parallel port ATAPI CD-ROMs"
-	depends on PARIDE
-	select CDROM
-	help
-	  This option enables the high-level driver for ATAPI CD-ROM devices
-	  connected through a parallel port. If you chose to build PARIDE
-	  support into your kernel, you may answer Y here to build in the
-	  parallel port ATAPI CD-ROM driver, otherwise you should answer M to
-	  build it as a loadable module. The module will be called pcd. You
-	  must also have at least one parallel port protocol driver in your
-	  system. Among the devices supported by this driver are the
-	  MicroSolutions backpack CD-ROM drives and the Freecom Power CD. If
-	  you have such a CD-ROM drive, you should also say Y or M to "ISO
-	  9660 CD-ROM file system support" below, because that's the file
-	  system used on CD-ROMs.
-
-config PARIDE_PF
-	tristate "Parallel port ATAPI disks"
-	depends on PARIDE
-	help
-	  This option enables the high-level driver for ATAPI disk devices
-	  connected through a parallel port. If you chose to build PARIDE
-	  support into your kernel, you may answer Y here to build in the
-	  parallel port ATAPI disk driver, otherwise you should answer M
-	  to build it as a loadable module. The module will be called pf.
-	  You must also have at least one parallel port protocol driver in
-	  your system. Among the devices supported by this driver are the
-	  MicroSolutions backpack PD/CD drive and the Imation Superdisk
-	  LS-120 drive.
-
-config PARIDE_PT
-	tristate "Parallel port ATAPI tapes"
-	depends on PARIDE
-	help
-	  This option enables the high-level driver for ATAPI tape devices
-	  connected through a parallel port. If you chose to build PARIDE
-	  support into your kernel, you may answer Y here to build in the
-	  parallel port ATAPI disk driver, otherwise you should answer M
-	  to build it as a loadable module. The module will be called pt.
-	  You must also have at least one parallel port protocol driver in
-	  your system. Among the devices supported by this driver is the
-	  parallel port version of the HP 5GB drive.
-
-config PARIDE_PG
-	tristate "Parallel port generic ATAPI devices"
-	depends on PARIDE
-	help
-	  This option enables a special high-level driver for generic ATAPI
-	  devices connected through a parallel port. The driver allows user
-	  programs, such as cdrtools, to send ATAPI commands directly to a
-	  device.
-
-	  If you chose to build PARIDE support into your kernel, you may
-	  answer Y here to build in the parallel port generic ATAPI driver,
-	  otherwise you should answer M to build it as a loadable module. The
-	  module will be called pg.
-
-	  You must also have at least one parallel port protocol driver in
-	  your system.
-
-	  This driver implements an API loosely related to the generic SCSI
-	  driver. See <file:include/linux/pg.h>. for details.
-
-	  You can obtain the most recent version of cdrtools from
-	  <ftp://ftp.berlios.de/pub/cdrecord/>. Versions 1.6.1a3 and
-	  later fully support this driver.
 
 comment "Parallel IDE protocol modules"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 
 config PARIDE_ATEN
 	tristate "ATEN EH-100 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the ATEN EH-100 parallel port IDE
 	  protocol. This protocol is used in some inexpensive low performance
@@ -109,7 +20,7 @@ config PARIDE_ATEN
 
 config PARIDE_BPCK
 	tristate "MicroSolutions backpack (Series 5) protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 5 IDE protocol.  (Most BACKPACK drives made
@@ -127,7 +38,7 @@ config PARIDE_BPCK
 
 config PARIDE_BPCK6
 	tristate "MicroSolutions backpack (Series 6) protocol"
-	depends on (PARIDE || PATA_PARPORT) && !64BIT
+	depends on (PATA_PARPORT) && !64BIT
 	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 6 IDE protocol.  (Most BACKPACK drives made
@@ -146,7 +57,7 @@ config PARIDE_BPCK6
 
 config PARIDE_COMM
 	tristate "DataStor Commuter protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the Commuter parallel port IDE
 	  protocol from DataStor. If you chose to build PARIDE support
@@ -157,7 +68,7 @@ config PARIDE_COMM
 
 config PARIDE_DSTR
 	tristate "DataStor EP-2000 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the EP-2000 parallel port IDE
 	  protocol from DataStor. If you chose to build PARIDE support
@@ -168,7 +79,7 @@ config PARIDE_DSTR
 
 config PARIDE_FIT2
 	tristate "FIT TD-2000 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the TD-2000 parallel port IDE
 	  protocol from Fidelity International Technology. This is a simple
@@ -181,7 +92,7 @@ config PARIDE_FIT2
 
 config PARIDE_FIT3
 	tristate "FIT TD-3000 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the TD-3000 parallel port IDE
 	  protocol from Fidelity International Technology. This protocol is
@@ -194,7 +105,7 @@ config PARIDE_FIT3
 
 config PARIDE_EPAT
 	tristate "Shuttle EPAT/EPEZ protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the EPAT parallel port IDE protocol.
 	  EPAT is a parallel port IDE adapter manufactured by Shuttle
@@ -216,7 +127,7 @@ config PARIDE_EPATC8
 
 config PARIDE_EPIA
 	tristate "Shuttle EPIA protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the (obsolete) EPIA parallel port
 	  IDE protocol from Shuttle Technology. This adapter can still be
@@ -228,7 +139,7 @@ config PARIDE_EPIA
 
 config PARIDE_FRIQ
 	tristate "Freecom IQ ASIC-2 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for version 2 of the Freecom IQ parallel
 	  port IDE adapter.  This adapter is used by the Maxell Superdisk
@@ -240,7 +151,7 @@ config PARIDE_FRIQ
 
 config PARIDE_FRPW
 	tristate "FreeCom power protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the Freecom power parallel port IDE
 	  protocol. If you chose to build PARIDE support into your kernel, you
@@ -251,7 +162,7 @@ config PARIDE_FRPW
 
 config PARIDE_KBIC
 	tristate "KingByte KBIC-951A/971A protocols"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the KBIC-951A and KBIC-971A parallel
 	  port IDE protocols from KingByte Information Corp. KingByte's
@@ -264,7 +175,7 @@ config PARIDE_KBIC
 
 config PARIDE_KTTI
 	tristate "KT PHd protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the "PHd" parallel port IDE protocol
 	  from KT Technology. This is a simple (low speed) adapter that is
@@ -277,7 +188,7 @@ config PARIDE_KTTI
 
 config PARIDE_ON20
 	tristate "OnSpec 90c20 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the (obsolete) 90c20 parallel port
 	  IDE protocol from OnSpec (often marketed under the ValuStore brand
@@ -289,7 +200,7 @@ config PARIDE_ON20
 
 config PARIDE_ON26
 	tristate "OnSpec 90c26 protocol"
-	depends on PARIDE || PATA_PARPORT
+	depends on PATA_PARPORT
 	help
 	  This option enables support for the 90c26 parallel port IDE protocol
 	  from OnSpec Electronics (often marketed under the ValuStore brand

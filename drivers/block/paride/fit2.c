@@ -23,7 +23,7 @@
 #include <linux/wait.h>
 #include <asm/io.h>
 
-#include "paride.h"
+#include <linux/pata_parport.h>
 
 #define j44(a,b)                (((a>>4)&0x0f)|(b&0xf0))
 

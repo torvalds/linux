@@ -26,7 +26,7 @@
 #include <linux/wait.h>
 #include <asm/io.h>
 
-#include "paride.h"
+#include <linux/pata_parport.h>
 
 /* mode codes:  0  nybble reads, 8-bit writes
                 1  8-bit reads and writes

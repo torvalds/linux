@@ -24,7 +24,7 @@
 #include <linux/wait.h>
 #include <asm/io.h>
 
-#include "paride.h"
+#include <linux/pata_parport.h>
 
 #undef r2
 #undef w2

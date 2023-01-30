@@ -4120,10 +4120,6 @@
 
 	pcbit=		[HW,ISDN]
 
-	pcd.		[PARIDE]
-			See header of drivers/block/paride/pcd.c.
-			See also Documentation/admin-guide/blockdev/paride.rst.
-
 	pci=option[,option...]	[PCI] various PCI subsystem options.
 
 				Some options herein operate on a specific device
@@ -4386,9 +4382,6 @@
 			for debug and development, but should not be
 			needed on a platform with proper driver support.
 
-	pd.		[PARIDE]
-			See Documentation/admin-guide/blockdev/paride.rst.
-
 	pdcchassis=	[PARISC,HW] Disable/Enable PDC Chassis Status codes at
 			boot time.
 			Format: { 0 | 1 }
@@ -4400,12 +4393,6 @@
 			See comments in mm/percpu.c for details on each
 			allocator.  This parameter is primarily	for debugging
 			and performance comparison.
-
-	pf.		[PARIDE]
-			See Documentation/admin-guide/blockdev/paride.rst.
-
-	pg.		[PARIDE]
-			See Documentation/admin-guide/blockdev/paride.rst.
 
 	pirq=		[SMP,APIC] Manual mp-table setup
 			See Documentation/x86/i386/IO-APIC.rst.
@@ -4567,9 +4554,6 @@
 			0 = disabled, 1 = enabled (default).
 
 	pstore.backend=	Specify the name of the pstore backend to use
-
-	pt.		[PARIDE]
-			See Documentation/admin-guide/blockdev/paride.rst.
 
 	pti=		[X86-64] Control Page Table Isolation of user and
 			kernel address spaces.  Disabling this feature

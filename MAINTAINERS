@@ -15844,13 +15844,6 @@ F:	arch/*/include/asm/paravirt*.h
 F:	arch/*/kernel/paravirt*
 F:	include/linux/hypervisor.h
 
-PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
-M:	Tim Waugh <tim@cyberelk.net>
-L:	linux-parport@lists.infradead.org (subscribers-only)
-S:	Maintained
-F:	Documentation/admin-guide/blockdev/paride.rst
-F:	drivers/block/paride/
-
 PARISC ARCHITECTURE
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
 M:	Helge Deller <deller@gmx.de>
