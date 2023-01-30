@@ -385,6 +385,9 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (!dev->regbase)
 		return -ENOMEM;
 
+	mutex_init(&dev->lock);
+	mutex_init(&dev->update_mutex);
+
 	apmf_acpi_init(dev);
 	platform_set_drvdata(pdev, dev);
 	amd_pmf_init_features(dev);
@@ -394,8 +397,6 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	dev->pwr_src_notifier.notifier_call = amd_pmf_pwr_src_notify_call;
 	power_supply_reg_notifier(&dev->pwr_src_notifier);
 
-	mutex_init(&dev->lock);
-	mutex_init(&dev->update_mutex);
 	dev_info(dev->dev, "registered PMF device successfully\n");
 
 	return 0;
@@ -406,11 +407,11 @@ static int amd_pmf_remove(struct platform_device *pdev)
 	struct amd_pmf_dev *dev = platform_get_drvdata(pdev);
 
 	power_supply_unreg_notifier(&dev->pwr_src_notifier);
-	mutex_destroy(&dev->lock);
-	mutex_destroy(&dev->update_mutex);
 	amd_pmf_deinit_features(dev);
 	apmf_acpi_deinit(dev);
 	amd_pmf_dbgfs_unregister(dev);
+	mutex_destroy(&dev->lock);
+	mutex_destroy(&dev->update_mutex);
 	kfree(dev->buf);
 	return 0;
 }
