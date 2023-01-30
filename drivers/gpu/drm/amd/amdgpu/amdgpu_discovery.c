@@ -226,13 +226,21 @@ static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, 
 	return -ENOENT;
 }
 
-static void amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)
+static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
+						 uint8_t *binary)
 {
 	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
-	uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
+	int ret = 0;
 
-	amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
-				  adev->mman.discovery_tmr_size, false);
+	if (vram_size) {
+		uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
+		amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
+					  adev->mman.discovery_tmr_size, false);
+	} else {
+		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
+	}
+
+	return ret;
 }
 
 static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev, uint8_t *binary)
@@ -338,7 +346,10 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 		}
 
 	} else {
-		amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
+		r = amdgpu_discovery_read_binary_from_mem(
+			adev, adev->mman.discovery_bin);
+		if (r)
+			goto out;
 	}
 
 	/* check the ip discovery binary signature */
