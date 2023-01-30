@@ -909,6 +909,19 @@
 				#gpio-cells = <2>;
 			};
 
+			pinmux {
+				compatible = "ti,tps65913-pinctrl";
+				pinctrl-names = "default";
+				pinctrl-0 = <&palmas_default>;
+
+				palmas_default: pinmux {
+					pin_gpio6 {
+						pins = "gpio6";
+						function = "gpio";
+					};
+				};
+			};
+
 			pmic {
 				compatible = "ti,tps65913-pmic", "ti,palmas-pmic";
 				smps1-in-supply = <&tps65090_dcdc3_reg>;
@@ -1064,19 +1077,6 @@
 				compatible = "ti,palmas-rtc";
 				interrupt-parent = <&palmas>;
 				interrupts = <8 0>;
-			};
-
-			pinmux {
-				compatible = "ti,tps65913-pinctrl";
-				pinctrl-names = "default";
-				pinctrl-0 = <&palmas_default>;
-
-				palmas_default: pinmux {
-					pin_gpio6 {
-						pins = "gpio6";
-						function = "gpio";
-					};
-				};
 			};
 		};
 	};
