@@ -5,7 +5,6 @@
 #include <linux/ftrace.h>
 #include <linux/sched/stat.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-branch.h>
 
 extern void my_direct_func(unsigned long ip);
 
@@ -19,6 +18,7 @@ extern void my_tramp(void *);
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>
+#include <asm/nospec-branch.h>
 
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"
