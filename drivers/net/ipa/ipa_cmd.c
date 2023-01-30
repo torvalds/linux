@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 Linaro Ltd.
+ * Copyright (C) 2019-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -157,9 +157,14 @@ static void ipa_cmd_validate_build(void)
 	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_ADDR_FMASK) !=
 		     field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK));
 
-	/* Valid endpoint numbers must fit in the IP packet init command */
-	BUILD_BUG_ON(field_max(IPA_PACKET_INIT_DEST_ENDPOINT_FMASK) <
-		     IPA_ENDPOINT_MAX - 1);
+	/* Prior to IPA v5.0, we supported no more than 32 endpoints,
+	 * and this was reflected in some 5-bit fields that held
+	 * endpoint numbers.  Starting with IPA v5.0, the widths of
+	 * these fields were extended to 8 bits, meaning up to 256
+	 * endpoints.  If the driver claims to support more than
+	 * that it's an error.
+	 */
+	BUILD_BUG_ON(IPA_ENDPOINT_MAX - 1 > U8_MAX);
 }
 
 /* Validate a memory region holding a table */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 Linaro Ltd.
+ * Copyright (C) 2019-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -1986,6 +1986,7 @@ int ipa_endpoint_config(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	const struct ipa_reg *reg;
 	u32 endpoint_id;
+	u32 hw_limit;
 	u32 tx_count;
 	u32 rx_count;
 	u32 rx_base;
@@ -2028,6 +2029,14 @@ int ipa_endpoint_config(struct ipa *ipa)
 	if (limit > IPA_ENDPOINT_MAX) {
 		dev_err(dev, "too many endpoints, %u > %u\n",
 			limit, IPA_ENDPOINT_MAX);
+		return -EINVAL;
+	}
+
+	/* Until IPA v5.0, the max endpoint ID was 32 */
+	hw_limit = ipa->version < IPA_VERSION_5_0 ? 32 : U8_MAX + 1;
+	if (limit > hw_limit) {
+		dev_err(dev, "unexpected endpoint count, %u > %u\n",
+			limit, hw_limit);
 		return -EINVAL;
 	}
 
