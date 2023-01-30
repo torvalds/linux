@@ -121,13 +121,13 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_lvds_get_config(struct intel_encoder *encoder,
-				  struct intel_crtc_state *pipe_config)
+				  struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	u32 tmp, flags = 0;
 
-	pipe_config->output_types |= BIT(INTEL_OUTPUT_LVDS);
+	crtc_state->output_types |= BIT(INTEL_OUTPUT_LVDS);
 
 	tmp = intel_de_read(dev_priv, lvds_encoder->reg);
 	if (tmp & LVDS_HSYNC_POLARITY)
@@ -139,20 +139,20 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	else
 		flags |= DRM_MODE_FLAG_PVSYNC;
 
-	pipe_config->hw.adjusted_mode.flags |= flags;
+	crtc_state->hw.adjusted_mode.flags |= flags;
 
 	if (DISPLAY_VER(dev_priv) < 5)
-		pipe_config->gmch_pfit.lvds_border_bits =
+		crtc_state->gmch_pfit.lvds_border_bits =
 			tmp & LVDS_BORDER_ENABLE;
 
 	/* gen2/3 store dither state in pfit control, needs to match */
 	if (DISPLAY_VER(dev_priv) < 4) {
 		tmp = intel_de_read(dev_priv, PFIT_CONTROL);
 
-		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
+		crtc_state->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
 	}
 
-	pipe_config->hw.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	crtc_state->hw.adjusted_mode.crtc_clock = crtc_state->port_clock;
 }
 
 static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
@@ -231,19 +231,19 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 
 static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 				  struct intel_encoder *encoder,
-				  const struct intel_crtc_state *pipe_config,
+				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
-	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
 	u32 temp;
 
 	if (HAS_PCH_SPLIT(i915)) {
 		assert_fdi_rx_pll_disabled(i915, pipe);
-		assert_shared_dpll_disabled(i915, pipe_config->shared_dpll);
+		assert_shared_dpll_disabled(i915, crtc_state->shared_dpll);
 	} else {
 		assert_pll_disabled(i915, pipe);
 	}
@@ -263,7 +263,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 
 	/* set the corresponsding LVDS_BORDER bit */
 	temp &= ~LVDS_BORDER_ENABLE;
-	temp |= pipe_config->gmch_pfit.lvds_border_bits;
+	temp |= crtc_state->gmch_pfit.lvds_border_bits;
 
 	/*
 	 * Set the B0-B3 data pairs corresponding to whether we're going to
@@ -293,7 +293,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 		 * Bspec wording suggests that LVDS port dithering only exists
 		 * for 18bpp panels.
 		 */
-		if (pipe_config->dither && pipe_config->pipe_bpp == 18)
+		if (crtc_state->dither && crtc_state->pipe_bpp == 18)
 			temp |= LVDS_ENABLE_DITHER;
 		else
 			temp &= ~LVDS_ENABLE_DITHER;
@@ -312,7 +312,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
  */
 static void intel_enable_lvds(struct intel_atomic_state *state,
 			      struct intel_encoder *encoder,
-			      const struct intel_crtc_state *pipe_config,
+			      const struct intel_crtc_state *crtc_state,
 			      const struct drm_connector_state *conn_state)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
@@ -327,7 +327,7 @@ static void intel_enable_lvds(struct intel_atomic_state *state,
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power on\n");
 
-	intel_backlight_enable(pipe_config, conn_state);
+	intel_backlight_enable(crtc_state, conn_state);
 }
 
 static void intel_disable_lvds(struct intel_atomic_state *state,
@@ -407,14 +407,14 @@ intel_lvds_mode_valid(struct drm_connector *_connector,
 }
 
 static int intel_lvds_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config,
+				     struct intel_crtc_state *crtc_state,
 				     struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct intel_connector *connector = lvds_encoder->attached_connector;
-	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	unsigned int lvds_bpp;
 	int ret;
 
@@ -429,14 +429,14 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 	else
 		lvds_bpp = 6*3;
 
-	if (lvds_bpp != pipe_config->pipe_bpp && !pipe_config->bw_constrained) {
+	if (lvds_bpp != crtc_state->pipe_bpp && !crtc_state->bw_constrained) {
 		drm_dbg_kms(&i915->drm,
 			    "forcing display bpp (was %d) to LVDS (%d)\n",
-			    pipe_config->pipe_bpp, lvds_bpp);
-		pipe_config->pipe_bpp = lvds_bpp;
+			    crtc_state->pipe_bpp, lvds_bpp);
+		crtc_state->pipe_bpp = lvds_bpp;
 	}
 
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/*
 	 * We have timings from the BIOS for the panel, put them in
@@ -452,9 +452,9 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	if (HAS_PCH_SPLIT(i915))
-		pipe_config->has_pch_encoder = true;
+		crtc_state->has_pch_encoder = true;
 
-	ret = intel_panel_fitting(pipe_config, conn_state);
+	ret = intel_panel_fitting(crtc_state, conn_state);
 	if (ret)
 		return ret;
 
