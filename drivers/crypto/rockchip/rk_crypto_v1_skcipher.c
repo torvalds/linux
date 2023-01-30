@@ -66,7 +66,7 @@ static int rk_get_bc(u32 algo, u32 mode, u32 *bc_val)
 	switch (algo) {
 	case CIPHER_ALGO_DES3_EDE:
 		*bc_val |= RK_CRYPTO_TDES_SELECT;
-		/* fall through */
+		fallthrough;
 	case CIPHER_ALGO_DES:
 		if (mode == CIPHER_MODE_ECB)
 			*bc_val = 0;
