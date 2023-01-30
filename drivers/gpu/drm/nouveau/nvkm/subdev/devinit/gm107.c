@@ -26,7 +26,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>
 
-u64
+void
 gm107_devinit_disable(struct nvkm_devinit *init)
 {
 	struct nvkm_device *device = init->subdev.device;
@@ -39,8 +39,6 @@ gm107_devinit_disable(struct nvkm_devinit *init)
 		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 2);
 	if (r021c04 & 0x00000001)
 		nvkm_subdev_disable(device, NVKM_ENGINE_DISP, 0);
-
-	return 0ULL;
 }
 
 static const struct nvkm_devinit_func
