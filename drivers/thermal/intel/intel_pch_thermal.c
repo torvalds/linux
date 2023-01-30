@@ -135,38 +135,38 @@ static struct thermal_zone_device_ops tzd_ops = {
 	.critical = pch_critical,
 };
 
-enum board_ids {
-	board_hsw,
-	board_wpt,
-	board_skl,
-	board_cnl,
-	board_cml,
-	board_lwb,
-	board_wbg,
+enum pch_board_ids {
+	PCH_BOARD_HSW = 0,
+	PCH_BOARD_WPT,
+	PCH_BOARD_SKL,
+	PCH_BOARD_CNL,
+	PCH_BOARD_CML,
+	PCH_BOARD_LWB,
+	PCH_BOARD_WBG,
 };
 
 static const struct board_info {
 	const char *name;
 } board_info[] = {
-	[board_hsw] = {
+	[PCH_BOARD_HSW] = {
 		.name = "pch_haswell",
 	},
-	[board_wpt] = {
+	[PCH_BOARD_WPT] = {
 		.name = "pch_wildcat_point",
 	},
-	[board_skl] = {
+	[PCH_BOARD_SKL] = {
 		.name = "pch_skylake",
 	},
-	[board_cnl] = {
+	[PCH_BOARD_CNL] = {
 		.name = "pch_cannonlake",
 	},
-	[board_cml] = {
+	[PCH_BOARD_CML] = {
 		.name = "pch_cometlake",
 	},
-	[board_lwb] = {
+	[PCH_BOARD_LWB] = {
 		.name = "pch_lewisburg",
 	},
-	[board_wbg] = {
+	[PCH_BOARD_WBG] = {
 		.name = "pch_wellsburg",
 	},
 };
@@ -174,7 +174,7 @@ static const struct board_info {
 static int intel_pch_thermal_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
-	enum board_ids board_id = id->driver_data;
+	enum pch_board_ids board_id = id->driver_data;
 	const struct board_info *bi = &board_info[board_id];
 	struct pch_thermal_device *ptd;
 	int nr_trips = 0;
@@ -372,27 +372,27 @@ static int intel_pch_thermal_resume(struct device *device)
 
 static const struct pci_device_id intel_pch_thermal_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_1),
-		.driver_data = board_hsw, },
+		.driver_data = PCH_BOARD_HSW, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_2),
-		.driver_data = board_hsw, },
+		.driver_data = PCH_BOARD_HSW, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_WPT),
-		.driver_data = board_wpt, },
+		.driver_data = PCH_BOARD_WPT, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL),
-		.driver_data = board_skl, },
+		.driver_data = PCH_BOARD_SKL, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL_H),
-		.driver_data = board_skl, },
+		.driver_data = PCH_BOARD_SKL, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CNL),
-		.driver_data = board_cnl, },
+		.driver_data = PCH_BOARD_CNL, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CNL_H),
-		.driver_data = board_cnl, },
+		.driver_data = PCH_BOARD_CNL, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CNL_LP),
-		.driver_data = board_cnl, },
+		.driver_data = PCH_BOARD_CNL, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CML_H),
-		.driver_data = board_cml, },
+		.driver_data = PCH_BOARD_CML, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_LWB),
-		.driver_data = board_lwb, },
+		.driver_data = PCH_BOARD_LWB, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_WBG),
-		.driver_data = board_wbg, },
+		.driver_data = PCH_BOARD_WBG, },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
