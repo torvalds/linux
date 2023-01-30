@@ -232,7 +232,6 @@ struct sta_xmit_priv {
 	struct tx_servq	bk_q;			/* priority == 1,2 */
 	struct tx_servq	vi_q;			/* priority == 4,5 */
 	struct tx_servq	vo_q;			/* priority == 6,7 */
-	struct list_head apsd;
 	u16 txseq_tid[16];
 };
 
