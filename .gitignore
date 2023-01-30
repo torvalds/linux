@@ -16,6 +16,7 @@
 *.bin
 *.bz2
 *.c.[012]*.*
+*.cover
 *.dt.yaml
 *.dtb
 *.dtbo
@@ -33,6 +34,7 @@
 *.lz4
 *.lzma
 *.lzo
+*.mbx
 *.mod
 *.mod.c
 *.o
