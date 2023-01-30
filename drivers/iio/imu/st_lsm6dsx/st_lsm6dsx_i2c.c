@@ -23,9 +23,14 @@ static const struct regmap_config st_lsm6dsx_i2c_regmap_config = {
 
 static int st_lsm6dsx_i2c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	int hw_id = id->driver_data;
+	int hw_id;
 	struct regmap *regmap;
+
+	hw_id = (kernel_ulong_t)device_get_match_data(&client->dev);
+	if (!hw_id)
+		hw_id = i2c_client_get_device_id(client)->driver_data;
+	if (!hw_id)
+		return -EINVAL;
 
 	regmap = devm_regmap_init_i2c(client, &st_lsm6dsx_i2c_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -133,6 +138,12 @@ static const struct of_device_id st_lsm6dsx_i2c_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsx_i2c_of_match);
 
+static const struct acpi_device_id st_lsm6dsx_i2c_acpi_match[] = {
+	{ "SMO8B30", ST_LSM6DS3TRC_ID, },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, st_lsm6dsx_i2c_acpi_match);
+
 static const struct i2c_device_id st_lsm6dsx_i2c_id_table[] = {
 	{ ST_LSM6DS3_DEV_NAME, ST_LSM6DS3_ID },
 	{ ST_LSM6DS3H_DEV_NAME, ST_LSM6DS3H_ID },
@@ -166,6 +177,7 @@ static struct i2c_driver st_lsm6dsx_driver = {
 		.name = "st_lsm6dsx_i2c",
 		.pm = pm_sleep_ptr(&st_lsm6dsx_pm_ops),
 		.of_match_table = st_lsm6dsx_i2c_of_match,
+		.acpi_match_table = st_lsm6dsx_i2c_acpi_match,
 	},
 	.probe_new = st_lsm6dsx_i2c_probe,
 	.id_table = st_lsm6dsx_i2c_id_table,

@@ -40,7 +40,7 @@
 #define ST_ASM330LHB_DEV_NAME	"asm330lhb"
 
 enum st_lsm6dsx_hw_id {
-	ST_LSM6DS3_ID,
+	ST_LSM6DS3_ID = 1,
 	ST_LSM6DS3H_ID,
 	ST_LSM6DSL_ID,
 	ST_LSM6DSM_ID,
