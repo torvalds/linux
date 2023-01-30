@@ -27,7 +27,6 @@
 #include "dc.h"
 #include "inc/core_status.h"
 #include "dc_link.h"
-#include "dc_link_dp.h"
 #include "dpcd_defs.h"
 
 #include "link_dp_dpia.h"
@@ -104,4 +103,3 @@ bool dc_link_dpia_query_hpd_status(struct dc_link *link)
 
 	return is_hpd_high;
 }
-

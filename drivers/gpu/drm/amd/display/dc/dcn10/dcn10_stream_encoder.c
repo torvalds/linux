@@ -28,7 +28,7 @@
 #include "dcn10_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dpcd_defs.h"
 #include "dcn30/dcn30_afmt.h"
 
@@ -753,12 +753,19 @@ void enc1_stream_encoder_update_dp_info_packets(
 	 * use other packetIndex (such as 5,6) for other info packet
 	 */
 
+	if (info_frame->adaptive_sync.valid)
+		enc1_update_generic_info_packet(
+				enc1,
+				5,  /* packetIndex */
+				&info_frame->adaptive_sync);
+
 	/* enable/disable transmission of packet(s).
 	 * If enabled, packet transmission begins on the next frame
 	 */
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP0_ENABLE, info_frame->vsc.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, info_frame->spd.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, info_frame->hdrsmd.valid);
+	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP5_ENABLE, info_frame->adaptive_sync.valid);
 
 	/* This bit is the master enable bit.
 	 * When enabling secondary stream engine,

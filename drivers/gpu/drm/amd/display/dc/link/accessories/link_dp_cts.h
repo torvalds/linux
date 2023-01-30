@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,14 +22,12 @@
  * Authors: AMD
  *
  */
-#ifndef __LINK_HWSS_HPO_DP_H__
-#define __LINK_HWSS_HPO_DP_H__
+#ifndef __LINK_DP_CTS_H__
+#define __LINK_DP_CTS_H__
+#include "link.h"
 
-#include "link_hwss.h"
+void dp_retrain_link_dp_test(struct dc_link *link,
+		struct dc_link_settings *link_setting,
+		bool skip_video_pattern);
 
-bool can_use_hpo_dp_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res);
-const struct link_hwss *get_hpo_dp_link_hwss(void);
-
-
-#endif /* __LINK_HWSS_HPO_DP_H__ */
+#endif /* __LINK_DP_CTS_H__ */

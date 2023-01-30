@@ -23,29 +23,11 @@
  *
  */
 
-#ifndef __DC_LINK_DP_PHY_H__
-#define __DC_LINK_DP_PHY_H__
-
+#ifndef __DC_LINK_EDP_PANEL_CONTROL_H__
+#define __DC_LINK_EDP_PANEL_CONTROL_H__
 #include "link.h"
-void dp_enable_link_phy(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum signal_type signal,
-	enum clock_source_id clock_source,
-	const struct dc_link_settings *link_settings);
 
-void dp_disable_link_phy(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal);
-
-void dp_disable_link_phy_mst(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal);
-
-void dp_set_hw_lane_settings(
-		struct dc_link *link,
-		const struct link_resource *link_res,
-		const struct link_training_settings *link_settings,
-		uint32_t offset);
-
-#endif /* __DC_LINK_DP_PHY_H__ */
+enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
+void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
+bool set_default_brightness_aux(struct dc_link *link);
+#endif /* __DC_LINK_EDP_POWER_CONTROL_H__ */

@@ -58,7 +58,6 @@
 #include "dm_helpers.h"
 #include "mem_input.h"
 
-#include "dc_link_dp.h"
 #include "dc_dmub_srv.h"
 
 #include "dsc.h"
@@ -1659,7 +1658,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 	}
 
-	if (is_edp_ilr_optimization_required(link, crtc_timing)) {
+	if (link_is_edp_ilr_optimization_required(link, crtc_timing)) {
 		DC_LOG_EVENT_LINK_TRAINING("Seamless boot disabled to optimize eDP link rate\n");
 		return false;
 	}
@@ -2960,6 +2959,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->vsp_infopacket)
 		stream->vsp_infopacket = *update->vsp_infopacket;
 
+	if (update->adaptive_sync_infopacket)
+		stream->adaptive_sync_infopacket = *update->adaptive_sync_infopacket;
+
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
 
@@ -3165,6 +3167,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->vsc_infopacket ||
 					stream_update->vsp_infopacket ||
 					stream_update->hfvsif_infopacket ||
+					stream_update->adaptive_sync_infopacket ||
 					stream_update->vtem_infopacket) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);

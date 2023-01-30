@@ -22,37 +22,35 @@
  * Authors: AMD
  *
  */
-#ifndef __LINK_HWSS_DIO_H__
-#define __LINK_HWSS_DIO_H__
 
-#include "link_hwss.h"
+#ifndef __DC_LINK_DP_PHY_H__
+#define __DC_LINK_DP_PHY_H__
 
-const struct link_hwss *get_dio_link_hwss(void);
-bool can_use_dio_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res);
-void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
-		struct fixed31_32 throttled_vcp_size);
-void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx);
-void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx);
-void setup_dio_stream_attribute(struct pipe_ctx *pipe_ctx);
-void enable_dio_dp_link_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal,
-		enum clock_source_id clock_source,
-		const struct dc_link_settings *link_settings);
-void disable_dio_link_output(struct dc_link *link,
+#include "link.h"
+void dp_enable_link_phy(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	enum signal_type signal,
+	enum clock_source_id clock_source,
+	const struct dc_link_settings *link_settings);
+
+void dp_disable_link_phy(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal);
-void set_dio_dp_link_test_pattern(struct dc_link *link,
-		const struct link_resource *link_res,
-		struct encoder_set_dp_phy_pattern_param *tp_params);
-void set_dio_dp_lane_settings(struct dc_link *link,
-		const struct link_resource *link_res,
-		const struct dc_link_settings *link_settings,
-		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
-void setup_dio_audio_output(struct pipe_ctx *pipe_ctx,
-		struct audio_output *audio_output, uint32_t audio_inst);
-void enable_dio_audio_packet(struct pipe_ctx *pipe_ctx);
-void disable_dio_audio_packet(struct pipe_ctx *pipe_ctx);
 
-#endif /* __LINK_HWSS_DIO_H__ */
+void dp_disable_link_phy_mst(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
+
+void dp_set_hw_lane_settings(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct link_training_settings *link_settings,
+		uint32_t offset);
+
+void dp_set_drive_settings(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	struct link_training_settings *lt_settings);
+
+#endif /* __DC_LINK_DP_PHY_H__ */

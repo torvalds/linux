@@ -36,26 +36,9 @@
 #include "link_dp_capability.h"
 #include "clk_mgr.h"
 #include "resource.h"
-#include "dc_link_dp.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
-
-void dc_link_dp_set_drive_settings(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	struct link_training_settings *lt_settings)
-{
-	/* program ASIC PHY settings*/
-	dp_set_hw_lane_settings(link, link_res, lt_settings, DPRX);
-
-	dp_hw_to_dpcd_lane_settings(lt_settings,
-			lt_settings->hw_lane_settings,
-			lt_settings->dpcd_lane_settings);
-
-	/* Notify DP sink the PHY settings from source */
-	dpcd_set_lane_settings(link, lt_settings, DPRX);
-}
 
 void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on)
 {
@@ -142,4 +125,20 @@ void dp_set_hw_lane_settings(
 	memmove(link->cur_lane_setting,
 			link_settings->hw_lane_settings,
 			sizeof(link->cur_lane_setting));
+}
+
+void dp_set_drive_settings(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	struct link_training_settings *lt_settings)
+{
+	/* program ASIC PHY settings*/
+	dp_set_hw_lane_settings(link, link_res, lt_settings, DPRX);
+
+	dp_hw_to_dpcd_lane_settings(lt_settings,
+			lt_settings->hw_lane_settings,
+			lt_settings->dpcd_lane_settings);
+
+	/* Notify DP sink the PHY settings from source */
+	dpcd_set_lane_settings(link, lt_settings, DPRX);
 }

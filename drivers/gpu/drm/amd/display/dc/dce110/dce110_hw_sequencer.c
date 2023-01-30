@@ -47,7 +47,6 @@
 #include "link_enc_cfg.h"
 #include "link_hwss.h"
 #include "link.h"
-#include "dc_link_dp.h"
 #include "dccg.h"
 #include "clock_source.h"
 #include "clk_mgr.h"
@@ -65,7 +64,6 @@
 
 #include "dcn10/dcn10_hw_sequencer.h"
 
-#include "link/link_dp_trace.h"
 #include "dce110_hw_sequencer.h"
 
 #define GAMMA_HW_POINTS_NUM 256
@@ -653,10 +651,16 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
-	else
+	else {
+		if (pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num)
+			pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num(
+				pipe_ctx->stream_res.stream_enc,
+				&pipe_ctx->stream_res.encoder_info_frame);
+
 		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
+	}
 }
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
@@ -807,19 +811,19 @@ void dce110_edp_power_control(
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
+						link_dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 		unsigned long long time_since_edp_poweron_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						dp_trace_get_edp_poweron_timestamp(link)), 1000000);
+						link_dp_trace_get_edp_poweron_timestamp(link)), 1000000);
 		DC_LOG_HW_RESUME_S3(
 				"%s: transition: power_up=%d current_ts=%llu edp_poweroff=%llu edp_poweron=%llu time_since_edp_poweroff_ms=%llu time_since_edp_poweron_ms=%llu",
 				__func__,
 				power_up,
 				current_ts,
-				dp_trace_get_edp_poweroff_timestamp(link),
-				dp_trace_get_edp_poweron_timestamp(link),
+				link_dp_trace_get_edp_poweroff_timestamp(link),
+				link_dp_trace_get_edp_poweron_timestamp(link),
 				time_since_edp_poweroff_ms,
 				time_since_edp_poweron_ms);
 
@@ -834,7 +838,7 @@ void dce110_edp_power_control(
 					link->panel_config.pps.extra_t12_ms;
 
 			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
-			if (dp_trace_get_edp_poweroff_timestamp(link) != 0) {
+			if (link_dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
 					remaining_min_edp_poweroff_time_ms =
 						remaining_min_edp_poweroff_time_ms - time_since_edp_poweroff_ms;
@@ -894,13 +898,13 @@ void dce110_edp_power_control(
 				__func__, (power_up ? "On":"Off"),
 				bp_result);
 
-		dp_trace_set_edp_power_timestamp(link, power_up);
+		link_dp_trace_set_edp_power_timestamp(link, power_up);
 
 		DC_LOG_HW_RESUME_S3(
 				"%s: updated values: edp_poweroff=%llu edp_poweron=%llu\n",
 				__func__,
-				dp_trace_get_edp_poweroff_timestamp(link),
-				dp_trace_get_edp_poweron_timestamp(link));
+				link_dp_trace_get_edp_poweroff_timestamp(link),
+				link_dp_trace_get_edp_poweron_timestamp(link));
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(
@@ -928,14 +932,14 @@ void dce110_edp_wait_for_T12(
 		return;
 
 	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
-			dp_trace_get_edp_poweroff_timestamp(link) != 0) {
+			link_dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 		unsigned int t12_duration = 500; // Default T12 as per spec
 		unsigned long long current_ts = dm_get_timestamp(ctx);
 		unsigned long long time_since_edp_poweroff_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
+						link_dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 
 		t12_duration += link->panel_config.pps.extra_t12_ms; // Add extra T12
 
@@ -1016,7 +1020,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T7-ready.
 		 */
-			edp_receiver_ready_T7(link);
+			link_edp_receiver_ready_T7(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
 	}
@@ -1047,7 +1051,7 @@ void dce110_edp_backlight_control(
 	if (link->dpcd_sink_ext_caps.bits.oled ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
-		dc_link_backlight_enable_aux(link, enable);
+		link_backlight_enable_aux(link, enable);
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
@@ -1059,7 +1063,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T9-ready.
 		 */
-			edp_add_delay_for_T9(link);
+			link_edp_add_delay_for_T9(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
 	}
@@ -1243,7 +1247,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 				 * we shouldn't be doing power-sequencing, hence we can skip
 				 * waiting for T9-ready.
 				 */
-				edp_receiver_ready_T9(link);
+				link_edp_receiver_ready_T9(link);
 			}
 		}
 	}

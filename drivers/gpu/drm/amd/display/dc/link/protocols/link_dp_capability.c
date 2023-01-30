@@ -39,12 +39,13 @@
 #include "link_dpcd.h"
 #include "link_dp_dpia.h"
 #include "link_dp_phy.h"
-#include "link_dp_trace.h"
+#include "link_edp_panel_control.h"
+#include "link_dp_irq_handler.h"
+#include "link/accessories/link_dp_trace.h"
 #include "link_dp_training.h"
 #include "atomfirmware.h"
 #include "resource.h"
 #include "link_enc_cfg.h"
-#include "dc_link_dp.h"
 #include "dc_dmub_srv.h"
 
 #define DC_LOGGER \
@@ -1462,7 +1463,7 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 
 	if (!vbios_lttpr_interop || !link->dc->caps.extended_aux_timeout_support)
-		return DC_ERROR_UNEXPECTED;
+		return DC_NOT_SUPPORTED;
 
 	/* By reading LTTPR capability, RX assumes that we will enable
 	 * LTTPR extended aux timeout if LTTPR is present.
@@ -1645,6 +1646,22 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 		if (status != DC_OK)
 			dm_error("%s: Read DPRX caps data failed.\n", __func__);
+
+		/* AdaptiveSyncCapability  */
+		dpcd_dprx_data = 0;
+		for (i = 0; i < read_dpcd_retry_cnt; i++) {
+			status = core_link_read_dpcd(
+					link, DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1,
+					&dpcd_dprx_data, sizeof(dpcd_dprx_data));
+			if (status == DC_OK)
+				break;
+		}
+
+		link->dpcd_caps.adaptive_sync_caps.dp_adap_sync_caps.raw = dpcd_dprx_data;
+
+		if (status != DC_OK)
+			dm_error("%s: Read DPRX caps data failed. Addr:%#x\n",
+					__func__, DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1);
 	}
 
 	else {
@@ -1925,7 +1942,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	link->dpcd_caps.set_power_state_capable_edp =
 				(general_edp_cap & DP_EDP_SET_POWER_CAP) ? true:false;
 
-	dc_link_set_default_brightness_aux(link);
+	set_default_brightness_aux(link);
 
 	core_link_read_dpcd(link, DP_EDP_DPCD_REV,
 		&link->dpcd_caps.edp_rev,
@@ -2110,8 +2127,8 @@ static bool dp_verify_link_cap(
 		if (status == LINK_TRAINING_SUCCESS) {
 			success = true;
 			udelay(1000);
-			if (read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
-					hpd_rx_irq_check_link_loss_status(
+			if (dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
+					dc_link_check_link_loss_status(
 							link,
 							&irq_data))
 				(*fail_count)++;

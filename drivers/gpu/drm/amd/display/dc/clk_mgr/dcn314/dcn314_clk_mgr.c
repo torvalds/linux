@@ -48,7 +48,7 @@
 #include "dcn31/dcn31_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dcn314_smu.h"
 
 

@@ -45,7 +45,6 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
-#include "dc_link_dp.h"
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "link_hwss.h"
@@ -56,7 +55,6 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
-#include "inc/dc_link_dp.h"
 #include "link.h"
 
 #define DC_LOGGER_INIT(logger)

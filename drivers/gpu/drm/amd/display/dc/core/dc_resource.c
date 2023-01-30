@@ -40,12 +40,11 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
-#include "dc_link_dp.h"
 #include "link.h"
 #include "virtual/virtual_link_hwss.h"
-#include "link/link_hwss_dio.h"
-#include "link/link_hwss_dpia.h"
-#include "link/link_hwss_hpo_dp.h"
+#include "link/hwss/link_hwss_dio.h"
+#include "link/hwss/link_hwss_dpia.h"
+#include "link/hwss/link_hwss_hpo_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -3270,6 +3269,50 @@ static void set_hfvs_info_packet(
 	*info_packet = stream->hfvsif_infopacket;
 }
 
+static void adaptive_sync_override_dp_info_packets_sdp_line_num(
+		const struct dc_crtc_timing *timing,
+		struct enc_sdp_line_num *sdp_line_num,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+{
+	uint32_t asic_blank_start = 0;
+	uint32_t asic_blank_end   = 0;
+	uint32_t v_update = 0;
+
+	const struct dc_crtc_timing *tg = timing;
+
+	/* blank_start = frame end - front porch */
+	asic_blank_start = tg->v_total - tg->v_front_porch;
+
+	/* blank_end = blank_start - active */
+	asic_blank_end = (asic_blank_start - tg->v_border_bottom -
+						tg->v_addressable - tg->v_border_top);
+
+	if (pipe_dlg_param->vstartup_start > asic_blank_end) {
+		v_update = (tg->v_total - (pipe_dlg_param->vstartup_start - asic_blank_end));
+		sdp_line_num->adaptive_sync_line_num_valid = true;
+		sdp_line_num->adaptive_sync_line_num = (tg->v_total - v_update - 1);
+	} else {
+		sdp_line_num->adaptive_sync_line_num_valid = false;
+		sdp_line_num->adaptive_sync_line_num = 0;
+	}
+}
+
+static void set_adaptive_sync_info_packet(
+		struct dc_info_packet *info_packet,
+		const struct dc_stream_state *stream,
+		struct encoder_info_frame *info_frame,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+{
+	if (!stream->adaptive_sync_infopacket.valid)
+		return;
+
+	adaptive_sync_override_dp_info_packets_sdp_line_num(
+			&stream->timing,
+			&info_frame->sdp_line_num,
+			pipe_dlg_param);
+
+	*info_packet = stream->adaptive_sync_infopacket;
+}
 
 static void set_vtem_info_packet(
 		struct dc_info_packet *info_packet,
@@ -3362,6 +3405,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->vsc.valid = false;
 	info->hfvsif.valid = false;
 	info->vtem.valid = false;
+	info->adaptive_sync.valid = false;
 	signal = pipe_ctx->stream->signal;
 
 	/* HDMi and DP have different info packets*/
@@ -3382,6 +3426,10 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
 		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
+		set_adaptive_sync_info_packet(&info->adaptive_sync,
+										pipe_ctx->stream,
+										info,
+										&pipe_ctx->pipe_dlg_param);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);

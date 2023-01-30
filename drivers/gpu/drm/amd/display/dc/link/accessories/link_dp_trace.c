@@ -145,7 +145,7 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link)
 	return link->dp_trace.link_loss_count;
 }
 
-void dp_trace_set_edp_power_timestamp(struct dc_link *link,
+void link_dp_trace_set_edp_power_timestamp(struct dc_link *link,
 		bool power_up)
 {
 	if (!power_up)
@@ -155,12 +155,12 @@ void dp_trace_set_edp_power_timestamp(struct dc_link *link,
 		link->dp_trace.edp_trace_power_timestamps.poweron = dm_get_timestamp(link->dc->ctx);
 }
 
-uint64_t dp_trace_get_edp_poweron_timestamp(struct dc_link *link)
+uint64_t link_dp_trace_get_edp_poweron_timestamp(struct dc_link *link)
 {
 	return link->dp_trace.edp_trace_power_timestamps.poweron;
 }
 
-uint64_t dp_trace_get_edp_poweroff_timestamp(struct dc_link *link)
+uint64_t link_dp_trace_get_edp_poweroff_timestamp(struct dc_link *link)
 {
 	return link->dp_trace.edp_trace_power_timestamps.poweroff;
 }

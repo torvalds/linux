@@ -22,13 +22,14 @@
  * Authors: AMD
  *
  */
-#ifndef __LINK_HWSS_HPO_FRL_H__
-#define __LINK_HWSS_HPO_FRL_H__
 
-#include "link_hwss.h"
+#ifndef __DC_LINK_DP_IRQ_HANDLER_H__
+#define __DC_LINK_DP_IRQ_HANDLER_H__
 
-bool can_use_hpo_frl_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res);
-const struct link_hwss *get_hpo_frl_link_hwss(void);
+#include "link.h"
 
-#endif /* __LINK_HWSS_HPO_FRL_H__ */
+enum dc_status dp_read_hpd_rx_irq_data(
+	struct dc_link *link,
+	union hpd_irq_data *irq_data);
+
+#endif /* __DC_LINK_DP_IRQ_HANDLER_H__ */

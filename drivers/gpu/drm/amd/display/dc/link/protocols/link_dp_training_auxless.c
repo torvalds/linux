@@ -28,7 +28,6 @@
  */
 #include "link_dp_training_auxless.h"
 #include "link_dp_phy.h"
-#include "dc_link_dp.h"
 #define DC_LOGGER \
 	link->ctx->logger
 bool dc_link_dp_perform_link_training_skip_aux(

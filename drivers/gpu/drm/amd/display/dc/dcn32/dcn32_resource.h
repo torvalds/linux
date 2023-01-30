@@ -38,6 +38,7 @@
 #define DCN3_2_MBLK_HEIGHT_4BPE 128
 #define DCN3_2_MBLK_HEIGHT_8BPE 64
 #define DCN3_2_VMIN_DISPCLK_HZ 717000000
+#define DCN3_2_DCFCLK_DS_INIT_KHZ 10000 // Choose 10Mhz for init DCFCLK DS freq
 
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
@@ -122,6 +123,7 @@ bool dcn32_mpo_in_use(struct dc_state *context);
 
 bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
 bool dcn32_is_center_timing(struct pipe_ctx *pipe);
+bool dcn32_is_psr_capable(struct pipe_ctx *pipe);
 
 struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 		struct dc_state *state,
@@ -145,6 +147,8 @@ void dcn32_restore_mall_state(struct dc *dc,
 		struct mall_temp_config *temp_config);
 
 bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
+
+unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans);
 
 /* definitions for run time init of reg offsets */
 

@@ -176,4 +176,7 @@ void dp_log_training_result(
 
 uint32_t dp_translate_training_aux_read_interval(
 		uint32_t dpcd_aux_read_interval);
+
+uint8_t dp_get_nibble_at_index(const uint8_t *buf,
+	uint32_t index);
 #endif /* __DC_LINK_DP_TRAINING_H__ */

@@ -29,7 +29,7 @@
 #include "dcn32_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \
@@ -463,6 +463,8 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 		enc3_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
 		enc3_stream_encoder_stop_hdmi_info_packets,
+	.update_dp_info_packets_sdp_line_num =
+		enc3_stream_encoder_update_dp_info_packets_sdp_line_num,
 	.update_dp_info_packets =
 		enc3_stream_encoder_update_dp_info_packets,
 	.stop_dp_info_packets =

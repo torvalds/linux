@@ -46,7 +46,6 @@
 #include "dchubbub.h"
 #include "reg_helper.h"
 #include "dcn10/dcn10_cm_common.h"
-#include "dc_link_dp.h"
 #include "vm_helper.h"
 #include "dccg.h"
 #include "dc_dmub_srv.h"
@@ -2023,8 +2022,11 @@ void dcn20_prepare_bandwidth(
 		}
 	}
 
-	/* program dchubbub watermarks */
-	dc->wm_optimized_required = hubbub->funcs->program_watermarks(hubbub,
+	/* program dchubbub watermarks:
+	 * For assigning wm_optimized_required, use |= operator since we don't want
+	 * to clear the value if the optimize has not happened yet
+	 */
+	dc->wm_optimized_required |= hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);

@@ -24,7 +24,6 @@
  *
  */
 #include "dcn32_fpu.h"
-#include "dc_link_dp.h"
 #include "dcn32/dcn32_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "display_mode_vba_util_32.h"
@@ -692,7 +691,7 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		 *   to combine this with SubVP can cause issues with the scheduling).
 		 * - Not TMZ surface
 		 */
-		if (pipe->plane_state && !pipe->top_pipe && !dcn32_is_center_timing(pipe) &&
+		if (pipe->plane_state && !pipe->top_pipe && !dcn32_is_center_timing(pipe) && !dcn32_is_psr_capable(pipe) &&
 				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 && !pipe->plane_state->address.tmz_surface &&
 				(vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0 ||
 				(vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] > 0 &&
@@ -1272,6 +1271,38 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
+static void dcn20_adjust_freesync_v_startup(const struct dc_crtc_timing *dc_crtc_timing, int *vstartup_start)
+{
+	struct dc_crtc_timing patched_crtc_timing;
+	uint32_t asic_blank_end   = 0;
+	uint32_t asic_blank_start = 0;
+	uint32_t newVstartup	  = 0;
+
+	patched_crtc_timing = *dc_crtc_timing;
+
+	if (patched_crtc_timing.flags.INTERLACE == 1) {
+		if (patched_crtc_timing.v_front_porch < 2)
+			patched_crtc_timing.v_front_porch = 2;
+	} else {
+		if (patched_crtc_timing.v_front_porch < 1)
+			patched_crtc_timing.v_front_porch = 1;
+	}
+
+	/* blank_start = frame end - front porch */
+	asic_blank_start = patched_crtc_timing.v_total -
+					patched_crtc_timing.v_front_porch;
+
+	/* blank_end = blank_start - active */
+	asic_blank_end = asic_blank_start -
+					patched_crtc_timing.v_border_bottom -
+					patched_crtc_timing.v_addressable -
+					patched_crtc_timing.v_border_top;
+
+	newVstartup = asic_blank_end + (patched_crtc_timing.v_total - asic_blank_start);
+
+	*vstartup_start = ((newVstartup > *vstartup_start) ? newVstartup : *vstartup_start);
+}
+
 static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 				       display_e2e_pipe_params_st *pipes,
 				       int pipe_cnt, int vlevel)
@@ -1374,6 +1405,11 @@ static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 				context->bw_ctx.bw.dcn.mall_subvp_size_bytes += context->res_ctx.pipe_ctx[i].surface_size_in_mall_bytes;
 			}
 		}
+
+		if (context->res_ctx.pipe_ctx[i].stream->adaptive_sync_infopacket.valid)
+			dcn20_adjust_freesync_v_startup(
+				&context->res_ctx.pipe_ctx[i].stream->timing,
+				&context->res_ctx.pipe_ctx[i].pipe_dlg_param.vstartup_start);
 
 		pipe_idx++;
 	}
@@ -1601,16 +1637,12 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		 * to support with Prefetch mode 1 (dm_prefetch_support_fclk_and_stutter == 2)
 		 */
 		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
-			dm_prefetch_support_fclk_and_stutter;
+			dm_prefetch_support_none;
 
+		context->bw_ctx.dml.validate_max_state = fast_validate;
 		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
-		/* Last attempt with Prefetch mode 2 (dm_prefetch_support_stutter == 3) */
-		if (vlevel == context->bw_ctx.dml.soc.num_states) {
-			context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
-				dm_prefetch_support_stutter;
-			vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
-		}
+		context->bw_ctx.dml.validate_max_state = false;
 
 		if (vlevel < context->bw_ctx.dml.soc.num_states) {
 			memset(split, 0, sizeof(split));
@@ -2499,8 +2531,11 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 		}
 
 		/* Override from VBIOS for num_chan */
-		if (dc->ctx->dc_bios->vram_info.num_chans)
+		if (dc->ctx->dc_bios->vram_info.num_chans) {
 			dcn3_2_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
+			dcn3_2_soc.mall_allocated_for_dcn_mbytes = (double)(dcn32_calc_num_avail_chans_for_mall(dc,
+				dc->ctx->dc_bios->vram_info.num_chans) * dc->caps.mall_size_per_mem_channel);
+		}
 
 		if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
 			dcn3_2_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;

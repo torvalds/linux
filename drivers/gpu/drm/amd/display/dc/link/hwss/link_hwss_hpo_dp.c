@@ -26,7 +26,6 @@
 #include "dm_helpers.h"
 #include "core_types.h"
 #include "dccg.h"
-#include "dc_link_dp.h"
 #include "clk_mgr.h"
 
 static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)

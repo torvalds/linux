@@ -36,7 +36,6 @@
 #include "link_dpcd.h"
 #include "link_dp_phy.h"
 #include "link_dp_capability.h"
-#include "dc_link_dp.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
