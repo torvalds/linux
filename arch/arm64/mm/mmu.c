@@ -133,7 +133,7 @@ static phys_addr_t __init early_pgtable_alloc(int shift)
 	return phys;
 }
 
-static bool pgattr_change_is_safe(u64 old, u64 new)
+bool pgattr_change_is_safe(u64 old, u64 new)
 {
 	/*
 	 * The following mapping attributes may be updated in live
@@ -142,8 +142,12 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
 
 	/* creating or taking down mappings is always safe */
-	if (old == 0 || new == 0)
+	if (!pte_valid(__pte(old)) || !pte_valid(__pte(new)))
 		return true;
+
+	/* A live entry's pfn should not change */
+	if (pte_pfn(__pte(old)) != pte_pfn(__pte(new)))
+		return false;
 
 	/* live contiguous mappings may not be manipulated at all */
 	if ((old | new) & PTE_CONT)
