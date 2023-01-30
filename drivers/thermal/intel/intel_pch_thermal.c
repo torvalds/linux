@@ -118,12 +118,11 @@ static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 }
 #endif
 
-static int pch_wpt_init(struct pch_thermal_device *ptd, int *nr_trips)
+static int pch_wpt_init(struct pch_thermal_device *ptd)
 {
-	u8 tsel;
+	int nr_trips = 0;
 	u16 trip_temp;
-
-	*nr_trips = 0;
+	u8 tsel;
 
 	/* Check if BIOS has already enabled thermal sensor */
 	if (WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL)) {
@@ -151,29 +150,23 @@ read_trips:
 	trip_temp = readw(ptd->hw_base + WPT_CTT);
 	trip_temp &= 0x1FF;
 	if (trip_temp) {
-		ptd->trips[*nr_trips].temperature = GET_WPT_TEMP(trip_temp);
-		ptd->trips[*nr_trips].type = THERMAL_TRIP_CRITICAL;
-		++(*nr_trips);
+		ptd->trips[nr_trips].temperature = GET_WPT_TEMP(trip_temp);
+		ptd->trips[nr_trips++].type = THERMAL_TRIP_CRITICAL;
 	}
 
 	trip_temp = readw(ptd->hw_base + WPT_PHL);
 	trip_temp &= 0x1FF;
 	if (trip_temp) {
-		ptd->trips[*nr_trips].temperature = GET_WPT_TEMP(trip_temp);
-		ptd->trips[*nr_trips].type = THERMAL_TRIP_HOT;
-		++(*nr_trips);
+		ptd->trips[nr_trips].temperature = GET_WPT_TEMP(trip_temp);
+		ptd->trips[nr_trips++].type = THERMAL_TRIP_HOT;
 	}
 
-	*nr_trips += pch_wpt_add_acpi_psv_trip(ptd, *nr_trips);
-
-	return 0;
+	return nr_trips + pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
 }
 
-static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
+static int pch_wpt_get_temp(struct pch_thermal_device *ptd)
 {
-	*temp = GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
-
-	return 0;
+	return GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
 }
 
 /* Cool the PCH when it's overheat in .suspend_noirq phase */
@@ -259,8 +252,8 @@ static int pch_wpt_resume(struct pch_thermal_device *ptd)
 }
 
 struct pch_dev_ops {
-	int (*hw_init)(struct pch_thermal_device *ptd, int *nr_trips);
-	int (*get_temp)(struct pch_thermal_device *ptd, int *temp);
+	int (*hw_init)(struct pch_thermal_device *ptd);
+	int (*get_temp)(struct pch_thermal_device *ptd);
 	int (*suspend)(struct pch_thermal_device *ptd);
 	int (*resume)(struct pch_thermal_device *ptd);
 };
@@ -278,7 +271,8 @@ static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
 {
 	struct pch_thermal_device *ptd = tzd->devdata;
 
-	return	ptd->ops->get_temp(ptd, temp);
+	*temp = ptd->ops->get_temp(ptd);
+	return 0;
 }
 
 static void pch_critical(struct thermal_zone_device *tzd)
@@ -372,9 +366,11 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 		goto error_release;
 	}
 
-	err = ptd->ops->hw_init(ptd, &nr_trips);
-	if (err)
+	nr_trips = ptd->ops->hw_init(ptd);
+	if (nr_trips < 0) {
+		err = nr_trips;
 		goto error_cleanup;
+	}
 
 	ptd->tzd = thermal_zone_device_register_with_trips(bi->name, ptd->trips,
 							   nr_trips, 0, ptd,
