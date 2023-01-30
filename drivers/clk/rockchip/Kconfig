@@ -158,6 +158,12 @@ config ROCKCHIP_CLK_INV
 	help
 	  Say y here to enable clk Inverter.
 
+config ROCKCHIP_CLK_OUT
+	tristate "Rockchip Clk Out / Input Switch"
+	default y if !ROCKCHIP_MINI_KERNEL
+	help
+	  Say y here to enable clk out / input switch.
+
 config ROCKCHIP_CLK_PVTM
 	bool "Rockchip Clk Pvtm"
 	default y if !CPU_RV1126 && !CPU_RV1106
