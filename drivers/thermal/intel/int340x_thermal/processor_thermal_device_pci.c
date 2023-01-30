@@ -144,34 +144,6 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 	return 0;
 }
 
-static int sys_get_trip_temp(struct thermal_zone_device *tzd,
-			     int trip, int *temp)
-{
-	struct proc_thermal_pci *pci_info = tzd->devdata;
-	u32 _temp;
-
-	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_THRES_0, &_temp);
-	if (!_temp) {
-		*temp = THERMAL_TEMP_INVALID;
-	} else {
-		int tjmax;
-
-		proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_TJMAX, &tjmax);
-		_temp = tjmax - _temp;
-		*temp = (unsigned long)_temp * 1000;
-	}
-
-	return 0;
-}
-
-static int sys_get_trip_type(struct thermal_zone_device *tzd, int trip,
-			      enum thermal_trip_type *type)
-{
-	*type = THERMAL_TRIP_PASSIVE;
-
-	return 0;
-}
-
 static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 {
 	struct proc_thermal_pci *pci_info = tzd->devdata;
@@ -200,10 +172,26 @@ static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp
 	return 0;
 }
 
+static int get_trip_temp(struct proc_thermal_pci *pci_info)
+{
+	int temp, tjmax;
+
+	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_THRES_0, &temp);
+	if (!temp)
+		return THERMAL_TEMP_INVALID;
+
+	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_TJMAX, &tjmax);
+	temp = (tjmax - temp) * 1000;
+
+	return temp;
+}
+
+static struct thermal_trip psv_trip = {
+	.type = THERMAL_TRIP_PASSIVE,
+};
+
 static struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
-	.get_trip_temp = sys_get_trip_temp,
-	.get_trip_type = sys_get_trip_type,
 	.set_trip_temp	= sys_set_trip_temp,
 };
 
@@ -251,7 +239,10 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	if (ret)
 		goto err_ret_thermal;
 
-	pci_info->tzone = thermal_zone_device_register("TCPU_PCI", 1, 1, pci_info,
+	psv_trip.temperature = get_trip_temp(pci_info);
+
+	pci_info->tzone = thermal_zone_device_register_with_trips("TCPU_PCI", &psv_trip,
+							1, 1, pci_info,
 							&tzone_ops,
 							&tzone_params, 0, 0);
 	if (IS_ERR(pci_info->tzone)) {

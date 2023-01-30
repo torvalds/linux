@@ -346,6 +346,14 @@ int thermal_zone_get_num_trips(struct thermal_zone_device *tz);
 
 int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp);
 
+#ifdef CONFIG_THERMAL_ACPI
+int thermal_acpi_trip_active(struct acpi_device *adev, int id,
+			     struct thermal_trip *trip);
+int thermal_acpi_trip_passive(struct acpi_device *adev, struct thermal_trip *trip);
+int thermal_acpi_trip_hot(struct acpi_device *adev, struct thermal_trip *trip);
+int thermal_acpi_trip_critical(struct acpi_device *adev, struct thermal_trip *trip);
+#endif
+
 #ifdef CONFIG_THERMAL
 struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
 		void *, struct thermal_zone_device_ops *,
