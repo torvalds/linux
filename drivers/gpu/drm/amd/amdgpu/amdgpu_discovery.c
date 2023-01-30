@@ -203,6 +203,29 @@ static int hw_id_map[MAX_HWIP] = {
 	[PCIE_HWIP]	= PCIE_HWID,
 };
 
+static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
+{
+	u64 tmr_offset, tmr_size, pos;
+	void *discv_regn;
+	int ret;
+
+	ret = amdgpu_acpi_get_tmr_info(adev, &tmr_offset, &tmr_size);
+	if (ret)
+		return ret;
+
+	pos = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
+
+	/* This region is read-only and reserved from system use */
+	discv_regn = memremap(pos, adev->mman.discovery_tmr_size, MEMREMAP_WC);
+	if (discv_regn) {
+		memcpy(binary, discv_regn, adev->mman.discovery_tmr_size);
+		memunmap(discv_regn);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
 static void amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)
 {
 	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
