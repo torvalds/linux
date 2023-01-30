@@ -172,7 +172,7 @@ static ssize_t memcpy_count_show(struct device *dev,
 	if (chan) {
 		for_each_possible_cpu(i)
 			count += per_cpu_ptr(chan->local, i)->memcpy_count;
-		err = sprintf(buf, "%lu\n", count);
+		err = sysfs_emit(buf, "%lu\n", count);
 	} else
 		err = -ENODEV;
 	mutex_unlock(&dma_list_mutex);
@@ -194,7 +194,7 @@ static ssize_t bytes_transferred_show(struct device *dev,
 	if (chan) {
 		for_each_possible_cpu(i)
 			count += per_cpu_ptr(chan->local, i)->bytes_transferred;
-		err = sprintf(buf, "%lu\n", count);
+		err = sysfs_emit(buf, "%lu\n", count);
 	} else
 		err = -ENODEV;
 	mutex_unlock(&dma_list_mutex);
@@ -212,7 +212,7 @@ static ssize_t in_use_show(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&dma_list_mutex);
 	chan = dev_to_dma_chan(dev);
 	if (chan)
-		err = sprintf(buf, "%d\n", chan->client_count);
+		err = sysfs_emit(buf, "%d\n", chan->client_count);
 	else
 		err = -ENODEV;
 	mutex_unlock(&dma_list_mutex);
