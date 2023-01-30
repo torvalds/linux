@@ -1174,7 +1174,7 @@ config PATA_PARPORT
 	  Read <file:Documentation/admin-guide/blockdev/paride.rst> for more
 	  information.
 
-	  Use the old PARIDE protocol modules.
+source "drivers/ata/pata_parport/Kconfig"
 
 comment "Generic fallback / legacy drivers"
 

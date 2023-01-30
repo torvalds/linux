@@ -103,8 +103,6 @@ config GDROM
 	  Most users will want to say "Y" here.
 	  You can also build this as a module which will be called gdrom.
 
-source "drivers/block/paride/Kconfig"
-
 source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
