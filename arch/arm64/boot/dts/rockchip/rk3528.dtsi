@@ -220,6 +220,9 @@
 		rockchip,pvtm-temp-prop = <0 0>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 		rockchip,grf = <&grf>;
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -1073,6 +1076,9 @@
 		rockchip,pvtm-temp-prop = <0 0>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 		rockchip,grf = <&grf>;
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
