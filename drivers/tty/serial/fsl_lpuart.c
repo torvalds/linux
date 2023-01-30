@@ -1702,6 +1702,16 @@ static int lpuart_startup(struct uart_port *port)
 	return 0;
 }
 
+static void lpuart32_hw_disable(struct lpuart_port *sport)
+{
+	unsigned long temp;
+
+	temp = lpuart32_read(&sport->port, UARTCTRL);
+	temp &= ~(UARTCTRL_RIE | UARTCTRL_ILIE | UARTCTRL_RE |
+		  UARTCTRL_TIE | UARTCTRL_TE);
+	lpuart32_write(&sport->port, temp, UARTCTRL);
+}
+
 static void lpuart32_configure(struct lpuart_port *sport)
 {
 	unsigned long temp;
@@ -1726,11 +1736,12 @@ static void lpuart32_hw_setup(struct lpuart_port *sport)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
-	lpuart32_setup_watermark_enable(sport);
+	lpuart32_hw_disable(sport);
 
 	lpuart_rx_dma_startup(sport);
 	lpuart_tx_dma_startup(sport);
 
+	lpuart32_setup_watermark_enable(sport);
 	lpuart32_configure(sport);
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
