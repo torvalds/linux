@@ -15,11 +15,13 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Control descriptors
 
-		All attributes read only:
+		All attributes read only except enable_interrupt_ep:
 
 		================	=============================
 		bInterfaceNumber	USB interface number for this
 					streaming interface
+		enable_interrupt_ep	flag to enable the interrupt
+					endpoint for the VC interface
 		================	=============================
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/class

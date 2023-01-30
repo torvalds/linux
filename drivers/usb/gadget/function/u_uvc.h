@@ -29,6 +29,8 @@ struct f_uvc_opts {
 	unsigned int					streaming_interface;
 	char						function_name[32];
 
+	bool						enable_interrupt_ep;
+
 	/*
 	 * Control descriptors array pointers for full-/high-speed and
 	 * super-speed. They point by default to the uvc_fs_control_cls and
