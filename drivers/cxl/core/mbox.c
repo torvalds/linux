@@ -892,6 +892,7 @@ static void cxl_mem_get_records_log(struct cxl_dev_state *cxlds,
 /**
  * cxl_mem_get_event_records - Get Event Records from the device
  * @cxlds: The device data for the operation
+ * @status: Event Status register value identifying which events are available.
  *
  * Retrieve all event records available on the device, report them as trace
  * events, and clear them.
