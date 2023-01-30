@@ -1659,6 +1659,11 @@ static void gfx_v11_0_constants_init(struct amdgpu_device *adev)
 	gfx_v11_0_get_tcc_info(adev);
 	adev->gfx.config.pa_sc_tile_steering_override = 0;
 
+	/* Set whether texture coordinate truncation is conformant. */
+	tmp = RREG32_SOC15(GC, 0, regTA_CNTL2);
+	adev->gfx.config.ta_cntl2_truncate_coord_mode =
+		REG_GET_FIELD(tmp, TA_CNTL2, TRUNCATE_COORD_MODE);
+
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	mutex_lock(&adev->srbm_mutex);

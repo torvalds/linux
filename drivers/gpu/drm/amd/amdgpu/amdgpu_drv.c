@@ -107,9 +107,12 @@
  * - 3.50.0 - Update AMDGPU_INFO_DEV_INFO IOCTL for minimum engine and memory clock
  *            Update AMDGPU_INFO_SENSOR IOCTL for PEAK_PSTATE engine and memory clock
  *   3.51.0 - Return the PCIe gen and lanes from the INFO ioctl
+ *   3.52.0 - Add AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD, add device_info fields:
+ *            tcp_cache_size, num_sqc_per_wgp, sqc_data_cache_size, sqc_inst_cache_size,
+ *            gl1c_cache_size, gl2c_cache_size, mall_size, enabled_rb_pipes_mask_hi
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	51
+#define KMS_DRIVER_MINOR	52
 #define KMS_DRIVER_PATCHLEVEL	0
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
