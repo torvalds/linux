@@ -509,7 +509,8 @@ static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 		return irq;
 
 	return devm_request_threaded_irq(dev, irq, NULL, cxl_event_thread,
-					 IRQF_SHARED, NULL, dev_id);
+					 IRQF_SHARED | IRQF_ONESHOT, NULL,
+					 dev_id);
 }
 
 static int cxl_event_get_int_policy(struct cxl_dev_state *cxlds,
