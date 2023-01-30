@@ -1322,11 +1322,8 @@ void dma_async_device_unregister(struct dma_device *device)
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
 
-static void dmam_device_release(struct device *dev, void *res)
+static void dmaenginem_async_device_unregister(void *device)
 {
-	struct dma_device *device;
-
-	device = *(struct dma_device **)res;
 	dma_async_device_unregister(device);
 }
 
@@ -1338,22 +1335,13 @@ static void dmam_device_release(struct device *dev, void *res)
  */
 int dmaenginem_async_device_register(struct dma_device *device)
 {
-	void *p;
 	int ret;
 
-	p = devres_alloc(dmam_device_release, sizeof(void *), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
 	ret = dma_async_device_register(device);
-	if (!ret) {
-		*(struct dma_device **)p = device;
-		devres_add(device->dev, p);
-	} else {
-		devres_free(p);
-	}
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action(device->dev, dmaenginem_async_device_unregister, device);
 }
 EXPORT_SYMBOL(dmaenginem_async_device_register);
 
