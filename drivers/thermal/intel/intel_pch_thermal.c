@@ -117,57 +117,6 @@ static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 }
 #endif
 
-static int pch_hw_init(struct pch_thermal_device *ptd)
-{
-	int nr_trips = 0;
-	u16 trip_temp;
-	u8 tsel;
-
-	/* Check if BIOS has already enabled thermal sensor */
-	if (WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL)) {
-		ptd->bios_enabled = true;
-		goto read_trips;
-	}
-
-	tsel = readb(ptd->hw_base + WPT_TSEL);
-	/*
-	 * When TSEL's Policy Lock-Down bit is 1, TSEL become RO.
-	 * If so, thermal sensor cannot enable. Bail out.
-	 */
-	if (tsel & WPT_TSEL_PLDB) {
-		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
-		return -ENODEV;
-	}
-
-	writeb(tsel|WPT_TSEL_ETS, ptd->hw_base + WPT_TSEL);
-	if (!(WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL))) {
-		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
-		return -ENODEV;
-	}
-
-read_trips:
-	trip_temp = readw(ptd->hw_base + WPT_CTT);
-	trip_temp &= 0x1FF;
-	if (trip_temp) {
-		ptd->trips[nr_trips].temperature = GET_WPT_TEMP(trip_temp);
-		ptd->trips[nr_trips++].type = THERMAL_TRIP_CRITICAL;
-	}
-
-	trip_temp = readw(ptd->hw_base + WPT_PHL);
-	trip_temp &= 0x1FF;
-	if (trip_temp) {
-		ptd->trips[nr_trips].temperature = GET_WPT_TEMP(trip_temp);
-		ptd->trips[nr_trips++].type = THERMAL_TRIP_HOT;
-	}
-
-	return nr_trips + pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
-}
-
-static int pch_get_temp(struct pch_thermal_device *ptd)
-{
-	return GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
-}
-
 /* Cool the PCH when it's overheat in .suspend_noirq phase */
 static int pch_suspend(struct pch_thermal_device *ptd)
 {
@@ -254,7 +203,7 @@ static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
 {
 	struct pch_thermal_device *ptd = tzd->devdata;
 
-	*temp = pch_get_temp(ptd);
+	*temp = GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
 	return 0;
 }
 
@@ -310,8 +259,10 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 	enum board_ids board_id = id->driver_data;
 	const struct board_info *bi = &board_info[board_id];
 	struct pch_thermal_device *ptd;
+	int nr_trips = 0;
+	u16 trip_temp;
+	u8 tsel;
 	int err;
-	int nr_trips;
 
 	ptd = devm_kzalloc(&pdev->dev, sizeof(*ptd), GFP_KERNEL);
 	if (!ptd)
@@ -339,11 +290,46 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 		goto error_release;
 	}
 
-	nr_trips = pch_hw_init(ptd);
-	if (nr_trips < 0) {
-		err = nr_trips;
+	/* Check if BIOS has already enabled thermal sensor */
+	if (WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL)) {
+		ptd->bios_enabled = true;
+		goto read_trips;
+	}
+
+	tsel = readb(ptd->hw_base + WPT_TSEL);
+	/*
+	 * When TSEL's Policy Lock-Down bit is 1, TSEL become RO.
+	 * If so, thermal sensor cannot enable. Bail out.
+	 */
+	if (tsel & WPT_TSEL_PLDB) {
+		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
+		err = -ENODEV;
 		goto error_cleanup;
 	}
+
+	writeb(tsel|WPT_TSEL_ETS, ptd->hw_base + WPT_TSEL);
+	if (!(WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL))) {
+		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
+		err = -ENODEV;
+		goto error_cleanup;
+	}
+
+read_trips:
+	trip_temp = readw(ptd->hw_base + WPT_CTT);
+	trip_temp &= 0x1FF;
+	if (trip_temp) {
+		ptd->trips[nr_trips].temperature = GET_WPT_TEMP(trip_temp);
+		ptd->trips[nr_trips++].type = THERMAL_TRIP_CRITICAL;
+	}
+
+	trip_temp = readw(ptd->hw_base + WPT_PHL);
+	trip_temp &= 0x1FF;
+	if (trip_temp) {
+		ptd->trips[nr_trips].temperature = GET_WPT_TEMP(trip_temp);
+		ptd->trips[nr_trips++].type = THERMAL_TRIP_HOT;
+	}
+
+	nr_trips += pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
 
 	ptd->tzd = thermal_zone_device_register_with_trips(bi->name, ptd->trips,
 							   nr_trips, 0, ptd,
