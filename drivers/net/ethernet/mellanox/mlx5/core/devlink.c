@@ -156,6 +156,11 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		return -EOPNOTSUPP;
 	}
 
+	if (mlx5_core_is_mp_slave(dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported for multi port slave");
+		return -EOPNOTSUPP;
+	}
+
 	if (pci_num_vf(pdev)) {
 		NL_SET_ERR_MSG_MOD(extack, "reload while VFs are present is unfavorable");
 	}
@@ -744,7 +749,6 @@ void mlx5_devlink_traps_unregister(struct devlink *devlink)
 
 int mlx5_devlink_params_register(struct devlink *devlink)
 {
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	int err;
 
 	err = devl_params_register(devlink, mlx5_devlink_params,
@@ -761,9 +765,6 @@ int mlx5_devlink_params_register(struct devlink *devlink)
 	err = mlx5_devlink_max_uc_list_params_register(devlink);
 	if (err)
 		goto max_uc_list_err;
-
-	if (!mlx5_core_is_mp_slave(dev))
-		devlink_set_features(devlink, DEVLINK_F_RELOAD);
 
 	return 0;
 
