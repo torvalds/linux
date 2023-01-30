@@ -234,6 +234,14 @@
 #define BTRFS_SHARED_DATA_REF_KEY	184
 
 /*
+ * Special inline ref key which stores the id of the subvolume which originally
+ * created the extent. This subvolume owns the extent permanently from the
+ * perspective of simple quotas. Needed to know which subvolume to free quota
+ * usage from when the extent is deleted.
+ */
+#define BTRFS_EXTENT_OWNER_REF_KEY	188
+
+/*
  * block groups give us hints into the extent allocation trees.  Which
  * blocks are free etc etc
  */
@@ -814,6 +822,10 @@ struct btrfs_extent_data_ref {
 
 struct btrfs_shared_data_ref {
 	__le32 count;
+} __attribute__ ((__packed__));
+
+struct btrfs_extent_owner_ref {
+	__le64 root_id;
 } __attribute__ ((__packed__));
 
 struct btrfs_extent_inline_ref {
