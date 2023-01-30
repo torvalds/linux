@@ -16,8 +16,8 @@ struct _ccu_nkm {
 	unsigned long	m, min_m, max_m;
 };
 
-static void ccu_nkm_find_best(unsigned long parent, unsigned long rate,
-			      struct _ccu_nkm *nkm)
+static unsigned long ccu_nkm_find_best(unsigned long parent, unsigned long rate,
+				       struct _ccu_nkm *nkm)
 {
 	unsigned long best_rate = 0;
 	unsigned long best_n = 0, best_k = 0, best_m = 0;
@@ -45,6 +45,8 @@ static void ccu_nkm_find_best(unsigned long parent, unsigned long rate,
 	nkm->n = best_n;
 	nkm->k = best_k;
 	nkm->m = best_m;
+
+	return best_rate;
 }
 
 static void ccu_nkm_disable(struct clk_hw *hw)
@@ -122,9 +124,7 @@ static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
 	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate *= nkm->fixed_post_div;
 
-	ccu_nkm_find_best(*parent_rate, rate, &_nkm);
-
-	rate = *parent_rate * _nkm.n * _nkm.k / _nkm.m;
+	rate = ccu_nkm_find_best(*parent_rate, rate, &_nkm);
 
 	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate /= nkm->fixed_post_div;

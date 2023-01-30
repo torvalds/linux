@@ -29,8 +29,8 @@ static unsigned long ccu_nkmp_calc_rate(unsigned long parent,
 	return rate;
 }
 
-static void ccu_nkmp_find_best(unsigned long parent, unsigned long rate,
-			       struct _ccu_nkmp *nkmp)
+static unsigned long ccu_nkmp_find_best(unsigned long parent, unsigned long rate,
+					struct _ccu_nkmp *nkmp)
 {
 	unsigned long best_rate = 0;
 	unsigned long best_n = 0, best_k = 0, best_m = 0, best_p = 0;
@@ -65,6 +65,8 @@ static void ccu_nkmp_find_best(unsigned long parent, unsigned long rate,
 	nkmp->k = best_k;
 	nkmp->m = best_m;
 	nkmp->p = best_p;
+
+	return best_rate;
 }
 
 static void ccu_nkmp_disable(struct clk_hw *hw)
@@ -150,10 +152,8 @@ static long ccu_nkmp_round_rate(struct clk_hw *hw, unsigned long rate,
 	_nkmp.min_p = 1;
 	_nkmp.max_p = nkmp->p.max ?: 1 << ((1 << nkmp->p.width) - 1);
 
-	ccu_nkmp_find_best(*parent_rate, rate, &_nkmp);
+	rate = ccu_nkmp_find_best(*parent_rate, rate, &_nkmp);
 
-	rate = ccu_nkmp_calc_rate(*parent_rate, _nkmp.n, _nkmp.k,
-				  _nkmp.m, _nkmp.p);
 	if (nkmp->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate = rate / nkmp->fixed_post_div;
 
