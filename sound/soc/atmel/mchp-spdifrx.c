@@ -764,8 +764,8 @@ static int mchp_spdifrx_rate_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
 	struct mchp_spdifrx_dev *dev = snd_soc_dai_get_drvdata(dai);
+	unsigned long rate;
 	u32 val;
-	int rate;
 
 	mutex_lock(&dev->mlock);
 
