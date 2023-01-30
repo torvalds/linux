@@ -1067,11 +1067,12 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 			.interruptible = true,
 			.no_wait_gpu = true, /* should be idle already */
 		};
+		int err;
 
 		GEM_BUG_ON(!bo->ttm || !(bo->ttm->page_flags & TTM_TT_FLAG_SWAPPED));
 
-		ret = ttm_bo_validate(bo, i915_ttm_sys_placement(), &ctx);
-		if (ret) {
+		err = ttm_bo_validate(bo, i915_ttm_sys_placement(), &ctx);
+		if (err) {
 			dma_resv_unlock(bo->base.resv);
 			return VM_FAULT_SIGBUS;
 		}
