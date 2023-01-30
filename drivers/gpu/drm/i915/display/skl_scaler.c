@@ -87,6 +87,10 @@ static u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 #define ICL_MAX_SRC_H 4096
 #define ICL_MAX_DST_W 5120
 #define ICL_MAX_DST_H 4096
+#define TGL_MAX_SRC_W 5120
+#define TGL_MAX_SRC_H 8192
+#define TGL_MAX_DST_W 8192
+#define TGL_MAX_DST_H 8192
 #define MTL_MAX_SRC_W 4096
 #define MTL_MAX_SRC_H 8192
 #define MTL_MAX_DST_W 8192
@@ -173,11 +177,16 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		max_src_h = SKL_MAX_SRC_H;
 		max_dst_w = SKL_MAX_DST_W;
 		max_dst_h = SKL_MAX_DST_H;
-	} else if (DISPLAY_VER(dev_priv) < 14) {
+	} else if (DISPLAY_VER(dev_priv) < 12) {
 		max_src_w = ICL_MAX_SRC_W;
 		max_src_h = ICL_MAX_SRC_H;
 		max_dst_w = ICL_MAX_DST_W;
 		max_dst_h = ICL_MAX_DST_H;
+	} else if (DISPLAY_VER(dev_priv) < 14) {
+		max_src_w = TGL_MAX_SRC_W;
+		max_src_h = TGL_MAX_SRC_H;
+		max_dst_w = TGL_MAX_DST_W;
+		max_dst_h = TGL_MAX_DST_H;
 	} else {
 		max_src_w = MTL_MAX_SRC_W;
 		max_src_h = MTL_MAX_SRC_H;

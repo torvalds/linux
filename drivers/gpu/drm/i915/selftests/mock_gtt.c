@@ -112,7 +112,7 @@ void mock_init_ggtt(struct intel_gt *gt)
 	ggtt->vm.i915 = gt->i915;
 	ggtt->vm.is_ggtt = true;
 
-	ggtt->gmadr = (struct resource) DEFINE_RES_MEM(0, 2048 * PAGE_SIZE);
+	ggtt->gmadr = DEFINE_RES_MEM(0, 2048 * PAGE_SIZE);
 	ggtt->mappable_end = resource_size(&ggtt->gmadr);
 	ggtt->vm.total = 4096 * PAGE_SIZE;
 

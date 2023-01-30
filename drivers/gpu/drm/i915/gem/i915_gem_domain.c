@@ -4,6 +4,7 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include "display/intel_display.h"
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 

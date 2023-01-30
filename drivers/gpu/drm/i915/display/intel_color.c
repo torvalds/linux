@@ -847,17 +847,6 @@ static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
 		intel_de_write_fw(i915, reg, val);
 }
 
-static void ilk_lut_write_indexed(const struct intel_crtc_state *crtc_state,
-				  i915_reg_t reg, u32 val)
-{
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-
-	if (crtc_state->dsb)
-		intel_dsb_indexed_reg_write(crtc_state->dsb, reg, val);
-	else
-		intel_de_write_fw(i915, reg, val);
-}
-
 static void ilk_load_lut_8(const struct intel_crtc_state *crtc_state,
 			   const struct drm_property_blob *blob)
 {
@@ -962,8 +951,8 @@ static void bdw_load_lut_10(const struct intel_crtc_state *crtc_state,
 		      prec_index);
 
 	for (i = 0; i < lut_size; i++)
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
-				      ilk_lut_10(&lut[i]));
+		ilk_lut_write(crtc_state, PREC_PAL_DATA(pipe),
+			      ilk_lut_10(&lut[i]));
 
 	/*
 	 * Reset the index, otherwise it prevents the legacy palette to be
@@ -1093,13 +1082,13 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state,
 		 * ToDo: Extend to max 7.0. Enable 32 bit input value
 		 * as compared to just 16 to achieve this.
 		 */
-		ilk_lut_write_indexed(crtc_state, PRE_CSC_GAMC_DATA(pipe),
-				      lut[i].green);
+		ilk_lut_write(crtc_state, PRE_CSC_GAMC_DATA(pipe),
+			      lut[i].green);
 	}
 
 	/* Clamp values > 1.0. */
 	while (i++ < glk_degamma_lut_size(i915))
-		ilk_lut_write_indexed(crtc_state, PRE_CSC_GAMC_DATA(pipe), 1 << 16);
+		ilk_lut_write(crtc_state, PRE_CSC_GAMC_DATA(pipe), 1 << 16);
 
 	ilk_lut_write(crtc_state, PRE_CSC_GAMC_INDEX(pipe), 0);
 }
@@ -1165,10 +1154,10 @@ icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
 	for (i = 0; i < 9; i++) {
 		const struct drm_color_lut *entry = &lut[i];
 
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
-				      ilk_lut_12p4_ldw(entry));
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
-				      ilk_lut_12p4_udw(entry));
+		ilk_lut_write(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
+			      ilk_lut_12p4_ldw(entry));
+		ilk_lut_write(crtc_state, PREC_PAL_MULTI_SEG_DATA(pipe),
+			      ilk_lut_12p4_udw(entry));
 	}
 
 	ilk_lut_write(crtc_state, PREC_PAL_MULTI_SEG_INDEX(pipe),
@@ -1204,10 +1193,10 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	for (i = 1; i < 257; i++) {
 		entry = &lut[i * 8];
 
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
-				      ilk_lut_12p4_ldw(entry));
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
-				      ilk_lut_12p4_udw(entry));
+		ilk_lut_write(crtc_state, PREC_PAL_DATA(pipe),
+			      ilk_lut_12p4_ldw(entry));
+		ilk_lut_write(crtc_state, PREC_PAL_DATA(pipe),
+			      ilk_lut_12p4_udw(entry));
 	}
 
 	/*
@@ -1225,10 +1214,10 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	for (i = 0; i < 256; i++) {
 		entry = &lut[i * 8 * 128];
 
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
-				      ilk_lut_12p4_ldw(entry));
-		ilk_lut_write_indexed(crtc_state, PREC_PAL_DATA(pipe),
-				      ilk_lut_12p4_udw(entry));
+		ilk_lut_write(crtc_state, PREC_PAL_DATA(pipe),
+			      ilk_lut_12p4_ldw(entry));
+		ilk_lut_write(crtc_state, PREC_PAL_DATA(pipe),
+			      ilk_lut_12p4_udw(entry));
 	}
 
 	ilk_lut_write(crtc_state, PREC_PAL_INDEX(pipe),
@@ -1391,7 +1380,7 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 	/* FIXME DSB has issues loading LUTs, disable it for now */
 	return;
 
-	crtc_state->dsb = intel_dsb_prepare(crtc);
+	crtc_state->dsb = intel_dsb_prepare(crtc, 1024);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)

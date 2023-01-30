@@ -40,7 +40,7 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 		 */
 		if (intel_de_wait_for_clear(i915, DG2_PHY_MISC(phy),
 					    DG2_PHY_DP_TX_ACK_MASK, 25))
-			i915->snps_phy_failed_calibration |= BIT(phy);
+			i915->display.snps.phy_failed_calibration |= BIT(phy);
 	}
 }
 
