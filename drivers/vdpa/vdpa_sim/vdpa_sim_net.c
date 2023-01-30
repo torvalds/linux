@@ -62,6 +62,9 @@ static bool receive_filter(struct vdpasim *vdpasim, size_t len)
 	if (len < ETH_ALEN + hdr_len)
 		return false;
 
+	if (is_broadcast_ether_addr(vdpasim->buffer + hdr_len) ||
+	    is_multicast_ether_addr(vdpasim->buffer + hdr_len))
+		return true;
 	if (!strncmp(vdpasim->buffer + hdr_len, vio_config->mac, ETH_ALEN))
 		return true;
 

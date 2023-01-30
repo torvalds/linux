@@ -7,7 +7,7 @@ PTP_KVM is used for high precision time sync between host and guests.
 It relies on transferring the wall clock and counter value from the
 host to the guest using a KVM-specific hypercall.
 
-``ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID``
+``ARM_SMCCC_KVM_FUNC_PTP``
 ----------------------------------------
 
 Retrieve current time information for the specific counter. There are no

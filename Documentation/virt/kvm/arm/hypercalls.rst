@@ -17,7 +17,7 @@ Specific Hypervisor Service Call" range with a UID of
 guest using the standard "Call UID" function for the service range in
 order to determine that the KVM/arm64-specific hypercalls are available.
 
-``ARM_SMCCC_VENDOR_HYP_KVM_FEATURES_FUNC_ID``
+``ARM_SMCCC_KVM_FUNC_FEATURES``
 ---------------------------------------------
 
 Provides a discovery mechanism for other KVM/arm64 hypercalls.
@@ -40,7 +40,7 @@ Provides a discovery mechanism for other KVM/arm64 hypercalls.
 |                     | (uint32) | R3 | Bitmap of available function numbers 96-127 |
 +---------------------+----------+----+---------------------------------------------+
 
-``ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID``
+``ARM_SMCCC_KVM_FUNC_PTP``
 ----------------------------------------
 
 See ptp_kvm.rst
@@ -116,3 +116,37 @@ memory protection granule advertised by ``ARM_SMCCC_KVM_FUNC_HYP_MEMINFO``.
 |                     |          |    +---------------------------------------------+
 |                     |          |    | ``INVALID_PARAMETER (-3)``                  |
 +---------------------+----------+----+---------------------------------------------+
+
+``ARM_SMCCC_KVM_FUNC_MEM_RELINQUISH``
+--------------------------------------
+
+Cooperatively relinquish ownership of a memory region. The size of the
+region is equal to the memory protection granule advertised by
+``ARM_SMCCC_KVM_FUNC_HYP_MEMINFO``. If this hypercall is advertised
+then it is mandatory to call it before freeing memory via, for
+example, virtio balloon. If the caller is a protected VM, it is
+guaranteed that the memory region will be completely cleared before
+becoming visible to another VM.
+
++---------------------+-------------------------------------------------------------+
+| Presence:           | Optional.                                                   |
++---------------------+-------------------------------------------------------------+
+| Calling convention: | HVC64                                                       |
++---------------------+----------+--------------------------------------------------+
+| Function ID:        | (uint32) | 0xC6000009                                       |
++---------------------+----------+----+---------------------------------------------+
+| Arguments:          | (uint64) | R1 | Base IPA of memory region to relinquish     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R2 | Reserved / Must be zero                     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R3 | Reserved / Must be zero                     |
++---------------------+----------+----+---------------------------------------------+
+| Return Values:      | (int64)  | R0 | ``SUCCESS (0)``                             |
+|                     |          |    +---------------------------------------------+
+|                     |          |    | ``INVALID_PARAMETER (-3)``                  |
++---------------------+----------+----+---------------------------------------------+
+
+``ARM_SMCCC_KVM_FUNC_MMIO_GUARD_*``
+-----------------------------------
+
+See mmio-guard.rst

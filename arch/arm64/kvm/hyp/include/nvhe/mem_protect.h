@@ -30,8 +30,8 @@ enum pkvm_page_state {
 					  KVM_PGTABLE_PROT_SW1,
 
 	/* Meta-states which aren't encoded directly in the PTE's SW bits */
-	PKVM_NOPAGE,
-	PKVM_PAGE_RESTRICTED_PROT,
+	PKVM_NOPAGE			= BIT(0),
+	PKVM_PAGE_RESTRICTED_PROT	= BIT(1),
 };
 
 #define PKVM_PAGE_STATE_PROT_MASK	(KVM_PGTABLE_PROT_SW0 | KVM_PGTABLE_PROT_SW1)
