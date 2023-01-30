@@ -1205,3 +1205,7 @@ unlock:
 		mutex_unlock(&gt->tlb.invalidate_lock);
 	}
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_tlb.c"
+#endif
