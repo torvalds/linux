@@ -200,7 +200,7 @@ static struct pasid_entry *intel_pasid_get_entry(struct device *dev, u32 pasid)
 retry:
 	entries = get_pasid_table_from_pde(&dir[dir_index]);
 	if (!entries) {
-		entries = alloc_pgtable_page(info->iommu->node);
+		entries = alloc_pgtable_page(info->iommu->node, GFP_ATOMIC);
 		if (!entries)
 			return NULL;
 
