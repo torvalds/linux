@@ -149,6 +149,7 @@ struct uvc_device {
 	struct usb_ep *interrupt_ep;
 	struct usb_request *control_req;
 	void *control_buf;
+	bool enable_interrupt_ep;
 
 	unsigned int streaming_intf;
 
