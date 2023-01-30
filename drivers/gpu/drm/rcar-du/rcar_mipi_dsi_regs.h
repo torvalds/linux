@@ -122,7 +122,8 @@
 #define VCLKSET_CKEN			(1 << 16)
 #define VCLKSET_COLOR_RGB		(0 << 8)
 #define VCLKSET_COLOR_YCC		(1 << 8)
-#define VCLKSET_DIV(x)			(((x) & 0x3) << 4)
+#define VCLKSET_DIV_V3U(x)		(((x) & 0x3) << 4)
+#define VCLKSET_DIV_V4H(x)		(((x) & 0x7) << 4)
 #define VCLKSET_BPP_16			(0 << 2)
 #define VCLKSET_BPP_18			(1 << 2)
 #define VCLKSET_BPP_18L			(2 << 2)
@@ -165,6 +166,9 @@
 #define PHTW_TESTDIN_DATA(x)		(((x) & 0xff) << 16)
 #define PHTW_CWEN			(1 << 8)
 #define PHTW_TESTDIN_CODE(x)		(((x) & 0xff) << 0)
+
+#define PHTR				0x1038
+#define PHTR_TEST			(1 << 16)
 
 #define PHTC				0x103c
 #define PHTC_TESTCLR			(1 << 0)

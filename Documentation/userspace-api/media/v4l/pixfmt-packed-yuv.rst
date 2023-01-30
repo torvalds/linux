@@ -262,7 +262,12 @@ the second byte and Y'\ :sub:`7-0` in the third byte.
 =================
 
 These formats, commonly referred to as YUYV or YUY2, subsample the chroma
-components horizontally by 2, storing 2 pixels in 4 bytes.
+components horizontally by 2, storing 2 pixels in a container. The container
+is 32-bits for 8-bit formats, and 64-bits for 10+-bit formats.
+
+The packed YUYV formats with more than 8 bits per component are stored as four
+16-bit little-endian words. Each word's most significant bits contain one
+component, and the least significant bits are zero padding.
 
 .. raw:: latex
 
@@ -270,7 +275,7 @@ components horizontally by 2, storing 2 pixels in 4 bytes.
 
 .. tabularcolumns:: |p{3.4cm}|p{1.2cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
 
-.. flat-table:: Packed YUV 4:2:2 Formats
+.. flat-table:: Packed YUV 4:2:2 Formats in 32-bit container
     :header-rows: 1
     :stub-columns: 0
 
@@ -336,6 +341,46 @@ components horizontally by 2, storing 2 pixels in 4 bytes.
       - Cr\ :sub:`2`
       - Y'\ :sub:`3`
       - Cb\ :sub:`2`
+
+.. tabularcolumns:: |p{3.4cm}|p{1.2cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
+
+.. flat-table:: Packed YUV 4:2:2 Formats in 64-bit container
+    :header-rows: 1
+    :stub-columns: 0
+
+    * - Identifier
+      - Code
+      - Word 0
+      - Word 1
+      - Word 2
+      - Word 3
+    * .. _V4L2-PIX-FMT-Y210:
+
+      - ``V4L2_PIX_FMT_Y210``
+      - 'Y210'
+
+      - Y'\ :sub:`0` (bits 15-6)
+      - Cb\ :sub:`0` (bits 15-6)
+      - Y'\ :sub:`1` (bits 15-6)
+      - Cr\ :sub:`0` (bits 15-6)
+    * .. _V4L2-PIX-FMT-Y212:
+
+      - ``V4L2_PIX_FMT_Y212``
+      - 'Y212'
+
+      - Y'\ :sub:`0` (bits 15-4)
+      - Cb\ :sub:`0` (bits 15-4)
+      - Y'\ :sub:`1` (bits 15-4)
+      - Cr\ :sub:`0` (bits 15-4)
+    * .. _V4L2-PIX-FMT-Y216:
+
+      - ``V4L2_PIX_FMT_Y216``
+      - 'Y216'
+
+      - Y'\ :sub:`0` (bits 15-0)
+      - Cb\ :sub:`0` (bits 15-0)
+      - Y'\ :sub:`1` (bits 15-0)
+      - Cr\ :sub:`0` (bits 15-0)
 
 .. raw:: latex
 

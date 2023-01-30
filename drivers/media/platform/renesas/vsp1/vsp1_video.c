@@ -267,10 +267,10 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	div_size = format->width;
 
 	/*
-	 * Only Gen3 hardware requires image partitioning, Gen2 will operate
+	 * Only Gen3+ hardware requires image partitioning, Gen2 will operate
 	 * with a single partition that covers the whole output.
 	 */
-	if (vsp1->info->gen == 3) {
+	if (vsp1->info->gen >= 3) {
 		list_for_each_entry(entity, &pipe->entities, list_pipe) {
 			unsigned int entity_max;
 
