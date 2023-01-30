@@ -216,7 +216,7 @@ static DEFINE_SPINLOCK(global_spinlock);
 
 static LIST_HEAD(global_queue);
 
-static unsigned long global_num = 0;
+static unsigned long global_num;
 
 /*
  * Buffers are freed after this timeout

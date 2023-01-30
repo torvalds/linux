@@ -30,7 +30,7 @@
  */
 #define	MIN_RAID456_JOURNAL_SPACE (4*2048)
 
-static bool devices_handle_discard_safely = false;
+static bool devices_handle_discard_safely;
 
 /*
  * The following flags are used by dm-raid.c to set up the array state.
