@@ -1096,4 +1096,7 @@ struct efi_smbios_type1_record {
 
 const u8 *__efi_get_smbios_string(u8 type, int offset, int recsize);
 
+void efi_remap_image(unsigned long image_base, unsigned alloc_size,
+		     unsigned long code_size);
+
 #endif
