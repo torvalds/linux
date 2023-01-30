@@ -144,3 +144,7 @@
 &pmu {
 	compatible = "amlogic,g12b-ddr-pmu";
 };
+
+&npu {
+	power-domains = <&pwrc PWRC_G12A_NNA_ID>;
+};

@@ -1,20 +1,27 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2018 BayLibre SAS. All rights reserved.
+ * Copyright (c) 2019 BayLibre, SAS
+ * Author: Neil Armstrong <narmstrong@baylibre.com>
+ * Copyright (c) 2019 Christian Hewitt <christianshewitt@gmail.com>
+ * Copyright (c) 2022 Radxa Limited
+ * Author: Yuntian Zhang <yt@radxa.com>
  */
 
 /dts-v1/;
 
-#include "meson-g12a.dtsi"
+#include "meson-g12b-a311d.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
 #include <dt-bindings/sound/meson-g12a-tohdmitx.h>
 
 / {
-	compatible = "radxa,zero", "amlogic,g12a";
-	model = "Radxa Zero";
+	compatible = "radxa,zero2", "amlogic,a311d", "amlogic,g12b";
+	model = "Radxa Zero2";
 
 	aliases {
 		serial0 = &uart_AO;
+		serial2 = &uart_A;
 	};
 
 	chosen {
@@ -23,17 +30,27 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	cvbs-connector {
-		status = "disabled";
-		compatible = "composite-video-connector";
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		poll-interval = <100>;
+		power-button {
+			label = "power";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio_ao GPIOAO_3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+	};
 
-		port {
-			cvbs_connector_in: endpoint {
-				remote-endpoint = <&cvbs_vdac_out>;
-			};
+	leds {
+		compatible = "gpio-leds";
+
+		led-green {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
 		};
 	};
 
@@ -60,7 +77,7 @@
 		clock-names = "ext_clock";
 	};
 
-	ao_5v: regulator-ao_5v {
+	ao_5v: regulator-ao-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "AO_5V";
 		regulator-min-microvolt = <5000000>;
@@ -68,7 +85,7 @@
 		regulator-always-on;
 	};
 
-	vcc_1v8: regulator-vcc_1v8 {
+	vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -77,34 +94,26 @@
 		regulator-always-on;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vddao_3v3>;
 		regulator-always-on;
+		/* FIXME: actually controlled by VDDCPU_B_EN */
 	};
 
-	hdmi_pw: regulator-hdmi_pw {
+	vddao_1v8: regulator-vddao-1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "HDMI_PW";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&ao_5v>;
-		regulator-always-on;
-	};
-
-	vddao_1v8: regulator-vddao_1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDAO_1V8";
+		regulator-name = "VDDIO_AO1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&vddao_3v3>;
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -113,14 +122,36 @@
 		regulator-always-on;
 	};
 
-	vddcpu: regulator-vddcpu {
+	vddcpu_a: regulator-vddcpu-a {
+		/*
+		 * MP8756GD Regulator.
+		 */
 		compatible = "pwm-regulator";
 
-		regulator-name = "VDDCPU";
-		regulator-min-microvolt = <721000>;
+		regulator-name = "VDDCPU_A";
+		regulator-min-microvolt = <730000>;
 		regulator-max-microvolt = <1022000>;
 
-		vin-supply = <&ao_5v>;
+		pwm-supply = <&ao_5v>;
+
+		pwms = <&pwm_ab 0 1250 0>;
+		pwm-dutycycle-range = <100 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddcpu_b: regulator-vddcpu-b {
+		/*
+		 * Silergy SY8120B1ABC Regulator.
+		 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VDDCPU_B";
+		regulator-min-microvolt = <730000>;
+		regulator-max-microvolt = <1022000>;
+
+		pwm-supply = <&ao_5v>;
 
 		pwms = <&pwm_AO_cd 1 1250 0>;
 		pwm-dutycycle-range = <100 0>;
@@ -131,7 +162,7 @@
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "RADXA-ZERO";
+		model = "RADXA-ZERO2";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
@@ -145,7 +176,6 @@
 		assigned-clock-rates = <294912000>,
 				       <270950400>,
 				       <393216000>;
-		status = "okay";
 
 		dai-link-0 {
 			sound-dai = <&frddr_a>;
@@ -174,6 +204,7 @@
 			};
 		};
 
+		/* hdmi glue */
 		dai-link-4 {
 			sound-dai = <&tohdmitx TOHDMITX_I2S_OUT>;
 
@@ -183,7 +214,7 @@
 		};
 	};
 
-	wifi32k: wifi32k {
+	wifi32k: clock-0 {
 		compatible = "pwm-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -214,37 +245,45 @@
 };
 
 &cpu0 {
-	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
+	cpu-supply = <&vddcpu_b>;
+	operating-points-v2 = <&cpu_opp_table_0>;
 	clocks = <&clkc CLKID_CPU_CLK>;
 	clock-latency = <50000>;
 };
 
 &cpu1 {
-	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
+	cpu-supply = <&vddcpu_b>;
+	operating-points-v2 = <&cpu_opp_table_0>;
 	clocks = <&clkc CLKID_CPU_CLK>;
 	clock-latency = <50000>;
 };
 
-&cpu2 {
-	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
-	clocks = <&clkc CLKID_CPU_CLK>;
+&cpu100 {
+	cpu-supply = <&vddcpu_a>;
+	operating-points-v2 = <&cpub_opp_table_1>;
+	clocks = <&clkc CLKID_CPUB_CLK>;
 	clock-latency = <50000>;
 };
 
-&cpu3 {
-	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
-	clocks = <&clkc CLKID_CPU_CLK>;
+&cpu101 {
+	cpu-supply = <&vddcpu_a>;
+	operating-points-v2 = <&cpub_opp_table_1>;
+	clocks = <&clkc CLKID_CPUB_CLK>;
 	clock-latency = <50000>;
 };
 
-&cvbs_vdac_port {
-	cvbs_vdac_out: endpoint {
-		remote-endpoint = <&cvbs_connector_in>;
-	};
+&cpu102 {
+	cpu-supply = <&vddcpu_a>;
+	operating-points-v2 = <&cpub_opp_table_1>;
+	clocks = <&clkc CLKID_CPUB_CLK>;
+	clock-latency = <50000>;
+};
+
+&cpu103 {
+	cpu-supply = <&vddcpu_a>;
+	operating-points-v2 = <&cpub_opp_table_1>;
+	clocks = <&clkc CLKID_CPUB_CLK>;
+	clock-latency = <50000>;
 };
 
 &frddr_a {
@@ -259,11 +298,42 @@
 	status = "okay";
 };
 
+&gpio {
+	gpio-line-names =
+		/* GPIOZ */
+		"PIN_27", "PIN_28", "PIN_7", "PIN_11", "PIN_13", "PIN_15", "PIN_18", "PIN_40",
+		"", "", "", "", "", "", "", "",
+		/* GPIOH */
+		"", "", "", "", "PIN_19", "PIN_21", "PIN_24", "PIN_23",
+		"",
+		/* BOOT */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "EMMC_PWRSEQ", "", "", "",
+		/* GPIOC */
+		"", "", "", "", "", "", "SD_CD", "PIN_36",
+		/* GPIOA */
+		"PIN_32", "PIN_12", "PIN_35", "", "", "PIN_38", "", "",
+		"", "", "", "", "LED_GREEN", "PIN_31", "PIN_3", "PIN_5",
+		/* GPIOX */
+		"", "", "", "", "", "", "SDIO_PWRSEQ", "",
+		"", "", "", "", "", "", "", "",
+		"", "BT_SHUTDOWN", "", "";
+};
+
+&gpio_ao {
+	gpio-line-names =
+		/* GPIOAO */
+		"PIN_8", "PIN_10", "", "BTN_POWER", "", "", "", "PIN_29",
+		"PIN_33", "PIN_37", "FAN", "",
+		/* GPIOE */
+		"", "", "";
+};
+
 &hdmi_tx {
 	status = "okay";
 	pinctrl-0 = <&hdmitx_hpd_pins>, <&hdmitx_ddc_pins>;
 	pinctrl-names = "default";
-	hdmi-supply = <&hdmi_pw>;
+	hdmi-supply = <&ao_5v>;
 };
 
 &hdmi_tx_tmds_port {
@@ -278,20 +348,36 @@
 	pinctrl-names = "default";
 };
 
-&pwm_AO_cd {
-	pinctrl-0 = <&pwm_ao_d_e_pins>;
+&pwm_ab {
+	pinctrl-0 = <&pwm_a_e_pins>;
 	pinctrl-names = "default";
 	clocks = <&xtal>;
-	clock-names = "clkin1";
+	clock-names = "clkin0";
 	status = "okay";
 };
 
 &pwm_ef {
-	status = "okay";
 	pinctrl-0 = <&pwm_e_pins>;
 	pinctrl-names = "default";
 	clocks = <&xtal>;
-	clock-names = "clkin0";
+	clock-names = "clkin2";
+	status = "okay";
+};
+
+&pwm_AO_ab {
+	pinctrl-0 = <&pwm_ao_a_pins>;
+	pinctrl-names = "default";
+	clocks = <&xtal>;
+	clock-names = "clkin3";
+	status = "okay";
+};
+
+&pwm_AO_cd {
+	pinctrl-0 = <&pwm_ao_d_e_pins>;
+	pinctrl-names = "default";
+	clocks = <&xtal>;
+	clock-names = "clkin4";
+	status = "okay";
 };
 
 &saradc {
@@ -310,7 +396,6 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	sd-uhs-sdr50;
 	max-frequency = <100000000>;
 
 	non-removable;
@@ -339,7 +424,7 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	max-frequency = <50000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>;
