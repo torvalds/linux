@@ -576,7 +576,7 @@ static const char *mrfld_get_function_name(struct pinctrl_dev *pctldev,
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	return mp->functions[function].name;
+	return mp->functions[function].func.name;
 }
 
 static int mrfld_get_function_groups(struct pinctrl_dev *pctldev,
@@ -586,8 +586,8 @@ static int mrfld_get_function_groups(struct pinctrl_dev *pctldev,
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	*groups = mp->functions[function].groups;
-	*ngroups = mp->functions[function].ngroups;
+	*groups = mp->functions[function].func.groups;
+	*ngroups = mp->functions[function].func.ngroups;
 	return 0;
 }
 

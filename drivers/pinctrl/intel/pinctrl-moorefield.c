@@ -530,7 +530,7 @@ static const char *mofld_get_function_name(struct pinctrl_dev *pctldev, unsigned
 {
 	struct mofld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	return mp->functions[function].name;
+	return mp->functions[function].func.name;
 }
 
 static int mofld_get_function_groups(struct pinctrl_dev *pctldev, unsigned int function,
@@ -538,8 +538,8 @@ static int mofld_get_function_groups(struct pinctrl_dev *pctldev, unsigned int f
 {
 	struct mofld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	*groups = mp->functions[function].groups;
-	*ngroups = mp->functions[function].ngroups;
+	*groups = mp->functions[function].func.groups;
+	*ngroups = mp->functions[function].func.ngroups;
 	return 0;
 }
 
