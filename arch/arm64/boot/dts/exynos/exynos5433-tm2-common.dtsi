@@ -99,11 +99,18 @@
 
 			DIOVDD-supply = <&ldo3_reg>;
 			DVDD-supply = <&ldo3_reg>;
-			/* PVDD-supply to VPH_PWR */
+			PVDD-supply = <&vph_pwr_regulator>;
 		};
 	};
 
-	irda_regulator: irda-regulator {
+	vph_pwr_regulator: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "VPH_PWR";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+	};
+
+	irda_regulator: regulator-irda {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpr3 3 GPIO_ACTIVE_HIGH>;
@@ -1278,11 +1285,13 @@
 
 		gpio-controller;
 		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		wlf,micd-detect-debounce = <300>;
 		wlf,micd-bias-start-time = <0x1>;
 		wlf,micd-rate = <0x7>;
-		wlf,micd-dbtime = <0x1>;
+		wlf,micd-dbtime = <0x2>;
 		wlf,micd-force-micbias;
 		wlf,micd-configs = <0x0 1 0>;
 		wlf,hpdet-channel = <1>;
@@ -1298,6 +1307,8 @@
 		CPVDD-supply = <&ldo18_reg>;
 		DBVDD2-supply = <&ldo18_reg>;
 		DBVDD3-supply = <&ldo18_reg>;
+		SPKVDDL-supply = <&vph_pwr_regulator>;
+		SPKVDDR-supply = <&vph_pwr_regulator>;
 
 		controller-data {
 			samsung,spi-feedback-delay = <0>;
