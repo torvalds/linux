@@ -138,6 +138,13 @@ def _define_kernel_build(
     out_list.remove("Image.lz4")
     out_list.remove("Image.gz")
 
+    # Add initramfs outputs
+    out_list.extend([
+        "usr/gen_init_cpio",
+        "usr/initramfs_data.cpio",
+        "usr/initramfs_inc_data",
+    ])
+
     kernel_build(
         name = target,
         outs = out_list,
@@ -201,6 +208,7 @@ def _define_kernel_dist(target, msm_target, variant):
             "**/vmlinux": "755",
             "**/Image": "755",
             "**/*.dtb*": "755",
+            "**/gen_init_cpio": "755",
             "**/*": "644",
         },
         log = "info",
