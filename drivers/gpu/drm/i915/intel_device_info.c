@@ -207,6 +207,10 @@ static const u16 subplatform_rpl_ids[] = {
 	INTEL_RPLP_IDS(0),
 };
 
+static const u16 subplatform_rplu_ids[] = {
+	INTEL_RPLU_IDS(0),
+};
+
 static const u16 subplatform_g10_ids[] = {
 	INTEL_DG2_G10_IDS(0),
 	INTEL_ATS_M150_IDS(0),
@@ -274,6 +278,9 @@ static void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	} else if (find_devid(devid, subplatform_rpl_ids,
 			      ARRAY_SIZE(subplatform_rpl_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_RPL);
+		if (find_devid(devid, subplatform_rplu_ids,
+			       ARRAY_SIZE(subplatform_rplu_ids)))
+			mask |= BIT(INTEL_SUBPLATFORM_RPLU);
 	} else if (find_devid(devid, subplatform_g10_ids,
 			      ARRAY_SIZE(subplatform_g10_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_G10);
