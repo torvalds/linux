@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ & Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /*
@@ -25,6 +26,11 @@
  * removed on unmap but instead are removed when the ion_buffer is freed.
  */
 #define DMA_ATTR_DELAYED_UNMAP		(1UL << 17)
+/*
+ * DMA_ATTR_QTI_SMMU_PROXY_MAP : Map this buffer in the TVM SMMU if supported
+ * on the target.
+ */
+#define DMA_ATTR_QTI_SMMU_PROXY_MAP	(1UL << 18)
 
 #ifndef DMA_ATTR_SYS_CACHE_ONLY
 /* Attributes are not supported, so render them ineffective. */

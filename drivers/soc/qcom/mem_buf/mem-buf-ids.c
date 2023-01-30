@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "mem_buf_vm: " fmt
@@ -47,7 +47,7 @@ PERIPHERAL_VM(CP_APP, cp_app);
 
 static struct mem_buf_vm vm_trusted_vm = {
 	.name = "qcom,trusted_vm",
-	.vmid = VMID_TUIVM,
+	.vmid = VMID_TVM,
 	.allowed_api = MEM_BUF_API_GUNYAH,
 };
 

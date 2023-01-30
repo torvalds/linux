@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/anon_inodes.h>
@@ -565,7 +565,7 @@ static void mem_buf_cleanup_alloc_req(struct mem_buf_xfer_mem *xfer_mem,
 			acl_desc->acl_entries[0].perms = GH_RM_ACL_X | GH_RM_ACL_W | GH_RM_ACL_R;
 
 			ret = mem_buf_map_mem_s2(GH_RM_TRANS_TYPE_DONATE, &memparcel_hdl,
-						      acl_desc, &sgl_desc, VMID_TUIVM);
+						      acl_desc, &sgl_desc, VMID_TVM);
 			if (ret) {
 				kfree(acl_desc);
 				return;

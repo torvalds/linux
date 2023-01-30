@@ -14,7 +14,7 @@
  * https://lore.kernel.org/lkml/20201017013255.43568-2-john.stultz@linaro.org/
  *
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -27,10 +27,30 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/of.h>
 #include <linux/qcom_dma_heap.h>
 #include <linux/msm_dma_iommu_mapping.h>
+#include <linux/qti-smmu-proxy-callbacks.h>
 
 #include "qcom_sg_ops.h"
+
+int proxy_invalid_map(struct device *dev, struct sg_table *table,
+		      struct dma_buf *dmabuf)
+{
+	WARN(1, "Trying to map with SMMU proxy driver when it has not fully probed!\n");
+	return -EINVAL;
+}
+
+void proxy_invalid_unmap(struct device *dev, struct sg_table *table,
+			 struct dma_buf *dmabuf)
+{
+	WARN(1, "Trying to unmap with SMMU proxy driver when it has not fully probed!\n");
+}
+
+static struct smmu_proxy_callbacks smmu_proxy_callback_ops = {
+	.map_sgtable = proxy_invalid_map,
+	.unmap_sgtable = proxy_invalid_unmap,
+};
 
 static struct sg_table *dup_sg_table(struct sg_table *table)
 {
@@ -124,11 +144,16 @@ struct sg_table *qcom_sg_map_dma_buf(struct dma_buf_attachment *attachment,
 	if (buffer->uncached || !mem_buf_vmperm_can_cmo(vmperm))
 		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
 
-	if (attrs & DMA_ATTR_DELAYED_UNMAP)
+	if (smmu_proxy_callback_ops.map_sgtable &&
+	    (attrs & DMA_ATTR_QTI_SMMU_PROXY_MAP)) {
+		ret = smmu_proxy_callback_ops.map_sgtable(attachment->dev, table,
+							  attachment->dmabuf);
+	} else if (attrs & DMA_ATTR_DELAYED_UNMAP) {
 		ret = msm_dma_map_sgtable(attachment->dev, table, direction,
 					  attachment->dmabuf, attrs);
-	else
+	} else {
 		ret = dma_map_sgtable(attachment->dev, table, direction, attrs);
+	}
 
 	if (ret) {
 		table = ERR_PTR(-ENOMEM);
@@ -164,11 +189,17 @@ void qcom_sg_unmap_dma_buf(struct dma_buf_attachment *attachment,
 		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
 
 	a->mapped = false;
-	if (attrs & DMA_ATTR_DELAYED_UNMAP)
+
+	if (smmu_proxy_callback_ops.unmap_sgtable &&
+	    (attrs & DMA_ATTR_QTI_SMMU_PROXY_MAP)) {
+		smmu_proxy_callback_ops.unmap_sgtable(attachment->dev, table,
+						      attachment->dmabuf);
+	} else if (attrs & DMA_ATTR_DELAYED_UNMAP) {
 		msm_dma_unmap_sgtable(attachment->dev, table, direction,
 				      attachment->dmabuf, attrs);
-	else
+	} else {
 		dma_unmap_sgtable(attachment->dev, table, direction, attrs);
+	}
 	mem_buf_vmperm_unpin(vmperm);
 	mutex_unlock(&buffer->lock);
 }
@@ -543,3 +574,18 @@ struct mem_buf_dma_buf_ops qcom_sg_buf_ops = {
 	}
 };
 EXPORT_SYMBOL(qcom_sg_buf_ops);
+
+int qti_smmu_proxy_register_callbacks(smmu_proxy_map_sgtable map_sgtable_fn_ptr,
+				      smmu_proxy_unmap_sgtable unmap_sgtable_fn_ptr)
+{
+	if (!map_sgtable_fn_ptr || !unmap_sgtable_fn_ptr) {
+		pr_err("%s: All callbacks must be provided!\n", __func__);
+		return -EINVAL;
+	}
+
+	smmu_proxy_callback_ops.map_sgtable = map_sgtable_fn_ptr;
+	smmu_proxy_callback_ops.unmap_sgtable = unmap_sgtable_fn_ptr;
+
+	return 0;
+}
+EXPORT_SYMBOL(qti_smmu_proxy_register_callbacks);
