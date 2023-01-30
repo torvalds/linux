@@ -113,7 +113,7 @@
 			    <&cam_snapshot_pin_a>;
 		button-vol-up {
 			label = "Volume Up";
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEUP>;
 			gpio-key,wakeup;
@@ -122,7 +122,7 @@
 
 		button-camera-snapshot {
 			label = "Camera Snapshot";
-			gpios = <&pm8998_gpio 7 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA>;
 			debounce-interval = <15>;
@@ -130,7 +130,7 @@
 
 		button-camera-focus {
 			label = "Camera Focus";
-			gpios = <&pm8998_gpio 8 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 8 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA_FOCUS>;
 			debounce-interval = <15>;
@@ -249,7 +249,7 @@
 		reg = <0x14>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <125 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpios = <&tlmm 89 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 		AVDD28-supply = <&vreg_l28_3p0>;
 		VDDIO-supply = <&ts_vio_vreg>;
 		pinctrl-names = "active";
@@ -338,7 +338,7 @@
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
 		function = "normal";
@@ -364,14 +364,9 @@
 	};
 };
 
-&pm8998_pon {
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <GIC_SPI 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		bias-pull-up;
-		debounce = <15625>;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &qusb2phy {

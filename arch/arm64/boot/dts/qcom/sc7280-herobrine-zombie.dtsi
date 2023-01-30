@@ -60,17 +60,7 @@ ap_tp_i2c: &i2c0 {
 	status = "okay";
 };
 
-/* For nvme */
-&pcie1 {
-	status = "okay";
-};
-
-/* For nvme */
-&pcie1_phy {
-	status = "okay";
-};
-
-&pm8350c_pwm_backlight{
+&pm8350c_pwm_backlight {
 	/* Set the PWM period to 200 microseconds (5kHz duty cycle) */
 	pwms = <&pm8350c_pwm 3 200000>;
 };

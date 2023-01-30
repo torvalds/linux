@@ -454,7 +454,7 @@
 	status = "okay";
 	clock-frequency = <1000000>;
 
-	cs35l41_l: cs35l41@40 {
+	cs35l41_l: speaker-amp@40 {
 		compatible = "cirrus,cs35l41";
 		reg = <0x40>;
 		interrupt-parent = <&tlmm>;
@@ -469,7 +469,7 @@
 		#sound-dai-cells = <1>;
 	};
 
-	cs35l41_r: cs35l41@41 {
+	cs35l41_r: speaker-amp@41 {
 		compatible = "cirrus,cs35l41";
 		reg = <0x41>;
 		interrupt-parent = <&tlmm>;
@@ -522,10 +522,8 @@
 	clock-frequency = <400000>;
 
 	/* Qcom SMB1390 @ 10 */
-	/* Silicon Labs SI4704 FM Radio Receiver @ 11 */
 	/* Qcom SMB1390_slave @ 18 */
 	/* HALO HL6111R Qi charger @ 25 */
-	/* Richwave RTC6226 FM Radio Receiver @ 64 */
 };
 
 &pcie0 {

@@ -401,6 +401,18 @@
 			#power-domain-cells = <1>;
 		};
 
+		qfprom: qfprom@784000 {
+			compatible = "qcom,sdm670-qfprom", "qcom,qfprom";
+			reg = <0 0x00784000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			qusb2_hstx_trim: hstx-trim@1eb {
+				reg = <0x1eb 0x1>;
+				bits = <1 4>;
+			};
+		};
+
 		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,sdm670-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x007c4000 0 0x1000>,
@@ -927,6 +939,8 @@
 			clock-names = "cfg_ahb", "ref";
 
 			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
+
+			nvmem-cells = <&qusb2_hstx_trim>;
 
 			status = "disabled";
 		};

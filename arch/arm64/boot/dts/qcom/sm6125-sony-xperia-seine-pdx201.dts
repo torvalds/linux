@@ -20,6 +20,11 @@
 	compatible = "sony,pdx201", "qcom,sm6125";
 	chassis-type = "handset";
 
+	aliases {
+		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
+		mmc1 = &sdhc_2; /* SDC2 SD card slot */
+	};
+
 	chosen {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -41,21 +46,22 @@
 	};
 
 	gpio-keys {
-		status = "okay";
 		compatible = "gpio-keys";
-		autorepeat;
 
-		key-vol-dn {
+		pinctrl-0 = <&vol_down_n>;
+		pinctrl-names = "default";
+
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&tlmm 47 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEDOWN>;
-			gpio-key,wakeup;
 			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
 		};
 	};
 
-	reserved_memory {
+	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		debug_mem: memory@ffb00000 {
@@ -141,8 +147,36 @@
 	};
 };
 
-&hsusb_phy1 {
+&gpi_dma0 {
 	status = "okay";
+};
+
+&hsusb_phy1 {
+	vdd-supply = <&pm6125_l7>;
+	vdda-pll-supply = <&pm6125_l10>;
+	vdda-phy-dpdm-supply = <&pm6125_l15>;
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	/* NXP PN553 NFC @ 28 */
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	/* Samsung touchscreen @ 48 */
+};
+
+&i2c3 {
+	clock-frequency = <1000000>;
+	status = "okay";
+
+	/* Cirrus Logic CS35L41 boosted audio amplifier @ 40 */
 };
 
 &pm6125_adc {
@@ -217,7 +251,7 @@
 	};
 };
 
-&pm6125_gpio {
+&pm6125_gpios {
 	camera_flash_therm: camera-flash-therm-state {
 		pins = "gpio3";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -246,6 +280,153 @@
 	linux,code = <KEY_VOLUMEUP>;
 };
 
+&rpm_requests {
+	regulators-0 {
+		compatible = "qcom,rpm-pm6125-regulators";
+
+		vdd_l2_l3_l4-supply = <&pm6125_l7>;
+		vdd_l5_l15_l19_l20_l21_l22-supply = <&pm6125_l10>;
+
+		/*
+		 * S3/S4 is VDD_CX
+		 * S5 is VDD_MX/WCSS_MX
+		 */
+
+		pm6125_s6: s6 {
+			regulator-min-microvolt = <936000>;
+			regulator-max-microvolt = <1422000>;
+		};
+
+		pm6125_l1: l1 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1256000>;
+		};
+
+		pm6125_l2: l2 {
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1056000>;
+		};
+
+		pm6125_l3: l3 {
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1064000>;
+		};
+
+		pm6125_l4: l4 {
+			regulator-min-microvolt = <872000>;
+			regulator-max-microvolt = <976000>;
+		};
+
+		pm6125_l5: l5 {
+			regulator-min-microvolt = <1648000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
+		};
+
+		pm6125_l6: l6 {
+			regulator-min-microvolt = <576000>;
+			regulator-max-microvolt = <656000>;
+		};
+
+		pm6125_l7: l7 {
+			regulator-min-microvolt = <872000>;
+			regulator-max-microvolt = <976000>;
+		};
+
+		pm6125_l8: l8 {
+			regulator-min-microvolt = <400000>;
+			regulator-max-microvolt = <728000>;
+		};
+
+		pm6125_l9: l9 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1896000>;
+		};
+
+		pm6125_l10: l10 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1896000>;
+		};
+
+		pm6125_l11: l11 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-allow-set-load;
+		};
+
+		pm6125_l12: l12 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1996000>;
+		};
+
+		pm6125_l13: l13 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1832000>;
+		};
+
+		pm6125_l14: l14 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1904000>;
+		};
+
+		pm6125_l15: l15 {
+			regulator-min-microvolt = <3104000>;
+			regulator-max-microvolt = <3232000>;
+		};
+
+		pm6125_l16: l16 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1904000>;
+		};
+
+		pm6125_l17: l17 {
+			regulator-min-microvolt = <1248000>;
+			regulator-max-microvolt = <1304000>;
+		};
+
+		pm6125_l18: l18 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1264000>;
+		};
+
+		pm6125_l19: l19 {
+			regulator-min-microvolt = <1648000>;
+			regulator-max-microvolt = <2952000>;
+		};
+
+		pm6125_l20: l20 {
+			regulator-min-microvolt = <1648000>;
+			regulator-max-microvolt = <2952000>;
+		};
+
+		pm6125_l21: l21 {
+			regulator-min-microvolt = <2600000>;
+			regulator-max-microvolt = <2856000>;
+		};
+
+		pm6125_l22: l22 {
+			regulator-min-microvolt = <2944000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
+		};
+
+		pm6125_l23: l23 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3400000>;
+		};
+
+		pm6125_l24: l24 {
+			regulator-min-microvolt = <2944000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
+		};
+	};
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
 &sdc2_off_state {
 	sd-cd-pins {
 		pins = "gpio98";
@@ -265,11 +446,30 @@
 };
 
 &sdhc_1 {
+	vmmc-supply = <&pm6125_l24>;
+	vqmmc-supply = <&pm6125_l11>;
+	status = "okay";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&pm6125_l22>;
+	vqmmc-supply = <&pm6125_l5>;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 };
 
 &tlmm {
 	gpio-reserved-ranges = <22 2>, <28 6>;
+
+	vol_down_n: vol-down-n-state {
+		pins = "gpio47";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
 };
 
 &usb3 {

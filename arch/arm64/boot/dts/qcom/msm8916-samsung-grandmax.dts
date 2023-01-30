@@ -29,8 +29,12 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
-		keyled {
+		led-keyled {
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			color = <LED_COLOR_ID_WHITE>;
+
 			gpios = <&msmgpio 60 GPIO_ACTIVE_HIGH>;
+
 			pinctrl-names = "default";
 			pinctrl-0 = <&gpio_leds_default>;
 		};

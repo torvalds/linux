@@ -37,14 +37,14 @@
 		key-vol-down {
 			label = "Volume down";
 			linux,code = <KEY_VOLUMEDOWN>;
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 		};
 
 		key-vol-up {
 			label = "Volume up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 		};
 	};
@@ -424,10 +424,10 @@
 };
 
 &ipa {
-	status = "okay";
-
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sdm845/oneplus6/ipa_fws.mbn";
+	status = "okay";
 };
 
 &mdss {
@@ -440,7 +440,7 @@
 	firmware-name = "qcom/sdm845/oneplus6/mba.mbn", "qcom/sdm845/oneplus6/modem.mbn";
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	volume_down_gpio: pm8998-gpio5-state {
 		pinconf {
 			pins = "gpio5";
@@ -474,35 +474,24 @@
 	status = "okay";
 };
 
-&qup_i2c12_default {
-	mux {
-		pins = "gpio49", "gpio50";
-		function = "qup12";
-		drive-strength = <2>;
-		bias-disable;
-	};
-};
-
 &qup_i2c10_default {
-	pinconf {
-		pins = "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_uart9_default {
-	pinconf-tx {
-		pins = "gpio4";
-		drive-strength = <2>;
-		bias-disable;
-	};
+&qup_i2c12_default {
+	drive-strength = <2>;
+	bias-disable;
+};
 
-	pinconf-rx {
-		pins = "gpio5";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart9_rx {
+	drive-strength = <2>;
+	bias-pull-up;
+};
+
+&qup_uart9_tx {
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &uart6 {
@@ -588,51 +577,41 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	tri_state_key_default: tri_state_key_default {
-		mux {
-			pins = "gpio40", "gpio42", "gpio26";
-			function = "gpio";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	tri_state_key_default: tri-state-key-default-state {
+		pins = "gpio40", "gpio42", "gpio26";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	ts_default_pins: ts-int {
-		mux {
-			pins = "gpio99", "gpio125";
-			function = "gpio";
-			drive-strength = <16>;
-			bias-pull-up;
-		};
+	ts_default_pins: ts-int-state {
+		pins = "gpio99", "gpio125";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
 	};
 
-	panel_reset_pins: panel-reset {
-		mux {
-			pins = "gpio6", "gpio25", "gpio26";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-disable;
-		};
+	panel_reset_pins: panel-reset-state {
+		pins = "gpio6", "gpio25", "gpio26";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
 	};
 
-	panel_te_pin: panel-te {
-		mux {
-			pins = "gpio10";
-			function = "mdp_vsync";
-			drive-strength = <2>;
-			bias-disable;
-			input-enable;
-		};
+	panel_te_pin: panel-te-state {
+		pins = "gpio10";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
 	};
 
-	panel_esd_pin: panel-esd {
-		mux {
-			pins = "gpio30";
-			function = "gpio";
-			drive-strength = <2>;
-			bias-pull-down;
-			input-enable;
-		};
+	panel_esd_pin: panel-esd-state {
+		pins = "gpio30";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+		input-enable;
 	};
 };
 

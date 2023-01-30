@@ -24,11 +24,7 @@
 	qcom,board-id = <8 0>;
 
 	chosen {
-		/*
-		 * Due to an unknown-for-a-few-years regression,
-		 * SDHCI only works on MSM8996 in PIO (lame) mode.
-		 */
-		bootargs = "sdhci.debug_quirks=0x40 sdhci.debug_quirks2=0x4 maxcpus=2";
+		bootargs = "maxcpus=2";
 	};
 
 	reserved-memory {
@@ -104,8 +100,8 @@
 };
 
 &blsp1_i2c3 {
-	status = "okay";
 	clock-frequency = <355000>;
+	status = "okay";
 
 	tof_sensor: vl53l0x@29 {
 		compatible = "st,vl53l0x";
@@ -118,15 +114,15 @@
 };
 
 &blsp2_i2c5 {
-	status = "okay";
 	clock-frequency = <355000>;
+	status = "okay";
 
 	/* FUSB301 USB-C controller */
 };
 
 &blsp2_i2c6 {
-	status = "okay";
 	clock-frequency = <355000>;
+	status = "okay";
 
 	synaptics@2c {
 		compatible = "syna,rmi4-i2c";
@@ -183,11 +179,10 @@
 };
 
 &hsusb_phy1 {
-	status = "okay";
-
 	vdd-supply = <&pm8994_l28>;
 	vdda-pll-supply = <&pm8994_l12>;
 	vdda-phy-dpdm-supply = <&pm8994_l24>;
+	status = "okay";
 };
 
 &mmcc {
@@ -195,18 +190,17 @@
 };
 
 &pcie0 {
-	status = "okay";
 	perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
 	vddpe-3v3-supply = <&wlan_en>;
 	vdda-supply = <&pm8994_l28>;
+	status = "okay";
 };
 
 &pcie_phy {
-	status = "okay";
-
 	vdda-phy-supply = <&pm8994_l28>;
 	vdda-pll-supply = <&pm8994_l12>;
+	status = "okay";
 };
 
 &pm8994_gpios {
@@ -478,8 +472,8 @@
 };
 
 &pm8994_resin {
-	status = "okay";
 	linux,code = <KEY_VOLUMEUP>;
+	status = "okay";
 };
 
 &pmi8994_gpios {
@@ -623,9 +617,9 @@
 };
 
 &pmi8994_wled {
-	status = "okay";
 	default-brightness = <512>;
 	qcom,num-strings = <3>;
+	status = "okay";
 };
 
 &rpm_requests {
@@ -825,21 +819,18 @@
 };
 
 &sdhc1 {
-	/* eMMC doesn't seem to cooperate even in PIO mode.. */
-	status = "disabled";
-
 	vmmc-supply = <&pm8994_l20>;
 	vqmmc-supply = <&pm8994_s4>;
 	mmc-hs400-1_8v;
 	mmc-hs200-1_8v;
+	status = "okay";
 };
 
 &sdhc2 {
-	status = "okay";
-
 	cd-gpios = <&tlmm 40 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&pm8994_l21>;
 	vqmmc-supply = <&pm8994_l13>;
+	status = "okay";
 };
 
 &tlmm {
@@ -943,18 +934,15 @@
 	};
 };
 
-/*
- * For reasons that are currently unknown (but probably related to fusb301), USB takes about
- * 6 minutes to wake up (nothing interesting in kernel logs), but then it works as it should.
- */
 &usb3 {
-	status = "okay";
 	qcom,select-utmi-as-pipe-clk;
+	status = "okay";
 };
 
 &usb3_dwc3 {
 	extcon = <&usb3_id>;
 	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
 	phys = <&hsusb_phy1>;
 	phy-names = "usb2-phy";
 	snps,hird-threshold = /bits/ 8 <0>;

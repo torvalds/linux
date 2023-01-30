@@ -166,7 +166,7 @@
 
 		CPU0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0
@@ -180,16 +180,18 @@
 			#cooling-cells = <2>;
 			L2_0: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
 					compatible = "cache";
+					cache-level = <3>;
 				};
 			};
 		};
 
 		CPU1: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0
@@ -203,13 +205,14 @@
 			#cooling-cells = <2>;
 			L2_100: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
 
 		CPU2: cpu@200 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x200>;
 			enable-method = "psci";
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0
@@ -223,13 +226,14 @@
 			#cooling-cells = <2>;
 			L2_200: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
 
 		CPU3: cpu@300 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0
@@ -243,13 +247,14 @@
 			#cooling-cells = <2>;
 			L2_300: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
 
 		CPU4: cpu@400 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x400>;
 			enable-method = "psci";
 			cpu-idle-states = <&BIG_CPU_SLEEP_0
@@ -263,13 +268,14 @@
 			#cooling-cells = <2>;
 			L2_400: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
 
 		CPU5: cpu@500 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x500>;
 			enable-method = "psci";
 			cpu-idle-states = <&BIG_CPU_SLEEP_0
@@ -283,13 +289,14 @@
 			#cooling-cells = <2>;
 			L2_500: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
 
 		CPU6: cpu@600 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x600>;
 			enable-method = "psci";
 			cpu-idle-states = <&BIG_CPU_SLEEP_0
@@ -303,13 +310,14 @@
 			#cooling-cells = <2>;
 			L2_600: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
 
 		CPU7: cpu@700 {
 			device_type = "cpu";
-			compatible = "arm,kryo";
+			compatible = "qcom,kryo";
 			reg = <0x0 0x700>;
 			enable-method = "psci";
 			cpu-idle-states = <&BIG_CPU_SLEEP_0
@@ -323,6 +331,7 @@
 			#cooling-cells = <2>;
 			L2_700: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -2171,9 +2180,9 @@
 
 			iommus = <&apps_smmu 0x480 0x0>,
 				 <&apps_smmu 0x482 0x0>;
-			reg = <0 0x1e40000 0 0x8000>,
-			      <0 0x1e50000 0 0x4ad0>,
-			      <0 0x1e04000 0 0x23000>;
+			reg = <0 0x01e40000 0 0x8000>,
+			      <0 0x01e50000 0 0x4ad0>,
+			      <0 0x01e04000 0 0x23000>;
 			reg-names = "ipa-reg",
 				    "ipa-shared",
 				    "gsi";
@@ -2455,7 +2464,7 @@
 
 		lpass_hm: clock-controller@3c00000 {
 			compatible = "qcom,sc7280-lpasshm";
-			reg = <0 0x3c00000 0 0x28>;
+			reg = <0 0x03c00000 0 0x28>;
 			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "bi_tcxo";
 			#clock-cells = <1>;
@@ -2661,6 +2670,12 @@
 			#power-domain-cells = <1>;
 		};
 
+		dma@117f000 {
+			compatible = "qcom,sc7280-dcc", "qcom,dcc";
+			reg = <0x0 0x0117f000 0x0 0x1000>,
+			      <0x0 0x01112000 0x0 0x6000>;
+		};
+
 		adreno_smmu: iommu@3da0000 {
 			compatible = "qcom,sc7280-smmu-500", "qcom,adreno-smmu", "arm,mmu-500";
 			reg = <0 0x03da0000 0 0x20000>;
@@ -2711,12 +2726,8 @@
 			interrupt-names = "wdog", "fatal", "ready", "handover",
 					  "stop-ack", "shutdown-ack";
 
-			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
-				 <&gcc GCC_MSS_OFFLINE_AXI_CLK>,
-				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
-				 <&rpmhcc RPMH_PKA_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>;
-			clock-names = "iface", "offline", "snoc_axi", "pka", "xo";
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "xo";
 
 			power-domains = <&rpmhpd SC7280_CX>,
 					<&rpmhpd SC7280_MSS>;
@@ -2728,14 +2739,6 @@
 
 			qcom,smem-states = <&modem_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
-
-			resets = <&aoss_reset AOSS_CC_MSS_RESTART>,
-				 <&pdc_reset PDC_MODEM_SYNC_RESET>;
-			reset-names = "mss_restart", "pdc_reset";
-
-			qcom,halt-regs = <&tcsr_1 0x3000 0x5000 0x8000 0x13000>;
-			qcom,ext-regs = <&tcsr_2 0x10000 0x10004 &tcsr_1 0x6004 0x6008>;
-			qcom,qaccept-regs = <&tcsr_1 0x3030 0x3040 0x3020>;
 
 			status = "disabled";
 
@@ -3489,7 +3492,7 @@
 
 		pmu@9091000 {
 			compatible = "qcom,sc7280-llcc-bwmon";
-			reg = <0 0x9091000 0 0x1000>;
+			reg = <0 0x09091000 0 0x1000>;
 
 			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -3571,7 +3574,7 @@
 		};
 
 		gem_noc: interconnect@9100000 {
-			reg = <0 0x9100000 0 0xe2200>;
+			reg = <0 0x09100000 0 0xe2200>;
 			compatible = "qcom,sc7280-gem-noc";
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -3586,8 +3589,8 @@
 
 		eud: eud@88e0000 {
 			compatible = "qcom,sc7280-eud","qcom,eud";
-			reg = <0 0x88e0000 0 0x2000>,
-			      <0 0x88e2000 0 0x1000>;
+			reg = <0 0x088e0000 0 0x2000>,
+			      <0 0x088e2000 0 0x1000>;
 			interrupts-extended = <&pdc 11 IRQ_TYPE_LEVEL_HIGH>;
 			ports {
 				port@0 {
@@ -3750,7 +3753,7 @@
 
 		videocc: clock-controller@aaf0000 {
 			compatible = "qcom,sc7280-videocc";
-			reg = <0 0xaaf0000 0 0x10000>;
+			reg = <0 0x0aaf0000 0 0x10000>;
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				<&rpmhcc RPMH_CXO_CLK_A>;
 			clock-names = "bi_tcxo", "bi_tcxo_ao";
@@ -3773,7 +3776,7 @@
 
 		dispcc: clock-controller@af00000 {
 			compatible = "qcom,sc7280-dispcc";
-			reg = <0 0xaf00000 0 0x20000>;
+			reg = <0 0x0af00000 0 0x20000>;
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_DISP_GPLL0_CLK_SRC>,
 				 <&mdss_dsi_phy 0>,
@@ -3906,7 +3909,8 @@
 			};
 
 			mdss_dsi: dsi@ae94000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,sc7280-dsi-ctrl",
+					     "qcom,mdss-dsi-ctrl";
 				reg = <0 0x0ae94000 0 0x400>;
 				reg-names = "dsi_ctrl";
 
@@ -4001,10 +4005,10 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&edp_hot_plug_det>;
 
-				reg = <0 0xaea0000 0 0x200>,
-				      <0 0xaea0200 0 0x200>,
-				      <0 0xaea0400 0 0xc00>,
-				      <0 0xaea1000 0 0x400>;
+				reg = <0 0x0aea0000 0 0x200>,
+				      <0 0x0aea0200 0 0x200>,
+				      <0 0x0aea0400 0 0xc00>,
+				      <0 0x0aea1000 0 0x400>;
 
 				interrupt-parent = <&mdss>;
 				interrupts = <14>;
@@ -4076,10 +4080,10 @@
 			mdss_edp_phy: phy@aec2a00 {
 				compatible = "qcom,sc7280-edp-phy";
 
-				reg = <0 0xaec2a00 0 0x19c>,
-				      <0 0xaec2200 0 0xa0>,
-				      <0 0xaec2600 0 0xa0>,
-				      <0 0xaec2000 0 0x1c0>;
+				reg = <0 0x0aec2a00 0 0x19c>,
+				      <0 0x0aec2200 0 0xa0>,
+				      <0 0x0aec2600 0 0xa0>,
+				      <0 0x0aec2000 0 0x1c0>;
 
 				clocks = <&rpmhcc RPMH_CXO_CLK>,
 					 <&gcc GCC_EDP_CLKREF_EN>;
@@ -4095,11 +4099,11 @@
 			mdss_dp: displayport-controller@ae90000 {
 				compatible = "qcom,sc7280-dp";
 
-				reg = <0 0xae90000 0 0x200>,
-				      <0 0xae90200 0 0x200>,
-				      <0 0xae90400 0 0xc00>,
-				      <0 0xae91000 0 0x400>,
-				      <0 0xae91400 0 0x400>;
+				reg = <0 0x0ae90000 0 0x200>,
+				      <0 0x0ae90200 0 0x200>,
+				      <0 0x0ae90400 0 0xc00>,
+				      <0 0x0ae91000 0 0x400>,
+				      <0 0x0ae91400 0 0x400>;
 
 				interrupt-parent = <&mdss>;
 				interrupts = <12>;
@@ -4140,7 +4144,7 @@
 
 					port@1 {
 						reg = <1>;
-						dp_out: endpoint { };
+						mdss_dp_out: endpoint { };
 					};
 				};
 
@@ -4217,7 +4221,7 @@
 			#reset-cells = <1>;
 		};
 
-		aoss_qmp: power-controller@c300000 {
+		aoss_qmp: power-management@c300000 {
 			compatible = "qcom,sc7280-aoss-qmp", "qcom,aoss-qmp";
 			reg = <0 0x0c300000 0 0x400>;
 			interrupts-extended = <&ipcc IPCC_CLIENT_AOP
@@ -4246,8 +4250,8 @@
 			interrupts-extended = <&pdc 1 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
-			#address-cells = <1>;
-			#size-cells = <1>;
+			#address-cells = <2>;
+			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
 		};

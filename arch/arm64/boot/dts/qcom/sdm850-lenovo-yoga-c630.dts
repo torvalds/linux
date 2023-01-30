@@ -94,7 +94,7 @@
 };
 
 &adsp_pas {
-	firmware-name = "qcom/LENOVO/81JL/qcadsp850.mbn";
+	firmware-name = "qcom/sdm850/LENOVO/81JL/qcadsp850.mbn";
 	status = "okay";
 };
 
@@ -306,7 +306,7 @@
 };
 
 &cdsp_pas {
-	firmware-name = "qcom/LENOVO/81JL/qccdsp850.mbn";
+	firmware-name = "qcom/sdm850/LENOVO/81JL/qccdsp850.mbn";
 	status = "okay";
 };
 
@@ -345,7 +345,7 @@
 	status = "okay";
 	zap-shader {
 		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/LENOVO/81JL/qcdxkmsuc850.mbn";
+		firmware-name = "qcom/sdm850/LENOVO/81JL/qcdxkmsuc850.mbn";
 	};
 };
 
@@ -465,8 +465,9 @@
 };
 
 &ipa {
-	status = "okay";
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
+	status = "okay";
 };
 
 &mdss {
@@ -475,45 +476,17 @@
 
 &mss_pil {
 	status = "okay";
-	firmware-name = "qcom/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/LENOVO/81JL/qcdsp2850.mbn";
+	firmware-name = "qcom/sdm850/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/sdm850/LENOVO/81JL/qcdsp2850.mbn";
 };
 
 &qup_i2c10_default {
-	pinconf {
-		pins = "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_i2c12_default {
-	pinmux {
-		drive-strength = <2>;
-		bias-disable;
-	};
-};
-
-&qup_uart6_default {
-	pinmux {
-		 pins = "gpio45", "gpio46", "gpio47", "gpio48";
-		 function = "qup6";
-	};
-
-	cts {
-		pins = "gpio45";
-		bias-pull-down;
-	};
-
-	rts-tx {
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	rx {
-		pins = "gpio48";
-		bias-pull-up;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qupv3_id_0 {
@@ -621,13 +594,14 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	sn65dsi86_pin_active: sn65dsi86-enable {
+	sn65dsi86_pin_active: sn65dsi86-enable-state {
 		pins = "gpio96";
+		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	i2c3_hid_active: i2c2-hid-active {
+	i2c3_hid_active: i2c2-hid-active-state {
 		pins = "gpio37";
 		function = "gpio";
 
@@ -636,7 +610,7 @@
 		drive-strength = <2>;
 	};
 
-	i2c5_hid_active: i2c5-hid-active {
+	i2c5_hid_active: i2c5-hid-active-state {
 		pins = "gpio125";
 		function = "gpio";
 
@@ -645,7 +619,7 @@
 		drive-strength = <2>;
 	};
 
-	i2c11_hid_active: i2c11-hid-active {
+	i2c11_hid_active: i2c11-hid-active-state {
 		pins = "gpio92";
 		function = "gpio";
 
@@ -654,7 +628,7 @@
 		drive-strength = <2>;
 	};
 
-	wcd_intr_default: wcd_intr_default {
+	wcd_intr_default: wcd-intr-default-state {
 		pins = "gpio54";
 		function = "gpio";
 
@@ -663,7 +637,7 @@
 		drive-strength = <2>;
 	};
 
-	lid_pin_active: lid-pin {
+	lid_pin_active: lid-pin-state {
 		pins = "gpio124";
 		function = "gpio";
 
@@ -671,7 +645,7 @@
 		bias-disable;
 	};
 
-	mode_pin_active: mode-pin {
+	mode_pin_active: mode-pin-state {
 		pins = "gpio95";
 		function = "gpio";
 
@@ -681,6 +655,8 @@
 };
 
 &uart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&qup_uart6_4pin>;
 	status = "okay";
 
 	bluetooth {
@@ -766,10 +742,11 @@
 };
 
 &venus {
+	firmware-name = "qcom/sdm850/LENOVO/81JL/qcvss850.mbn";
 	status = "okay";
 };
 
-&wcd9340{
+&wcd9340 {
 	pinctrl-0 = <&wcd_intr_default>;
 	pinctrl-names = "default";
 	clock-names = "extclk";

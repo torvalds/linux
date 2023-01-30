@@ -54,7 +54,7 @@
 		reg = <0x30>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-gpio = <&pm8994_gpios 7 1>;
+		enable-gpios = <&pm8994_gpios 7 1>;
 		clock-mode = /bits/8 <2>;
 		label = "button-backlight";
 
@@ -62,14 +62,14 @@
 			reg = <0>;
 			chan-name = "button-backlight";
 			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0xC8>;
+			max-cur = /bits/ 8 <0xc8>;
 		};
 
 		led@1 {
 			reg = <0>;
 			chan-name = "button-backlight1";
 			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0xC8>;
+			max-cur = /bits/ 8 <0xc8>;
 		};
 	};
 };
