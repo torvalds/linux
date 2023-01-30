@@ -383,8 +383,8 @@
 &i2c0 {
 	status = "okay";
 
-		vdd_cpu: tcs4525@10 {
-		compatible = "tcs,tcs452x";
+		vdd_cpu: tcs4526@10 {
+		compatible = "tcs,tcs4526";
 		reg = <0x10>;
 		regulator-compatible = "fan53555-reg";
 		pinctrl-0 = <&vsel_gpio>;

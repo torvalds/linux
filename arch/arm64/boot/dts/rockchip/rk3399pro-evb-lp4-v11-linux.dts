@@ -713,8 +713,8 @@
 		};
 	};
 
-	vdd_cpu_b: tcs452x@1c {
-		compatible = "tcs,tcs452x";
+	vdd_cpu_b: tcs4525@1c {
+		compatible = "tcs,tcs4525";
 		reg = <0x1c>;
 		vin-supply = <&vcc5v0_sys>;
 		regulator-compatible = "fan53555-reg";
@@ -733,8 +733,8 @@
 		};
 	};
 
-	vdd_gpu: tcs452x@10 {
-		compatible = "tcs,tcs452x";
+	vdd_gpu: tcs4526@10 {
+		compatible = "tcs,tcs4526";
 		reg = <0x10>;
 		vin-supply = <&vcc5v0_sys>;
 		regulator-compatible = "fan53555-reg";

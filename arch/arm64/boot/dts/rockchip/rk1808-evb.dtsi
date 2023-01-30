@@ -256,7 +256,7 @@
 	clock-frequency = <400000>;
 
 	vdd_npu: tcs4525@1c {
-		compatible = "tcs,tcs452x";
+		compatible = "tcs,tcs4525";
 		reg = <0x1c>;
 		vin-supply = <&vcc5v0_sys>;
 		regulator-compatible = "fan53555-reg";
