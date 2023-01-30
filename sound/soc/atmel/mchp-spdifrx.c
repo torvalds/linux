@@ -235,7 +235,6 @@ struct mchp_spdifrx_dev {
 	struct regmap				*regmap;
 	struct clk				*pclk;
 	struct clk				*gclk;
-	unsigned int				fmt;
 	unsigned int				trigger_enabled;
 	unsigned int				gclk_enabled:1;
 };
