@@ -466,6 +466,7 @@ dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-ppd.dtb \
 	imx53-qsb.dtb \
 	imx53-qsrb.dtb \
+	imx53-sk-imx53.dtb \
 	imx53-smd.dtb \
 	imx53-tx53-x03x.dtb \
 	imx53-tx53-x13x.dtb \
@@ -741,6 +742,9 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-colibri-wifi-eval-v3.dtb \
 	imx6ull-colibri-wifi-iris.dtb \
 	imx6ull-colibri-wifi-iris-v2.dtb \
+	imx6ull-dhcom-drc02.dtb \
+	imx6ull-dhcom-pdk2.dtb \
+	imx6ull-dhcom-picoitx.dtb \
 	imx6ull-jozacp.dtb \
 	imx6ull-kontron-bl.dtb \
 	imx6ull-myir-mys-6ulx-eval.dtb \

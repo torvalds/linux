@@ -171,7 +171,6 @@
 				     <0 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <0 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <0 13 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "gpmi0", "gpmi1", "gpmi2", "gpmi3";
 			#dma-cells = <1>;
 			dma-channels = <4>;
 			clocks = <&clks IMX6UL_CLK_APBHDMA>;

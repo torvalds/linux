@@ -52,13 +52,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pin_gpio>;
 
-		user1 {
+		led-user1 {
 			label = "user1";
 			gpios = <&gpio2 8 0>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		user2 {
+		led-user2 {
 			label = "user2";
 			gpios = <&gpio2 9 0>;
 			linux,default-trigger = "heartbeat";
