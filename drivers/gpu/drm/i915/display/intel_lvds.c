@@ -92,9 +92,9 @@ bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
 
 	/* asserts want to know the pipe even if the port is disabled */
 	if (HAS_PCH_CPT(dev_priv))
-		*pipe = (val & LVDS_PIPE_SEL_MASK_CPT) >> LVDS_PIPE_SEL_SHIFT_CPT;
+		*pipe = REG_FIELD_GET(LVDS_PIPE_SEL_MASK_CPT, val);
 	else
-		*pipe = (val & LVDS_PIPE_SEL_MASK) >> LVDS_PIPE_SEL_SHIFT;
+		*pipe = REG_FIELD_GET(LVDS_PIPE_SEL_MASK, val);
 
 	return val & LVDS_PORT_EN;
 }
