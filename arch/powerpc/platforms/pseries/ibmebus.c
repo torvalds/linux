@@ -426,7 +426,7 @@ static struct attribute *ibmebus_bus_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ibmebus_bus_device);
 
-static int ibmebus_bus_modalias(struct device *dev, struct kobj_uevent_env *env)
+static int ibmebus_bus_modalias(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return of_device_uevent_modalias(dev, env);
 }
