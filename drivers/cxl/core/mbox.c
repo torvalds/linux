@@ -3,6 +3,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/security.h>
 #include <linux/debugfs.h>
+#include <linux/ktime.h>
 #include <linux/mutex.h>
 #include <cxlmem.h>
 #include <cxl.h>
@@ -1054,6 +1055,32 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds)
 			   cxlds->active_persistent_bytes, "pmem");
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_create_range_info, CXL);
+
+int cxl_set_timestamp(struct cxl_dev_state *cxlds)
+{
+	struct cxl_mbox_cmd mbox_cmd;
+	struct cxl_mbox_set_timestamp_in pi;
+	int rc;
+
+	pi.timestamp = cpu_to_le64(ktime_get_real_ns());
+	mbox_cmd = (struct cxl_mbox_cmd) {
+		.opcode = CXL_MBOX_OP_SET_TIMESTAMP,
+		.size_in = sizeof(pi),
+		.payload_in = &pi,
+	};
+
+	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	/*
+	 * Command is optional. Devices may have another way of providing
+	 * a timestamp, or may return all 0s in timestamp fields.
+	 * Don't report an error if this command isn't supported
+	 */
+	if (rc && (mbox_cmd.return_code != CXL_MBOX_CMD_RC_UNSUPPORTED))
+		return rc;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_set_timestamp, CXL);
 
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev)
 {
