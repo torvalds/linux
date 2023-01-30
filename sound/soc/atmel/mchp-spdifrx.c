@@ -249,16 +249,34 @@ static const struct regmap_config mchp_spdifrx_regmap_config = {
 
 #define SPDIFRX_CHANNELS	2
 
+/**
+ * struct mchp_spdifrx_ch_stat: MCHP SPDIFRX channel status
+ * @data: channel status bits
+ * @done: completion to signal channel status bits acquisition done
+ */
 struct mchp_spdifrx_ch_stat {
 	unsigned char data[SPDIFRX_CS_BITS / 8];
 	struct completion done;
 };
 
+/**
+ * struct mchp_spdifrx_user_data: MCHP SPDIFRX user data
+ * @data: user data bits
+ * @done: completion to signal user data bits acquisition done
+ */
 struct mchp_spdifrx_user_data {
 	unsigned char data[SPDIFRX_UD_BITS / 8];
 	struct completion done;
 };
 
+/**
+ * struct mchp_spdifrx_mixer_control: MCHP SPDIFRX mixer control data structure
+ * @ch_stat: array of channel statuses
+ * @user_data: array of user data
+ * @ulock: ulock bit status
+ * @badf: badf bit status
+ * @signal: signal bit status
+ */
 struct mchp_spdifrx_mixer_control {
 	struct mchp_spdifrx_ch_stat ch_stat[SPDIFRX_CHANNELS];
 	struct mchp_spdifrx_user_data user_data[SPDIFRX_CHANNELS];
@@ -267,6 +285,17 @@ struct mchp_spdifrx_mixer_control {
 	bool signal;
 };
 
+/**
+ * struct mchp_spdifrx_dev: MCHP SPDIFRX device data structure
+ * @capture: DAI DMA configuration data
+ * @control: mixer controls
+ * @mlock: mutex to protect concurency b/w configuration and control APIs
+ * @dev: struct device
+ * @regmap: regmap for this device
+ * @pclk: peripheral clock
+ * @gclk: generic clock
+ * @trigger_enabled: true if enabled though trigger() ops
+ */
 struct mchp_spdifrx_dev {
 	struct snd_dmaengine_dai_dma_data	capture;
 	struct mchp_spdifrx_mixer_control	control;
