@@ -252,6 +252,7 @@ enum lpuart_type {
 	LS1021A_LPUART,
 	LS1028A_LPUART,
 	IMX7ULP_LPUART,
+	IMX8ULP_LPUART,
 	IMX8QXP_LPUART,
 	IMXRT1050_LPUART,
 };
@@ -319,6 +320,13 @@ static struct lpuart_soc_data imx7ulp_data = {
 	.rx_watermark = 1,
 };
 
+static struct lpuart_soc_data imx8ulp_data = {
+	.devtype = IMX8ULP_LPUART,
+	.iotype = UPIO_MEM32,
+	.reg_off = IMX_REG_OFF,
+	.rx_watermark = 3,
+};
+
 static struct lpuart_soc_data imx8qxp_data = {
 	.devtype = IMX8QXP_LPUART,
 	.iotype = UPIO_MEM32,
@@ -337,6 +345,7 @@ static const struct of_device_id lpuart_dt_ids[] = {
 	{ .compatible = "fsl,ls1021a-lpuart",	.data = &ls1021a_data, },
 	{ .compatible = "fsl,ls1028a-lpuart",	.data = &ls1028a_data, },
 	{ .compatible = "fsl,imx7ulp-lpuart",	.data = &imx7ulp_data, },
+	{ .compatible = "fsl,imx8ulp-lpuart",	.data = &imx8ulp_data, },
 	{ .compatible = "fsl,imx8qxp-lpuart",	.data = &imx8qxp_data, },
 	{ .compatible = "fsl,imxrt1050-lpuart",	.data = &imxrt1050_data},
 	{ /* sentinel */ }
@@ -355,6 +364,11 @@ static inline bool is_layerscape_lpuart(struct lpuart_port *sport)
 static inline bool is_imx7ulp_lpuart(struct lpuart_port *sport)
 {
 	return sport->devtype == IMX7ULP_LPUART;
+}
+
+static inline bool is_imx8ulp_lpuart(struct lpuart_port *sport)
+{
+	return sport->devtype == IMX8ULP_LPUART;
 }
 
 static inline bool is_imx8qxp_lpuart(struct lpuart_port *sport)
@@ -2691,7 +2705,7 @@ static int lpuart_global_reset(struct lpuart_port *sport)
 		return ret;
 	}
 
-	if (is_imx7ulp_lpuart(sport) || is_imx8qxp_lpuart(sport)) {
+	if (is_imx7ulp_lpuart(sport) || is_imx8ulp_lpuart(sport) || is_imx8qxp_lpuart(sport)) {
 		/*
 		 * If the transmitter is used by earlycon, wait for transmit engine to
 		 * complete and then reset.
