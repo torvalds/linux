@@ -118,7 +118,7 @@ static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 }
 #endif
 
-static int pch_wpt_init(struct pch_thermal_device *ptd)
+static int pch_hw_init(struct pch_thermal_device *ptd)
 {
 	int nr_trips = 0;
 	u16 trip_temp;
@@ -164,13 +164,13 @@ read_trips:
 	return nr_trips + pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
 }
 
-static int pch_wpt_get_temp(struct pch_thermal_device *ptd)
+static int pch_get_temp(struct pch_thermal_device *ptd)
 {
 	return GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
 }
 
 /* Cool the PCH when it's overheat in .suspend_noirq phase */
-static int pch_wpt_suspend(struct pch_thermal_device *ptd)
+static int pch_suspend(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
 	int pch_delay_cnt = 0;
@@ -237,7 +237,7 @@ static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 	return 0;
 }
 
-static int pch_wpt_resume(struct pch_thermal_device *ptd)
+static int pch_resume(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
 
@@ -258,13 +258,11 @@ struct pch_dev_ops {
 	int (*resume)(struct pch_thermal_device *ptd);
 };
 
-
-/* dev ops for Wildcat Point */
-static const struct pch_dev_ops pch_dev_ops_wpt = {
-	.hw_init = pch_wpt_init,
-	.get_temp = pch_wpt_get_temp,
-	.suspend = pch_wpt_suspend,
-	.resume = pch_wpt_resume,
+static const struct pch_dev_ops pch_dev_ops = {
+	.hw_init = pch_hw_init,
+	.get_temp = pch_get_temp,
+	.suspend = pch_suspend,
+	.resume = pch_resume,
 };
 
 static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
@@ -301,31 +299,31 @@ static const struct board_info {
 } board_info[] = {
 	[board_hsw] = {
 		.name = "pch_haswell",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 	[board_wpt] = {
 		.name = "pch_wildcat_point",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 	[board_skl] = {
 		.name = "pch_skylake",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 	[board_cnl] = {
 		.name = "pch_cannonlake",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 	[board_cml] = {
 		.name = "pch_cometlake",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 	[board_lwb] = {
 		.name = "pch_lewisburg",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 	[board_wbg] = {
 		.name = "pch_wellsburg",
-		.ops = &pch_dev_ops_wpt,
+		.ops = &pch_dev_ops,
 	},
 };
 
