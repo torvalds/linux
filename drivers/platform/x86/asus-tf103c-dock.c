@@ -250,7 +250,7 @@ static int tf103c_dock_hid_raw_request(struct hid_device *hid, u8 reportnum,
 	return 0;
 }
 
-static struct hid_ll_driver tf103c_dock_hid_ll_driver = {
+static const struct hid_ll_driver tf103c_dock_hid_ll_driver = {
 	.parse = tf103c_dock_hid_parse,
 	.start = tf103c_dock_hid_start,
 	.stop = tf103c_dock_hid_stop,
