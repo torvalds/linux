@@ -37,6 +37,13 @@
 	ANA_CL_ADV_CL_CFG_MPLS_MC_CLM_KEY_SEL_SET(_mpls_mc) | \
 	ANA_CL_ADV_CL_CFG_MLBS_CLM_KEY_SEL_SET(_mlbs))
 
+#define SPARX5_ES2_LOOKUPS 2
+#define VCAP_ES2_KEYSEL(_ena, _arp, _ipv4, _ipv6) \
+	(EACL_VCAP_ES2_KEY_SEL_KEY_ENA_SET(_ena) | \
+	EACL_VCAP_ES2_KEY_SEL_ARP_KEY_SEL_SET(_arp) | \
+	EACL_VCAP_ES2_KEY_SEL_IP4_KEY_SEL_SET(_ipv4) | \
+	EACL_VCAP_ES2_KEY_SEL_IP6_KEY_SEL_SET(_ipv6))
+
 static struct sparx5_vcap_inst {
 	enum vcap_type vtype; /* type of vcap */
 	int vinst; /* instance number within the same type */
@@ -48,6 +55,7 @@ static struct sparx5_vcap_inst {
 	int map_id; /* id in the super vcap block mapping (if applicable) */
 	int blockno; /* starting block in super vcap (if applicable) */
 	int blocks; /* number of blocks in super vcap (if applicable) */
+	bool ingress; /* is vcap in the ingress path */
 } sparx5_vcap_inst_cfg[] = {
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-0 */
@@ -59,6 +67,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS0_L2 - 1,
 		.blockno = 8, /* Maps block 8-9 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-1 */
@@ -70,6 +79,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS0_L4 - 1,
 		.blockno = 6, /* Maps block 6-7 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-2 */
@@ -81,6 +91,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS0_MAX,
 		.blockno = 4, /* Maps block 4-5 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS2, /* IS2-0 */
@@ -92,6 +103,7 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS2_L2 - 1,
 		.blockno = 0, /* Maps block 0-1 */
 		.blocks = 2,
+		.ingress = true,
 	},
 	{
 		.vtype = VCAP_TYPE_IS2, /* IS2-1 */
@@ -103,6 +115,16 @@ static struct sparx5_vcap_inst {
 		.last_cid = SPARX5_VCAP_CID_IS2_MAX,
 		.blockno = 2, /* Maps block 2-3 */
 		.blocks = 2,
+		.ingress = true,
+	},
+	{
+		.vtype = VCAP_TYPE_ES2,
+		.lookups = SPARX5_ES2_LOOKUPS,
+		.lookups_per_instance = SPARX5_ES2_LOOKUPS,
+		.first_cid = SPARX5_VCAP_CID_ES2_L0,
+		.last_cid = SPARX5_VCAP_CID_ES2_MAX,
+		.count = 12288, /* Addresses according to datasheet */
+		.ingress = false,
 	},
 };
 
@@ -115,6 +137,14 @@ static u16 sparx5_vcap_is0_known_etypes[] = {
 
 /* These protocols have dedicated keysets in IS2 and a TC dissector */
 static u16 sparx5_vcap_is2_known_etypes[] = {
+	ETH_P_ALL,
+	ETH_P_ARP,
+	ETH_P_IP,
+	ETH_P_IPV6,
+};
+
+/* These protocols have dedicated keysets in ES2 and a TC dissector */
+static u16 sparx5_vcap_es2_known_etypes[] = {
 	ETH_P_ALL,
 	ETH_P_ARP,
 	ETH_P_IP,
@@ -139,25 +169,57 @@ static void sparx5_vcap_wait_super_update(struct sparx5 *sparx5)
 			  false, sparx5, VCAP_SUPER_CTRL);
 }
 
-/* Initializing a VCAP address range: IS0 and IS2 for now */
+/* Await the ES2 VCAP completion of the current operation */
+static void sparx5_vcap_wait_es2_update(struct sparx5 *sparx5)
+{
+	u32 value;
+
+	read_poll_timeout(spx5_rd, value,
+			  !VCAP_ES2_CTRL_UPDATE_SHOT_GET(value), 500, 10000,
+			  false, sparx5, VCAP_ES2_CTRL);
+}
+
+/* Initializing a VCAP address range */
 static void _sparx5_vcap_range_init(struct sparx5 *sparx5,
 				    struct vcap_admin *admin,
 				    u32 addr, u32 count)
 {
 	u32 size = count - 1;
 
-	spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(0) |
-		VCAP_SUPER_CFG_MV_SIZE_SET(size),
-		sparx5, VCAP_SUPER_CFG);
-	spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(VCAP_CMD_INITIALIZE) |
-		VCAP_SUPER_CTRL_UPDATE_ENTRY_DIS_SET(0) |
-		VCAP_SUPER_CTRL_UPDATE_ACTION_DIS_SET(0) |
-		VCAP_SUPER_CTRL_UPDATE_CNT_DIS_SET(0) |
-		VCAP_SUPER_CTRL_UPDATE_ADDR_SET(addr) |
-		VCAP_SUPER_CTRL_CLEAR_CACHE_SET(true) |
-		VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
-		sparx5, VCAP_SUPER_CTRL);
-	sparx5_vcap_wait_super_update(sparx5);
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+	case VCAP_TYPE_IS2:
+		spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(0) |
+			VCAP_SUPER_CFG_MV_SIZE_SET(size),
+			sparx5, VCAP_SUPER_CFG);
+		spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(VCAP_CMD_INITIALIZE) |
+			VCAP_SUPER_CTRL_UPDATE_ENTRY_DIS_SET(0) |
+			VCAP_SUPER_CTRL_UPDATE_ACTION_DIS_SET(0) |
+			VCAP_SUPER_CTRL_UPDATE_CNT_DIS_SET(0) |
+			VCAP_SUPER_CTRL_UPDATE_ADDR_SET(addr) |
+			VCAP_SUPER_CTRL_CLEAR_CACHE_SET(true) |
+			VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
+			sparx5, VCAP_SUPER_CTRL);
+		sparx5_vcap_wait_super_update(sparx5);
+		break;
+	case VCAP_TYPE_ES2:
+		spx5_wr(VCAP_ES2_CFG_MV_NUM_POS_SET(0) |
+			VCAP_ES2_CFG_MV_SIZE_SET(size),
+			sparx5, VCAP_ES2_CFG);
+		spx5_wr(VCAP_ES2_CTRL_UPDATE_CMD_SET(VCAP_CMD_INITIALIZE) |
+			VCAP_ES2_CTRL_UPDATE_ENTRY_DIS_SET(0) |
+			VCAP_ES2_CTRL_UPDATE_ACTION_DIS_SET(0) |
+			VCAP_ES2_CTRL_UPDATE_CNT_DIS_SET(0) |
+			VCAP_ES2_CTRL_UPDATE_ADDR_SET(addr) |
+			VCAP_ES2_CTRL_CLEAR_CACHE_SET(true) |
+			VCAP_ES2_CTRL_UPDATE_SHOT_SET(true),
+			sparx5, VCAP_ES2_CTRL);
+		sparx5_vcap_wait_es2_update(sparx5);
+		break;
+	default:
+		sparx5_vcap_type_err(sparx5, admin, __func__);
+		break;
+	}
 }
 
 /* Initializing VCAP rule data area */
@@ -198,9 +260,15 @@ static bool sparx5_vcap_is2_is_first_chain(struct vcap_rule *rule)
 		  rule->vcap_chain_id < SPARX5_VCAP_CID_IS2_L3));
 }
 
+static bool sparx5_vcap_es2_is_first_chain(struct vcap_rule *rule)
+{
+	return (rule->vcap_chain_id >= SPARX5_VCAP_CID_ES2_L0 &&
+		rule->vcap_chain_id < SPARX5_VCAP_CID_ES2_L1);
+}
+
 /* Set the narrow range ingress port mask on a rule */
-static void sparx5_vcap_add_range_port_mask(struct vcap_rule *rule,
-					    struct net_device *ndev)
+static void sparx5_vcap_add_ingress_range_port_mask(struct vcap_rule *rule,
+						    struct net_device *ndev)
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	u32 port_mask;
@@ -228,6 +296,27 @@ static void sparx5_vcap_add_wide_port_mask(struct vcap_rule *rule,
 	range = port->portno / BITS_PER_BYTE;
 	port_mask.mask[range] = ~BIT(port->portno % BITS_PER_BYTE);
 	vcap_rule_add_key_u72(rule, VCAP_KF_IF_IGR_PORT_MASK, &port_mask);
+}
+
+static void sparx5_vcap_add_egress_range_port_mask(struct vcap_rule *rule,
+						   struct net_device *ndev)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	u32 port_mask;
+	u32 range;
+
+	/* Mask range selects:
+	 * 0-2: Physical/Logical egress port number 0-31, 32–63, 64.
+	 * 3-5: Virtual Interface Number 0-31, 32-63, 64.
+	 * 6: CPU queue Number 0-7.
+	 *
+	 * Use physical/logical port ranges (0-2)
+	 */
+	range = port->portno / BITS_PER_TYPE(u32);
+	/* Port bit set to match-any */
+	port_mask = ~BIT(port->portno % BITS_PER_TYPE(u32));
+	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_MASK_RNG, range, 0xf);
+	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_MASK, 0, port_mask);
 }
 
 /* Convert IS0 chain id to vcap lookup id */
@@ -260,6 +349,17 @@ static int sparx5_vcap_is2_cid_to_lookup(int cid)
 		lookup = 2;
 	else if (cid >= SPARX5_VCAP_CID_IS2_L3 && cid < SPARX5_VCAP_CID_IS2_MAX)
 		lookup = 3;
+
+	return lookup;
+}
+
+/* Convert ES2 chain id to vcap lookup id */
+static int sparx5_vcap_es2_cid_to_lookup(int cid)
+{
+	int lookup = 0;
+
+	if (cid >= SPARX5_VCAP_CID_ES2_L1)
+		lookup = 1;
 
 	return lookup;
 }
@@ -435,6 +535,97 @@ static int sparx5_vcap_is2_get_port_keysets(struct net_device *ndev,
 	return 0;
 }
 
+/* Return the keysets for the vcap port IP4 traffic class configuration */
+static void
+sparx5_vcap_es2_get_port_ipv4_keysets(struct vcap_keyset_list *keysetlist,
+				      u32 value)
+{
+	switch (EACL_VCAP_ES2_KEY_SEL_IP4_KEY_SEL_GET(value)) {
+	case VCAP_ES2_PS_IPV4_MAC_ETYPE:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+		break;
+	case VCAP_ES2_PS_IPV4_IP_7TUPLE:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+		break;
+	case VCAP_ES2_PS_IPV4_IP4_TCP_UDP_VID:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_TCP_UDP);
+		break;
+	case VCAP_ES2_PS_IPV4_IP4_TCP_UDP_OTHER:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_TCP_UDP);
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
+		break;
+	case VCAP_ES2_PS_IPV4_IP4_VID:
+		/* Not used */
+		break;
+	case VCAP_ES2_PS_IPV4_IP4_OTHER:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
+		break;
+	}
+}
+
+/* Return the list of keysets for the vcap port configuration */
+static int sparx5_vcap_es2_get_port_keysets(struct net_device *ndev,
+					    int lookup,
+					    struct vcap_keyset_list *keysetlist,
+					    u16 l3_proto)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	int portno = port->portno;
+	u32 value;
+
+	value = spx5_rd(sparx5, EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+
+	/* Collect all keysets for the port in a list */
+	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_ARP) {
+		switch (EACL_VCAP_ES2_KEY_SEL_ARP_KEY_SEL_GET(value)) {
+		case VCAP_ES2_PS_ARP_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_ES2_PS_ARP_ARP:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_ARP);
+			break;
+		}
+	}
+
+	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_IP)
+		sparx5_vcap_es2_get_port_ipv4_keysets(keysetlist, value);
+
+	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_IPV6) {
+		switch (EACL_VCAP_ES2_KEY_SEL_IP6_KEY_SEL_GET(value)) {
+		case VCAP_ES2_PS_IPV6_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_ES2_PS_IPV6_IP_7TUPLE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			break;
+		case VCAP_ES2_PS_IPV6_IP_7TUPLE_VID:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			break;
+		case VCAP_ES2_PS_IPV6_IP_7TUPLE_STD:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP6_STD);
+			break;
+		case VCAP_ES2_PS_IPV6_IP6_VID:
+			/* Not used */
+			break;
+		case VCAP_ES2_PS_IPV6_IP6_STD:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP6_STD);
+			break;
+		case VCAP_ES2_PS_IPV6_IP4_DOWNGRADE:
+			sparx5_vcap_es2_get_port_ipv4_keysets(keysetlist,
+							      value);
+			break;
+		}
+	}
+
+	if (l3_proto != ETH_P_ARP && l3_proto != ETH_P_IP &&
+	    l3_proto != ETH_P_IPV6) {
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+	}
+	return 0;
+}
+
 /* Get the port keyset for the vcap lookup */
 int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 				struct vcap_admin *admin,
@@ -454,6 +645,11 @@ int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 	case VCAP_TYPE_IS2:
 		lookup = sparx5_vcap_is2_cid_to_lookup(cid);
 		err = sparx5_vcap_is2_get_port_keysets(ndev, lookup, kslist,
+						       l3_proto);
+		break;
+	case VCAP_TYPE_ES2:
+		lookup = sparx5_vcap_es2_cid_to_lookup(cid);
+		err = sparx5_vcap_es2_get_port_keysets(ndev, lookup, kslist,
 						       l3_proto);
 		break;
 	default:
@@ -478,6 +674,10 @@ bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype)
 	case VCAP_TYPE_IS2:
 		known_etypes = sparx5_vcap_is2_known_etypes;
 		size = ARRAY_SIZE(sparx5_vcap_is2_known_etypes);
+		break;
+	case VCAP_TYPE_ES2:
+		known_etypes = sparx5_vcap_es2_known_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_es2_known_etypes);
 		break;
 	default:
 		return false;
@@ -519,6 +719,11 @@ sparx5_vcap_validate_keyset(struct net_device *ndev,
 		sparx5_vcap_is2_get_port_keysets(ndev, lookup, &keysetlist,
 						 l3_proto);
 		break;
+	case VCAP_TYPE_ES2:
+		lookup = sparx5_vcap_es2_cid_to_lookup(rule->vcap_chain_id);
+		sparx5_vcap_es2_get_port_keysets(ndev, lookup, &keysetlist,
+						 l3_proto);
+		break;
 	default:
 		port = netdev_priv(ndev);
 		sparx5_vcap_type_err(port->sparx5, admin, __func__);
@@ -538,43 +743,82 @@ sparx5_vcap_validate_keyset(struct net_device *ndev,
 	return -ENOENT;
 }
 
-/* API callback used for adding default fields to a rule */
-static void sparx5_vcap_add_default_fields(struct net_device *ndev,
-					   struct vcap_admin *admin,
-					   struct vcap_rule *rule)
+static void sparx5_vcap_ingress_add_default_fields(struct net_device *ndev,
+						   struct vcap_admin *admin,
+						   struct vcap_rule *rule)
 {
 	const struct vcap_field *field;
-	struct sparx5_port *port;
-	bool is_first = true;
+	bool is_first;
 
+	/* Add ingress port mask matching the net device */
 	field = vcap_lookup_keyfield(rule, VCAP_KF_IF_IGR_PORT_MASK);
 	if (field && field->width == SPX5_PORTS)
 		sparx5_vcap_add_wide_port_mask(rule, ndev);
 	else if (field && field->width == BITS_PER_TYPE(u32))
-		sparx5_vcap_add_range_port_mask(rule, ndev);
+		sparx5_vcap_add_ingress_range_port_mask(rule, ndev);
 	else
 		pr_err("%s:%d: %s: could not add an ingress port mask for: %s\n",
 		       __func__, __LINE__, netdev_name(ndev),
 		       sparx5_vcap_keyset_name(ndev, rule->keyset));
 
+	if (admin->vtype == VCAP_TYPE_IS0)
+		is_first = sparx5_vcap_is0_is_first_chain(rule);
+	else
+		is_first = sparx5_vcap_is2_is_first_chain(rule);
+
+	/* Add key that selects the first/second lookup */
+	if (is_first)
+		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS,
+				      VCAP_BIT_1);
+	else
+		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS,
+				      VCAP_BIT_0);
+}
+
+static void sparx5_vcap_es2_add_default_fields(struct net_device *ndev,
+					       struct vcap_admin *admin,
+					       struct vcap_rule *rule)
+{
+	const struct vcap_field *field;
+	bool is_first;
+
+	/* Add egress port mask matching the net device */
+	field = vcap_lookup_keyfield(rule, VCAP_KF_IF_EGR_PORT_MASK);
+	if (field)
+		sparx5_vcap_add_egress_range_port_mask(rule, ndev);
+
+	/* Add key that selects the first/second lookup */
+	is_first = sparx5_vcap_es2_is_first_chain(rule);
+
+	if (is_first)
+		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS,
+				      VCAP_BIT_1);
+	else
+		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS,
+				      VCAP_BIT_0);
+}
+
+/* API callback used for adding default fields to a rule */
+static void sparx5_vcap_add_default_fields(struct net_device *ndev,
+					   struct vcap_admin *admin,
+					   struct vcap_rule *rule)
+{
+	struct sparx5_port *port;
+
 	/* add the lookup bit */
 	switch (admin->vtype) {
 	case VCAP_TYPE_IS0:
-		is_first = sparx5_vcap_is0_is_first_chain(rule);
-		break;
 	case VCAP_TYPE_IS2:
-		is_first = sparx5_vcap_is2_is_first_chain(rule);
+		sparx5_vcap_ingress_add_default_fields(ndev, admin, rule);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_add_default_fields(ndev, admin, rule);
 		break;
 	default:
 		port = netdev_priv(ndev);
 		sparx5_vcap_type_err(port->sparx5, admin, __func__);
 		break;
 	}
-
-	if (is_first)
-		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS, VCAP_BIT_1);
-	else
-		vcap_rule_add_key_bit(rule, VCAP_KF_LOOKUP_FIRST_IS, VCAP_BIT_0);
 }
 
 /* API callback used for erasing the vcap cache area (not the register area) */
@@ -586,21 +830,60 @@ static void sparx5_vcap_cache_erase(struct vcap_admin *admin)
 	memset(&admin->cache.counter, 0, sizeof(admin->cache.counter));
 }
 
-/* API callback used for writing to the VCAP cache */
-static void sparx5_vcap_cache_write(struct net_device *ndev,
-				    struct vcap_admin *admin,
-				    enum vcap_selection sel,
-				    u32 start,
-				    u32 count)
+static void sparx5_vcap_is0_cache_write(struct sparx5 *sparx5,
+					struct vcap_admin *admin,
+					enum vcap_selection sel,
+					u32 start,
+					u32 count)
 {
-	struct sparx5_port *port = netdev_priv(ndev);
-	struct sparx5 *sparx5 = port->sparx5;
 	u32 *keystr, *mskstr, *actstr;
 	int idx;
 
 	keystr = &admin->cache.keystream[start];
 	mskstr = &admin->cache.maskstream[start];
 	actstr = &admin->cache.actionstream[start];
+
+	switch (sel) {
+	case VCAP_SEL_ENTRY:
+		for (idx = 0; idx < count; ++idx) {
+			/* Avoid 'match-off' by setting value & mask */
+			spx5_wr(keystr[idx] & mskstr[idx], sparx5,
+				VCAP_SUPER_VCAP_ENTRY_DAT(idx));
+			spx5_wr(~mskstr[idx], sparx5,
+				VCAP_SUPER_VCAP_MASK_DAT(idx));
+		}
+		break;
+	case VCAP_SEL_ACTION:
+		for (idx = 0; idx < count; ++idx)
+			spx5_wr(actstr[idx], sparx5,
+				VCAP_SUPER_VCAP_ACTION_DAT(idx));
+		break;
+	case VCAP_SEL_ALL:
+		pr_err("%s:%d: cannot write all streams at once\n",
+		       __func__, __LINE__);
+		break;
+	default:
+		break;
+	}
+
+	if (sel & VCAP_SEL_COUNTER)
+		spx5_wr(admin->cache.counter, sparx5,
+			VCAP_SUPER_VCAP_CNT_DAT(0));
+}
+
+static void sparx5_vcap_is2_cache_write(struct sparx5 *sparx5,
+					struct vcap_admin *admin,
+					enum vcap_selection sel,
+					u32 start,
+					u32 count)
+{
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+
 	switch (sel) {
 	case VCAP_SEL_ENTRY:
 		for (idx = 0; idx < count; ++idx) {
@@ -624,26 +907,194 @@ static void sparx5_vcap_cache_write(struct net_device *ndev,
 		break;
 	}
 	if (sel & VCAP_SEL_COUNTER) {
-		switch (admin->vtype) {
-		case VCAP_TYPE_IS0:
+		start = start & 0xfff; /* counter limit */
+		if (admin->vinst == 0)
 			spx5_wr(admin->cache.counter, sparx5,
-				VCAP_SUPER_VCAP_CNT_DAT(0));
-			break;
-		case VCAP_TYPE_IS2:
-			start = start & 0xfff; /* counter limit */
-			if (admin->vinst == 0)
-				spx5_wr(admin->cache.counter, sparx5,
-					ANA_ACL_CNT_A(start));
-			else
-				spx5_wr(admin->cache.counter, sparx5,
-					ANA_ACL_CNT_B(start));
-			spx5_wr(admin->cache.sticky, sparx5,
-				VCAP_SUPER_VCAP_CNT_DAT(0));
-			break;
-		default:
-			sparx5_vcap_type_err(sparx5, admin, __func__);
-			break;
+				ANA_ACL_CNT_A(start));
+		else
+			spx5_wr(admin->cache.counter, sparx5,
+				ANA_ACL_CNT_B(start));
+		spx5_wr(admin->cache.sticky, sparx5,
+			VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
+}
+
+static void sparx5_vcap_es2_cache_write(struct sparx5 *sparx5,
+					struct vcap_admin *admin,
+					enum vcap_selection sel,
+					u32 start,
+					u32 count)
+{
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+
+	switch (sel) {
+	case VCAP_SEL_ENTRY:
+		for (idx = 0; idx < count; ++idx) {
+			/* Avoid 'match-off' by setting value & mask */
+			spx5_wr(keystr[idx] & mskstr[idx], sparx5,
+				VCAP_ES2_VCAP_ENTRY_DAT(idx));
+			spx5_wr(~mskstr[idx], sparx5,
+				VCAP_ES2_VCAP_MASK_DAT(idx));
 		}
+		break;
+	case VCAP_SEL_ACTION:
+		for (idx = 0; idx < count; ++idx)
+			spx5_wr(actstr[idx], sparx5,
+				VCAP_ES2_VCAP_ACTION_DAT(idx));
+		break;
+	case VCAP_SEL_ALL:
+		pr_err("%s:%d: cannot write all streams at once\n",
+		       __func__, __LINE__);
+		break;
+	default:
+		break;
+	}
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0x7ff; /* counter limit */
+		spx5_wr(admin->cache.counter, sparx5, EACL_ES2_CNT(start));
+		spx5_wr(admin->cache.sticky, sparx5, VCAP_ES2_VCAP_CNT_DAT(0));
+	}
+}
+
+/* API callback used for writing to the VCAP cache */
+static void sparx5_vcap_cache_write(struct net_device *ndev,
+				    struct vcap_admin *admin,
+				    enum vcap_selection sel,
+				    u32 start,
+				    u32 count)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		sparx5_vcap_is0_cache_write(sparx5, admin, sel, start, count);
+		break;
+	case VCAP_TYPE_IS2:
+		sparx5_vcap_is2_cache_write(sparx5, admin, sel, start, count);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_cache_write(sparx5, admin, sel, start, count);
+		break;
+	default:
+		sparx5_vcap_type_err(sparx5, admin, __func__);
+		break;
+	}
+}
+
+static void sparx5_vcap_is0_cache_read(struct sparx5 *sparx5,
+				       struct vcap_admin *admin,
+				       enum vcap_selection sel,
+				       u32 start,
+				       u32 count)
+{
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+
+	if (sel & VCAP_SEL_ENTRY) {
+		for (idx = 0; idx < count; ++idx) {
+			keystr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ENTRY_DAT(idx));
+			mskstr[idx] = ~spx5_rd(sparx5,
+					       VCAP_SUPER_VCAP_MASK_DAT(idx));
+		}
+	}
+
+	if (sel & VCAP_SEL_ACTION)
+		for (idx = 0; idx < count; ++idx)
+			actstr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ACTION_DAT(idx));
+
+	if (sel & VCAP_SEL_COUNTER) {
+		admin->cache.counter =
+			spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
+		admin->cache.sticky =
+			spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
+}
+
+static void sparx5_vcap_is2_cache_read(struct sparx5 *sparx5,
+				       struct vcap_admin *admin,
+				       enum vcap_selection sel,
+				       u32 start,
+				       u32 count)
+{
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+
+	if (sel & VCAP_SEL_ENTRY) {
+		for (idx = 0; idx < count; ++idx) {
+			keystr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ENTRY_DAT(idx));
+			mskstr[idx] = ~spx5_rd(sparx5,
+					       VCAP_SUPER_VCAP_MASK_DAT(idx));
+		}
+	}
+
+	if (sel & VCAP_SEL_ACTION)
+		for (idx = 0; idx < count; ++idx)
+			actstr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ACTION_DAT(idx));
+
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0xfff; /* counter limit */
+		if (admin->vinst == 0)
+			admin->cache.counter =
+				spx5_rd(sparx5, ANA_ACL_CNT_A(start));
+		else
+			admin->cache.counter =
+				spx5_rd(sparx5, ANA_ACL_CNT_B(start));
+		admin->cache.sticky =
+			spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
+}
+
+static void sparx5_vcap_es2_cache_read(struct sparx5 *sparx5,
+				       struct vcap_admin *admin,
+				       enum vcap_selection sel,
+				       u32 start,
+				       u32 count)
+{
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+
+	if (sel & VCAP_SEL_ENTRY) {
+		for (idx = 0; idx < count; ++idx) {
+			keystr[idx] =
+				spx5_rd(sparx5, VCAP_ES2_VCAP_ENTRY_DAT(idx));
+			mskstr[idx] =
+				~spx5_rd(sparx5, VCAP_ES2_VCAP_MASK_DAT(idx));
+		}
+	}
+
+	if (sel & VCAP_SEL_ACTION)
+		for (idx = 0; idx < count; ++idx)
+			actstr[idx] =
+				spx5_rd(sparx5, VCAP_ES2_VCAP_ACTION_DAT(idx));
+
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0x7ff; /* counter limit */
+		admin->cache.counter =
+			spx5_rd(sparx5, EACL_ES2_CNT(start));
+		admin->cache.sticky =
+			spx5_rd(sparx5, VCAP_ES2_VCAP_CNT_DAT(0));
 	}
 }
 
@@ -656,48 +1107,20 @@ static void sparx5_vcap_cache_read(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	u32 *keystr, *mskstr, *actstr;
-	int idx;
 
-	keystr = &admin->cache.keystream[start];
-	mskstr = &admin->cache.maskstream[start];
-	actstr = &admin->cache.actionstream[start];
-	if (sel & VCAP_SEL_ENTRY) {
-		for (idx = 0; idx < count; ++idx) {
-			keystr[idx] = spx5_rd(sparx5,
-					      VCAP_SUPER_VCAP_ENTRY_DAT(idx));
-			mskstr[idx] = ~spx5_rd(sparx5,
-					       VCAP_SUPER_VCAP_MASK_DAT(idx));
-		}
-	}
-	if (sel & VCAP_SEL_ACTION) {
-		for (idx = 0; idx < count; ++idx)
-			actstr[idx] = spx5_rd(sparx5,
-					      VCAP_SUPER_VCAP_ACTION_DAT(idx));
-	}
-	if (sel & VCAP_SEL_COUNTER) {
-		switch (admin->vtype) {
-		case VCAP_TYPE_IS0:
-			admin->cache.counter =
-				spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
-			admin->cache.sticky =
-				spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
-			break;
-		case VCAP_TYPE_IS2:
-			start = start & 0xfff; /* counter limit */
-			if (admin->vinst == 0)
-				admin->cache.counter =
-					spx5_rd(sparx5, ANA_ACL_CNT_A(start));
-			else
-				admin->cache.counter =
-					spx5_rd(sparx5, ANA_ACL_CNT_B(start));
-			admin->cache.sticky =
-				spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
-			break;
-		default:
-			sparx5_vcap_type_err(sparx5, admin, __func__);
-			break;
-		}
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		sparx5_vcap_is0_cache_read(sparx5, admin, sel, start, count);
+		break;
+	case VCAP_TYPE_IS2:
+		sparx5_vcap_is2_cache_read(sparx5, admin, sel, start, count);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_cache_read(sparx5, admin, sel, start, count);
+		break;
+	default:
+		sparx5_vcap_type_err(sparx5, admin, __func__);
+		break;
 	}
 }
 
@@ -712,16 +1135,12 @@ static void sparx5_vcap_range_init(struct net_device *ndev,
 	_sparx5_vcap_range_init(sparx5, admin, addr, count);
 }
 
-/* API callback used for updating the VCAP cache, IS0 and IS2 for now */
-static void sparx5_vcap_update(struct net_device *ndev,
-			       struct vcap_admin *admin, enum vcap_command cmd,
-			       enum vcap_selection sel, u32 addr)
+static void sparx5_vcap_super_update(struct sparx5 *sparx5,
+				     enum vcap_command cmd,
+				     enum vcap_selection sel, u32 addr)
 {
-	struct sparx5_port *port = netdev_priv(ndev);
-	struct sparx5 *sparx5 = port->sparx5;
-	bool clear;
+	bool clear = (cmd == VCAP_CMD_INITIALIZE);
 
-	clear = (cmd == VCAP_CMD_INITIALIZE);
 	spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(0) |
 		VCAP_SUPER_CFG_MV_SIZE_SET(0), sparx5, VCAP_SUPER_CFG);
 	spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(cmd) |
@@ -733,6 +1152,87 @@ static void sparx5_vcap_update(struct net_device *ndev,
 		VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
 		sparx5, VCAP_SUPER_CTRL);
 	sparx5_vcap_wait_super_update(sparx5);
+}
+
+static void sparx5_vcap_es2_update(struct sparx5 *sparx5,
+				   enum vcap_command cmd,
+				   enum vcap_selection sel, u32 addr)
+{
+	bool clear = (cmd == VCAP_CMD_INITIALIZE);
+
+	spx5_wr(VCAP_ES2_CFG_MV_NUM_POS_SET(0) |
+		VCAP_ES2_CFG_MV_SIZE_SET(0), sparx5, VCAP_ES2_CFG);
+	spx5_wr(VCAP_ES2_CTRL_UPDATE_CMD_SET(cmd) |
+		VCAP_ES2_CTRL_UPDATE_ENTRY_DIS_SET((VCAP_SEL_ENTRY & sel) == 0) |
+		VCAP_ES2_CTRL_UPDATE_ACTION_DIS_SET((VCAP_SEL_ACTION & sel) == 0) |
+		VCAP_ES2_CTRL_UPDATE_CNT_DIS_SET((VCAP_SEL_COUNTER & sel) == 0) |
+		VCAP_ES2_CTRL_UPDATE_ADDR_SET(addr) |
+		VCAP_ES2_CTRL_CLEAR_CACHE_SET(clear) |
+		VCAP_ES2_CTRL_UPDATE_SHOT_SET(true),
+		sparx5, VCAP_ES2_CTRL);
+	sparx5_vcap_wait_es2_update(sparx5);
+}
+
+/* API callback used for updating the VCAP cache */
+static void sparx5_vcap_update(struct net_device *ndev,
+			       struct vcap_admin *admin, enum vcap_command cmd,
+			       enum vcap_selection sel, u32 addr)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+	case VCAP_TYPE_IS2:
+		sparx5_vcap_super_update(sparx5, cmd, sel, addr);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_update(sparx5, cmd, sel, addr);
+		break;
+	default:
+		sparx5_vcap_type_err(sparx5, admin, __func__);
+		break;
+	}
+}
+
+static void sparx5_vcap_super_move(struct sparx5 *sparx5,
+				   u32 addr,
+				   enum vcap_command cmd,
+				   u16 mv_num_pos,
+				   u16 mv_size)
+{
+	spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(mv_num_pos) |
+		VCAP_SUPER_CFG_MV_SIZE_SET(mv_size),
+		sparx5, VCAP_SUPER_CFG);
+	spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(cmd) |
+		VCAP_SUPER_CTRL_UPDATE_ENTRY_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_ACTION_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_CNT_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_ADDR_SET(addr) |
+		VCAP_SUPER_CTRL_CLEAR_CACHE_SET(false) |
+		VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
+		sparx5, VCAP_SUPER_CTRL);
+	sparx5_vcap_wait_super_update(sparx5);
+}
+
+static void sparx5_vcap_es2_move(struct sparx5 *sparx5,
+				 u32 addr,
+				 enum vcap_command cmd,
+				 u16 mv_num_pos,
+				 u16 mv_size)
+{
+	spx5_wr(VCAP_ES2_CFG_MV_NUM_POS_SET(mv_num_pos) |
+		VCAP_ES2_CFG_MV_SIZE_SET(mv_size),
+		sparx5, VCAP_ES2_CFG);
+	spx5_wr(VCAP_ES2_CTRL_UPDATE_CMD_SET(cmd) |
+		VCAP_ES2_CTRL_UPDATE_ENTRY_DIS_SET(0) |
+		VCAP_ES2_CTRL_UPDATE_ACTION_DIS_SET(0) |
+		VCAP_ES2_CTRL_UPDATE_CNT_DIS_SET(0) |
+		VCAP_ES2_CTRL_UPDATE_ADDR_SET(addr) |
+		VCAP_ES2_CTRL_CLEAR_CACHE_SET(false) |
+		VCAP_ES2_CTRL_UPDATE_SHOT_SET(true),
+		sparx5, VCAP_ES2_CTRL);
+	sparx5_vcap_wait_es2_update(sparx5);
 }
 
 /* API callback used for moving a block of rules in the VCAP */
@@ -753,18 +1253,19 @@ static void sparx5_vcap_move(struct net_device *ndev, struct vcap_admin *admin,
 		mv_num_pos = -offset - 1;
 		cmd = VCAP_CMD_MOVE_UP;
 	}
-	spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(mv_num_pos) |
-		VCAP_SUPER_CFG_MV_SIZE_SET(mv_size),
-		sparx5, VCAP_SUPER_CFG);
-	spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(cmd) |
-		VCAP_SUPER_CTRL_UPDATE_ENTRY_DIS_SET(0) |
-		VCAP_SUPER_CTRL_UPDATE_ACTION_DIS_SET(0) |
-		VCAP_SUPER_CTRL_UPDATE_CNT_DIS_SET(0) |
-		VCAP_SUPER_CTRL_UPDATE_ADDR_SET(addr) |
-		VCAP_SUPER_CTRL_CLEAR_CACHE_SET(false) |
-		VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
-		sparx5, VCAP_SUPER_CTRL);
-	sparx5_vcap_wait_super_update(sparx5);
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+	case VCAP_TYPE_IS2:
+		sparx5_vcap_super_move(sparx5, addr, cmd, mv_num_pos, mv_size);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_move(sparx5, addr, cmd, mv_num_pos, mv_size);
+		break;
+	default:
+		sparx5_vcap_type_err(sparx5, admin, __func__);
+		break;
+	}
 }
 
 static struct vcap_operations sparx5_vcap_ops = {
@@ -832,6 +1333,22 @@ static void sparx5_vcap_is2_port_key_selection(struct sparx5 *sparx5,
 			 ANA_ACL_VCAP_S2_CFG(portno));
 }
 
+/* Enable ES2 lookups per port and set the keyset generation */
+static void sparx5_vcap_es2_port_key_selection(struct sparx5 *sparx5,
+					       struct vcap_admin *admin)
+{
+	int portno, lookup;
+	u32 keysel;
+
+	keysel = VCAP_ES2_KEYSEL(true, VCAP_ES2_PS_ARP_MAC_ETYPE,
+				 VCAP_ES2_PS_IPV4_IP4_TCP_UDP_OTHER,
+				 VCAP_ES2_PS_IPV6_IP_7TUPLE);
+	for (lookup = 0; lookup < admin->lookups; ++lookup)
+		for (portno = 0; portno < SPX5_PORTS; ++portno)
+			spx5_wr(keysel, sparx5,
+				EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+}
+
 /* Enable lookups per port and set the keyset generation */
 static void sparx5_vcap_port_key_selection(struct sparx5 *sparx5,
 					   struct vcap_admin *admin)
@@ -842,6 +1359,9 @@ static void sparx5_vcap_port_key_selection(struct sparx5 *sparx5,
 		break;
 	case VCAP_TYPE_IS2:
 		sparx5_vcap_is2_port_key_selection(sparx5, admin);
+		break;
+	case VCAP_TYPE_ES2:
+		sparx5_vcap_es2_port_key_selection(sparx5, admin);
 		break;
 	default:
 		sparx5_vcap_type_err(sparx5, admin, __func__);
@@ -870,6 +1390,14 @@ static void sparx5_vcap_port_key_deselection(struct sparx5 *sparx5,
 				 ANA_ACL_VCAP_S2_CFG_SEC_ENA,
 				 sparx5,
 				 ANA_ACL_VCAP_S2_CFG(portno));
+		break;
+	case VCAP_TYPE_ES2:
+		for (lookup = 0; lookup < admin->lookups; ++lookup)
+			for (portno = 0; portno < SPX5_PORTS; ++portno)
+				spx5_rmw(EACL_VCAP_ES2_KEY_SEL_KEY_ENA_SET(0),
+					 EACL_VCAP_ES2_KEY_SEL_KEY_ENA,
+					 sparx5,
+					 EACL_VCAP_ES2_KEY_SEL(portno, lookup));
 		break;
 	default:
 		sparx5_vcap_type_err(sparx5, admin, __func__);
@@ -904,6 +1432,7 @@ sparx5_vcap_admin_alloc(struct sparx5 *sparx5, struct vcap_control *ctrl,
 	mutex_init(&admin->lock);
 	admin->vtype = cfg->vtype;
 	admin->vinst = cfg->vinst;
+	admin->ingress = cfg->ingress;
 	admin->lookups = cfg->lookups;
 	admin->lookups_per_instance = cfg->lookups_per_instance;
 	admin->first_cid = cfg->first_cid;
@@ -927,22 +1456,43 @@ static void sparx5_vcap_block_alloc(struct sparx5 *sparx5,
 				    struct vcap_admin *admin,
 				    const struct sparx5_vcap_inst *cfg)
 {
-	int idx;
+	int idx, cores;
 
-	/* Super VCAP block mapping and address configuration. Block 0
-	 * is assigned addresses 0 through 3071, block 1 is assigned
-	 * addresses 3072 though 6143, and so on.
-	 */
-	for (idx = cfg->blockno; idx < cfg->blockno + cfg->blocks; ++idx) {
-		spx5_wr(VCAP_SUPER_IDX_CORE_IDX_SET(idx), sparx5,
-			VCAP_SUPER_IDX);
-		spx5_wr(VCAP_SUPER_MAP_CORE_MAP_SET(cfg->map_id), sparx5,
-			VCAP_SUPER_MAP);
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+	case VCAP_TYPE_IS2:
+		/* Super VCAP block mapping and address configuration. Block 0
+		 * is assigned addresses 0 through 3071, block 1 is assigned
+		 * addresses 3072 though 6143, and so on.
+		 */
+		for (idx = cfg->blockno; idx < cfg->blockno + cfg->blocks;
+		     ++idx) {
+			spx5_wr(VCAP_SUPER_IDX_CORE_IDX_SET(idx), sparx5,
+				VCAP_SUPER_IDX);
+			spx5_wr(VCAP_SUPER_MAP_CORE_MAP_SET(cfg->map_id),
+				sparx5, VCAP_SUPER_MAP);
+		}
+		admin->first_valid_addr = cfg->blockno * SUPER_VCAP_BLK_SIZE;
+		admin->last_used_addr = admin->first_valid_addr +
+			cfg->blocks * SUPER_VCAP_BLK_SIZE;
+		admin->last_valid_addr = admin->last_used_addr - 1;
+		break;
+	case VCAP_TYPE_ES2:
+		admin->first_valid_addr = 0;
+		admin->last_used_addr = cfg->count;
+		admin->last_valid_addr = cfg->count - 1;
+		cores = spx5_rd(sparx5, VCAP_ES2_CORE_CNT);
+		for (idx = 0; idx < cores; ++idx) {
+			spx5_wr(VCAP_ES2_IDX_CORE_IDX_SET(idx), sparx5,
+				VCAP_ES2_IDX);
+			spx5_wr(VCAP_ES2_MAP_CORE_MAP_SET(1), sparx5,
+				VCAP_ES2_MAP);
+		}
+		break;
+	default:
+		sparx5_vcap_type_err(sparx5, admin, __func__);
+		break;
 	}
-	admin->first_valid_addr = cfg->blockno * SUPER_VCAP_BLK_SIZE;
-	admin->last_used_addr = admin->first_valid_addr +
-		cfg->blocks * SUPER_VCAP_BLK_SIZE;
-	admin->last_valid_addr = admin->last_used_addr - 1;
 }
 
 /* Allocate a vcap control and vcap instances and configure the system */

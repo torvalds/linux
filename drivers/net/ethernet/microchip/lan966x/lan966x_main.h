@@ -603,7 +603,8 @@ int lan966x_vcap_init(struct lan966x *lan966x);
 void lan966x_vcap_deinit(struct lan966x *lan966x);
 
 int lan966x_tc_flower(struct lan966x_port *port,
-		      struct flow_cls_offload *f);
+		      struct flow_cls_offload *f,
+		      bool ingress);
 
 int lan966x_goto_port_add(struct lan966x_port *port,
 			  int from_cid, int to_cid,

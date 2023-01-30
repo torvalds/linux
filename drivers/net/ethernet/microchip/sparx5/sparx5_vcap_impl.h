@@ -32,6 +32,11 @@
 #define SPARX5_VCAP_CID_IS2_MAX \
 	(VCAP_CID_INGRESS_STAGE2_L3 + VCAP_CID_LOOKUP_SIZE - 1) /* IS2 Max */
 
+#define SPARX5_VCAP_CID_ES2_L0 VCAP_CID_EGRESS_STAGE2_L0 /* ES2 lookup 0 */
+#define SPARX5_VCAP_CID_ES2_L1 VCAP_CID_EGRESS_STAGE2_L1 /* ES2 lookup 1 */
+#define SPARX5_VCAP_CID_ES2_MAX \
+	(VCAP_CID_EGRESS_STAGE2_L1 + VCAP_CID_LOOKUP_SIZE - 1) /* ES2 Max */
+
 /* IS0 port keyset selection control */
 
 /* IS0 ethernet, IPv4, IPv6 traffic type keyset generation */
@@ -127,6 +132,35 @@ enum vcap_is2_port_sel_ipv6_mc {
 enum vcap_is2_port_sel_arp {
 	VCAP_IS2_PS_ARP_MAC_ETYPE,
 	VCAP_IS2_PS_ARP_ARP,
+};
+
+/* ES2 port keyset selection control */
+
+/* ES2 IPv4 traffic type keyset generation */
+enum vcap_es2_port_sel_ipv4 {
+	VCAP_ES2_PS_IPV4_MAC_ETYPE,
+	VCAP_ES2_PS_IPV4_IP_7TUPLE,
+	VCAP_ES2_PS_IPV4_IP4_TCP_UDP_VID,
+	VCAP_ES2_PS_IPV4_IP4_TCP_UDP_OTHER,
+	VCAP_ES2_PS_IPV4_IP4_VID,
+	VCAP_ES2_PS_IPV4_IP4_OTHER,
+};
+
+/* ES2 IPv6 traffic type keyset generation */
+enum vcap_es2_port_sel_ipv6 {
+	VCAP_ES2_PS_IPV6_MAC_ETYPE,
+	VCAP_ES2_PS_IPV6_IP_7TUPLE,
+	VCAP_ES2_PS_IPV6_IP_7TUPLE_VID,
+	VCAP_ES2_PS_IPV6_IP_7TUPLE_STD,
+	VCAP_ES2_PS_IPV6_IP6_VID,
+	VCAP_ES2_PS_IPV6_IP6_STD,
+	VCAP_ES2_PS_IPV6_IP4_DOWNGRADE,
+};
+
+/* ES2 ARP traffic type keyset generation */
+enum vcap_es2_port_sel_arp {
+	VCAP_ES2_PS_ARP_MAC_ETYPE,
+	VCAP_ES2_PS_ARP_ARP,
 };
 
 /* Get the port keyset for the vcap lookup */

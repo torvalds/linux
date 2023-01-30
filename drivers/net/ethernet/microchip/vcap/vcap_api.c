@@ -1601,15 +1601,17 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
 
-/* Is this the last admin instance ordered by chain id */
+/* Is this the last admin instance ordered by chain id and direction */
 static bool vcap_admin_is_last(struct vcap_control *vctrl,
-			       struct vcap_admin *admin)
+			       struct vcap_admin *admin,
+			       bool ingress)
 {
 	struct vcap_admin *iter, *last = NULL;
 	int max_cid = 0;
 
 	list_for_each_entry(iter, &vctrl->list, list) {
-		if (iter->first_cid > max_cid) {
+		if (iter->first_cid > max_cid &&
+		    iter->ingress == ingress) {
 			last = iter;
 			max_cid = iter->first_cid;
 		}
@@ -3177,7 +3179,7 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 EXPORT_SYMBOL_GPL(vcap_enable_lookups);
 
 /* Is this chain id the last lookup of all VCAPs */
-bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
+bool vcap_is_last_chain(struct vcap_control *vctrl, int cid, bool ingress)
 {
 	struct vcap_admin *admin;
 	int lookup;
@@ -3189,7 +3191,7 @@ bool vcap_is_last_chain(struct vcap_control *vctrl, int cid)
 	if (!admin)
 		return false;
 
-	if (!vcap_admin_is_last(vctrl, admin))
+	if (!vcap_admin_is_last(vctrl, admin, ingress))
 		return false;
 
 	/* This must be the last lookup in this VCAP type */
@@ -3264,6 +3266,28 @@ static int vcap_rule_get_key(struct vcap_rule *rule,
 	return 0;
 }
 
+/* Find a keyset having the same size as the provided rule, where the keyset
+ * does not have a type id.
+ */
+static int vcap_rule_get_untyped_keyset(struct vcap_rule_internal *ri,
+					struct vcap_keyset_list *matches)
+{
+	struct vcap_control *vctrl = ri->vctrl;
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_set *keyfield_set;
+	int idx;
+
+	keyfield_set = vctrl->vcaps[vt].keyfield_set;
+	for (idx = 0; idx < vctrl->vcaps[vt].keyfield_set_size; ++idx) {
+		if (keyfield_set[idx].sw_per_item == ri->keyset_sw &&
+		    keyfield_set[idx].type_id == (u8)-1) {
+			vcap_keyset_list_add(matches, idx);
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
 /* Get the keysets that matches the rule key type/mask */
 int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
 			  struct vcap_keyset_list *matches)
@@ -3277,7 +3301,7 @@ int vcap_rule_get_keysets(struct vcap_rule_internal *ri,
 
 	err = vcap_rule_get_key(&ri->data, VCAP_KF_TYPE, &kf);
 	if (err)
-		return err;
+		return vcap_rule_get_untyped_keyset(ri, matches);
 
 	if (kf.ctrl.type == VCAP_FIELD_BIT) {
 		value = kf.data.u1.value;

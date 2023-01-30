@@ -2145,6 +2145,71 @@ static void vcap_api_filter_keylist_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 26, idx);
 }
 
+static void vcap_api_rule_chain_path_test(struct kunit *test)
+{
+	struct vcap_admin admin1 = {
+		.vtype = VCAP_TYPE_IS0,
+		.vinst = 0,
+		.first_cid = 1000000,
+		.last_cid =  1199999,
+		.lookups = 6,
+		.lookups_per_instance = 2,
+	};
+	struct vcap_enabled_port eport3 = {
+		.ndev = &test_netdev,
+		.cookie = 0x100,
+		.src_cid = 0,
+		.dst_cid = 1000000,
+	};
+	struct vcap_enabled_port eport2 = {
+		.ndev = &test_netdev,
+		.cookie = 0x200,
+		.src_cid = 1000000,
+		.dst_cid = 1100000,
+	};
+	struct vcap_enabled_port eport1 = {
+		.ndev = &test_netdev,
+		.cookie = 0x300,
+		.src_cid = 1100000,
+		.dst_cid = 8000000,
+	};
+	bool ret;
+	int chain;
+
+	vcap_test_api_init(&admin1);
+	list_add_tail(&eport1.list, &admin1.enabled);
+	list_add_tail(&eport2.list, &admin1.enabled);
+	list_add_tail(&eport3.list, &admin1.enabled);
+
+	ret = vcap_path_exist(&test_vctrl, &test_netdev, 1000000);
+	KUNIT_EXPECT_EQ(test, true, ret);
+
+	ret = vcap_path_exist(&test_vctrl, &test_netdev, 1100000);
+	KUNIT_EXPECT_EQ(test, true, ret);
+
+	ret = vcap_path_exist(&test_vctrl, &test_netdev, 1200000);
+	KUNIT_EXPECT_EQ(test, false, ret);
+
+	chain = vcap_get_next_chain(&test_vctrl, &test_netdev, 0);
+	KUNIT_EXPECT_EQ(test, 1000000, chain);
+
+	chain = vcap_get_next_chain(&test_vctrl, &test_netdev, 1000000);
+	KUNIT_EXPECT_EQ(test, 1100000, chain);
+
+	chain = vcap_get_next_chain(&test_vctrl, &test_netdev, 1100000);
+	KUNIT_EXPECT_EQ(test, 8000000, chain);
+}
+
+static struct kunit_case vcap_api_rule_enable_test_cases[] = {
+	KUNIT_CASE(vcap_api_rule_chain_path_test),
+	{}
+};
+
+static struct kunit_suite vcap_api_rule_enable_test_suite = {
+	.name = "VCAP_API_Rule_Enable_Testsuite",
+	.test_cases = vcap_api_rule_enable_test_cases,
+};
+
 static struct kunit_suite vcap_api_rule_remove_test_suite = {
 	.name = "VCAP_API_Rule_Remove_Testsuite",
 	.test_cases = vcap_api_rule_remove_test_cases,
@@ -2235,6 +2300,7 @@ static struct kunit_suite vcap_api_encoding_test_suite = {
 	.test_cases = vcap_api_encoding_test_cases,
 };
 
+kunit_test_suite(vcap_api_rule_enable_test_suite);
 kunit_test_suite(vcap_api_rule_remove_test_suite);
 kunit_test_suite(vcap_api_rule_insert_test_suite);
 kunit_test_suite(vcap_api_rule_counter_test_suite);

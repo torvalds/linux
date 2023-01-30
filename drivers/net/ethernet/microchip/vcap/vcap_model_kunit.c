@@ -1709,7 +1709,7 @@ static const struct vcap_field es2_mac_etype_keyfield[] = {
 		.offset = 96,
 		.width = 1,
 	},
-	[VCAP_KF_MIRROR_ENA] = {
+	[VCAP_KF_MIRROR_PROBE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 97,
 		.width = 2,
@@ -1847,7 +1847,7 @@ static const struct vcap_field es2_arp_keyfield[] = {
 		.offset = 95,
 		.width = 1,
 	},
-	[VCAP_KF_MIRROR_ENA] = {
+	[VCAP_KF_MIRROR_PROBE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 96,
 		.width = 2,
@@ -2010,7 +2010,7 @@ static const struct vcap_field es2_ip4_tcp_udp_keyfield[] = {
 		.offset = 96,
 		.width = 1,
 	},
-	[VCAP_KF_MIRROR_ENA] = {
+	[VCAP_KF_MIRROR_PROBE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 97,
 		.width = 2,
@@ -2223,7 +2223,7 @@ static const struct vcap_field es2_ip4_other_keyfield[] = {
 		.offset = 96,
 		.width = 1,
 	},
-	[VCAP_KF_MIRROR_ENA] = {
+	[VCAP_KF_MIRROR_PROBE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 97,
 		.width = 2,
@@ -2376,7 +2376,7 @@ static const struct vcap_field es2_ip_7tuple_keyfield[] = {
 		.offset = 93,
 		.width = 1,
 	},
-	[VCAP_KF_MIRROR_ENA] = {
+	[VCAP_KF_MIRROR_PROBE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 94,
 		.width = 2,
@@ -2569,7 +2569,7 @@ static const struct vcap_field es2_ip4_vid_keyfield[] = {
 		.offset = 48,
 		.width = 1,
 	},
-	[VCAP_KF_MIRROR_ENA] = {
+	[VCAP_KF_MIRROR_PROBE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 49,
 		.width = 2,
@@ -3847,7 +3847,7 @@ static const char * const vcap_keyfield_names[] = {
 	[VCAP_KF_LOOKUP_GEN_IDX]                 =  "LOOKUP_GEN_IDX",
 	[VCAP_KF_LOOKUP_GEN_IDX_SEL]             =  "LOOKUP_GEN_IDX_SEL",
 	[VCAP_KF_LOOKUP_PAG]                     =  "LOOKUP_PAG",
-	[VCAP_KF_MIRROR_ENA]                     =  "MIRROR_ENA",
+	[VCAP_KF_MIRROR_PROBE]                   =  "MIRROR_PROBE",
 	[VCAP_KF_OAM_CCM_CNTS_EQ0]               =  "OAM_CCM_CNTS_EQ0",
 	[VCAP_KF_OAM_DETECTED]                   =  "OAM_DETECTED",
 	[VCAP_KF_OAM_FLAGS]                      =  "OAM_FLAGS",

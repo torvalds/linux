@@ -44,11 +44,14 @@ static void vcap_debugfs_show_rule_keyfield(struct vcap_control *vctrl,
 			out->prf(out->dst, "%pI4h/%pI4h", &data->u32.value,
 				 &data->u32.mask);
 		} else if (key == VCAP_KF_ETYPE ||
-			   key == VCAP_KF_IF_IGR_PORT_MASK) {
+			   key == VCAP_KF_IF_IGR_PORT_MASK ||
+			   key == VCAP_KF_IF_EGR_PORT_MASK) {
 			hex = true;
 		} else {
 			u32 fmsk = (1 << keyfield[key].width) - 1;
 
+			if (keyfield[key].width == 32)
+				fmsk = ~0;
 			out->prf(out->dst, "%u/%u", data->u32.value & fmsk,
 				 data->u32.mask & fmsk);
 		}
@@ -277,6 +280,7 @@ static void vcap_show_admin_info(struct vcap_control *vctrl,
 	out->prf(out->dst, "version: %d\n", vcap->version);
 	out->prf(out->dst, "vtype: %d\n", admin->vtype);
 	out->prf(out->dst, "vinst: %d\n", admin->vinst);
+	out->prf(out->dst, "ingress: %d\n", admin->ingress);
 	out->prf(out->dst, "first_cid: %d\n", admin->first_cid);
 	out->prf(out->dst, "last_cid: %d\n", admin->last_cid);
 	out->prf(out->dst, "lookups: %d\n", admin->lookups);

@@ -222,7 +222,7 @@ int vcap_chain_offset(struct vcap_control *vctrl, int from_cid, int to_cid);
 /* Is the next chain id in the following lookup, possible in another VCAP */
 bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid);
 /* Is this chain id the last lookup of all VCAPs */
-bool vcap_is_last_chain(struct vcap_control *vctrl, int cid);
+bool vcap_is_last_chain(struct vcap_control *vctrl, int cid, bool ingress);
 /* Provide all rules via a callback interface */
 int vcap_rule_iter(struct vcap_control *vctrl,
 		   int (*callback)(void *, struct vcap_rule *), void *arg);

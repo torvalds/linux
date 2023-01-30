@@ -83,7 +83,8 @@ static int lan966x_tc_flower_use_dissectors(struct flow_cls_offload *f,
 
 static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 					  struct net_device *dev,
-					  struct flow_cls_offload *fco)
+					  struct flow_cls_offload *fco,
+					  bool ingress)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(fco);
 	struct flow_action_entry *actent, *last_actent = NULL;
@@ -120,7 +121,8 @@ static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 					   "Invalid goto chain");
 			return -EINVAL;
 		}
-	} else if (!vcap_is_last_chain(vctrl, fco->common.chain_index)) {
+	} else if (!vcap_is_last_chain(vctrl, fco->common.chain_index,
+				       ingress)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
 				   "Last action must be 'goto'");
 		return -EINVAL;
@@ -139,7 +141,8 @@ static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 
 static int lan966x_tc_flower_add(struct lan966x_port *port,
 				 struct flow_cls_offload *f,
-				 struct vcap_admin *admin)
+				 struct vcap_admin *admin,
+				 bool ingress)
 {
 	struct flow_action_entry *act;
 	u16 l3_proto = ETH_P_ALL;
@@ -148,7 +151,7 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 	int err, idx;
 
 	err = lan966x_tc_flower_action_check(port->lan966x->vcap_ctrl,
-					     port->dev, f);
+					     port->dev, f, ingress);
 	if (err)
 		return err;
 
@@ -232,7 +235,8 @@ static int lan966x_tc_flower_del(struct lan966x_port *port,
 }
 
 int lan966x_tc_flower(struct lan966x_port *port,
-		      struct flow_cls_offload *f)
+		      struct flow_cls_offload *f,
+		      bool ingress)
 {
 	struct vcap_admin *admin;
 
@@ -245,7 +249,7 @@ int lan966x_tc_flower(struct lan966x_port *port,
 
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
-		return lan966x_tc_flower_add(port, f, admin);
+		return lan966x_tc_flower_add(port, f, admin, ingress);
 	case FLOW_CLS_DESTROY:
 		return lan966x_tc_flower_del(port, f, admin);
 	default:
