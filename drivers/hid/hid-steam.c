@@ -674,7 +674,7 @@ static int steam_client_ll_raw_request(struct hid_device *hdev,
 			report_type, reqtype);
 }
 
-static struct hid_ll_driver steam_client_ll_driver = {
+static const struct hid_ll_driver steam_client_ll_driver = {
 	.parse = steam_client_ll_parse,
 	.start = steam_client_ll_start,
 	.stop = steam_client_ll_stop,
