@@ -232,7 +232,7 @@ This can be overridden by setting the kernel.perf_event_paranoid
 sysctl to -1, which allows non root to use these events.
 
 For accessing trace point events perf needs to have read access to
-/sys/kernel/debug/tracing, even when perf_event_paranoid is in a relaxed
+/sys/kernel/tracing, even when perf_event_paranoid is in a relaxed
 setting.
 
 TRACING
