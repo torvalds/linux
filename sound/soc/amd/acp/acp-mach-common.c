@@ -186,7 +186,7 @@ static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 
 	srate = params_rate(params);
 	ch = params_channels(params);
-	format = 8 * params_format(params);
+	format = params_physical_width(params);
 
 	if (drvdata->tdm_mode)
 		fmt = SND_SOC_DAIFMT_DSP_A;
@@ -330,7 +330,7 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 
 	srate = params_rate(params);
 	ch = params_channels(params);
-	format = 8 * params_format(params);
+	format = params_physical_width(params);
 
 	if (drvdata->tdm_mode)
 		fmt = SND_SOC_DAIFMT_DSP_A;
@@ -475,7 +475,7 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 
 	srate = params_rate(params);
 	ch = params_channels(params);
-	format = 8 * params_format(params);
+	format = params_physical_width(params);
 
 	if (drvdata->amp_codec_id != RT1019)
 		return -EINVAL;
@@ -616,7 +616,7 @@ static int acp_card_maxim_hw_params(struct snd_pcm_substream *substream,
 
 	srate = params_rate(params);
 	ch = params_channels(params);
-	format = 8 * params_format(params);
+	format = params_physical_width(params);
 
 	if (drvdata->tdm_mode)
 		fmt = SND_SOC_DAIFMT_DSP_A;
