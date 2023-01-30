@@ -120,8 +120,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	bool old_use_tt, new_use_tt;
 	int ret;
 
-	old_use_tt = bo->resource &&
-		ttm_manager_type(bdev, bo->resource->mem_type)->use_tt;
+	old_use_tt = !bo->resource || ttm_manager_type(bdev, bo->resource->mem_type)->use_tt;
 	new_use_tt = ttm_manager_type(bdev, mem->mem_type)->use_tt;
 
 	ttm_bo_unmap_virtual(bo);
