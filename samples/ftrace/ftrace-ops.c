@@ -12,7 +12,7 @@
  * Arbitrary large value chosen to be sufficiently large to minimize noise but
  * sufficiently small to complete quickly.
  */
-unsigned int nr_function_calls = 100000;
+static unsigned int nr_function_calls = 100000;
 module_param(nr_function_calls, uint, 0);
 MODULE_PARM_DESC(nr_function_calls, "How many times to call the relevant tracee");
 
@@ -21,7 +21,7 @@ MODULE_PARM_DESC(nr_function_calls, "How many times to call the relevant tracee"
  * be called directly or whether it's necessary to go via the list func, which
  * can be significantly more expensive.
  */
-unsigned int nr_ops_relevant = 1;
+static unsigned int nr_ops_relevant = 1;
 module_param(nr_ops_relevant, uint, 0);
 MODULE_PARM_DESC(nr_ops_relevant, "How many ftrace_ops to associate with the relevant tracee");
 
@@ -30,7 +30,7 @@ MODULE_PARM_DESC(nr_ops_relevant, "How many ftrace_ops to associate with the rel
  * tracers enabled for distinct functions can force the use of the list func
  * and incur overhead for all call sites.
  */
-unsigned int nr_ops_irrelevant = 0;
+static unsigned int nr_ops_irrelevant;
 module_param(nr_ops_irrelevant, uint, 0);
 MODULE_PARM_DESC(nr_ops_irrelevant, "How many ftrace_ops to associate with the irrelevant tracee");
 
@@ -38,15 +38,15 @@ MODULE_PARM_DESC(nr_ops_irrelevant, "How many ftrace_ops to associate with the i
  * On architectures with DYNAMIC_FTRACE_WITH_REGS, saving the full pt_regs can
  * be more expensive than only saving the minimal necessary regs.
  */
-bool save_regs = false;
+static bool save_regs;
 module_param(save_regs, bool, 0);
 MODULE_PARM_DESC(save_regs, "Register ops with FTRACE_OPS_FL_SAVE_REGS (save all registers in the trampoline)");
 
-bool assist_recursion = false;
+static bool assist_recursion;
 module_param(assist_recursion, bool, 0);
 MODULE_PARM_DESC(assist_reursion, "Register ops with FTRACE_OPS_FL_RECURSION");
 
-bool assist_rcu = false;
+static bool assist_rcu;
 module_param(assist_rcu, bool, 0);
 MODULE_PARM_DESC(assist_reursion, "Register ops with FTRACE_OPS_FL_RCU");
 
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(assist_reursion, "Register ops with FTRACE_OPS_FL_RCU");
  * overhead. Sometimes a consistency check using a more expensive tracer is
  * desireable.
  */
-bool check_count = false;
+static bool check_count;
 module_param(check_count, bool, 0);
 MODULE_PARM_DESC(check_count, "Check that tracers are called the expected number of times\n");
 
@@ -64,7 +64,7 @@ MODULE_PARM_DESC(check_count, "Check that tracers are called the expected number
  * runs, but sometimes it can be useful to leave them registered so that they
  * can be inspected through the tracefs 'enabled_functions' file.
  */
-bool persist = false;
+static bool persist;
 module_param(persist, bool, 0);
 MODULE_PARM_DESC(persist, "Successfully load module and leave ftrace ops registered after test completes\n");
 
@@ -114,8 +114,8 @@ static void ops_func_count(unsigned long ip, unsigned long parent_ip,
 	self->count++;
 }
 
-struct sample_ops *ops_relevant;
-struct sample_ops *ops_irrelevant;
+static struct sample_ops *ops_relevant;
+static struct sample_ops *ops_irrelevant;
 
 static struct sample_ops *ops_alloc_init(void *tracee, ftrace_func_t func,
 					 unsigned long flags, int nr)
@@ -163,8 +163,8 @@ static void ops_check(struct sample_ops *ops, int nr,
 	}
 }
 
-ftrace_func_t tracer_relevant = ops_func_nop;
-ftrace_func_t tracer_irrelevant = ops_func_nop;
+static ftrace_func_t tracer_relevant = ops_func_nop;
+static ftrace_func_t tracer_irrelevant = ops_func_nop;
 
 static int __init ftrace_ops_sample_init(void)
 {
