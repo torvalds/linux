@@ -29,7 +29,7 @@ static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 		if (conv_temp < 0)
 			return conv_temp;
 
-		*temp = (unsigned long)conv_temp * 10;
+		*temp = conv_temp * 10;
 	} else {
 		/* _TMP returns the temperature in tenths of degrees Kelvin */
 		*temp = deci_kelvin_to_millicelsius(tmp);
