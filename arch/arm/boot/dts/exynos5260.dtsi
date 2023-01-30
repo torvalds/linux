@@ -177,7 +177,7 @@
 
 		clock_g2d: clock-controller@10a00000 {
 			compatible = "samsung,exynos5260-clock-g2d";
-			reg = <0x10A00000 0x10000>;
+			reg = <0x10a00000 0x10000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>,
 				 <&clock_top TOP_DOUT_ACLK_G2D_333>;
@@ -187,7 +187,7 @@
 
 		clock_mif: clock-controller@10ce0000 {
 			compatible = "samsung,exynos5260-clock-mif";
-			reg = <0x10CE0000 0x10000>;
+			reg = <0x10ce0000 0x10000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>;
 			clock-names = "fin_pll";
@@ -213,7 +213,7 @@
 
 		clock_fsys: clock-controller@122e0000 {
 			compatible = "samsung,exynos5260-clock-fsys";
-			reg = <0x122E0000 0x10000>;
+			reg = <0x122e0000 0x10000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>,
 				 <&fin_pll>,
@@ -233,7 +233,7 @@
 
 		clock_aud: clock-controller@128c0000 {
 			compatible = "samsung,exynos5260-clock-aud";
-			reg = <0x128C0000 0x10000>;
+			reg = <0x128c0000 0x10000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>,
 				 <&clock_top TOP_FOUT_AUD_PLL>,
@@ -247,7 +247,7 @@
 
 		clock_isp: clock-controller@133c0000 {
 			compatible = "samsung,exynos5260-clock-isp";
-			reg = <0x133C0000 0x10000>;
+			reg = <0x133c0000 0x10000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>,
 				 <&clock_top TOP_DOUT_ACLK_ISP1_266>,
@@ -261,7 +261,7 @@
 
 		clock_gscl: clock-controller@13f00000 {
 			compatible = "samsung,exynos5260-clock-gscl";
-			reg = <0x13F00000 0x10000>;
+			reg = <0x13f00000 0x10000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>,
 				 <&clock_top TOP_DOUT_ACLK_GSCL_400>,
@@ -335,7 +335,7 @@
 		mct: timer@100b0000 {
 			compatible = "samsung,exynos5260-mct",
 				     "samsung,exynos4210-mct";
-			reg = <0x100B0000 0x1000>;
+			reg = <0x100b0000 0x1000>;
 			clocks = <&fin_pll>, <&clock_peri PERI_CLK_MCT>;
 			clock-names = "fin_pll", "mct";
 			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
@@ -356,8 +356,8 @@
 			compatible = "arm,cci-400";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			reg = <0x10F00000 0x1000>;
-			ranges = <0x0 0x10F00000 0x6000>;
+			reg = <0x10f00000 0x1000>;
+			ranges = <0x0 0x10f00000 0x6000>;
 
 			cci_control0: slave-if@4000 {
 				compatible = "arm,cci-400-ctrl-if";
@@ -392,18 +392,18 @@
 
 		pinctrl_2: pinctrl@128b0000 {
 			compatible = "samsung,exynos5260-pinctrl";
-			reg = <0x128B0000 0x1000>;
+			reg = <0x128b0000 0x1000>;
 			interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pmu_system_controller: system-controller@10d50000 {
 			compatible = "samsung,exynos5260-pmu", "syscon";
-			reg = <0x10D50000 0x10000>;
+			reg = <0x10d50000 0x10000>;
 		};
 
 		uart0: serial@12c00000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C00000 0x100>;
+			reg = <0x12c00000 0x100>;
 			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peri PERI_CLK_UART0>, <&clock_peri PERI_SCLK_UART0>;
 			clock-names = "uart", "clk_uart_baud0";
@@ -412,7 +412,7 @@
 
 		uart1: serial@12c10000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C10000 0x100>;
+			reg = <0x12c10000 0x100>;
 			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peri PERI_CLK_UART1>, <&clock_peri PERI_SCLK_UART1>;
 			clock-names = "uart", "clk_uart_baud0";
@@ -421,7 +421,7 @@
 
 		uart2: serial@12c20000 {
 			compatible = "samsung,exynos4210-uart";
-			reg = <0x12C20000 0x100>;
+			reg = <0x12c20000 0x100>;
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peri PERI_CLK_UART2>, <&clock_peri PERI_SCLK_UART2>;
 			clock-names = "uart", "clk_uart_baud0";
@@ -499,7 +499,7 @@
 
 		hsi2c_0: i2c@12da0000 {
 			compatible = "samsung,exynos5260-hsi2c";
-			reg = <0x12DA0000 0x1000>;
+			reg = <0x12da0000 0x1000>;
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -512,7 +512,7 @@
 
 		hsi2c_1: i2c@12db0000 {
 			compatible = "samsung,exynos5260-hsi2c";
-			reg = <0x12DB0000 0x1000>;
+			reg = <0x12db0000 0x1000>;
 			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -525,7 +525,7 @@
 
 		hsi2c_2: i2c@12dc0000 {
 			compatible = "samsung,exynos5260-hsi2c";
-			reg = <0x12DC0000 0x1000>;
+			reg = <0x12dc0000 0x1000>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -538,7 +538,7 @@
 
 		hsi2c_3: i2c@12dd0000 {
 			compatible = "samsung,exynos5260-hsi2c";
-			reg = <0x12DD0000 0x1000>;
+			reg = <0x12dd0000 0x1000>;
 			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;

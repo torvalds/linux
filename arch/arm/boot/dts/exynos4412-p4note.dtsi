@@ -32,7 +32,7 @@
 
 	firmware@204f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0204F000 0x1000>;
+		reg = <0x0204f000 0x1000>;
 	};
 
 	fixed-rate-clocks {
@@ -132,8 +132,6 @@
 		precharge-current-microamp = <250000>;
 		charge-term-current-microamp = <250000>;
 		constant-charge-voltage-max-microvolt = <4200000>;
-
-		power-supplies = <&power_supply>;
 	};
 
 	i2c-gpio-1 {
@@ -200,7 +198,7 @@
 			stmpe_adc {
 				compatible = "st,stmpe-adc";
 				#io-channel-cells = <1>;
-				st,norequest-mask = <0x2F>;
+				st,norequest-mask = <0x2f>;
 			};
 		};
 	};
@@ -247,6 +245,7 @@
 		pinctrl-0 = <&led_bl_reset>;
 		pinctrl-names = "default";
 		enable-gpios = <&gpm0 1 GPIO_ACTIVE_HIGH>;
+		power-supply = <&panel_vdd>;
 		pwms = <&pwm 1 78770 0>;
 		brightness-levels = <0 48 128 255>;
 		num-interpolated-steps = <8>;

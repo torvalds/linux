@@ -31,7 +31,7 @@
 
 	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0205F000 0x1000>;
+		reg = <0x0205f000 0x1000>;
 	};
 
 	gpio-keys {
@@ -438,7 +438,6 @@
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;
-	desc-num = <4>;
 	mmc-hs200-1_8v;
 	card-detect-delay = <200>;
 	vmmc-supply = <&vemmc_reg>;
