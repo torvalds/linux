@@ -419,8 +419,8 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 	local->beacon.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
 	atomic_set(&request->wpan_dev->bsn, -1);
 	local->beacon.mhr.source.mode = IEEE802154_ADDR_LONG;
-	local->beacon.mhr.source.pan_id = cpu_to_le16(request->wpan_dev->pan_id);
-	local->beacon.mhr.source.extended_addr = cpu_to_le64(request->wpan_dev->extended_addr);
+	local->beacon.mhr.source.pan_id = request->wpan_dev->pan_id;
+	local->beacon.mhr.source.extended_addr = request->wpan_dev->extended_addr;
 	local->beacon.mac_pl.beacon_order = request->interval;
 	local->beacon.mac_pl.superframe_order = request->interval;
 	local->beacon.mac_pl.final_cap_slot = 0xf;
