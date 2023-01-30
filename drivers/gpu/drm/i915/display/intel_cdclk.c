@@ -1801,6 +1801,13 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 	return true;
 }
 
+static bool pll_enable_wa_needed(struct drm_i915_private *dev_priv)
+{
+	return ((IS_DG2(dev_priv) || IS_METEORLAKE(dev_priv)) &&
+		dev_priv->display.cdclk.hw.vco > 0 &&
+		HAS_CDCLK_SQUASH(dev_priv));
+}
+
 static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
 			   const struct intel_cdclk_config *cdclk_config,
 			   enum pipe pipe)
@@ -1815,9 +1822,13 @@ static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	    !cdclk_pll_is_unknown(dev_priv->display.cdclk.hw.vco)) {
 		if (dev_priv->display.cdclk.hw.vco != vco)
 			adlp_cdclk_pll_crawl(dev_priv, vco);
-	} else if (DISPLAY_VER(dev_priv) >= 11)
+	} else if (DISPLAY_VER(dev_priv) >= 11) {
+		/* wa_15010685871: dg2, mtl */
+		if (pll_enable_wa_needed(dev_priv))
+			dg2_cdclk_squash_program(dev_priv, 0);
+
 		icl_cdclk_pll_update(dev_priv, vco);
-	else
+	} else
 		bxt_cdclk_pll_update(dev_priv, vco);
 
 	waveform = cdclk_squash_waveform(dev_priv, cdclk);
