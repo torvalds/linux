@@ -2046,7 +2046,15 @@ early_param("irqchip.gicv3_pseudo_nmi", early_enable_pseudo_nmi);
 static bool can_use_gic_priorities(const struct arm64_cpu_capabilities *entry,
 				   int scope)
 {
-	return enable_pseudo_nmi && has_useable_gicv3_cpuif(entry, scope);
+	/*
+	 * ARM64_HAS_GIC_CPUIF_SYSREGS has a lower index, and is a boot CPU
+	 * feature, so will be detected earlier.
+	 */
+	BUILD_BUG_ON(ARM64_HAS_GIC_PRIO_MASKING <= ARM64_HAS_GIC_CPUIF_SYSREGS);
+	if (!cpus_have_cap(ARM64_HAS_GIC_CPUIF_SYSREGS))
+		return false;
+
+	return enable_pseudo_nmi;
 }
 #endif
 
@@ -2537,11 +2545,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_GIC_PRIO_MASKING,
 		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
 		.matches = can_use_gic_priorities,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.field_pos = ID_AA64PFR0_EL1_GIC_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 1,
 	},
 #endif
 #ifdef CONFIG_ARM64_E0PD
