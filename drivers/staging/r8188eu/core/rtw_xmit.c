@@ -17,7 +17,7 @@ static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 static void _init_txservq(struct tx_servq *ptxservq)
 {
 	INIT_LIST_HEAD(&ptxservq->tx_pending);
-	rtw_init_queue(&ptxservq->sta_pending);
+	INIT_LIST_HEAD(&ptxservq->sta_pending);
 	ptxservq->qcnt = 0;
 }
 
@@ -1361,7 +1361,7 @@ struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmi
 	for (i = 0; i < HWXMIT_ENTRY; i++) {
 		phwxmit = phwxmit_i + inx[i];
 		list_for_each_entry_safe(ptxservq, tmp_txservq, phwxmit->sta_list, tx_pending) {
-			xframe_list = get_list_head(&ptxservq->sta_pending);
+			xframe_list = &ptxservq->sta_pending;
 			if (list_empty(xframe_list))
 				continue;
 
@@ -1444,7 +1444,7 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	if (list_empty(&ptxservq->tx_pending))
 		list_add_tail(&ptxservq->tx_pending, phwxmits[ac_index].sta_list);
 
-	list_add_tail(&pxmitframe->list, get_list_head(&ptxservq->sta_pending));
+	list_add_tail(&pxmitframe->list, &ptxservq->sta_pending);
 	ptxservq->qcnt++;
 	phwxmits[ac_index].accnt++;
 exit:
@@ -1832,21 +1832,21 @@ void stop_sta_xmit(struct adapter *padapter, struct sta_info *psta)
 
 	pstapriv->sta_dz_bitmap |= BIT(psta->aid);
 
-	dequeue_xmitframes_to_sleeping_queue(padapter, psta, get_list_head(&pstaxmitpriv->vo_q.sta_pending));
+	dequeue_xmitframes_to_sleeping_queue(padapter, psta, &pstaxmitpriv->vo_q.sta_pending);
 	list_del_init(&pstaxmitpriv->vo_q.tx_pending);
 
-	dequeue_xmitframes_to_sleeping_queue(padapter, psta, get_list_head(&pstaxmitpriv->vi_q.sta_pending));
+	dequeue_xmitframes_to_sleeping_queue(padapter, psta, &pstaxmitpriv->vi_q.sta_pending);
 	list_del_init(&pstaxmitpriv->vi_q.tx_pending);
 
-	dequeue_xmitframes_to_sleeping_queue(padapter, psta, get_list_head(&pstaxmitpriv->be_q.sta_pending));
+	dequeue_xmitframes_to_sleeping_queue(padapter, psta, &pstaxmitpriv->be_q.sta_pending);
 	list_del_init(&pstaxmitpriv->be_q.tx_pending);
 
-	dequeue_xmitframes_to_sleeping_queue(padapter, psta, get_list_head(&pstaxmitpriv->bk_q.sta_pending));
+	dequeue_xmitframes_to_sleeping_queue(padapter, psta, &pstaxmitpriv->bk_q.sta_pending);
 	list_del_init(&pstaxmitpriv->bk_q.tx_pending);
 
 	/* for BC/MC Frames */
 	pstaxmitpriv = &psta_bmc->sta_xmitpriv;
-	dequeue_xmitframes_to_sleeping_queue(padapter, psta_bmc, get_list_head(&pstaxmitpriv->be_q.sta_pending));
+	dequeue_xmitframes_to_sleeping_queue(padapter, psta_bmc, &pstaxmitpriv->be_q.sta_pending);
 	list_del_init(&pstaxmitpriv->be_q.tx_pending);
 
 	spin_unlock_bh(&pxmitpriv->lock);

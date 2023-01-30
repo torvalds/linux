@@ -461,7 +461,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt)
 	}
 	spin_lock_bh(&pxmitpriv->lock);
 
-	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
+	xmitframe_phead = &ptxservq->sta_pending;
 	xmitframe_plist = xmitframe_phead->next;
 
 	while (xmitframe_phead != xmitframe_plist) {
@@ -512,7 +512,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt)
 		}
 	} /* end while (aggregate same priority and same DA(AP or STA) frames) */
 
-	if (list_empty(&ptxservq->sta_pending.queue))
+	if (list_empty(&ptxservq->sta_pending))
 		list_del_init(&ptxservq->tx_pending);
 
 	spin_unlock_bh(&pxmitpriv->lock);

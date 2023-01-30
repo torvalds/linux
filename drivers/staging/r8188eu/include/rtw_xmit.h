@@ -221,7 +221,7 @@ struct xmit_frame {
 
 struct tx_servq {
 	struct list_head tx_pending;
-	struct __queue sta_pending;
+	struct list_head sta_pending;
 	int qcnt;
 };
 
