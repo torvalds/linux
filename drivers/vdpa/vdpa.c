@@ -1016,7 +1016,7 @@ static int vdpa_dev_vendor_stats_fill(struct vdpa_device *vdev,
 	switch (device_id) {
 	case VIRTIO_ID_NET:
 		if (index > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX) {
-			NL_SET_ERR_MSG_MOD(info->extack, "queue index excceeds max value");
+			NL_SET_ERR_MSG_MOD(info->extack, "queue index exceeds max value");
 			err = -ERANGE;
 			break;
 		}

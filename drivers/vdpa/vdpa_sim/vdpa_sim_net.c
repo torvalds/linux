@@ -324,7 +324,7 @@ static int vdpasim_net_get_stats(struct vdpasim *vdpasim, u16 idx,
 				      rx_errors, VDPA_ATTR_PAD))
 			break;
 		if (nla_put_string(msg, VDPA_ATTR_DEV_VENDOR_ATTR_NAME,
-				  "rx overrunss"))
+				  "rx overruns"))
 			break;
 		if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_VENDOR_ATTR_VALUE,
 				      rx_overruns, VDPA_ATTR_PAD))
