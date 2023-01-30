@@ -82,7 +82,6 @@ static char driver_name[] = "Intel PCH thermal driver";
 
 struct pch_thermal_device {
 	void __iomem *hw_base;
-	const struct pch_dev_ops *ops;
 	struct pci_dev *pdev;
 	struct thermal_zone_device *tzd;
 	struct thermal_trip trips[PCH_MAX_TRIPS];
@@ -251,25 +250,11 @@ static int pch_resume(struct pch_thermal_device *ptd)
 	return 0;
 }
 
-struct pch_dev_ops {
-	int (*hw_init)(struct pch_thermal_device *ptd);
-	int (*get_temp)(struct pch_thermal_device *ptd);
-	int (*suspend)(struct pch_thermal_device *ptd);
-	int (*resume)(struct pch_thermal_device *ptd);
-};
-
-static const struct pch_dev_ops pch_dev_ops = {
-	.hw_init = pch_hw_init,
-	.get_temp = pch_get_temp,
-	.suspend = pch_suspend,
-	.resume = pch_resume,
-};
-
 static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
 {
 	struct pch_thermal_device *ptd = tzd->devdata;
 
-	*temp = ptd->ops->get_temp(ptd);
+	*temp = pch_get_temp(ptd);
 	return 0;
 }
 
@@ -295,35 +280,27 @@ enum board_ids {
 
 static const struct board_info {
 	const char *name;
-	const struct pch_dev_ops *ops;
 } board_info[] = {
 	[board_hsw] = {
 		.name = "pch_haswell",
-		.ops = &pch_dev_ops,
 	},
 	[board_wpt] = {
 		.name = "pch_wildcat_point",
-		.ops = &pch_dev_ops,
 	},
 	[board_skl] = {
 		.name = "pch_skylake",
-		.ops = &pch_dev_ops,
 	},
 	[board_cnl] = {
 		.name = "pch_cannonlake",
-		.ops = &pch_dev_ops,
 	},
 	[board_cml] = {
 		.name = "pch_cometlake",
-		.ops = &pch_dev_ops,
 	},
 	[board_lwb] = {
 		.name = "pch_lewisburg",
-		.ops = &pch_dev_ops,
 	},
 	[board_wbg] = {
 		.name = "pch_wellsburg",
-		.ops = &pch_dev_ops,
 	},
 };
 
@@ -339,8 +316,6 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 	ptd = devm_kzalloc(&pdev->dev, sizeof(*ptd), GFP_KERNEL);
 	if (!ptd)
 		return -ENOMEM;
-
-	ptd->ops = bi->ops;
 
 	pci_set_drvdata(pdev, ptd);
 	ptd->pdev = pdev;
@@ -364,7 +339,7 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 		goto error_release;
 	}
 
-	nr_trips = ptd->ops->hw_init(ptd);
+	nr_trips = pch_hw_init(ptd);
 	if (nr_trips < 0) {
 		err = nr_trips;
 		goto error_cleanup;
@@ -412,14 +387,14 @@ static int intel_pch_thermal_suspend_noirq(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
-	return ptd->ops->suspend(ptd);
+	return pch_suspend(ptd);
 }
 
 static int intel_pch_thermal_resume(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
-	return ptd->ops->resume(ptd);
+	return pch_resume(ptd);
 }
 
 static const struct pci_device_id intel_pch_thermal_id[] = {
