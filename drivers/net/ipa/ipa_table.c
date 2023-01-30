@@ -499,13 +499,22 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 	u32 offset;
 	u32 val;
 
-	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+	if (ipa->version < IPA_VERSION_5_0) {
+		reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
 
-	offset = ipa_reg_n_offset(reg, endpoint_id);
-	val = ioread32(endpoint->ipa->reg_virt + offset);
+		offset = ipa_reg_n_offset(reg, endpoint_id);
+		val = ioread32(endpoint->ipa->reg_virt + offset);
 
-	/* Zero all filter-related fields, preserving the rest */
-	val &= ~ipa_reg_fmask(reg, FILTER_HASH_MSK_ALL);
+		/* Zero all filter-related fields, preserving the rest */
+		val &= ~ipa_reg_fmask(reg, FILTER_HASH_MSK_ALL);
+	} else {
+		/* IPA v5.0 separates filter and router cache configuration */
+		reg = ipa_reg(ipa, ENDP_FILTER_CACHE_CFG);
+		offset = ipa_reg_n_offset(reg, endpoint_id);
+
+		/* Zero all filter-related fields */
+		val = 0;
+	}
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -549,13 +558,22 @@ static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 	u32 offset;
 	u32 val;
 
-	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
-	offset = ipa_reg_n_offset(reg, route_id);
+	if (ipa->version < IPA_VERSION_5_0) {
+		reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+		offset = ipa_reg_n_offset(reg, route_id);
 
-	val = ioread32(ipa->reg_virt + offset);
+		val = ioread32(ipa->reg_virt + offset);
 
-	/* Zero all route-related fields, preserving the rest */
-	val &= ~ipa_reg_fmask(reg, ROUTER_HASH_MSK_ALL);
+		/* Zero all route-related fields, preserving the rest */
+		val &= ~ipa_reg_fmask(reg, ROUTER_HASH_MSK_ALL);
+	} else {
+		/* IPA v5.0 separates filter and router cache configuration */
+		reg = ipa_reg(ipa, ENDP_ROUTER_CACHE_CFG);
+		offset = ipa_reg_n_offset(reg, route_id);
+
+		/* Zero all route-related fields */
+		val = 0;
+	}
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
