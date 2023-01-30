@@ -64,7 +64,7 @@
 	leds {
 		compatible = "pwm-leds";
 
-		led1 {
+		led-1 {
 			function = LED_FUNCTION_STATUS;
 			color = <LED_COLOR_ID_RED>;
 			max-brightness = <248>;

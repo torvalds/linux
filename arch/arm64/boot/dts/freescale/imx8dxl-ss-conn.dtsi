@@ -67,7 +67,7 @@
 		reg = <0x5b0e0200 0x200>;
 	};
 
-	usbphy2: usbphy@0x5b110000 {
+	usbphy2: usbphy@5b110000 {
 		compatible = "fsl,imx8dxl-usbphy", "fsl,imx7ulp-usbphy";
 		reg = <0x5b110000 0x1000>;
 		clocks = <&usb2_2_lpcg IMX_LPCG_CLK_7>;
