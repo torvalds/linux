@@ -500,7 +500,7 @@ static int sma1303_aif_in_event(struct snd_soc_dapm_widget *w,
 			sma1303->amp_mode = SMA1303_STEREO;
 			break;
 		default:
-			dev_err(sma1303->dev, "%s : Invald value (%d)\n",
+			dev_err(sma1303->dev, "%s : Invalid value (%d)\n",
 								__func__, mux);
 			return -EINVAL;
 		}
@@ -640,7 +640,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 				change = true;
 			break;
 		default:
-			dev_err(sma1303->dev, "%s : Invald value (%d)\n",
+			dev_err(sma1303->dev, "%s : Invalid value (%d)\n",
 								__func__, mux);
 			return -EINVAL;
 		}
