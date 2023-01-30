@@ -1592,6 +1592,14 @@ proxy_arp_pvlan - BOOLEAN
 	  Hewlett-Packard call it Source-Port filtering or port-isolation.
 	  Ericsson call it MAC-Forced Forwarding (RFC Draft).
 
+proxy_delay - INTEGER
+	Delay proxy response.
+
+	Delay response to a neighbor solicitation when proxy_arp
+	or proxy_ndp is enabled. A random value between [0, proxy_delay)
+	will be chosen, setting to zero means reply with no delay.
+	Value in jiffies. Defaults to 80.
+
 shared_media - BOOLEAN
 	Send(router) or accept(host) RFC1620 shared media redirects.
 	Overrides secure_redirects.
