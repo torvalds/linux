@@ -227,26 +227,13 @@ void __init kasan_early_init(void)
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
 	unsigned long untracked_end = MODULES_VADDR;
 	unsigned long shadow_alloc_size;
-	unsigned long memsize;
+	unsigned long start, end;
+	int i;
 
 	kasan_early_detect_facilities();
 	if (!has_nx)
 		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_NOEXEC));
 
-	memsize = get_mem_detect_end();
-	if (!memsize)
-		kasan_early_panic("cannot detect physical memory size\n");
-	/*
-	 * Kasan currently supports standby memory but only if it follows
-	 * online memory (default allocation), i.e. no memory holes.
-	 * - memsize represents end of online memory
-	 * - ident_map_size represents online + standby and memory limits
-	 *   accounted.
-	 * Kasan maps "memsize" right away.
-	 * [__sha(0), __sha(memsize)]	- shadow memory for identity mapping
-	 * The rest [memsize, ident_map_size] if memsize < ident_map_size
-	 * could be mapped/unmapped dynamically later during memory hotplug.
-	 */
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
 
@@ -256,12 +243,8 @@ void __init kasan_early_init(void)
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
 	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
 
-	shadow_alloc_size = memsize >> KASAN_SHADOW_SCALE_SHIFT;
-
-	if (pgalloc_low + shadow_alloc_size > memsize)
-		kasan_early_panic("out of memory during initialisation\n");
-
 	if (has_edat) {
+		shadow_alloc_size = get_mem_detect_online_total() >> KASAN_SHADOW_SCALE_SHIFT;
 		segment_pos = round_down(pgalloc_pos, _SEGMENT_SIZE);
 		segment_low = segment_pos - shadow_alloc_size;
 		segment_low = round_down(segment_low, _SEGMENT_SIZE);
@@ -299,7 +282,8 @@ void __init kasan_early_init(void)
 	 * +- shadow end ----+---------+- shadow end ---+
 	 */
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
-	kasan_early_pgtable_populate(__sha(0), __sha(memsize), POPULATE_MAP);
+	for_each_mem_detect_block(i, &start, &end)
+		kasan_early_pgtable_populate(__sha(start), __sha(end), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
 		untracked_end = VMALLOC_START;
 		/* shallowly populate kasan shadow for vmalloc and modules */

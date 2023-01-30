@@ -182,7 +182,7 @@ unsigned long get_random_base(unsigned long safe_addr)
 	 * which vmem and kasan code will use for shadow memory and
 	 * pgtable mapping allocations.
 	 */
-	memory_limit -= kasan_estimate_memory_needs(memory_limit);
+	memory_limit -= kasan_estimate_memory_needs(online_mem_total);
 	memory_limit -= vmem_estimate_memory_needs(online_mem_total);
 
 	safe_addr = ALIGN(safe_addr, THREAD_SIZE);
