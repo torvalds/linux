@@ -117,88 +117,6 @@ static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
 }
 #endif
 
-/* Cool the PCH when it's overheat in .suspend_noirq phase */
-static int pch_suspend(struct pch_thermal_device *ptd)
-{
-	u8 tsel;
-	int pch_delay_cnt = 0;
-	u16 pch_thr_temp, pch_cur_temp;
-
-	/* Shutdown the thermal sensor if it is not enabled by BIOS */
-	if (!ptd->bios_enabled) {
-		tsel = readb(ptd->hw_base + WPT_TSEL);
-		writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
-		return 0;
-	}
-
-	/* Do not check temperature if it is not s2idle */
-	if (pm_suspend_via_firmware())
-		return 0;
-
-	/* Get the PCH temperature threshold value */
-	pch_thr_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TSPM));
-
-	/* Get the PCH current temperature value */
-	pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
-
-	/*
-	 * If current PCH temperature is higher than configured PCH threshold
-	 * value, run some delay loop with sleep to let the current temperature
-	 * go down below the threshold value which helps to allow system enter
-	 * lower power S0ix suspend state. Even after delay loop if PCH current
-	 * temperature stays above threshold, notify the warning message
-	 * which helps to indentify the reason why S0ix entry was rejected.
-	 */
-	while (pch_delay_cnt < delay_cnt) {
-		if (pch_cur_temp < pch_thr_temp)
-			break;
-
-		if (pm_wakeup_pending()) {
-			dev_warn(&ptd->pdev->dev, "Wakeup event detected, abort cooling\n");
-			return 0;
-		}
-
-		pch_delay_cnt++;
-		dev_dbg(&ptd->pdev->dev,
-			"CPU-PCH current temp [%dC] higher than the threshold temp [%dC], sleep %d times for %d ms duration\n",
-			pch_cur_temp, pch_thr_temp, pch_delay_cnt, delay_timeout);
-		msleep(delay_timeout);
-		/* Read the PCH current temperature for next cycle. */
-		pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
-	}
-
-	if (pch_cur_temp >= pch_thr_temp)
-		dev_warn(&ptd->pdev->dev,
-			"CPU-PCH is hot [%dC] after %d ms delay. S0ix might fail\n",
-			pch_cur_temp, pch_delay_cnt * delay_timeout);
-	else {
-		if (pch_delay_cnt)
-			dev_info(&ptd->pdev->dev,
-				"CPU-PCH is cool [%dC] after %d ms delay\n",
-				pch_cur_temp, pch_delay_cnt * delay_timeout);
-		else
-			dev_info(&ptd->pdev->dev,
-				"CPU-PCH is cool [%dC]\n",
-				pch_cur_temp);
-	}
-
-	return 0;
-}
-
-static int pch_resume(struct pch_thermal_device *ptd)
-{
-	u8 tsel;
-
-	if (ptd->bios_enabled)
-		return 0;
-
-	tsel = readb(ptd->hw_base + WPT_TSEL);
-
-	writeb(tsel | WPT_TSEL_ETS, ptd->hw_base + WPT_TSEL);
-
-	return 0;
-}
-
 static int pch_thermal_get_temp(struct thermal_zone_device *tzd, int *temp)
 {
 	struct pch_thermal_device *ptd = tzd->devdata;
@@ -372,15 +290,84 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 static int intel_pch_thermal_suspend_noirq(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
+	u16 pch_thr_temp, pch_cur_temp;
+	int pch_delay_cnt = 0;
+	u8 tsel;
 
-	return pch_suspend(ptd);
+	/* Shutdown the thermal sensor if it is not enabled by BIOS */
+	if (!ptd->bios_enabled) {
+		tsel = readb(ptd->hw_base + WPT_TSEL);
+		writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
+		return 0;
+	}
+
+	/* Do not check temperature if it is not s2idle */
+	if (pm_suspend_via_firmware())
+		return 0;
+
+	/* Get the PCH temperature threshold value */
+	pch_thr_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TSPM));
+
+	/* Get the PCH current temperature value */
+	pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
+
+	/*
+	 * If current PCH temperature is higher than configured PCH threshold
+	 * value, run some delay loop with sleep to let the current temperature
+	 * go down below the threshold value which helps to allow system enter
+	 * lower power S0ix suspend state. Even after delay loop if PCH current
+	 * temperature stays above threshold, notify the warning message
+	 * which helps to indentify the reason why S0ix entry was rejected.
+	 */
+	while (pch_delay_cnt < delay_cnt) {
+		if (pch_cur_temp < pch_thr_temp)
+			break;
+
+		if (pm_wakeup_pending()) {
+			dev_warn(&ptd->pdev->dev, "Wakeup event detected, abort cooling\n");
+			return 0;
+		}
+
+		pch_delay_cnt++;
+		dev_dbg(&ptd->pdev->dev,
+			"CPU-PCH current temp [%dC] higher than the threshold temp [%dC], sleep %d times for %d ms duration\n",
+			pch_cur_temp, pch_thr_temp, pch_delay_cnt, delay_timeout);
+		msleep(delay_timeout);
+		/* Read the PCH current temperature for next cycle. */
+		pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
+	}
+
+	if (pch_cur_temp >= pch_thr_temp)
+		dev_warn(&ptd->pdev->dev,
+			"CPU-PCH is hot [%dC] after %d ms delay. S0ix might fail\n",
+			pch_cur_temp, pch_delay_cnt * delay_timeout);
+	else {
+		if (pch_delay_cnt)
+			dev_info(&ptd->pdev->dev,
+				"CPU-PCH is cool [%dC] after %d ms delay\n",
+				pch_cur_temp, pch_delay_cnt * delay_timeout);
+		else
+			dev_info(&ptd->pdev->dev,
+				"CPU-PCH is cool [%dC]\n",
+				pch_cur_temp);
+	}
+
+	return 0;
 }
 
 static int intel_pch_thermal_resume(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
+	u8 tsel;
 
-	return pch_resume(ptd);
+	if (ptd->bios_enabled)
+		return 0;
+
+	tsel = readb(ptd->hw_base + WPT_TSEL);
+
+	writeb(tsel | WPT_TSEL_ETS, ptd->hw_base + WPT_TSEL);
+
+	return 0;
 }
 
 static const struct pci_device_id intel_pch_thermal_id[] = {
