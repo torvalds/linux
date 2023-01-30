@@ -6893,6 +6893,7 @@ C:	irc://irc.oftc.net/dri-devel
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ogabbay/accel.git
 F:	Documentation/accel/
 F:	drivers/accel/
+F:	include/drm/drm_accel.h
 
 DRM ACCEL DRIVERS FOR INTEL VPU
 M:	Jacek Lawrynowicz <jacek.lawrynowicz@linux.intel.com>
@@ -9032,13 +9033,15 @@ F:	block/partitions/efi.*
 
 HABANALABS PCI DRIVER
 M:	Oded Gabbay <ogabbay@kernel.org>
+L:	dri-devel@lists.freedesktop.org
 S:	Supported
+C:	irc://irc.oftc.net/dri-devel
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ogabbay/linux.git
 F:	Documentation/ABI/testing/debugfs-driver-habanalabs
 F:	Documentation/ABI/testing/sysfs-driver-habanalabs
-F:	drivers/misc/habanalabs/
+F:	drivers/accel/habanalabs/
 F:	include/trace/events/habanalabs.h
-F:	include/uapi/misc/habanalabs.h
+F:	include/uapi/drm/habanalabs_accel.h
 
 HACKRF MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
