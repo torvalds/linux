@@ -754,6 +754,14 @@ struct vop2_video_port {
 	 * @post_csc_data_prop: post csc data interaction with userspace
 	 */
 	struct drm_property *post_csc_data_prop;
+	/**
+	 * @output_width_prop: vp max output width prop
+	 */
+	struct drm_property *output_width_prop;
+	/**
+	 * @output_dclk_prop: vp max output dclk prop
+	 */
+	struct drm_property *output_dclk_prop;
 
 	/**
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
@@ -10464,6 +10472,24 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 
 	vp->feature_prop = prop;
 	drm_object_attach_property(&crtc->base, vp->feature_prop, feature);
+
+	prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE, "OUTPUT_WIDTH",
+					 0, vop2->data->vp[vp->id].max_output.width);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create OUTPUT_WIDTH prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->output_width_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->output_width_prop, 0);
+
+	prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE, "OUTPUT_DCLK",
+					 0, rockchip_drm_get_dclk_by_width(vop2->data->vp[vp->id].max_output.width) * 1000);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create OUTPUT_DCLK prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->output_dclk_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->output_dclk_prop, 0);
 
 	return 0;
 }

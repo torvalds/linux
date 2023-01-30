@@ -398,6 +398,40 @@ int rockchip_drm_add_modes_noedid(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(rockchip_drm_add_modes_noedid);
 
+static const struct rockchip_drm_width_dclk {
+	int width;
+	u32 dclk_khz;
+} rockchip_drm_dclk[] = {
+	{1920, 148500},
+	{2048, 200000},
+	{2560, 280000},
+	{3840, 594000},
+	{4096, 594000},
+	{7680, 2376000},
+};
+
+u32 rockchip_drm_get_dclk_by_width(int width)
+{
+	int i = 0;
+	u32 dclk_khz;
+
+	for (i = 0; i < ARRAY_SIZE(rockchip_drm_dclk); i++) {
+		if (width == rockchip_drm_dclk[i].width) {
+			dclk_khz = rockchip_drm_dclk[i].dclk_khz;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(rockchip_drm_dclk)) {
+		DRM_ERROR("Can't not find %d width solution and use 148500 khz as max dclk\n", width);
+
+		dclk_khz = 148500;
+	}
+
+	return dclk_khz;
+}
+EXPORT_SYMBOL(rockchip_drm_get_dclk_by_width);
+
 static int
 cea_db_tag(const u8 *db)
 {
