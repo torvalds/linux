@@ -941,7 +941,8 @@ static void writecache_suspend(struct dm_target *ti)
 	wc_lock(wc);
 	if (flush_on_suspend)
 		wc->writeback_all--;
-	while (writecache_wait_for_writeback(wc));
+	while (writecache_wait_for_writeback(wc))
+		;
 
 	if (WC_MODE_PMEM(wc))
 		persistent_memory_flush_cache(wc->memory_map, wc->memory_map_size);
@@ -2090,7 +2091,8 @@ restart:
 
 	if (unlikely(wc->writeback_all)) {
 		wc_lock(wc);
-		while (writecache_wait_for_writeback(wc));
+		while (writecache_wait_for_writeback(wc))
+			;
 		wc_unlock(wc);
 	}
 }
@@ -2448,12 +2450,14 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			if (WC_MODE_PMEM(wc)) {
 				wc->writeback_fua = true;
 				wc->writeback_fua_set = true;
-			} else goto invalid_optional;
+			} else
+				goto invalid_optional;
 		} else if (!strcasecmp(string, "nofua")) {
 			if (WC_MODE_PMEM(wc)) {
 				wc->writeback_fua = false;
 				wc->writeback_fua_set = true;
-			} else goto invalid_optional;
+			} else
+				goto invalid_optional;
 		} else if (!strcasecmp(string, "metadata_only")) {
 			wc->metadata_only = true;
 		} else if (!strcasecmp(string, "pause_writeback") && opt_params >= 1) {
