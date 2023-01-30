@@ -135,8 +135,34 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	return ret;
 }
 
+#define MAKE_INVAL_OP(type)	((type << XE_GUC_TLB_INVAL_TYPE_SHIFT) | \
+		XE_GUC_TLB_INVAL_MODE_HEAVY << XE_GUC_TLB_INVAL_MODE_SHIFT | \
+		XE_GUC_TLB_INVAL_FLUSH_CACHE)
+
 /**
- * xe_gt_tlb_invalidation - Issue a TLB invalidation on this GT
+ * xe_gt_tlb_invalidation_guc - Issue a TLB invalidation on this GT for the GuC
+ * @gt: graphics tile
+ *
+ * Issue a TLB invalidation for the GuC. Completion of TLB is asynchronous and
+ * caller can use seqno + xe_gt_tlb_invalidation_wait to wait for completion.
+ *
+ * Return: Seqno which can be passed to xe_gt_tlb_invalidation_wait on success,
+ * negative error code on error.
+ */
+int xe_gt_tlb_invalidation_guc(struct xe_gt *gt)
+{
+	u32 action[] = {
+		XE_GUC_ACTION_TLB_INVALIDATION,
+		0,  /* seqno, replaced in send_tlb_invalidation */
+		MAKE_INVAL_OP(XE_GUC_TLB_INVAL_GUC),
+	};
+
+	return send_tlb_invalidation(&gt->uc.guc, NULL, action,
+				     ARRAY_SIZE(action));
+}
+
+/**
+ * xe_gt_tlb_invalidation_vma - Issue a TLB invalidation on this GT for a VMA
  * @gt: graphics tile
  * @fence: invalidation fence which will be signal on TLB invalidation
  * completion, can be NULL
@@ -150,9 +176,9 @@ static int send_tlb_invalidation(struct xe_guc *guc,
  * Return: Seqno which can be passed to xe_gt_tlb_invalidation_wait on success,
  * negative error code on error.
  */
-int xe_gt_tlb_invalidation(struct xe_gt *gt,
-			   struct xe_gt_tlb_invalidation_fence *fence,
-			   struct xe_vma *vma)
+int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
+			       struct xe_gt_tlb_invalidation_fence *fence,
+			       struct xe_vma *vma)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 #define MAX_TLB_INVALIDATION_LEN	7
@@ -161,12 +187,9 @@ int xe_gt_tlb_invalidation(struct xe_gt *gt,
 
 	XE_BUG_ON(!vma);
 
+	action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
+	action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
 	if (!xe->info.has_range_tlb_invalidation) {
-		action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
-		action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
-#define MAKE_INVAL_OP(type)	((type << XE_GUC_TLB_INVAL_TYPE_SHIFT) | \
-		XE_GUC_TLB_INVAL_MODE_HEAVY << XE_GUC_TLB_INVAL_MODE_SHIFT | \
-		XE_GUC_TLB_INVAL_FLUSH_CACHE)
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL);
 	} else {
 		u64 start = vma->start;
@@ -205,8 +228,6 @@ int xe_gt_tlb_invalidation(struct xe_gt *gt,
 		XE_BUG_ON(length & GENMASK(ilog2(SZ_16M) - 1, ilog2(SZ_2M) + 1));
 		XE_BUG_ON(!IS_ALIGNED(start, length));
 
-		action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
-		action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_PAGE_SELECTIVE);
 		action[len++] = vma->vm->usm.asid;
 		action[len++] = lower_32_bits(start);

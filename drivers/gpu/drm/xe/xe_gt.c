@@ -196,6 +196,15 @@ static int gt_ttm_mgr_init(struct xe_gt *gt)
 	return 0;
 }
 
+void xe_gt_sanitize(struct xe_gt *gt)
+{
+	/*
+	 * FIXME: if xe_uc_sanitize is called here, on TGL driver will not
+	 * reload
+	 */
+	gt->uc.guc.submission_state.enabled = false;
+}
+
 static void gt_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_gt *gt = arg;
@@ -662,6 +671,8 @@ static int gt_reset(struct xe_gt *gt)
 
 	drm_info(&xe->drm, "GT reset started\n");
 
+	xe_gt_sanitize(gt);
+
 	xe_device_mem_access_get(gt_to_xe(gt));
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (err)
@@ -741,6 +752,8 @@ int xe_gt_suspend(struct xe_gt *gt)
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_guc_submission_enabled(gt_to_xe(gt)))
 		return -ENODEV;
+
+	xe_gt_sanitize(gt);
 
 	xe_device_mem_access_get(gt_to_xe(gt));
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);

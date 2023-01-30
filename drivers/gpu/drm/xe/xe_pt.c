@@ -1506,7 +1506,7 @@ static void invalidation_fence_work_func(struct work_struct *w)
 		container_of(w, struct invalidation_fence, work);
 
 	trace_xe_gt_tlb_invalidation_fence_work_func(&ifence->base);
-	xe_gt_tlb_invalidation(ifence->gt, &ifence->base, ifence->vma);
+	xe_gt_tlb_invalidation_vma(ifence->gt, &ifence->base, ifence->vma);
 }
 
 static int invalidation_fence_init(struct xe_gt *gt,

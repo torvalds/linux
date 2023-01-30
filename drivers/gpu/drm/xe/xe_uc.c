@@ -88,10 +88,15 @@ static int uc_reset(struct xe_uc *uc)
 	return 0;
 }
 
-static int uc_sanitize(struct xe_uc *uc)
+void xe_uc_sanitize(struct xe_uc *uc)
 {
 	xe_huc_sanitize(&uc->huc);
 	xe_guc_sanitize(&uc->guc);
+}
+
+static int xe_uc_sanitize_reset(struct xe_uc *uc)
+{
+	xe_uc_sanitize(uc);
 
 	return uc_reset(uc);
 }
@@ -129,7 +134,7 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	if (!xe_device_guc_submission_enabled(uc_to_xe(uc)))
 		return 0;
 
-	ret = uc_sanitize(uc);
+	ret = xe_uc_sanitize_reset(uc);
 	if (ret)
 		return ret;
 

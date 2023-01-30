@@ -309,6 +309,7 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 int xe_guc_post_load_init(struct xe_guc *guc)
 {
 	xe_guc_ads_populate_post_load(&guc->ads);
+	guc->submission_state.enabled = true;
 
 	return 0;
 }
@@ -795,6 +796,7 @@ void xe_guc_sanitize(struct xe_guc *guc)
 {
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
 	xe_guc_ct_disable(&guc->ct);
+	guc->submission_state.enabled = false;
 }
 
 int xe_guc_reset_prepare(struct xe_guc *guc)

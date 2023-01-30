@@ -240,7 +240,7 @@ unlock_vm:
 		goto retry_userptr;
 
 	if (!ret) {
-		ret = xe_gt_tlb_invalidation(gt, NULL, vma);
+		ret = xe_gt_tlb_invalidation_vma(gt, NULL, vma);
 		if (ret >= 0)
 			ret = 0;
 	}

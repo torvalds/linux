@@ -13,6 +13,7 @@
 #include "xe_device.h"
 #include "xe_bo.h"
 #include "xe_gt.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_wopcm.h"
@@ -200,10 +201,17 @@ void xe_ggtt_invalidate(struct xe_gt *gt)
 	 * therefore flushing WC buffers.  Is that really true here?
 	 */
 	xe_mmio_write32(gt, GFX_FLSH_CNTL_GEN6.reg, GFX_FLSH_CNTL_EN);
-	if (xe_device_guc_submission_enabled(gt_to_xe(gt))) {
+
+	if (gt->uc.guc.submission_state.enabled) {
+		int seqno;
+
+		seqno = xe_gt_tlb_invalidation_guc(gt);
+		XE_WARN_ON(seqno <= 0);
+		if (seqno > 0)
+			xe_gt_tlb_invalidation_wait(gt, seqno);
+	} else if (xe_device_guc_submission_enabled(gt_to_xe(gt))) {
 		struct xe_device *xe = gt_to_xe(gt);
 
-		/* TODO: also use vfunc here */
 		if (xe->info.platform == XE_PVC) {
 			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC1.reg,
 					PVC_GUC_TLB_INV_DESC1_INVALIDATE);

@@ -60,6 +60,8 @@ struct xe_guc {
 			/** @patch: patch version of GuC submission */
 			u32 patch;
 		} version;
+		/** @enabled: submission is enabled */
+		bool enabled;
 	} submission_state;
 	/** @hwconfig: Hardware config state */
 	struct {
