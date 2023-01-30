@@ -42,10 +42,12 @@ static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
 					 int trip, int temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
+	char name[] = {'P', 'A', 'T', '0' + trip, '\0'};
 	acpi_status status;
-	char name[10];
 
-	snprintf(name, sizeof(name), "PAT%d", trip);
+	if (trip > 9)
+		return -EINVAL;
+
 	status = acpi_execute_simple_method(d->adev->handle, name,
 					    millicelsius_to_deci_kelvin(temp));
 	if (ACPI_FAILURE(status))
