@@ -216,13 +216,17 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 	intel_de_write(dev_priv, PP_CONTROL(0), val);
 
 	intel_de_write(dev_priv, PP_ON_DELAYS(0),
-		       REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, pps->port) | REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->t1_t2) | REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->t5));
+		       REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, pps->port) |
+		       REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->t1_t2) |
+		       REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->t5));
 
 	intel_de_write(dev_priv, PP_OFF_DELAYS(0),
-		       REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->t3) | REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->tx));
+		       REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->t3) |
+		       REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->tx));
 
 	intel_de_write(dev_priv, PP_DIVISOR(0),
-		       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) | REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(pps->t4, 1000) + 1));
+		       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) |
+		       REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(pps->t4, 1000) + 1));
 }
 
 static void intel_pre_enable_lvds(struct intel_atomic_state *state,
