@@ -125,8 +125,8 @@ void intel_device_info_print(const struct intel_device_info *info,
 	drm_printf(p, "base die stepping: %s\n", intel_step_name(runtime->step.basedie_step));
 
 	drm_printf(p, "gt: %d\n", info->gt);
-	drm_printf(p, "memory-regions: %x\n", runtime->memory_regions);
-	drm_printf(p, "page-sizes: %x\n", runtime->page_sizes);
+	drm_printf(p, "memory-regions: 0x%x\n", runtime->memory_regions);
+	drm_printf(p, "page-sizes: 0x%x\n", runtime->page_sizes);
 	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
 	drm_printf(p, "ppgtt-size: %d\n", runtime->ppgtt_size);
 	drm_printf(p, "ppgtt-type: %d\n", runtime->ppgtt_type);
@@ -540,5 +540,5 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 {
 	drm_printf(p, "Has logical contexts? %s\n",
 		   str_yes_no(caps->has_logical_contexts));
-	drm_printf(p, "scheduler: %x\n", caps->scheduler);
+	drm_printf(p, "scheduler: 0x%x\n", caps->scheduler);
 }
