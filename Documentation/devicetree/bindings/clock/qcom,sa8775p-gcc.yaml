@@ -40,6 +40,9 @@ properties:
   protected-clocks:
     maxItems: 240
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - clocks
@@ -52,6 +55,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
     gcc: clock-controller@100000 {
         compatible = "qcom,sa8775p-gcc";
@@ -71,6 +75,7 @@ examples:
                  <&pcie_phy_pipe_clk>,
                  <&rxc0_ref_clk>,
                  <&rxc1_ref_clk>;
+        power-domains = <&rpmhpd SA8775P_CX>;
 
         #clock-cells = <1>;
         #reset-cells = <1>;
