@@ -922,64 +922,72 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
-/* For IPA v4.5+, times are expressed using Qtime.  The AP uses one of two
- * pulse generators (0 and 1) to measure elapsed time.  In ipa_qtime_config()
- * they're configured to have granularity 100 usec and 1 msec, respectively.
- *
- * The return value is the positive or negative Qtime value to use to
- * express the (microsecond) time provided.  A positive return value
- * means pulse generator 0 can be used; otherwise use pulse generator 1.
+/* For IPA v4.5+, times are expressed using Qtime.  A time is represented
+ * at one of several available granularities, which are configured in
+ * ipa_qtime_config().  Three (or, starting with IPA v5.0, four) pulse
+ * generators are set up with different "tick" periods.  A Qtime value
+ * encodes a tick count along with an indication of a pulse generator
+ * (which has a fixed tick period).  Two pulse generators are always
+ * available to the AP; a third is available starting with IPA v5.0.
+ * This function determines which pulse generator most accurately
+ * represents the time period provided, and returns the tick count to
+ * use to represent that time.
  */
-static int ipa_qtime_val(u32 microseconds, u32 max)
+static u32
+ipa_qtime_val(struct ipa *ipa, u32 microseconds, u32 max, u32 *select)
 {
-	u32 val;
+	u32 which = 0;
+	u32 ticks;
 
-	/* Use 100 microsecond granularity if possible */
-	val = DIV_ROUND_CLOSEST(microseconds, 100);
-	if (val <= max)
-		return (int)val;
+	/* Pulse generator 0 has 100 microsecond granularity */
+	ticks = DIV_ROUND_CLOSEST(microseconds, 100);
+	if (ticks <= max)
+		goto out;
 
-	/* Have to use pulse generator 1 (millisecond granularity) */
-	val = DIV_ROUND_CLOSEST(microseconds, 1000);
-	WARN_ON(val > max);
+	/* Pulse generator 1 has millisecond granularity */
+	which = 1;
+	ticks = DIV_ROUND_CLOSEST(microseconds, 1000);
+	if (ticks <= max)
+		goto out;
 
-	return (int)-val;
+	if (ipa->version >= IPA_VERSION_5_0) {
+		/* Pulse generator 2 has 10 millisecond granularity */
+		which = 2;
+		ticks = DIV_ROUND_CLOSEST(microseconds, 100);
+	}
+	WARN_ON(ticks > max);
+out:
+	*select = which;
+
+	return ticks;
 }
 
 /* Encode the aggregation timer limit (microseconds) based on IPA version */
 static u32 aggr_time_limit_encode(struct ipa *ipa, const struct ipa_reg *reg,
 				  u32 microseconds)
 {
+	u32 ticks;
 	u32 max;
-	u32 val;
 
 	if (!microseconds)
 		return 0;	/* Nothing to compute if time limit is 0 */
 
 	max = ipa_reg_field_max(reg, TIME_LIMIT);
 	if (ipa->version >= IPA_VERSION_4_5) {
-		u32 gran_sel;
-		int ret;
+		u32 select;
 
-		/* Compute the Qtime limit value to use */
-		ret = ipa_qtime_val(microseconds, max);
-		if (ret < 0) {
-			val = -ret;
-			gran_sel = ipa_reg_encode(reg, AGGR_GRAN_SEL, 1);
-		} else {
-			val = ret;
-			gran_sel = 0;
-		}
+		ticks = ipa_qtime_val(ipa, microseconds, max, &select);
 
-		return gran_sel | ipa_reg_encode(reg, TIME_LIMIT, val);
+		return ipa_reg_encode(reg, AGGR_GRAN_SEL, select) |
+		       ipa_reg_encode(reg, TIME_LIMIT, ticks);
 	}
 
 	/* We program aggregation granularity in ipa_hardware_config() */
-	val = DIV_ROUND_CLOSEST(microseconds, IPA_AGGR_GRANULARITY);
-	WARN(val > max, "aggr_time_limit too large (%u > %u usec)\n",
+	ticks = DIV_ROUND_CLOSEST(microseconds, IPA_AGGR_GRANULARITY);
+	WARN(ticks > max, "aggr_time_limit too large (%u > %u usec)\n",
 	     microseconds, max * IPA_AGGR_GRANULARITY);
 
-	return ipa_reg_encode(reg, TIME_LIMIT, val);
+	return ipa_reg_encode(reg, TIME_LIMIT, ticks);
 }
 
 static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
@@ -1050,20 +1058,13 @@ static u32 hol_block_timer_encode(struct ipa *ipa, const struct ipa_reg *reg,
 
 	if (ipa->version >= IPA_VERSION_4_5) {
 		u32 max = ipa_reg_field_max(reg, TIMER_LIMIT);
-		u32 gran_sel;
-		int ret;
+		u32 select;
+		u32 ticks;
 
-		/* Compute the Qtime limit value to use */
-		ret = ipa_qtime_val(microseconds, max);
-		if (ret < 0) {
-			val = -ret;
-			gran_sel = ipa_reg_encode(reg, TIMER_GRAN_SEL, 1);
-		} else {
-			val = ret;
-			gran_sel = 0;
-		}
+		ticks = ipa_qtime_val(ipa, microseconds, max, &select);
 
-		return gran_sel | ipa_reg_encode(reg, TIMER_LIMIT, val);
+		return ipa_reg_encode(reg, TIMER_GRAN_SEL, 1) |
+		       ipa_reg_encode(reg, TIMER_LIMIT, ticks);
 	}
 
 	/* Use 64 bit arithmetic to avoid overflow */

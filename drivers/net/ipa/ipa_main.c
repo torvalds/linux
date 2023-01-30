@@ -390,7 +390,12 @@ static void ipa_qtime_config(struct ipa *ipa)
 	reg = ipa_reg(ipa, TIMERS_PULSE_GRAN_CFG);
 	val = ipa_reg_encode(reg, PULSE_GRAN_0, IPA_GRAN_100_US);
 	val |= ipa_reg_encode(reg, PULSE_GRAN_1, IPA_GRAN_1_MS);
-	val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
+	if (ipa->version >= IPA_VERSION_5_0) {
+		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_10_MS);
+		val |= ipa_reg_encode(reg, PULSE_GRAN_3, IPA_GRAN_10_MS);
+	} else {
+		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
+	}
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
