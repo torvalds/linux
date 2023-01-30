@@ -214,16 +214,15 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * settings for zero-bandwidth and full-bandwidth
 	 * cases, but the same is not true for BULK endpoints,
 	 * as they have a single alt-setting.
+	 *
+	 * For ISOC endpoints, Complete the alternate setting
+	 * selection setup phase now that userspace is ready
+	 * to provide video frames.
 	 */
-	if (!usb_endpoint_xfer_bulk(video->ep->desc)) {
-		/*
-		 * Complete the alternate setting selection
-		 * setup phase now that userspace is ready
-		 * to provide video frames.
-		 */
+	if (!usb_endpoint_xfer_bulk(video->ep->desc))
 		uvc_function_setup_continue(uvc);
-		uvc->state = UVC_STATE_STREAMING;
-	}
+
+	uvc->state = UVC_STATE_STREAMING;
 
 	return 0;
 }
