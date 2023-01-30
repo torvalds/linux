@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 Linaro Ltd.
+ * Copyright (C) 2019-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -160,6 +160,12 @@ static bool ipa_mem_id_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 	case IPA_MEM_STATS_V4_ROUTE:
 	case IPA_MEM_STATS_V6_ROUTE:
 		if (version < IPA_VERSION_4_0 || version > IPA_VERSION_4_2)
+			return false;
+		break;
+
+	case IPA_MEM_AP_V4_FILTER:
+	case IPA_MEM_AP_V6_FILTER:
+		if (version != IPA_VERSION_5_0)
 			return false;
 		break;
 
