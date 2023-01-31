@@ -762,18 +762,14 @@ struct intel_svm_dev {
 	struct device *dev;
 	struct intel_iommu *iommu;
 	struct iommu_sva sva;
-	u32 pasid;
 	int users;
 	u16 did;
-	u16 dev_iotlb:1;
 	u16 sid, qdep;
 };
 
 struct intel_svm {
 	struct mmu_notifier notifier;
 	struct mm_struct *mm;
-
-	unsigned int flags;
 	u32 pasid;
 	struct list_head devs;
 };
