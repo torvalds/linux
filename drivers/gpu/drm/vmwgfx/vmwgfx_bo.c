@@ -73,10 +73,10 @@ static bool bo_is_vmw(struct ttm_buffer_object *bo)
  * Return: Zero on success, Negative error code on failure. In particular
  * -ERESTARTSYS if interrupted by a signal
  */
-int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
-			    struct vmw_bo *buf,
-			    struct ttm_placement *placement,
-			    bool interruptible)
+static int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
+				   struct vmw_bo *buf,
+				   struct ttm_placement *placement,
+				   bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;

@@ -82,10 +82,6 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 
-int vmw_bo_pin_in_placement(struct vmw_private *vmw_priv,
-			    struct vmw_bo *bo,
-			    struct ttm_placement *placement,
-			    bool interruptible);
 int vmw_bo_pin_in_vram(struct vmw_private *dev_priv,
 		       struct vmw_bo *buf,
 		       bool interruptible);

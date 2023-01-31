@@ -1487,69 +1487,6 @@ static const struct drm_framebuffer_funcs vmw_framebuffer_bo_funcs = {
 	.dirty = vmw_framebuffer_bo_dirty_ext,
 };
 
-/*
- * Pin the bofer in a location suitable for access by the
- * display system.
- */
-static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
-{
-	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_bo *buf;
-	struct ttm_placement *placement;
-	int ret;
-
-	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
-		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
-
-	if (!buf)
-		return 0;
-
-	switch (dev_priv->active_display_unit) {
-	case vmw_du_legacy:
-		vmw_overlay_pause_all(dev_priv);
-		ret = vmw_bo_pin_in_start_of_vram(dev_priv, buf, false);
-		vmw_overlay_resume_all(dev_priv);
-		break;
-	case vmw_du_screen_object:
-	case vmw_du_screen_target:
-		if (vfb->bo) {
-			if (dev_priv->capabilities & SVGA_CAP_3D) {
-				/*
-				 * Use surface DMA to get content to
-				 * sreen target surface.
-				 */
-				placement = &vmw_vram_gmr_placement;
-			} else {
-				/* Use CPU blit. */
-				placement = &vmw_sys_placement;
-			}
-		} else {
-			/* Use surface / image update */
-			placement = &vmw_mob_placement;
-		}
-
-		return vmw_bo_pin_in_placement(dev_priv, buf, placement, false);
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-static int vmw_framebuffer_unpin(struct vmw_framebuffer *vfb)
-{
-	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_bo *buf;
-
-	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
-		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
-
-	if (WARN_ON(!buf))
-		return 0;
-
-	return vmw_bo_unpin(dev_priv, buf, false);
-}
-
 /**
  * vmw_create_bo_proxy - create a proxy surface for the buffer object
  *
@@ -1765,9 +1702,6 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 
 	if (ret)
 		return ERR_PTR(ret);
-
-	vfb->pin = vmw_framebuffer_pin;
-	vfb->unpin = vmw_framebuffer_unpin;
 
 	return vfb;
 }

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -217,8 +217,6 @@ struct vmw_kms_dirty {
  */
 struct vmw_framebuffer {
 	struct drm_framebuffer base;
-	int (*pin)(struct vmw_framebuffer *fb);
-	int (*unpin)(struct vmw_framebuffer *fb);
 	bool bo;
 	uint32_t user_handle;
 };
