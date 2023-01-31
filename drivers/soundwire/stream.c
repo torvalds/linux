@@ -469,7 +469,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	}
 
 	/* Inform slave about the impending port prepare */
-	sdw_do_port_prep(s_rt, prep_ch, SDW_OPS_PORT_PRE_PREP);
+	sdw_do_port_prep(s_rt, prep_ch, prep ? SDW_OPS_PORT_PRE_PREP : SDW_OPS_PORT_PRE_DEPREP);
 
 	/* Prepare Slave port implementing CP_SM */
 	if (!dpn_prop->simple_ch_prep_sm) {
@@ -501,7 +501,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	}
 
 	/* Inform slaves about ports prepared */
-	sdw_do_port_prep(s_rt, prep_ch, SDW_OPS_PORT_POST_PREP);
+	sdw_do_port_prep(s_rt, prep_ch, prep ? SDW_OPS_PORT_POST_PREP : SDW_OPS_PORT_POST_DEPREP);
 
 	/* Disable interrupt after Port de-prepare */
 	if (!prep && intr)
