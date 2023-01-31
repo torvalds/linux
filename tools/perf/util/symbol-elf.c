@@ -360,14 +360,23 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 		*plt_header_size = 128;
 		*plt_entry_size = 32;
 		return true;
+	case EM_386:
+	case EM_X86_64:
+		*plt_entry_size = shdr_plt->sh_entsize;
+		/* Size is 8 or 16, if not, assume alignment indicates size */
+		if (*plt_entry_size != 8 && *plt_entry_size != 16)
+			*plt_entry_size = shdr_plt->sh_addralign == 8 ? 8 : 16;
+		*plt_header_size = *plt_entry_size;
+		break;
 	default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/xtensa need to be checked */
 		*plt_header_size = shdr_plt->sh_entsize;
 		*plt_entry_size = shdr_plt->sh_entsize;
-		if (*plt_entry_size)
-			return true;
-		pr_debug("Missing PLT entry size for %s\n", dso->long_name);
-		return false;
+		break;
 	}
+	if (*plt_entry_size)
+		return true;
+	pr_debug("Missing PLT entry size for %s\n", dso->long_name);
+	return false;
 }
 
 /*
