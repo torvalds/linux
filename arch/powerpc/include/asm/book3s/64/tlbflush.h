@@ -97,6 +97,8 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
 		radix__tlb_flush(tlb);
+
+	return hash__tlb_flush(tlb);
 }
 
 #ifdef CONFIG_SMP
