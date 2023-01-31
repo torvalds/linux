@@ -3223,12 +3223,16 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
-			enum display_dongle_type dongle = \
-					stream->link->ddc->dongle_type;
-			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
-				flags->DISABLE_STEREO_DP_SYNC = 1;
+
+			if (stream->link && stream->link->ddc) {
+				enum display_dongle_type dongle = \
+						stream->link->ddc->dongle_type;
+
+				if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+					flags->DISABLE_STEREO_DP_SYNC = 1;
+			}
 		}
 		flags->RIGHT_EYE_POLARITY =\
 				stream->timing.flags.RIGHT_EYE_3D_POLARITY;
