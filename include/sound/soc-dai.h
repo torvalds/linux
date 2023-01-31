@@ -520,6 +520,23 @@ static inline void snd_soc_dai_init_dma_data(struct snd_soc_dai *dai,
 	dai->capture_dma_data = capture;
 }
 
+static inline unsigned int snd_soc_dai_tdm_mask_get(struct snd_soc_dai *dai, int stream)
+{
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return dai->tx_mask;
+	else
+		return dai->rx_mask;
+}
+
+static inline void snd_soc_dai_tdm_mask_set(struct snd_soc_dai *dai, int stream,
+					    unsigned int tdm_mask)
+{
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dai->tx_mask = tdm_mask;
+	else
+		dai->rx_mask = tdm_mask;
+}
+
 static inline void snd_soc_dai_set_drvdata(struct snd_soc_dai *dai,
 		void *data)
 {
