@@ -1727,7 +1727,8 @@ static int hv_24x7_init(void)
 	}
 
 	/* POWER8 only supports v1, while POWER9 only supports v2. */
-	if (PVR_VER(pvr) == PVR_POWER8)
+	if (PVR_VER(pvr) == PVR_POWER8 || PVR_VER(pvr) == PVR_POWER8E ||
+	    PVR_VER(pvr) == PVR_POWER8NVL)
 		interface_version = 1;
 	else {
 		interface_version = 2;
