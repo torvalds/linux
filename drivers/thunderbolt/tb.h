@@ -272,6 +272,8 @@ struct tb_bandwidth_group {
  * @group: Bandwidth allocation group the adapter is assigned to. Only
  *	   used for DP IN adapters for now.
  * @group_list: The adapter is linked to the group's list of ports through this
+ * @max_bw: Maximum possible bandwidth through this adapter if set to
+ *	    non-zero.
  *
  * In USB4 terminology this structure represents an adapter (protocol or
  * lane adapter).
@@ -299,6 +301,7 @@ struct tb_port {
 	unsigned int dma_credits;
 	struct tb_bandwidth_group *group;
 	struct list_head group_list;
+	unsigned int max_bw;
 };
 
 /**
