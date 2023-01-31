@@ -1104,17 +1104,17 @@ struct kbase_device {
 
 	struct rockchip_opp_info opp_info;
 	bool is_runtime_resumed;
+	unsigned long current_nominal_freq;
+	struct monitor_dev_info *mdev_info;
 #ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	struct devfreq_dev_profile devfreq_profile;
 	struct devfreq *devfreq;
 	unsigned long current_freqs[BASE_MAX_NR_CLOCKS_REGULATORS];
-	unsigned long current_nominal_freq;
 	unsigned long current_voltages[BASE_MAX_NR_CLOCKS_REGULATORS];
 	u64 current_core_mask;
 	struct kbase_devfreq_opp *devfreq_table;
 	int num_opps;
 	struct kbasep_pm_metrics last_devfreq_metrics;
-	struct monitor_dev_info *mdev_info;
 	struct ipa_power_model_data *model_data;
 	struct kbase_devfreq_queue_info devfreq_queue;
 

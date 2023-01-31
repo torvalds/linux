@@ -171,6 +171,13 @@ static const struct mali_kbase_capability_def kbase_caps_table[MALI_KBASE_NUM_CA
 static struct mutex kbase_probe_mutex;
 #endif
 
+#ifndef CONFIG_MALI_BIFROST_DEVFREQ
+static inline int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 /**
  * mali_kbase_supports_cap - Query whether a kbase capability is supported
  *

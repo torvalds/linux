@@ -57,6 +57,13 @@
  */
 
 /*---------------------------------------------------------------------------*/
+#ifndef CONFIG_MALI_BIFROST_DEVFREQ
+static inline void kbase_pm_get_dvfs_metrics(struct kbase_device *kbdev,
+					     struct kbasep_pm_metrics *last,
+					     struct kbasep_pm_metrics *diff)
+{
+}
+#endif
 
 #ifdef CONFIG_REGULATOR
 static int rk_pm_enable_regulator(struct kbase_device *kbdev);
@@ -452,7 +459,7 @@ static ssize_t utilisation_show(struct device *dev,
 	unsigned long period_in_us = platform->utilisation_period * 1000;
 	u32 utilisation;
 	struct kbasep_pm_metrics metrics_when_start;
-	struct kbasep_pm_metrics metrics_diff; /* between start and end. */
+	struct kbasep_pm_metrics metrics_diff = {}; /* between start and end. */
 	u32 total_time = 0;
 	u32 busy_time = 0;
 
