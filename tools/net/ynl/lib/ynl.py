@@ -400,6 +400,40 @@ class YnlFamily(SpecFamily):
                 self._decode_enum(rsp, attr_spec)
         return rsp
 
+    def _decode_extack_path(self, attrs, attr_set, offset, target):
+        for attr in attrs:
+            attr_spec = attr_set.attrs_by_val[attr.type]
+            if offset > target:
+                break
+            if offset == target:
+                return '.' + attr_spec.name
+
+            if offset + attr.full_len <= target:
+                offset += attr.full_len
+                continue
+            if attr_spec['type'] != 'nest':
+                raise Exception(f"Can't dive into {attr.type} ({attr_spec['name']}) for extack")
+            offset += 4
+            subpath = self._decode_extack_path(NlAttrs(attr.raw),
+                                               self.attr_sets[attr_spec['nested-attributes']],
+                                               offset, target)
+            if subpath is None:
+                return None
+            return '.' + attr_spec.name + subpath
+
+        return None
+
+    def _decode_extack(self, request, attr_space, extack):
+        if 'bad-attr-offs' not in extack:
+            return
+
+        genl_req = GenlMsg(NlMsg(request, 0, attr_space=attr_space))
+        path = self._decode_extack_path(genl_req.raw_attrs, attr_space,
+                                        20, extack['bad-attr-offs'])
+        if path:
+            del extack['bad-attr-offs']
+            extack['bad-attr'] = path
+
     def handle_ntf(self, nl_msg, genl_msg):
         msg = dict()
         if self.include_raw:
@@ -455,11 +489,17 @@ class YnlFamily(SpecFamily):
             reply = self.sock.recv(128 * 1024)
             nms = NlMsgs(reply, attr_space=op.attr_set)
             for nl_msg in nms:
+                if nl_msg.extack:
+                    self._decode_extack(msg, op.attr_set, nl_msg.extack)
+
                 if nl_msg.error:
                     print("Netlink error:", os.strerror(-nl_msg.error))
                     print(nl_msg)
                     return
                 if nl_msg.done:
+                    if nl_msg.extack:
+                        print("Netlink warning:")
+                        print(nl_msg)
                     done = True
                     break
 
