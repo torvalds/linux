@@ -31,20 +31,28 @@ select:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - samsung,exynos3250-pmu
-          - samsung,exynos4210-pmu
-          - samsung,exynos4412-pmu
-          - samsung,exynos5250-pmu
-          - samsung,exynos5260-pmu
-          - samsung,exynos5410-pmu
-          - samsung,exynos5420-pmu
-          - samsung,exynos5433-pmu
-          - samsung,exynos7-pmu
-          - samsung,exynos850-pmu
-          - samsung-s5pv210-pmu
-      - const: syscon
+    oneOf:
+      - items:
+          - enum:
+              - samsung,exynos3250-pmu
+              - samsung,exynos4210-pmu
+              - samsung,exynos4412-pmu
+              - samsung,exynos5250-pmu
+              - samsung,exynos5260-pmu
+              - samsung,exynos5410-pmu
+              - samsung,exynos5420-pmu
+              - samsung,exynos5433-pmu
+              - samsung,exynos7-pmu
+              - samsung,exynos850-pmu
+              - samsung-s5pv210-pmu
+          - const: syscon
+      - items:
+          - enum:
+              - samsung,exynos5250-pmu
+              - samsung,exynos5420-pmu
+              - samsung,exynos5433-pmu
+          - const: simple-mfd
+          - const: syscon
 
   reg:
     maxItems: 1
@@ -64,6 +72,10 @@ properties:
     minItems: 1
     maxItems: 32
 
+  dp-phy:
+    $ref: /schemas/phy/samsung,dp-video-phy.yaml
+    unevaluatedProperties: false
+
   interrupt-controller:
     description:
       Some PMUs are capable of behaving as an interrupt controller (mostly
@@ -73,6 +85,10 @@ properties:
     description:
       Must be identical to the that of the parent interrupt controller.
     const: 3
+
+  mipi-phy:
+    $ref: /schemas/phy/samsung,mipi-video-phy.yaml
+    unevaluatedProperties: false
 
   reboot-mode:
     $ref: /schemas/power/reset/syscon-reboot-mode.yaml
@@ -117,6 +133,23 @@ allOf:
         - clock-names
         - clocks
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos5250-pmu
+              - samsung,exynos5420-pmu
+              - samsung,exynos5433-pmu
+    then:
+      properties:
+        dp-phy: true
+        mipi-phy: true
+    else:
+      properties:
+        dp-phy: false
+        mipi-phy: false
+
 examples:
   - |
     #include <dt-bindings/clock/exynos5250.h>
@@ -130,4 +163,14 @@ examples:
         #clock-cells = <1>;
         clock-names = "clkout16";
         clocks = <&clock CLK_FIN_PLL>;
+
+        dp-phy {
+            compatible = "samsung,exynos5250-dp-video-phy";
+            #phy-cells = <0>;
+        };
+
+        mipi-phy {
+            compatible = "samsung,s5pv210-mipi-video-phy";
+            #phy-cells = <1>;
+        };
     };
