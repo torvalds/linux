@@ -28,7 +28,7 @@ static void cvm_callback(u32 status, void *arg)
 {
 	struct crypto_async_request *req = (struct crypto_async_request *)arg;
 
-	req->complete(req, !status);
+	crypto_request_complete(req, !status);
 }
 
 static inline void update_input_iv(struct cpt_request_info *req_info,
