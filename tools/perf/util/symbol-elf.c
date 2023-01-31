@@ -466,28 +466,181 @@ static bool machine_is_x86(GElf_Half e_machine)
 	return e_machine == EM_386 || e_machine == EM_X86_64;
 }
 
+struct rela_dyn {
+	GElf_Addr	offset;
+	u32		sym_idx;
+};
+
+struct rela_dyn_info {
+	struct dso	*dso;
+	Elf_Data	*plt_got_data;
+	u32		nr_entries;
+	struct rela_dyn	*sorted;
+	Elf_Data	*dynsym_data;
+	Elf_Data	*dynstr_data;
+	Elf_Data	*rela_dyn_data;
+};
+
+static void exit_rela_dyn(struct rela_dyn_info *di)
+{
+	free(di->sorted);
+}
+
+static int cmp_offset(const void *a, const void *b)
+{
+	const struct rela_dyn *va = a;
+	const struct rela_dyn *vb = b;
+
+	return va->offset < vb->offset ? -1 : (va->offset > vb->offset ? 1 : 0);
+}
+
+static int sort_rela_dyn(struct rela_dyn_info *di)
+{
+	u32 i, n;
+
+	di->sorted = calloc(di->nr_entries, sizeof(di->sorted[0]));
+	if (!di->sorted)
+		return -1;
+
+	/* Get data for sorting: the offset and symbol index */
+	for (i = 0, n = 0; i < di->nr_entries; i++) {
+		GElf_Rela rela;
+		u32 sym_idx;
+
+		gelf_getrela(di->rela_dyn_data, i, &rela);
+		sym_idx = GELF_R_SYM(rela.r_info);
+		if (sym_idx) {
+			di->sorted[n].sym_idx = sym_idx;
+			di->sorted[n].offset = rela.r_offset;
+			n += 1;
+		}
+	}
+
+	/* Sort by offset */
+	di->nr_entries = n;
+	qsort(di->sorted, n, sizeof(di->sorted[0]), cmp_offset);
+
+	return 0;
+}
+
+static void get_rela_dyn_info(Elf *elf, GElf_Ehdr *ehdr, struct rela_dyn_info *di, Elf_Scn *scn)
+{
+	GElf_Shdr rela_dyn_shdr;
+	GElf_Shdr shdr;
+
+	di->plt_got_data = elf_getdata(scn, NULL);
+
+	scn = elf_section_by_name(elf, ehdr, &rela_dyn_shdr, ".rela.dyn", NULL);
+	if (!scn || !rela_dyn_shdr.sh_link || !rela_dyn_shdr.sh_entsize)
+		return;
+
+	di->nr_entries = rela_dyn_shdr.sh_size / rela_dyn_shdr.sh_entsize;
+	di->rela_dyn_data = elf_getdata(scn, NULL);
+
+	scn = elf_getscn(elf, rela_dyn_shdr.sh_link);
+	if (!scn || !gelf_getshdr(scn, &shdr) || !shdr.sh_link)
+		return;
+
+	di->dynsym_data = elf_getdata(scn, NULL);
+	di->dynstr_data = elf_getdata(elf_getscn(elf, shdr.sh_link), NULL);
+
+	if (!di->plt_got_data || !di->dynstr_data || !di->dynsym_data || !di->rela_dyn_data)
+		return;
+
+	/* Sort into offset order */
+	sort_rela_dyn(di);
+}
+
+/* Get instruction displacement from a plt entry for x86_64 */
+static u32 get_x86_64_plt_disp(const u8 *p)
+{
+	u8 endbr64[] = {0xf3, 0x0f, 0x1e, 0xfa};
+	int n = 0;
+
+	/* Skip endbr64 */
+	if (!memcmp(p, endbr64, sizeof(endbr64)))
+		n += sizeof(endbr64);
+	/* Skip bnd prefix */
+	if (p[n] == 0xf2)
+		n += 1;
+	/* jmp with 4-byte displacement */
+	if (p[n] == 0xff && p[n + 1] == 0x25) {
+		n += 2;
+		/* Also add offset from start of entry to end of instruction */
+		return n + 4 + le32toh(*(const u32 *)(p + n));
+	}
+	return 0;
+}
+
+static bool get_plt_got_name(GElf_Shdr *shdr, size_t i,
+			     struct rela_dyn_info *di,
+			     char *buf, size_t buf_sz)
+{
+	struct rela_dyn vi, *vr;
+	const char *sym_name;
+	char *demangled;
+	GElf_Sym sym;
+	u32 disp;
+
+	if (!di->sorted)
+		return false;
+
+	disp = get_x86_64_plt_disp(di->plt_got_data->d_buf + i);
+	if (!disp)
+		return false;
+
+	/* Compute target offset of the .plt.got entry */
+	vi.offset = shdr->sh_offset + di->plt_got_data->d_off + i + disp;
+
+	/* Find that offset in .rela.dyn (sorted by offset) */
+	vr = bsearch(&vi, di->sorted, di->nr_entries, sizeof(di->sorted[0]), cmp_offset);
+	if (!vr)
+		return false;
+
+	/* Get the associated symbol */
+	gelf_getsym(di->dynsym_data, vr->sym_idx, &sym);
+	sym_name = elf_sym__name(&sym, di->dynstr_data);
+	demangled = demangle_sym(di->dso, 0, sym_name);
+	if (demangled != NULL)
+		sym_name = demangled;
+
+	snprintf(buf, buf_sz, "%s@plt", sym_name);
+
+	free(demangled);
+
+	return *sym_name;
+}
+
 static int dso__synthesize_plt_got_symbols(struct dso *dso, Elf *elf,
 					   GElf_Ehdr *ehdr,
 					   char *buf, size_t buf_sz)
 {
+	struct rela_dyn_info di = { .dso = dso };
 	struct symbol *sym;
 	GElf_Shdr shdr;
 	Elf_Scn *scn;
+	int err = -1;
 	size_t i;
 
 	scn = elf_section_by_name(elf, ehdr, &shdr, ".plt.got", NULL);
 	if (!scn || !shdr.sh_entsize)
 		return 0;
 
+	if (ehdr->e_machine == EM_X86_64)
+		get_rela_dyn_info(elf, ehdr, &di, scn);
+
 	for (i = 0; i < shdr.sh_size; i += shdr.sh_entsize) {
-		snprintf(buf, buf_sz, "offset_%#" PRIx64 "@plt", (u64)shdr.sh_offset + i);
+		if (!get_plt_got_name(&shdr, i, &di, buf, buf_sz))
+			snprintf(buf, buf_sz, "offset_%#" PRIx64 "@plt", (u64)shdr.sh_offset + i);
 		sym = symbol__new(shdr.sh_offset + i, shdr.sh_entsize, STB_GLOBAL, STT_FUNC, buf);
 		if (!sym)
-			return -1;
+			goto out;
 		symbols__insert(&dso->symbols, sym);
 	}
-
-	return 0;
+	err = 0;
+out:
+	exit_rela_dyn(&di);
+	return err;
 }
 
 /*
