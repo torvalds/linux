@@ -161,9 +161,10 @@ static const struct snd_soc_dai_ops davinci_vcif_dai_ops = {
 static int davinci_vcif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct davinci_vcif_dev *dev = snd_soc_dai_get_drvdata(dai);
+	int stream;
 
-	dai->playback_dma_data = &dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-	dai->capture_dma_data = &dev->dma_data[SNDRV_PCM_STREAM_CAPTURE];
+	for_each_pcm_streams(stream)
+		snd_soc_dai_dma_data_set(dai, stream, &dev->dma_data[stream]);
 
 	return 0;
 }
