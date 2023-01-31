@@ -13,6 +13,7 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_lvds.h"
+#include "intel_lvds_regs.h"
 #include "intel_pps.h"
 #include "intel_quirks.h"
 

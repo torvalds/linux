@@ -39,6 +39,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
+#include "intel_lvds_regs.h"
 #include "intel_panel.h"
 #include "intel_quirks.h"
 

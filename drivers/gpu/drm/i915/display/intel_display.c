@@ -94,6 +94,7 @@
 #include "intel_hotplug.h"
 #include "intel_hti.h"
 #include "intel_lvds.h"
+#include "intel_lvds_regs.h"
 #include "intel_modeset_setup.h"
 #include "intel_modeset_verify.h"
 #include "intel_overlay.h"

@@ -10,6 +10,7 @@
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_lvds.h"
+#include "intel_lvds_regs.h"
 #include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
 #include "intel_pps.h"

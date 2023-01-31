@@ -49,6 +49,7 @@
 #include "intel_fdi.h"
 #include "intel_gmbus.h"
 #include "intel_lvds.h"
+#include "intel_lvds_regs.h"
 #include "intel_panel.h"
 
 /* Private structure for the integrated LVDS support */
