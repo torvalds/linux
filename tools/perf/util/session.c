@@ -1699,8 +1699,13 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	case PERF_RECORD_AUXTRACE_INFO:
 		return tool->auxtrace_info(session, event);
 	case PERF_RECORD_AUXTRACE:
-		/* setup for reading amidst mmap */
-		lseek(fd, file_offset + event->header.size, SEEK_SET);
+		/*
+		 * Setup for reading amidst mmap, but only when we
+		 * are in 'file' mode.  The 'pipe' fd is in proper
+		 * place already.
+		 */
+		if (!perf_data__is_pipe(session->data))
+			lseek(fd, file_offset + event->header.size, SEEK_SET);
 		return tool->auxtrace(session, event);
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
