@@ -30,8 +30,8 @@ using the HVC64 calling convention.
 * ARM_SMCCC_KVM_FUNC_MMIO_GUARD_INFO
 
     ==============    ========    ================================
-    Function ID:      (uint32)    0xC6000002
-    Arguments:        none
+    Function ID:      (uint32)    0xC6000005
+    Arguments:        r1-r3       Reserved / Must be zero
     Return Values:    (int64)     NOT_SUPPORTED(-1) on error, or
                       (uint64)    Protection Granule (PG) size in
                                   bytes (r0)
@@ -40,7 +40,7 @@ using the HVC64 calling convention.
 * ARM_SMCCC_KVM_FUNC_MMIO_GUARD_ENROLL
 
     ==============    ========    ==============================
-    Function ID:      (uint32)    0xC6000003
+    Function ID:      (uint32)    0xC6000006
     Arguments:        none
     Return Values:    (int64)     NOT_SUPPORTED(-1) on error, or
                                   RET_SUCCESS(0) (r0)
@@ -49,7 +49,7 @@ using the HVC64 calling convention.
 * ARM_SMCCC_KVM_FUNC_MMIO_GUARD_MAP
 
     ==============    ========    ====================================
-    Function ID:      (uint32)    0xC6000004
+    Function ID:      (uint32)    0xC6000007
     Arguments:        (uint64)    The base of the PG-sized IPA range
                                   that is allowed to be accessed as
                                   MMIO. Must be aligned to the PG size
@@ -64,7 +64,7 @@ using the HVC64 calling convention.
 * ARM_SMCCC_KVM_FUNC_MMIO_GUARD_UNMAP
 
     ==============    ========    ======================================
-    Function ID:      (uint32)    0xC6000005
+    Function ID:      (uint32)    0xC6000008
     Arguments:        (uint64)    PG-sized IPA range aligned to the PG
                                   size which has been previously mapped.
                                   Must be aligned to the PG size and

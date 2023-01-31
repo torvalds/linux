@@ -991,12 +991,6 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 		}
 		rc = server->ops->query_path_info(xid, tcon, cifs_sb, full_path, &tmp_data,
 						  &adjust_tz, &is_reparse_point);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-		if (rc == -ENOENT && is_tcon_dfs(tcon))
-			rc = cifs_dfs_query_info_nonascii_quirk(xid, tcon,
-								cifs_sb,
-								full_path);
-#endif
 		data = &tmp_data;
 	}
 

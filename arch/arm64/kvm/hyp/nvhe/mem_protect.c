@@ -7,6 +7,7 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_hypevents.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_pgtable.h>
 #include <asm/kvm_pkvm.h>
@@ -822,6 +823,8 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 		host_inject_abort(host_ctxt);
 	else
 		BUG_ON(ret && ret != -EAGAIN);
+
+	trace_host_mem_abort(esr, addr);
 }
 
 struct pkvm_mem_transition {
