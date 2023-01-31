@@ -230,8 +230,26 @@ struct vcpu_svm {
 
 	struct svm_nested_state nested;
 
+	/* NMI mask value, used when vNMI is not enabled */
+	bool nmi_masked;
+
+	/*
+	 * True when NMIs are still masked but guest IRET was just intercepted
+	 * and KVM is waiting for RIP to change, which will signal that the
+	 * intercepted IRET was retired and thus NMI can be unmasked.
+	 */
+	bool awaiting_iret_completion;
+
+	/*
+	 * Set when KVM is awaiting IRET completion and needs to inject NMIs as
+	 * soon as the IRET completes (e.g. NMI is pending injection).  KVM
+	 * temporarily steals RFLAGS.TF to single-step the guest in this case
+	 * in order to regain control as soon as the NMI-blocking condition
+	 * goes away.
+	 */
 	bool nmi_singlestep;
 	u64 nmi_singlestep_guest_rflags;
+
 	bool nmi_l1_to_l2;
 
 	unsigned long soft_int_csbase;
