@@ -82,7 +82,7 @@ static inline void *aead_request_ctx_dma(struct aead_request *req)
 
 static inline void aead_request_complete(struct aead_request *req, int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline u32 aead_request_flags(struct aead_request *req)
