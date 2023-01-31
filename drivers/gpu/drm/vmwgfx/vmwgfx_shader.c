@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -27,9 +27,10 @@
 
 #include <drm/ttm/ttm_placement.h>
 
+#include "vmwgfx_binding.h"
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
-#include "vmwgfx_binding.h"
 
 struct vmw_shader {
 	struct vmw_resource res;
@@ -158,7 +159,7 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 			      SVGA3dShaderType type,
 			      uint8_t num_input_sig,
 			      uint8_t num_output_sig,
-			      struct vmw_buffer_object *byte_code,
+			      struct vmw_bo *byte_code,
 			      void (*res_free) (struct vmw_resource *res))
 {
 	struct vmw_shader *shader = vmw_res_to_shader(res);
@@ -680,7 +681,7 @@ int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 }
 
 static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
-				 struct vmw_buffer_object *buffer,
+				 struct vmw_bo *buffer,
 				 size_t shader_size,
 				 size_t offset,
 				 SVGA3dShaderType shader_type,
@@ -734,7 +735,7 @@ out:
 
 
 static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
-					     struct vmw_buffer_object *buffer,
+					     struct vmw_bo *buffer,
 					     size_t shader_size,
 					     size_t offset,
 					     SVGA3dShaderType shader_type)
@@ -771,7 +772,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_buffer_object *buffer = NULL;
+	struct vmw_bo *buffer = NULL;
 	SVGA3dShaderType shader_type;
 	int ret;
 
@@ -883,7 +884,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 			  struct list_head *list)
 {
 	struct ttm_operation_ctx ctx = { false, true };
-	struct vmw_buffer_object *buf;
+	struct vmw_bo *buf;
 	struct ttm_bo_kmap_obj map;
 	bool is_iomem;
 	int ret;

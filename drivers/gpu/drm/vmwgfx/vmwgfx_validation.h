@@ -73,7 +73,7 @@ struct vmw_validation_context {
 	size_t total_mem;
 };
 
-struct vmw_buffer_object;
+struct vmw_bo;
 struct vmw_resource;
 struct vmw_fence_obj;
 
@@ -159,7 +159,7 @@ static inline unsigned int vmw_validation_align(unsigned int val)
 }
 
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
-			  struct vmw_buffer_object *vbo,
+			  struct vmw_bo *vbo,
 			  bool as_mob, bool cpu_blit);
 int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
 				      bool interruptible,
@@ -179,7 +179,7 @@ void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
 				  bool backoff);
 void vmw_validation_res_switch_backup(struct vmw_validation_context *ctx,
 				      void *val_private,
-				      struct vmw_buffer_object *vbo,
+				      struct vmw_bo *vbo,
 				      unsigned long backup_offset);
 int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr);
 

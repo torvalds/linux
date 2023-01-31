@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2015-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,12 +25,13 @@
  *
  **************************************************************************/
 
-#include <linux/dmapool.h>
-#include <linux/pci.h>
+#include "vmwgfx_bo.h"
+#include "vmwgfx_drv.h"
 
 #include <drm/ttm/ttm_bo.h>
 
-#include "vmwgfx_drv.h"
+#include <linux/dmapool.h>
+#include <linux/pci.h>
 
 /*
  * Size of inline command buffers. Try to make sure that a page size is a

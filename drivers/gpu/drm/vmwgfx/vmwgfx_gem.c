@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2021 VMware, Inc.
+ * Copyright 2021-2023 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -24,24 +24,11 @@
  *
  */
 
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 
 #include "drm/drm_prime.h"
 #include "drm/drm_gem_ttm_helper.h"
-
-/**
- * vmw_buffer_object - Convert a struct ttm_buffer_object to a struct
- * vmw_buffer_object.
- *
- * @bo: Pointer to the TTM buffer object.
- * Return: Pointer to the struct vmw_buffer_object embedding the
- * TTM buffer object.
- */
-static struct vmw_buffer_object *
-vmw_buffer_object(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct vmw_buffer_object, base);
-}
 
 static void vmw_gem_object_free(struct drm_gem_object *gobj)
 {
@@ -65,7 +52,7 @@ static void vmw_gem_object_close(struct drm_gem_object *obj,
 static int vmw_gem_pin_private(struct drm_gem_object *obj, bool do_pin)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(obj);
-	struct vmw_buffer_object *vbo = vmw_buffer_object(bo);
+	struct vmw_bo *vbo = to_vmw_bo(obj);
 	int ret;
 
 	ret = ttm_bo_reserve(bo, false, false, NULL);
@@ -129,7 +116,7 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct drm_file *filp,
 				      uint32_t size,
 				      uint32_t *handle,
-				      struct vmw_buffer_object **p_vbo)
+				      struct vmw_bo **p_vbo)
 {
 	int ret;
 
@@ -159,7 +146,7 @@ int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 	    (union drm_vmw_alloc_dmabuf_arg *)data;
 	struct drm_vmw_alloc_dmabuf_req *req = &arg->req;
 	struct drm_vmw_dmabuf_rep *rep = &arg->rep;
-	struct vmw_buffer_object *vbo;
+	struct vmw_bo *vbo;
 	uint32_t handle;
 	int ret;
 
@@ -178,7 +165,7 @@ out_no_bo:
 
 #if defined(CONFIG_DEBUG_FS)
 
-static void vmw_bo_print_info(int id, struct vmw_buffer_object *bo, struct seq_file *m)
+static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 {
 	const char *placement;
 	const char *type;
@@ -259,7 +246,7 @@ static int vmw_debugfs_gem_info_show(struct seq_file *m, void *unused)
 
 		spin_lock(&file->table_lock);
 		idr_for_each_entry(&file->object_idr, gobj, id) {
-			struct vmw_buffer_object *bo = gem_to_vmw_bo(gobj);
+			struct vmw_bo *bo = to_vmw_bo(gobj);
 
 			vmw_bo_print_info(id, bo, m);
 		}

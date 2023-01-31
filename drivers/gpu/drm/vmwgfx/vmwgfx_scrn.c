@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2011-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2011-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,12 +25,13 @@
  *
  **************************************************************************/
 
+#include "vmwgfx_bo.h"
+#include "vmwgfx_kms.h"
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
-
-#include "vmwgfx_kms.h"
 
 #define vmw_crtc_to_sou(x) \
 	container_of(x, struct vmw_screen_object_unit, base.crtc)
@@ -89,7 +90,7 @@ struct vmw_screen_object_unit {
 	struct vmw_display_unit base;
 
 	unsigned long buffer_size; /**< Size of allocated buffer */
-	struct vmw_buffer_object *buffer; /**< Backing store buffer */
+	struct vmw_bo *buffer; /**< Backing store buffer */
 
 	bool defined;
 };
@@ -947,7 +948,7 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 				  struct vmw_framebuffer *framebuffer)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	int depth = framebuffer->base.format->depth;
@@ -1216,7 +1217,7 @@ int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
 				struct vmw_fence_obj **out_fence,
 				struct drm_crtc *crtc)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	struct vmw_kms_dirty dirty;
@@ -1323,7 +1324,7 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 uint32_t num_clips,
 			 struct drm_crtc *crtc)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(vfb, struct vmw_framebuffer_bo, base)->buffer;
 	struct vmw_kms_dirty dirty;
 	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);

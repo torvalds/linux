@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -24,8 +24,9 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
-
 #include "vmwgfx_kms.h"
+
+#include "vmwgfx_bo.h"
 #include "vmw_surface_cache.h"
 
 #include <drm/drm_atomic.h>
@@ -1493,7 +1494,7 @@ static const struct drm_framebuffer_funcs vmw_framebuffer_bo_funcs = {
 static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_buffer_object *buf;
+	struct vmw_bo *buf;
 	struct ttm_placement *placement;
 	int ret;
 
@@ -1538,7 +1539,7 @@ static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 static int vmw_framebuffer_unpin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_buffer_object *buf;
+	struct vmw_bo *buf;
 
 	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
 		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
@@ -1566,7 +1567,7 @@ static int vmw_framebuffer_unpin(struct vmw_framebuffer *vfb)
  */
 static int vmw_create_bo_proxy(struct drm_device *dev,
 			       const struct drm_mode_fb_cmd2 *mode_cmd,
-			       struct vmw_buffer_object *bo_mob,
+			       struct vmw_bo *bo_mob,
 			       struct vmw_surface **srf_out)
 {
 	struct vmw_surface_metadata metadata = {0};
@@ -1630,7 +1631,7 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 
 
 static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
-				      struct vmw_buffer_object *bo,
+				      struct vmw_bo *bo,
 				      struct vmw_framebuffer **out,
 				      const struct drm_mode_fb_cmd2
 				      *mode_cmd)
@@ -1718,7 +1719,7 @@ vmw_kms_srf_ok(struct vmw_private *dev_priv, uint32_t width, uint32_t height)
  */
 struct vmw_framebuffer *
 vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
-			struct vmw_buffer_object *bo,
+			struct vmw_bo *bo,
 			struct vmw_surface *surface,
 			bool only_2d,
 			const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -1782,7 +1783,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_framebuffer *vfb = NULL;
 	struct vmw_surface *surface = NULL;
-	struct vmw_buffer_object *bo = NULL;
+	struct vmw_bo *bo = NULL;
 	int ret;
 
 	/* returns either a bo or surface */

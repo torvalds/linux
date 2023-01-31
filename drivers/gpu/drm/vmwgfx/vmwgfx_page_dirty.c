@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2019 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2019-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -24,6 +24,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 
 /*
@@ -78,7 +79,7 @@ struct vmw_bo_dirty {
  * dirty structure with the results. This function may change the
  * dirty-tracking method.
  */
-static void vmw_bo_dirty_scan_pagetable(struct vmw_buffer_object *vbo)
+static void vmw_bo_dirty_scan_pagetable(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 	pgoff_t offset = drm_vma_node_start(&vbo->base.base.vma_node);
@@ -116,7 +117,7 @@ static void vmw_bo_dirty_scan_pagetable(struct vmw_buffer_object *vbo)
  *
  * This function may change the dirty-tracking method.
  */
-static void vmw_bo_dirty_scan_mkwrite(struct vmw_buffer_object *vbo)
+static void vmw_bo_dirty_scan_mkwrite(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
@@ -160,7 +161,7 @@ static void vmw_bo_dirty_scan_mkwrite(struct vmw_buffer_object *vbo)
  *
  * This function may change the dirty tracking method.
  */
-void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo)
+void vmw_bo_dirty_scan(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 
@@ -181,7 +182,7 @@ void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo)
  * when calling unmap_mapping_range(). This function makes sure we pick
  * up all dirty pages.
  */
-static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
+static void vmw_bo_dirty_pre_unmap(struct vmw_bo *vbo,
 				   pgoff_t start, pgoff_t end)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
@@ -206,7 +207,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
  *
  * This is similar to ttm_bo_unmap_virtual() except it takes a subrange.
  */
-void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
+void vmw_bo_dirty_unmap(struct vmw_bo *vbo,
 			pgoff_t start, pgoff_t end)
 {
 	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
@@ -227,7 +228,7 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
  *
  * Return: Zero on success, -ENOMEM on memory allocation failure.
  */
-int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
+int vmw_bo_dirty_add(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 	pgoff_t num_pages = PFN_UP(vbo->base.resource->size);
@@ -284,7 +285,7 @@ out_no_dirty:
  *
  * Return: Zero on success, -ENOMEM on memory allocation failure.
  */
-void vmw_bo_dirty_release(struct vmw_buffer_object *vbo)
+void vmw_bo_dirty_release(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 
@@ -306,7 +307,7 @@ void vmw_bo_dirty_release(struct vmw_buffer_object *vbo)
  */
 void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res)
 {
-	struct vmw_buffer_object *vbo = res->backup;
+	struct vmw_bo *vbo = res->backup;
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 	pgoff_t start, cur, end;
 	unsigned long res_start = res->backup_offset;
@@ -353,7 +354,7 @@ void vmw_bo_dirty_clear_res(struct vmw_resource *res)
 {
 	unsigned long res_start = res->backup_offset;
 	unsigned long res_end = res->backup_offset + res->backup_size;
-	struct vmw_buffer_object *vbo = res->backup;
+	struct vmw_bo *vbo = res->backup;
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 
 	res_start >>= PAGE_SHIFT;
@@ -380,7 +381,7 @@ vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
 	vm_fault_t ret;
 	unsigned long page_offset;
 	unsigned int save_flags;
-	struct vmw_buffer_object *vbo =
+	struct vmw_bo *vbo =
 		container_of(bo, typeof(*vbo), base);
 
 	/*
@@ -419,8 +420,8 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)
 	    vma->vm_private_data;
-	struct vmw_buffer_object *vbo =
-		container_of(bo, struct vmw_buffer_object, base);
+	struct vmw_bo *vbo =
+		container_of(bo, struct vmw_bo, base);
 	pgoff_t num_prefault;
 	pgprot_t prot;
 	vm_fault_t ret;

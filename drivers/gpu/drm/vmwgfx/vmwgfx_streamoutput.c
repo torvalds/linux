@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2018-2019 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2018-2023 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,11 +26,12 @@
  *
  **************************************************************************/
 
-#include <drm/ttm/ttm_placement.h>
-
+#include "vmwgfx_binding.h"
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
-#include "vmwgfx_binding.h"
+
+#include <drm/ttm/ttm_placement.h>
 
 /**
  * struct vmw_dx_streamoutput - Streamoutput resource metadata.

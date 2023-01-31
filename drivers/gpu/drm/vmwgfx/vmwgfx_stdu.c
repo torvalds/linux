@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /******************************************************************************
  *
- * COPYRIGHT (C) 2014-2022 VMware, Inc., Palo Alto, CA., USA
+ * COPYRIGHT (C) 2014-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,13 +25,14 @@
  *
  ******************************************************************************/
 
+#include "vmwgfx_bo.h"
+#include "vmwgfx_kms.h"
+#include "vmw_surface_cache.h"
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
-
-#include "vmwgfx_kms.h"
-#include "vmw_surface_cache.h"
 
 #define vmw_crtc_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.crtc)
@@ -70,7 +71,7 @@ struct vmw_stdu_dirty {
 	s32 fb_left, fb_top;
 	u32 pitch;
 	union {
-		struct vmw_buffer_object *buf;
+		struct vmw_bo *buf;
 		u32 sid;
 	};
 };
@@ -688,7 +689,7 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		     bool interruptible,
 		     struct drm_crtc *crtc)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(vfb, struct vmw_framebuffer_bo, base)->buffer;
 	struct vmw_stdu_dirty ddirty;
 	int ret;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2020 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -24,13 +24,13 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
-
-#include <linux/sched/signal.h>
+#include "vmwgfx_bo.h"
+#include "vmwgfx_drv.h"
+#include "vmwgfx_devcaps.h"
 
 #include <drm/ttm/ttm_placement.h>
 
-#include "vmwgfx_drv.h"
-#include "vmwgfx_devcaps.h"
+#include <linux/sched/signal.h>
 
 bool vmw_supports_3d(struct vmw_private *dev_priv)
 {

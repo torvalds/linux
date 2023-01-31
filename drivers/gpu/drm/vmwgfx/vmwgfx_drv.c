@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -28,9 +28,10 @@
 
 #include "vmwgfx_drv.h"
 
+#include "vmwgfx_bo.h"
+#include "vmwgfx_binding.h"
 #include "vmwgfx_devcaps.h"
 #include "vmwgfx_mksstat.h"
-#include "vmwgfx_binding.h"
 #include "ttm_object.h"
 
 #include <drm/drm_aperture.h>
@@ -386,7 +387,7 @@ static void vmw_print_sm_type(struct vmw_private *dev_priv)
 static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 {
 	int ret;
-	struct vmw_buffer_object *vbo;
+	struct vmw_bo *vbo;
 	struct ttm_bo_kmap_obj map;
 	volatile SVGA3dQueryResult *result;
 	bool dummy;

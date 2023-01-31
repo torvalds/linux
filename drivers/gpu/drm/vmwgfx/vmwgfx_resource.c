@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -27,9 +27,10 @@
 
 #include <drm/ttm/ttm_placement.h>
 
-#include "vmwgfx_resource_priv.h"
 #include "vmwgfx_binding.h"
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
+#include "vmwgfx_resource_priv.h"
 
 #define VMW_RES_EVICT_ERR_COUNT 10
 
@@ -39,7 +40,7 @@
  */
 void vmw_resource_mob_attach(struct vmw_resource *res)
 {
-	struct vmw_buffer_object *backup = res->backup;
+	struct vmw_bo *backup = res->backup;
 	struct rb_node **new = &backup->res_tree.rb_node, *parent = NULL;
 
 	dma_resv_assert_held(res->backup->base.base.resv);
@@ -67,7 +68,7 @@ void vmw_resource_mob_attach(struct vmw_resource *res)
  */
 void vmw_resource_mob_detach(struct vmw_resource *res)
 {
-	struct vmw_buffer_object *backup = res->backup;
+	struct vmw_bo *backup = res->backup;
 
 	dma_resv_assert_held(backup->base.base.resv);
 	if (vmw_resource_mob_attached(res)) {
@@ -290,7 +291,7 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 			   struct drm_file *filp,
 			   uint32_t handle,
 			   struct vmw_surface **out_surf,
-			   struct vmw_buffer_object **out_buf)
+			   struct vmw_bo **out_buf)
 {
 	struct ttm_object_file *tfile = vmw_fpriv(filp)->tfile;
 	struct vmw_resource *res;
@@ -322,7 +323,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 				  bool interruptible)
 {
 	unsigned long size = PFN_ALIGN(res->backup_size);
-	struct vmw_buffer_object *backup;
+	struct vmw_bo *backup;
 	int ret;
 
 	if (likely(res->backup)) {
@@ -438,7 +439,7 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 			    bool dirty_set,
 			    bool dirty,
 			    bool switch_backup,
-			    struct vmw_buffer_object *new_backup,
+			    struct vmw_bo *new_backup,
 			    unsigned long new_backup_offset)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
@@ -739,7 +740,7 @@ out_no_validate:
  * validation code, since resource validation and eviction
  * both require the backup buffer to be reserved.
  */
-void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
+void vmw_resource_unbind_list(struct vmw_bo *vbo)
 {
 	struct ttm_validate_buffer val_buf = {
 		.bo = &vbo->base,
@@ -772,7 +773,7 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
  * Read back cached states from the device if they exist.  This function
  * assumes binding_mutex is held.
  */
-int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
+int vmw_query_readback_all(struct vmw_bo *dx_query_mob)
 {
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_private *dev_priv;
@@ -821,7 +822,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 			   struct ttm_resource *old_mem,
 			   struct ttm_resource *new_mem)
 {
-	struct vmw_buffer_object *dx_query_mob;
+	struct vmw_bo *dx_query_mob;
 	struct ttm_device *bdev = bo->bdev;
 	struct vmw_private *dev_priv;
 
@@ -834,7 +835,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 	    old_mem->mem_type == VMW_PL_MOB) {
 		struct vmw_fence_obj *fence;
 
-		dx_query_mob = container_of(bo, struct vmw_buffer_object, base);
+		dx_query_mob = container_of(bo, struct vmw_bo, base);
 		if (!dx_query_mob || !dx_query_mob->dx_query_ctx) {
 			mutex_unlock(&dev_priv->binding_mutex);
 			return;
@@ -958,7 +959,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 		goto out_no_reserve;
 
 	if (res->pin_count == 0) {
-		struct vmw_buffer_object *vbo = NULL;
+		struct vmw_bo *vbo = NULL;
 
 		if (res->backup) {
 			vbo = res->backup;
@@ -1016,7 +1017,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 
 	WARN_ON(res->pin_count == 0);
 	if (--res->pin_count == 0 && res->backup) {
-		struct vmw_buffer_object *vbo = res->backup;
+		struct vmw_bo *vbo = res->backup;
 
 		(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
 		vmw_bo_pin_reserved(vbo, false);
@@ -1061,7 +1062,7 @@ void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
  * @num_prefault: Returns how many pages including the first have been
  * cleaned and are ok to prefault
  */
-int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
+int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 			pgoff_t end, pgoff_t *num_prefault)
 {
 	struct rb_node *cur = vbo->res_tree.rb_node;

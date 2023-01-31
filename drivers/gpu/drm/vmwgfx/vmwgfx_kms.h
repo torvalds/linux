@@ -233,7 +233,7 @@ struct vmw_clip_rect {
 struct vmw_framebuffer_surface {
 	struct vmw_framebuffer base;
 	struct vmw_surface *surface;
-	struct vmw_buffer_object *buffer;
+	struct vmw_bo *buffer;
 	struct list_head head;
 	bool is_bo_proxy;  /* true if this is proxy surface for DMA buf */
 };
@@ -241,7 +241,7 @@ struct vmw_framebuffer_surface {
 
 struct vmw_framebuffer_bo {
 	struct vmw_framebuffer base;
-	struct vmw_buffer_object *buffer;
+	struct vmw_bo *buffer;
 };
 
 
@@ -293,7 +293,7 @@ struct vmw_cursor_plane_state {
 struct vmw_plane_state {
 	struct drm_plane_state base;
 	struct vmw_surface *surf;
-	struct vmw_buffer_object *bo;
+	struct vmw_bo *bo;
 
 	int content_fb_type;
 	unsigned long bo_size;
@@ -364,7 +364,7 @@ struct vmw_display_unit {
 	struct vmw_cursor_plane cursor;
 
 	struct vmw_surface *cursor_surface;
-	struct vmw_buffer_object *cursor_bo;
+	struct vmw_bo *cursor_bo;
 	size_t cursor_age;
 
 	int cursor_x;
@@ -397,7 +397,7 @@ struct vmw_display_unit {
 
 struct vmw_validation_ctx {
 	struct vmw_resource *res;
-	struct vmw_buffer_object *buf;
+	struct vmw_bo *buf;
 };
 
 #define vmw_crtc_to_du(x) \
@@ -458,7 +458,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		     uint32_t num_clips);
 struct vmw_framebuffer *
 vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
-			struct vmw_buffer_object *bo,
+			struct vmw_bo *bo,
 			struct vmw_surface *surface,
 			bool only_2d,
 			const struct drm_mode_fb_cmd2 *mode_cmd);

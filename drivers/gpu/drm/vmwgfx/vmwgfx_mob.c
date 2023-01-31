@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2012-2021 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2012-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,9 +25,10 @@
  *
  **************************************************************************/
 
-#include <linux/highmem.h>
-
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
+
+#include <linux/highmem.h>
 
 #ifdef CONFIG_64BIT
 #define VMW_PPN_SIZE 8

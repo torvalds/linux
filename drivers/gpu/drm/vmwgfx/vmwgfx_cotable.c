@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2014-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2014-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -30,12 +30,13 @@
  * whenever the backing MOB is evicted.
  */
 
-#include <drm/ttm/ttm_placement.h>
-
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_mksstat.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
+
+#include <drm/ttm/ttm_placement.h>
 
 /**
  * struct vmw_cotable - Context Object Table resource
@@ -399,7 +400,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	struct ttm_operation_ctx ctx = { false, false };
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_cotable *vcotbl = vmw_cotable(res);
-	struct vmw_buffer_object *buf, *old_buf = res->backup;
+	struct vmw_bo *buf, *old_buf = res->backup;
 	struct ttm_buffer_object *bo, *old_bo = &res->backup->base;
 	size_t old_size = res->backup_size;
 	size_t old_size_read_back = vcotbl->size_read_back;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -27,9 +27,10 @@
 
 #include <drm/ttm/ttm_placement.h>
 
+#include "vmwgfx_binding.h"
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
-#include "vmwgfx_binding.h"
 
 struct vmw_user_context {
 	struct ttm_base_object base;
@@ -38,7 +39,7 @@ struct vmw_user_context {
 	struct vmw_cmdbuf_res_manager *man;
 	struct vmw_resource *cotables[SVGA_COTABLE_MAX];
 	spinlock_t cotable_lock;
-	struct vmw_buffer_object *dx_query_mob;
+	struct vmw_bo *dx_query_mob;
 };
 
 static void vmw_user_context_free(struct vmw_resource *res);
@@ -853,7 +854,7 @@ vmw_context_binding_state(struct vmw_resource *ctx)
  * specified in the parameter.  0 otherwise.
  */
 int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
-			      struct vmw_buffer_object *mob)
+			      struct vmw_bo *mob)
 {
 	struct vmw_user_context *uctx =
 		container_of(ctx_res, struct vmw_user_context, res);
@@ -885,7 +886,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
  *
  * @ctx_res: The context resource
  */
-struct vmw_buffer_object *
+struct vmw_bo *
 vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res)
 {
 	struct vmw_user_context *uctx =
