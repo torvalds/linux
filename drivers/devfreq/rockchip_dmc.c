@@ -1996,6 +1996,12 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 	if (of_property_read_u32(pdev->dev.of_node, "wait-mode", &ddr_psci_param->wait_mode))
 		ddr_psci_param->wait_mode = 0;
 
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0, ROCKCHIP_SIP_CONFIG_DRAM_GET_STALL_TIME);
+	if (res.a0)
+		dev_err(dmcfreq->dev, "Current ATF unsupported get_stall_time\n");
+	else
+		dmcfreq->info.stall_time_ns = (unsigned int)res.a1;
+
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
 	return 0;

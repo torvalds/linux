@@ -166,6 +166,15 @@ int rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info)
 }
 EXPORT_SYMBOL(rockchip_dmcfreq_vop_bandwidth_request);
 
+unsigned int rockchip_dmcfreq_get_stall_time_ns(void)
+{
+	if (!common_info)
+		return 0;
+
+	return common_info->stall_time_ns;
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_get_stall_time_ns);
+
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>");
 MODULE_DESCRIPTION("rockchip dmcfreq driver with devfreq framework");
 MODULE_LICENSE("GPL v2");
