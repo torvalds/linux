@@ -1054,6 +1054,8 @@ static void print_insn_state(struct bpf_verifier_env *env,
  */
 static void *copy_array(void *dst, const void *src, size_t n, size_t size, gfp_t flags)
 {
+	size_t alloc_bytes;
+	void *orig = dst;
 	size_t bytes;
 
 	if (ZERO_OR_NULL_PTR(src))
@@ -1062,11 +1064,11 @@ static void *copy_array(void *dst, const void *src, size_t n, size_t size, gfp_t
 	if (unlikely(check_mul_overflow(n, size, &bytes)))
 		return NULL;
 
-	if (ksize(dst) < ksize(src)) {
-		kfree(dst);
-		dst = kmalloc_track_caller(kmalloc_size_roundup(bytes), flags);
-		if (!dst)
-			return NULL;
+	alloc_bytes = max(ksize(orig), kmalloc_size_roundup(bytes));
+	dst = krealloc(orig, alloc_bytes, flags);
+	if (!dst) {
+		kfree(orig);
+		return NULL;
 	}
 
 	memcpy(dst, src, bytes);
@@ -2746,6 +2748,12 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx,
 			 */
 			if (insn->src_reg == 0 && is_callback_calling_function(insn->imm))
 				return -ENOTSUPP;
+			/* kfunc with imm==0 is invalid and fixup_kfunc_call will
+			 * catch this error later. Make backtracking conservative
+			 * with ENOTSUPP.
+			 */
+			if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL && insn->imm == 0)
+				return -ENOTSUPP;
 			/* regular helper call sets R0 */
 			*reg_mask &= ~1;
 			if (*reg_mask & 0x3f) {
@@ -3287,7 +3295,9 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 		bool sanitize = reg && is_spillable_regtype(reg->type);
 
 		for (i = 0; i < size; i++) {
-			if (state->stack[spi].slot_type[i] == STACK_INVALID) {
+			u8 type = state->stack[spi].slot_type[i];
+
+			if (type != STACK_MISC && type != STACK_ZERO) {
 				sanitize = true;
 				break;
 			}
@@ -11822,10 +11832,17 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	 *      register B - not null
 	 * for JNE A, B, ... - A is not null in the false branch;
 	 * for JEQ A, B, ... - A is not null in the true branch.
+	 *
+	 * Since PTR_TO_BTF_ID points to a kernel struct that does
+	 * not need to be null checked by the BPF program, i.e.,
+	 * could be null even without PTR_MAYBE_NULL marking, so
+	 * only propagate nullness when neither reg is that type.
 	 */
 	if (!is_jmp32 && BPF_SRC(insn->code) == BPF_X &&
 	    __is_pointer_value(false, src_reg) && __is_pointer_value(false, dst_reg) &&
-	    type_may_be_null(src_reg->type) != type_may_be_null(dst_reg->type)) {
+	    type_may_be_null(src_reg->type) != type_may_be_null(dst_reg->type) &&
+	    base_type(src_reg->type) != PTR_TO_BTF_ID &&
+	    base_type(dst_reg->type) != PTR_TO_BTF_ID) {
 		eq_branch_regs = NULL;
 		switch (opcode) {
 		case BPF_JEQ:

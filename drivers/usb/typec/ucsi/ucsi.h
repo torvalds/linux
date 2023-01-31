@@ -322,6 +322,7 @@ struct ucsi_connector {
 	struct work_struct work;
 	struct completion complete;
 	struct workqueue_struct *wq;
+	struct list_head partner_tasks;
 
 	struct typec_port *port;
 	struct typec_partner *partner;

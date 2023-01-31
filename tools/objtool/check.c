@@ -427,6 +427,15 @@ static int decode_instructions(struct objtool_file *file)
 			if (func->type != STT_NOTYPE && func->type != STT_FUNC)
 				continue;
 
+			if (func->offset == sec->sh.sh_size) {
+				/* Heuristic: likely an "end" symbol */
+				if (func->type == STT_NOTYPE)
+					continue;
+				WARN("%s(): STT_FUNC at end of section",
+				     func->name);
+				return -1;
+			}
+
 			if (func->return_thunk || func->alias != func)
 				continue;
 

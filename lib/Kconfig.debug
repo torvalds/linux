@@ -1917,7 +1917,7 @@ config FUNCTION_ERROR_INJECTION
 	help
 	  Add fault injections into various functions that are annotated with
 	  ALLOW_ERROR_INJECTION() in the kernel. BPF may also modify the return
-	  value of theses functions. This is useful to test error paths of code.
+	  value of these functions. This is useful to test error paths of code.
 
 	  If unsure, say N
 
@@ -2565,6 +2565,15 @@ config MEMCPY_KUNIT_TEST
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 	  If unsure, say N.
+
+config MEMCPY_SLOW_KUNIT_TEST
+	bool "Include exhaustive memcpy tests"
+	depends on MEMCPY_KUNIT_TEST
+	default y
+	help
+	  Some memcpy tests are quite exhaustive in checking for overlaps
+	  and bit ranges. These can be very slow, so they are split out
+	  as a separate config, in case they need to be disabled.
 
 config IS_SIGNED_TYPE_KUNIT_TEST
 	tristate "Test is_signed_type() macro" if !KUNIT_ALL_TESTS

@@ -3192,8 +3192,7 @@ static void aty_init_lcd(struct atyfb_par *par, u32 bios_base)
 		 * which we print to the screen.
 		 */
 		id = *(u8 *)par->lcd_table;
-		strncpy(model, (char *)par->lcd_table+1, 24);
-		model[23] = 0;
+		strscpy(model, (char *)par->lcd_table+1, sizeof(model));
 
 		width = par->lcd_width = *(u16 *)(par->lcd_table+25);
 		height = par->lcd_height = *(u16 *)(par->lcd_table+27);

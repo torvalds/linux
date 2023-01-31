@@ -864,9 +864,10 @@ out_unlock:
 	return IRQ_HANDLED;
 }
 
-static void get_tx_fifo_size(struct qcom_geni_serial_port *port)
+static int setup_fifos(struct qcom_geni_serial_port *port)
 {
 	struct uart_port *uport;
+	u32 old_rx_fifo_depth = port->rx_fifo_depth;
 
 	uport = &port->uport;
 	port->tx_fifo_depth = geni_se_get_tx_fifo_depth(&port->se);
@@ -874,6 +875,16 @@ static void get_tx_fifo_size(struct qcom_geni_serial_port *port)
 	port->rx_fifo_depth = geni_se_get_rx_fifo_depth(&port->se);
 	uport->fifosize =
 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
+
+	if (port->rx_fifo && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
+		port->rx_fifo = devm_krealloc(uport->dev, port->rx_fifo,
+					      port->rx_fifo_depth * sizeof(u32),
+					      GFP_KERNEL);
+		if (!port->rx_fifo)
+			return -ENOMEM;
+	}
+
+	return 0;
 }
 
 
@@ -888,6 +899,7 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	u32 rxstale = DEFAULT_BITS_PER_CHAR * STALE_TIMEOUT;
 	u32 proto;
 	u32 pin_swap;
+	int ret;
 
 	proto = geni_se_read_proto(&port->se);
 	if (proto != GENI_SE_UART) {
@@ -897,7 +909,9 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 
 	qcom_geni_serial_stop_rx(uport);
 
-	get_tx_fifo_size(port);
+	ret = setup_fifos(port);
+	if (ret)
+		return ret;
 
 	writel(rxstale, uport->membase + SE_UART_RX_STALE_CNT);
 
@@ -1516,7 +1530,7 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
+static int qcom_geni_serial_sys_suspend(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
@@ -1533,7 +1547,7 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 	return uart_suspend_port(private_data->drv, uport);
 }
 
-static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
+static int qcom_geni_serial_sys_resume(struct device *dev)
 {
 	int ret;
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
@@ -1581,10 +1595,12 @@ static int qcom_geni_serial_sys_hib_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops qcom_geni_serial_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(qcom_geni_serial_sys_suspend,
-					qcom_geni_serial_sys_resume)
-	.restore = qcom_geni_serial_sys_hib_resume,
-	.thaw = qcom_geni_serial_sys_hib_resume,
+	.suspend = pm_sleep_ptr(qcom_geni_serial_sys_suspend),
+	.resume = pm_sleep_ptr(qcom_geni_serial_sys_resume),
+	.freeze = pm_sleep_ptr(qcom_geni_serial_sys_suspend),
+	.poweroff = pm_sleep_ptr(qcom_geni_serial_sys_suspend),
+	.restore = pm_sleep_ptr(qcom_geni_serial_sys_hib_resume),
+	.thaw = pm_sleep_ptr(qcom_geni_serial_sys_hib_resume),
 };
 
 static const struct of_device_id qcom_geni_serial_match_table[] = {

@@ -1079,7 +1079,7 @@ long kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 
 			/* uaccess failed, don't leave stale tags */
 			if (num_tags != MTE_GRANULES_PER_PAGE)
-				mte_clear_page_tags(page);
+				mte_clear_page_tags(maddr);
 			set_page_mte_tagged(page);
 
 			kvm_release_pfn_dirty(pfn);

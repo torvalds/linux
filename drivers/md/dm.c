@@ -1742,6 +1742,8 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 		 * otherwise associated queue_limits won't be imposed.
 		 */
 		bio = bio_split_to_limits(bio);
+		if (!bio)
+			return;
 	}
 
 	init_clone_info(&ci, md, map, bio, is_abnormal);

@@ -182,7 +182,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	pm_message_t pm_state;
-	u32 target_state = 0;
+	u32 target_state = snd_sof_dsp_power_target(sdev);
 	int ret;
 
 	/* do nothing if dsp suspend callback is not set */
@@ -191,6 +191,9 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	if (runtime_suspend && !sof_ops(sdev)->runtime_suspend)
 		return 0;
+
+	if (tplg_ops && tplg_ops->tear_down_all_pipelines)
+		tplg_ops->tear_down_all_pipelines(sdev, false);
 
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
 		goto suspend;
@@ -206,7 +209,6 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		}
 	}
 
-	target_state = snd_sof_dsp_power_target(sdev);
 	pm_state.event = target_state;
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
@@ -216,9 +218,6 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
 	}
-
-	if (tplg_ops->tear_down_all_pipelines)
-		tplg_ops->tear_down_all_pipelines(sdev, false);
 
 	/* suspend DMA trace */
 	sof_fw_trace_suspend(sdev, pm_state);

@@ -14,6 +14,7 @@ cgrp_kfunc                               # JIT does not support calling kernel f
 cgrp_local_storage                       # prog_attach unexpected error: -524                                          (trampoline)
 core_read_macros                         # unknown func bpf_probe_read#4                                               (overlapping)
 d_path                                   # failed to auto-attach program 'prog_stat': -524                             (trampoline)
+decap_sanity                             # JIT does not support calling kernel function                                (kfunc)
 deny_namespace                           # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)
 dummy_st_ops                             # test_run unexpected error: -524 (errno 524)                                 (trampoline)
 fentry_fexit                             # fentry attach failed: -524                                                  (trampoline)

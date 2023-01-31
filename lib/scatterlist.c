@@ -470,22 +470,27 @@ int sg_alloc_append_table_from_pages(struct sg_append_table *sgt_append,
 		return -EOPNOTSUPP;
 
 	if (sgt_append->prv) {
+		unsigned long next_pfn = (page_to_phys(sg_page(sgt_append->prv)) +
+			sgt_append->prv->offset + sgt_append->prv->length) / PAGE_SIZE;
+
 		if (WARN_ON(offset))
 			return -EINVAL;
 
 		/* Merge contiguous pages into the last SG */
 		prv_len = sgt_append->prv->length;
-		last_pg = sg_page(sgt_append->prv);
-		while (n_pages && pages_are_mergeable(last_pg, pages[0])) {
-			if (sgt_append->prv->length + PAGE_SIZE > max_segment)
-				break;
-			sgt_append->prv->length += PAGE_SIZE;
-			last_pg = pages[0];
-			pages++;
-			n_pages--;
+		if (page_to_pfn(pages[0]) == next_pfn) {
+			last_pg = pfn_to_page(next_pfn - 1);
+			while (n_pages && pages_are_mergeable(pages[0], last_pg)) {
+				if (sgt_append->prv->length + PAGE_SIZE > max_segment)
+					break;
+				sgt_append->prv->length += PAGE_SIZE;
+				last_pg = pages[0];
+				pages++;
+				n_pages--;
+			}
+			if (!n_pages)
+				goto out;
 		}
-		if (!n_pages)
-			goto out;
 	}
 
 	/* compute number of contiguous chunks */

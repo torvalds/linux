@@ -127,6 +127,7 @@ mlx5e_post_meter_add_rule(struct mlx5e_priv *priv,
 		attr->counter = act_counter;
 
 	attr->flags |= MLX5_ATTR_FLAG_NO_IN_PORT;
+	attr->inner_match_level = MLX5_MATCH_NONE;
 	attr->outer_match_level = MLX5_MATCH_NONE;
 	attr->chain = 0;
 	attr->prio = 0;

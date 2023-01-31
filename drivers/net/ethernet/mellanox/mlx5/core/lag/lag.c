@@ -228,6 +228,7 @@ static void mlx5_ldev_free(struct kref *ref)
 	if (ldev->nb.notifier_call)
 		unregister_netdevice_notifier_net(&init_net, &ldev->nb);
 	mlx5_lag_mp_cleanup(ldev);
+	cancel_delayed_work_sync(&ldev->bond_work);
 	destroy_workqueue(ldev->wq);
 	mlx5_lag_mpesw_cleanup(ldev);
 	mutex_destroy(&ldev->lock);

@@ -2211,6 +2211,8 @@ static int drain_freelist(struct kmem_cache *cache,
 		raw_spin_unlock_irq(&n->list_lock);
 		slab_destroy(cache, slab);
 		nr_freed++;
+
+		cond_resched();
 	}
 out:
 	return nr_freed;

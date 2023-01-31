@@ -280,7 +280,7 @@ int ksmbd_conn_handler_loop(void *p)
 {
 	struct ksmbd_conn *conn = (struct ksmbd_conn *)p;
 	struct ksmbd_transport *t = conn->transport;
-	unsigned int pdu_size;
+	unsigned int pdu_size, max_allowed_pdu_size;
 	char hdr_buf[4] = {0,};
 	int size;
 
@@ -305,20 +305,36 @@ int ksmbd_conn_handler_loop(void *p)
 		pdu_size = get_rfc1002_len(hdr_buf);
 		ksmbd_debug(CONN, "RFC1002 header %u bytes\n", pdu_size);
 
+		if (conn->status == KSMBD_SESS_GOOD)
+			max_allowed_pdu_size =
+				SMB3_MAX_MSGSIZE + conn->vals->max_write_size;
+		else
+			max_allowed_pdu_size = SMB3_MAX_MSGSIZE;
+
+		if (pdu_size > max_allowed_pdu_size) {
+			pr_err_ratelimited("PDU length(%u) excceed maximum allowed pdu size(%u) on connection(%d)\n",
+					pdu_size, max_allowed_pdu_size,
+					conn->status);
+			break;
+		}
+
 		/*
 		 * Check if pdu size is valid (min : smb header size,
 		 * max : 0x00FFFFFF).
 		 */
 		if (pdu_size < __SMB2_HEADER_STRUCTURE_SIZE ||
 		    pdu_size > MAX_STREAM_PROT_LEN) {
-			continue;
+			break;
 		}
 
 		/* 4 for rfc1002 length field */
 		size = pdu_size + 4;
-		conn->request_buf = kvmalloc(size, GFP_KERNEL);
+		conn->request_buf = kvmalloc(size,
+					     GFP_KERNEL |
+					     __GFP_NOWARN |
+					     __GFP_NORETRY);
 		if (!conn->request_buf)
-			continue;
+			break;
 
 		memcpy(conn->request_buf, hdr_buf, sizeof(hdr_buf));
 		if (!ksmbd_smb_request(conn))

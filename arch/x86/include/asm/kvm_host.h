@@ -1111,6 +1111,7 @@ struct msr_bitmap_range {
 
 /* Xen emulation context */
 struct kvm_xen {
+	struct mutex xen_lock;
 	u32 xen_version;
 	bool long_mode;
 	bool runstate_update_flag;

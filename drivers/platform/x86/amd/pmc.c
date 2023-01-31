@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
+#include <linux/serio.h>
 #include <linux/suspend.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -159,6 +160,10 @@ struct amd_pmc_dev {
 static bool enable_stb;
 module_param(enable_stb, bool, 0644);
 MODULE_PARM_DESC(enable_stb, "Enable the STB debug mechanism");
+
+static bool disable_workarounds;
+module_param(disable_workarounds, bool, 0644);
+MODULE_PARM_DESC(disable_workarounds, "Disable workarounds for platform bugs");
 
 static struct amd_pmc_dev pmc;
 static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg, bool ret);
@@ -653,6 +658,33 @@ static int amd_pmc_get_os_hint(struct amd_pmc_dev *dev)
 	return -EINVAL;
 }
 
+static int amd_pmc_czn_wa_irq1(struct amd_pmc_dev *pdev)
+{
+	struct device *d;
+	int rc;
+
+	if (!pdev->major) {
+		rc = amd_pmc_get_smu_version(pdev);
+		if (rc)
+			return rc;
+	}
+
+	if (pdev->major > 64 || (pdev->major == 64 && pdev->minor > 65))
+		return 0;
+
+	d = bus_find_device_by_name(&serio_bus, NULL, "serio0");
+	if (!d)
+		return 0;
+	if (device_may_wakeup(d)) {
+		dev_info_once(d, "Disabling IRQ1 wakeup source to avoid platform firmware bug\n");
+		disable_irq_wake(1);
+		device_set_wakeup_enable(d, false);
+	}
+	put_device(d);
+
+	return 0;
+}
+
 static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 {
 	struct rtc_device *rtc_device;
@@ -715,8 +747,8 @@ static void amd_pmc_s2idle_prepare(void)
 	/* Reset and Start SMU logging - to monitor the s0i3 stats */
 	amd_pmc_setup_smu_logging(pdev);
 
-	/* Activate CZN specific RTC functionality */
-	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
+	/* Activate CZN specific platform bug workarounds */
+	if (pdev->cpu_id == AMD_CPU_ID_CZN && !disable_workarounds) {
 		rc = amd_pmc_verify_czn_rtc(pdev, &arg);
 		if (rc) {
 			dev_err(pdev->dev, "failed to set RTC: %d\n", rc);
@@ -782,6 +814,25 @@ static struct acpi_s2idle_dev_ops amd_pmc_s2idle_dev_ops = {
 	.check = amd_pmc_s2idle_check,
 	.restore = amd_pmc_s2idle_restore,
 };
+
+static int __maybe_unused amd_pmc_suspend_handler(struct device *dev)
+{
+	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
+
+	if (pdev->cpu_id == AMD_CPU_ID_CZN && !disable_workarounds) {
+		int rc = amd_pmc_czn_wa_irq1(pdev);
+
+		if (rc) {
+			dev_err(pdev->dev, "failed to adjust keyboard wakeup: %d\n", rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(amd_pmc_pm, amd_pmc_suspend_handler, NULL);
+
 #endif
 
 static const struct pci_device_id pmc_pci_ids[] = {
@@ -932,7 +983,7 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	if (enable_stb && (dev->cpu_id == AMD_CPU_ID_YC || dev->cpu_id == AMD_CPU_ID_CB)) {
 		err = amd_pmc_s2d_init(dev);
 		if (err)
-			return err;
+			goto err_pci_dev_put;
 	}
 
 	platform_set_drvdata(pdev, dev);
@@ -980,6 +1031,9 @@ static struct platform_driver amd_pmc_driver = {
 		.name = "amd_pmc",
 		.acpi_match_table = amd_pmc_acpi_ids,
 		.dev_groups = pmc_groups,
+#ifdef CONFIG_SUSPEND
+		.pm = &amd_pmc_pm,
+#endif
 	},
 	.probe = amd_pmc_probe,
 	.remove = amd_pmc_remove,
