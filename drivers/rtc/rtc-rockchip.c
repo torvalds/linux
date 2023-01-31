@@ -9,7 +9,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
 
@@ -666,7 +665,7 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(rtc->regmap),
 				     "no regmap available\n");
 
-	rtc->mode = (unsigned int)of_device_get_match_data(&pdev->dev);
+	rtc->mode = (uintptr_t)device_get_match_data(dev);
 	rtc->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(rtc->grf)) {
 		dev_warn(dev, "Missing rockchip,grf property\n");
