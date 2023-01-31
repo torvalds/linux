@@ -771,9 +771,8 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
 	bss->dtim_period = vif->bss_conf.dtim_period;
 	bss->phymode = mt76_connac_get_phy_mode(phy, vif,
 						chandef->chan->band, NULL);
-
-	if (chandef->chan->band == NL80211_BAND_6GHZ)
-		bss->phymode_ext |= PHY_MODE_AX_6G;
+	bss->phymode_ext = mt76_connac_get_phy_mode_ext(phy, vif,
+							chandef->chan->band);
 
 	return 0;
 }
@@ -949,6 +948,35 @@ mt7996_mcu_sta_he_6g_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 
 	he_6g = (struct sta_rec_he_6g_capa *)tlv;
 	he_6g->capa = sta->deflink.he_6ghz_capa.capa;
+}
+
+static void
+mt7996_mcu_sta_eht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
+{
+	struct ieee80211_eht_mcs_nss_supp *mcs_map;
+	struct ieee80211_eht_cap_elem_fixed *elem;
+	struct sta_rec_eht *eht;
+	struct tlv *tlv;
+
+	if (!sta->deflink.eht_cap.has_eht)
+		return;
+
+	mcs_map = &sta->deflink.eht_cap.eht_mcs_nss_supp;
+	elem = &sta->deflink.eht_cap.eht_cap_elem;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_EHT, sizeof(*eht));
+
+	eht = (struct sta_rec_eht *)tlv;
+	eht->tid_bitmap = 0xff;
+	eht->mac_cap = cpu_to_le16(*(u16 *)elem->mac_cap_info);
+	eht->phy_cap = cpu_to_le64(*(u64 *)elem->phy_cap_info);
+	eht->phy_cap_ext = cpu_to_le64(elem->phy_cap_info[8]);
+
+	if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
+		memcpy(eht->mcs_map_bw20, &mcs_map->only_20mhz, sizeof(eht->mcs_map_bw20));
+	memcpy(eht->mcs_map_bw80, &mcs_map->bw._80, sizeof(eht->mcs_map_bw80));
+	memcpy(eht->mcs_map_bw160, &mcs_map->bw._160, sizeof(eht->mcs_map_bw160));
+	memcpy(eht->mcs_map_bw320, &mcs_map->bw._320, sizeof(eht->mcs_map_bw320));
 }
 
 static void
@@ -1436,8 +1464,9 @@ mt7996_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7996_dev *dev,
 	ra->auto_rate = true;
 	ra->phy_mode = mt76_connac_get_phy_mode(mphy, vif, band, sta);
 	ra->channel = chandef->chan->hw_value;
-	ra->bw = sta->deflink.bandwidth;
-	ra->phy.bw = sta->deflink.bandwidth;
+	ra->bw = (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_320) ?
+		 CMD_CBW_320MHZ : sta->deflink.bandwidth;
+	ra->phy.bw = ra->bw;
 	ra->mmps_mode = mt7996_mcu_get_mmps_mode(sta->deflink.smps_mode);
 
 	if (supp_rate) {
@@ -1619,6 +1648,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 		mt7996_mcu_sta_he_tlv(skb, sta);
 		/* starec he 6g*/
 		mt7996_mcu_sta_he_6g_tlv(skb, sta);
+		/* starec eht */
+		mt7996_mcu_sta_eht_tlv(skb, sta);
 		/* TODO: starec muru */
 		/* starec bfee */
 		mt7996_mcu_sta_bfee_tlv(dev, skb, vif, sta);
