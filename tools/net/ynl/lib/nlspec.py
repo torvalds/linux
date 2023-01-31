@@ -1,10 +1,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import collections
-import jsonschema
+import importlib
 import os
 import traceback
 import yaml
+
+
+# To be loaded dynamically as needed
+jsonschema = None
 
 
 class SpecElement:
@@ -197,8 +201,13 @@ class SpecFamily(SpecElement):
         if schema_path is None:
             schema_path = os.path.dirname(os.path.dirname(spec_path)) + f'/{self.proto}.yaml'
         if schema_path:
+            global jsonschema
+
             with open(schema_path, "r") as stream:
                 schema = yaml.safe_load(stream)
+
+            if jsonschema is None:
+                jsonschema = importlib.import_module("jsonschema")
 
             jsonschema.validate(self.yaml, schema)
 
