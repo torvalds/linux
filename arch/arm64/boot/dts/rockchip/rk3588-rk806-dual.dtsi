@@ -54,7 +54,7 @@
 		vcc10-supply = <&vcc5v0_sys>;
 		vcc11-supply = <&vcc_2v0_pldo_s3>;
 		vcc12-supply = <&vcc5v0_sys>;
-		vcc13-supply = <&vcc5v0_sys>;
+		vcc13-supply = <&vcc_1v1_nldo_s3>;
 		vcc14-supply = <&vcc_1v1_nldo_s3>;
 		vcca-supply = <&vcc5v0_sys>;
 
