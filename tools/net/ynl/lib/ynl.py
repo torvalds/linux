@@ -373,21 +373,28 @@ class YnlFamily(SpecFamily):
             attr_spec = attr_space.attrs_by_val[attr.type]
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
-                rsp[attr_spec['name']] = subdict
+                decoded = subdict
             elif attr_spec['type'] == 'u8':
-                rsp[attr_spec['name']] = attr.as_u8()
+                decoded = attr.as_u8()
             elif attr_spec['type'] == 'u32':
-                rsp[attr_spec['name']] = attr.as_u32()
+                decoded = attr.as_u32()
             elif attr_spec['type'] == 'u64':
-                rsp[attr_spec['name']] = attr.as_u64()
+                decoded = attr.as_u64()
             elif attr_spec["type"] == 'string':
-                rsp[attr_spec['name']] = attr.as_strz()
+                decoded = attr.as_strz()
             elif attr_spec["type"] == 'binary':
-                rsp[attr_spec['name']] = attr.as_bin()
+                decoded = attr.as_bin()
             elif attr_spec["type"] == 'flag':
-                rsp[attr_spec['name']] = True
+                decoded = True
             else:
                 raise Exception(f'Unknown {attr.type} {attr_spec["name"]} {attr_spec["type"]}')
+
+            if not attr_spec.is_multi:
+                rsp[attr_spec['name']] = decoded
+            elif attr_spec.name in rsp:
+                rsp[attr_spec.name].append(decoded)
+            else:
+                rsp[attr_spec.name] = [decoded]
 
             if 'enum' in attr_spec:
                 self._decode_enum(rsp, attr_spec)
