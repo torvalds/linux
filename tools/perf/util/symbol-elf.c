@@ -379,6 +379,11 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 	return false;
 }
 
+static bool machine_is_x86(GElf_Half e_machine)
+{
+	return e_machine == EM_386 || e_machine == EM_X86_64;
+}
+
 /*
  * We need to check if we have a .dynsym, so that we can handle the
  * .plt, synthesizing its symbols, that aren't on the symtabs (be it
@@ -391,8 +396,8 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
 	u64 plt_offset, plt_header_size, plt_entry_size;
-	GElf_Shdr shdr_plt;
-	struct symbol *f;
+	GElf_Shdr shdr_plt, plt_sec_shdr;
+	struct symbol *f, *plt_sym;
 	GElf_Shdr shdr_rel_plt, shdr_dynsym;
 	Elf_Data *syms, *symstrs;
 	Elf_Scn *scn_plt_rel, *scn_symstrs, *scn_dynsym;
@@ -422,10 +427,23 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		return 0;
 
 	/* Add a symbol for .plt header */
-	f = symbol__new(shdr_plt.sh_offset, plt_header_size, STB_GLOBAL, STT_FUNC, ".plt");
-	if (!f)
+	plt_sym = symbol__new(shdr_plt.sh_offset, plt_header_size, STB_GLOBAL, STT_FUNC, ".plt");
+	if (!plt_sym)
 		goto out_elf_end;
-	symbols__insert(&dso->symbols, f);
+	symbols__insert(&dso->symbols, plt_sym);
+
+	/* Only x86 has .plt.sec */
+	if (machine_is_x86(ehdr.e_machine) &&
+	    elf_section_by_name(elf, &ehdr, &plt_sec_shdr, ".plt.sec", NULL)) {
+		if (!get_plt_sizes(dso, &ehdr, &plt_sec_shdr, &plt_header_size, &plt_entry_size))
+			return 0;
+		/* Extend .plt symbol to entire .plt */
+		plt_sym->end = plt_sym->start + shdr_plt.sh_size;
+		/* Use .plt.sec offset */
+		plt_offset = plt_sec_shdr.sh_offset;
+	} else {
+		plt_offset = shdr_plt.sh_offset + plt_header_size;
+	}
 
 	scn_dynsym = ss->dynsym;
 	shdr_dynsym = ss->dynshdr;
@@ -474,8 +492,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		goto out_elf_end;
 
 	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
-	plt_offset = shdr_plt.sh_offset;
-	plt_offset += plt_header_size;
 
 	ri.is_rela = shdr_rel_plt.sh_type == SHT_RELA;
 
