@@ -258,7 +258,7 @@ static struct snd_soc_dai *rockchip_mdais_find_dai(struct device_node *np)
 
 	dai_component.of_node = np;
 
-	return snd_soc_find_dai(&dai_component);
+	return snd_soc_find_dai_with_mutex(&dai_component);
 }
 
 static int mdais_runtime_suspend(struct device *dev)
