@@ -273,6 +273,9 @@ struct vcpu_svm {
 	bool guest_state_loaded;
 
 	bool x2avic_msrs_intercepted;
+
+	/* Guest GIF value, used when vGIF is not enabled */
+	bool guest_gif;
 };
 
 struct svm_cpu_data {
@@ -490,7 +493,7 @@ static inline void enable_gif(struct vcpu_svm *svm)
 	if (vmcb)
 		vmcb->control.int_ctl |= V_GIF_MASK;
 	else
-		svm->vcpu.arch.hflags |= HF_GIF_MASK;
+		svm->guest_gif = true;
 }
 
 static inline void disable_gif(struct vcpu_svm *svm)
@@ -500,7 +503,7 @@ static inline void disable_gif(struct vcpu_svm *svm)
 	if (vmcb)
 		vmcb->control.int_ctl &= ~V_GIF_MASK;
 	else
-		svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
+		svm->guest_gif = false;
 }
 
 static inline bool gif_set(struct vcpu_svm *svm)
@@ -510,7 +513,7 @@ static inline bool gif_set(struct vcpu_svm *svm)
 	if (vmcb)
 		return !!(vmcb->control.int_ctl & V_GIF_MASK);
 	else
-		return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
+		return svm->guest_gif;
 }
 
 static inline bool nested_npt_enabled(struct vcpu_svm *svm)
