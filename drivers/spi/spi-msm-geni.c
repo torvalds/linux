@@ -822,6 +822,12 @@ static int spi_geni_lock_bus(struct spi_master *spi)
 	/* Issue TX */
 	mas->gsi_lock_unlock->tx_cookie =
 			dmaengine_submit(mas->gsi_lock_unlock->tx_desc);
+	if (dma_submit_error(mas->gsi_lock_unlock->tx_cookie)) {
+		dev_err(mas->dev, "%s: dmaengine_submit failed (%d)\n",
+			__func__, mas->gsi_lock_unlock->tx_cookie);
+		ret = -EINVAL;
+		goto err_spi_geni_lock_bus;
+	}
 	dma_async_issue_pending(mas->tx);
 
 	timeout = wait_for_completion_timeout(&mas->tx_cb,
@@ -879,6 +885,12 @@ static void spi_geni_unlock_bus(struct spi_master *spi)
 	/* Issue TX */
 	mas->gsi_lock_unlock->tx_cookie =
 			dmaengine_submit(mas->gsi_lock_unlock->tx_desc);
+	if (dma_submit_error(mas->gsi_lock_unlock->tx_cookie)) {
+		dev_err(mas->dev, "%s: dmaengine_submit failed (%d)\n",
+			__func__, mas->gsi_lock_unlock->tx_cookie);
+		ret = -EINVAL;
+		goto err_spi_geni_unlock_bus;
+	}
 	dma_async_issue_pending(mas->tx);
 
 	timeout = wait_for_completion_timeout(&mas->tx_cb,
@@ -1034,9 +1046,22 @@ static int setup_gsi_xfer(struct spi_transfer *xfer,
 					&mas->gsi[mas->num_xfers].desc_cb;
 	mas->gsi[mas->num_xfers].tx_cookie =
 			dmaengine_submit(mas->gsi[mas->num_xfers].tx_desc);
-	if (cmd & SPI_RX_ONLY)
+	if (dma_submit_error(mas->gsi[mas->num_xfers].tx_cookie)) {
+		dev_err(mas->dev, "%s: dmaengine_submit failed (%d)\n",
+			__func__, mas->gsi[mas->num_xfers].tx_cookie);
+		dmaengine_terminate_all(mas->tx);
+		return -EINVAL;
+	}
+	if (cmd & SPI_RX_ONLY) {
 		mas->gsi[mas->num_xfers].rx_cookie =
 			dmaengine_submit(mas->gsi[mas->num_xfers].rx_desc);
+		if (dma_submit_error(mas->gsi[mas->num_xfers].rx_cookie)) {
+			dev_err(mas->dev, "%s: dmaengine_submit failed (%d)\n",
+				__func__, mas->gsi[mas->num_xfers].rx_cookie);
+			dmaengine_terminate_all(mas->rx);
+			return -EINVAL;
+		}
+	}
 	dma_async_issue_pending(mas->tx);
 	if (cmd & SPI_RX_ONLY)
 		dma_async_issue_pending(mas->rx);

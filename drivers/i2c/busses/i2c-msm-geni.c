@@ -32,9 +32,6 @@
 #define SE_I2C_SCL_COUNTERS		(0x278)
 #define SE_GENI_M_GP_LENGTH		(0x910)
 
-#define SE_I2C_ERR  (M_CMD_OVERRUN_EN | M_ILLEGAL_CMD_EN | M_CMD_FAILURE_EN |\
-			M_GP_IRQ_1_EN | M_GP_IRQ_3_EN | M_GP_IRQ_4_EN)
-#define SE_I2C_ABORT (1U << 1)
 /* M_CMD OP codes for I2C */
 #define I2C_WRITE		(0x1)
 #define I2C_READ		(0x2)
@@ -923,6 +920,13 @@ static int geni_i2c_lock_bus(struct geni_i2c_dev *gi2c)
 	reinit_completion(&gi2c->xfer);
 	/* Issue TX */
 	tx_cookie = dmaengine_submit(gi2c->tx_desc);
+	if (dma_submit_error(tx_cookie)) {
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "%s: dmaengine_submit failed (%d)\n", __func__, tx_cookie);
+		gi2c->err = -EINVAL;
+		goto geni_i2c_err_lock_bus;
+	}
+
 	dma_async_issue_pending(gi2c->tx_c);
 
 	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
@@ -968,6 +972,13 @@ static void geni_i2c_unlock_bus(struct geni_i2c_dev *gi2c)
 	reinit_completion(&gi2c->xfer);
 	/* Issue TX */
 	tx_cookie = dmaengine_submit(gi2c->tx_desc);
+	if (dma_submit_error(tx_cookie)) {
+		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+			    "%s: dmaengine_submit failed (%d)\n", __func__, tx_cookie);
+		gi2c->err = -EINVAL;
+		goto geni_i2c_err_unlock_bus;
+	}
+
 	dma_async_issue_pending(gi2c->tx_c);
 
 	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
@@ -1097,6 +1108,13 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 			/* Issue RX */
 			rx_cookie = dmaengine_submit(gi2c->rx_desc);
+			if (dma_submit_error(rx_cookie)) {
+				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+					"%s: dmaengine_submit failed (%d)\n", __func__, rx_cookie);
+				gi2c->err = -EINVAL;
+				goto geni_i2c_err_prep_sg;
+			}
+
 			dma_async_issue_pending(gi2c->rx_c);
 		} else {
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
@@ -1139,6 +1157,13 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 		/* Issue TX */
 		tx_cookie = dmaengine_submit(gi2c->tx_desc);
+		if (dma_submit_error(tx_cookie)) {
+			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+				    "%s: dmaengine_submit failed (%d)\n", __func__, tx_cookie);
+			gi2c->err = -EINVAL;
+			goto geni_i2c_err_prep_sg;
+		}
+
 		dma_async_issue_pending(gi2c->tx_c);
 
 		timeout = wait_for_completion_timeout(&gi2c->xfer,
