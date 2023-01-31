@@ -113,12 +113,16 @@ static void
 ice_unmap_and_free_tx_buf(struct ice_tx_ring *ring, struct ice_tx_buf *tx_buf)
 {
 	if (tx_buf->skb) {
-		if (tx_buf->tx_flags & ICE_TX_FLAGS_DUMMY_PKT)
+		if (tx_buf->tx_flags & ICE_TX_FLAGS_DUMMY_PKT) {
 			devm_kfree(ring->dev, tx_buf->raw_buf);
-		else if (ice_ring_is_xdp(ring))
-			page_frag_free(tx_buf->raw_buf);
-		else
+		} else if (ice_ring_is_xdp(ring)) {
+			if (ring->xsk_pool)
+				xsk_buff_free(tx_buf->xdp);
+			else
+				page_frag_free(tx_buf->raw_buf);
+		} else {
 			dev_kfree_skb_any(tx_buf->skb);
+		}
 		if (dma_unmap_len(tx_buf, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buf, dma),

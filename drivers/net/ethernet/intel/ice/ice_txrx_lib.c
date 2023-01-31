@@ -275,7 +275,10 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 		/* count head + frags */
 		ready_frames -= frags + 1;
 
-		ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
+		if (xdp_ring->xsk_pool)
+			xsk_buff_free(tx_buf->xdp);
+		else
+			ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
 		ntc++;
 		if (ntc == cnt)
 			ntc = 0;
@@ -405,23 +408,6 @@ int ice_xmit_xdp_ring(struct xdp_frame *xdpf, struct ice_tx_ring *xdp_ring)
 
 	xdp_convert_frame_to_buff(xdpf, &xdp);
 	return __ice_xmit_xdp_ring(&xdp, xdp_ring);
-}
-
-/**
- * ice_xmit_xdp_buff - convert an XDP buffer to an XDP frame and send it
- * @xdp: XDP buffer
- * @xdp_ring: XDP Tx ring
- *
- * Returns negative on failure, 0 on success.
- */
-int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring)
-{
-	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
-
-	if (unlikely(!xdpf))
-		return ICE_XDP_CONSUMED;
-
-	return ice_xmit_xdp_ring(xdpf, xdp_ring);
 }
 
 /**

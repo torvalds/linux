@@ -157,6 +157,7 @@ struct ice_tx_buf {
 	union {
 		struct sk_buff *skb;
 		void *raw_buf; /* used for XDP */
+		struct xdp_buff *xdp; /* used for XDP_TX ZC */
 	};
 	unsigned int bytecount;
 	union {
