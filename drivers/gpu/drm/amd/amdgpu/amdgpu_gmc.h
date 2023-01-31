@@ -63,6 +63,16 @@
 
 struct firmware;
 
+enum amdgpu_memory_partition {
+	UNKNOWN_MEMORY_PARTITION_MODE = 0,
+	AMDGPU_NPS1_PARTITION_MODE = 1,
+	AMDGPU_NPS2_PARTITION_MODE = 2,
+	AMDGPU_NPS3_PARTITION_MODE = 3,
+	AMDGPU_NPS4_PARTITION_MODE = 4,
+	AMDGPU_NPS6_PARTITION_MODE = 6,
+	AMDGPU_NPS8_PARTITION_MODE = 8,
+};
+
 /*
  * GMC page fault information
  */
@@ -140,6 +150,9 @@ struct amdgpu_gmc_funcs {
 			   uint64_t *flags);
 	/* get the amount of memory used by the vbios for pre-OS console */
 	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
+
+	enum amdgpu_memory_partition (*query_mem_partition_mode)(
+		struct amdgpu_device *adev);
 };
 
 struct amdgpu_xgmi_ras {
@@ -375,4 +388,7 @@ uint64_t amdgpu_gmc_vram_mc2pa(struct amdgpu_device *adev, uint64_t mc_addr);
 uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo);
 uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo);
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev);
+int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev);
+
 #endif

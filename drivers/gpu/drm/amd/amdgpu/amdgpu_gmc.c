@@ -891,3 +891,47 @@ int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+static ssize_t current_memory_partition_show(
+	struct device *dev, struct device_attribute *addr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	enum amdgpu_memory_partition mode;
+
+	mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	switch (mode) {
+	case AMDGPU_NPS1_PARTITION_MODE:
+		return sysfs_emit(buf, "NPS1\n");
+	case AMDGPU_NPS2_PARTITION_MODE:
+		return sysfs_emit(buf, "NPS2\n");
+	case AMDGPU_NPS3_PARTITION_MODE:
+		return sysfs_emit(buf, "NPS3\n");
+	case AMDGPU_NPS4_PARTITION_MODE:
+		return sysfs_emit(buf, "NPS4\n");
+	case AMDGPU_NPS6_PARTITION_MODE:
+		return sysfs_emit(buf, "NPS6\n");
+	case AMDGPU_NPS8_PARTITION_MODE:
+		return sysfs_emit(buf, "NPS8\n");
+	default:
+		return sysfs_emit(buf, "UNKNOWN\n");
+	}
+
+	return sysfs_emit(buf, "UNKNOWN\n");
+}
+
+static DEVICE_ATTR_RO(current_memory_partition);
+
+int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev)
+{
+	if (!adev->gmc.gmc_funcs->query_mem_partition_mode)
+		return 0;
+
+	return device_create_file(adev->dev,
+				  &dev_attr_current_memory_partition);
+}
+
+void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev)
+{
+	device_remove_file(adev->dev, &dev_attr_current_memory_partition);
+}

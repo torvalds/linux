@@ -607,16 +607,7 @@ static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 {
 	soc15_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, xcc_id));
 }
-static enum amdgpu_memory_partition
-gfx_v9_4_3_query_memory_partition(struct amdgpu_device *adev)
-{
-	enum amdgpu_memory_partition mode = UNKNOWN_MEMORY_PARTITION_MODE;
 
-	if (adev->nbio.funcs->get_memory_partition_mode)
-		mode = adev->nbio.funcs->get_memory_partition_mode(adev);
-
-	return mode;
-}
 
 static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						int num_xccs_per_xcp)
@@ -660,7 +651,6 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v9_4_3_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v9_4_3_select_me_pipe_q,
 	.switch_partition_mode = &gfx_v9_4_3_switch_compute_partition,
-	.query_mem_partition_mode = &gfx_v9_4_3_query_memory_partition,
 	.ih_node_to_logical_xcc = &gfx_v9_4_3_ih_to_xcc_inst,
 };
 

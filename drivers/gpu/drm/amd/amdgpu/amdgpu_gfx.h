@@ -71,14 +71,6 @@ enum amdgpu_pkg_type {
 	AMDGPU_PKG_TYPE_UNKNOWN,
 };
 
-enum amdgpu_memory_partition {
-	UNKNOWN_MEMORY_PARTITION_MODE = 0,
-	AMDGPU_NPS1_PARTITION_MODE = 1,
-	AMDGPU_NPS2_PARTITION_MODE = 2,
-	AMDGPU_NPS4_PARTITION_MODE = 3,
-	AMDGPU_NPS8_PARTITION_MODE = 4,
-};
-
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
 	u64			hpd_eop_gpu_addr;
@@ -276,8 +268,6 @@ struct amdgpu_gfx_funcs {
 				   struct amdgpu_gfx_shadow_info *shadow_info);
 	enum amdgpu_gfx_partition
 			(*query_partition_mode)(struct amdgpu_device *adev);
-	enum amdgpu_memory_partition
-			(*query_mem_partition_mode)(struct amdgpu_device *adev);
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
 	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
@@ -414,7 +404,6 @@ struct amdgpu_gfx {
 	bool				cp_gfx_shadow; /* for gfx11 */
 
 	uint16_t 			xcc_mask;
-	enum amdgpu_memory_partition	mem_partition_mode;
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 };

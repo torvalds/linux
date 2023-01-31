@@ -1330,6 +1330,17 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	return size;
 }
 
+static enum amdgpu_memory_partition
+gmc_v9_0_query_memory_partition(struct amdgpu_device *adev)
+{
+	enum amdgpu_memory_partition mode = UNKNOWN_MEMORY_PARTITION_MODE;
+
+	if (adev->nbio.funcs->get_memory_partition_mode)
+		mode = adev->nbio.funcs->get_memory_partition_mode(adev);
+
+	return mode;
+}
+
 static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_flush_gpu_tlb,
 	.flush_gpu_tlb_pasid = gmc_v9_0_flush_gpu_tlb_pasid,
@@ -1339,6 +1350,7 @@ static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.get_vm_pde = gmc_v9_0_get_vm_pde,
 	.get_vm_pte = gmc_v9_0_get_vm_pte,
 	.get_vbios_fb_size = gmc_v9_0_get_vbios_fb_size,
+	.query_mem_partition_mode = &gmc_v9_0_query_memory_partition,
 };
 
 static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)
@@ -1901,12 +1913,18 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
+		amdgpu_gmc_sysfs_init(adev);
+
 	return 0;
 }
 
 static int gmc_v9_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
+		amdgpu_gmc_sysfs_fini(adev);
 
 	amdgpu_gmc_ras_fini(adev);
 	amdgpu_gem_force_release(adev);
