@@ -377,8 +377,50 @@ static void ublk_free_disk(struct gendisk *disk)
 	put_device(&ub->cdev_dev);
 }
 
+static void ublk_store_owner_uid_gid(unsigned int *owner_uid,
+		unsigned int *owner_gid)
+{
+	kuid_t uid;
+	kgid_t gid;
+
+	current_uid_gid(&uid, &gid);
+
+	*owner_uid = from_kuid(&init_user_ns, uid);
+	*owner_gid = from_kgid(&init_user_ns, gid);
+}
+
+static int ublk_open(struct block_device *bdev, fmode_t mode)
+{
+	struct ublk_device *ub = bdev->bd_disk->private_data;
+
+	if (capable(CAP_SYS_ADMIN))
+		return 0;
+
+	/*
+	 * If it is one unprivileged device, only owner can open
+	 * the disk. Otherwise it could be one trap made by one
+	 * evil user who grants this disk's privileges to other
+	 * users deliberately.
+	 *
+	 * This way is reasonable too given anyone can create
+	 * unprivileged device, and no need other's grant.
+	 */
+	if (ub->dev_info.flags & UBLK_F_UNPRIVILEGED_DEV) {
+		unsigned int curr_uid, curr_gid;
+
+		ublk_store_owner_uid_gid(&curr_uid, &curr_gid);
+
+		if (curr_uid != ub->dev_info.owner_uid || curr_gid !=
+				ub->dev_info.owner_gid)
+			return -EPERM;
+	}
+
+	return 0;
+}
+
 static const struct block_device_operations ub_fops = {
 	.owner =	THIS_MODULE,
+	.open =		ublk_open,
 	.free_disk =	ublk_free_disk,
 };
 
@@ -1620,17 +1662,6 @@ out_free_cpumask:
 	return ret;
 }
 
-static void ublk_store_owner_uid_gid(struct ublksrv_ctrl_dev_info *info)
-{
-	kuid_t uid;
-	kgid_t gid;
-
-	current_uid_gid(&uid, &gid);
-
-	info->owner_uid = from_kuid(&init_user_ns, uid);
-	info->owner_gid = from_kgid(&init_user_ns, gid);
-}
-
 static inline void ublk_dump_dev_info(struct ublksrv_ctrl_dev_info *info)
 {
 	pr_devel("%s: dev id %d flags %llx\n", __func__,
@@ -1664,7 +1695,7 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 		return -EPERM;
 
 	/* the created device is always owned by current user */
-	ublk_store_owner_uid_gid(&info);
+	ublk_store_owner_uid_gid(&info.owner_uid, &info.owner_gid);
 
 	if (header->dev_id != info.dev_id) {
 		pr_warn("%s: dev id not match %u %u\n",
