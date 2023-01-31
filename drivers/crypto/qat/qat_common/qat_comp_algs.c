@@ -106,7 +106,7 @@ static void qat_comp_resubmit(struct work_struct *work)
 
 err:
 	qat_bl_free_bufl(accel_dev, qat_bufs);
-	areq->base.complete(&areq->base, ret);
+	acomp_request_complete(areq, ret);
 }
 
 static int parse_zlib_header(u16 zlib_h)
@@ -247,7 +247,7 @@ static void qat_comp_generic_callback(struct qat_compression_req *qat_req,
 
 end:
 	qat_bl_free_bufl(accel_dev, &qat_req->buf);
-	areq->base.complete(&areq->base, res);
+	acomp_request_complete(areq, res);
 }
 
 void qat_comp_alg_callback(void *resp)
