@@ -364,6 +364,8 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 		if (!dev)
 			return -ENODEV;
 	}
+	if (dev == disk_devt(t->md->disk))
+		return -EINVAL;
 
 	dd = find_device(&t->devices, dev);
 	if (!dd) {
