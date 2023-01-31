@@ -43,25 +43,17 @@ static void none_free_call_crypto(struct rxrpc_call *call)
 }
 
 static int none_respond_to_challenge(struct rxrpc_connection *conn,
-				     struct sk_buff *skb,
-				     u32 *_abort_code)
+				     struct sk_buff *skb)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-			      tracepoint_string("chall_none"));
-	return -EPROTO;
+	return rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
+				rxrpc_eproto_rxnull_challenge);
 }
 
 static int none_verify_response(struct rxrpc_connection *conn,
-				struct sk_buff *skb,
-				u32 *_abort_code)
+				struct sk_buff *skb)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-			      tracepoint_string("resp_none"));
-	return -EPROTO;
+	return rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
+				rxrpc_eproto_rxnull_response);
 }
 
 static void none_clear(struct rxrpc_connection *conn)

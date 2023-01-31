@@ -30,7 +30,9 @@ properties:
     const: 0
 
   clocks:
-    maxItems: 5
+    oneOf:
+      - maxItems: 3
+      - maxItems: 5
 
   clock-names:
     oneOf:

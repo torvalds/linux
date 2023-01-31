@@ -653,6 +653,13 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 
 		desc->buf0 = cpu_to_le32(phy_addr);
 		token = mt76_rx_token_consume(&dev->mt76, ptr, t, phy_addr);
+		if (token < 0) {
+			dma_unmap_single(dev->mt76.dma_dev, phy_addr,
+					 wed->wlan.rx_size, DMA_TO_DEVICE);
+			skb_free_frag(ptr);
+			goto unmap;
+		}
+
 		desc->token |= cpu_to_le32(FIELD_PREP(MT_DMA_CTL_TOKEN,
 						      token));
 		desc++;

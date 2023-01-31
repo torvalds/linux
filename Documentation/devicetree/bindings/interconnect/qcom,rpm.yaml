@@ -84,7 +84,6 @@ allOf:
               - qcom,msm8939-pcnoc
               - qcom,msm8939-snoc
               - qcom,msm8996-a1noc
-              - qcom,msm8996-a2noc
               - qcom,msm8996-bimc
               - qcom,msm8996-cnoc
               - qcom,msm8996-pnoc
@@ -185,6 +184,29 @@ allOf:
 
       required:
         - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8996-a2noc
+
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: bus
+            - const: bus_a
+            - const: aggre2_ufs_axi
+            - const: ufs_axi
+
+        clocks:
+          items:
+            - description: Bus Clock
+            - description: Bus A Clock
+            - description: Aggregate2 NoC UFS AXI Clock
+            - description: UFS AXI Clock
 
   - if:
       properties:

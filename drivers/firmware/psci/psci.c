@@ -440,6 +440,9 @@ static const struct file_operations psci_debugfs_ops = {
 
 static int __init psci_debugfs_init(void)
 {
+	if (!invoke_psci_fn || !psci_ops.get_version)
+		return 0;
+
 	return PTR_ERR_OR_ZERO(debugfs_create_file("psci", 0444, NULL, NULL,
 						   &psci_debugfs_ops));
 }

@@ -468,7 +468,6 @@ static const struct drm_connector_helper_funcs dm_dp_mst_connector_helper_funcs 
 static void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
-	kfree(encoder);
 }
 
 static const struct drm_encoder_funcs amdgpu_dm_encoder_funcs = {
@@ -903,11 +902,6 @@ static int compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 
 	if (IS_ERR(mst_state))
 		return PTR_ERR(mst_state);
-
-	mst_state->pbn_div = dm_mst_get_pbn_divider(dc_link);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	drm_dp_mst_update_slots(mst_state, dc_link_dp_mst_decide_link_encoding_format(dc_link));
-#endif
 
 	/* Set up params */
 	for (i = 0; i < dc_state->stream_count; i++) {

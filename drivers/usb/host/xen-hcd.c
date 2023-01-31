@@ -1530,15 +1530,13 @@ static void xenhcd_backend_changed(struct xenbus_device *dev,
 	}
 }
 
-static int xenhcd_remove(struct xenbus_device *dev)
+static void xenhcd_remove(struct xenbus_device *dev)
 {
 	struct xenhcd_info *info = dev_get_drvdata(&dev->dev);
 	struct usb_hcd *hcd = xenhcd_info_to_hcd(info);
 
 	xenhcd_destroy_rings(info);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static int xenhcd_probe(struct xenbus_device *dev,
