@@ -10,6 +10,7 @@ Netlink documentation for users.
    :maxdepth: 2
 
    intro
+   intro-specs
    specs
    c-code-gen
    genetlink-legacy
