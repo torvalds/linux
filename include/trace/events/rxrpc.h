@@ -552,10 +552,10 @@ TRACE_EVENT(rxrpc_local,
 	    TP_ARGS(local_debug_id, op, ref, usage),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	local		)
-		    __field(int,		op		)
-		    __field(int,		ref		)
-		    __field(int,		usage		)
+		    __field(unsigned int,	local)
+		    __field(int,		op)
+		    __field(int,		ref)
+		    __field(int,		usage)
 			     ),
 
 	    TP_fast_assign(
@@ -578,9 +578,9 @@ TRACE_EVENT(rxrpc_peer,
 	    TP_ARGS(peer_debug_id, ref, why),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	peer		)
-		    __field(int,		ref		)
-		    __field(enum rxrpc_peer_trace, why		)
+		    __field(unsigned int,	peer)
+		    __field(int,		ref)
+		    __field(enum rxrpc_peer_trace, why)
 			     ),
 
 	    TP_fast_assign(
@@ -601,9 +601,9 @@ TRACE_EVENT(rxrpc_bundle,
 	    TP_ARGS(bundle_debug_id, ref, why),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	bundle		)
-		    __field(int,		ref		)
-		    __field(int,		why		)
+		    __field(unsigned int,	bundle)
+		    __field(int,		ref)
+		    __field(int,		why)
 			     ),
 
 	    TP_fast_assign(
@@ -624,9 +624,9 @@ TRACE_EVENT(rxrpc_conn,
 	    TP_ARGS(conn_debug_id, ref, why),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	conn		)
-		    __field(int,		ref		)
-		    __field(int,		why		)
+		    __field(unsigned int,	conn)
+		    __field(int,		ref)
+		    __field(int,		why)
 			     ),
 
 	    TP_fast_assign(
@@ -648,11 +648,11 @@ TRACE_EVENT(rxrpc_client,
 	    TP_ARGS(conn, channel, op),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		conn		)
-		    __field(u32,			cid		)
-		    __field(int,			channel		)
-		    __field(int,			usage		)
-		    __field(enum rxrpc_client_trace,	op		)
+		    __field(unsigned int,		conn)
+		    __field(u32,			cid)
+		    __field(int,			channel)
+		    __field(int,			usage)
+		    __field(enum rxrpc_client_trace,	op)
 			     ),
 
 	    TP_fast_assign(
@@ -678,10 +678,10 @@ TRACE_EVENT(rxrpc_call,
 	    TP_ARGS(call_debug_id, ref, aux, why),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(int,			ref		)
-		    __field(int,			why		)
-		    __field(unsigned long,		aux		)
+		    __field(unsigned int,		call)
+		    __field(int,			ref)
+		    __field(int,			why)
+		    __field(unsigned long,		aux)
 			     ),
 
 	    TP_fast_assign(
@@ -705,10 +705,10 @@ TRACE_EVENT(rxrpc_skb,
 	    TP_ARGS(skb, usage, mod_count, why),
 
 	    TP_STRUCT__entry(
-		    __field(struct sk_buff *,		skb		)
-		    __field(int,			usage		)
-		    __field(int,			mod_count	)
-		    __field(enum rxrpc_skb_trace,	why		)
+		    __field(struct sk_buff *,		skb)
+		    __field(int,			usage)
+		    __field(int,			mod_count)
+		    __field(enum rxrpc_skb_trace,	why)
 			     ),
 
 	    TP_fast_assign(
@@ -731,7 +731,7 @@ TRACE_EVENT(rxrpc_rx_packet,
 	    TP_ARGS(sp),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct rxrpc_host_header,	hdr		)
+		    __field_struct(struct rxrpc_host_header,	hdr)
 			     ),
 
 	    TP_fast_assign(
@@ -753,8 +753,8 @@ TRACE_EVENT(rxrpc_rx_done,
 	    TP_ARGS(result, abort_code),
 
 	    TP_STRUCT__entry(
-		    __field(int,			result		)
-		    __field(int,			abort_code	)
+		    __field(int,			result)
+		    __field(int,			abort_code)
 			     ),
 
 	    TP_fast_assign(
@@ -772,13 +772,13 @@ TRACE_EVENT(rxrpc_abort,
 	    TP_ARGS(call_nr, why, cid, call_id, seq, abort_code, error),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call_nr		)
-		    __field(enum rxrpc_abort_reason,	why		)
-		    __field(u32,			cid		)
-		    __field(u32,			call_id		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(int,			abort_code	)
-		    __field(int,			error		)
+		    __field(unsigned int,		call_nr)
+		    __field(enum rxrpc_abort_reason,	why)
+		    __field(u32,			cid)
+		    __field(u32,			call_id)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(int,			abort_code)
+		    __field(int,			error)
 			     ),
 
 	    TP_fast_assign(
@@ -804,10 +804,10 @@ TRACE_EVENT(rxrpc_call_complete,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_call_completion,	compl		)
-		    __field(int,			error		)
-		    __field(u32,			abort_code	)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_call_completion,	compl)
+		    __field(int,			error)
+		    __field(u32,			abort_code)
 			     ),
 
 	    TP_fast_assign(
@@ -830,13 +830,13 @@ TRACE_EVENT(rxrpc_txqueue,
 	    TP_ARGS(call, why),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_txqueue_trace,	why		)
-		    __field(rxrpc_seq_t,		acks_hard_ack	)
-		    __field(rxrpc_seq_t,		tx_bottom	)
-		    __field(rxrpc_seq_t,		tx_top		)
-		    __field(rxrpc_seq_t,		tx_prepared	)
-		    __field(int,			tx_winsize	)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_txqueue_trace,	why)
+		    __field(rxrpc_seq_t,		acks_hard_ack)
+		    __field(rxrpc_seq_t,		tx_bottom)
+		    __field(rxrpc_seq_t,		tx_top)
+		    __field(rxrpc_seq_t,		tx_prepared)
+		    __field(int,			tx_winsize)
 			     ),
 
 	    TP_fast_assign(
@@ -867,10 +867,10 @@ TRACE_EVENT(rxrpc_rx_data,
 	    TP_ARGS(call, seq, serial, flags),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(u8,				flags		)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(u8,				flags)
 			     ),
 
 	    TP_fast_assign(
@@ -895,13 +895,13 @@ TRACE_EVENT(rxrpc_rx_ack,
 	    TP_ARGS(call, serial, ack_serial, first, prev, reason, n_acks),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(rxrpc_serial_t,		ack_serial	)
-		    __field(rxrpc_seq_t,		first		)
-		    __field(rxrpc_seq_t,		prev		)
-		    __field(u8,				reason		)
-		    __field(u8,				n_acks		)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(rxrpc_serial_t,		ack_serial)
+		    __field(rxrpc_seq_t,		first)
+		    __field(rxrpc_seq_t,		prev)
+		    __field(u8,				reason)
+		    __field(u8,				n_acks)
 			     ),
 
 	    TP_fast_assign(
@@ -931,9 +931,9 @@ TRACE_EVENT(rxrpc_rx_abort,
 	    TP_ARGS(call, serial, abort_code),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(u32,			abort_code	)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(u32,			abort_code)
 			     ),
 
 	    TP_fast_assign(
@@ -955,11 +955,11 @@ TRACE_EVENT(rxrpc_rx_challenge,
 	    TP_ARGS(conn, serial, version, nonce, min_level),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		conn		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(u32,			version		)
-		    __field(u32,			nonce		)
-		    __field(u32,			min_level	)
+		    __field(unsigned int,		conn)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(u32,			version)
+		    __field(u32,			nonce)
+		    __field(u32,			min_level)
 			     ),
 
 	    TP_fast_assign(
@@ -985,11 +985,11 @@ TRACE_EVENT(rxrpc_rx_response,
 	    TP_ARGS(conn, serial, version, kvno, ticket_len),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		conn		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(u32,			version		)
-		    __field(u32,			kvno		)
-		    __field(u32,			ticket_len	)
+		    __field(unsigned int,		conn)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(u32,			version)
+		    __field(u32,			kvno)
+		    __field(u32,			ticket_len)
 			     ),
 
 	    TP_fast_assign(
@@ -1015,10 +1015,10 @@ TRACE_EVENT(rxrpc_rx_rwind_change,
 	    TP_ARGS(call, serial, rwind, wake),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(u32,			rwind		)
-		    __field(bool,			wake		)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(u32,			rwind)
+		    __field(bool,			wake)
 			     ),
 
 	    TP_fast_assign(
@@ -1042,9 +1042,9 @@ TRACE_EVENT(rxrpc_tx_packet,
 	    TP_ARGS(call_id, whdr, where),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call	)
-		    __field(enum rxrpc_tx_point,		where	)
-		    __field_struct(struct rxrpc_wire_header,	whdr	)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_tx_point,		where)
+		    __field_struct(struct rxrpc_wire_header,	whdr)
 			     ),
 
 	    TP_fast_assign(
@@ -1074,14 +1074,14 @@ TRACE_EVENT(rxrpc_tx_data,
 	    TP_ARGS(call, seq, serial, flags, retrans, lose),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(u32,			cid		)
-		    __field(u32,			call_id		)
-		    __field(u8,				flags		)
-		    __field(bool,			retrans		)
-		    __field(bool,			lose		)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(u32,			cid)
+		    __field(u32,			call_id)
+		    __field(u8,				flags)
+		    __field(bool,			retrans)
+		    __field(bool,			lose)
 			     ),
 
 	    TP_fast_assign(
@@ -1114,12 +1114,12 @@ TRACE_EVENT(rxrpc_tx_ack,
 	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(rxrpc_seq_t,		ack_first	)
-		    __field(rxrpc_serial_t,		ack_serial	)
-		    __field(u8,				reason		)
-		    __field(u8,				n_acks		)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(rxrpc_seq_t,		ack_first)
+		    __field(rxrpc_serial_t,		ack_serial)
+		    __field(u8,				reason)
+		    __field(u8,				n_acks)
 			     ),
 
 	    TP_fast_assign(
@@ -1147,11 +1147,11 @@ TRACE_EVENT(rxrpc_receive,
 	    TP_ARGS(call, why, serial, seq),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_receive_trace,	why		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(u64,			window		)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_receive_trace,	why)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(u64,			window)
 			     ),
 
 	    TP_fast_assign(
@@ -1178,9 +1178,9 @@ TRACE_EVENT(rxrpc_recvmsg,
 	    TP_ARGS(call_debug_id, why, ret),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_recvmsg_trace,	why		)
-		    __field(int,			ret		)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_recvmsg_trace,	why)
+		    __field(int,			ret)
 			     ),
 
 	    TP_fast_assign(
@@ -1203,12 +1203,12 @@ TRACE_EVENT(rxrpc_recvdata,
 	    TP_ARGS(call, why, seq, offset, len, ret),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_recvmsg_trace,	why		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(unsigned int,		offset		)
-		    __field(unsigned int,		len		)
-		    __field(int,			ret		)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_recvmsg_trace,	why)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(unsigned int,		offset)
+		    __field(unsigned int,		len)
+		    __field(int,			ret)
 			     ),
 
 	    TP_fast_assign(
@@ -1236,10 +1236,10 @@ TRACE_EVENT(rxrpc_rtt_tx,
 	    TP_ARGS(call, why, slot, send_serial),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_rtt_tx_trace,	why		)
-		    __field(int,			slot		)
-		    __field(rxrpc_serial_t,		send_serial	)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_rtt_tx_trace,	why)
+		    __field(int,			slot)
+		    __field(rxrpc_serial_t,		send_serial)
 			     ),
 
 	    TP_fast_assign(
@@ -1265,13 +1265,13 @@ TRACE_EVENT(rxrpc_rtt_rx,
 	    TP_ARGS(call, why, slot, send_serial, resp_serial, rtt, rto),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum rxrpc_rtt_rx_trace,	why		)
-		    __field(int,			slot		)
-		    __field(rxrpc_serial_t,		send_serial	)
-		    __field(rxrpc_serial_t,		resp_serial	)
-		    __field(u32,			rtt		)
-		    __field(u32,			rto		)
+		    __field(unsigned int,		call)
+		    __field(enum rxrpc_rtt_rx_trace,	why)
+		    __field(int,			slot)
+		    __field(rxrpc_serial_t,		send_serial)
+		    __field(rxrpc_serial_t,		resp_serial)
+		    __field(u32,			rtt)
+		    __field(u32,			rto)
 			     ),
 
 	    TP_fast_assign(
@@ -1301,17 +1301,17 @@ TRACE_EVENT(rxrpc_timer,
 	    TP_ARGS(call, why, now),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(enum rxrpc_timer_trace,		why		)
-		    __field(long,				now		)
-		    __field(long,				ack_at		)
-		    __field(long,				ack_lost_at	)
-		    __field(long,				resend_at	)
-		    __field(long,				ping_at		)
-		    __field(long,				expect_rx_by	)
-		    __field(long,				expect_req_by	)
-		    __field(long,				expect_term_by	)
-		    __field(long,				timer		)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_timer_trace,		why)
+		    __field(long,				now)
+		    __field(long,				ack_at)
+		    __field(long,				ack_lost_at)
+		    __field(long,				resend_at)
+		    __field(long,				ping_at)
+		    __field(long,				expect_rx_by)
+		    __field(long,				expect_req_by)
+		    __field(long,				expect_term_by)
+		    __field(long,				timer)
 			     ),
 
 	    TP_fast_assign(
@@ -1345,16 +1345,16 @@ TRACE_EVENT(rxrpc_timer_expired,
 	    TP_ARGS(call, now),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(long,				now		)
-		    __field(long,				ack_at		)
-		    __field(long,				ack_lost_at	)
-		    __field(long,				resend_at	)
-		    __field(long,				ping_at		)
-		    __field(long,				expect_rx_by	)
-		    __field(long,				expect_req_by	)
-		    __field(long,				expect_term_by	)
-		    __field(long,				timer		)
+		    __field(unsigned int,			call)
+		    __field(long,				now)
+		    __field(long,				ack_at)
+		    __field(long,				ack_lost_at)
+		    __field(long,				resend_at)
+		    __field(long,				ping_at)
+		    __field(long,				expect_rx_by)
+		    __field(long,				expect_req_by)
+		    __field(long,				expect_term_by)
+		    __field(long,				timer)
 			     ),
 
 	    TP_fast_assign(
@@ -1386,7 +1386,7 @@ TRACE_EVENT(rxrpc_rx_lose,
 	    TP_ARGS(sp),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct rxrpc_host_header,	hdr		)
+		    __field_struct(struct rxrpc_host_header,	hdr)
 			     ),
 
 	    TP_fast_assign(
@@ -1409,10 +1409,10 @@ TRACE_EVENT(rxrpc_propose_ack,
 	    TP_ARGS(call, why, ack_reason, serial),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(enum rxrpc_propose_ack_trace,	why		)
-		    __field(rxrpc_serial_t,			serial		)
-		    __field(u8,					ack_reason	)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_propose_ack_trace,	why)
+		    __field(rxrpc_serial_t,			serial)
+		    __field(u8,					ack_reason)
 			     ),
 
 	    TP_fast_assign(
@@ -1436,10 +1436,10 @@ TRACE_EVENT(rxrpc_send_ack,
 	    TP_ARGS(call, why, ack_reason, serial),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(enum rxrpc_propose_ack_trace,	why		)
-		    __field(rxrpc_serial_t,			serial		)
-		    __field(u8,					ack_reason	)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_propose_ack_trace,	why)
+		    __field(rxrpc_serial_t,			serial)
+		    __field(u8,					ack_reason)
 			     ),
 
 	    TP_fast_assign(
@@ -1463,11 +1463,11 @@ TRACE_EVENT(rxrpc_drop_ack,
 	    TP_ARGS(call, why, ack_reason, serial, nobuf),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(enum rxrpc_propose_ack_trace,	why		)
-		    __field(rxrpc_serial_t,			serial		)
-		    __field(u8,					ack_reason	)
-		    __field(bool,				nobuf		)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_propose_ack_trace,	why)
+		    __field(rxrpc_serial_t,			serial)
+		    __field(u8,					ack_reason)
+		    __field(bool,				nobuf)
 			     ),
 
 	    TP_fast_assign(
@@ -1491,9 +1491,9 @@ TRACE_EVENT(rxrpc_retransmit,
 	    TP_ARGS(call, seq, expiry),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(s64,			expiry		)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(s64,			expiry)
 			     ),
 
 	    TP_fast_assign(
@@ -1515,13 +1515,13 @@ TRACE_EVENT(rxrpc_congest,
 	    TP_ARGS(call, summary, ack_serial, change),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(enum rxrpc_congest_change,		change		)
-		    __field(rxrpc_seq_t,			hard_ack	)
-		    __field(rxrpc_seq_t,			top		)
-		    __field(rxrpc_seq_t,			lowest_nak	)
-		    __field(rxrpc_serial_t,			ack_serial	)
-		    __field_struct(struct rxrpc_ack_summary,	sum		)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_congest_change,		change)
+		    __field(rxrpc_seq_t,			hard_ack)
+		    __field(rxrpc_seq_t,			top)
+		    __field(rxrpc_seq_t,			lowest_nak)
+		    __field(rxrpc_serial_t,			ack_serial)
+		    __field_struct(struct rxrpc_ack_summary,	sum)
 			     ),
 
 	    TP_fast_assign(
@@ -1559,14 +1559,14 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 	    TP_ARGS(call, now),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call		)
-		    __field(enum rxrpc_congest_mode,		mode		)
-		    __field(unsigned short,			cwnd		)
-		    __field(unsigned short,			extra		)
-		    __field(rxrpc_seq_t,			hard_ack	)
-		    __field(rxrpc_seq_t,			prepared	)
-		    __field(ktime_t,				since_last_tx	)
-		    __field(bool,				has_data	)
+		    __field(unsigned int,			call)
+		    __field(enum rxrpc_congest_mode,		mode)
+		    __field(unsigned short,			cwnd)
+		    __field(unsigned short,			extra)
+		    __field(rxrpc_seq_t,			hard_ack)
+		    __field(rxrpc_seq_t,			prepared)
+		    __field(ktime_t,				since_last_tx)
+		    __field(bool,				has_data)
 			     ),
 
 	    TP_fast_assign(
@@ -1597,8 +1597,8 @@ TRACE_EVENT(rxrpc_disconnect_call,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(u32,			abort_code	)
+		    __field(unsigned int,		call)
+		    __field(u32,			abort_code)
 			     ),
 
 	    TP_fast_assign(
@@ -1617,8 +1617,8 @@ TRACE_EVENT(rxrpc_improper_term,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(u32,			abort_code	)
+		    __field(unsigned int,		call)
+		    __field(u32,			abort_code)
 			     ),
 
 	    TP_fast_assign(
@@ -1637,11 +1637,11 @@ TRACE_EVENT(rxrpc_connect_call,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(unsigned long,		user_call_ID	)
-		    __field(u32,			cid		)
-		    __field(u32,			call_id		)
-		    __field_struct(struct sockaddr_rxrpc, srx		)
+		    __field(unsigned int,		call)
+		    __field(unsigned long,		user_call_ID)
+		    __field(u32,			cid)
+		    __field(u32,			call_id)
+		    __field_struct(struct sockaddr_rxrpc, srx)
 			     ),
 
 	    TP_fast_assign(
@@ -1666,10 +1666,10 @@ TRACE_EVENT(rxrpc_resend,
 	    TP_ARGS(call, ack),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(rxrpc_seq_t,		transmitted	)
-		    __field(rxrpc_serial_t,		ack_serial	)
+		    __field(unsigned int,		call)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(rxrpc_seq_t,		transmitted)
+		    __field(rxrpc_serial_t,		ack_serial)
 			     ),
 
 	    TP_fast_assign(
@@ -1694,9 +1694,9 @@ TRACE_EVENT(rxrpc_rx_icmp,
 	    TP_ARGS(peer, ee, srx),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			peer	)
-		    __field_struct(struct sock_extended_err,	ee	)
-		    __field_struct(struct sockaddr_rxrpc,	srx	)
+		    __field(unsigned int,			peer)
+		    __field_struct(struct sock_extended_err,	ee)
+		    __field_struct(struct sockaddr_rxrpc,	srx)
 			     ),
 
 	    TP_fast_assign(
@@ -1723,10 +1723,10 @@ TRACE_EVENT(rxrpc_tx_fail,
 	    TP_ARGS(debug_id, serial, ret, where),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		debug_id	)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(int,			ret		)
-		    __field(enum rxrpc_tx_point,	where		)
+		    __field(unsigned int,		debug_id)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(int,			ret)
+		    __field(enum rxrpc_tx_point,	where)
 			     ),
 
 	    TP_fast_assign(
@@ -1749,13 +1749,13 @@ TRACE_EVENT(rxrpc_call_reset,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		debug_id	)
-		    __field(u32,			cid		)
-		    __field(u32,			call_id		)
-		    __field(rxrpc_serial_t,		call_serial	)
-		    __field(rxrpc_serial_t,		conn_serial	)
-		    __field(rxrpc_seq_t,		tx_seq		)
-		    __field(rxrpc_seq_t,		rx_seq		)
+		    __field(unsigned int,		debug_id)
+		    __field(u32,			cid)
+		    __field(u32,			call_id)
+		    __field(rxrpc_serial_t,		call_serial)
+		    __field(rxrpc_serial_t,		conn_serial)
+		    __field(rxrpc_seq_t,		tx_seq)
+		    __field(rxrpc_seq_t,		rx_seq)
 			     ),
 
 	    TP_fast_assign(
@@ -1781,8 +1781,8 @@ TRACE_EVENT(rxrpc_notify_socket,
 	    TP_ARGS(debug_id, serial),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		debug_id	)
-		    __field(rxrpc_serial_t,		serial		)
+		    __field(unsigned int,		debug_id)
+		    __field(rxrpc_serial_t,		serial)
 			     ),
 
 	    TP_fast_assign(
@@ -1804,8 +1804,8 @@ TRACE_EVENT(rxrpc_rx_discard_ack,
 		    prev_pkt, call_ackr_prev),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	debug_id	)
-		    __field(rxrpc_serial_t,	serial		)
+		    __field(unsigned int,	debug_id)
+		    __field(rxrpc_serial_t,	serial)
 		    __field(rxrpc_seq_t,	first_soft_ack)
 		    __field(rxrpc_seq_t,	call_ackr_first)
 		    __field(rxrpc_seq_t,	prev_pkt)
@@ -1837,9 +1837,9 @@ TRACE_EVENT(rxrpc_req_ack,
 	    TP_ARGS(call_debug_id, seq, why),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call_debug_id	)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(enum rxrpc_req_ack_trace,	why		)
+		    __field(unsigned int,		call_debug_id)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(enum rxrpc_req_ack_trace,	why)
 			     ),
 
 	    TP_fast_assign(
@@ -1862,11 +1862,11 @@ TRACE_EVENT(rxrpc_txbuf,
 	    TP_ARGS(debug_id, call_debug_id, seq, ref, what),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		debug_id	)
-		    __field(unsigned int,		call_debug_id	)
-		    __field(rxrpc_seq_t,		seq		)
-		    __field(int,			ref		)
-		    __field(enum rxrpc_txbuf_trace,	what		)
+		    __field(unsigned int,		debug_id)
+		    __field(unsigned int,		call_debug_id)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(int,			ref)
+		    __field(enum rxrpc_txbuf_trace,	what)
 			     ),
 
 	    TP_fast_assign(
@@ -1892,9 +1892,9 @@ TRACE_EVENT(rxrpc_poke_call,
 	    TP_ARGS(call, busy, what),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call_debug_id	)
-		    __field(bool,			busy		)
-		    __field(enum rxrpc_call_poke_trace,	what		)
+		    __field(unsigned int,		call_debug_id)
+		    __field(bool,			busy)
+		    __field(enum rxrpc_call_poke_trace,	what)
 			     ),
 
 	    TP_fast_assign(
@@ -1915,7 +1915,7 @@ TRACE_EVENT(rxrpc_call_poked,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call_debug_id	)
+		    __field(unsigned int,		call_debug_id)
 			     ),
 
 	    TP_fast_assign(
