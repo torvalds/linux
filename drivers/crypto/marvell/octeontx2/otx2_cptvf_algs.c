@@ -120,7 +120,7 @@ static void otx2_cpt_aead_callback(int status, void *arg1, void *arg2)
 		otx2_cpt_info_destroy(pdev, inst_info);
 	}
 	if (areq)
-		areq->complete(areq, status);
+		crypto_request_complete(areq, status);
 }
 
 static void output_iv_copyback(struct crypto_async_request *areq)
@@ -170,7 +170,7 @@ static void otx2_cpt_skcipher_callback(int status, void *arg1, void *arg2)
 			pdev = inst_info->pdev;
 			otx2_cpt_info_destroy(pdev, inst_info);
 		}
-		areq->complete(areq, status);
+		crypto_request_complete(areq, status);
 	}
 }
 
