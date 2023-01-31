@@ -840,6 +840,7 @@ ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 /**
  * ice_add_rx_frag - Add contents of Rx buffer to sk_buff as a frag
  * @rx_ring: Rx descriptor ring to transact packets on
+ * @xdp: XDP buffer
  * @rx_buf: buffer containing page to add
  * @skb: sk_buff to place the data into
  * @size: packet length from rx_desc
@@ -849,19 +850,14 @@ ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
  * The function will then update the page offset.
  */
 static void
-ice_add_rx_frag(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
-		struct sk_buff *skb, unsigned int size)
+ice_add_rx_frag(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
+		struct ice_rx_buf *rx_buf, struct sk_buff *skb,
+		unsigned int size)
 {
-#if (PAGE_SIZE >= 8192)
-	unsigned int truesize = SKB_DATA_ALIGN(size + rx_ring->rx_offset);
-#else
-	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
-#endif
-
 	if (!size)
 		return;
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buf->page,
-			rx_buf->page_offset, size, truesize);
+			rx_buf->page_offset, size, xdp->frame_sz);
 }
 
 /**
@@ -943,13 +939,6 @@ ice_build_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	      struct xdp_buff *xdp)
 {
 	u8 metasize = xdp->data - xdp->data_meta;
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
-#else
-	unsigned int truesize = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
-				SKB_DATA_ALIGN(xdp->data_end -
-					       xdp->data_hard_start);
-#endif
 	struct sk_buff *skb;
 
 	/* Prefetch first cache line of first page. If xdp->data_meta
@@ -959,7 +948,7 @@ ice_build_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	 */
 	net_prefetch(xdp->data_meta);
 	/* build an skb around the page buffer */
-	skb = napi_build_skb(xdp->data_hard_start, truesize);
+	skb = napi_build_skb(xdp->data_hard_start, xdp->frame_sz);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -1017,13 +1006,9 @@ ice_construct_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	/* if we exhaust the linear part then add what is left as a frag */
 	size -= headlen;
 	if (size) {
-#if (PAGE_SIZE >= 8192)
-		unsigned int truesize = SKB_DATA_ALIGN(size);
-#else
-		unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
-#endif
 		skb_add_rx_frag(skb, 0, rx_buf->page,
-				rx_buf->page_offset + headlen, size, truesize);
+				rx_buf->page_offset + headlen, size,
+				xdp->frame_sz);
 	} else {
 		/* buffer is unused, change the act that should be taken later
 		 * on; data was copied onto skb's linear part so there's no
@@ -1176,7 +1161,7 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 		continue;
 construct_skb:
 		if (skb) {
-			ice_add_rx_frag(rx_ring, rx_buf, skb, size);
+			ice_add_rx_frag(rx_ring, xdp, rx_buf, skb, size);
 		} else if (likely(xdp->data)) {
 			if (ice_ring_uses_build_skb(rx_ring))
 				skb = ice_build_skb(rx_ring, rx_buf, xdp);
