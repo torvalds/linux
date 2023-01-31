@@ -723,7 +723,7 @@ static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
  * have enough headroom.
  */
 static struct page *xdp_linearize_page(struct receive_queue *rq,
-				       u16 *num_buf,
+				       int *num_buf,
 				       struct page *p,
 				       int offset,
 				       int page_off,
@@ -823,7 +823,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		if (unlikely(xdp_headroom < virtnet_get_headroom(vi))) {
 			int offset = buf - page_address(page) + header_offset;
 			unsigned int tlen = len + vi->hdr_len;
-			u16 num_buf = 1;
+			int num_buf = 1;
 
 			xdp_headroom = virtnet_get_headroom(vi);
 			header_offset = VIRTNET_RX_PAD + xdp_headroom;
@@ -996,7 +996,7 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 				      void *buf,
 				      unsigned int len,
 				      unsigned int frame_sz,
-				      u16 *num_buf,
+				      int *num_buf,
 				      unsigned int *xdp_frags_truesize,
 				      struct virtnet_rq_stats *stats)
 {
@@ -1014,6 +1014,9 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 	xdp_prepare_buff(xdp, buf - VIRTIO_XDP_HEADROOM,
 			 VIRTIO_XDP_HEADROOM + vi->hdr_len, len - vi->hdr_len, true);
 
+	if (!*num_buf)
+		return 0;
+
 	if (*num_buf > 1) {
 		/* If we want to build multi-buffer xdp, we need
 		 * to specify that the flags of xdp_buff have the
@@ -1027,10 +1030,10 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 		shinfo->xdp_frags_size = 0;
 	}
 
-	if ((*num_buf - 1) > MAX_SKB_FRAGS)
+	if (*num_buf > MAX_SKB_FRAGS + 1)
 		return -EINVAL;
 
-	while ((--*num_buf) >= 1) {
+	while (--*num_buf > 0) {
 		buf = virtqueue_get_buf_ctx(rq->vq, &len, &ctx);
 		if (unlikely(!buf)) {
 			pr_debug("%s: rx error: %d buffers out of %d missing\n",
@@ -1083,7 +1086,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 					 struct virtnet_rq_stats *stats)
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
-	u16 num_buf = virtio16_to_cpu(vi->vdev, hdr->num_buffers);
+	int num_buf = virtio16_to_cpu(vi->vdev, hdr->num_buffers);
 	struct page *page = virt_to_head_page(buf);
 	int offset = buf - page_address(page);
 	struct sk_buff *head_skb, *curr_skb;
