@@ -18,8 +18,11 @@ void can_sjw_set_default(struct can_bittiming *bt)
 int can_sjw_check(const struct net_device *dev, const struct can_bittiming *bt,
 		  const struct can_bittiming_const *btc, struct netlink_ext_ack *extack)
 {
-	if (bt->sjw > btc->sjw_max)
-		return -ERANGE;
+	if (bt->sjw > btc->sjw_max) {
+		NL_SET_ERR_MSG_FMT(extack, "sjw: %u greater than max sjw: %u",
+				   bt->sjw, btc->sjw_max);
+		return -EINVAL;
+	}
 
 	return 0;
 }
