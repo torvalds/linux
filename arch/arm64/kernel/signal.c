@@ -170,6 +170,14 @@ static void __user *apply_user_offset(
 	return base + offset;
 }
 
+struct user_ctxs {
+	struct fpsimd_context __user *fpsimd;
+	struct sve_context __user *sve;
+	struct tpidr2_context __user *tpidr2;
+	struct za_context __user *za;
+	struct zt_context __user *zt;
+};
+
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 {
 	struct user_fpsimd_state const *fpsimd =
@@ -188,24 +196,24 @@ static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 	return err ? -EFAULT : 0;
 }
 
-static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
+static int restore_fpsimd_context(struct user_ctxs *user)
 {
 	struct user_fpsimd_state fpsimd;
 	__u32 size;
 	int err = 0;
 
 	/* check the size information */
-	__get_user_error(size, &ctx->head.size, err);
+	__get_user_error(size, &user->fpsimd->head.size, err);
 	if (err)
 		return -EFAULT;
 	if (size != sizeof(struct fpsimd_context))
 		return -EINVAL;
 
 	/* copy the FP and status/control registers */
-	err = __copy_from_user(fpsimd.vregs, ctx->vregs,
+	err = __copy_from_user(fpsimd.vregs, &(user->fpsimd->vregs),
 			       sizeof(fpsimd.vregs));
-	__get_user_error(fpsimd.fpsr, &ctx->fpsr, err);
-	__get_user_error(fpsimd.fpcr, &ctx->fpcr, err);
+	__get_user_error(fpsimd.fpsr, &(user->fpsimd->fpsr), err);
+	__get_user_error(fpsimd.fpcr, &(user->fpsimd->fpcr), err);
 
 	clear_thread_flag(TIF_SVE);
 	current->thread.fp_type = FP_STATE_FPSIMD;
@@ -217,14 +225,6 @@ static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 	return err ? -EFAULT : 0;
 }
 
-
-struct user_ctxs {
-	struct fpsimd_context __user *fpsimd;
-	struct sve_context __user *sve;
-	struct tpidr2_context __user *tpidr2;
-	struct za_context __user *za;
-	struct zt_context __user *zt;
-};
 
 #ifdef CONFIG_ARM64_SVE
 
@@ -789,7 +789,7 @@ static int restore_sigframe(struct pt_regs *regs,
 		if (user.sve)
 			err = restore_sve_fpsimd_context(&user);
 		else
-			err = restore_fpsimd_context(user.fpsimd);
+			err = restore_fpsimd_context(&user);
 	}
 
 	if (err == 0 && system_supports_sme() && user.tpidr2)
