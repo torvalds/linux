@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/limits.h>
 #include <linux/minmax.h>
-#include <linux/mm.h>
 #include <linux/types.h>
 
 struct page;
