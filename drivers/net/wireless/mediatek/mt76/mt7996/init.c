@@ -37,8 +37,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 				       BIT(NL80211_CHAN_WIDTH_20) |
 				       BIT(NL80211_CHAN_WIDTH_40) |
 				       BIT(NL80211_CHAN_WIDTH_80) |
-				       BIT(NL80211_CHAN_WIDTH_160) |
-				       BIT(NL80211_CHAN_WIDTH_80P80),
+				       BIT(NL80211_CHAN_WIDTH_160),
 	}
 };
 
@@ -572,11 +571,15 @@ mt7996_gen_ppe_thresh(u8 *he_ppet, int nss)
 			 (0xff >> (8 - (ppet_bits - 1) % 8));
 }
 
-static int
+static void
 mt7996_init_he_caps(struct mt7996_phy *phy, enum nl80211_band band,
-		    struct ieee80211_sband_iftype_data *data)
+		    struct ieee80211_sband_iftype_data *data,
+		    enum nl80211_iftype iftype)
 {
-	int i, idx = 0, nss = hweight8(phy->mt76->antenna_mask);
+	struct ieee80211_sta_he_cap *he_cap = &data->he_cap;
+	struct ieee80211_he_cap_elem *he_cap_elem = &he_cap->he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp *he_mcs = &he_cap->he_mcs_nss_supp;
+	int i, nss = hweight8(phy->mt76->antenna_mask);
 	u16 mcs_map = 0;
 
 	for (i = 0; i < 8; i++) {
@@ -586,13 +589,124 @@ mt7996_init_he_caps(struct mt7996_phy *phy, enum nl80211_band band,
 			mcs_map |= (IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2));
 	}
 
-	for (i = 0; i < NUM_NL80211_IFTYPES; i++) {
-		struct ieee80211_sta_he_cap *he_cap = &data[idx].he_cap;
-		struct ieee80211_he_cap_elem *he_cap_elem =
-				&he_cap->he_cap_elem;
-		struct ieee80211_he_mcs_nss_supp *he_mcs =
-				&he_cap->he_mcs_nss_supp;
+	he_cap->has_he = true;
 
+	he_cap_elem->mac_cap_info[0] = IEEE80211_HE_MAC_CAP0_HTC_HE;
+	he_cap_elem->mac_cap_info[3] = IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
+				       IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3;
+	he_cap_elem->mac_cap_info[4] = IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU;
+
+	if (band == NL80211_BAND_2GHZ)
+		he_cap_elem->phy_cap_info[0] =
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
+	else
+		he_cap_elem->phy_cap_info[0] =
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+
+	he_cap_elem->phy_cap_info[1] = IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD;
+	he_cap_elem->phy_cap_info[2] = IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ |
+				       IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ;
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+		he_cap_elem->mac_cap_info[0] |= IEEE80211_HE_MAC_CAP0_TWT_RES;
+		he_cap_elem->mac_cap_info[2] |= IEEE80211_HE_MAC_CAP2_BSR;
+		he_cap_elem->mac_cap_info[4] |= IEEE80211_HE_MAC_CAP4_BQR;
+		he_cap_elem->mac_cap_info[5] |=
+			IEEE80211_HE_MAC_CAP5_OM_CTRL_UL_MU_DATA_DIS_RX;
+		he_cap_elem->phy_cap_info[3] |=
+			IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_QPSK |
+			IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_QPSK;
+		he_cap_elem->phy_cap_info[6] |=
+			IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE |
+			IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT;
+		he_cap_elem->phy_cap_info[9] |=
+			IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
+			IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU;
+		break;
+	case NL80211_IFTYPE_STATION:
+		he_cap_elem->mac_cap_info[1] |=
+			IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US;
+
+		if (band == NL80211_BAND_2GHZ)
+			he_cap_elem->phy_cap_info[0] |=
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
+		else
+			he_cap_elem->phy_cap_info[0] |=
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
+
+		he_cap_elem->phy_cap_info[1] |=
+			IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A |
+			IEEE80211_HE_PHY_CAP1_HE_LTF_AND_GI_FOR_HE_PPDUS_0_8US;
+		he_cap_elem->phy_cap_info[3] |=
+			IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_QPSK |
+			IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_QPSK;
+		he_cap_elem->phy_cap_info[6] |=
+			IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB |
+			IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE |
+			IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT;
+		he_cap_elem->phy_cap_info[7] |=
+			IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP |
+			IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI;
+		he_cap_elem->phy_cap_info[8] |=
+			IEEE80211_HE_PHY_CAP8_20MHZ_IN_40MHZ_HE_PPDU_IN_2G |
+			IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU |
+			IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU |
+			IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_484;
+		he_cap_elem->phy_cap_info[9] |=
+			IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM |
+			IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK |
+			IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
+			IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU |
+			IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
+			IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB;
+		break;
+	default:
+		break;
+	}
+
+	he_mcs->rx_mcs_80 = cpu_to_le16(mcs_map);
+	he_mcs->tx_mcs_80 = cpu_to_le16(mcs_map);
+	he_mcs->rx_mcs_160 = cpu_to_le16(mcs_map);
+	he_mcs->tx_mcs_160 = cpu_to_le16(mcs_map);
+
+	mt7996_set_stream_he_txbf_caps(phy, he_cap, iftype);
+
+	memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
+	if (he_cap_elem->phy_cap_info[6] &
+	    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
+		mt7996_gen_ppe_thresh(he_cap->ppe_thres, nss);
+	} else {
+		he_cap_elem->phy_cap_info[9] |=
+			u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
+				       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
+	}
+
+	if (band == NL80211_BAND_6GHZ) {
+		u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
+			  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
+
+		cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_2,
+				       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
+		       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
+				       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
+		       u16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+				       IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
+
+		data->he_6ghz_capa.capa = cpu_to_le16(cap);
+	}
+}
+
+static void
+__mt7996_set_stream_he_caps(struct mt7996_phy *phy,
+			    struct ieee80211_supported_band *sband,
+			    enum nl80211_band band)
+{
+	struct ieee80211_sband_iftype_data *data = phy->iftype[band];
+	int i, n = 0;
+
+	for (i = 0; i < NUM_NL80211_IFTYPES; i++) {
 		switch (i) {
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_AP:
@@ -604,161 +718,29 @@ mt7996_init_he_caps(struct mt7996_phy *phy, enum nl80211_band band,
 			continue;
 		}
 
-		data[idx].types_mask = BIT(i);
-		he_cap->has_he = true;
+		data[n].types_mask = BIT(i);
+		mt7996_init_he_caps(phy, band, &data[n], i);
 
-		he_cap_elem->mac_cap_info[0] =
-			IEEE80211_HE_MAC_CAP0_HTC_HE;
-		he_cap_elem->mac_cap_info[3] =
-			IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
-			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3;
-		he_cap_elem->mac_cap_info[4] =
-			IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU;
-
-		if (band == NL80211_BAND_2GHZ)
-			he_cap_elem->phy_cap_info[0] =
-				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
-		else
-			he_cap_elem->phy_cap_info[0] =
-				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
-				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
-				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G;
-
-		he_cap_elem->phy_cap_info[1] =
-			IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD;
-		he_cap_elem->phy_cap_info[2] =
-			IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ |
-			IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ;
-
-		switch (i) {
-		case NL80211_IFTYPE_AP:
-			he_cap_elem->mac_cap_info[0] |=
-				IEEE80211_HE_MAC_CAP0_TWT_RES;
-			he_cap_elem->mac_cap_info[2] |=
-				IEEE80211_HE_MAC_CAP2_BSR;
-			he_cap_elem->mac_cap_info[4] |=
-				IEEE80211_HE_MAC_CAP4_BQR;
-			he_cap_elem->mac_cap_info[5] |=
-				IEEE80211_HE_MAC_CAP5_OM_CTRL_UL_MU_DATA_DIS_RX;
-			he_cap_elem->phy_cap_info[3] |=
-				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_QPSK |
-				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_QPSK;
-			he_cap_elem->phy_cap_info[6] |=
-				IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE |
-				IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT;
-			he_cap_elem->phy_cap_info[9] |=
-				IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
-				IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU;
-			break;
-		case NL80211_IFTYPE_STATION:
-			he_cap_elem->mac_cap_info[1] |=
-				IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US;
-
-			if (band == NL80211_BAND_2GHZ)
-				he_cap_elem->phy_cap_info[0] |=
-					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
-			else
-				he_cap_elem->phy_cap_info[0] |=
-					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
-
-			he_cap_elem->phy_cap_info[1] |=
-				IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A |
-				IEEE80211_HE_PHY_CAP1_HE_LTF_AND_GI_FOR_HE_PPDUS_0_8US;
-			he_cap_elem->phy_cap_info[3] |=
-				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_QPSK |
-				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_QPSK;
-			he_cap_elem->phy_cap_info[6] |=
-				IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB |
-				IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE |
-				IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT;
-			he_cap_elem->phy_cap_info[7] |=
-				IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP |
-				IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI;
-			he_cap_elem->phy_cap_info[8] |=
-				IEEE80211_HE_PHY_CAP8_20MHZ_IN_40MHZ_HE_PPDU_IN_2G |
-				IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU |
-				IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU |
-				IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_484;
-			he_cap_elem->phy_cap_info[9] |=
-				IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM |
-				IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK |
-				IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
-				IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU |
-				IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
-				IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB;
-			break;
-		}
-
-		he_mcs->rx_mcs_80 = cpu_to_le16(mcs_map);
-		he_mcs->tx_mcs_80 = cpu_to_le16(mcs_map);
-		he_mcs->rx_mcs_160 = cpu_to_le16(mcs_map);
-		he_mcs->tx_mcs_160 = cpu_to_le16(mcs_map);
-		he_mcs->rx_mcs_80p80 = cpu_to_le16(mcs_map);
-		he_mcs->tx_mcs_80p80 = cpu_to_le16(mcs_map);
-
-		mt7996_set_stream_he_txbf_caps(phy, he_cap, i);
-
-		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
-		if (he_cap_elem->phy_cap_info[6] &
-		    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
-			mt7996_gen_ppe_thresh(he_cap->ppe_thres, nss);
-		} else {
-			he_cap_elem->phy_cap_info[9] |=
-				IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US;
-		}
-
-		if (band == NL80211_BAND_6GHZ) {
-			u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
-				  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
-
-			cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_2,
-					       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
-			       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
-					       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
-			       u16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
-					       IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
-
-			data[idx].he_6ghz_capa.capa = cpu_to_le16(cap);
-		}
-
-		idx++;
+		n++;
 	}
 
-	return idx;
+	sband->iftype_data = data;
+	sband->n_iftype_data = n;
 }
 
 void mt7996_set_stream_he_caps(struct mt7996_phy *phy)
 {
-	struct ieee80211_sband_iftype_data *data;
-	struct ieee80211_supported_band *band;
-	int n;
+	if (phy->mt76->cap.has_2ghz)
+		__mt7996_set_stream_he_caps(phy, &phy->mt76->sband_2g.sband,
+					    NL80211_BAND_2GHZ);
 
-	if (phy->mt76->cap.has_2ghz) {
-		data = phy->iftype[NL80211_BAND_2GHZ];
-		n = mt7996_init_he_caps(phy, NL80211_BAND_2GHZ, data);
+	if (phy->mt76->cap.has_5ghz)
+		__mt7996_set_stream_he_caps(phy, &phy->mt76->sband_5g.sband,
+					    NL80211_BAND_5GHZ);
 
-		band = &phy->mt76->sband_2g.sband;
-		band->iftype_data = data;
-		band->n_iftype_data = n;
-	}
-
-	if (phy->mt76->cap.has_5ghz) {
-		data = phy->iftype[NL80211_BAND_5GHZ];
-		n = mt7996_init_he_caps(phy, NL80211_BAND_5GHZ, data);
-
-		band = &phy->mt76->sband_5g.sband;
-		band->iftype_data = data;
-		band->n_iftype_data = n;
-	}
-
-	if (phy->mt76->cap.has_6ghz) {
-		data = phy->iftype[NL80211_BAND_6GHZ];
-		n = mt7996_init_he_caps(phy, NL80211_BAND_6GHZ, data);
-
-		band = &phy->mt76->sband_6g.sband;
-		band->iftype_data = data;
-		band->n_iftype_data = n;
-	}
+	if (phy->mt76->cap.has_6ghz)
+		__mt7996_set_stream_he_caps(phy, &phy->mt76->sband_6g.sband,
+					    NL80211_BAND_6GHZ);
 }
 
 int mt7996_register_device(struct mt7996_dev *dev)
