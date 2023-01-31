@@ -201,10 +201,14 @@ again:
 			continue;
 
 		if (choose_best_symbol(curr, next) == SYMBOL_A) {
+			if (next->type == STT_GNU_IFUNC)
+				curr->ifunc_alias = true;
 			rb_erase_cached(&next->rb_node, symbols);
 			symbol__delete(next);
 			goto again;
 		} else {
+			if (curr->type == STT_GNU_IFUNC)
+				next->ifunc_alias = true;
 			nd = rb_next(&curr->rb_node);
 			rb_erase_cached(&curr->rb_node, symbols);
 			symbol__delete(curr);
