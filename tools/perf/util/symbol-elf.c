@@ -381,6 +381,42 @@ static int sort_rel(struct rel_info *ri)
 	return 0;
 }
 
+/*
+ * For x86_64, the GNU linker is putting IFUNC information in the relocation
+ * addend.
+ */
+static bool addend_may_be_ifunc(GElf_Ehdr *ehdr, struct rel_info *ri)
+{
+	return ehdr->e_machine == EM_X86_64 && ri->is_rela &&
+	       GELF_R_TYPE(ri->rela.r_info) == R_X86_64_IRELATIVE;
+}
+
+static bool get_ifunc_name(Elf *elf, struct dso *dso, GElf_Ehdr *ehdr,
+			   struct rel_info *ri, char *buf, size_t buf_sz)
+{
+	u64 addr = ri->rela.r_addend;
+	struct symbol *sym;
+	GElf_Phdr phdr;
+
+	if (!addend_may_be_ifunc(ehdr, ri))
+		return false;
+
+	if (elf_read_program_header(elf, addr, &phdr))
+		return false;
+
+	addr -= phdr.p_vaddr - phdr.p_offset;
+
+	sym = dso__find_symbol_nocache(dso, addr);
+
+	/* Expecting the address to be an IFUNC or IFUNC alias */
+	if (!sym || sym->start != addr || (sym->type != STT_GNU_IFUNC && !sym->ifunc_alias))
+		return false;
+
+	snprintf(buf, buf_sz, "%s@plt", sym->name);
+
+	return true;
+}
+
 static void exit_rel(struct rel_info *ri)
 {
 	free(ri->sorted);
@@ -560,7 +596,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 			elf_name = demangled;
 		if (*elf_name)
 			snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
-		else
+		else if (!get_ifunc_name(elf, dso, &ehdr, &ri, sympltname, sizeof(sympltname)))
 			snprintf(sympltname, sizeof(sympltname),
 				 "offset_%#" PRIx64 "@plt", plt_offset);
 		free(demangled);
