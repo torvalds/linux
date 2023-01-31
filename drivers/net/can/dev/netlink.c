@@ -215,7 +215,8 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		err = can_get_bittiming(dev, &bt,
 					priv->bittiming_const,
 					priv->bitrate_const,
-					priv->bitrate_const_cnt);
+					priv->bitrate_const_cnt,
+					extack);
 		if (err)
 			return err;
 
@@ -320,7 +321,8 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		err = can_get_bittiming(dev, &dbt,
 					priv->data_bittiming_const,
 					priv->data_bitrate_const,
-					priv->data_bitrate_const_cnt);
+					priv->data_bitrate_const_cnt,
+					extack);
 		if (err)
 			return err;
 

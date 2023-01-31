@@ -12,7 +12,8 @@
  * file linux/can/netlink.h.
  */
 static int can_fixup_bittiming(const struct net_device *dev, struct can_bittiming *bt,
-			       const struct can_bittiming_const *btc)
+			       const struct can_bittiming_const *btc,
+			       struct netlink_ext_ack *extack)
 {
 	const struct can_priv *priv = netdev_priv(dev);
 	unsigned int tseg1;
@@ -50,7 +51,8 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 static int
 can_validate_bitrate(const struct net_device *dev, const struct can_bittiming *bt,
 		     const u32 *bitrate_const,
-		     const unsigned int bitrate_const_cnt)
+		     const unsigned int bitrate_const_cnt,
+		     struct netlink_ext_ack *extack)
 {
 	unsigned int i;
 
@@ -65,7 +67,8 @@ can_validate_bitrate(const struct net_device *dev, const struct can_bittiming *b
 int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		      const struct can_bittiming_const *btc,
 		      const u32 *bitrate_const,
-		      const unsigned int bitrate_const_cnt)
+		      const unsigned int bitrate_const_cnt,
+		      struct netlink_ext_ack *extack)
 {
 	/* Depending on the given can_bittiming parameter structure the CAN
 	 * timing parameters are calculated based on the provided bitrate OR
@@ -73,12 +76,12 @@ int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 	 * provided directly which are then checked and fixed up.
 	 */
 	if (!bt->tq && bt->bitrate && btc)
-		return can_calc_bittiming(dev, bt, btc);
+		return can_calc_bittiming(dev, bt, btc, extack);
 	if (bt->tq && !bt->bitrate && btc)
-		return can_fixup_bittiming(dev, bt, btc);
+		return can_fixup_bittiming(dev, bt, btc, extack);
 	if (!bt->tq && bt->bitrate && bitrate_const)
 		return can_validate_bitrate(dev, bt, bitrate_const,
-					    bitrate_const_cnt);
+					    bitrate_const_cnt, extack);
 
 	return -EINVAL;
 }

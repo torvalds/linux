@@ -116,7 +116,7 @@ struct can_tdc_const {
 
 #ifdef CONFIG_CAN_CALC_BITTIMING
 int can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
-		       const struct can_bittiming_const *btc);
+		       const struct can_bittiming_const *btc, struct netlink_ext_ack *extack);
 
 void can_calc_tdco(struct can_tdc *tdc, const struct can_tdc_const *tdc_const,
 		   const struct can_bittiming *dbt,
@@ -141,7 +141,8 @@ can_calc_tdco(struct can_tdc *tdc, const struct can_tdc_const *tdc_const,
 int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		      const struct can_bittiming_const *btc,
 		      const u32 *bitrate_const,
-		      const unsigned int bitrate_const_cnt);
+		      const unsigned int bitrate_const_cnt,
+		      struct netlink_ext_ack *extack);
 
 /*
  * can_bit_time() - Duration of one bit
