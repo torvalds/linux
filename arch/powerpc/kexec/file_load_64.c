@@ -990,7 +990,7 @@ unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 	 * number of usable memory entries and use for FDT size estimation.
 	 */
 	if (drmem_lmb_size()) {
-		usm_entries = ((memblock_end_of_DRAM() / drmem_lmb_size()) +
+		usm_entries = ((memory_hotplug_max() / drmem_lmb_size()) +
 			       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
 		extra_size = (unsigned int)(usm_entries * sizeof(u64));
 	} else {
