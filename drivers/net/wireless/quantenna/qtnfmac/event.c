@@ -478,7 +478,7 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 			continue;
 
 		mutex_lock(&vif->wdev.mtx);
-		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0);
+		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0, 0);
 		mutex_unlock(&vif->wdev.mtx);
 	}
 
