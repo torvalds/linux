@@ -83,7 +83,7 @@ axg_tdmin_get_tdm_stream(struct snd_soc_dapm_widget *w)
 	if (!be)
 		return NULL;
 
-	return be->capture_dma_data;
+	return snd_soc_dai_dma_data_get_capture(be);
 }
 
 static void axg_tdmin_enable(struct regmap *map)
