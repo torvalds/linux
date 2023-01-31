@@ -460,6 +460,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			    sizeof(struct nfp_tun_neigh_v4);
 	unsigned long cookie = (unsigned long)neigh;
 	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_tun_neigh_lag lag_info;
 	struct nfp_neigh_entry *nn_entry;
 	u32 port_id;
 	u8 mtype;
@@ -467,6 +468,11 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 	port_id = nfp_flower_get_port_id_from_netdev(app, netdev);
 	if (!port_id)
 		return;
+
+	if ((port_id & NFP_FL_LAG_OUT) == NFP_FL_LAG_OUT) {
+		memset(&lag_info, 0, sizeof(struct nfp_tun_neigh_lag));
+		nfp_flower_lag_get_info_from_netdev(app, netdev, &lag_info);
+	}
 
 	spin_lock_bh(&priv->predt_lock);
 	nn_entry = rhashtable_lookup_fast(&priv->neigh_table, &cookie,
@@ -515,7 +521,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		neigh_ha_snapshot(common->dst_addr, neigh, netdev);
 
 		if ((port_id & NFP_FL_LAG_OUT) == NFP_FL_LAG_OUT)
-			nfp_flower_lag_get_info_from_netdev(app, netdev, lag);
+			memcpy(lag, &lag_info, sizeof(struct nfp_tun_neigh_lag));
 		common->port_id = cpu_to_be32(port_id);
 
 		if (rhashtable_insert_fast(&priv->neigh_table,
