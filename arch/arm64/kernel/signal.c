@@ -271,18 +271,20 @@ static int preserve_sve_context(struct sve_context __user *ctx)
 
 static int restore_sve_fpsimd_context(struct user_ctxs *user)
 {
-	int err;
+	int err = 0;
 	unsigned int vl, vq;
 	struct user_fpsimd_state fpsimd;
-	struct sve_context sve;
+	u16 user_vl, flags;
 
 	if (user->sve_size < sizeof(*user->sve))
 		return -EINVAL;
 
-	if (__copy_from_user(&sve, user->sve, sizeof(sve)))
-		return -EFAULT;
+	__get_user_error(user_vl, &(user->sve->vl), err);
+	__get_user_error(flags, &(user->sve->flags), err);
+	if (err)
+		return err;
 
-	if (sve.flags & SVE_SIG_FLAG_SM) {
+	if (flags & SVE_SIG_FLAG_SM) {
 		if (!system_supports_sme())
 			return -EINVAL;
 
@@ -294,7 +296,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 		vl = task_get_sve_vl(current);
 	}
 
-	if (sve.vl != vl)
+	if (user_vl != vl)
 		return -EINVAL;
 
 	if (user->sve_size == sizeof(*user->sve)) {
@@ -304,7 +306,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 		goto fpsimd_only;
 	}
 
-	vq = sve_vq_from_vl(sve.vl);
+	vq = sve_vq_from_vl(vl);
 
 	if (user->sve_size < SVE_SIG_CONTEXT_SIZE(vq))
 		return -EINVAL;
@@ -332,7 +334,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 	if (err)
 		return -EFAULT;
 
-	if (sve.flags & SVE_SIG_FLAG_SM)
+	if (flags & SVE_SIG_FLAG_SM)
 		current->thread.svcr |= SVCR_SM_MASK;
 	else
 		set_thread_flag(TIF_SVE);
