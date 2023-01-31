@@ -228,7 +228,7 @@ static void msm_dsi_manager_set_split_display(u8 id)
 	}
 }
 
-static void dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
+static int dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -268,14 +268,31 @@ static void dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 	if (is_bonded_dsi && msm_dsi1)
 		msm_dsi_host_enable_irq(msm_dsi1->host);
 
-	return;
+	return 0;
 
 host1_on_fail:
 	msm_dsi_host_power_off(host);
 host_on_fail:
 	dsi_mgr_phy_disable(id);
 phy_en_fail:
-	return;
+	return ret;
+}
+
+static void dsi_mgr_bridge_power_off(struct drm_bridge *bridge)
+{
+	int id = dsi_mgr_bridge_get_id(bridge);
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *msm_dsi1 = dsi_mgr_get_dsi(DSI_1);
+	struct mipi_dsi_host *host = msm_dsi->host;
+	bool is_bonded_dsi = IS_BONDED_DSI();
+
+	msm_dsi_host_disable_irq(host);
+	if (is_bonded_dsi && msm_dsi1) {
+		msm_dsi_host_disable_irq(msm_dsi1->host);
+		msm_dsi_host_power_off(msm_dsi1->host);
+	}
+	msm_dsi_host_power_off(host);
+	dsi_mgr_phy_disable(id);
 }
 
 static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
@@ -295,7 +312,11 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
-	dsi_mgr_bridge_power_on(bridge);
+	ret = dsi_mgr_bridge_power_on(bridge);
+	if (ret) {
+		dev_err(&msm_dsi->pdev->dev, "Power on failed: %d\n", ret);
+		return;
+	}
 
 	ret = msm_dsi_host_enable(host);
 	if (ret) {
@@ -316,8 +337,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 host1_en_fail:
 	msm_dsi_host_disable(host);
 host_en_fail:
-
-	return;
+	dsi_mgr_bridge_power_off(bridge);
 }
 
 void msm_dsi_manager_tpg_enable(void)
