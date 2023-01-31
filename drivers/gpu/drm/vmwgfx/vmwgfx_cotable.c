@@ -136,7 +136,8 @@ static const struct vmw_res_func vmw_cotable_func = {
 	.prio = 3,
 	.dirty_prio = 3,
 	.type_name = "context guest backed object tables",
-	.backup_placement = &vmw_mob_placement,
+	.domain = VMW_BO_DOMAIN_MOB,
+	.busy_domain = VMW_BO_DOMAIN_MOB,
 	.create = vmw_cotable_create,
 	.destroy = vmw_cotable_destroy,
 	.bind = vmw_cotable_bind,
@@ -424,7 +425,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	 * for the new COTable. Initially pin the buffer object to make sure
 	 * we can use tryreserve without failure.
 	 */
-	ret = vmw_bo_create(dev_priv, new_size, &vmw_mob_placement,
+	ret = vmw_bo_create(dev_priv, new_size,
+			    VMW_BO_DOMAIN_MOB, VMW_BO_DOMAIN_MOB,
 			    true, true, &buf);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
@@ -465,7 +467,10 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	}
 
 	/* Unpin new buffer, and switch backup buffers. */
-	ret = ttm_bo_validate(bo, &vmw_mob_placement, &ctx);
+	vmw_bo_placement_set(buf,
+			     VMW_BO_DOMAIN_MOB,
+			     VMW_BO_DOMAIN_MOB);
+	ret = ttm_bo_validate(bo, &buf->placement, &ctx);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed validating new COTable backup buffer.\n");
 		goto out_wait;

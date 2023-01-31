@@ -31,6 +31,7 @@
 #include "device_include/svga_reg.h"
 
 #include <drm/ttm/ttm_bo.h>
+#include <drm/ttm/ttm_placement.h>
 
 #include <linux/rbtree_types.h>
 #include <linux/types.h>
@@ -39,6 +40,14 @@ struct vmw_bo_dirty;
 struct vmw_fence_obj;
 struct vmw_private;
 struct vmw_resource;
+
+enum vmw_bo_domain {
+	VMW_BO_DOMAIN_SYS           = BIT(0),
+	VMW_BO_DOMAIN_WAITABLE_SYS  = BIT(1),
+	VMW_BO_DOMAIN_VRAM          = BIT(2),
+	VMW_BO_DOMAIN_GMR           = BIT(3),
+	VMW_BO_DOMAIN_MOB           = BIT(4),
+};
 
 /**
  * struct vmw_bo - TTM buffer object with vmwgfx additions
@@ -53,6 +62,11 @@ struct vmw_resource;
  */
 struct vmw_bo {
 	struct ttm_buffer_object base;
+
+	struct ttm_placement placement;
+	struct ttm_place places[5];
+	struct ttm_place busy_places[5];
+
 	struct rb_root res_tree;
 
 	atomic_t cpu_writers;
@@ -64,17 +78,24 @@ struct vmw_bo {
 	struct vmw_bo_dirty *dirty;
 };
 
+void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain);
+void vmw_bo_placement_set_default_accelerated(struct vmw_bo *bo);
+
 int vmw_bo_create_kernel(struct vmw_private *dev_priv,
 			 unsigned long size,
 			 struct ttm_placement *placement,
 			 struct ttm_buffer_object **p_bo);
 int vmw_bo_create(struct vmw_private *dev_priv,
-		  size_t size, struct ttm_placement *placement,
+		  size_t size,
+		  u32 domain,
+		  u32 busy_domain,
 		  bool interruptible, bool pin,
 		  struct vmw_bo **p_bo);
 int vmw_bo_init(struct vmw_private *dev_priv,
 		struct vmw_bo *vmw_bo,
-		size_t size, struct ttm_placement *placement,
+		size_t size,
+		u32 domain,
+		u32 busy_domain,
 		bool interruptible, bool pin);
 int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);

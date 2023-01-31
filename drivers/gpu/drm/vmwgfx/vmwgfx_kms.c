@@ -1270,9 +1270,9 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 					    user_fence_rep, vclips, num_clips,
 					    NULL);
 	case vmw_du_screen_target:
-		return vmw_kms_stdu_dma(dev_priv, file_priv, vfb,
-					user_fence_rep, NULL, vclips, num_clips,
-					1, false, true, NULL);
+		return vmw_kms_stdu_readback(dev_priv, file_priv, vfb,
+					     user_fence_rep, NULL, vclips, num_clips,
+					     1, NULL);
 	default:
 		WARN_ONCE(true,
 			  "Readback called with invalid display system.\n");
@@ -2999,8 +2999,20 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 		struct vmw_framebuffer_bo *vfbbo =
 			container_of(update->vfb, typeof(*vfbbo), base);
 
-		ret = vmw_validation_add_bo(&val_ctx, vfbbo->buffer, false,
-					    update->cpu_blit);
+		/*
+		 * For screen targets we want a mappable bo, for everything else we want
+		 * accelerated i.e. host backed (vram or gmr) bo. If the display unit
+		 * is not screen target then mob's shouldn't be available.
+		 */
+		if (update->dev_priv->active_display_unit == vmw_du_screen_target) {
+			vmw_bo_placement_set(vfbbo->buffer,
+					     VMW_BO_DOMAIN_SYS | VMW_BO_DOMAIN_MOB | VMW_BO_DOMAIN_GMR,
+					     VMW_BO_DOMAIN_SYS | VMW_BO_DOMAIN_MOB | VMW_BO_DOMAIN_GMR);
+		} else {
+			WARN_ON(update->dev_priv->has_mob);
+			vmw_bo_placement_set_default_accelerated(vfbbo->buffer);
+		}
+		ret = vmw_validation_add_bo(&val_ctx, vfbbo->buffer);
 	} else {
 		struct vmw_framebuffer_surface *vfbs =
 			container_of(update->vfb, typeof(*vfbs), base);

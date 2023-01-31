@@ -78,20 +78,6 @@ static const struct ttm_place vram_gmr_placement_flags[] = {
 	}
 };
 
-static const struct ttm_place gmr_vram_placement_flags[] = {
-	{
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = VMW_PL_GMR,
-		.flags = 0
-	}, {
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = TTM_PL_VRAM,
-		.flags = 0
-	}
-};
-
 static const struct ttm_place vmw_sys_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -127,44 +113,11 @@ struct ttm_placement vmw_pt_sys_placement = {
 	.busy_placement = &vmw_sys_placement_flags
 };
 
-static const struct ttm_place nonfixed_placement_flags[] = {
-	{
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = TTM_PL_SYSTEM,
-		.flags = 0
-	}, {
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = VMW_PL_GMR,
-		.flags = 0
-	}, {
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = VMW_PL_MOB,
-		.flags = 0
-	}
-};
-
-struct ttm_placement vmw_srf_placement = {
-	.num_placement = 1,
-	.num_busy_placement = 2,
-	.placement = &gmr_placement_flags,
-	.busy_placement = gmr_vram_placement_flags
-};
-
 struct ttm_placement vmw_mob_placement = {
 	.num_placement = 1,
 	.num_busy_placement = 1,
 	.placement = &mob_placement_flags,
 	.busy_placement = &mob_placement_flags
-};
-
-struct ttm_placement vmw_nonfixed_placement = {
-	.num_placement = 3,
-	.placement = nonfixed_placement_flags,
-	.num_busy_placement = 1,
-	.busy_placement = &sys_placement_flags
 };
 
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);

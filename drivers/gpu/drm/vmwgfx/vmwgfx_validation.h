@@ -159,11 +159,7 @@ static inline unsigned int vmw_validation_align(unsigned int val)
 }
 
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
-			  struct vmw_bo *vbo,
-			  bool as_mob, bool cpu_blit);
-int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
-				      bool interruptible,
-				      bool validate_as_mob);
+			  struct vmw_bo *vbo);
 int vmw_validation_bo_validate(struct vmw_validation_context *ctx, bool intr);
 void vmw_validation_unref_lists(struct vmw_validation_context *ctx);
 int vmw_validation_add_resource(struct vmw_validation_context *ctx,

@@ -27,6 +27,7 @@
  **************************************************************************/
 #include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
+#include "vmwgfx_resource_priv.h"
 #include "vmwgfx_validation.h"
 
 #include <linux/slab.h>
@@ -40,8 +41,6 @@
  * @hash: A hash entry used for the duplicate detection hash table.
  * @coherent_count: If switching backup buffers, number of new coherent
  * resources that will have this buffer as a backup buffer.
- * @as_mob: Validate as mob.
- * @cpu_blit: Validate for cpu blit access.
  *
  * Bit fields are used since these structures are allocated and freed in
  * large numbers and space conservation is desired.
@@ -50,8 +49,6 @@ struct vmw_validation_bo_node {
 	struct ttm_validate_buffer base;
 	struct vmwgfx_hash_item hash;
 	unsigned int coherent_count;
-	u32 as_mob : 1;
-	u32 cpu_blit : 1;
 };
 /**
  * struct vmw_validation_res_node - Resource validation metadata.
@@ -260,26 +257,16 @@ out:
  * vmw_validation_add_bo - Add a buffer object to the validation context.
  * @ctx: The validation context.
  * @vbo: The buffer object.
- * @as_mob: Validate as mob, otherwise suitable for GMR operations.
- * @cpu_blit: Validate in a page-mappable location.
  *
  * Return: Zero on success, negative error code otherwise.
  */
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
-			  struct vmw_bo *vbo,
-			  bool as_mob,
-			  bool cpu_blit)
+			  struct vmw_bo *vbo)
 {
 	struct vmw_validation_bo_node *bo_node;
 
 	bo_node = vmw_validation_find_bo_dup(ctx, vbo);
-	if (bo_node) {
-		if (bo_node->as_mob != as_mob ||
-		    bo_node->cpu_blit != cpu_blit) {
-			DRM_ERROR("Inconsistent buffer usage.\n");
-			return -EINVAL;
-		}
-	} else {
+	if (!bo_node) {
 		struct ttm_validate_buffer *val_buf;
 
 		bo_node = vmw_validation_mem_alloc(ctx, sizeof(*bo_node));
@@ -297,8 +284,6 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 			return -ESRCH;
 		val_buf->num_shared = 0;
 		list_add_tail(&val_buf->head, &ctx->bo_list);
-		bo_node->as_mob = as_mob;
-		bo_node->cpu_blit = cpu_blit;
 	}
 
 	return 0;
@@ -455,9 +440,10 @@ int vmw_validation_res_reserve(struct vmw_validation_context *ctx,
 		if (res->backup) {
 			struct vmw_bo *vbo = res->backup;
 
-			ret = vmw_validation_add_bo
-				(ctx, vbo, vmw_resource_needs_backup(res),
-				 false);
+			vmw_bo_placement_set(vbo,
+					     res->func->domain,
+					     res->func->busy_domain);
+			ret = vmw_validation_add_bo(ctx, vbo);
 			if (ret)
 				goto out_unreserve;
 		}
@@ -519,14 +505,12 @@ void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
  * vmw_validation_bo_validate_single - Validate a single buffer object.
  * @bo: The TTM buffer object base.
  * @interruptible: Whether to perform waits interruptible if possible.
- * @validate_as_mob: Whether to validate in MOB memory.
  *
  * Return: Zero on success, -ERESTARTSYS if interrupted. Negative error
  * code on failure.
  */
-int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
-				      bool interruptible,
-				      bool validate_as_mob)
+static int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
+					     bool interruptible)
 {
 	struct vmw_bo *vbo =
 		container_of(bo, struct vmw_bo, base);
@@ -542,27 +526,17 @@ int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
 	if (vbo->base.pin_count > 0)
 		return 0;
 
-	if (validate_as_mob)
-		return ttm_bo_validate(bo, &vmw_mob_placement, &ctx);
-
-	/**
-	 * Put BO in VRAM if there is space, otherwise as a GMR.
-	 * If there is no space in VRAM and GMR ids are all used up,
-	 * start evicting GMRs to make room. If the DMA buffer can't be
-	 * used as a GMR, this will return -ENOMEM.
-	 */
-
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, &ctx);
+	ret = ttm_bo_validate(bo, &vbo->placement, &ctx);
 	if (ret == 0 || ret == -ERESTARTSYS)
 		return ret;
 
-	/**
-	 * If that failed, try VRAM again, this time evicting
+	/*
+	 * If that failed, try again, this time evicting
 	 * previous contents.
 	 */
+	ctx.allow_res_evict = true;
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, &ctx);
-	return ret;
+	return ttm_bo_validate(bo, &vbo->placement, &ctx);
 }
 
 /**
@@ -583,18 +557,8 @@ int vmw_validation_bo_validate(struct vmw_validation_context *ctx, bool intr)
 		struct vmw_bo *vbo =
 			container_of(entry->base.bo, typeof(*vbo), base);
 
-		if (entry->cpu_blit) {
-			struct ttm_operation_ctx ttm_ctx = {
-				.interruptible = intr,
-				.no_wait_gpu = false
-			};
+		ret = vmw_validation_bo_validate_single(entry->base.bo, intr);
 
-			ret = ttm_bo_validate(entry->base.bo,
-					      &vmw_nonfixed_placement, &ttm_ctx);
-		} else {
-			ret = vmw_validation_bo_validate_single
-			(entry->base.bo, intr, entry->as_mob);
-		}
 		if (ret)
 			return ret;
 
@@ -655,9 +619,9 @@ int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr)
 		if (backup && res->backup && (backup != res->backup)) {
 			struct vmw_bo *vbo = res->backup;
 
-			ret = vmw_validation_add_bo
-				(ctx, vbo, vmw_resource_needs_backup(res),
-				 false);
+			vmw_bo_placement_set(vbo, res->func->domain,
+					     res->func->busy_domain);
+			ret = vmw_validation_add_bo(ctx, vbo);
 			if (ret)
 				return ret;
 		}

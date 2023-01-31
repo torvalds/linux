@@ -25,6 +25,7 @@
  *
  **************************************************************************/
 
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 
@@ -83,7 +84,8 @@ static const struct vmw_simple_resource_func va_stream_func = {
 		.needs_backup = false,
 		.may_evict = false,
 		.type_name = "overlay stream",
-		.backup_placement = NULL,
+		.domain = VMW_BO_DOMAIN_SYS,
+		.busy_domain = VMW_BO_DOMAIN_SYS,
 		.create = NULL,
 		.destroy = NULL,
 		.bind = NULL,

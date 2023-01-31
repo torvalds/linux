@@ -94,7 +94,8 @@ static const struct vmw_res_func vmw_gb_shader_func = {
 	.prio = 3,
 	.dirty_prio = 3,
 	.type_name = "guest backed shaders",
-	.backup_placement = &vmw_mob_placement,
+	.domain = VMW_BO_DOMAIN_MOB,
+	.busy_domain = VMW_BO_DOMAIN_MOB,
 	.create = vmw_gb_shader_create,
 	.destroy = vmw_gb_shader_destroy,
 	.bind = vmw_gb_shader_bind,
@@ -108,7 +109,8 @@ static const struct vmw_res_func vmw_dx_shader_func = {
 	.prio = 3,
 	.dirty_prio = 3,
 	.type_name = "dx shaders",
-	.backup_placement = &vmw_mob_placement,
+	.domain = VMW_BO_DOMAIN_MOB,
+	.busy_domain = VMW_BO_DOMAIN_MOB,
 	.create = vmw_dx_shader_create,
 	/*
 	 * The destroy callback is only called with a committed resource on
@@ -893,7 +895,9 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	ret = vmw_bo_create(dev_priv, size, &vmw_sys_placement,
+	ret = vmw_bo_create(dev_priv, size,
+			    VMW_BO_DOMAIN_SYS,
+			    VMW_BO_DOMAIN_SYS,
 			    true, true, &buf);
 	if (unlikely(ret != 0))
 		goto out;
@@ -913,7 +917,10 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	WARN_ON(is_iomem);
 
 	ttm_bo_kunmap(&map);
-	ret = ttm_bo_validate(&buf->base, &vmw_sys_placement, &ctx);
+	vmw_bo_placement_set(buf,
+			     VMW_BO_DOMAIN_SYS,
+			     VMW_BO_DOMAIN_SYS);
+	ret = ttm_bo_validate(&buf->base, &buf->placement, &ctx);
 	WARN_ON(ret != 0);
 	ttm_bo_unreserve(&buf->base);
 

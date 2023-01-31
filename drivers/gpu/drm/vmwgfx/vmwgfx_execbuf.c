@@ -478,9 +478,13 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 		struct vmw_bo *dx_query_mob;
 
 		dx_query_mob = vmw_context_get_dx_query_mob(ctx);
-		if (dx_query_mob)
+		if (dx_query_mob) {
+			vmw_bo_placement_set(dx_query_mob,
+					     VMW_BO_DOMAIN_MOB,
+					     VMW_BO_DOMAIN_MOB);
 			ret = vmw_validation_add_bo(sw_context->ctx,
-						    dx_query_mob, true, false);
+						    dx_query_mob);
+		}
 	}
 
 	mutex_unlock(&dev_priv->binding_mutex);
@@ -1036,17 +1040,17 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 
 		if (unlikely(sw_context->cur_query_bo != NULL)) {
 			sw_context->needs_post_query_barrier = true;
+			vmw_bo_placement_set_default_accelerated(sw_context->cur_query_bo);
 			ret = vmw_validation_add_bo(sw_context->ctx,
-						    sw_context->cur_query_bo,
-						    dev_priv->has_mob, false);
+						    sw_context->cur_query_bo);
 			if (unlikely(ret != 0))
 				return ret;
 		}
 		sw_context->cur_query_bo = new_query_bo;
 
+		vmw_bo_placement_set_default_accelerated(dev_priv->dummy_query_bo);
 		ret = vmw_validation_add_bo(sw_context->ctx,
-					    dev_priv->dummy_query_bo,
-					    dev_priv->has_mob, false);
+					    dev_priv->dummy_query_bo);
 		if (unlikely(ret != 0))
 			return ret;
 	}
@@ -1158,7 +1162,8 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 		drm_dbg(&dev_priv->drm, "Could not find or use MOB buffer.\n");
 		return PTR_ERR(vmw_bo);
 	}
-	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, true, false);
+	vmw_bo_placement_set(vmw_bo, VMW_BO_DOMAIN_MOB, VMW_BO_DOMAIN_MOB);
+	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo);
 	ttm_bo_put(&vmw_bo->base);
 	if (unlikely(ret != 0))
 		return ret;
@@ -1212,7 +1217,9 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 		drm_dbg(&dev_priv->drm, "Could not find or use GMR region.\n");
 		return PTR_ERR(vmw_bo);
 	}
-	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, false, false);
+	vmw_bo_placement_set(vmw_bo, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo);
 	ttm_bo_put(&vmw_bo->base);
 	if (unlikely(ret != 0))
 		return ret;
@@ -4362,13 +4369,17 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	if (dev_priv->pinned_bo == NULL)
 		goto out_unlock;
 
-	ret = vmw_validation_add_bo(&val_ctx, dev_priv->pinned_bo, false,
-				    false);
+	vmw_bo_placement_set(dev_priv->pinned_bo,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(&val_ctx, dev_priv->pinned_bo);
 	if (ret)
 		goto out_no_reserve;
 
-	ret = vmw_validation_add_bo(&val_ctx, dev_priv->dummy_query_bo, false,
-				    false);
+	vmw_bo_placement_set(dev_priv->dummy_query_bo,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(&val_ctx, dev_priv->dummy_query_bo);
 	if (ret)
 		goto out_no_reserve;
 

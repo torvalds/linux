@@ -124,11 +124,17 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto err;
 
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, &ctx);
+	vmw_bo_placement_set(buf,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR);
+	ret = ttm_bo_validate(bo, &buf->placement, &ctx);
 	if (likely(ret == 0) || ret == -ERESTARTSYS)
 		goto out_unreserve;
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, &ctx);
+	vmw_bo_placement_set(buf,
+			     VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_VRAM);
+	ret = ttm_bo_validate(bo, &buf->placement, &ctx);
 
 out_unreserve:
 	if (!ret)
@@ -179,16 +185,7 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
-	struct ttm_placement placement;
-	struct ttm_place place;
 	int ret = 0;
-
-	place = vmw_vram_placement.placement[0];
-	place.lpfn = PFN_UP(bo->resource->size);
-	placement.num_placement = 1;
-	placement.placement = &place;
-	placement.num_busy_placement = 1;
-	placement.busy_placement = &place;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
 	ret = ttm_bo_reserve(bo, interruptible, false, NULL);
@@ -205,10 +202,17 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	    bo->resource->start > 0 &&
 	    buf->base.pin_count == 0) {
 		ctx.interruptible = false;
-		(void) ttm_bo_validate(bo, &vmw_sys_placement, &ctx);
+		vmw_bo_placement_set(buf,
+				     VMW_BO_DOMAIN_SYS,
+				     VMW_BO_DOMAIN_SYS);
+		(void)ttm_bo_validate(bo, &buf->placement, &ctx);
 	}
 
-	ret = ttm_bo_validate(bo, &placement, &ctx);
+	vmw_bo_placement_set(buf,
+			     VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_VRAM);
+	buf->places[0].lpfn = PFN_UP(bo->resource->size);
+	ret = ttm_bo_validate(bo, &buf->placement, &ctx);
 
 	/* For some reason we didn't end up at the start of vram */
 	WARN_ON(ret == 0 && bo->resource->start != 0);
@@ -416,7 +420,7 @@ error_free:
 }
 
 int vmw_bo_create(struct vmw_private *vmw,
-		  size_t size, struct ttm_placement *placement,
+		  size_t size, u32 domain, u32 busy_domain,
 		  bool interruptible, bool pin,
 		  struct vmw_bo **p_bo)
 {
@@ -429,7 +433,8 @@ int vmw_bo_create(struct vmw_private *vmw,
 	}
 
 	ret = vmw_bo_init(vmw, *p_bo, size,
-			  placement, interruptible, pin);
+			  domain, busy_domain,
+			  interruptible, pin);
 	if (unlikely(ret != 0))
 		goto out_error;
 
@@ -446,7 +451,8 @@ out_error:
  * @dev_priv: Pointer to the device private struct
  * @vmw_bo: Pointer to the struct vmw_bo to initialize.
  * @size: Buffer object size in bytes.
- * @placement: Initial placement.
+ * @domain: Domain to put the bo in.
+ * @busy_domain: Domain to put the bo if busy.
  * @interruptible: Whether waits should be performed interruptible.
  * @pin: If the BO should be created pinned at a fixed location.
  * Returns: Zero on success, negative error code on error.
@@ -455,7 +461,9 @@ out_error:
  */
 int vmw_bo_init(struct vmw_private *dev_priv,
 		struct vmw_bo *vmw_bo,
-		size_t size, struct ttm_placement *placement,
+		size_t size,
+		u32 domain,
+		u32 busy_domain,
 		bool interruptible, bool pin)
 {
 	struct ttm_operation_ctx ctx = {
@@ -474,8 +482,9 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	size = ALIGN(size, PAGE_SIZE);
 	drm_gem_private_object_init(vdev, &vmw_bo->base.base, size);
 
+	vmw_bo_placement_set(vmw_bo, domain, busy_domain);
 	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, ttm_bo_type_device,
-				   placement, 0, &ctx, NULL, NULL, vmw_bo_free);
+				   &vmw_bo->placement, 0, &ctx, NULL, NULL, vmw_bo_free);
 	if (unlikely(ret)) {
 		return ret;
 	}
@@ -809,4 +818,102 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 	 */
 	if (mem->mem_type != VMW_PL_MOB && bo->resource->mem_type == VMW_PL_MOB)
 		vmw_resource_unbind_list(vbo);
+}
+
+static u32
+set_placement_list(struct ttm_place *pl, u32 domain)
+{
+	u32 n = 0;
+
+	/*
+	 * The placements are ordered according to our preferences
+	 */
+	if (domain & VMW_BO_DOMAIN_MOB) {
+		pl[n].mem_type = VMW_PL_MOB;
+		pl[n].flags = 0;
+		pl[n].fpfn = 0;
+		pl[n].lpfn = 0;
+		n++;
+	}
+	if (domain & VMW_BO_DOMAIN_GMR) {
+		pl[n].mem_type = VMW_PL_GMR;
+		pl[n].flags = 0;
+		pl[n].fpfn = 0;
+		pl[n].lpfn = 0;
+		n++;
+	}
+	if (domain & VMW_BO_DOMAIN_VRAM) {
+		pl[n].mem_type = TTM_PL_VRAM;
+		pl[n].flags = 0;
+		pl[n].fpfn = 0;
+		pl[n].lpfn = 0;
+		n++;
+	}
+	WARN_ON((domain & VMW_BO_DOMAIN_WAITABLE_SYS) != 0);
+	if (domain & VMW_BO_DOMAIN_WAITABLE_SYS) {
+		pl[n].mem_type = VMW_PL_SYSTEM;
+		pl[n].flags = 0;
+		pl[n].fpfn = 0;
+		pl[n].lpfn = 0;
+		n++;
+	}
+	if (domain & VMW_BO_DOMAIN_SYS) {
+		pl[n].mem_type = TTM_PL_SYSTEM;
+		pl[n].flags = 0;
+		pl[n].fpfn = 0;
+		pl[n].lpfn = 0;
+		n++;
+	}
+
+	WARN_ON(!n);
+	if (!n) {
+		pl[n].mem_type = TTM_PL_SYSTEM;
+		pl[n].flags = 0;
+		pl[n].fpfn = 0;
+		pl[n].lpfn = 0;
+		n++;
+	}
+	return n;
+}
+
+void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain)
+{
+	struct ttm_device *bdev = bo->base.bdev;
+	struct vmw_private *vmw =
+		container_of(bdev, struct vmw_private, bdev);
+	struct ttm_placement *pl = &bo->placement;
+	bool mem_compatible = false;
+	u32 i;
+
+	pl->placement = bo->places;
+	pl->num_placement = set_placement_list(bo->places, domain);
+
+	if (drm_debug_enabled(DRM_UT_DRIVER) && bo->base.resource) {
+		for (i = 0; i < pl->num_placement; ++i) {
+			if (bo->base.resource->mem_type == TTM_PL_SYSTEM ||
+			    bo->base.resource->mem_type == pl->placement[i].mem_type)
+				mem_compatible = true;
+		}
+		if (!mem_compatible)
+			drm_warn(&vmw->drm,
+				 "%s: Incompatible transition from "
+				 "bo->base.resource->mem_type = %u to domain = %u\n",
+				 __func__, bo->base.resource->mem_type, domain);
+	}
+
+	pl->busy_placement = bo->busy_places;
+	pl->num_busy_placement = set_placement_list(bo->busy_places, busy_domain);
+}
+
+void vmw_bo_placement_set_default_accelerated(struct vmw_bo *bo)
+{
+	struct ttm_device *bdev = bo->base.bdev;
+	struct vmw_private *vmw =
+		container_of(bdev, struct vmw_private, bdev);
+	u32 domain = VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM;
+
+	if (vmw->has_mob)
+		domain = VMW_BO_DOMAIN_MOB;
+
+	vmw_bo_placement_set(bo, domain, domain);
 }

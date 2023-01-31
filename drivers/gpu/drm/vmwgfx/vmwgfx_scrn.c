@@ -445,7 +445,8 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 */
 	vmw_overlay_pause_all(dev_priv);
 	ret = vmw_bo_create(dev_priv, size,
-			    &vmw_vram_placement,
+			    VMW_BO_DOMAIN_VRAM,
+			    VMW_BO_DOMAIN_VRAM,
 			    false, true, &vps->bo);
 	vmw_overlay_resume_all(dev_priv);
 	if (ret) {
@@ -547,7 +548,6 @@ static int vmw_sou_plane_update_bo(struct vmw_private *dev_priv,
 	bo_update.base.vfb = vfb;
 	bo_update.base.out_fence = out_fence;
 	bo_update.base.mutex = NULL;
-	bo_update.base.cpu_blit = false;
 	bo_update.base.intr = true;
 
 	bo_update.base.calc_fifo_size = vmw_sou_bo_fifo_size;
@@ -708,7 +708,6 @@ static int vmw_sou_plane_update_surface(struct vmw_private *dev_priv,
 	srf_update.base.vfb = vfb;
 	srf_update.base.out_fence = out_fence;
 	srf_update.base.mutex = &dev_priv->cmdbuf_mutex;
-	srf_update.base.cpu_blit = false;
 	srf_update.base.intr = true;
 
 	srf_update.base.calc_fifo_size = vmw_sou_surface_fifo_size;
@@ -1224,7 +1223,9 @@ int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
 	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
-	ret = vmw_validation_add_bo(&val_ctx, buf, false, false);
+	vmw_bo_placement_set(buf, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(&val_ctx, buf);
 	if (ret)
 		return ret;
 
@@ -1330,7 +1331,9 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
-	ret = vmw_validation_add_bo(&val_ctx, buf, false, false);
+	vmw_bo_placement_set(buf, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(&val_ctx, buf);
 	if (ret)
 		return ret;
 

@@ -126,7 +126,6 @@ struct vmw_du_update_plane {
 	struct vmw_framebuffer *vfb;
 	struct vmw_fence_obj **out_fence;
 	struct mutex *mutex;
-	bool cpu_blit;
 	bool intr;
 };
 
@@ -564,17 +563,15 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 			       unsigned num_clips, int inc,
 			       struct vmw_fence_obj **out_fence,
 			       struct drm_crtc *crtc);
-int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
-		     struct drm_file *file_priv,
-		     struct vmw_framebuffer *vfb,
-		     struct drm_vmw_fence_rep __user *user_fence_rep,
-		     struct drm_clip_rect *clips,
-		     struct drm_vmw_rect *vclips,
-		     uint32_t num_clips,
-		     int increment,
-		     bool to_surface,
-		     bool interruptible,
-		     struct drm_crtc *crtc);
+int vmw_kms_stdu_readback(struct vmw_private *dev_priv,
+			  struct drm_file *file_priv,
+			  struct vmw_framebuffer *vfb,
+			  struct drm_vmw_fence_rep __user *user_fence_rep,
+			  struct drm_clip_rect *clips,
+			  struct drm_vmw_rect *vclips,
+			  uint32_t num_clips,
+			  int increment,
+			  struct drm_crtc *crtc);
 
 int vmw_du_helper_plane_update(struct vmw_du_update_plane *update);
 

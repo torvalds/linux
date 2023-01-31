@@ -83,7 +83,8 @@ struct vmw_res_func {
 	enum vmw_res_type res_type;
 	bool needs_backup;
 	const char *type_name;
-	struct ttm_placement *backup_placement;
+	u32 domain;
+	u32 busy_domain;
 	bool may_evict;
 	u32 prio;
 	u32 dirty_prio;

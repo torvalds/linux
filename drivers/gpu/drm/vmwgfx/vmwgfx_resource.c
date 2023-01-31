@@ -332,7 +332,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 	}
 
 	ret = vmw_bo_create(res->dev_priv, res->backup_size,
-			    res->func->backup_placement,
+			    res->func->domain, res->func->busy_domain,
 			    interruptible, false, &backup);
 	if (unlikely(ret != 0))
 		goto out_no_bo;
@@ -529,8 +529,10 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 		return 0;
 
 	backup_dirty = res->backup_dirty;
+	vmw_bo_placement_set(res->backup, res->func->domain,
+			     res->func->busy_domain);
 	ret = ttm_bo_validate(&res->backup->base,
-			      res->func->backup_placement,
+			      &res->backup->placement,
 			      &ctx);
 
 	if (unlikely(ret != 0))
@@ -968,9 +970,12 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 			if (ret)
 				goto out_no_validate;
 			if (!vbo->base.pin_count) {
+				vmw_bo_placement_set(vbo,
+						     res->func->domain,
+						     res->func->busy_domain);
 				ret = ttm_bo_validate
 					(&vbo->base,
-					 res->func->backup_placement,
+					 &vbo->placement,
 					 &ctx);
 				if (ret) {
 					ttm_bo_unreserve(&vbo->base);
