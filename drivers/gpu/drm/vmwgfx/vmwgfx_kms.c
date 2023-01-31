@@ -669,8 +669,7 @@ vmw_du_cursor_plane_cleanup_fb(struct drm_plane *plane,
 		const int ret = ttm_bo_reserve(&vps->bo->base, true, false, NULL);
 
 		if (likely(ret == 0)) {
-			if (atomic_read(&vps->bo->base_mapped_count) == 0)
-			    ttm_bo_kunmap(&vps->bo->map);
+			ttm_bo_kunmap(&vps->bo->map);
 			ttm_bo_unreserve(&vps->bo->base);
 		}
 	}
@@ -744,9 +743,6 @@ vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 
 		ret = ttm_bo_kmap(&vps->bo->base, 0, PFN_UP(size), &vps->bo->map);
 
-		if (likely(ret == 0))
-			atomic_inc(&vps->bo->base_mapped_count);
-
 		ttm_bo_unreserve(&vps->bo->base);
 
 		if (unlikely(ret != 0))
@@ -786,7 +782,6 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
 	struct vmw_plane_state *old_vps = vmw_plane_state_to_vps(old_state);
 	s32 hotspot_x, hotspot_y;
-	bool dummy;
 
 	hotspot_x = du->hotspot_x;
 	hotspot_y = du->hotspot_y;
@@ -826,11 +821,6 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 						new_state->crtc_w,
 						new_state->crtc_h,
 						hotspot_x, hotspot_y);
-	}
-
-	if (vps->bo) {
-		if (ttm_kmap_obj_virtual(&vps->bo->map, &dummy))
-			atomic_dec(&vps->bo->base_mapped_count);
 	}
 
 	du->cursor_x = new_state->crtc_x + du->set_gui_x;

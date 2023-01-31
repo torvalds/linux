@@ -44,7 +44,6 @@ struct vmw_resource;
  * struct vmw_bo - TTM buffer object with vmwgfx additions
  * @base: The TTM buffer object
  * @res_tree: RB tree of resources using this buffer object as a backing MOB
- * @base_mapped_count: ttm BO mapping count; used by KMS atomic helpers.
  * @cpu_writers: Number of synccpu write grabs. Protected by reservation when
  * increased. May be decreased without reservation.
  * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
@@ -55,8 +54,6 @@ struct vmw_resource;
 struct vmw_bo {
 	struct ttm_buffer_object base;
 	struct rb_root res_tree;
-	/* For KMS atomic helpers: ttm bo mapping count */
-	atomic_t base_mapped_count;
 
 	atomic_t cpu_writers;
 	/* Not ref-counted.  Protected by binding_mutex */
