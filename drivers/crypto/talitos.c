@@ -1560,7 +1560,7 @@ static void skcipher_done(struct device *dev,
 
 	kfree(edesc);
 
-	areq->base.complete(&areq->base, err);
+	skcipher_request_complete(areq, err);
 }
 
 static int common_nonsnoop(struct talitos_edesc *edesc,
@@ -1759,7 +1759,7 @@ static void ahash_done(struct device *dev,
 
 	kfree(edesc);
 
-	areq->base.complete(&areq->base, err);
+	ahash_request_complete(areq, err);
 }
 
 /*
