@@ -6,6 +6,36 @@
 #include "ice.h"
 
 /**
+ * ice_set_rx_bufs_act - propagate Rx buffer action to frags
+ * @xdp: XDP buffer representing frame (linear and frags part)
+ * @rx_ring: Rx ring struct
+ * act: action to store onto Rx buffers related to XDP buffer parts
+ *
+ * Set action that should be taken before putting Rx buffer from first frag
+ * to one before last. Last one is handled by caller of this function as it
+ * is the EOP frag that is currently being processed. This function is
+ * supposed to be called only when XDP buffer contains frags.
+ */
+static inline void
+ice_set_rx_bufs_act(struct xdp_buff *xdp, const struct ice_rx_ring *rx_ring,
+		    const unsigned int act)
+{
+	const struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	u32 first = rx_ring->first_desc;
+	u32 nr_frags = sinfo->nr_frags;
+	u32 cnt = rx_ring->count;
+	struct ice_rx_buf *buf;
+
+	for (int i = 0; i < nr_frags; i++) {
+		buf = &rx_ring->rx_buf[first];
+		buf->act = act;
+
+		if (++first == cnt)
+			first = 0;
+	}
+}
+
+/**
  * ice_test_staterr - tests bits in Rx descriptor status and error fields
  * @status_err_n: Rx descriptor status_error0 or status_error1 bits
  * @stat_err_bits: value to mask
