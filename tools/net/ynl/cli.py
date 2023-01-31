@@ -32,10 +32,11 @@ def main():
     if args.sleep:
         time.sleep(args.sleep)
 
-    if args.do or args.dump:
-        method = getattr(ynl, args.do if args.do else args.dump)
-
-        reply = method(attrs, dump=bool(args.dump))
+    if args.do:
+        reply = ynl.do(args.do, attrs)
+        pprint.PrettyPrinter().pprint(reply)
+    if args.dump:
+        reply = ynl.dump(args.dump, attrs)
         pprint.PrettyPrinter().pprint(reply)
 
     if args.ntf:

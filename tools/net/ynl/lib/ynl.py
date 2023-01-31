@@ -520,3 +520,9 @@ class YnlFamily(SpecFamily):
         if not dump and len(rsp) == 1:
             return rsp[0]
         return rsp
+
+    def do(self, method, vals):
+        return self._op(method, vals)
+
+    def dump(self, method, vals):
+        return self._op(method, vals, dump=True)
