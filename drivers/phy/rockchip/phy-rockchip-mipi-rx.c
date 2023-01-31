@@ -925,7 +925,7 @@ static int mipidphy_s_power(struct v4l2_subdev *sd, int on)
 		return pm_runtime_put(priv->dev);
 }
 
-static int mipidphy_runtime_suspend(struct device *dev)
+static int __maybe_unused mipidphy_runtime_suspend(struct device *dev)
 {
 	struct media_entity *me = dev_get_drvdata(dev);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
@@ -940,7 +940,7 @@ static int mipidphy_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int mipidphy_runtime_resume(struct device *dev)
+static int __maybe_unused mipidphy_runtime_resume(struct device *dev)
 {
 	struct media_entity *me = dev_get_drvdata(dev);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
