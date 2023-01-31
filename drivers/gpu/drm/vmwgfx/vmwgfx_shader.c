@@ -893,7 +893,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 		return -EINVAL;
 
 	ret = vmw_bo_create(dev_priv, size, &vmw_sys_placement,
-			    true, true, vmw_bo_bo_free, &buf);
+			    true, true, &buf);
 	if (unlikely(ret != 0))
 		goto out;
 

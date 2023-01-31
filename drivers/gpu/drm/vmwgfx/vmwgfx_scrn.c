@@ -445,7 +445,7 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	vmw_overlay_pause_all(dev_priv);
 	ret = vmw_bo_create(dev_priv, size,
 			    &vmw_vram_placement,
-			    false, true, &vmw_bo_bo_free, &vps->bo);
+			    false, true, &vps->bo);
 	vmw_overlay_resume_all(dev_priv);
 	if (ret) {
 		vps->bo = NULL; /* vmw_bo_init frees on error */

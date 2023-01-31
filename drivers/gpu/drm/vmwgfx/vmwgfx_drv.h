@@ -893,7 +893,6 @@ extern int vmw_bo_unpin(struct vmw_private *vmw_priv,
 extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
 extern void vmw_bo_pin_reserved(struct vmw_buffer_object *bo, bool pin);
-extern void vmw_bo_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_bo_create_kernel(struct vmw_private *dev_priv,
 				unsigned long size,
 				struct ttm_placement *placement,
@@ -901,13 +900,11 @@ extern int vmw_bo_create_kernel(struct vmw_private *dev_priv,
 extern int vmw_bo_create(struct vmw_private *dev_priv,
 			 size_t size, struct ttm_placement *placement,
 			 bool interruptible, bool pin,
-			 void (*bo_free)(struct ttm_buffer_object *bo),
 			 struct vmw_buffer_object **p_bo);
 extern int vmw_bo_init(struct vmw_private *dev_priv,
 		       struct vmw_buffer_object *vmw_bo,
 		       size_t size, struct ttm_placement *placement,
-		       bool interruptible, bool pin,
-		       void (*bo_free)(struct ttm_buffer_object *bo));
+		       bool interruptible, bool pin);
 extern int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 extern int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
@@ -982,7 +979,6 @@ extern int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 					     struct vmw_buffer_object **p_vbo);
 extern int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *filp);
-extern void vmw_gem_destroy(struct ttm_buffer_object *bo);
 extern void vmw_debugfs_gem_init(struct vmw_private *vdev);
 
 /**

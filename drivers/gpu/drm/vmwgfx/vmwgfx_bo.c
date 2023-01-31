@@ -47,6 +47,22 @@ vmw_buffer_object(struct ttm_buffer_object *bo)
 }
 
 /**
+ * vmw_bo_bo_free - vmw buffer object destructor
+ *
+ * @bo: Pointer to the embedded struct ttm_buffer_object
+ */
+static void vmw_bo_bo_free(struct ttm_buffer_object *bo)
+{
+	struct vmw_buffer_object *vmw_bo = vmw_buffer_object(bo);
+
+	WARN_ON(vmw_bo->dirty);
+	WARN_ON(!RB_EMPTY_ROOT(&vmw_bo->res_tree));
+	vmw_bo_unmap(vmw_bo);
+	drm_gem_object_release(&bo->base);
+	kfree(vmw_bo);
+}
+
+/**
  * bo_is_vmw - check if the buffer object is a &vmw_buffer_object
  * @bo: ttm buffer object to be checked
  *
@@ -58,8 +74,7 @@ vmw_buffer_object(struct ttm_buffer_object *bo)
  */
 static bool bo_is_vmw(struct ttm_buffer_object *bo)
 {
-	return bo->destroy == &vmw_bo_bo_free ||
-	       bo->destroy == &vmw_gem_destroy;
+	return bo->destroy == &vmw_bo_bo_free;
 }
 
 /**
@@ -361,23 +376,6 @@ void vmw_bo_unmap(struct vmw_buffer_object *vbo)
 	ttm_bo_kunmap(&vbo->map);
 }
 
-
-/**
- * vmw_bo_bo_free - vmw buffer object destructor
- *
- * @bo: Pointer to the embedded struct ttm_buffer_object
- */
-void vmw_bo_bo_free(struct ttm_buffer_object *bo)
-{
-	struct vmw_buffer_object *vmw_bo = vmw_buffer_object(bo);
-
-	WARN_ON(vmw_bo->dirty);
-	WARN_ON(!RB_EMPTY_ROOT(&vmw_bo->res_tree));
-	vmw_bo_unmap(vmw_bo);
-	drm_gem_object_release(&bo->base);
-	kfree(vmw_bo);
-}
-
 /* default destructor */
 static void vmw_bo_default_destroy(struct ttm_buffer_object *bo)
 {
@@ -434,12 +432,9 @@ error_free:
 int vmw_bo_create(struct vmw_private *vmw,
 		  size_t size, struct ttm_placement *placement,
 		  bool interruptible, bool pin,
-		  void (*bo_free)(struct ttm_buffer_object *bo),
 		  struct vmw_buffer_object **p_bo)
 {
 	int ret;
-
-	BUG_ON(!bo_free);
 
 	*p_bo = kmalloc(sizeof(**p_bo), GFP_KERNEL);
 	if (unlikely(!*p_bo)) {
@@ -448,8 +443,7 @@ int vmw_bo_create(struct vmw_private *vmw,
 	}
 
 	ret = vmw_bo_init(vmw, *p_bo, size,
-			  placement, interruptible, pin,
-			  bo_free);
+			  placement, interruptible, pin);
 	if (unlikely(ret != 0))
 		goto out_error;
 
@@ -469,7 +463,6 @@ out_error:
  * @placement: Initial placement.
  * @interruptible: Whether waits should be performed interruptible.
  * @pin: If the BO should be created pinned at a fixed location.
- * @bo_free: The buffer object destructor.
  * Returns: Zero on success, negative error code on error.
  *
  * Note that on error, the code will free the buffer object.
@@ -477,8 +470,7 @@ out_error:
 int vmw_bo_init(struct vmw_private *dev_priv,
 		struct vmw_buffer_object *vmw_bo,
 		size_t size, struct ttm_placement *placement,
-		bool interruptible, bool pin,
-		void (*bo_free)(struct ttm_buffer_object *bo))
+		bool interruptible, bool pin)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = interruptible,
@@ -488,7 +480,6 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	struct drm_device *vdev = &dev_priv->drm;
 	int ret;
 
-	WARN_ON_ONCE(!bo_free);
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
 	vmw_bo->base.priority = 3;
@@ -498,7 +489,7 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	drm_gem_private_object_init(vdev, &vmw_bo->base.base, size);
 
 	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, ttm_bo_type_device,
-				   placement, 0, &ctx, NULL, NULL, bo_free);
+				   placement, 0, &ctx, NULL, NULL, vmw_bo_bo_free);
 	if (unlikely(ret)) {
 		return ret;
 	}

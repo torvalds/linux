@@ -125,22 +125,6 @@ static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.vm_ops = &vmw_vm_ops,
 };
 
-/**
- * vmw_gem_destroy - vmw buffer object destructor
- *
- * @bo: Pointer to the embedded struct ttm_buffer_object
- */
-void vmw_gem_destroy(struct ttm_buffer_object *bo)
-{
-	struct vmw_buffer_object *vbo = vmw_buffer_object(bo);
-
-	WARN_ON(vbo->dirty);
-	WARN_ON(!RB_EMPTY_ROOT(&vbo->res_tree));
-	vmw_bo_unmap(vbo);
-	drm_gem_object_release(&vbo->base.base);
-	kfree(vbo);
-}
-
 int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct drm_file *filp,
 				      uint32_t size,
@@ -153,7 +137,7 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 			    (dev_priv->has_mob) ?
 				    &vmw_sys_placement :
 				    &vmw_vram_sys_placement,
-			    true, false, &vmw_gem_destroy, p_vbo);
+			    true, false, p_vbo);
 
 	(*p_vbo)->base.base.funcs = &vmw_gem_object_funcs;
 	if (ret != 0)

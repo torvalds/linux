@@ -397,8 +397,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	 * user of the bo currently.
 	 */
 	ret = vmw_bo_create(dev_priv, PAGE_SIZE,
-			    &vmw_sys_placement, false, true,
-			    &vmw_bo_bo_free, &vbo);
+			    &vmw_sys_placement, false, true, &vbo);
 	if (unlikely(ret != 0))
 		return ret;
 
