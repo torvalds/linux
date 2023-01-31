@@ -762,7 +762,6 @@ struct intel_svm_dev {
 	struct device *dev;
 	struct intel_iommu *iommu;
 	struct iommu_sva sva;
-	int users;
 	u16 did;
 	u16 sid, qdep;
 };
