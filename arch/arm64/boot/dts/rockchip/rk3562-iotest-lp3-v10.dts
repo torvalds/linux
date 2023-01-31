@@ -41,6 +41,22 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&dc_12v>;
 	};
+
+	dsm_sound: dsm-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,dsm-sound";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&dsm>;
+		};
+	};
 };
 
 #include "rk3562-rk809.dtsi"

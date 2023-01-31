@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+ #include "rk3562-iotest-lp3-v10.dts"
+
+&dsm {
+	status = "okay";
+};
+
+&dsm_sound {
+	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
+};
+
+&sdmmc0 {
+	status = "disabled";
+};

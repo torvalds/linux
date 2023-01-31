@@ -85,6 +85,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-pdm-mic-array.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-sii9022-bt1120-to-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-iotest-lp3-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-iotest-lp3-v10-dsm.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-rk817-tablet-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-test1-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-test2-ddr4-v10.dtb
