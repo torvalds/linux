@@ -562,6 +562,7 @@ static void uac_cs_attr_sample_rate(struct usb_ep *ep, struct usb_request *req)
 	struct usb_composite_dev *cdev = fn->config->cdev;
 	struct g_audio *agdev = func_to_g_audio(fn);
 	struct f_uac1 *uac1 = func_to_uac1(fn);
+	struct f_uac1_opts *opts = g_audio_to_uac1_opts(agdev);
 	u8 *buf = (u8 *)req->buf;
 	u32 val = 0;
 
@@ -571,10 +572,10 @@ static void uac_cs_attr_sample_rate(struct usb_ep *ep, struct usb_request *req)
 	}
 
 	val = buf[0] | (buf[1] << 8) | (buf[2] << 16);
-	if (uac1->ctl_id == (USB_DIR_IN | 2)) {
+	if (EPIN_EN(opts) && uac1->ctl_id == agdev->in_ep->address) {
 		uac1->p_srate = val;
 		u_audio_set_playback_srate(agdev, uac1->p_srate);
-	} else if (uac1->ctl_id == (USB_DIR_OUT | 1)) {
+	} else if (EPOUT_EN(opts) && uac1->ctl_id == agdev->out_ep->address) {
 		uac1->c_srate = val;
 		u_audio_set_capture_srate(agdev, uac1->c_srate);
 	}
@@ -1030,6 +1031,8 @@ static int audio_get_endpoint_req(struct usb_function *f,
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request *req = f->config->cdev->req;
 	struct f_uac1 *uac1 = func_to_uac1(f);
+	struct g_audio *agdev = func_to_g_audio(f);
+	struct f_uac1_opts *opts = g_audio_to_uac1_opts(agdev);
 	u8 *buf = (u8 *)req->buf;
 	int value = -EOPNOTSUPP;
 	u8 ep = le16_to_cpu(ctrl->wIndex);
@@ -1044,9 +1047,9 @@ static int audio_get_endpoint_req(struct usb_function *f,
 	switch (ctrl->bRequest) {
 	case UAC_GET_CUR: {
 		if (cs == UAC_EP_CS_ATTR_SAMPLE_RATE) {
-			if (ep == (USB_DIR_IN | 2))
+			if (EPIN_EN(opts) && ep == agdev->in_ep->address)
 				val = uac1->p_srate;
-			else if (ep == (USB_DIR_OUT | 1))
+			else if (EPOUT_EN(opts) && ep == agdev->out_ep->address)
 				val = uac1->c_srate;
 			buf[2] = (val >> 16) & 0xff;
 			buf[1] = (val >> 8) & 0xff;
