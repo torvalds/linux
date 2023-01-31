@@ -803,117 +803,6 @@ static int cx18_g_enc_index(struct file *file, void *fh,
 	return 0;
 }
 
-static struct videobuf_queue *cx18_vb_queue(struct cx18_open_id *id)
-{
-	struct videobuf_queue *q = NULL;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	switch (s->vb_type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		q = &s->vbuf_q;
-		break;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		break;
-	default:
-		break;
-	}
-	return q;
-}
-
-static int cx18_streamon(struct file *file, void *priv,
-	enum v4l2_buf_type type)
-{
-	struct cx18_open_id *id = file->private_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	/* Start the hardware only if we're the video device */
-	if ((s->vb_type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-		(s->vb_type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
-
-	if (id->type != CX18_ENC_STREAM_TYPE_YUV)
-		return -EINVAL;
-
-	/* Establish a buffer timeout */
-	mod_timer(&s->vb_timeout, msecs_to_jiffies(2000) + jiffies);
-
-	return videobuf_streamon(cx18_vb_queue(id));
-}
-
-static int cx18_streamoff(struct file *file, void *priv,
-	enum v4l2_buf_type type)
-{
-	struct cx18_open_id *id = file->private_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	/* Start the hardware only if we're the video device */
-	if ((s->vb_type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-		(s->vb_type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
-
-	if (id->type != CX18_ENC_STREAM_TYPE_YUV)
-		return -EINVAL;
-
-	return videobuf_streamoff(cx18_vb_queue(id));
-}
-
-static int cx18_reqbufs(struct file *file, void *priv,
-	struct v4l2_requestbuffers *rb)
-{
-	struct cx18_open_id *id = file->private_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	if ((s->vb_type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-		(s->vb_type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
-
-	return videobuf_reqbufs(cx18_vb_queue(id), rb);
-}
-
-static int cx18_querybuf(struct file *file, void *priv,
-	struct v4l2_buffer *b)
-{
-	struct cx18_open_id *id = file->private_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	if ((s->vb_type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-		(s->vb_type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
-
-	return videobuf_querybuf(cx18_vb_queue(id), b);
-}
-
-static int cx18_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct cx18_open_id *id = file->private_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	if ((s->vb_type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-		(s->vb_type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
-
-	return videobuf_qbuf(cx18_vb_queue(id), b);
-}
-
-static int cx18_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct cx18_open_id *id = file->private_data;
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-
-	if ((s->vb_type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-		(s->vb_type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
-
-	return videobuf_dqbuf(cx18_vb_queue(id), b, file->f_flags & O_NONBLOCK);
-}
-
 static int cx18_encoder_cmd(struct file *file, void *fh,
 				struct v4l2_encoder_cmd *enc)
 {
@@ -930,7 +819,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 	case V4L2_ENC_CMD_STOP:
 		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
 		enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
-		cx18_stop_capture(id,
+		cx18_stop_capture(&cx->streams[id->type],
 				  enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
 		break;
 
@@ -1106,12 +995,15 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_s_register              = cx18_s_register,
 #endif
 	.vidioc_default                 = cx18_default,
-	.vidioc_streamon                = cx18_streamon,
-	.vidioc_streamoff               = cx18_streamoff,
-	.vidioc_reqbufs                 = cx18_reqbufs,
-	.vidioc_querybuf                = cx18_querybuf,
-	.vidioc_qbuf                    = cx18_qbuf,
-	.vidioc_dqbuf                   = cx18_dqbuf,
+
+	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
+	.vidioc_querybuf		= vb2_ioctl_querybuf,
+	.vidioc_qbuf			= vb2_ioctl_qbuf,
+	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
+	.vidioc_streamon		= vb2_ioctl_streamon,
+	.vidioc_streamoff		= vb2_ioctl_streamoff,
+	.vidioc_prepare_buf		= vb2_ioctl_prepare_buf,
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
