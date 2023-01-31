@@ -2977,6 +2977,52 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
 	return 0;
 }
 
+int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
+{
+#define NIC_CAP	3
+#define UNI_EVENT_CHIP_CONFIG_EFUSE_VERSION	0x21
+	struct {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
+	} __packed req = {
+		.tag = cpu_to_le16(NIC_CAP),
+		.len = cpu_to_le16(sizeof(req) - 4),
+	};
+	struct sk_buff *skb;
+	u8 *buf;
+	int ret;
+
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
+					MCU_WM_UNI_CMD_QUERY(CHIP_CONFIG), &req,
+					sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	/* fixed field */
+	skb_pull(skb, 4);
+
+	buf = skb->data;
+	while (buf - skb->data < skb->len) {
+		struct tlv *tlv = (struct tlv *)buf;
+
+		switch (le16_to_cpu(tlv->tag)) {
+		case UNI_EVENT_CHIP_CONFIG_EFUSE_VERSION:
+			*cap = le32_to_cpu(*(__le32 *)(buf + sizeof(*tlv)));
+			break;
+		default:
+			break;
+		};
+
+		buf += le16_to_cpu(tlv->len);
+	}
+
+	dev_kfree_skb(skb);
+
+	return 0;
+}
+
 int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
 {
 	struct {
