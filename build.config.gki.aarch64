@@ -32,6 +32,7 @@ android/abi_gki_aarch64_vivo
 android/abi_gki_aarch64_xiaomi
 android/abi_gki_aarch64_asus
 android/abi_gki_aarch64_transsion
+android/abi_gki_aarch64_tuxera
 "
 
 FILES="${FILES}
