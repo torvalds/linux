@@ -514,7 +514,7 @@ void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action)
 {
 	/* see snd_soc_dai_stream_active() */
-	dai->stream_active[stream]	+= action;
+	dai->stream[stream].active	+= action;
 
 	/* see snd_soc_component_active() */
 	dai->component->active		+= action;
@@ -527,7 +527,7 @@ int snd_soc_dai_active(struct snd_soc_dai *dai)
 
 	active = 0;
 	for_each_pcm_streams(stream)
-		active += dai->stream_active[stream];
+		active += dai->stream[stream].active;
 
 	return active;
 }
