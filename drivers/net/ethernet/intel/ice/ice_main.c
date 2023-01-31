@@ -2570,8 +2570,6 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 		xdp_ring->netdev = NULL;
 		xdp_ring->dev = dev;
 		xdp_ring->count = vsi->num_tx_desc;
-		xdp_ring->next_dd = ICE_RING_QUARTER(xdp_ring) - 1;
-		xdp_ring->next_rs = ICE_RING_QUARTER(xdp_ring) - 1;
 		WRITE_ONCE(vsi->xdp_rings[i], xdp_ring);
 		if (ice_setup_tx_ring(xdp_ring))
 			goto free_xdp_rings;

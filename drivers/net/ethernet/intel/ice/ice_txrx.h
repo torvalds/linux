@@ -343,8 +343,6 @@ struct ice_tx_ring {
 	struct xsk_buff_pool *xsk_pool;
 	u16 next_to_use;
 	u16 next_to_clean;
-	u16 next_rs;
-	u16 next_dd;
 	u16 q_handle;			/* Queue handle per TC */
 	u16 reg_idx;			/* HW register index of the ring */
 	u16 count;			/* Number of descriptors */
