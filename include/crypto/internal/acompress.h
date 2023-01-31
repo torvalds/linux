@@ -28,7 +28,7 @@ static inline void *acomp_tfm_ctx(struct crypto_acomp *tfm)
 static inline void acomp_request_complete(struct acomp_req *req,
 					  int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline const char *acomp_alg_name(struct crypto_acomp *tfm)
