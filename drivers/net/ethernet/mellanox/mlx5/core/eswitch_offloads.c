@@ -2827,9 +2827,6 @@ bool mlx5_esw_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 	      MLX5_FDB_TO_VPORT_REG_C_0))
 		return false;
 
-	if (!MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source))
-		return false;
-
 	return true;
 }
 
