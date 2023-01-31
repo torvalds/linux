@@ -33,7 +33,7 @@ struct nfp_dcb {
 int nfp_nic_dcb_init(struct nfp_net *nn);
 void nfp_nic_dcb_clean(struct nfp_net *nn);
 #else
-static inline int nfp_nic_dcb_init(struct nfp_net *nn) {return 0; }
+static inline int nfp_nic_dcb_init(struct nfp_net *nn) { return 0; }
 static inline void nfp_nic_dcb_clean(struct nfp_net *nn) {}
 #endif
 

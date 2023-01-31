@@ -32,9 +32,12 @@ static void nfp_nic_sriov_disable(struct nfp_app *app)
 
 static int nfp_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn)
 {
-	nfp_nic_dcb_init(nn);
+	return nfp_nic_dcb_init(nn);
+}
 
-	return 0;
+static void nfp_nic_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
+{
+	nfp_nic_dcb_clean(nn);
 }
 
 static int nfp_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
@@ -72,4 +75,5 @@ const struct nfp_app_type app_nic = {
 	.sriov_disable	= nfp_nic_sriov_disable,
 
 	.vnic_init      = nfp_nic_vnic_init,
+	.vnic_clean     = nfp_nic_vnic_clean,
 };
