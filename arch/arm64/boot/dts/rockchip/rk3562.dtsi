@@ -1958,15 +1958,14 @@
 		status = "disabled";
 	};
 
-	acdcdig_dsm: codec-digital@ff850000 {
-		compatible = "rockchip,rk3562-codec-digital", "rockchip,codec-digital-v1";
+	dsm: dsm@ff850000 {
+		compatible = "rockchip,rk3562-dsm";
 		reg = <0x0 0xff850000 0x0 0x1000>;
 		clocks = <&cru CLK_DSM>, <&cru HCLK_DSM>;
 		clock-names = "dac", "pclk";
 		resets = <&cru SRST_DSM>;
 		reset-names = "reset" ;
-		rockchip,grf = <&sys_grf>;
-		rockchip,pwm-output-mode;
+		rockchip,grf = <&peri_grf>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dsm_pins>;
 		#sound-dai-cells = <0>;
