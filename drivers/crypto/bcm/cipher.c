@@ -1614,7 +1614,7 @@ static void finish_req(struct iproc_reqctx_s *rctx, int err)
 	spu_chunk_cleanup(rctx);
 
 	if (areq)
-		areq->complete(areq, err);
+		crypto_request_complete(areq, err);
 }
 
 /**
