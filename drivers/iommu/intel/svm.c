@@ -298,9 +298,8 @@ out:
 	return 0;
 }
 
-static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
-					   struct device *dev,
-					   struct mm_struct *mm)
+static int intel_svm_bind_mm(struct intel_iommu *iommu, struct device *dev,
+			     struct mm_struct *mm)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_svm_dev *sdev;
@@ -312,7 +311,7 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 	if (!svm) {
 		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
 		if (!svm)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
 		svm->pasid = mm->pasid;
 		svm->mm = mm;
@@ -322,14 +321,14 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 		ret = mmu_notifier_register(&svm->notifier, mm);
 		if (ret) {
 			kfree(svm);
-			return ERR_PTR(ret);
+			return ret;
 		}
 
 		ret = pasid_private_add(svm->pasid, svm);
 		if (ret) {
 			mmu_notifier_unregister(&svm->notifier, mm);
 			kfree(svm);
-			return ERR_PTR(ret);
+			return ret;
 		}
 	}
 
@@ -343,7 +342,6 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 	sdev->iommu = iommu;
 	sdev->did = FLPT_DEFAULT_DID;
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
-	sdev->sva.dev = dev;
 	init_rcu_head(&sdev->rcu);
 	if (info->ats_enabled) {
 		sdev->qdep = info->ats_qdep;
@@ -360,7 +358,7 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 
 	list_add_rcu(&sdev->list, &svm->devs);
 
-	return &sdev->sva;
+	return 0;
 
 free_sdev:
 	kfree(sdev);
@@ -371,7 +369,7 @@ free_svm:
 		kfree(svm);
 	}
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /* Caller must hold pasid_mutex */
@@ -843,13 +841,10 @@ static int intel_svm_set_dev_pasid(struct iommu_domain *domain,
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
 	struct mm_struct *mm = domain->mm;
-	struct iommu_sva *sva;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&pasid_mutex);
-	sva = intel_svm_bind_mm(iommu, dev, mm);
-	if (IS_ERR(sva))
-		ret = PTR_ERR(sva);
+	ret = intel_svm_bind_mm(iommu, dev, mm);
 	mutex_unlock(&pasid_mutex);
 
 	return ret;
