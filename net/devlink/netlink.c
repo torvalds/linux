@@ -177,7 +177,7 @@ static void devlink_nl_post_doit(const struct genl_split_ops *ops,
 	devlink_put(devlink);
 }
 
-static const struct devlink_gen_cmd *devl_gen_cmds[] = {
+static const struct devlink_cmd *devl_gen_cmds[] = {
 	[DEVLINK_CMD_GET]		= &devl_gen_inst,
 	[DEVLINK_CMD_PORT_GET]		= &devl_gen_port,
 	[DEVLINK_CMD_SB_GET]		= &devl_gen_sb,
@@ -201,7 +201,7 @@ int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
-	const struct devlink_gen_cmd *cmd;
+	const struct devlink_cmd *cmd;
 	struct devlink *devlink;
 	int err = 0;
 
