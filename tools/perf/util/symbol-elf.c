@@ -324,6 +324,8 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 }
 
 struct rel_info {
+	u32		nr_entries;
+	u32		*sorted;
 	bool		is_rela;
 	Elf_Data	*reldata;
 	GElf_Rela	rela;
@@ -332,12 +334,56 @@ struct rel_info {
 
 static u32 get_rel_symidx(struct rel_info *ri, u32 idx)
 {
+	idx = ri->sorted ? ri->sorted[idx] : idx;
 	if (ri->is_rela) {
 		gelf_getrela(ri->reldata, idx, &ri->rela);
 		return GELF_R_SYM(ri->rela.r_info);
 	}
 	gelf_getrel(ri->reldata, idx, &ri->rel);
 	return GELF_R_SYM(ri->rel.r_info);
+}
+
+static u64 get_rel_offset(struct rel_info *ri, u32 x)
+{
+	if (ri->is_rela) {
+		GElf_Rela rela;
+
+		gelf_getrela(ri->reldata, x, &rela);
+		return rela.r_offset;
+	} else {
+		GElf_Rel rel;
+
+		gelf_getrel(ri->reldata, x, &rel);
+		return rel.r_offset;
+	}
+}
+
+static int rel_cmp(const void *a, const void *b, void *r)
+{
+	struct rel_info *ri = r;
+	u64 a_offset = get_rel_offset(ri, *(const u32 *)a);
+	u64 b_offset = get_rel_offset(ri, *(const u32 *)b);
+
+	return a_offset < b_offset ? -1 : (a_offset > b_offset ? 1 : 0);
+}
+
+static int sort_rel(struct rel_info *ri)
+{
+	size_t sz = sizeof(ri->sorted[0]);
+	u32 i;
+
+	ri->sorted = calloc(ri->nr_entries, sz);
+	if (!ri->sorted)
+		return -1;
+	for (i = 0; i < ri->nr_entries; i++)
+		ri->sorted[i] = i;
+	qsort_r(ri->sorted, ri->nr_entries, sz, rel_cmp, ri);
+	return 0;
+}
+
+static void exit_rel(struct rel_info *ri)
+{
+	free(ri->sorted);
 }
 
 static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
@@ -393,7 +439,7 @@ static bool machine_is_x86(GElf_Half e_machine)
  */
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 {
-	uint32_t nr_rel_entries, idx;
+	uint32_t idx;
 	GElf_Sym sym;
 	u64 plt_offset, plt_header_size, plt_entry_size;
 	GElf_Shdr shdr_plt, plt_sec_shdr;
@@ -491,11 +537,18 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	if (symstrs->d_size == 0)
 		goto out_elf_end;
 
-	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
+	ri.nr_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 
 	ri.is_rela = shdr_rel_plt.sh_type == SHT_RELA;
 
-	for (idx = 0; idx < nr_rel_entries; idx++) {
+	/*
+	 * x86 doesn't insert IFUNC relocations in .plt order, so sort to get
+	 * back in order.
+	 */
+	if (machine_is_x86(ehdr.e_machine) && sort_rel(&ri))
+		goto out_elf_end;
+
+	for (idx = 0; idx < ri.nr_entries; idx++) {
 		const char *elf_name = NULL;
 		char *demangled = NULL;
 
@@ -523,6 +576,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 
 	err = 0;
 out_elf_end:
+	exit_rel(&ri);
 	if (err == 0)
 		return nr;
 	pr_debug("%s: problems reading %s PLT info.\n",
