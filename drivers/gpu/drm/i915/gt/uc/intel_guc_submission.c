@@ -4660,9 +4660,10 @@ static void guc_handle_context_reset(struct intel_guc *guc,
 {
 	trace_intel_context_reset(ce);
 
-	drm_dbg(&guc_to_gt(guc)->i915->drm, "Got GuC reset of 0x%04X, exiting = %d, banned = %d\n",
-		ce->guc_id.id, test_bit(CONTEXT_EXITING, &ce->flags),
-		test_bit(CONTEXT_BANNED, &ce->flags));
+	guc_dbg(guc, "Got context reset notification: 0x%04X on %s, exiting = %s, banned = %s\n",
+		ce->guc_id.id, ce->engine->name,
+		str_yes_no(intel_context_is_exiting(ce)),
+		str_yes_no(intel_context_is_banned(ce)));
 
 	if (likely(intel_context_is_schedulable(ce))) {
 		capture_error_state(guc, ce);
