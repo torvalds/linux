@@ -27,3 +27,11 @@ Description:	Read-only.  Attribute group to describe the magic bits
 		    filter_pasid	= "config2:0-21"  - PASID filter
 		    filter_ats		= "config2:24-28" - Address Type filter
 		    filter_page_table	= "config2:32-36" - Page Table Level filter
+
+What:		/sys/bus/event_source/devices/dmar*/cpumask
+Date:		Jan 2023
+KernelVersion:	6.3
+Contact:	Kan Liang <kan.liang@linux.intel.com>
+Description:	Read-only. This file always returns the CPU to which the
+		IOMMU pmu is bound for access to all IOMMU pmu performance
+		monitoring events.
