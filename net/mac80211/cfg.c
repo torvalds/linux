@@ -1220,7 +1220,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct beacon_data *old;
 	struct ieee80211_sub_if_data *vlan;
-	u32 changed = BSS_CHANGED_BEACON_INT |
+	u64 changed = BSS_CHANGED_BEACON_INT |
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
 		      BSS_CHANGED_P2P_PS |
@@ -1294,6 +1294,11 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		link_conf->he_full_ul_mumimo =
 			params->he_cap->phy_cap_info[2] &
 				IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
+	}
+
+	if (params->eht_cap) {
+		link_conf->eht_puncturing = params->punct_bitmap;
+		changed |= BSS_CHANGED_EHT_PUNCTURING;
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP &&
@@ -3546,6 +3551,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	lockdep_assert_held(&local->mtx);
 	lockdep_assert_held(&local->chanctx_mtx);
 
+	if (sdata->vif.bss_conf.eht_puncturing != sdata->vif.bss_conf.csa_punct_bitmap) {
+		sdata->vif.bss_conf.eht_puncturing =
+					sdata->vif.bss_conf.csa_punct_bitmap;
+		changed |= BSS_CHANGED_EHT_PUNCTURING;
+	}
+
 	/*
 	 * using reservation isn't immediate as it may be deferred until later
 	 * with multi-vif. once reservation is complete it will re-schedule the
@@ -3588,7 +3599,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 		return err;
 
 	cfg80211_ch_switch_notify(sdata->dev, &sdata->deflink.csa_chandef, 0,
-				  0);
+				  sdata->vif.bss_conf.eht_puncturing);
 
 	return 0;
 }
@@ -3850,9 +3861,13 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
+	if (params->punct_bitmap && !sdata->vif.bss_conf.eht_support)
+		goto out;
+
 	sdata->deflink.csa_chandef = params->chandef;
 	sdata->deflink.csa_block_tx = params->block_tx;
 	sdata->vif.bss_conf.csa_active = true;
+	sdata->vif.bss_conf.csa_punct_bitmap = params->punct_bitmap;
 
 	if (sdata->deflink.csa_block_tx)
 		ieee80211_stop_vif_queues(local, sdata,
@@ -3860,7 +3875,8 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	cfg80211_ch_switch_started_notify(sdata->dev,
 					  &sdata->deflink.csa_chandef, 0,
-					  params->count, params->block_tx, 0);
+					  params->count, params->block_tx,
+					  sdata->vif.bss_conf.csa_punct_bitmap);
 
 	if (changed) {
 		ieee80211_link_info_change_notify(sdata, &sdata->deflink,

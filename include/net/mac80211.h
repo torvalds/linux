@@ -645,6 +645,7 @@ struct ieee80211_fils_discovery {
  * @csa_active: marks whether a channel switch is going on. Internally it is
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
+ * @csa_punct_bitmap: new puncturing bitmap for channel switch
  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @chanctx_conf: The channel context this interface is assigned to, or %NULL
  *	when it is not assigned. This pointer is RCU-protected due to the TX
@@ -741,6 +742,8 @@ struct ieee80211_bss_conf {
 	u16 eht_puncturing;
 
 	bool csa_active;
+	u16 csa_punct_bitmap;
+
 	bool mu_mimo_owner;
 	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
 
