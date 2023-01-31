@@ -35,3 +35,28 @@ def gen_config_without_source_lines(build_config, target):
 
 def get_out_dir(msm_target, variant):
     return "out/msm-kernel-{}-{}".format(msm_target.replace("-", "_"), variant.replace("-", "_"))
+
+def define_signing_keys():
+    native.genrule(
+        name = "signing_key",
+        srcs = ["//msm-kernel:certs/qcom_x509.genkey"],
+        outs = ["signing_cert.pem", "signing_key.pem"],
+        tools = ["//prebuilts/build-tools:linux-x86/bin/openssl"],
+        cmd_bash = """
+          $(location //prebuilts/build-tools:linux-x86/bin/openssl) req -new -nodes -utf8 -sha256 -days 36500 \
+            -batch -x509 -config $(location //msm-kernel:certs/qcom_x509.genkey) \
+            -outform PEM -out $(location signing_cert.pem) -keyout $(location signing_key.pem)
+        """
+    )
+
+    native.genrule(
+        name = "verity_key",
+        srcs = ["//msm-kernel:certs/qcom_x509.genkey"],
+        outs = ["verity_cert.pem", "verity_key.pem"],
+        tools = ["//prebuilts/build-tools:linux-x86/bin/openssl"],
+        cmd_bash = """
+          $(location //prebuilts/build-tools:linux-x86/bin/openssl) req -new -nodes -utf8 -newkey rsa:1024 -days 36500 \
+            -batch -x509 -config $(location //msm-kernel:certs/qcom_x509.genkey) \
+            -outform PEM -out $(location verity_cert.pem) -keyout $(location verity_key.pem)
+        """
+    )

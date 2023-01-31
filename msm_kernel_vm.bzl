@@ -143,6 +143,8 @@ def _define_kernel_build(
         "usr/gen_init_cpio",
         "usr/initramfs_data.cpio",
         "usr/initramfs_inc_data",
+        "scripts/sign-file",
+        "certs/signing_key.x509",
     ])
 
     kernel_build(
@@ -194,6 +196,8 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
+        ":signing_key",
+        ":verity_key",
     ]
 
     copy_to_dist_dir(
@@ -209,6 +213,7 @@ def _define_kernel_dist(target, msm_target, variant):
             "**/Image": "755",
             "**/*.dtb*": "755",
             "**/gen_init_cpio": "755",
+            "**/sign-file": "755",
             "**/*": "644",
         },
         log = "info",
