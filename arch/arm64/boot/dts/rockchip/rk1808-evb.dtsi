@@ -590,7 +590,7 @@
 };
 
 &power {
-	pd_npu-supply = <&vdd_npu>;
+	npu-supply = <&vdd_npu>;
 };
 
 &pwm1 {
