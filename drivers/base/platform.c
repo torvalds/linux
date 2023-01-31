@@ -883,6 +883,13 @@ static int platform_probe_fail(struct platform_device *pdev)
 	return -ENXIO;
 }
 
+static int is_bound_to_driver(struct device *dev, void *driver)
+{
+	if (dev->driver == driver)
+		return 1;
+	return 0;
+}
+
 /**
  * __platform_driver_probe - register driver for non-hotpluggable device
  * @drv: platform driver structure
@@ -936,20 +943,17 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 	if (retval)
 		return retval;
 
-	/*
-	 * Fixup that section violation, being paranoid about code scanning
-	 * the list of drivers in order to probe new devices.  Check to see
-	 * if the probe was successful, and make sure any forced probes of
-	 * new devices fail.
-	 */
-	spin_lock(&drv->driver.bus->p->klist_drivers.k_lock);
+	/* Force all new probes of this driver to fail */
 	drv->probe = platform_probe_fail;
-	if (list_empty(&drv->driver.p->klist_devices.k_list))
-		retval = -ENODEV;
-	spin_unlock(&drv->driver.bus->p->klist_drivers.k_lock);
 
-	if (retval)
+	/* Walk all platform devices and see if any actually bound to this driver.
+	 * If not, return an error as the device should have done so by now.
+	 */
+	if (!bus_for_each_dev(&platform_bus_type, NULL, &drv->driver, is_bound_to_driver)) {
+		retval = -ENODEV;
 		platform_driver_unregister(drv);
+	}
+
 	return retval;
 }
 EXPORT_SYMBOL_GPL(__platform_driver_probe);
