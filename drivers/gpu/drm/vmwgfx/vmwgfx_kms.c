@@ -153,9 +153,9 @@ static void vmw_cursor_update_mob(struct vmw_private *dev_priv,
 	SVGAGBCursorHeader *header;
 	SVGAGBAlphaCursorHeader *alpha_header;
 	const u32 image_size = width * height * sizeof(*image);
-	bool dummy;
+	bool is_iomem;
 
-	header = ttm_kmap_obj_virtual(&vps->cursor.map, &dummy);
+	header = ttm_kmap_obj_virtual(&vps->cursor.map, &is_iomem);
 	alpha_header = &header->header.alphaHeader;
 
 	memset(header, 0, sizeof(*header));
@@ -185,13 +185,13 @@ static u32 vmw_du_cursor_mob_size(u32 w, u32 h)
  */
 static u32 *vmw_du_cursor_plane_acquire_image(struct vmw_plane_state *vps)
 {
-	bool dummy;
+	bool is_iomem;
 	if (vps->surf) {
 		if (vps->surf_mapped)
 			return vmw_bo_map_and_cache(vps->surf->res.backup);
 		return vps->surf->snooper.image;
 	} else if (vps->bo)
-		return ttm_kmap_obj_virtual(&vps->bo->map, &dummy);
+		return ttm_kmap_obj_virtual(&vps->bo->map, &is_iomem);
 	return NULL;
 }
 
@@ -364,7 +364,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	SVGA3dCopyBox *box;
 	unsigned box_count;
 	void *virtual;
-	bool dummy;
+	bool is_iomem;
 	struct vmw_dma_cmd {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSurfaceDMA dma;
@@ -424,7 +424,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	if (unlikely(ret != 0))
 		goto err_unreserve;
 
-	virtual = ttm_kmap_obj_virtual(&map, &dummy);
+	virtual = ttm_kmap_obj_virtual(&map, &is_iomem);
 
 	if (box->w == VMW_CURSOR_SNOOP_WIDTH && cmd->dma.guest.pitch == image_pitch) {
 		memcpy(srf->snooper.image, virtual,
@@ -658,14 +658,14 @@ vmw_du_cursor_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct vmw_cursor_plane *vcp = vmw_plane_to_vcp(plane);
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
-	bool dummy;
+	bool is_iomem;
 
 	if (vps->surf_mapped) {
 		vmw_bo_unmap(vps->surf->res.backup);
 		vps->surf_mapped = false;
 	}
 
-	if (vps->bo && ttm_kmap_obj_virtual(&vps->bo->map, &dummy)) {
+	if (vps->bo && ttm_kmap_obj_virtual(&vps->bo->map, &is_iomem)) {
 		const int ret = ttm_bo_reserve(&vps->bo->base, true, false, NULL);
 
 		if (likely(ret == 0)) {
