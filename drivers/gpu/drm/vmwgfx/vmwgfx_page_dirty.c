@@ -82,8 +82,8 @@ struct vmw_bo_dirty {
 static void vmw_bo_dirty_scan_pagetable(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	pgoff_t offset = drm_vma_node_start(&vbo->base.base.vma_node);
-	struct address_space *mapping = vbo->base.bdev->dev_mapping;
+	pgoff_t offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 	pgoff_t num_marked;
 
 	num_marked = clean_record_shared_mapping_range
@@ -120,23 +120,22 @@ static void vmw_bo_dirty_scan_pagetable(struct vmw_bo *vbo)
 static void vmw_bo_dirty_scan_mkwrite(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
-	struct address_space *mapping = vbo->base.bdev->dev_mapping;
+	unsigned long offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 	pgoff_t num_marked;
 
 	if (dirty->end <= dirty->start)
 		return;
 
-	num_marked = wp_shared_mapping_range(vbo->base.bdev->dev_mapping,
-					dirty->start + offset,
-					dirty->end - dirty->start);
+	num_marked = wp_shared_mapping_range(vbo->tbo.bdev->dev_mapping,
+					     dirty->start + offset,
+					     dirty->end - dirty->start);
 
 	if (100UL * num_marked / dirty->bitmap_size >
-	    VMW_DIRTY_PERCENTAGE) {
+	    VMW_DIRTY_PERCENTAGE)
 		dirty->change_count++;
-	} else {
+	else
 		dirty->change_count = 0;
-	}
 
 	if (dirty->change_count > VMW_DIRTY_NUM_CHANGE_TRIGGERS) {
 		pgoff_t start = 0;
@@ -186,8 +185,8 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_bo *vbo,
 				   pgoff_t start, pgoff_t end)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
-	struct address_space *mapping = vbo->base.bdev->dev_mapping;
+	unsigned long offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 
 	if (dirty->method != VMW_BO_DIRTY_PAGETABLE || start >= end)
 		return;
@@ -210,8 +209,8 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_bo *vbo,
 void vmw_bo_dirty_unmap(struct vmw_bo *vbo,
 			pgoff_t start, pgoff_t end)
 {
-	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
-	struct address_space *mapping = vbo->base.bdev->dev_mapping;
+	unsigned long offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 
 	vmw_bo_dirty_pre_unmap(vbo, start, end);
 	unmap_shared_mapping_range(mapping, (offset + start) << PAGE_SHIFT,
@@ -231,7 +230,7 @@ void vmw_bo_dirty_unmap(struct vmw_bo *vbo,
 int vmw_bo_dirty_add(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	pgoff_t num_pages = PFN_UP(vbo->base.resource->size);
+	pgoff_t num_pages = PFN_UP(vbo->tbo.resource->size);
 	size_t size;
 	int ret;
 
@@ -254,8 +253,8 @@ int vmw_bo_dirty_add(struct vmw_bo *vbo)
 	if (num_pages < PAGE_SIZE / sizeof(pte_t)) {
 		dirty->method = VMW_BO_DIRTY_PAGETABLE;
 	} else {
-		struct address_space *mapping = vbo->base.bdev->dev_mapping;
-		pgoff_t offset = drm_vma_node_start(&vbo->base.base.vma_node);
+		struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
+		pgoff_t offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
 
 		dirty->method = VMW_BO_DIRTY_MKWRITE;
 
@@ -307,11 +306,11 @@ void vmw_bo_dirty_release(struct vmw_bo *vbo)
  */
 void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res)
 {
-	struct vmw_bo *vbo = res->backup;
+	struct vmw_bo *vbo = res->guest_memory_bo;
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 	pgoff_t start, cur, end;
-	unsigned long res_start = res->backup_offset;
-	unsigned long res_end = res->backup_offset + res->backup_size;
+	unsigned long res_start = res->guest_memory_offset;
+	unsigned long res_end = res->guest_memory_offset + res->guest_memory_size;
 
 	WARN_ON_ONCE(res_start & ~PAGE_MASK);
 	res_start >>= PAGE_SHIFT;
@@ -352,9 +351,9 @@ void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res)
  */
 void vmw_bo_dirty_clear_res(struct vmw_resource *res)
 {
-	unsigned long res_start = res->backup_offset;
-	unsigned long res_end = res->backup_offset + res->backup_size;
-	struct vmw_bo *vbo = res->backup;
+	unsigned long res_start = res->guest_memory_offset;
+	unsigned long res_end = res->guest_memory_offset + res->guest_memory_size;
+	struct vmw_bo *vbo = res->guest_memory_bo;
 	struct vmw_bo_dirty *dirty = vbo->dirty;
 
 	res_start >>= PAGE_SHIFT;
@@ -381,8 +380,7 @@ vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
 	vm_fault_t ret;
 	unsigned long page_offset;
 	unsigned int save_flags;
-	struct vmw_bo *vbo =
-		container_of(bo, typeof(*vbo), base);
+	struct vmw_bo *vbo = to_vmw_bo(&bo->base);
 
 	/*
 	 * mkwrite() doesn't handle the VM_FAULT_RETRY return value correctly.
@@ -420,8 +418,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)
 	    vma->vm_private_data;
-	struct vmw_bo *vbo =
-		container_of(bo, struct vmw_bo, base);
+	struct vmw_bo *vbo = to_vmw_bo(&bo->base);
 	pgoff_t num_prefault;
 	pgprot_t prot;
 	vm_fault_t ret;

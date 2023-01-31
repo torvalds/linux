@@ -32,6 +32,12 @@
 
 #include <drm/ttm/ttm_placement.h>
 
+static void vmw_bo_release(struct vmw_bo *vbo)
+{
+	vmw_bo_unmap(vbo);
+	drm_gem_object_release(&vbo->tbo.base);
+}
+
 /**
  * vmw_bo_free - vmw_bo destructor
  *
@@ -43,24 +49,8 @@ static void vmw_bo_free(struct ttm_buffer_object *bo)
 
 	WARN_ON(vbo->dirty);
 	WARN_ON(!RB_EMPTY_ROOT(&vbo->res_tree));
-	vmw_bo_unmap(vbo);
-	drm_gem_object_release(&bo->base);
+	vmw_bo_release(vbo);
 	kfree(vbo);
-}
-
-/**
- * bo_is_vmw - check if the buffer object is a &vmw_bo
- * @bo: ttm buffer object to be checked
- *
- * Uses destroy function associated with the object to determine if this is
- * a &vmw_bo.
- *
- * Returns:
- * true if the object is of &vmw_bo type, false if not.
- */
-static bool bo_is_vmw(struct ttm_buffer_object *bo)
-{
-	return bo->destroy == &vmw_bo_free;
 }
 
 /**
@@ -79,7 +69,7 @@ static int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 				   bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
-	struct ttm_buffer_object *bo = &buf->base;
+	struct ttm_buffer_object *bo = &buf->tbo;
 	int ret;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
@@ -115,7 +105,7 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 			      bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
-	struct ttm_buffer_object *bo = &buf->base;
+	struct ttm_buffer_object *bo = &buf->tbo;
 	int ret;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
@@ -184,7 +174,7 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 				bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
-	struct ttm_buffer_object *bo = &buf->base;
+	struct ttm_buffer_object *bo = &buf->tbo;
 	int ret = 0;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
@@ -200,7 +190,7 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	if (bo->resource->mem_type == TTM_PL_VRAM &&
 	    bo->resource->start < PFN_UP(bo->resource->size) &&
 	    bo->resource->start > 0 &&
-	    buf->base.pin_count == 0) {
+	    buf->tbo.pin_count == 0) {
 		ctx.interruptible = false;
 		vmw_bo_placement_set(buf,
 				     VMW_BO_DOMAIN_SYS,
@@ -241,7 +231,7 @@ int vmw_bo_unpin(struct vmw_private *dev_priv,
 		 struct vmw_bo *buf,
 		 bool interruptible)
 {
-	struct ttm_buffer_object *bo = &buf->base;
+	struct ttm_buffer_object *bo = &buf->tbo;
 	int ret;
 
 	ret = ttm_bo_reserve(bo, interruptible, false, NULL);
@@ -288,7 +278,7 @@ void vmw_bo_pin_reserved(struct vmw_bo *vbo, bool pin)
 	struct ttm_operation_ctx ctx = { false, true };
 	struct ttm_place pl;
 	struct ttm_placement placement;
-	struct ttm_buffer_object *bo = &vbo->base;
+	struct ttm_buffer_object *bo = &vbo->tbo;
 	uint32_t old_mem_type = bo->resource->mem_type;
 	int ret;
 
@@ -333,7 +323,7 @@ void vmw_bo_pin_reserved(struct vmw_bo *vbo, bool pin)
  */
 void *vmw_bo_map_and_cache(struct vmw_bo *vbo)
 {
-	struct ttm_buffer_object *bo = &vbo->base;
+	struct ttm_buffer_object *bo = &vbo->tbo;
 	bool not_used;
 	void *virtual;
 	int ret;
@@ -364,64 +354,58 @@ void vmw_bo_unmap(struct vmw_bo *vbo)
 		return;
 
 	ttm_bo_kunmap(&vbo->map);
+	vbo->map.bo = NULL;
 }
 
-/* default destructor */
-static void vmw_bo_default_destroy(struct ttm_buffer_object *bo)
-{
-	kfree(bo);
-}
 
 /**
- * vmw_bo_create_kernel - Create a pinned BO for internal kernel use.
+ * vmw_bo_init - Initialize a vmw buffer object
  *
  * @dev_priv: Pointer to the device private struct
- * @size: size of the BO we need
- * @placement: where to put it
- * @p_bo: resulting BO
+ * @vmw_bo: Buffer object to initialize
+ * @params: Parameters used to initialize the buffer object
+ * @destroy: The function used to delete the buffer object
+ * Returns: Zero on success, negative error code on error.
  *
- * Creates and pin a simple BO for in kernel use.
  */
-int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
-			 struct ttm_placement *placement,
-			 struct ttm_buffer_object **p_bo)
+static int vmw_bo_init(struct vmw_private *dev_priv,
+		       struct vmw_bo *vmw_bo,
+		       struct vmw_bo_params *params,
+		       void (*destroy)(struct ttm_buffer_object *))
 {
 	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
+		.interruptible = params->bo_type != ttm_bo_type_kernel,
 		.no_wait_gpu = false
 	};
-	struct ttm_buffer_object *bo;
+	struct ttm_device *bdev = &dev_priv->bdev;
 	struct drm_device *vdev = &dev_priv->drm;
 	int ret;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
-	if (unlikely(!bo))
-		return -ENOMEM;
+	memset(vmw_bo, 0, sizeof(*vmw_bo));
 
-	size = ALIGN(size, PAGE_SIZE);
+	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
+	vmw_bo->tbo.priority = 3;
+	vmw_bo->res_tree = RB_ROOT;
 
-	drm_gem_private_object_init(vdev, &bo->base, size);
+	params->size = ALIGN(params->size, PAGE_SIZE);
+	drm_gem_private_object_init(vdev, &vmw_bo->tbo.base, params->size);
 
-	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, ttm_bo_type_kernel,
-				   placement, 0, &ctx, NULL, NULL,
-				   vmw_bo_default_destroy);
+	vmw_bo_placement_set(vmw_bo, params->domain, params->busy_domain);
+	ret = ttm_bo_init_reserved(bdev, &vmw_bo->tbo, params->bo_type,
+				   &vmw_bo->placement, 0, &ctx, NULL,
+				   NULL, destroy);
 	if (unlikely(ret))
-		goto error_free;
+		return ret;
 
-	ttm_bo_pin(bo);
-	ttm_bo_unreserve(bo);
-	*p_bo = bo;
+	if (params->pin)
+		ttm_bo_pin(&vmw_bo->tbo);
+	ttm_bo_unreserve(&vmw_bo->tbo);
 
 	return 0;
-
-error_free:
-	kfree(bo);
-	return ret;
 }
 
 int vmw_bo_create(struct vmw_private *vmw,
-		  size_t size, u32 domain, u32 busy_domain,
-		  bool interruptible, bool pin,
+		  struct vmw_bo_params *params,
 		  struct vmw_bo **p_bo)
 {
 	int ret;
@@ -432,9 +416,7 @@ int vmw_bo_create(struct vmw_private *vmw,
 		return -ENOMEM;
 	}
 
-	ret = vmw_bo_init(vmw, *p_bo, size,
-			  domain, busy_domain,
-			  interruptible, pin);
+	ret = vmw_bo_init(vmw, *p_bo, params, vmw_bo_free);
 	if (unlikely(ret != 0))
 		goto out_error;
 
@@ -443,57 +425,6 @@ out_error:
 	kfree(*p_bo);
 	*p_bo = NULL;
 	return ret;
-}
-
-/**
- * vmw_bo_init - Initialize a vmw buffer object
- *
- * @dev_priv: Pointer to the device private struct
- * @vmw_bo: Pointer to the struct vmw_bo to initialize.
- * @size: Buffer object size in bytes.
- * @domain: Domain to put the bo in.
- * @busy_domain: Domain to put the bo if busy.
- * @interruptible: Whether waits should be performed interruptible.
- * @pin: If the BO should be created pinned at a fixed location.
- * Returns: Zero on success, negative error code on error.
- *
- * Note that on error, the code will free the buffer object.
- */
-int vmw_bo_init(struct vmw_private *dev_priv,
-		struct vmw_bo *vmw_bo,
-		size_t size,
-		u32 domain,
-		u32 busy_domain,
-		bool interruptible, bool pin)
-{
-	struct ttm_operation_ctx ctx = {
-		.interruptible = interruptible,
-		.no_wait_gpu = false
-	};
-	struct ttm_device *bdev = &dev_priv->bdev;
-	struct drm_device *vdev = &dev_priv->drm;
-	int ret;
-
-	memset(vmw_bo, 0, sizeof(*vmw_bo));
-	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
-	vmw_bo->base.priority = 3;
-	vmw_bo->res_tree = RB_ROOT;
-
-	size = ALIGN(size, PAGE_SIZE);
-	drm_gem_private_object_init(vdev, &vmw_bo->base.base, size);
-
-	vmw_bo_placement_set(vmw_bo, domain, busy_domain);
-	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, ttm_bo_type_device,
-				   &vmw_bo->placement, 0, &ctx, NULL, NULL, vmw_bo_free);
-	if (unlikely(ret)) {
-		return ret;
-	}
-
-	if (pin)
-		ttm_bo_pin(&vmw_bo->base);
-	ttm_bo_unreserve(&vmw_bo->base);
-
-	return 0;
 }
 
 /**
@@ -514,7 +445,7 @@ static int vmw_user_bo_synccpu_grab(struct vmw_bo *vmw_bo,
 				    uint32_t flags)
 {
 	bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
-	struct ttm_buffer_object *bo = &vmw_bo->base;
+	struct ttm_buffer_object *bo = &vmw_bo->tbo;
 	int ret;
 
 	if (flags & drm_vmw_synccpu_allow_cs) {
@@ -564,7 +495,7 @@ static int vmw_user_bo_synccpu_release(struct drm_file *filp,
 		if (!(flags & drm_vmw_synccpu_allow_cs)) {
 			atomic_dec(&vmw_bo->cpu_writers);
 		}
-		ttm_bo_put(&vmw_bo->base);
+		ttm_bo_put(&vmw_bo->tbo);
 	}
 
 	return ret;
@@ -650,8 +581,7 @@ int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_unref_dmabuf_arg *arg =
 	    (struct drm_vmw_unref_dmabuf_arg *)data;
 
-	drm_gem_handle_delete(file_priv, arg->handle);
-	return 0;
+	return drm_gem_handle_delete(file_priv, arg->handle);
 }
 
 
@@ -667,7 +597,7 @@ int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
  * The vmw buffer object pointer will be refcounted.
  */
 int vmw_user_bo_lookup(struct drm_file *filp,
-		       uint32_t handle,
+		       u32 handle,
 		       struct vmw_bo **out)
 {
 	struct drm_gem_object *gobj;
@@ -680,7 +610,7 @@ int vmw_user_bo_lookup(struct drm_file *filp,
 	}
 
 	*out = to_vmw_bo(gobj);
-	ttm_bo_get(&(*out)->base);
+	ttm_bo_get(&(*out)->tbo);
 	drm_gem_object_put(gobj);
 
 	return 0;
@@ -702,8 +632,7 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence)
 {
 	struct ttm_device *bdev = bo->bdev;
-	struct vmw_private *dev_priv =
-		container_of(bdev, struct vmw_private, bdev);
+	struct vmw_private *dev_priv = vmw_priv_from_ttm(bdev);
 	int ret;
 
 	if (fence == NULL)
@@ -773,10 +702,6 @@ int vmw_dumb_create(struct drm_file *file_priv,
  */
 void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
 {
-	/* Is @bo embedded in a struct vmw_bo? */
-	if (!bo_is_vmw(bo))
-		return;
-
 	/* Kill any cached kernel maps before swapout */
 	vmw_bo_unmap(to_vmw_bo(&bo->base));
 }
@@ -795,13 +720,7 @@ void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
 void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			struct ttm_resource *mem)
 {
-	struct vmw_bo *vbo;
-
-	/* Make sure @bo is embedded in a struct vmw_bo? */
-	if (!bo_is_vmw(bo))
-		return;
-
-	vbo = container_of(bo, struct vmw_bo, base);
+	struct vmw_bo *vbo = to_vmw_bo(&bo->base);
 
 	/*
 	 * Kill any cached kernel maps before move to or from VRAM.
@@ -849,7 +768,6 @@ set_placement_list(struct ttm_place *pl, u32 domain)
 		pl[n].lpfn = 0;
 		n++;
 	}
-	WARN_ON((domain & VMW_BO_DOMAIN_WAITABLE_SYS) != 0);
 	if (domain & VMW_BO_DOMAIN_WAITABLE_SYS) {
 		pl[n].mem_type = VMW_PL_SYSTEM;
 		pl[n].flags = 0;
@@ -878,9 +796,8 @@ set_placement_list(struct ttm_place *pl, u32 domain)
 
 void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain)
 {
-	struct ttm_device *bdev = bo->base.bdev;
-	struct vmw_private *vmw =
-		container_of(bdev, struct vmw_private, bdev);
+	struct ttm_device *bdev = bo->tbo.bdev;
+	struct vmw_private *vmw = vmw_priv_from_ttm(bdev);
 	struct ttm_placement *pl = &bo->placement;
 	bool mem_compatible = false;
 	u32 i;
@@ -888,17 +805,17 @@ void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain)
 	pl->placement = bo->places;
 	pl->num_placement = set_placement_list(bo->places, domain);
 
-	if (drm_debug_enabled(DRM_UT_DRIVER) && bo->base.resource) {
+	if (drm_debug_enabled(DRM_UT_DRIVER) && bo->tbo.resource) {
 		for (i = 0; i < pl->num_placement; ++i) {
-			if (bo->base.resource->mem_type == TTM_PL_SYSTEM ||
-			    bo->base.resource->mem_type == pl->placement[i].mem_type)
+			if (bo->tbo.resource->mem_type == TTM_PL_SYSTEM ||
+			    bo->tbo.resource->mem_type == pl->placement[i].mem_type)
 				mem_compatible = true;
 		}
 		if (!mem_compatible)
 			drm_warn(&vmw->drm,
 				 "%s: Incompatible transition from "
 				 "bo->base.resource->mem_type = %u to domain = %u\n",
-				 __func__, bo->base.resource->mem_type, domain);
+				 __func__, bo->tbo.resource->mem_type, domain);
 	}
 
 	pl->busy_placement = bo->busy_places;
@@ -907,9 +824,8 @@ void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain)
 
 void vmw_bo_placement_set_default_accelerated(struct vmw_bo *bo)
 {
-	struct ttm_device *bdev = bo->base.bdev;
-	struct vmw_private *vmw =
-		container_of(bdev, struct vmw_private, bdev);
+	struct ttm_device *bdev = bo->tbo.bdev;
+	struct vmw_private *vmw = vmw_priv_from_ttm(bdev);
 	u32 domain = VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM;
 
 	if (vmw->has_mob)

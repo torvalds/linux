@@ -49,54 +49,54 @@ enum vmw_bo_domain {
 	VMW_BO_DOMAIN_MOB           = BIT(4),
 };
 
+struct vmw_bo_params {
+	u32 domain;
+	u32 busy_domain;
+	enum ttm_bo_type bo_type;
+	size_t size;
+	bool pin;
+};
+
 /**
  * struct vmw_bo - TTM buffer object with vmwgfx additions
- * @base: The TTM buffer object
+ * @tbo: The TTM buffer object
+ * @placement: The preferred placement for this buffer object
+ * @places: The chosen places for the preferred placement.
+ * @busy_places: Chosen busy places for the preferred placement
+ * @map: Kmap object for semi-persistent mappings
  * @res_tree: RB tree of resources using this buffer object as a backing MOB
+ * @res_prios: Eviction priority counts for attached resources
  * @cpu_writers: Number of synccpu write grabs. Protected by reservation when
  * increased. May be decreased without reservation.
  * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
- * @map: Kmap object for semi-persistent mappings
- * @res_prios: Eviction priority counts for attached resources
  * @dirty: structure for user-space dirty-tracking
  */
 struct vmw_bo {
-	struct ttm_buffer_object base;
+	struct ttm_buffer_object tbo;
 
 	struct ttm_placement placement;
 	struct ttm_place places[5];
 	struct ttm_place busy_places[5];
 
+	/* Protected by reservation */
+	struct ttm_bo_kmap_obj map;
+
 	struct rb_root res_tree;
+	u32 res_prios[TTM_MAX_BO_PRIORITY];
 
 	atomic_t cpu_writers;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
-	/* Protected by reservation */
-	struct ttm_bo_kmap_obj map;
-	u32 res_prios[TTM_MAX_BO_PRIORITY];
 	struct vmw_bo_dirty *dirty;
 };
 
 void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain);
 void vmw_bo_placement_set_default_accelerated(struct vmw_bo *bo);
 
-int vmw_bo_create_kernel(struct vmw_private *dev_priv,
-			 unsigned long size,
-			 struct ttm_placement *placement,
-			 struct ttm_buffer_object **p_bo);
 int vmw_bo_create(struct vmw_private *dev_priv,
-		  size_t size,
-		  u32 domain,
-		  u32 busy_domain,
-		  bool interruptible, bool pin,
+		  struct vmw_bo_params *params,
 		  struct vmw_bo **p_bo);
-int vmw_bo_init(struct vmw_private *dev_priv,
-		struct vmw_bo *vmw_bo,
-		size_t size,
-		u32 domain,
-		u32 busy_domain,
-		bool interruptible, bool pin);
+
 int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 
@@ -118,9 +118,6 @@ void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 			  SVGAGuestPtr *ptr);
 int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-int vmw_user_bo_lookup(struct drm_file *filp,
-		       uint32_t handle,
-		       struct vmw_bo **out);
 void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence);
 
@@ -131,6 +128,9 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			struct ttm_resource *mem);
 void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 
+int vmw_user_bo_lookup(struct drm_file *filp,
+		       u32 handle,
+		       struct vmw_bo **out);
 /**
  * vmw_bo_adjust_prio - Adjust the buffer object eviction priority
  * according to attached resources
@@ -142,12 +142,12 @@ static inline void vmw_bo_prio_adjust(struct vmw_bo *vbo)
 
 	while (i--) {
 		if (vbo->res_prios[i]) {
-			vbo->base.priority = i;
+			vbo->tbo.priority = i;
 			return;
 		}
 	}
 
-	vbo->base.priority = 3;
+	vbo->tbo.priority = 3;
 }
 
 /**
@@ -166,7 +166,7 @@ static inline void vmw_bo_prio_add(struct vmw_bo *vbo, int prio)
 }
 
 /**
- * vmw_bo_prio_del - Notify a buffer object of a resource with a certain
+ * vmw_bo_used_prio_del - Notify a buffer object of a resource with a certain
  * priority being removed
  * @vbo: The struct vmw_bo
  * @prio: The resource priority
@@ -186,18 +186,18 @@ static inline void vmw_bo_unreference(struct vmw_bo **buf)
 
 	*buf = NULL;
 	if (tmp_buf)
-		ttm_bo_put(&tmp_buf->base);
+		ttm_bo_put(&tmp_buf->tbo);
 }
 
 static inline struct vmw_bo *vmw_bo_reference(struct vmw_bo *buf)
 {
-	ttm_bo_get(&buf->base);
+	ttm_bo_get(&buf->tbo);
 	return buf;
 }
 
 static inline struct vmw_bo *to_vmw_bo(struct drm_gem_object *gobj)
 {
-	return container_of((gobj), struct vmw_bo, base.base);
+	return container_of((gobj), struct vmw_bo, tbo.base);
 }
 
 #endif // VMWGFX_BO_H

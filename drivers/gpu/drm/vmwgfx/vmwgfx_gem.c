@@ -33,9 +33,8 @@
 static void vmw_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gobj);
-	if (bo) {
+	if (bo)
 		ttm_bo_put(bo);
-	}
 }
 
 static int vmw_gem_object_open(struct drm_gem_object *obj,
@@ -119,19 +118,23 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct vmw_bo **p_vbo)
 {
 	int ret;
+	struct vmw_bo_params params = {
+		.domain = (dev_priv->has_mob) ? VMW_BO_DOMAIN_SYS : VMW_BO_DOMAIN_VRAM,
+		.busy_domain = VMW_BO_DOMAIN_SYS,
+		.bo_type = ttm_bo_type_device,
+		.size = size,
+		.pin = false
+	};
 
-	ret = vmw_bo_create(dev_priv, size,
-			    (dev_priv->has_mob) ? VMW_BO_DOMAIN_SYS : VMW_BO_DOMAIN_VRAM,
-			    VMW_BO_DOMAIN_SYS,
-			    true, false, p_vbo);
+	ret = vmw_bo_create(dev_priv, &params, p_vbo);
 
-	(*p_vbo)->base.base.funcs = &vmw_gem_object_funcs;
+	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
 	if (ret != 0)
 		goto out_no_bo;
 
-	ret = drm_gem_handle_create(filp, &(*p_vbo)->base.base, handle);
+	ret = drm_gem_handle_create(filp, &(*p_vbo)->tbo.base, handle);
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put(&(*p_vbo)->base.base);
+	drm_gem_object_put(&(*p_vbo)->tbo.base);
 out_no_bo:
 	return ret;
 }
@@ -155,7 +158,7 @@ int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 		goto out_no_bo;
 
 	rep->handle = handle;
-	rep->map_handle = drm_vma_node_offset_addr(&vbo->base.base.vma_node);
+	rep->map_handle = drm_vma_node_offset_addr(&vbo->tbo.base.vma_node);
 	rep->cur_gmr_id = handle;
 	rep->cur_gmr_offset = 0;
 out_no_bo:
@@ -169,7 +172,7 @@ static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 	const char *placement;
 	const char *type;
 
-	switch (bo->base.resource->mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_SYSTEM:
 		placement = " CPU";
 		break;
@@ -190,7 +193,7 @@ static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 		break;
 	}
 
-	switch (bo->base.type) {
+	switch (bo->tbo.type) {
 	case ttm_bo_type_device:
 		type = "device";
 		break;
@@ -206,12 +209,12 @@ static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 	}
 
 	seq_printf(m, "\t\t0x%08x: %12zu bytes %s, type = %s",
-		   id, bo->base.base.size, placement, type);
+		   id, bo->tbo.base.size, placement, type);
 	seq_printf(m, ", priority = %u, pin_count = %u, GEM refs = %d, TTM refs = %d",
-		   bo->base.priority,
-		   bo->base.pin_count,
-		   kref_read(&bo->base.base.refcount),
-		   kref_read(&bo->base.kref));
+		   bo->tbo.priority,
+		   bo->tbo.pin_count,
+		   kref_read(&bo->tbo.base.refcount),
+		   kref_read(&bo->tbo.kref));
 	seq_puts(m, "\n");
 }
 

@@ -89,7 +89,7 @@ const struct vmw_user_resource_conv *user_shader_converter =
 
 static const struct vmw_res_func vmw_gb_shader_func = {
 	.res_type = vmw_res_shader,
-	.needs_backup = true,
+	.needs_guest_memory = true,
 	.may_evict = true,
 	.prio = 3,
 	.dirty_prio = 3,
@@ -104,7 +104,7 @@ static const struct vmw_res_func vmw_gb_shader_func = {
 
 static const struct vmw_res_func vmw_dx_shader_func = {
 	.res_type = vmw_res_shader,
-	.needs_backup = true,
+	.needs_guest_memory = true,
 	.may_evict = true,
 	.prio = 3,
 	.dirty_prio = 3,
@@ -178,10 +178,10 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 		return ret;
 	}
 
-	res->backup_size = size;
+	res->guest_memory_size = size;
 	if (byte_code) {
-		res->backup = vmw_bo_reference(byte_code);
-		res->backup_offset = offset;
+		res->guest_memory_bo = vmw_bo_reference(byte_code);
+		res->guest_memory_offset = offset;
 	}
 	shader->size = size;
 	shader->type = type;
@@ -262,8 +262,8 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.shid = res->id;
 	cmd->body.mobid = bo->resource->start;
-	cmd->body.offsetInBytes = res->backup_offset;
-	res->backup_dirty = false;
+	cmd->body.offsetInBytes = res->guest_memory_offset;
+	res->guest_memory_dirty = false;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -280,7 +280,7 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 	} *cmd;
 	struct vmw_fence_obj *fence;
 
-	BUG_ON(res->backup->base.resource->mem_type != VMW_PL_MOB);
+	BUG_ON(res->guest_memory_bo->tbo.resource->mem_type != VMW_PL_MOB);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
@@ -400,8 +400,8 @@ static int vmw_dx_shader_unscrub(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = shader->ctx->id;
 	cmd->body.shid = shader->id;
-	cmd->body.mobid = res->backup->base.resource->start;
-	cmd->body.offsetInBytes = res->backup_offset;
+	cmd->body.mobid = res->guest_memory_bo->tbo.resource->start;
+	cmd->body.offsetInBytes = res->guest_memory_offset;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	vmw_cotable_add_resource(shader->cotable, &shader->cotable_head);
@@ -511,7 +511,7 @@ static int vmw_dx_shader_unbind(struct vmw_resource *res,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	BUG_ON(res->backup->base.resource->mem_type != VMW_PL_MOB);
+	BUG_ON(res->guest_memory_bo->tbo.resource->mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	ret = vmw_dx_shader_scrub(res);
@@ -785,7 +785,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 			return ret;
 		}
 
-		if ((u64)buffer->base.base.size < (u64)size + (u64)offset) {
+		if ((u64)buffer->tbo.base.size < (u64)size + (u64)offset) {
 			VMW_DEBUG_USER("Illegal buffer- or shader size.\n");
 			ret = -EINVAL;
 			goto out_bad_arg;
@@ -891,25 +891,29 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	bool is_iomem;
 	int ret;
 	struct vmw_resource *res;
+	struct vmw_bo_params bo_params = {
+		.domain = VMW_BO_DOMAIN_SYS,
+		.busy_domain = VMW_BO_DOMAIN_SYS,
+		.bo_type = ttm_bo_type_device,
+		.size = size,
+		.pin = true
+	};
 
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	ret = vmw_bo_create(dev_priv, size,
-			    VMW_BO_DOMAIN_SYS,
-			    VMW_BO_DOMAIN_SYS,
-			    true, true, &buf);
+	ret = vmw_bo_create(dev_priv, &bo_params, &buf);
 	if (unlikely(ret != 0))
 		goto out;
 
-	ret = ttm_bo_reserve(&buf->base, false, true, NULL);
+	ret = ttm_bo_reserve(&buf->tbo, false, true, NULL);
 	if (unlikely(ret != 0))
 		goto no_reserve;
 
 	/* Map and copy shader bytecode. */
-	ret = ttm_bo_kmap(&buf->base, 0, PFN_UP(size), &map);
+	ret = ttm_bo_kmap(&buf->tbo, 0, PFN_UP(size), &map);
 	if (unlikely(ret != 0)) {
-		ttm_bo_unreserve(&buf->base);
+		ttm_bo_unreserve(&buf->tbo);
 		goto no_reserve;
 	}
 
@@ -917,12 +921,9 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	WARN_ON(is_iomem);
 
 	ttm_bo_kunmap(&map);
-	vmw_bo_placement_set(buf,
-			     VMW_BO_DOMAIN_SYS,
-			     VMW_BO_DOMAIN_SYS);
-	ret = ttm_bo_validate(&buf->base, &buf->placement, &ctx);
+	ret = ttm_bo_validate(&buf->tbo, &buf->placement, &ctx);
 	WARN_ON(ret != 0);
-	ttm_bo_unreserve(&buf->base);
+	ttm_bo_unreserve(&buf->tbo);
 
 	res = vmw_shader_alloc(dev_priv, buf, size, 0, shader_type);
 	if (unlikely(ret != 0))

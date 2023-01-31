@@ -50,13 +50,6 @@ static const struct ttm_place gmr_placement_flags = {
 	.flags = 0
 };
 
-static const struct ttm_place mob_placement_flags = {
-	.fpfn = 0,
-	.lpfn = 0,
-	.mem_type = VMW_PL_MOB,
-	.flags = 0
-};
-
 struct ttm_placement vmw_vram_placement = {
 	.num_placement = 1,
 	.placement = &vram_placement_flags,
@@ -78,13 +71,6 @@ static const struct ttm_place vram_gmr_placement_flags[] = {
 	}
 };
 
-static const struct ttm_place vmw_sys_placement_flags = {
-	.fpfn = 0,
-	.lpfn = 0,
-	.mem_type = VMW_PL_SYSTEM,
-	.flags = 0
-};
-
 struct ttm_placement vmw_vram_gmr_placement = {
 	.num_placement = 2,
 	.placement = vram_gmr_placement_flags,
@@ -92,32 +78,11 @@ struct ttm_placement vmw_vram_gmr_placement = {
 	.busy_placement = &gmr_placement_flags
 };
 
-struct ttm_placement vmw_vram_sys_placement = {
-	.num_placement = 1,
-	.placement = &vram_placement_flags,
-	.num_busy_placement = 1,
-	.busy_placement = &sys_placement_flags
-};
-
 struct ttm_placement vmw_sys_placement = {
 	.num_placement = 1,
 	.placement = &sys_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags
-};
-
-struct ttm_placement vmw_pt_sys_placement = {
-	.num_placement = 1,
-	.placement = &vmw_sys_placement_flags,
-	.num_busy_placement = 1,
-	.busy_placement = &vmw_sys_placement_flags
-};
-
-struct ttm_placement vmw_mob_placement = {
-	.num_placement = 1,
-	.num_busy_placement = 1,
-	.placement = &mob_placement_flags,
-	.busy_placement = &mob_placement_flags
 };
 
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
@@ -462,7 +427,7 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (!vmw_be)
 		return NULL;
 
-	vmw_be->dev_priv = container_of(bo->bdev, struct vmw_private, bdev);
+	vmw_be->dev_priv = vmw_priv_from_ttm(bo->bdev);
 	vmw_be->mob = NULL;
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
@@ -488,7 +453,7 @@ static void vmw_evict_flags(struct ttm_buffer_object *bo,
 
 static int vmw_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
-	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
+	struct vmw_private *dev_priv = vmw_priv_from_ttm(bdev);
 
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
@@ -599,34 +564,39 @@ struct ttm_device_funcs vmw_bo_driver = {
 };
 
 int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
-			       unsigned long bo_size,
-			       struct ttm_buffer_object **bo_p)
+			       size_t bo_size, u32 domain,
+			       struct vmw_bo **bo_p)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
 		.no_wait_gpu = false
 	};
-	struct ttm_buffer_object *bo;
+	struct vmw_bo *vbo;
 	int ret;
+	struct vmw_bo_params bo_params = {
+		.domain = domain,
+		.busy_domain = domain,
+		.bo_type = ttm_bo_type_kernel,
+		.size = bo_size,
+		.pin = true
+	};
 
-	ret = vmw_bo_create_kernel(dev_priv, bo_size,
-				   &vmw_pt_sys_placement,
-				   &bo);
+	ret = vmw_bo_create(dev_priv, &bo_params, &vbo);
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(bo, false, true, NULL);
+	ret = ttm_bo_reserve(&vbo->tbo, false, true, NULL);
 	BUG_ON(ret != 0);
-	ret = vmw_ttm_populate(bo->bdev, bo->ttm, &ctx);
+	ret = vmw_ttm_populate(vbo->tbo.bdev, vbo->tbo.ttm, &ctx);
 	if (likely(ret == 0)) {
 		struct vmw_ttm_tt *vmw_tt =
-			container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm);
+			container_of(vbo->tbo.ttm, struct vmw_ttm_tt, dma_ttm);
 		ret = vmw_ttm_map_dma(vmw_tt);
 	}
 
-	ttm_bo_unreserve(bo);
+	ttm_bo_unreserve(&vbo->tbo);
 
 	if (likely(ret == 0))
-		*bo_p = bo;
+		*bo_p = vbo;
 	return ret;
 }

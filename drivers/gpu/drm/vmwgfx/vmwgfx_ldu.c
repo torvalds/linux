@@ -147,7 +147,7 @@ static int vmw_ldu_fb_pin(struct vmw_framebuffer *vfb)
 	int ret;
 
 	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
-		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
+		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.guest_memory_bo;
 
 	if (!buf)
 		return 0;
@@ -169,7 +169,7 @@ static int vmw_ldu_fb_unpin(struct vmw_framebuffer *vfb)
 	struct vmw_bo *buf;
 
 	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
-		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
+		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.guest_memory_bo;
 
 	if (WARN_ON(!buf))
 		return 0;

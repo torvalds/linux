@@ -270,9 +270,7 @@ struct vmw_crtc_state {
 };
 
 struct vmw_cursor_plane_state {
-	struct ttm_buffer_object *bo;
-	struct ttm_bo_kmap_obj map;
-	bool mapped;
+	struct vmw_bo *bo;
 	s32 hotspot_x;
 	s32 hotspot_y;
 };
@@ -343,7 +341,7 @@ struct vmw_connector_state {
 struct vmw_cursor_plane {
 	struct drm_plane base;
 
-	struct ttm_buffer_object *cursor_mobs[3];
+	struct vmw_bo *cursor_mobs[3];
 };
 
 /**

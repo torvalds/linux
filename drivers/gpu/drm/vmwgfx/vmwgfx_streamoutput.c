@@ -63,7 +63,7 @@ static void vmw_dx_streamoutput_commit_notify(struct vmw_resource *res,
 
 static const struct vmw_res_func vmw_dx_streamoutput_func = {
 	.res_type = vmw_res_streamoutput,
-	.needs_backup = true,
+	.needs_guest_memory = true,
 	.may_evict = false,
 	.type_name = "DX streamoutput",
 	.domain = VMW_BO_DOMAIN_MOB,
@@ -106,8 +106,8 @@ static int vmw_dx_streamoutput_unscrub(struct vmw_resource *res)
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.soid = so->id;
-	cmd->body.mobid = res->backup->base.resource->start;
-	cmd->body.offsetInBytes = res->backup_offset;
+	cmd->body.mobid = res->guest_memory_bo->tbo.resource->start;
+	cmd->body.offsetInBytes = res->guest_memory_offset;
 	cmd->body.sizeInBytes = so->size;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
@@ -197,7 +197,7 @@ static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	if (WARN_ON(res->backup->base.resource->mem_type != VMW_PL_MOB))
+	if (WARN_ON(res->guest_memory_bo->tbo.resource->mem_type != VMW_PL_MOB))
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->binding_mutex);

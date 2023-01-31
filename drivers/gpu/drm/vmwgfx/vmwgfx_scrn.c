@@ -149,7 +149,7 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 	sou->base.set_gui_y = cmd->obj.root.y;
 
 	/* Ok to assume that buffer is pinned in vram */
-	vmw_bo_get_guest_ptr(&sou->buffer->base, &cmd->obj.backingStore.ptr);
+	vmw_bo_get_guest_ptr(&sou->buffer->tbo, &cmd->obj.backingStore.ptr);
 	cmd->obj.backingStore.pitch = mode->hdisplay * 4;
 
 	vmw_cmd_commit(dev_priv, fifo_size);
@@ -410,9 +410,13 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc ?: new_state->crtc;
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
 	struct vmw_private *dev_priv;
-	size_t size;
 	int ret;
-
+	struct vmw_bo_params bo_params = {
+		.domain = VMW_BO_DOMAIN_VRAM,
+		.busy_domain = VMW_BO_DOMAIN_VRAM,
+		.bo_type = ttm_bo_type_device,
+		.pin = true
+	};
 
 	if (!new_fb) {
 		vmw_bo_unreference(&vps->bo);
@@ -421,11 +425,11 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 		return 0;
 	}
 
-	size = new_state->crtc_w * new_state->crtc_h * 4;
+	bo_params.size = new_state->crtc_w * new_state->crtc_h * 4;
 	dev_priv = vmw_priv(crtc->dev);
 
 	if (vps->bo) {
-		if (vps->bo_size == size) {
+		if (vps->bo_size == bo_params.size) {
 			/*
 			 * Note that this might temporarily up the pin-count
 			 * to 2, until cleanup_fb() is called.
@@ -444,17 +448,12 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_bo_create(dev_priv, size,
-			    VMW_BO_DOMAIN_VRAM,
-			    VMW_BO_DOMAIN_VRAM,
-			    false, true, &vps->bo);
+	ret = vmw_bo_create(dev_priv, &bo_params, &vps->bo);
 	vmw_overlay_resume_all(dev_priv);
-	if (ret) {
-		vps->bo = NULL; /* vmw_bo_init frees on error */
+	if (ret)
 		return ret;
-	}
 
-	vps->bo_size = size;
+	vps->bo_size = bo_params.size;
 
 	/*
 	 * TTM already thinks the buffer is pinned, but make sure the
@@ -491,7 +490,7 @@ static uint32_t vmw_sou_bo_define_gmrfb(struct vmw_du_update_plane *update,
 	gmr->body.format.colorDepth = depth;
 	gmr->body.format.reserved = 0;
 	gmr->body.bytesPerLine = update->vfb->base.pitches[0];
-	vmw_bo_get_guest_ptr(&vfbbo->buffer->base, &gmr->body.ptr);
+	vmw_bo_get_guest_ptr(&vfbbo->buffer->tbo, &gmr->body.ptr);
 
 	return sizeof(*gmr);
 }
@@ -973,7 +972,7 @@ static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitches[0];
 	/* Buffer is reserved in vram or GMR */
-	vmw_bo_get_guest_ptr(&buf->base, &cmd->body.ptr);
+	vmw_bo_get_guest_ptr(&buf->tbo, &cmd->body.ptr);
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;

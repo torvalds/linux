@@ -82,7 +82,7 @@ static void vmw_view_commit_notify(struct vmw_resource *res,
 
 static const struct vmw_res_func vmw_view_func = {
 	.res_type = vmw_res_view,
-	.needs_backup = false,
+	.needs_guest_memory = false,
 	.may_evict = false,
 	.type_name = "DX view",
 	.domain = VMW_BO_DOMAIN_SYS,

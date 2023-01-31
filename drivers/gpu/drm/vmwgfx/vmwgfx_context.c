@@ -73,7 +73,7 @@ const struct vmw_user_resource_conv *user_context_converter =
 
 static const struct vmw_res_func vmw_legacy_context_func = {
 	.res_type = vmw_res_context,
-	.needs_backup = false,
+	.needs_guest_memory = false,
 	.may_evict = false,
 	.type_name = "legacy contexts",
 	.domain = VMW_BO_DOMAIN_SYS,
@@ -86,7 +86,7 @@ static const struct vmw_res_func vmw_legacy_context_func = {
 
 static const struct vmw_res_func vmw_gb_context_func = {
 	.res_type = vmw_res_context,
-	.needs_backup = true,
+	.needs_guest_memory = true,
 	.may_evict = true,
 	.prio = 3,
 	.dirty_prio = 3,
@@ -101,7 +101,7 @@ static const struct vmw_res_func vmw_gb_context_func = {
 
 static const struct vmw_res_func vmw_dx_context_func = {
 	.res_type = vmw_res_dx_context,
-	.needs_backup = true,
+	.needs_guest_memory = true,
 	.may_evict = true,
 	.prio = 3,
 	.dirty_prio = 3,
@@ -186,7 +186,7 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 	struct vmw_user_context *uctx =
 		container_of(res, struct vmw_user_context, res);
 
-	res->backup_size = (dx ? sizeof(SVGADXContextMobFormat) :
+	res->guest_memory_size = (dx ? sizeof(SVGADXContextMobFormat) :
 				 sizeof(SVGAGBContextData));
 	ret = vmw_resource_init(dev_priv, res, true,
 				res_free,
@@ -358,8 +358,8 @@ static int vmw_gb_context_bind(struct vmw_resource *res,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = res->id;
 	cmd->body.mobid = bo->resource->start;
-	cmd->body.validContents = res->backup_dirty;
-	res->backup_dirty = false;
+	cmd->body.validContents = res->guest_memory_dirty;
+	res->guest_memory_dirty = false;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -525,8 +525,8 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = res->id;
 	cmd->body.mobid = bo->resource->start;
-	cmd->body.validContents = res->backup_dirty;
-	res->backup_dirty = false;
+	cmd->body.validContents = res->guest_memory_dirty;
+	res->guest_memory_dirty = false;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 

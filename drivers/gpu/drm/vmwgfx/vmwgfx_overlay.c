@@ -140,7 +140,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 	for (i = 0; i < num_items; i++)
 		items[i].registerId = i;
 
-	vmw_bo_get_guest_ptr(&buf->base, &ptr);
+	vmw_bo_get_guest_ptr(&buf->tbo, &ptr);
 	ptr.offset += arg->offset;
 
 	items[SVGA_VIDEO_ENABLED].value     = true;

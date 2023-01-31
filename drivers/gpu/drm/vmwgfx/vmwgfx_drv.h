@@ -142,21 +142,23 @@ struct vmw_res_func;
  * @kref: For refcounting.
  * @dev_priv: Pointer to the device private for this resource. Immutable.
  * @id: Device id. Protected by @dev_priv::resource_lock.
- * @backup_size: Backup buffer size. Immutable.
- * @res_dirty: Resource contains data not yet in the backup buffer. Protected
- * by resource reserved.
- * @backup_dirty: Backup buffer contains data not yet in the HW resource.
+ * @guest_memory_size: Guest memory buffer size. Immutable.
+ * @res_dirty: Resource contains data not yet in the guest memory buffer.
  * Protected by resource reserved.
+ * @guest_memory_dirty: Guest memory buffer contains data not yet in the HW
+ * resource. Protected by resource reserved.
  * @coherent: Emulate coherency by tracking vm accesses.
- * @backup: The backup buffer if any. Protected by resource reserved.
- * @backup_offset: Offset into the backup buffer if any. Protected by resource
- * reserved. Note that only a few resource types can have a @backup_offset
- * different from zero.
+ * @guest_memory_bo: The guest memory buffer if any. Protected by resource
+ * reserved.
+ * @guest_memory_offset: Offset into the guest memory buffer if any. Protected
+ * by resource reserved. Note that only a few resource types can have a
+ * @guest_memory_offset different from zero.
  * @pin_count: The pin count for this resource. A pinned resource has a
  * pin-count greater than zero. It is not on the resource LRU lists and its
- * backup buffer is pinned. Hence it can't be evicted.
+ * guest memory buffer is pinned. Hence it can't be evicted.
  * @func: Method vtable for this resource. Immutable.
- * @mob_node; Node for the MOB backup rbtree. Protected by @backup reserved.
+ * @mob_node; Node for the MOB guest memory rbtree. Protected by
+ * @guest_memory_bo reserved.
  * @lru_head: List head for the LRU list. Protected by @dev_priv::resource_lock.
  * @binding_head: List head for the context binding list. Protected by
  * the @dev_priv::binding_mutex
@@ -165,18 +167,19 @@ struct vmw_res_func;
  * resource destruction.
  */
 struct vmw_bo;
+struct vmw_bo;
 struct vmw_resource_dirty;
 struct vmw_resource {
 	struct kref kref;
 	struct vmw_private *dev_priv;
 	int id;
 	u32 used_prio;
-	unsigned long backup_size;
+	unsigned long guest_memory_size;
 	u32 res_dirty : 1;
-	u32 backup_dirty : 1;
+	u32 guest_memory_dirty : 1;
 	u32 coherent : 1;
-	struct vmw_bo *backup;
-	unsigned long backup_offset;
+	struct vmw_bo *guest_memory_bo;
+	unsigned long guest_memory_offset;
 	unsigned long pin_count;
 	const struct vmw_res_func *func;
 	struct rb_node mob_node;
@@ -467,7 +470,7 @@ struct vmw_otable_batch {
 	unsigned num_otables;
 	struct vmw_otable *otables;
 	struct vmw_resource *context;
-	struct ttm_buffer_object *otable_bo;
+	struct vmw_bo *otable_bo;
 };
 
 enum {
@@ -662,6 +665,11 @@ static inline struct vmw_private *vmw_priv(struct drm_device *dev)
 	return (struct vmw_private *)dev->dev_private;
 }
 
+static inline struct vmw_private *vmw_priv_from_ttm(struct ttm_device *bdev)
+{
+	return container_of(bdev, struct vmw_private, bdev);
+}
+
 static inline struct vmw_fpriv *vmw_fpriv(struct drm_file *file_priv)
 {
 	return (struct vmw_fpriv *)file_priv->driver_priv;
@@ -814,9 +822,9 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   bool dirty_set,
 				   bool dirty,
-				   bool switch_backup,
-				   struct vmw_bo *new_backup,
-				   unsigned long new_backup_offset);
+				   bool switch_guest_memory,
+				   struct vmw_bo *new_guest_memory,
+				   unsigned long new_guest_memory_offset);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_resource *old_mem,
 				  struct ttm_resource *new_mem);
@@ -929,16 +937,15 @@ vmw_is_cursor_bypass3_enabled(const struct vmw_private *dev_priv)
 
 extern const size_t vmw_tt_size;
 extern struct ttm_placement vmw_vram_placement;
-extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
 extern struct ttm_placement vmw_sys_placement;
-extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_device_funcs vmw_bo_driver;
 extern const struct vmw_sg_table *
 vmw_bo_sg_table(struct ttm_buffer_object *bo);
-extern int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
-				      unsigned long bo_size,
-				      struct ttm_buffer_object **bo_p);
+int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
+			       size_t bo_size,
+			       u32 domain,
+			       struct vmw_bo **bo_p);
 
 extern void vmw_piter_start(struct vmw_piter *viter,
 			    const struct vmw_sg_table *vsgt,

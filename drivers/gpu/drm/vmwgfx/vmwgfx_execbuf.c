@@ -722,7 +722,7 @@ static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_ALL_QUERY;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = ctx_res->id;
-	cmd->body.mobid = dx_query_mob->base.resource->start;
+	cmd->body.mobid = dx_query_mob->tbo.resource->start;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	vmw_context_bind_dx_query(ctx_res, dx_query_mob);
@@ -1033,7 +1033,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 
 	if (unlikely(new_query_bo != sw_context->cur_query_bo)) {
 
-		if (unlikely(PFN_UP(new_query_bo->base.resource->size) > 4)) {
+		if (unlikely(PFN_UP(new_query_bo->tbo.resource->size) > 4)) {
 			VMW_DEBUG_USER("Query buffer too large.\n");
 			return -EINVAL;
 		}
@@ -1164,7 +1164,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	}
 	vmw_bo_placement_set(vmw_bo, VMW_BO_DOMAIN_MOB, VMW_BO_DOMAIN_MOB);
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo);
-	ttm_bo_put(&vmw_bo->base);
+	ttm_bo_put(&vmw_bo->tbo);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1220,7 +1220,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	vmw_bo_placement_set(vmw_bo, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
 			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo);
-	ttm_bo_put(&vmw_bo->base);
+	ttm_bo_put(&vmw_bo->tbo);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1533,7 +1533,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 		return ret;
 
 	/* Make sure DMA doesn't cross BO boundaries. */
-	bo_size = vmw_bo->base.base.size;
+	bo_size = vmw_bo->tbo.base.size;
 	if (unlikely(cmd->body.guest.ptr.offset > bo_size)) {
 		VMW_DEBUG_USER("Invalid DMA offset.\n");
 		return -EINVAL;
@@ -1556,7 +1556,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 
 	srf = vmw_res_to_srf(sw_context->res_cache[vmw_res_surface].res);
 
-	vmw_kms_cursor_snoop(srf, sw_context->fp->tfile, &vmw_bo->base, header);
+	vmw_kms_cursor_snoop(srf, sw_context->fp->tfile, &vmw_bo->tbo, header);
 
 	return 0;
 }
@@ -3759,7 +3759,7 @@ static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 	struct ttm_buffer_object *bo;
 
 	list_for_each_entry(reloc, &sw_context->bo_relocations, head) {
-		bo = &reloc->vbo->base;
+		bo = &reloc->vbo->tbo;
 		switch (bo->resource->mem_type) {
 		case TTM_PL_VRAM:
 			reloc->location->offset += bo->resource->start << PAGE_SHIFT;
