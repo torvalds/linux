@@ -383,9 +383,18 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 
 	/* Note that it is possible to skip all events because of blacklist */
 	if (event) {
+#ifndef HAVE_LIBTRACEEVENT
+		pr_info("\nperf is not linked with libtraceevent, to use the new probe you can use tracefs:\n\n");
+		pr_info("\tcd /sys/kernel/tracing/\n");
+		pr_info("\techo 1 > events/%s/%s/enable\n", group, event);
+		pr_info("\techo 1 > tracing_on\n");
+		pr_info("\tcat trace_pipe\n");
+		pr_info("\tBefore removing the probe, echo 0 > events/%s/%s/enable\n", group, event);
+#else
 		/* Show how to use the event. */
 		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
 		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
+#endif
 	}
 
 out_cleanup:
