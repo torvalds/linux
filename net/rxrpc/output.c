@@ -80,7 +80,8 @@ static void rxrpc_set_keepalive(struct rxrpc_call *call)
  */
 static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 				 struct rxrpc_call *call,
-				 struct rxrpc_txbuf *txb)
+				 struct rxrpc_txbuf *txb,
+				 u16 *_rwind)
 {
 	struct rxrpc_ackinfo ackinfo;
 	unsigned int qsize, sack, wrap, to;
@@ -124,6 +125,7 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 	jmax = rxrpc_rx_jumbo_max;
 	qsize = (window - 1) - call->rx_consumed;
 	rsize = max_t(int, call->rx_winsize - qsize, 0);
+	*_rwind = rsize;
 	ackinfo.rxMTU		= htonl(rxrpc_rx_mtu);
 	ackinfo.maxMTU		= htonl(mtu);
 	ackinfo.rwind		= htonl(rsize);
@@ -190,6 +192,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	rxrpc_serial_t serial;
 	size_t len, n;
 	int ret, rtt_slot = -1;
+	u16 rwind;
 
 	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
 		return -ECONNRESET;
@@ -205,7 +208,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		txb->wire.flags |= RXRPC_REQUEST_ACK;
 
-	n = rxrpc_fill_out_ack(conn, call, txb);
+	n = rxrpc_fill_out_ack(conn, call, txb, &rwind);
 	if (n == 0)
 		return 0;
 
@@ -217,7 +220,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	txb->wire.serial = htonl(serial);
 	trace_rxrpc_tx_ack(call->debug_id, serial,
 			   ntohl(txb->ack.firstPacket),
-			   ntohl(txb->ack.serial), txb->ack.reason, txb->ack.nAcks);
+			   ntohl(txb->ack.serial), txb->ack.reason, txb->ack.nAcks,
+			   rwind);
 
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
