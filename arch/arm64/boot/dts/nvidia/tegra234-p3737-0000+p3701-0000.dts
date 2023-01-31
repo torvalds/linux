@@ -2098,11 +2098,21 @@
 				usb2-0 {
 					mode = "host";
 					status = "okay";
+					port {
+						hs_typec_p1: endpoint {
+							remote-endpoint = <&hs_ucsi_ccg_p1>;
+						};
+					};
 				};
 
 				usb2-1 {
 					mode = "host";
 					status = "okay";
+					port {
+						hs_typec_p0: endpoint {
+							remote-endpoint = <&hs_ucsi_ccg_p0>;
+						};
+					};
 				};
 
 				usb2-2 {
@@ -2118,11 +2128,21 @@
 				usb3-0 {
 					nvidia,usb2-companion = <1>;
 					status = "okay";
+					port {
+						ss_typec_p0: endpoint {
+							remote-endpoint = <&ss_ucsi_ccg_p0>;
+						};
+					};
 				};
 
 				usb3-1 {
 					nvidia,usb2-companion = <0>;
 					status = "okay";
+					port {
+						ss_typec_p1: endpoint {
+							remote-endpoint = <&ss_ucsi_ccg_p1>;
+						};
+					};
 				};
 
 				usb3-2 {
@@ -2214,6 +2234,64 @@
 			       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
 			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
 				    "p2u-5", "p2u-6", "p2u-7";
+		};
+
+		i2c@c240000 {
+			status = "okay";
+			typec@8 {
+				compatible = "cypress,cypd4226";
+				reg = <0x08>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA234_MAIN_GPIO(Y, 4) IRQ_TYPE_LEVEL_LOW>;
+				firmware-name = "nvidia,jetson-agx-xavier";
+				status = "okay";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ccg_typec_con0: connector@0 {
+					compatible = "usb-c-connector";
+					reg = <0>;
+					label = "USB-C";
+					data-role = "host";
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						port@0 {
+							reg = <0>;
+							hs_ucsi_ccg_p0: endpoint {
+								remote-endpoint = <&hs_typec_p0>;
+							};
+						};
+						port@1 {
+							reg = <1>;
+							ss_ucsi_ccg_p0: endpoint {
+								remote-endpoint = <&ss_typec_p0>;
+							};
+						};
+					};
+				};
+				ccg_typec_con1: connector@1 {
+					compatible = "usb-c-connector";
+					reg = <1>;
+					label = "USB-C";
+					data-role = "dual";
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						port@0 {
+							reg = <0>;
+							hs_ucsi_ccg_p1: endpoint {
+								remote-endpoint = <&hs_typec_p1>;
+							};
+						};
+						port@1 {
+							reg = <1>;
+							ss_ucsi_ccg_p1: endpoint {
+								remote-endpoint = <&ss_typec_p1>;
+							};
+						};
+					};
+				};
+			};
 		};
 	};
 
