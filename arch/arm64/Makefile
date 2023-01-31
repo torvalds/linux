@@ -63,11 +63,6 @@ stack_protector_prepare: prepare0
 					include/generated/asm-offsets.h))
 endif
 
-ifeq ($(CONFIG_AS_HAS_ARMV8_2), y)
-# make sure to pass the newest target architecture to -march.
-asm-arch := armv8.2-a
-endif
-
 # Ensure that if the compiler supports branch protection we default it
 # off, this will be overridden if we are using branch protection.
 branch-prot-flags-y += $(call cc-option,-mbranch-protection=none)
@@ -88,25 +83,29 @@ branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET_BTI) := -mbranch-protectio
 else
 branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET) := -mbranch-protection=$(PACRET-y)
 endif
-# -march=armv8.3-a enables the non-nops instructions for PAC, to avoid the
-# compiler to generate them and consequently to break the single image contract
-# we pass it only to the assembler. This option is utilized only in case of non
-# integrated assemblers.
-ifeq ($(CONFIG_AS_HAS_PAC), y)
-asm-arch := armv8.3-a
-endif
 endif
 
 KBUILD_CFLAGS += $(branch-prot-flags-y)
 
-ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
-# make sure to pass the newest target architecture to -march.
-asm-arch := armv8.4-a
-endif
-
+# Tell the assembler to support instructions from the latest target
+# architecture.
+#
+# For non-integrated assemblers we'll pass this on the command line, and for
+# integrated assemblers we'll define ARM64_ASM_ARCH and ARM64_ASM_PREAMBLE for
+# inline usage.
+#
+# We cannot pass the same arch flag to the compiler as this would allow it to
+# freely generate instructions which are not supported by earlier architecture
+# versions, which would prevent a single kernel image from working on earlier
+# hardware.
 ifeq ($(CONFIG_AS_HAS_ARMV8_5), y)
-# make sure to pass the newest target architecture to -march.
-asm-arch := armv8.5-a
+  asm-arch := armv8.5-a
+else ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
+  asm-arch := armv8.4-a
+else ifeq ($(CONFIG_AS_HAS_ARMV8_3), y)
+  asm-arch := armv8.3-a
+else ifeq ($(CONFIG_AS_HAS_ARMV8_2), y)
+  asm-arch := armv8.2-a
 endif
 
 ifdef asm-arch
