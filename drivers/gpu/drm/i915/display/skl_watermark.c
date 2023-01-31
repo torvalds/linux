@@ -64,7 +64,7 @@ static bool skl_needs_memory_bw_wa(struct drm_i915_private *i915)
 static bool
 intel_has_sagv(struct drm_i915_private *i915)
 {
-	return DISPLAY_VER(i915) >= 9 && !IS_LP(i915) &&
+	return HAS_SAGV(i915) &&
 		i915->display.sagv.status != I915_SAGV_NOT_CONTROLLED;
 }
 
@@ -92,7 +92,7 @@ intel_sagv_block_time(struct drm_i915_private *i915)
 		return val;
 	} else if (DISPLAY_VER(i915) == 11) {
 		return 10;
-	} else if (DISPLAY_VER(i915) == 9 && !IS_LP(i915)) {
+	} else if (HAS_SAGV(i915)) {
 		return 30;
 	} else {
 		return 0;
@@ -101,7 +101,7 @@ intel_sagv_block_time(struct drm_i915_private *i915)
 
 static void intel_sagv_init(struct drm_i915_private *i915)
 {
-	if (!intel_has_sagv(i915))
+	if (!HAS_SAGV(i915))
 		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 
 	/*
