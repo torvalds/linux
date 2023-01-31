@@ -489,6 +489,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	Elf *elf;
 	int nr = 0, err = -1;
 	struct rel_info ri = { .is_rela = false };
+	bool lazy_plt;
 
 	elf = ss->elf;
 	ehdr = ss->ehdr;
@@ -523,8 +524,10 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		plt_sym->end = plt_sym->start + shdr_plt.sh_size;
 		/* Use .plt.sec offset */
 		plt_offset = plt_sec_shdr.sh_offset;
+		lazy_plt = false;
 	} else {
-		plt_offset = shdr_plt.sh_offset + plt_header_size;
+		plt_offset = shdr_plt.sh_offset;
+		lazy_plt = true;
 	}
 
 	scn_dynsym = ss->dynsym;
@@ -576,6 +579,17 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	ri.nr_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 
 	ri.is_rela = shdr_rel_plt.sh_type == SHT_RELA;
+
+	if (lazy_plt) {
+		/*
+		 * Assume a .plt with the same number of entries as the number
+		 * of relocation entries is not lazy and does not have a header.
+		 */
+		if (ri.nr_entries * plt_entry_size == shdr_plt.sh_size)
+			dso__delete_symbol(dso, plt_sym);
+		else
+			plt_offset += plt_header_size;
+	}
 
 	/*
 	 * x86 doesn't insert IFUNC relocations in .plt order, so sort to get
