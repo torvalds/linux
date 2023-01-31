@@ -483,7 +483,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	GElf_Shdr shdr_rel_plt, shdr_dynsym;
 	Elf_Data *syms, *symstrs;
 	Elf_Scn *scn_plt_rel, *scn_symstrs, *scn_dynsym;
-	size_t dynsym_idx;
 	GElf_Ehdr ehdr;
 	char sympltname[1024];
 	Elf *elf;
@@ -530,13 +529,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		lazy_plt = true;
 	}
 
-	scn_dynsym = ss->dynsym;
-	shdr_dynsym = ss->dynshdr;
-	dynsym_idx = ss->dynsym_idx;
-
-	if (scn_dynsym == NULL)
-		return 0;
-
 	scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 					  ".rela.plt", NULL);
 	if (scn_plt_rel == NULL) {
@@ -550,8 +542,25 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	    shdr_rel_plt.sh_type != SHT_REL)
 		return 0;
 
-	if (shdr_rel_plt.sh_link != dynsym_idx)
+	if (!shdr_rel_plt.sh_link)
+		return 0;
+
+	if (shdr_rel_plt.sh_link == ss->dynsym_idx) {
+		scn_dynsym = ss->dynsym;
+		shdr_dynsym = ss->dynshdr;
+	} else if (shdr_rel_plt.sh_link == ss->symtab_idx) {
+		/*
+		 * A static executable can have a .plt due to IFUNCs, in which
+		 * case .symtab is used not .dynsym.
+		 */
+		scn_dynsym = ss->symtab;
+		shdr_dynsym = ss->symshdr;
+	} else {
 		goto out_elf_end;
+	}
+
+	if (!scn_dynsym)
+		return 0;
 
 	/*
 	 * Fetch the relocation section to find the idxes to the GOT
@@ -1077,8 +1086,9 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 
 	ss->is_64_bit = (gelf_getclass(elf) == ELFCLASS64);
 
+	ss->symtab_idx = 0;
 	ss->symtab = elf_section_by_name(elf, &ehdr, &ss->symshdr, ".symtab",
-			NULL);
+			&ss->symtab_idx);
 	if (ss->symshdr.sh_type != SHT_SYMTAB)
 		ss->symtab = NULL;
 
