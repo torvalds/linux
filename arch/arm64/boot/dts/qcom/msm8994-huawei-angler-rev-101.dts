@@ -41,8 +41,8 @@
 			no-map;
 		};
 
-		removed_region: reserved@6300000 {
-			reg = <0 0x06300000 0 0xD00000>;
+		reserved@6300000 {
+			reg = <0 0x06300000 0 0x700000>;
 			no-map;
 		};
 	};
