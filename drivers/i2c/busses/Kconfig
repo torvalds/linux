@@ -761,6 +761,17 @@ config I2C_LPC2K
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-lpc2k.
 
+config I2C_LS2X
+	tristate "Loongson LS2X I2C adapter"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Loongson-2K SoCs and Loongson LS7A bridge
+	  chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-ls2x.
+
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
         depends on MELLANOX_PLATFORM && ARM64
