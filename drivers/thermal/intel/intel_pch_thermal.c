@@ -145,37 +145,20 @@ enum pch_board_ids {
 	PCH_BOARD_WBG,
 };
 
-static const struct board_info {
-	const char *name;
-} board_info[] = {
-	[PCH_BOARD_HSW] = {
-		.name = "pch_haswell",
-	},
-	[PCH_BOARD_WPT] = {
-		.name = "pch_wildcat_point",
-	},
-	[PCH_BOARD_SKL] = {
-		.name = "pch_skylake",
-	},
-	[PCH_BOARD_CNL] = {
-		.name = "pch_cannonlake",
-	},
-	[PCH_BOARD_CML] = {
-		.name = "pch_cometlake",
-	},
-	[PCH_BOARD_LWB] = {
-		.name = "pch_lewisburg",
-	},
-	[PCH_BOARD_WBG] = {
-		.name = "pch_wellsburg",
-	},
+static const char *board_names[] = {
+	[PCH_BOARD_HSW] = "pch_haswell",
+	[PCH_BOARD_WPT] = "pch_wildcat_point",
+	[PCH_BOARD_SKL] = "pch_skylake",
+	[PCH_BOARD_CNL] = "pch_cannonlake",
+	[PCH_BOARD_CML] = "pch_cometlake",
+	[PCH_BOARD_LWB] = "pch_lewisburg",
+	[PCH_BOARD_WBG] = "pch_wellsburg",
 };
 
 static int intel_pch_thermal_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	enum pch_board_ids board_id = id->driver_data;
-	const struct board_info *bi = &board_info[board_id];
 	struct pch_thermal_device *ptd;
 	int nr_trips = 0;
 	u16 trip_temp;
@@ -249,12 +232,13 @@ read_trips:
 
 	nr_trips += pch_wpt_add_acpi_psv_trip(ptd, nr_trips);
 
-	ptd->tzd = thermal_zone_device_register_with_trips(bi->name, ptd->trips,
-							   nr_trips, 0, ptd,
-							   &tzd_ops, NULL, 0, 0);
+	ptd->tzd = thermal_zone_device_register_with_trips(board_names[board_id],
+							   ptd->trips, nr_trips,
+							   0, ptd, &tzd_ops,
+							   NULL, 0, 0);
 	if (IS_ERR(ptd->tzd)) {
 		dev_err(&pdev->dev, "Failed to register thermal zone %s\n",
-			bi->name);
+			board_names[board_id]);
 		err = PTR_ERR(ptd->tzd);
 		goto error_cleanup;
 	}
