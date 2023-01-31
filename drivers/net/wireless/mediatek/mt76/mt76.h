@@ -272,7 +272,7 @@ enum mt76_phy_type {
 
 struct mt76_sta_stats {
 	u64 tx_mode[__MT_PHY_TYPE_MAX];
-	u64 tx_bw[4];		/* 20, 40, 80, 160 */
+	u64 tx_bw[5];		/* 20, 40, 80, 160, 320 */
 	u64 tx_nss[4];		/* 1, 2, 3, 4 */
 	u64 tx_mcs[16];		/* mcs idx */
 	u64 tx_bytes;
@@ -1317,7 +1317,7 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
 
 void mt76_ethtool_page_pool_stats(struct mt76_dev *dev, u64 *data, int *index);
 void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
-			 struct mt76_sta_stats *stats);
+			 struct mt76_sta_stats *stats, bool eht);
 int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
 int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
 			   u16 val, u16 offset, void *buf, size_t len);

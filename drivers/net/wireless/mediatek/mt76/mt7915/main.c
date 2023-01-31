@@ -1317,7 +1317,7 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 	if (msta->vif->mt76.idx != wi->idx)
 		return;
 
-	mt76_ethtool_worker(wi, &msta->wcid.stats);
+	mt76_ethtool_worker(wi, &msta->wcid.stats, false);
 }
 
 static
