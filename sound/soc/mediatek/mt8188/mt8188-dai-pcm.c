@@ -227,7 +227,8 @@ static int mtk_dai_pcm_configure(struct snd_pcm_substream *substream,
 static int mtk_dai_pcm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-	if (dai->playback_widget->active || dai->capture_widget->active)
+	if (snd_soc_dai_get_widget_playback(dai)->active ||
+	    snd_soc_dai_get_widget_capture(dai)->active)
 		return 0;
 
 	return mtk_dai_pcm_configure(substream, dai);

@@ -35,15 +35,13 @@ struct avs_dma_data {
 static struct avs_tplg_path_template *
 avs_dai_find_path_template(struct snd_soc_dai *dai, bool is_fe, int direction)
 {
-	struct snd_soc_dapm_widget *dw;
+	struct snd_soc_dapm_widget *dw = snd_soc_dai_get_widget(dai, direction);
 	struct snd_soc_dapm_path *dp;
 	enum snd_soc_dapm_direction dir;
 
 	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
-		dw = dai->capture_widget;
 		dir = is_fe ? SND_SOC_DAPM_DIR_OUT : SND_SOC_DAPM_DIR_IN;
 	} else {
-		dw = dai->playback_widget;
 		dir = is_fe ? SND_SOC_DAPM_DIR_IN : SND_SOC_DAPM_DIR_OUT;
 	}
 
@@ -929,7 +927,7 @@ static int avs_component_pm_op(struct snd_soc_component *component, bool be,
 	int ret;
 
 	for_each_component_dais(component, dai) {
-		data = dai->playback_dma_data;
+		data = snd_soc_dai_dma_data_get_playback(dai);
 		if (data) {
 			rtd = asoc_substream_to_rtd(data->substream);
 			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
@@ -942,7 +940,7 @@ static int avs_component_pm_op(struct snd_soc_component *component, bool be,
 			}
 		}
 
-		data = dai->capture_dma_data;
+		data = snd_soc_dai_dma_data_get_capture(dai);
 		if (data) {
 			rtd = asoc_substream_to_rtd(data->substream);
 			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
@@ -1291,11 +1289,14 @@ static void avs_component_hda_unregister_dais(struct snd_soc_component *componen
 	sprintf(name, "%s-cpu", dev_name(&codec->core.dev));
 
 	for_each_component_dais_safe(component, dai, save) {
+		int stream;
+
 		if (!strstr(dai->driver->name, name))
 			continue;
 
-		snd_soc_dapm_free_widget(dai->playback_widget);
-		snd_soc_dapm_free_widget(dai->capture_widget);
+		for_each_pcm_streams(stream)
+			snd_soc_dapm_free_widget(snd_soc_dai_get_widget(dai, stream));
+
 		snd_soc_unregister_dai(dai);
 	}
 }
