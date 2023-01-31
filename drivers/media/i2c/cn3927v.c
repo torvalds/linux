@@ -664,8 +664,10 @@ static int cn3927v_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	int dac = dev_vcm->start_current;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
+#ifdef CONFIG_PM
 	v4l2_info(sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
 		  atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	rval = pm_runtime_get_sync(sd->dev);
 	if (rval < 0) {
@@ -693,8 +695,10 @@ static int cn3927v_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		cn3927v_set_dac(dev_vcm, dac);
 	}
 
+#ifdef CONFIG_PM
 	v4l2_info(sd, "%s: exit,  power.usage_count(%d)!\n", __func__,
 		  atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	return 0;
 }
@@ -706,8 +710,10 @@ static int cn3927v_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	unsigned int move_time;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
+#ifdef CONFIG_PM
 	v4l2_info(sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
 		  atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
 		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
@@ -734,8 +740,10 @@ static int cn3927v_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	pm_runtime_put(sd->dev);
 
+#ifdef CONFIG_PM
 	v4l2_info(sd, "%s: exit,  power.usage_count(%d)!\n", __func__,
 		  atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	return 0;
 }
@@ -1449,8 +1457,10 @@ static int __maybe_unused cn3927v_vcm_suspend(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
 
+#ifdef CONFIG_PM
 	v4l2_dbg(1, debug, sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
 		 atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	__cn3927v_set_power(dev_vcm, false);
 	return 0;
@@ -1462,8 +1472,10 @@ static int __maybe_unused cn3927v_vcm_resume(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
 
+#ifdef CONFIG_PM
 	v4l2_dbg(1, debug, sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
 		 atomic_read(&sd->dev->power.usage_count));
+#endif
 
 	__cn3927v_set_power(dev_vcm, true);
 	return 0;

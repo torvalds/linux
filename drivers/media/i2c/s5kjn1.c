@@ -1764,7 +1764,7 @@ static void __s5kjn1_power_off(struct s5kjn1 *s5kjn1)
 	regulator_bulk_disable(S5KJN1_NUM_SUPPLIES, s5kjn1->supplies);
 }
 
-static int s5kjn1_runtime_resume(struct device *dev)
+static int __maybe_unused s5kjn1_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1773,7 +1773,7 @@ static int s5kjn1_runtime_resume(struct device *dev)
 	return __s5kjn1_power_on(s5kjn1);
 }
 
-static int s5kjn1_runtime_suspend(struct device *dev)
+static int __maybe_unused s5kjn1_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

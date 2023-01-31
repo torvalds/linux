@@ -2300,7 +2300,7 @@ static void __os04a10_power_off(struct os04a10 *os04a10)
 	usleep_range(30000, 31000);
 }
 
-static int os04a10_runtime_resume(struct device *dev)
+static int __maybe_unused os04a10_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -2309,7 +2309,7 @@ static int os04a10_runtime_resume(struct device *dev)
 	return __os04a10_power_on(os04a10);
 }
 
-static int os04a10_runtime_suspend(struct device *dev)
+static int __maybe_unused os04a10_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

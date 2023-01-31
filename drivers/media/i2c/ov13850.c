@@ -1189,7 +1189,7 @@ static void __ov13850_power_off(struct ov13850 *ov13850)
 	regulator_bulk_disable(OV13850_NUM_SUPPLIES, ov13850->supplies);
 }
 
-static int ov13850_runtime_resume(struct device *dev)
+static int __maybe_unused ov13850_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1198,7 +1198,7 @@ static int ov13850_runtime_resume(struct device *dev)
 	return __ov13850_power_on(ov13850);
 }
 
-static int ov13850_runtime_suspend(struct device *dev)
+static int __maybe_unused ov13850_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

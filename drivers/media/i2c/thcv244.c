@@ -953,7 +953,7 @@ static void __thcv244_power_off(struct thcv244 *thcv244)
 	regulator_bulk_disable(THCV244_NUM_SUPPLIES, thcv244->supplies);
 }
 
-static int thcv244_runtime_resume(struct device *dev)
+static int __maybe_unused thcv244_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -962,7 +962,7 @@ static int thcv244_runtime_resume(struct device *dev)
 	return __thcv244_power_on(thcv244);
 }
 
-static int thcv244_runtime_suspend(struct device *dev)
+static int __maybe_unused thcv244_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

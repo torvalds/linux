@@ -2084,7 +2084,7 @@ static void __gc4c33_power_off(struct gc4c33 *gc4c33)
 		gpiod_set_value_cansleep(gc4c33->pwren_gpio, 0);
 }
 
-static int gc4c33_runtime_resume(struct device *dev)
+static int __maybe_unused gc4c33_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -2093,7 +2093,7 @@ static int gc4c33_runtime_resume(struct device *dev)
 	return __gc4c33_power_on(gc4c33);
 }
 
-static int gc4c33_runtime_suspend(struct device *dev)
+static int __maybe_unused gc4c33_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

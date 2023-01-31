@@ -729,7 +729,7 @@ static void __gc2385_power_off(struct gc2385 *gc2385)
 	regulator_bulk_disable(GC2385_NUM_SUPPLIES, gc2385->supplies);
 }
 
-static int gc2385_runtime_resume(struct device *dev)
+static int __maybe_unused gc2385_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -738,7 +738,7 @@ static int gc2385_runtime_resume(struct device *dev)
 	return __gc2385_power_on(gc2385);
 }
 
-static int gc2385_runtime_suspend(struct device *dev)
+static int __maybe_unused gc2385_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

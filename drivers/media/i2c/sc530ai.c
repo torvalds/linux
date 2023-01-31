@@ -1507,7 +1507,7 @@ static void __sc530ai_power_off(struct sc530ai *sc530ai)
 	regulator_bulk_disable(sc530ai_NUM_SUPPLIES, sc530ai->supplies);
 }
 
-static int sc530ai_runtime_resume(struct device *dev)
+static int __maybe_unused sc530ai_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1516,7 +1516,7 @@ static int sc530ai_runtime_resume(struct device *dev)
 	return __sc530ai_power_on(sc530ai);
 }
 
-static int sc530ai_runtime_suspend(struct device *dev)
+static int __maybe_unused sc530ai_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

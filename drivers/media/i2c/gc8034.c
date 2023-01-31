@@ -2611,7 +2611,7 @@ static void __gc8034_power_off(struct gc8034 *gc8034)
 	regulator_bulk_disable(GC8034_NUM_SUPPLIES, gc8034->supplies);
 }
 
-static int gc8034_runtime_resume(struct device *dev)
+static int __maybe_unused gc8034_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -2620,7 +2620,7 @@ static int gc8034_runtime_resume(struct device *dev)
 	return __gc8034_power_on(gc8034);
 }
 
-static int gc8034_runtime_suspend(struct device *dev)
+static int __maybe_unused gc8034_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
