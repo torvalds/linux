@@ -729,7 +729,7 @@ static struct snd_soc_dai *rockchip_vad_find_dai(struct device_node *np)
 
 	dai_component.of_node = np;
 
-	return snd_soc_find_dai(&dai_component);
+	return snd_soc_find_dai_with_mutex(&dai_component);
 }
 
 static void hw_refine_channels(struct snd_pcm_hw_params *params,
