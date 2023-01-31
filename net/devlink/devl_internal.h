@@ -128,8 +128,8 @@ devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
 void devlink_notify_unregister(struct devlink *devlink);
 void devlink_notify_register(struct devlink *devlink);
 
-int devlink_nl_instance_iter_dump(struct sk_buff *msg,
-				  struct netlink_callback *cb);
+int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
+				    struct netlink_callback *cb);
 
 static inline struct devlink_nl_dump_state *
 devlink_dump_state(struct netlink_callback *cb)
