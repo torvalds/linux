@@ -155,11 +155,6 @@ static const struct fb_ops drm_fbdev_fb_ops = {
 	.fb_imageblit	= drm_fbdev_fb_imageblit,
 };
 
-static struct fb_deferred_io drm_fbdev_defio = {
-	.delay		= HZ / 20,
-	.deferred_io	= drm_fb_helper_deferred_io,
-};
-
 /*
  * This function uses the client API to create a framebuffer backed by a dumb buffer.
  */
@@ -206,8 +201,14 @@ static int drm_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 			return -ENOMEM;
 		info->flags |= FBINFO_VIRTFB | FBINFO_READS_FAST;
 
-		info->fbdefio = &drm_fbdev_defio;
-		fb_deferred_io_init(info);
+		/* Set a default deferred I/O handler */
+		fb_helper->fbdefio.delay = HZ / 20;
+		fb_helper->fbdefio.deferred_io = drm_fb_helper_deferred_io;
+
+		info->fbdefio = &fb_helper->fbdefio;
+		ret = fb_deferred_io_init(info);
+		if (ret)
+			return ret;
 	} else {
 		/* buffer is mapped for HW framebuffer */
 		ret = drm_client_buffer_vmap(fb_helper->buffer, &map);

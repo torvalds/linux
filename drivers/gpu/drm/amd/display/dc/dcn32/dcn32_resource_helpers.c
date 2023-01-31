@@ -251,6 +251,16 @@ bool dcn32_is_center_timing(struct pipe_ctx *pipe)
 	return is_center_timing;
 }
 
+bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
+{
+	bool psr_capable = false;
+
+	if (pipe->stream && pipe->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
+		psr_capable = true;
+	}
+	return psr_capable;
+}
+
 /**
  * *******************************************************************************************
  * dcn32_determine_det_override: Determine DET allocation for each pipe

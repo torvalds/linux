@@ -36,6 +36,7 @@
 
 #include "gt/intel_rps.h"
 
+#include "i915_config.h"
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
 #include "intel_display_trace.h"

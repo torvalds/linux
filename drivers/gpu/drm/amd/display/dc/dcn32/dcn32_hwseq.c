@@ -51,7 +51,6 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
 #include "link.h"
-#include "dc_link_dp.h"
 #include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -246,6 +245,13 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 	if (!dc->ctx->dmub_srv)
 		return false;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		/* MALL SS messaging is not supported with PSR at this time */
+		if (dc->current_state->streams[i] != NULL &&
+				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
+			return false;
+	}
 
 	if (enable) {
 		if (dc->current_state) {
@@ -689,6 +695,7 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 {
 	struct dc_clocks *clocks = &dc->current_state->bw_ctx.bw.dcn.clk;
 
+	clocks->dcfclk_deep_sleep_khz = DCN3_2_DCFCLK_DS_INIT_KHZ;
 	clocks->dcfclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dcfclk_mhz * 1000;
 	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
 	clocks->dramclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].memclk_mhz * 1000;
@@ -800,6 +807,16 @@ void dcn32_init_hw(struct dc *dc)
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 
 		dcn32_initialize_min_clocks(dc);
+
+		/* On HW init, allow idle optimizations after pipes have been turned off.
+		 *
+		 * In certain D3 cases (i.e. BOCO / BOMACO) it's possible that hardware state
+		 * is reset (i.e. not in idle at the time hw init is called), but software state
+		 * still has idle_optimizations = true, so we must disable idle optimizations first
+		 * (i.e. set false), then re-enable (set true).
+		 */
+		dc_allow_idle_optimizations(dc, false);
+		dc_allow_idle_optimizations(dc, true);
 	}
 
 	/* In headless boot cases, DIG may be turned

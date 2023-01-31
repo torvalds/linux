@@ -7,6 +7,7 @@
 
 #include <drm/i915_drm.h>
 
+#include "display/intel_display.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_breadcrumbs.h"

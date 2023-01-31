@@ -44,9 +44,9 @@ properties:
     description:
       Maximum SPI clocking speed of the device in Hz.
 
-  spi-cs-setup-ns:
+  spi-cs-setup-delay-ns:
     description:
-      Delay in nanosecods to be introduced by the controller after CS is
+      Delay in nanoseconds to be introduced by the controller after CS is
       asserted.
 
   spi-rx-bus-width:

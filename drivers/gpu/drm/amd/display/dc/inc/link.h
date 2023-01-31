@@ -89,4 +89,21 @@ bool link_decide_link_settings(
 	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
 
+void link_dp_trace_set_edp_power_timestamp(struct dc_link *link,
+		bool power_up);
+uint64_t link_dp_trace_get_edp_poweron_timestamp(struct dc_link *link);
+uint64_t link_dp_trace_get_edp_poweroff_timestamp(struct dc_link *link);
+
+bool link_is_edp_ilr_optimization_required(struct dc_link *link,
+		struct dc_crtc_timing *crtc_timing);
+
+bool link_backlight_enable_aux(struct dc_link *link, bool enable);
+void link_edp_add_delay_for_T9(struct dc_link *link);
+bool link_edp_receiver_ready_T9(struct dc_link *link);
+bool link_edp_receiver_ready_T7(struct dc_link *link);
+bool link_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
+bool link_set_sink_vtotal_in_psr_active(const struct dc_link *link,
+		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
+void link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
+
 #endif /* __DC_LINK_HPD_H__ */

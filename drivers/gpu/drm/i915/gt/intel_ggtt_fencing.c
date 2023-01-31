@@ -5,6 +5,7 @@
 
 #include <linux/highmem.h>
 
+#include "display/intel_display.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_scatterlist.h"

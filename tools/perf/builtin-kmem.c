@@ -26,6 +26,7 @@
 #include "util/string2.h"
 
 #include <linux/kernel.h>
+#include <linux/numa.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
@@ -185,22 +186,33 @@ static int evsel__process_alloc_event(struct evsel *evsel, struct perf_sample *s
 	total_allocated += bytes_alloc;
 
 	nr_allocs++;
-	return 0;
-}
 
-static int evsel__process_alloc_node_event(struct evsel *evsel, struct perf_sample *sample)
-{
-	int ret = evsel__process_alloc_event(evsel, sample);
+	/*
+	 * Commit 11e9734bcb6a ("mm/slab_common: unify NUMA and UMA
+	 * version of tracepoints") adds the field "node" into the
+	 * tracepoints 'kmalloc' and 'kmem_cache_alloc'.
+	 *
+	 * The legacy tracepoints 'kmalloc_node' and 'kmem_cache_alloc_node'
+	 * also contain the field "node".
+	 *
+	 * If the tracepoint contains the field "node" the tool stats the
+	 * cross allocation.
+	 */
+	if (evsel__field(evsel, "node")) {
+		int node1, node2;
 
-	if (!ret) {
-		int node1 = cpu__get_node((struct perf_cpu){.cpu = sample->cpu}),
-		    node2 = evsel__intval(evsel, sample, "node");
+		node1 = cpu__get_node((struct perf_cpu){.cpu = sample->cpu});
+		node2 = evsel__intval(evsel, sample, "node");
 
-		if (node1 != node2)
+		/*
+		 * If the field "node" is NUMA_NO_NODE (-1), we don't take it
+		 * as a cross allocation.
+		 */
+		if ((node2 != NUMA_NO_NODE) && (node1 != node2))
 			nr_cross_allocs++;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int ptr_cmp(void *, void *);
@@ -1369,8 +1381,8 @@ static int __cmd_kmem(struct perf_session *session)
 		/* slab allocator */
 		{ "kmem:kmalloc",		evsel__process_alloc_event, },
 		{ "kmem:kmem_cache_alloc",	evsel__process_alloc_event, },
-		{ "kmem:kmalloc_node",		evsel__process_alloc_node_event, },
-		{ "kmem:kmem_cache_alloc_node", evsel__process_alloc_node_event, },
+		{ "kmem:kmalloc_node",		evsel__process_alloc_event, },
+		{ "kmem:kmem_cache_alloc_node", evsel__process_alloc_event, },
 		{ "kmem:kfree",			evsel__process_free_event, },
 		{ "kmem:kmem_cache_free",	evsel__process_free_event, },
 		/* page allocator */
@@ -1824,6 +1836,19 @@ static int parse_line_opt(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static bool slab_legacy_tp_is_exposed(void)
+{
+	/*
+	 * The tracepoints "kmem:kmalloc_node" and
+	 * "kmem:kmem_cache_alloc_node" have been removed on the latest
+	 * kernel, if the tracepoint "kmem:kmalloc_node" is existed it
+	 * means the tool is running on an old kernel, we need to
+	 * rollback to support these legacy tracepoints.
+	 */
+	return IS_ERR(trace_event__tp_format("kmem", "kmalloc_node")) ?
+		false : true;
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	const char * const record_args[] = {
@@ -1831,11 +1856,13 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	const char * const slab_events[] = {
 	"-e", "kmem:kmalloc",
-	"-e", "kmem:kmalloc_node",
 	"-e", "kmem:kfree",
 	"-e", "kmem:kmem_cache_alloc",
-	"-e", "kmem:kmem_cache_alloc_node",
 	"-e", "kmem:kmem_cache_free",
+	};
+	const char * const slab_legacy_events[] = {
+	"-e", "kmem:kmalloc_node",
+	"-e", "kmem:kmem_cache_alloc_node",
 	};
 	const char * const page_events[] = {
 	"-e", "kmem:mm_page_alloc",
@@ -1843,10 +1870,14 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
+	unsigned int slab_legacy_tp_exposed = slab_legacy_tp_is_exposed();
 
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
-	if (kmem_slab)
+	if (kmem_slab) {
 		rec_argc += ARRAY_SIZE(slab_events);
+		if (slab_legacy_tp_exposed)
+			rec_argc += ARRAY_SIZE(slab_legacy_events);
+	}
 	if (kmem_page)
 		rec_argc += ARRAY_SIZE(page_events) + 1; /* for -g */
 
@@ -1861,6 +1892,10 @@ static int __cmd_record(int argc, const char **argv)
 	if (kmem_slab) {
 		for (j = 0; j < ARRAY_SIZE(slab_events); j++, i++)
 			rec_argv[i] = strdup(slab_events[j]);
+		if (slab_legacy_tp_exposed) {
+			for (j = 0; j < ARRAY_SIZE(slab_legacy_events); j++, i++)
+				rec_argv[i] = strdup(slab_legacy_events[j]);
+		}
 	}
 	if (kmem_page) {
 		rec_argv[i++] = strdup("-g");

@@ -1044,7 +1044,6 @@ static int team_port_enter(struct team *team, struct team_port *port)
 			goto err_port_enter;
 		}
 	}
-	port->dev->priv_flags |= IFF_NO_ADDRCONF;
 
 	return 0;
 
@@ -1058,7 +1057,6 @@ static void team_port_leave(struct team *team, struct team_port *port)
 {
 	if (team->ops.port_leave)
 		team->ops.port_leave(team, port);
-	port->dev->priv_flags &= ~IFF_NO_ADDRCONF;
 	dev_put(team->dev);
 }
 

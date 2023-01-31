@@ -2,6 +2,7 @@
 config MT7996E
 	tristate "MediaTek MT7996 (PCIe) support"
 	select MT76_CONNAC_LIB
+	select RELAY
 	depends on MAC80211
 	depends on PCI
 	help

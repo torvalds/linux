@@ -110,9 +110,7 @@ static int adjust_stolen(struct drm_i915_private *i915,
 		else
 			ggtt_start &= PGTBL_ADDRESS_LO_MASK;
 
-		ggtt_res =
-			(struct resource) DEFINE_RES_MEM(ggtt_start,
-							 ggtt_total_entries(ggtt) * 4);
+		ggtt_res = DEFINE_RES_MEM(ggtt_start, ggtt_total_entries(ggtt) * 4);
 
 		if (ggtt_res.start >= stolen[0].start && ggtt_res.start < stolen[0].end)
 			stolen[0].end = ggtt_res.start;
@@ -211,7 +209,7 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *i915,
 					IS_GM45(i915) ?
 					CTG_STOLEN_RESERVED :
 					ELK_STOLEN_RESERVED);
-	resource_size_t stolen_top = i915->dsm.end + 1;
+	resource_size_t stolen_top = i915->dsm.stolen.end + 1;
 
 	drm_dbg(&i915->drm, "%s_STOLEN_RESERVED = %08x\n",
 		IS_GM45(i915) ? "CTG" : "ELK", reg_val);
@@ -276,7 +274,7 @@ static void vlv_get_stolen_reserved(struct drm_i915_private *i915,
 				    resource_size_t *size)
 {
 	u32 reg_val = intel_uncore_read(uncore, GEN6_STOLEN_RESERVED);
-	resource_size_t stolen_top = i915->dsm.end + 1;
+	resource_size_t stolen_top = i915->dsm.stolen.end + 1;
 
 	drm_dbg(&i915->drm, "GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
@@ -365,7 +363,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *i915,
 				    resource_size_t *size)
 {
 	u32 reg_val = intel_uncore_read(uncore, GEN6_STOLEN_RESERVED);
-	resource_size_t stolen_top = i915->dsm.end + 1;
+	resource_size_t stolen_top = i915->dsm.stolen.end + 1;
 
 	drm_dbg(&i915->drm, "GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
@@ -414,7 +412,7 @@ static void icl_get_stolen_reserved(struct drm_i915_private *i915,
 }
 
 /*
- * Initialize i915->dsm_reserved to contain the reserved space within the Data
+ * Initialize i915->dsm.reserved to contain the reserved space within the Data
  * Stolen Memory. This is a range on the top of DSM that is reserved, not to
  * be used by driver, so must be excluded from the region passed to the
  * allocator later. In the spec this is also called as WOPCM.
@@ -430,7 +428,7 @@ static int init_reserved_stolen(struct drm_i915_private *i915)
 	resource_size_t reserved_size;
 	int ret = 0;
 
-	stolen_top = i915->dsm.end + 1;
+	stolen_top = i915->dsm.stolen.end + 1;
 	reserved_base = stolen_top;
 	reserved_size = 0;
 
@@ -471,13 +469,12 @@ static int init_reserved_stolen(struct drm_i915_private *i915)
 		goto bail_out;
 	}
 
-	i915->dsm_reserved =
-		(struct resource)DEFINE_RES_MEM(reserved_base, reserved_size);
+	i915->dsm.reserved = DEFINE_RES_MEM(reserved_base, reserved_size);
 
-	if (!resource_contains(&i915->dsm, &i915->dsm_reserved)) {
+	if (!resource_contains(&i915->dsm.stolen, &i915->dsm.reserved)) {
 		drm_err(&i915->drm,
 			"Stolen reserved area %pR outside stolen memory %pR\n",
-			&i915->dsm_reserved, &i915->dsm);
+			&i915->dsm.reserved, &i915->dsm.stolen);
 		ret = -EINVAL;
 		goto bail_out;
 	}
@@ -485,8 +482,7 @@ static int init_reserved_stolen(struct drm_i915_private *i915)
 	return 0;
 
 bail_out:
-	i915->dsm_reserved =
-		(struct resource)DEFINE_RES_MEM(reserved_base, 0);
+	i915->dsm.reserved = DEFINE_RES_MEM(reserved_base, 0);
 
 	return ret;
 }
@@ -517,27 +513,27 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 	if (request_smem_stolen(i915, &mem->region))
 		return -ENOSPC;
 
-	i915->dsm = mem->region;
+	i915->dsm.stolen = mem->region;
 
 	if (init_reserved_stolen(i915))
 		return -ENOSPC;
 
 	/* Exclude the reserved region from driver use */
-	mem->region.end = i915->dsm_reserved.start - 1;
+	mem->region.end = i915->dsm.reserved.start - 1;
 	mem->io_size = min(mem->io_size, resource_size(&mem->region));
 
-	i915->stolen_usable_size = resource_size(&mem->region);
+	i915->dsm.usable_size = resource_size(&mem->region);
 
 	drm_dbg(&i915->drm,
 		"Memory reserved for graphics device: %lluK, usable: %lluK\n",
-		(u64)resource_size(&i915->dsm) >> 10,
-		(u64)i915->stolen_usable_size >> 10);
+		(u64)resource_size(&i915->dsm.stolen) >> 10,
+		(u64)i915->dsm.usable_size >> 10);
 
-	if (i915->stolen_usable_size == 0)
+	if (i915->dsm.usable_size == 0)
 		return -ENOSPC;
 
 	/* Basic memrange allocator for stolen space. */
-	drm_mm_init(&i915->mm.stolen, 0, i915->stolen_usable_size);
+	drm_mm_init(&i915->mm.stolen, 0, i915->dsm.usable_size);
 
 	return 0;
 }
@@ -587,7 +583,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	struct sg_table *st;
 	struct scatterlist *sg;
 
-	GEM_BUG_ON(range_overflows(offset, size, resource_size(&i915->dsm)));
+	GEM_BUG_ON(range_overflows(offset, size, resource_size(&i915->dsm.stolen)));
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
@@ -607,7 +603,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	sg->offset = 0;
 	sg->length = size;
 
-	sg_dma_address(sg) = (dma_addr_t)i915->dsm.start + offset;
+	sg_dma_address(sg) = (dma_addr_t)i915->dsm.stolen.start + offset;
 	sg_dma_len(sg) = size;
 
 	return st;

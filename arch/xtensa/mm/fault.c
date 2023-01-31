@@ -206,8 +206,6 @@ good_area:
 bad_area:
 	mmap_read_unlock(mm);
 	if (user_mode(regs)) {
-		current->thread.bad_vaddr = address;
-		current->thread.error_code = is_write;
 		force_sig_fault(SIGSEGV, code, (void *) address);
 		return;
 	}
@@ -232,7 +230,6 @@ do_sigbus:
 	/* Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	current->thread.bad_vaddr = address;
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void *) address);
 
 	/* Kernel mode? Handle exceptions or die */
@@ -252,7 +249,6 @@ bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 	if ((entry = search_exception_tables(regs->pc)) != NULL) {
 		pr_debug("%s: Exception at pc=%#010lx (%lx)\n",
 			 current->comm, regs->pc, entry->fixup);
-		current->thread.bad_uaddr = address;
 		regs->pc = entry->fixup;
 		return;
 	}

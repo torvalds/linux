@@ -44,7 +44,7 @@ static void trash_stolen(struct drm_i915_private *i915)
 {
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	const u64 slot = ggtt->error_capture.start;
-	const resource_size_t size = resource_size(&i915->dsm);
+	const resource_size_t size = resource_size(&i915->dsm.stolen);
 	unsigned long page;
 	u32 prng = 0x12345678;
 
@@ -53,7 +53,7 @@ static void trash_stolen(struct drm_i915_private *i915)
 		return;
 
 	for (page = 0; page < size; page += PAGE_SIZE) {
-		const dma_addr_t dma = i915->dsm.start + page;
+		const dma_addr_t dma = i915->dsm.stolen.start + page;
 		u32 __iomem *s;
 		int x;
 

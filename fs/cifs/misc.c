@@ -1277,7 +1277,9 @@ int match_target_ip(struct TCP_Server_Info *server,
 	if (rc < 0)
 		return rc;
 
+	spin_lock(&server->srv_lock);
 	*result = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr, (struct sockaddr *)&ss);
+	spin_unlock(&server->srv_lock);
 	cifs_dbg(FYI, "%s: ip addresses match: %u\n", __func__, *result);
 	return 0;
 }

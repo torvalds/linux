@@ -416,8 +416,6 @@ xfs_reflink_fill_cow_hole(
 		goto convert;
 	}
 
-	ASSERT(cmap->br_startoff > imap->br_startoff);
-
 	/* Allocate the entire reservation as unwritten blocks. */
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
