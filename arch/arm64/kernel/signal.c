@@ -521,7 +521,7 @@ static int preserve_zt_context(struct zt_context __user *ctx)
 static int restore_zt_context(struct user_ctxs *user)
 {
 	int err;
-	struct zt_context zt;
+	u16 nregs;
 
 	/* ZA must be restored first for this check to be valid */
 	if (!thread_za_enabled(&current->thread))
@@ -530,10 +530,10 @@ static int restore_zt_context(struct user_ctxs *user)
 	if (user->zt_size != ZT_SIG_CONTEXT_SIZE(1))
 		return -EINVAL;
 
-	if (__copy_from_user(&zt, user->zt, sizeof(zt)))
+	if (__copy_from_user(&nregs, &(user->zt->nregs), sizeof(nregs)))
 		return -EFAULT;
 
-	if (zt.nregs != 1)
+	if (nregs != 1)
 		return -EINVAL;
 
 	/*
