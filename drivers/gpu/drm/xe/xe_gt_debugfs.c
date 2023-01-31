@@ -8,6 +8,7 @@
 
 #include "xe_device.h"
 #include "xe_force_wake.h"
+#include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_gt_debugfs.h"
 #include "xe_gt_mcr.h"
@@ -88,12 +89,21 @@ static int steering(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int ggtt(struct seq_file *m, void *data)
+{
+	struct xe_gt *gt = node_to_gt(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	return xe_ggtt_dump(gt->mem.ggtt, &p);
+}
+
 static const struct drm_info_list debugfs_list[] = {
 	{"hw_engines", hw_engines, 0},
 	{"force_reset", force_reset, 0},
 	{"sa_info", sa_info, 0},
 	{"topology", topology, 0},
 	{"steering", steering, 0},
+	{"ggtt", ggtt, 0},
 };
 
 void xe_gt_debugfs_register(struct xe_gt *gt)

@@ -8,6 +8,8 @@
 
 #include "xe_ggtt_types.h"
 
+struct drm_printer;
+
 u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset);
 void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte);
 void xe_ggtt_invalidate(struct xe_gt *gt);
@@ -25,5 +27,7 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo);
 int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo);
 int xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo, u64 ofs);
 void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo);
+
+int xe_ggtt_dump(struct xe_ggtt *ggtt, struct drm_printer *p);
 
 #endif

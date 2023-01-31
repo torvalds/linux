@@ -345,3 +345,16 @@ void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 
 	xe_ggtt_remove_node(ggtt, &bo->ggtt_node);
 }
+
+int xe_ggtt_dump(struct xe_ggtt *ggtt, struct drm_printer *p)
+{
+	int err;
+
+	err = mutex_lock_interruptible(&ggtt->lock);
+	if (err)
+		return err;
+
+	drm_mm_print(&ggtt->mm, p);
+	mutex_unlock(&ggtt->lock);
+	return err;
+}
