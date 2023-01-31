@@ -466,6 +466,30 @@ static bool machine_is_x86(GElf_Half e_machine)
 	return e_machine == EM_386 || e_machine == EM_X86_64;
 }
 
+static int dso__synthesize_plt_got_symbols(struct dso *dso, Elf *elf,
+					   GElf_Ehdr *ehdr,
+					   char *buf, size_t buf_sz)
+{
+	struct symbol *sym;
+	GElf_Shdr shdr;
+	Elf_Scn *scn;
+	size_t i;
+
+	scn = elf_section_by_name(elf, ehdr, &shdr, ".plt.got", NULL);
+	if (!scn || !shdr.sh_entsize)
+		return 0;
+
+	for (i = 0; i < shdr.sh_size; i += shdr.sh_entsize) {
+		snprintf(buf, buf_sz, "offset_%#" PRIx64 "@plt", (u64)shdr.sh_offset + i);
+		sym = symbol__new(shdr.sh_offset + i, shdr.sh_entsize, STB_GLOBAL, STT_FUNC, buf);
+		if (!sym)
+			return -1;
+		symbols__insert(&dso->symbols, sym);
+	}
+
+	return 0;
+}
+
 /*
  * We need to check if we have a .dynsym, so that we can handle the
  * .plt, synthesizing its symbols, that aren't on the symtabs (be it
@@ -513,6 +537,11 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	if (!plt_sym)
 		goto out_elf_end;
 	symbols__insert(&dso->symbols, plt_sym);
+
+	/* Only x86 has .plt.got */
+	if (machine_is_x86(ehdr.e_machine) &&
+	    dso__synthesize_plt_got_symbols(dso, elf, &ehdr, sympltname, sizeof(sympltname)))
+		goto out_elf_end;
 
 	/* Only x86 has .plt.sec */
 	if (machine_is_x86(ehdr.e_machine) &&
