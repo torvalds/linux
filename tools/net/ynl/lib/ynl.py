@@ -313,7 +313,7 @@ class YnlFamily(SpecFamily):
 
         for msg in self.msgs.values():
             if msg.is_async:
-                self.async_msg_ids.add(msg.value)
+                self.async_msg_ids.add(msg.rsp_value)
 
         for op_name, op in self.ops.items():
             bound_f = functools.partial(self._op, op_name)
@@ -398,7 +398,7 @@ class YnlFamily(SpecFamily):
         if self.include_raw:
             msg['nlmsg'] = nl_msg
             msg['genlmsg'] = genl_msg
-        op = self.msgs_by_value[genl_msg.genl_cmd]
+        op = self.rsp_by_value[genl_msg.genl_cmd]
         msg['name'] = op['name']
         msg['msg'] = self._decode(genl_msg.raw_attrs, op.attr_set.name)
         self.async_msg_queue.append(msg)
@@ -435,7 +435,7 @@ class YnlFamily(SpecFamily):
             nl_flags |= Netlink.NLM_F_DUMP
 
         req_seq = random.randint(1024, 65535)
-        msg = _genl_msg(self.family.family_id, nl_flags, op.value, 1, req_seq)
+        msg = _genl_msg(self.family.family_id, nl_flags, op.req_value, 1, req_seq)
         for name, value in vals.items():
             msg += self._add_attr(op.attr_set.name, name, value)
         msg = _genl_msg_finalize(msg)
@@ -458,7 +458,7 @@ class YnlFamily(SpecFamily):
 
                 gm = GenlMsg(nl_msg)
                 # Check if this is a reply to our request
-                if nl_msg.nl_seq != req_seq or gm.genl_cmd != op.value:
+                if nl_msg.nl_seq != req_seq or gm.genl_cmd != op.rsp_value:
                     if gm.genl_cmd in self.async_msg_ids:
                         self.handle_ntf(nl_msg, gm)
                         continue
