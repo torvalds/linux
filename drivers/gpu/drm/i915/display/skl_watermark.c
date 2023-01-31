@@ -3545,13 +3545,34 @@ static const struct file_operations skl_watermark_ipc_status_fops = {
 	.write = skl_watermark_ipc_status_write
 };
 
-void skl_watermark_ipc_debugfs_register(struct drm_i915_private *i915)
+static int intel_sagv_status_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	static const char * const sagv_status[] = {
+		[I915_SAGV_UNKNOWN] = "unknown",
+		[I915_SAGV_DISABLED] = "disabled",
+		[I915_SAGV_ENABLED] = "enabled",
+		[I915_SAGV_NOT_CONTROLLED] = "not controlled",
+	};
+
+	seq_printf(m, "SAGV available: %s\n", str_yes_no(intel_has_sagv(i915)));
+	seq_printf(m, "SAGV status: %s\n", sagv_status[i915->display.sagv.status]);
+	seq_printf(m, "SAGV block time: %d usec\n", i915->display.sagv.block_time_us);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_sagv_status);
+
+void skl_watermark_debugfs_register(struct drm_i915_private *i915)
 {
 	struct drm_minor *minor = i915->drm.primary;
 
-	if (!HAS_IPC(i915))
-		return;
+	if (HAS_IPC(i915))
+		debugfs_create_file("i915_ipc_status", 0644, minor->debugfs_root, i915,
+				    &skl_watermark_ipc_status_fops);
 
-	debugfs_create_file("i915_ipc_status", 0644, minor->debugfs_root, i915,
-			    &skl_watermark_ipc_status_fops);
+	if (HAS_SAGV(i915))
+		debugfs_create_file("i915_sagv_status", 0444, minor->debugfs_root, i915,
+				    &intel_sagv_status_fops);
 }

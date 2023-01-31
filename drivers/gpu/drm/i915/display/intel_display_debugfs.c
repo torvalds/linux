@@ -1622,7 +1622,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(i915);
 	intel_hpd_debugfs_register(i915);
-	skl_watermark_ipc_debugfs_register(i915);
+	skl_watermark_debugfs_register(i915);
 }
 
 static int i915_panel_show(struct seq_file *m, void *data)
