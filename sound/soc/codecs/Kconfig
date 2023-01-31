@@ -1119,6 +1119,9 @@ config SND_SOC_RK817
 config SND_SOC_RK_CODEC_DIGITAL
 	tristate "Rockchip Codec Digital Interface"
 
+config SND_SOC_RK_DSM
+	tristate "Rockchip Delta-sigma Digital Converter Interface"
+
 config SND_SOC_RL6231
 	tristate
 	default y if SND_SOC_RT5514=y
