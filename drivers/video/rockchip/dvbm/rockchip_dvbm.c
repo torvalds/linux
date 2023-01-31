@@ -252,8 +252,8 @@ static int rk_dvbm_setup_iobuf(struct dvbm_ctx *ctx)
 	ctx->isp_frm_info.line_cnt = 0;
 	ctx->isp_frm_info.max_line_cnt = ALIGN(ctx->isp_max_lcnt, 32);
 	ctx->isp_frm_info.wrap_line = ctx->wrap_line;
-	dvbm_debug("dma_addr 0x%08x y_lstd %d y_fstd %d\n",
-		   cfg->dma_addr, cfg->ybuf_lstd, cfg->ybuf_fstd);
+	dvbm_debug("dma_addr %pad y_lstd %d y_fstd %d\n",
+		   &cfg->dma_addr, cfg->ybuf_lstd, cfg->ybuf_fstd);
 	dvbm_debug("ybot 0x%x top 0x%x cbuf bot 0x%x top 0x%x\n",
 		   addr_base->ybuf_bot, addr_base->ybuf_top,
 		   addr_base->cbuf_bot, addr_base->cbuf_top);
