@@ -21,6 +21,28 @@ ice_test_staterr(__le16 status_err_n, const u16 stat_err_bits)
 	return !!(status_err_n & cpu_to_le16(stat_err_bits));
 }
 
+/**
+ * ice_is_non_eop - process handling of non-EOP buffers
+ * @rx_ring: Rx ring being processed
+ * @rx_desc: Rx descriptor for current buffer
+ *
+ * If the buffer is an EOP buffer, this function exits returning false,
+ * otherwise return true indicating that this is in fact a non-EOP buffer.
+ */
+static inline bool
+ice_is_non_eop(const struct ice_rx_ring *rx_ring,
+	       const union ice_32b_rx_flex_desc *rx_desc)
+{
+	/* if we are the last buffer then there is nothing else to do */
+#define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
+	if (likely(ice_test_staterr(rx_desc->wb.status_error0, ICE_RXD_EOF)))
+		return false;
+
+	rx_ring->ring_stats->rx_stats.non_eop_descs++;
+
+	return true;
+}
+
 static inline __le64
 ice_build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
 {
