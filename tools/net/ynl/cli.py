@@ -6,7 +6,7 @@ import json
 import pprint
 import time
 
-from ynl import YnlFamily
+from lib import YnlFamily
 
 
 def main():
