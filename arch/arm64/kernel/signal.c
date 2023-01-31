@@ -435,17 +435,18 @@ static int preserve_za_context(struct za_context __user *ctx)
 
 static int restore_za_context(struct user_ctxs *user)
 {
-	int err;
+	int err = 0;
 	unsigned int vq;
-	struct za_context za;
+	u16 user_vl;
 
 	if (user->za_size < sizeof(*user->za))
 		return -EINVAL;
 
-	if (__copy_from_user(&za, user->za, sizeof(za)))
-		return -EFAULT;
+	__get_user_error(user_vl, &(user->za->vl), err);
+	if (err)
+		return err;
 
-	if (za.vl != task_get_sme_vl(current))
+	if (user_vl != task_get_sme_vl(current))
 		return -EINVAL;
 
 	if (user->za_size == sizeof(*user->za)) {
@@ -453,7 +454,7 @@ static int restore_za_context(struct user_ctxs *user)
 		return 0;
 	}
 
-	vq = sve_vq_from_vl(za.vl);
+	vq = sve_vq_from_vl(user_vl);
 
 	if (user->za_size < ZA_SIG_CONTEXT_SIZE(vq))
 		return -EINVAL;
