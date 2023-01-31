@@ -942,6 +942,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					v->UrgBurstFactorLumaPre,
 					v->UrgBurstFactorChromaPre,
 					v->UrgBurstFactorCursorPre,
+					v->PrefetchBandwidth,
+					v->VRatio,
+					v->MaxVRatioPre,
 
 					/* output */
 					&MaxTotalRDBandwidth,
@@ -972,6 +975,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_unit_vector,
 					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_unit_vector,
 					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_unit_vector,
+					v->PrefetchBandwidth,
+					v->VRatio,
+					v->MaxVRatioPre,
 
 					/* output */
 					&v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_single[0],
@@ -3373,6 +3379,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.UrgentBurstFactorLumaPre,
 							mode_lib->vba.UrgentBurstFactorChromaPre,
 							mode_lib->vba.UrgentBurstFactorCursorPre,
+							v->PrefetchBW,
+							v->VRatio,
+							v->MaxVRatioPre,
 
 							/* output */
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[0],   // Single  *PrefetchBandwidth
