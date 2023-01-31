@@ -17,26 +17,14 @@
 #include <linux/types.h>
 
 /* regular block cipher functions */
-asmlinkage void __blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src,
-				   bool xor);
+asmlinkage void blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src);
 asmlinkage void blowfish_dec_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src);
 
 /* 4-way parallel cipher functions */
-asmlinkage void __blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
-					const u8 *src, bool xor);
+asmlinkage void blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
+				      const u8 *src);
 asmlinkage void blowfish_dec_blk_4way(struct bf_ctx *ctx, u8 *dst,
 				      const u8 *src);
-
-static inline void blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src)
-{
-	__blowfish_enc_blk(ctx, dst, src, false);
-}
-
-static inline void blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
-					 const u8 *src)
-{
-	__blowfish_enc_blk_4way(ctx, dst, src, false);
-}
 
 static void blowfish_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {

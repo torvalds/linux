@@ -100,16 +100,11 @@
 	bswapq 			RX0; \
 	movq RX0, 		(RIO);
 
-#define xor_block() \
-	bswapq 			RX0; \
-	xorq RX0, 		(RIO);
-
-SYM_FUNC_START(__blowfish_enc_blk)
+SYM_TYPED_FUNC_START(blowfish_enc_blk)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
-	 *	%rcx: bool, if true: xor output
 	 */
 	movq %r12, %r11;
 
@@ -130,17 +125,11 @@ SYM_FUNC_START(__blowfish_enc_blk)
 	add_roundkey_enc(16);
 
 	movq %r11, %r12;
-
 	movq %r10, RIO;
-	test %cl, %cl;
-	jnz .L__enc_xor;
 
 	write_block();
 	RET;
-.L__enc_xor:
-	xor_block();
-	RET;
-SYM_FUNC_END(__blowfish_enc_blk)
+SYM_FUNC_END(blowfish_enc_blk)
 
 SYM_TYPED_FUNC_START(blowfish_dec_blk)
 	/* input:
@@ -271,29 +260,14 @@ SYM_FUNC_END(blowfish_dec_blk)
 	bswapq 			RX3; \
 	movq RX3,		24(RIO);
 
-#define xor_block4() \
-	bswapq 			RX0; \
-	xorq RX0,		(RIO); \
-	\
-	bswapq 			RX1; \
-	xorq RX1,		8(RIO); \
-	\
-	bswapq 			RX2; \
-	xorq RX2,		16(RIO); \
-	\
-	bswapq 			RX3; \
-	xorq RX3,		24(RIO);
-
-SYM_FUNC_START(__blowfish_enc_blk_4way)
+SYM_TYPED_FUNC_START(blowfish_enc_blk_4way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
-	 *	%rcx: bool, if true: xor output
 	 */
 	pushq %r12;
 	pushq %rbx;
-	pushq %rcx;
 
 	movq %rdi, CTX
 	movq %rsi, %r11;
@@ -313,25 +287,13 @@ SYM_FUNC_START(__blowfish_enc_blk_4way)
 	round_enc4(14);
 	add_preloaded_roundkey4();
 
-	popq %r12;
 	movq %r11, RIO;
-
-	test %r12b, %r12b;
-	jnz .L__enc_xor4;
-
 	write_block4();
 
 	popq %rbx;
 	popq %r12;
 	RET;
-
-.L__enc_xor4:
-	xor_block4();
-
-	popq %rbx;
-	popq %r12;
-	RET;
-SYM_FUNC_END(__blowfish_enc_blk_4way)
+SYM_FUNC_END(blowfish_enc_blk_4way)
 
 SYM_TYPED_FUNC_START(blowfish_dec_blk_4way)
 	/* input:
