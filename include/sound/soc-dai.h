@@ -478,11 +478,19 @@ snd_soc_dai_get_pcm_stream(const struct snd_soc_dai *dai, int stream)
 }
 
 static inline
-struct snd_soc_dapm_widget *snd_soc_dai_get_widget(
-	struct snd_soc_dai *dai, int stream)
+struct snd_soc_dapm_widget *snd_soc_dai_get_widget(struct snd_soc_dai *dai, int stream)
 {
 	return (stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		dai->playback_widget : dai->capture_widget;
+}
+
+static inline
+void snd_soc_dai_set_widget(struct snd_soc_dai *dai, int stream, struct snd_soc_dapm_widget *widget)
+{
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dai->playback_widget = widget;
+	else
+		dai->capture_widget  = widget;
 }
 
 static inline void *snd_soc_dai_get_dma_data(const struct snd_soc_dai *dai,
