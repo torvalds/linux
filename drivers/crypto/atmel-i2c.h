@@ -167,7 +167,7 @@ struct atmel_i2c_work_data {
 	struct atmel_i2c_cmd cmd;
 };
 
-int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id);
+int atmel_i2c_probe(struct i2c_client *client);
 
 void atmel_i2c_enqueue(struct atmel_i2c_work_data *work_data,
 		       void (*cbk)(struct atmel_i2c_work_data *work_data,

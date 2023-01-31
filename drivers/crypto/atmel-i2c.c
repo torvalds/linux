@@ -324,7 +324,7 @@ free_cmd:
 	return ret;
 }
 
-int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+int atmel_i2c_probe(struct i2c_client *client)
 {
 	struct atmel_i2c_client_priv *i2c_priv;
 	struct device *dev = &client->dev;
