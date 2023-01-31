@@ -2543,6 +2543,9 @@ svm_range_best_restore_location(struct svm_range *prange,
 		return -1;
 	}
 
+	if (node->adev->gmc.is_app_apu)
+		return 0;
+
 	if (prange->preferred_loc == gpuid ||
 	    prange->preferred_loc == KFD_IOCTL_SVM_LOCATION_SYSMEM) {
 		return prange->preferred_loc;
@@ -3252,6 +3255,11 @@ svm_range_best_prefetch_location(struct svm_range *prange)
 	bo_node = svm_range_get_node_by_id(prange, best_loc);
 	if (!bo_node) {
 		WARN_ONCE(1, "failed to get valid kfd node at id%x\n", best_loc);
+		best_loc = 0;
+		goto out;
+	}
+
+	if (bo_node->adev->gmc.is_app_apu) {
 		best_loc = 0;
 		goto out;
 	}
