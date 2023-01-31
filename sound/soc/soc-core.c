@@ -553,7 +553,7 @@ int snd_soc_suspend(struct device *dev)
 	int i;
 
 	/* If the card is not initialized yet there is nothing to do */
-	if (!card->instantiated)
+	if (!snd_soc_card_is_instantiated(card))
 		return 0;
 
 	/*
@@ -695,7 +695,7 @@ int snd_soc_resume(struct device *dev)
 	struct snd_soc_component *component;
 
 	/* If the card is not initialized yet there is nothing to do */
-	if (!card->instantiated)
+	if (!snd_soc_card_is_instantiated(card))
 		return 0;
 
 	/* activate pins from sleep state */
@@ -1915,7 +1915,7 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 
 static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 {
-	if (card->instantiated) {
+	if (snd_soc_card_is_instantiated(card)) {
 		card->instantiated = false;
 		snd_soc_flush_all_delayed_work(card);
 
@@ -2126,7 +2126,7 @@ int snd_soc_poweroff(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_component *component;
 
-	if (!card->instantiated)
+	if (!snd_soc_card_is_instantiated(card))
 		return 0;
 
 	/*
