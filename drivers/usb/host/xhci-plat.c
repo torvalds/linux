@@ -24,8 +24,6 @@
 #include "xhci.h"
 #include "xhci-plat.h"
 #include "xhci-mvebu.h"
-#include "xhci-rcar.h"
-#include "xhci-rzv2m.h"
 
 static struct hc_driver __read_mostly xhci_plat_hc_driver;
 
@@ -116,21 +114,6 @@ static const struct xhci_plat_priv xhci_plat_marvell_armada3700 = {
 	.init_quirk = xhci_mvebu_a3700_init_quirk,
 };
 
-static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
-	SET_XHCI_PLAT_PRIV_FOR_RCAR(XHCI_RCAR_FIRMWARE_NAME_V1)
-};
-
-static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
-	SET_XHCI_PLAT_PRIV_FOR_RCAR(XHCI_RCAR_FIRMWARE_NAME_V3)
-};
-
-static const struct xhci_plat_priv xhci_plat_renesas_rzv2m = {
-	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_TRUST_TX_LENGTH |
-		  XHCI_SLOW_SUSPEND,
-	.init_quirk = xhci_rzv2m_init_quirk,
-	.plat_start = xhci_rzv2m_start,
-};
-
 static const struct xhci_plat_priv xhci_plat_brcm = {
 	.quirks = XHCI_RESET_ON_RESUME | XHCI_SUSPEND_RESUME_CLKS,
 };
@@ -150,30 +133,6 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "marvell,armada3700-xhci",
 		.data = &xhci_plat_marvell_armada3700,
 	}, {
-		.compatible = "renesas,xhci-r8a7790",
-		.data = &xhci_plat_renesas_rcar_gen2,
-	}, {
-		.compatible = "renesas,xhci-r8a7791",
-		.data = &xhci_plat_renesas_rcar_gen2,
-	}, {
-		.compatible = "renesas,xhci-r8a7793",
-		.data = &xhci_plat_renesas_rcar_gen2,
-	}, {
-		.compatible = "renesas,xhci-r8a7795",
-		.data = &xhci_plat_renesas_rcar_gen3,
-	}, {
-		.compatible = "renesas,xhci-r8a7796",
-		.data = &xhci_plat_renesas_rcar_gen3,
-	}, {
-		.compatible = "renesas,rcar-gen2-xhci",
-		.data = &xhci_plat_renesas_rcar_gen2,
-	}, {
-		.compatible = "renesas,rcar-gen3-xhci",
-		.data = &xhci_plat_renesas_rcar_gen3,
-	}, {
-		.compatible = "renesas,rzv2m-xhci",
-		.data = &xhci_plat_renesas_rzv2m,
-	}, {
 		.compatible = "brcm,xhci-brcm-v2",
 		.data = &xhci_plat_brcm,
 	}, {
@@ -185,11 +144,10 @@ static const struct of_device_id usb_xhci_of_match[] = {
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 #endif
 
-static int xhci_plat_probe(struct platform_device *pdev)
+int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const struct xhci_plat_priv *priv_match)
 {
-	const struct xhci_plat_priv *priv_match;
 	const struct hc_driver	*driver;
-	struct device		*sysdev, *tmpdev;
+	struct device		*tmpdev;
 	struct xhci_hcd		*xhci;
 	struct resource         *res;
 	struct usb_hcd		*hcd, *usb3_hcd;
@@ -207,31 +165,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	/*
-	 * sysdev must point to a device that is known to the system firmware
-	 * or PCI hardware. We handle these three cases here:
-	 * 1. xhci_plat comes from firmware
-	 * 2. xhci_plat is child of a device from firmware (dwc3-plat)
-	 * 3. xhci_plat is grandchild of a pci device (dwc3-pci)
-	 */
-	for (sysdev = &pdev->dev; sysdev; sysdev = sysdev->parent) {
-		if (is_of_node(sysdev->fwnode) ||
-			is_acpi_device_node(sysdev->fwnode))
-			break;
-#ifdef CONFIG_PCI
-		else if (sysdev->bus == &pci_bus_type)
-			break;
-#endif
-	}
-
 	if (!sysdev)
 		sysdev = &pdev->dev;
 
-	if (WARN_ON(!sysdev->dma_mask))
-		/* Platform did not initialize dma_mask */
-		ret = dma_coerce_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
-	else
-		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
 	if (ret)
 		return ret;
 
@@ -292,11 +229,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(xhci->clk);
 	if (ret)
 		goto disable_reg_clk;
-
-	if (pdev->dev.of_node)
-		priv_match = of_device_get_match_data(&pdev->dev);
-	else
-		priv_match = dev_get_platdata(&pdev->dev);
 
 	if (priv_match) {
 		priv = hcd_to_xhci_priv(hcd);
@@ -411,8 +343,47 @@ disable_runtime:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(xhci_plat_probe);
 
-static int xhci_plat_remove(struct platform_device *dev)
+static int xhci_generic_plat_probe(struct platform_device *pdev)
+{
+	const struct xhci_plat_priv *priv_match;
+	struct device *sysdev;
+	int ret;
+
+	/*
+	 * sysdev must point to a device that is known to the system firmware
+	 * or PCI hardware. We handle these three cases here:
+	 * 1. xhci_plat comes from firmware
+	 * 2. xhci_plat is child of a device from firmware (dwc3-plat)
+	 * 3. xhci_plat is grandchild of a pci device (dwc3-pci)
+	 */
+	for (sysdev = &pdev->dev; sysdev; sysdev = sysdev->parent) {
+		if (is_of_node(sysdev->fwnode) ||
+			is_acpi_device_node(sysdev->fwnode))
+			break;
+#ifdef CONFIG_PCI
+		else if (sysdev->bus == &pci_bus_type)
+			break;
+#endif
+	}
+
+	if (WARN_ON(!sysdev->dma_mask)) {
+		/* Platform did not initialize dma_mask */
+		ret = dma_coerce_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
+		if (ret)
+			return ret;
+	}
+
+	if (pdev->dev.of_node)
+		priv_match = of_device_get_match_data(&pdev->dev);
+	else
+		priv_match = dev_get_platdata(&pdev->dev);
+
+	return xhci_plat_probe(pdev, sysdev, priv_match);
+}
+
+int xhci_plat_remove(struct platform_device *dev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -446,6 +417,7 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xhci_plat_remove);
 
 static int __maybe_unused xhci_plat_suspend(struct device *dev)
 {
@@ -522,13 +494,14 @@ static int __maybe_unused xhci_plat_runtime_resume(struct device *dev)
 	return xhci_resume(xhci, 0);
 }
 
-static const struct dev_pm_ops xhci_plat_pm_ops = {
+const struct dev_pm_ops xhci_plat_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(xhci_plat_suspend, xhci_plat_resume)
 
 	SET_RUNTIME_PM_OPS(xhci_plat_runtime_suspend,
 			   xhci_plat_runtime_resume,
 			   NULL)
 };
+EXPORT_SYMBOL_GPL(xhci_plat_pm_ops);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id usb_xhci_acpi_match[] = {
@@ -539,8 +512,8 @@ static const struct acpi_device_id usb_xhci_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);
 #endif
 
-static struct platform_driver usb_xhci_driver = {
-	.probe	= xhci_plat_probe,
+static struct platform_driver usb_generic_xhci_driver = {
+	.probe	= xhci_generic_plat_probe,
 	.remove	= xhci_plat_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver	= {
@@ -555,13 +528,13 @@ MODULE_ALIAS("platform:xhci-hcd");
 static int __init xhci_plat_init(void)
 {
 	xhci_init_driver(&xhci_plat_hc_driver, &xhci_plat_overrides);
-	return platform_driver_register(&usb_xhci_driver);
+	return platform_driver_register(&usb_generic_xhci_driver);
 }
 module_init(xhci_plat_init);
 
 static void __exit xhci_plat_exit(void)
 {
-	platform_driver_unregister(&usb_xhci_driver);
+	platform_driver_unregister(&usb_generic_xhci_driver);
 }
 module_exit(xhci_plat_exit);
 
