@@ -75,6 +75,9 @@ class NlAttr:
         self.full_len = (self.payload_len + 3) & ~3
         self.raw = raw[offset + 4:offset + self.payload_len]
 
+    def as_u8(self):
+        return struct.unpack("B", self.raw)[0]
+
     def as_u16(self):
         return struct.unpack("H", self.raw)[0]
 
@@ -302,7 +305,7 @@ class YnlFamily(SpecFamily):
 
         self._types = dict()
 
-        for elem in self.yaml['definitions']:
+        for elem in self.yaml.get('definitions', []):
             self._types[elem['name']] = elem
 
         self.async_msg_ids = set()
@@ -334,6 +337,8 @@ class YnlFamily(SpecFamily):
             attr_payload = b''
             for subname, subvalue in value.items():
                 attr_payload += self._add_attr(attr['nested-attributes'], subname, subvalue)
+        elif attr["type"] == 'flag':
+            attr_payload = b''
         elif attr["type"] == 'u32':
             attr_payload = struct.pack("I", int(value))
         elif attr["type"] == 'string':
@@ -369,6 +374,8 @@ class YnlFamily(SpecFamily):
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
                 rsp[attr_spec['name']] = subdict
+            elif attr_spec['type'] == 'u8':
+                rsp[attr_spec['name']] = attr.as_u8()
             elif attr_spec['type'] == 'u32':
                 rsp[attr_spec['name']] = attr.as_u32()
             elif attr_spec['type'] == 'u64':
@@ -377,6 +384,8 @@ class YnlFamily(SpecFamily):
                 rsp[attr_spec['name']] = attr.as_strz()
             elif attr_spec["type"] == 'binary':
                 rsp[attr_spec['name']] = attr.as_bin()
+            elif attr_spec["type"] == 'flag':
+                rsp[attr_spec['name']] = True
             else:
                 raise Exception(f'Unknown {attr.type} {attr_spec["name"]} {attr_spec["type"]}')
 
