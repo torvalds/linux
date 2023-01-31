@@ -189,6 +189,9 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		rate = &msta->wcid.rate;
 
 		switch (rate->bw) {
+		case RATE_INFO_BW_320:
+			bw = IEEE80211_STA_RX_BW_320;
+			break;
 		case RATE_INFO_BW_160:
 			bw = IEEE80211_STA_RX_BW_160;
 			break;
@@ -205,7 +208,11 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 
 		addr = mt7996_mac_wtbl_lmac_addr(dev, idx, 6);
 		val = mt76_rr(dev, addr);
-		if (rate->flags & RATE_INFO_FLAGS_HE_MCS) {
+		if (rate->flags & RATE_INFO_FLAGS_EHT_MCS) {
+			addr = mt7996_mac_wtbl_lmac_addr(dev, idx, 5);
+			val = mt76_rr(dev, addr);
+			rate->eht_gi = FIELD_GET(GENMASK(25, 24), val);
+		} else if (rate->flags & RATE_INFO_FLAGS_HE_MCS) {
 			u8 offs = 24 + 2 * bw;
 
 			rate->he_gi = (val & (0x3 << offs)) >> offs;
@@ -560,6 +567,15 @@ mt7996_mac_fill_rx_rate(struct mt7996_dev *dev,
 
 		status->he_dcm = dcm;
 		break;
+	case MT_PHY_TYPE_EHT_SU:
+	case MT_PHY_TYPE_EHT_TRIG:
+	case MT_PHY_TYPE_EHT_MU:
+		/* TODO: currently report rx rate with HE rate */
+		status->nss = nss;
+		status->encoding = RX_ENC_HE;
+		bw = min_t(int, bw, IEEE80211_STA_RX_BW_160);
+		i = min_t(int, i & 0xf, 11);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -583,6 +599,9 @@ mt7996_mac_fill_rx_rate(struct mt7996_dev *dev,
 		break;
 	case IEEE80211_STA_RX_BW_160:
 		status->bw = RATE_INFO_BW_160;
+		break;
+	case IEEE80211_STA_RX_BW_320:
+		status->bw = RATE_INFO_BW_320;
 		break;
 	default:
 		return -EINVAL;
@@ -1378,6 +1397,15 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid, int pid,
 		rate.he_dcm = FIELD_GET(MT_TX_RATE_DCM, txrate);
 		rate.flags = RATE_INFO_FLAGS_HE_MCS;
 		break;
+	case MT_PHY_TYPE_EHT_SU:
+	case MT_PHY_TYPE_EHT_TRIG:
+	case MT_PHY_TYPE_EHT_MU:
+		if (rate.mcs > 13)
+			goto out;
+
+		rate.eht_gi = wcid->rate.eht_gi;
+		rate.flags = RATE_INFO_FLAGS_EHT_MCS;
+		break;
 	default:
 		goto out;
 	}
@@ -1385,6 +1413,10 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid, int pid,
 	stats->tx_mode[mode]++;
 
 	switch (FIELD_GET(MT_TXS0_BW, txs)) {
+	case IEEE80211_STA_RX_BW_320:
+		rate.bw = RATE_INFO_BW_320;
+		stats->tx_bw[4]++;
+		break;
 	case IEEE80211_STA_RX_BW_160:
 		rate.bw = RATE_INFO_BW_160;
 		stats->tx_bw[3]++;
