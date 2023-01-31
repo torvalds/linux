@@ -1056,12 +1056,6 @@ vmw_is_cursor_bypass3_enabled(const struct vmw_private *dev_priv)
 }
 
 /**
- * TTM glue - vmwgfx_ttm_glue.c
- */
-
-extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
-
-/**
  * TTM buffer object driver - vmwgfx_ttm_buffer.c
  */
 

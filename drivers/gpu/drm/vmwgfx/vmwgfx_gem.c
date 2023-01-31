@@ -103,6 +103,13 @@ static struct sg_table *vmw_gem_object_get_sg_table(struct drm_gem_object *obj)
 	return drm_prime_pages_to_sg(obj->dev, vmw_tt->dma_ttm.pages, vmw_tt->dma_ttm.num_pages);
 }
 
+static const struct vm_operations_struct vmw_vm_ops = {
+	.pfn_mkwrite = vmw_bo_vm_mkwrite,
+	.page_mkwrite = vmw_bo_vm_mkwrite,
+	.fault = vmw_bo_vm_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+};
 
 static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.free = vmw_gem_object_free,
@@ -115,6 +122,7 @@ static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.vmap = drm_gem_ttm_vmap,
 	.vunmap = drm_gem_ttm_vunmap,
 	.mmap = drm_gem_ttm_mmap,
+	.vm_ops = &vmw_vm_ops,
 };
 
 /**
