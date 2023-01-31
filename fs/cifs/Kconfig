@@ -175,6 +175,8 @@ config CIFS_NFSD_EXPORT
 	help
 	  Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
+if CIFS
+
 config CIFS_SMB_DIRECT
 	bool "SMB Direct support"
 	depends on CIFS=m && INFINIBAND && INFINIBAND_ADDR_TRANS || CIFS=y && INFINIBAND=y && INFINIBAND_ADDR_TRANS=y
@@ -198,3 +200,5 @@ config CIFS_ROOT
 	  Enables root file system support over SMB protocol.
 
 	  Most people say N here.
+
+endif
