@@ -554,7 +554,7 @@ static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 	}
 
 	if (dd->is_async)
-		dd->areq->complete(dd->areq, err);
+		crypto_request_complete(dd->areq, err);
 
 	tasklet_schedule(&dd->queue_task);
 
@@ -955,7 +955,7 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 		return ret;
 
 	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+		crypto_request_complete(backlog, -EINPROGRESS);
 
 	ctx = crypto_tfm_ctx(areq->tfm);
 
