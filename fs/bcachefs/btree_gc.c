@@ -1351,15 +1351,16 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	struct bch_dev *ca = bch_dev_bkey_exists(c, iter->pos.inode);
 	struct bucket gc, *b;
 	struct bkey_i_alloc_v4 *a;
-	struct bch_alloc_v4 old, new;
+	struct bch_alloc_v4 old_convert, new;
+	const struct bch_alloc_v4 *old;
 	enum bch_data_type type;
 	int ret;
 
 	if (bkey_ge(iter->pos, POS(ca->dev_idx, ca->mi.nbuckets)))
 		return 1;
 
-	bch2_alloc_to_v4(k, &old);
-	new = old;
+	old = bch2_alloc_to_v4(k, &old_convert);
+	new = *old;
 
 	percpu_down_read(&c->mark_lock);
 	b = gc_bucket(ca, iter->pos.offset);
@@ -1371,7 +1372,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	type = __alloc_data_type(b->dirty_sectors,
 				 b->cached_sectors,
 				 b->stripe,
-				 old,
+				 *old,
 				 b->data_type);
 	if (b->data_type != type) {
 		struct bch_dev_usage *u;
@@ -1393,7 +1394,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	    gc.data_type != BCH_DATA_btree)
 		return 0;
 
-	if (gen_after(old.gen, gc.gen))
+	if (gen_after(old->gen, gc.gen))
 		return 0;
 
 #define copy_bucket_field(_f)						\
@@ -1415,7 +1416,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	copy_bucket_field(stripe);
 #undef copy_bucket_field
 
-	if (!bch2_alloc_v4_cmp(old, new))
+	if (!bch2_alloc_v4_cmp(*old, new))
 		return 0;
 
 	a = bch2_alloc_to_v4_mut(trans, k);
@@ -1473,7 +1474,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bucket *g;
-	struct bch_alloc_v4 a;
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a;
 	unsigned i;
 	int ret;
 
@@ -1499,20 +1501,20 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		ca = bch_dev_bkey_exists(c, k.k->p.inode);
 		g = gc_bucket(ca, k.k->p.offset);
 
-		bch2_alloc_to_v4(k, &a);
+		a = bch2_alloc_to_v4(k, &a_convert);
 
 		g->gen_valid	= 1;
-		g->gen		= a.gen;
+		g->gen		= a->gen;
 
 		if (metadata_only &&
-		    (a.data_type == BCH_DATA_user ||
-		     a.data_type == BCH_DATA_cached ||
-		     a.data_type == BCH_DATA_parity)) {
-			g->data_type		= a.data_type;
-			g->dirty_sectors	= a.dirty_sectors;
-			g->cached_sectors	= a.cached_sectors;
-			g->stripe		= a.stripe;
-			g->stripe_redundancy	= a.stripe_redundancy;
+		    (a->data_type == BCH_DATA_user ||
+		     a->data_type == BCH_DATA_cached ||
+		     a->data_type == BCH_DATA_parity)) {
+			g->data_type		= a->data_type;
+			g->dirty_sectors	= a->dirty_sectors;
+			g->cached_sectors	= a->cached_sectors;
+			g->stripe		= a->stripe;
+			g->stripe_redundancy	= a->stripe_redundancy;
 		}
 	}
 	bch2_trans_iter_exit(&trans, &iter);
@@ -1913,13 +1915,12 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 				       struct bkey_s_c k)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(trans->c, iter->pos.inode);
-	struct bch_alloc_v4 a;
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 	struct bkey_i_alloc_v4 *a_mut;
 	int ret;
 
-	bch2_alloc_to_v4(k, &a);
-
-	if (a.oldest_gen == ca->oldest_gen[iter->pos.offset])
+	if (a->oldest_gen == ca->oldest_gen[iter->pos.offset])
 		return 0;
 
 	a_mut = bch2_alloc_to_v4_mut(trans, k);

@@ -934,6 +934,9 @@ struct bch_alloc_v4 {
 	struct bpos		backpointers[0];
 } __packed __aligned(8);
 
+#define BCH_ALLOC_V4_U64s_V0	6
+#define BCH_ALLOC_V4_U64s	(sizeof(struct bch_alloc_v4) / sizeof(u64))
+
 LE32_BITMASK(BCH_ALLOC_V3_NEED_DISCARD,struct bch_alloc_v3, flags,  0,  1)
 LE32_BITMASK(BCH_ALLOC_V3_NEED_INC_GEN,struct bch_alloc_v3, flags,  1,  2)
 

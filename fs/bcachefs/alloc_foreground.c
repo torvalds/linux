@@ -204,7 +204,7 @@ static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
 static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 					      u64 bucket,
 					      enum alloc_reserve reserve,
-					      struct bch_alloc_v4 *a,
+					      const struct bch_alloc_v4 *a,
 					      struct bucket_alloc_state *s,
 					      struct closure *cl)
 {
@@ -289,7 +289,8 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	struct btree_iter iter = { NULL };
 	struct bkey_s_c k;
 	struct open_bucket *ob;
-	struct bch_alloc_v4 a;
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a;
 	u64 b = free_entry & ~(~0ULL << 56);
 	unsigned genbits = free_entry >> 56;
 	struct printbuf buf = PRINTBUF;
@@ -313,12 +314,12 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		goto err;
 	}
 
-	bch2_alloc_to_v4(k, &a);
+	a = bch2_alloc_to_v4(k, &a_convert);
 
-	if (genbits != (alloc_freespace_genbits(a) >> 56)) {
+	if (genbits != (alloc_freespace_genbits(*a) >> 56)) {
 		prt_printf(&buf, "bucket in freespace btree with wrong genbits (got %u should be %llu)\n"
 		       "  freespace key ",
-		       genbits, alloc_freespace_genbits(a) >> 56);
+		       genbits, alloc_freespace_genbits(*a) >> 56);
 		bch2_bkey_val_to_text(&buf, c, freespace_k);
 		prt_printf(&buf, "\n  ");
 		bch2_bkey_val_to_text(&buf, c, k);
@@ -328,7 +329,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 	}
 
-	if (a.data_type != BCH_DATA_free) {
+	if (a->data_type != BCH_DATA_free) {
 		prt_printf(&buf, "non free bucket in freespace btree\n"
 		       "  freespace key ");
 		bch2_bkey_val_to_text(&buf, c, freespace_k);
@@ -339,7 +340,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		goto err;
 	}
 
-	ob = __try_alloc_bucket(c, ca, b, reserve, &a, s, cl);
+	ob = __try_alloc_bucket(c, ca, b, reserve, a, s, cl);
 	if (!ob)
 		iter.path->preserve = false;
 err:
@@ -397,7 +398,8 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 again:
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
 			   BTREE_ITER_SLOTS, k, ret) {
-		struct bch_alloc_v4 a;
+		struct bch_alloc_v4 a_convert;
+		const struct bch_alloc_v4 *a;
 
 		if (bkey_ge(k.k->p, POS(ca->dev_idx, ca->mi.nbuckets)))
 			break;
@@ -406,14 +408,14 @@ again:
 		    is_superblock_bucket(ca, k.k->p.offset))
 			continue;
 
-		bch2_alloc_to_v4(k, &a);
+		a = bch2_alloc_to_v4(k, &a_convert);
 
-		if (a.data_type != BCH_DATA_free)
+		if (a->data_type != BCH_DATA_free)
 			continue;
 
 		s->buckets_seen++;
 
-		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, reserve, &a, s, cl);
+		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, reserve, a, s, cl);
 		if (ob)
 			break;
 	}

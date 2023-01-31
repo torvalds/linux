@@ -117,7 +117,6 @@ static int walk_buckets_to_copygc(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bch_alloc_v4 a;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -126,21 +125,23 @@ static int walk_buckets_to_copygc(struct bch_fs *c)
 			   BTREE_ITER_PREFETCH, k, ret) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, iter.pos.inode);
 		struct copygc_heap_entry e;
+		struct bch_alloc_v4 a_convert;
+		const struct bch_alloc_v4 *a;
 
-		bch2_alloc_to_v4(k, &a);
+		a = bch2_alloc_to_v4(k, &a_convert);
 
-		if (a.data_type != BCH_DATA_user ||
-		    a.dirty_sectors >= ca->mi.bucket_size ||
+		if (a->data_type != BCH_DATA_user ||
+		    a->dirty_sectors >= ca->mi.bucket_size ||
 		    bch2_bucket_is_open(c, iter.pos.inode, iter.pos.offset))
 			continue;
 
 		e = (struct copygc_heap_entry) {
 			.dev		= iter.pos.inode,
-			.gen		= a.gen,
-			.replicas	= 1 + a.stripe_redundancy,
-			.fragmentation	= div_u64((u64) a.dirty_sectors * (1ULL << 31),
+			.gen		= a->gen,
+			.replicas	= 1 + a->stripe_redundancy,
+			.fragmentation	= div_u64((u64) a->dirty_sectors * (1ULL << 31),
 						  ca->mi.bucket_size),
-			.sectors	= a.dirty_sectors,
+			.sectors	= a->dirty_sectors,
 			.offset		= bucket_to_sector(ca, iter.pos.offset),
 		};
 		heap_add_or_replace(h, e, -fragmentation_cmp, NULL);
