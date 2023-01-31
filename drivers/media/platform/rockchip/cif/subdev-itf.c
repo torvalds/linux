@@ -1189,21 +1189,6 @@ static int rkcif_subdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int sditf_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int sditf_runtime_resume(struct device *dev)
-{
-	return 0;
-}
-
-static const struct dev_pm_ops rkcif_subdev_pm_ops = {
-	SET_RUNTIME_PM_OPS(sditf_runtime_suspend,
-			   sditf_runtime_resume, NULL)
-};
-
 static const struct of_device_id rkcif_subdev_match_id[] = {
 	{
 		.compatible = "rockchip,rkcif-sditf",
@@ -1217,7 +1202,6 @@ struct platform_driver rkcif_subdev_driver = {
 	.remove = rkcif_subdev_remove,
 	.driver = {
 		.name = "rkcif_sditf",
-		.pm = &rkcif_subdev_pm_ops,
 		.of_match_table = rkcif_subdev_match_id,
 	},
 };
