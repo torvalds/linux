@@ -10920,6 +10920,13 @@ M:	David Sterba <dsterba@suse.com>
 S:	Odd Fixes
 F:	drivers/tty/ipwireless/
 
+IRON DEVICE AUDIO CODEC DRIVERS
+M:	Kiseok Jo <kiseok.jo@irondevice.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/irondevice,*
+F:	sound/soc/codecs/sma*
+
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Marc Zyngier <maz@kernel.org>
 S:	Maintained
