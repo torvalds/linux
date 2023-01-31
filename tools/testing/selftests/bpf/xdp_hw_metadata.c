@@ -24,7 +24,6 @@
 #include <linux/net_tstamp.h>
 #include <linux/udp.h>
 #include <linux/sockios.h>
-#include <linux/net_tstamp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <poll.h>
