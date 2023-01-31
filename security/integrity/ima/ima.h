@@ -190,6 +190,7 @@ static inline unsigned int ima_hash_key(u8 *digest)
 	hook(NONE, none)				\
 	hook(FILE_CHECK, file)				\
 	hook(MMAP_CHECK, mmap)				\
+	hook(MMAP_CHECK_REQPROT, mmap_reqprot)		\
 	hook(BPRM_CHECK, bprm)				\
 	hook(CREDS_CHECK, creds)			\
 	hook(POST_SETATTR, post_setattr)		\

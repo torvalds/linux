@@ -111,6 +111,7 @@ enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 {
 	switch (func) {
 	case MMAP_CHECK:
+	case MMAP_CHECK_REQPROT:
 		return iint->ima_mmap_status;
 	case BPRM_CHECK:
 		return iint->ima_bprm_status;
@@ -131,6 +132,7 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 {
 	switch (func) {
 	case MMAP_CHECK:
+	case MMAP_CHECK_REQPROT:
 		iint->ima_mmap_status = status;
 		break;
 	case BPRM_CHECK:
@@ -155,6 +157,7 @@ static void ima_cache_flags(struct integrity_iint_cache *iint,
 {
 	switch (func) {
 	case MMAP_CHECK:
+	case MMAP_CHECK_REQPROT:
 		iint->flags |= (IMA_MMAP_APPRAISED | IMA_APPRAISED);
 		break;
 	case BPRM_CHECK:
