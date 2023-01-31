@@ -137,7 +137,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	/* Check to see if there's an ACK that needs sending. */
 	acked = atomic_add_return(call->rx_consumed - old_consumed,
 				  &call->ackr_nr_consumed);
-	if (acked > 2 &&
+	if (acked > 8 &&
 	    !test_and_set_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags))
 		rxrpc_poke_call(call, rxrpc_call_poke_idle);
 }
