@@ -153,6 +153,24 @@ static const struct amdgpu_video_codecs rn_video_codecs_decode =
 	.codec_array = rn_video_codecs_decode_array,
 };
 
+static const struct amdgpu_video_codec_info vcn_4_0_3_video_codecs_decode_array[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_4_0_3_video_codecs_decode = {
+	.codec_count = ARRAY_SIZE(vcn_4_0_3_video_codecs_decode_array),
+	.codec_array = vcn_4_0_3_video_codecs_decode_array,
+};
+
+static const struct amdgpu_video_codecs vcn_4_0_3_video_codecs_encode = {
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
 static int soc15_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				    const struct amdgpu_video_codecs **codecs)
 {
@@ -184,6 +202,12 @@ static int soc15_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				*codecs = &vega_video_codecs_encode;
 			else
 				*codecs = &rn_video_codecs_decode;
+			return 0;
+		case IP_VERSION(4, 0, 3):
+			if (encode)
+				*codecs = &vcn_4_0_3_video_codecs_encode;
+			else
+				*codecs = &vcn_4_0_3_video_codecs_decode;
 			return 0;
 		default:
 			return -EINVAL;
