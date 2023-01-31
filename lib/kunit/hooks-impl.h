@@ -16,12 +16,14 @@
 
 /* List of declarations. */
 void __kunit_fail_current_test_impl(const char *file, int line, const char *fmt, ...);
+void *__kunit_get_static_stub_address_impl(struct kunit *test, void *real_fn_addr);
 
 /* Code to set all of the function pointers. */
 static inline void kunit_install_hooks(void)
 {
 	/* Install the KUnit hook functions. */
 	kunit_hooks.fail_current_test = __kunit_fail_current_test_impl;
+	kunit_hooks.get_static_stub_address = __kunit_get_static_stub_address_impl;
 }
 
 #endif /* _KUNIT_HOOKS_IMPL_H */

@@ -20,6 +20,7 @@ DECLARE_STATIC_KEY_FALSE(kunit_running);
 /* Hooks table: a table of function pointers filled in when kunit loads */
 extern struct kunit_hooks_table {
 	__printf(3, 4) void (*fail_current_test)(const char*, int, const char*, ...);
+	void *(*get_static_stub_address)(struct kunit *test, void *real_fn_addr);
 } kunit_hooks;
 
 /**
