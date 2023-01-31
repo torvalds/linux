@@ -933,7 +933,7 @@ class Family:
             if attr_set_name != op['attribute-set']:
                 raise Exception('For a global policy all ops must use the same set')
 
-            for op_mode in {'do', 'dump'}:
+            for op_mode in ['do', 'dump']:
                 if op_mode in op:
                     global_set.update(op[op_mode].get('request', []))
 
@@ -2244,7 +2244,7 @@ def main():
 
             for op_name, op in parsed.ops.items():
                 if parsed.kernel_policy in {'per-op', 'split'}:
-                    for op_mode in {'do', 'dump'}:
+                    for op_mode in ['do', 'dump']:
                         if op_mode in op and 'request' in op[op_mode]:
                             cw.p(f"/* {op.enum_name} - {op_mode} */")
                             ri = RenderInfo(cw, parsed, args.mode, op, op_name, op_mode)
