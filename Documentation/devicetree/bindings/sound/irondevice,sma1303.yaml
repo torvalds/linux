@@ -19,14 +19,13 @@ required:
   - compatible
   - reg
 
-additionalProperties: true
+additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/gpio/gpio.h>
     i2c_bus {
-		sma1303_amp: sma1303@1e {
-			compatible = "irondevice,sma1303";
-			reg = <0x1e>;
-		};
-	};
+        amplifier@1e {
+            compatible = "irondevice,sma1303";
+            reg = <0x1e>;
+        };
+    };
