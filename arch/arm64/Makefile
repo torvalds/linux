@@ -63,29 +63,17 @@ stack_protector_prepare: prepare0
 					include/generated/asm-offsets.h))
 endif
 
-# Ensure that if the compiler supports branch protection we default it
-# off, this will be overridden if we are using branch protection.
-branch-prot-flags-y += $(call cc-option,-mbranch-protection=none)
-
-ifeq ($(CONFIG_ARM64_PTR_AUTH_KERNEL),y)
-branch-prot-flags-$(CONFIG_CC_HAS_SIGN_RETURN_ADDRESS) := -msign-return-address=all
-# We enable additional protection for leaf functions as there is some
-# narrow potential for ROP protection benefits and no substantial
-# performance impact has been observed.
-PACRET-y := pac-ret+leaf
-
-# Using a shadow call stack in leaf functions is too costly, so avoid PAC there
-# as well when we may be patching PAC into SCS
-PACRET-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS) := pac-ret
-
 ifeq ($(CONFIG_ARM64_BTI_KERNEL),y)
-branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET_BTI) := -mbranch-protection=$(PACRET-y)+bti
+  KBUILD_CFLAGS += -mbranch-protection=pac-ret+bti
+else ifeq ($(CONFIG_ARM64_PTR_AUTH_KERNEL),y)
+  ifeq ($(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET),y)
+    KBUILD_CFLAGS += -mbranch-protection=pac-ret
+  else
+    KBUILD_CFLAGS += -msign-return-address=non-leaf
+  endif
 else
-branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET) := -mbranch-protection=$(PACRET-y)
+  KBUILD_CFLAGS += $(call cc-option,-mbranch-protection=none)
 endif
-endif
-
-KBUILD_CFLAGS += $(branch-prot-flags-y)
 
 # Tell the assembler to support instructions from the latest target
 # architecture.
