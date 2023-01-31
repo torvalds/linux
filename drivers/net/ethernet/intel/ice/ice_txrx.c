@@ -578,7 +578,7 @@ ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 	case XDP_TX:
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_lock(&xdp_ring->tx_lock);
-		ret = ice_xmit_xdp_ring(xdp->data, xdp->data_end - xdp->data, xdp_ring);
+		ret = __ice_xmit_xdp_ring(xdp, xdp_ring);
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_unlock(&xdp_ring->tx_lock);
 		if (ret == ICE_XDP_CONSUMED)
@@ -625,6 +625,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	unsigned int queue_index = smp_processor_id();
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_tx_ring *xdp_ring;
+	struct ice_tx_buf *tx_buf;
 	int nxmit = 0, i;
 
 	if (test_bit(ICE_VSI_DOWN, vsi->state))
@@ -647,16 +648,18 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		xdp_ring = vsi->xdp_rings[queue_index];
 	}
 
+	tx_buf = &xdp_ring->tx_buf[xdp_ring->next_to_use];
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
 		int err;
 
-		err = ice_xmit_xdp_ring(xdpf->data, xdpf->len, xdp_ring);
+		err = ice_xmit_xdp_ring(xdpf, xdp_ring);
 		if (err != ICE_XDP_TX)
 			break;
 		nxmit++;
 	}
 
+	tx_buf->rs_idx = ice_set_rs_bit(xdp_ring);
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		ice_xdp_ring_update_tail(xdp_ring);
 
@@ -1136,6 +1139,7 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 	u32 cnt = rx_ring->count;
 	u32 cached_ntc = ntc;
 	u32 xdp_xmit = 0;
+	u32 cached_ntu;
 	bool failure;
 	u32 first;
 
@@ -1145,8 +1149,10 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 #endif
 
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
-	if (xdp_prog)
+	if (xdp_prog) {
 		xdp_ring = rx_ring->xdp_ring;
+		cached_ntu = xdp_ring->next_to_use;
+	}
 
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
@@ -1295,7 +1301,7 @@ construct_skb:
 	failure = ice_alloc_rx_bufs(rx_ring, ICE_RX_DESC_UNUSED(rx_ring));
 
 	if (xdp_xmit)
-		ice_finalize_xdp_rx(xdp_ring, xdp_xmit);
+		ice_finalize_xdp_rx(xdp_ring, xdp_xmit, cached_ntu);
 
 	if (rx_ring->ring_stats)
 		ice_update_rx_ring_stats(rx_ring, total_rx_pkts,

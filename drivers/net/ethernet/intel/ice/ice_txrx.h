@@ -150,13 +150,19 @@ static inline int ice_skb_pad(void)
 #define ICE_TXD_LAST_DESC_CMD (ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)
 
 struct ice_tx_buf {
-	struct ice_tx_desc *next_to_watch;
+	union {
+		struct ice_tx_desc *next_to_watch;
+		u32 rs_idx;
+	};
 	union {
 		struct sk_buff *skb;
 		void *raw_buf; /* used for XDP */
 	};
 	unsigned int bytecount;
-	unsigned short gso_segs;
+	union {
+		unsigned int gso_segs;
+		unsigned int nr_frags; /* used for mbuf XDP */
+	};
 	u32 tx_flags;
 	DEFINE_DMA_UNMAP_LEN(len);
 	DEFINE_DMA_UNMAP_ADDR(dma);
@@ -343,6 +349,7 @@ struct ice_tx_ring {
 	u16 reg_idx;			/* HW register index of the ring */
 	u16 count;			/* Number of descriptors */
 	u16 q_index;			/* Queue number of ring */
+	u16 xdp_tx_active;
 	/* stats structs */
 	struct ice_ring_stats *ring_stats;
 	/* CL3 - 3rd cacheline starts here */
@@ -353,7 +360,6 @@ struct ice_tx_ring {
 	spinlock_t tx_lock;
 	u32 txq_teid;			/* Added Tx queue TEID */
 	/* CL4 - 4th cacheline starts here */
-	u16 xdp_tx_active;
 #define ICE_TX_FLAGS_RING_XDP		BIT(0)
 #define ICE_TX_FLAGS_RING_VLAN_L2TAG1	BIT(1)
 #define ICE_TX_FLAGS_RING_VLAN_L2TAG2	BIT(2)
