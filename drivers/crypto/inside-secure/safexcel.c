@@ -850,7 +850,7 @@ handle_req:
 			goto request_failed;
 
 		if (backlog)
-			backlog->complete(backlog, -EINPROGRESS);
+			crypto_request_complete(backlog, -EINPROGRESS);
 
 		/* In case the send() helper did not issue any command to push
 		 * to the engine because the input data was cached, continue to
@@ -1039,7 +1039,7 @@ handle_results:
 
 		if (should_complete) {
 			local_bh_disable();
-			req->complete(req, ret);
+			crypto_request_complete(req, ret);
 			local_bh_enable();
 		}
 
