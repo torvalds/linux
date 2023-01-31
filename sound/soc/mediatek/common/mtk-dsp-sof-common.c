@@ -32,7 +32,7 @@ int mtk_sof_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 				continue;
 
 			for_each_rtd_cpu_dais(runtime, j, cpu_dai) {
-				if (cpu_dai->stream_active[conn->stream_dir] > 0) {
+				if (snd_soc_dai_stream_active(cpu_dai, conn->stream_dir) > 0) {
 					sof_dai_link = runtime->dai_link;
 					break;
 				}
@@ -111,21 +111,17 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 			for_each_rtd_cpu_dais(sof_rtd, j, cpu_dai) {
 				struct snd_soc_dapm_route route;
 				struct snd_soc_dapm_path *p = NULL;
-				struct snd_soc_dapm_widget *play_widget =
-					cpu_dai->playback_widget;
-				struct snd_soc_dapm_widget *cap_widget =
-					cpu_dai->capture_widget;
+				struct snd_soc_dapm_widget *widget = snd_soc_dai_get_widget(cpu_dai, conn->stream_dir);
+
 				memset(&route, 0, sizeof(route));
-				if (conn->stream_dir == SNDRV_PCM_STREAM_CAPTURE &&
-				    cap_widget) {
-					snd_soc_dapm_widget_for_each_sink_path(cap_widget, p) {
+				if (conn->stream_dir == SNDRV_PCM_STREAM_CAPTURE && widget) {
+					snd_soc_dapm_widget_for_each_sink_path(widget, p) {
 						route.source = conn->sof_dma;
 						route.sink = p->sink->name;
 						snd_soc_dapm_add_routes(&card->dapm, &route, 1);
 					}
-				} else if (conn->stream_dir == SNDRV_PCM_STREAM_PLAYBACK &&
-						play_widget) {
-					snd_soc_dapm_widget_for_each_source_path(play_widget, p) {
+				} else if (conn->stream_dir == SNDRV_PCM_STREAM_PLAYBACK && widget) {
+					snd_soc_dapm_widget_for_each_source_path(widget, p) {
 						route.source = p->source->name;
 						route.sink = conn->sof_dma;
 						snd_soc_dapm_add_routes(&card->dapm, &route, 1);
