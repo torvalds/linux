@@ -2539,8 +2539,6 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	unsigned int i;
 	u8 val;
 
-	if (hdmi->update)
-		return;
 	/*
 	 * Under some circumstances the Frame Composer arithmetic unit can miss
 	 * an FC register write due to being busy processing the previous one.
@@ -2584,8 +2582,6 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 
 static void hdmi_disable_overflow_interrupts(struct dw_hdmi *hdmi)
 {
-	if (hdmi->update)
-		return;
 	hdmi_writeb(hdmi, HDMI_IH_MUTE_FC_STAT2_OVERFLOW_MASK,
 		    HDMI_IH_MUTE_FC_STAT2);
 }
