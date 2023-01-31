@@ -241,9 +241,7 @@ properties:
           to a single enum.
           "directional" has the messages sent to the kernel and from the kernel
           enumerated separately.
-          "notify-split" has the notifications and request-response types in
-          different enums.
-        enum: [ unified, directional, notify-split ]
+        enum: [ unified, directional ] # Trim
       name-prefix:
         description: |
           Prefix for the C enum name of the command. The name is formed by concatenating
@@ -307,6 +305,13 @@ properties:
                       type: array
                       items:
                         type: string
+                    # Start genetlink-legacy
+                    value:
+                      description: |
+                        ID of this message if value for request and response differ,
+                        i.e. requests and responses have different message enums.
+                      $ref: '#/$defs/uint'
+                    # End genetlink-legacy
                 reply: *subop-attr-list
                 pre:
                   description: Hook for a function to run before the main callback (pre_doit or start).
