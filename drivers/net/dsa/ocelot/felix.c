@@ -1075,9 +1075,12 @@ static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
 					phy_interface_t interface)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct felix *felix;
+
+	felix = ocelot_to_felix(ocelot);
 
 	ocelot_phylink_mac_link_down(ocelot, port, link_an_mode, interface,
-				     FELIX_MAC_QUIRKS);
+				     felix->info->quirks);
 }
 
 static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
@@ -1092,7 +1095,7 @@ static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
 
 	ocelot_phylink_mac_link_up(ocelot, port, phydev, link_an_mode,
 				   interface, speed, duplex, tx_pause, rx_pause,
-				   FELIX_MAC_QUIRKS);
+				   felix->info->quirks);
 
 	if (felix->info->port_sched_speed_set)
 		felix->info->port_sched_speed_set(ocelot, port, speed);
@@ -1270,10 +1273,15 @@ static int felix_parse_ports_node(struct felix *felix,
 
 		err = felix_validate_phy_mode(felix, port, phy_mode);
 		if (err < 0) {
-			dev_err(dev, "Unsupported PHY mode %s on port %d\n",
-				phy_modes(phy_mode), port);
+			dev_info(dev, "Unsupported PHY mode %s on port %d\n",
+				 phy_modes(phy_mode), port);
 			of_node_put(child);
-			return err;
+
+			/* Leave port_phy_modes[port] = 0, which is also
+			 * PHY_INTERFACE_MODE_NA. This will perform a
+			 * best-effort to bring up as many ports as possible.
+			 */
+			continue;
 		}
 
 		port_phy_modes[port] = phy_mode;
@@ -1311,6 +1319,13 @@ static struct regmap *felix_request_regmap_by_name(struct felix *felix,
 	struct ocelot *ocelot = &felix->ocelot;
 	struct resource res;
 	int i;
+
+	/* In an MFD configuration, regmaps are registered directly to the
+	 * parent device before the child devices are probed, so there is no
+	 * need to initialize a new one.
+	 */
+	if (!felix->info->resources)
+		return dev_get_regmap(ocelot->dev->parent, resource_name);
 
 	for (i = 0; i < felix->info->num_resources; i++) {
 		if (strcmp(resource_name, felix->info->resources[i].name))

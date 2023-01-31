@@ -10,6 +10,10 @@
 
 #include <soc/mscc/ocelot_vcap.h>
 
+extern struct vcap_props vsc7514_vcap_props[];
+
+extern const struct reg_field vsc7514_regfields[REGFIELD_MAX];
+
 extern const u32 vsc7514_ana_regmap[];
 extern const u32 vsc7514_qs_regmap[];
 extern const u32 vsc7514_qsys_regmap[];
@@ -18,6 +22,8 @@ extern const u32 vsc7514_sys_regmap[];
 extern const u32 vsc7514_vcap_regmap[];
 extern const u32 vsc7514_ptp_regmap[];
 extern const u32 vsc7514_dev_gmii_regmap[];
+
+extern const u32 *vsc7514_regmap[TARGET_MAX];
 
 extern const struct vcap_field vsc7514_vcap_es0_keys[];
 extern const struct vcap_field vsc7514_vcap_es0_actions[];

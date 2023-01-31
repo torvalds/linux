@@ -6,12 +6,16 @@
  */
 #include <linux/dsa/ocelot.h>
 #include <linux/if_bridge.h>
+#include <linux/iopoll.h>
 #include <soc/mscc/ocelot_vcap.h>
 #include "ocelot.h"
 #include "ocelot_vcap.h"
 
-#define TABLE_UPDATE_SLEEP_US 10
-#define TABLE_UPDATE_TIMEOUT_US 100000
+#define TABLE_UPDATE_SLEEP_US	10
+#define TABLE_UPDATE_TIMEOUT_US	100000
+#define MEM_INIT_SLEEP_US	1000
+#define MEM_INIT_TIMEOUT_US	100000
+
 #define OCELOT_RSV_VLAN_RANGE_START 4000
 
 struct ocelot_mact_entry {
@@ -2712,6 +2716,46 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 	eq_ctrl = ocelot_read(ocelot, QSYS_EQ_CTRL);
 	ocelot->num_frame_refs = QSYS_MMGT_EQ_CTRL_FP_FREE_CNT(eq_ctrl);
 }
+
+static int ocelot_mem_init_status(struct ocelot *ocelot)
+{
+	unsigned int val;
+	int err;
+
+	err = regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
+				&val);
+
+	return err ?: val;
+}
+
+int ocelot_reset(struct ocelot *ocelot)
+{
+	int err;
+	u32 val;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
+	if (err)
+		return err;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
+
+	/* MEM_INIT is a self-clearing bit. Wait for it to be cleared (should be
+	 * 100us) before enabling the switch core.
+	 */
+	err = readx_poll_timeout(ocelot_mem_init_status, ocelot, val, !val,
+				 MEM_INIT_SLEEP_US, MEM_INIT_TIMEOUT_US);
+	if (err)
+		return err;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
+
+	return regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+}
+EXPORT_SYMBOL(ocelot_reset);
 
 int ocelot_init(struct ocelot *ocelot)
 {
