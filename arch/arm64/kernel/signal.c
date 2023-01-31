@@ -191,15 +191,14 @@ static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 {
 	struct user_fpsimd_state fpsimd;
-	__u32 magic, size;
+	__u32 size;
 	int err = 0;
 
-	/* check the magic/size information */
-	__get_user_error(magic, &ctx->head.magic, err);
+	/* check the size information */
 	__get_user_error(size, &ctx->head.size, err);
 	if (err)
 		return -EFAULT;
-	if (magic != FPSIMD_MAGIC || size != sizeof(struct fpsimd_context))
+	if (size != sizeof(struct fpsimd_context))
 		return -EINVAL;
 
 	/* copy the FP and status/control registers */
