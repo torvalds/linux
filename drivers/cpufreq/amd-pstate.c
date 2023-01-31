@@ -63,6 +63,7 @@ static struct cpufreq_driver *current_pstate_driver;
 static struct cpufreq_driver amd_pstate_driver;
 static struct cpufreq_driver amd_pstate_epp_driver;
 static int cppc_state = AMD_PSTATE_DISABLE;
+struct kobject *amd_pstate_kobj;
 
 /*
  * AMD Energy Preference Performance (EPP)
@@ -673,6 +674,8 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 	policy->driver_data = cpudata;
 
 	amd_pstate_boost_init(cpudata);
+	if (!current_pstate_driver->adjust_perf)
+		current_pstate_driver->adjust_perf = amd_pstate_adjust_perf;
 
 	return 0;
 
@@ -813,12 +816,99 @@ static ssize_t show_energy_performance_preference(
 	return sysfs_emit(buf, "%s\n", energy_perf_strings[preference]);
 }
 
+static ssize_t amd_pstate_show_status(char *buf)
+{
+	if (!current_pstate_driver)
+		return sysfs_emit(buf, "disable\n");
+
+	return sysfs_emit(buf, "%s\n", amd_pstate_mode_string[cppc_state]);
+}
+
+static void amd_pstate_driver_cleanup(void)
+{
+	current_pstate_driver = NULL;
+}
+
+static int amd_pstate_update_status(const char *buf, size_t size)
+{
+	int ret;
+	int mode_idx;
+
+	if (size > 7 || size < 6)
+		return -EINVAL;
+	mode_idx = get_mode_idx_from_str(buf, size);
+
+	switch(mode_idx) {
+	case AMD_PSTATE_DISABLE:
+		if (!current_pstate_driver)
+			return -EINVAL;
+		if (cppc_state == AMD_PSTATE_ACTIVE)
+			return -EBUSY;
+		ret = cpufreq_unregister_driver(current_pstate_driver);
+		amd_pstate_driver_cleanup();
+		break;
+	case AMD_PSTATE_PASSIVE:
+		if (current_pstate_driver) {
+			if (current_pstate_driver == &amd_pstate_driver)
+				return 0;
+			cpufreq_unregister_driver(current_pstate_driver);
+			cppc_state = AMD_PSTATE_PASSIVE;
+			current_pstate_driver = &amd_pstate_driver;
+		}
+
+		ret = cpufreq_register_driver(current_pstate_driver);
+		break;
+	case AMD_PSTATE_ACTIVE:
+		if (current_pstate_driver) {
+			if (current_pstate_driver == &amd_pstate_epp_driver)
+				return 0;
+			cpufreq_unregister_driver(current_pstate_driver);
+			current_pstate_driver = &amd_pstate_epp_driver;
+			cppc_state = AMD_PSTATE_ACTIVE;
+		}
+
+		ret = cpufreq_register_driver(current_pstate_driver);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static ssize_t show_status(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	mutex_lock(&amd_pstate_driver_lock);
+	ret = amd_pstate_show_status(buf);
+	mutex_unlock(&amd_pstate_driver_lock);
+
+	return ret;
+}
+
+static ssize_t store_status(struct kobject *a, struct kobj_attribute *b,
+			    const char *buf, size_t count)
+{
+	char *p = memchr(buf, '\n', count);
+	int ret;
+
+	mutex_lock(&amd_pstate_driver_lock);
+	ret = amd_pstate_update_status(buf, p ? p - buf : count);
+	mutex_unlock(&amd_pstate_driver_lock);
+
+	return ret < 0 ? ret : count;
+}
+
 cpufreq_freq_attr_ro(amd_pstate_max_freq);
 cpufreq_freq_attr_ro(amd_pstate_lowest_nonlinear_freq);
 
 cpufreq_freq_attr_ro(amd_pstate_highest_perf);
 cpufreq_freq_attr_rw(energy_performance_preference);
 cpufreq_freq_attr_ro(energy_performance_available_preferences);
+define_one_global_rw(status);
 
 static struct freq_attr *amd_pstate_attr[] = {
 	&amd_pstate_max_freq,
@@ -834,6 +924,15 @@ static struct freq_attr *amd_pstate_epp_attr[] = {
 	&energy_performance_preference,
 	&energy_performance_available_preferences,
 	NULL,
+};
+
+static struct attribute *pstate_global_attributes[] = {
+	&status.attr,
+	NULL
+};
+
+static const struct attribute_group amd_pstate_global_attr_group = {
+	.attrs = pstate_global_attributes,
 };
 
 static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
@@ -1200,6 +1299,25 @@ static int __init amd_pstate_init(void)
 	if (ret)
 		pr_err("failed to register with return %d\n", ret);
 
+	amd_pstate_kobj = kobject_create_and_add("amd_pstate", &cpu_subsys.dev_root->kobj);
+	if (!amd_pstate_kobj) {
+		ret = -EINVAL;
+		pr_err("global sysfs registration failed.\n");
+		goto kobject_free;
+	}
+
+	ret = sysfs_create_group(amd_pstate_kobj, &amd_pstate_global_attr_group);
+	if (ret) {
+		pr_err("sysfs attribute export failed with error %d.\n", ret);
+		goto global_attr_free;
+	}
+
+	return ret;
+
+global_attr_free:
+	kobject_put(amd_pstate_kobj);
+kobject_free:
+	cpufreq_unregister_driver(current_pstate_driver);
 	return ret;
 }
 device_initcall(amd_pstate_init);
