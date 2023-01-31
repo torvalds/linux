@@ -6,7 +6,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 
 .file "blowfish-x86_64-asm.S"
 .text
@@ -100,7 +99,7 @@
 	bswapq 			RX0; \
 	movq RX0, 		(RIO);
 
-SYM_TYPED_FUNC_START(blowfish_enc_blk)
+SYM_FUNC_START(blowfish_enc_blk)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -131,7 +130,7 @@ SYM_TYPED_FUNC_START(blowfish_enc_blk)
 	RET;
 SYM_FUNC_END(blowfish_enc_blk)
 
-SYM_TYPED_FUNC_START(blowfish_dec_blk)
+SYM_FUNC_START(blowfish_dec_blk)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -273,7 +272,7 @@ SYM_FUNC_END(blowfish_dec_blk)
 	bswapq			RT3; \
 	xorq RT3,		RX3;
 
-SYM_TYPED_FUNC_START(blowfish_enc_blk_4way)
+SYM_FUNC_START(blowfish_enc_blk_4way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -308,7 +307,7 @@ SYM_TYPED_FUNC_START(blowfish_enc_blk_4way)
 	RET;
 SYM_FUNC_END(blowfish_enc_blk_4way)
 
-SYM_TYPED_FUNC_START(__blowfish_dec_blk_4way)
+SYM_FUNC_START(__blowfish_dec_blk_4way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
