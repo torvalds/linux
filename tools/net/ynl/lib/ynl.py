@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import functools
-import jsonschema
 import os
 import random
 import socket
 import struct
 import yaml
+
+from .nlspec import SpecFamily
 
 #
 # Generic Netlink code which should really be in some library, but I can't quickly find one.
@@ -158,8 +159,8 @@ class NlMsg:
                 # We don't have the ability to parse nests yet, so only do global
                 if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
                     miss_type = self.extack['miss-type']
-                    if len(attr_space.attr_list) > miss_type:
-                        spec = attr_space.attr_list[miss_type]
+                    if miss_type in attr_space.attrs_by_val:
+                        spec = attr_space.attrs_by_val[miss_type]
                         desc = spec['name']
                         if 'doc' in spec:
                             desc += f" ({spec['doc']})"
@@ -289,100 +290,31 @@ class GenlFamily:
 #
 
 
-class YnlAttrSpace:
-    def __init__(self, family, yaml):
-        self.yaml = yaml
-
-        self.attrs = dict()
-        self.name = self.yaml['name']
-        self.subspace_of = self.yaml['subset-of'] if 'subspace-of' in self.yaml else None
-
-        val = 0
-        max_val = 0
-        for elem in self.yaml['attributes']:
-            if 'value' in elem:
-                val = elem['value']
-            else:
-                elem['value'] = val
-            if val > max_val:
-                max_val = val
-            val += 1
-
-            self.attrs[elem['name']] = elem
-
-        self.attr_list = [None] * (max_val + 1)
-        for elem in self.yaml['attributes']:
-            self.attr_list[elem['value']] = elem
-
-    def __getitem__(self, key):
-        return self.attrs[key]
-
-    def __contains__(self, key):
-        return key in self.yaml
-
-    def __iter__(self):
-        yield from self.attrs
-
-    def items(self):
-        return self.attrs.items()
-
-
-class YnlFamily:
+class YnlFamily(SpecFamily):
     def __init__(self, def_path, schema=None):
+        super().__init__(def_path, schema)
+
         self.include_raw = False
-
-        with open(def_path, "r") as stream:
-            self.yaml = yaml.safe_load(stream)
-
-        if schema:
-            with open(schema, "r") as stream:
-                schema = yaml.safe_load(stream)
-
-            jsonschema.validate(self.yaml, schema)
 
         self.sock = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, Netlink.NETLINK_GENERIC)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_EXT_ACK, 1)
 
-        self._ops = dict()
-        self._spaces = dict()
         self._types = dict()
-
-        for elem in self.yaml['attribute-sets']:
-            self._spaces[elem['name']] = YnlAttrSpace(self, elem)
 
         for elem in self.yaml['definitions']:
             self._types[elem['name']] = elem
 
-        async_separation = 'async-prefix' in self.yaml['operations']
         self.async_msg_ids = set()
         self.async_msg_queue = []
-        val = 0
-        max_val = 0
-        for elem in self.yaml['operations']['list']:
-            if not (async_separation and ('notify' in elem or 'event' in elem)):
-                if 'value' in elem:
-                    val = elem['value']
-                else:
-                    elem['value'] = val
-                val += 1
-                max_val = max(val, max_val)
 
-            if 'notify' in elem or 'event' in elem:
-                self.async_msg_ids.add(elem['value'])
+        for msg in self.msgs.values():
+            if msg.is_async:
+                self.async_msg_ids.add(msg.value)
 
-            self._ops[elem['name']] = elem
-
-            op_name = elem['name'].replace('-', '_')
-
-            bound_f = functools.partial(self._op, elem['name'])
-            setattr(self, op_name, bound_f)
-
-        self._op_array = [None] * max_val
-        for _, op in self._ops.items():
-            self._op_array[op['value']] = op
-            if 'notify' in op:
-                op['attribute-set'] = self._ops[op['notify']]['attribute-set']
+        for op_name, op in self.ops.items():
+            bound_f = functools.partial(self._op, op_name)
+            setattr(self, op.ident_name, bound_f)
 
         self.family = GenlFamily(self.yaml['name'])
 
@@ -395,8 +327,8 @@ class YnlFamily:
                              self.family.genl_family['mcast'][mcast_name])
 
     def _add_attr(self, space, name, value):
-        attr = self._spaces[space][name]
-        nl_type = attr['value']
+        attr = self.attr_sets[space][name]
+        nl_type = attr.value
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
             attr_payload = b''
@@ -430,10 +362,10 @@ class YnlFamily:
         rsp[attr_spec['name']] = value
 
     def _decode(self, attrs, space):
-        attr_space = self._spaces[space]
+        attr_space = self.attr_sets[space]
         rsp = dict()
         for attr in attrs:
-            attr_spec = attr_space.attr_list[attr.type]
+            attr_spec = attr_space.attrs_by_val[attr.type]
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
                 rsp[attr_spec['name']] = subdict
@@ -457,9 +389,9 @@ class YnlFamily:
         if self.include_raw:
             msg['nlmsg'] = nl_msg
             msg['genlmsg'] = genl_msg
-        op = self._op_array[genl_msg.genl_cmd]
+        op = self.msgs_by_value[genl_msg.genl_cmd]
         msg['name'] = op['name']
-        msg['msg'] = self._decode(genl_msg.raw_attrs, op['attribute-set'])
+        msg['msg'] = self._decode(genl_msg.raw_attrs, op.attr_set.name)
         self.async_msg_queue.append(msg)
 
     def check_ntf(self):
@@ -487,16 +419,16 @@ class YnlFamily:
                 self.handle_ntf(nl_msg, gm)
 
     def _op(self, method, vals, dump=False):
-        op = self._ops[method]
+        op = self.ops[method]
 
         nl_flags = Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK
         if dump:
             nl_flags |= Netlink.NLM_F_DUMP
 
         req_seq = random.randint(1024, 65535)
-        msg = _genl_msg(self.family.family_id, nl_flags, op['value'], 1, req_seq)
+        msg = _genl_msg(self.family.family_id, nl_flags, op.value, 1, req_seq)
         for name, value in vals.items():
-            msg += self._add_attr(op['attribute-set'], name, value)
+            msg += self._add_attr(op.attr_set.name, name, value)
         msg = _genl_msg_finalize(msg)
 
         self.sock.send(msg, 0)
@@ -505,7 +437,7 @@ class YnlFamily:
         rsp = []
         while not done:
             reply = self.sock.recv(128 * 1024)
-            nms = NlMsgs(reply, attr_space=self._spaces[op['attribute-set']])
+            nms = NlMsgs(reply, attr_space=op.attr_set)
             for nl_msg in nms:
                 if nl_msg.error:
                     print("Netlink error:", os.strerror(-nl_msg.error))
@@ -517,7 +449,7 @@ class YnlFamily:
 
                 gm = GenlMsg(nl_msg)
                 # Check if this is a reply to our request
-                if nl_msg.nl_seq != req_seq or gm.genl_cmd != op['value']:
+                if nl_msg.nl_seq != req_seq or gm.genl_cmd != op.value:
                     if gm.genl_cmd in self.async_msg_ids:
                         self.handle_ntf(nl_msg, gm)
                         continue
@@ -525,7 +457,7 @@ class YnlFamily:
                         print('Unexpected message: ' + repr(gm))
                         continue
 
-                rsp.append(self._decode(gm.raw_attrs, op['attribute-set']))
+                rsp.append(self._decode(gm.raw_attrs, op.attr_set.name))
 
         if not rsp:
             return None

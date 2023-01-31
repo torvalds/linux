@@ -2,9 +2,10 @@
 
 import argparse
 import collections
-import jsonschema
 import os
 import yaml
+
+from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation
 
 
 def c_upper(name):
@@ -28,12 +29,12 @@ class BaseNlLib:
                    "ynl_cb_array, NLMSG_MIN_TYPE)"
 
 
-class Type:
-    def __init__(self, family, attr_set, attr):
-        self.family = family
+class Type(SpecAttr):
+    def __init__(self, family, attr_set, attr, value):
+        super().__init__(family, attr_set, attr, value)
+
         self.attr = attr
-        self.value = attr['value']
-        self.name = c_lower(attr['name'])
+        self.attr_set = attr_set
         self.type = attr['type']
         self.checks = attr.get('checks', {})
 
@@ -46,17 +47,17 @@ class Type:
             else:
                 self.nested_render_name = f"{family.name}_{c_lower(self.nested_attrs)}"
 
-        self.enum_name = f"{attr_set.name_prefix}{self.name}"
-        self.enum_name = c_upper(self.enum_name)
         self.c_name = c_lower(self.name)
         if self.c_name in _C_KW:
             self.c_name += '_'
 
-    def __getitem__(self, key):
-        return self.attr[key]
+        # Added by resolve():
+        self.enum_name = None
+        delattr(self, "enum_name")
 
-    def __contains__(self, key):
-        return key in self.attr
+    def resolve(self):
+        self.enum_name = f"{self.attr_set.name_prefix}{self.name}"
+        self.enum_name = c_upper(self.enum_name)
 
     def is_multi_val(self):
         return None
@@ -214,23 +215,33 @@ class TypePad(Type):
 
 
 class TypeScalar(Type):
-    def __init__(self, family, attr_set, attr):
-        super().__init__(family, attr_set, attr)
-
-        self.is_bitfield = False
-        if 'enum' in self.attr:
-            self.is_bitfield = family.consts[self.attr['enum']]['type'] == 'flags'
-        if 'enum-as-flags' in self.attr and self.attr['enum-as-flags']:
-            self.is_bitfield = True
-
-        if 'enum' in self.attr and not self.is_bitfield:
-            self.type_name = f"enum {family.name}_{c_lower(self.attr['enum'])}"
-        else:
-            self.type_name = '__' + self.type
+    def __init__(self, family, attr_set, attr, value):
+        super().__init__(family, attr_set, attr, value)
 
         self.byte_order_comment = ''
         if 'byte-order' in attr:
             self.byte_order_comment = f" /* {attr['byte-order']} */"
+
+        # Added by resolve():
+        self.is_bitfield = None
+        delattr(self, "is_bitfield")
+        self.type_name = None
+        delattr(self, "type_name")
+
+    def resolve(self):
+        self.resolve_up(super())
+
+        if 'enum-as-flags' in self.attr and self.attr['enum-as-flags']:
+            self.is_bitfield = True
+        elif 'enum' in self.attr:
+            self.is_bitfield = self.family.consts[self.attr['enum']]['type'] == 'flags'
+        else:
+            self.is_bitfield = False
+
+        if 'enum' in self.attr and not self.is_bitfield:
+            self.type_name = f"enum {self.family.name}_{c_lower(self.attr['enum'])}"
+        else:
+            self.type_name = '__' + self.type
 
     def _mnl_type(self):
         t = self.type
@@ -648,14 +659,11 @@ class EnumSet:
         return mask
 
 
-class AttrSet:
+class AttrSet(SpecAttrSet):
     def __init__(self, family, yaml):
-        self.yaml = yaml
+        super().__init__(family, yaml)
 
-        self.attrs = dict()
-        self.name = self.yaml['name']
-        if 'subset-of' not in yaml:
-            self.subset_of = None
+        if self.subset_of is None:
             if 'name-prefix' in yaml:
                 pfx = yaml['name-prefix']
             elif self.name == family.name:
@@ -665,83 +673,68 @@ class AttrSet:
             self.name_prefix = c_upper(pfx)
             self.max_name = c_upper(self.yaml.get('attr-max-name', f"{self.name_prefix}max"))
         else:
-            self.subset_of = self.yaml['subset-of']
             self.name_prefix = family.attr_sets[self.subset_of].name_prefix
             self.max_name = family.attr_sets[self.subset_of].max_name
 
+        # Added by resolve:
+        self.c_name = None
+        delattr(self, "c_name")
+
+    def resolve(self):
         self.c_name = c_lower(self.name)
         if self.c_name in _C_KW:
             self.c_name += '_'
-        if self.c_name == family.c_name:
+        if self.c_name == self.family.c_name:
             self.c_name = ''
 
-        val = 0
-        for elem in self.yaml['attributes']:
-            if 'value' in elem:
-                val = elem['value']
-            else:
-                elem['value'] = val
-            val += 1
-
-            if 'multi-attr' in elem and elem['multi-attr']:
-                attr = TypeMultiAttr(family, self, elem)
-            elif elem['type'] in scalars:
-                attr = TypeScalar(family, self, elem)
-            elif elem['type'] == 'unused':
-                attr = TypeUnused(family, self, elem)
-            elif elem['type'] == 'pad':
-                attr = TypePad(family, self, elem)
-            elif elem['type'] == 'flag':
-                attr = TypeFlag(family, self, elem)
-            elif elem['type'] == 'string':
-                attr = TypeString(family, self, elem)
-            elif elem['type'] == 'binary':
-                attr = TypeBinary(family, self, elem)
-            elif elem['type'] == 'nest':
-                attr = TypeNest(family, self, elem)
-            elif elem['type'] == 'array-nest':
-                attr = TypeArrayNest(family, self, elem)
-            elif elem['type'] == 'nest-type-value':
-                attr = TypeNestTypeValue(family, self, elem)
-            else:
-                raise Exception(f"No typed class for type {elem['type']}")
-
-            self.attrs[elem['name']] = attr
-
-    def __getitem__(self, key):
-        return self.attrs[key]
-
-    def __contains__(self, key):
-        return key in self.yaml
-
-    def __iter__(self):
-        yield from self.attrs
-
-    def items(self):
-        return self.attrs.items()
-
-
-class Operation:
-    def __init__(self, family, yaml, value):
-        self.yaml = yaml
-        self.value = value
-
-        self.name = self.yaml['name']
-        self.render_name = family.name + '_' + c_lower(self.name)
-        self.is_async = 'notify' in yaml or 'event' in yaml
-        if not self.is_async:
-            self.enum_name = family.op_prefix + c_upper(self.name)
+    def new_attr(self, elem, value):
+        if 'multi-attr' in elem and elem['multi-attr']:
+            return TypeMultiAttr(self.family, self, elem, value)
+        elif elem['type'] in scalars:
+            return TypeScalar(self.family, self, elem, value)
+        elif elem['type'] == 'unused':
+            return TypeUnused(self.family, self, elem, value)
+        elif elem['type'] == 'pad':
+            return TypePad(self.family, self, elem, value)
+        elif elem['type'] == 'flag':
+            return TypeFlag(self.family, self, elem, value)
+        elif elem['type'] == 'string':
+            return TypeString(self.family, self, elem, value)
+        elif elem['type'] == 'binary':
+            return TypeBinary(self.family, self, elem, value)
+        elif elem['type'] == 'nest':
+            return TypeNest(self.family, self, elem, value)
+        elif elem['type'] == 'array-nest':
+            return TypeArrayNest(self.family, self, elem, value)
+        elif elem['type'] == 'nest-type-value':
+            return TypeNestTypeValue(self.family, self, elem, value)
         else:
-            self.enum_name = family.async_op_prefix + c_upper(self.name)
+            raise Exception(f"No typed class for type {elem['type']}")
+
+
+class Operation(SpecOperation):
+    def __init__(self, family, yaml, req_value, rsp_value):
+        super().__init__(family, yaml, req_value, rsp_value)
+
+        if req_value != rsp_value:
+            raise Exception("Directional messages not supported by codegen")
+
+        self.render_name = family.name + '_' + c_lower(self.name)
 
         self.dual_policy = ('do' in yaml and 'request' in yaml['do']) and \
                          ('dump' in yaml and 'request' in yaml['dump'])
 
-    def __getitem__(self, key):
-        return self.yaml[key]
+        # Added by resolve:
+        self.enum_name = None
+        delattr(self, "enum_name")
 
-    def __contains__(self, key):
-        return key in self.yaml
+    def resolve(self):
+        self.resolve_up(super())
+
+        if not self.is_async:
+            self.enum_name = self.family.op_prefix + c_upper(self.name)
+        else:
+            self.enum_name = self.family.async_op_prefix + c_upper(self.name)
 
     def add_notification(self, op):
         if 'notify' not in self.yaml:
@@ -751,21 +744,23 @@ class Operation:
         self.yaml['notify']['cmds'].append(op)
 
 
-class Family:
+class Family(SpecFamily):
     def __init__(self, file_name):
-        with open(file_name, "r") as stream:
-            self.yaml = yaml.safe_load(stream)
+        # Added by resolve:
+        self.c_name = None
+        delattr(self, "c_name")
+        self.op_prefix = None
+        delattr(self, "op_prefix")
+        self.async_op_prefix = None
+        delattr(self, "async_op_prefix")
+        self.mcgrps = None
+        delattr(self, "mcgrps")
+        self.consts = None
+        delattr(self, "consts")
+        self.hooks = None
+        delattr(self, "hooks")
 
-        self.proto = self.yaml.get('protocol', 'genetlink')
-
-        with open(os.path.dirname(os.path.dirname(file_name)) +
-                  f'/{self.proto}.yaml', "r") as stream:
-            schema = yaml.safe_load(stream)
-
-        jsonschema.validate(self.yaml, schema)
-
-        if self.yaml.get('protocol', 'genetlink') not in {'genetlink', 'genetlink-c', 'genetlink-legacy'}:
-            raise Exception("Codegen only supported for genetlink")
+        super().__init__(file_name)
 
         self.fam_key = c_upper(self.yaml.get('c-family-name', self.yaml["name"] + '_FAMILY_NAME'))
         self.ver_key = c_upper(self.yaml.get('c-version-name', self.yaml["name"] + '_FAMILY_VERSION'))
@@ -773,12 +768,18 @@ class Family:
         if 'definitions' not in self.yaml:
             self.yaml['definitions'] = []
 
-        self.name = self.yaml['name']
-        self.c_name = c_lower(self.name)
         if 'uapi-header' in self.yaml:
             self.uapi_header = self.yaml['uapi-header']
         else:
             self.uapi_header = f"linux/{self.name}.h"
+
+    def resolve(self):
+        self.resolve_up(super())
+
+        if self.yaml.get('protocol', 'genetlink') not in {'genetlink', 'genetlink-c', 'genetlink-legacy'}:
+            raise Exception("Codegen only supported for genetlink")
+
+        self.c_name = c_lower(self.name)
         if 'name-prefix' in self.yaml['operations']:
             self.op_prefix = c_upper(self.yaml['operations']['name-prefix'])
         else:
@@ -791,12 +792,6 @@ class Family:
         self.mcgrps = self.yaml.get('mcast-groups', {'list': []})
 
         self.consts = dict()
-        # list of all operations
-        self.msg_list = []
-        # dict of operations which have their own message type (have attributes)
-        self.ops = collections.OrderedDict()
-        self.attr_sets = dict()
-        self.attr_sets_list = []
 
         self.hooks = dict()
         for when in ['pre', 'post']:
@@ -824,11 +819,11 @@ class Family:
         if self.kernel_policy == 'global':
             self._load_global_policy()
 
-    def __getitem__(self, key):
-        return self.yaml[key]
+    def new_attr_set(self, elem):
+        return AttrSet(self, elem)
 
-    def get(self, key, default=None):
-        return self.yaml.get(key, default)
+    def new_operation(self, elem, req_value, rsp_value):
+        return Operation(self, elem, req_value, rsp_value)
 
     # Fake a 'do' equivalent of all events, so that we can render their response parsing
     def _mock_up_events(self):
@@ -847,27 +842,10 @@ class Family:
             else:
                 self.consts[elem['name']] = elem
 
-        for elem in self.yaml['attribute-sets']:
-            attr_set = AttrSet(self, elem)
-            self.attr_sets[elem['name']] = attr_set
-            self.attr_sets_list.append((elem['name'], attr_set), )
-
         ntf = []
-        val = 0
-        for elem in self.yaml['operations']['list']:
-            if 'value' in elem:
-                val = elem['value']
-
-            op = Operation(self, elem, val)
-            val += 1
-
-            self.msg_list.append(op)
-            if 'notify' in elem:
-                ntf.append(op)
-                continue
-            if 'attribute-set' not in elem:
-                continue
-            self.ops[elem['name']] = op
+        for msg in self.msgs.values():
+            if 'notify' in msg:
+                ntf.append(msg)
         for n in ntf:
             self.ops[n['notify']].add_notification(n)
 
@@ -2033,7 +2011,7 @@ def render_uapi(family, cw):
 
     max_by_define = family.get('max-by-define', False)
 
-    for _, attr_set in family.attr_sets_list:
+    for _, attr_set in family.attr_sets.items():
         if attr_set.subset_of:
             continue
 
@@ -2044,9 +2022,9 @@ def render_uapi(family, cw):
         uapi_enum_start(family, cw, attr_set.yaml, 'enum-name')
         for _, attr in attr_set.items():
             suffix = ','
-            if attr['value'] != val:
-                suffix = f" = {attr['value']},"
-                val = attr['value']
+            if attr.value != val:
+                suffix = f" = {attr.value},"
+                val = attr.value
             val += 1
             cw.p(attr.enum_name + suffix)
         cw.nl()
@@ -2066,7 +2044,7 @@ def render_uapi(family, cw):
     max_value = f"({cnt_name} - 1)"
 
     uapi_enum_start(family, cw, family['operations'], 'enum-name')
-    for op in family.msg_list:
+    for op in family.msgs.values():
         if separate_ntf and ('notify' in op or 'event' in op):
             continue
 
@@ -2085,7 +2063,7 @@ def render_uapi(family, cw):
 
     if separate_ntf:
         uapi_enum_start(family, cw, family['operations'], enum_name='async-enum')
-        for op in family.msg_list:
+        for op in family.msgs.values():
             if separate_ntf and not ('notify' in op or 'event' in op):
                 continue
 
