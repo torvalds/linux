@@ -553,34 +553,39 @@ ice_rx_frame_truesize(struct ice_rx_ring *rx_ring, const unsigned int size)
  * @xdp: xdp_buff used as input to the XDP program
  * @xdp_prog: XDP program to run
  * @xdp_ring: ring to be used for XDP_TX action
+ * @rx_buf: Rx buffer to store the XDP action
  *
  * Returns any of ICE_XDP_{PASS, CONSUMED, TX, REDIR}
  */
-static int
+static void
 ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
-	    struct bpf_prog *xdp_prog, struct ice_tx_ring *xdp_ring)
+	    struct bpf_prog *xdp_prog, struct ice_tx_ring *xdp_ring,
+	    struct ice_rx_buf *rx_buf)
 {
-	int err;
+	unsigned int ret = ICE_XDP_PASS;
 	u32 act;
+
+	if (!xdp_prog)
+		goto exit;
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
 	switch (act) {
 	case XDP_PASS:
-		return ICE_XDP_PASS;
+		break;
 	case XDP_TX:
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_lock(&xdp_ring->tx_lock);
-		err = ice_xmit_xdp_ring(xdp->data, xdp->data_end - xdp->data, xdp_ring);
+		ret = ice_xmit_xdp_ring(xdp->data, xdp->data_end - xdp->data, xdp_ring);
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_unlock(&xdp_ring->tx_lock);
-		if (err == ICE_XDP_CONSUMED)
+		if (ret == ICE_XDP_CONSUMED)
 			goto out_failure;
-		return err;
+		break;
 	case XDP_REDIRECT:
-		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		if (err)
+		if (xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog))
 			goto out_failure;
-		return ICE_XDP_REDIR;
+		ret = ICE_XDP_REDIR;
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
@@ -589,8 +594,10 @@ out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_DROP:
-		return ICE_XDP_CONSUMED;
+		ret = ICE_XDP_CONSUMED;
 	}
+exit:
+	rx_buf->act = ret;
 }
 
 /**
@@ -855,9 +862,6 @@ ice_add_rx_frag(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 		return;
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buf->page,
 			rx_buf->page_offset, size, truesize);
-
-	/* page is being used so we must update the page offset */
-	ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
 }
 
 /**
@@ -970,9 +974,6 @@ ice_build_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	if (metasize)
 		skb_metadata_set(skb, metasize);
 
-	/* buffer is used by skb, update page_offset */
-	ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
-
 	return skb;
 }
 
@@ -1023,14 +1024,13 @@ ice_construct_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 #endif
 		skb_add_rx_frag(skb, 0, rx_buf->page,
 				rx_buf->page_offset + headlen, size, truesize);
-		/* buffer is used by skb, update page_offset */
-		ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
 	} else {
-		/* buffer is unused, reset bias back to rx_buf; data was copied
-		 * onto skb's linear part so there's no need for adjusting
-		 * page offset and we can reuse this buffer as-is
+		/* buffer is unused, change the act that should be taken later
+		 * on; data was copied onto skb's linear part so there's no
+		 * need for adjusting page offset and we can reuse this buffer
+		 * as-is
 		 */
-		rx_buf->pagecnt_bias++;
+		rx_buf->act = ICE_XDP_CONSUMED;
 	}
 
 	return skb;
@@ -1084,11 +1084,12 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 	unsigned int offset = rx_ring->rx_offset;
 	struct xdp_buff *xdp = &rx_ring->xdp;
 	struct ice_tx_ring *xdp_ring = NULL;
-	unsigned int xdp_res, xdp_xmit = 0;
 	struct sk_buff *skb = rx_ring->skb;
 	struct bpf_prog *xdp_prog = NULL;
 	u32 ntc = rx_ring->next_to_clean;
 	u32 cnt = rx_ring->count;
+	u32 cached_ntc = ntc;
+	u32 xdp_xmit = 0;
 	bool failure;
 
 	/* Frame size depend on rx_ring setup when PAGE_SIZE=4K */
@@ -1137,7 +1138,6 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 				ice_vc_fdir_irq_handler(ctrl_vsi, rx_desc);
 			if (++ntc == cnt)
 				ntc = 0;
-			ice_put_rx_buf(rx_ring, NULL);
 			cleaned_count++;
 			continue;
 		}
@@ -1164,25 +1164,15 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 		xdp->frame_sz = ice_rx_frame_truesize(rx_ring, size);
 #endif
 
-		if (!xdp_prog)
+		ice_run_xdp(rx_ring, xdp, xdp_prog, xdp_ring, rx_buf);
+		if (rx_buf->act == ICE_XDP_PASS)
 			goto construct_skb;
-
-		xdp_res = ice_run_xdp(rx_ring, xdp, xdp_prog, xdp_ring);
-		if (!xdp_res)
-			goto construct_skb;
-		if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
-			xdp_xmit |= xdp_res;
-			ice_rx_buf_adjust_pg_offset(rx_buf, xdp->frame_sz);
-		} else {
-			rx_buf->pagecnt_bias++;
-		}
 		total_rx_bytes += size;
 		total_rx_pkts++;
 
 		cleaned_count++;
 		if (++ntc == cnt)
 			ntc = 0;
-		ice_put_rx_buf(rx_ring, rx_buf);
 		continue;
 construct_skb:
 		if (skb) {
@@ -1203,7 +1193,6 @@ construct_skb:
 
 		if (++ntc == cnt)
 			ntc = 0;
-		ice_put_rx_buf(rx_ring, rx_buf);
 		cleaned_count++;
 
 		/* skip if it is NOP desc */
@@ -1243,6 +1232,22 @@ construct_skb:
 		total_rx_pkts++;
 	}
 
+	while (cached_ntc != ntc) {
+		struct ice_rx_buf *buf = &rx_ring->rx_buf[cached_ntc];
+
+		if (buf->act & (ICE_XDP_TX | ICE_XDP_REDIR)) {
+			ice_rx_buf_adjust_pg_offset(buf, xdp->frame_sz);
+			xdp_xmit |= buf->act;
+		} else if (buf->act & ICE_XDP_CONSUMED) {
+			buf->pagecnt_bias++;
+		} else if (buf->act == ICE_XDP_PASS) {
+			ice_rx_buf_adjust_pg_offset(buf, xdp->frame_sz);
+		}
+
+		ice_put_rx_buf(rx_ring, buf);
+		if (++cached_ntc >= cnt)
+			cached_ntc = 0;
+	}
 	rx_ring->next_to_clean = ntc;
 	/* return up to cleaned_count buffers to hardware */
 	failure = ice_alloc_rx_bufs(rx_ring, cleaned_count);
