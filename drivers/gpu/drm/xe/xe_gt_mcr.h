@@ -13,6 +13,8 @@ struct xe_gt;
 
 void xe_gt_mcr_init(struct xe_gt *gt);
 
+void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt);
+
 u32 xe_gt_mcr_unicast_read(struct xe_gt *gt, i915_mcr_reg_t reg,
 			   int group, int instance);
 u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, i915_mcr_reg_t reg);

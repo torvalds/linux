@@ -155,15 +155,13 @@ static const struct xe_mmio_range xelpmp_oaddrm_steering_table[] = {
 	{},
 };
 
-/*
- * DG2 GAM registers are a special case; this table is checked directly in
- * xe_gt_mcr_get_nonterminated_steering and is not hooked up via
- * gt->steering[].
- */
-static const struct xe_mmio_range dg2_gam_ranges[] = {
-	{ 0x004000, 0x004AFF },
-	{ 0x00C800, 0x00CFFF },
-	{ 0x00F000, 0x00FFFF },
+static const struct xe_mmio_range dg2_implicit_steering_table[] = {
+	{ 0x000B00, 0x000BFF },		/* SF (SQIDI replication) */
+	{ 0x001000, 0x001FFF },		/* SF (SQIDI replication) */
+	{ 0x004000, 0x004AFF },		/* GAM (MSLICE replication) */
+	{ 0x008700, 0x0087FF },		/* MCFG (SQIDI replication) */
+	{ 0x00C800, 0x00CFFF },		/* GAM (MSLICE replication) */
+	{ 0x00F000, 0x00FFFF },		/* GAM (MSLICE replication) */
 	{},
 };
 
@@ -255,12 +253,14 @@ static const struct {
 	[DSS] =		{ "DSS",	init_steering_dss },
 	[OADDRM] =	{ "OADDRM",	init_steering_oaddrm },
 	[INSTANCE0] =	{ "INSTANCE 0",	init_steering_inst0 },
+	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
 
 void xe_gt_mcr_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
+	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
 	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
 
 	spin_lock_init(&gt->mcr_lock);
@@ -280,6 +280,7 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 		gt->steering[MSLICE].ranges = xehp_mslice_steering_table;
 		gt->steering[LNCF].ranges = xehp_lncf_steering_table;
 		gt->steering[DSS].ranges = xehp_dss_steering_table;
+		gt->steering[IMPLICIT_STEERING].ranges = dg2_implicit_steering_table;
 	} else {
 		gt->steering[L3BANK].ranges = xelp_l3bank_steering_table;
 		gt->steering[DSS].ranges = xelp_dss_steering_table;
@@ -289,6 +290,33 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 	for (int i = 0; i < NUM_STEERING_TYPES; i++)
 		if (gt->steering[i].ranges && xe_steering_types[i].init)
 			xe_steering_types[i].init(gt);
+}
+
+/**
+ * xe_gt_mcr_set_implicit_defaults - Initialize steer control registers
+ * @gt: GT structure
+ *
+ * Some register ranges don't need to have their steering control registers
+ * changed on each access - it's sufficient to set them once on initialization.
+ * This function sets those registers for each platform *
+ */
+void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe->info.platform == XE_DG2) {
+		u32 steer_val = REG_FIELD_PREP(GEN11_MCR_SLICE_MASK, 0) |
+			REG_FIELD_PREP(GEN11_MCR_SUBSLICE_MASK, 2);
+
+		xe_mmio_write32(gt, MCFG_MCR_SELECTOR.reg, steer_val);
+		xe_mmio_write32(gt, SF_MCR_SELECTOR.reg, steer_val);
+		/*
+		 * For GAM registers, all reads should be directed to instance 1
+		 * (unicast reads against other instances are not allowed),
+		 * and instance 1 is already the hardware's default steering
+		 * target, which we never change
+		 */
+	}
 }
 
 /*
@@ -305,14 +333,15 @@ void xe_gt_mcr_init(struct xe_gt *gt)
  * steering.
  *
  * Returns true if the caller should steer to the @group/@instance values
- * returned.  Returns false if the caller need not perform any steering (i.e.,
- * the DG2 GAM range special case).
+ * returned.  Returns false if the caller need not perform any steering
  */
 static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 						 i915_mcr_reg_t reg,
 						 u8 *group, u8 *instance)
 {
-	for (int type = 0; type < NUM_STEERING_TYPES; type++) {
+	const struct xe_mmio_range *implicit_ranges;
+
+	for (int type = 0; type < IMPLICIT_STEERING; type++) {
 		if (!gt->steering[type].ranges)
 			continue;
 
@@ -325,27 +354,15 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 		}
 	}
 
-	/*
-	 * All MCR registers should usually be part of one of the steering
-	 * ranges we're tracking.  However there's one special case:  DG2
-	 * GAM registers are technically multicast registers, but are special
-	 * in a number of ways:
-	 *  - they have their own dedicated steering control register (they
-	 *    don't share 0xFDC with other MCR classes)
-	 *  - all reads should be directed to instance 1 (unicast reads against
-	 *    other instances are not allowed), and instance 1 is already the
-	 *    the hardware's default steering target, which we never change
-	 *
-	 * Ultimately this means that we can just treat them as if they were
-	 * unicast registers and all operations will work properly.
-	 */
-	for (int i = 0; dg2_gam_ranges[i].end > 0; i++)
-		if (xe_mmio_in_range(&dg2_gam_ranges[i], reg.reg))
-			return false;
+	implicit_ranges = gt->steering[IMPLICIT_STEERING].ranges;
+	if (implicit_ranges)
+		for (int i = 0; implicit_ranges[i].end > 0; i++)
+			if (xe_mmio_in_range(&implicit_ranges[i], reg.reg))
+				return false;
 
 	/*
-	 * Not found in a steering table and not a DG2 GAM register?  We'll
-	 * just steer to 0/0 as a guess and raise a warning.
+	 * Not found in a steering table and not a register with implicit
+	 * steering. Just steer to 0/0 as a guess and raise a warning.
 	 */
 	drm_WARN(&gt_to_xe(gt)->drm, true,
 		 "Did not find MCR register %#x in any MCR steering table\n",
@@ -467,7 +484,6 @@ u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, i915_mcr_reg_t reg)
 					   group, instance, 0);
 		mcr_unlock(gt);
 	} else {
-		/* DG2 GAM special case rules; treat as if unicast */
 		val = xe_mmio_read32(gt, reg.reg);
 	}
 

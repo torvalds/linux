@@ -66,6 +66,13 @@ enum xe_steering_type {
 	 */
 	INSTANCE0,
 
+	/*
+	 * Register ranges that don't need special steering for each register:
+	 * it's sufficient to keep the HW-default for the selector, or only
+	 * change it once, on GT initialization. This needs to be the last
+	 * steering type.
+	 */
+	IMPLICIT_STEERING,
 	NUM_STEERING_TYPES
 };
 

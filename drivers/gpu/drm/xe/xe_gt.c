@@ -500,6 +500,7 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_hw_fence_irq;
 
+	xe_gt_mcr_set_implicit_defaults(gt);
 	xe_reg_sr_apply_mmio(&gt->reg_sr, gt);
 
 	err = xe_gt_clock_init(gt);
@@ -633,6 +634,7 @@ static int do_gt_restart(struct xe_gt *gt)
 
 	setup_private_ppat(gt);
 
+	xe_gt_mcr_set_implicit_defaults(gt);
 	xe_reg_sr_apply_mmio(&gt->reg_sr, gt);
 
 	err = xe_wopcm_init(&gt->uc.wopcm);
