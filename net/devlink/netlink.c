@@ -177,23 +177,23 @@ static void devlink_nl_post_doit(const struct genl_split_ops *ops,
 	devlink_put(devlink);
 }
 
-static const struct devlink_cmd *devl_gen_cmds[] = {
-	[DEVLINK_CMD_GET]		= &devl_gen_inst,
-	[DEVLINK_CMD_PORT_GET]		= &devl_gen_port,
-	[DEVLINK_CMD_SB_GET]		= &devl_gen_sb,
-	[DEVLINK_CMD_SB_POOL_GET]	= &devl_gen_sb_pool,
-	[DEVLINK_CMD_SB_PORT_POOL_GET]	= &devl_gen_sb_port_pool,
-	[DEVLINK_CMD_SB_TC_POOL_BIND_GET] = &devl_gen_sb_tc_pool_bind,
-	[DEVLINK_CMD_PARAM_GET]		= &devl_gen_param,
-	[DEVLINK_CMD_REGION_GET]	= &devl_gen_region,
-	[DEVLINK_CMD_INFO_GET]		= &devl_gen_info,
-	[DEVLINK_CMD_HEALTH_REPORTER_GET] = &devl_gen_health_reporter,
-	[DEVLINK_CMD_RATE_GET]		= &devl_gen_rate_get,
-	[DEVLINK_CMD_TRAP_GET]		= &devl_gen_trap,
-	[DEVLINK_CMD_TRAP_GROUP_GET]	= &devl_gen_trap_group,
-	[DEVLINK_CMD_TRAP_POLICER_GET]	= &devl_gen_trap_policer,
-	[DEVLINK_CMD_LINECARD_GET]	= &devl_gen_linecard,
-	[DEVLINK_CMD_SELFTESTS_GET]	= &devl_gen_selftests,
+static const struct devlink_cmd *devl_cmds[] = {
+	[DEVLINK_CMD_GET]		= &devl_cmd_get,
+	[DEVLINK_CMD_PORT_GET]		= &devl_cmd_port_get,
+	[DEVLINK_CMD_SB_GET]		= &devl_cmd_sb_get,
+	[DEVLINK_CMD_SB_POOL_GET]	= &devl_cmd_sb_pool_get,
+	[DEVLINK_CMD_SB_PORT_POOL_GET]	= &devl_cmd_sb_port_pool_get,
+	[DEVLINK_CMD_SB_TC_POOL_BIND_GET] = &devl_cmd_sb_tc_pool_bind_get,
+	[DEVLINK_CMD_PARAM_GET]		= &devl_cmd_param_get,
+	[DEVLINK_CMD_REGION_GET]	= &devl_cmd_region_get,
+	[DEVLINK_CMD_INFO_GET]		= &devl_cmd_info_get,
+	[DEVLINK_CMD_HEALTH_REPORTER_GET] = &devl_cmd_health_reporter_get,
+	[DEVLINK_CMD_TRAP_GET]		= &devl_cmd_trap_get,
+	[DEVLINK_CMD_TRAP_GROUP_GET]	= &devl_cmd_trap_group_get,
+	[DEVLINK_CMD_TRAP_POLICER_GET]	= &devl_cmd_trap_policer_get,
+	[DEVLINK_CMD_RATE_GET]		= &devl_cmd_rate_get,
+	[DEVLINK_CMD_LINECARD_GET]	= &devl_cmd_linecard_get,
+	[DEVLINK_CMD_SELFTESTS_GET]	= &devl_cmd_selftests_get,
 };
 
 int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
@@ -205,7 +205,7 @@ int devlink_nl_instance_iter_dumpit(struct sk_buff *msg,
 	struct devlink *devlink;
 	int err = 0;
 
-	cmd = devl_gen_cmds[info->op.cmd];
+	cmd = devl_cmds[info->op.cmd];
 
 	while ((devlink = devlinks_xa_find_get(sock_net(msg->sk),
 					       &state->instance))) {

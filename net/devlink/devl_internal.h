@@ -140,21 +140,22 @@ devlink_dump_state(struct netlink_callback *cb)
 }
 
 /* Commands */
-extern const struct devlink_cmd devl_gen_inst;
-extern const struct devlink_cmd devl_gen_port;
-extern const struct devlink_cmd devl_gen_sb;
-extern const struct devlink_cmd devl_gen_sb_pool;
-extern const struct devlink_cmd devl_gen_sb_port_pool;
-extern const struct devlink_cmd devl_gen_sb_tc_pool_bind;
-extern const struct devlink_cmd devl_gen_selftests;
-extern const struct devlink_cmd devl_gen_param;
-extern const struct devlink_cmd devl_gen_region;
-extern const struct devlink_cmd devl_gen_info;
-extern const struct devlink_cmd devl_gen_health_reporter;
-extern const struct devlink_cmd devl_gen_trap;
-extern const struct devlink_cmd devl_gen_trap_group;
-extern const struct devlink_cmd devl_gen_trap_policer;
-extern const struct devlink_cmd devl_gen_linecard;
+extern const struct devlink_cmd devl_cmd_get;
+extern const struct devlink_cmd devl_cmd_port_get;
+extern const struct devlink_cmd devl_cmd_sb_get;
+extern const struct devlink_cmd devl_cmd_sb_pool_get;
+extern const struct devlink_cmd devl_cmd_sb_port_pool_get;
+extern const struct devlink_cmd devl_cmd_sb_tc_pool_bind_get;
+extern const struct devlink_cmd devl_cmd_param_get;
+extern const struct devlink_cmd devl_cmd_region_get;
+extern const struct devlink_cmd devl_cmd_info_get;
+extern const struct devlink_cmd devl_cmd_health_reporter_get;
+extern const struct devlink_cmd devl_cmd_trap_get;
+extern const struct devlink_cmd devl_cmd_trap_group_get;
+extern const struct devlink_cmd devl_cmd_trap_policer_get;
+extern const struct devlink_cmd devl_cmd_rate_get;
+extern const struct devlink_cmd devl_cmd_linecard_get;
+extern const struct devlink_cmd devl_cmd_selftests_get;
 
 /* Ports */
 int devlink_port_netdevice_event(struct notifier_block *nb,
@@ -182,8 +183,6 @@ struct devlink_linecard *
 devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info);
 
 /* Rates */
-extern const struct devlink_cmd devl_gen_rate_get;
-
 struct devlink_rate *
 devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_rate *
