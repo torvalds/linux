@@ -170,7 +170,7 @@ int can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 
 	/* real bitrate */
 	bt->bitrate = priv->clock.freq /
-		(bt->brp * (CAN_SYNC_SEG + tseg1 + tseg2));
+		(bt->brp * can_bit_time(bt));
 
 	return 0;
 }

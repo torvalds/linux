@@ -15,7 +15,7 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 			       const struct can_bittiming_const *btc)
 {
 	const struct can_priv *priv = netdev_priv(dev);
-	unsigned int tseg1, alltseg;
+	unsigned int tseg1;
 	u64 brp64;
 
 	tseg1 = bt->prop_seg + bt->phase_seg1;
@@ -38,9 +38,8 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 	if (bt->brp < btc->brp_min || bt->brp > btc->brp_max)
 		return -EINVAL;
 
-	alltseg = bt->prop_seg + bt->phase_seg1 + bt->phase_seg2 + 1;
-	bt->bitrate = priv->clock.freq / (bt->brp * alltseg);
-	bt->sample_point = ((tseg1 + 1) * 1000) / alltseg;
+	bt->bitrate = priv->clock.freq / (bt->brp * can_bit_time(bt));
+	bt->sample_point = ((tseg1 + 1) * 1000) / can_bit_time(bt);
 
 	return 0;
 }
