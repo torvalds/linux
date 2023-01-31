@@ -906,7 +906,7 @@ static int platform_probe_fail(struct platform_device *pdev)
 int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 		int (*probe)(struct platform_device *), struct module *module)
 {
-	int retval, code;
+	int retval;
 
 	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHRONOUS) {
 		pr_err("%s: drivers registered with %s can not be probed asynchronously\n",
@@ -932,7 +932,7 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 
 	/* temporary section violation during probe() */
 	drv->probe = probe;
-	retval = code = __platform_driver_register(drv, module);
+	retval = __platform_driver_register(drv, module);
 	if (retval)
 		return retval;
 
@@ -944,11 +944,11 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 	 */
 	spin_lock(&drv->driver.bus->p->klist_drivers.k_lock);
 	drv->probe = platform_probe_fail;
-	if (code == 0 && list_empty(&drv->driver.p->klist_devices.k_list))
+	if (list_empty(&drv->driver.p->klist_devices.k_list))
 		retval = -ENODEV;
 	spin_unlock(&drv->driver.bus->p->klist_drivers.k_lock);
 
-	if (code != retval)
+	if (retval)
 		platform_driver_unregister(drv);
 	return retval;
 }
