@@ -88,67 +88,6 @@ MODULE_PARM_DESC(probe_wait_ms,
  */
 #define IEEE80211_SIGNAL_AVE_MIN_COUNT	4
 
-struct ieee80211_per_bw_puncturing_values {
-	u8 len;
-	const u16 *valid_values;
-};
-
-static const u16 puncturing_values_80mhz[] = {
-	0x8, 0x4, 0x2, 0x1
-};
-
-static const u16 puncturing_values_160mhz[] = {
-	 0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1, 0xc0, 0x30, 0xc, 0x3
-};
-
-static const u16 puncturing_values_320mhz[] = {
-	0xc000, 0x3000, 0xc00, 0x300, 0xc0, 0x30, 0xc, 0x3, 0xf000, 0xf00,
-	0xf0, 0xf, 0xfc00, 0xf300, 0xf0c0, 0xf030, 0xf00c, 0xf003, 0xc00f,
-	0x300f, 0xc0f, 0x30f, 0xcf, 0x3f
-};
-
-#define IEEE80211_PER_BW_VALID_PUNCTURING_VALUES(_bw) \
-	{ \
-		.len = ARRAY_SIZE(puncturing_values_ ## _bw ## mhz), \
-		.valid_values = puncturing_values_ ## _bw ## mhz \
-	}
-
-static const struct ieee80211_per_bw_puncturing_values per_bw_puncturing[] = {
-	IEEE80211_PER_BW_VALID_PUNCTURING_VALUES(80),
-	IEEE80211_PER_BW_VALID_PUNCTURING_VALUES(160),
-	IEEE80211_PER_BW_VALID_PUNCTURING_VALUES(320)
-};
-
-static bool ieee80211_valid_disable_subchannel_bitmap(u16 *bitmap,
-						      enum nl80211_chan_width bw)
-{
-	u32 idx, i;
-
-	switch (bw) {
-	case NL80211_CHAN_WIDTH_80:
-		idx = 0;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		idx = 1;
-		break;
-	case NL80211_CHAN_WIDTH_320:
-		idx = 2;
-		break;
-	default:
-		*bitmap = 0;
-		break;
-	}
-
-	if (!*bitmap)
-		return true;
-
-	for (i = 0; i < per_bw_puncturing[idx].len; i++)
-		if (per_bw_puncturing[idx].valid_values[i] == *bitmap)
-			return true;
-
-	return false;
-}
-
 /*
  * Extract from the given disabled subchannel bitmap (raw format
  * from the EHT Operation Element) the bits for the subchannel
@@ -206,8 +145,8 @@ ieee80211_handle_puncturing_bitmap(struct ieee80211_link_data *link,
 			ieee80211_extract_dis_subch_bmap(eht_oper, chandef,
 							 bitmap);
 
-		if (ieee80211_valid_disable_subchannel_bitmap(&bitmap,
-							      chandef->width))
+		if (cfg80211_valid_disable_subchannel_bitmap(&bitmap,
+							     chandef))
 			break;
 		link->u.mgd.conn_flags |=
 			ieee80211_chandef_downgrade(chandef);
@@ -5638,8 +5577,8 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 	    extracted == link->conf->eht_puncturing)
 		return true;
 
-	if (!ieee80211_valid_disable_subchannel_bitmap(&bitmap,
-						       link->conf->chandef.width)) {
+	if (!cfg80211_valid_disable_subchannel_bitmap(&bitmap,
+						      &link->conf->chandef)) {
 		link_info(link,
 			  "Got an invalid disable subchannel bitmap from AP %pM: bitmap = 0x%x, bw = 0x%x. disconnect\n",
 			  link->u.mgd.bssid,
@@ -7132,8 +7071,8 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 			u16 bitmap;
 
 			bitmap = get_unaligned_le16(disable_subchannel_bitmap);
-			if (ieee80211_valid_disable_subchannel_bitmap(&bitmap,
-								      link->conf->chandef.width))
+			if (cfg80211_valid_disable_subchannel_bitmap(&bitmap,
+								     &link->conf->chandef))
 				ieee80211_handle_puncturing_bitmap(link,
 								   eht_oper,
 								   bitmap,
