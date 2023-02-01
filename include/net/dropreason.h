@@ -71,6 +71,7 @@
 	FN(DUP_FRAG)			\
 	FN(FRAG_REASM_TIMEOUT)		\
 	FN(FRAG_TOO_FAR)		\
+	FN(TCP_MINTTL)			\
 	FNe(MAX)
 
 /**
@@ -312,6 +313,11 @@ enum skb_drop_reason {
 	 * (/proc/sys/net/ipv4/ipfrag_max_dist)
 	 */
 	SKB_DROP_REASON_FRAG_TOO_FAR,
+	/**
+	 * @SKB_DROP_REASON_TCP_MINTTL: ipv4 ttl or ipv6 hoplimit below
+	 * the threshold (IP_MINTTL or IPV6_MINHOPCOUNT).
+	 */
+	SKB_DROP_REASON_TCP_MINTTL,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'
