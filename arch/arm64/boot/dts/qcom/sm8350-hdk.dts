@@ -725,7 +725,7 @@
 	lt9611_state: lt9611-state {
 		rst-pins {
 			pins = "gpio48";
-			function = "normal";
+			function = "gpio";
 
 			output-high;
 			input-disable;
