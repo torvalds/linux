@@ -17,6 +17,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #define CHIP_ID				0x2685
@@ -613,13 +614,14 @@ static int ov2685_initialize_controls(struct ov2685 *ov2685)
 	const struct ov2685_mode *mode;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl *ctrl;
+	struct v4l2_fwnode_device_properties props;
 	u64 exposure_max;
 	u32 pixel_rate, h_blank;
 	int ret;
 
 	handler = &ov2685->ctrl_handler;
 	mode = ov2685->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 8);
+	ret = v4l2_ctrl_handler_init(handler, 10);
 	if (ret)
 		return ret;
 	handler->lock = &ov2685->mutex;
@@ -660,6 +662,15 @@ static int ov2685_initialize_controls(struct ov2685 *ov2685)
 				&ov2685_ctrl_ops, V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(ov2685_test_pattern_menu) - 1,
 				0, 0, ov2685_test_pattern_menu);
+
+	/* set properties from fwnode (e.g. rotation, orientation) */
+	ret = v4l2_fwnode_device_parse(&ov2685->client->dev, &props);
+	if (ret)
+		goto err_free_handler;
+
+	ret = v4l2_ctrl_new_fwnode_properties(handler, &ov2685_ctrl_ops, &props);
+	if (ret)
+		goto err_free_handler;
 
 	if (handler->error) {
 		ret = handler->error;
