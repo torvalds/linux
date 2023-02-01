@@ -280,7 +280,6 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 	struct list_head *ts_reg_free_list_head = NULL;
 	struct timestamp_reg_work_obj *job;
 	bool reg_node_handle_fail = false;
-	ktime_t now = ktime_get();
 	int rc;
 
 	/* For registration nodes:
@@ -303,13 +302,13 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 			if (pend->ts_reg_info.buf) {
 				if (!reg_node_handle_fail) {
 					rc = handle_registration_node(hdev, pend,
-								&ts_reg_free_list_head, now);
+							&ts_reg_free_list_head, intr->timestamp);
 					if (rc)
 						reg_node_handle_fail = true;
 				}
 			} else {
 				/* Handle wait target value node */
-				pend->fence.timestamp = now;
+				pend->fence.timestamp = intr->timestamp;
 				complete_all(&pend->fence.completion);
 			}
 		}
@@ -335,6 +334,10 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
  */
 irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 {
+	struct hl_user_interrupt *user_int = arg;
+
+	user_int->timestamp = ktime_get();
+
 	return IRQ_WAKE_THREAD;
 }
 

@@ -1107,6 +1107,7 @@ enum hl_user_interrupt_type {
  * @type: user interrupt type
  * @wait_list_head: head to the list of user threads pending on this interrupt
  * @wait_list_lock: protects wait_list_head
+ * @timestamp: last timestamp taken upon interrupt
  * @interrupt_id: msix interrupt id
  */
 struct hl_user_interrupt {
@@ -1114,6 +1115,7 @@ struct hl_user_interrupt {
 	enum hl_user_interrupt_type	type;
 	struct list_head		wait_list_head;
 	spinlock_t			wait_list_lock;
+	ktime_t				timestamp;
 	u32				interrupt_id;
 };
 
