@@ -27,6 +27,28 @@
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
 
+static const struct v4l2_fmtdesc cx18_formats_yuv[] = {
+	{
+		.index = 0,
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+		.pixelformat = V4L2_PIX_FMT_NV12_16L16,
+	},
+	{
+		.index = 1,
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+		.pixelformat = V4L2_PIX_FMT_UYVY,
+	},
+};
+
+static const struct v4l2_fmtdesc cx18_formats_mpeg[] = {
+	{
+		.index = 0,
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+		.flags = V4L2_FMT_FLAG_COMPRESSED,
+		.pixelformat = V4L2_PIX_FMT_MPEG,
+	},
+};
+
 u16 cx18_service2vbi(int type)
 {
 	switch (type) {
@@ -210,11 +232,18 @@ static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 
 	w = min(w, 720);
 	w = max(w, 2);
+
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
+		if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_NV12_16L16 &&
+		    fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_UYVY)
+			fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
 		/* YUV height must be a multiple of 32 */
 		h &= ~0x1f;
 		min_h = 32;
+	} else {
+		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
 	}
+
 	h = min(h, cx->is_50hz ? 576 : 480);
 	h = max(h, min_h);
 
@@ -463,31 +492,17 @@ static int cx18_g_selection(struct file *file, void *fh,
 static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
 					struct v4l2_fmtdesc *fmt)
 {
-	static const struct v4l2_fmtdesc formats[] = {
-		{
-			.index = 0,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "HM12 (YUV 4:1:1)",
-			.pixelformat = V4L2_PIX_FMT_NV12_16L16,
-		},
-		{
-			.index = 1,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.flags = V4L2_FMT_FLAG_COMPRESSED,
-			.description = "MPEG",
-			.pixelformat = V4L2_PIX_FMT_MPEG,
-		},
-		{
-			.index = 2,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "UYVY 4:2:2",
-			.pixelformat = V4L2_PIX_FMT_UYVY,
-		},
-	};
+	struct cx18_open_id *id = fh2id(fh);
 
-	if (fmt->index > ARRAY_SIZE(formats) - 1)
+	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
+		if (fmt->index >= ARRAY_SIZE(cx18_formats_yuv))
+			return -EINVAL;
+		*fmt = cx18_formats_yuv[fmt->index];
+		return 0;
+	}
+	if (fmt->index)
 		return -EINVAL;
-	*fmt = formats[fmt->index];
+	*fmt = cx18_formats_mpeg[0];
 	return 0;
 }
 
