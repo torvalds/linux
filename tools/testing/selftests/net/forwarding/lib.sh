@@ -524,27 +524,6 @@ cmd_jq()
 	[ ! -z "$output" ]
 }
 
-lldpad_app_wait_set()
-{
-	local dev=$1; shift
-
-	while lldptool -t -i $dev -V APP -c app | grep -Eq "pending|unknown"; do
-		echo "$dev: waiting for lldpad to push pending APP updates"
-		sleep 5
-	done
-}
-
-lldpad_app_wait_del()
-{
-	# Give lldpad a chance to push down the changes. If the device is downed
-	# too soon, the updates will be left pending. However, they will have
-	# been struck off the lldpad's DB already, so we won't be able to tell
-	# they are pending. Then on next test iteration this would cause
-	# weirdness as newly-added APP rules conflict with the old ones,
-	# sometimes getting stuck in an "unknown" state.
-	sleep 5
-}
-
 pre_cleanup()
 {
 	if [ "${PAUSE_ON_CLEANUP}" = "yes" ]; then
