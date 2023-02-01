@@ -961,6 +961,8 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 			gpu->identity.vertex_cache_size);
 	seq_printf(m, "\t shader_core_count: %d\n",
 			gpu->identity.shader_core_count);
+	seq_printf(m, "\t nn_core_count: %d\n",
+			gpu->identity.nn_core_count);
 	seq_printf(m, "\t pixel_pipes: %d\n",
 			gpu->identity.pixel_pipes);
 	seq_printf(m, "\t vertex_output_buffer_size: %d\n",
