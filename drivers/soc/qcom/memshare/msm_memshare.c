@@ -15,6 +15,7 @@
 #include <linux/notifier.h>
 #include <linux/soc/qcom/qmi.h>
 #include <linux/remoteproc/qcom_rproc.h>
+#include <linux/rpmsg/qcom_glink.h>
 #include "msm_memshare.h"
 #include "heap_mem_ext_v01.h"
 
@@ -38,12 +39,21 @@ struct memshare_driver {
 struct memshare_child {
 	struct device *dev;
 	int client_id;
+	struct qcom_glink_mem_entry *mem_entry;
 };
 
 static struct memshare_driver *memsh_drv;
 static struct memshare_child *memsh_child[MAX_CLIENTS];
 static struct mem_blocks memblock[MAX_CLIENTS];
 static uint32_t num_clients;
+
+static inline bool is_shared_mapping(struct mem_blocks *mb)
+{
+	if (!mb)
+		return false;
+
+	return mb->hyp_map_info.num_vmids > 1;
+}
 
 static int check_client(int client_id, int proc, int request)
 {
@@ -335,6 +345,13 @@ static void handle_alloc_generic_req(struct qmi_handle *handle,
 			memblock[index].peripheral = alloc_req->proc_id;
 		}
 	}
+
+	if (is_shared_mapping(&memblock[index])) {
+		struct mem_blocks *mb = &memblock[index];
+
+		client_node->mem_entry = qcom_glink_mem_entry_init(client_node->dev,
+				mb->virtual_addr, mb->phy_addr, mb->size, mb->phy_addr);
+	}
 	dev_dbg(memsh_drv->dev,
 		"memshare_alloc: free memory count for client id: %d = %d\n",
 		memblock[index].client_id, memblock[index].free_memory);
@@ -412,6 +429,11 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 			"memshare_free: No valid client node found\n");
 		mutex_unlock(&memsh_drv->mem_free);
 		return;
+	}
+
+	if (client_node->mem_entry) {
+		qcom_glink_mem_entry_free(client_node->mem_entry);
+		client_node->mem_entry = NULL;
 	}
 
 	if (!flag && !memblock[index].guarantee &&
