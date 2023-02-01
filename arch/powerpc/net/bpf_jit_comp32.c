@@ -290,6 +290,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 
 	for (i = 0; i < flen; i++) {
 		u32 code = insn[i].code;
+		u32 prevcode = i ? insn[i - 1].code : 0;
 		u32 dst_reg = bpf_to_ppc(insn[i].dst_reg);
 		u32 dst_reg_h = dst_reg - 1;
 		u32 src_reg = bpf_to_ppc(insn[i].src_reg);
@@ -307,6 +308,15 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 		u32 true_cond;
 		u32 tmp_idx;
 		int j;
+
+		if (i && (BPF_CLASS(code) == BPF_ALU64 || BPF_CLASS(code) == BPF_ALU) &&
+		    (BPF_CLASS(prevcode) == BPF_ALU64 || BPF_CLASS(prevcode) == BPF_ALU) &&
+		    BPF_OP(prevcode) == BPF_MOV && BPF_SRC(prevcode) == BPF_X &&
+		    insn[i - 1].dst_reg == insn[i].dst_reg && insn[i - 1].imm != 1) {
+			src2_reg = bpf_to_ppc(insn[i - 1].src_reg);
+			src2_reg_h = src2_reg - 1;
+			ctx->idx = addrs[i - 1] / 4;
+		}
 
 		/*
 		 * addrs[] maps a BPF bytecode address into a real offset from
