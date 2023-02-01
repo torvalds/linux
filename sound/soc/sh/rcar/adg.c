@@ -661,8 +661,8 @@ void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct seq_file *m)
 	 * by BRGCKR::BRGCKR_31
 	 */
 	for_each_rsnd_clkout(clk, adg, i)
-		dbg_msg(dev, m, "clkout %d : %pa : %ld\n", i,
-			clk, clk_get_rate(clk));
+		dbg_msg(dev, m, "%-18s : %pa : %ld\n",
+			__clk_get_name(clk), clk, clk_get_rate(clk));
 }
 #else
 #define rsnd_adg_clk_dbg_info(priv, m)
