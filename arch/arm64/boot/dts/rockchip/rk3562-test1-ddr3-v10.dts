@@ -7,3 +7,9 @@
 #include "rk3562-test1-ddr3-v10.dtsi"
 #include "rk3562-android.dtsi"
 #include "rk3562-rk809.dtsi"
+
+&rk809_codec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s2m1_mclk>;
+	/delete-property/ mic-in-differential;
+};
