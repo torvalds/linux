@@ -4081,6 +4081,10 @@ static inline bool smb3_use_rdma_offload(struct cifs_io_parms *io_parms)
 	if (server->sign)
 		return false;
 
+	/* we don't support encrypted offload yet */
+	if (smb3_encryption_required(tcon))
+		return false;
+
 	/* offload also has its overhead, so only do it if desired */
 	if (io_parms->length < server->smbd_conn->rdma_readwrite_threshold)
 		return false;
