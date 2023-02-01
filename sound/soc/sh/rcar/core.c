@@ -1343,6 +1343,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	struct snd_soc_dai_driver *drv;
 	struct rsnd_dai *rdai;
 	struct device *dev = rsnd_priv_to_dev(priv);
+	int playback_exist = 0, capture_exist = 0;
 	int io_i;
 
 	rdai		= rsnd_rdai_get(priv, dai_i);
@@ -1357,22 +1358,6 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->ops	= &rsnd_soc_dai_ops;
 	drv->pcm_new	= rsnd_pcm_new;
 
-	snprintf(io_playback->name, RSND_DAI_NAME_SIZE,
-		 "DAI%d Playback", dai_i);
-	drv->playback.rates		= RSND_RATES;
-	drv->playback.formats		= RSND_FMTS;
-	drv->playback.channels_min	= 2;
-	drv->playback.channels_max	= 8;
-	drv->playback.stream_name	= io_playback->name;
-
-	snprintf(io_capture->name, RSND_DAI_NAME_SIZE,
-		 "DAI%d Capture", dai_i);
-	drv->capture.rates		= RSND_RATES;
-	drv->capture.formats		= RSND_FMTS;
-	drv->capture.channels_min	= 2;
-	drv->capture.channels_max	= 8;
-	drv->capture.stream_name	= io_capture->name;
-
 	io_playback->rdai		= rdai;
 	io_capture->rdai		= rdai;
 	rsnd_rdai_channels_set(rdai, 2); /* default 2ch */
@@ -1386,6 +1371,14 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 		if (!playback && !capture)
 			break;
 
+		if (io_i == 0) {
+			/* check whether playback/capture property exists */
+			if (playback)
+				playback_exist = 1;
+			if (capture)
+				capture_exist = 1;
+		}
+
 		rsnd_parse_connect_ssi(rdai, playback, capture);
 		rsnd_parse_connect_ssiu(rdai, playback, capture);
 		rsnd_parse_connect_src(rdai, playback, capture);
@@ -1395,6 +1388,23 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 		of_node_put(playback);
 		of_node_put(capture);
+	}
+
+	if (playback_exist) {
+		snprintf(io_playback->name, RSND_DAI_NAME_SIZE, "DAI%d Playback", dai_i);
+		drv->playback.rates		= RSND_RATES;
+		drv->playback.formats		= RSND_FMTS;
+		drv->playback.channels_min	= 2;
+		drv->playback.channels_max	= 8;
+		drv->playback.stream_name	= io_playback->name;
+	}
+	if (capture_exist) {
+		snprintf(io_capture->name, RSND_DAI_NAME_SIZE, "DAI%d Capture", dai_i);
+		drv->capture.rates		= RSND_RATES;
+		drv->capture.formats		= RSND_FMTS;
+		drv->capture.channels_min	= 2;
+		drv->capture.channels_max	= 8;
+		drv->capture.stream_name	= io_capture->name;
 	}
 
 	if (rsnd_ssi_is_pin_sharing(io_capture) ||
