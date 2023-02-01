@@ -939,10 +939,10 @@ static const char *jffs2_xattr_prefix(int xprefix, struct dentry *dentry)
 #endif
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 	case JFFS2_XPREFIX_ACL_ACCESS:
-		ret = &posix_acl_access_xattr_handler;
+		ret = &nop_posix_acl_access;
 		break;
 	case JFFS2_XPREFIX_ACL_DEFAULT:
-		ret = &posix_acl_default_xattr_handler;
+		ret = &nop_posix_acl_default;
 		break;
 #endif
 	case JFFS2_XPREFIX_TRUSTED:

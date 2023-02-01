@@ -988,19 +988,31 @@ posix_acl_xattr_list(struct dentry *dentry)
 	return IS_POSIXACL(d_backing_inode(dentry));
 }
 
-const struct xattr_handler posix_acl_access_xattr_handler = {
+/*
+ * nop_posix_acl_access - legacy xattr handler for access POSIX ACLs
+ *
+ * This is the legacy POSIX ACL access xattr handler. It is used by some
+ * filesystems to implement their ->listxattr() inode operation. New code
+ * should never use them.
+ */
+const struct xattr_handler nop_posix_acl_access = {
 	.name = XATTR_NAME_POSIX_ACL_ACCESS,
-	.flags = ACL_TYPE_ACCESS,
 	.list = posix_acl_xattr_list,
 };
-EXPORT_SYMBOL_GPL(posix_acl_access_xattr_handler);
+EXPORT_SYMBOL_GPL(nop_posix_acl_access);
 
-const struct xattr_handler posix_acl_default_xattr_handler = {
+/*
+ * nop_posix_acl_default - legacy xattr handler for default POSIX ACLs
+ *
+ * This is the legacy POSIX ACL default xattr handler. It is used by some
+ * filesystems to implement their ->listxattr() inode operation. New code
+ * should never use them.
+ */
+const struct xattr_handler nop_posix_acl_default = {
 	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
-	.flags = ACL_TYPE_DEFAULT,
 	.list = posix_acl_xattr_list,
 };
-EXPORT_SYMBOL_GPL(posix_acl_default_xattr_handler);
+EXPORT_SYMBOL_GPL(nop_posix_acl_default);
 
 int simple_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct posix_acl *acl, int type)
