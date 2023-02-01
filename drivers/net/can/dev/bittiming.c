@@ -124,6 +124,9 @@ can_validate_bitrate(const struct net_device *dev, const struct can_bittiming *b
 			return 0;
 	}
 
+	NL_SET_ERR_MSG_FMT(extack, "bitrate %u bps not supported",
+			   bt->brp);
+
 	return -EINVAL;
 }
 
