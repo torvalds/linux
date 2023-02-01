@@ -953,6 +953,8 @@ struct rswitch_device {
 
 	int port;
 	struct rswitch_etha *etha;
+	struct device_node *np_port;
+	struct phy *serdes;
 };
 
 struct rswitch_mfwd_mac_table_entry {

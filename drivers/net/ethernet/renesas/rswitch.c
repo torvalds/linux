@@ -1071,32 +1071,14 @@ out:
 	return port;
 }
 
-/* Call of_node_put(mdio) after done */
-static struct device_node *rswitch_get_mdio_node(struct rswitch_device *rdev)
-{
-	struct device_node *port, *mdio;
-
-	port = rswitch_get_port_node(rdev);
-	if (!port)
-		return NULL;
-
-	mdio = of_get_child_by_name(port, "mdio");
-	of_node_put(port);
-
-	return mdio;
-}
-
 static int rswitch_etha_get_params(struct rswitch_device *rdev)
 {
-	struct device_node *port;
 	int err;
 
-	port = rswitch_get_port_node(rdev);
-	if (!port)
+	if (!rdev->np_port)
 		return 0;	/* ignored */
 
-	err = of_get_phy_mode(port, &rdev->etha->phy_interface);
-	of_node_put(port);
+	err = of_get_phy_mode(rdev->np_port, &rdev->etha->phy_interface);
 
 	switch (rdev->etha->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
@@ -1133,7 +1115,7 @@ static int rswitch_mii_register(struct rswitch_device *rdev)
 	mii_bus->write_c45 = rswitch_etha_mii_write_c45;
 	mii_bus->parent = &rdev->priv->pdev->dev;
 
-	mdio_np = rswitch_get_mdio_node(rdev);
+	mdio_np = of_get_child_by_name(rdev->np_port, "mdio");
 	err = of_mdiobus_register(mii_bus, mdio_np);
 	if (err < 0) {
 		mdiobus_free(mii_bus);
@@ -1185,12 +1167,9 @@ static const struct phylink_mac_ops rswitch_phylink_ops = {
 
 static int rswitch_phylink_init(struct rswitch_device *rdev)
 {
-	struct device_node *port;
 	struct phylink *phylink;
-	int err;
 
-	port = rswitch_get_port_node(rdev);
-	if (!port)
+	if (!rdev->np_port)
 		return -ENODEV;
 
 	rdev->phylink_config.dev = &rdev->ndev->dev;
@@ -1199,19 +1178,14 @@ static int rswitch_phylink_init(struct rswitch_device *rdev)
 	__set_bit(PHY_INTERFACE_MODE_USXGMII, rdev->phylink_config.supported_interfaces);
 	rdev->phylink_config.mac_capabilities = MAC_100FD | MAC_1000FD | MAC_2500FD;
 
-	phylink = phylink_create(&rdev->phylink_config, &port->fwnode,
+	phylink = phylink_create(&rdev->phylink_config, &rdev->np_port->fwnode,
 				 rdev->etha->phy_interface, &rswitch_phylink_ops);
-	if (IS_ERR(phylink)) {
-		err = PTR_ERR(phylink);
-		goto out;
-	}
+	if (IS_ERR(phylink))
+		return PTR_ERR(phylink);
 
 	rdev->phylink = phylink;
-	err = phylink_of_phy_connect(rdev->phylink, port, rdev->etha->phy_interface);
-out:
-	of_node_put(port);
 
-	return err;
+	return phylink_of_phy_connect(rdev->phylink, rdev->np_port, rdev->etha->phy_interface);
 }
 
 static void rswitch_phylink_deinit(struct rswitch_device *rdev)
@@ -1224,47 +1198,14 @@ static void rswitch_phylink_deinit(struct rswitch_device *rdev)
 
 static int rswitch_serdes_set_params(struct rswitch_device *rdev)
 {
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
 	int err;
 
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	err = phy_set_mode_ext(serdes, PHY_MODE_ETHERNET,
+	err = phy_set_mode_ext(rdev->serdes, PHY_MODE_ETHERNET,
 			       rdev->etha->phy_interface);
 	if (err < 0)
 		return err;
 
-	return phy_set_speed(serdes, rdev->etha->speed);
-}
-
-static int rswitch_serdes_init(struct rswitch_device *rdev)
-{
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
-
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	return phy_init(serdes);
-}
-
-static int rswitch_serdes_deinit(struct rswitch_device *rdev)
-{
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
-
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	return phy_exit(serdes);
+	return phy_set_speed(rdev->serdes, rdev->etha->speed);
 }
 
 static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
@@ -1286,6 +1227,12 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	if (err < 0)
 		goto err_phylink_init;
 
+	rdev->serdes = devm_of_phy_get(&rdev->priv->pdev->dev, rdev->np_port, NULL);
+	if (IS_ERR(rdev->serdes)) {
+		err = PTR_ERR(rdev->serdes);
+		goto err_serdes_phy_get;
+	}
+
 	err = rswitch_serdes_set_params(rdev);
 	if (err < 0)
 		goto err_serdes_set_params;
@@ -1293,6 +1240,7 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	return 0;
 
 err_serdes_set_params:
+err_serdes_phy_get:
 	rswitch_phylink_deinit(rdev);
 
 err_phylink_init:
@@ -1318,7 +1266,7 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 	}
 
 	rswitch_for_each_enabled_port(priv, i) {
-		err = rswitch_serdes_init(priv->rdev[i]);
+		err = phy_init(priv->rdev[i]->serdes);
 		if (err)
 			goto err_serdes;
 	}
@@ -1327,7 +1275,7 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 
 err_serdes:
 	rswitch_for_each_enabled_port_continue_reverse(priv, i)
-		rswitch_serdes_deinit(priv->rdev[i]);
+		phy_exit(priv->rdev[i]->serdes);
 	i = RSWITCH_NUM_PORTS;
 
 err_init_one:
@@ -1342,7 +1290,7 @@ static void rswitch_ether_port_deinit_all(struct rswitch_private *priv)
 	int i;
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
-		rswitch_serdes_deinit(priv->rdev[i]);
+		phy_exit(priv->rdev[i]->serdes);
 		rswitch_ether_port_deinit_one(priv->rdev[i]);
 	}
 }
@@ -1565,7 +1513,6 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct rswitch_device *rdev;
-	struct device_node *port;
 	struct net_device *ndev;
 	int err;
 
@@ -1594,10 +1541,10 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 
 	netif_napi_add(ndev, &rdev->napi, rswitch_poll);
 
-	port = rswitch_get_port_node(rdev);
-	rdev->disabled = !port;
-	err = of_get_ethdev_address(port, ndev);
-	of_node_put(port);
+	rdev->np_port = rswitch_get_port_node(rdev);
+	rdev->disabled = !rdev->np_port;
+	err = of_get_ethdev_address(rdev->np_port, ndev);
+	of_node_put(rdev->np_port);
 	if (err) {
 		if (is_valid_ether_addr(rdev->etha->mac_addr))
 			eth_hw_addr_set(ndev, rdev->etha->mac_addr);
@@ -1798,7 +1745,7 @@ static void rswitch_deinit(struct rswitch_private *priv)
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
 		struct rswitch_device *rdev = priv->rdev[i];
 
-		rswitch_serdes_deinit(rdev);
+		phy_exit(priv->rdev[i]->serdes);
 		rswitch_ether_port_deinit_one(rdev);
 		unregister_netdev(rdev->ndev);
 		rswitch_device_free(priv, i);
