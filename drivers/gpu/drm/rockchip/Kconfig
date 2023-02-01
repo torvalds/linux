@@ -61,11 +61,10 @@ config ROCKCHIP_VOP
 
 config ROCKCHIP_VOP2
 	bool "Rockchip VOP2 driver"
-	default y if CPU_RK3568 || CPU_RK3588
+	default y if CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588
 	help
 	  This selects support for the VOP2 driver. If you want to
-	  enable VOP2 on RK3566 and RK3568 based SoC, you should
-	  select this option.
+	  enable VOP2 on Rockchip SoC, you should select this option.
 
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
