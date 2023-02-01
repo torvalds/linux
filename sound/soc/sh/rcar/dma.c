@@ -659,16 +659,16 @@ static dma_addr_t rsnd_dma_addr(struct rsnd_dai_stream *io,
 {
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 
+	if (!mod)
+		return 0;
+
 	/*
 	 * gen1 uses default DMA addr
 	 */
 	if (rsnd_is_gen1(priv))
 		return 0;
-
-	if (!mod)
-		return 0;
-
-	return rsnd_gen2_dma_addr(io, mod, is_play, is_from);
+	else
+		return rsnd_gen2_dma_addr(io, mod, is_play, is_from);
 }
 
 #define MOD_MAX (RSND_MOD_MAX + 1) /* +Memory */
