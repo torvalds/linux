@@ -126,7 +126,7 @@ static inline struct pci_dev *macio_get_pci_dev(struct macio_dev *mdev)
 struct macio_driver
 {
 	int	(*probe)(struct macio_dev* dev, const struct of_device_id *match);
-	int	(*remove)(struct macio_dev* dev);
+	void	(*remove)(struct macio_dev *dev);
 
 	int	(*suspend)(struct macio_dev* dev, pm_message_t state);
 	int	(*resume)(struct macio_dev* dev);
