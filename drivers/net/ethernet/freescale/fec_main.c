@@ -4056,11 +4056,14 @@ static int fec_reset_phy(struct platform_device *pdev)
 
 	active_high = of_property_read_bool(np, "phy-reset-active-high");
 
-	phy_reset = devm_gpiod_get(&pdev->dev, "phy-reset",
+	phy_reset = devm_gpiod_get_optional(&pdev->dev, "phy-reset",
 			active_high ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW);
 	if (IS_ERR(phy_reset))
 		return dev_err_probe(&pdev->dev, PTR_ERR(phy_reset),
 				     "failed to get phy-reset-gpios\n");
+
+	if (!phy_reset)
+		return 0;
 
 	if (msec > 20)
 		msleep(msec);
