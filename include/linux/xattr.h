@@ -47,6 +47,22 @@ struct xattr_handler {
 		   size_t size, int flags);
 };
 
+/**
+ * xattr_handler_can_list - check whether xattr can be listed
+ * @handler: handler for this type of xattr
+ * @dentry: dentry whose inode xattr to list
+ *
+ * Determine whether the xattr associated with @dentry can be listed given
+ * @handler.
+ *
+ * Return: true if xattr can be listed, false if not.
+ */
+static inline bool xattr_handler_can_list(const struct xattr_handler *handler,
+					  struct dentry *dentry)
+{
+	return handler && (!handler->list || handler->list(dentry));
+}
+
 const char *xattr_full_name(const struct xattr_handler *, const char *);
 
 struct xattr {
