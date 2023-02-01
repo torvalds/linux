@@ -1082,12 +1082,13 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 			epold->dentry.file.attr |= cpu_to_le16(EXFAT_ATTR_ARCHIVE);
 			ei->attr |= EXFAT_ATTR_ARCHIVE;
 		}
+
+		exfat_remove_entries(inode, &old_es, ES_IDX_FIRST_FILENAME + 1);
+
 		ret = exfat_init_ext_entry(inode, p_dir, oldentry,
 			num_new_entries, p_uniname);
 		if (ret)
 			goto put_old_es;
-
-		exfat_remove_entries(inode, &old_es, num_new_entries);
 	}
 	return exfat_put_dentry_set(&old_es, sync);
 
