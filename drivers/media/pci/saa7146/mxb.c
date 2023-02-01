@@ -13,13 +13,13 @@
 
 #define DEBUG_VARIABLE debug
 
+#include <media/drv-intf/saa7146_vv.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include <media/i2c/saa7115.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-#include "../common/saa7146_vv.h"
 #include "tea6415c.h"
 #include "tea6420.h"
 

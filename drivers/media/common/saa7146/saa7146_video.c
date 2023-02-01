@@ -1,10 +1,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <media/drv-intf/saa7146_vv.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include "saa7146_vv.h"
 
 static int max_memory = 32;
 

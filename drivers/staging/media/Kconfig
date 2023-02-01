@@ -54,7 +54,6 @@ menuconfig STAGING_MEDIA_DEPRECATED
 
 if STAGING_MEDIA_DEPRECATED
 source "drivers/staging/media/deprecated/atmel/Kconfig"
-source "drivers/staging/media/deprecated/saa7146/Kconfig"
 endif
 
 endif

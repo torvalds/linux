@@ -13,9 +13,9 @@
 
 #define DEBUG_VARIABLE debug
 
+#include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include "../common/saa7146_vv.h"
 
 static int debug;
 module_param(debug, int, 0);

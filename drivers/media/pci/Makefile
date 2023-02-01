@@ -5,7 +5,8 @@
 
 # Please keep it alphabetically sorted by directory
 # (e. g. LC_ALL=C sort Makefile)
-obj-y        +=	b2c2/		\
+obj-y        +=	ttpci/		\
+		b2c2/		\
 		pluto2/		\
 		dm1105/		\
 		pt1/		\
@@ -13,6 +14,7 @@ obj-y        +=	b2c2/		\
 		mantis/		\
 		ngene/		\
 		ddbridge/	\
+		saa7146/	\
 		smipcie/	\
 		netup_unidvb/	\
 		intel/

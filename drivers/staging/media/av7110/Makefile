@@ -18,6 +18,5 @@ obj-$(CONFIG_DVB_SP8870) += sp8870.o
 
 ccflags-y += -I $(srctree)/drivers/media/dvb-frontends
 ccflags-y += -I $(srctree)/drivers/media/tuners
+ccflags-y += -I $(srctree)/drivers/media/pci/ttpci
 ccflags-y += -I $(srctree)/drivers/media/common
-ccflags-y += -I $(srctree)/drivers/staging/media/deprecated/saa7146/ttpci
-ccflags-y += -I $(srctree)/drivers/staging/media/deprecated/saa7146/common

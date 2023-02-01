@@ -33,7 +33,7 @@
 #include "stv0297.h"
 #include "l64781.h"
 
-#include "saa7146_vv.h"
+#include <media/drv-intf/saa7146_vv.h>
 
 
 #define ANALOG_TUNER_VES1820 1

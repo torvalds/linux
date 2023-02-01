@@ -5,8 +5,8 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
+#include <media/drv-intf/saa7146.h>
 #include <media/videobuf-dma-sg.h>
-#include "saa7146.h"
 
 #define MAX_SAA7146_CAPTURE_BUFFERS	32	/* arbitrary */
 #define BUFFER_TIMEOUT     (HZ/2)  /* 0.5 seconds */

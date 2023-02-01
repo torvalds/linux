@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
-#include "saa7146_vv.h"
 
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */

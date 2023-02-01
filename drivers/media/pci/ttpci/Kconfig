@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DVB_BUDGET_CORE
-	tristate "SAA7146 DVB cards (aka Budget, Nova-PCI) (DEPRECATED)"
+	tristate "SAA7146 DVB cards (aka Budget, Nova-PCI)"
 	depends on DVB_CORE && PCI && I2C
 	select VIDEO_SAA7146
 	select TTPCI_EEPROM
@@ -10,7 +10,7 @@ config DVB_BUDGET_CORE
 	  MPEG2 decoder.
 
 config DVB_BUDGET
-	tristate "Budget cards (DEPRECATED)"
+	tristate "Budget cards"
 	depends on DVB_BUDGET_CORE && I2C
 	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_VES1X93 if MEDIA_SUBDRV_AUTOSELECT
@@ -30,16 +30,13 @@ config DVB_BUDGET
 	  or Nova-PCI cards) without onboard MPEG2 decoder, and without
 	  analog inputs or an onboard Common Interface connector.
 
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
-
 	  Say Y if you own such a card and want to use it.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called budget.
 
 config DVB_BUDGET_CI
-	tristate "Budget cards with onboard CI connector (DEPRECATED)"
+	tristate "Budget cards with onboard CI connector"
 	depends on DVB_BUDGET_CORE && I2C
 	select DVB_STV0297 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
@@ -60,16 +57,13 @@ config DVB_BUDGET_CI
 	  Note: The Common Interface is not yet supported by this driver
 	  due to lack of information from the vendor.
 
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
-
 	  Say Y if you own such a card and want to use it.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called budget-ci.
 
 config DVB_BUDGET_AV
-	tristate "Budget cards with analog video inputs (DEPRECATED)"
+	tristate "Budget cards with analog video inputs"
 	depends on DVB_BUDGET_CORE && I2C
 	select VIDEO_SAA7146_VV
 	depends on VIDEO_DEV	# dependencies of VIDEO_SAA7146_VV
@@ -85,9 +79,6 @@ config DVB_BUDGET_AV
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard
 	  MPEG2 decoder, but with one or more analog video inputs.
-
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
 
 	  Say Y if you own such a card and want to use it.
 
