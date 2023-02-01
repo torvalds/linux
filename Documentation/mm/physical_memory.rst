@@ -39,8 +39,8 @@ one of the types described below.
 * ``ZONE_DMA`` and ``ZONE_DMA32`` historically represented memory suitable for
   DMA by peripheral devices that cannot access all of the addressable
   memory. For many years there are better more and robust interfaces to get
-  memory with DMA specific requirements (:ref:`DMA API <dma_api>`), but
-  ``ZONE_DMA`` and ``ZONE_DMA32`` still represent memory ranges that have
+  memory with DMA specific requirements (Documentation/core-api/dma-api.rst),
+  but ``ZONE_DMA`` and ``ZONE_DMA32`` still represent memory ranges that have
   restrictions on how they can be accessed.
   Depending on the architecture, either of these zone types or even they both
   can be disabled at build time using ``CONFIG_ZONE_DMA`` and
@@ -64,9 +64,9 @@ one of the types described below.
   change, their content may move between different physical pages. Often
   ``ZONE_MOVABLE`` is populated during memory hotplug, but it may be
   also populated on boot using one of ``kernelcore``, ``movablecore`` and
-  ``movable_node`` kernel command line parameters. See :ref:`Page migration
-  <page_migration>` and :ref:`Memory Hot(Un)Plug <admin_guide_memory_hotplug>`
-  for additional details.
+  ``movable_node`` kernel command line parameters. See
+  Documentation/mm/page_migration.rst and
+  Documentation/admin-guide/mm/memory_hotplug.rst for additional details.
 
 * ``ZONE_DEVICE`` represents memory residing on devices such as PMEM and GPU.
   It has different characteristics than RAM zone types and it exists to provide
@@ -252,7 +252,7 @@ General
 Reclaim control
 ~~~~~~~~~~~~~~~
 
-See also :ref:`Page Reclaim <page_reclaim>`.
+See also Documentation/mm/page_reclaim.rst.
 
 ``kswapd``
   Per-node instance of kswapd kernel thread.
