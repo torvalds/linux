@@ -70,10 +70,14 @@ int rx(struct xdp_md *ctx)
 	}
 
 	if (!bpf_xdp_metadata_rx_timestamp(ctx, &meta->rx_timestamp))
-		bpf_printk("populated rx_timestamp with %u", meta->rx_timestamp);
+		bpf_printk("populated rx_timestamp with %llu", meta->rx_timestamp);
+	else
+		meta->rx_timestamp = 0; /* Used by AF_XDP as not avail signal */
 
 	if (!bpf_xdp_metadata_rx_hash(ctx, &meta->rx_hash))
 		bpf_printk("populated rx_hash with %u", meta->rx_hash);
+	else
+		meta->rx_hash = 0; /* Used by AF_XDP as not avail signal */
 
 	return bpf_redirect_map(&xsk, ctx->rx_queue_index, XDP_PASS);
 }
