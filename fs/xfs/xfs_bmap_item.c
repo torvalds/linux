@@ -246,18 +246,11 @@ static int
 xfs_trans_log_finish_bmap_update(
 	struct xfs_trans		*tp,
 	struct xfs_bud_log_item		*budp,
-	enum xfs_bmap_intent_type	type,
-	struct xfs_inode		*ip,
-	int				whichfork,
-	xfs_fileoff_t			startoff,
-	xfs_fsblock_t			startblock,
-	xfs_filblks_t			*blockcount,
-	xfs_exntst_t			state)
+	struct xfs_bmap_intent		*bi)
 {
 	int				error;
 
-	error = xfs_bmap_finish_one(tp, ip, type, whichfork, startoff,
-			startblock, blockcount, state);
+	error = xfs_bmap_finish_one(tp, bi);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -378,25 +371,17 @@ xfs_bmap_update_finish_item(
 	struct list_head		*item,
 	struct xfs_btree_cur		**state)
 {
-	struct xfs_bmap_intent		*bmap;
-	xfs_filblks_t			count;
+	struct xfs_bmap_intent		*bi;
 	int				error;
 
-	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
-	count = bmap->bi_bmap.br_blockcount;
-	error = xfs_trans_log_finish_bmap_update(tp, BUD_ITEM(done),
-			bmap->bi_type,
-			bmap->bi_owner, bmap->bi_whichfork,
-			bmap->bi_bmap.br_startoff,
-			bmap->bi_bmap.br_startblock,
-			&count,
-			bmap->bi_bmap.br_state);
-	if (!error && count > 0) {
-		ASSERT(bmap->bi_type == XFS_BMAP_UNMAP);
-		bmap->bi_bmap.br_blockcount = count;
+	bi = container_of(item, struct xfs_bmap_intent, bi_list);
+
+	error = xfs_trans_log_finish_bmap_update(tp, BUD_ITEM(done), bi);
+	if (!error && bi->bi_bmap.br_blockcount > 0) {
+		ASSERT(bi->bi_type == XFS_BMAP_UNMAP);
 		return -EAGAIN;
 	}
-	kmem_cache_free(xfs_bmap_intent_cache, bmap);
+	kmem_cache_free(xfs_bmap_intent_cache, bi);
 	return error;
 }
 
@@ -471,17 +456,13 @@ xfs_bui_item_recover(
 	struct xfs_log_item		*lip,
 	struct list_head		*capture_list)
 {
-	struct xfs_bmbt_irec		irec;
+	struct xfs_bmap_intent		fake = { };
 	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip = NULL;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_map_extent		*bmap;
+	struct xfs_map_extent		*map;
 	struct xfs_bud_log_item		*budp;
-	xfs_filblks_t			count;
-	xfs_exntst_t			state;
-	unsigned int			bui_type;
-	int				whichfork;
 	int				iext_delta;
 	int				error = 0;
 
@@ -491,14 +472,12 @@ xfs_bui_item_recover(
 		return -EFSCORRUPTED;
 	}
 
-	bmap = &buip->bui_format.bui_extents[0];
-	state = (bmap->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
-			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
-	whichfork = (bmap->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
+	map = &buip->bui_format.bui_extents[0];
+	fake.bi_whichfork = (map->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
 			XFS_ATTR_FORK : XFS_DATA_FORK;
-	bui_type = bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
+	fake.bi_type = map->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
 
-	error = xlog_recover_iget(mp, bmap->me_owner, &ip);
+	error = xlog_recover_iget(mp, map->me_owner, &ip);
 	if (error)
 		return error;
 
@@ -512,34 +491,34 @@ xfs_bui_item_recover(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	if (bui_type == XFS_BMAP_MAP)
+	if (fake.bi_type == XFS_BMAP_MAP)
 		iext_delta = XFS_IEXT_ADD_NOSPLIT_CNT;
 	else
 		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
 
-	error = xfs_iext_count_may_overflow(ip, whichfork, iext_delta);
+	error = xfs_iext_count_may_overflow(ip, fake.bi_whichfork, iext_delta);
 	if (error == -EFBIG)
 		error = xfs_iext_count_upgrade(tp, ip, iext_delta);
 	if (error)
 		goto err_cancel;
 
-	count = bmap->me_len;
-	error = xfs_trans_log_finish_bmap_update(tp, budp, bui_type, ip,
-			whichfork, bmap->me_startoff, bmap->me_startblock,
-			&count, state);
+	fake.bi_owner = ip;
+	fake.bi_bmap.br_startblock = map->me_startblock;
+	fake.bi_bmap.br_startoff = map->me_startoff;
+	fake.bi_bmap.br_blockcount = map->me_len;
+	fake.bi_bmap.br_state = (map->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
+			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+
+	error = xfs_trans_log_finish_bmap_update(tp, budp, &fake);
 	if (error == -EFSCORRUPTED)
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bmap,
-				sizeof(*bmap));
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, map,
+				sizeof(*map));
 	if (error)
 		goto err_cancel;
 
-	if (count > 0) {
-		ASSERT(bui_type == XFS_BMAP_UNMAP);
-		irec.br_startblock = bmap->me_startblock;
-		irec.br_blockcount = count;
-		irec.br_startoff = bmap->me_startoff;
-		irec.br_state = state;
-		xfs_bmap_unmap_extent(tp, ip, &irec);
+	if (fake.bi_bmap.br_blockcount > 0) {
+		ASSERT(fake.bi_type == XFS_BMAP_UNMAP);
+		xfs_bmap_unmap_extent(tp, ip, &fake.bi_bmap);
 	}
 
 	/*
