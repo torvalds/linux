@@ -641,7 +641,7 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 			     in->cap_adap + DP_REMOTE_CAP, 1);
 }
 
-static int tb_dp_bw_alloc_mode_enable(struct tb_tunnel *tunnel)
+static int tb_dp_bandwidth_alloc_mode_enable(struct tb_tunnel *tunnel)
 {
 	int ret, estimated_bw, granularity, tmp;
 	struct tb_port *out = tunnel->dst_port;
@@ -653,7 +653,7 @@ static int tb_dp_bw_alloc_mode_enable(struct tb_tunnel *tunnel)
 	if (!bw_alloc_mode)
 		return 0;
 
-	ret = usb4_dp_port_set_cm_bw_mode_supported(in, true);
+	ret = usb4_dp_port_set_cm_bandwidth_mode_supported(in, true);
 	if (ret)
 		return ret;
 
@@ -717,12 +717,12 @@ static int tb_dp_bw_alloc_mode_enable(struct tb_tunnel *tunnel)
 
 	tb_port_dbg(in, "estimated bandwidth %d Mb/s\n", estimated_bw);
 
-	ret = usb4_dp_port_set_estimated_bw(in, estimated_bw);
+	ret = usb4_dp_port_set_estimated_bandwidth(in, estimated_bw);
 	if (ret)
 		return ret;
 
 	/* Initial allocation should be 0 according the spec */
-	ret = usb4_dp_port_allocate_bw(in, 0);
+	ret = usb4_dp_port_allocate_bandwidth(in, 0);
 	if (ret)
 		return ret;
 
@@ -744,7 +744,7 @@ static int tb_dp_init(struct tb_tunnel *tunnel)
 	if (!tb_switch_is_usb4(sw))
 		return 0;
 
-	if (!usb4_dp_port_bw_mode_supported(in))
+	if (!usb4_dp_port_bandwidth_mode_supported(in))
 		return 0;
 
 	tb_port_dbg(in, "bandwidth allocation mode supported\n");
@@ -753,17 +753,17 @@ static int tb_dp_init(struct tb_tunnel *tunnel)
 	if (ret)
 		return ret;
 
-	return tb_dp_bw_alloc_mode_enable(tunnel);
+	return tb_dp_bandwidth_alloc_mode_enable(tunnel);
 }
 
 static void tb_dp_deinit(struct tb_tunnel *tunnel)
 {
 	struct tb_port *in = tunnel->src_port;
 
-	if (!usb4_dp_port_bw_mode_supported(in))
+	if (!usb4_dp_port_bandwidth_mode_supported(in))
 		return;
-	if (usb4_dp_port_bw_mode_enabled(in)) {
-		usb4_dp_port_set_cm_bw_mode_supported(in, false);
+	if (usb4_dp_port_bandwidth_mode_enabled(in)) {
+		usb4_dp_port_set_cm_bandwidth_mode_supported(in, false);
 		tb_port_dbg(in, "bandwidth allocation mode disabled\n");
 	}
 }
@@ -827,21 +827,22 @@ static int tb_dp_nrd_bandwidth(struct tb_tunnel *tunnel, int *max_bw)
 	return nrd_bw;
 }
 
-static int tb_dp_bw_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
-					    int *consumed_up, int *consumed_down)
+static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
+						   int *consumed_up,
+						   int *consumed_down)
 {
 	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
 	int ret, allocated_bw, max_bw;
 
-	if (!usb4_dp_port_bw_mode_enabled(in))
+	if (!usb4_dp_port_bandwidth_mode_enabled(in))
 		return -EOPNOTSUPP;
 
 	if (!tunnel->bw_mode)
 		return -EOPNOTSUPP;
 
 	/* Read what was allocated previously if any */
-	ret = usb4_dp_port_allocated_bw(in);
+	ret = usb4_dp_port_allocated_bandwidth(in);
 	if (ret < 0)
 		return ret;
 	allocated_bw = ret;
@@ -876,10 +877,10 @@ static int tb_dp_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up
 	 * If we have already set the allocated bandwidth then use that.
 	 * Otherwise we read it from the DPRX.
 	 */
-	if (usb4_dp_port_bw_mode_enabled(in) && tunnel->bw_mode) {
+	if (usb4_dp_port_bandwidth_mode_enabled(in) && tunnel->bw_mode) {
 		int ret, allocated_bw, max_bw;
 
-		ret = usb4_dp_port_allocated_bw(in);
+		ret = usb4_dp_port_allocated_bandwidth(in);
 		if (ret < 0)
 			return ret;
 		allocated_bw = ret;
@@ -911,7 +912,7 @@ static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 	struct tb_port *in = tunnel->src_port;
 	int max_bw, ret, tmp;
 
-	if (!usb4_dp_port_bw_mode_enabled(in))
+	if (!usb4_dp_port_bandwidth_mode_enabled(in))
 		return -EOPNOTSUPP;
 
 	ret = tb_dp_nrd_bandwidth(tunnel, &max_bw);
@@ -920,14 +921,14 @@ static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 
 	if (in->sw->config.depth < out->sw->config.depth) {
 		tmp = min(*alloc_down, max_bw);
-		ret = usb4_dp_port_allocate_bw(in, tmp);
+		ret = usb4_dp_port_allocate_bandwidth(in, tmp);
 		if (ret)
 			return ret;
 		*alloc_down = tmp;
 		*alloc_up = 0;
 	} else {
 		tmp = min(*alloc_up, max_bw);
-		ret = usb4_dp_port_allocate_bw(in, tmp);
+		ret = usb4_dp_port_allocate_bandwidth(in, tmp);
 		if (ret)
 			return ret;
 		*alloc_down = 0;
@@ -1048,8 +1049,8 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 		 * mode is enabled first and then read the bandwidth
 		 * through those registers.
 		 */
-		ret = tb_dp_bw_mode_consumed_bandwidth(tunnel, consumed_up,
-						       consumed_down);
+		ret = tb_dp_bandwidth_mode_consumed_bandwidth(tunnel, consumed_up,
+							      consumed_down);
 		if (ret < 0) {
 			if (ret != -EOPNOTSUPP)
 				return ret;

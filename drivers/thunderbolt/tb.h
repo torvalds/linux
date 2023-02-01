@@ -1292,19 +1292,20 @@ int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 				     int *downstream_bw);
 
 int usb4_dp_port_set_cm_id(struct tb_port *port, int cm_id);
-bool usb4_dp_port_bw_mode_supported(struct tb_port *port);
-bool usb4_dp_port_bw_mode_enabled(struct tb_port *port);
-int usb4_dp_port_set_cm_bw_mode_supported(struct tb_port *port, bool supported);
+bool usb4_dp_port_bandwidth_mode_supported(struct tb_port *port);
+bool usb4_dp_port_bandwidth_mode_enabled(struct tb_port *port);
+int usb4_dp_port_set_cm_bandwidth_mode_supported(struct tb_port *port,
+						 bool supported);
 int usb4_dp_port_group_id(struct tb_port *port);
 int usb4_dp_port_set_group_id(struct tb_port *port, int group_id);
 int usb4_dp_port_nrd(struct tb_port *port, int *rate, int *lanes);
 int usb4_dp_port_set_nrd(struct tb_port *port, int rate, int lanes);
 int usb4_dp_port_granularity(struct tb_port *port);
 int usb4_dp_port_set_granularity(struct tb_port *port, int granularity);
-int usb4_dp_port_set_estimated_bw(struct tb_port *port, int bw);
-int usb4_dp_port_allocated_bw(struct tb_port *port);
-int usb4_dp_port_allocate_bw(struct tb_port *port, int bw);
-int usb4_dp_port_requested_bw(struct tb_port *port);
+int usb4_dp_port_set_estimated_bandwidth(struct tb_port *port, int bw);
+int usb4_dp_port_allocated_bandwidth(struct tb_port *port);
+int usb4_dp_port_allocate_bandwidth(struct tb_port *port, int bw);
+int usb4_dp_port_requested_bandwidth(struct tb_port *port);
 
 int usb4_pci_port_set_ext_encapsulation(struct tb_port *port, bool enable);
 

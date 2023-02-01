@@ -131,7 +131,7 @@ tb_attach_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
 static void tb_discover_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
 					struct tb_port *out)
 {
-	if (usb4_dp_port_bw_mode_enabled(in)) {
+	if (usb4_dp_port_bandwidth_mode_enabled(in)) {
 		int index, i;
 
 		index = usb4_dp_port_group_id(in);
@@ -1169,7 +1169,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		struct tb_tunnel *tunnel;
 		struct tb_port *out;
 
-		if (!usb4_dp_port_bw_mode_enabled(in))
+		if (!usb4_dp_port_bandwidth_mode_enabled(in))
 			continue;
 
 		tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
@@ -1217,7 +1217,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		else
 			estimated_bw = estimated_up;
 
-		if (usb4_dp_port_set_estimated_bw(in, estimated_bw))
+		if (usb4_dp_port_set_estimated_bandwidth(in, estimated_bw))
 			tb_port_warn(in, "failed to update estimated bandwidth\n");
 	}
 
@@ -1912,12 +1912,12 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	tb_port_dbg(in, "handling bandwidth allocation request\n");
 
-	if (!usb4_dp_port_bw_mode_enabled(in)) {
+	if (!usb4_dp_port_bandwidth_mode_enabled(in)) {
 		tb_port_warn(in, "bandwidth allocation mode not enabled\n");
 		goto unlock;
 	}
 
-	ret = usb4_dp_port_requested_bw(in);
+	ret = usb4_dp_port_requested_bandwidth(in);
 	if (ret < 0) {
 		if (ret == -ENODATA)
 			tb_port_dbg(in, "no bandwidth request active\n");
