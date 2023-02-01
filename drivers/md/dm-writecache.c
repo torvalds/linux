@@ -1832,10 +1832,13 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 		wb->wc = wc;
 		bio->bi_end_io = writecache_writeback_endio;
 		bio->bi_iter.bi_sector = read_original_sector(wc, e);
-		if (max_pages <= WB_LIST_INLINE ||
-		    unlikely(!(wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
-							   GFP_NOIO | __GFP_NORETRY |
-							   __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
+
+		if (unlikely(max_pages > WB_LIST_INLINE))
+			wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
+						    GFP_NOIO | __GFP_NORETRY |
+						    __GFP_NOMEMALLOC | __GFP_NOWARN);
+
+		if (likely(max_pages <= WB_LIST_INLINE) || unlikely(!wb->wc_list)) {
 			wb->wc_list = wb->wc_list_inline;
 			max_pages = WB_LIST_INLINE;
 		}

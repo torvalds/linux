@@ -1046,7 +1046,8 @@ static int message_stats_create(struct mapped_device *md,
 			else if (!strncasecmp(a, "histogram:", 10)) {
 				if (n_histogram_entries)
 					goto ret_einval;
-				if ((r = parse_histogram(a + 10, &n_histogram_entries, &histogram_boundaries)))
+				r = parse_histogram(a + 10, &n_histogram_entries, &histogram_boundaries);
+				if (r)
 					goto ret;
 			} else
 				goto ret_einval;
