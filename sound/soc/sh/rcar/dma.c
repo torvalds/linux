@@ -885,10 +885,15 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 	/*
 	 * for Gen2 or later
 	 */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "audmapp");
 	dmac = devm_kzalloc(dev, sizeof(*dmac), GFP_KERNEL);
-	if (!dmac || !res) {
+	if (!dmac) {
 		dev_err(dev, "dma allocate failed\n");
+		return 0; /* it will be PIO mode */
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "audmapp");
+	if (!res) {
+		dev_err(dev, "lack of audmapp in DT\n");
 		return 0; /* it will be PIO mode */
 	}
 
