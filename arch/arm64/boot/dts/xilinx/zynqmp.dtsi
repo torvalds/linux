@@ -13,6 +13,7 @@
  */
 
 #include <dt-bindings/dma/xlnx-zynqmp-dpdma.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/power/xlnx-zynqmp-power.h>
 #include <dt-bindings/reset/xlnx-zynqmp-resets.h>
 
@@ -75,7 +76,7 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2";
 		opp-shared;
 		opp00 {
@@ -198,6 +199,12 @@
 			pinctrl0: pinctrl {
 				compatible = "xlnx,zynqmp-pinctrl";
 				status = "disabled";
+			};
+
+			modepin_gpio: gpio {
+				compatible = "xlnx,zynqmp-gpio-modepin";
+				gpio-controller;
+				#gpio-cells = <2>;
 			};
 		};
 	};
@@ -533,12 +540,12 @@
 		};
 
 		gem0: ethernet@ff0b0000 {
-			compatible = "cdns,zynqmp-gem", "cdns,gem";
+			compatible = "xlnx,zynqmp-gem", "cdns,gem";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 57 4>, <0 57 4>;
 			reg = <0x0 0xff0b0000 0x0 0x1000>;
-			clock-names = "pclk", "hclk", "tx_clk";
+			clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			iommus = <&smmu 0x874>;
@@ -548,12 +555,12 @@
 		};
 
 		gem1: ethernet@ff0c0000 {
-			compatible = "cdns,zynqmp-gem", "cdns,gem";
+			compatible = "xlnx,zynqmp-gem", "cdns,gem";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 59 4>, <0 59 4>;
 			reg = <0x0 0xff0c0000 0x0 0x1000>;
-			clock-names = "pclk", "hclk", "tx_clk";
+			clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			iommus = <&smmu 0x875>;
@@ -563,12 +570,12 @@
 		};
 
 		gem2: ethernet@ff0d0000 {
-			compatible = "cdns,zynqmp-gem", "cdns,gem";
+			compatible = "xlnx,zynqmp-gem", "cdns,gem";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 61 4>, <0 61 4>;
 			reg = <0x0 0xff0d0000 0x0 0x1000>;
-			clock-names = "pclk", "hclk", "tx_clk";
+			clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			iommus = <&smmu 0x876>;
@@ -578,12 +585,12 @@
 		};
 
 		gem3: ethernet@ff0e0000 {
-			compatible = "cdns,zynqmp-gem", "cdns,gem";
+			compatible = "xlnx,zynqmp-gem", "cdns,gem";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 63 4>, <0 63 4>;
 			reg = <0x0 0xff0e0000 0x0 0x1000>;
-			clock-names = "pclk", "hclk", "tx_clk";
+			clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			iommus = <&smmu 0x877>;
@@ -847,6 +854,7 @@
 				 <&zynqmp_reset ZYNQMP_RESET_USB0_HIBERRESET>,
 				 <&zynqmp_reset ZYNQMP_RESET_USB0_APB>;
 			reset-names = "usb_crst", "usb_hibrst", "usb_apbrst";
+			reset-gpios = <&modepin_gpio 1 GPIO_ACTIVE_LOW>;
 			ranges;
 
 			dwc3_0: usb@fe200000 {
@@ -858,6 +866,7 @@
 				clock-names = "bus_early", "ref";
 				iommus = <&smmu 0x860>;
 				snps,quirk-frame-length-adjustment = <0x20>;
+				snps,resume-hs-terminations;
 				/* dma-coherent; */
 			};
 		};
@@ -884,6 +893,7 @@
 				clock-names = "bus_early", "ref";
 				iommus = <&smmu 0x861>;
 				snps,quirk-frame-length-adjustment = <0x20>;
+				snps,resume-hs-terminations;
 				/* dma-coherent; */
 			};
 		};
