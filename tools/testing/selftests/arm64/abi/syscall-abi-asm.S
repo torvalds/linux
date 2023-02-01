@@ -23,6 +23,9 @@
 
 .arch_extension sve
 
+#define ID_AA64SMFR0_EL1_SMEver_SHIFT           56
+#define ID_AA64SMFR0_EL1_SMEver_WIDTH           4
+
 /*
  * LDR (vector to ZA array):
  *	LDR ZA[\nw, #\offset], [X\nxbase, #\offset, MUL VL]
@@ -45,6 +48,26 @@
 		| ((\offset) & 7)
 .endm
 
+/*
+ * LDR (ZT0)
+ *
+ *	LDR ZT0, nx
+ */
+.macro _ldr_zt nx
+	.inst	0xe11f8000			\
+		| (((\nx) & 0x1f) << 5)
+.endm
+
+/*
+ * STR (ZT0)
+ *
+ *	STR ZT0, nx
+ */
+.macro _str_zt nx
+	.inst	0xe13f8000			\
+		| (((\nx) & 0x1f) << 5)
+.endm
+
 .globl do_syscall
 do_syscall:
 	// Store callee saved registers x19-x29 (80 bytes) plus x0 and x1
@@ -64,7 +87,7 @@ do_syscall:
 	msr	S3_3_C4_C2_2, x2
 1:
 
-	// Load ZA if it's enabled - uses x12 as scratch due to SME LDR
+	// Load ZA and ZT0 if enabled - uses x12 as scratch due to SME LDR
 	tbz	x2, #SVCR_ZA_SHIFT, 1f
 	mov	w12, #0
 	ldr	x2, =za_in
@@ -73,6 +96,15 @@ do_syscall:
 	add	x12, x12, #1
 	cmp	x1, x12
 	bne	2b
+
+	// ZT0
+	mrs	x2, S3_0_C0_C4_5	// ID_AA64SMFR0_EL1
+	ubfx	x2, x2, #ID_AA64SMFR0_EL1_SMEver_SHIFT, \
+			 #ID_AA64SMFR0_EL1_SMEver_WIDTH
+	cbz	x2, 1f
+	adrp	x2, zt_in
+	add	x2, x2, :lo12:zt_in
+	_ldr_zt 2
 1:
 
 	// Load GPRs x8-x28, and save our SP/FP for later comparison
@@ -235,6 +267,15 @@ do_syscall:
 	add	x12, x12, #1
 	cmp	x1, x12
 	bne	2b
+
+	// ZT0
+	mrs	x2, S3_0_C0_C4_5	// ID_AA64SMFR0_EL1
+	ubfx	x2, x2, #ID_AA64SMFR0_EL1_SMEver_SHIFT, \
+			#ID_AA64SMFR0_EL1_SMEver_WIDTH
+	cbz	x2, 1f
+	adrp	x2, zt_out
+	add	x2, x2, :lo12:zt_out
+	_str_zt 2
 1:
 
 	// Save the SVE state if we have some

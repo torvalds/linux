@@ -12,3 +12,5 @@ vlset
 za-fork
 za-ptrace
 za-test
+zt-ptrace
+zt-test
