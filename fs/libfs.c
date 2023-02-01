@@ -1269,7 +1269,7 @@ EXPORT_SYMBOL(alloc_anon_inode);
  * All arguments are ignored and it just returns -EINVAL.
  */
 int
-simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
+simple_nosetlease(struct file *filp, int arg, struct file_lock **flp,
 		  void **priv)
 {
 	return -EINVAL;

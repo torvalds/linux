@@ -144,7 +144,7 @@ int fcntl_setlk64(unsigned int, struct file *, unsigned int,
 			struct flock64 *);
 #endif
 
-int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
+int fcntl_setlease(unsigned int fd, struct file *filp, int arg);
 int fcntl_getlease(struct file *filp);
 
 /* fs/locks.c */
@@ -167,8 +167,8 @@ bool vfs_inode_has_locks(struct inode *inode);
 int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl);
 int __break_lease(struct inode *inode, unsigned int flags, unsigned int type);
 void lease_get_mtime(struct inode *, struct timespec64 *time);
-int generic_setlease(struct file *, long, struct file_lock **, void **priv);
-int vfs_setlease(struct file *, long, struct file_lock **, void **);
+int generic_setlease(struct file *, int, struct file_lock **, void **priv);
+int vfs_setlease(struct file *, int, struct file_lock **, void **);
 int lease_modify(struct file_lock *, int, struct list_head *);
 
 struct notifier_block;
@@ -213,7 +213,7 @@ static inline int fcntl_setlk64(unsigned int fd, struct file *file,
 	return -EACCES;
 }
 #endif
-static inline int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
+static inline int fcntl_setlease(unsigned int fd, struct file *filp, int arg)
 {
 	return -EINVAL;
 }
@@ -306,13 +306,13 @@ static inline void lease_get_mtime(struct inode *inode,
 	return;
 }
 
-static inline int generic_setlease(struct file *filp, long arg,
+static inline int generic_setlease(struct file *filp, int arg,
 				    struct file_lock **flp, void **priv)
 {
 	return -EINVAL;
 }
 
-static inline int vfs_setlease(struct file *filp, long arg,
+static inline int vfs_setlease(struct file *filp, int arg,
 			       struct file_lock **lease, void **priv)
 {
 	return -EINVAL;
