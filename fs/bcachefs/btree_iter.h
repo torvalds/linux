@@ -227,7 +227,22 @@ static inline bool trans_was_restarted(struct btree_trans *trans, u32 restart_co
 	return restart_count != trans->restart_count;
 }
 
-void bch2_trans_verify_not_restarted(struct btree_trans *, u32);
+void __noreturn bch2_trans_restart_error(struct btree_trans *, u32);
+
+static inline void bch2_trans_verify_not_restarted(struct btree_trans *trans,
+						   u32 restart_count)
+{
+	if (trans_was_restarted(trans, restart_count))
+		bch2_trans_restart_error(trans, restart_count);
+}
+
+void __noreturn bch2_trans_in_restart_error(struct btree_trans *);
+
+static inline void bch2_trans_verify_not_in_restart(struct btree_trans *trans)
+{
+	if (trans->restarted)
+		bch2_trans_in_restart_error(trans);
+}
 
 __always_inline
 static inline int btree_trans_restart_nounlock(struct btree_trans *trans, int err)

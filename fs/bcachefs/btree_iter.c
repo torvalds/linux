@@ -1224,7 +1224,7 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 {
 	unsigned level = path->level;
 
-	EBUG_ON(trans->restarted);
+	bch2_trans_verify_not_in_restart(trans);
 	EBUG_ON(!path->ref);
 
 	path = bch2_btree_path_make_mut(trans, path, intent, ip);
@@ -1351,6 +1351,20 @@ static void bch2_path_put_nokeep(struct btree_trans *trans, struct btree_path *p
 		return;
 
 	__bch2_path_free(trans, path);
+}
+
+void __noreturn bch2_trans_restart_error(struct btree_trans *trans, u32 restart_count)
+{
+	panic("trans->restart_count %u, should be %u, last restarted by %pS\n",
+	      trans->restart_count, restart_count,
+	      (void *) trans->last_restarted_ip);
+}
+
+void __noreturn bch2_trans_in_restart_error(struct btree_trans *trans)
+{
+	panic("in transaction restart: %s, last restarted by %pS\n",
+	      bch2_err_str(trans->restarted),
+	      (void *) trans->last_restarted_ip);
 }
 
 noinline __cold
@@ -1519,7 +1533,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 	bool intent = flags & BTREE_ITER_INTENT;
 	int i;
 
-	EBUG_ON(trans->restarted);
+	bch2_trans_verify_not_in_restart(trans);
 	bch2_trans_verify_locks(trans);
 
 	btree_trans_sort_paths(trans);
@@ -1695,7 +1709,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	struct btree *b = NULL;
 	int ret;
 
-	BUG_ON(trans->restarted);
+	bch2_trans_verify_not_in_restart(trans);
 	EBUG_ON(iter->path->cached);
 	bch2_btree_iter_verify(iter);
 
@@ -2831,14 +2845,6 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	trans->last_begin_time = local_clock();
 	return trans->restart_count;
-}
-
-void bch2_trans_verify_not_restarted(struct btree_trans *trans, u32 restart_count)
-{
-	if (trans_was_restarted(trans, restart_count))
-		panic("trans->restart_count %u, should be %u, last restarted by %pS\n",
-		      trans->restart_count, restart_count,
-		      (void *) trans->last_restarted_ip);
 }
 
 static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)

@@ -1098,7 +1098,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			goto err;
 	}
 retry:
-	EBUG_ON(trans->restarted);
+	bch2_trans_verify_not_in_restart(trans);
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
 	ret = do_bch2_trans_commit(trans, &i, _RET_IP_);
