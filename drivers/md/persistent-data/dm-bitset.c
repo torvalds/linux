@@ -74,6 +74,7 @@ int dm_bitset_new(struct dm_disk_bitset *info, dm_block_t *root,
 		  uint32_t size, bit_value_fn fn, void *context)
 {
 	struct packer_context p;
+
 	p.fn = fn;
 	p.nr_bits = size;
 	p.context = context;

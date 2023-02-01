@@ -245,12 +245,14 @@ struct dm_snap_tracked_chunk {
 static void init_tracked_chunk(struct bio *bio)
 {
 	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
+
 	INIT_HLIST_NODE(&c->node);
 }
 
 static bool is_bio_tracked(struct bio *bio)
 {
 	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
+
 	return !hlist_unhashed(&c->node);
 }
 
@@ -399,6 +401,7 @@ static struct origin *__lookup_origin(struct block_device *origin)
 static void __insert_origin(struct origin *o)
 {
 	struct list_head *sl = &_origins[origin_hash(o->bdev)];
+
 	list_add_tail(&o->hash_list, sl);
 }
 
@@ -418,6 +421,7 @@ static struct dm_origin *__lookup_dm_origin(struct block_device *origin)
 static void __insert_dm_origin(struct dm_origin *o)
 {
 	struct list_head *sl = &_dm_origins[origin_hash(o->dev->bdev)];
+
 	list_add_tail(&o->hash_list, sl);
 }
 
@@ -868,6 +872,7 @@ static int calc_max_buckets(void)
 {
 	/* use a fixed size of 2MB */
 	unsigned long mem = 2 * 1024 * 1024;
+
 	mem /= sizeof(struct hlist_bl_head);
 
 	return mem;
@@ -1552,6 +1557,7 @@ static bool wait_for_in_progress(struct dm_snapshot *s, bool unlock_origins)
 			 * throttling is unlikely to negatively impact performance.
 			 */
 			DECLARE_WAITQUEUE(wait, current);
+
 			__add_wait_queue(&s->in_progress_wait, &wait);
 			__set_current_state(TASK_UNINTERRUPTIBLE);
 			spin_unlock(&s->in_progress_wait.lock);
@@ -2567,6 +2573,7 @@ again:
 	if (o) {
 		if (limit) {
 			struct dm_snapshot *s;
+
 			list_for_each_entry(s, &o->snapshots, list)
 				if (unlikely(!wait_for_in_progress(s, true)))
 					goto again;

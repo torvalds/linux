@@ -112,6 +112,7 @@ static void on_entries(struct dm_array_info *info, struct array_block *ab,
 		       void (*fn)(void *, const void *, unsigned int))
 {
 	unsigned int nr_entries = le32_to_cpu(ab->nr_entries);
+
 	fn(info->value_type.context, element_at(info, ab, 0), nr_entries);
 }
 
@@ -438,6 +439,7 @@ static int drop_blocks(struct resize *resize, unsigned int begin_index,
 
 	while (begin_index != end_index) {
 		uint64_t key = begin_index++;
+
 		r = dm_btree_remove(&resize->info->btree_info, resize->root,
 				    &key, &resize->root);
 		if (r)
@@ -622,6 +624,7 @@ static void __block_dec(void *context, const void *value)
 static void block_dec(void *context, const void *value, unsigned int count)
 {
 	unsigned int i;
+
 	for (i = 0; i < count; i++, value += sizeof(__le64))
 		__block_dec(context, value);
 }
@@ -695,6 +698,7 @@ int dm_array_resize(struct dm_array_info *info, dm_block_t root,
 		    __dm_written_to_disk(value)
 {
 	int r = array_resize(info, root, old_size, new_size, value, new_root);
+
 	__dm_unbless_for_disk(value);
 	return r;
 }

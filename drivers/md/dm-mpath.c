@@ -137,6 +137,7 @@ static bool mpath_double_check_test_bit(int MPATHF_bit, struct multipath *m)
 
 	if (r) {
 		unsigned long flags;
+
 		spin_lock_irqsave(&m->lock, flags);
 		r = test_bit(MPATHF_bit, &m->flags);
 		spin_unlock_irqrestore(&m->lock, flags);
@@ -711,6 +712,7 @@ static void process_queued_bios(struct work_struct *work)
 	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
 		struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
+
 		dm_bio_restore(get_bio_details_from_mpio(mpio), bio);
 		r = __multipath_map_bio(m, bio, mpio);
 		switch (r) {
@@ -2122,6 +2124,7 @@ static int multipath_busy(struct dm_target *ti)
 	/* no paths available, for blk-mq: rely on IO mapping to delay requeue */
 	if (!atomic_read(&m->nr_valid_paths)) {
 		unsigned long flags;
+
 		spin_lock_irqsave(&m->lock, flags);
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 			spin_unlock_irqrestore(&m->lock, flags);

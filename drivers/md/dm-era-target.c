@@ -112,13 +112,14 @@ static int writeset_marked_on_disk(struct dm_disk_bitset *info,
 				   struct writeset_metadata *m, dm_block_t block,
 				   bool *result)
 {
+	int r;
 	dm_block_t old = m->root;
 
 	/*
 	 * The bitset was flushed when it was archived, so we know there'll
 	 * be no change to the root.
 	 */
-	int r = dm_bitset_test_bit(info, m->root, block, &m->root, result);
+	r = dm_bitset_test_bit(info, m->root, block, &m->root, result);
 	if (r) {
 		DMERR("%s: dm_bitset_test_bit failed", __func__);
 		return r;
@@ -210,6 +211,7 @@ static void sb_prepare_for_write(struct dm_block_validator *v,
 static int check_metadata_version(struct superblock_disk *disk)
 {
 	uint32_t metadata_version = le32_to_cpu(disk->version);
+
 	if (metadata_version < MIN_ERA_VERSION || metadata_version > MAX_ERA_VERSION) {
 		DMERR("Era metadata version %u found, but only versions between %u and %u supported.",
 		      metadata_version, MIN_ERA_VERSION, MAX_ERA_VERSION);
@@ -409,6 +411,7 @@ static int ws_eq(void *context, const void *value1, const void *value2)
 static void setup_writeset_tree_info(struct era_metadata *md)
 {
 	struct dm_btree_value_type *vt = &md->writeset_tree_info.value_type;
+
 	md->writeset_tree_info.tm = md->tm;
 	md->writeset_tree_info.levels = 1;
 	vt->context = md;
@@ -419,9 +422,9 @@ static void setup_writeset_tree_info(struct era_metadata *md)
 }
 
 static void setup_era_array_info(struct era_metadata *md)
-
 {
 	struct dm_btree_value_type vt;
+
 	vt.context = NULL;
 	vt.size = sizeof(__le32);
 	vt.inc = NULL;
@@ -1391,6 +1394,7 @@ static int perform_rpc(struct era *era, struct rpc *rpc)
 static int in_worker0(struct era *era, int (*fn)(struct era_metadata *md))
 {
 	struct rpc rpc;
+
 	rpc.fn0 = fn;
 	rpc.fn1 = NULL;
 
@@ -1401,6 +1405,7 @@ static int in_worker1(struct era *era,
 		      int (*fn)(struct era_metadata *md, void *ref), void *arg)
 {
 	struct rpc rpc;
+
 	rpc.fn0 = NULL;
 	rpc.fn1 = fn;
 	rpc.arg = arg;
@@ -1712,6 +1717,7 @@ static int era_iterate_devices(struct dm_target *ti,
 			       iterate_devices_callout_fn fn, void *data)
 {
 	struct era *era = ti->private;
+
 	return fn(ti, era->origin_dev, 0, get_dev_size(era->origin_dev), data);
 }
 

@@ -114,6 +114,7 @@ static int verity_hash_update(struct dm_verity *v, struct ahash_request *req,
 		do {
 			int r;
 			size_t this_step = min_t(size_t, len, PAGE_SIZE - offset_in_page(data));
+
 			flush_kernel_vmap_range((void *)data, this_step);
 			sg_init_table(&sg, 1);
 			sg_set_page(&sg, vmalloc_to_page(data), this_step, offset_in_page(data));
@@ -683,8 +684,10 @@ static void verity_prefetch_io(struct work_struct *work)
 	for (i = v->levels - 2; i >= 0; i--) {
 		sector_t hash_block_start;
 		sector_t hash_block_end;
+
 		verity_hash_at_level(v, pw->block, i, &hash_block_start, NULL);
 		verity_hash_at_level(v, pw->block + pw->n_blocks - 1, i, &hash_block_end, NULL);
+
 		if (!i) {
 			unsigned int cluster = READ_ONCE(dm_verity_prefetch_cluster);
 
@@ -1367,6 +1370,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	hash_position = v->hash_start;
 	for (i = v->levels - 1; i >= 0; i--) {
 		sector_t s;
+
 		v->hash_level_block[i] = hash_position;
 		s = (v->data_blocks + ((sector_t)1 << ((i + 1) * v->hash_per_block_bits)) - 1)
 					>> ((i + 1) * v->hash_per_block_bits);

@@ -403,6 +403,7 @@ static void subtree_dec(void *context, const void *value, unsigned int count)
 static int subtree_equal(void *context, const void *value1_le, const void *value2_le)
 {
 	__le64 v1_le, v2_le;
+
 	memcpy(&v1_le, value1_le, sizeof(v1_le));
 	memcpy(&v2_le, value2_le, sizeof(v2_le));
 

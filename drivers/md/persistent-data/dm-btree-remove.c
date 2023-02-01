@@ -87,6 +87,7 @@ static int node_copy(struct btree_node *left, struct btree_node *right, int shif
 {
 	uint32_t nr_left = le32_to_cpu(left->header.nr_entries);
 	uint32_t value_size = le32_to_cpu(left->header.value_size);
+
 	if (value_size != le32_to_cpu(right->header.value_size)) {
 		DMERR("mismatched value size");
 		return -EILSEQ;
@@ -130,6 +131,7 @@ static void delete_at(struct btree_node *n, unsigned int index)
 	unsigned int nr_entries = le32_to_cpu(n->header.nr_entries);
 	unsigned int nr_to_copy = nr_entries - (index + 1);
 	uint32_t value_size = le32_to_cpu(n->header.value_size);
+
 	BUG_ON(index >= nr_entries);
 
 	if (nr_to_copy) {
@@ -265,6 +267,7 @@ static int __rebalance2(struct dm_btree_info *info, struct btree_node *parent,
 		 * Rebalance.
 		 */
 		unsigned int target_left = (nr_left + nr_right) / 2;
+
 		ret = shift(left, right, nr_left - target_left);
 		if (ret)
 			return ret;
@@ -557,6 +560,7 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 		 */
 		if (shadow_has_parent(s)) {
 			__le64 location = cpu_to_le64(dm_block_location(shadow_current(s)));
+
 			memcpy(value_ptr(dm_block_data(shadow_parent(s)), i),
 			       &location, sizeof(__le64));
 		}
@@ -650,6 +654,7 @@ static int remove_nearest(struct shadow_spine *s, struct dm_btree_info *info,
 		 */
 		if (shadow_has_parent(s)) {
 			__le64 location = cpu_to_le64(dm_block_location(shadow_current(s)));
+
 			memcpy(value_ptr(dm_block_data(shadow_parent(s)), i),
 			       &location, sizeof(__le64));
 		}

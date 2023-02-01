@@ -1038,6 +1038,7 @@ out:
 static void free_discard_mapping(struct dm_thin_new_mapping *m)
 {
 	struct thin_c *tc = m->tc;
+
 	if (m->cell)
 		cell_defer_no_holder(tc, m->cell);
 	mempool_free(m, &tc->pool->mapping_pool);
@@ -2412,6 +2413,7 @@ static void do_worker(struct work_struct *ws)
 static void do_waker(struct work_struct *ws)
 {
 	struct pool *pool = container_of(to_delayed_work(ws), struct pool, waker);
+
 	wake_worker(pool);
 	queue_delayed_work(pool->wq, &pool->waker, COMMIT_PERIOD);
 }
@@ -2474,6 +2476,7 @@ static struct noflush_work *to_noflush(struct work_struct *ws)
 static void do_noflush_start(struct work_struct *ws)
 {
 	struct noflush_work *w = to_noflush(ws);
+
 	w->tc->requeue_mode = true;
 	requeue_io(w->tc);
 	pool_work_complete(&w->pw);
@@ -2482,6 +2485,7 @@ static void do_noflush_start(struct work_struct *ws)
 static void do_noflush_stop(struct work_struct *ws)
 {
 	struct noflush_work *w = to_noflush(ws);
+
 	w->tc->requeue_mode = false;
 	pool_work_complete(&w->pw);
 }
@@ -3241,6 +3245,7 @@ static dm_block_t calc_metadata_threshold(struct pool_c *pt)
 	 * delete after you've grown the device).
 	 */
 	dm_block_t quarter = get_metadata_dev_size_in_blocks(pt->metadata_dev->bdev) / 4;
+
 	return min((dm_block_t)1024ULL /* 4M */, quarter);
 }
 

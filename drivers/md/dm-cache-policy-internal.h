@@ -89,6 +89,7 @@ static inline int policy_emit_config_values(struct dm_cache_policy *p, char *res
 					    unsigned int maxlen, ssize_t *sz_ptr)
 {
 	ssize_t sz = *sz_ptr;
+
 	if (p->emit_config_values)
 		return p->emit_config_values(p, result, maxlen, sz_ptr);
 
@@ -121,12 +122,14 @@ static inline size_t bitset_size_in_bytes(unsigned int nr_entries)
 static inline unsigned long *alloc_bitset(unsigned int nr_entries)
 {
 	size_t s = bitset_size_in_bytes(nr_entries);
+
 	return vzalloc(s);
 }
 
 static inline void clear_bitset(void *bitset, unsigned int nr_entries)
 {
 	size_t s = bitset_size_in_bytes(nr_entries);
+
 	memset(bitset, 0, s);
 }
 

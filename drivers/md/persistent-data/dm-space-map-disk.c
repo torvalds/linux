@@ -49,6 +49,7 @@ static int sm_disk_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 static int sm_disk_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	*count = smd->old_ll.nr_blocks;
 
 	return 0;
@@ -57,6 +58,7 @@ static int sm_disk_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 static int sm_disk_get_nr_free(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	*count = (smd->old_ll.nr_blocks - smd->old_ll.nr_allocated) - smd->nr_allocated_this_transaction;
 
 	return 0;
@@ -66,6 +68,7 @@ static int sm_disk_get_count(struct dm_space_map *sm, dm_block_t b,
 			     uint32_t *result)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	return sm_ll_lookup(&smd->ll, b, result);
 }
 

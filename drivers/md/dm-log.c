@@ -655,12 +655,14 @@ static int disk_resume(struct dm_dirty_log *log)
 static uint32_t core_get_region_size(struct dm_dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	return lc->region_size;
 }
 
 static int core_resume(struct dm_dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	lc->sync_search = 0;
 	return 0;
 }
@@ -668,12 +670,14 @@ static int core_resume(struct dm_dirty_log *log)
 static int core_is_clean(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	return log_test_bit(lc->clean_bits, region);
 }
 
 static int core_in_sync(struct dm_dirty_log *log, region_t region, int block)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	return log_test_bit(lc->sync_bits, region);
 }
 
@@ -726,12 +730,14 @@ static int disk_flush(struct dm_dirty_log *log)
 static void core_mark_region(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	log_clear_bit(lc, lc->clean_bits, region);
 }
 
 static void core_clear_region(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	if (likely(!lc->flush_failed))
 		log_set_bit(lc, lc->clean_bits, region);
 }

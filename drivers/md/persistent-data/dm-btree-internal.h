@@ -119,6 +119,7 @@ static inline void *value_base(struct btree_node *n)
 static inline void *value_ptr(struct btree_node *n, uint32_t index)
 {
 	uint32_t value_size = le32_to_cpu(n->header.value_size);
+
 	return value_base(n) + (value_size * index);
 }
 

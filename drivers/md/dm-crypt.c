@@ -1257,6 +1257,7 @@ static __le64 *org_sector_of_dmreq(struct crypt_config *cc,
 		       struct dm_crypt_request *dmreq)
 {
 	u8 *ptr = iv_of_dmreq(cc, dmreq) + cc->iv_size + cc->iv_size;
+
 	return (__le64 *) ptr;
 }
 
@@ -1265,6 +1266,7 @@ static unsigned int *org_tag_of_dmreq(struct crypt_config *cc,
 {
 	u8 *ptr = iv_of_dmreq(cc, dmreq) + cc->iv_size +
 		  cc->iv_size + sizeof(uint64_t);
+
 	return (unsigned int *)ptr;
 }
 
@@ -1741,6 +1743,7 @@ static void crypt_inc_pending(struct dm_crypt_io *io)
 static void kcryptd_io_bio_endio(struct work_struct *work)
 {
 	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+
 	bio_endio(io->base_bio);
 }
 

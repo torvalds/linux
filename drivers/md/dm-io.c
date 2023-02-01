@@ -197,6 +197,7 @@ static void list_get_page(struct dpages *dp,
 static void list_next_page(struct dpages *dp)
 {
 	struct page_list *pl = (struct page_list *) dp->context_ptr;
+
 	dp->context_ptr = pl->next;
 	dp->context_u = 0;
 }

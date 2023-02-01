@@ -628,6 +628,7 @@ static void bio_complete(struct bio *bio)
 {
 	struct dm_buffer *b = bio->bi_private;
 	blk_status_t status = bio->bi_status;
+
 	bio_uninit(bio);
 	kfree(bio);
 	b->end_io(b, status);
@@ -660,6 +661,7 @@ dmio:
 
 	do {
 		unsigned int this_step = min((unsigned int)(PAGE_SIZE - offset_in_page(ptr)), len);
+
 		if (!bio_add_page(bio, virt_to_page(ptr), this_step,
 				  offset_in_page(ptr))) {
 			bio_put(bio);
@@ -782,6 +784,7 @@ static void __write_dirty_buffer(struct dm_buffer *b,
 static void __flush_write_list(struct list_head *write_list)
 {
 	struct blk_plug plug;
+
 	blk_start_plug(&plug);
 	while (!list_empty(write_list)) {
 		struct dm_buffer *b =
@@ -1179,6 +1182,7 @@ void dm_bufio_prefetch(struct dm_bufio_client *c,
 	for (; n_blocks--; block++) {
 		int need_submit;
 		struct dm_buffer *b;
+
 		b = __bufio_new(c, block, NF_PREFETCH, &need_submit,
 				&write_list);
 		if (unlikely(!list_empty(&write_list))) {
@@ -1463,6 +1467,7 @@ retry:
 		__link_buffer(b, new_block, LIST_DIRTY);
 	} else {
 		sector_t old_block;
+
 		wait_on_bit_lock_io(&b->state, B_WRITING,
 				    TASK_UNINTERRUPTIBLE);
 		/*
@@ -1553,6 +1558,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_get_block_size);
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c)
 {
 	sector_t s = bdev_nr_sectors(c->bdev);
+
 	if (s >= c->start)
 		s -= c->start;
 	else
@@ -1668,10 +1674,12 @@ static bool __try_evict_buffer(struct dm_buffer *b, gfp_t gfp)
 static unsigned long get_retain_buffers(struct dm_bufio_client *c)
 {
 	unsigned long retain_bytes = READ_ONCE(dm_bufio_retain_bytes);
+
 	if (likely(c->sectors_per_block_bits >= 0))
 		retain_bytes >>= c->sectors_per_block_bits + SECTOR_SHIFT;
 	else
 		retain_bytes /= c->block_size;
+
 	return retain_bytes;
 }
 
@@ -1806,6 +1814,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	if (block_size <= KMALLOC_MAX_SIZE &&
 	    (block_size < PAGE_SIZE || !is_power_of_2(block_size))) {
 		unsigned int align = min(1U << __ffs(block_size), (unsigned int)PAGE_SIZE);
+
 		snprintf(slab_name, sizeof slab_name, "dm_bufio_cache-%u", block_size);
 		c->slab_cache = kmem_cache_create(slab_name, block_size, align,
 						  SLAB_RECLAIM_ACCOUNT, NULL);

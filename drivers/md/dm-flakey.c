@@ -327,6 +327,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	struct flakey_c *fc = ti->private;
 	unsigned int elapsed;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
+
 	pb->bio_submitted = false;
 
 	if (op_is_zone_mgmt(bio_op(bio)))

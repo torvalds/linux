@@ -114,6 +114,7 @@ static bool brb_empty(struct bop_ring_buffer *brb)
 static unsigned int brb_next(struct bop_ring_buffer *brb, unsigned int old)
 {
 	unsigned int r = old + 1;
+
 	return r >= ARRAY_SIZE(brb->bops) ? 0 : r;
 }
 
@@ -182,6 +183,7 @@ struct sm_metadata {
 static int add_bop(struct sm_metadata *smm, enum block_op_type type, dm_block_t b, dm_block_t e)
 {
 	int r = brb_push(&smm->uncommitted, type, b, e);
+
 	if (r) {
 		DMERR("too many recursive allocations");
 		return -ENOMEM;
@@ -487,6 +489,7 @@ static int sm_metadata_new_block(struct dm_space_map *sm, dm_block_t *b)
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	int r = sm_metadata_new_block_(sm, b);
+
 	if (r) {
 		DMERR_LIMIT("unable to allocate new metadata block");
 		return r;

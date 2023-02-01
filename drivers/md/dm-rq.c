@@ -128,6 +128,7 @@ static void rq_end_stats(struct mapped_device *md, struct request *orig)
 {
 	if (unlikely(dm_stats_used(&md->stats))) {
 		struct dm_rq_target_io *tio = tio_from_request(orig);
+
 		tio->duration_jiffies = jiffies - tio->duration_jiffies;
 		dm_stats_account_io(&md->stats, rq_data_dir(orig),
 				    blk_rq_pos(orig), tio->n_sectors, true,
@@ -435,6 +436,7 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 
 	if (unlikely(dm_stats_used(&md->stats))) {
 		struct dm_rq_target_io *tio = tio_from_request(orig);
+
 		tio->duration_jiffies = jiffies;
 		tio->n_sectors = blk_rq_sectors(orig);
 		dm_stats_account_io(&md->stats, rq_data_dir(orig),

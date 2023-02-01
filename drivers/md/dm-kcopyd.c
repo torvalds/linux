@@ -151,6 +151,7 @@ try_again:
 
 	if (unlikely(t->total_period >= (1 << ACCOUNT_INTERVAL_SHIFT))) {
 		int shift = fls(t->total_period >> ACCOUNT_INTERVAL_SHIFT);
+
 		t->total_period >>= shift;
 		t->io_period >>= shift;
 	}
@@ -678,6 +679,7 @@ static void do_work(struct work_struct *work)
 static void dispatch_job(struct kcopyd_job *job)
 {
 	struct dm_kcopyd_client *kc = job->kc;
+
 	atomic_inc(&kc->nr_jobs);
 	if (unlikely(!job->source.count))
 		push(&kc->callback_jobs, job);

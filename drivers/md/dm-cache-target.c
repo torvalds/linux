@@ -534,6 +534,7 @@ static unsigned int lock_level(struct bio *bio)
 static struct per_bio_data *get_per_bio_data(struct bio *bio)
 {
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
+
 	BUG_ON(!pb);
 	return pb;
 }
@@ -690,6 +691,7 @@ static void clear_discard(struct cache *cache, dm_dblock_t b)
 static bool is_discarded(struct cache *cache, dm_dblock_t b)
 {
 	int r;
+
 	spin_lock_irq(&cache->lock);
 	r = test_bit(from_dblock(b), cache->discard_bitset);
 	spin_unlock_irq(&cache->lock);
@@ -700,6 +702,7 @@ static bool is_discarded(struct cache *cache, dm_dblock_t b)
 static bool is_discarded_oblock(struct cache *cache, dm_oblock_t b)
 {
 	int r;
+
 	spin_lock_irq(&cache->lock);
 	r = test_bit(from_dblock(oblock_to_dblock(cache, b)),
 		     cache->discard_bitset);
@@ -814,6 +817,7 @@ static void accounted_request(struct cache *cache, struct bio *bio)
 static void issue_op(struct bio *bio, void *context)
 {
 	struct cache *cache = context;
+
 	accounted_request(cache, bio);
 }
 
@@ -1074,6 +1078,7 @@ static void quiesce(struct dm_cache_migration *mg,
 static struct dm_cache_migration *ws_to_mg(struct work_struct *ws)
 {
 	struct continuation *k = container_of(ws, struct continuation, ws);
+
 	return container_of(k, struct dm_cache_migration, k);
 }
 
@@ -1225,6 +1230,7 @@ static void mg_complete(struct dm_cache_migration *mg, bool success)
 static void mg_success(struct work_struct *ws)
 {
 	struct dm_cache_migration *mg = ws_to_mg(ws);
+
 	mg_complete(mg, mg->k.input == 0);
 }
 
@@ -1363,6 +1369,7 @@ static void mg_copy(struct work_struct *ws)
 			 * Fallback to a real full copy after doing some tidying up.
 			 */
 			bool rb = bio_detain_shared(mg->cache, mg->op->oblock, mg->overwrite_bio);
+
 			BUG_ON(rb); /* An exclussive lock must _not_ be held for this block */
 			mg->overwrite_bio = NULL;
 			inc_io_migrations(mg->cache);
@@ -1465,12 +1472,15 @@ static void invalidate_complete(struct dm_cache_migration *mg, bool success)
 static void invalidate_completed(struct work_struct *ws)
 {
 	struct dm_cache_migration *mg = ws_to_mg(ws);
+
 	invalidate_complete(mg, !mg->k.input);
 }
 
 static int invalidate_cblock(struct cache *cache, dm_cblock_t cblock)
 {
-	int r = policy_invalidate_mapping(cache->policy, cblock);
+	int r;
+
+	r = policy_invalidate_mapping(cache->policy, cblock);
 	if (!r) {
 		r = dm_cache_remove_mapping(cache->cmd, cblock);
 		if (r) {
