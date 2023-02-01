@@ -5075,7 +5075,7 @@ static int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 /* Once a hub descriptor is fetched for a device, we need to update the xHC's
  * internal data structures for the device.
  */
-int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
+static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
@@ -5184,7 +5184,6 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	xhci_free_command(xhci, config_cmd);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(xhci_update_hub_device);
 
 static int xhci_get_frame(struct usb_hcd *hcd)
 {
@@ -5465,8 +5464,6 @@ void xhci_init_driver(struct hc_driver *drv,
 			drv->bus_suspend = over->bus_suspend;
 		if (over->bus_resume)
 			drv->bus_resume = over->bus_resume;
-		if (over->update_hub_device)
-			drv->update_hub_device = over->update_hub_device;
 	}
 }
 EXPORT_SYMBOL_GPL(xhci_init_driver);
