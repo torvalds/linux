@@ -37,7 +37,7 @@ static noinline u32 fprobe_selftest_nest_target(u32 value, u32 (*nest)(u32))
 	return nest(value + 2);
 }
 
-static notrace void fp_entry_handler(struct fprobe *fp, unsigned long ip,
+static notrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
 				     struct pt_regs *regs, void *data)
 {
 	KUNIT_EXPECT_FALSE(current_test, preemptible());
@@ -51,6 +51,8 @@ static notrace void fp_entry_handler(struct fprobe *fp, unsigned long ip,
 			*(u32 *)data = entry_val;
 	} else
 		KUNIT_EXPECT_NULL(current_test, data);
+
+	return 0;
 }
 
 static notrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
@@ -74,10 +76,11 @@ static notrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
 		KUNIT_EXPECT_NULL(current_test, data);
 }
 
-static notrace void nest_entry_handler(struct fprobe *fp, unsigned long ip,
+static notrace int nest_entry_handler(struct fprobe *fp, unsigned long ip,
 				     struct pt_regs *regs, void *data)
 {
 	KUNIT_EXPECT_FALSE(current_test, preemptible());
+	return 0;
 }
 
 static notrace void nest_exit_handler(struct fprobe *fp, unsigned long ip,
