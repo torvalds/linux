@@ -1178,6 +1178,7 @@ static int rswitch_phy_device_init(struct rswitch_device *rdev)
 {
 	struct phy_device *phydev;
 	struct device_node *phy;
+	int err = -ENOENT;
 
 	if (!rdev->np_port)
 		return -ENODEV;
@@ -1186,11 +1187,18 @@ static int rswitch_phy_device_init(struct rswitch_device *rdev)
 	if (!phy)
 		return -ENODEV;
 
+	/* Set phydev->host_interfaces before calling of_phy_connect() to
+	 * configure the PHY with the information of host_interfaces.
+	 */
+	phydev = of_phy_find_device(phy);
+	if (!phydev)
+		goto out;
+	__set_bit(rdev->etha->phy_interface, phydev->host_interfaces);
+
 	phydev = of_phy_connect(rdev->ndev, phy, rswitch_adjust_link, 0,
 				rdev->etha->phy_interface);
-	of_node_put(phy);
 	if (!phydev)
-		return -ENOENT;
+		goto out;
 
 	phy_set_max_speed(phydev, SPEED_2500);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
@@ -1201,7 +1209,11 @@ static int rswitch_phy_device_init(struct rswitch_device *rdev)
 
 	phy_attached_info(phydev);
 
-	return 0;
+	err = 0;
+out:
+	of_node_put(phy);
+
+	return err;
 }
 
 static void rswitch_phy_device_deinit(struct rswitch_device *rdev)
