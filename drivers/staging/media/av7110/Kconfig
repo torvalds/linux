@@ -5,7 +5,7 @@ config DVB_AV7110_IR
 	default DVB_AV7110
 
 config DVB_AV7110
-	tristate "AV7110 cards (DEPRECATED)"
+	tristate "AV7110 cards"
 	depends on DVB_CORE && PCI && I2C
 	select TTPCI_EEPROM
 	select VIDEO_SAA7146_VV
@@ -35,13 +35,10 @@ config DVB_AV7110
 	  kernel image by adding the filename to the EXTRA_FIRMWARE
 	  configuration option string.
 
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
-
 	  Say Y if you own such a card and want to use it.
 
 config DVB_AV7110_OSD
-	bool "AV7110 OSD support (DEPRECATED)"
+	bool "AV7110 OSD support"
 	depends on DVB_AV7110
 	default y if DVB_AV7110=y || DVB_AV7110=m
 	help
@@ -52,13 +49,10 @@ config DVB_AV7110_OSD
 	  Anyway, some popular DVB software like VDR uses this OSD to render
 	  its menus, so say Y if you want to use this software.
 
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
-
 	  All other people say N.
 
 config DVB_BUDGET_PATCH
-	tristate "AV7110 cards with Budget Patch (DEPRECATED)"
+	tristate "AV7110 cards with Budget Patch"
 	depends on DVB_BUDGET_CORE && I2C
 	depends on DVB_AV7110
 	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
@@ -74,9 +68,6 @@ config DVB_BUDGET_PATCH
 	  standard AV7110 driver prior to loading this
 	  driver.
 
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
-
 	  Say Y if you own such a card and want to use it.
 
 	  To compile this driver as a module, choose M here: the
@@ -89,7 +80,7 @@ if DVB_AV7110
 # it if we drop support for AV7110, as no other driver will use it.
 
 config DVB_SP8870
-	tristate "Spase sp8870 based (DEPRECATED)"
+	tristate "Spase sp8870 based"
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -99,8 +90,5 @@ config DVB_SP8870
 	  "<kerneldir>/scripts/get_dvb_firmware sp8870" to
 	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
-
-	  This driver is deprecated and is scheduled for removal by
-	  the beginning of 2023. See the TODO file for more information.
 
 endif
