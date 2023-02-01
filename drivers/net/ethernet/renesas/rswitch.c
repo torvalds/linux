@@ -1072,13 +1072,23 @@ out:
 
 static int rswitch_etha_get_params(struct rswitch_device *rdev)
 {
+	u32 max_speed;
 	int err;
 
 	if (!rdev->np_port)
 		return 0;	/* ignored */
 
 	err = of_get_phy_mode(rdev->np_port, &rdev->etha->phy_interface);
+	if (err)
+		return err;
 
+	err = of_property_read_u32(rdev->np_port, "max-speed", &max_speed);
+	if (!err) {
+		rdev->etha->speed = max_speed;
+		return 0;
+	}
+
+	/* if no "max-speed" property, let's use default speed */
 	switch (rdev->etha->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		rdev->etha->speed = SPEED_100;
@@ -1090,11 +1100,10 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 		rdev->etha->speed = SPEED_2500;
 		break;
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static int rswitch_mii_register(struct rswitch_device *rdev)
