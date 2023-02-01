@@ -27,8 +27,11 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 
 void bch2_topology_error(struct bch_fs *c)
 {
+	if (!test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags))
+		return;
+
 	set_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
-	if (test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
+	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
 		bch2_inconsistent_error(c);
 }
 
