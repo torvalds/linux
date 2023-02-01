@@ -4,6 +4,7 @@
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
  */
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/btf_ids.h>
 #include <linux/filter.h>
 #include <linux/types.h>
@@ -722,7 +723,7 @@ __diag_ignore_all("-Wmissing-prototypes",
  *
  * Returns 0 on success or ``-errno`` on error.
  */
-int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
+__bpf_kfunc int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 {
 	return -EOPNOTSUPP;
 }
@@ -734,7 +735,7 @@ int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
  *
  * Returns 0 on success or ``-errno`` on error.
  */
-int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, u32 *hash)
+__bpf_kfunc int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, u32 *hash)
 {
 	return -EOPNOTSUPP;
 }

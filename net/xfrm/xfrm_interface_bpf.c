@@ -39,8 +39,7 @@ __diag_ignore_all("-Wmissing-prototypes",
  * @to		- Pointer to memory to which the metadata will be copied
  *		    Cannot be NULL
  */
-__used noinline
-int bpf_skb_get_xfrm_info(struct __sk_buff *skb_ctx, struct bpf_xfrm_info *to)
+__bpf_kfunc int bpf_skb_get_xfrm_info(struct __sk_buff *skb_ctx, struct bpf_xfrm_info *to)
 {
 	struct sk_buff *skb = (struct sk_buff *)skb_ctx;
 	struct xfrm_md_info *info;
@@ -62,9 +61,7 @@ int bpf_skb_get_xfrm_info(struct __sk_buff *skb_ctx, struct bpf_xfrm_info *to)
  * @from	- Pointer to memory from which the metadata will be copied
  *		    Cannot be NULL
  */
-__used noinline
-int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx,
-			  const struct bpf_xfrm_info *from)
+__bpf_kfunc int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx, const struct bpf_xfrm_info *from)
 {
 	struct sk_buff *skb = (struct sk_buff *)skb_ctx;
 	struct metadata_dst *md_dst;

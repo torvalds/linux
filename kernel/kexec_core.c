@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/btf.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/file.h>
@@ -975,7 +976,7 @@ void __noclone __crash_kexec(struct pt_regs *regs)
 }
 STACK_FRAME_NON_STANDARD(__crash_kexec);
 
-void crash_kexec(struct pt_regs *regs)
+__bpf_kfunc void crash_kexec(struct pt_regs *regs)
 {
 	int old_cpu, this_cpu;
 
