@@ -195,6 +195,9 @@ static size_t gunyah_tx_avail(struct gunyah_pipe *pipe)
 	else
 		avail -= FIFO_FULL_RESERVE;
 
+	if (WARN_ON_ONCE(head > pipe->length))
+		avail = 0;
+
 	return avail;
 }
 
@@ -205,6 +208,8 @@ static void gunyah_tx_write(struct gunyah_pipe *pipe, const void *data,
 	u32 head;
 
 	head = le32_to_cpu(*pipe->head);
+	if (WARN_ON_ONCE(head > pipe->length))
+		return;
 
 	len = min_t(size_t, count, pipe->length - head);
 	if (len)
@@ -256,6 +261,8 @@ static void gunyah_sg_write(struct gunyah_pipe *pipe, struct scatterlist *sg,
 	int rc = 0;
 
 	head = le32_to_cpu(*pipe->head);
+	if (WARN_ON_ONCE(head > pipe->length))
+		return;
 
 	len = min_t(size_t, count, pipe->length - head);
 	if (len) {
