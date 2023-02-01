@@ -121,7 +121,7 @@ static void close_xsk(struct xsk *xsk)
 		xsk_umem__delete(xsk->umem);
 	if (xsk->socket)
 		xsk_socket__delete(xsk->socket);
-	munmap(xsk->umem, UMEM_SIZE);
+	munmap(xsk->umem_area, UMEM_SIZE);
 }
 
 static void ip_csum(struct iphdr *iph)
