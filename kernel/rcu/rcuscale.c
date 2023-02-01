@@ -716,7 +716,7 @@ kfree_scale_thread(void *arg)
 			// is tested.
 			if ((kfree_rcu_test_single && !kfree_rcu_test_double) ||
 					(kfree_rcu_test_both && torture_random(&tr) & 0x800))
-				kfree_rcu(alloc_ptr);
+				kfree_rcu_mightsleep(alloc_ptr);
 			else
 				kfree_rcu(alloc_ptr, rh);
 		}
