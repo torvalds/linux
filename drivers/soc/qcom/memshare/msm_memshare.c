@@ -128,7 +128,6 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					void *_cmd)
 {
 	int i, ret, size = 0;
-	u32 source_vmlist[1] = {VMID_MSS_MSA};
 	int dest_vmids[1] = {VMID_HLOS};
 	int dest_perms[1] = {PERM_READ|PERM_WRITE|PERM_EXEC};
 	struct memshare_child *client_node = NULL;
@@ -180,12 +179,14 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					"memshare: hypervisor unmapping for allocated memory with client id: %d\n",
 					memblock[i].client_id);
 				if (memblock[i].hyp_mapping) {
+					struct memshare_hyp_mapping *source;
+
+					source = &memblock[i].hyp_map_info;
 					ret = hyp_assign_phys(
 							memblock[i].phy_addr,
 							memblock[i].size,
-							source_vmlist,
-							1, dest_vmids,
-							dest_perms, 1);
+							source->vmids, source->num_vmids,
+							dest_vmids, dest_perms, 1);
 					if (ret &&
 						memblock[i].hyp_mapping == 1) {
 						/*
@@ -236,28 +237,27 @@ static struct notifier_block nb = {
 
 static void shared_hyp_mapping(int index)
 {
-	int ret;
 	u32 source_vmlist[1] = {VMID_HLOS};
-	int dest_vmids[1] = {VMID_MSS_MSA};
-	int dest_perms[1] = {PERM_READ|PERM_WRITE};
+	struct memshare_hyp_mapping *dest;
+	struct mem_blocks *mb;
+	int ret;
 
 	if (index >= MAX_CLIENTS) {
 		dev_err(memsh_drv->dev,
 			"memshare: hypervisor mapping failure for invalid client\n");
 		return;
 	}
+	mb = &memblock[index];
+	dest = &mb->hyp_map_info;
 
-	ret = hyp_assign_phys(memblock[index].phy_addr,
-			memblock[index].size,
-			source_vmlist, 1, dest_vmids,
-			dest_perms, 1);
-
+	ret = hyp_assign_phys(mb->phy_addr, mb->size, source_vmlist, 1,
+			      dest->vmids, dest->perms, dest->num_vmids);
 	if (ret != 0) {
 		dev_err(memsh_drv->dev, "memshare: hyp_assign_phys failed size=%u err=%d\n",
-				memblock[index].size, ret);
+				mb->size, ret);
 		return;
 	}
-	memblock[index].hyp_mapping = 1;
+	mb->hyp_mapping = 1;
 }
 
 static void handle_alloc_generic_req(struct qmi_handle *handle,
@@ -378,7 +378,6 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 	struct memshare_child *client_node = NULL;
 	int rc, flag = 0, ret = 0, size = 0, i;
 	int index = DHMS_MEM_CLIENT_INVALID;
-	u32 source_vmlist[1] = {VMID_MSS_MSA};
 	int dest_vmids[1] = {VMID_HLOS};
 	int dest_perms[1] = {PERM_READ|PERM_WRITE|PERM_EXEC};
 
@@ -418,12 +417,16 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 	if (!flag && !memblock[index].guarantee &&
 				!memblock[index].client_request &&
 				memblock[index].allotted) {
+		struct memshare_hyp_mapping *source;
+
 		dev_dbg(memsh_drv->dev,
 			"memshare_free: hypervisor unmapping for free_req->client_id: %d - size: %d\n",
 			free_req->client_id, memblock[index].size);
-		ret = hyp_assign_phys(memblock[index].phy_addr,
-				memblock[index].size, source_vmlist, 1,
-				dest_vmids, dest_perms, 1);
+
+		source = &memblock[index].hyp_map_info;
+		ret = hyp_assign_phys(memblock[index].phy_addr, memblock[index].size,
+				      source->vmids, source->num_vmids,
+				      dest_vmids, dest_perms, 1);
 		if (ret && memblock[index].hyp_mapping == 1) {
 		/*
 		 * This is an error case as hyp mapping was successful
@@ -663,6 +666,20 @@ static int memshare_child_probe(struct platform_device *pdev)
 	memblock[num_clients].guard_band = of_property_read_bool(
 							pdev->dev.of_node,
 							"qcom,guard-band");
+
+	/* If the shared property is set, allow access from both HLOS and peripheral */
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,shared")) {
+		memblock[num_clients].hyp_map_info.num_vmids = 2;
+		memblock[num_clients].hyp_map_info.vmids[0] = VMID_HLOS;
+		memblock[num_clients].hyp_map_info.vmids[1] = VMID_MSS_MSA;
+		memblock[num_clients].hyp_map_info.perms[0] = PERM_READ | PERM_WRITE;
+		memblock[num_clients].hyp_map_info.perms[1] = PERM_READ | PERM_WRITE;
+
+	} else {
+		memblock[num_clients].hyp_map_info.num_vmids = 1;
+		memblock[num_clients].hyp_map_info.vmids[0] = VMID_MSS_MSA;
+		memblock[num_clients].hyp_map_info.perms[0] = PERM_READ | PERM_WRITE;
+	}
 
 	rc = of_property_read_string(pdev->dev.of_node, "label",
 						&name);
