@@ -869,7 +869,8 @@ static unsigned int rsnd_soc_hw_rate_list[] = {
 
 static int rsnd_soc_hw_rule(struct rsnd_dai *rdai,
 			    unsigned int *list, int list_num,
-			    struct snd_interval *baseline, struct snd_interval *iv)
+			    struct snd_interval *baseline, struct snd_interval *iv,
+			    struct rsnd_dai_stream *io, char *unit)
 {
 	struct snd_interval p;
 	unsigned int rate;
@@ -899,6 +900,16 @@ static int rsnd_soc_hw_rule(struct rsnd_dai *rdai,
 		}
 	}
 
+	/* Indicate error once if it can't handle */
+	if (!rsnd_flags_has(io, RSND_HW_RULE_ERR) && (p.min > p.max)) {
+		struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		dev_warn(dev, "It can't handle %d %s <-> %d %s\n",
+			 baseline->min, unit, baseline->max, unit);
+		rsnd_flags_set(io, RSND_HW_RULE_ERR);
+	}
+
 	return snd_interval_refine(iv, &p);
 }
 
@@ -922,7 +933,7 @@ static int rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
 
 	return rsnd_soc_hw_rule(rdai, rsnd_soc_hw_rate_list,
 				ARRAY_SIZE(rsnd_soc_hw_rate_list),
-				&ic, ir);
+				&ic, ir, io, "ch");
 }
 
 static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
@@ -945,7 +956,7 @@ static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
 
 	return rsnd_soc_hw_rule(rdai, rsnd_soc_hw_channels_list,
 				ARRAY_SIZE(rsnd_soc_hw_channels_list),
-				ir, &ic);
+				ir, &ic, io, "Hz");
 }
 
 static const struct snd_pcm_hardware rsnd_pcm_hardware = {
@@ -969,6 +980,8 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int max_channels = rsnd_rdai_channels_get(rdai);
 	int i;
+
+	rsnd_flags_del(io, RSND_HW_RULE_ERR);
 
 	rsnd_dai_stream_init(io, substream);
 

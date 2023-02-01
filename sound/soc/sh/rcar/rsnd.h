@@ -513,6 +513,7 @@ struct rsnd_dai_stream {
 #define RSND_STREAM_HDMI0	(1 << 0) /* for HDMI0 */
 #define RSND_STREAM_HDMI1	(1 << 1) /* for HDMI1 */
 #define RSND_STREAM_TDM_SPLIT	(1 << 2) /* for TDM split mode */
+#define RSND_HW_RULE_ERR	(1 << 3) /* hw_rule error */
 
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
