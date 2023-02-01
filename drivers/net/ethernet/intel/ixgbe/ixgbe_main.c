@@ -10301,6 +10301,8 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 
 		if (err)
 			return -EINVAL;
+		if (!prog)
+			xdp_features_clear_redirect_target(dev);
 	} else {
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			WRITE_ONCE(adapter->rx_ring[i]->xdp_prog,
@@ -10321,6 +10323,7 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 			if (adapter->xdp_ring[i]->xsk_pool)
 				(void)ixgbe_xsk_wakeup(adapter->netdev, i,
 						       XDP_WAKEUP_RX);
+		xdp_features_set_redirect_target(dev, true);
 	}
 
 	return 0;
@@ -11017,6 +11020,9 @@ skip_sriov:
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
+
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			       NETDEV_XDP_ACT_XSK_ZEROCOPY;
 
 	/* MTU range: 68 - 9710 */
 	netdev->min_mtu = ETH_MIN_MTU;

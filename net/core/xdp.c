@@ -774,3 +774,21 @@ static int __init xdp_metadata_init(void)
 	return register_btf_kfunc_id_set(BPF_PROG_TYPE_XDP, &xdp_metadata_kfunc_set);
 }
 late_initcall(xdp_metadata_init);
+
+void xdp_features_set_redirect_target(struct net_device *dev, bool support_sg)
+{
+	dev->xdp_features |= NETDEV_XDP_ACT_NDO_XMIT;
+	if (support_sg)
+		dev->xdp_features |= NETDEV_XDP_ACT_NDO_XMIT_SG;
+
+	call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
+}
+EXPORT_SYMBOL_GPL(xdp_features_set_redirect_target);
+
+void xdp_features_clear_redirect_target(struct net_device *dev)
+{
+	dev->xdp_features &= ~(NETDEV_XDP_ACT_NDO_XMIT |
+			       NETDEV_XDP_ACT_NDO_XMIT_SG);
+	call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
+}
+EXPORT_SYMBOL_GPL(xdp_features_clear_redirect_target);
