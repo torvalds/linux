@@ -56,6 +56,9 @@
 #define OV2685_REG_VALUE_16BIT		2
 #define OV2685_REG_VALUE_24BIT		3
 
+#define OV2685_NATIVE_WIDTH		1616
+#define OV2685_NATIVE_HEIGHT		1216
+
 #define OV2685_LANES			1
 #define OV2685_BITS_PER_SAMPLE		10
 
@@ -78,6 +81,7 @@ struct ov2685_mode {
 	u32 exp_def;
 	u32 hts_def;
 	u32 vts_def;
+	const struct v4l2_rect *analog_crop;
 	const struct regval *reg_list;
 };
 
@@ -231,6 +235,13 @@ static const int ov2685_test_pattern_val[] = {
 	OV2685_TEST_PATTERN_COLOR_SQUARE,
 };
 
+static const struct v4l2_rect ov2685_analog_crop = {
+	.left	= 8,
+	.top	= 8,
+	.width	= 1600,
+	.height	= 1200,
+};
+
 static const struct ov2685_mode supported_modes[] = {
 	{
 		.width = 1600,
@@ -238,6 +249,7 @@ static const struct ov2685_mode supported_modes[] = {
 		.exp_def = 0x04ee,
 		.hts_def = 0x06a4,
 		.vts_def = 0x050e,
+		.analog_crop = &ov2685_analog_crop,
 		.reg_list = ov2685_1600x1200_regs,
 	},
 };
@@ -380,6 +392,53 @@ static int ov2685_enum_frame_sizes(struct v4l2_subdev *sd,
 	fse->max_width  = supported_modes[index].width;
 	fse->max_height = supported_modes[index].height;
 	fse->min_height = supported_modes[index].height;
+
+	return 0;
+}
+
+static const struct v4l2_rect *
+__ov2685_get_pad_crop(struct ov2685 *ov2685,
+		      struct v4l2_subdev_state *state, unsigned int pad,
+		      enum v4l2_subdev_format_whence which)
+{
+	const struct ov2685_mode *mode = ov2685->cur_mode;
+
+	switch (which) {
+	case V4L2_SUBDEV_FORMAT_TRY:
+		return v4l2_subdev_get_try_crop(&ov2685->subdev, state, pad);
+	case V4L2_SUBDEV_FORMAT_ACTIVE:
+		return mode->analog_crop;
+	}
+
+	return NULL;
+}
+
+static int ov2685_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+{
+	struct ov2685 *ov2685 = to_ov2685(sd);
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		mutex_lock(&ov2685->mutex);
+		sel->r = *__ov2685_get_pad_crop(ov2685, sd_state, sel->pad,
+				sel->which);
+		mutex_unlock(&ov2685->mutex);
+		break;
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = OV2685_NATIVE_WIDTH;
+		sel->r.height = OV2685_NATIVE_HEIGHT;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r = ov2685_analog_crop;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -592,6 +651,8 @@ static const struct v4l2_subdev_pad_ops ov2685_pad_ops = {
 	.enum_frame_size = ov2685_enum_frame_sizes,
 	.get_fmt = ov2685_get_fmt,
 	.set_fmt = ov2685_set_fmt,
+	.get_selection = ov2685_get_selection,
+	.set_selection = ov2685_get_selection,
 };
 
 static const struct v4l2_subdev_ops ov2685_subdev_ops = {
