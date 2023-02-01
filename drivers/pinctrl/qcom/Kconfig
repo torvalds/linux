@@ -258,6 +258,15 @@ config PINCTRL_QDU1000
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc QDU1000 and QRU1000 platforms.
 
+config PINCTRL_SA8775P
+	tristate "Qualcomm Technologies Inc SA8775P pin controller driver"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux and pinconf driver for the Qualcomm
+	  TLMM block found on the Qualcomm SA8775P platforms.
+
 config PINCTRL_SC7180
 	tristate "Qualcomm Technologies Inc SC7180 pin controller driver"
 	depends on OF
