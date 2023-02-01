@@ -294,6 +294,7 @@ __setup("notsc", notsc_setup);
 
 static int no_sched_irq_time;
 static int no_tsc_watchdog;
+static int tsc_as_watchdog;
 
 static int __init tsc_setup(char *str)
 {
@@ -303,10 +304,22 @@ static int __init tsc_setup(char *str)
 		no_sched_irq_time = 1;
 	if (!strcmp(str, "unstable"))
 		mark_tsc_unstable("boot parameter");
-	if (!strcmp(str, "nowatchdog"))
+	if (!strcmp(str, "nowatchdog")) {
 		no_tsc_watchdog = 1;
+		if (tsc_as_watchdog)
+			pr_alert("%s: Overriding earlier tsc=watchdog with tsc=nowatchdog\n",
+				 __func__);
+		tsc_as_watchdog = 0;
+	}
 	if (!strcmp(str, "recalibrate"))
 		tsc_force_recalibrate = 1;
+	if (!strcmp(str, "watchdog")) {
+		if (no_tsc_watchdog)
+			pr_alert("%s: tsc=watchdog overridden by earlier tsc=nowatchdog\n",
+				 __func__);
+		else
+			tsc_as_watchdog = 1;
+	}
 	return 1;
 }
 
@@ -1192,7 +1205,8 @@ static void __init tsc_disable_clocksource_watchdog(void)
 
 bool tsc_clocksource_watchdog_disabled(void)
 {
-	return !(clocksource_tsc.flags & CLOCK_SOURCE_MUST_VERIFY);
+	return !(clocksource_tsc.flags & CLOCK_SOURCE_MUST_VERIFY) &&
+	       tsc_as_watchdog && !no_tsc_watchdog;
 }
 
 static void __init check_system_tsc_reliable(void)
