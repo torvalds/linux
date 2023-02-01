@@ -33,21 +33,37 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 			       const struct can_bittiming_const *btc,
 			       struct netlink_ext_ack *extack)
 {
+	const unsigned int tseg1 = bt->prop_seg + bt->phase_seg1;
 	const struct can_priv *priv = netdev_priv(dev);
-	unsigned int tseg1;
 	u64 brp64;
 	int err;
+
+	if (tseg1 < btc->tseg1_min) {
+		NL_SET_ERR_MSG_FMT(extack, "prop-seg + phase-seg1: %u less than tseg1-min: %u",
+				   tseg1, btc->tseg1_min);
+		return -EINVAL;
+	}
+	if (tseg1 > btc->tseg1_max) {
+		NL_SET_ERR_MSG_FMT(extack, "prop-seg + phase-seg1: %u greater than tseg1-max: %u",
+				   tseg1, btc->tseg1_max);
+		return -EINVAL;
+	}
+	if (bt->phase_seg2 < btc->tseg2_min) {
+		NL_SET_ERR_MSG_FMT(extack, "phase-seg2: %u less than tseg2-min: %u",
+				   bt->phase_seg2, btc->tseg2_min);
+		return -EINVAL;
+	}
+	if (bt->phase_seg2 > btc->tseg2_max) {
+		NL_SET_ERR_MSG_FMT(extack, "phase-seg2: %u greater than tseg2-max: %u",
+				   bt->phase_seg2, btc->tseg2_max);
+		return -EINVAL;
+	}
 
 	can_sjw_set_default(bt);
 
 	err = can_sjw_check(dev, bt, btc, extack);
 	if (err)
 		return err;
-
-	tseg1 = bt->prop_seg + bt->phase_seg1;
-	if (tseg1 < btc->tseg1_min || tseg1 > btc->tseg1_max ||
-	    bt->phase_seg2 < btc->tseg2_min || bt->phase_seg2 > btc->tseg2_max)
-		return -ERANGE;
 
 	brp64 = (u64)priv->clock.freq * (u64)bt->tq;
 	if (btc->brp_inc > 1)
@@ -58,8 +74,16 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 		brp64 *= btc->brp_inc;
 	bt->brp = (u32)brp64;
 
-	if (bt->brp < btc->brp_min || bt->brp > btc->brp_max)
+	if (bt->brp < btc->brp_min) {
+		NL_SET_ERR_MSG_FMT(extack, "resulting brp: %u less than brp-min: %u",
+				   bt->brp, btc->brp_min);
 		return -EINVAL;
+	}
+	if (bt->brp > btc->brp_max) {
+		NL_SET_ERR_MSG_FMT(extack, "resulting brp: %u greater than brp-max: %u",
+				   bt->brp, btc->brp_max);
+		return -EINVAL;
+	}
 
 	bt->bitrate = priv->clock.freq / (bt->brp * can_bit_time(bt));
 	bt->sample_point = ((CAN_SYNC_SEG + tseg1) * 1000) / can_bit_time(bt);
