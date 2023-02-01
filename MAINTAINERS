@@ -13213,7 +13213,7 @@ F:	drivers/phy/ralink/phy-mt7621-pci.c
 MEDIATEK NAND CONTROLLER DRIVER
 L:	linux-mtd@lists.infradead.org
 S:	Orphan
-F:	Documentation/devicetree/bindings/mtd/mtk-nand.txt
+F:	Documentation/devicetree/bindings/mtd/mediatek,mtk-nfc.yaml
 F:	drivers/mtd/nand/raw/mtk_*
 
 MEDIATEK PMIC LED DRIVER
