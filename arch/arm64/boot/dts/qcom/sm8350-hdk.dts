@@ -723,7 +723,7 @@
 	};
 
 	lt9611_state: lt9611-state {
-		rst {
+		rst-pins {
 			pins = "gpio48";
 			function = "normal";
 
@@ -731,7 +731,7 @@
 			input-disable;
 		};
 
-		irq {
+		irq-pins {
 			pins = "gpio50";
 			function = "gpio";
 			bias-disable;
