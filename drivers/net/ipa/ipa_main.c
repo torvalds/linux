@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -390,7 +390,12 @@ static void ipa_qtime_config(struct ipa *ipa)
 	reg = ipa_reg(ipa, TIMERS_PULSE_GRAN_CFG);
 	val = ipa_reg_encode(reg, PULSE_GRAN_0, IPA_GRAN_100_US);
 	val |= ipa_reg_encode(reg, PULSE_GRAN_1, IPA_GRAN_1_MS);
-	val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
+	if (ipa->version >= IPA_VERSION_5_0) {
+		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_10_MS);
+		val |= ipa_reg_encode(reg, PULSE_GRAN_3, IPA_GRAN_10_MS);
+	} else {
+		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
+	}
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
@@ -432,6 +437,11 @@ static void ipa_hardware_config_hashing(struct ipa *ipa)
 {
 	const struct ipa_reg *reg;
 
+	/* Other than IPA v4.2, all versions enable "hashing".  Starting
+	 * with IPA v5.0, the filter and router tables are implemented
+	 * differently, but the default configuration enables this feature
+	 * (now referred to as "cacheing"), so there's nothing to do here.
+	 */
 	if (ipa->version != IPA_VERSION_4_2)
 		return;
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 #ifndef _IPA_REG_H_
 #define _IPA_REG_H_
@@ -59,8 +59,10 @@ enum ipa_reg_id {
 	SHARED_MEM_SIZE,
 	QSB_MAX_WRITES,
 	QSB_MAX_READS,
-	FILT_ROUT_HASH_EN,
-	FILT_ROUT_HASH_FLUSH,
+	FILT_ROUT_HASH_EN,				/* Not IPA v5.0+ */
+	FILT_ROUT_CACHE_CFG,				/* IPA v5.0+ */
+	FILT_ROUT_HASH_FLUSH,				/* Not IPA v5.0+ */
+	FILT_ROUT_CACHE_FLUSH,				/* IPA v5.0+ */
 	STATE_AGGR_ACTIVE,
 	IPA_BCR,					/* Not IPA v4.5+ */
 	LOCAL_PKT_PROC_CNTXT,
@@ -95,7 +97,9 @@ enum ipa_reg_id {
 	ENDP_INIT_SEQ,			/* TX only */
 	ENDP_STATUS,
 	ENDP_FILTER_ROUTER_HSH_CFG,			/* Not IPA v4.2 */
-	/* The IRQ registers are only used for GSI_EE_AP */
+	ENDP_FILTER_CACHE_CFG,				/* IPA v5.0+ */
+	ENDP_ROUTER_CACHE_CFG,				/* IPA v5.0+ */
+	/* The IRQ registers that follow are only used for GSI_EE_AP */
 	IPA_IRQ_STTS,
 	IPA_IRQ_EN,
 	IPA_IRQ_CLR,
@@ -251,12 +255,26 @@ enum ipa_reg_qsb_max_reads_field_id {
 	GEN_QMB_1_MAX_READS_BEATS,			/* IPA v4.0+ */
 };
 
+/* FILT_ROUT_CACHE_CFG register */
+enum ipa_reg_filt_rout_cache_cfg_field_id {
+	ROUTER_CACHE_EN,
+	FILTER_CACHE_EN,
+	LOW_PRI_HASH_HIT_DISABLE,
+	LRU_EVICTION_THRESHOLD,
+};
+
 /* FILT_ROUT_HASH_EN and FILT_ROUT_HASH_FLUSH registers */
-enum ipa_reg_rout_hash_field_id {
+enum ipa_reg_filt_rout_hash_field_id {
 	IPV6_ROUTER_HASH,
 	IPV6_FILTER_HASH,
 	IPV4_ROUTER_HASH,
 	IPV4_FILTER_HASH,
+};
+
+/* FILT_ROUT_CACHE_FLUSH register */
+enum ipa_reg_filt_rout_cache_field_id {
+	ROUTER_CACHE,
+	FILTER_CACHE,
 };
 
 /* BCR register */
@@ -298,6 +316,7 @@ enum ipa_reg_ipa_tx_cfg_field_id {
 	DUAL_TX_ENABLE,					/* v4.5+ */
 	SSPND_PA_NO_START_STATE,			/* v4,2+, not v4.5 */
 	SSPND_PA_NO_BQ_STATE,				/* v4.2 only */
+	HOLB_STICKY_DROP_EN,				/* v5.0+ */
 };
 
 /* FLAVOR_0 register */
@@ -333,6 +352,7 @@ enum ipa_reg_timers_pulse_gran_cfg_field_id {
 	PULSE_GRAN_0,
 	PULSE_GRAN_1,
 	PULSE_GRAN_2,
+	PULSE_GRAN_3,
 };
 
 /* Values for IPA_GRAN_x fields of TIMERS_PULSE_GRAN_CFG */
@@ -415,6 +435,8 @@ enum ipa_reg_endp_init_hdr_ext_field_id {
 	HDR_TOTAL_LEN_OR_PAD_OFFSET_MSB,		/* v4.5+ */
 	HDR_OFST_PKT_SIZE_MSB,				/* v4.5+ */
 	HDR_ADDITIONAL_CONST_LEN_MSB,			/* v4.5+ */
+	HDR_BYTES_TO_REMOVE_VALID,			/* v5.0+ */
+	HDR_BYTES_TO_REMOVE,				/* v5.0+ */
 };
 
 /* ENDP_INIT_MODE register */
@@ -571,6 +593,17 @@ enum ipa_reg_endp_filter_router_hsh_cfg_field_id {
 	ROUTER_HASH_MSK_PROTOCOL,
 	ROUTER_HASH_MSK_METADATA,
 	ROUTER_HASH_MSK_ALL,		/* Bitwise OR of the above 6 fields */
+};
+
+/* ENDP_FILTER_CACHE_CFG and ENDP_ROUTER_CACHE_CFG registers */
+enum ipa_reg_endp_cache_cfg_field_id {
+	CACHE_MSK_SRC_ID,
+	CACHE_MSK_SRC_IP,
+	CACHE_MSK_DST_IP,
+	CACHE_MSK_SRC_PORT,
+	CACHE_MSK_DST_PORT,
+	CACHE_MSK_PROTOCOL,
+	CACHE_MSK_METADATA,
 };
 
 /* IPA_IRQ_STTS, IPA_IRQ_EN, and IPA_IRQ_CLR registers */
