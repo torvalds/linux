@@ -2560,7 +2560,7 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_assert_rst;
 
-	if (!master->secondary) {
+	if (!master->secondary && !master->base.jdec_spd) {
 		ret = aspeed_i3c_master_enable_hj(master);
 		if (ret)
 			goto err_master_register;
