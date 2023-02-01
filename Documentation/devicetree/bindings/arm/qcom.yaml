@@ -49,6 +49,7 @@ description: |
         qru1000
         sa8155p
         sa8540p
+        sa8775p
         sc7180
         sc7280
         sc8180x
@@ -89,6 +90,7 @@ description: |
         liquid
         mtp
         qrd
+        ride
         sbc
         x100
 
@@ -812,6 +814,11 @@ properties:
               - qcom,sa8295p-adp
               - qcom,sa8540p-ride
           - const: qcom,sa8540p
+
+      - items:
+          - enum:
+              - qcom,sa8775p-ride
+          - const: qcom,sa8775p
 
       - items:
           - enum:
