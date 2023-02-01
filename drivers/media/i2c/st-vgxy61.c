@@ -1334,7 +1334,6 @@ static int vgxy61_init_cfg(struct v4l2_subdev *sd,
 	struct vgxy61_dev *sensor = to_vgxy61_dev(sd);
 	struct v4l2_subdev_format fmt = { 0 };
 
-	sensor->current_mode = sensor->default_mode;
 	vgxy61_fill_framefmt(sensor, sensor->current_mode, &fmt.format,
 			     VGXY61_MEDIA_BUS_FMT_DEF);
 
