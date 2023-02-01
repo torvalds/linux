@@ -9,10 +9,12 @@
 #define ICE_DFLT_IRQ_WORK	256
 #define ICE_RXBUF_3072		3072
 #define ICE_RXBUF_2048		2048
+#define ICE_RXBUF_1664		1664
 #define ICE_RXBUF_1536		1536
 #define ICE_MAX_CHAINED_RX_BUFS	5
 #define ICE_MAX_BUF_TXD		8
 #define ICE_MIN_TX_LEN		17
+#define ICE_MAX_FRAME_LEGACY_RX 8320
 
 /* The size limit for a transmit buffer in a descriptor is (16K - 1).
  * In order to align with the read requests we will align the value to
@@ -110,6 +112,10 @@ static inline int ice_skb_pad(void)
 	(u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	      (R)->next_to_clean - (R)->next_to_use - 1)
 
+#define ICE_RX_DESC_UNUSED(R)	\
+	((((R)->first_desc > (R)->next_to_use) ? 0 : (R)->count) + \
+	      (R)->first_desc - (R)->next_to_use - 1)
+
 #define ICE_RING_QUARTER(R) ((R)->count >> 2)
 
 #define ICE_TX_FLAGS_TSO	BIT(0)
@@ -134,6 +140,7 @@ static inline int ice_skb_pad(void)
 #define ICE_XDP_TX		BIT(1)
 #define ICE_XDP_REDIR		BIT(2)
 #define ICE_XDP_EXIT		BIT(3)
+#define ICE_SKB_CONSUMED	ICE_XDP_CONSUMED
 
 #define ICE_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
@@ -143,13 +150,20 @@ static inline int ice_skb_pad(void)
 #define ICE_TXD_LAST_DESC_CMD (ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)
 
 struct ice_tx_buf {
-	struct ice_tx_desc *next_to_watch;
+	union {
+		struct ice_tx_desc *next_to_watch;
+		u32 rs_idx;
+	};
 	union {
 		struct sk_buff *skb;
 		void *raw_buf; /* used for XDP */
+		struct xdp_buff *xdp; /* used for XDP_TX ZC */
 	};
 	unsigned int bytecount;
-	unsigned short gso_segs;
+	union {
+		unsigned int gso_segs;
+		unsigned int nr_frags; /* used for mbuf XDP */
+	};
 	u32 tx_flags;
 	DEFINE_DMA_UNMAP_LEN(len);
 	DEFINE_DMA_UNMAP_ADDR(dma);
@@ -170,7 +184,9 @@ struct ice_rx_buf {
 	dma_addr_t dma;
 	struct page *page;
 	unsigned int page_offset;
-	u16 pagecnt_bias;
+	unsigned int pgcnt;
+	unsigned int act;
+	unsigned int pagecnt_bias;
 };
 
 struct ice_q_stats {
@@ -273,42 +289,44 @@ struct ice_rx_ring {
 	struct ice_vsi *vsi;		/* Backreference to associated VSI */
 	struct ice_q_vector *q_vector;	/* Backreference to associated vector */
 	u8 __iomem *tail;
-	union {
-		struct ice_rx_buf *rx_buf;
-		struct xdp_buff **xdp_buf;
-	};
-	/* CL2 - 2nd cacheline starts here */
-	struct xdp_rxq_info xdp_rxq;
-	/* CL3 - 3rd cacheline starts here */
 	u16 q_index;			/* Queue number of ring */
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
+	u16 next_to_alloc;
+	/* CL2 - 2nd cacheline starts here */
+	union {
+		struct ice_rx_buf *rx_buf;
+		struct xdp_buff **xdp_buf;
+	};
+	struct xdp_buff xdp;
+	/* CL3 - 3rd cacheline starts here */
+	struct bpf_prog *xdp_prog;
+	u16 rx_offset;
 
 	/* used in interrupt processing */
 	u16 next_to_use;
 	u16 next_to_clean;
-	u16 next_to_alloc;
-	u16 rx_offset;
-	u16 rx_buf_len;
+	u16 first_desc;
 
 	/* stats structs */
 	struct ice_ring_stats *ring_stats;
 
 	struct rcu_head rcu;		/* to avoid race on free */
-	/* CL4 - 3rd cacheline starts here */
+	/* CL4 - 4th cacheline starts here */
 	struct ice_channel *ch;
-	struct bpf_prog *xdp_prog;
 	struct ice_tx_ring *xdp_ring;
 	struct xsk_buff_pool *xsk_pool;
-	struct sk_buff *skb;
 	dma_addr_t dma;			/* physical address of ring */
 	u64 cached_phctime;
+	u16 rx_buf_len;
 	u8 dcb_tc;			/* Traffic class of ring */
 	u8 ptp_rx;
 #define ICE_RX_FLAGS_RING_BUILD_SKB	BIT(1)
 #define ICE_RX_FLAGS_CRC_STRIP_DIS	BIT(2)
 	u8 flags;
+	/* CL5 - 5th cacheline starts here */
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_internodealigned_in_smp;
 
 struct ice_tx_ring {
@@ -326,12 +344,11 @@ struct ice_tx_ring {
 	struct xsk_buff_pool *xsk_pool;
 	u16 next_to_use;
 	u16 next_to_clean;
-	u16 next_rs;
-	u16 next_dd;
 	u16 q_handle;			/* Queue handle per TC */
 	u16 reg_idx;			/* HW register index of the ring */
 	u16 count;			/* Number of descriptors */
 	u16 q_index;			/* Queue number of ring */
+	u16 xdp_tx_active;
 	/* stats structs */
 	struct ice_ring_stats *ring_stats;
 	/* CL3 - 3rd cacheline starts here */
@@ -342,7 +359,6 @@ struct ice_tx_ring {
 	spinlock_t tx_lock;
 	u32 txq_teid;			/* Added Tx queue TEID */
 	/* CL4 - 4th cacheline starts here */
-	u16 xdp_tx_active;
 #define ICE_TX_FLAGS_RING_XDP		BIT(0)
 #define ICE_TX_FLAGS_RING_VLAN_L2TAG1	BIT(1)
 #define ICE_TX_FLAGS_RING_VLAN_L2TAG2	BIT(2)
@@ -431,7 +447,7 @@ static inline unsigned int ice_rx_pg_order(struct ice_rx_ring *ring)
 
 union ice_32b_rx_flex_desc;
 
-bool ice_alloc_rx_bufs(struct ice_rx_ring *rxr, u16 cleaned_count);
+bool ice_alloc_rx_bufs(struct ice_rx_ring *rxr, unsigned int cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 u16
 ice_select_queue(struct net_device *dev, struct sk_buff *skb,
