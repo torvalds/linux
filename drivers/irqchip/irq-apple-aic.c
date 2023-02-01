@@ -1201,9 +1201,7 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 			},
 		};
 
-		vgic_info.maint_irq = irq_domain_alloc_irqs(irqc->hw_domain,
-							    1, NUMA_NO_NODE,
-							    &mi);
+		vgic_info.maint_irq = irq_create_fwspec_mapping(&mi);
 		WARN_ON(!vgic_info.maint_irq);
 	}
 
