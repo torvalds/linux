@@ -114,7 +114,10 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	int i;
 
 	/* Initialize tail_call_cnt, to be skipped if we do tail calls. */
-	EMIT(PPC_RAW_LI(_R4, 0));
+	if (ctx->seen & SEEN_TAILCALL)
+		EMIT(PPC_RAW_LI(_R4, 0));
+	else
+		EMIT(PPC_RAW_NOP());
 
 #define BPF_TAILCALL_PROLOGUE_SIZE	4
 
