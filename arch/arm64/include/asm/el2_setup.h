@@ -196,6 +196,7 @@
 	__init_el2_nvhe_prepare_eret
 .endm
 
+#ifndef __KVM_NVHE_HYPERVISOR__
 // This will clobber tmp1 and tmp2, and expect tmp1 to contain
 // the id register value as read from the HW
 .macro __check_override idreg, fld, width, pass, fail, tmp1, tmp2
@@ -219,6 +220,19 @@
 	mrs	\tmp1, \idreg\()_el1
 	__check_override \idreg \fld 4 \pass \fail \tmp1 \tmp2
 .endm
+#else
+// This will clobber tmp
+.macro __check_override idreg, fld, width, pass, fail, tmp, ignore
+	ldr_l	\tmp, \idreg\()_el1_sys_val
+	ubfx	\tmp, \tmp, #\fld, #\width
+	cbnz	\tmp, \pass
+	b	\fail
+.endm
+
+.macro check_override idreg, fld, pass, fail, tmp, ignore
+	__check_override \idreg \fld 4 \pass \fail \tmp \ignore
+.endm
+#endif
 
 .macro finalise_el2_state
 	check_override id_aa64pfr0, ID_AA64PFR0_EL1_SVE_SHIFT, .Linit_sve_\@, .Lskip_sve_\@, x1, x2
