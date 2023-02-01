@@ -17,6 +17,7 @@ extern void bpf_kfunc_call_test_mem_len_pass1(void *mem, int len) __ksym;
 extern void bpf_kfunc_call_test_mem_len_fail2(__u64 *mem, int len) __ksym;
 extern int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p, const int rdwr_buf_size) __ksym;
 extern int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size) __ksym;
+extern u32 bpf_kfunc_call_test_static_unused_arg(u32 arg, u32 unused) __ksym;
 
 SEC("tc")
 int kfunc_call_test4(struct __sk_buff *skb)
@@ -179,6 +180,16 @@ int kfunc_call_test_get_mem(struct __sk_buff *skb)
 		bpf_kfunc_call_test_release(pt);
 	}
 	return ret;
+}
+
+SEC("tc")
+int kfunc_call_test_static_unused_arg(struct __sk_buff *skb)
+{
+
+	u32 expected = 5, actual;
+
+	actual = bpf_kfunc_call_test_static_unused_arg(expected, 0xdeadbeef);
+	return actual != expected ? -1 : 0;
 }
 
 char _license[] SEC("license") = "GPL";
