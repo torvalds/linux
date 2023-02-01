@@ -894,27 +894,21 @@ static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 	struct tty_port *port = &sport->port.state->port;
 	u32 usr2;
 
-	usr2 = imx_uart_readl(sport, USR2);
-
 	/* If we received something, check for 0xff flood */
+	usr2 = imx_uart_readl(sport, USR2);
 	if (usr2 & USR2_RDR)
 		imx_uart_check_flood(sport, usr2);
 
-	for ( ; usr2 & USR2_RDR; usr2 = imx_uart_readl(sport, USR2)) {
+	while ((rx = imx_uart_readl(sport, URXD0)) & URXD_CHARRDY) {
 		flg = TTY_NORMAL;
 		sport->port.icount.rx++;
 
-		rx = imx_uart_readl(sport, URXD0);
-
-		if (usr2 & USR2_BRCD) {
-			imx_uart_writel(sport, USR2_BRCD, USR2);
-			if (uart_handle_break(&sport->port))
-				continue;
-		}
-
 		if (unlikely(rx & URXD_ERR)) {
-			if (rx & URXD_BRK)
+			if (rx & URXD_BRK) {
 				sport->port.icount.brk++;
+				if (uart_handle_break(&sport->port))
+					continue;
+			}
 			else if (rx & URXD_PRERR)
 				sport->port.icount.parity++;
 			else if (rx & URXD_FRMERR)
