@@ -1073,11 +1073,15 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	struct mlx5_tc_ct_priv *ct_priv = ft->ct_priv;
 	struct flow_action_entry *meta_action;
 	unsigned long cookie = flow->cookie;
+	enum ip_conntrack_info ctinfo;
 	struct mlx5_ct_entry *entry;
 	int err;
 
 	meta_action = mlx5_tc_ct_get_ct_metadata_action(flow_rule);
 	if (!meta_action)
+		return -EOPNOTSUPP;
+	ctinfo = meta_action->ct_metadata.cookie & NFCT_INFOMASK;
+	if (ctinfo == IP_CT_NEW)
 		return -EOPNOTSUPP;
 
 	spin_lock_bh(&ct_priv->ht_lock);
