@@ -32,6 +32,8 @@ struct rsnd_adg {
 	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
 	int clkin_rate[CLKINMAX];
+	int clkin_size;
+	int clkout_size;
 	u32 ckr;
 	u32 rbga;
 	u32 rbgb;
@@ -42,24 +44,24 @@ struct rsnd_adg {
 
 #define for_each_rsnd_clkin(pos, adg, i)	\
 	for (i = 0;				\
-	     (i < CLKINMAX) &&			\
+	     (i < adg->clkin_size) &&		\
 	     ((pos) = adg->clkin[i]);		\
 	     i++)
 #define for_each_rsnd_clkout(pos, adg, i)	\
 	for (i = 0;				\
-	     (i < CLKOUTMAX) &&			\
+	     (i < adg->clkout_size) &&		\
 	     ((pos) = adg->clkout[i]);	\
 	     i++)
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
-static const char * const clkin_name[] = {
+static const char * const clkin_name_gen2[] = {
 	[CLKA]	= "clk_a",
 	[CLKB]	= "clk_b",
 	[CLKC]	= "clk_c",
 	[CLKI]	= "clk_i",
 };
 
-static const char * const clkout_name[] = {
+static const char * const clkout_name_gen2[] = {
 	[CLKOUT]  = "audio_clkout",
 	[CLKOUT1] = "audio_clkout1",
 	[CLKOUT2] = "audio_clkout2",
@@ -424,9 +426,14 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 	struct rsnd_adg *adg = priv->adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
+	const char * const *clkin_name;
+	int clkin_size;
 	int i;
 
-	for (i = 0; i < CLKINMAX; i++) {
+	clkin_name = clkin_name_gen2;
+	clkin_size = ARRAY_SIZE(clkin_name_gen2);
+
+	for (i = 0; i < clkin_size; i++) {
 		clk = devm_clk_get(dev, clkin_name[i]);
 
 		if (IS_ERR_OR_NULL(clk))
@@ -436,6 +443,8 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 
 		adg->clkin[i] = clk;
 	}
+
+	adg->clkin_size = clkin_size;
 
 	return 0;
 
@@ -470,8 +479,10 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	u32 req_rate[REQ_SIZE] = {};
 	uint32_t count = 0;
 	unsigned long req_48kHz_rate, req_441kHz_rate;
+	int clkout_size;
 	int i, req_size;
 	const char *parent_clk_name = NULL;
+	const char * const *clkout_name;
 	int brg_table[] = {
 		[CLKA] = 0x0,
 		[CLKB] = 0x1,
@@ -555,6 +566,9 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 		}
 	}
 
+	clkout_name = clkout_name_gen2;
+	clkout_size = ARRAY_SIZE(clkout_name_gen2);
+
 	/*
 	 * ADG supports BRRA/BRRB output only.
 	 * this means all clkout0/1/2/3 will be * same rate
@@ -571,13 +585,14 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 			goto err;
 
 		adg->clkout[CLKOUT] = clk;
+		adg->clkout_size = 1;
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 	}
 	/*
 	 * for clkout0/1/2/3
 	 */
 	else {
-		for (i = 0; i < CLKOUTMAX; i++) {
+		for (i = 0; i < clkout_size; i++) {
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
 						      parent_clk_name, 0,
 						      req_rate[0]);
@@ -587,7 +602,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 			adg->clkout[i] = clk;
 		}
 		adg->onecell.clks	= adg->clkout;
-		adg->onecell.clk_num	= CLKOUTMAX;
+		adg->onecell.clk_num	= clkout_size;
+		adg->clkout_size	= clkout_size;
 		of_clk_add_provider(np, of_clk_src_onecell_get,
 				    &adg->onecell);
 	}
