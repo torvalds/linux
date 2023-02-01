@@ -6,4 +6,5 @@ ssve_*
 sve_*
 tpidr2_siginfo
 za_*
+zt_*
 !*.[ch]

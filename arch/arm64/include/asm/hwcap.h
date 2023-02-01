@@ -123,6 +123,12 @@
 #define KERNEL_HWCAP_CSSC		__khwcap2_feature(CSSC)
 #define KERNEL_HWCAP_RPRFM		__khwcap2_feature(RPRFM)
 #define KERNEL_HWCAP_SVE2P1		__khwcap2_feature(SVE2P1)
+#define KERNEL_HWCAP_SME2		__khwcap2_feature(SME2)
+#define KERNEL_HWCAP_SME2P1		__khwcap2_feature(SME2P1)
+#define KERNEL_HWCAP_SME_I16I32		__khwcap2_feature(SME_I16I32)
+#define KERNEL_HWCAP_SME_BI32I32	__khwcap2_feature(SME_BI32I32)
+#define KERNEL_HWCAP_SME_B16B16		__khwcap2_feature(SME_B16B16)
+#define KERNEL_HWCAP_SME_F16F16		__khwcap2_feature(SME_F16F16)
 
 /*
  * This yields a mask that user programs can use to figure out what

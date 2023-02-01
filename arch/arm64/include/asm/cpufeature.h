@@ -769,6 +769,12 @@ static __always_inline bool system_supports_sme(void)
 		cpus_have_const_cap(ARM64_SME);
 }
 
+static __always_inline bool system_supports_sme2(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SME) &&
+		cpus_have_const_cap(ARM64_SME2);
+}
+
 static __always_inline bool system_supports_fa64(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SME) &&
