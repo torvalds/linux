@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import functools
-import jsonschema
 import os
 import random
 import socket
 import struct
 import yaml
+
+from .nlspec import SpecFamily
 
 #
 # Generic Netlink code which should really be in some library, but I can't quickly find one.
@@ -73,6 +74,9 @@ class NlAttr:
         self.payload_len = self._len
         self.full_len = (self.payload_len + 3) & ~3
         self.raw = raw[offset + 4:offset + self.payload_len]
+
+    def as_u8(self):
+        return struct.unpack("B", self.raw)[0]
 
     def as_u16(self):
         return struct.unpack("H", self.raw)[0]
@@ -158,8 +162,8 @@ class NlMsg:
                 # We don't have the ability to parse nests yet, so only do global
                 if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
                     miss_type = self.extack['miss-type']
-                    if len(attr_space.attr_list) > miss_type:
-                        spec = attr_space.attr_list[miss_type]
+                    if miss_type in attr_space.attrs_by_val:
+                        spec = attr_space.attrs_by_val[miss_type]
                         desc = spec['name']
                         if 'doc' in spec:
                             desc += f" ({spec['doc']})"
@@ -289,100 +293,31 @@ class GenlFamily:
 #
 
 
-class YnlAttrSpace:
-    def __init__(self, family, yaml):
-        self.yaml = yaml
-
-        self.attrs = dict()
-        self.name = self.yaml['name']
-        self.subspace_of = self.yaml['subset-of'] if 'subspace-of' in self.yaml else None
-
-        val = 0
-        max_val = 0
-        for elem in self.yaml['attributes']:
-            if 'value' in elem:
-                val = elem['value']
-            else:
-                elem['value'] = val
-            if val > max_val:
-                max_val = val
-            val += 1
-
-            self.attrs[elem['name']] = elem
-
-        self.attr_list = [None] * (max_val + 1)
-        for elem in self.yaml['attributes']:
-            self.attr_list[elem['value']] = elem
-
-    def __getitem__(self, key):
-        return self.attrs[key]
-
-    def __contains__(self, key):
-        return key in self.yaml
-
-    def __iter__(self):
-        yield from self.attrs
-
-    def items(self):
-        return self.attrs.items()
-
-
-class YnlFamily:
+class YnlFamily(SpecFamily):
     def __init__(self, def_path, schema=None):
+        super().__init__(def_path, schema)
+
         self.include_raw = False
-
-        with open(def_path, "r") as stream:
-            self.yaml = yaml.safe_load(stream)
-
-        if schema:
-            with open(schema, "r") as stream:
-                schema = yaml.safe_load(stream)
-
-            jsonschema.validate(self.yaml, schema)
 
         self.sock = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, Netlink.NETLINK_GENERIC)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_EXT_ACK, 1)
 
-        self._ops = dict()
-        self._spaces = dict()
         self._types = dict()
 
-        for elem in self.yaml['attribute-sets']:
-            self._spaces[elem['name']] = YnlAttrSpace(self, elem)
-
-        for elem in self.yaml['definitions']:
+        for elem in self.yaml.get('definitions', []):
             self._types[elem['name']] = elem
 
-        async_separation = 'async-prefix' in self.yaml['operations']
         self.async_msg_ids = set()
         self.async_msg_queue = []
-        val = 0
-        max_val = 0
-        for elem in self.yaml['operations']['list']:
-            if not (async_separation and ('notify' in elem or 'event' in elem)):
-                if 'value' in elem:
-                    val = elem['value']
-                else:
-                    elem['value'] = val
-                val += 1
-                max_val = max(val, max_val)
 
-            if 'notify' in elem or 'event' in elem:
-                self.async_msg_ids.add(elem['value'])
+        for msg in self.msgs.values():
+            if msg.is_async:
+                self.async_msg_ids.add(msg.rsp_value)
 
-            self._ops[elem['name']] = elem
-
-            op_name = elem['name'].replace('-', '_')
-
-            bound_f = functools.partial(self._op, elem['name'])
-            setattr(self, op_name, bound_f)
-
-        self._op_array = [None] * max_val
-        for _, op in self._ops.items():
-            self._op_array[op['value']] = op
-            if 'notify' in op:
-                op['attribute-set'] = self._ops[op['notify']]['attribute-set']
+        for op_name, op in self.ops.items():
+            bound_f = functools.partial(self._op, op_name)
+            setattr(self, op.ident_name, bound_f)
 
         self.family = GenlFamily(self.yaml['name'])
 
@@ -395,13 +330,15 @@ class YnlFamily:
                              self.family.genl_family['mcast'][mcast_name])
 
     def _add_attr(self, space, name, value):
-        attr = self._spaces[space][name]
-        nl_type = attr['value']
+        attr = self.attr_sets[space][name]
+        nl_type = attr.value
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
             attr_payload = b''
             for subname, subvalue in value.items():
                 attr_payload += self._add_attr(attr['nested-attributes'], subname, subvalue)
+        elif attr["type"] == 'flag':
+            attr_payload = b''
         elif attr["type"] == 'u32':
             attr_payload = struct.pack("I", int(value))
         elif attr["type"] == 'string':
@@ -430,36 +367,81 @@ class YnlFamily:
         rsp[attr_spec['name']] = value
 
     def _decode(self, attrs, space):
-        attr_space = self._spaces[space]
+        attr_space = self.attr_sets[space]
         rsp = dict()
         for attr in attrs:
-            attr_spec = attr_space.attr_list[attr.type]
+            attr_spec = attr_space.attrs_by_val[attr.type]
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
-                rsp[attr_spec['name']] = subdict
+                decoded = subdict
+            elif attr_spec['type'] == 'u8':
+                decoded = attr.as_u8()
             elif attr_spec['type'] == 'u32':
-                rsp[attr_spec['name']] = attr.as_u32()
+                decoded = attr.as_u32()
             elif attr_spec['type'] == 'u64':
-                rsp[attr_spec['name']] = attr.as_u64()
+                decoded = attr.as_u64()
             elif attr_spec["type"] == 'string':
-                rsp[attr_spec['name']] = attr.as_strz()
+                decoded = attr.as_strz()
             elif attr_spec["type"] == 'binary':
-                rsp[attr_spec['name']] = attr.as_bin()
+                decoded = attr.as_bin()
+            elif attr_spec["type"] == 'flag':
+                decoded = True
             else:
                 raise Exception(f'Unknown {attr.type} {attr_spec["name"]} {attr_spec["type"]}')
+
+            if not attr_spec.is_multi:
+                rsp[attr_spec['name']] = decoded
+            elif attr_spec.name in rsp:
+                rsp[attr_spec.name].append(decoded)
+            else:
+                rsp[attr_spec.name] = [decoded]
 
             if 'enum' in attr_spec:
                 self._decode_enum(rsp, attr_spec)
         return rsp
+
+    def _decode_extack_path(self, attrs, attr_set, offset, target):
+        for attr in attrs:
+            attr_spec = attr_set.attrs_by_val[attr.type]
+            if offset > target:
+                break
+            if offset == target:
+                return '.' + attr_spec.name
+
+            if offset + attr.full_len <= target:
+                offset += attr.full_len
+                continue
+            if attr_spec['type'] != 'nest':
+                raise Exception(f"Can't dive into {attr.type} ({attr_spec['name']}) for extack")
+            offset += 4
+            subpath = self._decode_extack_path(NlAttrs(attr.raw),
+                                               self.attr_sets[attr_spec['nested-attributes']],
+                                               offset, target)
+            if subpath is None:
+                return None
+            return '.' + attr_spec.name + subpath
+
+        return None
+
+    def _decode_extack(self, request, attr_space, extack):
+        if 'bad-attr-offs' not in extack:
+            return
+
+        genl_req = GenlMsg(NlMsg(request, 0, attr_space=attr_space))
+        path = self._decode_extack_path(genl_req.raw_attrs, attr_space,
+                                        20, extack['bad-attr-offs'])
+        if path:
+            del extack['bad-attr-offs']
+            extack['bad-attr'] = path
 
     def handle_ntf(self, nl_msg, genl_msg):
         msg = dict()
         if self.include_raw:
             msg['nlmsg'] = nl_msg
             msg['genlmsg'] = genl_msg
-        op = self._op_array[genl_msg.genl_cmd]
+        op = self.rsp_by_value[genl_msg.genl_cmd]
         msg['name'] = op['name']
-        msg['msg'] = self._decode(genl_msg.raw_attrs, op['attribute-set'])
+        msg['msg'] = self._decode(genl_msg.raw_attrs, op.attr_set.name)
         self.async_msg_queue.append(msg)
 
     def check_ntf(self):
@@ -487,16 +469,16 @@ class YnlFamily:
                 self.handle_ntf(nl_msg, gm)
 
     def _op(self, method, vals, dump=False):
-        op = self._ops[method]
+        op = self.ops[method]
 
         nl_flags = Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK
         if dump:
             nl_flags |= Netlink.NLM_F_DUMP
 
         req_seq = random.randint(1024, 65535)
-        msg = _genl_msg(self.family.family_id, nl_flags, op['value'], 1, req_seq)
+        msg = _genl_msg(self.family.family_id, nl_flags, op.req_value, 1, req_seq)
         for name, value in vals.items():
-            msg += self._add_attr(op['attribute-set'], name, value)
+            msg += self._add_attr(op.attr_set.name, name, value)
         msg = _genl_msg_finalize(msg)
 
         self.sock.send(msg, 0)
@@ -505,19 +487,25 @@ class YnlFamily:
         rsp = []
         while not done:
             reply = self.sock.recv(128 * 1024)
-            nms = NlMsgs(reply, attr_space=self._spaces[op['attribute-set']])
+            nms = NlMsgs(reply, attr_space=op.attr_set)
             for nl_msg in nms:
+                if nl_msg.extack:
+                    self._decode_extack(msg, op.attr_set, nl_msg.extack)
+
                 if nl_msg.error:
                     print("Netlink error:", os.strerror(-nl_msg.error))
                     print(nl_msg)
                     return
                 if nl_msg.done:
+                    if nl_msg.extack:
+                        print("Netlink warning:")
+                        print(nl_msg)
                     done = True
                     break
 
                 gm = GenlMsg(nl_msg)
                 # Check if this is a reply to our request
-                if nl_msg.nl_seq != req_seq or gm.genl_cmd != op['value']:
+                if nl_msg.nl_seq != req_seq or gm.genl_cmd != op.rsp_value:
                     if gm.genl_cmd in self.async_msg_ids:
                         self.handle_ntf(nl_msg, gm)
                         continue
@@ -525,10 +513,16 @@ class YnlFamily:
                         print('Unexpected message: ' + repr(gm))
                         continue
 
-                rsp.append(self._decode(gm.raw_attrs, op['attribute-set']))
+                rsp.append(self._decode(gm.raw_attrs, op.attr_set.name))
 
         if not rsp:
             return None
         if not dump and len(rsp) == 1:
             return rsp[0]
         return rsp
+
+    def do(self, method, vals):
+        return self._op(method, vals)
+
+    def dump(self, method, vals):
+        return self._op(method, vals, dump=True)

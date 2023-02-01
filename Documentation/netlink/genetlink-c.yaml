@@ -218,9 +218,7 @@ properties:
           to a single enum.
           "directional" has the messages sent to the kernel and from the kernel
           enumerated separately.
-          "notify-split" has the notifications and request-response types in
-          different enums.
-        enum: [ unified, directional, notify-split ]
+        enum: [ unified ]
       name-prefix:
         description: |
           Prefix for the C enum name of the command. The name is formed by concatenating

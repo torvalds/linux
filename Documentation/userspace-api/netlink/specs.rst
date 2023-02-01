@@ -21,6 +21,9 @@ Internally kernel uses the YAML specs to generate:
 
 YAML specifications can be found under ``Documentation/netlink/specs/``
 
+This document describes details of the schema.
+See :doc:`intro-specs` for a practical starting guide.
+
 Compatibility levels
 ====================
 
