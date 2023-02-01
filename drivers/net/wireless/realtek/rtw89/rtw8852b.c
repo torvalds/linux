@@ -1618,6 +1618,7 @@ static void rtw8852b_set_txpwr_ref(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852b_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
+					  const struct rtw89_chan *chan,
 					  u8 tx_shape_idx,
 					  enum rtw89_phy_idx phy_idx)
 {
@@ -1637,7 +1638,6 @@ static void rtw8852b_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 	__DECL_DFIR_PARAM(sharp_14,
 			  0x023B13FF, 0x001C42DE, 0x00FDB0AD, 0x00F60F6E,
 			  0x00FD8F92, 0x0602D011, 0x0001C02C, 0x00FFF00A);
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 ch = chan->channel;
 	const u32 *param;
 	u32 addr;
@@ -1678,7 +1678,7 @@ static void rtw8852b_set_tx_shape(struct rtw89_dev *rtwdev,
 	u8 tx_shape_ofdm = rtw89_8852b_tx_shape[band][RTW89_RS_OFDM][regd];
 
 	if (band == RTW89_BAND_2G)
-		rtw8852b_bb_set_tx_shape_dfir(rtwdev, tx_shape_cck, phy_idx);
+		rtw8852b_bb_set_tx_shape_dfir(rtwdev, chan, tx_shape_cck, phy_idx);
 
 	rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT, B_TXSHAPE_TRIANGULAR_CFG,
 			       tx_shape_ofdm);

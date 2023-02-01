@@ -1968,6 +1968,7 @@ static void rtw8852c_set_txpwr_ref(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
+					  const struct rtw89_chan *chan,
 					  u8 tx_shape_idx,
 					  enum rtw89_phy_idx phy_idx)
 {
@@ -1991,7 +1992,6 @@ static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 	__DECL_DFIR_ADDR(filter,
 			 0x45BC, 0x45CC, 0x45D0, 0x45D4, 0x45D8, 0x45C0,
 			 0x45C4, 0x45C8);
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 ch = chan->channel;
 	const u32 *param;
 	int i;
@@ -2032,7 +2032,7 @@ static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 	u8 tx_shape_ofdm = rtw89_8852c_tx_shape[band][RTW89_RS_OFDM][regd];
 
 	if (band == RTW89_BAND_2G)
-		rtw8852c_bb_set_tx_shape_dfir(rtwdev, tx_shape_cck, phy_idx);
+		rtw8852c_bb_set_tx_shape_dfir(rtwdev, chan, tx_shape_cck, phy_idx);
 
 	rtw89_phy_tssi_ctrl_set_bandedge_cfg(rtwdev,
 					     (enum rtw89_mac_idx)phy_idx,
