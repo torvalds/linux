@@ -17,8 +17,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/at86rf230.h>
 #include <linux/regmap.h>
 #include <linux/skbuff.h>
 #include <linux/of_gpio.h>
@@ -1416,32 +1416,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 }
 
 static int
-at86rf230_get_pdata(struct spi_device *spi, int *rstn, int *slp_tr,
-		    u8 *xtal_trim)
-{
-	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node) {
-		if (!pdata)
-			return -ENOENT;
-
-		*rstn = pdata->rstn;
-		*slp_tr = pdata->slp_tr;
-		*xtal_trim = pdata->xtal_trim;
-		return 0;
-	}
-
-	*rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
-	*slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
-	ret = of_property_read_u8(spi->dev.of_node, "xtal-trim", xtal_trim);
-	if (ret < 0 && ret != -EINVAL)
-		return ret;
-
-	return 0;
-}
-
-static int
 at86rf230_detect_device(struct at86rf230_local *lp)
 {
 	unsigned int part, version, val;
@@ -1548,19 +1522,24 @@ static int at86rf230_probe(struct spi_device *spi)
 	struct at86rf230_local *lp;
 	unsigned int status;
 	int rc, irq_type, rstn, slp_tr;
-	u8 xtal_trim = 0;
+	u8 xtal_trim;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
 		return -EINVAL;
 	}
 
-	rc = at86rf230_get_pdata(spi, &rstn, &slp_tr, &xtal_trim);
+	rc = device_property_read_u8(&spi->dev, "xtal-trim", &xtal_trim);
 	if (rc < 0) {
-		dev_err(&spi->dev, "failed to parse platform_data: %d\n", rc);
-		return rc;
+		if (rc != -EINVAL) {
+			dev_err(&spi->dev,
+				"failed to parse xtal-trim: %d\n", rc);
+			return rc;
+		}
+		xtal_trim = 0;
 	}
 
+	rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
 	if (gpio_is_valid(rstn)) {
 		rc = devm_gpio_request_one(&spi->dev, rstn,
 					   GPIOF_OUT_INIT_HIGH, "rstn");
@@ -1568,6 +1547,7 @@ static int at86rf230_probe(struct spi_device *spi)
 			return rc;
 	}
 
+	slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
 	if (gpio_is_valid(slp_tr)) {
 		rc = devm_gpio_request_one(&spi->dev, slp_tr,
 					   GPIOF_OUT_INIT_LOW, "slp_tr");
