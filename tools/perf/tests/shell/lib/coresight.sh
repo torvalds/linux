@@ -58,9 +58,9 @@ perf_dump_aux_verify() {
 	# compiler may produce different code depending on the compiler and
 	# optimization options, so this is rough just to see if we're
 	# either missing almost all the data or all of it
-	ATOM_FX_NUM=`grep I_ATOM_F "$DUMP" | wc -l`
-	ASYNC_NUM=`grep I_ASYNC "$DUMP" | wc -l`
-	TRACE_INFO_NUM=`grep I_TRACE_INFO "$DUMP" | wc -l`
+	ATOM_FX_NUM=`grep -c I_ATOM_F "$DUMP"`
+	ASYNC_NUM=`grep -c I_ASYNC "$DUMP"`
+	TRACE_INFO_NUM=`grep -c I_TRACE_INFO "$DUMP"`
 	rm -f "$DUMP"
 
 	# Arguments provide minimums for a pass
