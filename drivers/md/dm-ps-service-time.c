@@ -121,11 +121,11 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 
 	/*
 	 * Arguments: [<repeat_count> [<relative_throughput>]]
-	 * 	<repeat_count>: The number of I/Os before switching path.
-	 * 			If not given, default (ST_MIN_IO) is used.
-	 * 	<relative_throughput>: The relative throughput value of
+	 *	<repeat_count>: The number of I/Os before switching path.
+	 *			If not given, default (ST_MIN_IO) is used.
+	 *	<relative_throughput>: The relative throughput value of
 	 *			the path among all paths in the path-group.
-	 * 			The valid range: 0-<ST_MAX_RELATIVE_THROUGHPUT>
+	 *			The valid range: 0-<ST_MAX_RELATIVE_THROUGHPUT>
 	 *			If not given, minimum value '1' is used.
 	 *			If '0' is given, the path isn't selected while
 	 *			other paths having a positive value are	available.

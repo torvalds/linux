@@ -78,9 +78,9 @@ static void __setup_new_cell(struct dm_cell_key *key,
 			     struct bio *holder,
 			     struct dm_bio_prison_cell *cell)
 {
-       memcpy(&cell->key, key, sizeof(cell->key));
-       cell->holder = holder;
-       bio_list_init(&cell->bios);
+	memcpy(&cell->key, key, sizeof(cell->key));
+	cell->holder = holder;
+	bio_list_init(&cell->bios);
 }
 
 static int cmp_keys(struct dm_cell_key *lhs,

@@ -181,14 +181,14 @@ static void continue_after_commit(struct batcher *b, struct continuation *k)
  */
 static void issue_after_commit(struct batcher *b, struct bio *bio)
 {
-       bool commit_scheduled;
+	bool commit_scheduled;
 
-       spin_lock_irq(&b->lock);
-       commit_scheduled = b->commit_scheduled;
-       bio_list_add(&b->bios, bio);
-       spin_unlock_irq(&b->lock);
+	spin_lock_irq(&b->lock);
+	commit_scheduled = b->commit_scheduled;
+	bio_list_add(&b->bios, bio);
+	spin_unlock_irq(&b->lock);
 
-       if (commit_scheduled)
+	if (commit_scheduled)
 	       async_commit(b);
 }
 

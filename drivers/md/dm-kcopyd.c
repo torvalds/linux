@@ -608,7 +608,7 @@ static int run_pages_job(struct kcopyd_job *job)
  * of successful jobs.
  */
 static int process_jobs(struct list_head *jobs, struct dm_kcopyd_client *kc,
-			int (*fn) (struct kcopyd_job *))
+			int (*fn)(struct kcopyd_job *))
 {
 	struct kcopyd_job *job;
 	int r, count = 0;

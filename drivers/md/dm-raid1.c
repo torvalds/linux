@@ -595,7 +595,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
  * We do different things with the write io depending on the
  * state of the region that it's in:
  *
- * SYNC: 	increment pending, use kcopyd to write to *all* mirrors
+ * SYNC:	increment pending, use kcopyd to write to *all* mirrors
  * RECOVERING:	delay the io until recovery completes
  * NOSYNC:	increment pending, just write to the default mirror
  *---------------------------------------------------------------------

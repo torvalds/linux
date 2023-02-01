@@ -695,7 +695,7 @@ static int persistent_prepare_exception(struct dm_exception_store *store,
 
 static void persistent_commit_exception(struct dm_exception_store *store,
 					struct dm_exception *e, int valid,
-					void (*callback) (void *, int success),
+					void (*callback)(void *, int success),
 					void *callback_context)
 {
 	unsigned int i;

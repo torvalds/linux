@@ -44,36 +44,36 @@ struct dm_exception_store_type {
 	const char *name;
 	struct module *module;
 
-	int (*ctr) (struct dm_exception_store *store, char *options);
+	int (*ctr)(struct dm_exception_store *store, char *options);
 
 	/*
 	 * Destroys this object when you've finished with it.
 	 */
-	void (*dtr) (struct dm_exception_store *store);
+	void (*dtr)(struct dm_exception_store *store);
 
 	/*
 	 * The target shouldn't read the COW device until this is
 	 * called.  As exceptions are read from the COW, they are
 	 * reported back via the callback.
 	 */
-	int (*read_metadata) (struct dm_exception_store *store,
-			      int (*callback)(void *callback_context,
-					      chunk_t old, chunk_t new),
-			      void *callback_context);
+	int (*read_metadata)(struct dm_exception_store *store,
+			     int (*callback)(void *callback_context,
+					     chunk_t old, chunk_t new),
+			     void *callback_context);
 
 	/*
 	 * Find somewhere to store the next exception.
 	 */
-	int (*prepare_exception) (struct dm_exception_store *store,
-				  struct dm_exception *e);
+	int (*prepare_exception)(struct dm_exception_store *store,
+				 struct dm_exception *e);
 
 	/*
 	 * Update the metadata with this exception.
 	 */
-	void (*commit_exception) (struct dm_exception_store *store,
-				  struct dm_exception *e, int valid,
-				  void (*callback) (void *, int success),
-				  void *callback_context);
+	void (*commit_exception)(struct dm_exception_store *store,
+				 struct dm_exception *e, int valid,
+				 void (*callback)(void *, int success),
+				 void *callback_context);
 
 	/*
 	 * Returns 0 if the exception store is empty.
@@ -83,30 +83,30 @@ struct dm_exception_store_type {
 	 * still-to-be-merged chunk and returns the number of
 	 * consecutive previous ones.
 	 */
-	int (*prepare_merge) (struct dm_exception_store *store,
-			      chunk_t *last_old_chunk, chunk_t *last_new_chunk);
+	int (*prepare_merge)(struct dm_exception_store *store,
+			     chunk_t *last_old_chunk, chunk_t *last_new_chunk);
 
 	/*
 	 * Clear the last n exceptions.
 	 * nr_merged must be <= the value returned by prepare_merge.
 	 */
-	int (*commit_merge) (struct dm_exception_store *store, int nr_merged);
+	int (*commit_merge)(struct dm_exception_store *store, int nr_merged);
 
 	/*
 	 * The snapshot is invalid, note this in the metadata.
 	 */
-	void (*drop_snapshot) (struct dm_exception_store *store);
+	void (*drop_snapshot)(struct dm_exception_store *store);
 
-	unsigned int (*status) (struct dm_exception_store *store,
-				status_type_t status, char *result,
-				unsigned int maxlen);
+	unsigned int (*status)(struct dm_exception_store *store,
+			       status_type_t status, char *result,
+			       unsigned int maxlen);
 
 	/*
 	 * Return how full the snapshot is.
 	 */
-	void (*usage) (struct dm_exception_store *store,
-		       sector_t *total_sectors, sector_t *sectors_allocated,
-		       sector_t *metadata_sectors);
+	void (*usage)(struct dm_exception_store *store,
+		      sector_t *total_sectors, sector_t *sectors_allocated,
+		      sector_t *metadata_sectors);
 
 	/* For internal device-mapper use only. */
 	struct list_head list;
