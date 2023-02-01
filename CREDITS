@@ -4183,6 +4183,10 @@ S: B-1206 Jingmao Guojigongyu
 S: 16 Baliqiao Nanjie, Beijing 101100
 S: People's Repulic of China
 
+N: Vlad Yasevich
+E: vyasevich@gmail.com
+D: SCTP protocol maintainer.
+
 N: Aviad Yehezkel
 E: aviadye@nvidia.com
 D: Kernel TLS implementation and offload support.
