@@ -419,8 +419,10 @@ static int __ov2685_power_on(struct ov2685 *ov2685)
 	 * writing register before .s_stream() as a workaround
 	 */
 	ret = ov2685_write_array(ov2685->client, ov2685->cur_mode->reg_list);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "Failed to set regs for power on\n");
 		goto disable_supplies;
+	}
 
 	return 0;
 
