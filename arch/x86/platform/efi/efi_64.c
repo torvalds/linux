@@ -389,7 +389,8 @@ static int __init efi_update_mappings(efi_memory_desc_t *md, unsigned long pf)
 	return err1 || err2;
 }
 
-static int __init efi_update_mem_attr(struct mm_struct *mm, efi_memory_desc_t *md)
+static int __init efi_update_mem_attr(struct mm_struct *mm, efi_memory_desc_t *md,
+				      bool has_ibt)
 {
 	unsigned long pf = 0;
 

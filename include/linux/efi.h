@@ -584,11 +584,15 @@ typedef struct {
 
 #define EFI_INVALID_TABLE_ADDR		(~0UL)
 
+// BIT0 implies that Runtime code includes the forward control flow guard
+// instruction, such as X86 CET-IBT or ARM BTI.
+#define EFI_MEMORY_ATTRIBUTES_FLAGS_RT_FORWARD_CONTROL_FLOW_GUARD	0x1
+
 typedef struct {
 	u32 version;
 	u32 num_entries;
 	u32 desc_size;
-	u32 reserved;
+	u32 flags;
 	efi_memory_desc_t entry[0];
 } efi_memory_attributes_table_t;
 
@@ -751,7 +755,7 @@ extern unsigned long efi_mem_attr_table;
  *                           argument in the page tables referred to by the
  *                           first argument.
  */
-typedef int (*efi_memattr_perm_setter)(struct mm_struct *, efi_memory_desc_t *);
+typedef int (*efi_memattr_perm_setter)(struct mm_struct *, efi_memory_desc_t *, bool);
 
 extern int efi_memattr_init(void);
 extern int efi_memattr_apply_permissions(struct mm_struct *mm,

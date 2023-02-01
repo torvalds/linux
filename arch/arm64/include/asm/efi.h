@@ -27,7 +27,8 @@ bool efi_runtime_fixup_exception(struct pt_regs *regs, const char *msg)
 #endif
 
 int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
-int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
+int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md,
+				bool has_bti);
 
 #define arch_efi_call_virt_setup()					\
 ({									\
