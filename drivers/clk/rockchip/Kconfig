@@ -142,7 +142,7 @@ config ROCKCHIP_CLK_COMPENSATION
 
 config ROCKCHIP_CLK_LINK
 	tristate "Rockchip clock link support"
-	default CLK_RK3588
+	default CLK_RK3562 || CLK_RK3588
 	help
 	  Say y here to enable clock link for Rockchip.
 
