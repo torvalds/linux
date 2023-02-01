@@ -154,6 +154,7 @@ static void bus_release(struct kobject *kobj)
 	struct subsys_private *priv = to_subsys_private(kobj);
 	struct bus_type *bus = priv->bus;
 
+	lockdep_unregister_key(&priv->lock_key);
 	kfree(priv);
 	bus->p = NULL;
 }
@@ -743,7 +744,7 @@ int bus_register(struct bus_type *bus)
 {
 	int retval;
 	struct subsys_private *priv;
-	struct lock_class_key *key = &bus->lock_key;
+	struct lock_class_key *key;
 
 	priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
 	if (!priv)
@@ -785,6 +786,8 @@ int bus_register(struct bus_type *bus)
 	}
 
 	INIT_LIST_HEAD(&priv->interfaces);
+	key = &priv->lock_key;
+	lockdep_register_key(key);
 	__mutex_init(&priv->mutex, "subsys mutex", key);
 	klist_init(&priv->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&priv->klist_drivers, NULL, NULL);

@@ -52,6 +52,8 @@ struct subsys_private {
 
 	struct kset glue_dirs;
 	struct class *class;
+
+	struct lock_class_key lock_key;
 };
 #define to_subsys_private(obj) container_of_const(obj, struct subsys_private, subsys.kobj)
 
