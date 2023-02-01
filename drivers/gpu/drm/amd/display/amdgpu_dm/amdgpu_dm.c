@@ -5044,6 +5044,7 @@ out:
  * @new_plane_state: New state of @plane
  * @crtc_state: New state of CRTC connected to the @plane
  * @flip_addrs: DC flip tracking struct, which also tracts dirty rects
+ * @dirty_regions_changed: dirty regions changed
  *
  * For PSR SU, DC informs the DMUB uController of dirty rectangle regions
  * (referred to as "damage clips" in DRM nomenclature) that require updating on
@@ -5060,7 +5061,8 @@ static void fill_dc_dirty_rects(struct drm_plane *plane,
 				struct drm_plane_state *old_plane_state,
 				struct drm_plane_state *new_plane_state,
 				struct drm_crtc_state *crtc_state,
-				struct dc_flip_addrs *flip_addrs)
+				struct dc_flip_addrs *flip_addrs,
+				bool *dirty_regions_changed)
 {
 	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(crtc_state);
 	struct rect *dirty_rects = flip_addrs->dirty_rects;
@@ -5069,6 +5071,7 @@ static void fill_dc_dirty_rects(struct drm_plane *plane,
 	bool bb_changed;
 	bool fb_changed;
 	u32 i = 0;
+	*dirty_regions_changed = false;
 
 	/*
 	 * Cursor plane has it's own dirty rect update interface. See
@@ -5112,6 +5115,8 @@ static void fill_dc_dirty_rects(struct drm_plane *plane,
 		"[PLANE:%d] PSR bb_changed:%d fb_changed:%d num_clips:%d\n",
 		new_plane_state->plane->base.id,
 		bb_changed, fb_changed, num_clips);
+
+	*dirty_regions_changed = bb_changed;
 
 	if (bb_changed) {
 		fill_dc_dirty_rect(new_plane_state->plane, &dirty_rects[i],
@@ -7863,7 +7868,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    bool wait_for_vblank)
 {
 	u32 i;
-	u64 timestamp_ns;
+	u64 timestamp_ns = ktime_get_ns();
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct amdgpu_crtc *acrtc_attach = to_amdgpu_crtc(pcrtc);
@@ -7878,6 +7883,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	bool vrr_active = amdgpu_dm_vrr_active(acrtc_state);
 	bool cursor_update = false;
 	bool pflip_present = false;
+	bool dirty_rects_changed = false;
 	struct {
 		struct dc_surface_update surface_updates[MAX_SURFACES];
 		struct dc_plane_info plane_infos[MAX_SURFACES];
@@ -7965,10 +7971,32 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		bundle->surface_updates[planes_count].plane_info =
 			&bundle->plane_infos[planes_count];
 
-		if (acrtc_state->stream->link->psr_settings.psr_feature_enabled)
+		if (acrtc_state->stream->link->psr_settings.psr_feature_enabled) {
 			fill_dc_dirty_rects(plane, old_plane_state,
 					    new_plane_state, new_crtc_state,
-					    &bundle->flip_addrs[planes_count]);
+					    &bundle->flip_addrs[planes_count],
+					    &dirty_rects_changed);
+
+			/*
+			 * If the dirty regions changed, PSR-SU need to be disabled temporarily
+			 * and enabled it again after dirty regions are stable to avoid video glitch.
+			 * PSR-SU will be enabled in vblank_control_worker() if user pause the video
+			 * during the PSR-SU was disabled.
+			 */
+			if (acrtc_state->stream->link->psr_settings.psr_version >= DC_PSR_VERSION_SU_1 &&
+			    acrtc_attach->dm_irq_params.allow_psr_entry &&
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
+#endif
+			    dirty_rects_changed) {
+				mutex_lock(&dm->dc_lock);
+				acrtc_state->stream->link->psr_settings.psr_dirty_rects_change_timestamp_ns =
+				timestamp_ns;
+				if (acrtc_state->stream->link->psr_settings.psr_allow_active)
+					amdgpu_dm_psr_disable(acrtc_state->stream);
+				mutex_unlock(&dm->dc_lock);
+			}
+		}
 
 		/*
 		 * Only allow immediate flips for fast updates that don't
@@ -8187,7 +8215,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
 #endif
-			    !acrtc_state->stream->link->psr_settings.psr_allow_active)
+			    !acrtc_state->stream->link->psr_settings.psr_allow_active &&
+			    (timestamp_ns -
+			    acrtc_state->stream->link->psr_settings.psr_dirty_rects_change_timestamp_ns) >
+			    500000000)
 				amdgpu_dm_psr_enable(acrtc_state->stream);
 		} else {
 			acrtc_attach->dm_irq_params.allow_psr_entry = false;

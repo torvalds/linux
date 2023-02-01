@@ -102,6 +102,7 @@ struct psr_settings {
 	bool psr_allow_active;			// PSR is currently active
 	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
 	bool psr_vtotal_control_support;	// Vtotal control is supported by sink
+	unsigned long long psr_dirty_rects_change_timestamp_ns;	// for delay of enabling PSR-SU
 
 	/* These parameters are calculated in Driver,
 	 * based on display timing and Sink capabilities.
