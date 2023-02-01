@@ -1548,7 +1548,7 @@ static int vgxy61_tx_from_ep(struct vgxy61_dev *sensor,
 	sensor->nb_of_lane = l_nb;
 
 	dev_dbg(&client->dev, "tx uses %d lanes", l_nb);
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < VGXY61_NB_POLARITIES; i++) {
 		dev_dbg(&client->dev, "log2phy[%d] = %d\n", i, log2phy[i]);
 		dev_dbg(&client->dev, "phy2log[%d] = %d\n", i, phy2log[i]);
 		dev_dbg(&client->dev, "polarity[%d] = %d\n", i, polarities[i]);
