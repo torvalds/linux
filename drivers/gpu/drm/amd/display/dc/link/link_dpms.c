@@ -958,11 +958,6 @@ out:
 	return result;
 }
 
-bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx)
-{
-	return link_update_dsc_config(pipe_ctx);
-}
-
 bool link_update_dsc_config(struct pipe_ctx *pipe_ctx)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;

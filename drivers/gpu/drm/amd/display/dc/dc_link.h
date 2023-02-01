@@ -39,15 +39,6 @@ enum dc_link_fec_state {
 	dc_link_fec_enabled
 };
 
-struct dc_link_status {
-	bool link_active;
-	struct dpcd_caps *dpcd_caps;
-};
-
-struct dprx_states {
-	bool cable_id_written;
-};
-
 /* DP MST stream allocation (payload bandwidth number) */
 struct link_mst_stream_allocation {
 	/* DIG front */
@@ -166,6 +157,8 @@ struct dc_dpia_bw_alloc {
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
 	bool response_ready;   // Response ready from the CM side
 };
+
+#define MAX_SINKS_PER_LINK 4
 
 /*
  * A link contains one or more sinks and their connected status.
@@ -302,7 +295,6 @@ struct dc_link {
 	struct phy_state phy_state;
 };
 
-const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
 
 /**
  * dc_get_link_at_index() - Return an enumerated dc_link.
@@ -385,23 +377,6 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
-/* Request DC to detect if there is a Panel connected.
- * boot - If this call is during initial boot.
- * Return false for any type of detection failure or MST detection
- * true otherwise. True meaning further action is required (status update
- * and OS notification).
- */
-enum dc_detect_reason {
-	DETECT_REASON_BOOT,
-	DETECT_REASON_RESUMEFROMS3S4,
-	DETECT_REASON_HPD,
-	DETECT_REASON_HPDRX,
-	DETECT_REASON_FALLBACK,
-	DETECT_REASON_RETRAIN,
-	DETECT_REASON_TDR,
-};
-
-bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
@@ -471,16 +446,10 @@ bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 bool dc_link_is_dp_sink_present(struct dc_link *link);
-
-bool dc_link_detect_connection_type(struct dc_link *link, enum dc_connection_type *type);
 /*
  * DPCD access interfaces
  */
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
-bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal);
-bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
-#endif
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
 				const struct dc_link *link);
@@ -500,9 +469,6 @@ void dc_link_set_test_pattern(struct dc_link *link,
 			const struct link_training_settings *p_link_settings,
 			const unsigned char *p_custom_pattern,
 			unsigned int cust_pattern_size);
-uint32_t dc_link_bandwidth_kbps(
-	const struct dc_link *link,
-	const struct dc_link_settings *link_setting);
 
 const struct dc_link_settings *dc_link_get_link_cap(
 		const struct dc_link *link);
@@ -524,22 +490,16 @@ bool dc_submit_i2c_oem(
 		struct dc *dc,
 		struct i2c_command *cmd);
 
-uint32_t dc_bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing);
-
 bool dc_link_is_fec_supported(const struct dc_link *link);
 bool dc_link_should_enable_fec(const struct dc_link *link);
 
 uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link);
 
-void dc_link_get_cur_link_res(const struct dc_link *link,
-		struct link_resource *link_res);
 /* take a snapshot of current link resource allocation state */
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
 /* restore link resource allocation state from a snapshot */
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
-void dc_link_clear_dprx_states(struct dc_link *link);
 void dp_trace_reset(struct dc_link *link);
 bool dc_dp_trace_is_initialized(struct dc_link *link);
 unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
@@ -552,9 +512,6 @@ bool dc_dp_trace_is_logged(struct dc_link *link,
 struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection);
 unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
-
-/* Destruct the mst topology of the link and reset the allocated payload table */
-bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
 
 /* Attempt to transfer the given aux payload. This function does not perform
  * retries or handle error states. The reply is returned in the payload->reply

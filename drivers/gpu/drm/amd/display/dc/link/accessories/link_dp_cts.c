@@ -23,6 +23,7 @@
  *
  */
 #include "link_dp_cts.h"
+#include "link/link_resource.h"
 #include "link/protocols/link_dpcd.h"
 #include "link/protocols/link_dp_training.h"
 #include "link/protocols/link_dp_phy.h"
@@ -955,7 +956,7 @@ void dc_link_set_drive_settings(struct dc *dc,
 	if (i >= dc->link_count)
 		ASSERT_CRITICAL(false);
 
-	dc_link_get_cur_link_res(link, &link_res);
+	link_get_cur_link_res(link, &link_res);
 	dp_set_drive_settings(dc->links[i], &link_res, lt_settings);
 }
 

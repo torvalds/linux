@@ -29,7 +29,7 @@
 #include "link_resource.h"
 #include "protocols/link_dp_capability.h"
 
-void dc_link_get_cur_link_res(const struct dc_link *link,
+void link_get_cur_link_res(const struct dc_link *link,
 		struct link_resource *link_res)
 {
 	int i;
@@ -49,24 +49,7 @@ void dc_link_get_cur_link_res(const struct dc_link *link,
 
 }
 
-/**
- * dc_get_cur_link_res_map() - take a snapshot of current link resource allocation state
- * @dc: pointer to dc of the dm calling this
- * @map: a dc link resource snapshot defined internally to dc.
- *
- * DM needs to capture a snapshot of current link resource allocation mapping
- * and store it in its persistent storage.
- *
- * Some of the link resource is using first come first serve policy.
- * The allocation mapping depends on original hotplug order. This information
- * is lost after driver is loaded next time. The snapshot is used in order to
- * restore link resource to its previous state so user will get consistent
- * link capability allocation across reboot.
- *
- * Return: none (void function)
- *
- */
-void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
+void link_get_cur_res_map(const struct dc *dc, uint32_t *map)
 {
 	struct dc_link *link;
 	uint32_t i;
@@ -89,25 +72,7 @@ void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 	}
 }
 
-/**
- * dc_restore_link_res_map() - restore link resource allocation state from a snapshot
- * @dc: pointer to dc of the dm calling this
- * @map: a dc link resource snapshot defined internally to dc.
- *
- * DM needs to call this function after initial link detection on boot and
- * before first commit streams to restore link resource allocation state
- * from previous boot session.
- *
- * Some of the link resource is using first come first serve policy.
- * The allocation mapping depends on original hotplug order. This information
- * is lost after driver is loaded next time. The snapshot is used in order to
- * restore link resource to its previous state so user will get consistent
- * link capability allocation across reboot.
- *
- * Return: none (void function)
- *
- */
-void dc_restore_link_res_map(const struct dc *dc, uint32_t *map)
+void link_restore_res_map(const struct dc *dc, uint32_t *map)
 {
 	struct dc_link *link;
 	uint32_t i;

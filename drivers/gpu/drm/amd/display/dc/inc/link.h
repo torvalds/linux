@@ -136,4 +136,22 @@ enum dc_status link_validate_mode_timing(
 		const struct dc_stream_state *stream,
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing);
+bool link_detect(struct dc_link *link, enum dc_detect_reason reason);
+bool link_detect_connection_type(struct dc_link *link,
+		enum dc_connection_type *type);
+const struct dc_link_status *link_get_status(const struct dc_link *link);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+/* return true if the connected receiver supports the hdcp version */
+bool link_is_hdcp14(struct dc_link *link, enum signal_type signal);
+bool link_is_hdcp22(struct dc_link *link, enum signal_type signal);
+#endif
+void link_clear_dprx_states(struct dc_link *link);
+bool link_reset_cur_dp_mst_topology(struct dc_link *link);
+uint32_t dp_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_settings);
+uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing);
+void link_get_cur_res_map(const struct dc *dc, uint32_t *map);
+void link_restore_res_map(const struct dc *dc, uint32_t *map);
+
 #endif /* __DC_LINK_HPD_H__ */

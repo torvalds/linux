@@ -27,6 +27,7 @@
 #define DC_DP_TYPES_H
 
 #include "os_types.h"
+#include "dc_ddc_types.h"
 
 enum dc_lane_count {
 	LANE_COUNT_UNKNOWN = 0,
@@ -1125,4 +1126,139 @@ struct edp_psr_info {
 	uint8_t force_psrsu_cap;
 };
 
+struct dprx_states {
+	bool cable_id_written;
+};
+
+enum dpcd_downstream_port_max_bpc {
+	DOWN_STREAM_MAX_8BPC = 0,
+	DOWN_STREAM_MAX_10BPC,
+	DOWN_STREAM_MAX_12BPC,
+	DOWN_STREAM_MAX_16BPC
+};
+
+enum link_training_offset {
+	DPRX                = 0,
+	LTTPR_PHY_REPEATER1 = 1,
+	LTTPR_PHY_REPEATER2 = 2,
+	LTTPR_PHY_REPEATER3 = 3,
+	LTTPR_PHY_REPEATER4 = 4,
+	LTTPR_PHY_REPEATER5 = 5,
+	LTTPR_PHY_REPEATER6 = 6,
+	LTTPR_PHY_REPEATER7 = 7,
+	LTTPR_PHY_REPEATER8 = 8
+};
+
+#define MAX_REPEATER_CNT 8
+
+struct dc_lttpr_caps {
+	union dpcd_rev revision;
+	uint8_t mode;
+	uint8_t max_lane_count;
+	uint8_t max_link_rate;
+	uint8_t phy_repeater_cnt;
+	uint8_t max_ext_timeout;
+	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
+	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+};
+
+struct dc_dongle_dfp_cap_ext {
+	bool supported;
+	uint16_t max_pixel_rate_in_mps;
+	uint16_t max_video_h_active_width;
+	uint16_t max_video_v_active_height;
+	struct dp_encoding_format_caps encoding_format_caps;
+	struct dp_color_depth_caps rgb_color_depth_caps;
+	struct dp_color_depth_caps ycbcr444_color_depth_caps;
+	struct dp_color_depth_caps ycbcr422_color_depth_caps;
+	struct dp_color_depth_caps ycbcr420_color_depth_caps;
+};
+
+struct dc_dongle_caps {
+	/* dongle type (DP converter, CV smart dongle) */
+	enum display_dongle_type dongle_type;
+	bool extendedCapValid;
+	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
+	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
+	bool is_dp_hdmi_s3d_converter;
+	bool is_dp_hdmi_ycbcr422_pass_through;
+	bool is_dp_hdmi_ycbcr420_pass_through;
+	bool is_dp_hdmi_ycbcr422_converter;
+	bool is_dp_hdmi_ycbcr420_converter;
+	uint32_t dp_hdmi_max_bpc;
+	uint32_t dp_hdmi_max_pixel_clk_in_khz;
+	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
+	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
+};
+
+struct dpcd_caps {
+	union dpcd_rev dpcd_rev;
+	union max_lane_count max_ln_count;
+	union max_down_spread max_down_spread;
+	union dprx_feature dprx_feature;
+
+	/* valid only for eDP v1.4 or higher*/
+	uint8_t edp_supported_link_rates_count;
+	enum dc_link_rate edp_supported_link_rates[8];
+
+	/* dongle type (DP converter, CV smart dongle) */
+	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
+	/* branch device or sink device */
+	bool is_branch_dev;
+	/* Dongle's downstream count. */
+	union sink_count sink_count;
+	bool is_mst_capable;
+	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
+	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
+	struct dc_dongle_caps dongle_caps;
+
+	uint32_t sink_dev_id;
+	int8_t sink_dev_id_str[6];
+	int8_t sink_hw_revision;
+	int8_t sink_fw_revision[2];
+
+	uint32_t branch_dev_id;
+	int8_t branch_dev_name[6];
+	int8_t branch_hw_revision;
+	int8_t branch_fw_revision[2];
+
+	bool allow_invalid_MSA_timing_param;
+	bool panel_mode_edp;
+	bool dpcd_display_control_capable;
+	bool ext_receiver_cap_field_present;
+	bool set_power_state_capable_edp;
+	bool dynamic_backlight_capable_edp;
+	union dpcd_fec_capability fec_cap;
+	struct dpcd_dsc_capabilities dsc_caps;
+	struct dc_lttpr_caps lttpr_caps;
+	struct adaptive_sync_caps adaptive_sync_caps;
+	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
+
+	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
+	union dp_main_line_channel_coding_cap channel_coding_cap;
+	union dp_sink_video_fallback_formats fallback_formats;
+	union dp_fec_capability1 fec_cap1;
+	union dp_cable_id cable_id;
+	uint8_t edp_rev;
+	union edp_alpm_caps alpm_caps;
+	struct edp_psr_info psr_info;
+};
+
+union dpcd_sink_ext_caps {
+	struct {
+		/* 0 - Sink supports backlight adjust via PWM during SDR/HDR mode
+		 * 1 - Sink supports backlight adjust via AUX during SDR/HDR mode.
+		 */
+		uint8_t sdr_aux_backlight_control : 1;
+		uint8_t hdr_aux_backlight_control : 1;
+		uint8_t reserved_1 : 2;
+		uint8_t oled : 1;
+		uint8_t reserved_2 : 1;
+		uint8_t miniled : 1;
+		uint8_t reserved : 1;
+	} bits;
+	uint8_t raw;
+};
 #endif /* DC_DP_TYPES_H */

@@ -218,20 +218,20 @@ static bool dp_active_dongle_validate_timing(
 	return true;
 }
 
-uint32_t dc_link_bandwidth_kbps(
+uint32_t dp_link_bandwidth_kbps(
 	const struct dc_link *link,
-	const struct dc_link_settings *link_setting)
+	const struct dc_link_settings *link_settings)
 {
 	uint32_t total_data_bw_efficiency_x10000 = 0;
 	uint32_t link_rate_per_lane_kbps = 0;
 
-	switch (link_dp_get_encoding_format(link_setting)) {
+	switch (link_dp_get_encoding_format(link_settings)) {
 	case DP_8b_10b_ENCODING:
 		/* For 8b/10b encoding:
 		 * link rate is defined in the unit of LINK_RATE_REF_FREQ_IN_KHZ per DP byte per lane.
 		 * data bandwidth efficiency is 80% with additional 3% overhead if FEC is supported.
 		 */
-		link_rate_per_lane_kbps = link_setting->link_rate * LINK_RATE_REF_FREQ_IN_KHZ * BITS_PER_DP_BYTE;
+		link_rate_per_lane_kbps = link_settings->link_rate * LINK_RATE_REF_FREQ_IN_KHZ * BITS_PER_DP_BYTE;
 		total_data_bw_efficiency_x10000 = DATA_EFFICIENCY_8b_10b_x10000;
 		if (dc_link_should_enable_fec(link)) {
 			total_data_bw_efficiency_x10000 /= 100;
@@ -243,7 +243,7 @@ uint32_t dc_link_bandwidth_kbps(
 		 * link rate is defined in the unit of 10mbps per lane.
 		 * total data bandwidth efficiency is always 96.71%.
 		 */
-		link_rate_per_lane_kbps = link_setting->link_rate * 10000;
+		link_rate_per_lane_kbps = link_settings->link_rate * 10000;
 		total_data_bw_efficiency_x10000 = DATA_EFFICIENCY_128b_132b_x10000;
 		break;
 	default:
@@ -251,10 +251,10 @@ uint32_t dc_link_bandwidth_kbps(
 	}
 
 	/* overall effective link bandwidth = link rate per lane * lane count * total data bandwidth efficiency */
-	return link_rate_per_lane_kbps * link_setting->lane_count / 10000 * total_data_bw_efficiency_x10000;
+	return link_rate_per_lane_kbps * link_settings->lane_count / 10000 * total_data_bw_efficiency_x10000;
 }
 
-uint32_t dc_bandwidth_in_kbps_from_timing(
+uint32_t link_timing_bandwidth_kbps(
 	const struct dc_crtc_timing *timing)
 {
 	uint32_t bits_per_channel = 0;
