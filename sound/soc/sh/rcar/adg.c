@@ -11,7 +11,7 @@
 #define CLKB	1
 #define CLKC	2
 #define CLKI	3
-#define CLKMAX	4
+#define CLKINMAX 4
 
 #define CLKOUT	0
 #define CLKOUT1	1
@@ -26,12 +26,12 @@ static struct rsnd_mod_ops adg_ops = {
 };
 
 struct rsnd_adg {
-	struct clk *clk[CLKMAX];
+	struct clk *clkin[CLKINMAX];
 	struct clk *clkout[CLKOUTMAX];
 	struct clk *null_clk;
 	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
-	int clk_rate[CLKMAX];
+	int clkin_rate[CLKINMAX];
 	u32 ckr;
 	u32 rbga;
 	u32 rbgb;
@@ -40,10 +40,10 @@ struct rsnd_adg {
 	int rbgb_rate_for_48khz;  /* RBGB */
 };
 
-#define for_each_rsnd_clk(pos, adg, i)		\
+#define for_each_rsnd_clkin(pos, adg, i)	\
 	for (i = 0;				\
-	     (i < CLKMAX) &&			\
-	     ((pos) = adg->clk[i]);		\
+	     (i < CLKINMAX) &&			\
+	     ((pos) = adg->clkin[i]);		\
 	     i++)
 #define for_each_rsnd_clkout(pos, adg, i)	\
 	for (i = 0;				\
@@ -52,7 +52,7 @@ struct rsnd_adg {
 	     i++)
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
-static const char * const clk_name[] = {
+static const char * const clkin_name[] = {
 	[CLKA]	= "clk_a",
 	[CLKB]	= "clk_b",
 	[CLKC]	= "clk_c",
@@ -112,9 +112,9 @@ static void __rsnd_adg_get_timesel_ratio(struct rsnd_priv *priv,
 	unsigned int val, en;
 	unsigned int min, diff;
 	unsigned int sel_rate[] = {
-		adg->clk_rate[CLKA],	/* 0000: CLKA */
-		adg->clk_rate[CLKB],	/* 0001: CLKB */
-		adg->clk_rate[CLKC],	/* 0010: CLKC */
+		adg->clkin_rate[CLKA],	/* 0000: CLKA */
+		adg->clkin_rate[CLKB],	/* 0001: CLKB */
+		adg->clkin_rate[CLKC],	/* 0010: CLKC */
 		adg->rbga_rate_for_441khz,	/* 0011: RBGA */
 		adg->rbgb_rate_for_48khz,	/* 0100: RBGB */
 	};
@@ -287,6 +287,7 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct clk *clk;
 	int i;
 	int sel_table[] = {
 		[CLKA] = 0x1,
@@ -299,8 +300,8 @@ int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate)
 	 * find suitable clock from
 	 * AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC/AUDIO_CLKI.
 	 */
-	for (i = 0; i < CLKMAX; i++)
-		if (rate == adg->clk_rate[i])
+	for_each_rsnd_clkin(clk, adg, i)
+		if (rate == adg->clkin_rate[i])
 			return sel_table[i];
 
 	/*
@@ -358,7 +359,7 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 	struct clk *clk;
 	int i;
 
-	for_each_rsnd_clk(clk, adg, i) {
+	for_each_rsnd_clkin(clk, adg, i) {
 		if (enable) {
 			clk_prepare_enable(clk);
 
@@ -367,7 +368,7 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 			 * atomic context. Let's keep it when
 			 * rsnd_adg_clk_enable() was called
 			 */
-			adg->clk_rate[i] = clk_get_rate(clk);
+			adg->clkin_rate[i] = clk_get_rate(clk);
 		} else {
 			clk_disable_unprepare(clk);
 		}
@@ -418,15 +419,15 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 	struct clk *clk;
 	int i;
 
-	for (i = 0; i < CLKMAX; i++) {
-		clk = devm_clk_get(dev, clk_name[i]);
+	for (i = 0; i < CLKINMAX; i++) {
+		clk = devm_clk_get(dev, clkin_name[i]);
 
 		if (IS_ERR_OR_NULL(clk))
 			clk = rsnd_adg_null_clk_get(priv);
 		if (IS_ERR_OR_NULL(clk))
 			goto err;
 
-		adg->clk[i] = clk;
+		adg->clkin[i] = clk;
 	}
 
 	return 0;
@@ -516,7 +517,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	 */
 	adg->rbga_rate_for_441khz	= 0;
 	adg->rbgb_rate_for_48khz	= 0;
-	for_each_rsnd_clk(clk, adg, i) {
+	for_each_rsnd_clkin(clk, adg, i) {
 		rate = clk_get_rate(clk);
 
 		if (0 == rate) /* not used */
@@ -630,7 +631,7 @@ void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct seq_file *m)
 	struct clk *clk;
 	int i;
 
-	for_each_rsnd_clk(clk, adg, i)
+	for_each_rsnd_clkin(clk, adg, i)
 		dbg_msg(dev, m, "%-18s : %pa : %ld\n",
 			__clk_get_name(clk), clk, clk_get_rate(clk));
 
