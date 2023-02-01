@@ -1870,11 +1870,11 @@ static int vgxy61_probe(struct i2c_client *client)
 	vgxy61_fill_framefmt(sensor, sensor->current_mode, &sensor->fmt,
 			     VGXY61_MEDIA_BUS_FMT_DEF);
 
+	mutex_init(&sensor->lock);
+
 	ret = vgxy61_update_hdr(sensor, sensor->hdr);
 	if (ret)
-		return ret;
-
-	mutex_init(&sensor->lock);
+		goto error_power_off;
 
 	ret = vgxy61_init_controls(sensor);
 	if (ret) {
@@ -1913,8 +1913,8 @@ error_pm_runtime:
 	media_entity_cleanup(&sensor->sd.entity);
 error_handler_free:
 	v4l2_ctrl_handler_free(sensor->sd.ctrl_handler);
-	mutex_destroy(&sensor->lock);
 error_power_off:
+	mutex_destroy(&sensor->lock);
 	vgxy61_power_off(dev);
 
 	return ret;
