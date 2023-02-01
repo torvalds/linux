@@ -890,9 +890,8 @@ static void imx_uart_check_flood(struct imx_port *sport, u32 usr2)
 static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
-	unsigned int rx, flg;
 	struct tty_port *port = &sport->port.state->port;
-	u32 usr2;
+	u32 usr2, rx;
 
 	/* If we received something, check for 0xff flood */
 	usr2 = imx_uart_readl(sport, USR2);
@@ -900,7 +899,7 @@ static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 		imx_uart_check_flood(sport, usr2);
 
 	while ((rx = imx_uart_readl(sport, URXD0)) & URXD_CHARRDY) {
-		flg = TTY_NORMAL;
+		unsigned int flg = TTY_NORMAL;
 		sport->port.icount.rx++;
 
 		if (unlikely(rx & URXD_ERR)) {
