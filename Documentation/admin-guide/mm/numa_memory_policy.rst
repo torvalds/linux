@@ -1,5 +1,3 @@
-.. _numa_memory_policy:
-
 ==================
 NUMA Memory Policy
 ==================

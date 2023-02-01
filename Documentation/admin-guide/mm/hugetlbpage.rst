@@ -1,5 +1,3 @@
-.. _hugetlbpage:
-
 =============
 HugeTLB Pages
 =============
@@ -313,7 +311,7 @@ memory policy mode--bind, preferred, local or interleave--may be used.  The
 resulting effect on persistent huge page allocation is as follows:
 
 #. Regardless of mempolicy mode [see
-   :ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`],
+   Documentation/admin-guide/mm/numa_memory_policy.rst],
    persistent huge pages will be distributed across the node or nodes
    specified in the mempolicy as if "interleave" had been specified.
    However, if a node in the policy does not contain sufficient contiguous
