@@ -1081,7 +1081,7 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		/* add route dobj to dobj_list */
 		route->dobj.type = SND_SOC_DOBJ_GRAPH;
 		if (tplg->ops)
-			route->dobj.unload = tplg->ops->control_unload;
+			route->dobj.unload = tplg->ops->dapm_route_unload;
 		route->dobj.index = tplg->index;
 		list_add(&route->dobj.list, &tplg->comp->dobj_list);
 
