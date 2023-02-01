@@ -57,6 +57,10 @@ struct rsnd_adg {
 	     i++)
 #define rsnd_priv_to_adg(priv) ((struct rsnd_adg *)(priv)->adg)
 
+static const char * const clkin_name_gen4[] = {
+	[CLKA]	= "clkin",
+};
+
 static const char * const clkin_name_gen2[] = {
 	[CLKA]	= "clk_a",
 	[CLKB]	= "clk_b",
@@ -435,6 +439,10 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 
 	clkin_name = clkin_name_gen2;
 	clkin_size = ARRAY_SIZE(clkin_name_gen2);
+	if (rsnd_is_gen4(priv)) {
+		clkin_name = clkin_name_gen4;
+		clkin_size = ARRAY_SIZE(clkin_name_gen4);
+	}
 
 	for (i = 0; i < clkin_size; i++) {
 		clk = devm_clk_get(dev, clkin_name[i]);
@@ -568,6 +576,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 
 	clkout_name = clkout_name_gen2;
 	clkout_size = ARRAY_SIZE(clkout_name_gen2);
+	if (rsnd_is_gen4(priv))
+		clkout_size = 1; /* reuse clkout_name_gen2[] */
 
 	/*
 	 * ADG supports BRRA/BRRB output only.
