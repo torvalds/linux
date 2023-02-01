@@ -6166,7 +6166,7 @@ static void md_clean(struct mddev *mddev)
 	mddev->new_level = LEVEL_NONE;
 	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = 0;
-	mddev->curr_resync = 0;
+	mddev->curr_resync = MD_RESYNC_NONE;
 	atomic64_set(&mddev->resync_mismatches, 0);
 	mddev->suspend_lo = mddev->suspend_hi = 0;
 	mddev->sync_speed_min = mddev->sync_speed_max = 0;
@@ -8896,7 +8896,7 @@ void md_do_sync(struct md_thread *thread)
 	atomic_set(&mddev->recovery_active, 0);
 	last_check = 0;
 
-	if (j>2) {
+	if (j >= MD_RESYNC_ACTIVE) {
 		pr_debug("md: resuming %s of %s from checkpoint.\n",
 			 desc, mdname(mddev));
 		mddev->curr_resync = j;
@@ -8968,7 +8968,7 @@ void md_do_sync(struct md_thread *thread)
 		if (j > max_sectors)
 			/* when skipping, extra large numbers can be returned. */
 			j = max_sectors;
-		if (j > 2)
+		if (j >= MD_RESYNC_ACTIVE)
 			mddev->curr_resync = j;
 		mddev->curr_mark_cnt = io_sectors;
 		if (last_check == 0)
