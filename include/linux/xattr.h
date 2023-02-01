@@ -94,7 +94,7 @@ int vfs_getxattr_alloc(struct mnt_idmap *idmap,
 		       struct dentry *dentry, const char *name,
 		       char **xattr_value, size_t size, gfp_t flags);
 
-int xattr_supported_namespace(struct inode *inode, const char *prefix);
+int xattr_supports_user_prefix(struct inode *inode);
 
 static inline const char *xattr_prefix(const struct xattr_handler *handler)
 {

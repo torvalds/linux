@@ -160,11 +160,10 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
  * Look for any handler that deals with the specified namespace.
  */
 int
-xattr_supported_namespace(struct inode *inode, const char *prefix)
+xattr_supports_user_prefix(struct inode *inode)
 {
 	const struct xattr_handler **handlers = inode->i_sb->s_xattr;
 	const struct xattr_handler *handler;
-	size_t preflen;
 
 	if (!(inode->i_opflags & IOP_XATTR)) {
 		if (unlikely(is_bad_inode(inode)))
@@ -172,16 +171,15 @@ xattr_supported_namespace(struct inode *inode, const char *prefix)
 		return -EOPNOTSUPP;
 	}
 
-	preflen = strlen(prefix);
-
 	for_each_xattr_handler(handlers, handler) {
-		if (!strncmp(xattr_prefix(handler), prefix, preflen))
+		if (!strncmp(xattr_prefix(handler), XATTR_USER_PREFIX,
+			     XATTR_USER_PREFIX_LEN))
 			return 0;
 	}
 
 	return -EOPNOTSUPP;
 }
-EXPORT_SYMBOL(xattr_supported_namespace);
+EXPORT_SYMBOL(xattr_supports_user_prefix);
 
 int
 __vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
