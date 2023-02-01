@@ -346,7 +346,8 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 	context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_14_DEFAULT_DET_SIZE;
 
 	dc->config.enable_4to1MPC = false;
-	if (pipe_cnt == 1 && pipe->plane_state && !dc->debug.disable_z9_mpc) {
+	if (pipe_cnt == 1 && pipe->plane_state
+		&& pipe->plane_state->rotation == ROTATION_ANGLE_0 && !dc->debug.disable_z9_mpc) {
 		if (is_dual_plane(pipe->plane_state->format)
 				&& pipe->plane_state->src_rect.width <= 1920 && pipe->plane_state->src_rect.height <= 1080) {
 			dc->config.enable_4to1MPC = true;
