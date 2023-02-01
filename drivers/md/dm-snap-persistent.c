@@ -95,7 +95,7 @@ struct core_exception {
 };
 
 struct commit_callback {
-	void (*callback)(void *, int success);
+	void (*callback)(void *ref, int success);
 	void *context;
 };
 

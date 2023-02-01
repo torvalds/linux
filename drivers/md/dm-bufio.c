@@ -92,8 +92,8 @@ struct dm_bufio_client {
 	struct block_device *bdev;
 	unsigned int block_size;
 	s8 sectors_per_block_bits;
-	void (*alloc_callback)(struct dm_buffer *);
-	void (*write_callback)(struct dm_buffer *);
+	void (*alloc_callback)(struct dm_buffer *buf);
+	void (*write_callback)(struct dm_buffer *buf);
 	struct kmem_cache *slab_buffer;
 	struct kmem_cache *slab_cache;
 	struct dm_io_client *dm_io;
@@ -156,7 +156,7 @@ struct dm_buffer {
 	unsigned int write_end;
 	struct dm_bufio_client *c;
 	struct list_head write_list;
-	void (*end_io)(struct dm_buffer *, blk_status_t);
+	void (*end_io)(struct dm_buffer *buf, blk_status_t stat);
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 #define MAX_STACK 10
 	unsigned int stack_len;

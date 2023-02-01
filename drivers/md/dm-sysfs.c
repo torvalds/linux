@@ -12,8 +12,8 @@
 
 struct dm_sysfs_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct mapped_device *, char *);
-	ssize_t (*store)(struct mapped_device *, const char *, size_t count);
+	ssize_t (*show)(struct mapped_device *md, char *p);
+	ssize_t (*store)(struct mapped_device *md, const char *p, size_t count);
 };
 
 #define DM_ATTR_RO(_name) \

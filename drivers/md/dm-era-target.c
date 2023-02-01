@@ -682,7 +682,7 @@ struct digest {
 	__le32 value;
 	struct dm_disk_bitset info;
 
-	int (*step)(struct era_metadata *, struct digest *);
+	int (*step)(struct era_metadata *md, struct digest *d);
 };
 
 static int metadata_digest_lookup_writeset(struct era_metadata *md,
@@ -1193,8 +1193,8 @@ struct era {
 struct rpc {
 	struct list_head list;
 
-	int (*fn0)(struct era_metadata *);
-	int (*fn1)(struct era_metadata *, void *);
+	int (*fn0)(struct era_metadata *md);
+	int (*fn1)(struct era_metadata *md, void *ref);
 	void *arg;
 	int result;
 
@@ -1388,7 +1388,7 @@ static int perform_rpc(struct era *era, struct rpc *rpc)
 	return rpc->result;
 }
 
-static int in_worker0(struct era *era, int (*fn)(struct era_metadata *))
+static int in_worker0(struct era *era, int (*fn)(struct era_metadata *md))
 {
 	struct rpc rpc;
 	rpc.fn0 = fn;
@@ -1398,7 +1398,7 @@ static int in_worker0(struct era *era, int (*fn)(struct era_metadata *))
 }
 
 static int in_worker1(struct era *era,
-		      int (*fn)(struct era_metadata *, void *), void *arg)
+		      int (*fn)(struct era_metadata *md, void *ref), void *arg)
 {
 	struct rpc rpc;
 	rpc.fn0 = NULL;
