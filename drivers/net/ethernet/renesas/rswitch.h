@@ -943,8 +943,6 @@ struct rswitch_device {
 	struct rswitch_private *priv;
 	struct net_device *ndev;
 	struct napi_struct napi;
-	struct phylink *phylink;
-	struct phylink_config phylink_config;
 	void __iomem *addr;
 	struct rswitch_gwca_queue *tx_queue;
 	struct rswitch_gwca_queue *rx_queue;

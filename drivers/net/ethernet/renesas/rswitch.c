@@ -16,7 +16,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/phylink.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 #include <linux/rtnetlink.h>
@@ -1139,61 +1138,78 @@ static void rswitch_mii_unregister(struct rswitch_device *rdev)
 	}
 }
 
-static void rswitch_mac_config(struct phylink_config *config,
-			       unsigned int mode,
-			       const struct phylink_link_state *state)
+static void rswitch_adjust_link(struct net_device *ndev)
 {
+	struct rswitch_device *rdev = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+
+	/* Current hardware has a restriction not to change speed at runtime */
+	if (phydev->link != rdev->etha->link) {
+		phy_print_status(phydev);
+		rdev->etha->link = phydev->link;
+	}
 }
 
-static void rswitch_mac_link_down(struct phylink_config *config,
-				  unsigned int mode,
-				  phy_interface_t interface)
+static void rswitch_phy_remove_link_mode(struct rswitch_device *rdev,
+					 struct phy_device *phydev)
 {
+	/* Current hardware has a restriction not to change speed at runtime */
+	switch (rdev->etha->speed) {
+	case SPEED_2500:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
+		break;
+	case SPEED_1000:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
+		break;
+	case SPEED_100:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+		break;
+	default:
+		break;
+	}
+
+	phy_set_max_speed(phydev, rdev->etha->speed);
 }
 
-static void rswitch_mac_link_up(struct phylink_config *config,
-				struct phy_device *phydev, unsigned int mode,
-				phy_interface_t interface, int speed,
-				int duplex, bool tx_pause, bool rx_pause)
+static int rswitch_phy_device_init(struct rswitch_device *rdev)
 {
-	/* Current hardware cannot change speed at runtime */
-}
-
-static const struct phylink_mac_ops rswitch_phylink_ops = {
-	.mac_config = rswitch_mac_config,
-	.mac_link_down = rswitch_mac_link_down,
-	.mac_link_up = rswitch_mac_link_up,
-};
-
-static int rswitch_phylink_init(struct rswitch_device *rdev)
-{
-	struct phylink *phylink;
+	struct phy_device *phydev;
+	struct device_node *phy;
 
 	if (!rdev->np_port)
 		return -ENODEV;
 
-	rdev->phylink_config.dev = &rdev->ndev->dev;
-	rdev->phylink_config.type = PHYLINK_NETDEV;
-	__set_bit(PHY_INTERFACE_MODE_SGMII, rdev->phylink_config.supported_interfaces);
-	__set_bit(PHY_INTERFACE_MODE_USXGMII, rdev->phylink_config.supported_interfaces);
-	rdev->phylink_config.mac_capabilities = MAC_100FD | MAC_1000FD | MAC_2500FD;
+	phy = of_parse_phandle(rdev->np_port, "phy-handle", 0);
+	if (!phy)
+		return -ENODEV;
 
-	phylink = phylink_create(&rdev->phylink_config, &rdev->np_port->fwnode,
-				 rdev->etha->phy_interface, &rswitch_phylink_ops);
-	if (IS_ERR(phylink))
-		return PTR_ERR(phylink);
+	phydev = of_phy_connect(rdev->ndev, phy, rswitch_adjust_link, 0,
+				rdev->etha->phy_interface);
+	of_node_put(phy);
+	if (!phydev)
+		return -ENOENT;
 
-	rdev->phylink = phylink;
+	phy_set_max_speed(phydev, SPEED_2500);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	rswitch_phy_remove_link_mode(rdev, phydev);
 
-	return phylink_of_phy_connect(rdev->phylink, rdev->np_port, rdev->etha->phy_interface);
+	phy_attached_info(phydev);
+
+	return 0;
 }
 
-static void rswitch_phylink_deinit(struct rswitch_device *rdev)
+static void rswitch_phy_device_deinit(struct rswitch_device *rdev)
 {
-	rtnl_lock();
-	phylink_disconnect_phy(rdev->phylink);
-	rtnl_unlock();
-	phylink_destroy(rdev->phylink);
+	if (rdev->ndev->phydev) {
+		phy_disconnect(rdev->ndev->phydev);
+		rdev->ndev->phydev = NULL;
+	}
 }
 
 static int rswitch_serdes_set_params(struct rswitch_device *rdev)
@@ -1223,9 +1239,9 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	if (err < 0)
 		return err;
 
-	err = rswitch_phylink_init(rdev);
+	err = rswitch_phy_device_init(rdev);
 	if (err < 0)
-		goto err_phylink_init;
+		goto err_phy_device_init;
 
 	rdev->serdes = devm_of_phy_get(&rdev->priv->pdev->dev, rdev->np_port, NULL);
 	if (IS_ERR(rdev->serdes)) {
@@ -1241,9 +1257,9 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 
 err_serdes_set_params:
 err_serdes_phy_get:
-	rswitch_phylink_deinit(rdev);
+	rswitch_phy_device_deinit(rdev);
 
-err_phylink_init:
+err_phy_device_init:
 	rswitch_mii_unregister(rdev);
 
 	return err;
@@ -1251,7 +1267,7 @@ err_phylink_init:
 
 static void rswitch_ether_port_deinit_one(struct rswitch_device *rdev)
 {
-	rswitch_phylink_deinit(rdev);
+	rswitch_phy_device_deinit(rdev);
 	rswitch_mii_unregister(rdev);
 }
 
@@ -1299,7 +1315,7 @@ static int rswitch_open(struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
-	phylink_start(rdev->phylink);
+	phy_start(ndev->phydev);
 
 	napi_enable(&rdev->napi);
 	netif_start_queue(ndev);
@@ -1319,7 +1335,7 @@ static int rswitch_stop(struct net_device *ndev)
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, false);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
 
-	phylink_stop(rdev->phylink);
+	phy_stop(ndev->phydev);
 	napi_disable(&rdev->napi);
 
 	return 0;
@@ -1447,8 +1463,6 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 
 static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct rswitch_device *rdev = netdev_priv(ndev);
-
 	if (!netif_running(ndev))
 		return -EINVAL;
 
@@ -1458,7 +1472,7 @@ static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd
 	case SIOCSHWTSTAMP:
 		return rswitch_hwstamp_set(ndev, req);
 	default:
-		return phylink_mii_ioctl(rdev->phylink, req, cmd);
+		return phy_mii_ioctl(ndev->phydev, req, cmd);
 	}
 }
 
