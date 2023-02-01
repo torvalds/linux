@@ -906,7 +906,6 @@ static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 
 		rx = imx_uart_readl(sport, URXD0);
 
-		usr2 = imx_uart_readl(sport, USR2);
 		if (usr2 & USR2_BRCD) {
 			imx_uart_writel(sport, USR2_BRCD, USR2);
 			if (uart_handle_break(&sport->port))
