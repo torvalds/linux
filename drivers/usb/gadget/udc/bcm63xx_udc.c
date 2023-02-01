@@ -1830,7 +1830,6 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 	bcm63xx_select_phy_mode(udc, true);
 
 	udc->driver = driver;
-	driver->driver.bus = NULL;
 	udc->gadget.dev.of_node = udc->dev->of_node;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
