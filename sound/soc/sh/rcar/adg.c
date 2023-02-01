@@ -59,6 +59,13 @@ static const char * const clkin_name[] = {
 	[CLKI]	= "clk_i",
 };
 
+static const char * const clkout_name[] = {
+	[CLKOUT]  = "audio_clkout",
+	[CLKOUT1] = "audio_clkout1",
+	[CLKOUT2] = "audio_clkout2",
+	[CLKOUT3] = "audio_clkout3",
+};
+
 static u32 rsnd_adg_calculate_rbgx(unsigned long div)
 {
 	int i;
@@ -465,12 +472,6 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	unsigned long req_48kHz_rate, req_441kHz_rate;
 	int i, req_size;
 	const char *parent_clk_name = NULL;
-	static const char * const clkout_name[] = {
-		[CLKOUT]  = "audio_clkout",
-		[CLKOUT1] = "audio_clkout1",
-		[CLKOUT2] = "audio_clkout2",
-		[CLKOUT3] = "audio_clkout3",
-	};
 	int brg_table[] = {
 		[CLKA] = 0x0,
 		[CLKB] = 0x1,
