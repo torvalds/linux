@@ -1734,6 +1734,12 @@ static int vgxy61_power_on(struct device *dev)
 		}
 	}
 
+	ret = vgxy61_detect(sensor);
+	if (ret) {
+		dev_err(&client->dev, "sensor detect failed %d\n", ret);
+		goto disable_clock;
+	}
+
 	ret = vgxy61_patch(sensor);
 	if (ret) {
 		dev_err(&client->dev, "sensor patch failed %d\n", ret);
@@ -1859,12 +1865,6 @@ static int vgxy61_probe(struct i2c_client *client)
 	ret = vgxy61_power_on(dev);
 	if (ret)
 		return ret;
-
-	ret = vgxy61_detect(sensor);
-	if (ret) {
-		dev_err(&client->dev, "sensor detect failed %d\n", ret);
-		return ret;
-	}
 
 	vgxy61_fill_sensor_param(sensor);
 	vgxy61_fill_framefmt(sensor, sensor->current_mode, &sensor->fmt,
