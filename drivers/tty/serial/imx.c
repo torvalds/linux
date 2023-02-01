@@ -398,6 +398,39 @@ static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
 }
 
 /* called with port.lock taken and irqs off */
+static void imx_uart_soft_reset(struct imx_port *sport)
+{
+	int i = 10;
+	u32 ucr2, ubir, ubmr, uts;
+
+	/*
+	 * According to the Reference Manual description of the UART SRST bit:
+	 *
+	 * "Reset the transmit and receive state machines,
+	 * all FIFOs and register USR1, USR2, UBIR, UBMR, UBRC, URXD, UTXD
+	 * and UTS[6-3]".
+	 *
+	 * We don't need to restore the old values from USR1, USR2, URXD and
+	 * UTXD. UBRC is read only, so only save/restore the other three
+	 * registers.
+	 */
+	ubir = imx_uart_readl(sport, UBIR);
+	ubmr = imx_uart_readl(sport, UBMR);
+	uts = imx_uart_readl(sport, IMX21_UTS);
+
+	ucr2 = imx_uart_readl(sport, UCR2);
+	imx_uart_writel(sport, ucr2 & ~UCR2_SRST, UCR2);
+
+	while (!(imx_uart_readl(sport, UCR2) & UCR2_SRST) && (--i > 0))
+		udelay(1);
+
+	/* Restore the registers */
+	imx_uart_writel(sport, ubir, UBIR);
+	imx_uart_writel(sport, ubmr, UBMR);
+	imx_uart_writel(sport, uts, IMX21_UTS);
+}
+
+/* called with port.lock taken and irqs off */
 static void imx_uart_start_rx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -1400,7 +1433,7 @@ static void imx_uart_disable_dma(struct imx_port *sport)
 static int imx_uart_startup(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
-	int retval, i;
+	int retval;
 	unsigned long flags;
 	int dma_is_inited = 0;
 	u32 ucr1, ucr2, ucr3, ucr4, uts;
@@ -1432,15 +1465,9 @@ static int imx_uart_startup(struct uart_port *port)
 		dma_is_inited = 1;
 
 	spin_lock_irqsave(&sport->port.lock, flags);
+
 	/* Reset fifo's and state machines */
-	i = 100;
-
-	ucr2 = imx_uart_readl(sport, UCR2);
-	ucr2 &= ~UCR2_SRST;
-	imx_uart_writel(sport, ucr2, UCR2);
-
-	while (!(imx_uart_readl(sport, UCR2) & UCR2_SRST) && (--i > 0))
-		udelay(1);
+	imx_uart_soft_reset(sport);
 
 	/*
 	 * Finally, clear and enable interrupts
@@ -1596,8 +1623,6 @@ static void imx_uart_flush_buffer(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	struct scatterlist *sgl = &sport->tx_sgl[0];
-	u32 ucr2;
-	int i = 100, ubir, ubmr, uts;
 
 	if (!sport->dma_chan_tx)
 		return;
@@ -1615,32 +1640,8 @@ static void imx_uart_flush_buffer(struct uart_port *port)
 		sport->dma_is_txing = 0;
 	}
 
-	/*
-	 * According to the Reference Manual description of the UART SRST bit:
-	 *
-	 * "Reset the transmit and receive state machines,
-	 * all FIFOs and register USR1, USR2, UBIR, UBMR, UBRC, URXD, UTXD
-	 * and UTS[6-3]".
-	 *
-	 * We don't need to restore the old values from USR1, USR2, URXD and
-	 * UTXD. UBRC is read only, so only save/restore the other three
-	 * registers.
-	 */
-	ubir = imx_uart_readl(sport, UBIR);
-	ubmr = imx_uart_readl(sport, UBMR);
-	uts = imx_uart_readl(sport, IMX21_UTS);
+	imx_uart_soft_reset(sport);
 
-	ucr2 = imx_uart_readl(sport, UCR2);
-	ucr2 &= ~UCR2_SRST;
-	imx_uart_writel(sport, ucr2, UCR2);
-
-	while (!(imx_uart_readl(sport, UCR2) & UCR2_SRST) && (--i > 0))
-		udelay(1);
-
-	/* Restore the registers */
-	imx_uart_writel(sport, ubir, UBIR);
-	imx_uart_writel(sport, ubmr, UBMR);
-	imx_uart_writel(sport, uts, IMX21_UTS);
 }
 
 static void
