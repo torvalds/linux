@@ -10,8 +10,8 @@ config CRYPTO_DEV_ROCKCHIP_V2
 	default y if CPU_RV1126 || CPU_RK1808 || CPU_RK3308 || CPU_PX30 || CPU_RK3568 || CPU_RK3588
 
 config CRYPTO_DEV_ROCKCHIP_V3
-	bool "crypto v3/v4 for RV1106/RK3528"
-	default y if CPU_RV1106 || CPU_RK3528
+	bool "crypto v3/v4 for RV1106/RK3528/RK3562"
+	default y if CPU_RV1106 || CPU_RK3528 || CPU_RK3562
 
 endif
 
