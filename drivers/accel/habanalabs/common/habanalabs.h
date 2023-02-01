@@ -3296,6 +3296,8 @@ struct hl_reset_info {
  * @supports_mmu_prefetch: true if prefetch is supported, otherwise false.
  * @reset_upon_device_release: reset the device when the user closes the file descriptor of the
  *                             device.
+ * @supports_ctx_switch: true if a ctx switch is required upon first submission.
+ * @support_preboot_binning: true if we support read binning info from preboot.
  * @nic_ports_mask: Controls which NIC ports are enabled. Used only for testing.
  * @fw_components: Controls which f/w components to load to the device. There are multiple f/w
  *                 stages and sometimes we want to stop at a certain stage. Used only for testing.
@@ -3309,8 +3311,6 @@ struct hl_reset_info {
  *                         Used only for testing.
  * @heartbeat: Controls if we want to enable the heartbeat mechanism vs. the f/w, which verifies
  *             that the f/w is always alive. Used only for testing.
- * @supports_ctx_switch: true if a ctx switch is required upon first submission.
- * @support_preboot_binning: true if we support read binning info from preboot.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -3457,7 +3457,7 @@ struct hl_device {
 	u8				supports_ctx_switch;
 	u8				support_preboot_binning;
 
-	/* Parameters for bring-up */
+	/* Parameters for bring-up to be upstreamed */
 	u64				nic_ports_mask;
 	u64				fw_components;
 	u8				mmu_enable;
