@@ -1,5 +1,3 @@
-.. _page_migration:
-
 ==============
 Page migration
 ==============
@@ -9,8 +7,8 @@ nodes in a NUMA system while the process is running. This means that the
 virtual addresses that the process sees do not change. However, the
 system rearranges the physical location of those pages.
 
-Also see :ref:`Heterogeneous Memory Management (HMM) <hmm>`
-for migrating pages to or from device private memory.
+Also see Documentation/mm/hmm.rst for migrating pages to or from device
+private memory.
 
 The main intent of page migration is to reduce the latency of memory accesses
 by moving pages near to the processor where the process accessing that memory

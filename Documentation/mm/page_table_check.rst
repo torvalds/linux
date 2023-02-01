@@ -1,7 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _page_table_check:
-
 ================
 Page Table Check
 ================

@@ -1,5 +1,3 @@
-.. _zsmalloc:
-
 ========
 zsmalloc
 ========

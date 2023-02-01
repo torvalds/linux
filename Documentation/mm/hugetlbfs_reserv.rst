@@ -1,5 +1,3 @@
-.. _hugetlbfs_reserve:
-
 =====================
 Hugetlbfs Reservation
 =====================
@@ -7,7 +5,7 @@ Hugetlbfs Reservation
 Overview
 ========
 
-Huge pages as described at :ref:`hugetlbpage` are typically
+Huge pages as described at Documentation/mm/hugetlbpage.rst are typically
 preallocated for application use.  These huge pages are instantiated in a
 task's address space at page fault time if the VMA indicates huge pages are
 to be used.  If no huge page exists at page fault time, the task is sent

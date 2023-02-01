@@ -1,5 +1,3 @@
-.. _balance:
-
 ================
 Memory Balancing
 ================

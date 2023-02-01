@@ -1,5 +1,3 @@
-.. _unevictable_lru:
-
 ==============================
 Unevictable LRU Infrastructure
 ==============================

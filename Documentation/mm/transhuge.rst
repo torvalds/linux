@@ -1,5 +1,3 @@
-.. _transhuge:
-
 ============================
 Transparent Hugepage Support
 ============================
