@@ -49,6 +49,106 @@ static const struct v4l2_fmtdesc cx18_formats_mpeg[] = {
 	},
 };
 
+static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
+			      struct v4l2_format *fmt)
+{
+	struct cx18_open_id *id = fh2id(fh);
+	struct cx18 *cx = id->cx;
+	struct cx18_stream *s = &cx->streams[id->type];
+	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
+
+	pixfmt->width = cx->cxhdl.width;
+	pixfmt->height = cx->cxhdl.height;
+	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	pixfmt->field = V4L2_FIELD_INTERLACED;
+	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
+		pixfmt->pixelformat = s->pixelformat;
+		pixfmt->sizeimage = s->vb_bytes_per_frame;
+		pixfmt->bytesperline = s->vb_bytes_per_line;
+	} else {
+		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
+		pixfmt->sizeimage = 128 * 1024;
+		pixfmt->bytesperline = 0;
+	}
+	return 0;
+}
+
+static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
+				struct v4l2_format *fmt)
+{
+	struct cx18_open_id *id = fh2id(fh);
+	struct cx18 *cx = id->cx;
+	int w = fmt->fmt.pix.width;
+	int h = fmt->fmt.pix.height;
+	int min_h = 2;
+
+	w = min(w, 720);
+	w = max(w, 2);
+
+	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
+		if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_NV12_16L16 &&
+		    fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_UYVY)
+			fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
+		/* YUV height must be a multiple of 32 */
+		h &= ~0x1f;
+		min_h = 32;
+	} else {
+		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
+	}
+
+	h = min(h, cx->is_50hz ? 576 : 480);
+	h = max(h, min_h);
+
+	fmt->fmt.pix.width = w;
+	fmt->fmt.pix.height = h;
+	return 0;
+}
+
+static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
+			      struct v4l2_format *fmt)
+{
+	struct cx18_open_id *id = fh2id(fh);
+	struct cx18 *cx = id->cx;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct cx18_stream *s = &cx->streams[id->type];
+	int ret;
+	int w, h;
+
+	ret = cx18_try_fmt_vid_cap(file, fh, fmt);
+	if (ret)
+		return ret;
+	w = fmt->fmt.pix.width;
+	h = fmt->fmt.pix.height;
+
+	if (cx->cxhdl.width == w && cx->cxhdl.height == h &&
+	    s->pixelformat == fmt->fmt.pix.pixelformat)
+		return 0;
+
+	if (atomic_read(&cx->ana_capturing) > 0)
+		return -EBUSY;
+
+	s->pixelformat = fmt->fmt.pix.pixelformat;
+	/*
+	 * HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
+	 * UYUV YUV size is (Y=(h*720) + UV=(h*(720)))
+	 */
+	if (s->pixelformat == V4L2_PIX_FMT_NV12_16L16) {
+		s->vb_bytes_per_frame = h * 720 * 3 / 2;
+		s->vb_bytes_per_line = 720; /* First plane */
+	} else {
+		s->vb_bytes_per_frame = h * 720 * 2;
+		s->vb_bytes_per_line = 1440; /* Packed */
+	}
+
+	format.format.width = cx->cxhdl.width = w;
+	format.format.height = cx->cxhdl.height = h;
+	format.format.code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, &format);
+	return cx18_g_fmt_vid_cap(file, fh, fmt);
+}
+
 u16 cx18_service2vbi(int type)
 {
 	switch (type) {
@@ -153,29 +253,6 @@ u16 cx18_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 	return set;
 }
 
-static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
-				struct v4l2_format *fmt)
-{
-	struct cx18_open_id *id = fh2id(fh);
-	struct cx18 *cx = id->cx;
-	struct cx18_stream *s = &cx->streams[id->type];
-	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
-
-	pixfmt->width = cx->cxhdl.width;
-	pixfmt->height = cx->cxhdl.height;
-	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	pixfmt->field = V4L2_FIELD_INTERLACED;
-	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
-		pixfmt->pixelformat = s->pixelformat;
-		pixfmt->sizeimage = s->vb_bytes_per_frame;
-		pixfmt->bytesperline = s->vb_bytes_per_line;
-	} else {
-		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
-		pixfmt->sizeimage = 128 * 1024;
-		pixfmt->bytesperline = 0;
-	}
-	return 0;
-}
 
 static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
@@ -221,37 +298,6 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
-				struct v4l2_format *fmt)
-{
-	struct cx18_open_id *id = fh2id(fh);
-	struct cx18 *cx = id->cx;
-	int w = fmt->fmt.pix.width;
-	int h = fmt->fmt.pix.height;
-	int min_h = 2;
-
-	w = min(w, 720);
-	w = max(w, 2);
-
-	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
-		if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_NV12_16L16 &&
-		    fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_UYVY)
-			fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
-		/* YUV height must be a multiple of 32 */
-		h &= ~0x1f;
-		min_h = 32;
-	} else {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
-	}
-
-	h = min(h, cx->is_50hz ? 576 : 480);
-	h = max(h, min_h);
-
-	fmt->fmt.pix.width = w;
-	fmt->fmt.pix.height = h;
-	return 0;
-}
-
 static int cx18_try_fmt_vbi_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
@@ -275,49 +321,6 @@ static int cx18_try_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	if (check_service_set(vbifmt, cx->is_50hz))
 		vbifmt->service_set = cx18_get_service_set(vbifmt);
 	return 0;
-}
-
-static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
-				struct v4l2_format *fmt)
-{
-	struct cx18_open_id *id = fh2id(fh);
-	struct cx18 *cx = id->cx;
-	struct v4l2_subdev_format format = {
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
-	struct cx18_stream *s = &cx->streams[id->type];
-	int ret;
-	int w, h;
-
-	ret = cx18_try_fmt_vid_cap(file, fh, fmt);
-	if (ret)
-		return ret;
-	w = fmt->fmt.pix.width;
-	h = fmt->fmt.pix.height;
-
-	if (cx->cxhdl.width == w && cx->cxhdl.height == h &&
-	    s->pixelformat == fmt->fmt.pix.pixelformat)
-		return 0;
-
-	if (atomic_read(&cx->ana_capturing) > 0)
-		return -EBUSY;
-
-	s->pixelformat = fmt->fmt.pix.pixelformat;
-	/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
-	   UYUV YUV size is (Y=(h*720) + UV=(h*(720))) */
-	if (s->pixelformat == V4L2_PIX_FMT_NV12_16L16) {
-		s->vb_bytes_per_frame = h * 720 * 3 / 2;
-		s->vb_bytes_per_line = 720; /* First plane */
-	} else {
-		s->vb_bytes_per_frame = h * 720 * 2;
-		s->vb_bytes_per_line = 1440; /* Packed */
-	}
-
-	format.format.width = cx->cxhdl.width = w;
-	format.format.height = cx->cxhdl.height = h;
-	format.format.code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(cx->sd_av, pad, set_fmt, NULL, &format);
-	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
 
 static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
