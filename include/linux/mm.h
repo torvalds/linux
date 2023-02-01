@@ -642,6 +642,13 @@ static inline void vm_flags_reset(struct vm_area_struct *vma,
 	vm_flags_init(vma, flags);
 }
 
+static inline void vm_flags_reset_once(struct vm_area_struct *vma,
+				       vm_flags_t flags)
+{
+	mmap_assert_write_locked(vma->vm_mm);
+	WRITE_ONCE(ACCESS_PRIVATE(vma, __vm_flags), flags);
+}
+
 static inline void vm_flags_set(struct vm_area_struct *vma,
 				vm_flags_t flags)
 {
