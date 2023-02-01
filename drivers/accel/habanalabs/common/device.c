@@ -22,7 +22,6 @@
 
 enum dma_alloc_type {
 	DMA_ALLOC_COHERENT,
-	DMA_ALLOC_CPU_ACCESSIBLE,
 	DMA_ALLOC_POOL,
 };
 
@@ -121,9 +120,6 @@ static void *hl_dma_alloc_common(struct hl_device *hdev, size_t size, dma_addr_t
 	case DMA_ALLOC_COHERENT:
 		ptr = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, size, dma_handle, flag);
 		break;
-	case DMA_ALLOC_CPU_ACCESSIBLE:
-		ptr = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, size, dma_handle);
-		break;
 	case DMA_ALLOC_POOL:
 		ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, size, flag, dma_handle);
 		break;
@@ -147,9 +143,6 @@ static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *c
 	case DMA_ALLOC_COHERENT:
 		hdev->asic_funcs->asic_dma_free_coherent(hdev, size, cpu_addr, dma_handle);
 		break;
-	case DMA_ALLOC_CPU_ACCESSIBLE:
-		hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, size, cpu_addr);
-		break;
 	case DMA_ALLOC_POOL:
 		hdev->asic_funcs->asic_dma_pool_free(hdev, cpu_addr, dma_handle);
 		break;
@@ -170,18 +163,6 @@ void hl_asic_dma_free_coherent_caller(struct hl_device *hdev, size_t size, void 
 	hl_asic_dma_free_common(hdev, size, cpu_addr, dma_handle, DMA_ALLOC_COHERENT, caller);
 }
 
-void *hl_cpu_accessible_dma_pool_alloc_caller(struct hl_device *hdev, size_t size,
-						dma_addr_t *dma_handle, const char *caller)
-{
-	return hl_dma_alloc_common(hdev, size, dma_handle, 0, DMA_ALLOC_CPU_ACCESSIBLE, caller);
-}
-
-void hl_cpu_accessible_dma_pool_free_caller(struct hl_device *hdev, size_t size, void *vaddr,
-						const char *caller)
-{
-	hl_asic_dma_free_common(hdev, size, vaddr, 0, DMA_ALLOC_CPU_ACCESSIBLE, caller);
-}
-
 void *hl_asic_dma_pool_zalloc_caller(struct hl_device *hdev, size_t size, gfp_t mem_flags,
 					dma_addr_t *dma_handle, const char *caller)
 {
@@ -192,6 +173,16 @@ void hl_asic_dma_pool_free_caller(struct hl_device *hdev, void *vaddr, dma_addr_
 					const char *caller)
 {
 	hl_asic_dma_free_common(hdev, 0, vaddr, dma_addr, DMA_ALLOC_POOL, caller);
+}
+
+void *hl_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle)
+{
+	return hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, size, dma_handle);
+}
+
+void hl_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size, void *vaddr)
+{
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, size, vaddr);
 }
 
 int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)

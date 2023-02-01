@@ -155,17 +155,11 @@ enum hl_mmu_enablement {
 #define hl_asic_dma_alloc_coherent(hdev, size, dma_handle, flags) \
 	hl_asic_dma_alloc_coherent_caller(hdev, size, dma_handle, flags, __func__)
 
-#define hl_cpu_accessible_dma_pool_alloc(hdev, size, dma_handle) \
-	hl_cpu_accessible_dma_pool_alloc_caller(hdev, size, dma_handle, __func__)
-
 #define hl_asic_dma_pool_zalloc(hdev, size, mem_flags, dma_handle) \
 	hl_asic_dma_pool_zalloc_caller(hdev, size, mem_flags, dma_handle, __func__)
 
 #define hl_asic_dma_free_coherent(hdev, size, cpu_addr, dma_handle) \
 	hl_asic_dma_free_coherent_caller(hdev, size, cpu_addr, dma_handle, __func__)
-
-#define hl_cpu_accessible_dma_pool_free(hdev, size, vaddr) \
-	hl_cpu_accessible_dma_pool_free_caller(hdev, size, vaddr, __func__)
 
 #define hl_asic_dma_pool_free(hdev, vaddr, dma_addr) \
 	hl_asic_dma_pool_free_caller(hdev, vaddr, dma_addr, __func__)
@@ -3602,14 +3596,12 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 }
 
 uint64_t hl_set_dram_bar_default(struct hl_device *hdev, u64 addr);
+void *hl_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle);
+void hl_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size, void *vaddr);
 void *hl_asic_dma_alloc_coherent_caller(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
 					gfp_t flag, const char *caller);
 void hl_asic_dma_free_coherent_caller(struct hl_device *hdev, size_t size, void *cpu_addr,
 					dma_addr_t dma_handle, const char *caller);
-void *hl_cpu_accessible_dma_pool_alloc_caller(struct hl_device *hdev, size_t size,
-						dma_addr_t *dma_handle, const char *caller);
-void hl_cpu_accessible_dma_pool_free_caller(struct hl_device *hdev, size_t size, void *vaddr,
-						const char *caller);
 void *hl_asic_dma_pool_zalloc_caller(struct hl_device *hdev, size_t size, gfp_t mem_flags,
 					dma_addr_t *dma_handle, const char *caller);
 void hl_asic_dma_pool_free_caller(struct hl_device *hdev, void *vaddr, dma_addr_t dma_addr,
