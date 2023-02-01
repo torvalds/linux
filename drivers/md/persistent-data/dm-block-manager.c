@@ -620,7 +620,7 @@ void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b)
 
 bool dm_bm_is_read_only(struct dm_block_manager *bm)
 {
-	return (bm ? bm->read_only : true);
+	return bm ? bm->read_only : true;
 }
 EXPORT_SYMBOL_GPL(dm_bm_is_read_only);
 
