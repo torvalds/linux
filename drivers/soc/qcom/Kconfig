@@ -92,6 +92,21 @@ config QCOM_PDR_HELPERS
 	tristate
 	select QCOM_QMI_HELPERS
 
+config QCOM_PMIC_GLINK
+	tristate "Qualcomm PMIC GLINK driver"
+	depends on RPMSG
+	depends on TYPEC
+	depends on DRM
+	select AUXILIARY_BUS
+	select QCOM_PDR_HELPERS
+	help
+	  The Qualcomm PMIC GLINK driver provides access, over GLINK, to the
+	  USB and battery firmware running on one of the coprocessors in
+	  several modern Qualcomm platforms.
+
+	  Say yes here to support USB-C and battery status on modern Qualcomm
+	  platforms.
+
 config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
