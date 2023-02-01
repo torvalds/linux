@@ -821,7 +821,7 @@ static int hash_check_key(struct btree_trans *trans,
 		goto bad_hash;
 
 	for_each_btree_key_norestart(trans, iter, desc.btree_id,
-				     POS(hash_k.k->p.inode, hash),
+				     SPOS(hash_k.k->p.inode, hash, hash_k.k->p.snapshot),
 				     BTREE_ITER_SLOTS, k, ret) {
 		if (bkey_eq(k.k->p, hash_k.k->p))
 			break;
