@@ -126,6 +126,12 @@ struct nf_conn {
 };
 
 static inline struct nf_conn *
+nf_ct_to_nf_conn(const struct nf_conntrack *nfct)
+{
+	return container_of(nfct, struct nf_conn, ct_general);
+}
+
+static inline struct nf_conn *
 nf_ct_tuplehash_to_ctrack(const struct nf_conntrack_tuple_hash *hash)
 {
 	return container_of(hash, struct nf_conn,
@@ -174,6 +180,8 @@ nf_ct_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 }
 
 void nf_ct_destroy(struct nf_conntrack *nfct);
+
+void nf_conntrack_tcp_set_closing(struct nf_conn *ct);
 
 /* decrement reference count on a conntrack */
 static inline void nf_ct_put(struct nf_conn *ct)
