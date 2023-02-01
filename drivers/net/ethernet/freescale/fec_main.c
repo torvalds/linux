@@ -4036,7 +4036,6 @@ free_queue_mem:
 static int fec_reset_phy(struct platform_device *pdev)
 {
 	struct gpio_desc *phy_reset;
-	bool active_high = false;
 	int msec = 1, phy_post_delay = 0;
 	struct device_node *np = pdev->dev.of_node;
 	int err;
@@ -4054,10 +4053,8 @@ static int fec_reset_phy(struct platform_device *pdev)
 	if (!err && phy_post_delay > 1000)
 		return -EINVAL;
 
-	active_high = of_property_read_bool(np, "phy-reset-active-high");
-
 	phy_reset = devm_gpiod_get_optional(&pdev->dev, "phy-reset",
-			active_high ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW);
+					    GPIOD_OUT_HIGH);
 	if (IS_ERR(phy_reset))
 		return dev_err_probe(&pdev->dev, PTR_ERR(phy_reset),
 				     "failed to get phy-reset-gpios\n");
@@ -4070,7 +4067,7 @@ static int fec_reset_phy(struct platform_device *pdev)
 	else
 		usleep_range(msec * 1000, msec * 1000 + 1000);
 
-	gpiod_set_value_cansleep(phy_reset, !active_high);
+	gpiod_set_value_cansleep(phy_reset, 0);
 
 	if (!phy_post_delay)
 		return 0;
