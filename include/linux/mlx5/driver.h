@@ -516,6 +516,7 @@ struct mlx5_vhca_state_notifier;
 struct mlx5_sf_dev_table;
 struct mlx5_sf_hw_table;
 struct mlx5_sf_table;
+struct mlx5_crypto_dek_priv;
 
 struct mlx5_rate_limit {
 	u32			rate;
@@ -673,6 +674,7 @@ struct mlx5e_resources {
 	} hw_objs;
 	struct devlink_port dl_port;
 	struct net_device *uplink_netdev;
+	struct mlx5_crypto_dek_priv *dek_priv;
 };
 
 enum mlx5_sw_icm_type {
