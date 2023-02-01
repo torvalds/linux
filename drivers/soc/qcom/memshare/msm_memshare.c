@@ -22,13 +22,10 @@
 #include <trace/events/rproc_qcom.h>
 
 /* Macros */
-#define MEMSHARE_DEV_NAME "memshare"
 static unsigned long(attrs);
 
 static struct qmi_handle *mem_share_svc_handle;
 static uint64_t bootup_request;
-
-static struct device *memshare_dev[MAX_CLIENTS];
 
 /* Memshare Driver Structure */
 struct memshare_driver {
@@ -88,7 +85,6 @@ static void free_client(int id)
 	memblock[id].guarantee = 0;
 	memblock[id].sequence_id = -1;
 	memblock[id].memory_type = MEMORY_CMA;
-
 }
 
 static void fill_alloc_response(struct mem_alloc_generic_resp_msg_v01 *resp,
@@ -107,7 +103,6 @@ static void fill_alloc_response(struct mem_alloc_generic_resp_msg_v01 *resp,
 		resp->resp.result = QMI_RESULT_FAILURE_V01;
 		resp->resp.error = QMI_ERR_NO_MEMORY_V01;
 	}
-
 }
 
 static void initialize_client(void)
@@ -474,7 +469,6 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 	if (rc < 0)
 		dev_err(memsh_drv->dev,
 		"memshare_free: error sending the free response: %d\n", rc);
-
 }
 
 static void handle_query_size_req(struct qmi_handle *handle,
@@ -570,8 +564,8 @@ static struct qmi_msg_handler qmi_memshare_handlers[] = {
 };
 
 int memshare_alloc(struct device *dev,
-					unsigned int block_size,
-					struct mem_blocks *pblk)
+		   unsigned int block_size,
+		   struct mem_blocks *pblk)
 {
 	dev_dbg(memsh_drv->dev,
 		"memshare: allocation request for size: %d", block_size);
@@ -703,9 +697,9 @@ static int memshare_child_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "memshare: Continuing with allocation from CMA\n");
 	}
 
-  /*
-   *	Memshare allocation for guaranteed clients
-   */
+	/*
+	 * Memshare allocation for guaranteed clients
+	 */
 	if (memblock[num_clients].guarantee && size > 0) {
 		if (memblock[num_clients].guard_band)
 			size += MEMSHARE_GUARD_BYTES;
@@ -727,8 +721,6 @@ static int memshare_child_probe(struct platform_device *pdev)
 		memblock[num_clients].allotted = 1;
 		shared_hyp_mapping(num_clients);
 	}
-
-	memshare_dev[num_clients] = &pdev->dev;
 
 	memsh_child[num_clients] = drv;
 	num_clients++;
@@ -805,7 +797,7 @@ static struct platform_driver memshare_pdriver = {
 	.probe          = memshare_probe,
 	.remove         = memshare_remove,
 	.driver = {
-		.name   = MEMSHARE_DEV_NAME,
+		.name   = "memshare",
 		.of_match_table = memshare_match_table,
 	},
 };
