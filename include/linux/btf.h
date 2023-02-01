@@ -73,6 +73,14 @@
 #define KF_RCU          (1 << 7) /* kfunc only takes rcu pointer arguments */
 
 /*
+ * Tag marking a kernel function as a kfunc. This is meant to minimize the
+ * amount of copy-paste that kfunc authors have to include for correctness so
+ * as to avoid issues such as the compiler inlining or eliding either a static
+ * kfunc, or a global kfunc in an LTO build.
+ */
+#define __bpf_kfunc __used noinline
+
+/*
  * Return the name of the passed struct, if exists, or halt the build if for
  * example the structure gets renamed. In this way, developers have to revisit
  * the code using that structure name, and update it accordingly.

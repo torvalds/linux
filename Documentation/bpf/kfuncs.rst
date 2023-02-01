@@ -41,7 +41,7 @@ An example is given below::
         __diag_ignore_all("-Wmissing-prototypes",
                           "Global kfuncs as their definitions will be in BTF");
 
-        struct task_struct *bpf_find_get_task_by_vpid(pid_t nr)
+        __bpf_kfunc struct task_struct *bpf_find_get_task_by_vpid(pid_t nr)
         {
                 return find_get_task_by_vpid(nr);
         }
@@ -66,7 +66,7 @@ kfunc with a __tag, where tag may be one of the supported annotations.
 This annotation is used to indicate a memory and size pair in the argument list.
 An example is given below::
 
-        void bpf_memzero(void *mem, int mem__sz)
+        __bpf_kfunc void bpf_memzero(void *mem, int mem__sz)
         {
         ...
         }
@@ -86,7 +86,7 @@ safety of the program.
 
 An example is given below::
 
-        void *bpf_obj_new(u32 local_type_id__k, ...)
+        __bpf_kfunc void *bpf_obj_new(u32 local_type_id__k, ...)
         {
         ...
         }
@@ -124,6 +124,20 @@ flags on a set of kfuncs as follows::
 
 This set encodes the BTF ID of each kfunc listed above, and encodes the flags
 along with it. Ofcourse, it is also allowed to specify no flags.
+
+kfunc definitions should also always be annotated with the ``__bpf_kfunc``
+macro. This prevents issues such as the compiler inlining the kfunc if it's a
+static kernel function, or the function being elided in an LTO build as it's
+not used in the rest of the kernel. Developers should not manually add
+annotations to their kfunc to prevent these issues. If an annotation is
+required to prevent such an issue with your kfunc, it is a bug and should be
+added to the definition of the macro so that other kfuncs are similarly
+protected. An example is given below::
+
+        __bpf_kfunc struct task_struct *bpf_get_task_pid(s32 pid)
+        {
+        ...
+        }
 
 2.4.1 KF_ACQUIRE flag
 ---------------------
