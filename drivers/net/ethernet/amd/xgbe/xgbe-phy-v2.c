@@ -1882,6 +1882,9 @@ static void xgbe_phy_an_advertising(struct xgbe_prv_data *pdata,
 		if (phy_data->phydev &&
 		    (phy_data->phydev->speed == SPEED_10000))
 			XGBE_SET_ADV(dlks, 10000baseKR_Full);
+		else if (phy_data->phydev &&
+			 (phy_data->phydev->speed == SPEED_2500))
+			XGBE_SET_ADV(dlks, 2500baseX_Full);
 		else
 			XGBE_SET_ADV(dlks, 1000baseKX_Full);
 		break;
@@ -2282,9 +2285,11 @@ static enum xgbe_mode xgbe_phy_switch_baset_mode(struct xgbe_prv_data *pdata)
 	case XGBE_MODE_SGMII_100:
 	case XGBE_MODE_SGMII_1000:
 		return XGBE_MODE_KR;
+	case XGBE_MODE_KX_2500:
+		return XGBE_MODE_SGMII_1000;
 	case XGBE_MODE_KR:
 	default:
-		return XGBE_MODE_SGMII_1000;
+		return XGBE_MODE_KX_2500;
 	}
 }
 
@@ -2644,7 +2649,8 @@ static bool xgbe_phy_valid_speed_baset_mode(struct xgbe_prv_data *pdata,
 	case SPEED_1000:
 		return true;
 	case SPEED_2500:
-		return (phy_data->port_mode == XGBE_PORT_MODE_NBASE_T);
+		return ((phy_data->port_mode == XGBE_PORT_MODE_10GBASE_T) ||
+			(phy_data->port_mode == XGBE_PORT_MODE_NBASE_T));
 	case SPEED_10000:
 		return (phy_data->port_mode == XGBE_PORT_MODE_10GBASE_T);
 	default:
@@ -3024,6 +3030,7 @@ static bool xgbe_phy_port_mode_mismatch(struct xgbe_prv_data *pdata)
 		if ((phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10) ||
 		    (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100) ||
 		    (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000) ||
+		    (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_2500) ||
 		    (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000))
 			return false;
 		break;
@@ -3473,6 +3480,10 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000) {
 			XGBE_SET_SUP(lks, 1000baseT_Full);
 			phy_data->start_mode = XGBE_MODE_SGMII_1000;
+		}
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_2500) {
+			XGBE_SET_SUP(lks, 2500baseT_Full);
+			phy_data->start_mode = XGBE_MODE_KX_2500;
 		}
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000) {
 			XGBE_SET_SUP(lks, 10000baseT_Full);
