@@ -391,7 +391,13 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 			EMIT(PPC_RAW_MULW(dst_reg, dst_reg, src_reg));
 			break;
 		case BPF_ALU | BPF_MUL | BPF_K: /* (u32) dst *= (u32) imm */
-			if (imm >= -32768 && imm < 32768) {
+			if (imm == 1)
+				break;
+			if (imm == -1) {
+				EMIT(PPC_RAW_SUBFIC(dst_reg, dst_reg, 0));
+			} else if (is_power_of_2((u32)imm)) {
+				EMIT(PPC_RAW_SLWI(dst_reg, dst_reg, ilog2(imm)));
+			} else if (imm >= -32768 && imm < 32768) {
 				EMIT(PPC_RAW_MULI(dst_reg, dst_reg, imm));
 			} else {
 				PPC_LI32(_R0, imm);
@@ -409,6 +415,13 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 			if (imm == -1) {
 				EMIT(PPC_RAW_SUBFIC(dst_reg, dst_reg, 0));
 				EMIT(PPC_RAW_SUBFZE(dst_reg_h, dst_reg_h));
+				break;
+			}
+			if (imm > 0 && is_power_of_2(imm)) {
+				imm = ilog2(imm);
+				EMIT(PPC_RAW_RLWINM(dst_reg_h, dst_reg_h, imm, 0, 31 - imm));
+				EMIT(PPC_RAW_RLWIMI(dst_reg_h, dst_reg, imm, 32 - imm, 31));
+				EMIT(PPC_RAW_SLWI(dst_reg, dst_reg, imm));
 				break;
 			}
 			bpf_set_seen_register(ctx, tmp_reg);
@@ -438,8 +451,12 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 			if (imm == 1)
 				break;
 
-			PPC_LI32(_R0, imm);
-			EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, _R0));
+			if (is_power_of_2((u32)imm)) {
+				EMIT(PPC_RAW_SRWI(dst_reg, dst_reg, ilog2(imm)));
+			} else {
+				PPC_LI32(_R0, imm);
+				EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, _R0));
+			}
 			break;
 		case BPF_ALU | BPF_MOD | BPF_K: /* (u32) dst %= (u32) imm */
 			if (!imm)
