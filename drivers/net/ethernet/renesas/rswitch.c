@@ -1146,6 +1146,11 @@ static void rswitch_adjust_link(struct net_device *ndev)
 	/* Current hardware has a restriction not to change speed at runtime */
 	if (phydev->link != rdev->etha->link) {
 		phy_print_status(phydev);
+		if (phydev->link)
+			phy_power_on(rdev->serdes);
+		else
+			phy_power_off(rdev->serdes);
+
 		rdev->etha->link = phydev->link;
 	}
 }
