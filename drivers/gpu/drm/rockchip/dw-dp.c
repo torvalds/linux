@@ -205,7 +205,7 @@
 #define STATEA					GENMASK(7, 4)
 #define SUBSTATEA				GENMASK(3, 1)
 #define HDCPENGAGED				BIT(0)
-#define DPXT_HDCPAPIINTCLR			0x0e08
+#define DPTX_HDCPAPIINTCLR			0x0e08
 #define DPTX_HDCPAPIINTSTAT			0x0e0c
 #define DPTX_HDCPAPIINTMSK			0x0e10
 #define HDCP22_GPIOINT				BIT(8)
@@ -666,27 +666,27 @@ static int dw_dp_hdcp_auth_check(struct dw_dp *dp)
 	if (ret) {
 		if (val & HDCP_FAILED) {
 			dev_err(dp->dev, " HDCP authentication process failed\n");
-			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, HDCP_FAILED);
+			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_FAILED);
 		}
 
 		if (val & AUXRESPNACK7TIMES) {
 			dev_err(dp->dev, "Aux received nack response continuously for 7 times\n");
-			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, AUXRESPNACK7TIMES);
+			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPNACK7TIMES);
 		}
 
 		if (val & AUXRESPTIMEOUT) {
 			dev_err(dp->dev, "Aux did not receive a response and timedout\n");
-			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, AUXRESPTIMEOUT);
+			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPTIMEOUT);
 		}
 
 		if (val & AUXRESPDEFER7TIMES) {
 			dev_err(dp->dev, "Aux received defer response continuously for 7 times\n");
-			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, AUXRESPDEFER7TIMES);
+			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPDEFER7TIMES);
 		}
 
 		dev_err(dp->dev, "HDCP authentication timeout\n");
 	} else {
-		regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, HDCP_ENGAGED);
+		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_ENGAGED);
 		dp->hdcp.hdcp_encrypted = true;
 		dev_info(dp->dev, "HDCP authentication succeed\n");
 	}
@@ -885,7 +885,7 @@ static void dw_dp_handle_hdcp_event(struct dw_dp *dp)
 
 	if (value & HDCP22_GPIOINT) {
 		dev_info(dp->dev, "A change in HDCP22 GPIO Output status\n");
-		regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, HDCP22_GPIOINT);
+		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP22_GPIOINT);
 	}
 
 	mutex_unlock(&dp->irq_lock);
