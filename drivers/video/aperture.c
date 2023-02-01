@@ -293,7 +293,7 @@ int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t si
 	 * ask for this, so let's assume that a real driver for the display
 	 * was already probed and prevent sysfb to register devices later.
 	 */
-	sysfb_disable();
+	// sysfb_disable(); Breaks initramfs framebuffer (aka Plymouth decrypt screen on Pop!_OS)
 
 	aperture_detach_devices(base, size);
 
