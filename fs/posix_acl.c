@@ -957,6 +957,31 @@ set_posix_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 }
 EXPORT_SYMBOL(set_posix_acl);
 
+int posix_acl_listxattr(struct inode *inode, char **buffer,
+			ssize_t *remaining_size)
+{
+	int err;
+
+	if (!IS_POSIXACL(inode))
+		return 0;
+
+	if (inode->i_acl) {
+		err = xattr_list_one(buffer, remaining_size,
+				     XATTR_NAME_POSIX_ACL_ACCESS);
+		if (err)
+			return err;
+	}
+
+	if (inode->i_default_acl) {
+		err = xattr_list_one(buffer, remaining_size,
+				     XATTR_NAME_POSIX_ACL_DEFAULT);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static bool
 posix_acl_xattr_list(struct dentry *dentry)
 {
