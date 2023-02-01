@@ -32,7 +32,6 @@ struct rsnd_adg {
 	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
 	int clk_rate[CLKMAX];
-	u32 flags;
 	u32 ckr;
 	u32 rbga;
 	u32 rbgb;
@@ -40,9 +39,6 @@ struct rsnd_adg {
 	int rbga_rate_for_441khz; /* RBGA */
 	int rbgb_rate_for_48khz;  /* RBGB */
 };
-
-#define LRCLK_ASYNC	(1 << 0)
-#define AUDIO_OUT_48	(1 << 1)
 
 #define for_each_rsnd_clk(pos, adg, i)		\
 	for (i = 0;				\
@@ -341,13 +337,8 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 
 	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
-	if (rsnd_flags_has(adg, LRCLK_ASYNC)) {
-		if (rsnd_flags_has(adg, AUDIO_OUT_48))
-			ckr = 0x80000000;
-	} else {
-		if (0 == (rate % 8000))
-			ckr = 0x80000000;
-	}
+	if (0 == (rate % 8000))
+		ckr = 0x80000000; /* BRGB output = 48kHz */
 
 	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
 	rsnd_mod_write(adg_mod, BRRA,  adg->rbga);
@@ -514,12 +505,6 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 			req_48kHz_rate = req_rate[i];
 	}
 
-	if (req_rate[0] % 48000 == 0)
-		rsnd_flags_set(adg, AUDIO_OUT_48);
-
-	if (of_get_property(np, "clkout-lr-asynchronous", NULL))
-		rsnd_flags_set(adg, LRCLK_ASYNC);
-
 	/*
 	 * This driver is assuming that AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC
 	 * have 44.1kHz or 48kHz base clocks for now.
@@ -547,8 +532,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 				rbga = rbgx;
 				adg->rbga_rate_for_441khz = rate / div;
 				ckr |= brg_table[i] << 20;
-				if (req_441kHz_rate &&
-				    !rsnd_flags_has(adg, AUDIO_OUT_48))
+				if (req_441kHz_rate)
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
@@ -563,8 +547,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 				rbgb = rbgx;
 				adg->rbgb_rate_for_48khz = rate / div;
 				ckr |= brg_table[i] << 16;
-				if (req_48kHz_rate &&
-				    rsnd_flags_has(adg, AUDIO_OUT_48))
+				if (req_48kHz_rate)
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
