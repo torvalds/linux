@@ -913,9 +913,6 @@ static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 				continue;
 		}
 
-		if (uart_handle_sysrq_char(&sport->port, (unsigned char)rx))
-			continue;
-
 		if (unlikely(rx & URXD_ERR)) {
 			if (rx & URXD_BRK)
 				sport->port.icount.brk++;
@@ -944,6 +941,8 @@ static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 				flg = TTY_OVERRUN;
 
 			sport->port.sysrq = 0;
+		} else if (uart_handle_sysrq_char(&sport->port, (unsigned char)rx)) {
+			continue;
 		}
 
 		if (sport->port.ignore_status_mask & URXD_DUMMY_READ)
