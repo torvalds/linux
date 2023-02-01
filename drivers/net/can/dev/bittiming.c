@@ -40,6 +40,8 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 
 	bt->bitrate = priv->clock.freq / (bt->brp * can_bit_time(bt));
 	bt->sample_point = ((CAN_SYNC_SEG + tseg1) * 1000) / can_bit_time(bt);
+	bt->tq = DIV_U64_ROUND_CLOSEST(mul_u32_u32(bt->brp, NSEC_PER_SEC),
+				       priv->clock.freq);
 
 	return 0;
 }
