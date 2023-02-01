@@ -4678,8 +4678,7 @@ void ieee80211_color_collision_detection_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 
 	sdata_lock(sdata);
-	cfg80211_obss_color_collision_notify(sdata->dev, link->color_bitmap,
-					     GFP_KERNEL);
+	cfg80211_obss_color_collision_notify(sdata->dev, link->color_bitmap);
 	sdata_unlock(sdata);
 }
 
