@@ -22,3 +22,11 @@ skip_if_no_debuginfo() {
 	add_probe_vfs_getname -v 2>&1 | grep -E -q "^(Failed to find the path for the kernel|Debuginfo-analysis is not supported)|(file has no debug information)" && return 2
 	return 1
 }
+
+# check if perf is compiled with libtraceevent support
+skip_no_probe_record_support() {
+	if [ $had_vfs_getname -eq 1 ] ; then
+		perf record --dry-run -e $1 2>&1 | grep "libtraceevent is necessary for tracepoint support" && return 2
+		return 1
+	fi
+}
