@@ -78,6 +78,7 @@ struct snd_firewire_event_motu_register_dsp_change {
  *					     operating hardware knob.
  *
  * @type: Fixed to SNDRV_FIREWIRE_EVENT_FF400_MESSAGE.
+ * @message_count: The number of messages.
  * @messages.message: The messages expressing hardware knob operation.
  * @messages.tstamp: The isochronous cycle at which the request subaction of asynchronous
  *		     transaction was sent to deliver the message. It has 16 bit unsigned integer
@@ -89,6 +90,7 @@ struct snd_firewire_event_motu_register_dsp_change {
  */
 struct snd_firewire_event_ff400_message {
 	unsigned int type;
+	unsigned int message_count;
 	struct {
 		__u32 message;
 		__u32 tstamp;
