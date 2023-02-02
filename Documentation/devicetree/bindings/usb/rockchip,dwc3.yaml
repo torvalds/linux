@@ -15,7 +15,7 @@ description:
   Phy documentation is provided in the following places.
 
   USB2.0 PHY
-  Documentation/devicetree/bindings/phy/phy-rockchip-inno-usb2.yaml
+  Documentation/devicetree/bindings/phy/rockchip,inno-usb2phy.yaml
 
   Type-C PHY
   Documentation/devicetree/bindings/phy/phy-rockchip-typec.txt
