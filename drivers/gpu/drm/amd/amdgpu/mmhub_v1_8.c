@@ -29,6 +29,7 @@
 
 #include "soc15_common.h"
 #include "soc15.h"
+#include "amdgpu_ras.h"
 
 #define regVM_L2_CNTL3_DEFAULT	0x80100007
 #define regVM_L2_CNTL4_DEFAULT	0x000000c1
@@ -579,3 +580,95 @@ const struct amdgpu_mmhub_funcs mmhub_v1_8_funcs = {
 	.set_clockgating = mmhub_v1_8_set_clockgating,
 	.get_clockgating = mmhub_v1_8_get_clockgating,
 };
+
+static const struct amdgpu_ras_err_status_reg_entry mmhub_v1_8_ce_reg_list[] = {
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA0_CE_ERR_STATUS_LO, regMMEA0_CE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA0"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA1_CE_ERR_STATUS_LO, regMMEA1_CE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA1"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA2_CE_ERR_STATUS_LO, regMMEA2_CE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA2"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA3_CE_ERR_STATUS_LO, regMMEA3_CE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA3"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA4_CE_ERR_STATUS_LO, regMMEA4_CE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA4"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMM_CANE_CE_ERR_STATUS_LO, regMM_CANE_CE_ERR_STATUS_HI),
+	1, 0, "MM_CANE"},
+};
+
+static const struct amdgpu_ras_err_status_reg_entry mmhub_v1_8_ue_reg_list[] = {
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA0_UE_ERR_STATUS_LO, regMMEA0_UE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA0"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA1_UE_ERR_STATUS_LO, regMMEA1_UE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA1"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA2_UE_ERR_STATUS_LO, regMMEA2_UE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA2"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA3_UE_ERR_STATUS_LO, regMMEA3_UE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA3"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMMEA4_UE_ERR_STATUS_LO, regMMEA4_UE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "MMEA4"},
+	{AMDGPU_RAS_REG_ENTRY(MMHUB, 0, regMM_CANE_UE_ERR_STATUS_LO, regMM_CANE_UE_ERR_STATUS_HI),
+	1, 0, "MM_CANE"},
+};
+
+static const struct amdgpu_ras_memory_id_entry mmhub_v1_8_ras_memory_list[] = {
+	{AMDGPU_MMHUB_WGMI_PAGEMEM, "MMEA_WGMI_PAGEMEM"},
+	{AMDGPU_MMHUB_RGMI_PAGEMEM, "MMEA_RGMI_PAGEMEM"},
+	{AMDGPU_MMHUB_WDRAM_PAGEMEM, "MMEA_WDRAM_PAGEMEM"},
+	{AMDGPU_MMHUB_RDRAM_PAGEMEM, "MMEA_RDRAM_PAGEMEM"},
+	{AMDGPU_MMHUB_WIO_CMDMEM, "MMEA_WIO_CMDMEM"},
+	{AMDGPU_MMHUB_RIO_CMDMEM, "MMEA_RIO_CMDMEM"},
+	{AMDGPU_MMHUB_WGMI_CMDMEM, "MMEA_WGMI_CMDMEM"},
+	{AMDGPU_MMHUB_RGMI_CMDMEM, "MMEA_RGMI_CMDMEM"},
+	{AMDGPU_MMHUB_WDRAM_CMDMEM, "MMEA_WDRAM_CMDMEM"},
+	{AMDGPU_MMHUB_RDRAM_CMDMEM, "MMEA_RDRAM_CMDMEM"},
+	{AMDGPU_MMHUB_MAM_DMEM0, "MMEA_MAM_DMEM0"},
+	{AMDGPU_MMHUB_MAM_DMEM1, "MMEA_MAM_DMEM1"},
+	{AMDGPU_MMHUB_MAM_DMEM2, "MMEA_MAM_DMEM2"},
+	{AMDGPU_MMHUB_MAM_DMEM3, "MMEA_MAM_DMEM3"},
+	{AMDGPU_MMHUB_WRET_TAGMEM, "MMEA_WRET_TAGMEM"},
+	{AMDGPU_MMHUB_RRET_TAGMEM, "MMEA_RRET_TAGMEM"},
+	{AMDGPU_MMHUB_WIO_DATAMEM, "MMEA_WIO_DATAMEM"},
+	{AMDGPU_MMHUB_WGMI_DATAMEM, "MMEA_WGMI_DATAMEM"},
+	{AMDGPU_MMHUB_WDRAM_DATAMEM, "MMEA_WDRAM_DATAMEM"},
+};
+
+static void mmhub_v1_8_inst_query_ras_error_count(struct amdgpu_device *adev,
+						  uint32_t mmhub_inst,
+						  void *ras_err_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
+
+	amdgpu_ras_inst_query_ras_error_count(adev,
+					mmhub_v1_8_ce_reg_list,
+					ARRAY_SIZE(mmhub_v1_8_ce_reg_list),
+					mmhub_v1_8_ras_memory_list,
+					ARRAY_SIZE(mmhub_v1_8_ras_memory_list),
+					mmhub_inst,
+					AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE,
+					&err_data->ce_count);
+	amdgpu_ras_inst_query_ras_error_count(adev,
+					mmhub_v1_8_ue_reg_list,
+					ARRAY_SIZE(mmhub_v1_8_ue_reg_list),
+					mmhub_v1_8_ras_memory_list,
+					ARRAY_SIZE(mmhub_v1_8_ras_memory_list),
+					mmhub_inst,
+					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+					&err_data->ue_count);
+}
+
+static void mmhub_v1_8_query_ras_error_count(struct amdgpu_device *adev,
+					     void *ras_err_status)
+{
+	uint32_t inst_mask;
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
+		dev_warn(adev->dev, "MMHUB RAS is not supported\n");
+		return;
+	}
+
+	inst_mask = adev->aid_mask;
+	for_each_inst(i, inst_mask)
+		mmhub_v1_8_inst_query_ras_error_count(adev, i, ras_err_status);
+}
