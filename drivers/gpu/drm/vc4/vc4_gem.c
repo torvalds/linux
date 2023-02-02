@@ -746,7 +746,6 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		  struct vc4_exec_info *exec)
 {
 	struct drm_vc4_submit_cl *args = exec->args;
-	uint32_t *handles;
 	int ret = 0;
 	int i;
 
@@ -760,43 +759,8 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	exec->bo = kvmalloc_array(exec->bo_count,
-				    sizeof(struct drm_gem_dma_object *),
-				    GFP_KERNEL | __GFP_ZERO);
-	if (!exec->bo) {
-		DRM_ERROR("Failed to allocate validated BO pointers\n");
-		return -ENOMEM;
-	}
-
-	handles = kvmalloc_array(exec->bo_count, sizeof(uint32_t), GFP_KERNEL);
-	if (!handles) {
-		ret = -ENOMEM;
-		DRM_ERROR("Failed to allocate incoming GEM handles\n");
-		goto fail;
-	}
-
-	if (copy_from_user(handles, u64_to_user_ptr(args->bo_handles),
-			   exec->bo_count * sizeof(uint32_t))) {
-		ret = -EFAULT;
-		DRM_ERROR("Failed to copy in GEM handles\n");
-		goto fail;
-	}
-
-	spin_lock(&file_priv->table_lock);
-	for (i = 0; i < exec->bo_count; i++) {
-		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
-						     handles[i]);
-		if (!bo) {
-			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
-				  i, handles[i]);
-			ret = -EINVAL;
-			break;
-		}
-
-		drm_gem_object_get(bo);
-		exec->bo[i] = bo;
-	}
-	spin_unlock(&file_priv->table_lock);
+	ret = drm_gem_objects_lookup(file_priv, u64_to_user_ptr(args->bo_handles),
+				     exec->bo_count, &exec->bo);
 
 	if (ret)
 		goto fail_put_bo;
@@ -807,7 +771,6 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 			goto fail_dec_usecnt;
 	}
 
-	kvfree(handles);
 	return 0;
 
 fail_dec_usecnt:
@@ -827,8 +790,6 @@ fail_put_bo:
 	for (i = 0; i < exec->bo_count && exec->bo[i]; i++)
 		drm_gem_object_put(exec->bo[i]);
 
-fail:
-	kvfree(handles);
 	kvfree(exec->bo);
 	exec->bo = NULL;
 	return ret;
