@@ -634,3 +634,249 @@ int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 	return 0;
 }
+
+int devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
+{
+	if (!req->msg)
+		return 0;
+	return nla_put_string(req->msg, DEVLINK_ATTR_INFO_SERIAL_NUMBER, sn);
+}
+EXPORT_SYMBOL_GPL(devlink_info_serial_number_put);
+
+int devlink_info_board_serial_number_put(struct devlink_info_req *req,
+					 const char *bsn)
+{
+	if (!req->msg)
+		return 0;
+	return nla_put_string(req->msg, DEVLINK_ATTR_INFO_BOARD_SERIAL_NUMBER,
+			      bsn);
+}
+EXPORT_SYMBOL_GPL(devlink_info_board_serial_number_put);
+
+static int devlink_info_version_put(struct devlink_info_req *req, int attr,
+				    const char *version_name,
+				    const char *version_value,
+				    enum devlink_info_version_type version_type)
+{
+	struct nlattr *nest;
+	int err;
+
+	if (req->version_cb)
+		req->version_cb(version_name, version_type,
+				req->version_cb_priv);
+
+	if (!req->msg)
+		return 0;
+
+	nest = nla_nest_start_noflag(req->msg, attr);
+	if (!nest)
+		return -EMSGSIZE;
+
+	err = nla_put_string(req->msg, DEVLINK_ATTR_INFO_VERSION_NAME,
+			     version_name);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(req->msg, DEVLINK_ATTR_INFO_VERSION_VALUE,
+			     version_value);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(req->msg, nest);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(req->msg, nest);
+	return err;
+}
+
+int devlink_info_version_fixed_put(struct devlink_info_req *req,
+				   const char *version_name,
+				   const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_FIXED,
+					version_name, version_value,
+					DEVLINK_INFO_VERSION_TYPE_NONE);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_fixed_put);
+
+int devlink_info_version_stored_put(struct devlink_info_req *req,
+				    const char *version_name,
+				    const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_STORED,
+					version_name, version_value,
+					DEVLINK_INFO_VERSION_TYPE_NONE);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_stored_put);
+
+int devlink_info_version_stored_put_ext(struct devlink_info_req *req,
+					const char *version_name,
+					const char *version_value,
+					enum devlink_info_version_type version_type)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_STORED,
+					version_name, version_value,
+					version_type);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_stored_put_ext);
+
+int devlink_info_version_running_put(struct devlink_info_req *req,
+				     const char *version_name,
+				     const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_RUNNING,
+					version_name, version_value,
+					DEVLINK_INFO_VERSION_TYPE_NONE);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_running_put);
+
+int devlink_info_version_running_put_ext(struct devlink_info_req *req,
+					 const char *version_name,
+					 const char *version_value,
+					 enum devlink_info_version_type version_type)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_RUNNING,
+					version_name, version_value,
+					version_type);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_running_put_ext);
+
+static int devlink_nl_driver_info_get(struct device_driver *drv,
+				      struct devlink_info_req *req)
+{
+	if (!drv)
+		return 0;
+
+	if (drv->name[0])
+		return nla_put_string(req->msg, DEVLINK_ATTR_INFO_DRIVER_NAME,
+				      drv->name);
+
+	return 0;
+}
+
+static int
+devlink_nl_info_fill(struct sk_buff *msg, struct devlink *devlink,
+		     enum devlink_command cmd, u32 portid,
+		     u32 seq, int flags, struct netlink_ext_ack *extack)
+{
+	struct device *dev = devlink_to_dev(devlink);
+	struct devlink_info_req req = {};
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	err = -EMSGSIZE;
+	if (devlink_nl_put_handle(msg, devlink))
+		goto err_cancel_msg;
+
+	req.msg = msg;
+	if (devlink->ops->info_get) {
+		err = devlink->ops->info_get(devlink, &req, extack);
+		if (err)
+			goto err_cancel_msg;
+	}
+
+	err = devlink_nl_driver_info_get(dev->driver, &req);
+	if (err)
+		goto err_cancel_msg;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+err_cancel_msg:
+	genlmsg_cancel(msg, hdr);
+	return err;
+}
+
+int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct sk_buff *msg;
+	int err;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
+				   info->snd_portid, info->snd_seq, 0,
+				   info->extack);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int
+devlink_nl_cmd_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
+				 struct netlink_callback *cb)
+{
+	int err;
+
+	err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
+				   NETLINK_CB(cb->skb).portid,
+				   cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				   cb->extack);
+	if (err == -EOPNOTSUPP)
+		err = 0;
+	return err;
+}
+
+const struct devlink_cmd devl_cmd_info_get = {
+	.dump_one		= devlink_nl_cmd_info_get_dump_one,
+};
+
+static void __devlink_compat_running_version(struct devlink *devlink,
+					     char *buf, size_t len)
+{
+	struct devlink_info_req req = {};
+	const struct nlattr *nlattr;
+	struct sk_buff *msg;
+	int rem, err;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	req.msg = msg;
+	err = devlink->ops->info_get(devlink, &req, NULL);
+	if (err)
+		goto free_msg;
+
+	nla_for_each_attr(nlattr, (void *)msg->data, msg->len, rem) {
+		const struct nlattr *kv;
+		int rem_kv;
+
+		if (nla_type(nlattr) != DEVLINK_ATTR_INFO_VERSION_RUNNING)
+			continue;
+
+		nla_for_each_nested(kv, nlattr, rem_kv) {
+			if (nla_type(kv) != DEVLINK_ATTR_INFO_VERSION_VALUE)
+				continue;
+
+			strlcat(buf, nla_data(kv), len);
+			strlcat(buf, " ", len);
+		}
+	}
+free_msg:
+	nlmsg_free(msg);
+}
+
+void devlink_compat_running_version(struct devlink *devlink,
+				    char *buf, size_t len)
+{
+	if (!devlink->ops->info_get)
+		return;
+
+	devl_lock(devlink);
+	if (devl_is_registered(devlink))
+		__devlink_compat_running_version(devlink, buf, len);
+	devl_unlock(devlink);
+}
