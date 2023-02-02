@@ -59,6 +59,37 @@ struct pm8xxx_rtc {
 	struct device *dev;
 };
 
+static int pm8xxx_rtc_read_raw(struct pm8xxx_rtc *rtc_dd, u32 *secs)
+{
+	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
+	u8 value[NUM_8_BIT_RTC_REGS];
+	unsigned int reg;
+	int rc;
+
+	rc = regmap_bulk_read(rtc_dd->regmap, regs->read, value, sizeof(value));
+	if (rc)
+		return rc;
+
+	/*
+	 * Read the LSB again and check if there has been a carry over.
+	 * If there has, redo the read operation.
+	 */
+	rc = regmap_read(rtc_dd->regmap, regs->read, &reg);
+	if (rc < 0)
+		return rc;
+
+	if (reg < value[0]) {
+		rc = regmap_bulk_read(rtc_dd->regmap, regs->read, value,
+				      sizeof(value));
+		if (rc)
+			return rc;
+	}
+
+	*secs = get_unaligned_le32(value);
+
+	return 0;
+}
+
 /*
  * Steps to write the RTC registers.
  * 1. Disable alarm if enabled.
@@ -129,33 +160,14 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	int rc;
-	u8 value[NUM_8_BIT_RTC_REGS];
-	unsigned int reg;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
-	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 	u32 secs;
+	int rc;
 
-	rc = regmap_bulk_read(rtc_dd->regmap, regs->read, value, sizeof(value));
+	rc = pm8xxx_rtc_read_raw(rtc_dd, &secs);
 	if (rc)
 		return rc;
 
-	/*
-	 * Read the LSB again and check if there has been a carry over.
-	 * If there is, redo the read operation.
-	 */
-	rc = regmap_read(rtc_dd->regmap, regs->read, &reg);
-	if (rc < 0)
-		return rc;
-
-	if (unlikely(reg < value[0])) {
-		rc = regmap_bulk_read(rtc_dd->regmap, regs->read,
-				      value, sizeof(value));
-		if (rc)
-			return rc;
-	}
-
-	secs = get_unaligned_le32(value);
 	rtc_time64_to_tm(secs, tm);
 
 	dev_dbg(dev, "read time: %ptRd %ptRt (%u)\n", tm, tm, secs);
