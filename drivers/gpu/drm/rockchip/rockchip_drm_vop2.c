@@ -3965,7 +3965,7 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 
 	INIT_LIST_HEAD(&vop2->extend_clk_list_head);
 
-	if (vop2->version < VOP_VERSION_RK3588)
+	if (vop2->version != VOP_VERSION_RK3588)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
