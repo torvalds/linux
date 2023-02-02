@@ -505,6 +505,14 @@ struct sparx5_psfp_sg {
 	struct sparx5_psfp_gce gce[SPX5_PSFP_GCE_CNT];
 };
 
+struct sparx5_psfp_sf {
+	bool sblock_osize_ena;
+	bool sblock_osize;
+	u32 max_sdu;
+	u32 sgid; /* Gate id */
+	u32 fmid; /* Flow meter id */
+};
+
 int sparx5_psfp_fm_add(struct sparx5 *sparx5, u32 uidx,
 		       struct sparx5_psfp_fm *fm, u32 *id);
 int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id);
@@ -512,6 +520,15 @@ int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id);
 int sparx5_psfp_sg_add(struct sparx5 *sparx5, u32 uidx,
 		       struct sparx5_psfp_sg *sg, u32 *id);
 int sparx5_psfp_sg_del(struct sparx5 *sparx5, u32 id);
+
+int sparx5_psfp_sf_add(struct sparx5 *sparx5, const struct sparx5_psfp_sf *sf,
+		       u32 *id);
+int sparx5_psfp_sf_del(struct sparx5 *sparx5, u32 id);
+
+u32 sparx5_psfp_isdx_get_sf(struct sparx5 *sparx5, u32 isdx);
+u32 sparx5_psfp_isdx_get_fm(struct sparx5 *sparx5, u32 isdx);
+u32 sparx5_psfp_sf_get_sg(struct sparx5 *sparx5, u32 sfid);
+void sparx5_isdx_conf_set(struct sparx5 *sparx5, u32 isdx, u32 sfid, u32 fmid);
 
 /* sparx5_qos.c */
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,

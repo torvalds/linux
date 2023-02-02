@@ -7,6 +7,7 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 
+#define SPX5_PSFP_SF_CNT 1024
 #define SPX5_PSFP_SG_CONFIG_CHANGE_SLEEP 1000
 #define SPX5_PSFP_SG_CONFIG_CHANGE_TIMEO 100000
 
@@ -15,6 +16,19 @@ static struct sparx5_pool_entry sparx5_psfp_fm_pool[SPX5_SDLB_CNT];
 
 /* Pool of available stream gates */
 static struct sparx5_pool_entry sparx5_psfp_sg_pool[SPX5_PSFP_SG_CNT];
+
+/* Pool of available stream filters */
+static struct sparx5_pool_entry sparx5_psfp_sf_pool[SPX5_PSFP_SF_CNT];
+
+static int sparx5_psfp_sf_get(u32 *id)
+{
+	return sparx5_pool_get(sparx5_psfp_sf_pool, SPX5_PSFP_SF_CNT, id);
+}
+
+static int sparx5_psfp_sf_put(u32 id)
+{
+	return sparx5_pool_put(sparx5_psfp_sf_pool, SPX5_PSFP_SF_CNT, id);
+}
 
 static int sparx5_psfp_sg_get(u32 idx, u32 *id)
 {
@@ -36,6 +50,33 @@ static int sparx5_psfp_fm_get(u32 idx, u32 *id)
 static int sparx5_psfp_fm_put(u32 id)
 {
 	return sparx5_pool_put(sparx5_psfp_fm_pool, SPX5_SDLB_CNT, id);
+}
+
+u32 sparx5_psfp_isdx_get_sf(struct sparx5 *sparx5, u32 isdx)
+{
+	return ANA_L2_TSN_CFG_TSN_SFID_GET(spx5_rd(sparx5,
+						   ANA_L2_TSN_CFG(isdx)));
+}
+
+u32 sparx5_psfp_isdx_get_fm(struct sparx5 *sparx5, u32 isdx)
+{
+	return ANA_L2_DLB_CFG_DLB_IDX_GET(spx5_rd(sparx5,
+						  ANA_L2_DLB_CFG(isdx)));
+}
+
+u32 sparx5_psfp_sf_get_sg(struct sparx5 *sparx5, u32 sfid)
+{
+	return ANA_AC_TSN_SF_CFG_TSN_SGID_GET(spx5_rd(sparx5,
+						      ANA_AC_TSN_SF_CFG(sfid)));
+}
+
+void sparx5_isdx_conf_set(struct sparx5 *sparx5, u32 isdx, u32 sfid, u32 fmid)
+{
+	spx5_rmw(ANA_L2_TSN_CFG_TSN_SFID_SET(sfid), ANA_L2_TSN_CFG_TSN_SFID,
+		 sparx5, ANA_L2_TSN_CFG(isdx));
+
+	spx5_rmw(ANA_L2_DLB_CFG_DLB_IDX_SET(fmid), ANA_L2_DLB_CFG_DLB_IDX,
+		 sparx5, ANA_L2_DLB_CFG(isdx));
 }
 
 /* Internal priority value to internal priority selector */
@@ -71,6 +112,20 @@ static void sparx5_psfp_sg_config_change(struct sparx5 *sparx5, u32 id)
 	if (sparx5_psfp_sgid_wait_for_completion(sparx5) < 0)
 		pr_debug("%s:%d timed out waiting for sgid completion",
 			 __func__, __LINE__);
+}
+
+static void sparx5_psfp_sf_set(struct sparx5 *sparx5, u32 id,
+			       const struct sparx5_psfp_sf *sf)
+{
+	/* Configure stream gate*/
+	spx5_rmw(ANA_AC_TSN_SF_CFG_TSN_SGID_SET(sf->sgid) |
+		ANA_AC_TSN_SF_CFG_TSN_MAX_SDU_SET(sf->max_sdu) |
+		ANA_AC_TSN_SF_CFG_BLOCK_OVERSIZE_STATE_SET(sf->sblock_osize) |
+		ANA_AC_TSN_SF_CFG_BLOCK_OVERSIZE_ENA_SET(sf->sblock_osize_ena),
+		ANA_AC_TSN_SF_CFG_TSN_SGID | ANA_AC_TSN_SF_CFG_TSN_MAX_SDU |
+		ANA_AC_TSN_SF_CFG_BLOCK_OVERSIZE_STATE |
+		ANA_AC_TSN_SF_CFG_BLOCK_OVERSIZE_ENA,
+		sparx5, ANA_AC_TSN_SF_CFG(id));
 }
 
 static int sparx5_psfp_sg_set(struct sparx5 *sparx5, u32 id,
@@ -143,6 +198,29 @@ static int sparx5_sdlb_conf_set(struct sparx5 *sparx5,
 	sparx5_policer_conf_set(sparx5, &fm->pol);
 
 	return sparx5_sdlb_group_action(sparx5, fm->pol.group, fm->pol.idx);
+}
+
+int sparx5_psfp_sf_add(struct sparx5 *sparx5, const struct sparx5_psfp_sf *sf,
+		       u32 *id)
+{
+	int ret;
+
+	ret = sparx5_psfp_sf_get(id);
+	if (ret < 0)
+		return ret;
+
+	sparx5_psfp_sf_set(sparx5, *id, sf);
+
+	return 0;
+}
+
+int sparx5_psfp_sf_del(struct sparx5 *sparx5, u32 id)
+{
+	const struct sparx5_psfp_sf sf = { 0 };
+
+	sparx5_psfp_sf_set(sparx5, id, &sf);
+
+	return sparx5_psfp_sf_put(id);
 }
 
 int sparx5_psfp_sg_add(struct sparx5 *sparx5, u32 uidx,
