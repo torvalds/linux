@@ -1203,8 +1203,8 @@ svm_range_get_pte_flags(struct kfd_node *node,
 			mapping_flags |= AMDGPU_VM_MTYPE_UC;
 		} else if (domain == SVM_RANGE_VRAM_DOMAIN) {
 			/* local HBM region close to partition */
-			if (bo_node->adev == node->adev /* TODO: memory partitions &&
-			    bo_node->mem_id == node->mem_id*/)
+			if (bo_node->adev == node->adev &&
+			    (!bo_node->xcp || !node->xcp || bo_node->xcp->mem_id == node->xcp->mem_id))
 				mapping_flags |= mtype_local;
 			/* local HBM region far from partition or remote XGMI GPU */
 			else if (svm_nodes_in_same_hive(bo_node, node))
@@ -1358,8 +1358,9 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 			 (last_domain == SVM_RANGE_VRAM_DOMAIN) ? 1 : 0,
 			 pte_flags);
 
-		/* TODO: we still need to determine the vm_manager.vram_base_offset based on
-		 * the memory partition.
+		/* For dGPU mode, we use same vm_manager to allocate VRAM for
+		 * different memory partition based on fpfn/lpfn, we should use
+		 * same vm_manager.vram_base_offset regardless memory partition.
 		 */
 		r = amdgpu_vm_update_range(adev, vm, false, false, flush_tlb, NULL,
 					   last_start, prange->start + i,

@@ -1186,7 +1186,7 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 	bool is_vram = bo->tbo.resource->mem_type == TTM_PL_VRAM;
 	bool coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
 	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
-	/* TODO: memory partitions struct amdgpu_vm *vm = mapping->bo_va->base.vm;*/
+	struct amdgpu_vm *vm = mapping->bo_va->base.vm;
 	unsigned int mtype_local, mtype;
 	bool snoop = false;
 	bool is_local;
@@ -1247,8 +1247,8 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		}
 		is_local = (!is_vram && (adev->flags & AMD_IS_APU) &&
 			    num_possible_nodes() <= 1) ||
-			   (is_vram && adev == bo_adev /* TODO: memory partitions &&
-			    bo->mem_id == vm->mem_id*/);
+			   (is_vram && adev == bo_adev &&
+			    bo->mem_id == vm->mem_id);
 		snoop = true;
 		if (uncached) {
 			mtype = MTYPE_UC;
@@ -1335,13 +1335,12 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 		return;
 	}
 
-	/* TODO: memory partitions. mem_id is hard-coded to 0 for now.
-	 * FIXME: Only supported on native mode for now. For carve-out, the
+	/* FIXME: Only supported on native mode for now. For carve-out, the
 	 * NUMA affinity of the GPU/VM needs to come from the PCI info because
 	 * memory partitions are not associated with different NUMA nodes.
 	 */
-	if (adev->gmc.is_app_apu) {
-		local_node = adev->gmc.mem_partitions[/*vm->mem_id*/0].numa.node;
+	if (adev->gmc.is_app_apu && vm->mem_id >= 0) {
+		local_node = adev->gmc.mem_partitions[vm->mem_id].numa.node;
 	} else {
 		dev_dbg(adev->dev, "Only native mode APU is supported.\n");
 		return;
@@ -1356,7 +1355,7 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 	}
 	nid = pfn_to_nid(addr >> PAGE_SHIFT);
 	dev_dbg(adev->dev, "vm->mem_id=%d, local_node=%d, nid=%d\n",
-		/*vm->mem_id*/0, local_node, nid);
+		vm->mem_id, local_node, nid);
 	if (nid == local_node) {
 		uint64_t old_flags = *flags;
 		unsigned int mtype_local = MTYPE_RW;
