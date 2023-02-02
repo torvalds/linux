@@ -249,6 +249,9 @@ struct stepping_info {
 	char substepping;
 };
 
+#define for_each_dmc_id(__dmc_id) \
+	for ((__dmc_id) = DMC_FW_MAIN; (__dmc_id) < DMC_FW_MAX; (__dmc_id)++)
+
 static bool has_dmc_id_fw(struct drm_i915_private *i915, enum intel_dmc_id dmc_id)
 {
 	return i915->display.dmc.dmc_info[dmc_id].payload;
@@ -346,7 +349,7 @@ disable_all_flip_queue_events(struct drm_i915_private *i915)
 	if (!IS_DG2(i915) && !IS_TIGERLAKE(i915))
 		return;
 
-	for (dmc_id = 0; dmc_id < DMC_FW_MAX; dmc_id++) {
+	for_each_dmc_id(dmc_id) {
 		i915_reg_t ctl_reg;
 		i915_reg_t htp_reg;
 
@@ -368,7 +371,7 @@ static void disable_all_event_handlers(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) < 12)
 		return;
 
-	for (dmc_id = DMC_FW_MAIN; dmc_id < DMC_FW_MAX; dmc_id++) {
+	for_each_dmc_id(dmc_id) {
 		int handler;
 
 		if (!has_dmc_id_fw(i915, dmc_id))
@@ -452,7 +455,7 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 
 	preempt_disable();
 
-	for (dmc_id = 0; dmc_id < DMC_FW_MAX; dmc_id++) {
+	for_each_dmc_id(dmc_id) {
 		for (i = 0; i < dmc->dmc_info[dmc_id].dmc_fw_size; i++) {
 			intel_de_write_fw(dev_priv,
 					  DMC_PROGRAM(dmc->dmc_info[dmc_id].start_mmioaddr, i),
@@ -462,7 +465,7 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 
 	preempt_enable();
 
-	for (dmc_id = 0; dmc_id < DMC_FW_MAX; dmc_id++) {
+	for_each_dmc_id(dmc_id) {
 		for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
 			intel_de_write(dev_priv, dmc->dmc_info[dmc_id].mmioaddr[i],
 				       dmc->dmc_info[dmc_id].mmiodata[i]);
@@ -824,7 +827,7 @@ static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 
 	readcount += r;
 
-	for (dmc_id = 0; dmc_id < DMC_FW_MAX; dmc_id++) {
+	for_each_dmc_id(dmc_id) {
 		if (!dev_priv->display.dmc.dmc_info[dmc_id].present)
 			continue;
 
@@ -1051,7 +1054,7 @@ void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 	intel_dmc_ucode_suspend(dev_priv);
 	drm_WARN_ON(&dev_priv->drm, dev_priv->display.dmc.wakeref);
 
-	for (dmc_id = 0; dmc_id < DMC_FW_MAX; dmc_id++)
+	for_each_dmc_id(dmc_id)
 		kfree(dev_priv->display.dmc.dmc_info[dmc_id].payload);
 }
 
