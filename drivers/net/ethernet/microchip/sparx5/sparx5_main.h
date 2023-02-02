@@ -474,13 +474,44 @@ struct sparx5_policer {
 int sparx5_policer_conf_set(struct sparx5 *sparx5, struct sparx5_policer *pol);
 
 /* sparx5_psfp.c */
+#define SPX5_PSFP_GCE_CNT 4
+#define SPX5_PSFP_SG_CNT 1024
+#define SPX5_PSFP_SG_MIN_CYCLE_TIME_NS (1 * NSEC_PER_USEC)
+#define SPX5_PSFP_SG_MAX_CYCLE_TIME_NS ((1 * NSEC_PER_SEC) - 1)
+#define SPX5_PSFP_SG_MAX_IPV (SPX5_PRIOS - 1)
+#define SPX5_PSFP_SG_OPEN (SPX5_PSFP_SG_CNT - 1)
+#define SPX5_PSFP_SG_CYCLE_TIME_DEFAULT 1000000
+#define SPX5_PSFP_SF_MAX_SDU 16383
+
 struct sparx5_psfp_fm {
 	struct sparx5_policer pol;
+};
+
+struct sparx5_psfp_gce {
+	bool gate_state;            /* StreamGateState */
+	u32 interval;               /* TimeInterval */
+	u32 ipv;                    /* InternalPriorityValue */
+	u32 maxoctets;              /* IntervalOctetMax */
+};
+
+struct sparx5_psfp_sg {
+	bool gate_state;            /* PSFPAdminGateStates */
+	bool gate_enabled;          /* PSFPGateEnabled */
+	u32 ipv;                    /* PSFPAdminIPV */
+	struct timespec64 basetime; /* PSFPAdminBaseTime */
+	u32 cycletime;              /* PSFPAdminCycleTime */
+	u32 cycletimeext;           /* PSFPAdminCycleTimeExtension */
+	u32 num_entries;            /* PSFPAdminControlListLength */
+	struct sparx5_psfp_gce gce[SPX5_PSFP_GCE_CNT];
 };
 
 int sparx5_psfp_fm_add(struct sparx5 *sparx5, u32 uidx,
 		       struct sparx5_psfp_fm *fm, u32 *id);
 int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id);
+
+int sparx5_psfp_sg_add(struct sparx5 *sparx5, u32 uidx,
+		       struct sparx5_psfp_sg *sg, u32 *id);
+int sparx5_psfp_sg_del(struct sparx5 *sparx5, u32 id);
 
 /* sparx5_qos.c */
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
