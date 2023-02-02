@@ -596,15 +596,6 @@ devlink_region_snapshot_get_by_id(struct devlink_region *region, u32 id)
 	return NULL;
 }
 
-static int devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
-{
-	if (nla_put_string(msg, DEVLINK_ATTR_BUS_NAME, devlink->dev->bus->name))
-		return -EMSGSIZE;
-	if (nla_put_string(msg, DEVLINK_ATTR_DEV_NAME, dev_name(devlink->dev)))
-		return -EMSGSIZE;
-	return 0;
-}
-
 static int devlink_nl_put_nested_handle(struct sk_buff *msg, struct devlink *devlink)
 {
 	struct nlattr *nested_attr;
@@ -699,7 +690,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink, bool is_remote)
+int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink, bool is_remote)
 {
 	struct nlattr *reload_stats_attr, *act_info, *act_stats;
 	int i, j, stat_idx;
@@ -760,64 +751,6 @@ action_info_nest_cancel:
 nla_put_failure:
 	nla_nest_cancel(msg, reload_stats_attr);
 	return -EMSGSIZE;
-}
-
-static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
-			   enum devlink_command cmd, u32 portid,
-			   u32 seq, int flags)
-{
-	struct nlattr *dev_stats;
-	void *hdr;
-
-	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
-	if (!hdr)
-		return -EMSGSIZE;
-
-	if (devlink_nl_put_handle(msg, devlink))
-		goto nla_put_failure;
-	if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_FAILED, devlink->reload_failed))
-		goto nla_put_failure;
-
-	dev_stats = nla_nest_start(msg, DEVLINK_ATTR_DEV_STATS);
-	if (!dev_stats)
-		goto nla_put_failure;
-
-	if (devlink_reload_stats_put(msg, devlink, false))
-		goto dev_stats_nest_cancel;
-	if (devlink_reload_stats_put(msg, devlink, true))
-		goto dev_stats_nest_cancel;
-
-	nla_nest_end(msg, dev_stats);
-	genlmsg_end(msg, hdr);
-	return 0;
-
-dev_stats_nest_cancel:
-	nla_nest_cancel(msg, dev_stats);
-nla_put_failure:
-	genlmsg_cancel(msg, hdr);
-	return -EMSGSIZE;
-}
-
-static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
-{
-	struct sk_buff *msg;
-	int err;
-
-	WARN_ON(cmd != DEVLINK_CMD_NEW && cmd != DEVLINK_CMD_DEL);
-	WARN_ON(!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED));
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return;
-
-	err = devlink_nl_fill(msg, devlink, cmd, 0, 0, 0);
-	if (err) {
-		nlmsg_free(msg);
-		return;
-	}
-
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
-				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
 static int devlink_nl_port_attrs_put(struct sk_buff *msg,
@@ -1273,39 +1206,6 @@ devlink_rate_is_parent_node(struct devlink_rate *devlink_rate,
 	}
 	return false;
 }
-
-static int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info)
-{
-	struct devlink *devlink = info->user_ptr[0];
-	struct sk_buff *msg;
-	int err;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	err = devlink_nl_fill(msg, devlink, DEVLINK_CMD_NEW,
-			      info->snd_portid, info->snd_seq, 0);
-	if (err) {
-		nlmsg_free(msg);
-		return err;
-	}
-
-	return genlmsg_reply(msg, info);
-}
-
-static int
-devlink_nl_cmd_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-			    struct netlink_callback *cb)
-{
-	return devlink_nl_fill(msg, devlink, DEVLINK_CMD_NEW,
-			       NETLINK_CB(cb->skb).portid,
-			       cb->nlh->nlmsg_seq, NLM_F_MULTI);
-}
-
-const struct devlink_cmd devl_cmd_get = {
-	.dump_one		= devlink_nl_cmd_get_dump_one,
-};
 
 static int devlink_nl_cmd_port_get_doit(struct sk_buff *skb,
 					struct genl_info *info)

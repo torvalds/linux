@@ -139,6 +139,16 @@ devlink_dump_state(struct netlink_callback *cb)
 	return (struct devlink_nl_dump_state *)cb->ctx;
 }
 
+static inline int
+devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
+{
+	if (nla_put_string(msg, DEVLINK_ATTR_BUS_NAME, devlink->dev->bus->name))
+		return -EMSGSIZE;
+	if (nla_put_string(msg, DEVLINK_ATTR_DEV_NAME, dev_name(devlink->dev)))
+		return -EMSGSIZE;
+	return 0;
+}
+
 /* Commands */
 extern const struct devlink_cmd devl_cmd_get;
 extern const struct devlink_cmd devl_cmd_port_get;
@@ -157,6 +167,9 @@ extern const struct devlink_cmd devl_cmd_rate_get;
 extern const struct devlink_cmd devl_cmd_linecard_get;
 extern const struct devlink_cmd devl_cmd_selftests_get;
 
+/* Notify */
+void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
+
 /* Ports */
 int devlink_port_netdevice_event(struct notifier_block *nb,
 				 unsigned long event, void *ptr);
@@ -166,6 +179,8 @@ devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
+int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink,
+			     bool is_remote);
 int devlink_reload(struct devlink *devlink, struct net *dest_net,
 		   enum devlink_reload_action action,
 		   enum devlink_reload_limit limit,
@@ -188,3 +203,5 @@ devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_rate *
 devlink_rate_node_get_from_info(struct devlink *devlink,
 				struct genl_info *info);
+/* Devlink nl cmds */
+int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info);
