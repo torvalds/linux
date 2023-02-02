@@ -162,10 +162,19 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 	struct sk_buff *lp;
 	int segs;
 
+	/* Do not splice page pool based packets w/ non-page pool
+	 * packets. This can result in reference count issues as page
+	 * pool pages will not decrement the reference count and will
+	 * instead be immediately returned to the pool or have frag
+	 * count decremented.
+	 */
+	if (p->pp_recycle != skb->pp_recycle)
+		return -ETOOMANYREFS;
+
 	/* pairs with WRITE_ONCE() in netif_set_gro(_ipv4)_max_size() */
 	gro_max_size = p->protocol == htons(ETH_P_IPV6) ?
 			READ_ONCE(p->dev->gro_max_size) :
-				READ_ONCE(p->dev->gro_ipv4_max_size);
+			READ_ONCE(p->dev->gro_ipv4_max_size);
 
 	if (unlikely(p->len + len >= gro_max_size || NAPI_GRO_CB(skb)->flush))
 		return -E2BIG;
