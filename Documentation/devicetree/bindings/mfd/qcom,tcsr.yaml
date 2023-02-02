@@ -26,6 +26,7 @@ properties:
           - qcom,sdm630-tcsr
           - qcom,sdm845-tcsr
           - qcom,sm8150-tcsr
+          - qcom,sm8450-tcsr
           - qcom,tcsr-apq8064
           - qcom,tcsr-apq8084
           - qcom,tcsr-ipq5332
