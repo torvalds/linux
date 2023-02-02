@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/of.h>
 
 #define PHY_ID_YT8511		0x0000010a
 #define PHY_ID_YT8521		0x0000011a
@@ -187,21 +188,9 @@
  * 1b1 use inverted tx_clk_rgmii.
  */
 #define YT8521_RC1R_TX_CLK_SEL_INVERTED		BIT(14)
-/* TX Gig-E Delay is bits 3:0, default 0x1
- * TX Fast-E Delay is bits 7:4, default 0xf
- * RX Delay is bits 13:10, default 0x0
- * Delay = 150ps * N
- * On = 2250ps, off = 0ps
- */
 #define YT8521_RC1R_RX_DELAY_MASK		GENMASK(13, 10)
-#define YT8521_RC1R_RX_DELAY_EN			(0xF << 10)
-#define YT8521_RC1R_RX_DELAY_DIS		(0x0 << 10)
 #define YT8521_RC1R_FE_TX_DELAY_MASK		GENMASK(7, 4)
-#define YT8521_RC1R_FE_TX_DELAY_EN		(0xF << 4)
-#define YT8521_RC1R_FE_TX_DELAY_DIS		(0x0 << 4)
 #define YT8521_RC1R_GE_TX_DELAY_MASK		GENMASK(3, 0)
-#define YT8521_RC1R_GE_TX_DELAY_EN		(0xF << 0)
-#define YT8521_RC1R_GE_TX_DELAY_DIS		(0x0 << 0)
 #define YT8521_RC1R_RGMII_0_000_NS		0
 #define YT8521_RC1R_RGMII_0_150_NS		1
 #define YT8521_RC1R_RGMII_0_300_NS		2
@@ -273,6 +262,10 @@
 #define YT8531S_SCR_SYNCE_ENABLE		BIT(6)
 
 /* Extended Register  end */
+
+#define YTPHY_DTS_OUTPUT_CLK_DIS		0
+#define YTPHY_DTS_OUTPUT_CLK_25M		25000000
+#define YTPHY_DTS_OUTPUT_CLK_125M		125000000
 
 struct yt8521_priv {
 	/* combo_advertising is used for case of YT8521 in combo mode,
@@ -641,6 +634,142 @@ static int yt8521_write_page(struct phy_device *phydev, int page)
 };
 
 /**
+ * struct ytphy_cfg_reg_map - map a config value to a register value
+ * @cfg: value in device configuration
+ * @reg: value in the register
+ */
+struct ytphy_cfg_reg_map {
+	u32 cfg;
+	u32 reg;
+};
+
+static const struct ytphy_cfg_reg_map ytphy_rgmii_delays[] = {
+	/* for tx delay / rx delay with YT8521_CCR_RXC_DLY_EN is not set. */
+	{ 0,	YT8521_RC1R_RGMII_0_000_NS },
+	{ 150,	YT8521_RC1R_RGMII_0_150_NS },
+	{ 300,	YT8521_RC1R_RGMII_0_300_NS },
+	{ 450,	YT8521_RC1R_RGMII_0_450_NS },
+	{ 600,	YT8521_RC1R_RGMII_0_600_NS },
+	{ 750,	YT8521_RC1R_RGMII_0_750_NS },
+	{ 900,	YT8521_RC1R_RGMII_0_900_NS },
+	{ 1050,	YT8521_RC1R_RGMII_1_050_NS },
+	{ 1200,	YT8521_RC1R_RGMII_1_200_NS },
+	{ 1350,	YT8521_RC1R_RGMII_1_350_NS },
+	{ 1500,	YT8521_RC1R_RGMII_1_500_NS },
+	{ 1650,	YT8521_RC1R_RGMII_1_650_NS },
+	{ 1800,	YT8521_RC1R_RGMII_1_800_NS },
+	{ 1950,	YT8521_RC1R_RGMII_1_950_NS },	/* default tx/rx delay */
+	{ 2100,	YT8521_RC1R_RGMII_2_100_NS },
+	{ 2250,	YT8521_RC1R_RGMII_2_250_NS },
+
+	/* only for rx delay with YT8521_CCR_RXC_DLY_EN is set. */
+	{ 0    + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_000_NS },
+	{ 150  + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_150_NS },
+	{ 300  + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_300_NS },
+	{ 450  + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_450_NS },
+	{ 600  + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_600_NS },
+	{ 750  + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_750_NS },
+	{ 900  + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_0_900_NS },
+	{ 1050 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_050_NS },
+	{ 1200 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_200_NS },
+	{ 1350 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_350_NS },
+	{ 1500 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_500_NS },
+	{ 1650 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_650_NS },
+	{ 1800 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_800_NS },
+	{ 1950 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_1_950_NS },
+	{ 2100 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_2_100_NS },
+	{ 2250 + YT8521_CCR_RXC_DLY_1_900_NS,	YT8521_RC1R_RGMII_2_250_NS }
+};
+
+static u32 ytphy_get_delay_reg_value(struct phy_device *phydev,
+				     const char *prop_name,
+				     const struct ytphy_cfg_reg_map *tbl,
+				     int tb_size,
+				     u16 *rxc_dly_en,
+				     u32 dflt)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	int tb_size_half = tb_size / 2;
+	u32 val;
+	int i;
+
+	if (of_property_read_u32(node, prop_name, &val))
+		goto err_dts_val;
+
+	/* when rxc_dly_en is NULL, it is get the delay for tx, only half of
+	 * tb_size is valid.
+	 */
+	if (!rxc_dly_en)
+		tb_size = tb_size_half;
+
+	for (i = 0; i < tb_size; i++) {
+		if (tbl[i].cfg == val) {
+			if (rxc_dly_en && i < tb_size_half)
+				*rxc_dly_en = 0;
+			return tbl[i].reg;
+		}
+	}
+
+	phydev_warn(phydev, "Unsupported value %d for %s using default (%u)\n",
+		    val, prop_name, dflt);
+
+err_dts_val:
+	/* when rxc_dly_en is not NULL, it is get the delay for rx.
+	 * The rx default in dts and ytphy_rgmii_clk_delay_config is 1950 ps,
+	 * so YT8521_CCR_RXC_DLY_EN should not be set.
+	 */
+	if (rxc_dly_en)
+		*rxc_dly_en = 0;
+
+	return dflt;
+}
+
+static int ytphy_rgmii_clk_delay_config(struct phy_device *phydev)
+{
+	int tb_size = ARRAY_SIZE(ytphy_rgmii_delays);
+	u16 rxc_dly_en = YT8521_CCR_RXC_DLY_EN;
+	u32 rx_reg, tx_reg;
+	u16 mask, val = 0;
+	int ret;
+
+	rx_reg = ytphy_get_delay_reg_value(phydev, "rx-internal-delay-ps",
+					   ytphy_rgmii_delays, tb_size,
+					   &rxc_dly_en,
+					   YT8521_RC1R_RGMII_1_950_NS);
+	tx_reg = ytphy_get_delay_reg_value(phydev, "tx-internal-delay-ps",
+					   ytphy_rgmii_delays, tb_size, NULL,
+					   YT8521_RC1R_RGMII_1_950_NS);
+
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		rxc_dly_en = 0;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		val |= FIELD_PREP(YT8521_RC1R_RX_DELAY_MASK, rx_reg);
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		rxc_dly_en = 0;
+		val |= FIELD_PREP(YT8521_RC1R_GE_TX_DELAY_MASK, tx_reg);
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		val |= FIELD_PREP(YT8521_RC1R_RX_DELAY_MASK, rx_reg) |
+		       FIELD_PREP(YT8521_RC1R_GE_TX_DELAY_MASK, tx_reg);
+		break;
+	default: /* do not support other modes */
+		return -EOPNOTSUPP;
+	}
+
+	ret = ytphy_modify_ext(phydev, YT8521_CHIP_CONFIG_REG,
+			       YT8521_CCR_RXC_DLY_EN, rxc_dly_en);
+	if (ret < 0)
+		return ret;
+
+	/* Generally, it is not necessary to adjust YT8521_RC1R_FE_TX_DELAY */
+	mask = YT8521_RC1R_RX_DELAY_MASK | YT8521_RC1R_GE_TX_DELAY_MASK;
+	return ytphy_modify_ext(phydev, YT8521_RGMII_CONFIG1_REG, mask, val);
+}
+
+/**
  * yt8521_probe() - read chip config then set suitable polling_mode
  * @phydev: a pointer to a &struct phy_device
  *
@@ -648,9 +777,12 @@ static int yt8521_write_page(struct phy_device *phydev, int page)
  */
 static int yt8521_probe(struct phy_device *phydev)
 {
+	struct device_node *node = phydev->mdio.dev.of_node;
 	struct device *dev = &phydev->mdio.dev;
 	struct yt8521_priv *priv;
 	int chip_config;
+	u16 mask, val;
+	u32 freq;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -695,7 +827,45 @@ static int yt8521_probe(struct phy_device *phydev)
 			return ret;
 	}
 
-	return 0;
+	if (of_property_read_u32(node, "motorcomm,clk-out-frequency-hz", &freq))
+		freq = YTPHY_DTS_OUTPUT_CLK_DIS;
+
+	if (phydev->drv->phy_id == PHY_ID_YT8521) {
+		switch (freq) {
+		case YTPHY_DTS_OUTPUT_CLK_DIS:
+			mask = YT8521_SCR_SYNCE_ENABLE;
+			val = 0;
+			break;
+		case YTPHY_DTS_OUTPUT_CLK_25M:
+			mask = YT8521_SCR_SYNCE_ENABLE |
+			       YT8521_SCR_CLK_SRC_MASK |
+			       YT8521_SCR_CLK_FRE_SEL_125M;
+			val = YT8521_SCR_SYNCE_ENABLE |
+			      FIELD_PREP(YT8521_SCR_CLK_SRC_MASK,
+					 YT8521_SCR_CLK_SRC_REF_25M);
+			break;
+		case YTPHY_DTS_OUTPUT_CLK_125M:
+			mask = YT8521_SCR_SYNCE_ENABLE |
+			       YT8521_SCR_CLK_SRC_MASK |
+			       YT8521_SCR_CLK_FRE_SEL_125M;
+			val = YT8521_SCR_SYNCE_ENABLE |
+			      YT8521_SCR_CLK_FRE_SEL_125M |
+			      FIELD_PREP(YT8521_SCR_CLK_SRC_MASK,
+					 YT8521_SCR_CLK_SRC_PLL_125M);
+			break;
+		default:
+			phydev_warn(phydev, "Freq err:%u\n", freq);
+			return -EINVAL;
+		}
+	} else if (phydev->drv->phy_id == PHY_ID_YT8531S) {
+		return 0;
+	} else {
+		phydev_warn(phydev, "PHY id err\n");
+		return -EINVAL;
+	}
+
+	return ytphy_modify_ext_with_lock(phydev, YTPHY_SYNCE_CFG_REG, mask,
+					  val);
 }
 
 /**
@@ -1180,61 +1350,36 @@ static int yt8521_resume(struct phy_device *phydev)
  */
 static int yt8521_config_init(struct phy_device *phydev)
 {
+	struct device_node *node = phydev->mdio.dev.of_node;
 	int old_page;
 	int ret = 0;
-	u16 val;
 
 	old_page = phy_select_page(phydev, YT8521_RSSR_UTP_SPACE);
 	if (old_page < 0)
 		goto err_restore_page;
 
-	switch (phydev->interface) {
-	case PHY_INTERFACE_MODE_RGMII:
-		val = YT8521_RC1R_GE_TX_DELAY_DIS | YT8521_RC1R_FE_TX_DELAY_DIS;
-		val |= YT8521_RC1R_RX_DELAY_DIS;
-		break;
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-		val = YT8521_RC1R_GE_TX_DELAY_DIS | YT8521_RC1R_FE_TX_DELAY_DIS;
-		val |= YT8521_RC1R_RX_DELAY_EN;
-		break;
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = YT8521_RC1R_GE_TX_DELAY_EN | YT8521_RC1R_FE_TX_DELAY_EN;
-		val |= YT8521_RC1R_RX_DELAY_DIS;
-		break;
-	case PHY_INTERFACE_MODE_RGMII_ID:
-		val = YT8521_RC1R_GE_TX_DELAY_EN | YT8521_RC1R_FE_TX_DELAY_EN;
-		val |= YT8521_RC1R_RX_DELAY_EN;
-		break;
-	case PHY_INTERFACE_MODE_SGMII:
-		break;
-	default: /* do not support other modes */
-		ret = -EOPNOTSUPP;
-		goto err_restore_page;
-	}
-
 	/* set rgmii delay mode */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII) {
-		ret = ytphy_modify_ext(phydev, YT8521_RGMII_CONFIG1_REG,
-				       (YT8521_RC1R_RX_DELAY_MASK |
-				       YT8521_RC1R_FE_TX_DELAY_MASK |
-				       YT8521_RC1R_GE_TX_DELAY_MASK),
-				       val);
+		ret = ytphy_rgmii_clk_delay_config(phydev);
 		if (ret < 0)
 			goto err_restore_page;
 	}
 
-	/* disable auto sleep */
-	ret = ytphy_modify_ext(phydev, YT8521_EXTREG_SLEEP_CONTROL1_REG,
-			       YT8521_ESC1R_SLEEP_SW, 0);
-	if (ret < 0)
-		goto err_restore_page;
+	if (of_property_read_bool(node, "motorcomm,auto-sleep-disabled")) {
+		/* disable auto sleep */
+		ret = ytphy_modify_ext(phydev, YT8521_EXTREG_SLEEP_CONTROL1_REG,
+				       YT8521_ESC1R_SLEEP_SW, 0);
+		if (ret < 0)
+			goto err_restore_page;
+	}
 
-	/* enable RXC clock when no wire plug */
-	ret = ytphy_modify_ext(phydev, YT8521_CLOCK_GATING_REG,
-			       YT8521_CGR_RX_CLK_EN, 0);
-	if (ret < 0)
-		goto err_restore_page;
-
+	if (of_property_read_bool(node, "motorcomm,keep-pll-enabled")) {
+		/* enable RXC clock when no wire plug */
+		ret = ytphy_modify_ext(phydev, YT8521_CLOCK_GATING_REG,
+				       YT8521_CGR_RX_CLK_EN, 0);
+		if (ret < 0)
+			goto err_restore_page;
+	}
 err_restore_page:
 	return phy_restore_page(phydev, old_page, ret);
 }
