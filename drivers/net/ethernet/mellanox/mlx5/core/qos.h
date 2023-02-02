@@ -23,7 +23,7 @@ int mlx5_qos_create_leaf_node(struct mlx5_core_dev *mdev, u32 parent_id,
 int mlx5_qos_create_inner_node(struct mlx5_core_dev *mdev, u32 parent_id,
 			       u32 bw_share, u32 max_avg_bw, u32 *id);
 int mlx5_qos_create_root_node(struct mlx5_core_dev *mdev, u32 *id);
-int mlx5_qos_update_node(struct mlx5_core_dev *mdev, u32 parent_id, u32 bw_share,
+int mlx5_qos_update_node(struct mlx5_core_dev *mdev, u32 bw_share,
 			 u32 max_avg_bw, u32 id);
 int mlx5_qos_destroy_node(struct mlx5_core_dev *mdev, u32 id);
 

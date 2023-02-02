@@ -318,8 +318,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_thermal_stats,
 		TP_ARGS(cpu), 1);
 
 DECLARE_HOOK(android_vh_do_wake_up_sync,
-	TP_PROTO(struct wait_queue_head *wq_head, int *done),
-	TP_ARGS(wq_head, done));
+	TP_PROTO(struct wait_queue_head *wq_head, int *done, struct sock *sk),
+	TP_ARGS(wq_head, done, sk));
 
 DECLARE_HOOK(android_vh_set_wake_flags,
 	TP_PROTO(int *wake_flags, unsigned int *mode),

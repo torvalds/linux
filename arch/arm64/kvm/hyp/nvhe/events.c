@@ -4,13 +4,14 @@
  */
 
 #include <nvhe/trace.h>
+#include <nvhe/mm.h>
 
 extern struct hyp_event_id __hyp_event_ids_start[];
 extern struct hyp_event_id __hyp_event_ids_end[];
 
 #undef HYP_EVENT
 #define HYP_EVENT(__name, __proto, __struct, __assign, __printk)	\
-	atomic_t __name##_enabled = ATOMIC_INIT(0);			\
+	atomic_t __ro_after_init __name##_enabled = ATOMIC_INIT(0);	\
 	struct hyp_event_id hyp_event_id_##__name __section("_hyp_event_ids") = {	\
 		.data = (void *)&__name##_enabled,			\
 	}
@@ -28,11 +29,11 @@ int __pkvm_enable_event(unsigned short id, bool enable)
 			continue;
 
 		enable_key = (atomic_t *)event_id->data;
+		enable_key = hyp_fixmap_map(__hyp_pa(enable_key));
 
-		if (enable)
-			atomic_set(enable_key, 1);
-		else
-			atomic_set(enable_key, 0);
+		atomic_set(enable_key, enable);
+
+		hyp_fixmap_unmap();
 
 		return 0;
 	}
