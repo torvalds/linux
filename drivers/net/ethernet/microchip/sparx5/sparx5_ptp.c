@@ -476,8 +476,7 @@ static int sparx5_ptp_settime64(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int sparx5_ptp_gettime64(struct ptp_clock_info *ptp,
-				struct timespec64 *ts)
+int sparx5_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct sparx5_phc *phc = container_of(ptp, struct sparx5_phc, info);
 	struct sparx5 *sparx5 = phc->sparx5;

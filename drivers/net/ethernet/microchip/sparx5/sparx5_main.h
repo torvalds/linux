@@ -396,6 +396,7 @@ int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
 void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 				 struct sk_buff *skb);
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
+int sparx5_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
 
 /* sparx5_vcap_impl.c */
 int sparx5_vcap_init(struct sparx5 *sparx5);
@@ -480,6 +481,10 @@ struct sparx5_psfp_fm {
 int sparx5_psfp_fm_add(struct sparx5 *sparx5, u32 uidx,
 		       struct sparx5_psfp_fm *fm, u32 *id);
 int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id);
+
+/* sparx5_qos.c */
+void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
+			  const ktime_t org_base_time, ktime_t *new_base_time);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
