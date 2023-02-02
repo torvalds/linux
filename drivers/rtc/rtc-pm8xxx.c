@@ -48,7 +48,7 @@ struct pm8xxx_rtc_regs {
  * @allow_set_time:	indicates whether writing to the RTC is allowed
  * @rtc_alarm_irq:	rtc alarm irq number.
  * @regs:		rtc registers description.
- * @rtc_dev:		device structure.
+ * @dev:		device structure
  */
 struct pm8xxx_rtc {
 	struct rtc_device *rtc;
@@ -56,7 +56,7 @@ struct pm8xxx_rtc {
 	bool allow_set_time;
 	int rtc_alarm_irq;
 	const struct pm8xxx_rtc_regs *regs;
-	struct device *rtc_dev;
+	struct device *dev;
 };
 
 /*
@@ -372,7 +372,7 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 						      "allow-set-time");
 
 	rtc_dd->regs = match->data;
-	rtc_dd->rtc_dev = &pdev->dev;
+	rtc_dd->dev = &pdev->dev;
 
 	rc = pm8xxx_rtc_enable(rtc_dd);
 	if (rc)
