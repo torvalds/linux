@@ -884,6 +884,25 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+void amdgpu_gfx_ras_error_func(struct amdgpu_device *adev,
+		void *ras_error_status,
+		void (*func)(struct amdgpu_device *adev, void *ras_error_status,
+				int xcc_id))
+{
+	int i;
+	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
+	uint32_t xcc_mask = GENMASK(num_xcc - 1, 0);
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	if (err_data) {
+		err_data->ue_count = 0;
+		err_data->ce_count = 0;
+	}
+
+	for_each_inst(i, xcc_mask)
+		func(adev, ras_error_status, i);
+}
+
 uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 {
 	signed long r, cnt = 0;
