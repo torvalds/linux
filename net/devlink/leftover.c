@@ -2843,85 +2843,8 @@ static int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
 	return -EOPNOTSUPP;
 }
 
-static int devlink_nl_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
-				   enum devlink_command cmd, u32 portid,
-				   u32 seq, int flags)
-{
-	const struct devlink_ops *ops = devlink->ops;
-	enum devlink_eswitch_encap_mode encap_mode;
-	u8 inline_mode;
-	void *hdr;
-	int err = 0;
-	u16 mode;
-
-	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
-	if (!hdr)
-		return -EMSGSIZE;
-
-	err = devlink_nl_put_handle(msg, devlink);
-	if (err)
-		goto nla_put_failure;
-
-	if (ops->eswitch_mode_get) {
-		err = ops->eswitch_mode_get(devlink, &mode);
-		if (err)
-			goto nla_put_failure;
-		err = nla_put_u16(msg, DEVLINK_ATTR_ESWITCH_MODE, mode);
-		if (err)
-			goto nla_put_failure;
-	}
-
-	if (ops->eswitch_inline_mode_get) {
-		err = ops->eswitch_inline_mode_get(devlink, &inline_mode);
-		if (err)
-			goto nla_put_failure;
-		err = nla_put_u8(msg, DEVLINK_ATTR_ESWITCH_INLINE_MODE,
-				 inline_mode);
-		if (err)
-			goto nla_put_failure;
-	}
-
-	if (ops->eswitch_encap_mode_get) {
-		err = ops->eswitch_encap_mode_get(devlink, &encap_mode);
-		if (err)
-			goto nla_put_failure;
-		err = nla_put_u8(msg, DEVLINK_ATTR_ESWITCH_ENCAP_MODE, encap_mode);
-		if (err)
-			goto nla_put_failure;
-	}
-
-	genlmsg_end(msg, hdr);
-	return 0;
-
-nla_put_failure:
-	genlmsg_cancel(msg, hdr);
-	return err;
-}
-
-static int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb,
-					   struct genl_info *info)
-{
-	struct devlink *devlink = info->user_ptr[0];
-	struct sk_buff *msg;
-	int err;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	err = devlink_nl_eswitch_fill(msg, devlink, DEVLINK_CMD_ESWITCH_GET,
-				      info->snd_portid, info->snd_seq, 0);
-
-	if (err) {
-		nlmsg_free(msg);
-		return err;
-	}
-
-	return genlmsg_reply(msg, info);
-}
-
-static int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
-				    struct netlink_ext_ack *extack)
+int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack)
 {
 	struct devlink_rate *devlink_rate;
 
@@ -2930,52 +2853,6 @@ static int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 			NL_SET_ERR_MSG_MOD(extack, "Rate node(s) exists.");
 			return -EBUSY;
 		}
-	return 0;
-}
-
-static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
-					   struct genl_info *info)
-{
-	struct devlink *devlink = info->user_ptr[0];
-	const struct devlink_ops *ops = devlink->ops;
-	enum devlink_eswitch_encap_mode encap_mode;
-	u8 inline_mode;
-	int err = 0;
-	u16 mode;
-
-	if (info->attrs[DEVLINK_ATTR_ESWITCH_MODE]) {
-		if (!ops->eswitch_mode_set)
-			return -EOPNOTSUPP;
-		mode = nla_get_u16(info->attrs[DEVLINK_ATTR_ESWITCH_MODE]);
-		err = devlink_rate_nodes_check(devlink, mode, info->extack);
-		if (err)
-			return err;
-		err = ops->eswitch_mode_set(devlink, mode, info->extack);
-		if (err)
-			return err;
-	}
-
-	if (info->attrs[DEVLINK_ATTR_ESWITCH_INLINE_MODE]) {
-		if (!ops->eswitch_inline_mode_set)
-			return -EOPNOTSUPP;
-		inline_mode = nla_get_u8(
-				info->attrs[DEVLINK_ATTR_ESWITCH_INLINE_MODE]);
-		err = ops->eswitch_inline_mode_set(devlink, inline_mode,
-						   info->extack);
-		if (err)
-			return err;
-	}
-
-	if (info->attrs[DEVLINK_ATTR_ESWITCH_ENCAP_MODE]) {
-		if (!ops->eswitch_encap_mode_set)
-			return -EOPNOTSUPP;
-		encap_mode = nla_get_u8(info->attrs[DEVLINK_ATTR_ESWITCH_ENCAP_MODE]);
-		err = ops->eswitch_encap_mode_set(devlink, encap_mode,
-						  info->extack);
-		if (err)
-			return err;
-	}
-
 	return 0;
 }
 
