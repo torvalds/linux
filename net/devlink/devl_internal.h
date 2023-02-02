@@ -179,8 +179,6 @@ devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
-int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink,
-			     bool is_remote);
 int devlink_reload(struct devlink *devlink, struct net *dest_net,
 		   enum devlink_reload_action action,
 		   enum devlink_reload_limit limit,
@@ -190,6 +188,12 @@ static inline bool devlink_reload_supported(const struct devlink_ops *ops)
 {
 	return ops->reload_down && ops->reload_up;
 }
+
+/* Resources */
+struct devlink_resource;
+int devlink_resources_validate(struct devlink *devlink,
+			       struct devlink_resource *resource,
+			       struct genl_info *info);
 
 /* Line cards */
 struct devlink_linecard;
@@ -205,3 +209,4 @@ devlink_rate_node_get_from_info(struct devlink *devlink,
 				struct genl_info *info);
 /* Devlink nl cmds */
 int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
