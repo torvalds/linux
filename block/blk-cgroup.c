@@ -479,9 +479,9 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 		struct blkcg_policy *pol = blkcg_policy[i];
 
 		if (blkg->pd[i] && blkg->pd[i]->online) {
+			blkg->pd[i]->online = false;
 			if (pol->pd_offline_fn)
 				pol->pd_offline_fn(blkg->pd[i]);
-			blkg->pd[i]->online = false;
 		}
 	}
 
