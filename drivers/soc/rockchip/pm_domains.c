@@ -1346,14 +1346,32 @@ late_initcall_sync(rockchip_pd_keepon_release);
 
 static void __iomem *pd_base;
 
+static void dump_offset(const char *name, u32 offset)
+{
+	if (!offset)
+		return;
+
+	pr_warn("%-9s 0x%04x: ", name, offset);
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 4, pd_base + offset, 16, false);
+}
+
 void rockchip_dump_pmu(void)
 {
-	if (pd_base) {
-		pr_warn("PMU:\n");
-		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
-			       32, 4, pd_base,
-			       0x100, false);
-	}
+	if (!pd_base)
+		return;
+
+	pr_warn("PMU:\n");
+	dump_offset("pwr", g_pmu->info->pwr_offset);
+	dump_offset("status", g_pmu->info->status_offset);
+	dump_offset("req", g_pmu->info->req_offset);
+	dump_offset("idle", g_pmu->info->idle_offset);
+	dump_offset("ack", g_pmu->info->ack_offset);
+	dump_offset("mem_pwr", g_pmu->info->mem_pwr_offset);
+	dump_offset("chain_st", g_pmu->info->chain_status_offset);
+	dump_offset("mem_st", g_pmu->info->mem_status_offset);
+	dump_offset("repair_st", g_pmu->info->repair_status_offset);
+	dump_offset("clkungate", g_pmu->info->clk_ungate_offset);
+	dump_offset("mem_sd", g_pmu->info->mem_sd_offset);
 }
 EXPORT_SYMBOL_GPL(rockchip_dump_pmu);
 
