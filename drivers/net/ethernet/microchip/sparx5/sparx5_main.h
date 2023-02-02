@@ -456,6 +456,7 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx);
 
 void sparx5_sdlb_group_init(struct sparx5 *sparx5, u64 max_rate, u32 min_burst,
 			    u32 frame_size, u32 idx);
+
 /* sparx5_police.c */
 enum {
 	/* More policer types will be added later */
@@ -529,6 +530,8 @@ u32 sparx5_psfp_isdx_get_sf(struct sparx5 *sparx5, u32 isdx);
 u32 sparx5_psfp_isdx_get_fm(struct sparx5 *sparx5, u32 isdx);
 u32 sparx5_psfp_sf_get_sg(struct sparx5 *sparx5, u32 sfid);
 void sparx5_isdx_conf_set(struct sparx5 *sparx5, u32 isdx, u32 sfid, u32 fmid);
+
+void sparx5_psfp_init(struct sparx5 *sparx5);
 
 /* sparx5_qos.c */
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,

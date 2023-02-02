@@ -312,3 +312,21 @@ int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id)
 
 	return sparx5_sdlb_conf_set(sparx5, &fm);
 }
+
+void sparx5_psfp_init(struct sparx5 *sparx5)
+{
+	const struct sparx5_sdlb_group *group;
+	int i;
+
+	for (i = 0; i < SPX5_SDLB_GROUP_CNT; i++) {
+		group = &sdlb_groups[i];
+		sparx5_sdlb_group_init(sparx5, group->max_rate,
+				       group->min_burst, group->frame_size, i);
+	}
+
+	spx5_wr(ANA_AC_SG_CYCLETIME_UPDATE_PERIOD_SG_CT_UPDATE_ENA_SET(1),
+		sparx5, ANA_AC_SG_CYCLETIME_UPDATE_PERIOD);
+
+	spx5_rmw(ANA_L2_FWD_CFG_ISDX_LOOKUP_ENA_SET(1),
+		 ANA_L2_FWD_CFG_ISDX_LOOKUP_ENA, sparx5, ANA_L2_FWD_CFG);
+}
