@@ -450,6 +450,26 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct mipi_dsi_host *host = msm_dsi->host;
+	struct platform_device *pdev = msm_dsi->pdev;
+	struct dev_pm_opp *opp;
+	unsigned long byte_clk_rate;
+
+	byte_clk_rate = dsi_byte_clk_get_rate(host, IS_BONDED_DSI(), mode);
+
+	opp = dev_pm_opp_find_freq_ceil(&pdev->dev, &byte_clk_rate);
+	if (!IS_ERR(opp)) {
+		dev_pm_opp_put(opp);
+	} else if (PTR_ERR(opp) == -ERANGE) {
+		/*
+		 * An empty table is created by devm_pm_opp_set_clkname() even
+		 * if there is none. Thus find_freq_ceil will still return
+		 * -ERANGE in such case.
+		 */
+		if (dev_pm_opp_get_opp_count(&pdev->dev) != 0)
+			return MODE_CLOCK_RANGE;
+	} else {
+			return MODE_ERROR;
+	}
 
 	return msm_dsi_host_check_dsc(host, mode);
 }

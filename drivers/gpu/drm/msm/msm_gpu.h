@@ -109,11 +109,15 @@ struct msm_gpu_devfreq {
 	struct mutex lock;
 
 	/**
-	 * idle_constraint:
+	 * idle_freq:
 	 *
-	 * A PM QoS constraint to limit max freq while the GPU is idle.
+	 * Shadow frequency used while the GPU is idle.  From the PoV of
+	 * the devfreq governor, we are continuing to sample busyness and
+	 * adjust frequency while the GPU is idle, but we use this shadow
+	 * value as the GPU is actually clamped to minimum frequency while
+	 * it is inactive.
 	 */
-	struct dev_pm_qos_request idle_freq;
+	unsigned long idle_freq;
 
 	/**
 	 * boost_constraint:
@@ -134,8 +138,6 @@ struct msm_gpu_devfreq {
 
 	/** idle_time: Time of last transition to idle: */
 	ktime_t idle_time;
-
-	struct devfreq_dev_status average_status;
 
 	/**
 	 * idle_work:
@@ -274,9 +276,6 @@ struct msm_gpu {
 	uint32_t suspend_count;
 
 	struct msm_gpu_state *crashstate;
-
-	/* Enable clamping to idle freq when inactive: */
-	bool clamp_to_idle;
 
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
