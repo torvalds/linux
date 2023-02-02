@@ -1846,7 +1846,7 @@ struct bpf_prog * __must_check bpf_prog_inc_not_zero(struct bpf_prog *prog);
 void bpf_prog_put(struct bpf_prog *prog);
 
 void bpf_prog_free_id(struct bpf_prog *prog);
-void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock);
+void bpf_map_free_id(struct bpf_map *map);
 
 struct btf_field *btf_record_find(const struct btf_record *rec,
 				  u32 offset, enum btf_field_type type);

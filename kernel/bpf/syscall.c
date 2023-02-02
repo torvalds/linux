@@ -390,7 +390,7 @@ static int bpf_map_alloc_id(struct bpf_map *map)
 	return id > 0 ? 0 : id;
 }
 
-void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
+void bpf_map_free_id(struct bpf_map *map)
 {
 	unsigned long flags;
 
@@ -402,18 +402,12 @@ void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 	if (!map->id)
 		return;
 
-	if (do_idr_lock)
-		spin_lock_irqsave(&map_idr_lock, flags);
-	else
-		__acquire(&map_idr_lock);
+	spin_lock_irqsave(&map_idr_lock, flags);
 
 	idr_remove(&map_idr, map->id);
 	map->id = 0;
 
-	if (do_idr_lock)
-		spin_unlock_irqrestore(&map_idr_lock, flags);
-	else
-		__release(&map_idr_lock);
+	spin_unlock_irqrestore(&map_idr_lock, flags);
 }
 
 #ifdef CONFIG_MEMCG_KMEM
@@ -706,13 +700,13 @@ static void bpf_map_put_uref(struct bpf_map *map)
 }
 
 /* decrement map refcnt and schedule it for freeing via workqueue
- * (unrelying map implementation ops->map_free() might sleep)
+ * (underlying map implementation ops->map_free() might sleep)
  */
-static void __bpf_map_put(struct bpf_map *map, bool do_idr_lock)
+void bpf_map_put(struct bpf_map *map)
 {
 	if (atomic64_dec_and_test(&map->refcnt)) {
 		/* bpf_map_free_id() must be called first */
-		bpf_map_free_id(map, do_idr_lock);
+		bpf_map_free_id(map);
 		btf_put(map->btf);
 		INIT_WORK(&map->work, bpf_map_free_deferred);
 		/* Avoid spawning kworkers, since they all might contend
@@ -720,11 +714,6 @@ static void __bpf_map_put(struct bpf_map *map, bool do_idr_lock)
 		 */
 		queue_work(system_unbound_wq, &map->work);
 	}
-}
-
-void bpf_map_put(struct bpf_map *map)
-{
-	__bpf_map_put(map, true);
 }
 EXPORT_SYMBOL_GPL(bpf_map_put);
 
