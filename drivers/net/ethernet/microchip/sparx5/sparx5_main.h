@@ -425,6 +425,37 @@ int sparx5_pool_get(struct sparx5_pool_entry *pool, int size, u32 *id);
 int sparx5_pool_get_with_idx(struct sparx5_pool_entry *pool, int size, u32 idx,
 			     u32 *id);
 
+/* sparx5_sdlb.c */
+#define SPX5_SDLB_PUP_TOKEN_DISABLE 0x1FFF
+#define SPX5_SDLB_PUP_TOKEN_MAX (SPX5_SDLB_PUP_TOKEN_DISABLE - 1)
+#define SPX5_SDLB_GROUP_RATE_MAX 25000000000ULL
+#define SPX5_SDLB_2CYCLES_TYPE2_THRES_OFFSET 13
+#define SPX5_SDLB_CNT 4096
+#define SPX5_SDLB_GROUP_CNT 10
+#define SPX5_CLK_PER_100PS_DEFAULT 16
+
+struct sparx5_sdlb_group {
+	u64 max_rate;
+	u32 min_burst;
+	u32 frame_size;
+	u32 pup_interval;
+	u32 nsets;
+};
+
+extern struct sparx5_sdlb_group sdlb_groups[SPX5_SDLB_GROUP_CNT];
+int sparx5_sdlb_pup_token_get(struct sparx5 *sparx5, u32 pup_interval,
+			      u64 rate);
+
+int sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5);
+int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst);
+int sparx5_sdlb_group_get_by_index(struct sparx5 *sparx5, u32 idx, u32 *group);
+
+int sparx5_sdlb_group_add(struct sparx5 *sparx5, u32 group, u32 idx);
+int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx);
+
+void sparx5_sdlb_group_init(struct sparx5 *sparx5, u64 max_rate, u32 min_burst,
+			    u32 frame_size, u32 idx);
+
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
 {
