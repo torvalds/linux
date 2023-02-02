@@ -845,6 +845,9 @@ static void mlx5_mkey_cache_debugfs_add_ent(struct mlx5_ib_dev *dev,
 	int order = order_base_2(ent->rb_key.ndescs);
 	struct dentry *dir;
 
+	if (!mlx5_debugfs_root || dev->is_rep)
+		return;
+
 	if (ent->rb_key.access_mode == MLX5_MKC_ACCESS_MODE_KSM)
 		order = MLX5_IMR_KSM_CACHE_ENTRY + 2;
 
@@ -1003,6 +1006,7 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 
 err:
 	mutex_unlock(&cache->rb_lock);
+	mlx5_mkey_cache_debugfs_cleanup(dev);
 	mlx5_ib_warn(dev, "failed to create mkey cache entry\n");
 	return ret;
 }
