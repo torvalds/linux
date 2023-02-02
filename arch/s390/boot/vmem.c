@@ -10,6 +10,8 @@
 #include "decompressor.h"
 #include "boot.h"
 
+unsigned long __bootdata_preserved(s390_invalid_asce);
+
 #define init_mm			(*(struct mm_struct *)vmlinux.init_mm_off)
 #define swapper_pg_dir		vmlinux.swapper_pg_dir_off
 #define invalid_pg_dir		vmlinux.invalid_pg_dir_off
@@ -22,77 +24,27 @@ static inline pte_t *__virt_to_kpte(unsigned long va)
 	return pte_offset_kernel(pmd_offset(pud_offset(p4d_offset(pgd_offset_k(va), va), va), va), va);
 }
 
-unsigned long __bootdata_preserved(s390_invalid_asce);
-unsigned long __bootdata(pgalloc_pos);
-unsigned long __bootdata(pgalloc_end);
-unsigned long __bootdata(pgalloc_low);
-
 enum populate_mode {
 	POPULATE_NONE,
 	POPULATE_ONE2ONE,
 	POPULATE_ABS_LOWCORE,
 };
 
-static void boot_check_oom(void)
-{
-	if (pgalloc_pos < pgalloc_low)
-		error("out of memory on boot\n");
-}
-
-static void pgtable_populate_init(void)
-{
-	unsigned long initrd_end;
-	unsigned long kernel_end;
-
-	kernel_end = vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size;
-	pgalloc_low = round_up(kernel_end, PAGE_SIZE);
-	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD)) {
-		initrd_end =  round_up(initrd_data.start + initrd_data.size, _SEGMENT_SIZE);
-		pgalloc_low = max(pgalloc_low, initrd_end);
-	}
-
-	pgalloc_end = round_down(get_physmem_usable_end(), PAGE_SIZE);
-	pgalloc_pos = pgalloc_end;
-
-	boot_check_oom();
-}
-
-static void *boot_alloc_pages(unsigned int order)
-{
-	unsigned long size = PAGE_SIZE << order;
-
-	pgalloc_pos -= size;
-	pgalloc_pos = round_down(pgalloc_pos, size);
-
-	boot_check_oom();
-
-	return (void *)pgalloc_pos;
-}
-
 static void *boot_crst_alloc(unsigned long val)
 {
+	unsigned long size = PAGE_SIZE << CRST_ALLOC_ORDER;
 	unsigned long *table;
 
-	table = boot_alloc_pages(CRST_ALLOC_ORDER);
-	if (table)
-		crst_table_init(table, val);
+	table = (unsigned long *)physmem_alloc_top_down(RR_VMEM, size, size);
+	crst_table_init(table, val);
 	return table;
 }
 
 static pte_t *boot_pte_alloc(void)
 {
-	static void *pte_leftover;
 	pte_t *pte;
 
-	BUILD_BUG_ON(_PAGE_TABLE_SIZE * 2 != PAGE_SIZE);
-
-	if (!pte_leftover) {
-		pte_leftover = boot_alloc_pages(0);
-		pte = pte_leftover + _PAGE_TABLE_SIZE;
-	} else {
-		pte = pte_leftover;
-		pte_leftover = NULL;
-	}
+	pte = (pte_t *)physmem_alloc_top_down(RR_VMEM, _PAGE_TABLE_SIZE, _PAGE_TABLE_SIZE);
 	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
 	return pte;
 }
@@ -126,7 +78,6 @@ static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end)
 static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long end,
 				 enum populate_mode mode)
 {
-	unsigned long next;
 	pte_t *pte, entry;
 
 	pte = pte_offset_kernel(pmd, addr);
@@ -250,7 +201,6 @@ void setup_vmem(unsigned long asce_limit)
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
-	pgtable_populate_init();
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
 	for_each_physmem_usable_range(i, &start, &end)
 		pgtable_populate(start, end, POPULATE_ONE2ONE);
@@ -268,11 +218,4 @@ void setup_vmem(unsigned long asce_limit)
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 
 	init_mm.context.asce = S390_lowcore.kernel_asce;
-}
-
-unsigned long vmem_estimate_memory_needs(unsigned long online_mem_total)
-{
-	unsigned long pages = DIV_ROUND_UP(online_mem_total, PAGE_SIZE);
-
-	return DIV_ROUND_UP(pages, _PAGE_ENTRIES) * _PAGE_TABLE_SIZE * 2;
 }

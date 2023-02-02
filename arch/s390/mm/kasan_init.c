@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/kasan.h>
-#include <linux/sched/task.h>
+#include <linux/memblock.h>
 #include <linux/pgtable.h>
-#include <asm/pgalloc.h>
-#include <asm/kasan.h>
+#include <linux/kasan.h>
 #include <asm/physmem_info.h>
 #include <asm/processor.h>
-#include <asm/sclp.h>
 #include <asm/facility.h>
-#include <asm/sections.h>
-#include <asm/setup.h>
-#include <asm/uv.h>
+#include <asm/pgalloc.h>
+#include <asm/sclp.h>
 
+static unsigned long pgalloc_pos __initdata;
 static unsigned long segment_pos __initdata;
-static unsigned long segment_low __initdata;
 static bool has_edat __initdata;
 static bool has_nx __initdata;
 
@@ -28,19 +24,20 @@ static void __init kasan_early_panic(const char *reason)
 
 static void * __init kasan_early_alloc_segment(void)
 {
-	segment_pos -= _SEGMENT_SIZE;
+	unsigned long addr = segment_pos;
 
-	if (segment_pos < segment_low)
+	segment_pos += _SEGMENT_SIZE;
+	if (segment_pos > pgalloc_pos)
 		kasan_early_panic("out of memory during initialisation\n");
 
-	return __va(segment_pos);
+	return __va(addr);
 }
 
 static void * __init kasan_early_alloc_pages(unsigned int order)
 {
 	pgalloc_pos -= (PAGE_SIZE << order);
 
-	if (pgalloc_pos < pgalloc_low)
+	if (segment_pos > pgalloc_pos)
 		kasan_early_panic("out of memory during initialisation\n");
 
 	return __va(pgalloc_pos);
@@ -225,8 +222,8 @@ void __init kasan_early_init(void)
 	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
 	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
+	unsigned long pgalloc_pos_initial, segment_pos_initial;
 	unsigned long untracked_end = MODULES_VADDR;
-	unsigned long shadow_alloc_size;
 	unsigned long start, end;
 	int i;
 
@@ -243,13 +240,11 @@ void __init kasan_early_init(void)
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
 	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
 
-	if (has_edat) {
-		shadow_alloc_size = get_physmem_usable_total() >> KASAN_SHADOW_SCALE_SHIFT;
-		segment_pos = round_down(pgalloc_pos, _SEGMENT_SIZE);
-		segment_low = segment_pos - shadow_alloc_size;
-		segment_low = round_down(segment_low, _SEGMENT_SIZE);
-		pgalloc_pos = segment_low;
-	}
+	/* segment allocations go bottom up -> <- pgalloc go top down */
+	segment_pos_initial = physmem_info.reserved[RR_KASAN].start;
+	segment_pos = segment_pos_initial;
+	pgalloc_pos_initial = physmem_info.reserved[RR_KASAN].end;
+	pgalloc_pos = pgalloc_pos_initial;
 	/*
 	 * Current memory layout:
 	 * +- 0 -------------+	       +- shadow start -+
@@ -298,4 +293,6 @@ void __init kasan_early_init(void)
 	/* enable kasan */
 	init_task.kasan_depth = 0;
 	sclp_early_printk("KernelAddressSanitizer initialized\n");
+	memblock_reserve(segment_pos_initial, segment_pos - segment_pos_initial);
+	memblock_reserve(pgalloc_pos, pgalloc_pos_initial - pgalloc_pos);
 }
