@@ -9,19 +9,18 @@
 
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/module.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-#include <linux/math64.h>
-#include <linux/sizes.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
-
+#include <linux/device.h>
+#include <linux/math64.h>
+#include <linux/module.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/spi-nor.h>
+#include <linux/mutex.h>
 #include <linux/of_platform.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sizes.h>
+#include <linux/slab.h>
 #include <linux/spi/flash.h>
-#include <linux/mtd/spi-nor.h>
 
 #include "core.h"
 
