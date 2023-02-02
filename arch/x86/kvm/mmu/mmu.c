@@ -5906,7 +5906,6 @@ typedef bool (*slot_rmaps_handler) (struct kvm *kvm,
 				    struct kvm_rmap_head *rmap_head,
 				    const struct kvm_memory_slot *slot);
 
-/* The caller should hold mmu-lock before calling this function. */
 static __always_inline bool __walk_slot_rmaps(struct kvm *kvm,
 					      const struct kvm_memory_slot *slot,
 					      slot_rmaps_handler fn,
@@ -5915,6 +5914,8 @@ static __always_inline bool __walk_slot_rmaps(struct kvm *kvm,
 					      bool flush_on_yield, bool flush)
 {
 	struct slot_rmap_walk_iterator iterator;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
 
 	for_each_slot_rmap_range(slot, start_level, end_level, start_gfn,
 			end_gfn, &iterator) {
