@@ -36,7 +36,7 @@ config DRM_VC4_HDMI_CEC
 	  and want to use CEC.
 
 config DRM_VC4_KUNIT_TEST
-	bool "KUnit tests for VC4" if !KUNIT_ALL_TESTS
+	tristate "KUnit tests for VC4" if !KUNIT_ALL_TESTS
 	depends on DRM_VC4 && KUNIT
 	select DRM_KUNIT_TEST_HELPERS
 	default KUNIT_ALL_TESTS
