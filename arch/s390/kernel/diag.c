@@ -66,7 +66,7 @@ static struct diag210 _diag210_tmp_amode31 __section(".amode31.data");
 struct diag210 __amode31_ref *__diag210_tmp_amode31 = &_diag210_tmp_amode31;
 
 static struct diag8c _diag8c_tmp_amode31 __section(".amode31.data");
-struct diag8c __amode31_ref *__diag8c_tmp_amode31 = &_diag8c_tmp_amode31;
+static struct diag8c __amode31_ref *__diag8c_tmp_amode31 = &_diag8c_tmp_amode31;
 
 static int show_diag_stat(struct seq_file *m, void *v)
 {
