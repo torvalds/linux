@@ -492,11 +492,11 @@ void isst_get_process_ctdp_complete(struct isst_id *id, struct isst_pkg_ctdp *pk
 	}
 }
 
-void isst_get_uncore_p0_p1_info(struct isst_id *id, int config_index,
+void isst_adjust_uncore_freq(struct isst_id *id, int config_index,
 				struct isst_pkg_ctdp_level_info *ctdp_level)
 {
-	CHECK_CB(get_uncore_p0_p1_info);
-	return isst_ops->get_uncore_p0_p1_info(id, config_index, ctdp_level);
+	CHECK_CB(adjust_uncore_freq);
+	return isst_ops->adjust_uncore_freq(id, config_index, ctdp_level);
 }
 
 int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctdp *pkg_dev)

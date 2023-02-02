@@ -120,7 +120,7 @@ static int mbox_get_ctdp_control(struct isst_id *id, int config_index,
 	return 0;
 }
 
-static void mbox_get_uncore_p0_p1_info(struct isst_id *id, int config_index,
+static void _get_uncore_p0_p1_info(struct isst_id *id, int config_index,
 				struct isst_pkg_ctdp_level_info *ctdp_level)
 {
 	unsigned int resp;
@@ -164,6 +164,45 @@ try_uncore_mbox:
 		"cpu:%d ctdp:%d CONFIG_TDP_GET_UNCORE_P0_P1_INFO resp:%x uncore p0:%d uncore p1:%d\n",
 		id->cpu, config_index, resp, ctdp_level->uncore_p0,
 		ctdp_level->uncore_p1);
+}
+
+static int _set_uncore_min_max(struct isst_id *id, int max, int freq)
+{
+	char buffer[128], freq_str[16];
+	int fd, ret, len;
+
+	if (max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/max_freq_khz", id->pkg, id->die);
+	else
+	        snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/min_freq_khz", id->pkg, id->die);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		return fd;
+
+	snprintf(freq_str, sizeof(freq_str), "%d", freq);
+	len = strlen(freq_str);
+	ret = write(fd, freq_str, len);
+	if (ret == -1) {
+		close(fd);
+		return ret;
+	}
+	close(fd);
+
+	return 0;
+}
+
+static void mbox_adjust_uncore_freq(struct isst_id *id, int config_index,
+				struct isst_pkg_ctdp_level_info *ctdp_level)
+{
+	_get_uncore_p0_p1_info(id, config_index, ctdp_level);
+	if (ctdp_level->uncore_pm)
+		_set_uncore_min_max(id, 0, ctdp_level->uncore_pm * 100000);
+
+	if (ctdp_level->uncore_p0)
+		_set_uncore_min_max(id, 1, ctdp_level->uncore_p0 * 100000);
 }
 
 static void _get_p1_info(struct isst_id *id, int config_index,
@@ -250,7 +289,7 @@ static int mbox_get_tdp_info(struct isst_id *id, int config_index,
 
 	ctdp_level->t_proc_hot = resp & GENMASK(7, 0);
 
-	mbox_get_uncore_p0_p1_info(id, config_index, ctdp_level);
+	_get_uncore_p0_p1_info(id, config_index, ctdp_level);
 	_get_p1_info(id, config_index, ctdp_level);
 	_get_uncore_mem_freq(id, config_index, ctdp_level);
 
@@ -834,7 +873,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_pbf_info = mbox_get_pbf_info,
 	.set_pbf_fact_status = mbox_set_pbf_fact_status,
 	.get_fact_info = mbox_get_fact_info,
-	.get_uncore_p0_p1_info = mbox_get_uncore_p0_p1_info,
+	.adjust_uncore_freq = mbox_adjust_uncore_freq,
 	.get_clos_information = mbox_get_clos_information,
 	.pm_qos_config = mbox_pm_qos_config,
 	.pm_get_clos = mbox_pm_get_clos,
