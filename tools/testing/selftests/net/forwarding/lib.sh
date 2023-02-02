@@ -1767,26 +1767,35 @@ payload_template_nbytes()
 
 igmpv3_is_in_get()
 {
+	local GRP=$1; shift
+	local IP=$1; shift
+
 	local igmpv3
 
+	# IS_IN ( $IP )
 	igmpv3=$(:
 		)"22:"$(			: Type - Membership Report
 		)"00:"$(			: Reserved
-		)"2a:f8:"$(			: Checksum
+		)"CHECKSUM:"$(			: Checksum
 		)"00:00:"$(			: Reserved
 		)"00:01:"$(			: Number of Group Records
 		)"01:"$(			: Record Type - IS_IN
 		)"00:"$(			: Aux Data Len
 		)"00:01:"$(			: Number of Sources
-		)"ef:01:01:01:"$(		: Multicast Address - 239.1.1.1
-		)"c0:00:02:02"$(		: Source Address - 192.0.2.2
+		)"$(ipv4_to_bytes $GRP):"$(	: Multicast Address
+		)"$(ipv4_to_bytes $IP)"$(	: Source Address
 		)
+	local checksum=$(payload_template_calc_checksum "$igmpv3")
 
-	echo $igmpv3
+	payload_template_expand_checksum "$igmpv3" $checksum
 }
 
 mldv2_is_in_get()
 {
+	local SIP=$1; shift
+	local GRP=$1; shift
+	local IP=$1; shift
+
 	local hbh
 	local icmpv6
 
@@ -1799,17 +1808,24 @@ mldv2_is_in_get()
 	icmpv6=$(:
 		)"8f:"$(			: Type - MLDv2 Report
 		)"00:"$(			: Code
-		)"45:39:"$(			: Checksum
+		)"CHECKSUM:"$(			: Checksum
 		)"00:00:"$(			: Reserved
 		)"00:01:"$(			: Number of Group Records
 		)"01:"$(			: Record Type - IS_IN
 		)"00:"$(			: Aux Data Len
 		)"00:01:"$(			: Number of Sources
-		)"ff:0e:00:00:00:00:00:00:"$(	: Multicast address - ff0e::1
-		)"00:00:00:00:00:00:00:01:"$(	:
-		)"20:01:0d:b8:00:01:00:00:"$(	: Source Address - 2001:db8:1::2
-		)"00:00:00:00:00:00:00:02:"$(	:
+		)"$(ipv6_to_bytes $GRP):"$(	: Multicast address
+		)"$(ipv6_to_bytes $IP):"$(	: Source Address
 		)
 
-	echo ${hbh}${icmpv6}
+	local len=$(u16_to_bytes $(payload_template_nbytes $icmpv6))
+	local sudohdr=$(:
+		)"$(ipv6_to_bytes $SIP):"$(	: SIP
+		)"$(ipv6_to_bytes $GRP):"$(	: DIP is multicast address
+	        )"${len}:"$(			: Upper-layer length
+	        )"00:3a:"$(			: Zero and next-header
+	        )
+	local checksum=$(payload_template_calc_checksum ${sudohdr}${icmpv6})
+
+	payload_template_expand_checksum "$hbh$icmpv6" $checksum
 }
