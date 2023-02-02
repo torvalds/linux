@@ -685,6 +685,9 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 
 		if (sp != ERR_PTR(-EEXIST))
 			link_shadow_page(vcpu, it.sptep, sp);
+
+		if (fault->write && table_gfn == fault->gfn)
+			fault->write_fault_to_shadow_pgtable = true;
 	}
 
 	kvm_mmu_hugepage_adjust(vcpu, fault);
@@ -741,17 +744,13 @@ out_gpte_changed:
  * created when kvm establishes shadow page table that stop kvm using large
  * page size. Do it early can avoid unnecessary #PF and emulation.
  *
- * @write_fault_to_shadow_pgtable will return true if the fault gfn is
- * currently used as its page table.
- *
  * Note: the PDPT page table is not checked for PAE-32 bit guest. It is ok
  * since the PDPT is always shadowed, that means, we can not use large page
  * size to map the gfn which is used as PDPT.
  */
 static bool
 FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
-			      struct guest_walker *walker, bool user_fault,
-			      bool *write_fault_to_shadow_pgtable)
+			      struct guest_walker *walker, bool user_fault)
 {
 	int level;
 	gfn_t mask = ~(KVM_PAGES_PER_HPAGE(walker->level) - 1);
@@ -765,7 +764,6 @@ FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
 		gfn_t gfn = walker->gfn ^ walker->table_gfn[level - 1];
 
 		self_changed |= !(gfn & mask);
-		*write_fault_to_shadow_pgtable |= !gfn;
 	}
 
 	return self_changed;
@@ -826,7 +824,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 		return r;
 
 	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
-	      &walker, fault->user, &fault->write_fault_to_shadow_pgtable);
+	      &walker, fault->user);
 
 	if (is_self_change_mapping)
 		fault->max_level = PG_LEVEL_4K;
