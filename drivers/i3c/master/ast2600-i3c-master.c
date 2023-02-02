@@ -24,6 +24,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
+#define I3C_CHANNEL_MAX 5
+
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
@@ -396,6 +398,7 @@ struct aspeed_i3c_dev_group {
 struct aspeed_i3c_master {
 	struct device *dev;
 	struct i3c_master_controller base;
+	struct regmap *i3cg;
 	u16 maxdevs;
 	u16 datstartaddr;
 	u32 free_pos;
@@ -416,6 +419,7 @@ struct aspeed_i3c_master {
 	char version[5];
 	char type[5];
 	u8 addrs[MAX_DEVS];
+	u32 channel;
 	bool secondary;
 	struct {
 		u32 *buf;
@@ -450,6 +454,36 @@ static u8 even_parity(u8 p)
 	p &= 0xf;
 
 	return (0x9669 >> p) & 1;
+}
+
+#define I3CG_REG1(x)			((x * 0x10) + 0x14)
+#define SDA_OUT_SW_MODE_EN		BIT(31)
+#define SCL_OUT_SW_MODE_EN		BIT(30)
+#define SDA_IN_SW_MODE_EN		BIT(29)
+#define SCL_IN_SW_MODE_EN		BIT(28)
+#define SDA_IN_SW_MODE_VAL		BIT(27)
+#define SDA_OUT_SW_MODE_VAL		BIT(25)
+#define SDA_SW_MODE_OE			BIT(24)
+#define SCL_IN_SW_MODE_VAL		BIT(23)
+#define SCL_OUT_SW_MODE_VAL		BIT(21)
+#define SCL_SW_MODE_OE			BIT(20)
+
+static void aspeed_i3c_toggle_scl_in(struct aspeed_i3c_master *master, u32 times)
+{
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_IN_SW_MODE_EN, SCL_IN_SW_MODE_EN);
+
+	for (; times; times--) {
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_IN_SW_MODE_VAL, 0);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+	}
+
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_IN_SW_MODE_EN, 0);
 }
 
 static bool aspeed_i3c_master_supports_ccc_cmd(struct i3c_master_controller *m,
@@ -2377,6 +2411,35 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	return 0;
 }
 
+static int aspeed_i3c_slave_reset_queue(struct aspeed_i3c_master *master)
+{
+	u32 wait_enable_us;
+
+	aspeed_i3c_master_disable(master);
+	aspeed_i3c_toggle_scl_in(master, 8);
+	if (readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE) {
+		dev_warn(master->dev,
+			 "Master read timeout: failed to disable controller");
+		return -EACCES;
+	}
+	writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
+	aspeed_i3c_master_enable(master);
+	wait_enable_us = DIV_ROUND_UP(
+		master->timing.core_period *
+			FIELD_GET(GENMASK(31, 16),
+				  readl(master->regs + BUS_FREE_TIMING)),
+		NSEC_PER_USEC);
+	udelay(wait_enable_us);
+	aspeed_i3c_toggle_scl_in(master, 8);
+	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE)) {
+		dev_warn(master->dev,
+			 "Master read timeout: failed to enable controller");
+		return -EACCES;
+	}
+
+	return 0;
+}
+
 static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 					   struct i3c_slave_payload *data,
 					   struct i3c_slave_payload *ibi_notify)
@@ -2384,6 +2447,7 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	u32 reg, thld_ctrl;
 	u8 *buf;
+	int ret;
 
 	if (!data)
 		return -ENXIO;
@@ -2435,7 +2499,11 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 	if (!wait_for_completion_timeout(&master->data_read_complete,
 						 XFER_TIMEOUT)) {
 		dev_err(master->dev, "wait master read timeout\n");
-		writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
+		ret = aspeed_i3c_slave_reset_queue(master);
+		if (ret) {
+			dev_err(master->dev, "i3c queue reset failed");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -2551,6 +2619,14 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
+	master->i3cg = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						       "aspeed,i3cg");
+	if (IS_ERR(master->i3cg)) {
+		dev_err(master->dev,
+			"i3c controller missing 'aspeed,i3cg' property\n");
+		return PTR_ERR(master->i3cg);
+	}
+
 	master->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(master->regs))
 		return PTR_ERR(master->regs);
@@ -2593,6 +2669,12 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 		master->secondary = true;
 	else
 		master->secondary = false;
+
+	ret = of_property_read_u32(np, "i3c_chan", &master->channel);
+	if ((ret != 0) || (master->channel > I3C_CHANNEL_MAX)) {
+		dev_err(&pdev->dev, "no valid 'i3c_chan' %d %d configured\n", ret, master->channel);
+		return -EINVAL;
+	}
 
 	ret = aspeed_i3c_master_timing_config(master, np);
 	if (ret)

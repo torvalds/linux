@@ -1724,6 +1724,7 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
+		i3c_chan = <0>;
 		reg = <0x2000 0x1000>;
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
@@ -1740,6 +1741,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c1_default>;
 		aspeed,scu = <&syscon>;
+		aspeed,i3cg = <&i3cglobal>;
 
 		status = "disabled";
 	};
@@ -1749,6 +1751,7 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
+		i3c_chan = <1>;
 		reg = <0x3000 0x1000>;
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C1CLK>;
@@ -1765,6 +1768,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c2_default>;
 		aspeed,scu = <&syscon>;
+		aspeed,i3cg = <&i3cglobal>;
 
 		status = "disabled";
 	};
@@ -1774,6 +1778,7 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
+		i3c_chan = <2>;
 		reg = <0x4000 0x1000>;
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C2CLK>;
@@ -1788,6 +1793,7 @@
 		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 		aspeed,scu = <&syscon>;
+		aspeed,i3cg = <&i3cglobal>;
 
 		status = "disabled";
 	};
@@ -1797,6 +1803,7 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
+		i3c_chan = <3>;
 		reg = <0x5000 0x1000>;
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C3CLK>;
@@ -1811,6 +1818,7 @@
 		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 		aspeed,scu = <&syscon>;
+		aspeed,i3cg = <&i3cglobal>;
 
 		status = "disabled";
 	};
@@ -1820,6 +1828,7 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
+		i3c_chan = <4>;
 		reg = <0x6000 0x1000>;
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C4CLK>;
@@ -1836,6 +1845,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c5_default>;
 		aspeed,scu = <&syscon>;
+		aspeed,i3cg = <&i3cglobal>;
 
 		status = "disabled";
 	};
@@ -1845,6 +1855,7 @@
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
 
+		i3c_chan = <5>;
 		reg = <0x7000 0x1000>;
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C5CLK>;
@@ -1861,6 +1872,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c6_default>;
 		aspeed,scu = <&syscon>;
+		aspeed,i3cg = <&i3cglobal>;
 
 		status = "disabled";
 	};
