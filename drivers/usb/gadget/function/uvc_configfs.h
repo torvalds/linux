@@ -40,6 +40,7 @@ static inline struct uvcg_control_header *to_uvcg_control_header(struct config_i
 struct uvcg_color_matching {
 	struct config_group group;
 	struct uvc_color_matching_descriptor desc;
+	unsigned int refcnt;
 };
 
 #define to_uvcg_color_matching(group_ptr) \
@@ -51,12 +52,13 @@ enum uvcg_format_type {
 };
 
 struct uvcg_format {
-	struct config_group	group;
-	enum uvcg_format_type	type;
-	unsigned		linked;
-	struct list_head	frames;
-	unsigned		num_frames;
-	__u8			bmaControls[UVCG_STREAMING_CONTROL_SIZE];
+	struct config_group		group;
+	enum uvcg_format_type		type;
+	unsigned			linked;
+	struct list_head		frames;
+	unsigned			num_frames;
+	__u8				bmaControls[UVCG_STREAMING_CONTROL_SIZE];
+	struct uvcg_color_matching	*color_matching;
 };
 
 struct uvcg_format_ptr {
