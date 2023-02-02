@@ -4,17 +4,11 @@
 #include "lan966x_vcap_ag_api.h"
 #include "vcap_api.h"
 #include "vcap_api_client.h"
+#include "vcap_api_debugfs.h"
 
 #define STREAMSIZE (64 * 4)
 
 #define LAN966X_IS2_LOOKUPS 2
-
-enum vcap_is2_port_sel_ipv6 {
-	VCAP_IS2_PS_IPV6_TCPUDP_OTHER,
-	VCAP_IS2_PS_IPV6_STD,
-	VCAP_IS2_PS_IPV6_IP4_TCPUDP_IP4_OTHER,
-	VCAP_IS2_PS_IPV6_MAC_ETYPE,
-};
 
 static struct lan966x_vcap_inst {
 	enum vcap_type vtype; /* type of vcap */
@@ -385,13 +379,6 @@ static void lan966x_vcap_move(struct net_device *dev,
 	lan966x_vcap_wait_update(lan966x, admin->tgt_inst);
 }
 
-static int lan966x_vcap_port_info(struct net_device *dev,
-				  struct vcap_admin *admin,
-				  struct vcap_output_print *out)
-{
-	return 0;
-}
-
 static struct vcap_operations lan966x_vcap_ops = {
 	.validate_keyset = lan966x_vcap_validate_keyset,
 	.add_default_fields = lan966x_vcap_add_default_fields,
@@ -486,6 +473,7 @@ int lan966x_vcap_init(struct lan966x *lan966x)
 	struct lan966x_vcap_inst *cfg;
 	struct vcap_control *ctrl;
 	struct vcap_admin *admin;
+	struct dentry *dir;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -509,11 +497,17 @@ int lan966x_vcap_init(struct lan966x *lan966x)
 		list_add_tail(&admin->list, &ctrl->list);
 	}
 
-	for (int p = 0; p < lan966x->num_phys_ports; ++p)
-		if (lan966x->ports[p])
+	dir = vcap_debugfs(lan966x->dev, lan966x->debugfs_root, ctrl);
+	for (int p = 0; p < lan966x->num_phys_ports; ++p) {
+		if (lan966x->ports[p]) {
+			vcap_port_debugfs(lan966x->dev, dir, ctrl,
+					  lan966x->ports[p]->dev);
+
 			lan_rmw(ANA_VCAP_S2_CFG_ENA_SET(true),
 				ANA_VCAP_S2_CFG_ENA, lan966x,
 				ANA_VCAP_S2_CFG(lan966x->ports[p]->chip_port));
+		}
+	}
 
 	lan966x->vcap_ctrl = ctrl;
 
