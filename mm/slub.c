@@ -6449,7 +6449,7 @@ static void debugfs_slab_add(struct kmem_cache *s)
 
 void debugfs_slab_release(struct kmem_cache *s)
 {
-	debugfs_remove_recursive(debugfs_lookup(s->name, slab_debugfs_root));
+	debugfs_lookup_and_remove(s->name, slab_debugfs_root);
 }
 
 static int __init slab_debugfs_init(void)
