@@ -64,6 +64,7 @@ enum intel_vsec_id {
 	VSEC_ID_WATCHER		= 3,
 	VSEC_ID_CRASHLOG	= 4,
 	VSEC_ID_SDSI		= 65,
+	VSEC_ID_TPMI		= 66,
 };
 
 static enum intel_vsec_id intel_vsec_allow_list[] = {
@@ -71,6 +72,7 @@ static enum intel_vsec_id intel_vsec_allow_list[] = {
 	VSEC_ID_WATCHER,
 	VSEC_ID_CRASHLOG,
 	VSEC_ID_SDSI,
+	VSEC_ID_TPMI,
 };
 
 static const char *intel_vsec_name(enum intel_vsec_id id)
@@ -87,6 +89,9 @@ static const char *intel_vsec_name(enum intel_vsec_id id)
 
 	case VSEC_ID_SDSI:
 		return "sdsi";
+
+	case VSEC_ID_TPMI:
+		return "tpmi";
 
 	default:
 		return NULL;
