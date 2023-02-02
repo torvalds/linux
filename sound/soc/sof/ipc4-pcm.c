@@ -10,6 +10,7 @@
 #include <sound/sof/ipc4/header.h>
 #include "sof-audio.h"
 #include "sof-priv.h"
+#include "ops.h"
 #include "ipc4-priv.h"
 #include "ipc4-topology.h"
 #include "ipc4-fw-reg.h"
@@ -556,6 +557,113 @@ static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
 	return 0;
 }
 
+static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
+					    struct snd_pcm_substream *substream,
+					    struct snd_sof_pcm_stream *stream,
+					    struct sof_ipc4_timestamp_info *time_info)
+{
+	struct sof_ipc4_copier *host_copier = time_info->host_copier;
+	struct sof_ipc4_copier *dai_copier = time_info->dai_copier;
+	struct sof_ipc4_pipeline_registers ppl_reg;
+	u64 stream_start_position;
+	u32 dai_sample_size;
+	u32 ch, node_index;
+	u32 offset;
+
+	if (!host_copier || !dai_copier)
+		return -EINVAL;
+
+	if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_INVALID_NODE_ID)
+		return -EINVAL;
+
+	node_index = SOF_IPC4_NODE_INDEX(host_copier->data.gtw_cfg.node_id);
+	offset = offsetof(struct sof_ipc4_fw_registers, pipeline_regs) + node_index * sizeof(ppl_reg);
+	sof_mailbox_read(sdev, sdev->fw_info_box.offset + offset, &ppl_reg, sizeof(ppl_reg));
+	if (ppl_reg.stream_start_offset == SOF_IPC4_INVALID_STREAM_POSITION)
+		return -EINVAL;
+
+	stream_start_position = ppl_reg.stream_start_offset;
+	ch = dai_copier->data.out_format.fmt_cfg;
+	ch = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(ch);
+	dai_sample_size = (dai_copier->data.out_format.bit_depth >> 3) * ch;
+	/* convert offset to sample count */
+	do_div(stream_start_position, dai_sample_size);
+	time_info->stream_start_offset = stream_start_position;
+
+	return 0;
+}
+
+static snd_pcm_sframes_t sof_ipc4_pcm_delay(struct snd_soc_component *component,
+					    struct snd_pcm_substream *substream)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct sof_ipc4_timestamp_info *time_info;
+	struct sof_ipc4_llp_reading_slot llp;
+	snd_pcm_uframes_t head_ptr, tail_ptr;
+	struct snd_sof_pcm_stream *stream;
+	struct snd_sof_pcm *spcm;
+	u64 tmp_ptr;
+	int ret;
+
+	spcm = snd_sof_find_spcm_dai(component, rtd);
+	if (!spcm)
+		return 0;
+
+	stream = &spcm->stream[substream->stream];
+	time_info = stream->private;
+	if (!time_info)
+		return 0;
+
+	/*
+	 * stream_start_offset is updated to memory window by FW based on
+	 * pipeline statistics and it may be invalid if host query happens before
+	 * the statistics is complete. And it will not change after the first initiailization.
+	 */
+	if (time_info->stream_start_offset == SOF_IPC4_INVALID_STREAM_POSITION) {
+		ret = sof_ipc4_get_stream_start_offset(sdev, substream, stream, time_info);
+		if (ret < 0)
+			return 0;
+	}
+
+	/*
+	 * HDaudio links don't support the LLP counter reported by firmware
+	 * the link position is read directly from hardware registers.
+	 */
+	if (!time_info->llp_offset) {
+		tmp_ptr = snd_sof_pcm_get_stream_position(sdev, component, substream);
+		if (!tmp_ptr)
+			return 0;
+	} else {
+		sof_mailbox_read(sdev, time_info->llp_offset, &llp, sizeof(llp));
+		tmp_ptr = ((u64)llp.reading.llp_u << 32) | llp.reading.llp_l;
+	}
+
+	/* In two cases dai dma position is not accurate
+	 * (1) dai pipeline is started before host pipeline
+	 * (2) multiple streams mixed into one. Each stream has the same dai dma position
+	 *
+	 * Firmware calculates correct stream_start_offset for all cases including above two.
+	 * Driver subtracts stream_start_offset from dai dma position to get accurate one
+	 */
+	tmp_ptr -= time_info->stream_start_offset;
+
+	/* Calculate the delay taking into account that both pointer can wrap */
+	div64_u64_rem(tmp_ptr, substream->runtime->boundary, &tmp_ptr);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		head_ptr = substream->runtime->status->hw_ptr;
+		tail_ptr = tmp_ptr;
+	} else {
+		head_ptr = tmp_ptr;
+		tail_ptr = substream->runtime->status->hw_ptr;
+	}
+
+	if (head_ptr < tail_ptr)
+		return substream->runtime->boundary - tail_ptr + head_ptr;
+
+	return head_ptr - tail_ptr;
+}
+
 const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
 	.hw_params = sof_ipc4_pcm_hw_params,
 	.trigger = sof_ipc4_pcm_trigger,
@@ -563,4 +671,5 @@ const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
 	.dai_link_fixup = sof_ipc4_pcm_dai_link_fixup,
 	.pcm_setup = sof_ipc4_pcm_setup,
 	.pcm_free = sof_ipc4_pcm_free,
+	.delay = sof_ipc4_pcm_delay
 };
