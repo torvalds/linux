@@ -2980,6 +2980,81 @@ static void gfx_v9_4_3_emit_wave_limit(struct amdgpu_ring *ring, bool enable)
 	}
 }
 
+static const struct soc15_reg_entry gfx_v9_4_3_ea_err_status_regs = {
+	SOC15_REG_ENTRY(GC, 0, regGCEA_ERR_STATUS), 0, 1, 16
+};
+
+static void gfx_v9_4_3_inst_query_ea_err_status(struct amdgpu_device *adev,
+					int xcc_id)
+{
+	uint32_t i, j;
+	uint32_t reg_value;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+
+	for (i = 0; i < gfx_v9_4_3_ea_err_status_regs.se_num; i++) {
+		for (j = 0; j < gfx_v9_4_3_ea_err_status_regs.instance; j++) {
+			gfx_v9_4_3_xcc_select_se_sh(adev, i, 0, j, xcc_id);
+			reg_value = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
+					regGCEA_ERR_STATUS);
+			if (REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_RDRSP_STATUS) ||
+			    REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_WRRSP_STATUS) ||
+			    REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_RDRSP_DATAPARITY_ERROR)) {
+				dev_warn(adev->dev,
+					"GCEA err detected at instance: %d, status: 0x%x!\n",
+					j, reg_value);
+			}
+			/* clear after read */
+			reg_value = REG_SET_FIELD(reg_value, GCEA_ERR_STATUS,
+						  CLEAR_ERROR_STATUS, 0x1);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGCEA_ERR_STATUS,
+					reg_value);
+		}
+	}
+
+	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+			xcc_id);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
+static void gfx_v9_4_3_inst_query_utc_err_status(struct amdgpu_device *adev,
+					int xcc_id)
+{
+	uint32_t data;
+
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regUTCL2_MEM_ECC_STATUS);
+	if (data) {
+		dev_warn(adev->dev, "GFX UTCL2 Mem Ecc Status: 0x%x!\n", data);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regUTCL2_MEM_ECC_STATUS, 0x3);
+	}
+
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regVML2_MEM_ECC_STATUS);
+	if (data) {
+		dev_warn(adev->dev, "GFX VML2 Mem Ecc Status: 0x%x!\n", data);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regVML2_MEM_ECC_STATUS, 0x3);
+	}
+
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
+				regVML2_WALKER_MEM_ECC_STATUS);
+	if (data) {
+		dev_warn(adev->dev, "GFX VML2 Walker Mem Ecc Status: 0x%x!\n", data);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regVML2_WALKER_MEM_ECC_STATUS,
+				0x3);
+	}
+}
+
+static void gfx_v9_4_3_inst_query_ras_err_status(struct amdgpu_device *adev,
+					void *ras_error_status, int xcc_id)
+{
+	gfx_v9_4_3_inst_query_ea_err_status(adev, xcc_id);
+	gfx_v9_4_3_inst_query_utc_err_status(adev, xcc_id);
+}
+
+static void gfx_v9_4_3_query_ras_error_status(struct amdgpu_device *adev)
+{
+	amdgpu_gfx_ras_error_func(adev, NULL, gfx_v9_4_3_inst_query_ras_err_status);
+}
+
 static const struct amd_ip_funcs gfx_v9_4_3_ip_funcs = {
 	.name = "gfx_v9_4_3",
 	.early_init = gfx_v9_4_3_early_init,
