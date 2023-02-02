@@ -890,7 +890,7 @@ int aw88395_dev_cfg_load(struct aw_device *aw_dev, struct aw_container *aw_cfg)
 	case AW88395_CFG_HDR_VER:
 		ret = aw_dev_load_cfg_by_hdr(aw_dev, cfg_hdr);
 		if (ret < 0) {
-			dev_err(aw_dev->dev, "hdr_cersion[0x%x] parse failed",
+			dev_err(aw_dev->dev, "hdr_version[0x%x] parse failed",
 						cfg_hdr->hdr_version);
 			return ret;
 		}
@@ -898,7 +898,7 @@ int aw88395_dev_cfg_load(struct aw_device *aw_dev, struct aw_container *aw_cfg)
 	case AW88395_CFG_HDR_VER_V1:
 		ret = aw_dev_load_cfg_by_hdr_v1(aw_dev, aw_cfg);
 		if (ret < 0) {
-			dev_err(aw_dev->dev, "hdr_cersion[0x%x] parse failed",
+			dev_err(aw_dev->dev, "hdr_version[0x%x] parse failed",
 						cfg_hdr->hdr_version);
 			return ret;
 		}
