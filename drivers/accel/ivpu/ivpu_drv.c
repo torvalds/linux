@@ -428,6 +428,7 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 		ivpu_err(vdev, "Failed to set DMA mask: %d\n", ret);
 		return ret;
 	}
+	dma_set_max_seg_size(vdev->drm.dev, UINT_MAX);
 
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
