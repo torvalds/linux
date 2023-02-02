@@ -153,6 +153,28 @@ struct intel_tpmi_plat_info *tpmi_get_platform_data(struct auxiliary_device *aux
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_get_platform_data, INTEL_TPMI);
 
+int tpmi_get_resource_count(struct auxiliary_device *auxdev)
+{
+	struct intel_vsec_device *vsec_dev = auxdev_to_ivdev(auxdev);
+
+	if (vsec_dev)
+		return vsec_dev->num_resources;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_count, INTEL_TPMI);
+
+struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int index)
+{
+	struct intel_vsec_device *vsec_dev = auxdev_to_ivdev(auxdev);
+
+	if (vsec_dev && index < vsec_dev->num_resources)
+		return &vsec_dev->resource[index];
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_at_index, INTEL_TPMI);
+
 static const char *intel_tpmi_name(enum intel_tpmi_id id)
 {
 	switch (id) {
