@@ -83,7 +83,7 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	secs = rtc_tm_to_time64(tm);
 	put_unaligned_le32(secs, value);
 
-	dev_dbg(dev, "Seconds value to be written to RTC = %lu\n", secs);
+	dev_dbg(dev, "set time: %ptRd %ptRt (%lu)\n", tm, tm, secs);
 
 	rc = regmap_update_bits_check(rtc_dd->regmap, regs->alarm_ctrl,
 				      regs->alarm_en, 0, &alarm_enabled);
@@ -158,7 +158,7 @@ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	secs = get_unaligned_le32(value);
 	rtc_time64_to_tm(secs, tm);
 
-	dev_dbg(dev, "secs = %lu, h:m:s == %ptRt, y-m-d = %ptRdr\n", secs, tm, tm);
+	dev_dbg(dev, "read time: %ptRd %ptRt (%lu)\n", tm, tm, secs);
 
 	return 0;
 }
@@ -191,8 +191,7 @@ static int pm8xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 			return rc;
 	}
 
-	dev_dbg(dev, "Alarm Set for h:m:s=%ptRt, y-m-d=%ptRdr\n",
-		&alarm->time, &alarm->time);
+	dev_dbg(dev, "set alarm: %ptRd %ptRt\n", &alarm->time, &alarm->time);
 
 	return 0;
 }
@@ -220,8 +219,7 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	alarm->enabled = !!(ctrl_reg & PM8xxx_RTC_ALARM_ENABLE);
 
-	dev_dbg(dev, "Alarm set for - h:m:s=%ptRt, y-m-d=%ptRdr\n",
-		&alarm->time, &alarm->time);
+	dev_dbg(dev, "read alarm: %ptRd %ptRt\n", &alarm->time, &alarm->time);
 
 	return 0;
 }
