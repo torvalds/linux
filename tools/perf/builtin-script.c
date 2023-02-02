@@ -889,12 +889,13 @@ mispred_str(struct branch_entry *br)
 
 static int print_bstack_flags(FILE *fp, struct branch_entry *br)
 {
-	return fprintf(fp, "/%c/%c/%c/%d/%s ",
+	return fprintf(fp, "/%c/%c/%c/%d/%s/%s ",
 		       mispred_str(br),
 		       br->flags.in_tx ? 'X' : '-',
 		       br->flags.abort ? 'A' : '-',
 		       br->flags.cycles,
-		       get_branch_type(br));
+		       get_branch_type(br),
+		       br->flags.spec ? branch_spec_desc(br->flags.spec) : "-");
 }
 
 static int perf_sample__fprintf_brstack(struct perf_sample *sample,
