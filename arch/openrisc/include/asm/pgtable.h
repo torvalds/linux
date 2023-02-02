@@ -183,9 +183,6 @@ extern void paging_init(void);
 extern unsigned long empty_zero_page[2048];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
-/* to set the page-dir */
-#define SET_PAGE_DIR(tsk, pgdir)
-
 #define pte_none(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, xp)	do { pte_val(*(xp)) = 0; } while (0)
