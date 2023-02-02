@@ -343,6 +343,7 @@ struct mlx5_eswitch {
 	int                     mode;
 	u16                     manager_vport;
 	u16                     first_host_vport;
+	u8			num_peers;
 	struct mlx5_esw_functions esw_funcs;
 	struct {
 		u32             large_group_num;
