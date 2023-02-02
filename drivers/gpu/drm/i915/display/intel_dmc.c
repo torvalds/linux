@@ -576,11 +576,6 @@ static bool dmc_mmio_addr_sanity_check(struct intel_dmc *dmc,
 	u32 start_range, end_range;
 	int i;
 
-	if (dmc_id >= DMC_FW_MAX) {
-		drm_warn(&i915->drm, "Unsupported firmware id %u\n", dmc_id);
-		return false;
-	}
-
 	if (header_ver == 1) {
 		start_range = DMC_MMIO_START_RANGE;
 		end_range = DMC_MMIO_END_RANGE;
