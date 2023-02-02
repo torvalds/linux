@@ -53,7 +53,6 @@ struct pm8xxx_rtc_regs {
  * @rtc_alarm_irq:	rtc alarm irq number.
  * @regs:		rtc registers description.
  * @rtc_dev:		device structure.
- * @ctrl_reg_lock:	spinlock protecting access to ctrl_reg.
  */
 struct pm8xxx_rtc {
 	struct rtc_device *rtc;
@@ -62,7 +61,6 @@ struct pm8xxx_rtc {
 	int rtc_alarm_irq;
 	const struct pm8xxx_rtc_regs *regs;
 	struct device *rtc_dev;
-	spinlock_t ctrl_reg_lock;
 };
 
 /*
@@ -77,11 +75,11 @@ struct pm8xxx_rtc {
 static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	int rc, i;
-	unsigned long secs, irq_flags;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 	u8 value[NUM_8_BIT_RTC_REGS];
 	bool alarm_enabled;
+	unsigned long secs;
 
 	if (!rtc_dd->allow_set_time)
 		return -ENODEV;
@@ -95,51 +93,46 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		secs >>= 8;
 	}
 
-	spin_lock_irqsave(&rtc_dd->ctrl_reg_lock, irq_flags);
-
 	rc = regmap_update_bits_check(rtc_dd->regmap, regs->alarm_ctrl,
 				      regs->alarm_en, 0, &alarm_enabled);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	/* Disable RTC H/w before writing on RTC register */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->ctrl, PM8xxx_RTC_ENABLE, 0);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	/* Write 0 to Byte[0] */
 	rc = regmap_write(rtc_dd->regmap, regs->write, 0);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	/* Write Byte[1], Byte[2], Byte[3] */
 	rc = regmap_bulk_write(rtc_dd->regmap, regs->write + 1,
 			       &value[1], sizeof(value) - 1);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	/* Write Byte[0] */
 	rc = regmap_write(rtc_dd->regmap, regs->write, value[0]);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	/* Enable RTC H/w after writing on RTC register */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->ctrl, PM8xxx_RTC_ENABLE,
 				PM8xxx_RTC_ENABLE);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	if (alarm_enabled) {
 		rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 					regs->alarm_en, regs->alarm_en);
 		if (rc)
-			goto rtc_rw_fail;
+			return rc;
 	}
 
-rtc_rw_fail:
-	spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
-
-	return rc;
+	return 0;
 }
 
 static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -184,9 +177,9 @@ static int pm8xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	int rc, i;
 	u8 value[NUM_8_BIT_RTC_REGS];
-	unsigned long secs, irq_flags;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
+	unsigned long secs;
 
 	secs = rtc_tm_to_time64(&alarm->time);
 
@@ -200,25 +193,22 @@ static int pm8xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (rc)
 		return rc;
 
-	spin_lock_irqsave(&rtc_dd->ctrl_reg_lock, irq_flags);
-
 	rc = regmap_bulk_write(rtc_dd->regmap, regs->alarm_rw, value,
 			       sizeof(value));
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	if (alarm->enabled) {
 		rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 					regs->alarm_en, regs->alarm_en);
 		if (rc)
-			goto rtc_rw_fail;
+			return rc;
 	}
 
 	dev_dbg(dev, "Alarm Set for h:m:s=%ptRt, y-m-d=%ptRdr\n",
 		&alarm->time, &alarm->time);
-rtc_rw_fail:
-	spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
-	return rc;
+
+	return 0;
 }
 
 static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
@@ -255,13 +245,10 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int pm8xxx_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
 	int rc;
-	unsigned long irq_flags;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 	u8 value[NUM_8_BIT_RTC_REGS] = {0};
 	unsigned int val;
-
-	spin_lock_irqsave(&rtc_dd->ctrl_reg_lock, irq_flags);
 
 	if (enable)
 		val = regs->alarm_en;
@@ -271,19 +258,17 @@ static int pm8xxx_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 				regs->alarm_en, val);
 	if (rc)
-		goto rtc_rw_fail;
+		return rc;
 
 	/* Clear Alarm register */
 	if (!enable) {
 		rc = regmap_bulk_write(rtc_dd->regmap, regs->alarm_rw, value,
 				       sizeof(value));
 		if (rc)
-			goto rtc_rw_fail;
+			return rc;
 	}
 
-rtc_rw_fail:
-	spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
-	return rc;
+	return 0;
 }
 
 static const struct rtc_class_ops pm8xxx_rtc_ops = {
@@ -302,25 +287,18 @@ static irqreturn_t pm8xxx_alarm_trigger(int irq, void *dev_id)
 
 	rtc_update_irq(rtc_dd->rtc, 1, RTC_IRQF | RTC_AF);
 
-	spin_lock(&rtc_dd->ctrl_reg_lock);
-
 	/* Clear the alarm enable bit */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 				regs->alarm_en, 0);
-	if (rc) {
-		spin_unlock(&rtc_dd->ctrl_reg_lock);
-		goto rtc_alarm_handled;
-	}
-
-	spin_unlock(&rtc_dd->ctrl_reg_lock);
+	if (rc)
+		goto out;
 
 	/* Clear RTC alarm register */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl2,
 				PM8xxx_RTC_ALARM_CLEAR, 0);
 	if (rc)
-		goto rtc_alarm_handled;
-
-rtc_alarm_handled:
+		goto out;
+out:
 	return IRQ_HANDLED;
 }
 
@@ -397,9 +375,6 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	rtc_dd = devm_kzalloc(&pdev->dev, sizeof(*rtc_dd), GFP_KERNEL);
 	if (rtc_dd == NULL)
 		return -ENOMEM;
-
-	/* Initialise spinlock to protect RTC control register */
-	spin_lock_init(&rtc_dd->ctrl_reg_lock);
 
 	rtc_dd->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!rtc_dd->regmap) {
