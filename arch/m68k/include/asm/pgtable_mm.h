@@ -119,16 +119,6 @@ extern void *empty_zero_page;
  */
 #define ZERO_PAGE(vaddr)	(virt_to_page(empty_zero_page))
 
-/* number of bits that fit into a memory pointer */
-#define BITS_PER_PTR			(8*sizeof(unsigned long))
-
-/* to align the pointer to a pointer address */
-#define PTR_MASK			(~(sizeof(void*)-1))
-
-/* sizeof(void*)==1<<SIZEOF_PTR_LOG2 */
-/* 64-bit machines, beware!  SRB. */
-#define SIZEOF_PTR_LOG2			       2
-
 extern void kernel_set_cachemode(void *addr, unsigned long size, int cmode);
 
 /*

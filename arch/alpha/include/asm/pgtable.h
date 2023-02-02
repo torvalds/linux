@@ -141,19 +141,6 @@ extern unsigned long __zero_page(void);
 #define BAD_PAGE	__bad_page()
 #define ZERO_PAGE(vaddr)	(virt_to_page(ZERO_PGE))
 
-/* number of bits that fit into a memory pointer */
-#define BITS_PER_PTR			(8*sizeof(unsigned long))
-
-/* to align the pointer to a pointer address */
-#define PTR_MASK			(~(sizeof(void*)-1))
-
-/* sizeof(void*)==1<<SIZEOF_PTR_LOG2 */
-#define SIZEOF_PTR_LOG2			3
-
-/* to find an entry in a page-table */
-#define PAGE_PTR(address)		\
-  ((unsigned long)(address)>>(PAGE_SHIFT-SIZEOF_PTR_LOG2)&PTR_MASK&~PAGE_MASK)
-
 /*
  * On certain platforms whose physical address space can overlap KSEG,
  * namely EV6 and above, we must re-twiddle the physaddr to restore the
