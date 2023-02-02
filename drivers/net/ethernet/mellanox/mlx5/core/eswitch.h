@@ -754,9 +754,9 @@ void esw_vport_change_handle_locked(struct mlx5_vport *vport);
 
 bool mlx5_esw_offloads_controller_valid(const struct mlx5_eswitch *esw, u32 controller);
 
-int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
-					    struct mlx5_eswitch *slave_esw);
-void mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+int mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
+					     struct mlx5_eswitch *slave_esw, int max_slaves);
+void mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					      struct mlx5_eswitch *slave_esw);
 int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 
@@ -808,14 +808,14 @@ mlx5_esw_vport_to_devlink_port_index(const struct mlx5_core_dev *dev,
 }
 
 static inline int
-mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
-					struct mlx5_eswitch *slave_esw)
+mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
+					 struct mlx5_eswitch *slave_esw, int max_slaves)
 {
 	return 0;
 }
 
 static inline void
-mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					 struct mlx5_eswitch *slave_esw) {}
 
 static inline int

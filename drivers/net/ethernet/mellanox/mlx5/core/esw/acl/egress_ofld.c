@@ -15,6 +15,18 @@ static void esw_acl_egress_ofld_fwd2vport_destroy(struct mlx5_vport *vport)
 	vport->egress.offloads.fwd_rule = NULL;
 }
 
+void esw_acl_egress_ofld_bounce_rule_destroy(struct mlx5_vport *vport, int rule_index)
+{
+	struct mlx5_flow_handle *bounce_rule =
+		xa_load(&vport->egress.offloads.bounce_rules, rule_index);
+
+	if (!bounce_rule)
+		return;
+
+	mlx5_del_flow_rules(bounce_rule);
+	xa_erase(&vport->egress.offloads.bounce_rules, rule_index);
+}
+
 static void esw_acl_egress_ofld_bounce_rules_destroy(struct mlx5_vport *vport)
 {
 	struct mlx5_flow_handle *bounce_rule;

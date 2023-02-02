@@ -2557,11 +2557,11 @@ static int __esw_set_master_egress_rule(struct mlx5_core_dev *master,
 }
 
 static int esw_master_egress_create_resources(struct mlx5_flow_namespace *egress_ns,
-					      struct mlx5_vport *vport)
+					      struct mlx5_vport *vport, size_t count)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_table_attr ft_attr = {
-		.max_fte = MLX5_MAX_PORTS, .prio = 0, .level = 0,
+		.max_fte = count, .prio = 0, .level = 0,
 		.flags = MLX5_FLOW_TABLE_OTHER_VPORT,
 	};
 	struct mlx5_flow_table *acl;
@@ -2595,7 +2595,7 @@ static int esw_master_egress_create_resources(struct mlx5_flow_namespace *egress
 	MLX5_SET(create_flow_group_in, flow_group_in,
 		 source_eswitch_owner_vhca_id_valid, 1);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
-	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, MLX5_MAX_PORTS);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, count);
 
 	g = mlx5_create_flow_group(acl, flow_group_in);
 	if (IS_ERR(g)) {
@@ -2626,7 +2626,7 @@ static void esw_master_egress_destroy_resources(struct mlx5_vport *vport)
 }
 
 static int esw_set_master_egress_rule(struct mlx5_core_dev *master,
-				      struct mlx5_core_dev *slave)
+				      struct mlx5_core_dev *slave, size_t count)
 {
 	struct mlx5_eswitch *esw = master->priv.eswitch;
 	u16 slave_index = MLX5_CAP_GEN(slave, vhca_id);
@@ -2647,7 +2647,7 @@ static int esw_set_master_egress_rule(struct mlx5_core_dev *master,
 	if (vport->egress.acl && vport->egress.type != VPORT_EGRESS_ACL_TYPE_SHARED_FDB)
 		return 0;
 
-	err = esw_master_egress_create_resources(egress_ns, vport);
+	err = esw_master_egress_create_resources(egress_ns, vport, count);
 	if (err)
 		return err;
 
@@ -2665,19 +2665,24 @@ err_rule:
 	return err;
 }
 
-static void esw_unset_master_egress_rule(struct mlx5_core_dev *dev)
+static void esw_unset_master_egress_rule(struct mlx5_core_dev *dev,
+					 struct mlx5_core_dev *slave_dev)
 {
 	struct mlx5_vport *vport;
 
 	vport = mlx5_eswitch_get_vport(dev->priv.eswitch,
 				       dev->priv.eswitch->manager_vport);
 
-	esw_acl_egress_ofld_cleanup(vport);
-	xa_destroy(&vport->egress.offloads.bounce_rules);
+	esw_acl_egress_ofld_bounce_rule_destroy(vport, MLX5_CAP_GEN(slave_dev, vhca_id));
+
+	if (xa_empty(&vport->egress.offloads.bounce_rules)) {
+		esw_acl_egress_ofld_cleanup(vport);
+		xa_destroy(&vport->egress.offloads.bounce_rules);
+	}
 }
 
-int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
-					    struct mlx5_eswitch *slave_esw)
+int mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
+					     struct mlx5_eswitch *slave_esw, int max_slaves)
 {
 	int err;
 
@@ -2687,7 +2692,7 @@ int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
 		return err;
 
 	err = esw_set_master_egress_rule(master_esw->dev,
-					 slave_esw->dev);
+					 slave_esw->dev, max_slaves);
 	if (err)
 		goto err_acl;
 
@@ -2695,15 +2700,14 @@ int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
 
 err_acl:
 	esw_set_slave_root_fdb(NULL, slave_esw->dev);
-
 	return err;
 }
 
-void mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+void mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					      struct mlx5_eswitch *slave_esw)
 {
-	esw_unset_master_egress_rule(master_esw->dev);
 	esw_set_slave_root_fdb(NULL, slave_esw->dev);
+	esw_unset_master_egress_rule(master_esw->dev, slave_esw->dev);
 }
 
 #define ESW_OFFLOADS_DEVCOM_PAIR	(0)
