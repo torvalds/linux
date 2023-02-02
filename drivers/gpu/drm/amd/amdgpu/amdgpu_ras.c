@@ -3103,3 +3103,122 @@ int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 
 	return 0;
 }
+
+void amdgpu_ras_get_error_type_name(uint32_t err_type, char *err_type_name)
+{
+	if (!err_type_name)
+		return;
+
+	switch (err_type) {
+	case AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE:
+		sprintf(err_type_name, "correctable");
+		break;
+	case AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE:
+		sprintf(err_type_name, "uncorrectable");
+		break;
+	default:
+		sprintf(err_type_name, "unknown");
+		break;
+	}
+}
+
+bool amdgpu_ras_inst_get_memory_id_field(struct amdgpu_device *adev,
+					 const struct amdgpu_ras_err_status_reg_entry *reg_entry,
+					 uint32_t instance,
+					 uint32_t *memory_id)
+{
+	uint32_t err_status_lo_data, err_status_lo_offset;
+
+	if (!reg_entry)
+		return false;
+
+	err_status_lo_offset =
+		AMDGPU_RAS_REG_ENTRY_OFFSET(reg_entry->hwip, instance,
+					    reg_entry->seg_lo, reg_entry->reg_lo);
+	err_status_lo_data = RREG32(err_status_lo_offset);
+
+	if ((reg_entry->flags & AMDGPU_RAS_ERR_STATUS_VALID) &&
+	    !REG_GET_FIELD(err_status_lo_data, ERR_STATUS_LO, ERR_STATUS_VALID_FLAG))
+		return false;
+
+	*memory_id = REG_GET_FIELD(err_status_lo_data, ERR_STATUS_LO, MEMORY_ID);
+
+	return true;
+}
+
+bool amdgpu_ras_inst_get_err_cnt_field(struct amdgpu_device *adev,
+				       const struct amdgpu_ras_err_status_reg_entry *reg_entry,
+				       uint32_t instance,
+				       unsigned long *err_cnt)
+{
+	uint32_t err_status_hi_data, err_status_hi_offset;
+
+	if (!reg_entry)
+		return false;
+
+	err_status_hi_offset =
+		AMDGPU_RAS_REG_ENTRY_OFFSET(reg_entry->hwip, instance,
+					    reg_entry->seg_hi, reg_entry->reg_hi);
+	err_status_hi_data = RREG32(err_status_hi_offset);
+
+	if ((reg_entry->flags & AMDGPU_RAS_ERR_INFO_VALID) &&
+	    !REG_GET_FIELD(err_status_hi_data, ERR_STATUS_HI, ERR_INFO_VALID_FLAG))
+		return false;
+
+	/* read err count */
+	*err_cnt = REG_GET_FIELD(err_status_hi_data, ERR_STATUS, ERR_CNT);
+
+	return true;
+}
+
+void amdgpu_ras_inst_query_ras_error_count(struct amdgpu_device *adev,
+					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
+					   uint32_t reg_list_size,
+					   const struct amdgpu_ras_memory_id_entry *mem_list,
+					   uint32_t mem_list_size,
+					   uint32_t instance,
+					   uint32_t err_type,
+					   unsigned long *err_count)
+{
+	uint32_t memory_id;
+	unsigned long err_cnt;
+	char err_type_name[16];
+	uint32_t i, j;
+
+	for (i = 0; i < reg_list_size; i++) {
+		/* query err_cnt from err_status_hi */
+		if (!amdgpu_ras_inst_get_err_cnt_field(adev, &reg_list[i],
+						       instance, &err_cnt) ||
+		    !err_cnt)
+			continue;
+
+		/* query memory_id from err_status_lo */
+		if (!amdgpu_ras_inst_get_memory_id_field(adev, &reg_list[i],
+							 instance, &memory_id))
+			continue;
+
+		*err_count += err_cnt;
+
+		/* log the errors */
+		amdgpu_ras_get_error_type_name(err_type, err_type_name);
+		if (!mem_list) {
+			/* memory_list is not supported */
+			dev_info(adev->dev,
+				 "%ld %s hardware errors detected in %s, instance: %d, memory_id: %d\n",
+				 err_cnt, err_type_name,
+				 reg_list[i].block_name,
+				 instance, memory_id);
+		} else {
+			for (j = 0; j < mem_list_size; j++) {
+				if (memory_id == mem_list[j].memory_id) {
+					dev_info(adev->dev,
+						 "%ld %s hardware errors detected in %s, instance: %d, memory block: %s\n",
+						 err_cnt, err_type_name,
+						 reg_list[i].block_name,
+						 instance, mem_list[j].name);
+					break;
+				}
+			}
+		}
+	}
+}

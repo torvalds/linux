@@ -314,6 +314,43 @@ enum amdgpu_ras_ret {
 	AMDGPU_RAS_PT,
 };
 
+/* ras error status reisger fields */
+#define ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT	0x0
+#define ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK	0x00000001L
+#define ERR_STATUS_LO__MEMORY_ID__SHIFT			0x18
+#define ERR_STATUS_LO__MEMORY_ID_MASK			0xFF000000L
+#define ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT	0x2
+#define ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK		0x00000004L
+#define ERR_STATUS__ERR_CNT__SHIFT			0x17
+#define ERR_STATUS__ERR_CNT_MASK			0x03800000L
+
+#define AMDGPU_RAS_REG_ENTRY(ip, inst, reg_lo, reg_hi) \
+	ip##_HWIP, inst, reg_lo##_BASE_IDX, reg_lo, reg_hi##_BASE_IDX, reg_hi
+
+#define AMDGPU_RAS_REG_ENTRY_OFFSET(hwip, ip_inst, segment, reg) \
+	(adev->reg_offset[hwip][ip_inst][segment] + (reg))
+
+#define AMDGPU_RAS_ERR_INFO_VALID	(1 << 0)
+#define AMDGPU_RAS_ERR_STATUS_VALID	(1 << 1)
+#define AMDGPU_RAS_ERR_ADDRESS_VALID	(1 << 2)
+
+struct amdgpu_ras_err_status_reg_entry {
+	uint32_t hwip;
+	uint32_t ip_inst;
+	uint32_t seg_lo;
+	uint32_t reg_lo;
+	uint32_t seg_hi;
+	uint32_t reg_hi;
+	uint32_t reg_inst;
+	uint32_t flags;
+	const char *block_name;
+};
+
+struct amdgpu_ras_memory_id_entry {
+	uint32_t memory_id;
+	const char *name;
+};
+
 struct ras_common_if {
 	enum amdgpu_ras_block block;
 	enum amdgpu_ras_error_type type;
@@ -696,4 +733,21 @@ int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_co
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 				struct amdgpu_ras_block_object *ras_block_obj);
 void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev);
+void amdgpu_ras_get_error_type_name(uint32_t err_type, char *err_type_name);
+bool amdgpu_ras_inst_get_memory_id_field(struct amdgpu_device *adev,
+					 const struct amdgpu_ras_err_status_reg_entry *reg_entry,
+					 uint32_t instance,
+					 uint32_t *memory_id);
+bool amdgpu_ras_inst_get_err_cnt_field(struct amdgpu_device *adev,
+				       const struct amdgpu_ras_err_status_reg_entry *reg_entry,
+				       uint32_t instance,
+				       unsigned long *err_cnt);
+void amdgpu_ras_inst_query_ras_error_count(struct amdgpu_device *adev,
+					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
+					   uint32_t reg_list_size,
+					   const struct amdgpu_ras_memory_id_entry *mem_list,
+					   uint32_t mem_list_size,
+					   uint32_t instance,
+					   uint32_t err_type,
+					   unsigned long *err_count);
 #endif
