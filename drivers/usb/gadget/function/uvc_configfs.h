@@ -37,6 +37,14 @@ static inline struct uvcg_control_header *to_uvcg_control_header(struct config_i
 	return container_of(item, struct uvcg_control_header, item);
 }
 
+struct uvcg_color_matching {
+	struct config_group group;
+	struct uvc_color_matching_descriptor desc;
+};
+
+#define to_uvcg_color_matching(group_ptr) \
+container_of(group_ptr, struct uvcg_color_matching, group)
+
 enum uvcg_format_type {
 	UVCG_UNCOMPRESSED = 0,
 	UVCG_MJPEG,
