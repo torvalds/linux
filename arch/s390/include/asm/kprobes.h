@@ -70,7 +70,6 @@ struct kprobe_ctlblk {
 };
 
 void arch_remove_kprobe(struct kprobe *p);
-unsigned long arch_rethook_trampoline_callback(struct pt_regs *regs);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 int kprobe_exceptions_notify(struct notifier_block *self,

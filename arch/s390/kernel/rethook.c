@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/rethook.h>
 #include <linux/kprobes.h>
+#include "rethook.h"
 
 void arch_rethook_prepare(struct rethook_node *rh, struct pt_regs *regs, bool mcount)
 {
