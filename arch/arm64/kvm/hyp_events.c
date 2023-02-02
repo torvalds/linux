@@ -236,6 +236,42 @@ static const struct file_operations hyp_event_format_fops = {
 	.release = single_release,
 };
 
+static int hyp_header_page_show(struct seq_file *m, void *v)
+{
+	struct buffer_data_page bpage;
+
+	seq_printf(m, "\tfield: u64 timestamp;\t"
+		   "offset:0;\tsize:%lu;\tsigned:%d;\n",
+		   sizeof(bpage.time_stamp),
+		   is_signed_type(u64));
+
+	seq_printf(m, "\tfield: local_t commit;\t"
+		   "offset:%lu;\tsize:%lu;\tsigned:%d;\n",
+		   offsetof(typeof(bpage), commit),
+		   sizeof(bpage.commit),
+		   is_signed_type(long));
+
+	seq_printf(m, "\tfield: char data;\t"
+		   "offset:%lu;\tsize:%lu;\tsigned:%d;\n",
+		   offsetof(typeof(bpage), data),
+		   BUF_EXT_PAGE_SIZE,
+		   is_signed_type(char));
+
+	return 0;
+}
+
+static int hyp_header_page_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hyp_header_page_show, NULL);
+}
+
+static const struct file_operations hyp_header_page_fops = {
+	.open = hyp_header_page_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static char early_events[COMMAND_LINE_SIZE];
 
 static __init int setup_hyp_event_early(char *str)
@@ -291,6 +327,12 @@ void kvm_hyp_init_events_tracefs(struct dentry *parent)
 		pr_err("Failed to create tracefs folder for hyp events\n");
 		return;
 	}
+
+	d = tracefs_create_file("header_page", 0400, parent, NULL,
+				&hyp_header_page_fops);
+	if (!d)
+		pr_err("Failed to create events/header_page\n");
+
 
 	for (; (unsigned long)event < (unsigned long)__stop_hyp_events; event++) {
 		event_dir = tracefs_create_dir(event->name, parent);
