@@ -608,7 +608,7 @@ static int smc_llc_fill_ext_v2(struct smc_llc_msg_add_link_v2_ext *ext,
 
 	prim_lnk_idx = link->link_idx;
 	lnk_idx = link_new->link_idx;
-	mutex_lock(&lgr->rmbs_lock);
+	down_write(&lgr->rmbs_lock);
 	ext->num_rkeys = lgr->conns_num;
 	if (!ext->num_rkeys)
 		goto out;
@@ -628,7 +628,7 @@ static int smc_llc_fill_ext_v2(struct smc_llc_msg_add_link_v2_ext *ext,
 	}
 	len += i * sizeof(ext->rt[0]);
 out:
-	mutex_unlock(&lgr->rmbs_lock);
+	up_write(&lgr->rmbs_lock);
 	return len;
 }
 
@@ -889,7 +889,7 @@ static int smc_llc_cli_rkey_exchange(struct smc_link *link,
 	int rc = 0;
 	int i;
 
-	mutex_lock(&lgr->rmbs_lock);
+	down_write(&lgr->rmbs_lock);
 	num_rkeys_send = lgr->conns_num;
 	buf_pos = smc_llc_get_first_rmb(lgr, &buf_lst);
 	do {
@@ -916,7 +916,7 @@ static int smc_llc_cli_rkey_exchange(struct smc_link *link,
 			break;
 	} while (num_rkeys_send || num_rkeys_recv);
 
-	mutex_unlock(&lgr->rmbs_lock);
+	up_write(&lgr->rmbs_lock);
 	return rc;
 }
 
@@ -999,14 +999,14 @@ static void smc_llc_save_add_link_rkeys(struct smc_link *link,
 	ext = (struct smc_llc_msg_add_link_v2_ext *)((u8 *)lgr->wr_rx_buf_v2 +
 						     SMC_WR_TX_SIZE);
 	max = min_t(u8, ext->num_rkeys, SMC_LLC_RKEYS_PER_MSG_V2);
-	mutex_lock(&lgr->rmbs_lock);
+	down_write(&lgr->rmbs_lock);
 	for (i = 0; i < max; i++) {
 		smc_rtoken_set(lgr, link->link_idx, link_new->link_idx,
 			       ext->rt[i].rmb_key,
 			       ext->rt[i].rmb_vaddr_new,
 			       ext->rt[i].rmb_key_new);
 	}
-	mutex_unlock(&lgr->rmbs_lock);
+	up_write(&lgr->rmbs_lock);
 }
 
 static void smc_llc_save_add_link_info(struct smc_link *link,
@@ -1313,7 +1313,7 @@ static int smc_llc_srv_rkey_exchange(struct smc_link *link,
 	int rc = 0;
 	int i;
 
-	mutex_lock(&lgr->rmbs_lock);
+	down_write(&lgr->rmbs_lock);
 	num_rkeys_send = lgr->conns_num;
 	buf_pos = smc_llc_get_first_rmb(lgr, &buf_lst);
 	do {
@@ -1338,7 +1338,7 @@ static int smc_llc_srv_rkey_exchange(struct smc_link *link,
 		smc_llc_flow_qentry_del(&lgr->llc_flow_lcl);
 	} while (num_rkeys_send || num_rkeys_recv);
 out:
-	mutex_unlock(&lgr->rmbs_lock);
+	up_write(&lgr->rmbs_lock);
 	return rc;
 }
 

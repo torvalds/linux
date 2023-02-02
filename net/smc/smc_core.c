@@ -854,8 +854,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	lgr->freeing = 0;
 	lgr->vlan_id = ini->vlan_id;
 	refcount_set(&lgr->refcnt, 1); /* set lgr refcnt to 1 */
-	mutex_init(&lgr->sndbufs_lock);
-	mutex_init(&lgr->rmbs_lock);
+	init_rwsem(&lgr->sndbufs_lock);
+	init_rwsem(&lgr->rmbs_lock);
 	rwlock_init(&lgr->conns_lock);
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		INIT_LIST_HEAD(&lgr->sndbufs[i]);
@@ -1098,7 +1098,7 @@ err_out:
 static void smcr_buf_unuse(struct smc_buf_desc *buf_desc, bool is_rmb,
 			   struct smc_link_group *lgr)
 {
-	struct mutex *lock;	/* lock buffer list */
+	struct rw_semaphore *lock;	/* lock buffer list */
 	int rc;
 
 	if (is_rmb && buf_desc->is_conf_rkey && !list_empty(&lgr->list)) {
@@ -1118,9 +1118,9 @@ static void smcr_buf_unuse(struct smc_buf_desc *buf_desc, bool is_rmb,
 		/* buf registration failed, reuse not possible */
 		lock = is_rmb ? &lgr->rmbs_lock :
 				&lgr->sndbufs_lock;
-		mutex_lock(lock);
+		down_write(lock);
 		list_del(&buf_desc->list);
-		mutex_unlock(lock);
+		up_write(lock);
 
 		smc_buf_free(lgr, is_rmb, buf_desc);
 	} else {
@@ -1224,15 +1224,16 @@ static void smcr_buf_unmap_lgr(struct smc_link *lnk)
 	int i;
 
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
-		mutex_lock(&lgr->rmbs_lock);
+		down_write(&lgr->rmbs_lock);
 		list_for_each_entry_safe(buf_desc, bf, &lgr->rmbs[i], list)
 			smcr_buf_unmap_link(buf_desc, true, lnk);
-		mutex_unlock(&lgr->rmbs_lock);
-		mutex_lock(&lgr->sndbufs_lock);
+		up_write(&lgr->rmbs_lock);
+
+		down_write(&lgr->sndbufs_lock);
 		list_for_each_entry_safe(buf_desc, bf, &lgr->sndbufs[i],
 					 list)
 			smcr_buf_unmap_link(buf_desc, false, lnk);
-		mutex_unlock(&lgr->sndbufs_lock);
+		up_write(&lgr->sndbufs_lock);
 	}
 }
 
@@ -1990,19 +1991,19 @@ int smc_uncompress_bufsize(u8 compressed)
  * buffer size; if not available, return NULL
  */
 static struct smc_buf_desc *smc_buf_get_slot(int compressed_bufsize,
-					     struct mutex *lock,
+					     struct rw_semaphore *lock,
 					     struct list_head *buf_list)
 {
 	struct smc_buf_desc *buf_slot;
 
-	mutex_lock(lock);
+	down_read(lock);
 	list_for_each_entry(buf_slot, buf_list, list) {
 		if (cmpxchg(&buf_slot->used, 0, 1) == 0) {
-			mutex_unlock(lock);
+			up_read(lock);
 			return buf_slot;
 		}
 	}
-	mutex_unlock(lock);
+	up_read(lock);
 	return NULL;
 }
 
@@ -2111,13 +2112,13 @@ int smcr_link_reg_buf(struct smc_link *link, struct smc_buf_desc *buf_desc)
 	return 0;
 }
 
-static int _smcr_buf_map_lgr(struct smc_link *lnk, struct mutex *lock,
+static int _smcr_buf_map_lgr(struct smc_link *lnk, struct rw_semaphore *lock,
 			     struct list_head *lst, bool is_rmb)
 {
 	struct smc_buf_desc *buf_desc, *bf;
 	int rc = 0;
 
-	mutex_lock(lock);
+	down_write(lock);
 	list_for_each_entry_safe(buf_desc, bf, lst, list) {
 		if (!buf_desc->used)
 			continue;
@@ -2126,7 +2127,7 @@ static int _smcr_buf_map_lgr(struct smc_link *lnk, struct mutex *lock,
 			goto out;
 	}
 out:
-	mutex_unlock(lock);
+	up_write(lock);
 	return rc;
 }
 
@@ -2159,37 +2160,37 @@ int smcr_buf_reg_lgr(struct smc_link *lnk)
 	int i, rc = 0;
 
 	/* reg all RMBs for a new link */
-	mutex_lock(&lgr->rmbs_lock);
+	down_write(&lgr->rmbs_lock);
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		list_for_each_entry_safe(buf_desc, bf, &lgr->rmbs[i], list) {
 			if (!buf_desc->used)
 				continue;
 			rc = smcr_link_reg_buf(lnk, buf_desc);
 			if (rc) {
-				mutex_unlock(&lgr->rmbs_lock);
+				up_write(&lgr->rmbs_lock);
 				return rc;
 			}
 		}
 	}
-	mutex_unlock(&lgr->rmbs_lock);
+	up_write(&lgr->rmbs_lock);
 
 	if (lgr->buf_type == SMCR_PHYS_CONT_BUFS)
 		return rc;
 
 	/* reg all vzalloced sndbufs for a new link */
-	mutex_lock(&lgr->sndbufs_lock);
+	down_write(&lgr->sndbufs_lock);
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		list_for_each_entry_safe(buf_desc, bf, &lgr->sndbufs[i], list) {
 			if (!buf_desc->used || !buf_desc->is_vm)
 				continue;
 			rc = smcr_link_reg_buf(lnk, buf_desc);
 			if (rc) {
-				mutex_unlock(&lgr->sndbufs_lock);
+				up_write(&lgr->sndbufs_lock);
 				return rc;
 			}
 		}
 	}
-	mutex_unlock(&lgr->sndbufs_lock);
+	up_write(&lgr->sndbufs_lock);
 	return rc;
 }
 
@@ -2309,8 +2310,8 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 	struct smc_link_group *lgr = conn->lgr;
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
+	struct rw_semaphore *lock;	/* lock buffer list */
 	bool is_dgraded = false;
-	struct mutex *lock;	/* lock buffer list */
 	int sk_buf_size;
 
 	if (is_rmb)
@@ -2358,9 +2359,9 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		SMC_STAT_RMB_ALLOC(smc, is_smcd, is_rmb);
 		SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
 		buf_desc->used = 1;
-		mutex_lock(lock);
+		down_write(lock);
 		list_add(&buf_desc->list, buf_list);
-		mutex_unlock(lock);
+		up_write(lock);
 		break; /* found */
 	}
 
@@ -2434,9 +2435,9 @@ int smc_buf_create(struct smc_sock *smc, bool is_smcd)
 	/* create rmb */
 	rc = __smc_buf_create(smc, is_smcd, true);
 	if (rc) {
-		mutex_lock(&smc->conn.lgr->sndbufs_lock);
+		down_write(&smc->conn.lgr->sndbufs_lock);
 		list_del(&smc->conn.sndbuf_desc->list);
-		mutex_unlock(&smc->conn.lgr->sndbufs_lock);
+		up_write(&smc->conn.lgr->sndbufs_lock);
 		smc_buf_free(smc->conn.lgr, false, smc->conn.sndbuf_desc);
 		smc->conn.sndbuf_desc = NULL;
 	}
