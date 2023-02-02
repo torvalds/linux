@@ -161,6 +161,11 @@
 
 #define YT8521_CHIP_CONFIG_REG			0xA001
 #define YT8521_CCR_SW_RST			BIT(15)
+/* 1b0 disable 1.9ns rxc clock delay  *default*
+ * 1b1 enable 1.9ns rxc clock delay
+ */
+#define YT8521_CCR_RXC_DLY_EN			BIT(8)
+#define YT8521_CCR_RXC_DLY_1_900_NS		1900
 
 #define YT8521_CCR_MODE_SEL_MASK		(BIT(2) | BIT(1) | BIT(0))
 #define YT8521_CCR_MODE_UTP_TO_RGMII		0
@@ -178,22 +183,41 @@
 #define YT8521_MODE_POLL			0x3
 
 #define YT8521_RGMII_CONFIG1_REG		0xA003
-
+/* 1b0 use original tx_clk_rgmii  *default*
+ * 1b1 use inverted tx_clk_rgmii.
+ */
+#define YT8521_RC1R_TX_CLK_SEL_INVERTED		BIT(14)
 /* TX Gig-E Delay is bits 3:0, default 0x1
  * TX Fast-E Delay is bits 7:4, default 0xf
  * RX Delay is bits 13:10, default 0x0
  * Delay = 150ps * N
  * On = 2250ps, off = 0ps
  */
-#define YT8521_RC1R_RX_DELAY_MASK		(0xF << 10)
+#define YT8521_RC1R_RX_DELAY_MASK		GENMASK(13, 10)
 #define YT8521_RC1R_RX_DELAY_EN			(0xF << 10)
 #define YT8521_RC1R_RX_DELAY_DIS		(0x0 << 10)
-#define YT8521_RC1R_FE_TX_DELAY_MASK		(0xF << 4)
+#define YT8521_RC1R_FE_TX_DELAY_MASK		GENMASK(7, 4)
 #define YT8521_RC1R_FE_TX_DELAY_EN		(0xF << 4)
 #define YT8521_RC1R_FE_TX_DELAY_DIS		(0x0 << 4)
-#define YT8521_RC1R_GE_TX_DELAY_MASK		(0xF << 0)
+#define YT8521_RC1R_GE_TX_DELAY_MASK		GENMASK(3, 0)
 #define YT8521_RC1R_GE_TX_DELAY_EN		(0xF << 0)
 #define YT8521_RC1R_GE_TX_DELAY_DIS		(0x0 << 0)
+#define YT8521_RC1R_RGMII_0_000_NS		0
+#define YT8521_RC1R_RGMII_0_150_NS		1
+#define YT8521_RC1R_RGMII_0_300_NS		2
+#define YT8521_RC1R_RGMII_0_450_NS		3
+#define YT8521_RC1R_RGMII_0_600_NS		4
+#define YT8521_RC1R_RGMII_0_750_NS		5
+#define YT8521_RC1R_RGMII_0_900_NS		6
+#define YT8521_RC1R_RGMII_1_050_NS		7
+#define YT8521_RC1R_RGMII_1_200_NS		8
+#define YT8521_RC1R_RGMII_1_350_NS		9
+#define YT8521_RC1R_RGMII_1_500_NS		10
+#define YT8521_RC1R_RGMII_1_650_NS		11
+#define YT8521_RC1R_RGMII_1_800_NS		12
+#define YT8521_RC1R_RGMII_1_950_NS		13
+#define YT8521_RC1R_RGMII_2_100_NS		14
+#define YT8521_RC1R_RGMII_2_250_NS		15
 
 #define YTPHY_MISC_CONFIG_REG			0xA006
 #define YTPHY_MCR_FIBER_SPEED_MASK		BIT(0)
@@ -222,6 +246,29 @@
  */
 #define YTPHY_WCR_TYPE_PULSE			BIT(0)
 
+#define YTPHY_SYNCE_CFG_REG			0xA012
+#define YT8521_SCR_SYNCE_ENABLE			BIT(5)
+/* 1b0 output 25m clock
+ * 1b1 output 125m clock  *default*
+ */
+#define YT8521_SCR_CLK_FRE_SEL_125M		BIT(3)
+#define YT8521_SCR_CLK_SRC_MASK			GENMASK(2, 1)
+#define YT8521_SCR_CLK_SRC_PLL_125M		0
+#define YT8521_SCR_CLK_SRC_UTP_RX		1
+#define YT8521_SCR_CLK_SRC_SDS_RX		2
+#define YT8521_SCR_CLK_SRC_REF_25M		3
+#define YT8531_SCR_SYNCE_ENABLE			BIT(6)
+/* 1b0 output 25m clock   *default*
+ * 1b1 output 125m clock
+ */
+#define YT8531_SCR_CLK_FRE_SEL_125M		BIT(4)
+#define YT8531_SCR_CLK_SRC_MASK			GENMASK(3, 1)
+#define YT8531_SCR_CLK_SRC_PLL_125M		0
+#define YT8531_SCR_CLK_SRC_UTP_RX		1
+#define YT8531_SCR_CLK_SRC_SDS_RX		2
+#define YT8531_SCR_CLK_SRC_CLOCK_FROM_DIGITAL	3
+#define YT8531_SCR_CLK_SRC_REF_25M		4
+#define YT8531_SCR_CLK_SRC_SSC_25M		5
 #define YT8531S_SYNCE_CFG_REG			0xA012
 #define YT8531S_SCR_SYNCE_ENABLE		BIT(6)
 
