@@ -52,17 +52,9 @@
 
 #include <linux/jump_label.h>
 
-/*
- * This yields a mask that user programs can use to figure out what
- * instruction set this cpu supports.
- */
-#define ELF_HWCAP		(elf_hwcap)
-
 enum {
 	CAP_HWCAP = 1,
 };
-
-extern unsigned long elf_hwcap;
 
 struct riscv_isa_ext_data {
 	/* Name of the extension displayed to userspace via /proc/cpuinfo */
