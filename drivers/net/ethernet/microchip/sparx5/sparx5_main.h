@@ -455,6 +455,22 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx);
 
 void sparx5_sdlb_group_init(struct sparx5 *sparx5, u64 max_rate, u32 min_burst,
 			    u32 frame_size, u32 idx);
+/* sparx5_police.c */
+enum {
+	/* More policer types will be added later */
+	SPX5_POL_SERVICE
+};
+
+struct sparx5_policer {
+	u32 type;
+	u32 idx;
+	u64 rate;
+	u32 burst;
+	u32 group;
+	u8 event_mask;
+};
+
+int sparx5_policer_conf_set(struct sparx5 *sparx5, struct sparx5_policer *pol);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
