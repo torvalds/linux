@@ -1229,46 +1229,59 @@ static void adjust_scaling_max_from_base_freq(int cpu);
 static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *arg3,
 				  void *arg4)
 {
+	struct isst_pkg_ctdp pkg_dev;
 	int ret;
+
+	ret = isst_get_ctdp_levels(id, &pkg_dev);
+	if (ret) {
+		isst_display_error_info_message(1, "Get TDP level failed", 0, 0);
+		isst_ctdp_display_information_end(outf);
+		exit(1);
+	}
+
+	if (pkg_dev.current_level == tdp_level) {
+		debug_printf("TDP level already set. Skipped\n");
+		goto display_result;
+	}
 
 	ret = isst_set_tdp_level(id, tdp_level);
 	if (ret) {
 		isst_display_error_info_message(1, "Set TDP level failed", 0, 0);
 		isst_ctdp_display_information_end(outf);
 		exit(1);
-	} else {
-		isst_display_result(id, outf, "perf-profile", "set_tdp_level",
-				    ret);
-		if (force_online_offline) {
-			struct isst_pkg_ctdp_level_info ctdp_level;
+	}
 
-			/* Wait for updated base frequencies */
-			usleep(2000);
+display_result:
+	isst_display_result(id, outf, "perf-profile", "set_tdp_level", ret);
+	if (force_online_offline) {
+		struct isst_pkg_ctdp_level_info ctdp_level;
 
-			/* Adjusting uncore freq */
-			isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
+		/* Wait for updated base frequencies */
+		usleep(2000);
 
-			fprintf(stderr, "Option is set to online/offline\n");
-			ctdp_level.core_cpumask_size =
-				alloc_cpu_set(&ctdp_level.core_cpumask);
-			ret = isst_get_coremask_info(id, tdp_level, &ctdp_level);
-			if (ret) {
-				isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
-				return;
-			}
-			if (ctdp_level.cpu_count) {
-				int i, max_cpus = get_topo_max_cpus();
-				for (i = 0; i < max_cpus; ++i) {
-					if (!is_cpu_in_power_domain(i, id))
-						continue;
-					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
-						fprintf(stderr, "online cpu %d\n", i);
-						set_cpu_online_offline(i, 1);
-						adjust_scaling_max_from_base_freq(i);
-					} else {
-						fprintf(stderr, "offline cpu %d\n", i);
-						set_cpu_online_offline(i, 0);
-					}
+		/* Adjusting uncore freq */
+		isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
+
+		fprintf(stderr, "Option is set to online/offline\n");
+		ctdp_level.core_cpumask_size =
+			alloc_cpu_set(&ctdp_level.core_cpumask);
+		ret = isst_get_coremask_info(id, tdp_level, &ctdp_level);
+		if (ret) {
+			isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
+			return;
+		}
+		if (ctdp_level.cpu_count) {
+			int i, max_cpus = get_topo_max_cpus();
+			for (i = 0; i < max_cpus; ++i) {
+				if (!is_cpu_in_power_domain(i, id))
+					continue;
+				if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
+					fprintf(stderr, "online cpu %d\n", i);
+					set_cpu_online_offline(i, 1);
+					adjust_scaling_max_from_base_freq(i);
+				} else {
+					fprintf(stderr, "offline cpu %d\n", i);
+					set_cpu_online_offline(i, 0);
 				}
 			}
 		}
