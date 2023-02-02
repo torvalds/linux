@@ -12,6 +12,7 @@
 #include "sof-priv.h"
 #include "ipc4-priv.h"
 #include "ipc4-topology.h"
+#include "ipc4-fw-reg.h"
 
 static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state,
 					     struct ipc4_pipeline_set_state_data *trigger_list)
@@ -410,6 +411,8 @@ static void sof_ipc4_pcm_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		pipeline_list = &spcm->stream[stream].pipeline_list;
 		kfree(pipeline_list->pipelines);
 		pipeline_list->pipelines = NULL;
+		kfree(spcm->stream[stream].private);
+		spcm->stream[stream].private = NULL;
 	}
 }
 
@@ -417,7 +420,18 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 {
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_ipc4_timestamp_info *stream_info;
+	bool support_info = true;
+	u32 abi_version;
+	u32 abi_offset;
 	int stream;
+
+	abi_offset = offsetof(struct sof_ipc4_fw_registers, abi_ver);
+	sof_mailbox_read(sdev, sdev->fw_info_box.offset + abi_offset, &abi_version,
+			 sizeof(abi_version));
+
+	if (abi_version < SOF_IPC4_FW_REGS_ABI_VER)
+		support_info = false;
 
 	for_each_pcm_streams(stream) {
 		pipeline_list = &spcm->stream[stream].pipeline_list;
@@ -429,6 +443,17 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
 		}
+
+		if (!support_info)
+			continue;
+
+		stream_info = kzalloc(sizeof(*stream_info), GFP_KERNEL);
+		if (!stream_info) {
+			sof_ipc4_pcm_free(sdev, spcm);
+			return -ENOMEM;
+		}
+
+		spcm->stream[stream].private = stream_info;
 	}
 
 	return 0;
