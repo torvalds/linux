@@ -258,8 +258,6 @@
 #define YT8531_SCR_CLK_SRC_CLOCK_FROM_DIGITAL	3
 #define YT8531_SCR_CLK_SRC_REF_25M		4
 #define YT8531_SCR_CLK_SRC_SSC_25M		5
-#define YT8531S_SYNCE_CFG_REG			0xA012
-#define YT8531S_SCR_SYNCE_ENABLE		BIT(6)
 
 /* Extended Register  end */
 
@@ -858,7 +856,32 @@ static int yt8521_probe(struct phy_device *phydev)
 			return -EINVAL;
 		}
 	} else if (phydev->drv->phy_id == PHY_ID_YT8531S) {
-		return 0;
+		switch (freq) {
+		case YTPHY_DTS_OUTPUT_CLK_DIS:
+			mask = YT8531_SCR_SYNCE_ENABLE;
+			val = 0;
+			break;
+		case YTPHY_DTS_OUTPUT_CLK_25M:
+			mask = YT8531_SCR_SYNCE_ENABLE |
+			       YT8531_SCR_CLK_SRC_MASK |
+			       YT8531_SCR_CLK_FRE_SEL_125M;
+			val = YT8531_SCR_SYNCE_ENABLE |
+			      FIELD_PREP(YT8531_SCR_CLK_SRC_MASK,
+					 YT8531_SCR_CLK_SRC_REF_25M);
+			break;
+		case YTPHY_DTS_OUTPUT_CLK_125M:
+			mask = YT8531_SCR_SYNCE_ENABLE |
+			       YT8531_SCR_CLK_SRC_MASK |
+			       YT8531_SCR_CLK_FRE_SEL_125M;
+			val = YT8531_SCR_SYNCE_ENABLE |
+			      YT8531_SCR_CLK_FRE_SEL_125M |
+			      FIELD_PREP(YT8531_SCR_CLK_SRC_MASK,
+					 YT8531_SCR_CLK_SRC_PLL_125M);
+			break;
+		default:
+			phydev_warn(phydev, "Freq err:%u\n", freq);
+			return -EINVAL;
+		}
 	} else {
 		phydev_warn(phydev, "PHY id err\n");
 		return -EINVAL;
@@ -866,26 +889,6 @@ static int yt8521_probe(struct phy_device *phydev)
 
 	return ytphy_modify_ext_with_lock(phydev, YTPHY_SYNCE_CFG_REG, mask,
 					  val);
-}
-
-/**
- * yt8531s_probe() - read chip config then set suitable polling_mode
- * @phydev: a pointer to a &struct phy_device
- *
- * returns 0 or negative errno code
- */
-static int yt8531s_probe(struct phy_device *phydev)
-{
-	int ret;
-
-	/* Disable SyncE clock output by default */
-	ret = ytphy_modify_ext_with_lock(phydev, YT8531S_SYNCE_CFG_REG,
-					 YT8531S_SCR_SYNCE_ENABLE, 0);
-	if (ret < 0)
-		return ret;
-
-	/* same as yt8521_probe */
-	return yt8521_probe(phydev);
 }
 
 /**
@@ -1970,7 +1973,7 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8531S),
 		.name		= "YT8531S Gigabit Ethernet",
 		.get_features	= yt8521_get_features,
-		.probe		= yt8531s_probe,
+		.probe		= yt8521_probe,
 		.read_page	= yt8521_read_page,
 		.write_page	= yt8521_write_page,
 		.get_wol	= ytphy_get_wol,
