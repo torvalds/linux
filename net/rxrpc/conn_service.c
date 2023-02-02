@@ -8,11 +8,6 @@
 #include <linux/slab.h>
 #include "ar-internal.h"
 
-static struct rxrpc_bundle rxrpc_service_dummy_bundle = {
-	.ref		= REFCOUNT_INIT(1),
-	.debug_id	= UINT_MAX,
-};
-
 /*
  * Find a service connection under RCU conditions.
  *
@@ -132,8 +127,6 @@ struct rxrpc_connection *rxrpc_prealloc_service_connection(struct rxrpc_net *rxn
 		 */
 		conn->state = RXRPC_CONN_SERVICE_PREALLOC;
 		refcount_set(&conn->ref, 2);
-		conn->bundle = rxrpc_get_bundle(&rxrpc_service_dummy_bundle,
-						rxrpc_bundle_get_service_conn);
 
 		atomic_inc(&rxnet->nr_conns);
 		write_lock(&rxnet->conn_lock);

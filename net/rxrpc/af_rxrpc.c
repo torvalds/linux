@@ -786,7 +786,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	INIT_LIST_HEAD(&rx->sock_calls);
 	INIT_LIST_HEAD(&rx->to_be_accepted);
 	INIT_LIST_HEAD(&rx->recvmsg_q);
-	rwlock_init(&rx->recvmsg_lock);
+	spin_lock_init(&rx->recvmsg_lock);
 	rwlock_init(&rx->call_lock);
 	memset(&rx->srx, 0, sizeof(rx->srx));
 

@@ -17,6 +17,9 @@ static const unsigned int n_65535 = 65535;
 static const unsigned int n_max_acks = 255;
 static const unsigned long one_jiffy = 1;
 static const unsigned long max_jiffies = MAX_JIFFY_OFFSET;
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+static const unsigned long max_500 = 500;
+#endif
 
 /*
  * RxRPC operating parameters.
@@ -62,6 +65,19 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.extra1		= (void *)&one_jiffy,
 		.extra2		= (void *)&max_jiffies,
 	},
+
+	/* Values used in milliseconds */
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+	{
+		.procname	= "inject_rx_delay",
+		.data		= &rxrpc_inject_rx_delay,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+		.extra1		= (void *)SYSCTL_LONG_ZERO,
+		.extra2		= (void *)&max_500,
+	},
+#endif
 
 	/* Non-time values */
 	{
@@ -109,7 +125,6 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.extra1		= (void *)SYSCTL_ONE,
 		.extra2		= (void *)&four,
 	},
-
 	{ }
 };
 

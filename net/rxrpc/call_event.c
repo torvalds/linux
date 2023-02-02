@@ -498,9 +498,18 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		rxrpc_send_ACK(call, RXRPC_ACK_IDLE, 0,
 			       rxrpc_propose_ack_rx_idle);
 
-	if (atomic_read(&call->ackr_nr_unacked) > 2)
-		rxrpc_send_ACK(call, RXRPC_ACK_IDLE, 0,
-			       rxrpc_propose_ack_input_data);
+	if (call->ackr_nr_unacked > 2) {
+		if (call->peer->rtt_count < 3)
+			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
+				       rxrpc_propose_ack_ping_for_rtt);
+		else if (ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+				      ktime_get_real()))
+			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
+				       rxrpc_propose_ack_ping_for_old_rtt);
+		else
+			rxrpc_send_ACK(call, RXRPC_ACK_IDLE, 0,
+				       rxrpc_propose_ack_input_data);
+	}
 
 	/* Make sure the timer is restarted */
 	if (!__rxrpc_call_is_complete(call)) {
