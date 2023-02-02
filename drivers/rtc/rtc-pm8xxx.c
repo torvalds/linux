@@ -177,9 +177,9 @@ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int pm8xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	u8 value[NUM_8_BIT_RTC_REGS];
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
+	u8 value[NUM_8_BIT_RTC_REGS];
 	u32 secs;
 	int rc;
 
@@ -210,12 +210,12 @@ static int pm8xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	int rc;
-	unsigned int ctrl_reg;
-	u8 value[NUM_8_BIT_RTC_REGS];
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
+	u8 value[NUM_8_BIT_RTC_REGS];
+	unsigned int ctrl_reg;
 	u32 secs;
+	int rc;
 
 	rc = regmap_bulk_read(rtc_dd->regmap, regs->alarm_rw, value,
 			      sizeof(value));
@@ -238,11 +238,11 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int pm8xxx_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
-	int rc;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 	u8 value[NUM_8_BIT_RTC_REGS] = {0};
 	unsigned int val;
+	int rc;
 
 	if (enable)
 		val = regs->alarm_en;
@@ -355,9 +355,9 @@ MODULE_DEVICE_TABLE(of, pm8xxx_id_table);
 
 static int pm8xxx_rtc_probe(struct platform_device *pdev)
 {
-	int rc;
-	struct pm8xxx_rtc *rtc_dd;
 	const struct of_device_id *match;
+	struct pm8xxx_rtc *rtc_dd;
+	int rc;
 
 	match = of_match_node(pm8xxx_id_table, pdev->dev.of_node);
 	if (!match)
