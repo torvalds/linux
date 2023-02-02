@@ -283,8 +283,6 @@ void startup_kernel(void)
 	void *img;
 	psw_t psw;
 
-	detect_facilities();
-
 	initrd_data.start = parmarea.initrd_start;
 	initrd_data.size = parmarea.initrd_size;
 	oldmem_data.start = parmarea.oldmem_base;
@@ -300,6 +298,7 @@ void startup_kernel(void)
 	sclp_early_read_info();
 	setup_boot_command_line();
 	parse_boot_command_line();
+	detect_facilities();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_memory(&safe_addr);
 	setup_ident_map_size(max_physmem_end);
