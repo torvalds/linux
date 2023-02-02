@@ -824,6 +824,77 @@ uvcg_format_get_default_color_match(struct config_item *streaming)
 	return color_match;
 }
 
+static int uvcg_format_allow_link(struct config_item *src, struct config_item *tgt)
+{
+	struct mutex *su_mutex = &src->ci_group->cg_subsys->su_mutex;
+	struct uvcg_color_matching *color_matching_desc;
+	struct config_item *streaming, *color_matching;
+	struct uvcg_format *fmt;
+	int ret = 0;
+
+	mutex_lock(su_mutex);
+
+	streaming = src->ci_parent->ci_parent;
+	color_matching = config_group_find_item(to_config_group(streaming), "color_matching");
+	if (!color_matching || color_matching != tgt->ci_parent) {
+		ret = -EINVAL;
+		goto out_put_cm;
+	}
+
+	fmt = to_uvcg_format(src);
+
+	/*
+	 * There's always a color matching descriptor associated with the format
+	 * but without a symlink it should only ever be the default one. If it's
+	 * not the default, there's already a symlink and we should bail out.
+	 */
+	color_matching_desc = uvcg_format_get_default_color_match(streaming);
+	if (fmt->color_matching != color_matching_desc) {
+		ret = -EBUSY;
+		goto out_put_cm;
+	}
+
+	color_matching_desc->refcnt--;
+
+	color_matching_desc = to_uvcg_color_matching(to_config_group(tgt));
+	fmt->color_matching = color_matching_desc;
+	color_matching_desc->refcnt++;
+
+out_put_cm:
+	config_item_put(color_matching);
+	mutex_unlock(su_mutex);
+
+	return ret;
+}
+
+static void uvcg_format_drop_link(struct config_item *src, struct config_item *tgt)
+{
+	struct mutex *su_mutex = &src->ci_group->cg_subsys->su_mutex;
+	struct uvcg_color_matching *color_matching_desc;
+	struct config_item *streaming;
+	struct uvcg_format *fmt;
+
+	mutex_lock(su_mutex);
+
+	color_matching_desc = to_uvcg_color_matching(to_config_group(tgt));
+	color_matching_desc->refcnt--;
+
+	streaming = src->ci_parent->ci_parent;
+	color_matching_desc = uvcg_format_get_default_color_match(streaming);
+
+	fmt = to_uvcg_format(src);
+	fmt->color_matching = color_matching_desc;
+	color_matching_desc->refcnt++;
+
+	mutex_unlock(su_mutex);
+}
+
+static struct configfs_item_operations uvcg_format_item_operations = {
+	.release	= uvcg_config_item_release,
+	.allow_link	= uvcg_format_allow_link,
+	.drop_link	= uvcg_format_drop_link,
+};
+
 static ssize_t uvcg_format_bma_controls_show(struct uvcg_format *f, char *page)
 {
 	struct f_uvc_opts *opts;
@@ -1624,7 +1695,7 @@ static struct configfs_attribute *uvcg_uncompressed_attrs[] = {
 };
 
 static const struct config_item_type uvcg_uncompressed_type = {
-	.ct_item_ops	= &uvcg_config_item_ops,
+	.ct_item_ops	= &uvcg_format_item_operations,
 	.ct_group_ops	= &uvcg_uncompressed_group_ops,
 	.ct_attrs	= uvcg_uncompressed_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -1820,7 +1891,7 @@ static struct configfs_attribute *uvcg_mjpeg_attrs[] = {
 };
 
 static const struct config_item_type uvcg_mjpeg_type = {
-	.ct_item_ops	= &uvcg_config_item_ops,
+	.ct_item_ops	= &uvcg_format_item_operations,
 	.ct_group_ops	= &uvcg_mjpeg_group_ops,
 	.ct_attrs	= uvcg_mjpeg_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -1978,6 +2049,29 @@ static const struct config_item_type uvcg_color_matching_type = {
  * streaming/color_matching
  */
 
+static struct config_group *uvcg_color_matching_make(struct config_group *group,
+						     const char *name)
+{
+	struct uvcg_color_matching *color_match;
+
+	color_match = kzalloc(sizeof(*color_match), GFP_KERNEL);
+	if (!color_match)
+		return ERR_PTR(-ENOMEM);
+
+	color_match->desc.bLength = UVC_DT_COLOR_MATCHING_SIZE;
+	color_match->desc.bDescriptorType = USB_DT_CS_INTERFACE;
+	color_match->desc.bDescriptorSubType = UVC_VS_COLORFORMAT;
+
+	config_group_init_type_name(&color_match->group, name,
+				    &uvcg_color_matching_type);
+
+	return &color_match->group;
+}
+
+static struct configfs_group_operations uvcg_color_matching_grp_group_ops = {
+	.make_group	= uvcg_color_matching_make,
+};
+
 static int uvcg_color_matching_create_children(struct config_group *parent)
 {
 	struct uvcg_color_matching *color_match;
@@ -2003,6 +2097,7 @@ static int uvcg_color_matching_create_children(struct config_group *parent)
 static const struct uvcg_config_group_type uvcg_color_matching_grp_type = {
 	.type = {
 		.ct_item_ops	= &uvcg_config_item_ops,
+		.ct_group_ops	= &uvcg_color_matching_grp_group_ops,
 		.ct_owner	= THIS_MODULE,
 	},
 	.name = "color_matching",

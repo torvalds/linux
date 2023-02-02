@@ -179,6 +179,23 @@ Description:	Default color matching descriptors
 					  white
 		========================  ======================================
 
+What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/color_matching/name
+Date:		Dec 2022
+KernelVersion:	6.3
+Description:	Additional color matching descriptors
+
+		All attributes read/write:
+
+		========================  ======================================
+		bMatrixCoefficients	  matrix used to compute luma and
+					  chroma values from the color primaries
+		bTransferCharacteristics  optoelectronic transfer
+					  characteristic of the source picture,
+					  also called the gamma function
+		bColorPrimaries		  color primaries and the reference
+					  white
+		========================  ======================================
+
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/mjpeg
 Date:		Dec 2014
 KernelVersion:	4.0
