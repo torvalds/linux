@@ -224,3 +224,4 @@ int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
