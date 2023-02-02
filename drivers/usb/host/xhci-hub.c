@@ -666,20 +666,18 @@ struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd)
  * It will release and re-aquire the lock while calling ACPI
  * method.
  */
-static void xhci_set_port_power(struct xhci_hcd *xhci, struct usb_hcd *hcd,
-				u16 index, bool on, unsigned long *flags)
+static void xhci_set_port_power(struct xhci_hcd *xhci, struct xhci_port *port,
+				bool on, unsigned long *flags)
 	__must_hold(&xhci->lock)
 {
-	struct xhci_hub *rhub;
-	struct xhci_port *port;
+	struct usb_hcd *hcd;
 	u32 temp;
 
-	rhub = xhci_get_rhub(hcd);
-	port = rhub->ports[index];
+	hcd = port->rhub->hcd;
 	temp = readl(port->addr);
 
 	xhci_dbg(xhci, "set port power %d-%d %s, portsc: 0x%x\n",
-		 hcd->self.busnum, index + 1, on ? "ON" : "OFF", temp);
+		 hcd->self.busnum, port->hcd_portnum + 1, on ? "ON" : "OFF", temp);
 
 	temp = xhci_port_state_to_neutral(temp);
 
@@ -694,10 +692,10 @@ static void xhci_set_port_power(struct xhci_hcd *xhci, struct usb_hcd *hcd,
 
 	spin_unlock_irqrestore(&xhci->lock, *flags);
 	temp = usb_acpi_power_manageable(hcd->self.root_hub,
-					index);
+					 port->hcd_portnum);
 	if (temp)
 		usb_acpi_set_power_state(hcd->self.root_hub,
-			index, on);
+					 port->hcd_portnum, on);
 	spin_lock_irqsave(&xhci->lock, *flags);
 }
 
@@ -721,7 +719,6 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 				u16 test_mode, u16 wIndex, unsigned long *flags)
 	__must_hold(&xhci->lock)
 {
-	struct usb_hcd *usb3_hcd = xhci_get_usb3_hcd(xhci);
 	int i, retval;
 
 	/* Disable all Device Slots */
@@ -742,10 +739,10 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 	xhci_dbg(xhci, "Disable all port (PP = 0)\n");
 	/* Power off USB3 ports*/
 	for (i = 0; i < xhci->usb3_rhub.num_ports; i++)
-		xhci_set_port_power(xhci, usb3_hcd, i, false, flags);
+		xhci_set_port_power(xhci, xhci->usb3_rhub.ports[i], false, flags);
 	/* Power off USB2 ports*/
 	for (i = 0; i < xhci->usb2_rhub.num_ports; i++)
-		xhci_set_port_power(xhci, xhci->main_hcd, i, false, flags);
+		xhci_set_port_power(xhci, xhci->usb2_rhub.ports[i], false, flags);
 	/* Stop the controller */
 	xhci_dbg(xhci, "Stop controller\n");
 	retval = xhci_halt(xhci);
@@ -1492,7 +1489,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * However, hub_wq will ignore the roothub events until
 			 * the roothub is registered.
 			 */
-			xhci_set_port_power(xhci, hcd, wIndex, true, &flags);
+			xhci_set_port_power(xhci, port, true, &flags);
 			break;
 		case USB_PORT_FEAT_RESET:
 			temp = (temp | PORT_RESET);
@@ -1609,7 +1606,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					port->addr, temp);
 			break;
 		case USB_PORT_FEAT_POWER:
-			xhci_set_port_power(xhci, hcd, wIndex, false, &flags);
+			xhci_set_port_power(xhci, port, false, &flags);
 			break;
 		case USB_PORT_FEAT_TEST:
 			retval = xhci_exit_test_mode(xhci);
