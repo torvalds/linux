@@ -436,6 +436,13 @@ static void xiic_fill_tx_fifo(struct xiic_i2c *i2c)
 				data |= XIIC_TX_DYN_STOP_MASK;
 			} else {
 				u8 cr;
+				int status;
+
+				/* Wait till FIFO is empty so STOP is sent last */
+				status = xiic_wait_tx_empty(i2c);
+				if (status)
+					return;
+
 				/* Write to CR to stop */
 				cr = xiic_getreg8(i2c, XIIC_CR_REG_OFFSET);
 				xiic_setreg8(i2c, XIIC_CR_REG_OFFSET, cr &
