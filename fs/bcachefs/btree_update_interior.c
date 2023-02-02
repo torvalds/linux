@@ -1167,7 +1167,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	}
 
 	if (ret) {
-		trace_and_count(c, btree_reserve_get_fail, trans->fn, _RET_IP_, nr_nodes[0] + nr_nodes[1]);
+		trace_and_count(c, btree_reserve_get_fail, trans->fn,
+				_RET_IP_, nr_nodes[0] + nr_nodes[1], ret);
 		goto err;
 	}
 

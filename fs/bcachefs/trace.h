@@ -344,25 +344,29 @@ DEFINE_EVENT(btree_node, btree_node_free,
 TRACE_EVENT(btree_reserve_get_fail,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip,
-		 size_t required),
-	TP_ARGS(trans_fn, caller_ip, required),
+		 size_t required,
+		 int ret),
+	TP_ARGS(trans_fn, caller_ip, required, ret),
 
 	TP_STRUCT__entry(
 		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(size_t,			required	)
+		__array(char,			ret, 32		)
 	),
 
 	TP_fast_assign(
 		strscpy(__entry->trans_fn, trans_fn, sizeof(__entry->trans_fn));
 		__entry->caller_ip	= caller_ip;
 		__entry->required	= required;
+		strscpy(__entry->ret, bch2_err_str(ret), sizeof(__entry->ret));
 	),
 
-	TP_printk("%s %pS required %zu",
+	TP_printk("%s %pS required %zu ret %s",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
-		  __entry->required)
+		  __entry->required,
+		  __entry->ret)
 );
 
 DEFINE_EVENT(btree_node, btree_node_compact,
