@@ -472,6 +472,15 @@ struct sparx5_policer {
 
 int sparx5_policer_conf_set(struct sparx5 *sparx5, struct sparx5_policer *pol);
 
+/* sparx5_psfp.c */
+struct sparx5_psfp_fm {
+	struct sparx5_policer pol;
+};
+
+int sparx5_psfp_fm_add(struct sparx5 *sparx5, u32 uidx,
+		       struct sparx5_psfp_fm *fm, u32 *id);
+int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id);
+
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
 {
