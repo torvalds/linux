@@ -459,7 +459,105 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 	return 0;
 }
 
+static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *spcm)
+{
+	struct sof_ipc4_copier *host_copier = NULL;
+	struct sof_ipc4_copier *dai_copier = NULL;
+	struct sof_ipc4_llp_reading_slot llp_slot;
+	struct sof_ipc4_timestamp_info *info;
+	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_dai *dai;
+	int i;
+
+	/* find host & dai to locate info in memory window */
+	for_each_dapm_widgets(spcm->list, i, widget) {
+		struct snd_sof_widget *swidget = widget->dobj.private;
+
+		if (!swidget)
+			continue;
+
+		if (WIDGET_IS_AIF(swidget->widget->id)) {
+			host_copier = swidget->private;
+		} else if (WIDGET_IS_DAI(swidget->widget->id)) {
+			dai = swidget->private;
+			dai_copier = dai->private;
+		}
+	}
+
+	/* both host and dai copier must be valid for time_info */
+	if (!host_copier || !dai_copier) {
+		dev_err(sdev->dev, "host or dai copier are not found\n");
+		return;
+	}
+
+	info = spcm->private;
+	info->host_copier = host_copier;
+	info->dai_copier = dai_copier;
+	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_gpdma_reading_slots) +
+				    sdev->fw_info_box.offset;
+
+	/* find llp slot used by current dai */
+	for (i = 0; i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS; i++) {
+		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
+			break;
+
+		info->llp_offset += sizeof(llp_slot);
+	}
+
+	if (i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS)
+		return;
+
+	/* if no llp gpdma slot is used, check aggregated sdw slot */
+	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_sndw_reading_slots) +
+					sdev->fw_info_box.offset;
+	for (i = 0; i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS; i++) {
+		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
+			break;
+
+		info->llp_offset += sizeof(llp_slot);
+	}
+
+	if (i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS)
+		return;
+
+	/* check EVAD slot */
+	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_evad_reading_slot) +
+					sdev->fw_info_box.offset;
+	sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id) {
+		dev_info(sdev->dev, "no llp found, fall back to default HDA path");
+		info->llp_offset = 0;
+	}
+}
+
+static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_sof_platform_stream_params *platform_params)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct sof_ipc4_timestamp_info *time_info;
+	struct snd_sof_pcm *spcm;
+
+	spcm = snd_sof_find_spcm_dai(component, rtd);
+	time_info = spcm->stream[substream->stream].private;
+	/* delay calculation is not supported by current fw_reg ABI */
+	if (!time_info)
+		return 0;
+
+	time_info->stream_start_offset = SOF_IPC4_INVALID_STREAM_POSITION;
+	time_info->llp_offset = 0;
+
+	sof_ipc4_build_time_info(sdev, &spcm->stream[substream->stream]);
+
+	return 0;
+}
+
 const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
+	.hw_params = sof_ipc4_pcm_hw_params,
 	.trigger = sof_ipc4_pcm_trigger,
 	.hw_free = sof_ipc4_pcm_hw_free,
 	.dai_link_fixup = sof_ipc4_pcm_dai_link_fixup,
