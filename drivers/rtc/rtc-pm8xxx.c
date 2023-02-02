@@ -23,13 +23,13 @@
 
 /**
  * struct pm8xxx_rtc_regs - describe RTC registers per PMIC versions
- * @ctrl: base address of control register
- * @write: base address of write register
- * @read: base address of read register
- * @alarm_ctrl: base address of alarm control register
- * @alarm_ctrl2: base address of alarm control2 register
- * @alarm_rw: base address of alarm read-write register
- * @alarm_en: alarm enable mask
+ * @ctrl:		address of control register
+ * @write:		base address of write registers
+ * @read:		base address of read registers
+ * @alarm_ctrl:		address of alarm control register
+ * @alarm_ctrl2:	address of alarm control2 register
+ * @alarm_rw:		base address of alarm read-write registers
+ * @alarm_en:		alarm enable mask
  */
 struct pm8xxx_rtc_regs {
 	unsigned int ctrl;
@@ -42,12 +42,12 @@ struct pm8xxx_rtc_regs {
 };
 
 /**
- * struct pm8xxx_rtc -  rtc driver internal structure
- * @rtc:		rtc device for this driver.
- * @regmap:		regmap used to access RTC registers
- * @allow_set_time:	indicates whether writing to the RTC is allowed
+ * struct pm8xxx_rtc -  RTC driver internal structure
+ * @rtc:		RTC device
+ * @regmap:		regmap used to access registers
+ * @allow_set_time:	whether the time can be set
  * @alarm_irq:		alarm irq number
- * @regs:		rtc registers description.
+ * @regs:		register description
  * @dev:		device structure
  */
 struct pm8xxx_rtc {
@@ -90,7 +90,7 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	if (rc)
 		return rc;
 
-	/* Disable RTC H/w before writing on RTC register */
+	/* Disable RTC */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->ctrl, PM8xxx_RTC_ENABLE, 0);
 	if (rc)
 		return rc;
@@ -111,7 +111,7 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	if (rc)
 		return rc;
 
-	/* Enable RTC H/w after writing on RTC register */
+	/* Enable RTC */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->ctrl, PM8xxx_RTC_ENABLE,
 				PM8xxx_RTC_ENABLE);
 	if (rc)
@@ -242,7 +242,7 @@ static int pm8xxx_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	if (rc)
 		return rc;
 
-	/* Clear Alarm register */
+	/* Clear alarm register */
 	if (!enable) {
 		rc = regmap_bulk_write(rtc_dd->regmap, regs->alarm_rw, value,
 				       sizeof(value));
@@ -269,13 +269,13 @@ static irqreturn_t pm8xxx_alarm_trigger(int irq, void *dev_id)
 
 	rtc_update_irq(rtc_dd->rtc, 1, RTC_IRQF | RTC_AF);
 
-	/* Clear the alarm enable bit */
+	/* Disable alarm */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 				regs->alarm_en, 0);
 	if (rc)
 		return IRQ_NONE;
 
-	/* Clear RTC alarm register */
+	/* Clear alarm status */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl2,
 				PM8xxx_RTC_ALARM_CLEAR, 0);
 	if (rc)
@@ -332,9 +332,6 @@ static const struct pm8xxx_rtc_regs pmk8350_regs = {
 	.alarm_en	= BIT(7),
 };
 
-/*
- * Hardcoded RTC bases until IORESOURCE_REG mapping is figured out
- */
 static const struct of_device_id pm8xxx_id_table[] = {
 	{ .compatible = "qcom,pm8921-rtc", .data = &pm8921_regs },
 	{ .compatible = "qcom,pm8058-rtc", .data = &pm8058_regs },
@@ -382,7 +379,6 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	/* Register the RTC device */
 	rtc_dd->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc_dd->rtc))
 		return PTR_ERR(rtc_dd->rtc);
@@ -390,7 +386,6 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	rtc_dd->rtc->ops = &pm8xxx_rtc_ops;
 	rtc_dd->rtc->range_max = U32_MAX;
 
-	/* Request the alarm IRQ */
 	rc = devm_request_any_context_irq(&pdev->dev, rtc_dd->alarm_irq,
 					  pm8xxx_alarm_trigger,
 					  IRQF_TRIGGER_RISING,
