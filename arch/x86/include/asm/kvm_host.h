@@ -947,23 +947,6 @@ struct kvm_vcpu_arch {
 
 	u64 msr_kvm_poll_control;
 
-	/*
-	 * Indicates the guest is trying to write a gfn that contains one or
-	 * more of the PTEs used to translate the write itself, i.e. the access
-	 * is changing its own translation in the guest page tables.  KVM exits
-	 * to userspace if emulation of the faulting instruction fails and this
-	 * flag is set, as KVM cannot make forward progress.
-	 *
-	 * If emulation fails for a write to guest page tables, KVM unprotects
-	 * (zaps) the shadow page for the target gfn and resumes the guest to
-	 * retry the non-emulatable instruction (on hardware).  Unprotecting the
-	 * gfn doesn't allow forward progress for a self-changing access because
-	 * doing so also zaps the translation for the gfn, i.e. retrying the
-	 * instruction will hit a !PRESENT fault, which results in a new shadow
-	 * page and sends KVM back to square one.
-	 */
-	bool write_fault_to_shadow_pgtable;
-
 	/* set at EPT violation at this point */
 	unsigned long exit_qualification;
 
@@ -1907,6 +1890,25 @@ u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
  * EMULTYPE_COMPLETE_USER_EXIT - Set when the emulator should update interruptibility
  *				 state and inject single-step #DBs after skipping
  *				 an instruction (after completing userspace I/O).
+ *
+ * EMULTYPE_WRITE_PF_TO_SP - Set when emulating an intercepted page fault that
+ *			     is attempting to write a gfn that contains one or
+ *			     more of the PTEs used to translate the write itself,
+ *			     and the owning page table is being shadowed by KVM.
+ *			     If emulation of the faulting instruction fails and
+ *			     this flag is set, KVM will exit to userspace instead
+ *			     of retrying emulation as KVM cannot make forward
+ *			     progress.
+ *
+ *			     If emulation fails for a write to guest page tables,
+ *			     KVM unprotects (zaps) the shadow page for the target
+ *			     gfn and resumes the guest to retry the non-emulatable
+ *			     instruction (on hardware).  Unprotecting the gfn
+ *			     doesn't allow forward progress for a self-changing
+ *			     access because doing so also zaps the translation for
+ *			     the gfn, i.e. retrying the instruction will hit a
+ *			     !PRESENT fault, which results in a new shadow page
+ *			     and sends KVM back to square one.
  */
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
@@ -1916,6 +1918,7 @@ u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
 #define EMULTYPE_VMWARE_GP	    (1 << 5)
 #define EMULTYPE_PF		    (1 << 6)
 #define EMULTYPE_COMPLETE_USER_EXIT (1 << 7)
+#define EMULTYPE_WRITE_PF_TO_SP	    (1 << 8)
 
 int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type);
 int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,

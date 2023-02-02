@@ -825,10 +825,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	if (r)
 		return r;
 
-	vcpu->arch.write_fault_to_shadow_pgtable = false;
-
 	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
-	      &walker, fault->user, &vcpu->arch.write_fault_to_shadow_pgtable);
+	      &walker, fault->user, &fault->write_fault_to_shadow_pgtable);
 
 	if (is_self_change_mapping)
 		fault->max_level = PG_LEVEL_4K;
