@@ -415,7 +415,9 @@ static void pipedmc_clock_gating_wa(struct drm_i915_private *i915, bool enable)
 
 void intel_dmc_enable_pipe(struct drm_i915_private *i915, enum pipe pipe)
 {
-	if (!has_dmc_id_fw(i915, PIPE_TO_DMC_ID(pipe)))
+	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
+
+	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(i915, dmc_id))
 		return;
 
 	if (DISPLAY_VER(i915) >= 14)
@@ -426,7 +428,9 @@ void intel_dmc_enable_pipe(struct drm_i915_private *i915, enum pipe pipe)
 
 void intel_dmc_disable_pipe(struct drm_i915_private *i915, enum pipe pipe)
 {
-	if (!has_dmc_id_fw(i915, PIPE_TO_DMC_ID(pipe)))
+	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
+
+	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(i915, dmc_id))
 		return;
 
 	if (DISPLAY_VER(i915) >= 14)
