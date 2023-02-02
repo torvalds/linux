@@ -601,12 +601,10 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 			while (lo + 1 < hi) {
 				unsigned int mid = (lo + hi) / 2;
 
-				if (s->histogram_boundaries[mid - 1] > duration) {
+				if (s->histogram_boundaries[mid - 1] > duration)
 					hi = mid;
-				} else {
+				else
 					lo = mid;
-				}
-
 			}
 			p->histogram[lo]++;
 		}
@@ -900,9 +898,8 @@ static int dm_stats_print(struct dm_stats *stats, int id,
 		if (s->n_histogram_entries) {
 			unsigned int i;
 
-			for (i = 0; i < s->n_histogram_entries + 1; i++) {
+			for (i = 0; i < s->n_histogram_entries + 1; i++)
 				DMEMIT("%s%llu", !i ? " " : ":", shared->tmp.histogram[i]);
-			}
 		}
 		DMEMIT("\n");
 

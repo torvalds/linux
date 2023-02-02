@@ -95,9 +95,8 @@ static int sm_disk_set_count(struct dm_space_map *sm, dm_block_t b,
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
 	r = sm_ll_insert(&smd->ll, b, count, &nr_allocations);
-	if (!r) {
+	if (!r)
 		smd->nr_allocated_this_transaction += nr_allocations;
-	}
 
 	return r;
 }
@@ -138,22 +137,20 @@ static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 	 * Any block we allocate has to be free in both the old and current ll.
 	 */
 	r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, smd->begin, smd->ll.nr_blocks, b);
-	if (r == -ENOSPC) {
+	if (r == -ENOSPC)
 		/*
 		 * There's no free block between smd->begin and the end of the metadata device.
 		 * We search before smd->begin in case something has been freed.
 		 */
 		r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, 0, smd->begin, b);
-	}
 
 	if (r)
 		return r;
 
 	smd->begin = *b + 1;
 	r = sm_ll_inc(&smd->ll, *b, *b + 1, &nr_allocations);
-	if (!r) {
+	if (!r)
 		smd->nr_allocated_this_transaction += nr_allocations;
-	}
 
 	return r;
 }

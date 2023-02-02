@@ -1984,9 +1984,8 @@ restart:
 			goto restart;
 	}
 
-	if (wc->overwrote_committed) {
+	if (wc->overwrote_committed)
 		writecache_wait_for_ios(wc, WRITE);
-	}
 
 	n_walked = 0;
 	INIT_LIST_HEAD(&skipped);
@@ -2015,9 +2014,9 @@ restart:
 		} else
 			e = container_of(wc->lru.prev, struct wc_entry, lru);
 		BUG_ON(e->write_in_progress);
-		if (unlikely(!writecache_entry_is_committed(wc, e))) {
+		if (unlikely(!writecache_entry_is_committed(wc, e)))
 			writecache_flush(wc);
-		}
+
 		node = rb_prev(&e->rb_node);
 		if (node) {
 			f = container_of(node, struct wc_entry, rb_node);

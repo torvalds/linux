@@ -1536,9 +1536,9 @@ static int __find_block(struct dm_thin_device *td, dm_block_t block,
 	dm_block_t keys[2] = { td->id, block };
 	struct dm_btree_info *info;
 
-	if (can_issue_io) {
+	if (can_issue_io)
 		info = &pmd->info;
-	} else
+	else
 		info = &pmd->nb_info;
 
 	r = dm_btree_lookup(info, pmd->root, keys, &value);

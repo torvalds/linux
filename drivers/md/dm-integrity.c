@@ -630,11 +630,10 @@ static bool block_bitmap_op(struct dm_integrity_c *ic, struct page_list *bitmap,
 	end_bit %= PAGE_SIZE * 8;
 
 repeat:
-	if (page < end_page) {
+	if (page < end_page)
 		this_end_bit = PAGE_SIZE * 8 - 1;
-	} else {
+	else
 		this_end_bit = end_bit;
-	}
 
 	data = lowmem_page_address(bitmap[page].page);
 
@@ -1251,13 +1250,12 @@ static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *
 		struct dm_integrity_range *range = container_of(*n, struct dm_integrity_range, node);
 
 		parent = *n;
-		if (new_range->logical_sector + new_range->n_sectors <= range->logical_sector) {
+		if (new_range->logical_sector + new_range->n_sectors <= range->logical_sector)
 			n = &range->node.rb_left;
-		} else if (new_range->logical_sector >= range->logical_sector + range->n_sectors) {
+		else if (new_range->logical_sector >= range->logical_sector + range->n_sectors)
 			n = &range->node.rb_right;
-		} else {
+		else
 			return false;
-		}
 	}
 
 	rb_link_node(&new_range->node, parent, n);
@@ -1364,15 +1362,14 @@ static unsigned int find_journal_node(struct dm_integrity_c *ic, sector_t sector
 	while (n) {
 		struct journal_node *j = container_of(n, struct journal_node, node);
 
-		if (sector == j->sector) {
+		if (sector == j->sector)
 			found = j - ic->journal_tree;
-		}
+
 		if (sector < j->sector) {
 			*next_sector = j->sector;
 			n = j->node.rb_left;
-		} else {
+		} else
 			n = j->node.rb_right;
-		}
 	}
 
 	return found;
@@ -1501,9 +1498,8 @@ thorough_test:
 			*metadata_offset = 0;
 		}
 
-		if (unlikely(!is_power_of_2(ic->tag_size))) {
+		if (unlikely(!is_power_of_2(ic->tag_size)))
 			hash_offset = (hash_offset + to_copy) % ic->tag_size;
-		}
 
 		total_size -= to_copy;
 	} while (unlikely(total_size));
@@ -2104,14 +2100,12 @@ retry_kmap:
 		smp_mb();
 		if (unlikely(waitqueue_active(&ic->copy_to_journal_wait)))
 			wake_up(&ic->copy_to_journal_wait);
-		if (READ_ONCE(ic->free_sectors) <= ic->free_sectors_threshold) {
+		if (READ_ONCE(ic->free_sectors) <= ic->free_sectors_threshold)
 			queue_work(ic->commit_wq, &ic->commit_work);
-		} else {
+		else
 			schedule_autocommit(ic);
-		}
-	} else {
+	} else
 		remove_range(ic, &dio->range);
-	}
 
 	if (unlikely(bio->bi_iter.bi_size)) {
 		sector_t area, offset;
@@ -2569,9 +2563,8 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned int write_start
 					mempool_free(io, &ic->journal_io_mempool);
 					goto skip_io;
 				}
-				for (l = j; l < k; l++) {
+				for (l = j; l < k; l++)
 					remove_journal_node(ic, &section_node[l]);
-				}
 			}
 			spin_unlock_irq(&ic->endio_wait.lock);
 
@@ -2598,9 +2591,8 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned int write_start
 				journal_entry_set_unused(je2);
 				r = dm_integrity_rw_tag(ic, journal_entry_tag(ic, je2), &metadata_block, &metadata_offset,
 							ic->tag_size, TAG_WRITE);
-				if (unlikely(r)) {
+				if (unlikely(r))
 					dm_integrity_io_error(ic, "reading tags", r);
-				}
 			}
 
 			atomic_inc(&comp.in_flight);
@@ -2711,9 +2703,9 @@ next_chunk:
 	n_sectors = range.n_sectors;
 
 	if (ic->mode == 'B') {
-		if (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector, n_sectors, BITMAP_OP_TEST_ALL_CLEAR)) {
+		if (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector, n_sectors, BITMAP_OP_TEST_ALL_CLEAR))
 			goto advance_and_next;
-		}
+
 		while (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector,
 				       ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
 			logical_sector += ic->sectors_per_block;
@@ -2732,9 +2724,9 @@ next_chunk:
 
 	if (unlikely(++super_counter == RECALC_WRITE_SUPER)) {
 		recalc_write_super(ic);
-		if (ic->mode == 'B') {
+		if (ic->mode == 'B')
 			queue_delayed_work(ic->commit_wq, &ic->bitmap_flush_work, ic->bitmap_flush_interval);
-		}
+
 		super_counter = 0;
 	}
 
@@ -4417,9 +4409,9 @@ try_smaller_buffer:
 
 	log2_blocks_per_bitmap_bit = log2_sectors_per_bitmap_bit - ic->sb->log2_sectors_per_block;
 	ic->log2_blocks_per_bitmap_bit = log2_blocks_per_bitmap_bit;
-	if (should_write_sb) {
+	if (should_write_sb)
 		ic->sb->log2_blocks_per_bitmap_bit = log2_blocks_per_bitmap_bit;
-	}
+
 	n_bitmap_bits = ((ic->provided_data_sectors >> ic->sb->log2_sectors_per_block)
 				+ (((sector_t)1 << log2_blocks_per_bitmap_bit) - 1)) >> log2_blocks_per_bitmap_bit;
 	ic->n_bitmap_blocks = DIV_ROUND_UP(n_bitmap_bits, BITMAP_BLOCK_SIZE * 8);

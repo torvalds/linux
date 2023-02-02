@@ -369,14 +369,12 @@ static void stripe_status(struct dm_target *ti, status_type_t type,
 	switch (type) {
 	case STATUSTYPE_INFO:
 		DMEMIT("%d ", sc->stripes);
-		for (i = 0; i < sc->stripes; i++)  {
+		for (i = 0; i < sc->stripes; i++)
 			DMEMIT("%s ", sc->stripe[i].dev->name);
-		}
+
 		DMEMIT("1 ");
-		for (i = 0; i < sc->stripes; i++) {
-			DMEMIT("%c", atomic_read(&(sc->stripe[i].error_count)) ?
-			       'D' : 'A');
-		}
+		for (i = 0; i < sc->stripes; i++)
+			DMEMIT("%c", atomic_read(&(sc->stripe[i].error_count)) ?  'D' : 'A');
 		break;
 
 	case STATUSTYPE_TABLE:
