@@ -314,6 +314,9 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 	if (length == 0)
 		return 0;
 
+	if (WARN_ON(!mr))
+		return -EINVAL;
+
 	if (mr->ibmr.type == IB_MR_TYPE_DMA) {
 		rxe_mr_copy_dma(mr, iova, addr, length, dir);
 		return 0;
@@ -431,6 +434,10 @@ int rxe_flush_pmem_iova(struct rxe_mr *mr, u64 iova, unsigned int length)
 	unsigned int bytes;
 	int err;
 	u8 *va;
+
+	/* mr must be valid even if length is zero */
+	if (WARN_ON(!mr))
+		return -EINVAL;
 
 	if (length == 0)
 		return 0;
