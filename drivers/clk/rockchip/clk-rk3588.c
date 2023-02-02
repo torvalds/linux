@@ -2383,21 +2383,43 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 
 static void __iomem *rk3588_cru_base;
 
+static void dump_offset(const char *name, u32 offset, u32 len)
+{
+	int i = 0, cnt = 0;
+
+	if (!offset)
+		return;
+
+	cnt = DIV_ROUND_UP(len, 32);
+	for (i = 0; i < cnt; i++) {
+		pr_warn("%-12s 0x%05x: ", name, offset + i * 32);
+		print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 32, 4,
+			       rk3588_cru_base + offset + i * 0x10, 32, false);
+	}
+}
+
 static void rk3588_dump_cru(void)
 {
 	if (rk3588_cru_base) {
-		pr_warn("DSU CRU:\n");
-		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
-			       32, 4, rk3588_cru_base + RK3588_DSU_CRU_BASE,
-			       0x330, false);
-		pr_warn("BIGCORE0 CRU:\n");
-		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
-			       32, 4, rk3588_cru_base + RK3588_BIGCORE0_CRU_BASE,
-			       0x300, false);
-		pr_warn("BIGCORE1 CRU:\n");
-		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
-			       32, 4, rk3588_cru_base + RK3588_BIGCORE1_CRU_BASE,
-			       0x300, false);
+		pr_warn("CRU REGS:\n");
+		dump_offset("LPLL", RK3588_LPLL_CON(16), 0x10);
+		dump_offset("B0PLL", RK3588_B0_PLL_CON(0), 0x10);
+		dump_offset("B1PLL", RK3588_B1_PLL_CON(8), 0x10);
+		dump_offset("GPLL", RK3588_PLL_CON(112), 0x10);
+		dump_offset("CPLL", RK3588_PLL_CON(104), 0x10);
+		dump_offset("V0PLL", RK3588_PLL_CON(88), 0x10);
+		dump_offset("AUPLL", RK3588_PLL_CON(96), 0x10);
+		dump_offset("PPLL", RK3588_PMU_PLL_CON(128), 0x10);
+		dump_offset("DSUCRU_SEL", RK3588_DSU_CLKSEL_CON(0), 0x20);
+		dump_offset("DSUCRU_GATE", RK3588_DSU_CLKGATE_CON(0), 0x10);
+		dump_offset("BIG0CRU_SEL", RK3588_BIGCORE0_CLKSEL_CON(0), 0x10);
+		dump_offset("BIG0CRU_GATE", RK3588_BIGCORE0_CLKGATE_CON(0), 0x10);
+		dump_offset("BIG1CRU_SEL", RK3588_BIGCORE1_CLKSEL_CON(0), 0x10);
+		dump_offset("BIG1CRU_GATE", RK3588_BIGCORE1_CLKGATE_CON(0), 0x10);
+		dump_offset("CRU_SEL", RK3588_CLKSEL_CON(0), 0x2d0);
+		dump_offset("CRU_GATE", RK3588_CLKGATE_CON(0), 0x140);
+		dump_offset("PMUCRU_SEL", RK3588_PMU_CLKSEL_CON(0), 0x50);
+		dump_offset("PMUCRU_GATE", RK3588_PMU_CLKGATE_CON(0), 0x20);
 	}
 }
 
