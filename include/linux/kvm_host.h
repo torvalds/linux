@@ -324,7 +324,7 @@ struct kvm_vcpu {
 #endif
 	int cpu;
 	int vcpu_id; /* id given by userspace at creation */
-	int vcpu_idx; /* index in kvm->vcpus array */
+	int vcpu_idx; /* index into kvm->vcpu_array */
 	int ____srcu_idx; /* Don't use this directly.  You've been warned. */
 #ifdef CONFIG_PROVE_RCU
 	int srcu_depth;
