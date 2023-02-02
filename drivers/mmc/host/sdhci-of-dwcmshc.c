@@ -451,6 +451,7 @@ static const struct acpi_device_id sdhci_dwcmshc_acpi_ids[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(acpi, sdhci_dwcmshc_acpi_ids);
 #endif
 
 static int dwcmshc_probe(struct platform_device *pdev)
