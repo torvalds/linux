@@ -271,7 +271,7 @@ static void offset_vmlinux_info(unsigned long offset)
 static unsigned long reserve_amode31(unsigned long safe_addr)
 {
 	__amode31_base = PAGE_ALIGN(safe_addr);
-	return safe_addr + vmlinux.amode31_size;
+	return __amode31_base + vmlinux.amode31_size;
 }
 
 void startup_kernel(void)
