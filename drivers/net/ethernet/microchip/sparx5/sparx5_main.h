@@ -413,6 +413,18 @@ int sparx5_pgid_alloc_glag(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_free(struct sparx5 *spx5, u16 idx);
 
+/* sparx5_pool.c */
+struct sparx5_pool_entry {
+	u16 ref_cnt;
+	u32 idx; /* tc index */
+};
+
+u32 sparx5_pool_idx_to_id(u32 idx);
+int sparx5_pool_put(struct sparx5_pool_entry *pool, int size, u32 id);
+int sparx5_pool_get(struct sparx5_pool_entry *pool, int size, u32 *id);
+int sparx5_pool_get_with_idx(struct sparx5_pool_entry *pool, int size, u32 idx,
+			     u32 *id);
+
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
 {
