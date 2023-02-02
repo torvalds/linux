@@ -131,6 +131,6 @@ examples:
         #gpio-cells = <2>;
         interrupt-controller;
         #interrupt-cells = <2>;
-        gpio-ranges = <&tlmm 0 0 180>;
+        gpio-ranges = <&tlmm 0 0 181>; /* GPIOs + ufs_reset */
         wakeup-parent = <&pdc>;
     };
