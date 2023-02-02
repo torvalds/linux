@@ -1011,14 +1011,14 @@ err:
 	return ret;
 }
 
-int mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 {
 	struct rb_root *root = &dev->cache.rb_root;
 	struct mlx5_cache_ent *ent;
 	struct rb_node *node;
 
 	if (!dev->cache.wq)
-		return 0;
+		return;
 
 	cancel_delayed_work_sync(&dev->cache.remove_ent_dwork);
 	mutex_lock(&dev->cache.rb_lock);
@@ -1045,8 +1045,6 @@ int mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 
 	destroy_workqueue(dev->cache.wq);
 	del_timer_sync(&dev->delay_timer);
-
-	return 0;
 }
 
 struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
