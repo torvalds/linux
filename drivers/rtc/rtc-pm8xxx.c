@@ -291,14 +291,14 @@ static irqreturn_t pm8xxx_alarm_trigger(int irq, void *dev_id)
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 				regs->alarm_en, 0);
 	if (rc)
-		goto out;
+		return IRQ_NONE;
 
 	/* Clear RTC alarm register */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl2,
 				PM8xxx_RTC_ALARM_CLEAR, 0);
 	if (rc)
-		goto out;
-out:
+		return IRQ_NONE;
+
 	return IRQ_HANDLED;
 }
 
