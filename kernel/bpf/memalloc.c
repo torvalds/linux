@@ -71,7 +71,7 @@ static int bpf_mem_cache_idx(size_t size)
 	if (size <= 192)
 		return size_index[(size - 1) / 8] - 1;
 
-	return fls(size - 1) - 1;
+	return fls(size - 1) - 2;
 }
 
 #define NUM_CACHES 11
