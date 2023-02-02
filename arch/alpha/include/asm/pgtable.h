@@ -126,19 +126,9 @@ struct vm_area_struct;
 #define pgprot_noncached(prot)	(prot)
 
 /*
- * BAD_PAGETABLE is used when we need a bogus page-table, while
- * BAD_PAGE is used for a bogus page.
- *
  * ZERO_PAGE is a global shared page that is always zero:  used
  * for zero-mapped memory areas etc..
  */
-extern pte_t __bad_page(void);
-extern pmd_t * __bad_pagetable(void);
-
-extern unsigned long __zero_page(void);
-
-#define BAD_PAGETABLE	__bad_pagetable()
-#define BAD_PAGE	__bad_page()
 #define ZERO_PAGE(vaddr)	(virt_to_page(ZERO_PGE))
 
 /*
