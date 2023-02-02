@@ -772,6 +772,21 @@ static void br_multicast_port_ngroups_dec(struct net_bridge_port *port, u16 vid)
 	br_multicast_port_ngroups_dec_one(&port->multicast_ctx);
 }
 
+u32 br_multicast_ngroups_get(const struct net_bridge_mcast_port *pmctx)
+{
+	return READ_ONCE(pmctx->mdb_n_entries);
+}
+
+void br_multicast_ngroups_set_max(struct net_bridge_mcast_port *pmctx, u32 max)
+{
+	WRITE_ONCE(pmctx->mdb_max_entries, max);
+}
+
+u32 br_multicast_ngroups_get_max(const struct net_bridge_mcast_port *pmctx)
+{
+	return READ_ONCE(pmctx->mdb_max_entries);
+}
+
 static void br_multicast_destroy_port_group(struct net_bridge_mcast_gc *gc)
 {
 	struct net_bridge_port_group *pg;
