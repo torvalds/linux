@@ -578,13 +578,16 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 	return;
 }
 
-static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
-		u16 wIndex, __le32 __iomem *addr, u32 port_status)
+static void xhci_disable_port(struct xhci_hcd *xhci, struct xhci_port *port)
 {
+	struct usb_hcd *hcd;
+	u32 portsc;
+
+	hcd = port->rhub->hcd;
+
 	/* Don't allow the USB core to disable SuperSpeed ports. */
 	if (hcd->speed >= HCD_USB3) {
-		xhci_dbg(xhci, "Ignoring request to disable "
-				"SuperSpeed port.\n");
+		xhci_dbg(xhci, "Ignoring request to disable SuperSpeed port.\n");
 		return;
 	}
 
@@ -594,11 +597,15 @@ static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		return;
 	}
 
+	portsc = readl(port->addr);
+	portsc = xhci_port_state_to_neutral(portsc);
+
 	/* Write 1 to disable the port */
-	writel(port_status | PORT_PE, addr);
-	port_status = readl(addr);
+	writel(portsc | PORT_PE, port->addr);
+
+	portsc = readl(port->addr);
 	xhci_dbg(xhci, "disable port %d-%d, portsc: 0x%x\n",
-		 hcd->self.busnum, wIndex + 1, port_status);
+		 hcd->self.busnum, port->hcd_portnum + 1, portsc);
 }
 
 static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
@@ -1601,8 +1608,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					port->addr, temp);
 			break;
 		case USB_PORT_FEAT_ENABLE:
-			xhci_disable_port(hcd, xhci, wIndex,
-					port->addr, temp);
+			xhci_disable_port(xhci, port);
 			break;
 		case USB_PORT_FEAT_POWER:
 			xhci_set_port_power(xhci, port, false, &flags);
