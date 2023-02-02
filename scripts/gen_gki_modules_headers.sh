@@ -54,7 +54,7 @@ generate_header() {
 		sed -i '/^[[:space:]]*$/d; /^#/d; /\[abi_symbol_list\]/d' "${symbol_file}"
 
 		# Sort in byte order for kernel binary search at runtime
-		LC_ALL=C sort -o "${symbol_file}" "${symbol_file}"
+		LC_ALL=C sort -u -o "${symbol_file}" "${symbol_file}"
 
 		# Trim white spaces & +1 for null termination
 		local max_name_len=$(awk '
