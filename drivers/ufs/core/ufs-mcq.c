@@ -77,8 +77,8 @@ MODULE_PARM_DESC(poll_queues,
 
 /**
  * ufshcd_mcq_config_mac - Set the #Max Activ Cmds.
- * @hba - per adapter instance
- * @max_active_cmds - maximum # of active commands to the device at any time.
+ * @hba: per adapter instance
+ * @max_active_cmds: maximum # of active commands to the device at any time.
  *
  * The controller won't send more than the max_active_cmds to the device at
  * any time.
@@ -96,8 +96,8 @@ void ufshcd_mcq_config_mac(struct ufs_hba *hba, u32 max_active_cmds)
 /**
  * ufshcd_mcq_req_to_hwq - find the hardware queue on which the
  * request would be issued.
- * @hba - per adapter instance
- * @req - pointer to the request to be issued
+ * @hba: per adapter instance
+ * @req: pointer to the request to be issued
  *
  * Returns the hardware queue instance on which the request would
  * be queued.
@@ -114,7 +114,7 @@ struct ufs_hw_queue *ufshcd_mcq_req_to_hwq(struct ufs_hba *hba,
 
 /**
  * ufshcd_mcq_decide_queue_depth - decide the queue depth
- * @hba - per adapter instance
+ * @hba: per adapter instance
  *
  * Returns queue-depth on success, non-zero on error
  *
