@@ -895,9 +895,9 @@ static void unaccount_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	untrack_possible_nx_huge_page(kvm, sp);
 }
 
-static struct kvm_memory_slot *
-gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
-			    bool no_dirty_log)
+static struct kvm_memory_slot *gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu,
+							   gfn_t gfn,
+							   bool no_dirty_log)
 {
 	struct kvm_memory_slot *slot;
 
@@ -960,9 +960,8 @@ static int pte_list_add(struct kvm_mmu_memory_cache *cache, u64 *spte,
 	return count;
 }
 
-static void
-pte_list_desc_remove_entry(struct kvm_rmap_head *rmap_head,
-			   struct pte_list_desc *desc, int i)
+static void pte_list_desc_remove_entry(struct kvm_rmap_head *rmap_head,
+				       struct pte_list_desc *desc, int i)
 {
 	struct pte_list_desc *head_desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
 	int j = head_desc->spte_count - 1;
@@ -1510,8 +1509,8 @@ struct slot_rmap_walk_iterator {
 	struct kvm_rmap_head *end_rmap;
 };
 
-static void
-rmap_walk_init_level(struct slot_rmap_walk_iterator *iterator, int level)
+static void rmap_walk_init_level(struct slot_rmap_walk_iterator *iterator,
+				 int level)
 {
 	iterator->level = level;
 	iterator->gfn = iterator->start_gfn;
@@ -1519,10 +1518,10 @@ rmap_walk_init_level(struct slot_rmap_walk_iterator *iterator, int level)
 	iterator->end_rmap = gfn_to_rmap(iterator->end_gfn, level, iterator->slot);
 }
 
-static void
-slot_rmap_walk_init(struct slot_rmap_walk_iterator *iterator,
-		    const struct kvm_memory_slot *slot, int start_level,
-		    int end_level, gfn_t start_gfn, gfn_t end_gfn)
+static void slot_rmap_walk_init(struct slot_rmap_walk_iterator *iterator,
+				const struct kvm_memory_slot *slot,
+				int start_level, int end_level,
+				gfn_t start_gfn, gfn_t end_gfn)
 {
 	iterator->slot = slot;
 	iterator->start_level = start_level;
@@ -3373,9 +3372,9 @@ static bool page_fault_can_be_fast(struct kvm_page_fault *fault)
  * Returns true if the SPTE was fixed successfully. Otherwise,
  * someone else modified the SPTE from its original value.
  */
-static bool
-fast_pf_fix_direct_spte(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
-			u64 *sptep, u64 old_spte, u64 new_spte)
+static bool fast_pf_fix_direct_spte(struct kvm_vcpu *vcpu,
+				    struct kvm_page_fault *fault,
+				    u64 *sptep, u64 old_spte, u64 new_spte)
 {
 	/*
 	 * Theoretically we could also set dirty bit (and flush TLB) here in
@@ -4708,10 +4707,9 @@ static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 #include "paging_tmpl.h"
 #undef PTTYPE
 
-static void
-__reset_rsvds_bits_mask(struct rsvd_bits_validate *rsvd_check,
-			u64 pa_bits_rsvd, int level, bool nx, bool gbpages,
-			bool pse, bool amd)
+static void __reset_rsvds_bits_mask(struct rsvd_bits_validate *rsvd_check,
+				    u64 pa_bits_rsvd, int level, bool nx,
+				    bool gbpages, bool pse, bool amd)
 {
 	u64 gbpages_bit_rsvd = 0;
 	u64 nonleaf_bit8_rsvd = 0;
@@ -4824,9 +4822,9 @@ static void reset_guest_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 				guest_cpuid_is_amd_or_hygon(vcpu));
 }
 
-static void
-__reset_rsvds_bits_mask_ept(struct rsvd_bits_validate *rsvd_check,
-			    u64 pa_bits_rsvd, bool execonly, int huge_page_level)
+static void __reset_rsvds_bits_mask_ept(struct rsvd_bits_validate *rsvd_check,
+					u64 pa_bits_rsvd, bool execonly,
+					int huge_page_level)
 {
 	u64 high_bits_rsvd = pa_bits_rsvd & rsvd_bits(0, 51);
 	u64 large_1g_rsvd = 0, large_2m_rsvd = 0;
@@ -4926,8 +4924,7 @@ static inline bool boot_cpu_is_amd(void)
  * the direct page table on host, use as much mmu features as
  * possible, however, kvm currently does not do execution-protection.
  */
-static void
-reset_tdp_shadow_zero_bits_mask(struct kvm_mmu *context)
+static void reset_tdp_shadow_zero_bits_mask(struct kvm_mmu *context)
 {
 	struct rsvd_bits_validate *shadow_zero_check;
 	int i;
@@ -5140,8 +5137,8 @@ static void paging32_init_context(struct kvm_mmu *context)
 	context->sync_spte = paging32_sync_spte;
 }
 
-static union kvm_cpu_role
-kvm_calc_cpu_role(struct kvm_vcpu *vcpu, const struct kvm_mmu_role_regs *regs)
+static union kvm_cpu_role kvm_calc_cpu_role(struct kvm_vcpu *vcpu,
+					    const struct kvm_mmu_role_regs *regs)
 {
 	union kvm_cpu_role role = {0};
 
@@ -6750,8 +6747,8 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 	}
 }
 
-static unsigned long
-mmu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+static unsigned long mmu_shrink_scan(struct shrinker *shrink,
+				     struct shrink_control *sc)
 {
 	struct kvm *kvm;
 	int nr_to_scan = sc->nr_to_scan;
@@ -6809,8 +6806,8 @@ unlock:
 	return freed;
 }
 
-static unsigned long
-mmu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+static unsigned long mmu_shrink_count(struct shrinker *shrink,
+				      struct shrink_control *sc)
 {
 	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
 }
