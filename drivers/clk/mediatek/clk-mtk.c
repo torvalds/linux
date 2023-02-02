@@ -515,7 +515,7 @@ int mtk_clk_simple_probe(struct platform_device *pdev)
 					   mcd->clk_lock, clk_data);
 		if (r)
 			goto unregister_factors;
-	};
+	}
 
 	if (mcd->composite_clks) {
 		/* We don't check composite_lock because it's optional */
