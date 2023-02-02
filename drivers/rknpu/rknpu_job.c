@@ -162,6 +162,7 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 	unsigned long flags;
 	int wait_count = 0;
 	int ret = -EINVAL;
+	int i = 0;
 
 	subcore_data = &rknpu_dev->subcore_datas[core_index];
 
@@ -176,9 +177,18 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 
 	if (job->in_queue[core_index]) {
 		spin_lock_irqsave(&rknpu_dev->lock, flags);
-		list_del_init(&job->head[core_index]);
 		subcore_data->task_num -= rknn_get_task_number(job, core_index);
-		job->in_queue[core_index] = false;
+		if (job->use_core_num == 1) {
+			list_del_init(&job->head[core_index]);
+			job->in_queue[core_index] = false;
+		} else if (job->use_core_num > 1) {
+			for (i = 0; i < job->use_core_num; i++) {
+				if (job->in_queue[i]) {
+					list_del_init(&job->head[i]);
+					job->in_queue[i] = false;
+				}
+			}
+		}
 		spin_unlock_irqrestore(&rknpu_dev->lock, flags);
 		return ret < 0 ? ret : -EINVAL;
 	}
@@ -443,16 +453,16 @@ static void rknpu_job_schedule(struct rknpu_job *job)
 		job->run_count = 1;
 	}
 
+	spin_lock_irqsave(&rknpu_dev->irq_lock, flags);
 	for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
 		if (job->args->core_mask & rknpu_core_mask(i)) {
 			subcore_data = &rknpu_dev->subcore_datas[i];
-			spin_lock_irqsave(&rknpu_dev->irq_lock, flags);
 			list_add_tail(&job->head[i], &subcore_data->todo_list);
 			subcore_data->task_num += rknn_get_task_number(job, i);
 			job->in_queue[i] = true;
-			spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 		}
 	}
+	spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 
 	for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
 		if (job->args->core_mask & rknpu_core_mask(i))
@@ -853,8 +863,17 @@ int rknpu_clear_rw_amount(struct rknpu_device *rknpu_dev)
 
 	spin_lock(&rknpu_dev->lock);
 
-	REG_WRITE(0x80000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
-	REG_WRITE(0x00000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+	if (rknpu_dev->config->pc_dma_ctrl) {
+		uint32_t pc_data_addr = REG_READ(RKNPU_OFFSET_PC_DATA_ADDR);
+
+		REG_WRITE(0x1, RKNPU_OFFSET_PC_DATA_ADDR);
+		REG_WRITE(0x80000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+		REG_WRITE(0x00000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+		REG_WRITE(pc_data_addr, RKNPU_OFFSET_PC_DATA_ADDR);
+	} else {
+		REG_WRITE(0x80000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+		REG_WRITE(0x00000101, RKNPU_OFFSET_CLR_ALL_RW_AMOUNT);
+	}
 
 	spin_unlock(&rknpu_dev->lock);
 

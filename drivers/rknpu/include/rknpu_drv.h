@@ -30,10 +30,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20221110"
+#define DRIVER_DATE "20230202"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 8
-#define DRIVER_PATCHLEVEL 3
+#define DRIVER_PATCHLEVEL 5
 
 #define LOG_TAG "RKNPU"
 
@@ -67,6 +67,7 @@ struct rknpu_config {
 	__u32 pc_task_number_bits;
 	__u32 pc_task_number_mask;
 	__u32 pc_task_status_offset;
+	__u32 pc_dma_ctrl;
 	__u32 bw_enable;
 	const struct rknpu_irqs_data *irqs;
 	const struct rknpu_reset_data *resets;

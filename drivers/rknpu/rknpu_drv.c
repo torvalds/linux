@@ -111,6 +111,7 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.pc_task_number_bits = 12,
 	.pc_task_number_mask = 0xfff,
 	.pc_task_status_offset = 0x3c,
+	.pc_dma_ctrl = 0,
 	.bw_enable = 1,
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
@@ -126,6 +127,7 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.pc_task_number_bits = 12,
 	.pc_task_number_mask = 0xfff,
 	.pc_task_status_offset = 0x3c,
+	.pc_dma_ctrl = 0,
 	.bw_enable = 0,
 	.irqs = rk3588_npu_irqs,
 	.resets = rk3588_npu_resets,
@@ -141,6 +143,7 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.pc_task_number_bits = 16,
 	.pc_task_number_mask = 0xffff,
 	.pc_task_status_offset = 0x3c,
+	.pc_dma_ctrl = 0,
 	.bw_enable = 1,
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
@@ -156,6 +159,7 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.pc_task_number_bits = 16,
 	.pc_task_number_mask = 0xffff,
 	.pc_task_status_offset = 0x48,
+	.pc_dma_ctrl = 1,
 	.bw_enable = 1,
 	.irqs = rknpu_irqs,
 	.resets = rknpu_resets,
@@ -1127,7 +1131,7 @@ static struct devfreq_cooling_power npu_cooling_power = {
 
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
-			       int *bin, int *process)
+				   int *bin, int *process)
 {
 	int ret = 0;
 	u8 value = 0;
@@ -1137,11 +1141,11 @@ static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
 
 	if (of_property_match_string(np, "nvmem-cell-names",
 				     "specification_serial_number") >= 0) {
-		ret = rockchip_nvmem_cell_read_u8(np,
-						  "specification_serial_number",
-						  &value);
+		ret = rockchip_nvmem_cell_read_u8(
+			np, "specification_serial_number", &value);
 		if (ret) {
-			dev_err(dev,
+			LOG_DEV_ERROR(
+				dev,
 				"Failed to get specification_serial_number\n");
 			return ret;
 		}
@@ -1154,13 +1158,13 @@ static int rk3588_npu_get_soc_info(struct device *dev, struct device_node *np,
 	}
 	if (*bin < 0)
 		*bin = 0;
-	dev_info(dev, "bin=%d\n", *bin);
+	LOG_DEV_INFO(dev, "bin=%d\n", *bin);
 
 	return ret;
 }
 
 static int rk3588_npu_set_soc_info(struct device *dev, struct device_node *np,
-			       int bin, int process, int volt_sel)
+				   int bin, int process, int volt_sel)
 {
 	struct opp_table *opp_table;
 	u32 supported_hw[2];
@@ -1179,7 +1183,7 @@ static int rk3588_npu_set_soc_info(struct device *dev, struct device_node *np,
 	supported_hw[1] = BIT(volt_sel);
 	opp_table = dev_pm_opp_set_supported_hw(dev, supported_hw, 2);
 	if (IS_ERR(opp_table)) {
-		dev_err(dev, "failed to set supported opp\n");
+		LOG_DEV_ERROR(dev, "failed to set supported opp\n");
 		return PTR_ERR(opp_table);
 	}
 
