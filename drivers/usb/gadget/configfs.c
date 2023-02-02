@@ -915,8 +915,7 @@ static ssize_t webusb_landingPage_store(struct config_item *item, const char *pa
 
 	mutex_lock(&gi->lock);
 	// ensure 0 bytes are set, in case the new landing page is shorter then the old one.
-	memset(gi->landing_page, 0, sizeof(gi->landing_page));
-	memcpy(gi->landing_page, page, l);
+	memcpy_and_pad(gi->landing_page, sizeof(gi->landing_page), page, l, 0);
 	mutex_unlock(&gi->lock);
 
 	return len;
