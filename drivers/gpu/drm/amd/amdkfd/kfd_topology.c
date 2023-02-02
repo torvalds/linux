@@ -1328,8 +1328,15 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 
 		/* Include the CPU peer in GPU hive if connected over xGMI. */
 		if (!peer_dev->gpu &&
-		    link->iolink_type == CRAT_IOLINK_TYPE_XGMI)
+		    link->iolink_type == CRAT_IOLINK_TYPE_XGMI) {
+			/*
+			 * If the GPU is not part of a GPU hive, use its pci
+			 * device location as the hive ID to bind with the CPU.
+			 */
+			if (!dev->node_props.hive_id)
+				dev->node_props.hive_id = pci_dev_id(dev->gpu->adev->pdev);
 			peer_dev->node_props.hive_id = dev->node_props.hive_id;
+		}
 
 		list_for_each_entry(inbound_link, &peer_dev->io_link_props,
 									list) {
