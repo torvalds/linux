@@ -625,6 +625,7 @@ enum xgbe_mb_cmd {
 
 enum xgbe_mb_subcmd {
 	XGBE_MB_SUBCMD_NONE = 0,
+	XGBE_MB_SUBCMD_RX_ADAP,
 
 	/* 10GbE SFP subcommands */
 	XGBE_MB_SUBCMD_ACTIVE = 0,
@@ -1316,6 +1317,10 @@ struct xgbe_prv_data {
 
 	bool debugfs_an_cdr_workaround;
 	bool debugfs_an_cdr_track_early;
+	bool en_rx_adap;
+	int rx_adapt_retries;
+	bool rx_adapt_done;
+	bool mode_set;
 };
 
 /* Function prototypes*/
