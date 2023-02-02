@@ -45,6 +45,7 @@
 #include <trace/hooks/dmabuf.h>
 #include <trace/hooks/timer.h>
 #include <trace/hooks/topology.h>
+#include <trace/hooks/hung_task.h>
 #include <trace/hooks/audio_usboffload.h>
 
 /*
@@ -136,6 +137,8 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_aes_expandkey);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_aes_encrypt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_aes_decrypt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_timer_calc_index);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_uninterrupt_tasks);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_uninterrupt_tasks_done);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_vendor_set);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_ep_action);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_audio_usb_offload_synctype);
