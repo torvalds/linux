@@ -513,6 +513,9 @@ struct xhci_intr_reg {
 /* Preserve bits 16:31 of erst_size */
 #define	ERST_SIZE_MASK		(0xffff << 16)
 
+/* erst_base bitmasks */
+#define ERST_BASE_RSVDP		(0x3f)
+
 /* erst_dequeue bitmasks */
 /* Dequeue ERST Segment Index (DESI) - Segment number (or alias)
  * where the current dequeue pointer lies.  This is an optional HW hint.
@@ -1774,7 +1777,7 @@ struct xhci_hcd {
 	u8		sbrn;
 	u16		hci_version;
 	u8		max_slots;
-	u8		max_interrupters;
+	u16		max_interrupters;
 	u8		max_ports;
 	u8		isoc_threshold;
 	/* imod_interval in ns (I * 250ns) */
