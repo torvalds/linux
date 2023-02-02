@@ -104,6 +104,15 @@
 			wakeup-source;
 			status = "disabled";
 		};
+
+		pmk8280_sdam_6: nvram@8500 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x8500 0x100>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x8500 0x100>;
+			status = "disabled";
+		};
 	};
 
 	pmc8280_1: pmic@1 {
