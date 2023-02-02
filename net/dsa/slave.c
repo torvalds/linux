@@ -2692,7 +2692,8 @@ static int dsa_slave_changeupper(struct net_device *dev,
 			if (!err)
 				dsa_bridge_mtu_normalization(dp);
 			if (err == -EOPNOTSUPP) {
-				NL_SET_ERR_MSG_WEAK_MOD(extack, "Offloading not supported");
+				NL_SET_ERR_MSG_WEAK_MOD(extack,
+							"Offloading not supported");
 				err = 0;
 			}
 			err = notifier_from_errno(err);
@@ -2705,8 +2706,8 @@ static int dsa_slave_changeupper(struct net_device *dev,
 			err = dsa_port_lag_join(dp, info->upper_dev,
 						info->upper_info, extack);
 			if (err == -EOPNOTSUPP) {
-				NL_SET_ERR_MSG_MOD(info->info.extack,
-						   "Offloading not supported");
+				NL_SET_ERR_MSG_WEAK_MOD(extack,
+							"Offloading not supported");
 				err = 0;
 			}
 			err = notifier_from_errno(err);
@@ -2718,8 +2719,8 @@ static int dsa_slave_changeupper(struct net_device *dev,
 		if (info->linking) {
 			err = dsa_port_hsr_join(dp, info->upper_dev);
 			if (err == -EOPNOTSUPP) {
-				NL_SET_ERR_MSG_MOD(info->info.extack,
-						   "Offloading not supported");
+				NL_SET_ERR_MSG_WEAK_MOD(extack,
+							"Offloading not supported");
 				err = 0;
 			}
 			err = notifier_from_errno(err);
