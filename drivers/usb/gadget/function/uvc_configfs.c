@@ -1904,7 +1904,44 @@ static ssize_t uvcg_color_matching_##cname##_show(			\
 	return result;							\
 }									\
 									\
-UVC_ATTR_RO(uvcg_color_matching_, cname, aname)
+static ssize_t uvcg_color_matching_##cname##_store(			\
+	struct config_item *item, const char *page, size_t len)		\
+{									\
+	struct config_group *group = to_config_group(item);		\
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;		\
+	struct uvcg_color_matching *color_match =			\
+		to_uvcg_color_matching(group);				\
+	struct f_uvc_opts *opts;					\
+	struct config_item *opts_item;					\
+	int ret;							\
+	u##bits num;							\
+									\
+	ret = kstrtou##bits(page, 0, &num);				\
+	if (ret)							\
+		return ret;						\
+									\
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */	\
+									\
+	if (color_match->refcnt) {					\
+		ret = -EBUSY;						\
+		goto unlock_su;						\
+	}								\
+									\
+	opts_item = group->cg_item.ci_parent->ci_parent->ci_parent;	\
+	opts = to_f_uvc_opts(opts_item);				\
+									\
+	mutex_lock(&opts->lock);					\
+									\
+	color_match->desc.aname = num;					\
+	ret = len;							\
+									\
+	mutex_unlock(&opts->lock);					\
+unlock_su:								\
+	mutex_unlock(su_mutex);						\
+									\
+	return ret;							\
+}									\
+UVC_ATTR(uvcg_color_matching_, cname, aname)
 
 UVCG_COLOR_MATCHING_ATTR(b_color_primaries, bColorPrimaries, 8);
 UVCG_COLOR_MATCHING_ATTR(b_transfer_characteristics, bTransferCharacteristics, 8);
