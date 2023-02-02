@@ -15,7 +15,7 @@ struct drm_i915_private;
 
 enum pipe;
 
-enum {
+enum intel_dmc_id {
 	DMC_FW_MAIN = 0,
 	DMC_FW_PIPEA,
 	DMC_FW_PIPEB,
