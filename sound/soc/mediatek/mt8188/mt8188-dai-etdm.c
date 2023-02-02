@@ -2480,24 +2480,14 @@ static void mt8188_dai_etdm_parse_of(struct mtk_base_afe *afe)
 		dai_id = ETDM_TO_DAI_ID(i);
 		etdm_data = afe_priv->dai_priv[dai_id];
 
-		ret = snprintf(prop, sizeof(prop),
-			       "mediatek,%s-multi-pin-mode",
-			       of_afe_etdms[i].name);
-		if (ret < 0) {
-			dev_err(afe->dev, "%s snprintf err=%d\n",
-				__func__, ret);
-			return;
-		}
+		snprintf(prop, sizeof(prop), "mediatek,%s-multi-pin-mode",
+			 of_afe_etdms[i].name);
+
 		etdm_data->data_mode = of_property_read_bool(of_node, prop);
 
-		ret = snprintf(prop, sizeof(prop),
-			       "mediatek,%s-cowork-source",
-			       of_afe_etdms[i].name);
-		if (ret < 0) {
-			dev_err(afe->dev, "%s snprintf err=%d\n",
-				__func__, ret);
-			return;
-		}
+		snprintf(prop, sizeof(prop), "mediatek,%s-cowork-source",
+			 of_afe_etdms[i].name);
+
 		ret = of_property_read_u32(of_node, prop, &sel);
 		if (ret == 0) {
 			if (sel >= MT8188_AFE_IO_ETDM_NUM) {
@@ -2516,14 +2506,9 @@ static void mt8188_dai_etdm_parse_of(struct mtk_base_afe *afe)
 
 	/* etdm in only */
 	for (i = 0; i < 2; i++) {
-		ret = snprintf(prop, sizeof(prop),
-			       "mediatek,%s-chn-disabled",
-			       of_afe_etdms[i].name);
-		if (ret < 0) {
-			dev_err(afe->dev, "%s snprintf err=%d\n",
-				__func__, ret);
-			return;
-		}
+		snprintf(prop, sizeof(prop), "mediatek,%s-chn-disabled",
+			 of_afe_etdms[i].name);
+
 		ret = of_property_read_variable_u8_array(of_node, prop,
 							 disable_chn,
 							 1, max_chn);
