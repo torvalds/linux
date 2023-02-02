@@ -252,6 +252,11 @@ struct stepping_info {
 #define for_each_dmc_id(__dmc_id) \
 	for ((__dmc_id) = DMC_FW_MAIN; (__dmc_id) < DMC_FW_MAX; (__dmc_id)++)
 
+static bool is_valid_dmc_id(enum intel_dmc_id dmc_id)
+{
+	return dmc_id >= DMC_FW_MAIN && dmc_id < DMC_FW_MAX;
+}
+
 static bool has_dmc_id_fw(struct drm_i915_private *i915, enum intel_dmc_id dmc_id)
 {
 	return i915->display.dmc.dmc_info[dmc_id].payload;
@@ -549,7 +554,7 @@ static void dmc_set_fw_offset(struct intel_dmc *dmc,
 	for (i = 0; i < num_entries; i++) {
 		dmc_id = package_ver <= 1 ? DMC_FW_MAIN : fw_info[i].dmc_id;
 
-		if (dmc_id >= DMC_FW_MAX) {
+		if (!is_valid_dmc_id(dmc_id)) {
 			drm_dbg(&i915->drm, "Unsupported firmware id: %u\n", dmc_id);
 			continue;
 		}
