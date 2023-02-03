@@ -794,7 +794,7 @@ struct mwifiex_ie_types_chan_band_list_param_set {
 
 struct mwifiex_ie_types_rates_param_set {
 	struct mwifiex_ie_types_header header;
-	u8 rates[1];
+	u8 rates[];
 } __packed;
 
 struct mwifiex_ie_types_ssid_param_set {
