@@ -1291,7 +1291,7 @@ struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
 {
 	int ret;
 
-	ret = blkcg_activate_policy(bfqd->queue, &blkcg_policy_bfq);
+	ret = blkcg_activate_policy(bfqd->queue->disk, &blkcg_policy_bfq);
 	if (ret)
 		return NULL;
 

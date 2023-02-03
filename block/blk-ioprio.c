@@ -204,12 +204,12 @@ void blkcg_set_ioprio(struct bio *bio)
 
 void blk_ioprio_exit(struct gendisk *disk)
 {
-	blkcg_deactivate_policy(disk->queue, &ioprio_policy);
+	blkcg_deactivate_policy(disk, &ioprio_policy);
 }
 
 int blk_ioprio_init(struct gendisk *disk)
 {
-	return blkcg_activate_policy(disk->queue, &ioprio_policy);
+	return blkcg_activate_policy(disk, &ioprio_policy);
 }
 
 static int __init ioprio_init(void)

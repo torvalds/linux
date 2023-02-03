@@ -646,7 +646,7 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
 
 	timer_shutdown_sync(&blkiolat->timer);
 	flush_work(&blkiolat->enable_work);
-	blkcg_deactivate_policy(rqos->disk->queue, &blkcg_policy_iolatency);
+	blkcg_deactivate_policy(rqos->disk, &blkcg_policy_iolatency);
 	kfree(blkiolat);
 }
 
@@ -768,7 +768,7 @@ int blk_iolatency_init(struct gendisk *disk)
 			 &blkcg_iolatency_ops);
 	if (ret)
 		goto err_free;
-	ret = blkcg_activate_policy(disk->queue, &blkcg_policy_iolatency);
+	ret = blkcg_activate_policy(disk, &blkcg_policy_iolatency);
 	if (ret)
 		goto err_qos_del;
 

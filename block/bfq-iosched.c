@@ -7146,7 +7146,7 @@ static void bfq_exit_queue(struct elevator_queue *e)
 	bfqg_and_blkg_put(bfqd->root_group);
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-	blkcg_deactivate_policy(bfqd->queue, &blkcg_policy_bfq);
+	blkcg_deactivate_policy(bfqd->queue->disk, &blkcg_policy_bfq);
 #else
 	spin_lock_irq(&bfqd->lock);
 	bfq_put_async_queues(bfqd, bfqd->root_group);

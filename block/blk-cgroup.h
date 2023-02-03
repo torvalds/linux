@@ -194,9 +194,8 @@ void blkcg_exit_disk(struct gendisk *disk);
 /* Blkio controller policy registration */
 int blkcg_policy_register(struct blkcg_policy *pol);
 void blkcg_policy_unregister(struct blkcg_policy *pol);
-int blkcg_activate_policy(struct request_queue *q,
-			  const struct blkcg_policy *pol);
-void blkcg_deactivate_policy(struct request_queue *q,
+int blkcg_activate_policy(struct gendisk *disk, const struct blkcg_policy *pol);
+void blkcg_deactivate_policy(struct gendisk *disk,
 			     const struct blkcg_policy *pol);
 
 const char *blkg_dev_name(struct blkcg_gq *blkg);
@@ -495,9 +494,9 @@ static inline int blkcg_init_disk(struct gendisk *disk) { return 0; }
 static inline void blkcg_exit_disk(struct gendisk *disk) { }
 static inline int blkcg_policy_register(struct blkcg_policy *pol) { return 0; }
 static inline void blkcg_policy_unregister(struct blkcg_policy *pol) { }
-static inline int blkcg_activate_policy(struct request_queue *q,
+static inline int blkcg_activate_policy(struct gendisk *disk,
 					const struct blkcg_policy *pol) { return 0; }
-static inline void blkcg_deactivate_policy(struct request_queue *q,
+static inline void blkcg_deactivate_policy(struct gendisk *disk,
 					   const struct blkcg_policy *pol) { }
 
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,

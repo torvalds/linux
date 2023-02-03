@@ -1390,14 +1390,14 @@ struct cgroup_subsys io_cgrp_subsys = {
 EXPORT_SYMBOL_GPL(io_cgrp_subsys);
 
 /**
- * blkcg_activate_policy - activate a blkcg policy on a request_queue
- * @q: request_queue of interest
+ * blkcg_activate_policy - activate a blkcg policy on a gendisk
+ * @disk: gendisk of interest
  * @pol: blkcg policy to activate
  *
- * Activate @pol on @q.  Requires %GFP_KERNEL context.  @q goes through
+ * Activate @pol on @disk.  Requires %GFP_KERNEL context.  @disk goes through
  * bypass mode to populate its blkgs with policy_data for @pol.
  *
- * Activation happens with @q bypassed, so nobody would be accessing blkgs
+ * Activation happens with @disk bypassed, so nobody would be accessing blkgs
  * from IO path.  Update of each blkg is protected by both queue and blkcg
  * locks so that holding either lock and testing blkcg_policy_enabled() is
  * always enough for dereferencing policy data.
@@ -1405,9 +1405,9 @@ EXPORT_SYMBOL_GPL(io_cgrp_subsys);
  * The caller is responsible for synchronizing [de]activations and policy
  * [un]registerations.  Returns 0 on success, -errno on failure.
  */
-int blkcg_activate_policy(struct request_queue *q,
-			  const struct blkcg_policy *pol)
+int blkcg_activate_policy(struct gendisk *disk, const struct blkcg_policy *pol)
 {
+	struct request_queue *q = disk->queue;
 	struct blkg_policy_data *pd_prealloc = NULL;
 	struct blkcg_gq *blkg, *pinned_blkg = NULL;
 	int ret;
@@ -1508,16 +1508,17 @@ enomem:
 EXPORT_SYMBOL_GPL(blkcg_activate_policy);
 
 /**
- * blkcg_deactivate_policy - deactivate a blkcg policy on a request_queue
- * @q: request_queue of interest
+ * blkcg_deactivate_policy - deactivate a blkcg policy on a gendisk
+ * @disk: gendisk of interest
  * @pol: blkcg policy to deactivate
  *
- * Deactivate @pol on @q.  Follows the same synchronization rules as
+ * Deactivate @pol on @disk.  Follows the same synchronization rules as
  * blkcg_activate_policy().
  */
-void blkcg_deactivate_policy(struct request_queue *q,
+void blkcg_deactivate_policy(struct gendisk *disk,
 			     const struct blkcg_policy *pol)
 {
+	struct request_queue *q = disk->queue;
 	struct blkcg_gq *blkg;
 
 	if (!blkcg_policy_enabled(q, pol))

@@ -2395,7 +2395,7 @@ int blk_throtl_init(struct gendisk *disk)
 	td->low_downgrade_time = jiffies;
 
 	/* activate policy */
-	ret = blkcg_activate_policy(q, &blkcg_policy_throtl);
+	ret = blkcg_activate_policy(disk, &blkcg_policy_throtl);
 	if (ret) {
 		free_percpu(td->latency_buckets[READ]);
 		free_percpu(td->latency_buckets[WRITE]);
@@ -2411,7 +2411,7 @@ void blk_throtl_exit(struct gendisk *disk)
 	BUG_ON(!q->td);
 	del_timer_sync(&q->td->service_queue.pending_timer);
 	throtl_shutdown_wq(q);
-	blkcg_deactivate_policy(q, &blkcg_policy_throtl);
+	blkcg_deactivate_policy(disk, &blkcg_policy_throtl);
 	free_percpu(q->td->latency_buckets[READ]);
 	free_percpu(q->td->latency_buckets[WRITE]);
 	kfree(q->td);
