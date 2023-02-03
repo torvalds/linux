@@ -431,9 +431,10 @@ static inline size_t memcpy_from_file_folio(char *to, struct folio *folio,
 	size_t offset = offset_in_folio(folio, pos);
 	char *from = kmap_local_folio(folio, offset);
 
-	if (folio_test_highmem(folio))
+	if (folio_test_highmem(folio)) {
+		offset = offset_in_page(offset);
 		len = min_t(size_t, len, PAGE_SIZE - offset);
-	else
+	} else
 		len = min(len, folio_size(folio) - offset);
 
 	memcpy(to, from, len);
