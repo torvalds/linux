@@ -66,6 +66,9 @@
 /* port cfg Registers */
 #define WX_CFG_PORT_CTL              0x14400
 #define WX_CFG_PORT_CTL_DRV_LOAD     BIT(3)
+#define WX_CFG_PORT_CTL_QINQ         BIT(2)
+#define WX_CFG_PORT_CTL_D_VLAN       BIT(0) /* double vlan*/
+#define WX_CFG_TAG_TPID(_i)          (0x14430 + ((_i) * 4))
 
 /* GPIO Registers */
 #define WX_GPIO_DR                   0x14800
@@ -88,15 +91,25 @@
 #define WX_TDM_CTL                   0x18000
 /* TDM CTL BIT */
 #define WX_TDM_CTL_TE                BIT(0) /* Transmit Enable */
+#define WX_TDM_PB_THRE(_i)           (0x18020 + ((_i) * 4))
 
 /***************************** RDB registers *********************************/
 /* receive packet buffer */
 #define WX_RDB_PB_CTL                0x19000
 #define WX_RDB_PB_CTL_RXEN           BIT(31) /* Enable Receiver */
 #define WX_RDB_PB_CTL_DISABLED       BIT(0)
+#define WX_RDB_PB_SZ(_i)             (0x19020 + ((_i) * 4))
+#define WX_RDB_PB_SZ_SHIFT           10
 /* statistic */
 #define WX_RDB_PFCMACDAL             0x19210
 #define WX_RDB_PFCMACDAH             0x19214
+/* ring assignment */
+#define WX_RDB_PL_CFG(_i)            (0x19300 + ((_i) * 4))
+#define WX_RDB_PL_CFG_L4HDR          BIT(1)
+#define WX_RDB_PL_CFG_L3HDR          BIT(2)
+#define WX_RDB_PL_CFG_L2HDR          BIT(3)
+#define WX_RDB_PL_CFG_TUN_TUNHDR     BIT(4)
+#define WX_RDB_PL_CFG_TUN_OUTL2HDR   BIT(5)
 
 /******************************* PSR Registers *******************************/
 /* psr control */
@@ -114,9 +127,23 @@
 #define WX_PSR_CTL_MO_SHIFT          5
 #define WX_PSR_CTL_MO                (0x3 << WX_PSR_CTL_MO_SHIFT)
 #define WX_PSR_CTL_TPE               BIT(4)
+#define WX_PSR_MAX_SZ                0x15020
+#define WX_PSR_VLAN_CTL              0x15088
+#define WX_PSR_VLAN_CTL_CFIEN        BIT(29)  /* bit 29 */
+#define WX_PSR_VLAN_CTL_VFE          BIT(30)  /* bit 30 */
 /* mcasst/ucast overflow tbl */
 #define WX_PSR_MC_TBL(_i)            (0x15200  + ((_i) * 4))
 #define WX_PSR_UC_TBL(_i)            (0x15400 + ((_i) * 4))
+
+/* VM L2 contorl */
+#define WX_PSR_VM_L2CTL(_i)          (0x15600 + ((_i) * 4))
+#define WX_PSR_VM_L2CTL_UPE          BIT(4) /* unicast promiscuous */
+#define WX_PSR_VM_L2CTL_VACC         BIT(6) /* accept nomatched vlan */
+#define WX_PSR_VM_L2CTL_AUPE         BIT(8) /* accept untagged packets */
+#define WX_PSR_VM_L2CTL_ROMPE        BIT(9) /* accept packets in MTA tbl */
+#define WX_PSR_VM_L2CTL_ROPE         BIT(10) /* accept packets in UC tbl */
+#define WX_PSR_VM_L2CTL_BAM          BIT(11) /* accept broadcast packets */
+#define WX_PSR_VM_L2CTL_MPE          BIT(12) /* multicast promiscuous */
 
 /* Management */
 #define WX_PSR_MNG_FLEX_SEL          0x1582C
@@ -138,6 +165,27 @@
 #define WX_PSR_MAC_SWC_VM_H          0x1620C
 #define WX_PSR_MAC_SWC_IDX           0x16210
 #define WX_CLEAR_VMDQ_ALL            0xFFFFFFFFU
+
+/********************************* RSEC **************************************/
+/* general rsec */
+#define WX_RSC_CTL                   0x17000
+#define WX_RSC_CTL_SAVE_MAC_ERR      BIT(6)
+#define WX_RSC_CTL_CRC_STRIP         BIT(2)
+#define WX_RSC_CTL_RX_DIS            BIT(1)
+#define WX_RSC_ST                    0x17004
+#define WX_RSC_ST_RSEC_RDY           BIT(0)
+
+/****************************** TDB ******************************************/
+#define WX_TDB_PB_SZ(_i)             (0x1CC00 + ((_i) * 4))
+#define WX_TXPKT_SIZE_MAX            0xA /* Max Tx Packet size */
+
+/****************************** TSEC *****************************************/
+/* Security Control Registers */
+#define WX_TSC_CTL                   0x1D000
+#define WX_TSC_CTL_TX_DIS            BIT(1)
+#define WX_TSC_CTL_TSEC_DIS          BIT(0)
+#define WX_TSC_BUF_AE                0x1D00C
+#define WX_TSC_BUF_AE_THR            GENMASK(9, 0)
 
 /************************************** MNG ********************************/
 #define WX_MNG_SWFW_SYNC             0x1E008
@@ -192,6 +240,10 @@
 #define WX_EM_MAX_EITR               0x00007FFCU
 
 /* transmit DMA Registers */
+#define WX_PX_TR_BAL(_i)             (0x03000 + ((_i) * 0x40))
+#define WX_PX_TR_BAH(_i)             (0x03004 + ((_i) * 0x40))
+#define WX_PX_TR_WP(_i)              (0x03008 + ((_i) * 0x40))
+#define WX_PX_TR_RP(_i)              (0x0300C + ((_i) * 0x40))
 #define WX_PX_TR_CFG(_i)             (0x03010 + ((_i) * 0x40))
 /* Transmit Config masks */
 #define WX_PX_TR_CFG_ENABLE          BIT(0) /* Ena specific Tx Queue */
@@ -201,8 +253,22 @@
 #define WX_PX_TR_CFG_THRE_SHIFT      8
 
 /* Receive DMA Registers */
+#define WX_PX_RR_BAL(_i)             (0x01000 + ((_i) * 0x40))
+#define WX_PX_RR_BAH(_i)             (0x01004 + ((_i) * 0x40))
+#define WX_PX_RR_WP(_i)              (0x01008 + ((_i) * 0x40))
+#define WX_PX_RR_RP(_i)              (0x0100C + ((_i) * 0x40))
 #define WX_PX_RR_CFG(_i)             (0x01010 + ((_i) * 0x40))
 /* PX_RR_CFG bit definitions */
+#define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
+#define WX_PX_RR_CFG_RR_THER_SHIFT   16
+#define WX_PX_RR_CFG_RR_HDR_SZ       GENMASK(15, 12)
+#define WX_PX_RR_CFG_RR_BUF_SZ       GENMASK(11, 8)
+#define WX_PX_RR_CFG_BHDRSIZE_SHIFT  6 /* 64byte resolution (>> 6)
+					* + at bit 8 offset (<< 12)
+					*  = (<< 6)
+					*/
+#define WX_PX_RR_CFG_BSIZEPKT_SHIFT  2 /* so many KBs */
+#define WX_PX_RR_CFG_RR_SIZE_SHIFT   1
 #define WX_PX_RR_CFG_RR_EN           BIT(0)
 
 /* Number of 80 microseconds we wait for PCI Express master disable */
@@ -229,6 +295,20 @@
 #define WX_MAC_STATE_DEFAULT         0x1
 #define WX_MAC_STATE_MODIFIED        0x2
 #define WX_MAC_STATE_IN_USE          0x4
+
+#define WX_MAX_RXD                   8192
+#define WX_MAX_TXD                   8192
+
+/* Supported Rx Buffer Sizes */
+#define WX_RXBUFFER_256      256    /* Used for skb receive header */
+#define WX_RXBUFFER_2K       2048
+#define WX_MAX_RXBUFFER      16384  /* largest size for single descriptor */
+
+#if MAX_SKB_FRAGS < 8
+#define WX_RX_BUFSZ      ALIGN(WX_MAX_RXBUFFER / MAX_SKB_FRAGS, 1024)
+#else
+#define WX_RX_BUFSZ      WX_RXBUFFER_2K
+#endif
 
 #define WX_CFG_PORT_ST               0x14404
 
@@ -307,9 +387,12 @@ struct wx_mac_info {
 	bool set_lben;
 	u8 addr[ETH_ALEN];
 	u8 perm_addr[ETH_ALEN];
+	u32 mta_shadow[128];
 	s32 mc_filter_type;
 	u32 mcft_size;
 	u32 num_rar_entries;
+	u32 rx_pb_size;
+	u32 tx_pb_size;
 	u32 max_tx_queues;
 	u32 max_rx_queues;
 
@@ -364,6 +447,7 @@ struct wx_ring {
 	struct wx_q_vector *q_vector;   /* backpointer to host q_vector */
 	struct net_device *netdev;      /* netdev ring belongs to */
 	struct device *dev;             /* device for DMA mapping */
+	u8 __iomem *tail;
 
 	u16 count;                      /* amount of descriptors */
 
@@ -420,6 +504,7 @@ struct wx {
 	u16 oem_svid;
 	u16 msg_enable;
 	bool adapter_stopped;
+	u16 tpid[8];
 	char eeprom_id[32];
 	enum wx_reset_type reset_type;
 
