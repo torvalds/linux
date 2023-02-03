@@ -432,7 +432,7 @@ static ssize_t hvcs_index_show(struct device *dev, struct device_attribute *attr
 
 static DEVICE_ATTR(index, S_IRUGO, hvcs_index_show, NULL);
 
-static struct attribute *hvcs_attrs[] = {
+static struct attribute *hvcs_dev_attrs[] = {
 	&dev_attr_partner_vtys.attr,
 	&dev_attr_partner_clcs.attr,
 	&dev_attr_current_vty.attr,
@@ -441,9 +441,7 @@ static struct attribute *hvcs_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group hvcs_attr_group = {
-	.attrs = hvcs_attrs,
-};
+ATTRIBUTE_GROUPS(hvcs_dev);
 
 static ssize_t rescan_show(struct device_driver *ddp, char *buf)
 {
@@ -688,8 +686,6 @@ static void hvcs_destruct_port(struct tty_port *p)
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 	spin_unlock(&hvcs_structs_lock);
 
-	sysfs_remove_group(&vdev->dev.kobj, &hvcs_attr_group);
-
 	kfree(hvcsd);
 }
 
@@ -721,7 +717,6 @@ static int hvcs_probe(
 {
 	struct hvcs_struct *hvcsd;
 	int index, rc;
-	int retval;
 
 	if (!dev || !id) {
 		printk(KERN_ERR "HVCS: probed with invalid parameter.\n");
@@ -778,13 +773,6 @@ static int hvcs_probe(
 	list_add_tail(&(hvcsd->next), &hvcs_structs);
 	spin_unlock(&hvcs_structs_lock);
 
-	retval = sysfs_create_group(&dev->dev.kobj, &hvcs_attr_group);
-	if (retval) {
-		printk(KERN_ERR "HVCS: Can't create sysfs attrs for vty-server@%X\n",
-		       hvcsd->vdev->unit_address);
-		return retval;
-	}
-
 	printk(KERN_INFO "HVCS: vty-server@%X added to the vio bus.\n", dev->unit_address);
 
 	/*
@@ -831,6 +819,9 @@ static struct vio_driver hvcs_vio_driver = {
 	.probe		= hvcs_probe,
 	.remove		= hvcs_remove,
 	.name		= hvcs_driver_name,
+	.driver = {
+		.dev_groups = hvcs_dev_groups,
+	},
 };
 
 /* Only called from hvcs_get_pi please */
