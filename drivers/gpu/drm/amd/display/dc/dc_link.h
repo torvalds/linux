@@ -293,6 +293,8 @@ struct dc_link {
 
 	struct dc_panel_config panel_config;
 	struct phy_state phy_state;
+	// BW ALLOCATON USB4 ONLY
+	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 };
 
 

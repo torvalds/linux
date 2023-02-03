@@ -42,6 +42,18 @@ enum bw_type {
  *
  * return: SUCCESS or FAILURE
  */
-bool set_dptx_usb4_bw_alloc_support(struct dc_link *link);
+bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link);
+
+/*
+ * Allocates only what the stream needs for bw, so if:
+ * If (stream_req_bw < or > already_allocated_bw_at_HPD)
+ * => Deallocate Max Bw & then allocate only what the stream needs
+ *
+ * @link: pointer to the dc_link struct instance
+ * @req_bw: Bw requested by the stream
+ *
+ * return: allocated bw else return 0
+ */
+int link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw);
 
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

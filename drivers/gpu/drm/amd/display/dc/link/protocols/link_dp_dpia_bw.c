@@ -246,7 +246,7 @@ static bool get_cm_response_ready_flag(struct dc_link *link)
 // ------------------------------------------------------------------
 //					PUBLIC FUNCTIONS
 // ------------------------------------------------------------------
-bool set_dptx_usb4_bw_alloc_support(struct dc_link *link)
+bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link)
 {
 	bool ret = false;
 	uint8_t response = 0,
@@ -435,6 +435,37 @@ int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *li
 	//2. Cold Unplug
 	else if (!link->hpd_status)
 		dpia_bw_alloc_unplug(link);
+
+out:
+	return ret;
+}
+int link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw)
+{
+	int ret = 0;
+	uint8_t timeout = 10;
+
+	if (!get_bw_alloc_proceed_flag(link))
+		goto out;
+
+	/*
+	 * Sometimes stream uses same timing parameters as the already
+	 * allocated max sink bw so no need to re-alloc
+	 */
+	if (req_bw != link->dpia_bw_alloc_config.sink_allocated_bw) {
+		dc_link_set_usb4_req_bw_req(link, req_bw);
+		do {
+			if (!timeout > 0)
+				timeout--;
+			else
+				break;
+			udelay(10 * 1000);
+		} while (!get_cm_response_ready_flag(link));
+
+		if (!timeout)
+			ret = 0;// ERROR TIMEOUT waiting for response for allocating bw
+		else if (link->dpia_bw_alloc_config.sink_allocated_bw > 0)
+			ret = get_host_router_total_bw(link, HOST_ROUTER_BW_ALLOCATED);
+	}
 
 out:
 	return ret;
