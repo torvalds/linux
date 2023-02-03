@@ -947,7 +947,7 @@ struct dmub_cmd_PLAT_54186_wa {
 		uint8_t grph_stereo : 1; /**< 1 if stereo */
 		uint32_t reserved : 21; /**< Reserved */
 	} flip_params; /**< Pageflip parameters */
-	uint32_t reserved[8]; /**< Reserved bits */
+	uint32_t reserved[9]; /**< Reserved bits */
 };
 
 /**
