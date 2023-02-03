@@ -759,19 +759,12 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 	return 0;
 }
 
-int __init efi_systab_check_header(const efi_table_hdr_t *systab_hdr,
-				   int min_major_version)
+int __init efi_systab_check_header(const efi_table_hdr_t *systab_hdr)
 {
 	if (systab_hdr->signature != EFI_SYSTEM_TABLE_SIGNATURE) {
 		pr_err("System table signature incorrect!\n");
 		return -EINVAL;
 	}
-
-	if ((systab_hdr->revision >> 16) < min_major_version)
-		pr_err("Warning: System table version %d.%02d, expected %d.00 or greater!\n",
-		       systab_hdr->revision >> 16,
-		       systab_hdr->revision & 0xffff,
-		       min_major_version);
 
 	return 0;
 }
