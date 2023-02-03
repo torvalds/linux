@@ -668,7 +668,7 @@ static void hdmirx_get_color_space(struct rk_hdmirx_dev *hdmirx_dev)
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	/*
-	 * Note: PKTDEC_ACR_PB3_0 contents only updated after
+	 * Note: PKTDEC_AVIIF_PB3_0 contents only updated after
 	 * reading pktdec_aviif_ph2_1 unless snapshot feature
 	 * is disabled using pktdec_snapshot_bypass
 	 */
@@ -687,7 +687,7 @@ static void hdmirx_get_color_range(struct rk_hdmirx_dev *hdmirx_dev)
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	/*
-	 * Note: PKTDEC_ACR_PB3_0 contents only updated after
+	 * Note: PKTDEC_AVIIF_PB3_0 contents only updated after
 	 * reading pktdec_aviif_ph2_1 unless snapshot feature
 	 * is disabled using pktdec_snapshot_bypass
 	 */
@@ -2375,6 +2375,7 @@ static void avpunit_1_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_1_INT_CLEAR, 0xffffffff);
 	hdmirx_writel(hdmirx_dev, AVPUNIT_1_INT_FORCE, 0x0);
 }
+
 static void mainunit_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		int status, bool *handled)
 {
@@ -2434,6 +2435,22 @@ static void mainunit_2_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_FORCE, 0x0);
 }
 
+static void pkt_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
+		int status, bool *handled)
+{
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	if ((status & PKTDEC_AVIIF_CHG_IRQ)) {
+		process_signal_change(hdmirx_dev);
+		v4l2_dbg(2, debug, v4l2_dev, "%s: ptk0_st:%#x\n",
+				__func__, status);
+		*handled = true;
+	}
+
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_0_INT_CLEAR, 0xffffffff);
+	hdmirx_writel(hdmirx_dev, PKT_0_INT_FORCE, 0x0);
+}
+
 static void pkt_2_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		int status, bool *handled)
 {
@@ -2470,15 +2487,17 @@ static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
 	struct rk_hdmirx_dev *hdmirx_dev = dev_id;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	bool handled = false;
-	u32 mu0_st, mu2_st, pk2_st, scdc_st, avp1_st, avp0_st;
-	u32 mu0_mask, mu2_mask, pk2_mask, scdc_mask, avp1_msk, avp0_msk;
+	u32 mu0_st, mu2_st, pk2_st, scdc_st, avp1_st, avp0_st, pk0_st;
+	u32 mu0_mask, mu2_mask, pk2_mask, scdc_mask, avp1_msk, avp0_msk, pk0_mask;
 
 	mu0_mask = hdmirx_readl(hdmirx_dev, MAINUNIT_0_INT_MASK_N);
 	mu2_mask = hdmirx_readl(hdmirx_dev, MAINUNIT_2_INT_MASK_N);
+	pk0_mask = hdmirx_readl(hdmirx_dev, PKT_0_INT_MASK_N);
 	pk2_mask = hdmirx_readl(hdmirx_dev, PKT_2_INT_MASK_N);
 	scdc_mask = hdmirx_readl(hdmirx_dev, SCDC_INT_MASK_N);
 	mu0_st = hdmirx_readl(hdmirx_dev, MAINUNIT_0_INT_STATUS);
 	mu2_st = hdmirx_readl(hdmirx_dev, MAINUNIT_2_INT_STATUS);
+	pk0_st = hdmirx_readl(hdmirx_dev, PKT_0_INT_STATUS);
 	pk2_st = hdmirx_readl(hdmirx_dev, PKT_2_INT_STATUS);
 	scdc_st = hdmirx_readl(hdmirx_dev, SCDC_INT_STATUS);
 	avp0_st = hdmirx_readl(hdmirx_dev, AVPUNIT_0_INT_STATUS);
@@ -2487,6 +2506,7 @@ static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
 	avp1_msk = hdmirx_readl(hdmirx_dev, AVPUNIT_1_INT_MASK_N);
 	mu0_st &= mu0_mask;
 	mu2_st &= mu2_mask;
+	pk0_st &= pk0_mask;
 	pk2_st &= pk2_mask;
 	avp1_st &= avp1_msk;
 	avp0_st &= avp0_msk;
@@ -2500,6 +2520,8 @@ static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
 		mainunit_0_int_handler(hdmirx_dev, mu0_st, &handled);
 	if (mu2_st)
 		mainunit_2_int_handler(hdmirx_dev, mu2_st, &handled);
+	if (pk0_st)
+		pkt_0_int_handler(hdmirx_dev, pk0_st, &handled);
 	if (pk2_st)
 		pkt_2_int_handler(hdmirx_dev, pk2_st, &handled);
 	if (scdc_st)
@@ -2508,8 +2530,8 @@ static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
 	if (!handled) {
 		v4l2_dbg(2, debug, v4l2_dev, "%s: hdmi irq not handled!", __func__);
 		v4l2_dbg(2, debug, v4l2_dev,
-			 "avp0:%#x, avp1:%#x, mu0:%#x, mu2:%#x, pk2:%#x, scdc:%#x\n",
-			 avp0_st, avp1_st, mu0_st, mu2_st, pk2_st, scdc_st);
+			 "avp0:%#x, avp1:%#x, mu0:%#x, mu2:%#x, pk0: %#x, pk2:%#x, scdc:%#x\n",
+			 avp0_st, avp1_st, mu0_st, mu2_st, pk0_st, pk2_st, scdc_st);
 	}
 
 	v4l2_dbg(2, debug, v4l2_dev, "%s: en_fiq", __func__);
@@ -2732,6 +2754,7 @@ static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 	hdmirx_clear_interrupt(hdmirx_dev, MAINUNIT_2_INT_CLEAR, 0xffffffff);
 	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_0_INT_CLEAR, 0xffffffff);
 	hdmirx_clear_interrupt(hdmirx_dev, AVPUNIT_1_INT_CLEAR, 0xffffffff);
+	hdmirx_clear_interrupt(hdmirx_dev, PKT_0_INT_CLEAR, 0xffffffff);
 
 	if (en) {
 		hdmirx_update_bits(hdmirx_dev, MAINUNIT_0_INT_MASK_N,
@@ -2742,11 +2765,15 @@ static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
 				   VMON_VMEAS_IRQ | VMON_HMEAS_IRQ,
 				   VMON_VMEAS_IRQ | VMON_HMEAS_IRQ);
+		hdmirx_update_bits(hdmirx_dev, PKT_0_INT_MASK_N,
+				PKTDEC_AVIIF_CHG_MASK_N,
+				PKTDEC_AVIIF_CHG_MASK_N);
 	} else {
 		hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_MASK_N, 0);
 		hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_MASK_N, 0);
 		hdmirx_writel(hdmirx_dev, AVPUNIT_0_INT_MASK_N, 0);
 		hdmirx_writel(hdmirx_dev, AVPUNIT_1_INT_MASK_N, 0);
+		hdmirx_writel(hdmirx_dev, PKT_0_INT_MASK_N, 0);
 	}
 
 	sip_hdmirx_config(HDMIRX_REG_PRE_FETCH, 0, MAINUNIT_0_INT_MASK_N, 0);
