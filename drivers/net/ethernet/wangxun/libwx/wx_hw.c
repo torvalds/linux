@@ -1355,6 +1355,10 @@ static void wx_configure_tx_ring(struct wx *wx,
 		txdctl |= ring->count / 128 << WX_PX_TR_CFG_TR_SIZE_SHIFT;
 	txdctl |= 0x20 << WX_PX_TR_CFG_WTHRESH_SHIFT;
 
+	/* reinitialize tx_buffer_info */
+	memset(ring->tx_buffer_info, 0,
+	       sizeof(struct wx_tx_buffer) * ring->count);
+
 	/* enable queue */
 	wr32(wx, WX_PX_TR_CFG(reg_idx), txdctl);
 

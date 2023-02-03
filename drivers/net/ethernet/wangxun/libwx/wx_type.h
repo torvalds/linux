@@ -312,6 +312,15 @@
 #endif
 
 #define WX_RX_BUFFER_WRITE   16      /* Must be power of 2 */
+
+#define WX_MAX_DATA_PER_TXD  BIT(14)
+/* Tx Descriptors needed, worst case */
+#define TXD_USE_COUNT(S)     DIV_ROUND_UP((S), WX_MAX_DATA_PER_TXD)
+#define DESC_NEEDED          (MAX_SKB_FRAGS + 4)
+
+/* Ether Types */
+#define WX_ETH_P_CNM                 0x22E7
+
 #define WX_CFG_PORT_ST               0x14404
 
 /******************* Receive Descriptor bit definitions **********************/
@@ -319,6 +328,14 @@
 #define WX_RXD_STAT_EOP              BIT(1) /* End of Packet */
 
 #define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
+
+/*********************** Transmit Descriptor Config Masks ****************/
+#define WX_TXD_STAT_DD               BIT(0)  /* Descriptor Done */
+#define WX_TXD_DTYP_DATA             0       /* Adv Data Descriptor */
+#define WX_TXD_PAYLEN_SHIFT          13      /* Desc PAYLEN shift */
+#define WX_TXD_EOP                   BIT(24) /* End of Packet */
+#define WX_TXD_IFCS                  BIT(25) /* Insert FCS */
+#define WX_TXD_RS                    BIT(27) /* Report Status */
 
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
@@ -496,6 +513,8 @@ union wx_rx_desc {
 
 #define WX_RX_DESC(R, i)     \
 	(&(((union wx_rx_desc *)((R)->desc))[i]))
+#define WX_TX_DESC(R, i)     \
+	(&(((union wx_tx_desc *)((R)->desc))[i]))
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
