@@ -1452,7 +1452,9 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 			if (ret == 0)
 				urb->transfer_flags |= URB_MAP_LOCAL;
 		} else if (hcd_uses_dma(hcd)) {
-			if (urb->num_sgs) {
+			if (urb->transfer_flags & URB_MAP_LOCAL)
+				return ret;
+			else if (urb->num_sgs) {
 				int n;
 
 				/* We don't support sg for isoc transfers ! */
