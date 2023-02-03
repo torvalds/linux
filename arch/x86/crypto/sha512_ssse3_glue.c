@@ -36,6 +36,7 @@
 #include <linux/types.h>
 #include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
+#include <asm/cpu_device_id.h>
 #include <asm/simd.h>
 
 asmlinkage void sha512_transform_ssse3(struct sha512_state *state,
@@ -284,6 +285,13 @@ static int register_sha512_avx2(void)
 			ARRAY_SIZE(sha512_avx2_algs));
 	return 0;
 }
+static const struct x86_cpu_id module_cpu_ids[] = {
+	X86_MATCH_FEATURE(X86_FEATURE_AVX2, NULL),
+	X86_MATCH_FEATURE(X86_FEATURE_AVX, NULL),
+	X86_MATCH_FEATURE(X86_FEATURE_SSSE3, NULL),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, module_cpu_ids);
 
 static void unregister_sha512_avx2(void)
 {
@@ -294,6 +302,8 @@ static void unregister_sha512_avx2(void)
 
 static int __init sha512_ssse3_mod_init(void)
 {
+	if (!x86_match_cpu(module_cpu_ids))
+		return -ENODEV;
 
 	if (register_sha512_ssse3())
 		goto fail;

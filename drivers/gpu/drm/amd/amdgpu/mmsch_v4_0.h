@@ -32,7 +32,6 @@
 
 #define RB_ENABLED (1 << 0)
 #define RB4_ENABLED (1 << 1)
-#define MMSCH_DOORBELL_OFFSET 0x8
 
 #define MMSCH_VF_ENGINE_STATUS__PASS 0x1
 

@@ -99,6 +99,10 @@ do {								\
 		get_cache_size(2, CACHE_TYPE_UNIFIED));		\
 	NEW_AUX_ENT(AT_L2_CACHEGEOMETRY,			\
 		get_cache_geometry(2, CACHE_TYPE_UNIFIED));	\
+	NEW_AUX_ENT(AT_L3_CACHESIZE,				\
+		get_cache_size(3, CACHE_TYPE_UNIFIED));		\
+	NEW_AUX_ENT(AT_L3_CACHEGEOMETRY,			\
+		get_cache_geometry(3, CACHE_TYPE_UNIFIED));	\
 } while (0)
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 struct linux_binprm;

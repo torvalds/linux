@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/timer/mstar,msc313e-timer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mstar MSC313e Timer Device Tree Bindings
+title: Mstar MSC313e Timer
 
 maintainers:
   - Daniel Palmer <daniel@0x0f.com>

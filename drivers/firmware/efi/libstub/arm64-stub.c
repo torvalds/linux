@@ -15,6 +15,21 @@
 
 #include "efistub.h"
 
+static bool system_needs_vamap(void)
+{
+	const u8 *type1_family = efi_get_smbios_string(1, family);
+
+	/*
+	 * Ampere Altra machines crash in SetTime() if SetVirtualAddressMap()
+	 * has not been called prior.
+	 */
+	if (!type1_family || strcmp(type1_family, "Altra"))
+		return false;
+
+	efi_warn("Working around broken SetVirtualAddressMap()\n");
+	return true;
+}
+
 efi_status_t check_platform_features(void)
 {
 	u64 tg;
@@ -24,7 +39,7 @@ efi_status_t check_platform_features(void)
 	 * UEFI runtime regions 1:1 and so calling SetVirtualAddressMap() is
 	 * unnecessary.
 	 */
-	if (VA_BITS_MIN >= 48)
+	if (VA_BITS_MIN >= 48 && !system_needs_vamap())
 		efi_novamap = true;
 
 	/* UEFI mandates support for 4 KB granularity, no need to check */

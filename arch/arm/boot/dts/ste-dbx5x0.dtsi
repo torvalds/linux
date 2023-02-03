@@ -1149,17 +1149,15 @@
 			compatible = "stericsson,ux500-cryp";
 			reg = <0xa03cb000 0x1000>;
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-
-			v-ape-supply = <&db8500_vape_reg>;
 			clocks = <&prcc_pclk 6 1>;
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		hash@a03c2000 {
 			compatible = "stericsson,ux500-hash";
 			reg = <0xa03c2000 0x1000>;
-
-			v-ape-supply = <&db8500_vape_reg>;
 			clocks = <&prcc_pclk 6 2>;
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 	};
 };

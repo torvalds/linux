@@ -599,6 +599,9 @@ static int __init armada_xp_edac_init(void)
 {
 	int res;
 
+	if (ghes_get_devices())
+		return -EBUSY;
+
 	/* only polling is supported */
 	edac_op_state = EDAC_OPSTATE_POLL;
 

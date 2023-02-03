@@ -345,6 +345,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 					       eh_frame_base_offset);
 		if (retval)
 			goto error;
+		retval = -1;
 	}
 
 	/*

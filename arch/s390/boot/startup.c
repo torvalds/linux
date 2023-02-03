@@ -291,8 +291,7 @@ void startup_kernel(void)
 
 	clear_bss_section();
 	copy_bootdata();
-	if (IS_ENABLED(CONFIG_RELOCATABLE))
-		handle_relocs(__kaslr_offset);
+	handle_relocs(__kaslr_offset);
 
 	if (__kaslr_offset) {
 		/*

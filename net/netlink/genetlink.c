@@ -78,9 +78,28 @@ static unsigned long mc_group_start = 0x3 | BIT(GENL_ID_CTRL) |
 static unsigned long *mc_groups = &mc_group_start;
 static unsigned long mc_groups_longs = 1;
 
+/* We need the last attribute with non-zero ID therefore a 2-entry array */
+static struct nla_policy genl_policy_reject_all[] = {
+	{ .type = NLA_REJECT },
+	{ .type = NLA_REJECT },
+};
+
 static int genl_ctrl_event(int event, const struct genl_family *family,
 			   const struct genl_multicast_group *grp,
 			   int grp_id);
+
+static void
+genl_op_fill_in_reject_policy(const struct genl_family *family,
+			      struct genl_ops *op)
+{
+	BUILD_BUG_ON(ARRAY_SIZE(genl_policy_reject_all) - 1 != 1);
+
+	if (op->policy || op->cmd < family->resv_start_op)
+		return;
+
+	op->policy = genl_policy_reject_all;
+	op->maxattr = 1;
+}
 
 static const struct genl_family *genl_family_find_byid(unsigned int id)
 {
@@ -113,6 +132,8 @@ static void genl_op_from_full(const struct genl_family *family,
 		op->maxattr = family->maxattr;
 	if (!op->policy)
 		op->policy = family->policy;
+
+	genl_op_fill_in_reject_policy(family, op);
 }
 
 static int genl_get_cmd_full(u32 cmd, const struct genl_family *family,
@@ -142,6 +163,8 @@ static void genl_op_from_small(const struct genl_family *family,
 
 	op->maxattr = family->maxattr;
 	op->policy = family->policy;
+
+	genl_op_fill_in_reject_policy(family, op);
 }
 
 static int genl_get_cmd_small(u32 cmd, const struct genl_family *family,
@@ -356,6 +379,8 @@ static int genl_validate_ops(const struct genl_family *family)
 
 		genl_get_cmd_by_index(i, family, &op);
 		if (op.dumpit == NULL && op.doit == NULL)
+			return -EINVAL;
+		if (WARN_ON(op.cmd >= family->resv_start_op && op.validate))
 			return -EINVAL;
 		for (j = i + 1; j < genl_get_cmd_cnt(family); j++) {
 			struct genl_ops op2;

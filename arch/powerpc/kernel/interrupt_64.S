@@ -532,15 +532,24 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	 * Returning to soft-disabled context.
 	 * Check if a MUST_HARD_MASK interrupt has become pending, in which
 	 * case we need to disable MSR[EE] in the return context.
+	 *
+	 * The MSR[EE] check catches among other things the short incoherency
+	 * in hard_irq_disable() between clearing MSR[EE] and setting
+	 * PACA_IRQ_HARD_DIS.
 	 */
 	ld	r12,_MSR(r1)
 	andi.	r10,r12,MSR_EE
 	beq	.Lfast_kernel_interrupt_return_\srr\() // EE already disabled
 	lbz	r11,PACAIRQHAPPENED(r13)
 	andi.	r10,r11,PACA_IRQ_MUST_HARD_MASK
-	beq	1f // No HARD_MASK pending
+	bne	1f // HARD_MASK is pending
+	// No HARD_MASK pending, clear possible HARD_DIS set by interrupt
+	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
+	stb	r11,PACAIRQHAPPENED(r13)
+	b	.Lfast_kernel_interrupt_return_\srr\()
 
-	/* Must clear MSR_EE from _MSR */
+
+1:	/* Must clear MSR_EE from _MSR */
 #ifdef CONFIG_PPC_BOOK3S
 	li	r10,0
 	/* Clear valid before changing _MSR */
@@ -555,12 +564,23 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	b	.Lfast_kernel_interrupt_return_\srr\()
 
 .Linterrupt_return_\srr\()_soft_enabled:
+	/*
+	 * In the soft-enabled case, need to double-check that we have no
+	 * pending interrupts that might have come in before we reached the
+	 * restart section of code, and restart the exit so those can be
+	 * handled.
+	 *
+	 * If there are none, it is be possible that the interrupt still
+	 * has PACA_IRQ_HARD_DIS set, which needs to be cleared for the
+	 * interrupted context. This clear will not clobber a new pending
+	 * interrupt coming in, because we're in the restart section, so
+	 * such would return to the restart location.
+	 */
 #ifdef CONFIG_PPC_BOOK3S
 	lbz	r11,PACAIRQHAPPENED(r13)
 	andi.	r11,r11,(~PACA_IRQ_HARD_DIS)@l
 	bne-	interrupt_return_\srr\()_kernel_restart
 #endif
-1:
 	li	r11,0
 	stb	r11,PACAIRQHAPPENED(r13) // clear the possible HARD_DIS
 

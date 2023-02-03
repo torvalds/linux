@@ -1328,7 +1328,7 @@ static int happy_meal_init(struct happy_meal *hp)
 	void __iomem *erxregs      = hp->erxregs;
 	void __iomem *bregs        = hp->bigmacregs;
 	void __iomem *tregs        = hp->tcvregs;
-	const char *bursts;
+	const char *bursts = "64";
 	u32 regtmp, rxcfg;
 
 	/* If auto-negotiation timer is running, kill it. */
@@ -2896,8 +2896,8 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 
 	hpreg_res = devm_request_region(&pdev->dev, pci_resource_start(pdev, 0),
 					pci_resource_len(pdev, 0), DRV_NAME);
-	if (IS_ERR(hpreg_res)) {
-		err = PTR_ERR(hpreg_res);
+	if (!hpreg_res) {
+		err = -EBUSY;
 		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting.\n");
 		goto err_out_clear_quattro;
 	}

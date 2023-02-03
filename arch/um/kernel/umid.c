@@ -9,7 +9,7 @@
 #include <os.h>
 
 /* Changed by set_umid_arg */
-static int umid_inited = 0;
+static int umid_inited;
 
 static int __init set_umid_arg(char *name, int *add)
 {

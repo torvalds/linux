@@ -190,6 +190,8 @@
 
 #define ACPI_PRM_INPUT_BUFFER_SIZE      26
 
+#define ACPI_FFH_INPUT_BUFFER_SIZE      256
+
 /* _sx_d and _sx_w control methods */
 
 #define ACPI_NUM_sx_d_METHODS           4

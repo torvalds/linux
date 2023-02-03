@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/allwinner,sun8i-a83t-dw-hdmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A83t DWC HDMI TX Encoder Device Tree Bindings
+title: Allwinner A83t DWC HDMI TX Encoder
 
 description: |
   The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller

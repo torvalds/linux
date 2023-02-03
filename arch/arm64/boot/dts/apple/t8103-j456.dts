@@ -14,7 +14,7 @@
 
 / {
 	compatible = "apple,j456", "apple,t8103", "apple,arm-platform";
-	model = "Apple iMac (24-inch, 4x USB-C, M1, 2020)";
+	model = "Apple iMac (24-inch, 4x USB-C, M1, 2021)";
 
 	aliases {
 		ethernet0 = &ethernet0;

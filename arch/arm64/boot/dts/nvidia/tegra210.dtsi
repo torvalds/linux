@@ -554,42 +554,48 @@
 		compatible = "nvidia,tegra210-pinmux";
 		reg = <0x0 0x700008d4 0x0 0x29c>, /* Pad control registers */
 		      <0x0 0x70003000 0x0 0x294>; /* Mux registers */
-		sdmmc1_3v3_drv: sdmmc1-3v3-drv {
+
+		sdmmc1_3v3_drv: pinmux-sdmmc1-3v3-drv {
 			sdmmc1 {
 				nvidia,pins = "drive_sdmmc1";
 				nvidia,pull-down-strength = <0x8>;
 				nvidia,pull-up-strength = <0x8>;
 			};
 		};
-		sdmmc1_1v8_drv: sdmmc1-1v8-drv {
+
+		sdmmc1_1v8_drv: pinmux-sdmmc1-1v8-drv {
 			sdmmc1 {
 				nvidia,pins = "drive_sdmmc1";
 				nvidia,pull-down-strength = <0x4>;
 				nvidia,pull-up-strength = <0x3>;
 			};
 		};
-		sdmmc2_1v8_drv: sdmmc2-1v8-drv {
+
+		sdmmc2_1v8_drv: pinmux-sdmmc2-1v8-drv {
 			sdmmc2 {
 				nvidia,pins = "drive_sdmmc2";
 				nvidia,pull-down-strength = <0x10>;
 				nvidia,pull-up-strength = <0x10>;
 			};
 		};
-		sdmmc3_3v3_drv: sdmmc3-3v3-drv {
+
+		sdmmc3_3v3_drv: pinmux-sdmmc3-3v3-drv {
 			sdmmc3 {
 				nvidia,pins = "drive_sdmmc3";
 				nvidia,pull-down-strength = <0x8>;
 				nvidia,pull-up-strength = <0x8>;
 			};
 		};
-		sdmmc3_1v8_drv: sdmmc3-1v8-drv {
+
+		sdmmc3_1v8_drv: pinmux-sdmmc3-1v8-drv {
 			sdmmc3 {
 				nvidia,pins = "drive_sdmmc3";
 				nvidia,pull-down-strength = <0x4>;
 				nvidia,pull-up-strength = <0x3>;
 			};
 		};
-		sdmmc4_1v8_drv: sdmmc4-1v8-drv {
+
+		sdmmc4_1v8_drv: pinmux-sdmmc4-1v8-drv {
 			sdmmc4 {
 				nvidia,pins = "drive_sdmmc4";
 				nvidia,pull-down-strength = <0x10>;
@@ -667,7 +673,6 @@
 		reg = <0x0 0x7000a000 0x0 0x100>;
 		#pwm-cells = <2>;
 		clocks = <&tegra_car TEGRA210_CLK_PWM>;
-		clock-names = "pwm";
 		resets = <&tegra_car 17>;
 		reset-names = "pwm";
 		status = "disabled";
@@ -912,35 +917,33 @@
 			};
 		};
 
-		sdmmc1_3v3: sdmmc1-3v3 {
-			pins = "sdmmc1";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
+		pinmux {
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 
-		sdmmc1_1v8: sdmmc1-1v8 {
-			pins = "sdmmc1";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
-		};
+			sdmmc1_1v8: sdmmc1-1v8 {
+				pins = "sdmmc1";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
 
-		sdmmc3_3v3: sdmmc3-3v3 {
-			pins = "sdmmc3";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 
-		sdmmc3_1v8: sdmmc3-1v8 {
-			pins = "sdmmc3";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
-		};
+			sdmmc3_1v8: sdmmc3-1v8 {
+				pins = "sdmmc3";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
 
-		pex_dpd_disable: pex_en {
-			pex-dpd-disable {
+			pex_dpd_disable: pex-dpd-disable {
 				pins = "pex-bias", "pex-clk1", "pex-clk2";
 				low-power-disable;
 			};
-		};
 
-		pex_dpd_enable: pex_dis {
-			pex-dpd-enable {
+			pex_dpd_enable: pex-dpd-enable {
 				pins = "pex-bias", "pex-clk1", "pex-clk2";
 				low-power-enable;
 			};
@@ -1865,7 +1868,6 @@
 			 <&tegra_car TEGRA210_CLK_QSPI_PM>;
 		clock-names = "qspi", "qspi_out";
 		resets = <&tegra_car 211>;
-		reset-names = "qspi";
 		dmas = <&apbdma 5>, <&apbdma 5>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -2005,6 +2007,7 @@
 
 		L2: l2-cache {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 

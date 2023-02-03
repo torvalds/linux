@@ -25,7 +25,7 @@ icc)
 	;;
 llvm)
 	if [ "$SRCARCH" = s390 ]; then
-		echo 14.0.0
+		echo 15.0.0
 	else
 		echo 11.0.0
 	fi

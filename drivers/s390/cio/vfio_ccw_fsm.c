@@ -29,7 +29,7 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 
 	spin_lock_irqsave(sch->lock, flags);
 
-	orb = cp_get_orb(&private->cp, (u32)(addr_t)sch, sch->lpm);
+	orb = cp_get_orb(&private->cp, (u32)virt_to_phys(sch), sch->lpm);
 	if (!orb) {
 		ret = -EIO;
 		goto out;

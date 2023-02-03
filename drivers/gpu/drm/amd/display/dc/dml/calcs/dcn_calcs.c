@@ -1444,91 +1444,73 @@ unsigned int dcn_find_dcfclk_suits_all(
 	return dcf_clk;
 }
 
-static bool verify_clock_values(struct dm_pp_clock_levels_with_voltage *clks)
+void dcn_bw_update_from_pplib_fclks(
+	struct dc *dc,
+	struct dm_pp_clock_levels_with_voltage *fclks)
 {
-	int i;
-
-	if (clks->num_levels == 0)
-		return false;
-
-	for (i = 0; i < clks->num_levels; i++)
-		/* Ensure that the result is sane */
-		if (clks->data[i].clocks_in_khz == 0)
-			return false;
-
-	return true;
-}
-
-void dcn_bw_update_from_pplib(struct dc *dc)
-{
-	struct dc_context *ctx = dc->ctx;
-	struct dm_pp_clock_levels_with_voltage fclks = {0}, dcfclks = {0};
-	bool res;
 	unsigned vmin0p65_idx, vmid0p72_idx, vnom0p8_idx, vmax0p9_idx;
 
-	/* TODO: This is not the proper way to obtain fabric_and_dram_bandwidth, should be min(fclk, memclk) */
-	res = dm_pp_get_clock_levels_by_type_with_voltage(
-			ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
+	ASSERT(fclks->num_levels);
 
-	if (res)
-		res = verify_clock_values(&fclks);
+	vmin0p65_idx = 0;
+	vmid0p72_idx = fclks->num_levels -
+		(fclks->num_levels > 2 ? 3 : (fclks->num_levels > 1 ? 2 : 1));
+	vnom0p8_idx = fclks->num_levels - (fclks->num_levels > 1 ? 2 : 1);
+	vmax0p9_idx = fclks->num_levels - 1;
 
-	if (res) {
-		ASSERT(fclks.num_levels);
-
-		vmin0p65_idx = 0;
-		vmid0p72_idx = fclks.num_levels -
-			(fclks.num_levels > 2 ? 3 : (fclks.num_levels > 1 ? 2 : 1));
-		vnom0p8_idx = fclks.num_levels - (fclks.num_levels > 1 ? 2 : 1);
-		vmax0p9_idx = fclks.num_levels - 1;
-
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 =
-			32 * (fclks.data[vmin0p65_idx].clocks_in_khz / 1000.0) / 1000.0;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 =
-			dc->dcn_soc->number_of_channels *
-			(fclks.data[vmid0p72_idx].clocks_in_khz / 1000.0)
-			* ddr4_dram_factor_single_Channel / 1000.0;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 =
-			dc->dcn_soc->number_of_channels *
-			(fclks.data[vnom0p8_idx].clocks_in_khz / 1000.0)
-			* ddr4_dram_factor_single_Channel / 1000.0;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 =
-			dc->dcn_soc->number_of_channels *
-			(fclks.data[vmax0p9_idx].clocks_in_khz / 1000.0)
-			* ddr4_dram_factor_single_Channel / 1000.0;
-	} else
-		BREAK_TO_DEBUGGER();
-
-	res = dm_pp_get_clock_levels_by_type_with_voltage(
-			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
-
-	if (res)
-		res = verify_clock_values(&dcfclks);
-
-	if (res && dcfclks.num_levels >= 3) {
-		dc->dcn_soc->dcfclkv_min0p65 = dcfclks.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks.data[dcfclks.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks.data[dcfclks.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_max0p9 = dcfclks.data[dcfclks.num_levels - 1].clocks_in_khz / 1000.0;
-	} else
-		BREAK_TO_DEBUGGER();
+	dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 =
+		32 * (fclks->data[vmin0p65_idx].clocks_in_khz / 1000.0) / 1000.0;
+	dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 =
+		dc->dcn_soc->number_of_channels *
+		(fclks->data[vmid0p72_idx].clocks_in_khz / 1000.0)
+		* ddr4_dram_factor_single_Channel / 1000.0;
+	dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 =
+		dc->dcn_soc->number_of_channels *
+		(fclks->data[vnom0p8_idx].clocks_in_khz / 1000.0)
+		* ddr4_dram_factor_single_Channel / 1000.0;
+	dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 =
+		dc->dcn_soc->number_of_channels *
+		(fclks->data[vmax0p9_idx].clocks_in_khz / 1000.0)
+		* ddr4_dram_factor_single_Channel / 1000.0;
 }
 
-void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
+void dcn_bw_update_from_pplib_dcfclks(
+	struct dc *dc,
+	struct dm_pp_clock_levels_with_voltage *dcfclks)
+{
+	if (dcfclks->num_levels >= 3) {
+		dc->dcn_soc->dcfclkv_min0p65 = dcfclks->data[0].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks->data[dcfclks->num_levels - 3].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks->data[dcfclks->num_levels - 2].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_max0p9 = dcfclks->data[dcfclks->num_levels - 1].clocks_in_khz / 1000.0;
+	}
+}
+
+void dcn_get_soc_clks(
+	struct dc *dc,
+	int *min_fclk_khz,
+	int *min_dcfclk_khz,
+	int *socclk_khz)
+{
+	*min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
+	*min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
+	*socclk_khz = dc->dcn_soc->socclk * 1000;
+}
+
+void dcn_bw_notify_pplib_of_wm_ranges(
+	struct dc *dc,
+	int min_fclk_khz,
+	int min_dcfclk_khz,
+	int socclk_khz)
 {
 	struct pp_smu_funcs_rv *pp = NULL;
 	struct pp_smu_wm_range_sets ranges = {0};
-	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
 
 	if (dc->res_pool->pp_smu)
 		pp = &dc->res_pool->pp_smu->rv_funcs;
 	if (!pp || !pp->set_wm_ranges)
 		return;
-
-	min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
-	min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
-	socclk_khz = dc->dcn_soc->socclk * 1000;
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and

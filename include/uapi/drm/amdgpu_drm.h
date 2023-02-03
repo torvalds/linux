@@ -763,6 +763,8 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_MES_KIQ		0x19
 	/* Subquery id: Query MES firmware version */
 	#define AMDGPU_INFO_FW_MES		0x1a
+	/* Subquery id: Query IMU firmware version */
+	#define AMDGPU_INFO_FW_IMU		0x1b
 
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f

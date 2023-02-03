@@ -82,6 +82,7 @@ properties:
 
   zap-shader:
     type: object
+    additionalProperties: false
     description: |
       For a5xx and a6xx devices this node contains a memory-region that
       points to reserved memory to store the zap shader that can be used to

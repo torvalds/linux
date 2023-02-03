@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpio/microchip,mpfs-gpio.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip MPFS GPIO Controller Device Tree Bindings
+title: Microchip MPFS GPIO Controller
 
 maintainers:
   - Conor Dooley <conor.dooley@microchip.com>

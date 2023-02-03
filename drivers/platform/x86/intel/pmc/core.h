@@ -12,7 +12,9 @@
 #ifndef PMC_CORE_H
 #define PMC_CORE_H
 
+#include <linux/acpi.h>
 #include <linux/bits.h>
+#include <linux/platform_device.h>
 
 #define PMC_BASE_ADDR_DEFAULT			0xFE000000
 
@@ -236,17 +238,17 @@ enum ppfear_regs {
 #define ADL_LPM_STATUS_LATCH_EN_OFFSET		0x1704
 #define ADL_LPM_LIVE_STATUS_OFFSET		0x1764
 
-static const char *pmc_lpm_modes[] = {
-	"S0i2.0",
-	"S0i2.1",
-	"S0i2.2",
-	"S0i3.0",
-	"S0i3.1",
-	"S0i3.2",
-	"S0i3.3",
-	"S0i3.4",
-	NULL
-};
+/* Meteor Lake Power Management Controller register offsets */
+#define MTL_LPM_EN_OFFSET			0x1798
+#define MTL_LPM_RESIDENCY_OFFSET		0x17A0
+
+/* Meteor Lake Low Power Mode debug registers */
+#define MTL_LPM_PRI_OFFSET			0x179C
+#define MTL_LPM_STATUS_LATCH_EN_OFFSET		0x16F8
+#define MTL_LPM_STATUS_OFFSET			0x1700
+#define MTL_LPM_LIVE_STATUS_OFFSET		0x175C
+
+extern const char *pmc_lpm_modes[];
 
 struct pmc_bit_map {
 	const char *name;
@@ -264,7 +266,7 @@ struct pmc_bit_map {
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
  * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
- * @ppfear0_offset:	PWRMBASE offset to to read PPFEAR*
+ * @ppfear0_offset:	PWRMBASE offset to read PPFEAR*
  * @ppfear_buckets:	Number of 8 bits blocks to read all IP blocks from
  *			PPFEAR
  * @pm_cfg_offset:	PWRMBASE offset to PM_CFG register
@@ -312,6 +314,7 @@ struct pmc_reg_map {
  * @regbase:		pointer to io-remapped memory location
  * @map:		pointer to pmc_reg_map struct that contains platform
  *			specific attributes
+ * @pdev:		pointer to platform_device struct
  * @dbgfs_dir:		path to debugfs interface
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
  *			used to read MPHY PG and PLL status are available
@@ -322,6 +325,7 @@ struct pmc_reg_map {
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
  * @lpm_req_regs:	List of substate requirements
+ * @core_configure:	Function pointer to configure the platform
  *
  * pmc_dev contains info about power management controller device.
  */
@@ -330,6 +334,7 @@ struct pmc_dev {
 	void __iomem *regbase;
 	const struct pmc_reg_map *map;
 	struct dentry *dbgfs_dir;
+	struct platform_device *pdev;
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
 
@@ -339,7 +344,69 @@ struct pmc_dev {
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
 	u32 *lpm_req_regs;
+	void (*core_configure)(struct pmc_dev *pmcdev);
 };
+
+extern const struct pmc_bit_map msr_map[];
+extern const struct pmc_bit_map spt_pll_map[];
+extern const struct pmc_bit_map spt_mphy_map[];
+extern const struct pmc_bit_map spt_pfear_map[];
+extern const struct pmc_bit_map *ext_spt_pfear_map[];
+extern const struct pmc_bit_map spt_ltr_show_map[];
+extern const struct pmc_reg_map spt_reg_map;
+extern const struct pmc_bit_map cnp_pfear_map[];
+extern const struct pmc_bit_map *ext_cnp_pfear_map[];
+extern const struct pmc_bit_map cnp_slps0_dbg0_map[];
+extern const struct pmc_bit_map cnp_slps0_dbg1_map[];
+extern const struct pmc_bit_map cnp_slps0_dbg2_map[];
+extern const struct pmc_bit_map *cnp_slps0_dbg_maps[];
+extern const struct pmc_bit_map cnp_ltr_show_map[];
+extern const struct pmc_reg_map cnp_reg_map;
+extern const struct pmc_bit_map icl_pfear_map[];
+extern const struct pmc_bit_map *ext_icl_pfear_map[];
+extern const struct pmc_reg_map icl_reg_map;
+extern const struct pmc_bit_map tgl_pfear_map[];
+extern const struct pmc_bit_map *ext_tgl_pfear_map[];
+extern const struct pmc_bit_map tgl_clocksource_status_map[];
+extern const struct pmc_bit_map tgl_power_gating_status_map[];
+extern const struct pmc_bit_map tgl_d3_status_map[];
+extern const struct pmc_bit_map tgl_vnn_req_status_map[];
+extern const struct pmc_bit_map tgl_vnn_misc_status_map[];
+extern const struct pmc_bit_map tgl_signal_status_map[];
+extern const struct pmc_bit_map *tgl_lpm_maps[];
+extern const struct pmc_reg_map tgl_reg_map;
+extern const struct pmc_bit_map adl_pfear_map[];
+extern const struct pmc_bit_map *ext_adl_pfear_map[];
+extern const struct pmc_bit_map adl_ltr_show_map[];
+extern const struct pmc_bit_map adl_clocksource_status_map[];
+extern const struct pmc_bit_map adl_power_gating_status_0_map[];
+extern const struct pmc_bit_map adl_power_gating_status_1_map[];
+extern const struct pmc_bit_map adl_power_gating_status_2_map[];
+extern const struct pmc_bit_map adl_d3_status_0_map[];
+extern const struct pmc_bit_map adl_d3_status_1_map[];
+extern const struct pmc_bit_map adl_d3_status_2_map[];
+extern const struct pmc_bit_map adl_d3_status_3_map[];
+extern const struct pmc_bit_map adl_vnn_req_status_0_map[];
+extern const struct pmc_bit_map adl_vnn_req_status_1_map[];
+extern const struct pmc_bit_map adl_vnn_req_status_2_map[];
+extern const struct pmc_bit_map adl_vnn_req_status_3_map[];
+extern const struct pmc_bit_map adl_vnn_misc_status_map[];
+extern const struct pmc_bit_map *adl_lpm_maps[];
+extern const struct pmc_reg_map adl_reg_map;
+extern const struct pmc_reg_map mtl_reg_map;
+
+extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
+extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
+
+void spt_core_init(struct pmc_dev *pmcdev);
+void cnp_core_init(struct pmc_dev *pmcdev);
+void icl_core_init(struct pmc_dev *pmcdev);
+void tgl_core_init(struct pmc_dev *pmcdev);
+void adl_core_init(struct pmc_dev *pmcdev);
+void mtl_core_init(struct pmc_dev *pmcdev);
+void tgl_core_configure(struct pmc_dev *pmcdev);
+void adl_core_configure(struct pmc_dev *pmcdev);
+void mtl_core_configure(struct pmc_dev *pmcdev);
 
 #define pmc_for_each_mode(i, mode, pmcdev)		\
 	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\

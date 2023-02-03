@@ -37,16 +37,25 @@ struct genl_info;
  *	do additional, common, filtering and return an error
  * @post_doit: called after an operation's doit callback, it may
  *	undo operations done by pre_doit, for example release locks
+ * @module: pointer to the owning module (set to THIS_MODULE)
  * @mcgrps: multicast groups used by this family
  * @n_mcgrps: number of multicast groups
  * @resv_start_op: first operation for which reserved fields of the header
- *	can be validated, new families should leave this field at zero
+ *	can be validated and policies are required (see below);
+ *	new families should leave this field at zero
  * @mcgrp_offset: starting number of multicast group IDs in this family
  *	(private)
  * @ops: the operations supported by this family
  * @n_ops: number of operations supported by this family
  * @small_ops: the small-struct operations supported by this family
  * @n_small_ops: number of small-struct operations supported by this family
+ *
+ * Attribute policies (the combination of @policy and @maxattr fields)
+ * can be attached at the family level or at the operation level.
+ * If both are present the per-operation policy takes precedence.
+ * For operations before @resv_start_op lack of policy means that the core
+ * will perform no attribute parsing or validation. For newer operations
+ * if policy is not provided core will reject all TLV attributes.
  */
 struct genl_family {
 	int			id;		/* private */
@@ -173,9 +182,9 @@ struct genl_ops {
 };
 
 /**
- * struct genl_info - info that is available during dumpit op call
+ * struct genl_dumpit_info - info that is available during dumpit op call
  * @family: generic netlink family - for internal genl code usage
- * @ops: generic netlink ops - for internal genl code usage
+ * @op: generic netlink ops - for internal genl code usage
  * @attrs: netlink attributes
  */
 struct genl_dumpit_info {
@@ -354,6 +363,7 @@ int genlmsg_multicast_allns(const struct genl_family *family,
 
 /**
  * genlmsg_unicast - unicast a netlink message
+ * @net: network namespace to look up @portid in
  * @skb: netlink message as socket buffer
  * @portid: netlink portid of the destination socket
  */
@@ -373,7 +383,7 @@ static inline int genlmsg_reply(struct sk_buff *skb, struct genl_info *info)
 }
 
 /**
- * gennlmsg_data - head of message payload
+ * genlmsg_data - head of message payload
  * @gnlh: genetlink message header
  */
 static inline void *genlmsg_data(const struct genlmsghdr *gnlh)

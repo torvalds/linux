@@ -542,7 +542,7 @@
 		 */
 		partition@0 {
 			label = "QSPI.SPL";
-			reg = <0x00000000 0x000040000>;
+			reg = <0x00000000 0x00040000>;
 		};
 		partition@1 {
 			label = "QSPI.u-boot";

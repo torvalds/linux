@@ -108,13 +108,6 @@ static inline int PAR_EQUAL(struct fb_par_control *x, struct fb_par_control *y)
 	return (!DIRTY(cmode) && !DIRTY(xres) && !DIRTY(yres)
 		&& !DIRTY(vxres) && !DIRTY(vyres));
 }
-static inline int VAR_MATCH(struct fb_var_screeninfo *x, struct fb_var_screeninfo *y)
-{
-	return (!DIRTY(bits_per_pixel) && !DIRTY(xres)
-		&& !DIRTY(yres) && !DIRTY(xres_virtual)
-		&& !DIRTY(yres_virtual)
-		&& !DIRTY_CMAP(red) && !DIRTY_CMAP(green) && !DIRTY_CMAP(blue));
-}
 
 struct fb_info_control {
 	struct fb_info		info;

@@ -729,6 +729,13 @@ auxtrace.*::
 		If the directory does not exist or has the wrong file type,
 		the current directory is used.
 
+itrace.*::
+
+	debug-log-buffer-size::
+		Log size in bytes to output when using the option --itrace=d+e
+		Refer 'itrace' option of linkperf:perf-script[1] or
+		linkperf:perf-report[1]. The default is 16384.
+
 daemon.*::
 
 	daemon.base::

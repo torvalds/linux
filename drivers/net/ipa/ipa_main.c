@@ -434,6 +434,9 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 	const struct ipa_reg *reg;
 	u32 val;
 
+	if (ipa->version < IPA_VERSION_3_5_1)
+		return;
+
 	reg = ipa_reg(ipa, IDLE_INDICATION_CFG);
 	val = ipa_reg_encode(reg, ENTER_IDLE_DEBOUNCE_THRESH,
 			     enter_idle_debounce_thresh);

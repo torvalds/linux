@@ -274,9 +274,6 @@ extern int amdgpu_vcnfw_log;
 #define AMDGPU_RESET_VCE			(1 << 13)
 #define AMDGPU_RESET_VCE1			(1 << 14)
 
-#define AMDGPU_RESET_LEVEL_SOFT_RECOVERY (1 << 0)
-#define AMDGPU_RESET_LEVEL_MODE2 (1 << 1)
-
 /* max cursor sizes (in pixels) */
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
@@ -1065,7 +1062,6 @@ struct amdgpu_device {
 
 	struct work_struct		reset_work;
 
-	uint32_t						amdgpu_reset_level_mask;
 	bool                            job_hang;
 };
 
@@ -1297,6 +1293,7 @@ void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev,
 				u32 reg, u32 v);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
+bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)

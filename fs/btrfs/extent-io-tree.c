@@ -1641,16 +1641,17 @@ int lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 	int err;
 	u64 failed_start;
 
-	while (1) {
+	err = __set_extent_bit(tree, start, end, EXTENT_LOCKED, &failed_start,
+			       cached_state, NULL, GFP_NOFS);
+	while (err == -EEXIST) {
+		if (failed_start != start)
+			clear_extent_bit(tree, start, failed_start - 1,
+					 EXTENT_LOCKED, cached_state);
+
+		wait_extent_bit(tree, failed_start, end, EXTENT_LOCKED);
 		err = __set_extent_bit(tree, start, end, EXTENT_LOCKED,
 				       &failed_start, cached_state, NULL,
 				       GFP_NOFS);
-		if (err == -EEXIST) {
-			wait_extent_bit(tree, failed_start, end, EXTENT_LOCKED);
-			start = failed_start;
-		} else
-			break;
-		WARN_ON(start > end);
 	}
 	return err;
 }

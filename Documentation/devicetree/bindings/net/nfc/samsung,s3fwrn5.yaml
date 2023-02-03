@@ -8,7 +8,6 @@ title: Samsung S3FWRN5 NCI NFC Controller
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
-  - Krzysztof Opasiak <k.opasiak@samsung.com>
 
 properties:
   compatible:

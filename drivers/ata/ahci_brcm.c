@@ -448,7 +448,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (!of_id)
 		return -ENODEV;
 
-	priv->version = (enum brcm_ahci_version)of_id->data;
+	priv->version = (unsigned long)of_id->data;
 	priv->dev = dev;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "top-ctrl");

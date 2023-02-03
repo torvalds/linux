@@ -3,7 +3,7 @@
  * Copyright 2019 Toradex
  */
 
-#include "dt-bindings/input/linux-event-codes.h"
+#include <dt-bindings/input/linux-event-codes.h>
 
 / {
 	aliases {

@@ -37,6 +37,7 @@ Library functionality that is used throughout the kernel.
    kref
    assoc_array
    xarray
+   maple_tree
    idr
    circular-buffers
    rbtree

@@ -168,7 +168,7 @@
 		/* MTD partition table */
 		partition@0 {
 			label = "SPL";
-			reg = <0x00000000 0x000080000>;
+			reg = <0x00000000 0x00080000>;
 		};
 
 		partition@1 {
@@ -188,7 +188,7 @@
 
 		partition@4 {
 			label = "File System";
-			reg = <0x00780000 0x007880000>;
+			reg = <0x00780000 0x07880000>;
 		};
 	};
 };

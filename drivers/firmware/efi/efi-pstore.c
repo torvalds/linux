@@ -207,7 +207,7 @@ static int efi_pstore_erase(struct pstore_record *record)
 
 static struct pstore_info efi_pstore_info = {
 	.owner		= THIS_MODULE,
-	.name		= "efi",
+	.name		= KBUILD_MODNAME,
 	.flags		= PSTORE_FLAGS_DMESG,
 	.open		= efi_pstore_open,
 	.close		= efi_pstore_close,

@@ -36,6 +36,7 @@ int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 int btrfs_get_dev_zone_info_all_devices(struct btrfs_fs_info *fs_info);
 int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache);
 void btrfs_destroy_dev_zone_info(struct btrfs_device *device);
+struct btrfs_zoned_device_info *btrfs_clone_dev_zone_info(struct btrfs_device *orig_dev);
 int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info);
 int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info);
 int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
@@ -102,6 +103,16 @@ static inline int btrfs_get_dev_zone_info(struct btrfs_device *device,
 }
 
 static inline void btrfs_destroy_dev_zone_info(struct btrfs_device *device) { }
+
+/*
+ * In case the kernel is compiled without CONFIG_BLK_DEV_ZONED we'll never call
+ * into btrfs_clone_dev_zone_info() so it's safe to return NULL here.
+ */
+static inline struct btrfs_zoned_device_info *btrfs_clone_dev_zone_info(
+						 struct btrfs_device *orig_dev)
+{
+	return NULL;
+}
 
 static inline int btrfs_check_zoned_mode(const struct btrfs_fs_info *fs_info)
 {

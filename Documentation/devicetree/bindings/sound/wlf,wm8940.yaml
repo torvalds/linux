@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/wlf,wm8940.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Wolfson WM8940 Codec Device Tree Bindings
+title: Wolfson WM8940 Codec
 
 maintainers:
   - patches@opensource.cirrus.com

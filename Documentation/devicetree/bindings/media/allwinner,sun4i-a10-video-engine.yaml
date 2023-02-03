@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/allwinner,sun4i-a10-video-engine.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Video Engine Device Tree Bindings
+title: Allwinner A10 Video Engine
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

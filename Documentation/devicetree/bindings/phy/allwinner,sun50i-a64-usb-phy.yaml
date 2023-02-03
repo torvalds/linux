@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/allwinner,sun50i-a64-usb-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A64 USB PHY Device Tree Bindings
+title: Allwinner A64 USB PHY
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

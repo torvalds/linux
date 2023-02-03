@@ -27,71 +27,38 @@ extern void __init early_iounmap(void __iomem *addr, unsigned long size);
 #define early_memremap early_ioremap
 #define early_memunmap early_iounmap
 
+#ifdef CONFIG_ARCH_IOREMAP
+
 static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 					 unsigned long prot_val)
 {
-	if (prot_val == _CACHE_CC)
+	if (prot_val & _CACHE_CC)
 		return (void __iomem *)(unsigned long)(CACHE_BASE + offset);
 	else
 		return (void __iomem *)(unsigned long)(UNCACHE_BASE + offset);
 }
 
+#define ioremap(offset, size)		\
+	ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL_SUC))
+
+#define iounmap(addr) 			((void)(addr))
+
+#endif
+
 /*
- * ioremap -   map bus memory into CPU space
+ * On LoongArch, ioremap() has two variants, ioremap_wc() and ioremap_cache().
+ * They map bus memory into CPU space, the mapped memory is marked uncachable
+ * (_CACHE_SUC), uncachable but accelerated by write-combine (_CACHE_WUC) and
+ * cachable (_CACHE_CC) respectively for CPU access.
+ *
  * @offset:    bus address of the memory
  * @size:      size of the resource to map
- *
- * ioremap performs a platform specific sequence of operations to
- * make bus memory CPU accessible via the readb/readw/readl/writeb/
- * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
- * address.
  */
-#define ioremap(offset, size)					\
-	ioremap_prot((offset), (size), _CACHE_SUC)
+#define ioremap_wc(offset, size)	\
+	ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL_WUC))
 
-/*
- * ioremap_wc - map bus memory into CPU space
- * @offset:     bus address of the memory
- * @size:       size of the resource to map
- *
- * ioremap_wc performs a platform specific sequence of operations to
- * make bus memory CPU accessible via the readb/readw/readl/writeb/
- * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
- * address.
- *
- * This version of ioremap ensures that the memory is marked uncachable
- * but accelerated by means of write-combining feature. It is specifically
- * useful for PCIe prefetchable windows, which may vastly improve a
- * communications performance. If it was determined on boot stage, what
- * CPU CCA doesn't support WUC, the method shall fall-back to the
- * _CACHE_SUC option (see cpu_probe() method).
- */
-#define ioremap_wc(offset, size)				\
-	ioremap_prot((offset), (size), _CACHE_WUC)
-
-/*
- * ioremap_cache -  map bus memory into CPU space
- * @offset:	    bus address of the memory
- * @size:	    size of the resource to map
- *
- * ioremap_cache performs a platform specific sequence of operations to
- * make bus memory CPU accessible via the readb/readw/readl/writeb/
- * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
- * address.
- *
- * This version of ioremap ensures that the memory is marked cachable by
- * the CPU.  Also enables full write-combining.	 Useful for some
- * memory-like regions on I/O busses.
- */
-#define ioremap_cache(offset, size)				\
-	ioremap_prot((offset), (size), _CACHE_CC)
-
-static inline void iounmap(const volatile void __iomem *addr)
-{
-}
+#define ioremap_cache(offset, size)	\
+	ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL))
 
 #define mmiowb() asm volatile ("dbar 0" ::: "memory")
 
@@ -106,5 +73,9 @@ extern void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t 
 #define memcpy_toio(c, a, l)   __memcpy_toio((c), (a), (l))
 
 #include <asm-generic/io.h>
+
+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
+extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
+extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 #endif /* _ASM_IO_H */

@@ -27,6 +27,7 @@ examples:
       cros_ec: ec@0 {
         compatible = "google,cros-ec-spi";
         reg = <0>;
+        interrupts = <15 0>;
 
         kbd-led-backlight {
           compatible = "google,cros-kbd-led-backlight";

@@ -40,4 +40,9 @@ extern unsigned long fw_arg0, fw_arg1, fw_arg2;
 extern struct loongson_board_info b_info;
 extern struct loongson_system_configuration loongson_sysconf;
 
+static inline bool io_master(int cpu)
+{
+	return test_bit(cpu, &loongson_sysconf.cores_io_master);
+}
+
 #endif /* _ASM_BOOTINFO_H */

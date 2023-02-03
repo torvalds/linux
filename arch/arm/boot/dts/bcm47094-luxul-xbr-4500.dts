@@ -30,13 +30,13 @@
 	leds {
 		compatible = "gpio-leds";
 
-		status {
+		led-status {
 			label = "bcm53xx:green:status";
 			gpios = <&chipcommon 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "timer";
 		};
 
-		usb3 {
+		led-usb3 {
 			label = "bcm53xx:green:usb3";
 			gpios = <&chipcommon 19 GPIO_ACTIVE_HIGH>;
 			trigger-sources = <&ohci_port1>, <&ehci_port1>,

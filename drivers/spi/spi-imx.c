@@ -444,8 +444,7 @@ static unsigned int mx51_ecspi_clkdiv(struct spi_imx_data *spi_imx,
 	unsigned int pre, post;
 	unsigned int fin = spi_imx->spi_clk;
 
-	if (unlikely(fspi > fin))
-		return 0;
+	fspi = min(fspi, fin);
 
 	post = fls(fin) - fls(fspi);
 	if (fin > fspi << post)
@@ -1608,6 +1607,13 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 		return spi_imx_pio_transfer_slave(spi, transfer);
 
 	/*
+	 * If we decided in spi_imx_can_dma() that we want to do a DMA
+	 * transfer, the SPI transfer has already been mapped, so we
+	 * have to do the DMA transfer here.
+	 */
+	if (spi_imx->usedma)
+		return spi_imx_dma_transfer(spi_imx, transfer);
+	/*
 	 * Calculate the estimated time in us the transfer runs. Find
 	 * the number of Hz per byte per polling limit.
 	 */
@@ -1617,9 +1623,6 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 	/* run in polling mode for short transfers */
 	if (transfer->len < byte_limit)
 		return spi_imx_poll_transfer(spi, transfer);
-
-	if (spi_imx->usedma)
-		return spi_imx_dma_transfer(spi_imx, transfer);
 
 	return spi_imx_pio_transfer(spi, transfer);
 }

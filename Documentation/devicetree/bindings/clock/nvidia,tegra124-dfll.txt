@@ -136,7 +136,7 @@ clock@70110000 {
 };
 
 /* pinmux nodes added for completeness. Binding doc can be found in:
- * Documentation/devicetree/bindings/pinctrl/nvidia,tegra210-pinmux.txt
+ * Documentation/devicetree/bindings/pinctrl/nvidia,tegra210-pinmux.yaml
  */
 
 pinmux: pinmux@700008d4 {

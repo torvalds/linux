@@ -715,11 +715,11 @@ int main(int argc, char **argv)
 				continue;
 			}
 
-			toread = buf_len;
 		} else {
 			usleep(timedelay);
-			toread = 64;
 		}
+
+		toread = buf_len;
 
 		read_size = read(buf_fd, data, toread * scan_size);
 		if (read_size < 0) {

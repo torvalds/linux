@@ -939,8 +939,8 @@ static int sur40_vidioc_querycap(struct file *file, void *priv,
 {
 	struct sur40_state *sur40 = video_drvdata(file);
 
-	strlcpy(cap->driver, DRIVER_SHORT, sizeof(cap->driver));
-	strlcpy(cap->card, DRIVER_LONG, sizeof(cap->card));
+	strscpy(cap->driver, DRIVER_SHORT, sizeof(cap->driver));
+	strscpy(cap->card, DRIVER_LONG, sizeof(cap->card));
 	usb_make_path(sur40->usbdev, cap->bus_info, sizeof(cap->bus_info));
 	return 0;
 }
@@ -952,7 +952,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	i->type = V4L2_INPUT_TYPE_TOUCH;
 	i->std = V4L2_STD_UNKNOWN;
-	strlcpy(i->name, "In-Cell Sensor", sizeof(i->name));
+	strscpy(i->name, "In-Cell Sensor", sizeof(i->name));
 	i->capabilities = 0;
 	return 0;
 }

@@ -562,7 +562,7 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 	if (!mtd_is_partition(mtd))
 		return;
 	parent = mtd->parent;
-	parent_dn = dev_of_node(&parent->dev);
+	parent_dn = of_node_get(dev_of_node(&parent->dev));
 	if (!parent_dn)
 		return;
 

@@ -52,19 +52,19 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wps {
+		led-wps {
 			label = "bcm53xx:white:wps";
 			gpios = <&chipcommon 22 GPIO_ACTIVE_LOW>;
 		};
 
-		usb2 {
+		led-usb2 {
 			label = "bcm53xx:green:usb2";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ohci_port2>, <&ehci_port2>;
 			linux,default-trigger = "usbport";
 		};
 
-		usb3 {
+		led-usb3 {
 			label = "bcm53xx:green:usb3";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ohci_port1>, <&ehci_port1>,
@@ -72,58 +72,58 @@
 			linux,default-trigger = "usbport";
 		};
 
-		power {
+		led-power {
 			label = "bcm53xx:white:power";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 
-		wifi-disabled {
+		led-wifi-disabled {
 			label = "bcm53xx:amber:wifi-disabled";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
 		};
 
-		wifi-enabled {
+		led-wifi-enabled {
 			label = "bcm53xx:white:wifi-enabled";
 			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar1 {
+		led-bluebar1 {
 			label = "bcm53xx:white:bluebar1";
 			gpios = <&chipcommon 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar2 {
+		led-bluebar2 {
 			label = "bcm53xx:white:bluebar2";
 			gpios = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar3 {
+		led-bluebar3 {
 			label = "bcm53xx:white:bluebar3";
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
 		};
 
-		bluebar4 {
+		led-bluebar4 {
 			label = "bcm53xx:white:bluebar4";
 			gpios = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar5 {
+		led-bluebar5 {
 			label = "bcm53xx:white:bluebar5";
 			gpios = <&chipcommon 19 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar6 {
+		led-bluebar6 {
 			label = "bcm53xx:white:bluebar6";
 			gpios = <&chipcommon 20 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar7 {
+		led-bluebar7 {
 			label = "bcm53xx:white:bluebar7";
 			gpios = <&chipcommon 21 GPIO_ACTIVE_HIGH>;
 		};
 
-		bluebar8 {
+		led-bluebar8 {
 			label = "bcm53xx:white:bluebar8";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_HIGH>;
 		};

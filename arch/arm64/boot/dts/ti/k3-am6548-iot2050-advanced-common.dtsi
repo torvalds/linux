@@ -50,7 +50,3 @@
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
-
-&main_uart0 {
-	status = "disabled";
-};

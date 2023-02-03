@@ -147,14 +147,6 @@ struct smu_11_5_power_context {
 	uint32_t	max_fast_ppt_limit;
 };
 
-enum smu_v11_0_baco_seq {
-	BACO_SEQ_BACO = 0,
-	BACO_SEQ_MSR,
-	BACO_SEQ_BAMACO,
-	BACO_SEQ_ULPS,
-	BACO_SEQ_COUNT,
-};
-
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
 
 int smu_v11_0_init_microcode(struct smu_context *smu);
@@ -257,7 +249,7 @@ int smu_v11_0_baco_enter(struct smu_context *smu);
 int smu_v11_0_baco_exit(struct smu_context *smu);
 
 int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu,
-				      enum smu_v11_0_baco_seq baco_seq);
+				      enum smu_baco_seq baco_seq);
 
 int smu_v11_0_mode1_reset(struct smu_context *smu);
 

@@ -189,15 +189,11 @@ SYM_FUNC_END(cpu_do_resume)
  * called by anything else. It can only be executed from a TTBR0 mapping.
  */
 SYM_TYPED_FUNC_START(idmap_cpu_replace_ttbr1)
-	save_and_disable_daif flags=x2
-
 	__idmap_cpu_set_reserved_ttbr1 x1, x3
 
 	offset_ttbr1 x0, x3
 	msr	ttbr1_el1, x0
 	isb
-
-	restore_daif x2
 
 	ret
 SYM_FUNC_END(idmap_cpu_replace_ttbr1)

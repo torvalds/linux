@@ -542,31 +542,32 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static int
-cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-		     struct cifs_sb_info *cifs_sb, const char *full_path,
-		     FILE_ALL_INFO *data, bool *adjustTZ, bool *symlink)
+static int cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb, const char *full_path,
+				struct cifs_open_info_data *data, bool *adjustTZ, bool *symlink)
 {
 	int rc;
+	FILE_ALL_INFO fi = {};
 
 	*symlink = false;
 
 	/* could do find first instead but this returns more info */
-	rc = CIFSSMBQPathInfo(xid, tcon, full_path, data, 0 /* not legacy */,
-			      cifs_sb->local_nls, cifs_remap(cifs_sb));
+	rc = CIFSSMBQPathInfo(xid, tcon, full_path, &fi, 0 /* not legacy */, cifs_sb->local_nls,
+			      cifs_remap(cifs_sb));
 	/*
 	 * BB optimize code so we do not make the above call when server claims
 	 * no NT SMB support and the above call failed at least once - set flag
 	 * in tcon or mount.
 	 */
 	if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
-		rc = SMBQueryInformation(xid, tcon, full_path, data,
-					 cifs_sb->local_nls,
+		rc = SMBQueryInformation(xid, tcon, full_path, &fi, cifs_sb->local_nls,
 					 cifs_remap(cifs_sb));
+		if (!rc)
+			move_cifs_info_to_smb2(&data->fi, &fi);
 		*adjustTZ = true;
 	}
 
-	if (!rc && (le32_to_cpu(data->Attributes) & ATTR_REPARSE)) {
+	if (!rc && (le32_to_cpu(fi.Attributes) & ATTR_REPARSE)) {
 		int tmprc;
 		int oplock = 0;
 		struct cifs_fid fid;
@@ -592,10 +593,9 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static int
-cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
-		  struct cifs_sb_info *cifs_sb, const char *full_path,
-		  u64 *uniqueid, FILE_ALL_INFO *data)
+static int cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
+			     struct cifs_sb_info *cifs_sb, const char *full_path,
+			     u64 *uniqueid, struct cifs_open_info_data *unused)
 {
 	/*
 	 * We can not use the IndexNumber field by default from Windows or
@@ -613,11 +613,22 @@ cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 				     cifs_remap(cifs_sb));
 }
 
-static int
-cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
-		     struct cifs_fid *fid, FILE_ALL_INFO *data)
+static int cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
+				struct cifsFileInfo *cfile, struct cifs_open_info_data *data)
 {
-	return CIFSSMBQFileInfo(xid, tcon, fid->netfid, data);
+	int rc;
+	FILE_ALL_INFO fi = {};
+
+	if (cfile->symlink_target) {
+		data->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
+		if (!data->symlink_target)
+			return -ENOMEM;
+	}
+
+	rc = CIFSSMBQFileInfo(xid, tcon, cfile->fid.netfid, &fi);
+	if (!rc)
+		move_cifs_info_to_smb2(&data->fi, &fi);
+	return rc;
 }
 
 static void
@@ -702,19 +713,20 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 		cifsInode->cifsAttrs = dosattrs;
 }
 
-static int
-cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
-	       __u32 *oplock, FILE_ALL_INFO *buf)
+static int cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32 *oplock,
+			  void *buf)
 {
+	FILE_ALL_INFO *fi = buf;
+
 	if (!(oparms->tcon->ses->capabilities & CAP_NT_SMBS))
 		return SMBLegacyOpen(xid, oparms->tcon, oparms->path,
 				     oparms->disposition,
 				     oparms->desired_access,
 				     oparms->create_options,
-				     &oparms->fid->netfid, oplock, buf,
+				     &oparms->fid->netfid, oplock, fi,
 				     oparms->cifs_sb->local_nls,
 				     cifs_remap(oparms->cifs_sb));
-	return CIFS_open(xid, oparms, oplock, buf);
+	return CIFS_open(xid, oparms, oplock, fi);
 }
 
 static void

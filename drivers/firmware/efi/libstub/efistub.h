@@ -975,4 +975,32 @@ efi_enable_reset_attack_mitigation(void) { }
 
 void efi_retrieve_tpm2_eventlog(void);
 
+struct efi_smbios_record {
+	u8	type;
+	u8	length;
+	u16	handle;
+};
+
+struct efi_smbios_type1_record {
+	struct efi_smbios_record	header;
+
+	u8				manufacturer;
+	u8				product_name;
+	u8				version;
+	u8				serial_number;
+	efi_guid_t			uuid;
+	u8				wakeup_type;
+	u8				sku_number;
+	u8				family;
+};
+
+#define efi_get_smbios_string(__type, __name) ({			\
+	int size = sizeof(struct efi_smbios_type ## __type ## _record);	\
+	int off = offsetof(struct efi_smbios_type ## __type ## _record,	\
+			   __name);					\
+	__efi_get_smbios_string(__type, off, size);			\
+})
+
+const u8 *__efi_get_smbios_string(u8 type, int offset, int recsize);
+
 #endif

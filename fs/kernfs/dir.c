@@ -31,10 +31,15 @@ static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
+static bool __kernfs_active(struct kernfs_node *kn)
+{
+	return atomic_read(&kn->active) >= 0;
+}
+
 static bool kernfs_active(struct kernfs_node *kn)
 {
 	lockdep_assert_held(&kernfs_root(kn)->kernfs_rwsem);
-	return atomic_read(&kn->active) >= 0;
+	return __kernfs_active(kn);
 }
 
 static bool kernfs_lockdep(struct kernfs_node *kn)
@@ -705,7 +710,12 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 			goto err_unlock;
 	}
 
-	if (unlikely(!kernfs_active(kn) || !atomic_inc_not_zero(&kn->count)))
+	/*
+	 * We should fail if @kn has never been activated and guarantee success
+	 * if the caller knows that @kn is active. Both can be achieved by
+	 * __kernfs_active() which tests @kn->active without kernfs_rwsem.
+	 */
+	if (unlikely(!__kernfs_active(kn) || !atomic_inc_not_zero(&kn->count)))
 		goto err_unlock;
 
 	spin_unlock(&kernfs_idr_lock);

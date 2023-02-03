@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/allwinner,sun8i-a23-codec-analog.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A23 Analog Codec Device Tree Bindings
+title: Allwinner A23 Analog Codec
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

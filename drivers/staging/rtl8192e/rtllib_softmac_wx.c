@@ -439,7 +439,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 			union iwreq_data *wrqu, char *extra)
 {
 
-	int ret = 0, len, i;
+	int ret = 0, len;
 	short proto_started;
 	unsigned long flags;
 
@@ -453,13 +453,6 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ret = -1;
 		goto out;
-	}
-
-	for (i = 0; i < len; i++) {
-		if (extra[i] < 0) {
-			ret = -1;
-			goto out;
-		}
 	}
 
 	if (proto_started)

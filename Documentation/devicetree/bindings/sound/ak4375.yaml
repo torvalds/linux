@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/ak4375.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: AK4375 DAC and headphones amplifier Device Tree Bindings
+title: AK4375 DAC and headphones amplifier
 
 maintainers:
   - Vincent Knecht <vincent.knecht@mailoo.org>

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/arm,pl353-nand-r2p1.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: PL353 NAND Controller device tree bindings
+title: PL353 NAND Controller
 
 allOf:
   - $ref: "nand-controller.yaml"

@@ -1793,7 +1793,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	p->parent = p->real_parent = p->group_leader = p;
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
-	strncpy(p->comm, type, sizeof(p->comm)-1);
+	strscpy(p->comm, type, sizeof(p->comm)-1);
 }
 
 /* Caller prevents this from being called after init */

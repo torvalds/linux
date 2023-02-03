@@ -133,7 +133,7 @@ static int cn10k_mcs_alloc_rsrc(struct otx2_nic *pfvf, enum mcs_direction dir,
 	default:
 		ret = -EINVAL;
 		goto fail;
-	};
+	}
 
 	mutex_unlock(&mbox->lock);
 
@@ -284,7 +284,7 @@ static int cn10k_mcs_write_sc_cam(struct otx2_nic *pfvf,
 
 	sc_req = otx2_mbox_alloc_msg_mcs_rx_sc_cam_write(mbox);
 	if (!sc_req) {
-		return -ENOMEM;
+		ret = -ENOMEM;
 		goto fail;
 	}
 
@@ -594,7 +594,7 @@ static int cn10k_mcs_ena_dis_flowid(struct otx2_nic *pfvf, u16 hw_flow_id,
 
 	req = otx2_mbox_alloc_msg_mcs_flowid_ena_entry(mbox);
 	if (!req) {
-		return -ENOMEM;
+		ret = -ENOMEM;
 		goto fail;
 	}
 
@@ -815,6 +815,7 @@ free_flowid:
 	cn10k_mcs_free_rsrc(pfvf, MCS_TX, MCS_RSRC_TYPE_FLOWID,
 			    txsc->hw_flow_id, false);
 fail:
+	kfree(txsc);
 	return ERR_PTR(ret);
 }
 
@@ -870,6 +871,7 @@ free_flowid:
 	cn10k_mcs_free_rsrc(pfvf, MCS_RX, MCS_RSRC_TYPE_FLOWID,
 			    rxsc->hw_flow_id, false);
 fail:
+	kfree(rxsc);
 	return ERR_PTR(ret);
 }
 
@@ -1653,6 +1655,7 @@ int cn10k_mcs_init(struct otx2_nic *pfvf)
 	return 0;
 fail:
 	dev_err(pfvf->dev, "Cannot notify PN wrapped event\n");
+	mutex_unlock(&mbox->lock);
 	return 0;
 }
 

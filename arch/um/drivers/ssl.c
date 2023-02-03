@@ -106,7 +106,7 @@ static const struct tty_operations ssl_ops = {
 /* Changed by ssl_init and referenced by ssl_exit, which are both serialized
  * by being an initcall and exitcall, respectively.
  */
-static int ssl_init_done = 0;
+static int ssl_init_done;
 
 static void ssl_console_write(struct console *c, const char *string,
 			      unsigned len)

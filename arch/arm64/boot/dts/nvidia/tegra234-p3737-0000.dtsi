@@ -2,4 +2,18 @@
 
 / {
 	compatible = "nvidia,p3737-0000";
+
+	bus@0 {
+		pwm@3280000 {
+			status = "okay";
+		};
+
+		pwm@32c0000 {
+			status = "okay";
+		};
+
+		pwm@32f0000 {
+			status = "okay";
+		};
+	};
 };

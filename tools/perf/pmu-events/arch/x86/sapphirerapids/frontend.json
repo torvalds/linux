@@ -12,6 +12,17 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Cycles the Microcode Sequencer is busy.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x87",
+        "EventName": "DECODE.MS_BUSY",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "500009",
+        "Speculative": "1",
+        "UMask": "0x2"
+    },
+    {
         "BriefDescription": "DSB-to-MITE switch true penalty cycles.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",

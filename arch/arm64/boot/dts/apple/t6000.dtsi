@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple T6000 "M1 Pro" SoC
+ *
+ * Other names: H13J, "Jade Chop"
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/* This chip is just a cut down version of t6001, so include it and disable the missing parts */
+
+#include "t6001.dtsi"
+
+/ {
+	compatible = "apple,t6000", "apple,arm-platform";
+};
+
+/delete-node/ &pmgr_south;

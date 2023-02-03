@@ -1010,7 +1010,7 @@ static inline const char *str_msg(const struct msg *msg, char *buf)
 			msg->subtest_done.have_log);
 		break;
 	case MSG_TEST_LOG:
-		sprintf(buf, "MSG_TEST_LOG (cnt: %ld, last: %d)",
+		sprintf(buf, "MSG_TEST_LOG (cnt: %zu, last: %d)",
 			strlen(msg->test_log.log_buf),
 			msg->test_log.is_last);
 		break;

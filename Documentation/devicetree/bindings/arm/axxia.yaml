@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/axxia.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Axxia AXM55xx device tree bindings
+title: Axxia AXM55xx
 
 maintainers:
   - Anders Berg <anders.berg@lsi.com>

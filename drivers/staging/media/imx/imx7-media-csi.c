@@ -1360,7 +1360,7 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 
 	mutex_lock(&csi->mdev.graph_mutex);
 
-	ret = __media_pipeline_start(&csi->sd.entity, &csi->pipe);
+	ret = __video_device_pipeline_start(csi->vdev, &csi->pipe);
 	if (ret)
 		goto err_unlock;
 
@@ -1373,7 +1373,7 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 	return 0;
 
 err_stop:
-	__media_pipeline_stop(&csi->sd.entity);
+	__video_device_pipeline_stop(csi->vdev);
 err_unlock:
 	mutex_unlock(&csi->mdev.graph_mutex);
 	dev_err(csi->dev, "pipeline start failed with %d\n", ret);
@@ -1396,7 +1396,7 @@ static void imx7_csi_video_stop_streaming(struct vb2_queue *vq)
 
 	mutex_lock(&csi->mdev.graph_mutex);
 	v4l2_subdev_call(&csi->sd, video, s_stream, 0);
-	__media_pipeline_stop(&csi->sd.entity);
+	__video_device_pipeline_stop(csi->vdev);
 	mutex_unlock(&csi->mdev.graph_mutex);
 
 	/* release all active buffers */

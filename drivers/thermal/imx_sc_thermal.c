@@ -76,59 +76,55 @@ static const struct thermal_zone_device_ops imx_sc_thermal_ops = {
 
 static int imx_sc_thermal_probe(struct platform_device *pdev)
 {
-	struct device_node *np, *child, *sensor_np;
 	struct imx_sc_sensor *sensor;
-	int ret;
+	const int *resource_id;
+	int i, ret;
 
 	ret = imx_scu_get_handle(&thermal_ipc_handle);
 	if (ret)
 		return ret;
 
-	np = of_find_node_by_name(NULL, "thermal-zones");
-	if (!np)
-		return -ENODEV;
+	resource_id = of_device_get_match_data(&pdev->dev);
+	if (!resource_id)
+		return -EINVAL;
 
-	sensor_np = of_node_get(pdev->dev.of_node);
+	for (i = 0; resource_id[i] > 0; i++) {
 
-	for_each_available_child_of_node(np, child) {
 		sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
-		if (!sensor) {
-			of_node_put(child);
-			ret = -ENOMEM;
-			goto put_node;
-		}
+		if (!sensor)
+			return -ENOMEM;
 
-		ret = thermal_zone_of_get_sensor_id(child,
-						    sensor_np,
-						    &sensor->resource_id);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"failed to get valid sensor resource id: %d\n",
-				ret);
-			of_node_put(child);
-			break;
-		}
+		sensor->resource_id = resource_id[i];
 
-		sensor->tzd = devm_thermal_of_zone_register(&pdev->dev,
-							    sensor->resource_id,
-							    sensor,
-							    &imx_sc_thermal_ops);
+		sensor->tzd = devm_thermal_of_zone_register(&pdev->dev, sensor->resource_id,
+							    sensor, &imx_sc_thermal_ops);
 		if (IS_ERR(sensor->tzd)) {
-			dev_err(&pdev->dev, "failed to register thermal zone\n");
+			/*
+			 * Save the error value before freeing the
+			 * sensor pointer, otherwise we endup with a
+			 * use-after-free error
+			 */
 			ret = PTR_ERR(sensor->tzd);
-			of_node_put(child);
-			break;
+
+			devm_kfree(&pdev->dev, sensor);
+
+			/*
+			 * The thermal framework notifies us there is
+			 * no thermal zone description for such a
+			 * sensor id
+			 */
+			if (ret == -ENODEV)
+				continue;
+
+			dev_err(&pdev->dev, "failed to register thermal zone\n");
+			return ret;
 		}
 
 		if (devm_thermal_add_hwmon_sysfs(sensor->tzd))
 			dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 	}
 
-put_node:
-	of_node_put(sensor_np);
-	of_node_put(np);
-
-	return ret;
+	return 0;
 }
 
 static int imx_sc_thermal_remove(struct platform_device *pdev)
@@ -136,8 +132,10 @@ static int imx_sc_thermal_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int imx_sc_sensors[] = { IMX_SC_R_SYSTEM, IMX_SC_R_PMIC_0, -1 };
+
 static const struct of_device_id imx_sc_thermal_table[] = {
-	{ .compatible = "fsl,imx-sc-thermal", },
+	{ .compatible = "fsl,imx-sc-thermal", .data =  imx_sc_sensors },
 	{}
 };
 MODULE_DEVICE_TABLE(of, imx_sc_thermal_table);

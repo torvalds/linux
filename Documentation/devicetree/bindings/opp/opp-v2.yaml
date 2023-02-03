@@ -155,7 +155,7 @@ examples:
             opp-hz = /bits/ 64 <1200000000>;
             opp-microvolt = <1025000>;
             opp-microamp = <90000>;
-            lock-latency-ns = <290000>;
+            clock-latency-ns = <290000>;
             turbo-mode;
         };
     };

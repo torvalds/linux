@@ -65,7 +65,7 @@ void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 			v4l2_event_queue_fh(sev->fh, &ev);
 }
 
-bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl, u32 elems,
+bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl,
 			     union v4l2_ctrl_ptr ptr1, union v4l2_ctrl_ptr ptr2)
 {
 	unsigned int i;
@@ -74,7 +74,7 @@ bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl, u32 elems,
 	case V4L2_CTRL_TYPE_BUTTON:
 		return false;
 	case V4L2_CTRL_TYPE_STRING:
-		for (i = 0; i < elems; i++) {
+		for (i = 0; i < ctrl->elems; i++) {
 			unsigned int idx = i * ctrl->elem_size;
 
 			/* strings are always 0-terminated */
@@ -84,7 +84,7 @@ bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl, u32 elems,
 		return true;
 	default:
 		return !memcmp(ptr1.p_const, ptr2.p_const,
-			       elems * ctrl->elem_size);
+			       ctrl->elems * ctrl->elem_size);
 	}
 }
 EXPORT_SYMBOL(v4l2_ctrl_type_op_equal);
@@ -178,9 +178,10 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 }
 
 void v4l2_ctrl_type_op_init(const struct v4l2_ctrl *ctrl, u32 from_idx,
-			    u32 tot_elems, union v4l2_ctrl_ptr ptr)
+			    union v4l2_ctrl_ptr ptr)
 {
 	unsigned int i;
+	u32 tot_elems = ctrl->elems;
 	u32 elems = tot_elems - from_idx;
 
 	if (from_idx >= tot_elems)
@@ -995,7 +996,7 @@ static int std_validate_elem(const struct v4l2_ctrl *ctrl, u32 idx,
 	}
 }
 
-int v4l2_ctrl_type_op_validate(const struct v4l2_ctrl *ctrl, u32 elems,
+int v4l2_ctrl_type_op_validate(const struct v4l2_ctrl *ctrl,
 			       union v4l2_ctrl_ptr ptr)
 {
 	unsigned int i;
@@ -1017,11 +1018,11 @@ int v4l2_ctrl_type_op_validate(const struct v4l2_ctrl *ctrl, u32 elems,
 
 	case V4L2_CTRL_TYPE_BUTTON:
 	case V4L2_CTRL_TYPE_CTRL_CLASS:
-		memset(ptr.p_s32, 0, elems * sizeof(s32));
+		memset(ptr.p_s32, 0, ctrl->new_elems * sizeof(s32));
 		return 0;
 	}
 
-	for (i = 0; !ret && i < elems; i++)
+	for (i = 0; !ret && i < ctrl->new_elems; i++)
 		ret = std_validate_elem(ctrl, i, ptr);
 	return ret;
 }
@@ -1724,7 +1725,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		memcpy(ctrl->p_def.p, p_def.p_const, elem_size);
 	}
 
-	ctrl->type_ops->init(ctrl, 0, elems, ctrl->p_cur);
+	ctrl->type_ops->init(ctrl, 0, ctrl->p_cur);
 	cur_to_new(ctrl);
 
 	if (handler_new_ref(hdl, ctrl, NULL, false, false)) {
@@ -2069,7 +2070,7 @@ static int cluster_changed(struct v4l2_ctrl *master)
 			ctrl_changed = true;
 		if (!ctrl_changed)
 			ctrl_changed = !ctrl->type_ops->equal(ctrl,
-				ctrl->elems, ctrl->p_cur, ctrl->p_new);
+				ctrl->p_cur, ctrl->p_new);
 		ctrl->has_changed = ctrl_changed;
 		changed |= ctrl->has_changed;
 	}

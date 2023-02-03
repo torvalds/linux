@@ -7,37 +7,10 @@
 
 /dts-v1/;
 
-#include "sc7280-herobrine-villager.dtsi"
-#include "sc7280-herobrine-audio-wcd9385.dtsi"
+#include "sc7280-herobrine-villager-r1.dtsi"
+#include "sc7280-herobrine-wifi-sku.dtsi"
 
 / {
 	model = "Google Villager (rev1+)";
 	compatible = "google,villager", "qcom,sc7280";
-};
-
-&lpass_va_macro {
-	vdd-micb-supply = <&pp1800_l2c>;
-};
-
-&sound {
-	audio-routing =
-			"IN1_HPHL", "HPHL_OUT",
-			"IN2_HPHR", "HPHR_OUT",
-			"AMIC1", "MIC BIAS1",
-			"AMIC2", "MIC BIAS2",
-			"VA DMIC0", "vdd-micb",
-			"VA DMIC1", "vdd-micb",
-			"VA DMIC2", "vdd-micb",
-			"VA DMIC3", "vdd-micb",
-			"TX SWR_ADC0", "ADC1_OUTPUT",
-			"TX SWR_ADC1", "ADC2_OUTPUT",
-			"TX SWR_ADC2", "ADC3_OUTPUT",
-			"TX SWR_DMIC0", "DMIC1_OUTPUT",
-			"TX SWR_DMIC1", "DMIC2_OUTPUT",
-			"TX SWR_DMIC2", "DMIC3_OUTPUT",
-			"TX SWR_DMIC3", "DMIC4_OUTPUT",
-			"TX SWR_DMIC4", "DMIC5_OUTPUT",
-			"TX SWR_DMIC5", "DMIC6_OUTPUT",
-			"TX SWR_DMIC6", "DMIC7_OUTPUT",
-			"TX SWR_DMIC7", "DMIC8_OUTPUT";
 };

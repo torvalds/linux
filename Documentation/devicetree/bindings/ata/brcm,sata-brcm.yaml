@@ -30,7 +30,6 @@ properties:
           - const: brcm,bcm-nsp-ahci
 
   reg:
-    minItems: 2
     maxItems: 2
 
   reg-names:

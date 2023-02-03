@@ -47,7 +47,7 @@
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0xfc200000 0x1000>;
 			interrupt-parent = <&vic1>;
-			interrupts = <12>;
+			interrupts = <13>;
 			status = "disabled";
 		};
 
@@ -205,6 +205,36 @@
 				reg = <0xd820b000 0x1000>;
 				interrupt-parent = <&vic1>;
 				interrupts = <6>;
+				status = "disabled";
+			};
+
+			ssp1: spi@d0100000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0xd0100000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupt-parent = <&vic0>;
+				interrupts = <26>;
+				status = "disabled";
+			};
+
+			ssp2: spi@d0180000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0xd0180000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupt-parent = <&vic0>;
+				interrupts = <27>;
+				status = "disabled";
+			};
+
+			ssp3: spi@d8180000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0xd8180000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupt-parent = <&vic1>;
+				interrupts = <5>;
 				status = "disabled";
 			};
 		};

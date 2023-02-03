@@ -254,10 +254,10 @@ static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 }
 
 void intel_panel_add_edid_fixed_modes(struct intel_connector *connector,
-				      bool has_drrs, bool has_vrr)
+				      bool use_alt_fixed_modes)
 {
 	intel_panel_add_edid_preferred_mode(connector);
-	if (intel_panel_preferred_fixed_mode(connector) && (has_drrs || has_vrr))
+	if (intel_panel_preferred_fixed_mode(connector) && use_alt_fixed_modes)
 		intel_panel_add_edid_alt_fixed_modes(connector);
 	intel_panel_destroy_probed_modes(connector);
 }

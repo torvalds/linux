@@ -70,7 +70,7 @@ perf_report_instruction_samples() {
 	#   68.12%  touch    libc-2.27.so   [.] _dl_addr
 	#    5.80%  touch    libc-2.27.so   [.] getenv
 	#    4.35%  touch    ld-2.27.so     [.] _dl_fixup
-	perf report --itrace=i1000i --stdio -i ${perfdata} 2>&1 | \
+	perf report --itrace=i20i --stdio -i ${perfdata} 2>&1 | \
 		egrep " +[0-9]+\.[0-9]+% +$1" > /dev/null 2>&1
 }
 

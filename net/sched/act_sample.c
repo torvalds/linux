@@ -168,7 +168,7 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 	psample_group = rcu_dereference_bh(s->psample_group);
 
 	/* randomly sample packets according to rate */
-	if (psample_group && (prandom_u32() % s->rate == 0)) {
+	if (psample_group && (prandom_u32_max(s->rate) == 0)) {
 		if (!skb_at_tc_ingress(skb)) {
 			md.in_ifindex = skb->skb_iif;
 			md.out_ifindex = skb->dev->ifindex;

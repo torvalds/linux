@@ -94,7 +94,7 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		if (sq_idx > sq_mask)
 			continue;
-		sqe = &ctx->sq_sqes[sq_idx << 1];
+		sqe = &ctx->sq_sqes[sq_idx << sq_shift];
 		seq_printf(m, "%5u: opcode:%s, fd:%d, flags:%x, off:%llu, "
 			      "addr:0x%llx, rw_flags:0x%x, buf_index:%d "
 			      "user_data:%llu",

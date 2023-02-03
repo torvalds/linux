@@ -1555,7 +1555,7 @@ static void do_io(struct io_thread_req *req, struct io_desc *desc)
 int kernel_fd = -1;
 
 /* Only changed by the io thread. XXX: currently unused. */
-static int io_count = 0;
+static int io_count;
 
 int io_thread(void *arg)
 {

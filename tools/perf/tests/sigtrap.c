@@ -54,6 +54,63 @@ static struct perf_event_attr make_event_attr(void)
 	return attr;
 }
 
+#ifdef HAVE_BPF_SKEL
+#include <bpf/btf.h>
+
+static bool attr_has_sigtrap(void)
+{
+	bool ret = false;
+	struct btf *btf;
+	const struct btf_type *t;
+	const struct btf_member *m;
+	const char *name;
+	int i, id;
+
+	btf = btf__load_vmlinux_btf();
+	if (btf == NULL) {
+		/* should be an old kernel */
+		return false;
+	}
+
+	id = btf__find_by_name_kind(btf, "perf_event_attr", BTF_KIND_STRUCT);
+	if (id < 0)
+		goto out;
+
+	t = btf__type_by_id(btf, id);
+	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
+		name = btf__name_by_offset(btf, m->name_off);
+		if (!strcmp(name, "sigtrap")) {
+			ret = true;
+			break;
+		}
+	}
+out:
+	btf__free(btf);
+	return ret;
+}
+#else  /* !HAVE_BPF_SKEL */
+static bool attr_has_sigtrap(void)
+{
+	struct perf_event_attr attr = {
+		.type		= PERF_TYPE_SOFTWARE,
+		.config		= PERF_COUNT_SW_DUMMY,
+		.size		= sizeof(attr),
+		.remove_on_exec = 1, /* Required by sigtrap. */
+		.sigtrap	= 1, /* Request synchronous SIGTRAP on event. */
+	};
+	int fd;
+	bool ret = false;
+
+	fd = sys_perf_event_open(&attr, 0, -1, -1, perf_event_open_cloexec_flag());
+	if (fd >= 0) {
+		ret = true;
+		close(fd);
+	}
+
+	return ret;
+}
+#endif  /* HAVE_BPF_SKEL */
+
 static void
 sigtrap_handler(int signum __maybe_unused, siginfo_t *info, void *ucontext __maybe_unused)
 {
@@ -139,7 +196,13 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 
 	fd = sys_perf_event_open(&attr, 0, -1, -1, perf_event_open_cloexec_flag());
 	if (fd < 0) {
-		pr_debug("FAILED sys_perf_event_open(): %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
+		if (attr_has_sigtrap()) {
+			pr_debug("FAILED sys_perf_event_open(): %s\n",
+				 str_error_r(errno, sbuf, sizeof(sbuf)));
+		} else {
+			pr_debug("perf_event_attr doesn't have sigtrap\n");
+			ret = TEST_SKIP;
+		}
 		goto out_restore_sigaction;
 	}
 

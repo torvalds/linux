@@ -195,7 +195,7 @@
 		pinctrl-0 = <&power_led_pin>;
 		pinctrl-names = "default";
 
-		power {
+		led-power {
 			label = "mamba:white:power";
 			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 			default-state = "on";

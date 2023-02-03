@@ -129,10 +129,6 @@ int atomisp_alloc_metadata_output_buf(struct atomisp_sub_device *asd);
 
 void atomisp_free_metadata_output_buf(struct atomisp_sub_device *asd);
 
-void atomisp_css_get_dis_statistics(struct atomisp_sub_device *asd,
-				    struct atomisp_css_buffer *isp_css_buffer,
-				    struct ia_css_isp_dvs_statistics_map *dvs_map);
-
 void atomisp_css_temp_pipe_to_pipe_id(struct atomisp_sub_device *asd,
 				      struct atomisp_css_event *current_event);
 
@@ -434,16 +430,10 @@ void atomisp_css_get_morph_table(struct atomisp_sub_device *asd,
 
 void atomisp_css_morph_table_free(struct ia_css_morph_table *table);
 
-void atomisp_css_set_cont_prev_start_time(struct atomisp_device *isp,
-	unsigned int overlap);
-
 int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 			     struct atomisp_dis_statistics *stats);
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd);
-
-struct atomisp_acc_fw;
-int atomisp_css_set_acc_parameters(struct atomisp_acc_fw *acc_fw);
 
 int atomisp_css_isr_thread(struct atomisp_device *isp,
 			   bool *frame_done_found,

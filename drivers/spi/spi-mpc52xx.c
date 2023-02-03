@@ -151,7 +151,7 @@ mpc52xx_spi_fsmstate_idle(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 	int spr, sppr;
 	u8 ctrl1;
 
-	if (status && (irq != NO_IRQ))
+	if (status && irq)
 		dev_err(&ms->master->dev, "spurious irq, status=0x%.2x\n",
 			status);
 

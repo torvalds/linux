@@ -893,7 +893,7 @@ static struct crypto_template crypto_ffdhe_templates[] = {};
 #endif /* CONFIG_CRYPTO_DH_RFC7919_GROUPS */
 
 
-static int dh_init(void)
+static int __init dh_init(void)
 {
 	int err;
 
@@ -911,7 +911,7 @@ static int dh_init(void)
 	return 0;
 }
 
-static void dh_exit(void)
+static void __exit dh_exit(void)
 {
 	crypto_unregister_templates(crypto_ffdhe_templates,
 				    ARRAY_SIZE(crypto_ffdhe_templates));

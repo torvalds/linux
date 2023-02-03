@@ -66,6 +66,7 @@ properties:
           - enum:
               - asus,rt-ac88u
               - dlink,dir-885l
+              - dlink,dir-890l
               - linksys,panamera
               - luxul,abr-4500-v1
               - luxul,xap-1610-v1
@@ -97,6 +98,7 @@ properties:
       - description: BCM53016 based boards
         items:
           - enum:
+              - dlink,dwl-8610ap
               - meraki,mr32
           - const: brcm,bcm53016
           - const: brcm,bcm4708

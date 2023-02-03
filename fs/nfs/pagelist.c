@@ -1055,7 +1055,7 @@ static unsigned int nfs_coalesce_size(struct nfs_page *prev,
 	if (prev) {
 		if (!nfs_match_open_context(nfs_req_openctx(req), nfs_req_openctx(prev)))
 			return 0;
-		flctx = d_inode(nfs_req_openctx(req)->dentry)->i_flctx;
+		flctx = locks_inode_context(d_inode(nfs_req_openctx(req)->dentry));
 		if (flctx != NULL &&
 		    !(list_empty_careful(&flctx->flc_posix) &&
 		      list_empty_careful(&flctx->flc_flock)) &&

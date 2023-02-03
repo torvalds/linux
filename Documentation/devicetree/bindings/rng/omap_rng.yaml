@@ -53,17 +53,6 @@ allOf:
       required:
         - interrupts
 
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - inside-secure,safexcel-eip76
-
-    then:
-      required:
-        - clocks
-
 
 required:
   - compatible

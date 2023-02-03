@@ -10,6 +10,7 @@
 
 #include "util/build-id.h"
 #include <subcmd/parse-options.h>
+#include <internal/xyarray.h>
 #include "util/parse-events.h"
 #include "util/config.h"
 
@@ -21,6 +22,7 @@
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/mmap.h"
+#include "util/mutex.h"
 #include "util/target.h"
 #include "util/session.h"
 #include "util/tool.h"
@@ -143,6 +145,11 @@ static const char *thread_spec_tags[THREAD_SPEC__MAX] = {
 	"undefined", "cpu", "core", "package", "numa", "user"
 };
 
+struct pollfd_index_map {
+	int evlist_pollfd_index;
+	int thread_pollfd_index;
+};
+
 struct record {
 	struct perf_tool	tool;
 	struct record_opts	opts;
@@ -171,6 +178,9 @@ struct record {
 	int			nr_threads;
 	struct thread_mask	*thread_masks;
 	struct record_thread	*thread_data;
+	struct pollfd_index_map	*index_map;
+	size_t			index_map_sz;
+	size_t			index_map_cnt;
 };
 
 static volatile int done;
@@ -608,17 +618,18 @@ static int process_synthesized_event(struct perf_tool *tool,
 	return record__write(rec, NULL, event, event->header.size);
 }
 
+static struct mutex synth_lock;
+
 static int process_locked_synthesized_event(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
 {
-	static pthread_mutex_t synth_lock = PTHREAD_MUTEX_INITIALIZER;
 	int ret;
 
-	pthread_mutex_lock(&synth_lock);
+	mutex_lock(&synth_lock);
 	ret = process_synthesized_event(tool, event, sample, machine);
-	pthread_mutex_unlock(&synth_lock);
+	mutex_unlock(&synth_lock);
 	return ret;
 }
 
@@ -638,7 +649,7 @@ static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 static volatile int signr = -1;
 static volatile int child_finished;
 #ifdef HAVE_EVENTFD_SUPPORT
-static int done_fd = -1;
+static volatile int done_fd = -1;
 #endif
 
 static void sig_handler(int sig)
@@ -650,19 +661,24 @@ static void sig_handler(int sig)
 
 	done = 1;
 #ifdef HAVE_EVENTFD_SUPPORT
-{
-	u64 tmp = 1;
-	/*
-	 * It is possible for this signal handler to run after done is checked
-	 * in the main loop, but before the perf counter fds are polled. If this
-	 * happens, the poll() will continue to wait even though done is set,
-	 * and will only break out if either another signal is received, or the
-	 * counters are ready for read. To ensure the poll() doesn't sleep when
-	 * done is set, use an eventfd (done_fd) to wake up the poll().
-	 */
-	if (write(done_fd, &tmp, sizeof(tmp)) < 0)
-		pr_err("failed to signal wakeup fd, error: %m\n");
-}
+	if (done_fd >= 0) {
+		u64 tmp = 1;
+		int orig_errno = errno;
+
+		/*
+		 * It is possible for this signal handler to run after done is
+		 * checked in the main loop, but before the perf counter fds are
+		 * polled. If this happens, the poll() will continue to wait
+		 * even though done is set, and will only break out if either
+		 * another signal is received, or the counters are ready for
+		 * read. To ensure the poll() doesn't sleep when done is set,
+		 * use an eventfd (done_fd) to wake up the poll().
+		 */
+		if (write(done_fd, &tmp, sizeof(tmp)) < 0)
+			pr_err("failed to signal wakeup fd, error: %m\n");
+
+		errno = orig_errno;
+	}
 #endif // HAVE_EVENTFD_SUPPORT
 }
 
@@ -1074,6 +1090,70 @@ static void record__free_thread_data(struct record *rec)
 	zfree(&rec->thread_data);
 }
 
+static int record__map_thread_evlist_pollfd_indexes(struct record *rec,
+						    int evlist_pollfd_index,
+						    int thread_pollfd_index)
+{
+	size_t x = rec->index_map_cnt;
+
+	if (realloc_array_as_needed(rec->index_map, rec->index_map_sz, x, NULL))
+		return -ENOMEM;
+	rec->index_map[x].evlist_pollfd_index = evlist_pollfd_index;
+	rec->index_map[x].thread_pollfd_index = thread_pollfd_index;
+	rec->index_map_cnt += 1;
+	return 0;
+}
+
+static int record__update_evlist_pollfd_from_thread(struct record *rec,
+						    struct evlist *evlist,
+						    struct record_thread *thread_data)
+{
+	struct pollfd *e_entries = evlist->core.pollfd.entries;
+	struct pollfd *t_entries = thread_data->pollfd.entries;
+	int err = 0;
+	size_t i;
+
+	for (i = 0; i < rec->index_map_cnt; i++) {
+		int e_pos = rec->index_map[i].evlist_pollfd_index;
+		int t_pos = rec->index_map[i].thread_pollfd_index;
+
+		if (e_entries[e_pos].fd != t_entries[t_pos].fd ||
+		    e_entries[e_pos].events != t_entries[t_pos].events) {
+			pr_err("Thread and evlist pollfd index mismatch\n");
+			err = -EINVAL;
+			continue;
+		}
+		e_entries[e_pos].revents = t_entries[t_pos].revents;
+	}
+	return err;
+}
+
+static int record__dup_non_perf_events(struct record *rec,
+				       struct evlist *evlist,
+				       struct record_thread *thread_data)
+{
+	struct fdarray *fda = &evlist->core.pollfd;
+	int i, ret;
+
+	for (i = 0; i < fda->nr; i++) {
+		if (!(fda->priv[i].flags & fdarray_flag__non_perf_event))
+			continue;
+		ret = fdarray__dup_entry_from(&thread_data->pollfd, i, fda);
+		if (ret < 0) {
+			pr_err("Failed to duplicate descriptor in main thread pollfd\n");
+			return ret;
+		}
+		pr_debug2("thread_data[%p]: pollfd[%d] <- non_perf_event fd=%d\n",
+			  thread_data, ret, fda->entries[i].fd);
+		ret = record__map_thread_evlist_pollfd_indexes(rec, i, ret);
+		if (ret < 0) {
+			pr_err("Failed to map thread and evlist pollfd indexes\n");
+			return ret;
+		}
+	}
+	return 0;
+}
+
 static int record__alloc_thread_data(struct record *rec, struct evlist *evlist)
 {
 	int t, ret;
@@ -1121,18 +1201,12 @@ static int record__alloc_thread_data(struct record *rec, struct evlist *evlist)
 				 thread_data[t].pipes.msg[0]);
 		} else {
 			thread_data[t].tid = gettid();
-			if (evlist->ctl_fd.pos == -1)
-				continue;
-			ret = fdarray__dup_entry_from(&thread_data[t].pollfd, evlist->ctl_fd.pos,
-						      &evlist->core.pollfd);
-			if (ret < 0) {
-				pr_err("Failed to duplicate descriptor in main thread pollfd\n");
+
+			ret = record__dup_non_perf_events(rec, evlist, &thread_data[t]);
+			if (ret < 0)
 				goto out_free;
-			}
-			thread_data[t].ctlfd_pos = ret;
-			pr_debug2("thread_data[%p]: pollfd[%d] <- ctl_fd=%d\n",
-				 thread_data, thread_data[t].ctlfd_pos,
-				 evlist->core.pollfd.entries[evlist->ctl_fd.pos].fd);
+
+			thread_data[t].ctlfd_pos = -1; /* Not used */
 		}
 	}
 
@@ -1784,6 +1858,74 @@ record__switch_output(struct record *rec, bool at_exit)
 	return fd;
 }
 
+static void __record__read_lost_samples(struct record *rec, struct evsel *evsel,
+					struct perf_record_lost_samples *lost,
+					int cpu_idx, int thread_idx)
+{
+	struct perf_counts_values count;
+	struct perf_sample_id *sid;
+	struct perf_sample sample = {};
+	int id_hdr_size;
+
+	if (perf_evsel__read(&evsel->core, cpu_idx, thread_idx, &count) < 0) {
+		pr_err("read LOST count failed\n");
+		return;
+	}
+
+	if (count.lost == 0)
+		return;
+
+	lost->lost = count.lost;
+	if (evsel->core.ids) {
+		sid = xyarray__entry(evsel->core.sample_id, cpu_idx, thread_idx);
+		sample.id = sid->id;
+	}
+
+	id_hdr_size = perf_event__synthesize_id_sample((void *)(lost + 1),
+						       evsel->core.attr.sample_type, &sample);
+	lost->header.size = sizeof(*lost) + id_hdr_size;
+	record__write(rec, NULL, lost, lost->header.size);
+}
+
+static void record__read_lost_samples(struct record *rec)
+{
+	struct perf_session *session = rec->session;
+	struct perf_record_lost_samples *lost;
+	struct evsel *evsel;
+
+	/* there was an error during record__open */
+	if (session->evlist == NULL)
+		return;
+
+	lost = zalloc(PERF_SAMPLE_MAX_SIZE);
+	if (lost == NULL) {
+		pr_debug("Memory allocation failed\n");
+		return;
+	}
+
+	lost->header.type = PERF_RECORD_LOST_SAMPLES;
+
+	evlist__for_each_entry(session->evlist, evsel) {
+		struct xyarray *xy = evsel->core.sample_id;
+
+		if (xy == NULL || evsel->core.fd == NULL)
+			continue;
+		if (xyarray__max_x(evsel->core.fd) != xyarray__max_x(xy) ||
+		    xyarray__max_y(evsel->core.fd) != xyarray__max_y(xy)) {
+			pr_debug("Unmatched FD vs. sample ID: skip reading LOST count\n");
+			continue;
+		}
+
+		for (int x = 0; x < xyarray__max_x(xy); x++) {
+			for (int y = 0; y < xyarray__max_y(xy); y++) {
+				__record__read_lost_samples(rec, evsel, lost, x, y);
+			}
+		}
+	}
+	free(lost);
+
+}
+
 static volatile int workload_exec_errno;
 
 /*
@@ -1921,6 +2063,7 @@ static int record__synthesize(struct record *rec, bool tail)
 	}
 
 	if (rec->opts.nr_threads_synthesize > 1) {
+		mutex_init(&synth_lock);
 		perf_set_multithreaded();
 		f = process_locked_synthesized_event;
 	}
@@ -1934,8 +2077,10 @@ static int record__synthesize(struct record *rec, bool tail)
 						    rec->opts.nr_threads_synthesize);
 	}
 
-	if (rec->opts.nr_threads_synthesize > 1)
+	if (rec->opts.nr_threads_synthesize > 1) {
 		perf_set_singlethreaded();
+		mutex_destroy(&synth_lock);
+	}
 
 out:
 	return err;
@@ -2294,10 +2439,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	record__uniquify_name(rec);
 
+	/* Debug message used by test scripts */
+	pr_debug3("perf record opening and mmapping events\n");
 	if (record__open(rec) != 0) {
 		err = -1;
 		goto out_free_threads;
 	}
+	/* Debug message used by test scripts */
+	pr_debug3("perf record done opening and mmapping events\n");
 	session->header.env.comp_mmap_len = session->evlist->core.mmap_len;
 
 	if (rec->opts.kcore) {
@@ -2436,6 +2585,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 	}
 
+	err = event_enable_timer__start(rec->evlist->eet);
+	if (err)
+		goto out_child;
+
+	/* Debug message used by test scripts */
+	pr_debug3("perf record has started\n");
+	fflush(stderr);
+
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
 	perf_hooks__invoke_record_start();
@@ -2534,8 +2691,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 					    record__thread_munmap_filtered, NULL) == 0)
 				draining = true;
 
-			evlist__ctlfd_update(rec->evlist,
-				&thread->pollfd.entries[thread->ctlfd_pos]);
+			err = record__update_evlist_pollfd_from_thread(rec, rec->evlist, thread);
+			if (err)
+				goto out_child;
 		}
 
 		if (evlist__ctlfd_process(rec->evlist, &cmd) > 0) {
@@ -2556,6 +2714,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			default:
 				break;
 			}
+		}
+
+		err = event_enable_timer__process(rec->evlist->eet);
+		if (err < 0)
+			goto out_child;
+		if (err) {
+			err = 0;
+			done = 1;
 		}
 
 		/*
@@ -2630,6 +2796,7 @@ out_free_threads:
 	if (rec->off_cpu)
 		rec->bytes_written += off_cpu_write(rec->session);
 
+	record__read_lost_samples(rec);
 	record__synthesize(rec, true);
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
@@ -2672,8 +2839,12 @@ out_free_threads:
 
 out_delete_session:
 #ifdef HAVE_EVENTFD_SUPPORT
-	if (done_fd >= 0)
-		close(done_fd);
+	if (done_fd >= 0) {
+		fd = done_fd;
+		done_fd = -1;
+
+		close(fd);
+	}
 #endif
 	zstd_fini(&session->zstd_data);
 	perf_session__delete(session);
@@ -2779,6 +2950,12 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 	return 0;
 }
 
+static int record__parse_event_enable_time(const struct option *opt, const char *str, int unset)
+{
+	struct record *rec = (struct record *)opt->value;
+
+	return evlist__parse_event_enable_time(rec->evlist, &rec->opts, str, unset);
+}
 
 static int record__parse_affinity(const struct option *opt, const char *str, int unset)
 {
@@ -3240,8 +3417,10 @@ static struct option __record_options[] = {
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
-	OPT_INTEGER('D', "delay", &record.opts.initial_delay,
-		  "ms to wait before starting measurement after program start (-1: start with events disabled)"),
+	OPT_CALLBACK('D', "delay", &record, "ms",
+		     "ms to wait before starting measurement after program start (-1: start with events disabled), "
+		     "or ranges of time to enable events e.g. '-D 10-20,30-40'",
+		     record__parse_event_enable_time),
 	OPT_BOOLEAN(0, "kcore", &record.opts.kcore, "copy /proc/kcore"),
 	OPT_STRING('u', "uid", &record.opts.target.uid_str, "user",
 		   "user to profile"),

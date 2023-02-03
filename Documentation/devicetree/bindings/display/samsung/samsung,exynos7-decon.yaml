@@ -22,7 +22,6 @@ properties:
     const: samsung,exynos7-decon
 
   clocks:
-    minItems: 4
     maxItems: 4
 
   clock-names:
@@ -37,6 +36,7 @@ properties:
 
   i80-if-timings:
     type: object
+    additionalProperties: false
     description: timing configuration for lcd i80 interface support
     properties:
       cs-setup:

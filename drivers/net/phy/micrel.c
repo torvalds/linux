@@ -1838,7 +1838,7 @@ static int ksz886x_cable_test_start(struct phy_device *phydev)
 	return phy_clear_bits(phydev, MII_BMCR, BMCR_ANENABLE | BMCR_SPEED100);
 }
 
-static int ksz886x_cable_test_result_trans(u16 status, u16 mask)
+static __always_inline int ksz886x_cable_test_result_trans(u16 status, u16 mask)
 {
 	switch (FIELD_GET(mask, status)) {
 	case KSZ8081_LMD_STAT_NORMAL:
@@ -1854,13 +1854,13 @@ static int ksz886x_cable_test_result_trans(u16 status, u16 mask)
 	}
 }
 
-static bool ksz886x_cable_test_failed(u16 status, u16 mask)
+static __always_inline bool ksz886x_cable_test_failed(u16 status, u16 mask)
 {
 	return FIELD_GET(mask, status) ==
 		KSZ8081_LMD_STAT_FAIL;
 }
 
-static bool ksz886x_cable_test_fault_length_valid(u16 status, u16 mask)
+static __always_inline bool ksz886x_cable_test_fault_length_valid(u16 status, u16 mask)
 {
 	switch (FIELD_GET(mask, status)) {
 	case KSZ8081_LMD_STAT_OPEN:
@@ -1871,7 +1871,8 @@ static bool ksz886x_cable_test_fault_length_valid(u16 status, u16 mask)
 	return false;
 }
 
-static int ksz886x_cable_test_fault_length(struct phy_device *phydev, u16 status, u16 data_mask)
+static __always_inline int ksz886x_cable_test_fault_length(struct phy_device *phydev,
+							   u16 status, u16 data_mask)
 {
 	int dt;
 

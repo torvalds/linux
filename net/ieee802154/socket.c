@@ -251,9 +251,6 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		return -EOPNOTSUPP;
 	}
 
-	if (!size)
-		return -EINVAL;
-
 	lock_sock(sk);
 	if (!sk->sk_bound_dev_if)
 		dev = dev_getfirstbyhwtype(sock_net(sk), ARPHRD_IEEE802154);
@@ -273,6 +270,10 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	if (size > mtu) {
 		pr_debug("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
+		goto out_dev;
+	}
+	if (!size) {
+		err = 0;
 		goto out_dev;
 	}
 
@@ -501,8 +502,10 @@ static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 	if (err < 0)
 		goto out;
 
-	if (addr->family != AF_IEEE802154)
+	if (addr->family != AF_IEEE802154) {
+		err = -EINVAL;
 		goto out;
+	}
 
 	ieee802154_addr_from_sa(&haddr, &addr->addr);
 	dev = ieee802154_get_dev(sock_net(sk), &haddr);

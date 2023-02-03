@@ -5,10 +5,10 @@ CMA Debugfs Interface
 The CMA debugfs interface is useful to retrieve basic information out of the
 different CMA areas and to test allocation/release in each of the areas.
 
-Each CMA zone represents a directory under <debugfs>/cma/, indexed by the
-kernel's CMA index. So the first CMA zone would be:
+Each CMA area represents a directory under <debugfs>/cma/, represented by
+its CMA name like below:
 
-	<debugfs>/cma/cma-0
+	<debugfs>/cma/<cma_name>
 
 The structure of the files created under that directory is as follows:
 
@@ -18,8 +18,8 @@ The structure of the files created under that directory is as follows:
  - [RO] bitmap: The bitmap of page states in the zone.
  - [WO] alloc: Allocate N pages from that CMA area. For example::
 
-	echo 5 > <debugfs>/cma/cma-2/alloc
+	echo 5 > <debugfs>/cma/<cma_name>/alloc
 
-would try to allocate 5 pages from the cma-2 area.
+would try to allocate 5 pages from the 'cma_name' area.
 
  - [WO] free: Free N pages from that CMA area, similar to the above.

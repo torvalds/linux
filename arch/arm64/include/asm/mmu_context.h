@@ -18,6 +18,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
+#include <asm/daifflags.h>
 #include <asm/proc-fns.h>
 #include <asm-generic/mm_hooks.h>
 #include <asm/cputype.h>
@@ -152,6 +153,7 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap)
 	typedef void (ttbr_replace_func)(phys_addr_t);
 	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
 	ttbr_replace_func *replace_phys;
+	unsigned long daif;
 
 	/* phys_to_ttbr() zeros lower 2 bits of ttbr with 52-bit PA */
 	phys_addr_t ttbr1 = phys_to_ttbr(virt_to_phys(pgdp));
@@ -171,7 +173,15 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap)
 	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
 
 	__cpu_install_idmap(idmap);
+
+	/*
+	 * We really don't want to take *any* exceptions while TTBR1 is
+	 * in the process of being replaced so mask everything.
+	 */
+	daif = local_daif_save();
 	replace_phys(ttbr1);
+	local_daif_restore(daif);
+
 	cpu_uninstall_idmap();
 }
 

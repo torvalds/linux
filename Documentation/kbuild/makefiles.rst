@@ -341,19 +341,7 @@ more details, with real examples.
 
 	Examples are:
 
-	1) head objects
-
-	    Some objects must be placed at the head of vmlinux. They are
-	    directly linked to vmlinux without going through built-in.a
-	    A typical use-case is an object that contains the entry point.
-
-	    arch/$(SRCARCH)/Makefile should specify such objects as head-y.
-
-	    Discussion:
-	      Given that we can control the section order in the linker script,
-	      why do we need head-y?
-
-	2) vmlinux linker script
+	1) vmlinux linker script
 
 	    The linker script for vmlinux is located at
 	    arch/$(SRCARCH)/kernel/vmlinux.lds
@@ -361,10 +349,6 @@ more details, with real examples.
 	Example::
 
 		# arch/x86/kernel/Makefile
-		extra-y	:= head_$(BITS).o
-		extra-y	+= head$(BITS).o
-		extra-y	+= ebda.o
-		extra-y	+= platform-quirks.o
 		extra-y	+= vmlinux.lds
 
 	$(extra-y) should only contain targets needed for vmlinux.
@@ -683,22 +667,27 @@ more details, with real examples.
 	In the above example, -Wno-unused-but-set-variable will be added to
 	KBUILD_CFLAGS only if gcc really accepts it.
 
-    cc-ifversion
-	cc-ifversion tests the version of $(CC) and equals the fourth parameter
-	if version expression is true, or the fifth (if given) if the version
-	expression is false.
+    gcc-min-version
+	gcc-min-version tests if the value of $(CONFIG_GCC_VERSION) is greater than
+	or equal to the provided value and evaluates to y if so.
 
 	Example::
 
-		#fs/reiserfs/Makefile
-		ccflags-y := $(call cc-ifversion, -lt, 0402, -O1)
+		cflags-$(call gcc-min-version, 70100) := -foo
 
-	In this example, ccflags-y will be assigned the value -O1 if the
-	$(CC) version is less than 4.2.
-	cc-ifversion takes all the shell operators:
-	-eq, -ne, -lt, -le, -gt, and -ge
-	The third parameter may be a text as in this example, but it may also
-	be an expanded variable or a macro.
+	In this example, cflags-y will be assigned the value -foo if $(CC) is gcc and
+	$(CONFIG_GCC_VERSION) is >= 7.1.
+
+    clang-min-version
+	clang-min-version tests if the value of $(CONFIG_CLANG_VERSION) is greater
+	than or equal to the provided value and evaluates to y if so.
+
+	Example::
+
+		cflags-$(call clang-min-version, 110000) := -foo
+
+	In this example, cflags-y will be assigned the value -foo if $(CC) is clang
+	and $(CONFIG_CLANG_VERSION) is >= 11.0.0.
 
     cc-cross-prefix
 	cc-cross-prefix is used to check if there exists a $(CC) in path with
@@ -1099,8 +1088,7 @@ When kbuild executes, the following steps are followed (roughly):
    - The values of the above variables are expanded in arch/$(SRCARCH)/Makefile.
 5) All object files are then linked and the resulting file vmlinux is
    located at the root of the obj tree.
-   The very first objects linked are listed in head-y, assigned by
-   arch/$(SRCARCH)/Makefile.
+   The very first objects linked are listed in scripts/head-object-list.txt.
 6) Finally, the architecture-specific part does any required post processing
    and builds the final bootimage.
    - This includes building boot records
@@ -1272,6 +1260,9 @@ When kbuild executes, the following steps are followed (roughly):
 	All object files for vmlinux. They are linked to vmlinux in the same
 	order as listed in KBUILD_VMLINUX_OBJS.
 
+	The objects listed in scripts/head-object-list.txt are exceptions;
+	they are placed before the other objects.
+
     KBUILD_VMLINUX_LIBS
 
 	All .a "lib" files for vmlinux. KBUILD_VMLINUX_OBJS and
@@ -1315,8 +1306,7 @@ When kbuild executes, the following steps are followed (roughly):
 	machinery is all architecture-independent.
 
 
-	head-y, core-y, libs-y, drivers-y
-	    $(head-y) lists objects to be linked first in vmlinux.
+	core-y, libs-y, drivers-y
 
 	    $(libs-y) lists directories where a lib.a archive can be located.
 

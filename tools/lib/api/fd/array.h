@@ -31,8 +31,9 @@ struct fdarray {
 };
 
 enum fdarray_flags {
-	fdarray_flag__default	    = 0x00000000,
-	fdarray_flag__nonfilterable = 0x00000001
+	fdarray_flag__default		= 0x00000000,
+	fdarray_flag__nonfilterable	= 0x00000001,
+	fdarray_flag__non_perf_event	= 0x00000002,
 };
 
 void fdarray__init(struct fdarray *fda, int nr_autogrow);

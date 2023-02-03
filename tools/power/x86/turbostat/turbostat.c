@@ -230,6 +230,7 @@ unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
+unsigned int has_turbo;
 unsigned int is_hybrid;
 unsigned int do_irtl_snb;
 unsigned int do_irtl_hsw;
@@ -4080,12 +4081,10 @@ static void remove_underbar(char *s)
 	*to = 0;
 }
 
-static void dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
+static void dump_turbo_ratio_info(unsigned int family, unsigned int model)
 {
-	if (!do_nhm_platform_info)
+	if (!has_turbo)
 		return;
-
-	dump_nhm_platform_info();
 
 	if (has_hsw_turbo_ratio_limit(family, model))
 		dump_hsw_turbo_ratio_limits();
@@ -4108,7 +4107,15 @@ static void dump_cstate_pstate_config_info(unsigned int family, unsigned int mod
 
 	if (has_config_tdp(family, model))
 		dump_config_tdp();
+}
 
+static void dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
+{
+	if (!do_nhm_platform_info)
+		return;
+
+	dump_nhm_platform_info();
+	dump_turbo_ratio_info(family, model);
 	dump_nhm_cst_cfg();
 }
 
@@ -4560,7 +4567,6 @@ static double rapl_dram_energy_units_probe(int model, double rapl_energy_units)
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		return (rapl_dram_energy_units = 15.3 / 1000000);
 	default:
 		return (rapl_energy_units);
@@ -5447,6 +5453,9 @@ unsigned int intel_model_duplicates(unsigned int model)
 	case INTEL_FAM6_ALDERLAKE_N:
 	case INTEL_FAM6_RAPTORLAKE:
 	case INTEL_FAM6_RAPTORLAKE_P:
+	case INTEL_FAM6_RAPTORLAKE_S:
+	case INTEL_FAM6_METEORLAKE:
+	case INTEL_FAM6_METEORLAKE_L:
 		return INTEL_FAM6_CANNONLAKE_L;
 
 	case INTEL_FAM6_ATOM_TREMONT_L:
@@ -5505,7 +5514,6 @@ void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int fms, family, model, stepping, ecx_flags, edx_flags;
-	unsigned int has_turbo;
 	unsigned long long ucode_patch = 0;
 
 	eax = ebx = ecx = edx = 0;
@@ -6217,7 +6225,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2022.07.28 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2022.10.04 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048

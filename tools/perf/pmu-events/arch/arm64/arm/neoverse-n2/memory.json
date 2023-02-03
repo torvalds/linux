@@ -3,6 +3,9 @@
         "ArchStdEvent": "MEM_ACCESS"
     },
     {
+        "ArchStdEvent": "REMOTE_ACCESS"
+    },
+    {
         "ArchStdEvent": "MEM_ACCESS_RD"
     },
     {

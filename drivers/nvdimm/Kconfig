@@ -114,4 +114,16 @@ config NVDIMM_TEST_BUILD
 	  core devm_memremap_pages() implementation and other
 	  infrastructure.
 
+config NVDIMM_SECURITY_TEST
+	bool "Enable NVDIMM security unit tests"
+	depends on NVDIMM_KEYS
+	help
+	  The NVDIMM and CXL subsystems support unit testing of their device
+	  security state machines. The NVDIMM_SECURITY_TEST option disables CPU
+	  cache maintenance operations around events like secure erase and
+	  overwrite.  Also, when enabled, the NVDIMM subsystem core helps the unit
+	  test implement a mock state machine.
+
+	  Select N if unsure.
+
 endif

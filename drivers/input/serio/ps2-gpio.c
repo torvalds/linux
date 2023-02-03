@@ -449,8 +449,8 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	serio->write = drvdata->write_enable ? ps2_gpio_write : NULL;
 	serio->port_data = drvdata;
 	serio->dev.parent = dev;
-	strlcpy(serio->name, dev_name(dev), sizeof(serio->name));
-	strlcpy(serio->phys, dev_name(dev), sizeof(serio->phys));
+	strscpy(serio->name, dev_name(dev), sizeof(serio->name));
+	strscpy(serio->phys, dev_name(dev), sizeof(serio->phys));
 
 	drvdata->serio = serio;
 	drvdata->dev = dev;

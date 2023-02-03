@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Mac Studio (M1 Max, 2022)
+ *
+ * target-type: J375c
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t6001.dtsi"
+#include "t600x-j375.dtsi"
+
+/ {
+	compatible = "apple,j375c", "apple,t6001", "apple,arm-platform";
+	model = "Apple Mac Studio (M1 Max, 2022)";
+};

@@ -23,7 +23,7 @@ menuconfig SWAP
 	  in your computer.  If unsure say Y.
 
 config ZSWAP
-	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+	bool "Compressed cache for swap pages"
 	depends on SWAP
 	select FRONTSWAP
 	select CRYPTO
@@ -35,12 +35,6 @@ config ZSWAP
 	  This can result in a significant I/O reduction on swap device and,
 	  in the case where decompressing from RAM is faster than swap device
 	  reads, can also improve workload performance.
-
-	  This is marked experimental because it is a new feature (as of
-	  v3.11) that interacts heavily with memory reclaim.  While these
-	  interactions don't cause any known issues on simple memory setups,
-	  they have not be fully explored on the large set of potential
-	  configurations and workloads that exist.
 
 config ZSWAP_DEFAULT_ON
 	bool "Enable the compressed cache for swap pages by default"
@@ -225,16 +219,42 @@ config SLUB
 	   and has enhanced diagnostics. SLUB is the default choice for
 	   a slab allocator.
 
-config SLOB
+config SLOB_DEPRECATED
 	depends on EXPERT
-	bool "SLOB (Simple Allocator)"
+	bool "SLOB (Simple Allocator - DEPRECATED)"
 	depends on !PREEMPT_RT
 	help
+	   Deprecated and scheduled for removal in a few cycles. SLUB
+	   recommended as replacement. CONFIG_SLUB_TINY can be considered
+	   on systems with 16MB or less RAM.
+
+	   If you need SLOB to stay, please contact linux-mm@kvack.org and
+	   people listed in the SLAB ALLOCATOR section of MAINTAINERS file,
+	   with your use case.
+
 	   SLOB replaces the stock allocator with a drastically simpler
 	   allocator. SLOB is generally more space efficient but
 	   does not perform as well on large systems.
 
 endchoice
+
+config SLOB
+	bool
+	default y
+	depends on SLOB_DEPRECATED
+
+config SLUB_TINY
+	bool "Configure SLUB for minimal memory footprint"
+	depends on SLUB && EXPERT
+	select SLAB_MERGE_DEFAULT
+	help
+	   Configures the SLUB allocator in a way to achieve minimal memory
+	   footprint, sacrificing scalability, debugging and other features.
+	   This is intended only for the smallest system that had used the
+	   SLOB allocator and is not recommended for systems with more than
+	   16MB RAM.
+
+	   If unsure, say N.
 
 config SLAB_MERGE_DEFAULT
 	bool "Allow slab caches to be merged"
@@ -253,7 +273,7 @@ config SLAB_MERGE_DEFAULT
 
 config SLAB_FREELIST_RANDOM
 	bool "Randomize slab freelist"
-	depends on SLAB || SLUB
+	depends on SLAB || (SLUB && !SLUB_TINY)
 	help
 	  Randomizes the freelist order used on creating new pages. This
 	  security feature reduces the predictability of the kernel slab
@@ -261,7 +281,7 @@ config SLAB_FREELIST_RANDOM
 
 config SLAB_FREELIST_HARDENED
 	bool "Harden slab freelist metadata"
-	depends on SLAB || SLUB
+	depends on SLAB || (SLUB && !SLUB_TINY)
 	help
 	  Many kernel heap attacks try to target slab cache metadata and
 	  other infrastructure. This options makes minor performance
@@ -273,7 +293,7 @@ config SLAB_FREELIST_HARDENED
 config SLUB_STATS
 	default n
 	bool "Enable SLUB performance statistics"
-	depends on SLUB && SYSFS
+	depends on SLUB && SYSFS && !SLUB_TINY
 	help
 	  SLUB statistics are useful to debug SLUBs allocation behavior in
 	  order find ways to optimize the allocator. This should never be
@@ -285,7 +305,7 @@ config SLUB_STATS
 
 config SLUB_CPU_PARTIAL
 	default y
-	depends on SLUB && SMP
+	depends on SLUB && SMP && !SLUB_TINY
 	bool "SLUB per cpu partial cache"
 	help
 	  Per cpu partial caches accelerate objects allocation and freeing
@@ -1129,6 +1149,32 @@ config PTE_MARKER_UFFD_WP
 	  Allows to create marker PTEs for userfaultfd write protection
 	  purposes.  It is required to enable userfaultfd write protection on
 	  file-backed memory types like shmem and hugetlbfs.
+
+# multi-gen LRU {
+config LRU_GEN
+	bool "Multi-Gen LRU"
+	depends on MMU
+	# make sure folio->flags has enough spare bits
+	depends on 64BIT || !SPARSEMEM || SPARSEMEM_VMEMMAP
+	help
+	  A high performance LRU implementation to overcommit memory. See
+	  Documentation/admin-guide/mm/multigen_lru.rst for details.
+
+config LRU_GEN_ENABLED
+	bool "Enable by default"
+	depends on LRU_GEN
+	help
+	  This option enables the multi-gen LRU by default.
+
+config LRU_GEN_STATS
+	bool "Full stats for debugging"
+	depends on LRU_GEN
+	help
+	  Do not enable this option unless you plan to look at historical stats
+	  from evicted generations for debugging purpose.
+
+	  This option has a per-memcg and per-node memory overhead.
+# }
 
 source "mm/damon/Kconfig"
 

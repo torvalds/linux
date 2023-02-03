@@ -3657,6 +3657,7 @@ ptp_ocp_detach_sysfs(struct ptp_ocp *bp)
 	struct device *dev = &bp->dev;
 
 	sysfs_remove_link(&dev->kobj, "ttyGNSS");
+	sysfs_remove_link(&dev->kobj, "ttyGNSS2");
 	sysfs_remove_link(&dev->kobj, "ttyMAC");
 	sysfs_remove_link(&dev->kobj, "ptp");
 	sysfs_remove_link(&dev->kobj, "pps");

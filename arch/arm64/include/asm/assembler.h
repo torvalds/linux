@@ -34,26 +34,12 @@
 	wx\n	.req	w\n
 	.endr
 
-	.macro save_and_disable_daif, flags
-	mrs	\flags, daif
-	msr	daifset, #0xf
-	.endm
-
 	.macro disable_daif
 	msr	daifset, #0xf
 	.endm
 
 	.macro enable_daif
 	msr	daifclr, #0xf
-	.endm
-
-	.macro	restore_daif, flags:req
-	msr	daif, \flags
-	.endm
-
-	/* IRQ/FIQ are the lowest priority flags, unconditionally unmask the rest. */
-	.macro enable_da
-	msr	daifclr, #(8 | 4)
 	.endm
 
 /*
@@ -620,17 +606,6 @@ alternative_endif
 	.endm
 
 /*
- * Perform the reverse of offset_ttbr1.
- * bic is used as it can cover the immediate value and, in future, won't need
- * to be nop'ed out when dealing with 52-bit kernel VAs.
- */
-	.macro	restore_ttbr1, ttbr
-#ifdef CONFIG_ARM64_VA_BITS_52
-	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
-#endif
-	.endm
-
-/*
  * Arrange a physical address in a TTBR register, taking care of 52-bit
  * addresses.
  *
@@ -660,12 +635,10 @@ alternative_endif
 	.endm
 
 	.macro	pte_to_phys, phys, pte
-#ifdef CONFIG_ARM64_PA_BITS_52
-	ubfiz	\phys, \pte, #(48 - 16 - 12), #16
-	bfxil	\phys, \pte, #16, #32
-	lsl	\phys, \phys, #16
-#else
 	and	\phys, \pte, #PTE_ADDR_MASK
+#ifdef CONFIG_ARM64_PA_BITS_52
+	orr	\phys, \phys, \phys, lsl #PTE_ADDR_HIGH_SHIFT
+	and	\phys, \phys, GENMASK_ULL(PHYS_MASK_SHIFT - 1, PAGE_SHIFT)
 #endif
 	.endm
 

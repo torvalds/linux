@@ -90,5 +90,8 @@
 #define MCA_UMC_UMC0_MCUMC_ADDRT0__ErrorAddr__SHIFT        0x0
 #define MCA_UMC_UMC0_MCUMC_ADDRT0__Reserved__SHIFT         0x38
 #define MCA_UMC_UMC0_MCUMC_ADDRT0__ErrorAddr_MASK          0x00FFFFFFFFFFFFFFL
+//UMCCH0_0_GeccCtrl
+#define UMCCH0_0_GeccCtrl__UCFatalEn__SHIFT                0xd
+#define UMCCH0_0_GeccCtrl__UCFatalEn_MASK                  0x00002000L
 
 #endif

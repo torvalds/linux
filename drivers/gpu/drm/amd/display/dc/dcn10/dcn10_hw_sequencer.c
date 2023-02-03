@@ -2244,6 +2244,9 @@ void dcn10_enable_timing_synchronization(
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
 
 	for (i = 1; i < group_size; i++) {
+		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+			continue;
+
 		opp = grouped_pipes[i]->stream_res.opp;
 		tg = grouped_pipes[i]->stream_res.tg;
 		tg->funcs->get_otg_active_size(tg, &width, &height);
@@ -2254,13 +2257,21 @@ void dcn10_enable_timing_synchronization(
 	for (i = 0; i < group_size; i++) {
 		if (grouped_pipes[i]->stream == NULL)
 			continue;
+
+		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+			continue;
+
 		grouped_pipes[i]->stream->vblank_synchronized = false;
 	}
 
-	for (i = 1; i < group_size; i++)
+	for (i = 1; i < group_size; i++) {
+		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+			continue;
+
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
 				grouped_pipes[i]->stream_res.tg,
 				grouped_pipes[0]->stream_res.tg->inst);
+	}
 
 	DC_SYNC_INFO("Waiting for trigger\n");
 
@@ -2268,12 +2279,21 @@ void dcn10_enable_timing_synchronization(
 	 * synchronized. Look at last pipe programmed to reset.
 	 */
 
-	wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->stream_res.tg);
-	for (i = 1; i < group_size; i++)
-		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
-				grouped_pipes[i]->stream_res.tg);
+	if (grouped_pipes[1]->stream && grouped_pipes[1]->stream->mall_stream_config.type != SUBVP_PHANTOM)
+		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->stream_res.tg);
 
 	for (i = 1; i < group_size; i++) {
+		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+			continue;
+
+		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
+				grouped_pipes[i]->stream_res.tg);
+	}
+
+	for (i = 1; i < group_size; i++) {
+		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+			continue;
+
 		opp = grouped_pipes[i]->stream_res.opp;
 		tg = grouped_pipes[i]->stream_res.tg;
 		tg->funcs->get_otg_active_size(tg, &width, &height);
@@ -3005,6 +3025,7 @@ void dcn10_prepare_bandwidth(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
@@ -3027,8 +3048,11 @@ void dcn10_prepare_bandwidth(
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		DC_FP_START();
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_get_soc_clks(
+			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
+		dcn_bw_notify_pplib_of_wm_ranges(
+			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 
 	if (dc->debug.sanity_checks)
@@ -3041,6 +3065,7 @@ void dcn10_optimize_bandwidth(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
@@ -3064,8 +3089,11 @@ void dcn10_optimize_bandwidth(
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		DC_FP_START();
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_get_soc_clks(
+			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
+		dcn_bw_notify_pplib_of_wm_ranges(
+			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 
 	if (dc->debug.sanity_checks)
@@ -3344,127 +3372,6 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
-static bool dcn10_dmub_should_update_cursor_data(
-		struct pipe_ctx *pipe_ctx,
-		struct dc_debug_options *debug)
-{
-	if (pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
-		return false;
-
-	if (dcn10_can_pipe_disable_cursor(pipe_ctx))
-		return false;
-
-	if ((pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1 || pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
-			&& pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
-		return true;
-
-	return false;
-}
-
-static void dcn10_dmub_update_cursor_data(
-		struct pipe_ctx *pipe_ctx,
-		struct hubp *hubp,
-		const struct dc_cursor_mi_param *param,
-		const struct dc_cursor_position *cur_pos,
-		const struct dc_cursor_attributes *cur_attr)
-{
-	union dmub_rb_cmd cmd;
-	struct dmub_cmd_update_cursor_info_data *update_cursor_info;
-	const struct dc_cursor_position *pos;
-	const struct dc_cursor_attributes *attr;
-	int src_x_offset = 0;
-	int src_y_offset = 0;
-	int x_hotspot = 0;
-	int cursor_height = 0;
-	int cursor_width = 0;
-	uint32_t cur_en = 0;
-	unsigned int panel_inst = 0;
-
-	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
-
-	if (!dcn10_dmub_should_update_cursor_data(pipe_ctx, debug))
-		return;
-	/**
-	 * if cur_pos == NULL means the caller is from cursor_set_attribute
-	 * then driver use previous cursor position data
-	 * if cur_attr == NULL means the caller is from cursor_set_position
-	 * then driver use previous cursor attribute
-	 * if cur_pos or cur_attr is not NULL then update it
-	 */
-	if (cur_pos != NULL)
-		pos = cur_pos;
-	else
-		pos = &hubp->curs_pos;
-
-	if (cur_attr != NULL)
-		attr = cur_attr;
-	else
-		attr = &hubp->curs_attr;
-
-	if (!dc_get_edp_link_panel_inst(hubp->ctx->dc, pipe_ctx->stream->link, &panel_inst))
-		return;
-
-	src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
-	src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
-	x_hotspot = pos->x_hotspot;
-	cursor_height = (int)attr->height;
-	cursor_width = (int)attr->width;
-	cur_en = pos->enable ? 1:0;
-
-	// Rotated cursor width/height and hotspots tweaks for offset calculation
-	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
-		swap(cursor_height, cursor_width);
-		if (param->rotation == ROTATION_ANGLE_90) {
-			src_x_offset = pos->x - pos->y_hotspot - param->viewport.x;
-			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
-		}
-	} else if (param->rotation == ROTATION_ANGLE_180) {
-		src_x_offset = pos->x - param->viewport.x;
-		src_y_offset = pos->y - param->viewport.y;
-	}
-
-	if (param->mirror) {
-		x_hotspot = param->viewport.width - x_hotspot;
-		src_x_offset = param->viewport.x + param->viewport.width - src_x_offset;
-	}
-
-	if (src_x_offset >= (int)param->viewport.width)
-		cur_en = 0;  /* not visible beyond right edge*/
-
-	if (src_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
-
-	if (src_y_offset >= (int)param->viewport.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
-
-	if (src_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
-
-	// Cursor bitmaps have different hotspot values
-	// There's a possibility that the above logic returns a negative value, so we clamp them to 0
-	if (src_x_offset < 0)
-		src_x_offset = 0;
-	if (src_y_offset < 0)
-		src_y_offset = 0;
-
-	memset(&cmd, 0x0, sizeof(cmd));
-	cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
-	cmd.update_cursor_info.header.payload_bytes =
-			sizeof(cmd.update_cursor_info.update_cursor_info_data);
-	update_cursor_info = &cmd.update_cursor_info.update_cursor_info_data;
-	update_cursor_info->cursor_rect.x = src_x_offset + param->viewport.x;
-	update_cursor_info->cursor_rect.y = src_y_offset + param->viewport.y;
-	update_cursor_info->cursor_rect.width = attr->width;
-	update_cursor_info->cursor_rect.height = attr->height;
-	update_cursor_info->enable = cur_en;
-	update_cursor_info->pipe_idx = pipe_ctx->pipe_idx;
-	update_cursor_info->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
-	update_cursor_info->panel_inst = panel_inst;
-	dc_dmub_srv_cmd_queue(pipe_ctx->stream->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(pipe_ctx->stream->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(pipe_ctx->stream->ctx->dmub_srv);
-}
-
 void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
@@ -3699,7 +3606,6 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
 	}
 
-	dcn10_dmub_update_cursor_data(pipe_ctx, hubp, &param, &pos_cpy, NULL);
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);
 }
@@ -3707,25 +3613,6 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
-	struct dc_cursor_mi_param param = { 0 };
-
-	/**
-	 * If enter PSR without cursor attribute update
-	 * the cursor attribute of dmub_restore_plane
-	 * are initial value. call dmub to exit PSR and
-	 * restore plane then update cursor attribute to
-	 * avoid override with initial value
-	 */
-	if (pipe_ctx->plane_state != NULL) {
-		param.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
-		param.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz;
-		param.viewport = pipe_ctx->plane_res.scl_data.viewport;
-		param.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz;
-		param.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert;
-		param.rotation = pipe_ctx->plane_state->rotation;
-		param.mirror = pipe_ctx->plane_state->horizontal_mirror;
-		dcn10_dmub_update_cursor_data(pipe_ctx, pipe_ctx->plane_res.hubp, &param, NULL, attributes);
-	}
 
 	pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
 			pipe_ctx->plane_res.hubp, attributes);
@@ -3810,28 +3697,14 @@ void dcn10_calc_vupdate_position(
 		uint32_t *start_line,
 		uint32_t *end_line)
 {
-	const struct dc_crtc_timing *dc_crtc_timing = &pipe_ctx->stream->timing;
-	int vline_int_offset_from_vupdate =
-			pipe_ctx->stream->periodic_interrupt.lines_offset;
-	int vupdate_offset_from_vsync = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
-	int start_position;
+	const struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	int vupdate_pos = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
 
-	if (vline_int_offset_from_vupdate > 0)
-		vline_int_offset_from_vupdate--;
-	else if (vline_int_offset_from_vupdate < 0)
-		vline_int_offset_from_vupdate++;
-
-	start_position = vline_int_offset_from_vupdate + vupdate_offset_from_vsync;
-
-	if (start_position >= 0)
-		*start_line = start_position;
+	if (vupdate_pos >= 0)
+		*start_line = vupdate_pos - ((vupdate_pos / timing->v_total) * timing->v_total);
 	else
-		*start_line = dc_crtc_timing->v_total + start_position - 1;
-
-	*end_line = *start_line + 2;
-
-	if (*end_line >= dc_crtc_timing->v_total)
-		*end_line = 2;
+		*start_line = vupdate_pos + ((-vupdate_pos / timing->v_total) + 1) * timing->v_total - 1;
+	*end_line = (*start_line + 2) % timing->v_total;
 }
 
 static void dcn10_cal_vline_position(
@@ -3840,23 +3713,27 @@ static void dcn10_cal_vline_position(
 		uint32_t *start_line,
 		uint32_t *end_line)
 {
-	switch (pipe_ctx->stream->periodic_interrupt.ref_point) {
-	case START_V_UPDATE:
-		dcn10_calc_vupdate_position(
-				dc,
-				pipe_ctx,
-				start_line,
-				end_line);
-		break;
-	case START_V_SYNC:
+	const struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	int vline_pos = pipe_ctx->stream->periodic_interrupt.lines_offset;
+
+	if (pipe_ctx->stream->periodic_interrupt.ref_point == START_V_UPDATE) {
+		if (vline_pos > 0)
+			vline_pos--;
+		else if (vline_pos < 0)
+			vline_pos++;
+
+		vline_pos += dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
+		if (vline_pos >= 0)
+			*start_line = vline_pos - ((vline_pos / timing->v_total) * timing->v_total);
+		else
+			*start_line = vline_pos + ((-vline_pos / timing->v_total) + 1) * timing->v_total - 1;
+		*end_line = (*start_line + 2) % timing->v_total;
+	} else if (pipe_ctx->stream->periodic_interrupt.ref_point == START_V_SYNC) {
 		// vsync is line 0 so start_line is just the requested line offset
-		*start_line = pipe_ctx->stream->periodic_interrupt.lines_offset;
-		*end_line = *start_line + 2;
-		break;
-	default:
+		*start_line = vline_pos;
+		*end_line = (*start_line + 2) % timing->v_total;
+	} else
 		ASSERT(0);
-		break;
-	}
 }
 
 void dcn10_setup_periodic_interrupt(

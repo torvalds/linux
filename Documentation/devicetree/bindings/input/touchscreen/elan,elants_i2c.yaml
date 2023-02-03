@@ -14,9 +14,13 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - elan,ektf3624
-      - elan,ekth3500
+    oneOf:
+      - enum:
+          - elan,ektf3624
+          - elan,ekth3500
+      - items:
+          - const: elan,ekth3915
+          - const: elan,ekth3500
 
   reg:
     maxItems: 1

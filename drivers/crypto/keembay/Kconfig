@@ -42,7 +42,7 @@ config CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS
 config CRYPTO_DEV_KEEMBAY_OCS_ECC
 	tristate "Support for Intel Keem Bay OCS ECC HW acceleration"
 	depends on ARCH_KEEMBAY || COMPILE_TEST
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	select CRYPTO_ECDH
 	select CRYPTO_ENGINE
@@ -64,7 +64,7 @@ config CRYPTO_DEV_KEEMBAY_OCS_HCU
 	select CRYPTO_ENGINE
 	depends on HAS_IOMEM
 	depends on ARCH_KEEMBAY || COMPILE_TEST
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  Support for Intel Keem Bay Offload and Crypto Subsystem (OCS) Hash
 	  Control Unit (HCU) hardware acceleration for use with Crypto API.

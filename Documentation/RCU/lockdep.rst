@@ -17,7 +17,9 @@ state::
 	rcu_read_lock_held() for normal RCU.
 	rcu_read_lock_bh_held() for RCU-bh.
 	rcu_read_lock_sched_held() for RCU-sched.
+	rcu_read_lock_any_held() for any of normal RCU, RCU-bh, and RCU-sched.
 	srcu_read_lock_held() for SRCU.
+	rcu_read_lock_trace_held() for RCU Tasks Trace.
 
 These functions are conservative, and will therefore return 1 if they
 aren't certain (for example, if CONFIG_DEBUG_LOCK_ALLOC is not set).
@@ -53,6 +55,8 @@ checking of rcu_dereference() primitives:
 		is invoked by both SRCU readers and updaters.
 	rcu_dereference_raw(p):
 		Don't check.  (Use sparingly, if at all.)
+	rcu_dereference_raw_check(p):
+		Don't do lockdep at all.  (Use sparingly, if at all.)
 	rcu_dereference_protected(p, c):
 		Use explicit check expression "c", and omit all barriers
 		and compiler constraints.  This is useful when the data

@@ -16,11 +16,11 @@
 
 	/* Power supply provides a fixed 3.3V @3A */
 	vmmcsd_fixed: vmmcsd-regulator {
-	      compatible = "regulator-fixed";
-	      regulator-name = "vmmcsd_fixed";
-	      regulator-min-microvolt = <3300000>;
-	      regulator-max-microvolt = <3300000>;
-	      regulator-boot-on;
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
 	};
 
 	buttons: push_button {

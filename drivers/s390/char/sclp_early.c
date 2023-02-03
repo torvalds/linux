@@ -57,8 +57,10 @@ static void __init sclp_early_facilities_detect(void)
 		sclp.has_diag318 = !!(sccb->byte_134 & 0x80);
 		sclp.has_iplcc = !!(sccb->byte_134 & 0x02);
 	}
-	if (sccb->cpuoff > 137)
+	if (sccb->cpuoff > 137) {
 		sclp.has_sipl = !!(sccb->cbl & 0x4000);
+		sclp.has_sipl_eckd = !!(sccb->cbl & 0x2000);
+	}
 	sclp.rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp.rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp.rzm <<= 20;

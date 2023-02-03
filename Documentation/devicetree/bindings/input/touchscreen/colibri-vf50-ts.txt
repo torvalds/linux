@@ -3,15 +3,16 @@
 Required Properties:
 - compatible must be toradex,vf50-touchscreen
 - io-channels: adc channels being used by the Colibri VF50 module
+    IIO ADC for Y-, X-, Y+, X+ connections
 - xp-gpios: FET gate driver for input of X+
 - xm-gpios: FET gate driver for input of X-
 - yp-gpios: FET gate driver for input of Y+
 - ym-gpios: FET gate driver for input of Y-
-- interrupts: pen irq interrupt for touch detection
-- pinctrl-names: "idle", "default", "gpios"
-- pinctrl-0: pinctrl node for pen/touch detection state pinmux
+- interrupts: pen irq interrupt for touch detection, signal from X plate
+- pinctrl-names: "idle", "default"
+- pinctrl-0: pinctrl node for pen/touch detection, pinctrl must provide
+    pull-up resistor on X+, X-.
 - pinctrl-1: pinctrl node for X/Y and pressure measurement (ADC) state pinmux
-- pinctrl-2: pinctrl node for gpios functioning as FET gate drivers
 - vf50-ts-min-pressure: pressure level at which to stop measuring X/Y values
 
 Example:
@@ -26,9 +27,8 @@ Example:
 		ym-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "idle","default","gpios";
-		pinctrl-0 = <&pinctrl_touchctrl_idle>;
-		pinctrl-1 = <&pinctrl_touchctrl_default>;
-		pinctrl-2 = <&pinctrl_touchctrl_gpios>;
+		pinctrl-names = "idle","default";
+		pinctrl-0 = <&pinctrl_touchctrl_idle>, <&pinctrl_touchctrl_gpios>;
+		pinctrl-1 = <&pinctrl_touchctrl_default>, <&pinctrl_touchctrl_gpios>;
 		vf50-ts-min-pressure = <200>;
 	};

@@ -44,6 +44,14 @@
 			polling-delay = <0>;
 			polling-delay-passive = <0>;
 			thermal-sensors = <&bat_therm>;
+
+			trips {
+				battery-crit-hi {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 
@@ -239,7 +247,7 @@
 		};
 	};
 
-	spi-gpio-0 {
+	spi {
 		compatible = "spi-gpio";
 		/* Clock on GPIO220, pin SCL */
 		sck-gpios = <&gpio6 28 GPIO_ACTIVE_HIGH>;

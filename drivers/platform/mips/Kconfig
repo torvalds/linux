@@ -6,6 +6,7 @@
 menuconfig MIPS_PLATFORM_DEVICES
 	bool "MIPS Platform Specific Device Drivers"
 	default y
+	depends on MIPS
 	help
 	  Say Y here to get to see options for device drivers of various
 	  MIPS platforms, including vendor-specific netbook/laptop/desktop

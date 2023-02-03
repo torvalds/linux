@@ -83,7 +83,7 @@ void mlx5_aso_build_wqe(struct mlx5_aso *aso, u8 ds_cnt,
 			u32 obj_id, u32 opc_mode);
 void mlx5_aso_post_wqe(struct mlx5_aso *aso, bool with_data,
 		       struct mlx5_wqe_ctrl_seg *doorbell_cseg);
-int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data, u32 interval_ms);
+int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data);
 
 struct mlx5_aso *mlx5_aso_create(struct mlx5_core_dev *mdev, u32 pdn);
 void mlx5_aso_destroy(struct mlx5_aso *aso);

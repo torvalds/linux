@@ -28,11 +28,6 @@ typedef struct {
 #define SA_IA32_ABI	0x02000000u
 #define SA_X32_ABI	0x01000000u
 
-#ifndef CONFIG_COMPAT
-#define compat_sigset_t compat_sigset_t
-typedef sigset_t compat_sigset_t;
-#endif
-
 #endif /* __ASSEMBLY__ */
 #include <uapi/asm/signal.h>
 #ifndef __ASSEMBLY__

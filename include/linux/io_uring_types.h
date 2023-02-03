@@ -34,9 +34,6 @@ struct io_file_table {
 	unsigned int alloc_hint;
 };
 
-struct io_notif;
-struct io_notif_slot;
-
 struct io_hash_bucket {
 	spinlock_t		lock;
 	struct hlist_head	list;
@@ -242,8 +239,6 @@ struct io_ring_ctx {
 		unsigned		nr_user_files;
 		unsigned		nr_user_bufs;
 		struct io_mapped_ubuf	**user_bufs;
-		struct io_notif_slot	*notif_slots;
-		unsigned		nr_notif_slots;
 
 		struct io_submit_state	submit_state;
 

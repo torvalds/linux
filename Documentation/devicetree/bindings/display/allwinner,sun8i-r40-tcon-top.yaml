@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/allwinner,sun8i-r40-tcon-top.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner R40 TCON TOP Device Tree Bindings
+title: Allwinner R40 TCON TOP
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

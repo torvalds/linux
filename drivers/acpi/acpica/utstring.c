@@ -145,7 +145,7 @@ void acpi_ut_repair_name(char *name)
 		return;
 	}
 
-	ACPI_COPY_NAMESEG(&original_name, name);
+	ACPI_COPY_NAMESEG(&original_name, &name[0]);
 
 	/* Check each character in the name */
 
@@ -156,10 +156,10 @@ void acpi_ut_repair_name(char *name)
 
 		/*
 		 * Replace a bad character with something printable, yet technically
-		 * still invalid. This prevents any collisions with existing "good"
+		 * "odd". This prevents any collisions with existing "good"
 		 * names in the namespace.
 		 */
-		name[i] = '*';
+		name[i] = '_';
 		found_bad_char = TRUE;
 	}
 
@@ -169,8 +169,8 @@ void acpi_ut_repair_name(char *name)
 
 		if (!acpi_gbl_enable_interpreter_slack) {
 			ACPI_WARNING((AE_INFO,
-				      "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
-				      original_name, name));
+				      "Invalid character(s) in name (0x%.8X) %p, repaired: [%4.4s]",
+				      original_name, name, &name[0]));
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",

@@ -743,9 +743,15 @@ static const bool earlycon_acpi_spcr_enable EARLYCON_USED_OR_UNUSED;
 static inline int setup_earlycon(char *buf) { return 0; }
 #endif
 
-static inline bool uart_console_enabled(struct uart_port *port)
+/* Variant of uart_console_registered() when the console_list_lock is held. */
+static inline bool uart_console_registered_locked(struct uart_port *port)
 {
-	return uart_console(port) && (port->cons->flags & CON_ENABLED);
+	return uart_console(port) && console_is_registered_locked(port->cons);
+}
+
+static inline bool uart_console_registered(struct uart_port *port)
+{
+	return uart_console(port) && console_is_registered(port->cons);
 }
 
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,

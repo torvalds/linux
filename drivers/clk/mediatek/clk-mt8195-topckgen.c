@@ -1270,8 +1270,10 @@ static int clk_mt8195_topck_probe(struct platform_device *pdev)
 	hw = devm_clk_hw_register_mux(&pdev->dev, "mfg_ck_fast_ref", mfg_fast_parents,
 				      ARRAY_SIZE(mfg_fast_parents), CLK_SET_RATE_PARENT,
 				      (base + 0x250), 8, 1, 0, &mt8195_clk_lock);
-	if (IS_ERR(hw))
+	if (IS_ERR(hw)) {
+		r = PTR_ERR(hw);
 		goto unregister_muxes;
+	}
 	top_clk_data->hws[CLK_TOP_MFG_CK_FAST_REF] = hw;
 
 	r = clk_mt8195_reg_mfg_mux_notifier(&pdev->dev,

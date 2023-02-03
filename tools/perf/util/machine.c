@@ -1128,10 +1128,6 @@ static struct dso *machine__get_kernel(struct machine *machine)
 	return kernel;
 }
 
-struct process_args {
-	u64 start;
-};
-
 void machine__get_kallsyms_filename(struct machine *machine, char *buf,
 				    size_t bufsz)
 {

@@ -307,7 +307,7 @@ enum {
 
 extern int sclp_init_state;
 extern int sclp_console_pages;
-extern int sclp_console_drop;
+extern bool sclp_console_drop;
 extern unsigned long sclp_console_full;
 extern bool sclp_mask_compat_mode;
 

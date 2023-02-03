@@ -55,8 +55,6 @@ ifeq ($(CONFIG_OPENRISC_HAVE_INST_SEXT),y)
 	KBUILD_CFLAGS += $(call cc-option,-msext)
 endif
 
-head-y 		:= arch/openrisc/kernel/head.o
-
 libs-y		+= $(LIBGCC)
 
 PHONY += vmlinux.bin

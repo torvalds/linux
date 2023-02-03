@@ -282,7 +282,7 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
 						     struct page, lru);
 		struct privcmd_mmap_entry *msg = page_address(page);
 
-		vma = find_vma(mm, msg->va);
+		vma = vma_lookup(mm, msg->va);
 		rc = -EINVAL;
 
 		if (!vma || (msg->va != vma->vm_start) || vma->vm_private_data)
@@ -760,7 +760,7 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 		goto out;
 	}
 
-	pfns = kcalloc(kdata.num, sizeof(*pfns), GFP_KERNEL);
+	pfns = kcalloc(kdata.num, sizeof(*pfns), GFP_KERNEL | __GFP_NOWARN);
 	if (!pfns) {
 		rc = -ENOMEM;
 		goto out;

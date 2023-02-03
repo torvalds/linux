@@ -116,6 +116,7 @@
 
 /* Verdin USB_2 */
 &usb3_1 {
+	fsl,permanently-attached;
 	status = "okay";
 };
 

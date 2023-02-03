@@ -116,6 +116,8 @@ options from the ``slub_debug`` parameter translate to the following files::
 	T	trace
 	A	failslab
 
+failslab file is writable, so writing 1 or 0 will enable or disable
+the option at runtime. Write returns -EINVAL if cache is an alias.
 Careful with tracing: It may spew out lots of information and never stop if
 used on the wrong slab.
 

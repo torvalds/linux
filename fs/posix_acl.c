@@ -24,6 +24,7 @@
 #include <linux/user_namespace.h>
 #include <linux/namei.h>
 #include <linux/mnt_idmapping.h>
+#include <linux/iversion.h>
 
 static struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
@@ -1227,6 +1228,8 @@ int simple_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 	}
 
 	inode->i_ctime = current_time(inode);
+	if (IS_I_VERSION(inode))
+		inode_inc_iversion(inode);
 	set_cached_acl(inode, type, acl);
 	return 0;
 }

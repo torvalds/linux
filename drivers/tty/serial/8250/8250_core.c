@@ -565,7 +565,7 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 
 		up->port.dev = dev;
 
-		if (uart_console_enabled(&up->port))
+		if (uart_console_registered(&up->port))
 			pm_runtime_get_sync(up->port.dev);
 
 		serial8250_apply_quirks(up);

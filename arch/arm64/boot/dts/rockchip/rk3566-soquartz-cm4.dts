@@ -30,6 +30,12 @@
 	};
 };
 
+/* phy for pcie */
+&combphy2 {
+	phy-supply = <&vcc3v3_sys>;
+	status = "okay";
+};
+
 &gmac1 {
 	status = "okay";
 };
@@ -102,6 +108,11 @@
 };
 
 &led_work {
+	status = "okay";
+};
+
+&pcie2x1 {
+	vpcie3v3-supply = <&vcc_3v3>;
 	status = "okay";
 };
 

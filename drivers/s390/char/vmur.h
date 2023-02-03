@@ -13,6 +13,7 @@
 #define _VMUR_H_
 
 #include <linux/refcount.h>
+#include <linux/workqueue.h>
 
 #define DEV_CLASS_UR_I 0x20 /* diag210 unit record input device class */
 #define DEV_CLASS_UR_O 0x10 /* diag210 unit record output device class */
@@ -76,6 +77,7 @@ struct urdev {
 	wait_queue_head_t wait;		/* wait queue to serialize open */
 	int open_flag;			/* "urdev is open" flag */
 	spinlock_t open_lock;		/* serialize critical sections */
+	struct work_struct uevent_work;	/* work to send uevent */
 };
 
 /*

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/arm,corstone1000.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM Corstone1000 Device Tree Bindings
+title: ARM Corstone1000
 
 maintainers:
   - Vishnu Banavath <vishnu.banavath@arm.com>

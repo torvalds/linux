@@ -18,6 +18,7 @@
  *
  */
 
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,7 +88,7 @@ static unsigned char best_table_len[256];
 static void usage(void)
 {
 	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] "
-			"[--base-relative] < in.map > out.S\n");
+			"[--base-relative] in.map > out.S\n");
 	exit(1);
 }
 
@@ -123,9 +124,6 @@ static bool is_ignored_symbol(const char *name, char type)
 
 	/* Symbol names that begin with the following are ignored.*/
 	static const char * const ignored_prefixes[] = {
-		"$",			/* local symbols for ARM, MIPS, etc. */
-		".L",			/* local labels, .LBB,.Ltmpxxx,.L__unnamed_xx,.LASANPC, etc. */
-		"__crc_",		/* modversions */
 		"__efistub_",		/* arm64 EFI stub namespace */
 		"__kvm_nvhe_$",		/* arm64 local symbols in non-VHE KVM namespace */
 		"__kvm_nvhe_.L",	/* arm64 local symbols in non-VHE KVM namespace */
@@ -330,12 +328,19 @@ static void shrink_table(void)
 	}
 }
 
-static void read_map(FILE *in)
+static void read_map(const char *in)
 {
+	FILE *fp;
 	struct sym_entry *sym;
 
-	while (!feof(in)) {
-		sym = read_symbol(in);
+	fp = fopen(in, "r");
+	if (!fp) {
+		perror(in);
+		exit(1);
+	}
+
+	while (!feof(fp)) {
+		sym = read_symbol(fp);
 		if (!sym)
 			continue;
 
@@ -346,12 +351,15 @@ static void read_map(FILE *in)
 			table = realloc(table, sizeof(*table) * table_size);
 			if (!table) {
 				fprintf(stderr, "out of memory\n");
+				fclose(fp);
 				exit (1);
 			}
 		}
 
 		table[table_cnt++] = sym;
 	}
+
+	fclose(fp);
 }
 
 static void output_label(const char *label)
@@ -805,22 +813,26 @@ static void record_relative_base(void)
 
 int main(int argc, char **argv)
 {
-	if (argc >= 2) {
-		int i;
-		for (i = 1; i < argc; i++) {
-			if(strcmp(argv[i], "--all-symbols") == 0)
-				all_symbols = 1;
-			else if (strcmp(argv[i], "--absolute-percpu") == 0)
-				absolute_percpu = 1;
-			else if (strcmp(argv[i], "--base-relative") == 0)
-				base_relative = 1;
-			else
-				usage();
-		}
-	} else if (argc != 1)
+	while (1) {
+		static struct option long_options[] = {
+			{"all-symbols",     no_argument, &all_symbols,     1},
+			{"absolute-percpu", no_argument, &absolute_percpu, 1},
+			{"base-relative",   no_argument, &base_relative,   1},
+			{},
+		};
+
+		int c = getopt_long(argc, argv, "", long_options, NULL);
+
+		if (c == -1)
+			break;
+		if (c != 0)
+			usage();
+	}
+
+	if (optind >= argc)
 		usage();
 
-	read_map(stdin);
+	read_map(argv[optind]);
 	shrink_table();
 	if (absolute_percpu)
 		make_percpus_absolute();

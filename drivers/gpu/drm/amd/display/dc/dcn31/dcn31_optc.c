@@ -201,7 +201,6 @@ void optc31_set_drr(
 
 		// Setup manual flow control for EOF via TRIG_A
 		optc->funcs->setup_manual_trigger(optc);
-
 	} else {
 		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
 				OTG_SET_V_TOTAL_MIN_MASK, 0,
@@ -260,7 +259,6 @@ static struct timing_generator_funcs dcn31_tg_funcs = {
 		.enable_crtc_reset = optc1_enable_crtc_reset,
 		.disable_reset_trigger = optc1_disable_reset_trigger,
 		.lock = optc3_lock,
-		.is_locked = optc1_is_locked,
 		.unlock = optc1_unlock,
 		.lock_doublebuffer_enable = optc3_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,

@@ -63,6 +63,7 @@
 
 		l2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -282,6 +283,11 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			timer@0 {
+				compatible = "brcm,bcm63138-timer";
+				reg = <0x0 0x28>;
+			};
 
 			watchdog@28 {
 				compatible = "brcm,bcm6345-wdt";

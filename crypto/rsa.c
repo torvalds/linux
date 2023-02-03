@@ -327,7 +327,7 @@ static struct akcipher_alg rsa = {
 	},
 };
 
-static int rsa_init(void)
+static int __init rsa_init(void)
 {
 	int err;
 
@@ -344,7 +344,7 @@ static int rsa_init(void)
 	return 0;
 }
 
-static void rsa_exit(void)
+static void __exit rsa_exit(void)
 {
 	crypto_unregister_template(&rsa_pkcs1pad_tmpl);
 	crypto_unregister_akcipher(&rsa);

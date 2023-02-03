@@ -11,28 +11,25 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-core.h>
 
-struct sun6i_csi;
+struct sun6i_csi_device;
 
 struct sun6i_video {
-	struct video_device		vdev;
+	struct video_device		video_dev;
+	struct vb2_queue		queue;
+	struct mutex			lock; /* Queue lock. */
 	struct media_pad		pad;
-	struct sun6i_csi		*csi;
 
-	struct mutex			lock;
-
-	struct vb2_queue		vb2_vidq;
-	spinlock_t			dma_queue_lock;
 	struct list_head		dma_queue;
+	spinlock_t			dma_queue_lock; /* DMA queue lock. */
 
-	unsigned int			sequence;
-	struct v4l2_format		fmt;
+	struct v4l2_format		format;
 	u32				mbus_code;
+	unsigned int			sequence;
 };
 
-int sun6i_video_init(struct sun6i_video *video, struct sun6i_csi *csi,
-		     const char *name);
-void sun6i_video_cleanup(struct sun6i_video *video);
+int sun6i_video_setup(struct sun6i_csi_device *csi_dev);
+void sun6i_video_cleanup(struct sun6i_csi_device *csi_dev);
 
-void sun6i_video_frame_done(struct sun6i_video *video);
+void sun6i_video_frame_done(struct sun6i_csi_device *csi_dev);
 
 #endif /* __SUN6I_VIDEO_H__ */

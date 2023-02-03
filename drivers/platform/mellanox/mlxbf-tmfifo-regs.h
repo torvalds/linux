@@ -60,4 +60,14 @@
 #define MLXBF_TMFIFO_RX_CTL__MAX_ENTRIES_RMASK		GENMASK_ULL(8, 0)
 #define MLXBF_TMFIFO_RX_CTL__MAX_ENTRIES_MASK		GENMASK_ULL(40, 32)
 
+/* BF3 register offsets within resource 0. */
+#define MLXBF_TMFIFO_RX_DATA_BF3	0x0000
+#define MLXBF_TMFIFO_TX_DATA_BF3	0x1000
+
+/* BF3 register offsets within resource 1. */
+#define MLXBF_TMFIFO_RX_STS_BF3		0x0000
+#define MLXBF_TMFIFO_RX_CTL_BF3		0x0008
+#define MLXBF_TMFIFO_TX_STS_BF3		0x0100
+#define MLXBF_TMFIFO_TX_CTL_BF3		0x0108
+
 #endif /* !defined(__MLXBF_TMFIFO_REGS_H__) */

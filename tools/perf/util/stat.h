@@ -43,7 +43,7 @@ enum perf_stat_evsel_id {
 };
 
 struct perf_stat_evsel {
-	struct stats		 res_stats[3];
+	struct stats		 res_stats;
 	enum perf_stat_evsel_id	 id;
 	u64			*group_data;
 };
@@ -141,6 +141,8 @@ struct perf_stat_config {
 	bool			 stop_read_counter;
 	bool			 quiet;
 	bool			 iostat_run;
+	char			 *user_requested_cpu_list;
+	bool			 system_wide;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
@@ -151,8 +153,6 @@ struct perf_stat_config {
 	int			 run_count;
 	int			 print_free_counters_hint;
 	int			 print_mixed_hw_group_error;
-	struct runtime_stat	*stats;
-	int			 stats_num;
 	const char		*csv_sep;
 	struct stats		*walltime_nsecs_stats;
 	struct rusage		 ru_data;
@@ -232,7 +232,7 @@ void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
 void perf_stat__reset_shadow_per_stat(struct runtime_stat *st);
 void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
-				    int cpu_map_idx, struct runtime_stat *st);
+				    int map_idx, struct runtime_stat *st);
 struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
@@ -242,7 +242,7 @@ struct perf_stat_output_ctx {
 
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
-				   double avg, int cpu,
+				   double avg, int map_idx,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events,
 				   struct runtime_stat *st);
@@ -277,5 +277,5 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			    struct target *_target, struct timespec *ts, int argc, const char **argv);
 
 struct metric_expr;
-double test_generic_metric(struct metric_expr *mexp, int cpu_map_idx, struct runtime_stat *st);
+double test_generic_metric(struct metric_expr *mexp, int map_idx, struct runtime_stat *st);
 #endif

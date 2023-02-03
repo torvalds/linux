@@ -1077,7 +1077,7 @@ static int iqs7222_hard_reset(struct iqs7222_private *iqs7222)
 
 static int iqs7222_force_comms(struct iqs7222_private *iqs7222)
 {
-	u8 msg_buf[] = { 0xFF, 0x00, };
+	u8 msg_buf[] = { 0xFF, };
 	int ret;
 
 	/*
@@ -1771,11 +1771,9 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222, int chan_index)
 	if (!chan_node)
 		return 0;
 
-	if (dev_desc->allow_offset) {
-		sys_setup[dev_desc->allow_offset] |= BIT(chan_index);
-		if (fwnode_property_present(chan_node, "azoteq,ulp-allow"))
-			sys_setup[dev_desc->allow_offset] &= ~BIT(chan_index);
-	}
+	if (dev_desc->allow_offset &&
+	    fwnode_property_present(chan_node, "azoteq,ulp-allow"))
+		sys_setup[dev_desc->allow_offset] &= ~BIT(chan_index);
 
 	chan_setup[0] |= IQS7222_CHAN_SETUP_0_CHAN_EN;
 
@@ -2206,6 +2204,9 @@ static int iqs7222_parse_all(struct iqs7222_private *iqs7222)
 	u16 *sys_setup = iqs7222->sys_setup;
 	int error, i;
 
+	if (dev_desc->allow_offset)
+		sys_setup[dev_desc->allow_offset] = U16_MAX;
+
 	if (dev_desc->event_offset)
 		sys_setup[dev_desc->event_offset] = IQS7222_EVENT_MASK_ATI;
 
@@ -2325,6 +2326,9 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 			 */
 			int k = 2 + j * (num_chan > 16 ? 2 : 1);
 			u16 state = le16_to_cpu(status[k + i / 16]);
+
+			if (!iqs7222->kp_type[i][j])
+				continue;
 
 			input_event(iqs7222->keypad,
 				    iqs7222->kp_type[i][j],

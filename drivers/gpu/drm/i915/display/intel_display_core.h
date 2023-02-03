@@ -316,6 +316,14 @@ struct intel_display {
 	} dbuf;
 
 	struct {
+		/*
+		 * dkl.phy_lock protects against concurrent access of the
+		 * Dekel TypeC PHYs.
+		 */
+		spinlock_t phy_lock;
+	} dkl;
+
+	struct {
 		/* VLV/CHV/BXT/GLK DSI MMIO register base address */
 		u32 mmio_base;
 	} dsi;

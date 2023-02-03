@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/sound-dai.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Digital Audio Interface consumer Device Tree Bindings
+title: Digital Audio Interface consumer
 
 maintainers:
   - Rob Herring <robh@kernel.org>

@@ -1369,6 +1369,7 @@ static const struct mtk_eint_hw mt7623_eint_hw = {
 	.ports     = 6,
 	.ap_num    = 169,
 	.db_cnt    = 20,
+	.db_time   = debounce_time_mt2701,
 };
 
 static struct mtk_pin_soc mt7623_data = {

@@ -496,9 +496,6 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 	if (ret)
 		goto remove_sysfs;
 
-	if (!iommu_present(&platform_bus_type))
-		bus_set_iommu(&platform_bus_type, &sprd_iommu_ops);
-
 	ret = sprd_iommu_clk_enable(sdev);
 	if (ret)
 		goto unregister_iommu;
@@ -533,8 +530,6 @@ static int sprd_iommu_remove(struct platform_device *pdev)
 
 	iommu_group_put(sdev->group);
 	sdev->group = NULL;
-
-	bus_set_iommu(&platform_bus_type, NULL);
 
 	platform_set_drvdata(pdev, NULL);
 	iommu_device_sysfs_remove(&sdev->iommu);

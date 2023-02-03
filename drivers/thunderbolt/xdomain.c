@@ -2437,7 +2437,7 @@ int tb_xdomain_init(void)
 	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x1);
 	tb_property_add_immediate(xdomain_property_dir, "devicerv", 0x80000100);
 
-	xdomain_property_block_gen = prandom_u32();
+	xdomain_property_block_gen = get_random_u32();
 	return 0;
 }
 

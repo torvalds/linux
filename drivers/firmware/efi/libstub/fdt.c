@@ -313,16 +313,16 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 
 			/*
 			 * Set the virtual address field of all
-			 * EFI_MEMORY_RUNTIME entries to 0. This will signal
-			 * the incoming kernel that no virtual translation has
-			 * been installed.
+			 * EFI_MEMORY_RUNTIME entries to U64_MAX. This will
+			 * signal the incoming kernel that no virtual
+			 * translation has been installed.
 			 */
 			for (l = 0; l < priv.boot_memmap->map_size;
 			     l += priv.boot_memmap->desc_size) {
 				p = (void *)priv.boot_memmap->map + l;
 
 				if (p->attribute & EFI_MEMORY_RUNTIME)
-					p->virt_addr = 0;
+					p->virt_addr = U64_MAX;
 			}
 		}
 		return EFI_SUCCESS;

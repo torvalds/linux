@@ -47,12 +47,12 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 	/* record the work call stack in order to print it in KASAN reports */
 	kasan_record_aux_stack(work);
 
+	head = READ_ONCE(task->task_works);
 	do {
-		head = READ_ONCE(task->task_works);
 		if (unlikely(head == &work_exited))
 			return -ESRCH;
 		work->next = head;
-	} while (cmpxchg(&task->task_works, head, work) != head);
+	} while (!try_cmpxchg(&task->task_works, &head, work));
 
 	switch (notify) {
 	case TWA_NONE:
@@ -100,10 +100,12 @@ task_work_cancel_match(struct task_struct *task,
 	 * we raced with task_work_run(), *pprev == NULL/exited.
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
-	while ((work = READ_ONCE(*pprev))) {
-		if (!match(work, data))
+	work = READ_ONCE(*pprev);
+	while (work) {
+		if (!match(work, data)) {
 			pprev = &work->next;
-		else if (cmpxchg(pprev, work, work->next) == work)
+			work = READ_ONCE(*pprev);
+		} else if (try_cmpxchg(pprev, &work, work->next))
 			break;
 	}
 	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
@@ -151,16 +153,16 @@ void task_work_run(void)
 		 * work->func() can do task_work_add(), do not set
 		 * work_exited unless the list is empty.
 		 */
+		work = READ_ONCE(task->task_works);
 		do {
 			head = NULL;
-			work = READ_ONCE(task->task_works);
 			if (!work) {
 				if (task->flags & PF_EXITING)
 					head = &work_exited;
 				else
 					break;
 			}
-		} while (cmpxchg(&task->task_works, work, head) != work);
+		} while (!try_cmpxchg(&task->task_works, &work, head));
 
 		if (!work)
 			break;

@@ -3462,7 +3462,10 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 			     const struct btrfs_ioctl_encoded_io_args *encoded);
 
-ssize_t btrfs_dio_rw(struct kiocb *iocb, struct iov_iter *iter, size_t done_before);
+ssize_t btrfs_dio_read(struct kiocb *iocb, struct iov_iter *iter,
+		       size_t done_before);
+struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
+				  size_t done_before);
 
 extern const struct dentry_operations btrfs_dentry_operations;
 
@@ -3793,9 +3796,11 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       const char *function,
 			       unsigned int line, int errno, bool first_hit);
 
+bool __cold abort_should_print_stack(int errno);
+
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
- * detected, that way the exact line number is reported.
+ * detected, that way the exact stack trace is reported for some errors.
  */
 #define btrfs_abort_transaction(trans, errno)		\
 do {								\
@@ -3804,10 +3809,11 @@ do {								\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
 		first = true;					\
-		if ((errno) != -EIO && (errno) != -EROFS) {		\
-			WARN(1, KERN_DEBUG				\
+		if (WARN(abort_should_print_stack(errno), 	\
+			KERN_DEBUG				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
-			(errno));					\
+			(errno))) {					\
+			/* Stack trace printed. */			\
 		} else {						\
 			btrfs_debug((trans)->fs_info,			\
 				    "Transaction aborted (error %d)", \

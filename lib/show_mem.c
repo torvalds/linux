@@ -8,13 +8,13 @@
 #include <linux/mm.h>
 #include <linux/cma.h>
 
-void show_mem(unsigned int filter, nodemask_t *nodemask)
+void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
 {
 	pg_data_t *pgdat;
 	unsigned long total = 0, reserved = 0, highmem = 0;
 
 	printk("Mem-Info:\n");
-	show_free_areas(filter, nodemask);
+	__show_free_areas(filter, nodemask, max_zone_idx);
 
 	for_each_online_pgdat(pgdat) {
 		int zoneid;

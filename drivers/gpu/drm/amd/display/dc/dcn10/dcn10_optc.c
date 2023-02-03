@@ -207,10 +207,7 @@ void optc1_program_timing(
 	/* In case of V_TOTAL_CONTROL is on, make sure OTG_V_TOTAL_MAX and
 	 * OTG_V_TOTAL_MIN are equal to V_TOTAL.
 	 */
-	REG_SET(OTG_V_TOTAL_MAX, 0,
-		OTG_V_TOTAL_MAX, v_total);
-	REG_SET(OTG_V_TOTAL_MIN, 0,
-		OTG_V_TOTAL_MIN, v_total);
+	optc->funcs->set_vtotal_min_max(optc, v_total, v_total);
 
 	/* v_sync_start = 0, v_sync_end = v_sync_width */
 	v_sync_end = patched_crtc_timing.v_sync_width;
@@ -649,13 +646,6 @@ uint32_t optc1_get_vblank_counter(struct timing_generator *optc)
 void optc1_lock(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	uint32_t regval = 0;
-
-	regval = REG_READ(OTG_CONTROL);
-
-	/* otg is not running, do not need to be locked */
-	if ((regval & 0x1) == 0x0)
-		return;
 
 	REG_SET(OTG_GLOBAL_CONTROL0, 0,
 			OTG_MASTER_UPDATE_LOCK_SEL, optc->inst);
@@ -663,12 +653,10 @@ void optc1_lock(struct timing_generator *optc)
 			OTG_MASTER_UPDATE_LOCK, 1);
 
 	/* Should be fast, status does not update on maximus */
-	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS) {
-
+	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
 				UPDATE_LOCK_STATUS, 1,
 				1, 10);
-	}
 }
 
 void optc1_unlock(struct timing_generator *optc)
@@ -677,16 +665,6 @@ void optc1_unlock(struct timing_generator *optc)
 
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 0);
-}
-
-bool optc1_is_locked(struct timing_generator *optc)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	uint32_t locked;
-
-	REG_GET(OTG_MASTER_UPDATE_LOCK, UPDATE_LOCK_STATUS, &locked);
-
-	return (locked == 1);
 }
 
 void optc1_get_position(struct timing_generator *optc,
@@ -941,11 +919,7 @@ void optc1_set_drr(
 
 		}
 
-		REG_SET(OTG_V_TOTAL_MAX, 0,
-			OTG_V_TOTAL_MAX, params->vertical_total_max - 1);
-
-		REG_SET(OTG_V_TOTAL_MIN, 0,
-			OTG_V_TOTAL_MIN, params->vertical_total_min - 1);
+		optc->funcs->set_vtotal_min_max(optc, params->vertical_total_min - 1, params->vertical_total_max - 1);
 
 		REG_UPDATE_5(OTG_V_TOTAL_CONTROL,
 				OTG_V_TOTAL_MIN_SEL, 1,
@@ -964,11 +938,7 @@ void optc1_set_drr(
 				OTG_V_TOTAL_MAX_SEL, 0,
 				OTG_FORCE_LOCK_ON_EVENT, 0);
 
-		REG_SET(OTG_V_TOTAL_MIN, 0,
-			OTG_V_TOTAL_MIN, 0);
-
-		REG_SET(OTG_V_TOTAL_MAX, 0,
-			OTG_V_TOTAL_MAX, 0);
+		optc->funcs->set_vtotal_min_max(optc, 0, 0);
 	}
 }
 
@@ -1583,11 +1553,11 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.enable_crtc_reset = optc1_enable_crtc_reset,
 		.disable_reset_trigger = optc1_disable_reset_trigger,
 		.lock = optc1_lock,
-		.is_locked = optc1_is_locked,
 		.unlock = optc1_unlock,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc1_set_drr,
 		.get_last_used_drr_vtotal = NULL,
+		.set_vtotal_min_max = optc1_set_vtotal_min_max,
 		.set_static_screen_control = optc1_set_static_screen_control,
 		.set_test_pattern = optc1_set_test_pattern,
 		.program_stereo = optc1_program_stereo,

@@ -26,6 +26,8 @@
 #define LAN966X_BUFFER_MEMORY		(160 * 1024)
 #define LAN966X_BUFFER_MIN_SZ		60
 
+#define LAN966X_HW_MTU(mtu)		((mtu) + ETH_HLEN + ETH_FCS_LEN)
+
 #define PGID_AGGR			64
 #define PGID_SRC			80
 #define PGID_ENTRIES			89

@@ -17,7 +17,7 @@
 
 static struct read_info_sccb __bootdata(sclp_info_sccb);
 static int __bootdata(sclp_info_sccb_valid);
-char *__bootdata(sclp_early_sccb);
+char *__bootdata_preserved(sclp_early_sccb);
 int sclp_init_state = sclp_init_state_uninitialized;
 /*
  * Used to keep track of the size of the event masks. Qemu until version 2.11
@@ -238,6 +238,30 @@ void __sclp_early_printk(const char *str, unsigned int len)
 void sclp_early_printk(const char *str)
 {
 	__sclp_early_printk(str, strlen(str));
+}
+
+/*
+ * Use sclp_emergency_printk() to print a string when the system is in a
+ * state where regular console drivers cannot be assumed to work anymore.
+ *
+ * Callers must make sure that no concurrent SCLP requests are outstanding
+ * and all other CPUs are stopped, or at least disabled for external
+ * interrupts.
+ */
+void sclp_emergency_printk(const char *str)
+{
+	int have_linemode, have_vt220;
+	unsigned int len;
+
+	len = strlen(str);
+	/*
+	 * Don't care about return values; if requests fail, just ignore and
+	 * continue to have a rather high chance that anything is printed.
+	 */
+	sclp_early_setup(0, &have_linemode, &have_vt220);
+	sclp_early_print_lm(str, len);
+	sclp_early_print_vt220(str, len);
+	sclp_early_setup(1, &have_linemode, &have_vt220);
 }
 
 /*

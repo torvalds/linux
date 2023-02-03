@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/generic-ehci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: USB EHCI Controller Device Tree Bindings
+title: USB EHCI Controller
 
 maintainers:
   - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -30,6 +30,7 @@ properties:
               - allwinner,sun4i-a10-ehci
               - allwinner,sun50i-a64-ehci
               - allwinner,sun50i-h6-ehci
+              - allwinner,sun50i-h616-ehci
               - allwinner,sun5i-a13-ehci
               - allwinner,sun6i-a31-ehci
               - allwinner,sun7i-a20-ehci

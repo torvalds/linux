@@ -117,8 +117,8 @@ tconInfoAlloc(void)
 	ret_buf = kzalloc(sizeof(*ret_buf), GFP_KERNEL);
 	if (!ret_buf)
 		return NULL;
-	ret_buf->cfid = init_cached_dir();
-	if (!ret_buf->cfid) {
+	ret_buf->cfids = init_cached_dirs();
+	if (!ret_buf->cfids) {
 		kfree(ret_buf);
 		return NULL;
 	}
@@ -144,7 +144,7 @@ tconInfoFree(struct cifs_tcon *tcon)
 		cifs_dbg(FYI, "Null buffer passed to tconInfoFree\n");
 		return;
 	}
-	free_cached_dir(tcon);
+	free_cached_dirs(tcon->cfids);
 	atomic_dec(&tconInfoAllocCount);
 	kfree(tcon->nativeFileSystem);
 	kfree_sensitive(tcon->password);
@@ -400,6 +400,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 {
 	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *pCifsInode;
@@ -464,9 +465,12 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
 		return false;
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
+
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &srv->smb_ses_list, smb_ses_list) {
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->tid != buf->Tid)
 				continue;
@@ -525,7 +529,7 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		cifs_sb->mnt_cifs_serverino_autodisabled = true;
 		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s\n",
-			 tcon ? tcon->treeName : "new server");
+			 tcon ? tcon->tree_name : "new server");
 		cifs_dbg(VFS, "The server doesn't seem to support them properly or the files might be on different servers (DFS)\n");
 		cifs_dbg(VFS, "Hardlinks will not be recognized on this mount. Consider mounting with the \"noserverino\" option to silence this message.\n");
 
@@ -824,7 +828,7 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 	free_dentry_path(page);
 }
 
-/* parses DFS refferal V3 structure
+/* parses DFS referral V3 structure
  * caller is responsible for freeing target_nodes
  * returns:
  * - on success - 0
@@ -1071,59 +1075,58 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 /**
  * cifs_alloc_hash - allocate hash and hash context together
  * @name: The name of the crypto hash algo
- * @shash: Where to put the pointer to the hash algo
- * @sdesc: Where to put the pointer to the hash descriptor
+ * @sdesc: SHASH descriptor where to put the pointer to the hash TFM
  *
  * The caller has to make sure @sdesc is initialized to either NULL or
- * a valid context. Both can be freed via cifs_free_hash().
+ * a valid context. It can be freed via cifs_free_hash().
  */
 int
-cifs_alloc_hash(const char *name,
-		struct crypto_shash **shash, struct sdesc **sdesc)
+cifs_alloc_hash(const char *name, struct shash_desc **sdesc)
 {
 	int rc = 0;
-	size_t size;
+	struct crypto_shash *alg = NULL;
 
-	if (*sdesc != NULL)
+	if (*sdesc)
 		return 0;
 
-	*shash = crypto_alloc_shash(name, 0, 0);
-	if (IS_ERR(*shash)) {
-		cifs_dbg(VFS, "Could not allocate crypto %s\n", name);
-		rc = PTR_ERR(*shash);
-		*shash = NULL;
+	alg = crypto_alloc_shash(name, 0, 0);
+	if (IS_ERR(alg)) {
+		cifs_dbg(VFS, "Could not allocate shash TFM '%s'\n", name);
+		rc = PTR_ERR(alg);
 		*sdesc = NULL;
 		return rc;
 	}
 
-	size = sizeof(struct shash_desc) + crypto_shash_descsize(*shash);
-	*sdesc = kmalloc(size, GFP_KERNEL);
+	*sdesc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(alg), GFP_KERNEL);
 	if (*sdesc == NULL) {
-		cifs_dbg(VFS, "no memory left to allocate crypto %s\n", name);
-		crypto_free_shash(*shash);
-		*shash = NULL;
+		cifs_dbg(VFS, "no memory left to allocate shash TFM '%s'\n", name);
+		crypto_free_shash(alg);
 		return -ENOMEM;
 	}
 
-	(*sdesc)->shash.tfm = *shash;
+	(*sdesc)->tfm = alg;
 	return 0;
 }
 
 /**
  * cifs_free_hash - free hash and hash context together
- * @shash: Where to find the pointer to the hash algo
- * @sdesc: Where to find the pointer to the hash descriptor
+ * @sdesc: Where to find the pointer to the hash TFM
  *
- * Freeing a NULL hash or context is safe.
+ * Freeing a NULL descriptor is safe.
  */
 void
-cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
+cifs_free_hash(struct shash_desc **sdesc)
 {
-	kfree(*sdesc);
+	if (unlikely(!sdesc) || !*sdesc)
+		return;
+
+	if ((*sdesc)->tfm) {
+		crypto_free_shash((*sdesc)->tfm);
+		(*sdesc)->tfm = NULL;
+	}
+
+	kfree_sensitive(*sdesc);
 	*sdesc = NULL;
-	if (*shash)
-		crypto_free_shash(*shash);
-	*shash = NULL;
 }
 
 /**
@@ -1328,7 +1331,7 @@ int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
 	char *treename, *dfspath, sep;
 	int treenamelen, linkpathlen, rc;
 
-	treename = tcon->treeName;
+	treename = tcon->tree_name;
 	/* MS-DFSC: All paths in REQ_GET_DFS_REFERRAL and RESP_GET_DFS_REFERRAL
 	 * messages MUST be encoded with exactly one leading backslash, not two
 	 * leading backslashes.

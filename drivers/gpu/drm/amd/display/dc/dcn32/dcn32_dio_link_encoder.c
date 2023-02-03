@@ -150,12 +150,6 @@ static void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
 
 }
 
-void enc32_set_dig_output_mode(struct link_encoder *enc, uint8_t pix_per_container)
-{
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, pix_per_container);
-}
- 
 static const struct link_encoder_funcs dcn32_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
 	.validate_output_with_stream =
@@ -186,7 +180,6 @@ static const struct link_encoder_funcs dcn32_link_enc_funcs = {
 	.is_in_alt_mode = dcn32_link_encoder_is_in_alt_mode,
 	.get_max_link_cap = dcn32_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
-	.set_dig_output_mode = enc32_set_dig_output_mode,
 };
 
 void dcn32_link_encoder_construct(

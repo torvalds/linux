@@ -157,6 +157,11 @@
 			};
 		};
 
+		otp: otp@e0021000 {
+			compatible = "microchip,lan9668-otpc", "microchip,lan9662-otpc";
+			reg = <0xe0021000 0x300>;
+		};
+
 		flx0: flexcom@e0040000 {
 			compatible = "atmel,sama5d2-flexcom";
 			reg = <0xe0040000 0x100>;

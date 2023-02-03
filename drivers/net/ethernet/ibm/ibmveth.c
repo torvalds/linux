@@ -1757,7 +1757,8 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 			kobject_uevent(kobj, KOBJ_ADD);
 	}
 
-	rc = netif_set_real_num_tx_queues(netdev, ibmveth_real_max_tx_queues());
+	rc = netif_set_real_num_tx_queues(netdev, min(num_online_cpus(),
+						      IBMVETH_DEFAULT_QUEUES));
 	if (rc) {
 		netdev_dbg(netdev, "failed to set number of tx queues rc=%d\n",
 			   rc);

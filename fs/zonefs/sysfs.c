@@ -15,11 +15,6 @@ struct zonefs_sysfs_attr {
 	ssize_t (*show)(struct zonefs_sb_info *sbi, char *buf);
 };
 
-static inline struct zonefs_sysfs_attr *to_attr(struct attribute *attr)
-{
-	return container_of(attr, struct zonefs_sysfs_attr, attr);
-}
-
 #define ZONEFS_SYSFS_ATTR_RO(name) \
 static struct zonefs_sysfs_attr zonefs_sysfs_attr_##name = __ATTR_RO(name)
 

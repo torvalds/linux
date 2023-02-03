@@ -107,7 +107,7 @@ static int prestera_span_put(struct prestera_switch *sw, u8 span_id)
 
 	entry = prestera_span_entry_find_by_id(sw->span, span_id);
 	if (!entry)
-		return false;
+		return -ENOENT;
 
 	if (!refcount_dec_and_test(&entry->ref_count))
 		return 0;
@@ -150,6 +150,9 @@ int prestera_span_rule_del(struct prestera_flow_block_binding *binding,
 			   bool ingress)
 {
 	int err;
+
+	if (binding->span_id == PRESTERA_SPAN_INVALID_ID)
+		return -ENOENT;
 
 	err = prestera_hw_span_unbind(binding->port, ingress);
 	if (err)

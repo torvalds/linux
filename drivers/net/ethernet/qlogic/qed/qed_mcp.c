@@ -767,34 +767,34 @@ static int qed_mcp_cancel_load_req(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#define CONFIG_QEDE_BITMAP_IDX		BIT(0)
-#define CONFIG_QED_SRIOV_BITMAP_IDX	BIT(1)
-#define CONFIG_QEDR_BITMAP_IDX		BIT(2)
-#define CONFIG_QEDF_BITMAP_IDX		BIT(4)
-#define CONFIG_QEDI_BITMAP_IDX		BIT(5)
-#define CONFIG_QED_LL2_BITMAP_IDX	BIT(6)
+#define BITMAP_IDX_FOR_CONFIG_QEDE	BIT(0)
+#define BITMAP_IDX_FOR_CONFIG_QED_SRIOV	BIT(1)
+#define BITMAP_IDX_FOR_CONFIG_QEDR	BIT(2)
+#define BITMAP_IDX_FOR_CONFIG_QEDF	BIT(4)
+#define BITMAP_IDX_FOR_CONFIG_QEDI	BIT(5)
+#define BITMAP_IDX_FOR_CONFIG_QED_LL2	BIT(6)
 
 static u32 qed_get_config_bitmap(void)
 {
 	u32 config_bitmap = 0x0;
 
 	if (IS_ENABLED(CONFIG_QEDE))
-		config_bitmap |= CONFIG_QEDE_BITMAP_IDX;
+		config_bitmap |= BITMAP_IDX_FOR_CONFIG_QEDE;
 
 	if (IS_ENABLED(CONFIG_QED_SRIOV))
-		config_bitmap |= CONFIG_QED_SRIOV_BITMAP_IDX;
+		config_bitmap |= BITMAP_IDX_FOR_CONFIG_QED_SRIOV;
 
 	if (IS_ENABLED(CONFIG_QED_RDMA))
-		config_bitmap |= CONFIG_QEDR_BITMAP_IDX;
+		config_bitmap |= BITMAP_IDX_FOR_CONFIG_QEDR;
 
 	if (IS_ENABLED(CONFIG_QED_FCOE))
-		config_bitmap |= CONFIG_QEDF_BITMAP_IDX;
+		config_bitmap |= BITMAP_IDX_FOR_CONFIG_QEDF;
 
 	if (IS_ENABLED(CONFIG_QED_ISCSI))
-		config_bitmap |= CONFIG_QEDI_BITMAP_IDX;
+		config_bitmap |= BITMAP_IDX_FOR_CONFIG_QEDI;
 
 	if (IS_ENABLED(CONFIG_QED_LL2))
-		config_bitmap |= CONFIG_QED_LL2_BITMAP_IDX;
+		config_bitmap |= BITMAP_IDX_FOR_CONFIG_QED_LL2;
 
 	return config_bitmap;
 }

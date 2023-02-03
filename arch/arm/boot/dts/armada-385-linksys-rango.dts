@@ -54,22 +54,22 @@
 };
 
 &gpio_leds {
-	power {
+	led-power {
 		gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 		label = "rango:white:power";
 	};
 
-	sata {
+	led-sata {
 		gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 		label = "rango:white:sata";
 	};
 
-	wlan_2g {
+	led-wlan_2g {
 		gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 		label = "rango:white:wlan_2g";
 	};
 
-	wlan_5g {
+	led-wlan_5g {
 		gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		label = "rango:white:wlan_5g";
 	};

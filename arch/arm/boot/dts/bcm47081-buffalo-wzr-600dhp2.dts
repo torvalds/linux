@@ -49,40 +49,40 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power0 {
+		led-power0 {
 			label = "bcm53xx:green:power";
 			gpios = <&hc595 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 
-		power1 {
+		led-power1 {
 			label = "bcm53xx:red:power";
 			gpios = <&hc595 2 GPIO_ACTIVE_HIGH>;
 		};
 
-		router0 {
+		led-router0 {
 			label = "bcm53xx:green:router";
 			gpios = <&hc595 3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 
-		router1 {
+		led-router1 {
 			label = "bcm53xx:amber:router";
 			gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
 		};
 
-		wan {
+		led-wan {
 			label = "bcm53xx:green:wan";
 			gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 
-		wireless0 {
+		led-wireless0 {
 			label = "bcm53xx:green:wireless";
 			gpios = <&hc595 6 GPIO_ACTIVE_HIGH>;
 		};
 
-		wireless1 {
+		led-wireless1 {
 			label = "bcm53xx:amber:wireless";
 			gpios = <&hc595 7 GPIO_ACTIVE_HIGH>;
 		};

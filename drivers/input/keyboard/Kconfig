@@ -40,6 +40,9 @@ config KEYBOARD_ADP5520
 config KEYBOARD_ADP5588
 	tristate "ADP5588/87 I2C QWERTY Keypad and IO Expander"
 	depends on I2C
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a ADP5588/87 attached to your
 	  system I2C bus.
@@ -186,7 +189,7 @@ config KEYBOARD_QT2160
 
 config KEYBOARD_CLPS711X
 	tristate "CLPS711X Keypad support"
-	depends on OF_GPIO && (ARCH_CLPS711X || COMPILE_TEST)
+	depends on ARCH_CLPS711X || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus Logic
@@ -523,6 +526,19 @@ config KEYBOARD_OPENCORES
 
 	  To compile this driver as a module, choose M here; the
 	  module will be called opencores-kbd.
+
+config KEYBOARD_PINEPHONE
+	tristate "Pine64 PinePhone Keyboard"
+	depends on I2C && REGULATOR
+	select CRC8
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here to enable support for the keyboard in the Pine64 PinePhone
+	  keyboard case. This driver supports the FLOSS firmware available at
+	  https://megous.com/git/pinephone-keyboard/
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called pinephone-keyboard.
 
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"

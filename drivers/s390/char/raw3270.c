@@ -111,12 +111,6 @@ static inline int raw3270_state_ready(struct raw3270 *rp)
 	return rp->state == RAW3270_STATE_READY;
 }
 
-static inline int raw3270_state_final(struct raw3270 *rp)
-{
-	return rp->state == RAW3270_STATE_INIT ||
-		rp->state == RAW3270_STATE_READY;
-}
-
 void
 raw3270_buffer_address(struct raw3270 *rp, char *cp, unsigned short addr)
 {
@@ -748,6 +742,12 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 #ifdef CONFIG_TN3270_CONSOLE
 /* Tentative definition - see below for actual definition. */
 static struct ccw_driver raw3270_ccw_driver;
+
+static inline int raw3270_state_final(struct raw3270 *rp)
+{
+	return rp->state == RAW3270_STATE_INIT ||
+		rp->state == RAW3270_STATE_READY;
+}
 
 /*
  * Setup 3270 device configured as console.

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/lantiq,vrx200-pcie-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Lantiq VRX200 and ARX300 PCIe PHY Device Tree Bindings
+title: Lantiq VRX200 and ARX300 PCIe PHY
 
 maintainers:
   - Martin Blumenstingl <martin.blumenstingl@googlemail.com>

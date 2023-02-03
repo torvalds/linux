@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/allwinner,sun50i-a64-codec-analog.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A64 Analog Codec Device Tree Bindings
+title: Allwinner A64 Analog Codec
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

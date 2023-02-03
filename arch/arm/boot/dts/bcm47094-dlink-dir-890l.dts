@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Device tree for D-Link DIR-890L
+ * D-Link calls this board "WRGAC36"
+ * this router has the same looks and form factor as D-Link DIR-885L.
+ *
+ * Some differences from DIR-885L include a separate USB2 port, separate LEDs
+ * for USB2 and USB3, a separate VCC supply for the USB2 slot and no
+ * router/extender switch is mounted (there is an empty mount point on the
+ * PCB) so this device is a pure router. Also the LAN ports are in the right
+ * order.
+ *
+ * Based on the device tree for DIR-885L
+ * Copyright (C) 2016 Rafał Miłecki <zajec5@gmail.com>
+ * Copyright (C) 2022 Linus Walleij
+ */
+
+/dts-v1/;
+
+#include "bcm47094.dtsi"
+#include "bcm5301x-nand-cs0-bch1.dtsi"
+
+/ {
+	compatible = "dlink,dir-890l", "brcm,bcm47094", "brcm,bcm4708";
+	model = "D-Link DIR-890L";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
+	};
+
+	leds {
+		/*
+		 * LED information is derived from the boot log which
+		 * conveniently lists all the LEDs.
+		 */
+		compatible = "gpio-leds";
+
+		led-power-white {
+			label = "bcm53xx:white:power";
+			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-wan-white {
+			label = "bcm53xx:white:wan";
+			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led-power-amber {
+			label = "bcm53xx:amber:power";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led-wan-amber {
+			label = "bcm53xx:amber:wan";
+			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
+		};
+
+		led-usb3-white {
+			label = "bcm53xx:white:usb3";
+			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
+			trigger-sources = <&xhci_port1>;
+			linux,default-trigger = "usbport";
+		};
+
+		led-usb2-white {
+			label = "bcm53xx:white:usb2";
+			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
+			trigger-sources = <&ohci_port1>, <&ehci_port1>;
+			linux,default-trigger = "usbport";
+		};
+
+		led-2ghz {
+			label = "bcm53xx:white:2ghz";
+			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
+		};
+
+		led-5ghz {
+			label = "bcm53xx:white:5ghz";
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+		};
+
+		/* Called "factory reset" in the vendor dmesg */
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	/*
+	 * The flash memory is memory mapped at 0x1e000000-0x1fffffff
+	 * 64KB blocks; total size 2MB, same that can be
+	 * found attached to the spi_nor SPI controller.
+	 */
+	nvram@1e1f0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1e1f0000 0x00010000>;
+
+		et0macaddr: et0macaddr {
+		};
+	};
+};
+
+&gmac2 {
+	/*
+	 * The NVRAM curiously does not contain a MAC address
+	 * for et2 so since that is the only ethernet interface
+	 * actually in use on the platform, we use this et0 MAC
+	 * address for et2.
+	 */
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&nandcs {
+	/* Spansion S34ML01G2, 128MB with 128KB erase blocks */
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * This is called "nflash" in the vendor kernel with
+		 * "upgrade" and "rootfs" (probably using OpenWrt
+		 * splitpart). We call it "firmware" like standard tools
+		 * assume. The CFE loader contains incorrect information
+		 * about TRX partitions, ignore this, there are no TRX
+		 * partitions: this device uses SEAMA.
+		 */
+		firmware@0 {
+			label = "firmware";
+			reg = <0x00000000 0x08000000>;
+		};
+	};
+};
+
+&usb2 {
+	vcc-gpios = <&chipcommon 21 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3 {
+	vcc-gpios = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy {
+	status = "okay";
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			label = "lan1";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan2";
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "lan3";
+		};
+
+		port@3 {
+			reg = <3>;
+			label = "lan4";
+		};
+
+		port@4 {
+			reg = <4>;
+			label = "wan";
+		};
+
+		port@8 {
+			reg = <8>;
+			label = "cpu";
+			ethernet = <&gmac2>;
+			phy-mode = "rgmii";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+	};
+};

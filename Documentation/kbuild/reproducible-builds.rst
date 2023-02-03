@@ -119,6 +119,16 @@ To avoid this, you can make the vDSO different for different
 kernel versions by including an arbitrary string of "salt" in it.
 This is specified by the Kconfig symbol ``CONFIG_BUILD_SALT``.
 
+Git
+---
+
+Uncommitted changes or different commit ids in git can also lead
+to different compilation results. For example, after executing
+``git reset HEAD^``, even if the code is the same, the
+``include/config/kernel.release`` generated during compilation
+will be different, which will eventually lead to binary differences.
+See ``scripts/setlocalversion`` for details.
+
 .. _KBUILD_BUILD_TIMESTAMP: kbuild.html#kbuild-build-timestamp
 .. _KBUILD_BUILD_USER and KBUILD_BUILD_HOST: kbuild.html#kbuild-build-user-kbuild-build-host
 .. _KCFLAGS: kbuild.html#kcflags

@@ -393,6 +393,11 @@ the files as above.  Above is only for an example.
 debugfs Interface
 =================
 
+.. note::
+
+  DAMON debugfs interface will be removed after next LTS kernel is released, so
+  users should move to the :ref:`sysfs interface <sysfs_interface>`.
+
 DAMON exports eight files, ``attrs``, ``target_ids``, ``init_regions``,
 ``schemes``, ``monitor_on``, ``kdamond_pid``, ``mk_contexts`` and
 ``rm_contexts`` under its debugfs directory, ``<debugfs>/damon/``.

@@ -5874,10 +5874,6 @@ fallback:
 static
 int megasas_get_device_list(struct megasas_instance *instance)
 {
-	memset(instance->pd_list, 0,
-	       (MEGASAS_MAX_PD * sizeof(struct megasas_pd_list)));
-	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
-
 	if (instance->enable_fw_dev_list) {
 		if (megasas_host_device_list_query(instance, true))
 			return FAILED;
@@ -7220,7 +7216,7 @@ int megasas_alloc_ctrl_dma_buffers(struct megasas_instance *instance)
 
 		if (!fusion->ioc_init_request) {
 			dev_err(&pdev->dev,
-				"Failed to allocate PD list buffer\n");
+				"Failed to allocate ioc init request\n");
 			return -ENOMEM;
 		}
 
@@ -7439,7 +7435,6 @@ static inline void megasas_init_ctrl_params(struct megasas_instance *instance)
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY))
 		instance->flag_ieee = 1;
 
-	megasas_dbg_lvl = 0;
 	instance->flag = 0;
 	instance->unload = 1;
 	instance->last_time = 0;
@@ -8762,33 +8757,26 @@ static
 int megasas_update_device_list(struct megasas_instance *instance,
 			       int event_type)
 {
-	int dcmd_ret = DCMD_SUCCESS;
+	int dcmd_ret;
 
 	if (instance->enable_fw_dev_list) {
-		dcmd_ret = megasas_host_device_list_query(instance, false);
-		if (dcmd_ret != DCMD_SUCCESS)
-			goto out;
+		return megasas_host_device_list_query(instance, false);
 	} else {
 		if (event_type & SCAN_PD_CHANNEL) {
 			dcmd_ret = megasas_get_pd_list(instance);
-
 			if (dcmd_ret != DCMD_SUCCESS)
-				goto out;
+				return dcmd_ret;
 		}
 
 		if (event_type & SCAN_VD_CHANNEL) {
 			if (!instance->requestorId ||
 			megasas_get_ld_vf_affiliation(instance, 0)) {
-				dcmd_ret = megasas_ld_list_query(instance,
+				return megasas_ld_list_query(instance,
 						MR_LD_QUERY_TYPE_EXPOSED_TO_HOST);
-				if (dcmd_ret != DCMD_SUCCESS)
-					goto out;
 			}
 		}
 	}
-
-out:
-	return dcmd_ret;
+	return DCMD_SUCCESS;
 }
 
 /**
@@ -8918,7 +8906,7 @@ megasas_aen_polling(struct work_struct *work)
 			sdev1 = scsi_device_lookup(instance->host,
 						   MEGASAS_MAX_PD_CHANNELS +
 						   (ld_target_id / MEGASAS_MAX_DEV_PER_CHANNEL),
-						   (ld_target_id - MEGASAS_MAX_DEV_PER_CHANNEL),
+						   (ld_target_id % MEGASAS_MAX_DEV_PER_CHANNEL),
 						   0);
 			if (sdev1)
 				megasas_remove_scsi_device(sdev1);
@@ -9016,6 +9004,7 @@ static int __init megasas_init(void)
 	 */
 	pr_info("megasas: %s\n", MEGASAS_VERSION);
 
+	megasas_dbg_lvl = 0;
 	support_poll_for_event = 2;
 	support_device_change = 1;
 	support_nvme_encapsulation = true;

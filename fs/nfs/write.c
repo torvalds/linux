@@ -1185,7 +1185,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct nfs_lock_context *l_ctx;
-	struct file_lock_context *flctx = file_inode(file)->i_flctx;
+	struct file_lock_context *flctx = locks_inode_context(file_inode(file));
 	struct nfs_page	*req;
 	int do_flush, status;
 	/*
@@ -1321,7 +1321,7 @@ static int nfs_can_extend_write(struct file *file, struct page *page,
 				struct inode *inode, unsigned int pagelen)
 {
 	int ret;
-	struct file_lock_context *flctx = inode->i_flctx;
+	struct file_lock_context *flctx = locks_inode_context(inode);
 	struct file_lock *fl;
 
 	if (file->f_flags & O_DSYNC)

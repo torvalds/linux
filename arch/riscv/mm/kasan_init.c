@@ -113,6 +113,8 @@ static void __init kasan_populate_pud(pgd_t *pgd,
 		base_pud = pt_ops.get_pud_virt(pfn_to_phys(_pgd_pfn(*pgd)));
 	} else if (pgd_none(*pgd)) {
 		base_pud = memblock_alloc(PTRS_PER_PUD * sizeof(pud_t), PAGE_SIZE);
+		memcpy(base_pud, (void *)kasan_early_shadow_pud,
+			sizeof(pud_t) * PTRS_PER_PUD);
 	} else {
 		base_pud = (pud_t *)pgd_page_vaddr(*pgd);
 		if (base_pud == lm_alias(kasan_early_shadow_pud)) {
@@ -173,8 +175,11 @@ static void __init kasan_populate_p4d(pgd_t *pgd,
 		base_p4d = pt_ops.get_p4d_virt(pfn_to_phys(_pgd_pfn(*pgd)));
 	} else {
 		base_p4d = (p4d_t *)pgd_page_vaddr(*pgd);
-		if (base_p4d == lm_alias(kasan_early_shadow_p4d))
+		if (base_p4d == lm_alias(kasan_early_shadow_p4d)) {
 			base_p4d = memblock_alloc(PTRS_PER_PUD * sizeof(p4d_t), PAGE_SIZE);
+			memcpy(base_p4d, (void *)kasan_early_shadow_p4d,
+				sizeof(p4d_t) * PTRS_PER_P4D);
+		}
 	}
 
 	p4dp = base_p4d + p4d_index(vaddr);

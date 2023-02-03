@@ -196,7 +196,7 @@ static void __apply_alternatives(const struct alt_region *region,
 	}
 }
 
-void apply_alternatives_vdso(void)
+static void __init apply_alternatives_vdso(void)
 {
 	struct alt_region region;
 	const struct elf64_hdr *hdr;
@@ -220,7 +220,7 @@ void apply_alternatives_vdso(void)
 	__apply_alternatives(&region, false, &all_capabilities[0]);
 }
 
-static const struct alt_region kernel_alternatives = {
+static const struct alt_region kernel_alternatives __initconst = {
 	.begin	= (struct alt_instr *)__alt_instructions,
 	.end	= (struct alt_instr *)__alt_instructions_end,
 };
@@ -229,7 +229,7 @@ static const struct alt_region kernel_alternatives = {
  * We might be patching the stop_machine state machine, so implement a
  * really simple polling protocol here.
  */
-static int __apply_alternatives_multi_stop(void *unused)
+static int __init __apply_alternatives_multi_stop(void *unused)
 {
 	/* We always have a CPU 0 at this point (__init) */
 	if (smp_processor_id()) {

@@ -43,7 +43,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		// Firmware initialized the display at 1280p instead of 1440p
+		/* Firmware initialized the display at 1280p instead of 1440p */
 		framebuffer0: framebuffer@80400000 {
 			compatible = "simple-framebuffer";
 			reg = <0 0x80400000 0 (1920 * 1280 * 4)>;
@@ -124,7 +124,7 @@
 };
 
 &adsp_pas {
-	firmware-name = "qcom/samsung/w737/qcadsp850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qcadsp850.mbn";
 	status = "okay";
 };
 
@@ -336,7 +336,7 @@
 };
 
 &cdsp_pas {
-	firmware-name = "qcom/samsung/w737/qccdsp850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qccdsp850.mbn";
 	status = "okay";
 };
 
@@ -385,7 +385,7 @@
 &ipa {
 	status = "okay";
 	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/samsung/w737/ipa_fws.elf";
+	firmware-name = "qcom/sdm850/samsung/w737/ipa_fws.elf";
 };
 
 /* No idea why it causes an SError when enabled */
@@ -395,7 +395,7 @@
 
 &mss_pil {
 	status = "okay";
-	firmware-name = "qcom/samsung/w737/qcdsp1v2850.mbn", "qcom/samsung/w737/qcdsp2850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qcdsp1v2850.mbn", "qcom/sdm850/samsung/w737/qcdsp2850.mbn";
 };
 
 &qup_i2c10_default {
@@ -415,8 +415,10 @@
 };
 
 &qup_i2c12_default {
-	drive-strength = <2>;
-	bias-disable;
+	pinmux {
+		drive-strength = <2>;
+		bias-disable;
+	};
 };
 
 &qup_uart6_default {
@@ -574,7 +576,7 @@
 	};
 
 	pen_rst_l: pen-rst-l {
-		pinmux  {
+		pinmux {
 			pins = "gpio21";
 			function = "gpio";
 		};
@@ -696,7 +698,7 @@
 
 &venus {
 	status = "okay";
-	firmware-name = "qcom/samsung/w737/qcvss850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qcvss850.mbn";
 };
 
 &wcd9340{
@@ -715,7 +717,7 @@
 	qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
 
 	swm: swm@c85 {
-		left_spkr: wsa8810-left{
+		left_spkr: speaker@0,3 {
 			compatible = "sdw10217211000";
 			reg = <0 3>;
 			powerdown-gpios = <&wcdgpio 1 GPIO_ACTIVE_HIGH>;
@@ -724,7 +726,7 @@
 			#sound-dai-cells = <0>;
 		};
 
-		right_spkr: wsa8810-right{
+		right_spkr: speaker@0,4 {
 			compatible = "sdw10217211000";
 			powerdown-gpios = <&wcdgpio 2 GPIO_ACTIVE_HIGH>;
 			reg = <0 4>;

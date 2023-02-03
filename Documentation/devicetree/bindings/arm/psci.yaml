@@ -43,29 +43,24 @@ properties:
 
       - description:
           For implementations complying to PSCI 0.2.
-        const: arm,psci-0.2
-
-      - description:
-          For implementations complying to PSCI 0.2.
           Function IDs are not required and should be ignored by an OS with
           PSCI 0.2 support, but are permitted to be present for compatibility
           with existing software when "arm,psci" is later in the compatible
           list.
+        minItems: 1
         items:
           - const: arm,psci-0.2
           - const: arm,psci
 
       - description:
           For implementations complying to PSCI 1.0.
-        const: arm,psci-1.0
-
-      - description:
-          For implementations complying to PSCI 1.0.
           PSCI 1.0 is backward compatible with PSCI 0.2 with minor
           specification updates, as defined in the PSCI specification[2].
+        minItems: 1
         items:
           - const: arm,psci-1.0
           - const: arm,psci-0.2
+          - const: arm,psci
 
   method:
     description: The method of calling the PSCI firmware.

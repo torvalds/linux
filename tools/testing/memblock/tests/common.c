@@ -9,19 +9,22 @@
 #define INIT_MEMBLOCK_RESERVED_REGIONS		INIT_MEMBLOCK_REGIONS
 #define PREFIXES_MAX				15
 #define DELIM					": "
+#define BASIS					10000
 
 static struct test_memory memory_block;
 static const char __maybe_unused *prefixes[PREFIXES_MAX];
 static int __maybe_unused nr_prefixes;
 
-static const char *short_opts = "mv";
+static const char *short_opts = "hmv";
 static const struct option long_opts[] = {
+	{"help", 0, NULL, 'h'},
 	{"movable-node", 0, NULL, 'm'},
 	{"verbose", 0, NULL, 'v'},
 	{NULL, 0, NULL, 0}
 };
 
 static const char * const help_opts[] = {
+	"display this help message and exit",
 	"disallow allocations from regions marked as hotplugged\n\t\t\t"
 		"by simulating enabling the \"movable_node\" kernel\n\t\t\t"
 		"parameter",
@@ -58,16 +61,53 @@ void reset_memblock_attributes(void)
 	memblock.current_limit	= MEMBLOCK_ALLOC_ANYWHERE;
 }
 
+static inline void fill_memblock(void)
+{
+	memset(memory_block.base, 1, MEM_SIZE);
+}
+
 void setup_memblock(void)
 {
 	reset_memblock_regions();
 	memblock_add((phys_addr_t)memory_block.base, MEM_SIZE);
+	fill_memblock();
+}
+
+/**
+ * setup_numa_memblock:
+ * Set up a memory layout with multiple NUMA nodes in a previously allocated
+ * dummy physical memory.
+ * @node_fracs: an array representing the fraction of MEM_SIZE contained in
+ *              each node in basis point units (one hundredth of 1% or 1/10000).
+ *              For example, if node 0 should contain 1/8 of MEM_SIZE,
+ *              node_fracs[0] = 1250.
+ *
+ * The nids will be set to 0 through NUMA_NODES - 1.
+ */
+void setup_numa_memblock(const unsigned int node_fracs[])
+{
+	phys_addr_t base;
+	int flags;
+
+	reset_memblock_regions();
+	base = (phys_addr_t)memory_block.base;
+	flags = (movable_node_is_enabled()) ? MEMBLOCK_NONE : MEMBLOCK_HOTPLUG;
+
+	for (int i = 0; i < NUMA_NODES; i++) {
+		assert(node_fracs[i] <= BASIS);
+		phys_addr_t size = MEM_SIZE * node_fracs[i] / BASIS;
+
+		memblock_add_node(base, size, i, flags);
+		base += size;
+	}
+	fill_memblock();
 }
 
 void dummy_physical_memory_init(void)
 {
 	memory_block.base = malloc(MEM_SIZE);
 	assert(memory_block.base);
+	fill_memblock();
 }
 
 void dummy_physical_memory_cleanup(void)

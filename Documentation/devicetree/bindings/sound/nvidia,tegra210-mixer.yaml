@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra210-mixer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra210 Mixer Device Tree Bindings
+title: Tegra210 Mixer
 
 description: |
   The Mixer supports mixing of up to ten 7.1 audio input streams and

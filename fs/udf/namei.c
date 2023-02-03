@@ -240,7 +240,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 						      poffset - lfi);
 			else {
 				if (!copy_name) {
-					copy_name = kmalloc(UDF_NAME_LEN,
+					copy_name = kmalloc(UDF_NAME_LEN_CS0,
 							    GFP_NOFS);
 					if (!copy_name) {
 						fi = ERR_PTR(-ENOMEM);
@@ -626,7 +626,7 @@ static int udf_create(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 static int udf_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
-		       struct dentry *dentry, umode_t mode)
+		       struct file *file, umode_t mode)
 {
 	struct inode *inode = udf_new_inode(dir, mode);
 
@@ -640,9 +640,9 @@ static int udf_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	inode->i_op = &udf_file_inode_operations;
 	inode->i_fop = &udf_file_operations;
 	mark_inode_dirty(inode);
-	d_tmpfile(dentry, inode);
+	d_tmpfile(file, inode);
 	unlock_new_inode(inode);
-	return 0;
+	return finish_open_simple(file, 0);
 }
 
 static int udf_mknod(struct user_namespace *mnt_userns, struct inode *dir,

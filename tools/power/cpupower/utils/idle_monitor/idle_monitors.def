@@ -4,5 +4,6 @@ DEF(intel_nhm)
 DEF(intel_snb)
 DEF(intel_hsw_ext)
 DEF(mperf)
+DEF(rapl)
 #endif
 DEF(cpuidle_sysfs)

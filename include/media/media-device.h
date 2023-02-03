@@ -192,21 +192,6 @@ struct usb_device;
 #define MEDIA_DEV_NOTIFY_POST_LINK_CH	1
 
 /**
- * media_entity_enum_init - Initialise an entity enumeration
- *
- * @ent_enum: Entity enumeration to be initialised
- * @mdev: The related media device
- *
- * Return: zero on success or a negative error code.
- */
-static inline __must_check int media_entity_enum_init(
-	struct media_entity_enum *ent_enum, struct media_device *mdev)
-{
-	return __media_entity_enum_init(ent_enum,
-					mdev->entity_internal_idx_max + 1);
-}
-
-/**
  * media_device_init() - Initializes a media device element
  *
  * @mdev:	pointer to struct &media_device

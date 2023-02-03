@@ -331,6 +331,18 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of unhalted reference clock cycles at TSC frequency.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0x3c",
+        "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
+        "PEBScounters": "0,1,2,3,4,5",
+        "SampleAfterValue": "2000003",
+        "Speculative": "1",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of unhalted core clock cycles. (Fixed event)",
         "CollectPEBSRecord": "2",
         "Counter": "Fixed counter 1",
@@ -874,7 +886,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
         "Speculative": "1",
-        "UMask": "0x1f",
+        "UMask": "0x1b",
         "Unit": "cpu_core"
     },
     {

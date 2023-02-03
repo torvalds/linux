@@ -114,6 +114,8 @@ patternProperties:
   "^watchdog@[a-f0-9]+$":
     type: object
     $ref: /schemas/watchdog/watchdog.yaml#
+    unevaluatedProperties: false
+
     properties:
       compatible:
         oneOf:
@@ -146,6 +148,8 @@ patternProperties:
   "^pwm@[a-f0-9]+$":
     type: object
     $ref: /schemas/pwm/pwm.yaml#
+    unevaluatedProperties: false
+
     properties:
       compatible:
         oneOf:

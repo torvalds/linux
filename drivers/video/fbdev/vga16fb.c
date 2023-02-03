@@ -1421,6 +1421,7 @@ static const struct platform_device_id vga16fb_driver_id_table[] = {
 	{"vga-framebuffer", 0},
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, vga16fb_driver_id_table);
 
 static struct platform_driver vga16fb_driver = {
 	.probe = vga16fb_probe,

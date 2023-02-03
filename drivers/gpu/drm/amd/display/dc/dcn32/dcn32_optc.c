@@ -151,7 +151,7 @@ static bool optc32_disable_crtc(struct timing_generator *optc)
 	/* CRTC disabled, so disable  clock. */
 	REG_WAIT(OTG_CLOCK_CONTROL,
 			OTG_BUSY, 0,
-			1, 100000);
+			1, 150000);
 
 	return true;
 }

@@ -304,10 +304,9 @@ static struct pci_dev *pci_get_dev_wrapper(int dom, unsigned int bus,
 	if (unlikely(pci_enable_device(pdev) < 0)) {
 		edac_dbg(2, "Failed to enable device %02x:%02x.%x\n",
 			 bus, dev, fun);
+		pci_dev_put(pdev);
 		return NULL;
 	}
-
-	pci_dev_get(pdev);
 
 	return pdev;
 }
@@ -755,6 +754,9 @@ static int __init i10nm_init(void)
 	u64 tolm, tohm;
 
 	edac_dbg(2, "\n");
+
+	if (ghes_get_devices())
+		return -EBUSY;
 
 	owner = edac_get_owner();
 	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))

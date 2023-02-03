@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -553,7 +554,6 @@
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
-			spi-max-frequency = <19200000>;
 			dmas = <&blsp1_dma 12>, <&blsp1_dma 13>;
 			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
@@ -691,7 +691,6 @@
 			clocks = <&gcc GCC_BLSP2_QUP4_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
-			spi-max-frequency = <19200000>;
 			dmas = <&blsp2_dma 18>, <&blsp2_dma 19>;
 			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
@@ -773,254 +772,256 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			blsp1_uart2_default: blsp1-uart2-default {
-				function = "blsp_uart2";
+			blsp1_uart2_default: blsp1-uart2-default-state {
 				pins = "gpio4", "gpio5";
+				function = "blsp_uart2";
 				drive-strength = <16>;
 				bias-disable;
 			};
 
-			blsp1_uart2_sleep: blsp1-uart2-sleep {
-				function = "gpio";
+			blsp1_uart2_sleep: blsp1-uart2-sleep-state {
 				pins = "gpio4", "gpio5";
+				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
 			};
 
-			blsp2_uart2_default: blsp2-uart2-default {
+			blsp2_uart2_default: blsp2-uart2-default-state {
+				pins = "gpio45", "gpio46", "gpio47", "gpio48";
 				function = "blsp_uart8";
-				pins = "gpio45", "gpio46",
-						"gpio47", "gpio48";
 				drive-strength = <16>;
 				bias-disable;
 			};
 
-			blsp2_uart2_sleep: blsp2-uart2-sleep {
+			blsp2_uart2_sleep: blsp2-uart2-sleep-state {
+				pins = "gpio45", "gpio46", "gpio47", "gpio48";
 				function = "gpio";
-				pins = "gpio45", "gpio46",
-						"gpio47", "gpio48";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c1_default: i2c1-default {
+			i2c1_default: i2c1-default-state {
+				pins = "gpio2", "gpio3";
 				function = "blsp_i2c1";
-				pins = "gpio2", "gpio3";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c1_sleep: i2c1-sleep {
+			i2c1_sleep: i2c1-sleep-state {
+				pins = "gpio2", "gpio3";
 				function = "gpio";
-				pins = "gpio2", "gpio3";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c2_default: i2c2-default {
+			i2c2_default: i2c2-default-state {
+				pins = "gpio6", "gpio7";
 				function = "blsp_i2c2";
-				pins = "gpio6", "gpio7";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c2_sleep: i2c2-sleep {
+			i2c2_sleep: i2c2-sleep-state {
+				pins = "gpio6", "gpio7";
 				function = "gpio";
-				pins = "gpio6", "gpio7";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c4_default: i2c4-default {
+			i2c4_default: i2c4-default-state {
+				pins = "gpio19", "gpio20";
 				function = "blsp_i2c4";
-				pins = "gpio19", "gpio20";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c4_sleep: i2c4-sleep {
-				function = "gpio";
+			i2c4_sleep: i2c4-sleep-state {
 				pins = "gpio19", "gpio20";
+				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
 				input-enable;
 			};
 
-			i2c5_default: i2c5-default {
+			i2c5_default: i2c5-default-state {
+				pins = "gpio23", "gpio24";
 				function = "blsp_i2c5";
-				pins = "gpio23", "gpio24";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c5_sleep: i2c5-sleep {
+			i2c5_sleep: i2c5-sleep-state {
+				pins = "gpio23", "gpio24";
 				function = "gpio";
-				pins = "gpio23", "gpio24";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c6_default: i2c6-default {
+			i2c6_default: i2c6-default-state {
+				pins = "gpio28", "gpio27";
 				function = "blsp_i2c6";
-				pins = "gpio28", "gpio27";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c6_sleep: i2c6-sleep {
+			i2c6_sleep: i2c6-sleep-state {
+				pins = "gpio28", "gpio27";
 				function = "gpio";
-				pins = "gpio28", "gpio27";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c7_default: i2c7-default {
+			i2c7_default: i2c7-default-state {
+				pins = "gpio44", "gpio43";
 				function = "blsp_i2c7";
-				pins = "gpio44", "gpio43";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			i2c7_sleep: i2c7-sleep {
+			i2c7_sleep: i2c7-sleep-state {
+				pins = "gpio44", "gpio43";
 				function = "gpio";
-				pins = "gpio44", "gpio43";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_spi10_default: blsp2-spi10-default {
-				default {
-					function = "blsp_spi10";
+			blsp2_spi10_default: blsp2-spi10-default-state {
+				default-pins {
 					pins = "gpio53", "gpio54", "gpio55";
+					function = "blsp_spi10";
 					drive-strength = <10>;
 					bias-pull-down;
 				};
-				cs {
+
+				cs-pins {
+					pins = "gpio67";
 					function = "gpio";
-					pins = "gpio55";
 					drive-strength = <2>;
 					bias-disable;
 				};
 			};
 
-			blsp2_spi10_sleep: blsp2-spi10-sleep {
+			blsp2_spi10_sleep: blsp2-spi10-sleep-state {
 				pins = "gpio53", "gpio54", "gpio55";
-				drive-strength = <2>;
-				bias-disable;
-			};
-
-			i2c11_default: i2c11-default {
-				function = "blsp_i2c11";
-				pins = "gpio83", "gpio84";
-				drive-strength = <2>;
-				bias-disable;
-			};
-
-			i2c11_sleep: i2c11-sleep {
 				function = "gpio";
-				pins = "gpio83", "gpio84";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_spi1_default: blsp1-spi1-default {
-				default {
-					function = "blsp_spi1";
+			i2c11_default: i2c11-default-state {
+				pins = "gpio83", "gpio84";
+				function = "blsp_i2c11";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			i2c11_sleep: i2c11-sleep-state {
+				pins = "gpio83", "gpio84";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_spi1_default: blsp1-spi1-default-state {
+				default-pins {
 					pins = "gpio0", "gpio1", "gpio3";
+					function = "blsp_spi1";
 					drive-strength = <10>;
 					bias-pull-down;
 				};
-				cs {
-					function = "gpio";
+
+				cs-pins {
 					pins = "gpio8";
+					function = "gpio";
 					drive-strength = <2>;
 					bias-disable;
 				};
 			};
 
-			blsp1_spi1_sleep: blsp1-spi1-sleep {
+			blsp1_spi1_sleep: blsp1-spi1-sleep-state {
 				pins = "gpio0", "gpio1", "gpio3";
+				function = "gpio";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			sdc1_clk_on: clk-on {
+			sdc1_clk_on: clk-on-state {
 				pins = "sdc1_clk";
 				bias-disable;
 				drive-strength = <16>;
 			};
 
-			sdc1_clk_off: clk-off {
+			sdc1_clk_off: clk-off-state {
 				pins = "sdc1_clk";
 				bias-disable;
 				drive-strength = <2>;
 			};
 
-			sdc1_cmd_on: cmd-on {
+			sdc1_cmd_on: cmd-on-state {
 				pins = "sdc1_cmd";
 				bias-pull-up;
 				drive-strength = <8>;
 			};
 
-			sdc1_cmd_off: cmd-off {
+			sdc1_cmd_off: cmd-off-state {
 				pins = "sdc1_cmd";
 				bias-pull-up;
 				drive-strength = <2>;
 			};
 
-			sdc1_data_on: data-on {
+			sdc1_data_on: data-on-state {
 				pins = "sdc1_data";
 				bias-pull-up;
 				drive-strength = <8>;
 			};
 
-			sdc1_data_off: data-off {
+			sdc1_data_off: data-off-state {
 				pins = "sdc1_data";
 				bias-pull-up;
 				drive-strength = <2>;
 			};
 
-			sdc1_rclk_on: rclk-on {
+			sdc1_rclk_on: rclk-on-state {
 				pins = "sdc1_rclk";
 				bias-pull-down;
 			};
 
-			sdc1_rclk_off: rclk-off {
+			sdc1_rclk_off: rclk-off-state {
 				pins = "sdc1_rclk";
 				bias-pull-down;
 			};
 
-			sdc2_clk_on: sdc2-clk-on {
+			sdc2_clk_on: sdc2-clk-on-state {
 				pins = "sdc2_clk";
 				bias-disable;
 				drive-strength = <10>;
 			};
 
-			sdc2_clk_off: sdc2-clk-off {
+			sdc2_clk_off: sdc2-clk-off-state {
 				pins = "sdc2_clk";
 				bias-disable;
 				drive-strength = <2>;
 			};
 
-			sdc2_cmd_on: sdc2-cmd-on {
+			sdc2_cmd_on: sdc2-cmd-on-state {
 				pins = "sdc2_cmd";
 				bias-pull-up;
 				drive-strength = <10>;
 			};
 
-			sdc2_cmd_off: sdc2-cmd-off {
+			sdc2_cmd_off: sdc2-cmd-off-state {
 				pins = "sdc2_cmd";
 				bias-pull-up;
 				drive-strength = <2>;
 			};
 
-			sdc2_data_on: sdc2-data-on {
+			sdc2_data_on: sdc2-data-on-state {
 				pins = "sdc2_data";
 				bias-pull-up;
 				drive-strength = <10>;
 			};
 
-			sdc2_data_off: sdc2-data-off {
+			sdc2_data_off: sdc2-data-off-state {
 				pins = "sdc2_data";
 				bias-pull-up;
 				drive-strength = <2>;

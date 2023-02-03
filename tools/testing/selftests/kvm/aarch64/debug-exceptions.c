@@ -22,6 +22,7 @@
 #define SPSR_SS		(1 << 21)
 
 extern unsigned char sw_bp, sw_bp2, hw_bp, hw_bp2, bp_svc, bp_brk, hw_wp, ss_start;
+extern unsigned char iter_ss_begin, iter_ss_end;
 static volatile uint64_t sw_bp_addr, hw_bp_addr;
 static volatile uint64_t wp_addr, wp_data_addr;
 static volatile uint64_t svc_addr;
@@ -238,6 +239,46 @@ static void guest_svc_handler(struct ex_regs *regs)
 	svc_addr = regs->pc;
 }
 
+enum single_step_op {
+	SINGLE_STEP_ENABLE = 0,
+	SINGLE_STEP_DISABLE = 1,
+};
+
+static void guest_code_ss(int test_cnt)
+{
+	uint64_t i;
+	uint64_t bvr, wvr, w_bvr, w_wvr;
+
+	for (i = 0; i < test_cnt; i++) {
+		/* Bits [1:0] of dbg{b,w}vr are RES0 */
+		w_bvr = i << 2;
+		w_wvr = i << 2;
+
+		/* Enable Single Step execution */
+		GUEST_SYNC(SINGLE_STEP_ENABLE);
+
+		/*
+		 * The userspace will veriry that the pc is as expected during
+		 * single step execution between iter_ss_begin and iter_ss_end.
+		 */
+		asm volatile("iter_ss_begin:nop\n");
+
+		write_sysreg(w_bvr, dbgbvr0_el1);
+		write_sysreg(w_wvr, dbgwvr0_el1);
+		bvr = read_sysreg(dbgbvr0_el1);
+		wvr = read_sysreg(dbgwvr0_el1);
+
+		asm volatile("iter_ss_end:\n");
+
+		/* Disable Single Step execution */
+		GUEST_SYNC(SINGLE_STEP_DISABLE);
+
+		GUEST_ASSERT(bvr == w_bvr);
+		GUEST_ASSERT(wvr == w_wvr);
+	}
+	GUEST_DONE();
+}
+
 static int debug_version(struct kvm_vcpu *vcpu)
 {
 	uint64_t id_aa64dfr0;
@@ -246,7 +287,7 @@ static int debug_version(struct kvm_vcpu *vcpu)
 	return id_aa64dfr0 & 0xf;
 }
 
-int main(int argc, char *argv[])
+static void test_guest_debug_exceptions(void)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -258,9 +299,6 @@ int main(int argc, char *argv[])
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
-
-	__TEST_REQUIRE(debug_version(vcpu) >= 6,
-		       "Armv8 debug architecture not supported.");
 
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
 				ESR_EC_BRK_INS, guest_sw_bp_handler);
@@ -294,5 +332,108 @@ int main(int argc, char *argv[])
 
 done:
 	kvm_vm_free(vm);
+}
+
+void test_single_step_from_userspace(int test_cnt)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	struct ucall uc;
+	struct kvm_run *run;
+	uint64_t pc, cmd;
+	uint64_t test_pc = 0;
+	bool ss_enable = false;
+	struct kvm_guest_debug debug = {};
+
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code_ss);
+	ucall_init(vm, NULL);
+	run = vcpu->run;
+	vcpu_args_set(vcpu, 1, test_cnt);
+
+	while (1) {
+		vcpu_run(vcpu);
+		if (run->exit_reason != KVM_EXIT_DEBUG) {
+			cmd = get_ucall(vcpu, &uc);
+			if (cmd == UCALL_ABORT) {
+				REPORT_GUEST_ASSERT(uc);
+				/* NOT REACHED */
+			} else if (cmd == UCALL_DONE) {
+				break;
+			}
+
+			TEST_ASSERT(cmd == UCALL_SYNC,
+				    "Unexpected ucall cmd 0x%lx", cmd);
+
+			if (uc.args[1] == SINGLE_STEP_ENABLE) {
+				debug.control = KVM_GUESTDBG_ENABLE |
+						KVM_GUESTDBG_SINGLESTEP;
+				ss_enable = true;
+			} else {
+				debug.control = SINGLE_STEP_DISABLE;
+				ss_enable = false;
+			}
+
+			vcpu_guest_debug_set(vcpu, &debug);
+			continue;
+		}
+
+		TEST_ASSERT(ss_enable, "Unexpected KVM_EXIT_DEBUG");
+
+		/* Check if the current pc is expected. */
+		vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc), &pc);
+		TEST_ASSERT(!test_pc || pc == test_pc,
+			    "Unexpected pc 0x%lx (expected 0x%lx)",
+			    pc, test_pc);
+
+		/*
+		 * If the current pc is between iter_ss_bgin and
+		 * iter_ss_end, the pc for the next KVM_EXIT_DEBUG should
+		 * be the current pc + 4.
+		 */
+		if ((pc >= (uint64_t)&iter_ss_begin) &&
+		    (pc < (uint64_t)&iter_ss_end))
+			test_pc = pc + 4;
+		else
+			test_pc = 0;
+	}
+
+	kvm_vm_free(vm);
+}
+
+static void help(char *name)
+{
+	puts("");
+	printf("Usage: %s [-h] [-i iterations of the single step test]\n", name);
+	puts("");
+	exit(0);
+}
+
+int main(int argc, char *argv[])
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int opt;
+	int ss_iteration = 10000;
+
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	__TEST_REQUIRE(debug_version(vcpu) >= 6,
+		       "Armv8 debug architecture not supported.");
+	kvm_vm_free(vm);
+
+	while ((opt = getopt(argc, argv, "i:")) != -1) {
+		switch (opt) {
+		case 'i':
+			ss_iteration = atoi(optarg);
+			break;
+		case 'h':
+		default:
+			help(argv[0]);
+			break;
+		}
+	}
+
+	test_guest_debug_exceptions();
+	test_single_step_from_userspace(ss_iteration);
+
 	return 0;
 }

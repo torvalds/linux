@@ -17,6 +17,7 @@
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
+#include <linux/time64.h>
 
 /*
  * Flags to control the behaviour of a genpd.
@@ -95,6 +96,7 @@ struct genpd_governor_data {
 	s64 max_off_time_ns;
 	bool max_off_time_changed;
 	ktime_t next_wakeup;
+	ktime_t next_hrtimer;
 	bool cached_power_down_ok;
 	bool cached_power_down_state_idx;
 };
@@ -232,6 +234,7 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state);
 int dev_pm_genpd_add_notifier(struct device *dev, struct notifier_block *nb);
 int dev_pm_genpd_remove_notifier(struct device *dev);
 void dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next);
+ktime_t dev_pm_genpd_get_next_hrtimer(struct device *dev);
 
 extern struct dev_power_governor simple_qos_governor;
 extern struct dev_power_governor pm_domain_always_on_gov;
@@ -293,6 +296,10 @@ static inline int dev_pm_genpd_remove_notifier(struct device *dev)
 static inline void dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next)
 { }
 
+static inline ktime_t dev_pm_genpd_get_next_hrtimer(struct device *dev)
+{
+	return KTIME_MAX;
+}
 #define simple_qos_governor		(*(struct dev_power_governor *)(NULL))
 #define pm_domain_always_on_gov		(*(struct dev_power_governor *)(NULL))
 #endif

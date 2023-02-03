@@ -11779,7 +11779,7 @@
         "Unit": "M3UPI"
     },
     {
-        "BriefDescription": "Flit Gen - Header 1 : Acumullate",
+        "BriefDescription": "Flit Gen - Header 1 : Accumulate",
         "Counter": "0,1,2,3",
         "CounterType": "PGMABLE",
         "EventCode": "0x51",

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/audio-graph.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Audio Graph Device Tree Bindings
+title: Audio Graph
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>

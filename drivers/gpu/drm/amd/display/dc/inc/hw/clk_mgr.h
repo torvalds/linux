@@ -95,10 +95,23 @@ struct clk_limit_table_entry {
 	unsigned int wck_ratio;
 };
 
+struct clk_limit_num_entries {
+	unsigned int num_dcfclk_levels;
+	unsigned int num_fclk_levels;
+	unsigned int num_memclk_levels;
+	unsigned int num_socclk_levels;
+	unsigned int num_dtbclk_levels;
+	unsigned int num_dispclk_levels;
+	unsigned int num_dppclk_levels;
+	unsigned int num_phyclk_levels;
+	unsigned int num_phyclk_d18_levels;
+};
+
 /* This table is contiguous */
 struct clk_limit_table {
 	struct clk_limit_table_entry entries[MAX_NUM_DPM_LVL];
-	unsigned int num_entries;
+	struct clk_limit_num_entries num_entries_per_clk;
+	unsigned int num_entries; /* highest populated dpm level for back compatibility */
 };
 
 struct wm_range_table_entry {

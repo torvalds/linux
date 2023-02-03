@@ -54,6 +54,7 @@ struct amdgpu_cs_parser {
 
 	/* scheduler job objects */
 	unsigned int		gang_size;
+	unsigned int		gang_leader_idx;
 	struct drm_sched_entity	*entities[AMDGPU_CS_GANG_SIZE];
 	struct amdgpu_job	*jobs[AMDGPU_CS_GANG_SIZE];
 	struct amdgpu_job	*gang_leader;

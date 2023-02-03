@@ -207,17 +207,24 @@ static void aspeed_kcs_updateb(struct kcs_bmc_device *kcs_bmc, u32 reg, u8 mask,
 }
 
 /*
- * AST_usrGuide_KCS.pdf
- * 2. Background:
- *   we note D for Data, and C for Cmd/Status, default rules are
- *     A. KCS1 / KCS2 ( D / C:X / X+4 )
- *        D / C : CA0h / CA4h
- *        D / C : CA8h / CACh
- *     B. KCS3 ( D / C:XX2h / XX3h )
- *        D / C : CA2h / CA3h
- *        D / C : CB2h / CB3h
- *     C. KCS4
- *        D / C : CA4h / CA5h
+ * We note D for Data, and C for Cmd/Status, default rules are
+ *
+ * 1. Only the D address is given:
+ *   A. KCS1/KCS2 (D/C: X/X+4)
+ *      D/C: CA0h/CA4h
+ *      D/C: CA8h/CACh
+ *   B. KCS3 (D/C: XX2/XX3h)
+ *      D/C: CA2h/CA3h
+ *   C. KCS4 (D/C: X/X+1)
+ *      D/C: CA4h/CA5h
+ *
+ * 2. Both the D/C addresses are given:
+ *   A. KCS1/KCS2/KCS4 (D/C: X/Y)
+ *      D/C: CA0h/CA1h
+ *      D/C: CA8h/CA9h
+ *      D/C: CA4h/CA5h
+ *   B. KCS3 (D/C: XX2/XX3h)
+ *      D/C: CA2h/CA3h
  */
 static int aspeed_kcs_set_address(struct kcs_bmc_device *kcs_bmc, u32 addrs[2], int nr_addrs)
 {

@@ -20,26 +20,26 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
-	leds {
+	leds-0 {
 		compatible = "gpio-leds";
 
-		5ghz {
+		led-5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 11 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-off";
 		};
 
-		system {
+		led-system {
 			label = "bcm53xx:green:system";
 			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "timer";
 		};
 	};
 
-	pcie0_leds {
+	leds-1 {
 		compatible = "gpio-leds";
 
-		2ghz {
+		led-2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&pcie0_chipcommon 3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-off";

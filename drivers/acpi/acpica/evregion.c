@@ -172,6 +172,15 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			ctx->subspace_id = (u8)region_obj->region.address;
 		}
 
+		if (region_obj->region.space_id ==
+		    ACPI_ADR_SPACE_FIXED_HARDWARE) {
+			struct acpi_ffh_info *ctx =
+			    handler_desc->address_space.context;
+
+			ctx->length = region_obj->region.length;
+			ctx->offset = region_obj->region.address;
+		}
+
 		/*
 		 * We must exit the interpreter because the region setup will
 		 * potentially execute control methods (for example, the _REG method

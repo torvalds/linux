@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/mfd/x-powers,ac100.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: X-Powers AC100 Device Tree Bindings
+title: X-Powers AC100
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

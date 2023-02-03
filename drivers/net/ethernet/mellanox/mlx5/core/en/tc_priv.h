@@ -96,6 +96,7 @@ struct mlx5e_tc_flow {
 	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5e_tc_flow *peer_flow;
 	struct mlx5e_mod_hdr_handle *mh; /* attached mod header instance */
+	struct mlx5e_mod_hdr_handle *slow_mh; /* attached mod header instance for slow path */
 	struct mlx5e_hairpin_entry *hpe; /* attached hairpin instance */
 	struct list_head hairpin; /* flows sharing the same hairpin */
 	struct list_head peer;    /* flows with peer flow */
@@ -111,6 +112,7 @@ struct mlx5e_tc_flow {
 	struct completion del_hw_done;
 	struct mlx5_flow_attr *attr;
 	struct list_head attrs;
+	u32 chain_mapping;
 };
 
 struct mlx5_flow_handle *

@@ -3,9 +3,9 @@
 # Makefile for the nios2 linux kernel.
 #
 
-extra-y	+= head.o
 extra-y	+= vmlinux.lds
 
+obj-y	+= head.o
 obj-y	+= cpuinfo.o
 obj-y	+= entry.o
 obj-y	+= insnemu.o

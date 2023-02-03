@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/net/vertexcom-mse102x.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: The Vertexcom MSE102x (SPI) Device Tree Bindings
+title: The Vertexcom MSE102x (SPI)
 
 maintainers:
   - Stefan Wahren <stefan.wahren@chargebyte.com>

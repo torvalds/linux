@@ -27,7 +27,7 @@
  *
  * The rv monitor reference is needed for the monitor declaration.
  */
-struct rv_monitor rv_MODEL_NAME;
+static struct rv_monitor rv_MODEL_NAME;
 DECLARE_DA_MON_GLOBAL(MODEL_NAME, MIN_TYPE);
 
 /*
@@ -63,7 +63,7 @@ TRACEPOINT_DETACH
 /*
  * This is the monitor register section.
  */
-struct rv_monitor rv_MODEL_NAME = {
+static struct rv_monitor rv_MODEL_NAME = {
 	.name = "MODEL_NAME",
 	.description = "auto-generated MODEL_NAME",
 	.enable = enable_MODEL_NAME,
@@ -72,13 +72,13 @@ struct rv_monitor rv_MODEL_NAME = {
 	.enabled = 0,
 };
 
-static int register_MODEL_NAME(void)
+static int __init register_MODEL_NAME(void)
 {
 	rv_register_monitor(&rv_MODEL_NAME);
 	return 0;
 }
 
-static void unregister_MODEL_NAME(void)
+static void __exit unregister_MODEL_NAME(void)
 {
 	rv_unregister_monitor(&rv_MODEL_NAME);
 }

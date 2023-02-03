@@ -54,8 +54,7 @@ Optional properties common with MFD (deprecated):
 				1 -> 3.25 MHz
 				2 || 3 -> 6.5 MHz
 
-Node name must be stmpe_touchscreen and should be child node of stmpe node to
-which it belongs.
+Node should be child node of stmpe node to which it belongs.
 
 Note that common ADC settings of stmpe_touchscreen (child) will take precedence
 over the settings done in MFD.

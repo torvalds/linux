@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/imx-keypad.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale i.MX Keypad Port(KPP) device tree bindings
+title: Freescale i.MX Keypad Port(KPP)
 
 maintainers:
   - Liu Ying <gnuiyl@gmail.com>

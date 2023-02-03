@@ -87,29 +87,6 @@
 #define PEH_AXUSER_CFG			0x401001
 #define PEH_AXUSER_CFG_ENABLE		0xffffffff
 
-#define QM_AXI_RRESP			BIT(0)
-#define QM_AXI_BRESP			BIT(1)
-#define QM_ECC_MBIT			BIT(2)
-#define QM_ECC_1BIT			BIT(3)
-#define QM_ACC_GET_TASK_TIMEOUT		BIT(4)
-#define QM_ACC_DO_TASK_TIMEOUT		BIT(5)
-#define QM_ACC_WB_NOT_READY_TIMEOUT	BIT(6)
-#define QM_SQ_CQ_VF_INVALID		BIT(7)
-#define QM_CQ_VF_INVALID		BIT(8)
-#define QM_SQ_VF_INVALID		BIT(9)
-#define QM_DB_TIMEOUT			BIT(10)
-#define QM_OF_FIFO_OF			BIT(11)
-#define QM_DB_RANDOM_INVALID		BIT(12)
-#define QM_MAILBOX_TIMEOUT		BIT(13)
-#define QM_FLR_TIMEOUT			BIT(14)
-
-#define QM_BASE_NFE	(QM_AXI_RRESP | QM_AXI_BRESP | QM_ECC_MBIT | \
-			 QM_ACC_GET_TASK_TIMEOUT | QM_DB_TIMEOUT | \
-			 QM_OF_FIFO_OF | QM_DB_RANDOM_INVALID | \
-			 QM_MAILBOX_TIMEOUT | QM_FLR_TIMEOUT)
-#define QM_BASE_CE			QM_ECC_1BIT
-
-#define QM_Q_DEPTH			1024
 #define QM_MIN_QNUM                     2
 #define HISI_ACC_SGL_SGE_NR_MAX		255
 #define QM_SHAPER_CFG			0x100164
@@ -166,6 +143,15 @@ enum qm_debug_file {
 enum qm_vf_state {
 	QM_READY = 0,
 	QM_NOT_READY,
+};
+
+enum qm_cap_bits {
+	QM_SUPPORT_DB_ISOLATION = 0x0,
+	QM_SUPPORT_FUNC_QOS,
+	QM_SUPPORT_STOP_QP,
+	QM_SUPPORT_MB_COMMAND,
+	QM_SUPPORT_SVA_PREFETCH,
+	QM_SUPPORT_RPM,
 };
 
 struct dfx_diff_registers {
@@ -232,7 +218,10 @@ struct hisi_qm_err_info {
 	char *acpi_rst;
 	u32 msi_wr_port;
 	u32 ecc_2bits_mask;
-	u32 dev_ce_mask;
+	u32 qm_shutdown_mask;
+	u32 dev_shutdown_mask;
+	u32 qm_reset_mask;
+	u32 dev_reset_mask;
 	u32 ce;
 	u32 nfe;
 	u32 fe;
@@ -258,6 +247,18 @@ struct hisi_qm_err_ini {
 	void (*err_info_init)(struct hisi_qm *qm);
 };
 
+struct hisi_qm_cap_info {
+	u32 type;
+	/* Register offset */
+	u32 offset;
+	/* Bit offset in register */
+	u32 shift;
+	u32 mask;
+	u32 v1_val;
+	u32 v2_val;
+	u32 v3_val;
+};
+
 struct hisi_qm_list {
 	struct mutex lock;
 	struct list_head list;
@@ -278,6 +279,9 @@ struct hisi_qm {
 	struct pci_dev *pdev;
 	void __iomem *io_base;
 	void __iomem *db_io_base;
+
+	/* Capbility version, 0: not supports */
+	u32 cap_ver;
 	u32 sqe_size;
 	u32 qp_base;
 	u32 qp_num;
@@ -286,6 +290,8 @@ struct hisi_qm {
 	u32 max_qp_num;
 	u32 vfs_num;
 	u32 db_interval;
+	u16 eq_depth;
+	u16 aeq_depth;
 	struct list_head list;
 	struct hisi_qm_list *qm_list;
 
@@ -304,6 +310,8 @@ struct hisi_qm {
 	struct hisi_qm_err_info err_info;
 	struct hisi_qm_err_status err_status;
 	unsigned long misc_ctl; /* driver removing and reset sched */
+	/* Device capability bit */
+	unsigned long caps;
 
 	struct rw_semaphore qps_lock;
 	struct idr qp_idr;
@@ -326,8 +334,6 @@ struct hisi_qm {
 	bool use_sva;
 	bool is_frozen;
 
-	/* doorbell isolation enable */
-	bool use_db_isolation;
 	resource_size_t phys_base;
 	resource_size_t db_phys_base;
 	struct uacce_device *uacce;
@@ -351,6 +357,8 @@ struct hisi_qp_ops {
 
 struct hisi_qp {
 	u32 qp_id;
+	u16 sq_depth;
+	u16 cq_depth;
 	u8 alg_type;
 	u8 req_type;
 
@@ -501,6 +509,9 @@ void hisi_qm_pm_init(struct hisi_qm *qm);
 int hisi_qm_get_dfx_access(struct hisi_qm *qm);
 void hisi_qm_put_dfx_access(struct hisi_qm *qm);
 void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
+u32 hisi_qm_get_hw_info(struct hisi_qm *qm,
+			const struct hisi_qm_cap_info *info_table,
+			u32 index, bool is_read);
 
 /* Used by VFIO ACC live migration driver */
 struct pci_driver *hisi_sec_get_pf_driver(void);
