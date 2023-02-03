@@ -133,9 +133,12 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 
 	iommufd = iommufd_ctx_from_file(f.file);
 	if (!IS_ERR(iommufd)) {
-		u32 ioas_id;
+		if (IS_ENABLED(CONFIG_VFIO_NOIOMMU) &&
+		    group->type == VFIO_NO_IOMMU)
+			ret = iommufd_vfio_compat_set_no_iommu(iommufd);
+		else
+			ret = iommufd_vfio_compat_ioas_create(iommufd);
 
-		ret = iommufd_vfio_compat_ioas_id(iommufd, &ioas_id);
 		if (ret) {
 			iommufd_ctx_put(group->iommufd);
 			goto out_unlock;

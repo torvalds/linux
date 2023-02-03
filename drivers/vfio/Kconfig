@@ -32,6 +32,7 @@ config VFIO_IOMMU_SPAPR_TCE
 	tristate
 	depends on SPAPR_TCE_IOMMU
 	default VFIO
+endif
 
 config VFIO_NOIOMMU
 	bool "VFIO No-IOMMU support"
@@ -46,7 +47,6 @@ config VFIO_NOIOMMU
 	  this mode since there is no IOMMU to provide DMA translation.
 
 	  If you don't know what to do here, say N.
-endif
 
 config VFIO_VIRQFD
 	bool
