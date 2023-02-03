@@ -213,6 +213,8 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 				    enum atomisp_bayer_order bayer_order);
 void atomisp_unregister_subdev(struct v4l2_subdev *subdev);
 
+int v4l2_get_acpi_sensor_info(struct device *dev, char **module_id_str);
+
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \
 		     boot_cpu_data.x86 == 6 &&                       \
