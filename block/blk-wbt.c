@@ -165,7 +165,7 @@ static void wb_timestamp(struct rq_wb *rwb, unsigned long *var)
  */
 static bool wb_recent_wait(struct rq_wb *rwb)
 {
-	struct bdi_writeback *wb = &rwb->rqos.q->disk->bdi->wb;
+	struct bdi_writeback *wb = &rwb->rqos.disk->bdi->wb;
 
 	return time_before(jiffies, wb->dirty_sleep + HZ);
 }
@@ -312,7 +312,7 @@ enum {
 
 static int latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 {
-	struct backing_dev_info *bdi = rwb->rqos.q->disk->bdi;
+	struct backing_dev_info *bdi = rwb->rqos.disk->bdi;
 	struct rq_depth *rqd = &rwb->rq_depth;
 	u64 thislat;
 
@@ -365,7 +365,7 @@ static int latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 
 static void rwb_trace_step(struct rq_wb *rwb, const char *msg)
 {
-	struct backing_dev_info *bdi = rwb->rqos.q->disk->bdi;
+	struct backing_dev_info *bdi = rwb->rqos.disk->bdi;
 	struct rq_depth *rqd = &rwb->rq_depth;
 
 	trace_wbt_step(bdi, msg, rqd->scale_step, rwb->cur_win_nsec,
@@ -435,13 +435,12 @@ static void wb_timer_fn(struct blk_stat_callback *cb)
 	unsigned int inflight = wbt_inflight(rwb);
 	int status;
 
-	if (!rwb->rqos.q->disk)
+	if (!rwb->rqos.disk)
 		return;
 
 	status = latency_exceeded(rwb, cb->stat);
 
-	trace_wbt_timer(rwb->rqos.q->disk->bdi, status, rqd->scale_step,
-			inflight);
+	trace_wbt_timer(rwb->rqos.disk->bdi, status, rqd->scale_step, inflight);
 
 	/*
 	 * If we exceeded the latency target, step down. If we did not,
@@ -779,16 +778,15 @@ static int wbt_data_dir(const struct request *rq)
 
 static void wbt_queue_depth_changed(struct rq_qos *rqos)
 {
-	RQWB(rqos)->rq_depth.queue_depth = blk_queue_depth(rqos->q);
+	RQWB(rqos)->rq_depth.queue_depth = blk_queue_depth(rqos->disk->queue);
 	wbt_update_limits(RQWB(rqos));
 }
 
 static void wbt_exit(struct rq_qos *rqos)
 {
 	struct rq_wb *rwb = RQWB(rqos);
-	struct request_queue *q = rqos->q;
 
-	blk_stat_remove_callback(q, rwb->cb);
+	blk_stat_remove_callback(rqos->disk->queue, rwb->cb);
 	blk_stat_free_callback(rwb->cb);
 	kfree(rwb);
 }

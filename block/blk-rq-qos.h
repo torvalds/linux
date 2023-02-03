@@ -26,7 +26,7 @@ struct rq_wait {
 
 struct rq_qos {
 	const struct rq_qos_ops *ops;
-	struct request_queue *q;
+	struct gendisk *disk;
 	enum rq_qos_id id;
 	struct rq_qos *next;
 #ifdef CONFIG_BLK_DEBUG_FS

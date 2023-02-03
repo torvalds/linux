@@ -300,7 +300,7 @@ int rq_qos_add(struct rq_qos *rqos, struct gendisk *disk, enum rq_qos_id id,
 {
 	struct request_queue *q = disk->queue;
 
-	rqos->q = q;
+	rqos->disk = disk;
 	rqos->id = id;
 	rqos->ops = ops;
 
@@ -337,7 +337,7 @@ ebusy:
 
 void rq_qos_del(struct rq_qos *rqos)
 {
-	struct request_queue *q = rqos->q;
+	struct request_queue *q = rqos->disk->queue;
 	struct rq_qos **cur;
 
 	/*
