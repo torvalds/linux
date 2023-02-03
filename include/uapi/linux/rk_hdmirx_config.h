@@ -34,14 +34,14 @@ enum hdmirx_color_range {
 	HDMIRX_FULL_RANGE = 2,
 };
 
-enum hdmirx_video_standard {
+enum hdmirx_color_space {
 	HDMIRX_XVYCC601 = 0,
 	HDMIRX_XVYCC709 = 1,
 	HDMIRX_SYCC601 = 2,
 	HDMIRX_ADOBE_YCC601 = 3,
 	HDMIRX_ADOBE_RGB = 4,
-	HDMIRX_BT2020 = 5,
-	HDMIRX_BT2020_RGB = 6,
+	HDMIRX_BT2020_YCC_CONST_LUM = 5,
+	HDMIRX_BT2020_RGB_OR_YCC = 6,
 };
 
 /* Private v4l2 ioctl */
