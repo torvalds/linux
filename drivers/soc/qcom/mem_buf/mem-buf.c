@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cdev.h>
@@ -29,6 +29,7 @@ union mem_buf_ioctl_arg {
 	struct mem_buf_reclaim_ioctl_arg reclaim;
 	struct mem_buf_share_ioctl_arg share;
 	struct mem_buf_exclusive_owner_ioctl_arg get_ownership;
+	struct mem_buf_get_memparcel_hdl_ioctl_arg get_memparcel_hdl;
 };
 
 static bool is_valid_mem_buf_perms(u32 mem_buf_perms)
@@ -185,6 +186,30 @@ put_dma_buf:
 	return ret;
 }
 
+static int mem_buf_get_memparcel_hdl(struct mem_buf_get_memparcel_hdl_ioctl_arg *uarg)
+{
+	struct dma_buf *dmabuf;
+	int ret = 0;
+	gh_memparcel_handle_t memparcel_hdl;
+
+	dmabuf = dma_buf_get(uarg->dma_buf_fd);
+	if (IS_ERR(dmabuf))
+		return PTR_ERR(dmabuf);
+
+	ret = mem_buf_dma_buf_get_memparcel_hdl(dmabuf, &memparcel_hdl);
+	if (ret) {
+		ret = -EINVAL;
+		goto put_dma_buf;
+	}
+
+	uarg->memparcel_hdl = memparcel_hdl;
+
+put_dma_buf:
+	dma_buf_put(dmabuf);
+
+	return ret;
+}
+
 static long mem_buf_dev_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg)
 {
@@ -270,6 +295,18 @@ static long mem_buf_dev_ioctl(struct file *filp, unsigned int cmd,
 		int ret;
 
 		ret = mem_buf_get_exclusive_ownership(get_ownership);
+		if (ret)
+			return ret;
+
+		break;
+	}
+	case MEM_BUF_IOC_GET_MEMPARCEL_HDL:
+	{
+		struct mem_buf_get_memparcel_hdl_ioctl_arg *get_memparcel_hdl;
+		int ret;
+
+		get_memparcel_hdl = &ioctl_arg.get_memparcel_hdl;
+		ret = mem_buf_get_memparcel_hdl(get_memparcel_hdl);
 		if (ret)
 			return ret;
 
