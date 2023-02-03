@@ -16,7 +16,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/phylink.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 #include <linux/rtnetlink.h>
@@ -1071,33 +1070,25 @@ out:
 	return port;
 }
 
-/* Call of_node_put(mdio) after done */
-static struct device_node *rswitch_get_mdio_node(struct rswitch_device *rdev)
-{
-	struct device_node *port, *mdio;
-
-	port = rswitch_get_port_node(rdev);
-	if (!port)
-		return NULL;
-
-	mdio = of_get_child_by_name(port, "mdio");
-	of_node_put(port);
-
-	return mdio;
-}
-
 static int rswitch_etha_get_params(struct rswitch_device *rdev)
 {
-	struct device_node *port;
+	u32 max_speed;
 	int err;
 
-	port = rswitch_get_port_node(rdev);
-	if (!port)
+	if (!rdev->np_port)
 		return 0;	/* ignored */
 
-	err = of_get_phy_mode(port, &rdev->etha->phy_interface);
-	of_node_put(port);
+	err = of_get_phy_mode(rdev->np_port, &rdev->etha->phy_interface);
+	if (err)
+		return err;
 
+	err = of_property_read_u32(rdev->np_port, "max-speed", &max_speed);
+	if (!err) {
+		rdev->etha->speed = max_speed;
+		return 0;
+	}
+
+	/* if no "max-speed" property, let's use default speed */
 	switch (rdev->etha->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		rdev->etha->speed = SPEED_100;
@@ -1109,11 +1100,10 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 		rdev->etha->speed = SPEED_2500;
 		break;
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static int rswitch_mii_register(struct rswitch_device *rdev)
@@ -1133,7 +1123,7 @@ static int rswitch_mii_register(struct rswitch_device *rdev)
 	mii_bus->write_c45 = rswitch_etha_mii_write_c45;
 	mii_bus->parent = &rdev->priv->pdev->dev;
 
-	mdio_np = rswitch_get_mdio_node(rdev);
+	mdio_np = of_get_child_by_name(rdev->np_port, "mdio");
 	err = of_mdiobus_register(mii_bus, mdio_np);
 	if (err < 0) {
 		mdiobus_free(mii_bus);
@@ -1157,114 +1147,107 @@ static void rswitch_mii_unregister(struct rswitch_device *rdev)
 	}
 }
 
-static void rswitch_mac_config(struct phylink_config *config,
-			       unsigned int mode,
-			       const struct phylink_link_state *state)
+static void rswitch_adjust_link(struct net_device *ndev)
 {
+	struct rswitch_device *rdev = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+
+	/* Current hardware has a restriction not to change speed at runtime */
+	if (phydev->link != rdev->etha->link) {
+		phy_print_status(phydev);
+		if (phydev->link)
+			phy_power_on(rdev->serdes);
+		else
+			phy_power_off(rdev->serdes);
+
+		rdev->etha->link = phydev->link;
+	}
 }
 
-static void rswitch_mac_link_down(struct phylink_config *config,
-				  unsigned int mode,
-				  phy_interface_t interface)
+static void rswitch_phy_remove_link_mode(struct rswitch_device *rdev,
+					 struct phy_device *phydev)
 {
-}
-
-static void rswitch_mac_link_up(struct phylink_config *config,
-				struct phy_device *phydev, unsigned int mode,
-				phy_interface_t interface, int speed,
-				int duplex, bool tx_pause, bool rx_pause)
-{
-	/* Current hardware cannot change speed at runtime */
-}
-
-static const struct phylink_mac_ops rswitch_phylink_ops = {
-	.mac_config = rswitch_mac_config,
-	.mac_link_down = rswitch_mac_link_down,
-	.mac_link_up = rswitch_mac_link_up,
-};
-
-static int rswitch_phylink_init(struct rswitch_device *rdev)
-{
-	struct device_node *port;
-	struct phylink *phylink;
-	int err;
-
-	port = rswitch_get_port_node(rdev);
-	if (!port)
-		return -ENODEV;
-
-	rdev->phylink_config.dev = &rdev->ndev->dev;
-	rdev->phylink_config.type = PHYLINK_NETDEV;
-	__set_bit(PHY_INTERFACE_MODE_SGMII, rdev->phylink_config.supported_interfaces);
-	__set_bit(PHY_INTERFACE_MODE_USXGMII, rdev->phylink_config.supported_interfaces);
-	rdev->phylink_config.mac_capabilities = MAC_100FD | MAC_1000FD | MAC_2500FD;
-
-	phylink = phylink_create(&rdev->phylink_config, &port->fwnode,
-				 rdev->etha->phy_interface, &rswitch_phylink_ops);
-	if (IS_ERR(phylink)) {
-		err = PTR_ERR(phylink);
-		goto out;
+	/* Current hardware has a restriction not to change speed at runtime */
+	switch (rdev->etha->speed) {
+	case SPEED_2500:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
+		break;
+	case SPEED_1000:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
+		break;
+	case SPEED_100:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+		break;
+	default:
+		break;
 	}
 
-	rdev->phylink = phylink;
-	err = phylink_of_phy_connect(rdev->phylink, port, rdev->etha->phy_interface);
+	phy_set_max_speed(phydev, rdev->etha->speed);
+}
+
+static int rswitch_phy_device_init(struct rswitch_device *rdev)
+{
+	struct phy_device *phydev;
+	struct device_node *phy;
+	int err = -ENOENT;
+
+	if (!rdev->np_port)
+		return -ENODEV;
+
+	phy = of_parse_phandle(rdev->np_port, "phy-handle", 0);
+	if (!phy)
+		return -ENODEV;
+
+	/* Set phydev->host_interfaces before calling of_phy_connect() to
+	 * configure the PHY with the information of host_interfaces.
+	 */
+	phydev = of_phy_find_device(phy);
+	if (!phydev)
+		goto out;
+	__set_bit(rdev->etha->phy_interface, phydev->host_interfaces);
+
+	phydev = of_phy_connect(rdev->ndev, phy, rswitch_adjust_link, 0,
+				rdev->etha->phy_interface);
+	if (!phydev)
+		goto out;
+
+	phy_set_max_speed(phydev, SPEED_2500);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	rswitch_phy_remove_link_mode(rdev, phydev);
+
+	phy_attached_info(phydev);
+
+	err = 0;
 out:
-	of_node_put(port);
+	of_node_put(phy);
 
 	return err;
 }
 
-static void rswitch_phylink_deinit(struct rswitch_device *rdev)
+static void rswitch_phy_device_deinit(struct rswitch_device *rdev)
 {
-	rtnl_lock();
-	phylink_disconnect_phy(rdev->phylink);
-	rtnl_unlock();
-	phylink_destroy(rdev->phylink);
+	if (rdev->ndev->phydev) {
+		phy_disconnect(rdev->ndev->phydev);
+		rdev->ndev->phydev = NULL;
+	}
 }
 
 static int rswitch_serdes_set_params(struct rswitch_device *rdev)
 {
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
 	int err;
 
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	err = phy_set_mode_ext(serdes, PHY_MODE_ETHERNET,
+	err = phy_set_mode_ext(rdev->serdes, PHY_MODE_ETHERNET,
 			       rdev->etha->phy_interface);
 	if (err < 0)
 		return err;
 
-	return phy_set_speed(serdes, rdev->etha->speed);
-}
-
-static int rswitch_serdes_init(struct rswitch_device *rdev)
-{
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
-
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	return phy_init(serdes);
-}
-
-static int rswitch_serdes_deinit(struct rswitch_device *rdev)
-{
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
-
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	return phy_exit(serdes);
+	return phy_set_speed(rdev->serdes, rdev->etha->speed);
 }
 
 static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
@@ -1282,9 +1265,15 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	if (err < 0)
 		return err;
 
-	err = rswitch_phylink_init(rdev);
+	err = rswitch_phy_device_init(rdev);
 	if (err < 0)
-		goto err_phylink_init;
+		goto err_phy_device_init;
+
+	rdev->serdes = devm_of_phy_get(&rdev->priv->pdev->dev, rdev->np_port, NULL);
+	if (IS_ERR(rdev->serdes)) {
+		err = PTR_ERR(rdev->serdes);
+		goto err_serdes_phy_get;
+	}
 
 	err = rswitch_serdes_set_params(rdev);
 	if (err < 0)
@@ -1293,9 +1282,10 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	return 0;
 
 err_serdes_set_params:
-	rswitch_phylink_deinit(rdev);
+err_serdes_phy_get:
+	rswitch_phy_device_deinit(rdev);
 
-err_phylink_init:
+err_phy_device_init:
 	rswitch_mii_unregister(rdev);
 
 	return err;
@@ -1303,7 +1293,7 @@ err_phylink_init:
 
 static void rswitch_ether_port_deinit_one(struct rswitch_device *rdev)
 {
-	rswitch_phylink_deinit(rdev);
+	rswitch_phy_device_deinit(rdev);
 	rswitch_mii_unregister(rdev);
 }
 
@@ -1318,7 +1308,7 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 	}
 
 	rswitch_for_each_enabled_port(priv, i) {
-		err = rswitch_serdes_init(priv->rdev[i]);
+		err = phy_init(priv->rdev[i]->serdes);
 		if (err)
 			goto err_serdes;
 	}
@@ -1327,7 +1317,7 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 
 err_serdes:
 	rswitch_for_each_enabled_port_continue_reverse(priv, i)
-		rswitch_serdes_deinit(priv->rdev[i]);
+		phy_exit(priv->rdev[i]->serdes);
 	i = RSWITCH_NUM_PORTS;
 
 err_init_one:
@@ -1342,7 +1332,7 @@ static void rswitch_ether_port_deinit_all(struct rswitch_private *priv)
 	int i;
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
-		rswitch_serdes_deinit(priv->rdev[i]);
+		phy_exit(priv->rdev[i]->serdes);
 		rswitch_ether_port_deinit_one(priv->rdev[i]);
 	}
 }
@@ -1351,7 +1341,7 @@ static int rswitch_open(struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
-	phylink_start(rdev->phylink);
+	phy_start(ndev->phydev);
 
 	napi_enable(&rdev->napi);
 	netif_start_queue(ndev);
@@ -1371,7 +1361,7 @@ static int rswitch_stop(struct net_device *ndev)
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, false);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
 
-	phylink_stop(rdev->phylink);
+	phy_stop(ndev->phydev);
 	napi_disable(&rdev->napi);
 
 	return 0;
@@ -1499,8 +1489,6 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 
 static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct rswitch_device *rdev = netdev_priv(ndev);
-
 	if (!netif_running(ndev))
 		return -EINVAL;
 
@@ -1510,7 +1498,7 @@ static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd
 	case SIOCSHWTSTAMP:
 		return rswitch_hwstamp_set(ndev, req);
 	default:
-		return phylink_mii_ioctl(rdev->phylink, req, cmd);
+		return phy_mii_ioctl(ndev->phydev, req, cmd);
 	}
 }
 
@@ -1565,7 +1553,6 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct rswitch_device *rdev;
-	struct device_node *port;
 	struct net_device *ndev;
 	int err;
 
@@ -1594,10 +1581,10 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 
 	netif_napi_add(ndev, &rdev->napi, rswitch_poll);
 
-	port = rswitch_get_port_node(rdev);
-	rdev->disabled = !port;
-	err = of_get_ethdev_address(port, ndev);
-	of_node_put(port);
+	rdev->np_port = rswitch_get_port_node(rdev);
+	rdev->disabled = !rdev->np_port;
+	err = of_get_ethdev_address(rdev->np_port, ndev);
+	of_node_put(rdev->np_port);
 	if (err) {
 		if (is_valid_ether_addr(rdev->etha->mac_addr))
 			eth_hw_addr_set(ndev, rdev->etha->mac_addr);
@@ -1798,7 +1785,7 @@ static void rswitch_deinit(struct rswitch_private *priv)
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
 		struct rswitch_device *rdev = priv->rdev[i];
 
-		rswitch_serdes_deinit(rdev);
+		phy_exit(priv->rdev[i]->serdes);
 		rswitch_ether_port_deinit_one(rdev);
 		unregister_netdev(rdev->ndev);
 		rswitch_device_free(priv, i);
