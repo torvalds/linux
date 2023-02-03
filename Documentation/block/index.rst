@@ -10,7 +10,6 @@ Block
    bfq-iosched
    biovecs
    blk-mq
-   capability
    cmdline-partition
    data-integrity
    deadline-iosched
