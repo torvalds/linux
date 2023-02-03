@@ -516,9 +516,8 @@ config QCOM_LOGBUF_VENDOR_HOOKS
 	  device running.
 
 config QCOM_LOGBUF_BOOTLOG
-	bool "QTI Boot Log Support"
-	depends on QCOM_LOGBUF_VENDOR_HOOKS
-	default y
+	tristate "QTI Boot Log Support"
+	depends on ARCH_QCOM
 	help
 	  This enables to keep copy of initial log_buf
 	  of minimum 512KB from bootup. It can help in
