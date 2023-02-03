@@ -154,7 +154,10 @@ perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_off_cpu.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
+
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
+endif
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
   perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o

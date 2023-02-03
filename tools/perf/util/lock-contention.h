@@ -65,6 +65,9 @@ struct lock_stat {
  */
 #define MAX_LOCK_DEPTH 48
 
+struct lock_stat *lock_stat_find(u64 addr);
+struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags);
+
 /*
  * struct lock_seq_stat:
  * Place to put on state of one lock sequence

@@ -256,12 +256,34 @@ int lock_contention_read(struct lock_contention *con)
 	prev_key = NULL;
 	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
 		s32 stack_id;
+		const char *name;
 
 		/* to handle errors in the loop body */
 		err = -1;
 
 		bpf_map_lookup_elem(fd, &key, &data);
-		st = zalloc(sizeof(*st));
+
+		if (con->save_callstack) {
+			stack_id = key.aggr_key;
+			bpf_map_lookup_elem(stack, &stack_id, stack_trace);
+		}
+
+		st = lock_stat_find(key.aggr_key);
+		if (st != NULL) {
+			st->wait_time_total += data.total_time;
+			if (st->wait_time_max < data.max_time)
+				st->wait_time_max = data.max_time;
+			if (st->wait_time_min > data.min_time)
+				st->wait_time_min = data.min_time;
+
+			st->nr_contended += data.count;
+			if (st->nr_contended)
+				st->avg_wait_time = st->wait_time_total / st->nr_contended;
+			goto next;
+		}
+
+		name = lock_contention_get_name(con, &key, stack_trace);
+		st = lock_stat_findnew(key.aggr_key, name, data.flags);
 		if (st == NULL)
 			break;
 
@@ -274,14 +296,6 @@ int lock_contention_read(struct lock_contention *con)
 			st->avg_wait_time = data.total_time / data.count;
 
 		st->flags = data.flags;
-		st->addr = key.aggr_key;
-
-		stack_id = key.aggr_key;
-		bpf_map_lookup_elem(stack, &stack_id, stack_trace);
-
-		st->name = strdup(lock_contention_get_name(con, &key, stack_trace));
-		if (st->name == NULL)
-			break;
 
 		if (con->save_callstack) {
 			st->callstack = memdup(stack_trace, stack_size);
@@ -289,19 +303,14 @@ int lock_contention_read(struct lock_contention *con)
 				break;
 		}
 
-		hlist_add_head(&st->hash_entry, con->result);
+next:
 		prev_key = &key;
 
-		/* we're fine now, reset the values */
-		st = NULL;
+		/* we're fine now, reset the error */
 		err = 0;
 	}
 
 	free(stack_trace);
-	if (st) {
-		free(st->name);
-		free(st);
-	}
 
 	return err;
 }

@@ -465,7 +465,7 @@ static struct lock_stat *pop_from_result(void)
 	return container_of(node, struct lock_stat, rb);
 }
 
-static struct lock_stat *lock_stat_find(u64 addr)
+struct lock_stat *lock_stat_find(u64 addr)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret;
@@ -477,7 +477,7 @@ static struct lock_stat *lock_stat_find(u64 addr)
 	return NULL;
 }
 
-static struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
+struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret, *new;
