@@ -3648,6 +3648,7 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
+	params_vdev->cur_frame_id = new_params->frame_id;
 	if (type == RKISP_PARAMS_SHD)
 		return;
 

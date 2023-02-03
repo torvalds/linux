@@ -805,6 +805,7 @@ struct isp21_stat {
 struct rkisp_isp21_stat_buffer {
 	unsigned int meas_type;
 	unsigned int frame_id;
+	unsigned int params_id;
 	struct isp21_stat params;
 } __attribute__ ((packed));
 

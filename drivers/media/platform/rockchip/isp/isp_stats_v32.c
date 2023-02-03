@@ -509,6 +509,7 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp32_isp_stat_buffer *cur_stat_buf = NULL;
 	struct rkisp_stats_ops_v32 *ops =
 		(struct rkisp_stats_ops_v32 *)stats_vdev->priv_ops;
+	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
 	u32 size = sizeof(struct rkisp32_isp_stat_buffer);
 	int ret = 0;
 	bool is_dummy = false;
@@ -600,6 +601,7 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 				list_del(&cur_buf->queue);
 			} else {
 				cur_stat_buf->frame_id = cur_frame_id;
+				cur_stat_buf->params_id = params_vdev->cur_frame_id;
 			}
 			spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
 			if (cur_buf) {
@@ -609,6 +611,7 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		}
 		if (cur_buf && cur_stat_buf) {
 			cur_stat_buf->frame_id = cur_frame_id;
+			cur_stat_buf->params_id = params_vdev->cur_frame_id;
 			cur_stat_buf->params.info2ddr.buf_fd = -1;
 			cur_stat_buf->params.info2ddr.owner = 0;
 			rkisp_stats_info2ddr(stats_vdev, cur_stat_buf);

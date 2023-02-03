@@ -1398,6 +1398,7 @@ struct rkisp32_isp_stat_buffer {
 	struct isp32_stat params;
 	u32 meas_type;
 	u32 frame_id;
+	u32 params_id;
 } __attribute__ ((packed));
 
 struct rkisp32_thunderboot_resmem_head {

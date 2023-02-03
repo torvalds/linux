@@ -1070,6 +1070,7 @@ struct isp3x_stat {
 struct rkisp3x_isp_stat_buffer {
 	u32 meas_type;
 	u32 frame_id;
+	u32 params_id;
 	struct isp3x_stat params;
 } __attribute__ ((packed));
 

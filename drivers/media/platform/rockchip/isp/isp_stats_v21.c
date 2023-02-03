@@ -948,6 +948,7 @@ rkisp_stats_send_meas_v21(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_isp21_stat_buffer *cur_stat_buf = NULL;
 	struct rkisp_stats_v21_ops *ops =
 		(struct rkisp_stats_v21_ops *)stats_vdev->priv_ops;
+	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
 	int ret = 0;
 
 	cur_frame_id = meas_work->frame_id;
@@ -966,6 +967,7 @@ rkisp_stats_send_meas_v21(struct rkisp_isp_stats_vdev *stats_vdev,
 		cur_stat_buf =
 			(struct rkisp_isp21_stat_buffer *)(cur_buf->vaddr[0]);
 		cur_stat_buf->frame_id = cur_frame_id;
+		cur_stat_buf->params_id = params_vdev->cur_frame_id;
 	}
 
 	if (meas_work->isp_ris & ISP2X_AFM_SUM_OF)
