@@ -2027,6 +2027,15 @@ void spi_nor_set_erase_type(struct spi_nor_erase_type *erase, u32 size,
 }
 
 /**
+ * spi_nor_mask_erase_type() - mask out a SPI NOR erase type
+ * @erase:	pointer to a structure that describes a SPI NOR erase type
+ */
+void spi_nor_mask_erase_type(struct spi_nor_erase_type *erase)
+{
+	erase->size = 0;
+}
+
+/**
  * spi_nor_init_uniform_erase_map() - Initialize uniform erase map
  * @map:		the erase map of the SPI NOR
  * @erase_mask:		bitmask encoding erase types that can erase the entire
