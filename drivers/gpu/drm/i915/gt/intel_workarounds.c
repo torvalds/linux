@@ -30,7 +30,7 @@
  *   creation to have a "primed golden context", i.e. a context image that
  *   already contains the changes needed to all the registers.
  *
- *   Context workarounds should be implemented in the *_ctx_workarounds_init()
+ *   Context workarounds should be implemented in the \*_ctx_workarounds_init()
  *   variants respective to the targeted platforms.
  *
  * - Engine workarounds: the list of these WAs is applied whenever the specific
@@ -55,7 +55,7 @@
  * - GT workarounds: the list of these WAs is applied whenever these registers
  *   revert to their default values: on GPU reset, suspend/resume [1]_, etc.
  *
- *   GT workarounds should be implemented in the *_gt_workarounds_init()
+ *   GT workarounds should be implemented in the \*_gt_workarounds_init()
  *   variants respective to the targeted platforms.
  *
  * - Register whitelist: some workarounds need to be implemented in userspace,
@@ -64,7 +64,7 @@
  *   this is just a special case of a MMIO workaround (as we write the list of
  *   these to/be-whitelisted registers to some special HW registers).
  *
- *   Register whitelisting should be done in the *_whitelist_build() variants
+ *   Register whitelisting should be done in the \*_whitelist_build() variants
  *   respective to the targeted platforms.
  *
  * - Workaround batchbuffers: buffers that get executed automatically by the
