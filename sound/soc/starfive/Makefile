@@ -1,6 +1,6 @@
 # starfive Platform Support
-obj-$(CONFIG_SND_SOC_STARFIVE_PWMDAC) += pwmdac.o
-pwmdac-y := starfive_pwmdac.o starfive_pwmdac_transmitter.o
+obj-$(CONFIG_SND_SOC_STARFIVE_PWMDAC) += starfive_pwmdac.o
+obj-$(CONFIG_SND_SOC_STARFIVE_PWMDAC_TRANSMITTER) += starfive_pwmdac_transmitter.o
 pwmdac-$(CONFIG_SND_SOC_STARFIVE_PWMDAC_PCM) += starfive_pwmdac_pcm.o
 
 obj-$(CONFIG_SND_SOC_STARFIVE_PDM) += starfive_pdm.o
