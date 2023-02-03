@@ -66,16 +66,12 @@ config I3CDEV_XFER_HDR_DDR
 	  This option is to help development so it shall be turned off in production.
 endif # I3CDEV
 
-config I3C_IBI_MQUEUE
-	bool "I3C mqueue (message queue) master ibi driver"
+config I3C_AST_BRIDGE_IC
+	bool "Aspeed Bridge IC driver"
 	default y
+	select REGMAP_I3C
 	help
-	  Some protocols over I3C are designed for bi-directional transferring
-	  messages by using I3C IBI protocol. This driver is used to receive and
-	  queue messages from the remote I3C slave device.
-
-	  Userspace can get the messages by reading sysfs file that this driver
-	  exposes.
+	  Say y to enable Aspeed bridge IC device driver.
 
 config I3C_MUX_IMX3102
 	bool "IMX/IML3102 I3C multiplexer driver"
