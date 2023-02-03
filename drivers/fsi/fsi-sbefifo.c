@@ -81,7 +81,7 @@
 
 enum sbe_state
 {
-	SBE_STATE_UNKNOWN = 0x0, // Unkown, initial state
+	SBE_STATE_UNKNOWN = 0x0, // Unknown, initial state
 	SBE_STATE_IPLING  = 0x1, // IPL'ing - autonomous mode (transient)
 	SBE_STATE_ISTEP   = 0x2, // ISTEP - Running IPL by steps (transient)
 	SBE_STATE_MPIPL   = 0x3, // MPIPL
@@ -732,7 +732,7 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
  * @response: The output response buffer
  * @resp_len: In: Response buffer size, Out: Response size
  *
- * This will perform the entire operation. If the reponse buffer
+ * This will perform the entire operation. If the response buffer
  * overflows, returns -EOVERFLOW
  */
 int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,

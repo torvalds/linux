@@ -1133,7 +1133,7 @@ static int fsi_master_acf_gpio_request(void *data)
 
 	/* Note: This doesn't require holding out mutex */
 
-	/* Write reqest */
+	/* Write request */
 	iowrite8(ARB_ARM_REQ, master->sram + ARB_REG);
 
 	/*
