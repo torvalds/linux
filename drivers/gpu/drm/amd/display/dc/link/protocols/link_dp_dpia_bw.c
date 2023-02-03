@@ -424,7 +424,7 @@ int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *li
 				timeout--;
 			else
 				break;
-			udelay(10 * 1000);
+			fsleep(10 * 1000);
 		} while (!get_cm_response_ready_flag(link));
 
 		if (!timeout)

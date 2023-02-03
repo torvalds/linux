@@ -215,7 +215,7 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait, uint8
 					break;
 			}
 
-			udelay(500);
+			fsleep(500);
 		}
 
 		/* assert if max retry hit */

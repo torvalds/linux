@@ -1153,7 +1153,7 @@ static bool poll_for_allocation_change_trigger(struct dc_link *link)
 			break;
 		}
 
-		msleep(5);
+		fsleep(5000);
 	}
 
 	if (result == ACT_FAILED) {
@@ -1640,7 +1640,7 @@ static bool write_128b_132b_sst_payload_allocation_table(
 			}
 		}
 		retries++;
-		msleep(5);
+		fsleep(5000);
 	}
 
 	if (!result && retries == max_retries) {

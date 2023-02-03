@@ -1005,7 +1005,7 @@ static enum dc_status wake_up_aux_channel(struct dc_link *link)
 		 * signal and may need up to 1 ms before being able to reply.
 		 */
 		if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3) {
-			udelay(1000);
+			fsleep(1000);
 			aux_channel_retry_cnt++;
 		}
 	}
@@ -2121,7 +2121,7 @@ static bool dp_verify_link_cap(
 
 		if (status == LINK_TRAINING_SUCCESS) {
 			success = true;
-			udelay(1000);
+			fsleep(1000);
 			if (dc_link_dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
 					dc_link_check_link_loss_status(
 							link,
@@ -2171,7 +2171,7 @@ bool dp_verify_link_cap_with_retries(
 			success = true;
 			break;
 		}
-		msleep(10);
+		fsleep(10 * 1000);
 	}
 
 	dp_trace_lt_fail_count_update(link, fail_count, true);
@@ -2231,7 +2231,7 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 		gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
 		ASSERT(gpio_result == GPIO_RESULT_OK);
 		if (clock_pin)
-			udelay(1000);
+			fsleep(1000);
 		else
 			break;
 	} while (retry++ < 3);

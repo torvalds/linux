@@ -325,7 +325,7 @@ bool dc_link_wait_for_t12(struct dc_link *link)
 void link_edp_add_delay_for_T9(struct dc_link *link)
 {
 	if (link && link->panel_config.pps.extra_delay_backlight_off > 0)
-		udelay(link->panel_config.pps.extra_delay_backlight_off * 1000);
+		fsleep(link->panel_config.pps.extra_delay_backlight_off * 1000);
 }
 
 bool link_edp_receiver_ready_T9(struct dc_link *link)
@@ -383,7 +383,7 @@ bool link_edp_receiver_ready_T7(struct dc_link *link)
 	}
 
 	if (link && link->panel_config.pps.extra_t7_ms > 0)
-		udelay(link->panel_config.pps.extra_t7_ms * 1000);
+		fsleep(link->panel_config.pps.extra_t7_ms * 1000);
 
 	return result;
 }

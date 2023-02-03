@@ -1035,7 +1035,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 	 * falling back to lower bandwidth settings possible.
 	 */
 	if (result == LINK_TRAINING_SUCCESS) {
-		msleep(5);
+		fsleep(5000);
 		if (!link->is_automated)
 			result = dp_check_link_loss_status(link, &lt_settings);
 	} else if (result == LINK_TRAINING_ABORT)

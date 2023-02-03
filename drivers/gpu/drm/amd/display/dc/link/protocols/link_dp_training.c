@@ -258,10 +258,7 @@ void dp_wait_for_training_aux_rd_interval(
 	struct dc_link *link,
 	uint32_t wait_in_micro_secs)
 {
-	if (wait_in_micro_secs > 1000)
-		msleep(wait_in_micro_secs/1000);
-	else
-		udelay(wait_in_micro_secs);
+	fsleep(wait_in_micro_secs);
 
 	DC_LOG_HW_LINK_TRAINING("%s:\n wait = %d\n",
 		__func__,
@@ -970,7 +967,7 @@ static void dpcd_exit_training_mode(struct dc_link *link, enum dp_link_encoding 
 			if ((core_link_read_dpcd(link, DP_SINK_STATUS, &sink_status, 1) == DC_OK) &&
 					(sink_status & DP_INTRA_HOP_AUX_REPLY_INDICATION) == 0)
 				break;
-			udelay(1000);
+			fsleep(1000);
 		}
 	}
 }
