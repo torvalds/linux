@@ -1738,6 +1738,13 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 	skb->next = NULL;
 }
 
+static inline void skb_poison_list(struct sk_buff *skb)
+{
+#ifdef CONFIG_DEBUG_NET
+	skb->next = SKB_LIST_POISON_NEXT;
+#endif
+}
+
 /* Iterate through singly-linked GSO fragments of an skb. */
 #define skb_list_walk_safe(first, skb, next_skb)                               \
 	for ((skb) = (first), (next_skb) = (skb) ? (skb)->next : NULL; (skb);  \

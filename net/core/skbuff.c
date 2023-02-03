@@ -1000,8 +1000,10 @@ kfree_skb_list_reason(struct sk_buff *segs, enum skb_drop_reason reason)
 	while (segs) {
 		struct sk_buff *next = segs->next;
 
-		if (__kfree_skb_reason(segs, reason))
+		if (__kfree_skb_reason(segs, reason)) {
+			skb_poison_list(segs);
 			kfree_skb_add_bulk(segs, &sa, reason);
+		}
 
 		segs = next;
 	}
