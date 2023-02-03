@@ -1065,7 +1065,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 
 	if (w->id == snd_soc_dapm_dai_out)
 		stream = SNDRV_PCM_STREAM_CAPTURE;
-	if (w->id == snd_soc_dapm_dai_in)
+	else if (w->id == snd_soc_dapm_dai_in)
 		stream = SNDRV_PCM_STREAM_PLAYBACK;
 	else
 		goto end;
