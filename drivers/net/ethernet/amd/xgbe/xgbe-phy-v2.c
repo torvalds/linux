@@ -390,7 +390,8 @@ static DEFINE_MUTEX(xgbe_phy_comm_lock);
 static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata);
 static void xgbe_phy_rrc(struct xgbe_prv_data *pdata);
 static void xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata,
-					unsigned int cmd, unsigned int sub_cmd);
+					enum xgbe_mb_cmd cmd,
+					enum xgbe_mb_subcmd sub_cmd);
 
 static int xgbe_phy_i2c_xfer(struct xgbe_prv_data *pdata,
 			     struct xgbe_i2c_op *i2c_op)
