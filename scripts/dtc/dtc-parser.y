@@ -404,9 +404,14 @@ arrayprefix:
 				 * within the mask to one (i.e. | in the
 				 * mask), all bits are one.
 				 */
-				if (($2 > mask) && (($2 | mask) != -1ULL))
-					ERROR(&@2, "Value out of range for"
-					      " %d-bit array element", $1.bits);
+				if (($2 > mask) && (($2 | mask) != -1ULL)) {
+					char *loc = srcpos_string(&@2);
+					fprintf(stderr,
+						"WARNING: %s: Value 0x%016" PRIx64
+						" truncated to 0x%0*" PRIx64 "\n",
+						loc, $2, $1.bits / 4, ($2 & mask));
+					free(loc);
+				}
 			}
 
 			$$.data = data_append_integer($1.data, $2, $1.bits);
