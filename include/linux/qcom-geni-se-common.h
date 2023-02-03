@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LINUX_QCOM_GENI_SE_COMMON
@@ -72,7 +72,7 @@ if (print) { \
 #define SE_DMA_RX_IRQ_EN_CLR	(0xD50)
 
 #define TX_GENI_CANCEL_IRQ		(BIT(14))
-
+#define SE_HW_PARAM_2                   (0xE2C)
 /* DMA DEBUG Register fields */
 #define DMA_TX_ACTIVE			(BIT(0))
 #define DMA_RX_ACTIVE			(BIT(1))
@@ -87,6 +87,9 @@ if (print) { \
 
 #define GENI_FW_S_REVISION_RO	(0x6C)
 #define FW_REV_VERSION_MSK		(GENMASK(7, 0))
+
+/* SE_HW_PARAM_2 fields */
+#define GEN_HW_FSM_I2C			(BIT(15))
 
 #define GSI_TX_PACK_EN          (BIT(0))
 #define GSI_RX_PACK_EN          (BIT(1))
