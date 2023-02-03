@@ -146,49 +146,37 @@ int gzip_header_blank(char *buf)
 /* Caller must free the allocated buffer return nonzero on error. */
 int read_alloc_input_file(char *fname, char **buf, size_t *bufsize)
 {
+	int err;
 	struct stat statbuf;
-	FILE *fp;
 	char *p;
 	size_t num_bytes;
 
 	if (stat(fname, &statbuf)) {
 		perror(fname);
-		return(-1);
+		return -1;
 	}
-	fp = fopen(fname, "r");
-	if (fp == NULL) {
-		perror(fname);
-		return(-1);
-	}
+
 	assert(NULL != (p = (char *) malloc(statbuf.st_size)));
-	num_bytes = fread(p, 1, statbuf.st_size, fp);
-	if (ferror(fp) || (num_bytes != statbuf.st_size)) {
+
+	err = read_file(fname, p, statbuf.st_size, &num_bytes);
+	if (err) {
 		perror(fname);
-		return(-1);
+		goto fail;
 	}
+
+	if (num_bytes != statbuf.st_size) {
+		fprintf(stderr, "Actual bytes != expected bytes\n");
+		err = -1;
+		goto fail;
+	}
+
 	*buf = p;
 	*bufsize = num_bytes;
 	return 0;
-}
 
-/* Returns nonzero on error */
-int write_output_file(char *fname, char *buf, size_t bufsize)
-{
-	FILE *fp;
-	size_t num_bytes;
-
-	fp = fopen(fname, "w");
-	if (fp == NULL) {
-		perror(fname);
-		return(-1);
-	}
-	num_bytes = fwrite(buf, 1, bufsize, fp);
-	if (ferror(fp) || (num_bytes != bufsize)) {
-		perror(fname);
-		return(-1);
-	}
-	fclose(fp);
-	return 0;
+fail:
+	free(p);
+	return err;
 }
 
 /*
@@ -399,7 +387,7 @@ int compress_file(int argc, char **argv, void *handle)
 	assert(FNAME_MAX > (strlen(argv[1]) + strlen(FEXT)));
 	strcpy(outname, argv[1]);
 	strcat(outname, FEXT);
-	if (write_output_file(outname, outbuf, dsttotlen)) {
+	if (write_file(outname, outbuf, dsttotlen)) {
 		fprintf(stderr, "write error: %s\n", outname);
 		exit(-1);
 	}
