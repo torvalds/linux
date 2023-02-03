@@ -1683,7 +1683,11 @@ static void sdma_v4_4_2_inst_update_medium_grain_light_sleep(
 	uint32_t data, def;
 	int i;
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
+	/* leave as default if it is not driver controlled */
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS))
+		return;
+
+	if (enable) {
 		for_each_inst(i, inst_mask) {
 			/* 1-not override: enable sdma mem light sleep */
 			def = data = RREG32_SDMA(i, regSDMA_POWER_CNTL);
@@ -1708,12 +1712,14 @@ static void sdma_v4_4_2_inst_update_medium_grain_clock_gating(
 	uint32_t data, def;
 	int i;
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
+	/* leave as default if it is not driver controlled */
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG))
+		return;
+
+	if (enable) {
 		for_each_inst(i, inst_mask) {
 			def = data = RREG32_SDMA(i, regSDMA_CLK_CTRL);
-			data &= ~(SDMA_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				  SDMA_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				  SDMA_CLK_CTRL__SOFT_OVERRIDE5_MASK |
+			data &= ~(SDMA_CLK_CTRL__SOFT_OVERRIDE5_MASK |
 				  SDMA_CLK_CTRL__SOFT_OVERRIDE4_MASK |
 				  SDMA_CLK_CTRL__SOFT_OVERRIDE3_MASK |
 				  SDMA_CLK_CTRL__SOFT_OVERRIDE2_MASK |
@@ -1725,9 +1731,7 @@ static void sdma_v4_4_2_inst_update_medium_grain_clock_gating(
 	} else {
 		for_each_inst(i, inst_mask) {
 			def = data = RREG32_SDMA(i, regSDMA_CLK_CTRL);
-			data |= (SDMA_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				 SDMA_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				 SDMA_CLK_CTRL__SOFT_OVERRIDE5_MASK |
+			data |= (SDMA_CLK_CTRL__SOFT_OVERRIDE5_MASK |
 				 SDMA_CLK_CTRL__SOFT_OVERRIDE4_MASK |
 				 SDMA_CLK_CTRL__SOFT_OVERRIDE3_MASK |
 				 SDMA_CLK_CTRL__SOFT_OVERRIDE2_MASK |
@@ -1773,7 +1777,7 @@ static void sdma_v4_4_2_get_clockgating_state(void *handle, u64 *flags)
 
 	/* AMD_CG_SUPPORT_SDMA_MGCG */
 	data = RREG32(SOC15_REG_OFFSET(SDMA0, GET_INST(SDMA0, 0), regSDMA_CLK_CTRL));
-	if (!(data & SDMA_CLK_CTRL__SOFT_OVERRIDE7_MASK))
+	if (!(data & SDMA_CLK_CTRL__SOFT_OVERRIDE5_MASK))
 		*flags |= AMD_CG_SUPPORT_SDMA_MGCG;
 
 	/* AMD_CG_SUPPORT_SDMA_LS */
