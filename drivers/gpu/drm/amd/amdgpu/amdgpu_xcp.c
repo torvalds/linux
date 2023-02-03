@@ -113,11 +113,16 @@ static void __amdgpu_xcp_add_block(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 	xcp->valid = true;
 }
 
-static int __amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps)
+int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 {
 	struct amdgpu_xcp_ip ip;
 	uint8_t mem_id;
 	int i, j, ret;
+
+	if (!num_xcps || num_xcps > MAX_XCP)
+		return -EINVAL;
+
+	xcp_mgr->mode = mode;
 
 	for (i = 0; i < MAX_XCP; ++i)
 		xcp_mgr->xcp[i].valid = false;
@@ -181,13 +186,6 @@ int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
 		goto out;
 	}
 
-	if (!num_xcps || num_xcps > MAX_XCP) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	xcp_mgr->mode = mode;
-	__amdgpu_xcp_init(xcp_mgr, num_xcps);
 out:
 	mutex_unlock(&xcp_mgr->xcp_lock);
 
@@ -240,7 +238,7 @@ int amdgpu_xcp_mgr_init(struct amdgpu_device *adev, int init_mode,
 	mutex_init(&xcp_mgr->xcp_lock);
 
 	if (init_mode != AMDGPU_XCP_MODE_NONE)
-		__amdgpu_xcp_init(xcp_mgr, init_num_xcps);
+		amdgpu_xcp_init(xcp_mgr, init_num_xcps, init_mode);
 
 	adev->xcp_mgr = xcp_mgr;
 

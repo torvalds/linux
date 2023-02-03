@@ -321,9 +321,11 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	if (adev->nbio.funcs->set_compute_partition_mode)
 		adev->nbio.funcs->set_compute_partition_mode(adev, mode);
 
-	ret = __aqua_vanjaram_post_partition_switch(xcp_mgr, flags);
-
+	/* Init info about new xcps */
 	*num_xcps = num_xcc / num_xcc_per_xcp;
+	amdgpu_xcp_init(xcp_mgr, *num_xcps, mode);
+
+	ret = __aqua_vanjaram_post_partition_switch(xcp_mgr, flags);
 unlock:
 	if (flags & AMDGPU_XCP_OPS_KFD)
 		amdgpu_amdkfd_unlock_kfd(adev);

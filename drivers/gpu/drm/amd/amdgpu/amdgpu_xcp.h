@@ -105,6 +105,7 @@ int amdgpu_xcp_resume(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 
 int amdgpu_xcp_mgr_init(struct amdgpu_device *adev, int init_mode,
 			int init_xcps, struct amdgpu_xcp_mgr_funcs *xcp_funcs);
+int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode);
 int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags);
 int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode);
 int amdgpu_xcp_get_partition(struct amdgpu_xcp_mgr *xcp_mgr,
