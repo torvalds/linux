@@ -8,6 +8,8 @@
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <link.h>
 #include <sched.h>
 #include <stdio.h>
@@ -123,6 +125,126 @@ int write_debugfs_file(const char *subpath, const char *buf, size_t count)
 	return write_file(path, buf, count);
 }
 
+static int validate_int_parse(const char *buffer, size_t count, char *end)
+{
+	int err = 0;
+
+	/* Require at least one digit */
+	if (end == buffer) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* Require all remaining characters be whitespace-ish */
+	for (; end < buffer + count; end++) {
+		if (*end == '\0')
+			break;
+
+		if (*end != ' ' && *end != '\n') {
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+out:
+	errno = -err;
+	return err;
+}
+
+static int parse_bounded_int(const char *buffer, size_t count, intmax_t *result,
+			     int base, intmax_t min, intmax_t max)
+{
+	int err;
+	char *end;
+
+	errno = 0;
+	*result = strtoimax(buffer, &end, base);
+
+	if (errno)
+		return -errno;
+
+	err = validate_int_parse(buffer, count, end);
+	if (err)
+		goto out;
+
+	if (*result < min || *result > max)
+		err = -EOVERFLOW;
+
+out:
+	errno = -err;
+	return err;
+}
+
+static int parse_bounded_uint(const char *buffer, size_t count, uintmax_t *result,
+			      int base, uintmax_t max)
+{
+	int err = 0;
+	char *end;
+
+	errno = 0;
+	*result = strtoumax(buffer, &end, base);
+
+	if (errno)
+		return -errno;
+
+	err = validate_int_parse(buffer, count, end);
+	if (err)
+		goto out;
+
+	if (*result > max)
+		err = -EOVERFLOW;
+
+out:
+	errno = -err;
+	return err;
+}
+
+int parse_intmax(const char *buffer, size_t count, intmax_t *result, int base)
+{
+	return parse_bounded_int(buffer, count, result, base, INTMAX_MIN, INTMAX_MAX);
+}
+
+int parse_uintmax(const char *buffer, size_t count, uintmax_t *result, int base)
+{
+	return parse_bounded_uint(buffer, count, result, base, UINTMAX_MAX);
+}
+
+int parse_int(const char *buffer, size_t count, int *result, int base)
+{
+	intmax_t parsed;
+	int err = parse_bounded_int(buffer, count, &parsed, base, INT_MIN, INT_MAX);
+
+	*result = parsed;
+	return err;
+}
+
+int parse_uint(const char *buffer, size_t count, unsigned int *result, int base)
+{
+	uintmax_t parsed;
+	int err = parse_bounded_uint(buffer, count, &parsed, base, UINT_MAX);
+
+	*result = parsed;
+	return err;
+}
+
+int parse_long(const char *buffer, size_t count, long *result, int base)
+{
+	intmax_t parsed;
+	int err = parse_bounded_int(buffer, count, &parsed, base, LONG_MIN, LONG_MAX);
+
+	*result = parsed;
+	return err;
+}
+
+int parse_ulong(const char *buffer, size_t count, unsigned long *result, int base)
+{
+	uintmax_t parsed;
+	int err = parse_bounded_uint(buffer, count, &parsed, base, ULONG_MAX);
+
+	*result = parsed;
+	return err;
+}
+
 void *find_auxv_entry(int type, char *auxv)
 {
 	ElfW(auxv_t) *p;
@@ -224,9 +346,7 @@ int read_debugfs_int(const char *debugfs_file, int *result)
 	if (err)
 		return err;
 
-	*result = atoi(value);
-
-	return 0;
+	return parse_int(value, sizeof(value), result, 10);
 }
 
 int write_debugfs_int(const char *debugfs_file, int result)
