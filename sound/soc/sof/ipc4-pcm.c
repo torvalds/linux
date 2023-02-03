@@ -10,8 +10,10 @@
 #include <sound/sof/ipc4/header.h>
 #include "sof-audio.h"
 #include "sof-priv.h"
+#include "ops.h"
 #include "ipc4-priv.h"
 #include "ipc4-topology.h"
+#include "ipc4-fw-reg.h"
 
 static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state,
 					     struct ipc4_pipeline_set_state_data *trigger_list)
@@ -410,6 +412,8 @@ static void sof_ipc4_pcm_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		pipeline_list = &spcm->stream[stream].pipeline_list;
 		kfree(pipeline_list->pipelines);
 		pipeline_list->pipelines = NULL;
+		kfree(spcm->stream[stream].private);
+		spcm->stream[stream].private = NULL;
 	}
 }
 
@@ -417,7 +421,18 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 {
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_ipc4_timestamp_info *stream_info;
+	bool support_info = true;
+	u32 abi_version;
+	u32 abi_offset;
 	int stream;
+
+	abi_offset = offsetof(struct sof_ipc4_fw_registers, abi_ver);
+	sof_mailbox_read(sdev, sdev->fw_info_box.offset + abi_offset, &abi_version,
+			 sizeof(abi_version));
+
+	if (abi_version < SOF_IPC4_FW_REGS_ABI_VER)
+		support_info = false;
 
 	for_each_pcm_streams(stream) {
 		pipeline_list = &spcm->stream[stream].pipeline_list;
@@ -429,15 +444,232 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
 		}
+
+		if (!support_info)
+			continue;
+
+		stream_info = kzalloc(sizeof(*stream_info), GFP_KERNEL);
+		if (!stream_info) {
+			sof_ipc4_pcm_free(sdev, spcm);
+			return -ENOMEM;
+		}
+
+		spcm->stream[stream].private = stream_info;
 	}
 
 	return 0;
 }
 
+static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *spcm)
+{
+	struct sof_ipc4_copier *host_copier = NULL;
+	struct sof_ipc4_copier *dai_copier = NULL;
+	struct sof_ipc4_llp_reading_slot llp_slot;
+	struct sof_ipc4_timestamp_info *info;
+	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_dai *dai;
+	int i;
+
+	/* find host & dai to locate info in memory window */
+	for_each_dapm_widgets(spcm->list, i, widget) {
+		struct snd_sof_widget *swidget = widget->dobj.private;
+
+		if (!swidget)
+			continue;
+
+		if (WIDGET_IS_AIF(swidget->widget->id)) {
+			host_copier = swidget->private;
+		} else if (WIDGET_IS_DAI(swidget->widget->id)) {
+			dai = swidget->private;
+			dai_copier = dai->private;
+		}
+	}
+
+	/* both host and dai copier must be valid for time_info */
+	if (!host_copier || !dai_copier) {
+		dev_err(sdev->dev, "host or dai copier are not found\n");
+		return;
+	}
+
+	info = spcm->private;
+	info->host_copier = host_copier;
+	info->dai_copier = dai_copier;
+	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_gpdma_reading_slots) +
+				    sdev->fw_info_box.offset;
+
+	/* find llp slot used by current dai */
+	for (i = 0; i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS; i++) {
+		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
+			break;
+
+		info->llp_offset += sizeof(llp_slot);
+	}
+
+	if (i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS)
+		return;
+
+	/* if no llp gpdma slot is used, check aggregated sdw slot */
+	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_sndw_reading_slots) +
+					sdev->fw_info_box.offset;
+	for (i = 0; i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS; i++) {
+		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
+			break;
+
+		info->llp_offset += sizeof(llp_slot);
+	}
+
+	if (i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS)
+		return;
+
+	/* check EVAD slot */
+	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_evad_reading_slot) +
+					sdev->fw_info_box.offset;
+	sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id) {
+		dev_info(sdev->dev, "no llp found, fall back to default HDA path");
+		info->llp_offset = 0;
+	}
+}
+
+static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_sof_platform_stream_params *platform_params)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct sof_ipc4_timestamp_info *time_info;
+	struct snd_sof_pcm *spcm;
+
+	spcm = snd_sof_find_spcm_dai(component, rtd);
+	time_info = spcm->stream[substream->stream].private;
+	/* delay calculation is not supported by current fw_reg ABI */
+	if (!time_info)
+		return 0;
+
+	time_info->stream_start_offset = SOF_IPC4_INVALID_STREAM_POSITION;
+	time_info->llp_offset = 0;
+
+	sof_ipc4_build_time_info(sdev, &spcm->stream[substream->stream]);
+
+	return 0;
+}
+
+static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
+					    struct snd_pcm_substream *substream,
+					    struct snd_sof_pcm_stream *stream,
+					    struct sof_ipc4_timestamp_info *time_info)
+{
+	struct sof_ipc4_copier *host_copier = time_info->host_copier;
+	struct sof_ipc4_copier *dai_copier = time_info->dai_copier;
+	struct sof_ipc4_pipeline_registers ppl_reg;
+	u64 stream_start_position;
+	u32 dai_sample_size;
+	u32 ch, node_index;
+	u32 offset;
+
+	if (!host_copier || !dai_copier)
+		return -EINVAL;
+
+	if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_INVALID_NODE_ID)
+		return -EINVAL;
+
+	node_index = SOF_IPC4_NODE_INDEX(host_copier->data.gtw_cfg.node_id);
+	offset = offsetof(struct sof_ipc4_fw_registers, pipeline_regs) + node_index * sizeof(ppl_reg);
+	sof_mailbox_read(sdev, sdev->fw_info_box.offset + offset, &ppl_reg, sizeof(ppl_reg));
+	if (ppl_reg.stream_start_offset == SOF_IPC4_INVALID_STREAM_POSITION)
+		return -EINVAL;
+
+	stream_start_position = ppl_reg.stream_start_offset;
+	ch = dai_copier->data.out_format.fmt_cfg;
+	ch = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(ch);
+	dai_sample_size = (dai_copier->data.out_format.bit_depth >> 3) * ch;
+	/* convert offset to sample count */
+	do_div(stream_start_position, dai_sample_size);
+	time_info->stream_start_offset = stream_start_position;
+
+	return 0;
+}
+
+static snd_pcm_sframes_t sof_ipc4_pcm_delay(struct snd_soc_component *component,
+					    struct snd_pcm_substream *substream)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct sof_ipc4_timestamp_info *time_info;
+	struct sof_ipc4_llp_reading_slot llp;
+	snd_pcm_uframes_t head_ptr, tail_ptr;
+	struct snd_sof_pcm_stream *stream;
+	struct snd_sof_pcm *spcm;
+	u64 tmp_ptr;
+	int ret;
+
+	spcm = snd_sof_find_spcm_dai(component, rtd);
+	if (!spcm)
+		return 0;
+
+	stream = &spcm->stream[substream->stream];
+	time_info = stream->private;
+	if (!time_info)
+		return 0;
+
+	/*
+	 * stream_start_offset is updated to memory window by FW based on
+	 * pipeline statistics and it may be invalid if host query happens before
+	 * the statistics is complete. And it will not change after the first initiailization.
+	 */
+	if (time_info->stream_start_offset == SOF_IPC4_INVALID_STREAM_POSITION) {
+		ret = sof_ipc4_get_stream_start_offset(sdev, substream, stream, time_info);
+		if (ret < 0)
+			return 0;
+	}
+
+	/*
+	 * HDaudio links don't support the LLP counter reported by firmware
+	 * the link position is read directly from hardware registers.
+	 */
+	if (!time_info->llp_offset) {
+		tmp_ptr = snd_sof_pcm_get_stream_position(sdev, component, substream);
+		if (!tmp_ptr)
+			return 0;
+	} else {
+		sof_mailbox_read(sdev, time_info->llp_offset, &llp, sizeof(llp));
+		tmp_ptr = ((u64)llp.reading.llp_u << 32) | llp.reading.llp_l;
+	}
+
+	/* In two cases dai dma position is not accurate
+	 * (1) dai pipeline is started before host pipeline
+	 * (2) multiple streams mixed into one. Each stream has the same dai dma position
+	 *
+	 * Firmware calculates correct stream_start_offset for all cases including above two.
+	 * Driver subtracts stream_start_offset from dai dma position to get accurate one
+	 */
+	tmp_ptr -= time_info->stream_start_offset;
+
+	/* Calculate the delay taking into account that both pointer can wrap */
+	div64_u64_rem(tmp_ptr, substream->runtime->boundary, &tmp_ptr);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		head_ptr = substream->runtime->status->hw_ptr;
+		tail_ptr = tmp_ptr;
+	} else {
+		head_ptr = tmp_ptr;
+		tail_ptr = substream->runtime->status->hw_ptr;
+	}
+
+	if (head_ptr < tail_ptr)
+		return substream->runtime->boundary - tail_ptr + head_ptr;
+
+	return head_ptr - tail_ptr;
+}
+
 const struct sof_ipc_pcm_ops ipc4_pcm_ops = {
+	.hw_params = sof_ipc4_pcm_hw_params,
 	.trigger = sof_ipc4_pcm_trigger,
 	.hw_free = sof_ipc4_pcm_hw_free,
 	.dai_link_fixup = sof_ipc4_pcm_dai_link_fixup,
 	.pcm_setup = sof_ipc4_pcm_setup,
 	.pcm_free = sof_ipc4_pcm_free,
+	.delay = sof_ipc4_pcm_delay
 };

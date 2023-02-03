@@ -14,6 +14,7 @@
 #include "sof-priv.h"
 
 /* The DSP window indices are fixed */
+#define SOF_IPC4_INBOX_WINDOW_IDX	0
 #define SOF_IPC4_OUTBOX_WINDOW_IDX	1
 #define SOF_IPC4_DEBUG_WINDOW_IDX	2
 
@@ -84,6 +85,20 @@ struct sof_ipc4_fw_data {
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
 	struct mutex pipeline_state_mutex; /* protect pipeline triggers, ref counts and states */
+};
+
+/**
+ * struct sof_ipc4_timestamp_info - IPC4 timestamp info
+ * @host_copier: the host copier of the pcm stream
+ * @dai_copier: the dai copier of the pcm stream
+ * @stream_start_offset: reported by fw in memory window
+ * @llp_offset: llp offset in memory window
+ */
+struct sof_ipc4_timestamp_info {
+	struct sof_ipc4_copier *host_copier;
+	struct sof_ipc4_copier *dai_copier;
+	u64 stream_start_offset;
+	u32 llp_offset;
 };
 
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;
