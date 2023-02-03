@@ -55,6 +55,7 @@ properties:
       - rc-dm1105-nec
       - rc-dntv-live-dvb-t
       - rc-dntv-live-dvbt-pro
+      - rc-dreambox
       - rc-dtt200u
       - rc-dvbsky
       - rc-dvico-mce
