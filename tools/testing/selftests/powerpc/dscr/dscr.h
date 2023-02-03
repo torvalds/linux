@@ -65,26 +65,21 @@ inline void set_dscr_usr(unsigned long val)
 unsigned long get_default_dscr(void)
 {
 	int err;
-	char buf[16] = {0};
 	unsigned long val;
 
-	err = read_file(DSCR_DEFAULT, buf, sizeof(buf) - 1, NULL);
+	err = read_ulong(DSCR_DEFAULT, &val, 16);
 	if (err) {
 		perror("read() failed");
 		exit(1);
 	}
-	sscanf(buf, "%lx", &val);
 	return val;
 }
 
 void set_default_dscr(unsigned long val)
 {
 	int err;
-	char buf[16];
 
-	sprintf(buf, "%lx\n", val);
-
-	err = write_file(DSCR_DEFAULT, buf, strlen(buf));
+	err = write_ulong(DSCR_DEFAULT, val, 16);
 	if (err) {
 		perror("write() failed");
 		exit(1);

@@ -245,6 +245,87 @@ int parse_ulong(const char *buffer, size_t count, unsigned long *result, int bas
 	return err;
 }
 
+int read_long(const char *path, long *result, int base)
+{
+	int err;
+	char buffer[32] = {0};
+
+	err = read_file(path, buffer, sizeof(buffer) - 1, NULL);
+	if (err)
+		return err;
+
+	return parse_long(buffer, sizeof(buffer), result, base);
+}
+
+int read_ulong(const char *path, unsigned long *result, int base)
+{
+	int err;
+	char buffer[32] = {0};
+
+	err = read_file(path, buffer, sizeof(buffer) - 1, NULL);
+	if (err)
+		return err;
+
+	return parse_ulong(buffer, sizeof(buffer), result, base);
+}
+
+int write_long(const char *path, long result, int base)
+{
+	int err;
+	int len;
+	char buffer[32];
+
+	/* Decimal only for now: no format specifier for signed hex values */
+	if (base != 10) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	len = snprintf(buffer, sizeof(buffer), "%ld", result);
+	if (len < 0 || len >= sizeof(buffer)) {
+		err = -EOVERFLOW;
+		goto out;
+	}
+
+	err = write_file(path, buffer, len);
+
+out:
+	errno = -err;
+	return err;
+}
+
+int write_ulong(const char *path, unsigned long result, int base)
+{
+	int err;
+	int len;
+	char buffer[32];
+	char *fmt;
+
+	switch (base) {
+	case 10:
+		fmt = "%lu";
+		break;
+	case 16:
+		fmt = "%lx";
+		break;
+	default:
+		err = -EINVAL;
+		goto out;
+	}
+
+	len = snprintf(buffer, sizeof(buffer), fmt, result);
+	if (len < 0 || len >= sizeof(buffer)) {
+		err = -errno;
+		goto out;
+	}
+
+	err = write_file(path, buffer, len);
+
+out:
+	errno = -err;
+	return err;
+}
+
 void *find_auxv_entry(int type, char *auxv)
 {
 	ElfW(auxv_t) *p;
