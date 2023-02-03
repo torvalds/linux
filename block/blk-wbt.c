@@ -941,8 +941,8 @@ int wbt_init(struct gendisk *disk)
 	rwb->wc = test_bit(QUEUE_FLAG_WC, &q->queue_flags);
 	rwb->rq_depth.default_depth = RWB_DEF_DEPTH;
 	rwb->min_lat_nsec = wbt_default_latency_nsec(q);
-
-	wbt_queue_depth_changed(&rwb->rqos);
+	rwb->rq_depth.queue_depth = blk_queue_depth(q);
+	wbt_update_limits(rwb);
 
 	/*
 	 * Assign rwb and add the stats callback.
