@@ -3222,3 +3222,23 @@ void amdgpu_ras_inst_query_ras_error_count(struct amdgpu_device *adev,
 		}
 	}
 }
+
+void amdgpu_ras_inst_reset_ras_error_count(struct amdgpu_device *adev,
+					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
+					   uint32_t reg_list_size,
+					   uint32_t instance)
+{
+	uint32_t err_status_lo_offset, err_status_hi_offset;
+	uint32_t i;
+
+	for (i = 0; i < reg_list_size; i++) {
+		err_status_lo_offset =
+			AMDGPU_RAS_REG_ENTRY_OFFSET(reg_list[i].hwip, instance,
+						    reg_list[i].seg_lo, reg_list[i].reg_lo);
+		err_status_hi_offset =
+			AMDGPU_RAS_REG_ENTRY_OFFSET(reg_list[i].hwip, instance,
+						    reg_list[i].seg_hi, reg_list[i].reg_hi);
+		WREG32(err_status_lo_offset, 0);
+		WREG32(err_status_hi_offset, 0);
+	}
+}

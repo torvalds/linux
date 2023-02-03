@@ -750,4 +750,8 @@ void amdgpu_ras_inst_query_ras_error_count(struct amdgpu_device *adev,
 					   uint32_t instance,
 					   uint32_t err_type,
 					   unsigned long *err_count);
+void amdgpu_ras_inst_reset_ras_error_count(struct amdgpu_device *adev,
+					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
+					   uint32_t reg_list_size,
+					   uint32_t instance);
 #endif
