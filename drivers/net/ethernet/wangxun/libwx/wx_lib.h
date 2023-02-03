@@ -16,5 +16,7 @@ int wx_setup_isb_resources(struct wx *wx);
 void wx_free_isb_resources(struct wx *wx);
 u32 wx_misc_isb(struct wx *wx, enum wx_isb_idx idx);
 void wx_configure_vectors(struct wx *wx);
+void wx_free_resources(struct wx *wx);
+int wx_setup_resources(struct wx *wx);
 
 #endif /* _NGBE_LIB_H_ */

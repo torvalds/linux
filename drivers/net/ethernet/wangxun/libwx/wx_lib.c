@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd. */
 
 #include <linux/etherdevice.h>
+#include <net/page_pool.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 
@@ -192,6 +193,8 @@ static int wx_alloc_q_vector(struct wx *wx,
 	wx->q_vector[v_idx] = q_vector;
 	q_vector->wx = wx;
 	q_vector->v_idx = v_idx;
+	if (cpu_online(v_idx))
+		q_vector->numa_node = cpu_to_node(v_idx);
 
 	/* initialize pointer to rings */
 	ring = q_vector->ring;
@@ -605,5 +608,305 @@ void wx_configure_vectors(struct wx *wx)
 		wr32(wx, WX_PX_ITR(v_idx), 1950);
 }
 EXPORT_SYMBOL(wx_configure_vectors);
+
+/**
+ * wx_free_rx_resources - Free Rx Resources
+ * @rx_ring: ring to clean the resources from
+ *
+ * Free all receive software resources
+ **/
+static void wx_free_rx_resources(struct wx_ring *rx_ring)
+{
+	kvfree(rx_ring->rx_buffer_info);
+	rx_ring->rx_buffer_info = NULL;
+
+	/* if not set, then don't free */
+	if (!rx_ring->desc)
+		return;
+
+	dma_free_coherent(rx_ring->dev, rx_ring->size,
+			  rx_ring->desc, rx_ring->dma);
+
+	rx_ring->desc = NULL;
+
+	if (rx_ring->page_pool) {
+		page_pool_destroy(rx_ring->page_pool);
+		rx_ring->page_pool = NULL;
+	}
+}
+
+/**
+ * wx_free_all_rx_resources - Free Rx Resources for All Queues
+ * @wx: pointer to hardware structure
+ *
+ * Free all receive software resources
+ **/
+static void wx_free_all_rx_resources(struct wx *wx)
+{
+	int i;
+
+	for (i = 0; i < wx->num_rx_queues; i++)
+		wx_free_rx_resources(wx->rx_ring[i]);
+}
+
+/**
+ * wx_free_tx_resources - Free Tx Resources per Queue
+ * @tx_ring: Tx descriptor ring for a specific queue
+ *
+ * Free all transmit software resources
+ **/
+static void wx_free_tx_resources(struct wx_ring *tx_ring)
+{
+	kvfree(tx_ring->tx_buffer_info);
+	tx_ring->tx_buffer_info = NULL;
+
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
+
+	dma_free_coherent(tx_ring->dev, tx_ring->size,
+			  tx_ring->desc, tx_ring->dma);
+	tx_ring->desc = NULL;
+}
+
+/**
+ * wx_free_all_tx_resources - Free Tx Resources for All Queues
+ * @wx: pointer to hardware structure
+ *
+ * Free all transmit software resources
+ **/
+static void wx_free_all_tx_resources(struct wx *wx)
+{
+	int i;
+
+	for (i = 0; i < wx->num_tx_queues; i++)
+		wx_free_tx_resources(wx->tx_ring[i]);
+}
+
+void wx_free_resources(struct wx *wx)
+{
+	wx_free_isb_resources(wx);
+	wx_free_all_rx_resources(wx);
+	wx_free_all_tx_resources(wx);
+}
+EXPORT_SYMBOL(wx_free_resources);
+
+static int wx_alloc_page_pool(struct wx_ring *rx_ring)
+{
+	int ret = 0;
+
+	struct page_pool_params pp_params = {
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.order = 0,
+		.pool_size = rx_ring->size,
+		.nid = dev_to_node(rx_ring->dev),
+		.dev = rx_ring->dev,
+		.dma_dir = DMA_FROM_DEVICE,
+		.offset = 0,
+		.max_len = PAGE_SIZE,
+	};
+
+	rx_ring->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(rx_ring->page_pool)) {
+		rx_ring->page_pool = NULL;
+		ret = PTR_ERR(rx_ring->page_pool);
+	}
+
+	return ret;
+}
+
+/**
+ * wx_setup_rx_resources - allocate Rx resources (Descriptors)
+ * @rx_ring: rx descriptor ring (for a specific queue) to setup
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int wx_setup_rx_resources(struct wx_ring *rx_ring)
+{
+	struct device *dev = rx_ring->dev;
+	int orig_node = dev_to_node(dev);
+	int numa_node = NUMA_NO_NODE;
+	int size, ret;
+
+	size = sizeof(struct wx_rx_buffer) * rx_ring->count;
+
+	if (rx_ring->q_vector)
+		numa_node = rx_ring->q_vector->numa_node;
+
+	rx_ring->rx_buffer_info = kvmalloc_node(size, GFP_KERNEL, numa_node);
+	if (!rx_ring->rx_buffer_info)
+		rx_ring->rx_buffer_info = kvmalloc(size, GFP_KERNEL);
+	if (!rx_ring->rx_buffer_info)
+		goto err;
+
+	/* Round up to nearest 4K */
+	rx_ring->size = rx_ring->count * sizeof(union wx_rx_desc);
+	rx_ring->size = ALIGN(rx_ring->size, 4096);
+
+	set_dev_node(dev, numa_node);
+	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
+	if (!rx_ring->desc) {
+		set_dev_node(dev, orig_node);
+		rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
+						   &rx_ring->dma, GFP_KERNEL);
+	}
+
+	if (!rx_ring->desc)
+		goto err;
+
+	ret = wx_alloc_page_pool(rx_ring);
+	if (ret < 0) {
+		dev_err(rx_ring->dev, "Page pool creation failed: %d\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	kvfree(rx_ring->rx_buffer_info);
+	rx_ring->rx_buffer_info = NULL;
+	dev_err(dev, "Unable to allocate memory for the Rx descriptor ring\n");
+	return -ENOMEM;
+}
+
+/**
+ * wx_setup_all_rx_resources - allocate all queues Rx resources
+ * @wx: pointer to hardware structure
+ *
+ * If this function returns with an error, then it's possible one or
+ * more of the rings is populated (while the rest are not).  It is the
+ * callers duty to clean those orphaned rings.
+ *
+ * Return 0 on success, negative on failure
+ **/
+static int wx_setup_all_rx_resources(struct wx *wx)
+{
+	int i, err = 0;
+
+	for (i = 0; i < wx->num_rx_queues; i++) {
+		err = wx_setup_rx_resources(wx->rx_ring[i]);
+		if (!err)
+			continue;
+
+		wx_err(wx, "Allocation for Rx Queue %u failed\n", i);
+		goto err_setup_rx;
+	}
+
+		return 0;
+err_setup_rx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		wx_free_rx_resources(wx->rx_ring[i]);
+	return err;
+}
+
+/**
+ * wx_setup_tx_resources - allocate Tx resources (Descriptors)
+ * @tx_ring: tx descriptor ring (for a specific queue) to setup
+ *
+ * Return 0 on success, negative on failure
+ **/
+static int wx_setup_tx_resources(struct wx_ring *tx_ring)
+{
+	struct device *dev = tx_ring->dev;
+	int orig_node = dev_to_node(dev);
+	int numa_node = NUMA_NO_NODE;
+	int size;
+
+	size = sizeof(struct wx_tx_buffer) * tx_ring->count;
+
+	if (tx_ring->q_vector)
+		numa_node = tx_ring->q_vector->numa_node;
+
+	tx_ring->tx_buffer_info = kvmalloc_node(size, GFP_KERNEL, numa_node);
+	if (!tx_ring->tx_buffer_info)
+		tx_ring->tx_buffer_info = kvmalloc(size, GFP_KERNEL);
+	if (!tx_ring->tx_buffer_info)
+		goto err;
+
+	/* round up to nearest 4K */
+	tx_ring->size = tx_ring->count * sizeof(union wx_tx_desc);
+	tx_ring->size = ALIGN(tx_ring->size, 4096);
+
+	set_dev_node(dev, numa_node);
+	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
+	if (!tx_ring->desc) {
+		set_dev_node(dev, orig_node);
+		tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
+						   &tx_ring->dma, GFP_KERNEL);
+	}
+
+	if (!tx_ring->desc)
+		goto err;
+
+	return 0;
+
+err:
+	kvfree(tx_ring->tx_buffer_info);
+	tx_ring->tx_buffer_info = NULL;
+	dev_err(dev, "Unable to allocate memory for the Tx descriptor ring\n");
+	return -ENOMEM;
+}
+
+/**
+ * wx_setup_all_tx_resources - allocate all queues Tx resources
+ * @wx: pointer to private structure
+ *
+ * If this function returns with an error, then it's possible one or
+ * more of the rings is populated (while the rest are not).  It is the
+ * callers duty to clean those orphaned rings.
+ *
+ * Return 0 on success, negative on failure
+ **/
+static int wx_setup_all_tx_resources(struct wx *wx)
+{
+	int i, err = 0;
+
+	for (i = 0; i < wx->num_tx_queues; i++) {
+		err = wx_setup_tx_resources(wx->tx_ring[i]);
+		if (!err)
+			continue;
+
+		wx_err(wx, "Allocation for Tx Queue %u failed\n", i);
+		goto err_setup_tx;
+	}
+
+	return 0;
+err_setup_tx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		wx_free_tx_resources(wx->tx_ring[i]);
+	return err;
+}
+
+int wx_setup_resources(struct wx *wx)
+{
+	int err;
+
+	/* allocate transmit descriptors */
+	err = wx_setup_all_tx_resources(wx);
+	if (err)
+		return err;
+
+	/* allocate receive descriptors */
+	err = wx_setup_all_rx_resources(wx);
+	if (err)
+		goto err_free_tx;
+
+	err = wx_setup_isb_resources(wx);
+	if (err)
+		goto err_free_rx;
+
+	return 0;
+
+err_free_rx:
+	wx_free_all_rx_resources(wx);
+err_free_tx:
+	wx_free_all_tx_resources(wx);
+
+	return err;
+}
+EXPORT_SYMBOL(wx_setup_resources);
 
 MODULE_LICENSE("GPL");

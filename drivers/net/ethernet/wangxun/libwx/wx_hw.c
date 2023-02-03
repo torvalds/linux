@@ -1335,11 +1335,15 @@ static void wx_configure_tx_ring(struct wx *wx,
 {
 	u32 txdctl = WX_PX_TR_CFG_ENABLE;
 	u8 reg_idx = ring->reg_idx;
+	u64 tdba = ring->dma;
 	int ret;
 
 	/* disable queue to avoid issues while updating state */
 	wr32(wx, WX_PX_TR_CFG(reg_idx), WX_PX_TR_CFG_SWFLSH);
 	WX_WRITE_FLUSH(wx);
+
+	wr32(wx, WX_PX_TR_BAL(reg_idx), tdba & DMA_BIT_MASK(32));
+	wr32(wx, WX_PX_TR_BAH(reg_idx), upper_32_bits(tdba));
 
 	/* reset head and tail pointers */
 	wr32(wx, WX_PX_TR_RP(reg_idx), 0);
@@ -1364,11 +1368,15 @@ static void wx_configure_rx_ring(struct wx *wx,
 				 struct wx_ring *ring)
 {
 	u16 reg_idx = ring->reg_idx;
+	u64 rdba = ring->dma;
 	u32 rxdctl;
 
 	/* disable queue to avoid issues while updating state */
 	rxdctl = rd32(wx, WX_PX_RR_CFG(reg_idx));
 	wx_disable_rx_queue(wx, ring);
+
+	wr32(wx, WX_PX_RR_BAL(reg_idx), rdba & DMA_BIT_MASK(32));
+	wr32(wx, WX_PX_RR_BAH(reg_idx), upper_32_bits(rdba));
 
 	if (ring->count == WX_MAX_RXD)
 		rxdctl |= 0 << WX_PX_RR_CFG_RR_SIZE_SHIFT;
