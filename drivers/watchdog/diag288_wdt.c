@@ -73,20 +73,19 @@ MODULE_ALIAS("vmwatchdog");
 static int __diag288(unsigned int func, unsigned int timeout,
 		     unsigned long action, unsigned int len)
 {
-	register unsigned long __func asm("2") = func;
-	register unsigned long __timeout asm("3") = timeout;
-	register unsigned long __action asm("4") = action;
-	register unsigned long __len asm("5") = len;
+	union register_pair r1 = { .even = func, .odd = timeout, };
+	union register_pair r3 = { .even = action, .odd = len, };
 	int err;
 
 	err = -EINVAL;
 	asm volatile(
-		"	diag	%1, %3, 0x288\n"
-		"0:	la	%0, 0\n"
+		"	diag	%[r1],%[r3],0x288\n"
+		"0:	la	%[err],0\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (err) : "d"(__func), "d"(__timeout),
-		  "d"(__action), "d"(__len) : "1", "cc", "memory");
+		: [err] "+d" (err)
+		: [r1] "d" (r1.pair), [r3] "d" (r3.pair)
+		: "cc", "memory");
 	return err;
 }
 
