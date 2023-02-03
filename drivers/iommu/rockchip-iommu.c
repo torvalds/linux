@@ -1968,7 +1968,8 @@ static void rk_iommu_shutdown(struct platform_device *pdev)
 	}
 
 skip_free_irq:
-	pm_runtime_force_suspend(&pdev->dev);
+	if (!iommu->dlr_disable)
+		pm_runtime_force_suspend(&pdev->dev);
 }
 
 static int __maybe_unused rk_iommu_suspend(struct device *dev)
