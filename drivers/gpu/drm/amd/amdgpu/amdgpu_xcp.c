@@ -116,6 +116,7 @@ static void __amdgpu_xcp_add_block(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 static int __amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps)
 {
 	struct amdgpu_xcp_ip ip;
+	uint8_t mem_id;
 	int i, j, ret;
 
 	for (i = 0; i < MAX_XCP; ++i)
@@ -129,6 +130,17 @@ static int __amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps)
 				continue;
 
 			__amdgpu_xcp_add_block(xcp_mgr, i, &ip);
+		}
+
+		xcp_mgr->xcp[i].id = i;
+
+		if (xcp_mgr->funcs->get_xcp_mem_id) {
+			ret = xcp_mgr->funcs->get_xcp_mem_id(
+				xcp_mgr, &xcp_mgr->xcp[i], &mem_id);
+			if (ret)
+				continue;
+			else
+				xcp_mgr->xcp[i].mem_id = mem_id;
 		}
 	}
 

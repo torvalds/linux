@@ -68,7 +68,7 @@ struct amdgpu_xcp {
 	struct amdgpu_xcp_ip ip[AMDGPU_XCP_MAX_BLOCKS];
 
 	uint8_t id;
-	uint8_t mem_node;
+	uint8_t mem_id;
 	bool valid;
 };
 
@@ -89,6 +89,8 @@ struct amdgpu_xcp_mgr_funcs {
 	int (*get_ip_details)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 			      enum AMDGPU_XCP_IP_BLOCK ip_id,
 			      struct amdgpu_xcp_ip *ip);
+	int (*get_xcp_mem_id)(struct amdgpu_xcp_mgr *xcp_mgr,
+			      struct amdgpu_xcp *xcp, uint8_t *mem_id);
 
 	int (*prepare_suspend)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*suspend)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
