@@ -5,6 +5,7 @@
 #define _WX_TYPE_H_
 
 #include <linux/bitfield.h>
+#include <linux/netdevice.h>
 
 /* Vendor ID */
 #ifndef PCI_VENDOR_ID_WANGXUN
@@ -65,6 +66,22 @@
 /* port cfg Registers */
 #define WX_CFG_PORT_CTL              0x14400
 #define WX_CFG_PORT_CTL_DRV_LOAD     BIT(3)
+
+/* GPIO Registers */
+#define WX_GPIO_DR                   0x14800
+#define WX_GPIO_DR_0                 BIT(0) /* SDP0 Data Value */
+#define WX_GPIO_DR_1                 BIT(1) /* SDP1 Data Value */
+#define WX_GPIO_DDR                  0x14804
+#define WX_GPIO_DDR_0                BIT(0) /* SDP0 IO direction */
+#define WX_GPIO_DDR_1                BIT(1) /* SDP1 IO direction */
+#define WX_GPIO_CTL                  0x14808
+#define WX_GPIO_INTEN                0x14830
+#define WX_GPIO_INTEN_0              BIT(0)
+#define WX_GPIO_INTEN_1              BIT(1)
+#define WX_GPIO_INTMASK              0x14834
+#define WX_GPIO_INTTYPE_LEVEL        0x14838
+#define WX_GPIO_POLARITY             0x1483C
+#define WX_GPIO_EOI                  0x1484C
 
 /*********************** Transmit DMA registers **************************/
 /* transmit global control */
@@ -151,8 +168,28 @@
 /* Interrupt Registers */
 #define WX_BME_CTL                   0x12020
 #define WX_PX_MISC_IC                0x100
+#define WX_PX_MISC_ICS               0x104
+#define WX_PX_MISC_IEN               0x108
+#define WX_PX_INTA                   0x110
+#define WX_PX_GPIE                   0x118
+#define WX_PX_GPIE_MODEL             BIT(0)
+#define WX_PX_IC                     0x120
 #define WX_PX_IMS(_i)                (0x140 + (_i) * 4)
+#define WX_PX_IMC(_i)                (0x150 + (_i) * 4)
+#define WX_PX_ISB_ADDR_L             0x160
+#define WX_PX_ISB_ADDR_H             0x164
 #define WX_PX_TRANSACTION_PENDING    0x168
+#define WX_PX_ITRSEL                 0x180
+#define WX_PX_ITR(_i)                (0x200 + (_i) * 4)
+#define WX_PX_ITR_CNT_WDIS           BIT(31)
+#define WX_PX_MISC_IVAR              0x4FC
+#define WX_PX_IVAR(_i)               (0x500 + (_i) * 4)
+
+#define WX_PX_IVAR_ALLOC_VAL         0x80 /* Interrupt Allocation valid */
+#define WX_7K_ITR                    595
+#define WX_12K_ITR                   336
+#define WX_SP_MAX_EITR               0x00000FF8U
+#define WX_EM_MAX_EITR               0x00007FFCU
 
 /* transmit DMA Registers */
 #define WX_PX_TR_CFG(_i)             (0x03010 + ((_i) * 0x40))
@@ -312,6 +349,58 @@ enum wx_reset_type {
 	WX_GLOBAL_RESET
 };
 
+/* iterator for handling rings in ring container */
+#define wx_for_each_ring(posm, headm) \
+	for (posm = (headm).ring; posm; posm = posm->next)
+
+struct wx_ring_container {
+	struct wx_ring *ring;           /* pointer to linked list of rings */
+	u8 count;                       /* total number of rings in vector */
+	u8 itr;                         /* current ITR setting for ring */
+};
+
+struct wx_ring {
+	struct wx_ring *next;           /* pointer to next ring in q_vector */
+	struct wx_q_vector *q_vector;   /* backpointer to host q_vector */
+	struct net_device *netdev;      /* netdev ring belongs to */
+	struct device *dev;             /* device for DMA mapping */
+
+	u16 count;                      /* amount of descriptors */
+
+	u8 queue_index; /* needed for multiqueue queue management */
+	u8 reg_idx;                     /* holds the special value that gets
+					 * the hardware register offset
+					 * associated with this ring, which is
+					 * different for DCB and RSS modes
+					 */
+} ____cacheline_internodealigned_in_smp;
+
+struct wx_q_vector {
+	struct wx *wx;
+	int cpu;        /* CPU for DCA */
+	u16 v_idx;      /* index of q_vector within array, also used for
+			 * finding the bit in EICR and friends that
+			 * represents the vector for this ring
+			 */
+	u16 itr;        /* Interrupt throttle rate written to EITR */
+	struct wx_ring_container rx, tx;
+	struct napi_struct napi;
+	struct rcu_head rcu;    /* to avoid race with update stats on free */
+
+	char name[IFNAMSIZ + 17];
+
+	/* for dynamic allocation of rings associated with this q_vector */
+	struct wx_ring ring[0] ____cacheline_internodealigned_in_smp;
+};
+
+enum wx_isb_idx {
+	WX_ISB_HEADER,
+	WX_ISB_MISC,
+	WX_ISB_VEC0,
+	WX_ISB_VEC1,
+	WX_ISB_MAX
+};
+
 struct wx {
 	u8 __iomem *hw_addr;
 	struct pci_dev *pdev;
@@ -359,6 +448,18 @@ struct wx {
 
 	u32 tx_ring_count;
 	u32 rx_ring_count;
+
+	struct wx_ring *tx_ring[64] ____cacheline_aligned_in_smp;
+	struct wx_ring *rx_ring[64];
+	struct wx_q_vector *q_vector[64];
+
+	unsigned int queues_per_pool;
+	struct msix_entry *msix_entries;
+
+	/* misc interrupt status block */
+	dma_addr_t isb_dma;
+	u32 *isb_mem;
+	u32 isb_tag[WX_ISB_MAX];
 
 #define WX_MAX_RETA_ENTRIES 128
 	u8 rss_indir_tbl[WX_MAX_RETA_ENTRIES];

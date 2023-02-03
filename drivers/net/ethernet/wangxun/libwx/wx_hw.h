@@ -4,6 +4,8 @@
 #ifndef _WX_HW_H_
 #define _WX_HW_H_
 
+void wx_intr_enable(struct wx *wx, u64 qmask);
+void wx_irq_disable(struct wx *wx);
 int wx_check_flash_load(struct wx *wx, u32 check_bit);
 void wx_control_hw(struct wx *wx, bool drv);
 int wx_mng_present(struct wx *wx);
@@ -20,6 +22,7 @@ void wx_mac_set_default_filter(struct wx *wx, u8 *addr);
 void wx_flush_sw_mac_table(struct wx *wx);
 int wx_set_mac(struct net_device *netdev, void *p);
 void wx_disable_rx(struct wx *wx);
+void wx_configure(struct wx *wx);
 int wx_disable_pcie_master(struct wx *wx);
 int wx_stop_adapter(struct wx *wx);
 void wx_reset_misc(struct wx *wx);

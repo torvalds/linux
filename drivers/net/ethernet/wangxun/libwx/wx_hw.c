@@ -14,7 +14,7 @@ static void wx_intr_disable(struct wx *wx, u64 qmask)
 {
 	u32 mask;
 
-	mask = (qmask & 0xFFFFFFFF);
+	mask = (qmask & U32_MAX);
 	if (mask)
 		wr32(wx, WX_PX_IMS(0), mask);
 
@@ -24,6 +24,45 @@ static void wx_intr_disable(struct wx *wx, u64 qmask)
 			wr32(wx, WX_PX_IMS(1), mask);
 	}
 }
+
+void wx_intr_enable(struct wx *wx, u64 qmask)
+{
+	u32 mask;
+
+	mask = (qmask & U32_MAX);
+	if (mask)
+		wr32(wx, WX_PX_IMC(0), mask);
+	if (wx->mac.type == wx_mac_sp) {
+		mask = (qmask >> 32);
+		if (mask)
+			wr32(wx, WX_PX_IMC(1), mask);
+	}
+}
+EXPORT_SYMBOL(wx_intr_enable);
+
+/**
+ * wx_irq_disable - Mask off interrupt generation on the NIC
+ * @wx: board private structure
+ **/
+void wx_irq_disable(struct wx *wx)
+{
+	struct pci_dev *pdev = wx->pdev;
+
+	wr32(wx, WX_PX_MISC_IEN, 0);
+	wx_intr_disable(wx, WX_INTR_ALL);
+
+	if (pdev->msix_enabled) {
+		int vector;
+
+		for (vector = 0; vector < wx->num_q_vectors; vector++)
+			synchronize_irq(wx->msix_entries[vector].vector);
+
+		synchronize_irq(wx->msix_entries[vector].vector);
+	} else {
+		synchronize_irq(pdev->irq);
+	}
+}
+EXPORT_SYMBOL(wx_irq_disable);
 
 /* cmd_addr is used for some special command:
  * 1. to be sector address, when implemented erase sector command
@@ -843,6 +882,20 @@ void wx_disable_rx(struct wx *wx)
 	}
 }
 EXPORT_SYMBOL(wx_disable_rx);
+
+static void wx_configure_isb(struct wx *wx)
+{
+	/* set ISB Address */
+	wr32(wx, WX_PX_ISB_ADDR_L, wx->isb_dma & DMA_BIT_MASK(32));
+	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+		wr32(wx, WX_PX_ISB_ADDR_H, upper_32_bits(wx->isb_dma));
+}
+
+void wx_configure(struct wx *wx)
+{
+	wx_configure_isb(wx);
+}
+EXPORT_SYMBOL(wx_configure);
 
 /**
  *  wx_disable_pcie_master - Disable PCI-express master access
