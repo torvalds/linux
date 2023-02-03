@@ -382,8 +382,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		else if (!strcmp(argv[1], "nosync"))
 			sync = NOSYNC;
 		else {
-			DMWARN("unrecognised sync argument to "
-			       "dirty region log: %s", argv[1]);
+			DMWARN("unrecognised sync argument to dirty region log: %s", argv[1]);
 			return -EINVAL;
 		}
 	}

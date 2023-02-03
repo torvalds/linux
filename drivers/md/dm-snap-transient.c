@@ -140,8 +140,7 @@ int dm_transient_snapshot_init(void)
 
 	r = dm_exception_store_type_register(&_transient_compat_type);
 	if (r) {
-		DMWARN("Unable to register old-style transient "
-		       "exception store type");
+		DMWARN("Unable to register old-style transient exception store type");
 		dm_exception_store_type_unregister(&_transient_type);
 		return r;
 	}
