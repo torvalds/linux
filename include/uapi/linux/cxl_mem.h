@@ -72,6 +72,19 @@ static const struct {
  * struct cxl_command_info - Command information returned from a query.
  * @id: ID number for the command.
  * @flags: Flags that specify command behavior.
+ *
+ *         CXL_MEM_COMMAND_FLAG_USER_ENABLED
+ *
+ *         The given command id is supported by the driver and is supported by
+ *         a related opcode on the device.
+ *
+ *         CXL_MEM_COMMAND_FLAG_EXCLUSIVE
+ *
+ *         Requests with the given command id will terminate with EBUSY as the
+ *         kernel actively owns management of the given resource. For example,
+ *         the label-storage-area can not be written while the kernel is
+ *         actively managing that space.
+ *
  * @size_in: Expected input size, or ~0 if variable length.
  * @size_out: Expected output size, or ~0 if variable length.
  *
@@ -81,7 +94,7 @@ static const struct {
  * bytes of output.
  *
  *  - @id = 10
- *  - @flags = 0
+ *  - @flags = CXL_MEM_COMMAND_FLAG_ENABLED
  *  - @size_in = ~0
  *  - @size_out = 0
  *
@@ -91,7 +104,9 @@ struct cxl_command_info {
 	__u32 id;
 
 	__u32 flags;
-#define CXL_MEM_COMMAND_FLAG_MASK GENMASK(0, 0)
+#define CXL_MEM_COMMAND_FLAG_MASK		GENMASK(1, 0)
+#define CXL_MEM_COMMAND_FLAG_ENABLED		BIT(0)
+#define CXL_MEM_COMMAND_FLAG_EXCLUSIVE		BIT(1)
 
 	__u32 size_in;
 	__u32 size_out;

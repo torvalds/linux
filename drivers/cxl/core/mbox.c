@@ -451,9 +451,14 @@ int cxl_query_cmd(struct cxl_memdev *cxlmd,
 	 * structures.
 	 */
 	cxl_for_each_cmd(cmd) {
-		const struct cxl_command_info *info = &cmd->info;
+		struct cxl_command_info info = cmd->info;
 
-		if (copy_to_user(&q->commands[j++], info, sizeof(*info)))
+		if (test_bit(info.id, cxlmd->cxlds->enabled_cmds))
+			info.flags |= CXL_MEM_COMMAND_FLAG_ENABLED;
+		if (test_bit(info.id, cxlmd->cxlds->exclusive_cmds))
+			info.flags |= CXL_MEM_COMMAND_FLAG_EXCLUSIVE;
+
+		if (copy_to_user(&q->commands[j++], &info, sizeof(info)))
 			return -EFAULT;
 
 		if (j == n_commands)
