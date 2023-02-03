@@ -295,8 +295,15 @@ void rq_qos_exit(struct request_queue *q)
 	}
 }
 
-int rq_qos_add(struct request_queue *q, struct rq_qos *rqos)
+int rq_qos_add(struct rq_qos *rqos, struct gendisk *disk, enum rq_qos_id id,
+		struct rq_qos_ops *ops)
 {
+	struct request_queue *q = disk->queue;
+
+	rqos->q = q;
+	rqos->id = id;
+	rqos->ops = ops;
+
 	/*
 	 * No IO can be in-flight when adding rqos, so freeze queue, which
 	 * is fine since we only support rq_qos for blk-mq queue.
@@ -326,11 +333,11 @@ ebusy:
 	spin_unlock_irq(&q->queue_lock);
 	blk_mq_unfreeze_queue(q);
 	return -EBUSY;
-
 }
 
-void rq_qos_del(struct request_queue *q, struct rq_qos *rqos)
+void rq_qos_del(struct rq_qos *rqos)
 {
+	struct request_queue *q = rqos->q;
 	struct rq_qos **cur;
 
 	/*
