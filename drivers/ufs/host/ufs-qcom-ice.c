@@ -8,7 +8,7 @@
 
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #include "ufs-qcom.h"
 
