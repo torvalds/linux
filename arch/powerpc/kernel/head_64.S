@@ -160,12 +160,8 @@ __secondary_hold:
 	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
 	sync
 
-	li	r26,0
-#ifdef CONFIG_PPC_BOOK3E_64
-	tovirt(r26,r26)
-#endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(0)
 	cmpdi	0,r12,0
 	beq	100b
 
