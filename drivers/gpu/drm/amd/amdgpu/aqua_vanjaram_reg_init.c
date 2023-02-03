@@ -331,6 +331,64 @@ out:
 	return ret;
 }
 
+static int __aqua_vanjaram_get_xcp_mem_id(struct amdgpu_device *adev,
+					  int xcc_id, uint8_t *mem_id)
+{
+	/* TODO: Check if any validation is required based on current
+	 * memory/spatial modes
+	 */
+	*mem_id = xcc_id / adev->gfx.num_xcc_per_xcp;
+
+	return 0;
+}
+
+static int aqua_vanjaram_get_xcp_mem_id(struct amdgpu_xcp_mgr *xcp_mgr,
+					struct amdgpu_xcp *xcp, uint8_t *mem_id)
+{
+	struct amdgpu_numa_info numa_info;
+	struct amdgpu_device *adev;
+	uint32_t xcc_mask;
+	int r, i, xcc_id;
+
+	adev = xcp_mgr->adev;
+	/* TODO: BIOS is not returning the right info now
+	 * Check on this later
+	 */
+	/*
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	*/
+	if (adev->gmc.num_mem_partitions == 1) {
+		/* Only one range */
+		*mem_id = 0;
+		return 0;
+	}
+
+	r = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &xcc_mask);
+	if (r || !xcc_mask)
+		return -EINVAL;
+
+	xcc_id = ffs(xcc_mask) - 1;
+	if (!adev->gmc.is_app_apu)
+		return __aqua_vanjaram_get_xcp_mem_id(adev, xcc_id, mem_id);
+
+	r = amdgpu_acpi_get_mem_info(adev, xcc_id, &numa_info);
+
+	if (r)
+		return r;
+
+	r = -EINVAL;
+	for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
+		if (adev->gmc.mem_partitions[i].numa.node == numa_info.nid) {
+			*mem_id = i;
+			r = 0;
+			break;
+		}
+	}
+
+	return r;
+}
+
 int aqua_vanjaram_get_xcp_ip_details(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 				     enum AMDGPU_XCP_IP_BLOCK ip_id,
 				     struct amdgpu_xcp_ip *ip)
@@ -344,7 +402,8 @@ int aqua_vanjaram_get_xcp_ip_details(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 struct amdgpu_xcp_mgr_funcs aqua_vanjaram_xcp_funcs = {
 	.switch_partition_mode = &aqua_vanjaram_switch_partition_mode,
 	.query_partition_mode = &aqua_vanjaram_query_partition_mode,
-	.get_ip_details = &aqua_vanjaram_get_xcp_ip_details
+	.get_ip_details = &aqua_vanjaram_get_xcp_ip_details,
+	.get_xcp_mem_id = &aqua_vanjaram_get_xcp_mem_id
 };
 
 static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
