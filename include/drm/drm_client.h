@@ -108,7 +108,7 @@ struct drm_client_dev {
 	struct drm_mode_set *modesets;
 
 	/**
-	 * @hotplug failed:
+	 * @hotplug_failed:
 	 *
 	 * Set by client hotplug helpers if the hotplugging failed
 	 * before. It is usually not tried again.

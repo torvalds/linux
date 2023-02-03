@@ -356,7 +356,6 @@ int ivpu_shutdown(struct ivpu_device *vdev)
 
 static const struct file_operations ivpu_fops = {
 	.owner		= THIS_MODULE,
-	.mmap           = drm_gem_mmap,
 	DRM_ACCEL_FOPS,
 };
 

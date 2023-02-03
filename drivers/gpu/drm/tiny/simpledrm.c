@@ -719,8 +719,8 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 		drm_dbg(dev, "using system memory framebuffer at %pr\n", mem);
 
 		screen_base = devm_memremap(dev->dev, mem->start, resource_size(mem), MEMREMAP_WC);
-		if (!screen_base)
-			return ERR_PTR(-ENOMEM);
+		if (IS_ERR(screen_base))
+			return screen_base;
 
 		iosys_map_set_vaddr(&sdev->screen_base, screen_base);
 	} else {
