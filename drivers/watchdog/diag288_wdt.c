@@ -71,8 +71,8 @@ MODULE_ALIAS("vmwatchdog");
 
 static char *cmd_buf;
 
-static int __diag288(unsigned int func, unsigned int timeout,
-		     unsigned long action, unsigned int len)
+static int diag288(unsigned int func, unsigned int timeout,
+		   unsigned long action, unsigned int len)
 {
 	union register_pair r1 = { .even = func, .odd = timeout, };
 	union register_pair r3 = { .even = action, .odd = len, };
@@ -92,7 +92,7 @@ static int __diag288(unsigned int func, unsigned int timeout,
 	return err;
 }
 
-static int __diag288_vm(unsigned int  func, unsigned int timeout, char *cmd)
+static int diag288_str(unsigned int func, unsigned int timeout, char *cmd)
 {
 	ssize_t len;
 
@@ -102,13 +102,7 @@ static int __diag288_vm(unsigned int  func, unsigned int timeout, char *cmd)
 	ASCEBC(cmd_buf, MAX_CMDLEN);
 	EBC_TOUPPER(cmd_buf, MAX_CMDLEN);
 
-	return __diag288(func, timeout, virt_to_phys(cmd_buf), len);
-}
-
-static int __diag288_lpar(unsigned int func, unsigned int timeout,
-			  unsigned long action)
-{
-	return __diag288(func, timeout, action, 0);
+	return diag288(func, timeout, virt_to_phys(cmd_buf), len);
 }
 
 static int wdt_start(struct watchdog_device *dev)
@@ -119,11 +113,10 @@ static int wdt_start(struct watchdog_device *dev)
 	if (MACHINE_IS_VM) {
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
-		ret = __diag288_vm(func, dev->timeout, wdt_cmd);
+		ret = diag288_str(func, dev->timeout, wdt_cmd);
 		WARN_ON(ret != 0);
 	} else {
-		ret = __diag288_lpar(WDT_FUNC_INIT,
-				     dev->timeout, LPARWDT_RESTART);
+		ret = diag288(WDT_FUNC_INIT, dev->timeout, LPARWDT_RESTART, 0);
 	}
 
 	if (ret) {
@@ -135,7 +128,7 @@ static int wdt_start(struct watchdog_device *dev)
 
 static int wdt_stop(struct watchdog_device *dev)
 {
-	return __diag288(WDT_FUNC_CANCEL, 0, 0, 0);
+	return diag288(WDT_FUNC_CANCEL, 0, 0, 0);
 }
 
 static int wdt_ping(struct watchdog_device *dev)
@@ -152,10 +145,10 @@ static int wdt_ping(struct watchdog_device *dev)
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
 
-		ret = __diag288_vm(func, dev->timeout, wdt_cmd);
+		ret = diag288_str(func, dev->timeout, wdt_cmd);
 		WARN_ON(ret != 0);
 	} else {
-		ret = __diag288_lpar(WDT_FUNC_CHANGE, dev->timeout, 0);
+		ret = diag288(WDT_FUNC_CHANGE, dev->timeout, 0, 0);
 	}
 
 	if (ret)
@@ -206,20 +199,21 @@ static int __init diag288_init(void)
 			return -ENOMEM;
 		}
 
-		ret = __diag288_vm(WDT_FUNC_INIT, MIN_INTERVAL, "BEGIN");
+		ret = diag288_str(WDT_FUNC_INIT, MIN_INTERVAL, "BEGIN");
 		if (ret != 0) {
 			pr_err("The watchdog cannot be initialized\n");
 			kfree(cmd_buf);
 			return -EINVAL;
 		}
 	} else {
-		if (__diag288_lpar(WDT_FUNC_INIT, 30, LPARWDT_RESTART)) {
+		if (diag288(WDT_FUNC_INIT, WDT_DEFAULT_TIMEOUT,
+			    LPARWDT_RESTART, 0)) {
 			pr_err("The watchdog cannot be initialized\n");
 			return -EINVAL;
 		}
 	}
 
-	if (__diag288_lpar(WDT_FUNC_CANCEL, 0, 0)) {
+	if (diag288(WDT_FUNC_CANCEL, 0, 0, 0)) {
 		pr_err("The watchdog cannot be deactivated\n");
 		return -EINVAL;
 	}
