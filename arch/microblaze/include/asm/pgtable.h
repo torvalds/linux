@@ -99,7 +99,6 @@ extern pte_t *va_to_pte(unsigned long address);
 #define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
 
 #define USER_PGD_PTRS (PAGE_OFFSET >> PGDIR_SHIFT)
 #define KERNEL_PGD_PTRS (PTRS_PER_PGD-USER_PGD_PTRS)
