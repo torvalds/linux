@@ -82,6 +82,7 @@ int has_cpu;
 int has_task;
 int has_type;
 int has_addr;
+int needs_callstack;
 int stack_skip;
 
 /* determine the key of lock stat */
@@ -173,7 +174,7 @@ int contention_begin(u64 *ctx)
 	pelem->lock = (__u64)ctx[0];
 	pelem->flags = (__u32)ctx[1];
 
-	if (aggr_mode == LOCK_AGGR_CALLER) {
+	if (needs_callstack) {
 		pelem->stack_id = bpf_get_stackid(ctx, &stacks,
 						  BPF_F_FAST_STACK_CMP | stack_skip);
 		if (pelem->stack_id < 0)
@@ -188,7 +189,7 @@ int contention_end(u64 *ctx)
 {
 	__u32 pid;
 	struct tstamp_data *pelem;
-	struct contention_key key;
+	struct contention_key key = {};
 	struct contention_data *data;
 	__u64 duration;
 
@@ -204,14 +205,18 @@ int contention_end(u64 *ctx)
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_CALLER:
-		key.aggr_key = pelem->stack_id;
+		key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_TASK:
-		key.aggr_key = pid;
+		key.pid = pid;
 		update_task_data(pid);
+		if (needs_callstack)
+			key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_ADDR:
-		key.aggr_key = pelem->lock;
+		key.lock_addr = pelem->lock;
+		if (needs_callstack)
+			key.stack_id = pelem->stack_id;
 		break;
 	default:
 		/* should not happen */

@@ -509,6 +509,34 @@ alloc_failed:
 	return NULL;
 }
 
+bool match_callstack_filter(struct machine *machine, u64 *callstack)
+{
+	struct map *kmap;
+	struct symbol *sym;
+	u64 ip;
+
+	if (list_empty(&callstack_filters))
+		return true;
+
+	for (int i = 0; i < max_stack_depth; i++) {
+		struct callstack_filter *filter;
+
+		if (!callstack || !callstack[i])
+			break;
+
+		ip = callstack[i];
+		sym = machine__find_kernel_symbol(machine, ip, &kmap);
+		if (sym == NULL)
+			continue;
+
+		list_for_each_entry(filter, &callstack_filters, list) {
+			if (strstr(sym->name, filter->name))
+				return true;
+		}
+	}
+	return false;
+}
+
 struct trace_lock_handler {
 	/* it's used on CONFIG_LOCKDEP */
 	int (*acquire_event)(struct evsel *evsel,
@@ -1070,12 +1098,6 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		ls = lock_stat_findnew(key, name, flags);
 		if (!ls)
 			return -ENOMEM;
-
-		if (aggr_mode == LOCK_AGGR_CALLER && needs_callstack()) {
-			ls->callstack = get_callstack(sample, max_stack_depth);
-			if (ls->callstack == NULL)
-				return -ENOMEM;
-		}
 	}
 
 	if (filters.nr_types) {
@@ -1104,6 +1126,22 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 
 		if (!found)
 			return 0;
+	}
+
+	if (needs_callstack()) {
+		u64 *callstack = get_callstack(sample, max_stack_depth);
+		if (callstack == NULL)
+			return -ENOMEM;
+
+		if (!match_callstack_filter(machine, callstack)) {
+			free(callstack);
+			return 0;
+		}
+
+		if (ls->callstack == NULL)
+			ls->callstack = callstack;
+		else
+			free(callstack);
 	}
 
 	ts = thread_stat_findnew(sample->tid);
@@ -1606,31 +1644,6 @@ static void print_contention_result(struct lock_contention *con)
 		if (!st->wait_time_total)
 			continue;
 
-		if (aggr_mode == LOCK_AGGR_CALLER && !list_empty(&callstack_filters)) {
-			struct map *kmap;
-			struct symbol *sym;
-			u64 ip;
-
-			for (int i = 0; i < max_stack_depth; i++) {
-				struct callstack_filter *filter;
-
-				if (!st->callstack || !st->callstack[i])
-					break;
-
-				ip = st->callstack[i];
-				sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
-				if (sym == NULL)
-					continue;
-
-				list_for_each_entry(filter, &callstack_filters, list) {
-					if (strstr(sym->name, filter->name))
-						goto found;
-				}
-			}
-			continue;
-		}
-
-found:
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
 			pr_info(" ");

@@ -34,13 +34,15 @@ int lock_contention_prepare(struct lock_contention *con)
 	bpf_map__set_max_entries(skel->maps.lock_stat, con->map_nr_entries);
 	bpf_map__set_max_entries(skel->maps.tstamp, con->map_nr_entries);
 
-	if (con->aggr_mode == LOCK_AGGR_TASK) {
+	if (con->aggr_mode == LOCK_AGGR_TASK)
 		bpf_map__set_max_entries(skel->maps.task_data, con->map_nr_entries);
-		bpf_map__set_max_entries(skel->maps.stacks, 1);
-	} else {
+	else
 		bpf_map__set_max_entries(skel->maps.task_data, 1);
+
+	if (con->save_callstack)
 		bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
-	}
+	else
+		bpf_map__set_max_entries(skel->maps.stacks, 1);
 
 	if (target__has_cpu(target))
 		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
@@ -146,6 +148,7 @@ int lock_contention_prepare(struct lock_contention *con)
 	/* these don't work well if in the rodata section */
 	skel->bss->stack_skip = con->stack_skip;
 	skel->bss->aggr_mode = con->aggr_mode;
+	skel->bss->needs_callstack = con->save_callstack;
 
 	lock_contention_bpf__attach(skel);
 	return 0;
@@ -177,7 +180,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 
 	if (con->aggr_mode == LOCK_AGGR_TASK) {
 		struct contention_task_data task;
-		int pid = key->aggr_key;
+		int pid = key->pid;
 		int task_fd = bpf_map__fd(skel->maps.task_data);
 
 		/* do not update idle comm which contains CPU number */
@@ -194,7 +197,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 	}
 
 	if (con->aggr_mode == LOCK_AGGR_ADDR) {
-		sym = machine__find_kernel_symbol(machine, key->aggr_key, &kmap);
+		sym = machine__find_kernel_symbol(machine, key->lock_addr, &kmap);
 		if (sym)
 			name = sym->name;
 		return name;
@@ -255,20 +258,35 @@ int lock_contention_read(struct lock_contention *con)
 
 	prev_key = NULL;
 	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
-		s32 stack_id;
+		s64 ls_key;
 		const char *name;
 
 		/* to handle errors in the loop body */
 		err = -1;
 
 		bpf_map_lookup_elem(fd, &key, &data);
-
 		if (con->save_callstack) {
-			stack_id = key.aggr_key;
-			bpf_map_lookup_elem(stack, &stack_id, stack_trace);
+			bpf_map_lookup_elem(stack, &key.stack_id, stack_trace);
+
+			if (!match_callstack_filter(machine, stack_trace))
+				goto next;
 		}
 
-		st = lock_stat_find(key.aggr_key);
+		switch (con->aggr_mode) {
+		case LOCK_AGGR_CALLER:
+			ls_key = key.stack_id;
+			break;
+		case LOCK_AGGR_TASK:
+			ls_key = key.pid;
+			break;
+		case LOCK_AGGR_ADDR:
+			ls_key = key.lock_addr;
+			break;
+		default:
+			goto next;
+		}
+
+		st = lock_stat_find(ls_key);
 		if (st != NULL) {
 			st->wait_time_total += data.total_time;
 			if (st->wait_time_max < data.max_time)
@@ -283,7 +301,7 @@ int lock_contention_read(struct lock_contention *con)
 		}
 
 		name = lock_contention_get_name(con, &key, stack_trace);
-		st = lock_stat_findnew(key.aggr_key, name, data.flags);
+		st = lock_stat_findnew(ls_key, name, data.flags);
 		if (st == NULL)
 			break;
 
@@ -294,8 +312,6 @@ int lock_contention_read(struct lock_contention *con)
 
 		if (data.count)
 			st->avg_wait_time = data.total_time / data.count;
-
-		st->flags = data.flags;
 
 		if (con->save_callstack) {
 			st->callstack = memdup(stack_trace, stack_size);

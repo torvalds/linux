@@ -4,7 +4,9 @@
 #define UTIL_BPF_SKEL_LOCK_DATA_H
 
 struct contention_key {
-	u64 aggr_key;  /* can be stack_id, pid or lock addr */
+	u32 stack_id;
+	u32 pid;
+	u64 lock_addr;
 };
 
 #define TASK_COMM_LEN  16
