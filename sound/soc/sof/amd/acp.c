@@ -318,7 +318,6 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
-	unsigned int base = desc->dsp_intr_base;
 	unsigned int val, count = ACP_HW_SEM_RETRY_COUNT;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat);
@@ -328,28 +327,20 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 		return IRQ_HANDLED;
 	}
 
-	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET);
-	if (val & ACP_DSP_TO_HOST_IRQ) {
-		while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset)) {
-			/* Wait until acquired HW Semaphore lock or timeout */
-			count--;
-			if (!count) {
-				dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
-				return IRQ_NONE;
-			}
+	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset)) {
+		/* Wait until acquired HW Semaphore lock or timeout */
+		count--;
+		if (!count) {
+			dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+			return IRQ_NONE;
 		}
-
-		sof_ops(sdev)->irq_thread(irq, sdev);
-		val |= ACP_DSP_TO_HOST_IRQ;
-		snd_sof_dsp_write(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET, val);
-
-		/* Unlock or Release HW Semaphore */
-		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset, 0x0);
-
-		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	sof_ops(sdev)->irq_thread(irq, sdev);
+	/* Unlock or Release HW Semaphore */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset, 0x0);
+
+	return IRQ_HANDLED;
 };
 
 static irqreturn_t acp_irq_handler(int irq, void *dev_id)
@@ -360,8 +351,11 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 	unsigned int val;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET);
-	if (val)
+	if (val) {
+		val |= ACP_DSP_TO_HOST_IRQ;
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET, val);
 		return IRQ_WAKE_THREAD;
+	}
 
 	return IRQ_NONE;
 }
