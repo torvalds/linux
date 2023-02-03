@@ -3535,6 +3535,7 @@
   unregister_restart_handler
   unregister_rpmsg_driver
   unregister_shrinker
+  unregister_syscore_ops
   unregister_sysctl_table
   up
   update_devfreq
