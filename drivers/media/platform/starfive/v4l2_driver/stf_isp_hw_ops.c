@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 #define USE_NEW_CONFIG_SETTING
 
-static const struct regval_t isp_reg_init_config_list[] = {
+static struct regval_t isp_reg_init_config_list[] = {
 	/* config DC(0040H~0044H) */
 	{0x00000044, 0x00000000, 0, 0},
 	/* config DEC(0030H) */
@@ -568,7 +568,7 @@ const struct reg_table isp_reg_init_settings[] = {
 	ARRAY_SIZE(isp_reg_init_config_list)},
 };
 
-static const struct regval_t isp_reg_start_config_list[] = {
+static struct regval_t isp_reg_start_config_list[] = {
 #if defined(ENABLE_SS0_SS1)
 	/* ENABLE UO/SS0/SS1/Multi-Frame and Reset ISP */
 	{0x00000A00, 0x00121802, 0x00000000, 0x0A},
@@ -602,7 +602,7 @@ const struct reg_table isp_reg_start_settings[] = {
 	ARRAY_SIZE(isp_reg_start_config_list)},
 };
 
-static const struct regval_t isp_imx_219_reg_config_list[] = {
+static struct regval_t isp_imx_219_reg_config_list[] = {
 	/* MIPI sensor */
 	{0x00000014, 0x0000000D, 0, 0},
 	/* config CFA(0018H, 0A1CH) */
@@ -789,6 +789,56 @@ static  void __iomem *stf_isp_get_ispbase(struct stf_vin_dev *vin)
 	return base;
 }
 
+static int stf_isp_save_ctx_regs(struct stf_isp_dev *isp_dev)
+{
+	int j;
+	u32 addr, val;
+	void __iomem *ispbase;
+	struct device *dev = isp_dev->stfcamss->dev;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+
+	ispbase = stf_isp_get_ispbase(vin);
+
+	if (!isp_dev->context_regs) {
+		int regs_size =
+			sizeof(struct regval_t) * isp_reg_init_settings->regval_num;
+		isp_dev->context_regs =
+			devm_kzalloc(dev, sizeof(struct reg_table), GFP_KERNEL);
+		isp_dev->context_regs->regval =
+			devm_kzalloc(dev, regs_size, GFP_KERNEL);
+		isp_dev->context_regs->regval_num = isp_reg_init_settings->regval_num;
+	}
+
+	if (!isp_dev->context_regs || !isp_dev->context_regs->regval)
+		return -ENOMEM;
+
+	st_debug(ST_ISP, "Saving ISP context registers\n");
+	for (j = 0; j < isp_reg_init_settings->regval_num; j++) {
+		addr = isp_reg_init_settings->regval[j].addr;
+		val = ioread32(ispbase + addr);
+		isp_dev->context_regs->regval[j].addr = addr;
+		isp_dev->context_regs->regval[j].val = val;
+	}
+	st_debug(ST_ISP, "ISP context registers have been saved\n");
+
+	return 0;
+};
+
+static int stf_isp_restore_ctx_regs(struct stf_isp_dev *isp_dev)
+{
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase;
+
+	ispbase = stf_isp_get_ispbase(vin);
+
+	if (isp_dev->context_regs) {
+		isp_load_regs(ispbase, isp_dev->context_regs);
+		st_debug(ST_ISP, "Restored ISP register: isp_reg_init_settings.\n");
+	}
+
+	return 0;
+}
+
 static int stf_isp_reset(struct stf_isp_dev *isp_dev)
 {
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
@@ -813,7 +863,14 @@ static int stf_isp_config_set(struct stf_isp_dev *isp_dev)
 
 #if defined(USE_NEW_CONFIG_SETTING)
 	mutex_lock(&isp_dev->setfile_lock);
-	isp_load_regs(ispbase, isp_reg_init_settings);
+
+	if (isp_dev->context_regs) {
+		stf_isp_restore_ctx_regs(isp_dev);
+		st_debug(ST_ISP, "%s context regs restore done\n", __func__);
+	} else {
+		isp_load_regs(ispbase, isp_reg_init_settings);
+		st_debug(ST_ISP, "%s isp_reg_init_settings done\n", __func__);
+	}
 	if (isp_dev->setfile.state) {
 		st_info(ST_ISP, "%s, Program extra ISP setting!\n", __func__);
 		isp_load_regs_exclude_csi_isp_enable(ispbase,
@@ -1000,9 +1057,11 @@ static int stf_isp_stream_set(struct stf_isp_dev *isp_dev, int on)
 		reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, BIT(1) | BIT(0), 0x3);
 		reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(0), 1);
 #endif //#if defined(USE_NEW_CONFIG_SETTING)
+	} else {
+		/* NOTE: Clear bit 0 of ISP_REG_ISP_CTRL_0 here will get crash. */
+		stf_isp_save_ctx_regs(isp_dev);
 	}
-	//else  //disable crash
-	//	reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(0), 0);
+
 	return 0;
 }
 
@@ -1445,14 +1504,14 @@ void dump_isp_reg(void *__iomem ispbase)
 	int j;
 	u32 addr, val;
 
-	st_debug(ST_ISP, "DUMP ISP register:\n");
-
+	st_debug(ST_ISP, "DUMP ISP register:\n -- isp_reg_init_settings --\n");
 	for (j = 0; j < isp_reg_init_settings->regval_num; j++) {
 		addr = isp_reg_init_settings->regval[j].addr;
 		val = ioread32(ispbase + addr);
 		st_debug(ST_ISP, "{0x%08x, 0x%08x}\n", addr, val);
 	}
 
+	st_debug(ST_ISP, " --- isp_format_settings ---\n");
 	for (j = 0; j < isp_format_settings->regval_num; j++) {
 		addr = isp_format_settings->regval[j].addr;
 		val = ioread32(ispbase + addr);
@@ -1460,14 +1519,19 @@ void dump_isp_reg(void *__iomem ispbase)
 	}
 
 	val = ioread32(ispbase + ISP_REG_Y_PLANE_START_ADDR);
-	st_debug(ST_ISP, "{0x%08x, 0x%08x}\n", ISP_REG_Y_PLANE_START_ADDR, val);
+	st_debug(ST_ISP, "-- ISP_REG_Y_PLANE_START_ADDR --\n {0x%08x, 0x%08x}\n",
+		 ISP_REG_Y_PLANE_START_ADDR, val);
 	val = ioread32(ispbase + ISP_REG_UV_PLANE_START_ADDR);
-	st_debug(ST_ISP, "{0x%08x, 0x%08x}\n", ISP_REG_UV_PLANE_START_ADDR, val);
+	st_debug(ST_ISP, "-- ISP_REG_UV_PLANE_START_ADDR --\n {0x%08x, 0x%08x}\n",
+		 ISP_REG_UV_PLANE_START_ADDR, val);
 	val = ioread32(ispbase + ISP_REG_DUMP_CFG_0);
-	st_debug(ST_ISP, "{0x%08x, 0x%08x}\n", ISP_REG_DUMP_CFG_0, val);
+	st_debug(ST_ISP, "-- ISP_REG_DUMP_CFG_0 --\n {0x%08x, 0x%08x}\n",
+		 ISP_REG_DUMP_CFG_0, val);
 	val = ioread32(ispbase + ISP_REG_DUMP_CFG_1);
-	st_debug(ST_ISP, "{0x%08x, 0x%08x}\n", ISP_REG_DUMP_CFG_1, val);
+	st_debug(ST_ISP, " --- ISP_REG_DUMP_CFG_1 ---\n {0x%08x, 0x%08x}\n",
+		 ISP_REG_DUMP_CFG_1, val);
 
+	st_debug(ST_ISP, " --- isp_reg_start_settings ---\n");
 	for (j = 0; j < isp_reg_start_settings->regval_num; j++) {
 		addr = isp_reg_start_settings->regval[j].addr;
 		val = ioread32(ispbase + addr);
