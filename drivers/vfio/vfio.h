@@ -74,6 +74,7 @@ struct vfio_group {
 	struct file			*opened_file;
 	struct blocking_notifier_head	notifier;
 	struct iommufd_ctx		*iommufd;
+	spinlock_t			kvm_ref_lock;
 };
 
 int vfio_device_set_group(struct vfio_device *device,
@@ -242,6 +243,20 @@ static inline void vfio_virqfd_exit(void)
 extern bool vfio_noiommu __read_mostly;
 #else
 enum { vfio_noiommu = false };
+#endif
+
+#ifdef CONFIG_HAVE_KVM
+void _vfio_device_get_kvm_safe(struct vfio_device *device, struct kvm *kvm);
+void vfio_device_put_kvm(struct vfio_device *device);
+#else
+static inline void _vfio_device_get_kvm_safe(struct vfio_device *device,
+					     struct kvm *kvm)
+{
+}
+
+static inline void vfio_device_put_kvm(struct vfio_device *device)
+{
+}
 #endif
 
 #endif
