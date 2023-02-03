@@ -8,6 +8,7 @@
 #include <linux/pci.h>
 
 #include "wx_type.h"
+#include "wx_lib.h"
 #include "wx_hw.h"
 
 static void wx_intr_disable(struct wx *wx, u64 qmask)
@@ -1368,6 +1369,7 @@ static void wx_configure_rx_ring(struct wx *wx,
 				 struct wx_ring *ring)
 {
 	u16 reg_idx = ring->reg_idx;
+	union wx_rx_desc *rx_desc;
 	u64 rdba = ring->dma;
 	u32 rxdctl;
 
@@ -1393,11 +1395,20 @@ static void wx_configure_rx_ring(struct wx *wx,
 
 	wx_configure_srrctl(wx, ring);
 
+	/* initialize rx_buffer_info */
+	memset(ring->rx_buffer_info, 0,
+	       sizeof(struct wx_rx_buffer) * ring->count);
+
+	/* initialize Rx descriptor 0 */
+	rx_desc = WX_RX_DESC(ring, 0);
+	rx_desc->wb.upper.length = 0;
+
 	/* enable receive descriptor ring */
 	wr32m(wx, WX_PX_RR_CFG(reg_idx),
 	      WX_PX_RR_CFG_RR_EN, WX_PX_RR_CFG_RR_EN);
 
 	wx_enable_rx_queue(wx, ring);
+	wx_alloc_rx_buffers(ring, wx_desc_unused(ring));
 }
 
 /**

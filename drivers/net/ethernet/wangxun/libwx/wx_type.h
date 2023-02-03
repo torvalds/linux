@@ -311,7 +311,14 @@
 #define WX_RX_BUFSZ      WX_RXBUFFER_2K
 #endif
 
+#define WX_RX_BUFFER_WRITE   16      /* Must be power of 2 */
 #define WX_CFG_PORT_ST               0x14404
+
+/******************* Receive Descriptor bit definitions **********************/
+#define WX_RXD_STAT_DD               BIT(0) /* Done */
+#define WX_RXD_STAT_EOP              BIT(1) /* End of Packet */
+
+#define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
 
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
@@ -433,6 +440,15 @@ enum wx_reset_type {
 	WX_GLOBAL_RESET
 };
 
+struct wx_cb {
+	dma_addr_t dma;
+	u16     append_cnt;      /* number of skb's appended */
+	bool    page_released;
+	bool    dma_released;
+};
+
+#define WX_CB(skb) ((struct wx_cb *)(skb)->cb)
+
 /* Transmit Descriptor */
 union wx_tx_desc {
 	struct {
@@ -478,6 +494,9 @@ union wx_rx_desc {
 	} wb;  /* writeback */
 };
 
+#define WX_RX_DESC(R, i)     \
+	(&(((union wx_rx_desc *)((R)->desc))[i]))
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
  */
@@ -496,6 +515,12 @@ struct wx_rx_buffer {
 	dma_addr_t page_dma;
 	struct page *page;
 	unsigned int page_offset;
+	u16 pagecnt_bias;
+};
+
+struct wx_queue_stats {
+	u64 packets;
+	u64 bytes;
 };
 
 /* iterator for handling rings in ring container */
@@ -504,6 +529,8 @@ struct wx_rx_buffer {
 
 struct wx_ring_container {
 	struct wx_ring *ring;           /* pointer to linked list of rings */
+	unsigned int total_bytes;       /* total bytes processed this int */
+	unsigned int total_packets;     /* total packets processed this int */
 	u8 count;                       /* total number of rings in vector */
 	u8 itr;                         /* current ITR setting for ring */
 };
@@ -531,6 +558,12 @@ struct wx_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+	u16 next_to_use;
+	u16 next_to_clean;
+	u16 next_to_alloc;
+
+	struct wx_queue_stats stats;
+	struct u64_stats_sync syncp;
 } ____cacheline_internodealigned_in_smp;
 
 struct wx_q_vector {
@@ -632,6 +665,7 @@ struct wx {
 };
 
 #define WX_INTR_ALL (~0ULL)
+#define WX_INTR_Q(i) BIT(i)
 
 /* register operations */
 #define wr32(a, reg, value)	writel((value), ((a)->hw_addr + (reg)))
