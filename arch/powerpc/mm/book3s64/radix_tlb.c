@@ -1107,6 +1107,9 @@ void radix__flush_tlb_kernel_range(unsigned long start, unsigned long end)
 }
 EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
 
+/*
+ * Doesn't appear to be used anywhere. Remove.
+ */
 #define TLB_FLUSH_ALL -1UL
 
 /*
@@ -1128,7 +1131,6 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	unsigned int page_shift = mmu_psize_defs[mmu_virtual_psize].shift;
 	unsigned long page_size = 1UL << page_shift;
 	unsigned long nr_pages = (end - start) >> page_shift;
-	bool fullmm = (end == TLB_FLUSH_ALL);
 	bool flush_pid, flush_pwc = false;
 	enum tlb_flush_type type;
 
@@ -1136,15 +1138,15 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
+	WARN_ON_ONCE(end == TLB_FLUSH_ALL);
+
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	type = flush_type_needed(mm, fullmm);
+	type = flush_type_needed(mm, false);
 	if (type == FLUSH_TYPE_NONE)
 		goto out;
 
-	if (fullmm)
-		flush_pid = true;
-	else if (type == FLUSH_TYPE_GLOBAL)
+	if (type == FLUSH_TYPE_GLOBAL)
 		flush_pid = nr_pages > tlb_single_page_flush_ceiling;
 	else
 		flush_pid = nr_pages > tlb_local_single_page_flush_ceiling;
@@ -1328,7 +1330,6 @@ static void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	unsigned int page_shift = mmu_psize_defs[psize].shift;
 	unsigned long page_size = 1UL << page_shift;
 	unsigned long nr_pages = (end - start) >> page_shift;
-	bool fullmm = (end == TLB_FLUSH_ALL);
 	bool flush_pid;
 	enum tlb_flush_type type;
 
@@ -1336,17 +1337,15 @@ static void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
-	fullmm = (end == TLB_FLUSH_ALL);
+	WARN_ON_ONCE(end == TLB_FLUSH_ALL);
 
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	type = flush_type_needed(mm, fullmm);
+	type = flush_type_needed(mm, false);
 	if (type == FLUSH_TYPE_NONE)
 		goto out;
 
-	if (fullmm)
-		flush_pid = true;
-	else if (type == FLUSH_TYPE_GLOBAL)
+	if (type == FLUSH_TYPE_GLOBAL)
 		flush_pid = nr_pages > tlb_single_page_flush_ceiling;
 	else
 		flush_pid = nr_pages > tlb_local_single_page_flush_ceiling;
