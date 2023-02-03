@@ -285,7 +285,7 @@ struct rkisp_stream {
 	unsigned int burst;
 	atomic_t sequence;
 	struct frame_debug_info dbg;
-	u8 conn_id;
+	int conn_id;
 	u32 memory;
 	union {
 		struct rkisp_stream_sp sp;

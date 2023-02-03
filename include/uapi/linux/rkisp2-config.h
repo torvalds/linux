@@ -96,6 +96,9 @@
 
 #define RKISP_CMD_FREE_TB_STREAM_BUF \
 	_IO('V', BASE_VIDIOC_PRIVATE + 112)
+
+#define RKISP_CMD_SET_IQTOOL_CONN_ID \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 113, int)
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
@@ -375,6 +378,7 @@ struct rkisp_stream_info {
 	unsigned int input_frame_loss;
 	unsigned int output_frame_loss;
 	unsigned char stream_on;
+	unsigned char stream_id;
 } __attribute__ ((packed));
 
 /* struct rkisp_mirror_flip

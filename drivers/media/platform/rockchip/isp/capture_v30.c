@@ -1248,6 +1248,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 
 		if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
 			complete(&dev->cap_dev.vir_cpy.cmpl);
+		stream->conn_id = -1;
 		goto end;
 	}
 
@@ -1572,6 +1573,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		strscpy(vdev->name, VIR_VDEV_NAME, sizeof(vdev->name));
 		stream->ops = NULL;
 		stream->config = &rkisp_mp_stream_config;
+		stream->conn_id = -1;
 		break;
 	default:
 		strscpy(vdev->name, MP_VDEV_NAME, sizeof(vdev->name));

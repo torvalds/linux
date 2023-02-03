@@ -676,18 +676,24 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			pixm->height = max_rsz.height;
 		}
 	} else if (stream->id == RKISP_STREAM_VIR) {
-		for (i = RKISP_STREAM_MP; i < RKISP_STREAM_VIR; i++) {
-			struct rkisp_stream *t = &dev->cap_dev.stream[i];
+		struct rkisp_stream *t;
 
-			if (t->out_isp_fmt.fmt_type != FMT_YUV || !t->streaming)
-				continue;
-			if (t->out_fmt.plane_fmt[0].sizeimage > imagsize) {
-				imagsize = t->out_fmt.plane_fmt[0].sizeimage;
-				*pixm = t->out_fmt;
-				stream->conn_id = t->id;
+		if (stream->conn_id != -1) {
+			t = &dev->cap_dev.stream[stream->conn_id];
+			*pixm = t->out_fmt;
+		} else {
+			for (i = RKISP_STREAM_MP; i < RKISP_STREAM_VIR; i++) {
+				t = &dev->cap_dev.stream[i];
+				if (t->out_isp_fmt.fmt_type != FMT_YUV || !t->streaming)
+					continue;
+				if (t->out_fmt.plane_fmt[0].sizeimage > imagsize) {
+					imagsize = t->out_fmt.plane_fmt[0].sizeimage;
+					*pixm = t->out_fmt;
+					stream->conn_id = t->id;
+				}
 			}
 		}
-		if (!imagsize) {
+		if (stream->conn_id == -1) {
 			v4l2_err(&dev->v4l2_dev, "no output stream for iqtool\n");
 			return -EINVAL;
 		}
@@ -1052,10 +1058,11 @@ static int rkisp_get_stream_info(struct rkisp_stream *stream,
 	u32 id = 0;
 
 	rkisp_dmarx_get_frame(stream->ispdev, &id, NULL, NULL, true);
-	info->cur_frame_id = id;
+	info->cur_frame_id = stream->dbg.id;
 	info->input_frame_loss = dev->isp_sdev.dbg.frameloss;
 	info->output_frame_loss = stream->dbg.frameloss;
 	info->stream_on = stream->streaming;
+	info->stream_id = stream->id;
 	return 0;
 }
 
@@ -1167,6 +1174,28 @@ int rkisp_free_tb_stream_buf(struct rkisp_stream *stream)
 	return sd->ops->core->ioctl(sd, RKISP_CMD_FREE_SHARED_BUF, NULL);
 }
 
+static int rkisp_set_iqtool_connect_id(struct rkisp_stream *stream, int stream_id)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (stream->id != RKISP_STREAM_VIR) {
+		v4l2_err(&dev->v4l2_dev, "only support for iqtool video\n");
+		goto err;
+	}
+
+	if (stream_id != RKISP_STREAM_MP &&
+	    stream_id != RKISP_STREAM_SP &&
+	    stream_id != RKISP_STREAM_BP) {
+		v4l2_err(&dev->v4l2_dev, "invalid connect stream id\n");
+		goto err;
+	}
+
+	stream->conn_id = stream_id;
+	return 0;
+err:
+	return -EINVAL;
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1236,6 +1265,9 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_FREE_TB_STREAM_BUF:
 		ret = rkisp_free_tb_stream_buf(stream);
+		break;
+	case RKISP_CMD_SET_IQTOOL_CONN_ID:
+		ret = rkisp_set_iqtool_connect_id(stream, *(int *)arg);
 		break;
 	default:
 		ret = -EINVAL;
