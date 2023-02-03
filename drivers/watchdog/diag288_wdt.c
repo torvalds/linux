@@ -69,6 +69,8 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default = C
 
 MODULE_ALIAS("vmwatchdog");
 
+static char *cmd_buf;
+
 static int __diag288(unsigned int func, unsigned int timeout,
 		     unsigned long action, unsigned int len)
 {
@@ -88,11 +90,18 @@ static int __diag288(unsigned int func, unsigned int timeout,
 	return err;
 }
 
-static int __diag288_vm(unsigned int  func, unsigned int timeout,
-			char *cmd, size_t len)
+static int __diag288_vm(unsigned int  func, unsigned int timeout, char *cmd)
 {
+	ssize_t len;
+
+	len = strscpy(cmd_buf, cmd, MAX_CMDLEN);
+	if (len < 0)
+		return len;
+	ASCEBC(cmd_buf, MAX_CMDLEN);
+	EBC_TOUPPER(cmd_buf, MAX_CMDLEN);
+
 	diag_stat_inc(DIAG_STAT_X288);
-	return __diag288(func, timeout, virt_to_phys(cmd), len);
+	return __diag288(func, timeout, virt_to_phys(cmd_buf), len);
 }
 
 static int __diag288_lpar(unsigned int func, unsigned int timeout,
@@ -104,24 +113,14 @@ static int __diag288_lpar(unsigned int func, unsigned int timeout,
 
 static int wdt_start(struct watchdog_device *dev)
 {
-	char *ebc_cmd;
-	size_t len;
 	int ret;
 	unsigned int func;
 
 	if (MACHINE_IS_VM) {
-		ebc_cmd = kmalloc(MAX_CMDLEN, GFP_KERNEL);
-		if (!ebc_cmd)
-			return -ENOMEM;
-		len = strlcpy(ebc_cmd, wdt_cmd, MAX_CMDLEN);
-		ASCEBC(ebc_cmd, MAX_CMDLEN);
-		EBC_TOUPPER(ebc_cmd, MAX_CMDLEN);
-
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
-		ret = __diag288_vm(func, dev->timeout, ebc_cmd, len);
+		ret = __diag288_vm(func, dev->timeout, wdt_cmd);
 		WARN_ON(ret != 0);
-		kfree(ebc_cmd);
 	} else {
 		ret = __diag288_lpar(WDT_FUNC_INIT,
 				     dev->timeout, LPARWDT_RESTART);
@@ -146,19 +145,10 @@ static int wdt_stop(struct watchdog_device *dev)
 
 static int wdt_ping(struct watchdog_device *dev)
 {
-	char *ebc_cmd;
-	size_t len;
 	int ret;
 	unsigned int func;
 
 	if (MACHINE_IS_VM) {
-		ebc_cmd = kmalloc(MAX_CMDLEN, GFP_KERNEL);
-		if (!ebc_cmd)
-			return -ENOMEM;
-		len = strlcpy(ebc_cmd, wdt_cmd, MAX_CMDLEN);
-		ASCEBC(ebc_cmd, MAX_CMDLEN);
-		EBC_TOUPPER(ebc_cmd, MAX_CMDLEN);
-
 		/*
 		 * It seems to be ok to z/VM to use the init function to
 		 * retrigger the watchdog. On LPAR WDT_FUNC_CHANGE must
@@ -167,9 +157,8 @@ static int wdt_ping(struct watchdog_device *dev)
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
 
-		ret = __diag288_vm(func, dev->timeout, ebc_cmd, len);
+		ret = __diag288_vm(func, dev->timeout, wdt_cmd);
 		WARN_ON(ret != 0);
-		kfree(ebc_cmd);
 	} else {
 		ret = __diag288_lpar(WDT_FUNC_CHANGE, dev->timeout, 0);
 	}
@@ -212,25 +201,20 @@ static struct watchdog_device wdt_dev = {
 static int __init diag288_init(void)
 {
 	int ret;
-	char ebc_begin[] = {
-		194, 197, 199, 201, 213
-	};
-	char *ebc_cmd;
 
 	watchdog_set_nowayout(&wdt_dev, nowayout_info);
 
 	if (MACHINE_IS_VM) {
-		ebc_cmd = kmalloc(sizeof(ebc_begin), GFP_KERNEL);
-		if (!ebc_cmd) {
+		cmd_buf = kmalloc(MAX_CMDLEN, GFP_KERNEL);
+		if (!cmd_buf) {
 			pr_err("The watchdog cannot be initialized\n");
 			return -ENOMEM;
 		}
-		memcpy(ebc_cmd, ebc_begin, sizeof(ebc_begin));
-		ret = __diag288_vm(WDT_FUNC_INIT, 15,
-				   ebc_cmd, sizeof(ebc_begin));
-		kfree(ebc_cmd);
+
+		ret = __diag288_vm(WDT_FUNC_INIT, MIN_INTERVAL, "BEGIN");
 		if (ret != 0) {
 			pr_err("The watchdog cannot be initialized\n");
+			kfree(cmd_buf);
 			return -EINVAL;
 		}
 	} else {
@@ -251,6 +235,7 @@ static int __init diag288_init(void)
 static void __exit diag288_exit(void)
 {
 	watchdog_unregister_device(&wdt_dev);
+	kfree(cmd_buf);
 }
 
 module_init(diag288_init);
