@@ -11,9 +11,10 @@
 /**
  * DOC: UAPI
  *
- * Not all of all commands that the driver supports are always available for use
- * by userspace. Userspace must check the results from the QUERY command in
- * order to determine the live set of commands.
+ * Not all of the commands that the driver supports are available for use by
+ * userspace at all times.  Userspace can check the result of the QUERY command
+ * to determine the live set of commands.  Alternatively, it can issue the
+ * command and check for failure.
  */
 
 #define CXL_MEM_QUERY_COMMANDS _IOR(0xCE, 1, struct cxl_mem_query_commands)
