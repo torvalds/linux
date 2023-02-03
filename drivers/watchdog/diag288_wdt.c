@@ -78,6 +78,8 @@ static int __diag288(unsigned int func, unsigned int timeout,
 	union register_pair r3 = { .even = action, .odd = len, };
 	int err;
 
+	diag_stat_inc(DIAG_STAT_X288);
+
 	err = -EINVAL;
 	asm volatile(
 		"	diag	%[r1],%[r3],0x288\n"
@@ -100,14 +102,12 @@ static int __diag288_vm(unsigned int  func, unsigned int timeout, char *cmd)
 	ASCEBC(cmd_buf, MAX_CMDLEN);
 	EBC_TOUPPER(cmd_buf, MAX_CMDLEN);
 
-	diag_stat_inc(DIAG_STAT_X288);
 	return __diag288(func, timeout, virt_to_phys(cmd_buf), len);
 }
 
 static int __diag288_lpar(unsigned int func, unsigned int timeout,
 			  unsigned long action)
 {
-	diag_stat_inc(DIAG_STAT_X288);
 	return __diag288(func, timeout, action, 0);
 }
 
@@ -135,12 +135,7 @@ static int wdt_start(struct watchdog_device *dev)
 
 static int wdt_stop(struct watchdog_device *dev)
 {
-	int ret;
-
-	diag_stat_inc(DIAG_STAT_X288);
-	ret = __diag288(WDT_FUNC_CANCEL, 0, 0, 0);
-
-	return ret;
+	return __diag288(WDT_FUNC_CANCEL, 0, 0, 0);
 }
 
 static int wdt_ping(struct watchdog_device *dev)
