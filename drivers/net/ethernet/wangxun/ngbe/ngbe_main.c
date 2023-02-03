@@ -113,6 +113,9 @@ static int ngbe_sw_init(struct wx *wx)
 	wx->mac.num_rar_entries = NGBE_RAR_ENTRIES;
 	wx->mac.max_rx_queues = NGBE_MAX_RX_QUEUES;
 	wx->mac.max_tx_queues = NGBE_MAX_TX_QUEUES;
+	wx->mac.mcft_size = NGBE_MC_TBL_SIZE;
+	wx->mac.rx_pb_size = NGBE_RX_PB_SIZE;
+	wx->mac.tx_pb_size = NGBE_TDB_PB_SZ;
 
 	/* PCI config space info */
 	err = wx_sw_init(wx);
@@ -307,24 +310,45 @@ static int ngbe_request_irq(struct wx *wx)
 static void ngbe_disable_device(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
+	u32 i;
 
+	/* disable all enabled rx queues */
+	for (i = 0; i < wx->num_rx_queues; i++)
+		/* this call also flushes the previous write */
+		wx_disable_rx_queue(wx, wx->rx_ring[i]);
 	/* disable receives */
 	wx_disable_rx(wx);
+	wx_napi_disable_all(wx);
+	netif_tx_stop_all_queues(netdev);
 	netif_tx_disable(netdev);
 	if (wx->gpio_ctrl)
 		ngbe_sfp_modules_txrx_powerctl(wx, false);
 	wx_irq_disable(wx);
+	/* disable transmits in the hardware now that interrupts are off */
+	for (i = 0; i < wx->num_tx_queues; i++) {
+		u8 reg_idx = wx->tx_ring[i]->reg_idx;
+
+		wr32(wx, WX_PX_TR_CFG(reg_idx), WX_PX_TR_CFG_SWFLSH);
+	}
 }
 
 static void ngbe_down(struct wx *wx)
 {
 	phy_stop(wx->phydev);
 	ngbe_disable_device(wx);
+	wx_clean_all_tx_rings(wx);
+	wx_clean_all_rx_rings(wx);
 }
 
 static void ngbe_up(struct wx *wx)
 {
 	wx_configure_vectors(wx);
+
+	/* make sure to complete pre-operations */
+	smp_mb__before_atomic();
+	wx_napi_enable_all(wx);
+	/* enable transmits */
+	netif_tx_start_all_queues(wx->netdev);
 
 	/* clear any pending interrupts, may auto mask */
 	rd32(wx, WX_PX_IC);
@@ -352,7 +376,7 @@ static int ngbe_open(struct net_device *netdev)
 
 	wx_control_hw(wx, true);
 
-	err = wx_setup_isb_resources(wx);
+	err = wx_setup_resources(wx);
 	if (err)
 		return err;
 
@@ -360,16 +384,29 @@ static int ngbe_open(struct net_device *netdev)
 
 	err = ngbe_request_irq(wx);
 	if (err)
-		goto err_req_irq;
+		goto err_free_resources;
 
 	err = ngbe_phy_connect(wx);
 	if (err)
-		return err;
+		goto err_free_irq;
+
+	err = netif_set_real_num_tx_queues(netdev, wx->num_tx_queues);
+	if (err)
+		goto err_dis_phy;
+
+	err = netif_set_real_num_rx_queues(netdev, wx->num_rx_queues);
+	if (err)
+		goto err_dis_phy;
+
 	ngbe_up(wx);
 
 	return 0;
-err_req_irq:
-	wx_free_isb_resources(wx);
+err_dis_phy:
+	phy_disconnect(wx->phydev);
+err_free_irq:
+	wx_free_irq(wx);
+err_free_resources:
+	wx_free_resources(wx);
 	return err;
 }
 
@@ -390,17 +427,11 @@ static int ngbe_close(struct net_device *netdev)
 
 	ngbe_down(wx);
 	wx_free_irq(wx);
-	wx_free_isb_resources(wx);
+	wx_free_resources(wx);
 	phy_disconnect(wx->phydev);
 	wx_control_hw(wx, false);
 
 	return 0;
-}
-
-static netdev_tx_t ngbe_xmit_frame(struct sk_buff *skb,
-				   struct net_device *netdev)
-{
-	return NETDEV_TX_OK;
 }
 
 static void ngbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
@@ -438,9 +469,11 @@ static void ngbe_shutdown(struct pci_dev *pdev)
 static const struct net_device_ops ngbe_netdev_ops = {
 	.ndo_open               = ngbe_open,
 	.ndo_stop               = ngbe_close,
-	.ndo_start_xmit         = ngbe_xmit_frame,
+	.ndo_start_xmit         = wx_xmit_frame,
+	.ndo_set_rx_mode        = wx_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac,
+	.ndo_get_stats64        = wx_get_stats64,
 };
 
 /**
@@ -516,6 +549,17 @@ static int ngbe_probe(struct pci_dev *pdev,
 	netdev->netdev_ops = &ngbe_netdev_ops;
 
 	netdev->features |= NETIF_F_HIGHDMA;
+	netdev->features = NETIF_F_SG;
+
+	/* copy netdev features into list of user selectable features */
+	netdev->hw_features |= netdev->features |
+			       NETIF_F_RXALL;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
+
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = NGBE_MAX_JUMBO_FRAME_SIZE - (ETH_HLEN + ETH_FCS_LEN);
 
 	wx->bd_number = func_nums;
 	/* setup the private structure */
