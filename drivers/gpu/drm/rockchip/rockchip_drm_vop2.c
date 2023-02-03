@@ -3993,12 +3993,15 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
-		clk = devm_clk_get(drm_dev->dev, extend_clk_name[i]);
+		clk = devm_clk_get_optional(drm_dev->dev, extend_clk_name[i]);
 		if (IS_ERR(clk)) {
 			dev_warn(drm_dev->dev, "failed to get %s: %ld\n",
 				 extend_clk_name[i], PTR_ERR(clk));
 			continue;
 		}
+
+		if (!clk)
+			continue;
 
 		extend_pll = devm_kzalloc(drm_dev->dev, sizeof(*extend_pll), GFP_KERNEL);
 		if (!extend_pll)
