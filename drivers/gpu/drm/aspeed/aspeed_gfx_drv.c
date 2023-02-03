@@ -211,7 +211,7 @@ static int aspeed_pcie_active_detect(struct drm_device *drm)
 	/* map pcie ep resource */
 	priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2500-pcie-ep");
 	if (IS_ERR(priv->pcie_ep)) {
-		priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2600-pcie-ep");
+		priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2600-pcie-phy");
 		if (IS_ERR(priv->pcie_ep)) {
 			dev_err(drm->dev, "failed to find pcie_ep regmap\n");
 			return PTR_ERR(priv->pcie_ep);
