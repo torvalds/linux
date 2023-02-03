@@ -466,6 +466,13 @@ static ssize_t rescan_store(struct device_driver *ddp, const char * buf,
 
 static DRIVER_ATTR_RW(rescan);
 
+static struct attribute *hvcs_attrs[] = {
+	&driver_attr_rescan.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(hvcs);
+
 static void hvcs_kick(void)
 {
 	hvcs_kicked = 1;
@@ -820,6 +827,7 @@ static struct vio_driver hvcs_vio_driver = {
 	.remove		= hvcs_remove,
 	.name		= hvcs_driver_name,
 	.driver = {
+		.groups = hvcs_groups,
 		.dev_groups = hvcs_dev_groups,
 	},
 };
@@ -1498,13 +1506,6 @@ static int __init hvcs_module_init(void)
 
 	pr_info("HVCS: Driver registered.\n");
 
-	/* This needs to be done AFTER the vio_register_driver() call or else
-	 * the kobjects won't be initialized properly.
-	 */
-	rc = driver_create_file(&(hvcs_vio_driver.driver), &driver_attr_rescan);
-	if (rc)
-		pr_warn("HVCS: Failed to create rescan file (err %d)\n", rc);
-
 	return 0;
 }
 
@@ -1528,8 +1529,6 @@ static void __exit hvcs_module_exit(void)
 	free_page((unsigned long)hvcs_pi_buff);
 	hvcs_pi_buff = NULL;
 	spin_unlock(&hvcs_pi_lock);
-
-	driver_remove_file(&hvcs_vio_driver.driver, &driver_attr_rescan);
 
 	tty_unregister_driver(hvcs_tty_driver);
 
