@@ -12,6 +12,7 @@ Supported devices:
 * Aquacomputer Octo fan controller
 * Aquacomputer Quadro fan controller
 * Aquacomputer High Flow Next sensor
+* Aquacomputer Aquastream Ultimate watercooling pump
 * Aquacomputer Poweradjust 3 fan controller
 
 Author: Aleksa Savic
@@ -53,6 +54,10 @@ sixteen virtual temperature sensors of the Farbwerk 360 are exposed.
 The High Flow Next exposes +5V voltages, water quality, conductivity and flow readings.
 A temperature sensor can be connected to it, in which case it provides its reading
 and an estimation of the dissipated/absorbed power in the liquid cooling loop.
+
+The Aquastream Ultimate pump exposes coolant temp and an external temp sensor, along
+with speed, power, voltage and current of both the pump and optionally connected fan.
+It also exposes pressure and flow speed readings.
 
 The Poweradjust 3 controller exposes a single external temperature sensor.
 
