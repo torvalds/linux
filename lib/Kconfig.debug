@@ -791,6 +791,16 @@ config DEBUG_VM
 
 	  If unsure, say N.
 
+config DEBUG_VM_SHOOT_LAZIES
+	bool "Debug MMU_LAZY_TLB_SHOOTDOWN implementation"
+	depends on DEBUG_VM
+	depends on MMU_LAZY_TLB_SHOOTDOWN
+	help
+	  Enable additional IPIs that ensure lazy tlb mm references are removed
+	  before the mm is freed.
+
+	  If unsure, say N.
+
 config DEBUG_VM_MAPLE_TREE
 	bool "Debug VM maple trees"
 	depends on DEBUG_VM
