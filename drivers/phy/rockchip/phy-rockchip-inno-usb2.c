@@ -1291,6 +1291,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		} else {
 			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
+			rport->perip_connected = false;
 			mutex_unlock(&rport->mutex);
 			if (!rport->dis_u2_susphy)
 				rockchip_usb2phy_power_off(rport->phy);
