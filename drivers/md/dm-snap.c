@@ -495,8 +495,7 @@ static int __validate_exception_handover(struct dm_snapshot *snap)
 	if ((__find_snapshots_sharing_cow(snap, &snap_src, &snap_dest,
 					  &snap_merge) == 2) ||
 	    snap_dest) {
-		snap->ti->error = "Snapshot cow pairing for exception "
-				  "table handover failed";
+		snap->ti->error = "Snapshot cow pairing for exception table handover failed";
 		return -EINVAL;
 	}
 
@@ -523,8 +522,7 @@ static int __validate_exception_handover(struct dm_snapshot *snap)
 
 	if (!snap_src->store->type->prepare_merge ||
 	    !snap_src->store->type->commit_merge) {
-		snap->ti->error = "Snapshot exception store does not "
-				  "support snapshot-merge.";
+		snap->ti->error = "Snapshot exception store does not support snapshot-merge.";
 		return -EINVAL;
 	}
 
@@ -943,8 +941,7 @@ static int __remove_single_exception_chunk(struct dm_snapshot *s,
 
 	e = dm_lookup_exception(&s->complete, old_chunk);
 	if (!e) {
-		DMERR("Corruption detected: exception for block %llu is "
-		      "on disk but not in memory",
+		DMERR("Corruption detected: exception for block %llu is on disk but not in memory",
 		      (unsigned long long)old_chunk);
 		return -EINVAL;
 	}
@@ -971,8 +968,7 @@ static int __remove_single_exception_chunk(struct dm_snapshot *s,
 		e->new_chunk++;
 	} else if (old_chunk != e->old_chunk +
 		   dm_consecutive_chunk_count(e)) {
-		DMERR("Attempt to merge block %llu from the "
-		      "middle of a chunk range [%llu - %llu]",
+		DMERR("Attempt to merge block %llu from the middle of a chunk range [%llu - %llu]",
 		      (unsigned long long)old_chunk,
 		      (unsigned long long)e->old_chunk,
 		      (unsigned long long)
@@ -1065,8 +1061,7 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 						      &new_chunk);
 	if (linear_chunks <= 0) {
 		if (linear_chunks < 0) {
-			DMERR("Read error in exception store: "
-			      "shutting down merge");
+			DMERR("Read error in exception store: shutting down merge");
 			down_write(&s->lock);
 			s->merge_failed = true;
 			up_write(&s->lock);
@@ -2215,12 +2210,10 @@ static int snapshot_preresume(struct dm_target *ti)
 	if (snap_src && snap_dest) {
 		down_read(&snap_src->lock);
 		if (s == snap_src) {
-			DMERR("Unable to resume snapshot source until "
-			      "handover completes.");
+			DMERR("Unable to resume snapshot source until handover completes.");
 			r = -EINVAL;
 		} else if (!dm_suspended(snap_src->ti)) {
-			DMERR("Unable to perform snapshot handover until "
-			      "source is suspended.");
+			DMERR("Unable to perform snapshot handover until source is suspended.");
 			r = -EINVAL;
 		}
 		up_read(&snap_src->lock);

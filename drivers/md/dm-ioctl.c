@@ -449,8 +449,7 @@ static struct mapped_device *dm_hash_rename(struct dm_ioctl *param,
 		hc = __get_name_cell(new);
 
 	if (hc) {
-		DMERR("Unable to change %s on mapped device %s to one that "
-		      "already exists: %s",
+		DMERR("Unable to change %s on mapped device %s to one that already exists: %s",
 		      change_uuid ? "uuid" : "name",
 		      param->name, new);
 		dm_put(hc->md);
@@ -1838,8 +1837,7 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 
 	if ((DM_VERSION_MAJOR != version[0]) ||
 	    (DM_VERSION_MINOR < version[1])) {
-		DMERR("ioctl interface mismatch: "
-		      "kernel(%u.%u.%u), user(%u.%u.%u), cmd(%d)",
+		DMERR("ioctl interface mismatch: kernel(%u.%u.%u), user(%u.%u.%u), cmd(%d)",
 		      DM_VERSION_MAJOR, DM_VERSION_MINOR,
 		      DM_VERSION_PATCHLEVEL,
 		      version[0], version[1], version[2], cmd);
