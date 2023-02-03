@@ -1720,7 +1720,7 @@ void rtw8852b_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 
 	pw_ofst = max_t(s8, pw_ofst - 3, -16);
 	reg = rtw89_mac_reg_by_idx(R_AX_PWR_UL_TB_2T, mac_idx);
-	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_1T_MASK, pw_ofst);
+	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_2T_MASK, pw_ofst);
 }
 
 static int
