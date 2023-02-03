@@ -90,6 +90,20 @@ enum NGBE_MSCA_CMD_value {
 #define NGBE_GPIO_DDR_0				BIT(0) /* SDP0 IO direction */
 #define NGBE_GPIO_DDR_1				BIT(1) /* SDP1 IO direction */
 
+/* Extended Interrupt Enable Set */
+#define NGBE_PX_MISC_IEN_DEV_RST		BIT(10)
+#define NGBE_PX_MISC_IEN_ETH_LK			BIT(18)
+#define NGBE_PX_MISC_IEN_INT_ERR		BIT(20)
+#define NGBE_PX_MISC_IEN_GPIO			BIT(26)
+#define NGBE_PX_MISC_IEN_MASK ( \
+				NGBE_PX_MISC_IEN_DEV_RST | \
+				NGBE_PX_MISC_IEN_ETH_LK | \
+				NGBE_PX_MISC_IEN_INT_ERR | \
+				NGBE_PX_MISC_IEN_GPIO)
+
+#define NGBE_INTR_ALL				0x1FF
+#define NGBE_INTR_MISC(A)			BIT((A)->num_q_vectors)
+
 #define NGBE_PHY_CONFIG(reg_offset)		(0x14000 + ((reg_offset) * 4))
 #define NGBE_CFG_LAN_SPEED			0x14440
 #define NGBE_CFG_PORT_ST			0x14404

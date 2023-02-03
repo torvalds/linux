@@ -13,6 +13,7 @@
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
+#include "../libwx/wx_lib.h"
 #include "ngbe_type.h"
 #include "ngbe_mdio.h"
 #include "ngbe_hw.h"
@@ -148,6 +149,161 @@ static int ngbe_sw_init(struct wx *wx)
 	return 0;
 }
 
+/**
+ * ngbe_irq_enable - Enable default interrupt generation settings
+ * @wx: board private structure
+ * @queues: enable all queues interrupts
+ **/
+static void ngbe_irq_enable(struct wx *wx, bool queues)
+{
+	u32 mask;
+
+	/* enable misc interrupt */
+	mask = NGBE_PX_MISC_IEN_MASK;
+
+	wr32(wx, WX_GPIO_DDR, WX_GPIO_DDR_0);
+	wr32(wx, WX_GPIO_INTEN, WX_GPIO_INTEN_0 | WX_GPIO_INTEN_1);
+	wr32(wx, WX_GPIO_INTTYPE_LEVEL, 0x0);
+	wr32(wx, WX_GPIO_POLARITY, wx->gpio_ctrl ? 0 : 0x3);
+
+	wr32(wx, WX_PX_MISC_IEN, mask);
+
+	/* mask interrupt */
+	if (queues)
+		wx_intr_enable(wx, NGBE_INTR_ALL);
+	else
+		wx_intr_enable(wx, NGBE_INTR_MISC(wx));
+}
+
+/**
+ * ngbe_intr - msi/legacy mode Interrupt Handler
+ * @irq: interrupt number
+ * @data: pointer to a network interface device structure
+ **/
+static irqreturn_t ngbe_intr(int __always_unused irq, void *data)
+{
+	struct wx_q_vector *q_vector;
+	struct wx *wx  = data;
+	struct pci_dev *pdev;
+	u32 eicr;
+
+	q_vector = wx->q_vector[0];
+	pdev = wx->pdev;
+
+	eicr = wx_misc_isb(wx, WX_ISB_VEC0);
+	if (!eicr) {
+		/* shared interrupt alert!
+		 * the interrupt that we masked before the EICR read.
+		 */
+		if (netif_running(wx->netdev))
+			ngbe_irq_enable(wx, true);
+		return IRQ_NONE;        /* Not our interrupt */
+	}
+	wx->isb_mem[WX_ISB_VEC0] = 0;
+	if (!(pdev->msi_enabled))
+		wr32(wx, WX_PX_INTA, 1);
+
+	wx->isb_mem[WX_ISB_MISC] = 0;
+	/* would disable interrupts here but it is auto disabled */
+	napi_schedule_irqoff(&q_vector->napi);
+
+	if (netif_running(wx->netdev))
+		ngbe_irq_enable(wx, false);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ngbe_msix_other(int __always_unused irq, void *data)
+{
+	struct wx *wx = data;
+
+	/* re-enable the original interrupt state, no lsc, no queues */
+	if (netif_running(wx->netdev))
+		ngbe_irq_enable(wx, false);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * ngbe_request_msix_irqs - Initialize MSI-X interrupts
+ * @wx: board private structure
+ *
+ * ngbe_request_msix_irqs allocates MSI-X vectors and requests
+ * interrupts from the kernel.
+ **/
+static int ngbe_request_msix_irqs(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+	int vector, err;
+
+	for (vector = 0; vector < wx->num_q_vectors; vector++) {
+		struct wx_q_vector *q_vector = wx->q_vector[vector];
+		struct msix_entry *entry = &wx->msix_entries[vector];
+
+		if (q_vector->tx.ring && q_vector->rx.ring)
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-TxRx-%d", netdev->name, entry->entry);
+		else
+			/* skip this unused q_vector */
+			continue;
+
+		err = request_irq(entry->vector, wx_msix_clean_rings, 0,
+				  q_vector->name, q_vector);
+		if (err) {
+			wx_err(wx, "request_irq failed for MSIX interrupt %s Error: %d\n",
+			       q_vector->name, err);
+			goto free_queue_irqs;
+		}
+	}
+
+	err = request_irq(wx->msix_entries[vector].vector,
+			  ngbe_msix_other, 0, netdev->name, wx);
+
+	if (err) {
+		wx_err(wx, "request_irq for msix_other failed: %d\n", err);
+		goto free_queue_irqs;
+	}
+
+	return 0;
+
+free_queue_irqs:
+	while (vector) {
+		vector--;
+		free_irq(wx->msix_entries[vector].vector,
+			 wx->q_vector[vector]);
+	}
+	wx_reset_interrupt_capability(wx);
+	return err;
+}
+
+/**
+ * ngbe_request_irq - initialize interrupts
+ * @wx: board private structure
+ *
+ * Attempts to configure interrupts using the best available
+ * capabilities of the hardware and kernel.
+ **/
+static int ngbe_request_irq(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+	struct pci_dev *pdev = wx->pdev;
+	int err;
+
+	if (pdev->msix_enabled)
+		err = ngbe_request_msix_irqs(wx);
+	else if (pdev->msi_enabled)
+		err = request_irq(pdev->irq, ngbe_intr, 0,
+				  netdev->name, wx);
+	else
+		err = request_irq(pdev->irq, ngbe_intr, IRQF_SHARED,
+				  netdev->name, wx);
+
+	if (err)
+		wx_err(wx, "request_irq failed, Error %d\n", err);
+
+	return err;
+}
+
 static void ngbe_disable_device(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
@@ -157,6 +313,7 @@ static void ngbe_disable_device(struct wx *wx)
 	netif_tx_disable(netdev);
 	if (wx->gpio_ctrl)
 		ngbe_sfp_modules_txrx_powerctl(wx, false);
+	wx_irq_disable(wx);
 }
 
 static void ngbe_down(struct wx *wx)
@@ -167,8 +324,15 @@ static void ngbe_down(struct wx *wx)
 
 static void ngbe_up(struct wx *wx)
 {
+	wx_configure_vectors(wx);
+
+	/* clear any pending interrupts, may auto mask */
+	rd32(wx, WX_PX_IC);
+	rd32(wx, WX_PX_MISC_IC);
+	ngbe_irq_enable(wx, true);
 	if (wx->gpio_ctrl)
 		ngbe_sfp_modules_txrx_powerctl(wx, true);
+
 	phy_start(wx->phydev);
 }
 
@@ -187,12 +351,26 @@ static int ngbe_open(struct net_device *netdev)
 	int err;
 
 	wx_control_hw(wx, true);
+
+	err = wx_setup_isb_resources(wx);
+	if (err)
+		return err;
+
+	wx_configure(wx);
+
+	err = ngbe_request_irq(wx);
+	if (err)
+		goto err_req_irq;
+
 	err = ngbe_phy_connect(wx);
 	if (err)
 		return err;
 	ngbe_up(wx);
 
 	return 0;
+err_req_irq:
+	wx_free_isb_resources(wx);
+	return err;
 }
 
 /**
@@ -211,6 +389,8 @@ static int ngbe_close(struct net_device *netdev)
 	struct wx *wx = netdev_priv(netdev);
 
 	ngbe_down(wx);
+	wx_free_irq(wx);
+	wx_free_isb_resources(wx);
 	phy_disconnect(wx->phydev);
 	wx_control_hw(wx, false);
 
@@ -411,10 +591,14 @@ static int ngbe_probe(struct pci_dev *pdev,
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	wx_mac_set_default_filter(wx, wx->mac.perm_addr);
 
+	err = wx_init_interrupt_scheme(wx);
+	if (err)
+		goto err_free_mac_table;
+
 	/* phy Interface Configuration */
 	err = ngbe_mdio_init(wx);
 	if (err)
-		goto err_free_mac_table;
+		goto err_clear_interrupt_scheme;
 
 	err = register_netdev(netdev);
 	if (err)
@@ -431,6 +615,8 @@ static int ngbe_probe(struct pci_dev *pdev,
 
 err_register:
 	wx_control_hw(wx, false);
+err_clear_interrupt_scheme:
+	wx_clear_interrupt_scheme(wx);
 err_free_mac_table:
 	kfree(wx->mac_table);
 err_pci_release_regions:
@@ -462,6 +648,7 @@ static void ngbe_remove(struct pci_dev *pdev)
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
 	kfree(wx->mac_table);
+	wx_clear_interrupt_scheme(wx);
 	pci_disable_pcie_error_reporting(pdev);
 
 	pci_disable_device(pdev);
