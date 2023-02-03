@@ -404,7 +404,8 @@ int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
 		return 0;
 
 	used = btrfs_space_info_used(space_info, true);
-	if (btrfs_is_zoned(fs_info) && (space_info->flags & BTRFS_BLOCK_GROUP_METADATA))
+	if (test_bit(BTRFS_FS_NO_OVERCOMMIT, &fs_info->flags) &&
+	    (space_info->flags & BTRFS_BLOCK_GROUP_METADATA))
 		avail = 0;
 	else
 		avail = calc_available_free_space(fs_info, space_info, flush);

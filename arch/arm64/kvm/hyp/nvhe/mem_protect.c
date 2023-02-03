@@ -872,7 +872,7 @@ struct pkvm_mem_donation {
 
 struct check_walk_data {
 	enum pkvm_page_state	desired;
-	enum pkvm_page_state	(*get_page_state)(kvm_pte_t pte);
+	enum pkvm_page_state	(*get_page_state)(kvm_pte_t pte, u64 addr);
 };
 
 static int __check_page_state_visitor(u64 addr, u64 end, u32 level,
@@ -886,7 +886,7 @@ static int __check_page_state_visitor(u64 addr, u64 end, u32 level,
 	if (kvm_pte_valid(pte) && !addr_is_allowed_memory(kvm_pte_to_phys(pte)))
 		return -EINVAL;
 
-	return d->get_page_state(pte) == d->desired ? 0 : -EPERM;
+	return d->get_page_state(pte, addr) == d->desired ? 0 : -EPERM;
 }
 
 static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,
@@ -901,19 +901,21 @@ static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,
 	return kvm_pgtable_walk(pgt, addr, size, &walker);
 }
 
-static enum pkvm_page_state host_get_page_state(kvm_pte_t pte)
+static enum pkvm_page_state host_get_page_state(kvm_pte_t pte, u64 addr)
 {
+	bool is_memory = addr_is_memory(addr);
 	enum pkvm_page_state state = 0;
 	enum kvm_pgtable_prot prot;
-	phys_addr_t phys;
+
+	if (is_memory && hyp_phys_to_page(addr)->flags & MODULE_OWNED_PAGE)
+	       return PKVM_MODULE_DONT_TOUCH;
 
 	if (!kvm_pte_valid(pte) && pte)
 		return PKVM_NOPAGE;
 
 	prot = kvm_pgtable_stage2_pte_prot(pte);
 	if (kvm_pte_valid(pte)) {
-		phys = kvm_pte_to_phys(pte);
-		if ((prot & KVM_PGTABLE_PROT_RWX) != default_host_prot(addr_is_memory(phys)))
+		if ((prot & KVM_PGTABLE_PROT_RWX) != default_host_prot(is_memory))
 			state = PKVM_PAGE_RESTRICTED_PROT;
 	}
 
@@ -1061,7 +1063,7 @@ static int host_complete_donation(u64 addr, const struct pkvm_mem_transition *tx
 	return host_stage2_set_owner_locked(addr, size, host_id);
 }
 
-static enum pkvm_page_state hyp_get_page_state(kvm_pte_t pte)
+static enum pkvm_page_state hyp_get_page_state(kvm_pte_t pte, u64 addr)
 {
 	enum pkvm_page_state state = 0;
 	enum kvm_pgtable_prot prot;
@@ -1180,7 +1182,7 @@ static int hyp_complete_donation(u64 addr,
 	return pkvm_create_mappings_locked(start, end, prot);
 }
 
-static enum pkvm_page_state guest_get_page_state(kvm_pte_t pte)
+static enum pkvm_page_state guest_get_page_state(kvm_pte_t pte, u64 addr)
 {
 	enum pkvm_page_state state = 0;
 	enum kvm_pgtable_prot prot;
@@ -1314,7 +1316,7 @@ static int __guest_request_page_transition(u64 *completer_addr,
 	if (ret)
 		return ret;
 
-	state = guest_get_page_state(pte);
+	state = guest_get_page_state(pte, tx->initiator.addr);
 	if (state == PKVM_NOPAGE)
 		return -EFAULT;
 
@@ -1884,14 +1886,28 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 	return ret;
 }
 
-int hyp_protect_host_page(u64 pfn, enum kvm_pgtable_prot prot)
+static int restrict_host_page_perms(u64 addr, kvm_pte_t pte, u32 level, enum kvm_pgtable_prot prot)
+{
+	int ret = 0;
+
+	/* XXX: optimize ... */
+	if (kvm_pte_valid(pte) && (level == KVM_PGTABLE_MAX_LEVELS - 1))
+		ret = kvm_pgtable_stage2_unmap(&host_mmu.pgt, addr, PAGE_SIZE);
+	if (!ret)
+		ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot, false);
+
+	return ret;
+}
+
+int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 {
 	u64 addr = hyp_pfn_to_phys(pfn);
+	struct hyp_page *page;
 	kvm_pte_t pte;
 	u32 level;
 	int ret;
 
-	if ((prot & KVM_PGTABLE_PROT_RWX) != prot || prot == KVM_PGTABLE_PROT_RWX)
+	if ((prot & KVM_PGTABLE_PROT_RWX) != prot || !addr_is_memory(addr))
 		return -EINVAL;
 
 	host_lock_component();
@@ -1899,16 +1915,34 @@ int hyp_protect_host_page(u64 pfn, enum kvm_pgtable_prot prot)
 	if (ret)
 		goto unlock;
 
-	if (host_get_page_state(pte) != PKVM_PAGE_OWNED) {
-		ret = -EPERM;
+	ret = -EPERM;
+	page = hyp_phys_to_page(addr);
+
+	/*
+	 * Modules can only relax permissions of pages they own, and restrict
+	 * permissions of pristine pages.
+	 */
+	if (prot == KVM_PGTABLE_PROT_RWX) {
+		if (!(page->flags & MODULE_OWNED_PAGE))
+			goto unlock;
+	} else if (host_get_page_state(pte, addr) != PKVM_PAGE_OWNED) {
 		goto unlock;
 	}
 
-	/* XXX: optimize ... */
-	if (kvm_pte_valid(pte) && (level == KVM_PGTABLE_MAX_LEVELS - 1))
-		ret = kvm_pgtable_stage2_unmap(&host_mmu.pgt, addr, PAGE_SIZE);
-	if (!ret)
-		ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot, false);
+	if (prot == KVM_PGTABLE_PROT_RWX)
+		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_HOST);
+	else if (!prot)
+		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_PROTECTED);
+	else
+		ret = restrict_host_page_perms(addr, pte, level, prot);
+
+	if (ret)
+		goto unlock;
+
+	if (prot != KVM_PGTABLE_PROT_RWX)
+		hyp_phys_to_page(addr)->flags |= MODULE_OWNED_PAGE;
+	else
+		hyp_phys_to_page(addr)->flags &= ~MODULE_OWNED_PAGE;
 
 unlock:
 	host_unlock_component();
@@ -2112,7 +2146,7 @@ int __pkvm_host_reclaim_page(u64 pfn)
 	if (ret)
 		goto unlock;
 
-	if (host_get_page_state(pte) == PKVM_PAGE_OWNED)
+	if (host_get_page_state(pte, addr) == PKVM_PAGE_OWNED)
 		goto unlock;
 
 	page = hyp_phys_to_page(addr);

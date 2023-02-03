@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
 PATCHLEVEL = 1
-SUBLEVEL = 8
+SUBLEVEL = 9
 EXTRAVERSION =
 NAME = Hurr durr I'ma ninja sloth
 
@@ -556,7 +556,7 @@ LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
 RUSTFLAGS_KERNEL =
 AFLAGS_KERNEL	=
-export LDFLAGS_vmlinux =
+LDFLAGS_vmlinux =
 
 # Use USERINCLUDE when you must reference the UAPI directories only.
 USERINCLUDE    := \
@@ -1293,6 +1293,18 @@ vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
 	@:
 
 PHONY += vmlinux
+# LDFLAGS_vmlinux in the top Makefile defines linker flags for the top vmlinux,
+# not for decompressors. LDFLAGS_vmlinux in arch/*/boot/compressed/Makefile is
+# unrelated; the decompressors just happen to have the same base name,
+# arch/*/boot/compressed/vmlinux.
+# Export LDFLAGS_vmlinux only to scripts/Makefile.vmlinux.
+#
+# _LDFLAGS_vmlinux is a workaround for the 'private export' bug:
+#   https://savannah.gnu.org/bugs/?61463
+# For Make > 4.4, the following simple code will work:
+#  vmlinux: private export LDFLAGS_vmlinux := $(LDFLAGS_vmlinux)
+vmlinux: private _LDFLAGS_vmlinux := $(LDFLAGS_vmlinux)
+vmlinux: export LDFLAGS_vmlinux = $(_LDFLAGS_vmlinux)
 vmlinux: vmlinux.o $(KBUILD_LDS) modpost
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.vmlinux
 endif
@@ -1556,6 +1568,7 @@ endif
 # *.ko are usually independent of vmlinux, but CONFIG_DEBUG_INFOBTF_MODULES
 # is an exception.
 ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+KBUILD_BUILTIN := 1
 modules: $(mixed-build-prefix)vmlinux
 endif
 
