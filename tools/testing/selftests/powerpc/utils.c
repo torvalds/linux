@@ -65,6 +65,64 @@ out:
 	return err;
 }
 
+int read_file_alloc(const char *path, char **buf, size_t *len)
+{
+	size_t read_offset = 0;
+	size_t buffer_len = 0;
+	char *buffer = NULL;
+	int err;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	/*
+	 * We don't use stat & preallocate st_size because some non-files
+	 * report 0 file size. Instead just dynamically grow the buffer
+	 * as needed.
+	 */
+	while (1) {
+		ssize_t rc;
+
+		if (read_offset >= buffer_len / 2) {
+			char *next_buffer;
+
+			buffer_len = buffer_len ? buffer_len * 2 : 4096;
+			next_buffer = realloc(buffer, buffer_len);
+			if (!next_buffer) {
+				err = -errno;
+				goto out;
+			}
+			buffer = next_buffer;
+		}
+
+		rc = read(fd, buffer + read_offset, buffer_len - read_offset);
+		if (rc < 0) {
+			err = -errno;
+			goto out;
+		}
+
+		if (rc == 0)
+			break;
+
+		read_offset += rc;
+	}
+
+	*buf = buffer;
+	if (len)
+		*len = read_offset;
+
+	err = 0;
+
+out:
+	close(fd);
+	if (err)
+		free(buffer);
+	errno = -err;
+	return err;
+}
+
 int write_file(const char *path, const char *buf, size_t count)
 {
 	int fd;
