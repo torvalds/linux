@@ -700,12 +700,13 @@ static inline void _tlbiel_va_range_multicast(struct mm_struct *mm,
  */
 void radix__local_flush_tlb_mm(struct mm_struct *mm)
 {
-	unsigned long pid;
+	unsigned long pid = mm->context.id;
+
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+		return;
 
 	preempt_disable();
-	pid = mm->context.id;
-	if (pid != MMU_NO_CONTEXT)
-		_tlbiel_pid(pid, RIC_FLUSH_TLB);
+	_tlbiel_pid(pid, RIC_FLUSH_TLB);
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_mm);
@@ -713,12 +714,13 @@ EXPORT_SYMBOL(radix__local_flush_tlb_mm);
 #ifndef CONFIG_SMP
 void radix__local_flush_all_mm(struct mm_struct *mm)
 {
-	unsigned long pid;
+	unsigned long pid = mm->context.id;
+
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+		return;
 
 	preempt_disable();
-	pid = mm->context.id;
-	if (pid != MMU_NO_CONTEXT)
-		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	_tlbiel_pid(pid, RIC_FLUSH_ALL);
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__local_flush_all_mm);
@@ -732,12 +734,13 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 				       int psize)
 {
-	unsigned long pid;
+	unsigned long pid = mm->context.id;
+
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+		return;
 
 	preempt_disable();
-	pid = mm->context.id;
-	if (pid != MMU_NO_CONTEXT)
-		_tlbiel_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
+	_tlbiel_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
 	preempt_enable();
 }
 
@@ -945,7 +948,7 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -985,7 +988,7 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -1024,7 +1027,7 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -1130,7 +1133,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -1330,7 +1333,7 @@ static void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
 	fullmm = (end == TLB_FLUSH_ALL);
@@ -1406,7 +1409,7 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
 		return;
 
 	/* 4k page size, just blow the world */
