@@ -397,7 +397,7 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 }
 
 static int vfio_device_first_open(struct vfio_device *device,
-				  struct iommufd_ctx *iommufd, struct kvm *kvm)
+				  struct iommufd_ctx *iommufd)
 {
 	int ret;
 
@@ -444,8 +444,7 @@ static void vfio_device_last_close(struct vfio_device *device,
 	module_put(device->dev->driver->owner);
 }
 
-int vfio_device_open(struct vfio_device *device,
-		     struct iommufd_ctx *iommufd, struct kvm *kvm)
+int vfio_device_open(struct vfio_device *device, struct iommufd_ctx *iommufd)
 {
 	int ret = 0;
 
@@ -453,7 +452,7 @@ int vfio_device_open(struct vfio_device *device,
 
 	device->open_count++;
 	if (device->open_count == 1) {
-		ret = vfio_device_first_open(device, iommufd, kvm);
+		ret = vfio_device_first_open(device, iommufd);
 		if (ret)
 			device->open_count--;
 	}

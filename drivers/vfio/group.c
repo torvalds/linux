@@ -187,7 +187,7 @@ static int vfio_device_group_open(struct vfio_device *device)
 	if (device->open_count == 0)
 		vfio_device_group_get_kvm_safe(device);
 
-	ret = vfio_device_open(device, device->group->iommufd, device->kvm);
+	ret = vfio_device_open(device, device->group->iommufd);
 
 	if (device->open_count == 0)
 		vfio_device_put_kvm(device);
