@@ -31,7 +31,11 @@ properties:
               - mediatek,mt8173-mmsys
               - mediatek,mt8183-mmsys
               - mediatek,mt8186-mmsys
+              - mediatek,mt8188-vdosys0
               - mediatek,mt8192-mmsys
+              - mediatek,mt8195-vdosys1
+              - mediatek,mt8195-vppsys0
+              - mediatek,mt8195-vppsys1
               - mediatek,mt8365-mmsys
           - const: syscon
 

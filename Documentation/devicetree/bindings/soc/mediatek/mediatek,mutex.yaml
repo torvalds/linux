@@ -32,6 +32,7 @@ properties:
       - mediatek,mt8183-disp-mutex
       - mediatek,mt8186-disp-mutex
       - mediatek,mt8186-mdp3-mutex
+      - mediatek,mt8188-disp-mutex
       - mediatek,mt8192-disp-mutex
       - mediatek,mt8195-disp-mutex
 
