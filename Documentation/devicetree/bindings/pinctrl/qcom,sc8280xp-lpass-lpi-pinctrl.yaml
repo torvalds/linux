@@ -134,7 +134,7 @@ examples:
         clock-names = "core", "audio";
         gpio-controller;
         #gpio-cells = <2>;
-        gpio-ranges = <&lpi_tlmm 0 0 18>;
+        gpio-ranges = <&lpi_tlmm 0 0 19>;
 
         dmic01-state {
             dmic01-clk-pins {
