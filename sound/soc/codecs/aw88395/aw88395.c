@@ -569,7 +569,6 @@ MODULE_DEVICE_TABLE(i2c, aw88395_i2c_id);
 static struct i2c_driver aw88395_i2c_driver = {
 	.driver = {
 		.name = AW88395_I2C_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe_new = aw88395_i2c_probe,
 	.id_table = aw88395_i2c_id,
