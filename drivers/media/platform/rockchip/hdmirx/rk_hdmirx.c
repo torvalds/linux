@@ -341,7 +341,7 @@ static u8 edid_init_data_600M[] = {
 
 static char *hdmirx_color_space[8] = {
 	"xvYCC601", "xvYCC709", "sYCC601", "Adobe_YCC601",
-	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB"
+	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB_OR_YCbCr"
 };
 
 static const struct v4l2_dv_timings_cap hdmirx_timings_cap = {
@@ -1666,7 +1666,63 @@ static void hdmirx_set_fmt(struct hdmirx_stream *stream,
 	pixm->height = bt->height;
 	pixm->num_planes = fmt->mplanes;
 	pixm->field = V4L2_FIELD_NONE;
-	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
+
+	switch (hdmirx_dev->cur_color_range) {
+	case HDMIRX_DEFAULT_RANGE:
+		pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
+		break;
+	case HDMIRX_LIMIT_RANGE:
+		pixm->quantization = V4L2_QUANTIZATION_LIM_RANGE;
+		break;
+	case HDMIRX_FULL_RANGE:
+		pixm->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+		break;
+
+	default:
+		pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
+		break;
+	}
+
+	if (hdmirx_dev->pix_fmt == HDMIRX_RGB888) {
+		if (hdmirx_dev->cur_color_space == HDMIRX_BT2020_RGB_OR_YCC)
+			pixm->colorspace = V4L2_COLORSPACE_BT2020;
+		else if (hdmirx_dev->cur_color_space == HDMIRX_ADOBE_RGB)
+			pixm->colorspace = V4L2_COLORSPACE_OPRGB;
+		else
+			pixm->colorspace = V4L2_COLORSPACE_SRGB;
+	} else {
+		switch (hdmirx_dev->cur_color_space) {
+		case HDMIRX_XVYCC601:
+			pixm->colorspace = V4L2_COLORSPACE_DEFAULT;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_XV601;
+			break;
+		case HDMIRX_XVYCC709:
+			pixm->colorspace = V4L2_COLORSPACE_REC709;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_XV709;
+			break;
+		case HDMIRX_SYCC601:
+			pixm->colorspace = V4L2_COLORSPACE_DEFAULT;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_601;
+			break;
+		case HDMIRX_ADOBE_YCC601:
+			pixm->colorspace = V4L2_COLORSPACE_DEFAULT;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_601;
+			break;
+		case HDMIRX_BT2020_YCC_CONST_LUM:
+			pixm->colorspace = V4L2_COLORSPACE_BT2020;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_BT2020_CONST_LUM;
+			break;
+		case HDMIRX_BT2020_RGB_OR_YCC:
+			pixm->colorspace = V4L2_COLORSPACE_BT2020;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
+			break;
+
+		default:
+			pixm->colorspace = V4L2_COLORSPACE_DEFAULT;
+			pixm->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+			break;
+		}
+	}
 
 	/* calculate plane size and image size */
 	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
