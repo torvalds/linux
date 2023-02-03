@@ -65,6 +65,7 @@ struct arm_spe_pkt {
 #define SPE_ADDR_PKT_HDR_INDEX_BRANCH		0x1
 #define SPE_ADDR_PKT_HDR_INDEX_DATA_VIRT	0x2
 #define SPE_ADDR_PKT_HDR_INDEX_DATA_PHYS	0x3
+#define SPE_ADDR_PKT_HDR_INDEX_PREV_BRANCH	0x4
 
 /* Address packet payload */
 #define SPE_ADDR_PKT_ADDR_BYTE7_SHIFT		56
