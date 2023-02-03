@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -177,6 +177,7 @@ struct geni_i2c_dev {
 	bool is_i2c_hub;
 	bool prev_cancel_pending; //Halt cancel till IOS in good state
 	bool is_i2c_rtl_based; /* doing pending cancel only for rtl based SE's */
+	bool skip_bw_vote; /* Used for PMIC over i2c use case to skip the BW vote */
 };
 
 static struct geni_i2c_dev *gi2c_dev_dbg[MAX_SE];
@@ -1470,6 +1471,10 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		gi2c->first_xfer_done = false;
 		dev_info(&pdev->dev, "LE-VM usecase\n");
 	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,leica-used-i2c"))
+		gi2c->skip_bw_vote = true;
+
 	gi2c->i2c_rsc.dev = dev;
 	gi2c->i2c_rsc.wrapper = dev_get_drvdata(dev->parent);
 	gi2c->i2c_rsc.base = gi2c->base;
@@ -1649,6 +1654,18 @@ static int geni_i2c_runtime_suspend(struct device *dev)
 	if (gi2c->se_mode == FIFO_SE_DMA)
 		disable_irq(gi2c->irq);
 
+	if (gi2c->skip_bw_vote) {
+		if (gi2c->is_shared) {
+			/* Do not unconfigure GPIOs if shared se */
+			geni_se_common_clks_off(gi2c->i2c_rsc.clk,
+						gi2c->m_ahb_clk, gi2c->s_ahb_clk);
+		} else if (!gi2c->is_le_vm) {
+			geni_se_resources_off(&gi2c->i2c_rsc);
+		}
+
+		goto skip_bw_vote;
+	}
+
 	if (gi2c->is_le_vm && gi2c->first_xfer_done)
 		geni_i2c_unlock_bus(gi2c);
 	else if (gi2c->is_shared) {
@@ -1666,6 +1683,7 @@ static int geni_i2c_runtime_suspend(struct device *dev)
 			"%s failing at geni_icc_disable ret=%d\n", __func__, ret);
 	}
 
+skip_bw_vote:
 	if (gi2c->is_i2c_hub)
 		clk_disable_unprepare(gi2c->core_clk);
 
@@ -1686,6 +1704,9 @@ static int geni_i2c_runtime_resume(struct device *dev)
 	}
 
 	if (!gi2c->is_le_vm) {
+		if (gi2c->skip_bw_vote)
+			goto skip_bw_vote;
+
 		ret = geni_icc_enable(&gi2c->i2c_rsc);
 		if (ret) {
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
@@ -1705,6 +1726,7 @@ static int geni_i2c_runtime_resume(struct device *dev)
 			gi2c->i2c_rsc.icc_paths[CPU_TO_GENI].avg_bw,
 			gi2c->i2c_rsc.icc_paths[GENI_TO_DDR].avg_bw);
 
+skip_bw_vote:
 		if (gi2c->is_i2c_hub) {
 			ret = clk_prepare_enable(gi2c->core_clk);
 			if (ret) {
