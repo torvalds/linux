@@ -205,13 +205,16 @@ static void wcd_usbss_update_reg_init(struct regmap *regmap)
 			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
 }
 
+#define AUXP_M_EN_MASK	(WCD_USBSS_SWITCH_SETTINGS_ENABLE_DP_AUXM_TO_MGX_SWITCHES_MASK |\
+			WCD_USBSS_SWITCH_SETTINGS_ENABLE_DP_AUXP_TO_MGX_SWITCHES_MASK)
+
 static int wcd_usbss_display_port_switch_update(struct wcd_usbss_ctxt *priv,
 					enum wcd_usbss_cable_types ctype)
 {
 	pr_info("Configuring display port for ctype %d\n", ctype);
 
-	/* Disable all switches */
-	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x7F, 0x00);
+	/* Disable AUX switches */
+	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, AUXP_M_EN_MASK, 0x00);
 
 	/* Select MG1 for AUXP and MG2 for AUXM */
 	if (ctype == WCD_USBSS_DP_AUX_CC1)
@@ -221,7 +224,7 @@ static int wcd_usbss_display_port_switch_update(struct wcd_usbss_ctxt *priv,
 		regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SELECT0, 0xC0, 0x80);
 
 	/* Enable DP_AUXP_TO_MGX and DP_AUXM_TO_MGX switches */
-	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x60, 0x60);
+	regmap_update_bits(priv->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE, AUXP_M_EN_MASK, 0x60);
 	return wcd_usbss_validate_display_port_settings(priv, ctype);
 }
 
