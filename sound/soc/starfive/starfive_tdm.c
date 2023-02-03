@@ -33,17 +33,7 @@ static inline void sf_tdm_writel(struct sf_tdm_dev *dev, u16 reg, u32 val)
 static void sf_tdm_save_context(struct sf_tdm_dev *dev)
 {
 	dev->saved_reg_value[0] = sf_tdm_readl(dev, TDM_PCMGBCR);
-	dev->saved_reg_value[1] = sf_tdm_readl(dev, TDM_PCMTXCR);
-	dev->saved_reg_value[2] = sf_tdm_readl(dev, TDM_PCMRXCR);
 	dev->saved_reg_value[3] = sf_tdm_readl(dev, TDM_PCMDIV);
-}
-
-static void sf_tdm_restore_context(struct sf_tdm_dev *dev)
-{
-	sf_tdm_writel(dev, TDM_PCMGBCR, dev->saved_reg_value[0]);
-	sf_tdm_writel(dev, TDM_PCMTXCR, dev->saved_reg_value[1]);
-	sf_tdm_writel(dev, TDM_PCMRXCR, dev->saved_reg_value[2]);
-	sf_tdm_writel(dev, TDM_PCMDIV, dev->saved_reg_value[3]);
 }
 
 static void sf_tdm_start(struct sf_tdm_dev *dev, struct snd_pcm_substream *substream)
@@ -76,10 +66,6 @@ static void sf_tdm_stop(struct sf_tdm_dev *dev, struct snd_pcm_substream *substr
 		val &= ~PCMRXCR_RXEN;
 		sf_tdm_writel(dev, TDM_PCMRXCR, val);
 	}
-
-	val = sf_tdm_readl(dev, TDM_PCMGBCR);
-	val &= ~PCMGBCR_ENABLE;
-	sf_tdm_writel(dev, TDM_PCMGBCR, val);
 }
 
 static int sf_tdm_syncdiv(struct sf_tdm_dev *dev)
@@ -95,7 +81,7 @@ static int sf_tdm_syncdiv(struct sf_tdm_dev *dev)
 		return -1;
 	}
 
-	if ((dev->syncm == TDM_SYNCM_LONG) &&
+	if ((dev->syncm == TDM_SYNCM_LONG) && 
 			((dev->rx.sscale <= 1) || (dev->tx.sscale <= 1))) {
 		if ((syncdiv + 1) <= sl) {
 			pr_info("set syncdiv failed! it must be (syncdiv+1) > max[tx.sl, rx.sl]\n");
@@ -107,7 +93,7 @@ static int sf_tdm_syncdiv(struct sf_tdm_dev *dev)
 	return 0;
 }
 
-static void sf_tdm_contrl(struct sf_tdm_dev *dev)
+static void sf_tdm_control(struct sf_tdm_dev *dev)
 {
 	u32 data;
 
@@ -122,7 +108,7 @@ static void sf_tdm_config(struct sf_tdm_dev *dev, struct snd_pcm_substream *subs
 {
 	u32 datarx, datatx;
 
-	sf_tdm_contrl(dev);
+	sf_tdm_control(dev);
 	sf_tdm_syncdiv(dev);
 
 	datarx = (dev->rx.ifl << IFL_BIT) |
@@ -219,7 +205,7 @@ static int sf_tdm_runtime_resume(struct device *dev)
 
 	ret = reset_control_deassert(priv->resets);
 	if (ret) {
-		dev_err(dev, "Failed to deassert tdm resets\n");
+		dev_err(dev, "%s: failed to deassert tdm resets\n", __func__);
 		goto err_reset;
 	}
 
@@ -250,6 +236,13 @@ static int sf_tdm_suspend(struct snd_soc_component *component)
 
 static int sf_tdm_resume(struct snd_soc_component *component)
 {
+
+	struct sf_tdm_dev *dev = snd_soc_component_get_drvdata(component);
+
+	// restore context
+	sf_tdm_writel(dev, TDM_PCMGBCR, dev->saved_reg_value[0]);
+	sf_tdm_writel(dev, TDM_PCMDIV, dev->saved_reg_value[3]);
+
 	return pm_runtime_force_resume(component->dev);
 }
 
@@ -258,9 +251,9 @@ static int sf_tdm_resume(struct snd_soc_component *component)
 #define sf_tdm_resume	NULL
 #endif
 
-/*
+/* 
  * To stop dma first, we must implement this function, because it is
- * called before stopping the stream.
+ * called before stopping the stream. 
  */
 static int sf_pcm_trigger(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream, int cmd)
@@ -398,19 +391,19 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 
 	ret = clk_set_rate(dev->clk_mclk_inner, mclk_rate);
 	if (ret) {
-		dev_info(dev->dev, "Can't set clk_mclk: %d\n", ret);
+		dev_err(dev->dev, "Can't set clk_mclk: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_set_rate(dev->clk_tdm_internal, dev->pcmclk);
 	if (ret) {
-		dev_info(dev->dev, "Can't set clk_tdm_internal: %d\n", ret);
+		dev_err(dev->dev, "Can't set clk_tdm_internal: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_set_parent(dev->clk_tdm, dev->clk_tdm_ext);
 	if (ret) {
-		dev_info(dev->dev, "Can't set clock source for clk_tdm: %d\n", ret);
+		dev_err(dev->dev, "Can't set clock source for clk_tdm: %d\n", ret);
 		return ret;
 	}
 
@@ -428,6 +421,10 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 
 	sf_tdm_config(dev, substream);
 	sf_tdm_save_context(dev);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dev->saved_reg_value[1] = sf_tdm_readl(dev, TDM_PCMTXCR);
+	else
+		dev->saved_reg_value[2] = sf_tdm_readl(dev, TDM_PCMRXCR);
 
 	return 0;
 }
@@ -443,7 +440,11 @@ static int sf_tdm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		dev->active++;
-		sf_tdm_restore_context(dev);
+		/* restore context */
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			sf_tdm_writel(dev, TDM_PCMTXCR, dev->saved_reg_value[1]);
+		else
+			sf_tdm_writel(dev, TDM_PCMRXCR, dev->saved_reg_value[2]);
 		sf_tdm_start(dev, substream);
 		break;
 
@@ -529,8 +530,8 @@ static struct snd_soc_dai_driver sf_tdm_dai = {
 static const struct snd_pcm_hardware jh71xx_pcm_hardware = {
 	.info			= (SNDRV_PCM_INFO_MMAP		|
 				   SNDRV_PCM_INFO_MMAP_VALID	|
-				   SNDRV_PCM_INFO_PAUSE 	|
-				   SNDRV_PCM_INFO_RESUME 	|
+				   SNDRV_PCM_INFO_PAUSE		|
+				   SNDRV_PCM_INFO_RESUME	|
 				   SNDRV_PCM_INFO_INTERLEAVED	|
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER),
 	.buffer_bytes_max	= 192512,
@@ -615,12 +616,6 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 		goto exit;
 	}
 
-	ret = reset_control_assert(dev->resets);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to assert tdm resets\n");
-		goto exit;
-	}
-
 	ret = clk_prepare_enable(dev->clk_mclk_inner);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_mclk_inner\n");
@@ -630,68 +625,68 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 	ret = clk_prepare_enable(dev->clk_ahb0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_ahb0\n");
-		goto dis_mclk_inner;
+		goto err_dis_ahb0;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_ahb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_ahb\n");
-		goto dis_ahb0;
+		goto err_dis_tdm_ahb;
 	}
 
 	ret = clk_prepare_enable(dev->clk_apb0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_apb0\n");
-		goto dis_tdm_ahb;
+		goto err_dis_apb0;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_apb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_apb\n");
-		goto dis_apb0;
+		goto err_dis_tdm_apb;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_internal);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_intl\n");
-		goto dis_tdm_apb;
+		goto err_dis_tdm_internal;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_ext);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_tdm_ext\n");
-		goto dis_tdm_internal;
+		goto err_dis_tdm_ext;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_tdm\n");
-		goto dis_tdm_ext;
+		goto err_dis_clk_tdm;
 	}
 
 	ret = reset_control_deassert(dev->resets);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to deassert tdm resets\n");
-		goto dis_tdm_clk;
+		dev_err(&pdev->dev, "%s: failed to deassert tdm resets\n", __func__);
+		goto err_clk_disable;
 	}
-	
+
 	return 0;
 
-dis_tdm_clk:
+err_clk_disable:
 	clk_disable_unprepare(dev->clk_tdm);
-dis_tdm_ext:
+err_dis_clk_tdm:
 	clk_disable_unprepare(dev->clk_tdm_ext);
-dis_tdm_internal:
+err_dis_tdm_ext:
 	clk_disable_unprepare(dev->clk_tdm_internal);
-dis_tdm_apb:
+err_dis_tdm_internal:
 	clk_disable_unprepare(dev->clk_tdm_apb);
-dis_apb0:
+err_dis_tdm_apb:
 	clk_disable_unprepare(dev->clk_apb0);
-dis_tdm_ahb:
+err_dis_apb0:
 	clk_disable_unprepare(dev->clk_tdm_ahb);
-dis_ahb0:
+err_dis_tdm_ahb:
 	clk_disable_unprepare(dev->clk_ahb0);
-dis_mclk_inner:
+err_dis_ahb0:
 	clk_disable_unprepare(dev->clk_mclk_inner);
 exit:
 	return ret;
@@ -722,8 +717,8 @@ static int sf_tdm_probe(struct platform_device *pdev)
 
 	dev->frame_mode = SHORT_LATER;
 	tdm_init_params(dev);
-	dev_set_drvdata(&pdev->dev, dev);
 
+	dev_set_drvdata(&pdev->dev, dev);
 	ret = devm_snd_soc_register_component(&pdev->dev, &sf_tdm_component,
 					 &sf_tdm_dai, 1);
 	if (ret != 0) {
@@ -760,10 +755,11 @@ MODULE_DEVICE_TABLE(of, sf_tdm_of_match);
 
 static const struct dev_pm_ops sf_tdm_pm_ops = {
 	SET_RUNTIME_PM_OPS(sf_tdm_runtime_suspend,
-			sf_tdm_runtime_resume, NULL)
+			   sf_tdm_runtime_resume, NULL)
 };
 
 static struct platform_driver sf_tdm_driver = {
+
 	.driver = {
 		.name = "jh7110-tdm",
 		.of_match_table = sf_tdm_of_match,
