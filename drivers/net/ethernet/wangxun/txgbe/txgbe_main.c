@@ -223,6 +223,10 @@ static void txgbe_up_complete(struct wx *wx)
 	wx_control_hw(wx, true);
 	wx_configure_vectors(wx);
 
+	/* make sure to complete pre-operations */
+	smp_mb__before_atomic();
+	wx_napi_enable_all(wx);
+
 	/* clear any pending interrupts, may auto mask */
 	rd32(wx, WX_PX_IC);
 	rd32(wx, WX_PX_MISC_IC);
@@ -236,6 +240,10 @@ static void txgbe_up_complete(struct wx *wx)
 	wr32(wx, WX_MAC_WDG_TIMEOUT, reg);
 	reg = rd32(wx, WX_MAC_TX_CFG);
 	wr32(wx, WX_MAC_TX_CFG, (reg & ~WX_MAC_TX_CFG_SPEED_MASK) | WX_MAC_TX_CFG_SPEED_10G);
+
+	/* enable transmits */
+	netif_tx_start_all_queues(wx->netdev);
+	netif_carrier_on(wx->netdev);
 }
 
 static void txgbe_reset(struct wx *wx)
@@ -268,10 +276,12 @@ static void txgbe_disable_device(struct wx *wx)
 		/* this call also flushes the previous write */
 		wx_disable_rx_queue(wx, wx->rx_ring[i]);
 
+	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
 
 	wx_irq_disable(wx);
+	wx_napi_disable_all(wx);
 
 	if (wx->bus.func < 2)
 		wr32m(wx, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wx->bus.func), 0);
@@ -300,6 +310,9 @@ static void txgbe_down(struct wx *wx)
 {
 	txgbe_disable_device(wx);
 	txgbe_reset(wx);
+
+	wx_clean_all_tx_rings(wx);
+	wx_clean_all_rx_rings(wx);
 }
 
 /**
@@ -381,10 +394,21 @@ static int txgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_free_isb;
 
+	/* Notify the stack of the actual queue counts. */
+	err = netif_set_real_num_tx_queues(netdev, wx->num_tx_queues);
+	if (err)
+		goto err_free_irq;
+
+	err = netif_set_real_num_rx_queues(netdev, wx->num_rx_queues);
+	if (err)
+		goto err_free_irq;
+
 	txgbe_up_complete(wx);
 
 	return 0;
 
+err_free_irq:
+	wx_free_irq(wx);
 err_free_isb:
 	wx_free_isb_resources(wx);
 err_reset:
@@ -403,8 +427,6 @@ err_reset:
 static void txgbe_close_suspend(struct wx *wx)
 {
 	txgbe_disable_device(wx);
-
-	wx_free_irq(wx);
 	wx_free_resources(wx);
 }
 
@@ -461,19 +483,14 @@ static void txgbe_shutdown(struct pci_dev *pdev)
 	}
 }
 
-static netdev_tx_t txgbe_xmit_frame(struct sk_buff *skb,
-				    struct net_device *netdev)
-{
-	return NETDEV_TX_OK;
-}
-
 static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_open               = txgbe_open,
 	.ndo_stop               = txgbe_close,
-	.ndo_start_xmit         = txgbe_xmit_frame,
+	.ndo_start_xmit         = wx_xmit_frame,
 	.ndo_set_rx_mode        = wx_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac,
+	.ndo_get_stats64        = wx_get_stats64,
 };
 
 /**
@@ -646,6 +663,8 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_release_hw;
 
 	pci_set_drvdata(pdev, wx);
+
+	netif_tx_stop_all_queues(netdev);
 
 	/* calculate the expected PCIe bandwidth required for optimal
 	 * performance. Note that some older parts will never have enough
