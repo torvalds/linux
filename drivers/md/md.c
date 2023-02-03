@@ -8628,12 +8628,15 @@ static void md_end_io_acct(struct bio *bio)
 {
 	struct md_io_acct *md_io_acct = bio->bi_private;
 	struct bio *orig_bio = md_io_acct->orig_bio;
+	struct mddev *mddev = md_io_acct->mddev;
 
 	orig_bio->bi_status = bio->bi_status;
 
 	bio_end_io_acct(orig_bio, md_io_acct->start_time);
 	bio_put(bio);
 	bio_endio(orig_bio);
+
+	percpu_ref_put(&mddev->active_io);
 }
 
 /*
@@ -8649,10 +8652,13 @@ void md_account_bio(struct mddev *mddev, struct bio **bio)
 	if (!blk_queue_io_stat(bdev->bd_disk->queue))
 		return;
 
+	percpu_ref_get(&mddev->active_io);
+
 	clone = bio_alloc_clone(bdev, *bio, GFP_NOIO, &mddev->io_acct_set);
 	md_io_acct = container_of(clone, struct md_io_acct, bio_clone);
 	md_io_acct->orig_bio = *bio;
 	md_io_acct->start_time = bio_start_io_acct(*bio);
+	md_io_acct->mddev = mddev;
 
 	clone->bi_end_io = md_end_io_acct;
 	clone->bi_private = md_io_acct;
