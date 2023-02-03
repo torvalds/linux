@@ -30,11 +30,13 @@ allOf:
 
 properties:
   compatible:
-    contains:
-      oneOf:
-        - const: snps,dwc3
-        - const: synopsys,dwc3
-          deprecated: true
+    oneOf:
+      - items:
+          - const: fsl,imx8mq-dwc3
+          - const: snps,dwc3
+      - const: snps,dwc3
+      - const: synopsys,dwc3
+        deprecated: true
 
   reg:
     maxItems: 1
