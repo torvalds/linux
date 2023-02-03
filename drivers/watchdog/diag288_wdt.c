@@ -27,7 +27,6 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
-#include <linux/suspend.h>
 #include <asm/ebcdic.h>
 #include <asm/diag.h>
 #include <linux/io.h>
@@ -103,10 +102,6 @@ static int __diag288_lpar(unsigned int func, unsigned int timeout,
 	return __diag288(func, timeout, action, 0);
 }
 
-static unsigned long wdt_status;
-
-#define DIAG_WDOG_BUSY	0
-
 static int wdt_start(struct watchdog_device *dev)
 {
 	char *ebc_cmd;
@@ -114,15 +109,10 @@ static int wdt_start(struct watchdog_device *dev)
 	int ret;
 	unsigned int func;
 
-	if (test_and_set_bit(DIAG_WDOG_BUSY, &wdt_status))
-		return -EBUSY;
-
 	if (MACHINE_IS_VM) {
 		ebc_cmd = kmalloc(MAX_CMDLEN, GFP_KERNEL);
-		if (!ebc_cmd) {
-			clear_bit(DIAG_WDOG_BUSY, &wdt_status);
+		if (!ebc_cmd)
 			return -ENOMEM;
-		}
 		len = strlcpy(ebc_cmd, wdt_cmd, MAX_CMDLEN);
 		ASCEBC(ebc_cmd, MAX_CMDLEN);
 		EBC_TOUPPER(ebc_cmd, MAX_CMDLEN);
@@ -139,7 +129,6 @@ static int wdt_start(struct watchdog_device *dev)
 
 	if (ret) {
 		pr_err("The watchdog cannot be activated\n");
-		clear_bit(DIAG_WDOG_BUSY, &wdt_status);
 		return ret;
 	}
 	return 0;
@@ -151,8 +140,6 @@ static int wdt_stop(struct watchdog_device *dev)
 
 	diag_stat_inc(DIAG_STAT_X288);
 	ret = __diag288(WDT_FUNC_CANCEL, 0, 0, 0);
-
-	clear_bit(DIAG_WDOG_BUSY, &wdt_status);
 
 	return ret;
 }
@@ -222,45 +209,6 @@ static struct watchdog_device wdt_dev = {
 	.max_timeout = MAX_INTERVAL,
 };
 
-/*
- * It makes no sense to go into suspend while the watchdog is running.
- * Depending on the memory size, the watchdog might trigger, while we
- * are still saving the memory.
- */
-static int wdt_suspend(void)
-{
-	if (test_and_set_bit(DIAG_WDOG_BUSY, &wdt_status)) {
-		pr_err("Linux cannot be suspended while the watchdog is in use\n");
-		return notifier_from_errno(-EBUSY);
-	}
-	return NOTIFY_DONE;
-}
-
-static int wdt_resume(void)
-{
-	clear_bit(DIAG_WDOG_BUSY, &wdt_status);
-	return NOTIFY_DONE;
-}
-
-static int wdt_power_event(struct notifier_block *this, unsigned long event,
-			   void *ptr)
-{
-	switch (event) {
-	case PM_POST_HIBERNATION:
-	case PM_POST_SUSPEND:
-		return wdt_resume();
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
-		return wdt_suspend();
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-static struct notifier_block wdt_power_notifier = {
-	.notifier_call = wdt_power_event,
-};
-
 static int __init diag288_init(void)
 {
 	int ret;
@@ -297,21 +245,12 @@ static int __init diag288_init(void)
 		return -EINVAL;
 	}
 
-	ret = register_pm_notifier(&wdt_power_notifier);
-	if (ret)
-		return ret;
-
-	ret = watchdog_register_device(&wdt_dev);
-	if (ret)
-		unregister_pm_notifier(&wdt_power_notifier);
-
-	return ret;
+	return watchdog_register_device(&wdt_dev);
 }
 
 static void __exit diag288_exit(void)
 {
 	watchdog_unregister_device(&wdt_dev);
-	unregister_pm_notifier(&wdt_power_notifier);
 }
 
 module_init(diag288_init);
