@@ -116,32 +116,32 @@ examples:
   - |
 
     spi {
-          #address-cells = <1>;
-          #size-cells = <0>;
-          ltc2688: ltc2688@0 {
-                  compatible = "adi,ltc2688";
-                  reg = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        ltc2688: ltc2688@0 {
+            compatible = "adi,ltc2688";
+            reg = <0>;
 
-                  vcc-supply = <&vcc>;
-                  iovcc-supply = <&vcc>;
-                  vref-supply = <&vref>;
+            vcc-supply = <&vcc>;
+            iovcc-supply = <&vcc>;
+            vref-supply = <&vref>;
 
-                  #address-cells = <1>;
-                  #size-cells = <0>;
-                  channel@0 {
-                          reg = <0>;
-                          adi,toggle-mode;
-                          adi,overrange;
-                  };
+            #address-cells = <1>;
+            #size-cells = <0>;
+            channel@0 {
+                reg = <0>;
+                adi,toggle-mode;
+                adi,overrange;
+            };
 
-                  channel@1 {
-                          reg = <1>;
-                          adi,output-range-microvolt = <0 10000000>;
+            channel@1 {
+                reg = <1>;
+                adi,output-range-microvolt = <0 10000000>;
 
-                          clocks = <&clock_tgp3>;
-                          adi,toggle-dither-input = <2>;
-                  };
-          };
+                clocks = <&clock_tgp3>;
+                adi,toggle-dither-input = <2>;
+            };
+        };
     };
 
 ...

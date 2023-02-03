@@ -543,6 +543,8 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm", 0,
 					SCALE_HW_CALIB_XOTHERM)
+	[ADC5_BAT_ID_100K_PU]	= ADC5_CHAN_TEMP("bat_id", 0,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
@@ -894,10 +896,8 @@ static int adc5_probe(struct platform_device *pdev)
 	mutex_init(&adc->lock);
 
 	ret = adc5_get_fw_data(adc);
-	if (ret) {
-		dev_err(dev, "adc get dt data failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "adc get dt data failed\n");
 
 	irq_eoc = platform_get_irq(pdev, 0);
 	if (irq_eoc < 0) {

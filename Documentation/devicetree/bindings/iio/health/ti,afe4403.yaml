@@ -42,7 +42,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        heart_mon@0 {
+        heart-mon@0 {
             compatible = "ti,afe4403";
             reg = <0>;
             spi-max-frequency = <10000000>;

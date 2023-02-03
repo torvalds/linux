@@ -4,7 +4,6 @@
  *
  * Copyright 2022 Analog Devices Inc.
  */
-#include <asm-generic/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -15,6 +14,8 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+
+#include <asm/unaligned.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/sysfs.h>
