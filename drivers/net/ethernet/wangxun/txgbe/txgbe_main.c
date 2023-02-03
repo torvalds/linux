@@ -218,6 +218,8 @@ static int txgbe_request_irq(struct wx *wx)
 
 static void txgbe_up_complete(struct wx *wx)
 {
+	u32 reg;
+
 	wx_control_hw(wx, true);
 	wx_configure_vectors(wx);
 
@@ -225,6 +227,15 @@ static void txgbe_up_complete(struct wx *wx)
 	rd32(wx, WX_PX_IC);
 	rd32(wx, WX_PX_MISC_IC);
 	txgbe_irq_enable(wx, true);
+
+	/* Configure MAC Rx and Tx when link is up */
+	reg = rd32(wx, WX_MAC_RX_CFG);
+	wr32(wx, WX_MAC_RX_CFG, reg);
+	wr32(wx, WX_MAC_PKT_FLT, WX_MAC_PKT_FLT_PR);
+	reg = rd32(wx, WX_MAC_WDG_TIMEOUT);
+	wr32(wx, WX_MAC_WDG_TIMEOUT, reg);
+	reg = rd32(wx, WX_MAC_TX_CFG);
+	wr32(wx, WX_MAC_TX_CFG, (reg & ~WX_MAC_TX_CFG_SPEED_MASK) | WX_MAC_TX_CFG_SPEED_10G);
 }
 
 static void txgbe_reset(struct wx *wx)
@@ -246,10 +257,16 @@ static void txgbe_reset(struct wx *wx)
 static void txgbe_disable_device(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
+	u32 i;
 
 	wx_disable_pcie_master(wx);
 	/* disable receives */
 	wx_disable_rx(wx);
+
+	/* disable all enabled rx queues */
+	for (i = 0; i < wx->num_rx_queues; i++)
+		/* this call also flushes the previous write */
+		wx_disable_rx_queue(wx, wx->rx_ring[i]);
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
@@ -266,6 +283,13 @@ static void txgbe_disable_device(struct wx *wx)
 	      ((wx->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP))) {
 		/* disable mac transmiter */
 		wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
+	}
+
+	/* disable transmits in the hardware now that interrupts are off */
+	for (i = 0; i < wx->num_tx_queues; i++) {
+		u8 reg_idx = wx->tx_ring[i]->reg_idx;
+
+		wr32(wx, WX_PX_TR_CFG(reg_idx), WX_PX_TR_CFG_SWFLSH);
 	}
 
 	/* Disable the Tx DMA engine */
@@ -291,6 +315,8 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
 	wx->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
 	wx->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
+	wx->mac.rx_pb_size = TXGBE_SP_RX_PB_SIZE;
+	wx->mac.tx_pb_size = TXGBE_SP_TDB_PB_SZ;
 
 	/* PCI config space info */
 	err = wx_sw_init(wx);
@@ -345,7 +371,7 @@ static int txgbe_open(struct net_device *netdev)
 	struct wx *wx = netdev_priv(netdev);
 	int err;
 
-	err = wx_setup_isb_resources(wx);
+	err = wx_setup_resources(wx);
 	if (err)
 		goto err_reset;
 
@@ -379,7 +405,7 @@ static void txgbe_close_suspend(struct wx *wx)
 	txgbe_disable_device(wx);
 
 	wx_free_irq(wx);
-	wx_free_isb_resources(wx);
+	wx_free_resources(wx);
 }
 
 /**
@@ -399,7 +425,7 @@ static int txgbe_close(struct net_device *netdev)
 
 	txgbe_down(wx);
 	wx_free_irq(wx);
-	wx_free_isb_resources(wx);
+	wx_free_resources(wx);
 	wx_control_hw(wx, false);
 
 	return 0;
@@ -445,6 +471,7 @@ static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_open               = txgbe_open,
 	.ndo_stop               = txgbe_close,
 	.ndo_start_xmit         = txgbe_xmit_frame,
+	.ndo_set_rx_mode        = wx_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac,
 };
@@ -549,6 +576,16 @@ static int txgbe_probe(struct pci_dev *pdev,
 	}
 
 	netdev->features |= NETIF_F_HIGHDMA;
+	netdev->features = NETIF_F_SG;
+
+	/* copy netdev features into list of user selectable features */
+	netdev->hw_features |= netdev->features | NETIF_F_RXALL;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
+
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = TXGBE_MAX_JUMBO_FRAME_SIZE - (ETH_HLEN + ETH_FCS_LEN);
 
 	/* make sure the EEPROM is good */
 	err = txgbe_validate_eeprom_checksum(wx, NULL);
