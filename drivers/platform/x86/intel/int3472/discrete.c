@@ -78,14 +78,6 @@ skl_int3472_get_sensor_module_config(struct int3472_discrete_device *int3472)
 		return ERR_PTR(-ENODEV);
 	}
 
-	if (obj->string.type != ACPI_TYPE_STRING) {
-		dev_err(int3472->dev,
-			"Sensor _DSM returned a non-string value\n");
-
-		ACPI_FREE(obj);
-		return ERR_PTR(-EINVAL);
-	}
-
 	for (i = 0; i < ARRAY_SIZE(int3472_sensor_configs); i++) {
 		if (!strcmp(int3472_sensor_configs[i].sensor_module_name,
 			    obj->string.pointer))
