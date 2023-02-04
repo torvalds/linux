@@ -71,8 +71,9 @@ static int udf_verify_fi(struct udf_fileident_iter *iter)
 static int udf_copy_fi(struct udf_fileident_iter *iter)
 {
 	struct udf_inode_info *iinfo = UDF_I(iter->dir);
-	int blksize = 1 << iter->dir->i_blkbits;
-	int err, off, len, nameoff;
+	u32 blksize = 1 << iter->dir->i_blkbits;
+	u32 off, len, nameoff;
+	int err;
 
 	/* Skip copying when we are at EOF */
 	if (iter->pos >= iter->dir->i_size) {
