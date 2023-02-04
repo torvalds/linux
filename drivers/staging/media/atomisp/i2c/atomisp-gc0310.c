@@ -57,14 +57,60 @@ static int gc0310_write_reg_array(struct i2c_client *client,
 	return 0;
 }
 
+static int gc0310_exposure_set(struct gc0310_device *dev, u32 exp)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
+
+	return i2c_smbus_write_word_swapped(client, GC0310_AEC_PK_EXPO_H, exp);
+}
+
+static int gc0310_gain_set(struct gc0310_device *dev, u32 gain)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
+	u8 again, dgain;
+	int ret;
+
+	/* Taken from original driver, this never sets dgain lower then 32? */
+
+	/* Change 0 - 95 to 32 - 127 */
+	gain += 32;
+
+	if (gain < 64) {
+		again = 0x0; /* sqrt(2) */
+		dgain = gain;
+	} else {
+		again = 0x2; /* 2 * sqrt(2) */
+		dgain = gain / 2;
+	}
+
+	ret = i2c_smbus_write_byte_data(client, GC0310_AGC_ADJ, again);
+	if (ret)
+		return ret;
+
+	return i2c_smbus_write_byte_data(client, GC0310_DGC_ADJ, dgain);
+}
+
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	int ret = 0;
+	struct gc0310_device *dev =
+		container_of(ctrl->handler, struct gc0310_device, ctrls.handler);
+	int ret;
+
+	if (!dev->power_on)
+		return 0;
 
 	switch (ctrl->id) {
+	case V4L2_CID_EXPOSURE:
+		ret = gc0310_exposure_set(dev, ctrl->val);
+		break;
+	case V4L2_CID_GAIN:
+		ret = gc0310_gain_set(dev, ctrl->val);
+		break;
 	default:
 		ret = -EINVAL;
+		break;
 	}
+
 	return ret;
 }
 
@@ -83,13 +129,18 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	/* set initial registers */
 	ret = gc0310_write_reg_array(client, gc0310_reset_register,
 				     ARRAY_SIZE(gc0310_reset_register));
+	if (ret)
+		goto out_unlock;
 
 	/* restore settings */
 	gc0310_res = gc0310_res_preview;
 	N_RES = N_RES_PREVIEW;
 
-	mutex_unlock(&dev->input_lock);
+	/* restore value of all ctrls */
+	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
 
+out_unlock:
+	mutex_unlock(&dev->input_lock);
 	return ret;
 }
 
@@ -545,6 +596,26 @@ static const struct v4l2_subdev_ops gc0310_ops = {
 	.sensor = &gc0310_sensor_ops,
 };
 
+static int gc0310_init_controls(struct gc0310_device *dev)
+{
+	struct v4l2_ctrl_handler *hdl = &dev->ctrls.handler;
+
+	v4l2_ctrl_handler_init(hdl, 2);
+
+	/* Use the same lock for controls as for everything else */
+	hdl->lock = &dev->input_lock;
+	dev->sd.ctrl_handler = hdl;
+
+	dev->ctrls.exposure =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_EXPOSURE, 0, 4095, 1, 1023);
+
+	/* 32 steps at base gain 1 + 64 half steps at base gain 2 */
+	dev->ctrls.gain =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_GAIN, 0, 95, 1, 31);
+
+	return hdl->error;
+}
+
 static void gc0310_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -556,7 +627,7 @@ static void gc0310_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
-	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	v4l2_ctrl_handler_free(&dev->ctrls.handler);
 	kfree(dev);
 }
 
@@ -595,20 +666,12 @@ static int gc0310_probe(struct i2c_client *client)
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->format.code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret = v4l2_ctrl_handler_init(&dev->ctrl_handler, 0);
+
+	ret = gc0310_init_controls(dev);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
 	}
-
-	if (dev->ctrl_handler.error) {
-		gc0310_remove(client);
-		return dev->ctrl_handler.error;
-	}
-
-	/* Use same lock for controls as for everything else. */
-	dev->ctrl_handler.lock = &dev->input_lock;
-	dev->sd.ctrl_handler = &dev->ctrl_handler;
 
 	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
 	if (ret)

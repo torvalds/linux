@@ -126,12 +126,17 @@ struct gc0310_device {
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt format;
 	struct mutex input_lock;
-	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct camera_sensor_platform_data *platform_data;
 	struct gc0310_resolution *res;
 	u8 type;
 	bool power_on;
+
+	struct gc0310_ctrls {
+		struct v4l2_ctrl_handler handler;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *gain;
+	} ctrls;
 };
 
 /**
