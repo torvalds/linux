@@ -107,11 +107,6 @@
 
 #define GC0310_BIN_FACTOR_MAX			3
 
-struct regval_list {
-	u16 reg_num;
-	u8 value;
-};
-
 struct gc0310_resolution {
 	u8 *desc;
 	const struct gc0310_reg *regs;
@@ -124,12 +119,6 @@ struct gc0310_resolution {
 	u16 pixels_per_line;
 	u16 lines_per_frame;
 	bool used;
-};
-
-struct gc0310_format {
-	u8 *desc;
-	u32 pixelformat;
-	struct gc0310_reg *regs;
 };
 
 /*
