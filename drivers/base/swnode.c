@@ -760,7 +760,7 @@ static void software_node_release(struct kobject *kobj)
 	kfree(swnode);
 }
 
-static struct kobj_type software_node_type = {
+static const struct kobj_type software_node_type = {
 	.release = software_node_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };

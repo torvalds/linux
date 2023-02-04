@@ -91,7 +91,7 @@ static void driver_release(struct kobject *kobj)
 	kfree(drv_priv);
 }
 
-static struct kobj_type driver_ktype = {
+static const struct kobj_type driver_ktype = {
 	.sysfs_ops	= &driver_sysfs_ops,
 	.release	= driver_release,
 };
@@ -159,7 +159,7 @@ static void bus_release(struct kobject *kobj)
 	bus->p = NULL;
 }
 
-static struct kobj_type bus_ktype = {
+static const struct kobj_type bus_ktype = {
 	.sysfs_ops	= &bus_sysfs_ops,
 	.release	= bus_release,
 };
