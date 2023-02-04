@@ -144,18 +144,6 @@ static long gc0310_s_exposure(struct v4l2_subdev *sd,
 	return gc0310_set_exposure(sd, exp, gain, digitgain);
 }
 
-/* TO DO */
-static int gc0310_v_flip(struct v4l2_subdev *sd, s32 value)
-{
-	return 0;
-}
-
-/* TO DO */
-static int gc0310_h_flip(struct v4l2_subdev *sd, s32 value)
-{
-	return 0;
-}
-
 static long gc0310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
@@ -186,22 +174,9 @@ static int gc0310_q_exposure(struct v4l2_subdev *sd, s32 *value)
 
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct gc0310_device *dev =
-	    container_of(ctrl->handler, struct gc0310_device, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
 	int ret = 0;
 
 	switch (ctrl->id) {
-	case V4L2_CID_VFLIP:
-		dev_dbg(&client->dev, "%s: CID_VFLIP:%d.\n",
-			__func__, ctrl->val);
-		ret = gc0310_v_flip(&dev->sd, ctrl->val);
-		break;
-	case V4L2_CID_HFLIP:
-		dev_dbg(&client->dev, "%s: CID_HFLIP:%d.\n",
-			__func__, ctrl->val);
-		ret = gc0310_h_flip(&dev->sd, ctrl->val);
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -241,26 +216,6 @@ static const struct v4l2_ctrl_config gc0310_controls[] = {
 		.step = 0x01,
 		.def = 0x00,
 		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_VFLIP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Flip",
-		.min = 0,
-		.max = 1,
-		.step = 1,
-		.def = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_HFLIP,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Mirror",
-		.min = 0,
-		.max = 1,
-		.step = 1,
-		.def = 0,
 	},
 };
 
