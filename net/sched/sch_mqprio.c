@@ -17,6 +17,8 @@
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>
 
+#include "sch_mqprio_lib.h"
+
 struct mqprio_sched {
 	struct Qdisc		**qdiscs;
 	u16 mode;
@@ -26,59 +28,6 @@ struct mqprio_sched {
 	u64 min_rate[TC_QOPT_MAX_QUEUE];
 	u64 max_rate[TC_QOPT_MAX_QUEUE];
 };
-
-/* Returns true if the intervals [a, b) and [c, d) overlap. */
-static bool intervals_overlap(int a, int b, int c, int d)
-{
-	int left = max(a, c), right = min(b, d);
-
-	return left < right;
-}
-
-static int mqprio_validate_queue_counts(struct net_device *dev,
-					const struct tc_mqprio_qopt *qopt,
-					struct netlink_ext_ack *extack)
-{
-	int i, j;
-
-	for (i = 0; i < qopt->num_tc; i++) {
-		unsigned int last = qopt->offset[i] + qopt->count[i];
-
-		if (!qopt->count[i]) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "No queues for TC %d",
-					       i);
-			return -EINVAL;
-		}
-
-		/* Verify the queue count is in tx range being equal to the
-		 * real_num_tx_queues indicates the last queue is in use.
-		 */
-		if (qopt->offset[i] >= dev->real_num_tx_queues ||
-		    last > dev->real_num_tx_queues) {
-			NL_SET_ERR_MSG_FMT_MOD(extack,
-					       "Queues %d:%d for TC %d exceed the %d TX queues available",
-					       qopt->count[i], qopt->offset[i],
-					       i, dev->real_num_tx_queues);
-			return -EINVAL;
-		}
-
-		/* Verify that the offset and counts do not overlap */
-		for (j = i + 1; j < qopt->num_tc; j++) {
-			if (intervals_overlap(qopt->offset[i], last,
-					      qopt->offset[j],
-					      qopt->offset[j] +
-					      qopt->count[j])) {
-				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "TC %d queues %d@%d overlap with TC %d queues %d@%d",
-						       i, qopt->count[i], qopt->offset[i],
-						       j, qopt->count[j], qopt->offset[j]);
-				return -EINVAL;
-			}
-		}
-	}
-
-	return 0;
-}
 
 static int mqprio_enable_offload(struct Qdisc *sch,
 				 const struct tc_mqprio_qopt *qopt,
@@ -160,17 +109,7 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 			    const struct tc_mqprio_caps *caps,
 			    struct netlink_ext_ack *extack)
 {
-	int i, err;
-
-	/* Verify num_tc is not out of max range */
-	if (qopt->num_tc > TC_MAX_QUEUE)
-		return -EINVAL;
-
-	/* Verify priority mapping uses valid tcs */
-	for (i = 0; i < TC_BITMASK + 1; i++) {
-		if (qopt->prio_tc_map[i] >= qopt->num_tc)
-			return -EINVAL;
-	}
+	int err;
 
 	/* Limit qopt->hw to maximum supported offload value.  Drivers have
 	 * the option of overriding this later if they don't support the a
@@ -185,11 +124,11 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 	 * - validate the provided queue counts by itself (and apply them)
 	 * - request queue count validation here (and apply them)
 	 */
-	if (!qopt->hw || caps->validate_queue_counts) {
-		err = mqprio_validate_queue_counts(dev, qopt, extack);
-		if (err)
-			return err;
-	}
+	err = mqprio_validate_qopt(dev, qopt,
+				   !qopt->hw || caps->validate_queue_counts,
+				   false, extack);
+	if (err)
+		return err;
 
 	/* If ndo_setup_tc is not present then hardware doesn't support offload
 	 * and we should return an error.

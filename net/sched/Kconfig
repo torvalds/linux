@@ -195,8 +195,14 @@ config NET_SCH_ETF
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_etf.
 
+config NET_SCH_MQPRIO_LIB
+	tristate
+	help
+	  Common library for manipulating mqprio queue configurations.
+
 config NET_SCH_TAPRIO
 	tristate "Time Aware Priority (taprio) Scheduler"
+	select NET_SCH_MQPRIO_LIB
 	help
 	  Say Y here if you want to use the Time Aware Priority (taprio) packet
 	  scheduling algorithm.
@@ -253,6 +259,7 @@ config NET_SCH_DRR
 
 config NET_SCH_MQPRIO
 	tristate "Multi-queue priority scheduler (MQPRIO)"
+	select NET_SCH_MQPRIO_LIB
 	help
 	  Say Y here if you want to use the Multi-queue Priority scheduler.
 	  This scheduler allows QOS to be offloaded on NICs that have support
