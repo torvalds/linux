@@ -424,6 +424,7 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	struct ata_host *host;
 	struct pi_adapter *pi;
 	struct pi_device_match match = { .parport = parport, .proto = pr };
+	int id;
 
 	/*
 	 * Abort if there's a device already registered on the same parport
@@ -441,9 +442,10 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	pi->dev.bus = &pata_parport_bus_type;
 	pi->dev.driver = &pr->driver;
 	pi->dev.release = pata_parport_dev_release;
-	pi->dev.id = ida_alloc(&pata_parport_bus_dev_ids, GFP_KERNEL);
-	if (pi->dev.id < 0)
+	id = ida_alloc(&pata_parport_bus_dev_ids, GFP_KERNEL);
+	if (id < 0)
 		return NULL; /* pata_parport_dev_release will do kfree(pi) */
+	pi->dev.id = id;
 	dev_set_name(&pi->dev, "pata_parport.%u", pi->dev.id);
 	if (device_register(&pi->dev)) {
 		put_device(&pi->dev);
