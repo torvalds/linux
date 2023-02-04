@@ -36,28 +36,44 @@ static bool intervals_overlap(int a, int b, int c, int d)
 }
 
 static int mqprio_validate_queue_counts(struct net_device *dev,
-					const struct tc_mqprio_qopt *qopt)
+					const struct tc_mqprio_qopt *qopt,
+					struct netlink_ext_ack *extack)
 {
 	int i, j;
 
 	for (i = 0; i < qopt->num_tc; i++) {
 		unsigned int last = qopt->offset[i] + qopt->count[i];
 
+		if (!qopt->count[i]) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "No queues for TC %d",
+					       i);
+			return -EINVAL;
+		}
+
 		/* Verify the queue count is in tx range being equal to the
 		 * real_num_tx_queues indicates the last queue is in use.
 		 */
 		if (qopt->offset[i] >= dev->real_num_tx_queues ||
-		    !qopt->count[i] ||
-		    last > dev->real_num_tx_queues)
+		    last > dev->real_num_tx_queues) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Queues %d:%d for TC %d exceed the %d TX queues available",
+					       qopt->count[i], qopt->offset[i],
+					       i, dev->real_num_tx_queues);
 			return -EINVAL;
+		}
 
 		/* Verify that the offset and counts do not overlap */
 		for (j = i + 1; j < qopt->num_tc; j++) {
 			if (intervals_overlap(qopt->offset[i], last,
 					      qopt->offset[j],
 					      qopt->offset[j] +
-					      qopt->count[j]))
+					      qopt->count[j])) {
+				NL_SET_ERR_MSG_FMT_MOD(extack,
+						       "TC %d queues %d@%d overlap with TC %d queues %d@%d",
+						       i, qopt->count[i], qopt->offset[i],
+						       j, qopt->count[j], qopt->offset[j]);
 				return -EINVAL;
+			}
 		}
 	}
 
@@ -65,7 +81,8 @@ static int mqprio_validate_queue_counts(struct net_device *dev,
 }
 
 static int mqprio_enable_offload(struct Qdisc *sch,
-				 const struct tc_mqprio_qopt *qopt)
+				 const struct tc_mqprio_qopt *qopt,
+				 struct netlink_ext_ack *extack)
 {
 	struct tc_mqprio_qopt_offload mqprio = {.qopt = *qopt};
 	struct mqprio_sched *priv = qdisc_priv(sch);
@@ -140,7 +157,8 @@ static void mqprio_destroy(struct Qdisc *sch)
 }
 
 static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
-			    const struct tc_mqprio_caps *caps)
+			    const struct tc_mqprio_caps *caps,
+			    struct netlink_ext_ack *extack)
 {
 	int i, err;
 
@@ -168,7 +186,7 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 	 * - request queue count validation here (and apply them)
 	 */
 	if (!qopt->hw || caps->validate_queue_counts) {
-		err = mqprio_validate_queue_counts(dev, qopt);
+		err = mqprio_validate_queue_counts(dev, qopt, extack);
 		if (err)
 			return err;
 	}
@@ -296,7 +314,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 				 &caps, sizeof(caps));
 
 	qopt = nla_data(opt);
-	if (mqprio_parse_opt(dev, qopt, &caps))
+	if (mqprio_parse_opt(dev, qopt, &caps, extack))
 		return -EINVAL;
 
 	len = nla_len(opt) - NLA_ALIGN(sizeof(*qopt));
@@ -330,7 +348,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	 * supplied and verified mapping
 	 */
 	if (qopt->hw) {
-		err = mqprio_enable_offload(sch, qopt);
+		err = mqprio_enable_offload(sch, qopt, extack);
 		if (err)
 			return err;
 	} else {
