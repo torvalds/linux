@@ -67,7 +67,8 @@ void test_assert(bool exp, const char *exp_str,
 	__u32 exit_reason = (vcpu)->run->exit_reason;			\
 									\
 	TEST_ASSERT(exit_reason == (expected),				\
-		    "Unexpected exit reason: %u (%s)",			\
+		    "Wanted KVM exit reason: %u (%s), got: %u (%s)",    \
+		    (expected), exit_reason_str((expected)),		\
 		    exit_reason, exit_reason_str(exit_reason));		\
 } while (0)
 
