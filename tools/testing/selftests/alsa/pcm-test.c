@@ -15,11 +15,20 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "../kselftest.h"
 #include "alsa-local.h"
 
 typedef struct timespec timestamp_t;
+
+struct card_data {
+	int card;
+	pthread_t thread;
+	struct card_data *next;
+};
+
+struct card_data *card_list = NULL;
 
 struct pcm_data {
 	snd_pcm_t *handle;
@@ -35,6 +44,11 @@ struct pcm_data *pcm_list = NULL;
 
 int num_missing = 0;
 struct pcm_data *pcm_missing = NULL;
+
+snd_config_t *default_pcm_config;
+
+/* Lock while reporting results since kselftest doesn't */
+pthread_mutex_t results_lock = PTHREAD_MUTEX_INITIALIZER;
 
 enum test_class {
 	TEST_CLASS_DEFAULT,
@@ -141,6 +155,7 @@ static void find_pcms(void)
 	snd_ctl_t *handle;
 	snd_pcm_info_t *pcm_info;
 	snd_config_t *config, *card_config, *pcm_config;
+	struct card_data *card_data;
 
 	snd_pcm_info_alloca(&pcm_info);
 
@@ -161,6 +176,13 @@ static void find_pcms(void)
 		}
 
 		card_config = conf_by_card(card);
+
+		card_data = calloc(1, sizeof(*card_data));
+		if (!card_data)
+			ksft_exit_fail_msg("Out of memory\n");
+		card_data->card = card;
+		card_data->next = card_list;
+		card_list = card_data;
 
 		dev = -1;
 		while (1) {
@@ -246,10 +268,6 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 	bool skip = true;
 	const char *desc;
 
-	desc = conf_get_string(pcm_cfg, "description", NULL, NULL);
-	if (desc)
-		ksft_print_msg("%s\n", desc);
-
 	switch (class) {
 	case TEST_CLASS_DEFAULT:
 		test_class_name = "default";
@@ -261,6 +279,15 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 		ksft_exit_fail_msg("Unknown test class %d\n", class);
 		break;
 	}
+
+	desc = conf_get_string(pcm_cfg, "description", NULL, NULL);
+	if (desc)
+		ksft_print_msg("%s.%s.%d.%d.%d.%s - %s\n",
+			       test_class_name, test_name,
+			       data->card, data->device, data->subdevice,
+			       snd_pcm_stream_name(data->stream),
+			       desc);
+
 
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_sw_params_alloca(&sw_params);
@@ -443,6 +470,8 @@ __format:
 	msg[0] = '\0';
 	pass = true;
 __close:
+	pthread_mutex_lock(&results_lock);
+
 	switch (class) {
 	case TEST_CLASS_SYSTEM:
 		test_class_name = "system";
@@ -471,6 +500,9 @@ __close:
 				 data->card, data->device, data->subdevice,
 				 snd_pcm_stream_name(data->stream),
 				 msg[0] ? " " : "", msg);
+
+	pthread_mutex_unlock(&results_lock);
+
 	free(samples);
 	if (handle)
 		snd_pcm_close(handle);
@@ -502,11 +534,30 @@ void run_time_tests(struct pcm_data *pcm, enum test_class class,
 	}
 }
 
+void *card_thread(void *data)
+{
+	struct card_data *card = data;
+	struct pcm_data *pcm;
+
+	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
+		if (pcm->card != card->card)
+			continue;
+
+		run_time_tests(pcm, TEST_CLASS_DEFAULT, default_pcm_config);
+		run_time_tests(pcm, TEST_CLASS_SYSTEM, pcm->pcm_config);
+	}
+
+	return 0;
+}
+
 int main(void)
 {
+	struct card_data *card;
 	struct pcm_data *pcm;
-	snd_config_t *global_config, *default_pcm_config, *cfg, *pcm_cfg;
+	snd_config_t *global_config, *cfg, *pcm_cfg;
 	int num_pcm_tests = 0, num_tests, num_std_pcm_tests;
+	int ret;
+	void *thread_ret;
 
 	ksft_print_header();
 
@@ -540,9 +591,22 @@ int main(void)
 				 snd_pcm_stream_name(pcm->stream));
 	}
 
-	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
-		run_time_tests(pcm, TEST_CLASS_DEFAULT, default_pcm_config);
-		run_time_tests(pcm, TEST_CLASS_SYSTEM, pcm->pcm_config);
+	for (card = card_list; card != NULL; card = card->next) {
+		ret = pthread_create(&card->thread, NULL, card_thread, card);
+		if (ret != 0) {
+			ksft_exit_fail_msg("Failed to create card %d thread: %d (%s)\n",
+					   card->card, ret,
+					   strerror(errno));
+		}
+	}
+
+	for (card = card_list; card != NULL; card = card->next) {
+		ret = pthread_join(card->thread, &thread_ret);
+		if (ret != 0) {
+			ksft_exit_fail_msg("Failed to join card %d thread: %d (%s)\n",
+					   card->card, ret,
+					   strerror(errno));
+		}
 	}
 
 	snd_config_delete(global_config);

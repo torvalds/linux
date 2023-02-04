@@ -677,23 +677,19 @@ static void ff400_handle_msg(struct snd_ff *ff, unsigned int offset, const __le3
 
 static long ff400_copy_msg_to_user(struct snd_ff *ff, char __user *buf, long count)
 {
+	struct snd_firewire_event_ff400_message ev = {
+		.type = SNDRV_FIREWIRE_EVENT_FF400_MESSAGE,
+		.message_count = 0,
+	};
 	struct ff400_msg_parser *parser = ff->msg_parser;
-	u32 type = SNDRV_FIREWIRE_EVENT_FF400_MESSAGE;
 	long consumed = 0;
-	int ret = 0;
+	long ret = 0;
 
-	if (count < 8)
+	if (count < sizeof(ev) || parser->pull_pos == parser->push_pos)
 		return 0;
 
-	spin_unlock_irq(&ff->lock);
-	if (copy_to_user(buf, &type, sizeof(type)))
-		ret = -EFAULT;
-	spin_lock_irq(&ff->lock);
-	if (ret)
-		return ret;
-
-	count -= sizeof(type);
-	consumed += sizeof(type);
+	count -= sizeof(ev);
+	consumed += sizeof(ev);
 
 	while (count >= sizeof(*parser->msgs) && parser->pull_pos != parser->push_pos) {
 		spin_unlock_irq(&ff->lock);
@@ -707,9 +703,17 @@ static long ff400_copy_msg_to_user(struct snd_ff *ff, char __user *buf, long cou
 		++parser->pull_pos;
 		if (parser->pull_pos >= FF400_QUEUE_SIZE)
 			parser->pull_pos = 0;
+		++ev.message_count;
 		count -= sizeof(*parser->msgs);
 		consumed += sizeof(*parser->msgs);
 	}
+
+	spin_unlock_irq(&ff->lock);
+	if (copy_to_user(buf, &ev, sizeof(ev)))
+		ret = -EFAULT;
+	spin_lock_irq(&ff->lock);
+	if (ret)
+		return ret;
 
 	return consumed;
 }
