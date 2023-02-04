@@ -871,7 +871,7 @@ void *dereference_module_function_descriptor(struct module *mod, void *ptr)
 
 #ifdef CONFIG_SYSFS
 extern struct kset *module_kset;
-extern struct kobj_type module_ktype;
+extern const struct kobj_type module_ktype;
 #endif /* CONFIG_SYSFS */
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)
