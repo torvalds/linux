@@ -34,83 +34,6 @@
 
 #include "gc0310.h"
 
-/* i2c read/write stuff */
-static int gc0310_read_reg(struct i2c_client *client, u8 reg, u8 *val)
-{
-	int err;
-	struct i2c_msg msg[2];
-	unsigned char data[1];
-
-	if (!client->adapter) {
-		dev_err(&client->dev, "%s error, no client->adapter\n",
-			__func__);
-		return -ENODEV;
-	}
-
-	memset(msg, 0, sizeof(msg));
-
-	msg[0].addr = client->addr;
-	msg[0].flags = 0;
-	msg[0].len = I2C_MSG_LENGTH;
-	msg[0].buf = data;
-
-	/* high byte goes out first */
-	data[0] = (u8)(reg & 0xff);
-
-	msg[1].addr = client->addr;
-	msg[1].len = 1;
-	msg[1].flags = I2C_M_RD;
-	msg[1].buf = data;
-
-	err = i2c_transfer(client->adapter, msg, 2);
-	if (err != 2) {
-		if (err >= 0)
-			err = -EIO;
-		dev_err(&client->dev,
-			"read from offset 0x%x error %d", reg, err);
-		return err;
-	}
-
-	*val = (u8)data[0];
-	return 0;
-}
-
-static int gc0310_i2c_write(struct i2c_client *client, u16 len, u8 *data)
-{
-	struct i2c_msg msg;
-	const int num_msg = 1;
-	int ret;
-
-	msg.addr = client->addr;
-	msg.flags = 0;
-	msg.len = len;
-	msg.buf = data;
-	ret = i2c_transfer(client->adapter, &msg, 1);
-
-	return ret == num_msg ? 0 : -EIO;
-}
-
-static int gc0310_write_reg(struct i2c_client *client, u8 reg, u8 val)
-{
-	int ret;
-	unsigned char data[2] = {0};
-	u8 *wreg = (u8 *)data;
-	const u16 len = 1 + sizeof(u8); /* 8-bit address + data */
-
-	/* high byte goes out first */
-	*wreg = (u8)(reg & 0xff);
-
-	data[1] = (u8)(val);
-
-	ret = gc0310_i2c_write(client, len, data);
-	if (ret)
-		dev_err(&client->dev,
-			"write error: wrote 0x%x to offset 0x%x error %d",
-			val, reg, ret);
-
-	return ret;
-}
-
 /*
  * gc0310_write_reg_array - Initializes a list of GC0310 registers
  * @client: i2c driver client structure
@@ -123,9 +46,12 @@ static int gc0310_write_reg_array(struct i2c_client *client,
 	int i, err;
 
 	for (i = 0; i < count; i++) {
-		err = gc0310_write_reg(client, reglist[i].reg, reglist[i].val);
-		if (err)
+		err = i2c_smbus_write_byte_data(client, reglist[i].reg, reglist[i].val);
+		if (err) {
+			dev_err(&client->dev, "write error: wrote 0x%x to offset 0x%x error %d",
+				reglist[i].val, reglist[i].reg, err);
 			return err;
+		}
 	}
 
 	return 0;
@@ -154,12 +80,12 @@ static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)
 	dev_dbg(&client->dev, "gain=0x%x again=0x%x dgain=0x%x\n", gain, again, dgain);
 
 	/* set analog gain */
-	ret = gc0310_write_reg(client, GC0310_AGC_ADJ, again);
+	ret = i2c_smbus_write_byte_data(client, GC0310_AGC_ADJ, again);
 	if (ret)
 		return ret;
 
 	/* set digital gain */
-	ret = gc0310_write_reg(client, GC0310_DGC_ADJ, dgain);
+	ret = i2c_smbus_write_byte_data(client, GC0310_DGC_ADJ, dgain);
 	if (ret)
 		return ret;
 
@@ -176,11 +102,7 @@ static int __gc0310_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	dev_dbg(&client->dev, "coarse_itg=%d gain=%d digitgain=%d\n", coarse_itg, gain, digitgain);
 
 	/* set exposure */
-	ret = gc0310_write_reg(client, GC0310_AEC_PK_EXPO_L, coarse_itg & 0xff);
-	if (ret)
-		return ret;
-
-	ret = gc0310_write_reg(client, GC0310_AEC_PK_EXPO_H, (coarse_itg >> 8) & 0x0f);
+	ret = i2c_smbus_write_word_swapped(client, GC0310_AEC_PK_EXPO_H, coarse_itg);
 	if (ret)
 		return ret;
 
@@ -251,22 +173,15 @@ static long gc0310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int gc0310_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 reg_v;
 	int ret;
 
 	/* get exposure */
-	ret = gc0310_read_reg(client, GC0310_AEC_PK_EXPO_L, &reg_v);
-	if (ret)
-		goto err;
+	ret = i2c_smbus_read_word_swapped(client, GC0310_AEC_PK_EXPO_H);
+	if (ret < 0)
+		return ret;
 
-	*value = reg_v;
-	ret = gc0310_read_reg(client, GC0310_AEC_PK_EXPO_H, &reg_v);
-	if (ret)
-		goto err;
-
-	*value = *value + (reg_v << 8);
-err:
-	return ret;
+	*value = ret;
+	return 0;
 }
 
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -618,29 +533,22 @@ static int gc0310_get_fmt(struct v4l2_subdev *sd,
 static int gc0310_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u8 high, low;
 	int ret;
-	u16 id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = gc0310_read_reg(client, GC0310_SC_CMMN_CHIP_ID_H, &high);
-	if (ret) {
-		dev_err(&client->dev, "read sensor_id_high failed\n");
+	ret = i2c_smbus_read_word_swapped(client, GC0310_SC_CMMN_CHIP_ID_H);
+	if (ret < 0) {
+		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
 		return -ENODEV;
 	}
-	ret = gc0310_read_reg(client, GC0310_SC_CMMN_CHIP_ID_L, &low);
-	if (ret) {
-		dev_err(&client->dev, "read sensor_id_low failed\n");
-		return -ENODEV;
-	}
-	id = ((((u16)high) << 8) | (u16)low);
-	dev_dbg(&client->dev, "sensor ID = 0x%x\n", id);
 
-	if (id != GC0310_ID) {
-		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n", id,
-			GC0310_ID);
+	dev_dbg(&client->dev, "sensor ID = 0x%x\n", ret);
+
+	if (ret != GC0310_ID) {
+		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n",
+			ret, GC0310_ID);
 		return -ENODEV;
 	}
 
@@ -660,28 +568,27 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 
 	if (enable) {
 		/* enable per frame MIPI and sensor ctrl reset  */
-		ret = gc0310_write_reg(client, 0xFE, 0x30);
+		ret = i2c_smbus_write_byte_data(client, 0xFE, 0x30);
 		if (ret) {
 			mutex_unlock(&dev->input_lock);
 			return ret;
 		}
 	}
 
-	ret = gc0310_write_reg(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
+	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
 		return ret;
 	}
 
-	ret = gc0310_write_reg(client, GC0310_SW_STREAM,
-			       enable ? GC0310_START_STREAMING :
-			       GC0310_STOP_STREAMING);
+	ret = i2c_smbus_write_byte_data(client, GC0310_SW_STREAM,
+					enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
 		return ret;
 	}
 
-	ret = gc0310_write_reg(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
+	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
 		return ret;

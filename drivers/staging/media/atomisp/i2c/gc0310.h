@@ -33,10 +33,6 @@
 
 #include "../include/linux/atomisp_platform.h"
 
-/* Defines for register writes and register array processing */
-#define I2C_MSG_LENGTH		1
-#define I2C_RETRY_COUNT		5
-
 #define GC0310_FOCAL_LENGTH_NUM	278	/*2.78mm*/
 
 #define MAX_FMTS		1
