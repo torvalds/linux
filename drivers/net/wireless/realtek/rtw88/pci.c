@@ -30,7 +30,8 @@ static u32 rtw_pci_tx_queue_idx_addr[] = {
 	[RTW_TX_QUEUE_H2C]	= RTK_PCI_TXBD_IDX_H2CQ,
 };
 
-static u8 rtw_pci_get_tx_qsel(struct sk_buff *skb, u8 queue)
+static u8 rtw_pci_get_tx_qsel(struct sk_buff *skb,
+			      enum rtw_tx_queue_type queue)
 {
 	switch (queue) {
 	case RTW_TX_QUEUE_BCN:
@@ -542,7 +543,7 @@ static int rtw_pci_setup(struct rtw_dev *rtwdev)
 static void rtw_pci_dma_release(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 {
 	struct rtw_pci_tx_ring *tx_ring;
-	u8 queue;
+	enum rtw_tx_queue_type queue;
 
 	rtw_pci_reset_trx_ring(rtwdev);
 	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
@@ -608,8 +609,8 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	struct rtw_pci_tx_ring *tx_ring;
+	enum rtw_tx_queue_type queue;
 	bool tx_empty = true;
-	u8 queue;
 
 	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_TX_WAKE))
 		goto enter_deep_ps;
@@ -803,7 +804,8 @@ static void rtw_pci_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop)
 	__rtw_pci_flush_queues(rtwdev, pci_queues, drop);
 }
 
-static void rtw_pci_tx_kick_off_queue(struct rtw_dev *rtwdev, u8 queue)
+static void rtw_pci_tx_kick_off_queue(struct rtw_dev *rtwdev,
+				      enum rtw_tx_queue_type queue)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	struct rtw_pci_tx_ring *ring;
@@ -822,7 +824,7 @@ static void rtw_pci_tx_kick_off_queue(struct rtw_dev *rtwdev, u8 queue)
 static void rtw_pci_tx_kick_off(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
-	u8 queue;
+	enum rtw_tx_queue_type queue;
 
 	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++)
 		if (test_and_clear_bit(queue, rtwpci->tx_queued))
@@ -831,7 +833,8 @@ static void rtw_pci_tx_kick_off(struct rtw_dev *rtwdev)
 
 static int rtw_pci_tx_write_data(struct rtw_dev *rtwdev,
 				 struct rtw_tx_pkt_info *pkt_info,
-				 struct sk_buff *skb, u8 queue)
+				 struct sk_buff *skb,
+				 enum rtw_tx_queue_type queue)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	const struct rtw_chip_info *chip = rtwdev->chip;
@@ -949,9 +952,9 @@ static int rtw_pci_tx_write(struct rtw_dev *rtwdev,
 			    struct rtw_tx_pkt_info *pkt_info,
 			    struct sk_buff *skb)
 {
+	enum rtw_tx_queue_type queue = rtw_hw_queue_mapping(skb);
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	struct rtw_pci_tx_ring *ring;
-	u8 queue = rtw_hw_queue_mapping(skb);
 	int ret;
 
 	ret = rtw_pci_tx_write_data(rtwdev, pkt_info, skb, queue);
