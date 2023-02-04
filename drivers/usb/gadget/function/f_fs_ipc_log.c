@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -665,10 +665,8 @@ static int entry_ffs_func_bind(struct kretprobe_instance *ri,
 
 	context = get_ipc_context(ffs);
 	data->x0 = ffs;
-	kprobe_log(context,  "enter");
-	kprobe_log(context, "_ffs_func_bind",
-		"enter: state %d setup_state %d flag %lu", ffs->state,
-		ffs->setup_state, ffs->flags);
+	kprobe_log(context, "enter: state %d setup_state %d flag %lu",
+		ffs->state, ffs->setup_state, ffs->flags);
 	return 0;
 }
 
