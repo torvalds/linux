@@ -225,15 +225,8 @@ static void guest_code(void)
 
 	/* Our turn. Deliver event channel (to ourselves) with
 	 * EVTCHNOP_send hypercall. */
-	unsigned long rax;
 	struct evtchn_send s = { .port = 127 };
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_event_channel_op),
-			      "D" (EVTCHNOP_send),
-			      "S" (&s));
-
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
 
 	guest_wait_for_irq();
 
@@ -242,24 +235,15 @@ static void guest_code(void)
 	/* Deliver "outbound" event channel to an eventfd which
 	 * happens to be one of our own irqfds. */
 	s.port = 197;
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_event_channel_op),
-			      "D" (EVTCHNOP_send),
-			      "S" (&s));
-
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
 
 	guest_wait_for_irq();
 
 	GUEST_SYNC(13);
 
 	/* Set a timer 100ms in the future. */
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_set_timer_op),
-			      "D" (rs->state_entry_time + 100000000));
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_set_timer_op,
+		      rs->state_entry_time + 100000000, NULL);
 
 	GUEST_SYNC(14);
 
@@ -281,37 +265,19 @@ static void guest_code(void)
 		.timeout = 0,
 	};
 
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_sched_op),
-			      "D" (SCHEDOP_poll),
-			      "S" (&p));
-
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_sched_op, SCHEDOP_poll, &p);
 
 	GUEST_SYNC(17);
 
 	/* Poll for an unset port and wait for the timeout. */
 	p.timeout = 100000000;
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_sched_op),
-			      "D" (SCHEDOP_poll),
-			      "S" (&p));
-
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_sched_op, SCHEDOP_poll, &p);
 
 	GUEST_SYNC(18);
 
 	/* A timer will wake the masked port we're waiting on, while we poll */
 	p.timeout = 0;
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_sched_op),
-			      "D" (SCHEDOP_poll),
-			      "S" (&p));
-
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_sched_op, SCHEDOP_poll, &p);
 
 	GUEST_SYNC(19);
 
@@ -319,13 +285,7 @@ static void guest_code(void)
 	 * actual interrupt, while we're polling on a different port. */
 	ports[0]++;
 	p.timeout = 0;
-	__asm__ __volatile__ ("vmcall" :
-			      "=a" (rax) :
-			      "a" (__HYPERVISOR_sched_op),
-			      "D" (SCHEDOP_poll),
-			      "S" (&p));
-
-	GUEST_ASSERT(rax == 0);
+	xen_hypercall(__HYPERVISOR_sched_op, SCHEDOP_poll, &p);
 
 	guest_wait_for_irq();
 
@@ -360,12 +320,7 @@ wait_for_timer:
 	 * timer IRQ is dropped due to an invalid event channel.
 	 */
 	for (i = 0; i < 100 && !guest_saw_irq; i++)
-		asm volatile("vmcall"
-			     : "=a" (rax)
-			     : "a" (__HYPERVISOR_sched_op),
-			       "D" (SCHEDOP_poll),
-			       "S" (&p)
-			     : "memory");
+		__xen_hypercall(__HYPERVISOR_sched_op, SCHEDOP_poll, &p);
 
 	/*
 	 * Re-send the timer IRQ if it was (likely) dropped due to the timer

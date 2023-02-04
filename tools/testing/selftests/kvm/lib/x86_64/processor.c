@@ -1161,6 +1161,16 @@ uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 	return X86_HYPERCALL("a"(nr), "b"(a0), "c"(a1), "d"(a2), "S"(a3));
 }
 
+uint64_t __xen_hypercall(uint64_t nr, uint64_t a0, void *a1)
+{
+	return X86_HYPERCALL("a"(nr), "D"(a0), "S"(a1));
+}
+
+void xen_hypercall(uint64_t nr, uint64_t a0, void *a1)
+{
+	GUEST_ASSERT(!__xen_hypercall(nr, a0, a1));
+}
+
 const struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
 {
 	static struct kvm_cpuid2 *cpuid;
