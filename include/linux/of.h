@@ -101,7 +101,7 @@ struct of_reconfig_data {
 };
 
 /* initialize a node */
-extern struct kobj_type of_node_ktype;
+extern const struct kobj_type of_node_ktype;
 extern const struct fwnode_operations of_fwnode_ops;
 static inline void of_node_init(struct device_node *node)
 {
