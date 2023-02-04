@@ -406,7 +406,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct nlattr *nla = (struct nlattr *)skb_tail_pointer(skb);
 	struct tc_mqprio_qopt opt = { 0 };
 	struct Qdisc *qdisc;
-	unsigned int ntx, tc;
+	unsigned int ntx;
 
 	sch->q.qlen = 0;
 	gnet_stats_basic_sync_init(&sch->bstats);
@@ -430,14 +430,8 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
 
-	opt.num_tc = netdev_get_num_tc(dev);
-	memcpy(opt.prio_tc_map, dev->prio_tc_map, sizeof(opt.prio_tc_map));
+	mqprio_qopt_reconstruct(dev, &opt);
 	opt.hw = priv->hw_offload;
-
-	for (tc = 0; tc < netdev_get_num_tc(dev); tc++) {
-		opt.count[tc] = dev->tc_to_txq[tc].count;
-		opt.offset[tc] = dev->tc_to_txq[tc].offset;
-	}
 
 	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
 		goto nla_put_failure;

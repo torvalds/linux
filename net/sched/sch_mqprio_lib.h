@@ -12,5 +12,7 @@ int mqprio_validate_qopt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 			 bool validate_queue_counts,
 			 bool allow_overlapping_txqs,
 			 struct netlink_ext_ack *extack);
+void mqprio_qopt_reconstruct(struct net_device *dev,
+			     struct tc_mqprio_qopt *qopt);
 
 #endif

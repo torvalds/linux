@@ -100,4 +100,18 @@ int mqprio_validate_qopt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 }
 EXPORT_SYMBOL_GPL(mqprio_validate_qopt);
 
+void mqprio_qopt_reconstruct(struct net_device *dev, struct tc_mqprio_qopt *qopt)
+{
+	int tc, num_tc = netdev_get_num_tc(dev);
+
+	qopt->num_tc = num_tc;
+	memcpy(qopt->prio_tc_map, dev->prio_tc_map, sizeof(qopt->prio_tc_map));
+
+	for (tc = 0; tc < num_tc; tc++) {
+		qopt->count[tc] = dev->tc_to_txq[tc].count;
+		qopt->offset[tc] = dev->tc_to_txq[tc].offset;
+	}
+}
+EXPORT_SYMBOL_GPL(mqprio_qopt_reconstruct);
+
 MODULE_LICENSE("GPL");
