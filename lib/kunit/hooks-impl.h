@@ -15,7 +15,9 @@
 #include <kunit/test-bug.h>
 
 /* List of declarations. */
-void __kunit_fail_current_test_impl(const char *file, int line, const char *fmt, ...);
+void __printf(3, 4) __kunit_fail_current_test_impl(const char *file,
+						   int line,
+						   const char *fmt, ...);
 void *__kunit_get_static_stub_address_impl(struct kunit *test, void *real_fn_addr);
 
 /* Code to set all of the function pointers. */

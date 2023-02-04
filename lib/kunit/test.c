@@ -24,7 +24,7 @@
 /*
  * Hook to fail the current test and print an error message to the log.
  */
-void __kunit_fail_current_test_impl(const char *file, int line, const char *fmt, ...)
+void __printf(3, 4) __kunit_fail_current_test_impl(const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	int len;
