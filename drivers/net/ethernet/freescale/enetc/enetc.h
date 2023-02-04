@@ -369,6 +369,9 @@ struct enetc_ndev_priv {
 
 	struct psfp_cap psfp_cap;
 
+	/* Minimum number of TX queues required by the network stack */
+	unsigned int min_num_stack_tx_queues;
+
 	struct phylink *phylink;
 	int ic_mode;
 	u32 tx_ictt;
