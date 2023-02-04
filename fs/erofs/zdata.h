@@ -110,7 +110,7 @@ struct z_erofs_decompressqueue {
 		struct work_struct work;
 	} u;
 
-	bool eio;
+	bool eio, sync;
 };
 
 static inline bool z_erofs_is_inline_pcluster(struct z_erofs_pcluster *pcl)

@@ -1157,12 +1157,12 @@ static void z_erofs_decompressqueue_work(struct work_struct *work)
 }
 
 static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,
-				       bool sync, int bios)
+				       int bios)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(io->sb);
 
 	/* wake up the caller thread for sync decompression */
-	if (sync) {
+	if (io->sync) {
 		if (!atomic_add_return(bios, &io->pending_bios))
 			complete(&io->u.done);
 		return;
@@ -1294,9 +1294,8 @@ out:	/* the only exit (for tracing and debugging) */
 	return page;
 }
 
-static struct z_erofs_decompressqueue *
-jobqueue_init(struct super_block *sb,
-	      struct z_erofs_decompressqueue *fgq, bool *fg)
+static struct z_erofs_decompressqueue *jobqueue_init(struct super_block *sb,
+			      struct z_erofs_decompressqueue *fgq, bool *fg)
 {
 	struct z_erofs_decompressqueue *q;
 
@@ -1313,6 +1312,7 @@ fg_out:
 		init_completion(&fgq->u.done);
 		atomic_set(&fgq->pending_bios, 0);
 		q->eio = false;
+		q->sync = true;
 	}
 	q->sb = sb;
 	q->head = Z_EROFS_PCLUSTER_TAIL_CLOSED;
@@ -1325,20 +1325,6 @@ enum {
 	JQ_SUBMIT,
 	NR_JOBQUEUES,
 };
-
-static void *jobqueueset_init(struct super_block *sb,
-			      struct z_erofs_decompressqueue *q[],
-			      struct z_erofs_decompressqueue *fgq, bool *fg)
-{
-	/*
-	 * if managed cache is enabled, bypass jobqueue is needed,
-	 * no need to read from device for all pclusters in this queue.
-	 */
-	q[JQ_BYPASS] = jobqueue_init(sb, fgq + JQ_BYPASS, NULL);
-	q[JQ_SUBMIT] = jobqueue_init(sb, fgq + JQ_SUBMIT, fg);
-
-	return tagptr_cast_ptr(tagptr_fold(tagptr1_t, q[JQ_SUBMIT], *fg));
-}
 
 static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,
 				    z_erofs_next_pcluster_t qtail[],
@@ -1361,8 +1347,7 @@ static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,
 
 static void z_erofs_decompressqueue_endio(struct bio *bio)
 {
-	tagptr1_t t = tagptr_init(tagptr1_t, bio->bi_private);
-	struct z_erofs_decompressqueue *q = tagptr_unfold_ptr(t);
+	struct z_erofs_decompressqueue *q = bio->bi_private;
 	blk_status_t err = bio->bi_status;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
@@ -1381,7 +1366,7 @@ static void z_erofs_decompressqueue_endio(struct bio *bio)
 	}
 	if (err)
 		q->eio = true;
-	z_erofs_decompress_kickoff(q, tagptr_unfold_tags(t), -1);
+	z_erofs_decompress_kickoff(q, -1);
 	bio_put(bio);
 }
 
@@ -1394,7 +1379,6 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 	struct address_space *mc = MNGD_MAPPING(EROFS_SB(sb));
 	z_erofs_next_pcluster_t qtail[NR_JOBQUEUES];
 	struct z_erofs_decompressqueue *q[NR_JOBQUEUES];
-	void *bi_private;
 	z_erofs_next_pcluster_t owned_head = f->owned_head;
 	/* bio is NULL initially, so no need to initialize last_{index,bdev} */
 	pgoff_t last_index;
@@ -1404,7 +1388,13 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 	unsigned long pflags;
 	int memstall = 0;
 
-	bi_private = jobqueueset_init(sb, q, fgq, force_fg);
+	/*
+	 * if managed cache is enabled, bypass jobqueue is needed,
+	 * no need to read from device for all pclusters in this queue.
+	 */
+	q[JQ_BYPASS] = jobqueue_init(sb, fgq + JQ_BYPASS, NULL);
+	q[JQ_SUBMIT] = jobqueue_init(sb, fgq + JQ_SUBMIT, force_fg);
+
 	qtail[JQ_BYPASS] = &q[JQ_BYPASS]->head;
 	qtail[JQ_SUBMIT] = &q[JQ_SUBMIT]->head;
 
@@ -1473,7 +1463,7 @@ submit_bio_retry:
 				last_bdev = mdev.m_bdev;
 				bio->bi_iter.bi_sector = (sector_t)cur <<
 					LOG_SECTORS_PER_BLOCK;
-				bio->bi_private = bi_private;
+				bio->bi_private = q[JQ_SUBMIT];
 				if (f->readahead)
 					bio->bi_opf |= REQ_RAHEAD;
 				++nr_bios;
@@ -1506,7 +1496,7 @@ submit_bio_retry:
 		kvfree(q[JQ_SUBMIT]);
 		return;
 	}
-	z_erofs_decompress_kickoff(q[JQ_SUBMIT], *force_fg, nr_bios);
+	z_erofs_decompress_kickoff(q[JQ_SUBMIT], nr_bios);
 }
 
 static void z_erofs_runqueue(struct z_erofs_decompress_frontend *f,
