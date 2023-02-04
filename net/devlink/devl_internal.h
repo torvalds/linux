@@ -139,6 +139,16 @@ devlink_dump_state(struct netlink_callback *cb)
 	return (struct devlink_nl_dump_state *)cb->ctx;
 }
 
+static inline int
+devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
+{
+	if (nla_put_string(msg, DEVLINK_ATTR_BUS_NAME, devlink->dev->bus->name))
+		return -EMSGSIZE;
+	if (nla_put_string(msg, DEVLINK_ATTR_DEV_NAME, dev_name(devlink->dev)))
+		return -EMSGSIZE;
+	return 0;
+}
+
 /* Commands */
 extern const struct devlink_cmd devl_cmd_get;
 extern const struct devlink_cmd devl_cmd_port_get;
@@ -156,6 +166,9 @@ extern const struct devlink_cmd devl_cmd_trap_policer_get;
 extern const struct devlink_cmd devl_cmd_rate_get;
 extern const struct devlink_cmd devl_cmd_linecard_get;
 extern const struct devlink_cmd devl_cmd_selftests_get;
+
+/* Notify */
+void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
 
 /* Ports */
 int devlink_port_netdevice_event(struct notifier_block *nb,
@@ -176,6 +189,12 @@ static inline bool devlink_reload_supported(const struct devlink_ops *ops)
 	return ops->reload_down && ops->reload_up;
 }
 
+/* Resources */
+struct devlink_resource;
+int devlink_resources_validate(struct devlink *devlink,
+			       struct devlink_resource *resource,
+			       struct genl_info *info);
+
 /* Line cards */
 struct devlink_linecard;
 
@@ -183,8 +202,19 @@ struct devlink_linecard *
 devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info);
 
 /* Rates */
+int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack);
 struct devlink_rate *
 devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_rate *
 devlink_rate_node_get_from_info(struct devlink *devlink,
 				struct genl_info *info);
+/* Devlink nl cmds */
+int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info);
