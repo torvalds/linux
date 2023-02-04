@@ -27,6 +27,14 @@ struct mqprio_sched {
 	u64 max_rate[TC_QOPT_MAX_QUEUE];
 };
 
+/* Returns true if the intervals [a, b) and [c, d) overlap. */
+static bool intervals_overlap(int a, int b, int c, int d)
+{
+	int left = max(a, c), right = min(b, d);
+
+	return left < right;
+}
+
 static int mqprio_enable_offload(struct Qdisc *sch,
 				 const struct tc_mqprio_qopt *qopt)
 {
@@ -144,7 +152,10 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 
 		/* Verify that the offset and counts do not overlap */
 		for (j = i + 1; j < qopt->num_tc; j++) {
-			if (last > qopt->offset[j])
+			if (intervals_overlap(qopt->offset[i], last,
+					      qopt->offset[j],
+					      qopt->offset[j] +
+					      qopt->count[j]))
 				return -EINVAL;
 		}
 	}
