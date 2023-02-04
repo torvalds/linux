@@ -35,8 +35,7 @@
 #include "gc0310.h"
 
 /* i2c read/write stuff */
-static int gc0310_read_reg(struct i2c_client *client,
-			   u16 data_length, u8 reg, u8 *val)
+static int gc0310_read_reg(struct i2c_client *client, u8 reg, u8 *val)
 {
 	int err;
 	struct i2c_msg msg[2];
@@ -46,12 +45,6 @@ static int gc0310_read_reg(struct i2c_client *client,
 		dev_err(&client->dev, "%s error, no client->adapter\n",
 			__func__);
 		return -ENODEV;
-	}
-
-	if (data_length != GC0310_8BIT) {
-		dev_err(&client->dev, "%s error, invalid data length\n",
-			__func__);
-		return -EINVAL;
 	}
 
 	memset(msg, 0, sizeof(msg));
@@ -65,7 +58,7 @@ static int gc0310_read_reg(struct i2c_client *client,
 	data[0] = (u8)(reg & 0xff);
 
 	msg[1].addr = client->addr;
-	msg[1].len = data_length;
+	msg[1].len = 1;
 	msg[1].flags = I2C_M_RD;
 	msg[1].buf = data;
 
@@ -78,11 +71,7 @@ static int gc0310_read_reg(struct i2c_client *client,
 		return err;
 	}
 
-	*val = 0;
-	/* high byte comes first */
-	if (data_length == GC0310_8BIT)
-		*val = (u8)data[0];
-
+	*val = (u8)data[0];
 	return 0;
 }
 
@@ -101,25 +90,17 @@ static int gc0310_i2c_write(struct i2c_client *client, u16 len, u8 *data)
 	return ret == num_msg ? 0 : -EIO;
 }
 
-static int gc0310_write_reg(struct i2c_client *client, u16 data_length,
-			    u8 reg, u8 val)
+static int gc0310_write_reg(struct i2c_client *client, u8 reg, u8 val)
 {
 	int ret;
 	unsigned char data[2] = {0};
 	u8 *wreg = (u8 *)data;
-	const u16 len = data_length + sizeof(u8); /* 8-bit address + data */
-
-	if (data_length != GC0310_8BIT) {
-		dev_err(&client->dev,
-			"%s error, invalid data_length\n", __func__);
-		return -EINVAL;
-	}
+	const u16 len = 1 + sizeof(u8); /* 8-bit address + data */
 
 	/* high byte goes out first */
 	*wreg = (u8)(reg & 0xff);
 
-	if (data_length == GC0310_8BIT)
-		data[1] = (u8)(val);
+	data[1] = (u8)(val);
 
 	ret = gc0310_i2c_write(client, len, data);
 	if (ret)
@@ -142,7 +123,7 @@ static int gc0310_write_reg_array(struct i2c_client *client,
 	int i, err;
 
 	for (i = 0; i < count; i++) {
-		err = gc0310_write_reg(client, GC0310_8BIT, reglist[i].reg, reglist[i].val);
+		err = gc0310_write_reg(client, reglist[i].reg, reglist[i].val);
 		if (err)
 			return err;
 	}
@@ -173,14 +154,12 @@ static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)
 	dev_dbg(&client->dev, "gain=0x%x again=0x%x dgain=0x%x\n", gain, again, dgain);
 
 	/* set analog gain */
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_AGC_ADJ, again);
+	ret = gc0310_write_reg(client, GC0310_AGC_ADJ, again);
 	if (ret)
 		return ret;
 
 	/* set digital gain */
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_DGC_ADJ, dgain);
+	ret = gc0310_write_reg(client, GC0310_DGC_ADJ, dgain);
 	if (ret)
 		return ret;
 
@@ -197,15 +176,11 @@ static int __gc0310_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	dev_dbg(&client->dev, "coarse_itg=%d gain=%d digitgain=%d\n", coarse_itg, gain, digitgain);
 
 	/* set exposure */
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_AEC_PK_EXPO_L,
-			       coarse_itg & 0xff);
+	ret = gc0310_write_reg(client, GC0310_AEC_PK_EXPO_L, coarse_itg & 0xff);
 	if (ret)
 		return ret;
 
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_AEC_PK_EXPO_H,
-			       (coarse_itg >> 8) & 0x0f);
+	ret = gc0310_write_reg(client, GC0310_AEC_PK_EXPO_H, (coarse_itg >> 8) & 0x0f);
 	if (ret)
 		return ret;
 
@@ -280,16 +255,12 @@ static int gc0310_q_exposure(struct v4l2_subdev *sd, s32 *value)
 	int ret;
 
 	/* get exposure */
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_AEC_PK_EXPO_L,
-			      &reg_v);
+	ret = gc0310_read_reg(client, GC0310_AEC_PK_EXPO_L, &reg_v);
 	if (ret)
 		goto err;
 
 	*value = reg_v;
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_AEC_PK_EXPO_H,
-			      &reg_v);
+	ret = gc0310_read_reg(client, GC0310_AEC_PK_EXPO_H, &reg_v);
 	if (ret)
 		goto err;
 
@@ -654,14 +625,12 @@ static int gc0310_detect(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_SC_CMMN_CHIP_ID_H, &high);
+	ret = gc0310_read_reg(client, GC0310_SC_CMMN_CHIP_ID_H, &high);
 	if (ret) {
 		dev_err(&client->dev, "read sensor_id_high failed\n");
 		return -ENODEV;
 	}
-	ret = gc0310_read_reg(client, GC0310_8BIT,
-			      GC0310_SC_CMMN_CHIP_ID_L, &low);
+	ret = gc0310_read_reg(client, GC0310_SC_CMMN_CHIP_ID_L, &low);
 	if (ret) {
 		dev_err(&client->dev, "read sensor_id_low failed\n");
 		return -ENODEV;
@@ -691,22 +660,20 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 
 	if (enable) {
 		/* enable per frame MIPI and sensor ctrl reset  */
-		ret = gc0310_write_reg(client, GC0310_8BIT,
-				       0xFE, 0x30);
+		ret = gc0310_write_reg(client, 0xFE, 0x30);
 		if (ret) {
 			mutex_unlock(&dev->input_lock);
 			return ret;
 		}
 	}
 
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
+	ret = gc0310_write_reg(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
 		return ret;
 	}
 
-	ret = gc0310_write_reg(client, GC0310_8BIT, GC0310_SW_STREAM,
+	ret = gc0310_write_reg(client, GC0310_SW_STREAM,
 			       enable ? GC0310_START_STREAMING :
 			       GC0310_STOP_STREAMING);
 	if (ret) {
@@ -714,8 +681,7 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 		return ret;
 	}
 
-	ret = gc0310_write_reg(client, GC0310_8BIT,
-			       GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
+	ret = gc0310_write_reg(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
 	if (ret) {
 		mutex_unlock(&dev->input_lock);
 		return ret;
