@@ -135,100 +135,19 @@ static int gc0310_write_reg(struct i2c_client *client, u16 data_length,
  * @client: i2c driver client structure
  * @reglist: list of registers to be written
  * @count: number of register, value pairs in the list
- *
- * This function initializes a list of registers. When consecutive addresses
- * are found in a row on the list, this function creates a buffer and sends
- * consecutive data in a single i2c_transfer().
- *
- * __gc0310_flush_reg_array, __gc0310_buf_reg_array() and
- * __gc0310_write_reg_is_consecutive() are internal functions to
- * gc0310_write_reg_array_fast() and should be not used anywhere else.
- *
  */
-
-static int __gc0310_flush_reg_array(struct i2c_client *client,
-				    struct gc0310_write_ctrl *ctrl)
-{
-	u16 size;
-
-	if (ctrl->index == 0)
-		return 0;
-
-	size = sizeof(u8) + ctrl->index; /* 8-bit address + data */
-	ctrl->buffer.addr = (u8)(ctrl->buffer.addr);
-	ctrl->index = 0;
-
-	return gc0310_i2c_write(client, size, (u8 *)&ctrl->buffer);
-}
-
-static int __gc0310_buf_reg_array(struct i2c_client *client,
-				  struct gc0310_write_ctrl *ctrl,
-				  const struct gc0310_reg *next)
-{
-	int size;
-
-	switch (next->type) {
-	case GC0310_8BIT:
-		size = 1;
-		ctrl->buffer.data[ctrl->index] = (u8)next->val;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* When first item is added, we need to store its starting address */
-	if (ctrl->index == 0)
-		ctrl->buffer.addr = next->reg;
-
-	ctrl->index += size;
-
-	/*
-	 * Buffer cannot guarantee free space for u32? Better flush it to avoid
-	 * possible lack of memory for next item.
-	 */
-	if (ctrl->index + sizeof(u8) >= GC0310_MAX_WRITE_BUF_SIZE)
-		return __gc0310_flush_reg_array(client, ctrl);
-
-	return 0;
-}
-
-static int __gc0310_write_reg_is_consecutive(struct i2c_client *client,
-					     struct gc0310_write_ctrl *ctrl,
-					     const struct gc0310_reg *next)
-{
-	if (ctrl->index == 0)
-		return 1;
-
-	return ctrl->buffer.addr + ctrl->index == next->reg;
-}
-
 static int gc0310_write_reg_array(struct i2c_client *client,
 				  const struct gc0310_reg *reglist, int count)
 {
-	struct gc0310_write_ctrl ctrl;
 	int i, err;
 
-	ctrl.index = 0;
 	for (i = 0; i < count; i++) {
-		/*
-		 * If next address is not consecutive, data needs to be
-		 * flushed before proceed.
-		 */
-		if (!__gc0310_write_reg_is_consecutive(client, &ctrl,
-						       &reglist[i])) {
-			err = __gc0310_flush_reg_array(client, &ctrl);
-			if (err)
-				return err;
-		}
-		err = __gc0310_buf_reg_array(client, &ctrl, &reglist[i]);
-		if (err) {
-			dev_err(&client->dev, "%s: write error, aborted\n",
-				__func__);
+		err = gc0310_write_reg(client, GC0310_8BIT, reglist[i].reg, reglist[i].val);
+		if (err)
 			return err;
-		}
 	}
 
-	return __gc0310_flush_reg_array(client, &ctrl);
+	return 0;
 }
 
 static int gc0310_set_gain(struct v4l2_subdev *sd, int gain)

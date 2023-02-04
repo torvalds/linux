@@ -158,18 +158,6 @@ struct gc0310_reg {
 
 #define to_gc0310_sensor(x) container_of(x, struct gc0310_device, sd)
 
-#define GC0310_MAX_WRITE_BUF_SIZE	30
-
-struct gc0310_write_buffer {
-	u8 addr;
-	u8 data[GC0310_MAX_WRITE_BUF_SIZE];
-};
-
-struct gc0310_write_ctrl {
-	int index;
-	struct gc0310_write_buffer buffer;
-};
-
 /*
  * Register settings for various resolution
  */
