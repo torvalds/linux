@@ -541,17 +541,7 @@ static int powerclamp_get_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
 {
 	mutex_lock(&powerclamp_lock);
-
-	if (powerclamp_data.clamping) {
-		if (poll_pkg_cstate_enable)
-			*state = pkg_cstate_ratio_cur;
-		else
-			*state = powerclamp_data.target_ratio;
-	} else {
-		/* to save power, do not poll idle ratio while not clamping */
-		*state = -1; /* indicates invalid state */
-	}
-
+	*state = powerclamp_data.target_ratio;
 	mutex_unlock(&powerclamp_lock);
 
 	return 0;
