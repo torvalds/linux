@@ -134,6 +134,7 @@ static int gc0310_write_reg(struct i2c_client *client, u16 data_length,
  * gc0310_write_reg_array - Initializes a list of GC0310 registers
  * @client: i2c driver client structure
  * @reglist: list of registers to be written
+ * @count: number of register, value pairs in the list
  *
  * This function initializes a list of registers. When consecutive addresses
  * are found in a row on the list, this function creates a buffer and sends
@@ -202,39 +203,28 @@ static int __gc0310_write_reg_is_consecutive(struct i2c_client *client,
 }
 
 static int gc0310_write_reg_array(struct i2c_client *client,
-				  const struct gc0310_reg *reglist)
+				  const struct gc0310_reg *reglist, int count)
 {
-	const struct gc0310_reg *next = reglist;
 	struct gc0310_write_ctrl ctrl;
-	int err;
+	int i, err;
 
 	ctrl.index = 0;
-	for (; next->type != GC0310_TOK_TERM; next++) {
-		switch (next->type & GC0310_TOK_MASK) {
-		case GC0310_TOK_DELAY:
+	for (i = 0; i < count; i++) {
+		/*
+		 * If next address is not consecutive, data needs to be
+		 * flushed before proceed.
+		 */
+		if (!__gc0310_write_reg_is_consecutive(client, &ctrl,
+						       &reglist[i])) {
 			err = __gc0310_flush_reg_array(client, &ctrl);
 			if (err)
 				return err;
-			msleep(next->val);
-			break;
-		default:
-			/*
-			 * If next address is not consecutive, data needs to be
-			 * flushed before proceed.
-			 */
-			if (!__gc0310_write_reg_is_consecutive(client, &ctrl,
-							       next)) {
-				err = __gc0310_flush_reg_array(client, &ctrl);
-				if (err)
-					return err;
-			}
-			err = __gc0310_buf_reg_array(client, &ctrl, next);
-			if (err) {
-				dev_err(&client->dev, "%s: write error, aborted\n",
-					__func__);
-				return err;
-			}
-			break;
+		}
+		err = __gc0310_buf_reg_array(client, &ctrl, &reglist[i]);
+		if (err) {
+			dev_err(&client->dev, "%s: write error, aborted\n",
+				__func__);
+			return err;
 		}
 	}
 
@@ -478,7 +468,8 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	mutex_lock(&dev->input_lock);
 
 	/* set initial registers */
-	ret  = gc0310_write_reg_array(client, gc0310_reset_register);
+	ret = gc0310_write_reg_array(client, gc0310_reset_register,
+				     ARRAY_SIZE(gc0310_reset_register));
 
 	/* restore settings */
 	gc0310_res = gc0310_res_preview;
@@ -648,7 +639,7 @@ static int startup(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	ret = gc0310_write_reg_array(client, dev->res->regs);
+	ret = gc0310_write_reg_array(client, dev->res->regs, dev->res->reg_count);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 write register err.\n");
 		return ret;

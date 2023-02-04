@@ -110,6 +110,7 @@
 struct gc0310_resolution {
 	u8 *desc;
 	const struct gc0310_reg *regs;
+	int reg_count;
 	int res;
 	int width;
 	int height;
@@ -139,9 +140,6 @@ struct gc0310_device {
 
 enum gc0310_tok_type {
 	GC0310_8BIT  = 0x0001,
-	GC0310_TOK_TERM   = 0xf000,	/* terminating token for reg list */
-	GC0310_TOK_DELAY  = 0xfe00,	/* delay token for reg list */
-	GC0310_TOK_MASK = 0xfff0
 };
 
 /**
@@ -330,8 +328,6 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 	{GC0310_8BIT, 0x48, 0x03}, //sun mode
 	{GC0310_8BIT, 0x4f, 0x60}, //sun_clamp
 	{GC0310_8BIT, 0xfe, 0x00},
-
-	{GC0310_TOK_TERM, 0, 0},
 };
 
 static struct gc0310_reg const gc0310_VGA_30fps[] = {
@@ -356,8 +352,6 @@ static struct gc0310_reg const gc0310_VGA_30fps[] = {
 	{GC0310_8BIT, 0x13, 0x02},//05 //05 //LWC[15:8]
 
 	{GC0310_8BIT, 0xfe, 0x00},
-
-	{GC0310_TOK_TERM, 0, 0},
 };
 
 static struct gc0310_resolution gc0310_res_preview[] = {
@@ -374,6 +368,7 @@ static struct gc0310_resolution gc0310_res_preview[] = {
 #endif
 		.skip_frames = 2,
 		.regs = gc0310_VGA_30fps,
+		.reg_count = ARRAY_SIZE(gc0310_VGA_30fps),
 	},
 };
 
