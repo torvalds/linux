@@ -155,23 +155,6 @@ static long gc0310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return 0;
 }
 
-/* This returns the exposure time being used. This should only be used
- * for filling in EXIF data, not for actual image processing.
- */
-static int gc0310_q_exposure(struct v4l2_subdev *sd, s32 *value)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	/* get exposure */
-	ret = i2c_smbus_read_word_swapped(client, GC0310_AEC_PK_EXPO_H);
-	if (ret < 0)
-		return ret;
-
-	*value = ret;
-	return 0;
-}
-
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	int ret = 0;
@@ -183,40 +166,8 @@ static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static int gc0310_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct gc0310_device *dev =
-	    container_of(ctrl->handler, struct gc0310_device, ctrl_handler);
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_EXPOSURE_ABSOLUTE:
-		ret = gc0310_q_exposure(&dev->sd, &ctrl->val);
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
 static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = gc0310_s_ctrl,
-	.g_volatile_ctrl = gc0310_g_volatile_ctrl
-};
-
-static const struct v4l2_ctrl_config gc0310_controls[] = {
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "exposure",
-		.min = 0x0,
-		.max = 0xffff,
-		.step = 0x01,
-		.def = 0x00,
-		.flags = 0,
-	},
 };
 
 static int gc0310_init(struct v4l2_subdev *sd)
@@ -713,7 +664,6 @@ static int gc0310_probe(struct i2c_client *client)
 	struct gc0310_device *dev;
 	int ret;
 	void *pdata;
-	unsigned int i;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -744,17 +694,11 @@ static int gc0310_probe(struct i2c_client *client)
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->format.code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret =
-	    v4l2_ctrl_handler_init(&dev->ctrl_handler,
-				   ARRAY_SIZE(gc0310_controls));
+	ret = v4l2_ctrl_handler_init(&dev->ctrl_handler, 0);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(gc0310_controls); i++)
-		v4l2_ctrl_new_custom(&dev->ctrl_handler, &gc0310_controls[i],
-				     NULL);
 
 	if (dev->ctrl_handler.error) {
 		gc0310_remove(client);
