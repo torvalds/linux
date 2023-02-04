@@ -125,6 +125,11 @@ struct mlx5_esw_bridge_fdb_key {
 	u16 vid;
 };
 
+struct mlx5_esw_bridge_mdb_key {
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+};
+
 enum {
 	MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER = BIT(0),
 	MLX5_ESW_BRIDGE_FLAG_PEER = BIT(1),
@@ -149,6 +154,16 @@ struct mlx5_esw_bridge_fdb_entry {
 	unsigned long lastuse;
 	struct mlx5_flow_handle *egress_handle;
 	struct mlx5_flow_handle *filter_handle;
+};
+
+struct mlx5_esw_bridge_mdb_entry {
+	struct mlx5_esw_bridge_mdb_key key;
+	struct rhash_head ht_node;
+	struct list_head list;
+	struct xarray ports;
+	int num_ports;
+
+	struct mlx5_flow_handle *egress_handle;
 };
 
 struct mlx5_esw_bridge_vlan {
@@ -188,6 +203,9 @@ struct mlx5_esw_bridge {
 	struct list_head fdb_list;
 	struct rhashtable fdb_ht;
 
+	struct list_head mdb_list;
+	struct rhashtable mdb_ht;
+
 	struct mlx5_flow_table *egress_ft;
 	struct mlx5_flow_group *egress_vlan_fg;
 	struct mlx5_flow_group *egress_qinq_fg;
@@ -202,6 +220,7 @@ struct mlx5_esw_bridge {
 
 struct mlx5_flow_table *mlx5_esw_bridge_table_create(int max_fte, u32 level,
 						     struct mlx5_eswitch *esw);
+unsigned long mlx5_esw_bridge_port_key(struct mlx5_esw_bridge_port *port);
 
 int mlx5_esw_bridge_port_mcast_init(struct mlx5_esw_bridge_port *port);
 void mlx5_esw_bridge_port_mcast_cleanup(struct mlx5_esw_bridge_port *port);
@@ -211,5 +230,15 @@ void mlx5_esw_bridge_vlan_mcast_cleanup(struct mlx5_esw_bridge_vlan *vlan);
 
 int mlx5_esw_bridge_mcast_enable(struct mlx5_esw_bridge *bridge);
 void mlx5_esw_bridge_mcast_disable(struct mlx5_esw_bridge *bridge);
+
+int mlx5_esw_bridge_mdb_init(struct mlx5_esw_bridge *bridge);
+void mlx5_esw_bridge_mdb_cleanup(struct mlx5_esw_bridge *bridge);
+int mlx5_esw_bridge_port_mdb_attach(struct mlx5_esw_bridge_port *port, const unsigned char *addr,
+				    u16 vid);
+void mlx5_esw_bridge_port_mdb_detach(struct mlx5_esw_bridge_port *port, const unsigned char *addr,
+				     u16 vid);
+void mlx5_esw_bridge_port_mdb_vlan_flush(struct mlx5_esw_bridge_port *port,
+					 struct mlx5_esw_bridge_vlan *vlan);
+void mlx5_esw_bridge_mdb_flush(struct mlx5_esw_bridge *bridge);
 
 #endif /* _MLX5_ESW_BRIDGE_PRIVATE_ */

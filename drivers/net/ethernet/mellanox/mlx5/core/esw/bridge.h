@@ -79,4 +79,10 @@ int mlx5_esw_bridge_port_vlan_add(u16 vport_num, u16 esw_owner_vhca_id, u16 vid,
 void mlx5_esw_bridge_port_vlan_del(u16 vport_num, u16 esw_owner_vhca_id, u16 vid,
 				   struct mlx5_esw_bridge_offloads *br_offloads);
 
+int mlx5_esw_bridge_port_mdb_add(u16 vport_num, u16 esw_owner_vhca_id, const unsigned char *addr,
+				 u16 vid, struct mlx5_esw_bridge_offloads *br_offloads,
+				 struct netlink_ext_ack *extack);
+void mlx5_esw_bridge_port_mdb_del(u16 vport_num, u16 esw_owner_vhca_id, const unsigned char *addr,
+				  u16 vid, struct mlx5_esw_bridge_offloads *br_offloads);
+
 #endif /* __MLX5_ESW_BRIDGE_H__ */
