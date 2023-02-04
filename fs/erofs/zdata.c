@@ -175,15 +175,6 @@ static void z_erofs_free_pcluster(struct z_erofs_pcluster *pcl)
 	DBG_BUGON(1);
 }
 
-/*
- * tagged pointer with 1-bit tag for all compressed pages
- * tag 0 - the page is just found with an extra page reference
- */
-typedef tagptr1_t compressed_page_t;
-
-#define tag_compressed_page_justfound(page) \
-	tagptr_fold(compressed_page_t, page, 1)
-
 static struct workqueue_struct *z_erofs_workqueue __read_mostly;
 
 void z_erofs_exit_zip_subsystem(void)
@@ -319,7 +310,7 @@ static void z_erofs_bind_cache(struct z_erofs_decompress_frontend *fe,
 
 	for (i = 0; i < pcl->pclusterpages; ++i) {
 		struct page *page;
-		compressed_page_t t;
+		void *t;	/* mark pages just found for debugging */
 		struct page *newpage = NULL;
 
 		/* the compressed page was loaded before */
@@ -329,7 +320,7 @@ static void z_erofs_bind_cache(struct z_erofs_decompress_frontend *fe,
 		page = find_get_page(mc, pcl->obj.index + i);
 
 		if (page) {
-			t = tag_compressed_page_justfound(page);
+			t = (void *)((unsigned long)page | 1);
 		} else {
 			/* I/O is needed, no possible to decompress directly */
 			standalone = false;
@@ -345,11 +336,10 @@ static void z_erofs_bind_cache(struct z_erofs_decompress_frontend *fe,
 			if (!newpage)
 				continue;
 			set_page_private(newpage, Z_EROFS_PREALLOCATED_PAGE);
-			t = tag_compressed_page_justfound(newpage);
+			t = (void *)((unsigned long)newpage | 1);
 		}
 
-		if (!cmpxchg_relaxed(&pcl->compressed_bvecs[i].page, NULL,
-				     tagptr_cast_ptr(t)))
+		if (!cmpxchg_relaxed(&pcl->compressed_bvecs[i].page, NULL, t))
 			continue;
 
 		if (page)
@@ -1192,8 +1182,6 @@ static struct page *pickup_page_for_submission(struct z_erofs_pcluster *pcl,
 
 	struct address_space *mapping;
 	struct page *oldpage, *page;
-
-	compressed_page_t t;
 	int justfound;
 
 repeat:
@@ -1203,10 +1191,8 @@ repeat:
 	if (!page)
 		goto out_allocpage;
 
-	/* process the target tagged pointer */
-	t = tagptr_init(compressed_page_t, page);
-	justfound = tagptr_unfold_tags(t);
-	page = tagptr_unfold_ptr(t);
+	justfound = (unsigned long)page & 1UL;
+	page = (struct page *)((unsigned long)page & ~1UL);
 
 	/*
 	 * preallocated cached pages, which is used to avoid direct reclaim

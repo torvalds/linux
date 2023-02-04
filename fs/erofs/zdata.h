@@ -7,7 +7,6 @@
 #define __EROFS_FS_ZDATA_H
 
 #include "internal.h"
-#include "tagptr.h"
 
 #define Z_EROFS_PCLUSTER_MAX_PAGES	(Z_EROFS_PCLUSTER_MAX_SIZE / PAGE_SIZE)
 #define Z_EROFS_INLINE_BVECS		2
