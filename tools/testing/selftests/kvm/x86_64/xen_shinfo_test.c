@@ -26,6 +26,9 @@
 #define DUMMY_REGION_GPA	(SHINFO_REGION_GPA + (3 * PAGE_SIZE))
 #define DUMMY_REGION_SLOT	11
 
+#define DUMMY_REGION_GPA_2	(SHINFO_REGION_GPA + (4 * PAGE_SIZE))
+#define DUMMY_REGION_SLOT_2	12
+
 #define SHINFO_ADDR	(SHINFO_REGION_GPA)
 #define VCPU_INFO_ADDR	(SHINFO_REGION_GPA + 0x40)
 #define PVTIME_ADDR	(SHINFO_REGION_GPA + PAGE_SIZE)
@@ -54,6 +57,7 @@ enum {
 	TEST_EVTCHN_SLOWPATH,
 	TEST_EVTCHN_SEND_IOCTL,
 	TEST_EVTCHN_HCALL,
+	TEST_EVTCHN_HCALL_SLOWPATH,
 	TEST_EVTCHN_HCALL_EVENTFD,
 	TEST_TIMER_SETUP,
 	TEST_TIMER_WAIT,
@@ -256,6 +260,16 @@ static void guest_code(void)
 	/* Our turn. Deliver event channel (to ourselves) with
 	 * EVTCHNOP_send hypercall. */
 	struct evtchn_send s = { .port = 127 };
+	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
+
+	guest_wait_for_irq();
+
+	GUEST_SYNC(TEST_EVTCHN_HCALL_SLOWPATH);
+
+	/*
+	 * Same again, but this time the host has messed with memslots so it
+	 * should take the slow path in kvm_xen_set_evtchn().
+	 */
 	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
 
 	guest_wait_for_irq();
@@ -749,6 +763,19 @@ int main(int argc, char *argv[])
 
 				if (verbose)
 					printf("Testing guest EVTCHNOP_send direct to evtchn\n");
+				evtchn_irq_expected = true;
+				alarm(1);
+				break;
+
+			case TEST_EVTCHN_HCALL_SLOWPATH:
+				TEST_ASSERT(!evtchn_irq_expected,
+					    "Expected event channel IRQ but it didn't happen");
+				shinfo->evtchn_pending[0] = 0;
+
+				if (verbose)
+					printf("Testing guest EVTCHNOP_send direct to evtchn after memslot change\n");
+				vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+							    DUMMY_REGION_GPA_2, DUMMY_REGION_SLOT_2, 1, 0);
 				evtchn_irq_expected = true;
 				alarm(1);
 				break;
