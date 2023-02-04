@@ -669,7 +669,7 @@ static void rtw_pci_deep_ps(struct rtw_dev *rtwdev, bool enter)
 	spin_unlock_bh(&rtwpci->irq_lock);
 }
 
-static u8 ac_to_hwq[] = {
+static const enum rtw_tx_queue_type ac_to_hwq[] = {
 	[IEEE80211_AC_VO] = RTW_TX_QUEUE_VO,
 	[IEEE80211_AC_VI] = RTW_TX_QUEUE_VI,
 	[IEEE80211_AC_BE] = RTW_TX_QUEUE_BE,
@@ -678,12 +678,12 @@ static u8 ac_to_hwq[] = {
 
 static_assert(ARRAY_SIZE(ac_to_hwq) == IEEE80211_NUM_ACS);
 
-static u8 rtw_hw_queue_mapping(struct sk_buff *skb)
+static enum rtw_tx_queue_type rtw_hw_queue_mapping(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
 	u8 q_mapping = skb_get_queue_mapping(skb);
-	u8 queue;
+	enum rtw_tx_queue_type queue;
 
 	if (unlikely(ieee80211_is_beacon(fc)))
 		queue = RTW_TX_QUEUE_BCN;
