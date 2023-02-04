@@ -41,25 +41,25 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 	sort(b, nr, sizeof(u64), u64_cmp, NULL);
 
 	if (!b[0]) {
-		pr_buf(err, "journal bucket at sector 0");
+		prt_printf(err, "journal bucket at sector 0");
 		goto err;
 	}
 
 	if (b[0] < le16_to_cpu(m->first_bucket)) {
-		pr_buf(err, "journal bucket %llu before first bucket %u",
+		prt_printf(err, "journal bucket %llu before first bucket %u",
 		       b[0], le16_to_cpu(m->first_bucket));
 		goto err;
 	}
 
 	if (b[nr - 1] >= le64_to_cpu(m->nbuckets)) {
-		pr_buf(err, "journal bucket %llu past end of device (nbuckets %llu)",
+		prt_printf(err, "journal bucket %llu past end of device (nbuckets %llu)",
 		       b[nr - 1], le64_to_cpu(m->nbuckets));
 		goto err;
 	}
 
 	for (i = 0; i + 1 < nr; i++)
 		if (b[i] == b[i + 1]) {
-			pr_buf(err, "duplicate journal buckets %llu", b[i]);
+			prt_printf(err, "duplicate journal buckets %llu", b[i]);
 			goto err;
 		}
 
@@ -75,10 +75,10 @@ static void bch2_sb_journal_to_text(struct printbuf *out, struct bch_sb *sb,
 	struct bch_sb_field_journal *journal = field_to_type(f, journal);
 	unsigned i, nr = bch2_nr_journal_buckets(journal);
 
-	pr_buf(out, "Buckets: ");
+	prt_printf(out, "Buckets: ");
 	for (i = 0; i < nr; i++)
-		pr_buf(out, " %llu", le64_to_cpu(journal->buckets[i]));
-	pr_newline(out);
+		prt_printf(out, " %llu", le64_to_cpu(journal->buckets[i]));
+	prt_newline(out);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_journal = {
@@ -126,25 +126,25 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 	sort(b, nr, sizeof(*b), u64_range_cmp, NULL);
 
 	if (!b[0].start) {
-		pr_buf(err, "journal bucket at sector 0");
+		prt_printf(err, "journal bucket at sector 0");
 		goto err;
 	}
 
 	if (b[0].start < le16_to_cpu(m->first_bucket)) {
-		pr_buf(err, "journal bucket %llu before first bucket %u",
+		prt_printf(err, "journal bucket %llu before first bucket %u",
 		       b[0].start, le16_to_cpu(m->first_bucket));
 		goto err;
 	}
 
 	if (b[nr - 1].end > le64_to_cpu(m->nbuckets)) {
-		pr_buf(err, "journal bucket %llu past end of device (nbuckets %llu)",
+		prt_printf(err, "journal bucket %llu past end of device (nbuckets %llu)",
 		       b[nr - 1].end - 1, le64_to_cpu(m->nbuckets));
 		goto err;
 	}
 
 	for (i = 0; i + 1 < nr; i++) {
 		if (b[i].end > b[i + 1].start) {
-			pr_buf(err, "duplicate journal buckets in ranges %llu-%llu, %llu-%llu",
+			prt_printf(err, "duplicate journal buckets in ranges %llu-%llu, %llu-%llu",
 			       b[i].start, b[i].end, b[i + 1].start, b[i + 1].end);
 			goto err;
 		}
@@ -162,12 +162,12 @@ static void bch2_sb_journal_v2_to_text(struct printbuf *out, struct bch_sb *sb,
 	struct bch_sb_field_journal_v2 *journal = field_to_type(f, journal_v2);
 	unsigned i, nr = bch2_sb_field_journal_v2_nr_entries(journal);
 
-	pr_buf(out, "Buckets: ");
+	prt_printf(out, "Buckets: ");
 	for (i = 0; i < nr; i++)
-		pr_buf(out, " %llu-%llu",
+		prt_printf(out, " %llu-%llu",
 		       le64_to_cpu(journal->d[i].start),
 		       le64_to_cpu(journal->d[i].start) + le64_to_cpu(journal->d[i].nr));
-	pr_newline(out);
+	prt_newline(out);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_journal_v2 = {

@@ -31,14 +31,14 @@ int bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 
 	if (bkey_val_bytes(p.k) != sizeof(*p.v)) {
-		pr_buf(err, "incorrect value size (%zu != %zu)",
+		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(p.k), sizeof(*p.v));
 		return -EINVAL;
 	}
 
 	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix &&
 	    le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad)) {
-		pr_buf(err, "idx < front_pad (%llu < %u)",
+		prt_printf(err, "idx < front_pad (%llu < %u)",
 		       le64_to_cpu(p.v->idx), le32_to_cpu(p.v->front_pad));
 		return -EINVAL;
 	}
@@ -51,7 +51,7 @@ void bch2_reflink_p_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 
-	pr_buf(out, "idx %llu front_pad %u back_pad %u",
+	prt_printf(out, "idx %llu front_pad %u back_pad %u",
 	       le64_to_cpu(p.v->idx),
 	       le32_to_cpu(p.v->front_pad),
 	       le32_to_cpu(p.v->back_pad));
@@ -83,7 +83,7 @@ int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
 
 	if (bkey_val_bytes(r.k) < sizeof(*r.v)) {
-		pr_buf(err, "incorrect value size (%zu < %zu)",
+		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(r.k), sizeof(*r.v));
 		return -EINVAL;
 	}
@@ -96,7 +96,7 @@ void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
 
-	pr_buf(out, "refcount: %llu ", le64_to_cpu(r.v->refcount));
+	prt_printf(out, "refcount: %llu ", le64_to_cpu(r.v->refcount));
 
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
@@ -134,7 +134,7 @@ int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				      int rw, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k) < sizeof(struct bch_indirect_inline_data)) {
-		pr_buf(err, "incorrect value size (%zu < %zu)",
+		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_indirect_inline_data));
 		return -EINVAL;
 	}
@@ -148,7 +148,7 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 	struct bkey_s_c_indirect_inline_data d = bkey_s_c_to_indirect_inline_data(k);
 	unsigned datalen = bkey_inline_data_bytes(k.k);
 
-	pr_buf(out, "refcount %llu datalen %u: %*phN",
+	prt_printf(out, "refcount %llu datalen %u: %*phN",
 	       le64_to_cpu(d.v->refcount), datalen,
 	       min(datalen, 32U), d.v->data);
 }

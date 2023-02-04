@@ -237,127 +237,39 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
-enum printbuf_units {
-	PRINTBUF_UNITS_RAW,
-	PRINTBUF_UNITS_BYTES,
-	PRINTBUF_UNITS_HUMAN_READABLE,
-};
+#include "printbuf.h"
 
-struct printbuf {
-	char			*buf;
-	unsigned		size;
-	unsigned		pos;
-	unsigned		last_newline;
-	unsigned		last_field;
-	unsigned		indent;
-	enum printbuf_units	units:8;
-	u8			atomic;
-	bool			allocation_failure:1;
-	u8			tabstop;
-	u8			tabstops[4];
-};
+#define prt_vprintf(_out, ...)		bch2_prt_vprintf(_out, __VA_ARGS__)
+#define prt_printf(_out, ...)		bch2_prt_printf(_out, __VA_ARGS__)
+#define printbuf_str(_buf)		bch2_printbuf_str(_buf)
+#define printbuf_exit(_buf)		bch2_printbuf_exit(_buf)
 
-#define PRINTBUF ((struct printbuf) { NULL })
+#define printbuf_tabstops_reset(_buf)	bch2_printbuf_tabstops_reset(_buf)
+#define printbuf_tabstop_pop(_buf)	bch2_printbuf_tabstop_pop(_buf)
+#define printbuf_tabstop_push(_buf, _n)	bch2_printbuf_tabstop_push(_buf, _n)
 
-static inline void printbuf_exit(struct printbuf *buf)
-{
-	kfree(buf->buf);
-	buf->buf = ERR_PTR(-EINTR); /* poison value */
-}
+#define printbuf_indent_add(_out, _n)	bch2_printbuf_indent_add(_out, _n)
+#define printbuf_indent_sub(_out, _n)	bch2_printbuf_indent_sub(_out, _n)
 
-static inline void printbuf_reset(struct printbuf *buf)
-{
-	buf->pos		= 0;
-	buf->last_newline	= 0;
-	buf->last_field		= 0;
-	buf->indent		= 0;
-	buf->tabstop		= 0;
-}
+#define prt_newline(_out)		bch2_prt_newline(_out)
+#define prt_tab(_out)			bch2_prt_tab(_out)
+#define prt_tab_rjust(_out)		bch2_prt_tab_rjust(_out)
 
-static inline size_t printbuf_remaining(struct printbuf *buf)
-{
-	return buf->size - buf->pos;
-}
-
-static inline size_t printbuf_linelen(struct printbuf *buf)
-{
-	return buf->pos - buf->last_newline;
-}
-
-void bch2_pr_buf(struct printbuf *out, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-
-#define pr_buf(_out, ...) bch2_pr_buf(_out, __VA_ARGS__)
-
-static inline void pr_char(struct printbuf *out, char c)
-{
-	bch2_pr_buf(out, "%c", c);
-}
-
-static inline void pr_indent_push(struct printbuf *buf, unsigned spaces)
-{
-	buf->indent += spaces;
-	while (spaces--)
-		pr_char(buf, ' ');
-}
-
-static inline void pr_indent_pop(struct printbuf *buf, unsigned spaces)
-{
-	if (buf->last_newline + buf->indent == buf->pos) {
-		buf->pos -= spaces;
-		buf->buf[buf->pos] = '\0';
-	}
-	buf->indent -= spaces;
-}
-
-static inline void pr_newline(struct printbuf *buf)
-{
-	unsigned i;
-
-	pr_char(buf, '\n');
-
-	buf->last_newline	= buf->pos;
-
-	for (i = 0; i < buf->indent; i++)
-		pr_char(buf, ' ');
-
-	buf->last_field		= buf->pos;
-	buf->tabstop = 0;
-}
-
-static inline void pr_tab(struct printbuf *buf)
-{
-	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
-
-	while (printbuf_remaining(buf) > 1 &&
-	       printbuf_linelen(buf) < buf->tabstops[buf->tabstop])
-		pr_char(buf, ' ');
-
-	buf->last_field = buf->pos;
-	buf->tabstop++;
-}
-
-void bch2_pr_tab_rjust(struct printbuf *);
-
-static inline void pr_tab_rjust(struct printbuf *buf)
-{
-	bch2_pr_tab_rjust(buf);
-}
-
-void bch2_pr_units(struct printbuf *, s64, s64);
-#define pr_units(...) bch2_pr_units(__VA_ARGS__)
-
-static inline void pr_sectors(struct printbuf *out, u64 v)
-{
-	bch2_pr_units(out, v, v << 9);
-}
+#define prt_bytes_indented(...)		bch2_prt_bytes_indented(__VA_ARGS__)
+#define prt_u64(_out, _v)		prt_printf(_out, "%llu", _v)
+#define prt_human_readable_u64(...)	bch2_prt_human_readable_u64(__VA_ARGS__)
+#define prt_human_readable_s64(...)	bch2_prt_human_readable_s64(__VA_ARGS__)
+#define prt_units_u64(...)		bch2_prt_units_u64(__VA_ARGS__)
+#define prt_units_s64(...)		bch2_prt_units_s64(__VA_ARGS__)
+#define prt_string_option(...)		bch2_prt_string_option(__VA_ARGS__)
+#define prt_bitflags(...)		bch2_prt_bitflags(__VA_ARGS__)
 
 void bch2_pr_time_units(struct printbuf *, u64);
 
 #ifdef __KERNEL__
 static inline void pr_time(struct printbuf *out, u64 time)
 {
-	pr_buf(out, "%llu", time);
+	prt_printf(out, "%llu", time);
 }
 #else
 #include <time.h>
@@ -368,9 +280,9 @@ static inline void pr_time(struct printbuf *out, u64 _time)
 	struct tm *tm = localtime(&time);
 	size_t err = strftime(time_str, sizeof(time_str), "%c", tm);
 	if (!err)
-		pr_buf(out, "(formatting error)");
+		prt_printf(out, "(formatting error)");
 	else
-		pr_buf(out, "%s", time_str);
+		prt_printf(out, "%s", time_str);
 }
 #endif
 
@@ -388,7 +300,7 @@ static inline void pr_uuid(struct printbuf *out, u8 *uuid)
 	char uuid_str[40];
 
 	uuid_unparse_lower(uuid, uuid_str);
-	pr_buf(out, "%s", uuid_str);
+	prt_printf(out, "%s", uuid_str);
 }
 
 int bch2_strtoint_h(const char *, int *);
@@ -454,7 +366,7 @@ static inline int bch2_strtoul_h(const char *cp, long *res)
 })
 
 #define snprint(out, var)						\
-	pr_buf(out,							\
+	prt_printf(out,							\
 		   type_is(var, int)		? "%i\n"		\
 		 : type_is(var, unsigned)	? "%u\n"		\
 		 : type_is(var, long)		? "%li\n"		\
@@ -464,14 +376,8 @@ static inline int bch2_strtoul_h(const char *cp, long *res)
 		 : type_is(var, char *)		? "%s\n"		\
 		 : "%i\n", var)
 
-void bch2_hprint(struct printbuf *, s64);
-
 bool bch2_is_zero(const void *, size_t);
 
-void bch2_string_opt_to_text(struct printbuf *,
-			     const char * const [], size_t);
-
-void bch2_flags_to_text(struct printbuf *, const char * const[], u64);
 u64 bch2_read_flag_list(char *, const char * const[]);
 
 #define NR_QUANTILES	15

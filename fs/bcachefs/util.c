@@ -99,135 +99,6 @@ STRTO_H(strtoll, long long)
 STRTO_H(strtoull, unsigned long long)
 STRTO_H(strtou64, u64)
 
-static int bch2_printbuf_realloc(struct printbuf *out, unsigned extra)
-{
-	unsigned new_size;
-	char *buf;
-
-	if (out->pos + extra + 1 < out->size)
-		return 0;
-
-	new_size = roundup_pow_of_two(out->size + extra);
-	buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_ATOMIC);
-
-	if (!buf) {
-		out->allocation_failure = true;
-		return -ENOMEM;
-	}
-
-	out->buf	= buf;
-	out->size	= new_size;
-	return 0;
-}
-
-void bch2_pr_buf(struct printbuf *out, const char *fmt, ...)
-{
-	va_list args;
-	int len;
-
-	do {
-		va_start(args, fmt);
-		len = vsnprintf(out->buf + out->pos, printbuf_remaining(out), fmt, args);
-		va_end(args);
-	} while (len + 1 >= printbuf_remaining(out) &&
-		 !bch2_printbuf_realloc(out, len + 1));
-
-	len = min_t(size_t, len,
-		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
-	out->pos += len;
-}
-
-void bch2_pr_tab_rjust(struct printbuf *buf)
-{
-	BUG_ON(buf->tabstop > ARRAY_SIZE(buf->tabstops));
-
-	if (printbuf_linelen(buf) < buf->tabstops[buf->tabstop]) {
-		unsigned move = buf->pos - buf->last_field;
-		unsigned shift = buf->tabstops[buf->tabstop] -
-			printbuf_linelen(buf);
-
-		bch2_printbuf_realloc(buf, shift);
-
-		if (buf->last_field + shift + 1 < buf->size) {
-			move = min(move, buf->size - 1 - buf->last_field - shift);
-
-			memmove(buf->buf + buf->last_field + shift,
-				buf->buf + buf->last_field,
-				move);
-			memset(buf->buf + buf->last_field, ' ', shift);
-			buf->pos += shift;
-			buf->buf[buf->pos] = 0;
-		}
-	}
-
-	buf->last_field = buf->pos;
-	buf->tabstop++;
-}
-
-void bch2_hprint(struct printbuf *buf, s64 v)
-{
-	int u, t = 0;
-
-	for (u = 0; v >= 1024 || v <= -1024; u++) {
-		t = v & ~(~0U << 10);
-		v >>= 10;
-	}
-
-	pr_buf(buf, "%lli", v);
-
-	/*
-	 * 103 is magic: t is in the range [-1023, 1023] and we want
-	 * to turn it into [-9, 9]
-	 */
-	if (u && t && v < 100 && v > -100)
-		pr_buf(buf, ".%i", t / 103);
-	if (u)
-		pr_char(buf, si_units[u]);
-}
-
-void bch2_pr_units(struct printbuf *out, s64 raw, s64 bytes)
-{
-	switch (out->units) {
-	case PRINTBUF_UNITS_RAW:
-		pr_buf(out, "%llu", raw);
-		break;
-	case PRINTBUF_UNITS_BYTES:
-		pr_buf(out, "%llu", bytes);
-		break;
-	case PRINTBUF_UNITS_HUMAN_READABLE:
-		bch2_hprint(out, bytes);
-		break;
-	}
-}
-
-void bch2_string_opt_to_text(struct printbuf *out,
-			     const char * const list[],
-			     size_t selected)
-{
-	size_t i;
-
-	for (i = 0; list[i]; i++)
-		pr_buf(out, i == selected ? "[%s] " : "%s ", list[i]);
-}
-
-void bch2_flags_to_text(struct printbuf *out,
-			const char * const list[], u64 flags)
-{
-	unsigned bit, nr = 0;
-	bool first = true;
-
-	while (list[nr])
-		nr++;
-
-	while (flags && (bit = __ffs(flags)) < nr) {
-		if (!first)
-			pr_buf(out, ",");
-		first = false;
-		pr_buf(out, "%s", list[bit]);
-		flags ^= 1 << bit;
-	}
-}
-
 u64 bch2_read_flag_list(char *opt, const char * const list[])
 {
 	u64 ret = 0;
@@ -394,7 +265,7 @@ void bch2_pr_time_units(struct printbuf *out, u64 ns)
 {
 	const struct time_unit *u = pick_time_units(ns);
 
-	pr_buf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
+	prt_printf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
 }
 
 void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats)
@@ -404,29 +275,29 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	u64 q, last_q = 0;
 	int i;
 
-	pr_buf(out, "count:\t\t%llu\n",
+	prt_printf(out, "count:\t\t%llu\n",
 			 stats->count);
-	pr_buf(out, "rate:\t\t%llu/sec\n",
+	prt_printf(out, "rate:\t\t%llu/sec\n",
 	       freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
 
-	pr_buf(out, "frequency:\t");
+	prt_printf(out, "frequency:\t");
 	bch2_pr_time_units(out, freq);
 
-	pr_buf(out, "\navg duration:\t");
+	prt_printf(out, "\navg duration:\t");
 	bch2_pr_time_units(out, stats->average_duration);
 
-	pr_buf(out, "\nmax duration:\t");
+	prt_printf(out, "\nmax duration:\t");
 	bch2_pr_time_units(out, stats->max_duration);
 
 	i = eytzinger0_first(NR_QUANTILES);
 	u = pick_time_units(stats->quantiles.entries[i].m);
 
-	pr_buf(out, "\nquantiles (%s):\t", u->name);
+	prt_printf(out, "\nquantiles (%s):\t", u->name);
 	eytzinger0_for_each(i, NR_QUANTILES) {
 		bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
 
 		q = max(stats->quantiles.entries[i].m, last_q);
-		pr_buf(out, "%llu%s",
+		prt_printf(out, "%llu%s",
 		       div_u64(q, u->nsecs),
 		       is_last ? "\n" : " ");
 		last_q = q;
@@ -548,42 +419,43 @@ void bch2_pd_controller_init(struct bch_pd_controller *pd)
 
 void bch2_pd_controller_debug_to_text(struct printbuf *out, struct bch_pd_controller *pd)
 {
-	out->tabstops[0] = 20;
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 20);
 
-	pr_buf(out, "rate:");
-	pr_tab(out);
-	bch2_hprint(out, pd->rate.rate);
-	pr_newline(out);
+	prt_printf(out, "rate:");
+	prt_tab(out);
+	prt_human_readable_s64(out, pd->rate.rate);
+	prt_newline(out);
 
-	pr_buf(out, "target:");
-	pr_tab(out);
-	bch2_hprint(out, pd->last_target);
-	pr_newline(out);
+	prt_printf(out, "target:");
+	prt_tab(out);
+	prt_human_readable_u64(out, pd->last_target);
+	prt_newline(out);
 
-	pr_buf(out, "actual:");
-	pr_tab(out);
-	bch2_hprint(out, pd->last_actual);
-	pr_newline(out);
+	prt_printf(out, "actual:");
+	prt_tab(out);
+	prt_human_readable_u64(out, pd->last_actual);
+	prt_newline(out);
 
-	pr_buf(out, "proportional:");
-	pr_tab(out);
-	bch2_hprint(out, pd->last_proportional);
-	pr_newline(out);
+	prt_printf(out, "proportional:");
+	prt_tab(out);
+	prt_human_readable_s64(out, pd->last_proportional);
+	prt_newline(out);
 
-	pr_buf(out, "derivative:");
-	pr_tab(out);
-	bch2_hprint(out, pd->last_derivative);
-	pr_newline(out);
+	prt_printf(out, "derivative:");
+	prt_tab(out);
+	prt_human_readable_s64(out, pd->last_derivative);
+	prt_newline(out);
 
-	pr_buf(out, "change:");
-	pr_tab(out);
-	bch2_hprint(out, pd->last_change);
-	pr_newline(out);
+	prt_printf(out, "change:");
+	prt_tab(out);
+	prt_human_readable_s64(out, pd->last_change);
+	prt_newline(out);
 
-	pr_buf(out, "next io:");
-	pr_tab(out);
-	pr_buf(out, "%llims", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
-	pr_newline(out);
+	prt_printf(out, "next io:");
+	prt_tab(out);
+	prt_printf(out, "%llims", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
+	prt_newline(out);
 }
 
 /* misc: */

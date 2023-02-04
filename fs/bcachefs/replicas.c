@@ -42,14 +42,14 @@ void bch2_replicas_entry_v0_to_text(struct printbuf *out,
 	unsigned i;
 
 	if (e->data_type < BCH_DATA_NR)
-		pr_buf(out, "%s", bch2_data_types[e->data_type]);
+		prt_printf(out, "%s", bch2_data_types[e->data_type]);
 	else
-		pr_buf(out, "(invalid data type %u)", e->data_type);
+		prt_printf(out, "(invalid data type %u)", e->data_type);
 
-	pr_buf(out, ": %u [", e->nr_devs);
+	prt_printf(out, ": %u [", e->nr_devs);
 	for (i = 0; i < e->nr_devs; i++)
-		pr_buf(out, i ? " %u" : "%u", e->devs[i]);
-	pr_buf(out, "]");
+		prt_printf(out, i ? " %u" : "%u", e->devs[i]);
+	prt_printf(out, "]");
 }
 
 void bch2_replicas_entry_to_text(struct printbuf *out,
@@ -58,14 +58,14 @@ void bch2_replicas_entry_to_text(struct printbuf *out,
 	unsigned i;
 
 	if (e->data_type < BCH_DATA_NR)
-		pr_buf(out, "%s", bch2_data_types[e->data_type]);
+		prt_printf(out, "%s", bch2_data_types[e->data_type]);
 	else
-		pr_buf(out, "(invalid data type %u)", e->data_type);
+		prt_printf(out, "(invalid data type %u)", e->data_type);
 
-	pr_buf(out, ": %u/%u [", e->nr_required, e->nr_devs);
+	prt_printf(out, ": %u/%u [", e->nr_required, e->nr_devs);
 	for (i = 0; i < e->nr_devs; i++)
-		pr_buf(out, i ? " %u" : "%u", e->devs[i]);
-	pr_buf(out, "]");
+		prt_printf(out, i ? " %u" : "%u", e->devs[i]);
+	prt_printf(out, "]");
 }
 
 void bch2_cpu_replicas_to_text(struct printbuf *out,
@@ -76,7 +76,7 @@ void bch2_cpu_replicas_to_text(struct printbuf *out,
 
 	for_each_cpu_replicas_entry(r, e) {
 		if (!first)
-			pr_buf(out, " ");
+			prt_printf(out, " ");
 		first = false;
 
 		bch2_replicas_entry_to_text(out, e);
@@ -841,27 +841,27 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 			cpu_replicas_entry(cpu_r, i);
 
 		if (e->data_type >= BCH_DATA_NR) {
-			pr_buf(err, "invalid data type in entry ");
+			prt_printf(err, "invalid data type in entry ");
 			bch2_replicas_entry_to_text(err, e);
 			return -EINVAL;
 		}
 
 		if (!e->nr_devs) {
-			pr_buf(err, "no devices in entry ");
+			prt_printf(err, "no devices in entry ");
 			bch2_replicas_entry_to_text(err, e);
 			return -EINVAL;
 		}
 
 		if (e->nr_required > 1 &&
 		    e->nr_required >= e->nr_devs) {
-			pr_buf(err, "bad nr_required in entry ");
+			prt_printf(err, "bad nr_required in entry ");
 			bch2_replicas_entry_to_text(err, e);
 			return -EINVAL;
 		}
 
 		for (j = 0; j < e->nr_devs; j++)
 			if (!bch2_dev_exists(sb, mi, e->devs[j])) {
-				pr_buf(err, "invalid device %u in entry ", e->devs[j]);
+				prt_printf(err, "invalid device %u in entry ", e->devs[j]);
 				bch2_replicas_entry_to_text(err, e);
 				return -EINVAL;
 			}
@@ -873,7 +873,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 			BUG_ON(memcmp(e, n, cpu_r->entry_size) > 0);
 
 			if (!memcmp(e, n, cpu_r->entry_size)) {
-				pr_buf(err, "duplicate replicas entry ");
+				prt_printf(err, "duplicate replicas entry ");
 				bch2_replicas_entry_to_text(err, e);
 				return -EINVAL;
 			}
@@ -908,12 +908,12 @@ static void bch2_sb_replicas_to_text(struct printbuf *out,
 
 	for_each_replicas_entry(r, e) {
 		if (!first)
-			pr_buf(out, " ");
+			prt_printf(out, " ");
 		first = false;
 
 		bch2_replicas_entry_to_text(out, e);
 	}
-	pr_newline(out);
+	prt_newline(out);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
@@ -946,12 +946,12 @@ static void bch2_sb_replicas_v0_to_text(struct printbuf *out,
 
 	for_each_replicas_entry(sb_r, e) {
 		if (!first)
-			pr_buf(out, " ");
+			prt_printf(out, " ");
 		first = false;
 
 		bch2_replicas_entry_v0_to_text(out, e);
 	}
-	pr_newline(out);
+	prt_newline(out);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {

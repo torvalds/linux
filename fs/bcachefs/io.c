@@ -2094,18 +2094,18 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 			     PTR_BUCKET_POS(c, &ptr),
 			     BTREE_ITER_CACHED);
 
-	pr_buf(&buf, "Attempting to read from stale dirty pointer:");
-	pr_indent_push(&buf, 2);
-	pr_newline(&buf);
+	prt_printf(&buf, "Attempting to read from stale dirty pointer:");
+	printbuf_indent_add(&buf, 2);
+	prt_newline(&buf);
 
 	bch2_bkey_val_to_text(&buf, c, k);
-	pr_newline(&buf);
+	prt_newline(&buf);
 
-	pr_buf(&buf, "memory gen: %u", *bucket_gen(ca, iter.pos.offset));
+	prt_printf(&buf, "memory gen: %u", *bucket_gen(ca, iter.pos.offset));
 
 	ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
 	if (!ret) {
-		pr_newline(&buf);
+		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, k);
 	}
 

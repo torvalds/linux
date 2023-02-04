@@ -47,6 +47,7 @@ bcachefs-y		:=	\
 	move.o			\
 	movinggc.o		\
 	opts.o			\
+	printbuf.o		\
 	quota.o			\
 	rebalance.o		\
 	recovery.o		\

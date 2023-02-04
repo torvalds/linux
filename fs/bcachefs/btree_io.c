@@ -495,7 +495,7 @@ void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 static void btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b)
 {
-	pr_buf(out, "%s level %u/%u\n  ",
+	prt_printf(out, "%s level %u/%u\n  ",
 	       bch2_btree_ids[b->c.btree_id],
 	       b->c.level,
 	       c->btree_roots[b->c.btree_id].level);
@@ -507,17 +507,17 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b, struct bset *i,
 			  unsigned offset, int write)
 {
-	pr_buf(out, "error validating btree node ");
+	prt_printf(out, "error validating btree node ");
 	if (write)
-		pr_buf(out, "before write ");
+		prt_printf(out, "before write ");
 	if (ca)
-		pr_buf(out, "on %s ", ca->name);
-	pr_buf(out, "at btree ");
+		prt_printf(out, "on %s ", ca->name);
+	prt_printf(out, "at btree ");
 	btree_pos_to_text(out, c, b);
 
-	pr_buf(out, "\n  node offset %u", b->written);
+	prt_printf(out, "\n  node offset %u", b->written);
 	if (i)
-		pr_buf(out, " bset u64s %u", le16_to_cpu(i->u64s));
+		prt_printf(out, " bset u64s %u", le16_to_cpu(i->u64s));
 }
 
 enum btree_err_type {
@@ -537,7 +537,7 @@ enum btree_validate_ret {
 	struct printbuf out = PRINTBUF;					\
 									\
 	btree_err_msg(&out, c, ca, b, i, b->written, write);		\
-	pr_buf(&out, ": " msg, ##__VA_ARGS__);				\
+	prt_printf(&out, ": " msg, ##__VA_ARGS__);				\
 									\
 	if (type == BTREE_ERR_FIXABLE &&				\
 	    write == READ &&						\
@@ -815,9 +815,9 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		printbuf_reset(&buf);
 		if (bset_key_invalid(c, b, u.s_c, updated_range, write, &buf)) {
 			printbuf_reset(&buf);
-			pr_buf(&buf, "invalid bkey:  ");
+			prt_printf(&buf, "invalid bkey:  ");
 			bset_key_invalid(c, b, u.s_c, updated_range, write, &buf);
-			pr_buf(&buf, "\n  ");
+			prt_printf(&buf, "\n  ");
 			bch2_bkey_val_to_text(&buf, c, u.s_c);
 
 			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
@@ -837,9 +837,9 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			struct bkey up = bkey_unpack_key(b, prev);
 
 			printbuf_reset(&buf);
-			pr_buf(&buf, "keys out of order: ");
+			prt_printf(&buf, "keys out of order: ");
 			bch2_bkey_to_text(&buf, &up);
-			pr_buf(&buf, " > ");
+			prt_printf(&buf, " > ");
 			bch2_bkey_to_text(&buf, u.k);
 
 			bch2_dump_bset(c, b, i, 0);
@@ -1076,9 +1076,9 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
 			printbuf_reset(&buf);
 
-			pr_buf(&buf, "invalid bkey: ");
+			prt_printf(&buf, "invalid bkey: ");
 			bch2_bkey_val_invalid(c, u.s_c, READ, &buf);
-			pr_buf(&buf, "\n  ");
+			prt_printf(&buf, "\n  ");
 			bch2_bkey_val_to_text(&buf, c, u.s_c);
 
 			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
@@ -1338,10 +1338,10 @@ fsck_err:
 					sectors = vstruct_sectors(bne, c->block_bits);
 				}
 
-				pr_buf(&buf, " %u-%u", offset, offset + sectors);
+				prt_printf(&buf, " %u-%u", offset, offset + sectors);
 				if (bne && bch2_journal_seq_is_blacklisted(c,
 							le64_to_cpu(bne->keys.journal_seq), false))
-					pr_buf(&buf, "*");
+					prt_printf(&buf, "*");
 				offset += sectors;
 			}
 
@@ -1349,14 +1349,14 @@ fsck_err:
 				bne = ra->buf[i] + (offset << 9);
 				if (bne->keys.seq == bn->keys.seq) {
 					if (!gap)
-						pr_buf(&buf, " GAP");
+						prt_printf(&buf, " GAP");
 					gap = true;
 
 					sectors = vstruct_sectors(bne, c->block_bits);
-					pr_buf(&buf, " %u-%u", offset, offset + sectors);
+					prt_printf(&buf, " %u-%u", offset, offset + sectors);
 					if (bch2_journal_seq_is_blacklisted(c,
 							le64_to_cpu(bne->keys.journal_seq), false))
-						pr_buf(&buf, "*");
+						prt_printf(&buf, "*");
 				}
 				offset++;
 			}
@@ -1497,7 +1497,7 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 	if (ret <= 0) {
 		struct printbuf buf = PRINTBUF;
 
-		pr_buf(&buf, "btree node read error: no device to read from\n at ");
+		prt_str(&buf, "btree node read error: no device to read from\n at ");
 		btree_pos_to_text(&buf, c, b);
 		bch_err(c, "%s", buf.buf);
 

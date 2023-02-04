@@ -1575,12 +1575,12 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 	switch (bkey_float(b, t, j)->exponent) {
 	case BFLOAT_FAILED:
 		uk = bkey_unpack_key(b, k);
-		pr_buf(out,
+		prt_printf(out,
 		       "    failed unpacked at depth %u\n"
 		       "\t",
 		       ilog2(j));
 		bch2_bpos_to_text(out, uk.p);
-		pr_buf(out, "\n");
+		prt_printf(out, "\n");
 		break;
 	}
 }

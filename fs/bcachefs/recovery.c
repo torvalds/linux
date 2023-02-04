@@ -862,12 +862,12 @@ static int verify_superblock_clean(struct bch_fs *c,
 		if (k1)
 			bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(k1));
 		else
-			pr_buf(&buf1, "(none)");
+			prt_printf(&buf1, "(none)");
 
 		if (k2)
 			bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(k2));
 		else
-			pr_buf(&buf2, "(none)");
+			prt_printf(&buf2, "(none)");
 
 		mustfix_fsck_err_on(!k1 || !k2 ||
 				    IS_ERR(k1) ||

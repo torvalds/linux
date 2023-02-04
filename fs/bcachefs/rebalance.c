@@ -258,46 +258,47 @@ void bch2_rebalance_work_to_text(struct printbuf *out, struct bch_fs *c)
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct rebalance_work w = rebalance_work(c);
 
-	out->tabstops[0] = 20;
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 20);
 
-	pr_buf(out, "fullest_dev (%i):", w.dev_most_full_idx);
-	pr_tab(out);
+	prt_printf(out, "fullest_dev (%i):", w.dev_most_full_idx);
+	prt_tab(out);
 
-	bch2_hprint(out, w.dev_most_full_work << 9);
-	pr_buf(out, "/");
-	bch2_hprint(out, w.dev_most_full_capacity << 9);
-	pr_newline(out);
+	prt_human_readable_u64(out, w.dev_most_full_work << 9);
+	prt_printf(out, "/");
+	prt_human_readable_u64(out, w.dev_most_full_capacity << 9);
+	prt_newline(out);
 
-	pr_buf(out, "total work:");
-	pr_tab(out);
+	prt_printf(out, "total work:");
+	prt_tab(out);
 
-	bch2_hprint(out, w.total_work << 9);
-	pr_buf(out, "/");
-	bch2_hprint(out, c->capacity << 9);
-	pr_newline(out);
+	prt_human_readable_u64(out, w.total_work << 9);
+	prt_printf(out, "/");
+	prt_human_readable_u64(out, c->capacity << 9);
+	prt_newline(out);
 
-	pr_buf(out, "rate:");
-	pr_tab(out);
-	pr_buf(out, "%u", r->pd.rate.rate);
-	pr_newline(out);
+	prt_printf(out, "rate:");
+	prt_tab(out);
+	prt_printf(out, "%u", r->pd.rate.rate);
+	prt_newline(out);
 
 	switch (r->state) {
 	case REBALANCE_WAITING:
-		pr_buf(out, "waiting");
+		prt_printf(out, "waiting");
 		break;
 	case REBALANCE_THROTTLED:
-		pr_buf(out, "throttled for %lu sec or ",
+		prt_printf(out, "throttled for %lu sec or ",
 		       (r->throttled_until_cputime - jiffies) / HZ);
-		bch2_hprint(out,
+		prt_human_readable_u64(out,
 			    (r->throttled_until_iotime -
 			     atomic64_read(&c->io_clock[WRITE].now)) << 9);
-		pr_buf(out, " io");
+		prt_printf(out, " io");
 		break;
 	case REBALANCE_RUNNING:
-		pr_buf(out, "running");
+		prt_printf(out, "running");
 		break;
 	}
-	pr_newline(out);
+	prt_newline(out);
 }
 
 void bch2_rebalance_stop(struct bch_fs *c)

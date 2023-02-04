@@ -17,7 +17,7 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(k);
 
-	pr_buf(out, "is_subvol %llu deleted %llu parent %u children %u %u subvol %u",
+	prt_printf(out, "is_subvol %llu deleted %llu parent %u children %u %u subvol %u",
 	       BCH_SNAPSHOT_SUBVOL(s.v),
 	       BCH_SNAPSHOT_DELETED(s.v),
 	       le32_to_cpu(s.v->parent),
@@ -34,12 +34,12 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0 ||
 	    bkey_cmp(k.k->p, POS(0, 1)) < 0) {
-		pr_buf(err, "bad pos");
+		prt_printf(err, "bad pos");
 		return -EINVAL;
 	}
 
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_snapshot)) {
-		pr_buf(err, "bad val size (%zu != %zu)",
+		prt_printf(err, "bad val size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_snapshot));
 		return -EINVAL;
 	}
@@ -48,19 +48,19 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	id = le32_to_cpu(s.v->parent);
 	if (id && id <= k.k->p.offset) {
-		pr_buf(err, "bad parent node (%u <= %llu)",
+		prt_printf(err, "bad parent node (%u <= %llu)",
 		       id, k.k->p.offset);
 		return -EINVAL;
 	}
 
 	if (le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1])) {
-		pr_buf(err, "children not normalized");
+		prt_printf(err, "children not normalized");
 		return -EINVAL;
 	}
 
 	if (s.v->children[0] &&
 	    s.v->children[0] == s.v->children[1]) {
-		pr_buf(err, "duplicate child nodes");
+		prt_printf(err, "duplicate child nodes");
 		return -EINVAL;
 	}
 
@@ -68,7 +68,7 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		id = le32_to_cpu(s.v->children[i]);
 
 		if (id >= k.k->p.offset) {
-			pr_buf(err, "bad child node (%u >= %llu)",
+			prt_printf(err, "bad child node (%u >= %llu)",
 			       id, k.k->p.offset);
 			return -EINVAL;
 		}
@@ -750,12 +750,12 @@ int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
 {
 	if (bkey_cmp(k.k->p, SUBVOL_POS_MIN) < 0 ||
 	    bkey_cmp(k.k->p, SUBVOL_POS_MAX) > 0) {
-		pr_buf(err, "invalid pos");
+		prt_printf(err, "invalid pos");
 		return -EINVAL;
 	}
 
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_subvolume)) {
-		pr_buf(err, "incorrect value size (%zu != %zu)",
+		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_subvolume));
 		return -EINVAL;
 	}
@@ -768,7 +768,7 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_subvolume s = bkey_s_c_to_subvolume(k);
 
-	pr_buf(out, "root %llu snapshot id %u",
+	prt_printf(out, "root %llu snapshot id %u",
 	       le64_to_cpu(s.v->inode),
 	       le32_to_cpu(s.v->snapshot));
 }

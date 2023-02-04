@@ -39,13 +39,13 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 		g = BCH_MEMBER_GROUP(m) - 1;
 
 		if (g >= nr_groups) {
-			pr_buf(err, "disk %u has invalid label %u (have %u)",
+			prt_printf(err, "disk %u has invalid label %u (have %u)",
 			       i, g, nr_groups);
 			return -EINVAL;
 		}
 
 		if (BCH_GROUP_DELETED(&groups->entries[g])) {
-			pr_buf(err, "disk %u has deleted label %u", i, g);
+			prt_printf(err, "disk %u has deleted label %u", i, g);
 			return -EINVAL;
 		}
 	}
@@ -61,7 +61,7 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 
 		len = strnlen(g->label, sizeof(g->label));
 		if (!len) {
-			pr_buf(err, "label %u empty", i);
+			prt_printf(err, "label %u empty", i);
 			return -EINVAL;
 		}
 	}
@@ -76,7 +76,7 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 	for (g = sorted; g + 1 < sorted + nr_groups; g++)
 		if (!BCH_GROUP_DELETED(g) &&
 		    !group_cmp(&g[0], &g[1])) {
-			pr_buf(err, "duplicate label %llu.%.*s",
+			prt_printf(err, "duplicate label %llu.%.*s",
 			       BCH_GROUP_PARENT(g),
 			       (int) sizeof(g->label), g->label);
 			goto err;
@@ -101,12 +101,12 @@ static void bch2_sb_disk_groups_to_text(struct printbuf *out,
 	     g < groups->entries + nr_groups;
 	     g++) {
 		if (g != groups->entries)
-			pr_buf(out, " ");
+			prt_printf(out, " ");
 
 		if (BCH_GROUP_DELETED(g))
-			pr_buf(out, "[deleted]");
+			prt_printf(out, "[deleted]");
 		else
-			pr_buf(out, "[parent %llu name %s]",
+			prt_printf(out, "[parent %llu name %s]",
 			       BCH_GROUP_PARENT(g), g->label);
 	}
 }
@@ -375,13 +375,13 @@ void bch2_disk_path_to_text(struct printbuf *out, struct bch_sb *sb, unsigned v)
 		v = path[--nr];
 		g = groups->entries + v;
 
-		pr_buf(out, "%.*s", (int) sizeof(g->label), g->label);
+		prt_printf(out, "%.*s", (int) sizeof(g->label), g->label);
 		if (nr)
-			pr_buf(out, ".");
+			prt_printf(out, ".");
 	}
 	return;
 inval:
-	pr_buf(out, "invalid label %u", v);
+	prt_printf(out, "invalid label %u", v);
 }
 
 int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
@@ -454,7 +454,7 @@ void bch2_opt_target_to_text(struct printbuf *out,
 
 	switch (t.type) {
 	case TARGET_NULL:
-		pr_buf(out, "none");
+		prt_printf(out, "none");
 		break;
 	case TARGET_DEV:
 		if (c) {
@@ -466,12 +466,12 @@ void bch2_opt_target_to_text(struct printbuf *out,
 				: NULL;
 
 			if (ca && percpu_ref_tryget(&ca->io_ref)) {
-				pr_buf(out, "/dev/%pg", ca->disk_sb.bdev);
+				prt_printf(out, "/dev/%pg", ca->disk_sb.bdev);
 				percpu_ref_put(&ca->io_ref);
 			} else if (ca) {
-				pr_buf(out, "offline device %u", t.dev);
+				prt_printf(out, "offline device %u", t.dev);
 			} else {
-				pr_buf(out, "invalid device %u", t.dev);
+				prt_printf(out, "invalid device %u", t.dev);
 			}
 
 			rcu_read_unlock();
@@ -480,11 +480,11 @@ void bch2_opt_target_to_text(struct printbuf *out,
 			struct bch_member *m = mi->members + t.dev;
 
 			if (bch2_dev_exists(sb, mi, t.dev)) {
-				pr_buf(out, "Device ");
+				prt_printf(out, "Device ");
 				pr_uuid(out, m->uuid.b);
-				pr_buf(out, " (%u)", t.dev);
+				prt_printf(out, " (%u)", t.dev);
 			} else {
-				pr_buf(out, "Bad device %u", t.dev);
+				prt_printf(out, "Bad device %u", t.dev);
 			}
 		}
 		break;

@@ -201,26 +201,26 @@ void bch2_fs_usage_to_text(struct printbuf *out,
 {
 	unsigned i;
 
-	pr_buf(out, "capacity:\t\t\t%llu\n", c->capacity);
+	prt_printf(out, "capacity:\t\t\t%llu\n", c->capacity);
 
-	pr_buf(out, "hidden:\t\t\t\t%llu\n",
+	prt_printf(out, "hidden:\t\t\t\t%llu\n",
 	       fs_usage->u.hidden);
-	pr_buf(out, "data:\t\t\t\t%llu\n",
+	prt_printf(out, "data:\t\t\t\t%llu\n",
 	       fs_usage->u.data);
-	pr_buf(out, "cached:\t\t\t\t%llu\n",
+	prt_printf(out, "cached:\t\t\t\t%llu\n",
 	       fs_usage->u.cached);
-	pr_buf(out, "reserved:\t\t\t%llu\n",
+	prt_printf(out, "reserved:\t\t\t%llu\n",
 	       fs_usage->u.reserved);
-	pr_buf(out, "nr_inodes:\t\t\t%llu\n",
+	prt_printf(out, "nr_inodes:\t\t\t%llu\n",
 	       fs_usage->u.nr_inodes);
-	pr_buf(out, "online reserved:\t\t%llu\n",
+	prt_printf(out, "online reserved:\t\t%llu\n",
 	       fs_usage->online_reserved);
 
 	for (i = 0;
 	     i < ARRAY_SIZE(fs_usage->u.persistent_reserved);
 	     i++) {
-		pr_buf(out, "%u replicas:\n", i + 1);
-		pr_buf(out, "\treserved:\t\t%llu\n",
+		prt_printf(out, "%u replicas:\n", i + 1);
+		prt_printf(out, "\treserved:\t\t%llu\n",
 		       fs_usage->u.persistent_reserved[i]);
 	}
 
@@ -228,9 +228,9 @@ void bch2_fs_usage_to_text(struct printbuf *out,
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
 
-		pr_buf(out, "\t");
+		prt_printf(out, "\t");
 		bch2_replicas_entry_to_text(out, e);
-		pr_buf(out, ":\t%llu\n", fs_usage->u.replicas[i]);
+		prt_printf(out, ":\t%llu\n", fs_usage->u.replicas[i]);
 	}
 }
 

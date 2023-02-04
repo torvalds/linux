@@ -56,7 +56,7 @@ static ssize_t fn ## _show(struct kobject *kobj, struct attribute *attr,\
 	ssize_t ret = fn ## _to_text(&out, kobj, attr);			\
 									\
 	if (out.pos && out.buf[out.pos - 1] != '\n')			\
-		pr_newline(&out);					\
+		prt_newline(&out);					\
 									\
 	if (!ret && out.allocation_failure)				\
 		ret = -ENOMEM;						\
@@ -87,7 +87,7 @@ static ssize_t fn ## _store(struct kobject *kobj, struct attribute *attr,\
 #define sysfs_printf(file, fmt, ...)					\
 do {									\
 	if (attr == &sysfs_ ## file)					\
-		pr_buf(out, fmt "\n", __VA_ARGS__);			\
+		prt_printf(out, fmt "\n", __VA_ARGS__);			\
 } while (0)
 
 #define sysfs_print(file, var)						\
@@ -99,7 +99,7 @@ do {									\
 #define sysfs_hprint(file, val)						\
 do {									\
 	if (attr == &sysfs_ ## file)					\
-		bch2_hprint(out, val);					\
+		prt_human_readable_s64(out, val);			\
 } while (0)
 
 #define var_printf(_var, fmt)	sysfs_printf(_var, fmt, var(_var))
@@ -260,12 +260,12 @@ static long data_progress_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->data_progress_lock);
 	list_for_each_entry(stats, &c->data_progress_list, list) {
-		pr_buf(out, "%s: data type %s btree_id %s position: ",
+		prt_printf(out, "%s: data type %s btree_id %s position: ",
 		       stats->name,
 		       bch2_data_types[stats->data_type],
 		       bch2_btree_ids[stats->btree_id]);
 		bch2_bpos_to_text(out, stats->pos);
-		pr_buf(out, "%s", "\n");
+		prt_printf(out, "%s", "\n");
 	}
 
 	mutex_unlock(&c->data_progress_lock);
@@ -338,34 +338,34 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	if (ret)
 		return ret;
 
-	pr_buf(out, "uncompressed:\n");
-	pr_buf(out, "	nr extents:		%llu\n", nr_uncompressed_extents);
-	pr_buf(out, "	size:			");
-	bch2_hprint(out, uncompressed_sectors << 9);
-	pr_buf(out, "\n");
+	prt_printf(out, "uncompressed:\n");
+	prt_printf(out, "	nr extents:		%llu\n", nr_uncompressed_extents);
+	prt_printf(out, "	size:			");
+	prt_human_readable_u64(out, uncompressed_sectors << 9);
+	prt_printf(out, "\n");
 
-	pr_buf(out, "compressed:\n");
-	pr_buf(out, "	nr extents:		%llu\n", nr_compressed_extents);
-	pr_buf(out, "	compressed size:	");
-	bch2_hprint(out, compressed_sectors_compressed << 9);
-	pr_buf(out, "\n");
-	pr_buf(out, "	uncompressed size:	");
-	bch2_hprint(out, compressed_sectors_uncompressed << 9);
-	pr_buf(out, "\n");
+	prt_printf(out, "compressed:\n");
+	prt_printf(out, "	nr extents:		%llu\n", nr_compressed_extents);
+	prt_printf(out, "	compressed size:	");
+	prt_human_readable_u64(out, compressed_sectors_compressed << 9);
+	prt_printf(out, "\n");
+	prt_printf(out, "	uncompressed size:	");
+	prt_human_readable_u64(out, compressed_sectors_uncompressed << 9);
+	prt_printf(out, "\n");
 
-	pr_buf(out, "incompressible:\n");
-	pr_buf(out, "	nr extents:		%llu\n", nr_incompressible_extents);
-	pr_buf(out, "	size:			");
-	bch2_hprint(out, incompressible_sectors << 9);
-	pr_buf(out, "\n");
+	prt_printf(out, "incompressible:\n");
+	prt_printf(out, "	nr extents:		%llu\n", nr_incompressible_extents);
+	prt_printf(out, "	size:			");
+	prt_human_readable_u64(out, incompressible_sectors << 9);
+	prt_printf(out, "\n");
 	return 0;
 }
 
 static void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	pr_buf(out, "%s: ", bch2_btree_ids[c->gc_gens_btree]);
+	prt_printf(out, "%s: ", bch2_btree_ids[c->gc_gens_btree]);
 	bch2_bpos_to_text(out, c->gc_gens_pos);
-	pr_buf(out, "\n");
+	prt_printf(out, "\n");
 }
 
 SHOW(bch2_fs)
@@ -563,20 +563,21 @@ SHOW(bch2_fs_counters)
 	u64 counter = 0;
 	u64 counter_since_mount = 0;
 
-	out->tabstops[0] = 32;
+	printbuf_tabstop_push(out, 32);
+
 	#define x(t, ...) \
 		if (attr == &sysfs_##t) {					\
 			counter             = percpu_u64_get(&c->counters[BCH_COUNTER_##t]);\
 			counter_since_mount = counter - c->counters_on_mount[BCH_COUNTER_##t];\
-			pr_buf(out, "since mount:");				\
-			pr_tab(out);						\
-			bch2_hprint(out, counter_since_mount << 9);		\
-			pr_newline(out);					\
+			prt_printf(out, "since mount:");				\
+			prt_tab(out);						\
+			prt_human_readable_u64(out, counter_since_mount << 9);	\
+			prt_newline(out);					\
 										\
-			pr_buf(out, "since filesystem creation:");		\
-			pr_tab(out);						\
-			bch2_hprint(out, counter << 9);				\
-			pr_newline(out);					\
+			prt_printf(out, "since filesystem creation:");		\
+			prt_tab(out);						\
+			prt_human_readable_u64(out, counter << 9);		\
+			prt_newline(out);					\
 		}
 	BCH_PERSISTENT_COUNTERS()
 	#undef x
@@ -658,7 +659,7 @@ SHOW(bch2_fs_opts_dir)
 	u64 v = bch2_opt_get_by_id(&c->opts, id);
 
 	bch2_opt_to_text(out, c, c->disk_sb.sb, opt, v, OPT_SHOW_FULL_LIST);
-	pr_char(out, '\n');
+	prt_char(out, '\n');
 
 	return 0;
 }
@@ -771,17 +772,17 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	for (i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
-	pr_buf(out,
+	prt_printf(out,
 	       "\t\t\t buckets\t sectors      fragmented\n"
 	       "capacity\t%16llu\n",
 	       ca->mi.nbuckets - ca->mi.first_bucket);
 
 	for (i = 0; i < BCH_DATA_NR; i++)
-		pr_buf(out, "%-16s%16llu%16llu%16llu\n",
+		prt_printf(out, "%-16s%16llu%16llu%16llu\n",
 		       bch2_data_types[i], stats.d[i].buckets,
 		       stats.d[i].sectors, stats.d[i].fragmented);
 
-	pr_buf(out,
+	prt_printf(out,
 	       "ec\t\t%16llu\n"
 	       "\n"
 	       "freelist_wait\t\t%s\n"
@@ -814,10 +815,10 @@ static void dev_iodone_to_text(struct printbuf *out, struct bch_dev *ca)
 	int rw, i;
 
 	for (rw = 0; rw < 2; rw++) {
-		pr_buf(out, "%s:\n", bch2_rw[rw]);
+		prt_printf(out, "%s:\n", bch2_rw[rw]);
 
 		for (i = 1; i < BCH_DATA_NR; i++)
-			pr_buf(out, "%-12s:%12llu\n",
+			prt_printf(out, "%-12s:%12llu\n",
 			       bch2_data_types[i],
 			       percpu_u64_get(&ca->io_done->sectors[rw][i]) << 9);
 	}
@@ -844,19 +845,17 @@ SHOW(bch2_dev)
 			mutex_unlock(&c->sb_lock);
 		}
 
-		pr_char(out, '\n');
+		prt_char(out, '\n');
 	}
 
 	if (attr == &sysfs_has_data) {
-		bch2_flags_to_text(out, bch2_data_types,
-				   bch2_dev_has_data(c, ca));
-		pr_char(out, '\n');
+		prt_bitflags(out, bch2_data_types, bch2_dev_has_data(c, ca));
+		prt_char(out, '\n');
 	}
 
 	if (attr == &sysfs_state_rw) {
-		bch2_string_opt_to_text(out, bch2_member_states,
-					ca->mi.state);
-		pr_char(out, '\n');
+		prt_string_option(out, bch2_member_states, ca->mi.state);
+		prt_char(out, '\n');
 	}
 
 	if (attr == &sysfs_iodone)

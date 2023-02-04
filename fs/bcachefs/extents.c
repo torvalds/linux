@@ -159,7 +159,7 @@ int bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			   int rw, struct printbuf *err)
 {
 	if (bkey_val_u64s(k.k) > BCH_REPLICAS_MAX) {
-		pr_buf(err, "value too big (%zu > %u)",
+		prt_printf(err, "value too big (%zu > %u)",
 		       bkey_val_u64s(k.k), BCH_REPLICAS_MAX);
 		return -EINVAL;
 	}
@@ -179,20 +179,20 @@ int bch2_btree_ptr_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 
 	if (bkey_val_bytes(k.k) <= sizeof(*bp.v)) {
-		pr_buf(err, "value too small (%zu <= %zu)",
+		prt_printf(err, "value too small (%zu <= %zu)",
 		       bkey_val_bytes(k.k), sizeof(*bp.v));
 		return -EINVAL;
 	}
 
 	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX) {
-		pr_buf(err, "value too big (%zu > %zu)",
+		prt_printf(err, "value too big (%zu > %zu)",
 		       bkey_val_u64s(k.k), BKEY_BTREE_PTR_VAL_U64s_MAX);
 		return -EINVAL;
 	}
 
 	if (c->sb.version < bcachefs_metadata_version_snapshot &&
 	    bp.v->min_key.snapshot) {
-		pr_buf(err, "invalid min_key.snapshot (%u != 0)",
+		prt_printf(err, "invalid min_key.snapshot (%u != 0)",
 		       bp.v->min_key.snapshot);
 		return -EINVAL;
 	}
@@ -205,13 +205,13 @@ void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 
-	pr_buf(out, "seq %llx written %u min_key %s",
+	prt_printf(out, "seq %llx written %u min_key %s",
 	       le64_to_cpu(bp.v->seq),
 	       le16_to_cpu(bp.v->sectors_written),
 	       BTREE_PTR_RANGE_UPDATED(bp.v) ? "R " : "");
 
 	bch2_bpos_to_text(out, bp.v->min_key);
-	pr_buf(out, " ");
+	prt_printf(out, " ");
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
@@ -383,13 +383,13 @@ int bch2_reservation_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_reservation r = bkey_s_c_to_reservation(k);
 
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_reservation)) {
-		pr_buf(err, "incorrect value size (%zu != %zu)",
+		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(*r.v));
 		return -EINVAL;
 	}
 
 	if (!r.v->nr_replicas || r.v->nr_replicas > BCH_REPLICAS_MAX) {
-		pr_buf(err, "invalid nr_replicas (%u)",
+		prt_printf(err, "invalid nr_replicas (%u)",
 		       r.v->nr_replicas);
 		return -EINVAL;
 	}
@@ -402,7 +402,7 @@ void bch2_reservation_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_reservation r = bkey_s_c_to_reservation(k);
 
-	pr_buf(out, "generation %u replicas %u",
+	prt_printf(out, "generation %u replicas %u",
 	       le32_to_cpu(r.v->generation),
 	       r.v->nr_replicas);
 }
@@ -970,7 +970,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		if (!first)
-			pr_buf(out, " ");
+			prt_printf(out, " ");
 
 		switch (__extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:
@@ -980,19 +980,19 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 				: NULL;
 
 			if (!ca) {
-				pr_buf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
+				prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
 				       (u64) ptr->offset, ptr->gen,
 				       ptr->cached ? " cached" : "");
 			} else {
 				u32 offset;
 				u64 b = sector_to_bucket_and_offset(ca, ptr->offset, &offset);
 
-				pr_buf(out, "ptr: %u:%llu:%u gen %u%s", ptr->dev,
+				prt_printf(out, "ptr: %u:%llu:%u gen %u%s", ptr->dev,
 				       b, offset, ptr->gen,
 				       ptr->cached ? " cached" : "");
 
 				if (ca && ptr_stale(ca, ptr))
-					pr_buf(out, " stale");
+					prt_printf(out, " stale");
 			}
 			break;
 		case BCH_EXTENT_ENTRY_crc32:
@@ -1000,7 +1000,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		case BCH_EXTENT_ENTRY_crc128:
 			crc = bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			pr_buf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress %s",
+			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress %s",
 			       crc.compressed_size,
 			       crc.uncompressed_size,
 			       crc.offset, crc.nonce,
@@ -1010,11 +1010,11 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		case BCH_EXTENT_ENTRY_stripe_ptr:
 			ec = &entry->stripe_ptr;
 
-			pr_buf(out, "ec: idx %llu block %u",
+			prt_printf(out, "ec: idx %llu block %u",
 			       (u64) ec->idx, ec->block);
 			break;
 		default:
-			pr_buf(out, "(invalid extent entry %.16llx)", *((u64 *) entry));
+			prt_printf(out, "(invalid extent entry %.16llx)", *((u64 *) entry));
 			return;
 		}
 
@@ -1036,33 +1036,33 @@ static int extent_ptr_invalid(const struct bch_fs *c,
 	struct bch_dev *ca;
 
 	if (!bch2_dev_exists2(c, ptr->dev)) {
-		pr_buf(err, "pointer to invalid device (%u)", ptr->dev);
+		prt_printf(err, "pointer to invalid device (%u)", ptr->dev);
 		return -EINVAL;
 	}
 
 	ca = bch_dev_bkey_exists(c, ptr->dev);
 	bkey_for_each_ptr(ptrs, ptr2)
 		if (ptr != ptr2 && ptr->dev == ptr2->dev) {
-			pr_buf(err, "multiple pointers to same device (%u)", ptr->dev);
+			prt_printf(err, "multiple pointers to same device (%u)", ptr->dev);
 			return -EINVAL;
 		}
 
 	bucket = sector_to_bucket_and_offset(ca, ptr->offset, &bucket_offset);
 
 	if (bucket >= ca->mi.nbuckets) {
-		pr_buf(err, "pointer past last bucket (%llu > %llu)",
+		prt_printf(err, "pointer past last bucket (%llu > %llu)",
 		       bucket, ca->mi.nbuckets);
 		return -EINVAL;
 	}
 
 	if (ptr->offset < bucket_to_sector(ca, ca->mi.first_bucket)) {
-		pr_buf(err, "pointer before first bucket (%llu < %u)",
+		prt_printf(err, "pointer before first bucket (%llu < %u)",
 		       bucket, ca->mi.first_bucket);
 		return -EINVAL;
 	}
 
 	if (bucket_offset + size_ondisk > ca->mi.bucket_size) {
-		pr_buf(err, "pointer spans multiple buckets (%u + %u > %u)",
+		prt_printf(err, "pointer spans multiple buckets (%u + %u > %u)",
 		       bucket_offset, size_ondisk, ca->mi.bucket_size);
 		return -EINVAL;
 	}
@@ -1085,14 +1085,14 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		if (__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX) {
-			pr_buf(err, "invalid extent entry type (got %u, max %u)",
+			prt_printf(err, "invalid extent entry type (got %u, max %u)",
 			       __extent_entry_type(entry), BCH_EXTENT_ENTRY_MAX);
 			return -EINVAL;
 		}
 
 		if (bkey_is_btree_ptr(k.k) &&
 		    !extent_entry_is_ptr(entry)) {
-			pr_buf(err, "has non ptr field");
+			prt_printf(err, "has non ptr field");
 			return -EINVAL;
 		}
 
@@ -1110,19 +1110,19 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 			if (crc.offset + crc.live_size >
 			    crc.uncompressed_size) {
-				pr_buf(err, "checksum offset + key size > uncompressed size");
+				prt_printf(err, "checksum offset + key size > uncompressed size");
 				return -EINVAL;
 			}
 
 			size_ondisk = crc.compressed_size;
 
 			if (!bch2_checksum_type_valid(c, crc.csum_type)) {
-				pr_buf(err, "invalid checksum type");
+				prt_printf(err, "invalid checksum type");
 				return -EINVAL;
 			}
 
 			if (crc.compression_type >= BCH_COMPRESSION_TYPE_NR) {
-				pr_buf(err, "invalid compression type");
+				prt_printf(err, "invalid compression type");
 				return -EINVAL;
 			}
 
@@ -1130,7 +1130,7 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				if (nonce == UINT_MAX)
 					nonce = crc.offset + crc.nonce;
 				else if (nonce != crc.offset + crc.nonce) {
-					pr_buf(err, "incorrect nonce");
+					prt_printf(err, "incorrect nonce");
 					return -EINVAL;
 				}
 			}

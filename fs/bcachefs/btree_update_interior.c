@@ -1189,9 +1189,9 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 			      btree_node_type(b), WRITE, &buf) ?:
 	    bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert), &buf)) {
 		printbuf_reset(&buf);
-		pr_buf(&buf, "inserting invalid bkey\n  ");
+		prt_printf(&buf, "inserting invalid bkey\n  ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
-		pr_buf(&buf, "\n  ");
+		prt_printf(&buf, "\n  ");
 		bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 				  btree_node_type(b), WRITE, &buf);
 		bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert), &buf);
@@ -2163,7 +2163,7 @@ void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_for_each_entry(as, &c->btree_interior_update_list, list)
-		pr_buf(out, "%p m %u w %u r %u j %llu\n",
+		prt_printf(out, "%p m %u w %u r %u j %llu\n",
 		       as,
 		       as->mode,
 		       as->nodes_written,

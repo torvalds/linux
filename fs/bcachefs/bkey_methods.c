@@ -40,7 +40,7 @@ static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				 int rw, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k)) {
-		pr_buf(err, "incorrect value size (%zu != 0)",
+		prt_printf(err, "incorrect value size (%zu != 0)",
 		       bkey_val_bytes(k.k));
 		return -EINVAL;
 	}
@@ -56,7 +56,7 @@ static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				   int rw, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_cookie)) {
-		pr_buf(err, "incorrect value size (%zu != %zu)",
+		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_cookie));
 		return -EINVAL;
 	}
@@ -84,7 +84,7 @@ static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
 	struct bkey_s_c_inline_data d = bkey_s_c_to_inline_data(k);
 	unsigned datalen = bkey_inline_data_bytes(k.k);
 
-	pr_buf(out, "datalen %u: %*phN",
+	prt_printf(out, "datalen %u: %*phN",
 	       datalen, min(datalen, 32U), d.v->data);
 }
 
@@ -97,7 +97,7 @@ static int key_type_set_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				int rw, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k)) {
-		pr_buf(err, "incorrect value size (%zu != %zu)",
+		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_cookie));
 		return -EINVAL;
 	}
@@ -126,7 +126,7 @@ int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 			  int rw, struct printbuf *err)
 {
 	if (k.k->type >= KEY_TYPE_MAX) {
-		pr_buf(err, "invalid type (%u >= %u)", k.k->type, KEY_TYPE_MAX);
+		prt_printf(err, "invalid type (%u >= %u)", k.k->type, KEY_TYPE_MAX);
 		return -EINVAL;
 	}
 
@@ -202,30 +202,30 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			int rw, struct printbuf *err)
 {
 	if (k.k->u64s < BKEY_U64s) {
-		pr_buf(err, "u64s too small (%u < %zu)", k.k->u64s, BKEY_U64s);
+		prt_printf(err, "u64s too small (%u < %zu)", k.k->u64s, BKEY_U64s);
 		return -EINVAL;
 	}
 
 	if (!(bch2_key_types_allowed[type] & (1U << k.k->type))) {
-		pr_buf(err, "invalid key type for this btree (%s)",
+		prt_printf(err, "invalid key type for this btree (%s)",
 		       bch2_bkey_types[type]);
 		return -EINVAL;
 	}
 
 	if (btree_node_type_is_extents(type) && !bkey_whiteout(k.k)) {
 		if (k.k->size == 0) {
-			pr_buf(err, "size == 0");
+			prt_printf(err, "size == 0");
 			return -EINVAL;
 		}
 
 		if (k.k->size > k.k->p.offset) {
-			pr_buf(err, "size greater than offset (%u > %llu)",
+			prt_printf(err, "size greater than offset (%u > %llu)",
 			       k.k->size, k.k->p.offset);
 			return -EINVAL;
 		}
 	} else {
 		if (k.k->size) {
-			pr_buf(err, "size != 0");
+			prt_printf(err, "size != 0");
 			return -EINVAL;
 		}
 	}
@@ -233,20 +233,20 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (type != BKEY_TYPE_btree &&
 	    !btree_type_has_snapshots(type) &&
 	    k.k->p.snapshot) {
-		pr_buf(err, "nonzero snapshot");
+		prt_printf(err, "nonzero snapshot");
 		return -EINVAL;
 	}
 
 	if (type != BKEY_TYPE_btree &&
 	    btree_type_has_snapshots(type) &&
 	    !k.k->p.snapshot) {
-		pr_buf(err, "snapshot == 0");
+		prt_printf(err, "snapshot == 0");
 		return -EINVAL;
 	}
 
 	if (type != BKEY_TYPE_btree &&
 	    !bkey_cmp(k.k->p, POS_MAX)) {
-		pr_buf(err, "key at POS_MAX");
+		prt_printf(err, "key at POS_MAX");
 		return -EINVAL;
 	}
 
@@ -265,12 +265,12 @@ int bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k,
 			    struct printbuf *err)
 {
 	if (bpos_cmp(k.k->p, b->data->min_key) < 0) {
-		pr_buf(err, "key before start of btree node");
+		prt_printf(err, "key before start of btree node");
 		return -EINVAL;
 	}
 
 	if (bpos_cmp(k.k->p, b->data->max_key) > 0) {
-		pr_buf(err, "key past end of btree node");
+		prt_printf(err, "key past end of btree node");
 		return -EINVAL;
 	}
 
@@ -280,44 +280,44 @@ int bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k,
 void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 {
 	if (!bpos_cmp(pos, POS_MIN))
-		pr_buf(out, "POS_MIN");
+		prt_printf(out, "POS_MIN");
 	else if (!bpos_cmp(pos, POS_MAX))
-		pr_buf(out, "POS_MAX");
+		prt_printf(out, "POS_MAX");
 	else if (!bpos_cmp(pos, SPOS_MAX))
-		pr_buf(out, "SPOS_MAX");
+		prt_printf(out, "SPOS_MAX");
 	else {
 		if (pos.inode == U64_MAX)
-			pr_buf(out, "U64_MAX");
+			prt_printf(out, "U64_MAX");
 		else
-			pr_buf(out, "%llu", pos.inode);
-		pr_buf(out, ":");
+			prt_printf(out, "%llu", pos.inode);
+		prt_printf(out, ":");
 		if (pos.offset == U64_MAX)
-			pr_buf(out, "U64_MAX");
+			prt_printf(out, "U64_MAX");
 		else
-			pr_buf(out, "%llu", pos.offset);
-		pr_buf(out, ":");
+			prt_printf(out, "%llu", pos.offset);
+		prt_printf(out, ":");
 		if (pos.snapshot == U32_MAX)
-			pr_buf(out, "U32_MAX");
+			prt_printf(out, "U32_MAX");
 		else
-			pr_buf(out, "%u", pos.snapshot);
+			prt_printf(out, "%u", pos.snapshot);
 	}
 }
 
 void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 {
 	if (k) {
-		pr_buf(out, "u64s %u type ", k->u64s);
+		prt_printf(out, "u64s %u type ", k->u64s);
 
 		if (k->type < KEY_TYPE_MAX)
-			pr_buf(out, "%s ", bch2_bkey_types[k->type]);
+			prt_printf(out, "%s ", bch2_bkey_types[k->type]);
 		else
-			pr_buf(out, "%u ", k->type);
+			prt_printf(out, "%u ", k->type);
 
 		bch2_bpos_to_text(out, k->p);
 
-		pr_buf(out, " len %u ver %llu", k->size, k->version.lo);
+		prt_printf(out, " len %u ver %llu", k->size, k->version.lo);
 	} else {
-		pr_buf(out, "(null)");
+		prt_printf(out, "(null)");
 	}
 }
 
@@ -330,7 +330,7 @@ void bch2_val_to_text(struct printbuf *out, struct bch_fs *c,
 		if (likely(ops->val_to_text))
 			ops->val_to_text(out, c, k);
 	} else {
-		pr_buf(out, "(invalid type %u)", k.k->type);
+		prt_printf(out, "(invalid type %u)", k.k->type);
 	}
 }
 
@@ -340,7 +340,7 @@ void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_bkey_to_text(out, k.k);
 
 	if (bkey_val_bytes(k.k)) {
-		pr_buf(out, ": ");
+		prt_printf(out, ": ");
 		bch2_val_to_text(out, c, k);
 	}
 }

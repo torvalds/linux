@@ -493,13 +493,15 @@ static int __bch2_request_key(char *key_description, struct bch_key *key)
 
 int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
 {
-	char key_description[60];
-	char uuid[40];
+	struct printbuf key_description = PRINTBUF;
+	int ret;
 
-	uuid_unparse_lower(sb->user_uuid.b, uuid);
-	sprintf(key_description, "bcachefs:%s", uuid);
+	prt_printf(&key_description, "bcachefs:");
+	pr_uuid(&key_description, sb->user_uuid.b);
 
-	return __bch2_request_key(key_description, key);
+	ret = __bch2_request_key(key_description.buf, key);
+	printbuf_exit(&key_description);
+	return ret;
 }
 
 int bch2_decrypt_sb_key(struct bch_fs *c,

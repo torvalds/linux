@@ -259,15 +259,15 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(k),
 			      __btree_node_type(level, btree_id), write, &buf)) {
 		printbuf_reset(&buf);
-		pr_buf(&buf, "invalid key in %s at %s offset %zi/%u:",
+		prt_printf(&buf, "invalid key in %s at %s offset %zi/%u:",
 		       bch2_jset_entry_types[entry->type], where,
 		       (u64 *) k - entry->_data,
 		       le16_to_cpu(entry->u64s));
-		pr_newline(&buf);
-		pr_indent_push(&buf, 2);
+		prt_newline(&buf);
+		printbuf_indent_add(&buf, 2);
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
-		pr_newline(&buf);
+		prt_newline(&buf);
 		bch2_bkey_invalid(c, bkey_i_to_s_c(k),
 				  __btree_node_type(level, btree_id), write, &buf);
 
@@ -318,10 +318,10 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 
 	vstruct_for_each(entry, k) {
 		if (!first) {
-			pr_newline(out);
-			pr_buf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+			prt_newline(out);
+			prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
 		}
-		pr_buf(out, "btree=%s l=%u ", bch2_btree_ids[entry->btree_id], entry->level);
+		prt_printf(out, "btree=%s l=%u ", bch2_btree_ids[entry->btree_id], entry->level);
 		bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(k));
 		first = false;
 	}
@@ -396,7 +396,7 @@ static void journal_entry_blacklist_to_text(struct printbuf *out, struct bch_fs 
 	struct jset_entry_blacklist *bl =
 		container_of(entry, struct jset_entry_blacklist, entry);
 
-	pr_buf(out, "seq=%llu", le64_to_cpu(bl->seq));
+	prt_printf(out, "seq=%llu", le64_to_cpu(bl->seq));
 }
 
 static int journal_entry_blacklist_v2_validate(struct bch_fs *c,
@@ -431,7 +431,7 @@ static void journal_entry_blacklist_v2_to_text(struct printbuf *out, struct bch_
 	struct jset_entry_blacklist_v2 *bl =
 		container_of(entry, struct jset_entry_blacklist_v2, entry);
 
-	pr_buf(out, "start=%llu end=%llu",
+	prt_printf(out, "start=%llu end=%llu",
 	       le64_to_cpu(bl->start),
 	       le64_to_cpu(bl->end));
 }
@@ -463,7 +463,7 @@ static void journal_entry_usage_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_usage *u =
 		container_of(entry, struct jset_entry_usage, entry);
 
-	pr_buf(out, "type=%s v=%llu",
+	prt_printf(out, "type=%s v=%llu",
 	       bch2_fs_usage_types[u->entry.btree_id],
 	       le64_to_cpu(u->v));
 }
@@ -497,7 +497,7 @@ static void journal_entry_data_usage_to_text(struct printbuf *out, struct bch_fs
 		container_of(entry, struct jset_entry_data_usage, entry);
 
 	bch2_replicas_entry_to_text(out, &u->r);
-	pr_buf(out, "=%llu", le64_to_cpu(u->v));
+	prt_printf(out, "=%llu", le64_to_cpu(u->v));
 }
 
 static int journal_entry_clock_validate(struct bch_fs *c,
@@ -532,7 +532,7 @@ static void journal_entry_clock_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_clock *clock =
 		container_of(entry, struct jset_entry_clock, entry);
 
-	pr_buf(out, "%s=%llu", clock->rw ? "write" : "read", le64_to_cpu(clock->time));
+	prt_printf(out, "%s=%llu", clock->rw ? "write" : "read", le64_to_cpu(clock->time));
 }
 
 static int journal_entry_dev_usage_validate(struct bch_fs *c,
@@ -579,20 +579,20 @@ static void journal_entry_dev_usage_to_text(struct printbuf *out, struct bch_fs 
 		container_of(entry, struct jset_entry_dev_usage, entry);
 	unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
 
-	pr_buf(out, "dev=%u", le32_to_cpu(u->dev));
+	prt_printf(out, "dev=%u", le32_to_cpu(u->dev));
 
 	for (i = 0; i < nr_types; i++) {
 		if (i < BCH_DATA_NR)
-			pr_buf(out, " %s", bch2_data_types[i]);
+			prt_printf(out, " %s", bch2_data_types[i]);
 		else
-			pr_buf(out, " (unknown data type %u)", i);
-		pr_buf(out, ": buckets=%llu sectors=%llu fragmented=%llu",
+			prt_printf(out, " (unknown data type %u)", i);
+		prt_printf(out, ": buckets=%llu sectors=%llu fragmented=%llu",
 		       le64_to_cpu(u->d[i].buckets),
 		       le64_to_cpu(u->d[i].sectors),
 		       le64_to_cpu(u->d[i].fragmented));
 	}
 
-	pr_buf(out, " buckets_ec: %llu", le64_to_cpu(u->buckets_ec));
+	prt_printf(out, " buckets_ec: %llu", le64_to_cpu(u->buckets_ec));
 }
 
 static int journal_entry_log_validate(struct bch_fs *c,
@@ -609,7 +609,7 @@ static void journal_entry_log_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_log *l = container_of(entry, struct jset_entry_log, entry);
 	unsigned bytes = vstruct_bytes(entry) - offsetof(struct jset_entry_log, d);
 
-	pr_buf(out, "%.*s", bytes, l->d);
+	prt_printf(out, "%.*s", bytes, l->d);
 }
 
 static int journal_entry_overwrite_validate(struct bch_fs *c, const char *where,
@@ -655,10 +655,10 @@ void bch2_journal_entry_to_text(struct printbuf *out, struct bch_fs *c,
 				struct jset_entry *entry)
 {
 	if (entry->type < BCH_JSET_ENTRY_NR) {
-		pr_buf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+		prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
 		bch2_jset_entry_ops[entry->type].to_text(out, c, entry);
 	} else {
-		pr_buf(out, "(unknown type %u)", entry->type);
+		prt_printf(out, "(unknown type %u)", entry->type);
 	}
 }
 
@@ -1039,8 +1039,8 @@ void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		div64_u64_rem(j->ptrs[i].sector, ca->mi.bucket_size, &offset);
 
 		if (i)
-			pr_buf(out, " ");
-		pr_buf(out, "%u:%u:%u (sector %llu)",
+			prt_printf(out, " ");
+		prt_printf(out, "%u:%u:%u (sector %llu)",
 		       j->ptrs[i].dev,
 		       j->ptrs[i].bucket,
 		       j->ptrs[i].bucket_offset,
@@ -1172,9 +1172,9 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 
 			if (prev) {
 				bch2_journal_ptrs_to_text(&buf1, c, prev);
-				pr_buf(&buf1, " size %zu", vstruct_sectors(&prev->j, c->block_bits));
+				prt_printf(&buf1, " size %zu", vstruct_sectors(&prev->j, c->block_bits));
 			} else
-				pr_buf(&buf1, "(none)");
+				prt_printf(&buf1, "(none)");
 			bch2_journal_ptrs_to_text(&buf2, c, i);
 
 			missing_end = seq - 1;

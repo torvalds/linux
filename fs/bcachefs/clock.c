@@ -162,7 +162,7 @@ void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 	now = atomic64_read(&clock->now);
 
 	for (i = 0; i < clock->timers.used; i++)
-		pr_buf(out, "%ps:\t%li\n",
+		prt_printf(out, "%ps:\t%li\n",
 		       clock->timers.data[i]->fn,
 		       clock->timers.data[i]->expire - now);
 	spin_unlock(&clock->timer_lock);

@@ -90,47 +90,47 @@ int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	unsigned len;
 
 	if (bkey_val_bytes(k.k) < sizeof(struct bch_dirent)) {
-		pr_buf(err, "incorrect value size (%zu < %zu)",
+		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(k.k), sizeof(*d.v));
 		return -EINVAL;
 	}
 
 	len = bch2_dirent_name_bytes(d);
 	if (!len) {
-		pr_buf(err, "empty name");
+		prt_printf(err, "empty name");
 		return -EINVAL;
 	}
 
 	if (bkey_val_u64s(k.k) > dirent_val_u64s(len)) {
-		pr_buf(err, "value too big (%zu > %u)",
+		prt_printf(err, "value too big (%zu > %u)",
 		       bkey_val_u64s(k.k),dirent_val_u64s(len));
 		return -EINVAL;
 	}
 
 	if (len > BCH_NAME_MAX) {
-		pr_buf(err, "dirent name too big (%u > %u)",
+		prt_printf(err, "dirent name too big (%u > %u)",
 		       len, BCH_NAME_MAX);
 		return -EINVAL;
 	}
 
 	if (len == 1 && !memcmp(d.v->d_name, ".", 1)) {
-		pr_buf(err, "invalid name");
+		prt_printf(err, "invalid name");
 		return -EINVAL;
 	}
 
 	if (len == 2 && !memcmp(d.v->d_name, "..", 2)) {
-		pr_buf(err, "invalid name");
+		prt_printf(err, "invalid name");
 		return -EINVAL;
 	}
 
 	if (memchr(d.v->d_name, '/', len)) {
-		pr_buf(err, "invalid name");
+		prt_printf(err, "invalid name");
 		return -EINVAL;
 	}
 
 	if (d.v->d_type != DT_SUBVOL &&
 	    le64_to_cpu(d.v->d_inum) == d.k->p.inode) {
-		pr_buf(err, "dirent points to own directory");
+		prt_printf(err, "dirent points to own directory");
 		return -EINVAL;
 	}
 
@@ -142,7 +142,7 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 
-	pr_buf(out, "%.*s -> %llu type %s",
+	prt_printf(out, "%.*s -> %llu type %s",
 	       bch2_dirent_name_bytes(d),
 	       d.v->d_name,
 	       d.v->d_type != DT_SUBVOL

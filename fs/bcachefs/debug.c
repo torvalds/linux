@@ -273,7 +273,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 
 	while (k.k && !(err = bkey_err(k))) {
 		bch2_bkey_val_to_text(&i->buf, i->c, k);
-		pr_char(&i->buf, '\n');
+		prt_char(&i->buf, '\n');
 
 		k = bch2_btree_iter_next(&iter);
 		i->from = iter.pos;
@@ -425,55 +425,56 @@ static const struct file_operations bfloat_failed_debug_ops = {
 static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 					   struct btree *b)
 {
-	out->tabstops[0] = 32;
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 32);
 
-	pr_buf(out, "%px btree=%s l=%u ",
+	prt_printf(out, "%px btree=%s l=%u ",
 	       b,
 	       bch2_btree_ids[b->c.btree_id],
 	       b->c.level);
-	pr_newline(out);
+	prt_newline(out);
 
-	pr_indent_push(out, 2);
+	printbuf_indent_add(out, 2);
 
 	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
-	pr_newline(out);
+	prt_newline(out);
 
-	pr_buf(out, "flags: ");
-	pr_tab(out);
-	bch2_flags_to_text(out, bch2_btree_node_flags, b->flags);
-	pr_newline(out);
+	prt_printf(out, "flags: ");
+	prt_tab(out);
+	prt_bitflags(out, bch2_btree_node_flags, b->flags);
+	prt_newline(out);
 
-	pr_buf(out, "pcpu read locks: ");
-	pr_tab(out);
-	pr_buf(out, "%u", b->c.lock.readers != NULL);
-	pr_newline(out);
+	prt_printf(out, "pcpu read locks: ");
+	prt_tab(out);
+	prt_printf(out, "%u", b->c.lock.readers != NULL);
+	prt_newline(out);
 
-	pr_buf(out, "written:");
-	pr_tab(out);
-	pr_buf(out, "%u", b->written);
-	pr_newline(out);
+	prt_printf(out, "written:");
+	prt_tab(out);
+	prt_printf(out, "%u", b->written);
+	prt_newline(out);
 
-	pr_buf(out, "writes blocked:");
-	pr_tab(out);
-	pr_buf(out, "%u", !list_empty_careful(&b->write_blocked));
-	pr_newline(out);
+	prt_printf(out, "writes blocked:");
+	prt_tab(out);
+	prt_printf(out, "%u", !list_empty_careful(&b->write_blocked));
+	prt_newline(out);
 
-	pr_buf(out, "will make reachable:");
-	pr_tab(out);
-	pr_buf(out, "%lx", b->will_make_reachable);
-	pr_newline(out);
+	prt_printf(out, "will make reachable:");
+	prt_tab(out);
+	prt_printf(out, "%lx", b->will_make_reachable);
+	prt_newline(out);
 
-	pr_buf(out, "journal pin %px:", &b->writes[0].journal);
-	pr_tab(out);
-	pr_buf(out, "%llu", b->writes[0].journal.seq);
-	pr_newline(out);
+	prt_printf(out, "journal pin %px:", &b->writes[0].journal);
+	prt_tab(out);
+	prt_printf(out, "%llu", b->writes[0].journal.seq);
+	prt_newline(out);
 
-	pr_buf(out, "journal pin %px:", &b->writes[1].journal);
-	pr_tab(out);
-	pr_buf(out, "%llu", b->writes[1].journal.seq);
-	pr_newline(out);
+	prt_printf(out, "journal pin %px:", &b->writes[1].journal);
+	prt_tab(out);
+	prt_printf(out, "%llu", b->writes[1].journal.seq);
+	prt_newline(out);
 
-	pr_indent_pop(out, 2);
+	printbuf_indent_sub(out, 2);
 }
 
 static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,

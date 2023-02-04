@@ -80,7 +80,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			bch2_topology_error(c);
 
 			if (bkey_deleted(&prev->k->k)) {
-				pr_buf(&buf1, "start of node: ");
+				prt_printf(&buf1, "start of node: ");
 				bch2_bpos_to_text(&buf1, node_start);
 			} else {
 				bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(prev->k));
@@ -264,7 +264,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 	int ret = 0;
 
 	if (!prev) {
-		pr_buf(&buf1, "start of node: ");
+		prt_printf(&buf1, "start of node: ");
 		bch2_bpos_to_text(&buf1, b->data->min_key);
 	} else {
 		bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(&prev->key));
