@@ -172,10 +172,10 @@ struct sunxi_nand_chip_sel {
 /**
  * struct sunxi_nand_hw_ecc - stores information related to HW ECC support
  *
- * @mode: the sunxi ECC mode field deduced from ECC requirements
+ * @ecc_ctl: ECC_CTL register value for this NAND chip
  */
 struct sunxi_nand_hw_ecc {
-	int mode;
+	u32 ecc_ctl;
 };
 
 /**
@@ -689,26 +689,15 @@ static void sunxi_nfc_hw_ecc_enable(struct nand_chip *nand)
 {
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(nand->controller);
-	u32 ecc_ctl;
 
-	ecc_ctl = readl(nfc->regs + NFC_REG_ECC_CTL);
-	ecc_ctl &= ~(NFC_ECC_MODE_MSK | NFC_ECC_PIPELINE |
-		     NFC_ECC_BLOCK_SIZE_MSK);
-	ecc_ctl |= NFC_ECC_EN | NFC_ECC_MODE(sunxi_nand->ecc.mode) |
-		   NFC_ECC_EXCEPTION | NFC_ECC_PIPELINE;
-
-	if (nand->ecc.size == 512)
-		ecc_ctl |= NFC_ECC_BLOCK_512;
-
-	writel(ecc_ctl, nfc->regs + NFC_REG_ECC_CTL);
+	writel(sunxi_nand->ecc.ecc_ctl, nfc->regs + NFC_REG_ECC_CTL);
 }
 
 static void sunxi_nfc_hw_ecc_disable(struct nand_chip *nand)
 {
 	struct sunxi_nfc *nfc = to_sunxi_nfc(nand->controller);
 
-	writel(readl(nfc->regs + NFC_REG_ECC_CTL) & ~NFC_ECC_EN,
-	       nfc->regs + NFC_REG_ECC_CTL);
+	writel(0, nfc->regs + NFC_REG_ECC_CTL);
 }
 
 static inline void sunxi_nfc_user_data_to_buf(u32 user_data, u8 *buf)
@@ -1693,8 +1682,6 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct nand_chip *nand,
 		return -ENOTSUPP;
 	}
 
-	sunxi_nand->ecc.mode = i;
-
 	/* HW ECC always request ECC bytes for 1024 bytes blocks */
 	ecc->bytes = DIV_ROUND_UP(ecc->strength * fls(8 * 1024), 8);
 
@@ -1725,6 +1712,12 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct nand_chip *nand,
 	ecc->write_subpage = sunxi_nfc_hw_ecc_write_subpage;
 	ecc->read_oob_raw = nand_read_oob_std;
 	ecc->write_oob_raw = nand_write_oob_std;
+
+	sunxi_nand->ecc.ecc_ctl = NFC_ECC_MODE(i) | NFC_ECC_EXCEPTION |
+				  NFC_ECC_PIPELINE | NFC_ECC_EN;
+
+	if (ecc->size == 512)
+		sunxi_nand->ecc.ecc_ctl |= NFC_ECC_BLOCK_512;
 
 	return 0;
 }
