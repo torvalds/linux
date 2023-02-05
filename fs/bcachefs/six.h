@@ -83,9 +83,10 @@ union six_lock_state {
 	};
 
 	struct {
-		unsigned	read_lock:27;
+		unsigned	read_lock:26;
 		unsigned	write_locking:1;
 		unsigned	intent_lock:1;
+		unsigned	nospin:1;
 		unsigned	waiters:3;
 		/*
 		 * seq works much like in seqlocks: it's incremented every time

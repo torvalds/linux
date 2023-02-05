@@ -346,30 +346,39 @@ static bool __six_relock_type(struct six_lock *lock, enum six_lock_type type,
 
 #ifdef CONFIG_SIX_LOCK_SPIN_ON_OWNER
 
-static inline int six_can_spin_on_owner(struct six_lock *lock)
+static inline bool six_can_spin_on_owner(struct six_lock *lock)
 {
 	struct task_struct *owner;
-	int retval = 1;
+	bool ret;
 
 	if (need_resched())
-		return 0;
+		return false;
 
 	rcu_read_lock();
 	owner = READ_ONCE(lock->owner);
-	if (owner)
-		retval = owner->on_cpu;
+	ret = !owner || owner_on_cpu(owner);
 	rcu_read_unlock();
-	/*
-	 * if lock->owner is not set, the mutex owner may have just acquired
-	 * it and not set the owner yet or the mutex has been released.
-	 */
-	return retval;
+
+	return ret;
+}
+
+static inline void six_set_nospin(struct six_lock *lock)
+{
+	union six_lock_state old, new;
+	u64 v = READ_ONCE(lock->state.v);
+
+	do {
+		new.v = old.v = v;
+		new.nospin = true;
+	} while ((v = atomic64_cmpxchg(&lock->state.counter, old.v, new.v)) != old.v);
 }
 
 static inline bool six_spin_on_owner(struct six_lock *lock,
-				     struct task_struct *owner)
+				     struct task_struct *owner,
+				     u64 end_time)
 {
 	bool ret = true;
+	unsigned loop = 0;
 
 	rcu_read_lock();
 	while (lock->owner == owner) {
@@ -381,7 +390,13 @@ static inline bool six_spin_on_owner(struct six_lock *lock,
 		 */
 		barrier();
 
-		if (!owner->on_cpu || need_resched()) {
+		if (!owner_on_cpu(owner) || need_resched()) {
+			ret = false;
+			break;
+		}
+
+		if (!(++loop & 0xf) && (time_after64(sched_clock(), end_time))) {
+			six_set_nospin(lock);
 			ret = false;
 			break;
 		}
@@ -396,6 +411,7 @@ static inline bool six_spin_on_owner(struct six_lock *lock,
 static inline bool six_optimistic_spin(struct six_lock *lock, enum six_lock_type type)
 {
 	struct task_struct *task = current;
+	u64 end_time;
 
 	if (type == SIX_LOCK_write)
 		return false;
@@ -407,6 +423,8 @@ static inline bool six_optimistic_spin(struct six_lock *lock, enum six_lock_type
 	if (!osq_lock(&lock->osq))
 		goto fail;
 
+	end_time = sched_clock() + 10 * NSEC_PER_USEC;
+
 	while (1) {
 		struct task_struct *owner;
 
@@ -415,7 +433,7 @@ static inline bool six_optimistic_spin(struct six_lock *lock, enum six_lock_type
 		 * release the lock or go to sleep.
 		 */
 		owner = READ_ONCE(lock->owner);
-		if (owner && !six_spin_on_owner(lock, owner))
+		if (owner && !six_spin_on_owner(lock, owner, end_time))
 			break;
 
 		if (do_six_trylock_type(lock, type, false)) {
@@ -606,9 +624,13 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 		smp_mb(); /* between unlocking and checking for waiters */
 		state.v = READ_ONCE(lock->state.v);
 	} else {
+		u64 v = l[type].unlock_val;
+
+		if (type != SIX_LOCK_read)
+			v -= lock->state.v & __SIX_VAL(nospin, 1);
+
 		EBUG_ON(!(lock->state.v & l[type].held_mask));
-		state.v = atomic64_add_return_release(l[type].unlock_val,
-						      &lock->state.counter);
+		state.v = atomic64_add_return_release(v, &lock->state.counter);
 	}
 
 	six_lock_wakeup(lock, state, l[type].unlock_wakeup);
