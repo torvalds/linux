@@ -20,7 +20,7 @@ RUN apt-get install -y fonts-noto-cjk
 RUN apt-get install -y latexmk
 RUN apt-get install -y librsvg2-bin
 RUN apt-get install -y texlive-xetex
-RUN pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0
+RUN pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0 Jinja2==2.11.3 markupsafe==2.0.1
 # append new packages here, to minimize docker rebuild time
 RUN rm -rf /var/lib/apt/lists/*
 
