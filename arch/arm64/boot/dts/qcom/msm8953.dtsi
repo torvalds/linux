@@ -261,6 +261,7 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+		force-psci-domains;
 
 		cpu_pd0: power-domain-cpu0 {
 			#power-domain-cells = <0>;
