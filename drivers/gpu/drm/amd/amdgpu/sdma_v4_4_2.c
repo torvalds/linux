@@ -2071,3 +2071,67 @@ struct amdgpu_xcp_ip_funcs sdma_v4_4_2_xcp_funcs = {
 	.suspend = &sdma_v4_4_2_xcp_suspend,
 	.resume = &sdma_v4_4_2_xcp_resume
 };
+
+static const struct amdgpu_ras_err_status_reg_entry sdma_v4_2_2_ue_reg_list[] = {
+	{AMDGPU_RAS_REG_ENTRY(SDMA0, 0, regSDMA_UE_ERR_STATUS_LO, regSDMA_UE_ERR_STATUS_HI),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SDMA"},
+};
+
+static const struct amdgpu_ras_memory_id_entry sdma_v4_4_2_ras_memory_list[] = {
+	{AMDGPU_SDMA_MBANK_DATA_BUF0, "SDMA_MBANK_DATA_BUF0"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF1, "SDMA_MBANK_DATA_BUF1"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF2, "SDMA_MBANK_DATA_BUF2"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF3, "SDMA_MBANK_DATA_BUF3"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF4, "SDMA_MBANK_DATA_BUF4"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF5, "SDMA_MBANK_DATA_BUF5"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF6, "SDMA_MBANK_DATA_BUF6"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF7, "SDMA_MBANK_DATA_BUF7"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF8, "SDMA_MBANK_DATA_BUF8"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF9, "SDMA_MBANK_DATA_BUF9"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF10, "SDMA_MBANK_DATA_BUF10"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF11, "SDMA_MBANK_DATA_BUF11"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF12, "SDMA_MBANK_DATA_BUF12"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF13, "SDMA_MBANK_DATA_BUF13"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF14, "SDMA_MBANK_DATA_BUF14"},
+	{AMDGPU_SDMA_MBANK_DATA_BUF15, "SDMA_MBANK_DATA_BUF15"},
+	{AMDGPU_SDMA_UCODE_BUF, "SDMA_UCODE_BUF"},
+	{AMDGPU_SDMA_RB_CMD_BUF, "SDMA_RB_CMD_BUF"},
+	{AMDGPU_SDMA_IB_CMD_BUF, "SDMA_IB_CMD_BUF"},
+	{AMDGPU_SDMA_UTCL1_RD_FIFO, "SDMA_UTCL1_RD_FIFO"},
+	{AMDGPU_SDMA_UTCL1_RDBST_FIFO, "SDMA_UTCL1_RDBST_FIFO"},
+	{AMDGPU_SDMA_UTCL1_WR_FIFO, "SDMA_UTCL1_WR_FIFO"},
+	{AMDGPU_SDMA_DATA_LUT_FIFO, "SDMA_DATA_LUT_FIFO"},
+	{AMDGPU_SDMA_SPLIT_DAT_BUF, "SDMA_SPLIT_DAT_BUF"},
+};
+
+static void sdma_v4_4_2_inst_query_ras_error_count(struct amdgpu_device *adev,
+						   uint32_t sdma_inst,
+						   void *ras_err_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
+
+	/* sdma v4_4_2 doesn't support query ce counts */
+	amdgpu_ras_inst_query_ras_error_count(adev,
+					sdma_v4_2_2_ue_reg_list,
+					ARRAY_SIZE(sdma_v4_2_2_ue_reg_list),
+					sdma_v4_4_2_ras_memory_list,
+					ARRAY_SIZE(sdma_v4_4_2_ras_memory_list),
+					sdma_inst,
+					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+					&err_data->ue_count);
+}
+
+static void sdma_v4_4_2_query_ras_error_count(struct amdgpu_device *adev,
+					      void *ras_err_status)
+{
+	uint32_t inst_mask;
+	int i = 0;
+
+	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for_each_inst(i, inst_mask)
+			sdma_v4_4_2_inst_query_ras_error_count(adev, i, ras_err_status);
+	} else {
+		dev_warn(adev->dev, "SDMA RAS is not supported\n");
+	}
+}
