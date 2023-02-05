@@ -419,7 +419,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(sensor->sd.dev);
 		if (ret < 0)
-			goto error_unlock;
+			goto error_power_down;
 
 		ret = ov2680_set_mode(sensor);
 		if (ret)
@@ -447,6 +447,7 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 
 error_power_down:
 	pm_runtime_put(sensor->sd.dev);
+	sensor->is_streaming = false;
 error_unlock:
 	mutex_unlock(&sensor->input_lock);
 	return ret;
@@ -644,8 +645,10 @@ static int ov2680_probe(struct i2c_client *client)
 	pm_runtime_use_autosuspend(dev);
 
 	ret = ov2680_s_config(&sensor->sd);
-	if (ret)
+	if (ret) {
+		ov2680_remove(client);
 		return ret;
+	}
 
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
