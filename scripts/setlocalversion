@@ -27,6 +27,7 @@ fi
 scm_version()
 {
 	local short
+	local tag
 	short=false
 
 	cd "$srctree"
@@ -42,9 +43,21 @@ scm_version()
 		return
 	fi
 
-	# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore it
-	# because this version is defined in the top level Makefile.
-	if [ -z "$(git describe --exact-match 2>/dev/null)" ]; then
+	# If a localversion*' file and the corresponding annotated tag exist,
+	# use it. This is the case in linux-next.
+	tag=${file_localversion#-}
+	tag=$(git describe --exact-match --match=$tag $tag 2>/dev/null)
+
+	# Otherwise, default to the annotated tag derived from KERNELVERSION.
+	#   mainline kernel:  6.2.0-rc5  ->  v6.2-rc5
+	#   stable kernel:    6.1.7      ->  v6.1.7
+	if [ -z "${tag}" ]; then
+		tag=v$(echo "${KERNELVERSION}" | sed -E 's/^([0-9]+\.[0-9]+)\.0(.*)$/\1\2/')
+	fi
+
+	# If we are at the tagged commit, we ignore it because the version is
+	# well-defined.
+	if [ -z "$(git describe --exact-match --match=$tag 2>/dev/null)" ]; then
 
 		# If only the short version is requested, don't bother
 		# running further git commands
@@ -52,9 +65,9 @@ scm_version()
 			echo "+"
 			return
 		fi
-		# If we are past a tagged commit (like
-		# "v2.6.30-rc5-302-g72357d5"), we pretty print it.
-		if atag="$(git describe 2>/dev/null)"; then
+		# If we are past the tagged commit, we pretty print it.
+		# (like 6.1.0-14595-g292a089d78d3)
+		if atag="$(git describe --match=$tag 2>/dev/null)"; then
 			echo "$atag" | awk -F- '{printf("-%05d", $(NF-1))}'
 		fi
 
@@ -116,7 +129,7 @@ fi
 # version string from CONFIG_LOCALVERSION
 config_localversion=$(sed -n 's/^CONFIG_LOCALVERSION=\(.*\)$/\1/p' include/config/auto.conf)
 
-# scm version string if not at a tagged commit
+# scm version string if not at the kernel version tag or at the file_localversion
 if grep -q "^CONFIG_LOCALVERSION_AUTO=y$" include/config/auto.conf; then
 	# full scm version string
 	scm_version="$(scm_version)"
