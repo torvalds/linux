@@ -213,7 +213,7 @@ int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, u32 *mkey, u32 *in,
 		return err;
 
 	mkey_index = MLX5_GET(create_mkey_out, lout, mkey_index);
-	*mkey |= mlx5_idx_to_mkey(mkey_index);
+	*mkey = mlx5_idx_to_mkey(mkey_index);
 	return 0;
 }
 
