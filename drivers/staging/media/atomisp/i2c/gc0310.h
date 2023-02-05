@@ -94,7 +94,7 @@ struct gc0310_device {
 	struct mutex input_lock;
 
 	struct camera_sensor_platform_data *platform_data;
-	bool power_on;
+	bool is_streaming;
 
 	struct gc0310_mode {
 		struct v4l2_mbus_framefmt fmt;
