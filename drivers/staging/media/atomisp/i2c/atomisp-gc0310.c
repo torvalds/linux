@@ -132,10 +132,6 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	if (ret)
 		goto out_unlock;
 
-	/* restore settings */
-	gc0310_res = gc0310_res_preview;
-	N_RES = N_RES_PREVIEW;
-
 	/* restore value of all ctrls */
 	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
 
@@ -296,76 +292,50 @@ static int gc0310_s_power(struct v4l2_subdev *sd, int on)
 	return gc0310_init(sd);
 }
 
-/* TODO: remove it. */
-static int startup(struct v4l2_subdev *sd)
+static struct v4l2_mbus_framefmt *
+gc0310_get_pad_format(struct gc0310_device *dev,
+		      struct v4l2_subdev_state *state,
+		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_format(&dev->sd, state, pad);
 
-	ret = gc0310_write_reg_array(client, dev->res->regs, dev->res->reg_count);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 write register err.\n");
-		return ret;
-	}
+	return &dev->mode.fmt;
+}
 
-	return ret;
+/* The GC0310 currently only supports 1 fixed fmt */
+static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
+{
+	memset(fmt, 0, sizeof(*fmt));
+	fmt->width = GC0310_NATIVE_WIDTH;
+	fmt->height = GC0310_NATIVE_HEIGHT;
+	fmt->field = V4L2_FIELD_NONE;
+	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 }
 
 static int gc0310_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *fmt = &format->format;
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct camera_mipi_info *gc0310_info = NULL;
-	struct gc0310_resolution *res;
-	int ret = 0;
+	struct gc0310_device *dev = to_gc0310_sensor(sd);
+	struct v4l2_mbus_framefmt *fmt;
+	int ret;
 
-	if (format->pad)
-		return -EINVAL;
+	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
+	gc0310_fill_format(fmt);
 
-	if (!fmt)
-		return -EINVAL;
+	format->format = *fmt;
 
-	gc0310_info = v4l2_get_subdev_hostdata(sd);
-	if (!gc0310_info)
-		return -EINVAL;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
 
 	mutex_lock(&dev->input_lock);
-
-	res = v4l2_find_nearest_size(gc0310_res_preview,
-				     ARRAY_SIZE(gc0310_res_preview), width,
-				     height, fmt->width, fmt->height);
-	if (!res)
-		res = &gc0310_res_preview[N_RES - 1];
-
-	fmt->width = res->width;
-	fmt->height = res->height;
-	dev->res = res;
-
-	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *fmt;
-		mutex_unlock(&dev->input_lock);
-		return 0;
-	}
-
 	/* s_power has not been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
-
-	dev_dbg(&client->dev, "%s: before gc0310_write_reg_array %s\n",
-		__func__, dev->res->desc);
-	ret = startup(sd);
-	if (ret) {
-		dev_err(&client->dev, "gc0310 startup err\n");
-		goto err;
-	}
-
-err:
+	ret = gc0310_write_reg_array(client, gc0310_VGA_30fps, ARRAY_SIZE(gc0310_VGA_30fps));
 	mutex_unlock(&dev->input_lock);
+
 	return ret;
 }
 
@@ -373,19 +343,11 @@ static int gc0310_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
+	struct v4l2_mbus_framefmt *fmt;
 
-	if (format->pad)
-		return -EINVAL;
-
-	if (!fmt)
-		return -EINVAL;
-
-	fmt->width = dev->res->width;
-	fmt->height = dev->res->height;
-	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
-
+	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
+	format->format = *fmt;
 	return 0;
 }
 
@@ -518,10 +480,8 @@ fail_power_off:
 static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
 	interval->interval.numerator = 1;
-	interval->interval.denominator = dev->res->fps;
+	interval->interval.denominator = GC0310_FPS;
 
 	return 0;
 }
@@ -530,7 +490,8 @@ static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= MAX_FMTS)
+	/* We support only a single format */
+	if (code->index)
 		return -EINVAL;
 
 	code->code = MEDIA_BUS_FMT_SGRBG8_1X8;
@@ -541,27 +502,21 @@ static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	int index = fse->index;
-
-	if (index >= N_RES)
+	/* We support only a single resolution */
+	if (fse->index)
 		return -EINVAL;
 
-	fse->min_width = gc0310_res[index].width;
-	fse->min_height = gc0310_res[index].height;
-	fse->max_width = gc0310_res[index].width;
-	fse->max_height = gc0310_res[index].height;
+	fse->min_width = GC0310_NATIVE_WIDTH;
+	fse->max_width = GC0310_NATIVE_WIDTH;
+	fse->min_height = GC0310_NATIVE_HEIGHT;
+	fse->max_height = GC0310_NATIVE_HEIGHT;
 
 	return 0;
 }
 
 static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	mutex_lock(&dev->input_lock);
-	*frames = dev->res->skip_frames;
-	mutex_unlock(&dev->input_lock);
-
+	*frames = GC0310_SKIP_FRAMES;
 	return 0;
 }
 
@@ -638,9 +593,8 @@ static int gc0310_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	mutex_init(&dev->input_lock);
-
-	dev->res = &gc0310_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
+	gc0310_fill_format(&dev->mode.fmt);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
 					  ATOMISP_INPUT_FORMAT_RAW_8,
@@ -660,7 +614,6 @@ static int gc0310_probe(struct i2c_client *client)
 
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->format.code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = gc0310_init_controls(dev);

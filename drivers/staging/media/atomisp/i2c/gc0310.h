@@ -33,30 +33,14 @@
 
 #include "../include/linux/atomisp_platform.h"
 
-#define GC0310_FOCAL_LENGTH_NUM	278	/*2.78mm*/
+#define GC0310_NATIVE_WIDTH			656
+#define GC0310_NATIVE_HEIGHT			496
 
-#define MAX_FMTS		1
+#define GC0310_FPS				30
+#define GC0310_SKIP_FRAMES			3
 
-/*
- * focal length bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
- */
-#define GC0310_FOCAL_LENGTH_DEFAULT 0x1160064
+#define GC0310_FOCAL_LENGTH_NUM			278 /* 2.78mm */
 
-/*
- * current f-number bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
- */
-#define GC0310_F_NUMBER_DEFAULT 0x1a000a
-
-/*
- * f-number range bits definition:
- * bits 31-24: max f-number numerator
- * bits 23-16: max f-number denominator
- * bits 15-8: min f-number numerator
- * bits 7-0: min f-number denominator
- */
-#define GC0310_F_NUMBER_RANGE 0x1a0a1a0a
 #define GC0310_ID	0xa310
 
 #define GC0310_RESET_RELATED		0xFE
@@ -101,36 +85,20 @@
 #define GC0310_START_STREAMING			0x94 /* 8-bit enable */
 #define GC0310_STOP_STREAMING			0x0 /* 8-bit disable */
 
-#define GC0310_BIN_FACTOR_MAX			3
-
-struct gc0310_resolution {
-	u8 *desc;
-	const struct gc0310_reg *regs;
-	int reg_count;
-	int res;
-	int width;
-	int height;
-	int fps;
-	int pix_clk_freq;
-	u32 skip_frames;
-	u16 pixels_per_line;
-	u16 lines_per_frame;
-	bool used;
-};
-
 /*
  * gc0310 device structure.
  */
 struct gc0310_device {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_mbus_framefmt format;
 	struct mutex input_lock;
 
 	struct camera_sensor_platform_data *platform_data;
-	struct gc0310_resolution *res;
-	u8 type;
 	bool power_on;
+
+	struct gc0310_mode {
+		struct v4l2_mbus_framefmt fmt;
+	} mode;
 
 	struct gc0310_ctrls {
 		struct v4l2_ctrl_handler handler;
@@ -337,26 +305,4 @@ static struct gc0310_reg const gc0310_VGA_30fps[] = {
 	{ 0xfe, 0x00 },
 };
 
-static struct gc0310_resolution gc0310_res_preview[] = {
-	{
-		.desc = "gc0310_VGA_30fps",
-		.width = 656, // 648,
-		.height = 496, // 488,
-		.fps = 30,
-		//.pix_clk_freq = 73,
-		.used = 0,
-#if 0
-		.pixels_per_line = 0x0314,
-		.lines_per_frame = 0x0213,
-#endif
-		.skip_frames = 2,
-		.regs = gc0310_VGA_30fps,
-		.reg_count = ARRAY_SIZE(gc0310_VGA_30fps),
-	},
-};
-
-#define N_RES_PREVIEW (ARRAY_SIZE(gc0310_res_preview))
-
-static struct gc0310_resolution *gc0310_res = gc0310_res_preview;
-static unsigned long N_RES = N_RES_PREVIEW;
 #endif
