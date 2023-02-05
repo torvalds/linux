@@ -1132,7 +1132,7 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 		flows[vport->index] = flow;
 	}
 
-	esw->fdb_table.offloads.peer_miss_rules = flows;
+	esw->fdb_table.offloads.peer_miss_rules[mlx5_get_dev_index(peer_dev)] = flows;
 
 	kvfree(spec);
 	return 0;
@@ -1160,13 +1160,14 @@ alloc_flows_err:
 	return err;
 }
 
-static void esw_del_fdb_peer_miss_rules(struct mlx5_eswitch *esw)
+static void esw_del_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
+					struct mlx5_core_dev *peer_dev)
 {
 	struct mlx5_flow_handle **flows;
 	struct mlx5_vport *vport;
 	unsigned long i;
 
-	flows = esw->fdb_table.offloads.peer_miss_rules;
+	flows = esw->fdb_table.offloads.peer_miss_rules[mlx5_get_dev_index(peer_dev)];
 
 	mlx5_esw_for_each_vf_vport(esw, i, vport, mlx5_core_max_vfs(esw->dev))
 		mlx5_del_flow_rules(flows[vport->index]);
@@ -2700,7 +2701,7 @@ static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw,
 	mlx5e_tc_clean_fdb_peer_flows(esw);
 #endif
 	mlx5_esw_offloads_rep_event_unpair(esw, peer_esw);
-	esw_del_fdb_peer_miss_rules(esw);
+	esw_del_fdb_peer_miss_rules(esw, peer_esw->dev);
 }
 
 static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
