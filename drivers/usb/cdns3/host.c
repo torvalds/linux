@@ -30,6 +30,76 @@ static const struct xhci_plat_priv xhci_plat_cdns3_xhci = {
 	.suspend_quirk = xhci_cdns3_suspend_quirk,
 };
 
+#ifdef CONFIG_PM_SLEEP
+struct cdns_hiber_data {
+	struct usb_hcd *hcd;
+	struct usb_hcd *shared_hcd;
+	struct notifier_block pm_notifier;
+	int (*pm_setup)(struct usb_hcd *hcd);
+	int (*pm_remove)(struct cdns *cdns);
+};
+static struct cdns_hiber_data cdns3_hiber_data;
+
+static int cdns_hiber_notifier(struct notifier_block *nb, unsigned long action,
+			void *data)
+{
+	struct usb_hcd *hcd = cdns3_hiber_data.hcd;
+	struct usb_hcd *shared_hcd = cdns3_hiber_data.shared_hcd;
+
+	switch (action) {
+	case PM_RESTORE_PREPARE:
+		if (hcd->state == HC_STATE_SUSPENDED) {
+			usb_hcd_resume_root_hub(hcd);
+			usb_disable_autosuspend(hcd->self.root_hub);
+		}
+		if (shared_hcd->state == HC_STATE_SUSPENDED) {
+			usb_hcd_resume_root_hub(shared_hcd);
+			usb_disable_autosuspend(shared_hcd->self.root_hub);
+		}
+		break;
+	case PM_POST_RESTORE:
+		usb_enable_autosuspend(hcd->self.root_hub);
+		usb_enable_autosuspend(shared_hcd->self.root_hub);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int cdns_register_pm_notifier(struct usb_hcd *hcd)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	cdns3_hiber_data.hcd = xhci->main_hcd;
+	cdns3_hiber_data.shared_hcd = xhci->shared_hcd;
+	cdns3_hiber_data.pm_notifier.notifier_call = cdns_hiber_notifier;
+	return register_pm_notifier(&cdns3_hiber_data.pm_notifier);
+}
+
+static int cdns_unregister_pm_notifier(struct cdns *cdns)
+{
+	int ret;
+
+	ret = unregister_pm_notifier(&cdns3_hiber_data.pm_notifier);
+
+	cdns3_hiber_data.hcd = NULL;
+	cdns3_hiber_data.shared_hcd = NULL;
+
+	return ret;
+}
+#endif
+
+static int xhci_cdns3_plat_setup(struct usb_hcd *hcd)
+{
+#ifdef CONFIG_PM_SLEEP
+	if (cdns3_hiber_data.pm_setup)
+		cdns3_hiber_data.pm_setup(hcd);
+#endif
+	return 0;
+}
+
 static int __cdns_host_init(struct cdns *cdns)
 {
 	struct platform_device *xhci;
@@ -64,6 +134,13 @@ static int __cdns_host_init(struct cdns *cdns)
 	if (cdns->pdata && (cdns->pdata->quirks & CDNS3_DEFAULT_PM_RUNTIME_ALLOW))
 		cdns->xhci_plat_data->quirks |= XHCI_DEFAULT_PM_RUNTIME_ALLOW;
 
+	cdns->xhci_plat_data->plat_setup = xhci_cdns3_plat_setup;
+#ifdef CONFIG_PM_SLEEP
+	if (cdns->pdata && (cdns->pdata->quirks & CDNS3_REGISTER_PM_NOTIFIER)) {
+		cdns3_hiber_data.pm_setup = cdns_register_pm_notifier;
+		cdns3_hiber_data.pm_remove = cdns_unregister_pm_notifier;
+	}
+#endif
 	ret = platform_device_add_data(xhci, cdns->xhci_plat_data,
 			sizeof(struct xhci_plat_priv));
 	if (ret)
@@ -88,6 +165,7 @@ err1:
 	platform_device_put(xhci);
 	return ret;
 }
+
 
 static int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
 {
@@ -117,6 +195,14 @@ static int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
 
 static void cdns_host_exit(struct cdns *cdns)
 {
+#ifdef CONFIG_PM_SLEEP
+	if (cdns3_hiber_data.pm_remove) {
+		cdns3_hiber_data.pm_remove(cdns);
+		cdns3_hiber_data.pm_remove = NULL;
+		cdns3_hiber_data.pm_setup = NULL;
+	}
+#endif
+
 	kfree(cdns->xhci_plat_data);
 	platform_device_unregister(cdns->host_dev);
 	cdns->host_dev = NULL;

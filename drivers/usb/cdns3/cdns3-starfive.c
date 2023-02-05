@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/usb/otg.h>
+#include "core.h"
 
 #define USB_STRAP_HOST			(2 << 0x10)
 #define USB_STRAP_DEVICE		(4 << 0X10)
@@ -239,6 +240,20 @@ get_res_err:
 	return ret;
 }
 
+static struct cdns3_platform_data cdns_starfive_pdata = {
+#ifdef CONFIG_PM_SLEEP
+	.quirks		  = CDNS3_REGISTER_PM_NOTIFIER,
+#endif
+};
+
+static const struct of_dev_auxdata cdns_starfive_auxdata[] = {
+	{
+		.compatible = "cdns,usb3",
+		.platform_data = &cdns_starfive_pdata,
+	},
+	{},
+};
+
 static int cdns_starfive_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -299,7 +314,7 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(node, NULL, cdns_starfive_auxdata, dev);
 	if (ret) {
 		dev_err(dev, "Failed to create children: %d\n", ret);
 		goto exit;
