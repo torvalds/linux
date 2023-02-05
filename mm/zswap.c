@@ -1073,15 +1073,23 @@ fail:
 
 static int zswap_is_page_same_filled(void *ptr, unsigned long *value)
 {
-	unsigned int pos;
 	unsigned long *page;
+	unsigned long val;
+	unsigned int pos, last_pos = PAGE_SIZE / sizeof(*page) - 1;
 
 	page = (unsigned long *)ptr;
-	for (pos = 1; pos < PAGE_SIZE / sizeof(*page); pos++) {
-		if (page[pos] != page[0])
+	val = page[0];
+
+	if (val != page[last_pos])
+		return 0;
+
+	for (pos = 1; pos < last_pos; pos++) {
+		if (val != page[pos])
 			return 0;
 	}
-	*value = page[0];
+
+	*value = val;
+
 	return 1;
 }
 
