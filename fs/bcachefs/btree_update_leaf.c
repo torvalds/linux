@@ -1118,14 +1118,6 @@ out:
 out_reset:
 	bch2_trans_reset_updates(trans);
 
-	if (trans->fs_usage_deltas) {
-		trans->fs_usage_deltas->used = 0;
-		memset((void *) trans->fs_usage_deltas +
-		       offsetof(struct replicas_delta_list, memset_start), 0,
-		       (void *) &trans->fs_usage_deltas->memset_end -
-		       (void *) &trans->fs_usage_deltas->memset_start);
-	}
-
 	return ret;
 err:
 	ret = bch2_trans_commit_error(trans, i, ret, _RET_IP_);

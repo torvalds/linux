@@ -27,22 +27,6 @@ bool bch2_replicas_marked(struct bch_fs *, struct bch_replicas_entry *);
 int bch2_mark_replicas(struct bch_fs *,
 		       struct bch_replicas_entry *);
 
-struct replicas_delta {
-	s64			delta;
-	struct bch_replicas_entry r;
-} __packed;
-
-struct replicas_delta_list {
-	unsigned		size;
-	unsigned		used;
-
-	struct			{} memset_start;
-	u64			nr_inodes;
-	u64			persistent_reserved[BCH_REPLICAS_MAX];
-	struct			{} memset_end;
-	struct replicas_delta	d[0];
-};
-
 static inline struct replicas_delta *
 replicas_delta_next(struct replicas_delta *d)
 {

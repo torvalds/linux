@@ -9,6 +9,7 @@
 #include "buckets_types.h"
 #include "darray.h"
 #include "journal_types.h"
+#include "replicas_types.h"
 #include "six.h"
 
 struct open_bucket;
