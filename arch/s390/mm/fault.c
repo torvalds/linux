@@ -46,11 +46,15 @@
 #define __SUBCODE_MASK 0x0600
 #define __PF_RES_FIELD 0x8000000000000000ULL
 
-#define VM_FAULT_BADCONTEXT	((__force vm_fault_t) 0x010000)
-#define VM_FAULT_BADMAP		((__force vm_fault_t) 0x020000)
-#define VM_FAULT_BADACCESS	((__force vm_fault_t) 0x040000)
-#define VM_FAULT_SIGNAL		((__force vm_fault_t) 0x080000)
-#define VM_FAULT_PFAULT		((__force vm_fault_t) 0x100000)
+/*
+ * Allocate private vm_fault_reason from top.  Please make sure it won't
+ * collide with vm_fault_reason.
+ */
+#define VM_FAULT_BADCONTEXT	((__force vm_fault_t)0x80000000)
+#define VM_FAULT_BADMAP		((__force vm_fault_t)0x40000000)
+#define VM_FAULT_BADACCESS	((__force vm_fault_t)0x20000000)
+#define VM_FAULT_SIGNAL		((__force vm_fault_t)0x10000000)
+#define VM_FAULT_PFAULT		((__force vm_fault_t)0x8000000)
 
 enum fault_type {
 	KERNEL_FAULT,
