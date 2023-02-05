@@ -366,7 +366,8 @@ int __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree_path *p
 	 * locked:
 	 */
 	six_lock_readers_add(&b->lock, -readers);
-	ret = __btree_node_lock_nopath(trans, b, SIX_LOCK_write, lock_may_not_fail);
+	ret = __btree_node_lock_nopath(trans, b, SIX_LOCK_write,
+				       lock_may_not_fail, _RET_IP_);
 	six_lock_readers_add(&b->lock, readers);
 
 	if (ret)

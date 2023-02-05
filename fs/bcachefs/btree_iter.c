@@ -26,7 +26,7 @@ static inline void btree_path_list_add(struct btree_trans *, struct btree_path *
 
 static inline unsigned long btree_iter_ip_allocated(struct btree_iter *iter)
 {
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef TRACK_PATH_ALLOCATED
 	return iter->ip_allocated;
 #else
 	return 0;
@@ -1420,7 +1420,7 @@ void bch2_btree_path_to_text(struct printbuf *out, struct btree_path *path)
 	bch2_bpos_to_text(out, path->pos);
 
 	prt_printf(out, " locks %u", path->nodes_locked);
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef TRACK_PATH_ALLOCATED
 	prt_printf(out, " %pS", (void *) path->ip_allocated);
 #endif
 	prt_newline(out);
@@ -1570,7 +1570,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 		path->nodes_locked		= 0;
 		for (i = 0; i < ARRAY_SIZE(path->l); i++)
 			path->l[i].b		= ERR_PTR(-BCH_ERR_no_btree_node_init);
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef TRACK_PATH_ALLOCATED
 		path->ip_allocated		= ip;
 #endif
 		trans->paths_sorted		= false;

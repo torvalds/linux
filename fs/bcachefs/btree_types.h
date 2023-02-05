@@ -217,6 +217,10 @@ enum btree_path_uptodate {
 	BTREE_ITER_NEED_TRAVERSE	= 2,
 };
 
+#if defined(CONFIG_BCACHEFS_LOCK_TIME_STATS) || defined(CONFIG_BCACHEFS_DEBUG)
+#define TRACK_PATH_ALLOCATED
+#endif
+
 struct btree_path {
 	u8			idx;
 	u8			sorted_idx;
@@ -247,7 +251,7 @@ struct btree_path {
 		u64             lock_taken_time;
 #endif
 	}			l[BTREE_MAX_DEPTH];
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef TRACK_PATH_ALLOCATED
 	unsigned long		ip_allocated;
 #endif
 };
@@ -255,6 +259,15 @@ struct btree_path {
 static inline struct btree_path_level *path_l(struct btree_path *path)
 {
 	return path->l + path->level;
+}
+
+static inline unsigned long btree_path_ip_allocated(struct btree_path *path)
+{
+#ifdef TRACK_PATH_ALLOCATED
+	return path->ip_allocated;
+#else
+	return _THIS_IP_;
+#endif
 }
 
 /*
@@ -290,7 +303,7 @@ struct btree_iter {
 	/* BTREE_ITER_WITH_JOURNAL: */
 	size_t			journal_idx;
 	struct bpos		journal_pos;
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef TRACK_PATH_ALLOCATED
 	unsigned long		ip_allocated;
 #endif
 };
