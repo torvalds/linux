@@ -428,31 +428,27 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		/* enable per frame MIPI and sensor ctrl reset  */
 		ret = i2c_smbus_write_byte_data(client, 0xFE, 0x30);
-		if (ret) {
-			mutex_unlock(&dev->input_lock);
-			return ret;
-		}
+		if (ret)
+			goto error_unlock;
 	}
 
 	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
-	if (ret) {
-		mutex_unlock(&dev->input_lock);
-		return ret;
-	}
+	if (ret)
+		goto error_unlock;
 
 	ret = i2c_smbus_write_byte_data(client, GC0310_SW_STREAM,
 					enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING);
-	if (ret) {
-		mutex_unlock(&dev->input_lock);
-		return ret;
-	}
+	if (ret)
+		goto error_unlock;
 
 	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
-	if (ret) {
-		mutex_unlock(&dev->input_lock);
-		return ret;
-	}
+	if (ret)
+		goto error_unlock;
 
+	mutex_unlock(&dev->input_lock);
+	return 0;
+
+error_unlock:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
