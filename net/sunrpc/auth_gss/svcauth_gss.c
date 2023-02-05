@@ -1529,18 +1529,19 @@ static int create_krb5_enctypes_proc_entry(struct net *net)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
-	if (!proc_create_data("gss_krb5_enctypes", S_IFREG | 0444,
-			      sn->proc_net_rpc,
-			      &gss_krb5_enctypes_proc_ops, net))
-		return -ENOMEM;
-	return 0;
+	sn->gss_krb5_enctypes =
+		proc_create_data("gss_krb5_enctypes", S_IFREG | 0444,
+				 sn->proc_net_rpc, &gss_krb5_enctypes_proc_ops,
+				 net);
+	return sn->gss_krb5_enctypes ? 0 : -ENOMEM;
 }
 
 static void destroy_krb5_enctypes_proc_entry(struct net *net)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
-	remove_proc_entry("gss_krb5_enctypes", sn->proc_net_rpc);
+	if (sn->gss_krb5_enctypes)
+		remove_proc_entry("gss_krb5_enctypes", sn->proc_net_rpc);
 }
 
 #else /* CONFIG_PROC_FS */
