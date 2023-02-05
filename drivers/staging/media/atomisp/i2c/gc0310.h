@@ -92,9 +92,10 @@ struct gc0310_device {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct mutex input_lock;
-
-	struct camera_sensor_platform_data *platform_data;
 	bool is_streaming;
+
+	struct gpio_desc *reset;
+	struct gpio_desc *powerdown;
 
 	struct gc0310_mode {
 		struct v4l2_mbus_framefmt fmt;

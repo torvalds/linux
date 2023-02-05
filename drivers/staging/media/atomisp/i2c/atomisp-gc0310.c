@@ -3,6 +3,7 @@
  * Support for GalaxyCore GC0310 VGA camera sensor.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -26,6 +27,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/moduleparam.h>
 #include <linux/pm_runtime.h>
@@ -121,136 +124,6 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = gc0310_s_ctrl,
 };
 
-static int power_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	int ret = 0;
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	if (flag) {
-		/* The upstream module driver (written to Crystal
-		 * Cove) had this logic to pulse the rails low first.
-		 * This appears to break things on the MRD7 with the
-		 * X-Powers PMIC...
-		 *
-		 *     ret = dev->platform_data->v1p8_ctrl(sd, 0);
-		 *     ret |= dev->platform_data->v2p8_ctrl(sd, 0);
-		 *     mdelay(50);
-		 */
-		ret |= dev->platform_data->v1p8_ctrl(sd, 1);
-		ret |= dev->platform_data->v2p8_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-	}
-
-	if (!flag || ret) {
-		ret |= dev->platform_data->v1p8_ctrl(sd, 0);
-		ret |= dev->platform_data->v2p8_ctrl(sd, 0);
-	}
-	return ret;
-}
-
-static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
-{
-	int ret;
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	if (!dev || !dev->platform_data)
-		return -ENODEV;
-
-	/* GPIO0 == "reset" (active low), GPIO1 == "power down" */
-	if (flag) {
-		/* Pulse reset, then release power down */
-		ret = dev->platform_data->gpio0_ctrl(sd, 0);
-		usleep_range(5000, 10000);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 1);
-		usleep_range(10000, 15000);
-		ret |= dev->platform_data->gpio1_ctrl(sd, 0);
-		usleep_range(10000, 15000);
-	} else {
-		ret = dev->platform_data->gpio1_ctrl(sd, 1);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 0);
-	}
-	return ret;
-}
-
-static int power_up(struct v4l2_subdev *sd)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	if (!dev->platform_data) {
-		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
-	}
-
-	/* power control */
-	ret = power_ctrl(sd, 1);
-	if (ret)
-		goto fail_power;
-
-	/* flis clock control */
-	ret = dev->platform_data->flisclk_ctrl(sd, 1);
-	if (ret)
-		goto fail_clk;
-
-	/* gpio ctrl */
-	ret = gpio_ctrl(sd, 1);
-	if (ret) {
-		ret = gpio_ctrl(sd, 1);
-		if (ret)
-			goto fail_gpio;
-	}
-
-	msleep(100);
-
-	return 0;
-
-fail_gpio:
-	dev->platform_data->flisclk_ctrl(sd, 0);
-fail_clk:
-	power_ctrl(sd, 0);
-fail_power:
-	dev_err(&client->dev, "sensor power-up failed\n");
-
-	return ret;
-}
-
-static int power_down(struct v4l2_subdev *sd)
-{
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (!dev->platform_data) {
-		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
-	}
-
-	/* gpio ctrl */
-	ret = gpio_ctrl(sd, 0);
-	if (ret) {
-		ret = gpio_ctrl(sd, 0);
-		if (ret)
-			dev_err(&client->dev, "gpio failed 2\n");
-	}
-
-	ret = dev->platform_data->flisclk_ctrl(sd, 0);
-	if (ret)
-		dev_err(&client->dev, "flisclk failed\n");
-
-	/* power control */
-	ret = power_ctrl(sd, 0);
-	if (ret)
-		dev_err(&client->dev, "vprog failed.\n");
-
-	return ret;
-}
-
 static struct v4l2_mbus_framefmt *
 gc0310_get_pad_format(struct gc0310_device *dev,
 		      struct v4l2_subdev_state *state,
@@ -344,6 +217,8 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 		if (ret < 0)
 			goto error_power_down;
 
+		msleep(100);
+
 		ret = gc0310_write_reg_array(client, gc0310_reset_register,
 					     ARRAY_SIZE(gc0310_reset_register));
 		if (ret)
@@ -393,49 +268,16 @@ error_unlock:
 	return ret;
 }
 
-static int gc0310_s_config(struct v4l2_subdev *sd,
-			   int irq, void *platform_data)
+static int gc0310_s_config(struct v4l2_subdev *sd)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (!platform_data)
-		return -ENODEV;
-
-	dev->platform_data =
-	    (struct camera_sensor_platform_data *)platform_data;
-
-	mutex_lock(&dev->input_lock);
+	int ret;
 
 	ret = pm_runtime_get_sync(&client->dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "gc0310 power-up err.\n");
-		goto fail_power_on;
-	}
+	if (ret >= 0)
+		ret = gc0310_detect(client);
 
-	ret = dev->platform_data->csi_cfg(sd, 1);
-	if (ret)
-		goto fail_csi_cfg;
-
-	/* config & detect sensor */
-	ret = gc0310_detect(client);
-	if (ret) {
-		dev_err(&client->dev, "gc0310_detect err s_config.\n");
-		goto fail_csi_cfg;
-	}
-
-	/* turn off sensor, after probed */
 	pm_runtime_put(&client->dev);
-	mutex_unlock(&dev->input_lock);
-
-	return 0;
-
-fail_csi_cfg:
-	dev->platform_data->csi_cfg(sd, 0);
-fail_power_on:
-	pm_runtime_put(&client->dev);
-	mutex_unlock(&dev->input_lock);
 	return ret;
 }
 
@@ -531,8 +373,7 @@ static void gc0310_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "gc0310_remove...\n");
 
-	dev->platform_data->csi_cfg(sd, 0);
-
+	atomisp_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrls.handler);
@@ -544,34 +385,35 @@ static int gc0310_probe(struct i2c_client *client)
 {
 	struct gc0310_device *dev;
 	int ret;
-	void *pdata;
 
 	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
+	ret = v4l2_get_acpi_sensor_info(&client->dev, NULL);
+	if (ret)
+		return ret;
+
+	dev->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(dev->reset))
+		return dev_err_probe(&client->dev, PTR_ERR(dev->reset),
+				     "getting reset GPIO\n");
+
+	dev->powerdown = devm_gpiod_get(&client->dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(dev->powerdown))
+		return dev_err_probe(&client->dev, PTR_ERR(dev->powerdown),
+				     "getting powerdown GPIO\n");
+
 	mutex_init(&dev->input_lock);
 	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
 	gc0310_fill_format(&dev->mode.fmt);
-
-	pdata = gmin_camera_platform_data(&dev->sd,
-					  ATOMISP_INPUT_FORMAT_RAW_8,
-					  atomisp_bayer_order_grbg);
-	if (!pdata)
-		return -EINVAL;
 
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	ret = gc0310_s_config(&dev->sd, client->irq, pdata);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
-
-	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	ret = gc0310_s_config(&dev->sd);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
@@ -588,24 +430,42 @@ static int gc0310_probe(struct i2c_client *client)
 	}
 
 	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
-	if (ret)
+	if (ret) {
 		gc0310_remove(client);
+		return ret;
+	}
 
-	return ret;
+	ret = atomisp_register_sensor_no_gmin(&dev->sd, 1, ATOMISP_INPUT_FORMAT_RAW_8,
+					      atomisp_bayer_order_grbg);
+	if (ret) {
+		gc0310_remove(client);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int gc0310_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct gc0310_device *gc0310_dev = to_gc0310_sensor(sd);
 
-	return power_down(sd);
+	gpiod_set_value_cansleep(gc0310_dev->powerdown, 1);
+	gpiod_set_value_cansleep(gc0310_dev->reset, 1);
+	return 0;
 }
 
 static int gc0310_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct gc0310_device *gc0310_dev = to_gc0310_sensor(sd);
 
-	return power_up(sd);
+	usleep_range(10000, 15000);
+	gpiod_set_value_cansleep(gc0310_dev->reset, 0);
+	usleep_range(10000, 15000);
+	gpiod_set_value_cansleep(gc0310_dev->powerdown, 0);
+
+	return 0;
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(gc0310_pm_ops, gc0310_suspend, gc0310_resume, NULL);
