@@ -546,7 +546,7 @@ static int gc0310_probe(struct i2c_client *client)
 	int ret;
 	void *pdata;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -557,10 +557,8 @@ static int gc0310_probe(struct i2c_client *client)
 	pdata = gmin_camera_platform_data(&dev->sd,
 					  ATOMISP_INPUT_FORMAT_RAW_8,
 					  atomisp_bayer_order_grbg);
-	if (!pdata) {
-		ret = -EINVAL;
-		goto out_free;
-	}
+	if (!pdata)
+		return -EINVAL;
 
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_enable(&client->dev);
@@ -593,10 +591,6 @@ static int gc0310_probe(struct i2c_client *client)
 	if (ret)
 		gc0310_remove(client);
 
-	return ret;
-out_free:
-	v4l2_device_unregister_subdev(&dev->sd);
-	kfree(dev);
 	return ret;
 }
 
