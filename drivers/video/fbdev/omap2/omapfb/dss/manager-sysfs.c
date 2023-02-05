@@ -10,6 +10,7 @@
 #define DSS_SUBSYS_NAME "MANAGER"
 
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -246,7 +247,7 @@ static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
 	bool enable;
 	int r;
 
-	r = strtobool(buf, &enable);
+	r = kstrtobool(buf, &enable);
 	if (r)
 		return r;
 
@@ -290,7 +291,7 @@ static ssize_t manager_alpha_blending_enabled_store(
 	if(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
 		return -ENODEV;
 
-	r = strtobool(buf, &enable);
+	r = kstrtobool(buf, &enable);
 	if (r)
 		return r;
 
@@ -329,7 +330,7 @@ static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,
 	if (!dss_has_feature(FEAT_CPR))
 		return -ENODEV;
 
-	r = strtobool(buf, &enable);
+	r = kstrtobool(buf, &enable);
 	if (r)
 		return r;
 
