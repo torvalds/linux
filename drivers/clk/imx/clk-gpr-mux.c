@@ -70,7 +70,7 @@ static int imx_clk_gpr_mux_determine_rate(struct clk_hw *hw,
 	return clk_mux_determine_rate_flags(hw, req, 0);
 }
 
-const struct clk_ops imx_clk_gpr_mux_ops = {
+static const struct clk_ops imx_clk_gpr_mux_ops = {
 	.get_parent = imx_clk_gpr_mux_get_parent,
 	.set_parent = imx_clk_gpr_mux_set_parent,
 	.determine_rate = imx_clk_gpr_mux_determine_rate,
