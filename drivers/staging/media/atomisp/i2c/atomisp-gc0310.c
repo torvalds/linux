@@ -118,28 +118,6 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = gc0310_s_ctrl,
 };
 
-static int gc0310_init(struct v4l2_subdev *sd)
-{
-	int ret;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	mutex_lock(&dev->input_lock);
-
-	/* set initial registers */
-	ret = gc0310_write_reg_array(client, gc0310_reset_register,
-				     ARRAY_SIZE(gc0310_reset_register));
-	if (ret)
-		goto out_unlock;
-
-	/* restore value of all ctrls */
-	ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
-
-out_unlock:
-	mutex_unlock(&dev->input_lock);
-	return ret;
-}
-
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 {
 	int ret = 0;
@@ -278,20 +256,6 @@ static int power_down(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static int gc0310_s_power(struct v4l2_subdev *sd, int on)
-{
-	int ret;
-
-	if (on == 0)
-		return power_down(sd);
-
-	ret = power_up(sd);
-	if (ret)
-		return ret;
-
-	return gc0310_init(sd);
-}
-
 static struct v4l2_mbus_framefmt *
 gc0310_get_pad_format(struct gc0310_device *dev,
 		      struct v4l2_subdev_state *state,
@@ -317,26 +281,14 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 	struct v4l2_mbus_framefmt *fmt;
-	int ret;
 
 	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
 	gc0310_fill_format(fmt);
 
 	format->format = *fmt;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		return 0;
-
-	mutex_lock(&dev->input_lock);
-	/* s_power has not been called yet for std v4l2 clients (camorama) */
-	power_up(sd);
-	ret = gc0310_write_reg_array(client, gc0310_VGA_30fps, ARRAY_SIZE(gc0310_VGA_30fps));
-	mutex_unlock(&dev->input_lock);
-
-	return ret;
+	return 0;
 }
 
 static int gc0310_get_fmt(struct v4l2_subdev *sd,
@@ -388,28 +340,52 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&dev->input_lock);
 
 	if (enable) {
+		ret = power_up(sd);
+		if (ret)
+			goto error_unlock;
+
+		ret = gc0310_write_reg_array(client, gc0310_reset_register,
+					     ARRAY_SIZE(gc0310_reset_register));
+		if (ret)
+			goto error_power_down;
+
+		ret = gc0310_write_reg_array(client, gc0310_VGA_30fps,
+					     ARRAY_SIZE(gc0310_VGA_30fps));
+		if (ret)
+			goto error_power_down;
+
+		/* restore value of all ctrls */
+		ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
+		if (ret)
+			goto error_power_down;
+
 		/* enable per frame MIPI and sensor ctrl reset  */
 		ret = i2c_smbus_write_byte_data(client, 0xFE, 0x30);
 		if (ret)
-			goto error_unlock;
+			goto error_power_down;
 	}
 
 	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
 	if (ret)
-		goto error_unlock;
+		goto error_power_down;
 
 	ret = i2c_smbus_write_byte_data(client, GC0310_SW_STREAM,
 					enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING);
 	if (ret)
-		goto error_unlock;
+		goto error_power_down;
 
 	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
 	if (ret)
-		goto error_unlock;
+		goto error_power_down;
+
+	if (!enable)
+		power_down(sd);
 
 	mutex_unlock(&dev->input_lock);
 	return 0;
 
+error_power_down:
+	power_down(sd);
 error_unlock:
 	mutex_unlock(&dev->input_lock);
 	return ret;
@@ -529,10 +505,6 @@ static const struct v4l2_subdev_video_ops gc0310_video_ops = {
 	.g_frame_interval = gc0310_g_frame_interval,
 };
 
-static const struct v4l2_subdev_core_ops gc0310_core_ops = {
-	.s_power = gc0310_s_power,
-};
-
 static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_mbus_code = gc0310_enum_mbus_code,
 	.enum_frame_size = gc0310_enum_frame_size,
@@ -541,7 +513,6 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops gc0310_ops = {
-	.core = &gc0310_core_ops,
 	.video = &gc0310_video_ops,
 	.pad = &gc0310_pad_ops,
 	.sensor = &gc0310_sensor_ops,
