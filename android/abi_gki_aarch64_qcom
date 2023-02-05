@@ -531,6 +531,7 @@
   dec_zone_page_state
   default_llseek
   default_wake_function
+  deferred_free
   delayed_work_timer_fn
   del_gendisk
   del_timer

@@ -37,7 +37,7 @@ $(obj)/gki_module_unprotected.h: $(ALL_KMI_SYMBOLS) \
 	$(ALL_KMI_SYMBOLS)
 
 # Generate symbol list with union of all symbol list for arm64; empty for others
-$(ALL_KMI_SYMBOLS): $(if $(filter arm64,$(ARCH)),$(wildcard $(srctree)/android/abi_gki_aarch64*),)
+$(ALL_KMI_SYMBOLS): $(if $(filter arm64,$(ARCH)),$(wildcard $(srctree)/android/abi_gki_aarch64_*),)
 	$(if $(strip $^),cat $^ > $(ALL_KMI_SYMBOLS), echo "" > $(ALL_KMI_SYMBOLS))
 
 $(obj)/gki_module_protected_exports.h: $(srctree)/android/abi_gki_protected_exports \

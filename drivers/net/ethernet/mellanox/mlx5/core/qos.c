@@ -62,13 +62,12 @@ int mlx5_qos_create_root_node(struct mlx5_core_dev *mdev, u32 *id)
 	return mlx5_qos_create_inner_node(mdev, MLX5_QOS_DEFAULT_DWRR_UID, 0, 0, id);
 }
 
-int mlx5_qos_update_node(struct mlx5_core_dev *mdev, u32 parent_id,
+int mlx5_qos_update_node(struct mlx5_core_dev *mdev,
 			 u32 bw_share, u32 max_avg_bw, u32 id)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
 	u32 bitmask = 0;
 
-	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, parent_id);
 	MLX5_SET(scheduling_context, sched_ctx, bw_share, bw_share);
 	MLX5_SET(scheduling_context, sched_ctx, max_average_bw, max_avg_bw);
 
