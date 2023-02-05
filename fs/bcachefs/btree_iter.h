@@ -174,6 +174,18 @@ bch2_btree_path_set_pos(struct btree_trans *trans,
 		: path;
 }
 
+int __must_check bch2_btree_path_traverse_one(struct btree_trans *, struct btree_path *,
+					      unsigned, unsigned long);
+
+static inline int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
+					  struct btree_path *path, unsigned flags)
+{
+	if (path->uptodate < BTREE_ITER_NEED_RELOCK)
+		return 0;
+
+	return bch2_btree_path_traverse_one(trans, path, flags, _RET_IP_);
+}
+
 int __must_check bch2_btree_path_traverse(struct btree_trans *,
 					  struct btree_path *, unsigned);
 struct btree_path *bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,

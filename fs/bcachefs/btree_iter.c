@@ -962,8 +962,6 @@ err:
 	return ret;
 }
 
-static int btree_path_traverse_one(struct btree_trans *, struct btree_path *,
-				   unsigned, unsigned long);
 
 static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 {
@@ -1009,7 +1007,7 @@ retry_all:
 		 */
 		if (path->uptodate) {
 			__btree_path_get(path, false);
-			ret = btree_path_traverse_one(trans, path, 0, _THIS_IP_);
+			ret = bch2_btree_path_traverse_one(trans, path, 0, _THIS_IP_);
 			__btree_path_put(path, false);
 
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
@@ -1114,10 +1112,10 @@ static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
  * On error, caller (peek_node()/peek_key()) must return NULL; the error is
  * stashed in the iterator and returned from bch2_trans_exit().
  */
-static int btree_path_traverse_one(struct btree_trans *trans,
-				   struct btree_path *path,
-				   unsigned flags,
-				   unsigned long trace_ip)
+int bch2_btree_path_traverse_one(struct btree_trans *trans,
+				 struct btree_path *path,
+				 unsigned flags,
+				 unsigned long trace_ip)
 {
 	unsigned depth_want = path->level;
 	int ret = -((int) trans->restarted);
@@ -1179,26 +1177,6 @@ out:
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted);
 	bch2_btree_path_verify(trans, path);
 	return ret;
-}
-
-int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
-					  struct btree_path *path, unsigned flags)
-{
-	if (0 && IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
-		unsigned restart_probability_bits = 4 << min(trans->restart_count, 32U);
-		u64 max = ~(~0ULL << restart_probability_bits);
-
-		if (!get_random_u32_below(max)) {
-			trace_and_count(trans->c, trans_restart_injected, trans, _RET_IP_);
-			return btree_trans_restart(trans, BCH_ERR_transaction_restart_fault_inject);
-		}
-	}
-
-	if (path->uptodate < BTREE_ITER_NEED_RELOCK)
-		return 0;
-
-	return  bch2_trans_cond_resched(trans) ?:
-		btree_path_traverse_one(trans, path, flags, _RET_IP_);
 }
 
 static inline void btree_path_copy(struct btree_trans *trans, struct btree_path *dst,
