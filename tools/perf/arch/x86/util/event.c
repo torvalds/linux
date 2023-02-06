@@ -101,6 +101,7 @@ void arch_perf_synthesize_sample_weight(const struct perf_sample *data,
 	if (type & PERF_SAMPLE_WEIGHT_STRUCT) {
 		*array &= 0xffffffff;
 		*array |= ((u64)data->ins_lat << 32);
+		*array |= ((u64)data->retire_lat << 48);
 	}
 }
 
