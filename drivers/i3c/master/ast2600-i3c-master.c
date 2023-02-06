@@ -1324,11 +1324,49 @@ static void aspeed_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	u32 reset;
+	int i;
 
-	reset = RESET_CTRL_BUS |
-		FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE, BUS_RESET_TYPE_SCL_LOW);
+	if (master->base.jdec_spd) {
+		reset = RESET_CTRL_BUS |
+			FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE, BUS_RESET_TYPE_SCL_LOW);
 
-	writel(reset, master->regs + RESET_CTRL);
+		writel(reset, master->regs + RESET_CTRL);
+	} else {
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL,
+				  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_SW_MODE_OE | SCL_SW_MODE_OE,
+				  SDA_SW_MODE_OE | SCL_SW_MODE_OE);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN,
+				  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_IN_SW_MODE_VAL | SCL_IN_SW_MODE_VAL,
+				  SDA_IN_SW_MODE_VAL | SCL_IN_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN,
+				  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, 0);
+		for (i = 0; i < 7; i++) {
+			regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+					  SDA_OUT_SW_MODE_VAL, 0);
+			regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+					  SDA_OUT_SW_MODE_VAL,
+					  SDA_OUT_SW_MODE_VAL);
+		}
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_OUT_SW_MODE_VAL, 0);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_OUT_SW_MODE_VAL, SDA_OUT_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN, 0);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN, 0);
+	}
 }
 
 static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
