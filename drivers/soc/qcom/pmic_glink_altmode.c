@@ -248,7 +248,7 @@ static void pmic_glink_altmode_sc8180xp_notify(struct pmic_glink_altmode *altmod
 
 	alt_port = &altmode->ports[port];
 	alt_port->orientation = pmic_glink_altmode_orientation(orientation);
-	alt_port->svid = mux == 2 ? USB_TYPEC_DP_SID : 0;
+	alt_port->svid = svid;
 	alt_port->mode = mode;
 	alt_port->hpd_state = hpd_state;
 	alt_port->hpd_irq = hpd_irq;
