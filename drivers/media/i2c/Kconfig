@@ -351,6 +351,7 @@ config VIDEO_IT6616
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	select V4L2_FWNODE
+	select VIDEO_ROCKCHIP_HDMIRX_CLASS
 	help
 	  Support for the ITE IT6616 series HDMI to MIPI CSI-2 bridge.
 
