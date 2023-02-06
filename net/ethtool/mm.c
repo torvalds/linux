@@ -56,7 +56,7 @@ static int mm_prepare_data(const struct ethnl_req_info *req_base,
 out_complete:
 	ethnl_ops_complete(dev);
 
-	return 0;
+	return ret;
 }
 
 static int mm_reply_size(const struct ethnl_req_info *req_base,
