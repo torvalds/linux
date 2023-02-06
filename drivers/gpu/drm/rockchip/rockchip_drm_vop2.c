@@ -1286,8 +1286,23 @@ static bool vop2_fs_irq_is_pending(struct vop2_video_port *vp)
 static uint32_t vop2_read_vcnt(struct vop2_video_port *vp)
 {
 	uint32_t offset =  RK3568_SYS_STATUS0 + (vp->id << 2);
+	uint32_t vcnt0, vcnt1;
+	int i = 0;
 
-	return vop2_readl(vp->vop2, offset) >> 16;
+	for (i = 0; i < 10; i++) {
+		vcnt0 = vop2_readl(vp->vop2, offset) >> 16;
+		vcnt1 = vop2_readl(vp->vop2, offset) >> 16;
+
+		if ((vcnt1 - vcnt0) <= 1)
+			break;
+	}
+
+	if (i == 10) {
+		DRM_DEV_ERROR(vp->vop2->dev, "read VP%d vcnt error: %d %d\n", vp->id, vcnt0, vcnt1);
+		vcnt1 = vop2_readl(vp->vop2, offset) >> 16;
+	}
+
+	return vcnt1;
 }
 
 static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
