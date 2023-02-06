@@ -490,9 +490,9 @@ static ssize_t request_count_show(struct device *dev,
 	spin_unlock_bh(&aq->lock);
 
 	if (valid)
-		return scnprintf(buf, PAGE_SIZE, "%llu\n", req_cnt);
+		return sysfs_emit(buf, "%llu\n", req_cnt);
 	else
-		return scnprintf(buf, PAGE_SIZE, "-\n");
+		return sysfs_emit(buf, "-\n");
 }
 
 static ssize_t request_count_store(struct device *dev,
@@ -520,7 +520,7 @@ static ssize_t requestq_count_show(struct device *dev,
 	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		reqq_cnt = aq->requestq_count;
 	spin_unlock_bh(&aq->lock);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
+	return sysfs_emit(buf, "%d\n", reqq_cnt);
 }
 
 static DEVICE_ATTR_RO(requestq_count);
@@ -535,7 +535,7 @@ static ssize_t pendingq_count_show(struct device *dev,
 	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		penq_cnt = aq->pendingq_count;
 	spin_unlock_bh(&aq->lock);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
+	return sysfs_emit(buf, "%d\n", penq_cnt);
 }
 
 static DEVICE_ATTR_RO(pendingq_count);
@@ -550,14 +550,14 @@ static ssize_t reset_show(struct device *dev,
 	switch (aq->sm_state) {
 	case AP_SM_STATE_RESET_START:
 	case AP_SM_STATE_RESET_WAIT:
-		rc = scnprintf(buf, PAGE_SIZE, "Reset in progress.\n");
+		rc = sysfs_emit(buf, "Reset in progress.\n");
 		break;
 	case AP_SM_STATE_WORKING:
 	case AP_SM_STATE_QUEUE_FULL:
-		rc = scnprintf(buf, PAGE_SIZE, "Reset Timer armed.\n");
+		rc = sysfs_emit(buf, "Reset Timer armed.\n");
 		break;
 	default:
-		rc = scnprintf(buf, PAGE_SIZE, "No Reset Timer set.\n");
+		rc = sysfs_emit(buf, "No Reset Timer set.\n");
 	}
 	spin_unlock_bh(&aq->lock);
 	return rc;
@@ -591,11 +591,11 @@ static ssize_t interrupt_show(struct device *dev,
 
 	spin_lock_bh(&aq->lock);
 	if (aq->sm_state == AP_SM_STATE_SETIRQ_WAIT)
-		rc = scnprintf(buf, PAGE_SIZE, "Enable Interrupt pending.\n");
+		rc = sysfs_emit(buf, "Enable Interrupt pending.\n");
 	else if (aq->interrupt)
-		rc = scnprintf(buf, PAGE_SIZE, "Interrupts enabled.\n");
+		rc = sysfs_emit(buf, "Interrupts enabled.\n");
 	else
-		rc = scnprintf(buf, PAGE_SIZE, "Interrupts disabled.\n");
+		rc = sysfs_emit(buf, "Interrupts disabled.\n");
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
@@ -609,7 +609,7 @@ static ssize_t config_show(struct device *dev,
 	int rc;
 
 	spin_lock_bh(&aq->lock);
-	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->config ? 1 : 0);
+	rc = sysfs_emit(buf, "%d\n", aq->config ? 1 : 0);
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
@@ -623,7 +623,7 @@ static ssize_t chkstop_show(struct device *dev,
 	int rc;
 
 	spin_lock_bh(&aq->lock);
-	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->chkstop ? 1 : 0);
+	rc = sysfs_emit(buf, "%d\n", aq->chkstop ? 1 : 0);
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
@@ -641,50 +641,43 @@ static ssize_t states_show(struct device *dev,
 	/* queue device state */
 	switch (aq->dev_state) {
 	case AP_DEV_STATE_UNINITIATED:
-		rc = scnprintf(buf, PAGE_SIZE, "UNINITIATED\n");
+		rc = sysfs_emit(buf, "UNINITIATED\n");
 		break;
 	case AP_DEV_STATE_OPERATING:
-		rc = scnprintf(buf, PAGE_SIZE, "OPERATING");
+		rc = sysfs_emit(buf, "OPERATING");
 		break;
 	case AP_DEV_STATE_SHUTDOWN:
-		rc = scnprintf(buf, PAGE_SIZE, "SHUTDOWN");
+		rc = sysfs_emit(buf, "SHUTDOWN");
 		break;
 	case AP_DEV_STATE_ERROR:
-		rc = scnprintf(buf, PAGE_SIZE, "ERROR");
+		rc = sysfs_emit(buf, "ERROR");
 		break;
 	default:
-		rc = scnprintf(buf, PAGE_SIZE, "UNKNOWN");
+		rc = sysfs_emit(buf, "UNKNOWN");
 	}
 	/* state machine state */
 	if (aq->dev_state) {
 		switch (aq->sm_state) {
 		case AP_SM_STATE_RESET_START:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [RESET_START]\n");
+			rc += sysfs_emit_at(buf, rc, " [RESET_START]\n");
 			break;
 		case AP_SM_STATE_RESET_WAIT:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [RESET_WAIT]\n");
+			rc += sysfs_emit_at(buf, rc, " [RESET_WAIT]\n");
 			break;
 		case AP_SM_STATE_SETIRQ_WAIT:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [SETIRQ_WAIT]\n");
+			rc += sysfs_emit_at(buf, rc, " [SETIRQ_WAIT]\n");
 			break;
 		case AP_SM_STATE_IDLE:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [IDLE]\n");
+			rc += sysfs_emit_at(buf, rc, " [IDLE]\n");
 			break;
 		case AP_SM_STATE_WORKING:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [WORKING]\n");
+			rc += sysfs_emit_at(buf, rc, " [WORKING]\n");
 			break;
 		case AP_SM_STATE_QUEUE_FULL:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [FULL]\n");
+			rc += sysfs_emit_at(buf, rc, " [FULL]\n");
 			break;
 		default:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [UNKNOWN]\n");
+			rc += sysfs_emit_at(buf, rc, " [UNKNOWN]\n");
 		}
 	}
 	spin_unlock_bh(&aq->lock);
@@ -705,33 +698,33 @@ static ssize_t last_err_rc_show(struct device *dev,
 
 	switch (rc) {
 	case AP_RESPONSE_NORMAL:
-		return scnprintf(buf, PAGE_SIZE, "NORMAL\n");
+		return sysfs_emit(buf, "NORMAL\n");
 	case AP_RESPONSE_Q_NOT_AVAIL:
-		return scnprintf(buf, PAGE_SIZE, "Q_NOT_AVAIL\n");
+		return sysfs_emit(buf, "Q_NOT_AVAIL\n");
 	case AP_RESPONSE_RESET_IN_PROGRESS:
-		return scnprintf(buf, PAGE_SIZE, "RESET_IN_PROGRESS\n");
+		return sysfs_emit(buf, "RESET_IN_PROGRESS\n");
 	case AP_RESPONSE_DECONFIGURED:
-		return scnprintf(buf, PAGE_SIZE, "DECONFIGURED\n");
+		return sysfs_emit(buf, "DECONFIGURED\n");
 	case AP_RESPONSE_CHECKSTOPPED:
-		return scnprintf(buf, PAGE_SIZE, "CHECKSTOPPED\n");
+		return sysfs_emit(buf, "CHECKSTOPPED\n");
 	case AP_RESPONSE_BUSY:
-		return scnprintf(buf, PAGE_SIZE, "BUSY\n");
+		return sysfs_emit(buf, "BUSY\n");
 	case AP_RESPONSE_INVALID_ADDRESS:
-		return scnprintf(buf, PAGE_SIZE, "INVALID_ADDRESS\n");
+		return sysfs_emit(buf, "INVALID_ADDRESS\n");
 	case AP_RESPONSE_OTHERWISE_CHANGED:
-		return scnprintf(buf, PAGE_SIZE, "OTHERWISE_CHANGED\n");
+		return sysfs_emit(buf, "OTHERWISE_CHANGED\n");
 	case AP_RESPONSE_Q_FULL:
-		return scnprintf(buf, PAGE_SIZE, "Q_FULL/NO_PENDING_REPLY\n");
+		return sysfs_emit(buf, "Q_FULL/NO_PENDING_REPLY\n");
 	case AP_RESPONSE_INDEX_TOO_BIG:
-		return scnprintf(buf, PAGE_SIZE, "INDEX_TOO_BIG\n");
+		return sysfs_emit(buf, "INDEX_TOO_BIG\n");
 	case AP_RESPONSE_NO_FIRST_PART:
-		return scnprintf(buf, PAGE_SIZE, "NO_FIRST_PART\n");
+		return sysfs_emit(buf, "NO_FIRST_PART\n");
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
-		return scnprintf(buf, PAGE_SIZE, "MESSAGE_TOO_BIG\n");
+		return sysfs_emit(buf, "MESSAGE_TOO_BIG\n");
 	case AP_RESPONSE_REQ_FAC_NOT_INST:
-		return scnprintf(buf, PAGE_SIZE, "REQ_FAC_NOT_INST\n");
+		return sysfs_emit(buf, "REQ_FAC_NOT_INST\n");
 	default:
-		return scnprintf(buf, PAGE_SIZE, "response code %d\n", rc);
+		return sysfs_emit(buf, "response code %d\n", rc);
 	}
 }
 static DEVICE_ATTR_RO(last_err_rc);
