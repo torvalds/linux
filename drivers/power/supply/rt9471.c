@@ -141,7 +141,6 @@ enum {
 
 struct rt9471_chip {
 	struct device *dev;
-	struct gpio_desc *ce_gpio;
 	struct regmap *regmap;
 	struct regmap_field *rm_fields[F_MAX_FIELDS];
 	struct regmap_irq_chip_data *irq_chip_data;
@@ -851,7 +850,7 @@ static int rt9471_probe(struct i2c_client *i2c)
 
 	/* Default pull charge enable gpio to make 'CHG_EN' by SW control only */
 	ce_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_HIGH);
-	if (IS_ERR(chip->ce_gpio))
+	if (IS_ERR(ce_gpio))
 		return dev_err_probe(dev, PTR_ERR(ce_gpio),
 				     "Failed to config charge enable gpio\n");
 
