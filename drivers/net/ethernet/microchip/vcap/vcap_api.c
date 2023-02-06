@@ -2755,7 +2755,7 @@ int vcap_rule_get_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
 EXPORT_SYMBOL_GPL(vcap_rule_get_key_u32);
 
 /* Find a client action field in a rule */
-static struct vcap_client_actionfield *
+struct vcap_client_actionfield *
 vcap_find_actionfield(struct vcap_rule *rule, enum vcap_action_field act)
 {
 	struct vcap_rule_internal *ri = (struct vcap_rule_internal *)rule;
@@ -2766,6 +2766,7 @@ vcap_find_actionfield(struct vcap_rule *rule, enum vcap_action_field act)
 			return caf;
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(vcap_find_actionfield);
 
 /* Check if the actionfield is already in the rule */
 static bool vcap_actionfield_unique(struct vcap_rule *rule,
