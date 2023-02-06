@@ -1010,7 +1010,6 @@ static int fotg210_udc_start(struct usb_gadget *g,
 	int ret;
 
 	/* hook up the driver */
-	driver->driver.bus = NULL;
 	fotg210->driver = driver;
 	fotg210->gadget.dev.of_node = fotg210->dev->of_node;
 	fotg210->gadget.speed = USB_SPEED_UNKNOWN;

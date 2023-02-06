@@ -451,6 +451,8 @@ static void scsi_device_dev_release(struct device *dev)
 	struct scsi_vpd *vpd_pgb0 = NULL, *vpd_pgb1 = NULL, *vpd_pgb2 = NULL;
 	unsigned long flags;
 
+	might_sleep();
+
 	scsi_dh_release_device(sdev);
 
 	parent = sdev->sdev_gendev.parent;
