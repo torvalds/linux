@@ -4,6 +4,7 @@
 #include "alloc_background.h"
 #include "btree_iter.h"
 #include "btree_update.h"
+#include "btree_write_buffer.h"
 #include "error.h"
 #include "lru.h"
 #include "recovery.h"
@@ -49,7 +50,6 @@ void bch2_lru_pos_to_text(struct printbuf *out, struct bpos lru)
 static int __bch2_lru_set(struct btree_trans *trans, u16 lru_id,
 			u64 dev_bucket, u64 time, unsigned key_type)
 {
-	struct btree_iter iter;
 	struct bkey_i *k;
 	int ret = 0;
 
@@ -69,13 +69,7 @@ static int __bch2_lru_set(struct btree_trans *trans, u16 lru_id,
 	EBUG_ON(lru_pos_time(k->k.p) != time);
 	EBUG_ON(k->k.p.offset != dev_bucket);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_lru,
-			     k->k.p, BTREE_ITER_INTENT);
-
-	ret = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, k, 0);
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
+	return bch2_trans_update_buffered(trans, BTREE_ID_lru, k);
 }
 
 int bch2_lru_del(struct btree_trans *trans, u16 lru_id, u64 dev_bucket, u64 time)
@@ -101,7 +95,8 @@ int bch2_lru_change(struct btree_trans *trans,
 
 static int bch2_check_lru_key(struct btree_trans *trans,
 			      struct btree_iter *lru_iter,
-			      struct bkey_s_c lru_k)
+			      struct bkey_s_c lru_k,
+			      struct bpos *last_flushed_pos)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
@@ -126,18 +121,29 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 
 	a = bch2_alloc_to_v4(k, &a_convert);
 
-	if (fsck_err_on(lru_k.k->type != KEY_TYPE_set ||
-			a->data_type != BCH_DATA_cached ||
-			a->io_time[READ] != lru_pos_time(lru_k.k->p), c,
-			"incorrect lru entry (time %llu) %s\n"
-			"  for %s",
-			lru_pos_time(lru_k.k->p),
-			(bch2_bkey_val_to_text(&buf1, c, lru_k), buf1.buf),
-			(bch2_bkey_val_to_text(&buf2, c, k), buf2.buf))) {
-		ret = bch2_btree_delete_at(trans, lru_iter, 0);
-		if (ret)
-			goto err;
+	if (lru_k.k->type != KEY_TYPE_set ||
+	    a->data_type != BCH_DATA_cached ||
+	    a->io_time[READ] != lru_pos_time(lru_k.k->p)) {}
+		if (!bpos_eq(*last_flushed_pos, lru_k.k->p)) {
+			*last_flushed_pos = lru_k.k->p;
+			ret = bch2_btree_write_buffer_flush_sync(trans) ?:
+				-BCH_ERR_transaction_restart_write_buffer_flush;
+			goto out;
+		}
+
+		if (fsck_err_on(lru_k.k->type != KEY_TYPE_set ||
+				a->data_type != BCH_DATA_cached ||
+				a->io_time[READ] != lru_pos_time(lru_k.k->p), c,
+				"incorrect lru entry (time %llu) %s\n"
+				"  for %s",
+				lru_pos_time(lru_k.k->p),
+				(bch2_bkey_val_to_text(&buf1, c, lru_k), buf1.buf),
+				(bch2_bkey_val_to_text(&buf2, c, k), buf2.buf))) {
+			ret = bch2_btree_delete_at(trans, lru_iter, 0);
+			if (ret)
+				goto err;
 	}
+out:
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
@@ -151,6 +157,7 @@ int bch2_check_lrus(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	struct bpos last_flushed_pos = POS_MIN;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -158,7 +165,7 @@ int bch2_check_lrus(struct bch_fs *c)
 	ret = for_each_btree_key_commit(&trans, iter,
 			BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
-		bch2_check_lru_key(&trans, &iter, k));
+		bch2_check_lru_key(&trans, &iter, k, &last_flushed_pos));
 
 	bch2_trans_exit(&trans);
 	return ret;
