@@ -444,12 +444,12 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 
 static void goodix_free_irq(struct goodix_ts_data *ts)
 {
-	devm_free_irq(&ts->client->dev, ts->client->irq, ts);
+	devm_free_irq(&ts->client->dev, gpiod_to_irq(ts->gpiod_int), ts);
 }
 
 static int goodix_request_irq(struct goodix_ts_data *ts)
 {
-	return devm_request_threaded_irq(&ts->client->dev, ts->client->irq,
+	return devm_request_threaded_irq(&ts->client->dev, gpiod_to_irq(ts->gpiod_int),
 					 NULL, goodix_ts_irq_handler,
 					 ts->irq_flags, ts->client->name, ts);
 }
