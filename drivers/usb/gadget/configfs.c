@@ -1597,6 +1597,80 @@ static void purge_configs_funcs(struct gadget_info *gi)
 	}
 }
 
+static struct usb_string *
+configfs_attach_gadget_strings(struct gadget_info *gi)
+{
+	struct usb_gadget_strings **gadget_strings;
+	struct gadget_language *language;
+	struct gadget_string *string;
+	unsigned int nlangs = 0;
+	struct list_head *iter;
+	struct usb_string *us;
+	unsigned int i = 0;
+	int nstrings = -1;
+	unsigned int j;
+
+	list_for_each(iter, &gi->string_list)
+		nlangs++;
+
+	/* Bail out early if no languages are configured */
+	if (!nlangs)
+		return NULL;
+
+	gadget_strings = kcalloc(nlangs + 1, /* including NULL terminator */
+				 sizeof(struct usb_gadget_strings *), GFP_KERNEL);
+	if (!gadget_strings)
+		return ERR_PTR(-ENOMEM);
+
+	list_for_each_entry(language, &gi->string_list, list) {
+		struct usb_string *stringtab;
+
+		if (nstrings == -1) {
+			nstrings = language->nstrings;
+		} else if (nstrings != language->nstrings) {
+			pr_err("languages must contain the same number of strings\n");
+			us = ERR_PTR(-EINVAL);
+			goto cleanup;
+		}
+
+		stringtab = kcalloc(language->nstrings + 1, sizeof(struct usb_string),
+				    GFP_KERNEL);
+		if (!stringtab) {
+			us = ERR_PTR(-ENOMEM);
+			goto cleanup;
+		}
+
+		stringtab[USB_GADGET_MANUFACTURER_IDX].id = USB_GADGET_MANUFACTURER_IDX;
+		stringtab[USB_GADGET_MANUFACTURER_IDX].s = language->manufacturer;
+		stringtab[USB_GADGET_PRODUCT_IDX].id = USB_GADGET_PRODUCT_IDX;
+		stringtab[USB_GADGET_PRODUCT_IDX].s = language->product;
+		stringtab[USB_GADGET_SERIAL_IDX].id = USB_GADGET_SERIAL_IDX;
+		stringtab[USB_GADGET_SERIAL_IDX].s = language->serialnumber;
+
+		j = USB_GADGET_FIRST_AVAIL_IDX;
+		list_for_each_entry(string, &language->gadget_strings, list) {
+			memcpy(&stringtab[j], &string->usb_string, sizeof(struct usb_string));
+			j++;
+		}
+
+		language->stringtab_dev.strings = stringtab;
+		gadget_strings[i] = &language->stringtab_dev;
+		i++;
+	}
+
+	us = usb_gstrings_attach(&gi->cdev, gadget_strings, nstrings);
+
+cleanup:
+	list_for_each_entry(language, &gi->string_list, list) {
+		kfree(language->stringtab_dev.strings);
+		language->stringtab_dev.strings = NULL;
+	}
+
+	kfree(gadget_strings);
+
+	return us;
+}
+
 static int configfs_composite_bind(struct usb_gadget *gadget,
 		struct usb_gadget_driver *gdriver)
 {
@@ -1640,22 +1714,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 
 	/* init all strings */
 	if (!list_empty(&gi->string_list)) {
-		struct gadget_language *gs;
-
-		i = 0;
-		list_for_each_entry(gs, &gi->string_list, list) {
-
-			gi->gstrings[i] = &gs->stringtab_dev;
-			gs->stringtab_dev.strings = gs->strings;
-			gs->strings[USB_GADGET_MANUFACTURER_IDX].s =
-				gs->manufacturer;
-			gs->strings[USB_GADGET_PRODUCT_IDX].s = gs->product;
-			gs->strings[USB_GADGET_SERIAL_IDX].s = gs->serialnumber;
-			i++;
-		}
-		gi->gstrings[i] = NULL;
-		s = usb_gstrings_attach(&gi->cdev, gi->gstrings,
-				USB_GADGET_FIRST_AVAIL_IDX);
+		s = configfs_attach_gadget_strings(gi);
 		if (IS_ERR(s)) {
 			ret = PTR_ERR(s);
 			goto err_comp_cleanup;
@@ -1664,6 +1723,8 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		gi->cdev.desc.iManufacturer = s[USB_GADGET_MANUFACTURER_IDX].id;
 		gi->cdev.desc.iProduct = s[USB_GADGET_PRODUCT_IDX].id;
 		gi->cdev.desc.iSerialNumber = s[USB_GADGET_SERIAL_IDX].id;
+
+		gi->cdev.usb_strings = s;
 	}
 
 	if (gi->use_webusb) {
