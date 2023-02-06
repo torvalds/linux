@@ -434,20 +434,39 @@ static bool i10nm_check_2lm(struct res_config *cfg)
 }
 
 /*
- * Check whether the error comes from DDRT by ICX/Tremont model specific error code.
- * Refer to SDM vol3B 16.11.3 Intel IMC MC error codes for IA32_MCi_STATUS.
+ * Check whether the error comes from DDRT by ICX/Tremont/SPR model specific error code.
+ * Refer to SDM vol3B 17.11.3/17.13.2 Intel IMC MC error codes for IA32_MCi_STATUS.
  */
 static bool i10nm_mscod_is_ddrt(u32 mscod)
 {
-	switch (mscod) {
-	case 0x0106: case 0x0107:
-	case 0x0800: case 0x0804:
-	case 0x0806 ... 0x0808:
-	case 0x080a ... 0x080e:
-	case 0x0810: case 0x0811:
-	case 0x0816: case 0x081e:
-	case 0x081f:
-		return true;
+	switch (res_cfg->type) {
+	case I10NM:
+		switch (mscod) {
+		case 0x0106: case 0x0107:
+		case 0x0800: case 0x0804:
+		case 0x0806 ... 0x0808:
+		case 0x080a ... 0x080e:
+		case 0x0810: case 0x0811:
+		case 0x0816: case 0x081e:
+		case 0x081f:
+			return true;
+		}
+
+		break;
+	case SPR:
+		switch (mscod) {
+		case 0x0800: case 0x0804:
+		case 0x0806 ... 0x0808:
+		case 0x080a ... 0x080e:
+		case 0x0810: case 0x0811:
+		case 0x0816: case 0x081e:
+		case 0x081f:
+			return true;
+		}
+
+		break;
+	default:
+		return false;
 	}
 
 	return false;
@@ -455,6 +474,7 @@ static bool i10nm_mscod_is_ddrt(u32 mscod)
 
 static bool i10nm_mc_decode_available(struct mce *mce)
 {
+#define ICX_IMCx_CHy		0x06666000
 	u8 bank;
 
 	if (!decoding_via_mca || mem_cfg_2lm)
@@ -468,21 +488,26 @@ static bool i10nm_mc_decode_available(struct mce *mce)
 
 	switch (res_cfg->type) {
 	case I10NM:
-		if (bank < 13 || bank > 26)
+		/* Check whether the bank is one of {13,14,17,18,21,22,25,26} */
+		if (!(ICX_IMCx_CHy & (1 << bank)))
 			return false;
-
-		/* DDRT errors can't be decoded from MCA bank registers */
-		if (MCI_MISC_ECC_MODE(mce->misc) == MCI_MISC_ECC_DDRT)
+		break;
+	case SPR:
+		if (bank < 13 || bank > 20)
 			return false;
-
-		if (i10nm_mscod_is_ddrt(MCI_STATUS_MSCOD(mce->status)))
-			return false;
-
-		/* Check whether one of {13,14,17,18,21,22,25,26} */
-		return ((bank - 13) & BIT(1)) == 0;
+		break;
 	default:
 		return false;
 	}
+
+	/* DDRT errors can't be decoded from MCA bank registers */
+	if (MCI_MISC_ECC_MODE(mce->misc) == MCI_MISC_ECC_DDRT)
+		return false;
+
+	if (i10nm_mscod_is_ddrt(MCI_STATUS_MSCOD(mce->status)))
+		return false;
+
+	return true;
 }
 
 static bool i10nm_mc_decode(struct decoded_addr *res)
@@ -504,9 +529,29 @@ static bool i10nm_mc_decode(struct decoded_addr *res)
 
 	switch (res_cfg->type) {
 	case I10NM:
-		bank = m->bank - 13;
-		res->imc = bank / 4;
-		res->channel = bank % 2;
+		bank              = m->bank - 13;
+		res->imc          = bank / 4;
+		res->channel      = bank % 2;
+		res->column       = GET_BITFIELD(m->misc, 9, 18) << 2;
+		res->row          = GET_BITFIELD(m->misc, 19, 39);
+		res->bank_group   = GET_BITFIELD(m->misc, 40, 41);
+		res->bank_address = GET_BITFIELD(m->misc, 42, 43);
+		res->bank_group  |= GET_BITFIELD(m->misc, 44, 44) << 2;
+		res->rank         = GET_BITFIELD(m->misc, 56, 58);
+		res->dimm         = res->rank >> 2;
+		res->rank         = res->rank % 4;
+		break;
+	case SPR:
+		bank              = m->bank - 13;
+		res->imc          = bank / 2;
+		res->channel      = bank % 2;
+		res->column       = GET_BITFIELD(m->misc, 9, 18) << 2;
+		res->row          = GET_BITFIELD(m->misc, 19, 36);
+		res->bank_group   = GET_BITFIELD(m->misc, 37, 38);
+		res->bank_address = GET_BITFIELD(m->misc, 39, 40);
+		res->bank_group  |= GET_BITFIELD(m->misc, 41, 41) << 2;
+		res->rank         = GET_BITFIELD(m->misc, 57, 57);
+		res->dimm         = GET_BITFIELD(m->misc, 58, 58);
 		break;
 	default:
 		return false;
@@ -517,15 +562,6 @@ static bool i10nm_mc_decode(struct decoded_addr *res)
 			   m->socketid, res->imc);
 		return false;
 	}
-
-	res->column       = GET_BITFIELD(m->misc, 9, 18) << 2;
-	res->row          = GET_BITFIELD(m->misc, 19, 39);
-	res->bank_group   = GET_BITFIELD(m->misc, 40, 41);
-	res->bank_address = GET_BITFIELD(m->misc, 42, 43);
-	res->bank_group  |= GET_BITFIELD(m->misc, 44, 44) << 2;
-	res->rank         = GET_BITFIELD(m->misc, 56, 58);
-	res->dimm         = res->rank >> 2;
-	res->rank         = res->rank % 4;
 
 	return true;
 }
