@@ -338,8 +338,13 @@ static int hidpp_send_fap_command_sync(struct hidpp_device *hidpp,
 	struct hidpp_report *message;
 	int ret;
 
-	if (param_count > sizeof(message->fap.params))
+	if (param_count > sizeof(message->fap.params)) {
+		hid_dbg(hidpp->hid_dev,
+			"Invalid number of parameters passed to command (%d != %llu)\n",
+			param_count,
+			(unsigned long long) sizeof(message->fap.params));
 		return -EINVAL;
+	}
 
 	message = kzalloc(sizeof(struct hidpp_report), GFP_KERNEL);
 	if (!message)
@@ -3440,11 +3445,17 @@ static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 		ret = hidpp10_enable_scrolling_acceleration(hidpp);
 		multiplier = 8;
 	}
-	if (ret)
+	if (ret) {
+		hid_dbg(hidpp->hid_dev,
+			"Could not enable hi-res scrolling: %d\n", ret);
 		return ret;
+	}
 
-	if (multiplier == 0)
+	if (multiplier == 0) {
+		hid_dbg(hidpp->hid_dev,
+			"Invalid multiplier 0 from device, setting it to 1\n");
 		multiplier = 1;
+	}
 
 	hidpp->vertical_wheel_counter.wheel_multiplier = multiplier;
 	hid_dbg(hidpp->hid_dev, "wheel multiplier = %d\n", multiplier);
