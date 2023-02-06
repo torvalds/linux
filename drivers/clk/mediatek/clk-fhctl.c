@@ -14,7 +14,20 @@
 #define PERCENT_TO_DDSLMT(dds, percent_m10) \
 	((((dds) * (percent_m10)) >> 5) / 100)
 
-static const struct fhctl_offset fhctl_offset = {
+const struct fhctl_offset fhctl_offset_v1 = {
+	.offset_hp_en = 0x0,
+	.offset_clk_con = 0x4,
+	.offset_rst_con = 0x8,
+	.offset_slope0 = 0xc,
+	.offset_slope1 = 0x10,
+	.offset_cfg = 0x0,
+	.offset_updnlmt = 0x4,
+	.offset_dds = 0x8,
+	.offset_dvfs = 0xc,
+	.offset_mon = 0x10,
+};
+
+const struct fhctl_offset fhctl_offset_v2 = {
 	.offset_hp_en = 0x0,
 	.offset_clk_con = 0x8,
 	.offset_rst_con = 0xc,
@@ -27,9 +40,16 @@ static const struct fhctl_offset fhctl_offset = {
 	.offset_mon = 0x10,
 };
 
-const struct fhctl_offset *fhctl_get_offset_table(void)
+const struct fhctl_offset *fhctl_get_offset_table(enum fhctl_variant v)
 {
-	return &fhctl_offset;
+	switch (v) {
+	case FHCTL_PLLFH_V1:
+		return &fhctl_offset_v1;
+	case FHCTL_PLLFH_V2:
+		return &fhctl_offset_v2;
+	default:
+		return ERR_PTR(-EINVAL);
+	};
 }
 
 static void dump_hw(struct mtk_clk_pll *pll, struct fh_pll_regs *regs,

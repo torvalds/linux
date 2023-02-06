@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/mt8186-clk.h>
 
+#include "clk-fhctl.h"
 #include "clk-mtk.h"
 #include "clk-pll.h"
 #include "clk-pllfh.h"
@@ -98,6 +99,7 @@ enum fh_pll_id {
 		.data = {						\
 			.pll_id = _pllid,				\
 			.fh_id = _fhid,					\
+			.fh_ver = FHCTL_PLLFH_V2,			\
 			.fhx_offset = _offset,				\
 			.dds_mask = GENMASK(21, 0),			\
 			.slope0_value = 0x6003c97,			\

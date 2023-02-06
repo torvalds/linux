@@ -104,14 +104,16 @@ void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
 	}
 }
 
-static void pllfh_init(struct mtk_fh *fh, struct mtk_pllfh_data *pllfh_data)
+static int pllfh_init(struct mtk_fh *fh, struct mtk_pllfh_data *pllfh_data)
 {
 	struct fh_pll_regs *regs = &fh->regs;
 	const struct fhctl_offset *offset;
 	void __iomem *base = pllfh_data->state.base;
 	void __iomem *fhx_base = base + pllfh_data->data.fhx_offset;
 
-	offset = fhctl_get_offset_table();
+	offset = fhctl_get_offset_table(pllfh_data->data.fh_ver);
+	if (IS_ERR(offset))
+		return PTR_ERR(offset);
 
 	regs->reg_hp_en = base + offset->offset_hp_en;
 	regs->reg_clk_con = base + offset->offset_clk_con;
@@ -129,6 +131,8 @@ static void pllfh_init(struct mtk_fh *fh, struct mtk_pllfh_data *pllfh_data)
 	fh->lock = &pllfh_lock;
 
 	fh->ops = fhctl_get_ops();
+
+	return 0;
 }
 
 static bool fhctl_is_supported_and_enabled(const struct mtk_pllfh_data *pllfh)
@@ -142,20 +146,29 @@ mtk_clk_register_pllfh(const struct mtk_pll_data *pll_data,
 {
 	struct clk_hw *hw;
 	struct mtk_fh *fh;
+	int ret;
 
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
-	pllfh_init(fh, pllfh_data);
+	ret = pllfh_init(fh, pllfh_data);
+	if (ret) {
+		hw = ERR_PTR(ret);
+		goto out;
+	}
 
 	hw = mtk_clk_register_pll_ops(&fh->clk_pll, pll_data, base,
 				      &mtk_pllfh_ops);
 
 	if (IS_ERR(hw))
+		goto out;
+
+	fhctl_hw_init(fh);
+
+out:
+	if (IS_ERR(hw))
 		kfree(fh);
-	else
-		fhctl_hw_init(fh);
 
 	return hw;
 }
