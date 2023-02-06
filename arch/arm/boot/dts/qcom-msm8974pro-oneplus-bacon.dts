@@ -95,6 +95,10 @@
 	status = "okay";
 };
 
+&pm8941_vib {
+	status = "okay";
+};
+
 &pronto {
 	vddmx-supply = <&pm8841_s1>;
 	vddcx-supply = <&pm8841_s2>;
