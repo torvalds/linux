@@ -970,7 +970,7 @@ static irqreturn_t rt9467_usb_state_handler(int irq, void *priv)
 
 	ret = rt9467_report_usb_state(data);
 	if (ret) {
-		dev_err(data->dev, "Failed to report attache type (%d)\n", ret);
+		dev_err(data->dev, "Failed to report attach type (%d)\n", ret);
 		return IRQ_NONE;
 	}
 
