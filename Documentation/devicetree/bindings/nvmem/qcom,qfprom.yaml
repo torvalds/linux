@@ -31,6 +31,7 @@ properties:
           - qcom,sdm670-qfprom
           - qcom,sdm845-qfprom
           - qcom,sm6115-qfprom
+          - qcom,sm8150-qfprom
       - const: qcom,qfprom
 
   reg:
