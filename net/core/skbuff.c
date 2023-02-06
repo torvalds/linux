@@ -89,6 +89,34 @@ static struct kmem_cache *skbuff_fclone_cache __ro_after_init;
 #ifdef CONFIG_SKB_EXTENSIONS
 static struct kmem_cache *skbuff_ext_cache __ro_after_init;
 #endif
+
+/* skb_small_head_cache and related code is only supported
+ * for CONFIG_SLAB and CONFIG_SLUB.
+ * As soon as SLOB is removed from the kernel, we can clean up this.
+ */
+#if !defined(CONFIG_SLOB)
+# define HAVE_SKB_SMALL_HEAD_CACHE 1
+#endif
+
+#ifdef HAVE_SKB_SMALL_HEAD_CACHE
+static struct kmem_cache *skb_small_head_cache __ro_after_init;
+
+#define SKB_SMALL_HEAD_SIZE SKB_HEAD_ALIGN(MAX_TCP_HEADER)
+
+/* We want SKB_SMALL_HEAD_CACHE_SIZE to not be a power of two.
+ * This should ensure that SKB_SMALL_HEAD_HEADROOM is a unique
+ * size, and we can differentiate heads from skb_small_head_cache
+ * vs system slabs by looking at their size (skb_end_offset()).
+ */
+#define SKB_SMALL_HEAD_CACHE_SIZE					\
+	(is_power_of_2(SKB_SMALL_HEAD_SIZE) ?			\
+		(SKB_SMALL_HEAD_SIZE + L1_CACHE_BYTES) :	\
+		SKB_SMALL_HEAD_SIZE)
+
+#define SKB_SMALL_HEAD_HEADROOM						\
+	SKB_WITH_OVERHEAD(SKB_SMALL_HEAD_CACHE_SIZE)
+#endif /* HAVE_SKB_SMALL_HEAD_CACHE */
+
 int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
 EXPORT_SYMBOL(sysctl_max_skb_frags);
 
@@ -486,6 +514,23 @@ static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
 	void *obj;
 
 	obj_size = SKB_HEAD_ALIGN(*size);
+#ifdef HAVE_SKB_SMALL_HEAD_CACHE
+	if (obj_size <= SKB_SMALL_HEAD_CACHE_SIZE &&
+	    !(flags & KMALLOC_NOT_NORMAL_BITS)) {
+
+		/* skb_small_head_cache has non power of two size,
+		 * likely forcing SLUB to use order-3 pages.
+		 * We deliberately attempt a NOMEMALLOC allocation only.
+		 */
+		obj = kmem_cache_alloc_node(skb_small_head_cache,
+				flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
+				node);
+		if (obj) {
+			*size = SKB_SMALL_HEAD_CACHE_SIZE;
+			goto out;
+		}
+	}
+#endif
 	*size = obj_size = kmalloc_size_roundup(obj_size);
 	/*
 	 * Try a regular allocation, when that fails and we're not entitled
@@ -805,6 +850,16 @@ static bool skb_pp_recycle(struct sk_buff *skb, void *data)
 	return page_pool_return_skb_page(virt_to_page(data));
 }
 
+static void skb_kfree_head(void *head, unsigned int end_offset)
+{
+#ifdef HAVE_SKB_SMALL_HEAD_CACHE
+	if (end_offset == SKB_SMALL_HEAD_HEADROOM)
+		kmem_cache_free(skb_small_head_cache, head);
+	else
+#endif
+		kfree(head);
+}
+
 static void skb_free_head(struct sk_buff *skb)
 {
 	unsigned char *head = skb->head;
@@ -814,7 +869,7 @@ static void skb_free_head(struct sk_buff *skb)
 			return;
 		skb_free_frag(head);
 	} else {
-		kfree(head);
+		skb_kfree_head(head, skb_end_offset(skb));
 	}
 }
 
@@ -1997,7 +2052,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	return 0;
 
 nofrags:
-	kfree(data);
+	skb_kfree_head(data, size);
 nodata:
 	return -ENOMEM;
 }
@@ -4634,6 +4689,13 @@ void __init skb_init(void)
 						0,
 						SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 						NULL);
+#ifdef HAVE_SKB_SMALL_HEAD_CACHE
+	skb_small_head_cache = kmem_cache_create("skbuff_small_head",
+						SKB_SMALL_HEAD_CACHE_SIZE,
+						0,
+						SLAB_HWCACHE_ALIGN | SLAB_PANIC,
+						NULL);
+#endif
 	skb_extensions_init();
 }
 
@@ -6298,7 +6360,7 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 	if (skb_cloned(skb)) {
 		/* drop the old head gracefully */
 		if (skb_orphan_frags(skb, gfp_mask)) {
-			kfree(data);
+			skb_kfree_head(data, size);
 			return -ENOMEM;
 		}
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
@@ -6406,7 +6468,7 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	memcpy((struct skb_shared_info *)(data + size),
 	       skb_shinfo(skb), offsetof(struct skb_shared_info, frags[0]));
 	if (skb_orphan_frags(skb, gfp_mask)) {
-		kfree(data);
+		skb_kfree_head(data, size);
 		return -ENOMEM;
 	}
 	shinfo = (struct skb_shared_info *)(data + size);
@@ -6442,7 +6504,7 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 		/* skb_frag_unref() is not needed here as shinfo->nr_frags = 0. */
 		if (skb_has_frag_list(skb))
 			kfree_skb_list(skb_shinfo(skb)->frag_list);
-		kfree(data);
+		skb_kfree_head(data, size);
 		return -ENOMEM;
 	}
 	skb_release_data(skb, SKB_CONSUMED);
