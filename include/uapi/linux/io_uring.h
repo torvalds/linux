@@ -10,7 +10,15 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
+/*
+ * this file is shared with liburing and that has to autodetect
+ * if linux/time_types.h is available or not, it can
+ * define UAPI_LINUX_IO_URING_H_SKIP_LINUX_TIME_TYPES_H
+ * if linux/time_types.h is not available
+ */
+#ifndef UAPI_LINUX_IO_URING_H_SKIP_LINUX_TIME_TYPES_H
 #include <linux/time_types.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
