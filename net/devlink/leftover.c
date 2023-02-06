@@ -6626,18 +6626,22 @@ static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
 
 	err = devlink_fmsg_obj_nest_start(fmsg);
 	if (err)
-		return err;
+		goto out;
 
 	err = reporter->ops->diagnose(reporter, fmsg, info->extack);
 	if (err)
-		return err;
+		goto out;
 
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
-		return err;
+		goto out;
 
-	return devlink_fmsg_snd(fmsg, info,
-				DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE, 0);
+	err = devlink_fmsg_snd(fmsg, info,
+			       DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE, 0);
+
+out:
+	devlink_fmsg_free(fmsg);
+	return err;
 }
 
 static int
