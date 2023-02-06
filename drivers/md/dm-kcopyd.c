@@ -37,7 +37,7 @@
 
 static unsigned int kcopyd_subjob_size_kb = DEFAULT_SUB_JOB_SIZE_KB;
 
-module_param(kcopyd_subjob_size_kb, uint, S_IRUGO | S_IWUSR);
+module_param(kcopyd_subjob_size_kb, uint, 0644);
 MODULE_PARM_DESC(kcopyd_subjob_size_kb, "Sub-job size for dm-kcopyd clients");
 
 static unsigned int dm_get_kcopyd_subjob_size(void)

@@ -2165,28 +2165,28 @@ static void __exit dm_bufio_exit(void)
 module_init(dm_bufio_init)
 module_exit(dm_bufio_exit)
 
-module_param_named(max_cache_size_bytes, dm_bufio_cache_size, ulong, S_IRUGO | S_IWUSR);
+module_param_named(max_cache_size_bytes, dm_bufio_cache_size, ulong, 0644);
 MODULE_PARM_DESC(max_cache_size_bytes, "Size of metadata cache");
 
-module_param_named(max_age_seconds, dm_bufio_max_age, uint, S_IRUGO | S_IWUSR);
+module_param_named(max_age_seconds, dm_bufio_max_age, uint, 0644);
 MODULE_PARM_DESC(max_age_seconds, "Max age of a buffer in seconds");
 
-module_param_named(retain_bytes, dm_bufio_retain_bytes, ulong, S_IRUGO | S_IWUSR);
+module_param_named(retain_bytes, dm_bufio_retain_bytes, ulong, 0644);
 MODULE_PARM_DESC(retain_bytes, "Try to keep at least this many bytes cached in memory");
 
-module_param_named(peak_allocated_bytes, dm_bufio_peak_allocated, ulong, S_IRUGO | S_IWUSR);
+module_param_named(peak_allocated_bytes, dm_bufio_peak_allocated, ulong, 0644);
 MODULE_PARM_DESC(peak_allocated_bytes, "Tracks the maximum allocated memory");
 
-module_param_named(allocated_kmem_cache_bytes, dm_bufio_allocated_kmem_cache, ulong, S_IRUGO);
+module_param_named(allocated_kmem_cache_bytes, dm_bufio_allocated_kmem_cache, ulong, 0444);
 MODULE_PARM_DESC(allocated_kmem_cache_bytes, "Memory allocated with kmem_cache_alloc");
 
-module_param_named(allocated_get_free_pages_bytes, dm_bufio_allocated_get_free_pages, ulong, S_IRUGO);
+module_param_named(allocated_get_free_pages_bytes, dm_bufio_allocated_get_free_pages, ulong, 0444);
 MODULE_PARM_DESC(allocated_get_free_pages_bytes, "Memory allocated with get_free_pages");
 
-module_param_named(allocated_vmalloc_bytes, dm_bufio_allocated_vmalloc, ulong, S_IRUGO);
+module_param_named(allocated_vmalloc_bytes, dm_bufio_allocated_vmalloc, ulong, 0444);
 MODULE_PARM_DESC(allocated_vmalloc_bytes, "Memory allocated with vmalloc");
 
-module_param_named(current_allocated_bytes, dm_bufio_current_allocated, ulong, S_IRUGO);
+module_param_named(current_allocated_bytes, dm_bufio_current_allocated, ulong, 0444);
 MODULE_PARM_DESC(current_allocated_bytes, "Memory currently used by the cache");
 
 MODULE_AUTHOR("Mikulas Patocka <dm-devel@redhat.com>");

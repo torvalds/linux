@@ -2258,8 +2258,7 @@ static void __exit dm_multipath_exit(void)
 module_init(dm_multipath_init);
 module_exit(dm_multipath_exit);
 
-module_param_named(queue_if_no_path_timeout_secs,
-		   queue_if_no_path_timeout_secs, ulong, S_IRUGO | S_IWUSR);
+module_param_named(queue_if_no_path_timeout_secs, queue_if_no_path_timeout_secs, ulong, 0644);
 MODULE_PARM_DESC(queue_if_no_path_timeout_secs, "No available paths queue IO timeout in seconds");
 
 MODULE_DESCRIPTION(DM_NAME " multipath target");

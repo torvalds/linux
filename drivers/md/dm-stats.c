@@ -1247,5 +1247,5 @@ void dm_statistics_exit(void)
 		DMCRIT("shared_memory_amount leaked: %lu", shared_memory_amount);
 }
 
-module_param_named(stats_current_allocated_bytes, shared_memory_amount, ulong, S_IRUGO);
+module_param_named(stats_current_allocated_bytes, shared_memory_amount, ulong, 0444);
 MODULE_PARM_DESC(stats_current_allocated_bytes, "Memory currently used by statistics");

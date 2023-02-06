@@ -18,7 +18,7 @@ struct dm_sysfs_attr {
 
 #define DM_ATTR_RO(_name) \
 struct dm_sysfs_attr dm_attr_##_name = \
-	__ATTR(_name, S_IRUGO, dm_attr_##_name##_show, NULL)
+	__ATTR(_name, 0444, dm_attr_##_name##_show, NULL)
 
 static ssize_t dm_attr_show(struct kobject *kobj, struct attribute *attr,
 			    char *page)
@@ -43,7 +43,7 @@ static ssize_t dm_attr_show(struct kobject *kobj, struct attribute *attr,
 
 #define DM_ATTR_RW(_name) \
 struct dm_sysfs_attr dm_attr_##_name = \
-	__ATTR(_name, S_IRUGO | S_IWUSR, dm_attr_##_name##_show, dm_attr_##_name##_store)
+	__ATTR(_name, 0644, dm_attr_##_name##_show, dm_attr_##_name##_store)
 
 static ssize_t dm_attr_store(struct kobject *kobj, struct attribute *attr,
 			     const char *page, size_t count)

@@ -584,16 +584,16 @@ void dm_mq_cleanup_mapped_device(struct mapped_device *md)
 	}
 }
 
-module_param(reserved_rq_based_ios, uint, S_IRUGO | S_IWUSR);
+module_param(reserved_rq_based_ios, uint, 0644);
 MODULE_PARM_DESC(reserved_rq_based_ios, "Reserved IOs in request-based mempools");
 
 /* Unused, but preserved for userspace compatibility */
 static bool use_blk_mq = true;
-module_param(use_blk_mq, bool, S_IRUGO | S_IWUSR);
+module_param(use_blk_mq, bool, 0644);
 MODULE_PARM_DESC(use_blk_mq, "Use block multiqueue for request-based DM devices");
 
-module_param(dm_mq_nr_hw_queues, uint, S_IRUGO | S_IWUSR);
+module_param(dm_mq_nr_hw_queues, uint, 0644);
 MODULE_PARM_DESC(dm_mq_nr_hw_queues, "Number of hardware queues for request-based dm-mq devices");
 
-module_param(dm_mq_queue_depth, uint, S_IRUGO | S_IWUSR);
+module_param(dm_mq_queue_depth, uint, 0644);
 MODULE_PARM_DESC(dm_mq_queue_depth, "Queue depth for request-based dm-mq devices");
