@@ -193,7 +193,7 @@ void mlx5_devcom_unregister_component(struct mlx5_devcom *devcom,
 
 int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 			   enum mlx5_devcom_components id,
-			   int event,
+			   int event, int rollback_event,
 			   void *event_data)
 {
 	struct mlx5_devcom_component *comp;
@@ -210,8 +210,21 @@ int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 
 		if (i != devcom->idx && data) {
 			err = comp->handler(event, data, event_data);
-			break;
+			if (err)
+				goto rollback;
 		}
+	}
+
+	up_write(&comp->sem);
+	return 0;
+
+rollback:
+	while (i--) {
+		void *data = rcu_dereference_protected(comp->device[i].data,
+						       lockdep_is_held(&comp->sem));
+
+		if (i != devcom->idx && data)
+			comp->handler(rollback_event, data, event_data);
 	}
 
 	up_write(&comp->sem);

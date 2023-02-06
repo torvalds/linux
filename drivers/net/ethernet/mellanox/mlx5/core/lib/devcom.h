@@ -30,7 +30,7 @@ void mlx5_devcom_unregister_component(struct mlx5_devcom *devcom,
 
 int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 			   enum mlx5_devcom_components id,
-			   int event,
+			   int event, int rollback_event,
 			   void *event_data);
 
 void mlx5_devcom_comp_set_ready(struct mlx5_devcom *devcom,
