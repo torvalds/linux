@@ -1198,9 +1198,12 @@ svm_range_get_pte_flags(struct kfd_node *node,
 		if (uncached) {
 			mapping_flags |= AMDGPU_VM_MTYPE_UC;
 		} else if (domain == SVM_RANGE_VRAM_DOMAIN) {
-			/* local HBM region close to partition */
+			/* local HBM region close to partition
+			 * FIXME: Temporarily using MTYPE_CC instead of MTYPE_RW where applicable.
+			 * To force use of MTYPE_RW, set use_mtype_cc_wa=0
+			 */
 			if (bo_node == node)
-				mapping_flags |= AMDGPU_VM_MTYPE_RW;
+				mapping_flags |= amdgpu_use_mtype_cc_wa ? AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
 			/* local HBM region far from partition or remote XGMI GPU */
 			else if (svm_nodes_in_same_hive(bo_node, node))
 				mapping_flags |= AMDGPU_VM_MTYPE_NC;
