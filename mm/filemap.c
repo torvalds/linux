@@ -3585,6 +3585,30 @@ struct folio *read_cache_folio(struct address_space *mapping, pgoff_t index,
 }
 EXPORT_SYMBOL(read_cache_folio);
 
+/**
+ * mapping_read_folio_gfp - Read into page cache, using specified allocation flags.
+ * @mapping:	The address_space for the folio.
+ * @index:	The index that the allocated folio will contain.
+ * @gfp:	The page allocator flags to use if allocating.
+ *
+ * This is the same as "read_cache_folio(mapping, index, NULL, NULL)", but with
+ * any new memory allocations done using the specified allocation flags.
+ *
+ * The most likely error from this function is EIO, but ENOMEM is
+ * possible and so is EINTR.  If ->read_folio returns another error,
+ * that will be returned to the caller.
+ *
+ * The function expects mapping->invalidate_lock to be already held.
+ *
+ * Return: Uptodate folio on success, ERR_PTR() on failure.
+ */
+struct folio *mapping_read_folio_gfp(struct address_space *mapping,
+		pgoff_t index, gfp_t gfp)
+{
+	return do_read_cache_folio(mapping, index, NULL, NULL, gfp);
+}
+EXPORT_SYMBOL(mapping_read_folio_gfp);
+
 static struct page *do_read_cache_page(struct address_space *mapping,
 		pgoff_t index, filler_t *filler, struct file *file, gfp_t gfp)
 {

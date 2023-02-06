@@ -756,6 +756,8 @@ static inline struct page *grab_cache_page(struct address_space *mapping,
 
 struct folio *read_cache_folio(struct address_space *, pgoff_t index,
 		filler_t *filler, struct file *file);
+struct folio *mapping_read_folio_gfp(struct address_space *, pgoff_t index,
+		gfp_t flags);
 struct page *read_cache_page(struct address_space *, pgoff_t index,
 		filler_t *filler, struct file *file);
 extern struct page * read_cache_page_gfp(struct address_space *mapping,
