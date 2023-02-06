@@ -1105,8 +1105,8 @@ static void __arm_spe_pmu_dev_probe(void *info)
 	}
 
 	dev_info(dev,
-		 "probed for CPUs %*pbl [max_record_sz %u, align %u, features 0x%llx]\n",
-		 cpumask_pr_args(&spe_pmu->supported_cpus),
+		 "probed SPEv1.%d for CPUs %*pbl [max_record_sz %u, align %u, features 0x%llx]\n",
+		 spe_pmu->pmsver - 1, cpumask_pr_args(&spe_pmu->supported_cpus),
 		 spe_pmu->max_record_sz, spe_pmu->align, spe_pmu->features);
 
 	spe_pmu->features |= SPE_PMU_FEAT_DEV_PROBED;
