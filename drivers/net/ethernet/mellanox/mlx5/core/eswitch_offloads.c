@@ -2825,8 +2825,10 @@ err_out:
 void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw)
 {
 	struct mlx5_devcom *devcom = esw->dev->priv.devcom;
+	int i;
 
-	INIT_LIST_HEAD(&esw->offloads.peer_flows);
+	for (i = 0; i < MLX5_MAX_PORTS; i++)
+		INIT_LIST_HEAD(&esw->offloads.peer_flows[i]);
 	mutex_init(&esw->offloads.peer_mutex);
 
 	if (!MLX5_CAP_ESW(esw->dev, merged_eswitch))

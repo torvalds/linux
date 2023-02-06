@@ -249,7 +249,7 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_group *vport_rx_drop_group;
 	struct mlx5_flow_handle *vport_rx_drop_rule;
 	struct xarray vport_reps;
-	struct list_head peer_flows;
+	struct list_head peer_flows[MLX5_MAX_PORTS];
 	struct mutex peer_mutex;
 	struct mutex encap_tbl_lock; /* protects encap_tbl */
 	DECLARE_HASHTABLE(encap_tbl, 8);
