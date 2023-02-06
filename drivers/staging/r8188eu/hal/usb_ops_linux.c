@@ -364,7 +364,7 @@ static void usb_read_port_complete(struct urb *purb)
 	if (purb->status == 0) { /* SUCCESS */
 		if ((purb->actual_length > MAX_RECVBUF_SZ) || (purb->actual_length < RXDESC_SIZE)) {
 			precvbuf->reuse = true;
-			rtw_read_port(adapt, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, precvbuf);
 		} else {
 			rtw_reset_continual_urb_error(adapter_to_dvobj(adapt));
 
@@ -376,7 +376,7 @@ static void usb_read_port_complete(struct urb *purb)
 
 			precvbuf->pskb = NULL;
 			precvbuf->reuse = false;
-			rtw_read_port(adapt, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, precvbuf);
 		}
 	} else {
 		skb_put(precvbuf->pskb, purb->actual_length);
@@ -396,7 +396,7 @@ static void usb_read_port_complete(struct urb *purb)
 		case -EPROTO:
 		case -EOVERFLOW:
 			precvbuf->reuse = true;
-			rtw_read_port(adapt, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, precvbuf);
 			break;
 		case -EINPROGRESS:
 			break;
@@ -406,10 +406,9 @@ static void usb_read_port_complete(struct urb *purb)
 	}
 }
 
-u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
+u32 rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
 {
 	struct urb *purb = NULL;
-	struct recv_buf	*precvbuf = (struct recv_buf *)rmem;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
 	struct recv_priv	*precvpriv = &adapter->recvpriv;
 	struct usb_device	*pusbd = pdvobj->pusbdev;

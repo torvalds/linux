@@ -19,7 +19,7 @@
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data);
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data);
 int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data);
-u32 rtw_read_port(struct adapter *adapter, u8 *pmem);
+u32 rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf);
 void rtw_read_port_cancel(struct adapter *adapter);
 
 int rtw_write8(struct adapter *adapter, u32 addr, u8 val);
