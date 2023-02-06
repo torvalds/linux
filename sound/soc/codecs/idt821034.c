@@ -446,8 +446,6 @@ static int idt821034_kctrl_gain_put(struct snd_kcontrol *kcontrol,
 	u8 ch;
 
 	val = ucontrol->value.integer.value[0];
-	if (val < 0)
-		return -EINVAL;
 	if (val > max - min)
 		return -EINVAL;
 
