@@ -226,6 +226,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PCI_MIO;
 		/* the control bit is set during PCI initialization */
 	}
+	if (test_facility(194))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_RDP;
 }
 
 static inline void save_vector_registers(void)
