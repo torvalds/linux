@@ -39,7 +39,7 @@ static void ips_enter(struct adapter *padapter)
 	mutex_unlock(&pwrpriv->lock);
 }
 
-int ips_leave(struct adapter *padapter)
+static int ips_leave(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
