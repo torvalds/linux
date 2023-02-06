@@ -185,8 +185,7 @@ int ipi_mux_create(unsigned int nr_ipi, void (*mux_send)(unsigned int cpu))
 	domain->flags |= IRQ_DOMAIN_FLAG_IPI_SINGLE;
 	irq_domain_update_bus_token(domain, DOMAIN_BUS_IPI);
 
-	rc = __irq_domain_alloc_irqs(domain, -1, nr_ipi,
-				     NUMA_NO_NODE, NULL, false, NULL);
+	rc = irq_domain_alloc_irqs(domain, nr_ipi, NUMA_NO_NODE, NULL);
 	if (rc <= 0) {
 		pr_err("unable to alloc IRQs from IPI Mux domain\n");
 		goto fail_free_domain;
