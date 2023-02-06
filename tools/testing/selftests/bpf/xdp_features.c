@@ -57,7 +57,7 @@ static void sig_handler(int sig)
 
 const char *argp_program_version = "xdp-features 0.0";
 const char argp_program_doc[] =
-"XDP features detecion application.\n"
+"XDP features detection application.\n"
 "\n"
 "XDP features application checks the XDP advertised features match detected ones.\n"
 "\n"
