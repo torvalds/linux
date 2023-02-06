@@ -179,9 +179,9 @@ static int tls_padding_length(struct tls_prot_info *prot, struct sk_buff *skb,
 	return sub;
 }
 
-static void tls_decrypt_done(crypto_completion_data_t *data, int err)
+static void tls_decrypt_done(void *data, int err)
 {
-	struct aead_request *aead_req = crypto_get_completion_data(data);
+	struct aead_request *aead_req = data;
 	struct crypto_aead *aead = crypto_aead_reqtfm(aead_req);
 	struct scatterlist *sgout = aead_req->dst;
 	struct scatterlist *sgin = aead_req->src;
@@ -428,9 +428,9 @@ tx_err:
 	return rc;
 }
 
-static void tls_encrypt_done(crypto_completion_data_t *data, int err)
+static void tls_encrypt_done(void *data, int err)
 {
-	struct aead_request *aead_req = crypto_get_completion_data(data);
+	struct aead_request *aead_req = data;
 	struct tls_sw_context_tx *ctx;
 	struct tls_context *tls_ctx;
 	struct tls_prot_info *prot;
