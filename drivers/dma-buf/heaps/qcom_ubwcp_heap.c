@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -26,7 +26,6 @@ struct ubwcp_buffer {
 	bool ubwcp_init_complete;
 
 	struct rw_semaphore linear_mode_sem;
-	bool mmap_configured;
 	bool is_linear;
 	atomic_t cpu_map_count;
 	phys_addr_t ula_pa_addr;
@@ -142,13 +141,6 @@ static int ubwcp_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	int ret = 0;
 
 	down_read(&buffer->linear_mode_sem);
-	if (!buffer->mmap_configured) {
-		pr_err("Must call msm_dma_buf_configure_mmap() before calling %s()\n",
-		       __func__);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
 	if (buffer->is_linear) {
 		ret = qcom_sg_mmap(dmabuf, vma);
 		goto unlock;
@@ -191,13 +183,6 @@ static int ubwcp_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 	int ret;
 
 	down_read(&buffer->linear_mode_sem);
-	if (!buffer->mmap_configured) {
-		pr_err("Must call msm_dma_buf_configure_mmap() before calling %s()\n",
-		       __func__);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
 	if (!buffer->is_linear) {
 		pr_err("%s: isn't in linear mode, bailing\n", __func__);
 		ret = -EINVAL;
@@ -304,7 +289,6 @@ int msm_ubwcp_dma_buf_configure_mmap(struct dma_buf *dmabuf, bool linear,
 	buffer->is_linear = linear;
 	buffer->ula_pa_addr = ula_pa_addr;
 	buffer->ula_pa_size = ula_pa_size;
-	buffer->mmap_configured = true;
 unlock:
 	up_write(&buffer->linear_mode_sem);
 
@@ -336,6 +320,9 @@ static struct dma_buf *ubwcp_allocate(struct dma_heap *heap,
 		ret = PTR_ERR(buffer->qcom_sg_buf.vmperm);
 		goto free_sys_heap_mem;
 	}
+
+	/* Make the buffer linear by default */
+	buffer->is_linear = true;
 
 	/* create the dmabuf */
 	exp_info.exp_name = dma_heap_get_name(heap);
