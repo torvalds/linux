@@ -17,8 +17,6 @@
 #include <linux/regmap.h>
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
-
 /*
  * block registers
  * addresses are the offset from .block_base
