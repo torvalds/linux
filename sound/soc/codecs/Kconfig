@@ -167,6 +167,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM5102A
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
+	imply SND_SOC_PEB2466
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -1241,6 +1242,17 @@ config SND_SOC_PCM512x_SPI
 	depends on SPI_MASTER
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
+
+config SND_SOC_PEB2466
+	tristate "Infineon PEB2466 quad PCM codec"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Enable support for the Infineon PEB2466 quad PCM codec,
+	  also named SICOFI 4-uC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-peb2466.
 
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
