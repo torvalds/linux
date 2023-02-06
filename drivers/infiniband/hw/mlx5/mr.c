@@ -1166,6 +1166,8 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 		mutex_lock(&dev->slow_path_mutex);
 		mr = reg_create(pd, umem, iova, access_flags, page_size, false);
 		mutex_unlock(&dev->slow_path_mutex);
+		if (IS_ERR(mr))
+			return mr;
 		mr->mmkey.rb_key = rb_key;
 		return mr;
 	}
