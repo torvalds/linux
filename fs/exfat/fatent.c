@@ -347,14 +347,7 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 		exfat_err(sb, "hint_cluster is invalid (%u)",
 			hint_clu);
 		hint_clu = EXFAT_FIRST_CLUSTER;
-		if (p_chain->flags == ALLOC_NO_FAT_CHAIN) {
-			if (exfat_chain_cont_cluster(sb, p_chain->dir,
-					num_clusters)) {
-				ret = -EIO;
-				goto unlock;
-			}
-			p_chain->flags = ALLOC_FAT_CHAIN;
-		}
+		p_chain->flags = ALLOC_FAT_CHAIN;
 	}
 
 	p_chain->dir = EXFAT_EOF_CLUSTER;
