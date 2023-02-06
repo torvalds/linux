@@ -439,11 +439,10 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 
 		cur_eqe_index = FIELD_GET(EQ_CTL_INDEX_MASK, cur_eqe);
 		if ((hdev->event_queue.check_eqe_index) &&
-				(((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK)
-							!= cur_eqe_index)) {
+				(((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK) != cur_eqe_index)) {
 			dev_dbg(hdev->dev,
-				"EQE 0x%x in queue is ready but index does not match %d!=%d",
-				eq_base[eq->ci].hdr.ctl,
+				"EQE %#x in queue is ready but index does not match %d!=%d",
+				cur_eqe,
 				((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK),
 				cur_eqe_index);
 			break;
