@@ -240,6 +240,12 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_MMCSR_LPA		BIT(2) /* Local Preemption Active */
 #define ENETC_MMCSR_LPE		BIT(1) /* Local Preemption Enabled */
 #define ENETC_MMCSR_LPS		BIT(0) /* Local Preemption Supported */
+#define ENETC_MMFAECR		0x1f08
+#define ENETC_MMFSECR		0x1f0c
+#define ENETC_MMFAOCR		0x1f10
+#define ENETC_MMFCRXR		0x1f14
+#define ENETC_MMFCTXR		0x1f18
+#define ENETC_MMHCR		0x1f1c
 #define ENETC_PTCMSDUR(n)	(0x2020 + (n) * 4) /* n = TC index [0..7] */
 
 #define ENETC_PMAC_OFFSET	0x1000
