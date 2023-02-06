@@ -383,7 +383,8 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg, struct gendisk *disk,
 err_put_css:
 	css_put(&blkcg->css);
 err_free_blkg:
-	blkg_free(new_blkg);
+	if (new_blkg)
+		blkg_free(new_blkg);
 	return ERR_PTR(ret);
 }
 
