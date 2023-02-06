@@ -848,29 +848,25 @@ u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 	return _SUCCESS;
  }
 
-unsigned int rtl8188eu_inirp_init(struct adapter *Adapter)
+int rtl8188eu_inirp_init(struct adapter *Adapter)
 {
 	u8 i;
 	struct recv_buf *precvbuf;
-	uint	status;
 	struct recv_priv *precvpriv = &Adapter->recvpriv;
-
-	status = _SUCCESS;
+	int ret;
 
 	/* issue Rx irp to receive data */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		if (!rtw_read_port(Adapter, precvbuf)) {
-			status = _FAIL;
-			goto exit;
-		}
+		ret = rtw_read_port(Adapter, precvbuf);
+		if (ret)
+			return ret;
 
 		precvbuf++;
 		precvpriv->free_recv_buf_queue_cnt--;
 	}
 
-exit:
-	return status;
+	return 0;
 }
 
 /*  */
