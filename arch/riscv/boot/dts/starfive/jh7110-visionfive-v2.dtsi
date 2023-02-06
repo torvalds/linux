@@ -424,6 +424,12 @@
 		};
 	};
 
+	touchscreen@14 {
+		compatible = "goodix,gt911";
+		reg = <0x14>;
+		irq-gpios = <&gpio 30 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &i2c5 {
