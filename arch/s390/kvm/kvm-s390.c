@@ -584,7 +584,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_VCPU_RESETS:
 	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_S390_DIAG318:
-	case KVM_CAP_S390_MEM_OP_EXTENSION:
 		r = 1;
 		break;
 	case KVM_CAP_SET_GUEST_DEBUG2:
@@ -597,6 +596,15 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_S390_MEM_OP:
 		r = MEM_OP_MAX_SIZE;
+		break;
+	case KVM_CAP_S390_MEM_OP_EXTENSION:
+		/*
+		 * Flag bits indicating which extensions are supported.
+		 * If r > 0, the base extension must also be supported/indicated,
+		 * in order to maintain backwards compatibility.
+		 */
+		r = KVM_S390_MEMOP_EXTENSION_CAP_BASE |
+		    KVM_S390_MEMOP_EXTENSION_CAP_CMPXCHG;
 		break;
 	case KVM_CAP_NR_VCPUS:
 	case KVM_CAP_MAX_VCPUS:
@@ -2832,6 +2840,50 @@ out_unlock:
 	return r;
 }
 
+static int kvm_s390_vm_mem_op_cmpxchg(struct kvm *kvm, struct kvm_s390_mem_op *mop)
+{
+	void __user *uaddr = (void __user *)mop->buf;
+	void __user *old_addr = (void __user *)mop->old_addr;
+	union {
+		__uint128_t quad;
+		char raw[sizeof(__uint128_t)];
+	} old = { .quad = 0}, new = { .quad = 0 };
+	unsigned int off_in_quad = sizeof(new) - mop->size;
+	int r, srcu_idx;
+	bool success;
+
+	r = mem_op_validate_common(mop, KVM_S390_MEMOP_F_SKEY_PROTECTION);
+	if (r)
+		return r;
+	/*
+	 * This validates off_in_quad. Checking that size is a power
+	 * of two is not necessary, as cmpxchg_guest_abs_with_key
+	 * takes care of that
+	 */
+	if (mop->size > sizeof(new))
+		return -EINVAL;
+	if (copy_from_user(&new.raw[off_in_quad], uaddr, mop->size))
+		return -EFAULT;
+	if (copy_from_user(&old.raw[off_in_quad], old_addr, mop->size))
+		return -EFAULT;
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	if (kvm_is_error_gpa(kvm, mop->gaddr)) {
+		r = PGM_ADDRESSING;
+		goto out_unlock;
+	}
+
+	r = cmpxchg_guest_abs_with_key(kvm, mop->gaddr, mop->size, &old.quad,
+				       new.quad, mop->key, &success);
+	if (!success && copy_to_user(old_addr, &old.raw[off_in_quad], mop->size))
+		r = -EFAULT;
+
+out_unlock:
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+	return r;
+}
+
 static int kvm_s390_vm_mem_op(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 {
 	/*
@@ -2850,6 +2902,8 @@ static int kvm_s390_vm_mem_op(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 	case KVM_S390_MEMOP_ABSOLUTE_READ:
 	case KVM_S390_MEMOP_ABSOLUTE_WRITE:
 		return kvm_s390_vm_mem_op_abs(kvm, mop);
+	case KVM_S390_MEMOP_ABSOLUTE_CMPXCHG:
+		return kvm_s390_vm_mem_op_cmpxchg(kvm, mop);
 	default:
 		return -EINVAL;
 	}
