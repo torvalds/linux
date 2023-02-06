@@ -91,12 +91,15 @@ config QCOM_OCMEM
 config QCOM_PDR_HELPERS
 	tristate
 	select QCOM_QMI_HELPERS
+	depends on NET
 
 config QCOM_PMIC_GLINK
 	tristate "Qualcomm PMIC GLINK driver"
 	depends on RPMSG
 	depends on TYPEC
 	depends on DRM
+	depends on NET
+	depends on OF
 	select AUXILIARY_BUS
 	select QCOM_PDR_HELPERS
 	help
