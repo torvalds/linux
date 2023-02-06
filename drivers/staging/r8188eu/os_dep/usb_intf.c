@@ -152,11 +152,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 }
 
-static void usb_intf_start(struct adapter *padapter)
-{
-	rtl8188eu_inirp_init(padapter);
-}
-
 static void usb_intf_stop(struct adapter *padapter)
 {
 	/* cancel in irp */
@@ -313,7 +308,6 @@ static int rtw_usb_if1_init(struct dvobj_priv *dvobj, struct usb_interface *pusb
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
-	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
 
 	/* step read_chip_version */
