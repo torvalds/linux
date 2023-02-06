@@ -39,9 +39,8 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 
 	if (GRAPHICS_VER(uncore->i915) == 9) {
 		/* DOP Clock Gating Enable for GuC clocks */
-		intel_gt_mcr_multicast_write(gt, GEN8_MISCCPCTL,
-					     GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
-					     intel_gt_mcr_read_any(gt, GEN8_MISCCPCTL));
+		intel_uncore_rmw(uncore, GEN7_MISCCPCTL, 0,
+				 GEN8_DOP_CLOCK_GATE_GUC_ENABLE);
 
 		/* allows for 5us (in 10ns units) before GT can go to RC6 */
 		intel_uncore_write(uncore, GUC_ARAT_C6DIS, 0x1FF);
