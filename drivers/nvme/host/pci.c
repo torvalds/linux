@@ -3102,6 +3102,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	nvme_start_ctrl(&dev->ctrl);
 	nvme_put_ctrl(&dev->ctrl);
+	flush_work(&dev->ctrl.scan_work);
 	return 0;
 
 out_disable:
