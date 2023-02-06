@@ -1409,7 +1409,7 @@ static int populate_table(struct dm_table *table,
 	char *target_params;
 
 	if (!param->target_count) {
-		DMERR("populate_table: no targets specified");
+		DMERR("%s: no targets specified", __func__);
 		return -EINVAL;
 	}
 

@@ -42,7 +42,7 @@ static int index_check(struct dm_block_validator *v,
 	__le32 csum_disk;
 
 	if (dm_block_location(b) != le64_to_cpu(mi_le->blocknr)) {
-		DMERR_LIMIT("index_check failed: blocknr %llu != wanted %llu",
+		DMERR_LIMIT("%s failed: blocknr %llu != wanted %llu", __func__,
 			    le64_to_cpu(mi_le->blocknr), dm_block_location(b));
 		return -ENOTBLK;
 	}
@@ -51,7 +51,7 @@ static int index_check(struct dm_block_validator *v,
 					       block_size - sizeof(__le32),
 					       INDEX_CSUM_XOR));
 	if (csum_disk != mi_le->csum) {
-		DMERR_LIMIT("index_check failed: csum %u != wanted %u",
+		DMERR_LIMIT("i%s failed: csum %u != wanted %u", __func__,
 			    le32_to_cpu(csum_disk), le32_to_cpu(mi_le->csum));
 		return -EILSEQ;
 	}

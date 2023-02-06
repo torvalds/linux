@@ -739,15 +739,15 @@ static void process_queued_bios(struct work_struct *work)
 /*
  * If we run out of usable paths, should we queue I/O or error it?
  */
-static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
+static int queue_if_no_path(struct multipath *m, bool f_queue_if_no_path,
 			    bool save_old_value, const char *caller)
 {
 	unsigned long flags;
 	bool queue_if_no_path_bit, saved_queue_if_no_path_bit;
 	const char *dm_dev_name = dm_table_device_name(m->ti->table);
 
-	DMDEBUG("%s: %s caller=%s queue_if_no_path=%d save_old_value=%d",
-		dm_dev_name, __func__, caller, queue_if_no_path, save_old_value);
+	DMDEBUG("%s: %s caller=%s f_queue_if_no_path=%d save_old_value=%d",
+		dm_dev_name, __func__, caller, f_queue_if_no_path, save_old_value);
 
 	spin_lock_irqsave(&m->lock, flags);
 
@@ -760,11 +760,11 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 			      dm_dev_name);
 		} else
 			assign_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path_bit);
-	} else if (!queue_if_no_path && saved_queue_if_no_path_bit) {
+	} else if (!f_queue_if_no_path && saved_queue_if_no_path_bit) {
 		/* due to "fail_if_no_path" message, need to honor it. */
 		clear_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
 	}
-	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path);
+	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags, f_queue_if_no_path);
 
 	DMDEBUG("%s: after %s changes; QIFNP = %d; SQIFNP = %d; DNFS = %d",
 		dm_dev_name, __func__,
@@ -774,7 +774,7 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	if (!queue_if_no_path) {
+	if (!f_queue_if_no_path) {
 		dm_table_run_md_queue_async(m->ti->table);
 		process_queued_io_list(m);
 	}
@@ -1468,7 +1468,7 @@ static int switch_pg_num(struct multipath *m, const char *pgstr)
 
 	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
 	    !m->nr_priority_groups || (pgnum > m->nr_priority_groups)) {
-		DMWARN("invalid PG number supplied to switch_pg_num");
+		DMWARN("invalid PG number supplied to %s", __func__);
 		return -EINVAL;
 	}
 

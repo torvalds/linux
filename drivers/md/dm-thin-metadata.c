@@ -269,15 +269,15 @@ static int sb_check(struct dm_block_validator *v,
 	__le32 csum_le;
 
 	if (dm_block_location(b) != le64_to_cpu(disk_super->blocknr)) {
-		DMERR("sb_check failed: blocknr %llu: wanted %llu",
-		      le64_to_cpu(disk_super->blocknr),
+		DMERR("%s failed: blocknr %llu: wanted %llu",
+		      __func__, le64_to_cpu(disk_super->blocknr),
 		      (unsigned long long)dm_block_location(b));
 		return -ENOTBLK;
 	}
 
 	if (le64_to_cpu(disk_super->magic) != THIN_SUPERBLOCK_MAGIC) {
-		DMERR("sb_check failed: magic %llu: wanted %llu",
-		      le64_to_cpu(disk_super->magic),
+		DMERR("%s failed: magic %llu: wanted %llu",
+		      __func__, le64_to_cpu(disk_super->magic),
 		      (unsigned long long)THIN_SUPERBLOCK_MAGIC);
 		return -EILSEQ;
 	}
@@ -286,8 +286,8 @@ static int sb_check(struct dm_block_validator *v,
 					     block_size - sizeof(__le32),
 					     SUPERBLOCK_CSUM_XOR));
 	if (csum_le != disk_super->csum) {
-		DMERR("sb_check failed: csum %u: wanted %u",
-		      le32_to_cpu(csum_le), le32_to_cpu(disk_super->csum));
+		DMERR("%s failed: csum %u: wanted %u",
+		      __func__, le32_to_cpu(csum_le), le32_to_cpu(disk_super->csum));
 		return -EILSEQ;
 	}
 

@@ -165,7 +165,7 @@ static int verity_hash_final(struct dm_verity *v, struct ahash_request *req,
 		r = verity_hash_update(v, req, v->salt, v->salt_size, wait);
 
 		if (r < 0) {
-			DMERR("verity_hash_final failed updating salt: %d", r);
+			DMERR("%s failed updating salt: %d", __func__, r);
 			goto out;
 		}
 	}
@@ -423,7 +423,7 @@ static int verity_for_io_block(struct dm_verity *v, struct dm_verity_io *io,
 		r = crypto_wait_req(crypto_ahash_update(req), wait);
 
 		if (unlikely(r < 0)) {
-			DMERR("verity_for_io_block crypto op failed: %d", r);
+			DMERR("%s crypto op failed: %d", __func__, r);
 			return r;
 		}
 

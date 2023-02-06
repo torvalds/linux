@@ -3093,7 +3093,7 @@ clear_journal:
 
 static void dm_integrity_enter_synchronous_mode(struct dm_integrity_c *ic)
 {
-	DEBUG_print("dm_integrity_enter_synchronous_mode\n");
+	DEBUG_print("%s\n", __func__);
 
 	if (ic->mode == 'B') {
 		ic->bitmap_flush_interval = msecs_to_jiffies(10) + 1;
@@ -3109,7 +3109,7 @@ static int dm_integrity_reboot(struct notifier_block *n, unsigned long code, voi
 {
 	struct dm_integrity_c *ic = container_of(n, struct dm_integrity_c, reboot_notifier);
 
-	DEBUG_print("dm_integrity_reboot\n");
+	DEBUG_print("%s\n", __func__);
 
 	dm_integrity_enter_synchronous_mode(ic);
 
