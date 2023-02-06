@@ -1750,29 +1750,12 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 
 static int mlxsw_core_params_register(struct mlxsw_core *mlxsw_core)
 {
-	int err;
-
-	err = mlxsw_core_fw_params_register(mlxsw_core);
-	if (err)
-		return err;
-
-	if (mlxsw_core->driver->params_register) {
-		err = mlxsw_core->driver->params_register(mlxsw_core);
-		if (err)
-			goto err_params_register;
-	}
-	return 0;
-
-err_params_register:
-	mlxsw_core_fw_params_unregister(mlxsw_core);
-	return err;
+	return mlxsw_core_fw_params_register(mlxsw_core);
 }
 
 static void mlxsw_core_params_unregister(struct mlxsw_core *mlxsw_core)
 {
 	mlxsw_core_fw_params_unregister(mlxsw_core);
-	if (mlxsw_core->driver->params_register)
-		mlxsw_core->driver->params_unregister(mlxsw_core);
 }
 
 struct mlxsw_core_health_event {
