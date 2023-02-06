@@ -406,7 +406,7 @@ static void usb_read_port_complete(struct urb *purb)
 	}
 }
 
-u32 rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
+int rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
 {
 	struct urb *purb = NULL;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
@@ -416,13 +416,12 @@ u32 rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
 	unsigned int pipe;
 	size_t tmpaddr = 0;
 	size_t alignment = 0;
-	u32 ret = _SUCCESS;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
-		return _FAIL;
+		return -EPERM;
 
 	if (!precvbuf)
-		return _FAIL;
+		return -ENOMEM;
 
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
@@ -434,7 +433,7 @@ u32 rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 		if (!precvbuf->pskb)
-			return _FAIL;
+			return -ENOMEM;
 
 		tmpaddr = (size_t)precvbuf->pskb->data;
 		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
@@ -458,9 +457,9 @@ u32 rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
 
 	err = usb_submit_urb(purb, GFP_ATOMIC);
 	if ((err) && (err != (-EPERM)))
-		ret = _FAIL;
+		return err;
 
-	return ret;
+	return 0;
 }
 
 void rtl8188eu_xmit_tasklet(unsigned long priv)
