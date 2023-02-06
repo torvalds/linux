@@ -99,6 +99,21 @@
 			syna,clip-y-high = <1920>;
 		};
 	};
+
+	led-controller@36 {
+		compatible = "ti,lm3630a";
+		reg = <0x36>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			reg = <0>;
+			led-sources = <0 1>;
+			label = "lcd-backlight";
+			default-brightness = <80>;
+		};
+	};
 };
 
 &blsp1_i2c6 {
