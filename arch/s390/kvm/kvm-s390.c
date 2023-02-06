@@ -2764,24 +2764,32 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 	return r;
 }
 
-static bool access_key_invalid(u8 access_key)
+static int mem_op_validate_common(struct kvm_s390_mem_op *mop, u64 supported_flags)
 {
-	return access_key > 0xf;
+	if (mop->flags & ~supported_flags || !mop->size)
+		return -EINVAL;
+	if (mop->size > MEM_OP_MAX_SIZE)
+		return -E2BIG;
+	if (mop->flags & KVM_S390_MEMOP_F_SKEY_PROTECTION) {
+		if (mop->key > 0xf)
+			return -EINVAL;
+	} else {
+		mop->key = 0;
+	}
+	return 0;
 }
 
 static int kvm_s390_vm_mem_op(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 {
 	void __user *uaddr = (void __user *)mop->buf;
-	u64 supported_flags;
 	void *tmpbuf = NULL;
 	int r, srcu_idx;
 
-	supported_flags = KVM_S390_MEMOP_F_SKEY_PROTECTION
-			  | KVM_S390_MEMOP_F_CHECK_ONLY;
-	if (mop->flags & ~supported_flags || !mop->size)
-		return -EINVAL;
-	if (mop->size > MEM_OP_MAX_SIZE)
-		return -E2BIG;
+	r = mem_op_validate_common(mop, KVM_S390_MEMOP_F_SKEY_PROTECTION |
+					KVM_S390_MEMOP_F_CHECK_ONLY);
+	if (r)
+		return r;
+
 	/*
 	 * This is technically a heuristic only, if the kvm->lock is not
 	 * taken, it is not guaranteed that the vm is/remains non-protected.
@@ -2793,12 +2801,6 @@ static int kvm_s390_vm_mem_op(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 	 */
 	if (kvm_s390_pv_get_handle(kvm))
 		return -EINVAL;
-	if (mop->flags & KVM_S390_MEMOP_F_SKEY_PROTECTION) {
-		if (access_key_invalid(mop->key))
-			return -EINVAL;
-	} else {
-		mop->key = 0;
-	}
 	if (!(mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY)) {
 		tmpbuf = vmalloc(mop->size);
 		if (!tmpbuf)
@@ -5250,23 +5252,17 @@ static long kvm_s390_vcpu_mem_op(struct kvm_vcpu *vcpu,
 {
 	void __user *uaddr = (void __user *)mop->buf;
 	void *tmpbuf = NULL;
-	int r = 0;
-	const u64 supported_flags = KVM_S390_MEMOP_F_INJECT_EXCEPTION
-				    | KVM_S390_MEMOP_F_CHECK_ONLY
-				    | KVM_S390_MEMOP_F_SKEY_PROTECTION;
+	int r;
 
-	if (mop->flags & ~supported_flags || mop->ar >= NUM_ACRS || !mop->size)
+	r = mem_op_validate_common(mop, KVM_S390_MEMOP_F_INJECT_EXCEPTION |
+					KVM_S390_MEMOP_F_CHECK_ONLY |
+					KVM_S390_MEMOP_F_SKEY_PROTECTION);
+	if (r)
+		return r;
+	if (mop->ar >= NUM_ACRS)
 		return -EINVAL;
-	if (mop->size > MEM_OP_MAX_SIZE)
-		return -E2BIG;
 	if (kvm_s390_pv_cpu_is_protected(vcpu))
 		return -EINVAL;
-	if (mop->flags & KVM_S390_MEMOP_F_SKEY_PROTECTION) {
-		if (access_key_invalid(mop->key))
-			return -EINVAL;
-	} else {
-		mop->key = 0;
-	}
 	if (!(mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY)) {
 		tmpbuf = vmalloc(mop->size);
 		if (!tmpbuf)
