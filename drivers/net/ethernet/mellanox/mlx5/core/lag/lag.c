@@ -1187,7 +1187,7 @@ static int __mlx5_lag_dev_add_mdev(struct mlx5_core_dev *dev)
 
 	tmp_dev = mlx5_get_next_phys_dev_lag(dev);
 	if (tmp_dev)
-		ldev = tmp_dev->priv.lag;
+		ldev = mlx5_lag_dev(tmp_dev);
 
 	if (!ldev) {
 		ldev = mlx5_lag_dev_alloc(dev);
@@ -1386,8 +1386,7 @@ bool mlx5_lag_is_shared_fdb(struct mlx5_core_dev *dev)
 
 	spin_lock_irqsave(&lag_lock, flags);
 	ldev = mlx5_lag_dev(dev);
-	res = ldev && __mlx5_lag_is_sriov(ldev) &&
-	      test_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &ldev->mode_flags);
+	res = ldev && test_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &ldev->mode_flags);
 	spin_unlock_irqrestore(&lag_lock, flags);
 
 	return res;

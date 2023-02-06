@@ -28,13 +28,9 @@ static bool mlx5_lag_multipath_check_prereq(struct mlx5_lag *ldev)
 
 bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev)
 {
-	struct mlx5_lag *ldev;
-	bool res;
+	struct mlx5_lag *ldev = mlx5_lag_dev(dev);
 
-	ldev = mlx5_lag_dev(dev);
-	res  = ldev && __mlx5_lag_is_multipath(ldev);
-
-	return res;
+	return ldev && __mlx5_lag_is_multipath(ldev);
 }
 
 /**

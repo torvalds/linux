@@ -58,7 +58,7 @@ static void mlx5_mpesw_work(struct work_struct *work)
 static int mlx5_lag_mpesw_queue_work(struct mlx5_core_dev *dev,
 				     enum mpesw_op op)
 {
-	struct mlx5_lag *ldev = dev->priv.lag;
+	struct mlx5_lag *ldev = mlx5_lag_dev(dev);
 	struct mlx5_mpesw_work_st *work;
 	int err = 0;
 
@@ -96,25 +96,27 @@ int mlx5_lag_add_mpesw_rule(struct mlx5_core_dev *dev)
 	return mlx5_lag_mpesw_queue_work(dev, MLX5_MPESW_OP_ENABLE);
 }
 
-int mlx5_lag_do_mirred(struct mlx5_core_dev *mdev, struct net_device *out_dev)
+int mlx5_lag_mpesw_do_mirred(struct mlx5_core_dev *mdev,
+			     struct net_device *out_dev,
+			     struct netlink_ext_ack *extack)
 {
-	struct mlx5_lag *ldev = mdev->priv.lag;
+	struct mlx5_lag *ldev = mlx5_lag_dev(mdev);
 
 	if (!netif_is_bond_master(out_dev) || !ldev)
 		return 0;
 
-	if (ldev->mode == MLX5_LAG_MODE_MPESW)
-		return -EOPNOTSUPP;
+	if (ldev->mode != MLX5_LAG_MODE_MPESW)
+		return 0;
 
-	return 0;
+	NL_SET_ERR_MSG_MOD(extack, "can't forward to bond in mpesw mode");
+	return -EOPNOTSUPP;
 }
 
 bool mlx5_lag_mpesw_is_activated(struct mlx5_core_dev *dev)
 {
-	bool ret;
+	struct mlx5_lag *ldev = mlx5_lag_dev(dev);
 
-	ret = dev->priv.lag && dev->priv.lag->mode == MLX5_LAG_MODE_MPESW;
-	return ret;
+	return ldev && ldev->mode == MLX5_LAG_MODE_MPESW;
 }
 
 void mlx5_lag_mpesw_init(struct mlx5_lag *ldev)

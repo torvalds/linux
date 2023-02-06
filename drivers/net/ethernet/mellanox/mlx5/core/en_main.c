@@ -1470,6 +1470,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->mkey_be   = c->mkey_be;
 	sq->netdev    = c->netdev;
 	sq->mdev      = c->mdev;
+	sq->channel   = c;
 	sq->priv      = c->priv;
 	sq->ch_ix     = c->ix;
 	sq->txq_ix    = txq_ix;
@@ -2482,8 +2483,6 @@ static void mlx5e_activate_channel(struct mlx5e_channel *c)
 		mlx5e_activate_xsk(c);
 	else
 		mlx5e_activate_rq(&c->rq);
-
-	mlx5e_trigger_napi_icosq(c);
 }
 
 static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
@@ -2575,12 +2574,18 @@ err_free:
 	return err;
 }
 
-static void mlx5e_activate_channels(struct mlx5e_channels *chs)
+static void mlx5e_activate_channels(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
 {
 	int i;
 
 	for (i = 0; i < chs->num; i++)
 		mlx5e_activate_channel(chs->c[i]);
+
+	if (priv->htb)
+		mlx5e_qos_activate_queues(priv);
+
+	for (i = 0; i < chs->num; i++)
+		mlx5e_trigger_napi_icosq(chs->c[i]);
 
 	if (chs->ptp)
 		mlx5e_ptp_activate_channel(chs->ptp);
@@ -2888,9 +2893,7 @@ out:
 void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 {
 	mlx5e_build_txq_maps(priv);
-	mlx5e_activate_channels(&priv->channels);
-	if (priv->htb)
-		mlx5e_qos_activate_queues(priv);
+	mlx5e_activate_channels(priv, &priv->channels);
 	mlx5e_xdp_tx_enable(priv);
 
 	/* dev_watchdog() wants all TX queues to be started when the carrier is

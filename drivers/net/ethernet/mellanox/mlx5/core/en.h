@@ -454,6 +454,7 @@ struct mlx5e_txqsq {
 	struct mlx5_clock         *clock;
 	struct net_device         *netdev;
 	struct mlx5_core_dev      *mdev;
+	struct mlx5e_channel      *channel;
 	struct mlx5e_priv         *priv;
 
 	/* control path */

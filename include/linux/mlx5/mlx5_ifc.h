@@ -9926,13 +9926,20 @@ struct mlx5_ifc_mpegc_reg_bits {
 };
 
 enum {
+	MLX5_MTUTC_FREQ_ADJ_UNITS_PPB          = 0x0,
+	MLX5_MTUTC_FREQ_ADJ_UNITS_SCALED_PPM   = 0x1,
+};
+
+enum {
 	MLX5_MTUTC_OPERATION_SET_TIME_IMMEDIATE   = 0x1,
 	MLX5_MTUTC_OPERATION_ADJUST_TIME          = 0x2,
 	MLX5_MTUTC_OPERATION_ADJUST_FREQ_UTC      = 0x3,
 };
 
 struct mlx5_ifc_mtutc_reg_bits {
-	u8         reserved_at_0[0x1c];
+	u8         reserved_at_0[0x5];
+	u8         freq_adj_units[0x3];
+	u8         reserved_at_8[0x14];
 	u8         operation[0x4];
 
 	u8         freq_adjustment[0x20];
@@ -10005,7 +10012,8 @@ struct mlx5_ifc_pcam_reg_bits {
 };
 
 struct mlx5_ifc_mcam_enhanced_features_bits {
-	u8         reserved_at_0[0x51];
+	u8         reserved_at_0[0x50];
+	u8         mtutc_freq_adj_units[0x1];
 	u8         mtutc_time_adjustment_extended_range[0x1];
 	u8         reserved_at_52[0xb];
 	u8         mcia_32dwords[0x1];

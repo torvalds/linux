@@ -232,9 +232,9 @@ parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 	parse_state->ifindexes[if_count] = out_dev->ifindex;
 	parse_state->if_count++;
 	is_uplink_rep = mlx5e_eswitch_uplink_rep(out_dev);
-	err = mlx5_lag_do_mirred(priv->mdev, out_dev);
-	if (err)
-		return err;
+
+	if (mlx5_lag_mpesw_do_mirred(priv->mdev, out_dev, extack))
+		return -EOPNOTSUPP;
 
 	out_dev = get_fdb_out_dev(uplink_dev, out_dev);
 	if (!out_dev)
