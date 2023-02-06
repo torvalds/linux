@@ -160,7 +160,7 @@ static int set_ccsidr(struct kvm_vcpu *vcpu, u32 csselr, u32 val)
 		if (val == get_ccsidr(vcpu, csselr))
 			return 0;
 
-		ccsidr = kmalloc_array(CSSELR_MAX, sizeof(u32), GFP_KERNEL);
+		ccsidr = kmalloc_array(CSSELR_MAX, sizeof(u32), GFP_KERNEL_ACCOUNT);
 		if (!ccsidr)
 			return -ENOMEM;
 
