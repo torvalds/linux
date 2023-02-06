@@ -163,6 +163,7 @@ struct uvcg_extension_unit_descriptor {
 struct uvcg_extension {
 	struct config_item item;
 	struct list_head list;
+	u8 string_descriptor_index;
 	struct uvcg_extension_unit_descriptor desc;
 };
 
