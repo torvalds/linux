@@ -3895,19 +3895,9 @@ static const struct devlink_param mlxsw_sp2_devlink_params[] = {
 static int mlxsw_sp2_params_register(struct mlxsw_core *mlxsw_core)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
-	union devlink_param_value value;
-	int err;
 
-	err = devl_params_register(devlink, mlxsw_sp2_devlink_params,
-				   ARRAY_SIZE(mlxsw_sp2_devlink_params));
-	if (err)
-		return err;
-
-	value.vu32 = 0;
-	devl_param_driverinit_value_set(devlink,
-					MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
-					value);
-	return 0;
+	return devl_params_register(devlink, mlxsw_sp2_devlink_params,
+				    ARRAY_SIZE(mlxsw_sp2_devlink_params));
 }
 
 static void mlxsw_sp2_params_unregister(struct mlxsw_core *mlxsw_core)
