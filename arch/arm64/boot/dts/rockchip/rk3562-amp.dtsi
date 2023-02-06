@@ -7,13 +7,27 @@
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,mcu-amp";
 		clocks = <&cru FCLK_BUS_CM0_CORE>, <&cru CLK_BUS_CM0_RTC>,
+			<&cru PCLK_MAILBOX>, <&cru PCLK_INTC>,
 			<&cru SCLK_UART5>, <&cru PCLK_UART5>,
 			<&cru PCLK_TIMER>, <&cru CLK_TIMER5>;
 		clock-names = "fclk_bus_cm0_core", "clk_bus_cm0_rtc",
+			      "pclk_maikbox", "pclk_intc",
 			      "baudclk", "apb_pclk", "pclk", "timer";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5m0_xfer>;
+
+		status = "okay";
+	};
+
+	rpmsg: rpmsg@a0000000 {
+		compatible = "rockchip,rk3562-rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox 0 &mailbox 3>;
+		rockchip,vdev-nums = <1>;
+		rockchip,link-id = <0x04>;
+		reg = <0x0 0xa0000000 0x0 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
 
 		status = "okay";
 	};
@@ -28,6 +42,20 @@
 			reg = <0x0 0x8200000 0x0 0x100000>;
 			no-map;
 		};
+
+		rpmsg_reserved: rpmsg@a0000000 {
+			reg = <0x0 0xa0000000 0x0 0x400000>;
+			no-map;
+		};
+
+		rpmsg_dma_reserved: rpmsg-dma@a0400000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xa0400000 0x0 0x100000>;
+			no-map;
+		};
 	};
 };
 
+&mailbox {
+	status = "okay";
+};
