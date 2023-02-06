@@ -2782,6 +2782,7 @@ static int mem_op_validate_common(struct kvm_s390_mem_op *mop, u64 supported_fla
 static int kvm_s390_vm_mem_op_abs(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 {
 	void __user *uaddr = (void __user *)mop->buf;
+	enum gacc_mode acc_mode;
 	void *tmpbuf = NULL;
 	int r, srcu_idx;
 
@@ -2803,33 +2804,25 @@ static int kvm_s390_vm_mem_op_abs(struct kvm *kvm, struct kvm_s390_mem_op *mop)
 		goto out_unlock;
 	}
 
-	switch (mop->op) {
-	case KVM_S390_MEMOP_ABSOLUTE_READ: {
-		if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
-			r = check_gpa_range(kvm, mop->gaddr, mop->size, GACC_FETCH, mop->key);
-		} else {
-			r = access_guest_abs_with_key(kvm, mop->gaddr, tmpbuf,
-						      mop->size, GACC_FETCH, mop->key);
-			if (r == 0) {
-				if (copy_to_user(uaddr, tmpbuf, mop->size))
-					r = -EFAULT;
-			}
-		}
-		break;
+	acc_mode = mop->op == KVM_S390_MEMOP_ABSOLUTE_READ ? GACC_FETCH : GACC_STORE;
+	if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
+		r = check_gpa_range(kvm, mop->gaddr, mop->size, acc_mode, mop->key);
+		goto out_unlock;
 	}
-	case KVM_S390_MEMOP_ABSOLUTE_WRITE: {
-		if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
-			r = check_gpa_range(kvm, mop->gaddr, mop->size, GACC_STORE, mop->key);
-		} else {
-			if (copy_from_user(tmpbuf, uaddr, mop->size)) {
-				r = -EFAULT;
-				break;
-			}
-			r = access_guest_abs_with_key(kvm, mop->gaddr, tmpbuf,
-						      mop->size, GACC_STORE, mop->key);
+	if (acc_mode == GACC_FETCH) {
+		r = access_guest_abs_with_key(kvm, mop->gaddr, tmpbuf,
+					      mop->size, GACC_FETCH, mop->key);
+		if (r)
+			goto out_unlock;
+		if (copy_to_user(uaddr, tmpbuf, mop->size))
+			r = -EFAULT;
+	} else {
+		if (copy_from_user(tmpbuf, uaddr, mop->size)) {
+			r = -EFAULT;
+			goto out_unlock;
 		}
-		break;
-	}
+		r = access_guest_abs_with_key(kvm, mop->gaddr, tmpbuf,
+					      mop->size, GACC_STORE, mop->key);
 	}
 
 out_unlock:
