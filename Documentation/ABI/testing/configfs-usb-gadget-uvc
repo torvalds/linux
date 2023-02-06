@@ -113,6 +113,34 @@ Description:	Default processing unit descriptors
 		bUnitID		a non-zero id of this unit
 		===============	========================================
 
+What:		/config/usb-gadget/gadget/functions/uvc.name/control/extensions
+Date:		Nov 2022
+KernelVersion:	6.1
+Description:	Extension unit descriptors
+
+What:		/config/usb-gadget/gadget/functions/uvc.name/control/extensions/name
+Date:		Nov 2022
+KernelVersion:	6.1
+Description:	Extension Unit (XU) Descriptor
+
+		bLength, bUnitID and iExtension are read-only. All others are
+		read-write.
+
+		=================	========================================
+		bLength			size of the descriptor in bytes
+		bUnitID			non-zero ID of this unit
+		guidExtensionCode	Vendor-specific code identifying the XU
+		bNumControls		number of controls in this XU
+		bNrInPins		number of input pins for this unit
+		baSourceID		list of the IDs of the units or terminals
+					to which this XU is connected
+		bControlSize		size of the bmControls field in bytes
+		bmControls		list of bitmaps detailing which vendor
+					specific controls are supported
+		iExtension		index of a string descriptor that describes
+					this extension unit
+		=================	========================================
+
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/header
 Date:		Dec 2014
 KernelVersion:	4.0

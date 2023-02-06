@@ -663,6 +663,485 @@ static const struct uvcg_config_group_type uvcg_terminal_grp_type = {
 };
 
 /* -----------------------------------------------------------------------------
+ * control/extensions
+ */
+
+#define UVCG_EXTENSION_ATTR(cname, aname, ro...)			\
+static ssize_t uvcg_extension_##cname##_show(struct config_item *item,	\
+					     char *page)		\
+{									\
+	struct config_group *group = to_config_group(item->ci_parent);	\
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;		\
+	struct uvcg_extension *xu = to_uvcg_extension(item);		\
+	struct config_item *opts_item;					\
+	struct f_uvc_opts *opts;					\
+	int ret;							\
+									\
+	mutex_lock(su_mutex);						\
+									\
+	opts_item = item->ci_parent->ci_parent->ci_parent;		\
+	opts = to_f_uvc_opts(opts_item);				\
+									\
+	mutex_lock(&opts->lock);					\
+	ret = sprintf(page, "%u\n", xu->desc.aname);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	mutex_unlock(su_mutex);						\
+									\
+	return ret;							\
+}									\
+UVC_ATTR##ro(uvcg_extension_, cname, aname)
+
+UVCG_EXTENSION_ATTR(b_length, bLength, _RO);
+UVCG_EXTENSION_ATTR(b_unit_id, bUnitID, _RO);
+UVCG_EXTENSION_ATTR(i_extension, iExtension, _RO);
+
+static ssize_t uvcg_extension_b_num_controls_store(struct config_item *item,
+						   const char *page, size_t len)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	int ret;
+	u8 num;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		return ret;
+
+	mutex_lock(&opts->lock);
+	xu->desc.bNumControls = num;
+	mutex_unlock(&opts->lock);
+
+	mutex_unlock(su_mutex);
+
+	return len;
+}
+UVCG_EXTENSION_ATTR(b_num_controls, bNumControls);
+
+/*
+ * In addition to storing bNrInPins, this function needs to realloc the
+ * memory for the baSourceID array and additionally expand bLength.
+ */
+static ssize_t uvcg_extension_b_nr_in_pins_store(struct config_item *item,
+						 const char *page, size_t len)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	void *tmp_buf;
+	int ret;
+	u8 num;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		return ret;
+
+	mutex_lock(&opts->lock);
+
+	if (num == xu->desc.bNrInPins) {
+		ret = len;
+		goto unlock;
+	}
+
+	tmp_buf = krealloc_array(xu->desc.baSourceID, num, sizeof(u8),
+				 GFP_KERNEL | __GFP_ZERO);
+	if (!tmp_buf) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	xu->desc.baSourceID = tmp_buf;
+	xu->desc.bNrInPins = num;
+	xu->desc.bLength = UVC_DT_EXTENSION_UNIT_SIZE(xu->desc.bNrInPins,
+						      xu->desc.bControlSize);
+
+	ret = len;
+
+unlock:
+	mutex_unlock(&opts->lock);
+	mutex_unlock(su_mutex);
+	return ret;
+}
+UVCG_EXTENSION_ATTR(b_nr_in_pins, bNrInPins);
+
+/*
+ * In addition to storing bControlSize, this function needs to realloc the
+ * memory for the bmControls array and additionally expand bLength.
+ */
+static ssize_t uvcg_extension_b_control_size_store(struct config_item *item,
+						   const char *page, size_t len)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	void *tmp_buf;
+	int ret;
+	u8 num;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		return ret;
+
+	mutex_lock(&opts->lock);
+
+	if (num == xu->desc.bControlSize) {
+		ret = len;
+		goto unlock;
+	}
+
+	tmp_buf = krealloc_array(xu->desc.bmControls, num, sizeof(u8),
+				 GFP_KERNEL | __GFP_ZERO);
+	if (!tmp_buf) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	xu->desc.bmControls = tmp_buf;
+	xu->desc.bControlSize = num;
+	xu->desc.bLength = UVC_DT_EXTENSION_UNIT_SIZE(xu->desc.bNrInPins,
+						      xu->desc.bControlSize);
+
+	ret = len;
+
+unlock:
+	mutex_unlock(&opts->lock);
+	mutex_unlock(su_mutex);
+	return ret;
+}
+
+UVCG_EXTENSION_ATTR(b_control_size, bControlSize);
+
+static ssize_t uvcg_extension_guid_extension_code_show(struct config_item *item,
+						       char *page)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	memcpy(page, xu->desc.guidExtensionCode, sizeof(xu->desc.guidExtensionCode));
+	mutex_unlock(&opts->lock);
+
+	mutex_unlock(su_mutex);
+
+	return sizeof(xu->desc.guidExtensionCode);
+}
+
+static ssize_t uvcg_extension_guid_extension_code_store(struct config_item *item,
+							const char *page, size_t len)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	int ret;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	memcpy(xu->desc.guidExtensionCode, page,
+	       min(sizeof(xu->desc.guidExtensionCode), len));
+	mutex_unlock(&opts->lock);
+
+	mutex_unlock(su_mutex);
+
+	ret = sizeof(xu->desc.guidExtensionCode);
+
+	return ret;
+}
+
+UVC_ATTR(uvcg_extension_, guid_extension_code, guidExtensionCode);
+
+static ssize_t uvcg_extension_ba_source_id_show(struct config_item *item,
+						char *page)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	char *pg = page;
+	int ret, i;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	for (ret = 0, i = 0; i < xu->desc.bNrInPins; ++i) {
+		ret += sprintf(pg, "%u\n", xu->desc.baSourceID[i]);
+		pg = page + ret;
+	}
+	mutex_unlock(&opts->lock);
+
+	mutex_unlock(su_mutex);
+
+	return ret;
+}
+
+static ssize_t uvcg_extension_ba_source_id_store(struct config_item *item,
+						 const char *page, size_t len)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	u8 *source_ids, *iter;
+	int ret, n = 0;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+
+	ret = __uvcg_iter_item_entries(page, len, __uvcg_count_item_entries, &n,
+				       sizeof(u8));
+	if (ret)
+		goto unlock;
+
+	iter = source_ids = kcalloc(n, sizeof(u8), GFP_KERNEL);
+	if (!source_ids) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	ret = __uvcg_iter_item_entries(page, len, __uvcg_fill_item_entries, &iter,
+				       sizeof(u8));
+	if (ret) {
+		kfree(source_ids);
+		goto unlock;
+	}
+
+	kfree(xu->desc.baSourceID);
+	xu->desc.baSourceID = source_ids;
+	xu->desc.bNrInPins = n;
+	xu->desc.bLength = UVC_DT_EXTENSION_UNIT_SIZE(xu->desc.bNrInPins,
+						      xu->desc.bControlSize);
+
+	ret = len;
+
+unlock:
+	mutex_unlock(&opts->lock);
+	mutex_unlock(su_mutex);
+	return ret;
+}
+UVC_ATTR(uvcg_extension_, ba_source_id, baSourceID);
+
+static ssize_t uvcg_extension_bm_controls_show(struct config_item *item,
+					       char *page)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	char *pg = page;
+	int ret, i;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	for (ret = 0, i = 0; i < xu->desc.bControlSize; ++i) {
+		ret += sprintf(pg, "0x%02x\n", xu->desc.bmControls[i]);
+		pg = page + ret;
+	}
+	mutex_unlock(&opts->lock);
+
+	mutex_unlock(su_mutex);
+
+	return ret;
+}
+
+static ssize_t uvcg_extension_bm_controls_store(struct config_item *item,
+						const char *page, size_t len)
+{
+	struct config_group *group = to_config_group(item->ci_parent);
+	struct mutex *su_mutex = &group->cg_subsys->su_mutex;
+	struct uvcg_extension *xu = to_uvcg_extension(item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+	u8 *bm_controls, *iter;
+	int ret, n = 0;
+
+	mutex_lock(su_mutex);
+
+	opts_item = item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+
+	ret = __uvcg_iter_item_entries(page, len, __uvcg_count_item_entries, &n,
+				       sizeof(u8));
+	if (ret)
+		goto unlock;
+
+	iter = bm_controls = kcalloc(n, sizeof(u8), GFP_KERNEL);
+	if (!bm_controls) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	ret = __uvcg_iter_item_entries(page, len, __uvcg_fill_item_entries, &iter,
+				       sizeof(u8));
+	if (ret) {
+		kfree(bm_controls);
+		goto unlock;
+	}
+
+	kfree(xu->desc.bmControls);
+	xu->desc.bmControls = bm_controls;
+	xu->desc.bControlSize = n;
+	xu->desc.bLength = UVC_DT_EXTENSION_UNIT_SIZE(xu->desc.bNrInPins,
+						      xu->desc.bControlSize);
+
+	ret = len;
+
+unlock:
+	mutex_unlock(&opts->lock);
+	mutex_unlock(su_mutex);
+	return ret;
+}
+
+UVC_ATTR(uvcg_extension_, bm_controls, bmControls);
+
+static struct configfs_attribute *uvcg_extension_attrs[] = {
+	&uvcg_extension_attr_b_length,
+	&uvcg_extension_attr_b_unit_id,
+	&uvcg_extension_attr_b_num_controls,
+	&uvcg_extension_attr_b_nr_in_pins,
+	&uvcg_extension_attr_b_control_size,
+	&uvcg_extension_attr_guid_extension_code,
+	&uvcg_extension_attr_ba_source_id,
+	&uvcg_extension_attr_bm_controls,
+	&uvcg_extension_attr_i_extension,
+	NULL,
+};
+
+static void uvcg_extension_release(struct config_item *item)
+{
+	struct uvcg_extension *xu = container_of(item, struct uvcg_extension, item);
+
+	kfree(xu);
+}
+
+static struct configfs_item_operations uvcg_extension_item_ops = {
+	.release	= uvcg_extension_release,
+};
+
+static const struct config_item_type uvcg_extension_type = {
+	.ct_item_ops	= &uvcg_extension_item_ops,
+	.ct_attrs	= uvcg_extension_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static void uvcg_extension_drop(struct config_group *group, struct config_item *item)
+{
+	struct uvcg_extension *xu = container_of(item, struct uvcg_extension, item);
+	struct config_item *opts_item;
+	struct f_uvc_opts *opts;
+
+	opts_item = group->cg_item.ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+
+	config_item_put(item);
+	list_del(&xu->list);
+	kfree(xu->desc.baSourceID);
+	kfree(xu->desc.bmControls);
+
+	mutex_unlock(&opts->lock);
+}
+
+static struct config_item *uvcg_extension_make(struct config_group *group, const char *name)
+{
+	struct config_item *opts_item;
+	struct uvcg_extension *xu;
+	struct f_uvc_opts *opts;
+
+	opts_item = group->cg_item.ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	xu = kzalloc(sizeof(*xu), GFP_KERNEL);
+	if (!xu)
+		return ERR_PTR(-ENOMEM);
+
+	xu->desc.bLength = UVC_DT_EXTENSION_UNIT_SIZE(0, 0);
+	xu->desc.bDescriptorType = USB_DT_CS_INTERFACE;
+	xu->desc.bDescriptorSubType = UVC_VC_EXTENSION_UNIT;
+	xu->desc.bNumControls = 0;
+	xu->desc.bNrInPins = 0;
+	xu->desc.baSourceID = NULL;
+	xu->desc.bControlSize = 0;
+	xu->desc.bmControls = NULL;
+
+	mutex_lock(&opts->lock);
+
+	xu->desc.bUnitID = ++opts->last_unit_id;
+
+	config_item_init_type_name(&xu->item, name, &uvcg_extension_type);
+	list_add_tail(&xu->list, &opts->extension_units);
+
+	mutex_unlock(&opts->lock);
+
+	return &xu->item;
+}
+
+static struct configfs_group_operations uvcg_extensions_grp_ops = {
+	.make_item	= uvcg_extension_make,
+	.drop_item	= uvcg_extension_drop,
+};
+
+static const struct uvcg_config_group_type uvcg_extensions_grp_type = {
+	.type = {
+		.ct_item_ops	= &uvcg_config_item_ops,
+		.ct_group_ops	= &uvcg_extensions_grp_ops,
+		.ct_owner	= THIS_MODULE,
+	},
+	.name = "extensions",
+};
+
+/* -----------------------------------------------------------------------------
  * control/class/{fs|ss}
  */
 
@@ -909,6 +1388,7 @@ static const struct uvcg_config_group_type uvcg_control_grp_type = {
 		&uvcg_processing_grp_type,
 		&uvcg_terminal_grp_type,
 		&uvcg_control_class_grp_type,
+		&uvcg_extensions_grp_type,
 		NULL,
 	},
 };
