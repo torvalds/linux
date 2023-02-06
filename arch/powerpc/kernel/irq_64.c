@@ -94,7 +94,7 @@ static inline bool irq_happened_test_and_clear(u8 irq)
 	return false;
 }
 
-static void __replay_soft_interrupts(void)
+static __no_kcsan void __replay_soft_interrupts(void)
 {
 	struct pt_regs regs;
 
@@ -171,7 +171,7 @@ static void __replay_soft_interrupts(void)
 	local_paca->irq_happened &= ~PACA_IRQ_REPLAYING;
 }
 
-void replay_soft_interrupts(void)
+__no_kcsan void replay_soft_interrupts(void)
 {
 	irq_enter(); /* See comment in arch_local_irq_restore */
 	__replay_soft_interrupts();
@@ -179,7 +179,7 @@ void replay_soft_interrupts(void)
 }
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_KUAP)
-static inline void replay_soft_interrupts_irqrestore(void)
+static inline __no_kcsan void replay_soft_interrupts_irqrestore(void)
 {
 	unsigned long kuap_state = get_kuap();
 
@@ -203,7 +203,7 @@ static inline void replay_soft_interrupts_irqrestore(void)
 #define replay_soft_interrupts_irqrestore() __replay_soft_interrupts()
 #endif
 
-notrace void arch_local_irq_restore(unsigned long mask)
+notrace __no_kcsan void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 
