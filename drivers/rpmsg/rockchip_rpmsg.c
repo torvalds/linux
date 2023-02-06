@@ -27,6 +27,7 @@
 #include "rpmsg_internal.h"
 
 enum rk_rpmsg_chip {
+	RK3562,
 	RK3568,
 };
 
@@ -399,6 +400,7 @@ static int rockchip_rpmsg_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_rpmsg_match[] = {
+	{ .compatible = "rockchip,rk3562-rpmsg", .data = (void *)RK3562, },
 	{ .compatible = "rockchip,rk3568-rpmsg", .data = (void *)RK3568, },
 	{ /* sentinel */ },
 };
