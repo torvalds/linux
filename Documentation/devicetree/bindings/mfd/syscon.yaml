@@ -64,12 +64,6 @@ properties:
               - rockchip,rk3568-qos
               - rockchip,rk3588-qos
               - rockchip,rv1126-qos
-              - samsung,exynos3-sysreg
-              - samsung,exynos4-sysreg
-              - samsung,exynos5-sysreg
-              - samsung,exynos5433-sysreg
-              - samsung,exynos850-sysreg
-              - samsung,exynosautov9-sysreg
 
           - const: syscon
 
