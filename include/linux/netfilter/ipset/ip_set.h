@@ -202,7 +202,7 @@ struct ip_set_region {
 };
 
 /* Max range where every element is added/deleted in one step */
-#define IPSET_MAX_RANGE		(1<<20)
+#define IPSET_MAX_RANGE		(1<<14)
 
 /* The core set type structure */
 struct ip_set_type {

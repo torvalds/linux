@@ -76,6 +76,14 @@ struct kvaser_usb_tx_urb_context {
 	int dlc;
 };
 
+struct kvaser_usb_busparams {
+	__le32 bitrate;
+	u8 tseg1;
+	u8 tseg2;
+	u8 sjw;
+	u8 nsamples;
+} __packed;
+
 struct kvaser_usb {
 	struct usb_device *udev;
 	struct usb_interface *intf;
@@ -104,12 +112,18 @@ struct kvaser_usb_net_priv {
 	struct can_priv can;
 	struct can_berr_counter bec;
 
+	/* subdriver-specific data */
+	void *sub_priv;
+
 	struct kvaser_usb *dev;
 	struct net_device *netdev;
 	int channel;
 
-	struct completion start_comp, stop_comp, flush_comp;
+	struct completion start_comp, stop_comp, flush_comp,
+			  get_busparams_comp;
 	struct usb_anchor tx_submitted;
+
+	struct kvaser_usb_busparams busparams_nominal, busparams_data;
 
 	spinlock_t tx_contexts_lock; /* lock for active_tx_contexts */
 	int active_tx_contexts;
@@ -120,11 +134,15 @@ struct kvaser_usb_net_priv {
  * struct kvaser_usb_dev_ops - Device specific functions
  * @dev_set_mode:		used for can.do_set_mode
  * @dev_set_bittiming:		used for can.do_set_bittiming
+ * @dev_get_busparams:		readback arbitration busparams
  * @dev_set_data_bittiming:	used for can.do_set_data_bittiming
+ * @dev_get_data_busparams:	readback data busparams
  * @dev_get_berr_counter:	used for can.do_get_berr_counter
  *
  * @dev_setup_endpoints:	setup USB in and out endpoints
  * @dev_init_card:		initialize card
+ * @dev_init_channel:		initialize channel
+ * @dev_remove_channel:		uninitialize channel
  * @dev_get_software_info:	get software info
  * @dev_get_software_details:	get software details
  * @dev_get_card_info:		get card info
@@ -140,12 +158,18 @@ struct kvaser_usb_net_priv {
  */
 struct kvaser_usb_dev_ops {
 	int (*dev_set_mode)(struct net_device *netdev, enum can_mode mode);
-	int (*dev_set_bittiming)(struct net_device *netdev);
-	int (*dev_set_data_bittiming)(struct net_device *netdev);
+	int (*dev_set_bittiming)(const struct net_device *netdev,
+				 const struct kvaser_usb_busparams *busparams);
+	int (*dev_get_busparams)(struct kvaser_usb_net_priv *priv);
+	int (*dev_set_data_bittiming)(const struct net_device *netdev,
+				      const struct kvaser_usb_busparams *busparams);
+	int (*dev_get_data_busparams)(struct kvaser_usb_net_priv *priv);
 	int (*dev_get_berr_counter)(const struct net_device *netdev,
 				    struct can_berr_counter *bec);
 	int (*dev_setup_endpoints)(struct kvaser_usb *dev);
 	int (*dev_init_card)(struct kvaser_usb *dev);
+	int (*dev_init_channel)(struct kvaser_usb_net_priv *priv);
+	void (*dev_remove_channel)(struct kvaser_usb_net_priv *priv);
 	int (*dev_get_software_info)(struct kvaser_usb *dev);
 	int (*dev_get_software_details)(struct kvaser_usb *dev);
 	int (*dev_get_card_info)(struct kvaser_usb *dev);

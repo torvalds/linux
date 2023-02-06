@@ -19,7 +19,7 @@ msm-y := \
 	hdmi/hdmi.o \
 	hdmi/hdmi_audio.o \
 	hdmi/hdmi_bridge.o \
-	hdmi/hdmi_connector.o \
+	hdmi/hdmi_hpd.o \
 	hdmi/hdmi_i2c.o \
 	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \

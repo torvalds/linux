@@ -35,6 +35,8 @@ cleanup() {
 	for i in 1 2;do ip netns del nsrouter$i;done
 }
 
+trap cleanup EXIT
+
 ipv4() {
     echo -n 192.168.$1.2
 }
@@ -146,11 +148,17 @@ ip netns exec nsclient1 nft -f - <<EOF
 table inet filter {
 	counter unknown { }
 	counter related { }
+	counter redir4 { }
+	counter redir6 { }
 	chain input {
 		type filter hook input priority 0; policy accept;
-		meta l4proto { icmp, icmpv6 } ct state established,untracked accept
 
+		icmp type "redirect" ct state "related" counter name "redir4" accept
+		icmpv6 type "nd-redirect" ct state "related" counter name "redir6" accept
+
+		meta l4proto { icmp, icmpv6 } ct state established,untracked accept
 		meta l4proto { icmp, icmpv6 } ct state "related" counter name "related" accept
+
 		counter name "unknown" drop
 	}
 }
@@ -279,5 +287,29 @@ else
 	echo "ERROR: icmp error RELATED state test has failed"
 fi
 
-cleanup
+# add 'bad' route,  expect icmp REDIRECT to be generated
+ip netns exec nsclient1 ip route add 192.168.1.42 via 192.168.1.1
+ip netns exec nsclient1 ip route add dead:1::42 via dead:1::1
+
+ip netns exec "nsclient1" ping -q -c 2 192.168.1.42 > /dev/null
+
+expect="packets 1 bytes 112"
+check_counter nsclient1 "redir4" "$expect"
+if [ $? -ne 0 ];then
+	ret=1
+fi
+
+ip netns exec "nsclient1" ping -c 1 dead:1::42 > /dev/null
+expect="packets 1 bytes 192"
+check_counter nsclient1 "redir6" "$expect"
+if [ $? -ne 0 ];then
+	ret=1
+fi
+
+if [ $ret -eq 0 ];then
+	echo "PASS: icmp redirects had RELATED state"
+else
+	echo "ERROR: icmp redirect RELATED state test has failed"
+fi
+
 exit $ret

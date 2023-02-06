@@ -1108,8 +1108,6 @@ void efi_check_for_embedded_firmwares(void);
 static inline void efi_check_for_embedded_firmwares(void) { }
 #endif
 
-efi_status_t efi_random_get_seed(void);
-
 void efi_retrieve_tpm2_eventlog(void);
 
 /*
