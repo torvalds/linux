@@ -11,6 +11,7 @@
 #include <net/ip.h>
 
 #include "../libwx/wx_type.h"
+#include "../libwx/wx_lib.h"
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
 #include "txgbe_hw.h"
@@ -72,9 +73,177 @@ static int txgbe_enumerate_functions(struct wx *wx)
 	return physfns;
 }
 
+/**
+ * txgbe_irq_enable - Enable default interrupt generation settings
+ * @wx: pointer to private structure
+ * @queues: enable irqs for queues
+ **/
+static void txgbe_irq_enable(struct wx *wx, bool queues)
+{
+	/* unmask interrupt */
+	wx_intr_enable(wx, TXGBE_INTR_MISC(wx));
+	if (queues)
+		wx_intr_enable(wx, TXGBE_INTR_QALL(wx));
+}
+
+/**
+ * txgbe_intr - msi/legacy mode Interrupt Handler
+ * @irq: interrupt number
+ * @data: pointer to a network interface device structure
+ **/
+static irqreturn_t txgbe_intr(int __always_unused irq, void *data)
+{
+	struct wx_q_vector *q_vector;
+	struct wx *wx  = data;
+	struct pci_dev *pdev;
+	u32 eicr;
+
+	q_vector = wx->q_vector[0];
+	pdev = wx->pdev;
+
+	eicr = wx_misc_isb(wx, WX_ISB_VEC0);
+	if (!eicr) {
+		/* shared interrupt alert!
+		 * the interrupt that we masked before the ICR read.
+		 */
+		if (netif_running(wx->netdev))
+			txgbe_irq_enable(wx, true);
+		return IRQ_NONE;        /* Not our interrupt */
+	}
+	wx->isb_mem[WX_ISB_VEC0] = 0;
+	if (!(pdev->msi_enabled))
+		wr32(wx, WX_PX_INTA, 1);
+
+	wx->isb_mem[WX_ISB_MISC] = 0;
+	/* would disable interrupts here but it is auto disabled */
+	napi_schedule_irqoff(&q_vector->napi);
+
+	/* re-enable link(maybe) and non-queue interrupts, no flush.
+	 * txgbe_poll will re-enable the queue interrupts
+	 */
+	if (netif_running(wx->netdev))
+		txgbe_irq_enable(wx, false);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t txgbe_msix_other(int __always_unused irq, void *data)
+{
+	struct wx *wx = data;
+
+	/* re-enable the original interrupt state */
+	if (netif_running(wx->netdev))
+		txgbe_irq_enable(wx, false);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * txgbe_request_msix_irqs - Initialize MSI-X interrupts
+ * @wx: board private structure
+ *
+ * Allocate MSI-X vectors and request interrupts from the kernel.
+ **/
+static int txgbe_request_msix_irqs(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+	int vector, err;
+
+	for (vector = 0; vector < wx->num_q_vectors; vector++) {
+		struct wx_q_vector *q_vector = wx->q_vector[vector];
+		struct msix_entry *entry = &wx->msix_entries[vector];
+
+		if (q_vector->tx.ring && q_vector->rx.ring)
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-TxRx-%d", netdev->name, entry->entry);
+		else
+			/* skip this unused q_vector */
+			continue;
+
+		err = request_irq(entry->vector, wx_msix_clean_rings, 0,
+				  q_vector->name, q_vector);
+		if (err) {
+			wx_err(wx, "request_irq failed for MSIX interrupt %s Error: %d\n",
+			       q_vector->name, err);
+			goto free_queue_irqs;
+		}
+	}
+
+	err = request_irq(wx->msix_entries[vector].vector,
+			  txgbe_msix_other, 0, netdev->name, wx);
+	if (err) {
+		wx_err(wx, "request_irq for msix_other failed: %d\n", err);
+		goto free_queue_irqs;
+	}
+
+	return 0;
+
+free_queue_irqs:
+	while (vector) {
+		vector--;
+		free_irq(wx->msix_entries[vector].vector,
+			 wx->q_vector[vector]);
+	}
+	wx_reset_interrupt_capability(wx);
+	return err;
+}
+
+/**
+ * txgbe_request_irq - initialize interrupts
+ * @wx: board private structure
+ *
+ * Attempt to configure interrupts using the best available
+ * capabilities of the hardware and kernel.
+ **/
+static int txgbe_request_irq(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+	struct pci_dev *pdev = wx->pdev;
+	int err;
+
+	if (pdev->msix_enabled)
+		err = txgbe_request_msix_irqs(wx);
+	else if (pdev->msi_enabled)
+		err = request_irq(wx->pdev->irq, &txgbe_intr, 0,
+				  netdev->name, wx);
+	else
+		err = request_irq(wx->pdev->irq, &txgbe_intr, IRQF_SHARED,
+				  netdev->name, wx);
+
+	if (err)
+		wx_err(wx, "request_irq failed, Error %d\n", err);
+
+	return err;
+}
+
 static void txgbe_up_complete(struct wx *wx)
 {
+	u32 reg;
+
 	wx_control_hw(wx, true);
+	wx_configure_vectors(wx);
+
+	/* make sure to complete pre-operations */
+	smp_mb__before_atomic();
+	wx_napi_enable_all(wx);
+
+	/* clear any pending interrupts, may auto mask */
+	rd32(wx, WX_PX_IC);
+	rd32(wx, WX_PX_MISC_IC);
+	txgbe_irq_enable(wx, true);
+
+	/* Configure MAC Rx and Tx when link is up */
+	reg = rd32(wx, WX_MAC_RX_CFG);
+	wr32(wx, WX_MAC_RX_CFG, reg);
+	wr32(wx, WX_MAC_PKT_FLT, WX_MAC_PKT_FLT_PR);
+	reg = rd32(wx, WX_MAC_WDG_TIMEOUT);
+	wr32(wx, WX_MAC_WDG_TIMEOUT, reg);
+	reg = rd32(wx, WX_MAC_TX_CFG);
+	wr32(wx, WX_MAC_TX_CFG, (reg & ~WX_MAC_TX_CFG_SPEED_MASK) | WX_MAC_TX_CFG_SPEED_10G);
+
+	/* enable transmits */
+	netif_tx_start_all_queues(wx->netdev);
+	netif_carrier_on(wx->netdev);
 }
 
 static void txgbe_reset(struct wx *wx)
@@ -96,13 +265,23 @@ static void txgbe_reset(struct wx *wx)
 static void txgbe_disable_device(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
+	u32 i;
 
 	wx_disable_pcie_master(wx);
 	/* disable receives */
 	wx_disable_rx(wx);
 
+	/* disable all enabled rx queues */
+	for (i = 0; i < wx->num_rx_queues; i++)
+		/* this call also flushes the previous write */
+		wx_disable_rx_queue(wx, wx->rx_ring[i]);
+
+	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
+
+	wx_irq_disable(wx);
+	wx_napi_disable_all(wx);
 
 	if (wx->bus.func < 2)
 		wr32m(wx, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wx->bus.func), 0);
@@ -116,6 +295,13 @@ static void txgbe_disable_device(struct wx *wx)
 		wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
 	}
 
+	/* disable transmits in the hardware now that interrupts are off */
+	for (i = 0; i < wx->num_tx_queues; i++) {
+		u8 reg_idx = wx->tx_ring[i]->reg_idx;
+
+		wr32(wx, WX_PX_TR_CFG(reg_idx), WX_PX_TR_CFG_SWFLSH);
+	}
+
 	/* Disable the Tx DMA engine */
 	wr32m(wx, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
 }
@@ -124,6 +310,9 @@ static void txgbe_down(struct wx *wx)
 {
 	txgbe_disable_device(wx);
 	txgbe_reset(wx);
+
+	wx_clean_all_tx_rings(wx);
+	wx_clean_all_rx_rings(wx);
 }
 
 /**
@@ -132,12 +321,15 @@ static void txgbe_down(struct wx *wx)
  **/
 static int txgbe_sw_init(struct wx *wx)
 {
+	u16 msix_count = 0;
 	int err;
 
 	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
 	wx->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
 	wx->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
 	wx->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
+	wx->mac.rx_pb_size = TXGBE_SP_RX_PB_SIZE;
+	wx->mac.tx_pb_size = TXGBE_SP_TDB_PB_SZ;
 
 	/* PCI config space info */
 	err = wx_sw_init(wx);
@@ -156,6 +348,25 @@ static int txgbe_sw_init(struct wx *wx)
 		break;
 	}
 
+	/* Set common capability flags and settings */
+	wx->max_q_vectors = TXGBE_MAX_MSIX_VECTORS;
+	err = wx_get_pcie_msix_counts(wx, &msix_count, TXGBE_MAX_MSIX_VECTORS);
+	if (err)
+		wx_err(wx, "Do not support MSI-X\n");
+	wx->mac.max_msix_vectors = msix_count;
+
+	/* enable itr by default in dynamic mode */
+	wx->rx_itr_setting = 1;
+	wx->tx_itr_setting = 1;
+
+	/* set default ring sizes */
+	wx->tx_ring_count = TXGBE_DEFAULT_TXD;
+	wx->rx_ring_count = TXGBE_DEFAULT_RXD;
+
+	/* set default work limits */
+	wx->tx_work_limit = TXGBE_DEFAULT_TX_WORK;
+	wx->rx_work_limit = TXGBE_DEFAULT_RX_WORK;
+
 	return 0;
 }
 
@@ -171,10 +382,39 @@ static int txgbe_sw_init(struct wx *wx)
 static int txgbe_open(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
+	int err;
+
+	err = wx_setup_resources(wx);
+	if (err)
+		goto err_reset;
+
+	wx_configure(wx);
+
+	err = txgbe_request_irq(wx);
+	if (err)
+		goto err_free_isb;
+
+	/* Notify the stack of the actual queue counts. */
+	err = netif_set_real_num_tx_queues(netdev, wx->num_tx_queues);
+	if (err)
+		goto err_free_irq;
+
+	err = netif_set_real_num_rx_queues(netdev, wx->num_rx_queues);
+	if (err)
+		goto err_free_irq;
 
 	txgbe_up_complete(wx);
 
 	return 0;
+
+err_free_irq:
+	wx_free_irq(wx);
+err_free_isb:
+	wx_free_isb_resources(wx);
+err_reset:
+	txgbe_reset(wx);
+
+	return err;
 }
 
 /**
@@ -187,6 +427,7 @@ static int txgbe_open(struct net_device *netdev)
 static void txgbe_close_suspend(struct wx *wx)
 {
 	txgbe_disable_device(wx);
+	wx_free_resources(wx);
 }
 
 /**
@@ -205,6 +446,8 @@ static int txgbe_close(struct net_device *netdev)
 	struct wx *wx = netdev_priv(netdev);
 
 	txgbe_down(wx);
+	wx_free_irq(wx);
+	wx_free_resources(wx);
 	wx_control_hw(wx, false);
 
 	return 0;
@@ -240,18 +483,14 @@ static void txgbe_shutdown(struct pci_dev *pdev)
 	}
 }
 
-static netdev_tx_t txgbe_xmit_frame(struct sk_buff *skb,
-				    struct net_device *netdev)
-{
-	return NETDEV_TX_OK;
-}
-
 static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_open               = txgbe_open,
 	.ndo_stop               = txgbe_close,
-	.ndo_start_xmit         = txgbe_xmit_frame,
+	.ndo_start_xmit         = wx_xmit_frame,
+	.ndo_set_rx_mode        = wx_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac,
+	.ndo_get_stats64        = wx_get_stats64,
 };
 
 /**
@@ -354,6 +593,16 @@ static int txgbe_probe(struct pci_dev *pdev,
 	}
 
 	netdev->features |= NETIF_F_HIGHDMA;
+	netdev->features = NETIF_F_SG;
+
+	/* copy netdev features into list of user selectable features */
+	netdev->hw_features |= netdev->features | NETIF_F_RXALL;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
+
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = TXGBE_MAX_JUMBO_FRAME_SIZE - (ETH_HLEN + ETH_FCS_LEN);
 
 	/* make sure the EEPROM is good */
 	err = txgbe_validate_eeprom_checksum(wx, NULL);
@@ -366,6 +615,10 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	wx_mac_set_default_filter(wx, wx->mac.perm_addr);
+
+	err = wx_init_interrupt_scheme(wx);
+	if (err)
+		goto err_free_mac_table;
 
 	/* Save off EEPROM version number and Option Rom version which
 	 * together make a unique identify for the eeprom
@@ -411,6 +664,8 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, wx);
 
+	netif_tx_stop_all_queues(netdev);
+
 	/* calculate the expected PCIe bandwidth required for optimal
 	 * performance. Note that some older parts will never have enough
 	 * bandwidth due to being older generation PCIe parts. We clamp these
@@ -435,6 +690,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_release_hw:
+	wx_clear_interrupt_scheme(wx);
 	wx_control_hw(wx, false);
 err_free_mac_table:
 	kfree(wx->mac_table);
@@ -468,6 +724,7 @@ static void txgbe_remove(struct pci_dev *pdev)
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
 	kfree(wx->mac_table);
+	wx_clear_interrupt_scheme(wx);
 
 	pci_disable_pcie_error_reporting(pdev);
 

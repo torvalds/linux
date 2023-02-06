@@ -18,6 +18,7 @@ if NET_VENDOR_WANGXUN
 
 config LIBWX
 	tristate
+	select PAGE_POOL
 	help
 	Common library for Wangxun(R) Ethernet drivers.
 
