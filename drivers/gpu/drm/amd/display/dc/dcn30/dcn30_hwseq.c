@@ -559,7 +559,7 @@ void dcn30_init_hw(struct dc *dc)
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		struct dc_link *edp_link = NULL;
 
-		get_edp_links(dc, edp_links, &edp_num);
+		dc_get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num)
 			edp_link = edp_links[0];
 		if (edp_link && edp_link->link_enc->funcs->is_dig_enabled &&

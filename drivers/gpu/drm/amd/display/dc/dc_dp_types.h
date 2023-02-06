@@ -1261,4 +1261,111 @@ union dpcd_sink_ext_caps {
 	} bits;
 	uint8_t raw;
 };
+
+enum dc_link_fec_state {
+	dc_link_fec_not_ready,
+	dc_link_fec_ready,
+	dc_link_fec_enabled
+};
+
+union dpcd_psr_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char TRANSMITTER_ACTIVE_IN_PSR : 1;
+		unsigned char CRC_VERIFICATION          : 1;
+		unsigned char FRAME_CAPTURE_INDICATION  : 1;
+		/* For eDP 1.4, PSR v2*/
+		unsigned char LINE_CAPTURE_INDICATION   : 1;
+		/* For eDP 1.4, PSR v2*/
+		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
+		unsigned char ENABLE_PSR2               : 1;
+		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_alpm_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char IRQ_HPD_ENABLE            : 1;
+		unsigned char RESERVED                  : 6;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_sink_active_vtotal_control_mode {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char RESERVED                  : 7;
+	} bits;
+	unsigned char raw;
+};
+
+union psr_error_status {
+	struct {
+		unsigned char LINK_CRC_ERROR        :1;
+		unsigned char RFB_STORAGE_ERROR     :1;
+		unsigned char VSC_SDP_ERROR         :1;
+		unsigned char RESERVED              :5;
+	} bits;
+	unsigned char raw;
+};
+
+union psr_sink_psr_status {
+	struct {
+	unsigned char SINK_SELF_REFRESH_STATUS  :3;
+	unsigned char RESERVED                  :5;
+	} bits;
+	unsigned char raw;
+};
+
+struct edp_trace_power_timestamps {
+	uint64_t poweroff;
+	uint64_t poweron;
+};
+
+struct dp_trace_lt_counts {
+	unsigned int total;
+	unsigned int fail;
+};
+
+enum link_training_result {
+	LINK_TRAINING_SUCCESS,
+	LINK_TRAINING_CR_FAIL_LANE0,
+	LINK_TRAINING_CR_FAIL_LANE1,
+	LINK_TRAINING_CR_FAIL_LANE23,
+	/* CR DONE bit is cleared during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR,
+	/* CR DONE bit is cleared but LANE0_CR_DONE is set during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR_PARTIAL,
+	/* other failure during EQ step */
+	LINK_TRAINING_EQ_FAIL_EQ,
+	LINK_TRAINING_LQA_FAIL,
+	/* one of the CR,EQ or symbol lock is dropped */
+	LINK_TRAINING_LINK_LOSS,
+	/* Abort link training (because sink unplugged) */
+	LINK_TRAINING_ABORT,
+	DP_128b_132b_LT_FAILED,
+	DP_128b_132b_MAX_LOOP_COUNT_REACHED,
+	DP_128b_132b_CHANNEL_EQ_DONE_TIMEOUT,
+	DP_128b_132b_CDS_DONE_TIMEOUT,
+};
+
+struct dp_trace_lt {
+	struct dp_trace_lt_counts counts;
+	struct dp_trace_timestamps {
+		unsigned long long start;
+		unsigned long long end;
+	} timestamps;
+	enum link_training_result result;
+	bool is_logged;
+};
+
+struct dp_trace {
+	struct dp_trace_lt detect_lt_trace;
+	struct dp_trace_lt commit_lt_trace;
+	unsigned int link_loss_count;
+	bool is_initialized;
+	struct edp_trace_power_timestamps edp_trace_power_timestamps;
+};
 #endif /* DC_DP_TYPES_H */

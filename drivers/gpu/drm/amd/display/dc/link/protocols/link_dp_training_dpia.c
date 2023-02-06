@@ -29,7 +29,6 @@
 #include "link_dp_training_dpia.h"
 #include "dc.h"
 #include "inc/core_status.h"
-#include "dc_link.h"
 #include "dpcd_defs.h"
 
 #include "link_dp_dpia.h"

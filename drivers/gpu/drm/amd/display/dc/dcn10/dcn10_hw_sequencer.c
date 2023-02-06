@@ -1638,7 +1638,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 	int edp_num;
 	int i = 0;
 
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 	if (edp_num)
 		edp_link = edp_links[0];
 

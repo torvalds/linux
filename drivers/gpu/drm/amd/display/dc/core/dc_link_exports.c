@@ -34,6 +34,49 @@
  * in this file which calls link functions.
  */
 #include "link.h"
+#include "dce/dce_i2c.h"
+struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
+{
+	return dc->links[link_index];
+}
+
+void dc_get_edp_links(const struct dc *dc,
+		struct dc_link **edp_links,
+		int *edp_num)
+{
+	int i;
+
+	*edp_num = 0;
+	for (i = 0; i < dc->link_count; i++) {
+		// report any eDP links, even unconnected DDI's
+		if (!dc->links[i])
+			continue;
+		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP) {
+			edp_links[*edp_num] = dc->links[i];
+			if (++(*edp_num) == MAX_NUM_EDP)
+				return;
+		}
+	}
+}
+
+bool dc_get_edp_link_panel_inst(const struct dc *dc,
+		const struct dc_link *link,
+		unsigned int *inst_out)
+{
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	int edp_num, i;
+
+	*inst_out = 0;
+	if (link->connector_signal != SIGNAL_TYPE_EDP)
+		return false;
+	dc_get_edp_links(dc, edp_links, &edp_num);
+	for (i = 0; i < edp_num; i++) {
+		if (link == edp_links[i])
+			break;
+		(*inst_out)++;
+	}
+	return true;
+}
 
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
@@ -101,3 +144,47 @@ bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx)
 {
 	return link_update_dsc_config(pipe_ctx);
 }
+
+bool dc_is_oem_i2c_device_present(
+	struct dc *dc,
+	size_t slave_address)
+{
+	if (dc->res_pool->oem_device)
+		return dce_i2c_oem_device_present(
+			dc->res_pool,
+			dc->res_pool->oem_device,
+			slave_address);
+
+	return false;
+}
+
+bool dc_submit_i2c(
+		struct dc *dc,
+		uint32_t link_index,
+		struct i2c_command *cmd)
+{
+
+	struct dc_link *link = dc->links[link_index];
+	struct ddc_service *ddc = link->ddc;
+
+	return dce_i2c_submit_command(
+		dc->res_pool,
+		ddc->ddc_pin,
+		cmd);
+}
+
+bool dc_submit_i2c_oem(
+		struct dc *dc,
+		struct i2c_command *cmd)
+{
+	struct ddc_service *ddc = dc->res_pool->oem_device;
+
+	if (ddc)
+		return dce_i2c_submit_command(
+			dc->res_pool,
+			ddc->ddc_pin,
+			cmd);
+
+	return false;
+}
+

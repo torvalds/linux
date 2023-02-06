@@ -2273,7 +2273,7 @@ static int dm_late_init(void *handle)
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		int edp_num;
 
-		get_edp_links(adev->dm.dc, edp_links, &edp_num);
+		dc_get_edp_links(adev->dm.dc, edp_links, &edp_num);
 		for (i = 0; i < edp_num; i++) {
 			if (!dmub_init_abm_config(adev->dm.dc->res_pool, params, i))
 				return -EINVAL;

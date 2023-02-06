@@ -53,7 +53,6 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 
-#include "dc_link.h"
 #include "link.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
@@ -1298,7 +1297,7 @@ static void detect_edp_presence(struct dc *dc)
 	int i;
 	int edp_num;
 
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 	if (!edp_num)
 		return;
 
@@ -4317,157 +4316,6 @@ bool dc_is_dmcu_initialized(struct dc *dc)
 	return false;
 }
 
-bool dc_is_oem_i2c_device_present(
-	struct dc *dc,
-	size_t slave_address)
-{
-	if (dc->res_pool->oem_device)
-		return dce_i2c_oem_device_present(
-			dc->res_pool,
-			dc->res_pool->oem_device,
-			slave_address);
-
-	return false;
-}
-
-bool dc_submit_i2c(
-		struct dc *dc,
-		uint32_t link_index,
-		struct i2c_command *cmd)
-{
-
-	struct dc_link *link = dc->links[link_index];
-	struct ddc_service *ddc = link->ddc;
-	return dce_i2c_submit_command(
-		dc->res_pool,
-		ddc->ddc_pin,
-		cmd);
-}
-
-bool dc_submit_i2c_oem(
-		struct dc *dc,
-		struct i2c_command *cmd)
-{
-	struct ddc_service *ddc = dc->res_pool->oem_device;
-	if (ddc)
-		return dce_i2c_submit_command(
-			dc->res_pool,
-			ddc->ddc_pin,
-			cmd);
-
-	return false;
-}
-
-static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
-{
-	if (dc_link->sink_count >= MAX_SINKS_PER_LINK) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	dc_sink_retain(sink);
-
-	dc_link->remote_sinks[dc_link->sink_count] = sink;
-	dc_link->sink_count++;
-
-	return true;
-}
-
-/*
- * dc_link_add_remote_sink() - Create a sink and attach it to an existing link
- *
- * EDID length is in bytes
- */
-struct dc_sink *dc_link_add_remote_sink(
-		struct dc_link *link,
-		const uint8_t *edid,
-		int len,
-		struct dc_sink_init_data *init_data)
-{
-	struct dc_sink *dc_sink;
-	enum dc_edid_status edid_status;
-
-	if (len > DC_MAX_EDID_BUFFER_SIZE) {
-		dm_error("Max EDID buffer size breached!\n");
-		return NULL;
-	}
-
-	if (!init_data) {
-		BREAK_TO_DEBUGGER();
-		return NULL;
-	}
-
-	if (!init_data->link) {
-		BREAK_TO_DEBUGGER();
-		return NULL;
-	}
-
-	dc_sink = dc_sink_create(init_data);
-
-	if (!dc_sink)
-		return NULL;
-
-	memmove(dc_sink->dc_edid.raw_edid, edid, len);
-	dc_sink->dc_edid.length = len;
-
-	if (!link_add_remote_sink_helper(
-			link,
-			dc_sink))
-		goto fail_add_sink;
-
-	edid_status = dm_helpers_parse_edid_caps(
-			link,
-			&dc_sink->dc_edid,
-			&dc_sink->edid_caps);
-
-	/*
-	 * Treat device as no EDID device if EDID
-	 * parsing fails
-	 */
-	if (edid_status != EDID_OK && edid_status != EDID_PARTIAL_VALID) {
-		dc_sink->dc_edid.length = 0;
-		dm_error("Bad EDID, status%d!\n", edid_status);
-	}
-
-	return dc_sink;
-
-fail_add_sink:
-	dc_sink_release(dc_sink);
-	return NULL;
-}
-
-/*
- * dc_link_remove_remote_sink() - Remove a remote sink from a dc_link
- *
- * Note that this just removes the struct dc_sink - it doesn't
- * program hardware or alter other members of dc_link
- */
-void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
-{
-	int i;
-
-	if (!link->sink_count) {
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-
-	for (i = 0; i < link->sink_count; i++) {
-		if (link->remote_sinks[i] == sink) {
-			dc_sink_release(sink);
-			link->remote_sinks[i] = NULL;
-
-			/* shrink array to remove empty place */
-			while (i < link->sink_count - 1) {
-				link->remote_sinks[i] = link->remote_sinks[i+1];
-				i++;
-			}
-			link->remote_sinks[i] = NULL;
-			link->sink_count--;
-			return;
-		}
-	}
-}
-
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
 {
 	info->displayClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dispclk_khz;
@@ -4990,7 +4838,7 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 		return;
 	}
 
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 
 	/* Determine panel inst */
 	for (i = 0; i < edp_num; i++) {

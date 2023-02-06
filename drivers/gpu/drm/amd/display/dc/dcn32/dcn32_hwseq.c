@@ -837,7 +837,7 @@ void dcn32_init_hw(struct dc *dc)
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		struct dc_link *edp_link;
 
-		get_edp_links(dc, edp_links, &edp_num);
+		dc_get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num) {
 			for (i = 0; i < edp_num; i++) {
 				edp_link = edp_links[i];

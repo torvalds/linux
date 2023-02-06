@@ -24,7 +24,6 @@
  */
 
 #include "dc.h"
-#include "dc_link.h"
 #include "../display_mode_lib.h"
 #include "display_mode_vba_32.h"
 #include "../dml_inline_defs.h"

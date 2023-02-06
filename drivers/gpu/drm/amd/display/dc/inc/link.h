@@ -38,7 +38,6 @@
  * into this file and prefix it with "link_".
  */
 #include "core_types.h"
-#include "dc_link.h"
 
 struct link_init_data {
 	const struct dc *dc;

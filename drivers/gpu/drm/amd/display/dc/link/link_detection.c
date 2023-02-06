@@ -1321,3 +1321,102 @@ const struct dc_link_status *link_get_status(const struct dc_link *link)
 	return &link->link_status;
 }
 
+
+static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
+{
+	if (dc_link->sink_count >= MAX_SINKS_PER_LINK) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+
+	dc_sink_retain(sink);
+
+	dc_link->remote_sinks[dc_link->sink_count] = sink;
+	dc_link->sink_count++;
+
+	return true;
+}
+
+struct dc_sink *dc_link_add_remote_sink(
+		struct dc_link *link,
+		const uint8_t *edid,
+		int len,
+		struct dc_sink_init_data *init_data)
+{
+	struct dc_sink *dc_sink;
+	enum dc_edid_status edid_status;
+
+	if (len > DC_MAX_EDID_BUFFER_SIZE) {
+		dm_error("Max EDID buffer size breached!\n");
+		return NULL;
+	}
+
+	if (!init_data) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	if (!init_data->link) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	dc_sink = dc_sink_create(init_data);
+
+	if (!dc_sink)
+		return NULL;
+
+	memmove(dc_sink->dc_edid.raw_edid, edid, len);
+	dc_sink->dc_edid.length = len;
+
+	if (!link_add_remote_sink_helper(
+			link,
+			dc_sink))
+		goto fail_add_sink;
+
+	edid_status = dm_helpers_parse_edid_caps(
+			link,
+			&dc_sink->dc_edid,
+			&dc_sink->edid_caps);
+
+	/*
+	 * Treat device as no EDID device if EDID
+	 * parsing fails
+	 */
+	if (edid_status != EDID_OK && edid_status != EDID_PARTIAL_VALID) {
+		dc_sink->dc_edid.length = 0;
+		dm_error("Bad EDID, status%d!\n", edid_status);
+	}
+
+	return dc_sink;
+
+fail_add_sink:
+	dc_sink_release(dc_sink);
+	return NULL;
+}
+
+void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
+{
+	int i;
+
+	if (!link->sink_count) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	for (i = 0; i < link->sink_count; i++) {
+		if (link->remote_sinks[i] == sink) {
+			dc_sink_release(sink);
+			link->remote_sinks[i] = NULL;
+
+			/* shrink array to remove empty place */
+			while (i < link->sink_count - 1) {
+				link->remote_sinks[i] = link->remote_sinks[i+1];
+				i++;
+			}
+			link->remote_sinks[i] = NULL;
+			link->sink_count--;
+			return;
+		}
+	}
+}

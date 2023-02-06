@@ -1027,20 +1027,3 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 	if (skip_immediate_retrain == false)
 		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
 }
-
-void dc_link_set_test_pattern(struct dc_link *link,
-		enum dp_test_pattern test_pattern,
-		enum dp_test_pattern_color_space test_pattern_color_space,
-		const struct link_training_settings *p_link_settings,
-		const unsigned char *p_custom_pattern,
-		unsigned int cust_pattern_size)
-{
-	if (link != NULL)
-		dc_link_dp_set_test_pattern(
-			link,
-			test_pattern,
-			test_pattern_color_space,
-			p_link_settings,
-			p_custom_pattern,
-			cust_pattern_size);
-}

@@ -25,7 +25,6 @@
 
 #ifdef CONFIG_DRM_AMD_DC_DCN
 #include "dc.h"
-#include "dc_link.h"
 #include "../display_mode_lib.h"
 #include "display_mode_vba_30.h"
 #include "../dml_inline_defs.h"

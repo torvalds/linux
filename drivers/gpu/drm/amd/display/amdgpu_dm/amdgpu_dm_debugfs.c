@@ -724,7 +724,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	for (i = 0; i < (unsigned int)(link_training_settings.link_settings.lane_count); i++)
 		link_training_settings.hw_lane_settings[i] = link->cur_lane_setting[i];
 
-	dc_link_set_test_pattern(
+	dc_link_dp_set_test_pattern(
 		link,
 		test_pattern,
 		DP_TEST_PATTERN_COLOR_SPACE_RGB,

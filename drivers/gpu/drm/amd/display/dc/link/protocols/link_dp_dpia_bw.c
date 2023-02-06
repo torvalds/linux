@@ -27,7 +27,6 @@
 //				USB4 DPIA BANDWIDTH ALLOCATION LOGIC
 /*********************************************************************/
 #include "dc.h"
-#include "dc_link.h"
 #include "link_dp_dpia_bw.h"
 #include "drm_dp_helper_dc.h"
 #include "link_dpcd.h"

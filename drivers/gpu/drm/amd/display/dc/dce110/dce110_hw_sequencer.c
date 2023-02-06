@@ -1739,7 +1739,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 
 
 	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
-	get_edp_links(dc, edp_links, &edp_num);
+	dc_get_edp_links(dc, edp_links, &edp_num);
 
 	if (hws->funcs.init_pipes)
 		hws->funcs.init_pipes(dc, context);
