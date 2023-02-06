@@ -26,6 +26,8 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
+#include "sch_mqprio_lib.h"
+
 static LIST_HEAD(taprio_list);
 
 #define TAPRIO_ALL_GATES_OPEN -1
@@ -924,7 +926,7 @@ static int taprio_parse_mqprio_opt(struct net_device *dev,
 				   struct netlink_ext_ack *extack,
 				   u32 taprio_flags)
 {
-	int i, j;
+	bool allow_overlapping_txqs = TXTIME_ASSIST_IS_ENABLED(taprio_flags);
 
 	if (!qopt && !dev->num_tc) {
 		NL_SET_ERR_MSG(extack, "'mqprio' configuration is necessary");
@@ -937,52 +939,17 @@ static int taprio_parse_mqprio_opt(struct net_device *dev,
 	if (dev->num_tc)
 		return 0;
 
-	/* Verify num_tc is not out of max range */
-	if (qopt->num_tc > TC_MAX_QUEUE) {
-		NL_SET_ERR_MSG(extack, "Number of traffic classes is outside valid range");
-		return -EINVAL;
-	}
-
 	/* taprio imposes that traffic classes map 1:n to tx queues */
 	if (qopt->num_tc > dev->num_tx_queues) {
 		NL_SET_ERR_MSG(extack, "Number of traffic classes is greater than number of HW queues");
 		return -EINVAL;
 	}
 
-	/* Verify priority mapping uses valid tcs */
-	for (i = 0; i <= TC_BITMASK; i++) {
-		if (qopt->prio_tc_map[i] >= qopt->num_tc) {
-			NL_SET_ERR_MSG(extack, "Invalid traffic class in priority to traffic class mapping");
-			return -EINVAL;
-		}
-	}
-
-	for (i = 0; i < qopt->num_tc; i++) {
-		unsigned int last = qopt->offset[i] + qopt->count[i];
-
-		/* Verify the queue count is in tx range being equal to the
-		 * real_num_tx_queues indicates the last queue is in use.
-		 */
-		if (qopt->offset[i] >= dev->num_tx_queues ||
-		    !qopt->count[i] ||
-		    last > dev->real_num_tx_queues) {
-			NL_SET_ERR_MSG(extack, "Invalid queue in traffic class to queue mapping");
-			return -EINVAL;
-		}
-
-		if (TXTIME_ASSIST_IS_ENABLED(taprio_flags))
-			continue;
-
-		/* Verify that the offset and counts do not overlap */
-		for (j = i + 1; j < qopt->num_tc; j++) {
-			if (last > qopt->offset[j]) {
-				NL_SET_ERR_MSG(extack, "Detected overlap in the traffic class to queue mapping");
-				return -EINVAL;
-			}
-		}
-	}
-
-	return 0;
+	/* For some reason, in txtime-assist mode, we allow TXQ ranges for
+	 * different TCs to overlap, and just validate the TXQ ranges.
+	 */
+	return mqprio_validate_qopt(dev, qopt, true, allow_overlapping_txqs,
+				    extack);
 }
 
 static int taprio_get_start_time(struct Qdisc *sch,
@@ -1203,7 +1170,8 @@ static u32 tc_map_to_queue_mask(struct net_device *dev, u32 tc_mask)
 
 static void taprio_sched_to_offload(struct net_device *dev,
 				    struct sched_gate_list *sched,
-				    struct tc_taprio_qopt_offload *offload)
+				    struct tc_taprio_qopt_offload *offload,
+				    const struct tc_taprio_caps *caps)
 {
 	struct sched_entry *entry;
 	int i = 0;
@@ -1217,7 +1185,11 @@ static void taprio_sched_to_offload(struct net_device *dev,
 
 		e->command = entry->command;
 		e->interval = entry->interval;
-		e->gate_mask = tc_map_to_queue_mask(dev, entry->gate_mask);
+		if (caps->gate_mask_per_txq)
+			e->gate_mask = tc_map_to_queue_mask(dev,
+							    entry->gate_mask);
+		else
+			e->gate_mask = entry->gate_mask;
 
 		i++;
 	}
@@ -1261,7 +1233,8 @@ static int taprio_enable_offload(struct net_device *dev,
 		return -ENOMEM;
 	}
 	offload->enable = 1;
-	taprio_sched_to_offload(dev, sched, offload);
+	mqprio_qopt_reconstruct(dev, &offload->mqprio.qopt);
+	taprio_sched_to_offload(dev, sched, offload, &caps);
 
 	for (tc = 0; tc < TC_MAX_QUEUE; tc++)
 		offload->max_sdu[tc] = q->max_sdu[tc];
@@ -1981,18 +1954,11 @@ static int taprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct sched_gate_list *oper, *admin;
 	struct tc_mqprio_qopt opt = { 0 };
 	struct nlattr *nest, *sched_nest;
-	unsigned int i;
 
 	oper = rtnl_dereference(q->oper_sched);
 	admin = rtnl_dereference(q->admin_sched);
 
-	opt.num_tc = netdev_get_num_tc(dev);
-	memcpy(opt.prio_tc_map, dev->prio_tc_map, sizeof(opt.prio_tc_map));
-
-	for (i = 0; i < netdev_get_num_tc(dev); i++) {
-		opt.count[i] = dev->tc_to_txq[i].count;
-		opt.offset[i] = dev->tc_to_txq[i].offset;
-	}
+	mqprio_qopt_reconstruct(dev, &opt);
 
 	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)

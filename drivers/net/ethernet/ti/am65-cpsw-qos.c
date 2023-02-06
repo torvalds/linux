@@ -585,6 +585,26 @@ static int am65_cpsw_setup_taprio(struct net_device *ndev, void *type_data)
 	return am65_cpsw_set_taprio(ndev, type_data);
 }
 
+static int am65_cpsw_tc_query_caps(struct net_device *ndev, void *type_data)
+{
+	struct tc_query_caps_base *base = type_data;
+
+	switch (base->type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_caps *caps = base->caps;
+
+		if (!IS_ENABLED(CONFIG_TI_AM65_CPSW_TAS))
+			return -EOPNOTSUPP;
+
+		caps->gate_mask_per_txq = true;
+
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int am65_cpsw_qos_clsflower_add_policer(struct am65_cpsw_port *port,
 					       struct netlink_ext_ack *extack,
 					       struct flow_cls_offload *cls,
@@ -765,6 +785,8 @@ int am65_cpsw_qos_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			       void *type_data)
 {
 	switch (type) {
+	case TC_QUERY_CAPS:
+		return am65_cpsw_tc_query_caps(ndev, type_data);
 	case TC_SETUP_QDISC_TAPRIO:
 		return am65_cpsw_setup_taprio(ndev, type_data);
 	case TC_SETUP_BLOCK:
