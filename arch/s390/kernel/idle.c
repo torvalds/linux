@@ -24,6 +24,7 @@ static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 void account_idle_time_irq(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
+	unsigned long idle_time;
 	u64 cycles_new[8];
 	int i;
 
@@ -42,12 +43,21 @@ void account_idle_time_irq(void)
 
 	S390_lowcore.system_timer += S390_lowcore.last_update_timer - idle->timer_idle_enter;
 	S390_lowcore.last_update_timer = idle->timer_idle_exit;
+
+	/* Account time spent with enabled wait psw loaded as idle time. */
+	raw_write_seqcount_begin(&idle->seqcount);
+	idle_time = idle->clock_idle_exit - idle->clock_idle_enter;
+	idle->clock_idle_enter = 0;
+	idle->clock_idle_exit = 0;
+	idle->idle_time += idle_time;
+	idle->idle_count++;
+	account_idle_time(cputime_to_nsecs(idle_time));
+	raw_write_seqcount_end(&idle->seqcount);
 }
 
 void arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
-	unsigned long idle_time;
 	unsigned long psw_mask;
 
 	/* Wait for external, I/O or machine check interrupt. */
@@ -57,15 +67,6 @@ void arch_cpu_idle(void)
 
 	/* psw_idle() returns with interrupts disabled. */
 	psw_idle(idle, psw_mask);
-
-	/* Account time spent with enabled wait psw loaded as idle time. */
-	raw_write_seqcount_begin(&idle->seqcount);
-	idle_time = idle->clock_idle_exit - idle->clock_idle_enter;
-	idle->clock_idle_enter = idle->clock_idle_exit = 0ULL;
-	idle->idle_time += idle_time;
-	idle->idle_count++;
-	account_idle_time(cputime_to_nsecs(idle_time));
-	raw_write_seqcount_end(&idle->seqcount);
 	raw_local_irq_enable();
 }
 
