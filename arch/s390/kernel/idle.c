@@ -55,7 +55,7 @@ void account_idle_time_irq(void)
 	raw_write_seqcount_end(&idle->seqcount);
 }
 
-void arch_cpu_idle(void)
+void noinstr arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long psw_mask;
