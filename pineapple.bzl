@@ -59,6 +59,7 @@ def define_pineapple():
         "drivers/i3c/master/i3c-master-msm-geni.ko",
         "drivers/iio/adc/qcom-spmi-adc5-gen3.ko",
         "drivers/iio/adc/qcom-vadc-common.ko",
+        "drivers/iio/adc/qti-glink-adc.ko",
         "drivers/input/misc/pm8941-pwrkey.ko",
         "drivers/input/misc/qcom-hv-haptics.ko",
         "drivers/interconnect/icc-test.ko",
