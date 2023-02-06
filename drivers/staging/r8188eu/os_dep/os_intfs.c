@@ -631,7 +631,8 @@ static int _netdev_open(struct net_device *pnetdev)
 			pr_info("can't init mlme_ext_priv\n");
 			goto netdev_open_error;
 		}
-		rtl8188eu_inirp_init(padapter);
+		if (rtl8188eu_inirp_init(padapter))
+			goto netdev_open_error;
 
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
 
@@ -683,7 +684,8 @@ static int  ips_netdrv_open(struct adapter *padapter)
 	if (status == _FAIL)
 		goto netdev_open_error;
 
-	rtl8188eu_inirp_init(padapter);
+	if (rtl8188eu_inirp_init(padapter))
+		goto netdev_open_error;
 
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 5000);
