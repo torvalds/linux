@@ -662,17 +662,17 @@ static inline void hab_spin_unlock(spinlock_t *lock, int irqs_disabled)
 		spin_unlock_bh(lock);
 }
 
-static inline void hab_write_lock(rwlock_t *lock, int irqs_disabled)
+static inline void hab_write_lock(rwlock_t *lock, int no_touch_bh)
 {
-	if (irqs_disabled)
+	if (no_touch_bh)
 		write_lock(lock);
 	else
 		write_lock_bh(lock);
 }
 
-static inline void hab_write_unlock(rwlock_t *lock, int irqs_disabled)
+static inline void hab_write_unlock(rwlock_t *lock, int no_touch_bh)
 {
-	if (irqs_disabled)
+	if (no_touch_bh)
 		write_unlock(lock);
 	else
 		write_unlock_bh(lock);

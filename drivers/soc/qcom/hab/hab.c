@@ -169,20 +169,20 @@ void hab_ctx_free(struct kref *ref)
 			ctx->kernel, ctx->closing, ctx->owner);
 
 	/* check vchans in this ctx */
-	write_lock_bh(&ctx->ctx_lock);
+	read_lock(&ctx->ctx_lock);
 	list_for_each_entry(vchan, &ctx->vchannels, node) {
 		pr_warn("leak vchan id %X cnt %X remote %d in ctx\n",
 				vchan->id, get_refcnt(vchan->refcount),
 				vchan->otherend_id);
 	}
-	write_unlock_bh(&ctx->ctx_lock);
+	read_unlock(&ctx->ctx_lock);
 
 	/* check pending open */
 	if (ctx->pending_cnt)
 		pr_warn("potential leak of pendin_open nodes %d\n",
 			ctx->pending_cnt);
 
-	write_lock_bh(&ctx->ctx_lock);
+	read_lock(&ctx->ctx_lock);
 	list_for_each_entry(open_node, &ctx->pending_open, node) {
 		pr_warn("leak pending open vcid %X type %d subid %d openid %d\n",
 			open_node->request.xdata.vchan_id,
@@ -190,7 +190,7 @@ void hab_ctx_free(struct kref *ref)
 			open_node->request.xdata.sub_id,
 			open_node->request.xdata.open_id);
 	}
-	write_unlock_bh(&ctx->ctx_lock);
+	read_unlock(&ctx->ctx_lock);
 
 	/* check vchans belong to this ctx in all hab/mmid devices */
 	for (i = 0; i < hab_driver.ndevices; i++) {
@@ -747,10 +747,10 @@ int hab_vchan_open(struct uhab_context *ctx,
 	pr_debug("vchan id %x remote id %x session %d\n", vchan->id,
 			vchan->otherend_id, vchan->session_id);
 
-	write_lock(&ctx->ctx_lock);
+	hab_write_lock(&ctx->ctx_lock, !ctx->kernel);
 	list_add_tail(&vchan->node, &ctx->vchannels);
 	ctx->vcnt++;
-	write_unlock(&ctx->ctx_lock);
+	hab_write_unlock(&ctx->ctx_lock, !ctx->kernel);
 
 	*vcid = vchan->id;
 
@@ -775,11 +775,12 @@ int hab_vchan_close(struct uhab_context *ctx, int32_t vcid)
 	struct virtual_channel *vchan = NULL, *tmp = NULL;
 	int vchan_found = 0;
 	int ret = 0;
+	int irqs_disabled = irqs_disabled();
 
 	if (!ctx)
 		return -EINVAL;
 
-	write_lock(&ctx->ctx_lock);
+	hab_write_lock(&ctx->ctx_lock, !ctx->kernel || irqs_disabled);
 	list_for_each_entry_safe(vchan, tmp, &ctx->vchannels, node) {
 		if (vchan->id == vcid) {
 			/* local close starts */
@@ -793,16 +794,16 @@ int hab_vchan_close(struct uhab_context *ctx, int32_t vcid)
 				vchan->id, vchan->otherend_id,
 				vchan->session_id, get_refcnt(vchan->refcount));
 
-			write_unlock(&ctx->ctx_lock);
+			hab_write_unlock(&ctx->ctx_lock, !ctx->kernel || irqs_disabled);
 			/* unblocking blocked in-calls */
 			hab_vchan_stop_notify(vchan);
 			hab_vchan_put(vchan); /* there is a lock inside */
-			write_lock(&ctx->ctx_lock);
+			hab_write_lock(&ctx->ctx_lock, !ctx->kernel || irqs_disabled);
 			vchan_found = 1;
 			break;
 		}
 	}
-	write_unlock(&ctx->ctx_lock);
+	hab_write_unlock(&ctx->ctx_lock, !ctx->kernel || irqs_disabled);
 
 	if (!vchan_found)
 		ret = -ENODEV;
