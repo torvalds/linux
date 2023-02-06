@@ -49,16 +49,23 @@ Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the in-place-update policy.
 		updates in f2fs. User can set:
 
-		====  =================
-		0x01  F2FS_IPU_FORCE
-		0x02  F2FS_IPU_SSR
-		0x04  F2FS_IPU_UTIL
-		0x08  F2FS_IPU_SSR_UTIL
-		0x10  F2FS_IPU_FSYNC
-		0x20  F2FS_IPU_ASYNC
-		0x40  F2FS_IPU_NOCACHE
-		0x80  F2FS_IPU_HONOR_OPU_WRITE
-		====  =================
+		===== =============== ===================================================
+		value policy          description
+		0x00  DISABLE         disable IPU(=default option in LFS mode)
+		0x01  FORCE           all the time
+		0x02  SSR             if SSR mode is activated
+		0x04  UTIL            if FS utilization is over threashold
+		0x08  SSR_UTIL        if SSR mode is activated and FS utilization is over
+		                      threashold
+		0x10  FSYNC           activated in fsync path only for high performance
+		                      flash storages. IPU will be triggered only if the
+		                      # of dirty pages over min_fsync_blocks.
+		                      (=default option)
+		0x20  ASYNC           do IPU given by asynchronous write requests
+		0x40  NOCACHE         disable IPU bio cache
+		0x80  HONOR_OPU_WRITE use OPU write prior to IPU write if inode has
+		                      FI_OPU_WRITE flag
+		===== =============== ===================================================
 
 		Refer segment.h for details.
 
