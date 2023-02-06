@@ -222,7 +222,24 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PSIVHFR0(n)	(0x1e00 + (n) * 8) /* n = SI index */
 #define ENETC_PSIVHFR1(n)	(0x1e04 + (n) * 8) /* n = SI index */
 #define ENETC_MMCSR		0x1f00
-#define ENETC_MMCSR_ME		BIT(16)
+#define ENETC_MMCSR_LINK_FAIL	BIT(31)
+#define ENETC_MMCSR_VT_MASK	GENMASK(29, 23) /* Verify Time */
+#define ENETC_MMCSR_VT(x)	(((x) << 23) & ENETC_MMCSR_VT_MASK)
+#define ENETC_MMCSR_GET_VT(x)	(((x) & ENETC_MMCSR_VT_MASK) >> 23)
+#define ENETC_MMCSR_TXSTS_MASK	GENMASK(22, 21) /* Merge Status */
+#define ENETC_MMCSR_GET_TXSTS(x) (((x) & ENETC_MMCSR_TXSTS_MASK) >> 21)
+#define ENETC_MMCSR_VSTS_MASK	GENMASK(20, 18) /* Verify Status */
+#define ENETC_MMCSR_GET_VSTS(x) (((x) & ENETC_MMCSR_VSTS_MASK) >> 18)
+#define ENETC_MMCSR_VDIS	BIT(17) /* Verify Disabled */
+#define ENETC_MMCSR_ME		BIT(16) /* Merge Enabled */
+#define ENETC_MMCSR_RAFS_MASK	GENMASK(9, 8) /* Remote Additional Fragment Size */
+#define ENETC_MMCSR_RAFS(x)	(((x) << 8) & ENETC_MMCSR_RAFS_MASK)
+#define ENETC_MMCSR_GET_RAFS(x)	(((x) & ENETC_MMCSR_RAFS_MASK) >> 8)
+#define ENETC_MMCSR_LAFS_MASK	GENMASK(4, 3) /* Local Additional Fragment Size */
+#define ENETC_MMCSR_GET_LAFS(x)	(((x) & ENETC_MMCSR_LAFS_MASK) >> 3)
+#define ENETC_MMCSR_LPA		BIT(2) /* Local Preemption Active */
+#define ENETC_MMCSR_LPE		BIT(1) /* Local Preemption Enabled */
+#define ENETC_MMCSR_LPS		BIT(0) /* Local Preemption Supported */
 #define ENETC_PTCMSDUR(n)	(0x2020 + (n) * 4) /* n = TC index [0..7] */
 
 #define ENETC_PMAC_OFFSET	0x1000

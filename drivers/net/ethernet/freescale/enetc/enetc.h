@@ -314,7 +314,6 @@ struct psfp_cap {
 };
 
 #define ENETC_F_TX_TSTAMP_MASK	0xff
-/* TODO: more hardware offloads */
 enum enetc_active_offloads {
 	/* 8 bits reserved for TX timestamp types (hwtstamp_tx_types) */
 	ENETC_F_TX_TSTAMP		= BIT(0),
@@ -323,6 +322,7 @@ enum enetc_active_offloads {
 	ENETC_F_RX_TSTAMP		= BIT(8),
 	ENETC_F_QBV			= BIT(9),
 	ENETC_F_QCI			= BIT(10),
+	ENETC_F_QBU			= BIT(11),
 };
 
 enum enetc_flags_bit {
@@ -382,6 +382,11 @@ struct enetc_ndev_priv {
 
 	struct work_struct	tx_onestep_tstamp;
 	struct sk_buff_head	tx_skbs;
+
+	/* Serialize access to MAC Merge state between ethtool requests
+	 * and link state updates
+	 */
+	struct mutex		mm_lock;
 };
 
 /* Messaging */
@@ -427,6 +432,7 @@ int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
+void enetc_mm_link_state_update(struct enetc_ndev_priv *priv, bool link);
 
 /* control buffer descriptor ring (CBDR) */
 int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,

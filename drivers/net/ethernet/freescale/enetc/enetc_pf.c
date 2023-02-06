@@ -1083,6 +1083,9 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 	enetc_port_mac_wr(si, ENETC_PM0_CMD_CFG, cmd_cfg);
 
 	enetc_mac_enable(si, true);
+
+	if (si->hw_features & ENETC_SI_F_QBU)
+		enetc_mm_link_state_update(priv, true);
 }
 
 static void enetc_pl_mac_link_down(struct phylink_config *config,
@@ -1090,8 +1093,15 @@ static void enetc_pl_mac_link_down(struct phylink_config *config,
 				   phy_interface_t interface)
 {
 	struct enetc_pf *pf = phylink_to_enetc_pf(config);
+	struct enetc_si *si = pf->si;
+	struct enetc_ndev_priv *priv;
 
-	enetc_mac_enable(pf->si, false);
+	priv = netdev_priv(si->ndev);
+
+	if (si->hw_features & ENETC_SI_F_QBU)
+		enetc_mm_link_state_update(priv, false);
+
+	enetc_mac_enable(si, false);
 }
 
 static const struct phylink_mac_ops enetc_mac_phylink_ops = {
@@ -1283,6 +1293,8 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	enetc_pf_netdev_setup(si, ndev, &enetc_ndev_ops);
 
 	priv = netdev_priv(ndev);
+
+	mutex_init(&priv->mm_lock);
 
 	enetc_init_si_rings_params(priv);
 
