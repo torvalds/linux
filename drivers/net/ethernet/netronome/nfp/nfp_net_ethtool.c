@@ -1908,11 +1908,11 @@ nfp_net_get_eeprom(struct net_device *netdev,
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
 	u8 buf[NFP_EEPROM_LEN] = {};
 
-	if (eeprom->len == 0)
-		return -EINVAL;
-
 	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
 		return -EOPNOTSUPP;
+
+	if (eeprom->len == 0)
+		return -EINVAL;
 
 	eeprom->magic = app->pdev->vendor | (app->pdev->device << 16);
 	memcpy(bytes, buf + eeprom->offset, eeprom->len);
@@ -1927,14 +1927,14 @@ nfp_net_set_eeprom(struct net_device *netdev,
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
 	u8 buf[NFP_EEPROM_LEN] = {};
 
+	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
 	if (eeprom->len == 0)
 		return -EINVAL;
 
 	if (eeprom->magic != (app->pdev->vendor | app->pdev->device << 16))
 		return -EINVAL;
-
-	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
-		return -EOPNOTSUPP;
 
 	memcpy(buf + eeprom->offset, bytes, eeprom->len);
 	if (nfp_net_set_port_mac_by_hwinfo(netdev, buf))
