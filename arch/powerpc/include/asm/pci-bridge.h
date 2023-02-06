@@ -176,8 +176,10 @@ extern int pci_device_from_OF_node(struct device_node *node,
 #endif
 #ifndef CONFIG_PPC64
 
-#ifdef CONFIG_PPC_CHRP
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP
 extern void pci_create_OF_bus_map(void);
+#else
+static inline void pci_create_OF_bus_map(void) {}
 #endif
 
 #else	/* CONFIG_PPC64 */

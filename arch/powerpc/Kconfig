@@ -388,9 +388,20 @@ config PPC_DCR
 	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
 	default y
 
+config PPC_PCI_OF_BUS_MAP
+	bool "Use pci_to_OF_bus_map (deprecated)"
+	depends on PPC32
+	depends on PPC_PMAC || PPC_CHRP
+	help
+	  This option uses pci_to_OF_bus_map to map OF nodes to PCI devices, which
+	  restricts the system to only having 256 PCI buses. On CHRP it also causes
+	  the "pci-OF-bus-map" property to be created in the device tree.
+
+	  If unsure, say "N".
+
 config PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 	depends on PPC32
-	depends on !PPC_PMAC && !PPC_CHRP
+	depends on !PPC_PCI_OF_BUS_MAP
 	bool "Assign PCI bus numbers from zero individually for each PCI domain"
 	default y
 	help
