@@ -644,6 +644,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct uvc_device *uvc = to_uvc(f);
+	struct uvcg_extension *xu;
 	struct usb_string *us;
 	unsigned int max_packet_mult;
 	unsigned int max_packet_size;
@@ -735,6 +736,14 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_fs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_hs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_ss_streaming_ep.bEndpointAddress = uvc->video.ep->address;
+
+	/*
+	 * XUs can have an arbitrary string descriptor describing them. If they
+	 * have one pick up the ID.
+	 */
+	list_for_each_entry(xu, &opts->extension_units, list)
+		if (xu->string_descriptor_index)
+			xu->desc.iExtension = cdev->usb_strings[xu->string_descriptor_index].id;
 
 	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].s = opts->function_name;
 	us = usb_gstrings_attach(cdev, uvc_function_strings,
