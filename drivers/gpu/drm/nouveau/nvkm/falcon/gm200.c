@@ -48,6 +48,16 @@ gm200_flcn_pio_dmem_rd(struct nvkm_falcon *falcon, u8 port, const u8 *img, int l
 		img += 4;
 		len -= 4;
 	}
+
+	/* Sigh.  Tegra PMU FW's init message... */
+	if (len) {
+		u32 data = nvkm_falcon_rd32(falcon, 0x1c4 + (port * 8));
+
+		while (len--) {
+			*(u8 *)img++ = data & 0xff;
+			data >>= 8;
+		}
+	}
 }
 
 static void
@@ -64,6 +74,8 @@ gm200_flcn_pio_dmem_wr(struct nvkm_falcon *falcon, u8 port, const u8 *img, int l
 		img += 4;
 		len -= 4;
 	}
+
+	WARN_ON(len);
 }
 
 static void
@@ -74,7 +86,7 @@ gm200_flcn_pio_dmem_wr_init(struct nvkm_falcon *falcon, u8 port, bool sec, u32 d
 
 const struct nvkm_falcon_func_pio
 gm200_flcn_dmem_pio = {
-	.min = 4,
+	.min = 1,
 	.max = 0x100,
 	.wr_init = gm200_flcn_pio_dmem_wr_init,
 	.wr = gm200_flcn_pio_dmem_wr,

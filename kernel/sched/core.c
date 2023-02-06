@@ -8290,12 +8290,18 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	if (retval)
 		goto out_put_task;
 
+	/*
+	 * With non-SMP configs, user_cpus_ptr/user_mask isn't used and
+	 * alloc_user_cpus_ptr() returns NULL.
+	 */
 	user_mask = alloc_user_cpus_ptr(NUMA_NO_NODE);
-	if (IS_ENABLED(CONFIG_SMP) && !user_mask) {
+	if (user_mask) {
+		cpumask_copy(user_mask, in_mask);
+	} else if (IS_ENABLED(CONFIG_SMP)) {
 		retval = -ENOMEM;
 		goto out_put_task;
 	}
-	cpumask_copy(user_mask, in_mask);
+
 	ac = (struct affinity_context){
 		.new_mask  = in_mask,
 		.user_mask = user_mask,

@@ -208,6 +208,18 @@ struct drm_fb_helper {
 	 * the smem_start field should always be cleared to zero.
 	 */
 	bool hint_leak_smem_start;
+
+#ifdef CONFIG_FB_DEFERRED_IO
+	/**
+	 * @fbdefio:
+	 *
+	 * Temporary storage for the driver's FB deferred I/O handler. If the
+	 * driver uses the DRM fbdev emulation layer, this is set by the core
+	 * to a generic deferred I/O handler if a driver is preferring to use
+	 * a shadow buffer.
+	 */
+	struct fb_deferred_io fbdefio;
+#endif
 };
 
 static inline struct drm_fb_helper *

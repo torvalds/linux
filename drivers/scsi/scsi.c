@@ -588,8 +588,6 @@ void scsi_device_put(struct scsi_device *sdev)
 {
 	struct module *mod = sdev->host->hostt->module;
 
-	might_sleep();
-
 	put_device(&sdev->sdev_gendev);
 	module_put(mod);
 }

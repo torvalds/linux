@@ -198,6 +198,7 @@
 &usbotg2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg2>;
+	over-current-active-low;
 	dr_mode = "host";
 	status = "okay";
 };
@@ -374,7 +375,7 @@
 
 	pinctrl_usbotg2: usbotg2grp {
 		fsl,pins = <
-			MX7D_PAD_UART3_RTS_B__USB_OTG2_OC	0x04
+			MX7D_PAD_UART3_RTS_B__USB_OTG2_OC	0x5c
 		>;
 	};
 

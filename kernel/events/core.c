@@ -4813,19 +4813,17 @@ find_get_pmu_context(struct pmu *pmu, struct perf_event_context *ctx,
 
 		cpc = per_cpu_ptr(pmu->cpu_pmu_context, event->cpu);
 		epc = &cpc->epc;
-
+		raw_spin_lock_irq(&ctx->lock);
 		if (!epc->ctx) {
 			atomic_set(&epc->refcount, 1);
 			epc->embedded = 1;
-			raw_spin_lock_irq(&ctx->lock);
 			list_add(&epc->pmu_ctx_entry, &ctx->pmu_ctx_list);
 			epc->ctx = ctx;
-			raw_spin_unlock_irq(&ctx->lock);
 		} else {
 			WARN_ON_ONCE(epc->ctx != ctx);
 			atomic_inc(&epc->refcount);
 		}
-
+		raw_spin_unlock_irq(&ctx->lock);
 		return epc;
 	}
 
@@ -4896,32 +4894,29 @@ static void free_epc_rcu(struct rcu_head *head)
 
 static void put_pmu_ctx(struct perf_event_pmu_context *epc)
 {
+	struct perf_event_context *ctx = epc->ctx;
 	unsigned long flags;
 
-	if (!atomic_dec_and_test(&epc->refcount))
+	/*
+	 * XXX
+	 *
+	 * lockdep_assert_held(&ctx->mutex);
+	 *
+	 * can't because of the call-site in _free_event()/put_event()
+	 * which isn't always called under ctx->mutex.
+	 */
+	if (!atomic_dec_and_raw_lock_irqsave(&epc->refcount, &ctx->lock, flags))
 		return;
 
-	if (epc->ctx) {
-		struct perf_event_context *ctx = epc->ctx;
+	WARN_ON_ONCE(list_empty(&epc->pmu_ctx_entry));
 
-		/*
-		 * XXX
-		 *
-		 * lockdep_assert_held(&ctx->mutex);
-		 *
-		 * can't because of the call-site in _free_event()/put_event()
-		 * which isn't always called under ctx->mutex.
-		 */
-
-		WARN_ON_ONCE(list_empty(&epc->pmu_ctx_entry));
-		raw_spin_lock_irqsave(&ctx->lock, flags);
-		list_del_init(&epc->pmu_ctx_entry);
-		epc->ctx = NULL;
-		raw_spin_unlock_irqrestore(&ctx->lock, flags);
-	}
+	list_del_init(&epc->pmu_ctx_entry);
+	epc->ctx = NULL;
 
 	WARN_ON_ONCE(!list_empty(&epc->pinned_active));
 	WARN_ON_ONCE(!list_empty(&epc->flexible_active));
+
+	raw_spin_unlock_irqrestore(&ctx->lock, flags);
 
 	if (epc->embedded)
 		return;
