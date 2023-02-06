@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
@@ -74,6 +74,8 @@ static char  device_clients[][QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01] = {
 	{"pa_dsc"},
 	{"pa_fr1_dsc"},
 	{"cdsp_sw"},
+	{"cdsp_sw_hvx"},
+	{"cdsp_sw_hmx"},
 	{"cdsp_hw"},
 	{"cpuv_restriction_cold"},
 	{"cpr_cold"},
