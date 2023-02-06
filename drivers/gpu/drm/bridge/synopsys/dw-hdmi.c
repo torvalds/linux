@@ -613,7 +613,7 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 			    unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
-	int ret;
+	int ret, retry;
 
 	if (!i2c->is_regaddr) {
 		dev_dbg(hdmi->dev, "set read register address to 0\n");
@@ -622,20 +622,45 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 	}
 
 	while (length--) {
-		reinit_completion(&i2c->cmp);
-
+		retry = 100;
 		hdmi_writeb(hdmi, i2c->slave_reg++, HDMI_I2CM_ADDRESS);
-		if (i2c->is_segment)
-			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ_EXT,
-				    HDMI_I2CM_OPERATION);
-		else
-			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
-				    HDMI_I2CM_OPERATION);
 
-		ret = dw_hdmi_i2c_wait(hdmi);
-		if (ret)
-			return ret;
+		while (retry > 0) {
+			if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD)) {
+				dev_dbg(hdmi->dev, "hdmi disconnect, stop ddc read\n");
+				return -EPERM;
+			}
 
+			reinit_completion(&i2c->cmp);
+			if (i2c->is_segment)
+				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ_EXT,
+					    HDMI_I2CM_OPERATION);
+			else
+				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
+					    HDMI_I2CM_OPERATION);
+
+			ret = dw_hdmi_i2c_wait(hdmi);
+			if (ret == -EAGAIN) {
+				dev_dbg(hdmi->dev, "ddc read time out\n");
+				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				retry -= 10;
+				continue;
+			} else if (ret == -EIO) {
+				dev_dbg(hdmi->dev, "ddc read err\n");
+				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				retry--;
+				mdelay(10);
+				continue;
+			}
+
+			/* read success */
+			break;
+		}
+
+		if (retry <= 0) {
+			dev_err(hdmi->dev, "ddc read failed\n");
+			return -EIO;
+		}
 		*buf++ = hdmi_readb(hdmi, HDMI_I2CM_DATAI);
 	}
 	i2c->is_segment = false;
@@ -647,7 +672,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 			     unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
-	int ret;
+	int ret, retry;
 
 	if (!i2c->is_regaddr) {
 		/* Use the first write byte as register address */
@@ -658,16 +683,43 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 	}
 
 	while (length--) {
-		reinit_completion(&i2c->cmp);
+		retry = 100;
 
 		hdmi_writeb(hdmi, *buf++, HDMI_I2CM_DATAO);
 		hdmi_writeb(hdmi, i2c->slave_reg++, HDMI_I2CM_ADDRESS);
-		hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_WRITE,
-			    HDMI_I2CM_OPERATION);
 
-		ret = dw_hdmi_i2c_wait(hdmi);
-		if (ret)
-			return ret;
+		while (retry > 0) {
+			if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD)) {
+				dev_dbg(hdmi->dev, "hdmi disconnect, stop ddc write\n");
+				return -EPERM;
+			}
+
+			reinit_completion(&i2c->cmp);
+			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_WRITE,
+				    HDMI_I2CM_OPERATION);
+
+			ret = dw_hdmi_i2c_wait(hdmi);
+			if (ret == -EAGAIN) {
+				dev_dbg(hdmi->dev, "ddc write time out\n");
+				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				retry -= 10;
+				continue;
+			} else if (ret == -EIO) {
+				dev_dbg(hdmi->dev, "ddc write err\n");
+				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				retry--;
+				mdelay(10);
+				continue;
+			}
+
+			/* write success */
+			break;
+		}
+
+		if (retry <= 0) {
+			dev_err(hdmi->dev, "ddc write failed\n");
+			return -EIO;
+		}
 	}
 
 	return 0;
@@ -702,6 +754,9 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	}
 
 	mutex_lock(&i2c->lock);
+
+	hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+	udelay(100);
 
 	/* Unmute DONE and ERROR interrupts */
 	hdmi_writeb(hdmi, 0x00, HDMI_IH_MUTE_I2CM_STAT0);
