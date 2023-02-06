@@ -1494,7 +1494,7 @@ void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable)
 
 		hi_write(hw, AQ_INTR_ENBL, 0xFFFFFFFF);
 	} else {
-		hi_write(hw, AQ_INTR_ENBL, 0);
+		;//hi_write(hw, AQ_INTR_ENBL, 0);
 	}
 }
 
