@@ -291,8 +291,7 @@ config NVMEM_SPRD_EFUSE
 	  will be called nvmem-sprd-efuse.
 
 config NVMEM_STM32_BSEC_OPTEE_TA
-	bool "STM32MP BSEC OP-TEE TA support for nvmem-stm32-romem driver"
-	depends on OPTEE
+	def_bool NVMEM_STM32_ROMEM && OPTEE
 	help
 	  Say y here to enable the accesses to STM32MP SoC OTPs by the OP-TEE
 	  trusted application STM32MP BSEC.
@@ -303,7 +302,7 @@ config NVMEM_STM32_BSEC_OPTEE_TA
 config NVMEM_STM32_ROMEM
 	tristate "STMicroelectronics STM32 factory-programmed memory support"
 	depends on ARCH_STM32 || COMPILE_TEST
-	imply NVMEM_STM32_BSEC_OPTEE_TA
+	depends on OPTEE || !OPTEE
 	help
 	  Say y here to enable read-only access for STMicroelectronics STM32
 	  factory-programmed memory area.
