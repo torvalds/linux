@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/rk-camera-module.h>
+#include <linux/rk_hdmirx_class.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/v4l2-dv-timings.h>
@@ -89,6 +90,7 @@ struct lt6911uxc {
 	u32 module_index;
 	u32 csi_lanes_in_use;
 	u32 audio_sampling_rate;
+	struct device *classdev;
 };
 
 struct lt6911uxc_mode {
@@ -1279,6 +1281,34 @@ static inline int lt6911uxc_parse_of(struct lt6911uxc *lt6911uxc)
 }
 #endif
 
+static ssize_t audio_rate_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct lt6911uxc *lt6911uxc = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d", lt6911uxc->audio_sampling_rate);
+}
+
+static ssize_t audio_present_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct lt6911uxc *lt6911uxc = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d",
+			tx_5v_power_present(&lt6911uxc->sd) ?
+			lt6911uxc->is_audio_present : 0);
+}
+
+static DEVICE_ATTR_RO(audio_rate);
+static DEVICE_ATTR_RO(audio_present);
+
+static struct attribute *lt6911_attrs[] = {
+	&dev_attr_audio_rate.attr,
+	&dev_attr_audio_present.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(lt6911);
+
 static int lt6911uxc_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -1354,6 +1384,14 @@ static int lt6911uxc_probe(struct i2c_client *client,
 		v4l2_err(sd, "v4l2 register subdev failed! err:%d\n", err);
 		goto err_clean_entity;
 	}
+
+	lt6911uxc->classdev = device_create_with_groups(rk_hdmirx_class(),
+							dev, MKDEV(0, 0),
+							lt6911uxc,
+							lt6911_groups,
+							"lt6911");
+	if (IS_ERR(lt6911uxc->classdev))
+		goto err_clean_entity;
 
 	INIT_DELAYED_WORK(&lt6911uxc->delayed_work_enable_hotplug,
 			lt6911uxc_delayed_work_enable_hotplug);

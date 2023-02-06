@@ -362,6 +362,7 @@ config VIDEO_LT6911UXC
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	select V4L2_FWNODE
+	select VIDEO_ROCKCHIP_HDMIRX_CLASS
 	help
 	  Support for the Lontium LT6911UXC series HDMI to MIPI CSI-2 bridge.
 
