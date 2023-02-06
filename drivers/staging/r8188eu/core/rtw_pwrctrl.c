@@ -8,7 +8,7 @@
 #include "../include/osdep_intf.h"
 #include "../include/linux/usb.h"
 
-void ips_enter(struct adapter *padapter)
+static void ips_enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct xmit_priv *pxmit_priv = &padapter->xmitpriv;
