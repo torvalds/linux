@@ -602,7 +602,7 @@ static void test_errors_key_fetch_prot_override_enabled(void)
 
 	/*
 	 * vcpu, mismatching keys on fetch,
-	 * fetch protection override does not apply because memory range acceeded
+	 * fetch protection override does not apply because memory range exceeded
 	 */
 	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, 2048 + 1, GADDR_V(0), KEY(2));
 	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, PAGE_SIZE + 2048 + 1,
