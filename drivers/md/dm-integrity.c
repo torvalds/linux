@@ -955,9 +955,9 @@ static void xor_journal(struct dm_integrity_c *ic, bool encrypt, unsigned sectio
 	async_tx_issue_pending_all();
 }
 
-static void complete_journal_encrypt(crypto_completion_data_t *data, int err)
+static void complete_journal_encrypt(void *data, int err)
 {
-	struct journal_completion *comp = crypto_get_completion_data(data);
+	struct journal_completion *comp = data;
 	if (unlikely(err)) {
 		if (likely(err == -EINPROGRESS)) {
 			complete(&comp->ic->crypto_backoff);
