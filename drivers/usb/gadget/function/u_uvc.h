@@ -83,6 +83,14 @@ struct f_uvc_opts {
 	struct uvc_descriptor_header			**uvc_ss_streaming_cls;
 
 	/*
+	 * Indexes into the function's string descriptors allowing users to set
+	 * custom descriptions rather than the hard-coded defaults.
+	 */
+	u8						iad_index;
+	u8						vs0_index;
+	u8						vs1_index;
+
+	/*
 	 * Read/write access to configfs attributes is handled by configfs.
 	 *
 	 * This lock protects the descriptors from concurrent access by
