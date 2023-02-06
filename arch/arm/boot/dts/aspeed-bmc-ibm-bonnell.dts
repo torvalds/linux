@@ -751,7 +751,7 @@
 	};
 
 	pca9849@75 {
-		compatible = "nxp,pca849";
+		compatible = "nxp,pca9849";
 		reg = <0x75>;
 		#address-cells = <1>;
 		#size-cells = <0>;

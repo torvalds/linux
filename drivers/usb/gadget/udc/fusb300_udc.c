@@ -1311,7 +1311,6 @@ static int fusb300_udc_start(struct usb_gadget *g,
 	struct fusb300 *fusb300 = to_fusb300(g);
 
 	/* hook up the driver */
-	driver->driver.bus = NULL;
 	fusb300->driver = driver;
 
 	return 0;

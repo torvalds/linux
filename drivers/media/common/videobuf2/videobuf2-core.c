@@ -2149,8 +2149,6 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 	if (ret)
 		return ret;
 
-	q->streaming = 1;
-
 	/*
 	 * Tell driver to start streaming provided sufficient buffers
 	 * are available.
@@ -2161,12 +2159,13 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 			goto unprepare;
 	}
 
+	q->streaming = 1;
+
 	dprintk(q, 3, "successful\n");
 	return 0;
 
 unprepare:
 	call_void_qop(q, unprepare_streaming, q);
-	q->streaming = 0;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_core_streamon);
