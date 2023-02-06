@@ -761,8 +761,8 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 {
 	rtw_fifo_cleanup(padapter);
 
-	if (padapter->intf_stop)
-		padapter->intf_stop(padapter);
+	rtw_read_port_cancel(padapter);
+	rtw_write_port_cancel(padapter);
 
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)
