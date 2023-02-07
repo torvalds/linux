@@ -189,7 +189,7 @@ static void issue_after_commit(struct batcher *b, struct bio *bio)
 	spin_unlock_irq(&b->lock);
 
 	if (commit_scheduled)
-	       async_commit(b);
+		async_commit(b);
 }
 
 /*

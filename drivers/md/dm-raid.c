@@ -1082,7 +1082,7 @@ static int validate_raid_redundancy(struct raid_set *rs)
 			if ((!rs->dev[i].rdev.sb_page ||
 			     !test_bit(In_sync, &rs->dev[i].rdev.flags)) &&
 			    (++rebuilds_per_group >= copies))
-					goto too_many;
+				goto too_many;
 		}
 		break;
 	default:
