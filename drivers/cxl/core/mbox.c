@@ -170,6 +170,12 @@ int cxl_internal_send_cmd(struct cxl_dev_state *cxlds,
 	out_size = mbox_cmd->size_out;
 	min_out = mbox_cmd->min_out;
 	rc = cxlds->mbox_send(cxlds, mbox_cmd);
+	/*
+	 * EIO is reserved for a payload size mismatch and mbox_send()
+	 * may not return this error.
+	 */
+	if (WARN_ONCE(rc == -EIO, "Bad return code: -EIO"))
+		return -ENXIO;
 	if (rc)
 		return rc;
 
@@ -550,9 +556,9 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s)
 	return 0;
 }
 
-static int cxl_xfer_log(struct cxl_dev_state *cxlds, uuid_t *uuid, u32 size, u8 *out)
+static int cxl_xfer_log(struct cxl_dev_state *cxlds, uuid_t *uuid, u32 *size, u8 *out)
 {
-	u32 remaining = size;
+	u32 remaining = *size;
 	u32 offset = 0;
 
 	while (remaining) {
@@ -576,6 +582,17 @@ static int cxl_xfer_log(struct cxl_dev_state *cxlds, uuid_t *uuid, u32 size, u8 
 		};
 
 		rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+
+		/*
+		 * The output payload length that indicates the number
+		 * of valid bytes can be smaller than the Log buffer
+		 * size.
+		 */
+		if (rc == -EIO && mbox_cmd.size_out < xfer_size) {
+			offset += mbox_cmd.size_out;
+			break;
+		}
+
 		if (rc < 0)
 			return rc;
 
@@ -583,6 +600,8 @@ static int cxl_xfer_log(struct cxl_dev_state *cxlds, uuid_t *uuid, u32 size, u8 
 		remaining -= xfer_size;
 		offset += xfer_size;
 	}
+
+	*size = offset;
 
 	return 0;
 }
@@ -610,11 +629,12 @@ static void cxl_walk_cel(struct cxl_dev_state *cxlds, size_t size, u8 *cel)
 
 		if (!cmd) {
 			dev_dbg(cxlds->dev,
-				"Opcode 0x%04x unsupported by driver", opcode);
+				"Opcode 0x%04x unsupported by driver\n", opcode);
 			continue;
 		}
 
 		set_bit(cmd->info.id, cxlds->enabled_cmds);
+		dev_dbg(cxlds->dev, "Opcode 0x%04x enabled\n", opcode);
 	}
 }
 
@@ -694,7 +714,7 @@ int cxl_enumerate_cmds(struct cxl_dev_state *cxlds)
 			goto out;
 		}
 
-		rc = cxl_xfer_log(cxlds, &uuid, size, log);
+		rc = cxl_xfer_log(cxlds, &uuid, &size, log);
 		if (rc) {
 			kvfree(log);
 			goto out;

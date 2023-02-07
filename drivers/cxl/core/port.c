@@ -583,6 +583,29 @@ static int devm_cxl_link_uport(struct device *host, struct cxl_port *port)
 	return devm_add_action_or_reset(host, cxl_unlink_uport, port);
 }
 
+static void cxl_unlink_parent_dport(void *_port)
+{
+	struct cxl_port *port = _port;
+
+	sysfs_remove_link(&port->dev.kobj, "parent_dport");
+}
+
+static int devm_cxl_link_parent_dport(struct device *host,
+				      struct cxl_port *port,
+				      struct cxl_dport *parent_dport)
+{
+	int rc;
+
+	if (!parent_dport)
+		return 0;
+
+	rc = sysfs_create_link(&port->dev.kobj, &parent_dport->dport->kobj,
+			       "parent_dport");
+	if (rc)
+		return rc;
+	return devm_add_action_or_reset(host, cxl_unlink_parent_dport, port);
+}
+
 static struct lock_class_key cxl_port_key;
 
 static struct cxl_port *cxl_port_alloc(struct device *uport,
@@ -689,6 +712,10 @@ static struct cxl_port *__devm_cxl_add_port(struct device *host,
 		return ERR_PTR(rc);
 
 	rc = devm_cxl_link_uport(host, port);
+	if (rc)
+		return ERR_PTR(rc);
+
+	rc = devm_cxl_link_parent_dport(host, port, parent_dport);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -1137,7 +1164,7 @@ static struct cxl_port *find_cxl_port_at(struct cxl_port *parent_port,
 }
 
 /*
- * All users of grandparent() are using it to walk PCIe-like swich port
+ * All users of grandparent() are using it to walk PCIe-like switch port
  * hierarchy. A PCIe switch is comprised of a bridge device representing the
  * upstream switch port and N bridges representing downstream switch ports. When
  * bridges stack the grand-parent of a downstream switch port is another
@@ -1164,6 +1191,7 @@ static void delete_endpoint(void *data)
 
 	device_lock(parent);
 	if (parent->driver && !endpoint->dead) {
+		devm_release_action(parent, cxl_unlink_parent_dport, endpoint);
 		devm_release_action(parent, cxl_unlink_uport, endpoint);
 		devm_release_action(parent, unregister_port, endpoint);
 	}
@@ -1194,6 +1222,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_endpoint_autoremove, CXL);
  */
 static void delete_switch_port(struct cxl_port *port)
 {
+	devm_release_action(port->dev.parent, cxl_unlink_parent_dport, port);
 	devm_release_action(port->dev.parent, cxl_unlink_uport, port);
 	devm_release_action(port->dev.parent, unregister_port, port);
 }

@@ -157,6 +157,22 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 	return 0;
 }
 
+static int commit_decoder(struct cxl_decoder *cxld)
+{
+	struct cxl_switch_decoder *cxlsd = NULL;
+
+	if (cxld->commit)
+		return cxld->commit(cxld);
+
+	if (is_switch_decoder(&cxld->dev))
+		cxlsd = to_cxl_switch_decoder(&cxld->dev);
+
+	if (dev_WARN_ONCE(&cxld->dev, !cxlsd || cxlsd->nr_targets > 1,
+			  "->commit() is required\n"))
+		return -ENXIO;
+	return 0;
+}
+
 static int cxl_region_decode_commit(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
@@ -175,8 +191,7 @@ static int cxl_region_decode_commit(struct cxl_region *cxlr)
 		     iter = to_cxl_port(iter->dev.parent)) {
 			cxl_rr = cxl_rr_load(iter, cxlr);
 			cxld = cxl_rr->decoder;
-			if (cxld->commit)
-				rc = cxld->commit(cxld);
+			rc = commit_decoder(cxld);
 			if (rc)
 				break;
 		}
@@ -401,7 +416,7 @@ static ssize_t interleave_granularity_store(struct device *dev,
 	 * When the host-bridge is interleaved, disallow region granularity !=
 	 * root granularity. Regions with a granularity less than the root
 	 * interleave result in needing multiple endpoints to support a single
-	 * slot in the interleave (possible to suport in the future). Regions
+	 * slot in the interleave (possible to support in the future). Regions
 	 * with a granularity greater than the root interleave result in invalid
 	 * DPA translations (invalid to support).
 	 */
@@ -1969,7 +1984,7 @@ static int cxl_region_invalidate_memregion(struct cxl_region *cxlr)
 
 	if (!cpu_cache_has_invalidate_memregion()) {
 		if (IS_ENABLED(CONFIG_CXL_REGION_INVALIDATION_TEST)) {
-			dev_warn(
+			dev_warn_once(
 				&cxlr->dev,
 				"Bypassing cpu_cache_invalidate_memregion() for testing!\n");
 			clear_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
