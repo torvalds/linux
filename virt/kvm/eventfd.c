@@ -931,7 +931,6 @@ kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 		bus = kvm_get_bus(kvm, bus_idx);
 		if (bus)
 			bus->ioeventfd_count--;
-		ioeventfd_release(p);
 		ret = 0;
 		break;
 	}

@@ -55,10 +55,4 @@ static inline int kvm_iodevice_write(struct kvm_vcpu *vcpu,
 				 : -EOPNOTSUPP;
 }
 
-static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)
-{
-	if (dev->ops->destructor)
-		dev->ops->destructor(dev);
-}
-
 #endif /* __KVM_IODEV_H__ */
