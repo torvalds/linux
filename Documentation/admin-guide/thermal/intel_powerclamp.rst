@@ -26,6 +26,8 @@ By:
 	    - Generic Thermal Layer (sysfs)
 	    - Kernel APIs (TBD)
 
+	(*) Module Parameters
+
 INTRODUCTION
 ============
 
@@ -318,3 +320,23 @@ device, a PID based userspace thermal controller can manage to
 control CPU temperature effectively, when no other thermal influence
 is added. For example, a UltraBook user can compile the kernel under
 certain temperature (below most active trip points).
+
+Module Parameters
+=================
+
+``cpumask`` (RW)
+	A bit mask of CPUs to inject idle. The format of the bitmask is same as
+	used in other subsystems like in /proc/irq/*/smp_affinity. The mask is
+	comma separated 32 bit groups. Each CPU is one bit. For example for a 256
+	CPU system the full mask is:
+	ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff
+
+	The rightmost mask is for CPU 0-32.
+
+``max_idle`` (RW)
+	Maximum injected idle time to the total CPU time ratio in percent range
+	from 1 to 100. Even if the cooling device max_state is always 100 (100%),
+	this parameter allows to add a max idle percent limit. The default is 50,
+	to match the current implementation of powerclamp driver. Also doesn't
+	allow value more than 75, if the cpumask includes every CPU present in
+	the system.

@@ -37,7 +37,7 @@
 #include <asm/mwait.h>
 #include <asm/cpu_device_id.h>
 
-#define MAX_TARGET_RATIO (50U)
+#define MAX_TARGET_RATIO (100U)
 /* For each undisturbed clamping period (no extra wake ups during idle time),
  * we increment the confidence counter for the given target ratio.
  * CONFIDENCE_OK defines the level where runtime calibration results are
@@ -120,6 +120,141 @@ static const struct kernel_param_ops duration_ops = {
 
 module_param_cb(duration, &duration_ops, NULL, 0644);
 MODULE_PARM_DESC(duration, "forced idle time for each attempt in msec.");
+
+#define DEFAULT_MAX_IDLE	50
+#define MAX_ALL_CPU_IDLE	75
+
+static u8 max_idle = DEFAULT_MAX_IDLE;
+
+static cpumask_var_t idle_injection_cpu_mask;
+
+static int allocate_copy_idle_injection_mask(const struct cpumask *copy_mask)
+{
+	if (cpumask_available(idle_injection_cpu_mask))
+		goto copy_mask;
+
+	/* This mask is allocated only one time and freed during module exit */
+	if (!alloc_cpumask_var(&idle_injection_cpu_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+copy_mask:
+	cpumask_copy(idle_injection_cpu_mask, copy_mask);
+
+	return 0;
+}
+
+/* Return true if the cpumask and idle percent combination is invalid */
+static bool check_invalid(cpumask_var_t mask, u8 idle)
+{
+	if (cpumask_equal(cpu_present_mask, mask) && idle > MAX_ALL_CPU_IDLE)
+		return true;
+
+	return false;
+}
+
+static int cpumask_set(const char *arg, const struct kernel_param *kp)
+{
+	cpumask_var_t new_mask;
+	int ret;
+
+	mutex_lock(&powerclamp_lock);
+
+	/* Can't set mask when cooling device is in use */
+	if (powerclamp_data.clamping) {
+		ret = -EAGAIN;
+		goto skip_cpumask_set;
+	}
+
+	ret = alloc_cpumask_var(&new_mask, GFP_KERNEL);
+	if (!ret)
+		goto skip_cpumask_set;
+
+	ret = bitmap_parse(arg, strlen(arg), cpumask_bits(new_mask),
+			   nr_cpumask_bits);
+	if (ret)
+		goto free_cpumask_set;
+
+	if (cpumask_empty(new_mask) || check_invalid(new_mask, max_idle)) {
+		ret = -EINVAL;
+		goto free_cpumask_set;
+	}
+
+	/*
+	 * When module parameters are passed from kernel command line
+	 * during insmod, the module parameter callback is called
+	 * before powerclamp_init(), so we can't assume that some
+	 * cpumask can be allocated and copied before here. Also
+	 * in this case this cpumask is used as the default mask.
+	 */
+	ret = allocate_copy_idle_injection_mask(new_mask);
+
+free_cpumask_set:
+	free_cpumask_var(new_mask);
+skip_cpumask_set:
+	mutex_unlock(&powerclamp_lock);
+
+	return ret;
+}
+
+static int cpumask_get(char *buf, const struct kernel_param *kp)
+{
+	if (!cpumask_available(idle_injection_cpu_mask))
+		return -ENODEV;
+
+	return bitmap_print_to_pagebuf(false, buf, cpumask_bits(idle_injection_cpu_mask),
+				       nr_cpumask_bits);
+}
+
+static const struct kernel_param_ops cpumask_ops = {
+	.set = cpumask_set,
+	.get = cpumask_get,
+};
+
+module_param_cb(cpumask, &cpumask_ops, NULL, 0644);
+MODULE_PARM_DESC(cpumask, "Mask of CPUs to use for idle injection.");
+
+static int max_idle_set(const char *arg, const struct kernel_param *kp)
+{
+	u8 new_max_idle;
+	int ret = 0;
+
+	mutex_lock(&powerclamp_lock);
+
+	/* Can't set mask when cooling device is in use */
+	if (powerclamp_data.clamping) {
+		ret = -EAGAIN;
+		goto skip_limit_set;
+	}
+
+	ret = kstrtou8(arg, 10, &new_max_idle);
+	if (ret)
+		goto skip_limit_set;
+
+	if (new_max_idle > MAX_TARGET_RATIO) {
+		ret = -EINVAL;
+		goto skip_limit_set;
+	}
+
+	if (check_invalid(idle_injection_cpu_mask, new_max_idle)) {
+		ret = -EINVAL;
+		goto skip_limit_set;
+	}
+
+	max_idle = new_max_idle;
+
+skip_limit_set:
+	mutex_unlock(&powerclamp_lock);
+
+	return ret;
+}
+
+static const struct kernel_param_ops max_idle_ops = {
+	.set = max_idle_set,
+	.get = param_get_int,
+};
+
+module_param_cb(max_idle, &max_idle_ops, &max_idle, 0644);
+MODULE_PARM_DESC(max_idle, "maximum injected idle time to the total CPU time ratio in percent range:1-100");
 
 struct powerclamp_calibration_data {
 	unsigned long confidence;  /* used for calibration, basically a counter
@@ -472,21 +607,15 @@ static void trigger_idle_injection(void)
  */
 static int powerclamp_idle_injection_register(void)
 {
-	/*
-	 * The idle inject core will only inject for online CPUs,
-	 * So we can register for all present CPUs. In this way
-	 * if some CPU goes online/offline while idle inject
-	 * is registered, nothing additional calls are required.
-	 * The same runtime and idle time is applicable for
-	 * newly onlined CPUs if any.
-	 *
-	 * Here cpu_present_mask can be used as is.
-	 * cast to (struct cpumask *) is required as the
-	 * cpu_present_mask is const struct cpumask *, otherwise
-	 * there will be compiler warnings.
-	 */
-	ii_dev = idle_inject_register_full((struct cpumask *)cpu_present_mask,
-					   idle_inject_update);
+	poll_pkg_cstate_enable = false;
+	if (cpumask_equal(cpu_present_mask, idle_injection_cpu_mask)) {
+		ii_dev = idle_inject_register_full(idle_injection_cpu_mask, idle_inject_update);
+		if (topology_max_packages() == 1 && topology_max_die_per_package() == 1)
+			poll_pkg_cstate_enable = true;
+	} else {
+		ii_dev = idle_inject_register(idle_injection_cpu_mask);
+	}
+
 	if (!ii_dev) {
 		pr_err("powerclamp: idle_inject_register failed\n");
 		return -EAGAIN;
@@ -567,7 +696,7 @@ static int powerclamp_set_cur_state(struct thermal_cooling_device *cdev,
 	mutex_lock(&powerclamp_lock);
 
 	new_target_ratio = clamp(new_target_ratio, 0UL,
-				(unsigned long) (MAX_TARGET_RATIO - 1));
+				(unsigned long) (max_idle - 1));
 	if (!powerclamp_data.target_ratio && new_target_ratio > 0) {
 		pr_info("Start idle injection to reduce power\n");
 		powerclamp_data.target_ratio = new_target_ratio;
@@ -661,11 +790,15 @@ static int __init powerclamp_init(void)
 	if (retval)
 		return retval;
 
+	mutex_lock(&powerclamp_lock);
+	retval = allocate_copy_idle_injection_mask(cpu_present_mask);
+	mutex_unlock(&powerclamp_lock);
+
+	if (retval)
+		return retval;
+
 	/* set default limit, maybe adjusted during runtime based on feedback */
 	window_size = 2;
-
-	if (topology_max_packages() == 1 && topology_max_die_per_package() == 1)
-		poll_pkg_cstate_enable = true;
 
 	cooling_dev = thermal_cooling_device_register("intel_powerclamp", NULL,
 						      &powerclamp_cooling_ops);
@@ -691,6 +824,9 @@ static void __exit powerclamp_exit(void)
 
 	cancel_delayed_work_sync(&poll_pkg_cstate_work);
 	debugfs_remove_recursive(debug_dir);
+
+	if (cpumask_available(idle_injection_cpu_mask))
+		free_cpumask_var(idle_injection_cpu_mask);
 }
 module_exit(powerclamp_exit);
 
