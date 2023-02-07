@@ -632,7 +632,7 @@ EXPORT_SYMBOL(snd_card_free_when_closed);
  * Return: Zero. Frees all associated devices and frees the control
  * interface associated to given soundcard.
  */
-int snd_card_free(struct snd_card *card)
+void snd_card_free(struct snd_card *card)
 {
 	DECLARE_COMPLETION_ONSTACK(released);
 
@@ -643,15 +643,13 @@ int snd_card_free(struct snd_card *card)
 	 * the check here at the beginning.
 	 */
 	if (card->releasing)
-		return 0;
+		return;
 
 	card->release_completion = &released;
 	snd_card_free_when_closed(card);
 
 	/* wait, until all devices are ready for the free operation */
 	wait_for_completion(&released);
-
-	return 0;
 }
 EXPORT_SYMBOL(snd_card_free);
 
