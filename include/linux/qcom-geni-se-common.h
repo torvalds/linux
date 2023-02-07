@@ -91,6 +91,16 @@ if (print) { \
 /* SE_HW_PARAM_2 fields */
 #define GEN_HW_FSM_I2C			(BIT(15))
 
+/* GENI_OUTPUT_CTRL fields */
+#define GENI_CFG_REG80		0x240
+#define GENI_IO_MUX_0_EN	BIT(0)
+#define GENI_IO_MUX_1_EN	BIT(2)
+
+/* GENI_CFG_REG80 fields */
+#define IO1_SEL_TX		BIT(2)
+#define IO2_DATA_IN_SEL_PAD2	GENMASK(11, 10)
+#define IO3_DATA_IN_SEL_PAD2	BIT(15)
+
 #define GSI_TX_PACK_EN          (BIT(0))
 #define GSI_RX_PACK_EN          (BIT(1))
 #define GSI_PRESERVE_PACK       (BIT(2))
