@@ -99,7 +99,7 @@ static struct attribute *damon_sysfs_ul_range_attrs[] = {
 };
 ATTRIBUTE_GROUPS(damon_sysfs_ul_range);
 
-struct kobj_type damon_sysfs_ul_range_ktype = {
+const struct kobj_type damon_sysfs_ul_range_ktype = {
 	.release = damon_sysfs_ul_range_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = damon_sysfs_ul_range_groups,
