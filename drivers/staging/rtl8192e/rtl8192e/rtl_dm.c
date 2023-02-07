@@ -284,11 +284,11 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 	pra->ratr_state = DM_RATR_STA_MAX;
 	pra->high2low_rssi_thresh_for_ra = RATE_ADAPTIVE_TH_HIGH;
 	pra->low2high_rssi_thresh_for_ra20M = RATE_ADAPTIVE_TH_LOW_20M + 5;
-	pra->low2high_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M+5;
+	pra->low2high_rssi_thresh_for_ra40M = RATE_ADAPTIVE_TH_LOW_40M + 5;
 
 	pra->high_rssi_thresh_for_ra = RATE_ADAPTIVE_TH_HIGH + 5;
 	pra->low_rssi_thresh_for_ra20M = RATE_ADAPTIVE_TH_LOW_20M;
-	pra->low_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M;
+	pra->low_rssi_thresh_for_ra40M = RATE_ADAPTIVE_TH_LOW_40M;
 
 	if (priv->customer_id == RT_CID_819X_NETCORE)
 		pra->ping_rssi_enable = 1;
@@ -1649,7 +1649,7 @@ static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev)
 	struct rt_hi_throughput *ht_info = priv->rtllib->ht_info;
 
 	ht_info->bWAIotBroadcom = false;
-	ht_info->WAIotTH = WAIotTHVal;
+	ht_info->WAIotTH = WA_IOT_TH_VAL;
 }
 
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)

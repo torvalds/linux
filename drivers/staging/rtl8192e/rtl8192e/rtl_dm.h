@@ -30,10 +30,10 @@
 
 #define		RATE_ADAPTIVE_TH_HIGH			50
 #define		RATE_ADAPTIVE_TH_LOW_20M		30
-#define		RateAdaptiveTH_Low_40M		10
-#define		VeryLowRSSI					15
+#define		RATE_ADAPTIVE_TH_LOW_40M		10
+#define		VERY_LOW_RSSI				15
 
-#define		WAIotTHVal						25
+#define		WA_IOT_TH_VAL				25
 
 #define		E_FOR_TX_POWER_TRACK	       300
 #define		TX_POWER_NEAR_FIELD_THRESH_HIGH		68

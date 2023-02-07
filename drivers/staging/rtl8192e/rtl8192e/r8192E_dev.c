@@ -2021,17 +2021,17 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 		rx_chk_cnt = 0;
 	} else if ((priv->undecorated_smoothed_pwdb < (RATE_ADAPTIVE_TH_HIGH + 5))
 	  && (((priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) &&
-	  (priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_40M))
+	  (priv->undecorated_smoothed_pwdb >= RATE_ADAPTIVE_TH_LOW_40M))
 	  || ((priv->current_chnl_bw == HT_CHANNEL_WIDTH_20) &&
 	  (priv->undecorated_smoothed_pwdb >= RATE_ADAPTIVE_TH_LOW_20M)))) {
 		if (rx_chk_cnt < 2)
 			return bStuck;
 		rx_chk_cnt = 0;
 	} else if ((((priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) &&
-		  (priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_40M)) ||
+		  (priv->undecorated_smoothed_pwdb < RATE_ADAPTIVE_TH_LOW_40M)) ||
 		((priv->current_chnl_bw == HT_CHANNEL_WIDTH_20) &&
 		 (priv->undecorated_smoothed_pwdb < RATE_ADAPTIVE_TH_LOW_20M))) &&
-		priv->undecorated_smoothed_pwdb >= VeryLowRSSI) {
+		priv->undecorated_smoothed_pwdb >= VERY_LOW_RSSI) {
 		if (rx_chk_cnt < 4)
 			return bStuck;
 		rx_chk_cnt = 0;
