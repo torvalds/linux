@@ -105,12 +105,6 @@
 			reg = <0x12570000 0x14>;
 		};
 
-		mipi_phy: video-phy {
-			compatible = "samsung,s5pv210-mipi-video-phy";
-			#phy-cells = <1>;
-			syscon = <&pmu_system_controller>;
-		};
-
 		pd_mfc: power-domain@10023c40 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023c40 0x20>;
@@ -181,11 +175,16 @@
 		};
 
 		pmu_system_controller: system-controller@10020000 {
-			compatible = "samsung,exynos4210-pmu", "syscon";
+			compatible = "samsung,exynos4210-pmu", "simple-mfd", "syscon";
 			reg = <0x10020000 0x4000>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
+
+			mipi_phy: mipi-phy {
+				compatible = "samsung,s5pv210-mipi-video-phy";
+				#phy-cells = <1>;
+			};
 		};
 
 		dsi_0: dsi@11c80000 {
