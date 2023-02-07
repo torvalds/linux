@@ -575,6 +575,40 @@ static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
 	return qdisc_enqueue(skb, child, to_free);
 }
 
+static int taprio_enqueue_segmented(struct sk_buff *skb, struct Qdisc *sch,
+				    struct Qdisc *child,
+				    struct sk_buff **to_free)
+{
+	unsigned int slen = 0, numsegs = 0, len = qdisc_pkt_len(skb);
+	netdev_features_t features = netif_skb_features(skb);
+	struct sk_buff *segs, *nskb;
+	int ret;
+
+	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
+	if (IS_ERR_OR_NULL(segs))
+		return qdisc_drop(skb, sch, to_free);
+
+	skb_list_walk_safe(segs, segs, nskb) {
+		skb_mark_not_on_list(segs);
+		qdisc_skb_cb(segs)->pkt_len = segs->len;
+		slen += segs->len;
+
+		ret = taprio_enqueue_one(segs, sch, child, to_free);
+		if (ret != NET_XMIT_SUCCESS) {
+			if (net_xmit_drop_count(ret))
+				qdisc_qstats_drop(sch);
+		} else {
+			numsegs++;
+		}
+	}
+
+	if (numsegs > 1)
+		qdisc_tree_reduce_backlog(sch, 1 - numsegs, len - slen);
+	consume_skb(skb);
+
+	return numsegs > 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
+}
+
 /* Will not be called in the full offload case, since the TX queues are
  * attached to the Qdisc created using qdisc_create_dflt()
  */
@@ -596,36 +630,8 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	 * smaller chunks. Drivers with full offload are expected to handle
 	 * this in hardware.
 	 */
-	if (skb_is_gso(skb)) {
-		unsigned int slen = 0, numsegs = 0, len = qdisc_pkt_len(skb);
-		netdev_features_t features = netif_skb_features(skb);
-		struct sk_buff *segs, *nskb;
-		int ret;
-
-		segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
-		if (IS_ERR_OR_NULL(segs))
-			return qdisc_drop(skb, sch, to_free);
-
-		skb_list_walk_safe(segs, segs, nskb) {
-			skb_mark_not_on_list(segs);
-			qdisc_skb_cb(segs)->pkt_len = segs->len;
-			slen += segs->len;
-
-			ret = taprio_enqueue_one(segs, sch, child, to_free);
-			if (ret != NET_XMIT_SUCCESS) {
-				if (net_xmit_drop_count(ret))
-					qdisc_qstats_drop(sch);
-			} else {
-				numsegs++;
-			}
-		}
-
-		if (numsegs > 1)
-			qdisc_tree_reduce_backlog(sch, 1 - numsegs, len - slen);
-		consume_skb(skb);
-
-		return numsegs > 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
-	}
+	if (skb_is_gso(skb))
+		return taprio_enqueue_segmented(skb, sch, child, to_free);
 
 	return taprio_enqueue_one(skb, sch, child, to_free);
 }
