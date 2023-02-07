@@ -1064,11 +1064,14 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	    BTRFS_NODEPTRS_PER_BLOCK(fs_info) / 4)
 		return 0;
 
-	left = btrfs_read_node_slot(parent, pslot - 1);
-	if (IS_ERR(left))
-		left = NULL;
+	if (pslot) {
+		left = btrfs_read_node_slot(parent, pslot - 1);
+		if (IS_ERR(left)) {
+			ret = PTR_ERR(left);
+			left = NULL;
+			goto enospc;
+		}
 
-	if (left) {
 		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
 		wret = btrfs_cow_block(trans, root, left,
 				       parent, pslot - 1, &left,
@@ -1079,11 +1082,14 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	right = btrfs_read_node_slot(parent, pslot + 1);
-	if (IS_ERR(right))
-		right = NULL;
+	if (pslot + 1 < btrfs_header_nritems(parent)) {
+		right = btrfs_read_node_slot(parent, pslot + 1);
+		if (IS_ERR(right)) {
+			ret = PTR_ERR(right);
+			right = NULL;
+			goto enospc;
+		}
 
-	if (right) {
 		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
 		wret = btrfs_cow_block(trans, root, right,
 				       parent, pslot + 1, &right,
@@ -1240,13 +1246,13 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	if (!parent)
 		return 1;
 
-	left = btrfs_read_node_slot(parent, pslot - 1);
-	if (IS_ERR(left))
-		left = NULL;
-
 	/* first, try to make some room in the middle buffer */
-	if (left) {
+	if (pslot) {
 		u32 left_nr;
+
+		left = btrfs_read_node_slot(parent, pslot - 1);
+		if (IS_ERR(left))
+			return PTR_ERR(left);
 
 		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
 
@@ -1292,15 +1298,16 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		btrfs_tree_unlock(left);
 		free_extent_buffer(left);
 	}
-	right = btrfs_read_node_slot(parent, pslot + 1);
-	if (IS_ERR(right))
-		right = NULL;
 
 	/*
 	 * then try to empty the right most buffer into the middle
 	 */
-	if (right) {
+	if (pslot + 1 < btrfs_header_nritems(parent)) {
 		u32 right_nr;
+
+		right = btrfs_read_node_slot(parent, pslot + 1);
+		if (IS_ERR(right))
+			return PTR_ERR(right);
 
 		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
 
@@ -3198,12 +3205,8 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_write_locked(path->nodes[1]);
 
 	right = btrfs_read_node_slot(upper, slot + 1);
-	/*
-	 * slot + 1 is not valid or we fail to read the right node,
-	 * no big deal, just return.
-	 */
 	if (IS_ERR(right))
-		return 1;
+		return PTR_ERR(right);
 
 	__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
 
@@ -3417,12 +3420,8 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_write_locked(path->nodes[1]);
 
 	left = btrfs_read_node_slot(path->nodes[1], slot - 1);
-	/*
-	 * slot - 1 is not valid or we fail to read the left node,
-	 * no big deal, just return.
-	 */
 	if (IS_ERR(left))
-		return 1;
+		return PTR_ERR(left);
 
 	__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
 
