@@ -15,6 +15,30 @@ module! {
 
 struct RustPrint;
 
+fn arc_print() -> Result {
+    use kernel::sync::*;
+
+    let a = Arc::try_new(1)?;
+    let b = UniqueArc::try_new("hello, world")?;
+
+    // Prints the value of data in `a`.
+    pr_info!("{}", a);
+
+    // Uses ":?" to print debug fmt of `b`.
+    pr_info!("{:?}", b);
+
+    let a: Arc<&str> = b.into();
+    let c = a.clone();
+
+    // Uses `dbg` to print, will move `c` (for temporary debugging purposes).
+    dbg!(c);
+
+    // Pretty-prints the debug formatting with lower-case hexadecimal integers.
+    pr_info!("{:#x?}", a);
+
+    Ok(())
+}
+
 impl kernel::Module for RustPrint {
     fn init(_module: &'static ThisModule) -> Result<Self> {
         pr_info!("Rust printing macros sample (init)\n");
@@ -42,6 +66,8 @@ impl kernel::Module for RustPrint {
         pr_info!("A {} that", "line");
         pr_cont!(" is {}", "continued");
         pr_cont!(" with {}\n", "args");
+
+        arc_print()?;
 
         Ok(RustPrint)
     }
