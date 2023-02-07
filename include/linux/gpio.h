@@ -132,20 +132,6 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 int gpio_request_array(const struct gpio *array, size_t num);
 void gpio_free_array(const struct gpio *array, size_t num);
 
-/*
- * A sysfs interface can be exported by individual drivers if they want,
- * but more typically is configured entirely from userspace.
- */
-static inline int gpio_export(unsigned gpio, bool direction_may_change)
-{
-	return gpiod_export(gpio_to_desc(gpio), direction_may_change);
-}
-
-static inline void gpio_unexport(unsigned gpio)
-{
-	gpiod_unexport(gpio_to_desc(gpio));
-}
-
 /* CONFIG_GPIOLIB: bindings for managed devices that want to request gpios */
 
 struct device;
@@ -239,19 +225,6 @@ static inline int gpio_get_value_cansleep(unsigned gpio)
 static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 {
 	/* GPIO can never have been requested or set as output */
-	WARN_ON(1);
-}
-
-static inline int gpio_export(unsigned gpio, bool direction_may_change)
-{
-	/* GPIO can never have been requested or set as {in,out}put */
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-static inline void gpio_unexport(unsigned gpio)
-{
-	/* GPIO can never have been exported */
 	WARN_ON(1);
 }
 
