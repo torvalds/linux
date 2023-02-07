@@ -44,12 +44,12 @@ struct sched_entry {
 	 */
 	u64 gate_duration[TC_MAX_QUEUE];
 	atomic_t budget[TC_MAX_QUEUE];
-	struct list_head list;
-
-	/* The instant that this entry ends and the next one
-	 * should open, the qdisc will make some effort so that no
-	 * packet leaves after this time.
+	/* The qdisc makes some effort so that no packet leaves
+	 * after this time
 	 */
+	ktime_t gate_close_time[TC_MAX_QUEUE];
+	struct list_head list;
+	/* Used to calculate when to advance the schedule */
 	ktime_t end_time;
 	ktime_t next_txtime;
 	int index;
@@ -146,6 +146,12 @@ static void taprio_calculate_gate_durations(struct taprio_sched *q,
 			    sched->max_open_gate_duration[tc] < entry->gate_duration[tc])
 				sched->max_open_gate_duration[tc] = entry->gate_duration[tc];
 	}
+}
+
+static bool taprio_entry_allows_tx(ktime_t skb_end_time,
+				   struct sched_entry *entry, int tc)
+{
+	return ktime_before(skb_end_time, entry->gate_close_time[tc]);
 }
 
 static ktime_t sched_base_time(const struct sched_gate_list *sched)
@@ -644,7 +650,7 @@ static struct sk_buff *taprio_dequeue_from_txq(struct Qdisc *sch, int txq,
 	 * guard band ...
 	 */
 	if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
-	    ktime_after(guard, entry->end_time))
+	    !taprio_entry_allows_tx(guard, entry, tc))
 		return NULL;
 
 	/* ... and no budget. */
@@ -820,10 +826,13 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 {
 	struct taprio_sched *q = container_of(timer, struct taprio_sched,
 					      advance_timer);
+	struct net_device *dev = qdisc_dev(q->root);
 	struct sched_gate_list *oper, *admin;
+	int num_tc = netdev_get_num_tc(dev);
 	struct sched_entry *entry, *next;
 	struct Qdisc *sch = q->root;
 	ktime_t end_time;
+	int tc;
 
 	spin_lock(&q->current_entry_lock);
 	entry = rcu_dereference_protected(q->current_entry,
@@ -860,6 +869,14 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 
 	end_time = ktime_add_ns(entry->end_time, next->interval);
 	end_time = min_t(ktime_t, end_time, oper->cycle_end_time);
+
+	for (tc = 0; tc < num_tc; tc++) {
+		if (next->gate_duration[tc] == oper->cycle_time)
+			next->gate_close_time[tc] = KTIME_MAX;
+		else
+			next->gate_close_time[tc] = ktime_add_ns(entry->end_time,
+								 next->gate_duration[tc]);
+	}
 
 	if (should_change_schedules(admin, oper, end_time)) {
 		/* Set things so the next time this runs, the new
@@ -1117,8 +1134,11 @@ static int taprio_get_start_time(struct Qdisc *sch,
 static void setup_first_end_time(struct taprio_sched *q,
 				 struct sched_gate_list *sched, ktime_t base)
 {
+	struct net_device *dev = qdisc_dev(q->root);
+	int num_tc = netdev_get_num_tc(dev);
 	struct sched_entry *first;
 	ktime_t cycle;
+	int tc;
 
 	first = list_first_entry(&sched->entries,
 				 struct sched_entry, list);
@@ -1130,6 +1150,14 @@ static void setup_first_end_time(struct taprio_sched *q,
 
 	first->end_time = ktime_add_ns(base, first->interval);
 	taprio_set_budgets(q, sched, first);
+
+	for (tc = 0; tc < num_tc; tc++) {
+		if (first->gate_duration[tc] == sched->cycle_time)
+			first->gate_close_time[tc] = KTIME_MAX;
+		else
+			first->gate_close_time[tc] = ktime_add_ns(base, first->gate_duration[tc]);
+	}
+
 	rcu_assign_pointer(q->current_entry, NULL);
 }
 
