@@ -385,7 +385,7 @@
 
 		syscon@5f900000 {
 			compatible = "socionext,uniphier-pro5-soc-glue-debug",
-				     "simple-mfd";
+				     "simple-mfd", "syscon";
 			reg = <0x5f900000 0x2000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
