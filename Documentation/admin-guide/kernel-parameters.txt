@@ -1532,6 +1532,15 @@
 			boot up that is likely to be overridden by user space
 			start up functionality.
 
+			Optionally, the snapshot can also be defined for a tracing
+			instance that was created by the trace_instance= command
+			line parameter.
+
+			trace_instance=foo,sched_switch ftrace_boot_snapshot=foo
+
+			The above will cause the "foo" tracing instance to trigger
+			a snapshot at the end of boot up.
+
 	ftrace_dump_on_oops[=orig_cpu]
 			[FTRACE] will dump the trace buffers on oops.
 			If no parameter is passed, ftrace will dump
