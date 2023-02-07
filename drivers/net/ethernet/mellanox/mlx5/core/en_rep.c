@@ -414,7 +414,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 		return 0;
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
-	if (mlx5_devcom_is_paired(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS))
+	if (mlx5_devcom_comp_is_ready(esw->dev->priv.devcom, MLX5_DEVCOM_ESW_OFFLOADS))
 		peer_esw = mlx5_devcom_get_peer_data(esw->dev->priv.devcom,
 						     MLX5_DEVCOM_ESW_OFFLOADS);
 

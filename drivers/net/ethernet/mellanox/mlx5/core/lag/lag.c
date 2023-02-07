@@ -824,8 +824,8 @@ bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev)
 	    is_mdev_switchdev_mode(dev1) &&
 	    mlx5_eswitch_vport_match_metadata_enabled(dev0->priv.eswitch) &&
 	    mlx5_eswitch_vport_match_metadata_enabled(dev1->priv.eswitch) &&
-	    mlx5_devcom_is_paired(dev0->priv.devcom,
-				  MLX5_DEVCOM_ESW_OFFLOADS) &&
+	    mlx5_devcom_comp_is_ready(dev0->priv.devcom,
+				      MLX5_DEVCOM_ESW_OFFLOADS) &&
 	    MLX5_CAP_GEN(dev1, lag_native_fdb_selection) &&
 	    MLX5_CAP_ESW(dev1, root_ft_on_other_esw) &&
 	    MLX5_CAP_ESW(dev0, esw_shared_ingress_acl))

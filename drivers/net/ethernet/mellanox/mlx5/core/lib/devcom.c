@@ -19,7 +19,7 @@ struct mlx5_devcom_component {
 
 	mlx5_devcom_event_handler_t handler;
 	struct rw_semaphore sem;
-	bool paired;
+	bool ready;
 };
 
 struct mlx5_devcom_list {
@@ -218,25 +218,25 @@ int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 	return err;
 }
 
-void mlx5_devcom_set_paired(struct mlx5_devcom *devcom,
-			    enum mlx5_devcom_components id,
-			    bool paired)
+void mlx5_devcom_comp_set_ready(struct mlx5_devcom *devcom,
+				enum mlx5_devcom_components id,
+				bool ready)
 {
 	struct mlx5_devcom_component *comp;
 
 	comp = &devcom->priv->components[id];
 	WARN_ON(!rwsem_is_locked(&comp->sem));
 
-	WRITE_ONCE(comp->paired, paired);
+	WRITE_ONCE(comp->ready, ready);
 }
 
-bool mlx5_devcom_is_paired(struct mlx5_devcom *devcom,
-			   enum mlx5_devcom_components id)
+bool mlx5_devcom_comp_is_ready(struct mlx5_devcom *devcom,
+			       enum mlx5_devcom_components id)
 {
 	if (IS_ERR_OR_NULL(devcom))
 		return false;
 
-	return READ_ONCE(devcom->priv->components[id].paired);
+	return READ_ONCE(devcom->priv->components[id].ready);
 }
 
 void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
@@ -250,7 +250,7 @@ void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
 
 	comp = &devcom->priv->components[id];
 	down_read(&comp->sem);
-	if (!READ_ONCE(comp->paired)) {
+	if (!READ_ONCE(comp->ready)) {
 		up_read(&comp->sem);
 		return NULL;
 	}
@@ -278,7 +278,7 @@ void *mlx5_devcom_get_peer_data_rcu(struct mlx5_devcom *devcom, enum mlx5_devcom
 	/* This can change concurrently, however 'data' pointer will remain
 	 * valid for the duration of RCU read section.
 	 */
-	if (!READ_ONCE(comp->paired))
+	if (!READ_ONCE(comp->ready))
 		return NULL;
 
 	return rcu_dereference(comp->device[i].data);

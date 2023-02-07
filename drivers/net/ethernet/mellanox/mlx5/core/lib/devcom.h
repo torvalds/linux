@@ -33,11 +33,11 @@ int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 			   int event,
 			   void *event_data);
 
-void mlx5_devcom_set_paired(struct mlx5_devcom *devcom,
-			    enum mlx5_devcom_components id,
-			    bool paired);
-bool mlx5_devcom_is_paired(struct mlx5_devcom *devcom,
-			   enum mlx5_devcom_components id);
+void mlx5_devcom_comp_set_ready(struct mlx5_devcom *devcom,
+				enum mlx5_devcom_components id,
+				bool ready);
+bool mlx5_devcom_comp_is_ready(struct mlx5_devcom *devcom,
+			       enum mlx5_devcom_components id);
 
 void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
 				enum mlx5_devcom_components id);

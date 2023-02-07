@@ -2836,14 +2836,14 @@ static int mlx5_esw_offloads_devcom_event(int event,
 
 		esw->paired[mlx5_get_dev_index(peer_esw->dev)] = true;
 		peer_esw->paired[mlx5_get_dev_index(esw->dev)] = true;
-		mlx5_devcom_set_paired(devcom, MLX5_DEVCOM_ESW_OFFLOADS, true);
+		mlx5_devcom_comp_set_ready(devcom, MLX5_DEVCOM_ESW_OFFLOADS, true);
 		break;
 
 	case ESW_OFFLOADS_DEVCOM_UNPAIR:
 		if (!esw->paired[mlx5_get_dev_index(peer_esw->dev)])
 			break;
 
-		mlx5_devcom_set_paired(devcom, MLX5_DEVCOM_ESW_OFFLOADS, false);
+		mlx5_devcom_comp_set_ready(devcom, MLX5_DEVCOM_ESW_OFFLOADS, false);
 		esw->paired[mlx5_get_dev_index(peer_esw->dev)] = false;
 		peer_esw->paired[mlx5_get_dev_index(esw->dev)] = false;
 		mlx5_esw_offloads_unpair(peer_esw, esw);
