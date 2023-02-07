@@ -329,6 +329,18 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			rdesc[74] = 0x08;
 		}
 		break;
+	case USB_DEVICE_ID_GENIUS_GILA_GAMING_MOUSE:
+		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
+					"Genius Gila Gaming Mouse");
+		break;
+	case USB_DEVICE_ID_GENIUS_MANTICORE:
+		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
+					"Genius Manticore Keyboard");
+		break;
+	case USB_DEVICE_ID_GENIUS_GX_IMPERATOR:
+		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 83,
+					"Genius Gx Imperator Keyboard");
+		break;
 	case USB_DEVICE_ID_KYE_EASYPEN_I405X:
 	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X:
 	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2:
@@ -336,18 +348,6 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	case USB_DEVICE_ID_KYE_EASYPEN_M406XE:
 	case USB_DEVICE_ID_KYE_PENSKETCH_M912:
 		rdesc = kye_tablet_fixup(hdev, rdesc, rsize);
-		break;
-	case USB_DEVICE_ID_GENIUS_GILA_GAMING_MOUSE:
-		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
-					"Genius Gila Gaming Mouse");
-		break;
-	case USB_DEVICE_ID_GENIUS_GX_IMPERATOR:
-		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 83,
-					"Genius Gx Imperator Keyboard");
-		break;
-	case USB_DEVICE_ID_GENIUS_MANTICORE:
-		rdesc = kye_consumer_control_fixup(hdev, rdesc, rsize, 104,
-					"Genius Manticore Keyboard");
 		break;
 	}
 	return rdesc;
@@ -417,18 +417,6 @@ static int kye_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	switch (id->product) {
-	case USB_DEVICE_ID_KYE_EASYPEN_I405X:
-	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X:
-	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2:
-	case USB_DEVICE_ID_KYE_EASYPEN_M610X:
-	case USB_DEVICE_ID_KYE_EASYPEN_M406XE:
-	case USB_DEVICE_ID_KYE_PENSKETCH_M912:
-		ret = kye_tablet_enable(hdev);
-		if (ret) {
-			hid_err(hdev, "tablet enabling failed\n");
-			goto enabling_err;
-		}
-		break;
 	case USB_DEVICE_ID_GENIUS_MANTICORE:
 		/*
 		 * The manticore keyboard needs to have all the interfaces
@@ -436,6 +424,18 @@ static int kye_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 */
 		if (hid_hw_open(hdev))
 			hid_hw_close(hdev);
+		break;
+	case USB_DEVICE_ID_KYE_EASYPEN_I405X:
+	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X:
+	case USB_DEVICE_ID_KYE_EASYPEN_M610X:
+	case USB_DEVICE_ID_KYE_PENSKETCH_M912:
+	case USB_DEVICE_ID_KYE_EASYPEN_M406XE:
+	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2:
+		ret = kye_tablet_enable(hdev);
+		if (ret) {
+			hid_err(hdev, "tablet enabling failed\n");
+			goto enabling_err;
+		}
 		break;
 	}
 
@@ -449,23 +449,23 @@ err:
 static const struct hid_device_id kye_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE, USB_DEVICE_ID_KYE_ERGO_525V) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_GENIUS_GILA_GAMING_MOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_GENIUS_MANTICORE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_GENIUS_GX_IMPERATOR) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_I405X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_MOUSEPEN_I608X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
-				USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_M610X) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_PENSKETCH_M912) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_M406XE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
-				USB_DEVICE_ID_GENIUS_GILA_GAMING_MOUSE) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
-				USB_DEVICE_ID_GENIUS_GX_IMPERATOR) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
-				USB_DEVICE_ID_GENIUS_MANTICORE) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
-				USB_DEVICE_ID_KYE_PENSKETCH_M912) },
+				USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, kye_devices);
