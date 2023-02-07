@@ -566,9 +566,6 @@ static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
 			return qdisc_drop(skb, sch, to_free);
 	}
 
-	if (taprio_skb_exceeds_queue_max_sdu(sch, skb))
-		return qdisc_drop(skb, sch, to_free);
-
 	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
 
@@ -593,7 +590,14 @@ static int taprio_enqueue_segmented(struct sk_buff *skb, struct Qdisc *sch,
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
 		slen += segs->len;
 
-		ret = taprio_enqueue_one(segs, sch, child, to_free);
+		/* FIXME: we should be segmenting to a smaller size
+		 * rather than dropping these
+		 */
+		if (taprio_skb_exceeds_queue_max_sdu(sch, segs))
+			ret = qdisc_drop(segs, sch, to_free);
+		else
+			ret = taprio_enqueue_one(segs, sch, child, to_free);
+
 		if (ret != NET_XMIT_SUCCESS) {
 			if (net_xmit_drop_count(ret))
 				qdisc_qstats_drop(sch);
@@ -625,13 +629,18 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (unlikely(!child))
 		return qdisc_drop(skb, sch, to_free);
 
-	/* Large packets might not be transmitted when the transmission duration
-	 * exceeds any configured interval. Therefore, segment the skb into
-	 * smaller chunks. Drivers with full offload are expected to handle
-	 * this in hardware.
-	 */
-	if (skb_is_gso(skb))
-		return taprio_enqueue_segmented(skb, sch, child, to_free);
+	if (taprio_skb_exceeds_queue_max_sdu(sch, skb)) {
+		/* Large packets might not be transmitted when the transmission
+		 * duration exceeds any configured interval. Therefore, segment
+		 * the skb into smaller chunks. Drivers with full offload are
+		 * expected to handle this in hardware.
+		 */
+		if (skb_is_gso(skb))
+			return taprio_enqueue_segmented(skb, sch, child,
+							to_free);
+
+		return qdisc_drop(skb, sch, to_free);
+	}
 
 	return taprio_enqueue_one(skb, sch, child, to_free);
 }
