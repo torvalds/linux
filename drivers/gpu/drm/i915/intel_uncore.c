@@ -2460,7 +2460,7 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 
 static void uncore_unmap_mmio(struct drm_device *drm, void *regs)
 {
-	iounmap(regs);
+	iounmap((void __iomem *)regs);
 }
 
 int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
@@ -2491,7 +2491,8 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 		return -EIO;
 	}
 
-	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio, uncore->regs);
+	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio,
+					(void __force *)uncore->regs);
 }
 
 void intel_uncore_init_early(struct intel_uncore *uncore,
