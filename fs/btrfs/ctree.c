@@ -959,7 +959,7 @@ struct extent_buffer *btrfs_read_node_slot(struct extent_buffer *parent,
 	if (slot < 0 || slot >= btrfs_header_nritems(parent))
 		return ERR_PTR(-ENOENT);
 
-	BUG_ON(level == 0);
+	ASSERT(level);
 
 	check.level = level - 1;
 	check.transid = btrfs_node_ptr_generation(parent, slot);
