@@ -43,6 +43,7 @@ struct sched_entry {
 	 * respective traffic class gate closes
 	 */
 	u64 gate_duration[TC_MAX_QUEUE];
+	atomic_t budget[TC_MAX_QUEUE];
 	struct list_head list;
 
 	/* The instant that this entry ends and the next one
@@ -51,7 +52,6 @@ struct sched_entry {
 	 */
 	ktime_t end_time;
 	ktime_t next_txtime;
-	atomic_t budget;
 	int index;
 	u32 gate_mask;
 	u32 interval;
@@ -563,11 +563,48 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 	return NULL;
 }
 
-static void taprio_set_budget(struct taprio_sched *q, struct sched_entry *entry)
+static void taprio_set_budgets(struct taprio_sched *q,
+			       struct sched_gate_list *sched,
+			       struct sched_entry *entry)
 {
-	atomic_set(&entry->budget,
-		   div64_u64((u64)entry->interval * PSEC_PER_NSEC,
-			     atomic64_read(&q->picos_per_byte)));
+	struct net_device *dev = qdisc_dev(q->root);
+	int num_tc = netdev_get_num_tc(dev);
+	int tc, budget;
+
+	for (tc = 0; tc < num_tc; tc++) {
+		/* Traffic classes which never close have infinite budget */
+		if (entry->gate_duration[tc] == sched->cycle_time)
+			budget = INT_MAX;
+		else
+			budget = div64_u64((u64)entry->gate_duration[tc] * PSEC_PER_NSEC,
+					   atomic64_read(&q->picos_per_byte));
+
+		atomic_set(&entry->budget[tc], budget);
+	}
+}
+
+/* When an skb is sent, it consumes from the budget of all traffic classes */
+static int taprio_update_budgets(struct sched_entry *entry, size_t len,
+				 int tc_consumed, int num_tc)
+{
+	int tc, budget, new_budget = 0;
+
+	for (tc = 0; tc < num_tc; tc++) {
+		budget = atomic_read(&entry->budget[tc]);
+		/* Don't consume from infinite budget */
+		if (budget == INT_MAX) {
+			if (tc == tc_consumed)
+				new_budget = budget;
+			continue;
+		}
+
+		if (tc == tc_consumed)
+			new_budget = atomic_sub_return(len, &entry->budget[tc]);
+		else
+			atomic_sub(len, &entry->budget[tc]);
+	}
+
+	return new_budget;
 }
 
 static struct sk_buff *taprio_dequeue_from_txq(struct Qdisc *sch, int txq,
@@ -577,6 +614,7 @@ static struct sk_buff *taprio_dequeue_from_txq(struct Qdisc *sch, int txq,
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 	struct Qdisc *child = q->qdiscs[txq];
+	int num_tc = netdev_get_num_tc(dev);
 	struct sk_buff *skb;
 	ktime_t guard;
 	int prio;
@@ -611,7 +649,7 @@ static struct sk_buff *taprio_dequeue_from_txq(struct Qdisc *sch, int txq,
 
 	/* ... and no budget. */
 	if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
-	    atomic_sub_return(len, &entry->budget) < 0)
+	    taprio_update_budgets(entry, len, tc, num_tc) < 0)
 		return NULL;
 
 skip_peek_checks:
@@ -832,7 +870,7 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 	}
 
 	next->end_time = end_time;
-	taprio_set_budget(q, next);
+	taprio_set_budgets(q, oper, next);
 
 first_run:
 	rcu_assign_pointer(q->current_entry, next);
@@ -1091,7 +1129,7 @@ static void setup_first_end_time(struct taprio_sched *q,
 	sched->cycle_end_time = ktime_add_ns(base, cycle);
 
 	first->end_time = ktime_add_ns(base, first->interval);
-	taprio_set_budget(q, first);
+	taprio_set_budgets(q, sched, first);
 	rcu_assign_pointer(q->current_entry, NULL);
 }
 
