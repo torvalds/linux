@@ -36,7 +36,7 @@ def get_dtbo_list(target):
 def get_dtstree(target):
     return "//msm-kernel/arch/arm64/boot/dts/vendor:msm_dt"
 
-def get_vendor_ramdisk_binaries(target):
+def get_vendor_ramdisk_binaries(target, flavor = None):
     return None
 
 def get_gki_ramdisk_prebuilt_binary():
