@@ -193,8 +193,7 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 			/*scale_unit=*/NULL,
 			/*deprecated=*/NULL, "PFM event",
 			info->desc, /*long_desc=*/NULL,
-			/*encoding_desc=*/buf->buf,
-			/*metric_name=*/NULL, /*metric_expr=*/NULL);
+			/*encoding_desc=*/buf->buf);
 
 	pfm_for_each_event_attr(j, info) {
 		pfm_event_attr_info_t ainfo;
@@ -224,8 +223,7 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 					/*scale_unit=*/NULL,
 					/*deprecated=*/NULL, "PFM event",
 					ainfo.desc, /*long_desc=*/NULL,
-					/*encoding_desc=*/buf->buf,
-					/*metric_name=*/NULL, /*metric_expr=*/NULL);
+					/*encoding_desc=*/buf->buf);
 		}
 	}
 }
