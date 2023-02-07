@@ -316,7 +316,7 @@
 	 * be handled by a USB specific power sequence to reset the Hub
 	 * when the USB bus is powered down.
 	 */
-	usb-hub {
+	usb-hub-hog {
 		gpio-hog;
 		gpios = <GPIOH_4 GPIO_ACTIVE_HIGH>;
 		output-high;
