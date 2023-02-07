@@ -109,6 +109,7 @@ struct ftgmac100 {
 	/* Misc */
 	bool need_mac_restart;
 	bool is_aspeed;
+	spinlock_t lock;    /* to lock shared memory */
 };
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
@@ -639,13 +640,17 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	struct sk_buff *skb;
 	unsigned int pointer;
 	u32 ctl_stat;
+	unsigned long flags;
 
+	spin_lock_irqsave(&priv->lock, flags);
 	pointer = priv->tx_clean_pointer;
 	txdes = &priv->txdes[pointer];
 
 	ctl_stat = le32_to_cpu(txdes->txdes0);
-	if (ctl_stat & FTGMAC100_TXDES0_TXDMA_OWN)
+	if (ctl_stat & FTGMAC100_TXDES0_TXDMA_OWN) {
+		spin_unlock_irqrestore(&priv->lock, flags);
 		return false;
+	}
 
 	skb = priv->tx_skbs[pointer];
 	netdev->stats.tx_packets++;
@@ -659,6 +664,7 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	smp_wmb();
 
 	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(priv, pointer);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return true;
 }
@@ -715,6 +721,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	unsigned int pointer, nfrags, len, i, j;
 	u32 f_ctl_stat, ctl_stat, csum_vlan;
 	dma_addr_t map;
+	unsigned long flags;
 
 	/* The HW doesn't pad small frames */
 	if (eth_skb_pad(skb)) {
@@ -722,6 +729,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
+	spin_lock_irqsave(&priv->lock, flags);
 	/* Reject oversize packets */
 	if (unlikely(skb->len > MAX_PKT_SIZE)) {
 		if (net_ratelimit())
@@ -848,6 +856,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 	/* Poke transmitter to read the updated TX descriptors */
 	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return NETDEV_TX_OK;
 
@@ -877,6 +886,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	/* Drop the packet */
 	dev_kfree_skb_any(skb);
 	netdev->stats.tx_dropped++;
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return NETDEV_TX_OK;
 }
@@ -1808,6 +1818,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->netdev = netdev;
 	priv->dev = &pdev->dev;
 	INIT_WORK(&priv->reset_task, ftgmac100_reset_task);
+	spin_lock_init(&priv->lock);
 
 	/* map io memory */
 	priv->res = request_mem_region(res->start, resource_size(res),
