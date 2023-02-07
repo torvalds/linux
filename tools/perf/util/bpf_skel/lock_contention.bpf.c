@@ -10,6 +10,14 @@
 /* default buffer size */
 #define MAX_ENTRIES  10240
 
+/* lock contention flags from include/trace/events/lock.h */
+#define LCB_F_SPIN	(1U << 0)
+#define LCB_F_READ	(1U << 1)
+#define LCB_F_WRITE	(1U << 2)
+#define LCB_F_RT	(1U << 3)
+#define LCB_F_PERCPU	(1U << 4)
+#define LCB_F_MUTEX	(1U << 5)
+
 struct tstamp_data {
 	__u64 timestamp;
 	__u64 lock;
@@ -84,6 +92,7 @@ int has_type;
 int has_addr;
 int needs_callstack;
 int stack_skip;
+int lock_owner;
 
 /* determine the key of lock stat */
 int aggr_mode;
@@ -132,17 +141,24 @@ static inline int can_record(u64 *ctx)
 	return 1;
 }
 
-static inline void update_task_data(__u32 pid)
+static inline int update_task_data(struct task_struct *task)
 {
 	struct contention_task_data *p;
+	int pid, err;
+
+	err = bpf_core_read(&pid, sizeof(pid), &task->pid);
+	if (err)
+		return -1;
 
 	p = bpf_map_lookup_elem(&task_data, &pid);
 	if (p == NULL) {
-		struct contention_task_data data;
+		struct contention_task_data data = {};
 
-		bpf_get_current_comm(data.comm, sizeof(data.comm));
+		BPF_CORE_READ_STR_INTO(&data.comm, task, comm);
 		bpf_map_update_elem(&task_data, &pid, &data, BPF_NOEXIST);
 	}
+
+	return 0;
 }
 
 SEC("tp_btf/contention_begin")
@@ -179,6 +195,38 @@ int contention_begin(u64 *ctx)
 						  BPF_F_FAST_STACK_CMP | stack_skip);
 		if (pelem->stack_id < 0)
 			lost++;
+	} else if (aggr_mode == LOCK_AGGR_TASK) {
+		struct task_struct *task;
+
+		if (lock_owner) {
+			if (pelem->flags & LCB_F_MUTEX) {
+				struct mutex *lock = (void *)pelem->lock;
+				unsigned long owner = BPF_CORE_READ(lock, owner.counter);
+
+				task = (void *)(owner & ~7UL);
+			} else if (pelem->flags == LCB_F_READ || pelem->flags == LCB_F_WRITE) {
+				struct rw_semaphore *lock = (void *)pelem->lock;
+				unsigned long owner = BPF_CORE_READ(lock, owner.counter);
+
+				task = (void *)(owner & ~7UL);
+			} else {
+				task = NULL;
+			}
+
+			/* The flags is not used anymore.  Pass the owner pid. */
+			if (task)
+				pelem->flags = BPF_CORE_READ(task, pid);
+			else
+				pelem->flags = -1U;
+
+		} else {
+			task = bpf_get_current_task_btf();
+		}
+
+		if (task) {
+			if (update_task_data(task) < 0 && lock_owner)
+				pelem->flags = -1U;
+		}
 	}
 
 	return 0;
@@ -208,8 +256,10 @@ int contention_end(u64 *ctx)
 		key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_TASK:
-		key.pid = pid;
-		update_task_data(pid);
+		if (lock_owner)
+			key.pid = pelem->flags;
+		else
+			key.pid = pid;
 		if (needs_callstack)
 			key.stack_id = pelem->stack_id;
 		break;

@@ -172,6 +172,11 @@ CONTENTION OPTIONS
 --lock-addr::
 	Show lock contention stat by address
 
+-o::
+--lock-owner::
+	Show lock contention stat by owners.  Implies --threads and
+	requires --use-bpf.
+
 -Y::
 --type-filter=<value>::
 	Show lock contention only for given lock types (comma separated list).

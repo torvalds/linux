@@ -149,6 +149,7 @@ int lock_contention_prepare(struct lock_contention *con)
 	skel->bss->stack_skip = con->stack_skip;
 	skel->bss->aggr_mode = con->aggr_mode;
 	skel->bss->needs_callstack = con->save_callstack;
+	skel->bss->lock_owner = con->owner;
 
 	lock_contention_bpf__attach(skel);
 	return 0;

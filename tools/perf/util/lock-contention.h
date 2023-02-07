@@ -133,6 +133,7 @@ struct lock_contention {
 	int max_stack;
 	int stack_skip;
 	int aggr_mode;
+	int owner;
 	bool save_callstack;
 };
 

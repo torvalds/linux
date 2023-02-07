@@ -58,6 +58,7 @@ static struct rb_root		thread_stats;
 static bool combine_locks;
 static bool show_thread_stats;
 static bool show_lock_addrs;
+static bool show_lock_owner;
 static bool use_bpf;
 static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
@@ -1616,7 +1617,8 @@ static void print_contention_result(struct lock_contention *con)
 
 		switch (aggr_mode) {
 		case LOCK_AGGR_TASK:
-			pr_info("  %10s   %s\n\n", "pid", "comm");
+			pr_info("  %10s   %s\n\n", "pid",
+				show_lock_owner ? "owner" : "comm");
 			break;
 		case LOCK_AGGR_CALLER:
 			pr_info("  %10s   %s\n\n", "type", "caller");
@@ -1656,7 +1658,8 @@ static void print_contention_result(struct lock_contention *con)
 		case LOCK_AGGR_TASK:
 			pid = st->addr;
 			t = perf_session__findnew(session, pid);
-			pr_info("  %10d   %s\n", pid, thread__comm_str(t));
+			pr_info("  %10d   %s\n",
+				pid, pid == -1 ? "Unknown" : thread__comm_str(t));
 			break;
 		case LOCK_AGGR_ADDR:
 			pr_info("  %016llx   %s\n", (unsigned long long)st->addr,
@@ -1768,6 +1771,37 @@ static void sighandler(int sig __maybe_unused)
 {
 }
 
+static int check_lock_contention_options(const struct option *options,
+					 const char * const *usage)
+
+{
+	if (show_thread_stats && show_lock_addrs) {
+		pr_err("Cannot use thread and addr mode together\n");
+		parse_options_usage(usage, options, "threads", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_owner && !use_bpf) {
+		pr_err("Lock owners are available only with BPF\n");
+		parse_options_usage(usage, options, "lock-owner", 0);
+		parse_options_usage(NULL, options, "use-bpf", 0);
+		return -1;
+	}
+
+	if (show_lock_owner && show_lock_addrs) {
+		pr_err("Cannot use owner and addr mode together\n");
+		parse_options_usage(usage, options, "lock-owner", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_owner)
+		show_thread_stats = true;
+
+	return 0;
+}
+
 static int __cmd_contention(int argc, const char **argv)
 {
 	int err = -EINVAL;
@@ -1793,6 +1827,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.stack_skip = stack_skip,
 		.filters = &filters,
 		.save_callstack = needs_callstack(),
+		.owner = show_lock_owner,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -2272,6 +2307,7 @@ int cmd_lock(int argc, const char **argv)
 		     "Filter specific address/symbol of locks", parse_lock_addr),
 	OPT_CALLBACK('S', "callstack-filter", NULL, "NAMES",
 		     "Filter specific function in the callstack", parse_call_stack),
+	OPT_BOOLEAN('o', "lock-owner", &show_lock_owner, "show lock owners instead of waiters"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -2342,14 +2378,9 @@ int cmd_lock(int argc, const char **argv)
 					     contention_usage, 0);
 		}
 
-		if (show_thread_stats && show_lock_addrs) {
-			pr_err("Cannot use thread and addr mode together\n");
-			parse_options_usage(contention_usage, contention_options,
-					    "threads", 0);
-			parse_options_usage(NULL, contention_options,
-					    "lock-addr", 0);
+		if (check_lock_contention_options(contention_options,
+						  contention_usage) < 0)
 			return -1;
-		}
 
 		rc = __cmd_contention(argc, argv);
 	} else {
