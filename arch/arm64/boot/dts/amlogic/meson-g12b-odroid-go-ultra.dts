@@ -620,7 +620,7 @@
 };
 
 &periphs_pinctrl {
-	keypad_gpio_pins: keypad-gpio {
+	keypad_gpio_pins: keypad-gpio-state {
 		mux {
 			groups = "GPIOX_0", "GPIOX_1", "GPIOX_2", "GPIOX_3",
 			         "GPIOX_4", "GPIOX_5", "GPIOX_6", "GPIOX_7",
