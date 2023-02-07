@@ -482,7 +482,7 @@ static struct mapped_device *dm_hash_rename(struct dm_ioctl *param,
 		dm_table_event(table);
 	dm_put_live_table(hc->md, srcu_idx);
 
-	if (!dm_kobject_uevent(hc->md, KOBJ_CHANGE, param->event_nr))
+	if (!dm_kobject_uevent(hc->md, KOBJ_CHANGE, param->event_nr, false))
 		param->flags |= DM_UEVENT_GENERATED_FLAG;
 
 	md = hc->md;
@@ -995,7 +995,7 @@ static int dev_remove(struct file *filp, struct dm_ioctl *param, size_t param_si
 
 	dm_ima_measure_on_device_remove(md, false);
 
-	if (!dm_kobject_uevent(md, KOBJ_REMOVE, param->event_nr))
+	if (!dm_kobject_uevent(md, KOBJ_REMOVE, param->event_nr, false))
 		param->flags |= DM_UEVENT_GENERATED_FLAG;
 
 	dm_put(md);
@@ -1128,6 +1128,7 @@ static int do_resume(struct dm_ioctl *param)
 	struct hash_cell *hc;
 	struct mapped_device *md;
 	struct dm_table *new_map, *old_map = NULL;
+	bool need_resize_uevent = false;
 
 	down_write(&_hash_lock);
 
@@ -1148,6 +1149,8 @@ static int do_resume(struct dm_ioctl *param)
 
 	/* Do we need to load a new map ? */
 	if (new_map) {
+		sector_t old_size, new_size;
+
 		/* Suspend if it isn't already suspended */
 		if (param->flags & DM_SKIP_LOCKFS_FLAG)
 			suspend_flags &= ~DM_SUSPEND_LOCKFS_FLAG;
@@ -1156,6 +1159,7 @@ static int do_resume(struct dm_ioctl *param)
 		if (!dm_suspended_md(md))
 			dm_suspend(md, suspend_flags);
 
+		old_size = dm_get_size(md);
 		old_map = dm_swap_table(md, new_map);
 		if (IS_ERR(old_map)) {
 			dm_sync_table(md);
@@ -1163,6 +1167,9 @@ static int do_resume(struct dm_ioctl *param)
 			dm_put(md);
 			return PTR_ERR(old_map);
 		}
+		new_size = dm_get_size(md);
+		if (old_size && new_size && old_size != new_size)
+			need_resize_uevent = true;
 
 		if (dm_table_get_mode(new_map) & FMODE_WRITE)
 			set_disk_ro(dm_disk(md), 0);
@@ -1175,7 +1182,7 @@ static int do_resume(struct dm_ioctl *param)
 		if (!r) {
 			dm_ima_measure_on_device_resume(md, new_map ? true : false);
 
-			if (!dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr))
+			if (!dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr, need_resize_uevent))
 				param->flags |= DM_UEVENT_GENERATED_FLAG;
 		}
 	}

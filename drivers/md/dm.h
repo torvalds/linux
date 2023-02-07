@@ -203,7 +203,7 @@ int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
 void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
-		      unsigned cookie);
+		      unsigned cookie, bool need_resize_uevent);
 
 void dm_internal_suspend(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
