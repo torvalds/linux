@@ -581,6 +581,9 @@ static const struct of_device_id __maybe_unused fan53555_dt_ids[] = {
 	}, {
 		.compatible = "tcs,tcs4526",
 		.data = (void *)FAN53526_VENDOR_TCS
+	}, {
+		.compatible = "tcs,tcs452x",
+		.data = (void *)FAN53526_VENDOR_TCS
 	},
 	{ }
 };
@@ -730,6 +733,9 @@ static const struct i2c_device_id fan53555_id[] = {
 		.driver_data = FAN53526_VENDOR_TCS
 	}, {
 		.name = "tcs4526",
+		.driver_data = FAN53526_VENDOR_TCS
+	}, {
+		.name = "tcs452x",
 		.driver_data = FAN53526_VENDOR_TCS
 	},
 	{ },
