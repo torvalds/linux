@@ -44,7 +44,7 @@
 #include <asm/fs_pd.h>
 
 #ifdef CONFIG_8xx_GPIO
-#include <linux/of_gpio.h>
+#include <linux/gpio/legacy-of-mm-gpiochip.h>
 #endif
 
 #define CPM_MAP_SIZE    (0x4000)

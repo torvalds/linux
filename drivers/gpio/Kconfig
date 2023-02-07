@@ -39,6 +39,14 @@ config GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN
 	bool
 
+config OF_GPIO_MM_GPIOCHIP
+	bool
+	help
+	  This adds support for the legacy 'struct of_mm_gpio_chip' interface
+	  from PowerPC. Existing drivers using this interface need to select
+	  this symbol, but new drivers should use the generic gpio-regmap
+	  infrastructure instead.
+
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
 	depends on DEBUG_KERNEL
@@ -131,6 +139,7 @@ config GPIO_ALTERA
 	tristate "Altera GPIO"
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
+	select OF_GPIO_MM_GPIOCHIP
 	help
 	  Say Y or M here to build support for the Altera PIO device.
 
@@ -403,6 +412,7 @@ config GPIO_MENZ127
 config GPIO_MM_LANTIQ
 	bool "Lantiq Memory mapped GPIOs"
 	depends on LANTIQ && SOC_XWAY
+	select OF_GPIO_MM_GPIOCHIP
 	help
 	  This enables support for memory mapped GPIOs on the External Bus Unit
 	  (EBU) found on Lantiq SoCs. The GPIOs are output only as they are
@@ -411,6 +421,7 @@ config GPIO_MM_LANTIQ
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
+	select OF_GPIO_MM_GPIOCHIP
 
 config GPIO_MPC8XXX
 	bool "MPC512x/MPC8xxx/QorIQ GPIO support"
