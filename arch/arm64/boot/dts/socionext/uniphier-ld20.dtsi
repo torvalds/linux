@@ -548,7 +548,7 @@
 			reg = <0x59801000 0x400>;
 		};
 
-		syscon@59810000 {
+		sdctrl: syscon@59810000 {
 			compatible = "socionext,uniphier-ld20-sdctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59810000 0x400>;
@@ -611,6 +611,7 @@
 			resets = <&sd_rst 0>;
 			bus-width = <4>;
 			cap-sd-highspeed;
+			socionext,syscon-uhs-mode = <&sdctrl 0>;
 		};
 
 		soc_glue: syscon@5f800000 {
