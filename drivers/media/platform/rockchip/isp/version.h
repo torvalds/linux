@@ -357,6 +357,53 @@
  * 79.fix isp32 stream force to update enable
  * 80.fix mi no disable for multi sensor unite mode
  * 81.fix size for multi isp composite mode
+ *
+ * v2.1.0
+ * 1.fix mipi error for isp2x with multi sensor
+ * 2.default reg config after reset
+ * 3.fix isp20 mi no work
+ * 4.fix stream off just close isp
+ * 5.remove the judgment that gain turn off if ldch is enabled
+ * 6.drop first output for fast case
+ * 7.fix scl for unite mode
+ * 8.no wait if shutdown
+ * 9.fix stream no output for multi senso
+ * 10.fix hdr config for unite multi sensor
+ * 11.make sure to free buf after isp stop
+ * 12.improve thunder boot process
+ * 13.second frame first run for fast
+ * 14.multi sensor for fast case
+ * 15.fix fbc output for isp30 multi sensor
+ * 16.frame start to update buf for isp30
+ * 17.fix stream switch when readback mode
+ * 18.remove unsupported formats
+ * 19.fix stats buf update for multi sensor
+ * 20.fix self update config for isp30
+ * 21.fix dmatx loss first buf
+ * 22.fix rockit stream pause if readback mode
+ * 23.fix isp32 cmsk feature
+ * 24.online rx add memory compact or no
+ * 25.remove cif/isp/ispp hw SYSTEM_SLEEP_PM_OPS
+ * 26.api to force enum multi isp resolution
+ * 27.isp30 3a to ddr for readback mode
+ * 28.sync stop to dmarx for isp stop
+ * 29.fix mulit isp x3 mode
+ * 30.fix lsc table read by isp for multi sensor
+ * 31.merge dual dhaz config chang to user for unite mode
+ * 32.no support rgb8888 for isp30
+ * 33.fix iommu err for stream stop
+ * 34.fix 3a to ddr iommu err for isp30 two readback mode
+ * 35.400ms timeout for rtt complete
+ * 36.add mosaic block size for cmsk
+ * 37.wrap width and height config by user
+ * 38.fix ldch err
+ * 39.fix isp32 vflip config
+ * 40.dump two isp reg for unite mode
+ * 41.fix output stream sync for readback mode
+ * 42.wait isp0 end for unite mode
+ * 43.fix first frame loss
+ * 44.fix rgb range for selfpath
+ * 45.stats buf add application params frame id
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
