@@ -1247,8 +1247,10 @@ typedef void (*perf_buffer_lost_fn)(void *ctx, int cpu, __u64 cnt);
 /* common use perf buffer options */
 struct perf_buffer_opts {
 	size_t sz;
+	__u32 sample_period;
+	size_t :0;
 };
-#define perf_buffer_opts__last_field sz
+#define perf_buffer_opts__last_field sample_period
 
 /**
  * @brief **perf_buffer__new()** creates BPF perfbuf manager for a specified
