@@ -4,8 +4,7 @@
  *
  * Author: Tushar Sugandhi <tusharsu@linux.microsoft.com>
  *
- * File: dm-ima.h
- *       Header file for device mapper IMA measurements.
+ * Header file for device mapper IMA measurements.
  */
 
 #ifndef DM_IMA_H

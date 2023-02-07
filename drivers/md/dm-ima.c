@@ -4,8 +4,7 @@
  *
  * Author: Tushar Sugandhi <tusharsu@linux.microsoft.com>
  *
- * File: dm-ima.c
- *       Enables IMA measurements for DM targets
+ * Enables IMA measurements for DM targets
  */
 
 #include "dm-core.h"
