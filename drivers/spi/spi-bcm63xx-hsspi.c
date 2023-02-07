@@ -57,6 +57,7 @@
 #define PINGPONG_CMD_SS_SHIFT			12
 
 #define HSSPI_PINGPONG_STATUS_REG(x)		(0x84 + (x) * 0x40)
+#define HSSPI_PINGPONG_STATUS_SRC_BUSY		BIT(1)
 
 #define HSSPI_PROFILE_CLK_CTRL_REG(x)		(0x100 + (x) * 0x20)
 #define CLK_CTRL_FREQ_CTRL_MASK			0x0000ffff
@@ -96,11 +97,16 @@
 
 #define HSSPI_SPI_MAX_CS			8
 #define HSSPI_BUS_NUM				1 /* 0 is legacy SPI */
+#define HSSPI_POLL_STATUS_TIMEOUT_MS	100
+
+#define HSSPI_WAIT_MODE_POLLING		0
+#define HSSPI_WAIT_MODE_INTR		1
+#define HSSPI_WAIT_MODE_MAX			HSSPI_WAIT_MODE_INTR
 
 struct bcm63xx_hsspi {
 	struct completion done;
 	struct mutex bus_mutex;
-
+	struct mutex msg_mutex;
 	struct platform_device *pdev;
 	struct clk *clk;
 	struct clk *pll_clk;
@@ -109,6 +115,52 @@ struct bcm63xx_hsspi {
 
 	u32 speed_hz;
 	u8 cs_polarity;
+	u32 wait_mode;
+};
+
+static ssize_t wait_mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(dev);
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(ctrl);
+
+	return sprintf(buf, "%d\n", bs->wait_mode);
+}
+
+static ssize_t wait_mode_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct spi_controller *ctrl = dev_get_drvdata(dev);
+	struct bcm63xx_hsspi *bs = spi_master_get_devdata(ctrl);
+	u32 val;
+
+	if (kstrtou32(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > HSSPI_WAIT_MODE_MAX) {
+		dev_warn(dev, "invalid wait mode %u\n", val);
+		return -EINVAL;
+	}
+
+	mutex_lock(&bs->msg_mutex);
+	bs->wait_mode = val;
+	/* clear interrupt status to avoid spurious int on next transfer */
+	if (val == HSSPI_WAIT_MODE_INTR)
+		__raw_writel(HSSPI_INT_CLEAR_ALL, bs->regs + HSSPI_INT_STATUS_REG);
+	mutex_unlock(&bs->msg_mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(wait_mode);
+
+static struct attribute *bcm63xx_hsspi_attrs[] = {
+	&dev_attr_wait_mode.attr,
+	NULL,
+};
+
+static const struct attribute_group bcm63xx_hsspi_group = {
+	.attrs = bcm63xx_hsspi_attrs,
 };
 
 static void bcm63xx_hsspi_set_cs(struct bcm63xx_hsspi *bs, unsigned int cs,
@@ -163,6 +215,8 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 	int step_size = HSSPI_BUFFER_LEN;
 	const u8 *tx = t->tx_buf;
 	u8 *rx = t->rx_buf;
+	u32 val;
+	unsigned long limit;
 
 	bcm63xx_hsspi_set_clk(bs, spi, t->speed_hz);
 	bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
@@ -197,8 +251,9 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 		__raw_writew((u16)cpu_to_be16(opcode | curr_step), bs->fifo);
 
 		/* enable interrupt */
-		__raw_writel(HSSPI_PINGx_CMD_DONE(0),
-			     bs->regs + HSSPI_INT_MASK_REG);
+		if (bs->wait_mode == HSSPI_WAIT_MODE_INTR)
+			__raw_writel(HSSPI_PINGx_CMD_DONE(0),
+				     bs->regs + HSSPI_INT_MASK_REG);
 
 		/* start the transfer */
 		__raw_writel(!chip_select << PINGPONG_CMD_SS_SHIFT |
@@ -206,9 +261,21 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 			     PINGPONG_COMMAND_START_NOW,
 			     bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
 
-		if (wait_for_completion_timeout(&bs->done, HZ) == 0) {
-			dev_err(&bs->pdev->dev, "transfer timed out!\n");
-			return -ETIMEDOUT;
+		if (bs->wait_mode == HSSPI_WAIT_MODE_INTR) {
+			if (wait_for_completion_timeout(&bs->done, HZ) == 0)
+				goto err_timeout;
+		} else {
+			/* polling mode checks for status busy bit */
+			limit = jiffies + msecs_to_jiffies(HSSPI_POLL_STATUS_TIMEOUT_MS);
+			while (!time_after(jiffies, limit)) {
+				val = __raw_readl(bs->regs + HSSPI_PINGPONG_STATUS_REG(0));
+				if (val & HSSPI_PINGPONG_STATUS_SRC_BUSY)
+					cpu_relax();
+				else
+					break;
+			}
+			if (val & HSSPI_PINGPONG_STATUS_SRC_BUSY)
+				goto err_timeout;
 		}
 
 		if (rx) {
@@ -220,6 +287,10 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	return 0;
+
+err_timeout:
+	dev_err(&bs->pdev->dev, "transfer timed out!\n");
+	return -ETIMEDOUT;
 }
 
 static int bcm63xx_hsspi_setup(struct spi_device *spi)
@@ -269,6 +340,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 	int dummy_cs;
 	u32 reg;
 
+	mutex_lock(&bs->msg_mutex);
 	/* This controller does not support keeping CS active during idle.
 	 * To work around this, we use the following ugly hack:
 	 *
@@ -306,6 +378,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 	__raw_writel(reg, bs->regs + HSSPI_GLOBAL_CTRL_REG);
 	mutex_unlock(&bs->bus_mutex);
 
+	mutex_unlock(&bs->msg_mutex);
 	msg->status = status;
 	spi_finalize_current_message(master);
 
@@ -398,8 +471,10 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	bs->regs = regs;
 	bs->speed_hz = rate;
 	bs->fifo = (u8 __iomem *)(bs->regs + HSSPI_FIFO_REG(0));
+	bs->wait_mode = HSSPI_WAIT_MODE_POLLING;
 
 	mutex_init(&bs->bus_mutex);
+	mutex_init(&bs->msg_mutex);
 	init_completion(&bs->done);
 
 	master->dev.of_node = dev->of_node;
@@ -434,21 +509,32 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	__raw_writel(reg | GLOBAL_CTRL_CLK_GATE_SSOFF,
 		     bs->regs + HSSPI_GLOBAL_CTRL_REG);
 
-	ret = devm_request_irq(dev, irq, bcm63xx_hsspi_interrupt, IRQF_SHARED,
-			       pdev->name, bs);
+	if (irq > 0) {
+		ret = devm_request_irq(dev, irq, bcm63xx_hsspi_interrupt, IRQF_SHARED,
+				       pdev->name, bs);
 
-	if (ret)
-		goto out_put_master;
+		if (ret)
+			goto out_put_master;
+	}
 
 	pm_runtime_enable(&pdev->dev);
+
+	if (sysfs_create_group(&pdev->dev.kobj, &bcm63xx_hsspi_group)) {
+		dev_err(&pdev->dev, "couldn't register sysfs group\n");
+		goto out_pm_disable;
+	}
 
 	/* register and we are done */
 	ret = devm_spi_register_master(dev, master);
 	if (ret)
-		goto out_pm_disable;
+		goto out_sysgroup_disable;
+
+	dev_info(dev, "Broadcom 63XX High Speed SPI Controller driver");
 
 	return 0;
 
+out_sysgroup_disable:
+	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
 out_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 out_put_master:
@@ -470,6 +556,7 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
 	clk_disable_unprepare(bs->pll_clk);
 	clk_disable_unprepare(bs->clk);
+	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
 
 	return 0;
 }
