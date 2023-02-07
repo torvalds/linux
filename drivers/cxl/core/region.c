@@ -993,10 +993,10 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 		int i, distance;
 
 		/*
-		 * Passthrough ports impose no distance requirements between
+		 * Passthrough decoders impose no distance requirements between
 		 * peers
 		 */
-		if (port->nr_dports == 1)
+		if (cxl_rr->nr_targets == 1)
 			distance = 0;
 		else
 			distance = p->nr_targets / cxl_rr->nr_targets;
