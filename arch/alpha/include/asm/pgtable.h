@@ -107,7 +107,7 @@ struct vm_area_struct;
 
 #define _PAGE_NORMAL(x) __pgprot(_PAGE_VALID | __ACCESS_BITS | (x))
 
-#define _PAGE_P(x) _PAGE_NORMAL((x) | (((x) & _PAGE_FOW)?0:_PAGE_FOW))
+#define _PAGE_P(x) _PAGE_NORMAL((x) | _PAGE_FOW)
 #define _PAGE_S(x) _PAGE_NORMAL(x)
 
 /*
