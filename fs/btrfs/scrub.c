@@ -1230,7 +1230,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 			sblock_other = sblocks_for_recheck[mirror_index];
 		} else {
 			struct scrub_recover *r = sblock_bad->sectors[0]->recover;
-			int max_allowed = r->bioc->num_stripes - r->bioc->num_tgtdevs;
+			int max_allowed = r->bioc->num_stripes - r->bioc->replace_nr_stripes;
 
 			if (mirror_index >= max_allowed)
 				break;
@@ -1540,7 +1540,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 						      bioc->map_type,
 						      bioc->raid_map,
 						      bioc->num_stripes -
-						      bioc->num_tgtdevs,
+						      bioc->replace_nr_stripes,
 						      mirror_index,
 						      &stripe_index,
 						      &stripe_offset);

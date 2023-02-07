@@ -427,14 +427,13 @@ struct btrfs_io_context {
 	/*
 	 * The following two members are for dev-replace case only.
 	 *
-	 * @num_tgtdevs:	Number of duplicated stripes which need to be
+	 * @replace_nr_stripes:	Number of duplicated stripes which need to be
 	 *			written to replace target.
 	 *			Should be <= 2 (2 for DUP, otherwise <= 1).
-	 * @tgtdev_map:		The array indicates where the duplicated stripes
-	 *			are from. The size is the number of original
-	 *			stripes (num_stripes - num_tgtdevs).
+	 * @replace_stripe_src:	The array indicates where the duplicated stripes
+	 *			are from.
 	 *
-	 * The @tgtdev_map[] array is mostly for RAID56 cases.
+	 * The @replace_stripe_src[] array is mostly for RAID56 cases.
 	 * As non-RAID56 stripes share the same contents of the mapped range,
 	 * thus no need to bother where the duplicated ones are from.
 	 *
@@ -449,14 +448,17 @@ struct btrfs_io_context {
 	 *   stripes[2]:	dev = devid 3, physical = Z
 	 *   stripes[3]:	dev = devid 0, physical = Y
 	 *
-	 * num_tgtdevs = 1
-	 * tgtdev_map[0] = 0	<- Means stripes[0] is not involved in replace.
-	 * tgtdev_map[1] = 3	<- Means stripes[1] is involved in replace,
-	 *			   and it's duplicated to stripes[3].
-	 * tgtdev_map[2] = 0	<- Means stripes[2] is not involved in replace.
+	 * replace_nr_stripes = 1
+	 * replace_stripe_src = 1	<- Means stripes[1] is involved in replace.
+	 *				   The duplicated stripe index would be
+	 *				   (@num_stripes - 1).
+	 *
+	 * Note, that we can still have cases replace_nr_stripes = 2 for DUP.
+	 * In that case, all stripes share the same content, thus we don't
+	 * need to bother @replace_stripe_src value at all.
 	 */
-	u16 num_tgtdevs;
-	u16 *tgtdev_map;
+	u16 replace_nr_stripes;
+	s16 replace_stripe_src;
 	/*
 	 * logical block numbers for the start of each stripe
 	 * The last one or two are p/q.  These are sorted,
