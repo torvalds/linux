@@ -102,3 +102,29 @@ int nf_ct_add_helper(struct nf_conn *ct, const char *name, u8 family,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_add_helper);
+
+/* Trim the skb to the length specified by the IP/IPv6 header,
+ * removing any trailing lower-layer padding. This prepares the skb
+ * for higher-layer processing that assumes skb->len excludes padding
+ * (such as nf_ip_checksum). The caller needs to pull the skb to the
+ * network header, and ensure ip_hdr/ipv6_hdr points to valid data.
+ */
+int nf_ct_skb_network_trim(struct sk_buff *skb, int family)
+{
+	unsigned int len;
+
+	switch (family) {
+	case NFPROTO_IPV4:
+		len = skb_ip_totlen(skb);
+		break;
+	case NFPROTO_IPV6:
+		len = sizeof(struct ipv6hdr)
+			+ ntohs(ipv6_hdr(skb)->payload_len);
+		break;
+	default:
+		len = skb->len;
+	}
+
+	return pskb_trim_rcsum(skb, len);
+}
+EXPORT_SYMBOL_GPL(nf_ct_skb_network_trim);
