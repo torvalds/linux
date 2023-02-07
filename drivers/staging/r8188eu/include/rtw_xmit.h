@@ -189,7 +189,7 @@ struct xmit_buf {
 	u8 *pbuf;
 	void *priv_data;
 	u16 ext_tag; /*  0: Normal xmitbuf, 1: extension xmitbuf. */
-	u16 flags;
+	bool high_queue;
 	u32 alloc_sz;
 	u32  len;
 	struct submit_ctx *sctx;

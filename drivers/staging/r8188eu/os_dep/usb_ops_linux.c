@@ -39,7 +39,7 @@ static void usb_write_port_complete(struct urb *purb)
 	struct adapter *padapter = pxmitbuf->padapter;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if (pxmitbuf->flags == HIGH_QUEUE_INX)
+	if (pxmitbuf->high_queue)
 		rtw_chk_hi_queue_cmd(padapter);
 
 	switch (purb->status) {
@@ -83,28 +83,7 @@ u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 	}
 
 	spin_lock_irqsave(&pxmitpriv->lock, irqL);
-
-	switch (addr) {
-	case VO_QUEUE_INX:
-		pxmitbuf->flags = VO_QUEUE_INX;
-		break;
-	case VI_QUEUE_INX:
-		pxmitbuf->flags = VI_QUEUE_INX;
-		break;
-	case BE_QUEUE_INX:
-		pxmitbuf->flags = BE_QUEUE_INX;
-		break;
-	case BK_QUEUE_INX:
-		pxmitbuf->flags = BK_QUEUE_INX;
-		break;
-	case HIGH_QUEUE_INX:
-		pxmitbuf->flags = HIGH_QUEUE_INX;
-		break;
-	default:
-		pxmitbuf->flags = MGT_QUEUE_INX;
-		break;
-	}
-
+	pxmitbuf->high_queue = (addr == HIGH_QUEUE_INX);
 	spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 
 	purb	= pxmitbuf->pxmit_urb;

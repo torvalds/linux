@@ -148,7 +148,7 @@ int _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 				goto free_xmitbuf;
 		}
 
-		pxmitbuf->flags = XMIT_VO_QUEUE;
+		pxmitbuf->high_queue = false;
 
 		list_add_tail(&pxmitbuf->list, &pxmitpriv->free_xmitbuf_queue.queue);
 		pxmitbuf++;
