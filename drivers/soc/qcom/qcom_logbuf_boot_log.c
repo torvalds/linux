@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
@@ -7,17 +6,13 @@
 
 #define pr_fmt(fmt) "logbuf_vh: " fmt
 
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/atomic.h>
 #include <linux/slab.h>
 #include <soc/qcom/minidump.h>
-
 #include <trace/hooks/logbuf.h>
-#include "../../../kernel/printk/printk_ringbuffer.h"
+
+#include "qcom_logbuf_boot_log.h"
 
 #define BOOT_LOG_SIZE    SZ_512K
 #define LOG_NEWLINE          2
@@ -146,39 +141,6 @@ static size_t record_print_text(struct printk_info *pinfo, char *r_text, size_t 
 	return len;
 }
 
-static void register_log_minidump(struct printk_ringbuffer *prb)
-{
-	struct prb_desc_ring descring = prb->desc_ring;
-	struct prb_data_ring textdata_ring = prb->text_data_ring;
-	struct prb_desc *descaddr = descring.descs;
-	struct printk_info *p_infos = descring.infos;
-	struct md_region md_entry;
-	int ret;
-
-	strscpy(md_entry.name, "KLOGBUF", sizeof(md_entry.name));
-	md_entry.virt_addr = (uintptr_t)textdata_ring.data;
-	md_entry.phys_addr = virt_to_phys(textdata_ring.data);
-	md_entry.size = _DATA_SIZE(textdata_ring.size_bits);
-	ret = msm_minidump_add_region(&md_entry);
-	if (ret < 0)
-		pr_err("Failed to add log_text entry in minidump table\n");
-
-	strscpy(md_entry.name, "LOG_DESC", sizeof(md_entry.name));
-	md_entry.virt_addr = (uintptr_t)descaddr;
-	md_entry.phys_addr = virt_to_phys(descaddr);
-	md_entry.size = sizeof(struct prb_desc) * _DESCS_COUNT(descring.count_bits);
-	ret = msm_minidump_add_region(&md_entry);
-	if (ret < 0)
-		pr_err("Failed to add log_desc entry in minidump table\n");
-
-	strscpy(md_entry.name, "LOG_INFO", sizeof(md_entry.name));
-	md_entry.virt_addr = (uintptr_t)p_infos;
-	md_entry.phys_addr = virt_to_phys(p_infos);
-	md_entry.size = sizeof(struct printk_info) * _DESCS_COUNT(descring.count_bits);
-	ret = msm_minidump_add_region(&md_entry);
-	if (ret < 0)
-		pr_err("Failed to add log_info entry in minidump table\n");
-}
 
 static void copy_boot_log_pr_cont(void *unused, struct printk_record *r, size_t text_len)
 {
@@ -224,7 +186,7 @@ static void copy_boot_log(void *unused, struct printk_ringbuffer *prb,
 
 		/*
 		 * Check whether remaining buffer has enough space
-		 * for record meta data size + newline + terminator
+		 * for record prefix size + newline + terminator
 		 * if not, let's reject the record.
 		 */
 		if ((off + r->info->text_len + PREFIX_MAX + 1 + 1) > boot_log_buf_size)
@@ -271,7 +233,7 @@ static void copy_boot_log(void *unused, struct printk_ringbuffer *prb,
 
 			/*
 			 * Check whether remaining buffer has enough space
-			 * for record meta data size + newline + terminator
+			 * for record prefix size + newline + terminator
 			 * if not, let's reject the record.
 			 */
 			if ((off + textlen + PREFIX_MAX + 1 + 1) > boot_log_buf_size)
@@ -337,9 +299,9 @@ static void release_boot_log_buf(void)
 	kfree(boot_log_buf);
 }
 
-static int logbuf_vh_driver_probe(struct platform_device *pdev)
+int boot_log_register(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
 	ret = boot_log_init();
 	if (ret < 0)
@@ -347,14 +309,14 @@ static int logbuf_vh_driver_probe(struct platform_device *pdev)
 
 	ret = register_trace_android_vh_logbuf(copy_boot_log, NULL);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register android_vh_logbuf hook\n");
+		dev_err(dev, "Failed to register android_vh_logbuf hook\n");
 		kfree(boot_log_buf);
 		return ret;
 	}
 
 	ret = register_trace_android_vh_logbuf_pr_cont(copy_boot_log_pr_cont, NULL);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register android_vh_logbuf_pr_cont hook\n");
+		dev_err(dev, "Failed to register android_vh_logbuf_pr_cont hook\n");
 		unregister_trace_android_vh_logbuf(copy_boot_log, NULL);
 		kfree(boot_log_buf);
 	}
@@ -362,29 +324,9 @@ static int logbuf_vh_driver_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int logbuf_vh_driver_remove(struct platform_device *pdev)
+void boot_log_unregister(void)
 {
 	unregister_trace_android_vh_logbuf_pr_cont(copy_boot_log_pr_cont, NULL);
 	unregister_trace_android_vh_logbuf(copy_boot_log, NULL);
 	release_boot_log_buf();
-	return 0;
 }
-
-static const struct of_device_id logbuf_vh_of_match[] = {
-	{ .compatible = "qcom,logbuf-vendor-hooks" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, logbuf_vh_of_match);
-
-static struct platform_driver logbuf_vh_driver = {
-	.driver = {
-		.name = "qcom-logbuf-vh",
-		.of_match_table = logbuf_vh_of_match,
-	},
-	.probe = logbuf_vh_driver_probe,
-	.remove = logbuf_vh_driver_remove,
-};
-module_platform_driver(logbuf_vh_driver);
-
-MODULE_DESCRIPTION("QCOM Logbuf Vendor Hooks Driver");
-MODULE_LICENSE("GPL v2");
