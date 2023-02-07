@@ -10,16 +10,12 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/seqlock.h>
 
 struct s390_idle_data {
-	seqcount_t seqcount;
 	unsigned long idle_count;
 	unsigned long idle_time;
 	unsigned long clock_idle_enter;
-	unsigned long clock_idle_exit;
 	unsigned long timer_idle_enter;
-	unsigned long timer_idle_exit;
 	unsigned long mt_cycles_enter[8];
 };
 
