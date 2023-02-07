@@ -391,7 +391,7 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(22), 3, GFLAGS),
 	GATE(PCLK_MAILBOX, "pclk_mailbox", "pclk_bus", 0,
 			RK3562_CLKGATE_CON(22), 4, GFLAGS),
-	GATE(PCLK_INTC, "pclk_intc", "pclk_bus", CLK_IGNORE_UNUSED,
+	GATE(PCLK_INTC, "pclk_intc", "pclk_bus", 0,
 			RK3562_CLKGATE_CON(22), 5, GFLAGS),
 	GATE(ACLK_BUS_GIC400, "aclk_bus_gic400", "aclk_bus", CLK_IGNORE_UNUSED,
 			RK3562_CLKGATE_CON(22), 6, GFLAGS),
