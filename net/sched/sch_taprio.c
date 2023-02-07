@@ -39,6 +39,10 @@ static struct static_key_false taprio_have_working_mqprio;
 #define TAPRIO_FLAGS_INVALID U32_MAX
 
 struct sched_entry {
+	/* Durations between this GCL entry and the GCL entry where the
+	 * respective traffic class gate closes
+	 */
+	u64 gate_duration[TC_MAX_QUEUE];
 	struct list_head list;
 
 	/* The instant that this entry "closes" and the next one
@@ -55,6 +59,10 @@ struct sched_entry {
 };
 
 struct sched_gate_list {
+	/* Longest non-zero contiguous gate durations per traffic class,
+	 * or 0 if a traffic class gate never opens during the schedule.
+	 */
+	u64 max_open_gate_duration[TC_MAX_QUEUE];
 	struct rcu_head rcu;
 	struct list_head entries;
 	size_t num_entries;
@@ -94,6 +102,51 @@ struct __tc_taprio_qopt_offload {
 	refcount_t users;
 	struct tc_taprio_qopt_offload offload;
 };
+
+static void taprio_calculate_gate_durations(struct taprio_sched *q,
+					    struct sched_gate_list *sched)
+{
+	struct net_device *dev = qdisc_dev(q->root);
+	int num_tc = netdev_get_num_tc(dev);
+	struct sched_entry *entry, *cur;
+	int tc;
+
+	list_for_each_entry(entry, &sched->entries, list) {
+		u32 gates_still_open = entry->gate_mask;
+
+		/* For each traffic class, calculate each open gate duration,
+		 * starting at this schedule entry and ending at the schedule
+		 * entry containing a gate close event for that TC.
+		 */
+		cur = entry;
+
+		do {
+			if (!gates_still_open)
+				break;
+
+			for (tc = 0; tc < num_tc; tc++) {
+				if (!(gates_still_open & BIT(tc)))
+					continue;
+
+				if (cur->gate_mask & BIT(tc))
+					entry->gate_duration[tc] += cur->interval;
+				else
+					gates_still_open &= ~BIT(tc);
+			}
+
+			cur = list_next_entry_circular(cur, &sched->entries, list);
+		} while (cur != entry);
+
+		/* Keep track of the maximum gate duration for each traffic
+		 * class, taking care to not confuse a traffic class which is
+		 * temporarily closed with one that is always closed.
+		 */
+		for (tc = 0; tc < num_tc; tc++)
+			if (entry->gate_duration[tc] &&
+			    sched->max_open_gate_duration[tc] < entry->gate_duration[tc])
+				sched->max_open_gate_duration[tc] = entry->gate_duration[tc];
+	}
+}
 
 static ktime_t sched_base_time(const struct sched_gate_list *sched)
 {
@@ -952,6 +1005,8 @@ static int parse_taprio_schedule(struct taprio_sched *q, struct nlattr **tb,
 
 		new->cycle_time = cycle;
 	}
+
+	taprio_calculate_gate_durations(q, new);
 
 	return 0;
 }
