@@ -234,6 +234,24 @@ static int lan966x_tc_flower_del(struct lan966x_port *port,
 	return err;
 }
 
+static int lan966x_tc_flower_stats(struct lan966x_port *port,
+				   struct flow_cls_offload *f,
+				   struct vcap_admin *admin)
+{
+	struct vcap_counter count = {};
+	int err;
+
+	err = vcap_get_rule_count_by_cookie(port->lan966x->vcap_ctrl,
+					    &count, f->cookie);
+	if (err)
+		return err;
+
+	flow_stats_update(&f->stats, 0x0, count.value, 0, 0,
+			  FLOW_ACTION_HW_STATS_IMMEDIATE);
+
+	return err;
+}
+
 int lan966x_tc_flower(struct lan966x_port *port,
 		      struct flow_cls_offload *f,
 		      bool ingress)
@@ -252,6 +270,8 @@ int lan966x_tc_flower(struct lan966x_port *port,
 		return lan966x_tc_flower_add(port, f, admin, ingress);
 	case FLOW_CLS_DESTROY:
 		return lan966x_tc_flower_del(port, f, admin);
+	case FLOW_CLS_STATS:
+		return lan966x_tc_flower_stats(port, f, admin);
 	default:
 		return -EOPNOTSUPP;
 	}
