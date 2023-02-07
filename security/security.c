@@ -6,6 +6,7 @@
  * Copyright (C) 2001-2002 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
  * Copyright (C) 2016 Mellanox Technologies
+ * Copyright (C) 2023 Microsoft Corporation <paul@paul-moore.com>
  */
 
 #define pr_fmt(fmt) "LSM: " fmt
@@ -880,16 +881,61 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }
 
+/**
+ * security_bprm_creds_for_exec() - Prepare the credentials for exec()
+ * @bprm: binary program information
+ *
+ * If the setup in prepare_exec_creds did not setup @bprm->cred->security
+ * properly for executing @bprm->file, update the LSM's portion of
+ * @bprm->cred->security to be what commit_creds needs to install for the new
+ * program.  This hook may also optionally check permissions (e.g. for
+ * transitions between security domains).  The hook must set @bprm->secureexec
+ * to 1 if AT_SECURE should be set to request libc enable secure mode.  @bprm
+ * contains the linux_binprm structure.
+ *
+ * Return: Returns 0 if the hook is successful and permission is granted.
+ */
 int security_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
 	return call_int_hook(bprm_creds_for_exec, 0, bprm);
 }
 
+/**
+ * security_bprm_creds_from_file() - Update linux_binprm creds based on file
+ * @bprm: binary program information
+ * @file: associated file
+ *
+ * If @file is setpcap, suid, sgid or otherwise marked to change privilege upon
+ * exec, update @bprm->cred to reflect that change. This is called after
+ * finding the binary that will be executed without an interpreter.  This
+ * ensures that the credentials will not be derived from a script that the
+ * binary will need to reopen, which when reopend may end up being a completely
+ * different file.  This hook may also optionally check permissions (e.g. for
+ * transitions between security domains).  The hook must set @bprm->secureexec
+ * to 1 if AT_SECURE should be set to request libc enable secure mode.  The
+ * hook must add to @bprm->per_clear any personality flags that should be
+ * cleared from current->personality.  @bprm contains the linux_binprm
+ * structure.
+ *
+ * Return: Returns 0 if the hook is successful and permission is granted.
+ */
 int security_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file)
 {
 	return call_int_hook(bprm_creds_from_file, 0, bprm, file);
 }
 
+/**
+ * security_bprm_check() - Mediate binary handler search
+ * @bprm: binary program information
+ *
+ * This hook mediates the point when a search for a binary handler will begin.
+ * It allows a check against the @bprm->cred->security value which was set in
+ * the preceding creds_for_exec call.  The argv list and envp list are reliably
+ * available in @bprm.  This hook may be called multiple times during a single
+ * execve.  @bprm contains the linux_binprm structure.
+ *
+ * Return: Returns 0 if the hook is successful and permission is granted.
+ */
 int security_bprm_check(struct linux_binprm *bprm)
 {
 	int ret;
@@ -900,11 +946,34 @@ int security_bprm_check(struct linux_binprm *bprm)
 	return ima_bprm_check(bprm);
 }
 
+/**
+ * security_bprm_committing_creds() - Install creds for a process during exec()
+ * @bprm: binary program information
+ *
+ * Prepare to install the new security attributes of a process being
+ * transformed by an execve operation, based on the old credentials pointed to
+ * by @current->cred and the information set in @bprm->cred by the
+ * bprm_creds_for_exec hook.  @bprm points to the linux_binprm structure.  This
+ * hook is a good place to perform state changes on the process such as closing
+ * open file descriptors to which access will no longer be granted when the
+ * attributes are changed.  This is called immediately before commit_creds().
+ */
 void security_bprm_committing_creds(struct linux_binprm *bprm)
 {
 	call_void_hook(bprm_committing_creds, bprm);
 }
 
+/**
+ * security_bprm_committed_creds() - Tidy up after cred install during exec()
+ * @bprm: binary program information
+ *
+ * Tidy up after the installation of the new security attributes of a process
+ * being transformed by an execve operation.  The new credentials have, by this
+ * point, been set to @current->cred.  @bprm points to the linux_binprm
+ * structure.  This hook is a good place to perform state changes on the
+ * process such as clearing out non-inheritable signal state.  This is called
+ * immediately after commit_creds().
+ */
 void security_bprm_committed_creds(struct linux_binprm *bprm)
 {
 	call_void_hook(bprm_committed_creds, bprm);
