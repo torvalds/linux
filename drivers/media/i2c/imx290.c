@@ -1098,7 +1098,7 @@ static int imx290_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops imx290_pm_ops = {
-	SET_RUNTIME_PM_OPS(imx290_runtime_suspend, imx290_runtime_resume, NULL)
+	RUNTIME_PM_OPS(imx290_runtime_suspend, imx290_runtime_resume, NULL)
 };
 
 /* ----------------------------------------------------------------------------
@@ -1362,8 +1362,8 @@ static struct i2c_driver imx290_i2c_driver = {
 	.remove = imx290_remove,
 	.driver = {
 		.name  = "imx290",
-		.pm = &imx290_pm_ops,
-		.of_match_table = of_match_ptr(imx290_of_match),
+		.pm = pm_ptr(&imx290_pm_ops),
+		.of_match_table = imx290_of_match,
 	},
 };
 
