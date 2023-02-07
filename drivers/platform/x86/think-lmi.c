@@ -1089,12 +1089,12 @@ static void tlmi_pwd_setting_release(struct kobject *kobj)
 	kfree(setting);
 }
 
-static struct kobj_type tlmi_attr_setting_ktype = {
+static const struct kobj_type tlmi_attr_setting_ktype = {
 	.release        = &tlmi_attr_setting_release,
 	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
 };
 
-static struct kobj_type tlmi_pwd_setting_ktype = {
+static const struct kobj_type tlmi_pwd_setting_ktype = {
 	.release        = &tlmi_pwd_setting_release,
 	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
 };
