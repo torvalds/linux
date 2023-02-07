@@ -333,8 +333,7 @@ bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
 			log->stats[type].sampled_overflow += 16;
 		}
 
-		dev_notice_ratelimited(guc_to_gt(log_to_guc(log))->i915->drm.dev,
-				       "GuC log buffer overflow\n");
+		guc_notice_ratelimited(log_to_guc(log), "log buffer overflow\n");
 	}
 
 	return overflow;
