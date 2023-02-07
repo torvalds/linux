@@ -1612,8 +1612,8 @@ static int __find_mapped_range(struct dm_thin_device *td,
 		if (r) {
 			if (r == -ENODATA)
 				break;
-			else
-				return r;
+
+			return r;
 		}
 
 		if ((lookup.block != pool_end) ||

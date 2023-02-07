@@ -793,13 +793,12 @@ static int __sm_ll_dec_overflow(struct ll_disk *ll, dm_block_t b,
 	rc = le32_to_cpu(*v_ptr);
 	*old_rc = rc;
 
-	if (rc == 3) {
+	if (rc == 3)
 		return __sm_ll_del_overflow(ll, b, ic);
-	} else {
-		rc--;
-		*v_ptr = cpu_to_le32(rc);
-		return 0;
-	}
+
+	rc--;
+	*v_ptr = cpu_to_le32(rc);
+	return 0;
 }
 
 static int sm_ll_dec_overflow(struct ll_disk *ll, dm_block_t b,

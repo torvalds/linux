@@ -1352,8 +1352,8 @@ static int find_key(struct ro_spine *s, dm_block_t block, bool find_highest,
 		i = le32_to_cpu(ro_node(s)->header.nr_entries);
 		if (!i)
 			return -ENODATA;
-		else
-			i--;
+
+		i--;
 
 		if (find_highest)
 			*result_key = le64_to_cpu(ro_node(s)->keys[i]);

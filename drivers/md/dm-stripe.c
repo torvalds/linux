@@ -259,11 +259,11 @@ static int stripe_map_range(struct stripe_c *sc, struct bio *bio,
 			sc->stripe[target_stripe].physical_start;
 		bio->bi_iter.bi_size = to_bytes(end - begin);
 		return DM_MAPIO_REMAPPED;
-	} else {
-		/* The range doesn't map to the target stripe */
-		bio_endio(bio);
-		return DM_MAPIO_SUBMITTED;
 	}
+
+	/* The range doesn't map to the target stripe */
+	bio_endio(bio);
+	return DM_MAPIO_SUBMITTED;
 }
 
 static int stripe_map(struct dm_target *ti, struct bio *bio)

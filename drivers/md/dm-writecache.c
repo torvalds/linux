@@ -623,15 +623,15 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 		if (unlikely(!node)) {
 			if (!(flags & WFE_RETURN_FOLLOWING))
 				return NULL;
-			if (read_original_sector(wc, e) >= block) {
+			if (read_original_sector(wc, e) >= block)
 				return e;
-			} else {
-				node = rb_next(&e->rb_node);
-				if (unlikely(!node))
-					return NULL;
-				e = container_of(node, struct wc_entry, rb_node);
-				return e;
-			}
+
+			node = rb_next(&e->rb_node);
+			if (unlikely(!node))
+				return NULL;
+
+			e = container_of(node, struct wc_entry, rb_node);
+			return e;
 		}
 	}
 
