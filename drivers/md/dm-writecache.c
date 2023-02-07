@@ -772,7 +772,7 @@ static void writecache_poison_lists(struct dm_writecache *wc)
 	/*
 	 * Catch incorrect access to these values while the device is suspended.
 	 */
-	memset(&wc->tree, -1, sizeof wc->tree);
+	memset(&wc->tree, -1, sizeof(wc->tree));
 	wc->lru.next = LIST_POISON1;
 	wc->lru.prev = LIST_POISON2;
 	wc->freelist.next = LIST_POISON1;
@@ -1182,7 +1182,7 @@ static int process_clear_stats_mesg(unsigned int argc, char **argv, struct dm_wr
 		return -EINVAL;
 
 	wc_lock(wc);
-	memset(&wc->stats, 0, sizeof wc->stats);
+	memset(&wc->stats, 0, sizeof(wc->stats));
 	wc_unlock(wc);
 
 	return 0;
@@ -2174,7 +2174,7 @@ static int init_memory(struct dm_writecache *wc)
 	writecache_flush_all_metadata(wc);
 	writecache_commit_flushed(wc, false);
 	pmem_assign(sb(wc)->magic, cpu_to_le32(MEMORY_SUPERBLOCK_MAGIC));
-	writecache_flush_region(wc, &sb(wc)->magic, sizeof sb(wc)->magic);
+	writecache_flush_region(wc, &sb(wc)->magic, sizeof(sb(wc)->magic));
 	writecache_commit_flushed(wc, false);
 
 	return 0;

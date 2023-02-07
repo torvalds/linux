@@ -826,7 +826,7 @@ static void section_mac(struct dm_integrity_c *ic, unsigned int section, __u8 re
 		}
 
 		section_le = cpu_to_le64(section);
-		r = crypto_shash_update(desc, (__u8 *)&section_le, sizeof section_le);
+		r = crypto_shash_update(desc, (__u8 *)&section_le, sizeof(section_le));
 		if (unlikely(r < 0)) {
 			dm_integrity_io_error(ic, "crypto_shash_update", r);
 			goto err;
@@ -836,7 +836,7 @@ static void section_mac(struct dm_integrity_c *ic, unsigned int section, __u8 re
 	for (j = 0; j < ic->journal_section_entries; j++) {
 		struct journal_entry *je = access_journal_entry(ic, section, j);
 
-		r = crypto_shash_update(desc, (__u8 *)&je->u.sector, sizeof je->u.sector);
+		r = crypto_shash_update(desc, (__u8 *)&je->u.sector, sizeof(je->u.sector));
 		if (unlikely(r < 0)) {
 			dm_integrity_io_error(ic, "crypto_shash_update", r);
 			goto err;
@@ -1687,7 +1687,7 @@ static void integrity_sector_checksum(struct dm_integrity_c *ic, sector_t sector
 		}
 	}
 
-	r = crypto_shash_update(req, (const __u8 *)&sector_le, sizeof sector_le);
+	r = crypto_shash_update(req, (const __u8 *)&sector_le, sizeof(sector_le));
 	if (unlikely(r < 0)) {
 		dm_integrity_io_error(ic, "crypto_shash_update", r);
 		goto failed;
@@ -2967,8 +2967,8 @@ static void replay_journal(struct dm_integrity_c *ic)
 		goto clear_journal;
 
 	journal_empty = true;
-	memset(used_commit_ids, 0, sizeof used_commit_ids);
-	memset(max_commit_id_sections, 0, sizeof max_commit_id_sections);
+	memset(used_commit_ids, 0, sizeof(used_commit_ids));
+	memset(max_commit_id_sections, 0, sizeof(max_commit_id_sections));
 	for (i = 0; i < ic->journal_sections; i++) {
 		for (j = 0; j < ic->journal_section_sectors; j++) {
 			int k;
@@ -3685,7 +3685,7 @@ static void free_alg(struct alg_spec *a)
 {
 	kfree_sensitive(a->alg_string);
 	kfree_sensitive(a->key);
-	memset(a, 0, sizeof *a);
+	memset(a, 0, sizeof(*a));
 }
 
 static int get_alg_and_key(const char *arg, struct alg_spec *a, char **error, char *error_inval)
@@ -3852,10 +3852,10 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				clear_page(va);
 				sg_set_buf(&sg[i], va, PAGE_SIZE);
 			}
-			sg_set_buf(&sg[i], &ic->commit_ids, sizeof ic->commit_ids);
+			sg_set_buf(&sg[i], &ic->commit_ids, sizeof(ic->commit_ids));
 
 			skcipher_request_set_crypt(req, sg, sg,
-						   PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, crypt_iv);
+						   PAGE_SIZE * ic->journal_pages + sizeof(ic->commit_ids), crypt_iv);
 			init_completion(&comp.comp);
 			comp.in_flight = (atomic_t)ATOMIC_INIT(1);
 			if (do_crypt(true, req, &comp))
