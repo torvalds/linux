@@ -1,3 +1,4 @@
+
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================================
@@ -17,7 +18,7 @@ HugeTLB pages consist of multiple base page size pages and is supported by many
 architectures. See Documentation/admin-guide/mm/hugetlbpage.rst for more
 details. On the x86-64 architecture, HugeTLB pages of size 2MB and 1GB are
 currently supported. Since the base page size on x86 is 4KB, a 2MB HugeTLB page
-consists of 512 base pages and a 1GB HugeTLB page consists of 4096 base pages.
+consists of 512 base pages and a 1GB HugeTLB page consists of 262144 base pages.
 For each base page, there is a corresponding ``struct page``.
 
 Within the HugeTLB subsystem, only the first 4 ``struct page`` are used to
