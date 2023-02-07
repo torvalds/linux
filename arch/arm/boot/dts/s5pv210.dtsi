@@ -547,8 +547,8 @@
 			status = "disabled";
 		};
 
-		camera: camera {
-			compatible = "samsung,fimc", "simple-bus";
+		camera: camera@fa600000 {
+			compatible = "samsung,fimc";
 			pinctrl-names = "default";
 			pinctrl-0 = <>;
 			clocks = <&clocks SCLK_CAM0>, <&clocks SCLK_CAM1>;
