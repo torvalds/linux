@@ -346,7 +346,7 @@
 		};
 
 		pmu_system_controller: system-controller@10020000 {
-			compatible = "samsung,exynos3250-pmu", "syscon";
+			compatible = "samsung,exynos3250-pmu", "simple-mfd", "syscon";
 			reg = <0x10020000 0x4000>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
@@ -354,12 +354,11 @@
 			clock-names = "clkout8";
 			clocks = <&cmu CLK_FIN_PLL>;
 			#clock-cells = <1>;
-		};
 
-		mipi_phy: video-phy {
-			compatible = "samsung,s5pv210-mipi-video-phy";
-			#phy-cells = <1>;
-			syscon = <&pmu_system_controller>;
+			mipi_phy: mipi-phy {
+				compatible = "samsung,s5pv210-mipi-video-phy";
+				#phy-cells = <1>;
+			};
 		};
 
 		pd_cam: power-domain@10023c00 {
