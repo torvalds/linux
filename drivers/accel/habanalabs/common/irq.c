@@ -393,24 +393,6 @@ irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
 }
 
 /**
- * hl_irq_handler_default - default irq handler
- *
- * @irq: irq number
- * @arg: pointer to user interrupt structure
- *
- */
-irqreturn_t hl_irq_handler_default(int irq, void *arg)
-{
-	struct hl_user_interrupt *user_interrupt = arg;
-	struct hl_device *hdev = user_interrupt->hdev;
-	u32 interrupt_id = user_interrupt->interrupt_id;
-
-	dev_err(hdev->dev, "got invalid user interrupt %u", interrupt_id);
-
-	return IRQ_HANDLED;
-}
-
-/**
  * hl_irq_handler_eq - irq handler for event queue
  *
  * @irq: irq number

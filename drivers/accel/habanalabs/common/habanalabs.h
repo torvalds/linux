@@ -3656,7 +3656,6 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg);
 irqreturn_t hl_irq_handler_eq(int irq, void *arg);
 irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg);
 irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg);
-irqreturn_t hl_irq_handler_default(int irq, void *arg);
 irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg);
 u32 hl_cq_inc_ptr(u32 ptr);
 
