@@ -108,6 +108,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&en_pp3300_dx_edp>;
 
+		regulator-enable-ramp-delay = <3000>;
+
 		vin-supply = <&pp3300_z1>;
 	};
 
