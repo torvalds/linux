@@ -84,6 +84,14 @@ struct {
 	__uint(max_entries, 1);
 } addr_filter SEC(".maps");
 
+struct rw_semaphore___old {
+	struct task_struct *owner;
+} __attribute__((preserve_access_index));
+
+struct rw_semaphore___new {
+	atomic_long_t owner;
+} __attribute__((preserve_access_index));
+
 /* control flags */
 int enabled;
 int has_cpu;
@@ -161,6 +169,41 @@ static inline int update_task_data(struct task_struct *task)
 	return 0;
 }
 
+#ifndef __has_builtin
+# define __has_builtin(x) 0
+#endif
+
+static inline struct task_struct *get_lock_owner(__u64 lock, __u32 flags)
+{
+	struct task_struct *task;
+	__u64 owner = 0;
+
+	if (flags & LCB_F_MUTEX) {
+		struct mutex *mutex = (void *)lock;
+		owner = BPF_CORE_READ(mutex, owner.counter);
+	} else if (flags == LCB_F_READ || flags == LCB_F_WRITE) {
+#if __has_builtin(bpf_core_type_matches)
+		if (bpf_core_type_matches(struct rw_semaphore___old)) {
+			struct rw_semaphore___old *rwsem = (void *)lock;
+			owner = (unsigned long)BPF_CORE_READ(rwsem, owner);
+		} else if (bpf_core_type_matches(struct rw_semaphore___new)) {
+			struct rw_semaphore___new *rwsem = (void *)lock;
+			owner = BPF_CORE_READ(rwsem, owner.counter);
+		}
+#else
+		/* assume new struct */
+		struct rw_semaphore *rwsem = (void *)lock;
+		owner = BPF_CORE_READ(rwsem, owner.counter);
+#endif
+	}
+
+	if (!owner)
+		return NULL;
+
+	task = (void *)(owner & ~7UL);
+	return task;
+}
+
 SEC("tp_btf/contention_begin")
 int contention_begin(u64 *ctx)
 {
@@ -199,19 +242,7 @@ int contention_begin(u64 *ctx)
 		struct task_struct *task;
 
 		if (lock_owner) {
-			if (pelem->flags & LCB_F_MUTEX) {
-				struct mutex *lock = (void *)pelem->lock;
-				unsigned long owner = BPF_CORE_READ(lock, owner.counter);
-
-				task = (void *)(owner & ~7UL);
-			} else if (pelem->flags == LCB_F_READ || pelem->flags == LCB_F_WRITE) {
-				struct rw_semaphore *lock = (void *)pelem->lock;
-				unsigned long owner = BPF_CORE_READ(lock, owner.counter);
-
-				task = (void *)(owner & ~7UL);
-			} else {
-				task = NULL;
-			}
+			task = get_lock_owner(pelem->lock, pelem->flags);
 
 			/* The flags is not used anymore.  Pass the owner pid. */
 			if (task)
