@@ -472,13 +472,11 @@ failed:
  * it has been invoked.
  */
 #define dm_report_EIO(m)						\
-do {									\
 	DMDEBUG_LIMIT("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d", \
 		      dm_table_device_name((m)->ti->table),		\
 		      test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
 		      test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags), \
-		      dm_noflush_suspending((m)->ti));			\
-} while (0)
+		      dm_noflush_suspending((m)->ti))
 
 /*
  * Check whether bios must be queued in the device-mapper core rather

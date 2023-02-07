@@ -113,9 +113,9 @@ struct journal_entry {
 #endif
 #define journal_entry_get_sector(je)		le64_to_cpu((je)->u.sector)
 #define journal_entry_is_unused(je)		((je)->u.s.sector_hi == cpu_to_le32(-1))
-#define journal_entry_set_unused(je)		do { ((je)->u.s.sector_hi = cpu_to_le32(-1)); } while (0)
+#define journal_entry_set_unused(je)		((je)->u.s.sector_hi = cpu_to_le32(-1))
 #define journal_entry_is_inprogress(je)		((je)->u.s.sector_hi == cpu_to_le32(-2))
-#define journal_entry_set_inprogress(je)	do { ((je)->u.s.sector_hi = cpu_to_le32(-2)); } while (0)
+#define journal_entry_set_inprogress(je)	((je)->u.s.sector_hi = cpu_to_le32(-2))
 
 #define JOURNAL_BLOCK_SECTORS		8
 #define JOURNAL_SECTOR_DATA		((1 << SECTOR_SHIFT) - sizeof(commit_id_t))
