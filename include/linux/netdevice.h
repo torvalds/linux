@@ -223,6 +223,7 @@ struct net_device_core_stats {
 #include <linux/static_key.h>
 extern struct static_key_false rps_needed;
 extern struct static_key_false rfs_needed;
+extern struct cpumask rps_default_mask;
 #endif
 
 struct neighbour;

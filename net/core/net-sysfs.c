@@ -1083,6 +1083,13 @@ static int rx_queue_add_kobject(struct net_device *dev, int index)
 			goto err;
 	}
 
+#if IS_ENABLED(CONFIG_RPS) && IS_ENABLED(CONFIG_SYSCTL)
+	if (!cpumask_empty(&rps_default_mask)) {
+		error = netdev_rx_queue_set_rps_mask(queue, &rps_default_mask);
+		if (error)
+			goto err;
+	}
+#endif
 	kobject_uevent(kobj, KOBJ_ADD);
 
 	return error;

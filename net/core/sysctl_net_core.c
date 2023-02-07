@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/sched/isolation.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -45,7 +46,7 @@ EXPORT_SYMBOL(sysctl_fb_tunnels_only_for_init_net);
 int sysctl_devconf_inherit_init_net __read_mostly;
 EXPORT_SYMBOL(sysctl_devconf_inherit_init_net);
 
-#if IS_ENABLED(CONFIG_NET_FLOW_LIMIT)
+#if IS_ENABLED(CONFIG_NET_FLOW_LIMIT) || IS_ENABLED(CONFIG_RPS)
 static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
 			 struct cpumask *mask)
 {
@@ -73,6 +74,31 @@ static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
 #endif
 
 #ifdef CONFIG_RPS
+struct cpumask rps_default_mask;
+
+static int rps_default_mask_sysctl(struct ctl_table *table, int write,
+				   void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int err = 0;
+
+	rtnl_lock();
+	if (write) {
+		err = cpumask_parse(buffer, &rps_default_mask);
+		if (err)
+			goto done;
+
+		err = rps_cpumask_housekeeping(&rps_default_mask);
+		if (err)
+			goto done;
+	} else {
+		dump_cpumask(buffer, lenp, ppos, &rps_default_mask);
+	}
+
+done:
+	rtnl_unlock();
+	return err;
+}
+
 static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -482,6 +508,11 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= rps_sock_flow_sysctl
 	},
+	{
+		.procname	= "rps_default_mask",
+		.mode		= 0644,
+		.proc_handler	= rps_default_mask_sysctl
+	},
 #endif
 #ifdef CONFIG_NET_FLOW_LIMIT
 	{
@@ -685,6 +716,10 @@ static __net_initdata struct pernet_operations sysctl_core_ops = {
 
 static __init int sysctl_core_init(void)
 {
+#if IS_ENABLED(CONFIG_RPS)
+	cpumask_copy(&rps_default_mask, cpu_none_mask);
+#endif
+
 	register_net_sysctl(&init_net, "net/core", net_core_table);
 	return register_pernet_subsys(&sysctl_core_ops);
 }
