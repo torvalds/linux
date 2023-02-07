@@ -104,13 +104,14 @@
 	vcc_sd: vcc-sd {
 		compatible = "regulator-gpio";
 		enable-active-low;
-		enable-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+		regulator-boot-on;
+		gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc_sd_h>;
 		regulator-name = "vcc_sd";
-		states = <3300000 0x0
+		states = <0 0x0
 			  3300000 0x1>;
 	};
 
@@ -453,7 +454,7 @@
 
 	vcc_sd {
 		vcc_sd_h: vcc-sd-h {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
