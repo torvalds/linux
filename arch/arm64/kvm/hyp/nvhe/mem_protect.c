@@ -2037,6 +2037,10 @@ static int restrict_host_page_perms(u64 addr, kvm_pte_t pte, u32 level, enum kvm
 	return ret;
 }
 
+#define MODULE_PROT_ALLOWLIST (KVM_PGTABLE_PROT_RWX |	\
+			       KVM_PGTABLE_PROT_NC |	\
+			       KVM_PGTABLE_PROT_PXN |	\
+			       KVM_PGTABLE_PROT_UXN)
 int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 {
 	u64 addr = hyp_pfn_to_phys(pfn);
@@ -2045,7 +2049,7 @@ int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 	u32 level;
 	int ret;
 
-	if ((prot & KVM_PGTABLE_PROT_RWX) != prot)
+	if ((prot & MODULE_PROT_ALLOWLIST) != prot)
 		return -EINVAL;
 
 	host_lock_component();
