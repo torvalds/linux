@@ -4404,12 +4404,12 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 			root_objectid = gang[i]->root_key.objectid;
 			err = btrfs_orphan_cleanup(gang[i]);
 			if (err)
-				break;
+				goto out;
 			btrfs_put_root(gang[i]);
 		}
 		root_objectid++;
 	}
-
+out:
 	/* release the uncleaned roots due to error */
 	for (; i < ret; i++) {
 		if (gang[i])
