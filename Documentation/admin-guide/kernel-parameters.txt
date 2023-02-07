@@ -6272,6 +6272,12 @@
 			comma-separated list of trace events to enable. See
 			also Documentation/trace/events.rst
 
+	trace_instance=[instance-info]
+			[FTRACE] Create a ring buffer instance early in boot up.
+			This will be listed in:
+
+				/sys/kernel/tracing/instances
+
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.
 			The option-list is a comma delimited list of options
