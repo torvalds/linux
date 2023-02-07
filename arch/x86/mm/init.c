@@ -806,7 +806,7 @@ void __init poking_init(void)
 	BUG_ON(!poking_mm);
 
 	/* Xen PV guests need the PGD to be pinned. */
-	paravirt_arch_dup_mmap(NULL, poking_mm);
+	paravirt_enter_mmap(poking_mm);
 
 	/*
 	 * Randomize the poking address, but make sure that the following page
