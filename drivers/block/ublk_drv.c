@@ -150,6 +150,7 @@ struct ublk_device {
 
 #define UB_STATE_OPEN		0
 #define UB_STATE_USED		1
+#define UB_STATE_DELETED	2
 	unsigned long		state;
 	int			ub_number;
 
@@ -1804,20 +1805,33 @@ static int ublk_ctrl_del_dev(struct ublk_device **p_ub)
 	if (ret)
 		return ret;
 
-	ublk_remove(ub);
+	if (!test_bit(UB_STATE_DELETED, &ub->state)) {
+		ublk_remove(ub);
+		set_bit(UB_STATE_DELETED, &ub->state);
+	}
 
 	/* Mark the reference as consumed */
 	*p_ub = NULL;
 	ublk_put_device(ub);
+	mutex_unlock(&ublk_ctl_mutex);
 
 	/*
 	 * Wait until the idr is removed, then it can be reused after
 	 * DEL_DEV command is returned.
+	 *
+	 * If we returns because of user interrupt, future delete command
+	 * may come:
+	 *
+	 * - the device number isn't freed, this device won't or needn't
+	 *   be deleted again, since UB_STATE_DELETED is set, and device
+	 *   will be released after the last reference is dropped
+	 *
+	 * - the device number is freed already, we will not find this
+	 *   device via ublk_get_device_from_id()
 	 */
-	wait_event(ublk_idr_wq, ublk_idr_freed(idx));
-	mutex_unlock(&ublk_ctl_mutex);
+	wait_event_interruptible(ublk_idr_wq, ublk_idr_freed(idx));
 
-	return ret;
+	return 0;
 }
 
 static inline void ublk_ctrl_cmd_dump(struct io_uring_cmd *cmd)
