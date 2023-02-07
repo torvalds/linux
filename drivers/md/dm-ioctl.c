@@ -1835,8 +1835,8 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 	if (copy_from_user(version, user->version, sizeof(version)))
 		return -EFAULT;
 
-	if ((DM_VERSION_MAJOR != version[0]) ||
-	    (DM_VERSION_MINOR < version[1])) {
+	if ((version[0] != DM_VERSION_MAJOR) ||
+	    (version[1] > DM_VERSION_MINOR)) {
 		DMERR("ioctl interface mismatch: kernel(%u.%u.%u), user(%u.%u.%u), cmd(%d)",
 		      DM_VERSION_MAJOR, DM_VERSION_MINOR,
 		      DM_VERSION_PATCHLEVEL,
