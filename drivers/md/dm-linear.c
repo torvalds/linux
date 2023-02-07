@@ -65,7 +65,7 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->private = lc;
 	return 0;
 
-      bad:
+bad:
 	kfree(lc);
 	return ret;
 }

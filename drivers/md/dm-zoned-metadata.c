@@ -1342,7 +1342,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 			if (ret == -EINVAL)
 				goto out_kfree;
 		}
-	out_kfree:
+out_kfree:
 		kfree(sb);
 	}
 	return ret;

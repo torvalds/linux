@@ -433,7 +433,7 @@ static int __init dm_bio_prison_init(void)
 
 	return 0;
 
-      bad:
+bad:
 	while (i--)
 		_exits[i]();
 
