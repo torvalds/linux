@@ -80,12 +80,6 @@ struct mod_tree_root mod_tree __cacheline_aligned = {
 	.addr_min = -1UL,
 };
 
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-struct mod_tree_root mod_data_tree __cacheline_aligned = {
-	.addr_min = -1UL,
-};
-#endif
-
 struct symsearch {
 	const struct kernel_symbol *start, *stop;
 	const s32 *crcs;
@@ -93,14 +87,24 @@ struct symsearch {
 };
 
 /*
- * Bounds of module text, for speeding up __module_address.
+ * Bounds of module memory, for speeding up __module_address.
  * Protected by module_mutex.
  */
-static void __mod_update_bounds(void *base, unsigned int size, struct mod_tree_root *tree)
+static void __mod_update_bounds(enum mod_mem_type type __maybe_unused, void *base,
+				unsigned int size, struct mod_tree_root *tree)
 {
 	unsigned long min = (unsigned long)base;
 	unsigned long max = min + size;
 
+#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
+	if (mod_mem_type_is_core_data(type)) {
+		if (min < tree->data_addr_min)
+			tree->data_addr_min = min;
+		if (max > tree->data_addr_max)
+			tree->data_addr_max = max;
+		return;
+	}
+#endif
 	if (min < tree->addr_min)
 		tree->addr_min = min;
 	if (max > tree->addr_max)
@@ -109,12 +113,12 @@ static void __mod_update_bounds(void *base, unsigned int size, struct mod_tree_r
 
 static void mod_update_bounds(struct module *mod)
 {
-	__mod_update_bounds(mod->core_layout.base, mod->core_layout.size, &mod_tree);
-	if (mod->init_layout.size)
-		__mod_update_bounds(mod->init_layout.base, mod->init_layout.size, &mod_tree);
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	__mod_update_bounds(mod->data_layout.base, mod->data_layout.size, &mod_data_tree);
-#endif
+	for_each_mod_mem_type(type) {
+		struct module_memory *mod_mem = &mod->mem[type];
+
+		if (mod_mem->size)
+			__mod_update_bounds(type, mod_mem->base, mod_mem->size, &mod_tree);
+	}
 }
 
 /* Block module loading/unloading? */
@@ -926,7 +930,13 @@ struct module_attribute module_uevent =
 static ssize_t show_coresize(struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
-	return sprintf(buffer, "%u\n", mk->mod->core_layout.size);
+	unsigned int size = mk->mod->mem[MOD_TEXT].size;
+
+	if (!IS_ENABLED(CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC)) {
+		for_class_mod_mem_type(type, core_data)
+			size += mk->mod->mem[type].size;
+	}
+	return sprintf(buffer, "%u\n", size);
 }
 
 static struct module_attribute modinfo_coresize =
@@ -936,7 +946,11 @@ static struct module_attribute modinfo_coresize =
 static ssize_t show_datasize(struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
-	return sprintf(buffer, "%u\n", mk->mod->data_layout.size);
+	unsigned int size = 0;
+
+	for_class_mod_mem_type(type, core_data)
+		size += mk->mod->mem[type].size;
+	return sprintf(buffer, "%u\n", size);
 }
 
 static struct module_attribute modinfo_datasize =
@@ -946,7 +960,11 @@ static struct module_attribute modinfo_datasize =
 static ssize_t show_initsize(struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
-	return sprintf(buffer, "%u\n", mk->mod->init_layout.size);
+	unsigned int size = 0;
+
+	for_class_mod_mem_type(type, init)
+		size += mk->mod->mem[type].size;
+	return sprintf(buffer, "%u\n", size);
 }
 
 static struct module_attribute modinfo_initsize =
@@ -1143,6 +1161,46 @@ void __weak module_arch_freeing_init(struct module *mod)
 {
 }
 
+static bool mod_mem_use_vmalloc(enum mod_mem_type type)
+{
+	return IS_ENABLED(CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC) &&
+		mod_mem_type_is_core_data(type);
+}
+
+static void *module_memory_alloc(unsigned int size, enum mod_mem_type type)
+{
+	if (mod_mem_use_vmalloc(type))
+		return vzalloc(size);
+	return module_alloc(size);
+}
+
+static void module_memory_free(void *ptr, enum mod_mem_type type)
+{
+	if (mod_mem_use_vmalloc(type))
+		vfree(ptr);
+	else
+		module_memfree(ptr);
+}
+
+static void free_mod_mem(struct module *mod)
+{
+	for_each_mod_mem_type(type) {
+		struct module_memory *mod_mem = &mod->mem[type];
+
+		if (type == MOD_DATA)
+			continue;
+
+		/* Free lock-classes; relies on the preceding sync_rcu(). */
+		lockdep_free_key_range(mod_mem->base, mod_mem->size);
+		if (mod_mem->size)
+			module_memory_free(mod_mem->base, type);
+	}
+
+	/* MOD_DATA hosts mod, so free it at last */
+	lockdep_free_key_range(mod->mem[MOD_DATA].base, mod->mem[MOD_DATA].size);
+	module_memory_free(mod->mem[MOD_DATA].base, MOD_DATA);
+}
+
 /* Free a module, remove from lists, etc. */
 static void free_module(struct module *mod)
 {
@@ -1189,18 +1247,10 @@ static void free_module(struct module *mod)
 
 	/* This may be empty, but that's OK */
 	module_arch_freeing_init(mod);
-	module_memfree(mod->init_layout.base);
 	kfree(mod->args);
 	percpu_modfree(mod);
 
-	/* Free lock-classes; relies on the preceding sync_rcu(). */
-	lockdep_free_key_range(mod->data_layout.base, mod->data_layout.size);
-
-	/* Finally, free the core (containing the module structure) */
-	module_memfree(mod->core_layout.base);
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	vfree(mod->data_layout.base);
-#endif
+	free_mod_mem(mod);
 }
 
 void *__symbol_get(const char *symbol)
@@ -1387,16 +1437,18 @@ unsigned int __weak arch_mod_section_prepend(struct module *mod,
 	return 0;
 }
 
-/* Update size with this section: return offset. */
-long module_get_offset(struct module *mod, unsigned int *size,
-		       Elf_Shdr *sechdr, unsigned int section)
+long module_get_offset_and_type(struct module *mod, enum mod_mem_type type,
+				Elf_Shdr *sechdr, unsigned int section)
 {
-	long ret;
+	long offset;
+	long mask = ((unsigned long)(type) & SH_ENTSIZE_TYPE_MASK) << SH_ENTSIZE_TYPE_SHIFT;
 
-	*size += arch_mod_section_prepend(mod, section);
-	ret = ALIGN(*size, sechdr->sh_addralign ?: 1);
-	*size = ret + sechdr->sh_size;
-	return ret;
+	mod->mem[type].size += arch_mod_section_prepend(mod, section);
+	offset = ALIGN(mod->mem[type].size, sechdr->sh_addralign ?: 1);
+	mod->mem[type].size = offset + sechdr->sh_size;
+
+	WARN_ON_ONCE(offset & mask);
+	return offset | mask;
 }
 
 static bool module_init_layout_section(const char *sname)
@@ -1408,15 +1460,11 @@ static bool module_init_layout_section(const char *sname)
 	return module_init_section(sname);
 }
 
-/*
- * Lay out the SHF_ALLOC sections in a way not dissimilar to how ld
- * might -- code, read-only data, read-write data, small data.  Tally
- * sizes, and place the offsets into sh_entsize fields: high bit means it
- * belongs in init.
- */
-static void layout_sections(struct module *mod, struct load_info *info)
+static void __layout_sections(struct module *mod, struct load_info *info, bool is_init)
 {
-	static unsigned long const masks[][2] = {
+	unsigned int m, i;
+
+	static const unsigned long masks[][2] = {
 		/*
 		 * NOTE: all executable code must be the first section
 		 * in this array; otherwise modify the text_size
@@ -1428,82 +1476,61 @@ static void layout_sections(struct module *mod, struct load_info *info)
 		{ SHF_WRITE | SHF_ALLOC, ARCH_SHF_SMALL },
 		{ ARCH_SHF_SMALL | SHF_ALLOC, 0 }
 	};
-	unsigned int m, i;
+	static const int core_m_to_mem_type[] = {
+		MOD_TEXT,
+		MOD_RODATA,
+		MOD_RO_AFTER_INIT,
+		MOD_DATA,
+		MOD_INVALID,	/* This is needed to match the masks array */
+	};
+	static const int init_m_to_mem_type[] = {
+		MOD_INIT_TEXT,
+		MOD_INIT_RODATA,
+		MOD_INVALID,
+		MOD_INIT_DATA,
+		MOD_INVALID,	/* This is needed to match the masks array */
+	};
+
+	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
+		enum mod_mem_type type = is_init ? init_m_to_mem_type[m] : core_m_to_mem_type[m];
+
+		for (i = 0; i < info->hdr->e_shnum; ++i) {
+			Elf_Shdr *s = &info->sechdrs[i];
+			const char *sname = info->secstrings + s->sh_name;
+
+			if ((s->sh_flags & masks[m][0]) != masks[m][0]
+			    || (s->sh_flags & masks[m][1])
+			    || s->sh_entsize != ~0UL
+			    || is_init != module_init_layout_section(sname))
+				continue;
+
+			if (WARN_ON_ONCE(type == MOD_INVALID))
+				continue;
+
+			s->sh_entsize = module_get_offset_and_type(mod, type, s, i);
+			pr_debug("\t%s\n", sname);
+		}
+	}
+}
+
+/*
+ * Lay out the SHF_ALLOC sections in a way not dissimilar to how ld
+ * might -- code, read-only data, read-write data, small data.  Tally
+ * sizes, and place the offsets into sh_entsize fields: high bit means it
+ * belongs in init.
+ */
+static void layout_sections(struct module *mod, struct load_info *info)
+{
+	unsigned int i;
 
 	for (i = 0; i < info->hdr->e_shnum; i++)
 		info->sechdrs[i].sh_entsize = ~0UL;
 
 	pr_debug("Core section allocation order:\n");
-	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
-		for (i = 0; i < info->hdr->e_shnum; ++i) {
-			Elf_Shdr *s = &info->sechdrs[i];
-			const char *sname = info->secstrings + s->sh_name;
-			unsigned int *sizep;
-
-			if ((s->sh_flags & masks[m][0]) != masks[m][0]
-			    || (s->sh_flags & masks[m][1])
-			    || s->sh_entsize != ~0UL
-			    || module_init_layout_section(sname))
-				continue;
-			sizep = m ? &mod->data_layout.size : &mod->core_layout.size;
-			s->sh_entsize = module_get_offset(mod, sizep, s, i);
-			pr_debug("\t%s\n", sname);
-		}
-		switch (m) {
-		case 0: /* executable */
-			mod->core_layout.size = strict_align(mod->core_layout.size);
-			mod->core_layout.text_size = mod->core_layout.size;
-			break;
-		case 1: /* RO: text and ro-data */
-			mod->data_layout.size = strict_align(mod->data_layout.size);
-			mod->data_layout.ro_size = mod->data_layout.size;
-			break;
-		case 2: /* RO after init */
-			mod->data_layout.size = strict_align(mod->data_layout.size);
-			mod->data_layout.ro_after_init_size = mod->data_layout.size;
-			break;
-		case 4: /* whole core */
-			mod->data_layout.size = strict_align(mod->data_layout.size);
-			break;
-		}
-	}
+	__layout_sections(mod, info, false);
 
 	pr_debug("Init section allocation order:\n");
-	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
-		for (i = 0; i < info->hdr->e_shnum; ++i) {
-			Elf_Shdr *s = &info->sechdrs[i];
-			const char *sname = info->secstrings + s->sh_name;
-
-			if ((s->sh_flags & masks[m][0]) != masks[m][0]
-			    || (s->sh_flags & masks[m][1])
-			    || s->sh_entsize != ~0UL
-			    || !module_init_layout_section(sname))
-				continue;
-			s->sh_entsize = (module_get_offset(mod, &mod->init_layout.size, s, i)
-					 | INIT_OFFSET_MASK);
-			pr_debug("\t%s\n", sname);
-		}
-		switch (m) {
-		case 0: /* executable */
-			mod->init_layout.size = strict_align(mod->init_layout.size);
-			mod->init_layout.text_size = mod->init_layout.size;
-			break;
-		case 1: /* RO: text and ro-data */
-			mod->init_layout.size = strict_align(mod->init_layout.size);
-			mod->init_layout.ro_size = mod->init_layout.size;
-			break;
-		case 2:
-			/*
-			 * RO after init doesn't apply to init_layout (only
-			 * core_layout), so it just takes the value of ro_size.
-			 */
-			mod->init_layout.ro_after_init_size = mod->init_layout.ro_size;
-			break;
-		case 4: /* whole init */
-			mod->init_layout.size = strict_align(mod->init_layout.size);
-			break;
-		}
-	}
+	__layout_sections(mod, info, true);
 }
 
 static void set_license(struct module *mod, const char *license)
@@ -2122,72 +2149,41 @@ static int move_module(struct module *mod, struct load_info *info)
 {
 	int i;
 	void *ptr;
+	enum mod_mem_type t;
 
-	/* Do the allocs. */
-	ptr = module_alloc(mod->core_layout.size);
-	/*
-	 * The pointer to this block is stored in the module structure
-	 * which is inside the block. Just mark it as not being a
-	 * leak.
-	 */
-	kmemleak_not_leak(ptr);
-	if (!ptr)
-		return -ENOMEM;
+	for_each_mod_mem_type(type) {
+		if (!mod->mem[type].size) {
+			mod->mem[type].base = NULL;
+			continue;
+		}
+		mod->mem[type].size = PAGE_ALIGN(mod->mem[type].size);
+		ptr = module_memory_alloc(mod->mem[type].size, type);
 
-	memset(ptr, 0, mod->core_layout.size);
-	mod->core_layout.base = ptr;
-
-	if (mod->init_layout.size) {
-		ptr = module_alloc(mod->init_layout.size);
 		/*
 		 * The pointer to this block is stored in the module structure
-		 * which is inside the block. This block doesn't need to be
-		 * scanned as it contains data and code that will be freed
-		 * after the module is initialized.
+		 * which is inside the block. Just mark it as not being a
+		 * leak.
 		 */
 		kmemleak_ignore(ptr);
 		if (!ptr) {
-			module_memfree(mod->core_layout.base);
-			return -ENOMEM;
+			t = type;
+			goto out_enomem;
 		}
-		memset(ptr, 0, mod->init_layout.size);
-		mod->init_layout.base = ptr;
-	} else
-		mod->init_layout.base = NULL;
-
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	/* Do the allocs. */
-	ptr = vzalloc(mod->data_layout.size);
-	/*
-	 * The pointer to this block is stored in the module structure
-	 * which is inside the block. Just mark it as not being a
-	 * leak.
-	 */
-	kmemleak_not_leak(ptr);
-	if (!ptr) {
-		module_memfree(mod->core_layout.base);
-		module_memfree(mod->init_layout.base);
-		return -ENOMEM;
+		memset(ptr, 0, mod->mem[type].size);
+		mod->mem[type].base = ptr;
 	}
 
-	mod->data_layout.base = ptr;
-#endif
 	/* Transfer each section which specifies SHF_ALLOC */
 	pr_debug("final section addresses:\n");
 	for (i = 0; i < info->hdr->e_shnum; i++) {
 		void *dest;
 		Elf_Shdr *shdr = &info->sechdrs[i];
+		enum mod_mem_type type = shdr->sh_entsize >> SH_ENTSIZE_TYPE_SHIFT;
 
 		if (!(shdr->sh_flags & SHF_ALLOC))
 			continue;
 
-		if (shdr->sh_entsize & INIT_OFFSET_MASK)
-			dest = mod->init_layout.base
-				+ (shdr->sh_entsize & ~INIT_OFFSET_MASK);
-		else if (!(shdr->sh_flags & SHF_EXECINSTR))
-			dest = mod->data_layout.base + shdr->sh_entsize;
-		else
-			dest = mod->core_layout.base + shdr->sh_entsize;
+		dest = mod->mem[type].base + (shdr->sh_entsize & SH_ENTSIZE_OFFSET_MASK);
 
 		if (shdr->sh_type != SHT_NOBITS)
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
@@ -2198,6 +2194,10 @@ static int move_module(struct module *mod, struct load_info *info)
 	}
 
 	return 0;
+out_enomem:
+	for (t--; t >= 0; t--)
+		module_memory_free(mod->mem[t].base, t);
+	return -ENOMEM;
 }
 
 static int check_module_license_and_versions(struct module *mod)
@@ -2242,12 +2242,14 @@ static void flush_module_icache(const struct module *mod)
 	 * Do it before processing of module parameters, so the module
 	 * can provide parameter accessor functions of its own.
 	 */
-	if (mod->init_layout.base)
-		flush_icache_range((unsigned long)mod->init_layout.base,
-				   (unsigned long)mod->init_layout.base
-				   + mod->init_layout.size);
-	flush_icache_range((unsigned long)mod->core_layout.base,
-			   (unsigned long)mod->core_layout.base + mod->core_layout.size);
+	for_each_mod_mem_type(type) {
+		const struct module_memory *mod_mem = &mod->mem[type];
+
+		if (mod_mem->size) {
+			flush_icache_range((unsigned long)mod_mem->base,
+					   (unsigned long)mod_mem->base + mod_mem->size);
+		}
+	}
 }
 
 bool __weak module_elf_check_arch(Elf_Ehdr *hdr)
@@ -2350,11 +2352,8 @@ static void module_deallocate(struct module *mod, struct load_info *info)
 {
 	percpu_modfree(mod);
 	module_arch_freeing_init(mod);
-	module_memfree(mod->init_layout.base);
-	module_memfree(mod->core_layout.base);
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	vfree(mod->data_layout.base);
-#endif
+
+	free_mod_mem(mod);
 }
 
 int __weak module_finalize(const Elf_Ehdr *hdr,
@@ -2415,7 +2414,9 @@ static void do_mod_ctors(struct module *mod)
 /* For freeing module_init on success, in case kallsyms traversing */
 struct mod_initfree {
 	struct llist_node node;
-	void *module_init;
+	void *init_text;
+	void *init_data;
+	void *init_rodata;
 };
 
 static void do_free_init(struct work_struct *w)
@@ -2429,7 +2430,9 @@ static void do_free_init(struct work_struct *w)
 
 	llist_for_each_safe(pos, n, list) {
 		initfree = container_of(pos, struct mod_initfree, node);
-		module_memfree(initfree->module_init);
+		module_memfree(initfree->init_text);
+		module_memfree(initfree->init_data);
+		module_memfree(initfree->init_rodata);
 		kfree(initfree);
 	}
 }
@@ -2456,7 +2459,9 @@ static noinline int do_init_module(struct module *mod)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	freeinit->module_init = mod->init_layout.base;
+	freeinit->init_text = mod->mem[MOD_INIT_TEXT].base;
+	freeinit->init_data = mod->mem[MOD_INIT_DATA].base;
+	freeinit->init_rodata = mod->mem[MOD_INIT_RODATA].base;
 
 	do_mod_ctors(mod);
 	/* Start the module */
@@ -2492,8 +2497,8 @@ static noinline int do_init_module(struct module *mod)
 	if (!mod->async_probe_requested)
 		async_synchronize_full();
 
-	ftrace_free_mem(mod, mod->init_layout.base, mod->init_layout.base +
-			mod->init_layout.size);
+	ftrace_free_mem(mod, mod->mem[MOD_INIT_TEXT].base,
+			mod->mem[MOD_INIT_TEXT].base + mod->mem[MOD_INIT_TEXT].size);
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */
 	module_put(mod);
@@ -2505,11 +2510,10 @@ static noinline int do_init_module(struct module *mod)
 	module_enable_ro(mod, true);
 	mod_tree_remove_init(mod);
 	module_arch_freeing_init(mod);
-	mod->init_layout.base = NULL;
-	mod->init_layout.size = 0;
-	mod->init_layout.ro_size = 0;
-	mod->init_layout.ro_after_init_size = 0;
-	mod->init_layout.text_size = 0;
+	for_class_mod_mem_type(type, init) {
+		mod->mem[type].base = NULL;
+		mod->mem[type].size = 0;
+	}
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointer */
 	mod->btf_data = NULL;
@@ -2628,9 +2632,6 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 	module_cfi_finalize(info->hdr, info->sechdrs, mod);
 
-	if (module_check_misalignment(mod))
-		goto out_misaligned;
-
 	module_enable_ro(mod, false);
 	module_enable_nx(mod);
 	module_enable_x(mod);
@@ -2644,8 +2645,6 @@ static int complete_formation(struct module *mod, struct load_info *info)
 
 	return 0;
 
-out_misaligned:
-	err = -EINVAL;
 out:
 	mutex_unlock(&module_mutex);
 	return err;
@@ -2909,7 +2908,10 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mutex_unlock(&module_mutex);
  free_module:
 	/* Free lock-classes; relies on the preceding sync_rcu() */
-	lockdep_free_key_range(mod->data_layout.base, mod->data_layout.size);
+	for_class_mod_mem_type(type, core_data) {
+		lockdep_free_key_range(mod->mem[type].base,
+				       mod->mem[type].size);
+	}
 
 	module_deallocate(mod, info);
  free_copy:
@@ -3060,20 +3062,21 @@ bool is_module_address(unsigned long addr)
 struct module *__module_address(unsigned long addr)
 {
 	struct module *mod;
-	struct mod_tree_root *tree;
 
 	if (addr >= mod_tree.addr_min && addr <= mod_tree.addr_max)
-		tree = &mod_tree;
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	else if (addr >= mod_data_tree.addr_min && addr <= mod_data_tree.addr_max)
-		tree = &mod_data_tree;
-#endif
-	else
-		return NULL;
+		goto lookup;
 
+#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
+	if (addr >= mod_tree.data_addr_min && addr <= mod_tree.data_addr_max)
+		goto lookup;
+#endif
+
+	return NULL;
+
+lookup:
 	module_assert_mutex_or_preempt();
 
-	mod = mod_find(addr, tree);
+	mod = mod_find(addr, &mod_tree);
 	if (mod) {
 		BUG_ON(!within_module(addr, mod));
 		if (mod->state == MODULE_STATE_UNFORMED)
@@ -3113,8 +3116,8 @@ struct module *__module_text_address(unsigned long addr)
 	struct module *mod = __module_address(addr);
 	if (mod) {
 		/* Make sure it's within the text section. */
-		if (!within(addr, mod->init_layout.base, mod->init_layout.text_size)
-		    && !within(addr, mod->core_layout.base, mod->core_layout.text_size))
+		if (!within_module_mem_type(addr, mod, MOD_TEXT) &&
+		    !within_module_mem_type(addr, mod, MOD_INIT_TEXT))
 			mod = NULL;
 	}
 	return mod;

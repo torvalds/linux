@@ -17,27 +17,19 @@
 #define ARCH_SHF_SMALL 0
 #endif
 
-/* If this is set, the section belongs in the init part of the module */
-#define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG - 1))
+/*
+ * Use highest 4 bits of sh_entsize to store the mod_mem_type of this
+ * section. This leaves 28 bits for offset on 32-bit systems, which is
+ * about 256 MiB (WARN_ON_ONCE if we exceed that).
+ */
+
+#define SH_ENTSIZE_TYPE_BITS	4
+#define SH_ENTSIZE_TYPE_SHIFT	(BITS_PER_LONG - SH_ENTSIZE_TYPE_BITS)
+#define SH_ENTSIZE_TYPE_MASK	((1UL << SH_ENTSIZE_TYPE_BITS) - 1)
+#define SH_ENTSIZE_OFFSET_MASK	((1UL << (BITS_PER_LONG - SH_ENTSIZE_TYPE_BITS)) - 1)
+
 /* Maximum number of characters written by module_flags() */
 #define MODULE_FLAGS_BUF_SIZE (TAINT_FLAGS_COUNT + 4)
-
-#ifndef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-#define	data_layout core_layout
-#endif
-
-/*
- * Modules' sections will be aligned on page boundaries
- * to ensure complete separation of code and data, but
- * only when CONFIG_STRICT_MODULE_RWX=y
- */
-static inline unsigned int strict_align(unsigned int size)
-{
-	if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
-		return PAGE_ALIGN(size);
-	else
-		return size;
-}
 
 extern struct mutex module_mutex;
 extern struct list_head modules;
@@ -101,8 +93,8 @@ int try_to_force_load(struct module *mod, const char *reason);
 bool find_symbol(struct find_symbol_arg *fsa);
 struct module *find_module_all(const char *name, size_t len, bool even_unformed);
 int cmp_name(const void *name, const void *sym);
-long module_get_offset(struct module *mod, unsigned int *size, Elf_Shdr *sechdr,
-		       unsigned int section);
+long module_get_offset_and_type(struct module *mod, enum mod_mem_type type,
+				Elf_Shdr *sechdr, unsigned int section);
 char *module_flags(struct module *mod, char *buf, bool show_state);
 size_t module_flags_taint(unsigned long taints, char *buf);
 
@@ -190,10 +182,13 @@ struct mod_tree_root {
 #endif
 	unsigned long addr_min;
 	unsigned long addr_max;
+#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
+	unsigned long data_addr_min;
+	unsigned long data_addr_max;
+#endif
 };
 
 extern struct mod_tree_root mod_tree;
-extern struct mod_tree_root mod_data_tree;
 
 #ifdef CONFIG_MODULES_TREE_LOOKUP
 void mod_tree_insert(struct module *mod);
@@ -224,7 +219,6 @@ void module_enable_nx(const struct module *mod);
 void module_enable_x(const struct module *mod);
 int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 				char *secstrings, struct module *mod);
-bool module_check_misalignment(const struct module *mod);
 
 #ifdef CONFIG_MODULE_SIG
 int module_sig_check(struct load_info *info, int flags);
