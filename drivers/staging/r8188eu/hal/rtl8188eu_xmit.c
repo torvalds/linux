@@ -137,7 +137,7 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 	}
 }
 
-static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
+static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 {
 	uint	qsel;
 	u8 data_rate, pwr_status, offset;
@@ -319,7 +319,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 			sz = pattrib->last_txcmdsz;
 		}
 
-		pull = update_txdesc(pxmitframe, mem_addr, sz, false);
+		pull = update_txdesc(pxmitframe, mem_addr, sz);
 
 		if (pull) {
 			mem_addr += PACKET_OFFSET_SZ; /* pull txdesc head */
@@ -489,7 +489,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt)
 		rtw_xmit_complete(adapt, pxmitframe);
 
 		/*  (len - TXDESC_SIZE) == pxmitframe->attrib.last_txcmdsz */
-		update_txdesc(pxmitframe, pxmitframe->buf_addr, pxmitframe->attrib.last_txcmdsz, true);
+		update_txdesc(pxmitframe, pxmitframe->buf_addr, pxmitframe->attrib.last_txcmdsz);
 
 		/*  don't need xmitframe any more */
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
@@ -529,7 +529,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt)
 		pfirstframe->pkt_offset--;
 	}
 
-	update_txdesc(pfirstframe, pfirstframe->buf_addr, pfirstframe->attrib.last_txcmdsz, true);
+	update_txdesc(pfirstframe, pfirstframe->buf_addr, pfirstframe->attrib.last_txcmdsz);
 
 	/* 3 4. write xmit buffer to USB FIFO */
 	ff_hwaddr = rtw_get_ff_hwaddr(pfirstframe);
