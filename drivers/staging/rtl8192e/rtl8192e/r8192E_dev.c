@@ -1861,7 +1861,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 
 
 			rtl92e_writeb(dev, PMR, 0x5);
-			rtl92e_writeb(dev, MacBlkCtrl, 0xa);
+			rtl92e_writeb(dev, MAC_BLK_CTRL, 0xa);
 		}
 	}
 

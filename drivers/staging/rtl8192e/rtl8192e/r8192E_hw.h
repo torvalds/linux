@@ -242,7 +242,7 @@ enum _RTL8192PCI_HW {
 	DRIVER_RSSI		= 0x32c,
 	MCS_TXAGC		= 0x340,
 	CCK_TXAGC		= 0x348,
-	MacBlkCtrl		= 0x403,
+	MAC_BLK_CTRL		= 0x403,
 };
 
 #define GPI 0x108
