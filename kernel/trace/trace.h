@@ -1334,6 +1334,8 @@ DECLARE_PER_CPU(int, trace_buffered_event_cnt);
 void trace_buffered_event_disable(void);
 void trace_buffered_event_enable(void);
 
+void early_enable_events(struct trace_array *tr, char *buf, bool disable_first);
+
 static inline void
 __trace_event_discard_commit(struct trace_buffer *buffer,
 			     struct ring_buffer_event *event)

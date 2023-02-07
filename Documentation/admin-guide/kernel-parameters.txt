@@ -6278,6 +6278,20 @@
 
 				/sys/kernel/tracing/instances
 
+			Events can be enabled at the time the instance is created
+			via:
+
+				trace_instance=<name>,<system1>:<event1>,<system2>:<event2>
+
+			Note, the "<system*>:" portion is optional if the event is
+			unique.
+
+				trace_instance=foo,sched:sched_switch,irq_handler_entry,initcall
+
+			will enable the "sched_switch" event (note, the "sched:" is optional, and
+			the same thing would happen if it was left off). The irq_handler_entry
+			event, and all events under the "initcall" system.
+
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.
 			The option-list is a comma delimited list of options

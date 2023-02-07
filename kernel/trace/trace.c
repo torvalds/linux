@@ -10188,6 +10188,10 @@ __init static void enable_instances(void)
 		}
 		/* Allow user space to delete it */
 		trace_array_put(tr);
+
+		while ((tok = strsep(&curr_str, ","))) {
+			early_enable_events(tr, tok, true);
+		}
 	}
 }
 
