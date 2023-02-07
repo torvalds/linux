@@ -305,6 +305,10 @@
 	status = "okay";
 };
 
+&route_dsi {
+	status = "okay";
+};
+
 &vcc3v3_lcd_n {
 	gpio = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
 	enable-active-high;

@@ -313,6 +313,10 @@
 	status = "okay";
 };
 
+&route_dsi {
+	status = "okay";
+};
+
 &sai0 {
 	status = "okay";
 	pinctrl-names = "default";
