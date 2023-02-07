@@ -264,6 +264,9 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 	if (cpu_halted(dst_cpu))
 		return false;
 
+	if (task_reject_partialhalt_cpu(p, dst_cpu))
+		return false;
+
 	return true;
 }
 
@@ -282,6 +285,9 @@ static inline bool need_active_lb(struct task_struct *p, int dst_cpu,
 		return false;
 
 	if (!is_min_cluster_cpu(src_cpu) && !task_fits_max(p, dst_cpu))
+		return false;
+
+	if (task_reject_partialhalt_cpu(p, dst_cpu))
 		return false;
 
 	return true;
@@ -490,6 +496,9 @@ static int walt_lb_find_busiest_similar_cap_cpu(int dst_cpu, const cpumask_t *sr
 		if (cpu_rq(i)->nr_running < 2 || !cpu_rq(i)->cfs.h_nr_running)
 			continue;
 
+		if (cpu_partial_halted(dst_cpu) && !cpu_partial_halted(i))
+			continue;
+
 		util = walt_lb_cpu_util(i);
 		if (util < busiest_util)
 			continue;
@@ -511,6 +520,10 @@ static int walt_lb_find_busiest_from_higher_cap_cpu(int dst_cpu, const cpumask_t
 	int total_cpus = 0;
 	struct walt_rq *wrq;
 	bool asymcap_boost = ASYMCAP_BOOST(dst_cpu);
+
+	if (cpu_partial_halted(dst_cpu))
+		return -1;
+
 	for_each_cpu(i, src_mask) {
 
 		if (!cpu_active(i))
