@@ -294,7 +294,7 @@ static enum pool_mode get_pool_mode(struct pool *pool)
 
 static void notify_of_pool_mode_change(struct pool *pool)
 {
-	const char *descs[] = {
+	static const char *descs[] = {
 		"write",
 		"out-of-data-space",
 		"read-only",

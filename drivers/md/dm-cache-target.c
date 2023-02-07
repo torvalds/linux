@@ -859,7 +859,7 @@ static const char *cache_device_name(struct cache *cache)
 
 static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mode)
 {
-	const char *descs[] = {
+	static const char *descs[] = {
 		"write",
 		"read-only",
 		"fail"
