@@ -130,8 +130,8 @@ struct drx_path_sel {
 	u8		cck_rx_path;
 
 	u8		ss_th_low;
-	u8		diff_TH;
-	u8		disabledRF;
+	u8		diff_th;
+	u8		disabled_rf;
 	u8		reserved;
 
 	u8		rf_rssi[4];
