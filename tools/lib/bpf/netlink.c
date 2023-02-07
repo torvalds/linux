@@ -480,7 +480,7 @@ int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 
 	err = nlattr_add(&req, NETDEV_A_DEV_IFINDEX, &ifindex, sizeof(ifindex));
 	if (err < 0)
-		return err;
+		return libbpf_err(err);
 
 	err = libbpf_netlink_send_recv(&req, NETLINK_GENERIC,
 				       parse_xdp_features, NULL, &md);
