@@ -5,11 +5,10 @@
  *  Copyright (c) 2009 Jiri Kosina
  *  Copyright (c) 2009 Tomas Hanak
  *  Copyright (c) 2012 Nikolai Kondrashov
+ *  Copyright (c) 2023 David Yang
  */
 
-/*
- */
-
+#include <asm-generic/unaligned.h>
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -554,8 +553,25 @@ static __u8 easypen_m406xe_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
+static const struct kye_tablet_info {
+	__u32 product;
+	__s32 x_logical_maximum;
+	__s32 y_logical_maximum;
+	__s32 pressure_logical_maximum;
+	__s32 x_physical_maximum;
+	__s32 y_physical_maximum;
+	__s8 unit_exponent;
+	__s8 unit;
+	bool has_punk;
+	unsigned int control_rsize;
+	const __u8 *control_rdesc;
+} kye_tablets_info[] = {
+	{}
+};
+
 static __u8 *kye_consumer_control_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize, int offset, const char *device_name) {
+		unsigned int *rsize, int offset, const char *device_name)
+{
 	/*
 	 * the fixup that need to be done:
 	 *   - change Usage Maximum in the Consumer Control
@@ -571,6 +587,79 @@ static __u8 *kye_consumer_control_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "fixing up %s report descriptor\n", device_name);
 		rdesc[offset + 12] = 0x2f;
 	}
+	return rdesc;
+}
+
+/*
+ * Fix tablet descriptor of so-called "DataFormat 2".
+ *
+ * Though we may achieve a usable descriptor from original vendor-defined one,
+ * some problems exist:
+ *  - Their Logical Maximum never exceed 32767 (7F FF), though device do report
+ *    values greater than that;
+ *  - Physical Maximums are arbitrarily filled (always equal to Logical
+ *    Maximum);
+ *  - Detail for control buttons are not provided (a vendor-defined Usage Page
+ *    with fixed content).
+ *
+ * Thus we use a pre-defined parameter table rather than digging it from
+ * original descriptor.
+ *
+ * We may as well write a fallback routine for unrecognized kye tablet, but it's
+ * clear kye are unlikely to produce new models in the foreseeable future, so we
+ * simply enumerate all possible models.
+ */
+static __u8 *kye_tablet_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int *rsize)
+{
+	const struct kye_tablet_info *info;
+	unsigned int newsize;
+
+	if (*rsize < sizeof(kye_tablet_rdesc)) {
+		hid_warn(hdev,
+			 "tablet report size too small, or kye_tablet_rdesc unexpectedly large\n");
+		return rdesc;
+	}
+
+	for (info = kye_tablets_info; info->product; info++) {
+		if (hdev->product == info->product)
+			break;
+	}
+
+	if (!info->product) {
+		hid_err(hdev, "tablet unknown, someone forget to add kye_tablet_info entry?\n");
+		return rdesc;
+	}
+
+	newsize = info->has_punk ? sizeof(kye_tablet_rdesc) : 112;
+	memcpy(rdesc, kye_tablet_rdesc, newsize);
+
+	put_unaligned_le32(info->x_logical_maximum, rdesc + 66);
+	put_unaligned_le32(info->x_physical_maximum, rdesc + 72);
+	rdesc[77] = info->unit;
+	rdesc[79] = info->unit_exponent;
+	put_unaligned_le32(info->y_logical_maximum, rdesc + 87);
+	put_unaligned_le32(info->y_physical_maximum, rdesc + 92);
+	put_unaligned_le32(info->pressure_logical_maximum, rdesc + 104);
+
+	if (info->has_punk) {
+		put_unaligned_le32(info->x_logical_maximum, rdesc + 156);
+		put_unaligned_le32(info->x_physical_maximum, rdesc + 162);
+		rdesc[167] = info->unit;
+		rdesc[169] = info->unit_exponent;
+		put_unaligned_le32(info->y_logical_maximum, rdesc + 177);
+		put_unaligned_le32(info->y_physical_maximum, rdesc + 182);
+	}
+
+	if (info->control_rsize) {
+		if (newsize + info->control_rsize > *rsize)
+			hid_err(hdev, "control rdesc unexpectedly large");
+		else {
+			memcpy(rdesc + newsize, info->control_rdesc, info->control_rsize);
+			newsize += info->control_rsize;
+		}
+	}
+
+	*rsize = newsize;
 	return rdesc;
 }
 
@@ -654,14 +743,6 @@ static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
-/**
- * kye_tablet_enable() - Enable fully-functional tablet mode by setting a special feature report.
- *
- * @hdev:	HID device
- *
- * The specific report ID and data were discovered by sniffing the
- * Windows driver traffic.
- */
 static int kye_tablet_enable(struct hid_device *hdev)
 {
 	struct list_head *list;
@@ -688,6 +769,15 @@ static int kye_tablet_enable(struct hid_device *hdev)
 
 	value = report->field[0]->value;
 
+	/*
+	 * The code is for DataFormat 2 of config xml. They have no obvious
+	 * meaning (at least not configurable in Windows driver) except enabling
+	 * fully-functional tablet mode (absolute positioning). Otherwise, the
+	 * tablet acts like a relative mouse.
+	 *
+	 * Though there're magic codes for DataFormat 3 and 4, no devices use
+	 * these DataFormats.
+	 */
 	value[0] = 0x12;
 	value[1] = 0x10;
 	value[2] = 0x11;
