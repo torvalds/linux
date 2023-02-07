@@ -44,14 +44,6 @@ config GOOGLE_COREBOOT_TABLE
 	  device tree node /firmware/coreboot.
 	  If unsure say N.
 
-config GOOGLE_COREBOOT_TABLE_ACPI
-	tristate
-	select GOOGLE_COREBOOT_TABLE
-
-config GOOGLE_COREBOOT_TABLE_OF
-	tristate
-	select GOOGLE_COREBOOT_TABLE
-
 config GOOGLE_MEMCONSOLE
 	tristate
 	depends on GOOGLE_MEMCONSOLE_X86_LEGACY || GOOGLE_MEMCONSOLE_COREBOOT
