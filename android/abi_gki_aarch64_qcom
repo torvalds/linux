@@ -3290,6 +3290,11 @@
   __traceiter_android_vh_cpuidle_psci_exit
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
+  __traceiter_android_vh_ftrace_dump_buffer
+  __traceiter_android_vh_ftrace_format_check
+  __traceiter_android_vh_ftrace_oops_enter
+  __traceiter_android_vh_ftrace_oops_exit
+  __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
