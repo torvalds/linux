@@ -417,8 +417,234 @@ static void disable_aer(void *pdev)
 	pci_disable_pcie_error_reporting(pdev);
 }
 
+static void free_event_buf(void *buf)
+{
+	kvfree(buf);
+}
+
+/*
+ * There is a single buffer for reading event logs from the mailbox.  All logs
+ * share this buffer protected by the cxlds->event_log_lock.
+ */
+static int cxl_mem_alloc_event_buf(struct cxl_dev_state *cxlds)
+{
+	struct cxl_get_event_payload *buf;
+
+	buf = kvmalloc(cxlds->payload_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	cxlds->event.buf = buf;
+
+	return devm_add_action_or_reset(cxlds->dev, free_event_buf, buf);
+}
+
+static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
+{
+	int nvecs;
+
+	/*
+	 * Per CXL 3.0 3.1.1 CXL.io Endpoint a function on a CXL device must
+	 * not generate INTx messages if that function participates in
+	 * CXL.cache or CXL.mem.
+	 *
+	 * Additionally pci_alloc_irq_vectors() handles calling
+	 * pci_free_irq_vectors() automatically despite not being called
+	 * pcim_*.  See pci_setup_msi_context().
+	 */
+	nvecs = pci_alloc_irq_vectors(pdev, 1, CXL_PCI_DEFAULT_MAX_VECTORS,
+				      PCI_IRQ_MSIX | PCI_IRQ_MSI);
+	if (nvecs < 1) {
+		dev_dbg(&pdev->dev, "Failed to alloc irq vectors: %d\n", nvecs);
+		return -ENXIO;
+	}
+	return 0;
+}
+
+struct cxl_dev_id {
+	struct cxl_dev_state *cxlds;
+};
+
+static irqreturn_t cxl_event_thread(int irq, void *id)
+{
+	struct cxl_dev_id *dev_id = id;
+	struct cxl_dev_state *cxlds = dev_id->cxlds;
+	u32 status;
+
+	do {
+		/*
+		 * CXL 3.0 8.2.8.3.1: The lower 32 bits are the status;
+		 * ignore the reserved upper 32 bits
+		 */
+		status = readl(cxlds->regs.status + CXLDEV_DEV_EVENT_STATUS_OFFSET);
+		/* Ignore logs unknown to the driver */
+		status &= CXLDEV_EVENT_STATUS_ALL;
+		if (!status)
+			break;
+		cxl_mem_get_event_records(cxlds, status);
+		cond_resched();
+	} while (status);
+
+	return IRQ_HANDLED;
+}
+
+static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
+{
+	struct device *dev = cxlds->dev;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct cxl_dev_id *dev_id;
+	int irq;
+
+	if (FIELD_GET(CXLDEV_EVENT_INT_MODE_MASK, setting) != CXL_INT_MSI_MSIX)
+		return -ENXIO;
+
+	/* dev_id must be globally unique and must contain the cxlds */
+	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
+	if (!dev_id)
+		return -ENOMEM;
+	dev_id->cxlds = cxlds;
+
+	irq =  pci_irq_vector(pdev,
+			      FIELD_GET(CXLDEV_EVENT_INT_MSGNUM_MASK, setting));
+	if (irq < 0)
+		return irq;
+
+	return devm_request_threaded_irq(dev, irq, NULL, cxl_event_thread,
+					 IRQF_SHARED | IRQF_ONESHOT, NULL,
+					 dev_id);
+}
+
+static int cxl_event_get_int_policy(struct cxl_dev_state *cxlds,
+				    struct cxl_event_interrupt_policy *policy)
+{
+	struct cxl_mbox_cmd mbox_cmd = {
+		.opcode = CXL_MBOX_OP_GET_EVT_INT_POLICY,
+		.payload_out = policy,
+		.size_out = sizeof(*policy),
+	};
+	int rc;
+
+	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	if (rc < 0)
+		dev_err(cxlds->dev, "Failed to get event interrupt policy : %d",
+			rc);
+
+	return rc;
+}
+
+static int cxl_event_config_msgnums(struct cxl_dev_state *cxlds,
+				    struct cxl_event_interrupt_policy *policy)
+{
+	struct cxl_mbox_cmd mbox_cmd;
+	int rc;
+
+	*policy = (struct cxl_event_interrupt_policy) {
+		.info_settings = CXL_INT_MSI_MSIX,
+		.warn_settings = CXL_INT_MSI_MSIX,
+		.failure_settings = CXL_INT_MSI_MSIX,
+		.fatal_settings = CXL_INT_MSI_MSIX,
+	};
+
+	mbox_cmd = (struct cxl_mbox_cmd) {
+		.opcode = CXL_MBOX_OP_SET_EVT_INT_POLICY,
+		.payload_in = policy,
+		.size_in = sizeof(*policy),
+	};
+
+	rc = cxl_internal_send_cmd(cxlds, &mbox_cmd);
+	if (rc < 0) {
+		dev_err(cxlds->dev, "Failed to set event interrupt policy : %d",
+			rc);
+		return rc;
+	}
+
+	/* Retrieve final interrupt settings */
+	return cxl_event_get_int_policy(cxlds, policy);
+}
+
+static int cxl_event_irqsetup(struct cxl_dev_state *cxlds)
+{
+	struct cxl_event_interrupt_policy policy;
+	int rc;
+
+	rc = cxl_event_config_msgnums(cxlds, &policy);
+	if (rc)
+		return rc;
+
+	rc = cxl_event_req_irq(cxlds, policy.info_settings);
+	if (rc) {
+		dev_err(cxlds->dev, "Failed to get interrupt for event Info log\n");
+		return rc;
+	}
+
+	rc = cxl_event_req_irq(cxlds, policy.warn_settings);
+	if (rc) {
+		dev_err(cxlds->dev, "Failed to get interrupt for event Warn log\n");
+		return rc;
+	}
+
+	rc = cxl_event_req_irq(cxlds, policy.failure_settings);
+	if (rc) {
+		dev_err(cxlds->dev, "Failed to get interrupt for event Failure log\n");
+		return rc;
+	}
+
+	rc = cxl_event_req_irq(cxlds, policy.fatal_settings);
+	if (rc) {
+		dev_err(cxlds->dev, "Failed to get interrupt for event Fatal log\n");
+		return rc;
+	}
+
+	return 0;
+}
+
+static bool cxl_event_int_is_fw(u8 setting)
+{
+	u8 mode = FIELD_GET(CXLDEV_EVENT_INT_MODE_MASK, setting);
+
+	return mode == CXL_INT_FW;
+}
+
+static int cxl_event_config(struct pci_host_bridge *host_bridge,
+			    struct cxl_dev_state *cxlds)
+{
+	struct cxl_event_interrupt_policy policy;
+	int rc;
+
+	/*
+	 * When BIOS maintains CXL error reporting control, it will process
+	 * event records.  Only one agent can do so.
+	 */
+	if (!host_bridge->native_cxl_error)
+		return 0;
+
+	rc = cxl_mem_alloc_event_buf(cxlds);
+	if (rc)
+		return rc;
+
+	rc = cxl_event_get_int_policy(cxlds, &policy);
+	if (rc)
+		return rc;
+
+	if (cxl_event_int_is_fw(policy.info_settings) ||
+	    cxl_event_int_is_fw(policy.warn_settings) ||
+	    cxl_event_int_is_fw(policy.failure_settings) ||
+	    cxl_event_int_is_fw(policy.fatal_settings)) {
+		dev_err(cxlds->dev, "FW still in control of Event Logs despite _OSC settings\n");
+		return -EBUSY;
+	}
+
+	rc = cxl_event_irqsetup(cxlds);
+	if (rc)
+		return rc;
+
+	cxl_mem_get_event_records(cxlds, CXLDEV_EVENT_STATUS_ALL);
+
+	return 0;
+}
+
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct pci_host_bridge *host_bridge = pci_find_host_bridge(pdev->bus);
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
 	struct cxl_dev_state *cxlds;
@@ -434,6 +660,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
+	pci_set_master(pdev);
 
 	cxlds = cxl_dev_state_create(&pdev->dev);
 	if (IS_ERR(cxlds))
@@ -482,6 +709,10 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
+	rc = cxl_set_timestamp(cxlds);
+	if (rc)
+		return rc;
+
 	rc = cxl_dev_state_identify(cxlds);
 	if (rc)
 		return rc;
@@ -490,9 +721,17 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
+	rc = cxl_alloc_irq_vectors(pdev);
+	if (rc)
+		return rc;
+
 	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
+
+	rc = cxl_event_config(host_bridge, cxlds);
+	if (rc)
+		return rc;
 
 	if (cxlds->regs.ras) {
 		pci_enable_pcie_error_reporting(pdev);
