@@ -608,14 +608,14 @@ static int snd_card_do_free(struct snd_card *card)
  *
  * Return: zero if successful, or a negative error code
  */
-int snd_card_free_when_closed(struct snd_card *card)
+void snd_card_free_when_closed(struct snd_card *card)
 {
 	if (!card)
-		return -EINVAL;
+		return;
 
 	snd_card_disconnect(card);
 	put_device(&card->card_dev);
-	return 0;
+	return;
 }
 EXPORT_SYMBOL(snd_card_free_when_closed);
 
@@ -635,7 +635,6 @@ EXPORT_SYMBOL(snd_card_free_when_closed);
 int snd_card_free(struct snd_card *card)
 {
 	DECLARE_COMPLETION_ONSTACK(released);
-	int ret;
 
 	/* The call of snd_card_free() is allowed from various code paths;
 	 * a manual call from the driver and the call via devres_free, and
@@ -647,9 +646,8 @@ int snd_card_free(struct snd_card *card)
 		return 0;
 
 	card->release_completion = &released;
-	ret = snd_card_free_when_closed(card);
-	if (ret)
-		return ret;
+	snd_card_free_when_closed(card);
+
 	/* wait, until all devices are ready for the free operation */
 	wait_for_completion(&released);
 
