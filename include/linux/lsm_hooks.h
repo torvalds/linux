@@ -32,23 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks for mount using fs_context.
- *	[See also Documentation/filesystems/mount_api.rst]
- *
- * @fs_context_dup:
- *	Allocate and attach a security structure to sc->security.  This pointer
- *	is initialised to NULL by the caller.
- *	@fc indicates the new filesystem context.
- *	@src_fc indicates the original filesystem context.
- *	Return 0 on success or a negative error code on failure.
- * @fs_context_parse_param:
- *	Userspace provided a parameter to configure a superblock.  The LSM may
- *	reject it with an error and may use it for itself, in which case it
- *	should return 0; otherwise it should return -ENOPARAM to pass it on to
- *	the filesystem.
- *	@fc indicates the filesystem context.
- *	@param The parameter.
- *
  * Security hooks for filesystem operations.
  *
  * @sb_alloc_security:

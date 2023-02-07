@@ -979,11 +979,34 @@ void security_bprm_committed_creds(struct linux_binprm *bprm)
 	call_void_hook(bprm_committed_creds, bprm);
 }
 
+/**
+ * security_fs_context_dup() - Duplicate a fs_context LSM blob
+ * @fc: destination filesystem context
+ * @src_fc: source filesystem context
+ *
+ * Allocate and attach a security structure to sc->security.  This pointer is
+ * initialised to NULL by the caller.  @fc indicates the new filesystem context.
+ * @src_fc indicates the original filesystem context.
+ *
+ * Return: Returns 0 on success or a negative error code on failure.
+ */
 int security_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
 {
 	return call_int_hook(fs_context_dup, 0, fc, src_fc);
 }
 
+/**
+ * security_fs_context_parse_param() - Configure a filesystem context
+ * @fc: filesystem context
+ * @param: filesystem parameter
+ *
+ * Userspace provided a parameter to configure a superblock.  The LSM can
+ * consume the parameter or return it to the caller for use elsewhere.
+ *
+ * Return: If the parameter is used by the LSM it should return 0, if it is
+ *         returned to the caller -ENOPARAM is returned, otherwise a negative
+ *         error code is returned.
+ */
 int security_fs_context_parse_param(struct fs_context *fc,
 				    struct fs_parameter *param)
 {
