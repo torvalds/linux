@@ -940,7 +940,6 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	int min_freq, max_freq, nominal_freq, lowest_nonlinear_freq, ret;
 	struct amd_cpudata *cpudata;
 	struct device *dev;
-	int rc;
 	u64 value;
 
 	/*
@@ -950,7 +949,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	amd_perf_ctl_reset(policy->cpu);
 	dev = get_cpu_device(policy->cpu);
 	if (!dev)
-		goto free_cpudata1;
+		return -ENODEV;
 
 	cpudata = kzalloc(sizeof(*cpudata), GFP_KERNEL);
 	if (!cpudata)
@@ -959,8 +958,8 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	cpudata->cpu = policy->cpu;
 	cpudata->epp_policy = 0;
 
-	rc = amd_pstate_init_perf(cpudata);
-	if (rc)
+	ret = amd_pstate_init_perf(cpudata);
+	if (ret)
 		goto free_cpudata1;
 
 	min_freq = amd_get_min_freq(cpudata);
@@ -1076,9 +1075,9 @@ static void amd_pstate_epp_init(unsigned int cpu)
 		value |= (u64)epp << 24;
 	}
 
+	amd_pstate_set_epp(cpudata, epp);
 skip_epp:
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
-	amd_pstate_set_epp(cpudata, epp);
 	cpufreq_cpu_put(policy);
 }
 
