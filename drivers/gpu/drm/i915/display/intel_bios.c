@@ -1033,6 +1033,7 @@ parse_lfp_backlight(struct drm_i915_private *i915,
 	}
 
 	panel->vbt.backlight.type = INTEL_BACKLIGHT_DISPLAY_DDI;
+	panel->vbt.backlight.controller = 0;
 	if (i915->display.vbt.version >= 191) {
 		size_t exp_size;
 
