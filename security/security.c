@@ -1025,6 +1025,16 @@ int security_fs_context_parse_param(struct fs_context *fc,
 	return rc;
 }
 
+/**
+ * security_sb_alloc() - Allocate a super_block LSM blob
+ * @sb: filesystem superblock
+ *
+ * Allocate and attach a security structure to the sb->s_security field.  The
+ * s_security field is initialized to NULL when the structure is allocated.
+ * @sb contains the super_block structure to be modified.
+ *
+ * Return: Returns 0 if operation was successful.
+ */
 int security_sb_alloc(struct super_block *sb)
 {
 	int rc = lsm_superblock_alloc(sb);
@@ -1037,11 +1047,25 @@ int security_sb_alloc(struct super_block *sb)
 	return rc;
 }
 
+/**
+ * security_sb_delete() - Release super_block LSM associated objects
+ * @sb: filesystem superblock
+ *
+ * Release objects tied to a superblock (e.g. inodes).  @sb contains the
+ * super_block structure being released.
+ */
 void security_sb_delete(struct super_block *sb)
 {
 	call_void_hook(sb_delete, sb);
 }
 
+/**
+ * security_sb_free() - Free a super_block LSM blob
+ * @sb: filesystem superblock
+ *
+ * Deallocate and clear the sb->s_security field.  @sb contains the super_block
+ * structure to be modified.
+ */
 void security_sb_free(struct super_block *sb)
 {
 	call_void_hook(sb_free_security, sb);
@@ -1049,6 +1073,12 @@ void security_sb_free(struct super_block *sb)
 	sb->s_security = NULL;
 }
 
+/**
+ * security_free_mnt_opts() - Free memory associated with mount options
+ * @mnt_ops: LSM processed mount options
+ *
+ * Free memory associated with @mnt_ops.
+ */
 void security_free_mnt_opts(void **mnt_opts)
 {
 	if (!*mnt_opts)
@@ -1058,12 +1088,31 @@ void security_free_mnt_opts(void **mnt_opts)
 }
 EXPORT_SYMBOL(security_free_mnt_opts);
 
+/**
+ * security_sb_eat_lsm_opts() - Consume LSM mount options
+ * @options: mount options
+ * @mnt_ops: LSM processed mount options
+ *
+ * Eat (scan @options) and save them in @mnt_opts.
+ *
+ * Return: Returns 0 on success, negative values on failure.
+ */
 int security_sb_eat_lsm_opts(char *options, void **mnt_opts)
 {
 	return call_int_hook(sb_eat_lsm_opts, 0, options, mnt_opts);
 }
 EXPORT_SYMBOL(security_sb_eat_lsm_opts);
 
+/**
+ * security_sb_mnt_opts_compat() - Check if new mount options are allowed
+ * @sb: filesystem superblock
+ * @mnt_opts: new mount options
+ *
+ * Determine if the new mount options in @mnt_opts are allowed given the
+ * existing mounted filesystem at @sb.  @sb superblock being compared.
+ *
+ * Return: Returns 0 if options are compatible.
+ */
 int security_sb_mnt_opts_compat(struct super_block *sb,
 				void *mnt_opts)
 {
@@ -1071,6 +1120,16 @@ int security_sb_mnt_opts_compat(struct super_block *sb,
 }
 EXPORT_SYMBOL(security_sb_mnt_opts_compat);
 
+/**
+ * security_sb_remount() - Verify no incompatible mount changes during remount
+ * @sb: filesystem superblock
+ * @mnt_opts: (re)mount options
+ *
+ * Extracts security system specific mount options and verifies no changes are
+ * being made to those options.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sb_remount(struct super_block *sb,
 			void *mnt_opts)
 {
@@ -1078,37 +1137,109 @@ int security_sb_remount(struct super_block *sb,
 }
 EXPORT_SYMBOL(security_sb_remount);
 
+/**
+ * security_sb_kern_mount() - Check if a kernel mount is allowed
+ * @sb: filesystem superblock
+ *
+ * Mount this @sb if allowed by permissions.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sb_kern_mount(struct super_block *sb)
 {
 	return call_int_hook(sb_kern_mount, 0, sb);
 }
 
+/**
+ * security_sb_show_options() - Output the mount options for a superblock
+ * @m: output file
+ * @sb: filesystem superblock
+ *
+ * Show (print on @m) mount options for this @sb.
+ *
+ * Return: Returns 0 on success, negative values on failure.
+ */
 int security_sb_show_options(struct seq_file *m, struct super_block *sb)
 {
 	return call_int_hook(sb_show_options, 0, m, sb);
 }
 
+/**
+ * security_sb_statfs() - Check if accessing fs stats is allowed
+ * @dentry: superblock handle
+ *
+ * Check permission before obtaining filesystem statistics for the @mnt
+ * mountpoint.  @dentry is a handle on the superblock for the filesystem.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sb_statfs(struct dentry *dentry)
 {
 	return call_int_hook(sb_statfs, 0, dentry);
 }
 
+/**
+ * security_sb_mount() - Check permission for mounting a filesystem
+ * @dev_name: filesystem backing device
+ * @path: mount point
+ * @type: filesystem type
+ * @flags: mount flags
+ * @data: filesystem specific data
+ *
+ * Check permission before an object specified by @dev_name is mounted on the
+ * mount point named by @nd.  For an ordinary mount, @dev_name identifies a
+ * device if the file system type requires a device.  For a remount
+ * (@flags & MS_REMOUNT), @dev_name is irrelevant.  For a loopback/bind mount
+ * (@flags & MS_BIND), @dev_name identifies the	pathname of the object being
+ * mounted.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sb_mount(const char *dev_name, const struct path *path,
                        const char *type, unsigned long flags, void *data)
 {
 	return call_int_hook(sb_mount, 0, dev_name, path, type, flags, data);
 }
 
+/**
+ * security_sb_umount() - Check permission for unmounting a filesystem
+ * @mnt: mounted filesystem
+ * @flags: unmount flags
+ *
+ * Check permission before the @mnt file system is unmounted.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return call_int_hook(sb_umount, 0, mnt, flags);
 }
 
+/**
+ * security_sb_pivotroot() - Check permissions for pivoting the rootfs
+ * @old_path: new location for current rootfs
+ * @new_path: location of the new rootfs
+ *
+ * Check permission before pivoting the root filesystem.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return call_int_hook(sb_pivotroot, 0, old_path, new_path);
 }
 
+/**
+ * security_sb_set_mnt_opts() - Set the mount options for a filesystem
+ * @sb: filesystem superblock
+ * @mnt_opts: binary mount options
+ * @kern_flags: kernel flags (in)
+ * @set_kern_flags: kernel flags (out)
+ *
+ * Set the security relevant mount options used for a superblock.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_sb_set_mnt_opts(struct super_block *sb,
 				void *mnt_opts,
 				unsigned long kern_flags,
@@ -1120,6 +1251,17 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 }
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
+/**
+ * security_sb_clone_mnt_opts() - Duplicate superblock mount options
+ * @olddb: source superblock
+ * @newdb: destination superblock
+ * @kern_flags: kernel flags (in)
+ * @set_kern_flags: kernel flags (out)
+ *
+ * Copy all security options from a given superblock to another.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb,
 				unsigned long kern_flags,
@@ -1130,6 +1272,15 @@ int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 }
 EXPORT_SYMBOL(security_sb_clone_mnt_opts);
 
+/**
+ * security_move_mount() - Check permissions for moving a mount
+ * @from_path: source mount point
+ * @to_path: destination mount point
+ *
+ * Check permission before a mount is moved.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_move_mount(const struct path *from_path, const struct path *to_path)
 {
 	return call_int_hook(move_mount, 0, from_path, to_path);
@@ -1179,6 +1330,21 @@ void security_inode_free(struct inode *inode)
 				inode_free_by_rcu);
 }
 
+/**
+ * security_dentry_init_security() - Perform dentry initialization
+ * @dentry: the dentry to initialize
+ * @mode: mode used to determine resource type
+ * @name: name of the last path component
+ * @xattr_name: name of the security/LSM xattr
+ * @ctx: pointer to the resulting LSM context
+ * @ctxlen: length of @ctx
+ *
+ * Compute a context for a dentry as the inode is not yet available since NFSv4
+ * has no label backed by an EA anyway.  It is important to note that
+ * @xattr_name does not need to be free'd by the caller, it is a static string.
+ *
+ * Return: Returns 0 on success, negative values on failure.
+ */
 int security_dentry_init_security(struct dentry *dentry, int mode,
 				  const struct qstr *name,
 				  const char **xattr_name, void **ctx,
@@ -1200,6 +1366,21 @@ int security_dentry_init_security(struct dentry *dentry, int mode,
 }
 EXPORT_SYMBOL(security_dentry_init_security);
 
+/**
+ * security_dentry_create_files_as() - Perform dentry initialization
+ * @dentry: the dentry to initialize
+ * @mode: mode used to determine resource type
+ * @name: name of the last path component
+ * @old: creds to use for LSM context calculations
+ * @new: creds to modify
+ *
+ * Compute a context for a dentry as the inode is not yet available and set
+ * that context in passed in creds so that new files are created using that
+ * context. Context is calculated using the passed in creds and not the creds
+ * of the caller.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_dentry_create_files_as(struct dentry *dentry, int mode,
 				    struct qstr *name,
 				    const struct cred *old, struct cred *new)
