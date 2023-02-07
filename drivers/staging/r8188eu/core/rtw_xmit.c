@@ -1256,38 +1256,32 @@ struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv)/* _queue *pf
 
 	spin_lock_bh(&pfree_xmit_queue->lock);
 
-	if (list_empty(&pfree_xmit_queue->queue)) {
-		pxframe =  NULL;
-	} else {
-		phead = get_list_head(pfree_xmit_queue);
+	if (list_empty(&pfree_xmit_queue->queue))
+		goto out;
 
-		plist = phead->next;
+	phead = get_list_head(pfree_xmit_queue);
+	plist = phead->next;
+	pxframe = container_of(plist, struct xmit_frame, list);
+	list_del_init(&pxframe->list);
 
-		pxframe = container_of(plist, struct xmit_frame, list);
+	pxmitpriv->free_xmitframe_cnt--;
 
-		list_del_init(&pxframe->list);
-	}
+	pxframe->buf_addr = NULL;
+	pxframe->pxmitbuf = NULL;
 
-	if (pxframe) { /* default value setting */
-		pxmitpriv->free_xmitframe_cnt--;
+	memset(&pxframe->attrib, 0, sizeof(struct pkt_attrib));
+	/* pxframe->attrib.psta = NULL; */
 
-		pxframe->buf_addr = NULL;
-		pxframe->pxmitbuf = NULL;
+	pxframe->frame_tag = DATA_FRAMETAG;
 
-		memset(&pxframe->attrib, 0, sizeof(struct pkt_attrib));
-		/* pxframe->attrib.psta = NULL; */
+	pxframe->pkt = NULL;
+	pxframe->pkt_offset = 1;/* default use pkt_offset to fill tx desc */
 
-		pxframe->frame_tag = DATA_FRAMETAG;
+	pxframe->agg_num = 1;
+	pxframe->ack_report = 0;
 
-		pxframe->pkt = NULL;
-		pxframe->pkt_offset = 1;/* default use pkt_offset to fill tx desc */
-
-		pxframe->agg_num = 1;
-		pxframe->ack_report = 0;
-	}
-
+out:
 	spin_unlock_bh(&pfree_xmit_queue->lock);
-
 	return pxframe;
 }
 
