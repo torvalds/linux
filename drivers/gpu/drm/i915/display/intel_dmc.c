@@ -918,13 +918,13 @@ static void dmc_load_work_fn(struct work_struct *work)
 }
 
 /**
- * intel_dmc_ucode_init() - initialize the firmware loading.
+ * intel_dmc_init() - initialize the firmware loading.
  * @dev_priv: i915 drm device.
  *
  * This function is called at the time of loading the display driver to read
  * firmware from a .bin file and copied into a internal memory.
  */
-void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
+void intel_dmc_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_dmc *dmc = &dev_priv->display.dmc;
 
@@ -1002,14 +1002,14 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_dmc_ucode_suspend() - prepare DMC firmware before system suspend
+ * intel_dmc_suspend() - prepare DMC firmware before system suspend
  * @dev_priv: i915 drm device
  *
  * Prepare the DMC firmware before entering system suspend. This includes
  * flushing pending work items and releasing any resources acquired during
  * init.
  */
-void intel_dmc_ucode_suspend(struct drm_i915_private *dev_priv)
+void intel_dmc_suspend(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_DMC(dev_priv))
 		return;
@@ -1022,13 +1022,13 @@ void intel_dmc_ucode_suspend(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_dmc_ucode_resume() - init DMC firmware during system resume
+ * intel_dmc_resume() - init DMC firmware during system resume
  * @dev_priv: i915 drm device
  *
  * Reinitialize the DMC firmware during system resume, reacquiring any
- * resources released in intel_dmc_ucode_suspend().
+ * resources released in intel_dmc_suspend().
  */
-void intel_dmc_ucode_resume(struct drm_i915_private *dev_priv)
+void intel_dmc_resume(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_DMC(dev_priv))
 		return;
@@ -1042,20 +1042,20 @@ void intel_dmc_ucode_resume(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_dmc_ucode_fini() - unload the DMC firmware.
+ * intel_dmc_fini() - unload the DMC firmware.
  * @dev_priv: i915 drm device.
  *
  * Firmmware unloading includes freeing the internal memory and reset the
  * firmware loading status.
  */
-void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
+void intel_dmc_fini(struct drm_i915_private *dev_priv)
 {
 	enum intel_dmc_id dmc_id;
 
 	if (!HAS_DMC(dev_priv))
 		return;
 
-	intel_dmc_ucode_suspend(dev_priv);
+	intel_dmc_suspend(dev_priv);
 	drm_WARN_ON(&dev_priv->drm, dev_priv->display.dmc.wakeref);
 
 	for_each_dmc_id(dmc_id)
