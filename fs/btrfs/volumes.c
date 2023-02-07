@@ -6196,12 +6196,11 @@ static bool is_block_group_to_copy(struct btrfs_fs_info *fs_info, u64 logical)
 }
 
 static void handle_ops_on_dev_replace(enum btrfs_map_op op,
-				      struct btrfs_io_context **bioc_ret,
+				      struct btrfs_io_context *bioc,
 				      struct btrfs_dev_replace *dev_replace,
 				      u64 logical,
 				      int *num_stripes_ret, int *max_errors_ret)
 {
-	struct btrfs_io_context *bioc = *bioc_ret;
 	u64 srcdev_devid = dev_replace->srcdev->devid;
 	int tgtdev_indexes = 0;
 	int num_stripes = *num_stripes_ret;
@@ -6290,7 +6289,6 @@ static void handle_ops_on_dev_replace(enum btrfs_map_op op,
 	*num_stripes_ret = num_stripes;
 	*max_errors_ret = max_errors;
 	bioc->num_tgtdevs = tgtdev_indexes;
-	*bioc_ret = bioc;
 }
 
 static bool need_full_stripe(enum btrfs_map_op op)
@@ -6594,7 +6592,7 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 
 	if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL &&
 	    need_full_stripe(op)) {
-		handle_ops_on_dev_replace(op, &bioc, dev_replace, logical,
+		handle_ops_on_dev_replace(op, bioc, dev_replace, logical,
 					  &num_stripes, &max_errors);
 	}
 
