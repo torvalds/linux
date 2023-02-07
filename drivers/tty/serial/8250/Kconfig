@@ -129,9 +129,13 @@ config SERIAL_8250_DMA
 	  This builds DMA support that can be used with 8250/16650
 	  compatible UART controllers that support DMA signaling.
 
+config SERIAL_8250_PCILIB
+	bool
+
 config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support"
 	depends on SERIAL_8250 && PCI
+	select SERIAL_8250_PCILIB
 	default SERIAL_8250
 	help
 	  This builds standard PCI serial support. You may be able to
