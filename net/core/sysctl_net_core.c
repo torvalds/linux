@@ -45,6 +45,33 @@ EXPORT_SYMBOL(sysctl_fb_tunnels_only_for_init_net);
 int sysctl_devconf_inherit_init_net __read_mostly;
 EXPORT_SYMBOL(sysctl_devconf_inherit_init_net);
 
+#if IS_ENABLED(CONFIG_NET_FLOW_LIMIT)
+static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
+			 struct cpumask *mask)
+{
+	char kbuf[128];
+	int len;
+
+	if (*ppos || !*lenp) {
+		*lenp = 0;
+		return;
+	}
+
+	len = min(sizeof(kbuf) - 1, *lenp);
+	len = scnprintf(kbuf, len, "%*pb", cpumask_pr_args(mask));
+	if (!len) {
+		*lenp = 0;
+		return;
+	}
+
+	if (len < *lenp)
+		kbuf[len++] = '\n';
+	memcpy(buffer, kbuf, len);
+	*lenp = len;
+	*ppos += len;
+}
+#endif
+
 #ifdef CONFIG_RPS
 static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
@@ -155,13 +182,6 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 write_unlock:
 		mutex_unlock(&flow_limit_update_mutex);
 	} else {
-		char kbuf[128];
-
-		if (*ppos || !*lenp) {
-			*lenp = 0;
-			goto done;
-		}
-
 		cpumask_clear(mask);
 		rcu_read_lock();
 		for_each_possible_cpu(i) {
@@ -171,17 +191,7 @@ write_unlock:
 		}
 		rcu_read_unlock();
 
-		len = min(sizeof(kbuf) - 1, *lenp);
-		len = scnprintf(kbuf, len, "%*pb", cpumask_pr_args(mask));
-		if (!len) {
-			*lenp = 0;
-			goto done;
-		}
-		if (len < *lenp)
-			kbuf[len++] = '\n';
-		memcpy(buffer, kbuf, len);
-		*lenp = len;
-		*ppos += len;
+		dump_cpumask(buffer, lenp, ppos, mask);
 	}
 
 done:
