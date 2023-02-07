@@ -64,6 +64,7 @@ struct sched_gate_list {
 	 */
 	u64 max_open_gate_duration[TC_MAX_QUEUE];
 	u32 max_frm_len[TC_MAX_QUEUE]; /* for the fast path */
+	u32 max_sdu[TC_MAX_QUEUE]; /* for dump */
 	struct rcu_head rcu;
 	struct list_head entries;
 	size_t num_entries;
@@ -94,7 +95,7 @@ struct taprio_sched {
 	struct hrtimer advance_timer;
 	struct list_head taprio_list;
 	int cur_txq[TC_MAX_QUEUE];
-	u32 max_sdu[TC_MAX_QUEUE]; /* for dump and offloading */
+	u32 max_sdu[TC_MAX_QUEUE]; /* save info from the user */
 	u32 txtime_delay;
 };
 
@@ -246,18 +247,52 @@ static int length_to_duration(struct taprio_sched *q, int len)
 	return div_u64(len * atomic64_read(&q->picos_per_byte), PSEC_PER_NSEC);
 }
 
+static int duration_to_length(struct taprio_sched *q, u64 duration)
+{
+	return div_u64(duration * PSEC_PER_NSEC, atomic64_read(&q->picos_per_byte));
+}
+
+/* Sets sched->max_sdu[] and sched->max_frm_len[] to the minimum between the
+ * q->max_sdu[] requested by the user and the max_sdu dynamically determined by
+ * the maximum open gate durations at the given link speed.
+ */
 static void taprio_update_queue_max_sdu(struct taprio_sched *q,
-					struct sched_gate_list *sched)
+					struct sched_gate_list *sched,
+					struct qdisc_size_table *stab)
 {
 	struct net_device *dev = qdisc_dev(q->root);
 	int num_tc = netdev_get_num_tc(dev);
+	u32 max_sdu_from_user;
+	u32 max_sdu_dynamic;
+	u32 max_sdu;
 	int tc;
 
 	for (tc = 0; tc < num_tc; tc++) {
-		if (q->max_sdu[tc])
-			sched->max_frm_len[tc] = q->max_sdu[tc] + dev->hard_header_len;
-		else
+		max_sdu_from_user = q->max_sdu[tc] ?: U32_MAX;
+
+		/* TC gate never closes => keep the queueMaxSDU
+		 * selected by the user
+		 */
+		if (sched->max_open_gate_duration[tc] == sched->cycle_time) {
+			max_sdu_dynamic = U32_MAX;
+		} else {
+			u32 max_frm_len;
+
+			max_frm_len = duration_to_length(q, sched->max_open_gate_duration[tc]);
+			if (stab)
+				max_frm_len -= stab->szopts.overhead;
+			max_sdu_dynamic = max_frm_len - dev->hard_header_len;
+		}
+
+		max_sdu = min(max_sdu_dynamic, max_sdu_from_user);
+
+		if (max_sdu != U32_MAX) {
+			sched->max_frm_len[tc] = max_sdu + dev->hard_header_len;
+			sched->max_sdu[tc] = max_sdu;
+		} else {
 			sched->max_frm_len[tc] = U32_MAX; /* never oversized */
+			sched->max_sdu[tc] = 0;
+		}
 	}
 }
 
@@ -1243,6 +1278,8 @@ static int taprio_dev_notifier(struct notifier_block *nb, unsigned long event,
 			       void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct sched_gate_list *oper, *admin;
+	struct qdisc_size_table *stab;
 	struct taprio_sched *q;
 
 	ASSERT_RTNL();
@@ -1255,6 +1292,17 @@ static int taprio_dev_notifier(struct notifier_block *nb, unsigned long event,
 			continue;
 
 		taprio_set_picos_per_byte(dev, q);
+
+		stab = rtnl_dereference(q->root->stab);
+
+		oper = rtnl_dereference(q->oper_sched);
+		if (oper)
+			taprio_update_queue_max_sdu(q, oper, stab);
+
+		admin = rtnl_dereference(q->admin_sched);
+		if (admin)
+			taprio_update_queue_max_sdu(q, admin, stab);
+
 		break;
 	}
 
@@ -1654,7 +1702,8 @@ static int taprio_parse_tc_entries(struct Qdisc *sch,
 		if (nla_type(n) != TCA_TAPRIO_ATTR_TC_ENTRY)
 			continue;
 
-		err = taprio_parse_tc_entry(sch, n, max_sdu, &seen_tcs, extack);
+		err = taprio_parse_tc_entry(sch, n, max_sdu, &seen_tcs,
+					    extack);
 		if (err)
 			goto out;
 	}
@@ -1784,7 +1833,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 		goto free_sched;
 
 	taprio_set_picos_per_byte(dev, q);
-	taprio_update_queue_max_sdu(q, new_admin);
+	taprio_update_queue_max_sdu(q, new_admin, stab);
 
 	if (mqprio) {
 		err = netdev_set_num_tc(dev, mqprio->num_tc);
@@ -2142,7 +2191,8 @@ error_nest:
 	return -1;
 }
 
-static int taprio_dump_tc_entries(struct taprio_sched *q, struct sk_buff *skb)
+static int taprio_dump_tc_entries(struct sk_buff *skb,
+				  struct sched_gate_list *sched)
 {
 	struct nlattr *n;
 	int tc;
@@ -2156,7 +2206,7 @@ static int taprio_dump_tc_entries(struct taprio_sched *q, struct sk_buff *skb)
 			goto nla_put_failure;
 
 		if (nla_put_u32(skb, TCA_TAPRIO_TC_ENTRY_MAX_SDU,
-				q->max_sdu[tc]))
+				sched->max_sdu[tc]))
 			goto nla_put_failure;
 
 		nla_nest_end(skb, n);
@@ -2200,7 +2250,7 @@ static int taprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_TAPRIO_ATTR_TXTIME_DELAY, q->txtime_delay))
 		goto options_error;
 
-	if (taprio_dump_tc_entries(q, skb))
+	if (oper && taprio_dump_tc_entries(skb, oper))
 		goto options_error;
 
 	if (oper && dump_schedule(skb, oper))
