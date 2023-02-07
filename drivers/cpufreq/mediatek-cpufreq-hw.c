@@ -317,7 +317,9 @@ static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)
 
 static int mtk_cpufreq_hw_driver_remove(struct platform_device *pdev)
 {
-	return cpufreq_unregister_driver(&cpufreq_mtk_hw_driver);
+	cpufreq_unregister_driver(&cpufreq_mtk_hw_driver);
+
+	return 0;
 }
 
 static const struct of_device_id mtk_cpufreq_hw_match[] = {

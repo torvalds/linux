@@ -831,7 +831,7 @@ static void amd_pstate_driver_cleanup(void)
 
 static int amd_pstate_update_status(const char *buf, size_t size)
 {
-	int ret;
+	int ret = 0;
 	int mode_idx;
 
 	if (size > 7 || size < 6)
@@ -844,7 +844,7 @@ static int amd_pstate_update_status(const char *buf, size_t size)
 			return -EINVAL;
 		if (cppc_state == AMD_PSTATE_ACTIVE)
 			return -EBUSY;
-		ret = cpufreq_unregister_driver(current_pstate_driver);
+		cpufreq_unregister_driver(current_pstate_driver);
 		amd_pstate_driver_cleanup();
 		break;
 	case AMD_PSTATE_PASSIVE:
