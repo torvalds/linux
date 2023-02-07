@@ -601,9 +601,9 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 		enum rockchip_spi_xfer_mode xfer_mode, bool slave_mode)
 {
 	u32 cr0 = CR0_FRF_SPI  << CR0_FRF_OFFSET
-	        | CR0_BHT_8BIT << CR0_BHT_OFFSET
-	        | CR0_SSD_ONE  << CR0_SSD_OFFSET
-	        | CR0_EM_BIG   << CR0_EM_OFFSET;
+		| CR0_BHT_8BIT << CR0_BHT_OFFSET
+		| CR0_SSD_ONE  << CR0_SSD_OFFSET
+		| CR0_EM_BIG   << CR0_EM_OFFSET;
 	u32 cr1;
 	u32 dmacr = 0;
 
@@ -761,7 +761,6 @@ static int rockchip_spi_slave_abort(struct spi_controller *ctlr)
 				*(u16 *)rs->rx = (u16)rxw;
 			rs->rx += rs->n_bytes;
 		}
-
 		rs->xfer->len = (unsigned int)(rs->rx - rs->xfer->rx_buf);
 	}
 
