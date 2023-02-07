@@ -50,3 +50,7 @@
 &sata_phy {
 	status = "okay";
 };
+
+&hsspi {
+	status = "okay";
+};
