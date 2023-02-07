@@ -60,8 +60,6 @@
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
 
-#define LINK_AUX_DEFAULT_TIMEOUT_PERIOD 552 /*us*/
-
 struct dp_lt_fallback_entry {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
