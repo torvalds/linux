@@ -499,50 +499,9 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return taprio_enqueue_one(skb, sch, child, to_free);
 }
 
-/* Will not be called in the full offload case, since the TX queues are
- * attached to the Qdisc created using qdisc_create_dflt()
- */
 static struct sk_buff *taprio_peek(struct Qdisc *sch)
 {
-	struct taprio_sched *q = qdisc_priv(sch);
-	struct net_device *dev = qdisc_dev(sch);
-	struct sched_entry *entry;
-	struct sk_buff *skb;
-	u32 gate_mask;
-	int i;
-
-	rcu_read_lock();
-	entry = rcu_dereference(q->current_entry);
-	gate_mask = entry ? entry->gate_mask : TAPRIO_ALL_GATES_OPEN;
-	rcu_read_unlock();
-
-	if (!gate_mask)
-		return NULL;
-
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct Qdisc *child = q->qdiscs[i];
-		int prio;
-		u8 tc;
-
-		if (unlikely(!child))
-			continue;
-
-		skb = child->ops->peek(child);
-		if (!skb)
-			continue;
-
-		if (TXTIME_ASSIST_IS_ENABLED(q->flags))
-			return skb;
-
-		prio = skb->priority;
-		tc = netdev_get_prio_tc_map(dev, prio);
-
-		if (!(gate_mask & BIT(tc)))
-			continue;
-
-		return skb;
-	}
-
+	WARN_ONCE(1, "taprio only supports operating as root qdisc, peek() not implemented");
 	return NULL;
 }
 
