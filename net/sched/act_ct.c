@@ -778,6 +778,49 @@ static int tcf_ct_ipv6_is_fragment(struct sk_buff *skb, bool *frag)
 	return 0;
 }
 
+static int handle_fragments(struct net *net, struct sk_buff *skb,
+			    u16 zone, u8 family, u16 *mru)
+{
+	int err;
+
+	if (family == NFPROTO_IPV4) {
+		enum ip_defrag_users user = IP_DEFRAG_CONNTRACK_IN + zone;
+
+		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+		local_bh_disable();
+		err = ip_defrag(net, skb, user);
+		local_bh_enable();
+		if (err && err != -EINPROGRESS)
+			return err;
+
+		if (!err)
+			*mru = IPCB(skb)->frag_max_size;
+	} else { /* NFPROTO_IPV6 */
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
+		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
+
+		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
+		err = nf_ct_frag6_gather(net, skb, user);
+		if (err && err != -EINPROGRESS)
+			goto out_free;
+
+		if (!err)
+			*mru = IP6CB(skb)->frag_max_size;
+#else
+		err = -EOPNOTSUPP;
+		goto out_free;
+#endif
+	}
+
+	skb_clear_hash(skb);
+	skb->ignore_df = 1;
+	return err;
+
+out_free:
+	kfree_skb(skb);
+	return err;
+}
+
 static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 				   u8 family, u16 zone, bool *defrag)
 {
@@ -800,50 +843,14 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 		return err;
 
 	skb_get(skb);
-	mru = tc_skb_cb(skb)->mru;
+	err = handle_fragments(net, skb, zone, family, &mru);
+	if (err)
+		return err;
 
-	if (family == NFPROTO_IPV4) {
-		enum ip_defrag_users user = IP_DEFRAG_CONNTRACK_IN + zone;
+	*defrag = true;
+	tc_skb_cb(skb)->mru = mru;
 
-		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
-		local_bh_disable();
-		err = ip_defrag(net, skb, user);
-		local_bh_enable();
-		if (err && err != -EINPROGRESS)
-			return err;
-
-		if (!err) {
-			*defrag = true;
-			mru = IPCB(skb)->frag_max_size;
-		}
-	} else { /* NFPROTO_IPV6 */
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
-		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
-
-		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
-		err = nf_ct_frag6_gather(net, skb, user);
-		if (err && err != -EINPROGRESS)
-			goto out_free;
-
-		if (!err) {
-			*defrag = true;
-			mru = IP6CB(skb)->frag_max_size;
-		}
-#else
-		err = -EOPNOTSUPP;
-		goto out_free;
-#endif
-	}
-
-	if (err != -EINPROGRESS)
-		tc_skb_cb(skb)->mru = mru;
-	skb_clear_hash(skb);
-	skb->ignore_df = 1;
-	return err;
-
-out_free:
-	kfree_skb(skb);
-	return err;
+	return 0;
 }
 
 static void tcf_ct_params_free(struct tcf_ct_params *params)
