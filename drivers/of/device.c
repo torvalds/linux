@@ -385,6 +385,8 @@ int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
 
 	sl = of_device_get_modalias(dev, &env->buf[env->buflen-1],
 				    sizeof(env->buf) - env->buflen);
+	if (sl < 0)
+		return sl;
 	if (sl >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
 	env->buflen += sl;
