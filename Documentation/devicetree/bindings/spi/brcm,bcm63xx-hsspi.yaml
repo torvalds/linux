@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/brcm,bcm63xx-hsspi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM6328 High Speed SPI controller
+
+maintainers:
+  - Jonas Gorski <jonas.gorski@gmail.com>
+
+properties:
+  compatible:
+    const: brcm,bcm6328-hsspi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: SPI master reference clock
+      - description: SPI master pll clock
+
+  clock-names:
+    items:
+      - const: hsspi
+      - const: pll
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi@10001000 {
+        compatible = "brcm,bcm6328-hsspi";
+        reg = <0x10001000 0x600>;
+        interrupts = <29>;
+        clocks = <&clkctl 9>, <&hsspi_pll>;
+        clock-names = "hsspi", "pll";
+        num-cs = <2>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };
