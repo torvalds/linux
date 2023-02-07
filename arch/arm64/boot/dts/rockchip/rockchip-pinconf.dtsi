@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2020~2021 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  */
 
 &pinctrl {
-
 	/omit-if-no-ref/
 	pcfg_pull_up: pcfg-pull-up {
 		bias-pull-up;
@@ -414,4 +413,3 @@
 		bias-disable;
 	};
 };
-
