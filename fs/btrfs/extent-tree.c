@@ -5708,12 +5708,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 
 		ret = walk_down_tree(trans, root, path, wc);
 		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			err = ret;
 			break;
 		}
 
 		ret = walk_up_tree(trans, root, path, wc, BTRFS_MAX_LEVEL);
 		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			err = ret;
 			break;
 		}
