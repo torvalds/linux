@@ -789,7 +789,7 @@ static region_t core_get_sync_count(struct dm_dirty_log *log)
 	do { \
 		if (lc->sync != DEFAULTSYNC) \
 			DMEMIT("%ssync ", lc->sync == NOSYNC ? "no" : ""); \
-	} while (0);
+	} while (0)
 
 static int core_status(struct dm_dirty_log *log, status_type_t status,
 		       char *result, unsigned int maxlen)
