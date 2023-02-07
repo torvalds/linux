@@ -1806,6 +1806,9 @@ static int __cmd_contention(int argc, const char **argv)
 	con.aggr_mode = aggr_mode = show_thread_stats ? LOCK_AGGR_TASK :
 		show_lock_addrs ? LOCK_AGGR_ADDR : LOCK_AGGR_CALLER;
 
+	if (con.aggr_mode == LOCK_AGGR_CALLER)
+		con.save_callstack = true;
+
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
 	symbol_conf.allow_aliases = true;
