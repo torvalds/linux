@@ -1320,7 +1320,7 @@ bad_unblessed:
 
 int dm_btree_insert(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, void *value, dm_block_t *new_root)
-		    __dm_written_to_disk(value)
+	__dm_written_to_disk(value)
 {
 	return insert(info, root, keys, value, new_root, NULL);
 }
@@ -1329,7 +1329,7 @@ EXPORT_SYMBOL_GPL(dm_btree_insert);
 int dm_btree_insert_notify(struct dm_btree_info *info, dm_block_t root,
 			   uint64_t *keys, void *value, dm_block_t *new_root,
 			   int *inserted)
-			   __dm_written_to_disk(value)
+	__dm_written_to_disk(value)
 {
 	return insert(info, root, keys, value, new_root, inserted);
 }

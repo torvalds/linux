@@ -105,6 +105,7 @@ EXPORT_SYMBOL_GPL(dm_per_bio_data);
 struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size)
 {
 	struct dm_io *io = (struct dm_io *)((char *)data + data_size);
+
 	if (io->magic == DM_IO_MAGIC)
 		return (struct bio *)((char *)io + DM_IO_BIO_OFFSET);
 	BUG_ON(io->magic != DM_TIO_MAGIC);
@@ -128,6 +129,7 @@ static int swap_bios = DEFAULT_SWAP_BIOS;
 static int get_swap_bios(void)
 {
 	int latch = READ_ONCE(swap_bios);
+
 	if (unlikely(latch <= 0))
 		latch = DEFAULT_SWAP_BIOS;
 	return latch;
@@ -1115,6 +1117,7 @@ static void clone_endio(struct bio *bio)
 
 	if (endio) {
 		int r = endio(ti, bio, &error);
+
 		switch (r) {
 		case DM_ENDIO_REQUEUE:
 			if (static_branch_unlikely(&zoned_enabled)) {
@@ -1403,6 +1406,7 @@ static void __map_bio(struct bio *clone)
 	if (static_branch_unlikely(&swap_bios_enabled) &&
 	    unlikely(swap_bios_limit(ti, clone))) {
 		int latch = get_swap_bios();
+
 		if (unlikely(latch != md->swap_bios))
 			__set_swap_bios_limit(md, latch);
 		down(&md->swap_bios_semaphore);
@@ -2803,6 +2807,7 @@ static int __dm_resume(struct mapped_device *md, struct dm_table *map)
 {
 	if (map) {
 		int r = dm_table_resume_targets(map);
+
 		if (r)
 			return r;
 	}

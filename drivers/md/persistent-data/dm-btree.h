@@ -122,7 +122,7 @@ int dm_btree_lookup_next(struct dm_btree_info *info, dm_block_t root,
  */
 int dm_btree_insert(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, void *value, dm_block_t *new_root)
-		    __dm_written_to_disk(value);
+	__dm_written_to_disk(value);
 
 /*
  * A variant of insert that indicates whether it actually inserted or just

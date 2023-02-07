@@ -33,7 +33,7 @@
 static bool devices_handle_discard_safely;
 
 /*
- * The following flags are used by dm-raid.c to set up the array state.
+ * The following flags are used by dm-raid to set up the array state.
  * They must be cleared before md_run is called.
  */
 #define FirstUse 10		/* rdev flag */
