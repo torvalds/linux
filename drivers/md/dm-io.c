@@ -39,7 +39,7 @@ struct io {
 	void *context;
 	void *vma_invalidate_address;
 	unsigned long vma_invalidate_size;
-} __attribute__((aligned(DM_IO_MAX_REGIONS)));
+} __aligned(DM_IO_MAX_REGIONS);
 
 static struct kmem_cache *_dm_io_cache;
 
