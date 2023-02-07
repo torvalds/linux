@@ -5509,11 +5509,11 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 {
 	int level = wc->level;
 	int lookup_info = 1;
-	int ret;
+	int ret = 0;
 
 	while (level >= 0) {
 		ret = walk_down_proc(trans, root, path, wc, lookup_info);
-		if (ret > 0)
+		if (ret)
 			break;
 
 		if (level == 0)
@@ -5528,10 +5528,10 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 			path->slots[level]++;
 			continue;
 		} else if (ret < 0)
-			return ret;
+			break;
 		level = wc->level;
 	}
-	return 0;
+	return (ret == 1) ? 0 : ret;
 }
 
 static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
