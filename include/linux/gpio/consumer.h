@@ -8,6 +8,7 @@
 #include <linux/err.h>
 
 struct device;
+struct fwnode_handle;
 struct gpio_desc;
 struct gpio_array;
 
@@ -170,9 +171,6 @@ int gpiod_set_consumer_name(struct gpio_desc *desc, const char *name);
 /* Convert between the old gpio_ and new gpiod_ interfaces */
 struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
-
-/* Child properties interface */
-struct fwnode_handle;
 
 struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
 					 const char *con_id, int index,
@@ -545,9 +543,6 @@ static inline int desc_to_gpio(const struct gpio_desc *desc)
 	WARN_ON(desc);
 	return -EINVAL;
 }
-
-/* Child properties interface */
-struct fwnode_handle;
 
 static inline
 struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
