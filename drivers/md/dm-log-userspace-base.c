@@ -346,8 +346,6 @@ static void userspace_dtr(struct dm_dirty_log *log)
 
 	kfree(lc->usr_argv_str);
 	kfree(lc);
-
-	return;
 }
 
 static int userspace_presuspend(struct dm_dirty_log *log)
@@ -661,8 +659,6 @@ static void userspace_mark_region(struct dm_dirty_log *log, region_t region)
 	fe->region = region;
 	list_add(&fe->list, &lc->mark_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
-
-	return;
 }
 
 /*
@@ -698,8 +694,6 @@ static void userspace_clear_region(struct dm_dirty_log *log, region_t region)
 	fe->region = region;
 	list_add(&fe->list, &lc->clear_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
-
-	return;
 }
 
 /*
@@ -756,7 +750,6 @@ static void userspace_set_region_sync(struct dm_dirty_log *log,
 	 * It would be nice to be able to report failures.
 	 * However, it is easy enough to detect and resolve.
 	 */
-	return;
 }
 
 /*
@@ -927,7 +920,6 @@ static void __exit userspace_dirty_log_exit(void)
 	kmem_cache_destroy(_flush_entry_cache);
 
 	DMINFO("version " DM_LOG_USERSPACE_VSN " unloaded");
-	return;
 }
 
 module_init(userspace_dirty_log_init);
