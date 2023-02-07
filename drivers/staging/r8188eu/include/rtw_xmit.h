@@ -26,14 +26,7 @@
 #define XMIT_BE_QUEUE		(2)
 #define XMIT_BK_QUEUE		(3)
 
-#define VO_QUEUE_INX		0
-#define VI_QUEUE_INX		1
-#define BE_QUEUE_INX		2
-#define BK_QUEUE_INX		3
-#define BCN_QUEUE_INX		4
-#define MGT_QUEUE_INX		5
 #define HIGH_QUEUE_INX		6
-#define TXCMD_QUEUE_INX		7
 
 #define HW_QUEUE_ENTRY		8
 
