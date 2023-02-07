@@ -144,7 +144,7 @@ const u8 dm_cck_tx_bb_gain_ch14[CCK_TX_BB_GAIN_TABLE_LEN][8] = {
 /*------------------------Define global variable-----------------------------*/
 struct dig_t dm_digtable;
 
-struct drx_path_sel DM_RxPathSelTable;
+struct drx_path_sel dm_rx_path_sel_table;
 /*------------------------Define global variable-----------------------------*/
 
 
@@ -1720,7 +1720,7 @@ void rtl92e_dm_rf_pathcheck_wq(void *data)
 		else
 			priv->brfpath_rxenable[i] = false;
 	}
-	if (!DM_RxPathSelTable.enable)
+	if (!dm_rx_path_sel_table.enable)
 		return;
 
 	_rtl92e_dm_rx_path_sel_byrssi(dev);
@@ -1731,18 +1731,18 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 	u8 i;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	DM_RxPathSelTable.enable = 1;
-	DM_RxPathSelTable.ss_th_low = RX_PATH_SEL_SS_TH_LOW;
-	DM_RxPathSelTable.diff_th = RX_PATH_SEL_DIFF_TH;
+	dm_rx_path_sel_table.enable = 1;
+	dm_rx_path_sel_table.ss_th_low = RX_PATH_SEL_SS_TH_LOW;
+	dm_rx_path_sel_table.diff_th = RX_PATH_SEL_DIFF_TH;
 	if (priv->customer_id == RT_CID_819X_NETCORE)
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
+		dm_rx_path_sel_table.cck_method = CCK_Rx_Version_2;
 	else
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_1;
-	DM_RxPathSelTable.disabled_rf = 0;
+		dm_rx_path_sel_table.cck_method = CCK_Rx_Version_1;
+	dm_rx_path_sel_table.disabled_rf = 0;
 	for (i = 0; i < 4; i++) {
-		DM_RxPathSelTable.rf_rssi[i] = 50;
-		DM_RxPathSelTable.cck_pwdb_sta[i] = -64;
-		DM_RxPathSelTable.rf_enable_rssi_th[i] = 100;
+		dm_rx_path_sel_table.rf_rssi[i] = 50;
+		dm_rx_path_sel_table.cck_pwdb_sta[i] = -64;
+		dm_rx_path_sel_table.rf_enable_rssi_th[i] = 100;
 	}
 }
 
@@ -1769,22 +1769,22 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 		return;
 
 	if (!cck_Rx_Path_initialized) {
-		DM_RxPathSelTable.cck_rx_path = (rtl92e_readb(dev, 0xa07)&0xf);
+		dm_rx_path_sel_table.cck_rx_path = (rtl92e_readb(dev, 0xa07)&0xf);
 		cck_Rx_Path_initialized = 1;
 	}
 
-	DM_RxPathSelTable.disabled_rf = 0xf;
-	DM_RxPathSelTable.disabled_rf &= ~(rtl92e_readb(dev, 0xc04));
+	dm_rx_path_sel_table.disabled_rf = 0xf;
+	dm_rx_path_sel_table.disabled_rf &= ~(rtl92e_readb(dev, 0xc04));
 
 	if (priv->rtllib->mode == WIRELESS_MODE_B)
-		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
+		dm_rx_path_sel_table.cck_method = CCK_Rx_Version_2;
 
 	for (i = 0; i < RF90_PATH_MAX; i++) {
-		DM_RxPathSelTable.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
+		dm_rx_path_sel_table.rf_rssi[i] = priv->stats.rx_rssi_percentage[i];
 
 		if (priv->brfpath_rxenable[i]) {
 			rf_num++;
-			cur_rf_rssi = DM_RxPathSelTable.rf_rssi[i];
+			cur_rf_rssi = dm_rx_path_sel_table.rf_rssi[i];
 
 			if (rf_num == 1) {
 				max_rssi_index = min_rssi_index = sec_rssi_index = i;
@@ -1832,12 +1832,12 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	}
 
 	rf_num = 0;
-	if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_2) {
+	if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_2) {
 		for (i = 0; i < RF90_PATH_MAX; i++) {
 			if (priv->brfpath_rxenable[i]) {
 				rf_num++;
 				cur_cck_pwdb =
-					 DM_RxPathSelTable.cck_pwdb_sta[i];
+					 dm_rx_path_sel_table.cck_pwdb_sta[i];
 
 				if (rf_num == 1) {
 					cck_rx_ver2_max_index = i;
@@ -1894,17 +1894,17 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	}
 
 	update_cck_rx_path = 0;
-	if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_2) {
+	if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_2) {
 		cck_default_Rx = cck_rx_ver2_max_index;
 		cck_optional_Rx = cck_rx_ver2_sec_index;
 		if (tmp_cck_max_pwdb != -64)
 			update_cck_rx_path = 1;
 	}
 
-	if (tmp_min_rssi < DM_RxPathSelTable.ss_th_low && disabled_rf_cnt < 2) {
+	if (tmp_min_rssi < dm_rx_path_sel_table.ss_th_low && disabled_rf_cnt < 2) {
 		if ((tmp_max_rssi - tmp_min_rssi) >=
-		     DM_RxPathSelTable.diff_th) {
-			DM_RxPathSelTable.rf_enable_rssi_th[min_rssi_index] =
+		     dm_rx_path_sel_table.diff_th) {
+			dm_rx_path_sel_table.rf_enable_rssi_th[min_rssi_index] =
 				 tmp_max_rssi+5;
 			rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable,
 					  0x1<<min_rssi_index, 0x0);
@@ -1912,7 +1912,7 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 					  0x1<<min_rssi_index, 0x0);
 			disabled_rf_cnt++;
 		}
-		if (DM_RxPathSelTable.cck_method == CCK_Rx_Version_1) {
+		if (dm_rx_path_sel_table.cck_method == CCK_Rx_Version_1) {
 			cck_default_Rx = max_rssi_index;
 			cck_optional_Rx = sec_rssi_index;
 			if (tmp_max_rssi)
@@ -1921,24 +1921,24 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	}
 
 	if (update_cck_rx_path) {
-		DM_RxPathSelTable.cck_rx_path = (cck_default_Rx<<2) |
+		dm_rx_path_sel_table.cck_rx_path = (cck_default_Rx<<2) |
 						(cck_optional_Rx);
 		rtl92e_set_bb_reg(dev, rCCK0_AFESetting, 0x0f000000,
-				  DM_RxPathSelTable.cck_rx_path);
+				  dm_rx_path_sel_table.cck_rx_path);
 	}
 
-	if (DM_RxPathSelTable.disabled_rf) {
+	if (dm_rx_path_sel_table.disabled_rf) {
 		for (i = 0; i < 4; i++) {
-			if ((DM_RxPathSelTable.disabled_rf >> i) & 0x1) {
+			if ((dm_rx_path_sel_table.disabled_rf >> i) & 0x1) {
 				if (tmp_max_rssi >=
-				    DM_RxPathSelTable.rf_enable_rssi_th[i]) {
+				    dm_rx_path_sel_table.rf_enable_rssi_th[i]) {
 					rtl92e_set_bb_reg(dev,
 							  rOFDM0_TRxPathEnable,
 							  0x1 << i, 0x1);
 					rtl92e_set_bb_reg(dev,
 							  rOFDM1_TRxPathEnable,
 							  0x1 << i, 0x1);
-					DM_RxPathSelTable.rf_enable_rssi_th[i]
+					dm_rx_path_sel_table.rf_enable_rssi_th[i]
 						 = 100;
 					disabled_rf_cnt--;
 				}

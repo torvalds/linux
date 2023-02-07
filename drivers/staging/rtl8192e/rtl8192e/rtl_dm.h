@@ -155,7 +155,6 @@ struct dcmd_txcmd {
 
 /*------------------------Export global variable----------------------------*/
 extern	struct dig_t dm_digtable;
-extern struct drx_path_sel DM_RxPathSelTable;
 
 /* Pre-calculated gain tables */
 extern const u32 dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN];
