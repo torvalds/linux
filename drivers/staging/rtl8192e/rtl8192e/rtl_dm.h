@@ -8,8 +8,8 @@
 #define __R8192UDM_H__
 
 /*--------------------------Define Parameters-------------------------------*/
-#define			OFDM_Table_Length	19
-#define		CCK_Table_length	12
+#define		OFDM_TABLE_LEN				19
+#define		CCK_TABLE_LEN				12
 
 #define		DM_DIG_THRESH_HIGH					40
 #define		DM_DIG_THRESH_LOW					35
@@ -25,7 +25,7 @@
 #define		DM_DIG_MIN					0x1c
 #define		DM_DIG_MIN_Netcore			0x12
 
-#define		RxPathSelection_SS_TH_low		30
+#define		RX_PATH_SEL_SS_TH_LOW			30
 #define		RxPathSelection_diff_TH			18
 
 #define		RateAdaptiveTH_High			50

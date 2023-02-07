@@ -455,7 +455,7 @@ static void _rtl92e_dm_bandwidth_autoswitch(struct net_device *dev)
 	}
 }
 
-static u32 OFDMSwingTable[OFDM_Table_Length] = {
+static u32 OFDMSwingTable[OFDM_TABLE_LEN] = {
 	0x7f8001fe,
 	0x71c001c7,
 	0x65400195,
@@ -477,7 +477,7 @@ static u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x10000040
 };
 
-static u8	CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
+static u8	CCKSwingTable_Ch1_Ch13[CCK_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04},
 	{0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03},
 	{0x2b, 0x2a, 0x25, 0x1e, 0x16, 0x0e, 0x07, 0x03},
@@ -492,7 +492,7 @@ static u8	CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
 	{0x0f, 0x0f, 0x0d, 0x0b, 0x08, 0x05, 0x03, 0x01}
 };
 
-static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
+static u8	CCKSwingTable_Ch14[CCK_TABLE_LEN][8] = {
 	{0x36, 0x35, 0x2e, 0x1b, 0x00, 0x00, 0x00, 0x00},
 	{0x30, 0x2f, 0x29, 0x18, 0x00, 0x00, 0x00, 0x00},
 	{0x2b, 0x2a, 0x25, 0x15, 0x00, 0x00, 0x00, 0x00},
@@ -771,13 +771,13 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 	if (!priv->tx_pwr_tracking_init) {
 		tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
 					    bMaskDWord);
-		for (i = 0; i < OFDM_Table_Length; i++) {
+		for (i = 0; i < OFDM_TABLE_LEN; i++) {
 			if (tmpRegA == OFDMSwingTable[i])
 				priv->ofdm_index[0] = i;
 		}
 
 		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
-		for (i = 0; i < CCK_Table_length; i++) {
+		for (i = 0; i < CCK_TABLE_LEN; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
 				priv->cck_index = i;
 				break;
@@ -799,12 +799,12 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->thermal_meter[0] -
 			      (u8)tmpRegA);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
-		if (tmpOFDMindex >= OFDM_Table_Length)
-			tmpOFDMindex = OFDM_Table_Length-1;
-		if (tmpCCK20Mindex >= CCK_Table_length)
-			tmpCCK20Mindex = CCK_Table_length-1;
-		if (tmpCCK40Mindex >= CCK_Table_length)
-			tmpCCK40Mindex = CCK_Table_length-1;
+		if (tmpOFDMindex >= OFDM_TABLE_LEN)
+			tmpOFDMindex = OFDM_TABLE_LEN - 1;
+		if (tmpCCK20Mindex >= CCK_TABLE_LEN)
+			tmpCCK20Mindex = CCK_TABLE_LEN - 1;
+		if (tmpCCK40Mindex >= CCK_TABLE_LEN)
+			tmpCCK40Mindex = CCK_TABLE_LEN - 1;
 	} else {
 		tmpval = (u8)tmpRegA - priv->thermal_meter[0];
 		if (tmpval >= 6) {
@@ -1732,7 +1732,7 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	DM_RxPathSelTable.Enable = 1;
-	DM_RxPathSelTable.SS_TH_low = RxPathSelection_SS_TH_low;
+	DM_RxPathSelTable.SS_TH_low = RX_PATH_SEL_SS_TH_LOW;
 	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
 	if (priv->customer_id == RT_CID_819X_NETCORE)
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
