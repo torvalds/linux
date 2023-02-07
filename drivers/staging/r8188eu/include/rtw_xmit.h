@@ -193,7 +193,6 @@ struct xmit_buf {
 	u32 alloc_sz;
 	u32  len;
 	struct submit_ctx *sctx;
-	u32	ff_hwaddr;
 	struct urb *pxmit_urb;
 	int last[8];
 };
