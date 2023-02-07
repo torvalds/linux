@@ -1730,7 +1730,7 @@ static void integrity_metadata(struct work_struct *w)
 		struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 		char *checksums;
 		unsigned int extra_space = unlikely(digest_size > ic->tag_size) ? digest_size - ic->tag_size : 0;
-		char checksums_onstack[max((size_t)HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
+		char checksums_onstack[max_t(size_t, HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
 		sector_t sector;
 		unsigned int sectors_to_process;
 
@@ -2015,7 +2015,7 @@ retry_kmap:
 				} while (++s < ic->sectors_per_block);
 #ifdef INTERNAL_VERIFY
 				if (ic->internal_hash) {
-					char checksums_onstack[max((size_t)HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
+					char checksums_onstack[max_t(size_t, HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
 
 					integrity_sector_checksum(ic, logical_sector, mem + bv.bv_offset, checksums_onstack);
 					if (unlikely(memcmp(checksums_onstack, journal_entry_tag(ic, je), ic->tag_size))) {
@@ -3530,8 +3530,8 @@ static int initialize_superblock(struct dm_integrity_c *ic,
 		if (!interleave_sectors)
 			interleave_sectors = DEFAULT_INTERLEAVE_SECTORS;
 		ic->sb->log2_interleave_sectors = __fls(interleave_sectors);
-		ic->sb->log2_interleave_sectors = max((__u8)MIN_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
-		ic->sb->log2_interleave_sectors = min((__u8)MAX_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
+		ic->sb->log2_interleave_sectors = max_t(__u8, MIN_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
+		ic->sb->log2_interleave_sectors = min_t(__u8, MAX_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
 
 		get_provided_data_sectors(ic);
 		if (!ic->provided_data_sectors)
@@ -3921,7 +3921,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 
 				memset(crypt_iv, 0x00, ivsize);
 				memset(crypt_data, 0x00, crypt_len);
-				memcpy(crypt_data, &section_le, min((size_t)crypt_len, sizeof(section_le)));
+				memcpy(crypt_data, &section_le, min_t(size_t, crypt_len, sizeof(section_le)));
 
 				sg_init_one(&sg, crypt_data, crypt_len);
 				skcipher_request_set_crypt(req, &sg, &sg, crypt_len, crypt_iv);
