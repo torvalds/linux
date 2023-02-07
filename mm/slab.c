@@ -3477,14 +3477,15 @@ cache_alloc_debugcheck_after_bulk(struct kmem_cache *s, gfp_t flags,
 int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 			  void **p)
 {
-	size_t i;
 	struct obj_cgroup *objcg = NULL;
+	unsigned long irqflags;
+	size_t i;
 
 	s = slab_pre_alloc_hook(s, NULL, &objcg, size, flags);
 	if (!s)
 		return 0;
 
-	local_irq_disable();
+	local_irq_save(irqflags);
 	for (i = 0; i < size; i++) {
 		void *objp = kfence_alloc(s, s->object_size, flags) ?:
 			     __do_cache_alloc(s, flags, NUMA_NO_NODE);
@@ -3493,7 +3494,7 @@ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 			goto error;
 		p[i] = objp;
 	}
-	local_irq_enable();
+	local_irq_restore(irqflags);
 
 	cache_alloc_debugcheck_after_bulk(s, flags, size, p, _RET_IP_);
 
@@ -3506,7 +3507,7 @@ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 	/* FIXME: Trace call missing. Christoph would like a bulk variant */
 	return size;
 error:
-	local_irq_enable();
+	local_irq_restore(irqflags);
 	cache_alloc_debugcheck_after_bulk(s, flags, i, p, _RET_IP_);
 	slab_post_alloc_hook(s, objcg, flags, i, p, false, s->object_size);
 	kmem_cache_free_bulk(s, i, p);
@@ -3608,8 +3609,9 @@ EXPORT_SYMBOL(kmem_cache_free);
 
 void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 {
+	unsigned long flags;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	for (int i = 0; i < size; i++) {
 		void *objp = p[i];
 		struct kmem_cache *s;
@@ -3619,9 +3621,9 @@ void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 
 			/* called via kfree_bulk */
 			if (!folio_test_slab(folio)) {
-				local_irq_enable();
+				local_irq_restore(flags);
 				free_large_kmalloc(folio, objp);
-				local_irq_disable();
+				local_irq_save(flags);
 				continue;
 			}
 			s = folio_slab(folio)->slab_cache;
@@ -3638,7 +3640,7 @@ void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 
 		__cache_free(s, objp, _RET_IP_);
 	}
-	local_irq_enable();
+	local_irq_restore(flags);
 
 	/* FIXME: add tracing */
 }
