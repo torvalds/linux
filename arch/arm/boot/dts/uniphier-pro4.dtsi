@@ -421,6 +421,7 @@
 		syscon@5f900000 {
 			compatible = "socionext,uniphier-pro4-soc-glue-debug",
 				     "simple-mfd";
+			reg = <0x5f900000 0x2000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x5f900000 0x2000>;
@@ -535,6 +536,7 @@
 		sata-controller@65700000 {
 			compatible = "socionext,uniphier-pxs2-ahci-glue",
 				     "simple-mfd";
+			reg = <0x65700000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65700000 0x100>;
@@ -581,6 +583,7 @@
 		sata-controller@65900000 {
 			compatible = "socionext,uniphier-pro4-ahci-glue",
 				     "simple-mfd";
+			reg = <0x65900000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65900000 0x100>;
@@ -629,6 +632,7 @@
 		usb-controller@65b00000 {
 			compatible = "socionext,uniphier-pro4-dwc3-glue",
 				     "simple-mfd";
+			reg = <0x65b00000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65b00000 0x100>;
@@ -683,6 +687,7 @@
 		usb-controller@65d00000 {
 			compatible = "socionext,uniphier-pro4-dwc3-glue",
 				     "simple-mfd";
+			reg = <0x65d00000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65d00000 0x100>;
