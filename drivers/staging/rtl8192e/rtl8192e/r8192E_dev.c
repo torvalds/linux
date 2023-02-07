@@ -2017,20 +2017,20 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 	u8		SilentResetRxSoltNum = 4;
 
 	rx_chk_cnt++;
-	if (priv->undecorated_smoothed_pwdb >= (RateAdaptiveTH_High+5)) {
+	if (priv->undecorated_smoothed_pwdb >= (RATE_ADAPTIVE_TH_HIGH + 5)) {
 		rx_chk_cnt = 0;
-	} else if ((priv->undecorated_smoothed_pwdb < (RateAdaptiveTH_High + 5))
+	} else if ((priv->undecorated_smoothed_pwdb < (RATE_ADAPTIVE_TH_HIGH + 5))
 	  && (((priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) &&
 	  (priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_40M))
 	  || ((priv->current_chnl_bw == HT_CHANNEL_WIDTH_20) &&
-	  (priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_20M)))) {
+	  (priv->undecorated_smoothed_pwdb >= RATE_ADAPTIVE_TH_LOW_20M)))) {
 		if (rx_chk_cnt < 2)
 			return bStuck;
 		rx_chk_cnt = 0;
 	} else if ((((priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) &&
 		  (priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_40M)) ||
 		((priv->current_chnl_bw == HT_CHANNEL_WIDTH_20) &&
-		 (priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_20M))) &&
+		 (priv->undecorated_smoothed_pwdb < RATE_ADAPTIVE_TH_LOW_20M))) &&
 		priv->undecorated_smoothed_pwdb >= VeryLowRSSI) {
 		if (rx_chk_cnt < 4)
 			return bStuck;

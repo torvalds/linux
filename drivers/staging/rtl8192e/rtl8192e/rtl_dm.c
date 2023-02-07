@@ -282,12 +282,12 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 	struct rate_adaptive *pra = &priv->rate_adaptive;
 
 	pra->ratr_state = DM_RATR_STA_MAX;
-	pra->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;
-	pra->low2high_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M+5;
+	pra->high2low_rssi_thresh_for_ra = RATE_ADAPTIVE_TH_HIGH;
+	pra->low2high_rssi_thresh_for_ra20M = RATE_ADAPTIVE_TH_LOW_20M + 5;
 	pra->low2high_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M+5;
 
-	pra->high_rssi_thresh_for_ra = RateAdaptiveTH_High+5;
-	pra->low_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M;
+	pra->high_rssi_thresh_for_ra = RATE_ADAPTIVE_TH_HIGH + 5;
+	pra->low_rssi_thresh_for_ra20M = RATE_ADAPTIVE_TH_LOW_20M;
 	pra->low_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M;
 
 	if (priv->customer_id == RT_CID_819X_NETCORE)
@@ -1733,7 +1733,7 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 
 	DM_RxPathSelTable.Enable = 1;
 	DM_RxPathSelTable.SS_TH_low = RX_PATH_SEL_SS_TH_LOW;
-	DM_RxPathSelTable.diff_TH = RxPathSelection_diff_TH;
+	DM_RxPathSelTable.diff_TH = RX_PATH_SEL_DIFF_TH;
 	if (priv->customer_id == RT_CID_819X_NETCORE)
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;
 	else
