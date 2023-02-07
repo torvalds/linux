@@ -15,6 +15,74 @@
 
 #include "hid-ids.h"
 
+/* Data gathered from Database/VID0458_PID????/Vista/TBoard/default.xml in ioTablet driver
+ *
+ * TODO:
+ *   - Add battery and sleep support for EasyPen M406W and MousePen M508WX
+ *   - Investigate ScrollZ.MiceFMT buttons of EasyPen M406
+ */
+
+static const __u8 easypen_m406_control_rdesc[] = {
+	0x05, 0x0C,        /*  Usage Page (Consumer),    */
+	0x09, 0x01,        /*  Usage (Consumer Control), */
+	0xA1, 0x01,        /*  Collection (Application), */
+	0x85, 0x12,        /*    Report ID (18),         */
+	0x0A, 0x45, 0x02,  /*    Usage (AC Rotate),      */
+	0x09, 0x40,        /*    Usage (Menu),           */
+	0x0A, 0x2F, 0x02,  /*    Usage (AC Zoom),        */
+	0x0A, 0x46, 0x02,  /*    Usage (AC Resize),      */
+	0x0A, 0x1A, 0x02,  /*    Usage (AC Undo),        */
+	0x0A, 0x6A, 0x02,  /*    Usage (AC Delete),      */
+	0x0A, 0x24, 0x02,  /*    Usage (AC Back),        */
+	0x0A, 0x25, 0x02,  /*    Usage (AC Forward),     */
+	0x14,              /*    Logical Minimum (0),    */
+	0x25, 0x01,        /*    Logical Maximum (1),    */
+	0x75, 0x01,        /*    Report Size (1),        */
+	0x95, 0x08,        /*    Report Count (8),       */
+	0x81, 0x02,        /*    Input (Variable),       */
+	0x95, 0x30,        /*    Report Count (48),      */
+	0x81, 0x01,        /*    Input (Constant),       */
+	0xC0               /*  End Collection            */
+};
+
+static const __u8 easypen_m506_control_rdesc[] = {
+	0x05, 0x0C,        /*  Usage Page (Consumer),    */
+	0x09, 0x01,        /*  Usage (Consumer Control), */
+	0xA1, 0x01,        /*  Collection (Application), */
+	0x85, 0x12,        /*    Report ID (18),         */
+	0x0A, 0x6A, 0x02,  /*    Usage (AC Delete),      */
+	0x0A, 0x1A, 0x02,  /*    Usage (AC Undo),        */
+	0x0A, 0x2D, 0x02,  /*    Usage (AC Zoom In),     */
+	0x0A, 0x2E, 0x02,  /*    Usage (AC Zoom Out),    */
+	0x14,              /*    Logical Minimum (0),    */
+	0x25, 0x01,        /*    Logical Maximum (1),    */
+	0x75, 0x01,        /*    Report Size (1),        */
+	0x95, 0x04,        /*    Report Count (4),       */
+	0x81, 0x02,        /*    Input (Variable),       */
+	0x95, 0x34,        /*    Report Count (52),      */
+	0x81, 0x01,        /*    Input (Constant),       */
+	0xC0               /*  End Collection            */
+};
+
+static const __u8 easypen_m406w_control_rdesc[] = {
+	0x05, 0x0C,        /*  Usage Page (Consumer),    */
+	0x09, 0x01,        /*  Usage (Consumer Control), */
+	0xA1, 0x01,        /*  Collection (Application), */
+	0x85, 0x12,        /*    Report ID (18),         */
+	0x0A, 0x6A, 0x02,  /*    Usage (AC Delete),      */
+	0x0A, 0x1A, 0x02,  /*    Usage (AC Undo),        */
+	0x0A, 0x01, 0x02,  /*    Usage (AC New),         */
+	0x09, 0x40,        /*    Usage (Menu),           */
+	0x14,              /*    Logical Minimum (0),    */
+	0x25, 0x01,        /*    Logical Maximum (1),    */
+	0x75, 0x01,        /*    Report Size (1),        */
+	0x95, 0x04,        /*    Report Count (4),       */
+	0x81, 0x02,        /*    Input (Variable),       */
+	0x95, 0x34,        /*    Report Count (52),      */
+	0x81, 0x01,        /*    Input (Constant),       */
+	0xC0               /*  End Collection            */
+};
+
 static const __u8 easypen_m610x_control_rdesc[] = {
 	0x05, 0x0C,        /*  Usage Page (Consumer),       */
 	0x09, 0x01,        /*  Usage (Consumer Control),    */
@@ -58,6 +126,54 @@ static const __u8 pensketch_m912_control_rdesc[] = {
 	0xC0               /*  End Collection                */
 };
 
+static const __u8 mousepen_m508wx_control_rdesc[] = {
+	0x05, 0x0C,        /*  Usage Page (Consumer),    */
+	0x09, 0x01,        /*  Usage (Consumer Control), */
+	0xA1, 0x01,        /*  Collection (Application), */
+	0x85, 0x12,        /*    Report ID (18),         */
+	0x0A, 0x1A, 0x02,  /*    Usage (AC Undo),        */
+	0x0A, 0x6A, 0x02,  /*    Usage (AC Delete),      */
+	0x0A, 0x2D, 0x02,  /*    Usage (AC Zoom In),     */
+	0x0A, 0x2E, 0x02,  /*    Usage (AC Zoom Out),    */
+	0x14,              /*    Logical Minimum (0),    */
+	0x25, 0x01,        /*    Logical Maximum (1),    */
+	0x75, 0x01,        /*    Report Size (1),        */
+	0x95, 0x04,        /*    Report Count (4),       */
+	0x81, 0x02,        /*    Input (Variable),       */
+	0x95, 0x34,        /*    Report Count (52),      */
+	0x81, 0x01,        /*    Input (Constant),       */
+	0xC0               /*  End Collection            */
+};
+
+static const __u8 mousepen_m508x_control_rdesc[] = {
+	0x05, 0x0C,        /*  Usage Page (Consumer),        */
+	0x09, 0x01,        /*  Usage (Consumer Control),     */
+	0xA1, 0x01,        /*  Collection (Application),     */
+	0x85, 0x12,        /*    Report ID (18),             */
+	0x0A, 0x01, 0x02,  /*    Usage (AC New),             */
+	0x09, 0x40,        /*    Usage (Menu),               */
+	0x0A, 0x6A, 0x02,  /*    Usage (AC Delete),          */
+	0x0A, 0x1A, 0x02,  /*    Usage (AC Undo),            */
+	0x14,              /*    Logical Minimum (0),        */
+	0x25, 0x01,        /*    Logical Maximum (1),        */
+	0x75, 0x01,        /*    Report Size (1),            */
+	0x95, 0x04,        /*    Report Count (4),           */
+	0x81, 0x02,        /*    Input (Variable),           */
+	0x81, 0x01,        /*    Input (Constant),           */
+	0x15, 0xFF,        /*    Logical Minimum (-1),       */
+	0x95, 0x10,        /*    Report Count (16),          */
+	0x81, 0x01,        /*    Input (Constant),           */
+	0x0A, 0x35, 0x02,  /*    Usage (AC Scroll),          */
+	0x0A, 0x2F, 0x02,  /*    Usage (AC Zoom),            */
+	0x0A, 0x38, 0x02,  /*    Usage (AC Pan),             */
+	0x75, 0x08,        /*    Report Size (8),            */
+	0x95, 0x03,        /*    Report Count (3),           */
+	0x81, 0x06,        /*    Input (Variable, Relative), */
+	0x95, 0x01,        /*    Report Count (1),           */
+	0x81, 0x01,        /*    Input (Constant),           */
+	0xC0               /*  End Collection                */
+};
+
 static const __u8 easypen_m406xe_control_rdesc[] = {
 	0x05, 0x0C,        /*  Usage Page (Consumer),          */
 	0x09, 0x01,        /*  Usage (Consumer Control),       */
@@ -75,6 +191,22 @@ static const __u8 easypen_m406xe_control_rdesc[] = {
 	0x95, 0x34,        /*      Report Count (52),          */
 	0x81, 0x03,        /*      Input (Constant, Variable), */
 	0xC0               /*  End Collection                  */
+};
+
+static const __u8 pensketch_t609a_control_rdesc[] = {
+	0x05, 0x0C,        /*  Usage Page (Consumer),    */
+	0x09, 0x01,        /*  Usage (Consumer Control), */
+	0xA1, 0x01,        /*  Collection (Application), */
+	0x85, 0x12,        /*    Report ID (18),         */
+	0x0A, 0x6A, 0x02,  /*    Usage (AC Delete),      */
+	0x14,              /*    Logical Minimum (0),    */
+	0x25, 0x01,        /*    Logical Maximum (1),    */
+	0x75, 0x01,        /*    Report Size (1),        */
+	0x95, 0x08,        /*    Report Count (8),       */
+	0x81, 0x02,        /*    Input (Variable),       */
+	0x95, 0x37,        /*    Report Count (55),      */
+	0x81, 0x01,        /*    Input (Constant),       */
+	0xC0               /*  End Collection            */
 };
 
 /* Fix indexes in kye_tablet_report_fixup if you change this */
@@ -189,21 +321,41 @@ static const struct kye_tablet_info {
 	unsigned int control_rsize;
 	const __u8 *control_rdesc;
 } kye_tablets_info[] = {
+	{USB_DEVICE_ID_KYE_EASYPEN_M406,  /* 0x5005 */
+		15360, 10240, 1023,    6,   4,  0, 0x13, false,
+		sizeof(easypen_m406_control_rdesc), easypen_m406_control_rdesc},
+	{USB_DEVICE_ID_KYE_EASYPEN_M506,  /* 0x500F */
+		24576, 20480, 1023,    6,   5,  0, 0x13, false,
+		sizeof(easypen_m506_control_rdesc), easypen_m506_control_rdesc},
 	{USB_DEVICE_ID_KYE_EASYPEN_I405X,  /* 0x5010 */
 		14080, 10240, 1023,   55,  40, -1, 0x13, false},
 	{USB_DEVICE_ID_KYE_MOUSEPEN_I608X,  /* 0x5011 */
 		20480, 15360, 2047,    8,   6,  0, 0x13,  true},
+	{USB_DEVICE_ID_KYE_EASYPEN_M406W,  /* 0x5012 */
+		15360, 10240, 1023,    6,   4,  0, 0x13, false,
+		sizeof(easypen_m406w_control_rdesc), easypen_m406w_control_rdesc},
 	{USB_DEVICE_ID_KYE_EASYPEN_M610X,  /* 0x5013 */
 		40960, 25600, 1023, 1000, 625, -2, 0x13, false,
 		sizeof(easypen_m610x_control_rdesc), easypen_m610x_control_rdesc},
+	{USB_DEVICE_ID_KYE_EASYPEN_340,  /* 0x5014 */
+		10240,  7680, 1023,    4,   3,  0, 0x13, false},
 	{USB_DEVICE_ID_KYE_PENSKETCH_M912,  /* 0x5015 */
 		61440, 46080, 2047,   12,   9,  0, 0x13,  true,
 		sizeof(pensketch_m912_control_rdesc), pensketch_m912_control_rdesc},
+	{USB_DEVICE_ID_KYE_MOUSEPEN_M508WX,  /* 0x5016 */
+		40960, 25600, 2047,    8,   5,  0, 0x13,  true,
+		sizeof(mousepen_m508wx_control_rdesc), mousepen_m508wx_control_rdesc},
+	{USB_DEVICE_ID_KYE_MOUSEPEN_M508X,  /* 0x5017 */
+		40960, 25600, 2047,    8,   5,  0, 0x13,  true,
+		sizeof(mousepen_m508x_control_rdesc), mousepen_m508x_control_rdesc},
 	{USB_DEVICE_ID_KYE_EASYPEN_M406XE,  /* 0x5019 */
 		15360, 10240, 1023,    6,   4,  0, 0x13, false,
 		sizeof(easypen_m406xe_control_rdesc), easypen_m406xe_control_rdesc},
 	{USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2,  /* 0x501A */
 		40960, 30720, 2047,    8,   6,  0, 0x13,  true},
+	{USB_DEVICE_ID_KYE_PENSKETCH_T609A,  /* 0x501B */
+		43520, 28160, 1023,   85,  55, -1, 0x13, false,
+		sizeof(pensketch_t609a_control_rdesc), pensketch_t609a_control_rdesc},
 	{}
 };
 
@@ -425,12 +577,19 @@ static int kye_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		if (hid_hw_open(hdev))
 			hid_hw_close(hdev);
 		break;
+	case USB_DEVICE_ID_KYE_EASYPEN_M406:
+	case USB_DEVICE_ID_KYE_EASYPEN_M506:
 	case USB_DEVICE_ID_KYE_EASYPEN_I405X:
 	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X:
+	case USB_DEVICE_ID_KYE_EASYPEN_M406W:
 	case USB_DEVICE_ID_KYE_EASYPEN_M610X:
+	case USB_DEVICE_ID_KYE_EASYPEN_340:
 	case USB_DEVICE_ID_KYE_PENSKETCH_M912:
+	case USB_DEVICE_ID_KYE_MOUSEPEN_M508WX:
+	case USB_DEVICE_ID_KYE_MOUSEPEN_M508X:
 	case USB_DEVICE_ID_KYE_EASYPEN_M406XE:
 	case USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2:
+	case USB_DEVICE_ID_KYE_PENSKETCH_T609A:
 		ret = kye_tablet_enable(hdev);
 		if (ret) {
 			hid_err(hdev, "tablet enabling failed\n");
@@ -455,17 +614,31 @@ static const struct hid_device_id kye_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_GENIUS_GX_IMPERATOR) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_EASYPEN_M406) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_EASYPEN_M506) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_I405X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_MOUSEPEN_I608X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_EASYPEN_M406W) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_M610X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_EASYPEN_340) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_PENSKETCH_M912) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_MOUSEPEN_M508WX) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_MOUSEPEN_M508X) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_EASYPEN_M406XE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
 				USB_DEVICE_ID_KYE_MOUSEPEN_I608X_V2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE,
+				USB_DEVICE_ID_KYE_PENSKETCH_T609A) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, kye_devices);
