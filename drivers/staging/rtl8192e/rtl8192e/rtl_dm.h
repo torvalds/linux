@@ -125,11 +125,11 @@ enum dm_dig_cs_ratio {
 };
 
 struct drx_path_sel {
-	u8		Enable;
+	u8		enable;
 	u8		cck_method;
-	u8		cck_Rx_path;
+	u8		cck_rx_path;
 
-	u8		SS_TH_low;
+	u8		ss_th_low;
 	u8		diff_TH;
 	u8		disabledRF;
 	u8		reserved;
