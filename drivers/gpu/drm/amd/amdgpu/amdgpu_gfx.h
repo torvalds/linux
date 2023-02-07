@@ -73,6 +73,32 @@ enum amdgpu_pkg_type {
 	AMDGPU_PKG_TYPE_UNKNOWN,
 };
 
+enum amdgpu_gfx_ras_mem_id_type {
+	AMDGPU_GFX_CP_MEM = 0,
+	AMDGPU_GFX_GCEA_MEM,
+	AMDGPU_GFX_GC_CANE_MEM,
+	AMDGPU_GFX_GCUTCL2_MEM,
+	AMDGPU_GFX_GDS_MEM,
+	AMDGPU_GFX_LDS_MEM,
+	AMDGPU_GFX_RLC_MEM,
+	AMDGPU_GFX_SP_MEM,
+	AMDGPU_GFX_SPI_MEM,
+	AMDGPU_GFX_SQC_MEM,
+	AMDGPU_GFX_SQ_MEM,
+	AMDGPU_GFX_TA_MEM,
+	AMDGPU_GFX_TCC_MEM,
+	AMDGPU_GFX_TCA_MEM,
+	AMDGPU_GFX_TCI_MEM,
+	AMDGPU_GFX_TCP_MEM,
+	AMDGPU_GFX_TD_MEM,
+	AMDGPU_GFX_TCX_MEM,
+	AMDGPU_GFX_ATC_L2_MEM,
+	AMDGPU_GFX_UTCL2_MEM,
+	AMDGPU_GFX_VML2_MEM,
+	AMDGPU_GFX_VML2_WALKER_MEM,
+	AMDGPU_GFX_MEM_TYPE_NUM
+};
+
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
 	u64			hpd_eop_gpu_addr;
@@ -409,6 +435,19 @@ struct amdgpu_gfx {
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 };
+
+struct amdgpu_gfx_ras_reg_entry {
+	struct amdgpu_ras_err_status_reg_entry reg_entry;
+	enum amdgpu_gfx_ras_mem_id_type mem_id_type;
+	uint32_t se_num;
+};
+
+struct amdgpu_gfx_ras_mem_id_entry {
+	const struct amdgpu_ras_memory_id_entry *mem_id_ent;
+	uint32_t size;
+};
+
+#define AMDGPU_GFX_MEMID_ENT(x) {(x), ARRAY_SIZE(x)},
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance, xcc_id) ((adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance), (xcc_id)))
