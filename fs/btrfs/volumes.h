@@ -408,11 +408,55 @@ struct btrfs_io_context {
 	u64 map_type; /* get from map_lookup->type */
 	struct bio *orig_bio;
 	atomic_t error;
-	int max_errors;
-	int num_stripes;
-	int mirror_num;
-	int num_tgtdevs;
-	int *tgtdev_map;
+	u16 max_errors;
+
+	/*
+	 * The total number of stripes, including the extra duplicated
+	 * stripe for replace.
+	 */
+	u16 num_stripes;
+
+	/*
+	 * The mirror_num of this bioc.
+	 *
+	 * This is for reads which use 0 as mirror_num, thus we should return a
+	 * valid mirror_num (>0) for the reader.
+	 */
+	u16 mirror_num;
+
+	/*
+	 * The following two members are for dev-replace case only.
+	 *
+	 * @num_tgtdevs:	Number of duplicated stripes which need to be
+	 *			written to replace target.
+	 *			Should be <= 2 (2 for DUP, otherwise <= 1).
+	 * @tgtdev_map:		The array indicates where the duplicated stripes
+	 *			are from. The size is the number of original
+	 *			stripes (num_stripes - num_tgtdevs).
+	 *
+	 * The @tgtdev_map[] array is mostly for RAID56 cases.
+	 * As non-RAID56 stripes share the same contents of the mapped range,
+	 * thus no need to bother where the duplicated ones are from.
+	 *
+	 * But for RAID56 case, all stripes contain different contents, thus
+	 * we need a way to know the mapping.
+	 *
+	 * There is an example for the two members, using a RAID5 write:
+	 *
+	 *   num_stripes:	4 (3 + 1 duplicated write)
+	 *   stripes[0]:	dev = devid 1, physical = X
+	 *   stripes[1]:	dev = devid 2, physical = Y
+	 *   stripes[2]:	dev = devid 3, physical = Z
+	 *   stripes[3]:	dev = devid 0, physical = Y
+	 *
+	 * num_tgtdevs = 1
+	 * tgtdev_map[0] = 0	<- Means stripes[0] is not involved in replace.
+	 * tgtdev_map[1] = 3	<- Means stripes[1] is involved in replace,
+	 *			   and it's duplicated to stripes[3].
+	 * tgtdev_map[2] = 0	<- Means stripes[2] is not involved in replace.
+	 */
+	u16 num_tgtdevs;
+	u16 *tgtdev_map;
 	/*
 	 * logical block numbers for the start of each stripe
 	 * The last one or two are p/q.  These are sorted,
