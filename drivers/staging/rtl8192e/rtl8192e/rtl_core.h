@@ -203,8 +203,6 @@ struct rtl8192_tx_ring {
 	struct sk_buff_head queue;
 };
 
-
-
 struct rtl819x_ops {
 	enum nic_t nic_type;
 	void (*get_eeprom_size)(struct net_device *dev);
@@ -263,7 +261,6 @@ struct r8192_priv {
 	struct work_struct				reset_wq;
 
 	enum rt_customer_id customer_id;
-
 
 	enum rt_rf_type_819xu rf_chip;
 	enum ht_channel_width current_chnl_bw;

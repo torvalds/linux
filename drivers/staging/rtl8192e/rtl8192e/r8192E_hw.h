@@ -239,14 +239,11 @@ enum _RTL8192PCI_HW {
 				RATR_MCS11 | RATR_MCS12 | RATR_MCS13 |	\
 				RATR_MCS14|RATR_MCS15)
 
-
 	DRIVER_RSSI		= 0x32c,
 	MCS_TXAGC		= 0x340,
 	CCK_TXAGC		= 0x348,
 	MacBlkCtrl		= 0x403,
-
-}
-;
+};
 
 #define GPI 0x108
 
