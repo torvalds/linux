@@ -63,6 +63,7 @@ struct sched_gate_list {
 	 * or 0 if a traffic class gate never opens during the schedule.
 	 */
 	u64 max_open_gate_duration[TC_MAX_QUEUE];
+	u32 max_frm_len[TC_MAX_QUEUE]; /* for the fast path */
 	struct rcu_head rcu;
 	struct list_head entries;
 	size_t num_entries;
@@ -93,7 +94,6 @@ struct taprio_sched {
 	struct hrtimer advance_timer;
 	struct list_head taprio_list;
 	int cur_txq[TC_MAX_QUEUE];
-	u32 max_frm_len[TC_MAX_QUEUE]; /* for the fast path */
 	u32 max_sdu[TC_MAX_QUEUE]; /* for dump and offloading */
 	u32 txtime_delay;
 };
@@ -244,6 +244,21 @@ static ktime_t get_interval_end_time(struct sched_gate_list *sched,
 static int length_to_duration(struct taprio_sched *q, int len)
 {
 	return div_u64(len * atomic64_read(&q->picos_per_byte), PSEC_PER_NSEC);
+}
+
+static void taprio_update_queue_max_sdu(struct taprio_sched *q,
+					struct sched_gate_list *sched)
+{
+	struct net_device *dev = qdisc_dev(q->root);
+	int num_tc = netdev_get_num_tc(dev);
+	int tc;
+
+	for (tc = 0; tc < num_tc; tc++) {
+		if (q->max_sdu[tc])
+			sched->max_frm_len[tc] = q->max_sdu[tc] + dev->hard_header_len;
+		else
+			sched->max_frm_len[tc] = U32_MAX; /* never oversized */
+	}
 }
 
 /* Returns the entry corresponding to next available interval. If
@@ -479,13 +494,32 @@ done:
 	return txtime;
 }
 
+/* Devices with full offload are expected to honor this in hardware */
+static bool taprio_skb_exceeds_queue_max_sdu(struct Qdisc *sch,
+					     struct sk_buff *skb)
+{
+	struct taprio_sched *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	struct sched_gate_list *sched;
+	int prio = skb->priority;
+	bool exceeds = false;
+	u8 tc;
+
+	tc = netdev_get_prio_tc_map(dev, prio);
+
+	rcu_read_lock();
+	sched = rcu_dereference(q->oper_sched);
+	if (sched && skb->len > sched->max_frm_len[tc])
+		exceeds = true;
+	rcu_read_unlock();
+
+	return exceeds;
+}
+
 static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
 			      struct Qdisc *child, struct sk_buff **to_free)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
-	struct net_device *dev = qdisc_dev(sch);
-	int prio = skb->priority;
-	u8 tc;
 
 	/* sk_flags are only safe to use on full sockets. */
 	if (skb->sk && sk_fullsock(skb->sk) && sock_flag(skb->sk, SOCK_TXTIME)) {
@@ -497,9 +531,7 @@ static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
 			return qdisc_drop(skb, sch, to_free);
 	}
 
-	/* Devices with full offload are expected to honor this in hardware */
-	tc = netdev_get_prio_tc_map(dev, prio);
-	if (skb->len > q->max_frm_len[tc])
+	if (taprio_skb_exceeds_queue_max_sdu(sch, skb))
 		return qdisc_drop(skb, sch, to_free);
 
 	qdisc_qstats_backlog_inc(sch, skb);
@@ -1609,7 +1641,6 @@ static int taprio_parse_tc_entries(struct Qdisc *sch,
 				   struct netlink_ext_ack *extack)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
-	struct net_device *dev = qdisc_dev(sch);
 	u32 max_sdu[TC_QOPT_MAX_QUEUE];
 	unsigned long seen_tcs = 0;
 	struct nlattr *n;
@@ -1628,13 +1659,8 @@ static int taprio_parse_tc_entries(struct Qdisc *sch,
 			goto out;
 	}
 
-	for (tc = 0; tc < TC_QOPT_MAX_QUEUE; tc++) {
+	for (tc = 0; tc < TC_QOPT_MAX_QUEUE; tc++)
 		q->max_sdu[tc] = max_sdu[tc];
-		if (max_sdu[tc])
-			q->max_frm_len[tc] = max_sdu[tc] + dev->hard_header_len;
-		else
-			q->max_frm_len[tc] = U32_MAX; /* never oversized */
-	}
 
 out:
 	return err;
@@ -1758,6 +1784,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 		goto free_sched;
 
 	taprio_set_picos_per_byte(dev, q);
+	taprio_update_queue_max_sdu(q, new_admin);
 
 	if (mqprio) {
 		err = netdev_set_num_tc(dev, mqprio->num_tc);
