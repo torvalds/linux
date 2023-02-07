@@ -225,11 +225,11 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 				break;
 
 			case AC2_VI:
-				AcmCtrl |= AcmHw_ViqEn;
+				AcmCtrl |= ACM_HW_VIQ_EN;
 				break;
 
 			case AC3_VO:
-				AcmCtrl |= AcmHw_VoqEn;
+				AcmCtrl |= ACM_HW_VOQ_EN;
 				break;
 			}
 		} else {
@@ -239,7 +239,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 				break;
 
 			case AC2_VI:
-				AcmCtrl &= (~AcmHw_ViqEn);
+				AcmCtrl &= (~ACM_HW_VIQ_EN);
 				break;
 
 			case AC3_VO:

@@ -144,8 +144,8 @@ enum _RTL8192PCI_HW {
 #define CPU_GEN_NO_LOOPBACK_SET	0x00080000
 	ACM_HW_CTRL		= 0x171,
 #define	ACM_HW_BEQ_EN		BIT1
-#define	AcmHw_ViqEn		BIT2
-#define	AcmHw_VoqEn		BIT3
+#define	ACM_HW_VIQ_EN		BIT2
+#define	ACM_HW_VOQ_EN		BIT3
 	RQPN1			= 0x180,
 	RQPN2			= 0x184,
 	RQPN3			= 0x188,
@@ -250,6 +250,6 @@ enum _RTL8192PCI_HW {
 
 #define GPI 0x108
 
-#define	ANAPAR_FOR_8192PciE				0x17
+#define	ANAPAR_FOR_8192PCIE	0x17
 
 #endif
