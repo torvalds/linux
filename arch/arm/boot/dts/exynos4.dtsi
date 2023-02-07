@@ -201,8 +201,8 @@
 			#size-cells = <0>;
 		};
 
-		camera: camera {
-			compatible = "samsung,fimc", "simple-bus";
+		camera: camera@11800000 {
+			compatible = "samsung,fimc";
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <1>;
