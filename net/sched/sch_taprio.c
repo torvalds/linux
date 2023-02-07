@@ -1690,6 +1690,7 @@ static int taprio_new_flags(const struct nlattr *attr, u32 old,
 static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 			 struct netlink_ext_ack *extack)
 {
+	struct qdisc_size_table *stab = rtnl_dereference(sch->stab);
 	struct nlattr *tb[TCA_TAPRIO_ATTR_MAX + 1] = { };
 	struct sched_gate_list *oper, *admin, *new_admin;
 	struct taprio_sched *q = qdisc_priv(sch);
@@ -1841,6 +1842,10 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 
 	new_admin = NULL;
 	err = 0;
+
+	if (!stab)
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Size table not specified, frame length estimations may be inaccurate");
 
 unlock:
 	spin_unlock_bh(qdisc_lock(sch));
