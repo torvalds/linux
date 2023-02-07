@@ -29,6 +29,8 @@
 #include "sch_mqprio_lib.h"
 
 static LIST_HEAD(taprio_list);
+static struct static_key_false taprio_have_broken_mqprio;
+static struct static_key_false taprio_have_working_mqprio;
 
 #define TAPRIO_ALL_GATES_OPEN -1
 
@@ -69,6 +71,8 @@ struct taprio_sched {
 	enum tk_offsets tk_offset;
 	int clockid;
 	bool offloaded;
+	bool detected_mqprio;
+	bool broken_mqprio;
 	atomic64_t picos_per_byte; /* Using picoseconds because for 10Gbps+
 				    * speeds it's sub-nanoseconds per byte
 				    */
@@ -80,6 +84,7 @@ struct taprio_sched {
 	struct sched_gate_list __rcu *admin_sched;
 	struct hrtimer advance_timer;
 	struct list_head taprio_list;
+	int cur_txq[TC_MAX_QUEUE];
 	u32 max_frm_len[TC_MAX_QUEUE]; /* for the fast path */
 	u32 max_sdu[TC_MAX_QUEUE]; /* for dump and offloading */
 	u32 txtime_delay;
@@ -568,17 +573,78 @@ skip_peek_checks:
 	return skb;
 }
 
+static void taprio_next_tc_txq(struct net_device *dev, int tc, int *txq)
+{
+	int offset = dev->tc_to_txq[tc].offset;
+	int count = dev->tc_to_txq[tc].count;
+
+	(*txq)++;
+	if (*txq == offset + count)
+		*txq = offset;
+}
+
+/* Prioritize higher traffic classes, and select among TXQs belonging to the
+ * same TC using round robin
+ */
+static struct sk_buff *taprio_dequeue_tc_priority(struct Qdisc *sch,
+						  struct sched_entry *entry,
+						  u32 gate_mask)
+{
+	struct taprio_sched *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	int num_tc = netdev_get_num_tc(dev);
+	struct sk_buff *skb;
+	int tc;
+
+	for (tc = num_tc - 1; tc >= 0; tc--) {
+		int first_txq = q->cur_txq[tc];
+
+		if (!(gate_mask & BIT(tc)))
+			continue;
+
+		do {
+			skb = taprio_dequeue_from_txq(sch, q->cur_txq[tc],
+						      entry, gate_mask);
+
+			taprio_next_tc_txq(dev, tc, &q->cur_txq[tc]);
+
+			if (skb)
+				return skb;
+		} while (q->cur_txq[tc] != first_txq);
+	}
+
+	return NULL;
+}
+
+/* Broken way of prioritizing smaller TXQ indices and ignoring the traffic
+ * class other than to determine whether the gate is open or not
+ */
+static struct sk_buff *taprio_dequeue_txq_priority(struct Qdisc *sch,
+						   struct sched_entry *entry,
+						   u32 gate_mask)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct sk_buff *skb;
+	int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		skb = taprio_dequeue_from_txq(sch, i, entry, gate_mask);
+		if (skb)
+			return skb;
+	}
+
+	return NULL;
+}
+
 /* Will not be called in the full offload case, since the TX queues are
  * attached to the Qdisc created using qdisc_create_dflt()
  */
 static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
-	struct net_device *dev = qdisc_dev(sch);
 	struct sk_buff *skb = NULL;
 	struct sched_entry *entry;
 	u32 gate_mask;
-	int i;
 
 	rcu_read_lock();
 	entry = rcu_dereference(q->current_entry);
@@ -588,14 +654,23 @@ static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 	 * "AdminGateStates"
 	 */
 	gate_mask = entry ? entry->gate_mask : TAPRIO_ALL_GATES_OPEN;
-
 	if (!gate_mask)
 		goto done;
 
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		skb = taprio_dequeue_from_txq(sch, i, entry, gate_mask);
-		if (skb)
-			goto done;
+	if (static_branch_unlikely(&taprio_have_broken_mqprio) &&
+	    !static_branch_likely(&taprio_have_working_mqprio)) {
+		/* Single NIC kind which is broken */
+		skb = taprio_dequeue_txq_priority(sch, entry, gate_mask);
+	} else if (static_branch_likely(&taprio_have_working_mqprio) &&
+		   !static_branch_unlikely(&taprio_have_broken_mqprio)) {
+		/* Single NIC kind which prioritizes properly */
+		skb = taprio_dequeue_tc_priority(sch, entry, gate_mask);
+	} else {
+		/* Mixed NIC kinds present in system, need dynamic testing */
+		if (q->broken_mqprio)
+			skb = taprio_dequeue_txq_priority(sch, entry, gate_mask);
+		else
+			skb = taprio_dequeue_tc_priority(sch, entry, gate_mask);
 	}
 
 done:
@@ -1157,6 +1232,34 @@ static void taprio_sched_to_offload(struct net_device *dev,
 	offload->num_entries = i;
 }
 
+static void taprio_detect_broken_mqprio(struct taprio_sched *q)
+{
+	struct net_device *dev = qdisc_dev(q->root);
+	struct tc_taprio_caps caps;
+
+	qdisc_offload_query_caps(dev, TC_SETUP_QDISC_TAPRIO,
+				 &caps, sizeof(caps));
+
+	q->broken_mqprio = caps.broken_mqprio;
+	if (q->broken_mqprio)
+		static_branch_inc(&taprio_have_broken_mqprio);
+	else
+		static_branch_inc(&taprio_have_working_mqprio);
+
+	q->detected_mqprio = true;
+}
+
+static void taprio_cleanup_broken_mqprio(struct taprio_sched *q)
+{
+	if (!q->detected_mqprio)
+		return;
+
+	if (q->broken_mqprio)
+		static_branch_dec(&taprio_have_broken_mqprio);
+	else
+		static_branch_dec(&taprio_have_working_mqprio);
+}
+
 static int taprio_enable_offload(struct net_device *dev,
 				 struct taprio_sched *q,
 				 struct sched_gate_list *sched,
@@ -1538,10 +1641,12 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 		err = netdev_set_num_tc(dev, mqprio->num_tc);
 		if (err)
 			goto free_sched;
-		for (i = 0; i < mqprio->num_tc; i++)
+		for (i = 0; i < mqprio->num_tc; i++) {
 			netdev_set_tc_queue(dev, i,
 					    mqprio->count[i],
 					    mqprio->offset[i]);
+			q->cur_txq[i] = mqprio->offset[i];
+		}
 
 		/* Always use supplied priority mappings */
 		for (i = 0; i <= TC_BITMASK; i++)
@@ -1676,6 +1781,8 @@ static void taprio_destroy(struct Qdisc *sch)
 
 	if (admin)
 		call_rcu(&admin->rcu, taprio_free_sched_cb);
+
+	taprio_cleanup_broken_mqprio(q);
 }
 
 static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
@@ -1739,6 +1846,8 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 
 		q->qdiscs[i] = qdisc;
 	}
+
+	taprio_detect_broken_mqprio(q);
 
 	return taprio_change(sch, opt, extack);
 }
