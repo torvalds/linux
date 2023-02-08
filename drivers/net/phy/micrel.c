@@ -378,6 +378,8 @@ static const struct kszphy_type lan8841_type = {
 	.disable_dll_tx_bit	= BIT(14),
 	.disable_dll_rx_bit	= BIT(14),
 	.disable_dll_mask	= BIT_MASK(14),
+	.cable_diag_reg		= LAN8814_CABLE_DIAG,
+	.pair_mask		= LAN8814_WIRE_PAIR_MASK,
 };
 
 static int kszphy_extended_write(struct phy_device *phydev,
@@ -3520,6 +3522,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_LAN8841,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip LAN8841 Gigabit PHY",
+	.flags		= PHY_POLL_CABLE_TEST,
 	.driver_data	= &lan8841_type,
 	.config_init	= lan8841_config_init,
 	.probe		= lan8841_probe,
@@ -3531,6 +3534,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_stats	= kszphy_get_stats,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
+	.cable_test_start	= lan8814_cable_test_start,
+	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
 	.phy_id		= PHY_ID_KSZ9131,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
