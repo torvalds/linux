@@ -660,7 +660,10 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_version;
 	int ret = 0;
+	int xcc_id;
 
 	ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
 	if (ret)
@@ -670,7 +673,13 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	switch (member) {
 	case METRICS_CURR_GFXCLK:
 	case METRICS_AVERAGE_GFXCLK:
-		*value = 0;
+		smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if (smu_version >= 0x552F00) {
+			xcc_id = GET_INST(GC, 0);
+			*value = SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc_id]);
+		} else {
+			*value = 0;
+		}
 		break;
 	case METRICS_CURR_SOCCLK:
 	case METRICS_AVERAGE_SOCCLK:
