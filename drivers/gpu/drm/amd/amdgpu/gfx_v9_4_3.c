@@ -3773,6 +3773,39 @@ static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 	err_data->ue_count += ue_count;
 }
 
+static void gfx_v9_4_3_inst_reset_ras_err_count(struct amdgpu_device *adev,
+					void *ras_error_status, int xcc_id)
+{
+	uint32_t i, j, k;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(gfx_v9_4_3_ce_reg_list); i++) {
+		for (j = 0; j < gfx_v9_4_3_ce_reg_list[i].se_num; j++) {
+			for (k = 0; k < gfx_v9_4_3_ce_reg_list[i].reg_entry.reg_inst; k++) {
+				/* no need to select if instance number is 1 */
+				if (gfx_v9_4_3_ce_reg_list[i].se_num > 1 ||
+				    gfx_v9_4_3_ce_reg_list[i].reg_entry.reg_inst > 1)
+					gfx_v9_4_3_xcc_select_se_sh(adev, j, 0, k, xcc_id);
+
+				amdgpu_ras_inst_reset_ras_error_count(adev,
+					&(gfx_v9_4_3_ce_reg_list[i].reg_entry),
+					1,
+					GET_INST(GC, xcc_id));
+
+				amdgpu_ras_inst_reset_ras_error_count(adev,
+					&(gfx_v9_4_3_ue_reg_list[i].reg_entry),
+					1,
+					GET_INST(GC, xcc_id));
+			}
+		}
+	}
+
+	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+			xcc_id);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_4_3_inst_query_ea_err_status(struct amdgpu_device *adev,
 					int xcc_id)
 {
@@ -3880,6 +3913,11 @@ static void gfx_v9_4_3_query_ras_error_count(struct amdgpu_device *adev,
 {
 	amdgpu_gfx_ras_error_func(adev, ras_error_status,
 			gfx_v9_4_3_inst_query_ras_err_count);
+}
+
+static void gfx_v9_4_3_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	amdgpu_gfx_ras_error_func(adev, NULL, gfx_v9_4_3_inst_reset_ras_err_count);
 }
 
 static void gfx_v9_4_3_query_ras_error_status(struct amdgpu_device *adev)
