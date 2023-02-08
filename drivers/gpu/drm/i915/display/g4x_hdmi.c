@@ -639,6 +639,6 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 
 	intel_infoframe_init(dig_port);
 
-	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
+	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, devdata, port);
 	intel_hdmi_init_connector(dig_port, intel_connector);
 }

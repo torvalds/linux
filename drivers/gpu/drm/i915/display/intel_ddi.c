@@ -4505,7 +4505,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 	dig_port->dp.output_reg = INVALID_MMIO_REG;
 	dig_port->max_lanes = intel_ddi_max_lanes(dig_port);
-	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
+	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, devdata, port);
 
 	if (intel_phy_is_tc(dev_priv, phy)) {
 		bool is_legacy =

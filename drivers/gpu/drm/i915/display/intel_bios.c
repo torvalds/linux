@@ -3575,9 +3575,9 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 }
 
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
+				   const struct intel_bios_encoder_data *devdata,
 				   enum port port)
 {
-	const struct intel_bios_encoder_data *devdata = i915->display.vbt.ports[port];
 	enum aux_ch aux_ch;
 
 	if (!devdata || !devdata->child.aux_channel) {
