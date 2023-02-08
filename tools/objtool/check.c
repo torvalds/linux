@@ -406,9 +406,7 @@ static int decode_instructions(struct objtool_file *file)
 
 			ret = arch_decode_instruction(file, sec, offset,
 						      sec->sh.sh_size - offset,
-						      &insn->len, &insn->type,
-						      &insn->immediate,
-						      &insn->stack_ops);
+						      insn);
 			if (ret)
 				goto err;
 
