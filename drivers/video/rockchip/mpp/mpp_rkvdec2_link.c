@@ -190,6 +190,7 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 	},
 	.tb_reg_int = 180,
 	.hack_setup = 0,
+	.tb_reg_cycle = 197,
 	.reg_status = {
 		.dec_num_mask = 0x000fffff,
 		.err_flag_base = 0x024,
@@ -674,7 +675,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		regs = table_base + idx * link_dec->link_reg_count;
 		irq_status = regs[info->tb_reg_int];
 		mpp_task->hw_cycles = regs[info->tb_reg_cycle];
-		mpp_time_diff_with_hw_time(mpp_task, dec->core_clk_info.real_rate_hz);
+		mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 		mpp_dbg_link_flow("slot %d rd task %d\n", idx,
 				  mpp_task->task_id);
 
@@ -1684,12 +1685,19 @@ static int rkvdec2_ccu_power_on(struct mpp_taskqueue *queue,
 		mpp_clk_safe_enable(ccu->aclk_info.clk);
 		/* core pd and clk on */
 		for (i = 0; i < queue->core_count; i++) {
+			struct rkvdec2_dev *dec;
+
 			mpp = queue->cores[i];
+			dec = to_rkvdec2_dev(mpp);
 			pm_runtime_get_sync(mpp->dev);
 			pm_stay_awake(mpp->dev);
 			if (mpp->hw_ops->clk_on)
 				mpp->hw_ops->clk_on(mpp);
 
+			mpp_clk_set_rate(&dec->aclk_info, CLK_MODE_NORMAL);
+			mpp_clk_set_rate(&dec->cabac_clk_info, CLK_MODE_NORMAL);
+			mpp_clk_set_rate(&dec->hevc_cabac_clk_info, CLK_MODE_NORMAL);
+			mpp_devfreq_set_core_rate(mpp, CLK_MODE_NORMAL);
 			mpp_iommu_dev_activate(mpp->iommu_info, mpp);
 		}
 		mpp_debug(DEBUG_CCU, "power on\n");
@@ -1760,7 +1768,7 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 			set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 			cancel_delayed_work(&mpp_task->timeout_work);
 			mpp_task->hw_cycles = mpp_read(mpp, RKVDEC_PERF_WORKING_CNT);
-			mpp_time_diff_with_hw_time(mpp_task, dec->core_clk_info.real_rate_hz);
+			mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 			task->irq_status = irq_status;
 			mpp_debug(DEBUG_IRQ_CHECK, "irq_status=%08x, timeout=%u, abort=%u\n",
 				  irq_status, timeout_flag, abort_flag);

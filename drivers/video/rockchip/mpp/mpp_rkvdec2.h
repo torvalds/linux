@@ -178,6 +178,8 @@ struct rkvdec2_dev {
 	struct mpp_clk_info core_clk_info;
 	struct mpp_clk_info cabac_clk_info;
 	struct mpp_clk_info hevc_cabac_clk_info;
+	struct mpp_clk_info *cycle_clk;
+
 	u32 default_max_load;
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;

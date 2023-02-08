@@ -422,7 +422,7 @@ static int rkvdec2_isr(struct mpp_dev *mpp)
 		return IRQ_HANDLED;
 	}
 	mpp_task->hw_cycles = mpp_read(mpp, RKVDEC_PERF_WORKING_CNT);
-	mpp_time_diff_with_hw_time(mpp_task, dec->core_clk_info.real_rate_hz);
+	mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 	mpp->cur_task = NULL;
 	task = to_rkvdec2_task(mpp_task);
 	task->irq_status = mpp->irq_status;
@@ -1005,6 +1005,7 @@ static int rkvdec2_init(struct mpp_dev *mpp)
 	mpp_set_clk_info_rate_hz(&dec->cabac_clk_info, CLK_MODE_DEFAULT, 200 * MHZ);
 	mpp_set_clk_info_rate_hz(&dec->hevc_cabac_clk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
+	dec->cycle_clk = &dec->aclk_info;
 	/* Get normal max workload from dtsi */
 	of_property_read_u32(mpp->dev->of_node,
 			     "rockchip,default-max-load", &dec->default_max_load);
