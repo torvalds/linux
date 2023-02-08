@@ -1302,16 +1302,23 @@ EXPORT_SYMBOL_GPL(subsys_virtual_register);
  */
 struct device_driver *driver_find(const char *name, struct bus_type *bus)
 {
-	struct kobject *k = kset_find_obj(bus->p->drivers_kset, name);
+	struct subsys_private *sp = bus_to_subsys(bus);
+	struct kobject *k;
 	struct driver_private *priv;
 
-	if (k) {
-		/* Drop reference added by kset_find_obj() */
-		kobject_put(k);
-		priv = to_driver(k);
-		return priv->driver;
-	}
-	return NULL;
+	if (!sp)
+		return NULL;
+
+	k = kset_find_obj(sp->drivers_kset, name);
+	subsys_put(sp);
+	if (!k)
+		return NULL;
+
+	priv = to_driver(k);
+
+	/* Drop reference added by kset_find_obj() */
+	kobject_put(k);
+	return priv->driver;
 }
 EXPORT_SYMBOL_GPL(driver_find);
 
