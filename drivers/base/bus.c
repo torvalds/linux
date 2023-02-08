@@ -1322,6 +1322,22 @@ struct device_driver *driver_find(const char *name, struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(driver_find);
 
+/*
+ * Warning, the value could go to "removed" instantly after calling this function, so be very
+ * careful when calling it...
+ */
+bool bus_is_registered(const struct bus_type *bus)
+{
+	struct subsys_private *sp = bus_to_subsys(bus);
+	bool is_initialized = false;
+
+	if (sp) {
+		is_initialized = true;
+		subsys_put(sp);
+	}
+	return is_initialized;
+}
+
 int __init buses_init(void)
 {
 	bus_kset = kset_create_and_add("bus", &bus_uevent_ops, NULL);
