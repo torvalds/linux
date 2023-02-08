@@ -24,6 +24,9 @@
 /* /sys/devices/system */
 static struct kset *system_kset;
 
+/* /sys/bus */
+static struct kset *bus_kset;
+
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
 
 /*
@@ -39,19 +42,63 @@ static struct kset *system_kset;
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
 
+/**
+ * bus_to_subsys - Turn a struct bus_type into a struct subsys_private
+ *
+ * @bus: pointer to the struct bus_type to look up
+ *
+ * The driver core internals needs to work on the subsys_private structure, not
+ * the external struct bus_type pointer.  This function walks the list of
+ * registered busses in the system and finds the matching one and returns the
+ * internal struct subsys_private that relates to that bus.
+ *
+ * Note, the reference count of the return value is INCREMENTED if it is not
+ * NULL.  A call to subsys_put() must be done when finished with the pointer in
+ * order for it to be properly freed.
+ */
+static struct subsys_private *bus_to_subsys(const struct bus_type *bus)
+{
+	struct subsys_private *sp = NULL;
+	struct kobject *kobj;
+
+	if (!bus)
+		return NULL;
+
+	spin_lock(&bus_kset->list_lock);
+
+	if (list_empty(&bus_kset->list))
+		goto done;
+
+	list_for_each_entry(kobj, &bus_kset->list, entry) {
+		struct kset *kset = container_of(kobj, struct kset, kobj);
+
+		sp = container_of_const(kset, struct subsys_private, subsys);
+		if (sp->bus == bus)
+			goto done;
+	}
+	sp = NULL;
+done:
+	sp = subsys_get(sp);
+	spin_unlock(&bus_kset->list_lock);
+	return sp;
+}
+
 static struct bus_type *bus_get(struct bus_type *bus)
 {
-	if (bus) {
-		kset_get(&bus->p->subsys);
+	struct subsys_private *sp = bus_to_subsys(bus);
+
+	if (sp)
 		return bus;
-	}
 	return NULL;
 }
 
-static void bus_put(struct bus_type *bus)
+static void bus_put(const struct bus_type *bus)
 {
-	if (bus)
-		kset_put(&bus->p->subsys);
+	struct subsys_private *sp = bus_to_subsys(bus);
+
+	/* two puts are required as the call to bus_to_subsys incremented it again */
+	subsys_put(sp);
+	subsys_put(sp);
 }
 
 static ssize_t drv_attr_show(struct kobject *kobj, struct attribute *attr,
@@ -176,8 +223,6 @@ static int bus_uevent_filter(const struct kobject *kobj)
 static const struct kset_uevent_ops bus_uevent_ops = {
 	.filter = bus_uevent_filter,
 };
-
-static struct kset *bus_kset;
 
 /* Manually detach a device from its associated driver. */
 static ssize_t unbind_store(struct device_driver *drv, const char *buf,
