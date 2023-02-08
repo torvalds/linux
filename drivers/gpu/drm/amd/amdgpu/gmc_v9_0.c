@@ -833,6 +833,11 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		 */
 		inv_req = gmc_v9_0_get_invalidate_req(vmid, 2);
 		inv_req2 = gmc_v9_0_get_invalidate_req(vmid, flush_type);
+	} else if (flush_type == 2 &&
+		   adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3) &&
+		   adev->rev_id == 0) {
+		inv_req = gmc_v9_0_get_invalidate_req(vmid, 0);
+		inv_req2 = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 	} else {
 		inv_req = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 		inv_req2 = 0;
@@ -976,6 +981,13 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		if (vega20_xgmi_wa)
 			kiq->pmf->kiq_invalidate_tlbs(ring,
 						      pasid, 2, all_hub);
+
+		if (flush_type == 2 &&
+		    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3) &&
+		    adev->rev_id == 0)
+			kiq->pmf->kiq_invalidate_tlbs(ring,
+						pasid, 0, all_hub);
+
 		kiq->pmf->kiq_invalidate_tlbs(ring,
 					pasid, flush_type, all_hub);
 		r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
