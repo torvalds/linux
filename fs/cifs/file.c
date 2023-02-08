@@ -4489,23 +4489,22 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
  * If the page is mmap'ed into a process' page tables, then we need to make
  * sure that it doesn't change while being written back.
  */
-static vm_fault_t
-cifs_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t cifs_page_mkwrite(struct vm_fault *vmf)
 {
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 
-	/* Wait for the page to be written to the cache before we allow it to
-	 * be modified.  We then assume the entire page will need writing back.
+	/* Wait for the folio to be written to the cache before we allow it to
+	 * be modified.  We then assume the entire folio will need writing back.
 	 */
 #ifdef CONFIG_CIFS_FSCACHE
-	if (PageFsCache(page) &&
-	    wait_on_page_fscache_killable(page) < 0)
+	if (folio_test_fscache(folio) &&
+	    folio_wait_fscache_killable(folio) < 0)
 		return VM_FAULT_RETRY;
 #endif
 
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
-	if (lock_page_killable(page) < 0)
+	if (folio_lock_killable(folio) < 0)
 		return VM_FAULT_RETRY;
 	return VM_FAULT_LOCKED;
 }
