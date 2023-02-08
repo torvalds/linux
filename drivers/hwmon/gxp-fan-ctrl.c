@@ -199,7 +199,6 @@ static const struct hwmon_chip_info gxp_fan_ctrl_chip_info = {
 static int gxp_fan_ctrl_probe(struct platform_device *pdev)
 {
 	struct gxp_fan_ctrl_drvdata *drvdata;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct device *hwmon_dev;
 
@@ -208,8 +207,7 @@ static int gxp_fan_ctrl_probe(struct platform_device *pdev)
 	if (!drvdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drvdata->base = devm_ioremap_resource(&pdev->dev, res);
+	drvdata->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(drvdata->base))
 		return dev_err_probe(dev, PTR_ERR(drvdata->base),
 				     "failed to map base\n");
