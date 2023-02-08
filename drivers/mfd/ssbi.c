@@ -262,7 +262,6 @@ EXPORT_SYMBOL_GPL(ssbi_write);
 static int ssbi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *mem_res;
 	struct ssbi *ssbi;
 	const char *type;
 
@@ -270,8 +269,7 @@ static int ssbi_probe(struct platform_device *pdev)
 	if (!ssbi)
 		return -ENOMEM;
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ssbi->base = devm_ioremap_resource(&pdev->dev, mem_res);
+	ssbi->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(ssbi->base))
 		return PTR_ERR(ssbi->base);
 
