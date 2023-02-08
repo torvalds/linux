@@ -1286,12 +1286,33 @@ int security_move_mount(const struct path *from_path, const struct path *to_path
 	return call_int_hook(move_mount, 0, from_path, to_path);
 }
 
+/**
+ * security_path_notify() - Check if setting a watch is allowed
+ * @path: file path
+ * @mask: event mask
+ * @obj_type: file path type
+ *
+ * Check permissions before setting a watch on events as defined by @mask, on
+ * an object at @path, whose type is defined by @obj_type.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_notify(const struct path *path, u64 mask,
 				unsigned int obj_type)
 {
 	return call_int_hook(path_notify, 0, path, mask, obj_type);
 }
 
+/**
+ * security_inode_alloc() - Allocate an inode LSM blob
+ * @inode: the inode
+ *
+ * Allocate and attach a security structure to @inode->i_security.  The
+ * i_security field is initialized to NULL when the inode structure is
+ * allocated.
+ *
+ * Return: Return 0 if operation was successful.
+ */
 int security_inode_alloc(struct inode *inode)
 {
 	int rc = lsm_inode_alloc(inode);
@@ -1312,6 +1333,12 @@ static void inode_free_by_rcu(struct rcu_head *head)
 	kmem_cache_free(lsm_inode_cache, head);
 }
 
+/**
+ * security_inode_free() - Free an inode's LSM blob
+ * @inode: the inode
+ *
+ * Deallocate the inode security structure and set @inode->i_security to NULL.
+ */
 void security_inode_free(struct inode *inode)
 {
 	integrity_inode_free(inode);
@@ -1390,6 +1417,27 @@ int security_dentry_create_files_as(struct dentry *dentry, int mode,
 }
 EXPORT_SYMBOL(security_dentry_create_files_as);
 
+/**
+ * security_inode_init_security() - Initialize an inode's LSM context
+ * @inode: the inode
+ * @dir: parent directory
+ * @qstr: last component of the pathname
+ * @initxattrs: callback function to write xattrs
+ * @fs_data: filesystem specific data
+ *
+ * Obtain the security attribute name suffix and value to set on a newly
+ * created inode and set up the incore security field for the new inode.  This
+ * hook is called by the fs code as part of the inode creation transaction and
+ * provides for atomic labeling of the inode, unlike the post_create/mkdir/...
+ * hooks called by the VFS.  The hook function is expected to allocate the name
+ * and value via kmalloc, with the caller being responsible for calling kfree
+ * after using them.  If the security module does not use security attributes
+ * or does not wish to put a security attribute on this particular inode, then
+ * it should return -EOPNOTSUPP to skip this processing.
+ *
+ * Return: Returns 0 on success, -EOPNOTSUPP if no security attribute is
+ * needed, or -ENOMEM on memory allocation failure.
+ */
 int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
 				 const initxattrs initxattrs, void *fs_data)
@@ -1425,6 +1473,18 @@ out:
 }
 EXPORT_SYMBOL(security_inode_init_security);
 
+/**
+ * security_inode_init_security_anon() - Initialize an anonymous inode
+ * @inode: the inode
+ * @name: the anonymous inode class
+ * @context_inode: an optional related inode
+ *
+ * Set up the incore security field for the new anonymous inode and return
+ * whether the inode creation is permitted by the security module or not.
+ *
+ * Return: Returns 0 on success, -EACCES if the security module denies the
+ * creation of this inode, or another -errno upon other errors.
+ */
 int security_inode_init_security_anon(struct inode *inode,
 				      const struct qstr *name,
 				      const struct inode *context_inode)
@@ -1445,6 +1505,18 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 EXPORT_SYMBOL(security_old_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
+/**
+ * security_path_mknod() - Check if creating a special file is allowed
+ * @dir: parent directory
+ * @dentry: new file
+ * @mode: new file mode
+ * @dev: device number
+ *
+ * Check permissions when creating a file. Note that this hook is called even
+ * if mknod operation is being done for a regular file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
@@ -1454,6 +1526,16 @@ int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t m
 }
 EXPORT_SYMBOL(security_path_mknod);
 
+/**
+ * security_path_mkdir() - Check if creating a new directory is allowed
+ * @dir: parent directory
+ * @dentry: new directory
+ * @mode: new directory mode
+ *
+ * Check permissions to create a new directory in the existing directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
@@ -1462,6 +1544,15 @@ int security_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t m
 }
 EXPORT_SYMBOL(security_path_mkdir);
 
+/**
+ * security_path_rmdir() - Check if removing a directory is allowed
+ * @dir: parent directory
+ * @dentry: directory to remove
+ *
+ * Check the permission to remove a directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
@@ -1469,6 +1560,15 @@ int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 	return call_int_hook(path_rmdir, 0, dir, dentry);
 }
 
+/**
+ * security_path_unlink() - Check if removing a hard link is allowed
+ * @dir: parent directory
+ * @dentry: file
+ *
+ * Check the permission to remove a hard link to a file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
@@ -1477,6 +1577,16 @@ int security_path_unlink(const struct path *dir, struct dentry *dentry)
 }
 EXPORT_SYMBOL(security_path_unlink);
 
+/**
+ * security_path_symlink() - Check if creating a symbolic link is allowed
+ * @dir: parent directory
+ * @dentry: symbolic link
+ * @old_name: file pathname
+ *
+ * Check the permission to create a symbolic link to a file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_symlink(const struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
@@ -1485,6 +1595,16 @@ int security_path_symlink(const struct path *dir, struct dentry *dentry,
 	return call_int_hook(path_symlink, 0, dir, dentry, old_name);
 }
 
+/**
+ * security_path_link - Check if creating a hard link is allowed
+ * @old_dentry: existing file
+ * @new_dir: new parent directory
+ * @new_dentry: new link
+ *
+ * Check permission before creating a new hard link to a file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry)
 {
@@ -1493,6 +1613,18 @@ int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 	return call_int_hook(path_link, 0, old_dentry, new_dir, new_dentry);
 }
 
+/**
+ * security_path_rename() - Check if renaming a file is allowed
+ * @old_dir: parent directory of the old file
+ * @old_dentry: the old file
+ * @new_dir: parent directory of the new file
+ * @new_dentry: the new file
+ * @flags: flags
+ *
+ * Check for permission to rename a file or directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 			 const struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
@@ -1506,6 +1638,16 @@ int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 }
 EXPORT_SYMBOL(security_path_rename);
 
+/**
+ * security_path_truncate() - Check if truncating a file is allowed
+ * @path: file
+ *
+ * Check permission before truncating the file indicated by path.  Note that
+ * truncation permissions may also be checked based on already opened files,
+ * using the security_file_truncate() hook.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_truncate(const struct path *path)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
@@ -1513,6 +1655,17 @@ int security_path_truncate(const struct path *path)
 	return call_int_hook(path_truncate, 0, path);
 }
 
+/**
+ * security_path_chmod() - Check if changing the file's mode is allowed
+ * @path: file
+ * @mode: new mode
+ *
+ * Check for permission to change a mode of the file @path. The new mode is
+ * specified in @mode which is a bitmask of constants from
+ * <include/uapi/linux/stat.h>.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_chmod(const struct path *path, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
@@ -1520,6 +1673,16 @@ int security_path_chmod(const struct path *path, umode_t mode)
 	return call_int_hook(path_chmod, 0, path, mode);
 }
 
+/**
+ * security_path_chown() - Check if changing the file's owner/group is allowed
+ * @path: file
+ * @uid: file owner
+ * @gid: file group
+ *
+ * Check for permission to change owner/group of a file or directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
@@ -1527,12 +1690,30 @@ int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 	return call_int_hook(path_chown, 0, path, uid, gid);
 }
 
+/**
+ * security_path_chroot() - Check if changing the root directory is allowed
+ * @path: directory
+ *
+ * Check for permission to change root directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_path_chroot(const struct path *path)
 {
 	return call_int_hook(path_chroot, 0, path);
 }
 #endif
 
+/**
+ * security_inode_create() - Check if creating a file is allowed
+ * @dir: the parent directory
+ * @dentry: the file being created
+ * @mode: requested file mode
+ *
+ * Check permission to create a regular file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
@@ -1541,6 +1722,16 @@ int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode
 }
 EXPORT_SYMBOL_GPL(security_inode_create);
 
+/**
+ * security_inode_link() - Check if creating a hard link is allowed
+ * @old_dentry: existing file
+ * @dir: new parent directory
+ * @new_dentry: new link
+ *
+ * Check permission before creating a new hard link to a file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry)
 {
@@ -1549,6 +1740,15 @@ int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 	return call_int_hook(inode_link, 0, old_dentry, dir, new_dentry);
 }
 
+/**
+ * security_inode_unlink() - Check if removing a hard link is allowed
+ * @dir: parent directory
+ * @dentry: file
+ *
+ * Check the permission to remove a hard link to a file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1556,6 +1756,16 @@ int security_inode_unlink(struct inode *dir, struct dentry *dentry)
 	return call_int_hook(inode_unlink, 0, dir, dentry);
 }
 
+/**
+ * security_inode_symlink() Check if creating a symbolic link is allowed
+ * @dir: parent directory
+ * @dentry: symbolic link
+ * @old_name: existing filename
+ *
+ * Check the permission to create a symbolic link to a file.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 			    const char *old_name)
 {
@@ -1564,6 +1774,17 @@ int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 	return call_int_hook(inode_symlink, 0, dir, dentry, old_name);
 }
 
+/**
+ * security_inode_mkdir() - Check if creation a new director is allowed
+ * @dir: parent directory
+ * @dentry: new directory
+ * @mode: new directory mode
+ *
+ * Check permissions to create a new directory in the existing directory
+ * associated with inode structure @dir.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
@@ -1572,6 +1793,15 @@ int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 }
 EXPORT_SYMBOL_GPL(security_inode_mkdir);
 
+/**
+ * security_inode_rmdir() - Check if removing a directory is allowed
+ * @dir: parent directory
+ * @dentry: directory to be removed
+ *
+ * Check the permission to remove a directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1579,6 +1809,20 @@ int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	return call_int_hook(inode_rmdir, 0, dir, dentry);
 }
 
+/**
+ * security_inode_mknod() - Check if creating a special file is allowed
+ * @dir: parent directory
+ * @dentry: new file
+ * @mode: new file mode
+ * @dev: device number
+ *
+ * Check permissions when creating a special file (or a socket or a fifo file
+ * created via the mknod system call).  Note that if mknod operation is being
+ * done for a regular file, then the create hook will be called and not this
+ * hook.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	if (unlikely(IS_PRIVATE(dir)))
@@ -1586,6 +1830,18 @@ int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return call_int_hook(inode_mknod, 0, dir, dentry, mode, dev);
 }
 
+/**
+ * security_inode_rename() - Check if renaming a file is allowed
+ * @old_dir: parent directory of the old file
+ * @old_dentry: the old file
+ * @new_dir: parent directory of the new file
+ * @new_dentry: the new file
+ * @flags: flags
+ *
+ * Check for permission to rename a file or directory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
@@ -1605,6 +1861,14 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 					   new_dir, new_dentry);
 }
 
+/**
+ * security_inode_readlink() - Check if reading a symbolic link is allowed
+ * @dentry: link
+ *
+ * Check the permission to read the symbolic link.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_readlink(struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1612,6 +1876,17 @@ int security_inode_readlink(struct dentry *dentry)
 	return call_int_hook(inode_readlink, 0, dentry);
 }
 
+/**
+ * security_inode_follow_link() - Check if following a symbolic link is allowed
+ * @dentry: link dentry
+ * @inode: link inode
+ * @rcu: true if in RCU-walk mode
+ *
+ * Check permission to follow a symbolic link when looking up a pathname.  If
+ * @rcu is true, @inode is not stable.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
 			       bool rcu)
 {
@@ -1620,6 +1895,20 @@ int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
 	return call_int_hook(inode_follow_link, 0, dentry, inode, rcu);
 }
 
+/**
+ * security_inode_permission() - Check if accessing an inode is allowed
+ * @inode: inode
+ * @mask: access mask
+ *
+ * Check permission before accessing an inode.  This hook is called by the
+ * existing Linux permission function, so a security module can use it to
+ * provide additional checking for existing Linux permission checks.  Notice
+ * that this hook is called when a file is opened (as well as many other
+ * operations), whereas the file_security_ops permission hook is called when
+ * the actual read/write operations are performed.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_permission(struct inode *inode, int mask)
 {
 	if (unlikely(IS_PRIVATE(inode)))
@@ -1627,6 +1916,19 @@ int security_inode_permission(struct inode *inode, int mask)
 	return call_int_hook(inode_permission, 0, inode, mask);
 }
 
+/**
+ * security_inode_setattr() - Check if setting file attributes is allowed
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @attr: new attributes
+ *
+ * Check permission before setting file attributes.  Note that the kernel call
+ * to notify_change is performed from several locations, whenever file
+ * attributes change (such as when a file is truncated, chown/chmod operations,
+ * transferring disk quotas, etc).
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
@@ -1641,6 +1943,14 @@ int security_inode_setattr(struct mnt_idmap *idmap,
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
+/**
+ * security_inode_getattr() - Check if getting file attributes is allowed
+ * @path: file
+ *
+ * Check permission before obtaining file attributes.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_getattr(const struct path *path)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
@@ -1648,6 +1958,18 @@ int security_inode_getattr(const struct path *path)
 	return call_int_hook(inode_getattr, 0, path);
 }
 
+/**
+ * security_inode_setxattr() - Check if setting file xattrs is allowed
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @name: xattr name
+ * @value: xattr value
+ * @flags: flags
+ *
+ * Check permission before setting the extended attributes.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
@@ -1673,6 +1995,18 @@ int security_inode_setxattr(struct mnt_idmap *idmap,
 	return evm_inode_setxattr(idmap, dentry, name, value, size);
 }
 
+/**
+ * security_inode_set_acl() - Check if setting posix acls is allowed
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @acl_name: acl name
+ * @kacl: acl struct
+ *
+ * Check permission before setting posix acls, the posix acls in @kacl are
+ * identified by @acl_name.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_set_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name,
 			   struct posix_acl *kacl)
@@ -1691,6 +2025,17 @@ int security_inode_set_acl(struct mnt_idmap *idmap,
 	return evm_inode_set_acl(idmap, dentry, acl_name, kacl);
 }
 
+/**
+ * security_inode_get_acl() - Check if reading posix acls is allowed
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @acl_name: acl name
+ *
+ * Check permission before getting osix acls, the posix acls are identified by
+ * @acl_name.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_get_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name)
 {
@@ -1699,6 +2044,17 @@ int security_inode_get_acl(struct mnt_idmap *idmap,
 	return call_int_hook(inode_get_acl, 0, idmap, dentry, acl_name);
 }
 
+/**
+ * security_inode_remove_acl() - Check if removing a posix acl is allowed
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @acl_name: acl name
+ *
+ * Check permission before removing posix acls, the posix acls are identified
+ * by @acl_name.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_remove_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name)
 {
@@ -1715,6 +2071,16 @@ int security_inode_remove_acl(struct mnt_idmap *idmap,
 	return evm_inode_remove_acl(idmap, dentry, acl_name);
 }
 
+/**
+ * security_inode_post_setxattr() - Update the inode after a setxattr operation
+ * @dentry: file
+ * @name: xattr name
+ * @value: xattr value
+ * @size: xattr value size
+ * @flags: flags
+ *
+ * Update inode security field after successful setxattr operation.
+ */
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
@@ -1724,6 +2090,16 @@ void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 	evm_inode_post_setxattr(dentry, name, value, size);
 }
 
+/**
+ * security_inode_getxattr() - Check if xattr access is allowed
+ * @dentry: file
+ * @name: xattr name
+ *
+ * Check permission before obtaining the extended attributes identified by
+ * @name for @dentry.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_getxattr(struct dentry *dentry, const char *name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1731,6 +2107,15 @@ int security_inode_getxattr(struct dentry *dentry, const char *name)
 	return call_int_hook(inode_getxattr, 0, dentry, name);
 }
 
+/**
+ * security_inode_listxattr() - Check if listing xattrs is allowed
+ * @dentry: file
+ *
+ * Check permission before obtaining the list of extended attribute names for
+ * @dentry.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_listxattr(struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
@@ -1738,6 +2123,17 @@ int security_inode_listxattr(struct dentry *dentry)
 	return call_int_hook(inode_listxattr, 0, dentry);
 }
 
+/**
+ * security_inode_removexattr() - Check if removing an xattr is allowed
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @name: xattr name
+ *
+ * Check permission before removing the extended attribute identified by @name
+ * for @dentry.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inode_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name)
 {
@@ -1760,17 +2156,55 @@ int security_inode_removexattr(struct mnt_idmap *idmap,
 	return evm_inode_removexattr(idmap, dentry, name);
 }
 
+/**
+ * security_inode_need_killpriv() - Check if security_inode_killpriv() required
+ * @dentry: associated dentry
+ *
+ * Called when an inode has been changed to determine if
+ * security_inode_killpriv() should be called.
+ *
+ * Return: Return <0 on error to abort the inode change operation, return 0 if
+ *         security_inode_killpriv() does not need to be called, return >0 if
+ *         security_inode_killpriv() does need to be called.
+ */
 int security_inode_need_killpriv(struct dentry *dentry)
 {
 	return call_int_hook(inode_need_killpriv, 0, dentry);
 }
 
+/**
+ * security_inode_killpriv() - The setuid bit is removed, update LSM state
+ * @idmap: idmap of the mount
+ * @dentry: associated dentry
+ *
+ * The @dentry's setuid bit is being removed.  Remove similar security labels.
+ * Called with the dentry->d_inode->i_mutex held.
+ *
+ * Return: Return 0 on success.  If error is returned, then the operation
+ *         causing setuid bit removal is failed.
+ */
 int security_inode_killpriv(struct mnt_idmap *idmap,
 			    struct dentry *dentry)
 {
 	return call_int_hook(inode_killpriv, 0, idmap, dentry);
 }
 
+/**
+ * security_inode_getsecurity() - Get the xattr security label of an inode
+ * @idmap: idmap of the mount
+ * @inode: inode
+ * @name: xattr name
+ * @buffer: security label buffer
+ * @alloc: allocation flag
+ *
+ * Retrieve a copy of the extended attribute representation of the security
+ * label associated with @name for @inode via @buffer.  Note that @name is the
+ * remainder of the attribute name after the security prefix has been removed.
+ * @alloc is used to specify if the call should return a value via the buffer
+ * or just the value length.
+ *
+ * Return: Returns size of buffer on success.
+ */
 int security_inode_getsecurity(struct mnt_idmap *idmap,
 			       struct inode *inode, const char *name,
 			       void **buffer, bool alloc)
@@ -1791,6 +2225,21 @@ int security_inode_getsecurity(struct mnt_idmap *idmap,
 	return LSM_RET_DEFAULT(inode_getsecurity);
 }
 
+/**
+ * security_inode_setsecurity() - Set the xattr security label of an inode
+ * @inode: inode
+ * @name: xattr name
+ * @value: security label
+ * @size: length of security label
+ * @flags: flags
+ *
+ * Set the security label associated with @name for @inode from the extended
+ * attribute value @value.  @size indicates the size of the @value in bytes.
+ * @flags may be XATTR_CREATE, XATTR_REPLACE, or 0. Note that @name is the
+ * remainder of the attribute name after the security. prefix has been removed.
+ *
+ * Return: Returns 0 on success.
+ */
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
 	struct security_hook_list *hp;
@@ -1810,6 +2259,19 @@ int security_inode_setsecurity(struct inode *inode, const char *name, const void
 	return LSM_RET_DEFAULT(inode_setsecurity);
 }
 
+/**
+ * security_inode_listsecurity() - List the xattr security label names
+ * @inode: inode
+ * @buffer: buffer
+ * @buffer_size: size of buffer
+ *
+ * Copy the extended attribute names for the security labels associated with
+ * @inode into @buffer.  The maximum size of @buffer is specified by
+ * @buffer_size.  @buffer may be NULL to request the size of the buffer
+ * required.
+ *
+ * Return: Returns number of bytes used/required on success.
+ */
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
 {
 	if (unlikely(IS_PRIVATE(inode)))
@@ -1818,17 +2280,49 @@ int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer
 }
 EXPORT_SYMBOL(security_inode_listsecurity);
 
+/**
+ * security_inode_getsecid() - Get an inode's secid
+ * @inode: inode
+ * @secid: secid to return
+ *
+ * Get the secid associated with the node.  In case of failure, @secid will be
+ * set to zero.
+ */
 void security_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	call_void_hook(inode_getsecid, inode, secid);
 }
 
+/**
+ * security_inode_copy_up() - Create new creds for an overlayfs copy-up op
+ * @src: union dentry of copy-up file
+ * @new: newly created creds
+ *
+ * A file is about to be copied up from lower layer to upper layer of overlay
+ * filesystem. Security module can prepare a set of new creds and modify as
+ * need be and return new creds. Caller will switch to new creds temporarily to
+ * create new file and release newly allocated creds.
+ *
+ * Return: Returns 0 on success or a negative error code on error.
+ */
 int security_inode_copy_up(struct dentry *src, struct cred **new)
 {
 	return call_int_hook(inode_copy_up, 0, src, new);
 }
 EXPORT_SYMBOL(security_inode_copy_up);
 
+/**
+ * security_inode_copy_up_xattr() - Filter xattrs in an overlayfs copy-up op
+ * @name: xattr name
+ *
+ * Filter the xattrs being copied up when a unioned file is copied up from a
+ * lower layer to the union/overlay layer.   The caller is responsible for
+ * reading and writing the xattrs, this hook is merely a filter.
+ *
+ * Return: Returns 0 to accept the xattr, 1 to discard the xattr, -EOPNOTSUPP
+ *         if the security module does not know about attribute, or a negative
+ *         error code to abort the copy up.
+ */
 int security_inode_copy_up_xattr(const char *name)
 {
 	struct security_hook_list *hp;
@@ -2405,6 +2899,13 @@ int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 	return call_int_hook(sem_semop, 0, sma, sops, nsops, alter);
 }
 
+/**
+ * security_d_instantiate() - Populate an inode's LSM state based on a dentry
+ * @dentry: dentry
+ * @inode: inode
+ *
+ * Fill in @inode security information for a @dentry if allowed.
+ */
 void security_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	if (unlikely(inode && IS_PRIVATE(inode)))
@@ -2413,6 +2914,17 @@ void security_d_instantiate(struct dentry *dentry, struct inode *inode)
 }
 EXPORT_SYMBOL(security_d_instantiate);
 
+/**
+ * security_getprocattr() - Read an attribute for a task
+ * @p: the task
+ * @lsm: LSM name
+ * @name: attribute name
+ * @value: attribute value
+ *
+ * Read attribute @name for task @p and store it into @value if allowed.
+ *
+ * Return: Returns the length of @value on success, a negative value otherwise.
+ */
 int security_getprocattr(struct task_struct *p, const char *lsm,
 			 const char *name, char **value)
 {
@@ -2426,6 +2938,18 @@ int security_getprocattr(struct task_struct *p, const char *lsm,
 	return LSM_RET_DEFAULT(getprocattr);
 }
 
+/**
+ * security_setprocattr() - Set an attribute for a task
+ * @lsm: LSM name
+ * @name: attribute name
+ * @value: attribute value
+ * @size: attribute value size
+ *
+ * Write (set) the current task's attribute @name to @value, size @size if
+ * allowed.
+ *
+ * Return: Returns bytes written on success, a negative value otherwise.
+ */
 int security_setprocattr(const char *lsm, const char *name, void *value,
 			 size_t size)
 {
