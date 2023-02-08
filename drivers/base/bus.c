@@ -466,32 +466,46 @@ EXPORT_SYMBOL_GPL(bus_for_each_drv);
  */
 int bus_add_device(struct device *dev)
 {
-	struct bus_type *bus = bus_get(dev->bus);
-	int error = 0;
+	struct subsys_private *sp = bus_to_subsys(dev->bus);
+	int error;
 
-	if (bus) {
-		pr_debug("bus: '%s': add device %s\n", bus->name, dev_name(dev));
-		error = device_add_groups(dev, bus->dev_groups);
-		if (error)
-			goto out_put;
-		error = sysfs_create_link(&bus->p->devices_kset->kobj,
-						&dev->kobj, dev_name(dev));
-		if (error)
-			goto out_groups;
-		error = sysfs_create_link(&dev->kobj,
-				&dev->bus->p->subsys.kobj, "subsystem");
-		if (error)
-			goto out_subsys;
-		klist_add_tail(&dev->p->knode_bus, &bus->p->klist_devices);
+	if (!sp) {
+		/*
+		 * This is a normal operation for many devices that do not
+		 * have a bus assigned to them, just say that all went
+		 * well.
+		 */
+		return 0;
 	}
+
+	/*
+	 * Reference in sp is now incremented and will be dropped when
+	 * the device is removed from the bus
+	 */
+
+	pr_debug("bus: '%s': add device %s\n", sp->bus->name, dev_name(dev));
+
+	error = device_add_groups(dev, sp->bus->dev_groups);
+	if (error)
+		goto out_put;
+
+	error = sysfs_create_link(&sp->devices_kset->kobj, &dev->kobj, dev_name(dev));
+	if (error)
+		goto out_groups;
+
+	error = sysfs_create_link(&dev->kobj, &sp->subsys.kobj, "subsystem");
+	if (error)
+		goto out_subsys;
+
+	klist_add_tail(&dev->p->knode_bus, &sp->klist_devices);
 	return 0;
 
 out_subsys:
-	sysfs_remove_link(&bus->p->devices_kset->kobj, dev_name(dev));
+	sysfs_remove_link(&sp->devices_kset->kobj, dev_name(dev));
 out_groups:
-	device_remove_groups(dev, bus->dev_groups);
+	device_remove_groups(dev, sp->bus->dev_groups);
 out_put:
-	bus_put(dev->bus);
+	subsys_put(sp);
 	return error;
 }
 
@@ -503,20 +517,21 @@ out_put:
  */
 void bus_probe_device(struct device *dev)
 {
-	struct bus_type *bus = dev->bus;
+	struct subsys_private *sp = bus_to_subsys(dev->bus);
 	struct subsys_interface *sif;
 
-	if (!bus)
+	if (!sp)
 		return;
 
-	if (bus->p->drivers_autoprobe)
+	if (sp->drivers_autoprobe)
 		device_initial_probe(dev);
 
-	mutex_lock(&bus->p->mutex);
-	list_for_each_entry(sif, &bus->p->interfaces, node)
+	mutex_lock(&sp->mutex);
+	list_for_each_entry(sif, &sp->interfaces, node)
 		if (sif->add_dev)
 			sif->add_dev(dev, sif);
-	mutex_unlock(&bus->p->mutex);
+	mutex_unlock(&sp->mutex);
+	subsys_put(sp);
 }
 
 /**
@@ -531,21 +546,20 @@ void bus_probe_device(struct device *dev)
  */
 void bus_remove_device(struct device *dev)
 {
-	struct bus_type *bus = dev->bus;
+	struct subsys_private *sp = bus_to_subsys(dev->bus);
 	struct subsys_interface *sif;
 
-	if (!bus)
+	if (!sp)
 		return;
 
-	mutex_lock(&bus->p->mutex);
-	list_for_each_entry(sif, &bus->p->interfaces, node)
+	mutex_lock(&sp->mutex);
+	list_for_each_entry(sif, &sp->interfaces, node)
 		if (sif->remove_dev)
 			sif->remove_dev(dev, sif);
-	mutex_unlock(&bus->p->mutex);
+	mutex_unlock(&sp->mutex);
 
 	sysfs_remove_link(&dev->kobj, "subsystem");
-	sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
-			  dev_name(dev));
+	sysfs_remove_link(&sp->devices_kset->kobj, dev_name(dev));
 	device_remove_groups(dev, dev->bus->dev_groups);
 	if (klist_node_attached(&dev->p->knode_bus))
 		klist_del(&dev->p->knode_bus);
@@ -553,7 +567,14 @@ void bus_remove_device(struct device *dev)
 	pr_debug("bus: '%s': remove device %s\n",
 		 dev->bus->name, dev_name(dev));
 	device_release_driver(dev);
-	bus_put(dev->bus);
+
+	/*
+	 * Decrement the reference count twice, once for the bus_to_subsys()
+	 * call in the start of this function, and the second one from the
+	 * reference increment in bus_add_device()
+	 */
+	subsys_put(sp);
+	subsys_put(sp);
 }
 
 static int __must_check add_bind_files(struct device_driver *drv)
