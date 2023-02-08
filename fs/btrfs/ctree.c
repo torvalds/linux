@@ -863,8 +863,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
  * Slot may point to the total number of items (i.e. one position beyond the last
  * key) if the key is bigger than the last key in the extent buffer.
  */
-static noinline int generic_bin_search(struct extent_buffer *eb, int low,
-				       const struct btrfs_key *key, int *slot)
+int btrfs_generic_bin_search(struct extent_buffer *eb, int low,
+			     const struct btrfs_key *key, int *slot)
 {
 	unsigned long p;
 	int item_size;
@@ -923,16 +923,6 @@ static noinline int generic_bin_search(struct extent_buffer *eb, int low,
 	}
 	*slot = low;
 	return 1;
-}
-
-/*
- * Simple binary search on an extent buffer. Works for both leaves and nodes, and
- * always searches over the whole range of keys (slot 0 to slot 'nritems - 1').
- */
-int btrfs_bin_search(struct extent_buffer *eb, const struct btrfs_key *key,
-		     int *slot)
-{
-	return generic_bin_search(eb, 0, key, slot);
 }
 
 static void root_add_used(struct btrfs_root *root, u32 size)
@@ -1869,7 +1859,7 @@ static inline int search_for_key_slot(struct extent_buffer *eb,
 		return 0;
 	}
 
-	return generic_bin_search(eb, search_low_slot, key, slot);
+	return btrfs_generic_bin_search(eb, search_low_slot, key, slot);
 }
 
 static int search_leaf(struct btrfs_trans_handle *trans,
