@@ -36,7 +36,7 @@ struct ipa;
  * by register ID.  Each entry in the array specifies the base offset and
  * (for parameterized registers) a non-zero stride value.  Not all versions
  * of IPA define all registers.  The offset for a register is returned by
- * ipa_reg_offset() when the register's ipa_reg structure is supplied;
+ * reg_offset() when the register's ipa_reg structure is supplied;
  * zero is returned for an undefined register (this should never happen).
  *
  * Some registers encode multiple fields within them.  Each field in
@@ -699,18 +699,6 @@ static inline u32 ipa_reg_field_max(const struct reg *reg, u32 field_id)
 }
 
 const struct reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
-
-/* Returns 0 for NULL reg; warning will have already been issued */
-static inline u32 ipa_reg_offset(const struct reg *reg)
-{
-	return reg ? reg->offset : 0;
-}
-
-/* Returns 0 for NULL reg; warning will have already been issued */
-static inline u32 ipa_reg_n_offset(const struct reg *reg, u32 n)
-{
-	return reg ? reg->offset + n * reg->stride : 0;
-}
 
 int ipa_reg_init(struct ipa *ipa);
 void ipa_reg_exit(struct ipa *ipa);

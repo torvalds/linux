@@ -67,4 +67,16 @@ static inline const struct reg *reg(const struct regs *regs, u32 reg_id)
 	return regs->reg[reg_id];
 }
 
+/* Returns 0 for NULL reg; warning should have already been issued */
+static inline u32 reg_offset(const struct reg *reg)
+{
+	return reg ? reg->offset : 0;
+}
+
+/* Returns 0 for NULL reg; warning should have already been issued */
+static inline u32 reg_n_offset(const struct reg *reg, u32 n)
+{
+	return reg ? reg->offset + n * reg->stride : 0;
+}
+
 #endif /* _REG_H_ */

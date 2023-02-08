@@ -52,7 +52,7 @@ static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 	u32 offset;
 
 	reg = ipa_reg(ipa, IPA_IRQ_CLR);
-	offset = ipa_reg_offset(reg);
+	offset = reg_offset(reg);
 
 	switch (irq_id) {
 	case IPA_IRQ_UC_0:
@@ -102,7 +102,7 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	 * only the enabled ones.
 	 */
 	reg = ipa_reg(ipa, IPA_IRQ_STTS);
-	offset = ipa_reg_offset(reg);
+	offset = reg_offset(reg);
 	pending = ioread32(ipa->reg_virt + offset);
 	while ((mask = pending & enabled)) {
 		do {
@@ -120,8 +120,7 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 		dev_dbg(dev, "clearing disabled IPA interrupts 0x%08x\n",
 			pending);
 		reg = ipa_reg(ipa, IPA_IRQ_CLR);
-		offset = ipa_reg_offset(reg);
-		iowrite32(pending, ipa->reg_virt + offset);
+		iowrite32(pending, ipa->reg_virt + reg_offset(reg));
 	}
 out_power_put:
 	pm_runtime_mark_last_busy(dev);
@@ -134,7 +133,7 @@ static void ipa_interrupt_enabled_update(struct ipa *ipa)
 {
 	const struct reg *reg = ipa_reg(ipa, IPA_IRQ_EN);
 
-	iowrite32(ipa->interrupt->enabled, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(ipa->interrupt->enabled, ipa->reg_virt + reg_offset(reg));
 }
 
 /* Enable an IPA interrupt type */
@@ -181,7 +180,7 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 		return;
 
 	reg = ipa_reg(ipa, IRQ_SUSPEND_EN);
-	offset = ipa_reg_n_offset(reg, unit);
+	offset = reg_n_offset(reg, unit);
 	val = ioread32(ipa->reg_virt + offset);
 
 	if (enable)
@@ -219,14 +218,14 @@ void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
 		u32 val;
 
 		reg = ipa_reg(ipa, IRQ_SUSPEND_INFO);
-		val = ioread32(ipa->reg_virt + ipa_reg_n_offset(reg, unit));
+		val = ioread32(ipa->reg_virt + reg_n_offset(reg, unit));
 
 		/* SUSPEND interrupt status isn't cleared on IPA version 3.0 */
 		if (ipa->version == IPA_VERSION_3_0)
 			continue;
 
 		reg = ipa_reg(ipa, IRQ_SUSPEND_CLR);
-		iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, unit));
+		iowrite32(val, ipa->reg_virt + reg_n_offset(reg, unit));
 	}
 }
 
@@ -261,7 +260,7 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 
 	/* Start with all IPA interrupts disabled */
 	reg = ipa_reg(ipa, IPA_IRQ_EN);
-	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(0, ipa->reg_virt + reg_offset(reg));
 
 	ret = request_threaded_irq(irq, NULL, ipa_isr_thread, IRQF_ONESHOT,
 				   "ipa", interrupt);

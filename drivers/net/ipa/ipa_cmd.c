@@ -300,7 +300,7 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 		else
 			reg = ipa_reg(ipa, FILT_ROUT_CACHE_FLUSH);
 
-		offset = ipa_reg_offset(reg);
+		offset = reg_offset(reg);
 		name = "filter/route hash flush";
 		if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 			return false;
@@ -314,7 +314,7 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	 * fits in the register write command field(s) that must hold it.
 	 */
 	reg = ipa_reg(ipa, ENDP_STATUS);
-	offset = ipa_reg_n_offset(reg, IPA_ENDPOINT_COUNT - 1);
+	offset = reg_n_offset(reg, IPA_ENDPOINT_COUNT - 1);
 	name = "maximal endpoint status";
 	if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 		return false;

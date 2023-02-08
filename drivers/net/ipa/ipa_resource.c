@@ -83,7 +83,7 @@ ipa_resource_config_common(struct ipa *ipa, u32 resource_type,
 		val |= ipa_reg_encode(reg, Y_MAX_LIM, ylimits->max);
 	}
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, resource_type));
+	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, resource_type));
 }
 
 static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,

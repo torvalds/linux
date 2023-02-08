@@ -245,7 +245,7 @@ static void send_uc_command(struct ipa *ipa, u32 command, u32 command_param)
 	reg = ipa_reg(ipa, IPA_IRQ_UC);
 	val = ipa_reg_bit(reg, UC_INTR);
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
 /* Tell the microcontroller the AP is shutting down */

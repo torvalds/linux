@@ -212,7 +212,7 @@ ipa_hardware_config_bcr(struct ipa *ipa, const struct ipa_data *data)
 
 	reg = ipa_reg(ipa, IPA_BCR);
 	val = data->backward_compat;
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
 static void ipa_hardware_config_tx(struct ipa *ipa)
@@ -227,7 +227,7 @@ static void ipa_hardware_config_tx(struct ipa *ipa)
 
 	/* Disable PA mask to allow HOLB drop */
 	reg = ipa_reg(ipa, IPA_TX_CFG);
-	offset = ipa_reg_offset(reg);
+	offset = reg_offset(reg);
 
 	val = ioread32(ipa->reg_virt + offset);
 
@@ -259,7 +259,7 @@ static void ipa_hardware_config_clkon(struct ipa *ipa)
 		val |= ipa_reg_bit(reg, GLOBAL_2X_CLK);
 	}
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
 /* Configure bus access behavior for IPA components */
@@ -274,7 +274,8 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 		return;
 
 	reg = ipa_reg(ipa, COMP_CFG);
-	offset = ipa_reg_offset(reg);
+	offset = reg_offset(reg);
+
 	val = ioread32(ipa->reg_virt + offset);
 
 	if (ipa->version == IPA_VERSION_4_0) {
@@ -315,7 +316,7 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 		val |= ipa_reg_encode(reg, GEN_QMB_1_MAX_WRITES,
 				      data1->max_writes);
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	/* Max outstanding read accesses for QSB masters */
 	reg = ipa_reg(ipa, QSB_MAX_READS);
@@ -332,7 +333,7 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 					      data1->max_reads_beats);
 	}
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
 /* The internal inactivity timer clock is used for the aggregation timer */
@@ -374,7 +375,7 @@ static void ipa_qtime_config(struct ipa *ipa)
 
 	/* Timer clock divider must be disabled when we change the rate */
 	reg = ipa_reg(ipa, TIMERS_XO_CLK_DIV_CFG);
-	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(0, ipa->reg_virt + reg_offset(reg));
 
 	reg = ipa_reg(ipa, QTIME_TIMESTAMP_CFG);
 	/* Set DPL time stamp resolution to use Qtime (instead of 1 msec) */
@@ -384,7 +385,7 @@ static void ipa_qtime_config(struct ipa *ipa)
 	val = ipa_reg_encode(reg, TAG_TIMESTAMP_LSB, TAG_TIMESTAMP_SHIFT);
 	val = ipa_reg_encode(reg, NAT_TIMESTAMP_LSB, NAT_TIMESTAMP_SHIFT);
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	/* Set granularity of pulse generators used for other timers */
 	reg = ipa_reg(ipa, TIMERS_PULSE_GRAN_CFG);
@@ -397,11 +398,12 @@ static void ipa_qtime_config(struct ipa *ipa)
 		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
 	}
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	/* Actual divider is 1 more than value supplied here */
 	reg = ipa_reg(ipa, TIMERS_XO_CLK_DIV_CFG);
-	offset = ipa_reg_offset(reg);
+	offset = reg_offset(reg);
+
 	val = ipa_reg_encode(reg, DIV_VALUE, IPA_XO_CLOCK_DIVIDER - 1);
 
 	iowrite32(val, ipa->reg_virt + offset);
@@ -422,7 +424,7 @@ static void ipa_hardware_config_counter(struct ipa *ipa)
 	reg = ipa_reg(ipa, COUNTER_CFG);
 	/* If defined, EOT_COAL_GRANULARITY is 0 */
 	val = ipa_reg_encode(reg, AGGR_GRANULARITY, granularity);
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
 static void ipa_hardware_config_timing(struct ipa *ipa)
@@ -451,7 +453,7 @@ static void ipa_hardware_config_hashing(struct ipa *ipa)
 	/* IPV6_ROUTER_HASH, IPV6_FILTER_HASH, IPV4_ROUTER_HASH,
 	 * IPV4_FILTER_HASH are all zero.
 	 */
-	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(0, ipa->reg_virt + reg_offset(reg));
 }
 
 static void ipa_idle_indication_cfg(struct ipa *ipa,
@@ -470,7 +472,7 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 	if (const_non_idle_enable)
 		val |= ipa_reg_bit(reg, CONST_NON_IDLE_ENABLE);
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
 /**
