@@ -191,12 +191,12 @@ static void gsi_irq_type_update(struct gsi *gsi, u32 val)
 
 static void gsi_irq_type_enable(struct gsi *gsi, enum gsi_irq_type_id type_id)
 {
-	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(type_id));
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | type_id);
 }
 
 static void gsi_irq_type_disable(struct gsi *gsi, enum gsi_irq_type_id type_id)
 {
-	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap & ~BIT(type_id));
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap & ~type_id);
 }
 
 /* Event ring commands are performed one at a time.  Their completion
@@ -292,19 +292,19 @@ static void gsi_irq_enable(struct gsi *gsi)
 	/* Global interrupts include hardware error reports.  Enable
 	 * that so we can at least report the error should it occur.
 	 */
-	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
-	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GLOB_EE));
+	iowrite32(ERROR_INT, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | GSI_GLOB_EE);
 
 	/* General GSI interrupts are reported to all EEs; if they occur
 	 * they are unrecoverable (without reset).  A breakpoint interrupt
 	 * also exists, but we don't support that.  We want to be notified
 	 * of errors so we can report them, even if they can't be handled.
 	 */
-	val = BIT(BUS_ERROR);
-	val |= BIT(CMD_FIFO_OVRFLOW);
-	val |= BIT(MCS_STACK_OVRFLOW);
+	val = BUS_ERROR;
+	val |= CMD_FIFO_OVRFLOW;
+	val |= MCS_STACK_OVRFLOW;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
-	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GENERAL));
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | GSI_GENERAL);
 }
 
 /* Disable all GSI interrupt types */
@@ -1195,15 +1195,15 @@ static void gsi_isr_glob_ee(struct gsi *gsi)
 
 	val = ioread32(gsi->virt + GSI_CNTXT_GLOB_IRQ_STTS_OFFSET);
 
-	if (val & BIT(ERROR_INT))
+	if (val & ERROR_INT)
 		gsi_isr_glob_err(gsi);
 
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_CLR_OFFSET);
 
-	val &= ~BIT(ERROR_INT);
+	val &= ~ERROR_INT;
 
-	if (val & BIT(GP_INT1)) {
-		val ^= BIT(GP_INT1);
+	if (val & GP_INT1) {
+		val ^= GP_INT1;
 		gsi_isr_gp_int1(gsi);
 	}
 
@@ -1264,19 +1264,19 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 			intr_mask ^= gsi_intr;
 
 			switch (gsi_intr) {
-			case BIT(GSI_CH_CTRL):
+			case GSI_CH_CTRL:
 				gsi_isr_chan_ctrl(gsi);
 				break;
-			case BIT(GSI_EV_CTRL):
+			case GSI_EV_CTRL:
 				gsi_isr_evt_ctrl(gsi);
 				break;
-			case BIT(GSI_GLOB_EE):
+			case GSI_GLOB_EE:
 				gsi_isr_glob_ee(gsi);
 				break;
-			case BIT(GSI_IEOB):
+			case GSI_IEOB:
 				gsi_isr_ieob(gsi);
 				break;
-			case BIT(GSI_GENERAL):
+			case GSI_GENERAL:
 				gsi_isr_general(gsi);
 				break;
 			default:
@@ -1654,7 +1654,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	 * channel), and only from this function.  So we enable the GP_INT1
 	 * IRQ type here, and disable it again after the command completes.
 	 */
-	val = BIT(ERROR_INT) | BIT(GP_INT1);
+	val = ERROR_INT | GP_INT1;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	/* First zero the result code field */
@@ -1672,7 +1672,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	timeout = !gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val);
 
 	/* Disable the GP_INT1 IRQ type again */
-	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	iowrite32(ERROR_INT, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	if (!timeout)
 		return gsi->result;

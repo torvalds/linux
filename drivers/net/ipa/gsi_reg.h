@@ -299,15 +299,25 @@ enum gsi_iram_size {
 #define GSI_CNTXT_TYPE_IRQ_MSK_OFFSET \
 			(0x0001f088 + 0x4000 * GSI_EE_AP)
 
-/* Values here are bit positions in the TYPE_IRQ and TYPE_IRQ_MSK registers */
+/**
+ * enum gsi_irq_type_id: GSI IRQ types
+ * @GSI_CH_CTRL:		Channel allocation, deallocation, etc.
+ * @GSI_EV_CTRL:		Event ring allocation, deallocation, etc.
+ * @GSI_GLOB_EE:		Global/general event
+ * @GSI_IEOB:			Transfer (TRE) completion
+ * @GSI_INTER_EE_CH_CTRL:	Remote-issued stop/reset (unused)
+ * @GSI_INTER_EE_EV_CTRL:	Remote-issued event reset (unused)
+ * @GSI_GENERAL:		General hardware event (bus error, etc.)
+ */
 enum gsi_irq_type_id {
-	GSI_CH_CTRL		= 0x0,	/* channel allocation, etc.  */
-	GSI_EV_CTRL		= 0x1,	/* event ring allocation, etc. */
-	GSI_GLOB_EE		= 0x2,	/* global/general event */
-	GSI_IEOB		= 0x3,	/* TRE completion */
-	GSI_INTER_EE_CH_CTRL	= 0x4,	/* remote-issued stop/reset (unused) */
-	GSI_INTER_EE_EV_CTRL	= 0x5,	/* remote-issued event reset (unused) */
-	GSI_GENERAL		= 0x6,	/* general-purpose event */
+	GSI_CH_CTRL				= BIT(0),
+	GSI_EV_CTRL				= BIT(1),
+	GSI_GLOB_EE				= BIT(2),
+	GSI_IEOB				= BIT(3),
+	GSI_INTER_EE_CH_CTRL			= BIT(4),
+	GSI_INTER_EE_EV_CTRL			= BIT(5),
+	GSI_GENERAL				= BIT(6),
+	/* IRQ types 7-31 (and their bit values) are reserved */
 };
 
 #define GSI_CNTXT_SRC_CH_IRQ_OFFSET \
@@ -343,12 +353,14 @@ enum gsi_irq_type_id {
 			(0x0001f108 + 0x4000 * GSI_EE_AP)
 #define GSI_CNTXT_GLOB_IRQ_CLR_OFFSET \
 			(0x0001f110 + 0x4000 * GSI_EE_AP)
-/* Values here are bit positions in the GLOB_IRQ_* registers */
+
+/** enum gsi_global_irq_id: Global GSI interrupt events */
 enum gsi_global_irq_id {
-	ERROR_INT				= 0x0,
-	GP_INT1					= 0x1,
-	GP_INT2					= 0x2,
-	GP_INT3					= 0x3,
+	ERROR_INT				= BIT(0),
+	GP_INT1					= BIT(1),
+	GP_INT2					= BIT(2),
+	GP_INT3					= BIT(3),
+	/* Global IRQ types 4-31 (and their bit values) are reserved */
 };
 
 #define GSI_CNTXT_GSI_IRQ_STTS_OFFSET \
@@ -357,12 +369,14 @@ enum gsi_global_irq_id {
 			(0x0001f120 + 0x4000 * GSI_EE_AP)
 #define GSI_CNTXT_GSI_IRQ_CLR_OFFSET \
 			(0x0001f128 + 0x4000 * GSI_EE_AP)
-/* Values here are bit positions in the (general) GSI_IRQ_* registers */
-enum gsi_general_id {
-	BREAK_POINT				= 0x0,
-	BUS_ERROR				= 0x1,
-	CMD_FIFO_OVRFLOW			= 0x2,
-	MCS_STACK_OVRFLOW			= 0x3,
+
+/** enum gsi_general_irq_id: GSI general IRQ conditions */
+enum gsi_general_irq_id {
+	BREAK_POINT				= BIT(0),
+	BUS_ERROR				= BIT(1),
+	CMD_FIFO_OVRFLOW			= BIT(2),
+	MCS_STACK_OVRFLOW			= BIT(3),
+	/* General IRQ types 4-31 (and their bit values) are reserved */
 };
 
 #define GSI_CNTXT_INTSET_OFFSET \
