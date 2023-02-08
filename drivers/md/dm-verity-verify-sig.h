@@ -10,6 +10,7 @@
 
 #define DM_VERITY_ROOT_HASH_VERIFICATION "DM Verity Sig Verification"
 #define DM_VERITY_ROOT_HASH_VERIFICATION_OPT_SIG_KEY "root_hash_sig_key_desc"
+#define DM_VERITY_ROOT_HASH_VERIFICATION_OPT_SIG_KEY_VALUE "root_hash_sig_key_value"
 
 struct dm_verity_sig_opts {
 	unsigned int sig_size;
@@ -27,6 +28,15 @@ bool verity_verify_is_sig_opt_arg(const char *arg_name);
 int verity_verify_sig_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 				    struct dm_verity_sig_opts *sig_opts,
 				    unsigned int *argc, const char *arg_name);
+
+#ifdef CONFIG_DM_VERITY_SIG_VALUE
+bool verity_verify_is_sig_value_opt_arg(const char *arg_name);
+int verity_verify_sig_value_parse_opt_args(struct dm_arg_set *as,
+					   struct dm_verity *v,
+					   struct dm_verity_sig_opts *sig_opts,
+					   unsigned int *argc,
+					   const char *arg_name);
+#endif
 
 void verity_verify_sig_opts_cleanup(struct dm_verity_sig_opts *sig_opts);
 

@@ -527,6 +527,15 @@ config DM_INIT
 
 	If unsure, say N.
 
+config DM_VERITY_SIG_VALUE
+	bool "DM \"root_hash_sig_key_value\" parameter support"
+	depends on DM_INIT=y
+	help
+	Enable "root_hash_sig_key_value" parameter in "dm-mod.create=" to create
+	mapped devices at init time. The option is used to directly pass root hash
+	signature value from kernel command line. So root hash signature
+	verification can be enabled without initramfs.
+
 config DM_UEVENT
 	bool "DM uevents"
 	depends on BLK_DEV_DM
