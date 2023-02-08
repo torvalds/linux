@@ -1576,7 +1576,7 @@ struct hl_asic_funcs {
 	int (*sw_init)(struct hl_device *hdev);
 	int (*sw_fini)(struct hl_device *hdev);
 	int (*hw_init)(struct hl_device *hdev);
-	void (*hw_fini)(struct hl_device *hdev, bool hard_reset, bool fw_reset);
+	int (*hw_fini)(struct hl_device *hdev, bool hard_reset, bool fw_reset);
 	void (*halt_engines)(struct hl_device *hdev, bool hard_reset, bool fw_reset);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);

@@ -5885,7 +5885,7 @@ static void gaudi2_get_soft_rst_done_indication(struct hl_device *hdev, u32 poll
 				reg_val);
 }
 
-static void gaudi2_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
+static int gaudi2_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	u32 poll_timeout_us, reset_sleep_ms;
@@ -5951,7 +5951,7 @@ skip_reset:
 		gaudi2_get_soft_rst_done_indication(hdev, poll_timeout_us);
 
 	if (!gaudi2)
-		return;
+		return 0;
 
 	gaudi2->dec_hw_cap_initialized &= ~(HW_CAP_DEC_MASK);
 	gaudi2->tpc_hw_cap_initialized &= ~(HW_CAP_TPC_MASK);
@@ -5978,6 +5978,7 @@ skip_reset:
 			HW_CAP_PDMA_MASK | HW_CAP_EDMA_MASK | HW_CAP_MME_MASK |
 			HW_CAP_ROT_MASK);
 	}
+	return 0;
 }
 
 static int gaudi2_suspend(struct hl_device *hdev)
