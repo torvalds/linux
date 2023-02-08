@@ -18,8 +18,6 @@
 #ifndef _PINCTRL_ROCKCHIP_H
 #define _PINCTRL_ROCKCHIP_H
 
-#include <linux/gpio/driver.h>
-
 #define RK_GPIO0_A0	0
 #define RK_GPIO0_A1	1
 #define RK_GPIO0_A2	2
@@ -403,6 +401,7 @@ struct rockchip_pin_ctrl {
 	u32				niomux_recalced;
 	struct rockchip_mux_route_data *iomux_routes;
 	u32				niomux_routes;
+
 	int	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
 				 int pin_num, struct regmap **regmap,
 				 int *reg, u8 *bit);
