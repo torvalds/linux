@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -7,7 +7,6 @@
 # Author: Octavian Purdila <tavi@cs.pub.ro>
 #
 
-from __future__ import print_function
 
 import argparse
 import os
