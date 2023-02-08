@@ -1023,7 +1023,7 @@ struct subsys_dev_iter {
 /**
  * subsys_dev_iter_init - initialize subsys device iterator
  * @iter: subsys iterator to initialize
- * @subsys: the subsys we wanna iterate over
+ * @sp: the subsys private (i.e. bus) we wanna iterate over
  * @start: the device to start iterating from, if any
  * @type: device_type of the devices to iterate over, NULL for all
  *
@@ -1032,14 +1032,14 @@ struct subsys_dev_iter {
  * otherwise if it is NULL, the iteration starts at the beginning of
  * the list.
  */
-static void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
+static void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct subsys_private *sp,
 				 struct device *start, const struct device_type *type)
 {
 	struct klist_node *start_knode = NULL;
 
 	if (start)
 		start_knode = &start->p->knode_bus;
-	klist_iter_init_node(&subsys->p->klist_devices, &iter->ki, start_knode);
+	klist_iter_init_node(&sp->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
 }
 
@@ -1084,26 +1084,31 @@ static void subsys_dev_iter_exit(struct subsys_dev_iter *iter)
 
 int subsys_interface_register(struct subsys_interface *sif)
 {
-	struct bus_type *subsys;
+	struct subsys_private *sp;
 	struct subsys_dev_iter iter;
 	struct device *dev;
 
 	if (!sif || !sif->subsys)
 		return -ENODEV;
 
-	subsys = bus_get(sif->subsys);
-	if (!subsys)
+	sp = bus_to_subsys(sif->subsys);
+	if (!sp)
 		return -EINVAL;
 
-	mutex_lock(&subsys->p->mutex);
-	list_add_tail(&sif->node, &subsys->p->interfaces);
+	/*
+	 * Reference in sp is now incremented and will be dropped when
+	 * the interface is removed from the bus
+	 */
+
+	mutex_lock(&sp->mutex);
+	list_add_tail(&sif->node, &sp->interfaces);
 	if (sif->add_dev) {
-		subsys_dev_iter_init(&iter, subsys, NULL, NULL);
+		subsys_dev_iter_init(&iter, sp, NULL, NULL);
 		while ((dev = subsys_dev_iter_next(&iter)))
 			sif->add_dev(dev, sif);
 		subsys_dev_iter_exit(&iter);
 	}
-	mutex_unlock(&subsys->p->mutex);
+	mutex_unlock(&sp->mutex);
 
 	return 0;
 }
@@ -1111,26 +1116,34 @@ EXPORT_SYMBOL_GPL(subsys_interface_register);
 
 void subsys_interface_unregister(struct subsys_interface *sif)
 {
-	struct bus_type *subsys;
+	struct subsys_private *sp;
 	struct subsys_dev_iter iter;
 	struct device *dev;
 
 	if (!sif || !sif->subsys)
 		return;
 
-	subsys = sif->subsys;
+	sp = bus_to_subsys(sif->subsys);
+	if (!sp)
+		return;
 
-	mutex_lock(&subsys->p->mutex);
+	mutex_lock(&sp->mutex);
 	list_del_init(&sif->node);
 	if (sif->remove_dev) {
-		subsys_dev_iter_init(&iter, subsys, NULL, NULL);
+		subsys_dev_iter_init(&iter, sp, NULL, NULL);
 		while ((dev = subsys_dev_iter_next(&iter)))
 			sif->remove_dev(dev, sif);
 		subsys_dev_iter_exit(&iter);
 	}
-	mutex_unlock(&subsys->p->mutex);
+	mutex_unlock(&sp->mutex);
 
-	bus_put(subsys);
+	/*
+	 * Decrement the reference count twice, once for the bus_to_subsys()
+	 * call in the start of this function, and the second one from the
+	 * reference increment in subsys_interface_register()
+	 */
+	subsys_put(sp);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(subsys_interface_unregister);
 
