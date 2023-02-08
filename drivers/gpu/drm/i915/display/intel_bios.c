@@ -3594,22 +3594,6 @@ intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 	return devdata && devdata->child.hpd_invert;
 }
 
-/**
- * intel_bios_is_lane_reversal_needed - if lane reversal needed on port
- * @i915:       i915 device instance
- * @port:       port to check
- *
- * Return true if port requires lane reversal
- */
-bool
-intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
-				   enum port port)
-{
-	const struct intel_bios_encoder_data *devdata = i915->display.vbt.ports[port];
-
-	return devdata && devdata->child.lane_reversal;
-}
-
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 				   enum port port)
 {
@@ -3772,6 +3756,11 @@ bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data 
 bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devdata)
 {
 	return devdata->i915->display.vbt.version >= 209 && devdata->child.tbt;
+}
+
+bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata && devdata->child.lane_reversal;
 }
 
 const struct intel_bios_encoder_data *

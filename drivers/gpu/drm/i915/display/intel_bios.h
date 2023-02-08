@@ -250,8 +250,6 @@ bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum por
 bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
 bool intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 				     enum port port);
-bool intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
-					enum port port);
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
@@ -275,5 +273,6 @@ bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devda
 bool intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata);
 int intel_bios_encoder_dp_boost_level(const struct intel_bios_encoder_data *devdata);
 int intel_bios_encoder_hdmi_boost_level(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata);
 
 #endif /* _INTEL_BIOS_H_ */
