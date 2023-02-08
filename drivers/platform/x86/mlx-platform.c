@@ -473,7 +473,7 @@ static struct i2c_mux_reg_platform_data mlxplat_modular_mux_data[] = {
 	},
 };
 
-/* Platform channels for rack swicth system family */
+/* Platform channels for rack switch system family */
 static const int mlxplat_rack_switch_channels[] = {
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 };
@@ -2085,7 +2085,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_global_wp_items_data[] = {
 	},
 };
 
-static struct mlxreg_core_item mlxplat_mlxcpld_nvlink_blade_items[] = {
+static struct mlxreg_core_item mlxplat_mlxcpld_chassis_blade_items[] = {
 	{
 		.data = mlxplat_mlxcpld_global_wp_items_data,
 		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
@@ -2098,9 +2098,9 @@ static struct mlxreg_core_item mlxplat_mlxcpld_nvlink_blade_items[] = {
 };
 
 static
-struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_nvlink_blade_data = {
-	.items = mlxplat_mlxcpld_nvlink_blade_items,
-	.counter = ARRAY_SIZE(mlxplat_mlxcpld_nvlink_blade_items),
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_chassis_blade_data = {
+	.items = mlxplat_mlxcpld_chassis_blade_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_chassis_blade_items),
 	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET,
 	.mask = MLXPLAT_CPLD_AGGR_MASK_COMEX,
 	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET,
@@ -3848,8 +3848,8 @@ static struct mlxreg_core_platform_data mlxplat_modular_regs_io_data = {
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_modular_regs_io_data),
 };
 
-/* Platform register access for NVLink blade systems family data  */
-static struct mlxreg_core_data mlxplat_mlxcpld_nvlink_blade_regs_io_data[] = {
+/* Platform register access for chassis blade systems family data  */
+static struct mlxreg_core_data mlxplat_mlxcpld_chassis_blade_regs_io_data[] = {
 	{
 		.label = "cpld1_version",
 		.reg = MLXPLAT_CPLD_LPC_REG_CPLD1_VER_OFFSET,
@@ -4046,9 +4046,9 @@ static struct mlxreg_core_data mlxplat_mlxcpld_nvlink_blade_regs_io_data[] = {
 	},
 };
 
-static struct mlxreg_core_platform_data mlxplat_nvlink_blade_regs_io_data = {
-		.data = mlxplat_mlxcpld_nvlink_blade_regs_io_data,
-		.counter = ARRAY_SIZE(mlxplat_mlxcpld_nvlink_blade_regs_io_data),
+static struct mlxreg_core_platform_data mlxplat_chassis_blade_regs_io_data = {
+		.data = mlxplat_mlxcpld_chassis_blade_regs_io_data,
+		.counter = ARRAY_SIZE(mlxplat_mlxcpld_chassis_blade_regs_io_data),
 };
 
 /* Platform FAN default */
@@ -5168,14 +5168,14 @@ static int __init mlxplat_dmi_modular_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static int __init mlxplat_dmi_nvlink_blade_matched(const struct dmi_system_id *dmi)
+static int __init mlxplat_dmi_chassis_blade_matched(const struct dmi_system_id *dmi)
 {
 	int i;
 
 	mlxplat_max_adap_num = MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM;
 	mlxplat_mux_num = ARRAY_SIZE(mlxplat_default_mux_data);
 	mlxplat_mux_data = mlxplat_default_mux_data;
-	mlxplat_hotplug = &mlxplat_mlxcpld_nvlink_blade_data;
+	mlxplat_hotplug = &mlxplat_mlxcpld_chassis_blade_data;
 	mlxplat_hotplug->deferred_nr =
 		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	for (i = 0; i < mlxplat_mux_num; i++) {
@@ -5183,7 +5183,7 @@ static int __init mlxplat_dmi_nvlink_blade_matched(const struct dmi_system_id *d
 		mlxplat_mux_data[i].n_values =
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
-	mlxplat_regs_io = &mlxplat_nvlink_blade_regs_io_data;
+	mlxplat_regs_io = &mlxplat_chassis_blade_regs_io_data;
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng400;
 
@@ -5288,7 +5288,7 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		},
 	},
 	{
-		.callback = mlxplat_dmi_nvlink_blade_matched,
+		.callback = mlxplat_dmi_chassis_blade_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "VMOD0015"),
 		},
