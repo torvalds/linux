@@ -205,11 +205,9 @@ EXPORT_SYMBOL_GPL(bus_remove_file);
 static void bus_release(struct kobject *kobj)
 {
 	struct subsys_private *priv = to_subsys_private(kobj);
-	struct bus_type *bus = priv->bus;
 
 	lockdep_unregister_key(&priv->lock_key);
 	kfree(priv);
-	bus->p = NULL;
 }
 
 static const struct kobj_type bus_ktype = {
@@ -854,7 +852,6 @@ int bus_register(struct bus_type *bus)
 		return -ENOMEM;
 
 	priv->bus = bus;
-	bus->p = priv;
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&priv->bus_notifier);
 
@@ -917,7 +914,6 @@ bus_uevent_fail:
 	kset_unregister(&priv->subsys);
 out:
 	kfree(priv);
-	bus->p = NULL;
 	return retval;
 }
 EXPORT_SYMBOL_GPL(bus_register);

@@ -66,8 +66,6 @@ struct fwnode_handle;
  * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
  *              driver implementations to a bus and allow the driver to do
  *              bus-specific setup
- * @p:		The private data of the driver core, only the driver core can
- *		touch this.
  * @lock_key:	Lock class key for use by the lock validator
  * @need_parent_lock:	When probing or removing a device on this bus, the
  *			device core should lock the device's parent.
@@ -110,8 +108,6 @@ struct bus_type {
 	const struct dev_pm_ops *pm;
 
 	const struct iommu_ops *iommu_ops;
-
-	struct subsys_private *p;
 
 	bool need_parent_lock;
 };
