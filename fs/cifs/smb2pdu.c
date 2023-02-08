@@ -1867,12 +1867,12 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	if (unc_path == NULL)
 		return -ENOMEM;
 
-	unc_path_len = cifs_strtoUTF16(unc_path, tree, strlen(tree), cp) + 1;
-	unc_path_len *= 2;
-	if (unc_path_len < 2) {
+	unc_path_len = cifs_strtoUTF16(unc_path, tree, strlen(tree), cp);
+	if (unc_path_len <= 0) {
 		kfree(unc_path);
 		return -EINVAL;
 	}
+	unc_path_len *= 2;
 
 	/* SMB2 TREE_CONNECT request must be called with TreeId == 0 */
 	tcon->tid = 0;
@@ -1894,7 +1894,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	/* Testing shows that buffer offset must be at location of Buffer[0] */
 	req->PathOffset = cpu_to_le16(sizeof(struct smb2_tree_connect_req)
 			- 1 /* pad */);
-	req->PathLength = cpu_to_le16(unc_path_len - 2);
+	req->PathLength = cpu_to_le16(unc_path_len);
 	iov[1].iov_base = unc_path;
 	iov[1].iov_len = unc_path_len;
 
