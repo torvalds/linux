@@ -603,7 +603,7 @@ static void remove_bind_files(struct device_driver *drv)
 static BUS_ATTR_WO(drivers_probe);
 static BUS_ATTR_RW(drivers_autoprobe);
 
-static int add_probe_files(struct bus_type *bus)
+static int add_probe_files(const struct bus_type *bus)
 {
 	int retval;
 
@@ -618,7 +618,7 @@ out:
 	return retval;
 }
 
-static void remove_probe_files(struct bus_type *bus)
+static void remove_probe_files(const struct bus_type *bus)
 {
 	bus_remove_file(bus, &bus_attr_drivers_autoprobe);
 	bus_remove_file(bus, &bus_attr_drivers_probe);
