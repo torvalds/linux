@@ -282,21 +282,17 @@ static int mt7628_pci_hw_init(struct platform_device *pdev)
 
 static int mt7620_pci_probe(struct platform_device *pdev)
 {
-	struct resource *bridge_res = platform_get_resource(pdev,
-							    IORESOURCE_MEM, 0);
-	struct resource *pcie_res = platform_get_resource(pdev,
-							  IORESOURCE_MEM, 1);
 	u32 val = 0;
 
 	rstpcie0 = devm_reset_control_get_exclusive(&pdev->dev, "pcie0");
 	if (IS_ERR(rstpcie0))
 		return PTR_ERR(rstpcie0);
 
-	bridge_base = devm_ioremap_resource(&pdev->dev, bridge_res);
+	bridge_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(bridge_base))
 		return PTR_ERR(bridge_base);
 
-	pcie_base = devm_ioremap_resource(&pdev->dev, pcie_res);
+	pcie_base = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 	if (IS_ERR(pcie_base))
 		return PTR_ERR(pcie_base);
 
