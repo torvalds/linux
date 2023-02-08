@@ -374,6 +374,10 @@
 
 &i2s {
 	status = "okay";
+	pinctrl-0 = <&i2s_sclk
+		     &i2s_lrclktx
+		     &i2s_sdo
+		     &i2s_sdi>;
 };
 
 &mpp_srv {

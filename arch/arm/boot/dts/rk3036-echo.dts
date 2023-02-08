@@ -645,6 +645,10 @@
 
 &i2s {
 	#sound-dai-cells = <0>;
+	pinctrl-0 = <&i2s_sclk
+		     &i2s_lrclktx
+		     &i2s_sdo
+		     &i2s_sdi>;
 	status = "okay";
 };
 
