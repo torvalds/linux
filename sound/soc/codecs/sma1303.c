@@ -1621,21 +1621,6 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	}
 
 	if (np) {
-		if (!of_property_read_u32(np, "i2c-retry", &value)) {
-			if (value > 50 || value <= 0) {
-				sma1303->retry_cnt = SMA1303_I2C_RETRY_COUNT;
-				dev_dbg(&client->dev, "%s : %s\n", __func__,
-					"i2c-retry out of range (up to 50)");
-			} else {
-				sma1303->retry_cnt = value;
-				dev_dbg(&client->dev, "%s : %s = %u\n",
-					__func__, "i2c-retry count", value);
-			}
-		} else {
-			dev_dbg(&client->dev, "%s : %s = %d\n", __func__,
-				"i2c-retry count", SMA1303_I2C_RETRY_COUNT);
-			sma1303->retry_cnt = SMA1303_I2C_RETRY_COUNT;
-		}
 		if (!of_property_read_u32(np, "tdm-slot-rx", &value)) {
 			dev_dbg(&client->dev,
 				"tdm slot rx is '%d' from DT\n", value);
@@ -1733,6 +1718,7 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	sma1303->last_ocp_val = 0x08;
 	sma1303->last_over_temp = 0xC0;
 	sma1303->tsdw_cnt = 0;
+	sma1303->retry_cnt = SMA1303_I2C_RETRY_COUNT;
 
 	sma1303->dev = &client->dev;
 	sma1303->kobj = &client->dev.kobj;
