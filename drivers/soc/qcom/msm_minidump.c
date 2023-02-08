@@ -833,7 +833,7 @@ static int msm_minidump_add_header(void)
 	char *banner, *linux_banner;
 	int slot_num;
 
-	linux_banner = (void *)debug_symbol_lookup_name("linux_banner");
+	linux_banner = DEBUG_SYMBOL_LOOKUP(linux_banner);
 	/* Header buffer contains:
 	 * elf header, MAX_NUM_ENTRIES+4 of section and program elf headers,
 	 * string table section and linux banner.
@@ -963,7 +963,7 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 	unsigned long flags;
 	int ret;
 
-	if (debug_symbol_available())
+	if (!debug_symbol_available())
 		return -EPROBE_DEFER;
 
 	is_rm_minidump =

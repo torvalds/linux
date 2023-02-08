@@ -43,20 +43,20 @@ struct debug_symbol_data {
 static struct debug_symbol_data debug_symbol;
 static void *debug_symbol_vaddr;
 
-int debug_symbol_available(void)
+bool debug_symbol_available(void)
 {
 	struct kernel_all_info *kainfo;
 	struct kernel_info *kinfo;
 
 	if (!debug_symbol_vaddr)
-		return -EINVAL;
+		return false;
 
 	kainfo = (struct kernel_all_info *)debug_symbol_vaddr;
 	kinfo = &(kainfo->info);
 
 	if (kainfo->magic_number != DEBUG_KINFO_MAGIC) {
 		pr_debug("debug_symbol is not available now\n");
-		return -EPROBE_DEFER;
+		return false;
 	}
 
 	if (!debug_symbol.addresses) {
@@ -77,7 +77,7 @@ int debug_symbol_available(void)
 						__phys_to_kimg(kinfo->_markers_pa);
 	}
 
-	return 0;
+	return true;
 }
 EXPORT_SYMBOL(debug_symbol_available);
 
