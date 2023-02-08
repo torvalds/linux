@@ -42,9 +42,9 @@ struct instruction {
 	struct list_head call_node;
 	struct section *sec;
 	unsigned long offset;
-	unsigned int len;
-	enum insn_type type;
 	unsigned long immediate;
+	unsigned int len;
+	u8 type;
 
 	u16 dead_end		: 1,
 	   ignore		: 1,
@@ -54,11 +54,11 @@ struct instruction {
 	   restore		: 1,
 	   retpoline_safe	: 1,
 	   noendbr		: 1,
-	   entry		: 1;
-		/* 7 bit hole */
+	   entry		: 1,
+	   visited		: 4;
+		/* 3 bit hole */
 
 	s8 instr;
-	u8 visited;
 
 	struct alt_group *alt_group;
 	struct symbol *call_dest;
