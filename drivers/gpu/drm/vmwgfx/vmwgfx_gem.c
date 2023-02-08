@@ -127,10 +127,10 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 	};
 
 	ret = vmw_bo_create(dev_priv, &params, p_vbo);
-
-	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
 	if (ret != 0)
 		goto out_no_bo;
+
+	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
 
 	ret = drm_gem_handle_create(filp, &(*p_vbo)->tbo.base, handle);
 	/* drop reference from allocate - handle holds it now */
