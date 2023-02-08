@@ -363,6 +363,11 @@ static const struct resource mlxplat_lpc_resources[] = {
 			       IORESOURCE_IO),
 };
 
+/* Platform systems default i2c data */
+static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_default_data = {
+	.completion_notify = mlxplat_i2c_main_complition_notify,
+};
+
 /* Platform i2c next generation systems data */
 static struct mlxreg_core_data mlxplat_mlxcpld_i2c_ng_items_data[] = {
 	{
@@ -5479,6 +5484,7 @@ static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 	mlxplat_led = &mlxplat_default_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
 	return 1;
 }
@@ -5501,6 +5507,7 @@ static int __init mlxplat_dmi_default_wc_matched(const struct dmi_system_id *dmi
 	mlxplat_led = &mlxplat_default_led_wc_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
 	return 1;
 }
@@ -5548,6 +5555,7 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
 	return 1;
 }
@@ -5570,6 +5578,7 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 	mlxplat_led = &mlxplat_default_led_data;
 	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
 	return 1;
 }
@@ -5592,6 +5601,7 @@ static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
 	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 
 	return 1;
 }
@@ -5641,6 +5651,7 @@ static int __init mlxplat_dmi_comex_matched(const struct dmi_system_id *dmi)
 	mlxplat_fan = &mlxplat_default_fan_data;
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_wd_set_type2); i++)
 		mlxplat_wd_data[i] = &mlxplat_mlxcpld_wd_set_type2[i];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_default_data;
 	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_comex;
 
 	return 1;
