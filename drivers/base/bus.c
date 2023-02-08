@@ -774,18 +774,6 @@ int device_reprobe(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_reprobe);
 
-static int bus_add_groups(struct bus_type *bus,
-			  const struct attribute_group **groups)
-{
-	return sysfs_create_groups(&bus->p->subsys.kobj, groups);
-}
-
-static void bus_remove_groups(struct bus_type *bus,
-			      const struct attribute_group **groups)
-{
-	sysfs_remove_groups(&bus->p->subsys.kobj, groups);
-}
-
 static void klist_devices_get(struct klist_node *n)
 {
 	struct device_private *dev_prv = to_device_private_bus(n);
@@ -839,6 +827,7 @@ int bus_register(struct bus_type *bus)
 {
 	int retval;
 	struct subsys_private *priv;
+	struct kobject *bus_kobj;
 	struct lock_class_key *key;
 
 	priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
@@ -850,12 +839,13 @@ int bus_register(struct bus_type *bus)
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&priv->bus_notifier);
 
-	retval = kobject_set_name(&priv->subsys.kobj, "%s", bus->name);
+	bus_kobj = &priv->subsys.kobj;
+	retval = kobject_set_name(bus_kobj, "%s", bus->name);
 	if (retval)
 		goto out;
 
-	priv->subsys.kobj.kset = bus_kset;
-	priv->subsys.kobj.ktype = &bus_ktype;
+	bus_kobj->kset = bus_kset;
+	bus_kobj->ktype = &bus_ktype;
 	priv->drivers_autoprobe = 1;
 
 	retval = kset_register(&priv->subsys);
@@ -866,15 +856,13 @@ int bus_register(struct bus_type *bus)
 	if (retval)
 		goto bus_uevent_fail;
 
-	priv->devices_kset = kset_create_and_add("devices", NULL,
-						 &priv->subsys.kobj);
+	priv->devices_kset = kset_create_and_add("devices", NULL, bus_kobj);
 	if (!priv->devices_kset) {
 		retval = -ENOMEM;
 		goto bus_devices_fail;
 	}
 
-	priv->drivers_kset = kset_create_and_add("drivers", NULL,
-						 &priv->subsys.kobj);
+	priv->drivers_kset = kset_create_and_add("drivers", NULL, bus_kobj);
 	if (!priv->drivers_kset) {
 		retval = -ENOMEM;
 		goto bus_drivers_fail;
@@ -891,7 +879,7 @@ int bus_register(struct bus_type *bus)
 	if (retval)
 		goto bus_probe_files_fail;
 
-	retval = bus_add_groups(bus, bus->bus_groups);
+	retval = sysfs_create_groups(bus_kobj, bus->bus_groups);
 	if (retval)
 		goto bus_groups_fail;
 
@@ -901,15 +889,15 @@ int bus_register(struct bus_type *bus)
 bus_groups_fail:
 	remove_probe_files(bus);
 bus_probe_files_fail:
-	kset_unregister(bus->p->drivers_kset);
+	kset_unregister(priv->drivers_kset);
 bus_drivers_fail:
-	kset_unregister(bus->p->devices_kset);
+	kset_unregister(priv->devices_kset);
 bus_devices_fail:
 	bus_remove_file(bus, &bus_attr_uevent);
 bus_uevent_fail:
-	kset_unregister(&bus->p->subsys);
+	kset_unregister(&priv->subsys);
 out:
-	kfree(bus->p);
+	kfree(priv);
 	bus->p = NULL;
 	return retval;
 }
@@ -924,15 +912,25 @@ EXPORT_SYMBOL_GPL(bus_register);
  */
 void bus_unregister(struct bus_type *bus)
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
+	struct kobject *bus_kobj;
+
+	if (!sp)
+		return;
+
 	pr_debug("bus: '%s': unregistering\n", bus->name);
 	if (bus->dev_root)
 		device_unregister(bus->dev_root);
-	bus_remove_groups(bus, bus->bus_groups);
+
+	bus_kobj = &sp->subsys.kobj;
+	sysfs_remove_groups(bus_kobj, bus->bus_groups);
 	remove_probe_files(bus);
-	kset_unregister(bus->p->drivers_kset);
-	kset_unregister(bus->p->devices_kset);
 	bus_remove_file(bus, &bus_attr_uevent);
-	kset_unregister(&bus->p->subsys);
+
+	kset_unregister(sp->drivers_kset);
+	kset_unregister(sp->devices_kset);
+	kset_unregister(&sp->subsys);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(bus_unregister);
 
