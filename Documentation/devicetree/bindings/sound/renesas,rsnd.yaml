@@ -300,7 +300,6 @@ allOf:
         reg:
           maxItems: 3
         reg-names:
-          maxItems: 3
           items:
             enum:
               - scu
@@ -309,9 +308,8 @@ allOf:
     else:
       properties:
         reg:
-          maxItems: 5
+          minItems: 5
         reg-names:
-          maxItems: 5
           items:
             enum:
               - scu
