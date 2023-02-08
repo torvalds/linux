@@ -680,7 +680,7 @@ static int wx_poll(struct napi_struct *napi, int budget)
 	if (likely(napi_complete_done(napi, work_done))) {
 		if (netif_running(wx->netdev))
 			wx_intr_enable(wx, WX_INTR_Q(q_vector->v_idx));
-	};
+	}
 
 	return min(work_done, budget - 1);
 }
