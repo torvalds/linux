@@ -2096,10 +2096,11 @@
 		compatible = "rockchip,crypto-v4";
 		reg = <0x0 0xff8a0000 0x0 0x2000>;
 		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>,
-			 <&cru CLK_CORE_CRYPTO>, <&cru CLK_PKA_CRYPTO>;
-		clock-names = "aclk", "hclk", "sclk", "pka";
-		assigned-clocks = <&cru CLK_CORE_CRYPTO>, <&cru CLK_PKA_CRYPTO>;
+		clocks = <&scmi_clk ACLK_CRYPTO>, <&scmi_clk HCLK_CRYPTO>,
+			 <&scmi_clk CLK_CORE_CRYPTO>, <&scmi_clk CLK_PKA_CRYPTO>,
+			 <&scmi_clk PCLK_CRYPTO>;
+		clock-names = "aclk", "hclk", "sclk", "pka", "pclk";
+		assigned-clocks = <&scmi_clk CLK_CORE_CRYPTO>, <&scmi_clk CLK_PKA_CRYPTO>;
 		assigned-clock-rates = <200000000>, <300000000>;
 		resets = <&cru SRST_CORE_CRYPTO>;
 		reset-names = "crypto-rst";
@@ -2110,7 +2111,7 @@
 		compatible = "rockchip,rkrng";
 		reg = <0x0 0xff8e0000 0x0 0x200>;
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_RK_RNG_NS>;
+		clocks = <&scmi_clk HCLK_RK_RNG_NS>;
 		clock-names = "hclk_trng";
 		resets = <&cru SRST_H_RK_RNG_NS>;
 		reset-names = "reset";
