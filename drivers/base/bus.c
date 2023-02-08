@@ -1288,6 +1288,33 @@ int subsys_virtual_register(struct bus_type *subsys,
 }
 EXPORT_SYMBOL_GPL(subsys_virtual_register);
 
+/**
+ * driver_find - locate driver on a bus by its name.
+ * @name: name of the driver.
+ * @bus: bus to scan for the driver.
+ *
+ * Call kset_find_obj() to iterate over list of drivers on
+ * a bus to find driver by name. Return driver if found.
+ *
+ * This routine provides no locking to prevent the driver it returns
+ * from being unregistered or unloaded while the caller is using it.
+ * The caller is responsible for preventing this.
+ */
+struct device_driver *driver_find(const char *name, struct bus_type *bus)
+{
+	struct kobject *k = kset_find_obj(bus->p->drivers_kset, name);
+	struct driver_private *priv;
+
+	if (k) {
+		/* Drop reference added by kset_find_obj() */
+		kobject_put(k);
+		priv = to_driver(k);
+		return priv->driver;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(driver_find);
+
 int __init buses_init(void)
 {
 	bus_kset = kset_create_and_add("bus", &bus_uevent_ops, NULL);

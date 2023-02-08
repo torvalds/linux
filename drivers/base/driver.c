@@ -274,30 +274,3 @@ void driver_unregister(struct device_driver *drv)
 	bus_remove_driver(drv);
 }
 EXPORT_SYMBOL_GPL(driver_unregister);
-
-/**
- * driver_find - locate driver on a bus by its name.
- * @name: name of the driver.
- * @bus: bus to scan for the driver.
- *
- * Call kset_find_obj() to iterate over list of drivers on
- * a bus to find driver by name. Return driver if found.
- *
- * This routine provides no locking to prevent the driver it returns
- * from being unregistered or unloaded while the caller is using it.
- * The caller is responsible for preventing this.
- */
-struct device_driver *driver_find(const char *name, struct bus_type *bus)
-{
-	struct kobject *k = kset_find_obj(bus->p->drivers_kset, name);
-	struct driver_private *priv;
-
-	if (k) {
-		/* Drop reference added by kset_find_obj() */
-		kobject_put(k);
-		priv = to_driver(k);
-		return priv->driver;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(driver_find);
