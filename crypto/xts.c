@@ -140,9 +140,9 @@ static int xts_xor_tweak_post(struct skcipher_request *req, bool enc)
 	return xts_xor_tweak(req, true, enc);
 }
 
-static void xts_cts_done(struct crypto_async_request *areq, int err)
+static void xts_cts_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 	le128 b;
 
 	if (!err) {
@@ -196,9 +196,9 @@ static int xts_cts_final(struct skcipher_request *req,
 	return 0;
 }
 
-static void xts_encrypt_done(struct crypto_async_request *areq, int err)
+static void xts_encrypt_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	if (!err) {
 		struct xts_request_ctx *rctx = skcipher_request_ctx(req);
@@ -216,9 +216,9 @@ static void xts_encrypt_done(struct crypto_async_request *areq, int err)
 	skcipher_request_complete(req, err);
 }
 
-static void xts_decrypt_done(struct crypto_async_request *areq, int err)
+static void xts_decrypt_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	if (!err) {
 		struct xts_request_ctx *rctx = skcipher_request_ctx(req);

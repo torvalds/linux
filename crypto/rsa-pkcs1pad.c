@@ -210,10 +210,9 @@ out:
 	return err;
 }
 
-static void pkcs1pad_encrypt_sign_complete_cb(
-		struct crypto_async_request *child_async_req, int err)
+static void pkcs1pad_encrypt_sign_complete_cb(void *data, int err)
 {
-	struct akcipher_request *req = child_async_req->data;
+	struct akcipher_request *req = data;
 
 	if (err == -EINPROGRESS)
 		goto out;
@@ -326,10 +325,9 @@ done:
 	return err;
 }
 
-static void pkcs1pad_decrypt_complete_cb(
-		struct crypto_async_request *child_async_req, int err)
+static void pkcs1pad_decrypt_complete_cb(void *data, int err)
 {
-	struct akcipher_request *req = child_async_req->data;
+	struct akcipher_request *req = data;
 
 	if (err == -EINPROGRESS)
 		goto out;
@@ -506,10 +504,9 @@ done:
 	return err;
 }
 
-static void pkcs1pad_verify_complete_cb(
-		struct crypto_async_request *child_async_req, int err)
+static void pkcs1pad_verify_complete_cb(void *data, int err)
 {
-	struct akcipher_request *req = child_async_req->data;
+	struct akcipher_request *req = data;
 
 	if (err == -EINPROGRESS)
 		goto out;

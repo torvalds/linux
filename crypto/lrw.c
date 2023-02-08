@@ -205,9 +205,9 @@ static int lrw_xor_tweak_post(struct skcipher_request *req)
 	return lrw_xor_tweak(req, true);
 }
 
-static void lrw_crypt_done(struct crypto_async_request *areq, int err)
+static void lrw_crypt_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	if (!err) {
 		struct lrw_request_ctx *rctx = skcipher_request_ctx(req);

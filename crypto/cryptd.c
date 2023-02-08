@@ -285,10 +285,9 @@ static void cryptd_skcipher_complete(struct skcipher_request *req, int err,
 		crypto_free_skcipher(tfm);
 }
 
-static void cryptd_skcipher_encrypt(struct crypto_async_request *base,
-				    int err)
+static void cryptd_skcipher_encrypt(void *data, int err)
 {
-	struct skcipher_request *req = skcipher_request_cast(base);
+	struct skcipher_request *req = data;
 	struct skcipher_request *subreq;
 
 	subreq = cryptd_skcipher_prepare(req, err);
@@ -298,10 +297,9 @@ static void cryptd_skcipher_encrypt(struct crypto_async_request *base,
 	cryptd_skcipher_complete(req, err, cryptd_skcipher_encrypt);
 }
 
-static void cryptd_skcipher_decrypt(struct crypto_async_request *base,
-				    int err)
+static void cryptd_skcipher_decrypt(void *data, int err)
 {
-	struct skcipher_request *req = skcipher_request_cast(base);
+	struct skcipher_request *req = data;
 	struct skcipher_request *subreq;
 
 	subreq = cryptd_skcipher_prepare(req, err);
@@ -515,9 +513,9 @@ static void cryptd_hash_complete(struct ahash_request *req, int err,
 		crypto_free_ahash(tfm);
 }
 
-static void cryptd_hash_init(struct crypto_async_request *req_async, int err)
+static void cryptd_hash_init(void *data, int err)
 {
-	struct ahash_request *req = ahash_request_cast(req_async);
+	struct ahash_request *req = data;
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct crypto_shash *child = ctx->child;
@@ -540,9 +538,9 @@ static int cryptd_hash_init_enqueue(struct ahash_request *req)
 	return cryptd_hash_enqueue(req, cryptd_hash_init);
 }
 
-static void cryptd_hash_update(struct crypto_async_request *req_async, int err)
+static void cryptd_hash_update(void *data, int err)
 {
-	struct ahash_request *req = ahash_request_cast(req_async);
+	struct ahash_request *req = data;
 	struct shash_desc *desc;
 
 	desc = cryptd_hash_prepare(req, err);
@@ -557,9 +555,9 @@ static int cryptd_hash_update_enqueue(struct ahash_request *req)
 	return cryptd_hash_enqueue(req, cryptd_hash_update);
 }
 
-static void cryptd_hash_final(struct crypto_async_request *req_async, int err)
+static void cryptd_hash_final(void *data, int err)
 {
-	struct ahash_request *req = ahash_request_cast(req_async);
+	struct ahash_request *req = data;
 	struct shash_desc *desc;
 
 	desc = cryptd_hash_prepare(req, err);
@@ -574,9 +572,9 @@ static int cryptd_hash_final_enqueue(struct ahash_request *req)
 	return cryptd_hash_enqueue(req, cryptd_hash_final);
 }
 
-static void cryptd_hash_finup(struct crypto_async_request *req_async, int err)
+static void cryptd_hash_finup(void *data, int err)
 {
-	struct ahash_request *req = ahash_request_cast(req_async);
+	struct ahash_request *req = data;
 	struct shash_desc *desc;
 
 	desc = cryptd_hash_prepare(req, err);
@@ -591,9 +589,9 @@ static int cryptd_hash_finup_enqueue(struct ahash_request *req)
 	return cryptd_hash_enqueue(req, cryptd_hash_finup);
 }
 
-static void cryptd_hash_digest(struct crypto_async_request *req_async, int err)
+static void cryptd_hash_digest(void *data, int err)
 {
-	struct ahash_request *req = ahash_request_cast(req_async);
+	struct ahash_request *req = data;
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct crypto_shash *child = ctx->child;
@@ -767,24 +765,26 @@ out:
 		crypto_free_aead(tfm);
 }
 
-static void cryptd_aead_encrypt(struct crypto_async_request *areq, int err)
+static void cryptd_aead_encrypt(void *data, int err)
 {
-	struct cryptd_aead_ctx *ctx = crypto_tfm_ctx(areq->tfm);
-	struct crypto_aead *child = ctx->child;
-	struct aead_request *req;
+	struct aead_request *req = data;
+	struct cryptd_aead_ctx *ctx;
+	struct crypto_aead *child;
 
-	req = container_of(areq, struct aead_request, base);
+	ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
+	child = ctx->child;
 	cryptd_aead_crypt(req, child, err, crypto_aead_alg(child)->encrypt,
 			  cryptd_aead_encrypt);
 }
 
-static void cryptd_aead_decrypt(struct crypto_async_request *areq, int err)
+static void cryptd_aead_decrypt(void *data, int err)
 {
-	struct cryptd_aead_ctx *ctx = crypto_tfm_ctx(areq->tfm);
-	struct crypto_aead *child = ctx->child;
-	struct aead_request *req;
+	struct aead_request *req = data;
+	struct cryptd_aead_ctx *ctx;
+	struct crypto_aead *child;
 
-	req = container_of(areq, struct aead_request, base);
+	ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
+	child = ctx->child;
 	cryptd_aead_crypt(req, child, err, crypto_aead_alg(child)->decrypt,
 			  cryptd_aead_decrypt);
 }

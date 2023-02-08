@@ -2099,10 +2099,9 @@ struct atmel_sha_authenc_reqctx {
 	unsigned int		digestlen;
 };
 
-static void atmel_sha_authenc_complete(struct crypto_async_request *areq,
-				       int err)
+static void atmel_sha_authenc_complete(void *data, int err)
 {
-	struct ahash_request *req = areq->data;
+	struct ahash_request *req = data;
 	struct atmel_sha_authenc_reqctx *authctx  = ahash_request_ctx(req);
 
 	authctx->cb(authctx->aes_dev, err, authctx->base.dd->is_async);

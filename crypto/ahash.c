@@ -256,9 +256,9 @@ static void ahash_restore_req(struct ahash_request *req, int err)
 	kfree_sensitive(subreq);
 }
 
-static void ahash_op_unaligned_done(struct crypto_async_request *req, int err)
+static void ahash_op_unaligned_done(void *data, int err)
 {
-	struct ahash_request *areq = req->data;
+	struct ahash_request *areq = data;
 
 	if (err == -EINPROGRESS)
 		goto out;
@@ -348,9 +348,9 @@ int crypto_ahash_digest(struct ahash_request *req)
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
-static void ahash_def_finup_done2(struct crypto_async_request *req, int err)
+static void ahash_def_finup_done2(void *data, int err)
 {
-	struct ahash_request *areq = req->data;
+	struct ahash_request *areq = data;
 
 	if (err == -EINPROGRESS)
 		return;
@@ -378,9 +378,9 @@ out:
 	return err;
 }
 
-static void ahash_def_finup_done1(struct crypto_async_request *req, int err)
+static void ahash_def_finup_done1(void *data, int err)
 {
-	struct ahash_request *areq = req->data;
+	struct ahash_request *areq = data;
 	struct ahash_request *subreq;
 
 	if (err == -EINPROGRESS)

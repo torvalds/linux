@@ -21,8 +21,6 @@
 
 #define ALG_MAX_PAGES			16
 
-struct crypto_async_request;
-
 struct alg_sock {
 	/* struct sock must be the first member of struct alg_sock */
 	struct sock sk;
@@ -235,7 +233,7 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 ssize_t af_alg_sendpage(struct socket *sock, struct page *page,
 			int offset, size_t size, int flags);
 void af_alg_free_resources(struct af_alg_async_req *areq);
-void af_alg_async_cb(struct crypto_async_request *_req, int err);
+void af_alg_async_cb(void *data, int err);
 __poll_t af_alg_poll(struct file *file, struct socket *sock,
 			 poll_table *wait);
 struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,

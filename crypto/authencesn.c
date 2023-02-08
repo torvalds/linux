@@ -107,10 +107,9 @@ static int crypto_authenc_esn_genicv_tail(struct aead_request *req,
 	return 0;
 }
 
-static void authenc_esn_geniv_ahash_done(struct crypto_async_request *areq,
-					 int err)
+static void authenc_esn_geniv_ahash_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	err = err ?: crypto_authenc_esn_genicv_tail(req, 0);
 	aead_request_complete(req, err);
@@ -153,10 +152,9 @@ static int crypto_authenc_esn_genicv(struct aead_request *req,
 }
 
 
-static void crypto_authenc_esn_encrypt_done(struct crypto_async_request *req,
-					    int err)
+static void crypto_authenc_esn_encrypt_done(void *data, int err)
 {
-	struct aead_request *areq = req->data;
+	struct aead_request *areq = data;
 
 	if (!err)
 		err = crypto_authenc_esn_genicv(areq, 0);
@@ -258,10 +256,9 @@ decrypt:
 	return crypto_skcipher_decrypt(skreq);
 }
 
-static void authenc_esn_verify_ahash_done(struct crypto_async_request *areq,
-					  int err)
+static void authenc_esn_verify_ahash_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	err = err ?: crypto_authenc_esn_decrypt_tail(req, 0);
 	authenc_esn_request_complete(req, err);
