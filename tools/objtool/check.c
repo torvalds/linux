@@ -1305,26 +1305,24 @@ __weak bool arch_is_rethunk(struct symbol *sym)
 	return false;
 }
 
-#define NEGATIVE_RELOC	((void *)-1L)
-
 static struct reloc *insn_reloc(struct objtool_file *file, struct instruction *insn)
 {
-	if (insn->reloc == NEGATIVE_RELOC)
+	struct reloc *reloc;
+
+	if (insn->no_reloc)
 		return NULL;
 
-	if (!insn->reloc) {
-		if (!file)
-			return NULL;
+	if (!file)
+		return NULL;
 
-		insn->reloc = find_reloc_by_dest_range(file->elf, insn->sec,
-						       insn->offset, insn->len);
-		if (!insn->reloc) {
-			insn->reloc = NEGATIVE_RELOC;
-			return NULL;
-		}
+	reloc = find_reloc_by_dest_range(file->elf, insn->sec,
+					 insn->offset, insn->len);
+	if (!reloc) {
+		insn->no_reloc = 1;
+		return NULL;
 	}
 
-	return insn->reloc;
+	return reloc;
 }
 
 static void remove_insn_ops(struct instruction *insn)

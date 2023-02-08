@@ -55,8 +55,9 @@ struct instruction {
 	   retpoline_safe	: 1,
 	   noendbr		: 1,
 	   entry		: 1,
-	   visited		: 4;
-		/* 3 bit hole */
+	   visited		: 4,
+	   no_reloc		: 1;
+		/* 2 bit hole */
 
 	s8 instr;
 
@@ -65,7 +66,6 @@ struct instruction {
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
 	struct reloc *jump_table;
-	struct reloc *reloc;
 	struct alternative *alts;
 	struct symbol *sym;
 	struct stack_op *stack_ops;
