@@ -146,10 +146,10 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				    &vmw_sys_placement :
 				    &vmw_vram_sys_placement,
 			    true, false, &vmw_gem_destroy, p_vbo);
-
-	(*p_vbo)->base.base.funcs = &vmw_gem_object_funcs;
 	if (ret != 0)
 		goto out_no_bo;
+
+	(*p_vbo)->base.base.funcs = &vmw_gem_object_funcs;
 
 	ret = drm_gem_handle_create(filp, &(*p_vbo)->base.base, handle);
 	/* drop reference from allocate - handle holds it now */
