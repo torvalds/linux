@@ -464,9 +464,7 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		 */
 		if (dummy_policy &&
 		    fscrypt_policies_equal(dummy_policy, &ci->ci_policy)) {
-			struct fscrypt_dummy_policy tmp = { dummy_policy };
-
-			err = fscrypt_add_test_dummy_key(sb, &tmp);
+			err = fscrypt_add_test_dummy_key(sb, &mk_spec);
 			if (err)
 				return err;
 			mk = fscrypt_find_master_key(sb, &mk_spec);
