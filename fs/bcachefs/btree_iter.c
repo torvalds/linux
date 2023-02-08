@@ -1507,6 +1507,14 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 		btree_path_overflow(trans);
 
 	idx = __ffs64(~trans->paths_allocated);
+
+	/*
+	 * Do this before marking the new path as allocated, since it won't be
+	 * initialized yet:
+	 */
+	if (unlikely(idx > trans->nr_max_paths))
+		bch2_trans_update_max_paths(trans);
+
 	trans->paths_allocated |= 1ULL << idx;
 
 	path = &trans->paths[idx];
@@ -1517,9 +1525,6 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 
 	btree_path_list_add(trans, pos, path);
 	trans->paths_sorted = false;
-
-	if (unlikely(idx > trans->nr_max_paths))
-		bch2_trans_update_max_paths(trans);
 	return path;
 }
 
