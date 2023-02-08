@@ -19,8 +19,8 @@ enum wcd_usbss_cable_types {
 };
 
 enum wcd_usbss_cable_status {
-	WCD_USBSS_CABLE_CONNECT,
 	WCD_USBSS_CABLE_DISCONNECT,
+	WCD_USBSS_CABLE_CONNECT,
 };
 
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
@@ -57,4 +57,3 @@ static inline int wcd_usbss_dpdm_switch_update(bool enable, bool eq_en)
 #endif /* CONFIG_QCOM_WCD_USBSS_I2C */
 
 #endif /* WCD939X_I2C_H */
-

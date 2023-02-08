@@ -8,12 +8,20 @@
 #include <linux/soc/qcom/wcd939x-i2c.h>
 #include <linux/qti-regmap-debugfs.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/sysfs.h>
+#include <linux/kobject.h>
 #include "wcd-usbss-priv.h"
 #include "wcd-usbss-registers.h"
 #include "wcd-usbss-reg-masks.h"
 #include "wcd-usbss-reg-shifts.h"
 
 #define WCD_USBSS_I2C_NAME	"wcd-usbss-i2c-driver"
+
+#define DEFAULT_SURGE_TIMER_PERIOD_MS 15000
+#define SEC_TO_MS 1000
+#define NUM_RCO_MISC2_READ 10
+#define MIN_SURGE_TIMER_PERIOD_SEC 3
+#define MAX_SURGE_TIMER_PERIOD_SEC 20
 
 enum {
 	WCD_USBSS_AUDIO_MANUAL,
@@ -48,6 +56,202 @@ static const struct wcd_usbss_reg_mask_val coeff_init[] = {
 };
 
 static struct wcd_usbss_ctxt *wcd_usbss_ctxt_;
+
+/* Required for kobj_attributes */
+static ssize_t wcd_usbss_surge_enable_store(struct kobject *kobj,
+	struct kobj_attribute *attr,
+	const char *buf, size_t count);
+
+static ssize_t wcd_usbss_surge_period_store(struct kobject *kobj,
+	struct kobj_attribute *attr,
+	const char *buf, size_t count);
+
+static struct kobj_attribute wcd_usbss_surge_enable_attribute =
+	__ATTR(surge_enable, 0220, NULL, wcd_usbss_surge_enable_store);
+
+static struct kobj_attribute wcd_usbss_surge_period_attribute =
+	__ATTR(surge_period, 0220, NULL, wcd_usbss_surge_period_store);
+
+/*
+ * wcd_usbss_is_in_reset_state - routine for using captured state to reset WCD USB-SS after surge
+ *
+ * Checks:
+ * 1. Register WCD_USBSS_CPLDO_CTL2 reads 0xFF
+ * 2. Register WCD_USBSS_RCO_MISC2 Bit<1> reads 0 at least once in NUM_RCO_MISC2_READ reads
+ * 3. Register 0x06 Bit<0> reads 1 after toggling
+ *    register WCD_USBSS_PMP_MISC1 Bit<0> from 0 --> 1 --> 0
+ *
+ * Returns true if all checks fails (indicates OVP and reset needed), false otherwise
+ */
+static bool wcd_usbss_is_in_reset_state(void)
+{
+	int i = 0;
+	unsigned int read_val = 0;
+
+	/* Check 1: Read WCD_USBSS_CPLDO_CTL2 */
+	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, &read_val);
+	if (read_val == 0xFF)
+		return false;
+
+	/* Check 2: Read WCD_USBSS_RCO_MISC2 */
+	for (i = 0; i < NUM_RCO_MISC2_READ; i++) {
+		regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_RCO_MISC2, &read_val);
+		if ((read_val & 0x2) == 0)
+			return false;
+	}
+
+	/* Toggle WCD_USBSS_PMP_MISC1 bit<0>: 0 --> 1 --> 0 */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_MISC1, 0x1, 0x0);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_MISC1, 0x1, 0x1);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_MISC1, 0x1, 0x0);
+
+	/* Check 3: Read WCD_USBSS_PMP_MISC2 */
+	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_MISC2, &read_val);
+	if (read_val & 0x1)
+		return false;
+
+	/* All checks failed, so a reset has occurred, and return true */
+	return true;
+}
+
+/*
+ * wcd_usbss_reset_routine - routine for using captured state to reset WCD after surge
+ *
+ * Returns return value from wcd_usbss_switch_update
+ */
+static int wcd_usbss_reset_routine(void)
+{
+	/* Mark the cache as dirty to force a flush */
+	regcache_mark_dirty(wcd_usbss_ctxt_->regmap);
+	regcache_sync(wcd_usbss_ctxt_->regmap);
+
+	return wcd_usbss_switch_update(wcd_usbss_ctxt_->cable_type, wcd_usbss_ctxt_->cable_status);
+}
+
+static ssize_t wcd_usbss_surge_enable_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int enable = 0;
+
+	if (kstrtouint(buf, 10, &enable) < 0)
+		return -EINVAL;
+
+	/* Return if period is 0ms */
+	if (!wcd_usbss_ctxt_->surge_timer_period_ms)
+		wcd_usbss_ctxt_->surge_timer_period_ms = DEFAULT_SURGE_TIMER_PERIOD_MS;
+
+	wcd_usbss_ctxt_->surge_enable = enable;
+
+	return count;
+}
+
+static ssize_t wcd_usbss_surge_period_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int period_sec = 0;
+
+	if (kstrtouint(buf, 10, &period_sec) < 0)
+		return -EINVAL;
+
+	/* Constrain period */
+	if (period_sec >= MIN_SURGE_TIMER_PERIOD_SEC && period_sec <= MAX_SURGE_TIMER_PERIOD_SEC)
+		wcd_usbss_ctxt_->surge_timer_period_ms = SEC_TO_MS * period_sec;
+
+	if (!wcd_usbss_ctxt_->surge_thread)
+		return count;
+
+	/* Wake up thread if usb is connected and surge is enabled */
+	if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_CONNECT &&
+		wcd_usbss_ctxt_->surge_enable)
+		wake_up_process(wcd_usbss_ctxt_->surge_thread);
+
+	return count;
+}
+
+/*
+ * wcd_usbss_surge_kthread_fn - checks for a negative surge reset at a given period interval
+ *
+ * Returns 0
+ */
+static int wcd_usbss_surge_kthread_fn(void *p)
+{
+	while (!kthread_should_stop()) {
+		if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_CONNECT &&
+			wcd_usbss_ctxt_->surge_enable &&
+			wcd_usbss_is_in_reset_state())
+			wcd_usbss_reset_routine();
+
+		msleep_interruptible(wcd_usbss_ctxt_->surge_timer_period_ms);
+	}
+
+	return 0;
+}
+
+/*
+ * wcd_usbss_enable_surge_kthread - routine for creating and deploying a kthread to handle surge
+ *								   protection.
+ */
+static void wcd_usbss_enable_surge_kthread(void)
+{
+
+	if (!wcd_usbss_ctxt_->surge_enable)
+		return;
+
+	if (!wcd_usbss_ctxt_->surge_thread)
+		wcd_usbss_ctxt_->surge_thread = kthread_run(wcd_usbss_surge_kthread_fn,
+						NULL, "Surge kthread");
+
+	if (!wcd_usbss_ctxt_->surge_thread)
+		pr_err("%s, Unable to create WCD USBSS surge kthread.\n", __func__);
+}
+
+/*
+ * wcd_usbss_disable_surge_kthread - routine for stopping a kthread that handles surge
+ *								    protection.
+ */
+static void wcd_usbss_disable_surge_kthread(void)
+{
+	if (!wcd_usbss_ctxt_->surge_enable)
+		return;
+
+	if (!wcd_usbss_ctxt_->surge_thread)
+		return;
+
+	kthread_stop(wcd_usbss_ctxt_->surge_thread);
+	wcd_usbss_ctxt_->surge_thread = NULL;
+}
+
+static int wcd_usbss_sysfs_init(struct wcd_usbss_ctxt *priv)
+{
+	int rc = 0;
+
+	priv->surge_kobject = kobject_create_and_add("wcd_usbss", kernel_kobj);
+
+	if (!(priv->surge_kobject)) {
+		dev_err(priv->dev, "%s: sysfs failed, surge kobj not created\n", __func__);
+		return -ENOMEM;
+	}
+
+	rc = sysfs_create_file(priv->surge_kobject, &wcd_usbss_surge_enable_attribute.attr);
+	if (rc < 0) {
+		dev_err(priv->dev,
+			"%s: sysfs failed, unable to register surge enable attribute. rc: %d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	rc = sysfs_create_file(priv->surge_kobject, &wcd_usbss_surge_period_attribute.attr);
+	if (rc < 0) {
+		dev_err(priv->dev,
+			"%s: sysfs failed, unable to register surge period attribute. rc: %d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	return 0;
+}
 
 static int wcd_usbss_usbc_event_changed(struct notifier_block *nb,
 				      unsigned long evt, void *ptr)
@@ -118,7 +322,6 @@ static int wcd_usbss_usbc_analog_setup_switches(struct wcd_usbss_ctxt *priv)
 		/* notify call chain on event */
 		blocking_notifier_call_chain(&priv->wcd_usbss_notifier,
 				TYPEC_ACCESSORY_NONE, NULL);
-
 		break;
 	default:
 		/* ignore other usb connection modes */
@@ -203,6 +406,8 @@ static void wcd_usbss_update_reg_init(struct regmap *regmap)
 	/* Disable Equalizer */
 	regmap_update_bits(regmap, WCD_USBSS_EQUALIZER1,
 			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
+	/* For surge reset routine: Write WCD_USBSS_CPLDO_CTL2 --> 0xFF */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, 0xFF, 0xFF);
 }
 
 #define AUXP_M_EN_MASK	(WCD_USBSS_SWITCH_SETTINGS_ENABLE_DP_AUXM_TO_MGX_SWITCHES_MASK |\
@@ -303,6 +508,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
+
+	wcd_usbss_ctxt_->cable_type = ctype;
+	wcd_usbss_ctxt_->cable_status = connect_status;
 
 	if (connect_status == WCD_USBSS_CABLE_DISCONNECT) {
 		wcd_usbss_switch_update_defaults(wcd_usbss_ctxt_);
@@ -588,11 +796,16 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 	wcd_usbss_update_reg_init(priv->regmap);
 	INIT_WORK(&priv->usbc_analog_work,
 		  wcd_usbss_usbc_analog_work_fn);
-
 	BLOCKING_INIT_NOTIFIER_HEAD(&priv->wcd_usbss_notifier);
 
-	dev_info(priv->dev, "Probe completed!\n");
+	rc = wcd_usbss_sysfs_init(priv);
+	if (rc == 0) {
+		priv->surge_timer_period_ms = DEFAULT_SURGE_TIMER_PERIOD_MS;
+		priv->surge_enable = true;
+		wcd_usbss_enable_surge_kthread();
+	}
 
+	dev_info(priv->dev, "Probe completed!\n");
 	return 0;
 
 err_data:
@@ -607,6 +820,7 @@ static void wcd_usbss_remove(struct i2c_client *i2c)
 	if (!priv)
 		return;
 
+	wcd_usbss_disable_surge_kthread();
 	unregister_ucsi_glink_notifier(&priv->ucsi_nb);
 	cancel_work_sync(&priv->usbc_analog_work);
 	pm_relax(priv->dev);

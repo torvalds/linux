@@ -6,6 +6,7 @@
 #define WCD_USBSS_PRIV_H
 
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
@@ -13,8 +14,11 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sched.h>
+#include <linux/soc/qcom/wcd939x-i2c.h>
 
 #define WCD_USBSS_SUPPLY_MAX 4
+
 struct wcd_usbss_ctxt {
 	struct regmap *regmap;
 	struct device *dev;
@@ -31,6 +35,12 @@ struct wcd_usbss_ctxt {
 	u8 prev_pg;
 	bool prev_pg_valid;
 	struct mutex io_lock;
+	enum wcd_usbss_cable_types cable_type;
+	enum wcd_usbss_cable_status cable_status;
+	bool surge_enable;
+	struct kobject *surge_kobject;
+	struct task_struct *surge_thread;
+	unsigned int surge_timer_period_ms;
 };
 
 extern struct regmap *wcd_usbss_regmap_init(struct device *dev,
