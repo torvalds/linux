@@ -292,6 +292,9 @@ static const char * const sma1303_aif_in_source_text[] = {
 static const char * const sma1303_aif_out_source_text[] = {
 	"Disable", "After_FmtC", "After_Mixer", "After_DSP", "After_Post",
 		"Clk_PLL", "Clk_OSC"};
+static const char * const sma1303_tdm_slot_text[] = {
+	"Slot0", "Slot1", "Slot2", "Slot3",
+	"Slot4", "Slot5", "Slot6", "Slot7"};
 
 static const struct soc_enum sma1303_aif_in_source_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(sma1303_aif_in_source_text),
@@ -299,6 +302,9 @@ static const struct soc_enum sma1303_aif_in_source_enum =
 static const struct soc_enum sma1303_aif_out_source_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(sma1303_aif_out_source_text),
 			sma1303_aif_out_source_text);
+static const struct soc_enum sma1303_tdm_slot_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(sma1303_tdm_slot_text),
+			sma1303_tdm_slot_text);
 
 static int sma1303_force_mute_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -362,6 +368,76 @@ static int sma1303_postscaler_put(struct snd_kcontrol *kcontrol,
 
 	ret = sma1303_regmap_update_bits(sma1303,
 			SMA1303_90_POSTSCALER, 0x7E, (val << 1), &change);
+	if (ret < 0)
+		return -EINVAL;
+
+	return change;
+}
+
+static int sma1303_tdm_slot_rx_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct sma1303_priv *sma1303 = snd_soc_component_get_drvdata(component);
+	int val, ret;
+
+	ret = sma1303_regmap_read(sma1303, SMA1303_A5_TDM1, &val);
+	if (ret < 0)
+		return -EINVAL;
+
+	ucontrol->value.integer.value[0] = (val & 0x38) >> 3;
+	sma1303->tdm_slot_rx = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
+static int sma1303_tdm_slot_rx_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct sma1303_priv *sma1303 = snd_soc_component_get_drvdata(component);
+	int ret, val = (int)ucontrol->value.integer.value[0];
+	bool change;
+
+	ret = sma1303_regmap_update_bits(sma1303,
+			SMA1303_A5_TDM1, 0x38, (val << 3), &change);
+	if (ret < 0)
+		return -EINVAL;
+
+	return change;
+}
+
+static int sma1303_tdm_slot_tx_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct sma1303_priv *sma1303 = snd_soc_component_get_drvdata(component);
+	int val, ret;
+
+	ret = sma1303_regmap_read(sma1303, SMA1303_A6_TDM2, &val);
+	if (ret < 0)
+		return -EINVAL;
+
+	ucontrol->value.integer.value[0] = (val & 0x38) >> 3;
+	sma1303->tdm_slot_tx = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
+static int sma1303_tdm_slot_tx_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct sma1303_priv *sma1303 = snd_soc_component_get_drvdata(component);
+	int ret, val = (int)ucontrol->value.integer.value[0];
+	bool change;
+
+	ret = sma1303_regmap_update_bits(sma1303,
+			SMA1303_A6_TDM2, 0x38, (val << 3), &change);
 	if (ret < 0)
 		return -EINVAL;
 
@@ -781,6 +857,10 @@ static const struct snd_kcontrol_new sma1303_snd_controls[] = {
 		sma1303_force_mute_get, sma1303_force_mute_put),
 	SOC_SINGLE_EXT("Postscaler Gain", SMA1303_90_POSTSCALER, 1, 0x30, 0,
 		sma1303_postscaler_get, sma1303_postscaler_put),
+	SOC_ENUM_EXT("TDM RX Slot Position", sma1303_tdm_slot_enum,
+			sma1303_tdm_slot_rx_get, sma1303_tdm_slot_rx_put),
+	SOC_ENUM_EXT("TDM TX Slot Position", sma1303_tdm_slot_enum,
+			sma1303_tdm_slot_tx_get, sma1303_tdm_slot_tx_put),
 };
 
 static const struct snd_soc_dapm_widget sma1303_dapm_widgets[] = {
@@ -1621,24 +1701,6 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	}
 
 	if (np) {
-		if (!of_property_read_u32(np, "tdm-slot-rx", &value)) {
-			dev_dbg(&client->dev,
-				"tdm slot rx is '%d' from DT\n", value);
-			sma1303->tdm_slot_rx = value;
-		} else {
-			dev_dbg(&client->dev,
-				"Default setting of tdm slot rx is '0'\n");
-			sma1303->tdm_slot_rx = 0;
-		}
-		if (!of_property_read_u32(np, "tdm-slot-tx", &value)) {
-			dev_dbg(&client->dev,
-				"tdm slot tx is '%u' from DT\n", value);
-			sma1303->tdm_slot_tx = value;
-		} else {
-			dev_dbg(&client->dev,
-				"Default setting of tdm slot tx is '0'\n");
-			sma1303->tdm_slot_tx = 0;
-		}
 		if (!of_property_read_u32(np, "sys-clk-id", &value)) {
 			switch (value) {
 			case SMA1303_EXTERNAL_CLOCK_19_2:
@@ -1719,6 +1781,8 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	sma1303->last_over_temp = 0xC0;
 	sma1303->tsdw_cnt = 0;
 	sma1303->retry_cnt = SMA1303_I2C_RETRY_COUNT;
+	sma1303->tdm_slot_rx = 0;
+	sma1303->tdm_slot_tx = 0;
 
 	sma1303->dev = &client->dev;
 	sma1303->kobj = &client->dev.kobj;
