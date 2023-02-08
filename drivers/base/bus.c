@@ -1006,11 +1006,6 @@ struct kset *bus_get_kset(struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(bus_get_kset);
 
-static struct klist *bus_get_device_klist(struct bus_type *bus)
-{
-	return &bus->p->klist_devices;
-}
-
 /*
  * Yes, this forcibly breaks the klist abstraction temporarily.  It
  * just wants to sort the klist, not change reference counts and
@@ -1042,13 +1037,16 @@ void bus_sort_breadthfirst(struct bus_type *bus,
 			   int (*compare)(const struct device *a,
 					  const struct device *b))
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
 	LIST_HEAD(sorted_devices);
 	struct klist_node *n, *tmp;
 	struct device_private *dev_prv;
 	struct device *dev;
 	struct klist *device_klist;
 
-	device_klist = bus_get_device_klist(bus);
+	if (!sp)
+		return;
+	device_klist = &sp->klist_devices;
 
 	spin_lock(&device_klist->k_lock);
 	list_for_each_entry_safe(n, tmp, &device_klist->k_list, n_node) {
@@ -1058,6 +1056,7 @@ void bus_sort_breadthfirst(struct bus_type *bus,
 	}
 	list_splice(&sorted_devices, &device_klist->k_list);
 	spin_unlock(&device_klist->k_lock);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(bus_sort_breadthfirst);
 
