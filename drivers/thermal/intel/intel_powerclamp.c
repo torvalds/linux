@@ -74,6 +74,7 @@ static struct thermal_cooling_device *cooling_dev;
 
 static DEFINE_MUTEX(powerclamp_lock);
 
+/* This duration is in microseconds */
 static unsigned int duration;
 static unsigned int pkg_cstate_ratio_cur;
 static unsigned int window_size;
@@ -90,23 +91,34 @@ static int duration_set(const char *arg, const struct kernel_param *kp)
 		pr_err("Out of recommended range %lu, between 6-25ms\n",
 			new_duration);
 		ret = -EINVAL;
+		goto exit;
 	}
 
-	duration = clamp(new_duration, 6ul, 25ul);
-	smp_mb();
-
+	mutex_lock(&powerclamp_lock);
+	duration = clamp(new_duration, 6ul, 25ul) * 1000;
+	mutex_unlock(&powerclamp_lock);
 exit:
+
+	return ret;
+}
+
+static int duration_get(char *buf, const struct kernel_param *kp)
+{
+	int ret;
+
+	mutex_lock(&powerclamp_lock);
+	ret = sysfs_emit(buf, "%d\n", duration / 1000);
+	mutex_unlock(&powerclamp_lock);
 
 	return ret;
 }
 
 static const struct kernel_param_ops duration_ops = {
 	.set = duration_set,
-	.get = param_get_int,
+	.get = duration_get,
 };
 
-
-module_param_cb(duration, &duration_ops, &duration, 0644);
+module_param_cb(duration, &duration_ops, NULL, 0644);
 MODULE_PARM_DESC(duration, "forced idle time for each attempt in msec.");
 
 struct powerclamp_calibration_data {
