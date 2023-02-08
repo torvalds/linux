@@ -66,7 +66,7 @@ struct instruction {
 	struct instruction *first_jump_src;
 	struct reloc *jump_table;
 	struct reloc *reloc;
-	struct list_head alts;
+	struct alternative *alts;
 	struct symbol *sym;
 	struct stack_op *stack_ops;
 	struct cfi_state *cfi;

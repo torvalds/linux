@@ -23,7 +23,7 @@
 #include <linux/static_call_types.h>
 
 struct alternative {
-	struct list_head list;
+	struct alternative *next;
 	struct instruction *insn;
 	bool skip_orig;
 };
@@ -397,7 +397,6 @@ static int decode_instructions(struct objtool_file *file)
 				return -1;
 			}
 			memset(insn, 0, sizeof(*insn));
-			INIT_LIST_HEAD(&insn->alts);
 			INIT_LIST_HEAD(&insn->call_node);
 
 			insn->sec = sec;
@@ -1780,7 +1779,6 @@ static int handle_group_alt(struct objtool_file *file,
 			return -1;
 		}
 		memset(nop, 0, sizeof(*nop));
-		INIT_LIST_HEAD(&nop->alts);
 
 		nop->sec = special_alt->new_sec;
 		nop->offset = special_alt->new_off + special_alt->new_len;
@@ -1978,7 +1976,8 @@ static int add_special_section_alts(struct objtool_file *file)
 		alt->insn = new_insn;
 		alt->skip_orig = special_alt->skip_orig;
 		orig_insn->ignore_alts |= special_alt->skip_alt;
-		list_add_tail(&alt->list, &orig_insn->alts);
+		alt->next = orig_insn->alts;
+		orig_insn->alts = alt;
 
 		list_del(&special_alt->list);
 		free(special_alt);
@@ -2037,7 +2036,8 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 		}
 
 		alt->insn = dest_insn;
-		list_add_tail(&alt->list, &insn->alts);
+		alt->next = insn->alts;
+		insn->alts = alt;
 		prev_offset = reloc->offset;
 	}
 
@@ -3594,10 +3594,10 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 		if (propagate_alt_cfi(file, insn))
 			return 1;
 
-		if (!insn->ignore_alts && !list_empty(&insn->alts)) {
+		if (!insn->ignore_alts && insn->alts) {
 			bool skip_orig = false;
 
-			list_for_each_entry(alt, &insn->alts, list) {
+			for (alt = insn->alts; alt; alt = alt->next) {
 				if (alt->skip_orig)
 					skip_orig = true;
 
@@ -3796,11 +3796,11 @@ static int validate_entry(struct objtool_file *file, struct instruction *insn)
 
 		insn->visited |= VISITED_ENTRY;
 
-		if (!insn->ignore_alts && !list_empty(&insn->alts)) {
+		if (!insn->ignore_alts && insn->alts) {
 			struct alternative *alt;
 			bool skip_orig = false;
 
-			list_for_each_entry(alt, &insn->alts, list) {
+			for (alt = insn->alts; alt; alt = alt->next) {
 				if (alt->skip_orig)
 					skip_orig = true;
 
