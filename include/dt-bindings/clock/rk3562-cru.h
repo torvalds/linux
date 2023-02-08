@@ -369,8 +369,12 @@
 #define HCLK_VOP			359
 #define DCLK_VOP			360
 #define DCLK_VOP1			361
+#define ACLK_CRYPTO_S			362
+#define PCLK_CRYPTO_S			363
+#define CLK_CORE_CRYPTO_S		364
+#define CLK_PKA_CRYPTO_S		365
 
-#define CLK_NR_CLKS			(DCLK_VOP1 + 1)
+#define CLK_NR_CLKS			(CLK_PKA_CRYPTO_S + 1)
 
 /* soft-reset indices */
 
