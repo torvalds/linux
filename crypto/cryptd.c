@@ -93,6 +93,7 @@ struct cryptd_aead_ctx {
 
 struct cryptd_aead_request_ctx {
 	crypto_completion_t complete;
+	struct aead_request req;
 };
 
 static void cryptd_queue_worker(struct work_struct *work);
@@ -715,6 +716,7 @@ static void cryptd_aead_crypt(struct aead_request *req,
 			int (*crypt)(struct aead_request *req))
 {
 	struct cryptd_aead_request_ctx *rctx;
+	struct aead_request *subreq;
 	struct cryptd_aead_ctx *ctx;
 	crypto_completion_t compl;
 	struct crypto_aead *tfm;
@@ -722,13 +724,23 @@ static void cryptd_aead_crypt(struct aead_request *req,
 
 	rctx = aead_request_ctx(req);
 	compl = rctx->complete;
+	subreq = &rctx->req;
 
 	tfm = crypto_aead_reqtfm(req);
 
 	if (unlikely(err == -EINPROGRESS))
 		goto out;
-	aead_request_set_tfm(req, child);
-	err = crypt( req );
+
+	aead_request_set_tfm(subreq, child);
+	aead_request_set_callback(subreq, CRYPTO_TFM_REQ_MAY_SLEEP,
+				  NULL, NULL);
+	aead_request_set_crypt(subreq, req->src, req->dst, req->cryptlen,
+			       req->iv);
+	aead_request_set_ad(subreq, req->assoclen);
+
+	err = crypt(subreq);
+
+	req->base.complete = compl;
 
 out:
 	ctx = crypto_aead_ctx(tfm);
@@ -798,8 +810,8 @@ static int cryptd_aead_init_tfm(struct crypto_aead *tfm)
 
 	ctx->child = cipher;
 	crypto_aead_set_reqsize(
-		tfm, max((unsigned)sizeof(struct cryptd_aead_request_ctx),
-			 crypto_aead_reqsize(cipher)));
+		tfm, sizeof(struct cryptd_aead_request_ctx) +
+		     crypto_aead_reqsize(cipher));
 	return 0;
 }
 
