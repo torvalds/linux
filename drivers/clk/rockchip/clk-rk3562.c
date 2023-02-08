@@ -169,8 +169,6 @@ PNAME(mux_125m_xin24m_p)		= { "clk_matrix_125m_src", "xin24m" };
 PNAME(mux_200m_xin24m_32k_p)		= { "clk_200m_pmu", "xin24m", "clk_rtc_32k" };
 PNAME(mux_200m_100m_p)			= { "clk_matrix_200m_src", "clk_matrix_100m_src" };
 PNAME(mux_200m_100m_50m_xin24m_p)	= { "clk_matrix_200m_src", "clk_matrix_100m_src", "clk_matrix_50m_src", "xin24m" };
-PNAME(mux_200m_100m_xin24m_p)		= { "clk_matrix_200m_src", "clk_matrix_100m_src", "xin24m" };
-PNAME(mux_300m_200m_100m_xin24m_p)	= { "clk_matrix_300m_src", "clk_matrix_200m_src", "clk_matrix_100m_src", "xin24m" };
 PNAME(clk_sai0_p)			= { "clk_sai0_src", "clk_sai0_frac", "xin_osc0_half", "mclk_sai0_io" };
 PNAME(mclk_sai0_out2io_p)		= { "mclk_sai0", "xin_osc0_half" };
 PNAME(clk_sai1_p)			= { "clk_sai1_src", "clk_sai1_frac", "xin_osc0_half", "mclk_sai1_io" };
@@ -788,32 +786,6 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 	COMPOSITE(CLK_CAN1, "clk_can1", gpll_cpll_p, 0,
 			RK3562_PERI_CLKSEL_CON(41), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3562_PERI_CLKGATE_CON(11), 3, GFLAGS),
-	GATE(ACLK_CRYPTO, "aclk_crypto", "aclk_peri", 0,
-			RK3562_PERI_CLKGATE_CON(12), 0, GFLAGS),
-	GATE(HCLK_CRYPTO, "hclk_crypto", "hclk_peri", 0,
-			RK3562_PERI_CLKGATE_CON(12), 1, GFLAGS),
-	GATE(PCLK_CRYPTO, "pclk_crypto", "pclk_peri", 0,
-			RK3562_PERI_CLKGATE_CON(12), 2, GFLAGS),
-	COMPOSITE_NODIV(CLK_CORE_CRYPTO, "clk_core_crypto", mux_200m_100m_xin24m_p, 0,
-			RK3562_PERI_CLKSEL_CON(43), 0, 2, MFLAGS,
-			RK3562_PERI_CLKGATE_CON(12), 3, GFLAGS),
-	COMPOSITE_NODIV(CLK_PKA_CRYPTO, "clk_pka_crypto", mux_300m_200m_100m_xin24m_p, 0,
-			RK3562_PERI_CLKSEL_CON(43), 6, 2, MFLAGS,
-			RK3562_PERI_CLKGATE_CON(12), 4, GFLAGS),
-	GATE(HCLK_KLAD, "hclk_klad", "hclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 5, GFLAGS),
-	GATE(PCLK_KEY_READER, "pclk_key_reader", "pclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 6, GFLAGS),
-	GATE(HCLK_RK_RNG_NS, "hclk_rk_rng_ns", "hclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 7, GFLAGS),
-	GATE(HCLK_RK_RNG_S, "hclk_rk_rng_s", "hclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 8, GFLAGS),
-	GATE(HCLK_TRNG_NS, "hclk_trng_ns", "hclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 9, GFLAGS),
-	GATE(HCLK_TRNG_S, "hclk_trng_s", "hclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 10, GFLAGS),
-	GATE(HCLK_CRYPTO_S, "hclk_crypto_s", "hclk_peri", CLK_IGNORE_UNUSED,
-			RK3562_PERI_CLKGATE_CON(12), 11, GFLAGS),
 	GATE(PCLK_PERI_WDT, "pclk_peri_wdt", "pclk_peri", 0,
 			RK3562_PERI_CLKGATE_CON(13), 0, GFLAGS),
 	COMPOSITE_NODIV(TCLK_PERI_WDT, "tclk_peri_wdt", mux_xin24m_32k_p, 0,
