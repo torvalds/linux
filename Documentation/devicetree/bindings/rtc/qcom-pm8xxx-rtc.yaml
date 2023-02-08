@@ -40,6 +40,8 @@ properties:
     description:
       Indicates that the setting of RTC time is allowed by the host CPU.
 
+  wakeup-source: true
+
 required:
   - compatible
   - reg

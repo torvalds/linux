@@ -238,7 +238,8 @@ static bool pmc_resume_counter(struct kvm_pmc *pmc)
 		return false;
 
 	/* recalibrate sample period and check if it's accepted by perf core */
-	if (perf_event_period(pmc->perf_event,
+	if (is_sampling_event(pmc->perf_event) &&
+	    perf_event_period(pmc->perf_event,
 			      get_sample_period(pmc, pmc->counter)))
 		return false;
 

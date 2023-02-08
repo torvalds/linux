@@ -285,6 +285,49 @@ config BLK_DEV_RAM_SIZE
 	  The default value is 4096 kilobytes. Only change this if you know
 	  what you are doing.
 
+config CDROM_PKTCDVD
+	tristate "Packet writing on CD/DVD media (DEPRECATED)"
+	depends on !UML
+	depends on SCSI
+	select CDROM
+	help
+	  Note: This driver is deprecated and will be removed from the
+	  kernel in the near future!
+
+	  If you have a CDROM/DVD drive that supports packet writing, say
+	  Y to include support. It should work with any MMC/Mt Fuji
+	  compliant ATAPI or SCSI drive, which is just about any newer
+	  DVD/CD writer.
+
+	  Currently only writing to CD-RW, DVD-RW, DVD+RW and DVDRAM discs
+	  is possible.
+	  DVD-RW disks must be in restricted overwrite mode.
+
+	  See the file <file:Documentation/cdrom/packet-writing.rst>
+	  for further information on the use of this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pktcdvd.
+
+config CDROM_PKTCDVD_BUFFERS
+	int "Free buffers for data gathering"
+	depends on CDROM_PKTCDVD
+	default "8"
+	help
+	  This controls the maximum number of active concurrent packets. More
+	  concurrent packets can increase write performance, but also require
+	  more memory. Each concurrent packet will require approximately 64Kb
+	  of non-swappable kernel memory, memory which will be allocated when
+	  a disc is opened for writing.
+
+config CDROM_PKTCDVD_WCACHE
+	bool "Enable write caching"
+	depends on CDROM_PKTCDVD
+	help
+	  If enabled, write caching will be set for the CD-R/W device. For now
+	  this option is dangerous unless the CD-RW media is known good, as we
+	  don't do deferred write error handling yet.
+
 config ATA_OVER_ETH
 	tristate "ATA over Ethernet support"
 	depends on NET

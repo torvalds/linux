@@ -1109,9 +1109,15 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 			continue;
 
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+			u32 val = BIT(engine->instance);
+
+			if (engine->class == VIDEO_DECODE_CLASS ||
+			    engine->class == VIDEO_ENHANCEMENT_CLASS ||
+			    engine->class == COMPUTE_CLASS)
+				val = _MASKED_BIT_ENABLE(val);
 			intel_gt_mcr_multicast_write_fw(gt,
 							xehp_regs[engine->class],
-							BIT(engine->instance));
+							val);
 		} else {
 			rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
 			if (!i915_mmio_reg_offset(rb.reg))

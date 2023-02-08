@@ -1249,7 +1249,7 @@ static void scsiback_release_translation_entry(struct vscsibk_info *info)
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
 }
 
-static int scsiback_remove(struct xenbus_device *dev)
+static void scsiback_remove(struct xenbus_device *dev)
 {
 	struct vscsibk_info *info = dev_get_drvdata(&dev->dev);
 
@@ -1261,8 +1261,6 @@ static int scsiback_remove(struct xenbus_device *dev)
 	gnttab_page_cache_shrink(&info->free_pages, 0);
 
 	dev_set_drvdata(&dev->dev, NULL);
-
-	return 0;
 }
 
 static int scsiback_probe(struct xenbus_device *dev,

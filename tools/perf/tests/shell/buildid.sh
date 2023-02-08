@@ -77,7 +77,20 @@ check()
 	file=${build_id_dir}/.build-id/${id:0:2}/`readlink ${link}`/elf
 	echo "file: ${file}"
 
-	if [ ! -x $file ]; then
+	# Check for file permission of original file
+	# in case of pe-file.exe file
+	echo $1 | grep ".exe"
+	if [ $? -eq 0 ]; then
+		if [ -x $1  -a ! -x $file ]; then
+			echo "failed: file ${file} executable does not exist"
+			exit 1
+		fi
+
+		if [ ! -x $file -a ! -e $file ]; then
+			echo "failed: file ${file} does not exist"
+			exit 1
+		fi
+	elif [ ! -x $file ]; then
 		echo "failed: file ${file} does not exist"
 		exit 1
 	fi

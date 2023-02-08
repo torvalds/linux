@@ -1055,6 +1055,9 @@ static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
 		return ERR_PTR(-EPROBE_DEFER);
 
 	pcs = lynx_pcs_create(mdiodev);
+	if (!pcs)
+		mdio_device_free(mdiodev);
+
 	return pcs;
 }
 

@@ -19,4 +19,7 @@ int raise(int signal)
 	return sys_kill(sys_getpid(), signal);
 }
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #endif /* _NOLIBC_SIGNAL_H */
