@@ -548,9 +548,17 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 		   i915_reg_t hdmi_reg, enum port port)
 {
+	const struct intel_bios_encoder_data *devdata;
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
+
+	devdata = intel_bios_encoder_data_lookup(dev_priv, port);
+
+	/* FIXME bail? */
+	if (!devdata)
+		drm_dbg_kms(&dev_priv->drm, "No VBT child device for HDMI-%c\n",
+			    port_name(port));
 
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
@@ -563,6 +571,8 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	}
 
 	intel_encoder = &dig_port->base;
+
+	intel_encoder->devdata = devdata;
 
 	mutex_init(&dig_port->hdcp_mutex);
 
