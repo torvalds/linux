@@ -830,7 +830,7 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 	node = interval_tree_iter_first(ranges, 0, ULONG_MAX);
 	for (i = 0; i < num_ranges; i++) {
 		void *addr_range_i_base = range_list_ptr + record_size * i;
-		unsigned long length = node->last - node->start;
+		unsigned long length = node->last - node->start + 1;
 
 		MLX5_SET64(page_track_range, addr_range_i_base, start_address,
 			   node->start);
@@ -840,7 +840,7 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 	}
 
 	WARN_ON(node);
-	log_addr_space_size = ilog2(total_ranges_len);
+	log_addr_space_size = ilog2(roundup_pow_of_two(total_ranges_len));
 	if (log_addr_space_size <
 	    (MLX5_CAP_ADV_VIRTUALIZATION(mdev, pg_track_log_min_addr_space)) ||
 	    log_addr_space_size >
