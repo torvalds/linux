@@ -1532,7 +1532,6 @@ static int dw100_probe(struct platform_device *pdev)
 {
 	struct dw100_device *dw_dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret, irq;
 
 	dw_dev = devm_kzalloc(&pdev->dev, sizeof(*dw_dev), GFP_KERNEL);
@@ -1547,8 +1546,7 @@ static int dw100_probe(struct platform_device *pdev)
 	}
 	dw_dev->num_clks = ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dw_dev->mmio = devm_ioremap_resource(&pdev->dev, res);
+	dw_dev->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(dw_dev->mmio))
 		return PTR_ERR(dw_dev->mmio);
 
