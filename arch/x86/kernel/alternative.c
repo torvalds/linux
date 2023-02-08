@@ -37,11 +37,23 @@ EXPORT_SYMBOL_GPL(alternatives_patched);
 
 #define MAX_PATCH_LEN (255-1)
 
-static int __initdata_or_module debug_alternative;
+#define DA_ALL		(~0)
+#define DA_ALT		0x01
+#define DA_RET		0x02
+#define DA_RETPOLINE	0x04
+#define DA_ENDBR	0x08
+#define DA_SMP		0x10
+
+static unsigned int __initdata_or_module debug_alternative;
 
 static int __init debug_alt(char *str)
 {
-	debug_alternative = 1;
+	if (str && *str == '=')
+		str++;
+
+	if (!str || kstrtouint(str, 0, &debug_alternative))
+		debug_alternative = DA_ALL;
+
 	return 1;
 }
 __setup("debug-alternative", debug_alt);
@@ -55,15 +67,15 @@ static int __init setup_noreplace_smp(char *str)
 }
 __setup("noreplace-smp", setup_noreplace_smp);
 
-#define DPRINTK(fmt, args...)						\
+#define DPRINTK(type, fmt, args...)					\
 do {									\
-	if (debug_alternative)						\
+	if (debug_alternative & DA_##type)				\
 		printk(KERN_DEBUG pr_fmt(fmt) "\n", ##args);		\
 } while (0)
 
-#define DUMP_BYTES(buf, len, fmt, args...)				\
+#define DUMP_BYTES(type, buf, len, fmt, args...)			\
 do {									\
-	if (unlikely(debug_alternative)) {				\
+	if (unlikely(debug_alternative & DA_##type)) {			\
 		int j;							\
 									\
 		if (!(len))						\
@@ -148,7 +160,7 @@ recompute_jump(struct alt_instr *a, u8 *orig_insn, u8 *repl_insn, u8 *insn_buff)
 	tgt_rip  = next_rip + o_dspl;
 	n_dspl = tgt_rip - orig_insn;
 
-	DPRINTK("target RIP: %px, new_displ: 0x%x", tgt_rip, n_dspl);
+	DPRINTK(ALT, "target RIP: %px, new_displ: 0x%x", tgt_rip, n_dspl);
 
 	if (tgt_rip - orig_insn >= 0) {
 		if (n_dspl - 2 <= 127)
@@ -183,7 +195,7 @@ five_byte_jmp:
 
 done:
 
-	DPRINTK("final displ: 0x%08x, JMP 0x%lx",
+	DPRINTK(ALT, "final displ: 0x%08x, JMP 0x%lx",
 		n_dspl, (unsigned long)orig_insn + n_dspl + repl_len);
 }
 
@@ -217,7 +229,7 @@ static __always_inline int optimize_nops_range(u8 *instr, u8 instrlen, int off)
 	add_nops(instr + off, nnops);
 	local_irq_restore(flags);
 
-	DUMP_BYTES(instr, instrlen, "%px: [%d:%d) optimized NOPs: ", instr, off, i);
+	DUMP_BYTES(ALT, instr, instrlen, "%px: [%d:%d) optimized NOPs: ", instr, off, i);
 
 	return nnops;
 }
@@ -270,7 +282,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 	u8 *instr, *replacement;
 	u8 insn_buff[MAX_PATCH_LEN];
 
-	DPRINTK("alt table %px, -> %px", start, end);
+	DPRINTK(ALT, "alt table %px, -> %px", start, end);
 	/*
 	 * The scan order should be from start to end. A later scanned
 	 * alternative code can overwrite previously scanned alternative code.
@@ -297,15 +309,15 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		if (!boot_cpu_has(a->cpuid) == !(a->flags & ALT_FLAG_NOT))
 			goto next;
 
-		DPRINTK("feat: %s%d*32+%d, old: (%pS (%px) len: %d), repl: (%px, len: %d)",
+		DPRINTK(ALT, "feat: %s%d*32+%d, old: (%pS (%px) len: %d), repl: (%px, len: %d)",
 			(a->flags & ALT_FLAG_NOT) ? "!" : "",
 			a->cpuid >> 5,
 			a->cpuid & 0x1f,
 			instr, instr, a->instrlen,
 			replacement, a->replacementlen);
 
-		DUMP_BYTES(instr, a->instrlen, "%px:   old_insn: ", instr);
-		DUMP_BYTES(replacement, a->replacementlen, "%px:   rpl_insn: ", replacement);
+		DUMP_BYTES(ALT, instr, a->instrlen, "%px:   old_insn: ", instr);
+		DUMP_BYTES(ALT, replacement, a->replacementlen, "%px:   rpl_insn: ", replacement);
 
 		memcpy(insn_buff, replacement, a->replacementlen);
 		insn_buff_sz = a->replacementlen;
@@ -318,7 +330,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		 */
 		if (a->replacementlen == 5 && *insn_buff == 0xe8) {
 			*(s32 *)(insn_buff + 1) += replacement - instr;
-			DPRINTK("Fix CALL offset: 0x%x, CALL 0x%lx",
+			DPRINTK(ALT, "Fix CALL offset: 0x%x, CALL 0x%lx",
 				*(s32 *)(insn_buff + 1),
 				(unsigned long)instr + *(s32 *)(insn_buff + 1) + 5);
 		}
@@ -329,7 +341,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		for (; insn_buff_sz < a->instrlen; insn_buff_sz++)
 			insn_buff[insn_buff_sz] = 0x90;
 
-		DUMP_BYTES(insn_buff, insn_buff_sz, "%px: final_insn: ", instr);
+		DUMP_BYTES(ALT, insn_buff, insn_buff_sz, "%px: final_insn: ", instr);
 
 		text_poke_early(instr, insn_buff, insn_buff_sz);
 
@@ -555,15 +567,15 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 			continue;
 		}
 
-		DPRINTK("retpoline at: %pS (%px) len: %d to: %pS",
+		DPRINTK(RETPOLINE, "retpoline at: %pS (%px) len: %d to: %pS",
 			addr, addr, insn.length,
 			addr + insn.length + insn.immediate.value);
 
 		len = patch_retpoline(addr, &insn, bytes);
 		if (len == insn.length) {
 			optimize_nops(bytes, len);
-			DUMP_BYTES(((u8*)addr),  len, "%px: orig: ", addr);
-			DUMP_BYTES(((u8*)bytes), len, "%px: repl: ", addr);
+			DUMP_BYTES(RETPOLINE, ((u8*)addr),  len, "%px: orig: ", addr);
+			DUMP_BYTES(RETPOLINE, ((u8*)bytes), len, "%px: repl: ", addr);
 			text_poke_early(addr, bytes, len);
 		}
 	}
@@ -630,14 +642,14 @@ void __init_or_module noinline apply_returns(s32 *start, s32 *end)
 			      addr, dest, 5, addr))
 			continue;
 
-		DPRINTK("return thunk at: %pS (%px) len: %d to: %pS",
+		DPRINTK(RET, "return thunk at: %pS (%px) len: %d to: %pS",
 			addr, addr, insn.length,
 			addr + insn.length + insn.immediate.value);
 
 		len = patch_return(addr, &insn, bytes);
 		if (len == insn.length) {
-			DUMP_BYTES(((u8*)addr),  len, "%px: orig: ", addr);
-			DUMP_BYTES(((u8*)bytes), len, "%px: repl: ", addr);
+			DUMP_BYTES(RET, ((u8*)addr),  len, "%px: orig: ", addr);
+			DUMP_BYTES(RET, ((u8*)bytes), len, "%px: repl: ", addr);
 			text_poke_early(addr, bytes, len);
 		}
 	}
@@ -667,13 +679,13 @@ static void poison_endbr(void *addr, bool warn)
 		return;
 	}
 
-	DPRINTK("ENDBR at: %pS (%px)", addr, addr);
+	DPRINTK(ENDBR, "ENDBR at: %pS (%px)", addr, addr);
 
 	/*
 	 * When we have IBT, the lack of ENDBR will trigger #CP
 	 */
-	DUMP_BYTES(((u8*)addr), 4, "%px: orig: ", addr);
-	DUMP_BYTES(((u8*)&poison), 4, "%px: repl: ", addr);
+	DUMP_BYTES(ENDBR, ((u8*)addr), 4, "%px: orig: ", addr);
+	DUMP_BYTES(ENDBR, ((u8*)&poison), 4, "%px: repl: ", addr);
 	text_poke_early(addr, &poison, 4);
 }
 
@@ -1148,7 +1160,7 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 	smp->locks_end	= locks_end;
 	smp->text	= text;
 	smp->text_end	= text_end;
-	DPRINTK("locks %p -> %p, text %p -> %p, name %s\n",
+	DPRINTK(SMP, "locks %p -> %p, text %p -> %p, name %s\n",
 		smp->locks, smp->locks_end,
 		smp->text, smp->text_end, smp->name);
 
