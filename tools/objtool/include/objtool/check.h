@@ -62,10 +62,12 @@ struct instruction {
 	s8 instr;
 
 	struct alt_group *alt_group;
-	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
-	struct reloc *jump_table;
+	union {
+		struct symbol *_call_dest;
+		struct reloc *_jump_table;
+	};
 	struct alternative *alts;
 	struct symbol *sym;
 	struct stack_op *stack_ops;
