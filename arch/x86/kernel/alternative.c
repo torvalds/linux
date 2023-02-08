@@ -114,6 +114,8 @@ const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
 };
 
 /*
+ * Fill the buffer with a single effective instruction of size @len.
+ *
  * In order not to issue an ORC stack depth tracking CFI entry (Call Frame Info)
  * for every single-byte NOP, try to generate the maximally available NOP of
  * size <= ASM_NOP_MAX such that only a single CFI entry is generated (vs one for
@@ -152,6 +154,9 @@ extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
 void text_poke_early(void *addr, const void *opcode, size_t len);
 
+/*
+ * Matches NOP and NOPL, not any of the other possible NOPs.
+ */
 static bool insn_is_nop(struct insn *insn)
 {
 	if (insn->opcode.bytes[0] == 0x90)
@@ -165,6 +170,10 @@ static bool insn_is_nop(struct insn *insn)
 	return false;
 }
 
+/*
+ * Find the offset of the first non-NOP instruction starting at @offset
+ * but no further than @len.
+ */
 static int skip_nops(u8 *instr, int offset, int len)
 {
 	struct insn insn;
@@ -181,11 +190,46 @@ static int skip_nops(u8 *instr, int offset, int len)
 }
 
 /*
+ * Optimize a sequence of NOPs, possibly preceded by an unconditional jump
+ * to the end of the NOP sequence into a single NOP.
+ */
+static bool __optimize_nops(u8 *instr, size_t len, struct insn *insn,
+			    int *next, int *prev, int *target)
+{
+	int i = *next - insn->length;
+
+	switch (insn->opcode.bytes[0]) {
+	case JMP8_INSN_OPCODE:
+	case JMP32_INSN_OPCODE:
+		*prev = i;
+		*target = *next + insn->immediate.value;
+		return false;
+	}
+
+	if (insn_is_nop(insn)) {
+		int nop = i;
+
+		*next = skip_nops(instr, *next, len);
+		if (*target && *next == *target)
+			nop = *prev;
+
+		add_nop(instr + nop, *next - nop);
+		DUMP_BYTES(ALT, instr, len, "%px: [%d:%d) optimized NOPs: ", instr, nop, *next);
+		return true;
+	}
+
+	*target = 0;
+	return false;
+}
+
+/*
  * "noinline" to cause control flow change and thus invalidate I$ and
  * cause refetch after modification.
  */
 static void __init_or_module noinline optimize_nops(u8 *instr, size_t len)
 {
+	int prev, target = 0;
+
 	for (int next, i = 0; i < len; i = next) {
 		struct insn insn;
 
@@ -194,11 +238,7 @@ static void __init_or_module noinline optimize_nops(u8 *instr, size_t len)
 
 		next = i + insn.length;
 
-		if (insn_is_nop(&insn)) {
-			next = skip_nops(instr, next, len);
-			add_nop(instr + i, next - i);
-			DUMP_BYTES(ALT, instr, len, "%px: [%d:%d) optimized NOPs: ", instr, i, next);
-		}
+		__optimize_nops(instr, len, &insn, &next, &prev, &target);
 	}
 }
 
@@ -275,6 +315,8 @@ bool need_reloc(unsigned long offset, u8 *src, size_t src_len)
 static void __init_or_module noinline
 apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 {
+	int prev, target = 0;
+
 	for (int next, i = 0; i < len; i = next) {
 		struct insn insn;
 
@@ -282,6 +324,9 @@ apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 			return;
 
 		next = i + insn.length;
+
+		if (__optimize_nops(buf, len, &insn, &next, &prev, &target))
+			continue;
 
 		switch (insn.opcode.bytes[0]) {
 		case 0x0f:
@@ -323,11 +368,6 @@ apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 					    buf + i + insn_offset_displacement(&insn),
 					    src - dest);
 			}
-		}
-
-		if (insn_is_nop(&insn)) {
-			next = skip_nops(buf, next, len);
-			add_nop(buf + i, next - i);
 		}
 	}
 }
