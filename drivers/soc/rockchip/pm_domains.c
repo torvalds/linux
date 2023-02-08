@@ -1705,17 +1705,6 @@ static const struct rockchip_pmu_info px30_pmu = {
 	.domain_info = px30_pm_domains,
 };
 
-static const struct rockchip_pmu_info rv1126_pmu = {
-	.pwr_offset = 0x110,
-	.status_offset = 0x108,
-	.req_offset = 0xc0,
-	.idle_offset = 0xd8,
-	.ack_offset = 0xd0,
-
-	.num_domains = ARRAY_SIZE(rv1126_pm_domains),
-	.domain_info = rv1126_pm_domains,
-};
-
 static const struct rockchip_pmu_info rk1808_pmu = {
 	.pwr_offset = 0x18,
 	.status_offset = 0x20,
@@ -1901,14 +1890,21 @@ static const struct rockchip_pmu_info rk3588_pmu = {
 	.domain_info = rk3588_pm_domains,
 };
 
+static const struct rockchip_pmu_info rv1126_pmu = {
+	.pwr_offset = 0x110,
+	.status_offset = 0x108,
+	.req_offset = 0xc0,
+	.idle_offset = 0xd8,
+	.ack_offset = 0xd0,
+
+	.num_domains = ARRAY_SIZE(rv1126_pm_domains),
+	.domain_info = rv1126_pm_domains,
+};
+
 static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,px30-power-controller",
 		.data = (void *)&px30_pmu,
-	},
-	{
-		.compatible = "rockchip,rv1126-power-controller",
-		.data = (void *)&rv1126_pmu,
 	},
 	{
 		.compatible = "rockchip,rk1808-power-controller",
@@ -1971,6 +1967,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3588-power-controller",
 		.data = (void *)&rk3588_pmu,
+	},
+	{
+		.compatible = "rockchip,rv1126-power-controller",
+		.data = (void *)&rv1126_pmu,
 	},
 	{ /* sentinel */ },
 };
