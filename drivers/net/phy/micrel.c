@@ -268,6 +268,9 @@ struct kszphy_type {
 	u16 interrupt_level_mask;
 	u16 cable_diag_reg;
 	unsigned long pair_mask;
+	u16 disable_dll_tx_bit;
+	u16 disable_dll_rx_bit;
+	u16 disable_dll_mask;
 	bool has_broadcast_disable;
 	bool has_nand_tree_disable;
 	bool has_rmii_ref_clk_sel;
@@ -362,6 +365,19 @@ static const struct kszphy_type ks8737_type = {
 
 static const struct kszphy_type ksz9021_type = {
 	.interrupt_level_mask	= BIT(14),
+};
+
+static const struct kszphy_type ksz9131_type = {
+	.interrupt_level_mask	= BIT(14),
+	.disable_dll_tx_bit	= BIT(12),
+	.disable_dll_rx_bit	= BIT(12),
+	.disable_dll_mask	= BIT_MASK(12),
+};
+
+static const struct kszphy_type lan8841_type = {
+	.disable_dll_tx_bit	= BIT(14),
+	.disable_dll_rx_bit	= BIT(14),
+	.disable_dll_mask	= BIT_MASK(14),
 };
 
 static int kszphy_extended_write(struct phy_device *phydev,
@@ -1172,19 +1188,18 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 #define KSZ9131RN_MMD_COMMON_CTRL_REG	2
 #define KSZ9131RN_RXC_DLL_CTRL		76
 #define KSZ9131RN_TXC_DLL_CTRL		77
-#define KSZ9131RN_DLL_CTRL_BYPASS	BIT_MASK(12)
 #define KSZ9131RN_DLL_ENABLE_DELAY	0
-#define KSZ9131RN_DLL_DISABLE_DELAY	BIT(12)
 
 static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 {
+	const struct kszphy_type *type = phydev->drv->driver_data;
 	u16 rxcdll_val, txcdll_val;
 	int ret;
 
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
-		rxcdll_val = KSZ9131RN_DLL_DISABLE_DELAY;
-		txcdll_val = KSZ9131RN_DLL_DISABLE_DELAY;
+		rxcdll_val = type->disable_dll_rx_bit;
+		txcdll_val = type->disable_dll_tx_bit;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
 		rxcdll_val = KSZ9131RN_DLL_ENABLE_DELAY;
@@ -1192,10 +1207,10 @@ static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 		break;
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 		rxcdll_val = KSZ9131RN_DLL_ENABLE_DELAY;
-		txcdll_val = KSZ9131RN_DLL_DISABLE_DELAY;
+		txcdll_val = type->disable_dll_tx_bit;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		rxcdll_val = KSZ9131RN_DLL_DISABLE_DELAY;
+		rxcdll_val = type->disable_dll_rx_bit;
 		txcdll_val = KSZ9131RN_DLL_ENABLE_DELAY;
 		break;
 	default:
@@ -1203,13 +1218,13 @@ static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 	}
 
 	ret = phy_modify_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
-			     KSZ9131RN_RXC_DLL_CTRL, KSZ9131RN_DLL_CTRL_BYPASS,
+			     KSZ9131RN_RXC_DLL_CTRL, type->disable_dll_mask,
 			     rxcdll_val);
 	if (ret < 0)
 		return ret;
 
 	return phy_modify_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
-			      KSZ9131RN_TXC_DLL_CTRL, KSZ9131RN_DLL_CTRL_BYPASS,
+			      KSZ9131RN_TXC_DLL_CTRL, type->disable_dll_mask,
 			      txcdll_val);
 }
 
@@ -3152,6 +3167,146 @@ static int lan8814_probe(struct phy_device *phydev)
 	return 0;
 }
 
+#define LAN8841_MMD_TIMER_REG			0
+#define LAN8841_MMD0_REGISTER_17		17
+#define LAN8841_MMD0_REGISTER_17_DROP_OPT(x)	((x) & 0x3)
+#define LAN8841_MMD0_REGISTER_17_XMIT_TOG_TX_DIS	BIT(3)
+#define LAN8841_OPERATION_MODE_STRAP_OVERRIDE_LOW_REG	2
+#define LAN8841_OPERATION_MODE_STRAP_OVERRIDE_LOW_REG_MAGJACK	BIT(14)
+#define LAN8841_MMD_ANALOG_REG			28
+#define LAN8841_ANALOG_CONTROL_1		1
+#define LAN8841_ANALOG_CONTROL_1_PLL_TRIM(x)	(((x) & 0x3) << 5)
+#define LAN8841_ANALOG_CONTROL_10		13
+#define LAN8841_ANALOG_CONTROL_10_PLL_DIV(x)	((x) & 0x3)
+#define LAN8841_ANALOG_CONTROL_11		14
+#define LAN8841_ANALOG_CONTROL_11_LDO_REF(x)	(((x) & 0x7) << 12)
+#define LAN8841_TX_LOW_I_CH_C_D_POWER_MANAGMENT	69
+#define LAN8841_TX_LOW_I_CH_C_D_POWER_MANAGMENT_VAL 0xbffc
+#define LAN8841_BTRX_POWER_DOWN			70
+#define LAN8841_BTRX_POWER_DOWN_QBIAS_CH_A	BIT(0)
+#define LAN8841_BTRX_POWER_DOWN_BTRX_CH_A	BIT(1)
+#define LAN8841_BTRX_POWER_DOWN_QBIAS_CH_B	BIT(2)
+#define LAN8841_BTRX_POWER_DOWN_BTRX_CH_B	BIT(3)
+#define LAN8841_BTRX_POWER_DOWN_BTRX_CH_C	BIT(5)
+#define LAN8841_BTRX_POWER_DOWN_BTRX_CH_D	BIT(7)
+#define LAN8841_ADC_CHANNEL_MASK		198
+
+static int lan8841_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9131_config_init(phydev);
+	if (ret)
+		return ret;
+
+	/* 100BT Clause 40 improvenent errata */
+	phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
+		      LAN8841_ANALOG_CONTROL_1,
+		      LAN8841_ANALOG_CONTROL_1_PLL_TRIM(0x2));
+	phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
+		      LAN8841_ANALOG_CONTROL_10,
+		      LAN8841_ANALOG_CONTROL_10_PLL_DIV(0x1));
+
+	/* 10M/100M Ethernet Signal Tuning Errata for Shorted-Center Tap
+	 * Magnetics
+	 */
+	ret = phy_read_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+			   LAN8841_OPERATION_MODE_STRAP_OVERRIDE_LOW_REG);
+	if (ret & LAN8841_OPERATION_MODE_STRAP_OVERRIDE_LOW_REG_MAGJACK) {
+		phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
+			      LAN8841_TX_LOW_I_CH_C_D_POWER_MANAGMENT,
+			      LAN8841_TX_LOW_I_CH_C_D_POWER_MANAGMENT_VAL);
+		phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
+			      LAN8841_BTRX_POWER_DOWN,
+			      LAN8841_BTRX_POWER_DOWN_QBIAS_CH_A |
+			      LAN8841_BTRX_POWER_DOWN_BTRX_CH_A |
+			      LAN8841_BTRX_POWER_DOWN_QBIAS_CH_B |
+			      LAN8841_BTRX_POWER_DOWN_BTRX_CH_B |
+			      LAN8841_BTRX_POWER_DOWN_BTRX_CH_C |
+			      LAN8841_BTRX_POWER_DOWN_BTRX_CH_D);
+	}
+
+	/* LDO Adjustment errata */
+	phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
+		      LAN8841_ANALOG_CONTROL_11,
+		      LAN8841_ANALOG_CONTROL_11_LDO_REF(1));
+
+	/* 100BT RGMII latency tuning errata */
+	phy_write_mmd(phydev, MDIO_MMD_PMAPMD,
+		      LAN8841_ADC_CHANNEL_MASK, 0x0);
+	phy_write_mmd(phydev, LAN8841_MMD_TIMER_REG,
+		      LAN8841_MMD0_REGISTER_17,
+		      LAN8841_MMD0_REGISTER_17_DROP_OPT(2) |
+		      LAN8841_MMD0_REGISTER_17_XMIT_TOG_TX_DIS);
+
+	return 0;
+}
+
+#define LAN8841_OUTPUT_CTRL			25
+#define LAN8841_OUTPUT_CTRL_INT_BUFFER		BIT(14)
+
+static int lan8841_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	phy_modify(phydev, LAN8841_OUTPUT_CTRL,
+		   LAN8841_OUTPUT_CTRL_INT_BUFFER, 0);
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = phy_read(phydev, LAN8814_INTS);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, LAN8814_INTC,
+				LAN8814_INT_LINK);
+	} else {
+		err = phy_write(phydev, LAN8814_INTC, 0);
+		if (err)
+			return err;
+
+		err = phy_read(phydev, LAN8814_INTS);
+	}
+
+	return err;
+}
+
+static irqreturn_t lan8841_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, LAN8814_INTS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (irq_status & LAN8814_INT_LINK) {
+		phy_trigger_machine(phydev);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
+#define LAN8841_OPERATION_MODE_STRAP_LOW_REGISTER 3
+#define LAN8841_OPERATION_MODE_STRAP_LOW_REGISTER_STRAP_RGMII_EN BIT(0)
+
+static int lan8841_probe(struct phy_device *phydev)
+{
+	int err;
+
+	err = kszphy_probe(phydev);
+	if (err)
+		return err;
+
+	if (phy_read_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+			 LAN8841_OPERATION_MODE_STRAP_LOW_REGISTER) &
+	    LAN8841_OPERATION_MODE_STRAP_LOW_REGISTER_STRAP_RGMII_EN)
+		phydev->interface = PHY_INTERFACE_MODE_RGMII_RXID;
+
+	return 0;
+}
+
 static struct phy_driver ksphy_driver[] = {
 {
 	.phy_id		= PHY_ID_KS8737,
@@ -3362,12 +3517,27 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= lan8804_config_intr,
 	.handle_interrupt = lan8804_handle_interrupt,
 }, {
+	.phy_id		= PHY_ID_LAN8841,
+	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	.name		= "Microchip LAN8841 Gigabit PHY",
+	.driver_data	= &lan8841_type,
+	.config_init	= lan8841_config_init,
+	.probe		= lan8841_probe,
+	.soft_reset	= genphy_soft_reset,
+	.config_intr	= lan8841_config_intr,
+	.handle_interrupt = lan8841_handle_interrupt,
+	.get_sset_count = kszphy_get_sset_count,
+	.get_strings	= kszphy_get_strings,
+	.get_stats	= kszphy_get_stats,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+}, {
 	.phy_id		= PHY_ID_KSZ9131,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip KSZ9131 Gigabit PHY",
 	/* PHY_GBIT_FEATURES */
 	.flags		= PHY_POLL_CABLE_TEST,
-	.driver_data	= &ksz9021_type,
+	.driver_data	= &ksz9131_type,
 	.probe		= kszphy_probe,
 	.config_init	= ksz9131_config_init,
 	.config_intr	= kszphy_config_intr,
@@ -3446,6 +3616,7 @@ static struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ886X, MICREL_PHY_ID_MASK },
 	{ PHY_ID_LAN8814, MICREL_PHY_ID_MASK },
 	{ PHY_ID_LAN8804, MICREL_PHY_ID_MASK },
+	{ PHY_ID_LAN8841, MICREL_PHY_ID_MASK },
 	{ }
 };
 
