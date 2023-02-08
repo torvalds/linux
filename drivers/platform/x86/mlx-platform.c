@@ -6008,9 +6008,10 @@ static int mlxplat_mlxcpld_verify_bus_topology(int *nr)
 		shift = *nr - mlxplat_mux_data[i].parent;
 		mlxplat_mux_data[i].parent = *nr;
 		mlxplat_mux_data[i].base_nr += shift;
-		if (shift > 0)
-			mlxplat_hotplug->shift_nr = shift;
 	}
+
+	if (shift > 0)
+		mlxplat_hotplug->shift_nr = shift;
 
 	return 0;
 }
