@@ -328,6 +328,8 @@
  * @pdev_fan - FAN platform devices
  * @pdev_wd - array of watchdog platform devices
  * @regmap: device register map
+ * @hotplug_resources: system hotplug resources
+ * @hotplug_resources_size: size of system hotplug resources
  */
 struct mlxplat_priv {
 	struct platform_device *pdev_i2c;
@@ -338,6 +340,8 @@ struct mlxplat_priv {
 	struct platform_device *pdev_fan;
 	struct platform_device *pdev_wd[MLXPLAT_CPLD_WD_MAX_DEVS];
 	void *regmap;
+	struct resource *hotplug_resources;
+	unsigned int hotplug_resources_size;
 };
 
 static struct platform_device *mlxplat_dev;
@@ -6002,20 +6006,63 @@ static int mlxplat_mlxcpld_check_wd_capability(void *regmap)
 	return 0;
 }
 
+static int mlxplat_lpc_cpld_device_init(struct resource **hotplug_resources,
+					unsigned int *hotplug_resources_size)
+{
+	int err;
+
+	mlxplat_dev = platform_device_register_simple(MLX_PLAT_DEVICE_NAME, PLATFORM_DEVID_NONE,
+						      mlxplat_lpc_resources,
+						      ARRAY_SIZE(mlxplat_lpc_resources));
+	if (IS_ERR(mlxplat_dev))
+		return PTR_ERR(mlxplat_dev);
+
+	mlxplat_mlxcpld_regmap_ctx.base = devm_ioport_map(&mlxplat_dev->dev,
+							  mlxplat_lpc_resources[1].start, 1);
+	if (!mlxplat_mlxcpld_regmap_ctx.base) {
+		err = -ENOMEM;
+		goto fail_devm_ioport_map;
+	}
+
+	*hotplug_resources = mlxplat_mlxcpld_resources;
+	*hotplug_resources_size = ARRAY_SIZE(mlxplat_mlxcpld_resources);
+
+	return 0;
+
+fail_devm_ioport_map:
+	platform_device_unregister(mlxplat_dev);
+	return err;
+}
+
+static void mlxplat_lpc_cpld_device_exit(void)
+{
+	platform_device_unregister(mlxplat_dev);
+}
+
+static int
+mlxplat_pre_init(struct resource **hotplug_resources, unsigned int *hotplug_resources_size)
+{
+	return mlxplat_lpc_cpld_device_init(hotplug_resources, hotplug_resources_size);
+}
+
+static void mlxplat_post_exit(void)
+{
+	mlxplat_lpc_cpld_device_exit();
+}
+
 static int __init mlxplat_init(void)
 {
+	unsigned int hotplug_resources_size;
+	struct resource *hotplug_resources;
 	struct mlxplat_priv *priv;
 	int i, j, nr, err;
 
 	if (!dmi_check_system(mlxplat_dmi_table))
 		return -ENODEV;
 
-	mlxplat_dev = platform_device_register_simple(MLX_PLAT_DEVICE_NAME, PLATFORM_DEVID_NONE,
-					mlxplat_lpc_resources,
-					ARRAY_SIZE(mlxplat_lpc_resources));
-
-	if (IS_ERR(mlxplat_dev))
-		return PTR_ERR(mlxplat_dev);
+	err = mlxplat_pre_init(&hotplug_resources, &hotplug_resources_size);
+	if (err)
+		return err;
 
 	priv = devm_kzalloc(&mlxplat_dev->dev, sizeof(struct mlxplat_priv),
 			    GFP_KERNEL);
@@ -6025,12 +6072,8 @@ static int __init mlxplat_init(void)
 	}
 	platform_set_drvdata(mlxplat_dev, priv);
 
-	mlxplat_mlxcpld_regmap_ctx.base = devm_ioport_map(&mlxplat_dev->dev,
-			       mlxplat_lpc_resources[1].start, 1);
-	if (!mlxplat_mlxcpld_regmap_ctx.base) {
-		err = -ENOMEM;
-		goto fail_alloc;
-	}
+	priv->hotplug_resources = hotplug_resources;
+	priv->hotplug_resources_size = hotplug_resources_size;
 
 	if (!mlxplat_regmap_config)
 		mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config;
@@ -6051,8 +6094,8 @@ static int __init mlxplat_init(void)
 	if (mlxplat_i2c)
 		mlxplat_i2c->regmap = priv->regmap;
 	priv->pdev_i2c = platform_device_register_resndata(&mlxplat_dev->dev, "i2c_mlxcpld",
-							   nr, mlxplat_mlxcpld_resources,
-							   ARRAY_SIZE(mlxplat_mlxcpld_resources),
+							   nr, priv->hotplug_resources,
+							   priv->hotplug_resources_size,
 							   mlxplat_i2c, sizeof(*mlxplat_i2c));
 	if (IS_ERR(priv->pdev_i2c)) {
 		err = PTR_ERR(priv->pdev_i2c);
@@ -6076,8 +6119,8 @@ static int __init mlxplat_init(void)
 		priv->pdev_hotplug =
 		platform_device_register_resndata(&mlxplat_dev->dev,
 						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
-						  mlxplat_mlxcpld_resources,
-						  ARRAY_SIZE(mlxplat_mlxcpld_resources),
+						  priv->hotplug_resources,
+						  priv->hotplug_resources_size,
 						  mlxplat_hotplug, sizeof(*mlxplat_hotplug));
 		if (IS_ERR(priv->pdev_hotplug)) {
 			err = PTR_ERR(priv->pdev_hotplug);
@@ -6179,7 +6222,6 @@ fail_platform_mux_register:
 		platform_device_unregister(priv->pdev_mux[i]);
 	platform_device_unregister(priv->pdev_i2c);
 fail_alloc:
-	platform_device_unregister(mlxplat_dev);
 
 	return err;
 }
@@ -6207,7 +6249,7 @@ static void __exit mlxplat_exit(void)
 		platform_device_unregister(priv->pdev_mux[i]);
 
 	platform_device_unregister(priv->pdev_i2c);
-	platform_device_unregister(mlxplat_dev);
+	mlxplat_post_exit();
 }
 module_exit(mlxplat_exit);
 
