@@ -110,6 +110,22 @@
 
 		regulator-enable-ramp-delay = <3000>;
 
+		/*
+		 * eDP panel specs nearly always have a spec that says you
+		 * shouldn't turn them off an on again without waiting 500ms.
+		 * Add this as a board constraint since this rail is shared
+		 * between the panel and touchscreen.
+		 */
+		off-on-delay-us = <500000>;
+
+		/*
+		 * Stat the regulator on. This has the advantage of starting
+		 * the slow process of powering the panel on as soon as we
+		 * probe the regulator. It also avoids tripping the
+		 * off-on-delay immediately on every bootup.
+		 */
+		regulator-boot-on;
+
 		vin-supply = <&pp3300_z1>;
 	};
 
