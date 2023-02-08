@@ -513,36 +513,44 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 
 	while (retries--) {
 		state = tb_port_state(port);
-		if (state < 0)
-			return state;
-		if (state == TB_PORT_DISABLED) {
+		switch (state) {
+		case TB_PORT_DISABLED:
 			tb_port_dbg(port, "is disabled (state: 0)\n");
 			return 0;
-		}
-		if (state == TB_PORT_UNPLUGGED) {
+
+		case TB_PORT_UNPLUGGED:
 			if (wait_if_unplugged) {
 				/* used during resume */
 				tb_port_dbg(port,
 					    "is unplugged (state: 7), retrying...\n");
 				msleep(100);
-				continue;
+				break;
 			}
 			tb_port_dbg(port, "is unplugged (state: 7)\n");
 			return 0;
-		}
-		if (state == TB_PORT_UP) {
-			tb_port_dbg(port, "is connected, link is up (state: 2)\n");
+
+		case TB_PORT_UP:
+		case TB_PORT_TX_CL0S:
+		case TB_PORT_RX_CL0S:
+		case TB_PORT_CL1:
+		case TB_PORT_CL2:
+			tb_port_dbg(port, "is connected, link is up (state: %d)\n", state);
 			return 1;
+
+		default:
+			if (state < 0)
+				return state;
+
+			/*
+			 * After plug-in the state is TB_PORT_CONNECTING. Give it some
+			 * time.
+			 */
+			tb_port_dbg(port,
+				    "is connected, link is not up (state: %d), retrying...\n",
+				    state);
+			msleep(100);
 		}
 
-		/*
-		 * After plug-in the state is TB_PORT_CONNECTING. Give it some
-		 * time.
-		 */
-		tb_port_dbg(port,
-			    "is connected, link is not up (state: %d), retrying...\n",
-			    state);
-		msleep(100);
 	}
 	tb_port_warn(port,
 		     "failed to reach state TB_PORT_UP. Ignoring port...\n");
