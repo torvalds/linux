@@ -4690,10 +4690,16 @@ void __init skb_init(void)
 						SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 						NULL);
 #ifdef HAVE_SKB_SMALL_HEAD_CACHE
-	skb_small_head_cache = kmem_cache_create("skbuff_small_head",
+	/* usercopy should only access first SKB_SMALL_HEAD_HEADROOM bytes.
+	 * struct skb_shared_info is located at the end of skb->head,
+	 * and should not be copied to/from user.
+	 */
+	skb_small_head_cache = kmem_cache_create_usercopy("skbuff_small_head",
 						SKB_SMALL_HEAD_CACHE_SIZE,
 						0,
 						SLAB_HWCACHE_ALIGN | SLAB_PANIC,
+						0,
+						SKB_SMALL_HEAD_HEADROOM,
 						NULL);
 #endif
 	skb_extensions_init();
