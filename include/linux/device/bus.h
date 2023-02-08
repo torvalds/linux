@@ -281,6 +281,6 @@ enum bus_notifier_event {
 	BUS_NOTIFY_DRIVER_NOT_BOUND,
 };
 
-extern struct kset *bus_get_kset(struct bus_type *bus);
+extern struct kset *bus_get_kset(const struct bus_type *bus);
 
 #endif

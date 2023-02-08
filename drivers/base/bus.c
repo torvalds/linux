@@ -987,7 +987,7 @@ void bus_notify(struct device *dev, enum bus_notifier_event value)
 	subsys_put(sp);
 }
 
-struct kset *bus_get_kset(struct bus_type *bus)
+struct kset *bus_get_kset(const struct bus_type *bus)
 {
 	struct subsys_private *sp = bus_to_subsys(bus);
 	struct kset *kset;
