@@ -74,7 +74,7 @@
 #include <asm/numa.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/uv.h>
 #include <asm/asm-offsets.h>
@@ -147,7 +147,7 @@ static u32 __amode31_ref *__ctl_duct = __ctl_duct_amode31;
 
 int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
-struct mem_detect_info __bootdata(mem_detect);
+struct physmem_info __bootdata(physmem_info);
 struct initrd_data __bootdata(initrd_data);
 unsigned long __bootdata(pgalloc_pos);
 unsigned long __bootdata(pgalloc_end);
@@ -730,27 +730,27 @@ static void __init reserve_certificate_list(void)
 		memblock_reserve(ipl_cert_list_addr, ipl_cert_list_size);
 }
 
-static void __init reserve_mem_detect_info(void)
+static void __init reserve_physmem_info(void)
 {
 	unsigned long start, size;
 
-	get_mem_detect_reserved(&start, &size);
+	get_physmem_reserved(&start, &size);
 	if (size)
 		memblock_reserve(start, size);
 }
 
-static void __init free_mem_detect_info(void)
+static void __init free_physmem_info(void)
 {
 	unsigned long start, size;
 
-	get_mem_detect_reserved(&start, &size);
+	get_physmem_reserved(&start, &size);
 	if (size)
 		memblock_phys_free(start, size);
 }
 
 static const char * __init get_mem_info_source(void)
 {
-	switch (mem_detect.info_source) {
+	switch (physmem_info.info_source) {
 	case MEM_DETECT_SCLP_STOR_INFO:
 		return "sclp storage info";
 	case MEM_DETECT_DIAG260:
@@ -763,18 +763,18 @@ static const char * __init get_mem_info_source(void)
 	return "none";
 }
 
-static void __init memblock_add_mem_detect_info(void)
+static void __init memblock_add_physmem_info(void)
 {
 	unsigned long start, end;
 	int i;
 
 	pr_debug("physmem info source: %s (%hhd)\n",
-		 get_mem_info_source(), mem_detect.info_source);
+		 get_mem_info_source(), physmem_info.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
-	for_each_mem_detect_usable_block(i, &start, &end)
+	for_each_physmem_usable_range(i, &start, &end)
 		memblock_add(start, end - start);
-	for_each_mem_detect_block(i, &start, &end)
+	for_each_physmem_online_range(i, &start, &end)
 		memblock_physmem_add(start, end - start);
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
@@ -997,14 +997,14 @@ void __init setup_arch(char **cmdline_p)
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
-	reserve_mem_detect_info();
+	reserve_physmem_info();
 	memblock_set_current_limit(ident_map_size);
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
-	memblock_add_mem_detect_info();
+	memblock_add_physmem_info();
 
-	free_mem_detect_info();
+	free_physmem_info();
 	setup_memory_end();
 	memblock_dump_all();
 	setup_memory();

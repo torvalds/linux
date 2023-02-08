@@ -4,7 +4,7 @@
 #include <asm/pgalloc.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/abs_lowcore.h>
 #include "decompressor.h"
@@ -51,7 +51,7 @@ static void pgtable_populate_init(void)
 		pgalloc_low = max(pgalloc_low, initrd_end);
 	}
 
-	pgalloc_end = round_down(get_mem_detect_end(), PAGE_SIZE);
+	pgalloc_end = round_down(get_physmem_usable_end(), PAGE_SIZE);
 	pgalloc_pos = pgalloc_end;
 
 	boot_check_oom();
@@ -252,7 +252,7 @@ void setup_vmem(unsigned long asce_limit)
 	 */
 	pgtable_populate_init();
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
-	for_each_mem_detect_usable_block(i, &start, &end)
+	for_each_physmem_usable_range(i, &start, &end)
 		pgtable_populate(start, end, POPULATE_ONE2ONE);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);

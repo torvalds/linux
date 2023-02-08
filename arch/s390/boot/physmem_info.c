@@ -5,44 +5,44 @@
 #include <asm/processor.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/sparsemem.h>
 #include "decompressor.h"
 #include "boot.h"
 
-struct mem_detect_info __bootdata(mem_detect);
+struct physmem_info __bootdata(physmem_info);
 
 /* up to 256 storage elements, 1020 subincrements each */
 #define ENTRIES_EXTENDED_MAX						       \
-	(256 * (1020 / 2) * sizeof(struct mem_detect_block))
+	(256 * (1020 / 2) * sizeof(struct physmem_range))
 
-static struct mem_detect_block *__get_mem_detect_block_ptr(u32 n)
+static struct physmem_range *__get_physmem_range_ptr(u32 n)
 {
 	if (n < MEM_INLINED_ENTRIES)
-		return &mem_detect.entries[n];
-	return &mem_detect.entries_extended[n - MEM_INLINED_ENTRIES];
+		return &physmem_info.online[n];
+	return &physmem_info.online_extended[n - MEM_INLINED_ENTRIES];
 }
 
 /*
- * sequential calls to add_mem_detect_block with adjacent memory areas
- * are merged together into single memory block.
+ * sequential calls to add_physmem_online_range with adjacent memory ranges
+ * are merged together into single memory range.
  */
-void add_mem_detect_block(u64 start, u64 end)
+void add_physmem_online_range(u64 start, u64 end)
 {
-	struct mem_detect_block *block;
+	struct physmem_range *range;
 
-	if (mem_detect.count) {
-		block = __get_mem_detect_block_ptr(mem_detect.count - 1);
-		if (block->end == start) {
-			block->end = end;
+	if (physmem_info.range_count) {
+		range = __get_physmem_range_ptr(physmem_info.range_count - 1);
+		if (range->end == start) {
+			range->end = end;
 			return;
 		}
 	}
 
-	block = __get_mem_detect_block_ptr(mem_detect.count);
-	block->start = start;
-	block->end = end;
-	mem_detect.count++;
+	range = __get_physmem_range_ptr(physmem_info.range_count);
+	range->start = start;
+	range->end = end;
+	physmem_info.range_count++;
 }
 
 static int __diag260(unsigned long rx1, unsigned long rx2)
@@ -95,7 +95,7 @@ static int diag260(void)
 		return -1;
 
 	for (i = 0; i < min_t(int, rc, ARRAY_SIZE(storage_extents)); i++)
-		add_mem_detect_block(storage_extents[i].start, storage_extents[i].end + 1);
+		add_physmem_online_range(storage_extents[i].start, storage_extents[i].end + 1);
 	return 0;
 }
 
@@ -148,44 +148,44 @@ unsigned long detect_memory(unsigned long *safe_addr)
 	unsigned long max_physmem_end = 0;
 
 	sclp_early_get_memsize(&max_physmem_end);
-	mem_detect.entries_extended = (struct mem_detect_block *)ALIGN(*safe_addr, sizeof(u64));
+	physmem_info.online_extended = (struct physmem_range *)ALIGN(*safe_addr, sizeof(u64));
 
 	if (!sclp_early_read_storage_info()) {
-		mem_detect.info_source = MEM_DETECT_SCLP_STOR_INFO;
+		physmem_info.info_source = MEM_DETECT_SCLP_STOR_INFO;
 	} else if (!diag260()) {
-		mem_detect.info_source = MEM_DETECT_DIAG260;
-		max_physmem_end = max_physmem_end ?: get_mem_detect_end();
+		physmem_info.info_source = MEM_DETECT_DIAG260;
+		max_physmem_end = max_physmem_end ?: get_physmem_usable_end();
 	} else if (max_physmem_end) {
-		add_mem_detect_block(0, max_physmem_end);
-		mem_detect.info_source = MEM_DETECT_SCLP_READ_INFO;
+		add_physmem_online_range(0, max_physmem_end);
+		physmem_info.info_source = MEM_DETECT_SCLP_READ_INFO;
 	} else {
 		max_physmem_end = search_mem_end();
-		add_mem_detect_block(0, max_physmem_end);
-		mem_detect.info_source = MEM_DETECT_BIN_SEARCH;
+		add_physmem_online_range(0, max_physmem_end);
+		physmem_info.info_source = MEM_DETECT_BIN_SEARCH;
 	}
 
-	if (mem_detect.count > MEM_INLINED_ENTRIES) {
-		*safe_addr += (mem_detect.count - MEM_INLINED_ENTRIES) *
-			     sizeof(struct mem_detect_block);
+	if (physmem_info.range_count > MEM_INLINED_ENTRIES) {
+		*safe_addr += (physmem_info.range_count - MEM_INLINED_ENTRIES) *
+			      sizeof(struct physmem_range);
 	}
 
 	return max_physmem_end;
 }
 
-void mem_detect_set_usable_limit(unsigned long limit)
+void physmem_set_usable_limit(unsigned long limit)
 {
-	struct mem_detect_block *block;
+	struct physmem_range *range;
 	int i;
 
 	/* make sure mem_detect.usable ends up within online memory block */
-	for (i = 0; i < mem_detect.count; i++) {
-		block = __get_mem_detect_block_ptr(i);
-		if (block->start >= limit)
+	for (i = 0; i < physmem_info.range_count; i++) {
+		range = __get_physmem_range_ptr(i);
+		if (range->start >= limit)
 			break;
-		if (block->end >= limit) {
-			mem_detect.usable = limit;
+		if (range->end >= limit) {
+			physmem_info.usable = limit;
 			break;
 		}
-		mem_detect.usable = block->end;
+		physmem_info.usable = range->end;
 	}
 }

@@ -12,7 +12,7 @@
 #include <asm/diag.h>
 #include <asm/uv.h>
 #include <asm/abs_lowcore.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include "decompressor.h"
 #include "boot.h"
 #include "uv.h"
@@ -139,7 +139,7 @@ static void handle_relocs(unsigned long offset)
  *
  * Consider the following factors:
  * 1. max_physmem_end - end of physical memory online or standby.
- *    Always <= end of the last online memory block (get_mem_detect_end()).
+ *    Always >= end of the last online memory range (get_physmem_online_end()).
  * 2. CONFIG_MAX_PHYSMEM_BITS - the maximum size of physical memory the
  *    kernel is able to support.
  * 3. "mem=" kernel command line option which limits physical memory usage.
@@ -303,7 +303,7 @@ void startup_kernel(void)
 	setup_ident_map_size(max_physmem_end);
 	setup_vmalloc_size();
 	asce_limit = setup_kernel_memory_layout();
-	mem_detect_set_usable_limit(ident_map_size);
+	physmem_set_usable_limit(ident_map_size);
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base(safe_addr);

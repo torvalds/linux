@@ -4,7 +4,7 @@
 #include <linux/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/kasan.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/processor.h>
 #include <asm/sclp.h>
 #include <asm/facility.h>
@@ -244,7 +244,7 @@ void __init kasan_early_init(void)
 	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
 
 	if (has_edat) {
-		shadow_alloc_size = get_mem_detect_usable_total() >> KASAN_SHADOW_SCALE_SHIFT;
+		shadow_alloc_size = get_physmem_usable_total() >> KASAN_SHADOW_SCALE_SHIFT;
 		segment_pos = round_down(pgalloc_pos, _SEGMENT_SIZE);
 		segment_low = segment_pos - shadow_alloc_size;
 		segment_low = round_down(segment_low, _SEGMENT_SIZE);
@@ -282,7 +282,7 @@ void __init kasan_early_init(void)
 	 * +- shadow end ----+---------+- shadow end ---+
 	 */
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
-	for_each_mem_detect_usable_block(i, &start, &end)
+	for_each_physmem_usable_range(i, &start, &end)
 		kasan_early_pgtable_populate(__sha(start), __sha(end), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
 		untracked_end = VMALLOC_START;

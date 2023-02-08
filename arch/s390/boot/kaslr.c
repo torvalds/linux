@@ -3,7 +3,7 @@
  * Copyright IBM Corp. 2019
  */
 #include <linux/pgtable.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
 #include <asm/sclp.h>
@@ -93,7 +93,7 @@ static int get_random(unsigned long limit, unsigned long *value)
 
 /*
  * To randomize kernel base address we have to consider several facts:
- * 1. physical online memory might not be continuous and have holes. mem_detect
+ * 1. physical online memory might not be continuous and have holes. physmem
  *    info contains list of online memory ranges we should consider.
  * 2. we have several memory regions which are occupied and we should not
  *    overlap and destroy them. Currently safe_addr tells us the border below
@@ -108,7 +108,7 @@ static int get_random(unsigned long limit, unsigned long *value)
  *    (16 pages when the kernel is built with kasan enabled)
  * Assumptions:
  * 1. kernel size (including .bss size) and upper memory limit are page aligned.
- * 2. mem_detect memory region start is THREAD_SIZE aligned / end is PAGE_SIZE
+ * 2. physmem online region start is THREAD_SIZE aligned / end is PAGE_SIZE
  *    aligned (in practice memory configurations granularity on z/VM and LPAR
  *    is 1mb).
  *
@@ -132,7 +132,7 @@ static unsigned long count_valid_kernel_positions(unsigned long kernel_size,
 	unsigned long start, end, pos = 0;
 	int i;
 
-	for_each_mem_detect_usable_block(i, &start, &end) {
+	for_each_physmem_usable_range(i, &start, &end) {
 		if (_min >= end)
 			continue;
 		if (start >= _max)
@@ -153,7 +153,7 @@ static unsigned long position_to_address(unsigned long pos, unsigned long kernel
 	unsigned long start, end;
 	int i;
 
-	for_each_mem_detect_usable_block(i, &start, &end) {
+	for_each_physmem_usable_range(i, &start, &end) {
 		if (_min >= end)
 			continue;
 		if (start >= _max)
@@ -172,8 +172,8 @@ static unsigned long position_to_address(unsigned long pos, unsigned long kernel
 
 unsigned long get_random_base(unsigned long safe_addr)
 {
-	unsigned long usable_total = get_mem_detect_usable_total();
-	unsigned long memory_limit = get_mem_detect_end();
+	unsigned long usable_total = get_physmem_usable_total();
+	unsigned long memory_limit = get_physmem_usable_end();
 	unsigned long base_pos, max_pos, kernel_size;
 	int i;
 
