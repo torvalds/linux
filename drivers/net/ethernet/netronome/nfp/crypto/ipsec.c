@@ -132,7 +132,12 @@ struct nfp_ipsec_cfg_mssg {
 static int nfp_ipsec_cfg_cmd_issue(struct nfp_net *nn, int type, int saidx,
 				   struct nfp_ipsec_cfg_mssg *msg)
 {
+	unsigned int offset = nn->tlv_caps.mbox_off + NFP_NET_CFG_MBOX_SIMPLE_VAL;
 	int i, msg_size, ret;
+
+	ret = nfp_net_mbox_lock(nn, sizeof(*msg));
+	if (ret)
+		return ret;
 
 	msg->cmd = type;
 	msg->sa_idx = saidx;
@@ -140,15 +145,19 @@ static int nfp_ipsec_cfg_cmd_issue(struct nfp_net *nn, int type, int saidx,
 	msg_size = ARRAY_SIZE(msg->raw);
 
 	for (i = 0; i < msg_size; i++)
-		nn_writel(nn, NFP_NET_CFG_MBOX_VAL + 4 * i, msg->raw[i]);
+		nn_writel(nn, offset + 4 * i, msg->raw[i]);
 
 	ret = nfp_net_mbox_reconfig(nn, NFP_NET_CFG_MBOX_CMD_IPSEC);
-	if (ret < 0)
+	if (ret < 0) {
+		nn_ctrl_bar_unlock(nn);
 		return ret;
+	}
 
 	/* For now we always read the whole message response back */
 	for (i = 0; i < msg_size; i++)
-		msg->raw[i] = nn_readl(nn, NFP_NET_CFG_MBOX_VAL + 4 * i);
+		msg->raw[i] = nn_readl(nn, offset + 4 * i);
+
+	nn_ctrl_bar_unlock(nn);
 
 	switch (msg->rsp) {
 	case NFP_IPSEC_CFG_MSSG_OK:
