@@ -24,6 +24,7 @@ struct vconn_device {
 	int bus_format;
 	int if_id;
 	int vp_id_mask;
+	bool connected;
 };
 
 struct rockchip_vconn {
@@ -235,7 +236,7 @@ static const struct drm_display_mode edid_cea_modes_1[] = {
 	  .picture_aspect_ratio = HDMI_PICTURE_ASPECT_64_27, },
 };
 
-int vconn_drm_add_modes_noedid(struct drm_connector *connector)
+static int vconn_drm_add_modes_noedid(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
@@ -307,6 +308,18 @@ static const struct drm_encoder_helper_funcs rockchip_virtual_encoder_helper_fun
 	.mode_set = rockchip_virtual_encoder_mode_set,
 };
 
+static enum drm_connector_status
+rockchip_virtual_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct vconn_device *vconn_dev = to_vconn_device(connector);
+
+	if (vconn_dev->output_type == DRM_MODE_CONNECTOR_VIRTUAL)
+		return vconn_dev->connected ? connector_status_connected :
+					      connector_status_disconnected;
+
+	return connector_status_connected;
+}
+
 static void rockchip_virtual_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -314,6 +327,7 @@ static void rockchip_virtual_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs rockchip_virtual_connector_funcs = {
+	.detect = rockchip_virtual_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = rockchip_virtual_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
@@ -401,6 +415,8 @@ static int rockchip_vconn_get_encoder_type(int conn_type)
 		return DRM_MODE_ENCODER_DSI;
 	else if (conn_type == DRM_MODE_CONNECTOR_DPI)
 		return DRM_MODE_ENCODER_DPI;
+	else if (conn_type == DRM_MODE_CONNECTOR_VIRTUAL)
+		return DRM_MODE_ENCODER_VIRTUAL;
 	else
 		return DRM_MODE_ENCODER_TMDS;
 }
@@ -427,6 +443,38 @@ static int rockchip_vconn_device_create(struct rockchip_vconn *vconn,
 		vconn_dev->bus_format = bus_format;
 		vconn_dev->if_id = if_id;
 		vconn_dev->vp_id_mask = BIT(id);
+		list_add_tail(&vconn_dev->list, &vconn->list_head);
+	}
+
+	return 0;
+}
+
+static int rockchip_virtual_connectors_create(struct rockchip_vconn *vconn)
+{
+	struct device_node *np = vconn->dev->of_node;
+	struct vconn_device *vconn_dev;
+	char propname[64];
+	u32 count;
+	int i;
+	int ret;
+
+	ret = of_property_read_u32(np, "virtual-connector-count", &count);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < count; i++) {
+		vconn_dev = devm_kzalloc(vconn->dev, sizeof(*vconn_dev), GFP_KERNEL);
+		if (!vconn_dev)
+			return -ENOMEM;
+		snprintf(propname, sizeof(propname), "virtual%d-disconnected", i);
+		vconn_dev->connected = !of_property_read_bool(np, propname);
+		vconn_dev->vconn = vconn;
+		vconn_dev->encoder_type = DRM_MODE_ENCODER_VIRTUAL;
+		vconn_dev->output_type = DRM_MODE_CONNECTOR_VIRTUAL;
+		vconn_dev->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		vconn_dev->bus_format = MEDIA_BUS_FMT_FIXED;
+		vconn_dev->if_id = 0;
+		vconn_dev->vp_id_mask = 0;
 		list_add_tail(&vconn_dev->list, &vconn->list_head);
 	}
 
@@ -485,6 +533,8 @@ static int rockchip_virtual_connector_bind(struct device *dev, struct device *ma
 	rockchip_vconn_device_create(vconn, "rgb", DRM_MODE_CONNECTOR_DPI,
 				     ROCKCHIP_OUT_MODE_P888, MEDIA_BUS_FMT_RGB888_1X24,
 				     VOP_OUTPUT_IF_RGB);
+
+	rockchip_virtual_connectors_create(vconn);
 
 	platform_set_drvdata(pdev, vconn);
 
