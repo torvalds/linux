@@ -512,10 +512,8 @@ static int qrtr_genpool_memory_init(struct qrtr_genpool_dev *qdev)
 
 	qdev->pool = of_gen_pool_get(np, "qrtr-gen-pool", 0);
 	of_node_put(np);
-	if (!qdev->pool) {
-		dev_err(qdev->dev, "failed to get qrtr gen pool\n");
-		return -ENODEV;
-	}
+	if (!qdev->pool)
+		return -EPROBE_DEFER;
 
 	/* check if pool has any entries */
 	if (!gen_pool_avail(qdev->pool))
