@@ -241,7 +241,7 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 
 	if (!data->toward_ipa) {
 		const struct ipa_endpoint_rx *rx_config;
-		const struct ipa_reg *reg;
+		const struct reg *reg;
 		u32 buffer_size;
 		u32 aggr_size;
 		u32 limit;
@@ -447,7 +447,7 @@ static bool
 ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 {
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 field_id;
 	u32 offset;
 	bool state;
@@ -493,7 +493,7 @@ static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
 	u32 unit = endpoint_id / 32;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	WARN_ON(!test_bit(endpoint_id, ipa->available));
@@ -510,7 +510,7 @@ static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
 	u32 mask = BIT(endpoint_id % 32);
 	struct ipa *ipa = endpoint->ipa;
 	u32 unit = endpoint_id / 32;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 
 	WARN_ON(!test_bit(endpoint_id, ipa->available));
 
@@ -613,7 +613,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 
 	for_each_set_bit(endpoint_id, ipa->defined, ipa->endpoint_count) {
 		struct ipa_endpoint *endpoint;
-		const struct ipa_reg *reg;
+		const struct reg *reg;
 		u32 offset;
 
 		/* We only reset modem TX endpoints */
@@ -645,7 +645,7 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
 	enum ipa_cs_offload_en enabled;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 
 	reg = ipa_reg(ipa, ENDP_INIT_CFG);
@@ -681,7 +681,7 @@ static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	if (!endpoint->toward_ipa)
@@ -716,7 +716,7 @@ ipa_qmap_header_size(enum ipa_version version, struct ipa_endpoint *endpoint)
 
 /* Encoded value for ENDP_INIT_HDR register HDR_LEN* field(s) */
 static u32 ipa_header_size_encode(enum ipa_version version,
-				  const struct ipa_reg *reg, u32 header_size)
+				  const struct reg *reg, u32 header_size)
 {
 	u32 field_max = ipa_reg_field_max(reg, HDR_LEN);
 	u32 val;
@@ -738,7 +738,7 @@ static u32 ipa_header_size_encode(enum ipa_version version,
 
 /* Encoded value for ENDP_INIT_HDR register OFST_METADATA* field(s) */
 static u32 ipa_metadata_offset_encode(enum ipa_version version,
-				      const struct ipa_reg *reg, u32 offset)
+				      const struct reg *reg, u32 offset)
 {
 	u32 field_max = ipa_reg_field_max(reg, HDR_OFST_METADATA);
 	u32 val;
@@ -783,7 +783,7 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 
 	reg = ipa_reg(ipa, ENDP_INIT_HDR);
@@ -828,7 +828,7 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	u32 pad_align = endpoint->config.rx.pad_align;
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 
 	reg = ipa_reg(ipa, ENDP_INIT_HDR_EXT);
@@ -879,7 +879,7 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 	u32 offset;
 
@@ -899,7 +899,7 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 {
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -963,7 +963,7 @@ out:
 }
 
 /* Encode the aggregation timer limit (microseconds) based on IPA version */
-static u32 aggr_time_limit_encode(struct ipa *ipa, const struct ipa_reg *reg,
+static u32 aggr_time_limit_encode(struct ipa *ipa, const struct reg *reg,
 				  u32 microseconds)
 {
 	u32 ticks;
@@ -994,7 +994,7 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 
 	reg = ipa_reg(ipa, ENDP_INIT_AGGR);
@@ -1043,7 +1043,7 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
  * Return the encoded value representing the timeout period provided
  * that should be written to the ENDP_INIT_HOL_BLOCK_TIMER register.
  */
-static u32 hol_block_timer_encode(struct ipa *ipa, const struct ipa_reg *reg,
+static u32 hol_block_timer_encode(struct ipa *ipa, const struct reg *reg,
 				  u32 microseconds)
 {
 	u32 width;
@@ -1109,7 +1109,7 @@ static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	/* This should only be changed when HOL_BLOCK_EN is disabled */
@@ -1124,7 +1124,7 @@ ipa_endpoint_init_hol_block_en(struct ipa_endpoint *endpoint, bool enable)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -1171,7 +1171,7 @@ static void ipa_endpoint_init_deaggr(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 
 	if (!endpoint->toward_ipa)
@@ -1191,7 +1191,7 @@ static void ipa_endpoint_init_rsrc_grp(struct ipa_endpoint *endpoint)
 	u32 resource_group = endpoint->config.resource_group;
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	reg = ipa_reg(ipa, ENDP_INIT_RSRC_GRP);
@@ -1204,7 +1204,7 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	if (!endpoint->toward_ipa)
@@ -1270,7 +1270,7 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val = 0;
 
 	reg = ipa_reg(ipa, ENDP_STATUS);
@@ -1636,7 +1636,7 @@ void ipa_endpoint_trans_release(struct ipa_endpoint *endpoint,
 
 void ipa_endpoint_default_route_set(struct ipa *ipa, u32 endpoint_id)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	reg = ipa_reg(ipa, ROUTE);
@@ -1985,7 +1985,7 @@ void ipa_endpoint_deconfig(struct ipa *ipa)
 int ipa_endpoint_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 endpoint_id;
 	u32 hw_limit;
 	u32 tx_count;

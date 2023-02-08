@@ -10,6 +10,7 @@
 #include <linux/bug.h>
 
 #include "ipa_version.h"
+#include "reg.h"
 
 struct ipa;
 
@@ -108,56 +109,6 @@ enum ipa_reg_id {
 	IRQ_SUSPEND_EN,					/* IPA v3.1+ */
 	IRQ_SUSPEND_CLR,				/* IPA v3.1+ */
 	IPA_REG_ID_COUNT,				/* Last; not an ID */
-};
-
-/**
- * struct ipa_reg - An IPA register descriptor
- * @offset:	Register offset relative to base of the "ipa-reg" memory
- * @stride:	Distance between two instances, if parameterized
- * @fcount:	Number of entries in the @fmask array
- * @fmask:	Array of mask values defining position and width of fields
- * @name:	Upper-case name of the IPA register
- */
-struct ipa_reg {
-	u32 offset;
-	u32 stride;
-	u32 fcount;
-	const u32 *fmask;			/* BIT(nr) or GENMASK(h, l) */
-	const char *name;
-};
-
-/* Helper macro for defining "simple" (non-parameterized) registers */
-#define IPA_REG(__NAME, __reg_id, __offset)				\
-	IPA_REG_STRIDE(__NAME, __reg_id, __offset, 0)
-
-/* Helper macro for defining parameterized registers, specifying stride */
-#define IPA_REG_STRIDE(__NAME, __reg_id, __offset, __stride)		\
-	static const struct ipa_reg ipa_reg_ ## __reg_id = {		\
-		.name	= #__NAME,					\
-		.offset	= __offset,					\
-		.stride	= __stride,					\
-	}
-
-#define IPA_REG_FIELDS(__NAME, __name, __offset)			\
-	IPA_REG_STRIDE_FIELDS(__NAME, __name, __offset, 0)
-
-#define IPA_REG_STRIDE_FIELDS(__NAME, __name, __offset, __stride)	\
-	static const struct ipa_reg ipa_reg_ ## __name = {		\
-		.name   = #__NAME,					\
-		.offset = __offset,					\
-		.stride = __stride,					\
-		.fcount = ARRAY_SIZE(ipa_reg_ ## __name ## _fmask),	\
-		.fmask  = ipa_reg_ ## __name ## _fmask,			\
-	}
-
-/**
- * struct ipa_regs - Description of registers supported by hardware
- * @reg_count:	Number of registers in the @reg[] array
- * @reg:		Array of register descriptors
- */
-struct ipa_regs {
-	u32 reg_count;
-	const struct ipa_reg **reg;
 };
 
 /* COMP_CFG register */
@@ -687,16 +638,16 @@ enum ipa_reg_ipa_irq_uc_field_id {
 	UC_INTR,
 };
 
-extern const struct ipa_regs ipa_regs_v3_1;
-extern const struct ipa_regs ipa_regs_v3_5_1;
-extern const struct ipa_regs ipa_regs_v4_2;
-extern const struct ipa_regs ipa_regs_v4_5;
-extern const struct ipa_regs ipa_regs_v4_7;
-extern const struct ipa_regs ipa_regs_v4_9;
-extern const struct ipa_regs ipa_regs_v4_11;
+extern const struct regs ipa_regs_v3_1;
+extern const struct regs ipa_regs_v3_5_1;
+extern const struct regs ipa_regs_v4_2;
+extern const struct regs ipa_regs_v4_5;
+extern const struct regs ipa_regs_v4_7;
+extern const struct regs ipa_regs_v4_9;
+extern const struct regs ipa_regs_v4_11;
 
 /* Return the field mask for a field in a register */
-static inline u32 ipa_reg_fmask(const struct ipa_reg *reg, u32 field_id)
+static inline u32 ipa_reg_fmask(const struct reg *reg, u32 field_id)
 {
 	if (!reg || WARN_ON(field_id >= reg->fcount))
 		return 0;
@@ -705,7 +656,7 @@ static inline u32 ipa_reg_fmask(const struct ipa_reg *reg, u32 field_id)
 }
 
 /* Return the mask for a single-bit field in a register */
-static inline u32 ipa_reg_bit(const struct ipa_reg *reg, u32 field_id)
+static inline u32 ipa_reg_bit(const struct reg *reg, u32 field_id)
 {
 	u32 fmask = ipa_reg_fmask(reg, field_id);
 
@@ -716,7 +667,7 @@ static inline u32 ipa_reg_bit(const struct ipa_reg *reg, u32 field_id)
 
 /* Encode a value into the given field of a register */
 static inline u32
-ipa_reg_encode(const struct ipa_reg *reg, u32 field_id, u32 val)
+ipa_reg_encode(const struct reg *reg, u32 field_id, u32 val)
 {
 	u32 fmask = ipa_reg_fmask(reg, field_id);
 
@@ -732,7 +683,7 @@ ipa_reg_encode(const struct ipa_reg *reg, u32 field_id, u32 val)
 
 /* Given a register value, decode (extract) the value in the given field */
 static inline u32
-ipa_reg_decode(const struct ipa_reg *reg, u32 field_id, u32 val)
+ipa_reg_decode(const struct reg *reg, u32 field_id, u32 val)
 {
 	u32 fmask = ipa_reg_fmask(reg, field_id);
 
@@ -740,23 +691,23 @@ ipa_reg_decode(const struct ipa_reg *reg, u32 field_id, u32 val)
 }
 
 /* Return the maximum value representable by the given field; always 2^n - 1 */
-static inline u32 ipa_reg_field_max(const struct ipa_reg *reg, u32 field_id)
+static inline u32 ipa_reg_field_max(const struct reg *reg, u32 field_id)
 {
 	u32 fmask = ipa_reg_fmask(reg, field_id);
 
 	return fmask ? fmask >> __ffs(fmask) : 0;
 }
 
-const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
+const struct reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
 
 /* Returns 0 for NULL reg; warning will have already been issued */
-static inline u32 ipa_reg_offset(const struct ipa_reg *reg)
+static inline u32 ipa_reg_offset(const struct reg *reg)
 {
 	return reg ? reg->offset : 0;
 }
 
 /* Returns 0 for NULL reg; warning will have already been issued */
-static inline u32 ipa_reg_n_offset(const struct ipa_reg *reg, u32 n)
+static inline u32 ipa_reg_n_offset(const struct reg *reg, u32 n)
 {
 	return reg ? reg->offset + n * reg->stride : 0;
 }

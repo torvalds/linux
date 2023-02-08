@@ -13,49 +13,37 @@
 static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 {
 	enum ipa_version version = ipa->version;
-	bool valid;
-
-	/* Check for bogus (out of range) register IDs */
-	if ((u32)reg_id >= ipa->regs->reg_count)
-		return false;
 
 	switch (reg_id) {
 	case IPA_BCR:
 	case COUNTER_CFG:
-		valid = version < IPA_VERSION_4_5;
-		break;
+		return version < IPA_VERSION_4_5;
 
 	case IPA_TX_CFG:
 	case FLAVOR_0:
 	case IDLE_INDICATION_CFG:
-		valid = version >= IPA_VERSION_3_5;
-		break;
+		return version >= IPA_VERSION_3_5;
 
 	case QTIME_TIMESTAMP_CFG:
 	case TIMERS_XO_CLK_DIV_CFG:
 	case TIMERS_PULSE_GRAN_CFG:
-		valid = version >= IPA_VERSION_4_5;
-		break;
+		return version >= IPA_VERSION_4_5;
 
 	case SRC_RSRC_GRP_45_RSRC_TYPE:
 	case DST_RSRC_GRP_45_RSRC_TYPE:
-		valid = version <= IPA_VERSION_3_1 ||
-			version == IPA_VERSION_4_5;
-		break;
+		return version <= IPA_VERSION_3_1 ||
+		       version == IPA_VERSION_4_5;
 
 	case SRC_RSRC_GRP_67_RSRC_TYPE:
 	case DST_RSRC_GRP_67_RSRC_TYPE:
-		valid = version <= IPA_VERSION_3_1;
-		break;
+		return version <= IPA_VERSION_3_1;
 
 	case ENDP_FILTER_ROUTER_HSH_CFG:
-		valid = version != IPA_VERSION_4_2;
-		break;
+		return version != IPA_VERSION_4_2;
 
 	case IRQ_SUSPEND_EN:
 	case IRQ_SUSPEND_CLR:
-		valid = version >= IPA_VERSION_3_1;
-		break;
+		return version >= IPA_VERSION_3_1;
 
 	case COMP_CFG:
 	case CLKON_CFG:
@@ -95,28 +83,22 @@ static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	case IPA_IRQ_CLR:
 	case IPA_IRQ_UC:
 	case IRQ_SUSPEND_INFO:
-		valid = true;	/* These should be defined for all versions */
-		break;
+		return true;	/* These should be defined for all versions */
 
 	default:
-		valid = false;
-		break;
+		return false;
 	}
-
-	/* To be valid, it must be defined */
-
-	return valid && ipa->regs->reg[reg_id];
 }
 
-const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id)
+const struct reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id)
 {
-	if (WARN_ON(!ipa_reg_id_valid(ipa, reg_id)))
+	if (WARN(!ipa_reg_id_valid(ipa, reg_id), "invalid reg %u\n", reg_id))
 		return NULL;
 
-	return ipa->regs->reg[reg_id];
+	return reg(ipa->regs, reg_id);
 }
 
-static const struct ipa_regs *ipa_regs(enum ipa_version version)
+static const struct regs *ipa_regs(enum ipa_version version)
 {
 	switch (version) {
 	case IPA_VERSION_3_1:
@@ -141,7 +123,7 @@ static const struct ipa_regs *ipa_regs(enum ipa_version version)
 int ipa_reg_init(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
-	const struct ipa_regs *regs;
+	const struct regs *regs;
 	struct resource *res;
 
 	regs = ipa_regs(ipa->version);

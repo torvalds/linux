@@ -97,7 +97,7 @@ struct ipa {
 	bool uc_loaded;
 
 	void __iomem *reg_virt;
-	const struct ipa_regs *regs;
+	const struct regs *regs;
 
 	dma_addr_t mem_addr;
 	void *mem_virt;

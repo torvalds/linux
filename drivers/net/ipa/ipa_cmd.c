@@ -287,7 +287,7 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 /* Check whether offsets passed to register_write are valid */
 static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	const char *name;
 	u32 offset;
 

@@ -203,7 +203,7 @@ static void ipa_teardown(struct ipa *ipa)
 static void
 ipa_hardware_config_bcr(struct ipa *ipa, const struct ipa_data *data)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	/* IPA v4.5+ has no backward compatibility register */
@@ -218,7 +218,7 @@ ipa_hardware_config_bcr(struct ipa *ipa, const struct ipa_data *data)
 static void ipa_hardware_config_tx(struct ipa *ipa)
 {
 	enum ipa_version version = ipa->version;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -239,7 +239,7 @@ static void ipa_hardware_config_tx(struct ipa *ipa)
 static void ipa_hardware_config_clkon(struct ipa *ipa)
 {
 	enum ipa_version version = ipa->version;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	if (version >= IPA_VERSION_4_5)
@@ -265,7 +265,7 @@ static void ipa_hardware_config_clkon(struct ipa *ipa)
 /* Configure bus access behavior for IPA components */
 static void ipa_hardware_config_comp(struct ipa *ipa)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -299,7 +299,7 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 {
 	const struct ipa_qsb_data *data0;
 	const struct ipa_qsb_data *data1;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	/* QMB 0 represents DDR; QMB 1 (if present) represents PCIe */
@@ -368,7 +368,7 @@ static __always_inline u32 ipa_aggr_granularity_val(u32 usec)
  */
 static void ipa_qtime_config(struct ipa *ipa)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -416,7 +416,7 @@ static void ipa_qtime_config(struct ipa *ipa)
 static void ipa_hardware_config_counter(struct ipa *ipa)
 {
 	u32 granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	reg = ipa_reg(ipa, COUNTER_CFG);
@@ -435,7 +435,7 @@ static void ipa_hardware_config_timing(struct ipa *ipa)
 
 static void ipa_hardware_config_hashing(struct ipa *ipa)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 
 	/* Other than IPA v4.2, all versions enable "hashing".  Starting
 	 * with IPA v5.0, the filter and router tables are implemented
@@ -458,7 +458,7 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 				    u32 enter_idle_debounce_thresh,
 				    bool const_non_idle_enable)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	if (ipa->version < IPA_VERSION_3_5_1)

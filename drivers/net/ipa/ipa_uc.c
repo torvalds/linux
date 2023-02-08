@@ -231,7 +231,7 @@ void ipa_uc_power(struct ipa *ipa)
 static void send_uc_command(struct ipa *ipa, u32 command, u32 command_param)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 val;
 
 	/* Fill in the command data */
