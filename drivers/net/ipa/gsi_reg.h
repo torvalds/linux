@@ -62,6 +62,18 @@
 
 /* All other register offsets are relative to gsi->virt */
 
+#define GSI_CH_C_CNTXT_0_OFFSET(ch) \
+			(0x0001c000 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
+#define CHTYPE_PROTOCOL_FMASK		GENMASK(2, 0)
+#define CHTYPE_DIR_FMASK		GENMASK(3, 3)
+#define EE_FMASK			GENMASK(7, 4)
+#define CHID_FMASK			GENMASK(12, 8)
+/* The next field is present for IPA v4.5 and above */
+#define CHTYPE_PROTOCOL_MSB_FMASK	GENMASK(13, 13)
+#define ERINDEX_FMASK			GENMASK(18, 14)
+#define CHSTATE_FMASK			GENMASK(23, 20)
+#define ELEMENT_SIZE_FMASK		GENMASK(31, 24)
+
 /** enum gsi_channel_type - CHTYPE_PROTOCOL field values in CH_C_CNTXT_0 */
 enum gsi_channel_type {
 	GSI_CHANNEL_TYPE_MHI			= 0x0,
@@ -76,45 +88,8 @@ enum gsi_channel_type {
 	GSI_CHANNEL_TYPE_11AD			= 0x9,
 };
 
-#define GSI_CH_C_CNTXT_0_OFFSET(ch) \
-			(0x0001c000 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-#define CHTYPE_PROTOCOL_FMASK		GENMASK(2, 0)
-#define CHTYPE_DIR_FMASK		GENMASK(3, 3)
-#define EE_FMASK			GENMASK(7, 4)
-#define CHID_FMASK			GENMASK(12, 8)
-/* The next field is present for IPA v4.5 and above */
-#define CHTYPE_PROTOCOL_MSB_FMASK	GENMASK(13, 13)
-#define ERINDEX_FMASK			GENMASK(18, 14)
-#define CHSTATE_FMASK			GENMASK(23, 20)
-#define ELEMENT_SIZE_FMASK		GENMASK(31, 24)
-
-/* Encoded value for CH_C_CNTXT_0 register channel protocol fields */
-static inline u32
-chtype_protocol_encoded(enum ipa_version version, enum gsi_channel_type type)
-{
-	u32 val;
-
-	val = u32_encode_bits(type, CHTYPE_PROTOCOL_FMASK);
-	if (version < IPA_VERSION_4_5)
-		return val;
-
-	/* Encode upper bit(s) as well */
-	type >>= hweight32(CHTYPE_PROTOCOL_FMASK);
-	val |= u32_encode_bits(type, CHTYPE_PROTOCOL_MSB_FMASK);
-
-	return val;
-}
-
 #define GSI_CH_C_CNTXT_1_OFFSET(ch) \
 			(0x0001c004 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-/* Encoded value for CH_C_CNTXT_1 register R_LENGTH field */
-static inline u32 r_length_encoded(enum ipa_version version, u32 length)
-{
-	if (version < IPA_VERSION_4_9)
-		return u32_encode_bits(length, GENMASK(15, 0));
-	return u32_encode_bits(length, GENMASK(19, 0));
-}
 
 #define GSI_CH_C_CNTXT_2_OFFSET(ch) \
 			(0x0001c008 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
@@ -167,13 +142,6 @@ enum gsi_prefetch_mode {
 
 #define GSI_EV_CH_E_CNTXT_1_OFFSET(ev) \
 			(0x0001d004 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-/* Encoded value for EV_CH_C_CNTXT_1 register EV_R_LENGTH field */
-static inline u32 ev_r_length_encoded(enum ipa_version version, u32 length)
-{
-	if (version < IPA_VERSION_4_9)
-		return u32_encode_bits(length, GENMASK(15, 0));
-	return u32_encode_bits(length, GENMASK(19, 0));
-}
 
 #define GSI_EV_CH_E_CNTXT_2_OFFSET(ev) \
 			(0x0001d008 + 0x4000 * GSI_EE_AP + 0x80 * (ev))

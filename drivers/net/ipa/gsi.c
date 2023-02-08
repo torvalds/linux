@@ -182,6 +182,41 @@ static bool gsi_channel_initialized(struct gsi_channel *channel)
 	return !!channel->gsi;
 }
 
+/* Encode the channel protocol for the CH_C_CNTXT_0 register */
+static u32 ch_c_cntxt_0_type_encode(enum ipa_version version,
+				    enum gsi_channel_type type)
+{
+	u32 val;
+
+	val = u32_encode_bits(type, CHTYPE_PROTOCOL_FMASK);
+	if (version < IPA_VERSION_4_5)
+		return val;
+
+	type >>= hweight32(CHTYPE_PROTOCOL_FMASK);
+
+	return val | u32_encode_bits(type, CHTYPE_PROTOCOL_MSB_FMASK);
+}
+
+/* Encode a channel ring buffer length for the CH_C_CNTXT_1 register */
+static u32 ch_c_cntxt_1_length_encode(enum ipa_version version, u32 length)
+{
+	if (version < IPA_VERSION_4_9)
+		return u32_encode_bits(length, GENMASK(15, 0));
+
+	return u32_encode_bits(length, GENMASK(19, 0));
+}
+
+/* Encode the length of the event channel ring buffer for the
+ * EV_CH_E_CNTXT_1 register.
+ */
+static u32 ev_ch_e_cntxt_1_length_encode(enum ipa_version version, u32 length)
+{
+	if (version < IPA_VERSION_4_9)
+		return u32_encode_bits(length, GENMASK(15, 0));
+
+	return u32_encode_bits(length, GENMASK(19, 0));
+}
+
 /* Update the GSI IRQ type register with the cached value */
 static void gsi_irq_type_update(struct gsi *gsi, u32 val)
 {
@@ -676,7 +711,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
 
 	size = ring->count * GSI_RING_ELEMENT_SIZE;
-	val = ev_r_length_encoded(gsi->version, size);
+	val = ev_ch_e_cntxt_1_length_encode(gsi->version, size);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_1_OFFSET(evt_ring_id));
 
 	/* The context 2 and 3 registers store the low-order and
@@ -765,14 +800,14 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	u32 val;
 
 	/* We program all channels as GPI type/protocol */
-	val = chtype_protocol_encoded(gsi->version, GSI_CHANNEL_TYPE_GPI);
+	val = ch_c_cntxt_0_type_encode(gsi->version, GSI_CHANNEL_TYPE_GPI);
 	if (channel->toward_ipa)
 		val |= CHTYPE_DIR_FMASK;
 	val |= u32_encode_bits(channel->evt_ring_id, ERINDEX_FMASK);
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
 
-	val = r_length_encoded(gsi->version, size);
+	val = ch_c_cntxt_1_length_encode(gsi->version, size);
 	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_1_OFFSET(channel_id));
 
 	/* The context 2 and 3 registers store the low-order and
