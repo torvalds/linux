@@ -4863,7 +4863,7 @@ intel_dp_connector_register(struct drm_connector *connector)
 	if (!ret)
 		drm_dp_cec_register_connector(&intel_dp->aux, connector);
 
-	if (!intel_bios_is_lspcon_present(i915, dig_port->base.port))
+	if (!intel_bios_encoder_is_lspcon(dig_port->base.devdata))
 		return ret;
 
 	/*
@@ -5158,9 +5158,12 @@ bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 }
 
 static bool
-has_gamut_metadata_dip(struct drm_i915_private *i915, enum port port)
+has_gamut_metadata_dip(struct intel_encoder *encoder)
 {
-	if (intel_bios_is_lspcon_present(i915, port))
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+
+	if (intel_bios_encoder_is_lspcon(encoder->devdata))
 		return false;
 
 	if (DISPLAY_VER(i915) >= 11)
@@ -5195,14 +5198,14 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	/* Register HDMI colorspace for case of lspcon */
-	if (intel_bios_is_lspcon_present(dev_priv, port)) {
+	if (intel_bios_encoder_is_lspcon(dp_to_dig_port(intel_dp)->base.devdata)) {
 		drm_connector_attach_content_type_property(connector);
 		intel_attach_hdmi_colorspace_property(connector);
 	} else {
 		intel_attach_dp_colorspace_property(connector);
 	}
 
-	if (has_gamut_metadata_dip(dev_priv, port))
+	if (has_gamut_metadata_dip(&dp_to_dig_port(intel_dp)->base))
 		drm_connector_attach_hdr_output_metadata_property(connector);
 
 	if (HAS_VRR(dev_priv))

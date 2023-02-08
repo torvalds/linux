@@ -2598,6 +2598,12 @@ intel_bios_encoder_supports_dsi(const struct intel_bios_encoder_data *devdata)
 	return devdata->child.device_type & DEVICE_TYPE_MIPI_OUTPUT;
 }
 
+bool
+intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata && HAS_LSPCON(devdata->i915) && devdata->child.lspcon;
+}
+
 static int _intel_bios_hdmi_level_shift(const struct intel_bios_encoder_data *devdata)
 {
 	if (!devdata || devdata->i915->display.vbt.version < 158)
@@ -2664,7 +2670,7 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata,
 	drm_dbg_kms(&i915->drm,
 		    "Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d DSI:%d LSPCON:%d USB-Type-C:%d TBT:%d DSC:%d\n",
 		    port_name(port), is_crt, is_dvi, is_hdmi, is_dp, is_edp, is_dsi,
-		    HAS_LSPCON(i915) && child->lspcon,
+		    intel_bios_encoder_is_lspcon(devdata),
 		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
 
@@ -3586,22 +3592,6 @@ intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 		return false;
 
 	return devdata && devdata->child.hpd_invert;
-}
-
-/**
- * intel_bios_is_lspcon_present - if LSPCON is attached on %port
- * @i915:	i915 device instance
- * @port:	port to check
- *
- * Return true if LSPCON is present on this port
- */
-bool
-intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
-			     enum port port)
-{
-	const struct intel_bios_encoder_data *devdata = i915->display.vbt.ports[port];
-
-	return HAS_LSPCON(i915) && devdata && devdata->child.lspcon;
 }
 
 /**
