@@ -5141,8 +5141,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 	return IRQ_HANDLED;
 }
 
-/* check the VBT to see whether the eDP is on another port */
-bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
+static bool _intel_dp_is_port_edp(struct drm_i915_private *dev_priv,
+				  const struct intel_bios_encoder_data *devdata,
+				  enum port port)
 {
 	/*
 	 * eDP not supported on g4x. so bail out early just
@@ -5154,7 +5155,15 @@ bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	if (DISPLAY_VER(dev_priv) < 9 && port == PORT_A)
 		return true;
 
-	return intel_bios_is_port_edp(dev_priv, port);
+	return devdata && intel_bios_encoder_supports_edp(devdata);
+}
+
+bool intel_dp_is_port_edp(struct drm_i915_private *i915, enum port port)
+{
+	const struct intel_bios_encoder_data *devdata =
+		intel_bios_encoder_data_lookup(i915, port);
+
+	return _intel_dp_is_port_edp(i915, devdata, port);
 }
 
 static bool
@@ -5427,7 +5436,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
 	intel_dp->attached_connector = intel_connector;
 
-	if (intel_dp_is_port_edp(dev_priv, port)) {
+	if (_intel_dp_is_port_edp(dev_priv, intel_encoder->devdata, port)) {
 		/*
 		 * Currently we don't support eDP on TypeC ports, although in
 		 * theory it could work on TypeC legacy ports.

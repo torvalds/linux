@@ -2585,7 +2585,7 @@ intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata)
 	return devdata->child.device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
 }
 
-static bool
+bool
 intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata)
 {
 	return intel_bios_encoder_supports_dp(devdata) &&
@@ -3415,21 +3415,6 @@ bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 	}
 
 	return false;
-}
-
-/**
- * intel_bios_is_port_edp - is the device in given port eDP
- * @i915:	i915 device instance
- * @port:	port to check
- *
- * Return true if the device in %port is eDP.
- */
-bool intel_bios_is_port_edp(struct drm_i915_private *i915, enum port port)
-{
-	const struct intel_bios_encoder_data *devdata =
-		intel_bios_encoder_data_lookup(i915, port);
-
-	return devdata && intel_bios_encoder_supports_edp(devdata);
 }
 
 static bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_encoder_data *devdata)
