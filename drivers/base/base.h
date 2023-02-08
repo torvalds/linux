@@ -57,6 +57,19 @@ struct subsys_private {
 };
 #define to_subsys_private(obj) container_of_const(obj, struct subsys_private, subsys.kobj)
 
+static inline struct subsys_private *subsys_get(struct subsys_private *sp)
+{
+	if (sp)
+		kset_get(&sp->subsys);
+	return sp;
+}
+
+static inline void subsys_put(struct subsys_private *sp)
+{
+	if (sp)
+		kset_put(&sp->subsys);
+}
+
 struct driver_private {
 	struct kobject kobj;
 	struct klist klist_devices;
