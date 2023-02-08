@@ -1341,6 +1341,7 @@
 		power-domains = <&power RK3288_PD_VIO>;
 		resets = <&cru SRST_RGA_CORE>, <&cru SRST_RGA_AXI>, <&cru SRST_RGA_AHB>;
 		reset-names = "core", "axi", "ahb";
+		status = "disabled";
 	};
 
 	vopb: vop@ff930000 {
