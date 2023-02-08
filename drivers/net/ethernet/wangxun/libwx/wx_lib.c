@@ -1832,7 +1832,7 @@ static int wx_setup_all_rx_resources(struct wx *wx)
 		goto err_setup_rx;
 	}
 
-		return 0;
+	return 0;
 err_setup_rx:
 	/* rewind the index freeing the rings as we go */
 	while (i--)
