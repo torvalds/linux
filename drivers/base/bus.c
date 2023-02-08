@@ -949,7 +949,7 @@ void bus_unregister(struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(bus_unregister);
 
-int bus_register_notifier(struct bus_type *bus, struct notifier_block *nb)
+int bus_register_notifier(const struct bus_type *bus, struct notifier_block *nb)
 {
 	struct subsys_private *sp = bus_to_subsys(bus);
 	int retval;
@@ -963,7 +963,7 @@ int bus_register_notifier(struct bus_type *bus, struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(bus_register_notifier);
 
-int bus_unregister_notifier(struct bus_type *bus, struct notifier_block *nb)
+int bus_unregister_notifier(const struct bus_type *bus, struct notifier_block *nb)
 {
 	struct subsys_private *sp = bus_to_subsys(bus);
 	int retval;

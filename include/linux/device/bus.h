@@ -246,9 +246,9 @@ void bus_sort_breadthfirst(struct bus_type *bus,
  */
 struct notifier_block;
 
-extern int bus_register_notifier(struct bus_type *bus,
+extern int bus_register_notifier(const struct bus_type *bus,
 				 struct notifier_block *nb);
-extern int bus_unregister_notifier(struct bus_type *bus,
+extern int bus_unregister_notifier(const struct bus_type *bus,
 				   struct notifier_block *nb);
 
 /**
