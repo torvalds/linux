@@ -1474,9 +1474,8 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
  */
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
-	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
-			reset_upon_device_release, schedule_hard_reset = false,
-			delay_reset, from_dev_release, from_watchdog_thread;
+	bool hard_reset, from_hard_reset_thread, fw_reset, reset_upon_device_release,
+		schedule_hard_reset = false, delay_reset, from_dev_release, from_watchdog_thread;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	struct hl_ctx *ctx;
 	int i, rc;
@@ -1500,7 +1499,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	}
 
 	if (!hard_reset && !hdev->asic_prop.supports_compute_reset) {
-		hard_instead_soft = true;
+		dev_dbg(hdev->dev, "asic doesn't support compute reset - do hard-reset instead\n");
 		hard_reset = true;
 	}
 
@@ -1515,12 +1514,10 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	}
 
 	if (!hard_reset && !hdev->asic_prop.allow_inference_soft_reset) {
-		hard_instead_soft = true;
+		dev_dbg(hdev->dev,
+			"asic doesn't allow inference soft reset - do hard-reset instead\n");
 		hard_reset = true;
 	}
-
-	if (hard_instead_soft)
-		dev_dbg(hdev->dev, "Doing hard-reset instead of compute reset\n");
 
 do_reset:
 	/* Re-entry of reset thread */
