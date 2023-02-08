@@ -166,14 +166,14 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 /**
  * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
  * @vsi: the VSI being configured
- * @vf: the VF associated with this VSI, if any
  *
  * Return 0 on success and a negative value on error
  */
-static void ice_vsi_set_num_qs(struct ice_vsi *vsi, struct ice_vf *vf)
+static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 {
 	enum ice_vsi_type vsi_type = vsi->type;
 	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf = vsi->vf;
 
 	if (WARN_ON(vsi_type == ICE_VSI_VF && !vf))
 		return;
@@ -594,15 +594,13 @@ err_alloc_tx:
 /**
  * ice_vsi_alloc_def - set default values for already allocated VSI
  * @vsi: ptr to VSI
- * @vf: VF for ICE_VSI_VF and ICE_VSI_CTRL
  * @ch: ptr to channel
  */
 static int
-ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_vf *vf,
-		  struct ice_channel *ch)
+ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_channel *ch)
 {
 	if (vsi->type != ICE_VSI_CHNL) {
-		ice_vsi_set_num_qs(vsi, vf);
+		ice_vsi_set_num_qs(vsi);
 		if (ice_vsi_alloc_arrays(vsi))
 			return -ENOMEM;
 	}
@@ -641,27 +639,17 @@ ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_vf *vf,
 /**
  * ice_vsi_alloc - Allocates the next available struct VSI in the PF
  * @pf: board private structure
- * @pi: pointer to the port_info instance
- * @vsi_type: type of VSI
- * @ch: ptr to channel
- * @vf: VF for ICE_VSI_VF and ICE_VSI_CTRL
  *
- * The VF pointer is used for ICE_VSI_VF and ICE_VSI_CTRL. For ICE_VSI_CTRL,
- * it may be NULL in the case there is no association with a VF. For
- * ICE_VSI_VF the VF pointer *must not* be NULL.
+ * Reserves a VSI index from the PF and allocates an empty VSI structure
+ * without a type. The VSI structure must later be initialized by calling
+ * ice_vsi_cfg().
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
-static struct ice_vsi *
-ice_vsi_alloc(struct ice_pf *pf, struct ice_port_info *pi,
-	      enum ice_vsi_type vsi_type, struct ice_channel *ch,
-	      struct ice_vf *vf)
+static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi = NULL;
-
-	if (WARN_ON(vsi_type == ICE_VSI_VF && !vf))
-		return NULL;
 
 	/* Need to protect the allocation of the VSIs at the PF level */
 	mutex_lock(&pf->sw_mutex);
@@ -679,11 +667,7 @@ ice_vsi_alloc(struct ice_pf *pf, struct ice_port_info *pi,
 	if (!vsi)
 		goto unlock_pf;
 
-	vsi->type = vsi_type;
 	vsi->back = pf;
-	vsi->port_info = pi;
-	/* For VSIs which don't have a connected VF, this will be NULL */
-	vsi->vf = vf;
 	set_bit(ICE_VSI_DOWN, vsi->state);
 
 	/* fill slot and make note of the index */
@@ -693,15 +677,6 @@ ice_vsi_alloc(struct ice_pf *pf, struct ice_port_info *pi,
 	/* prepare pf->next_vsi for next use */
 	pf->next_vsi = ice_get_free_slot(pf->vsi, pf->num_alloc_vsi,
 					 pf->next_vsi);
-
-	if (vsi->type == ICE_VSI_CTRL) {
-		if (vf) {
-			vf->ctrl_vsi_idx = vsi->idx;
-		} else {
-			WARN_ON(pf->ctrl_vsi_idx != ICE_NO_VSI);
-			pf->ctrl_vsi_idx = vsi->idx;
-		}
-	}
 
 unlock_pf:
 	mutex_unlock(&pf->sw_mutex);
@@ -1267,12 +1242,15 @@ ice_chnl_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 /**
  * ice_vsi_init - Create and initialize a VSI
  * @vsi: the VSI being configured
- * @init_vsi: flag, tell if VSI need to be initialized
+ * @vsi_flags: VSI configuration flags
+ *
+ * Set ICE_FLAG_VSI_INIT to initialize a new VSI context, clear it to
+ * reconfigure an existing context.
  *
  * This initializes a VSI context depending on the VSI type to be added and
  * passes it down to the add_vsi aq command to create a new VSI.
  */
-static int ice_vsi_init(struct ice_vsi *vsi, int init_vsi)
+static int ice_vsi_init(struct ice_vsi *vsi, u32 vsi_flags)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
@@ -1334,7 +1312,7 @@ static int ice_vsi_init(struct ice_vsi *vsi, int init_vsi)
 		/* if updating VSI context, make sure to set valid_section:
 		 * to indicate which section of VSI context being updated
 		 */
-		if (!(init_vsi & ICE_VSI_FLAG_INIT))
+		if (!(vsi_flags & ICE_VSI_FLAG_INIT))
 			ctxt->info.valid_sections |=
 				cpu_to_le16(ICE_AQ_VSI_PROP_Q_OPT_VALID);
 	}
@@ -1347,7 +1325,7 @@ static int ice_vsi_init(struct ice_vsi *vsi, int init_vsi)
 		if (ret)
 			goto out;
 
-		if (!(init_vsi & ICE_VSI_FLAG_INIT))
+		if (!(vsi_flags & ICE_VSI_FLAG_INIT))
 			/* means VSI being updated */
 			/* must to indicate which section of VSI context are
 			 * being modified
@@ -1363,7 +1341,7 @@ static int ice_vsi_init(struct ice_vsi *vsi, int init_vsi)
 			cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
 	}
 
-	if (init_vsi & ICE_VSI_FLAG_INIT) {
+	if (vsi_flags & ICE_VSI_FLAG_INIT) {
 		ret = ice_add_vsi(hw, vsi->idx, ctxt, NULL);
 		if (ret) {
 			dev_err(dev, "Add VSI failed, err %d\n", ret);
@@ -1527,7 +1505,7 @@ static int ice_get_vf_ctrl_res(struct ice_pf *pf, struct ice_vsi *vsi)
  * ice_vsi_setup_vector_base - Set up the base vector for the given VSI
  * @vsi: ptr to the VSI
  *
- * This should only be called after ice_vsi_alloc() which allocates the
+ * This should only be called after ice_vsi_alloc_def() which allocates the
  * corresponding SW VSI structure and initializes num_queue_pairs for the
  * newly allocated VSI.
  *
@@ -2702,14 +2680,10 @@ static int ice_vsi_cfg_tc_lan(struct ice_pf *pf, struct ice_vsi *vsi)
 /**
  * ice_vsi_cfg_def - configure default VSI based on the type
  * @vsi: pointer to VSI
- * @vf: pointer to VF to which this VSI connects. This field is used primarily
- *      for the ICE_VSI_VF type. Other VSI types should pass NULL.
- * @ch: ptr to channel
- * @init_vsi: is this an initialization or a reconfigure of the VSI
+ * @params: the parameters to configure this VSI with
  */
 static int
-ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
-		int init_vsi)
+ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
 	struct ice_pf *pf = vsi->back;
@@ -2717,7 +2691,7 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
 
 	vsi->vsw = pf->first_sw;
 
-	ret = ice_vsi_alloc_def(vsi, vf, ch);
+	ret = ice_vsi_alloc_def(vsi, params->ch);
 	if (ret)
 		return ret;
 
@@ -2740,7 +2714,7 @@ ice_vsi_cfg_def(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* create the VSI */
-	ret = ice_vsi_init(vsi, init_vsi);
+	ret = ice_vsi_init(vsi, params->flags);
 	if (ret)
 		goto unroll_get_qs;
 
@@ -2863,25 +2837,41 @@ unroll_vsi_alloc:
 }
 
 /**
- * ice_vsi_cfg - configure VSI and tc on it
+ * ice_vsi_cfg - configure a previously allocated VSI
  * @vsi: pointer to VSI
- * @vf: pointer to VF to which this VSI connects. This field is used primarily
- *      for the ICE_VSI_VF type. Other VSI types should pass NULL.
- * @ch: ptr to channel
- * @init_vsi: is this an initialization or a reconfigure of the VSI
+ * @params: parameters used to configure this VSI
  */
-int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vf *vf, struct ice_channel *ch,
-		int init_vsi)
+int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params)
 {
+	struct ice_pf *pf = vsi->back;
 	int ret;
 
-	ret = ice_vsi_cfg_def(vsi, vf, ch, init_vsi);
+	if (WARN_ON(params->type == ICE_VSI_VF && !params->vf))
+		return -EINVAL;
+
+	vsi->type = params->type;
+	vsi->port_info = params->pi;
+
+	/* For VSIs which don't have a connected VF, this will be NULL */
+	vsi->vf = params->vf;
+
+	ret = ice_vsi_cfg_def(vsi, params);
 	if (ret)
 		return ret;
 
 	ret = ice_vsi_cfg_tc_lan(vsi->back, vsi);
 	if (ret)
 		ice_vsi_decfg(vsi);
+
+	if (vsi->type == ICE_VSI_CTRL) {
+		if (vsi->vf) {
+			WARN_ON(vsi->vf->ctrl_vsi_idx != ICE_NO_VSI);
+			vsi->vf->ctrl_vsi_idx = vsi->idx;
+		} else {
+			WARN_ON(pf->ctrl_vsi_idx != ICE_NO_VSI);
+			pf->ctrl_vsi_idx = vsi->idx;
+		}
+	}
 
 	return ret;
 }
@@ -2946,11 +2936,7 @@ void ice_vsi_decfg(struct ice_vsi *vsi)
 /**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
- * @pi: pointer to the port_info instance
- * @vsi_type: VSI type
- * @vf: pointer to VF to which this VSI connects. This field is used primarily
- *      for the ICE_VSI_VF type. Other VSI types should pass NULL.
- * @ch: ptr to channel
+ * @params: parameters to use when creating the VSI
  *
  * This allocates the sw VSI structure and its queue resources.
  *
@@ -2958,21 +2944,26 @@ void ice_vsi_decfg(struct ice_vsi *vsi)
  * success, NULL on failure.
  */
 struct ice_vsi *
-ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
-	      enum ice_vsi_type vsi_type, struct ice_vf *vf,
-	      struct ice_channel *ch)
+ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi;
 	int ret;
 
-	vsi = ice_vsi_alloc(pf, pi, vsi_type, ch, vf);
+	/* ice_vsi_setup can only initialize a new VSI, and we must have
+	 * a port_info structure for it.
+	 */
+	if (WARN_ON(!(params->flags & ICE_VSI_FLAG_INIT)) ||
+	    WARN_ON(!params->pi))
+		return NULL;
+
+	vsi = ice_vsi_alloc(pf);
 	if (!vsi) {
 		dev_err(dev, "could not allocate VSI\n");
 		return NULL;
 	}
 
-	ret = ice_vsi_cfg(vsi, vf, ch, ICE_VSI_FLAG_INIT);
+	ret = ice_vsi_cfg(vsi, params);
 	if (ret)
 		goto err_vsi_cfg;
 
@@ -2997,7 +2988,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	return vsi;
 
 err_vsi_cfg:
-	if (vsi_type == ICE_VSI_VF)
+	if (params->type == ICE_VSI_VF)
 		ice_enable_lag(pf->lag);
 	ice_vsi_free(vsi);
 
@@ -3477,12 +3468,16 @@ ice_vsi_realloc_stat_arrays(struct ice_vsi *vsi, int prev_txq, int prev_rxq)
 /**
  * ice_vsi_rebuild - Rebuild VSI after reset
  * @vsi: VSI to be rebuild
- * @init_vsi: flag, tell if VSI need to be initialized
+ * @vsi_flags: flags used for VSI rebuild flow
+ *
+ * Set vsi_flags to ICE_VSI_FLAG_INIT to initialize a new VSI, or
+ * ICE_VSI_FLAG_NO_INIT to rebuild an existing VSI in hardware.
  *
  * Returns 0 on success and negative value on failure
  */
-int ice_vsi_rebuild(struct ice_vsi *vsi, int init_vsi)
+int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 {
+	struct ice_vsi_cfg_params params = {};
 	struct ice_coalesce_stored *coalesce;
 	int ret, prev_txq, prev_rxq;
 	int prev_num_q_vectors = 0;
@@ -3490,6 +3485,9 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, int init_vsi)
 
 	if (!vsi)
 		return -EINVAL;
+
+	params = ice_vsi_to_params(vsi);
+	params.flags = vsi_flags;
 
 	pf = vsi->back;
 	if (WARN_ON(vsi->type == ICE_VSI_VF && !vsi->vf))
@@ -3506,13 +3504,13 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, int init_vsi)
 	prev_rxq = vsi->num_rxq;
 
 	ice_vsi_decfg(vsi);
-	ret = ice_vsi_cfg_def(vsi, vsi->vf, vsi->ch, init_vsi);
+	ret = ice_vsi_cfg_def(vsi, &params);
 	if (ret)
 		goto err_vsi_cfg;
 
 	ret = ice_vsi_cfg_tc_lan(pf, vsi);
 	if (ret) {
-		if (init_vsi & ICE_VSI_FLAG_INIT) {
+		if (vsi_flags & ICE_VSI_FLAG_INIT) {
 			ret = -EIO;
 			goto err_vsi_cfg_tc_lan;
 		} else {
