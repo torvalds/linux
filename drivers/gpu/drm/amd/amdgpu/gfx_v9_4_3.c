@@ -47,6 +47,8 @@ MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
 #define GFX9_MEC_HPD_SIZE 4096
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
 
+struct amdgpu_gfx_ras gfx_v9_4_3_ras;
+
 static void gfx_v9_4_3_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v9_4_3_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev);
@@ -659,6 +661,7 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 	u32 gb_addr_config;
 
 	adev->gfx.funcs = &gfx_v9_4_3_gfx_funcs;
+	adev->gfx.ras = &gfx_v9_4_3_ras;
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 4, 3):
@@ -845,7 +848,7 @@ static int gfx_v9_4_3_sw_init(void *handle)
 	if (r)
 		return r;
 
-	return 0;
+	return amdgpu_gfx_ras_sw_init(adev);
 }
 
 static int gfx_v9_4_3_sw_fini(void *handle)
@@ -4341,4 +4344,17 @@ static int gfx_v9_4_3_xcp_suspend(void *handle, uint32_t inst_mask)
 struct amdgpu_xcp_ip_funcs gfx_v9_4_3_xcp_funcs = {
 	.suspend = &gfx_v9_4_3_xcp_suspend,
 	.resume = &gfx_v9_4_3_xcp_resume
+};
+
+struct amdgpu_ras_block_hw_ops  gfx_v9_4_3_ras_ops = {
+	.query_ras_error_count = &gfx_v9_4_3_query_ras_error_count,
+	.reset_ras_error_count = &gfx_v9_4_3_reset_ras_error_count,
+	.query_ras_error_status = &gfx_v9_4_3_query_ras_error_status,
+	.reset_ras_error_status = &gfx_v9_4_3_reset_ras_error_status,
+};
+
+struct amdgpu_gfx_ras gfx_v9_4_3_ras = {
+	.ras_block = {
+		.hw_ops = &gfx_v9_4_3_ras_ops,
+	},
 };
