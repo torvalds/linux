@@ -1909,6 +1909,7 @@ static const struct dev_pm_ops geni_i2c_pm_ops = {
 	.runtime_resume		= geni_i2c_runtime_resume,
 	.freeze                 = geni_i2c_suspend_late,
 	.restore                = geni_i2c_hib_resume_noirq,
+	.thaw			= geni_i2c_hib_resume_noirq,
 };
 
 static const struct of_device_id geni_i2c_dt_match[] = {
