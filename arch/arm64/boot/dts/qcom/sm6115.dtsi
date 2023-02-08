@@ -963,6 +963,15 @@
 				status = "disabled";
 			};
 
+			uart4: serial@4a90000 {
+				compatible = "qcom,geni-debug-uart";
+				reg = <0x04a90000 0x4000>;
+				clock-names = "se";
+				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
+				interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
 			i2c5: i2c@4a94000 {
 				compatible = "qcom,geni-i2c";
 				reg = <0x04a94000 0x4000>;
@@ -992,7 +1001,6 @@
 				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				status = "disabled";
 			};
 		};
 
