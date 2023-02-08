@@ -1744,36 +1744,49 @@ static int handle_group_alt(struct objtool_file *file,
 			    struct instruction *orig_insn,
 			    struct instruction **new_insn)
 {
-	struct instruction *last_orig_insn, *last_new_insn = NULL, *insn, *nop = NULL;
+	struct instruction *last_new_insn = NULL, *insn, *nop = NULL;
 	struct alt_group *orig_alt_group, *new_alt_group;
 	unsigned long dest_off;
 
-
-	orig_alt_group = malloc(sizeof(*orig_alt_group));
+	orig_alt_group = orig_insn->alt_group;
 	if (!orig_alt_group) {
-		WARN("malloc failed");
-		return -1;
-	}
-	orig_alt_group->cfi = calloc(special_alt->orig_len,
-				     sizeof(struct cfi_state *));
-	if (!orig_alt_group->cfi) {
-		WARN("calloc failed");
-		return -1;
-	}
+		struct instruction *last_orig_insn = NULL;
 
-	last_orig_insn = NULL;
-	insn = orig_insn;
-	sec_for_each_insn_from(file, insn) {
-		if (insn->offset >= special_alt->orig_off + special_alt->orig_len)
-			break;
+		orig_alt_group = malloc(sizeof(*orig_alt_group));
+		if (!orig_alt_group) {
+			WARN("malloc failed");
+			return -1;
+		}
+		orig_alt_group->cfi = calloc(special_alt->orig_len,
+					     sizeof(struct cfi_state *));
+		if (!orig_alt_group->cfi) {
+			WARN("calloc failed");
+			return -1;
+		}
 
-		insn->alt_group = orig_alt_group;
-		last_orig_insn = insn;
+		insn = orig_insn;
+		sec_for_each_insn_from(file, insn) {
+			if (insn->offset >= special_alt->orig_off + special_alt->orig_len)
+				break;
+
+			insn->alt_group = orig_alt_group;
+			last_orig_insn = insn;
+		}
+		orig_alt_group->orig_group = NULL;
+		orig_alt_group->first_insn = orig_insn;
+		orig_alt_group->last_insn = last_orig_insn;
+	} else {
+		if (orig_alt_group->last_insn->offset + orig_alt_group->last_insn->len -
+		    orig_alt_group->first_insn->offset != special_alt->orig_len) {
+			WARN_FUNC("weirdly overlapping alternative! %ld != %d",
+				  orig_insn->sec, orig_insn->offset,
+				  orig_alt_group->last_insn->offset +
+				  orig_alt_group->last_insn->len -
+				  orig_alt_group->first_insn->offset,
+				  special_alt->orig_len);
+			return -1;
+		}
 	}
-	orig_alt_group->orig_group = NULL;
-	orig_alt_group->first_insn = orig_insn;
-	orig_alt_group->last_insn = last_orig_insn;
-
 
 	new_alt_group = malloc(sizeof(*new_alt_group));
 	if (!new_alt_group) {
@@ -1848,7 +1861,7 @@ static int handle_group_alt(struct objtool_file *file,
 
 		dest_off = arch_jump_destination(insn);
 		if (dest_off == special_alt->new_off + special_alt->new_len) {
-			insn->jump_dest = next_insn_same_sec(file, last_orig_insn);
+			insn->jump_dest = next_insn_same_sec(file, orig_alt_group->last_insn);
 			if (!insn->jump_dest) {
 				WARN_FUNC("can't find alternative jump destination",
 					  insn->sec, insn->offset);
@@ -3226,8 +3239,12 @@ static int propagate_alt_cfi(struct objtool_file *file, struct instruction *insn
 		alt_cfi[group_off] = insn->cfi;
 	} else {
 		if (cficmp(alt_cfi[group_off], insn->cfi)) {
-			WARN_FUNC("stack layout conflict in alternatives",
-				  insn->sec, insn->offset);
+			struct alt_group *orig_group = insn->alt_group->orig_group ?: insn->alt_group;
+			struct instruction *orig = orig_group->first_insn;
+			char *where = offstr(insn->sec, insn->offset);
+			WARN_FUNC("stack layout conflict in alternatives: %s",
+				  orig->sec, orig->offset, where);
+			free(where);
 			return -1;
 		}
 	}
