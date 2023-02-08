@@ -254,6 +254,8 @@ struct dw_hdmi_plat_data {
 	int (*get_vp_id)(struct drm_crtc_state *crtc_state);
 	void (*update_color_format)(struct drm_connector_state *conn_state, void *data);
 	bool (*check_hdr_color_change)(struct drm_connector_state *conn_state, void *data);
+	int (*get_colorimetry)(void *data, struct edid *edid);
+	void (*set_prev_bus_format)(void *data, unsigned long bus_format);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

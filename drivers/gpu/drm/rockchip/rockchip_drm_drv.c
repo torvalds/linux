@@ -987,6 +987,50 @@ int rockchip_drm_parse_next_hdr(struct next_hdr_sink_data *sink_data,
 }
 EXPORT_SYMBOL(rockchip_drm_parse_next_hdr);
 
+#define COLORIMETRY_DATA_BLOCK		0x5
+#define USE_EXTENDED_TAG		0x07
+
+static bool cea_db_is_hdmi_colorimetry_data_block(const u8 *db)
+{
+	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+		return false;
+
+	if (db[1] != COLORIMETRY_DATA_BLOCK)
+		return false;
+
+	return true;
+}
+
+int
+rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid *edid)
+{
+	const u8 *edid_ext;
+	int i, start, end;
+
+	if (!colorimetry || !edid)
+		return -EINVAL;
+
+	*colorimetry = 0;
+
+	edid_ext = find_cea_extension(edid);
+	if (!edid_ext)
+		return -EINVAL;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return -EINVAL;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		const u8 *db = &edid_ext[i];
+
+		if (cea_db_is_hdmi_colorimetry_data_block(db))
+			/* As per CEA 861-G spec */
+			*colorimetry = ((db[3] & (0x1 << 7)) << 1) | db[2];
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_parse_colorimetry_data_block);
+
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
  * device.  This is used by the VOPs to map GEM buffers to a common DMA

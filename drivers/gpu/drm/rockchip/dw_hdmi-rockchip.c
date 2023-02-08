@@ -231,6 +231,7 @@ struct rockchip_hdmi {
 	u8 max_frl_rate_per_lane;
 	u8 max_lanes;
 	u8 add_func;
+	u8 edid_colorimetry;
 	struct rockchip_drm_dsc_cap dsc_cap;
 	struct next_hdr_sink_data next_hdr_data;
 	struct dw_hdmi_link_config link_cfg;
@@ -2332,6 +2333,13 @@ dw_hdmi_rockchip_get_next_hdr_data(void *data, struct edid *edid,
 	return ret;
 };
 
+static int dw_hdmi_rockchip_get_colorimetry(void *data, struct edid *edid)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return rockchip_drm_parse_colorimetry_data_block(&hdmi->edid_colorimetry, edid);
+}
+
 static
 struct dw_hdmi_link_config *dw_hdmi_rockchip_get_link_cfg(void *data)
 {
@@ -3321,6 +3329,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_edid_dsc_info;
 	plat_data->get_next_hdr_data =
 		dw_hdmi_rockchip_get_next_hdr_data;
+	plat_data->get_colorimetry =
+		dw_hdmi_rockchip_get_colorimetry;
 	plat_data->get_link_cfg = dw_hdmi_rockchip_get_link_cfg;
 	plat_data->set_grf_cfg = rk3588_set_grf_cfg;
 	plat_data->get_grf_color_fmt = rk3588_get_grf_color_fmt;

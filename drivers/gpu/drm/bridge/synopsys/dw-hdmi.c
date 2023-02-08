@@ -2945,6 +2945,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info = &connector->display_info;
+	void *data = hdmi->plat_data->phy_data;
 	int i,  ret = 0;
 
 	memset(metedata, 0, sizeof(*metedata));
@@ -2959,6 +2960,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		if (hdmi->plat_data->get_color_changed)
 			hdmi->plat_data->get_yuv422_format(connector, edid);
+		if (hdmi->plat_data->get_colorimetry)
+			hdmi->plat_data->get_colorimetry(data, edid);
 
 		list_for_each_entry(mode, &connector->probed_modes, head) {
 			vic = drm_match_cea_mode(mode);
