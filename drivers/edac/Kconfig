@@ -518,6 +518,28 @@ config EDAC_QCOM
 	  For debugging issues having to do with stability and overall system
 	  health, you should probably say 'Y' here.
 
+config EDAC_QCOM_LLCC_PANIC_ON_CE
+	depends on EDAC_QCOM
+	bool "panic on correctable errors - qcom llcc"
+	help
+	  Forcibly cause kernel panic if a correctable error (CE) is
+	  detected, even though the error is (by definition) correctable and
+	  would otherwise result in no adverse system effects. This can reduce
+	  debugging times on hardware which may be operating at voltages or
+	  frequencies outside normal specifications.
+
+	  For production builds, you should definitely say 'N' here.
+
+config EDAC_QCOM_LLCC_PANIC_ON_UE
+	depends on EDAC_QCOM
+	bool "Panic on uncorrectable errors - qcom llcc"
+	help
+	  Forcibly cause a kernel panic if an uncorrectable error (UE) is
+	  detected. This can reduce debugging times on hardware which may be
+	  operating at voltages or frequencies outside normal specification.
+
+	  For production builds, you should probably say 'N' here.
+
 config EDAC_ASPEED
 	tristate "Aspeed AST BMC SoC"
 	depends on ARCH_ASPEED
