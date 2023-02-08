@@ -537,8 +537,8 @@
 		SPKVDD1-supply = <&main_dc_reg>;
 		SPKVDD2-supply = <&main_dc_reg>;
 
-		wlf,ldo1ena = <&gpb0 0 GPIO_ACTIVE_HIGH>;
-		wlf,ldo2ena = <&gpb0 1 GPIO_ACTIVE_HIGH>;
+		wlf,ldo1ena-gpios = <&gpb0 0 GPIO_ACTIVE_HIGH>;
+		wlf,ldo2ena-gpios = <&gpb0 1 GPIO_ACTIVE_HIGH>;
 	};
 };
 
