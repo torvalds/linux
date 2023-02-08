@@ -419,10 +419,7 @@ static const struct media_entity_operations risp_entity_ops = {
 static int risp_probe_resources(struct rcar_isp *isp,
 				struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	isp->base = devm_ioremap_resource(&pdev->dev, res);
+	isp->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(isp->base))
 		return PTR_ERR(isp->base);
 
