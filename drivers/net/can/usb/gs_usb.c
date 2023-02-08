@@ -1029,9 +1029,7 @@ static int gs_can_close(struct net_device *netdev)
 	dev->can.state = CAN_STATE_STOPPED;
 
 	/* reset the device */
-	rc = gs_cmd_reset(dev);
-	if (rc < 0)
-		netdev_warn(netdev, "Couldn't shutdown device (err=%d)", rc);
+	gs_cmd_reset(dev);
 
 	/* reset tx contexts */
 	for (rc = 0; rc < GS_MAX_TX_URBS; rc++) {
