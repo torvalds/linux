@@ -636,15 +636,18 @@ static DRIVER_ATTR_WO(uevent);
  */
 int bus_add_driver(struct device_driver *drv)
 {
-	struct bus_type *bus;
+	struct subsys_private *sp = bus_to_subsys(drv->bus);
 	struct driver_private *priv;
 	int error = 0;
 
-	bus = bus_get(drv->bus);
-	if (!bus)
+	if (!sp)
 		return -EINVAL;
 
-	pr_debug("bus: '%s': add driver %s\n", bus->name, drv->name);
+	/*
+	 * Reference in sp is now incremented and will be dropped when
+	 * the driver is removed from the bus
+	 */
+	pr_debug("bus: '%s': add driver %s\n", sp->bus->name, drv->name);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -654,14 +657,14 @@ int bus_add_driver(struct device_driver *drv)
 	klist_init(&priv->klist_devices, NULL, NULL);
 	priv->driver = drv;
 	drv->p = priv;
-	priv->kobj.kset = bus->p->drivers_kset;
+	priv->kobj.kset = sp->drivers_kset;
 	error = kobject_init_and_add(&priv->kobj, &driver_ktype, NULL,
 				     "%s", drv->name);
 	if (error)
 		goto out_unregister;
 
-	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
-	if (drv->bus->p->drivers_autoprobe) {
+	klist_add_tail(&priv->knode_bus, &sp->klist_drivers);
+	if (sp->drivers_autoprobe) {
 		error = driver_attach(drv);
 		if (error)
 			goto out_del_list;
@@ -673,7 +676,7 @@ int bus_add_driver(struct device_driver *drv)
 		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
 			__func__, drv->name);
 	}
-	error = driver_add_groups(drv, bus->drv_groups);
+	error = driver_add_groups(drv, sp->bus->drv_groups);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
 		printk(KERN_ERR "%s: driver_add_groups(%s) failed\n",
@@ -698,7 +701,7 @@ out_unregister:
 	/* drv->p is freed in driver_release()  */
 	drv->p = NULL;
 out_put_bus:
-	bus_put(bus);
+	subsys_put(sp);
 	return error;
 }
 
@@ -712,19 +715,29 @@ out_put_bus:
  */
 void bus_remove_driver(struct device_driver *drv)
 {
-	if (!drv->bus)
+	struct subsys_private *sp = bus_to_subsys(drv->bus);
+
+	if (!sp)
 		return;
+
+	pr_debug("bus: '%s': remove driver %s\n", sp->bus->name, drv->name);
 
 	if (!drv->suppress_bind_attrs)
 		remove_bind_files(drv);
-	driver_remove_groups(drv, drv->bus->drv_groups);
+	driver_remove_groups(drv, sp->bus->drv_groups);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
-	pr_debug("bus: '%s': remove driver %s\n", drv->bus->name, drv->name);
 	driver_detach(drv);
 	module_remove_driver(drv);
 	kobject_put(&drv->p->kobj);
-	bus_put(drv->bus);
+
+	/*
+	 * Decrement the reference count twice, once for the bus_to_subsys()
+	 * call in the start of this function, and the second one from the
+	 * reference increment in bus_add_driver()
+	 */
+	subsys_put(sp);
+	subsys_put(sp);
 }
 
 /* Helper for bus_rescan_devices's iter */
