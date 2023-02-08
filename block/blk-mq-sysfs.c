@@ -129,15 +129,15 @@ static const struct sysfs_ops blk_mq_hw_sysfs_ops = {
 	.show	= blk_mq_hw_sysfs_show,
 };
 
-static struct kobj_type blk_mq_ktype = {
+static const struct kobj_type blk_mq_ktype = {
 	.release	= blk_mq_sysfs_release,
 };
 
-static struct kobj_type blk_mq_ctx_ktype = {
+static const struct kobj_type blk_mq_ctx_ktype = {
 	.release	= blk_mq_ctx_sysfs_release,
 };
 
-static struct kobj_type blk_mq_hw_ktype = {
+static const struct kobj_type blk_mq_hw_ktype = {
 	.sysfs_ops	= &blk_mq_hw_sysfs_ops,
 	.default_groups = default_hw_ctx_groups,
 	.release	= blk_mq_hw_sysfs_release,
