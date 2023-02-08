@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version if
 // anything is changed in this file
-#define SMU13_0_6_DRIVER_IF_VERSION 0x08042022
+#define SMU13_0_6_DRIVER_IF_VERSION 0x08042023
 
 //I2C Interface
 #define NUM_I2C_CONTROLLERS                8
@@ -106,7 +106,7 @@ typedef enum {
 } UCLK_DPM_MODE_e;
 
 typedef struct {
-  //0-26 SOC, 27-29 SOCIO
+  //0-23 SOC, 24-26 SOCIO, 27-29 SOC
   uint16_t avgPsmCount[30];
   uint16_t minPsmCount[30];
   float    avgPsmVoltage[30];
