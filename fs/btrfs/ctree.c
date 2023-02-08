@@ -853,8 +853,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 /*
  * Search for a key in the given extent_buffer.
  *
- * The lower boundary for the search is specified by the slot number @low. Use a
- * value of 0 to search over the whole extent buffer.
+ * The lower boundary for the search is specified by the slot number @first_slot.
+ * Use a value of 0 to search over the whole extent buffer.
  *
  * The slot in the extent buffer is returned via @slot. If the key exists in the
  * extent buffer, then @slot will point to the slot where the key is, otherwise
@@ -863,18 +863,23 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
  * Slot may point to the total number of items (i.e. one position beyond the last
  * key) if the key is bigger than the last key in the extent buffer.
  */
-int btrfs_generic_bin_search(struct extent_buffer *eb, int low,
+int btrfs_generic_bin_search(struct extent_buffer *eb, int first_slot,
 			     const struct btrfs_key *key, int *slot)
 {
 	unsigned long p;
 	int item_size;
-	int high = btrfs_header_nritems(eb);
+	/*
+	 * Use unsigned types for the low and high slots, so that we get a more
+	 * efficient division in the search loop below.
+	 */
+	u32 low = first_slot;
+	u32 high = btrfs_header_nritems(eb);
 	int ret;
 	const int key_size = sizeof(struct btrfs_disk_key);
 
-	if (low > high) {
+	if (unlikely(low > high)) {
 		btrfs_err(eb->fs_info,
-		 "%s: low (%d) > high (%d) eb %llu owner %llu level %d",
+		 "%s: low (%u) > high (%u) eb %llu owner %llu level %d",
 			  __func__, low, high, eb->start,
 			  btrfs_header_owner(eb), btrfs_header_level(eb));
 		return -EINVAL;

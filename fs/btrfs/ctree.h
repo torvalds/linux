@@ -508,7 +508,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range);
 int __init btrfs_ctree_init(void);
 void __cold btrfs_ctree_exit(void);
 
-int btrfs_generic_bin_search(struct extent_buffer *eb, int low,
+int btrfs_generic_bin_search(struct extent_buffer *eb, int first_slot,
 			     const struct btrfs_key *key, int *slot);
 
 /*
