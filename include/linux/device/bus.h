@@ -114,7 +114,7 @@ struct bus_type {
 
 extern int __must_check bus_register(struct bus_type *bus);
 
-extern void bus_unregister(struct bus_type *bus);
+extern void bus_unregister(const struct bus_type *bus);
 
 extern int __must_check bus_rescan_devices(struct bus_type *bus);
 
