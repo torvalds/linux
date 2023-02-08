@@ -175,24 +175,30 @@ static const struct sysfs_ops bus_sysfs_ops = {
 	.store	= bus_attr_store,
 };
 
-int bus_create_file(struct bus_type *bus, struct bus_attribute *attr)
+int bus_create_file(const struct bus_type *bus, struct bus_attribute *attr)
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
 	int error;
-	if (bus_get(bus)) {
-		error = sysfs_create_file(&bus->p->subsys.kobj, &attr->attr);
-		bus_put(bus);
-	} else
-		error = -EINVAL;
+
+	if (!sp)
+		return -EINVAL;
+
+	error = sysfs_create_file(&sp->subsys.kobj, &attr->attr);
+
+	subsys_put(sp);
 	return error;
 }
 EXPORT_SYMBOL_GPL(bus_create_file);
 
-void bus_remove_file(struct bus_type *bus, struct bus_attribute *attr)
+void bus_remove_file(const struct bus_type *bus, struct bus_attribute *attr)
 {
-	if (bus_get(bus)) {
-		sysfs_remove_file(&bus->p->subsys.kobj, &attr->attr);
-		bus_put(bus);
-	}
+	struct subsys_private *sp = bus_to_subsys(bus);
+
+	if (!sp)
+		return;
+
+	sysfs_remove_file(&sp->subsys.kobj, &attr->attr);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(bus_remove_file);
 
