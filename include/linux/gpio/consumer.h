@@ -3,15 +3,14 @@
 #define __LINUX_GPIO_CONSUMER_H
 
 #include <linux/bits.h>
-#include <linux/bug.h>
-#include <linux/compiler_types.h>
-#include <linux/err.h>
+#include <linux/types.h>
 
 struct acpi_device;
 struct device;
 struct fwnode_handle;
-struct gpio_desc;
+
 struct gpio_array;
+struct gpio_desc;
 
 /**
  * struct gpio_descs - Struct containing an array of descriptors that can be
@@ -185,7 +184,10 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 
 #else /* CONFIG_GPIOLIB */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
+
+#include <asm/bug.h>
 
 static inline int gpiod_count(struct device *dev, const char *con_id)
 {
@@ -616,6 +618,8 @@ struct gpio_desc *acpi_get_and_request_gpiod(char *path, unsigned int pin, char 
 
 #else  /* CONFIG_GPIOLIB && CONFIG_ACPI */
 
+#include <linux/err.h>
+
 static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 			      const struct acpi_gpio_mapping *gpios)
 {
@@ -646,6 +650,8 @@ int gpiod_export_link(struct device *dev, const char *name,
 void gpiod_unexport(struct gpio_desc *desc);
 
 #else  /* CONFIG_GPIOLIB && CONFIG_GPIO_SYSFS */
+
+#include <asm/errno.h>
 
 static inline int gpiod_export(struct gpio_desc *desc,
 			       bool direction_may_change)

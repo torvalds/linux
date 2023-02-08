@@ -12,8 +12,9 @@
 #ifndef __LINUX_GPIO_H
 #define __LINUX_GPIO_H
 
-#include <linux/errno.h>
 #include <linux/types.h>
+
+struct device;
 
 /* see Documentation/driver-api/gpio/legacy.rst */
 
@@ -134,19 +135,16 @@ void gpio_free_array(const struct gpio *array, size_t num);
 
 /* CONFIG_GPIOLIB: bindings for managed devices that want to request gpios */
 
-struct device;
-
 int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
 int devm_gpio_request_one(struct device *dev, unsigned gpio,
 			  unsigned long flags, const char *label);
 
 #else /* ! CONFIG_GPIOLIB */
 
-#include <linux/bug.h>
 #include <linux/kernel.h>
 
-struct device;
-struct gpio_chip;
+#include <asm/bug.h>
+#include <asm/errno.h>
 
 static inline bool gpio_is_valid(int number)
 {

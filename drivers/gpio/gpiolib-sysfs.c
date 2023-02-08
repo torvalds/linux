@@ -1,17 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/idr.h>
-#include <linux/mutex.h>
+
+#include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/sysfs.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/driver.h>
+#include <linux/idr.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
+#include <linux/kstrtox.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/ctype.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 
 #include "gpiolib.h"
 #include "gpiolib-sysfs.h"
+
+struct kernfs_node;
 
 #define GPIO_IRQF_TRIGGER_NONE		0
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)

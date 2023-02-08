@@ -10,14 +10,16 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/io.h>
-#include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 
 #include "gpiolib.h"
