@@ -157,8 +157,8 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	bool clear;
 	int ret = 0;
 
-	if (!src_mem)
-		return 0;
+	if (WARN_ON(!src_mem))
+		return -EINVAL;
 
 	src_man = ttm_manager_type(bdev, src_mem->mem_type);
 	if (ttm && ((ttm->page_flags & TTM_TT_FLAG_SWAPPED) ||
