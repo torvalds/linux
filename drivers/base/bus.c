@@ -355,18 +355,20 @@ static struct device *next_device(struct klist_iter *i)
 int bus_for_each_dev(const struct bus_type *bus, struct device *start,
 		     void *data, int (*fn)(struct device *, void *))
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
 	struct klist_iter i;
 	struct device *dev;
 	int error = 0;
 
-	if (!bus || !bus->p)
+	if (!sp)
 		return -EINVAL;
 
-	klist_iter_init_node(&bus->p->klist_devices, &i,
+	klist_iter_init_node(&sp->klist_devices, &i,
 			     (start ? &start->p->knode_bus : NULL));
 	while (!error && (dev = next_device(&i)))
 		error = fn(dev, data);
 	klist_iter_exit(&i);
+	subsys_put(sp);
 	return error;
 }
 EXPORT_SYMBOL_GPL(bus_for_each_dev);
@@ -390,18 +392,20 @@ struct device *bus_find_device(const struct bus_type *bus,
 			       struct device *start, const void *data,
 			       int (*match)(struct device *dev, const void *data))
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
 	struct klist_iter i;
 	struct device *dev;
 
-	if (!bus || !bus->p)
+	if (!sp)
 		return NULL;
 
-	klist_iter_init_node(&bus->p->klist_devices, &i,
+	klist_iter_init_node(&sp->klist_devices, &i,
 			     (start ? &start->p->knode_bus : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;
 	klist_iter_exit(&i);
+	subsys_put(sp);
 	return dev;
 }
 EXPORT_SYMBOL_GPL(bus_find_device);
@@ -440,18 +444,20 @@ static struct device_driver *next_driver(struct klist_iter *i)
 int bus_for_each_drv(const struct bus_type *bus, struct device_driver *start,
 		     void *data, int (*fn)(struct device_driver *, void *))
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
 	struct klist_iter i;
 	struct device_driver *drv;
 	int error = 0;
 
-	if (!bus)
+	if (!sp)
 		return -EINVAL;
 
-	klist_iter_init_node(&bus->p->klist_drivers, &i,
+	klist_iter_init_node(&sp->klist_drivers, &i,
 			     start ? &start->p->knode_bus : NULL);
 	while ((drv = next_driver(&i)) && !error)
 		error = fn(drv, data);
 	klist_iter_exit(&i);
+	subsys_put(sp);
 	return error;
 }
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
