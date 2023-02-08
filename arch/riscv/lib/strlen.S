@@ -96,7 +96,7 @@ strlen_zbb:
 	 * of valid bytes in this chunk.
 	 */
 	srli	a0, t1, 3
-	bgtu	t3, a0, 3f
+	bgtu	t3, a0, 2f
 
 	/* Prepare for the word comparison loop. */
 	addi	t2, t0, SZREG
@@ -112,20 +112,20 @@ strlen_zbb:
 	addi	t0, t0, SZREG
 	orc.b	t1, t1
 	beq	t1, t3, 1b
-2:
+
 	not	t1, t1
 	CZ	t1, t1
+	srli	t1, t1, 3
 
-	/* Get number of processed words.  */
+	/* Get number of processed bytes. */
 	sub	t2, t0, t2
 
 	/* Add number of characters in the first word.  */
 	add	a0, a0, t2
-	srli	t1, t1, 3
 
 	/* Add number of characters in the last word.  */
 	add	a0, a0, t1
-3:
+2:
 	ret
 
 .option pop
