@@ -105,7 +105,7 @@ bool arch_pc_relative_reloc(struct reloc *reloc)
 #define ADD_OP(op) \
 	if (!(op = calloc(1, sizeof(*op)))) \
 		return -1; \
-	else for (list_add_tail(&op->list, ops_list); op; op = NULL)
+	else for (*ops_list = op, ops_list = &op->next; op; op = NULL)
 
 /*
  * Helpers to decode ModRM/SIB:
@@ -148,7 +148,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			    unsigned long offset, unsigned int maxlen,
 			    struct instruction *insn)
 {
-	struct list_head *ops_list = &insn->stack_ops;
+	struct stack_op **ops_list = &insn->stack_ops;
 	const struct elf *elf = file->elf;
 	struct insn ins;
 	int x86_64, ret;

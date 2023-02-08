@@ -62,9 +62,9 @@ struct op_src {
 };
 
 struct stack_op {
+	struct stack_op *next;
 	struct op_dest dest;
 	struct op_src src;
-	struct list_head list;
 };
 
 struct instruction;

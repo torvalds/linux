@@ -398,7 +398,6 @@ static int decode_instructions(struct objtool_file *file)
 			}
 			memset(insn, 0, sizeof(*insn));
 			INIT_LIST_HEAD(&insn->alts);
-			INIT_LIST_HEAD(&insn->stack_ops);
 			INIT_LIST_HEAD(&insn->call_node);
 
 			insn->sec = sec;
@@ -1331,12 +1330,13 @@ static struct reloc *insn_reloc(struct objtool_file *file, struct instruction *i
 
 static void remove_insn_ops(struct instruction *insn)
 {
-	struct stack_op *op, *tmp;
+	struct stack_op *op, *next;
 
-	list_for_each_entry_safe(op, tmp, &insn->stack_ops, list) {
-		list_del(&op->list);
+	for (op = insn->stack_ops; op; op = next) {
+		next = op->next;
 		free(op);
 	}
+	insn->stack_ops = NULL;
 }
 
 static void annotate_call_site(struct objtool_file *file,
@@ -1781,7 +1781,6 @@ static int handle_group_alt(struct objtool_file *file,
 		}
 		memset(nop, 0, sizeof(*nop));
 		INIT_LIST_HEAD(&nop->alts);
-		INIT_LIST_HEAD(&nop->stack_ops);
 
 		nop->sec = special_alt->new_sec;
 		nop->offset = special_alt->new_off + special_alt->new_len;
@@ -3226,7 +3225,7 @@ static int handle_insn_ops(struct instruction *insn,
 {
 	struct stack_op *op;
 
-	list_for_each_entry(op, &insn->stack_ops, list) {
+	for (op = insn->stack_ops; op; op = op->next) {
 
 		if (update_cfi_state(insn, next_insn, &state->cfi, op))
 			return 1;

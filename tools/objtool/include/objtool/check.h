@@ -68,7 +68,7 @@ struct instruction {
 	struct reloc *reloc;
 	struct list_head alts;
 	struct symbol *sym;
-	struct list_head stack_ops;
+	struct stack_op *stack_ops;
 	struct cfi_state *cfi;
 };
 
