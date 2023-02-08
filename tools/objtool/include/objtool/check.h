@@ -27,7 +27,7 @@ struct alt_group {
 	struct alt_group *orig_group;
 
 	/* First and last instructions in the group */
-	struct instruction *first_insn, *last_insn;
+	struct instruction *first_insn, *last_insn, *nop;
 
 	/*
 	 * Byte-offset-addressed len-sized array of pointers to CFI structs.
@@ -36,30 +36,35 @@ struct alt_group {
 	struct cfi_state **cfi;
 };
 
+#define INSN_CHUNK_BITS		8
+#define INSN_CHUNK_SIZE		(1 << INSN_CHUNK_BITS)
+#define INSN_CHUNK_MAX		(INSN_CHUNK_SIZE - 1)
+
 struct instruction {
-	struct list_head list;
 	struct hlist_node hash;
 	struct list_head call_node;
 	struct section *sec;
 	unsigned long offset;
 	unsigned long immediate;
-	unsigned int len;
+
+	u8 len;
+	u8 prev_len;
 	u8 type;
-
-	u16 dead_end		: 1,
-	   ignore		: 1,
-	   ignore_alts		: 1,
-	   hint			: 1,
-	   save			: 1,
-	   restore		: 1,
-	   retpoline_safe	: 1,
-	   noendbr		: 1,
-	   entry		: 1,
-	   visited		: 4,
-	   no_reloc		: 1;
-		/* 2 bit hole */
-
 	s8 instr;
+
+	u32 idx			: INSN_CHUNK_BITS,
+	    dead_end		: 1,
+	    ignore		: 1,
+	    ignore_alts		: 1,
+	    hint		: 1,
+	    save		: 1,
+	    restore		: 1,
+	    retpoline_safe	: 1,
+	    noendbr		: 1,
+	    entry		: 1,
+	    visited		: 4,
+	    no_reloc		: 1;
+		/* 10 bit hole */
 
 	struct alt_group *alt_group;
 	struct instruction *jump_dest;
@@ -109,13 +114,11 @@ static inline bool is_jump(struct instruction *insn)
 struct instruction *find_insn(struct objtool_file *file,
 			      struct section *sec, unsigned long offset);
 
-#define for_each_insn(file, insn)					\
-	list_for_each_entry(insn, &file->insn_list, list)
+struct instruction *next_insn_same_sec(struct objtool_file *file, struct instruction *insn);
 
-#define sec_for_each_insn(file, sec, insn)				\
-	for (insn = find_insn(file, sec, 0);				\
-	     insn && &insn->list != &file->insn_list &&			\
-			insn->sec == sec;				\
-	     insn = list_next_entry(insn, list))
+#define sec_for_each_insn(file, _sec, insn)				\
+	for (insn = find_insn(file, _sec, 0);				\
+	     insn && insn->sec == _sec;					\
+	     insn = next_insn_same_sec(file, insn))
 
 #endif /* _CHECK_H */

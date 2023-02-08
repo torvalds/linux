@@ -47,27 +47,29 @@ struct instruction *find_insn(struct objtool_file *file,
 	return NULL;
 }
 
-static struct instruction *next_insn_same_sec(struct objtool_file *file,
-					      struct instruction *insn)
+struct instruction *next_insn_same_sec(struct objtool_file *file,
+				       struct instruction *insn)
 {
-	struct instruction *next = list_next_entry(insn, list);
+	if (insn->idx == INSN_CHUNK_MAX)
+		return find_insn(file, insn->sec, insn->offset + insn->len);
 
-	if (!next || &next->list == &file->insn_list || next->sec != insn->sec)
+	insn++;
+	if (!insn->len)
 		return NULL;
 
-	return next;
+	return insn;
 }
 
 static struct instruction *next_insn_same_func(struct objtool_file *file,
 					       struct instruction *insn)
 {
-	struct instruction *next = list_next_entry(insn, list);
+	struct instruction *next = next_insn_same_sec(file, insn);
 	struct symbol *func = insn_func(insn);
 
 	if (!func)
 		return NULL;
 
-	if (&next->list != &file->insn_list && insn_func(next) == func)
+	if (next && insn_func(next) == func)
 		return next;
 
 	/* Check if we're already in the subfunction: */
@@ -78,16 +80,34 @@ static struct instruction *next_insn_same_func(struct objtool_file *file,
 	return find_insn(file, func->cfunc->sec, func->cfunc->offset);
 }
 
-static struct instruction *prev_insn_same_sym(struct objtool_file *file,
-					       struct instruction *insn)
+static struct instruction *prev_insn_same_sec(struct objtool_file *file,
+					      struct instruction *insn)
 {
-	struct instruction *prev = list_prev_entry(insn, list);
+	if (insn->idx == 0) {
+		if (insn->prev_len)
+			return find_insn(file, insn->sec, insn->offset - insn->prev_len);
+		return NULL;
+	}
 
-	if (&prev->list != &file->insn_list && insn_func(prev) == insn_func(insn))
+	return insn - 1;
+}
+
+static struct instruction *prev_insn_same_sym(struct objtool_file *file,
+					      struct instruction *insn)
+{
+	struct instruction *prev = prev_insn_same_sec(file, insn);
+
+	if (prev && insn_func(prev) == insn_func(insn))
 		return prev;
 
 	return NULL;
 }
+
+#define for_each_insn(file, insn)					\
+	for (struct section *__sec, *__fake = (struct section *)1;	\
+	     __fake; __fake = NULL)					\
+		for_each_sec(file, __sec)				\
+			sec_for_each_insn(file, __sec, insn)
 
 #define func_for_each_insn(file, func, insn)				\
 	for (insn = find_insn(file, func->sec, func->offset);		\
@@ -96,16 +116,13 @@ static struct instruction *prev_insn_same_sym(struct objtool_file *file,
 
 #define sym_for_each_insn(file, sym, insn)				\
 	for (insn = find_insn(file, sym->sec, sym->offset);		\
-	     insn && &insn->list != &file->insn_list &&			\
-		insn->sec == sym->sec &&				\
-		insn->offset < sym->offset + sym->len;			\
-	     insn = list_next_entry(insn, list))
+	     insn && insn->offset < sym->offset + sym->len;		\
+	     insn = next_insn_same_sec(file, insn))
 
 #define sym_for_each_insn_continue_reverse(file, sym, insn)		\
-	for (insn = list_prev_entry(insn, list);			\
-	     &insn->list != &file->insn_list &&				\
-		insn->sec == sym->sec && insn->offset >= sym->offset;	\
-	     insn = list_prev_entry(insn, list))
+	for (insn = prev_insn_same_sec(file, insn);			\
+	     insn && insn->offset >= sym->offset;			\
+	     insn = prev_insn_same_sec(file, insn))
 
 #define sec_for_each_insn_from(file, insn)				\
 	for (; insn; insn = next_insn_same_sec(file, insn))
@@ -384,6 +401,9 @@ static int decode_instructions(struct objtool_file *file)
 	int ret;
 
 	for_each_sec(file, sec) {
+		struct instruction *insns = NULL;
+		u8 prev_len = 0;
+		u8 idx = 0;
 
 		if (!(sec->sh.sh_flags & SHF_EXECINSTR))
 			continue;
@@ -409,22 +429,31 @@ static int decode_instructions(struct objtool_file *file)
 			sec->init = true;
 
 		for (offset = 0; offset < sec->sh.sh_size; offset += insn->len) {
-			insn = malloc(sizeof(*insn));
-			if (!insn) {
-				WARN("malloc failed");
-				return -1;
+			if (!insns || idx == INSN_CHUNK_MAX) {
+				insns = calloc(sizeof(*insn), INSN_CHUNK_SIZE);
+				if (!insns) {
+					WARN("malloc failed");
+					return -1;
+				}
+				idx = 0;
+			} else {
+				idx++;
 			}
-			memset(insn, 0, sizeof(*insn));
-			INIT_LIST_HEAD(&insn->call_node);
+			insn = &insns[idx];
+			insn->idx = idx;
 
+			INIT_LIST_HEAD(&insn->call_node);
 			insn->sec = sec;
 			insn->offset = offset;
+			insn->prev_len = prev_len;
 
 			ret = arch_decode_instruction(file, sec, offset,
 						      sec->sh.sh_size - offset,
 						      insn);
 			if (ret)
-				goto err;
+				return ret;
+
+			prev_len = insn->len;
 
 			/*
 			 * By default, "ud2" is a dead end unless otherwise
@@ -435,9 +464,10 @@ static int decode_instructions(struct objtool_file *file)
 				insn->dead_end = true;
 
 			hash_add(file->insn_hash, &insn->hash, sec_offset_hash(sec, insn->offset));
-			list_add_tail(&insn->list, &file->insn_list);
 			nr_insns++;
 		}
+
+//		printf("%s: last chunk used: %d\n", sec->name, (int)idx);
 
 		list_for_each_entry(func, &sec->symbol_list, list) {
 			if (func->type != STT_NOTYPE && func->type != STT_FUNC)
@@ -481,10 +511,6 @@ static int decode_instructions(struct objtool_file *file)
 		printf("nr_insns: %lu\n", nr_insns);
 
 	return 0;
-
-err:
-	free(insn);
-	return ret;
 }
 
 /*
@@ -599,7 +625,7 @@ static int add_dead_ends(struct objtool_file *file)
 		}
 		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (insn)
-			insn = list_prev_entry(insn, list);
+			insn = prev_insn_same_sec(file, insn);
 		else if (reloc->addend == reloc->sym->sec->sh.sh_size) {
 			insn = find_last_insn(file, reloc->sym->sec);
 			if (!insn) {
@@ -634,7 +660,7 @@ reachable:
 		}
 		insn = find_insn(file, reloc->sym->sec, reloc->addend);
 		if (insn)
-			insn = list_prev_entry(insn, list);
+			insn = prev_insn_same_sec(file, insn);
 		else if (reloc->addend == reloc->sym->sec->sh.sh_size) {
 			insn = find_last_insn(file, reloc->sym->sec);
 			if (!insn) {
@@ -1775,6 +1801,7 @@ static int handle_group_alt(struct objtool_file *file,
 		orig_alt_group->orig_group = NULL;
 		orig_alt_group->first_insn = orig_insn;
 		orig_alt_group->last_insn = last_orig_insn;
+		orig_alt_group->nop = NULL;
 	} else {
 		if (orig_alt_group->last_insn->offset + orig_alt_group->last_insn->len -
 		    orig_alt_group->first_insn->offset != special_alt->orig_len) {
@@ -1876,12 +1903,11 @@ static int handle_group_alt(struct objtool_file *file,
 		return -1;
 	}
 
-	if (nop)
-		list_add(&nop->list, &last_new_insn->list);
 end:
 	new_alt_group->orig_group = orig_alt_group;
 	new_alt_group->first_insn = *new_insn;
-	new_alt_group->last_insn = nop ? : last_new_insn;
+	new_alt_group->last_insn = last_new_insn;
+	new_alt_group->nop = nop;
 	new_alt_group->cfi = orig_alt_group->cfi;
 	return 0;
 }
@@ -1931,7 +1957,7 @@ static int handle_jump_alt(struct objtool_file *file,
 	else
 		file->jl_long++;
 
-	*new_insn = list_next_entry(orig_insn, list);
+	*new_insn = next_insn_same_sec(file, orig_insn);
 	return 0;
 }
 
@@ -3522,11 +3548,28 @@ static struct instruction *next_insn_to_validate(struct objtool_file *file,
 	 * Simulate the fact that alternatives are patched in-place.  When the
 	 * end of a replacement alt_group is reached, redirect objtool flow to
 	 * the end of the original alt_group.
+	 *
+	 * insn->alts->insn -> alt_group->first_insn
+	 *		       ...
+	 *		       alt_group->last_insn
+	 *		       [alt_group->nop]      -> next(orig_group->last_insn)
 	 */
-	if (alt_group && insn == alt_group->last_insn && alt_group->orig_group)
-		return next_insn_same_sec(file, alt_group->orig_group->last_insn);
+	if (alt_group) {
+		if (alt_group->nop) {
+			/* ->nop implies ->orig_group */
+			if (insn == alt_group->last_insn)
+				return alt_group->nop;
+			if (insn == alt_group->nop)
+				goto next_orig;
+		}
+		if (insn == alt_group->last_insn && alt_group->orig_group)
+			goto next_orig;
+	}
 
 	return next_insn_same_sec(file, insn);
+
+next_orig:
+	return next_insn_same_sec(file, alt_group->orig_group->last_insn);
 }
 
 /*
@@ -3777,11 +3820,25 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 	return 0;
 }
 
+static int validate_unwind_hint(struct objtool_file *file,
+				  struct instruction *insn,
+				  struct insn_state *state)
+{
+	if (insn->hint && !insn->visited && !insn->ignore) {
+		int ret = validate_branch(file, insn_func(insn), insn, *state);
+		if (ret && opts.backtrace)
+			BT_FUNC("<=== (hint)", insn);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int validate_unwind_hints(struct objtool_file *file, struct section *sec)
 {
 	struct instruction *insn;
 	struct insn_state state;
-	int ret, warnings = 0;
+	int warnings = 0;
 
 	if (!file->hints)
 		return 0;
@@ -3789,22 +3846,11 @@ static int validate_unwind_hints(struct objtool_file *file, struct section *sec)
 	init_insn_state(file, &state, sec);
 
 	if (sec) {
-		insn = find_insn(file, sec, 0);
-		if (!insn)
-			return 0;
+		sec_for_each_insn(file, sec, insn)
+			warnings += validate_unwind_hint(file, insn, &state);
 	} else {
-		insn = list_first_entry(&file->insn_list, typeof(*insn), list);
-	}
-
-	while (&insn->list != &file->insn_list && (!sec || insn->sec == sec)) {
-		if (insn->hint && !insn->visited && !insn->ignore) {
-			ret = validate_branch(file, insn_func(insn), insn, state);
-			if (ret && opts.backtrace)
-				BT_FUNC("<=== (hint)", insn);
-			warnings += ret;
-		}
-
-		insn = list_next_entry(insn, list);
+		for_each_insn(file, insn)
+			warnings += validate_unwind_hint(file, insn, &state);
 	}
 
 	return warnings;
@@ -4070,7 +4116,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	 *
 	 * It may also insert a UD2 after calling a __noreturn function.
 	 */
-	prev_insn = list_prev_entry(insn, list);
+	prev_insn = prev_insn_same_sec(file, insn);
 	if ((prev_insn->dead_end ||
 	     dead_end_function(file, insn_call_dest(prev_insn))) &&
 	    (insn->type == INSN_BUG ||
@@ -4102,7 +4148,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 		if (insn->offset + insn->len >= insn_func(insn)->offset + insn_func(insn)->len)
 			break;
 
-		insn = list_next_entry(insn, list);
+		insn = next_insn_same_sec(file, insn);
 	}
 
 	return false;
@@ -4115,10 +4161,10 @@ static int add_prefix_symbol(struct objtool_file *file, struct symbol *func,
 		return 0;
 
 	for (;;) {
-		struct instruction *prev = list_prev_entry(insn, list);
+		struct instruction *prev = prev_insn_same_sec(file, insn);
 		u64 offset;
 
-		if (&prev->list == &file->insn_list)
+		if (!prev)
 			break;
 
 		if (prev->type != INSN_NOP)
@@ -4517,7 +4563,7 @@ int check(struct objtool_file *file)
 
 	warnings += ret;
 
-	if (list_empty(&file->insn_list))
+	if (!nr_insns)
 		goto out;
 
 	if (opts.retpoline) {
@@ -4626,7 +4672,7 @@ int check(struct objtool_file *file)
 		warnings += ret;
 	}
 
-	if (opts.orc && !list_empty(&file->insn_list)) {
+	if (opts.orc && nr_insns) {
 		ret = orc_create(file);
 		if (ret < 0)
 			goto out;
