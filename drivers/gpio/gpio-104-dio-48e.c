@@ -106,7 +106,6 @@ static int dio48e_handle_mask_sync(struct regmap *const map, const int index,
 {
 	unsigned int *const irq_mask = irq_drv_data;
 	const unsigned int prev_mask = *irq_mask;
-	const unsigned int all_masked = GENMASK(1, 0);
 	int err;
 	unsigned int val;
 
@@ -118,7 +117,7 @@ static int dio48e_handle_mask_sync(struct regmap *const map, const int index,
 	*irq_mask = mask_buf;
 
 	/* if all previously masked, enable interrupts when unmasking */
-	if (prev_mask == all_masked) {
+	if (prev_mask == mask_buf_def) {
 		err = regmap_write(map, DIO48E_CLEAR_INTERRUPT, 0x00);
 		if (err)
 			return err;
@@ -126,7 +125,7 @@ static int dio48e_handle_mask_sync(struct regmap *const map, const int index,
 	}
 
 	/* if all are currently masked, disable interrupts */
-	if (mask_buf == all_masked)
+	if (mask_buf == mask_buf_def)
 		return regmap_read(map, DIO48E_DISABLE_INTERRUPT, &val);
 
 	return 0;
