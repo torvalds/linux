@@ -55,15 +55,32 @@ properties:
 
 patternProperties:
   '^opp-table(-[a-z0-9]+)?$':
-    if:
-      properties:
-        compatible:
-          const: operating-points-v2-kryo-cpu
-    then:
-      patternProperties:
-        '^opp-?[0-9]+$':
-          required:
-            - required-opps
+    allOf:
+      - if:
+          properties:
+            compatible:
+              const: operating-points-v2-kryo-cpu
+        then:
+          $ref: /schemas/opp/opp-v2-kryo-cpu.yaml#
+
+      - if:
+          properties:
+            compatible:
+              const: operating-points-v2-kryo-cpu
+        then:
+          patternProperties:
+            '^opp-?[0-9]+$':
+              required:
+                - required-opps
+
+      - if:
+          properties:
+            compatible:
+              const: operating-points-v2-qcom-level
+        then:
+          $ref: /schemas/opp/opp-v2-qcom-level.yaml#
+
+    unevaluatedProperties: false
 
 additionalProperties: true
 
