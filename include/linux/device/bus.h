@@ -149,9 +149,9 @@ int device_match_acpi_handle(struct device *dev, const void *handle);
 int device_match_any(struct device *dev, const void *unused);
 
 /* iterator helpers for buses */
-int bus_for_each_dev(struct bus_type *bus, struct device *start, void *data,
+int bus_for_each_dev(const struct bus_type *bus, struct device *start, void *data,
 		     int (*fn)(struct device *dev, void *data));
-struct device *bus_find_device(struct bus_type *bus, struct device *start,
+struct device *bus_find_device(const struct bus_type *bus, struct device *start,
 			       const void *data,
 			       int (*match)(struct device *dev, const void *data));
 /**
@@ -161,7 +161,7 @@ struct device *bus_find_device(struct bus_type *bus, struct device *start,
  * @start: Device to begin with
  * @name: name of the device to match
  */
-static inline struct device *bus_find_device_by_name(struct bus_type *bus,
+static inline struct device *bus_find_device_by_name(const struct bus_type *bus,
 						     struct device *start,
 						     const char *name)
 {
@@ -175,7 +175,7 @@ static inline struct device *bus_find_device_by_name(struct bus_type *bus,
  * @np: of_node of the device to match.
  */
 static inline struct device *
-bus_find_device_by_of_node(struct bus_type *bus, const struct device_node *np)
+bus_find_device_by_of_node(const struct bus_type *bus, const struct device_node *np)
 {
 	return bus_find_device(bus, NULL, np, device_match_of_node);
 }
@@ -187,7 +187,7 @@ bus_find_device_by_of_node(struct bus_type *bus, const struct device_node *np)
  * @fwnode: fwnode of the device to match.
  */
 static inline struct device *
-bus_find_device_by_fwnode(struct bus_type *bus, const struct fwnode_handle *fwnode)
+bus_find_device_by_fwnode(const struct bus_type *bus, const struct fwnode_handle *fwnode)
 {
 	return bus_find_device(bus, NULL, fwnode, device_match_fwnode);
 }
@@ -198,7 +198,7 @@ bus_find_device_by_fwnode(struct bus_type *bus, const struct fwnode_handle *fwno
  * @bus: bus type
  * @devt: device type of the device to match.
  */
-static inline struct device *bus_find_device_by_devt(struct bus_type *bus,
+static inline struct device *bus_find_device_by_devt(const struct bus_type *bus,
 						     dev_t devt)
 {
 	return bus_find_device(bus, NULL, &devt, device_match_devt);
@@ -211,7 +211,7 @@ static inline struct device *bus_find_device_by_devt(struct bus_type *bus,
  * @cur: device to begin the search with.
  */
 static inline struct device *
-bus_find_next_device(struct bus_type *bus,struct device *cur)
+bus_find_next_device(const struct bus_type *bus,struct device *cur)
 {
 	return bus_find_device(bus, cur, NULL, device_match_any);
 }
@@ -226,19 +226,19 @@ struct acpi_device;
  * @adev: ACPI COMPANION device to match.
  */
 static inline struct device *
-bus_find_device_by_acpi_dev(struct bus_type *bus, const struct acpi_device *adev)
+bus_find_device_by_acpi_dev(const struct bus_type *bus, const struct acpi_device *adev)
 {
 	return bus_find_device(bus, NULL, adev, device_match_acpi_dev);
 }
 #else
 static inline struct device *
-bus_find_device_by_acpi_dev(struct bus_type *bus, const void *adev)
+bus_find_device_by_acpi_dev(const struct bus_type *bus, const void *adev)
 {
 	return NULL;
 }
 #endif
 
-int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
+int bus_for_each_drv(const struct bus_type *bus, struct device_driver *start,
 		     void *data, int (*fn)(struct device_driver *, void *));
 void bus_sort_breadthfirst(struct bus_type *bus,
 			   int (*compare)(const struct device *a,
