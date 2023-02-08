@@ -3186,7 +3186,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 		.mode = 0444,
 	},
 	{
-		.label = "reset_voltmon_upgrade_fail",
+		.label = "reset_pwr_converter_fail",
 		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
 		.mask = GENMASK(7, 0) & ~BIT(0),
 		.mode = 0444,
