@@ -109,6 +109,7 @@ $defs:
       bias-pull-down: true
       bias-pull-up: true
       drive-strength: true
+      input-disable: true
       input-enable: true
       output-high: true
       output-low: true
@@ -129,7 +130,7 @@ examples:
         #gpio-cells = <2>;
         interrupt-controller;
         #interrupt-cells = <2>;
-        gpio-ranges = <&tlmm 0 0 203>;
+        gpio-ranges = <&tlmm 0 0 204>; /* GPIOs + ufs_reset */
 
         gpio-wo-subnode-state {
             pins = "gpio1";
