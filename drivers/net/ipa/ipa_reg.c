@@ -123,7 +123,6 @@ int ipa_reg_init(struct ipa *ipa)
 		dev_err(dev, "unable to remap \"ipa-reg\" memory\n");
 		return -ENOMEM;
 	}
-	ipa->reg_addr = res->start;
 	ipa->regs = regs;
 
 	return 0;

@@ -45,7 +45,6 @@ struct ipa_interrupt;
  * @interrupt:		IPA Interrupt information
  * @uc_powered:		true if power is active by proxy for microcontroller
  * @uc_loaded:		true after microcontroller has reported it's ready
- * @reg_addr:		DMA address used for IPA register access
  * @reg_virt:		Virtual address used for IPA register access
  * @regs:		IPA register definitions
  * @mem_addr:		DMA address of IPA-local memory space
@@ -97,7 +96,6 @@ struct ipa {
 	bool uc_powered;
 	bool uc_loaded;
 
-	dma_addr_t reg_addr;
 	void __iomem *reg_virt;
 	const struct ipa_regs *regs;
 
