@@ -956,7 +956,16 @@ void bus_notify(struct device *dev, enum bus_notifier_event value)
 
 struct kset *bus_get_kset(struct bus_type *bus)
 {
-	return &bus->p->subsys;
+	struct subsys_private *sp = bus_to_subsys(bus);
+	struct kset *kset;
+
+	if (!sp)
+		return NULL;
+
+	kset = &sp->subsys;
+	subsys_put(sp);
+
+	return kset;
 }
 EXPORT_SYMBOL_GPL(bus_get_kset);
 
