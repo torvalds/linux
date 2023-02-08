@@ -72,6 +72,7 @@ static int sai_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(sai->regmap, true);
 	clk_disable_unprepare(sai->mclk);
+	clk_disable_unprepare(sai->hclk);
 
 	return 0;
 }
@@ -80,6 +81,10 @@ static int sai_runtime_resume(struct device *dev)
 {
 	struct rk_sai_dev *sai = dev_get_drvdata(dev);
 	int ret;
+
+	ret = clk_prepare_enable(sai->hclk);
+	if (ret)
+		goto err_hclk;
 
 	ret = clk_prepare_enable(sai->mclk);
 	if (ret)
@@ -103,6 +108,8 @@ static int sai_runtime_resume(struct device *dev)
 err_regmap:
 	clk_disable_unprepare(sai->mclk);
 err_mclk:
+	clk_disable_unprepare(sai->hclk);
+err_hclk:
 	return ret;
 }
 
@@ -1110,10 +1117,6 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		return PTR_ERR(sai->hclk);
 	}
 
-	ret = clk_prepare_enable(sai->hclk);
-	if (ret)
-		return ret;
-
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = sai_runtime_resume(&pdev->dev);
@@ -1142,20 +1145,15 @@ err_runtime_suspend:
 		sai_runtime_suspend(&pdev->dev);
 err_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(sai->hclk);
 
 	return ret;
 }
 
 static int rockchip_sai_remove(struct platform_device *pdev)
 {
-	struct rk_sai_dev *sai = dev_get_drvdata(&pdev->dev);
-
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		sai_runtime_suspend(&pdev->dev);
-
-	clk_disable_unprepare(sai->hclk);
 
 	return 0;
 }
