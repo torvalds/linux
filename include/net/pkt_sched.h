@@ -177,6 +177,11 @@ struct tc_mqprio_qopt_offload {
 struct tc_taprio_caps {
 	bool supports_queue_max_sdu:1;
 	bool gate_mask_per_txq:1;
+	/* Device expects lower TXQ numbers to have higher priority over higher
+	 * TXQs, regardless of their TC mapping. DO NOT USE FOR NEW DRIVERS,
+	 * INSTEAD ENFORCE A PROPER TC:TXQ MAPPING COMING FROM USER SPACE.
+	 */
+	bool broken_mqprio:1;
 };
 
 struct tc_taprio_sched_entry {

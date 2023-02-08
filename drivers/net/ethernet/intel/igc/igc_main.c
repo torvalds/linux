@@ -6214,10 +6214,10 @@ static int igc_tc_query_caps(struct igc_adapter *adapter,
 	case TC_SETUP_QDISC_TAPRIO: {
 		struct tc_taprio_caps *caps = base->caps;
 
-		if (hw->mac.type != igc_i225)
-			return -EOPNOTSUPP;
+		caps->broken_mqprio = true;
 
-		caps->gate_mask_per_txq = true;
+		if (hw->mac.type == igc_i225)
+			caps->gate_mask_per_txq = true;
 
 		return 0;
 	}
