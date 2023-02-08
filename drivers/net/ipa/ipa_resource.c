@@ -76,11 +76,11 @@ ipa_resource_config_common(struct ipa *ipa, u32 resource_type,
 {
 	u32 val;
 
-	val = ipa_reg_encode(reg, X_MIN_LIM, xlimits->min);
-	val |= ipa_reg_encode(reg, X_MAX_LIM, xlimits->max);
+	val = reg_encode(reg, X_MIN_LIM, xlimits->min);
+	val |= reg_encode(reg, X_MAX_LIM, xlimits->max);
 	if (ylimits) {
-		val |= ipa_reg_encode(reg, Y_MIN_LIM, ylimits->min);
-		val |= ipa_reg_encode(reg, Y_MAX_LIM, ylimits->max);
+		val |= reg_encode(reg, Y_MIN_LIM, ylimits->min);
+		val |= reg_encode(reg, Y_MAX_LIM, ylimits->max);
 	}
 
 	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, resource_type));

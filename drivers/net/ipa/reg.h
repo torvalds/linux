@@ -67,6 +67,57 @@ static inline const struct reg *reg(const struct regs *regs, u32 reg_id)
 	return regs->reg[reg_id];
 }
 
+/* Return the field mask for a field in a register, or 0 on error */
+static inline u32 reg_fmask(const struct reg *reg, u32 field_id)
+{
+	if (!reg || WARN_ON(field_id >= reg->fcount))
+		return 0;
+
+	return reg->fmask[field_id];
+}
+
+/* Return the mask for a single-bit field in a register, or 0 on error  */
+static inline u32 reg_bit(const struct reg *reg, u32 field_id)
+{
+	u32 fmask = reg_fmask(reg, field_id);
+
+	if (WARN_ON(!is_power_of_2(fmask)))
+		return 0;
+
+	return fmask;
+}
+
+/* Return the maximum value representable by the given field; always 2^n - 1 */
+static inline u32 reg_field_max(const struct reg *reg, u32 field_id)
+{
+	u32 fmask = reg_fmask(reg, field_id);
+
+	return fmask ? fmask >> __ffs(fmask) : 0;
+}
+
+/* Encode a value into the given field of a register */
+static inline u32 reg_encode(const struct reg *reg, u32 field_id, u32 val)
+{
+	u32 fmask = reg_fmask(reg, field_id);
+
+	if (!fmask)
+		return 0;
+
+	val <<= __ffs(fmask);
+	if (WARN_ON(val & ~fmask))
+		return 0;
+
+	return val;
+}
+
+/* Given a register value, decode (extract) the value in the given field */
+static inline u32 reg_decode(const struct reg *reg, u32 field_id, u32 val)
+{
+	u32 fmask = reg_fmask(reg, field_id);
+
+	return fmask ? (val & fmask) >> __ffs(fmask) : 0;
+}
+
 /* Returns 0 for NULL reg; warning should have already been issued */
 static inline u32 reg_offset(const struct reg *reg)
 {

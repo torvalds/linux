@@ -304,7 +304,7 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 					     rx_config->aggr_hard_limit);
 		reg = ipa_reg(ipa, ENDP_INIT_AGGR);
 
-		limit = ipa_reg_field_max(reg, BYTE_LIMIT);
+		limit = reg_field_max(reg, BYTE_LIMIT);
 		if (aggr_size > limit) {
 			dev_err(dev, "aggregated size too large for RX endpoint %u (%u KB > %u KB)\n",
 				data->endpoint_id, aggr_size, limit);
@@ -464,7 +464,7 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	val = ioread32(ipa->reg_virt + offset);
 
 	field_id = endpoint->toward_ipa ? ENDP_DELAY : ENDP_SUSPEND;
-	mask = ipa_reg_bit(reg, field_id);
+	mask = reg_bit(reg, field_id);
 
 	state = !!(val & mask);
 
@@ -658,7 +658,7 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 
 			/* Checksum header offset is in 4-byte units */
 			off = sizeof(struct rmnet_map_header) / sizeof(u32);
-			val |= ipa_reg_encode(reg, CS_METADATA_HDR_OFFSET, off);
+			val |= reg_encode(reg, CS_METADATA_HDR_OFFSET, off);
 
 			enabled = version < IPA_VERSION_4_5
 					? IPA_CS_OFFLOAD_UL
@@ -671,7 +671,7 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 	} else {
 		enabled = IPA_CS_OFFLOAD_NONE;
 	}
-	val |= ipa_reg_encode(reg, CS_OFFLOAD_EN, enabled);
+	val |= reg_encode(reg, CS_OFFLOAD_EN, enabled);
 	/* CS_GEN_QMB_MASTER_SEL is 0 */
 
 	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, endpoint_id));
@@ -688,7 +688,7 @@ static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
 		return;
 
 	reg = ipa_reg(ipa, ENDP_INIT_NAT);
-	val = ipa_reg_encode(reg, NAT_EN, IPA_NAT_TYPE_BYPASS);
+	val = reg_encode(reg, NAT_EN, IPA_NAT_TYPE_BYPASS);
 
 	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, endpoint_id));
 }
@@ -718,11 +718,11 @@ ipa_qmap_header_size(enum ipa_version version, struct ipa_endpoint *endpoint)
 static u32 ipa_header_size_encode(enum ipa_version version,
 				  const struct reg *reg, u32 header_size)
 {
-	u32 field_max = ipa_reg_field_max(reg, HDR_LEN);
+	u32 field_max = reg_field_max(reg, HDR_LEN);
 	u32 val;
 
 	/* We know field_max can be used as a mask (2^n - 1) */
-	val = ipa_reg_encode(reg, HDR_LEN, header_size & field_max);
+	val = reg_encode(reg, HDR_LEN, header_size & field_max);
 	if (version < IPA_VERSION_4_5) {
 		WARN_ON(header_size > field_max);
 		return val;
@@ -730,8 +730,8 @@ static u32 ipa_header_size_encode(enum ipa_version version,
 
 	/* IPA v4.5 adds a few more most-significant bits */
 	header_size >>= hweight32(field_max);
-	WARN_ON(header_size > ipa_reg_field_max(reg, HDR_LEN_MSB));
-	val |= ipa_reg_encode(reg, HDR_LEN_MSB, header_size);
+	WARN_ON(header_size > reg_field_max(reg, HDR_LEN_MSB));
+	val |= reg_encode(reg, HDR_LEN_MSB, header_size);
 
 	return val;
 }
@@ -740,11 +740,11 @@ static u32 ipa_header_size_encode(enum ipa_version version,
 static u32 ipa_metadata_offset_encode(enum ipa_version version,
 				      const struct reg *reg, u32 offset)
 {
-	u32 field_max = ipa_reg_field_max(reg, HDR_OFST_METADATA);
+	u32 field_max = reg_field_max(reg, HDR_OFST_METADATA);
 	u32 val;
 
 	/* We know field_max can be used as a mask (2^n - 1) */
-	val = ipa_reg_encode(reg, HDR_OFST_METADATA, offset);
+	val = reg_encode(reg, HDR_OFST_METADATA, offset);
 	if (version < IPA_VERSION_4_5) {
 		WARN_ON(offset > field_max);
 		return val;
@@ -752,8 +752,8 @@ static u32 ipa_metadata_offset_encode(enum ipa_version version,
 
 	/* IPA v4.5 adds a few more most-significant bits */
 	offset >>= hweight32(field_max);
-	WARN_ON(offset > ipa_reg_field_max(reg, HDR_OFST_METADATA_MSB));
-	val |= ipa_reg_encode(reg, HDR_OFST_METADATA_MSB, offset);
+	WARN_ON(offset > reg_field_max(reg, HDR_OFST_METADATA_MSB));
+	val |= reg_encode(reg, HDR_OFST_METADATA_MSB, offset);
 
 	return val;
 }
@@ -806,13 +806,13 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 			off = offsetof(struct rmnet_map_header, pkt_len);
 			/* Upper bits are stored in HDR_EXT with IPA v4.5 */
 			if (version >= IPA_VERSION_4_5)
-				off &= ipa_reg_field_max(reg, HDR_OFST_PKT_SIZE);
+				off &= reg_field_max(reg, HDR_OFST_PKT_SIZE);
 
-			val |= ipa_reg_bit(reg, HDR_OFST_PKT_SIZE_VALID);
-			val |= ipa_reg_encode(reg, HDR_OFST_PKT_SIZE, off);
+			val |= reg_bit(reg, HDR_OFST_PKT_SIZE_VALID);
+			val |= reg_encode(reg, HDR_OFST_PKT_SIZE, off);
 		}
 		/* For QMAP TX, metadata offset is 0 (modem assumes this) */
-		val |= ipa_reg_bit(reg, HDR_OFST_METADATA_VALID);
+		val |= reg_bit(reg, HDR_OFST_METADATA_VALID);
 
 		/* HDR_ADDITIONAL_CONST_LEN is 0; (RX only) */
 		/* HDR_A5_MUX is 0 */
@@ -834,7 +834,7 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	reg = ipa_reg(ipa, ENDP_INIT_HDR_EXT);
 	if (endpoint->config.qmap) {
 		/* We have a header, so we must specify its endianness */
-		val |= ipa_reg_bit(reg, HDR_ENDIANNESS);	/* big endian */
+		val |= reg_bit(reg, HDR_ENDIANNESS);	/* big endian */
 
 		/* A QMAP header contains a 6 bit pad field at offset 0.
 		 * The RMNet driver assumes this field is meaningful in
@@ -844,16 +844,16 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 		 * (although 0) should be ignored.
 		 */
 		if (!endpoint->toward_ipa) {
-			val |= ipa_reg_bit(reg, HDR_TOTAL_LEN_OR_PAD_VALID);
+			val |= reg_bit(reg, HDR_TOTAL_LEN_OR_PAD_VALID);
 			/* HDR_TOTAL_LEN_OR_PAD is 0 (pad, not total_len) */
-			val |= ipa_reg_bit(reg, HDR_PAYLOAD_LEN_INC_PADDING);
+			val |= reg_bit(reg, HDR_PAYLOAD_LEN_INC_PADDING);
 			/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0 */
 		}
 	}
 
 	/* HDR_PAYLOAD_LEN_INC_PADDING is 0 */
 	if (!endpoint->toward_ipa)
-		val |= ipa_reg_encode(reg, HDR_PAD_TO_ALIGNMENT, pad_align);
+		val |= reg_encode(reg, HDR_PAD_TO_ALIGNMENT, pad_align);
 
 	/* IPA v4.5 adds some most-significant bits to a few fields,
 	 * two of which are defined in the HDR (not HDR_EXT) register.
@@ -861,13 +861,13 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	if (ipa->version >= IPA_VERSION_4_5) {
 		/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0, so MSB is 0 */
 		if (endpoint->config.qmap && !endpoint->toward_ipa) {
-			u32 mask = ipa_reg_field_max(reg, HDR_OFST_PKT_SIZE);
+			u32 mask = reg_field_max(reg, HDR_OFST_PKT_SIZE);
 			u32 off;     /* Field offset within header */
 
 			off = offsetof(struct rmnet_map_header, pkt_len);
 			/* Low bits are in the ENDP_INIT_HDR register */
 			off >>= hweight32(mask);
-			val |= ipa_reg_encode(reg, HDR_OFST_PKT_SIZE_MSB, off);
+			val |= reg_encode(reg, HDR_OFST_PKT_SIZE_MSB, off);
 			/* HDR_ADDITIONAL_CONST_LEN is 0 so MSB is 0 */
 		}
 	}
@@ -911,10 +911,10 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 		enum ipa_endpoint_name name = endpoint->config.dma_endpoint;
 		u32 dma_endpoint_id = ipa->name_map[name]->endpoint_id;
 
-		val = ipa_reg_encode(reg, ENDP_MODE, IPA_DMA);
-		val |= ipa_reg_encode(reg, DEST_PIPE_INDEX, dma_endpoint_id);
+		val = reg_encode(reg, ENDP_MODE, IPA_DMA);
+		val |= reg_encode(reg, DEST_PIPE_INDEX, dma_endpoint_id);
 	} else {
-		val = ipa_reg_encode(reg, ENDP_MODE, IPA_BASIC);
+		val = reg_encode(reg, ENDP_MODE, IPA_BASIC);
 	}
 	/* All other bits unspecified (and 0) */
 
@@ -972,14 +972,14 @@ static u32 aggr_time_limit_encode(struct ipa *ipa, const struct reg *reg,
 	if (!microseconds)
 		return 0;	/* Nothing to compute if time limit is 0 */
 
-	max = ipa_reg_field_max(reg, TIME_LIMIT);
+	max = reg_field_max(reg, TIME_LIMIT);
 	if (ipa->version >= IPA_VERSION_4_5) {
 		u32 select;
 
 		ticks = ipa_qtime_val(ipa, microseconds, max, &select);
 
-		return ipa_reg_encode(reg, AGGR_GRAN_SEL, select) |
-		       ipa_reg_encode(reg, TIME_LIMIT, ticks);
+		return reg_encode(reg, AGGR_GRAN_SEL, select) |
+		       reg_encode(reg, TIME_LIMIT, ticks);
 	}
 
 	/* We program aggregation granularity in ipa_hardware_config() */
@@ -987,7 +987,7 @@ static u32 aggr_time_limit_encode(struct ipa *ipa, const struct reg *reg,
 	WARN(ticks > max, "aggr_time_limit too large (%u > %u usec)\n",
 	     microseconds, max * IPA_AGGR_GRANULARITY);
 
-	return ipa_reg_encode(reg, TIME_LIMIT, ticks);
+	return reg_encode(reg, TIME_LIMIT, ticks);
 }
 
 static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
@@ -1005,13 +1005,13 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 			u32 limit;
 
 			rx_config = &endpoint->config.rx;
-			val |= ipa_reg_encode(reg, AGGR_EN, IPA_ENABLE_AGGR);
-			val |= ipa_reg_encode(reg, AGGR_TYPE, IPA_GENERIC);
+			val |= reg_encode(reg, AGGR_EN, IPA_ENABLE_AGGR);
+			val |= reg_encode(reg, AGGR_TYPE, IPA_GENERIC);
 
 			buffer_size = rx_config->buffer_size;
 			limit = ipa_aggr_size_kb(buffer_size - NET_SKB_PAD,
 						 rx_config->aggr_hard_limit);
-			val |= ipa_reg_encode(reg, BYTE_LIMIT, limit);
+			val |= reg_encode(reg, BYTE_LIMIT, limit);
 
 			limit = rx_config->aggr_time_limit;
 			val |= aggr_time_limit_encode(ipa, reg, limit);
@@ -1019,16 +1019,16 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 			/* AGGR_PKT_LIMIT is 0 (unlimited) */
 
 			if (rx_config->aggr_close_eof)
-				val |= ipa_reg_bit(reg, SW_EOF_ACTIVE);
+				val |= reg_bit(reg, SW_EOF_ACTIVE);
 		} else {
-			val |= ipa_reg_encode(reg, AGGR_EN, IPA_ENABLE_DEAGGR);
-			val |= ipa_reg_encode(reg, AGGR_TYPE, IPA_QCMAP);
+			val |= reg_encode(reg, AGGR_EN, IPA_ENABLE_DEAGGR);
+			val |= reg_encode(reg, AGGR_TYPE, IPA_QCMAP);
 			/* other fields ignored */
 		}
 		/* AGGR_FORCE_CLOSE is 0 */
 		/* AGGR_GRAN_SEL is 0 for IPA v4.5 */
 	} else {
-		val |= ipa_reg_encode(reg, AGGR_EN, IPA_BYPASS_AGGR);
+		val |= reg_encode(reg, AGGR_EN, IPA_BYPASS_AGGR);
 		/* other fields ignored */
 	}
 
@@ -1057,14 +1057,14 @@ static u32 hol_block_timer_encode(struct ipa *ipa, const struct reg *reg,
 		return 0;	/* Nothing to compute if timer period is 0 */
 
 	if (ipa->version >= IPA_VERSION_4_5) {
-		u32 max = ipa_reg_field_max(reg, TIMER_LIMIT);
+		u32 max = reg_field_max(reg, TIMER_LIMIT);
 		u32 select;
 		u32 ticks;
 
 		ticks = ipa_qtime_val(ipa, microseconds, max, &select);
 
-		return ipa_reg_encode(reg, TIMER_GRAN_SEL, 1) |
-		       ipa_reg_encode(reg, TIMER_LIMIT, ticks);
+		return reg_encode(reg, TIMER_GRAN_SEL, 1) |
+		       reg_encode(reg, TIMER_LIMIT, ticks);
 	}
 
 	/* Use 64 bit arithmetic to avoid overflow */
@@ -1072,11 +1072,11 @@ static u32 hol_block_timer_encode(struct ipa *ipa, const struct reg *reg,
 	ticks = DIV_ROUND_CLOSEST(microseconds * rate, 128 * USEC_PER_SEC);
 
 	/* We still need the result to fit into the field */
-	WARN_ON(ticks > ipa_reg_field_max(reg, TIMER_BASE_VALUE));
+	WARN_ON(ticks > reg_field_max(reg, TIMER_BASE_VALUE));
 
 	/* IPA v3.5.1 through v4.1 just record the tick count */
 	if (ipa->version < IPA_VERSION_4_2)
-		return ipa_reg_encode(reg, TIMER_BASE_VALUE, (u32)ticks);
+		return reg_encode(reg, TIMER_BASE_VALUE, (u32)ticks);
 
 	/* For IPA v4.2, the tick count is represented by base and
 	 * scale fields within the 32-bit timer register, where:
@@ -1087,7 +1087,7 @@ static u32 hol_block_timer_encode(struct ipa *ipa, const struct reg *reg,
 	 * such that high bit is included.
 	 */
 	high = fls(ticks);		/* 1..32 (or warning above) */
-	width = hweight32(ipa_reg_fmask(reg, TIMER_BASE_VALUE));
+	width = hweight32(reg_fmask(reg, TIMER_BASE_VALUE));
 	scale = high > width ? high - width : 0;
 	if (scale) {
 		/* If we're scaling, round up to get a closer result */
@@ -1097,8 +1097,8 @@ static u32 hol_block_timer_encode(struct ipa *ipa, const struct reg *reg,
 			scale++;
 	}
 
-	val = ipa_reg_encode(reg, TIMER_SCALE, scale);
-	val |= ipa_reg_encode(reg, TIMER_BASE_VALUE, (u32)ticks >> scale);
+	val = reg_encode(reg, TIMER_SCALE, scale);
+	val |= reg_encode(reg, TIMER_BASE_VALUE, (u32)ticks >> scale);
 
 	return val;
 }
@@ -1130,7 +1130,7 @@ ipa_endpoint_init_hol_block_en(struct ipa_endpoint *endpoint, bool enable)
 
 	reg = ipa_reg(ipa, ENDP_INIT_HOL_BLOCK_EN);
 	offset = reg_n_offset(reg, endpoint_id);
-	val = enable ? ipa_reg_bit(reg, HOL_BLOCK_EN) : 0;
+	val = enable ? reg_bit(reg, HOL_BLOCK_EN) : 0;
 
 	iowrite32(val, ipa->reg_virt + offset);
 
@@ -1195,7 +1195,7 @@ static void ipa_endpoint_init_rsrc_grp(struct ipa_endpoint *endpoint)
 	u32 val;
 
 	reg = ipa_reg(ipa, ENDP_INIT_RSRC_GRP);
-	val = ipa_reg_encode(reg, ENDP_RSRC_GRP, resource_group);
+	val = reg_encode(reg, ENDP_RSRC_GRP, resource_group);
 
 	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, endpoint_id));
 }
@@ -1213,12 +1213,12 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	reg = ipa_reg(ipa, ENDP_INIT_SEQ);
 
 	/* Low-order byte configures primary packet processing */
-	val = ipa_reg_encode(reg, SEQ_TYPE, endpoint->config.tx.seq_type);
+	val = reg_encode(reg, SEQ_TYPE, endpoint->config.tx.seq_type);
 
 	/* Second byte (if supported) configures replicated packet processing */
 	if (ipa->version < IPA_VERSION_4_5)
-		val |= ipa_reg_encode(reg, SEQ_REP_TYPE,
-				      endpoint->config.tx.seq_rep_type);
+		val |= reg_encode(reg, SEQ_REP_TYPE,
+				  endpoint->config.tx.seq_rep_type);
 
 	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, endpoint_id));
 }
@@ -1275,7 +1275,7 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 
 	reg = ipa_reg(ipa, ENDP_STATUS);
 	if (endpoint->config.status_enable) {
-		val |= ipa_reg_bit(reg, STATUS_EN);
+		val |= reg_bit(reg, STATUS_EN);
 		if (endpoint->toward_ipa) {
 			enum ipa_endpoint_name name;
 			u32 status_endpoint_id;
@@ -1283,8 +1283,7 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 			name = endpoint->config.tx.status_endpoint;
 			status_endpoint_id = ipa->name_map[name]->endpoint_id;
 
-			val |= ipa_reg_encode(reg, STATUS_ENDP,
-					      status_endpoint_id);
+			val |= reg_encode(reg, STATUS_ENDP, status_endpoint_id);
 		}
 		/* STATUS_LOCATION is 0, meaning IPA packet status
 		 * precedes the packet (not present for IPA v4.5+)
@@ -1641,11 +1640,11 @@ void ipa_endpoint_default_route_set(struct ipa *ipa, u32 endpoint_id)
 
 	reg = ipa_reg(ipa, ROUTE);
 	/* ROUTE_DIS is 0 */
-	val = ipa_reg_encode(reg, ROUTE_DEF_PIPE, endpoint_id);
-	val |= ipa_reg_bit(reg, ROUTE_DEF_HDR_TABLE);
+	val = reg_encode(reg, ROUTE_DEF_PIPE, endpoint_id);
+	val |= reg_bit(reg, ROUTE_DEF_HDR_TABLE);
 	/* ROUTE_DEF_HDR_OFST is 0 */
-	val |= ipa_reg_encode(reg, ROUTE_FRAG_DEF_PIPE, endpoint_id);
-	val |= ipa_reg_bit(reg, ROUTE_DEF_RETAIN_HDR);
+	val |= reg_encode(reg, ROUTE_FRAG_DEF_PIPE, endpoint_id);
+	val |= reg_bit(reg, ROUTE_DEF_RETAIN_HDR);
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
@@ -2022,9 +2021,9 @@ int ipa_endpoint_config(struct ipa *ipa)
 	val = ioread32(ipa->reg_virt + reg_offset(reg));
 
 	/* Our RX is an IPA producer; our TX is an IPA consumer. */
-	tx_count = ipa_reg_decode(reg, MAX_CONS_PIPES, val);
-	rx_count = ipa_reg_decode(reg, MAX_PROD_PIPES, val);
-	rx_base = ipa_reg_decode(reg, PROD_LOWEST, val);
+	tx_count = reg_decode(reg, MAX_CONS_PIPES, val);
+	rx_count = reg_decode(reg, MAX_PROD_PIPES, val);
+	rx_base = reg_decode(reg, PROD_LOWEST, val);
 
 	limit = rx_base + rx_count;
 	if (limit > IPA_ENDPOINT_MAX) {

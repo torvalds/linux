@@ -361,16 +361,16 @@ int ipa_table_hash_flush(struct ipa *ipa)
 	if (ipa->version < IPA_VERSION_5_0) {
 		reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
 
-		val = ipa_reg_bit(reg, IPV6_ROUTER_HASH);
-		val |= ipa_reg_bit(reg, IPV6_FILTER_HASH);
-		val |= ipa_reg_bit(reg, IPV4_ROUTER_HASH);
-		val |= ipa_reg_bit(reg, IPV4_FILTER_HASH);
+		val = reg_bit(reg, IPV6_ROUTER_HASH);
+		val |= reg_bit(reg, IPV6_FILTER_HASH);
+		val |= reg_bit(reg, IPV4_ROUTER_HASH);
+		val |= reg_bit(reg, IPV4_FILTER_HASH);
 	} else {
 		reg = ipa_reg(ipa, FILT_ROUT_CACHE_FLUSH);
 
 		/* IPA v5.0+ uses a unified cache (both IPv4 and IPv6) */
-		val = ipa_reg_bit(reg, ROUTER_CACHE);
-		val |= ipa_reg_bit(reg, FILTER_CACHE);
+		val = reg_bit(reg, ROUTER_CACHE);
+		val |= reg_bit(reg, FILTER_CACHE);
 	}
 
 	ipa_cmd_register_write_add(trans, reg_offset(reg), val, val, false);
@@ -503,7 +503,7 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 		val = ioread32(endpoint->ipa->reg_virt + offset);
 
 		/* Zero all filter-related fields, preserving the rest */
-		val &= ~ipa_reg_fmask(reg, FILTER_HASH_MSK_ALL);
+		val &= ~reg_fmask(reg, FILTER_HASH_MSK_ALL);
 	} else {
 		/* IPA v5.0 separates filter and router cache configuration */
 		reg = ipa_reg(ipa, ENDP_FILTER_CACHE_CFG);
@@ -562,7 +562,7 @@ static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 		val = ioread32(ipa->reg_virt + offset);
 
 		/* Zero all route-related fields, preserving the rest */
-		val &= ~ipa_reg_fmask(reg, ROUTER_HASH_MSK_ALL);
+		val &= ~reg_fmask(reg, ROUTER_HASH_MSK_ALL);
 	} else {
 		/* IPA v5.0 separates filter and router cache configuration */
 		reg = ipa_reg(ipa, ENDP_ROUTER_CACHE_CFG);

@@ -231,7 +231,7 @@ static void ipa_hardware_config_tx(struct ipa *ipa)
 
 	val = ioread32(ipa->reg_virt + offset);
 
-	val &= ~ipa_reg_bit(reg, PA_MASK_EN);
+	val &= ~reg_bit(reg, PA_MASK_EN);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -252,11 +252,11 @@ static void ipa_hardware_config_clkon(struct ipa *ipa)
 	reg = ipa_reg(ipa, CLKON_CFG);
 	if (version == IPA_VERSION_3_1) {
 		/* Disable MISC clock gating */
-		val = ipa_reg_bit(reg, CLKON_MISC);
+		val = reg_bit(reg, CLKON_MISC);
 	} else {	/* IPA v4.0+ */
 		/* Enable open global clocks in the CLKON configuration */
-		val = ipa_reg_bit(reg, CLKON_GLOBAL);
-		val |= ipa_reg_bit(reg, GLOBAL_2X_CLK);
+		val = reg_bit(reg, CLKON_GLOBAL);
+		val |= reg_bit(reg, GLOBAL_2X_CLK);
 	}
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
@@ -279,17 +279,17 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 	val = ioread32(ipa->reg_virt + offset);
 
 	if (ipa->version == IPA_VERSION_4_0) {
-		val &= ~ipa_reg_bit(reg, IPA_QMB_SELECT_CONS_EN);
-		val &= ~ipa_reg_bit(reg, IPA_QMB_SELECT_PROD_EN);
-		val &= ~ipa_reg_bit(reg, IPA_QMB_SELECT_GLOBAL_EN);
+		val &= ~reg_bit(reg, IPA_QMB_SELECT_CONS_EN);
+		val &= ~reg_bit(reg, IPA_QMB_SELECT_PROD_EN);
+		val &= ~reg_bit(reg, IPA_QMB_SELECT_GLOBAL_EN);
 	} else if (ipa->version < IPA_VERSION_4_5) {
-		val |= ipa_reg_bit(reg, GSI_MULTI_AXI_MASTERS_DIS);
+		val |= reg_bit(reg, GSI_MULTI_AXI_MASTERS_DIS);
 	} else {
 		/* For IPA v4.5 FULL_FLUSH_WAIT_RS_CLOSURE_EN is 0 */
 	}
 
-	val |= ipa_reg_bit(reg, GSI_MULTI_INORDER_RD_DIS);
-	val |= ipa_reg_bit(reg, GSI_MULTI_INORDER_WR_DIS);
+	val |= reg_bit(reg, GSI_MULTI_INORDER_RD_DIS);
+	val |= reg_bit(reg, GSI_MULTI_INORDER_WR_DIS);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -311,26 +311,24 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 	/* Max outstanding write accesses for QSB masters */
 	reg = ipa_reg(ipa, QSB_MAX_WRITES);
 
-	val = ipa_reg_encode(reg, GEN_QMB_0_MAX_WRITES, data0->max_writes);
+	val = reg_encode(reg, GEN_QMB_0_MAX_WRITES, data0->max_writes);
 	if (data->qsb_count > 1)
-		val |= ipa_reg_encode(reg, GEN_QMB_1_MAX_WRITES,
-				      data1->max_writes);
+		val |= reg_encode(reg, GEN_QMB_1_MAX_WRITES, data1->max_writes);
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	/* Max outstanding read accesses for QSB masters */
 	reg = ipa_reg(ipa, QSB_MAX_READS);
 
-	val = ipa_reg_encode(reg, GEN_QMB_0_MAX_READS, data0->max_reads);
+	val = reg_encode(reg, GEN_QMB_0_MAX_READS, data0->max_reads);
 	if (ipa->version >= IPA_VERSION_4_0)
-		val |= ipa_reg_encode(reg, GEN_QMB_0_MAX_READS_BEATS,
-				      data0->max_reads_beats);
+		val |= reg_encode(reg, GEN_QMB_0_MAX_READS_BEATS,
+				  data0->max_reads_beats);
 	if (data->qsb_count > 1) {
-		val = ipa_reg_encode(reg, GEN_QMB_1_MAX_READS,
-				     data1->max_reads);
+		val = reg_encode(reg, GEN_QMB_1_MAX_READS, data1->max_reads);
 		if (ipa->version >= IPA_VERSION_4_0)
-			val |= ipa_reg_encode(reg, GEN_QMB_1_MAX_READS_BEATS,
-					      data1->max_reads_beats);
+			val |= reg_encode(reg, GEN_QMB_1_MAX_READS_BEATS,
+					  data1->max_reads_beats);
 	}
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
@@ -379,23 +377,23 @@ static void ipa_qtime_config(struct ipa *ipa)
 
 	reg = ipa_reg(ipa, QTIME_TIMESTAMP_CFG);
 	/* Set DPL time stamp resolution to use Qtime (instead of 1 msec) */
-	val = ipa_reg_encode(reg, DPL_TIMESTAMP_LSB, DPL_TIMESTAMP_SHIFT);
-	val |= ipa_reg_bit(reg, DPL_TIMESTAMP_SEL);
+	val = reg_encode(reg, DPL_TIMESTAMP_LSB, DPL_TIMESTAMP_SHIFT);
+	val |= reg_bit(reg, DPL_TIMESTAMP_SEL);
 	/* Configure tag and NAT Qtime timestamp resolution as well */
-	val = ipa_reg_encode(reg, TAG_TIMESTAMP_LSB, TAG_TIMESTAMP_SHIFT);
-	val = ipa_reg_encode(reg, NAT_TIMESTAMP_LSB, NAT_TIMESTAMP_SHIFT);
+	val = reg_encode(reg, TAG_TIMESTAMP_LSB, TAG_TIMESTAMP_SHIFT);
+	val = reg_encode(reg, NAT_TIMESTAMP_LSB, NAT_TIMESTAMP_SHIFT);
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	/* Set granularity of pulse generators used for other timers */
 	reg = ipa_reg(ipa, TIMERS_PULSE_GRAN_CFG);
-	val = ipa_reg_encode(reg, PULSE_GRAN_0, IPA_GRAN_100_US);
-	val |= ipa_reg_encode(reg, PULSE_GRAN_1, IPA_GRAN_1_MS);
+	val = reg_encode(reg, PULSE_GRAN_0, IPA_GRAN_100_US);
+	val |= reg_encode(reg, PULSE_GRAN_1, IPA_GRAN_1_MS);
 	if (ipa->version >= IPA_VERSION_5_0) {
-		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_10_MS);
-		val |= ipa_reg_encode(reg, PULSE_GRAN_3, IPA_GRAN_10_MS);
+		val |= reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_10_MS);
+		val |= reg_encode(reg, PULSE_GRAN_3, IPA_GRAN_10_MS);
 	} else {
-		val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
+		val |= reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
 	}
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
@@ -404,12 +402,12 @@ static void ipa_qtime_config(struct ipa *ipa)
 	reg = ipa_reg(ipa, TIMERS_XO_CLK_DIV_CFG);
 	offset = reg_offset(reg);
 
-	val = ipa_reg_encode(reg, DIV_VALUE, IPA_XO_CLOCK_DIVIDER - 1);
+	val = reg_encode(reg, DIV_VALUE, IPA_XO_CLOCK_DIVIDER - 1);
 
 	iowrite32(val, ipa->reg_virt + offset);
 
 	/* Divider value is set; re-enable the common timer clock divider */
-	val |= ipa_reg_bit(reg, DIV_ENABLE);
+	val |= reg_bit(reg, DIV_ENABLE);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -423,7 +421,7 @@ static void ipa_hardware_config_counter(struct ipa *ipa)
 
 	reg = ipa_reg(ipa, COUNTER_CFG);
 	/* If defined, EOT_COAL_GRANULARITY is 0 */
-	val = ipa_reg_encode(reg, AGGR_GRANULARITY, granularity);
+	val = reg_encode(reg, AGGR_GRANULARITY, granularity);
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
 
@@ -467,10 +465,10 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 		return;
 
 	reg = ipa_reg(ipa, IDLE_INDICATION_CFG);
-	val = ipa_reg_encode(reg, ENTER_IDLE_DEBOUNCE_THRESH,
-			     enter_idle_debounce_thresh);
+	val = reg_encode(reg, ENTER_IDLE_DEBOUNCE_THRESH,
+			 enter_idle_debounce_thresh);
 	if (const_non_idle_enable)
-		val |= ipa_reg_bit(reg, CONST_NON_IDLE_ENABLE);
+		val |= reg_bit(reg, CONST_NON_IDLE_ENABLE);
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
