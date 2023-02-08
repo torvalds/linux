@@ -129,25 +129,21 @@ struct nfp_ipsec_cfg_mssg {
 	};
 };
 
-static int nfp_ipsec_cfg_cmd_issue(struct nfp_net *nn, int type, int saidx,
-				   struct nfp_ipsec_cfg_mssg *msg)
+static int nfp_net_ipsec_cfg(struct nfp_net *nn, struct nfp_mbox_amsg_entry *entry)
 {
 	unsigned int offset = nn->tlv_caps.mbox_off + NFP_NET_CFG_MBOX_SIMPLE_VAL;
+	struct nfp_ipsec_cfg_mssg *msg = (struct nfp_ipsec_cfg_mssg *)entry->msg;
 	int i, msg_size, ret;
 
 	ret = nfp_net_mbox_lock(nn, sizeof(*msg));
 	if (ret)
 		return ret;
 
-	msg->cmd = type;
-	msg->sa_idx = saidx;
-	msg->rsp = 0;
 	msg_size = ARRAY_SIZE(msg->raw);
-
 	for (i = 0; i < msg_size; i++)
 		nn_writel(nn, offset + 4 * i, msg->raw[i]);
 
-	ret = nfp_net_mbox_reconfig(nn, NFP_NET_CFG_MBOX_CMD_IPSEC);
+	ret = nfp_net_mbox_reconfig(nn, entry->cmd);
 	if (ret < 0) {
 		nn_ctrl_bar_unlock(nn);
 		return ret;
@@ -486,7 +482,10 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x)
 	}
 
 	/* Allocate saidx and commit the SA */
-	err = nfp_ipsec_cfg_cmd_issue(nn, NFP_IPSEC_CFG_MSSG_ADD_SA, saidx, &msg);
+	msg.cmd = NFP_IPSEC_CFG_MSSG_ADD_SA;
+	msg.sa_idx = saidx;
+	err = nfp_net_sched_mbox_amsg_work(nn, NFP_NET_CFG_MBOX_CMD_IPSEC, &msg,
+					   sizeof(msg), nfp_net_ipsec_cfg);
 	if (err) {
 		xa_erase(&nn->xa_ipsec, saidx);
 		nn_err(nn, "Failed to issue IPsec command err ret=%d\n", err);
@@ -500,14 +499,17 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x)
 
 static void nfp_net_xfrm_del_state(struct xfrm_state *x)
 {
+	struct nfp_ipsec_cfg_mssg msg = {
+		.cmd = NFP_IPSEC_CFG_MSSG_INV_SA,
+		.sa_idx = x->xso.offload_handle - 1,
+	};
 	struct net_device *netdev = x->xso.dev;
-	struct nfp_ipsec_cfg_mssg msg;
 	struct nfp_net *nn;
 	int err;
 
 	nn = netdev_priv(netdev);
-	err = nfp_ipsec_cfg_cmd_issue(nn, NFP_IPSEC_CFG_MSSG_INV_SA,
-				      x->xso.offload_handle - 1, &msg);
+	err = nfp_net_sched_mbox_amsg_work(nn, NFP_NET_CFG_MBOX_CMD_IPSEC, &msg,
+					   sizeof(msg), nfp_net_ipsec_cfg);
 	if (err)
 		nn_warn(nn, "Failed to invalidate SA in hardware\n");
 
