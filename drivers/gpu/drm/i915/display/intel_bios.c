@@ -1202,9 +1202,7 @@ child_device_ptr(const struct bdb_general_definitions *defs, int i)
 static void
 parse_sdvo_device_mapping(struct drm_i915_private *i915)
 {
-	struct sdvo_device_mapping *mapping;
 	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
 	int count = 0;
 
 	/*
@@ -1217,7 +1215,8 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 	}
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
-		child = &devdata->child;
+		const struct child_device_config *child = &devdata->child;
+		struct sdvo_device_mapping *mapping;
 
 		if (child->slave_addr != SLAVE_ADDR1 &&
 		    child->slave_addr != SLAVE_ADDR2) {
@@ -2075,7 +2074,6 @@ parse_compression_parameters(struct drm_i915_private *i915)
 {
 	const struct bdb_compression_parameters *params;
 	struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
 	u16 block_size;
 	int index;
 
@@ -2100,7 +2098,7 @@ parse_compression_parameters(struct drm_i915_private *i915)
 	}
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
-		child = &devdata->child;
+		const struct child_device_config *child = &devdata->child;
 
 		if (!child->compression_enable)
 			continue;
@@ -2226,14 +2224,14 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 
 static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
 {
-	const struct intel_bios_encoder_data *devdata;
 	enum port port;
 
 	if (!ddc_pin)
 		return PORT_NONE;
 
 	for_each_port(port) {
-		devdata = i915->display.vbt.ports[port];
+		const struct intel_bios_encoder_data *devdata =
+			i915->display.vbt.ports[port];
 
 		if (devdata && ddc_pin == devdata->child.ddc_pin)
 			return port;
@@ -2292,14 +2290,14 @@ static void sanitize_ddc_pin(struct intel_bios_encoder_data *devdata,
 
 static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
 {
-	const struct intel_bios_encoder_data *devdata;
 	enum port port;
 
 	if (!aux_ch)
 		return PORT_NONE;
 
 	for_each_port(port) {
-		devdata = i915->display.vbt.ports[port];
+		const struct intel_bios_encoder_data *devdata =
+			i915->display.vbt.ports[port];
 
 		if (devdata && aux_ch == devdata->child.aux_channel)
 			return port;
@@ -3306,7 +3304,6 @@ void intel_bios_fini_panel(struct intel_panel *panel)
 bool intel_bios_is_tv_present(struct drm_i915_private *i915)
 {
 	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
 
 	if (!i915->display.vbt.int_tv_support)
 		return false;
@@ -3315,7 +3312,7 @@ bool intel_bios_is_tv_present(struct drm_i915_private *i915)
 		return true;
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
-		child = &devdata->child;
+		const struct child_device_config *child = &devdata->child;
 
 		/*
 		 * If the device type is not TV, continue.
@@ -3349,13 +3346,12 @@ bool intel_bios_is_tv_present(struct drm_i915_private *i915)
 bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
 {
 	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
 
 	if (list_empty(&i915->display.vbt.display_devices))
 		return true;
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
-		child = &devdata->child;
+		const struct child_device_config *child = &devdata->child;
 
 		/* If the device type is not LFP, continue.
 		 * We have to check both the new identifiers as well as the
@@ -3457,16 +3453,13 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *i915,
 			       enum port *port)
 {
 	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
-	u8 dvo_port;
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
-		child = &devdata->child;
+		const struct child_device_config *child = &devdata->child;
+		u8 dvo_port = child->dvo_port;
 
 		if (!(child->device_type & DEVICE_TYPE_MIPI_OUTPUT))
 			continue;
-
-		dvo_port = child->dvo_port;
 
 		if (dsi_dvo_port_to_port(i915, dvo_port) == PORT_NONE) {
 			drm_dbg_kms(&i915->drm,
@@ -3554,10 +3547,9 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
-		child = &devdata->child;
+		const struct child_device_config *child = &devdata->child;
 
 		if (!(child->device_type & DEVICE_TYPE_MIPI_OUTPUT))
 			continue;
