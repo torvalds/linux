@@ -277,16 +277,31 @@ static DRIVER_ATTR_IGNORE_LOCKDEP(bind, 0200, NULL, bind_store);
 
 static ssize_t drivers_autoprobe_show(struct bus_type *bus, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", bus->p->drivers_autoprobe);
+	struct subsys_private *sp = bus_to_subsys(bus);
+	int ret;
+
+	if (!sp)
+		return -EINVAL;
+
+	ret = sysfs_emit(buf, "%d\n", sp->drivers_autoprobe);
+	subsys_put(sp);
+	return ret;
 }
 
 static ssize_t drivers_autoprobe_store(struct bus_type *bus,
 				       const char *buf, size_t count)
 {
+	struct subsys_private *sp = bus_to_subsys(bus);
+
+	if (!sp)
+		return -EINVAL;
+
 	if (buf[0] == '0')
-		bus->p->drivers_autoprobe = 0;
+		sp->drivers_autoprobe = 0;
 	else
-		bus->p->drivers_autoprobe = 1;
+		sp->drivers_autoprobe = 1;
+
+	subsys_put(sp);
 	return count;
 }
 
@@ -769,10 +784,18 @@ static void klist_devices_put(struct klist_node *n)
 static ssize_t bus_uevent_store(struct bus_type *bus,
 				const char *buf, size_t count)
 {
-	int rc;
+	struct subsys_private *sp = bus_to_subsys(bus);
+	int ret;
 
-	rc = kobject_synth_uevent(&bus->p->subsys.kobj, buf, count);
-	return rc ? rc : count;
+	if (!sp)
+		return -EINVAL;
+
+	ret = kobject_synth_uevent(&sp->subsys.kobj, buf, count);
+	subsys_put(sp);
+
+	if (ret)
+		return ret;
+	return count;
 }
 /*
  * "open code" the old BUS_ATTR() macro here.  We want to use BUS_ATTR_WO()
