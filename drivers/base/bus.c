@@ -936,22 +936,40 @@ EXPORT_SYMBOL_GPL(bus_unregister);
 
 int bus_register_notifier(struct bus_type *bus, struct notifier_block *nb)
 {
-	return blocking_notifier_chain_register(&bus->p->bus_notifier, nb);
+	struct subsys_private *sp = bus_to_subsys(bus);
+	int retval;
+
+	if (!sp)
+		return -EINVAL;
+
+	retval = blocking_notifier_chain_register(&sp->bus_notifier, nb);
+	subsys_put(sp);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(bus_register_notifier);
 
 int bus_unregister_notifier(struct bus_type *bus, struct notifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&bus->p->bus_notifier, nb);
+	struct subsys_private *sp = bus_to_subsys(bus);
+	int retval;
+
+	if (!sp)
+		return -EINVAL;
+	retval = blocking_notifier_chain_unregister(&sp->bus_notifier, nb);
+	subsys_put(sp);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(bus_unregister_notifier);
 
 void bus_notify(struct device *dev, enum bus_notifier_event value)
 {
-	struct bus_type *bus = dev->bus;
+	struct subsys_private *sp = bus_to_subsys(dev->bus);
 
-	if (bus)
-		blocking_notifier_call_chain(&bus->p->bus_notifier, value, dev);
+	if (!sp)
+		return;
+
+	blocking_notifier_call_chain(&sp->bus_notifier, value, dev);
+	subsys_put(sp);
 }
 
 struct kset *bus_get_kset(struct bus_type *bus)
