@@ -1019,8 +1019,8 @@ int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-long kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
-				struct kvm_arm_copy_mte_tags *copy_tags)
+int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
+			       struct kvm_arm_copy_mte_tags *copy_tags)
 {
 	gpa_t guest_ipa = copy_tags->guest_ipa;
 	size_t length = copy_tags->length;
@@ -1039,6 +1039,10 @@ long kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 		return -EINVAL;
 
 	if (length & ~PAGE_MASK || guest_ipa & ~PAGE_MASK)
+		return -EINVAL;
+
+	/* Lengths above INT_MAX cannot be represented in the return value */
+	if (length > INT_MAX)
 		return -EINVAL;
 
 	gfn = gpa_to_gfn(guest_ipa);
