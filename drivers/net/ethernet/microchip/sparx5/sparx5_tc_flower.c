@@ -10,6 +10,7 @@
 #include "sparx5_tc.h"
 #include "vcap_api.h"
 #include "vcap_api_client.h"
+#include "vcap_tc.h"
 #include "sparx5_main.h"
 #include "sparx5_vcap_impl.h"
 
@@ -27,138 +28,82 @@ struct sparx5_multiple_rules {
 	struct sparx5_wildcard_rule rule[SPX5_MAX_RULE_SIZE];
 };
 
-struct sparx5_tc_flower_parse_usage {
-	struct flow_cls_offload *fco;
-	struct flow_rule *frule;
-	struct vcap_rule *vrule;
-	struct vcap_admin *admin;
-	u16 l3_proto;
-	u8 l4_proto;
-	unsigned int used_keys;
-};
-
-enum sparx5_is2_arp_opcode {
-	SPX5_IS2_ARP_REQUEST,
-	SPX5_IS2_ARP_REPLY,
-	SPX5_IS2_RARP_REQUEST,
-	SPX5_IS2_RARP_REPLY,
-};
-
-enum tc_arp_opcode {
-	TC_ARP_OP_RESERVED,
-	TC_ARP_OP_REQUEST,
-	TC_ARP_OP_REPLY,
-};
-
-static int sparx5_tc_flower_handler_ethaddr_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	enum vcap_key_field smac_key = VCAP_KF_L2_SMAC;
-	enum vcap_key_field dmac_key = VCAP_KF_L2_DMAC;
-	struct flow_match_eth_addrs match;
-	struct vcap_u48_key smac, dmac;
-	int err = 0;
-
-	flow_rule_match_eth_addrs(st->frule, &match);
-
-	if (!is_zero_ether_addr(match.mask->src)) {
-		vcap_netbytes_copy(smac.value, match.key->src, ETH_ALEN);
-		vcap_netbytes_copy(smac.mask, match.mask->src, ETH_ALEN);
-		err = vcap_rule_add_key_u48(st->vrule, smac_key, &smac);
-		if (err)
-			goto out;
-	}
-
-	if (!is_zero_ether_addr(match.mask->dst)) {
-		vcap_netbytes_copy(dmac.value, match.key->dst, ETH_ALEN);
-		vcap_netbytes_copy(dmac.mask, match.mask->dst, ETH_ALEN);
-		err = vcap_rule_add_key_u48(st->vrule, dmac_key, &dmac);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS);
-
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "eth_addr parse error");
-	return err;
-}
-
 static int
-sparx5_tc_flower_handler_ipv4_usage(struct sparx5_tc_flower_parse_usage *st)
+sparx5_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 {
+	struct flow_match_basic mt;
 	int err = 0;
 
-	if (st->l3_proto == ETH_P_IP) {
-		struct flow_match_ipv4_addrs mt;
+	flow_rule_match_basic(st->frule, &mt);
 
-		flow_rule_match_ipv4_addrs(st->frule, &mt);
-		if (mt.mask->src) {
+	if (mt.mask->n_proto) {
+		st->l3_proto = be16_to_cpu(mt.key->n_proto);
+		if (!sparx5_vcap_is_known_etype(st->admin, st->l3_proto)) {
+			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
+						    st->l3_proto, ~0);
+			if (err)
+				goto out;
+		} else if (st->l3_proto == ETH_P_IP) {
+			err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_IP4_IS,
+						    VCAP_BIT_1);
+			if (err)
+				goto out;
+		} else if (st->l3_proto == ETH_P_IPV6) {
+			err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_IP4_IS,
+						    VCAP_BIT_0);
+			if (err)
+				goto out;
+			if (st->admin->vtype == VCAP_TYPE_IS0) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_IP_SNAP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
+		}
+	}
+
+	if (mt.mask->ip_proto) {
+		st->l4_proto = mt.key->ip_proto;
+		if (st->l4_proto == IPPROTO_TCP) {
+			err = vcap_rule_add_key_bit(st->vrule,
+						    VCAP_KF_TCP_IS,
+						    VCAP_BIT_1);
+			if (err)
+				goto out;
+		} else if (st->l4_proto == IPPROTO_UDP) {
+			err = vcap_rule_add_key_bit(st->vrule,
+						    VCAP_KF_TCP_IS,
+						    VCAP_BIT_0);
+			if (err)
+				goto out;
+			if (st->admin->vtype == VCAP_TYPE_IS0) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_TCP_UDP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
+		} else {
 			err = vcap_rule_add_key_u32(st->vrule,
-						    VCAP_KF_L3_IP4_SIP,
-						    be32_to_cpu(mt.key->src),
-						    be32_to_cpu(mt.mask->src));
-			if (err)
-				goto out;
-		}
-		if (mt.mask->dst) {
-			err = vcap_rule_add_key_u32(st->vrule,
-						    VCAP_KF_L3_IP4_DIP,
-						    be32_to_cpu(mt.key->dst),
-						    be32_to_cpu(mt.mask->dst));
+						    VCAP_KF_L3_IP_PROTO,
+						    st->l4_proto, ~0);
 			if (err)
 				goto out;
 		}
 	}
 
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS);
+	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_BASIC);
 
 	return err;
 
 out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ipv4_addr parse error");
+	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ip_proto parse error");
 	return err;
 }
 
 static int
-sparx5_tc_flower_handler_ipv6_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	int err = 0;
-
-	if (st->l3_proto == ETH_P_IPV6) {
-		struct flow_match_ipv6_addrs mt;
-		struct vcap_u128_key sip;
-		struct vcap_u128_key dip;
-
-		flow_rule_match_ipv6_addrs(st->frule, &mt);
-		/* Check if address masks are non-zero */
-		if (!ipv6_addr_any(&mt.mask->src)) {
-			vcap_netbytes_copy(sip.value, mt.key->src.s6_addr, 16);
-			vcap_netbytes_copy(sip.mask, mt.mask->src.s6_addr, 16);
-			err = vcap_rule_add_key_u128(st->vrule,
-						     VCAP_KF_L3_IP6_SIP, &sip);
-			if (err)
-				goto out;
-		}
-		if (!ipv6_addr_any(&mt.mask->dst)) {
-			vcap_netbytes_copy(dip.value, mt.key->dst.s6_addr, 16);
-			vcap_netbytes_copy(dip.mask, mt.mask->dst.s6_addr, 16);
-			err = vcap_rule_add_key_u128(st->vrule,
-						     VCAP_KF_L3_IP6_DIP, &dip);
-			if (err)
-				goto out;
-		}
-	}
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS);
-	return err;
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ipv6_addr parse error");
-	return err;
-}
-
-static int
-sparx5_tc_flower_handler_control_usage(struct sparx5_tc_flower_parse_usage *st)
+sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 {
 	struct flow_match_control mt;
 	u32 value, mask;
@@ -207,379 +152,43 @@ out:
 }
 
 static int
-sparx5_tc_flower_handler_portnum_usage(struct sparx5_tc_flower_parse_usage *st)
+sparx5_tc_flower_handler_cvlan_usage(struct vcap_tc_flower_parse_usage *st)
 {
-	struct flow_match_ports mt;
-	u16 value, mask;
-	int err = 0;
-
-	flow_rule_match_ports(st->frule, &mt);
-
-	if (mt.mask->src) {
-		value = be16_to_cpu(mt.key->src);
-		mask = be16_to_cpu(mt.mask->src);
-		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L4_SPORT, value,
-					    mask);
-		if (err)
-			goto out;
-	}
-
-	if (mt.mask->dst) {
-		value = be16_to_cpu(mt.key->dst);
-		mask = be16_to_cpu(mt.mask->dst);
-		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L4_DPORT, value,
-					    mask);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_PORTS);
-
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "port parse error");
-	return err;
-}
-
-static int
-sparx5_tc_flower_handler_basic_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	struct flow_match_basic mt;
-	int err = 0;
-
-	flow_rule_match_basic(st->frule, &mt);
-
-	if (mt.mask->n_proto) {
-		st->l3_proto = be16_to_cpu(mt.key->n_proto);
-		if (!sparx5_vcap_is_known_etype(st->admin, st->l3_proto)) {
-			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
-						    st->l3_proto, ~0);
-			if (err)
-				goto out;
-		} else if (st->l3_proto == ETH_P_IP) {
-			err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_IP4_IS,
-						    VCAP_BIT_1);
-			if (err)
-				goto out;
-		} else if (st->l3_proto == ETH_P_IPV6) {
-			err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_IP4_IS,
-						    VCAP_BIT_0);
-			if (err)
-				goto out;
-			if (st->admin->vtype == VCAP_TYPE_IS0) {
-				err = vcap_rule_add_key_bit(st->vrule,
-							    VCAP_KF_IP_SNAP_IS,
-							    VCAP_BIT_1);
-				if (err)
-					goto out;
-			}
-
-		}
-	}
-
-	if (mt.mask->ip_proto) {
-		st->l4_proto = mt.key->ip_proto;
-		if (st->l4_proto == IPPROTO_TCP) {
-			err = vcap_rule_add_key_bit(st->vrule,
-						    VCAP_KF_TCP_IS,
-						    VCAP_BIT_1);
-			if (err)
-				goto out;
-		} else if (st->l4_proto == IPPROTO_UDP) {
-			err = vcap_rule_add_key_bit(st->vrule,
-						    VCAP_KF_TCP_IS,
-						    VCAP_BIT_0);
-			if (err)
-				goto out;
-			if (st->admin->vtype == VCAP_TYPE_IS0) {
-				err = vcap_rule_add_key_bit(st->vrule,
-							    VCAP_KF_TCP_UDP_IS,
-							    VCAP_BIT_1);
-				if (err)
-					goto out;
-			}
-		} else {
-			err = vcap_rule_add_key_u32(st->vrule,
-						    VCAP_KF_L3_IP_PROTO,
-						    st->l4_proto, ~0);
-			if (err)
-				goto out;
-		}
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_BASIC);
-
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ip_proto parse error");
-	return err;
-}
-
-static int
-sparx5_tc_flower_handler_cvlan_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID0;
-	enum vcap_key_field pcp_key = VCAP_KF_8021Q_PCP0;
-	struct flow_match_vlan mt;
-	u16 tpid;
-	int err;
-
 	if (st->admin->vtype != VCAP_TYPE_IS0) {
 		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
 				   "cvlan not supported in this VCAP");
 		return -EINVAL;
 	}
 
-	flow_rule_match_cvlan(st->frule, &mt);
-
-	tpid = be16_to_cpu(mt.key->vlan_tpid);
-
-	if (tpid == ETH_P_8021Q) {
-		vid_key = VCAP_KF_8021Q_VID1;
-		pcp_key = VCAP_KF_8021Q_PCP1;
-	}
-
-	if (mt.mask->vlan_id) {
-		err = vcap_rule_add_key_u32(st->vrule, vid_key,
-					    mt.key->vlan_id,
-					    mt.mask->vlan_id);
-		if (err)
-			goto out;
-	}
-
-	if (mt.mask->vlan_priority) {
-		err = vcap_rule_add_key_u32(st->vrule, pcp_key,
-					    mt.key->vlan_priority,
-					    mt.mask->vlan_priority);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
-
-	return 0;
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "cvlan parse error");
-	return err;
+	return vcap_tc_flower_handler_cvlan_usage(st);
 }
 
 static int
-sparx5_tc_flower_handler_vlan_usage(struct sparx5_tc_flower_parse_usage *st)
+sparx5_tc_flower_handler_vlan_usage(struct vcap_tc_flower_parse_usage *st)
 {
 	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID_CLS;
 	enum vcap_key_field pcp_key = VCAP_KF_8021Q_PCP_CLS;
-	struct flow_match_vlan mt;
-	int err;
-
-	flow_rule_match_vlan(st->frule, &mt);
 
 	if (st->admin->vtype == VCAP_TYPE_IS0) {
 		vid_key = VCAP_KF_8021Q_VID0;
 		pcp_key = VCAP_KF_8021Q_PCP0;
 	}
 
-	if (mt.mask->vlan_id) {
-		err = vcap_rule_add_key_u32(st->vrule, vid_key,
-					    mt.key->vlan_id,
-					    mt.mask->vlan_id);
-		if (err)
-			goto out;
-	}
-
-	if (mt.mask->vlan_priority) {
-		err = vcap_rule_add_key_u32(st->vrule, pcp_key,
-					    mt.key->vlan_priority,
-					    mt.mask->vlan_priority);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_VLAN);
-
-	return 0;
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "vlan parse error");
-	return err;
+	return vcap_tc_flower_handler_vlan_usage(st, vid_key, pcp_key);
 }
 
-static int
-sparx5_tc_flower_handler_tcp_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	struct flow_match_tcp mt;
-	u16 tcp_flags_mask;
-	u16 tcp_flags_key;
-	enum vcap_bit val;
-	int err = 0;
-
-	flow_rule_match_tcp(st->frule, &mt);
-	tcp_flags_key = be16_to_cpu(mt.key->flags);
-	tcp_flags_mask = be16_to_cpu(mt.mask->flags);
-
-	if (tcp_flags_mask & TCPHDR_FIN) {
-		val = VCAP_BIT_0;
-		if (tcp_flags_key & TCPHDR_FIN)
-			val = VCAP_BIT_1;
-		err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_L4_FIN, val);
-		if (err)
-			goto out;
-	}
-
-	if (tcp_flags_mask & TCPHDR_SYN) {
-		val = VCAP_BIT_0;
-		if (tcp_flags_key & TCPHDR_SYN)
-			val = VCAP_BIT_1;
-		err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_L4_SYN, val);
-		if (err)
-			goto out;
-	}
-
-	if (tcp_flags_mask & TCPHDR_RST) {
-		val = VCAP_BIT_0;
-		if (tcp_flags_key & TCPHDR_RST)
-			val = VCAP_BIT_1;
-		err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_L4_RST, val);
-		if (err)
-			goto out;
-	}
-
-	if (tcp_flags_mask & TCPHDR_PSH) {
-		val = VCAP_BIT_0;
-		if (tcp_flags_key & TCPHDR_PSH)
-			val = VCAP_BIT_1;
-		err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_L4_PSH, val);
-		if (err)
-			goto out;
-	}
-
-	if (tcp_flags_mask & TCPHDR_ACK) {
-		val = VCAP_BIT_0;
-		if (tcp_flags_key & TCPHDR_ACK)
-			val = VCAP_BIT_1;
-		err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_L4_ACK, val);
-		if (err)
-			goto out;
-	}
-
-	if (tcp_flags_mask & TCPHDR_URG) {
-		val = VCAP_BIT_0;
-		if (tcp_flags_key & TCPHDR_URG)
-			val = VCAP_BIT_1;
-		err = vcap_rule_add_key_bit(st->vrule, VCAP_KF_L4_URG, val);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_TCP);
-
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "tcp_flags parse error");
-	return err;
-}
-
-static int
-sparx5_tc_flower_handler_arp_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	struct flow_match_arp mt;
-	u16 value, mask;
-	u32 ipval, ipmsk;
-	int err;
-
-	flow_rule_match_arp(st->frule, &mt);
-
-	if (mt.mask->op) {
-		mask = 0x3;
-		if (st->l3_proto == ETH_P_ARP) {
-			value = mt.key->op == TC_ARP_OP_REQUEST ?
-					SPX5_IS2_ARP_REQUEST :
-					SPX5_IS2_ARP_REPLY;
-		} else { /* RARP */
-			value = mt.key->op == TC_ARP_OP_REQUEST ?
-					SPX5_IS2_RARP_REQUEST :
-					SPX5_IS2_RARP_REPLY;
-		}
-		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ARP_OPCODE,
-					    value, mask);
-		if (err)
-			goto out;
-	}
-
-	/* The IS2 ARP keyset does not support ARP hardware addresses */
-	if (!is_zero_ether_addr(mt.mask->sha) ||
-	    !is_zero_ether_addr(mt.mask->tha)) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	if (mt.mask->sip) {
-		ipval = be32_to_cpu((__force __be32)mt.key->sip);
-		ipmsk = be32_to_cpu((__force __be32)mt.mask->sip);
-
-		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L3_IP4_SIP,
-					    ipval, ipmsk);
-		if (err)
-			goto out;
-	}
-
-	if (mt.mask->tip) {
-		ipval = be32_to_cpu((__force __be32)mt.key->tip);
-		ipmsk = be32_to_cpu((__force __be32)mt.mask->tip);
-
-		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L3_IP4_DIP,
-					    ipval, ipmsk);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_ARP);
-
-	return 0;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "arp parse error");
-	return err;
-}
-
-static int
-sparx5_tc_flower_handler_ip_usage(struct sparx5_tc_flower_parse_usage *st)
-{
-	struct flow_match_ip mt;
-	int err = 0;
-
-	flow_rule_match_ip(st->frule, &mt);
-
-	if (mt.mask->tos) {
-		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L3_TOS,
-					    mt.key->tos,
-					    mt.mask->tos);
-		if (err)
-			goto out;
-	}
-
-	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_IP);
-
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ip_tos parse error");
-	return err;
-}
-
-static int (*sparx5_tc_flower_usage_handlers[])(struct sparx5_tc_flower_parse_usage *st) = {
-	[FLOW_DISSECTOR_KEY_ETH_ADDRS] = sparx5_tc_flower_handler_ethaddr_usage,
-	[FLOW_DISSECTOR_KEY_IPV4_ADDRS] = sparx5_tc_flower_handler_ipv4_usage,
-	[FLOW_DISSECTOR_KEY_IPV6_ADDRS] = sparx5_tc_flower_handler_ipv6_usage,
+static int (*sparx5_tc_flower_usage_handlers[])(struct vcap_tc_flower_parse_usage *st) = {
+	[FLOW_DISSECTOR_KEY_ETH_ADDRS] = vcap_tc_flower_handler_ethaddr_usage,
+	[FLOW_DISSECTOR_KEY_IPV4_ADDRS] = vcap_tc_flower_handler_ipv4_usage,
+	[FLOW_DISSECTOR_KEY_IPV6_ADDRS] = vcap_tc_flower_handler_ipv6_usage,
 	[FLOW_DISSECTOR_KEY_CONTROL] = sparx5_tc_flower_handler_control_usage,
-	[FLOW_DISSECTOR_KEY_PORTS] = sparx5_tc_flower_handler_portnum_usage,
+	[FLOW_DISSECTOR_KEY_PORTS] = vcap_tc_flower_handler_portnum_usage,
 	[FLOW_DISSECTOR_KEY_BASIC] = sparx5_tc_flower_handler_basic_usage,
 	[FLOW_DISSECTOR_KEY_CVLAN] = sparx5_tc_flower_handler_cvlan_usage,
 	[FLOW_DISSECTOR_KEY_VLAN] = sparx5_tc_flower_handler_vlan_usage,
-	[FLOW_DISSECTOR_KEY_TCP] = sparx5_tc_flower_handler_tcp_usage,
-	[FLOW_DISSECTOR_KEY_ARP] = sparx5_tc_flower_handler_arp_usage,
-	[FLOW_DISSECTOR_KEY_IP] = sparx5_tc_flower_handler_ip_usage,
+	[FLOW_DISSECTOR_KEY_TCP] = vcap_tc_flower_handler_tcp_usage,
+	[FLOW_DISSECTOR_KEY_ARP] = vcap_tc_flower_handler_arp_usage,
+	[FLOW_DISSECTOR_KEY_IP] = vcap_tc_flower_handler_ip_usage,
 };
 
 static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
@@ -587,7 +196,7 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 				    struct vcap_rule *vrule,
 				    u16 *l3_proto)
 {
-	struct sparx5_tc_flower_parse_usage state = {
+	struct vcap_tc_flower_parse_usage state = {
 		.fco = fco,
 		.vrule = vrule,
 		.l3_proto = ETH_P_ALL,
