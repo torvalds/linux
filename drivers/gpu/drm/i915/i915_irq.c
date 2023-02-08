@@ -3131,23 +3131,22 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 static u32 bxt_hotplug_enables(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	u32 hotplug;
 
 	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
 		hotplug = PORTA_HOTPLUG_ENABLE;
-		if (intel_bios_is_port_hpd_inverted(i915, PORT_A))
+		if (intel_bios_encoder_hpd_invert(encoder->devdata))
 			hotplug |= BXT_DDIA_HPD_INVERT;
 		return hotplug;
 	case HPD_PORT_B:
 		hotplug = PORTB_HOTPLUG_ENABLE;
-		if (intel_bios_is_port_hpd_inverted(i915, PORT_B))
+		if (intel_bios_encoder_hpd_invert(encoder->devdata))
 			hotplug |= BXT_DDIB_HPD_INVERT;
 		return hotplug;
 	case HPD_PORT_C:
 		hotplug = PORTC_HOTPLUG_ENABLE;
-		if (intel_bios_is_port_hpd_inverted(i915, PORT_C))
+		if (intel_bios_encoder_hpd_invert(encoder->devdata))
 			hotplug |= BXT_DDIC_HPD_INVERT;
 		return hotplug;
 	default:

@@ -3574,26 +3574,6 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 	return false;
 }
 
-/**
- * intel_bios_is_port_hpd_inverted - is HPD inverted for %port
- * @i915:	i915 device instance
- * @port:	port to check
- *
- * Return true if HPD should be inverted for %port.
- */
-bool
-intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
-				enum port port)
-{
-	const struct intel_bios_encoder_data *devdata = i915->display.vbt.ports[port];
-
-	if (drm_WARN_ON_ONCE(&i915->drm,
-			     !IS_GEMINILAKE(i915) && !IS_BROXTON(i915)))
-		return false;
-
-	return devdata && devdata->child.hpd_invert;
-}
-
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 				   enum port port)
 {
@@ -3761,6 +3741,11 @@ bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devda
 bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata)
 {
 	return devdata && devdata->child.lane_reversal;
+}
+
+bool intel_bios_encoder_hpd_invert(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata && devdata->child.hpd_invert;
 }
 
 const struct intel_bios_encoder_data *
