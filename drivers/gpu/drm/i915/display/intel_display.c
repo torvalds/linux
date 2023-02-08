@@ -8634,6 +8634,10 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 		goto cleanup_bios;
 
 	/* FIXME: completely on the wrong abstraction layer */
+	ret = intel_power_domains_init(i915);
+	if (ret < 0)
+		goto cleanup_vga;
+
 	intel_power_domains_init_hw(i915, false);
 
 	if (!HAS_DISPLAY(i915))
@@ -8676,6 +8680,7 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 cleanup_vga_client_pw_domain_dmc:
 	intel_dmc_fini(i915);
 	intel_power_domains_driver_remove(i915);
+cleanup_vga:
 	intel_vga_unregister(i915);
 cleanup_bios:
 	intel_bios_driver_remove(i915);

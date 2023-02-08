@@ -251,9 +251,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	intel_detect_pch(dev_priv);
 
 	intel_pm_setup(dev_priv);
-	ret = intel_power_domains_init(dev_priv);
-	if (ret < 0)
-		goto err_gem;
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
@@ -262,10 +259,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	return 0;
 
-err_gem:
-	i915_gem_cleanup_early(dev_priv);
-	intel_gt_driver_late_release_all(dev_priv);
-	i915_drm_clients_fini(&dev_priv->clients);
 err_rootgt:
 	intel_region_ttm_device_fini(dev_priv);
 err_ttm:
