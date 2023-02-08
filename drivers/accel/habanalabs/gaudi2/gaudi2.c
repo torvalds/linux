@@ -6148,18 +6148,24 @@ static int gaudi2_execute_soft_reset(struct hl_device *hdev, bool driver_perform
 						u32 poll_timeout_us)
 {
 	struct cpu_dyn_regs *dyn_regs = &hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
+	int rc = 0;
 
 	if (!driver_performs_reset) {
-		/* set SP to indicate reset request sent to FW */
-		if (dyn_regs->cpu_rst_status)
-			WREG32(le32_to_cpu(dyn_regs->cpu_rst_status), CPU_RST_STATUS_NA);
-		else
-			WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
+		if (hl_is_fw_sw_ver_below(hdev, 1, 10)) {
+			/* set SP to indicate reset request sent to FW */
+			if (dyn_regs->cpu_rst_status)
+				WREG32(le32_to_cpu(dyn_regs->cpu_rst_status), CPU_RST_STATUS_NA);
+			else
+				WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
+			WREG32(le32_to_cpu(dyn_regs->gic_host_soft_rst_irq),
+				gaudi2_irq_map_table[GAUDI2_EVENT_CPU_SOFT_RESET].cpu_id);
 
-		WREG32(le32_to_cpu(dyn_regs->gic_host_soft_rst_irq),
-			gaudi2_irq_map_table[GAUDI2_EVENT_CPU_SOFT_RESET].cpu_id);
-
-		return gaudi2_get_soft_rst_done_indication(hdev, poll_timeout_us);
+			/* wait for f/w response */
+			rc = gaudi2_get_soft_rst_done_indication(hdev, poll_timeout_us);
+		} else {
+			rc = hl_fw_send_soft_reset(hdev);
+		}
+		return rc;
 	}
 
 	/* Block access to engines, QMANs and SM during reset, these

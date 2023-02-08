@@ -591,6 +591,20 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 			size);
 }
 
+int hl_fw_send_soft_reset(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_SOFT_RESET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+	if (rc)
+		dev_err(hdev->dev, "failed to send soft-reset msg (err = %d)\n", rc);
+
+	return rc;
+}
+
 int hl_fw_send_device_activity(struct hl_device *hdev, bool open)
 {
 	struct cpucp_packet pkt;
