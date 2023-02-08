@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef WCD_USBSS_PRIV_H
 #define WCD_USBSS_PRIV_H
@@ -41,6 +41,7 @@ struct wcd_usbss_ctxt {
 	struct kobject *surge_kobject;
 	struct task_struct *surge_thread;
 	unsigned int surge_timer_period_ms;
+	unsigned int cached_audio_pwr_mode;
 };
 
 extern struct regmap *wcd_usbss_regmap_init(struct device *dev,
