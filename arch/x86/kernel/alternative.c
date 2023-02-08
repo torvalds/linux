@@ -113,17 +113,35 @@ const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
 	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
 };
 
-/* Use this to add nops to a buffer, then text_poke the whole buffer. */
-static void __init_or_module add_nops(void *insns, unsigned int len)
+/*
+ * In order not to issue an ORC stack depth tracking CFI entry (Call Frame Info)
+ * for every single-byte NOP, try to generate the maximally available NOP of
+ * size <= ASM_NOP_MAX such that only a single CFI entry is generated (vs one for
+ * each single-byte NOPs). If @len to fill out is > ASM_NOP_MAX, pad with INT3 and
+ * *jump* over instead of executing long and daft NOPs.
+ */
+static void __init_or_module add_nop(u8 *instr, unsigned int len)
 {
-	while (len > 0) {
-		unsigned int noplen = len;
-		if (noplen > ASM_NOP_MAX)
-			noplen = ASM_NOP_MAX;
-		memcpy(insns, x86_nops[noplen], noplen);
-		insns += noplen;
-		len -= noplen;
+	u8 *target = instr + len;
+
+	if (!len)
+		return;
+
+	if (len <= ASM_NOP_MAX) {
+		memcpy(instr, x86_nops[len], len);
+		return;
 	}
+
+	if (len < 128) {
+		__text_gen_insn(instr, JMP8_INSN_OPCODE, instr, target, JMP8_INSN_SIZE);
+		instr += JMP8_INSN_SIZE;
+	} else {
+		__text_gen_insn(instr, JMP32_INSN_OPCODE, instr, target, JMP32_INSN_SIZE);
+		instr += JMP32_INSN_SIZE;
+	}
+
+	for (;instr < target; instr++)
+		*instr = INT3_INSN_OPCODE;
 }
 
 extern s32 __retpoline_sites[], __retpoline_sites_end[];
@@ -134,39 +152,32 @@ extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
 void text_poke_early(void *addr, const void *opcode, size_t len);
 
-/*
- * optimize_nops_range() - Optimize a sequence of single byte NOPs (0x90)
- *
- * @instr: instruction byte stream
- * @instrlen: length of the above
- * @off: offset within @instr where the first NOP has been detected
- *
- * Return: number of NOPs found (and replaced).
- */
-static __always_inline int optimize_nops_range(u8 *instr, u8 instrlen, int off)
+static bool insn_is_nop(struct insn *insn)
 {
-	unsigned long flags;
-	int i = off, nnops;
+	if (insn->opcode.bytes[0] == 0x90)
+		return true;
 
-	while (i < instrlen) {
-		if (instr[i] != 0x90)
+	if (insn->opcode.bytes[0] == 0x0F && insn->opcode.bytes[1] == 0x1F)
+		return true;
+
+	/* TODO: more nops */
+
+	return false;
+}
+
+static int skip_nops(u8 *instr, int offset, int len)
+{
+	struct insn insn;
+
+	for (; offset < len; offset += insn.length) {
+		if (insn_decode_kernel(&insn, &instr[offset]))
 			break;
 
-		i++;
+		if (!insn_is_nop(&insn))
+			break;
 	}
 
-	nnops = i - off;
-
-	if (nnops <= 1)
-		return nnops;
-
-	local_irq_save(flags);
-	add_nops(instr + off, nnops);
-	local_irq_restore(flags);
-
-	DUMP_BYTES(ALT, instr, instrlen, "%px: [%d:%d) optimized NOPs: ", instr, off, i);
-
-	return nnops;
+	return offset;
 }
 
 /*
@@ -175,28 +186,19 @@ static __always_inline int optimize_nops_range(u8 *instr, u8 instrlen, int off)
  */
 static void __init_or_module noinline optimize_nops(u8 *instr, size_t len)
 {
-	struct insn insn;
-	int i = 0;
+	for (int next, i = 0; i < len; i = next) {
+		struct insn insn;
 
-	/*
-	 * Jump over the non-NOP insns and optimize single-byte NOPs into bigger
-	 * ones.
-	 */
-	for (;;) {
 		if (insn_decode_kernel(&insn, &instr[i]))
 			return;
 
-		/*
-		 * See if this and any potentially following NOPs can be
-		 * optimized.
-		 */
-		if (insn.length == 1 && insn.opcode.bytes[0] == 0x90)
-			i += optimize_nops_range(instr, len, i);
-		else
-			i += insn.length;
+		next = i + insn.length;
 
-		if (i >= len)
-			return;
+		if (insn_is_nop(&insn)) {
+			next = skip_nops(instr, next, len);
+			add_nop(instr + i, next - i);
+			DUMP_BYTES(ALT, instr, len, "%px: [%d:%d) optimized NOPs: ", instr, i, next);
+		}
 	}
 }
 
@@ -323,13 +325,10 @@ apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 			}
 		}
 
-
-		/*
-		 * See if this and any potentially following NOPs can be
-		 * optimized.
-		 */
-		if (insn.length == 1 && insn.opcode.bytes[0] == 0x90)
-			next = i + optimize_nops_range(buf, len, i);
+		if (insn_is_nop(&insn)) {
+			next = skip_nops(buf, next, len);
+			add_nop(buf + i, next - i);
+		}
 	}
 }
 
@@ -1289,6 +1288,20 @@ int alternatives_text_reserved(void *start, void *end)
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PARAVIRT
+
+/* Use this to add nops to a buffer, then text_poke the whole buffer. */
+static void __init_or_module add_nops(void *insns, unsigned int len)
+{
+	while (len > 0) {
+		unsigned int noplen = len;
+		if (noplen > ASM_NOP_MAX)
+			noplen = ASM_NOP_MAX;
+		memcpy(insns, x86_nops[noplen], noplen);
+		insns += noplen;
+		len -= noplen;
+	}
+}
+
 void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
 				     struct paravirt_patch_site *end)
 {
