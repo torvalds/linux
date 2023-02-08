@@ -560,12 +560,8 @@ static int __maybe_unused rcar_gen3_thermal_resume(struct device *dev)
 
 	for (i = 0; i < priv->num_tscs; i++) {
 		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
-		struct thermal_zone_device *zone = tsc->zone;
 
 		priv->thermal_init(tsc);
-		if (zone->ops->set_trips)
-			rcar_gen3_thermal_set_trips(zone, zone->prev_low_trip,
-						    zone->prev_high_trip);
 	}
 
 	return 0;
