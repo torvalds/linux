@@ -139,6 +139,8 @@ struct wm8960_priv {
 	struct dentry *debug_file;
 	bool first_capture;
 	bool is_capture;
+
+	u16 wm8960_reg_context[WM8960_REG_MAX];
 };
 
 #define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
@@ -1516,6 +1518,49 @@ static int wm8960_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8960_suspend(struct snd_soc_component *component)
+{
+	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+	int i;
+
+	/* save registers context */
+	for (i = 0; i < WM8960_REG_MAX; i++) {
+		/* except Power and Reserved registers */
+		if (i == WM8960_POWER1 || i == WM8960_POWER2 || i == WM8960_POWER3 ||
+			i == 0xc || i == 0xd || i == 0xe || i == WM8960_RESET ||
+			i == 0x1e || i == 0x1f || i == 0x23 || i == 0x24 || i == 0x32)
+			continue;
+		else
+			wm8960->wm8960_reg_context[i] = snd_soc_component_read(component, i);
+	}
+
+	return 0;
+}
+
+static int wm8960_resume(struct snd_soc_component *component)
+{
+	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+	int i;
+
+	/* restore registers context */
+	for (i = 0; i < WM8960_REG_MAX; i++) {
+		/* except Power and Reserved registers */
+		if (i == WM8960_POWER1 || i == WM8960_POWER2 || i == WM8960_POWER3 ||
+			i == 0xc || i == 0xd || i == 0xe || i == WM8960_RESET ||
+			i == 0x1e || i == 0x1f || i == 0x23 || i == 0x24 || i == 0x32)
+			continue;
+		else
+			snd_soc_component_update_bits(component, i, 0x1ff, wm8960->wm8960_reg_context[i]);
+	}
+
+	return 0;
+}
+#else
+#define wm8960_suspend	NULL
+#define wm8960_resume	NULL
+#endif
+
 static const struct snd_soc_component_driver soc_component_dev_wm8960 = {
 	.probe			= wm8960_probe,
 	.set_bias_level		= wm8960_set_bias_level,
@@ -1524,6 +1569,8 @@ static const struct snd_soc_component_driver soc_component_dev_wm8960 = {
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
+	.suspend		= wm8960_suspend,
+	.resume			= wm8960_resume,
 };
 
 static const struct regmap_config wm8960_regmap = {
