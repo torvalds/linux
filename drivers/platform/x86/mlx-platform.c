@@ -319,6 +319,9 @@
 /* Default value for PWM control register for rack switch system */
 #define MLXPLAT_REGMAP_NVSWITCH_PWM_DEFAULT 0xf4
 
+#define MLXPLAT_I2C_MAIN_BUS_NOTIFIED		0x01
+#define MLXPLAT_I2C_MAIN_BUS_HANDLE_CREATED	0x02
+
 /* mlxplat_priv - platform private data
  * @pdev_i2c - i2c controller platform device
  * @pdev_mux - array of mux platform devices
@@ -330,6 +333,7 @@
  * @regmap: device register map
  * @hotplug_resources: system hotplug resources
  * @hotplug_resources_size: size of system hotplug resources
+ * @hi2c_main_init_status: init status of I2C main bus
  */
 struct mlxplat_priv {
 	struct platform_device *pdev_i2c;
@@ -342,9 +346,11 @@ struct mlxplat_priv {
 	void *regmap;
 	struct resource *hotplug_resources;
 	unsigned int hotplug_resources_size;
+	u8 i2c_main_init_status;
 };
 
 static struct platform_device *mlxplat_dev;
+static int mlxplat_i2c_main_complition_notify(void *handle, int id);
 
 /* Regions for LPC I2C controller and LPC base register space */
 static const struct resource mlxplat_lpc_resources[] = {
@@ -379,6 +385,7 @@ static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_ng_data = {
 	.mask = MLXPLAT_CPLD_AGGR_MASK_COMEX,
 	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRCO_OFFSET,
 	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_I2C,
+	.completion_notify = mlxplat_i2c_main_complition_notify,
 };
 
 /* Platform default channels */
@@ -6050,12 +6057,225 @@ static void mlxplat_post_exit(void)
 	mlxplat_lpc_cpld_device_exit();
 }
 
+static int mlxplat_post_init(struct mlxplat_priv *priv)
+{
+	int i = 0, err;
+
+	/* Add hotplug driver */
+	if (mlxplat_hotplug) {
+		mlxplat_hotplug->regmap = priv->regmap;
+		priv->pdev_hotplug =
+		platform_device_register_resndata(&mlxplat_dev->dev,
+						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
+						  priv->hotplug_resources,
+						  priv->hotplug_resources_size,
+						  mlxplat_hotplug, sizeof(*mlxplat_hotplug));
+		if (IS_ERR(priv->pdev_hotplug)) {
+			err = PTR_ERR(priv->pdev_hotplug);
+			goto fail_platform_hotplug_register;
+		}
+	}
+
+	/* Add LED driver. */
+	if (mlxplat_led) {
+		mlxplat_led->regmap = priv->regmap;
+		priv->pdev_led =
+		platform_device_register_resndata(&mlxplat_dev->dev, "leds-mlxreg",
+						  PLATFORM_DEVID_NONE, NULL, 0, mlxplat_led,
+						  sizeof(*mlxplat_led));
+		if (IS_ERR(priv->pdev_led)) {
+			err = PTR_ERR(priv->pdev_led);
+			goto fail_platform_leds_register;
+		}
+	}
+
+	/* Add registers io access driver. */
+	if (mlxplat_regs_io) {
+		mlxplat_regs_io->regmap = priv->regmap;
+		priv->pdev_io_regs = platform_device_register_resndata(&mlxplat_dev->dev,
+								       "mlxreg-io",
+								       PLATFORM_DEVID_NONE, NULL,
+								       0, mlxplat_regs_io,
+								       sizeof(*mlxplat_regs_io));
+		if (IS_ERR(priv->pdev_io_regs)) {
+			err = PTR_ERR(priv->pdev_io_regs);
+			goto fail_platform_io_register;
+		}
+	}
+
+	/* Add FAN driver. */
+	if (mlxplat_fan) {
+		mlxplat_fan->regmap = priv->regmap;
+		priv->pdev_fan = platform_device_register_resndata(&mlxplat_dev->dev, "mlxreg-fan",
+								   PLATFORM_DEVID_NONE, NULL, 0,
+								   mlxplat_fan,
+								   sizeof(*mlxplat_fan));
+		if (IS_ERR(priv->pdev_fan)) {
+			err = PTR_ERR(priv->pdev_fan);
+			goto fail_platform_fan_register;
+		}
+	}
+
+	/* Add WD drivers. */
+	err = mlxplat_mlxcpld_check_wd_capability(priv->regmap);
+	if (err)
+		goto fail_platform_wd_register;
+	for (i = 0; i < MLXPLAT_CPLD_WD_MAX_DEVS; i++) {
+		if (mlxplat_wd_data[i]) {
+			mlxplat_wd_data[i]->regmap = priv->regmap;
+			priv->pdev_wd[i] =
+				platform_device_register_resndata(&mlxplat_dev->dev, "mlx-wdt", i,
+								  NULL, 0, mlxplat_wd_data[i],
+								  sizeof(*mlxplat_wd_data[i]));
+			if (IS_ERR(priv->pdev_wd[i])) {
+				err = PTR_ERR(priv->pdev_wd[i]);
+				goto fail_platform_wd_register;
+			}
+		}
+	}
+
+	return 0;
+
+fail_platform_wd_register:
+	while (--i >= 0)
+		platform_device_unregister(priv->pdev_wd[i]);
+fail_platform_fan_register:
+	if (mlxplat_regs_io)
+		platform_device_unregister(priv->pdev_io_regs);
+fail_platform_io_register:
+	if (mlxplat_led)
+		platform_device_unregister(priv->pdev_led);
+fail_platform_leds_register:
+	if (mlxplat_hotplug)
+		platform_device_unregister(priv->pdev_hotplug);
+fail_platform_hotplug_register:
+	return err;
+}
+
+static void mlxplat_pre_exit(struct mlxplat_priv *priv)
+{
+	int i;
+
+	for (i = MLXPLAT_CPLD_WD_MAX_DEVS - 1; i >= 0 ; i--)
+		platform_device_unregister(priv->pdev_wd[i]);
+	if (priv->pdev_fan)
+		platform_device_unregister(priv->pdev_fan);
+	if (priv->pdev_io_regs)
+		platform_device_unregister(priv->pdev_io_regs);
+	if (priv->pdev_led)
+		platform_device_unregister(priv->pdev_led);
+	if (priv->pdev_hotplug)
+		platform_device_unregister(priv->pdev_hotplug);
+}
+
+static int
+mlxplat_i2c_mux_complition_notify(void *handle, struct i2c_adapter *parent,
+				  struct i2c_adapter *adapters[])
+{
+	struct mlxplat_priv *priv = handle;
+
+	return mlxplat_post_init(priv);
+}
+
+static int mlxplat_i2c_mux_topolgy_init(struct mlxplat_priv *priv)
+{
+	int i, err;
+
+	if (!priv->pdev_i2c) {
+		priv->i2c_main_init_status = MLXPLAT_I2C_MAIN_BUS_NOTIFIED;
+		return 0;
+	}
+
+	priv->i2c_main_init_status = MLXPLAT_I2C_MAIN_BUS_HANDLE_CREATED;
+	for (i = 0; i < mlxplat_mux_num; i++) {
+		priv->pdev_mux[i] = platform_device_register_resndata(&priv->pdev_i2c->dev,
+								      "i2c-mux-reg", i, NULL, 0,
+								      &mlxplat_mux_data[i],
+								      sizeof(mlxplat_mux_data[i]));
+		if (IS_ERR(priv->pdev_mux[i])) {
+			err = PTR_ERR(priv->pdev_mux[i]);
+			goto fail_platform_mux_register;
+		}
+	}
+
+	return mlxplat_i2c_mux_complition_notify(priv, NULL, NULL);
+
+fail_platform_mux_register:
+	while (--i >= 0)
+		platform_device_unregister(priv->pdev_mux[i]);
+	return err;
+}
+
+static void mlxplat_i2c_mux_topolgy_exit(struct mlxplat_priv *priv)
+{
+	int i;
+
+	for (i = mlxplat_mux_num - 1; i >= 0 ; i--) {
+		if (priv->pdev_mux[i])
+			platform_device_unregister(priv->pdev_mux[i]);
+	}
+
+	mlxplat_post_exit();
+}
+
+static int mlxplat_i2c_main_complition_notify(void *handle, int id)
+{
+	struct mlxplat_priv *priv = handle;
+
+	return mlxplat_i2c_mux_topolgy_init(priv);
+}
+
+static int mlxplat_i2c_main_init(struct mlxplat_priv *priv)
+{
+	int nr, err;
+
+	if (!mlxplat_i2c)
+		return 0;
+
+	err = mlxplat_mlxcpld_verify_bus_topology(&nr);
+	if (nr < 0)
+		goto fail_mlxplat_mlxcpld_verify_bus_topology;
+
+	nr = (nr == mlxplat_max_adap_num) ? -1 : nr;
+	mlxplat_i2c->regmap = priv->regmap;
+	mlxplat_i2c->handle = priv;
+
+	priv->pdev_i2c = platform_device_register_resndata(&mlxplat_dev->dev, "i2c_mlxcpld",
+							   nr, priv->hotplug_resources,
+							   priv->hotplug_resources_size,
+							   mlxplat_i2c, sizeof(*mlxplat_i2c));
+	if (IS_ERR(priv->pdev_i2c)) {
+		err = PTR_ERR(priv->pdev_i2c);
+		goto fail_platform_i2c_register;
+	}
+
+	if (priv->i2c_main_init_status == MLXPLAT_I2C_MAIN_BUS_NOTIFIED) {
+		err = mlxplat_i2c_mux_topolgy_init(priv);
+		if (err)
+			goto fail_mlxplat_i2c_mux_topolgy_init;
+	}
+
+	return 0;
+
+fail_mlxplat_i2c_mux_topolgy_init:
+fail_platform_i2c_register:
+fail_mlxplat_mlxcpld_verify_bus_topology:
+	return err;
+}
+
+static void mlxplat_i2c_main_exit(struct mlxplat_priv *priv)
+{
+	mlxplat_i2c_mux_topolgy_exit(priv);
+	if (priv->pdev_i2c)
+		platform_device_unregister(priv->pdev_i2c);
+}
+
 static int __init mlxplat_init(void)
 {
 	unsigned int hotplug_resources_size;
 	struct resource *hotplug_resources;
 	struct mlxplat_priv *priv;
-	int i, j, nr, err;
+	int i, err;
 
 	if (!dmi_check_system(mlxplat_dmi_table))
 		return -ENODEV;
@@ -6071,7 +6291,6 @@ static int __init mlxplat_init(void)
 		goto fail_alloc;
 	}
 	platform_set_drvdata(mlxplat_dev, priv);
-
 	priv->hotplug_resources = hotplug_resources;
 	priv->hotplug_resources_size = hotplug_resources_size;
 
@@ -6086,142 +6305,33 @@ static int __init mlxplat_init(void)
 		goto fail_alloc;
 	}
 
-	err = mlxplat_mlxcpld_verify_bus_topology(&nr);
-	if (nr < 0)
-		goto fail_alloc;
-
-	nr = (nr == mlxplat_max_adap_num) ? -1 : nr;
-	if (mlxplat_i2c)
-		mlxplat_i2c->regmap = priv->regmap;
-	priv->pdev_i2c = platform_device_register_resndata(&mlxplat_dev->dev, "i2c_mlxcpld",
-							   nr, priv->hotplug_resources,
-							   priv->hotplug_resources_size,
-							   mlxplat_i2c, sizeof(*mlxplat_i2c));
-	if (IS_ERR(priv->pdev_i2c)) {
-		err = PTR_ERR(priv->pdev_i2c);
-		goto fail_alloc;
-	}
-
-	for (i = 0; i < mlxplat_mux_num; i++) {
-		priv->pdev_mux[i] = platform_device_register_resndata(&priv->pdev_i2c->dev,
-								      "i2c-mux-reg", i, NULL, 0,
-								      &mlxplat_mux_data[i],
-								      sizeof(mlxplat_mux_data[i]));
-		if (IS_ERR(priv->pdev_mux[i])) {
-			err = PTR_ERR(priv->pdev_mux[i]);
-			goto fail_platform_mux_register;
-		}
-	}
-
-	/* Add hotplug driver */
-	if (mlxplat_hotplug) {
-		mlxplat_hotplug->regmap = priv->regmap;
-		priv->pdev_hotplug =
-		platform_device_register_resndata(&mlxplat_dev->dev,
-						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
-						  priv->hotplug_resources,
-						  priv->hotplug_resources_size,
-						  mlxplat_hotplug, sizeof(*mlxplat_hotplug));
-		if (IS_ERR(priv->pdev_hotplug)) {
-			err = PTR_ERR(priv->pdev_hotplug);
-			goto fail_platform_mux_register;
-		}
-	}
-
 	/* Set default registers. */
-	for (j = 0; j <  mlxplat_regmap_config->num_reg_defaults; j++) {
+	for (i = 0; i <  mlxplat_regmap_config->num_reg_defaults; i++) {
 		err = regmap_write(priv->regmap,
-				   mlxplat_regmap_config->reg_defaults[j].reg,
-				   mlxplat_regmap_config->reg_defaults[j].def);
+				   mlxplat_regmap_config->reg_defaults[i].reg,
+				   mlxplat_regmap_config->reg_defaults[i].def);
 		if (err)
-			goto fail_platform_mux_register;
+			goto fail_regmap_write;
 	}
 
-	/* Add LED driver. */
-	if (mlxplat_led) {
-		mlxplat_led->regmap = priv->regmap;
-		priv->pdev_led =
-		platform_device_register_resndata(&mlxplat_dev->dev, "leds-mlxreg",
-						  PLATFORM_DEVID_NONE, NULL, 0, mlxplat_led,
-						  sizeof(*mlxplat_led));
-		if (IS_ERR(priv->pdev_led)) {
-			err = PTR_ERR(priv->pdev_led);
-			goto fail_platform_hotplug_register;
-		}
-	}
-
-	/* Add registers io access driver. */
-	if (mlxplat_regs_io) {
-		mlxplat_regs_io->regmap = priv->regmap;
-		priv->pdev_io_regs = platform_device_register_resndata(&mlxplat_dev->dev,
-								       "mlxreg-io",
-								       PLATFORM_DEVID_NONE, NULL,
-								       0, mlxplat_regs_io,
-								       sizeof(*mlxplat_regs_io));
-		if (IS_ERR(priv->pdev_io_regs)) {
-			err = PTR_ERR(priv->pdev_io_regs);
-			goto fail_platform_led_register;
-		}
-	}
-
-	/* Add FAN driver. */
-	if (mlxplat_fan) {
-		mlxplat_fan->regmap = priv->regmap;
-		priv->pdev_fan = platform_device_register_resndata(&mlxplat_dev->dev, "mlxreg-fan",
-								   PLATFORM_DEVID_NONE, NULL, 0,
-								   mlxplat_fan,
-								   sizeof(*mlxplat_fan));
-		if (IS_ERR(priv->pdev_fan)) {
-			err = PTR_ERR(priv->pdev_fan);
-			goto fail_platform_io_regs_register;
-		}
-	}
-
-	/* Add WD drivers. */
-	err = mlxplat_mlxcpld_check_wd_capability(priv->regmap);
+	err = mlxplat_i2c_main_init(priv);
 	if (err)
-		goto fail_platform_wd_register;
-	for (j = 0; j < MLXPLAT_CPLD_WD_MAX_DEVS; j++) {
-		if (mlxplat_wd_data[j]) {
-			mlxplat_wd_data[j]->regmap = priv->regmap;
-			priv->pdev_wd[j] =
-				platform_device_register_resndata(&mlxplat_dev->dev, "mlx-wdt", j,
-								  NULL, 0, mlxplat_wd_data[j],
-								  sizeof(*mlxplat_wd_data[j]));
-			if (IS_ERR(priv->pdev_wd[j])) {
-				err = PTR_ERR(priv->pdev_wd[j]);
-				goto fail_platform_wd_register;
-			}
-		}
-	}
+		goto fail_mlxplat_i2c_main_init;
 
 	/* Sync registers with hardware. */
 	regcache_mark_dirty(priv->regmap);
 	err = regcache_sync(priv->regmap);
 	if (err)
-		goto fail_platform_wd_register;
+		goto fail_regcache_sync;
 
 	return 0;
 
-fail_platform_wd_register:
-	while (--j >= 0)
-		platform_device_unregister(priv->pdev_wd[j]);
-	if (mlxplat_fan)
-		platform_device_unregister(priv->pdev_fan);
-fail_platform_io_regs_register:
-	if (mlxplat_regs_io)
-		platform_device_unregister(priv->pdev_io_regs);
-fail_platform_led_register:
-	if (mlxplat_led)
-		platform_device_unregister(priv->pdev_led);
-fail_platform_hotplug_register:
-	if (mlxplat_hotplug)
-		platform_device_unregister(priv->pdev_hotplug);
-fail_platform_mux_register:
-	while (--i >= 0)
-		platform_device_unregister(priv->pdev_mux[i]);
-	platform_device_unregister(priv->pdev_i2c);
+fail_regcache_sync:
+	mlxplat_pre_exit(priv);
+fail_mlxplat_i2c_main_init:
+fail_regmap_write:
 fail_alloc:
+	mlxplat_post_exit();
 
 	return err;
 }
@@ -6230,26 +6340,11 @@ module_init(mlxplat_init);
 static void __exit mlxplat_exit(void)
 {
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
-	int i;
 
 	if (pm_power_off)
 		pm_power_off = NULL;
-	for (i = MLXPLAT_CPLD_WD_MAX_DEVS - 1; i >= 0 ; i--)
-		platform_device_unregister(priv->pdev_wd[i]);
-	if (priv->pdev_fan)
-		platform_device_unregister(priv->pdev_fan);
-	if (priv->pdev_io_regs)
-		platform_device_unregister(priv->pdev_io_regs);
-	if (priv->pdev_led)
-		platform_device_unregister(priv->pdev_led);
-	if (priv->pdev_hotplug)
-		platform_device_unregister(priv->pdev_hotplug);
-
-	for (i = mlxplat_mux_num - 1; i >= 0 ; i--)
-		platform_device_unregister(priv->pdev_mux[i]);
-
-	platform_device_unregister(priv->pdev_i2c);
-	mlxplat_post_exit();
+	mlxplat_pre_exit(priv);
+	mlxplat_i2c_main_exit(priv);
 }
 module_exit(mlxplat_exit);
 
