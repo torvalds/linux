@@ -10,6 +10,7 @@
 #include <linux/ktime.h>
 #include <net/xfrm.h>
 
+#include "../nfpcore/nfp_dev.h"
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
 #include "crypto.h"
@@ -330,6 +331,10 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 		trunc_len = -1;
 		break;
 	case SADB_AALG_MD5HMAC:
+		if (nn->pdev->device == PCI_DEVICE_ID_NFP3800) {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported authentication algorithm");
+			return -EINVAL;
+		}
 		set_md5hmac(cfg, &trunc_len);
 		break;
 	case SADB_AALG_SHA1HMAC:
@@ -373,6 +378,10 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 		cfg->ctrl_word.cipher = NFP_IPSEC_CIPHER_NULL;
 		break;
 	case SADB_EALG_3DESCBC:
+		if (nn->pdev->device == PCI_DEVICE_ID_NFP3800) {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported encryption algorithm for offload");
+			return -EINVAL;
+		}
 		cfg->ctrl_word.cimode = NFP_IPSEC_CIMODE_CBC;
 		cfg->ctrl_word.cipher = NFP_IPSEC_CIPHER_3DES;
 		break;
