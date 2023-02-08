@@ -441,6 +441,14 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			runtime->num_sprites[pipe] = 1;
 	}
 
+	if (HAS_DISPLAY(dev_priv) &&
+	    (IS_DGFX(dev_priv) || DISPLAY_VER(dev_priv) >= 14) &&
+	    !(intel_de_read(dev_priv, GU_CNTL_PROTECTED) & DEPRESENT)) {
+		drm_info(&dev_priv->drm, "Display not present, disabling\n");
+
+		runtime->pipe_mask = 0;
+	}
+
 	if (HAS_DISPLAY(dev_priv) && IS_GRAPHICS_VER(dev_priv, 7, 8) &&
 	    HAS_PCH_SPLIT(dev_priv)) {
 		u32 fuse_strap = intel_de_read(dev_priv, FUSE_STRAP);
