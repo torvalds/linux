@@ -24,9 +24,9 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
 #include <stdarg.h>
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0) */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0) */
 
 #ifdef BCMDRIVER
 #include <osl.h>
