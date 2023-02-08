@@ -10,22 +10,39 @@ maintainers:
   - Kiseok Jo <kiseok.jo@irondevice.com>
 
 description:
-  SMA1303 digital class-D audio amplifier with an integrated boost converter.
+  SMA1303 digital class-D audio amplifier
+  with an integrated boost converter.
 
 allOf:
-  - $ref: name-prefix.yaml#
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - irondevice,sma1303
+
+  reg:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 1
 
 required:
   - compatible
   - reg
+  - '#sound-dai-cells'
 
 additionalProperties: false
 
 examples:
   - |
-    i2c_bus {
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
         amplifier@1e {
             compatible = "irondevice,sma1303";
             reg = <0x1e>;
+            #sound-dai-cells = <1>;
         };
     };
