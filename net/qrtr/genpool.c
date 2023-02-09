@@ -557,13 +557,13 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 	if (rc < 0)
 		qdev->label = dev->of_node->name;
 
-	qdev->ring.buf = devm_kzalloc(dev, MAX_PKT_SZ, GFP_KERNEL);
+	qdev->ring.buf = vzalloc(MAX_PKT_SZ);
 	if (!qdev->ring.buf)
 		return -ENOMEM;
 
 	rc = qrtr_genpool_memory_init(qdev);
 	if (rc)
-		return rc;
+		goto err;
 
 	qrtr_genpool_fifo_init(qdev);
 	init_waitqueue_head(&qdev->tx_avail_notify);
@@ -571,11 +571,11 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 
 	rc = qrtr_genpool_mbox_init(qdev);
 	if (rc)
-		return rc;
+		goto err;
 
 	rc = qrtr_genpool_irq_init(qdev);
 	if (rc)
-		return rc;
+		goto err;
 
 	qrtr_genpool_signal_setup(qdev);
 
@@ -583,7 +583,7 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 	rc = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false,
 				    NULL);
 	if (rc)
-		goto fail;
+		goto err;
 
 	enable_irq(qdev->irq_xfer);
 
@@ -592,7 +592,9 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail:
+err:
+	vfree(qdev->ring.buf);
+
 	return rc;
 }
 
