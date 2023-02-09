@@ -669,6 +669,7 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_pm_opp_attach_genpd
   devm_power_supply_register
   devm_pwm_get
   devm_regmap_add_irq_chip
