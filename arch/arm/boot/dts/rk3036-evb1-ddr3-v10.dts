@@ -205,7 +205,7 @@
 		adc-pga-gain = <8>;
 		adc-volume = <0xdf>;
 		dac-volume = <0xbf>;
-		aec-mode = "dac left, adc right";
+		aec-mode = "adc left, adc right";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_mclk>;
 
