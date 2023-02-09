@@ -371,7 +371,7 @@ static ssize_t qeth_l3_dev_ipato_add_show(char *buf, struct qeth_card *card,
 
 	mutex_lock(&card->ip_lock);
 	list_for_each_entry(ipatoe, &card->ipato.entries, entry) {
-		char addr_str[40];
+		char addr_str[INET6_ADDRSTRLEN];
 		int entry_len;
 
 		if (ipatoe->proto != proto)
@@ -413,7 +413,7 @@ static int qeth_l3_parse_ipatoe(const char *buf, enum qeth_prot_versions proto,
 	int rc;
 
 	/* Expected input pattern: %addr/%mask */
-	sep = strnchr(buf, 40, '/');
+	sep = strnchr(buf, INET6_ADDRSTRLEN, '/');
 	if (!sep)
 		return -EINVAL;
 
@@ -592,7 +592,7 @@ static ssize_t qeth_l3_dev_ip_add_show(struct device *dev, char *buf,
 
 	mutex_lock(&card->ip_lock);
 	hash_for_each(card->ip_htable, i, ipaddr, hnode) {
-		char addr_str[40];
+		char addr_str[INET6_ADDRSTRLEN];
 		int entry_len;
 
 		if (ipaddr->proto != proto || ipaddr->type != type)
