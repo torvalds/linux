@@ -2296,10 +2296,8 @@ static int rx_macro_mux_put(struct snd_kcontrol *kcontrol,
 
 	aif_rst = rx->rx_port_value[widget->shift];
 	if (!rx_port_value) {
-		if (aif_rst == 0) {
-			dev_err(component->dev, "%s:AIF reset already\n", __func__);
+		if (aif_rst == 0)
 			return 0;
-		}
 		if (aif_rst > RX_MACRO_AIF4_PB) {
 			dev_err(component->dev, "%s: Invalid AIF reset\n", __func__);
 			return 0;

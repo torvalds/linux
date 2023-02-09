@@ -1856,10 +1856,8 @@ static int wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 
 	aif_rst = wsa->rx_port_value[widget->shift];
 	if (!rx_port_value) {
-		if (aif_rst == 0) {
-			dev_err(component->dev, "%s: AIF reset already\n", __func__);
+		if (aif_rst == 0)
 			return 0;
-		}
 		if (aif_rst >= WSA_MACRO_RX_MAX) {
 			dev_err(component->dev, "%s: Invalid AIF reset\n", __func__);
 			return 0;
