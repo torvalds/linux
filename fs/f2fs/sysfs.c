@@ -1162,13 +1162,13 @@ static const struct sysfs_ops f2fs_attr_ops = {
 	.store	= f2fs_attr_store,
 };
 
-static struct kobj_type f2fs_sb_ktype = {
+static const struct kobj_type f2fs_sb_ktype = {
 	.default_groups = f2fs_groups,
 	.sysfs_ops	= &f2fs_attr_ops,
 	.release	= f2fs_sb_release,
 };
 
-static struct kobj_type f2fs_ktype = {
+static const struct kobj_type f2fs_ktype = {
 	.sysfs_ops	= &f2fs_attr_ops,
 };
 
@@ -1176,7 +1176,7 @@ static struct kset f2fs_kset = {
 	.kobj	= {.ktype = &f2fs_ktype},
 };
 
-static struct kobj_type f2fs_feat_ktype = {
+static const struct kobj_type f2fs_feat_ktype = {
 	.default_groups = f2fs_feat_groups,
 	.sysfs_ops	= &f2fs_attr_ops,
 };
@@ -1217,7 +1217,7 @@ static const struct sysfs_ops f2fs_stat_attr_ops = {
 	.store	= f2fs_stat_attr_store,
 };
 
-static struct kobj_type f2fs_stat_ktype = {
+static const struct kobj_type f2fs_stat_ktype = {
 	.default_groups = f2fs_stat_groups,
 	.sysfs_ops	= &f2fs_stat_attr_ops,
 	.release	= f2fs_stat_kobj_release,
@@ -1244,7 +1244,7 @@ static const struct sysfs_ops f2fs_feature_list_attr_ops = {
 	.show	= f2fs_sb_feat_attr_show,
 };
 
-static struct kobj_type f2fs_feature_list_ktype = {
+static const struct kobj_type f2fs_feature_list_ktype = {
 	.default_groups = f2fs_sb_feat_groups,
 	.sysfs_ops	= &f2fs_feature_list_attr_ops,
 	.release	= f2fs_feature_list_kobj_release,
