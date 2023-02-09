@@ -24,12 +24,13 @@ struct sf_pdm {
 	struct device *dev;
 	struct clk *clk_pdm_apb;
 	struct clk *clk_pdm_mclk;
-	struct clk *clk_apb0;
 	struct clk *clk_mclk;
 	struct clk *clk_mclk_ext;
 	struct reset_control *rst_pdm_dmic;
 	struct reset_control *rst_pdm_apb;
 	unsigned char flag_first;
+	unsigned int saved_ctrl0;
+	unsigned int saved_scale0;
 };
 
 static const DECLARE_TLV_DB_SCALE(volume_tlv, -9450, 150, 0);
@@ -56,9 +57,9 @@ static void sf_pdm_disable(struct regmap *map)
 {
 	/* Left and Right Channel Volume Control Disable */
 	regmap_update_bits(map, PDM_DMIC_CTRL0,
-			PDM_DMIC_RVOL_MASK, PDM_DMIC_RVOL_MASK);
+			   PDM_DMIC_RVOL_MASK, PDM_DMIC_RVOL_MASK);
 	regmap_update_bits(map, PDM_DMIC_CTRL0,
-			PDM_DMIC_LVOL_MASK, PDM_DMIC_LVOL_MASK);
+			   PDM_DMIC_LVOL_MASK, PDM_DMIC_LVOL_MASK);
 }
 
 static int sf_pdm_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -74,6 +75,7 @@ static int sf_pdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			priv->flag_first = 0;
 			mdelay(200);
 		}
+
 		sf_pdm_enable(priv->pdm_map);
 		return 0;
 
@@ -98,9 +100,6 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	const int pdm_mul = 128;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return 0;
-
 	sample_rate = params_rate(params);
 	switch (sample_rate) {
 	case 8000:
@@ -108,7 +107,7 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	case 16000:
 		break;
 	default:
-		pr_err("PDM: not support sample rate:%d\n", sample_rate);
+		dev_err(priv->dev, "can't support sample rate:%d\n", sample_rate);
 		return -EINVAL;
 	}
 
@@ -118,14 +117,14 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	case 32:
 		break;
 	default:
-		pr_err("PDM: not support bit width %d\n", data_width);
+		dev_err(priv->dev, "can't support bit width %d\n", data_width);
 		return -EINVAL;
 	}
 
 	/* set pdm_mclk,  PDM MCLK = 128 * LRCLK */
 	ret = clk_set_rate(priv->clk_pdm_mclk, pdm_mul * sample_rate);
 	if (ret) {
-		dev_info(priv->dev, "Can't set pdm_mclk: %d\n", ret);
+		dev_err(priv->dev, "Can't set pdm_mclk: %d\n", ret);
 		return ret;
 	}
 
@@ -137,73 +136,58 @@ static const struct snd_soc_dai_ops sf_pdm_dai_ops = {
 	.hw_params	= sf_pdm_hw_params,
 };
 
-static int sf_pdm_dai_probe(struct snd_soc_dai *dai)
+static void sf_pdm_module_init(struct sf_pdm *priv)
 {
-	struct sf_pdm *priv = snd_soc_dai_get_drvdata(dai);
-
 	/* Reset */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_SW_RST_MASK, 0x00);
+			   PDM_SW_RST_MASK, 0x00);
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_SW_RST_MASK, PDM_SW_RST_RELEASE);
+			   PDM_SW_RST_MASK, PDM_SW_RST_RELEASE);
 
 	/* Make sure the device is initially disabled */
 	sf_pdm_disable(priv->pdm_map);
 
 	/* MUTE */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_VOL_MASK, PDM_VOL_DB_MUTE);
+			   PDM_DMIC_VOL_MASK, PDM_VOL_DB_MUTE);
 
 	/* UNMUTE */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_VOL_MASK, PDM_VOL_DB_MAX);
+			   PDM_DMIC_VOL_MASK, PDM_VOL_DB_MAX);
 
 	/* enable high pass filter */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_HPF_EN, PDM_DMIC_HPF_EN);
+			   PDM_DMIC_HPF_EN, PDM_DMIC_HPF_EN);
 
 	/* i2s slave mode */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_I2S_SLAVE, PDM_DMIC_I2S_SLAVE);
+			   PDM_DMIC_I2S_SLAVE, PDM_DMIC_I2S_SLAVE);
 
 	/* disable fast mode */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_FASTMODE_MASK, 0);
+			   PDM_DMIC_FASTMODE_MASK, 0);
 
 	/* dmic msb shift 0 */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_MSB_MASK, 0);
+			   PDM_DMIC_MSB_MASK, 0);
 
 	/* scale: 0x8 */
 	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0,
-			DMIC_SCALE_MASK, DMIC_SCALE_DEF_VAL);
+			   DMIC_SCALE_MASK, DMIC_SCALE_DEF_VAL);
 
 	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0,
-			DMIC_DCOFF1_MASK, DMIC_DCOFF1_VAL);
+			   DMIC_DCOFF1_MASK, DMIC_DCOFF1_VAL);
 
 	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0,
-			DMIC_DCOFF3_MASK, DMIC_DCOFF3_VAL);
+			   DMIC_DCOFF3_MASK, DMIC_DCOFF3_VAL);
 
 	/* scale: 0x3f */
 	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0,
-			DMIC_SCALE_MASK, DMIC_SCALE_MASK);
+			   DMIC_SCALE_MASK, DMIC_SCALE_MASK);
 
 	/* dmic msb shift 2 */
 	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_MSB_MASK, PDM_MSB_SHIFT_4);
-
-	return 0;
-}
-
-static int sf_pdm_dai_remove(struct snd_soc_dai *dai)
-{
-	struct sf_pdm *priv = snd_soc_dai_get_drvdata(dai);
-
-	/* MUTE */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
-			PDM_DMIC_VOL_MASK, PDM_DMIC_VOL_MASK);
-
-	return 0;
+			   PDM_DMIC_MSB_MASK, PDM_MSB_SHIFT_4);
 }
 
 #define SF_PDM_RATES	(SNDRV_PCM_RATE_8000 | \
@@ -224,20 +208,62 @@ static struct snd_soc_dai_driver sf_pdm_dai_drv = {
 		.formats	= SF_PDM_FORMATS,
 	},
 	.ops = &sf_pdm_dai_ops,
-	.probe = sf_pdm_dai_probe,
-	.remove	= sf_pdm_dai_remove,
 	.symmetric_rate = 1,
 };
 
-static int pdm_probe(struct snd_soc_component *component)
+static int sf_pdm_component_probe(struct snd_soc_component *component)
 {
 	struct sf_pdm *priv = snd_soc_component_get_drvdata(component);
 
 	snd_soc_component_init_regmap(component, priv->pdm_map);
 	snd_soc_add_component_controls(component, sf_pdm_snd_controls,
-				     ARRAY_SIZE(sf_pdm_snd_controls));
+				       ARRAY_SIZE(sf_pdm_snd_controls));
 
 	return 0;
+}
+
+static int sf_pdm_clock_enable(struct sf_pdm *priv)
+{
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk_pdm_mclk);
+	if (ret) {
+		dev_err(priv->dev, "failed to prepare enable clk_pdm_mclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(priv->clk_pdm_apb);
+	if (ret) {
+		dev_err(priv->dev, "failed to prepare enable clk_pdm_apb\n");
+		goto disable_pdm_mclk;
+	}
+
+	ret = reset_control_deassert(priv->rst_pdm_dmic);
+	if (ret) {
+		dev_err(priv->dev, "failed to deassert pdm_dmic\n");
+		goto disable_pdm_apb;
+	}
+
+	ret = reset_control_deassert(priv->rst_pdm_apb);
+	if (ret) {
+		dev_err(priv->dev, "failed to deassert pdm_apb\n");
+		goto disable_pdm_apb;
+	}
+
+	ret = clk_set_parent(priv->clk_mclk, priv->clk_mclk_ext);
+	if (ret) {
+		dev_err(priv->dev, "failed to set parent clk_mclk ret=%d\n", ret);
+		goto disable_pdm_apb;
+	}
+
+	return 0;
+
+disable_pdm_apb:
+	clk_disable_unprepare(priv->clk_pdm_apb);
+disable_pdm_mclk:
+	clk_disable_unprepare(priv->clk_pdm_mclk);
+
+	return ret;
 }
 
 #ifdef CONFIG_PM
@@ -247,7 +273,6 @@ static int sf_pdm_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(priv->clk_pdm_apb);
 	clk_disable_unprepare(priv->clk_pdm_mclk);
-	clk_disable_unprepare(priv->clk_mclk);
 
 	return 0;
 }
@@ -257,30 +282,9 @@ static int sf_pdm_runtime_resume(struct device *dev)
 	struct sf_pdm *priv = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(priv->clk_mclk);
-	if (ret) {
-		dev_err(dev, "failed to prepare enable clk_mclk\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(priv->clk_pdm_mclk);
-	if (ret) {
-		dev_err(dev, "failed to prepare enable clk_pdm_mclk\n");
-		goto disable_mclk;
-	}
-
-	ret = clk_prepare_enable(priv->clk_pdm_apb);
-	if (ret) {
-		dev_err(dev, "failed to prepare enable clk_pdm_apb\n");
-		goto disable_pdm_mclk;
-	}
-
-	return 0;
-
-disable_pdm_mclk:
-	clk_disable_unprepare(priv->clk_pdm_mclk);
-disable_mclk:
-	clk_disable_unprepare(priv->clk_mclk);
+	ret = sf_pdm_clock_enable(priv);
+	if (!ret)
+		sf_pdm_module_init(priv);
 
 	return ret;
 }
@@ -304,7 +308,7 @@ static int sf_pdm_resume(struct snd_soc_component *component)
 
 static const struct snd_soc_component_driver sf_pdm_component_drv = {
 	.name = "jh7110-pdm",
-	.probe = pdm_probe,
+	.probe = sf_pdm_component_probe,
 	.suspend = sf_pdm_suspend,
 	.resume = sf_pdm_resume,
 };
@@ -316,13 +320,12 @@ static const struct regmap_config sf_pdm_regmap_cfg = {
 	.max_register	= 0x20,
 };
 
-static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
+static int sf_pdm_clock_get(struct platform_device *pdev, struct sf_pdm *priv)
 {
 	int ret;
 
 	static struct clk_bulk_data clks[] = {
 		{ .id = "pdm_mclk" },
-		{ .id = "clk_apb0" },
 		{ .id = "pdm_apb" },
 		{ .id = "clk_mclk" },
 		{ .id = "mclk_ext" },
@@ -335,10 +338,9 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 	}
 
 	priv->clk_pdm_mclk = clks[0].clk;
-	priv->clk_apb0 = clks[1].clk;
-	priv->clk_pdm_apb = clks[2].clk;
-	priv->clk_mclk = clks[3].clk;
-	priv->clk_mclk_ext = clks[4].clk;
+	priv->clk_pdm_apb = clks[1].clk;
+	priv->clk_mclk = clks[2].clk;
+	priv->clk_mclk_ext = clks[3].clk;
 
 	priv->rst_pdm_dmic = devm_reset_control_get_exclusive(&pdev->dev, "pdm_dmic");
 	if (IS_ERR(priv->rst_pdm_dmic)) {
@@ -354,66 +356,12 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 		goto exit;
 	}
 
-	/*  Enable PDM Clock  */
-	ret = reset_control_assert(priv->rst_pdm_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to assert rst_pdm_apb\n");
-		goto exit;
-	}
+	/*
+	 * pdm clock must always be enabled as hardware issue that
+	 * no data in the first 4 seconds of the first recording
+	 */
+	ret = sf_pdm_clock_enable(priv);
 
-	ret = clk_prepare_enable(priv->clk_mclk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_mclk\n");
-		goto err_dis_mclk;
-	}
-
-	ret = clk_prepare_enable(priv->clk_pdm_mclk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_pdm_mclk\n");
-		goto err_dis_pdm_mclk;
-	}
-
-	ret = clk_prepare_enable(priv->clk_apb0);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_apb0\n");
-		goto err_dis_apb0;
-	}
-
-	ret = clk_prepare_enable(priv->clk_pdm_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_pdm_apb\n");
-		goto err_dis_pdm_apb;
-	}
-
-	ret = reset_control_deassert(priv->rst_pdm_dmic);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert pdm_dmic\n");
-		goto err_clk_disable;
-	}
-
-	ret = reset_control_deassert(priv->rst_pdm_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert pdm_apb\n");
-		goto err_clk_disable;
-	}
-
-	ret = clk_set_parent(priv->clk_mclk, priv->clk_mclk_ext);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to set parent clk_mclk ret=%d\n", ret);
-		goto err_clk_disable;
-	}
-
-	return 0;
-
-err_clk_disable:
-	clk_disable_unprepare(priv->clk_pdm_apb);
-err_dis_pdm_apb:
-	clk_disable_unprepare(priv->clk_apb0);
-err_dis_apb0:
-	clk_disable_unprepare(priv->clk_pdm_mclk);
-err_dis_pdm_mclk:
-	clk_disable_unprepare(priv->clk_mclk);
-err_dis_mclk:
 exit:
 	return ret;
 }
@@ -438,14 +386,14 @@ static int sf_pdm_probe(struct platform_device *pdev)
 	priv->pdm_map = devm_regmap_init_mmio(&pdev->dev, regs, &sf_pdm_regmap_cfg);
 	if (IS_ERR(priv->pdm_map)) {
 		dev_err(&pdev->dev, "failed to init regmap: %ld\n",
-				PTR_ERR(priv->pdm_map));
+			PTR_ERR(priv->pdm_map));
 		return PTR_ERR(priv->pdm_map);
 	}
 
 	priv->dev = &pdev->dev;
 	priv->flag_first = 1;
 
-	ret = sf_pdm_clock_init(pdev, priv);
+	ret = sf_pdm_clock_get(pdev, priv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable audio-pdm clock\n");
 		return ret;
@@ -454,18 +402,12 @@ static int sf_pdm_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, priv);
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &sf_pdm_component_drv,
-					       &sf_pdm_dai_drv, 1);
+					      &sf_pdm_dai_drv, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register pdm dai\n");
 		return ret;
 	}
-
 	pm_runtime_enable(&pdev->dev);
-#ifdef CONFIG_PM
-	clk_disable_unprepare(priv->clk_pdm_apb);
-	clk_disable_unprepare(priv->clk_pdm_mclk);
-	clk_disable_unprepare(priv->clk_mclk);
-#endif
 
 	return 0;
 }
@@ -484,7 +426,7 @@ MODULE_DEVICE_TABLE(of, sf_pdm_of_match);
 
 static const struct dev_pm_ops sf_pdm_pm_ops = {
 	SET_RUNTIME_PM_OPS(sf_pdm_runtime_suspend,
-			sf_pdm_runtime_resume, NULL)
+			   sf_pdm_runtime_resume, NULL)
 };
 
 static struct platform_driver sf_pdm_driver = {
