@@ -199,6 +199,15 @@ config SPI_BCM_QSPI
 	  based platforms. This driver works for both SPI master for SPI NOR
 	  flash device as well as MSPI device.
 
+config SPI_BCMBCA_HSSPI
+	tristate "Broadcom BCMBCA HS SPI controller driver"
+	depends on ARCH_BCMBCA || COMPILE_TEST
+	help
+	  This enables support for the High Speed SPI controller present on
+	  newer Broadcom BCMBCA SoCs. These SoCs include an updated SPI controller
+	  that adds the capability to allow the driver to control chip select
+	  explicitly.
+
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
 	help
