@@ -303,7 +303,7 @@ static void fastrpc_free_map(struct kref *ref)
 			perm.vmid = QCOM_SCM_VMID_HLOS;
 			perm.perm = QCOM_SCM_PERM_RWX;
 			err = qcom_scm_assign_mem(map->phys, map->size,
-				&(map->fl->cctx->vmperms[0].vmid), &perm, 1);
+				&map->fl->cctx->perms, &perm, 1);
 			if (err) {
 				dev_err(map->fl->sctx->dev, "Failed to assign memory phys 0x%llx size 0x%llx err %d",
 						map->phys, map->size, err);
@@ -744,10 +744,8 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 		 * If subsystem VMIDs are defined in DTSI, then do
 		 * hyp_assign from HLOS to those VM(s)
 		 */
-		unsigned int perms = BIT(QCOM_SCM_VMID_HLOS);
-
 		map->attr = attr;
-		err = qcom_scm_assign_mem(map->phys, (u64)map->size, &perms,
+		err = qcom_scm_assign_mem(map->phys, (u64)map->size, &fl->cctx->perms,
 				fl->cctx->vmperms, fl->cctx->vmcount);
 		if (err) {
 			dev_err(sess->dev, "Failed to assign memory with phys 0x%llx size 0x%llx err %d",

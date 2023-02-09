@@ -148,7 +148,7 @@ static const struct attribute_group *coresight_secure_etr_groups[] = {
 static int secure_etr_map_mem_permission(struct secure_etr_buf *etr_buf)
 {
 	struct qcom_scm_vmperm dst_perms;
-	unsigned int src_perms;
+	u64 src_perms;
 	int ret;
 
 	src_perms = BIT(QCOM_SCM_VMID_HLOS);
@@ -167,7 +167,7 @@ static int secure_etr_map_mem_permission(struct secure_etr_buf *etr_buf)
 static int secure_etr_unmap_mem_permission(struct secure_etr_buf *etr_buf)
 {
 	struct qcom_scm_vmperm dst_perms;
-	unsigned int src_perms;
+	u64 src_perms;
 	int ret;
 
 	src_perms = BIT(QCOM_SCM_VMID_MSS_MSA);
