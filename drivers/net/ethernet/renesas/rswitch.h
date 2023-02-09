@@ -930,6 +930,9 @@ struct rswitch_gwca_queue {
 #define RSWITCH_NUM_IRQ_REGS	(RSWITCH_MAX_NUM_QUEUES / BITS_PER_TYPE(u32))
 struct rswitch_gwca {
 	int index;
+	struct rswitch_desc *linkfix_table;
+	dma_addr_t linkfix_table_dma;
+	u32 linkfix_table_size;
 	struct rswitch_gwca_queue *queues;
 	int num_queues;
 	DECLARE_BITMAP(used, RSWITCH_MAX_NUM_QUEUES);
@@ -969,9 +972,6 @@ struct rswitch_private {
 	struct platform_device *pdev;
 	void __iomem *addr;
 	struct rcar_gen4_ptp_private *ptp_priv;
-	struct rswitch_desc *linkfix_table;
-	dma_addr_t linkfix_table_dma;
-	u32 linkfix_table_size;
 
 	struct rswitch_device *rdev[RSWITCH_NUM_PORTS];
 

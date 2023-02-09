@@ -386,7 +386,7 @@ static int rswitch_gwca_queue_format(struct net_device *ndev,
 	rswitch_desc_set_dptr(&desc->desc, gq->ring_dma);
 	desc->desc.die_dt = DT_LINKFIX;
 
-	linkfix = &priv->linkfix_table[gq->index];
+	linkfix = &priv->gwca.linkfix_table[gq->index];
 	linkfix->die_dt = DT_LINKFIX;
 	rswitch_desc_set_dptr(linkfix, gq->ring_dma);
 
@@ -470,7 +470,7 @@ static int rswitch_gwca_queue_ext_ts_format(struct net_device *ndev,
 	rswitch_desc_set_dptr(&desc->desc, gq->ring_dma);
 	desc->desc.die_dt = DT_LINKFIX;
 
-	linkfix = &priv->linkfix_table[gq->index];
+	linkfix = &priv->gwca.linkfix_table[gq->index];
 	linkfix->die_dt = DT_LINKFIX;
 	rswitch_desc_set_dptr(linkfix, gq->ring_dma);
 
@@ -480,28 +480,31 @@ static int rswitch_gwca_queue_ext_ts_format(struct net_device *ndev,
 	return 0;
 }
 
-static int rswitch_gwca_desc_alloc(struct rswitch_private *priv)
+static int rswitch_gwca_linkfix_alloc(struct rswitch_private *priv)
 {
 	int i, num_queues = priv->gwca.num_queues;
+	struct rswitch_gwca *gwca = &priv->gwca;
 	struct device *dev = &priv->pdev->dev;
 
-	priv->linkfix_table_size = sizeof(struct rswitch_desc) * num_queues;
-	priv->linkfix_table = dma_alloc_coherent(dev, priv->linkfix_table_size,
-						 &priv->linkfix_table_dma, GFP_KERNEL);
-	if (!priv->linkfix_table)
+	gwca->linkfix_table_size = sizeof(struct rswitch_desc) * num_queues;
+	gwca->linkfix_table = dma_alloc_coherent(dev, gwca->linkfix_table_size,
+						 &gwca->linkfix_table_dma, GFP_KERNEL);
+	if (!gwca->linkfix_table)
 		return -ENOMEM;
 	for (i = 0; i < num_queues; i++)
-		priv->linkfix_table[i].die_dt = DT_EOS;
+		gwca->linkfix_table[i].die_dt = DT_EOS;
 
 	return 0;
 }
 
-static void rswitch_gwca_desc_free(struct rswitch_private *priv)
+static void rswitch_gwca_linkfix_free(struct rswitch_private *priv)
 {
-	if (priv->linkfix_table)
-		dma_free_coherent(&priv->pdev->dev, priv->linkfix_table_size,
-				  priv->linkfix_table, priv->linkfix_table_dma);
-	priv->linkfix_table = NULL;
+	struct rswitch_gwca *gwca = &priv->gwca;
+
+	if (gwca->linkfix_table)
+		dma_free_coherent(&priv->pdev->dev, gwca->linkfix_table_size,
+				  gwca->linkfix_table, gwca->linkfix_table_dma);
+	gwca->linkfix_table = NULL;
 }
 
 static struct rswitch_gwca_queue *rswitch_gwca_get(struct rswitch_private *priv)
@@ -617,8 +620,8 @@ static int rswitch_gwca_hw_init(struct rswitch_private *priv)
 
 	iowrite32(GWVCC_VEM_SC_TAG, priv->addr + GWVCC);
 	iowrite32(0, priv->addr + GWTTFC);
-	iowrite32(lower_32_bits(priv->linkfix_table_dma), priv->addr + GWDCBAC1);
-	iowrite32(upper_32_bits(priv->linkfix_table_dma), priv->addr + GWDCBAC0);
+	iowrite32(lower_32_bits(priv->gwca.linkfix_table_dma), priv->addr + GWDCBAC1);
+	iowrite32(upper_32_bits(priv->gwca.linkfix_table_dma), priv->addr + GWDCBAC0);
 	rswitch_gwca_set_rate_limit(priv, priv->gwca.speed);
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
@@ -1650,7 +1653,7 @@ static int rswitch_init(struct rswitch_private *priv)
 	if (err < 0)
 		return err;
 
-	err = rswitch_gwca_desc_alloc(priv);
+	err = rswitch_gwca_linkfix_alloc(priv);
 	if (err < 0)
 		return -ENOMEM;
 
@@ -1712,7 +1715,7 @@ err_ptp_register:
 		rswitch_device_free(priv, i);
 
 err_device_alloc:
-	rswitch_gwca_desc_free(priv);
+	rswitch_gwca_linkfix_free(priv);
 
 	return err;
 }
@@ -1791,7 +1794,7 @@ static void rswitch_deinit(struct rswitch_private *priv)
 		rswitch_device_free(priv, i);
 	}
 
-	rswitch_gwca_desc_free(priv);
+	rswitch_gwca_linkfix_free(priv);
 
 	rswitch_clock_disable(priv);
 }
