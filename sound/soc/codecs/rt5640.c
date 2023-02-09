@@ -1838,9 +1838,14 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 	unsigned int pll_bit = 0;
+	int ret;
 
 	switch (clk_id) {
 	case RT5640_SCLK_S_MCLK:
+		ret = clk_set_rate(rt5640->mclk, freq);
+		if (ret)
+			return ret;
+
 		reg_val |= RT5640_SCLK_SRC_MCLK;
 		break;
 	case RT5640_SCLK_S_PLL1:
