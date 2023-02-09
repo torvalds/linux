@@ -821,13 +821,11 @@ static ssize_t gadget_string_s_store(struct config_item *item, const char *page,
 {
 	struct gadget_string *string = to_gadget_string(item);
 	int size = min(sizeof(string->string), len + 1);
-	int ret;
 
 	if (len > USB_MAX_STRING_LEN)
 		return -EINVAL;
 
-	ret = strscpy(string->string, page, size);
-	return len;
+	return strscpy(string->string, page, size);
 }
 CONFIGFS_ATTR(gadget_string_, s);
 
