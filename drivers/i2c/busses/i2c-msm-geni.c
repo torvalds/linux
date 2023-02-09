@@ -2682,6 +2682,13 @@ skip_bw_vote:
 			return ret;
 		}
 
+		geni_write_reg(0x7f, gi2c->base, GENI_OUTPUT_CTRL);
+		/*
+		 * Added 10 us delay to settle the write of the register as per
+		 * HW team recommendation
+		 */
+		udelay(10);
+
 		if (gi2c->se_mode == FIFO_SE_DMA)
 			enable_irq(gi2c->irq);
 
