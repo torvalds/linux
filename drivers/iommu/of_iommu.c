@@ -173,8 +173,10 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	return ops;
 }
 
-static enum iommu_resv_type iommu_resv_region_get_type(struct device *dev, struct resource *phys,
-						       phys_addr_t start, size_t length)
+static enum iommu_resv_type __maybe_unused
+iommu_resv_region_get_type(struct device *dev,
+			   struct resource *phys,
+			   phys_addr_t start, size_t length)
 {
 	phys_addr_t end = start + length - 1;
 
