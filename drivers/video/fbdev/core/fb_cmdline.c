@@ -39,13 +39,18 @@ int fb_get_options(const char *name, char **option)
 {
 	const char *options = NULL;
 	int retval = 0;
-	int name_len = strlen(name), i;
+	size_t name_len;
 	char *opt;
+
+	if (name)
+		name_len = strlen(name);
 
 	if (name_len && ofonly && strncmp(name, "offb", 4))
 		retval = 1;
 
 	if (name_len && !retval) {
+		unsigned int i;
+
 		for (i = 0; i < FB_MAX; i++) {
 			if (video_options[i] == NULL)
 				continue;
