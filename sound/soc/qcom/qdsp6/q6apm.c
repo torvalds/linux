@@ -145,14 +145,6 @@ static void q6apm_put_audioreach_graph(struct kref *ref)
 	kfree(graph);
 }
 
-bool q6apm_is_adsp_ready(void)
-{
-	if (g_apm && g_apm->state)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(q6apm_is_adsp_ready);
 
 static int q6apm_get_apm_state(struct q6apm *apm)
 {
@@ -168,6 +160,15 @@ static int q6apm_get_apm_state(struct q6apm *apm)
 
 	return apm->state;
 }
+
+bool q6apm_is_adsp_ready(void)
+{
+	if (g_apm)
+		return q6apm_get_apm_state(g_apm);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(q6apm_is_adsp_ready);
 
 static struct audioreach_module *__q6apm_find_module_by_mid(struct q6apm *apm,
 						    struct audioreach_graph_info *info,
