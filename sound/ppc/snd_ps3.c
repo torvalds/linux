@@ -1046,7 +1046,6 @@ clean_open:
 /* called when module removal */
 static void snd_ps3_driver_remove(struct ps3_system_bus_device *dev)
 {
-	int ret;
 	pr_info("%s:start id=%d\n", __func__,  dev->match_id);
 
 	/*
