@@ -1803,12 +1803,16 @@ static int ast2600_i2c_remove(struct platform_device *pdev)
 	writel(0, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
 	writel(0, i2c_bus->reg_base + AST2600_I2CM_IER);
 
-	free_irq(i2c_bus->irq, i2c_bus);
+	devm_free_irq(&pdev->dev, i2c_bus->irq, i2c_bus);
 
-	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&i2c_bus->adap);
 
-	kfree(i2c_bus);
+#ifdef CONFIG_I2C_SLAVE
+	/* for memory buffer initial */
+	if (i2c_bus->mode == DMA_MODE)
+		dma_free_coherent(i2c_bus->dev, I2C_SLAVE_MSG_BUF_SIZE,
+				i2c_bus->slave_dma_buf, i2c_bus->slave_dma_addr);
+#endif
 
 	return 0;
 }
