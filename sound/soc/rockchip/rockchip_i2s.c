@@ -657,6 +657,32 @@ static struct snd_soc_dai_driver rockchip_i2s_dai = {
 	.ops = &rockchip_i2s_dai_ops,
 };
 
+static int rockchip_i2s_get_bclk_ratio(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_dev *i2s = snd_soc_component_get_drvdata(compnt);
+
+	ucontrol->value.integer.value[0] = i2s->bclk_ratio;
+
+	return 0;
+}
+
+static int rockchip_i2s_put_bclk_ratio(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_dev *i2s = snd_soc_component_get_drvdata(compnt);
+	int value = ucontrol->value.integer.value[0];
+
+	if (value == i2s->bclk_ratio)
+		return 0;
+
+	i2s->bclk_ratio = value;
+
+	return 1;
+}
+
 static int rockchip_i2s_wait_time_info(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
@@ -725,6 +751,10 @@ static int rockchip_i2s_wr_wait_time_put(struct snd_kcontrol *kcontrol,
 	.get = xhandler_get, .put = xhandler_put }
 
 static const struct snd_kcontrol_new rockchip_i2s_snd_controls[] = {
+	SOC_SINGLE_EXT("BCLK Ratio", 0, 0, INT_MAX, 0,
+		       rockchip_i2s_get_bclk_ratio,
+		       rockchip_i2s_put_bclk_ratio),
+
 	SAI_PCM_WAIT_TIME("PCM Read Wait Time MS",
 			  rockchip_i2s_rd_wait_time_get,
 			  rockchip_i2s_rd_wait_time_put),
