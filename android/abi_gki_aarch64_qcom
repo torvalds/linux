@@ -3266,6 +3266,7 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
   __traceiter_android_vh_ftrace_oops_enter
@@ -3350,6 +3351,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
   __tracepoint_android_vh_ftrace_oops_enter
