@@ -672,17 +672,28 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 	/*
 	 * Some BMCs stop scanning out the video signal after the driver
-	 * reprogrammed the offset or scanout address. This stalls display
-	 * output for several seconds and makes the display unusable.
-	 * Therefore only update the offset if it changes and reprogram the
-	 * address after enabling the plane.
+	 * reprogrammed the offset. This stalls display output for several
+	 * seconds and makes the display unusable. Therefore only update
+	 * the offset if it changes.
 	 */
 	if (!old_fb || old_fb->pitches[0] != fb->pitches[0])
 		ast_set_offset_reg(ast, fb);
-	if (!old_fb) {
-		ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
-	}
+}
+
+static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
+{
+	struct ast_private *ast = to_ast_private(plane->dev);
+	struct ast_plane *ast_plane = to_ast_plane(plane);
+
+	/*
+	 * Some BMCs stop scanning out the video signal after the driver
+	 * reprogrammed the scanout address. This stalls display
+	 * output for several seconds and makes the display unusable.
+	 * Therefore only reprogram the address after enabling the plane.
+	 */
+	ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
+	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
 }
 
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
@@ -697,6 +708,7 @@ static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 	.atomic_check = ast_primary_plane_helper_atomic_check,
 	.atomic_update = ast_primary_plane_helper_atomic_update,
+	.atomic_enable = ast_primary_plane_helper_atomic_enable,
 	.atomic_disable = ast_primary_plane_helper_atomic_disable,
 };
 
