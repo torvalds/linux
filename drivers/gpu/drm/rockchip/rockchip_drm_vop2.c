@@ -9842,14 +9842,20 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (property == vp->hdr_ext_data_prop)
+	if (property == vp->hdr_ext_data_prop) {
+		*val = vcstate->hdr_ext_data ? vcstate->hdr_ext_data->base.id : 0;
 		return 0;
+	}
 
-	if (property == vp->acm_lut_data_prop)
+	if (property == vp->acm_lut_data_prop) {
+		*val = vcstate->acm_lut_data ? vcstate->acm_lut_data->base.id : 0;
 		return 0;
+	}
 
-	if (property == vp->post_csc_data_prop)
+	if (property == vp->post_csc_data_prop) {
+		*val = vcstate->post_csc_data ? vcstate->post_csc_data->base.id : 0;
 		return 0;
+	}
 
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
