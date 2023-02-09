@@ -611,7 +611,6 @@
 	pinctrl-0 = <&pinctrl_uart3>, <&pinctrl_uart3_gpio>;
 	cts-gpios = <&gpio3 21 GPIO_ACTIVE_LOW>;
 	rts-gpios = <&gpio3 22 GPIO_ACTIVE_LOW>;
-	uart-has-rtscts;
 	status = "okay";
 
 	bluetooth {
