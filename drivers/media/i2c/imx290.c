@@ -16,6 +16,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+
+#include <asm/unaligned.h>
+
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -466,17 +469,19 @@ static int __always_unused imx290_read(struct imx290 *imx290, u32 addr, u32 *val
 		return ret;
 	}
 
-	*value = (data[2] << 16) | (data[1] << 8) | data[0];
+	*value = get_unaligned_le24(data);
 	return 0;
 }
 
 static int imx290_write(struct imx290 *imx290, u32 addr, u32 value, int *err)
 {
-	u8 data[3] = { value & 0xff, (value >> 8) & 0xff, value >> 16 };
+	u8 data[3];
 	int ret;
 
 	if (err && *err)
 		return *err;
+
+	put_unaligned_le24(value, data);
 
 	ret = regmap_raw_write(imx290->regmap, addr & IMX290_REG_ADDR_MASK,
 			       data, (addr >> IMX290_REG_SIZE_SHIFT) & 3);
