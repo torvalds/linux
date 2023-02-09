@@ -26,9 +26,6 @@ enum reserved_range_type {
 	RR_CERT_COMP_LIST,
 	RR_MEM_DETECT_EXTENDED,
 	RR_VMEM,
-#ifdef CONFIG_KASAN
-	RR_KASAN,
-#endif
 	RR_MAX
 };
 
@@ -129,9 +126,6 @@ static inline const char *get_rr_type_name(enum reserved_range_type t)
 	RR_TYPE_NAME(CERT_COMP_LIST);
 	RR_TYPE_NAME(MEM_DETECT_EXTENDED);
 	RR_TYPE_NAME(VMEM);
-#ifdef CONFIG_KASAN
-	RR_TYPE_NAME(KASAN);
-#endif
 	default:
 		return "UNKNOWN";
 	}
@@ -165,17 +159,6 @@ static inline struct reserved_range *__physmem_reserved_next(enum reserved_range
 	    *p_start = range ? range->start : 0, *p_end = range ? range->end : 0;	\
 	     range; range = __physmem_reserved_next(&t, range),			\
 	    *p_start = range ? range->start : 0, *p_end = range ? range->end : 0)
-
-static inline unsigned long get_physmem_usable_total(void)
-{
-	unsigned long start, end, total = 0;
-	int i;
-
-	for_each_physmem_usable_range(i, &start, &end)
-		total += end - start;
-
-	return total;
-}
 
 static inline unsigned long get_physmem_reserved(enum reserved_range_type type,
 						 unsigned long *addr, unsigned long *size)

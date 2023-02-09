@@ -51,6 +51,14 @@ decompressor_handled_param(nokaslr);
 decompressor_handled_param(prot_virt);
 #endif
 
+static void __init kasan_early_init(void)
+{
+#ifdef CONFIG_KASAN
+	init_task.kasan_depth = 0;
+	sclp_early_printk("KernelAddressSanitizer initialized\n");
+#endif
+}
+
 static void __init reset_tod_clock(void)
 {
 	union tod_clock clk;
@@ -293,6 +301,7 @@ static void __init sort_amode31_extable(void)
 
 void __init startup_init(void)
 {
+	kasan_early_init();
 	reset_tod_clock();
 	time_early_init();
 	init_kernel_storage_key();

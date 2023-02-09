@@ -266,6 +266,13 @@ static void offset_vmlinux_info(unsigned long offset)
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
+#ifdef CONFIG_KASAN
+	vmlinux.kasan_early_shadow_page_off += offset;
+	vmlinux.kasan_early_shadow_pte_off += offset;
+	vmlinux.kasan_early_shadow_pmd_off += offset;
+	vmlinux.kasan_early_shadow_pud_off += offset;
+	vmlinux.kasan_early_shadow_p4d_off += offset;
+#endif
 }
 
 void startup_kernel(void)
@@ -307,10 +314,6 @@ void startup_kernel(void)
 	detect_physmem_online_ranges(max_physmem_end);
 	save_ipl_cert_comp_list();
 	rescue_initrd(safe_addr, ident_map_size);
-#ifdef CONFIG_KASAN
-	physmem_alloc_top_down(RR_KASAN, kasan_estimate_memory_needs(get_physmem_usable_total()),
-			       _SEGMENT_SIZE);
-#endif
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base();
