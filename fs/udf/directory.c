@@ -251,9 +251,12 @@ int udf_fiiter_init(struct udf_fileident_iter *iter, struct inode *dir,
 	iter->elen = 0;
 	iter->epos.bh = NULL;
 	iter->name = NULL;
-	iter->namebuf = kmalloc(UDF_NAME_LEN_CS0, GFP_KERNEL);
-	if (!iter->namebuf)
-		return -ENOMEM;
+	/*
+	 * When directory is verified, we don't expect directory iteration to
+	 * fail and it can be difficult to undo without corrupting filesystem.
+	 * So just do not allow memory allocation failures here.
+	 */
+	iter->namebuf = kmalloc(UDF_NAME_LEN_CS0, GFP_KERNEL | __GFP_NOFAIL);
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		err = udf_copy_fi(iter);
