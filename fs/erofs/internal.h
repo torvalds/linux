@@ -109,7 +109,11 @@ struct erofs_fscache {
 	struct fscache_cookie *cookie;
 	struct inode *inode;
 	struct inode *anon_inode;
+
+	/* used for share domain mode */
 	struct erofs_domain *domain;
+	struct list_head node;
+	refcount_t ref;
 	char *name;
 };
 
