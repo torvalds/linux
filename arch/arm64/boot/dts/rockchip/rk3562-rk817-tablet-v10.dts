@@ -962,6 +962,10 @@
 	status = "okay";
 };
 
+&route_dsi {
+	status = "okay";
+};
+
 &saradc0 {
 	status = "okay";
 	vref-supply = <&vcc_1v8>;
