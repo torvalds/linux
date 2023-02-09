@@ -8430,6 +8430,8 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 		break;
 	case NETDEV_REGISTER:
 	case NETDEV_CHANGENAME:
+		if (devlink_net(devlink) != dev_net(netdev))
+			return NOTIFY_OK;
 		/* Set the netdev on top of previously set type. Note this
 		 * event happens also during net namespace change so here
 		 * we take into account netdev pointer appearing in this
@@ -8439,6 +8441,8 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 					netdev);
 		break;
 	case NETDEV_UNREGISTER:
+		if (devlink_net(devlink) != dev_net(netdev))
+			return NOTIFY_OK;
 		/* Clear netdev pointer, but not the type. This event happens
 		 * also during net namespace change so we need to clear
 		 * pointer to netdev that is going to another net namespace.

@@ -205,7 +205,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 		goto err_xa_alloc;
 
 	devlink->netdevice_nb.notifier_call = devlink_port_netdevice_event;
-	ret = register_netdevice_notifier_net(net, &devlink->netdevice_nb);
+	ret = register_netdevice_notifier(&devlink->netdevice_nb);
 	if (ret)
 		goto err_register_netdevice_notifier;
 
@@ -266,8 +266,7 @@ void devlink_free(struct devlink *devlink)
 	xa_destroy(&devlink->snapshot_ids);
 	xa_destroy(&devlink->ports);
 
-	WARN_ON_ONCE(unregister_netdevice_notifier_net(devlink_net(devlink),
-						       &devlink->netdevice_nb));
+	WARN_ON_ONCE(unregister_netdevice_notifier(&devlink->netdevice_nb));
 
 	xa_erase(&devlinks, devlink->index);
 
