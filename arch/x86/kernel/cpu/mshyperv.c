@@ -44,6 +44,9 @@ struct ms_hyperv_info ms_hyperv;
 #if IS_ENABLED(CONFIG_HYPERV)
 static inline unsigned int hv_get_nested_reg(unsigned int reg)
 {
+	if (hv_is_sint_reg(reg))
+		return reg - HV_REGISTER_SINT0 + HV_REGISTER_NESTED_SINT0;
+
 	switch (reg) {
 	case HV_REGISTER_SIMP:
 		return HV_REGISTER_NESTED_SIMP;
@@ -53,8 +56,6 @@ static inline unsigned int hv_get_nested_reg(unsigned int reg)
 		return HV_REGISTER_NESTED_SVERSION;
 	case HV_REGISTER_SCONTROL:
 		return HV_REGISTER_NESTED_SCONTROL;
-	case HV_REGISTER_SINT0:
-		return HV_REGISTER_NESTED_SINT0;
 	case HV_REGISTER_EOM:
 		return HV_REGISTER_NESTED_EOM;
 	default:
@@ -80,8 +81,7 @@ void hv_set_non_nested_register(unsigned int reg, u64 value)
 		hv_ghcb_msr_write(reg, value);
 
 		/* Write proxy bit via wrmsl instruction */
-		if (reg >= HV_REGISTER_SINT0 &&
-		    reg <= HV_REGISTER_SINT15)
+		if (hv_is_sint_reg(reg))
 			wrmsrl(reg, value | 1 << 20);
 	} else {
 		wrmsrl(reg, value);
