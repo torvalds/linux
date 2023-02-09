@@ -24,29 +24,27 @@
 #define RISCV_ISA_EXT_u		('u' - 'a')
 
 /*
- * Increse this to higher value as kernel support more ISA extensions.
+ * These macros represent the logical IDs of each multi-letter RISC-V ISA
+ * extension and are used in the ISA bitmap. The logical IDs start from
+ * RISCV_ISA_EXT_BASE, which allows the 0-25 range to be reserved for single
+ * letter extensions. The maximum, RISCV_ISA_EXT_MAX, is defined in order
+ * to allocate the bitmap and may be increased when necessary.
+ *
+ * New extensions should just be added to the bottom, rather than added
+ * alphabetically, in order to avoid unnecessary shuffling.
  */
-#define RISCV_ISA_EXT_MAX	64
-#define RISCV_ISA_EXT_NAME_LEN_MAX 32
+#define RISCV_ISA_EXT_BASE		26
 
-/* The base ID for multi-letter ISA extensions */
-#define RISCV_ISA_EXT_BASE 26
+#define RISCV_ISA_EXT_SSCOFPMF		26
+#define RISCV_ISA_EXT_SSTC		27
+#define RISCV_ISA_EXT_SVINVAL		28
+#define RISCV_ISA_EXT_SVPBMT		29
+#define RISCV_ISA_EXT_ZBB		30
+#define RISCV_ISA_EXT_ZICBOM		31
+#define RISCV_ISA_EXT_ZIHINTPAUSE	32
 
-/*
- * These macros represent the logical ID for each multi-letter RISC-V ISA extension.
- * The logical ID should start from RISCV_ISA_EXT_BASE and must not exceed
- * RISCV_ISA_EXT_MAX. 0-25 range is reserved for single letter
- * extensions while all the multi-letter extensions should define the next
- * available logical extension id.
- * Entries are sorted alphabetically.
- */
-#define RISCV_ISA_EXT_SSCOFPMF         26
-#define RISCV_ISA_EXT_SSTC             27
-#define RISCV_ISA_EXT_SVINVAL          28
-#define RISCV_ISA_EXT_SVPBMT           29
-#define RISCV_ISA_EXT_ZBB              30
-#define RISCV_ISA_EXT_ZICBOM           31
-#define RISCV_ISA_EXT_ZIHINTPAUSE      32
+#define RISCV_ISA_EXT_MAX		64
+#define RISCV_ISA_EXT_NAME_LEN_MAX	32
 
 #ifndef __ASSEMBLY__
 
