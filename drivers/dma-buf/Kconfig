@@ -17,8 +17,8 @@ config RK_DMABUF_DEBUG
 	  This option support to debug all the dmabuf on db_list, allows to set
 	  a name for dmabuf. If not sure, say N
 
-config DMABUF_DEBUG_ADVANCED
-	bool "DMABUF debug advanced option"
+config RK_DMABUF_DEBUG_ADVANCED
+	bool "Rockchip DMABUF debug advanced option"
 	depends on RK_DMABUF_DEBUG
 	help
 	  This option support to debug all the dmabuf on db_list, allows to attach

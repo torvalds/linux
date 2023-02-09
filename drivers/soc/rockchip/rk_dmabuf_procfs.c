@@ -79,7 +79,7 @@ static void rk_dmabuf_dump_sgt(const struct dma_buf *dmabuf, void *private)
 		return;
 	}
 	/* Try to attach and map the dmabufs without sgt. */
-	if (IS_ENABLED(CONFIG_DMABUF_DEBUG_ADVANCED)) {
+	if (IS_ENABLED(CONFIG_RK_DMABUF_DEBUG_ADVANCED)) {
 		struct dma_buf *dbuf = (struct dma_buf *)dmabuf;
 
 		get_dma_buf(dbuf);
