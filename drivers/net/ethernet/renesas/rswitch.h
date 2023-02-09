@@ -915,8 +915,8 @@ struct rswitch_gwca_queue {
 	bool dir_tx;
 	bool gptp;
 	union {
-		struct rswitch_ext_desc *ring;
-		struct rswitch_ext_ts_desc *ts_ring;
+		struct rswitch_ext_desc *tx_ring;
+		struct rswitch_ext_ts_desc *rx_ring;
 	};
 	dma_addr_t ring_dma;
 	int ring_size;
