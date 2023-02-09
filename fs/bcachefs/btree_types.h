@@ -458,7 +458,6 @@ struct btree_trans {
 	struct journal_preres	journal_preres;
 	u64			*journal_seq;
 	struct disk_reservation *disk_res;
-	unsigned		flags;
 	unsigned		journal_u64s;
 	unsigned		journal_preres_u64s;
 	struct replicas_delta_list *fs_usage_deltas;

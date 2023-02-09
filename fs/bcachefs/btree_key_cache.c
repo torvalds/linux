@@ -769,6 +769,7 @@ int bch2_btree_key_cache_flush(struct btree_trans *trans,
 }
 
 bool bch2_btree_insert_key_cached(struct btree_trans *trans,
+				  unsigned flags,
 				  struct btree_path *path,
 				  struct bkey_i *insert)
 {
@@ -778,7 +779,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 
 	BUG_ON(insert->u64s > ck->u64s);
 
-	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY))) {
 		int difference;
 
 		BUG_ON(jset_u64s(insert->u64s) > trans->journal_preres.u64s);

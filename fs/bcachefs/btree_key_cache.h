@@ -29,7 +29,7 @@ bch2_btree_key_cache_find(struct bch_fs *, enum btree_id, struct bpos);
 int bch2_btree_path_traverse_cached(struct btree_trans *, struct btree_path *,
 				    unsigned);
 
-bool bch2_btree_insert_key_cached(struct btree_trans *,
+bool bch2_btree_insert_key_cached(struct btree_trans *, unsigned,
 			struct btree_path *, struct bkey_i *);
 int bch2_btree_key_cache_flush(struct btree_trans *,
 			       enum btree_id, struct bpos);
