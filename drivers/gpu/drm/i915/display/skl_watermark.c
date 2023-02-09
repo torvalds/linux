@@ -3258,6 +3258,11 @@ static void skl_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 
 static void skl_setup_wm_latency(struct drm_i915_private *i915)
 {
+	if (HAS_HW_SAGV_WM(i915))
+		i915->display.wm.max_level = 5;
+	else
+		i915->display.wm.max_level = 7;
+
 	if (DISPLAY_VER(i915) >= 14)
 		mtl_read_wm_latency(i915, i915->display.wm.skl_latency);
 	else

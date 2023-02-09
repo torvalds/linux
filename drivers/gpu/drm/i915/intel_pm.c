@@ -2836,6 +2836,8 @@ static void hsw_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
 	u64 sskpd;
 
+	i915->display.wm.max_level = 4;
+
 	sskpd = intel_uncore_read64(&i915->uncore, MCH_SSKPD);
 
 	wm[0] = REG_FIELD_GET64(SSKPD_NEW_WM0_MASK_HSW, sskpd);
@@ -2851,6 +2853,8 @@ static void snb_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
 	u32 sskpd;
 
+	i915->display.wm.max_level = 3;
+
 	sskpd = intel_uncore_read(&i915->uncore, MCH_SSKPD);
 
 	wm[0] = REG_FIELD_GET(SSKPD_WM0_MASK_SNB, sskpd);
@@ -2862,6 +2866,8 @@ static void snb_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 static void ilk_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
 	u32 mltr;
+
+	i915->display.wm.max_level = 2;
 
 	mltr = intel_uncore_read(&i915->uncore, MLTR_ILK);
 
@@ -2889,17 +2895,7 @@ static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
 
 int ilk_wm_max_level(const struct drm_i915_private *dev_priv)
 {
-	/* how many WM levels are we expecting */
-	if (HAS_HW_SAGV_WM(dev_priv))
-		return 5;
-	else if (DISPLAY_VER(dev_priv) >= 9)
-		return 7;
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		return 4;
-	else if (DISPLAY_VER(dev_priv) >= 6)
-		return 3;
-	else
-		return 2;
+	return dev_priv->display.wm.max_level;
 }
 
 void intel_print_wm_latency(struct drm_i915_private *dev_priv,
