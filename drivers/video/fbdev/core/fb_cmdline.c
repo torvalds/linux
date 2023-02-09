@@ -30,13 +30,17 @@ EXPORT_SYMBOL_GPL(fb_mode_option);
  *          (video=<name>:<options>)
  * @option: the option will be stored here
  *
+ * The caller owns the string returned in @option and is
+ * responsible for releasing the memory.
+ *
  * NOTE: Needed to maintain backwards compatibility
  */
 int fb_get_options(const char *name, char **option)
 {
-	char *opt, *options = NULL;
+	const char *options = NULL;
 	int retval = 0;
 	int name_len = strlen(name), i;
+	char *opt;
 
 	if (name_len && ofonly && strncmp(name, "offb", 4))
 		retval = 1;
@@ -55,12 +59,16 @@ int fb_get_options(const char *name, char **option)
 	}
 	/* No match, pass global option */
 	if (!options && option && fb_mode_option)
-		options = kstrdup(fb_mode_option, GFP_KERNEL);
+		options = fb_mode_option;
 	if (options && !strncmp(options, "off", 3))
 		retval = 1;
 
-	if (option)
-		*option = options;
+	if (option) {
+		if (options)
+			*option = kstrdup(options, GFP_KERNEL);
+		else
+			*option = NULL;
+	}
 
 	return retval;
 }
