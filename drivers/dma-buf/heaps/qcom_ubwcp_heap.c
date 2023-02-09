@@ -6,7 +6,7 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
 #include <linux/ubwcp_dma_heap.h>
-#include <trace/hooks/dma_buf.h>
+#include <trace/hooks/dmabuf.h>
 #include <linux/msm_dma_iommu_mapping.h>
 
 #include <linux/qcom-dma-mapping.h>
