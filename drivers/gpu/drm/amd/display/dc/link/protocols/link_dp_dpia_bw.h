@@ -45,30 +45,6 @@ enum bw_type {
 bool set_dptx_usb4_bw_alloc_support(struct dc_link *link);
 
 /*
- * Send a request from DP-Tx requesting to allocate BW remotely after
- * allocating it locally. This will get processed by CM and a CB function
- * will be called.
- *
- * @link: pointer to the dc_link struct instance
- * @req_bw: The requested bw in Kbyte to allocated
- *
- * return: none
- */
-void set_usb4_req_bw_req(struct dc_link *link, int req_bw);
-
-/*
- * CB function for when the status of the Req above is complete. We will
- * find out the result of allocating on CM and update structs accordingly
- *
- * @link: pointer to the dc_link struct instance
- * @bw: Allocated or Estimated BW depending on the result
- * @result: Response type
- *
- * return: none
- */
-void get_usb4_req_bw_resp(struct dc_link *link, uint8_t bw, uint8_t result);
-
-/*
  * Return the response_ready flag from dc_link struct
  *
  * @link: pointer to the dc_link struct instance

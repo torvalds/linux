@@ -1714,7 +1714,6 @@ static bool dcn321_resource_construct(
 		dc->caps.mall_size_per_mem_channel * 1024 * 1024;
 	dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
 
-	dc->caps.max_cab_allocation_bytes = 33554432; // 32MB = 1024 * 1024 * 32
 	dc->caps.subvp_fw_processing_delay_us = 15;
 	dc->caps.subvp_drr_max_vblank_margin_us = 40;
 	dc->caps.subvp_prefetch_end_to_mall_start_us = 15;

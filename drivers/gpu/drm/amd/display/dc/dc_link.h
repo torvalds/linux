@@ -433,6 +433,9 @@ void dc_link_dp_handle_link_loss(struct dc_link *link);
 bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link);
 bool dc_link_check_link_loss_status(struct dc_link *link,
 				       union hpd_irq_data *hpd_irq_dpcd_data);
+enum dc_status dp_read_hpd_rx_irq_data(
+	struct dc_link *link,
+	union hpd_irq_data *irq_data);
 struct dc_sink_init_data;
 
 struct dc_sink *dc_link_add_remote_sink(
@@ -626,5 +629,32 @@ struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
 		const struct dc_link *link);
 void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
+
+/*
+ *  USB4 DPIA BW ALLOCATION PUBLIC FUNCTIONS
+ */
+/*
+ * Send a request from DP-Tx requesting to allocate BW remotely after
+ * allocating it locally. This will get processed by CM and a CB function
+ * will be called.
+ *
+ * @link: pointer to the dc_link struct instance
+ * @req_bw: The requested bw in Kbyte to allocated
+ *
+ * return: none
+ */
+void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
+
+/*
+ * CB function for when the status of the Req above is complete. We will
+ * find out the result of allocating on CM and update structs accordingly
+ *
+ * @link: pointer to the dc_link struct instance
+ * @bw: Allocated or Estimated BW depending on the result
+ * @result: Response type
+ *
+ * return: none
+ */
+void dc_link_get_usb4_req_bw_resp(struct dc_link *link, uint8_t bw, uint8_t result);
 
 #endif /* DC_LINK_H_ */

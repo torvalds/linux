@@ -2225,14 +2225,10 @@ enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 	enum surface_pixel_format surf_pix_format = plane_state->format;
 	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
 
-	enum swizzle_mode_values swizzle = DC_SW_LINEAR;
-
+	plane_state->tiling_info.gfx9.swizzle = DC_SW_64KB_S;
 	if (bpp == 64)
-		swizzle = DC_SW_64KB_D;
-	else
-		swizzle = DC_SW_64KB_S;
+		plane_state->tiling_info.gfx9.swizzle = DC_SW_64KB_D;
 
-	plane_state->tiling_info.gfx9.swizzle = swizzle;
 	return DC_OK;
 }
 
