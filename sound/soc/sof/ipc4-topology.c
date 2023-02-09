@@ -1790,8 +1790,9 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 
 	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
 	if (ret < 0) {
-		dev_err(sdev->dev, "%s: failed to bind modules %s -> %s\n",
-			__func__, src_widget->widget->name, sink_widget->widget->name);
+		dev_err(sdev->dev, "failed to bind modules %s:%d -> %s:%d\n",
+			src_widget->widget->name, sroute->src_queue_id,
+			sink_widget->widget->name, sroute->dst_queue_id);
 
 		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
 				      SOF_PIN_TYPE_SOURCE);
@@ -1839,8 +1840,9 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 
 	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
 	if (ret < 0)
-		dev_err(sdev->dev, "failed to unbind modules %s -> %s\n",
-			src_widget->widget->name, sink_widget->widget->name);
+		dev_err(sdev->dev, "failed to unbind modules %s:%d -> %s:%d\n",
+			src_widget->widget->name, sroute->src_queue_id,
+			sink_widget->widget->name, sroute->dst_queue_id);
 out:
 	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_SINK);
 	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_SOURCE);
