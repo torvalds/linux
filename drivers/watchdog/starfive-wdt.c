@@ -820,17 +820,20 @@ static int starfive_wdt_resume(struct device *dev)
 	struct starfive_wdt *wdt = dev_get_drvdata(dev);
 
 	starfive_wdt_unlock(wdt);
+	pm_runtime_force_resume(dev);
+
+	ret = reset_control_deassert(wdt->rsts);
+	if (ret)
+		dev_err(wdt->dev, "deassert rsts error.\n");
 
 	/* Restore watchdog state. */
 	starfive_wdt_set_relod_count(wdt, wdt->reload);
 
-	pm_runtime_force_resume(dev);
-
-	starfive_wdt_restart(&wdt->wdt_device, 0, NULL);
-
 	ret = starfive_wdt_mask_and_disable_reset(wdt, false);
 	if (ret < 0)
 		return ret;
+
+	starfive_wdt_restart(&wdt->wdt_device, 0, NULL);
 
 	starfive_wdt_lock(wdt);
 
