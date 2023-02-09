@@ -12,6 +12,7 @@ config NET_DSA_MSCC_OCELOT_EXT
 	tristate "Ocelot External Ethernet switch support"
 	depends on NET_DSA && SPI
 	depends on NET_VENDOR_MICROSEMI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select MDIO_MSCC_MIIM
 	select MFD_OCELOT_CORE
 	select MSCC_OCELOT_SWITCH_LIB
