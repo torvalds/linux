@@ -305,7 +305,7 @@ static struct net *devlink_netns_get(struct sk_buff *skb,
 	struct net *net;
 
 	if (!!netns_pid_attr + !!netns_fd_attr + !!netns_id_attr > 1) {
-		NL_SET_ERR_MSG_MOD(info->extack, "multiple netns identifying attributes specified");
+		NL_SET_ERR_MSG(info->extack, "multiple netns identifying attributes specified");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -323,7 +323,7 @@ static struct net *devlink_netns_get(struct sk_buff *skb,
 		net = ERR_PTR(-EINVAL);
 	}
 	if (IS_ERR(net)) {
-		NL_SET_ERR_MSG_MOD(info->extack, "Unknown network namespace");
+		NL_SET_ERR_MSG(info->extack, "Unknown network namespace");
 		return ERR_PTR(-EINVAL);
 	}
 	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN)) {
@@ -425,7 +425,7 @@ int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 
 	err = devlink_resources_validate(devlink, NULL, info);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(info->extack, "resources size validation failed");
+		NL_SET_ERR_MSG(info->extack, "resources size validation failed");
 		return err;
 	}
 
@@ -435,8 +435,7 @@ int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		action = DEVLINK_RELOAD_ACTION_DRIVER_REINIT;
 
 	if (!devlink_reload_action_is_supported(devlink, action)) {
-		NL_SET_ERR_MSG_MOD(info->extack,
-				   "Requested reload action is not supported by the driver");
+		NL_SET_ERR_MSG(info->extack, "Requested reload action is not supported by the driver");
 		return -EOPNOTSUPP;
 	}
 
@@ -448,7 +447,7 @@ int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		limits = nla_get_bitfield32(info->attrs[DEVLINK_ATTR_RELOAD_LIMITS]);
 		limits_selected = limits.value & limits.selector;
 		if (!limits_selected) {
-			NL_SET_ERR_MSG_MOD(info->extack, "Invalid limit selected");
+			NL_SET_ERR_MSG(info->extack, "Invalid limit selected");
 			return -EINVAL;
 		}
 		for (limit = 0 ; limit <= DEVLINK_RELOAD_LIMIT_MAX ; limit++)
@@ -456,18 +455,15 @@ int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 				break;
 		/* UAPI enables multiselection, but currently it is not used */
 		if (limits_selected != BIT(limit)) {
-			NL_SET_ERR_MSG_MOD(info->extack,
-					   "Multiselection of limit is not supported");
+			NL_SET_ERR_MSG(info->extack, "Multiselection of limit is not supported");
 			return -EOPNOTSUPP;
 		}
 		if (!devlink_reload_limit_is_supported(devlink, limit)) {
-			NL_SET_ERR_MSG_MOD(info->extack,
-					   "Requested limit is not supported by the driver");
+			NL_SET_ERR_MSG(info->extack, "Requested limit is not supported by the driver");
 			return -EOPNOTSUPP;
 		}
 		if (devlink_reload_combination_is_invalid(action, limit)) {
-			NL_SET_ERR_MSG_MOD(info->extack,
-					   "Requested limit is invalid for this action");
+			NL_SET_ERR_MSG(info->extack, "Requested limit is invalid for this action");
 			return -EINVAL;
 		}
 	}
