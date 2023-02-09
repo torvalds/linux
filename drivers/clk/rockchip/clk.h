@@ -578,6 +578,7 @@ struct rockchip_pll_clock {
 #define ROCKCHIP_PLL_SYNC_RATE		BIT(0)
 /* normal mode only. now only for pll_rk3036, pll_rk3328 type */
 #define ROCKCHIP_PLL_FIXED_MODE		BIT(1)
+#define ROCKCHIP_PLL_ALLOW_POWER_DOWN	BIT(2)
 
 #define PLL(_type, _id, _name, _pnames, _flags, _con, _mode, _mshift,	\
 		_lshift, _pflags, _rtable)				\

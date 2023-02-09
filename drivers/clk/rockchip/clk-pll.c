@@ -1685,8 +1685,11 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	init.name = pll_name;
 
 #ifndef CONFIG_ROCKCHIP_LOW_PERFORMANCE
-	/* keep all plls untouched for now */
-	init.flags = flags | CLK_IGNORE_UNUSED;
+	if (clk_pll_flags & ROCKCHIP_PLL_ALLOW_POWER_DOWN)
+		init.flags = flags;
+	else
+		/* keep all plls untouched for now */
+		init.flags = flags | CLK_IGNORE_UNUSED;
 #else
 	init.flags = flags;
 #endif
