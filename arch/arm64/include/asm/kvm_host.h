@@ -634,7 +634,7 @@ struct kvm_vcpu_arch {
 #define EXCEPT_AA64_EL1_IRQ	__vcpu_except_flags(1)
 #define EXCEPT_AA64_EL1_FIQ	__vcpu_except_flags(2)
 #define EXCEPT_AA64_EL1_SERR	__vcpu_except_flags(3)
-/* For AArch64 with NV (one day): */
+/* For AArch64 with NV: */
 #define EXCEPT_AA64_EL2_SYNC	__vcpu_except_flags(4)
 #define EXCEPT_AA64_EL2_IRQ	__vcpu_except_flags(5)
 #define EXCEPT_AA64_EL2_FIQ	__vcpu_except_flags(6)
