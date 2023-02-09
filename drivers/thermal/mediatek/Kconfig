@@ -18,4 +18,20 @@ config MTK_SOC_THERMAL
 	  This driver configures thermal controllers to collect
 	  temperature via AUXADC interface.
 
+config MTK_LVTS_THERMAL
+        tristate "LVTS Thermal Driver for MediaTek SoCs"
+        depends on HAS_IOMEM
+        help
+          Enable this option if you want to get SoC temperature
+          information for supported MediaTek platforms.
+          This driver configures LVTS (Low Voltage Thermal Sensor)
+          thermal controllers to collect temperatures via ASIF
+          (Analog Serial Interface).
+
+config MTK_LVTS_THERMAL_DEBUGFS
+       bool "LVTS thermal debugfs"
+       depends on MTK_LVTS_THERMAL && DEBUG_FS
+       help
+         Enable this option to debug the internals of the device driver.
+
 endif
