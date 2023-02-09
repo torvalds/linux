@@ -1174,7 +1174,10 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 
 	path->uptodate = BTREE_ITER_UPTODATE;
 out:
-	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted);
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted)
+		panic("ret %s (%i) trans->restarted %s (%i)\n",
+		      bch2_err_str(ret), ret,
+		      bch2_err_str(trans->restarted), trans->restarted);
 	bch2_btree_path_verify(trans, path);
 	return ret;
 }
