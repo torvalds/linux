@@ -1745,8 +1745,8 @@ static int wx_alloc_page_pool(struct wx_ring *rx_ring)
 
 	rx_ring->page_pool = page_pool_create(&pp_params);
 	if (IS_ERR(rx_ring->page_pool)) {
-		rx_ring->page_pool = NULL;
 		ret = PTR_ERR(rx_ring->page_pool);
+		rx_ring->page_pool = NULL;
 	}
 
 	return ret;
