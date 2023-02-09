@@ -921,6 +921,9 @@ EXPORT_SYMBOL_GPL(ps3av_audio_mute);
 
 static int ps3av_probe(struct ps3_system_bus_device *dev)
 {
+#ifdef CONFIG_FB
+	char *mode_option = NULL;
+#endif
 	int res;
 	int id;
 
@@ -969,8 +972,12 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 	ps3av_get_hw_conf(ps3av);
 
 #ifdef CONFIG_FB
-	if (fb_mode_option && !strcmp(fb_mode_option, "safe"))
-		safe_mode = 1;
+	fb_get_options(NULL, &mode_option);
+	if (mode_option) {
+		if (!strcmp(mode_option, "safe"))
+			safe_mode = 1;
+		kfree(mode_option);
+	}
 #endif /* CONFIG_FB */
 	id = ps3av_auto_videomode(&ps3av->av_hw_conf);
 	if (id < 0) {
