@@ -2122,9 +2122,6 @@ static int __init fpsimd_init(void)
 		pr_notice("Advanced SIMD is not implemented\n");
 
 
-	if (cpu_have_named_feature(SME) && !cpu_have_named_feature(SVE))
-		pr_notice("SME is implemented but not SVE\n");
-
 	sve_sysctl_init();
 	sme_sysctl_init();
 
