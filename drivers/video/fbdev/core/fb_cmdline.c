@@ -12,7 +12,7 @@
  * for more details.
  *
  * Authors:
- *    Vetter <danie.vetter@ffwll.ch>
+ *    Daniel Vetter <daniel.vetter@ffwll.ch>
  */
 #include <linux/init.h>
 #include <linux/fb.h>
