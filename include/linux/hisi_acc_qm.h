@@ -308,7 +308,8 @@ struct hisi_qm {
 	const struct hisi_qm_err_ini *err_ini;
 	struct hisi_qm_err_info err_info;
 	struct hisi_qm_err_status err_status;
-	unsigned long misc_ctl; /* driver removing and reset sched */
+	/* driver removing and reset sched */
+	unsigned long misc_ctl;
 	/* Device capability bit */
 	unsigned long caps;
 
