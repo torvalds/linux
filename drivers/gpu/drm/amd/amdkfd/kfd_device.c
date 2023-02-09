@@ -594,6 +594,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	uint32_t first_vmid_kfd, last_vmid_kfd, vmid_num_kfd;
 	unsigned int max_proc_per_quantum;
 	int num_xcd, partition_mode;
+	int xcp_idx;
 
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
@@ -603,11 +604,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
-	num_xcd = NUM_XCC(kfd->adev->gfx.xcc_mask);
-	if (num_xcd == 0 || num_xcd == 1 || kfd->adev->gfx.num_xcc_per_xcp == 0)
-		kfd->num_nodes = 1;
-	else
-		kfd->num_nodes = num_xcd / kfd->adev->gfx.num_xcc_per_xcp;
+	kfd->num_nodes = amdgpu_xcp_get_num_xcp(kfd->adev->xcp_mgr);
+
 	if (kfd->num_nodes == 0) {
 		dev_err(kfd_device,
 			"KFD num nodes cannot be 0, GC inst: %d, num_xcc_in_node: %d\n",
@@ -735,7 +733,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 				kfd->num_nodes);
 
 	/* Allocate the KFD nodes */
-	for (i = 0; i < kfd->num_nodes; i++) {
+	for (i = 0, xcp_idx = 0; i < kfd->num_nodes; i++) {
 		node = kzalloc(sizeof(struct kfd_node), GFP_KERNEL);
 		if (!node)
 			goto node_alloc_error;
@@ -745,6 +743,15 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		node->kfd = kfd;
 		node->kfd2kgd = kfd->kfd2kgd;
 		node->vm_info.vmid_num_kfd = vmid_num_kfd;
+		node->xcp = amdgpu_get_next_xcp(kfd->adev->xcp_mgr, &xcp_idx);
+		/* TODO : Check if error handling is needed */
+		if (node->xcp)
+			amdgpu_xcp_get_inst_details(node->xcp, AMDGPU_XCP_GFX,
+						    &node->xcc_mask);
+		else
+			node->xcc_mask =
+				(1U << NUM_XCC(kfd->adev->gfx.xcc_mask)) - 1;
+
 		node->num_xcc_per_node = max(1U, kfd->adev->gfx.num_xcc_per_xcp);
 		node->start_xcc_id = node->num_xcc_per_node * i;
 

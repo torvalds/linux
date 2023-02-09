@@ -278,6 +278,9 @@ struct kfd_node {
 	unsigned int start_xcc_id;	/* Starting XCC instance
 					 * number for the node
 					 */
+	uint32_t xcc_mask; /* Instance mask of XCCs present */
+	struct amdgpu_xcp *xcp;
+
 	/* Interrupts */
 	struct kfifo ih_fifo;
 	struct workqueue_struct *ih_wq;
