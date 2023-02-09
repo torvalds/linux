@@ -1191,7 +1191,7 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 
 	/* AGP aperture is disabled */
 	if (agp_bot == agp_top) {
-		logical_addr_low  = adev->gmc.vram_start >> 18;
+		logical_addr_low = adev->gmc.fb_start >> 18;
 		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			/*
 			 * Raven2 has a HW issue that it is unable to use the vram which
@@ -1201,9 +1201,9 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 			 */
 			logical_addr_high = (adev->gmc.fb_end >> 18) + 0x1;
 		else
-			logical_addr_high = adev->gmc.vram_end >> 18;
+			logical_addr_high = adev->gmc.fb_end >> 18;
 	} else {
-		logical_addr_low  = min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18;
+		logical_addr_low = min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18;
 		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			/*
 			 * Raven2 has a HW issue that it is unable to use the vram which
