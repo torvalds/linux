@@ -610,9 +610,13 @@ static const struct attribute_group cpu_root_vulnerabilities_group = {
 
 static void __init cpu_register_vulnerabilities(void)
 {
-	if (sysfs_create_group(&cpu_subsys.dev_root->kobj,
-			       &cpu_root_vulnerabilities_group))
-		pr_err("Unable to register CPU vulnerabilities\n");
+	struct device *dev = bus_get_dev_root(&cpu_subsys);
+
+	if (dev) {
+		if (sysfs_create_group(&dev->kobj, &cpu_root_vulnerabilities_group))
+			pr_err("Unable to register CPU vulnerabilities\n");
+		put_device(dev);
+	}
 }
 
 #else

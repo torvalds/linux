@@ -3173,8 +3173,9 @@ static DEFINE_MUTEX(gdp_mutex);
 static struct kobject *get_device_parent(struct device *dev,
 					 struct device *parent)
 {
+	struct kobject *kobj = NULL;
+
 	if (dev->class) {
-		struct kobject *kobj = NULL;
 		struct kobject *parent_kobj;
 		struct kobject *k;
 
@@ -3222,8 +3223,15 @@ static struct kobject *get_device_parent(struct device *dev,
 	}
 
 	/* subsystems can specify a default root directory for their devices */
-	if (!parent && dev->bus && dev->bus->dev_root)
-		return &dev->bus->dev_root->kobj;
+	if (!parent && dev->bus) {
+		struct device *dev_root = bus_get_dev_root(dev->bus);
+
+		if (dev_root) {
+			kobj = &dev_root->kobj;
+			put_device(dev_root);
+			return kobj;
+		}
+	}
 
 	if (parent)
 		return &parent->kobj;

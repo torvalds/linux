@@ -282,5 +282,6 @@ enum bus_notifier_event {
 };
 
 extern struct kset *bus_get_kset(const struct bus_type *bus);
+struct device *bus_get_dev_root(const struct bus_type *bus);
 
 #endif
