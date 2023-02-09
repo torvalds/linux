@@ -3231,7 +3231,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	long ret;
 
-	if (!percpu_ref_tryget_live(&c->writes))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_fallocate))
 		return -EROFS;
 
 	inode_lock(&inode->v);
@@ -3255,7 +3255,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 err:
 	bch2_pagecache_block_put(inode);
 	inode_unlock(&inode->v);
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_fallocate);
 
 	return bch2_err_class(ret);
 }

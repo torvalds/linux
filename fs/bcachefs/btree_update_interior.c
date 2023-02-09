@@ -2036,7 +2036,7 @@ void async_btree_node_rewrite_work(struct work_struct *work)
 
 	bch2_trans_do(c, NULL, NULL, 0,
 		      async_btree_node_rewrite_trans(&trans, a));
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
 	kfree(a);
 }
 
@@ -2044,12 +2044,12 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 {
 	struct async_btree_rewrite *a;
 
-	if (!percpu_ref_tryget_live(&c->writes))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite))
 		return;
 
 	a = kmalloc(sizeof(*a), GFP_NOFS);
 	if (!a) {
-		percpu_ref_put(&c->writes);
+		bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
 		return;
 	}
 

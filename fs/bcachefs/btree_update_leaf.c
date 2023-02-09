@@ -994,7 +994,7 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	if (ret)
 		return ret;
 
-	percpu_ref_get(&c->writes);
+	bch2_write_ref_get(c, BCH_WRITE_REF_trans);
 	return 0;
 }
 
@@ -1043,7 +1043,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	}
 
 	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
-	    unlikely(!percpu_ref_tryget_live(&c->writes))) {
+	    unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_trans))) {
 		ret = bch2_trans_commit_get_rw_cold(trans);
 		if (ret)
 			goto out_reset;
@@ -1114,7 +1114,7 @@ out:
 	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
 
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
-		percpu_ref_put(&c->writes);
+		bch2_write_ref_put(c, BCH_WRITE_REF_trans);
 out_reset:
 	bch2_trans_reset_updates(trans);
 

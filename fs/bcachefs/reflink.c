@@ -278,7 +278,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	u32 dst_snapshot, src_snapshot;
 	int ret = 0, ret2 = 0;
 
-	if (!percpu_ref_tryget_live(&c->writes))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_reflink))
 		return -BCH_ERR_erofs_no_writes;
 
 	bch2_check_set_feature(c, BCH_FEATURE_reflink);
@@ -412,7 +412,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);
 
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_reflink);
 
 	return dst_done ?: ret ?: ret2;
 }

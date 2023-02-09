@@ -706,16 +706,14 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
 
 	bch2_delete_dead_snapshots(c);
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
 void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 {
-	if (!percpu_ref_tryget_live(&c->writes))
-		return;
-
-	if (!queue_work(system_long_wq, &c->snapshot_delete_work))
-		percpu_ref_put(&c->writes);
+	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_delete_dead_snapshots) &&
+	    !queue_work(system_long_wq, &c->snapshot_delete_work))
+		bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
 static int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
@@ -900,7 +898,7 @@ void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 		darray_exit(&s);
 	}
 
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_snapshot_delete_pagecache);
 }
 
 struct subvolume_unlink_hook {
@@ -923,11 +921,11 @@ int bch2_subvolume_wait_for_pagecache_and_delete_hook(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (unlikely(!percpu_ref_tryget_live(&c->writes)))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_snapshot_delete_pagecache))
 		return -EROFS;
 
 	if (!queue_work(system_long_wq, &c->snapshot_wait_for_pagecache_and_delete_work))
-		percpu_ref_put(&c->writes);
+		bch2_write_ref_put(c, BCH_WRITE_REF_snapshot_delete_pagecache);
 	return 0;
 }
 

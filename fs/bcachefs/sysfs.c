@@ -195,6 +195,29 @@ read_attribute(stripes_heap);
 read_attribute(open_buckets);
 read_attribute(write_points);
 
+#ifdef BCH_WRITE_REF_DEBUG
+read_attribute(write_refs);
+
+const char * const bch2_write_refs[] = {
+#define x(n)	#n,
+	BCH_WRITE_REFS()
+#undef x
+	NULL
+};
+
+static void bch2_write_refs_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	bch2_printbuf_tabstop_push(out, 24);
+
+	for (unsigned i = 0; i < ARRAY_SIZE(c->writes); i++) {
+		prt_str(out, bch2_write_refs[i]);
+		prt_tab(out);
+		prt_printf(out, "%li", atomic_long_read(&c->writes[i]));
+		prt_newline(out);
+	}
+}
+#endif
+
 read_attribute(internal_uuid);
 
 read_attribute(has_data);
@@ -448,6 +471,11 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_data_jobs)
 		data_progress_to_text(out, c);
 
+#ifdef BCH_WRITE_REF_DEBUG
+	if (attr == &sysfs_write_refs)
+		bch2_write_refs_to_text(out, c);
+#endif
+
 	return 0;
 }
 
@@ -631,6 +659,9 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_stripes_heap,
 	&sysfs_open_buckets,
 	&sysfs_write_points,
+#ifdef BCH_WRITE_REF_DEBUG
+	&sysfs_write_refs,
+#endif
 	&sysfs_io_timers_read,
 	&sysfs_io_timers_write,
 
@@ -682,7 +713,7 @@ STORE(bch2_fs_opts_dir)
 	 * We don't need to take c->writes for correctness, but it eliminates an
 	 * unsightly error message in the dmesg log when we're RO:
 	 */
-	if (unlikely(!percpu_ref_tryget_live(&c->writes)))
+	if (unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_sysfs)))
 		return -EROFS;
 
 	tmp = kstrdup(buf, GFP_KERNEL);
@@ -712,7 +743,7 @@ STORE(bch2_fs_opts_dir)
 
 	ret = size;
 err:
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_sysfs);
 	return ret;
 }
 SYSFS_OPS(bch2_fs_opts_dir);

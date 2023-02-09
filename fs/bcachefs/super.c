@@ -107,7 +107,7 @@ static struct kset *bcachefs_kset;
 static LIST_HEAD(bch_fs_list);
 static DEFINE_MUTEX(bch_fs_list_lock);
 
-static DECLARE_WAIT_QUEUE_HEAD(bch_read_only_wait);
+DECLARE_WAIT_QUEUE_HEAD(bch2_read_only_wait);
 
 static void bch2_dev_free(struct bch_dev *);
 static int bch2_dev_alloc(struct bch_fs *, unsigned);
@@ -235,13 +235,15 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		bch2_dev_allocator_remove(c, ca);
 }
 
+#ifndef BCH_WRITE_REF_DEBUG
 static void bch2_writes_disabled(struct percpu_ref *writes)
 {
 	struct bch_fs *c = container_of(writes, struct bch_fs, writes);
 
 	set_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags);
-	wake_up(&bch_read_only_wait);
+	wake_up(&bch2_read_only_wait);
 }
+#endif
 
 void bch2_fs_read_only(struct bch_fs *c)
 {
@@ -256,7 +258,13 @@ void bch2_fs_read_only(struct bch_fs *c)
 	 * Block new foreground-end write operations from starting - any new
 	 * writes will return -EROFS:
 	 */
+	set_bit(BCH_FS_GOING_RO, &c->flags);
+#ifndef BCH_WRITE_REF_DEBUG
 	percpu_ref_kill(&c->writes);
+#else
+	for (unsigned i = 0; i < BCH_WRITE_REF_NR; i++)
+		bch2_write_ref_put(c, i);
+#endif
 
 	/*
 	 * If we're not doing an emergency shutdown, we want to wait on
@@ -269,16 +277,17 @@ void bch2_fs_read_only(struct bch_fs *c)
 	 * we do need to wait on them before returning and signalling
 	 * that going RO is complete:
 	 */
-	wait_event(bch_read_only_wait,
+	wait_event(bch2_read_only_wait,
 		   test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags) ||
 		   test_bit(BCH_FS_EMERGENCY_RO, &c->flags));
 
 	__bch2_fs_read_only(c);
 
-	wait_event(bch_read_only_wait,
+	wait_event(bch2_read_only_wait,
 		   test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags));
 
 	clear_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags);
+	clear_bit(BCH_FS_GOING_RO, &c->flags);
 
 	if (!bch2_journal_error(&c->journal) &&
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
@@ -315,7 +324,7 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 	bch2_journal_halt(&c->journal);
 	bch2_fs_read_only_async(c);
 
-	wake_up(&bch_read_only_wait);
+	wake_up(&bch2_read_only_wait);
 	return ret;
 }
 
@@ -395,7 +404,14 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 			goto err;
 	}
 
+#ifndef BCH_WRITE_REF_DEBUG
 	percpu_ref_reinit(&c->writes);
+#else
+	for (unsigned i = 0; i < BCH_WRITE_REF_NR; i++) {
+		BUG_ON(atomic_long_read(&c->writes[i]));
+		atomic_long_inc(&c->writes[i]);
+	}
+#endif
 	set_bit(BCH_FS_RW, &c->flags);
 	set_bit(BCH_FS_WAS_RW, &c->flags);
 
@@ -462,7 +478,9 @@ static void __bch2_fs_free(struct bch_fs *c)
 	mempool_exit(&c->btree_bounce_pool);
 	bioset_exit(&c->btree_bio);
 	mempool_exit(&c->fill_iter);
+#ifndef BCH_WRITE_REF_DEBUG
 	percpu_ref_exit(&c->writes);
+#endif
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 	kfree(c->journal_seq_blacklist_table);
 	kfree(c->unused_inode_hints);
@@ -769,8 +787,10 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
 	    !(c->io_complete_wq = alloc_workqueue("bcachefs_io",
 				WQ_FREEZABLE|WQ_HIGHPRI|WQ_MEM_RECLAIM, 1)) ||
+#ifndef BCH_WRITE_REF_DEBUG
 	    percpu_ref_init(&c->writes, bch2_writes_disabled,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
+#endif
 	    mempool_init_kmalloc_pool(&c->fill_iter, 1, iter_size) ||
 	    bioset_init(&c->btree_bio, 1,
 			max(offsetof(struct btree_read_bio, bio),

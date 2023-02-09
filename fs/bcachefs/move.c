@@ -57,7 +57,7 @@ static void move_free(struct moving_io *io)
 
 	bch2_data_update_exit(&io->write);
 	wake_up(&ctxt->wait);
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_move);
 	kfree(io);
 }
 
@@ -250,7 +250,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 		return 0;
 	}
 
-	if (!percpu_ref_tryget_live(&c->writes))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_move))
 		return -BCH_ERR_erofs_no_writes;
 
 	/* write path might have to decompress data: */
@@ -319,7 +319,7 @@ err_free_pages:
 err_free:
 	kfree(io);
 err:
-	percpu_ref_put(&c->writes);
+	bch2_write_ref_put(c, BCH_WRITE_REF_move);
 	trace_and_count(c, move_extent_alloc_mem_fail, k.k);
 	return ret;
 }

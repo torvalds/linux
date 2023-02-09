@@ -250,7 +250,8 @@ int bch2_fs_read_write_early(struct bch_fs *);
  */
 static inline void bch2_fs_lazy_rw(struct bch_fs *c)
 {
-	if (percpu_ref_is_zero(&c->writes))
+	if (!test_bit(BCH_FS_RW, &c->flags) &&
+	    !test_bit(BCH_FS_WAS_RW, &c->flags))
 		bch2_fs_read_write_early(c);
 }
 
