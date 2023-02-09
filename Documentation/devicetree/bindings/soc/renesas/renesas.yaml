@@ -431,6 +431,13 @@ properties:
               - renesas,rzn1d400-db # RZN1D-DB (RZ/N1D Demo Board for the RZ/N1D 400 pins package)
           - const: renesas,r9a06g032
 
+      - description: RZ/N1{D,S} EB
+        items:
+          - enum:
+              - renesas,rzn1d400-eb # RZN1D-EB (Expansion Board when using a RZN1D-DB)
+          - const: renesas,rzn1d400-db
+          - const: renesas,r9a06g032
+
       - description: RZ/Five and RZ/G2UL (R9A07G043)
         items:
           - enum:
