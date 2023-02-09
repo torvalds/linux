@@ -95,8 +95,6 @@
 #define QM_VFT_CFG_RDY			0x10006c
 #define QM_VFT_CFG_OP_WR		0x100058
 #define QM_VFT_CFG_TYPE			0x10005c
-#define QM_SQC_VFT			0x0
-#define QM_CQC_VFT			0x1
 #define QM_VFT_CFG			0x100060
 #define QM_VFT_CFG_OP_ENABLE		0x100054
 #define QM_PM_CTRL			0x100148
@@ -164,7 +162,6 @@
 
 /* interfunction communication */
 #define QM_IFC_READY_STATUS		0x100128
-#define QM_IFC_C_STS_M			0x10012C
 #define QM_IFC_INT_SET_P		0x100130
 #define QM_IFC_INT_CFG			0x100134
 #define QM_IFC_INT_SOURCE_P		0x100138
@@ -198,7 +195,6 @@
 
 #define PCI_BAR_2			2
 #define PCI_BAR_4			4
-#define QM_SQE_DATA_ALIGN_MASK		GENMASK(6, 0)
 #define QMC_ALIGN(sz)			ALIGN(sz, 32)
 
 #define QM_DBG_READ_LEN		256
@@ -212,8 +208,6 @@
 #define QM_DRIVER_REMOVING		0
 #define QM_RST_SCHED			1
 #define QM_QOS_PARAM_NUM		2
-#define QM_QOS_VAL_NUM			1
-#define QM_QOS_BDF_PARAM_NUM		4
 #define QM_QOS_MAX_VAL			1000
 #define QM_QOS_RATE			100
 #define QM_QOS_EXPAND_RATE		1000
@@ -225,18 +219,14 @@
 #define QM_SHAPER_FACTOR_CBS_B_SHIFT	15
 #define QM_SHAPER_FACTOR_CBS_S_SHIFT	19
 #define QM_SHAPER_CBS_B			1
-#define QM_SHAPER_CBS_S			16
 #define QM_SHAPER_VFT_OFFSET		6
-#define WAIT_FOR_QOS_VF			100
 #define QM_QOS_MIN_ERROR_RATE		5
-#define QM_QOS_TYPICAL_NUM		8
 #define QM_SHAPER_MIN_CBS_S		8
 #define QM_QOS_TICK			0x300U
 #define QM_QOS_DIVISOR_CLK		0x1f40U
 #define QM_QOS_MAX_CIR_B		200
 #define QM_QOS_MIN_CIR_B		100
 #define QM_QOS_MAX_CIR_U		6
-#define QM_QOS_MAX_CIR_S		11
 #define QM_AUTOSUSPEND_DELAY		3000
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \

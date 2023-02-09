@@ -122,7 +122,6 @@ enum qp_state {
 };
 
 enum qm_hw_ver {
-	QM_HW_UNKNOWN = -1,
 	QM_HW_V1 = 0x20,
 	QM_HW_V2 = 0x21,
 	QM_HW_V3 = 0x30,
@@ -332,7 +331,6 @@ struct hisi_qm {
 
 	const char *algs;
 	bool use_sva;
-	bool is_frozen;
 
 	resource_size_t phys_base;
 	resource_size_t db_phys_base;
