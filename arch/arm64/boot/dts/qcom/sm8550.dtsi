@@ -2691,7 +2691,7 @@
 				pins = "gpio28", "gpio29";
 				function = "qup1_se0";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c1_data_clk: qup-i2c1-data-clk-state {
@@ -2699,7 +2699,7 @@
 				pins = "gpio32", "gpio33";
 				function = "qup1_se1";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c2_data_clk: qup-i2c2-data-clk-state {
@@ -2707,7 +2707,7 @@
 				pins = "gpio36", "gpio37";
 				function = "qup1_se2";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c3_data_clk: qup-i2c3-data-clk-state {
@@ -2715,7 +2715,7 @@
 				pins = "gpio40", "gpio41";
 				function = "qup1_se3";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c4_data_clk: qup-i2c4-data-clk-state {
@@ -2723,7 +2723,7 @@
 				pins = "gpio44", "gpio45";
 				function = "qup1_se4";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c5_data_clk: qup-i2c5-data-clk-state {
@@ -2731,7 +2731,7 @@
 				pins = "gpio52", "gpio53";
 				function = "qup1_se5";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c6_data_clk: qup-i2c6-data-clk-state {
@@ -2739,7 +2739,7 @@
 				pins = "gpio48", "gpio49";
 				function = "qup1_se6";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c8_data_clk: qup-i2c8-data-clk-state {
@@ -2747,14 +2747,14 @@
 					pins = "gpio57";
 					function = "qup2_se0_l1_mira";
 					drive-strength = <2>;
-					bias-pull-up;
+					bias-pull-up = <2200>;
 				};
 
 				sda-pins {
 					pins = "gpio56";
 					function = "qup2_se0_l0_mira";
 					drive-strength = <2>;
-					bias-pull-up;
+					bias-pull-up = <2200>;
 				};
 			};
 
@@ -2763,7 +2763,7 @@
 				pins = "gpio60", "gpio61";
 				function = "qup2_se1";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c10_data_clk: qup-i2c10-data-clk-state {
@@ -2771,7 +2771,7 @@
 				pins = "gpio64", "gpio65";
 				function = "qup2_se2";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c11_data_clk: qup-i2c11-data-clk-state {
@@ -2779,7 +2779,7 @@
 				pins = "gpio68", "gpio69";
 				function = "qup2_se3";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c12_data_clk: qup-i2c12-data-clk-state {
@@ -2787,7 +2787,7 @@
 				pins = "gpio2", "gpio3";
 				function = "qup2_se4";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c13_data_clk: qup-i2c13-data-clk-state {
@@ -2795,7 +2795,7 @@
 				pins = "gpio80", "gpio81";
 				function = "qup2_se5";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_i2c15_data_clk: qup-i2c15-data-clk-state {
@@ -2803,7 +2803,7 @@
 				pins = "gpio72", "gpio106";
 				function = "qup2_se7";
 				drive-strength = <2>;
-				bias-pull-up;
+				bias-pull-up = <2200>;
 			};
 
 			qup_spi0_cs: qup-spi0-cs-state {
