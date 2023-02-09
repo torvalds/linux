@@ -528,7 +528,7 @@ static int __init of_platform_default_populate_init(void)
 		int ret;
 
 		/* Check if we have a MacOS display without a node spec */
-		if (of_get_property(of_chosen, "linux,bootx-noscreen", NULL)) {
+		if (of_property_present(of_chosen, "linux,bootx-noscreen")) {
 			/*
 			 * The old code tried to work out which node was the MacOS
 			 * display based on the address. I'm dropping that since the

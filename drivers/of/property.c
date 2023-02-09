@@ -1086,7 +1086,7 @@ static struct device_node *of_get_compat_node(struct device_node *np)
 			np = NULL;
 		}
 
-		if (of_find_property(np, "compatible", NULL))
+		if (of_property_present(np, "compatible"))
 			break;
 
 		np = of_get_next_parent(np);
