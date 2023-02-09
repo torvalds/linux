@@ -2694,7 +2694,7 @@ static int ov5670_probe(struct i2c_client *client)
 	ov5670->xvclk = devm_clk_get(&client->dev, NULL);
 	if (!IS_ERR_OR_NULL(ov5670->xvclk))
 		input_clk = clk_get_rate(ov5670->xvclk);
-	else if (PTR_ERR(ov5670->xvclk) == -ENOENT)
+	else if (!ov5670->xvclk || PTR_ERR(ov5670->xvclk) == -ENOENT)
 		device_property_read_u32(&client->dev, "clock-frequency",
 					 &input_clk);
 	else
