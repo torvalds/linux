@@ -21,6 +21,36 @@ static char *video_options[FB_MAX] __read_mostly;
 static const char *fb_mode_option __read_mostly;
 static int ofonly __read_mostly;
 
+static const char *__fb_get_options(const char *name)
+{
+	const char *options = NULL;
+	size_t name_len = 0;
+
+	if (name)
+		name_len = strlen(name);
+
+	if (name_len) {
+		unsigned int i;
+		const char *opt;
+
+		for (i = 0; i < ARRAY_SIZE(video_options); ++i) {
+			if (!video_options[i])
+				continue;
+			if (video_options[i][0] == '\0')
+				continue;
+			opt = video_options[i];
+			if (!strncmp(opt, name, name_len) && opt[name_len] == ':')
+				options = opt + name_len + 1;
+		}
+	}
+
+	/* No match, return global options */
+	if (!options)
+		options = fb_mode_option;
+
+	return options;
+}
+
 /**
  * fb_get_options - get kernel boot parameters
  * @name:   framebuffer name as it would appear in
@@ -35,36 +65,18 @@ static int ofonly __read_mostly;
  */
 int fb_get_options(const char *name, char **option)
 {
-	const char *options = NULL;
 	int retval = 0;
-	size_t name_len;
-	char *opt;
+	const char *options;
 
-	if (name)
-		name_len = strlen(name);
-
-	if (name_len && ofonly && strncmp(name, "offb", 4))
+	if (name && ofonly && strncmp(name, "offb", 4))
 		retval = 1;
 
-	if (name_len && !retval) {
-		unsigned int i;
+	options = __fb_get_options(name);
 
-		for (i = 0; i < FB_MAX; i++) {
-			if (video_options[i] == NULL)
-				continue;
-			if (!video_options[i][0])
-				continue;
-			opt = video_options[i];
-			if (!strncmp(name, opt, name_len) &&
-			    opt[name_len] == ':')
-				options = opt + name_len + 1;
-		}
+	if (options) {
+		if (!strncmp(options, "off", 3))
+			retval = 1;
 	}
-	/* No match, pass global option */
-	if (!options && option && fb_mode_option)
-		options = fb_mode_option;
-	if (options && !strncmp(options, "off", 3))
-		retval = 1;
 
 	if (option) {
 		if (options)
