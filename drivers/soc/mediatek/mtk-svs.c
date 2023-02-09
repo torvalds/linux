@@ -2027,11 +2027,6 @@ static struct device *svs_add_device_link(struct svs_platform *svsp,
 	struct device *dev;
 	struct device_link *sup_link;
 
-	if (!node_name) {
-		dev_err(svsp->dev, "node name cannot be null\n");
-		return ERR_PTR(-EINVAL);
-	}
-
 	dev = svs_get_subsys_device(svsp, node_name);
 	if (IS_ERR(dev))
 		return dev;
