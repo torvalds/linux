@@ -1524,16 +1524,6 @@ static int va_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mclk;
 
-	ret = va_macro_register_fsgen_output(va);
-	if (ret)
-		goto err_clkout;
-
-	va->fsgen = clk_hw_get_clk(&va->hw, "fsgen");
-	if (IS_ERR(va->fsgen)) {
-		ret = PTR_ERR(va->fsgen);
-		goto err_clkout;
-	}
-
 	if (va->has_swr_master) {
 		/* Set default CLK div to 1 */
 		regmap_update_bits(va->regmap, CDC_VA_TOP_CSR_SWR_MIC_CTL0,
@@ -1559,6 +1549,16 @@ static int va_macro_probe(struct platform_device *pdev)
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+	ret = va_macro_register_fsgen_output(va);
+	if (ret)
+		goto err_clkout;
+
+	va->fsgen = clk_hw_get_clk(&va->hw, "fsgen");
+	if (IS_ERR(va->fsgen)) {
+		ret = PTR_ERR(va->fsgen);
+		goto err_clkout;
+	}
 
 	return 0;
 

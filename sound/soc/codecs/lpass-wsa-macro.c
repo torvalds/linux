@@ -2451,11 +2451,6 @@ static int wsa_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_fsgen;
 
-	ret = wsa_macro_register_mclk_output(wsa);
-	if (ret)
-		goto err_clkout;
-
-
 	ret = devm_snd_soc_register_component(dev, &wsa_macro_component_drv,
 					      wsa_macro_dai,
 					      ARRAY_SIZE(wsa_macro_dai));
@@ -2467,6 +2462,10 @@ static int wsa_macro_probe(struct platform_device *pdev)
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+	ret = wsa_macro_register_mclk_output(wsa);
+	if (ret)
+		goto err_clkout;
 
 	return 0;
 
