@@ -1053,7 +1053,6 @@ static inline bool
 mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, bool bfee)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	int sts = hweight16(phy->mt76->chainmask);
 
 	if (vif->type != NL80211_IFTYPE_STATION &&
@@ -1068,10 +1067,10 @@ mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 		struct ieee80211_eht_cap_elem_fixed *pe = &pc->eht_cap_elem;
 
 		if (bfee)
-			return mvif->cap.eht_su_ebfee &&
+			return vif->bss_conf.eht_su_beamformee &&
 			       EHT_PHY(CAP0_SU_BEAMFORMEE, pe->phy_cap_info[0]);
 		else
-			return mvif->cap.eht_su_ebfer &&
+			return vif->bss_conf.eht_su_beamformer &&
 			       EHT_PHY(CAP0_SU_BEAMFORMER, pe->phy_cap_info[0]);
 	}
 
@@ -1079,10 +1078,10 @@ mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 		struct ieee80211_he_cap_elem *pe = &sta->deflink.he_cap.he_cap_elem;
 
 		if (bfee)
-			return mvif->cap.he_su_ebfee &&
+			return vif->bss_conf.he_su_beamformee &&
 			       HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]);
 		else
-			return mvif->cap.he_su_ebfer &&
+			return vif->bss_conf.he_su_beamformer &&
 			       HE_PHY(CAP4_SU_BEAMFORMEE, pe->phy_cap_info[4]);
 	}
 
@@ -1090,10 +1089,10 @@ mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 		u32 cap = sta->deflink.vht_cap.cap;
 
 		if (bfee)
-			return mvif->cap.vht_su_ebfee &&
+			return vif->bss_conf.vht_su_beamformee &&
 			       (cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
 		else
-			return mvif->cap.vht_su_ebfer &&
+			return vif->bss_conf.vht_su_beamformer &&
 			       (cap & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE);
 	}
 
@@ -1572,7 +1571,7 @@ mt7996_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7996_dev *dev,
 			cap |= STA_CAP_TX_STBC;
 		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			cap |= STA_CAP_RX_STBC;
-		if (mvif->cap.ht_ldpc &&
+		if (vif->bss_conf.ht_ldpc &&
 		    (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
 			cap |= STA_CAP_LDPC;
 
@@ -1598,7 +1597,7 @@ mt7996_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7996_dev *dev,
 			cap |= STA_CAP_VHT_TX_STBC;
 		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_1)
 			cap |= STA_CAP_VHT_RX_STBC;
-		if (mvif->cap.vht_ldpc &&
+		if (vif->bss_conf.vht_ldpc &&
 		    (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC))
 			cap |= STA_CAP_VHT_LDPC;
 
@@ -1911,102 +1910,6 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 }
 
-static void
-mt7996_mcu_beacon_check_caps(struct mt7996_phy *phy, struct ieee80211_vif *vif,
-			     struct sk_buff *skb)
-{
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_vif_cap *vc = &mvif->cap;
-	const struct ieee80211_eht_cap_elem_fixed *eht;
-	const struct ieee80211_he_cap_elem *he;
-	const struct ieee80211_vht_cap *vht;
-	const struct ieee80211_ht_cap *ht;
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
-	const u8 *ie;
-	u32 len, bc;
-
-	/* Check missing configuration options to allow AP mode in mac80211
-	 * to remain in sync with hostapd settings, and get a subset of
-	 * beacon and hardware capabilities.
-	 */
-	if (WARN_ON_ONCE(skb->len <= (mgmt->u.beacon.variable - skb->data)))
-		return;
-
-	memset(vc, 0, sizeof(*vc));
-
-	len = skb->len - (mgmt->u.beacon.variable - skb->data);
-
-	ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, mgmt->u.beacon.variable,
-			      len);
-	if (ie && ie[1] >= sizeof(*ht)) {
-		ht = (void *)(ie + 2);
-		vc->ht_ldpc |= !!(le16_to_cpu(ht->cap_info) &
-				  IEEE80211_HT_CAP_LDPC_CODING);
-	}
-
-	ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, mgmt->u.beacon.variable,
-			      len);
-	if (ie && ie[1] >= sizeof(*vht)) {
-		u32 pc = phy->mt76->sband_5g.sband.vht_cap.cap;
-
-		vht = (void *)(ie + 2);
-		bc = le32_to_cpu(vht->vht_cap_info);
-
-		vc->vht_ldpc |= !!(bc & IEEE80211_VHT_CAP_RXLDPC);
-		vc->vht_su_ebfer =
-			(bc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE) &&
-			(pc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
-		vc->vht_su_ebfee =
-			(bc & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE) &&
-			(pc & IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE);
-		vc->vht_mu_ebfer =
-			(bc & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE) &&
-			(pc & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE);
-		vc->vht_mu_ebfee =
-			(bc & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE) &&
-			(pc & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
-	}
-
-	ie = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_CAPABILITY,
-				  mgmt->u.beacon.variable, len);
-	if (ie && ie[1] >= sizeof(*he) + 1) {
-		const struct ieee80211_sta_he_cap *pc =
-			mt76_connac_get_he_phy_cap(phy->mt76, vif);
-		const struct ieee80211_he_cap_elem *pe = &pc->he_cap_elem;
-
-		he = (void *)(ie + 3);
-
-		vc->he_ldpc =
-			HE_PHY(CAP1_LDPC_CODING_IN_PAYLOAD, pe->phy_cap_info[1]);
-		vc->he_su_ebfer =
-			HE_PHY(CAP3_SU_BEAMFORMER, he->phy_cap_info[3]) &&
-			HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]);
-		vc->he_su_ebfee =
-			HE_PHY(CAP4_SU_BEAMFORMEE, he->phy_cap_info[4]) &&
-			HE_PHY(CAP4_SU_BEAMFORMEE, pe->phy_cap_info[4]);
-		vc->he_mu_ebfer =
-			HE_PHY(CAP4_MU_BEAMFORMER, he->phy_cap_info[4]) &&
-			HE_PHY(CAP4_MU_BEAMFORMER, pe->phy_cap_info[4]);
-	}
-
-	ie = cfg80211_find_ext_ie(WLAN_EID_EXT_EHT_CAPABILITY,
-				  mgmt->u.beacon.variable, len);
-	if (ie && ie[1] >= sizeof(*eht) + 1) {
-		const struct ieee80211_sta_eht_cap *pc =
-			mt76_connac_get_eht_phy_cap(phy->mt76, vif);
-		const struct ieee80211_eht_cap_elem_fixed *pe = &pc->eht_cap_elem;
-
-		eht = (void *)(ie + 3);
-
-		vc->eht_su_ebfer =
-			EHT_PHY(CAP0_SU_BEAMFORMER, eht->phy_cap_info[0]) &&
-			EHT_PHY(CAP0_SU_BEAMFORMER, pe->phy_cap_info[0]);
-		vc->eht_su_ebfee =
-			EHT_PHY(CAP0_SU_BEAMFORMEE, eht->phy_cap_info[0]) &&
-			EHT_PHY(CAP0_SU_BEAMFORMEE, pe->phy_cap_info[0]);
-	}
-}
-
 int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif, int en)
 {
@@ -2044,8 +1947,6 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 
 	info = IEEE80211_SKB_CB(skb);
 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->mt76->band_idx);
-
-	mt7996_mcu_beacon_check_caps(phy, vif, skb);
 
 	mt7996_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
 	/* TODO: subtag - 11v MBSSID */

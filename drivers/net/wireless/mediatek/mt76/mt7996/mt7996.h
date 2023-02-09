@@ -112,25 +112,9 @@ struct mt7996_sta {
 	} twt;
 };
 
-struct mt7996_vif_cap {
-	bool ht_ldpc:1;
-	bool vht_ldpc:1;
-	bool he_ldpc:1;
-	bool vht_su_ebfer:1;
-	bool vht_su_ebfee:1;
-	bool vht_mu_ebfer:1;
-	bool vht_mu_ebfee:1;
-	bool he_su_ebfer:1;
-	bool he_su_ebfee:1;
-	bool he_mu_ebfer:1;
-	bool eht_su_ebfer:1;
-	bool eht_su_ebfee:1;
-};
-
 struct mt7996_vif {
 	struct mt76_vif mt76; /* must be first */
 
-	struct mt7996_vif_cap cap;
 	struct mt7996_sta sta;
 	struct mt7996_phy *phy;
 
