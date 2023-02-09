@@ -219,7 +219,8 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 	unsigned long limit;
 
 	bcm63xx_hsspi_set_clk(bs, spi, t->speed_hz);
-	bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
+	if (!t->cs_off)
+		bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
 
 	if (tx && rx)
 		opcode = HSSPI_OP_READ_WRITE;
@@ -338,7 +339,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 	struct spi_device *spi = msg->spi;
 	int status = -EINVAL;
 	int dummy_cs;
-	u32 reg;
+	bool keep_cs = false;
 
 	mutex_lock(&bs->msg_mutex);
 	/* This controller does not support keeping CS active during idle.
@@ -367,16 +368,28 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 
 		spi_transfer_delay_exec(t);
 
-		if (t->cs_change)
-			bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
+		/* use existing cs change logic from spi_transfer_one_message */
+		if (t->cs_change) {
+			if (list_is_last(&t->transfer_list, &msg->transfers)) {
+				keep_cs = true;
+			} else {
+				if (!t->cs_off)
+					bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
+
+				spi_transfer_cs_change_delay_exec(msg, t);
+
+				if (!list_next_entry(t, transfer_list)->cs_off)
+					bcm63xx_hsspi_set_cs(bs, spi->chip_select, true);
+			}
+		} else if (!list_is_last(&t->transfer_list, &msg->transfers) &&
+			   t->cs_off != list_next_entry(t, transfer_list)->cs_off) {
+			bcm63xx_hsspi_set_cs(bs, spi->chip_select, t->cs_off);
+		}
 	}
 
-	mutex_lock(&bs->bus_mutex);
-	reg = __raw_readl(bs->regs + HSSPI_GLOBAL_CTRL_REG);
-	reg &= ~GLOBAL_CTRL_CS_POLARITY_MASK;
-	reg |= bs->cs_polarity;
-	__raw_writel(reg, bs->regs + HSSPI_GLOBAL_CTRL_REG);
-	mutex_unlock(&bs->bus_mutex);
+	bcm63xx_hsspi_set_cs(bs, dummy_cs, false);
+	if (status || !keep_cs)
+		bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
 
 	mutex_unlock(&bs->msg_mutex);
 	msg->status = status;
