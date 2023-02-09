@@ -425,6 +425,7 @@ struct btree_trans {
 	bool			memory_allocation_failure:1;
 	bool			journal_transaction_names:1;
 	bool			journal_replay_not_finished:1;
+	bool			notrace_relock_fail:1;
 	enum bch_errcode	restarted:16;
 	u32			restart_count;
 	unsigned long		last_restarted_ip;

@@ -2854,8 +2854,10 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 		bch2_trans_reset_srcu_lock(trans);
 
 	trans->last_restarted_ip = _RET_IP_;
-	if (trans->restarted)
+	if (trans->restarted) {
 		bch2_btree_path_traverse_all(trans);
+		trans->notrace_relock_fail = false;
+	}
 
 	trans->last_begin_time = local_clock();
 	return trans->restart_count;

@@ -473,7 +473,7 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 		return true;
 	}
 fail:
-	if (trace)
+	if (trace && !trans->notrace_relock_fail)
 		trace_and_count(trans->c, btree_path_relock_fail, trans, _RET_IP_, path, level);
 	return false;
 }

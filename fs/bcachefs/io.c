@@ -2375,6 +2375,12 @@ get_bio:
 			else
 				submit_bio_wait(&rbio->bio);
 		}
+
+		/*
+		 * We just submitted IO which may block, we expect relock fail
+		 * events and shouldn't count them:
+		 */
+		trans->notrace_relock_fail = true;
 	} else {
 		/* Attempting reconstruct read: */
 		if (bch2_ec_read_extent(c, rbio)) {
