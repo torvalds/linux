@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/device/driver.h>
 #include <linux/dev_printk.h>
 #include <linux/errno.h>
 #include <linux/kconfig.h>
@@ -869,6 +870,7 @@ MODULE_DEVICE_TABLE(wmi, dell_wmi_ddv_id_table);
 static struct wmi_driver dell_wmi_ddv_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = pm_sleep_ptr(&dell_wmi_ddv_dev_pm_ops),
 	},
 	.id_table = dell_wmi_ddv_id_table,
