@@ -104,6 +104,28 @@
 #define	PAD_QSPI_DATA2		93
 #define	PAD_QSPI_DATA3		94
 
+/* aon_iomux pins */
+#define	PAD_TESTEN		0
+#define	PAD_RGPIO0		1
+#define	PAD_RGPIO1		2
+#define	PAD_RGPIO2		3
+#define	PAD_RGPIO3		4
+#define	PAD_RSTN		5
+#define	PAD_GMAC0_MDC		6
+#define	PAD_GMAC0_MDIO		7
+#define	PAD_GMAC0_RXD0		8
+#define	PAD_GMAC0_RXD1		9
+#define	PAD_GMAC0_RXD2		10
+#define	PAD_GMAC0_RXD3		11
+#define	PAD_GMAC0_RXDV		12
+#define	PAD_GMAC0_RXC		13
+#define	PAD_GMAC0_TXD0		14
+#define	PAD_GMAC0_TXD1		15
+#define	PAD_GMAC0_TXD2		16
+#define	PAD_GMAC0_TXD3		17
+#define	PAD_GMAC0_TXEN		18
+#define	PAD_GMAC0_TXC		19
+
 #define GPOUT_LOW		0
 #define GPOUT_HIGH		1
 
