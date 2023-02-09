@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __MSM_MMRM_H__
@@ -68,6 +68,14 @@ enum mmrm_cb_type {
 	MMRM_CLIENT_RESOURCE_VALUE_CHANGE = 0x1,
 };
 
+/*
+ * mmrm_crm_drv_type: MMRM CESTA Client Type (HW or SW DRV)
+ */
+enum mmrm_crm_drv_type {
+	MMRM_CRM_SW_DRV,
+	MMRM_CRM_HW_DRV,
+};
+
 /**
  * mmrm_res_val_chng: Change in resource value for mmrm cb type
  *                    MMRM_CLIENT_RESOURCE_VALUE_CHANGE
@@ -127,12 +135,19 @@ struct mmrm_client {
  * @client_id: Client provides CLK_SRC_XXXX id
  * @name     : Client name
  * @clk      : Pointer to clock struct
+ * @hw_drv_instances : Number of HW DRV instances, if managed by CESTA HW
+ *                     0, if not managed by CESTA HW
+ * @num_pwr_states : Number of supported power states, if managed by CESTA HW
+ *                   0, if not managed by CESTA HW
  */
 struct mmrm_clk_client_desc {
 	u32 client_domain;
 	u32 client_id;
 	const char name[MMRM_CLK_CLIENT_NAME_SIZE];
 	struct clk *clk;
+	/* CESTA data */
+	u32 hw_drv_instances;
+	u32 num_pwr_states;
 };
 
 /**
@@ -164,10 +179,21 @@ struct mmrm_client_desc {
  *                 Default 1 for each client
  * @flags: Client flags used to provide additional client info
  *         Refer flags MMRM_CLIENT_DATA_FLAG_XXXX
+ * @drv_type: CESTA DRV type, if managed by CESTA HW
+ *         one of CRM_HW_DRV or CRM_SW_DRV
+ * @crm_drv_idx: DRV client index
+ *         Applicable for CESTA clients
+ * @pwr_st: The pwr_state for HW/SW DRV
+ *         Applicable for CESTA clients
  */
 struct mmrm_client_data {
 	u32 num_hw_blocks;
 	u32 flags;
+
+	/* CESTA data */
+	enum mmrm_crm_drv_type drv_type;
+	u32 crm_drv_idx;
+	u32 pwr_st;
 };
 
 #if IS_ENABLED(CONFIG_MSM_MMRM)
