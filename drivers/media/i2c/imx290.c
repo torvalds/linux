@@ -1137,8 +1137,8 @@ static int imx290_init_clk(struct imx290 *imx290)
 	u32 xclk_freq;
 	int ret;
 
-	ret = fwnode_property_read_u32(dev_fwnode(imx290->dev),
-				       "clock-frequency", &xclk_freq);
+	ret = device_property_read_u32(imx290->dev, "clock-frequency",
+				       &xclk_freq);
 	if (ret) {
 		dev_err(imx290->dev, "Could not get xclk frequency\n");
 		return ret;
