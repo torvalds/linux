@@ -26,7 +26,6 @@
 #include "blk-cgroup.h"
 
 #define ALLOC_CACHE_THRESHOLD	16
-#define ALLOC_CACHE_SLACK	64
 #define ALLOC_CACHE_MAX		256
 
 struct bio_alloc_cache {
