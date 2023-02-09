@@ -18,10 +18,8 @@
 #include <linux/fb.h>
 
 static char *video_options[FB_MAX] __read_mostly;
+static const char *fb_mode_option __read_mostly;
 static int ofonly __read_mostly;
-
-const char *fb_mode_option;
-EXPORT_SYMBOL_GPL(fb_mode_option);
 
 /**
  * fb_get_options - get kernel boot parameters
