@@ -280,21 +280,19 @@ static void rswitch_gwca_queue_free(struct net_device *ndev,
 {
 	int i;
 
-	if (gq->gptp) {
+	if (!gq->dir_tx) {
 		dma_free_coherent(ndev->dev.parent,
 				  sizeof(struct rswitch_ext_ts_desc) *
 				  (gq->ring_size + 1), gq->rx_ring, gq->ring_dma);
 		gq->rx_ring = NULL;
+
+		for (i = 0; i < gq->ring_size; i++)
+			dev_kfree_skb(gq->skbs[i]);
 	} else {
 		dma_free_coherent(ndev->dev.parent,
 				  sizeof(struct rswitch_ext_desc) *
 				  (gq->ring_size + 1), gq->tx_ring, gq->ring_dma);
 		gq->tx_ring = NULL;
-	}
-
-	if (!gq->dir_tx) {
-		for (i = 0; i < gq->ring_size; i++)
-			dev_kfree_skb(gq->skbs[i]);
 	}
 
 	kfree(gq->skbs);
@@ -304,12 +302,11 @@ static void rswitch_gwca_queue_free(struct net_device *ndev,
 static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 				    struct rswitch_private *priv,
 				    struct rswitch_gwca_queue *gq,
-				    bool dir_tx, bool gptp, int ring_size)
+				    bool dir_tx, int ring_size)
 {
 	int i, bit;
 
 	gq->dir_tx = dir_tx;
-	gq->gptp = gptp;
 	gq->ring_size = ring_size;
 	gq->ndev = ndev;
 
@@ -317,17 +314,18 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 	if (!gq->skbs)
 		return -ENOMEM;
 
-	if (!dir_tx)
+	if (!dir_tx) {
 		rswitch_gwca_queue_alloc_skb(gq, 0, gq->ring_size);
 
-	if (gptp)
 		gq->rx_ring = dma_alloc_coherent(ndev->dev.parent,
 						 sizeof(struct rswitch_ext_ts_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
-	else
+	} else {
 		gq->tx_ring = dma_alloc_coherent(ndev->dev.parent,
 						 sizeof(struct rswitch_ext_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
+	}
+
 	if (!gq->rx_ring && !gq->tx_ring)
 		goto out;
 
@@ -539,8 +537,7 @@ static int rswitch_txdmac_alloc(struct net_device *ndev)
 	if (!rdev->tx_queue)
 		return -EBUSY;
 
-	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->tx_queue, true, false,
-				       TX_RING_SIZE);
+	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->tx_queue, true, TX_RING_SIZE);
 	if (err < 0) {
 		rswitch_gwca_put(priv, rdev->tx_queue);
 		return err;
@@ -574,8 +571,7 @@ static int rswitch_rxdmac_alloc(struct net_device *ndev)
 	if (!rdev->rx_queue)
 		return -EBUSY;
 
-	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->rx_queue, false, true,
-				       RX_RING_SIZE);
+	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->rx_queue, false, RX_RING_SIZE);
 	if (err < 0) {
 		rswitch_gwca_put(priv, rdev->rx_queue);
 		return err;

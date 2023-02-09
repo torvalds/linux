@@ -913,7 +913,6 @@ struct rswitch_etha {
 struct rswitch_gwca_queue {
 	int index;
 	bool dir_tx;
-	bool gptp;
 	union {
 		struct rswitch_ext_desc *tx_ring;
 		struct rswitch_ext_ts_desc *rx_ring;
