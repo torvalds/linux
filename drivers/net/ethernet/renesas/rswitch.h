@@ -27,6 +27,7 @@
 
 #define TX_RING_SIZE		1024
 #define RX_RING_SIZE		1024
+#define TS_RING_SIZE		(TX_RING_SIZE * RSWITCH_NUM_PORTS)
 
 #define PKT_BUF_SZ		1584
 #define RSWITCH_ALIGN		128
@@ -48,6 +49,10 @@
 #define GWCA_INDEX		0
 #define AGENT_INDEX_GWCA	3
 #define GWRO			RSWITCH_GWCA0_OFFSET
+
+#define GWCA_TS_IRQ_RESOURCE_NAME	"gwca0_rxts0"
+#define GWCA_TS_IRQ_NAME		"rswitch: gwca0_rxts0"
+#define GWCA_TS_IRQ_BIT			BIT(0)
 
 #define FWRO	0
 #define TPRO	RSWITCH_TOP_OFFSET
@@ -831,7 +836,7 @@ enum DIE_DT {
 	DT_FSINGLE	= 0x80,
 	DT_FSTART	= 0x90,
 	DT_FMID		= 0xa0,
-	DT_FEND		= 0xb8,
+	DT_FEND		= 0xb0,
 
 	/* Chain control */
 	DT_LEMPTY	= 0xc0,
@@ -843,7 +848,7 @@ enum DIE_DT {
 	DT_FEMPTY	= 0x40,
 	DT_FEMPTY_IS	= 0x10,
 	DT_FEMPTY_IC	= 0x20,
-	DT_FEMPTY_ND	= 0x38,
+	DT_FEMPTY_ND	= 0x30,
 	DT_FEMPTY_START	= 0x50,
 	DT_FEMPTY_MID	= 0x60,
 	DT_FEMPTY_END	= 0x70,
@@ -864,6 +869,12 @@ enum DIE_DT {
 
 /* For reception */
 #define INFO1_SPN(port)		((u64)(port) << 36ULL)
+
+/* For timestamp descriptor in dptrl (Byte 4 to 7) */
+#define TS_DESC_TSUN(dptrl)	((dptrl) & GENMASK(7, 0))
+#define TS_DESC_SPN(dptrl)	(((dptrl) & GENMASK(10, 8)) >> 8)
+#define TS_DESC_DPN(dptrl)	(((dptrl) & GENMASK(17, 16)) >> 16)
+#define TS_DESC_TN(dptrl)	((dptrl) & BIT(24))
 
 struct rswitch_desc {
 	__le16 info_ds;	/* Descriptor size */
@@ -911,19 +922,31 @@ struct rswitch_etha {
  * name, this driver calls "queue".
  */
 struct rswitch_gwca_queue {
-	int index;
-	bool dir_tx;
 	union {
 		struct rswitch_ext_desc *tx_ring;
 		struct rswitch_ext_ts_desc *rx_ring;
+		struct rswitch_ts_desc *ts_ring;
 	};
+
+	/* Common */
 	dma_addr_t ring_dma;
 	int ring_size;
 	int cur;
 	int dirty;
-	struct sk_buff **skbs;
 
+	/* For [rt]_ring */
+	int index;
+	bool dir_tx;
+	struct sk_buff **skbs;
 	struct net_device *ndev;	/* queue to ndev for irq */
+};
+
+struct rswitch_gwca_ts_info {
+	struct sk_buff *skb;
+	struct list_head list;
+
+	int port;
+	u8 tag;
 };
 
 #define RSWITCH_NUM_IRQ_REGS	(RSWITCH_MAX_NUM_QUEUES / BITS_PER_TYPE(u32))
@@ -934,6 +957,8 @@ struct rswitch_gwca {
 	u32 linkfix_table_size;
 	struct rswitch_gwca_queue *queues;
 	int num_queues;
+	struct rswitch_gwca_queue ts_queue;
+	struct list_head ts_info_list;
 	DECLARE_BITMAP(used, RSWITCH_MAX_NUM_QUEUES);
 	u32 tx_irq_bits[RSWITCH_NUM_IRQ_REGS];
 	u32 rx_irq_bits[RSWITCH_NUM_IRQ_REGS];

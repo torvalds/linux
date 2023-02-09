@@ -123,13 +123,6 @@ static void rswitch_fwd_init(struct rswitch_private *priv)
 	iowrite32(GENMASK(RSWITCH_NUM_PORTS - 1, 0), priv->addr + FWPBFC(priv->gwca.index));
 }
 
-/* gPTP timer (gPTP) */
-static void rswitch_get_timestamp(struct rswitch_private *priv,
-				  struct timespec64 *ts)
-{
-	priv->ptp_priv->info.gettime64(&priv->ptp_priv->info, ts);
-}
-
 /* Gateway CPU agent block (GWCA) */
 static int rswitch_gwca_change_mode(struct rswitch_private *priv,
 				    enum rswitch_gwca_mode mode)
@@ -299,6 +292,16 @@ static void rswitch_gwca_queue_free(struct net_device *ndev,
 	gq->skbs = NULL;
 }
 
+static void rswitch_gwca_ts_queue_free(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(struct rswitch_ts_desc) * (gq->ring_size + 1),
+			  gq->ts_ring, gq->ring_dma);
+	gq->ts_ring = NULL;
+}
+
 static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 				    struct rswitch_private *priv,
 				    struct rswitch_gwca_queue *gq,
@@ -342,6 +345,17 @@ out:
 	rswitch_gwca_queue_free(ndev, gq);
 
 	return -ENOMEM;
+}
+
+static int rswitch_gwca_ts_queue_alloc(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+
+	gq->ring_size = TS_RING_SIZE;
+	gq->ts_ring = dma_alloc_coherent(&priv->pdev->dev,
+					 sizeof(struct rswitch_ts_desc) *
+					 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
+	return !gq->ts_ring ? -ENOMEM : 0;
 }
 
 static void rswitch_desc_set_dptr(struct rswitch_desc *desc, dma_addr_t addr)
@@ -403,6 +417,20 @@ err:
 	}
 
 	return -ENOMEM;
+}
+
+static void rswitch_gwca_ts_queue_fill(struct rswitch_private *priv,
+				       int start_index, int num)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+	struct rswitch_ts_desc *desc;
+	int i, index;
+
+	for (i = 0; i < num; i++) {
+		index = (i + start_index) % gq->ring_size;
+		desc = &gq->ts_ring[index];
+		desc->desc.die_dt = DT_FEMPTY_ND | DIE;
+	}
 }
 
 static int rswitch_gwca_queue_ext_ts_fill(struct net_device *ndev,
@@ -618,6 +646,9 @@ static int rswitch_gwca_hw_init(struct rswitch_private *priv)
 	iowrite32(0, priv->addr + GWTTFC);
 	iowrite32(lower_32_bits(priv->gwca.linkfix_table_dma), priv->addr + GWDCBAC1);
 	iowrite32(upper_32_bits(priv->gwca.linkfix_table_dma), priv->addr + GWDCBAC0);
+	iowrite32(lower_32_bits(priv->gwca.ts_queue.ring_dma), priv->addr + GWTDCAC10);
+	iowrite32(upper_32_bits(priv->gwca.ts_queue.ring_dma), priv->addr + GWTDCAC00);
+	iowrite32(GWCA_TS_IRQ_BIT, priv->addr + GWTSDCC0);
 	rswitch_gwca_set_rate_limit(priv, priv->gwca.speed);
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
@@ -744,15 +775,6 @@ static int rswitch_tx_free(struct net_device *ndev, bool free_txed_only)
 		size = le16_to_cpu(desc->desc.info_ds) & TX_DS;
 		skb = gq->skbs[gq->dirty];
 		if (skb) {
-			if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
-				struct skb_shared_hwtstamps shhwtstamps;
-				struct timespec64 ts;
-
-				rswitch_get_timestamp(rdev->priv, &ts);
-				memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-				shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
-				skb_tstamp_tx(skb, &shhwtstamps);
-			}
 			dma_addr = rswitch_desc_get_dptr(&desc->desc);
 			dma_unmap_single(ndev->dev.parent, dma_addr,
 					 size, DMA_TO_DEVICE);
@@ -876,6 +898,73 @@ static int rswitch_gwca_request_irqs(struct rswitch_private *priv)
 	}
 
 	return 0;
+}
+
+static void rswitch_ts(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
+	struct skb_shared_hwtstamps shhwtstamps;
+	struct rswitch_ts_desc *desc;
+	struct timespec64 ts;
+	u32 tag, port;
+	int num;
+
+	desc = &gq->ts_ring[gq->cur];
+	while ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY_ND) {
+		dma_rmb();
+
+		port = TS_DESC_DPN(__le32_to_cpu(desc->desc.dptrl));
+		tag = TS_DESC_TSUN(__le32_to_cpu(desc->desc.dptrl));
+
+		list_for_each_entry_safe(ts_info, ts_info2, &priv->gwca.ts_info_list, list) {
+			if (!(ts_info->port == port && ts_info->tag == tag))
+				continue;
+
+			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+			ts.tv_sec = __le32_to_cpu(desc->ts_sec);
+			ts.tv_nsec = __le32_to_cpu(desc->ts_nsec & cpu_to_le32(0x3fffffff));
+			shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
+			skb_tstamp_tx(ts_info->skb, &shhwtstamps);
+			dev_consume_skb_irq(ts_info->skb);
+			list_del(&ts_info->list);
+			kfree(ts_info);
+			break;
+		}
+
+		gq->cur = rswitch_next_queue_index(gq, true, 1);
+		desc = &gq->ts_ring[gq->cur];
+	}
+
+	num = rswitch_get_num_cur_queues(gq);
+	rswitch_gwca_ts_queue_fill(priv, gq->dirty, num);
+	gq->dirty = rswitch_next_queue_index(gq, false, num);
+}
+
+static irqreturn_t rswitch_gwca_ts_irq(int irq, void *dev_id)
+{
+	struct rswitch_private *priv = dev_id;
+
+	if (ioread32(priv->addr + GWTSDIS) & GWCA_TS_IRQ_BIT) {
+		iowrite32(GWCA_TS_IRQ_BIT, priv->addr + GWTSDIS);
+		rswitch_ts(priv);
+
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
+static int rswitch_gwca_ts_request_irqs(struct rswitch_private *priv)
+{
+	int irq;
+
+	irq = platform_get_irq_byname(priv->pdev, GWCA_TS_IRQ_RESOURCE_NAME);
+	if (irq < 0)
+		return irq;
+
+	return devm_request_irq(&priv->pdev->dev, irq, rswitch_gwca_ts_irq,
+				0, GWCA_TS_IRQ_NAME, priv);
 }
 
 /* Ethernet TSN Agent block (ETHA) and Ethernet MAC IP block (RMAC) */
@@ -1348,14 +1437,27 @@ static int rswitch_open(struct net_device *ndev)
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, true);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, true);
 
+	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDIE);
+
 	return 0;
 };
 
 static int rswitch_stop(struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
+	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
 
 	netif_tx_stop_all_queues(ndev);
+
+	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
+
+	list_for_each_entry_safe(ts_info, ts_info2, &rdev->priv->gwca.ts_info_list, list) {
+		if (ts_info->port != rdev->port)
+			continue;
+		dev_kfree_skb_irq(ts_info->skb);
+		list_del(&ts_info->list);
+		kfree(ts_info);
+	}
 
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, false);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
@@ -1395,11 +1497,25 @@ static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *nd
 
 	desc->info1 = cpu_to_le64(INFO1_DV(BIT(rdev->etha->index)) | INFO1_FMT);
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
+		struct rswitch_gwca_ts_info *ts_info;
+
+		ts_info = kzalloc(sizeof(*ts_info), GFP_ATOMIC);
+		if (!ts_info) {
+			dma_unmap_single(ndev->dev.parent, dma_addr, skb->len, DMA_TO_DEVICE);
+			return -ENOMEM;
+		}
+
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		rdev->ts_tag++;
 		desc->info1 |= cpu_to_le64(INFO1_TSUN(rdev->ts_tag) | INFO1_TXC);
+
+		ts_info->skb = skb_get(skb);
+		ts_info->port = rdev->port;
+		ts_info->tag = rdev->ts_tag;
+		list_add_tail(&ts_info->list, &rdev->priv->gwca.ts_info_list);
+
+		skb_tx_timestamp(skb);
 	}
-	skb_tx_timestamp(skb);
 
 	dma_wmb();
 
@@ -1653,6 +1769,13 @@ static int rswitch_init(struct rswitch_private *priv)
 	if (err < 0)
 		return -ENOMEM;
 
+	err = rswitch_gwca_ts_queue_alloc(priv);
+	if (err < 0)
+		goto err_ts_queue_alloc;
+
+	rswitch_gwca_ts_queue_fill(priv, 0, TS_RING_SIZE);
+	INIT_LIST_HEAD(&priv->gwca.ts_info_list);
+
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
 		err = rswitch_device_alloc(priv, i);
 		if (err < 0) {
@@ -1672,6 +1795,10 @@ static int rswitch_init(struct rswitch_private *priv)
 	err = rswitch_gwca_request_irqs(priv);
 	if (err < 0)
 		goto err_gwca_request_irq;
+
+	err = rswitch_gwca_ts_request_irqs(priv);
+	if (err < 0)
+		goto err_gwca_ts_request_irq;
 
 	err = rswitch_gwca_hw_init(priv);
 	if (err < 0)
@@ -1703,6 +1830,7 @@ err_ether_port_init_all:
 	rswitch_gwca_hw_deinit(priv);
 
 err_gwca_hw_init:
+err_gwca_ts_request_irq:
 err_gwca_request_irq:
 	rcar_gen4_ptp_unregister(priv->ptp_priv);
 
@@ -1711,6 +1839,9 @@ err_ptp_register:
 		rswitch_device_free(priv, i);
 
 err_device_alloc:
+	rswitch_gwca_ts_queue_free(priv);
+
+err_ts_queue_alloc:
 	rswitch_gwca_linkfix_free(priv);
 
 	return err;
@@ -1790,6 +1921,7 @@ static void rswitch_deinit(struct rswitch_private *priv)
 		rswitch_device_free(priv, i);
 	}
 
+	rswitch_gwca_ts_queue_free(priv);
 	rswitch_gwca_linkfix_free(priv);
 
 	rswitch_clock_disable(priv);
