@@ -210,6 +210,32 @@ int drm_atomic_helper_page_flip_target(
 								   plane)))
 
 /**
+ * drm_atomic_plane_enabling - check whether a plane is being enabled
+ * @old_plane_state: old atomic plane state
+ * @new_plane_state: new atomic plane state
+ *
+ * Checks the atomic state of a plane to determine whether it's being enabled
+ * or not. This also WARNs if it detects an invalid state (both CRTC and FB
+ * need to either both be NULL or both be non-NULL).
+ *
+ * RETURNS:
+ * True if the plane is being enabled, false otherwise.
+ */
+static inline bool drm_atomic_plane_enabling(struct drm_plane_state *old_plane_state,
+					     struct drm_plane_state *new_plane_state)
+{
+	/*
+	 * When enabling a plane, CRTC and FB should always be set together.
+	 * Anything else should be considered a bug in the atomic core, so we
+	 * gently warn about it.
+	 */
+	WARN_ON((!new_plane_state->crtc && new_plane_state->fb) ||
+		(new_plane_state->crtc && !new_plane_state->fb));
+
+	return !old_plane_state->crtc && new_plane_state->crtc;
+}
+
+/**
  * drm_atomic_plane_disabling - check whether a plane is being disabled
  * @old_plane_state: old atomic plane state
  * @new_plane_state: new atomic plane state
