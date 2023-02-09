@@ -647,10 +647,14 @@ static int rockchip_rk3036_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 static int rockchip_rk3036_pll_enable(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
+	const struct clk_ops *pll_mux_ops = pll->pll_mux_ops;
+	struct clk_mux *pll_mux = &pll->pll_mux;
 
 	writel(HIWORD_UPDATE(0, RK3036_PLLCON1_PWRDOWN, 0),
 	       pll->reg_base + RK3036_PLLCON(1));
 	rockchip_rk3036_pll_wait_lock(pll);
+
+	pll_mux_ops->set_parent(&pll_mux->hw, PLL_MODE_NORM);
 
 	return 0;
 }
@@ -658,6 +662,10 @@ static int rockchip_rk3036_pll_enable(struct clk_hw *hw)
 static void rockchip_rk3036_pll_disable(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
+	const struct clk_ops *pll_mux_ops = pll->pll_mux_ops;
+	struct clk_mux *pll_mux = &pll->pll_mux;
+
+	pll_mux_ops->set_parent(&pll_mux->hw, PLL_MODE_SLOW);
 
 	writel(HIWORD_UPDATE(RK3036_PLLCON1_PWRDOWN,
 			     RK3036_PLLCON1_PWRDOWN, 0),
