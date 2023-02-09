@@ -43,10 +43,11 @@
 #define RISCV_ISA_EXT_SSCOFPMF         26
 #define RISCV_ISA_EXT_SSTC             27
 #define RISCV_ISA_EXT_SVINVAL          28
-#define RISCV_ISA_EXT_SVPBMT           29
-#define RISCV_ISA_EXT_ZBB              30
-#define RISCV_ISA_EXT_ZICBOM           31
-#define RISCV_ISA_EXT_ZIHINTPAUSE      32
+#define RISCV_ISA_EXT_SVNAPOT          29
+#define RISCV_ISA_EXT_SVPBMT           30
+#define RISCV_ISA_EXT_ZBB              31
+#define RISCV_ISA_EXT_ZICBOM           32
+#define RISCV_ISA_EXT_ZIHINTPAUSE      33
 
 #ifndef __ASSEMBLY__
 
