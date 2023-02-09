@@ -24,6 +24,7 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_nested.h>
 #include <asm/perf_event.h>
 #include <asm/sysreg.h>
 
@@ -100,6 +101,18 @@ static u32 get_ccsidr(u32 csselr)
 	local_irq_enable();
 
 	return ccsidr;
+}
+
+static bool access_rw(struct kvm_vcpu *vcpu,
+		      struct sys_reg_params *p,
+		      const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
+	else
+		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
+
+	return true;
 }
 
 /*
@@ -260,6 +273,14 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		return read_zero(vcpu, p);
 }
 
+static bool trap_undef(struct kvm_vcpu *vcpu,
+		       struct sys_reg_params *p,
+		       const struct sys_reg_desc *r)
+{
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
 /*
  * ARMv8.1 mandates at least a trivial LORegion implementation, where all the
  * RW registers are RES0 (which we can implement as RAZ/WI). On an ARMv8.0
@@ -370,12 +391,9 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 			    struct sys_reg_params *p,
 			    const struct sys_reg_desc *r)
 {
-	if (p->is_write) {
-		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
+	access_rw(vcpu, p, r);
+	if (p->is_write)
 		vcpu_set_flag(vcpu, DEBUG_DIRTY);
-	} else {
-		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
-	}
 
 	trace_trap_reg(__func__, r->reg, p->is_write, p->regval);
 
@@ -1446,6 +1464,24 @@ static unsigned int mte_visibility(const struct kvm_vcpu *vcpu,
 	.visibility = mte_visibility,		\
 }
 
+static unsigned int el2_visibility(const struct kvm_vcpu *vcpu,
+				   const struct sys_reg_desc *rd)
+{
+	if (vcpu_has_nv(vcpu))
+		return 0;
+
+	return REG_HIDDEN;
+}
+
+#define EL2_REG(name, acc, rst, v) {		\
+	SYS_DESC(SYS_##name),			\
+	.access = acc,				\
+	.reset = rst,				\
+	.reg = name,				\
+	.visibility = el2_visibility,		\
+	.val = v,				\
+}
+
 /* sys_reg_desc initialiser for known cpufeature ID registers */
 #define ID_SANITISED(name) {			\
 	SYS_DESC(SYS_##name),			\
@@ -1488,6 +1524,18 @@ static unsigned int mte_visibility(const struct kvm_vcpu *vcpu,
 	.get_user = get_id_reg,			\
 	.set_user = set_id_reg,			\
 	.visibility = raz_visibility,		\
+}
+
+static bool access_sp_el1(struct kvm_vcpu *vcpu,
+			  struct sys_reg_params *p,
+			  const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		__vcpu_sys_reg(vcpu, SP_EL1) = p->regval;
+	else
+		p->regval = __vcpu_sys_reg(vcpu, SP_EL1);
+
+	return true;
 }
 
 /*
@@ -1913,9 +1961,50 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ PMU_SYS_REG(SYS_PMCCFILTR_EL0), .access = access_pmu_evtyper,
 	  .reset = reset_val, .reg = PMCCFILTR_EL0, .val = 0 },
 
+	EL2_REG(VPIDR_EL2, access_rw, reset_unknown, 0),
+	EL2_REG(VMPIDR_EL2, access_rw, reset_unknown, 0),
+	EL2_REG(SCTLR_EL2, access_rw, reset_val, SCTLR_EL2_RES1),
+	EL2_REG(ACTLR_EL2, access_rw, reset_val, 0),
+	EL2_REG(HCR_EL2, access_rw, reset_val, 0),
+	EL2_REG(MDCR_EL2, access_rw, reset_val, 0),
+	EL2_REG(CPTR_EL2, access_rw, reset_val, CPTR_EL2_DEFAULT ),
+	EL2_REG(HSTR_EL2, access_rw, reset_val, 0),
+	EL2_REG(HACR_EL2, access_rw, reset_val, 0),
+
+	EL2_REG(TTBR0_EL2, access_rw, reset_val, 0),
+	EL2_REG(TTBR1_EL2, access_rw, reset_val, 0),
+	EL2_REG(TCR_EL2, access_rw, reset_val, TCR_EL2_RES1),
+	EL2_REG(VTTBR_EL2, access_rw, reset_val, 0),
+	EL2_REG(VTCR_EL2, access_rw, reset_val, 0),
+
 	{ SYS_DESC(SYS_DACR32_EL2), NULL, reset_unknown, DACR32_EL2 },
+	EL2_REG(SPSR_EL2, access_rw, reset_val, 0),
+	EL2_REG(ELR_EL2, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_SP_EL1), access_sp_el1},
+
 	{ SYS_DESC(SYS_IFSR32_EL2), NULL, reset_unknown, IFSR32_EL2 },
+	EL2_REG(AFSR0_EL2, access_rw, reset_val, 0),
+	EL2_REG(AFSR1_EL2, access_rw, reset_val, 0),
+	EL2_REG(ESR_EL2, access_rw, reset_val, 0),
 	{ SYS_DESC(SYS_FPEXC32_EL2), NULL, reset_val, FPEXC32_EL2, 0x700 },
+
+	EL2_REG(FAR_EL2, access_rw, reset_val, 0),
+	EL2_REG(HPFAR_EL2, access_rw, reset_val, 0),
+
+	EL2_REG(MAIR_EL2, access_rw, reset_val, 0),
+	EL2_REG(AMAIR_EL2, access_rw, reset_val, 0),
+
+	EL2_REG(VBAR_EL2, access_rw, reset_val, 0),
+	EL2_REG(RVBAR_EL2, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_RMR_EL2), trap_undef },
+
+	EL2_REG(CONTEXTIDR_EL2, access_rw, reset_val, 0),
+	EL2_REG(TPIDR_EL2, access_rw, reset_val, 0),
+
+	EL2_REG(CNTVOFF_EL2, access_rw, reset_val, 0),
+	EL2_REG(CNTHCTL_EL2, access_rw, reset_val, 0),
+
+	EL2_REG(SP_EL2, NULL, reset_unknown, 0),
 };
 
 static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
