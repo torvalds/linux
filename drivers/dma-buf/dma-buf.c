@@ -63,7 +63,7 @@ int get_each_dmabuf(int (*callback)(const struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL_GPL(get_each_dmabuf);
 
-#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+#if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
 static size_t db_total_size;
 static size_t db_peak_size;
 
@@ -167,7 +167,7 @@ static int dma_buf_file_release(struct inode *inode, struct file *file)
 	dmabuf = file->private_data;
 
 	mutex_lock(&db_list.lock);
-#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+#if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
 	db_total_size -= dmabuf->size;
 #endif
 	list_del(&dmabuf->list_node);
@@ -726,7 +726,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);
-#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+#if IS_ENABLED(CONFIG_RK_DMABUF_DEBUG)
 	db_total_size += dmabuf->size;
 	db_peak_size = max(db_total_size, db_peak_size);
 #endif
@@ -736,7 +736,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	if (ret)
 		goto err_sysfs;
 
-	if (IS_ENABLED(CONFIG_DMABUF_DEBUG))
+	if (IS_ENABLED(CONFIG_RK_DMABUF_DEBUG))
 		dma_buf_set_default_name(dmabuf);
 
 	return dmabuf;

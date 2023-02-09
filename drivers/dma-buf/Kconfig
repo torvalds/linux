@@ -9,8 +9,8 @@ config DMABUF_CACHE
 	  This option support to store attachments in a list and destroy them by
 	  set to a callback list in the dtor of dma-buf.
 
-config DMABUF_DEBUG
-	bool "DMABUF debug option"
+config RK_DMABUF_DEBUG
+	bool "Rockchip DMABUF debug option"
 	depends on NO_GKI
 	select RK_DMABUF_PROCFS
 	help
@@ -19,7 +19,7 @@ config DMABUF_DEBUG
 
 config DMABUF_DEBUG_ADVANCED
 	bool "DMABUF debug advanced option"
-	depends on DMABUF_DEBUG
+	depends on RK_DMABUF_DEBUG
 	help
 	  This option support to debug all the dmabuf on db_list, allows to attach
 	  and map a dmabuf who has no attachment. If not sure, say N
