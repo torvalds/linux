@@ -799,10 +799,17 @@ config QCOM_MINIDUMP_PANIC_DUMP
 	  panic.
 
 config QCOM_MINIDUMP_PANIC_CPU_CONTEXT
-	bool "QCOM Minidump Panic dumps Support"
+	bool "QCOM Minidump Panic dumps CPU Context"
 	depends on ARM64 && QCOM_MINIDUMP_PANIC_DUMP
 	help
 	  This enables cpu context collection in minidump table,
+	  on panic.
+
+config QCOM_MINIDUMP_PANIC_MEMORY_INFO
+	bool "QCOM Minidump Panic dumps Memory Info"
+	depends on QCOM_MINIDUMP_PANIC_DUMP
+	help
+	  This enables memory info collection in minidump table,
 	  on panic.
 
 config QCOM_MINIDUMP_PSTORE
