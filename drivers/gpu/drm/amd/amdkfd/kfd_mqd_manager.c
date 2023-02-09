@@ -77,7 +77,7 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
 
 	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size *
-		  dev->num_xcc_per_node;
+		  NUM_XCC(dev->xcc_mask);
 
 	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
 				+ offset);

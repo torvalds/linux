@@ -274,10 +274,6 @@ struct kfd_node {
 					      */
 	struct kfd_vmid_info vm_info;
 	unsigned int id;                /* topology stub index */
-	unsigned int num_xcc_per_node;
-	unsigned int start_xcc_id;	/* Starting XCC instance
-					 * number for the node
-					 */
 	uint32_t xcc_mask; /* Instance mask of XCCs present */
 	struct amdgpu_xcp *xcp;
 

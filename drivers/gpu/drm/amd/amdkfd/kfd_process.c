@@ -2058,6 +2058,7 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
 	uint64_t tlb_seq = amdgpu_vm_tlb_seq(vm);
 	struct kfd_node *dev = pdd->dev;
+	uint32_t xcc_mask = dev->xcc_mask;
 	int xcc = 0;
 
 	/*
@@ -2076,10 +2077,9 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->adev,
 							pdd->qpd.vmid);
 	} else {
-		for (xcc = 0; xcc < dev->num_xcc_per_node; xcc++)
-			amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
-					pdd->process->pasid, type,
-					dev->start_xcc_id + xcc);
+		for_each_inst(xcc, xcc_mask)
+			amdgpu_amdkfd_flush_gpu_tlb_pasid(
+				dev->adev, pdd->process->pasid, type, xcc);
 	}
 }
 

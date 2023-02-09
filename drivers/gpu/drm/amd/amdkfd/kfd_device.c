@@ -745,15 +745,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		node->vm_info.vmid_num_kfd = vmid_num_kfd;
 		node->xcp = amdgpu_get_next_xcp(kfd->adev->xcp_mgr, &xcp_idx);
 		/* TODO : Check if error handling is needed */
-		if (node->xcp)
+		if (node->xcp) {
 			amdgpu_xcp_get_inst_details(node->xcp, AMDGPU_XCP_GFX,
 						    &node->xcc_mask);
-		else
+			++xcp_idx;
+		} else {
 			node->xcc_mask =
 				(1U << NUM_XCC(kfd->adev->gfx.xcc_mask)) - 1;
-
-		node->num_xcc_per_node = max(1U, kfd->adev->gfx.num_xcc_per_xcp);
-		node->start_xcc_id = node->num_xcc_per_node * i;
+		}
 
 		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
 		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&

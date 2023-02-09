@@ -946,7 +946,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 				seq_printf(m, "  Compute queue on device %x\n",
 					   q->device->id);
 				mqd_type = KFD_MQD_TYPE_CP;
-				num_xccs = q->device->num_xcc_per_node;
+				num_xccs = NUM_XCC(q->device->xcc_mask);
 				break;
 			default:
 				seq_printf(m,

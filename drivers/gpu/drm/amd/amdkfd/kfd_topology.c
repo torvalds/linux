@@ -469,7 +469,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			      dev->node_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, offs, "simd_count",
 			      dev->gpu ? (dev->node_props.simd_count *
-					  dev->gpu->num_xcc_per_node) : 0);
+					  NUM_XCC(dev->gpu->xcc_mask)) : 0);
 	sysfs_show_32bit_prop(buffer, offs, "mem_banks_count",
 			      dev->node_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, offs, "caches_count",
@@ -494,7 +494,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			      dev->node_props.wave_front_size);
 	sysfs_show_32bit_prop(buffer, offs, "array_count",
 			      dev->gpu ? (dev->node_props.array_count *
-					  dev->gpu->num_xcc_per_node) : 0);
+					  NUM_XCC(dev->gpu->xcc_mask)) : 0);
 	sysfs_show_32bit_prop(buffer, offs, "simd_arrays_per_engine",
 			      dev->node_props.simd_arrays_per_engine);
 	sysfs_show_32bit_prop(buffer, offs, "cu_per_simd_array",
@@ -558,7 +558,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		sysfs_show_64bit_prop(buffer, offs, "unique_id",
 				      dev->gpu->adev->unique_id);
 		sysfs_show_32bit_prop(buffer, offs, "num_xcc",
-				      dev->gpu->num_xcc_per_node);
+				      NUM_XCC(dev->gpu->xcc_mask));
 	}
 
 	return sysfs_show_32bit_prop(buffer, offs, "max_engine_clk_ccompute",
@@ -1180,7 +1180,7 @@ static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 	buf[4] = gpu->adev->pdev->bus->number;
 	buf[5] = lower_32_bits(local_mem_size);
 	buf[6] = upper_32_bits(local_mem_size);
-	buf[7] = gpu->start_xcc_id | (gpu->num_xcc_per_node << 16);
+	buf[7] = (ffs(gpu->xcc_mask) - 1) | (NUM_XCC(gpu->xcc_mask) << 16);
 
 	for (i = 0, hashout = 0; i < 8; i++)
 		hashout ^= hash_32(buf[i], KFD_GPU_ID_HASH_WIDTH);

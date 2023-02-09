@@ -128,7 +128,7 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 		retval = amdgpu_amdkfd_alloc_gtt_mem(node->adev,
 			(ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE)) *
-			node->num_xcc_per_node,
+			NUM_XCC(node->xcc_mask),
 			&(mqd_mem_obj->gtt_mem),
 			&(mqd_mem_obj->gpu_addr),
 			(void *)&(mqd_mem_obj->cpu_ptr), true);
@@ -482,7 +482,7 @@ static void init_mqd_hiq_v9_4_3(struct mqd_manager *mm, void **mqd,
 
 	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		kfd_get_hiq_xcc_mqd(mm->dev, &xcc_mqd_mem_obj, xcc);
 
 		init_mqd(mm, (void **)&m, &xcc_mqd_mem_obj, &xcc_gart_addr, q);
@@ -506,21 +506,21 @@ static int hiq_load_mqd_kiq_v9_4_3(struct mqd_manager *mm, void *mqd,
 			uint32_t pipe_id, uint32_t queue_id,
 			struct queue_properties *p, struct mm_struct *mms)
 {
-	int xcc, err;
+	uint32_t xcc_mask = mm->dev->xcc_mask;
+	int xcc_id, err, inst = 0;
 	void *xcc_mqd;
-	uint32_t start_inst = mm->dev->start_xcc_id;
 	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
-		xcc_mqd = mqd + hiq_mqd_size * xcc;
+	for_each_inst(xcc_id, xcc_mask) {
+		xcc_mqd = mqd + hiq_mqd_size * inst;
 		err = mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, xcc_mqd,
 						     pipe_id, queue_id,
-						     p->doorbell_off,
-						     start_inst+xcc);
+						     p->doorbell_off, xcc_id);
 		if (err) {
-			pr_debug("Failed to load HIQ MQD for XCC: %d\n", xcc);
+			pr_debug("Failed to load HIQ MQD for XCC: %d\n", inst);
 			break;
 		}
+		++inst;
 	}
 
 	return err;
@@ -530,20 +530,21 @@ static int destroy_hiq_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 			enum kfd_preempt_type type, unsigned int timeout,
 			uint32_t pipe_id, uint32_t queue_id)
 {
-	int xcc = 0, err;
+	uint32_t xcc_mask = mm->dev->xcc_mask;
+	int xcc_id, err, inst = 0;
 	void *xcc_mqd;
-	uint32_t start_inst = mm->dev->start_xcc_id;
 	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
-		xcc_mqd = mqd + hiq_mqd_size * xcc;
+	for_each_inst(xcc_id, xcc_mask) {
+		xcc_mqd = mqd + hiq_mqd_size * inst;
 		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
 						    type, timeout, pipe_id,
-						    queue_id, start_inst+xcc);
+						    queue_id, xcc_id);
 		if (err) {
-			pr_debug("Destroy MQD failed for xcc: %d\n", xcc);
+			pr_debug("Destroy MQD failed for xcc: %d\n", inst);
 			break;
 		}
+		++inst;
 	}
 
 	return err;
@@ -573,7 +574,7 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 	uint32_t local_xcc_start = mm->dev->dqm->current_logical_xcc_start++;
 
 	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		get_xcc_mqd(mqd_mem_obj, &xcc_mqd_mem_obj, offset*xcc);
 
 		init_mqd(mm, (void **)&m, &xcc_mqd_mem_obj, &xcc_gart_addr, q);
@@ -600,7 +601,7 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 			m->compute_tg_chunk_size = 1;
 			m->compute_current_logic_xcc_id =
 					(local_xcc_start + xcc) %
-					mm->dev->num_xcc_per_node;
+					NUM_XCC(mm->dev->xcc_mask);
 
 			switch (xcc) {
 			case 0:
@@ -633,7 +634,7 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 	int xcc = 0;
 	uint64_t size = mm->mqd_stride(mm, q);
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		m = get_mqd(mqd + size * xcc);
 		update_mqd(mm, m, q, minfo);
 
@@ -661,24 +662,25 @@ static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 		   enum kfd_preempt_type type, unsigned int timeout,
 		   uint32_t pipe_id, uint32_t queue_id)
 {
-	int xcc = 0, err;
+	uint32_t xcc_mask = mm->dev->xcc_mask;
+	int xcc_id, err, inst = 0;
 	void *xcc_mqd;
 	struct v9_mqd *m;
 	uint64_t mqd_offset;
-	uint32_t start_inst = mm->dev->start_xcc_id;
 
 	m = get_mqd(mqd);
 	mqd_offset = m->cp_mqd_stride_size;
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
-		xcc_mqd = mqd + mqd_offset * xcc;
+	for_each_inst(xcc_id, xcc_mask) {
+		xcc_mqd = mqd + mqd_offset * inst;
 		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
 						    type, timeout, pipe_id,
-						    queue_id, start_inst+xcc);
+						    queue_id, xcc_id);
 		if (err) {
-			pr_debug("Destroy MQD failed for xcc: %d\n", xcc);
+			pr_debug("Destroy MQD failed for xcc: %d\n", inst);
 			break;
 		}
+		++inst;
 	}
 
 	return err;
@@ -690,21 +692,22 @@ static int load_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 {
 	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
 	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
-	int xcc = 0, err;
+	uint32_t xcc_mask = mm->dev->xcc_mask;
+	int xcc_id, err, inst = 0;
 	void *xcc_mqd;
-	uint32_t start_inst = mm->dev->start_xcc_id;
 	uint64_t mqd_stride_size = mm->mqd_stride(mm, p);
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
-		xcc_mqd = mqd + mqd_stride_size * xcc;
-		err = mm->dev->kfd2kgd->hqd_load(mm->dev->adev, xcc_mqd,
-					 pipe_id, queue_id,
-					(uint32_t __user *)p->write_ptr,
-					wptr_shift, 0, mms, start_inst+xcc);
+	for_each_inst(xcc_id, xcc_mask) {
+		xcc_mqd = mqd + mqd_stride_size * inst;
+		err = mm->dev->kfd2kgd->hqd_load(
+			mm->dev->adev, xcc_mqd, pipe_id, queue_id,
+			(uint32_t __user *)p->write_ptr, wptr_shift, 0, mms,
+			xcc_id);
 		if (err) {
-			pr_debug("Load MQD failed for xcc: %d\n", xcc);
+			pr_debug("Load MQD failed for xcc: %d\n", inst);
 			break;
 		}
+		++inst;
 	}
 
 	return err;
@@ -722,7 +725,7 @@ static int get_wave_state_v9_4_3(struct mqd_manager *mm, void *mqd,
 	uint64_t mqd_stride_size = mm->mqd_stride(mm, q);
 	u32 tmp_ctl_stack_used_size = 0, tmp_save_area_used_size = 0;
 
-	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		xcc_mqd = mqd + mqd_stride_size * xcc;
 		xcc_ctl_stack = (void __user *)((uintptr_t)ctl_stack +
 					q->ctx_save_restore_area_size * xcc);
