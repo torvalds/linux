@@ -1566,6 +1566,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 			    (adev->apu_flags & AMD_APU_IS_PICASSO))
 				init_data.flags.gpu_vm_support = true;
 			break;
+		case IP_VERSION(2, 1, 0):
 		case IP_VERSION(3, 0, 1):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
