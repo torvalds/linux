@@ -857,6 +857,10 @@
 	status = "okay";
 };
 
+&uart2 {
+	status = "okay";
+};
+
 &vuart1 {
 	status = "okay";
 };
