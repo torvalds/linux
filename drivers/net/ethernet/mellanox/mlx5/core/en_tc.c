@@ -1124,8 +1124,6 @@ static void mlx5e_tc_debugfs_init(struct mlx5e_tc_table *tc,
 		return;
 
 	tc->dfs_root = debugfs_create_dir("tc", dfs_root);
-	if (!tc->dfs_root)
-		return;
 
 	debugfs_create_file("hairpin_num_queues", 0644, tc->dfs_root,
 			    &tc->hairpin_params, &fops_hairpin_queues);
@@ -1884,7 +1882,6 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 		  struct mlx5_flow_attr *attr,
 		  struct netlink_ext_ack *extack)
 {
-	struct mlx5_eswitch *esw = flow->priv->mdev->priv.eswitch;
 	bool vf_tun;
 	int err = 0;
 
@@ -1895,12 +1892,6 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 	err = set_encap_dests(flow->priv, flow, attr, extack, &vf_tun);
 	if (err)
 		goto err_out;
-
-	if (mlx5e_is_eswitch_flow(flow)) {
-		err = mlx5_eswitch_add_vlan_action(esw, attr);
-		if (err)
-			goto err_out;
-	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		err = mlx5e_tc_attach_mod_hdr(flow->priv, flow, attr);
@@ -2104,8 +2095,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (mlx5_flow_has_geneve_opt(flow))
 		mlx5_geneve_tlv_option_del(priv->mdev->geneve);
-
-	mlx5_eswitch_del_vlan_action(esw, attr);
 
 	if (flow->decap_route)
 		mlx5e_detach_decap_route(priv, flow);

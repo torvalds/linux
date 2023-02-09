@@ -272,8 +272,6 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	unsigned int size;
 	int err;
 
-	if (ft_attr->max_fte != POOL_NEXT_SIZE)
-		size = roundup_pow_of_two(ft_attr->max_fte);
 	size = mlx5_ft_pool_get_avail_sz(dev, ft->type, ft_attr->max_fte);
 	if (!size)
 		return -ENOSPC;
@@ -412,11 +410,6 @@ static int mlx5_cmd_create_flow_group(struct mlx5_flow_root_namespace *ns,
 		 MLX5_CMD_OP_CREATE_FLOW_GROUP);
 	MLX5_SET(create_flow_group_in, in, table_type, ft->type);
 	MLX5_SET(create_flow_group_in, in, table_id, ft->id);
-	if (ft->vport) {
-		MLX5_SET(create_flow_group_in, in, vport_number, ft->vport);
-		MLX5_SET(create_flow_group_in, in, other_vport, 1);
-	}
-
 	MLX5_SET(create_flow_group_in, in, vport_number, ft->vport);
 	MLX5_SET(create_flow_group_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));

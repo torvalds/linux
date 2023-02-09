@@ -1776,7 +1776,6 @@ static int build_match_list(struct match_list *match_head,
 {
 	struct rhlist_head *tmp, *list;
 	struct mlx5_flow_group *g;
-	int err = 0;
 
 	rcu_read_lock();
 	INIT_LIST_HEAD(&match_head->list);
@@ -1802,7 +1801,7 @@ static int build_match_list(struct match_list *match_head,
 		list_add_tail(&curr_match->list, &match_head->list);
 	}
 	rcu_read_unlock();
-	return err;
+	return 0;
 }
 
 static u64 matched_fgs_get_version(struct list_head *match_head)

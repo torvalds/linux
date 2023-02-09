@@ -92,7 +92,6 @@ static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
 		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_pkt_cnt,
 			 lower_32_bits(attrs->hard_packet_limit));
 		MLX5_SET(ipsec_aso, aso_ctx, hard_lft_arm, 1);
-		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_enable, 1);
 	}
 
 	if (attrs->soft_packet_limit != XFRM_INF) {
@@ -329,8 +328,7 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 
 	if (attrs->soft_packet_limit != XFRM_INF)
 		if (!MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm) ||
-		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm) ||
-		    !MLX5_GET(ipsec_aso, aso->ctx, remove_flow_enable))
+		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm))
 			xfrm_state_check_expire(sa_entry->x);
 
 unlock:
