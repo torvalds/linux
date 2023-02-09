@@ -8,10 +8,6 @@ config ST_THERMAL
 	help
 	  Support for thermal sensors on STMicroelectronics STi series of SoCs.
 
-config ST_THERMAL_SYSCFG
-	select ST_THERMAL
-	tristate "STi series syscfg register access based thermal sensors"
-
 config ST_THERMAL_MEMMAP
 	select ST_THERMAL
 	tristate "STi series memory mapped access based thermal sensors"
