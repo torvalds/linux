@@ -401,16 +401,15 @@ struct erofs_map_blocks {
 	unsigned int m_flags;
 };
 
-#define EROFS_GET_BLOCKS_RAW    0x0001
 /*
  * Used to get the exact decompressed length, e.g. fiemap (consider lookback
  * approach instead if possible since it's more metadata lightweight.)
  */
-#define EROFS_GET_BLOCKS_FIEMAP	0x0002
+#define EROFS_GET_BLOCKS_FIEMAP		0x0001
 /* Used to map the whole extent if non-negligible data is requested for LZMA */
-#define EROFS_GET_BLOCKS_READMORE	0x0004
+#define EROFS_GET_BLOCKS_READMORE	0x0002
 /* Used to map tail extent for tailpacking inline or fragment pcluster */
-#define EROFS_GET_BLOCKS_FINDTAIL	0x0008
+#define EROFS_GET_BLOCKS_FINDTAIL	0x0004
 
 enum {
 	Z_EROFS_COMPRESSION_SHIFTED = Z_EROFS_COMPRESSION_MAX,
@@ -458,8 +457,7 @@ void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *dev);
 int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len);
-int erofs_map_blocks(struct inode *inode,
-		     struct erofs_map_blocks *map, int flags);
+int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map);
 struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid);
 int erofs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		  struct kstat *stat, u32 request_mask,

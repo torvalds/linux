@@ -19,7 +19,6 @@ struct erofs_map_blocks;
 		{ 1,		"DIR" })
 
 #define show_map_flags(flags) __print_flags(flags, "|",	\
-	{ EROFS_GET_BLOCKS_RAW,		"RAW" },	\
 	{ EROFS_GET_BLOCKS_FIEMAP,	"FIEMAP" },	\
 	{ EROFS_GET_BLOCKS_READMORE,	"READMORE" },	\
 	{ EROFS_GET_BLOCKS_FINDTAIL,	"FINDTAIL" })
