@@ -473,6 +473,7 @@ struct dec_initial_info {
 	u32 pic_height;
 	s32 f_rate_numerator; /* the numerator part of frame rate fraction */
 	s32 f_rate_denominator; /* the denominator part of frame rate fraction */
+	u64 ns_per_frame;
 	struct vpu_rect pic_crop_rect;
 	u32 min_frame_buffer_count; /* between 1 to 16 */
 	u32 frame_buf_delay;
@@ -1057,6 +1058,7 @@ struct vpu_instance {
 	enum vpu_instance_state state;
 	enum vpu_instance_type type;
 	const struct vpu_instance_ops *ops;
+	struct vpu_rect crop_rect;
 
 	enum wave_std		 std;
 	s32			 id;
@@ -1073,6 +1075,7 @@ struct vpu_instance {
 	u32 conf_win_width;
 	u32 conf_win_height;
 	u64 timestamp;
+	u64 timestamp_cnt;
 	bool cbcr_interleave;
 	bool nv21;
 	bool eos;

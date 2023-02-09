@@ -47,7 +47,7 @@ int wave5_vpu_release_device(struct file *filp,
 				break;
 			if (fail_res != WAVE5_SYSERR_VPU_STILL_RUNNING)
 				break;
-			if (!wave5_vpu_wait_interrupt(inst, VPU_DEC_TIMEOUT))
+			if (!wave5_vpu_wait_interrupt(inst, VPU_DEC_TIMEOUT/10))
 				break;
 		} while (--retry_count);
 
@@ -106,7 +106,6 @@ int wave5_vpu_subscribe_event(struct v4l2_fh *fh, const struct v4l2_event_subscr
 {
 	struct vpu_instance *inst = wave5_to_vpu_inst(fh);
 	bool is_decoder = inst->type == VPU_INST_TYPE_DEC;
-	printk("wave5 subscribe event type: %d id: %d | flags: %d\n",sub->type, sub->id, sub->flags);
 
 	dev_dbg(inst->dev->dev, "%s: [%s] type: %u id: %u | flags: %u\n", __func__,
 		is_decoder ? "decoder" : "encoder", sub->type, sub->id, sub->flags);
@@ -130,8 +129,13 @@ int wave5_vpu_g_fmt_out(struct file *file, void *fh, struct v4l2_format *f)
 	struct vpu_instance *inst = wave5_to_vpu_inst(fh);
 	int i;
 
-	f->fmt.pix_mp.width = inst->src_fmt.width;
-	f->fmt.pix_mp.height = inst->src_fmt.height;
+	if (inst->state >= VPU_INST_STATE_INIT_SEQ){
+		f->fmt.pix_mp.width = inst->src_fmt.width - inst->crop_rect.right;
+		f->fmt.pix_mp.height = inst->src_fmt.height - inst->crop_rect.bottom;
+	} else {
+		f->fmt.pix_mp.width = inst->src_fmt.width;
+		f->fmt.pix_mp.height = inst->src_fmt.height;
+	}
 	f->fmt.pix_mp.pixelformat = inst->src_fmt.pixelformat;
 	f->fmt.pix_mp.field = inst->src_fmt.field;
 	f->fmt.pix_mp.flags = inst->src_fmt.flags;

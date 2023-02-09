@@ -584,6 +584,17 @@ static void wave5_get_dec_seq_result(struct vpu_instance *inst, struct dec_initi
 	info->f_rate_numerator = vpu_read_reg(inst->dev, W5_RET_DEC_FRAME_RATE_NR);
 	info->f_rate_denominator = vpu_read_reg(inst->dev, W5_RET_DEC_FRAME_RATE_DR);
 
+	if (info->f_rate_numerator > 0 && info->f_rate_denominator >0) {
+		if (inst->std == W_HEVC_DEC)
+			info->ns_per_frame = 1000000000 * (u64)info->f_rate_denominator / (u64)info->f_rate_numerator;
+		else if (inst->std == W_AVC_DEC)
+			info->ns_per_frame = 1000000000 * 2 * (u64)info->f_rate_denominator / (u64)info->f_rate_numerator;
+		else
+			info->ns_per_frame = 1000000000 / 30; //30fps
+	} else {
+		info->ns_per_frame = 1000000000 / 30; //30fps
+	}
+
 	reg_val = vpu_read_reg(inst->dev, W5_RET_DEC_COLOR_SAMPLE_INFO);
 	info->luma_bitdepth = reg_val & 0xf;
 	info->chroma_bitdepth = (reg_val >> 4) & 0xf;
@@ -820,10 +831,15 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 				p_dec_info->vb_fbc_c_tbl[i] = vb_buf;
 			}
 		}
-		pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
-		if (init_info->pic_width != inst->display_fmt.width ||
-				init_info->pic_height != inst->display_fmt.height)
+
+		if ((init_info->pic_width - init_info->pic_crop_rect.right != inst->display_fmt.width) ||
+			init_info->pic_height - init_info->pic_crop_rect.bottom != inst->display_fmt.height) {
+			pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
 			scale_en = 1;
+		} else {
+			pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
+			scale_en = 0;
+		}
 
 		// allocate task_buffer
 		vb_buf.size = (p_dec_info->vlc_buf_size * VLC_BUF_NUM) +
@@ -839,10 +855,14 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 			      p_dec_info->vb_task.daddr);
 		vpu_write_reg(inst->dev, W5_CMD_SET_FB_TASK_BUF_SIZE, vb_buf.size);
 	} else {
-		pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
-		if (init_info->pic_width != inst->display_fmt.width ||
-				init_info->pic_height != inst->display_fmt.height)
+		if ((init_info->pic_width - init_info->pic_crop_rect.right != inst->display_fmt.width) ||
+			init_info->pic_height - init_info->pic_crop_rect.bottom != inst->display_fmt.height) {
+			pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
 			scale_en = 1;
+		} else {
+			pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
+			scale_en = 0;
+		}
 	}
 	dev_dbg(inst->dev->dev, "set pic_size 0x%x\n", pic_size);
 	endian = wave5_vdi_convert_endian(inst->dev, fb_arr[0].endian);
@@ -859,7 +879,8 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 		(color_format << 19) |
 		(nv21 << 17) |
 		(cbcr_interleave << 16) |
-		inst->display_fmt.width;
+		(scale_en ? inst->display_fmt.width : fb_arr[0].stride);
+		//inst->display_fmt.width;
 	dev_dbg(inst->dev->dev, "set W5_COMMON_PIC_INFO 0x%x\n",reg_val);
 	vpu_write_reg(inst->dev, W5_COMMON_PIC_INFO, reg_val);
 

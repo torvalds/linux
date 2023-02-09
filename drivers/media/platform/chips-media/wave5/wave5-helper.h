@@ -11,7 +11,7 @@
 #include "wave5-vpu.h"
 
 #define FMT_TYPES	2
-#define MAX_FMTS	6
+#define MAX_FMTS	3
 
 void wave5_cleanup_instance(struct vpu_instance *inst);
 int wave5_vpu_release_device(struct file *filp,
