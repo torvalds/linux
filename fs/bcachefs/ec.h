@@ -213,6 +213,8 @@ void bch2_stripes_heap_update(struct bch_fs *, struct stripe *, size_t);
 void bch2_stripes_heap_del(struct bch_fs *, struct stripe *, size_t);
 void bch2_stripes_heap_insert(struct bch_fs *, struct stripe *, size_t);
 
+void bch2_do_stripe_deletes(struct bch_fs *);
+
 void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 
 void bch2_ec_flush_new_stripes(struct bch_fs *);

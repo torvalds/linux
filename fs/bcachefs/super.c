@@ -258,8 +258,6 @@ void bch2_fs_read_only(struct bch_fs *c)
 	 */
 	percpu_ref_kill(&c->writes);
 
-	cancel_work_sync(&c->ec_stripe_delete_work);
-
 	/*
 	 * If we're not doing an emergency shutdown, we want to wait on
 	 * outstanding writes to complete so they don't see spurious errors due
@@ -391,9 +389,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
-	bch2_do_discards(c);
-	bch2_do_invalidates(c);
-
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
 		if (ret)
@@ -403,6 +398,10 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	percpu_ref_reinit(&c->writes);
 	set_bit(BCH_FS_RW, &c->flags);
 	set_bit(BCH_FS_WAS_RW, &c->flags);
+
+	bch2_do_discards(c);
+	bch2_do_invalidates(c);
+	bch2_do_stripe_deletes(c);
 	return 0;
 err:
 	__bch2_fs_read_only(c);

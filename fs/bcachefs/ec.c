@@ -672,9 +672,8 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 	heap_verify_backpointer(c, idx);
 
-	if (stripe_idx_to_delete(c) >= 0 &&
-	    !percpu_ref_is_dying(&c->writes))
-		schedule_work(&c->ec_stripe_delete_work);
+	if (stripe_idx_to_delete(c) >= 0)
+		bch2_do_stripe_deletes(c);
 }
 
 /* stripe deletion */
@@ -707,6 +706,15 @@ static void ec_stripe_delete_work(struct work_struct *work)
 		if (ec_stripe_delete(c, idx))
 			break;
 	}
+
+	percpu_ref_put(&c->writes);
+}
+
+void bch2_do_stripe_deletes(struct bch_fs *c)
+{
+	if (percpu_ref_tryget_live(&c->writes) &&
+	    !schedule_work(&c->ec_stripe_delete_work))
+		percpu_ref_put(&c->writes);
 }
 
 /* stripe creation: */
