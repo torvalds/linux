@@ -107,8 +107,7 @@ struct erofs_domain {
 
 struct erofs_fscache {
 	struct fscache_cookie *cookie;
-	struct inode *inode;
-	struct inode *anon_inode;
+	struct inode *inode;	/* anonymous inode for the blob */
 
 	/* used for share domain mode */
 	struct erofs_domain *domain;
@@ -449,8 +448,8 @@ extern const struct file_operations erofs_dir_fops;
 extern const struct iomap_ops z_erofs_iomap_report_ops;
 
 /* flags for erofs_fscache_register_cookie() */
-#define EROFS_REG_COOKIE_NEED_INODE	1
-#define EROFS_REG_COOKIE_NEED_NOEXIST	2
+#define EROFS_REG_COOKIE_SHARE		0x0001
+#define EROFS_REG_COOKIE_NEED_NOEXIST	0x0002
 
 void erofs_unmap_metabuf(struct erofs_buf *buf);
 void erofs_put_metabuf(struct erofs_buf *buf);
