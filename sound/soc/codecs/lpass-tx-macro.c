@@ -1861,15 +1861,10 @@ static int swclk_gate_enable(struct clk_hw *hw)
 	}
 
 	tx_macro_mclk_enable(tx, true);
-	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
-			   CDC_TX_SWR_RESET_MASK, CDC_TX_SWR_RESET_ENABLE);
 
 	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
 			   CDC_TX_SWR_CLK_EN_MASK,
 			   CDC_TX_SWR_CLK_ENABLE);
-	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
-			   CDC_TX_SWR_RESET_MASK, 0x0);
-
 	return 0;
 }
 
@@ -2035,6 +2030,16 @@ static int tx_macro_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(tx->fsgen);
 	if (ret)
 		goto err_fsgen;
+
+	/* reset soundwire block */
+	regmap_update_bits(tx->regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
+			   CDC_TX_SWR_RESET_MASK, CDC_TX_SWR_RESET_ENABLE);
+
+	regmap_update_bits(tx->regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
+			   CDC_TX_SWR_CLK_EN_MASK,
+			   CDC_TX_SWR_CLK_ENABLE);
+	regmap_update_bits(tx->regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
+			   CDC_TX_SWR_RESET_MASK, 0x0);
 
 	ret = devm_snd_soc_register_component(dev, &tx_macro_component_drv,
 					      tx_macro_dai,
