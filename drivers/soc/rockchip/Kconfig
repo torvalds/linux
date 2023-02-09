@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 if ARCH_ROCKCHIP || COMPILE_TEST
 
+menu "Rockchip SoC drivers"
+
 source "drivers/soc/rockchip/Kconfig.cpu"
 
 #
@@ -267,5 +269,7 @@ config RK_MEMBLOCK_PROCFS
 	help
 	  Extend memblock procfs to show size of each memblock, and shows the
 	  result of total size by KiB format.
+
+endmenu
 
 endif
