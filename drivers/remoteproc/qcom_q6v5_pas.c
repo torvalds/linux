@@ -502,7 +502,7 @@ free_metadata:
 	qcom_mdt_free_metadata(adsp->dev, adsp->pas_id, adsp->mdata,
 					adsp->dma_phys_below_32b, ret);
 free_firmware:
-	if (!fw)
+	if (fw)
 		release_firmware(fw);
 
 free_metadata_dtb:
