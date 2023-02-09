@@ -211,6 +211,7 @@ static irqreturn_t qmp_intr(int irq, void *data)
 
 static bool qmp_message_empty(struct qmp *qmp)
 {
+	AOSS_INFO("ack msg size: %u\n", readl(qmp->msgram + qmp->offset));
 	return readl(qmp->msgram + qmp->offset) == 0;
 }
 
@@ -263,8 +264,8 @@ int qmp_send(struct qmp *qmp, const void *data, size_t len)
 		writel(0, qmp->msgram + qmp->offset);
 	} else {
 		ret = 0;
+		AOSS_INFO("ack: %.*s\n", len, (char *)data);
 	}
-	AOSS_INFO("ack: %.*s\n", len, (char *)data);
 
 	mutex_unlock(&qmp->tx_lock);
 
