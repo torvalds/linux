@@ -452,7 +452,7 @@ static bool dc_link_construct_phy(struct dc_link *link,
 	link->psr_settings.psr_vtotal_control_support = false;
 	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 
-	DC_LOG_DC("BIOS object table - dc_link_contruct finished successfully.\n");
+	DC_LOG_DC("BIOS object table - %s finished successfully.\n", __func__);
 	return true;
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
@@ -469,7 +469,7 @@ create_fail:
 		link->hpd_gpio = NULL;
 	}
 
-	DC_LOG_DC("BIOS object table - dc_link_contruct failed.\n");
+	DC_LOG_DC("BIOS object table - %s failed.\n", __func__);
 	return false;
 }
 
