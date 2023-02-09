@@ -368,6 +368,9 @@ static int xhci_generic_plat_probe(struct platform_device *pdev)
 #endif
 	}
 
+	if (!sysdev)
+		sysdev = &pdev->dev;
+
 	if (WARN_ON(!sysdev->dma_mask)) {
 		/* Platform did not initialize dma_mask */
 		ret = dma_coerce_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
