@@ -787,11 +787,6 @@ static bool is_enabling(int old, int new, int threshold)
 	return old < threshold && new >= threshold;
 }
 
-static int intel_wm_num_levels(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->display.wm.max_level + 1;
-}
-
 bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 			    const struct intel_plane_state *plane_state)
 {
@@ -1047,7 +1042,7 @@ static void g4x_setup_wm_latency(struct drm_i915_private *dev_priv)
 	dev_priv->display.wm.pri_latency[G4X_WM_LEVEL_SR] = 12;
 	dev_priv->display.wm.pri_latency[G4X_WM_LEVEL_HPLL] = 35;
 
-	dev_priv->display.wm.max_level = G4X_WM_LEVEL_HPLL;
+	dev_priv->display.wm.num_levels = G4X_WM_LEVEL_HPLL + 1;
 }
 
 static int g4x_plane_fifo_size(enum plane_id plane_id, int level)
@@ -1154,7 +1149,7 @@ static bool g4x_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	bool dirty = false;
 
-	for (; level < intel_wm_num_levels(dev_priv); level++) {
+	for (; level < dev_priv->display.wm.num_levels; level++) {
 		struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
 
 		dirty |= raw->plane[plane_id] != value;
@@ -1173,7 +1168,7 @@ static bool g4x_raw_fbc_wm_set(struct intel_crtc_state *crtc_state,
 	/* NORMAL level doesn't have an FBC watermark */
 	level = max(level, G4X_WM_LEVEL_SR);
 
-	for (; level < intel_wm_num_levels(dev_priv); level++) {
+	for (; level < dev_priv->display.wm.num_levels; level++) {
 		struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
 
 		dirty |= raw->fbc != value;
@@ -1192,7 +1187,6 @@ static bool g4x_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	int num_levels = intel_wm_num_levels(to_i915(plane->base.dev));
 	enum plane_id plane_id = plane->id;
 	bool dirty = false;
 	int level;
@@ -1204,7 +1198,7 @@ static bool g4x_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 		goto out;
 	}
 
-	for (level = 0; level < num_levels; level++) {
+	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
 		struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
 		int wm, max_wm;
 
@@ -1274,7 +1268,7 @@ static bool g4x_raw_crtc_wm_is_valid(const struct intel_crtc_state *crtc_state,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (level > dev_priv->display.wm.max_level)
+	if (level >= dev_priv->display.wm.num_levels)
 		return false;
 
 	return g4x_raw_plane_wm_is_valid(crtc_state, PLANE_PRIMARY, level) &&
@@ -1610,13 +1604,13 @@ static void vlv_setup_wm_latency(struct drm_i915_private *dev_priv)
 	/* all latencies in usec */
 	dev_priv->display.wm.pri_latency[VLV_WM_LEVEL_PM2] = 3;
 
-	dev_priv->display.wm.max_level = VLV_WM_LEVEL_PM2;
+	dev_priv->display.wm.num_levels = VLV_WM_LEVEL_PM2 + 1;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.wm.pri_latency[VLV_WM_LEVEL_PM5] = 12;
 		dev_priv->display.wm.pri_latency[VLV_WM_LEVEL_DDR_DVFS] = 33;
 
-		dev_priv->display.wm.max_level = VLV_WM_LEVEL_DDR_DVFS;
+		dev_priv->display.wm.num_levels = VLV_WM_LEVEL_DDR_DVFS + 1;
 	}
 }
 
@@ -1752,7 +1746,7 @@ static void vlv_invalidate_wms(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	for (; level < intel_wm_num_levels(dev_priv); level++) {
+	for (; level < dev_priv->display.wm.num_levels; level++) {
 		enum plane_id plane_id;
 
 		for_each_plane_id_on_crtc(crtc, plane_id)
@@ -1779,10 +1773,9 @@ static bool vlv_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
 				 int level, enum plane_id plane_id, u16 value)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	int num_levels = intel_wm_num_levels(dev_priv);
 	bool dirty = false;
 
-	for (; level < num_levels; level++) {
+	for (; level < dev_priv->display.wm.num_levels; level++) {
 		struct g4x_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
 
 		dirty |= raw->plane[plane_id] != value;
@@ -1798,7 +1791,6 @@ static bool vlv_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	enum plane_id plane_id = plane->id;
-	int num_levels = intel_wm_num_levels(to_i915(plane->base.dev));
 	int level;
 	bool dirty = false;
 
@@ -1807,7 +1799,7 @@ static bool vlv_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 		goto out;
 	}
 
-	for (level = 0; level < num_levels; level++) {
+	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
 		struct g4x_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
 		int wm = vlv_compute_wm_level(crtc_state, plane_state, level);
 		int max_wm = plane_id == PLANE_CURSOR ? 63 : 511;
@@ -1866,7 +1858,7 @@ static int _vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	int level;
 
 	/* initially allow all levels */
-	wm_state->num_levels = intel_wm_num_levels(dev_priv);
+	wm_state->num_levels = dev_priv->display.wm.num_levels;
 	/*
 	 * Note that enabling cxsr with no primary/sprite planes
 	 * enabled can wedge the pipe. Hence we only allow cxsr
@@ -2129,7 +2121,7 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 	int num_active_pipes = 0;
 
-	wm->level = dev_priv->display.wm.max_level;
+	wm->level = dev_priv->display.wm.num_levels - 1;
 	wm->cxsr = true;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
@@ -2836,7 +2828,7 @@ static void hsw_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
 	u64 sskpd;
 
-	i915->display.wm.max_level = 4;
+	i915->display.wm.num_levels = 5;
 
 	sskpd = intel_uncore_read64(&i915->uncore, MCH_SSKPD);
 
@@ -2853,7 +2845,7 @@ static void snb_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
 	u32 sskpd;
 
-	i915->display.wm.max_level = 3;
+	i915->display.wm.num_levels = 4;
 
 	sskpd = intel_uncore_read(&i915->uncore, MCH_SSKPD);
 
@@ -2867,7 +2859,7 @@ static void ilk_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
 	u32 mltr;
 
-	i915->display.wm.max_level = 2;
+	i915->display.wm.num_levels = 3;
 
 	mltr = intel_uncore_read(&i915->uncore, MLTR_ILK);
 
@@ -2893,17 +2885,12 @@ static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
 		wm[0] = 13;
 }
 
-int ilk_wm_max_level(const struct drm_i915_private *dev_priv)
-{
-	return dev_priv->display.wm.max_level;
-}
-
 void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 			    const char *name, const u16 wm[])
 {
-	int level, max_level = ilk_wm_max_level(dev_priv);
+	int level;
 
-	for (level = 0; level <= max_level; level++) {
+	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
 		unsigned int latency = wm[level];
 
 		if (latency == 0) {
@@ -2931,13 +2918,13 @@ void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 static bool ilk_increase_wm_latency(struct drm_i915_private *dev_priv,
 				    u16 wm[5], u16 min)
 {
-	int level, max_level = ilk_wm_max_level(dev_priv);
+	int level;
 
 	if (wm[0] >= min)
 		return false;
 
 	wm[0] = max(wm[0], min);
-	for (level = 1; level <= max_level; level++)
+	for (level = 1; level < dev_priv->display.wm.num_levels; level++)
 		wm[level] = max_t(u16, wm[level], DIV_ROUND_UP(min, 5));
 
 	return true;
@@ -3057,8 +3044,8 @@ static int ilk_compute_pipe_wm(struct intel_atomic_state *state,
 	const struct intel_plane_state *pristate = NULL;
 	const struct intel_plane_state *sprstate = NULL;
 	const struct intel_plane_state *curstate = NULL;
-	int level, max_level = ilk_wm_max_level(dev_priv), usable_level;
 	struct ilk_wm_maximums max;
+	int level, usable_level;
 
 	pipe_wm = &crtc_state->wm.ilk.optimal;
 
@@ -3075,7 +3062,7 @@ static int ilk_compute_pipe_wm(struct intel_atomic_state *state,
 	pipe_wm->sprites_enabled = crtc_state->active_planes & BIT(PLANE_SPRITE0);
 	pipe_wm->sprites_scaled = crtc_state->scaled_planes & BIT(PLANE_SPRITE0);
 
-	usable_level = max_level;
+	usable_level = dev_priv->display.wm.num_levels - 1;
 
 	/* ILK/SNB: LP2+ watermarks only w/o sprites */
 	if (DISPLAY_VER(dev_priv) <= 6 && pipe_wm->sprites_enabled)
@@ -3129,7 +3116,7 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_pipe_wm *a = &new_crtc_state->wm.ilk.intermediate;
 	const struct intel_pipe_wm *b = &old_crtc_state->wm.ilk.optimal;
-	int level, max_level = ilk_wm_max_level(dev_priv);
+	int level;
 
 	/*
 	 * Start with the final, target watermarks, then combine with the
@@ -3146,7 +3133,7 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 	a->sprites_enabled |= b->sprites_enabled;
 	a->sprites_scaled |= b->sprites_scaled;
 
-	for (level = 0; level <= max_level; level++) {
+	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
 		struct intel_wm_level *a_wm = &a->wm[level];
 		const struct intel_wm_level *b_wm = &b->wm[level];
 
@@ -3217,8 +3204,8 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 			 const struct ilk_wm_maximums *max,
 			 struct intel_pipe_wm *merged)
 {
-	int level, max_level = ilk_wm_max_level(dev_priv);
-	int last_enabled_level = max_level;
+	int level, num_levels = dev_priv->display.wm.num_levels;
+	int last_enabled_level = num_levels - 1;
 
 	/* ILK/SNB/IVB: LP1+ watermarks only w/ single pipe */
 	if ((DISPLAY_VER(dev_priv) <= 6 || IS_IVYBRIDGE(dev_priv)) &&
@@ -3229,7 +3216,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	merged->fbc_wm_enabled = DISPLAY_VER(dev_priv) >= 6;
 
 	/* merge each WM1+ level */
-	for (level = 1; level <= max_level; level++) {
+	for (level = 1; level < num_levels; level++) {
 		struct intel_wm_level *wm = &merged->wm[level];
 
 		ilk_merge_wm_level(dev_priv, level, wm);
@@ -3254,7 +3241,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	/* ILK: LP2+ must be disabled when FBC WM is disabled but FBC enabled */
 	if (DISPLAY_VER(dev_priv) == 5 && HAS_FBC(dev_priv) &&
 	    dev_priv->params.enable_fbc && !merged->fbc_wm_enabled) {
-		for (level = 2; level <= max_level; level++) {
+		for (level = 2; level < num_levels; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 
 			wm->enable = false;
@@ -3349,10 +3336,9 @@ ilk_find_best_result(struct drm_i915_private *dev_priv,
 		     struct intel_pipe_wm *r1,
 		     struct intel_pipe_wm *r2)
 {
-	int level, max_level = ilk_wm_max_level(dev_priv);
-	int level1 = 0, level2 = 0;
+	int level, level1 = 0, level2 = 0;
 
-	for (level = 1; level <= max_level; level++) {
+	for (level = 1; level < dev_priv->display.wm.num_levels; level++) {
 		if (r1->wm[level].enable)
 			level1 = level;
 		if (r2->wm[level].enable)
@@ -3626,14 +3612,14 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 		active->wm[0].spr_val = REG_FIELD_GET(WM0_PIPE_SPRITE_MASK, tmp);
 		active->wm[0].cur_val = REG_FIELD_GET(WM0_PIPE_CURSOR_MASK, tmp);
 	} else {
-		int level, max_level = ilk_wm_max_level(dev_priv);
+		int level;
 
 		/*
 		 * For inactive pipes, all watermark levels
 		 * should be marked as enabled but zeroed,
 		 * which is what we'd compute them to.
 		 */
-		for (level = 0; level <= max_level; level++)
+		for (level = 0; level < dev_priv->display.wm.num_levels; level++)
 			active->wm[level].enable = true;
 	}
 
@@ -3855,12 +3841,12 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
 		enum plane_id plane_id = plane->id;
-		int level, num_levels = intel_wm_num_levels(dev_priv);
+		int level;
 
 		if (plane_state->uapi.visible)
 			continue;
 
-		for (level = 0; level < num_levels; level++) {
+		for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
 			struct g4x_pipe_wm *raw =
 				&crtc_state->wm.g4x.raw[level];
 
@@ -3925,7 +3911,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 			drm_dbg_kms(&dev_priv->drm,
 				    "Punit not acking DDR DVFS request, "
 				    "assuming DDR DVFS is disabled\n");
-			dev_priv->display.wm.max_level = VLV_WM_LEVEL_PM5;
+			dev_priv->display.wm.num_levels = VLV_WM_LEVEL_PM5 + 1;
 		} else {
 			val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
 			if ((val & FORCE_DDR_HIGH_FREQ) == 0)
@@ -4004,12 +3990,12 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
 		enum plane_id plane_id = plane->id;
-		int level, num_levels = intel_wm_num_levels(dev_priv);
+		int level;
 
 		if (plane_state->uapi.visible)
 			continue;
 
-		for (level = 0; level < num_levels; level++) {
+		for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
 			struct g4x_pipe_wm *raw =
 				&crtc_state->wm.vlv.raw[level];
 
