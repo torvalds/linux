@@ -998,10 +998,7 @@ static int sma1303_dai_hw_params_amp(struct snd_pcm_substream *substream,
 			params_channels(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-
-		if (sma1303->sys_clk_id == SMA1303_PLL_CLKIN_MCLK
-			|| sma1303->sys_clk_id == SMA1303_PLL_CLKIN_BCLK) {
-
+		if (sma1303->sys_clk_id == SMA1303_PLL_CLKIN_BCLK) {
 			if (sma1303->last_bclk != bclk) {
 				sma1303_setup_pll(component, bclk);
 				sma1303->last_bclk = bclk;
@@ -1680,9 +1677,7 @@ static struct attribute_group sma1303_attr_group = {
 static int sma1303_i2c_probe(struct i2c_client *client)
 {
 	struct sma1303_priv *sma1303;
-	struct device_node *np = client->dev.of_node;
 	int ret, i = 0;
-	u32 value = 0;
 	unsigned int device_info, status, otp_stat;
 
 	sma1303 = devm_kzalloc(&client->dev,
@@ -1698,35 +1693,6 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 			"Failed to allocate register map: %d\n", ret);
 
 		return ret;
-	}
-
-	if (np) {
-		if (!of_property_read_u32(np, "sys-clk-id", &value)) {
-			switch (value) {
-			case SMA1303_EXTERNAL_CLOCK_19_2:
-			case SMA1303_EXTERNAL_CLOCK_24_576:
-			case SMA1303_PLL_CLKIN_MCLK:
-				dev_dbg(&client->dev, "MCLK is not supported\n");
-				break;
-			case SMA1303_PLL_CLKIN_BCLK:
-				dev_dbg(&client->dev,
-				"Take an BCLK(SCK) and covert it to an internal PLL for use\n");
-				break;
-			default:
-				dev_err(&client->dev,
-					"Invalid sys-clk-id: %u\n", value);
-				return -EINVAL;
-			}
-			sma1303->sys_clk_id = value;
-		} else {
-			dev_dbg(&client->dev, "Use the internal PLL clock by default\n");
-			sma1303->sys_clk_id = SMA1303_PLL_CLKIN_BCLK;
-		}
-	} else {
-		dev_err(&client->dev,
-			"device node initialization error\n");
-		devm_kfree(&client->dev, sma1303);
-		return -ENODEV;
 	}
 
 	ret = sma1303_regmap_read(sma1303,
@@ -1783,6 +1749,7 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	sma1303->retry_cnt = SMA1303_I2C_RETRY_COUNT;
 	sma1303->tdm_slot_rx = 0;
 	sma1303->tdm_slot_tx = 0;
+	sma1303->sys_clk_id = SMA1303_PLL_CLKIN_BCLK;
 
 	sma1303->dev = &client->dev;
 	sma1303->kobj = &client->dev.kobj;
