@@ -47,9 +47,9 @@ int qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const u8 *addr,
 			     char *buf)
 {
 	if (proto == QETH_PROT_IPV4)
-		return sprintf(buf, "%pI4", addr);
+		return scnprintf(buf, INET_ADDRSTRLEN, "%pI4", addr);
 	else
-		return sprintf(buf, "%pI6", addr);
+		return scnprintf(buf, INET6_ADDRSTRLEN, "%pI6", addr);
 }
 
 static struct qeth_ipaddr *qeth_l3_find_addr_by_ip(struct qeth_card *card,

@@ -252,8 +252,8 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		goto out;
 	}
 
-	snprintf(card->options.hsuid, sizeof(card->options.hsuid),
-		 "%-8s", tmp);
+	scnprintf(card->options.hsuid, sizeof(card->options.hsuid),
+		  "%-8s", tmp);
 	ASCEBC(card->options.hsuid, 8);
 	memcpy(card->dev->perm_addr, card->options.hsuid, 9);
 
