@@ -466,10 +466,10 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(27), 2, GFLAGS),
 
 	/* PD_CORE */
-	COMPOSITE_NOMUX(0, "aclk_core_pre", "armclk", CLK_IS_CRITICAL,
+	COMPOSITE_NOMUX(0, "aclk_core_pre", "armclk", CLK_IGNORE_UNUSED,
 			RK3562_CLKSEL_CON(11), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3562_CLKGATE_CON(4), 3, GFLAGS),
-	COMPOSITE_NOMUX(0, "pclk_dbg_pre", "armclk", CLK_IS_CRITICAL,
+	COMPOSITE_NOMUX(0, "pclk_dbg_pre", "armclk", CLK_IGNORE_UNUSED,
 			RK3562_CLKSEL_CON(12), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3562_CLKGATE_CON(4), 5, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_CORE, "hclk_core", "gpll", CLK_IS_CRITICAL,
