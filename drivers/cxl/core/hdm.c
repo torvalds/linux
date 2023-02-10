@@ -279,7 +279,7 @@ success:
 	return 0;
 }
 
-static int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
+int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 				resource_size_t base, resource_size_t len,
 				resource_size_t skipped)
 {
@@ -295,6 +295,7 @@ static int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 
 	return devm_add_action_or_reset(&port->dev, cxl_dpa_release, cxled);
 }
+EXPORT_SYMBOL_NS_GPL(devm_cxl_dpa_reserve, CXL);
 
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled)
 {
