@@ -278,11 +278,5 @@ void __init smp_init_pseries(void)
 		cpumask_clear_cpu(boot_cpuid, of_spin_mask);
 	}
 
-	/* Non-lpar has additional take/give timebase */
-	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {
-		smp_ops->give_timebase = rtas_give_timebase;
-		smp_ops->take_timebase = rtas_take_timebase;
-	}
-
 	pr_debug(" <- smp_init_pSeries()\n");
 }
