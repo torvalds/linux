@@ -4042,9 +4042,30 @@ static const struct of_device_id msm_geni_device_tbl[] = {
 static void msm_geni_serial_init_gsi(struct uart_port *uport)
 {
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
+	int ret;
 
+	ret = geni_icc_enable(&msm_port->se);
+	if (ret) {
+		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
+			     "%s: Error %d geni_icc_enable failed\n", __func__, ret);
+		return;
+	}
+
+	ret = geni_icc_set_bw(&msm_port->se);
+	if (ret) {
+		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
+			     "%s: Error %d ICC BW voting failed\n", __func__, ret);
+		return;
+	}
 	msm_port->gsi_mode = geni_read_reg(uport->membase,
 					   GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
+	ret = geni_icc_disable(&msm_port->se);
+	if (ret) {
+		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
+			"%s: Error %d geni_icc_disable failed\n", __func__, ret);
+		return;
+	}
+
 	dev_info(uport->dev, "gsi_mode:%d\n", msm_port->gsi_mode);
 	if (msm_port->gsi_mode) {
 		msm_port->gsi = devm_kzalloc(uport->dev, sizeof(*msm_port->gsi),
@@ -4080,8 +4101,17 @@ static int msm_geni_serial_get_ver_info(struct uart_port *uport)
 				"%s: Error %d geni_icc_enable failed\n", __func__, ret);
 			return ret;
 		}
+
+		ret = geni_icc_set_bw(&msm_port->se);
+		if (ret) {
+			UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
+				"%s: Error %d ICC BW voting failed\n", __func__, ret);
+			return ret;
+		}
+
 		geni_se_common_clks_on(msm_port->serial_rsc.se_clk,
 			msm_port->serial_rsc.m_ahb_clk, msm_port->serial_rsc.s_ahb_clk);
+
 		msm_geni_enable_disable_se_clk(uport, true);
 	}
 
