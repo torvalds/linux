@@ -1317,6 +1317,8 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 
 err_decrement:
 	p->nr_targets--;
+	cxled->pos = -1;
+	p->targets[pos] = NULL;
 err:
 	for (iter = ep_port; !is_cxl_root(iter);
 	     iter = to_cxl_port(iter->dev.parent))
