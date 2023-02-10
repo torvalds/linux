@@ -23,10 +23,7 @@
 #include "mali_kbase_csf_heap_context_alloc.h"
 
 /* Size of one heap context structure, in bytes. */
-#define HEAP_CTX_SIZE ((size_t)32)
-
-/* Total size of the GPU memory region allocated for heap contexts, in bytes. */
-#define HEAP_CTX_REGION_SIZE (MAX_TILER_HEAPS * HEAP_CTX_SIZE)
+#define HEAP_CTX_SIZE ((u32)32)
 
 /**
  * sub_alloc - Sub-allocate a heap context from a GPU memory region
@@ -38,8 +35,8 @@
 static u64 sub_alloc(struct kbase_csf_heap_context_allocator *const ctx_alloc)
 {
 	struct kbase_context *const kctx = ctx_alloc->kctx;
-	int heap_nr = 0;
-	size_t ctx_offset = 0;
+	unsigned long heap_nr = 0;
+	u32 ctx_offset = 0;
 	u64 heap_gpu_va = 0;
 	struct kbase_vmap_struct mapping;
 	void *ctx_ptr = NULL;
@@ -55,27 +52,62 @@ static u64 sub_alloc(struct kbase_csf_heap_context_allocator *const ctx_alloc)
 		return 0;
 	}
 
-	ctx_offset = heap_nr * HEAP_CTX_SIZE;
+	ctx_offset = heap_nr * ctx_alloc->heap_context_size_aligned;
 	heap_gpu_va = ctx_alloc->gpu_va + ctx_offset;
 	ctx_ptr = kbase_vmap_prot(kctx, heap_gpu_va,
-		HEAP_CTX_SIZE, KBASE_REG_CPU_WR, &mapping);
+		ctx_alloc->heap_context_size_aligned, KBASE_REG_CPU_WR, &mapping);
 
 	if (unlikely(!ctx_ptr)) {
 		dev_err(kctx->kbdev->dev,
-			"Failed to map tiler heap context %d (0x%llX)\n",
+			"Failed to map tiler heap context %lu (0x%llX)\n",
 			heap_nr, heap_gpu_va);
 		return 0;
 	}
 
-	memset(ctx_ptr, 0, HEAP_CTX_SIZE);
+	memset(ctx_ptr, 0, ctx_alloc->heap_context_size_aligned);
 	kbase_vunmap(ctx_ptr, &mapping);
 
 	bitmap_set(ctx_alloc->in_use, heap_nr, 1);
 
-	dev_dbg(kctx->kbdev->dev, "Allocated tiler heap context %d (0x%llX)\n",
+	dev_dbg(kctx->kbdev->dev, "Allocated tiler heap context %lu (0x%llX)\n",
 		heap_nr, heap_gpu_va);
 
 	return heap_gpu_va;
+}
+
+/**
+ * evict_heap_context - Evict the data of heap context from GPU's L2 cache.
+ *
+ * @ctx_alloc:   Pointer to the heap context allocator.
+ * @heap_gpu_va: The GPU virtual address of a heap context structure to free.
+ *
+ * This function is called when memory for the heap context is freed. It uses the
+ * FLUSH_PA_RANGE command to evict the data of heap context, so on older CSF GPUs
+ * there is nothing done. The whole GPU cache is anyways expected to be flushed
+ * on older GPUs when initial chunks of the heap are freed just before the memory
+ * for heap context is freed.
+ */
+static void evict_heap_context(struct kbase_csf_heap_context_allocator *const ctx_alloc,
+			      u64 const heap_gpu_va)
+{
+	struct kbase_context *const kctx = ctx_alloc->kctx;
+	u32 offset_in_bytes = (u32)(heap_gpu_va - ctx_alloc->gpu_va);
+	u32 offset_within_page = offset_in_bytes & ~PAGE_MASK;
+	u32 page_index = offset_in_bytes >> PAGE_SHIFT;
+	struct tagged_addr page =
+		kbase_get_gpu_phy_pages(ctx_alloc->region)[page_index];
+	phys_addr_t heap_context_pa = as_phys_addr_t(page) + offset_within_page;
+
+	lockdep_assert_held(&ctx_alloc->lock);
+
+	/* There is no need to take vm_lock here as the ctx_alloc region is no_user_free
+	 * refcounted. The region and the backing page can't disappear whilst this
+	 * function is executing.
+	 * Flush type is passed as FLUSH_PT to CLN+INV L2 only.
+	 */
+	kbase_mmu_flush_pa_range(kctx->kbdev, kctx,
+				heap_context_pa, ctx_alloc->heap_context_size_aligned,
+				KBASE_MMU_OP_FLUSH_PT);
 }
 
 /**
@@ -88,7 +120,7 @@ static void sub_free(struct kbase_csf_heap_context_allocator *const ctx_alloc,
 	u64 const heap_gpu_va)
 {
 	struct kbase_context *const kctx = ctx_alloc->kctx;
-	u64 ctx_offset = 0;
+	u32 ctx_offset = 0;
 	unsigned int heap_nr = 0;
 
 	lockdep_assert_held(&ctx_alloc->lock);
@@ -99,13 +131,15 @@ static void sub_free(struct kbase_csf_heap_context_allocator *const ctx_alloc,
 	if (WARN_ON(heap_gpu_va < ctx_alloc->gpu_va))
 		return;
 
-	ctx_offset = heap_gpu_va - ctx_alloc->gpu_va;
+	ctx_offset = (u32)(heap_gpu_va - ctx_alloc->gpu_va);
 
-	if (WARN_ON(ctx_offset >= HEAP_CTX_REGION_SIZE) ||
-		WARN_ON(ctx_offset % HEAP_CTX_SIZE))
+	if (WARN_ON(ctx_offset >= (ctx_alloc->region->nr_pages << PAGE_SHIFT)) ||
+		WARN_ON(ctx_offset % ctx_alloc->heap_context_size_aligned))
 		return;
 
-	heap_nr = ctx_offset / HEAP_CTX_SIZE;
+	evict_heap_context(ctx_alloc, heap_gpu_va);
+
+	heap_nr = ctx_offset / ctx_alloc->heap_context_size_aligned;
 	dev_dbg(kctx->kbdev->dev,
 		"Freed tiler heap context %d (0x%llX)\n", heap_nr, heap_gpu_va);
 
@@ -116,12 +150,17 @@ int kbase_csf_heap_context_allocator_init(
 	struct kbase_csf_heap_context_allocator *const ctx_alloc,
 	struct kbase_context *const kctx)
 {
+	const u32 gpu_cache_line_size =
+		(1U << kctx->kbdev->gpu_props.props.l2_props.log2_line_size);
+
 	/* We cannot pre-allocate GPU memory here because the
 	 * custom VA zone may not have been created yet.
 	 */
 	ctx_alloc->kctx = kctx;
 	ctx_alloc->region = NULL;
 	ctx_alloc->gpu_va = 0;
+	ctx_alloc->heap_context_size_aligned =
+		(HEAP_CTX_SIZE + gpu_cache_line_size - 1) & ~(gpu_cache_line_size - 1);
 
 	mutex_init(&ctx_alloc->lock);
 	bitmap_zero(ctx_alloc->in_use, MAX_TILER_HEAPS);
@@ -142,7 +181,14 @@ void kbase_csf_heap_context_allocator_term(
 
 	if (ctx_alloc->region) {
 		kbase_gpu_vm_lock(kctx);
-		ctx_alloc->region->flags &= ~KBASE_REG_NO_USER_FREE;
+		/*
+		 * We can't enforce (nor check) the no_user_free refcount
+		 * to be 0 here as other code regions can take such a reference.
+		 * Anyway, this isn't an issue as the region will eventually
+		 * be freed by the region tracker if its refcount didn't drop
+		 * to 0.
+		 */
+		kbase_va_region_no_user_free_put(kctx, ctx_alloc->region);
 		kbase_mem_free_region(kctx, ctx_alloc->region);
 		kbase_gpu_vm_unlock(kctx);
 	}
@@ -156,7 +202,7 @@ u64 kbase_csf_heap_context_allocator_alloc(
 	struct kbase_context *const kctx = ctx_alloc->kctx;
 	u64 flags = BASE_MEM_PROT_GPU_RD | BASE_MEM_PROT_GPU_WR | BASE_MEM_PROT_CPU_WR |
 		    BASEP_MEM_NO_USER_FREE | BASE_MEM_PROT_CPU_RD;
-	u64 nr_pages = PFN_UP(HEAP_CTX_REGION_SIZE);
+	u64 nr_pages = PFN_UP(MAX_TILER_HEAPS * ctx_alloc->heap_context_size_aligned);
 	u64 heap_gpu_va = 0;
 
 	/* Calls to this function are inherently asynchronous, with respect to

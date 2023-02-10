@@ -23,10 +23,7 @@
 
 #include "mali_kbase_ipa_counter_common_jm.h"
 #include "mali_kbase.h"
-
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-#include <backend/gpu/mali_kbase_model_dummy.h>
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
+#include <backend/gpu/mali_kbase_model_linux.h>
 
 /* Performance counter blocks base offsets */
 #define JM_BASE             (0 * KBASE_IPA_NR_BYTES_PER_BLOCK)

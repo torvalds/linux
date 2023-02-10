@@ -72,10 +72,18 @@
  *   - base_jit_alloc_info_11_5
  *   - kbase_ioctl_mem_jit_init_10_2
  *   - kbase_ioctl_mem_jit_init_11_5
+ * 1.17:
+ * - Fix kinstr_prfcnt issues:
+ *   - Missing implicit sample for CMD_STOP when HWCNT buffer is full.
+ *   - Race condition when stopping periodic sampling.
+ *   - prfcnt_block_metadata::block_idx gaps.
+ *   - PRFCNT_CONTROL_CMD_SAMPLE_ASYNC is removed.
+ * 1.18:
+ * - CPU mappings of USER_BUFFER imported memory handles must be cached.
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 16
+#define BASE_UK_VERSION_MINOR 17
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between

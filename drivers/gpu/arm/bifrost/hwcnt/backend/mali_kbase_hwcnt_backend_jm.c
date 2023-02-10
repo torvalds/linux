@@ -27,10 +27,7 @@
 #include "mali_kbase_hwaccess_instr.h"
 #include "mali_kbase_hwaccess_time.h"
 #include "mali_kbase_ccswe.h"
-
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-#include "backend/gpu/mali_kbase_model_dummy.h"
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
+#include "backend/gpu/mali_kbase_model_linux.h"
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
 #include "backend/gpu/mali_kbase_pm_internal.h"

@@ -339,21 +339,8 @@ int kbase_job_slot_softstop_start_rp(struct kbase_context *kctx,
 void kbase_job_slot_softstop(struct kbase_device *kbdev, int js,
 		struct kbase_jd_atom *target_katom);
 
-void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
-		struct kbase_jd_atom *target_katom, u32 sw_flags);
-
-/**
- * kbase_job_slot_hardstop - Hard-stop the specified job slot
- * @kctx:         The kbase context that contains the job(s) that should
- *                be hard-stopped
- * @js:           The job slot to hard-stop
- * @target_katom: The job that should be hard-stopped (or NULL for all
- *                jobs from the context)
- * Context:
- *   The job slot lock must be held when calling this function.
- */
-void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
-		struct kbase_jd_atom *target_katom);
+void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, unsigned int js,
+				     struct kbase_jd_atom *target_katom, u32 sw_flags);
 
 /**
  * kbase_job_check_enter_disjoint - potentiall enter disjoint mode
@@ -447,19 +434,6 @@ static inline void kbase_free_user_buffer(
 		kfree(pages);
 	}
 }
-
-/**
- * kbase_mem_copy_from_extres() - Copy from external resources.
- *
- * @kctx:	kbase context within which the copying is to take place.
- * @buf_data:	Pointer to the information about external resources:
- *		pages pertaining to the external resource, number of
- *		pages to copy.
- *
- * Return:      0 on success, error code otherwise.
- */
-int kbase_mem_copy_from_extres(struct kbase_context *kctx,
-		struct kbase_debug_copy_buffer *buf_data);
 
 #if !MALI_USE_CSF
 int kbase_process_soft_job(struct kbase_jd_atom *katom);

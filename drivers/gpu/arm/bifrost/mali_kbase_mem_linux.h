@@ -284,7 +284,7 @@ int kbase_mem_shrink_gpu_mapping(struct kbase_context *kctx, struct kbase_va_reg
  *   have been released in the mean time.
  * * Or, it must have been refcounted with a call to kbase_va_region_alloc_get(), and the region
  *   lock is now held again.
- * * Or, @reg has had KBASE_REG_NO_USER_FREE set at creation time or under the region lock, and the
+ * * Or, @reg has had NO_USER_FREE set at creation time or under the region lock, and the
  *   region lock is now held again.
  *
  * The acceptable @vmap_flags are those in %KBASE_VMAP_INPUT_FLAGS.

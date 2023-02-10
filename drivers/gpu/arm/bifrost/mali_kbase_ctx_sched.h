@@ -60,6 +60,15 @@ int kbase_ctx_sched_init(struct kbase_device *kbdev);
 void kbase_ctx_sched_term(struct kbase_device *kbdev);
 
 /**
+ * kbase_ctx_sched_ctx_init - Initialize per-context data fields for scheduling
+ * @kctx: The context to initialize
+ *
+ * This must be called during context initialization before any other context
+ * scheduling functions are called on @kctx
+ */
+void kbase_ctx_sched_init_ctx(struct kbase_context *kctx);
+
+/**
  * kbase_ctx_sched_retain_ctx - Retain a reference to the @ref kbase_context
  * @kctx: The context to which to retain a reference
  *
@@ -113,9 +122,6 @@ void kbase_ctx_sched_release_ctx(struct kbase_context *kctx);
  * This function should be called when a context is being destroyed. The
  * context must no longer have any reference. If it has been assigned an
  * address space before then the AS will be unprogrammed.
- *
- * The kbase_device::mmu_hw_mutex and kbase_device::hwaccess_lock locks must be
- * held whilst calling this function.
  */
 void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx);
 

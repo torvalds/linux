@@ -90,6 +90,12 @@ EXTRA_CFLAGS := $(foreach config,$(CONFIGS), \
 
 KBUILD_CFLAGS += -Wall -Werror
 
+ifeq ($(CONFIG_GCOV_KERNEL), y)
+    KBUILD_CFLAGS += $(call cc-option, -ftest-coverage)
+    KBUILD_CFLAGS += $(call cc-option, -fprofile-arcs)
+    EXTRA_CFLAGS += -DGCOV_PROFILE=1
+endif
+
 # The following were added to align with W=1 in scripts/Makefile.extrawarn
 # from the Linux source tree (v5.18.14)
 KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter
@@ -120,7 +126,8 @@ KBUILD_CFLAGS += -Wdisabled-optimization
 # global variables.
 KBUILD_CFLAGS += $(call cc-option, -Wlogical-op)
 KBUILD_CFLAGS += -Wmissing-field-initializers
-KBUILD_CFLAGS += -Wtype-limits
+# -Wtype-limits must be disabled due to build failures on kernel 5.x
+KBUILD_CFLAGS += -Wno-type-limit
 KBUILD_CFLAGS += $(call cc-option, -Wmaybe-uninitialized)
 KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
 

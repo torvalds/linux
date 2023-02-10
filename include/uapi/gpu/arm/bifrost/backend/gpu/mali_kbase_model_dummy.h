@@ -29,7 +29,11 @@
 #include <linux/types.h>
 
 #define KBASE_DUMMY_MODEL_COUNTER_HEADER_DWORDS (4)
+#if MALI_USE_CSF
+#define KBASE_DUMMY_MODEL_COUNTER_PER_CORE      (65)
+#else /* MALI_USE_CSF */
 #define KBASE_DUMMY_MODEL_COUNTER_PER_CORE      (60)
+#endif /* !MALI_USE_CSF */
 #define KBASE_DUMMY_MODEL_COUNTERS_PER_BIT      (4)
 #define KBASE_DUMMY_MODEL_COUNTER_ENABLED(enable_mask, ctr_idx) \
 	(enable_mask & (1 << (ctr_idx / KBASE_DUMMY_MODEL_COUNTERS_PER_BIT)))
@@ -56,7 +60,16 @@
 #define KBASE_DUMMY_MODEL_MAX_SAMPLE_SIZE                                                          \
 	(KBASE_DUMMY_MODEL_MAX_NUM_PERF_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE)
 
+/*
+ * Bit mask - no. bits set is no. cores
+ * Values obtained from talking to HW team
+ * Example: tODx has 10 cores, 0b11 1111 1111 -> 0x3FF
+ */
 #define DUMMY_IMPLEMENTATION_SHADER_PRESENT (0xFull)
+#define DUMMY_IMPLEMENTATION_SHADER_PRESENT_TBEX (0x7FFFull)
+#define DUMMY_IMPLEMENTATION_SHADER_PRESENT_TODX (0x3FFull)
+#define DUMMY_IMPLEMENTATION_SHADER_PRESENT_TTUX (0x7FFull)
+#define DUMMY_IMPLEMENTATION_SHADER_PRESENT_TTIX (0xFFFull)
 #define DUMMY_IMPLEMENTATION_TILER_PRESENT (0x1ull)
 #define DUMMY_IMPLEMENTATION_L2_PRESENT (0x1ull)
 #define DUMMY_IMPLEMENTATION_STACK_PRESENT (0xFull)

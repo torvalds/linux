@@ -396,6 +396,12 @@ void __kbase_tlstream_tl_kbase_new_device(
 	u32 kbase_device_supports_gpu_sleep
 );
 
+void __kbase_tlstream_tl_kbase_gpucmdqueue_kick(
+	struct kbase_tlstream *stream,
+	u32 kernel_ctx_id,
+	u64 buffer_gpu_addr
+);
+
 void __kbase_tlstream_tl_kbase_device_program_csg(
 	struct kbase_tlstream *stream,
 	u32 kbase_device_id,
@@ -1977,6 +1983,37 @@ struct kbase_tlstream;
 	kbase_device_sb_entry_count,	\
 	kbase_device_has_cross_stream_sync,	\
 	kbase_device_supports_gpu_sleep	\
+	)	\
+	do { } while (0)
+#endif /* MALI_USE_CSF */
+
+/**
+ * KBASE_TLSTREAM_TL_KBASE_GPUCMDQUEUE_KICK - Kernel receives a request to process new GPU queue instructions
+ *
+ * @kbdev: Kbase device
+ * @kernel_ctx_id: Unique ID for the KBase Context
+ * @buffer_gpu_addr: Address of the GPU queue's command buffer
+ */
+#if MALI_USE_CSF
+#define KBASE_TLSTREAM_TL_KBASE_GPUCMDQUEUE_KICK(	\
+	kbdev,	\
+	kernel_ctx_id,	\
+	buffer_gpu_addr	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
+		if (enabled & BASE_TLSTREAM_ENABLE_CSF_TRACEPOINTS)	\
+			__kbase_tlstream_tl_kbase_gpucmdqueue_kick(	\
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
+				kernel_ctx_id,	\
+				buffer_gpu_addr	\
+				);	\
+	} while (0)
+#else
+#define KBASE_TLSTREAM_TL_KBASE_GPUCMDQUEUE_KICK(	\
+	kbdev,	\
+	kernel_ctx_id,	\
+	buffer_gpu_addr	\
 	)	\
 	do { } while (0)
 #endif /* MALI_USE_CSF */

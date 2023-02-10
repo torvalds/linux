@@ -346,7 +346,11 @@ void kbase_csf_tiler_heap_reclaim_mgr_init(struct kbase_device *kbdev)
 	reclaim->batch = HEAP_SHRINKER_BATCH;
 
 #if !defined(CONFIG_MALI_VECTOR_DUMP)
+#if KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE
 	register_shrinker(reclaim);
+#else
+	register_shrinker(reclaim, "mali-csf-tiler-heap");
+#endif
 #endif
 }
 

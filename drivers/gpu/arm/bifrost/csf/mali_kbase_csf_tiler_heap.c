@@ -101,7 +101,7 @@ static struct kbase_csf_tiler_heap_chunk *get_last_chunk(
  * @kctx:  kbase context the chunk belongs to.
  * @chunk: The chunk whose external mappings are going to be removed.
  *
- * This function marks the region as DONT NEED. Along with KBASE_REG_NO_USER_FREE, this indicates
+ * This function marks the region as DONT NEED. Along with NO_USER_FREE, this indicates
  * that the VA region is owned by the tiler heap and could potentially be shrunk at any time. Other
  * parts of kbase outside of tiler heap management should not take references on its physical
  * pages, and should not modify them.
@@ -227,12 +227,14 @@ static void remove_unlinked_chunk(struct kbase_context *kctx,
 	kbase_gpu_vm_lock(kctx);
 	kbase_vunmap(kctx, &chunk->map);
 	/* KBASE_REG_DONT_NEED regions will be confused with ephemeral regions (inc freed JIT
-	 * regions), and so we must clear that flag too before freeing
+	 * regions), and so we must clear that flag too before freeing.
+	 * For "no user free", we check that the refcount is 1 as it is a shrinkable region;
+	 * no other code part within kbase can take a reference to it.
 	 */
+	WARN_ON(chunk->region->no_user_free_refcnt > 1);
+	kbase_va_region_no_user_free_put(kctx, chunk->region);
 #if !defined(CONFIG_MALI_VECTOR_DUMP)
-	chunk->region->flags &= ~(KBASE_REG_NO_USER_FREE | KBASE_REG_DONT_NEED);
-#else
-	chunk->region->flags &= ~KBASE_REG_NO_USER_FREE;
+	chunk->region->flags &= ~KBASE_REG_DONT_NEED;
 #endif
 	kbase_mem_free_region(kctx, chunk->region);
 	kbase_gpu_vm_unlock(kctx);
@@ -297,11 +299,24 @@ static struct kbase_csf_tiler_heap_chunk *alloc_new_chunk(struct kbase_context *
 
 	kbase_gpu_vm_lock(kctx);
 
-	/* Some checks done here as KBASE_REG_NO_USER_FREE still allows such things to be made
+	/* Some checks done here as NO_USER_FREE still allows such things to be made
 	 * whilst we had dropped the region lock
 	 */
 	if (unlikely(atomic_read(&chunk->region->gpu_alloc->kernel_mappings) > 0)) {
 		dev_err(kctx->kbdev->dev, "Chunk region has active kernel mappings!\n");
+		goto unroll_region;
+	}
+
+	/* There is a race condition with regard to KBASE_REG_DONT_NEED, where another
+	 * thread can have the "no user free" refcount increased between kbase_mem_alloc
+	 * and kbase_gpu_vm_lock (above) and before KBASE_REG_DONT_NEED is set by
+	 * remove_external_chunk_mappings (below).
+	 *
+	 * It should be fine and not a security risk if we let the region leak till
+	 * region tracker termination in such a case.
+	 */
+	if (unlikely(chunk->region->no_user_free_refcnt > 1)) {
+		dev_err(kctx->kbdev->dev, "Chunk region has no_user_free_refcnt > 1!\n");
 		goto unroll_region;
 	}
 
@@ -310,27 +325,27 @@ static struct kbase_csf_tiler_heap_chunk *alloc_new_chunk(struct kbase_context *
 	 * they remain in place in future.
 	 */
 	if (WARN(!chunk->region->gpu_alloc,
-		 "KBASE_REG_NO_USER_FREE chunks should not have had their alloc freed")) {
+		 "NO_USER_FREE chunks should not have had their alloc freed")) {
 		goto unroll_region;
 	}
 
 	if (WARN(chunk->region->gpu_alloc->type != KBASE_MEM_TYPE_NATIVE,
-		 "KBASE_REG_NO_USER_FREE chunks should not have been freed and then reallocated as imported/non-native regions")) {
+		 "NO_USER_FREE chunks should not have been freed and then reallocated as imported/non-native regions")) {
 		goto unroll_region;
 	}
 
 	if (WARN((chunk->region->flags & KBASE_REG_ACTIVE_JIT_ALLOC),
-		 "KBASE_REG_NO_USER_FREE chunks should not have been freed and then reallocated as JIT regions")) {
+		 "NO_USER_FREE chunks should not have been freed and then reallocated as JIT regions")) {
 		goto unroll_region;
 	}
 
 	if (WARN((chunk->region->flags & KBASE_REG_DONT_NEED),
-		 "KBASE_REG_NO_USER_FREE chunks should not have been made ephemeral")) {
+		 "NO_USER_FREE chunks should not have been made ephemeral")) {
 		goto unroll_region;
 	}
 
 	if (WARN(atomic_read(&chunk->region->cpu_alloc->gpu_mappings) > 1,
-		 "KBASE_REG_NO_USER_FREE chunks should not have been aliased")) {
+		 "NO_USER_FREE chunks should not have been aliased")) {
 		goto unroll_region;
 	}
 
@@ -344,16 +359,21 @@ static struct kbase_csf_tiler_heap_chunk *alloc_new_chunk(struct kbase_context *
 	remove_external_chunk_mappings(kctx, chunk);
 	kbase_gpu_vm_unlock(kctx);
 
+	/* If page migration is enabled, we don't want to migrate tiler heap pages.
+	 * This does not change if the constituent pages are already marked as isolated.
+	 */
+	if (kbase_page_migration_enabled)
+		kbase_set_phy_alloc_page_status(chunk->region->gpu_alloc, NOT_MOVABLE);
+
 	return chunk;
 
 unroll_region:
 	/* KBASE_REG_DONT_NEED regions will be confused with ephemeral regions (inc freed JIT
 	 * regions), and so we must clear that flag too before freeing.
 	 */
+	kbase_va_region_no_user_free_put(kctx, chunk->region);
 #if !defined(CONFIG_MALI_VECTOR_DUMP)
-	chunk->region->flags &= ~(KBASE_REG_NO_USER_FREE | KBASE_REG_DONT_NEED);
-#else
-	chunk->region->flags &= ~KBASE_REG_NO_USER_FREE;
+	chunk->region->flags &= ~KBASE_REG_DONT_NEED;
 #endif
 	kbase_mem_free_region(kctx, chunk->region);
 	kbase_gpu_vm_unlock(kctx);
@@ -511,7 +531,7 @@ static void delete_heap(struct kbase_csf_tiler_heap *heap)
 	if (heap->buf_desc_reg) {
 		kbase_vunmap(kctx, &heap->buf_desc_map);
 		kbase_gpu_vm_lock(kctx);
-		heap->buf_desc_reg->flags &= ~KBASE_REG_NO_USER_FREE;
+		kbase_va_region_no_user_free_put(kctx, heap->buf_desc_reg);
 		kbase_gpu_vm_unlock(kctx);
 	}
 
@@ -629,8 +649,8 @@ static bool kbasep_is_buffer_descriptor_region_suitable(struct kbase_context *co
 		return false;
 	}
 
-	if (!(reg->flags & KBASE_REG_CPU_RD) || (reg->flags & KBASE_REG_DONT_NEED) ||
-	    (reg->flags & KBASE_REG_PF_GROW) || (reg->flags & KBASE_REG_ACTIVE_JIT_ALLOC)) {
+	if (!(reg->flags & KBASE_REG_CPU_RD) || kbase_is_region_shrinkable(reg) ||
+	    (reg->flags & KBASE_REG_PF_GROW)) {
 		dev_err(kctx->kbdev->dev, "Region has invalid flags: 0x%lX!\n", reg->flags);
 		return false;
 	}
@@ -719,14 +739,17 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx, u32 const chunk_
 		/* If we don't prevent userspace from unmapping this, we may run into
 		 * use-after-free, as we don't check for the existence of the region throughout.
 		 */
-		buf_desc_reg->flags |= KBASE_REG_NO_USER_FREE;
 
 		heap->buf_desc_va = buf_desc_va;
-		heap->buf_desc_reg = buf_desc_reg;
+		heap->buf_desc_reg = kbase_va_region_no_user_free_get(kctx, buf_desc_reg);
 
 		vmap_ptr = kbase_vmap_reg(kctx, buf_desc_reg, buf_desc_va, TILER_BUF_DESC_SIZE,
 					  KBASE_REG_CPU_RD, &heap->buf_desc_map,
 					  KBASE_VMAP_FLAG_PERMANENT_MAP_ACCOUNTING);
+
+		if (kbase_page_migration_enabled)
+			kbase_set_phy_alloc_page_status(buf_desc_reg->gpu_alloc, NOT_MOVABLE);
+
 		kbase_gpu_vm_unlock(kctx);
 
 		if (unlikely(!vmap_ptr)) {
@@ -811,7 +834,7 @@ heap_context_alloc_failed:
 buf_desc_vmap_failed:
 	if (heap->buf_desc_reg) {
 		kbase_gpu_vm_lock(kctx);
-		heap->buf_desc_reg->flags &= ~KBASE_REG_NO_USER_FREE;
+		kbase_va_region_no_user_free_put(kctx, heap->buf_desc_reg);
 		kbase_gpu_vm_unlock(kctx);
 	}
 buf_desc_not_suitable:
@@ -866,6 +889,25 @@ int kbase_csf_tiler_heap_term(struct kbase_context *const kctx,
 	return err;
 }
 
+/**
+ * validate_allocation_request - Check whether the chunk allocation request
+ *                               received on tiler OOM should be handled at
+ *                               current time.
+ *
+ * @heap:               The tiler heap the OOM is associated with
+ * @nr_in_flight:       Number of fragment jobs in flight
+ * @pending_frag_count: Number of pending fragment jobs
+ *
+ * Context: must hold the tiler heap lock to guarantee its lifetime
+ *
+ * Return:
+ * * 0       - allowed to allocate an additional chunk
+ * * -EINVAL - invalid
+ * * -EBUSY  - there are fragment jobs still in flight, which may free chunks
+ *             after completing
+ * * -ENOMEM - the targeted number of in-flight chunks has been reached and
+ *             no new ones will be allocated
+ */
 static int validate_allocation_request(struct kbase_csf_tiler_heap *heap, u32 nr_in_flight,
 				       u32 pending_frag_count)
 {

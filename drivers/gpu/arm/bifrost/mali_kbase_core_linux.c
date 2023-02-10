@@ -31,10 +31,7 @@
 #include <ipa/mali_kbase_ipa_debugfs.h>
 #endif /* CONFIG_DEVFREQ_THERMAL */
 #endif /* CONFIG_MALI_BIFROST_DEVFREQ */
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 #include "backend/gpu/mali_kbase_model_linux.h"
-#include <backend/gpu/mali_kbase_model_dummy.h>
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 #include "uapi/gpu/arm/bifrost/mali_kbase_mem_profile_debugfs_buf_size.h"
 #include "mali_kbase_mem.h"
 #include "mali_kbase_mem_pool_debugfs.h"
@@ -632,7 +629,8 @@ static int kbase_file_create_kctx(struct kbase_file *const kfile,
 		kbase_ctx_flag_set(kctx, KCTX_INFINITE_CACHE);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-	snprintf(kctx_name, 64, "%d_%d", kctx->tgid, kctx->id);
+	if (unlikely(!scnprintf(kctx_name, 64, "%d_%d", kctx->tgid, kctx->id)))
+		return -ENOMEM;
 
 	mutex_init(&kctx->mem_profile_lock);
 
@@ -671,8 +669,10 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	if (!kbdev)
 		return -ENODEV;
 
-	/* Set address space operation for page migration */
+#if (KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE)
+	/* Set address space operations for page migration */
 	kbase_mem_migrate_set_address_space_ops(kbdev, filp);
+#endif
 
 	/* Device-wide firmware load is moved here from probing to comply with
 	 * Android GKI vendor guideline.
@@ -1467,6 +1467,9 @@ static int kbasep_kcpu_queue_enqueue(struct kbase_context *kctx,
 static int kbasep_cs_tiler_heap_init(struct kbase_context *kctx,
 		union kbase_ioctl_cs_tiler_heap_init *heap_init)
 {
+	if (heap_init->in.group_id >= MEMORY_GROUP_MANAGER_NR_GROUPS)
+		return -EINVAL;
+
 	kctx->jit_group_id = heap_init->in.group_id;
 
 	return kbase_csf_tiler_heap_init(kctx, heap_init->in.chunk_size,
@@ -1479,6 +1482,9 @@ static int kbasep_cs_tiler_heap_init(struct kbase_context *kctx,
 static int kbasep_cs_tiler_heap_init_1_13(struct kbase_context *kctx,
 					  union kbase_ioctl_cs_tiler_heap_init_1_13 *heap_init)
 {
+	if (heap_init->in.group_id >= MEMORY_GROUP_MANAGER_NR_GROUPS)
+		return -EINVAL;
+
 	kctx->jit_group_id = heap_init->in.group_id;
 
 	return kbase_csf_tiler_heap_init(kctx, heap_init->in.chunk_size,
@@ -4278,7 +4284,7 @@ void kbase_protected_mode_term(struct kbase_device *kbdev)
 	kfree(kbdev->protected_dev);
 }
 
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#if !IS_ENABLED(CONFIG_MALI_REAL_HW)
 static int kbase_common_reg_map(struct kbase_device *kbdev)
 {
 	return 0;
@@ -4286,7 +4292,7 @@ static int kbase_common_reg_map(struct kbase_device *kbdev)
 static void kbase_common_reg_unmap(struct kbase_device * const kbdev)
 {
 }
-#else /* CONFIG_MALI_BIFROST_NO_MALI */
+#else /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 static int kbase_common_reg_map(struct kbase_device *kbdev)
 {
 	int err = 0;
@@ -4322,7 +4328,7 @@ static void kbase_common_reg_unmap(struct kbase_device * const kbdev)
 		kbdev->reg_size = 0;
 	}
 }
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
+#endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 
 int registers_map(struct kbase_device * const kbdev)
 {
@@ -4585,8 +4591,18 @@ int power_control_init(struct kbase_device *kbdev)
 	 * from completing its initialization.
 	 */
 #if defined(CONFIG_PM_OPP)
-#if ((KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE) && \
-	defined(CONFIG_REGULATOR))
+#if defined(CONFIG_REGULATOR)
+#if (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE)
+	if (kbdev->nr_regulators > 0) {
+		kbdev->token = dev_pm_opp_set_regulators(kbdev->dev, regulator_names);
+
+		if (kbdev->token < 0) {
+			err = kbdev->token;
+			goto regulators_probe_defer;
+		}
+
+	}
+#elif (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
 	if (kbdev->nr_regulators > 0) {
 		kbdev->opp_table =
 			dev_pm_opp_set_regulators(kbdev->dev, regulator_names,
@@ -4605,7 +4621,9 @@ int power_control_init(struct kbase_device *kbdev)
 			return 0;
 		}
 	}
-#endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
+#endif /* (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE) */
+#endif /* CONFIG_REGULATOR */
+
 #ifdef CONFIG_ARCH_ROCKCHIP
        err = kbase_platform_rk_init_opp_table(kbdev);
        if (err)
@@ -4645,13 +4663,17 @@ void power_control_term(struct kbase_device *kbdev)
 
 #if defined(CONFIG_PM_OPP)
 	dev_pm_opp_of_remove_table(kbdev->dev);
-#if ((KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE) && \
-	defined(CONFIG_REGULATOR))
-	if (!IS_ERR_OR_NULL(kbdev->opp_table)) {
+#if defined(CONFIG_REGULATOR)
+#if (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE)
+	if (kbdev->token > -EPERM) {
 		dev_pm_opp_unregister_set_opp_helper(kbdev->opp_table);
-		dev_pm_opp_put_regulators(kbdev->opp_table);
+		dev_pm_opp_put_regulators(kbdev->token);
 	}
-#endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
+#elif (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
+	if (!IS_ERR_OR_NULL(kbdev->opp_table))
+		dev_pm_opp_put_regulators(kbdev->opp_table);
+#endif /* (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE) */
+#endif /* CONFIG_REGULATOR */
 #endif /* CONFIG_PM_OPP */
 
 	for (i = 0; i < BASE_MAX_NR_CLOCKS_REGULATORS; i++) {
@@ -5514,6 +5536,11 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 	}
 
 	kbdev->dev = &pdev->dev;
+
+#if (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE)
+	kbdev->token = -EPERM;
+#endif /* (KERNEL_VERSION(6, 0, 0) <= LINUX_VERSION_CODE) */
+
 	dev_set_drvdata(kbdev->dev, kbdev);
 #if (KERNEL_VERSION(5, 3, 0) <= LINUX_VERSION_CODE)
 	mutex_lock(&kbase_probe_mutex);

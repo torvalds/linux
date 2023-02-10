@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+#
+# (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+#
+=====================================
+ARM CoreSight Mali Source integration
+=====================================
+
+See Documentation/trace/coresight/coresight.rst for detailed information
+about Coresight.
+
+This documentation will cover Mali specific devicetree integration.
+
+References to Sink ports are given as examples. Access to Sink is specific
+to an implementation and would require dedicated kernel modules.
+
+ARM Coresight Mali Source ITM
+=============================
+
+Required properties
+-------------------
+
+- compatible: Has to be "arm,coresight-mali-source-itm"
+- gpu : phandle to a Mali GPU definition
+- port:
+  - endpoint:
+    - remote-endpoint: phandle to a Coresight sink port
+
+Example
+-------
+
+mali-source-itm {
+  compatible = "arm,coresight-mali-source-itm";
+  gpu = <&gpu>;
+  port {
+    mali_source_itm_out_port0: endpoint {
+      remote-endpoint = <&mali_sink_in_port0>;
+    };
+  };
+};
+
+ARM Coresight Mali Source ETM
+=============================
+
+Required properties
+-------------------
+
+- compatible: Has to be "arm,coresight-mali-source-etm"
+- gpu : phandle to a Mali GPU definition
+- port:
+  - endpoint:
+    - remote-endpoint: phandle to a Coresight sink port
+
+Example
+-------
+
+mali-source-etm {
+  compatible = "arm,coresight-mali-source-etm";
+  gpu = <&gpu>;
+  port {
+    mali_source_etm_out_port0: endpoint {
+      remote-endpoint = <&mali_sink_in_port1>;
+    };
+  };
+};
+
+ARM Coresight Mali Source ELA
+=============================
+
+Required properties
+-------------------
+
+- compatible: Has to be "arm,coresight-mali-source-ela"
+- gpu : phandle to a Mali GPU definition
+- signal-groups: Signal groups indexed from 0 to 5.
+                 Used to configure the signal channels.
+  - sgN: Types of signals attached to one channel.
+         It can be more than one type in the case of
+         JCN request/response.
+
+         Types:
+           - "jcn-request": Can share the channel with "jcn-response"
+           - "jcn-response": Can share the channel with "jcn-request"
+           - "ceu-execution": Cannot share the channel with other types
+           - "ceu-commands": Cannot share the channel with other types
+           - "mcu-ahbp": Cannot share the channel with other types
+           - "host-axi": Cannot share the channel with other types
+
+
+         If the HW implementation shares a common channel
+         for JCN response and request (total of 4 channels),
+         Refer to:
+           - "Example: Shared JCN request/response channel"
+         Otherwise (total of 5 channels), refer to:
+           - "Example: Split JCN request/response channel"
+- port:
+  - endpoint:
+    - remote-endpoint: phandle to a Coresight sink port
+
+Example: Split JCN request/response channel
+--------------------------------------------
+
+This examples applies to implementations with a total of 5 signal groups,
+where JCN request and response are assigned to independent channels.
+
+mali-source-ela {
+  compatible = "arm,coresight-mali-source-ela";
+  gpu = <&gpu>;
+  signal-groups {
+    sg0 = "jcn-request";
+    sg1 = "jcn-response";
+    sg2 = "ceu-execution";
+    sg3 = "ceu-commands";
+    sg4 = "mcu-ahbp";
+    sg5 = "host-axi";
+  };
+  port {
+    mali_source_ela_out_port0: endpoint {
+      remote-endpoint = <&mali_sink_in_port2>;
+    };
+  };
+};
+
+Example: Shared JCN request/response channel
+--------------------------------------------
+
+This examples applies to implementations with a total of 4 signal groups,
+where JCN request and response are assigned to the same channel.
+
+mali-source-ela {
+  compatible = "arm,coresight-mali-source-ela";
+  gpu = <&gpu>;
+  signal-groups {
+    sg0 = "jcn-request", "jcn-response";
+    sg1 = "ceu-execution";
+    sg2 = "ceu-commands";
+    sg3 = "mcu-ahbp";
+    sg4 = "host-axi";
+  };
+  port {
+    mali_source_ela_out_port0: endpoint {
+      remote-endpoint = <&mali_sink_in_port1>;
+    };
+  };
+};

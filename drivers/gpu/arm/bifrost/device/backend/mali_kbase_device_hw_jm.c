@@ -106,7 +106,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_DONE, NULL, val);
 }
 
-#if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#if IS_ENABLED(CONFIG_MALI_REAL_HW)
 void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value)
 {
 	WARN_ON(!kbdev->pm.backend.gpu_powered);
@@ -140,4 +140,4 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset)
 	return val;
 }
 KBASE_EXPORT_TEST_API(kbase_reg_read);
-#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
+#endif /* IS_ENABLED(CONFIG_MALI_REAL_HW) */

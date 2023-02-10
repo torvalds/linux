@@ -85,7 +85,7 @@ static int kbase_csf_firmware_log_enable_mask_write(void *data, u64 val)
 		dev_dbg(kbdev->dev, "Limit enabled bits count from %u to 64", enable_bits_count);
 		enable_bits_count = 64;
 	}
-	new_mask = val & ((1 << enable_bits_count) - 1);
+	new_mask = val & (UINT64_MAX >> (64 - enable_bits_count));
 
 	if (new_mask != kbase_csf_firmware_trace_buffer_get_active_mask64(tb))
 		return kbase_csf_firmware_trace_buffer_set_active_mask64(tb, new_mask);
@@ -353,7 +353,7 @@ static void toggle_logging_calls_in_loaded_image(struct kbase_device *kbdev, boo
 
 			diff = callee_address - calling_address - 4;
 			sign = !!(diff & 0x80000000);
-			if (ARMV7_T1_BL_IMM_RANGE_MIN > (int32_t)diff &&
+			if (ARMV7_T1_BL_IMM_RANGE_MIN > (int32_t)diff ||
 					ARMV7_T1_BL_IMM_RANGE_MAX < (int32_t)diff) {
 				dev_warn(kbdev->dev, "FW log patch 0x%x out of range, skipping",
 						calling_address);

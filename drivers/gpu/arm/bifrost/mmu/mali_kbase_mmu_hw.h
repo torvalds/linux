@@ -55,26 +55,6 @@ enum kbase_mmu_fault_type {
 };
 
 /**
- * enum kbase_mmu_op_type - enum for MMU operations
- * @KBASE_MMU_OP_NONE:        To help catch uninitialized struct
- * @KBASE_MMU_OP_FIRST:       The lower boundary of enum
- * @KBASE_MMU_OP_LOCK:        Lock memory region
- * @KBASE_MMU_OP_UNLOCK:      Unlock memory region
- * @KBASE_MMU_OP_FLUSH_PT:    Flush page table (CLN+INV L2 only)
- * @KBASE_MMU_OP_FLUSH_MEM:   Flush memory (CLN+INV L2+LSC)
- * @KBASE_MMU_OP_COUNT:       The upper boundary of enum
- */
-enum kbase_mmu_op_type {
-	KBASE_MMU_OP_NONE = 0, /* Must be zero */
-	KBASE_MMU_OP_FIRST, /* Must be the first non-zero op */
-	KBASE_MMU_OP_LOCK = KBASE_MMU_OP_FIRST,
-	KBASE_MMU_OP_UNLOCK,
-	KBASE_MMU_OP_FLUSH_PT,
-	KBASE_MMU_OP_FLUSH_MEM,
-	KBASE_MMU_OP_COUNT /* Must be the last in enum */
-};
-
-/**
  * struct kbase_mmu_hw_op_param  - parameters for kbase_mmu_hw_do_* functions
  * @vpfn:           MMU Virtual Page Frame Number to start the operation on.
  * @nr:             Number of pages to work on.
@@ -105,6 +85,22 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev,
 		struct kbase_as *as);
 
 /**
+ * kbase_mmu_hw_do_lock - Issue LOCK command to the MMU and program
+ *                        the LOCKADDR register.
+ *
+ * @kbdev:     Kbase device to issue the MMU operation on.
+ * @as:        Address space to issue the MMU operation on.
+ * @op_param:  Pointer to struct containing information about the MMU
+ *             operation to perform.
+ *
+ * hwaccess_lock needs to be held when calling this function.
+ *
+ * Return: 0 if issuing the command was successful, otherwise an error code.
+ */
+int kbase_mmu_hw_do_lock(struct kbase_device *kbdev, struct kbase_as *as,
+			 const struct kbase_mmu_hw_op_param *op_param);
+
+/**
  * kbase_mmu_hw_do_unlock_no_addr - Issue UNLOCK command to the MMU without
  *                                  programming the LOCKADDR register and wait
  *                                  for it to complete before returning.
@@ -113,6 +109,9 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev,
  * @as:        Address space to issue the MMU operation on.
  * @op_param:  Pointer to struct containing information about the MMU
  *             operation to perform.
+ *
+ * This function should be called for GPU where GPU command is used to flush
+ * the cache(s) instead of MMU command.
  *
  * Return: 0 if issuing the command was successful, otherwise an error code.
  */
@@ -145,7 +144,7 @@ int kbase_mmu_hw_do_unlock(struct kbase_device *kbdev, struct kbase_as *as,
  * GPUs where MMU command to flush the cache(s) is deprecated.
  * mmu_hw_mutex needs to be held when calling this function.
  *
- * Return: Zero if the operation was successful, non-zero otherwise.
+ * Return: 0 if the operation was successful, non-zero otherwise.
  */
 int kbase_mmu_hw_do_flush(struct kbase_device *kbdev, struct kbase_as *as,
 			  const struct kbase_mmu_hw_op_param *op_param);
@@ -164,7 +163,7 @@ int kbase_mmu_hw_do_flush(struct kbase_device *kbdev, struct kbase_as *as,
  * Both mmu_hw_mutex and hwaccess_lock need to be held when calling this
  * function.
  *
- * Return: Zero if the operation was successful, non-zero otherwise.
+ * Return: 0 if the operation was successful, non-zero otherwise.
  */
 int kbase_mmu_hw_do_flush_locked(struct kbase_device *kbdev, struct kbase_as *as,
 				 const struct kbase_mmu_hw_op_param *op_param);
@@ -181,7 +180,7 @@ int kbase_mmu_hw_do_flush_locked(struct kbase_device *kbdev, struct kbase_as *as
  * specified inside @op_param. GPU command is used to flush the cache(s)
  * instead of the MMU command.
  *
- * Return: Zero if the operation was successful, non-zero otherwise.
+ * Return: 0 if the operation was successful, non-zero otherwise.
  */
 int kbase_mmu_hw_do_flush_on_gpu_ctrl(struct kbase_device *kbdev, struct kbase_as *as,
 				      const struct kbase_mmu_hw_op_param *op_param);

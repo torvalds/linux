@@ -20,12 +20,12 @@
  */
 
 /*
- * Model interface
+ * Model Linux Framework interfaces.
  */
 
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
-#include <backend/gpu/mali_kbase_model_dummy.h>
+
 #include "backend/gpu/mali_kbase_model_linux.h"
 #include "device/mali_kbase_device.h"
 #include "mali_kbase_irq_internal.h"
@@ -105,8 +105,7 @@ static void serve_mmu_irq(struct work_struct *work)
 	kmem_cache_free(kbdev->irq_slab, data);
 }
 
-void gpu_device_raise_irq(void *model,
-				enum gpu_dummy_irq irq)
+void gpu_device_raise_irq(void *model, enum model_linux_irqs irq)
 {
 	struct model_irq_data *data;
 	struct kbase_device *kbdev = gpu_device_get_data(model);
@@ -120,15 +119,15 @@ void gpu_device_raise_irq(void *model,
 	data->kbdev = kbdev;
 
 	switch (irq) {
-	case GPU_DUMMY_JOB_IRQ:
+	case MODEL_LINUX_JOB_IRQ:
 		INIT_WORK(&data->work, serve_job_irq);
 		atomic_set(&kbdev->serving_job_irq, 1);
 		break;
-	case GPU_DUMMY_GPU_IRQ:
+	case MODEL_LINUX_GPU_IRQ:
 		INIT_WORK(&data->work, serve_gpu_irq);
 		atomic_set(&kbdev->serving_gpu_irq, 1);
 		break;
-	case GPU_DUMMY_MMU_IRQ:
+	case MODEL_LINUX_MMU_IRQ:
 		INIT_WORK(&data->work, serve_mmu_irq);
 		atomic_set(&kbdev->serving_mmu_irq, 1);
 		break;
@@ -165,21 +164,7 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset)
 
 	return val;
 }
-
 KBASE_EXPORT_TEST_API(kbase_reg_read);
-
-/**
- * kbase_is_gpu_removed - Has the GPU been removed.
- * @kbdev:    Kbase device pointer
- *
- * This function would return true if the GPU has been removed.
- * It is stubbed here
- * Return: Always false
- */
-bool kbase_is_gpu_removed(struct kbase_device *kbdev)
-{
-	return false;
-}
 
 int kbase_install_interrupts(struct kbase_device *kbdev)
 {
@@ -239,15 +224,11 @@ KBASE_EXPORT_TEST_API(kbase_gpu_irq_test_handler);
 
 int kbase_gpu_device_create(struct kbase_device *kbdev)
 {
-	kbdev->model = midgard_model_create(NULL);
+	kbdev->model = midgard_model_create(kbdev);
 	if (kbdev->model == NULL)
 		return -ENOMEM;
 
-	gpu_device_set_data(kbdev->model, kbdev);
-
 	spin_lock_init(&kbdev->reg_op_lock);
-
-	dev_warn(kbdev->dev, "Using Dummy Model");
 
 	return 0;
 }

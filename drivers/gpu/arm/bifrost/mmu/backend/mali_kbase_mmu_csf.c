@@ -88,12 +88,11 @@ static void submit_work_pagefault(struct kbase_device *kbdev, u32 as_nr,
 		 * context's address space, when the page fault occurs for
 		 * MCU's address space.
 		 */
-		if (!queue_work(as->pf_wq, &as->work_pagefault))
-			kbase_ctx_sched_release_ctx(kctx);
-		else {
+		if (!queue_work(as->pf_wq, &as->work_pagefault)) {
 			dev_dbg(kbdev->dev,
-				"Page fault is already pending for as %u\n",
-				as_nr);
+				"Page fault is already pending for as %u", as_nr);
+			kbase_ctx_sched_release_ctx(kctx);
+		} else {
 			atomic_inc(&kbdev->faults_pending);
 		}
 	}
@@ -552,14 +551,14 @@ void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status,
 }
 KBASE_EXPORT_TEST_API(kbase_mmu_gpu_fault_interrupt);
 
-int kbase_mmu_as_init(struct kbase_device *kbdev, int i)
+int kbase_mmu_as_init(struct kbase_device *kbdev, unsigned int i)
 {
 	kbdev->as[i].number = i;
 	kbdev->as[i].bf_data.addr = 0ULL;
 	kbdev->as[i].pf_data.addr = 0ULL;
 	kbdev->as[i].gf_data.addr = 0ULL;
 
-	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%d", 0, 1, i);
+	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%d", WQ_UNBOUND, 1, i);
 	if (!kbdev->as[i].pf_wq)
 		return -ENOMEM;
 

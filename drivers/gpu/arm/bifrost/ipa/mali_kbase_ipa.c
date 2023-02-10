@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2016-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -84,11 +84,11 @@ KBASE_EXPORT_TEST_API(kbase_ipa_model_name_from_id);
 static struct device_node *get_model_dt_node(struct kbase_ipa_model *model,
 					     bool dt_required)
 {
-	struct device_node *model_dt_node;
+	struct device_node *model_dt_node = NULL;
 	char compat_string[64];
 
-	snprintf(compat_string, sizeof(compat_string), "arm,%s",
-		 model->ops->name);
+	if (unlikely(!scnprintf(compat_string, sizeof(compat_string), "arm,%s", model->ops->name)))
+		return NULL;
 
 	/* of_find_compatible_node() will call of_node_put() on the root node,
 	 * so take a reference on it first.
@@ -111,12 +111,12 @@ int kbase_ipa_model_add_param_s32(struct kbase_ipa_model *model,
 				  const char *name, s32 *addr,
 				  size_t num_elems, bool dt_required)
 {
-	int err, i;
+	int err = -EINVAL, i;
 	struct device_node *model_dt_node = get_model_dt_node(model,
 								dt_required);
 	char *origin;
 
-	err = of_property_read_u32_array(model_dt_node, name, addr, num_elems);
+	err = of_property_read_u32_array(model_dt_node, name, (u32 *)addr, num_elems);
 	/* We're done with model_dt_node now, so drop the reference taken in
 	 * get_model_dt_node()/of_find_compatible_node().
 	 */
@@ -138,11 +138,17 @@ int kbase_ipa_model_add_param_s32(struct kbase_ipa_model *model,
 	for (i = 0; i < num_elems; ++i) {
 		char elem_name[32];
 
-		if (num_elems == 1)
-			snprintf(elem_name, sizeof(elem_name), "%s", name);
-		else
-			snprintf(elem_name, sizeof(elem_name), "%s.%d",
-				name, i);
+		if (num_elems == 1) {
+			if (unlikely(!scnprintf(elem_name, sizeof(elem_name), "%s", name))) {
+				err = -ENOMEM;
+				goto exit;
+			}
+		} else {
+			if (unlikely(!scnprintf(elem_name, sizeof(elem_name), "%s.%d", name, i))) {
+				err = -ENOMEM;
+				goto exit;
+			}
+		}
 
 		dev_dbg(model->kbdev->dev, "%s.%s = %d (%s)\n",
 			model->ops->name, elem_name, addr[i], origin);
@@ -164,7 +170,7 @@ int kbase_ipa_model_add_param_string(struct kbase_ipa_model *model,
 	int err;
 	struct device_node *model_dt_node = get_model_dt_node(model,
 								dt_required);
-	const char *string_prop_value;
+	const char *string_prop_value = "";
 	char *origin;
 
 	err = of_property_read_string(model_dt_node, name,

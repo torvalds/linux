@@ -24,9 +24,11 @@
 
 #include <linux/version.h>
 
-#if KERNEL_VERSION(4, 16, 0) >= LINUX_VERSION_CODE
+#if KERNEL_VERSION(4, 16, 0) > LINUX_VERSION_CODE
 typedef unsigned int __poll_t;
 #endif
+
+#if KERNEL_VERSION(4, 9, 78) >= LINUX_VERSION_CODE
 
 #ifndef EPOLLHUP
 #define EPOLLHUP POLLHUP
@@ -42,6 +44,8 @@ typedef unsigned int __poll_t;
 
 #ifndef EPOLLRDNORM
 #define EPOLLRDNORM POLLRDNORM
+#endif
+
 #endif
 
 #endif /* _VERSION_COMPAT_DEFS_H_ */

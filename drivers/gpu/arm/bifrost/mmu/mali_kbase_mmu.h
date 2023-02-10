@@ -29,6 +29,7 @@
 
 struct kbase_context;
 struct kbase_mmu_table;
+struct kbase_va_region;
 
 /**
  * enum kbase_caller_mmu_sync_info - MMU-synchronous caller info.
@@ -50,6 +51,26 @@ enum kbase_caller_mmu_sync_info {
 };
 
 /**
+ * enum kbase_mmu_op_type - enum for MMU operations
+ * @KBASE_MMU_OP_NONE:        To help catch uninitialized struct
+ * @KBASE_MMU_OP_FIRST:       The lower boundary of enum
+ * @KBASE_MMU_OP_LOCK:        Lock memory region
+ * @KBASE_MMU_OP_UNLOCK:      Unlock memory region
+ * @KBASE_MMU_OP_FLUSH_PT:    Flush page table (CLN+INV L2 only)
+ * @KBASE_MMU_OP_FLUSH_MEM:   Flush memory (CLN+INV L2+LSC)
+ * @KBASE_MMU_OP_COUNT:       The upper boundary of enum
+ */
+enum kbase_mmu_op_type {
+	KBASE_MMU_OP_NONE = 0, /* Must be zero */
+	KBASE_MMU_OP_FIRST, /* Must be the first non-zero op */
+	KBASE_MMU_OP_LOCK = KBASE_MMU_OP_FIRST,
+	KBASE_MMU_OP_UNLOCK,
+	KBASE_MMU_OP_FLUSH_PT,
+	KBASE_MMU_OP_FLUSH_MEM,
+	KBASE_MMU_OP_COUNT /* Must be the last in enum */
+};
+
+/**
  * kbase_mmu_as_init() - Initialising GPU address space object.
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer).
@@ -60,7 +81,7 @@ enum kbase_caller_mmu_sync_info {
  *
  * Return: 0 on success and non-zero value on failure.
  */
-int kbase_mmu_as_init(struct kbase_device *kbdev, int i);
+int kbase_mmu_as_init(struct kbase_device *kbdev, unsigned int i);
 
 /**
  * kbase_mmu_as_term() - Terminate address space object.
@@ -71,7 +92,7 @@ int kbase_mmu_as_init(struct kbase_device *kbdev, int i);
  * This is called upon device termination to destroy
  * the address space object of the device.
  */
-void kbase_mmu_as_term(struct kbase_device *kbdev, int i);
+void kbase_mmu_as_term(struct kbase_device *kbdev, unsigned int i);
 
 /**
  * kbase_mmu_init - Initialise an object representing GPU page tables
@@ -132,22 +153,92 @@ u64 kbase_mmu_create_ate(struct kbase_device *kbdev,
 
 int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
 				    const u64 start_vpfn, struct tagged_addr *phys, size_t nr,
-				    unsigned long flags, int group_id, u64 *dirty_pgds);
-int kbase_mmu_insert_pages(struct kbase_device *kbdev,
-			   struct kbase_mmu_table *mmut, u64 vpfn,
-			   struct tagged_addr *phys, size_t nr,
-			   unsigned long flags, int as_nr, int group_id,
-			   enum kbase_caller_mmu_sync_info mmu_sync_info);
+				    unsigned long flags, int group_id, u64 *dirty_pgds,
+				    struct kbase_va_region *reg, bool ignore_page_migration);
+int kbase_mmu_insert_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
+			   struct tagged_addr *phys, size_t nr, unsigned long flags, int as_nr,
+			   int group_id, enum kbase_caller_mmu_sync_info mmu_sync_info,
+			   struct kbase_va_region *reg, bool ignore_page_migration);
 int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 				 struct tagged_addr phys, size_t nr,
 				 unsigned long flags, int group_id,
 				 enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 int kbase_mmu_teardown_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
-			     struct tagged_addr *phys, size_t nr, int as_nr);
+			     struct tagged_addr *phys, size_t nr, int as_nr,
+			     bool ignore_page_migration);
 int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr,
 			   unsigned long flags, int const group_id);
+#if MALI_USE_CSF
+/**
+ * kbase_mmu_update_csf_mcu_pages - Update MCU mappings with changes of phys and flags
+ *
+ * @kbdev:    Pointer to kbase device.
+ * @vpfn:     Virtual PFN (Page Frame Number) of the first page to update
+ * @phys:     Pointer to the array of tagged physical addresses of the physical
+ *            pages that are pointed to by the page table entries (that need to
+ *            be updated).
+ * @nr:       Number of pages to update
+ * @flags:    Flags
+ * @group_id: The physical memory group in which the page was allocated.
+ *            Valid range is 0..(MEMORY_GROUP_MANAGER_NR_GROUPS-1).
+ *
+ * Return: 0 on success, otherwise an error code.
+ */
+int kbase_mmu_update_csf_mcu_pages(struct kbase_device *kbdev, u64 vpfn, struct tagged_addr *phys,
+				   size_t nr, unsigned long flags, int const group_id);
+#endif
+
+/**
+ * kbase_mmu_migrate_page - Migrate GPU mappings and content between memory pages
+ *
+ * @old_phys:     Old physical page to be replaced.
+ * @new_phys:     New physical page used to replace old physical page.
+ * @old_dma_addr: DMA address of the old page.
+ * @new_dma_addr: DMA address of the new page.
+ * @level:        MMU page table level of the provided PGD.
+ *
+ * The page migration process is made of 2 big steps:
+ *
+ * 1) Copy the content of the old page to the new page.
+ * 2) Remap the virtual page, that is: replace either the ATE (if the old page
+ *    was a regular page) or the PTE (if the old page was used as a PGD) in the
+ *    MMU page table with the new page.
+ *
+ * During the process, the MMU region is locked to prevent GPU access to the
+ * virtual memory page that is being remapped.
+ *
+ * Before copying the content of the old page to the new page and while the
+ * MMU region is locked, a GPU cache flush is performed to make sure that
+ * pending GPU writes are finalized to the old page before copying.
+ * That is necessary because otherwise there's a risk that GPU writes might
+ * be finalized to the old page, and not new page, after migration.
+ * The MMU region is unlocked only at the end of the migration operation.
+ *
+ * Return: 0 on success, otherwise an error code.
+ */
+int kbase_mmu_migrate_page(struct tagged_addr old_phys, struct tagged_addr new_phys,
+			   dma_addr_t old_dma_addr, dma_addr_t new_dma_addr, int level);
+
+/**
+ * kbase_mmu_flush_pa_range() - Flush physical address range from the GPU caches
+ *
+ * @kbdev:    Instance of GPU platform device, allocated from the probe method.
+ * @kctx:     Pointer to kbase context, it can be NULL if the physical address
+ *            range is not associated with User created context.
+ * @phys:     Starting address of the physical range to start the operation on.
+ * @size:     Number of bytes to work on.
+ * @flush_op: Type of cache flush operation to perform.
+ *
+ * Issue a cache flush physical range command. This function won't perform any
+ * flush if the GPU doesn't support FLUSH_PA_RANGE command. The flush would be
+ * performed only if the context has a JASID assigned to it.
+ * This function is basically a wrapper for kbase_gpu_cache_flush_pa_range_and_busy_wait().
+ */
+void kbase_mmu_flush_pa_range(struct kbase_device *kbdev, struct kbase_context *kctx,
+			      phys_addr_t phys, size_t size,
+			      enum kbase_mmu_op_type flush_op);
 
 /**
  * kbase_mmu_bus_fault_interrupt - Process a bus fault interrupt.

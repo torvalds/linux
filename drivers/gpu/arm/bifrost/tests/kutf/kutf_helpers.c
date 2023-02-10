@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -127,3 +127,15 @@ void kutf_helper_input_enqueue_end_of_data(struct kutf_context *context)
 {
 	kutf_helper_input_enqueue(context, NULL, 0);
 }
+
+void kutf_helper_ignore_dmesg(struct device *dev)
+{
+	dev_info(dev, "KUTF: Start ignoring dmesg warnings\n");
+}
+EXPORT_SYMBOL(kutf_helper_ignore_dmesg);
+
+void kutf_helper_stop_ignoring_dmesg(struct device *dev)
+{
+	dev_info(dev, "KUTF: Stop ignoring dmesg warnings\n");
+}
+EXPORT_SYMBOL(kutf_helper_stop_ignoring_dmesg);

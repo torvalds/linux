@@ -129,10 +129,6 @@ int kbase_context_common_init(struct kbase_context *kctx)
 	/* creating a context is considered a disjoint event */
 	kbase_disjoint_event(kctx->kbdev);
 
-	kctx->as_nr = KBASEP_AS_NR_INVALID;
-
-	atomic_set(&kctx->refcount, 0);
-
 	spin_lock_init(&kctx->mm_update_lock);
 	kctx->process_mm = NULL;
 	atomic_set(&kctx->nonmapped_pages, 0);
@@ -251,14 +247,7 @@ static void kbase_remove_kctx_from_process(struct kbase_context *kctx)
 
 void kbase_context_common_term(struct kbase_context *kctx)
 {
-	unsigned long flags;
 	int pages;
-
-	mutex_lock(&kctx->kbdev->mmu_hw_mutex);
-	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, flags);
-	kbase_ctx_sched_remove_ctx(kctx);
-	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
-	mutex_unlock(&kctx->kbdev->mmu_hw_mutex);
 
 	pages = atomic_read(&kctx->used_pages);
 	if (pages != 0)

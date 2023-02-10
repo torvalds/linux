@@ -26,9 +26,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-#include <backend/gpu/mali_kbase_model_dummy.h>
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
+#include <backend/gpu/mali_kbase_model_linux.h>
 #include <mali_kbase_dummy_job_wa.h>
 
 int kbase_pm_ca_init(struct kbase_device *kbdev)

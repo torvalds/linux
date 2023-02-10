@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -193,10 +193,11 @@ struct kbase_mem_phy_alloc {
  * @SPILL_IN_PROGRESS: Transitory state. Corner case where pages in a memory
  *                     pool of a dying context are being moved to the device
  *                     memory pool.
+ * @NOT_MOVABLE: Stable state. Page has been allocated for an object that is
+ *               not movable, but may return to be movable when the object
+ *               is freed.
  * @ALLOCATED_MAPPED: Stable state. Page has been allocated, mapped to GPU
  *                    and has reference to kbase_mem_phy_alloc object.
- * @MULTI_MAPPED: Stable state. This state is used to manage all use cases
- *                where a page may have "unusual" mappings.
  * @PT_MAPPED: Stable state. Similar to ALLOCATED_MAPPED, but page doesn't
  *             reference kbase_mem_phy_alloc object. Used as a page in MMU
  *             page table.
@@ -205,9 +206,11 @@ struct kbase_mem_phy_alloc {
  *                    unmapping it. This status means that a memory release is
  *                    happening and it's still not complete.
  * @FREE_ISOLATED_IN_PROGRESS: Transitory state. This is a very particular corner case.
- *                             A page is isolated while it is in ALLOCATED_MAPPED or
- *                             PT_MAPPED state, but then the driver tries to destroy the
- *                             allocation.
+ *                             A page is isolated while it is in ALLOCATED_MAPPED state,
+ *                             but then the driver tries to destroy the allocation.
+ * @FREE_PT_ISOLATED_IN_PROGRESS: Transitory state. This is a very particular corner case.
+ *                                A page is isolated while it is in PT_MAPPED state, but
+ *                                then the driver tries to destroy the allocation.
  *
  * Pages can only be migrated in stable states.
  */
@@ -215,12 +218,19 @@ enum kbase_page_status {
 	MEM_POOL = 0,
 	ALLOCATE_IN_PROGRESS,
 	SPILL_IN_PROGRESS,
+	NOT_MOVABLE,
 	ALLOCATED_MAPPED,
-	MULTI_MAPPED,
 	PT_MAPPED,
 	FREE_IN_PROGRESS,
 	FREE_ISOLATED_IN_PROGRESS,
+	FREE_PT_ISOLATED_IN_PROGRESS,
 };
+
+#define PGD_VPFN_LEVEL_MASK ((u64)0x3)
+#define PGD_VPFN_LEVEL_GET_LEVEL(pgd_vpfn_level) (pgd_vpfn_level & PGD_VPFN_LEVEL_MASK)
+#define PGD_VPFN_LEVEL_GET_VPFN(pgd_vpfn_level) (pgd_vpfn_level & ~PGD_VPFN_LEVEL_MASK)
+#define PGD_VPFN_LEVEL_SET(pgd_vpfn, level)                                                        \
+	((pgd_vpfn & ~PGD_VPFN_LEVEL_MASK) | (level & PGD_VPFN_LEVEL_MASK))
 
 /**
  * struct kbase_page_metadata - Metadata for each page in kbase
@@ -228,10 +238,12 @@ enum kbase_page_status {
  * @kbdev:         Pointer to kbase device.
  * @dma_addr:      DMA address mapped to page.
  * @migrate_lock:  A spinlock to protect the private metadata.
+ * @data:          Member in union valid based on @status.
  * @status:        Status to keep track if page can be migrated at any
  *                 given moment. MSB will indicate if page is isolated.
  *                 Protected by @migrate_lock.
- * @data:          Member in union valid based on @status.
+ * @vmap_count:    Counter of kernel mappings.
+ * @group_id:      Memory group ID obtained at the time of page allocation.
  *
  * Each 4KB page will have a reference to this struct in the private field.
  * This will be used to keep track of information required for Linux page
@@ -240,7 +252,6 @@ enum kbase_page_status {
 struct kbase_page_metadata {
 	dma_addr_t dma_addr;
 	spinlock_t migrate_lock;
-	u8 status;
 
 	union {
 		struct {
@@ -251,19 +262,25 @@ struct kbase_page_metadata {
 			struct kbase_device *kbdev;
 		} mem_pool;
 		struct {
-			struct kbase_mem_phy_alloc *phy_alloc;
 			struct kbase_va_region *reg;
 			struct kbase_mmu_table *mmut;
-			struct page *pgd;
 			u64 vpfn;
-			size_t page_array_index;
 		} mapped;
 		struct {
 			struct kbase_mmu_table *mmut;
-			struct page *pgd;
-			u16 entry_info;
+			u64 pgd_vpfn_level;
 		} pt_mapped;
+		struct {
+			struct kbase_device *kbdev;
+		} free_isolated;
+		struct {
+			struct kbase_device *kbdev;
+		} free_pt_isolated;
 	} data;
+
+	u8 status;
+	u8 vmap_count;
+	u8 group_id;
 };
 
 /* The top bit of kbase_alloc_import_user_buf::current_mapping_usage_count is
@@ -287,6 +304,20 @@ struct kbase_page_metadata {
 enum kbase_jit_report_flags {
 	KBASE_JIT_REPORT_ON_ALLOC_OR_FREE = (1u << 0)
 };
+
+/**
+ * kbase_set_phy_alloc_page_status - Set the page migration status of the underlying
+ *                                   physical allocation.
+ * @alloc:  the physical allocation containing the pages whose metadata is going
+ *          to be modified
+ * @status: the status the pages should end up in
+ *
+ * Note that this function does not go through all of the checking to ensure that
+ * proper states are set. Instead, it is only used when we change the allocation
+ * to NOT_MOVABLE or from NOT_MOVABLE to ALLOCATED_MAPPED
+ */
+void kbase_set_phy_alloc_page_status(struct kbase_mem_phy_alloc *alloc,
+				     enum kbase_page_status status);
 
 static inline void kbase_mem_phy_alloc_gpu_mapped(struct kbase_mem_phy_alloc *alloc)
 {
@@ -388,6 +419,8 @@ static inline struct kbase_mem_phy_alloc *kbase_mem_phy_alloc_put(struct kbase_m
  * @jit_usage_id: The last just-in-time memory usage ID for this region.
  * @jit_bin_id:   The just-in-time memory bin this region came from.
  * @va_refcnt:    Number of users of this region. Protected by reg_lock.
+ * @no_user_free_refcnt:    Number of users that want to prevent the region from
+ *                          being freed by userspace.
  * @heap_info_gpu_addr: Pointer to an object in GPU memory defining an end of
  *                      an allocated region
  *                      The object can be one of:
@@ -508,10 +541,7 @@ struct kbase_va_region {
 #define KBASE_REG_RESERVED_BIT_23   (1ul << 23)
 #endif /* !MALI_USE_CSF */
 
-/* Whilst this flag is set the GPU allocation is not supposed to be freed by
- * user space. The flag will remain set for the lifetime of JIT allocations.
- */
-#define KBASE_REG_NO_USER_FREE      (1ul << 24)
+/* Bit 24 is currently unused and is available for use for a new flag */
 
 /* Memory has permanent kernel side mapping */
 #define KBASE_REG_PERMANENT_KERNEL_MAPPING (1ul << 25)
@@ -652,6 +682,7 @@ struct kbase_va_region {
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
 	int    va_refcnt;
+	int no_user_free_refcnt;
 };
 
 /**
@@ -694,6 +725,23 @@ static inline bool kbase_is_region_invalid_or_free(struct kbase_va_region *reg)
 	return (kbase_is_region_invalid(reg) ||	kbase_is_region_free(reg));
 }
 
+/**
+ * kbase_is_region_shrinkable - Check if a region is "shrinkable".
+ * A shrinkable regions is a region for which its backing pages (reg->gpu_alloc->pages)
+ * can be freed at any point, even though the kbase_va_region structure itself
+ * may have been refcounted.
+ * Regions that aren't on a shrinker, but could be shrunk at any point in future
+ * without warning are still considered "shrinkable" (e.g. Active JIT allocs)
+ *
+ * @reg: Pointer to region
+ *
+ * Return: true if the region is "shrinkable", false if not.
+ */
+static inline bool kbase_is_region_shrinkable(struct kbase_va_region *reg)
+{
+	return (reg->flags & KBASE_REG_DONT_NEED) || (reg->flags & KBASE_REG_ACTIVE_JIT_ALLOC);
+}
+
 void kbase_remove_va_region(struct kbase_device *kbdev,
 			    struct kbase_va_region *reg);
 static inline void kbase_region_refcnt_free(struct kbase_device *kbdev,
@@ -714,6 +762,7 @@ static inline struct kbase_va_region *kbase_va_region_alloc_get(
 	lockdep_assert_held(&kctx->reg_lock);
 
 	WARN_ON(!region->va_refcnt);
+	WARN_ON(region->va_refcnt == INT_MAX);
 
 	/* non-atomic as kctx->reg_lock is held */
 	dev_dbg(kctx->kbdev->dev, "va_refcnt %d before get %pK\n",
@@ -739,6 +788,69 @@ static inline struct kbase_va_region *kbase_va_region_alloc_put(
 		kbase_region_refcnt_free(kctx->kbdev, region);
 
 	return NULL;
+}
+
+/**
+ * kbase_va_region_is_no_user_free - Check if user free is forbidden for the region.
+ * A region that must not be freed by userspace indicates that it is owned by some other
+ * kbase subsystem, for example tiler heaps, JIT memory or CSF queues.
+ * Such regions must not be shrunk (i.e. have their backing pages freed), except by the
+ * current owner.
+ * Hence, callers cannot rely on this check alone to determine if a region might be shrunk
+ * by any part of kbase. Instead they should use kbase_is_region_shrinkable().
+ *
+ * @kctx: Pointer to kbase context.
+ * @region: Pointer to region.
+ *
+ * Return: true if userspace cannot free the region, false if userspace can free the region.
+ */
+static inline bool kbase_va_region_is_no_user_free(struct kbase_context *kctx,
+						   struct kbase_va_region *region)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+	return region->no_user_free_refcnt > 0;
+}
+
+/**
+ * kbase_va_region_no_user_free_get - Increment "no user free" refcount for a region.
+ * Calling this function will prevent the region to be shrunk by parts of kbase that
+ * don't own the region (as long as the refcount stays above zero). Refer to
+ * kbase_va_region_is_no_user_free() for more information.
+ *
+ * @kctx: Pointer to kbase context.
+ * @region: Pointer to region (not shrinkable).
+ *
+ * Return: the pointer to the region passed as argument.
+ */
+static inline struct kbase_va_region *
+kbase_va_region_no_user_free_get(struct kbase_context *kctx, struct kbase_va_region *region)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+
+	WARN_ON(kbase_is_region_shrinkable(region));
+	WARN_ON(region->no_user_free_refcnt == INT_MAX);
+
+	/* non-atomic as kctx->reg_lock is held */
+	region->no_user_free_refcnt++;
+
+	return region;
+}
+
+/**
+ * kbase_va_region_no_user_free_put - Decrement "no user free" refcount for a region.
+ *
+ * @kctx: Pointer to kbase context.
+ * @region: Pointer to region (not shrinkable).
+ */
+static inline void kbase_va_region_no_user_free_put(struct kbase_context *kctx,
+						    struct kbase_va_region *region)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+
+	WARN_ON(!kbase_va_region_is_no_user_free(kctx, region));
+
+	/* non-atomic as kctx->reg_lock is held */
+	region->no_user_free_refcnt--;
 }
 
 /* Common functions */

@@ -578,7 +578,7 @@ struct kbase_jd_atom {
 #if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	int work_id;
 #endif
-	int slot_nr;
+	unsigned int slot_nr;
 
 	u32 atom_flags;
 

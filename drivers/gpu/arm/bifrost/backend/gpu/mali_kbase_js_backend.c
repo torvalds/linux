@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -91,7 +91,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 	struct kbase_device *kbdev;
 	struct kbasep_js_device_data *js_devdata;
 	struct kbase_backend_data *backend;
-	int s;
+	unsigned int s;
 	bool reset_needed = false;
 
 	KBASE_DEBUG_ASSERT(timer != NULL);
@@ -375,4 +375,3 @@ void kbase_backend_timeouts_changed(struct kbase_device *kbdev)
 
 	backend->timeouts_updated = true;
 }
-

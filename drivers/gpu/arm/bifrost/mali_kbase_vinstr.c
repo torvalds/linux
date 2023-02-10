@@ -41,6 +41,11 @@
 #include <linux/version_compat_defs.h>
 #include <linux/workqueue.h>
 
+/* Explicitly include epoll header for old kernels. Not required from 4.16. */
+#if KERNEL_VERSION(4, 16, 0) > LINUX_VERSION_CODE
+#include <uapi/linux/eventpoll.h>
+#endif
+
 /* Hwcnt reader API version */
 #define HWCNT_READER_API 1
 

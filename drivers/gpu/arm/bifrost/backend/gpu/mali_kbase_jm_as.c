@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -67,9 +67,8 @@ static void assign_and_activate_kctx_addr_space(struct kbase_device *kbdev,
 	kbase_js_runpool_inc_context_count(kbdev, kctx);
 }
 
-bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev,
-						struct kbase_context *kctx,
-						int js)
+bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev, struct kbase_context *kctx,
+				 unsigned int js)
 {
 	int i;
 
@@ -240,4 +239,3 @@ bool kbase_backend_use_ctx(struct kbase_device *kbdev,
 
 	return true;
 }
-

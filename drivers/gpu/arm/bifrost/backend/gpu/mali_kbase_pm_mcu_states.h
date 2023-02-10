@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -66,6 +66,13 @@
  *                                      is being put to sleep.
  * @ON_PEND_SLEEP:                      MCU sleep is in progress.
  * @IN_SLEEP:                           Sleep request is completed and MCU has halted.
+ * @ON_PMODE_ENTER_CORESIGHT_DISABLE:   The MCU is on, protected mode enter is about to
+ *                                      be requested, Coresight is being disabled.
+ * @ON_PMODE_EXIT_CORESIGHT_ENABLE :    The MCU is on, protected mode exit has happened
+ *                                      Coresight is being enabled.
+ * @CORESIGHT_DISABLE:                  The MCU is on and Coresight is being disabled.
+ * @CORESIGHT_ENABLE:                   The MCU is on, host does not have control and
+ *                                      Coresight is being enabled.
  */
 KBASEP_MCU_STATE(OFF)
 KBASEP_MCU_STATE(PEND_ON_RELOAD)
@@ -92,3 +99,10 @@ KBASEP_MCU_STATE(HCTL_SHADERS_CORE_OFF_PEND)
 KBASEP_MCU_STATE(ON_SLEEP_INITIATE)
 KBASEP_MCU_STATE(ON_PEND_SLEEP)
 KBASEP_MCU_STATE(IN_SLEEP)
+#if IS_ENABLED(CONFIG_MALI_CORESIGHT)
+/* Additional MCU states for Coresight */
+KBASEP_MCU_STATE(ON_PMODE_ENTER_CORESIGHT_DISABLE)
+KBASEP_MCU_STATE(ON_PMODE_EXIT_CORESIGHT_ENABLE)
+KBASEP_MCU_STATE(CORESIGHT_DISABLE)
+KBASEP_MCU_STATE(CORESIGHT_ENABLE)
+#endif /* IS_ENABLED(CONFIG_MALI_CORESIGHT) */

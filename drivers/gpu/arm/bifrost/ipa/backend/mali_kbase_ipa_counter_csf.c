@@ -23,10 +23,13 @@
 #include "mali_kbase.h"
 
 /* MEMSYS counter block offsets */
+#define L2_RD_MSG_IN_CU         (13)
 #define L2_RD_MSG_IN            (16)
 #define L2_WR_MSG_IN            (18)
+#define L2_SNP_MSG_IN           (20)
 #define L2_RD_MSG_OUT           (22)
 #define L2_READ_LOOKUP          (26)
+#define L2_EXT_READ_NOSNP       (30)
 #define L2_EXT_WRITE_NOSNP_FULL (43)
 
 /* SC counter block offsets */
@@ -36,17 +39,23 @@
 #define FULL_QUAD_WARPS         (21)
 #define EXEC_INSTR_FMA          (27)
 #define EXEC_INSTR_CVT          (28)
+#define EXEC_INSTR_SFU          (29)
 #define EXEC_INSTR_MSG          (30)
 #define TEX_FILT_NUM_OPS        (39)
 #define LS_MEM_READ_SHORT       (45)
 #define LS_MEM_WRITE_SHORT      (47)
 #define VARY_SLOT_16            (51)
+#define BEATS_RD_LSC_EXT        (57)
+#define BEATS_RD_TEX            (58)
+#define BEATS_RD_TEX_EXT        (59)
+#define FRAG_QUADS_COARSE       (68)
 
 /* Tiler counter block offsets */
 #define IDVS_POS_SHAD_STALL     (23)
 #define PREFETCH_STALL          (25)
 #define VFETCH_POS_READ_WAIT    (29)
 #define VFETCH_VERTEX_WAIT      (30)
+#define PRIMASSY_STALL          (32)
 #define IDVS_VAR_SHAD_STALL     (38)
 #define ITER_STALL              (40)
 #define PMGR_PTR_RD_STALL       (48)
@@ -111,6 +120,15 @@ static const struct kbase_ipa_counter ipa_top_level_cntrs_def_ttux[] = {
 	TILER_COUNTER_DEF("vfetch_vertex_wait", -391964, VFETCH_VERTEX_WAIT),
 };
 
+static const struct kbase_ipa_counter ipa_top_level_cntrs_def_ttix[] = {
+	TILER_COUNTER_DEF("primassy_stall", 471953, PRIMASSY_STALL),
+	TILER_COUNTER_DEF("idvs_var_shad_stall", -460559, IDVS_VAR_SHAD_STALL),
+
+	MEMSYS_COUNTER_DEF("l2_rd_msg_in_cu", -6189604, L2_RD_MSG_IN_CU),
+	MEMSYS_COUNTER_DEF("l2_snp_msg_in", 6289609, L2_SNP_MSG_IN),
+	MEMSYS_COUNTER_DEF("l2_ext_read_nosnp", 512341, L2_EXT_READ_NOSNP),
+};
+
 /* These tables provide a description of each performance counter
  * used by the shader cores counter model for energy estimation.
  */
@@ -150,6 +168,17 @@ static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_ttux[] = {
 	SC_COUNTER_DEF("frag_quads_ezs_update", 372032, FRAG_QUADS_EZS_UPDATE),
 };
 
+static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_ttix[] = {
+	SC_COUNTER_DEF("exec_instr_fma", 192642, EXEC_INSTR_FMA),
+	SC_COUNTER_DEF("exec_instr_msg", 1326465, EXEC_INSTR_MSG),
+	SC_COUNTER_DEF("beats_rd_tex", 163518, BEATS_RD_TEX),
+	SC_COUNTER_DEF("beats_rd_lsc_ext", 127475, BEATS_RD_LSC_EXT),
+	SC_COUNTER_DEF("frag_quads_coarse", -36247, FRAG_QUADS_COARSE),
+	SC_COUNTER_DEF("ls_mem_write_short", 51547, LS_MEM_WRITE_SHORT),
+	SC_COUNTER_DEF("beats_rd_tex_ext", -43370, BEATS_RD_TEX_EXT),
+	SC_COUNTER_DEF("exec_instr_sfu", 31583, EXEC_INSTR_SFU),
+};
+
 #define IPA_POWER_MODEL_OPS(gpu, init_token) \
 	const struct kbase_ipa_model_ops kbase_ ## gpu ## _ipa_model_ops = { \
 		.name = "mali-" #gpu "-power-model", \
@@ -181,13 +210,13 @@ static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_ttux[] = {
 #define ALIAS_POWER_MODEL(gpu, as_gpu) \
 	IPA_POWER_MODEL_OPS(gpu, as_gpu)
 
-/* Reference voltage value is 750 mV.
- */
+/* Reference voltage value is 750 mV. */
 STANDARD_POWER_MODEL(todx, 750);
 STANDARD_POWER_MODEL(tgrx, 750);
 STANDARD_POWER_MODEL(tvax, 750);
-
 STANDARD_POWER_MODEL(ttux, 750);
+/* Reference voltage value is 550 mV. */
+STANDARD_POWER_MODEL(ttix, 550);
 
 /* Assuming LODX is an alias of TODX for IPA */
 ALIAS_POWER_MODEL(lodx, todx);
@@ -195,10 +224,14 @@ ALIAS_POWER_MODEL(lodx, todx);
 /* Assuming LTUX is an alias of TTUX for IPA */
 ALIAS_POWER_MODEL(ltux, ttux);
 
+/* Assuming LTUX is an alias of TTUX for IPA */
+ALIAS_POWER_MODEL(ltix, ttix);
+
 static const struct kbase_ipa_model_ops *ipa_counter_model_ops[] = {
 	&kbase_todx_ipa_model_ops, &kbase_lodx_ipa_model_ops,
 	&kbase_tgrx_ipa_model_ops, &kbase_tvax_ipa_model_ops,
-	&kbase_ttux_ipa_model_ops, &kbase_ltux_ipa_model_ops
+	&kbase_ttux_ipa_model_ops, &kbase_ltux_ipa_model_ops,
+	&kbase_ttix_ipa_model_ops, &kbase_ltix_ipa_model_ops,
 };
 
 const struct kbase_ipa_model_ops *kbase_ipa_counter_model_ops_find(
@@ -237,6 +270,10 @@ const char *kbase_ipa_counter_model_name_from_id(u32 gpu_id)
 		return "mali-ttux-power-model";
 	case GPU_ID2_PRODUCT_LTUX:
 		return "mali-ltux-power-model";
+	case GPU_ID2_PRODUCT_TTIX:
+		return "mali-ttix-power-model";
+	case GPU_ID2_PRODUCT_LTIX:
+		return "mali-ltix-power-model";
 	default:
 		return NULL;
 	}

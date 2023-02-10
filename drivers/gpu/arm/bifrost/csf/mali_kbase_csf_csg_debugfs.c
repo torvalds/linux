@@ -100,7 +100,7 @@ static void wait_csg_slots_status_update_finish(struct kbase_device *kbdev,
 	}
 }
 
-static void update_active_groups_status(struct kbase_device *kbdev, struct seq_file *file)
+void kbase_csf_debugfs_update_active_groups_status(struct kbase_device *kbdev)
 {
 	u32 max_csg_slots = kbdev->csf.global_iface.group_num;
 	DECLARE_BITMAP(used_csgs, MAX_SUPPORTED_CSGS) = { 0 };
@@ -116,6 +116,8 @@ static void update_active_groups_status(struct kbase_device *kbdev, struct seq_f
 	 * status of all on-slot groups when MCU sleep request is sent to it.
 	 */
 	if (kbdev->csf.scheduler.state == SCHED_SLEEPING) {
+		/* Wait for the MCU sleep request to complete. */
+		kbase_pm_wait_for_desired_state(kbdev);
 		bitmap_copy(csg_slots_status_updated,
 			    kbdev->csf.scheduler.csg_inuse_bitmap, max_csg_slots);
 		return;
@@ -496,23 +498,19 @@ static int kbasep_csf_queue_group_debugfs_show(struct seq_file *file,
 {
 	u32 gr;
 	struct kbase_context *const kctx = file->private;
-	struct kbase_device *const kbdev = kctx->kbdev;
+	struct kbase_device *kbdev;
 
 	if (WARN_ON(!kctx))
 		return -EINVAL;
+
+	kbdev = kctx->kbdev;
 
 	seq_printf(file, "MALI_CSF_CSG_DEBUGFS_VERSION: v%u\n",
 			MALI_CSF_CSG_DEBUGFS_VERSION);
 
 	mutex_lock(&kctx->csf.lock);
 	kbase_csf_scheduler_lock(kbdev);
-	if (kbdev->csf.scheduler.state == SCHED_SLEEPING) {
-		/* Wait for the MCU sleep request to complete. Please refer the
-		 * update_active_groups_status() function for the explanation.
-		 */
-		kbase_pm_wait_for_desired_state(kbdev);
-	}
-	update_active_groups_status(kbdev, file);
+	kbase_csf_debugfs_update_active_groups_status(kbdev);
 	for (gr = 0; gr < MAX_QUEUE_GROUP_NUM; gr++) {
 		struct kbase_queue_group *const group =
 			kctx->csf.queue_groups[gr];
@@ -546,13 +544,7 @@ static int kbasep_csf_scheduler_dump_active_groups(struct seq_file *file,
 			MALI_CSF_CSG_DEBUGFS_VERSION);
 
 	kbase_csf_scheduler_lock(kbdev);
-	if (kbdev->csf.scheduler.state == SCHED_SLEEPING) {
-		/* Wait for the MCU sleep request to complete. Please refer the
-		 * update_active_groups_status() function for the explanation.
-		 */
-		kbase_pm_wait_for_desired_state(kbdev);
-	}
-	update_active_groups_status(kbdev, file);
+	kbase_csf_debugfs_update_active_groups_status(kbdev);
 	for (csg_nr = 0; csg_nr < num_groups; csg_nr++) {
 		struct kbase_queue_group *const group =
 			kbdev->csf.scheduler.csg_slots[csg_nr].resident_group;

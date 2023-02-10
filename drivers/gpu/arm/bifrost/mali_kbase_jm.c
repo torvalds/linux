@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,15 +37,13 @@
  *
  * Return: true if slot can still be submitted on, false if slot is now full.
  */
-static bool kbase_jm_next_job(struct kbase_device *kbdev, int js,
-				int nr_jobs_to_submit)
+static bool kbase_jm_next_job(struct kbase_device *kbdev, unsigned int js, int nr_jobs_to_submit)
 {
 	struct kbase_context *kctx;
 	int i;
 
 	kctx = kbdev->hwaccess.active_kctx[js];
-	dev_dbg(kbdev->dev,
-		"Trying to run the next %d jobs in kctx %pK (s:%d)\n",
+	dev_dbg(kbdev->dev, "Trying to run the next %d jobs in kctx %pK (s:%u)\n",
 		nr_jobs_to_submit, (void *)kctx, js);
 
 	if (!kctx)
@@ -60,7 +58,7 @@ static bool kbase_jm_next_job(struct kbase_device *kbdev, int js,
 		kbase_backend_run_atom(kbdev, katom);
 	}
 
-	dev_dbg(kbdev->dev, "Slot ringbuffer should now be full (s:%d)\n", js);
+	dev_dbg(kbdev->dev, "Slot ringbuffer should now be full (s:%u)\n", js);
 	return false;
 }
 
@@ -72,7 +70,7 @@ u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask)
 	dev_dbg(kbdev->dev, "JM kick slot mask 0x%x\n", js_mask);
 
 	while (js_mask) {
-		int js = ffs(js_mask) - 1;
+		unsigned int js = ffs(js_mask) - 1;
 		int nr_jobs_to_submit = kbase_backend_slot_free(kbdev, js);
 
 		if (kbase_jm_next_job(kbdev, js, nr_jobs_to_submit))
@@ -111,14 +109,14 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
-	int js;
+	unsigned int js;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	for (js = 0; js < BASE_JM_MAX_NR_SLOTS; js++) {
 		if (kbdev->hwaccess.active_kctx[js] == kctx) {
-			dev_dbg(kbdev->dev, "Marking kctx %pK as inactive (s:%d)\n",
-					(void *)kctx, js);
+			dev_dbg(kbdev->dev, "Marking kctx %pK as inactive (s:%u)\n", (void *)kctx,
+				js);
 			kbdev->hwaccess.active_kctx[js] = NULL;
 		}
 	}

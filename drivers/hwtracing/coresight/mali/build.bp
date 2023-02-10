@@ -1,0 +1,100 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/*
+ *
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU license.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ */
+
+bob_defaults {
+    name: "coresight_mali_defaults",
+    srcs: [
+        "Makefile",
+        "Kbuild",
+        "coresight_mali_common.c",
+        "coresight_mali_common.h",
+    ],
+}
+
+bob_defaults {
+    name: "coresight_mali_source_defaults",
+    srcs: [
+        "sources/coresight_mali_sources.c",
+        "sources/coresight_mali_sources.h",
+    ],
+}
+
+
+bob_kernel_module {
+    name: "coresight_mali_source_etm",
+    defaults: [
+        "kernel_defaults",
+        "coresight_mali_defaults",
+        "coresight_mali_source_defaults",
+    ],
+    srcs: [
+        "sources/etm/coresight_mali_source_etm_core.c",
+    ],
+    extra_symbols: [
+        "mali_kbase",
+    ],
+    enabled: false,
+    mali_coresight: {
+        kbuild_options: ["CONFIG_CORESIGHT_MALI_SOURCES_ETM=y"],
+        enabled: true,
+    },
+}
+
+bob_kernel_module {
+    name: "coresight_mali_source_itm",
+    defaults: [
+        "kernel_defaults",
+        "coresight_mali_defaults",
+        "coresight_mali_source_defaults",
+    ],
+    srcs: [
+        "sources/itm/coresight_mali_source_itm_core.c",
+    ],
+    extra_symbols: [
+        "mali_kbase",
+    ],
+    enabled: false,
+    mali_coresight: {
+        kbuild_options: ["CONFIG_CORESIGHT_MALI_SOURCES_ITM=y"],
+        enabled: true,
+    },
+}
+
+bob_kernel_module {
+    name: "coresight_mali_source_ela",
+    defaults: [
+        "kernel_defaults",
+        "coresight_mali_defaults",
+        "coresight_mali_source_defaults",
+    ],
+    srcs: [
+        "sources/ela/coresight_mali_source_ela_core.c",
+        "sources/ela/coresight-ela600.h"
+    ],
+    extra_symbols: [
+        "mali_kbase",
+    ],
+    enabled: false,
+    mali_coresight: {
+        kbuild_options: ["CONFIG_CORESIGHT_MALI_SOURCES_ELA=y"],
+        enabled: true,
+    },
+}

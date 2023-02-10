@@ -80,7 +80,14 @@ static int kbase_kcpu_map_import_prepare(
 		 * on the physical pages tracking object. When the last
 		 * reference to the tracking object is dropped the pages
 		 * would be unpinned if they weren't unpinned before.
+		 *
+		 * Region should be CPU cached: abort if it isn't.
 		 */
+		if (WARN_ON(!(reg->flags & KBASE_REG_CPU_CACHED))) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		ret = kbase_jd_user_buf_pin_pages(kctx, reg);
 		if (ret)
 			goto out;
@@ -674,9 +681,8 @@ static int kbase_csf_queue_group_suspend_prepare(
 		    (kbase_reg_current_backed_size(reg) < nr_pages) ||
 		    !(reg->flags & KBASE_REG_CPU_WR) ||
 		    (reg->gpu_alloc->type != KBASE_MEM_TYPE_NATIVE) ||
-		    (reg->flags & KBASE_REG_DONT_NEED) ||
-		    (reg->flags & KBASE_REG_ACTIVE_JIT_ALLOC) ||
-		    (reg->flags & KBASE_REG_NO_USER_FREE)) {
+		    (kbase_is_region_shrinkable(reg)) ||
+		    (kbase_va_region_is_no_user_free(kctx, reg))) {
 			ret = -EINVAL;
 			goto out_clean_pages;
 		}
@@ -784,13 +790,14 @@ static int kbase_kcpu_cqs_wait_process(struct kbase_device *kbdev,
 				return -EINVAL;
 			}
 
-			sig_set = evt[BASEP_EVENT_VAL_INDEX] > cqs_wait->objs[i].val;
+			sig_set =
+				evt[BASEP_EVENT32_VAL_OFFSET / sizeof(u32)] > cqs_wait->objs[i].val;
 			if (sig_set) {
 				bool error = false;
 
 				bitmap_set(cqs_wait->signaled, i, 1);
 				if ((cqs_wait->inherit_err_flags & (1U << i)) &&
-				    evt[BASEP_EVENT_ERR_INDEX] > 0) {
+				    evt[BASEP_EVENT32_ERR_OFFSET / sizeof(u32)] > 0) {
 					queue->has_error = true;
 					error = true;
 				}
@@ -800,7 +807,7 @@ static int kbase_kcpu_cqs_wait_process(struct kbase_device *kbdev,
 						error);
 
 				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_END(
-					kbdev, queue, evt[BASEP_EVENT_ERR_INDEX]);
+					kbdev, queue, evt[BASEP_EVENT32_ERR_OFFSET / sizeof(u32)]);
 				queue->command_started = false;
 			}
 
@@ -817,12 +824,34 @@ static int kbase_kcpu_cqs_wait_process(struct kbase_device *kbdev,
 	return bitmap_full(cqs_wait->signaled, cqs_wait->nr_objs);
 }
 
+static inline bool kbase_kcpu_cqs_is_data_type_valid(u8 data_type)
+{
+	return data_type == BASEP_CQS_DATA_TYPE_U32 || data_type == BASEP_CQS_DATA_TYPE_U64;
+}
+
+static inline bool kbase_kcpu_cqs_is_aligned(u64 addr, u8 data_type)
+{
+	BUILD_BUG_ON(BASEP_EVENT32_ALIGN_BYTES != BASEP_EVENT32_SIZE_BYTES);
+	BUILD_BUG_ON(BASEP_EVENT64_ALIGN_BYTES != BASEP_EVENT64_SIZE_BYTES);
+	WARN_ON(!kbase_kcpu_cqs_is_data_type_valid(data_type));
+
+	switch (data_type) {
+	default:
+		return false;
+	case BASEP_CQS_DATA_TYPE_U32:
+		return (addr & (BASEP_EVENT32_ALIGN_BYTES - 1)) == 0;
+	case BASEP_CQS_DATA_TYPE_U64:
+		return (addr & (BASEP_EVENT64_ALIGN_BYTES - 1)) == 0;
+	}
+}
+
 static int kbase_kcpu_cqs_wait_prepare(struct kbase_kcpu_command_queue *queue,
 		struct base_kcpu_command_cqs_wait_info *cqs_wait_info,
 		struct kbase_kcpu_command *current_command)
 {
 	struct base_cqs_wait_info *objs;
 	unsigned int nr_objs = cqs_wait_info->nr_objs;
+	unsigned int i;
 
 	lockdep_assert_held(&queue->lock);
 
@@ -840,6 +869,17 @@ static int kbase_kcpu_cqs_wait_prepare(struct kbase_kcpu_command_queue *queue,
 			nr_objs * sizeof(*objs))) {
 		kfree(objs);
 		return -ENOMEM;
+	}
+
+	/* Check the CQS objects as early as possible. By checking their alignment
+	 * (required alignment equals to size for Sync32 and Sync64 objects), we can
+	 * prevent overrunning the supplied event page.
+	 */
+	for (i = 0; i < nr_objs; i++) {
+		if (!kbase_kcpu_cqs_is_aligned(objs[i].addr, BASEP_CQS_DATA_TYPE_U32)) {
+			kfree(objs);
+			return -EINVAL;
+		}
 	}
 
 	if (++queue->cqs_wait_count == 1) {
@@ -897,14 +937,13 @@ static void kbase_kcpu_cqs_set_process(struct kbase_device *kbdev,
 				"Sync memory %llx already freed", cqs_set->objs[i].addr);
 			queue->has_error = true;
 		} else {
-			evt[BASEP_EVENT_ERR_INDEX] = queue->has_error;
+			evt[BASEP_EVENT32_ERR_OFFSET / sizeof(u32)] = queue->has_error;
 			/* Set to signaled */
-			evt[BASEP_EVENT_VAL_INDEX]++;
+			evt[BASEP_EVENT32_VAL_OFFSET / sizeof(u32)]++;
 			kbase_phy_alloc_mapping_put(queue->kctx, mapping);
 
-			KBASE_KTRACE_ADD_CSF_KCPU(kbdev, KCPU_CQS_SET,
-					queue, cqs_set->objs[i].addr,
-					evt[BASEP_EVENT_ERR_INDEX]);
+			KBASE_KTRACE_ADD_CSF_KCPU(kbdev, KCPU_CQS_SET, queue, cqs_set->objs[i].addr,
+						  evt[BASEP_EVENT32_ERR_OFFSET / sizeof(u32)]);
 		}
 	}
 
@@ -921,6 +960,7 @@ static int kbase_kcpu_cqs_set_prepare(
 {
 	struct base_cqs_set *objs;
 	unsigned int nr_objs = cqs_set_info->nr_objs;
+	unsigned int i;
 
 	lockdep_assert_held(&kcpu_queue->lock);
 
@@ -938,6 +978,17 @@ static int kbase_kcpu_cqs_set_prepare(
 			nr_objs * sizeof(*objs))) {
 		kfree(objs);
 		return -ENOMEM;
+	}
+
+	/* Check the CQS objects as early as possible. By checking their alignment
+	 * (required alignment equals to size for Sync32 and Sync64 objects), we can
+	 * prevent overrunning the supplied event page.
+	 */
+	for (i = 0; i < nr_objs; i++) {
+		if (!kbase_kcpu_cqs_is_aligned(objs[i].addr, BASEP_CQS_DATA_TYPE_U32)) {
+			kfree(objs);
+			return -EINVAL;
+		}
 	}
 
 	current_command->type = BASE_KCPU_COMMAND_TYPE_CQS_SET;
@@ -982,8 +1033,9 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 		if (!test_bit(i, cqs_wait_operation->signaled)) {
 			struct kbase_vmap_struct *mapping;
 			bool sig_set;
-			u64 *evt = (u64 *)kbase_phy_alloc_mapping_get(queue->kctx,
-						cqs_wait_operation->objs[i].addr, &mapping);
+			uintptr_t evt = (uintptr_t)kbase_phy_alloc_mapping_get(
+				queue->kctx, cqs_wait_operation->objs[i].addr, &mapping);
+			u64 val = 0;
 
 			/* GPUCORE-28172 RDT to review */
 			if (!queue->command_started)
@@ -996,12 +1048,29 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 				return -EINVAL;
 			}
 
+			switch (cqs_wait_operation->objs[i].data_type) {
+			default:
+				WARN_ON(!kbase_kcpu_cqs_is_data_type_valid(
+					cqs_wait_operation->objs[i].data_type));
+				kbase_phy_alloc_mapping_put(queue->kctx, mapping);
+				queue->has_error = true;
+				return -EINVAL;
+			case BASEP_CQS_DATA_TYPE_U32:
+				val = *(u32 *)evt;
+				evt += BASEP_EVENT32_ERR_OFFSET - BASEP_EVENT32_VAL_OFFSET;
+				break;
+			case BASEP_CQS_DATA_TYPE_U64:
+				val = *(u64 *)evt;
+				evt += BASEP_EVENT64_ERR_OFFSET - BASEP_EVENT64_VAL_OFFSET;
+				break;
+			}
+
 			switch (cqs_wait_operation->objs[i].operation) {
 			case BASEP_CQS_WAIT_OPERATION_LE:
-				sig_set = *evt <= cqs_wait_operation->objs[i].val;
+				sig_set = val <= cqs_wait_operation->objs[i].val;
 				break;
 			case BASEP_CQS_WAIT_OPERATION_GT:
-				sig_set = *evt > cqs_wait_operation->objs[i].val;
+				sig_set = val > cqs_wait_operation->objs[i].val;
 				break;
 			default:
 				dev_dbg(kbdev->dev,
@@ -1013,24 +1082,10 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 				return -EINVAL;
 			}
 
-			/* Increment evt up to the error_state value depending on the CQS data type */
-			switch (cqs_wait_operation->objs[i].data_type) {
-			default:
-				dev_dbg(kbdev->dev, "Unreachable data_type=%d", cqs_wait_operation->objs[i].data_type);
-				/* Fallthrough - hint to compiler that there's really only 2 options at present */
-				fallthrough;
-			case BASEP_CQS_DATA_TYPE_U32:
-				evt = (u64 *)((u8 *)evt + sizeof(u32));
-				break;
-			case BASEP_CQS_DATA_TYPE_U64:
-				evt = (u64 *)((u8 *)evt + sizeof(u64));
-				break;
-			}
-
 			if (sig_set) {
 				bitmap_set(cqs_wait_operation->signaled, i, 1);
 				if ((cqs_wait_operation->inherit_err_flags & (1U << i)) &&
-				    *evt > 0) {
+				    *(u32 *)evt > 0) {
 					queue->has_error = true;
 				}
 
@@ -1058,6 +1113,7 @@ static int kbase_kcpu_cqs_wait_operation_prepare(struct kbase_kcpu_command_queue
 {
 	struct base_cqs_wait_operation_info *objs;
 	unsigned int nr_objs = cqs_wait_operation_info->nr_objs;
+	unsigned int i;
 
 	lockdep_assert_held(&queue->lock);
 
@@ -1075,6 +1131,18 @@ static int kbase_kcpu_cqs_wait_operation_prepare(struct kbase_kcpu_command_queue
 			nr_objs * sizeof(*objs))) {
 		kfree(objs);
 		return -ENOMEM;
+	}
+
+	/* Check the CQS objects as early as possible. By checking their alignment
+	 * (required alignment equals to size for Sync32 and Sync64 objects), we can
+	 * prevent overrunning the supplied event page.
+	 */
+	for (i = 0; i < nr_objs; i++) {
+		if (!kbase_kcpu_cqs_is_data_type_valid(objs[i].data_type) ||
+		    !kbase_kcpu_cqs_is_aligned(objs[i].addr, objs[i].data_type)) {
+			kfree(objs);
+			return -EINVAL;
+		}
 	}
 
 	if (++queue->cqs_wait_count == 1) {
@@ -1107,6 +1175,44 @@ static int kbase_kcpu_cqs_wait_operation_prepare(struct kbase_kcpu_command_queue
 	return 0;
 }
 
+static void kbasep_kcpu_cqs_do_set_operation_32(struct kbase_kcpu_command_queue *queue,
+						uintptr_t evt, u8 operation, u64 val)
+{
+	struct kbase_device *kbdev = queue->kctx->kbdev;
+
+	switch (operation) {
+	case BASEP_CQS_SET_OPERATION_ADD:
+		*(u32 *)evt += (u32)val;
+		break;
+	case BASEP_CQS_SET_OPERATION_SET:
+		*(u32 *)evt = val;
+		break;
+	default:
+		dev_dbg(kbdev->dev, "Unsupported CQS set operation %d", operation);
+		queue->has_error = true;
+		break;
+	}
+}
+
+static void kbasep_kcpu_cqs_do_set_operation_64(struct kbase_kcpu_command_queue *queue,
+						uintptr_t evt, u8 operation, u64 val)
+{
+	struct kbase_device *kbdev = queue->kctx->kbdev;
+
+	switch (operation) {
+	case BASEP_CQS_SET_OPERATION_ADD:
+		*(u64 *)evt += val;
+		break;
+	case BASEP_CQS_SET_OPERATION_SET:
+		*(u64 *)evt = val;
+		break;
+	default:
+		dev_dbg(kbdev->dev, "Unsupported CQS set operation %d", operation);
+		queue->has_error = true;
+		break;
+	}
+}
+
 static void kbase_kcpu_cqs_set_operation_process(
 		struct kbase_device *kbdev,
 		struct kbase_kcpu_command_queue *queue,
@@ -1121,9 +1227,9 @@ static void kbase_kcpu_cqs_set_operation_process(
 
 	for (i = 0; i < cqs_set_operation->nr_objs; i++) {
 		struct kbase_vmap_struct *mapping;
-		u64 *evt;
+		uintptr_t evt;
 
-		evt = (u64 *)kbase_phy_alloc_mapping_get(
+		evt = (uintptr_t)kbase_phy_alloc_mapping_get(
 			queue->kctx, cqs_set_operation->objs[i].addr, &mapping);
 
 		/* GPUCORE-28172 RDT to review */
@@ -1133,39 +1239,31 @@ static void kbase_kcpu_cqs_set_operation_process(
 				"Sync memory %llx already freed", cqs_set_operation->objs[i].addr);
 			queue->has_error = true;
 		} else {
-			switch (cqs_set_operation->objs[i].operation) {
-			case BASEP_CQS_SET_OPERATION_ADD:
-				*evt += cqs_set_operation->objs[i].val;
-				break;
-			case BASEP_CQS_SET_OPERATION_SET:
-				*evt = cqs_set_operation->objs[i].val;
-				break;
-			default:
-				dev_dbg(kbdev->dev,
-					"Unsupported CQS set operation %d", cqs_set_operation->objs[i].operation);
-				queue->has_error = true;
-				break;
-			}
+			struct base_cqs_set_operation_info *obj = &cqs_set_operation->objs[i];
 
-			/* Increment evt up to the error_state value depending on the CQS data type */
-			switch (cqs_set_operation->objs[i].data_type) {
+			switch (obj->data_type) {
 			default:
-				dev_dbg(kbdev->dev, "Unreachable data_type=%d", cqs_set_operation->objs[i].data_type);
-				/* Fallthrough - hint to compiler that there's really only 2 options at present */
-				fallthrough;
+				WARN_ON(!kbase_kcpu_cqs_is_data_type_valid(obj->data_type));
+				queue->has_error = true;
+				goto skip_err_propagation;
 			case BASEP_CQS_DATA_TYPE_U32:
-				evt = (u64 *)((u8 *)evt + sizeof(u32));
+				kbasep_kcpu_cqs_do_set_operation_32(queue, evt, obj->operation,
+								    obj->val);
+				evt += BASEP_EVENT32_ERR_OFFSET - BASEP_EVENT32_VAL_OFFSET;
 				break;
 			case BASEP_CQS_DATA_TYPE_U64:
-				evt = (u64 *)((u8 *)evt + sizeof(u64));
+				kbasep_kcpu_cqs_do_set_operation_64(queue, evt, obj->operation,
+								    obj->val);
+				evt += BASEP_EVENT64_ERR_OFFSET - BASEP_EVENT64_VAL_OFFSET;
 				break;
 			}
 
 			/* GPUCORE-28172 RDT to review */
 
 			/* Always propagate errors */
-			*evt = queue->has_error;
+			*(u32 *)evt = queue->has_error;
 
+skip_err_propagation:
 			kbase_phy_alloc_mapping_put(queue->kctx, mapping);
 		}
 	}
@@ -1183,6 +1281,7 @@ static int kbase_kcpu_cqs_set_operation_prepare(
 {
 	struct base_cqs_set_operation_info *objs;
 	unsigned int nr_objs = cqs_set_operation_info->nr_objs;
+	unsigned int i;
 
 	lockdep_assert_held(&kcpu_queue->lock);
 
@@ -1200,6 +1299,18 @@ static int kbase_kcpu_cqs_set_operation_prepare(
 			nr_objs * sizeof(*objs))) {
 		kfree(objs);
 		return -ENOMEM;
+	}
+
+	/* Check the CQS objects as early as possible. By checking their alignment
+	 * (required alignment equals to size for Sync32 and Sync64 objects), we can
+	 * prevent overrunning the supplied event page.
+	 */
+	for (i = 0; i < nr_objs; i++) {
+		if (!kbase_kcpu_cqs_is_data_type_valid(objs[i].data_type) ||
+		    !kbase_kcpu_cqs_is_aligned(objs[i].addr, objs[i].data_type)) {
+			kfree(objs);
+			return -EINVAL;
+		}
 	}
 
 	current_command->type = BASE_KCPU_COMMAND_TYPE_CQS_SET_OPERATION;
@@ -1234,9 +1345,8 @@ static void kbase_csf_fence_wait_callback(struct dma_fence *fence,
 	queue_work(kcpu_queue->wq, &kcpu_queue->work);
 }
 
-static void kbase_kcpu_fence_wait_cancel(
-		struct kbase_kcpu_command_queue *kcpu_queue,
-		struct kbase_kcpu_command_fence_info *fence_info)
+static void kbasep_kcpu_fence_wait_cancel(struct kbase_kcpu_command_queue *kcpu_queue,
+					  struct kbase_kcpu_command_fence_info *fence_info)
 {
 	struct kbase_context *const kctx = kcpu_queue->kctx;
 
@@ -1410,15 +1520,14 @@ static int kbase_kcpu_fence_wait_process(
 	 */
 
 	if (fence_status)
-		kbase_kcpu_fence_wait_cancel(kcpu_queue, fence_info);
+		kbasep_kcpu_fence_wait_cancel(kcpu_queue, fence_info);
 
 	return fence_status;
 }
 
-static int kbase_kcpu_fence_wait_prepare(
-		struct kbase_kcpu_command_queue *kcpu_queue,
-		struct base_kcpu_command_fence_info *fence_info,
-		struct kbase_kcpu_command *current_command)
+static int kbase_kcpu_fence_wait_prepare(struct kbase_kcpu_command_queue *kcpu_queue,
+					 struct base_kcpu_command_fence_info *fence_info,
+					 struct kbase_kcpu_command *current_command)
 {
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 	struct fence *fence_in;
@@ -1429,8 +1538,7 @@ static int kbase_kcpu_fence_wait_prepare(
 
 	lockdep_assert_held(&kcpu_queue->lock);
 
-	if (copy_from_user(&fence, u64_to_user_ptr(fence_info->fence),
-			sizeof(fence)))
+	if (copy_from_user(&fence, u64_to_user_ptr(fence_info->fence), sizeof(fence)))
 		return -ENOMEM;
 
 	fence_in = sync_file_get_fence(fence.basep.fd);
@@ -1444,9 +1552,8 @@ static int kbase_kcpu_fence_wait_prepare(
 	return 0;
 }
 
-static int kbase_kcpu_fence_signal_process(
-		struct kbase_kcpu_command_queue *kcpu_queue,
-		struct kbase_kcpu_command_fence_info *fence_info)
+static int kbasep_kcpu_fence_signal_process(struct kbase_kcpu_command_queue *kcpu_queue,
+					    struct kbase_kcpu_command_fence_info *fence_info)
 {
 	struct kbase_context *const kctx = kcpu_queue->kctx;
 	int ret;
@@ -1467,36 +1574,36 @@ static int kbase_kcpu_fence_signal_process(
 				  fence_info->fence->seqno);
 
 	/* dma_fence refcount needs to be decreased to release it. */
-	dma_fence_put(fence_info->fence);
+	kbase_fence_put(fence_info->fence);
 	fence_info->fence = NULL;
 
 	return ret;
 }
 
-static int kbase_kcpu_fence_signal_prepare(
-		struct kbase_kcpu_command_queue *kcpu_queue,
-		struct base_kcpu_command_fence_info *fence_info,
-		struct kbase_kcpu_command *current_command)
+static int kbasep_kcpu_fence_signal_init(struct kbase_kcpu_command_queue *kcpu_queue,
+					 struct kbase_kcpu_command *current_command,
+					 struct base_fence *fence, struct sync_file **sync_file,
+					 int *fd)
 {
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 	struct fence *fence_out;
 #else
 	struct dma_fence *fence_out;
 #endif
-	struct base_fence fence;
-	struct sync_file *sync_file;
+	struct kbase_kcpu_dma_fence *kcpu_fence;
 	int ret = 0;
-	int fd;
 
 	lockdep_assert_held(&kcpu_queue->lock);
 
-	if (copy_from_user(&fence, u64_to_user_ptr(fence_info->fence),
-			sizeof(fence)))
-		return -EFAULT;
-
-	fence_out = kzalloc(sizeof(*fence_out), GFP_KERNEL);
-	if (!fence_out)
+	kcpu_fence = kzalloc(sizeof(*kcpu_fence), GFP_KERNEL);
+	if (!kcpu_fence)
 		return -ENOMEM;
+
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+	fence_out = (struct fence *)kcpu_fence;
+#else
+	fence_out = (struct dma_fence *)kcpu_fence;
+#endif
 
 	dma_fence_init(fence_out,
 		       &kbase_fence_ops,
@@ -1513,28 +1620,70 @@ static int kbase_kcpu_fence_signal_prepare(
 	dma_fence_get(fence_out);
 #endif
 
+	/* Set reference to KCPU metadata and increment refcount */
+	kcpu_fence->metadata = kcpu_queue->metadata;
+#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
+	WARN_ON(!atomic_inc_not_zero(&kcpu_fence->metadata->refcount));
+#else
+	WARN_ON(!refcount_inc_not_zero(&kcpu_fence->metadata->refcount));
+#endif
+
 	/* create a sync_file fd representing the fence */
-	sync_file = sync_file_create(fence_out);
-	if (!sync_file) {
+	*sync_file = sync_file_create(fence_out);
+	if (!(*sync_file)) {
 		ret = -ENOMEM;
 		goto file_create_fail;
 	}
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		ret = fd;
+	*fd = get_unused_fd_flags(O_CLOEXEC);
+	if (*fd < 0) {
+		ret = *fd;
 		goto fd_flags_fail;
 	}
 
-	fence.basep.fd = fd;
+	fence->basep.fd = *fd;
 
 	current_command->type = BASE_KCPU_COMMAND_TYPE_FENCE_SIGNAL;
 	current_command->info.fence.fence = fence_out;
 
+	return 0;
+
+fd_flags_fail:
+	fput((*sync_file)->file);
+file_create_fail:
+	/*
+	 * Upon failure, dma_fence refcount that was increased by
+	 * dma_fence_get() or sync_file_create() needs to be decreased
+	 * to release it.
+	 */
+	kbase_fence_put(fence_out);
+	current_command->info.fence.fence = NULL;
+
+	return ret;
+}
+
+static int kbase_kcpu_fence_signal_prepare(struct kbase_kcpu_command_queue *kcpu_queue,
+					   struct base_kcpu_command_fence_info *fence_info,
+					   struct kbase_kcpu_command *current_command)
+{
+	struct base_fence fence;
+	struct sync_file *sync_file = NULL;
+	int fd;
+	int ret = 0;
+
+	lockdep_assert_held(&kcpu_queue->lock);
+
+	if (copy_from_user(&fence, u64_to_user_ptr(fence_info->fence), sizeof(fence)))
+		return -EFAULT;
+
+	ret = kbasep_kcpu_fence_signal_init(kcpu_queue, current_command, &fence, &sync_file, &fd);
+	if (ret)
+		return ret;
+
 	if (copy_to_user(u64_to_user_ptr(fence_info->fence), &fence,
 			sizeof(fence))) {
 		ret = -EFAULT;
-		goto fd_flags_fail;
+		goto fail;
 	}
 
 	/* 'sync_file' pointer can't be safely dereferenced once 'fd' is
@@ -1544,21 +1693,34 @@ static int kbase_kcpu_fence_signal_prepare(
 	fd_install(fd, sync_file->file);
 	return 0;
 
-fd_flags_fail:
+fail:
 	fput(sync_file->file);
-file_create_fail:
-	/*
-	 * Upon failure, dma_fence refcount that was increased by
-	 * dma_fence_get() or sync_file_create() needs to be decreased
-	 * to release it.
-	 */
-	dma_fence_put(fence_out);
-
+	kbase_fence_put(current_command->info.fence.fence);
 	current_command->info.fence.fence = NULL;
-	kfree(fence_out);
 
 	return ret;
 }
+
+int kbase_kcpu_fence_signal_process(struct kbase_kcpu_command_queue *kcpu_queue,
+				    struct kbase_kcpu_command_fence_info *fence_info)
+{
+	if (!kcpu_queue || !fence_info)
+		return -EINVAL;
+
+	return kbasep_kcpu_fence_signal_process(kcpu_queue, fence_info);
+}
+KBASE_EXPORT_TEST_API(kbase_kcpu_fence_signal_process);
+
+int kbase_kcpu_fence_signal_init(struct kbase_kcpu_command_queue *kcpu_queue,
+				 struct kbase_kcpu_command *current_command,
+				 struct base_fence *fence, struct sync_file **sync_file, int *fd)
+{
+	if (!kcpu_queue || !current_command || !fence || !sync_file || !fd)
+		return -EINVAL;
+
+	return kbasep_kcpu_fence_signal_init(kcpu_queue, current_command, fence, sync_file, fd);
+}
+KBASE_EXPORT_TEST_API(kbase_kcpu_fence_signal_init);
 #endif /* CONFIG_SYNC_FILE */
 
 static void kcpu_queue_process_worker(struct work_struct *data)
@@ -1594,6 +1756,9 @@ static int delete_queue(struct kbase_context *kctx, u32 id)
 		mutex_unlock(&kctx->csf.kcpu_queues.lock);
 
 		mutex_lock(&queue->lock);
+
+		/* Metadata struct may outlive KCPU queue.  */
+		kbase_kcpu_dma_fence_meta_put(queue->metadata);
 
 		/* Drain the remaining work for this queue first and go past
 		 * all the waits.
@@ -1701,8 +1866,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			status = 0;
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 			if (drain_queue) {
-				kbase_kcpu_fence_wait_cancel(queue,
-					&cmd->info.fence);
+				kbasep_kcpu_fence_wait_cancel(queue, &cmd->info.fence);
 			} else {
 				status = kbase_kcpu_fence_wait_process(queue,
 					&cmd->info.fence);
@@ -1732,8 +1896,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			status = 0;
 
 #if IS_ENABLED(CONFIG_SYNC_FILE)
-			status = kbase_kcpu_fence_signal_process(
-				queue, &cmd->info.fence);
+			status = kbasep_kcpu_fence_signal_process(queue, &cmd->info.fence);
 
 			if (status < 0)
 				queue->has_error = true;
@@ -2103,14 +2266,30 @@ int kbase_csf_kcpu_queue_enqueue(struct kbase_context *kctx,
 		return -EINVAL;
 	}
 
+	/* There might be a race between one thread trying to enqueue commands to the queue
+	 * and other thread trying to delete the same queue.
+	 * This racing could lead to use-after-free problem by enqueuing thread if
+	 * resources for the queue has already been freed by deleting thread.
+	 *
+	 * To prevent the issue, two mutexes are acquired/release asymmetrically as follows.
+	 *
+	 * Lock A (kctx mutex)
+	 * Lock B (queue mutex)
+	 * Unlock A
+	 * Unlock B
+	 *
+	 * With the kctx mutex being held, enqueuing thread will check the queue
+	 * and will return error code if the queue had already been deleted.
+	 */
 	mutex_lock(&kctx->csf.kcpu_queues.lock);
 	queue = kctx->csf.kcpu_queues.array[enq->id];
-	mutex_unlock(&kctx->csf.kcpu_queues.lock);
-
-	if (queue == NULL)
+	if (queue == NULL) {
+		dev_dbg(kctx->kbdev->dev, "Invalid KCPU queue (id:%u)", enq->id);
+		mutex_unlock(&kctx->csf.kcpu_queues.lock);
 		return -EINVAL;
-
+	}
 	mutex_lock(&queue->lock);
+	mutex_unlock(&kctx->csf.kcpu_queues.lock);
 
 	if (kcpu_queue_get_space(queue) < enq->nr_commands) {
 		ret = -EBUSY;
@@ -2275,6 +2454,7 @@ void kbase_csf_kcpu_queue_context_term(struct kbase_context *kctx)
 
 	mutex_destroy(&kctx->csf.kcpu_queues.lock);
 }
+KBASE_EXPORT_TEST_API(kbase_csf_kcpu_queue_context_term);
 
 int kbase_csf_kcpu_queue_delete(struct kbase_context *kctx,
 			struct kbase_ioctl_kcpu_queue_delete *del)
@@ -2288,7 +2468,9 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 	struct kbase_kcpu_command_queue *queue;
 	int idx;
 	int ret = 0;
-
+#if IS_ENABLED(CONFIG_SYNC_FILE)
+	struct kbase_kcpu_dma_fence_meta *metadata;
+#endif
 	/* The queue id is of u8 type and we use the index of the kcpu_queues
 	 * array as an id, so the number of elements in the array can't be
 	 * more than 256.
@@ -2334,7 +2516,27 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 	queue->fence_context = dma_fence_context_alloc(1);
 	queue->fence_seqno = 0;
 	queue->fence_wait_processed = false;
+
+	metadata = kzalloc(sizeof(*metadata), GFP_KERNEL);
+	if (!metadata) {
+		kfree(queue);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	metadata->kbdev = kctx->kbdev;
+	metadata->kctx_id = kctx->id;
+	snprintf(metadata->timeline_name, MAX_TIMELINE_NAME, "%d-%d_%d-%lld-kcpu", kctx->kbdev->id,
+		 kctx->tgid, kctx->id, queue->fence_context);
+
+#if (KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE)
+	atomic_set(&metadata->refcount, 1);
+#else
+	refcount_set(&metadata->refcount, 1);
 #endif
+	queue->metadata = metadata;
+	atomic_inc(&kctx->kbdev->live_fence_metadata);
+#endif /* CONFIG_SYNC_FILE */
 	queue->enqueue_failed = false;
 	queue->command_started = false;
 	INIT_LIST_HEAD(&queue->jit_blocked);
@@ -2360,3 +2562,4 @@ out:
 
 	return ret;
 }
+KBASE_EXPORT_TEST_API(kbase_csf_kcpu_queue_new);

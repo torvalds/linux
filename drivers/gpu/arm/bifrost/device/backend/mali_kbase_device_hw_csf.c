@@ -24,6 +24,7 @@
 #include <backend/gpu/mali_kbase_instr_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <device/mali_kbase_device.h>
+#include <device/mali_kbase_device_internal.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mmu/mali_kbase_mmu.h>
 #include <mali_kbase_ctx_sched.h>
@@ -149,9 +150,6 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 
 		dev_dbg(kbdev->dev, "Doorbell mirror interrupt received");
 		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-#ifdef CONFIG_MALI_BIFROST_DEBUG
-		WARN_ON(!kbase_csf_scheduler_get_nr_active_csgs(kbdev));
-#endif
 		kbase_pm_disable_db_mirror_interrupt(kbdev);
 		kbdev->pm.backend.exit_gpu_sleep_mode = true;
 		kbase_csf_scheduler_invoke_tick(kbdev);
@@ -189,7 +187,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 }
 
 #if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-static bool kbase_is_register_accessible(u32 offset)
+bool kbase_is_register_accessible(u32 offset)
 {
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	if (((offset >= MCU_SUBSYSTEM_BASE) && (offset < IPA_CONTROL_BASE)) ||
@@ -201,7 +199,9 @@ static bool kbase_is_register_accessible(u32 offset)
 
 	return true;
 }
+#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 
+#if IS_ENABLED(CONFIG_MALI_REAL_HW)
 void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value)
 {
 	if (WARN_ON(!kbdev->pm.backend.gpu_powered))

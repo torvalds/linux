@@ -28,7 +28,7 @@ bob_defaults {
     defaults: [
         "kernel_defaults",
     ],
-    no_mali: {
+    mali_no_mali: {
         kbuild_options: [
             "CONFIG_MALI_BIFROST_NO_MALI=y",
             "CONFIG_MALI_NO_MALI_DEFAULT_GPU={{.gpu}}",
@@ -139,6 +139,9 @@ bob_defaults {
     },
     mali_fw_core_dump: {
         kbuild_options: ["CONFIG_MALI_FW_CORE_DUMP=y"],
+    },
+    mali_coresight: {
+        kbuild_options: ["CONFIG_MALI_CORESIGHT=y"],
     },
     kbuild_options: [
         "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",

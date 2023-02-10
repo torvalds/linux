@@ -50,6 +50,8 @@ extern int kbase_page_migration_enabled;
  * @kbdev:    Pointer to kbase device.
  * @p:        Page to assign metadata to.
  * @dma_addr: DMA address mapped to paged.
+ * @group_id: Memory group ID associated with the entity that is
+ *            allocating the page metadata.
  *
  * This will allocate memory for the page's metadata, initialize it and
  * assign a reference to the page's private field. Importantly, once
@@ -58,7 +60,8 @@ extern int kbase_page_migration_enabled;
  *
  * Return: true if successful or false otherwise.
  */
-bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_addr_t dma_addr);
+bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_addr_t dma_addr,
+			       u8 group_id);
 
 /**
  * kbase_free_page_later - Defer freeing of given page.
@@ -70,6 +73,7 @@ bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_a
  */
 void kbase_free_page_later(struct kbase_device *kbdev, struct page *p);
 
+#if (KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE)
 /*
  * kbase_mem_migrate_set_address_space_ops - Set address space operations
  *
@@ -81,6 +85,7 @@ void kbase_free_page_later(struct kbase_device *kbdev, struct page *p);
  * add a reference to @kbdev.
  */
 void kbase_mem_migrate_set_address_space_ops(struct kbase_device *kbdev, struct file *const filp);
+#endif
 
 /*
  * kbase_mem_migrate_init - Initialise kbase page migration

@@ -25,12 +25,12 @@
 
 #include <linux/interrupt.h>
 
-#if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#if IS_ENABLED(CONFIG_MALI_REAL_HW)
 
 /* GPU IRQ Tags */
-#define	JOB_IRQ_TAG	0
-#define MMU_IRQ_TAG	1
-#define GPU_IRQ_TAG	2
+#define JOB_IRQ_TAG 0
+#define MMU_IRQ_TAG 1
+#define GPU_IRQ_TAG 2
 
 static void *kbase_tag(void *ptr, u32 tag)
 {
@@ -500,4 +500,4 @@ void kbase_synchronize_irqs(struct kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_synchronize_irqs);
 
-#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
+#endif /* IS_ENABLED(CONFIG_MALI_REAL_HW) */

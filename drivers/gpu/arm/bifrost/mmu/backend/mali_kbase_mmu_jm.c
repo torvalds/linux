@@ -328,7 +328,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 
 	while (bf_bits | pf_bits) {
 		struct kbase_as *as;
-		int as_no;
+		unsigned int as_no;
 		struct kbase_context *kctx;
 		struct kbase_fault *fault;
 
@@ -423,13 +423,13 @@ int kbase_mmu_switch_to_ir(struct kbase_context *const kctx,
 	return kbase_job_slot_softstop_start_rp(kctx, reg);
 }
 
-int kbase_mmu_as_init(struct kbase_device *kbdev, int i)
+int kbase_mmu_as_init(struct kbase_device *kbdev, unsigned int i)
 {
 	kbdev->as[i].number = i;
 	kbdev->as[i].bf_data.addr = 0ULL;
 	kbdev->as[i].pf_data.addr = 0ULL;
 
-	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%d", 0, 1, i);
+	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%u", 0, 1, i);
 	if (!kbdev->as[i].pf_wq)
 		return -ENOMEM;
 

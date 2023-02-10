@@ -445,7 +445,7 @@ struct prfcnt_metadata {
  * @PRFCNT_CONTROL_CMD_STOP:         Stop the counter data dump run for the
  *                                   calling client session.
  * @PRFCNT_CONTROL_CMD_SAMPLE_SYNC:  Trigger a synchronous manual sample.
- * @PRFCNT_CONTROL_CMD_SAMPLE_ASYNC: Trigger an asynchronous manual sample.
+ * @PRFCNT_CONTROL_CMD_RESERVED:     Previously SAMPLE_ASYNC not supported any more.
  * @PRFCNT_CONTROL_CMD_DISCARD:      Discard all samples which have not yet
  *                                   been consumed by userspace. Note that
  *                                   this can race with new samples if
@@ -455,7 +455,7 @@ enum prfcnt_control_cmd_code {
 	PRFCNT_CONTROL_CMD_START = 1,
 	PRFCNT_CONTROL_CMD_STOP,
 	PRFCNT_CONTROL_CMD_SAMPLE_SYNC,
-	PRFCNT_CONTROL_CMD_SAMPLE_ASYNC,
+	PRFCNT_CONTROL_CMD_RESERVED,
 	PRFCNT_CONTROL_CMD_DISCARD,
 };
 

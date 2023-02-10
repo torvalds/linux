@@ -84,6 +84,7 @@ enum tl_msg_id_obj {
 	KBASE_TL_ATTRIB_ATOM_PRIORITIZED,
 	KBASE_TL_ATTRIB_ATOM_JIT,
 	KBASE_TL_KBASE_NEW_DEVICE,
+	KBASE_TL_KBASE_GPUCMDQUEUE_KICK,
 	KBASE_TL_KBASE_DEVICE_PROGRAM_CSG,
 	KBASE_TL_KBASE_DEVICE_DEPROGRAM_CSG,
 	KBASE_TL_KBASE_DEVICE_HALT_CSG,
@@ -352,6 +353,10 @@ enum tl_msg_id_obj {
 		"New KBase Device", \
 		"@IIIIIII", \
 		"kbase_device_id,kbase_device_gpu_core_count,kbase_device_max_num_csgs,kbase_device_as_count,kbase_device_sb_entry_count,kbase_device_has_cross_stream_sync,kbase_device_supports_gpu_sleep") \
+	TRACEPOINT_DESC(KBASE_TL_KBASE_GPUCMDQUEUE_KICK, \
+		"Kernel receives a request to process new GPU queue instructions", \
+		"@IL", \
+		"kernel_ctx_id,buffer_gpu_addr") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_DEVICE_PROGRAM_CSG, \
 		"CSG is programmed to a slot", \
 		"@IIIII", \
@@ -2088,6 +2093,33 @@ void __kbase_tlstream_tl_kbase_new_device(
 		pos, &kbase_device_has_cross_stream_sync, sizeof(kbase_device_has_cross_stream_sync));
 	pos = kbasep_serialize_bytes(buffer,
 		pos, &kbase_device_supports_gpu_sleep, sizeof(kbase_device_supports_gpu_sleep));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_kbase_gpucmdqueue_kick(
+	struct kbase_tlstream *stream,
+	u32 kernel_ctx_id,
+	u64 buffer_gpu_addr
+)
+{
+	const u32 msg_id = KBASE_TL_KBASE_GPUCMDQUEUE_KICK;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kernel_ctx_id)
+		+ sizeof(buffer_gpu_addr)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kernel_ctx_id, sizeof(kernel_ctx_id));
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &buffer_gpu_addr, sizeof(buffer_gpu_addr));
 
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }

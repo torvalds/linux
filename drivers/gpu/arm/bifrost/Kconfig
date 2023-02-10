@@ -41,9 +41,30 @@ config MALI_PLATFORM_NAME
 	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Kbuild' must
 	  exist.
 
-config MALI_REAL_HW
+choice
+	prompt "Mali HW backend"
 	depends on MALI_BIFROST
-	def_bool !MALI_BIFROST_NO_MALI
+	default MALI_REAL_HW
+
+config MALI_REAL_HW
+	bool "Enable build of Mali kernel driver for real HW"
+	depends on MALI_BIFROST
+	help
+	  This is the default HW backend.
+
+config MALI_BIFROST_NO_MALI
+	bool "Enable build of Mali kernel driver for No Mali"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
+	help
+	  This can be used to test the driver in a simulated environment
+	  whereby the hardware is not physically present. If the hardware is physically
+	  present it will not be used. This can be used to test the majority of the
+	  driver without needing actual hardware or for software benchmarking.
+	  All calls to the simulated hardware will complete immediately as if the hardware
+	  completed the task.
+
+
+endchoice
 
 menu "Platform specific options"
 source "drivers/gpu/arm/bifrost/platform/Kconfig"
@@ -91,6 +112,21 @@ config MALI_BIFROST_ENABLE_TRACE
 	  Enables tracing in kbase. Trace log available through
 	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
 
+config MALI_FW_CORE_DUMP
+	bool "Enable support for FW core dump"
+	depends on MALI_BIFROST && MALI_CSF_SUPPORT
+	default n
+	help
+	  Adds ability to request firmware core dump through the "fw_core_dump"
+	  debugfs file
+
+	  Example:
+	  * To explicitly request core dump:
+	      echo 1 > /sys/kernel/debug/mali0/fw_core_dump
+	  * To output current core dump (after explicitly requesting a core dump,
+	    or kernel driver reported an internal firmware error):
+	      cat /sys/kernel/debug/mali0/fw_core_dump
+
 config MALI_ARBITER_SUPPORT
 	bool "Enable arbiter support for Mali"
 	depends on MALI_BIFROST && !MALI_CSF_SUPPORT
@@ -126,6 +162,11 @@ config MALI_DMA_BUF_LEGACY_COMPAT
 	  This option might work-around issues related to missing cache
 	  flushes in other drivers. This only has an effect for clients using
 	  UK 11.18 or older. For later UK versions it is not possible.
+
+config MALI_CORESIGHT
+	depends on MALI_BIFROST && MALI_CSF_SUPPORT && !MALI_BIFROST_NO_MALI
+	bool "Enable Kbase CoreSight tracing support"
+	default n
 
 menuconfig MALI_BIFROST_EXPERT
 	depends on MALI_BIFROST
@@ -174,18 +215,6 @@ config MALI_CORESTACK
 comment "Platform options"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 
-config MALI_BIFROST_NO_MALI
-	bool "Enable No Mali"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default n
-	help
-	  This can be used to test the driver in a simulated environment
-	  whereby the hardware is not physically present. If the hardware is physically
-	  present it will not be used. This can be used to test the majority of the
-	  driver without needing actual hardware or for software benchmarking.
-	  All calls to the simulated hardware will complete immediately as if the hardware
-	  completed the task.
-
 config MALI_BIFROST_ERROR_INJECT
 	bool "Enable No Mali error injection"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && MALI_BIFROST_NO_MALI
@@ -203,20 +232,6 @@ config MALI_GEM5_BUILD
 
 comment "Debug options"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-
-config MALI_FW_CORE_DUMP
-        bool "Enable support for FW core dump"
-        depends on MALI_BIFROST && MALI_BIFROST_EXPERT && MALI_CSF_SUPPORT
-        default n
-        help
-          Adds ability to request firmware core dump
-
-          Example:
-          * To explicitly request core dump:
-                echo 1 >/sys/kernel/debug/mali0/fw_core_dump
-          * To output current core dump (after explicitly requesting a core dump,
-            or kernel driver reported an internal firmware error):
-                cat /sys/kernel/debug/mali0/fw_core_dump
 
 config MALI_BIFROST_DEBUG
 	bool "Enable debug build"

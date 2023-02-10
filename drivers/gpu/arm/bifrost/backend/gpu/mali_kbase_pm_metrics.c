@@ -464,7 +464,7 @@ void kbase_pm_metrics_stop(struct kbase_device *kbdev)
  */
 static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 {
-	int js;
+	unsigned int js;
 
 	lockdep_assert_held(&kbdev->pm.backend.metrics.lock);
 

@@ -64,6 +64,9 @@ enum base_hw_issue {
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2019_3901,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -88,6 +91,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tMIx_r0p0
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -108,6 +113,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tMIx_r0p0
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -128,6 +135,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tMIx_r0p1
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -143,6 +152,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tMI
 	BASE_HW_ISSUE_TMIX_8343,
 	BASE_HW_ISSUE_TMIX_8456,
 	BASE_HW_ISSUE_TSIX_2033,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -156,6 +167,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tHEx_r0p0
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -169,6 +182,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tHEx_r0p1
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -182,6 +197,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tHEx_r0p2
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -194,6 +211,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tHEx_r0p3
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -204,6 +223,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tHE
 	BASE_HW_ISSUE_TMIX_8042,
 	BASE_HW_ISSUE_TMIX_8133,
 	BASE_HW_ISSUE_TSIX_2033,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -217,6 +238,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tSIx_r0p0
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -230,6 +253,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tSIx_r0p1
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -242,6 +267,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tSIx_r1p0
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -253,6 +280,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tSIx_r1p1
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -263,6 +292,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tSI
 	BASE_HW_ISSUE_TSIX_1116,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -274,6 +305,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tDVx_r0p0
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -284,6 +317,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tDV
 	BASE_HW_ISSUE_TSIX_1116,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -296,6 +331,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tNOx_r0p0
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -306,6 +343,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tNO
 	BASE_HW_ISSUE_TSIX_1116,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -318,6 +357,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tGOx_r0p0
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -330,6 +371,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tGOx_r1p0
 	BASE_HW_ISSUE_TTRX_921,
 	BASE_HW_ISSUE_GPU2017_1336,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -340,6 +383,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tGO
 	BASE_HW_ISSUE_TSIX_1116,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -356,6 +401,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTRx_r0p0
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
 	BASE_HW_ISSUE_TTRX_3485,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -372,6 +419,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTRx_r0p1
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
 	BASE_HW_ISSUE_TTRX_3485,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -387,6 +436,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTRx_r0p2
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -399,6 +450,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tTR
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -415,6 +468,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tNAx_r0p0
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
 	BASE_HW_ISSUE_TTRX_3485,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -430,6 +485,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tNAx_r0p1
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -442,6 +499,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tNA
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -456,6 +515,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tBEx_r0p0
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
 	BASE_HW_ISSUE_TTRX_3485,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -469,6 +530,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tBEx_r0p1
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -482,6 +545,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tBEx_r1p0
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -495,6 +560,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tBEx_r1p1
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -507,6 +574,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tBE
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -521,6 +590,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_lBEx_r1p0
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
 	BASE_HW_ISSUE_TTRX_3485,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -534,6 +605,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_lBEx_r1p1
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -547,6 +620,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tBAx_r0p0
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -560,6 +635,8 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tBAx_r1p0
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
@@ -572,90 +649,74 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tBA
 	BASE_HW_ISSUE_TTRX_3083,
 	BASE_HW_ISSUE_TTRX_3470,
 	BASE_HW_ISSUE_TTRX_3464,
-	BASE_HW_ISSUE_END
-};
-
-__attribute__((unused)) static const enum base_hw_issue base_hw_issues_tDUx_r0p0[] = {
-	BASE_HW_ISSUE_9435,
-	BASE_HW_ISSUE_TSIX_2033,
-	BASE_HW_ISSUE_TTRX_1337,
-	BASE_HW_ISSUE_TTRX_921,
-	BASE_HW_ISSUE_TTRX_3414,
-	BASE_HW_ISSUE_TTRX_3083,
-	BASE_HW_ISSUE_END
-};
-
-__attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tDUx[] = {
-	BASE_HW_ISSUE_5736,
-	BASE_HW_ISSUE_9435,
-	BASE_HW_ISSUE_TSIX_2033,
-	BASE_HW_ISSUE_TTRX_1337,
-	BASE_HW_ISSUE_TTRX_3414,
-	BASE_HW_ISSUE_TTRX_3083,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tODx_r0p0[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3212,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tODx[] = {
-	BASE_HW_ISSUE_5736,
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3212,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tGRx_r0p0[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tGRx[] = {
-	BASE_HW_ISSUE_5736,
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tVAx_r0p0[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tVAx[] = {
-	BASE_HW_ISSUE_5736,
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTUx_r0p0[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_TURSEHW_1997,
@@ -663,70 +724,97 @@ __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTUx_r0p0
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2019_3901,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
+	BASE_HW_ISSUE_END
+};
+
+__attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTUx_r0p1[] = {
+	BASE_HW_ISSUE_TSIX_2033,
+	BASE_HW_ISSUE_TTRX_1337,
+	BASE_HW_ISSUE_TURSEHW_1997,
+	BASE_HW_ISSUE_GPU2019_3878,
+	BASE_HW_ISSUE_TURSEHW_2716,
+	BASE_HW_ISSUE_GPU2019_3901,
+	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tTUx[] = {
-	BASE_HW_ISSUE_5736,
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2019_3901,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTUx_r1p0[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2019_3901,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTUx_r1p1[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2019_3901,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTUx_r1p2[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_GPU2019_3878,
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2019_3901,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_model_tTIx[] = {
-	BASE_HW_ISSUE_5736,
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 
 __attribute__((unused)) static const enum base_hw_issue base_hw_issues_tTIx_r0p0[] = {
-	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TSIX_2033,
 	BASE_HW_ISSUE_TTRX_1337,
 	BASE_HW_ISSUE_TURSEHW_2716,
 	BASE_HW_ISSUE_GPU2021PRO_290,
+	BASE_HW_ISSUE_TITANHW_2710,
+	BASE_HW_ISSUE_TITANHW_2679,
+	BASE_HW_ISSUE_GPU2022PRO_148,
 	BASE_HW_ISSUE_END
 };
 

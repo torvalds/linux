@@ -1,0 +1,113 @@
+/*
+ *
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation) and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * A copy of the licence is included with the program) and can also be obtained
+ * from Free Software Foundation) Inc.) 51 Franklin Street) Fifth Floor)
+ * Boston) MA  02110-1301) USA.
+ *
+ */
+
+What:		/sys/bus/coresight/devices/mali-source-etm/enable_source
+Description:
+        Attribute used to enable Coresight Source ETM.
+
+What:		/sys/bus/coresight/devices/mali-source-etm/is_enabled
+Description:
+        Attribute used to check if Coresight Source ITM is enabled.
+
+What:		/sys/bus/coresight/devices/mali-source-etm/trcconfigr
+Description:
+        Coresight Source ETM trace configuration to enable global
+        timestamping, and data value tracing.
+
+What:		/sys/bus/coresight/devices/mali-source-etm/trctraceidr
+Description:
+        Coresight Source ETM trace ID.
+
+What:		/sys/bus/coresight/devices/mali-source-etm/trcvdarcctlr
+Description:
+        Coresight Source ETM viewData include/exclude address
+        range comparators.
+
+What:		/sys/bus/coresight/devices/mali-source-etm/trcviiectlr
+Description:
+        Coresight Source ETM viewInst include and exclude control.
+
+What:		/sys/bus/coresight/devices/mali-source-etm/trcstallctlr
+Description:
+        Coresight Source ETM stall control register.
+
+What:		/sys/bus/coresight/devices/mali-source-itm/enable_source
+Description:
+        Attribute used to enable Coresight Source ITM.
+
+What:		/sys/bus/coresight/devices/mali-source-itm/is_enabled
+Description:
+        Attribute used to check if Coresight Source ITM is enabled.
+
+What:		/sys/bus/coresight/devices/mali-source-itm/dwt_ctrl
+Description:
+        Coresight Source DWT configuration:
+            [0] = 1, enable cycle counter
+            [4:1] = 4, set PC sample rate pf 256 cycles
+            [8:5] = 1, set initial post count value
+            [9] = 1, select position of post count tap on the cycle counter
+            [10:11] = 1, enable sync packets
+            [12] = 1, enable periodic PC sample packets
+
+What:		/sys/bus/coresight/devices/mali-source-itm/itm_tcr
+Description:
+        Coresight Source ITM configuration:
+            [0] = 1, Enable ITM
+            [1] = 1, Enable Time stamp generation
+            [2] = 1, Enable sync packet transmission
+            [3] = 1, Enable HW event forwarding
+            [11:10] = 1, Generate TS request approx every 128 cycles
+            [22:16] = 1, Trace bus ID
+
+What:		/sys/bus/coresight/devices/mali-source-ela/enable_source
+Description:
+        Attribute used to enable Coresight Source ELA.
+
+What:		/sys/bus/coresight/devices/mali-source-ela/is_enabled
+Description:
+        Attribute used to check if Coresight Source ELA is enabled.
+
+What:		/sys/bus/coresight/devices/mali-source-ela/select
+Description:
+        Coresight Source ELA select trace mode:
+            [0], NONE
+            [1], JCN
+            [2], CEU_EXEC
+            [3], CEU_CMDS
+            [4], MCU_AHBP
+            [5], HOST_AXI
+            [6], NR_TRACEMODE
+
+        Refer to specification for more details.
+
+What:		/sys/bus/coresight/devices/mali-source-ela/sigmask0
+Description:
+        Coresight Source ELA SIGMASK0 register set/get.
+        Refer to specification for more details.
+
+What:		/sys/bus/coresight/devices/mali-source-ela/sigmask4
+Description:
+        Coresight Source ELA SIGMASK4 register set/get.
+        Refer to specification for more details.
+
+What:		/sys/bus/coresight/devices/mali-source-ela/sigcomp0
+Description:
+        Coresight Source ELA SIGCOMP0 register set/get.
+        Refer to specification for more details.
+
+What:		/sys/bus/coresight/devices/mali-source-ela/sigcomp4
+Description:
+        Coresight Source ELA SIGCOMP4 register set/get.
+        Refer to specification for more details.

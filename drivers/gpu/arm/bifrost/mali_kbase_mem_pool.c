@@ -57,35 +57,57 @@ static bool kbase_mem_pool_is_empty(struct kbase_mem_pool *pool)
 	return kbase_mem_pool_size(pool) == 0;
 }
 
-static void set_pool_new_page_metadata(struct kbase_mem_pool *pool, struct page *p,
+static bool set_pool_new_page_metadata(struct kbase_mem_pool *pool, struct page *p,
 				       struct list_head *page_list, size_t *list_size)
 {
 	struct kbase_page_metadata *page_md = kbase_page_private(p);
+	bool not_movable = false;
 
 	lockdep_assert_held(&pool->pool_lock);
 
+	/* Free the page instead of adding it to the pool if it's not movable.
+	 * Only update page status and add the page to the memory pool if
+	 * it is not isolated.
+	 */
 	spin_lock(&page_md->migrate_lock);
-	/* Only update page status and add the page to the memory pool if it is not isolated */
-	if (!WARN_ON(IS_PAGE_ISOLATED(page_md->status))) {
+	if (PAGE_STATUS_GET(page_md->status) == (u8)NOT_MOVABLE) {
+		not_movable = true;
+	} else if (!WARN_ON_ONCE(IS_PAGE_ISOLATED(page_md->status))) {
 		page_md->status = PAGE_STATUS_SET(page_md->status, (u8)MEM_POOL);
 		page_md->data.mem_pool.pool = pool;
 		page_md->data.mem_pool.kbdev = pool->kbdev;
-		list_move(&p->lru, page_list);
+		list_add(&p->lru, page_list);
 		(*list_size)++;
 	}
 	spin_unlock(&page_md->migrate_lock);
+
+	if (not_movable) {
+		kbase_free_page_later(pool->kbdev, p);
+		pool_dbg(pool, "skipping a not movable page\n");
+	}
+
+	return not_movable;
 }
 
 static void kbase_mem_pool_add_locked(struct kbase_mem_pool *pool,
 		struct page *p)
 {
+	bool queue_work_to_free = false;
+
 	lockdep_assert_held(&pool->pool_lock);
 
-	if (!pool->order && kbase_page_migration_enabled)
-		set_pool_new_page_metadata(pool, p, &pool->page_list, &pool->cur_size);
-	else {
+	if (!pool->order && kbase_page_migration_enabled) {
+		if (set_pool_new_page_metadata(pool, p, &pool->page_list, &pool->cur_size))
+			queue_work_to_free = true;
+	} else {
 		list_add(&p->lru, &pool->page_list);
 		pool->cur_size++;
+	}
+
+	if (queue_work_to_free) {
+		struct kbase_mem_migrate *mem_migrate = &pool->kbdev->mem_migrate;
+
+		queue_work(mem_migrate->free_pages_workq, &mem_migrate->free_pages_work);
 	}
 
 	pool_dbg(pool, "added page\n");
@@ -101,16 +123,27 @@ static void kbase_mem_pool_add(struct kbase_mem_pool *pool, struct page *p)
 static void kbase_mem_pool_add_list_locked(struct kbase_mem_pool *pool,
 		struct list_head *page_list, size_t nr_pages)
 {
+	bool queue_work_to_free = false;
+
 	lockdep_assert_held(&pool->pool_lock);
 
 	if (!pool->order && kbase_page_migration_enabled) {
 		struct page *p, *tmp;
 
-		list_for_each_entry_safe(p, tmp, page_list, lru)
-			set_pool_new_page_metadata(pool, p, &pool->page_list, &pool->cur_size);
+		list_for_each_entry_safe(p, tmp, page_list, lru) {
+			list_del_init(&p->lru);
+			if (set_pool_new_page_metadata(pool, p, &pool->page_list, &pool->cur_size))
+				queue_work_to_free = true;
+		}
 	} else {
 		list_splice(page_list, &pool->page_list);
 		pool->cur_size += nr_pages;
+	}
+
+	if (queue_work_to_free) {
+		struct kbase_mem_migrate *mem_migrate = &pool->kbdev->mem_migrate;
+
+		queue_work(mem_migrate->free_pages_workq, &mem_migrate->free_pages_work);
 	}
 
 	pool_dbg(pool, "added %zu pages\n", nr_pages);
@@ -226,7 +259,7 @@ struct page *kbase_mem_alloc_page(struct kbase_mem_pool *pool)
 	/* Setup page metadata for 4KB pages when page migration is enabled */
 	if (!pool->order && kbase_page_migration_enabled) {
 		INIT_LIST_HEAD(&p->lru);
-		if (!kbase_alloc_page_metadata(kbdev, p, dma_addr)) {
+		if (!kbase_alloc_page_metadata(kbdev, p, dma_addr, pool->group_id)) {
 			dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 			kbdev->mgm_dev->ops.mgm_free_page(kbdev->mgm_dev, pool->group_id, p,
 							  pool->order);
@@ -251,7 +284,14 @@ static void enqueue_free_pool_pages_work(struct kbase_mem_pool *pool)
 
 void kbase_mem_pool_free_page(struct kbase_mem_pool *pool, struct page *p)
 {
-	struct kbase_device *kbdev = pool->kbdev;
+	struct kbase_device *kbdev;
+
+	if (WARN_ON(!pool))
+		return;
+	if (WARN_ON(!p))
+		return;
+
+	kbdev = pool->kbdev;
 
 	if (!pool->order && kbase_page_migration_enabled) {
 		kbase_free_page_later(kbdev, p);
@@ -460,7 +500,11 @@ int kbase_mem_pool_init(struct kbase_mem_pool *pool, const struct kbase_mem_pool
 	 * struct shrinker does not define batch
 	 */
 	pool->reclaim.batch = 0;
+#if KERNEL_VERSION(6, 0, 0) > LINUX_VERSION_CODE
 	register_shrinker(&pool->reclaim);
+#else
+	register_shrinker(&pool->reclaim, "mali-mem-pool");
+#endif
 
 	pool_dbg(pool, "initialized\n");
 
@@ -499,14 +543,16 @@ void kbase_mem_pool_term(struct kbase_mem_pool *pool)
 		/* Zero pages first without holding the next_pool lock */
 		for (i = 0; i < nr_to_spill; i++) {
 			p = kbase_mem_pool_remove_locked(pool, SPILL_IN_PROGRESS);
-			list_add(&p->lru, &spill_list);
+			if (p)
+				list_add(&p->lru, &spill_list);
 		}
 	}
 
 	while (!kbase_mem_pool_is_empty(pool)) {
 		/* Free remaining pages to kernel */
 		p = kbase_mem_pool_remove_locked(pool, FREE_IN_PROGRESS);
-		list_add(&p->lru, &free_list);
+		if (p)
+			list_add(&p->lru, &free_list);
 	}
 
 	kbase_mem_pool_unlock(pool);
@@ -558,17 +604,10 @@ struct page *kbase_mem_pool_alloc(struct kbase_mem_pool *pool)
 
 struct page *kbase_mem_pool_alloc_locked(struct kbase_mem_pool *pool)
 {
-	struct page *p;
-
 	lockdep_assert_held(&pool->pool_lock);
 
 	pool_dbg(pool, "alloc_locked()\n");
-	p = kbase_mem_pool_remove_locked(pool, ALLOCATE_IN_PROGRESS);
-
-	if (p)
-		return p;
-
-	return NULL;
+	return kbase_mem_pool_remove_locked(pool, ALLOCATE_IN_PROGRESS);
 }
 
 void kbase_mem_pool_free(struct kbase_mem_pool *pool, struct page *p,
@@ -636,10 +675,12 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_4k_pages,
 	/* Get pages from this pool */
 	kbase_mem_pool_lock(pool);
 	nr_from_pool = min(nr_pages_internal, kbase_mem_pool_size(pool));
+
 	while (nr_from_pool--) {
 		int j;
 
 		p = kbase_mem_pool_remove_locked(pool, ALLOCATE_IN_PROGRESS);
+
 		if (pool->order) {
 			pages[i++] = as_tagged_tag(page_to_phys(p),
 						   HUGE_HEAD | HUGE_PAGE);
@@ -867,7 +908,6 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 			pages[i] = as_tagged(0);
 			continue;
 		}
-
 		p = as_page(pages[i]);
 
 		kbase_mem_pool_free_page(pool, p);

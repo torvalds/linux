@@ -235,6 +235,7 @@ gpu@0xfc010000 {
     ...
     pbha {
         int_id_override = <2 0x32>, <9 0x05>, <16 0x32>;
+        propagate_bits = <0x03>;
     };
     ...
 };

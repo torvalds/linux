@@ -34,6 +34,7 @@
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <csf/mali_kbase_csf_csg_debugfs.h>
 #include <csf/mali_kbase_csf_kcpu_debugfs.h>
+#include <csf/mali_kbase_csf_sync_debugfs.h>
 #include <csf/mali_kbase_csf_tiler_heap_debugfs.h>
 #include <csf/mali_kbase_csf_cpu_queue_debugfs.h>
 #include <mali_kbase_debug_mem_view.h>
@@ -50,6 +51,7 @@ void kbase_context_debugfs_init(struct kbase_context *const kctx)
 	kbase_jit_debugfs_init(kctx);
 	kbase_csf_queue_group_debugfs_init(kctx);
 	kbase_csf_kcpu_debugfs_init(kctx);
+	kbase_csf_sync_debugfs_init(kctx);
 	kbase_csf_tiler_heap_debugfs_init(kctx);
 	kbase_csf_tiler_heap_total_debugfs_init(kctx);
 	kbase_csf_cpu_queue_debugfs_init(kctx);

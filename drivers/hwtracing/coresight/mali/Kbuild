@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+#
+# (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+#
+
+# make $(src) as absolute path if it is not already, by prefixing $(srctree)
+# This is to prevent any build issue due to wrong path.
+src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
+
+#
+# ccflags
+#
+ccflags-y += \
+    -I$(srctree)/include/linux \
+    -I$(src) \
+    -I$(srctree)/drivers/hwtracing/coresight/ \
+    -I$(src)/../../../../include
+
+subdir-ccflags-y += $(ccflags-y)
+
+ifneq ($(CONFIG_CORESIGHT), n)
+ifneq ($(CONFIG_CORESIGHT), )
+
+
+ifeq ($(CONFIG_CORESIGHT_MALI_SOURCES_ETM),y)
+    obj-m += coresight_mali_source_etm.o
+    coresight_mali_source_etm-y := \
+        sources/etm/coresight_mali_source_etm_core.o \
+        sources/coresight_mali_sources.o \
+        coresight_mali_common.o
+endif
+
+ifeq ($(CONFIG_CORESIGHT_MALI_SOURCES_ITM),y)
+    obj-m += coresight_mali_source_itm.o
+    coresight_mali_source_itm-y := \
+        sources/itm/coresight_mali_source_itm_core.o \
+        sources/coresight_mali_sources.o \
+        coresight_mali_common.o
+endif
+
+ifeq ($(CONFIG_CORESIGHT_MALI_SOURCES_ELA),y)
+    obj-m += coresight_mali_source_ela.o
+    coresight_mali_source_ela-y := \
+        sources/ela/coresight_mali_source_ela_core.o \
+        sources/coresight_mali_sources.o \
+        coresight_mali_common.o
+endif
+
+endif
+endif

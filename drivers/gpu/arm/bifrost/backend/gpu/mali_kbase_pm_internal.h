@@ -995,4 +995,27 @@ static inline void kbase_pm_disable_db_mirror_interrupt(struct kbase_device *kbd
 }
 #endif
 
+/**
+ * kbase_pm_l2_allow_mmu_page_migration - L2 state allows MMU page migration or not
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Check whether the L2 state is in power transition phase or not. If it is, the MMU
+ * page migration should be deferred. The caller must hold hwaccess_lock, and, if MMU
+ * page migration is intended, immediately start the MMU migration action without
+ * dropping the lock. When page migration begins, a flag is set in kbdev that would
+ * prevent the L2 state machine traversing into power transition phases, until
+ * the MMU migration action ends.
+ *
+ * Return: true if MMU page migration is allowed
+ */
+static inline bool kbase_pm_l2_allow_mmu_page_migration(struct kbase_device *kbdev)
+{
+	struct kbase_pm_backend_data *backend = &kbdev->pm.backend;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	return (backend->l2_state != KBASE_L2_PEND_ON && backend->l2_state != KBASE_L2_PEND_OFF);
+}
+
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */

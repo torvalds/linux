@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,12 +40,15 @@
  */
 #define KBASEP_USER_DB_NR_INVALID ((s8)-1)
 
+/* Number of pages used for GPU command queue's User input & output data */
+#define KBASEP_NUM_CS_USER_IO_PAGES (2)
+
 /* Indicates an invalid value for the scan out sequence number, used to
  * signify there is no group that has protected mode execution pending.
  */
 #define KBASEP_TICK_PROTM_PEND_SCAN_SEQ_NR_INVALID (U32_MAX)
 
-#define FIRMWARE_IDLE_HYSTERESIS_TIME_MS (10) /* Default 10 milliseconds */
+#define FIRMWARE_IDLE_HYSTERESIS_TIME_USEC (10000) /* Default 10 milliseconds */
 
 /* Idle hysteresis time can be scaled down when GPU sleep feature is used */
 #define FIRMWARE_IDLE_HYSTERESIS_GPU_SLEEP_SCALER (5)
@@ -124,6 +127,25 @@ void kbase_csf_queue_terminate(struct kbase_context *kctx,
 			      struct kbase_ioctl_cs_queue_terminate *term);
 
 /**
+ * kbase_csf_free_command_stream_user_pages() - Free the resources allocated
+ *				    for a queue at the time of bind.
+ *
+ * @kctx:	Address of the kbase context within which the queue was created.
+ * @queue:	Pointer to the queue to be unlinked.
+ *
+ * This function will free the pair of physical pages allocated for a GPU
+ * command queue, and also release the hardware doorbell page, that were mapped
+ * into the process address space to enable direct submission of commands to
+ * the hardware. Also releases the reference taken on the queue when the mapping
+ * was created.
+ *
+ * If an explicit or implicit unbind was missed by the userspace then the
+ * mapping will persist. On process exit kernel itself will remove the mapping.
+ */
+void kbase_csf_free_command_stream_user_pages(struct kbase_context *kctx,
+					      struct kbase_queue *queue);
+
+/**
  * kbase_csf_alloc_command_stream_user_pages - Allocate resources for a
  *                                             GPU command queue.
  *
@@ -184,6 +206,20 @@ void kbase_csf_queue_unbind_stopped(struct kbase_queue *queue);
  */
 int kbase_csf_queue_kick(struct kbase_context *kctx,
 			 struct kbase_ioctl_cs_queue_kick *kick);
+
+/**
+ * kbase_csf_queue_group_handle_is_valid - Find the queue group corresponding
+ *                                         to the indicated handle.
+ *
+ * @kctx:          The kbase context under which the queue group exists.
+ * @group_handle:  Handle for the group which uniquely identifies it within
+ *                 the context with which it was created.
+ *
+ * This function is used to find the queue group when passed a handle.
+ *
+ * Return: Pointer to a queue group on success, NULL on failure
+ */
+struct kbase_queue_group *kbase_csf_find_queue_group(struct kbase_context *kctx, u8 group_handle);
 
 /**
  * kbase_csf_queue_group_handle_is_valid - Find if the given queue group handle
@@ -464,4 +500,5 @@ static inline u64 kbase_csf_ktrace_gpu_cycle_cnt(struct kbase_device *kbdev)
 	return 0;
 #endif
 }
+
 #endif /* _KBASE_CSF_H_ */

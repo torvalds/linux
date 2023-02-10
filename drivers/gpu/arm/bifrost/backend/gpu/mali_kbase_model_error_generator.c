@@ -21,7 +21,7 @@
 
 #include <mali_kbase.h>
 #include <linux/random.h>
-#include "backend/gpu/mali_kbase_model_dummy.h"
+#include "backend/gpu/mali_kbase_model_linux.h"
 
 static struct kbase_error_atom *error_track_list;
 

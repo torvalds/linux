@@ -21,11 +21,24 @@
 
 /*
  * Dummy Model interface
+ *
+ * Support for NO_MALI dummy Model interface.
+ *
+ * +-----------------------------------+
+ * | Kbase read/write/IRQ              |
+ * +-----------------------------------+
+ * | Model Linux Framework             |
+ * +-----------------------------------+
+ * | Model Dummy interface definitions |
+ * +-----------------+-----------------+
+ * | Fake R/W        | Fake IRQ        |
+ * +-----------------+-----------------+
  */
 
 #ifndef _KBASE_MODEL_DUMMY_H_
 #define _KBASE_MODEL_DUMMY_H_
 
+#include <uapi/gpu/arm/bifrost/backend/gpu/mali_kbase_model_linux.h>
 #include <uapi/gpu/arm/bifrost/backend/gpu/mali_kbase_model_dummy.h>
 
 #define model_error_log(module, ...) pr_err(__VA_ARGS__)
@@ -154,11 +167,6 @@ struct gpu_model_prfcnt_en {
 	u32 shader;
 };
 
-void *midgard_model_create(const void *config);
-void midgard_model_destroy(void *h);
-u8 midgard_model_write_reg(void *h, u32 addr, u32 value);
-u8 midgard_model_read_reg(void *h, u32 addr,
-							u32 * const value);
 void midgard_set_error(int job_slot);
 int job_atom_inject_error(struct kbase_error_params *params);
 int gpu_model_control(void *h,
@@ -210,17 +218,6 @@ void gpu_model_prfcnt_dump_request(uint32_t *sample_buf, struct gpu_model_prfcnt
  */
 void gpu_model_glb_request_job_irq(void *model);
 #endif /* MALI_USE_CSF */
-
-enum gpu_dummy_irq {
-	GPU_DUMMY_JOB_IRQ,
-	GPU_DUMMY_GPU_IRQ,
-	GPU_DUMMY_MMU_IRQ
-};
-
-void gpu_device_raise_irq(void *model,
-						enum gpu_dummy_irq irq);
-void gpu_device_set_data(void *model, void *data);
-void *gpu_device_get_data(void *model);
 
 extern struct error_status_t hw_error_status;
 

@@ -228,8 +228,8 @@ static int mgm_initialize_debugfs(struct mgm_groups *mgm_data)
 
 #define ORDER_SMALL_PAGE 0
 #define ORDER_LARGE_PAGE 9
-static void update_size(struct memory_group_manager_device *mgm_dev, int
-		group_id, int order, bool alloc)
+static void update_size(struct memory_group_manager_device *mgm_dev, unsigned int group_id,
+			int order, bool alloc)
 {
 	struct mgm_groups *data = mgm_dev->data;
 

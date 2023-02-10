@@ -24,6 +24,9 @@
 
 #include <mali_kbase.h>
 
+/** Offset of the last field of functions call list entry from the image header */
+#define FUNC_CALL_LIST_ENTRY_NAME_OFFSET (0x8)
+
 /*
  * Firmware log dumping buffer size.
  */

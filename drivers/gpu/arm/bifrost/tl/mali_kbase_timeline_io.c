@@ -30,6 +30,11 @@
 #include <linux/version_compat_defs.h>
 #include <linux/anon_inodes.h>
 
+/* Explicitly include epoll header for old kernels. Not required from 4.16. */
+#if KERNEL_VERSION(4, 16, 0) > LINUX_VERSION_CODE
+#include <uapi/linux/eventpoll.h>
+#endif
+
 /* The timeline stream file operations functions. */
 static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
 				       size_t size, loff_t *f_pos);

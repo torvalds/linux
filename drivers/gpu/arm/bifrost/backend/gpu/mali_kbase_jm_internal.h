@@ -34,21 +34,6 @@
 #include <device/mali_kbase_device.h>
 
 /**
- * kbase_job_submit_nolock() - Submit a job to a certain job-slot
- * @kbdev:	Device pointer
- * @katom:	Atom to submit
- * @js:		Job slot to submit on
- *
- * The caller must check kbasep_jm_is_submit_slots_free() != false before
- * calling this.
- *
- * The following locking conditions are made on the caller:
- * - it must hold the hwaccess_lock
- */
-void kbase_job_submit_nolock(struct kbase_device *kbdev,
-					struct kbase_jd_atom *katom, int js);
-
-/**
  * kbase_job_done_slot() - Complete the head job on a particular job-slot
  * @kbdev:		Device pointer
  * @s:			Job slot
@@ -60,17 +45,16 @@ void kbase_job_done_slot(struct kbase_device *kbdev, int s, u32 completion_code,
 					u64 job_tail, ktime_t *end_timestamp);
 
 #if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
-static inline char *kbasep_make_job_slot_string(int js, char *js_string,
-						size_t js_size)
+static inline char *kbasep_make_job_slot_string(unsigned int js, char *js_string, size_t js_size)
 {
-	snprintf(js_string, js_size, "job_slot_%i", js);
+	snprintf(js_string, js_size, "job_slot_%u", js);
 	return js_string;
 }
 #endif
 
 #if !MALI_USE_CSF
-static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
-						struct kbase_context *kctx)
+static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, unsigned int js,
+				       struct kbase_context *kctx)
 {
 	return !kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT));
 }
@@ -90,7 +74,7 @@ static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
  *
  * Return: 0 if the job was successfully submitted to hardware, an error otherwise.
  */
-int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom, int js);
+int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom, unsigned int js);
 
 #if !MALI_USE_CSF
 /**
@@ -106,11 +90,9 @@ int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
  * The following locking conditions are made on the caller:
  * - it must hold the hwaccess_lock
  */
-void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
-					int js,
-					u32 action,
-					base_jd_core_req core_reqs,
-					struct kbase_jd_atom *target_katom);
+void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev, unsigned int js,
+						 u32 action, base_jd_core_req core_reqs,
+						 struct kbase_jd_atom *target_katom);
 #endif /* !MALI_USE_CSF */
 
 /**
@@ -134,11 +116,8 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
  *
  * Return: true if an atom was stopped, false otherwise
  */
-bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
-					struct kbase_context *kctx,
-					int js,
-					struct kbase_jd_atom *katom,
-					u32 action);
+bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev, struct kbase_context *kctx,
+				       unsigned int js, struct kbase_jd_atom *katom, u32 action);
 
 /**
  * kbase_job_slot_init - Initialise job slot framework

@@ -424,6 +424,14 @@ static int mmu_hw_do_lock(struct kbase_device *kbdev, struct kbase_as *as,
 	return ret;
 }
 
+int kbase_mmu_hw_do_lock(struct kbase_device *kbdev, struct kbase_as *as,
+			 const struct kbase_mmu_hw_op_param *op_param)
+{
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	return mmu_hw_do_lock(kbdev, as, op_param);
+}
+
 int kbase_mmu_hw_do_unlock_no_addr(struct kbase_device *kbdev, struct kbase_as *as,
 				   const struct kbase_mmu_hw_op_param *op_param)
 {
