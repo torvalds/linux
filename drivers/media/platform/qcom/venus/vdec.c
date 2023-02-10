@@ -204,8 +204,13 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 					   pixmp->height);
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		unsigned int stride = pixmp->width;
+
+		if (pixmp->pixelformat == V4L2_PIX_FMT_P010)
+			stride *= 2;
+
 		pfmt[0].sizeimage = szimage;
-		pfmt[0].bytesperline = ALIGN(pixmp->width, 128);
+		pfmt[0].bytesperline = ALIGN(stride, 128);
 	} else {
 		pfmt[0].sizeimage = clamp_t(u32, pfmt[0].sizeimage, 0, SZ_8M);
 		pfmt[0].sizeimage = max(pfmt[0].sizeimage, szimage);
