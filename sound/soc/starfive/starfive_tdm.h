@@ -121,9 +121,7 @@ typedef struct tdm_chan_cfg {
 struct sf_tdm_dev {
 	void __iomem *tdm_base;
 	struct device *dev;
-	struct clk *clk_ahb0;
 	struct clk *clk_tdm_ahb;
-	struct clk *clk_apb0;
 	struct clk *clk_tdm_apb;
 	struct clk *clk_tdm_internal;
 	struct clk *clk_tdm_ext;

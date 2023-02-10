@@ -135,77 +135,65 @@ static void sf_tdm_clk_disable(struct sf_tdm_dev *priv)
 	clk_disable_unprepare(priv->clk_tdm_ext);
 	clk_disable_unprepare(priv->clk_tdm_internal);
 	clk_disable_unprepare(priv->clk_tdm_apb);
-	clk_disable_unprepare(priv->clk_apb0);
 	clk_disable_unprepare(priv->clk_tdm_ahb);
-	clk_disable_unprepare(priv->clk_ahb0);
 	clk_disable_unprepare(priv->clk_mclk_inner);
 }
 
-#ifdef CONFIG_PM
-static int sf_tdm_runtime_suspend(struct device *dev)
+static int sf_tdm_clk_enable(struct sf_tdm_dev *priv)
 {
-	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
-
-	sf_tdm_clk_disable(priv);
-	return 0;
-}
-
-static int sf_tdm_runtime_resume(struct device *dev)
-{
-	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
 	int ret;
 
 	ret = clk_prepare_enable(priv->clk_mclk_inner);
 	if (ret) {
-		dev_err(dev, "failed to prepare enable clk_mclk_inner\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(priv->clk_ahb0);
-	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_ahb0\n");
+		dev_err(priv->dev, "failed to prepare enable clk_mclk_inner\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(priv->clk_tdm_ahb);
 	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_tdm_ahb\n");
+		dev_err(priv->dev, "Failed to prepare enable clk_tdm_ahb\n");
 		goto dis_mclk_inner;
 	}
 
-	ret = clk_prepare_enable(priv->clk_apb0);
-	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_apb0\n");
-		return ret;
-	}
-	
 	ret = clk_prepare_enable(priv->clk_tdm_apb);
 	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_tdm_apb\n");
+		dev_err(priv->dev, "Failed to prepare enable clk_tdm_apb\n");
 		goto dis_tdm_ahb;
 	}
 
 	ret = clk_prepare_enable(priv->clk_tdm_internal);
 	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_tdm_intl\n");
+		dev_err(priv->dev, "Failed to prepare enable clk_tdm_intl\n");
 		goto dis_tdm_apb;
 	}
 
 	ret = clk_prepare_enable(priv->clk_tdm_ext);
 	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_tdm_ext\n");
+		dev_err(priv->dev, "Failed to prepare enable clk_tdm_ext\n");
 		goto dis_tdm_internal;
+	}
+
+	ret = clk_set_parent(priv->clk_tdm, priv->clk_tdm_internal);
+	if (ret) {
+		dev_err(priv->dev, "Can't set internal clock source for clk_tdm: %d\n", ret);
+		goto dis_tdm_ext;
 	}
 
 	ret = clk_prepare_enable(priv->clk_tdm);
 	if (ret) {
-		dev_err(dev, "Failed to prepare enable clk_tdm\n");
+		dev_err(priv->dev, "Failed to prepare enable clk_tdm\n");
 		goto dis_tdm_ext;
 	}
 
 	ret = reset_control_deassert(priv->resets);
 	if (ret) {
-		dev_err(dev, "%s: failed to deassert tdm resets\n", __func__);
+		dev_err(priv->dev, "%s: failed to deassert tdm resets\n", __func__);
+		goto err_reset;
+	}
+
+	ret = clk_set_parent(priv->clk_tdm, priv->clk_tdm_ext);
+	if (ret) {
+		dev_err(priv->dev, "Can't set external clock source for clk_tdm: %d\n", ret);
 		goto err_reset;
 	}
 
@@ -225,6 +213,22 @@ dis_mclk_inner:
 	clk_disable_unprepare(priv->clk_mclk_inner);
 
 	return ret;
+}
+
+#ifdef CONFIG_PM
+static int sf_tdm_runtime_suspend(struct device *dev)
+{
+	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
+
+	sf_tdm_clk_disable(priv);
+	return 0;
+}
+
+static int sf_tdm_runtime_resume(struct device *dev)
+{
+	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
+
+	return sf_tdm_clk_enable(priv);
 }
 #endif
 
@@ -584,9 +588,7 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 	int ret;
 
 	static struct clk_bulk_data clks[] = {
-		{ .id = "clk_ahb0" },
 		{ .id = "clk_tdm_ahb" },
-		{ .id = "clk_apb0" },
 		{ .id = "clk_tdm_apb" },
 		{ .id = "clk_tdm_internal" },
 		{ .id = "clk_tdm_ext" },
@@ -600,14 +602,12 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 		goto exit;
 	}
 
-	dev->clk_ahb0 = clks[0].clk;
-	dev->clk_tdm_ahb = clks[1].clk;
-	dev->clk_apb0 = clks[2].clk;
-	dev->clk_tdm_apb = clks[3].clk;
-	dev->clk_tdm_internal = clks[4].clk;
-	dev->clk_tdm_ext = clks[5].clk;
-	dev->clk_tdm = clks[6].clk;
-	dev->clk_mclk_inner = clks[7].clk;
+	dev->clk_tdm_ahb = clks[0].clk;
+	dev->clk_tdm_apb = clks[1].clk;
+	dev->clk_tdm_internal = clks[2].clk;
+	dev->clk_tdm_ext = clks[3].clk;
+	dev->clk_tdm = clks[4].clk;
+	dev->clk_mclk_inner = clks[5].clk;
 
 	dev->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(dev->resets)) {
@@ -616,78 +616,8 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 		goto exit;
 	}
 
-	ret = clk_prepare_enable(dev->clk_mclk_inner);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_mclk_inner\n");
-		goto exit;
-	}
+	ret = sf_tdm_clk_enable(dev);
 
-	ret = clk_prepare_enable(dev->clk_ahb0);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to prepare enable clk_ahb0\n");
-		goto err_dis_ahb0;
-	}
-
-	ret = clk_prepare_enable(dev->clk_tdm_ahb);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_ahb\n");
-		goto err_dis_tdm_ahb;
-	}
-
-	ret = clk_prepare_enable(dev->clk_apb0);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to prepare enable clk_apb0\n");
-		goto err_dis_apb0;
-	}
-
-	ret = clk_prepare_enable(dev->clk_tdm_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_apb\n");
-		goto err_dis_tdm_apb;
-	}
-
-	ret = clk_prepare_enable(dev->clk_tdm_internal);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_intl\n");
-		goto err_dis_tdm_internal;
-	}
-
-	ret = clk_prepare_enable(dev->clk_tdm_ext);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_tdm_ext\n");
-		goto err_dis_tdm_ext;
-	}
-
-	ret = clk_prepare_enable(dev->clk_tdm);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_tdm\n");
-		goto err_dis_clk_tdm;
-	}
-
-	ret = reset_control_deassert(dev->resets);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to deassert tdm resets\n", __func__);
-		goto err_clk_disable;
-	}
-
-	return 0;
-
-err_clk_disable:
-	clk_disable_unprepare(dev->clk_tdm);
-err_dis_clk_tdm:
-	clk_disable_unprepare(dev->clk_tdm_ext);
-err_dis_tdm_ext:
-	clk_disable_unprepare(dev->clk_tdm_internal);
-err_dis_tdm_internal:
-	clk_disable_unprepare(dev->clk_tdm_apb);
-err_dis_tdm_apb:
-	clk_disable_unprepare(dev->clk_apb0);
-err_dis_apb0:
-	clk_disable_unprepare(dev->clk_tdm_ahb);
-err_dis_tdm_ahb:
-	clk_disable_unprepare(dev->clk_ahb0);
-err_dis_ahb0:
-	clk_disable_unprepare(dev->clk_mclk_inner);
 exit:
 	return ret;
 }
