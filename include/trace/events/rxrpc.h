@@ -1118,9 +1118,9 @@ TRACE_EVENT(rxrpc_tx_data,
 TRACE_EVENT(rxrpc_tx_ack,
 	    TP_PROTO(unsigned int call, rxrpc_serial_t serial,
 		     rxrpc_seq_t ack_first, rxrpc_serial_t ack_serial,
-		     u8 reason, u8 n_acks),
+		     u8 reason, u8 n_acks, u16 rwind),
 
-	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks),
+	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks, rwind),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
@@ -1129,6 +1129,7 @@ TRACE_EVENT(rxrpc_tx_ack,
 		    __field(rxrpc_serial_t,	ack_serial)
 		    __field(u8,			reason)
 		    __field(u8,			n_acks)
+		    __field(u16,		rwind)
 			     ),
 
 	    TP_fast_assign(
@@ -1138,15 +1139,17 @@ TRACE_EVENT(rxrpc_tx_ack,
 		    __entry->ack_serial = ack_serial;
 		    __entry->reason = reason;
 		    __entry->n_acks = n_acks;
+		    __entry->rwind = rwind;
 			   ),
 
-	    TP_printk(" c=%08x ACK  %08x %s f=%08x r=%08x n=%u",
+	    TP_printk(" c=%08x ACK  %08x %s f=%08x r=%08x n=%u rw=%u",
 		      __entry->call,
 		      __entry->serial,
 		      __print_symbolic(__entry->reason, rxrpc_ack_names),
 		      __entry->ack_first,
 		      __entry->ack_serial,
-		      __entry->n_acks)
+		      __entry->n_acks,
+		      __entry->rwind)
 	    );
 
 TRACE_EVENT(rxrpc_receive,
