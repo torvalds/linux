@@ -57,6 +57,7 @@
 #include <asm/pmc.h>
 #include <asm/xics.h>
 #include <asm/xive.h>
+#include <asm/papr-sysparm.h>
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
@@ -941,32 +942,21 @@ void pSeries_coalesce_init(void)
  */
 static void __init pSeries_cmo_feature_init(void)
 {
-	const s32 token = rtas_token("ibm,get-system-parameter");
+	static struct papr_sysparm_buf buf __initdata;
+	static_assert(sizeof(buf.val) >= CMO_MAXLENGTH);
 	char *ptr, *key, *value, *end;
-	int call_status;
 	int page_order = IOMMU_PAGE_SHIFT_4K;
 
 	pr_debug(" -> fw_cmo_feature_init()\n");
 
-	do {
-		spin_lock(&rtas_data_buf_lock);
-		call_status = rtas_call(token, 3, 1, NULL,
-					CMO_CHARACTERISTICS_TOKEN,
-					__pa(rtas_data_buf),
-					RTAS_DATA_BUF_SIZE);
-		if (call_status == 0)
-			break;
-		spin_unlock(&rtas_data_buf_lock);
-	} while (rtas_busy_delay(call_status));
-
-	if (call_status != 0) {
+	if (papr_sysparm_get(PAPR_SYSPARM_COOP_MEM_OVERCOMMIT_ATTRS, &buf)) {
 		pr_debug("CMO not available\n");
 		pr_debug(" <- fw_cmo_feature_init()\n");
 		return;
 	}
 
-	end = rtas_data_buf + CMO_MAXLENGTH - 2;
-	ptr = rtas_data_buf + 2;	/* step over strlen value */
+	end = &buf.val[CMO_MAXLENGTH];
+	ptr = &buf.val[0];
 	key = value = ptr;
 
 	while (*ptr && (ptr <= end)) {
@@ -1012,7 +1002,6 @@ static void __init pSeries_cmo_feature_init(void)
 	} else
 		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);
-	spin_unlock(&rtas_data_buf_lock);
 	pr_debug(" <- fw_cmo_feature_init()\n");
 }
 
