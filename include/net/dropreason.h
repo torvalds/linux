@@ -72,6 +72,7 @@
 	FN(FRAG_REASM_TIMEOUT)		\
 	FN(FRAG_TOO_FAR)		\
 	FN(TCP_MINTTL)			\
+	FN(IPV6_BAD_EXTHDR)		\
 	FNe(MAX)
 
 /**
@@ -318,6 +319,8 @@ enum skb_drop_reason {
 	 * the threshold (IP_MINTTL or IPV6_MINHOPCOUNT).
 	 */
 	SKB_DROP_REASON_TCP_MINTTL,
+	/** @SKB_DROP_REASON_IPV6_BAD_EXTHDR: Bad IPv6 extension header. */
+	SKB_DROP_REASON_IPV6_BAD_EXTHDR,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'
