@@ -189,6 +189,9 @@ static inline bool devlink_reload_supported(const struct devlink_ops *ops)
 	return ops->reload_down && ops->reload_up;
 }
 
+/* Params */
+void devlink_params_driverinit_load_new(struct devlink *devlink);
+
 /* Resources */
 struct devlink_resource;
 int devlink_resources_validate(struct devlink *devlink,

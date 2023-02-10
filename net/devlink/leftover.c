@@ -4097,9 +4097,12 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 		if (!devlink_param_cmode_is_supported(param, i))
 			continue;
 		if (i == DEVLINK_PARAM_CMODE_DRIVERINIT) {
-			if (!param_item->driverinit_value_valid)
+			if (param_item->driverinit_value_new_valid)
+				param_value[i] = param_item->driverinit_value_new;
+			else if (param_item->driverinit_value_valid)
+				param_value[i] = param_item->driverinit_value;
+			else
 				return -EOPNOTSUPP;
-			param_value[i] = param_item->driverinit_value;
 		} else {
 			ctx.cmode = i;
 			err = devlink_param_get(devlink, param, &ctx);
@@ -4387,8 +4390,8 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 		return -EOPNOTSUPP;
 
 	if (cmode == DEVLINK_PARAM_CMODE_DRIVERINIT) {
-		param_item->driverinit_value = value;
-		param_item->driverinit_value_valid = true;
+		param_item->driverinit_value_new = value;
+		param_item->driverinit_value_new_valid = true;
 	} else {
 		if (!param->set)
 			return -EOPNOTSUPP;
@@ -9689,6 +9692,21 @@ void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devl_param_driverinit_value_set);
+
+void devlink_params_driverinit_load_new(struct devlink *devlink)
+{
+	struct devlink_param_item *param_item;
+
+	list_for_each_entry(param_item, &devlink->param_list, list) {
+		if (!devlink_param_cmode_is_supported(param_item->param,
+						      DEVLINK_PARAM_CMODE_DRIVERINIT) ||
+		    !param_item->driverinit_value_new_valid)
+			continue;
+		param_item->driverinit_value = param_item->driverinit_value_new;
+		param_item->driverinit_value_valid = true;
+		param_item->driverinit_value_new_valid = false;
+	}
+}
 
 /**
  *	devl_param_value_changed - notify devlink on a parameter's value
