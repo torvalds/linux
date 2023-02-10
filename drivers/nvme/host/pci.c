@@ -230,7 +230,6 @@ union nvme_descriptor {
 struct nvme_iod {
 	struct nvme_request req;
 	struct nvme_command cmd;
-	bool use_sgl;
 	bool aborted;
 	s8 nr_allocations;	/* PRP list pool allocations. 0 means small
 				   pool in use */
@@ -808,8 +807,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		goto out_free_sg;
 	}
 
-	iod->use_sgl = nvme_pci_use_sgls(dev, req, iod->sgt.nents);
-	if (iod->use_sgl)
+	if (nvme_pci_use_sgls(dev, req, iod->sgt.nents))
 		ret = nvme_pci_setup_sgls(dev, req, &cmnd->rw);
 	else
 		ret = nvme_pci_setup_prps(dev, req, &cmnd->rw);
