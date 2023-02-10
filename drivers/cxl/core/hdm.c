@@ -826,7 +826,8 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			cxled = cxl_endpoint_decoder_alloc(port);
 			if (IS_ERR(cxled)) {
 				dev_warn(&port->dev,
-					 "Failed to allocate the decoder\n");
+					 "Failed to allocate decoder%d.%d\n",
+					 port->id, i);
 				return PTR_ERR(cxled);
 			}
 			cxld = &cxled->cxld;
@@ -836,7 +837,8 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			cxlsd = cxl_switch_decoder_alloc(port, target_count);
 			if (IS_ERR(cxlsd)) {
 				dev_warn(&port->dev,
-					 "Failed to allocate the decoder\n");
+					 "Failed to allocate decoder%d.%d\n",
+					 port->id, i);
 				return PTR_ERR(cxlsd);
 			}
 			cxld = &cxlsd->cxld;
@@ -844,13 +846,16 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 
 		rc = init_hdm_decoder(port, cxld, target_map, hdm, i, &dpa_base);
 		if (rc) {
+			dev_warn(&port->dev,
+				 "Failed to initialize decoder%d.%d\n",
+				 port->id, i);
 			put_device(&cxld->dev);
 			return rc;
 		}
 		rc = add_hdm_decoder(port, cxld, target_map);
 		if (rc) {
 			dev_warn(&port->dev,
-				 "Failed to add decoder to port\n");
+				 "Failed to add decoder%d.%d\n", port->id, i);
 			return rc;
 		}
 	}

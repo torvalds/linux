@@ -30,55 +30,64 @@ static void schedule_detach(void *cxlmd)
 	schedule_cxl_memdev_detach(cxlmd);
 }
 
-static int cxl_port_probe(struct device *dev)
+static int cxl_switch_port_probe(struct cxl_port *port)
 {
-	struct cxl_port *port = to_cxl_port(dev);
 	struct cxl_hdm *cxlhdm;
 	int rc;
 
+	rc = devm_cxl_port_enumerate_dports(port);
+	if (rc < 0)
+		return rc;
 
-	if (!is_cxl_endpoint(port)) {
-		rc = devm_cxl_port_enumerate_dports(port);
-		if (rc < 0)
-			return rc;
-		if (rc == 1)
-			return devm_cxl_add_passthrough_decoder(port);
-	}
+	if (rc == 1)
+		return devm_cxl_add_passthrough_decoder(port);
 
 	cxlhdm = devm_cxl_setup_hdm(port);
 	if (IS_ERR(cxlhdm))
 		return PTR_ERR(cxlhdm);
 
-	if (is_cxl_endpoint(port)) {
-		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
-		struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	return devm_cxl_enumerate_decoders(cxlhdm);
+}
 
-		/* Cache the data early to ensure is_visible() works */
-		read_cdat_data(port);
+static int cxl_endpoint_port_probe(struct cxl_port *port)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_hdm *cxlhdm;
+	int rc;
 
-		get_device(&cxlmd->dev);
-		rc = devm_add_action_or_reset(dev, schedule_detach, cxlmd);
-		if (rc)
-			return rc;
+	cxlhdm = devm_cxl_setup_hdm(port);
+	if (IS_ERR(cxlhdm))
+		return PTR_ERR(cxlhdm);
 
-		rc = cxl_hdm_decode_init(cxlds, cxlhdm);
-		if (rc)
-			return rc;
+	/* Cache the data early to ensure is_visible() works */
+	read_cdat_data(port);
 
-		rc = cxl_await_media_ready(cxlds);
-		if (rc) {
-			dev_err(dev, "Media not active (%d)\n", rc);
-			return rc;
-		}
-	}
+	get_device(&cxlmd->dev);
+	rc = devm_add_action_or_reset(&port->dev, schedule_detach, cxlmd);
+	if (rc)
+		return rc;
 
-	rc = devm_cxl_enumerate_decoders(cxlhdm);
+	rc = cxl_hdm_decode_init(cxlds, cxlhdm);
+	if (rc)
+		return rc;
+
+	rc = cxl_await_media_ready(cxlds);
 	if (rc) {
-		dev_err(dev, "Couldn't enumerate decoders (%d)\n", rc);
+		dev_err(&port->dev, "Media not active (%d)\n", rc);
 		return rc;
 	}
 
-	return 0;
+	return devm_cxl_enumerate_decoders(cxlhdm);
+}
+
+static int cxl_port_probe(struct device *dev)
+{
+	struct cxl_port *port = to_cxl_port(dev);
+
+	if (is_cxl_endpoint(port))
+		return cxl_endpoint_port_probe(port);
+	return cxl_switch_port_probe(port);
 }
 
 static ssize_t CDAT_read(struct file *filp, struct kobject *kobj,
