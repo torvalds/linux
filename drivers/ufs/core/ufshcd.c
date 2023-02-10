@@ -9150,7 +9150,7 @@ static int ufshcd_execute_start_stop(struct scsi_device *sdev,
 	scmd->allowed = 0/*retries*/;
 	scmd->flags |= SCMD_FAIL_IF_RECOVERING;
 	req->timeout = 1 * HZ;
-	req->rq_flags |= RQF_PM | RQF_QUIET;
+	req->rq_flags |= RQF_QUIET;
 
 	blk_execute_rq(req, /*at_head=*/true);
 
