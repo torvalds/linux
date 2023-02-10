@@ -28,6 +28,7 @@
 #include <linux/btf.h>
 #include <linux/rcupdate_trace.h>
 #include <linux/static_call.h>
+#include <linux/memcontrol.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -2931,6 +2932,13 @@ struct bpf_key {
 static inline bool type_is_alloc(u32 type)
 {
 	return type & MEM_ALLOC;
+}
+
+static inline gfp_t bpf_memcg_flags(gfp_t flags)
+{
+	if (memcg_bpf_enabled())
+		return flags | __GFP_ACCOUNT;
+	return flags;
 }
 
 #endif /* _LINUX_BPF_H */
