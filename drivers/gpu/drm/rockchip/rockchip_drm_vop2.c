@@ -7911,6 +7911,7 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 	int phys_id;
 	struct hdrvivid_regs *hdrvivid_data;
 	struct hdr_extend *hdr_data;
+	struct rockchip_gem_object *lut_gem_obj;
 	bool have_sdr_layer = false;
 	uint32_t hdr_mode;
 	int i;
@@ -8024,6 +8025,16 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 	vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdrvivid_data->hdr_csc_coe11_12);
 	vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdrvivid_data->hdr_csc_coe20_21);
 	vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdrvivid_data->hdr_csc_coe22);
+
+	if (!vp->hdr_lut_gem_obj) {
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+			RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH * 4, true, 0);
+		if (IS_ERR(lut_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_lut_gem_obj = lut_gem_obj;
+	}
 
 	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
 	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
@@ -10948,15 +10959,8 @@ static int vop2_create_crtc(struct vop2 *vop2)
 					  "Failed to init %s with SR helpers %d, ignoring\n",
 					  crtc->name, ret);
 
-		if (vp_data->feature & VOP_FEATURE_VIVID_HDR) {
+		if (vp_data->feature & VOP_FEATURE_VIVID_HDR)
 			vop2_crtc_create_hdr_property(vop2, crtc);
-			vp->hdr_lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
-				RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH * 4, true, 0);
-			if (IS_ERR(vp->hdr_lut_gem_obj)) {
-				DRM_ERROR("create hdr lut obj failed\n");
-				return -ENOMEM;
-			}
-		}
 		if (vp_data->feature & VOP_FEATURE_POST_ACM)
 			vop2_crtc_create_post_acm_property(vop2, crtc);
 		if (vp_data->feature & VOP_FEATURE_POST_CSC)
