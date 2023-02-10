@@ -227,6 +227,24 @@ int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev)
 	return ret;
 }
 
+int amdgpu_dpm_enable_gfx_features(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	int ret = 0;
+
+	if (!pp_funcs || !pp_funcs->asic_reset_enable_gfx_features)
+		return -ENOENT;
+
+	mutex_lock(&adev->pm.mutex);
+
+	ret = pp_funcs->asic_reset_enable_gfx_features(pp_handle);
+
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
 int amdgpu_dpm_baco_reset(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
