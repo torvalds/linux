@@ -9,10 +9,12 @@
 
 #define pr_fmt(fmt)	"rtas: " fmt
 
+#include <linux/bsearch.h>
 #include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
+#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
@@ -26,6 +28,7 @@
 #include <linux/syscalls.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/xarray.h>
 
 #include <asm/delay.h>
 #include <asm/firmware.h>
@@ -36,6 +39,486 @@
 #include <asm/rtas.h>
 #include <asm/time.h>
 #include <asm/udbg.h>
+
+struct rtas_filter {
+	/* Indexes into the args buffer, -1 if not used */
+	const int buf_idx1;
+	const int size_idx1;
+	const int buf_idx2;
+	const int size_idx2;
+	/*
+	 * Assumed buffer size per the spec if the function does not
+	 * have a size parameter, e.g. ibm,errinjct. 0 if unused.
+	 */
+	const int fixed_size;
+};
+
+/**
+ * struct rtas_function - Descriptor for RTAS functions.
+ *
+ * @token: Value of @name if it exists under the /rtas node.
+ * @name: Function name.
+ * @filter: If non-NULL, invoking this function via the rtas syscall is
+ *          generally allowed, and @filter describes constraints on the
+ *          arguments. See also @banned_for_syscall_on_le.
+ * @banned_for_syscall_on_le: Set when call via sys_rtas is generally allowed
+ *                            but specifically restricted on ppc64le. Such
+ *                            functions are believed to have no users on
+ *                            ppc64le, and we want to keep it that way. It does
+ *                            not make sense for this to be set when @filter
+ *                            is false.
+ */
+struct rtas_function {
+	s32 token;
+	const bool banned_for_syscall_on_le:1;
+	const char * const name;
+	const struct rtas_filter *filter;
+};
+
+static struct rtas_function rtas_function_table[] __ro_after_init = {
+	[RTAS_FNIDX__CHECK_EXCEPTION] = {
+		.name = "check-exception",
+	},
+	[RTAS_FNIDX__DISPLAY_CHARACTER] = {
+		.name = "display-character",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__EVENT_SCAN] = {
+		.name = "event-scan",
+	},
+	[RTAS_FNIDX__FREEZE_TIME_BASE] = {
+		.name = "freeze-time-base",
+	},
+	[RTAS_FNIDX__GET_POWER_LEVEL] = {
+		.name = "get-power-level",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__GET_SENSOR_STATE] = {
+		.name = "get-sensor-state",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__GET_TERM_CHAR] = {
+		.name = "get-term-char",
+	},
+	[RTAS_FNIDX__GET_TIME_OF_DAY] = {
+		.name = "get-time-of-day",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_ACTIVATE_FIRMWARE] = {
+		.name = "ibm,activate-firmware",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_CBE_START_PTCAL] = {
+		.name = "ibm,cbe-start-ptcal",
+	},
+	[RTAS_FNIDX__IBM_CBE_STOP_PTCAL] = {
+		.name = "ibm,cbe-stop-ptcal",
+	},
+	[RTAS_FNIDX__IBM_CHANGE_MSI] = {
+		.name = "ibm,change-msi",
+	},
+	[RTAS_FNIDX__IBM_CLOSE_ERRINJCT] = {
+		.name = "ibm,close-errinjct",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_CONFIGURE_BRIDGE] = {
+		.name = "ibm,configure-bridge",
+	},
+	[RTAS_FNIDX__IBM_CONFIGURE_CONNECTOR] = {
+		.name = "ibm,configure-connector",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = -1,
+			.buf_idx2 = 1, .size_idx2 = -1,
+			.fixed_size = 4096,
+		},
+	},
+	[RTAS_FNIDX__IBM_CONFIGURE_KERNEL_DUMP] = {
+		.name = "ibm,configure-kernel-dump",
+	},
+	[RTAS_FNIDX__IBM_CONFIGURE_PE] = {
+		.name = "ibm,configure-pe",
+	},
+	[RTAS_FNIDX__IBM_CREATE_PE_DMA_WINDOW] = {
+		.name = "ibm,create-pe-dma-window",
+	},
+	[RTAS_FNIDX__IBM_DISPLAY_MESSAGE] = {
+		.name = "ibm,display-message",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_ERRINJCT] = {
+		.name = "ibm,errinjct",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 2, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+			.fixed_size = 1024,
+		},
+	},
+	[RTAS_FNIDX__IBM_EXTI2C] = {
+		.name = "ibm,exti2c",
+	},
+	[RTAS_FNIDX__IBM_GET_CONFIG_ADDR_INFO] = {
+		.name = "ibm,get-config-addr-info",
+	},
+	[RTAS_FNIDX__IBM_GET_CONFIG_ADDR_INFO2] = {
+		.name = "ibm,get-config-addr-info2",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_GET_DYNAMIC_SENSOR_STATE] = {
+		.name = "ibm,get-dynamic-sensor-state",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_GET_INDICES] = {
+		.name = "ibm,get-indices",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 2, .size_idx1 = 3,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_GET_RIO_TOPOLOGY] = {
+		.name = "ibm,get-rio-topology",
+	},
+	[RTAS_FNIDX__IBM_GET_SYSTEM_PARAMETER] = {
+		.name = "ibm,get-system-parameter",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 1, .size_idx1 = 2,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_GET_VPD] = {
+		.name = "ibm,get-vpd",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = -1,
+			.buf_idx2 = 1, .size_idx2 = 2,
+		},
+	},
+	[RTAS_FNIDX__IBM_GET_XIVE] = {
+		.name = "ibm,get-xive",
+	},
+	[RTAS_FNIDX__IBM_INT_OFF] = {
+		.name = "ibm,int-off",
+	},
+	[RTAS_FNIDX__IBM_INT_ON] = {
+		.name = "ibm,int-on",
+	},
+	[RTAS_FNIDX__IBM_IO_QUIESCE_ACK] = {
+		.name = "ibm,io-quiesce-ack",
+	},
+	[RTAS_FNIDX__IBM_LPAR_PERFTOOLS] = {
+		.name = "ibm,lpar-perftools",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 2, .size_idx1 = 3,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_MANAGE_FLASH_IMAGE] = {
+		.name = "ibm,manage-flash-image",
+	},
+	[RTAS_FNIDX__IBM_MANAGE_STORAGE_PRESERVATION] = {
+		.name = "ibm,manage-storage-preservation",
+	},
+	[RTAS_FNIDX__IBM_NMI_INTERLOCK] = {
+		.name = "ibm,nmi-interlock",
+	},
+	[RTAS_FNIDX__IBM_NMI_REGISTER] = {
+		.name = "ibm,nmi-register",
+	},
+	[RTAS_FNIDX__IBM_OPEN_ERRINJCT] = {
+		.name = "ibm,open-errinjct",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_OPEN_SRIOV_ALLOW_UNFREEZE] = {
+		.name = "ibm,open-sriov-allow-unfreeze",
+	},
+	[RTAS_FNIDX__IBM_OPEN_SRIOV_MAP_PE_NUMBER] = {
+		.name = "ibm,open-sriov-map-pe-number",
+	},
+	[RTAS_FNIDX__IBM_OS_TERM] = {
+		.name = "ibm,os-term",
+	},
+	[RTAS_FNIDX__IBM_PARTNER_CONTROL] = {
+		.name = "ibm,partner-control",
+	},
+	[RTAS_FNIDX__IBM_PHYSICAL_ATTESTATION] = {
+		.name = "ibm,physical-attestation",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = 1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_PLATFORM_DUMP] = {
+		.name = "ibm,platform-dump",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 4, .size_idx1 = 5,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_POWER_OFF_UPS] = {
+		.name = "ibm,power-off-ups",
+	},
+	[RTAS_FNIDX__IBM_QUERY_INTERRUPT_SOURCE_NUMBER] = {
+		.name = "ibm,query-interrupt-source-number",
+	},
+	[RTAS_FNIDX__IBM_QUERY_PE_DMA_WINDOW] = {
+		.name = "ibm,query-pe-dma-window",
+	},
+	[RTAS_FNIDX__IBM_READ_PCI_CONFIG] = {
+		.name = "ibm,read-pci-config",
+	},
+	[RTAS_FNIDX__IBM_READ_SLOT_RESET_STATE] = {
+		.name = "ibm,read-slot-reset-state",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_READ_SLOT_RESET_STATE2] = {
+		.name = "ibm,read-slot-reset-state2",
+	},
+	[RTAS_FNIDX__IBM_REMOVE_PE_DMA_WINDOW] = {
+		.name = "ibm,remove-pe-dma-window",
+	},
+	[RTAS_FNIDX__IBM_RESET_PE_DMA_WINDOWS] = {
+		.name = "ibm,reset-pe-dma-windows",
+	},
+	[RTAS_FNIDX__IBM_SCAN_LOG_DUMP] = {
+		.name = "ibm,scan-log-dump",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = 1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_SET_DYNAMIC_INDICATOR] = {
+		.name = "ibm,set-dynamic-indicator",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 2, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_SET_EEH_OPTION] = {
+		.name = "ibm,set-eeh-option",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_SET_SLOT_RESET] = {
+		.name = "ibm,set-slot-reset",
+	},
+	[RTAS_FNIDX__IBM_SET_SYSTEM_PARAMETER] = {
+		.name = "ibm,set-system-parameter",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_SET_XIVE] = {
+		.name = "ibm,set-xive",
+	},
+	[RTAS_FNIDX__IBM_SLOT_ERROR_DETAIL] = {
+		.name = "ibm,slot-error-detail",
+	},
+	[RTAS_FNIDX__IBM_SUSPEND_ME] = {
+		.name = "ibm,suspend-me",
+		.banned_for_syscall_on_le = true,
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__IBM_TUNE_DMA_PARMS] = {
+		.name = "ibm,tune-dma-parms",
+	},
+	[RTAS_FNIDX__IBM_UPDATE_FLASH_64_AND_REBOOT] = {
+		.name = "ibm,update-flash-64-and-reboot",
+	},
+	[RTAS_FNIDX__IBM_UPDATE_NODES] = {
+		.name = "ibm,update-nodes",
+		.banned_for_syscall_on_le = true,
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+			.fixed_size = 4096,
+		},
+	},
+	[RTAS_FNIDX__IBM_UPDATE_PROPERTIES] = {
+		.name = "ibm,update-properties",
+		.banned_for_syscall_on_le = true,
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = 0, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+			.fixed_size = 4096,
+		},
+	},
+	[RTAS_FNIDX__IBM_VALIDATE_FLASH_IMAGE] = {
+		.name = "ibm,validate-flash-image",
+	},
+	[RTAS_FNIDX__IBM_WRITE_PCI_CONFIG] = {
+		.name = "ibm,write-pci-config",
+	},
+	[RTAS_FNIDX__NVRAM_FETCH] = {
+		.name = "nvram-fetch",
+	},
+	[RTAS_FNIDX__NVRAM_STORE] = {
+		.name = "nvram-store",
+	},
+	[RTAS_FNIDX__POWER_OFF] = {
+		.name = "power-off",
+	},
+	[RTAS_FNIDX__PUT_TERM_CHAR] = {
+		.name = "put-term-char",
+	},
+	[RTAS_FNIDX__QUERY_CPU_STOPPED_STATE] = {
+		.name = "query-cpu-stopped-state",
+	},
+	[RTAS_FNIDX__READ_PCI_CONFIG] = {
+		.name = "read-pci-config",
+	},
+	[RTAS_FNIDX__RTAS_LAST_ERROR] = {
+		.name = "rtas-last-error",
+	},
+	[RTAS_FNIDX__SET_INDICATOR] = {
+		.name = "set-indicator",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__SET_POWER_LEVEL] = {
+		.name = "set-power-level",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__SET_TIME_FOR_POWER_ON] = {
+		.name = "set-time-for-power-on",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__SET_TIME_OF_DAY] = {
+		.name = "set-time-of-day",
+		.filter = &(const struct rtas_filter) {
+			.buf_idx1 = -1, .size_idx1 = -1,
+			.buf_idx2 = -1, .size_idx2 = -1,
+		},
+	},
+	[RTAS_FNIDX__START_CPU] = {
+		.name = "start-cpu",
+	},
+	[RTAS_FNIDX__STOP_SELF] = {
+		.name = "stop-self",
+	},
+	[RTAS_FNIDX__SYSTEM_REBOOT] = {
+		.name = "system-reboot",
+	},
+	[RTAS_FNIDX__THAW_TIME_BASE] = {
+		.name = "thaw-time-base",
+	},
+	[RTAS_FNIDX__WRITE_PCI_CONFIG] = {
+		.name = "write-pci-config",
+	},
+};
+
+static int rtas_function_cmp(const void *a, const void *b)
+{
+	const struct rtas_function *f1 = a;
+	const struct rtas_function *f2 = b;
+
+	return strcmp(f1->name, f2->name);
+}
+
+/*
+ * Boot-time initialization of the function table needs the lookup to
+ * return a non-const-qualified object. Use rtas_name_to_function()
+ * in all other contexts.
+ */
+static struct rtas_function *__rtas_name_to_function(const char *name)
+{
+	const struct rtas_function key = {
+		.name = name,
+	};
+	struct rtas_function *found;
+
+	found = bsearch(&key, rtas_function_table, ARRAY_SIZE(rtas_function_table),
+			sizeof(rtas_function_table[0]), rtas_function_cmp);
+
+	return found;
+}
+
+static const struct rtas_function *rtas_name_to_function(const char *name)
+{
+	return __rtas_name_to_function(name);
+}
+
+static DEFINE_XARRAY(rtas_token_to_function_xarray);
+
+static int __init rtas_token_to_function_xarray_init(void)
+{
+	int err = 0;
+
+	for (size_t i = 0; i < ARRAY_SIZE(rtas_function_table); ++i) {
+		const struct rtas_function *func = &rtas_function_table[i];
+		const s32 token = func->token;
+
+		if (token == RTAS_UNKNOWN_SERVICE)
+			continue;
+
+		err = xa_err(xa_store(&rtas_token_to_function_xarray,
+				      token, (void *)func, GFP_KERNEL));
+		if (err)
+			break;
+	}
+
+	return err;
+}
+arch_initcall(rtas_token_to_function_xarray_init);
+
+static const struct rtas_function *rtas_token_to_function(s32 token)
+{
+	const struct rtas_function *func;
+
+	if (WARN_ONCE(token < 0, "invalid token %d", token))
+		return NULL;
+
+	func = xa_load(&rtas_token_to_function_xarray, token);
+
+	if (WARN_ONCE(!func, "unexpected failed lookup for token %d", token))
+		return NULL;
+
+	return func;
+}
 
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
@@ -315,9 +798,25 @@ EXPORT_SYMBOL_GPL(rtas_progress);		/* needed by rtas_flash module */
 
 int rtas_token(const char *service)
 {
+	const struct rtas_function *func;
 	const __be32 *tokp;
+
 	if (rtas.dev == NULL)
 		return RTAS_UNKNOWN_SERVICE;
+
+	func = rtas_name_to_function(service);
+	if (func)
+		return func->token;
+	/*
+	 * The caller is looking up a name that is not known to be an
+	 * RTAS function. Either it's a function that needs to be
+	 * added to the table, or they're misusing rtas_token() to
+	 * access non-function properties of the /rtas node. Warn and
+	 * fall back to the legacy behavior.
+	 */
+	WARN_ONCE(1, "unknown function `%s`, should it be added to rtas_function_table?\n",
+		  service);
+
 	tokp = of_get_property(rtas.dev, service, NULL);
 	return tokp ? be32_to_cpu(*tokp) : RTAS_UNKNOWN_SERVICE;
 }
@@ -1090,56 +1589,12 @@ noinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log
  *
  * Accordingly, we filter RTAS requests to check that the call is
  * permitted, and that provided pointers fall within the RMO buffer.
- * The rtas_filters list contains an entry for each permitted call,
- * with the indexes of the parameters which are expected to contain
- * addresses and sizes of buffers allocated inside the RMO buffer.
+ * If a function is allowed to be invoked via the syscall, then its
+ * entry in the rtas_functions table points to a rtas_filter that
+ * describes its constraints, with the indexes of the parameters which
+ * are expected to contain addresses and sizes of buffers allocated
+ * inside the RMO buffer.
  */
-struct rtas_filter {
-	const char *name;
-	int token;
-	/* Indexes into the args buffer, -1 if not used */
-	int buf_idx1;
-	int size_idx1;
-	int buf_idx2;
-	int size_idx2;
-
-	int fixed_size;
-};
-
-static struct rtas_filter rtas_filters[] __ro_after_init = {
-	{ "ibm,activate-firmware", -1, -1, -1, -1, -1 },
-	{ "ibm,configure-connector", -1, 0, -1, 1, -1, 4096 },	/* Special cased */
-	{ "display-character", -1, -1, -1, -1, -1 },
-	{ "ibm,display-message", -1, 0, -1, -1, -1 },
-	{ "ibm,errinjct", -1, 2, -1, -1, -1, 1024 },
-	{ "ibm,close-errinjct", -1, -1, -1, -1, -1 },
-	{ "ibm,open-errinjct", -1, -1, -1, -1, -1 },
-	{ "ibm,get-config-addr-info2", -1, -1, -1, -1, -1 },
-	{ "ibm,get-dynamic-sensor-state", -1, 1, -1, -1, -1 },
-	{ "ibm,get-indices", -1, 2, 3, -1, -1 },
-	{ "get-power-level", -1, -1, -1, -1, -1 },
-	{ "get-sensor-state", -1, -1, -1, -1, -1 },
-	{ "ibm,get-system-parameter", -1, 1, 2, -1, -1 },
-	{ "get-time-of-day", -1, -1, -1, -1, -1 },
-	{ "ibm,get-vpd", -1, 0, -1, 1, 2 },
-	{ "ibm,lpar-perftools", -1, 2, 3, -1, -1 },
-	{ "ibm,platform-dump", -1, 4, 5, -1, -1 },		/* Special cased */
-	{ "ibm,read-slot-reset-state", -1, -1, -1, -1, -1 },
-	{ "ibm,scan-log-dump", -1, 0, 1, -1, -1 },
-	{ "ibm,set-dynamic-indicator", -1, 2, -1, -1, -1 },
-	{ "ibm,set-eeh-option", -1, -1, -1, -1, -1 },
-	{ "set-indicator", -1, -1, -1, -1, -1 },
-	{ "set-power-level", -1, -1, -1, -1, -1 },
-	{ "set-time-for-power-on", -1, -1, -1, -1, -1 },
-	{ "ibm,set-system-parameter", -1, 1, -1, -1, -1 },
-	{ "set-time-of-day", -1, -1, -1, -1, -1 },
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	{ "ibm,suspend-me", -1, -1, -1, -1, -1 },
-	{ "ibm,update-nodes", -1, 0, -1, -1, -1, 4096 },
-	{ "ibm,update-properties", -1, 0, -1, -1, -1, 4096 },
-#endif
-	{ "ibm,physical-attestation", -1, 0, 1, -1, -1 },
-};
 
 static bool in_rmo_buf(u32 base, u32 end)
 {
@@ -1153,76 +1608,80 @@ static bool in_rmo_buf(u32 base, u32 end)
 static bool block_rtas_call(int token, int nargs,
 			    struct rtas_args *args)
 {
-	int i;
+	const struct rtas_function *func;
+	const struct rtas_filter *f;
+	u32 base, size, end;
 
-	for (i = 0; i < ARRAY_SIZE(rtas_filters); i++) {
-		struct rtas_filter *f = &rtas_filters[i];
-		u32 base, size, end;
+	/*
+	 * If this token doesn't correspond to a function the kernel
+	 * understands, you're not allowed to call it.
+	 */
+	func = rtas_token_to_function(token);
+	if (!func)
+		goto err;
+	/*
+	 * And only functions with filters attached are allowed.
+	 */
+	f = func->filter;
+	if (!f)
+		goto err;
+	/*
+	 * And some functions aren't allowed on LE.
+	 */
+	if (IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN) && func->banned_for_syscall_on_le)
+		goto err;
 
-		if (token != f->token)
-			continue;
+	if (f->buf_idx1 != -1) {
+		base = be32_to_cpu(args->args[f->buf_idx1]);
+		if (f->size_idx1 != -1)
+			size = be32_to_cpu(args->args[f->size_idx1]);
+		else if (f->fixed_size)
+			size = f->fixed_size;
+		else
+			size = 1;
 
-		if (f->buf_idx1 != -1) {
-			base = be32_to_cpu(args->args[f->buf_idx1]);
-			if (f->size_idx1 != -1)
-				size = be32_to_cpu(args->args[f->size_idx1]);
-			else if (f->fixed_size)
-				size = f->fixed_size;
-			else
-				size = 1;
+		end = base + size - 1;
 
-			end = base + size - 1;
+		/*
+		 * Special case for ibm,platform-dump - NULL buffer
+		 * address is used to indicate end of dump processing
+		 */
+		if (!strcmp(func->name, "ibm,platform-dump") &&
+		    base == 0)
+			return false;
 
-			/*
-			 * Special case for ibm,platform-dump - NULL buffer
-			 * address is used to indicate end of dump processing
-			 */
-			if (!strcmp(f->name, "ibm,platform-dump") &&
-			    base == 0)
-				return false;
-
-			if (!in_rmo_buf(base, end))
-				goto err;
-		}
-
-		if (f->buf_idx2 != -1) {
-			base = be32_to_cpu(args->args[f->buf_idx2]);
-			if (f->size_idx2 != -1)
-				size = be32_to_cpu(args->args[f->size_idx2]);
-			else if (f->fixed_size)
-				size = f->fixed_size;
-			else
-				size = 1;
-			end = base + size - 1;
-
-			/*
-			 * Special case for ibm,configure-connector where the
-			 * address can be 0
-			 */
-			if (!strcmp(f->name, "ibm,configure-connector") &&
-			    base == 0)
-				return false;
-
-			if (!in_rmo_buf(base, end))
-				goto err;
-		}
-
-		return false;
+		if (!in_rmo_buf(base, end))
+			goto err;
 	}
 
+	if (f->buf_idx2 != -1) {
+		base = be32_to_cpu(args->args[f->buf_idx2]);
+		if (f->size_idx2 != -1)
+			size = be32_to_cpu(args->args[f->size_idx2]);
+		else if (f->fixed_size)
+			size = f->fixed_size;
+		else
+			size = 1;
+		end = base + size - 1;
+
+		/*
+		 * Special case for ibm,configure-connector where the
+		 * address can be 0
+		 */
+		if (!strcmp(func->name, "ibm,configure-connector") &&
+		    base == 0)
+			return false;
+
+		if (!in_rmo_buf(base, end))
+			goto err;
+	}
+
+	return false;
 err:
 	pr_err_ratelimited("sys_rtas: RTAS call blocked - exploit attempt?\n");
 	pr_err_ratelimited("sys_rtas: token=0x%x, nargs=%d (called by %s)\n",
 			   token, nargs, current->comm);
 	return true;
-}
-
-static void __init rtas_syscall_filter_init(void)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(rtas_filters); i++)
-		rtas_filters[i].token = rtas_token(rtas_filters[i].name);
 }
 
 /* We assume to be passed big endian arguments */
@@ -1324,6 +1783,54 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 	return 0;
 }
 
+static void __init rtas_function_table_init(void)
+{
+	struct property *prop;
+
+	for (size_t i = 0; i < ARRAY_SIZE(rtas_function_table); ++i) {
+		struct rtas_function *curr = &rtas_function_table[i];
+		struct rtas_function *prior;
+		int cmp;
+
+		curr->token = RTAS_UNKNOWN_SERVICE;
+
+		if (i == 0)
+			continue;
+		/*
+		 * Ensure table is sorted correctly for binary search
+		 * on function names.
+		 */
+		prior = &rtas_function_table[i - 1];
+
+		cmp = strcmp(prior->name, curr->name);
+		if (cmp < 0)
+			continue;
+
+		if (cmp == 0) {
+			pr_err("'%s' has duplicate function table entries\n",
+			       curr->name);
+		} else {
+			pr_err("function table unsorted: '%s' wrongly precedes '%s'\n",
+			       prior->name, curr->name);
+		}
+	}
+
+	for_each_property_of_node(rtas.dev, prop) {
+		struct rtas_function *func;
+
+		if (prop->length != sizeof(u32))
+			continue;
+
+		func = __rtas_name_to_function(prop->name);
+		if (!func)
+			continue;
+
+		func->token = be32_to_cpup((__be32 *)prop->value);
+
+		pr_debug("function %s has token %u\n", func->name, func->token);
+	}
+}
+
 /*
  * Call early during boot, before mem init, to retrieve the RTAS
  * information from the device-tree and allocate the RMO buffer for userland
@@ -1357,6 +1864,9 @@ void __init rtas_initialize(void)
 
 	init_error_log_max();
 
+	/* Must be called before any function token lookups */
+	rtas_function_table_init();
+
 	/*
 	 * Discover these now to avoid device tree lookups in the
 	 * panic path.
@@ -1382,7 +1892,6 @@ void __init rtas_initialize(void)
 #endif
 	ibm_open_errinjct_token = rtas_token("ibm,open-errinjct");
 	ibm_errinjct_token = rtas_token("ibm,errinjct");
-	rtas_syscall_filter_init();
 }
 
 int __init early_init_dt_scan_rtas(unsigned long node,
