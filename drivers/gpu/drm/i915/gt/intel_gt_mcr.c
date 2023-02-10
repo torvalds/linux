@@ -35,7 +35,7 @@
  * ignored.
  */
 
-#define HAS_MSLICE_STEERING(dev_priv)	(INTEL_INFO(dev_priv)->has_mslice_steering)
+#define HAS_MSLICE_STEERING(i915)	(INTEL_INFO(i915)->has_mslice_steering)
 
 static const char * const intel_steering_types[] = {
 	"L3BANK",

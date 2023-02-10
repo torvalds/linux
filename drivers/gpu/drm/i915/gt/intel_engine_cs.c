@@ -2058,13 +2058,13 @@ static const char *repr_timer(const struct timer_list *t)
 static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					 struct drm_printer *m)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	u64 addr;
 
-	if (engine->id == RENDER_CLASS && IS_GRAPHICS_VER(dev_priv, 4, 7))
+	if (engine->id == RENDER_CLASS && IS_GRAPHICS_VER(i915, 4, 7))
 		drm_printf(m, "\tCCID: 0x%08x\n", ENGINE_READ(engine, CCID));
-	if (HAS_EXECLISTS(dev_priv)) {
+	if (HAS_EXECLISTS(i915)) {
 		drm_printf(m, "\tEL_STAT_HI: 0x%08x\n",
 			   ENGINE_READ(engine, RING_EXECLIST_STATUS_HI));
 		drm_printf(m, "\tEL_STAT_LO: 0x%08x\n",
@@ -2085,7 +2085,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			   ENGINE_READ(engine, RING_MI_MODE) & (MODE_IDLE) ? " [idle]" : "");
 	}
 
-	if (GRAPHICS_VER(dev_priv) >= 6) {
+	if (GRAPHICS_VER(i915) >= 6) {
 		drm_printf(m, "\tRING_IMR:   0x%08x\n",
 			   ENGINE_READ(engine, RING_IMR));
 		drm_printf(m, "\tRING_ESR:   0x%08x\n",
@@ -2102,15 +2102,15 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 	addr = intel_engine_get_last_batch_head(engine);
 	drm_printf(m, "\tBBADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
-	if (GRAPHICS_VER(dev_priv) >= 8)
+	if (GRAPHICS_VER(i915) >= 8)
 		addr = ENGINE_READ64(engine, RING_DMA_FADD, RING_DMA_FADD_UDW);
-	else if (GRAPHICS_VER(dev_priv) >= 4)
+	else if (GRAPHICS_VER(i915) >= 4)
 		addr = ENGINE_READ(engine, RING_DMA_FADD);
 	else
 		addr = ENGINE_READ(engine, DMA_FADD_I8XX);
 	drm_printf(m, "\tDMA_FADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
-	if (GRAPHICS_VER(dev_priv) >= 4) {
+	if (GRAPHICS_VER(i915) >= 4) {
 		drm_printf(m, "\tIPEIR: 0x%08x\n",
 			   ENGINE_READ(engine, RING_IPEIR));
 		drm_printf(m, "\tIPEHR: 0x%08x\n",
@@ -2120,7 +2120,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		drm_printf(m, "\tIPEHR: 0x%08x\n", ENGINE_READ(engine, IPEHR));
 	}
 
-	if (HAS_EXECLISTS(dev_priv) && !intel_engine_uses_guc(engine)) {
+	if (HAS_EXECLISTS(i915) && !intel_engine_uses_guc(engine)) {
 		struct i915_request * const *port, *rq;
 		const u32 *hws =
 			&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
@@ -2186,7 +2186,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		}
 		rcu_read_unlock();
 		i915_sched_engine_active_unlock_bh(engine->sched_engine);
-	} else if (GRAPHICS_VER(dev_priv) > 6) {
+	} else if (GRAPHICS_VER(i915) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 			   ENGINE_READ(engine, RING_PP_DIR_BASE));
 		drm_printf(m, "\tPP_DIR_BASE_READ: 0x%08x\n",

@@ -51,7 +51,7 @@ struct intel_reset {
 
 	/**
 	 * Waitqueue to signal when the reset has completed. Used by clients
-	 * that wait for dev_priv->mm.wedged to settle.
+	 * that wait for i915->mm.wedged to settle.
 	 */
 	wait_queue_head_t queue;
 
