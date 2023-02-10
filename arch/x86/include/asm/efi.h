@@ -338,6 +338,9 @@ static inline u32 efi64_convert_status(efi_status_t status)
 	((prot), efi64_zero_upper(file))
 
 /* Memory Attribute Protocol */
+#define __efi64_argmap_get_memory_attributes(protocol, phys, size, flags) \
+	((protocol), __efi64_split(phys), __efi64_split(size), (flags))
+
 #define __efi64_argmap_set_memory_attributes(protocol, phys, size, flags) \
 	((protocol), __efi64_split(phys), __efi64_split(size), __efi64_split(flags))
 
