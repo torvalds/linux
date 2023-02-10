@@ -128,6 +128,9 @@ ice_unmap_and_free_tx_buf(struct ice_tx_ring *ring, struct ice_tx_buf *tx_buf)
 	case ICE_TX_BUF_XDP_TX:
 		page_frag_free(tx_buf->raw_buf);
 		break;
+	case ICE_TX_BUF_XDP_XMIT:
+		xdp_return_frame(tx_buf->xdpf);
+		break;
 	}
 
 	tx_buf->next_to_watch = NULL;
@@ -575,7 +578,7 @@ ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 	case XDP_TX:
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_lock(&xdp_ring->tx_lock);
-		ret = __ice_xmit_xdp_ring(xdp, xdp_ring);
+		ret = __ice_xmit_xdp_ring(xdp, xdp_ring, false);
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_unlock(&xdp_ring->tx_lock);
 		if (ret == ICE_XDP_CONSUMED)

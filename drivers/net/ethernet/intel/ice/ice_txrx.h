@@ -153,6 +153,7 @@ static inline int ice_skb_pad(void)
  * @ICE_TX_BUF_FRAG: mapped skb OR &xdp_buff frag, only unmap DMA
  * @ICE_TX_BUF_SKB: &sk_buff, unmap and consume_skb(), update stats
  * @ICE_TX_BUF_XDP_TX: &xdp_buff, unmap and page_frag_free(), stats
+ * @ICE_TX_BUF_XDP_XMIT: &xdp_frame, unmap and xdp_return_frame(), stats
  * @ICE_TX_BUF_XSK_TX: &xdp_buff on XSk queue, xsk_buff_free(), stats
  */
 enum ice_tx_buf_type {
@@ -161,6 +162,7 @@ enum ice_tx_buf_type {
 	ICE_TX_BUF_FRAG,
 	ICE_TX_BUF_SKB,
 	ICE_TX_BUF_XDP_TX,
+	ICE_TX_BUF_XDP_XMIT,
 	ICE_TX_BUF_XSK_TX,
 };
 
@@ -172,6 +174,7 @@ struct ice_tx_buf {
 	union {
 		void *raw_buf;		/* used for XDP_TX and FDir rules */
 		struct sk_buff *skb;	/* used for .ndo_start_xmit() */
+		struct xdp_frame *xdpf;	/* used for .ndo_xdp_xmit() */
 		struct xdp_buff *xdp;	/* used for XDP_TX ZC */
 	};
 	unsigned int bytecount;
