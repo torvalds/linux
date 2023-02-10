@@ -9681,6 +9681,8 @@ void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 {
 	struct devlink_param_item *param_item;
 
+	devl_assert_locked(devlink);
+
 	param_item = devlink_param_find_by_id(&devlink->params, param_id);
 	if (WARN_ON(!param_item))
 		return;
