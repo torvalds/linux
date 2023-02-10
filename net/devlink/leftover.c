@@ -1110,24 +1110,18 @@ devlink_nl_cmd_port_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink_port *devlink_port;
 	unsigned long port_index;
-	int idx = 0;
 	int err = 0;
 
-	xa_for_each(&devlink->ports, port_index, devlink_port) {
-		if (idx < state->idx) {
-			idx++;
-			continue;
-		}
+	xa_for_each_start(&devlink->ports, port_index, devlink_port, state->idx) {
 		err = devlink_nl_port_fill(msg, devlink_port,
 					   DEVLINK_CMD_NEW,
 					   NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq,
 					   NLM_F_MULTI, cb->extack);
 		if (err) {
-			state->idx = idx;
+			state->idx = port_index;
 			break;
 		}
-		idx++;
 	}
 
 	return err;
