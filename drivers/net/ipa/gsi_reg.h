@@ -140,8 +140,7 @@ enum gsi_channel_type {
 #define GSI_CH_C_CNTXT_3_OFFSET(ch) \
 			(0x0001c00c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
 
-#define GSI_CH_C_QOS_OFFSET(ch) \
-			(0x0001c05c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
+/* CH_C_QOS register */
 #define WRR_WEIGHT_FMASK		GENMASK(3, 0)
 #define MAX_PREFETCH_FMASK		GENMASK(8, 8)
 #define USE_DB_ENG_FMASK		GENMASK(9, 9)
@@ -442,6 +441,15 @@ enum gsi_generic_ee_result {
 	GENERIC_EE_RETRY			= 0x6,
 	GENERIC_EE_NO_RESOURCES			= 0x7,
 };
+
+extern const struct regs gsi_regs_v3_1;
+
+/**
+ * gsi_reg() - Return the structure describing a GSI register
+ * @gsi:	GSI pointer
+ * @reg_id:	GSI register ID
+ */
+const struct reg *gsi_reg(struct gsi *gsi, enum gsi_reg_id reg_id);
 
 /**
  * gsi_reg_init() - Perform GSI register initialization

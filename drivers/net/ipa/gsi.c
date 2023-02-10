@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 
 #include "gsi.h"
+#include "reg.h"
 #include "gsi_reg.h"
 #include "gsi_private.h"
 #include "gsi_trans.h"
@@ -796,6 +797,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	union gsi_channel_scratch scr = { };
 	struct gsi_channel_scratch_gpi *gpi;
 	struct gsi *gsi = channel->gsi;
+	const struct reg *reg;
 	u32 wrr_weight = 0;
 	u32 val;
 
@@ -818,6 +820,8 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_2_OFFSET(channel_id));
 	val = upper_32_bits(channel->tre_ring.addr);
 	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_3_OFFSET(channel_id));
+
+	reg = gsi_reg(gsi, CH_C_QOS);
 
 	/* Command channel gets low weighted round-robin priority */
 	if (channel->command)
@@ -845,7 +849,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	if (gsi->version >= IPA_VERSION_4_9)
 		val |= DB_IN_BYTES;
 
-	iowrite32(val, gsi->virt + GSI_CH_C_QOS_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	/* Now update the scratch registers for GPI protocol */
 	gpi = &scr.gpi;

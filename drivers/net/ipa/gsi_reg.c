@@ -6,6 +6,7 @@
 #include <linux/io.h>
 
 #include "gsi.h"
+#include "reg.h"
 #include "gsi_reg.h"
 
 /* GSI EE registers as a group are shifted downward by a fixed constant amount
@@ -85,6 +86,31 @@ static bool gsi_reg_id_valid(struct gsi *gsi, enum gsi_reg_id reg_id)
 	}
 }
 
+const struct reg *gsi_reg(struct gsi *gsi, enum gsi_reg_id reg_id)
+{
+	if (WARN(!gsi_reg_id_valid(gsi, reg_id), "invalid reg %u\n", reg_id))
+		return NULL;
+
+	return reg(gsi->regs, reg_id);
+}
+
+static const struct regs *gsi_regs(struct gsi *gsi)
+{
+	switch (gsi->version) {
+	case IPA_VERSION_3_1:
+	case IPA_VERSION_3_5_1:
+	case IPA_VERSION_4_2:
+	case IPA_VERSION_4_5:
+	case IPA_VERSION_4_7:
+	case IPA_VERSION_4_9:
+	case IPA_VERSION_4_11:
+		return &gsi_regs_v3_1;
+
+	default:
+		return NULL;
+	}
+}
+
 /* Sets gsi->virt_raw and gsi->virt, and I/O maps the "gsi" memory range */
 int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 {
@@ -92,8 +118,6 @@ int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 	struct resource *res;
 	resource_size_t size;
 	u32 adjust;
-
-	(void)gsi_reg_id_valid;	/* Avoid a warning */
 
 	/* Get GSI memory range and map it */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
@@ -113,6 +137,12 @@ int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 	if (res->start < adjust) {
 		dev_err(dev, "DT memory resource \"gsi\" too low (< %u)\n",
 			adjust);
+		return -EINVAL;
+	}
+
+	gsi->regs = gsi_regs(gsi);
+	if (!gsi->regs) {
+		dev_err(dev, "unsupported IPA version %u (?)\n", gsi->version);
 		return -EINVAL;
 	}
 
