@@ -142,7 +142,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	struct ddc *ddc;
 	enum channel_id channel;
 
-		channel = CHANNEL_ID_UNKNOWN;
+	channel = CHANNEL_ID_UNKNOWN;
 
 	ddc = get_ddc_pin(link->ddc);
 
@@ -196,8 +196,8 @@ static bool dc_link_construct_phy(struct dc_link *link,
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
-		link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-		link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
 	link->link_status.dpcd_caps = &link->dpcd_caps;
 
 	link->dc = init_params->dc;
