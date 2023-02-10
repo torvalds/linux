@@ -533,7 +533,7 @@ void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
 	struct bio *comp_bio;
 	const u64 disk_bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 cur_disk_byte = disk_bytenr;
-	u64 file_offset;
+	u64 file_offset = btrfs_bio(bio)->file_offset;
 	u64 em_len;
 	u64 em_start;
 	struct extent_map *em;
@@ -541,9 +541,6 @@ void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
 	int memstall = 0;
 	blk_status_t ret;
 	int ret2;
-
-	file_offset = bio_first_bvec_all(bio)->bv_offset +
-		      page_offset(bio_first_page_all(bio));
 
 	/* we need the actual starting offset of this extent in the file */
 	read_lock(&em_tree->lock);
