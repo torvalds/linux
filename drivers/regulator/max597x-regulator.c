@@ -357,12 +357,6 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 	return 0;
 }
 
-static const struct regmap_config max597x_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = MAX_REGISTERS,
-};
-
 static int max597x_adc_range(struct regmap *regmap, const int ch,
 			     u32 *irng, u32 *mon_rng)
 {
