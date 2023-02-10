@@ -558,9 +558,7 @@ static int imx323_g_frame_interval(struct v4l2_subdev *sd,
 	struct imx323 *imx323 = to_imx323(sd);
 	const struct imx323_mode *mode = imx323->cur_mode;
 
-	mutex_lock(&imx323->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&imx323->mutex);
 
 	return 0;
 }

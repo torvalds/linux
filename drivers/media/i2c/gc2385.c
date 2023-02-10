@@ -443,9 +443,7 @@ static int gc2385_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc2385 *gc2385 = to_gc2385(sd);
 	const struct gc2385_mode *mode = gc2385->cur_mode;
 
-	mutex_lock(&gc2385->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc2385->mutex);
 
 	return 0;
 }

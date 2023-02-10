@@ -858,9 +858,7 @@ static int gc0329_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct gc0329 *gc0329 = to_gc0329(sd);
 
-	mutex_lock(&gc0329->lock);
 	fi->interval = gc0329->frame_size->max_fps;
-	mutex_unlock(&gc0329->lock);
 
 	return 0;
 }

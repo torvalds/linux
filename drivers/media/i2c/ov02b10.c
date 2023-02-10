@@ -526,9 +526,7 @@ static int ov02b10_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov02b10 *ov02b10 = to_ov02b10(sd);
 	const struct ov02b10_mode *mode = ov02b10->cur_mode;
 
-	mutex_lock(&ov02b10->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov02b10->mutex);
 
 	return 0;
 }

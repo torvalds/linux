@@ -902,9 +902,7 @@ static int ov13850_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov13850 *ov13850 = to_ov13850(sd);
 	const struct ov13850_mode *mode = ov13850->cur_mode;
 
-	mutex_lock(&ov13850->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov13850->mutex);
 
 	return 0;
 }

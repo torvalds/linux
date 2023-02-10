@@ -1166,9 +1166,7 @@ static int gc2035_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct gc2035 *gc2035 = to_gc2035(sd);
 
-	mutex_lock(&gc2035->lock);
 	fi->interval = gc2035->frame_size->max_fps;
-	mutex_unlock(&gc2035->lock);
 
 	return 0;
 }

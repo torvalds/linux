@@ -2083,9 +2083,7 @@ static int imx378_g_frame_interval(struct v4l2_subdev *sd,
 	struct imx378 *imx378 = to_imx378(sd);
 	const struct imx378_mode *mode = imx378->cur_mode;
 
-	mutex_lock(&imx378->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&imx378->mutex);
 
 	return 0;
 }

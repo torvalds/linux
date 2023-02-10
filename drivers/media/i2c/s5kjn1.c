@@ -1199,9 +1199,7 @@ static int s5kjn1_g_frame_interval(struct v4l2_subdev *sd,
 	struct s5kjn1 *s5kjn1 = to_s5kjn1(sd);
 	const struct s5kjn1_mode *mode = s5kjn1->cur_mode;
 
-	mutex_lock(&s5kjn1->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&s5kjn1->mutex);
 
 	return 0;
 }

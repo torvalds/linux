@@ -1567,9 +1567,7 @@ static int os04a10_g_frame_interval(struct v4l2_subdev *sd,
 	struct os04a10 *os04a10 = to_os04a10(sd);
 	const struct os04a10_mode *mode = os04a10->cur_mode;
 
-	mutex_lock(&os04a10->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&os04a10->mutex);
 
 	return 0;
 }

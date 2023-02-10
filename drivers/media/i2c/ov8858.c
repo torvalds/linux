@@ -2131,9 +2131,7 @@ static int ov8858_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov8858 *ov8858 = to_ov8858(sd);
 	const struct ov8858_mode *mode = ov8858->cur_mode;
 
-	mutex_lock(&ov8858->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov8858->mutex);
 
 	return 0;
 }

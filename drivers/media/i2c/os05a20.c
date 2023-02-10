@@ -920,9 +920,7 @@ static int os05a20_g_frame_interval(struct v4l2_subdev *sd,
 	struct os05a20 *os05a20 = to_os05a20(sd);
 	const struct os05a20_mode *mode = os05a20->cur_mode;
 
-	mutex_lock(&os05a20->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&os05a20->mutex);
 
 	return 0;
 }

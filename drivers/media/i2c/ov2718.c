@@ -7913,9 +7913,7 @@ static int ov2718_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov2718 *ov2718 = to_ov2718(sd);
 	const struct ov2718_mode *mode = ov2718->cur_mode;
 
-	mutex_lock(&ov2718->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov2718->mutex);
 
 	return 0;
 }

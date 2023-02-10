@@ -1185,9 +1185,7 @@ static int ov16a10_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov16a10 *ov16a10 = to_ov16a10(sd);
 	const struct ov16a10_mode *mode = ov16a10->cur_mode;
 
-	mutex_lock(&ov16a10->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov16a10->mutex);
 
 	return 0;
 }

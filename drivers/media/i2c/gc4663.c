@@ -999,9 +999,7 @@ static int gc4663_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc4663 *gc4663 = to_gc4663(sd);
 	const struct gc4663_mode *mode = gc4663->cur_mode;
 
-	mutex_lock(&gc4663->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc4663->mutex);
 
 	return 0;
 }

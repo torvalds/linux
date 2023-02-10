@@ -1686,9 +1686,7 @@ static int IMX464_g_frame_interval(struct v4l2_subdev *sd,
 	struct IMX464 *IMX464 = to_IMX464(sd);
 	const struct IMX464_mode *mode = IMX464->cur_mode;
 
-	mutex_lock(&IMX464->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&IMX464->mutex);
 
 	return 0;
 }

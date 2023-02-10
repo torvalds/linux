@@ -736,9 +736,7 @@ static int ov5648_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov5648 *ov5648 = to_ov5648(sd);
 	const struct ov5648_mode *mode = ov5648->cur_mode;
 
-	mutex_lock(&ov5648->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov5648->mutex);
 
 	return 0;
 }

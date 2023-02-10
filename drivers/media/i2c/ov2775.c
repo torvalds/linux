@@ -4103,9 +4103,7 @@ static int ov2775_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov2775 *ov2775 = to_ov2775(sd);
 	const struct ov2775_mode *mode = ov2775->cur_mode;
 
-	mutex_lock(&ov2775->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov2775->mutex);
 
 	return 0;
 }

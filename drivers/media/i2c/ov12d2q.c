@@ -2216,9 +2216,7 @@ static int ov12d2q_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov12d2q *ov12d2q = to_ov12d2q(sd);
 	const struct ov12d2q_mode *mode = ov12d2q->cur_mode;
 
-	mutex_lock(&ov12d2q->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov12d2q->mutex);
 
 	return 0;
 }

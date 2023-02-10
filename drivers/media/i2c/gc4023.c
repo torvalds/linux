@@ -720,9 +720,7 @@ static int gc4023_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc4023 *gc4023 = to_gc4023(sd);
 	const struct gc4023_mode *mode = gc4023->cur_mode;
 
-	mutex_lock(&gc4023->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc4023->mutex);
 
 	return 0;
 }

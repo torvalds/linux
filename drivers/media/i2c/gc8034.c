@@ -1418,9 +1418,7 @@ static int gc8034_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc8034 *gc8034 = to_gc8034(sd);
 	const struct gc8034_mode *mode = gc8034->cur_mode;
 
-	mutex_lock(&gc8034->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc8034->mutex);
 
 	return 0;
 }

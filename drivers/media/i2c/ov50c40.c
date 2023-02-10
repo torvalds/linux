@@ -6137,9 +6137,7 @@ static int ov50c40_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov50c40 *ov50c40 = to_ov50c40(sd);
 	const struct ov50c40_mode *mode = ov50c40->cur_mode;
 
-	mutex_lock(&ov50c40->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov50c40->mutex);
 
 	return 0;
 }

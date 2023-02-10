@@ -660,9 +660,7 @@ static int sc2336_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc2336 *sc2336 = to_sc2336(sd);
 	const struct sc2336_mode *mode = sc2336->cur_mode;
 
-	mutex_lock(&sc2336->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&sc2336->mutex);
 
 	return 0;
 }

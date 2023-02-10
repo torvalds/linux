@@ -609,9 +609,7 @@ static int gc5035_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc5035 *gc5035 = to_gc5035(sd);
 	const struct gc5035_mode *mode = gc5035->cur_mode;
 
-	mutex_lock(&gc5035->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc5035->mutex);
 
 	return 0;
 }

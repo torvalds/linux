@@ -973,12 +973,10 @@ static int ov7251_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov7251 *ov7251 = to_ov7251(sd);
 	const struct ov7251_mode *mode = ov7251->cur_mode;
 
-	mutex_lock(&ov7251->mutex);
 	if (ov7251->streaming)
 		fi->interval = ov7251->cur_fps;
 	else
 		fi->interval = mode->max_fps;
-	mutex_unlock(&ov7251->mutex);
 
 	return 0;
 }

@@ -839,9 +839,7 @@ static int gc1084_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc1084 *gc1084 = to_gc1084(sd);
 	const struct gc1084_mode *mode = gc1084->cur_mode;
 
-	mutex_lock(&gc1084->lock);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc1084->lock);
 
 	return 0;
 }

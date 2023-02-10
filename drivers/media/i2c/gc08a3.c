@@ -1303,9 +1303,7 @@ static int gc08a3_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc08a3 *gc08a3 = to_gc08a3(sd);
 	const struct gc08a3_mode *mode = gc08a3->cur_mode;
 
-	mutex_lock(&gc08a3->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc08a3->mutex);
 
 	return 0;
 }

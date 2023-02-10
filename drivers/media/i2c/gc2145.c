@@ -2483,9 +2483,7 @@ static int gc2145_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct gc2145 *gc2145 = to_gc2145(sd);
 
-	mutex_lock(&gc2145->lock);
 	fi->interval = gc2145->frame_size->max_fps;
-	mutex_unlock(&gc2145->lock);
 
 	return 0;
 }

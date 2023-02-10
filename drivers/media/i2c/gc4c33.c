@@ -1510,9 +1510,7 @@ static int gc4c33_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc4c33 *gc4c33 = to_gc4c33(sd);
 	const struct gc4c33_mode *mode = gc4c33->cur_mode;
 
-	mutex_lock(&gc4c33->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc4c33->mutex);
 
 	return 0;
 }

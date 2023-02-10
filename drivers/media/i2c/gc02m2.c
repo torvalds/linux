@@ -601,9 +601,7 @@ static int gc02m2_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc02m2 *gc02m2 = to_gc02m2(sd);
 	const struct gc02m2_mode *mode = gc02m2->cur_mode;
 
-	mutex_lock(&gc02m2->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc02m2->mutex);
 
 	return 0;
 }

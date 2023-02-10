@@ -1152,9 +1152,7 @@ static int gc2093_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc2093 *gc2093 = to_gc2093(sd);
 	const struct gc2093_mode *mode = gc2093->cur_mode;
 
-	mutex_lock(&gc2093->lock);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc2093->lock);
 
 	return 0;
 }
