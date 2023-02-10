@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * A generic stack depot implementation
+ * Stack depot - a stack trace storage that avoids duplication.
  *
  * Author: Alexander Potapenko <glider@google.com>
  * Copyright (C) 2016 Google, Inc.
  *
- * Based on code by Dmitry Chernenkov.
+ * Based on the code by Dmitry Chernenkov.
  */
 
 #ifndef _LINUX_STACKDEPOT_H
@@ -17,35 +17,37 @@ typedef u32 depot_stack_handle_t;
 
 /*
  * Number of bits in the handle that stack depot doesn't use. Users may store
- * information in them.
+ * information in them via stack_depot_set/get_extra_bits.
  */
 #define STACK_DEPOT_EXTRA_BITS 5
 
 /*
- * Every user of stack depot has to call stack_depot_init() during its own init
- * when it's decided that it will be calling stack_depot_save() later. This is
- * recommended for e.g. modules initialized later in the boot process, when
- * slab_is_available() is true.
+ * Using stack depot requires its initialization, which can be done in 3 ways:
  *
- * The alternative is to select STACKDEPOT_ALWAYS_INIT to have stack depot
- * enabled as part of mm_init(), for subsystems where it's known at compile time
- * that stack depot will be used.
+ * 1. Selecting CONFIG_STACKDEPOT_ALWAYS_INIT. This option is suitable in
+ *    scenarios where it's known at compile time that stack depot will be used.
+ *    Enabling this config makes the kernel initialize stack depot in mm_init().
  *
- * Another alternative is to call stack_depot_request_early_init(), when the
- * decision to use stack depot is taken e.g. when evaluating kernel boot
- * parameters, which precedes the enablement point in mm_init().
+ * 2. Calling stack_depot_request_early_init() during early boot, before
+ *    stack_depot_early_init() in mm_init() completes. For example, this can
+ *    be done when evaluating kernel boot parameters.
+ *
+ * 3. Calling stack_depot_init(). Possible after boot is complete. This option
+ *    is recommended for modules initialized later in the boot process, after
+ *    mm_init() completes.
  *
  * stack_depot_init() and stack_depot_request_early_init() can be called
- * regardless of CONFIG_STACKDEPOT and are no-op when disabled. The actual
- * save/fetch/print functions should only be called from code that makes sure
- * CONFIG_STACKDEPOT is enabled.
+ * regardless of whether CONFIG_STACKDEPOT is enabled and are no-op when this
+ * config is disabled. The save/fetch/print stack depot functions can only be
+ * called from the code that makes sure CONFIG_STACKDEPOT is enabled _and_
+ * initializes stack depot via one of the ways listed above.
  */
 #ifdef CONFIG_STACKDEPOT
 int stack_depot_init(void);
 
 void __init stack_depot_request_early_init(void);
 
-/* This is supposed to be called only from mm_init() */
+/* Must be only called from mm_init(). */
 int __init stack_depot_early_init(void);
 #else
 static inline int stack_depot_init(void) { return 0; }
