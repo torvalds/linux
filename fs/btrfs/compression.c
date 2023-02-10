@@ -159,30 +159,29 @@ static int compression_decompress(int type, struct list_head *ws,
 	}
 }
 
+static void btrfs_free_compressed_pages(struct compressed_bio *cb)
+{
+	for (unsigned int i = 0; i < cb->nr_pages; i++) {
+		struct page *page = cb->compressed_pages[i];
+
+		page->mapping = NULL;
+		put_page(page);
+	}
+	kfree(cb->compressed_pages);
+}
+
 static int btrfs_decompress_bio(struct compressed_bio *cb);
 
 static void end_compressed_bio_read(struct btrfs_bio *bbio)
 {
 	struct compressed_bio *cb = to_compressed_bio(bbio);
 	blk_status_t status = bbio->bio.bi_status;
-	unsigned int index;
-	struct page *page;
 
 	if (!status)
 		status = errno_to_blk_status(btrfs_decompress_bio(cb));
 
-	/* Release the compressed pages */
-	for (index = 0; index < cb->nr_pages; index++) {
-		page = cb->compressed_pages[index];
-		page->mapping = NULL;
-		put_page(page);
-	}
-
-	/* Do io completion on the original bio */
+	btrfs_free_compressed_pages(cb);
 	btrfs_bio_end_io(btrfs_bio(cb->orig_bio), status);
-
-	/* Finally free the cb struct */
-	kfree(cb->compressed_pages);
 	bio_put(&bbio->bio);
 }
 
@@ -227,8 +226,6 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 
 static void finish_compressed_bio_write(struct compressed_bio *cb)
 {
-	unsigned int index;
-
 	/*
 	 * Ok, we're the last bio for this extent, step one is to call back
 	 * into the FS and do all the end_io operations.
@@ -241,19 +238,7 @@ static void finish_compressed_bio_write(struct compressed_bio *cb)
 		end_compressed_writeback(cb);
 	/* Note, our inode could be gone now */
 
-	/*
-	 * Release the compressed pages, these came from alloc_page and
-	 * are not attached to the inode at all
-	 */
-	for (index = 0; index < cb->nr_pages; index++) {
-		struct page *page = cb->compressed_pages[index];
-
-		page->mapping = NULL;
-		put_page(page);
-	}
-
-	/* Finally free the cb struct */
-	kfree(cb->compressed_pages);
+	btrfs_free_compressed_pages(cb);
 	bio_put(&cb->bbio.bio);
 }
 
