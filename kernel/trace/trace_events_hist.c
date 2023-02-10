@@ -3137,13 +3137,15 @@ static inline void __update_field_vars(struct tracing_map_elt *elt,
 				size = min(val->size, STR_VAR_LEN_MAX);
 				strscpy(str, val_str, size);
 			} else {
+				char *stack_start = str + sizeof(unsigned long);
 				int e;
 
-				e = stack_trace_save((void *)str,
+				e = stack_trace_save((void *)stack_start,
 						     HIST_STACKTRACE_DEPTH,
 						     HIST_STACKTRACE_SKIP);
 				if (e < HIST_STACKTRACE_DEPTH - 1)
-					((unsigned long *)str)[e] = 0;
+					((unsigned long *)stack_start)[e] = 0;
+				*((unsigned long *)str) = e;
 			}
 			var_val = (u64)(uintptr_t)str;
 		}
@@ -5135,13 +5137,15 @@ static void hist_trigger_elt_update(struct hist_trigger_data *hist_data,
 					size = min(hist_field->size, STR_VAR_LEN_MAX);
 					strscpy(str, val_str, size);
 				} else {
+					char *stack_start = str + sizeof(unsigned long);
 					int e;
 
-					e = stack_trace_save((void *)str,
+					e = stack_trace_save((void *)stack_start,
 							     HIST_STACKTRACE_DEPTH,
 							     HIST_STACKTRACE_SKIP);
 					if (e < HIST_STACKTRACE_DEPTH - 1)
-						((unsigned long *)str)[e] = 0;
+						((unsigned long *)stack_start)[e] = 0;
+					*((unsigned long *)str) = e;
 				}
 				hist_val = (u64)(uintptr_t)str;
 			}

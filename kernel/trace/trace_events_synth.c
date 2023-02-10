@@ -538,7 +538,12 @@ static notrace void trace_event_raw_event_synth(void *__data,
 		val_idx = var_ref_idx[field_pos];
 		str_val = (char *)(long)var_ref_vals[val_idx];
 
-		len = kern_fetch_store_strlen((unsigned long)str_val);
+		if (event->dynamic_fields[i]->is_stack) {
+			len = *((unsigned long *)str_val);
+			len *= sizeof(unsigned long);
+		} else {
+			len = kern_fetch_store_strlen((unsigned long)str_val);
+		}
 
 		fields_size += len;
 	}
