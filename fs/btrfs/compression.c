@@ -161,12 +161,8 @@ static int compression_decompress(int type, struct list_head *ws,
 
 static void btrfs_free_compressed_pages(struct compressed_bio *cb)
 {
-	for (unsigned int i = 0; i < cb->nr_pages; i++) {
-		struct page *page = cb->compressed_pages[i];
-
-		page->mapping = NULL;
-		put_page(page);
-	}
+	for (unsigned int i = 0; i < cb->nr_pages; i++)
+		put_page(cb->compressed_pages[i]);
 	kfree(cb->compressed_pages);
 }
 
