@@ -357,13 +357,6 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 		kthread_associate_blkcg(NULL);
 }
 
-static u64 bio_end_offset(struct bio *bio)
-{
-	struct bio_vec *last = bio_last_bvec_all(bio);
-
-	return page_offset(last->bv_page) + last->bv_len + last->bv_offset;
-}
-
 /*
  * Add extra pages in the same compressed file extent so that we don't need to
  * re-read the same extent again and again.
@@ -382,7 +375,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	unsigned long end_index;
-	u64 cur = bio_end_offset(cb->orig_bio);
+	u64 cur = btrfs_bio(cb->orig_bio)->file_offset + cb->orig_bio->bi_iter.bi_size;
 	u64 isize = i_size_read(inode);
 	int ret;
 	struct page *page;
