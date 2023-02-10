@@ -7,9 +7,6 @@
 
 #define pr_fmt(fmt) "rga: " fmt
 
-#include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
-
 #include "rga2_reg_info.h"
 #include "rga3_reg_info.h"
 #include "rga_dma_buf.h"
@@ -375,62 +372,6 @@ static void rga_cancel_timer(void)
 }
 
 #ifndef RGA_DISABLE_PM
-static int rga_grf_open(struct rga_scheduler_t *scheduler)
-{
-	if (scheduler->grf_info.grf && scheduler->grf_info.open_val)
-		regmap_write(scheduler->grf_info.grf,
-			     scheduler->grf_info.offset,
-			     scheduler->grf_info.open_val);
-
-	return 0;
-}
-
-static int rga_grf_close(struct rga_scheduler_t *scheduler)
-{
-	if (scheduler->grf_info.grf && scheduler->grf_info.close_val)
-		regmap_write(scheduler->grf_info.grf,
-			     scheduler->grf_info.offset,
-			     scheduler->grf_info.close_val);
-
-	return 0;
-}
-
-static int rga_grf_init(struct rga_scheduler_t *scheduler)
-{
-	int ret;
-	uint32_t grf_offset = 0;
-	uint32_t grf_open_value = 0, grf_close_value = 0;
-	struct device_node *np = scheduler->dev->of_node;
-	struct regmap *grf;
-
-	grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR_OR_NULL(grf))
-		return -EINVAL;
-
-	ret = of_property_read_u32(np, "rockchip,grf-offset", &grf_offset);
-	if (ret)
-		return -ENODATA;
-
-	ret = of_property_read_u32_index(np, "rockchip,grf-values",
-					 0, &grf_open_value);
-	if (ret)
-		return -ENODATA;
-
-	ret = of_property_read_u32_index(np, "rockchip,grf-values",
-					 1, &grf_close_value);
-	if (ret)
-		return -ENODATA;
-
-	scheduler->grf_info.grf = grf;
-	scheduler->grf_info.offset = grf_offset;
-	scheduler->grf_info.open_val = grf_open_value;
-	scheduler->grf_info.close_val = grf_close_value;
-
-	pr_info("%s grf init successfully.\n", dev_driver_string(scheduler->dev));
-
-	return 0;
-}
-
 int rga_power_enable(struct rga_scheduler_t *scheduler)
 {
 	int ret = -EINVAL;
@@ -451,10 +392,8 @@ int rga_power_enable(struct rga_scheduler_t *scheduler)
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 	scheduler->pd_refcount++;
-	if (scheduler->status == RGA_SCHEDULER_IDLE) {
+	if (scheduler->status == RGA_SCHEDULER_IDLE)
 		scheduler->status = RGA_SCHEDULER_WORKING;
-		rga_grf_open(scheduler);
-	}
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
@@ -486,10 +425,8 @@ int rga_power_disable(struct rga_scheduler_t *scheduler)
 	}
 
 	scheduler->pd_refcount--;
-	if (scheduler->pd_refcount == 0) {
+	if (scheduler->pd_refcount == 0)
 		scheduler->status = RGA_SCHEDULER_IDLE;
-		rga_grf_close(scheduler);
-	}
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
@@ -1425,9 +1362,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-#ifndef RGA_DISABLE_PM
-	rga_grf_init(scheduler);
 
+#ifndef RGA_DISABLE_PM
 	/* clk init */
 	for (i = 0; i < match_data->num_clks; i++) {
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
@@ -1458,8 +1394,6 @@ static int rga_drv_probe(struct platform_device *pdev)
 			}
 		}
 	}
-
-	rga_grf_open(scheduler);
 #endif /* #ifndef RGA_DISABLE_PM */
 
 	scheduler->ops->get_version(scheduler);
@@ -1485,8 +1419,6 @@ static int rga_drv_probe(struct platform_device *pdev)
 	data->num_of_scheduler++;
 
 #ifndef RGA_DISABLE_PM
-	rga_grf_close(scheduler);
-
 	for (i = scheduler->num_clks - 1; i >= 0; i--)
 		if (!IS_ERR(scheduler->clks[i]))
 			clk_disable_unprepare(scheduler->clks[i]);

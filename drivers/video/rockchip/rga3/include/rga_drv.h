@@ -319,18 +319,10 @@ struct rga_timer {
 	u32 busy_time_record;
 };
 
-struct rga_grf_info {
-	uint32_t offset;
-	uint32_t open_val;
-	uint32_t close_val;
-	struct regmap *grf;
-};
-
 struct rga_scheduler_t {
 	struct device *dev;
 	void __iomem *rga_base;
 	struct rga_iommu_info *iommu_info;
-	struct rga_grf_info grf_info;
 
 	struct clk *clks[RGA_MAX_BUS_CLK];
 	int num_clks;
