@@ -454,13 +454,12 @@ config SPI_INTEL_PCI
 	select SPI_INTEL
 	help
 	  This enables PCI support for the Intel PCH/PCU SPI controller in
-	  master mode. This controller is present in modern Intel hardware
-	  and is used to hold BIOS and other persistent settings. This
-	  driver only supports hardware sequencing mode. Using this
-	  driver it is possible to upgrade BIOS directly from Linux.
-
-	  Say N here unless you know what you are doing. Overwriting the
-	  SPI flash may render the system unbootable.
+	  master mode. This controller is used to hold BIOS and other
+	  persistent settings. Controllers present in modern Intel hardware
+	  only work in hardware sequencing mode, this means that the
+	  controller exposes a subset of operations that makes it safer to
+	  use. Using this driver it is possible to upgrade BIOS directly
+	  from Linux.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called spi-intel-pci.
@@ -473,9 +472,10 @@ config SPI_INTEL_PLATFORM
 	help
 	  This enables platform support for the Intel PCH/PCU SPI
 	  controller in master mode that is used to hold BIOS and other
-	  persistent settings. Most of these controllers are using
-	  software sequencing mode. Using this driver it is possible to
-	  upgrade BIOS directly from Linux.
+	  persistent settings. Most of these controllers work in
+	  software sequencing mode, which means that the controller
+	  exposes the low level SPI-NOR opcodes to the software. Using
+	  this driver it is possible to upgrade BIOS directly from Linux.
 
 	  Say N here unless you know what you are doing. Overwriting the
 	  SPI flash may render the system unbootable.
