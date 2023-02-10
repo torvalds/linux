@@ -797,9 +797,7 @@ static int jx_h62_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fie->code != JX_H62_MEDIA_BUS_FMT)
-		return -EINVAL;
-
+	fie->code = JX_H62_MEDIA_BUS_FMT;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;

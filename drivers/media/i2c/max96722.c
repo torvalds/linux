@@ -840,8 +840,7 @@ static int max96722_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fie->code != MAX96722_MEDIA_BUS_FMT)
-		return -EINVAL;
+	fie->code = MAX96722_MEDIA_BUS_FMT;
 
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;

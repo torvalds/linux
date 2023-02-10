@@ -1064,8 +1064,7 @@ static int s5k3l6xx_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fie->code != S5K3L6XX_MEDIA_BUS_FMT)
-		return -EINVAL;
+	fie->code = S5K3L6XX_MEDIA_BUS_FMT;
 
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;

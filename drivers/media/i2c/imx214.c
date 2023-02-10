@@ -1445,9 +1445,7 @@ static int imx214_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= imx214->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != IMX214_MEDIA_BUS_FMT)
-		return -EINVAL;
-
+	fie->code = IMX214_MEDIA_BUS_FMT;
 	fie->width = imx214->support_modes[fie->index].width;
 	fie->height = imx214->support_modes[fie->index].height;
 	fie->interval = imx214->support_modes[fie->index].max_fps;

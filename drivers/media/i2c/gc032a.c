@@ -944,9 +944,7 @@ static int gc032a_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(gc032a_framesizes))
 		return -EINVAL;
 
-	if (fie->code != MEDIA_BUS_FMT_YUYV8_2X8)
-		return -EINVAL;
-
+	fie->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	fie->width = gc032a_framesizes[fie->index].width;
 	fie->height = gc032a_framesizes[fie->index].height;
 	fie->interval = gc032a_framesizes[fie->index].max_fps;

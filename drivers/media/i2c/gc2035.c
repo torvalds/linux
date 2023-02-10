@@ -1294,9 +1294,7 @@ static int gc2035_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(gc2035_framesizes))
 		return -EINVAL;
 
-	if (fie->code != MEDIA_BUS_FMT_UYVY8_2X8)
-		return -EINVAL;
-
+	fie->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	fie->width = gc2035_framesizes[fie->index].width;
 	fie->height = gc2035_framesizes[fie->index].height;
 	fie->interval = gc2035_framesizes[fie->index].max_fps;

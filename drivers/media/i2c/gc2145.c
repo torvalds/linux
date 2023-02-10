@@ -2672,9 +2672,7 @@ static int gc2145_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= gc2145->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != MEDIA_BUS_FMT_UYVY8_2X8)
-		return -EINVAL;
-
+	fie->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	fie->width = gc2145->framesize_cfg[fie->index].width;
 	fie->height = gc2145->framesize_cfg[fie->index].height;
 	fie->interval = gc2145->framesize_cfg[fie->index].max_fps;

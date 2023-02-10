@@ -962,8 +962,7 @@ static int lt7911uxc_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= lt7911uxc->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != LT7911UXC_MEDIA_BUS_FMT)
-		return -EINVAL;
+	fie->code = LT7911UXC_MEDIA_BUS_FMT;
 
 	fie->width = lt7911uxc->support_modes[fie->index].width;
 	fie->height = lt7911uxc->support_modes[fie->index].height;

@@ -1107,9 +1107,7 @@ static int os08a20_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= os08a20->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != OS08A20_MEDIA_BUS_FMT)
-		return -EINVAL;
-
+	fie->code = OS08A20_MEDIA_BUS_FMT;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
