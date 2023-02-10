@@ -45,7 +45,7 @@ struct nvme_dhchap_queue_context {
 	int sess_key_len;
 };
 
-struct workqueue_struct *nvme_auth_wq;
+static struct workqueue_struct *nvme_auth_wq;
 
 #define nvme_auth_flags_from_qid(qid) \
 	(qid == 0) ? 0 : BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED
