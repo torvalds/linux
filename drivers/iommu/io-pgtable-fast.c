@@ -18,7 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
 #include <linux/qcom-iommu-util.h>
-#include "qcom-io-pgtable.h"
+#include <linux/qcom-io-pgtable.h>
 
 #define AV8L_FAST_MAX_ADDR_BITS		48
 

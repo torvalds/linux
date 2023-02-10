@@ -25,8 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/qcom-iommu-util.h>
-
-#include "../../qcom-io-pgtable.h"
+#include <linux/qcom-io-pgtable.h>
 
 /* Configuration registers */
 #define ARM_SMMU_GR0_sCR0		0x0
@@ -512,7 +511,7 @@ struct arm_smmu_domain {
 	 */
 	spinlock_t			iotlb_gather_lock;
 	struct list_head		*freelist;
-	bool				deferred_sync;
+	bool				deferred_flush;
 
 	struct iommu_debug_attachment	*logger;
 	struct iommu_domain		domain;

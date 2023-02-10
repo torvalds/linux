@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __QCOM_QCOM_IO_PGTABLE_H
 #define __QCOM_QCOM_IO_PGTABLE_H
@@ -80,5 +81,19 @@ extern struct io_pgtable_init_fns io_pgtable_av8l_fast_init_fns;
 #ifdef CONFIG_IOMMU_IO_PGTABLE_LPAE
 extern struct io_pgtable_init_fns qcom_io_pgtable_arm_64_lpae_s1_init_fns;
 #endif
+
+int qcom_arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
+			phys_addr_t paddr, size_t size, int iommu_prot, gfp_t gfp);
+int qcom_arm_lpae_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
+		phys_addr_t paddr, size_t pgsize, size_t pgcount,
+		int iommu_prot, gfp_t gfp, size_t *mapped);
+int qcom_arm_lpae_map_sg(struct io_pgtable_ops *ops, unsigned long iova,
+			   struct scatterlist *sg, unsigned int nents, int prot,
+			   gfp_t gfp, size_t *mapped);
+size_t qcom_arm_lpae_unmap_pages(struct io_pgtable_ops *ops, unsigned long iova,
+				   size_t pgsize, size_t pgcount,
+				   struct iommu_iotlb_gather *gather);
+size_t qcom_arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
+			     size_t size, struct iommu_iotlb_gather *gather);
 
 #endif /* __QCOM_QCOM_IO_PGTABLE_H */
