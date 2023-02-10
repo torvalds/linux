@@ -147,22 +147,22 @@ int devtmpfs_create_node(struct device *dev)
 	return devtmpfs_submit_req(&req, tmp);
 }
 
-int devtmpfs_delete_node(struct device *dev)
+void devtmpfs_delete_node(struct device *dev)
 {
 	const char *tmp = NULL;
 	struct req req;
 
 	if (!thread)
-		return 0;
+		return;
 
 	req.name = device_get_devnode(dev, NULL, NULL, NULL, &tmp);
 	if (!req.name)
-		return -ENOMEM;
+		return;
 
 	req.mode = 0;
 	req.dev = dev;
 
-	return devtmpfs_submit_req(&req, tmp);
+	devtmpfs_submit_req(&req, tmp);
 }
 
 static int dev_mkdir(const char *name, umode_t mode)
