@@ -3865,11 +3865,87 @@ static void gfx_v9_4_3_inst_query_utc_err_status(struct amdgpu_device *adev,
 	}
 }
 
+static void gfx_v9_4_3_log_cu_timeout_status(struct amdgpu_device *adev,
+					uint32_t status, int xcc_id)
+{
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
+	uint32_t i, simd, wave;
+	uint32_t wave_status;
+	uint32_t wave_pc_lo, wave_pc_hi;
+	uint32_t wave_exec_lo, wave_exec_hi;
+	uint32_t wave_inst_dw0, wave_inst_dw1;
+	uint32_t wave_ib_sts;
+
+	for (i = 0; i < 32; i++) {
+		if (!((i << 1) & status))
+			continue;
+
+		simd = i / cu_info->max_waves_per_simd;
+		wave = i % cu_info->max_waves_per_simd;
+
+		wave_status = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_STATUS);
+		wave_pc_lo = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_PC_LO);
+		wave_pc_hi = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_PC_HI);
+		wave_exec_lo =
+			wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_EXEC_LO);
+		wave_exec_hi =
+			wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_EXEC_HI);
+		wave_inst_dw0 =
+			wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_INST_DW0);
+		wave_inst_dw1 =
+			wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_INST_DW1);
+		wave_ib_sts = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_IB_STS);
+
+		dev_info(
+			adev->dev,
+			"\t SIMD %d, Wave %d: status 0x%x, pc 0x%llx, exec 0x%llx, inst 0x%llx, ib_sts 0x%x\n",
+			simd, wave, wave_status,
+			((uint64_t)wave_pc_hi << 32 | wave_pc_lo),
+			((uint64_t)wave_exec_hi << 32 | wave_exec_lo),
+			((uint64_t)wave_inst_dw1 << 32 | wave_inst_dw0),
+			wave_ib_sts);
+	}
+}
+
+static void gfx_v9_4_3_inst_query_sq_timeout_status(struct amdgpu_device *adev,
+					int xcc_id)
+{
+	uint32_t se_idx, sh_idx, cu_idx;
+	uint32_t status;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (se_idx = 0; se_idx < adev->gfx.config.max_shader_engines; se_idx++) {
+		for (sh_idx = 0; sh_idx < adev->gfx.config.max_sh_per_se; sh_idx++) {
+			for (cu_idx = 0; cu_idx < adev->gfx.config.max_cu_per_sh; cu_idx++) {
+				gfx_v9_4_3_xcc_select_se_sh(adev, se_idx, sh_idx,
+							cu_idx, xcc_id);
+				status = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
+						      regSQ_TIMEOUT_STATUS);
+				if (status != 0) {
+					dev_info(
+						adev->dev,
+						"GFX Watchdog Timeout: SE %d, SH %d, CU %d\n",
+						se_idx, sh_idx, cu_idx);
+					gfx_v9_4_3_log_cu_timeout_status(
+						adev, status, xcc_id);
+				}
+				/* clear old status */
+				WREG32_SOC15(GC, GET_INST(GC, xcc_id),
+						regSQ_TIMEOUT_STATUS, 0);
+			}
+		}
+	}
+	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+			xcc_id);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_4_3_inst_query_ras_err_status(struct amdgpu_device *adev,
 					void *ras_error_status, int xcc_id)
 {
 	gfx_v9_4_3_inst_query_ea_err_status(adev, xcc_id);
 	gfx_v9_4_3_inst_query_utc_err_status(adev, xcc_id);
+	gfx_v9_4_3_inst_query_sq_timeout_status(adev, xcc_id);
 }
 
 static void gfx_v9_4_3_inst_reset_utc_err_status(struct amdgpu_device *adev,
@@ -3901,11 +3977,33 @@ static void gfx_v9_4_3_inst_reset_ea_err_status(struct amdgpu_device *adev,
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+static void gfx_v9_4_3_inst_reset_sq_timeout_status(struct amdgpu_device *adev,
+					int xcc_id)
+{
+	uint32_t se_idx, sh_idx, cu_idx;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (se_idx = 0; se_idx < adev->gfx.config.max_shader_engines; se_idx++) {
+		for (sh_idx = 0; sh_idx < adev->gfx.config.max_sh_per_se; sh_idx++) {
+			for (cu_idx = 0; cu_idx < adev->gfx.config.max_cu_per_sh; cu_idx++) {
+				gfx_v9_4_3_xcc_select_se_sh(adev, se_idx, sh_idx,
+							cu_idx, xcc_id);
+				WREG32_SOC15(GC, GET_INST(GC, xcc_id),
+						regSQ_TIMEOUT_STATUS, 0);
+			}
+		}
+	}
+	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+			xcc_id);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_4_3_inst_reset_ras_err_status(struct amdgpu_device *adev,
 					void *ras_error_status, int xcc_id)
 {
 	gfx_v9_4_3_inst_reset_utc_err_status(adev, xcc_id);
 	gfx_v9_4_3_inst_reset_ea_err_status(adev, xcc_id);
+	gfx_v9_4_3_inst_reset_sq_timeout_status(adev, xcc_id);
 }
 
 static void gfx_v9_4_3_query_ras_error_count(struct amdgpu_device *adev,
