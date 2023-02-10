@@ -95,16 +95,6 @@ enum gsi_reg_id {
 	GSI_REG_ID_COUNT,				/* Last; not an ID */
 };
 
-/* The inter-EE IRQ registers are relative to gsi->virt_raw (IPA v3.5+) */
-
-#define GSI_INTER_EE_SRC_CH_IRQ_MSK_OFFSET \
-			(0x0000c020 + 0x1000 * GSI_EE_AP)
-
-#define GSI_INTER_EE_SRC_EV_CH_IRQ_MSK_OFFSET \
-			(0x0000c024 + 0x1000 * GSI_EE_AP)
-
-/* All other register offsets are relative to gsi->virt */
-
 /* CH_C_CNTXT_0 register */
 #define CHTYPE_PROTOCOL_FMASK		GENMASK(2, 0)
 #define CHTYPE_DIR_FMASK		GENMASK(3, 3)
@@ -240,12 +230,6 @@ enum gsi_iram_size {
 	IRAM_SIZE_FOUR_KB			= 0x5,
 };
 
-/* IRQ condition for each type is cleared by writing type-specific register */
-#define GSI_CNTXT_TYPE_IRQ_OFFSET \
-			(0x0001f080 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_TYPE_IRQ_MSK_OFFSET \
-			(0x0001f088 + 0x4000 * GSI_EE_AP)
-
 /**
  * enum gsi_irq_type_id: GSI IRQ types
  * @GSI_CH_CTRL:		Channel allocation, deallocation, etc.
@@ -267,40 +251,6 @@ enum gsi_irq_type_id {
 	/* IRQ types 7-31 (and their bit values) are reserved */
 };
 
-#define GSI_CNTXT_SRC_CH_IRQ_OFFSET \
-			(0x0001f090 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_EV_CH_IRQ_OFFSET \
-			(0x0001f094 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET \
-			(0x0001f098 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET \
-			(0x0001f09c + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_CH_IRQ_CLR_OFFSET \
-			(0x0001f0a0 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_EV_CH_IRQ_CLR_OFFSET \
-			(0x0001f0a4 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_IEOB_IRQ_OFFSET \
-			(0x0001f0b0 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET \
-			(0x0001f0b8 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_IEOB_IRQ_CLR_OFFSET \
-			(0x0001f0c0 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_GLOB_IRQ_STTS_OFFSET \
-			(0x0001f100 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GLOB_IRQ_EN_OFFSET \
-			(0x0001f108 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GLOB_IRQ_CLR_OFFSET \
-			(0x0001f110 + 0x4000 * GSI_EE_AP)
-
 /** enum gsi_global_irq_id: Global GSI interrupt events */
 enum gsi_global_irq_id {
 	ERROR_INT				= BIT(0),
@@ -309,13 +259,6 @@ enum gsi_global_irq_id {
 	GP_INT3					= BIT(3),
 	/* Global IRQ types 4-31 (and their bit values) are reserved */
 };
-
-#define GSI_CNTXT_GSI_IRQ_STTS_OFFSET \
-			(0x0001f118 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GSI_IRQ_EN_OFFSET \
-			(0x0001f120 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GSI_IRQ_CLR_OFFSET \
-			(0x0001f128 + 0x4000 * GSI_EE_AP)
 
 /** enum gsi_general_irq_id: GSI general IRQ conditions */
 enum gsi_general_irq_id {
@@ -326,8 +269,7 @@ enum gsi_general_irq_id {
 	/* General IRQ types 4-31 (and their bit values) are reserved */
 };
 
-#define GSI_CNTXT_INTSET_OFFSET \
-			(0x0001f180 + 0x4000 * GSI_EE_AP)
+/* CNTXT_INTSET register */
 #define INTYPE_FMASK			GENMASK(0, 0)
 
 #define GSI_ERROR_LOG_OFFSET \
@@ -363,8 +305,6 @@ enum gsi_err_type {
 #define GSI_ERROR_LOG_CLR_OFFSET \
 			(0x0001f210 + 0x4000 * GSI_EE_AP)
 
-#define GSI_CNTXT_SCRATCH_0_OFFSET \
-			(0x0001f400 + 0x4000 * GSI_EE_AP)
 #define INTER_EE_RESULT_FMASK		GENMASK(2, 0)
 #define GENERIC_EE_RESULT_FMASK		GENMASK(7, 5)
 
