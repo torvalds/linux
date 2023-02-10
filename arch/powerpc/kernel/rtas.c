@@ -453,6 +453,32 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 	},
 };
 
+/**
+ * rtas_function_token() - RTAS function token lookup.
+ * @handle: Function handle, e.g. RTAS_FN_EVENT_SCAN.
+ *
+ * Context: Any context.
+ * Return: the token value for the function if implemented by this platform,
+ *         otherwise RTAS_UNKNOWN_SERVICE.
+ */
+s32 rtas_function_token(const rtas_fn_handle_t handle)
+{
+	const size_t index = handle.index;
+	const bool out_of_bounds = index >= ARRAY_SIZE(rtas_function_table);
+
+	if (WARN_ONCE(out_of_bounds, "invalid function index %zu", index))
+		return RTAS_UNKNOWN_SERVICE;
+	/*
+	 * Various drivers attempt token lookups on non-RTAS
+	 * platforms.
+	 */
+	if (!rtas.dev)
+		return RTAS_UNKNOWN_SERVICE;
+
+	return rtas_function_table[index].token;
+}
+EXPORT_SYMBOL_GPL(rtas_function_token);
+
 static int rtas_function_cmp(const void *a, const void *b)
 {
 	const struct rtas_function *f1 = a;
@@ -1011,7 +1037,7 @@ static int ibm_errinjct_token;
  * @....: List of @nargs input parameters.
  *
  * Invokes the RTAS function indicated by @token, which the caller
- * should obtain via rtas_token().
+ * should obtain via rtas_function_token().
  *
  * The @nargs and @nret arguments must match the number of input and
  * output parameters specified for the RTAS function.
