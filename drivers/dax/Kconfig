@@ -45,6 +45,19 @@ config DEV_DAX_HMEM
 
 	  Say M if unsure.
 
+config DEV_DAX_CXL
+	tristate "CXL DAX: direct access to CXL RAM regions"
+	depends on CXL_REGION && DEV_DAX
+	default CXL_REGION && DEV_DAX
+	help
+	  CXL RAM regions are either mapped by platform-firmware
+	  and published in the initial system-memory map as "System RAM", mapped
+	  by platform-firmware as "Soft Reserved", or dynamically provisioned
+	  after boot by the CXL driver. In the latter two cases a device-dax
+	  instance is created to access that unmapped-by-default address range.
+	  Per usual it can remain as dedicated access via a device interface, or
+	  converted to "System RAM" via the dax_kmem facility.
+
 config DEV_DAX_HMEM_DEVICES
 	depends on DEV_DAX_HMEM && DAX
 	def_bool y

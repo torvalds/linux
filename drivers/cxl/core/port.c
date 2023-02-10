@@ -46,6 +46,8 @@ static int cxl_device_id(struct device *dev)
 		return CXL_DEVICE_NVDIMM;
 	if (dev->type == CXL_PMEM_REGION_TYPE())
 		return CXL_DEVICE_PMEM_REGION;
+	if (dev->type == CXL_DAX_REGION_TYPE())
+		return CXL_DEVICE_DAX_REGION;
 	if (is_cxl_port(dev)) {
 		if (is_cxl_root(to_cxl_port(dev)))
 			return CXL_DEVICE_ROOT;
@@ -2015,6 +2017,6 @@ static void cxl_core_exit(void)
 	debugfs_remove_recursive(cxl_debugfs);
 }
 
-module_init(cxl_core_init);
+subsys_initcall(cxl_core_init);
 module_exit(cxl_core_exit);
 MODULE_LICENSE("GPL v2");

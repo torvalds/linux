@@ -513,6 +513,12 @@ struct cxl_pmem_region {
 	struct cxl_pmem_region_mapping mapping[];
 };
 
+struct cxl_dax_region {
+	struct device dev;
+	struct cxl_region *cxlr;
+	struct range hpa_range;
+};
+
 /**
  * struct cxl_port - logical collection of upstream port devices and
  *		     downstream port devices to construct a CXL memory
@@ -707,6 +713,7 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 #define CXL_DEVICE_MEMORY_EXPANDER	5
 #define CXL_DEVICE_REGION		6
 #define CXL_DEVICE_PMEM_REGION		7
+#define CXL_DEVICE_DAX_REGION		8
 
 #define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
 #define CXL_MODALIAS_FMT "cxl:t%d"
@@ -725,6 +732,7 @@ bool is_cxl_pmem_region(struct device *dev);
 struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev);
 int cxl_add_to_region(struct cxl_port *root,
 		      struct cxl_endpoint_decoder *cxled);
+struct cxl_dax_region *to_cxl_dax_region(struct device *dev);
 #else
 static inline bool is_cxl_pmem_region(struct device *dev)
 {
@@ -738,6 +746,10 @@ static inline int cxl_add_to_region(struct cxl_port *root,
 				    struct cxl_endpoint_decoder *cxled)
 {
 	return 0;
+}
+static inline struct cxl_dax_region *to_cxl_dax_region(struct device *dev)
+{
+	return NULL;
 }
 #endif
 

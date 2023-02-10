@@ -72,6 +72,13 @@ static int hmem_register_device(struct device *host, int target_nid,
 	long id;
 	int rc;
 
+	if (IS_ENABLED(CONFIG_CXL_REGION) &&
+	    region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
+			      IORES_DESC_CXL) != REGION_DISJOINT) {
+		dev_dbg(host, "deferring range to CXL: %pr\n", res);
+		return 0;
+	}
+
 	rc = region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
 			       IORES_DESC_SOFT_RESERVED);
 	if (rc != REGION_INTERSECTS)
@@ -156,6 +163,13 @@ static __exit void dax_hmem_exit(void)
 
 module_init(dax_hmem_init);
 module_exit(dax_hmem_exit);
+
+/* Allow for CXL to define its own dax regions */
+#if IS_ENABLED(CONFIG_CXL_REGION)
+#if IS_MODULE(CONFIG_CXL_ACPI)
+MODULE_SOFTDEP("pre: cxl_acpi");
+#endif
+#endif
 
 MODULE_ALIAS("platform:hmem*");
 MODULE_ALIAS("platform:hmem_platform*");
