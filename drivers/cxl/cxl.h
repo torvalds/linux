@@ -320,6 +320,20 @@ enum cxl_decoder_mode {
 	CXL_DECODER_DEAD,
 };
 
+static inline const char *cxl_decoder_mode_name(enum cxl_decoder_mode mode)
+{
+	static const char * const names[] = {
+		[CXL_DECODER_NONE] = "none",
+		[CXL_DECODER_RAM] = "ram",
+		[CXL_DECODER_PMEM] = "pmem",
+		[CXL_DECODER_MIXED] = "mixed",
+	};
+
+	if (mode >= CXL_DECODER_NONE && mode <= CXL_DECODER_MIXED)
+		return names[mode];
+	return "mixed";
+}
+
 /**
  * struct cxl_endpoint_decoder - Endpoint  / SPA to DPA decoder
  * @cxld: base cxl_decoder_object

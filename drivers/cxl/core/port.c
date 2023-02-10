@@ -180,17 +180,7 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
 
-	switch (cxled->mode) {
-	case CXL_DECODER_RAM:
-		return sysfs_emit(buf, "ram\n");
-	case CXL_DECODER_PMEM:
-		return sysfs_emit(buf, "pmem\n");
-	case CXL_DECODER_NONE:
-		return sysfs_emit(buf, "none\n");
-	case CXL_DECODER_MIXED:
-	default:
-		return sysfs_emit(buf, "mixed\n");
-	}
+	return sysfs_emit(buf, "%s\n", cxl_decoder_mode_name(cxled->mode));
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr,

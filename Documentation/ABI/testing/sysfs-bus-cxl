@@ -358,6 +358,17 @@ Description:
 		results in the same address being allocated.
 
 
+What:		/sys/bus/cxl/devices/regionZ/mode
+Date:		January, 2023
+KernelVersion:	v6.3
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The mode of a region is established at region creation time
+		and dictates the mode of the endpoint decoder that comprise the
+		region. For more details on the possible modes see
+		/sys/bus/cxl/devices/decoderX.Y/mode
+
+
 What:		/sys/bus/cxl/devices/regionZ/resource
 Date:		May, 2022
 KernelVersion:	v6.0
