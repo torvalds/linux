@@ -182,6 +182,17 @@
 	};
 };
 
+&gmac1 {
+	status = "okay";
+	phy-mode = "rgmii";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+		pause;
+	};
+};
+
 &eth {
 	status = "okay";
 
@@ -223,6 +234,19 @@
 				port@4 {
 					reg = <4>;
 					label = "lan3";
+				};
+
+				port@5 {
+					reg = <5>;
+					label = "cpu";
+					ethernet = <&gmac1>;
+					phy-mode = "rgmii";
+
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+						pause;
+					};
 				};
 
 				port@6 {
