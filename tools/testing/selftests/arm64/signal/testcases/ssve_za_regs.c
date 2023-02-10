@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2021 ARM Limited
  *
- * Verify that the ZA register context in signal frames is set up as
- * expected.
+ * Verify that both the streaming SVE and ZA register context in
+ * signal frames is set up as expected when enabled simultaneously.
  */
 
 #include <signal.h>
@@ -25,7 +25,7 @@ static bool sme_get_vls(struct tdescr *td)
 	int vq, vl;
 
 	/*
-	 * Enumerate up to SME_VQ_MAX vector lengths
+	 * Enumerate up to SVE_VQ_MAX vector lengths
 	 */
 	for (vq = SVE_VQ_MAX; vq > 0; --vq) {
 		vl = prctl(PR_SME_SET_VL, vq * 16);
@@ -53,8 +53,11 @@ static bool sme_get_vls(struct tdescr *td)
 	return true;
 }
 
-static void setup_za_regs(void)
+static void setup_regs(void)
 {
+	/* smstart sm; real data is TODO */
+	asm volatile(".inst 0xd503437f" : : : );
+
 	/* smstart za; real data is TODO */
 	asm volatile(".inst 0xd503457f" : : : );
 }
@@ -66,43 +69,63 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 {
 	size_t offset;
 	struct _aarch64_ctx *head = GET_BUF_RESV_HEAD(context);
+	struct _aarch64_ctx *regs;
+	struct sve_context *ssve;
 	struct za_context *za;
+	int ret;
 
 	fprintf(stderr, "Testing VL %d\n", vl);
 
-	if (prctl(PR_SME_SET_VL, vl) != vl) {
-		fprintf(stderr, "Failed to set VL\n");
+	ret = prctl(PR_SME_SET_VL, vl);
+	if (ret != vl) {
+		fprintf(stderr, "Failed to set VL, got %d\n", ret);
 		return 1;
 	}
 
 	/*
-	 * Get a signal context which should have a SVE frame and registers
-	 * in it.
+	 * Get a signal context which should have the SVE and ZA
+	 * frames in it.
 	 */
-	setup_za_regs();
+	setup_regs();
 	if (!get_current_context(td, &context.uc, sizeof(context)))
 		return 1;
 
-	head = get_header(head, ZA_MAGIC, GET_BUF_RESV_SIZE(context), &offset);
-	if (!head) {
+	regs = get_header(head, SVE_MAGIC, GET_BUF_RESV_SIZE(context),
+			  &offset);
+	if (!regs) {
+		fprintf(stderr, "No SVE context\n");
+		return 1;
+	}
+
+	ssve = (struct sve_context *)regs;
+	if (ssve->vl != vl) {
+		fprintf(stderr, "Got SSVE VL %d, expected %d\n", ssve->vl, vl);
+		return 1;
+	}
+
+	if (!(ssve->flags & SVE_SIG_FLAG_SM)) {
+		fprintf(stderr, "SVE_SIG_FLAG_SM not set in SVE record\n");
+		return 1;
+	}
+
+	fprintf(stderr, "Got expected SSVE size %u and VL %d\n",
+		regs->size, ssve->vl);
+
+	regs = get_header(head, ZA_MAGIC, GET_BUF_RESV_SIZE(context),
+			  &offset);
+	if (!regs) {
 		fprintf(stderr, "No ZA context\n");
 		return 1;
 	}
 
-	za = (struct za_context *)head;
+	za = (struct za_context *)regs;
 	if (za->vl != vl) {
-		fprintf(stderr, "Got VL %d, expected %d\n", za->vl, vl);
+		fprintf(stderr, "Got ZA VL %d, expected %d\n", za->vl, vl);
 		return 1;
 	}
 
-	if (head->size != ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(vl))) {
-		fprintf(stderr, "ZA context size %u, expected %lu\n",
-			head->size, ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(vl)));
-		return 1;
-	}
-
-	fprintf(stderr, "Got expected size %u and VL %d\n",
-		head->size, za->vl);
+	fprintf(stderr, "Got expected ZA size %u and VL %d\n",
+		regs->size, za->vl);
 
 	/* We didn't load any data into ZA so it should be all zeros */
 	if (memcmp(zeros, (char *)za + ZA_SIG_REGS_OFFSET,
@@ -129,8 +152,8 @@ static int sme_regs(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 }
 
 struct tdescr tde = {
-	.name = "ZA register",
-	.descr = "Check that we get the right ZA registers reported",
+	.name = "Streaming SVE registers",
+	.descr = "Check that we get the right Streaming SVE registers reported",
 	.feats_required = FEAT_SME,
 	.timeout = 3,
 	.init = sme_get_vls,

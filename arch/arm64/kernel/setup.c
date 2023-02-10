@@ -58,6 +58,7 @@ static int num_standard_resources;
 static struct resource *standard_resources;
 
 phys_addr_t __fdt_pointer __initdata;
+u64 mmu_enabled_at_boot __initdata;
 
 /*
  * Standard memory resources
@@ -332,8 +333,12 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	xen_early_init();
 	efi_init();
 
-	if (!efi_enabled(EFI_BOOT) && ((u64)_text % MIN_KIMG_ALIGN) != 0)
-	     pr_warn(FW_BUG "Kernel image misaligned at boot, please fix your bootloader!");
+	if (!efi_enabled(EFI_BOOT)) {
+		if ((u64)_text % MIN_KIMG_ALIGN)
+			pr_warn(FW_BUG "Kernel image misaligned at boot, please fix your bootloader!");
+		WARN_TAINT(mmu_enabled_at_boot, TAINT_FIRMWARE_WORKAROUND,
+			   FW_BUG "Booted with MMU enabled!");
+	}
 
 	arm64_memblock_init();
 
@@ -442,3 +447,11 @@ static int __init register_arm64_panic_block(void)
 	return 0;
 }
 device_initcall(register_arm64_panic_block);
+
+static int __init check_mmu_enabled_at_boot(void)
+{
+	if (!efi_enabled(EFI_BOOT) && mmu_enabled_at_boot)
+		panic("Non-EFI boot detected with MMU and caches enabled");
+	return 0;
+}
+device_initcall_sync(check_mmu_enabled_at_boot);

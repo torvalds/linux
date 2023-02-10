@@ -162,10 +162,8 @@ static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%08x) " : "%08x ", val);
-		else {
-			p += sprintf(p, "bad PC value");
-			break;
-		}
+		else
+			p += sprintf(p, i == 0 ? "(????????) " : "???????? ");
 	}
 
 	printk("%sCode: %s\n", lvl, str);

@@ -496,6 +496,7 @@
 #define SCTLR_ELx_DSSBS	(BIT(44))
 #define SCTLR_ELx_ATA	(BIT(43))
 
+#define SCTLR_ELx_EE_SHIFT	25
 #define SCTLR_ELx_ENIA_SHIFT	31
 
 #define SCTLR_ELx_ITFSB	 (BIT(37))
@@ -504,7 +505,7 @@
 #define SCTLR_ELx_LSMAOE (BIT(29))
 #define SCTLR_ELx_nTLSMD (BIT(28))
 #define SCTLR_ELx_ENDA	 (BIT(27))
-#define SCTLR_ELx_EE     (BIT(25))
+#define SCTLR_ELx_EE     (BIT(SCTLR_ELx_EE_SHIFT))
 #define SCTLR_ELx_EIS	 (BIT(22))
 #define SCTLR_ELx_IESB	 (BIT(21))
 #define SCTLR_ELx_TSCXT	 (BIT(20))
@@ -730,8 +731,8 @@
 
 #define ARM64_FEATURE_FIELD_BITS	4
 
-/* Create a mask for the feature bits of the specified feature. */
-#define ARM64_FEATURE_MASK(x)	(GENMASK_ULL(x##_SHIFT + ARM64_FEATURE_FIELD_BITS - 1, x##_SHIFT))
+/* Defined for compatibility only, do not add new users. */
+#define ARM64_FEATURE_MASK(x)	(x##_MASK)
 
 #ifdef __ASSEMBLY__
 

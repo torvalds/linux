@@ -177,7 +177,7 @@
 /**
  * Initialize EL2 registers to sane values. This should be called early on all
  * cores that were booted in EL2. Note that everything gets initialised as
- * if VHE was not evailable. The kernel context will be upgraded to VHE
+ * if VHE was not available. The kernel context will be upgraded to VHE
  * if possible later on in the boot process
  *
  * Regs: x0, x1 and x2 are clobbered.

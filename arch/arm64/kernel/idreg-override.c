@@ -131,6 +131,7 @@ static const struct ftr_set_desc smfr0 __initconst = {
 	.name		= "id_aa64smfr0",
 	.override	= &id_aa64smfr0_override,
 	.fields		= {
+		FIELD("smever", ID_AA64SMFR0_EL1_SMEver_SHIFT, NULL),
 		/* FA64 is a one bit field... :-/ */
 		{ "fa64", ID_AA64SMFR0_EL1_FA64_SHIFT, 1, },
 		{}

@@ -105,6 +105,8 @@ static inline unsigned long efi_get_kimg_min_align(void)
 #define EFI_ALLOC_ALIGN		SZ_64K
 #define EFI_ALLOC_LIMIT		((1UL << 48) - 1)
 
+extern unsigned long primary_entry_offset(void);
+
 /*
  * On ARM systems, virtually remapped UEFI runtime services are set up in two
  * distinct stages:

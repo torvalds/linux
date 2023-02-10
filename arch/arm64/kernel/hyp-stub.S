@@ -132,6 +132,13 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	orr	x0, x0, SMCR_ELx_FA64_MASK
 .Lskip_sme_fa64:
 
+	// ZT0 available?
+	mrs_s	x1, SYS_ID_AA64SMFR0_EL1
+	__check_override id_aa64smfr0 ID_AA64SMFR0_EL1_SMEver_SHIFT 4 .Linit_sme_zt0 .Lskip_sme_zt0
+.Linit_sme_zt0:
+	orr	x0, x0, SMCR_ELx_EZT0_MASK
+.Lskip_sme_zt0:
+
 	orr	x0, x0, #SMCR_ELx_LEN_MASK	// Enable full SME vector
 	msr_s	SYS_SMCR_EL2, x0		// length for EL1.
 

@@ -123,6 +123,8 @@ config ARM64
 	select DMA_DIRECT_REMAP
 	select EDAC_SUPPORT
 	select FRAME_POINTER
+	select FUNCTION_ALIGNMENT_4B
+	select FUNCTION_ALIGNMENT_8B if DYNAMIC_FTRACE_WITH_CALL_OPS
 	select GENERIC_ALLOCATOR
 	select GENERIC_ARCH_TOPOLOGY
 	select GENERIC_CLOCKEVENTS_BROADCAST
@@ -186,6 +188,8 @@ config ARM64
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS \
 		if $(cc-option,-fpatchable-function-entry=2)
+	select HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS \
+		if (DYNAMIC_FTRACE_WITH_ARGS && !CFI_CLANG)
 	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
 		if DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -1456,10 +1460,23 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM64.
 
+# include/linux/mmzone.h requires the following to be true:
+#
+#   MAX_ORDER - 1 + PAGE_SHIFT <= SECTION_SIZE_BITS
+#
+# so the maximum value of MAX_ORDER is SECTION_SIZE_BITS + 1 - PAGE_SHIFT:
+#
+#     | SECTION_SIZE_BITS |  PAGE_SHIFT  |  max MAX_ORDER  |  default MAX_ORDER |
+# ----+-------------------+--------------+-----------------+--------------------+
+# 4K  |       27          |      12      |       16        |         11         |
+# 16K |       27          |      14      |       14        |         12         |
+# 64K |       29          |      16      |       14        |         14         |
 config ARCH_FORCE_MAX_ORDER
-	int
+	int "Maximum zone order" if ARM64_4K_PAGES || ARM64_16K_PAGES
 	default "14" if ARM64_64K_PAGES
+	range 12 14 if ARM64_16K_PAGES
 	default "12" if ARM64_16K_PAGES
+	range 11 16 if ARM64_4K_PAGES
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -1472,7 +1489,7 @@ config ARCH_FORCE_MAX_ORDER
 	  This config option is actually maximum order plus one. For example,
 	  a value of 11 means that the largest free memory block is 2^10 pages.
 
-	  We make sure that we can allocate upto a HugePage size for each configuration.
+	  We make sure that we can allocate up to a HugePage size for each configuration.
 	  Hence we have :
 		MAX_ORDER = (PMD_SHIFT - PAGE_SHIFT) + 1 => PAGE_SHIFT - 2
 
@@ -1818,7 +1835,7 @@ config ARM64_PTR_AUTH_KERNEL
 	bool "Use pointer authentication for kernel"
 	default y
 	depends on ARM64_PTR_AUTH
-	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
+	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_ARMV8_3
 	# Modern compilers insert a .note.gnu.property section note for PAC
 	# which is only understood by binutils starting with version 2.33.1.
 	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
@@ -1843,7 +1860,7 @@ config CC_HAS_SIGN_RETURN_ADDRESS
 	# GCC 7, 8
 	def_bool $(cc-option,-msign-return-address=all)
 
-config AS_HAS_PAC
+config AS_HAS_ARMV8_3
 	def_bool $(cc-option,-Wa$(comma)-march=armv8.3-a)
 
 config AS_HAS_CFI_NEGATE_RA_STATE

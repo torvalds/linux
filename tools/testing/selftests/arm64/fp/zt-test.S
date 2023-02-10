@@ -1,91 +1,73 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (C) 2015-2019 ARM Limited.
-// Original author: Dave Martin <Dave.Martin@arm.com>
+// Copyright (C) 2021-2 ARM Limited.
+// Original author: Mark Brown <broonie@kernel.org>
 //
-// Simple FPSIMD context switch test
-// Repeatedly writes unique test patterns into each FPSIMD register
+// Scalable Matrix Extension ZT context switch test
+// Repeatedly writes unique test patterns into ZT0
 // and reads them back to verify integrity.
-//
-// for x in `seq 1 NR_CPUS`; do fpsimd-test & pids=$pids\ $! ; done
-// (leave it running for as long as you want...)
-// kill $pids
 
 #include <asm/unistd.h>
 #include "assembler.h"
 #include "asm-offsets.h"
+#include "sme-inst.h"
 
-#define NVR	32
-#define MAXVL_B	(128 / 8)
+.arch_extension sve
 
-.macro _vldr Vn:req, Xt:req
-	ld1	{v\Vn\().2d}, [x\Xt]
-.endm
+#define ZT_SZ	512
+#define ZT_B	(ZT_SZ / 8)
 
-.macro _vstr Vn:req, Xt:req
-	st1	{v\Vn\().2d}, [x\Xt]
-.endm
-
-// Generate accessor functions to read/write programmatically selected
-// FPSIMD registers.
-// x0 is the register index to access
-// x1 is the memory address to read from (getv,setp) or store to (setv,setp)
-// All clobber x0-x2
-define_accessor setv, NVR, _vldr
-define_accessor getv, NVR, _vstr
-
-// Declare some storate space to shadow the SVE register contents:
+// Declare some storage space to shadow ZT register contents and a
+// scratch buffer.
 .pushsection .text
 .data
 .align 4
-vref:
-	.space	MAXVL_B * NVR
+ztref:
+	.space	ZT_B
 scratch:
-	.space	MAXVL_B
+	.space	ZT_B
 .popsection
 
-// Generate a test pattern for storage in SVE registers
-// x0: pid	(16 bits)
-// x1: register number (6 bits)
-// x2: generation (4 bits)
+
+// Generate a test pattern for storage in ZT
+// x0: pid
+// x1: generation
+
+// These values are used to construct a 32-bit pattern that is repeated in the
+// scratch buffer as many times as will fit:
+// bits 31:24	generation number (increments once per test_loop)
+// bits 23: 8	pid
+// bits  7: 0	32-bit lane index
+
 function pattern
-	orr	w1, w0, w1, lsl #16
-	orr	w2, w1, w2, lsl #28
+	mov	w3, wzr
+	bfi	w3, w0, #8, #16		// PID
+	bfi	w3, w1, #24, #8		// Generation
 
 	ldr	x0, =scratch
-	mov	w1, #MAXVL_B / 4
+	mov	w1, #ZT_B / 4
 
-0:	str	w2, [x0], #4
-	add	w2, w2, #(1 << 22)
+0:	str	w3, [x0], #4
+	add	w3, w3, #1		// Lane
 	subs	w1, w1, #1
-	bne	0b
+	b.ne	0b
 
 	ret
 endfunction
 
-// Get the address of shadow data for FPSIMD V-register V<xn>
-.macro _adrv xd, xn, nrtmp
-	ldr	\xd, =vref
-	mov	x\nrtmp, #16
-	madd	\xd, x\nrtmp, \xn, \xd
-.endm
-
-// Set up test pattern in a FPSIMD V-register
+// Set up test pattern in a ZT horizontal vector
 // x0: pid
-// x1: register number
-// x2: generation
-function setup_vreg
+// x1: generation
+function setup_zt
 	mov	x4, x30
 
-	mov	x6, x1
-	bl	pattern
-	_adrv	x0, x6, 2
-	mov	x5, x0
+	bl	pattern			// Get pattern in scratch buffer
+	ldr	x0, =ztref
 	ldr	x1, =scratch
+	mov	x2, #ZT_B
 	bl	memcpy
 
-	mov	x0, x6
-	mov	x1, x5
-	bl	setv
+	ldr	x0, =ztref
+	_ldr_zt 0			// load zt0 from pointer x0
 
 	ret	x4
 endfunction
@@ -95,58 +77,61 @@ endfunction
 // Returns only if all bytes match; otherwise, the program is aborted.
 // Clobbers x0-x5.
 function memcmp
-	cbz	x2, 1f
+	cbz	x2, 2f
+
+	stp	x0, x1, [sp, #-0x20]!
+	str	x2, [sp, #0x10]
 
 	mov	x5, #0
 0:	ldrb	w3, [x0, x5]
 	ldrb	w4, [x1, x5]
 	add	x5, x5, #1
 	cmp	w3, w4
-	b.ne	barf
+	b.ne	1f
 	subs	x2, x2, #1
 	b.ne	0b
 
-1:	ret
+1:	ldr	x2, [sp, #0x10]
+	ldp	x0, x1, [sp], #0x20
+	b.ne	barf
+
+2:	ret
 endfunction
 
-// Verify that a FPSIMD V-register matches its shadow in memory, else abort
-// x0: reg number
-// Clobbers x0-x5.
-function check_vreg
+// Verify that a ZT vector matches its shadow in memory, else abort
+// Clobbers x0-x3
+function check_zt
 	mov	x3, x30
 
-	_adrv	x5, x0, 6
-	mov	x4, x0
-	ldr	x7, =scratch
-
-	mov	x0, x7
-	mov	x1, x6
+	ldr	x0, =scratch		// Poison scratch
+	mov	x1, #ZT_B
 	bl	memfill_ae
 
-	mov	x0, x4
-	mov	x1, x7
-	bl	getv
+	ldr	x0, =scratch
+	_str_zt 0
 
-	mov	x0, x5
-	mov	x1, x7
-	mov	x2, x6
+	ldr	x0, =ztref
+	ldr	x1, =scratch
+	mov	x2, #ZT_B
 	mov	x30, x3
 	b	memcmp
 endfunction
 
-// Any SVE register modified here can cause corruption in the main
-// thread -- but *only* the registers modified here.
+// Any SME register modified here can cause corruption in the main
+// thread -- but *only* the locations modified here.
 function irritator_handler
 	// Increment the irritation signal count (x23):
 	ldr	x0, [x2, #ucontext_regs + 8 * 23]
 	add	x0, x0, #1
 	str	x0, [x2, #ucontext_regs + 8 * 23]
 
-	// Corrupt some random V-regs
+	// Corrupt some random ZT data
+#if 0
 	adr	x0, .text + (irritator_handler - .text) / 16 * 16
-	movi	v0.8b, #7
-	movi	v9.16b, #9
-	movi	v31.8b, #31
+	movi	v0.8b, #1
+	movi	v9.16b, #2
+	movi	v31.8b, #3
+#endif
 
 	ret
 endfunction
@@ -239,28 +224,9 @@ function _start
 	orr	w2, w2, #SA_NODEFER
 	bl	setsignal
 
-	// Sanity-check and report the vector length
-
-	mov	x19, #128
-	cmp	x19, #128
-	b.lo	1f
-	cmp	x19, #2048
-	b.hi	1f
-	tst	x19, #(8 - 1)
-	b.eq	2f
-
-1:	puts	"Bad vector length: "
-	mov	x0, x19
-	bl	putdecn
-	b	.Labort
-
-2:	puts	"Vector length:\t"
-	mov	x0, x19
-	bl	putdec
-	puts	" bits\n"
+	smstart_za
 
 	// Obtain our PID, to ensure test pattern uniqueness between processes
-
 	mov	x8, #__NR_getpid
 	svc	#0
 	mov	x20, x0
@@ -271,28 +237,21 @@ function _start
 
 	mov	x22, #0		// generation number, increments per iteration
 .Ltest_loop:
+	mov	x0, x20
+	mov	x1, x22
+	bl	setup_zt
 
-	mov	x21, #0		// Set up V-regs & shadow with test pattern
-0:	mov	x0, x20
-	mov	x1, x21
-	and	x2, x22, #0xf
-	bl	setup_vreg
-	add	x21, x21, #1
-	cmp	x21, #NVR
-	b.lo	0b
-
-// Can't do this when SVE state is volatile across SVC:
 	mov	x8, #__NR_sched_yield	// Encourage preemption
 	svc	#0
 
-	mov	x21, #0
-0:	mov	x0, x21
-	bl	check_vreg
-	add	x21, x21, #1
-	cmp	x21, #NVR
-	b.lo	0b
+	mrs	x0, S3_3_C4_C2_2	// SVCR should have ZA=1,SM=0
+	and	x1, x0, #3
+	cmp	x1, #2
+	b.ne	svcr_barf
 
-	add	x22, x22, #1
+	bl	check_zt
+
+	add	x22, x22, #1	// Everything still working
 	b	.Ltest_loop
 
 .Labort:
@@ -303,6 +262,12 @@ function _start
 endfunction
 
 function barf
+// fpsimd.c acitivty log dump hack
+//	ldr	w0, =0xdeadc0de
+//	mov	w8, #__NR_exit
+//	svc	#0
+// end hack
+	smstop
 	mov	x10, x0	// expected data
 	mov	x11, x1	// actual data
 	mov	x12, x2	// data size
@@ -313,9 +278,6 @@ function barf
 	puts	", iteration="
 	mov	x0, x22
 	bl	putdec
-	puts	", reg="
-	mov	x0, x21
-	bl	putdecn
 	puts	"\tExpected ["
 	mov	x0, x10
 	mov	x1, x12
@@ -325,6 +287,28 @@ function barf
 	mov	x1, x12
 	bl	dumphex
 	puts	"]\n"
+
+	mov	x8, #__NR_getpid
+	svc	#0
+// fpsimd.c acitivty log dump hack
+//	ldr	w0, =0xdeadc0de
+//	mov	w8, #__NR_exit
+//	svc	#0
+// ^ end of hack
+	mov	x1, #SIGABRT
+	mov	x8, #__NR_kill
+	svc	#0
+//	mov	x8, #__NR_exit
+//	mov	x1, #1
+//	svc	#0
+endfunction
+
+function svcr_barf
+	mov	x10, x0
+
+	puts	"Bad SVCR: "
+	mov	x0, x10
+	bl	putdecn
 
 	mov	x8, #__NR_exit
 	mov	x1, #1
