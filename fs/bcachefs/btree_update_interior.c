@@ -161,6 +161,7 @@ static void __btree_node_free(struct bch_fs *c, struct btree *b)
 {
 	trace_and_count(c, btree_node_free, c, b);
 
+	BUG_ON(btree_node_write_blocked(b));
 	BUG_ON(btree_node_dirty(b));
 	BUG_ON(btree_node_need_write(b));
 	BUG_ON(b == btree_node_root(c, b));
@@ -807,6 +808,7 @@ static void btree_update_updated_node(struct btree_update *as, struct btree *b)
 
 	BUG_ON(as->mode != BTREE_INTERIOR_NO_UPDATE);
 	BUG_ON(!btree_node_dirty(b));
+	BUG_ON(!b->c.level);
 
 	as->mode	= BTREE_INTERIOR_UPDATING_NODE;
 	as->b		= b;
@@ -976,6 +978,7 @@ static void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 
 	clear_btree_node_dirty_acct(c, b);
 	clear_btree_node_need_write(b);
+	clear_btree_node_write_blocked(b);
 
 	/*
 	 * Does this node have unwritten data that has a pin on the journal?
