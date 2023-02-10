@@ -18,6 +18,7 @@
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/io.h>
+#include <asm/papr-sysparm.h>
 #include <linux/byteorder/generic.h>
 
 #include <asm/rtas.h>
@@ -66,8 +67,6 @@ static bool is_physical_domain(unsigned int domain)
  * Refer PAPR+ document to get parameter token value as '43'.
  */
 
-#define PROCESSOR_MODULE_INFO   43
-
 static u32 phys_sockets;	/* Physical sockets */
 static u32 phys_chipspersocket;	/* Physical chips per socket*/
 static u32 phys_coresperchip; /* Physical cores per chip */
@@ -79,8 +78,7 @@ static u32 phys_coresperchip; /* Physical cores per chip */
  */
 void read_24x7_sys_info(void)
 {
-	const s32 token = rtas_token("ibm,get-system-parameter");
-	int call_status;
+	struct papr_sysparm_buf *buf;
 
 	/*
 	 * Making system parameter: chips and sockets and cores per chip
@@ -90,27 +88,22 @@ void read_24x7_sys_info(void)
 	phys_chipspersocket = 1;
 	phys_coresperchip = 1;
 
-	do {
-		spin_lock(&rtas_data_buf_lock);
-		call_status = rtas_call(token, 3, 1, NULL, PROCESSOR_MODULE_INFO,
-					__pa(rtas_data_buf), RTAS_DATA_BUF_SIZE);
-		if (call_status == 0) {
-			int ntypes = be16_to_cpup((__be16 *)&rtas_data_buf[2]);
-			int len = be16_to_cpup((__be16 *)&rtas_data_buf[0]);
+	buf = papr_sysparm_buf_alloc();
+	if (!buf)
+		return;
 
-			if (len >= 8 && ntypes != 0) {
-				phys_sockets = be16_to_cpup((__be16 *)&rtas_data_buf[4]);
-				phys_chipspersocket = be16_to_cpup((__be16 *)&rtas_data_buf[6]);
-				phys_coresperchip = be16_to_cpup((__be16 *)&rtas_data_buf[8]);
-			}
+	if (!papr_sysparm_get(PAPR_SYSPARM_PROC_MODULE_INFO, buf)) {
+		int ntypes = be16_to_cpup((__be16 *)&buf->val[0]);
+		int len = be16_to_cpu(buf->len);
+
+		if (len >= 8 && ntypes != 0) {
+			phys_sockets = be16_to_cpup((__be16 *)&buf->val[2]);
+			phys_chipspersocket = be16_to_cpup((__be16 *)&buf->val[4]);
+			phys_coresperchip = be16_to_cpup((__be16 *)&buf->val[6]);
 		}
-		spin_unlock(&rtas_data_buf_lock);
-	} while (rtas_busy_delay(call_status));
-
-	if (call_status != 0) {
-		pr_err("Error calling get-system-parameter %d\n",
-		       call_status);
 	}
+
+	papr_sysparm_buf_free(buf);
 }
 
 /* Domains for which more than one result element are returned for each event. */
