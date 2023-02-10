@@ -97,6 +97,7 @@ static unsigned int last_nr_big;
 
 static unsigned int get_active_cpu_count(const struct cluster_data *cluster);
 static unsigned int get_assist_active_cpu_count(const struct cluster_data *cluster);
+static unsigned int active_cpu_count_from_mask(const cpumask_t *cpus);
 static void __ref do_core_ctl(void);
 
 /* ========================= sysfs interface =========================== */
@@ -667,6 +668,9 @@ static int compute_cluster_nr_run(int index)
 		nr_need += nr_stats[cpu].nr;
 	}
 
+	if (active_cpu_count_from_mask(&cluster->nrrun_cpu_mask) <= nr_need)
+		nr_need = nr_need - active_cpu_count_from_mask(&cluster->nrrun_cpu_mask);
+
 	return nr_need;
 }
 
@@ -1032,14 +1036,19 @@ static unsigned int apply_limits(const struct cluster_data *cluster,
 	return min(max(cluster->min_cpus, need_cpus), cluster->max_cpus);
 }
 
+static unsigned int active_cpu_count_from_mask(const cpumask_t *cpus_to_check)
+{
+	cpumask_t lcpus;
+
+	cpumask_andnot(&lcpus, cpus_to_check, cpu_halt_mask);
+	cpumask_andnot(&lcpus, &lcpus, cpu_partial_halt_mask);
+
+	return cpumask_weight(&lcpus);
+}
+
 static unsigned int get_active_cpu_count(const struct cluster_data *cluster)
 {
-	cpumask_t cpus;
-
-	cpumask_andnot(&cpus, &cluster->cpu_mask, cpu_halt_mask);
-	cpumask_andnot(&cpus, &cpus, cpu_partial_halt_mask);
-
-	return cpumask_weight(&cpus);
+	return active_cpu_count_from_mask(&cluster->cpu_mask);
 }
 
 static unsigned int get_assist_active_cpu_count(const struct cluster_data *cluster)
