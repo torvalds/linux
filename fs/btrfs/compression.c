@@ -572,7 +572,6 @@ void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
 	cb->orig_bio = bio;
 
 	free_extent_map(em);
-	em = NULL;
 
 	cb->nr_pages = DIV_ROUND_UP(compressed_len, PAGE_SIZE);
 	cb->compressed_pages = kcalloc(cb->nr_pages, sizeof(struct page *), GFP_NOFS);
@@ -629,7 +628,6 @@ out_free_compressed_pages:
 	kfree(cb->compressed_pages);
 out_free_bio:
 	bio_put(comp_bio);
-	free_extent_map(em);
 out:
 	btrfs_bio_end_io(btrfs_bio(bio), ret);
 }
