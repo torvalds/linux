@@ -151,14 +151,14 @@
 	es8311: es8311@18 {
 		compatible = "everest,es8311";
 		reg = <0x18>;
-		//clocks = <&cru SCLK_I2S_OUT>;
+		clocks = <&cru SCLK_I2S_OUT>;
 		clock-names = "mclk";
 		adc-pga-gain = <8>;
 		adc-volume = <0xdf>;
 		dac-volume = <0xbf>;
 		aec-mode = "dac left, adc right";
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&i2s_mclk>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_mclk>;
 
 		/*
 		 * in rk3036-evb-v10,es8311 is not actually connected
@@ -425,8 +425,12 @@
 };
 
 &i2s {
-	#sound-dai-cells = <0>;
 	status = "okay";
+	#sound-dai-cells = <0>;
+	pinctrl-0 = <&i2s_sclk
+		     &i2s_lrclktx
+		     &i2s_sdo
+		     &i2s_sdi>;
 };
 
 &mpp_srv {
