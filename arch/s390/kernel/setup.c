@@ -772,10 +772,10 @@ static void __init memblock_add_mem_detect_info(void)
 		 get_mem_info_source(), mem_detect.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
-	for_each_mem_detect_block(i, &start, &end) {
+	for_each_mem_detect_usable_block(i, &start, &end)
 		memblock_add(start, end - start);
+	for_each_mem_detect_block(i, &start, &end)
 		memblock_physmem_add(start, end - start);
-	}
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
 }

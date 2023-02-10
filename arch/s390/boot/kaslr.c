@@ -132,7 +132,7 @@ static unsigned long count_valid_kernel_positions(unsigned long kernel_size,
 	unsigned long start, end, pos = 0;
 	int i;
 
-	for_each_mem_detect_block(i, &start, &end) {
+	for_each_mem_detect_usable_block(i, &start, &end) {
 		if (_min >= end)
 			continue;
 		if (start >= _max)
@@ -153,7 +153,7 @@ static unsigned long position_to_address(unsigned long pos, unsigned long kernel
 	unsigned long start, end;
 	int i;
 
-	for_each_mem_detect_block(i, &start, &end) {
+	for_each_mem_detect_usable_block(i, &start, &end) {
 		if (_min >= end)
 			continue;
 		if (start >= _max)
@@ -172,7 +172,7 @@ static unsigned long position_to_address(unsigned long pos, unsigned long kernel
 
 unsigned long get_random_base(unsigned long safe_addr)
 {
-	unsigned long online_mem_total = get_mem_detect_online_total();
+	unsigned long usable_total = get_mem_detect_usable_total();
 	unsigned long memory_limit = get_mem_detect_end();
 	unsigned long base_pos, max_pos, kernel_size;
 	int i;
@@ -182,8 +182,8 @@ unsigned long get_random_base(unsigned long safe_addr)
 	 * which vmem and kasan code will use for shadow memory and
 	 * pgtable mapping allocations.
 	 */
-	memory_limit -= kasan_estimate_memory_needs(online_mem_total);
-	memory_limit -= vmem_estimate_memory_needs(online_mem_total);
+	memory_limit -= kasan_estimate_memory_needs(usable_total);
+	memory_limit -= vmem_estimate_memory_needs(usable_total);
 
 	safe_addr = ALIGN(safe_addr, THREAD_SIZE);
 	kernel_size = vmlinux.image_size + vmlinux.bss_size;

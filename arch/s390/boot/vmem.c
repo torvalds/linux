@@ -252,7 +252,7 @@ void setup_vmem(unsigned long asce_limit)
 	 */
 	pgtable_populate_init();
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
-	for_each_mem_detect_block(i, &start, &end)
+	for_each_mem_detect_usable_block(i, &start, &end)
 		pgtable_populate(start, end, POPULATE_ONE2ONE);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);

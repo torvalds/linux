@@ -304,7 +304,7 @@ void startup_kernel(void)
 	setup_ident_map_size(max_physmem_end);
 	setup_vmalloc_size();
 	asce_limit = setup_kernel_memory_layout();
-	mem_detect_truncate(ident_map_size);
+	mem_detect_set_usable_limit(ident_map_size);
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base(safe_addr);

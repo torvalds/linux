@@ -34,7 +34,7 @@ struct vmlinux_info {
 
 void startup_kernel(void);
 unsigned long detect_memory(unsigned long *safe_addr);
-void mem_detect_truncate(unsigned long limit);
+void mem_detect_set_usable_limit(unsigned long limit);
 bool is_ipl_block_dump(void);
 void store_ipl_parmblock(void);
 unsigned long read_ipl_report(unsigned long safe_addr);

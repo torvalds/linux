@@ -172,20 +172,20 @@ unsigned long detect_memory(unsigned long *safe_addr)
 	return max_physmem_end;
 }
 
-void mem_detect_truncate(unsigned long limit)
+void mem_detect_set_usable_limit(unsigned long limit)
 {
 	struct mem_detect_block *block;
 	int i;
 
+	/* make sure mem_detect.usable ends up within online memory block */
 	for (i = 0; i < mem_detect.count; i++) {
 		block = __get_mem_detect_block_ptr(i);
-		if (block->start >= limit) {
-			mem_detect.count = i;
+		if (block->start >= limit)
 			break;
-		} else if (block->end > limit) {
-			block->end = (u64)limit;
-			mem_detect.count = i + 1;
+		if (block->end >= limit) {
+			mem_detect.usable = limit;
 			break;
 		}
+		mem_detect.usable = block->end;
 	}
 }
