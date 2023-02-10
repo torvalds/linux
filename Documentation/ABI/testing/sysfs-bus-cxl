@@ -317,7 +317,8 @@ Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RW) Write a unique identifier for the region. This field must
 		be set for persistent regions and it must not conflict with the
-		UUID of another region.
+		UUID of another region. For volatile ram regions this
+		attribute is a read-only empty string.
 
 
 What:		/sys/bus/cxl/devices/regionZ/interleave_granularity
