@@ -24,7 +24,6 @@ typedef struct {
 			__u64 high;
 			__u64 low;
 		};
-		__uint128_t v;
 		__u32 u[4];
 	};
 } __attribute__((packed, aligned(4))) __vector128;
