@@ -356,7 +356,7 @@ static void scsi_host_dev_release(struct device *dev)
 		/*
 		 * Free the shost_dev device name here if scsi_host_alloc()
 		 * and scsi_host_put() have been called but neither
-		 * scsi_host_add() nor scsi_host_remove() has been called.
+		 * scsi_host_add() nor scsi_remove_host() has been called.
 		 * This avoids that the memory allocated for the shost_dev
 		 * name is leaked.
 		 */
