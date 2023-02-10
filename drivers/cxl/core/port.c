@@ -294,6 +294,7 @@ static struct attribute *cxl_decoder_root_attrs[] = {
 	&dev_attr_cap_type3.attr,
 	&dev_attr_target_list.attr,
 	SET_CXL_REGION_ATTR(create_pmem_region)
+	SET_CXL_REGION_ATTR(create_ram_region)
 	SET_CXL_REGION_ATTR(delete_region)
 	NULL,
 };
@@ -301,6 +302,13 @@ static struct attribute *cxl_decoder_root_attrs[] = {
 static bool can_create_pmem(struct cxl_root_decoder *cxlrd)
 {
 	unsigned long flags = CXL_DECODER_F_TYPE3 | CXL_DECODER_F_PMEM;
+
+	return (cxlrd->cxlsd.cxld.flags & flags) == flags;
+}
+
+static bool can_create_ram(struct cxl_root_decoder *cxlrd)
+{
+	unsigned long flags = CXL_DECODER_F_TYPE3 | CXL_DECODER_F_RAM;
 
 	return (cxlrd->cxlsd.cxld.flags & flags) == flags;
 }
@@ -313,7 +321,11 @@ static umode_t cxl_root_decoder_visible(struct kobject *kobj, struct attribute *
 	if (a == CXL_REGION_ATTR(create_pmem_region) && !can_create_pmem(cxlrd))
 		return 0;
 
-	if (a == CXL_REGION_ATTR(delete_region) && !can_create_pmem(cxlrd))
+	if (a == CXL_REGION_ATTR(create_ram_region) && !can_create_ram(cxlrd))
+		return 0;
+
+	if (a == CXL_REGION_ATTR(delete_region) &&
+	    !(can_create_pmem(cxlrd) || can_create_ram(cxlrd)))
 		return 0;
 
 	return a->mode;

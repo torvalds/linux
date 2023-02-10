@@ -285,20 +285,20 @@ Description:
 		interleave_granularity).
 
 
-What:		/sys/bus/cxl/devices/decoderX.Y/create_pmem_region
-Date:		May, 2022
-KernelVersion:	v6.0
+What:		/sys/bus/cxl/devices/decoderX.Y/create_{pmem,ram}_region
+Date:		May, 2022, January, 2023
+KernelVersion:	v6.0 (pmem), v6.3 (ram)
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RW) Write a string in the form 'regionZ' to start the process
-		of defining a new persistent memory region (interleave-set)
-		within the decode range bounded by root decoder 'decoderX.Y'.
-		The value written must match the current value returned from
-		reading this attribute. An atomic compare exchange operation is
-		done on write to assign the requested id to a region and
-		allocate the region-id for the next creation attempt. EBUSY is
-		returned if the region name written does not match the current
-		cached value.
+		of defining a new persistent, or volatile memory region
+		(interleave-set) within the decode range bounded by root decoder
+		'decoderX.Y'. The value written must match the current value
+		returned from reading this attribute. An atomic compare exchange
+		operation is done on write to assign the requested id to a
+		region and allocate the region-id for the next creation attempt.
+		EBUSY is returned if the region name written does not match the
+		current cached value.
 
 
 What:		/sys/bus/cxl/devices/decoderX.Y/delete_region

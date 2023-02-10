@@ -1689,6 +1689,15 @@ static struct cxl_region *devm_cxl_add_region(struct cxl_root_decoder *cxlrd,
 	struct device *dev;
 	int rc;
 
+	switch (mode) {
+	case CXL_DECODER_RAM:
+	case CXL_DECODER_PMEM:
+		break;
+	default:
+		dev_err(&cxlrd->cxlsd.cxld.dev, "unsupported mode %d\n", mode);
+		return ERR_PTR(-EINVAL);
+	}
+
 	cxlr = cxl_region_alloc(cxlrd, id);
 	if (IS_ERR(cxlr))
 		return cxlr;
@@ -1717,12 +1726,38 @@ err:
 	return ERR_PTR(rc);
 }
 
+static ssize_t __create_region_show(struct cxl_root_decoder *cxlrd, char *buf)
+{
+	return sysfs_emit(buf, "region%u\n", atomic_read(&cxlrd->region_id));
+}
+
 static ssize_t create_pmem_region_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
+	return __create_region_show(to_cxl_root_decoder(dev), buf);
+}
 
-	return sysfs_emit(buf, "region%u\n", atomic_read(&cxlrd->region_id));
+static ssize_t create_ram_region_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	return __create_region_show(to_cxl_root_decoder(dev), buf);
+}
+
+static struct cxl_region *__create_region(struct cxl_root_decoder *cxlrd,
+					  enum cxl_decoder_mode mode, int id)
+{
+	int rc;
+
+	rc = memregion_alloc(GFP_KERNEL);
+	if (rc < 0)
+		return ERR_PTR(rc);
+
+	if (atomic_cmpxchg(&cxlrd->region_id, id, rc) != id) {
+		memregion_free(rc);
+		return ERR_PTR(-EBUSY);
+	}
+
+	return devm_cxl_add_region(cxlrd, id, mode, CXL_DECODER_EXPANDER);
 }
 
 static ssize_t create_pmem_region_store(struct device *dev,
@@ -1731,29 +1766,39 @@ static ssize_t create_pmem_region_store(struct device *dev,
 {
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
 	struct cxl_region *cxlr;
-	int id, rc;
+	int rc, id;
 
 	rc = sscanf(buf, "region%d\n", &id);
 	if (rc != 1)
 		return -EINVAL;
 
-	rc = memregion_alloc(GFP_KERNEL);
-	if (rc < 0)
-		return rc;
-
-	if (atomic_cmpxchg(&cxlrd->region_id, id, rc) != id) {
-		memregion_free(rc);
-		return -EBUSY;
-	}
-
-	cxlr = devm_cxl_add_region(cxlrd, id, CXL_DECODER_PMEM,
-				   CXL_DECODER_EXPANDER);
+	cxlr = __create_region(cxlrd, CXL_DECODER_PMEM, id);
 	if (IS_ERR(cxlr))
 		return PTR_ERR(cxlr);
 
 	return len;
 }
 DEVICE_ATTR_RW(create_pmem_region);
+
+static ssize_t create_ram_region_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
+	struct cxl_region *cxlr;
+	int rc, id;
+
+	rc = sscanf(buf, "region%d\n", &id);
+	if (rc != 1)
+		return -EINVAL;
+
+	cxlr = __create_region(cxlrd, CXL_DECODER_RAM, id);
+	if (IS_ERR(cxlr))
+		return PTR_ERR(cxlr);
+
+	return len;
+}
+DEVICE_ATTR_RW(create_ram_region);
 
 static ssize_t region_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
