@@ -46,7 +46,7 @@ config DEV_DAX_HMEM
 	  Say M if unsure.
 
 config DEV_DAX_HMEM_DEVICES
-	depends on DEV_DAX_HMEM && DAX=y
+	depends on DEV_DAX_HMEM && DAX
 	def_bool y
 
 config DEV_DAX_KMEM
