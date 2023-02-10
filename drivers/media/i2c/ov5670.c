@@ -2648,17 +2648,13 @@ static int ov5670_gpio_probe(struct ov5670 *ov5670)
 static int ov5670_probe(struct i2c_client *client)
 {
 	struct ov5670 *ov5670;
-	const char *err_msg;
 	u32 input_clk = 0;
 	bool full_power;
 	int ret;
 
 	ov5670 = devm_kzalloc(&client->dev, sizeof(*ov5670), GFP_KERNEL);
-	if (!ov5670) {
-		ret = -ENOMEM;
-		err_msg = "devm_kzalloc() error";
-		goto error_print;
-	}
+	if (!ov5670)
+		return -ENOMEM;
 
 	ov5670->xvclk = devm_clk_get(&client->dev, NULL);
 	if (!IS_ERR_OR_NULL(ov5670->xvclk))
@@ -2680,29 +2676,23 @@ static int ov5670_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&ov5670->sd, client, &ov5670_subdev_ops);
 
 	ret = ov5670_regulators_probe(ov5670);
-	if (ret) {
-		err_msg = "Regulators probe failed";
-		goto error_print;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret, "Regulators probe failed\n");
 
 	ret = ov5670_gpio_probe(ov5670);
-	if (ret) {
-		err_msg = "GPIO probe failed";
-		goto error_print;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret, "GPIO probe failed\n");
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
 		ret = ov5670_runtime_resume(&client->dev);
-		if (ret) {
-			err_msg = "Power up failed";
-			goto error_print;
-		}
+		if (ret)
+			return dev_err_probe(&client->dev, ret, "Power up failed\n");
 
 		/* Check module identity */
 		ret = ov5670_identify_module(ov5670);
 		if (ret) {
-			err_msg = "ov5670_identify_module() error";
+			dev_err_probe(&client->dev, ret, "ov5670_identify_module() error\n");
 			goto error_power_off;
 		}
 	}
@@ -2714,7 +2704,7 @@ static int ov5670_probe(struct i2c_client *client)
 
 	ret = ov5670_init_controls(ov5670);
 	if (ret) {
-		err_msg = "ov5670_init_controls() error";
+		dev_err_probe(&client->dev, ret, "ov5670_init_controls() error\n");
 		goto error_mutex_destroy;
 	}
 
@@ -2727,7 +2717,7 @@ static int ov5670_probe(struct i2c_client *client)
 	ov5670->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov5670->sd.entity, 1, &ov5670->pad);
 	if (ret) {
-		err_msg = "media_entity_pads_init() error";
+		dev_err_probe(&client->dev, ret, "media_entity_pads_init() error\n");
 		goto error_handler_free;
 	}
 
@@ -2741,7 +2731,7 @@ static int ov5670_probe(struct i2c_client *client)
 	/* Async register for subdev */
 	ret = v4l2_async_register_subdev_sensor(&ov5670->sd);
 	if (ret < 0) {
-		err_msg = "v4l2_async_register_subdev() error";
+		dev_err_probe(&client->dev, ret, "v4l2_async_register_subdev() error\n");
 		goto error_pm_disable;
 	}
 
@@ -2763,9 +2753,6 @@ error_mutex_destroy:
 error_power_off:
 	if (full_power)
 		ov5670_runtime_suspend(&client->dev);
-
-error_print:
-	dev_err(&client->dev, "%s: %s %d\n", __func__, err_msg, ret);
 
 	return ret;
 }
