@@ -25,6 +25,22 @@ load(":image_opts.bzl", "vm_image_opts")
 load(":uapi_library.bzl", "define_uapi_library")
 load(":target_variants.bzl", "vm_variants")
 
+def define_make_vm_dtb_img(target, dtb_list, page_size):
+    compiled_dtbs = ["//msm-kernel:{}/{}".format(target, t) for t in dtb_list]
+    dtb_cmd="compiled_dtb_list=\"{}\"\n".format(" ".join(["$(location {})".format(d) for d in compiled_dtbs]))
+    dtb_cmd += """
+      $(location //prebuilts/kernel-build-tools:linux-x86/bin/mkdtboimg) \\
+        create "$@" --page_size={page_size} $${{compiled_dtb_list}}
+    """.format(page_size=page_size)
+
+    native.genrule(
+        name = "{}_vm_dtb_img".format(target),
+        srcs = compiled_dtbs,
+        outs = ["{}-dtb.img".format(target)],
+        tools = ["//prebuilts/kernel-build-tools:linux-x86/bin/mkdtboimg"],
+        cmd_bash = dtb_cmd,
+    )
+
 def _define_build_config(
         msm_target,
         variant,
@@ -162,8 +178,8 @@ def _define_kernel_build(
     kernel_images(
         name = "{}_images".format(target),
         kernel_build = ":{}".format(target),
-        boot_image_outs = ["dtb.img"],
-        build_boot = True,
+        boot_image_outs = [],
+        build_boot = False,
         kernel_modules_install = None,
     )
 
@@ -197,6 +213,7 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}_images".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
+        ":{}_vm_dtb_img".format(target),
         ":signing_key",
         ":verity_key",
     ]
@@ -279,5 +296,7 @@ def define_msm_vm(
     define_dtc_dist(target, msm_target, variant)
 
     define_uapi_library(target)
+
+    define_make_vm_dtb_img(target, dtb_list, vm_image_opts.dummy_img_size)
 
     define_extras(target, flavor = "vm")
