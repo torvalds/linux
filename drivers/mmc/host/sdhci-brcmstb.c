@@ -255,7 +255,6 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 	struct sdhci_brcmstb_priv *priv;
 	u32 actual_clock_mhz;
 	struct sdhci_host *host;
-	struct resource *iomem;
 	struct clk *clk;
 	struct clk *base_clk = NULL;
 	int res;
@@ -291,8 +290,7 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 	}
 
 	/* Map in the non-standard CFG registers */
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->cfg_regs = devm_ioremap_resource(&pdev->dev, iomem);
+	priv->cfg_regs = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 	if (IS_ERR(priv->cfg_regs)) {
 		res = PTR_ERR(priv->cfg_regs);
 		goto err;
