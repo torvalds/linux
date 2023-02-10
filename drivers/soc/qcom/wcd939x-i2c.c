@@ -487,6 +487,41 @@ int wcd_usbss_dpdm_switch_update(bool sw_en, bool eq_en)
 }
 EXPORT_SYMBOL(wcd_usbss_dpdm_switch_update);
 
+/* wcd_usbss_audio_config - configure audio for power mode and Impedance calculations
+ *
+ * @enable: enable/disable switch settings for MIC and SENSE for impedance readings
+ * @config_type: Config type to configure audio
+ * @power_mode: power mode type to config
+ *
+ * Returns int on whether the config happened or not. -ENODEV is returned
+ * in case if the driver is not probed.
+ */
+
+int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
+			unsigned int power_mode)
+{
+
+	/* check if driver is probed and private context is init'ed */
+	if (wcd_usbss_ctxt_ == NULL)
+		return -ENODEV;
+
+	if (!wcd_usbss_ctxt_->regmap)
+		return -EINVAL;
+
+	switch (config_type) {
+	case WCD_USBSS_CONFIG_TYPE_POWER_MODE:
+		/* Configure power mode from RX HPH mixer ctl */
+		regmap_update_bits(wcd_usbss_ctxt_->regmap,
+				WCD_USBSS_USB_SS_CNTL, 0x07, power_mode);
+		break;
+	default:
+		pr_err("%s Invalid config type %d\n", __func__, config_type);
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(wcd_usbss_audio_config);
+
 /*
  * wcd_usbss_switch_update - configure WCD USBSS switch position based on
  *  cable type and status
