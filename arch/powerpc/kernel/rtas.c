@@ -606,6 +606,47 @@ unsigned int rtas_busy_delay_time(int status)
 	return ms;
 }
 
+/*
+ * Early boot fallback for rtas_busy_delay().
+ */
+static bool __init rtas_busy_delay_early(int status)
+{
+	static size_t successive_ext_delays __initdata;
+	bool retry;
+
+	switch (status) {
+	case RTAS_EXTENDED_DELAY_MIN...RTAS_EXTENDED_DELAY_MAX:
+		/*
+		 * In the unlikely case that we receive an extended
+		 * delay status in early boot, the OS is probably not
+		 * the cause, and there's nothing we can do to clear
+		 * the condition. Best we can do is delay for a bit
+		 * and hope it's transient. Lie to the caller if it
+		 * seems like we're stuck in a retry loop.
+		 */
+		mdelay(1);
+		retry = true;
+		successive_ext_delays += 1;
+		if (successive_ext_delays > 1000) {
+			pr_err("too many extended delays, giving up\n");
+			dump_stack();
+			retry = false;
+			successive_ext_delays = 0;
+		}
+		break;
+	case RTAS_BUSY:
+		retry = true;
+		successive_ext_delays = 0;
+		break;
+	default:
+		retry = false;
+		successive_ext_delays = 0;
+		break;
+	}
+
+	return retry;
+}
+
 /**
  * rtas_busy_delay() - helper for RTAS busy and extended delay statuses
  *
@@ -624,10 +665,16 @@ unsigned int rtas_busy_delay_time(int status)
  * * false - @status is not @RTAS_BUSY nor an extended delay hint. The
  *           caller is responsible for handling @status.
  */
-bool rtas_busy_delay(int status)
+bool __ref rtas_busy_delay(int status)
 {
 	unsigned int ms;
 	bool ret;
+
+	/*
+	 * Can't do timed sleeps before timekeeping is up.
+	 */
+	if (system_state < SYSTEM_SCHEDULING)
+		return rtas_busy_delay_early(status);
 
 	switch (status) {
 	case RTAS_EXTENDED_DELAY_MIN...RTAS_EXTENDED_DELAY_MAX:
