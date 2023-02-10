@@ -135,6 +135,7 @@ enum hist_field_fn {
 	HIST_FIELD_FN_DIV_NOT_POWER2,
 	HIST_FIELD_FN_DIV_MULT_SHIFT,
 	HIST_FIELD_FN_EXECNAME,
+	HIST_FIELD_FN_STACK,
 };
 
 /*
@@ -1982,7 +1983,10 @@ static struct hist_field *create_hist_field(struct hist_trigger_data *hist_data,
 	}
 
 	if (flags & HIST_FIELD_FL_STACKTRACE) {
-		hist_field->fn_num = HIST_FIELD_FN_NOP;
+		if (field)
+			hist_field->fn_num = HIST_FIELD_FN_STACK;
+		else
+			hist_field->fn_num = HIST_FIELD_FN_NOP;
 		hist_field->size = HIST_STACKTRACE_SIZE;
 		hist_field->type = kstrdup_const("unsigned long[]", GFP_KERNEL);
 		if (!hist_field->type)
@@ -4274,6 +4278,19 @@ static u64 hist_field_execname(struct hist_field *hist_field,
 	return (u64)(unsigned long)(elt_data->comm);
 }
 
+static u64 hist_field_stack(struct hist_field *hist_field,
+			    struct tracing_map_elt *elt,
+			    struct trace_buffer *buffer,
+			    struct ring_buffer_event *rbe,
+			    void *event)
+{
+	u32 str_item = *(u32 *)(event + hist_field->field->offset);
+	int str_loc = str_item & 0xffff;
+	char *addr = (char *)(event + str_loc);
+
+	return (u64)(unsigned long)addr;
+}
+
 static u64 hist_fn_call(struct hist_field *hist_field,
 			struct tracing_map_elt *elt,
 			struct trace_buffer *buffer,
@@ -4337,6 +4354,8 @@ static u64 hist_fn_call(struct hist_field *hist_field,
 		return div_by_mult_and_shift(hist_field, elt, buffer, rbe, event);
 	case HIST_FIELD_FN_EXECNAME:
 		return hist_field_execname(hist_field, elt, buffer, rbe, event);
+	case HIST_FIELD_FN_STACK:
+		return hist_field_stack(hist_field, elt, buffer, rbe, event);
 	default:
 		return 0;
 	}
@@ -5238,8 +5257,17 @@ static void event_hist_trigger(struct event_trigger_data *data,
 
 		if (key_field->flags & HIST_FIELD_FL_STACKTRACE) {
 			memset(entries, 0, HIST_STACKTRACE_SIZE);
-			stack_trace_save(entries, HIST_STACKTRACE_DEPTH,
-					 HIST_STACKTRACE_SKIP);
+			if (key_field->field) {
+				unsigned long *stack, n_entries;
+
+				field_contents = hist_fn_call(key_field, elt, buffer, rbe, rec);
+				stack = (unsigned long *)(long)field_contents;
+				n_entries = *stack;
+				memcpy(entries, ++stack, n_entries * sizeof(unsigned long));
+			} else {
+				stack_trace_save(entries, HIST_STACKTRACE_DEPTH,
+						 HIST_STACKTRACE_SKIP);
+			}
 			key = entries;
 		} else {
 			field_contents = hist_fn_call(key_field, elt, buffer, rbe, rec);
