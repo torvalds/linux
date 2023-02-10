@@ -1202,10 +1202,13 @@
 				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>,
 				 <&clkgen JH7110_I2SRX_3CH_LRCK_MST>,
 				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
-				 <&clkgen JH7110_I2SRX0_3CH_LRCK>;
+				 <&clkgen JH7110_I2SRX0_3CH_LRCK>,
+				 <&clkgen JH7110_MCLK>,
+				 <&mclk_ext>;
 			clock-names = "apb0", "i2srx_apb",
 				      "i2srx_bclk_mst", "i2srx_lrck_mst",
-				      "i2srx_bclk", "i2srx_lrck";
+				      "i2srx_bclk", "i2srx_lrck",
+				      "mclk", "mclk_ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			reset-names = "rst_apb_rx", "rst_bclk_rx";
@@ -1228,14 +1231,15 @@
 				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
 				 <&clkgen JH7110_I2SRX0_3CH_LRCK>,
 				 <&clkgen JH7110_MCLK>,
+				 <&mclk_ext>,
 				 <&i2srx_bclk_ext>,
 				 <&i2srx_lrck_ext>;
 			clock-names = "apb0", "3ch-apb",
 				      "audioroot", "mclk-inner",
 				      "bclk_mst", "3ch-lrck",
 				      "rx-bclk", "rx-lrck",
-				      "mclk", "bclk-ext",
-				      "lrck-ext";
+				      "mclk", "mclk_ext",
+				      "bclk-ext", "lrck-ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			dmas = <&dma 24 1>;
