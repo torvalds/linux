@@ -2360,6 +2360,25 @@ int security_kernfs_init_security(struct kernfs_node *kn_dir,
 	return call_int_hook(kernfs_init_security, 0, kn_dir, kn);
 }
 
+/**
+ * security_file_permission() - Check file permissions
+ * @file: file
+ * @mask: requested permissions
+ *
+ * Check file permissions before accessing an open file.  This hook is called
+ * by various operations that read or write files.  A security module can use
+ * this hook to perform additional checking on these operations, e.g. to
+ * revalidate permissions on use to support privilege bracketing or policy
+ * changes.  Notice that this hook is used when the actual read/write
+ * operations are performed, whereas the inode_security_ops hook is called when
+ * a file is opened (as well as many other operations).  Although this hook can
+ * be used to revalidate permissions for various system call operations that
+ * read or write files, it does not address the revalidation of permissions for
+ * memory-mapped files.  Security modules must handle this separately if they
+ * need such revalidation.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_permission(struct file *file, int mask)
 {
 	int ret;
@@ -2371,6 +2390,15 @@ int security_file_permission(struct file *file, int mask)
 	return fsnotify_perm(file, mask);
 }
 
+/**
+ * security_file_alloc() - Allocate and init a file's LSM blob
+ * @file: the file
+ *
+ * Allocate and attach a security structure to the file->f_security field.  The
+ * security field is initialized to NULL when the structure is first created.
+ *
+ * Return: Return 0 if the hook is successful and permission is granted.
+ */
 int security_file_alloc(struct file *file)
 {
 	int rc = lsm_file_alloc(file);
@@ -2383,6 +2411,12 @@ int security_file_alloc(struct file *file)
 	return rc;
 }
 
+/**
+ * security_file_free() - Free a file's LSM blob
+ * @file: the file
+ *
+ * Deallocate and free any security structures stored in file->f_security.
+ */
 void security_file_free(struct file *file)
 {
 	void *blob;
@@ -2396,6 +2430,19 @@ void security_file_free(struct file *file)
 	}
 }
 
+/**
+ * security_file_ioctl() - Check if an ioctl is allowed
+ * @file: associated file
+ * @cmd: ioctl cmd
+ * @arg: ioctl arguments
+ *
+ * Check permission for an ioctl operation on @file.  Note that @arg sometimes
+ * represents a user space pointer; in other cases, it may be a simple integer
+ * value.  When @arg represents a user space pointer, it should never be used
+ * by the security module.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return call_int_hook(file_ioctl, 0, file, cmd, arg);
@@ -2435,6 +2482,17 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 	return prot;
 }
 
+/**
+ * security_mmap_file() - Check if mmap'ing a file is allowed
+ * @file: file
+ * @prot: protection applied by the kernel
+ * @flags: flags
+ *
+ * Check permissions for a mmap operation.  The @file may be NULL, e.g. if
+ * mapping anonymous memory.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_mmap_file(struct file *file, unsigned long prot,
 			unsigned long flags)
 {
@@ -2447,11 +2505,29 @@ int security_mmap_file(struct file *file, unsigned long prot,
 	return ima_file_mmap(file, prot, prot_adj, flags);
 }
 
+/**
+ * security_mmap_addr() - Check if mmap'ing an address is allowed
+ * @addr: address
+ *
+ * Check permissions for a mmap operation at @addr.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_mmap_addr(unsigned long addr)
 {
 	return call_int_hook(mmap_addr, 0, addr);
 }
 
+/**
+ * security_file_mprotect() - Check if changing memory protections is allowed
+ * @vma: memory region
+ * @reqprot: application requested protection
+ * @prog: protection applied by the kernel
+ *
+ * Check permissions before changing memory access permissions.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			    unsigned long prot)
 {
@@ -2463,32 +2539,97 @@ int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 	return ima_file_mprotect(vma, prot);
 }
 
+/**
+ * security_file_lock() - Check if a file lock is allowed
+ * @file: file
+ * @cmd: lock operation (e.g. F_RDLCK, F_WRLCK)
+ *
+ * Check permission before performing file locking operations.  Note the hook
+ * mediates both flock and fcntl style locks.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_lock(struct file *file, unsigned int cmd)
 {
 	return call_int_hook(file_lock, 0, file, cmd);
 }
 
+/**
+ * security_file_fcntl() - Check if fcntl() op is allowed
+ * @file: file
+ * @cmd: fnctl command
+ * @arg: command argument
+ *
+ * Check permission before allowing the file operation specified by @cmd from
+ * being performed on the file @file.  Note that @arg sometimes represents a
+ * user space pointer; in other cases, it may be a simple integer value.  When
+ * @arg represents a user space pointer, it should never be used by the
+ * security module.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return call_int_hook(file_fcntl, 0, file, cmd, arg);
 }
 
+/**
+ * security_file_set_fowner() - Set the file owner info in the LSM blob
+ * @file: the file
+ *
+ * Save owner security information (typically from current->security) in
+ * file->f_security for later use by the send_sigiotask hook.
+ *
+ * Return: Returns 0 on success.
+ */
 void security_file_set_fowner(struct file *file)
 {
 	call_void_hook(file_set_fowner, file);
 }
 
+/**
+ * security_file_send_sigiotask() - Check if sending SIGIO/SIGURG is allowed
+ * @tsk: target task
+ * @fown: signal sender
+ * @sig: signal to be sent, SIGIO is sent if 0
+ *
+ * Check permission for the file owner @fown to send SIGIO or SIGURG to the
+ * process @tsk.  Note that this hook is sometimes called from interrupt.  Note
+ * that the fown_struct, @fown, is never outside the context of a struct file,
+ * so the file structure (and associated security information) can always be
+ * obtained: container_of(fown, struct file, f_owner).
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_send_sigiotask(struct task_struct *tsk,
 				  struct fown_struct *fown, int sig)
 {
 	return call_int_hook(file_send_sigiotask, 0, tsk, fown, sig);
 }
 
+/**
+ * security_file_receive() - Check is receiving a file via IPC is allowed
+ * @file: file being received
+ *
+ * This hook allows security modules to control the ability of a process to
+ * receive an open file descriptor via socket IPC.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_receive(struct file *file)
 {
 	return call_int_hook(file_receive, 0, file);
 }
 
+/**
+ * security_file_open() - Save open() time state for late use by the LSM
+ * @file:
+ *
+ * Save open-time permission checking state for later use upon file_permission,
+ * and recheck access if anything has changed since inode_permission.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_open(struct file *file)
 {
 	int ret;
@@ -2500,6 +2641,16 @@ int security_file_open(struct file *file)
 	return fsnotify_perm(file, MAY_OPEN);
 }
 
+/**
+ * security_file_truncate() - Check if truncating a file is allowed
+ * @file: file
+ *
+ * Check permission before truncating a file, i.e. using ftruncate.  Note that
+ * truncation permission may also be checked based on the path, using the
+ * @path_truncate hook.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_file_truncate(struct file *file)
 {
 	return call_int_hook(file_truncate, 0, file);
