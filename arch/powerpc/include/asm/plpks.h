@@ -69,6 +69,11 @@ struct plpks_var_name_list {
 };
 
 /**
+ * Updates the authenticated variable. It expects NULL as the component.
+ */
+int plpks_signed_update_var(struct plpks_var *var, u64 flags);
+
+/**
  * Writes the specified var and its data to PKS.
  * Any caller of PKS driver should present a valid component type for
  * their variable.
