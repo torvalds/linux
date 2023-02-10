@@ -494,12 +494,11 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 			if (inode->root->root_key.objectid ==
 			    BTRFS_DATA_RELOC_TREE_OBJECTID) {
 				u64 file_offset;
-				int ret;
 
-				ret = search_file_offset_in_bio(bio,
-						&inode->vfs_inode,
-						cur_disk_bytenr, &file_offset);
-				if (ret)
+				if (search_file_offset_in_bio(bio,
+							      &inode->vfs_inode,
+							      cur_disk_bytenr,
+							      &file_offset))
 					set_extent_bits(io_tree, file_offset,
 						file_offset + sectorsize - 1,
 						EXTENT_NODATASUM);
