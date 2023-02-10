@@ -2573,12 +2573,30 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		}
 	}
 
-	if (src_h >= (4 * dst_h)) {
-		ygt4 = 1;
-		src_h >>= 2;
-	} else if (src_h >= (2 * dst_h)) {
-		ygt2 = 1;
-		src_h >>= 1;
+	/**
+	 * The rk3528 is processed as 2 pixel/cycle,
+	 * so ygt2/ygt4 needs to be triggered in advance to improve performance
+	 * when src_w is bigger than 1920.
+	 * dst_h / src_h is at [1, 0.65)     ygt2=0; ygt4=0;
+	 * dst_h / src_h is at [0.65, 0.35)  ygt2=1; ygt4=0;
+	 * dst_h / src_h is at [0.35, 0)     ygt2=0; ygt4=1;
+	 */
+	if (vop2->version == VOP_VERSION_RK3528 && src_w > 1920) {
+		if (src_h >= (100 * dst_h / 35)) {
+			ygt4 = 1;
+			src_h >>= 2;
+		} else if ((src_h >= 100 * dst_h / 65) && (src_h < 100 * dst_h / 35)) {
+			ygt2 = 1;
+			src_h >>= 1;
+		}
+	} else {
+		if (src_h >= (4 * dst_h)) {
+			ygt4 = 1;
+			src_h >>= 2;
+		} else if (src_h >= (2 * dst_h)) {
+			ygt2 = 1;
+			src_h >>= 1;
+		}
 	}
 
 	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
@@ -2655,10 +2673,17 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		if (!is_vop3(vop2) ||
 		    (!vpstate->afbc_en && !vpstate->tiled_en) ||
 		    win_data->vsd_pre_filter_mode == VOP3_PRE_SCALE_DOWN_GT) {
-			if (cbcr_src_h >= (4 * dst_h))
-				ygt4 = 1;
-			else if (cbcr_src_h >= (2 * dst_h))
-				ygt2 = 1;
+			if (vop2->version == VOP_VERSION_RK3528 && src_w > 1920) {
+				if (cbcr_src_h >= (100 * dst_h / 35))
+					ygt4 = 1;
+				else if ((cbcr_src_h >= 100 * dst_h / 65) && (cbcr_src_h < 100 * dst_h / 35))
+					ygt2 = 1;
+			} else {
+				if (cbcr_src_h >= (4 * dst_h))
+					ygt4 = 1;
+				else if (cbcr_src_h >= (2 * dst_h))
+					ygt2 = 1;
+			}
 
 			if (ygt4)
 				cbcr_src_h >>= 2;
