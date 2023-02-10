@@ -7,8 +7,8 @@ IPA_VERSIONS		:=	3.1 3.5.1 4.2 4.5 4.7 4.9 4.11
 obj-$(CONFIG_QCOM_IPA)	+=	ipa.o
 
 ipa-y			:=	ipa_main.o ipa_power.o ipa_reg.o ipa_mem.o \
-				ipa_table.o ipa_interrupt.o gsi.o gsi_trans.o \
-				ipa_gsi.o ipa_smp2p.o ipa_uc.o \
+				ipa_table.o ipa_interrupt.o gsi.o gsi_reg.o \
+				gsi_trans.o ipa_gsi.o ipa_smp2p.o ipa_uc.o \
 				ipa_endpoint.o ipa_cmd.o ipa_modem.o \
 				ipa_resource.o ipa_qmi.o ipa_qmi_msg.o \
 				ipa_sysfs.o

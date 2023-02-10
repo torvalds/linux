@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 #ifndef _GSI_REG_H_
 #define _GSI_REG_H_
 
-/* === Only "gsi.c" should include this file === */
+/* === Only "gsi.c" and "gsi_reg.c" should include this file === */
 
 #include <linux/bits.h>
 
@@ -37,20 +37,6 @@
  * parameter "ev".  The "ev" value is an event id whose maximum value is 15
  * (though the actual limit is hardware-dependent).
  */
-
-/* GSI EE registers as a group are shifted downward by a fixed constant amount
- * for IPA versions 4.5 and beyond.  This applies to all GSI registers we use
- * *except* the ones that disable inter-EE interrupts for channels and event
- * channels.
- *
- * The "raw" (not adjusted) GSI register range is mapped, and a pointer to
- * the mapped range is held in gsi->virt_raw.  The inter-EE interrupt
- * registers are accessed using that pointer.
- *
- * Most registers are accessed using gsi->virt, which is a copy of the "raw"
- * pointer, adjusted downward by the fixed amount.
- */
-#define GSI_EE_REG_ADJUST			0x0000d000	/* IPA v4.5+ */
 
 /* The inter-EE IRQ registers are relative to gsi->virt_raw (IPA v3.5+) */
 
@@ -399,5 +385,22 @@ enum gsi_generic_ee_result {
 	GENERIC_EE_RETRY			= 0x6,
 	GENERIC_EE_NO_RESOURCES			= 0x7,
 };
+
+/**
+ * gsi_reg_init() - Perform GSI register initialization
+ * @gsi:	GSI pointer
+ * @pdev:	GSI (IPA) platform device
+ *
+ * Initialize GSI registers, including looking up and I/O mapping
+ * the "gsi" memory space.  This function sets gsi->virt_raw and
+ * gsi->virt.
+ */
+int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev);
+
+/**
+ * gsi_reg_exit() - Inverse of gsi_reg_init()
+ * @gsi:	GSI pointer
+ */
+void gsi_reg_exit(struct gsi *gsi);
 
 #endif	/* _GSI_REG_H_ */

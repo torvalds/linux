@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -2241,67 +2241,37 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 	     enum ipa_version version, u32 count,
 	     const struct ipa_gsi_endpoint_data *data)
 {
-	struct device *dev = &pdev->dev;
-	struct resource *res;
-	resource_size_t size;
-	u32 adjust;
 	int ret;
 
 	gsi_validate_build();
 
-	gsi->dev = dev;
+	gsi->dev = &pdev->dev;
 	gsi->version = version;
 
 	/* GSI uses NAPI on all channels.  Create a dummy network device
 	 * for the channel NAPI contexts to be associated with.
 	 */
 	init_dummy_netdev(&gsi->dummy_dev);
-
-	/* Get GSI memory range and map it */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
-	if (!res) {
-		dev_err(dev, "DT error getting \"gsi\" memory property\n");
-		return -ENODEV;
-	}
-
-	size = resource_size(res);
-	if (res->start > U32_MAX || size > U32_MAX - res->start) {
-		dev_err(dev, "DT memory resource \"gsi\" out of range\n");
-		return -EINVAL;
-	}
-
-	/* Make sure we can make our pointer adjustment if necessary */
-	adjust = gsi->version < IPA_VERSION_4_5 ? 0 : GSI_EE_REG_ADJUST;
-	if (res->start < adjust) {
-		dev_err(dev, "DT memory resource \"gsi\" too low (< %u)\n",
-			adjust);
-		return -EINVAL;
-	}
-
-	gsi->virt_raw = ioremap(res->start, size);
-	if (!gsi->virt_raw) {
-		dev_err(dev, "unable to remap \"gsi\" memory\n");
-		return -ENOMEM;
-	}
-	/* Most registers are accessed using an adjusted register range */
-	gsi->virt = gsi->virt_raw - adjust;
-
 	init_completion(&gsi->completion);
+
+	ret = gsi_reg_init(gsi, pdev);
+	if (ret)
+		return ret;
 
 	ret = gsi_irq_init(gsi, pdev);	/* No matching exit required */
 	if (ret)
-		goto err_iounmap;
+		goto err_reg_exit;
 
 	ret = gsi_channel_init(gsi, count, data);
 	if (ret)
-		goto err_iounmap;
+		goto err_reg_exit;
 
 	mutex_init(&gsi->mutex);
 
 	return 0;
 
-err_iounmap:
-	iounmap(gsi->virt_raw);
+err_reg_exit:
+	gsi_reg_exit(gsi);
 
 	return ret;
 }
@@ -2311,7 +2281,7 @@ void gsi_exit(struct gsi *gsi)
 {
 	mutex_destroy(&gsi->mutex);
 	gsi_channel_exit(gsi);
-	iounmap(gsi->virt_raw);
+	gsi_reg_exit(gsi);
 }
 
 /* The maximum number of outstanding TREs on a channel.  This limits
