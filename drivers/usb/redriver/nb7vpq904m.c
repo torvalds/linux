@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -995,53 +995,6 @@ static void nb7vpq904m_debugfs_entries(
 			redriver->debug_root,  &redriver->lane_channel_swap);
 }
 
-static int __maybe_unused nb7vpq904m_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct nb7vpq904m_redriver *redriver = i2c_get_clientdata(client);
-
-	dev_dbg(redriver->dev, "%s: SS USB redriver suspend.\n",
-			__func__);
-
-	/*
-	 * 1. when in 4 lanes display mode, it can't disable;
-	 * 2. when in NONE mode, there is no need to re-disable;
-	 * 3. when in DEFAULT mode, there is no adsp and can't disable;
-	 */
-	if (redriver->op_mode == OP_MODE_DP ||
-	    redriver->op_mode == OP_MODE_NONE ||
-	    redriver->op_mode == OP_MODE_DEFAULT)
-		return 0;
-
-	nb7vpq904m_reg_set(redriver, GEN_DEV_SET_REG,
-				redriver->gen_dev_val & ~CHIP_EN);
-
-	return 0;
-}
-
-static int __maybe_unused nb7vpq904m_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct nb7vpq904m_redriver *redriver = i2c_get_clientdata(client);
-
-	dev_dbg(redriver->dev, "%s: SS USB redriver resume.\n",
-			__func__);
-
-	/* no suspend happen in following mode */
-	if (redriver->op_mode == OP_MODE_DP ||
-	    redriver->op_mode == OP_MODE_NONE ||
-	    redriver->op_mode == OP_MODE_DEFAULT)
-		return 0;
-
-	nb7vpq904m_reg_set(redriver, GEN_DEV_SET_REG,
-				redriver->gen_dev_val);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(nb7vpq904m_pm, nb7vpq904m_suspend,
-			 nb7vpq904m_resume);
-
 static void nb7vpq904m_shutdown(struct i2c_client *client)
 {
 	struct nb7vpq904m_redriver *redriver = i2c_get_clientdata(client);
@@ -1069,7 +1022,6 @@ static struct i2c_driver nb7vpq904m_driver = {
 	.driver = {
 		.name	= "ssusb-redriver",
 		.of_match_table	= nb7vpq904m_match_table,
-		.pm	= &nb7vpq904m_pm,
 	},
 
 	.probe		= nb7vpq904m_probe,
