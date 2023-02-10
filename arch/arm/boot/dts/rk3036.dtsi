@@ -488,7 +488,12 @@
 		resets = <&cru SRST_I2S>;
 		reset-names = "reset-m";
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s_bus>;
+		pinctrl-0 = <&i2s_mclk
+			     &i2s_sclk
+			     &i2s_lrclkrx
+			     &i2s_lrclktx
+			     &i2s_sdo
+			     &i2s_sdi>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -937,13 +942,23 @@
 		};
 
 		i2s {
-			i2s_bus: i2s-bus {
-				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_default>,
-						<1 RK_PA1 1 &pcfg_pull_default>,
-						<1 RK_PA2 1 &pcfg_pull_default>,
-						<1 RK_PA3 1 &pcfg_pull_default>,
-						<1 RK_PA4 1 &pcfg_pull_default>,
-						<1 RK_PA5 1 &pcfg_pull_default>;
+			i2s_mclk: i2s-mclk {
+				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_default>;
+			};
+			i2s_sclk: i2s-sclk {
+				rockchip,pins = <1 RK_PA1 1 &pcfg_pull_default>;
+			};
+			i2s_lrclkrx: i2s-lrclkrx {
+				rockchip,pins = <1 RK_PA2 1 &pcfg_pull_default>;
+			};
+			i2s_lrclktx: i2s-lrclktx {
+				rockchip,pins = <1 RK_PA3 1 &pcfg_pull_default>;
+			};
+			i2s_sdo: i2s-sdo {
+				rockchip,pins = <1 RK_PA4 1 &pcfg_pull_default>;
+			};
+			i2s_sdi: i2s-sdi {
+				rockchip,pins = <1 RK_PA5 1 &pcfg_pull_default>;
 			};
 		};
 
