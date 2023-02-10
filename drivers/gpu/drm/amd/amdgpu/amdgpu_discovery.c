@@ -877,6 +877,36 @@ static void ip_disc_release(struct kobject *kobj)
 	kfree(ip_top);
 }
 
+static uint8_t amdgpu_discovery_get_harvest_info(struct amdgpu_device *adev,
+						 uint16_t hw_id, uint8_t inst)
+{
+	uint8_t harvest = 0;
+
+	/* Until a uniform way is figured, get mask based on hwid */
+	switch (hw_id) {
+	case VCN_HWID:
+		harvest = (1 << inst) & adev->vcn.harvest_config;
+		break;
+	case DMU_HWID:
+		if (adev->harvest_ip_mask & AMD_HARVEST_IP_DMU_MASK)
+			harvest = 0x1;
+		break;
+	case UMC_HWID:
+		/* TODO: It needs another parsing; for now, ignore.*/
+		break;
+	case GC_HWID:
+		harvest = ((1 << inst) & adev->gfx.xcc_mask) == 0;
+		break;
+	case SDMA0_HWID:
+		harvest = ((1 << inst) & adev->sdma.sdma_mask) == 0;
+		break;
+	default:
+		break;
+	}
+
+	return harvest;
+}
+
 static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 				      struct ip_die_entry *ip_die_entry,
 				      const size_t _ip_offset, const int num_ips,
@@ -949,7 +979,10 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			ip_hw_instance->major = ip->major;
 			ip_hw_instance->minor = ip->minor;
 			ip_hw_instance->revision = ip->revision;
-			ip_hw_instance->harvest = ip->variant;
+			ip_hw_instance->harvest =
+				amdgpu_discovery_get_harvest_info(
+					adev, ip_hw_instance->hw_id,
+					ip_hw_instance->num_instance);
 			ip_hw_instance->num_base_addresses = ip->num_base_address;
 
 			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++) {
@@ -1034,6 +1067,9 @@ static int amdgpu_discovery_sysfs_init(struct amdgpu_device *adev)
 {
 	struct kset *die_kset;
 	int res, ii;
+
+	if (!adev->mman.discovery_bin)
+		return -EINVAL;
 
 	adev->ip_top = kzalloc(sizeof(*adev->ip_top), GFP_KERNEL);
 	if (!adev->ip_top)
@@ -1281,8 +1317,6 @@ next_ip:
 				ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
-
-	amdgpu_discovery_sysfs_init(adev);
 
 	return 0;
 }
@@ -2224,6 +2258,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	}
 
 	amdgpu_discovery_init_soc_config(adev);
+	amdgpu_discovery_sysfs_init(adev);
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 0, 1):
