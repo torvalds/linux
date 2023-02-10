@@ -36,6 +36,7 @@
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
+#include <asm/rtas-work-area.h>
 #include <asm/rtas.h>
 #include <asm/time.h>
 #include <asm/trace.h>
@@ -1939,6 +1940,8 @@ void __init rtas_initialize(void)
 #endif
 	ibm_open_errinjct_token = rtas_token("ibm,open-errinjct");
 	ibm_errinjct_token = rtas_token("ibm,errinjct");
+
+	rtas_work_area_reserve_arena(rtas_region);
 }
 
 int __init early_init_dt_scan_rtas(unsigned long node,
