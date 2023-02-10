@@ -3367,13 +3367,6 @@ int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 	return 0;
 }
 
-static u8 *btrfs_csum_ptr(const struct btrfs_fs_info *fs_info, u8 *csums, u64 offset)
-{
-	u64 offset_in_sectors = offset >> fs_info->sectorsize_bits;
-
-	return csums + offset_in_sectors * fs_info->csum_size;
-}
-
 /*
  * Verify the checksum of a single data sector.
  *
@@ -3411,7 +3404,8 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 		return true;
 	}
 
-	csum_expected = btrfs_csum_ptr(fs_info, bbio->csum, bio_offset);
+	csum_expected = bbio->csum + (bio_offset >> fs_info->sectorsize_bits) *
+				fs_info->csum_size;
 	if (btrfs_check_sector_csum(fs_info, bv->bv_page, bv->bv_offset, csum,
 				    csum_expected))
 		goto zeroit;
