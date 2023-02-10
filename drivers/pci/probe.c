@@ -1841,6 +1841,8 @@ int pci_setup_device(struct pci_dev *dev)
 
 	pci_set_of_node(dev);
 	pci_set_acpi_fwnode(dev);
+	if (dev->dev.fwnode && !fwnode_device_is_available(dev->dev.fwnode))
+		return -ENODEV;
 
 	pci_dev_assign_slot(dev);
 
