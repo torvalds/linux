@@ -4387,10 +4387,7 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 		return -EOPNOTSUPP;
 
 	if (cmode == DEVLINK_PARAM_CMODE_DRIVERINIT) {
-		if (param->type == DEVLINK_PARAM_TYPE_STRING)
-			strcpy(param_item->driverinit_value.vstr, value.vstr);
-		else
-			param_item->driverinit_value = value;
+		param_item->driverinit_value = value;
 		param_item->driverinit_value_valid = true;
 	} else {
 		if (!param->set)
@@ -9655,10 +9652,7 @@ int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
 		return -EOPNOTSUPP;
 
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(init_val->vstr, param_item->driverinit_value.vstr);
-	else
-		*init_val = param_item->driverinit_value;
+	*init_val = param_item->driverinit_value;
 
 	return 0;
 }
@@ -9689,10 +9683,7 @@ void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
 		return;
 
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
-	else
-		param_item->driverinit_value = init_val;
+	param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
 
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
