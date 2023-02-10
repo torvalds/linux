@@ -366,8 +366,9 @@ static void rt712_sdca_btn_check_handler(struct work_struct *work)
 				break;
 			}
 		}
-	} else
+	} else {
 		rt712->jack_type = 0;
+	}
 
 	dev_dbg(&rt712->slave->dev, "%s, btn_type=0x%x\n",	__func__, btn_type);
 	snd_soc_jack_report(rt712->hs_jack, rt712->jack_type | btn_type,
@@ -707,6 +708,7 @@ static int rt712_sdca_mux_put(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
 	unsigned int mask_sft;
+	unsigned int val;
 
 	if (item[0] >= e->items)
 		return -EINVAL;
@@ -717,6 +719,11 @@ static int rt712_sdca_mux_put(struct snd_kcontrol *kcontrol,
 		mask_sft = 8;
 	else
 		return -EINVAL;
+
+	rt712_sdca_index_read(rt712, RT712_VENDOR_HDA_CTL, RT712_MIXER_CTL1, &val);
+	val = (val >> mask_sft) & 0x3;
+	if (!val)
+		return 0;
 
 	rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL,
 		RT712_MIXER_CTL1, 0x3fff);
@@ -1094,19 +1101,24 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set sampling frequency */
-	if (dai->id == RT712_AIF1) {
+	switch (dai->id) {
+	case RT712_AIF1:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_CS01, RT712_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
 			sampling_rate);
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_CS11, RT712_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
 			sampling_rate);
-	}
-
-	if (dai->id == RT712_AIF2)
+		break;
+	case RT712_AIF2:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_CS31, RT712_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
 			sampling_rate);
+		break;
+	default:
+		dev_err(component->dev, "Wrong DAI id\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
