@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
-#include <linux/of.h>
 
 #include "common.h"
 
