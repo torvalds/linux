@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -71,6 +71,7 @@ struct event_port_ops {
  * @num_mc:		number of MCS
  * @version:		Version information of llcc block
  * @clock:		clock node to enable qdss
+ * @clock_enabled:	flag to control profiling enable and disable
  * @drv_ver:		driver version of llcc-qcom
  */
 struct llcc_perfmon_private {
@@ -90,6 +91,7 @@ struct llcc_perfmon_private {
 	unsigned int num_mc;
 	unsigned int version;
 	struct clk *clock;
+	bool clock_enabled;
 	int drv_ver;
 };
 
@@ -531,14 +533,13 @@ static ssize_t perfmon_start_store(struct device *dev,
 	if (kstrtoul(buf, 0, &start))
 		return -EINVAL;
 
+	if (!llcc_priv->configured_cntrs) {
+		pr_err("Perfmon not configured\n");
+		return -EINVAL;
+	}
+
 	mutex_lock(&llcc_priv->mutex);
 	if (start) {
-		if (!llcc_priv->configured_cntrs) {
-			pr_err("start failed. perfmon not configured\n");
-			mutex_unlock(&llcc_priv->mutex);
-			return -EINVAL;
-		}
-
 		if (llcc_priv->clock) {
 			ret = clk_prepare_enable(llcc_priv->clock);
 			if (ret) {
@@ -546,34 +547,42 @@ static ssize_t perfmon_start_store(struct device *dev,
 				pr_err("clock not enabled\n");
 				return -EINVAL;
 			}
+			llcc_priv->clock_enabled = true;
 		}
 		val = MANUAL_MODE | MONITOR_EN;
 		val &= ~DUMP_SEL;
 		if (llcc_priv->expires) {
 			if (hrtimer_is_queued(&llcc_priv->hrtimer))
-				hrtimer_forward_now(&llcc_priv->hrtimer,
-						llcc_priv->expires);
+				hrtimer_forward_now(&llcc_priv->hrtimer, llcc_priv->expires);
 			else
-				hrtimer_start(&llcc_priv->hrtimer,
-						llcc_priv->expires,
+				hrtimer_start(&llcc_priv->hrtimer, llcc_priv->expires,
 						HRTIMER_MODE_REL_PINNED);
 		}
 
 	} else {
 		if (llcc_priv->expires)
 			hrtimer_cancel(&llcc_priv->hrtimer);
-
-		if (!llcc_priv->configured_cntrs)
-			pr_err("stop failed. perfmon not configured\n");
 	}
 
-	mask_val = PERFMON_MODE_MONITOR_MODE_MASK |
-		PERFMON_MODE_MONITOR_EN_MASK | PERFMON_MODE_DUMP_SEL_MASK;
+	mask_val = PERFMON_MODE_MONITOR_MODE_MASK | PERFMON_MODE_MONITOR_EN_MASK |
+		PERFMON_MODE_DUMP_SEL_MASK;
 	offset = PERFMON_MODE(llcc_priv->drv_ver);
-	llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 
-	if (!start && llcc_priv->clock)
-		clk_disable_unprepare(llcc_priv->clock);
+	/* Check to ensure that register write for stopping perfmon should only happen
+	 * if clock is already prepared.
+	 */
+	if (llcc_priv->clock) {
+		if (llcc_priv->clock_enabled) {
+			llcc_bcast_modify(llcc_priv, offset, val, mask_val);
+			if (!start) {
+				clk_disable_unprepare(llcc_priv->clock);
+				llcc_priv->clock_enabled = false;
+			}
+		}
+	} else {
+		/* For RUMI environment where clock node is not available */
+		llcc_bcast_modify(llcc_priv, offset, val, mask_val);
+	}
 
 	mutex_unlock(&llcc_priv->mutex);
 	return count;
@@ -1412,6 +1421,7 @@ static int llcc_perfmon_probe(struct platform_device *pdev)
 	hrtimer_init(&llcc_priv->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	llcc_priv->hrtimer.function = llcc_perfmon_timer_handler;
 	llcc_priv->expires = 0;
+	llcc_priv->clock_enabled = false;
 	offset = LLCC_COMMON_HW_INFO(llcc_priv->drv_ver);
 	llcc_bcast_read(llcc_priv, offset, &val);
 	llcc_priv->version = REV_0;
