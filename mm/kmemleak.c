@@ -2071,7 +2071,7 @@ static int __init kmemleak_boot_config(char *str)
 		kmemleak_disable();
 	else if (strcmp(str, "on") == 0) {
 		kmemleak_skip_disable = 1;
-		stack_depot_want_early_init();
+		stack_depot_request_early_init();
 	}
 	else
 		return -EINVAL;
