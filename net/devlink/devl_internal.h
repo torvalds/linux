@@ -29,7 +29,7 @@ struct devlink {
 	struct list_head sb_list;
 	struct list_head dpipe_table_list;
 	struct list_head resource_list;
-	struct list_head param_list;
+	struct xarray params;
 	struct list_head region_list;
 	struct list_head reporter_list;
 	struct devlink_dpipe_headers *dpipe_headers;
