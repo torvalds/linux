@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.*/
+/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.*/
 
 #include <linux/io.h>
 #include <linux/kmsg_dump.h>
@@ -15,6 +15,7 @@
 #include <linux/gunyah/gh_dbl.h>
 #include <linux/gunyah/gh_rm_drv.h>
 #include <soc/qcom/secure_buffer.h>
+#include <linux/qcom_scm.h>
 
 #include "dmesg_dumper_private.h"
 
@@ -98,19 +99,20 @@ static int qcom_ddump_map_memory(struct qcom_dmesg_dumper *qdd)
 static int qcom_ddump_share_mem(struct qcom_dmesg_dumper *qdd, gh_vmid_t self,
 			   gh_vmid_t peer)
 {
-	u32 src_vmlist[1] = {self};
-	int src_perms[2] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int dst_vmlist[2] = {self, peer};
-	int dst_perms[2] = {PERM_READ | PERM_WRITE, PERM_READ | PERM_WRITE};
+	struct qcom_scm_vmperm dst_vmlist[] = {{self, PERM_READ | PERM_WRITE},
+						{peer, PERM_READ | PERM_WRITE}};
+	struct qcom_scm_vmperm src_vmlist[] = {{self,
+					   PERM_READ | PERM_WRITE | PERM_EXEC}};
+	u64 dst_vmid = BIT(dst_vmlist[0].vmid) | BIT(dst_vmlist[1].vmid);
+	u64 src_vmid = BIT(src_vmlist[0].vmid);
 	struct gh_acl_desc *acl;
 	struct gh_sgl_desc *sgl;
-	int ret;
+	int ret, assign_mem_ret;
 
-	ret = hyp_assign_phys(qdd->res.start, resource_size(&qdd->res),
-			      src_vmlist, 1,
-			      dst_vmlist, dst_perms, 2);
+	ret = qcom_scm_assign_mem(qdd->res.start, resource_size(&qdd->res),
+			     &src_vmid, dst_vmlist, ARRAY_SIZE(dst_vmlist));
 	if (ret) {
-		dev_err(qdd->dev, "hyp_assign_phys addr=%x size=%u failed: %d\n",
+		dev_err(qdd->dev, "qcom_scm_assign_mem addr=%x size=%u failed: %d\n",
 		       qdd->res.start, qdd->size, ret);
 		return ret;
 	}
@@ -139,9 +141,12 @@ static int qcom_ddump_share_mem(struct qcom_dmesg_dumper *qdd, gh_vmid_t self,
 		dev_err(qdd->dev, "Gunyah mem share addr=%x size=%u failed: %d\n",
 		       qdd->res.start, qdd->size, ret);
 		/* Attempt to give resource back to HLOS */
-		hyp_assign_phys(qdd->res.start, resource_size(&qdd->res),
-				dst_vmlist, 2,
-				src_vmlist, src_perms, 1);
+		assign_mem_ret = qcom_scm_assign_mem(qdd->res.start, resource_size(&qdd->res),
+				&dst_vmid, src_vmlist, ARRAY_SIZE(src_vmlist));
+		if (assign_mem_ret) {
+			dev_err(qdd->dev, "qcom_scm_assign_mem addr=%x size=%u failed: %d\n",
+				qdd->res.start, qdd->size, ret);
+		}
 	}
 
 	kfree(acl);
@@ -153,17 +158,21 @@ static int qcom_ddump_share_mem(struct qcom_dmesg_dumper *qdd, gh_vmid_t self,
 static void qcom_ddump_unshare_mem(struct qcom_dmesg_dumper *qdd, gh_vmid_t self,
 			      gh_vmid_t peer)
 {
-	int dst_perms[2] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int src_vmlist[2] = {self, peer};
-	u32 dst_vmlist[1] = {self};
+	struct qcom_scm_vmperm dst_vmlist[] = {{self,
+					       PERM_READ | PERM_WRITE | PERM_EXEC}};
+	u64 src_vmid = BIT(self) | BIT(peer);
 	int ret;
 
 	ret = gh_rm_mem_reclaim(qdd->memparcel, 0);
 	if (ret)
 		dev_err(qdd->dev, "Gunyah mem reclaim failed: %d\n", ret);
 
-	hyp_assign_phys(qdd->res.start, resource_size(&qdd->res),
-			src_vmlist, 2, dst_vmlist, dst_perms, 1);
+	ret = qcom_scm_assign_mem(qdd->res.start, resource_size(&qdd->res),
+			&src_vmid, dst_vmlist, ARRAY_SIZE(dst_vmlist));
+	if (ret) {
+		dev_err(qdd->dev, "unshare mem assign call failed with %d\n",
+			ret);
+	}
 }
 
 static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,

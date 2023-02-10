@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
+#include <linux/qcom_scm.h>
 
 #include <soc/qcom/secure_buffer.h>
 
@@ -71,33 +72,34 @@ static int sharedmem_mmap(struct uio_info *info, struct vm_area_struct *vma)
 static void setup_shared_ram_perms(u32 client_id, phys_addr_t addr, u32 size,
 				   bool vm_nav_path)
 {
-	int ret;
-	u32 source_vmlist[1] = {VMID_HLOS};
+	struct qcom_scm_vmperm *dest_vmids;
+	u64 source_vmlist = BIT(VMID_HLOS);
+	int ret, nr;
 
 	if (client_id != MPSS_RMTS_CLIENT_ID)
 		return;
 
 	if (vm_nav_path) {
-		int dest_vmids[3] = {VMID_HLOS, VMID_MSS_MSA, VMID_NAV};
-		int dest_perms[3] = {PERM_READ|PERM_WRITE,
-				     PERM_READ|PERM_WRITE,
-					PERM_READ|PERM_WRITE};
-
-		ret = hyp_assign_phys(addr, size, source_vmlist, 1, dest_vmids,
-					dest_perms, 3);
+		nr = 3;
+		dest_vmids = kcalloc(nr, sizeof(struct qcom_scm_vmperm), GFP_KERNEL);
+		*dest_vmids = (struct qcom_scm_vmperm){VMID_HLOS, PERM_READ|PERM_WRITE};
+		*(dest_vmids + 1) = (struct qcom_scm_vmperm){VMID_MSS_MSA, PERM_READ|PERM_WRITE};
+		*(dest_vmids + 2) = (struct qcom_scm_vmperm){VMID_NAV, PERM_READ|PERM_WRITE};
 	} else {
-		int dest_vmids[2] = {VMID_HLOS, VMID_MSS_MSA};
-		int dest_perms[2] = {PERM_READ|PERM_WRITE,
-				     PERM_READ|PERM_WRITE};
-
-		ret = hyp_assign_phys(addr, size, source_vmlist, 1, dest_vmids,
-					dest_perms, 2);
+		nr = 2;
+		dest_vmids = kcalloc(nr, sizeof(struct qcom_scm_vmperm), GFP_KERNEL);
+		*dest_vmids = (struct qcom_scm_vmperm){VMID_HLOS, PERM_READ|PERM_WRITE};
+		*(dest_vmids + 1) = (struct qcom_scm_vmperm){VMID_MSS_MSA, PERM_READ|PERM_WRITE};
 	}
+
+	ret = qcom_scm_assign_mem(addr, size, &source_vmlist,
+					dest_vmids, nr);
+	kfree(dest_vmids);
 	if (ret != 0) {
 		if (ret == -EINVAL)
-			pr_warn("hyp_assign_phys is not supported!\n");
+			pr_warn("qcom_scm_assign_mem is not supported!\n");
 		else
-			pr_err("hyp_assign_phys failed IPA=0x016%pa size=%u err=%d\n",
+			pr_err("qcom_scm_assign_mem failed IPA=0x016%pa size=%u err=%d\n",
 				&addr, size, ret);
 	}
 }
