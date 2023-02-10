@@ -11,15 +11,25 @@ module_param_named(region_idle, region_idle, bool, 0644);
 
 static int dax_hmem_probe(struct platform_device *pdev)
 {
+	unsigned long flags = IORESOURCE_DAX_KMEM;
 	struct device *dev = &pdev->dev;
 	struct dax_region *dax_region;
 	struct memregion_info *mri;
 	struct dev_dax_data data;
 	struct dev_dax *dev_dax;
 
+	/*
+	 * @region_idle == true indicates that an administrative agent
+	 * wants to manipulate the range partitioning before the devices
+	 * are created, so do not send them to the dax_kmem driver by
+	 * default.
+	 */
+	if (region_idle)
+		flags = 0;
+
 	mri = dev->platform_data;
 	dax_region = alloc_dax_region(dev, pdev->id, &mri->range,
-				      mri->target_node, PMD_SIZE, 0);
+				      mri->target_node, PMD_SIZE, flags);
 	if (!dax_region)
 		return -ENOMEM;
 
