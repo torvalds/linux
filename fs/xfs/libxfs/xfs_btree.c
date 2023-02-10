@@ -2943,7 +2943,7 @@ xfs_btree_split(
 	DECLARE_COMPLETION_ONSTACK(done);
 
 	if (cur->bc_btnum != XFS_BTNUM_BMAP ||
-	    cur->bc_tp->t_firstblock == NULLFSBLOCK)
+	    cur->bc_tp->t_highest_agno == NULLAGNUMBER)
 		return __xfs_btree_split(cur, level, ptrp, key, curp, stat);
 
 	args.cur = cur;

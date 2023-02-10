@@ -1801,7 +1801,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		__field(char, wasfromfl)
 		__field(int, resv)
 		__field(int, datatype)
-		__field(xfs_fsblock_t, firstblock)
+		__field(xfs_agnumber_t, highest_agno)
 	),
 	TP_fast_assign(
 		__entry->dev = args->mp->m_super->s_dev;
@@ -1822,12 +1822,12 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		__entry->wasfromfl = args->wasfromfl;
 		__entry->resv = args->resv;
 		__entry->datatype = args->datatype;
-		__entry->firstblock = args->tp->t_firstblock;
+		__entry->highest_agno = args->tp->t_highest_agno;
 	),
 	TP_printk("dev %d:%d agno 0x%x agbno 0x%x minlen %u maxlen %u mod %u "
 		  "prod %u minleft %u total %u alignment %u minalignslop %u "
 		  "len %u type %s otype %s wasdel %d wasfromfl %d resv %d "
-		  "datatype 0x%x firstblock 0x%llx",
+		  "datatype 0x%x highest_agno 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
 		  __entry->agbno,
@@ -1846,7 +1846,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		  __entry->wasfromfl,
 		  __entry->resv,
 		  __entry->datatype,
-		  (unsigned long long)__entry->firstblock)
+		  __entry->highest_agno)
 )
 
 #define DEFINE_ALLOC_EVENT(name) \

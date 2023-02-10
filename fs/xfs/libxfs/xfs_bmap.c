@@ -4192,7 +4192,7 @@ xfs_bmapi_minleft(
 {
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, fork);
 
-	if (tp && tp->t_firstblock != NULLFSBLOCK)
+	if (tp && tp->t_highest_agno != NULLAGNUMBER)
 		return 0;
 	if (ifp->if_format != XFS_DINODE_FMT_BTREE)
 		return 1;
@@ -6079,7 +6079,7 @@ xfs_bmap_finish_one(
 	struct xfs_bmbt_irec		*bmap = &bi->bi_bmap;
 	int				error = 0;
 
-	ASSERT(tp->t_firstblock == NULLFSBLOCK);
+	ASSERT(tp->t_highest_agno == NULLAGNUMBER);
 
 	trace_xfs_bmap_deferred(tp->t_mountp,
 			XFS_FSB_TO_AGNO(tp->t_mountp, bmap->br_startblock),

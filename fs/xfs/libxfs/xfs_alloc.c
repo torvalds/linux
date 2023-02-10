@@ -3169,8 +3169,8 @@ xfs_alloc_vextent(
 	mp = args->mp;
 	type = args->otype = args->type;
 	args->agbno = NULLAGBLOCK;
-	if (args->tp->t_firstblock != NULLFSBLOCK)
-		minimum_agno = XFS_FSB_TO_AGNO(mp, args->tp->t_firstblock);
+	if (args->tp->t_highest_agno != NULLAGNUMBER)
+		minimum_agno = args->tp->t_highest_agno;
 	/*
 	 * Just fix this up, for the case where the last a.g. is shorter
 	 * (or there's only one a.g.) and the caller couldn't easily figure
@@ -3375,11 +3375,9 @@ xfs_alloc_vextent(
 	 * deadlocks.
 	 */
 	if (args->agbp &&
-	    (args->tp->t_firstblock == NULLFSBLOCK ||
-	     args->pag->pag_agno > minimum_agno)) {
-		args->tp->t_firstblock = XFS_AGB_TO_FSB(mp,
-					args->pag->pag_agno, 0);
-	}
+	    (args->tp->t_highest_agno == NULLAGNUMBER ||
+	     args->pag->pag_agno > minimum_agno))
+		args->tp->t_highest_agno = args->pag->pag_agno;
 	xfs_perag_put(args->pag);
 	return 0;
 error0:
