@@ -179,8 +179,10 @@ static int secvar_sysfs_load(void)
 		rc = secvar_ops->get_next(name, &namesize, NAME_MAX_SIZE);
 		if (rc) {
 			if (rc != -ENOENT)
-				pr_err("error getting secvar from firmware %d\n",
-				       rc);
+				pr_err("error getting secvar from firmware %d\n", rc);
+			else
+				rc = 0;
+
 			break;
 		}
 
