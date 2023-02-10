@@ -500,11 +500,14 @@ static void gsi_evt_ring_de_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 /* Fetch the current state of a channel from hardware */
 static enum gsi_channel_state gsi_channel_state(struct gsi_channel *channel)
 {
+	const struct reg *reg = gsi_reg(channel->gsi, CH_C_CNTXT_0);
 	u32 channel_id = gsi_channel_id(channel);
-	void __iomem *virt = channel->gsi->virt;
+	struct gsi *gsi = channel->gsi;
+	void __iomem *virt = gsi->virt;
 	u32 val;
 
-	val = ioread32(virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
+	reg = gsi_reg(gsi, CH_C_CNTXT_0);
+	val = ioread32(virt + reg_n_offset(reg, channel_id));
 
 	return u32_get_bits(val, CHSTATE_FMASK);
 }
@@ -799,7 +802,10 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	struct gsi *gsi = channel->gsi;
 	const struct reg *reg;
 	u32 wrr_weight = 0;
+	u32 offset;
 	u32 val;
+
+	reg = gsi_reg(gsi, CH_C_CNTXT_0);
 
 	/* We program all channels as GPI type/protocol */
 	val = ch_c_cntxt_0_type_encode(gsi->version, GSI_CHANNEL_TYPE_GPI);
@@ -807,19 +813,23 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 		val |= CHTYPE_DIR_FMASK;
 	val |= u32_encode_bits(channel->evt_ring_id, ERINDEX_FMASK);
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, ELEMENT_SIZE_FMASK);
-	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
+	reg = gsi_reg(gsi, CH_C_CNTXT_1);
 	val = ch_c_cntxt_1_length_encode(gsi->version, size);
-	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_1_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	/* The context 2 and 3 registers store the low-order and
 	 * high-order 32 bits of the address of the channel ring,
 	 * respectively.
 	 */
+	reg = gsi_reg(gsi, CH_C_CNTXT_2);
 	val = lower_32_bits(channel->tre_ring.addr);
-	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_2_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
+
+	reg = gsi_reg(gsi, CH_C_CNTXT_3);
 	val = upper_32_bits(channel->tre_ring.addr);
-	iowrite32(val, gsi->virt + GSI_CH_C_CNTXT_3_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	reg = gsi_reg(gsi, CH_C_QOS);
 
@@ -857,22 +867,27 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 					GSI_RING_ELEMENT_SIZE;
 	gpi->outstanding_threshold = 2 * GSI_RING_ELEMENT_SIZE;
 
+	reg = gsi_reg(gsi, CH_C_SCRATCH_0);
 	val = scr.data.word1;
-	iowrite32(val, gsi->virt + GSI_CH_C_SCRATCH_0_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
+	reg = gsi_reg(gsi, CH_C_SCRATCH_1);
 	val = scr.data.word2;
-	iowrite32(val, gsi->virt + GSI_CH_C_SCRATCH_1_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
+	reg = gsi_reg(gsi, CH_C_SCRATCH_2);
 	val = scr.data.word3;
-	iowrite32(val, gsi->virt + GSI_CH_C_SCRATCH_2_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	/* We must preserve the upper 16 bits of the last scratch register.
 	 * The next sequence assumes those bits remain unchanged between the
 	 * read and the write.
 	 */
-	val = ioread32(gsi->virt + GSI_CH_C_SCRATCH_3_OFFSET(channel_id));
+	reg = gsi_reg(gsi, CH_C_SCRATCH_3);
+	offset = reg_n_offset(reg, channel_id);
+	val = ioread32(gsi->virt + offset);
 	val = (scr.data.word4 & GENMASK(31, 16)) | (val & GENMASK(15, 0));
-	iowrite32(val, gsi->virt + GSI_CH_C_SCRATCH_3_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + offset);
 
 	/* All done! */
 }
@@ -1506,11 +1521,13 @@ void gsi_channel_doorbell(struct gsi_channel *channel)
 	struct gsi_ring *tre_ring = &channel->tre_ring;
 	u32 channel_id = gsi_channel_id(channel);
 	struct gsi *gsi = channel->gsi;
+	const struct reg *reg;
 	u32 val;
 
+	reg = gsi_reg(gsi, CH_C_DOORBELL_0);
 	/* Note: index *must* be used modulo the ring count here */
 	val = gsi_ring_addr(tre_ring, tre_ring->index % tre_ring->count);
-	iowrite32(val, gsi->virt + GSI_CH_C_DOORBELL_0_OFFSET(channel_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 }
 
 /* Consult hardware, move newly completed transactions to completed state */

@@ -105,8 +105,7 @@ enum gsi_reg_id {
 
 /* All other register offsets are relative to gsi->virt */
 
-#define GSI_CH_C_CNTXT_0_OFFSET(ch) \
-			(0x0001c000 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
+/* CH_C_CNTXT_0 register */
 #define CHTYPE_PROTOCOL_FMASK		GENMASK(2, 0)
 #define CHTYPE_DIR_FMASK		GENMASK(3, 3)
 #define EE_FMASK			GENMASK(7, 4)
@@ -131,15 +130,6 @@ enum gsi_channel_type {
 	GSI_CHANNEL_TYPE_11AD			= 0x9,
 };
 
-#define GSI_CH_C_CNTXT_1_OFFSET(ch) \
-			(0x0001c004 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_CNTXT_2_OFFSET(ch) \
-			(0x0001c008 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_CNTXT_3_OFFSET(ch) \
-			(0x0001c00c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
 /* CH_C_QOS register */
 #define WRR_WEIGHT_FMASK		GENMASK(3, 0)
 #define MAX_PREFETCH_FMASK		GENMASK(8, 8)
@@ -159,18 +149,6 @@ enum gsi_prefetch_mode {
 	GSI_SMART_PREFETCH			= 0x2,
 	GSI_FREE_PREFETCH			= 0x3,
 };
-
-#define GSI_CH_C_SCRATCH_0_OFFSET(ch) \
-			(0x0001c060 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_SCRATCH_1_OFFSET(ch) \
-			(0x0001c064 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_SCRATCH_2_OFFSET(ch) \
-			(0x0001c068 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_SCRATCH_3_OFFSET(ch) \
-			(0x0001c06c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
 
 #define GSI_EV_CH_E_CNTXT_0_OFFSET(ev) \
 			(0x0001d000 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
@@ -220,9 +198,6 @@ enum gsi_prefetch_mode {
 
 #define GSI_EV_CH_E_SCRATCH_1_OFFSET(ev) \
 			(0x0001d04c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_CH_C_DOORBELL_0_OFFSET(ch) \
-			(0x0001e000 + 0x4000 * GSI_EE_AP + 0x08 * (ch))
 
 #define GSI_EV_CH_E_DOORBELL_0_OFFSET(ev) \
 			(0x0001e100 + 0x4000 * GSI_EE_AP + 0x08 * (ev))
