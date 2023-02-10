@@ -75,7 +75,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, enum ipa_mem_id mem_id)
 int ipa_mem_setup(struct ipa *ipa)
 {
 	dma_addr_t addr = ipa->zero_addr;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	const struct ipa_mem *mem;
 	struct gsi_trans *trans;
 	u32 offset;
@@ -115,8 +115,8 @@ int ipa_mem_setup(struct ipa *ipa)
 	offset = ipa->mem_offset + mem->offset;
 
 	reg = ipa_reg(ipa, LOCAL_PKT_PROC_CNTXT);
-	val = ipa_reg_encode(reg, IPA_BASE_ADDR, offset);
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
+	val = reg_encode(reg, IPA_BASE_ADDR, offset);
+	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 
 	return 0;
 }
@@ -318,8 +318,8 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 int ipa_mem_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
-	const struct ipa_reg *reg;
 	const struct ipa_mem *mem;
+	const struct reg *reg;
 	dma_addr_t addr;
 	u32 mem_size;
 	void *virt;
@@ -328,13 +328,13 @@ int ipa_mem_config(struct ipa *ipa)
 
 	/* Check the advertised location and size of the shared memory area */
 	reg = ipa_reg(ipa, SHARED_MEM_SIZE);
-	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
+	val = ioread32(ipa->reg_virt + reg_offset(reg));
 
 	/* The fields in the register are in 8 byte units */
-	ipa->mem_offset = 8 * ipa_reg_decode(reg, MEM_BADDR, val);
+	ipa->mem_offset = 8 * reg_decode(reg, MEM_BADDR, val);
 
 	/* Make sure the end is within the region's mapped space */
-	mem_size = 8 * ipa_reg_decode(reg, MEM_SIZE, val);
+	mem_size = 8 * reg_decode(reg, MEM_SIZE, val);
 
 	/* If the sizes don't match, issue a warning */
 	if (ipa->mem_offset + mem_size < ipa->mem_size) {
