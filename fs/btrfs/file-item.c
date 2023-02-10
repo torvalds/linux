@@ -345,8 +345,8 @@ out:
  *
  * @inode is used to determine if the bvec page really belongs to @inode.
  *
- * Return 0 if we can't find the file offset
- * Return >0 if we find the file offset and restore it to @file_offset_ret
+ * Return false if we can't find the file offset
+ * Return true if we find the file offset and restore it to @file_offset_ret
  */
 static int search_file_offset_in_bio(struct bio *bio, struct inode *inode,
 				     u64 disk_bytenr, u64 *file_offset_ret)
@@ -354,7 +354,7 @@ static int search_file_offset_in_bio(struct bio *bio, struct inode *inode,
 	struct bvec_iter iter;
 	struct bio_vec bvec;
 	u64 cur = bio->bi_iter.bi_sector << SECTOR_SHIFT;
-	int ret = 0;
+	bool ret = false;
 
 	bio_for_each_segment(bvec, bio, iter) {
 		struct page *page = bvec.bv_page;
@@ -368,7 +368,7 @@ static int search_file_offset_in_bio(struct bio *bio, struct inode *inode,
 		ASSERT(in_range(disk_bytenr, cur, bvec.bv_len));
 		if (page->mapping && page->mapping->host &&
 		    page->mapping->host == inode) {
-			ret = 1;
+			ret = true;
 			*file_offset_ret = page_offset(page) + bvec.bv_offset +
 					   disk_bytenr - cur;
 			break;
