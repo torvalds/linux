@@ -606,6 +606,25 @@ exit:
 }
 
 /**
+ * ice_xmit_xdp_ring - submit frame to XDP ring for transmission
+ * @xdpf: XDP frame that will be converted to XDP buff
+ * @xdp_ring: XDP ring for transmission
+ */
+static int ice_xmit_xdp_ring(const struct xdp_frame *xdpf,
+			     struct ice_tx_ring *xdp_ring)
+{
+	struct xdp_buff xdp;
+
+	xdp.data_hard_start = (void *)xdpf;
+	xdp.data = xdpf->data;
+	xdp.data_end = xdp.data + xdpf->len;
+	xdp.frame_sz = xdpf->frame_sz;
+	xdp.flags = xdpf->flags;
+
+	return __ice_xmit_xdp_ring(&xdp, xdp_ring, true);
+}
+
+/**
  * ice_xdp_xmit - submit packets to XDP ring for transmission
  * @dev: netdev
  * @n: number of XDP frames to be transmitted
@@ -650,7 +669,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 	tx_buf = &xdp_ring->tx_buf[xdp_ring->next_to_use];
 	for (i = 0; i < n; i++) {
-		struct xdp_frame *xdpf = frames[i];
+		const struct xdp_frame *xdpf = frames[i];
 		int err;
 
 		err = ice_xmit_xdp_ring(xdpf, xdp_ring);

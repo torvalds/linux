@@ -435,19 +435,6 @@ busy:
 }
 
 /**
- * ice_xmit_xdp_ring - submit frame to XDP ring for transmission
- * @xdpf: XDP frame that will be converted to XDP buff
- * @xdp_ring: XDP ring for transmission
- */
-int ice_xmit_xdp_ring(struct xdp_frame *xdpf, struct ice_tx_ring *xdp_ring)
-{
-	struct xdp_buff xdp;
-
-	xdp_convert_frame_to_buff(xdpf, &xdp);
-	return __ice_xmit_xdp_ring(&xdp, xdp_ring, true);
-}
-
-/**
  * ice_finalize_xdp_rx - Bump XDP Tx tail and/or flush redirect map
  * @xdp_ring: XDP ring
  * @xdp_res: Result of the receive batch
