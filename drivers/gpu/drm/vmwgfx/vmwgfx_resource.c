@@ -837,7 +837,8 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 	mutex_lock(&dev_priv->binding_mutex);
 
 	/* If BO is being moved from MOB to system memory */
-	if (new_mem->mem_type == TTM_PL_SYSTEM &&
+	if (old_mem &&
+	    new_mem->mem_type == TTM_PL_SYSTEM &&
 	    old_mem->mem_type == VMW_PL_MOB) {
 		struct vmw_fence_obj *fence;
 

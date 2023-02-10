@@ -515,9 +515,13 @@ static int vmw_move(struct ttm_buffer_object *bo,
 		    struct ttm_resource *new_mem,
 		    struct ttm_place *hop)
 {
-	struct ttm_resource_manager *old_man = ttm_manager_type(bo->bdev, bo->resource->mem_type);
-	struct ttm_resource_manager *new_man = ttm_manager_type(bo->bdev, new_mem->mem_type);
-	int ret;
+	struct ttm_resource_manager *new_man;
+	struct ttm_resource_manager *old_man = NULL;
+	int ret = 0;
+
+	new_man = ttm_manager_type(bo->bdev, new_mem->mem_type);
+	if (bo->resource)
+		old_man = ttm_manager_type(bo->bdev, bo->resource->mem_type);
 
 	if (new_man->use_tt && !vmw_memtype_is_system(new_mem->mem_type)) {
 		ret = vmw_ttm_bind(bo->bdev, bo->ttm, new_mem);
@@ -525,9 +529,15 @@ static int vmw_move(struct ttm_buffer_object *bo,
 			return ret;
 	}
 
+	if (!bo->resource || (bo->resource->mem_type == TTM_PL_SYSTEM &&
+			      bo->ttm == NULL)) {
+		ttm_bo_move_null(bo, new_mem);
+		return 0;
+	}
+
 	vmw_move_notify(bo, bo->resource, new_mem);
 
-	if (old_man->use_tt && new_man->use_tt) {
+	if (old_man && old_man->use_tt && new_man->use_tt) {
 		if (vmw_memtype_is_system(bo->resource->mem_type)) {
 			ttm_bo_move_null(bo, new_mem);
 			return 0;
