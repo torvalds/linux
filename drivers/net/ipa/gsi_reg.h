@@ -150,8 +150,7 @@ enum gsi_prefetch_mode {
 	GSI_FREE_PREFETCH			= 0x3,
 };
 
-#define GSI_EV_CH_E_CNTXT_0_OFFSET(ev) \
-			(0x0001d000 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
+/* EV_CH_E_CNTXT_0 register */
 /* enum gsi_channel_type defines EV_CHTYPE field values in EV_CH_E_CNTXT_0 */
 #define EV_CHTYPE_FMASK			GENMASK(3, 0)
 #define EV_EE_FMASK			GENMASK(7, 4)
@@ -160,47 +159,10 @@ enum gsi_prefetch_mode {
 #define EV_CHSTATE_FMASK		GENMASK(23, 20)
 #define EV_ELEMENT_SIZE_FMASK		GENMASK(31, 24)
 
-#define GSI_EV_CH_E_CNTXT_1_OFFSET(ev) \
-			(0x0001d004 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_2_OFFSET(ev) \
-			(0x0001d008 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_3_OFFSET(ev) \
-			(0x0001d00c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_4_OFFSET(ev) \
-			(0x0001d010 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_8_OFFSET(ev) \
-			(0x0001d020 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
+/* EV_CH_E_CNTXT_8 register */
 #define MODT_FMASK			GENMASK(15, 0)
 #define MODC_FMASK			GENMASK(23, 16)
 #define MOD_CNT_FMASK			GENMASK(31, 24)
-
-#define GSI_EV_CH_E_CNTXT_9_OFFSET(ev) \
-			(0x0001d024 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_10_OFFSET(ev) \
-			(0x0001d028 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_11_OFFSET(ev) \
-			(0x0001d02c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_12_OFFSET(ev) \
-			(0x0001d030 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_13_OFFSET(ev) \
-			(0x0001d034 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_SCRATCH_0_OFFSET(ev) \
-			(0x0001d048 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_SCRATCH_1_OFFSET(ev) \
-			(0x0001d04c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_DOORBELL_0_OFFSET(ev) \
-			(0x0001e100 + 0x4000 * GSI_EE_AP + 0x08 * (ev))
 
 #define GSI_GSI_STATUS_OFFSET \
 			(0x0001f000 + 0x4000 * GSI_EE_AP)

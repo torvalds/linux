@@ -392,9 +392,10 @@ static bool gsi_command(struct gsi *gsi, u32 reg, u32 val)
 static enum gsi_evt_ring_state
 gsi_evt_ring_state(struct gsi *gsi, u32 evt_ring_id)
 {
+	const struct reg *reg = gsi_reg(gsi, EV_CH_E_CNTXT_0);
 	u32 val;
 
-	val = ioread32(gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
+	val = ioread32(gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	return u32_get_bits(val, EV_CHSTATE_FMASK);
 }
@@ -690,6 +691,7 @@ static void gsi_channel_de_alloc_command(struct gsi *gsi, u32 channel_id)
  */
 static void gsi_evt_ring_doorbell(struct gsi *gsi, u32 evt_ring_id, u32 index)
 {
+	const struct reg *reg = gsi_reg(gsi, EV_CH_E_DOORBELL_0);
 	struct gsi_ring *ring = &gsi->evt_ring[evt_ring_id].ring;
 	u32 val;
 
@@ -697,7 +699,7 @@ static void gsi_evt_ring_doorbell(struct gsi *gsi, u32 evt_ring_id, u32 index)
 
 	/* Note: index *must* be used modulo the ring count here */
 	val = gsi_ring_addr(ring, (index - 1) % ring->count);
-	iowrite32(val, gsi->virt + GSI_EV_CH_E_DOORBELL_0_OFFSET(evt_ring_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 }
 
 /* Program an event ring for use */
@@ -705,41 +707,56 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 {
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct gsi_ring *ring = &evt_ring->ring;
+	const struct reg *reg;
 	size_t size;
 	u32 val;
 
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_0);
 	/* We program all event rings as GPI type/protocol */
 	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, EV_CHTYPE_FMASK);
 	val |= EV_INTYPE_FMASK;
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
-	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_1);
 	size = ring->count * GSI_RING_ELEMENT_SIZE;
 	val = ev_ch_e_cntxt_1_length_encode(gsi->version, size);
-	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_1_OFFSET(evt_ring_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* The context 2 and 3 registers store the low-order and
 	 * high-order 32 bits of the address of the event ring,
 	 * respectively.
 	 */
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_2);
 	val = lower_32_bits(ring->addr);
-	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_2_OFFSET(evt_ring_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
+
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_3);
 	val = upper_32_bits(ring->addr);
-	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_3_OFFSET(evt_ring_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* Enable interrupt moderation by setting the moderation delay */
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_8);
 	val = u32_encode_bits(GSI_EVT_RING_INT_MODT, MODT_FMASK);
 	val |= u32_encode_bits(1, MODC_FMASK);	/* comes from channel */
-	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_8_OFFSET(evt_ring_id));
+	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* No MSI write data, and MSI address high and low address is 0 */
-	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_9_OFFSET(evt_ring_id));
-	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_10_OFFSET(evt_ring_id));
-	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_11_OFFSET(evt_ring_id));
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_9);
+	iowrite32(0, gsi->virt + reg_n_offset(reg, evt_ring_id));
+
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_10);
+	iowrite32(0, gsi->virt + reg_n_offset(reg, evt_ring_id));
+
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_11);
+	iowrite32(0, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* We don't need to get event read pointer updates */
-	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_12_OFFSET(evt_ring_id));
-	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_13_OFFSET(evt_ring_id));
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_12);
+	iowrite32(0, gsi->virt + reg_n_offset(reg, evt_ring_id));
+
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_13);
+	iowrite32(0, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* Finally, tell the hardware our "last processed" event (arbitrary) */
 	gsi_evt_ring_doorbell(gsi, evt_ring_id, ring->index);
@@ -1538,6 +1555,7 @@ void gsi_channel_update(struct gsi_channel *channel)
 	struct gsi_evt_ring *evt_ring;
 	struct gsi_trans *trans;
 	struct gsi_ring *ring;
+	const struct reg *reg;
 	u32 offset;
 	u32 index;
 
@@ -1547,7 +1565,8 @@ void gsi_channel_update(struct gsi_channel *channel)
 	/* See if there's anything new to process; if not, we're done.  Note
 	 * that index always refers to an entry *within* the event ring.
 	 */
-	offset = GSI_EV_CH_E_CNTXT_4_OFFSET(evt_ring_id);
+	reg = gsi_reg(gsi, EV_CH_E_CNTXT_4);
+	offset = reg_n_offset(reg, evt_ring_id);
 	index = gsi_ring_index(ring, ioread32(gsi->virt + offset));
 	if (index == ring->index % ring->count)
 		return;
