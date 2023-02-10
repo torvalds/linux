@@ -913,6 +913,7 @@ properties:
       - items:
           - enum:
               - qcom,sm8550-mtp
+              - qcom,sm8550-qrd
           - const: qcom,sm8550
 
   # Board compatibles go above
