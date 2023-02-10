@@ -1784,7 +1784,7 @@ void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count);
 int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				    union devlink_param_value *init_val);
+				    union devlink_param_value *val);
 void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				     union devlink_param_value init_val);
 void devl_param_value_changed(struct devlink *devlink, u32 param_id);

@@ -9629,13 +9629,14 @@ EXPORT_SYMBOL_GPL(devlink_params_unregister);
  *
  *	@devlink: devlink
  *	@param_id: parameter ID
- *	@init_val: value of parameter in driverinit configuration mode
+ *	@val: pointer to store the value of parameter in driverinit
+ *	      configuration mode
  *
  *	This function should be used by the driver to get driverinit
  *	configuration for initialization after reload command.
  */
 int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				    union devlink_param_value *init_val)
+				    union devlink_param_value *val)
 {
 	struct devlink_param_item *param_item;
 
@@ -9655,7 +9656,7 @@ int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
 		return -EOPNOTSUPP;
 
-	*init_val = param_item->driverinit_value;
+	*val = param_item->driverinit_value;
 
 	return 0;
 }
