@@ -551,6 +551,142 @@ static int mock_decoder_reset(struct cxl_decoder *cxld)
 	return 0;
 }
 
+static void default_mock_decoder(struct cxl_decoder *cxld)
+{
+	cxld->hpa_range = (struct range){
+		.start = 0,
+		.end = -1,
+	};
+
+	cxld->interleave_ways = 1;
+	cxld->interleave_granularity = 256;
+	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->commit = mock_decoder_commit;
+	cxld->reset = mock_decoder_reset;
+}
+
+static int first_decoder(struct device *dev, void *data)
+{
+	struct cxl_decoder *cxld;
+
+	if (!is_switch_decoder(dev))
+		return 0;
+	cxld = to_cxl_decoder(dev);
+	if (cxld->id == 0)
+		return 1;
+	return 0;
+}
+
+static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
+{
+	struct acpi_cedt_cfmws *window = mock_cfmws[0];
+	struct platform_device *pdev = NULL;
+	struct cxl_endpoint_decoder *cxled;
+	struct cxl_switch_decoder *cxlsd;
+	struct cxl_port *port, *iter;
+	const int size = SZ_512M;
+	struct cxl_memdev *cxlmd;
+	struct cxl_dport *dport;
+	struct device *dev;
+	bool hb0 = false;
+	u64 base;
+	int i;
+
+	if (is_endpoint_decoder(&cxld->dev)) {
+		cxled = to_cxl_endpoint_decoder(&cxld->dev);
+		cxlmd = cxled_to_memdev(cxled);
+		WARN_ON(!dev_is_platform(cxlmd->dev.parent));
+		pdev = to_platform_device(cxlmd->dev.parent);
+
+		/* check is endpoint is attach to host-bridge0 */
+		port = cxled_to_port(cxled);
+		do {
+			if (port->uport == &cxl_host_bridge[0]->dev) {
+				hb0 = true;
+				break;
+			}
+			if (is_cxl_port(port->dev.parent))
+				port = to_cxl_port(port->dev.parent);
+			else
+				port = NULL;
+		} while (port);
+		port = cxled_to_port(cxled);
+	}
+
+	/*
+	 * The first decoder on the first 2 devices on the first switch
+	 * attached to host-bridge0 mock a fake / static RAM region. All
+	 * other decoders are default disabled. Given the round robin
+	 * assignment those devices are named cxl_mem.0, and cxl_mem.4.
+	 *
+	 * See 'cxl list -BMPu -m cxl_mem.0,cxl_mem.4'
+	 */
+	if (!hb0 || pdev->id % 4 || pdev->id > 4 || cxld->id > 0) {
+		default_mock_decoder(cxld);
+		return;
+	}
+
+	base = window->base_hpa;
+	cxld->hpa_range = (struct range) {
+		.start = base,
+		.end = base + size - 1,
+	};
+
+	cxld->interleave_ways = 2;
+	eig_to_granularity(window->granularity, &cxld->interleave_granularity);
+	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->flags = CXL_DECODER_F_ENABLE;
+	cxled->state = CXL_DECODER_STATE_AUTO;
+	port->commit_end = cxld->id;
+	devm_cxl_dpa_reserve(cxled, 0, size / cxld->interleave_ways, 0);
+	cxld->commit = mock_decoder_commit;
+	cxld->reset = mock_decoder_reset;
+
+	/*
+	 * Now that endpoint decoder is set up, walk up the hierarchy
+	 * and setup the switch and root port decoders targeting @cxlmd.
+	 */
+	iter = port;
+	for (i = 0; i < 2; i++) {
+		dport = iter->parent_dport;
+		iter = dport->port;
+		dev = device_find_child(&iter->dev, NULL, first_decoder);
+		/*
+		 * Ancestor ports are guaranteed to be enumerated before
+		 * @port, and all ports have at least one decoder.
+		 */
+		if (WARN_ON(!dev))
+			continue;
+		cxlsd = to_cxl_switch_decoder(dev);
+		if (i == 0) {
+			/* put cxl_mem.4 second in the decode order */
+			if (pdev->id == 4)
+				cxlsd->target[1] = dport;
+			else
+				cxlsd->target[0] = dport;
+		} else
+			cxlsd->target[0] = dport;
+		cxld = &cxlsd->cxld;
+		cxld->target_type = CXL_DECODER_EXPANDER;
+		cxld->flags = CXL_DECODER_F_ENABLE;
+		iter->commit_end = 0;
+		/*
+		 * Switch targets 2 endpoints, while host bridge targets
+		 * one root port
+		 */
+		if (i == 0)
+			cxld->interleave_ways = 2;
+		else
+			cxld->interleave_ways = 1;
+		cxld->interleave_granularity = 256;
+		cxld->hpa_range = (struct range) {
+			.start = base,
+			.end = base + size - 1,
+		};
+		put_device(dev);
+	}
+}
+
 static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 {
 	struct cxl_port *port = cxlhdm->port;
@@ -596,16 +732,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			cxld = &cxled->cxld;
 		}
 
-		cxld->hpa_range = (struct range) {
-			.start = 0,
-			.end = -1,
-		};
-
-		cxld->interleave_ways = min_not_zero(target_count, 1);
-		cxld->interleave_granularity = SZ_4K;
-		cxld->target_type = CXL_DECODER_EXPANDER;
-		cxld->commit = mock_decoder_commit;
-		cxld->reset = mock_decoder_reset;
+		mock_init_hdm_decoder(cxld);
 
 		if (target_count) {
 			rc = device_for_each_child(port->uport, &ctx,

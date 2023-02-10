@@ -56,9 +56,6 @@ resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled);
 extern struct rw_semaphore cxl_dpa_rwsem;
 
-bool is_switch_decoder(struct device *dev);
-struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev);
-
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);
 void cxl_mbox_init(void);

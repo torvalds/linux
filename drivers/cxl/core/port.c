@@ -455,6 +455,7 @@ bool is_switch_decoder(struct device *dev)
 {
 	return is_root_decoder(dev) || dev->type == &cxl_decoder_switch_type;
 }
+EXPORT_SYMBOL_NS_GPL(is_switch_decoder, CXL);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
@@ -482,6 +483,7 @@ struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_switch_decoder, cxld.dev);
 }
+EXPORT_SYMBOL_NS_GPL(to_cxl_switch_decoder, CXL);
 
 static void cxl_ep_release(struct cxl_ep *ep)
 {
