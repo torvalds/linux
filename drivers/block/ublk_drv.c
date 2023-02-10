@@ -1265,6 +1265,7 @@ static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	u32 cmd_op = cmd->cmd_op;
 	unsigned tag = ub_cmd->tag;
 	int ret = -EINVAL;
+	struct request *req;
 
 	pr_devel("%s: received: cmd op %d queue %d tag %d result %d\n",
 			__func__, cmd->cmd_op, ub_cmd->q_id, tag,
@@ -1315,8 +1316,8 @@ static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 		 */
 		if (io->flags & UBLK_IO_FLAG_OWNED_BY_SRV)
 			goto out;
-		/* FETCH_RQ has to provide IO buffer */
-		if (!ub_cmd->addr)
+		/* FETCH_RQ has to provide IO buffer if NEED GET DATA is not enabled */
+		if (!ub_cmd->addr && !ublk_need_get_data(ubq))
 			goto out;
 		io->cmd = cmd;
 		io->flags |= UBLK_IO_FLAG_ACTIVE;
@@ -1325,8 +1326,12 @@ static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 		ublk_mark_io_ready(ub, ubq);
 		break;
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
-		/* FETCH_RQ has to provide IO buffer */
-		if (!ub_cmd->addr)
+		req = blk_mq_tag_to_rq(ub->tag_set.tags[ub_cmd->q_id], tag);
+		/*
+		 * COMMIT_AND_FETCH_REQ has to provide IO buffer if NEED GET DATA is
+		 * not enabled or it is Read IO.
+		 */
+		if (!ub_cmd->addr && (!ublk_need_get_data(ubq) || req_op(req) == REQ_OP_READ))
 			goto out;
 		if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV))
 			goto out;
