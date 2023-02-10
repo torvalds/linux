@@ -18,6 +18,7 @@ struct secvar_operations {
 	int (*get_next)(const char *key, u64 *key_len, u64 keybufsize);
 	int (*set)(const char *key, u64 key_len, u8 *data, u64 data_size);
 	ssize_t (*format)(char *buf, size_t bufsize);
+	int (*max_size)(u64 *max_size);
 };
 
 #ifdef CONFIG_PPC_SECURE_BOOT
