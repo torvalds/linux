@@ -275,10 +275,7 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 		ready_frames -= frags + 1;
 		xdp_tx++;
 
-		if (xdp_ring->xsk_pool)
-			xsk_buff_free(tx_buf->xdp);
-		else
-			ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
+		ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
 		ntc++;
 		if (ntc == cnt)
 			ntc = 0;
