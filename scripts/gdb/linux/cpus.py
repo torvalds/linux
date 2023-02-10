@@ -163,7 +163,7 @@ def get_current_task(cpu):
     task_ptr_type = task_type.get_type().pointer()
 
     if utils.is_target_arch("x86"):
-         var_ptr = gdb.parse_and_eval("&current_task")
+         var_ptr = gdb.parse_and_eval("&pcpu_hot.current_task")
          return per_cpu(var_ptr, cpu).dereference()
     elif utils.is_target_arch("aarch64"):
          current_task_addr = gdb.parse_and_eval("$SP_EL0")
