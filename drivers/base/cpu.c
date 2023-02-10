@@ -125,17 +125,6 @@ static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct bus_type cpu_subsys = {
-	.name = "cpu",
-	.dev_name = "cpu",
-	.match = cpu_subsys_match,
-#ifdef CONFIG_HOTPLUG_CPU
-	.online = cpu_subsys_online,
-	.offline = cpu_subsys_offline,
-#endif
-};
-EXPORT_SYMBOL_GPL(cpu_subsys);
-
 #ifdef CONFIG_KEXEC
 #include <linux/kexec.h>
 
@@ -348,6 +337,20 @@ static int cpu_uevent(const struct device *dev, struct kobj_uevent_env *env)
 }
 #endif
 
+struct bus_type cpu_subsys = {
+	.name = "cpu",
+	.dev_name = "cpu",
+	.match = cpu_subsys_match,
+#ifdef CONFIG_HOTPLUG_CPU
+	.online = cpu_subsys_online,
+	.offline = cpu_subsys_offline,
+#endif
+#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
+	.uevent = cpu_uevent,
+#endif
+};
+EXPORT_SYMBOL_GPL(cpu_subsys);
+
 /*
  * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
@@ -368,9 +371,6 @@ int register_cpu(struct cpu *cpu, int num)
 	cpu->dev.offline_disabled = !cpu->hotpluggable;
 	cpu->dev.offline = !cpu_online(num);
 	cpu->dev.of_node = of_get_cpu_node(num, NULL);
-#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
-	cpu->dev.bus->uevent = cpu_uevent;
-#endif
 	cpu->dev.groups = common_cpu_attr_groups;
 	if (cpu->hotpluggable)
 		cpu->dev.groups = hotplugable_cpu_attr_groups;
