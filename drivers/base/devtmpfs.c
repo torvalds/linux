@@ -389,10 +389,18 @@ static __initdata DECLARE_COMPLETION(setup_done);
 static int handle(const char *name, umode_t mode, kuid_t uid, kgid_t gid,
 		  struct device *dev)
 {
+	int ret;
+
 	if (mode)
-		return handle_create(name, mode, uid, gid, dev);
+		ret = handle_create(name, mode, uid, gid, dev);
 	else
-		return handle_remove(name, dev);
+		ret = handle_remove(name, dev);
+
+	if (ret)
+		dev_err(dev, "failed to %s %s, ret = %d\n",
+			mode ? "create" : "remove", name, ret);
+
+	return ret;
 }
 
 static void __noreturn devtmpfs_work_loop(void)
