@@ -523,7 +523,7 @@ static const struct rtas_function *rtas_token_to_function(s32 token)
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
 
-static inline void do_enter_rtas(unsigned long args)
+static void do_enter_rtas(struct rtas_args *args)
 {
 	unsigned long msr;
 
@@ -538,7 +538,7 @@ static inline void do_enter_rtas(unsigned long args)
 
 	hard_irq_disable(); /* Ensure MSR[EE] is disabled on PPC64 */
 
-	enter_rtas(args);
+	enter_rtas(__pa(args));
 
 	srr_regs_clobbered(); /* rtas uses SRRs, invalidate */
 }
@@ -892,7 +892,7 @@ static char *__fetch_rtas_last_error(char *altbuf)
 	save_args = rtas_args;
 	rtas_args = err_args;
 
-	do_enter_rtas(__pa(&rtas_args));
+	do_enter_rtas(&rtas_args);
 
 	err_args = rtas_args;
 	rtas_args = save_args;
@@ -939,7 +939,7 @@ va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
 	for (i = 0; i < nret; ++i)
 		args->rets[i] = 0;
 
-	do_enter_rtas(__pa(args));
+	do_enter_rtas(args);
 }
 
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, ...)
@@ -1757,7 +1757,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 	raw_spin_lock_irqsave(&rtas_lock, flags);
 
 	rtas_args = args;
-	do_enter_rtas(__pa(&rtas_args));
+	do_enter_rtas(&rtas_args);
 	args = rtas_args;
 
 	/* A -1 return code indicates that the last command couldn't
