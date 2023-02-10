@@ -44,15 +44,8 @@ static int dax_hmem_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dax_hmem_remove(struct platform_device *pdev)
-{
-	/* devm handles teardown */
-	return 0;
-}
-
 static struct platform_driver dax_hmem_driver = {
 	.probe = dax_hmem_probe,
-	.remove = dax_hmem_remove,
 	.driver = {
 		.name = "hmem",
 	},
