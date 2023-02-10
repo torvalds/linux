@@ -1422,31 +1422,25 @@ void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
 	up_write(&cxl_region_rwsem);
 }
 
-static int attach_target(struct cxl_region *cxlr, const char *decoder, int pos)
+static int attach_target(struct cxl_region *cxlr,
+			 struct cxl_endpoint_decoder *cxled, int pos,
+			 unsigned int state)
 {
-	struct device *dev;
-	int rc;
+	int rc = 0;
 
-	dev = bus_find_device_by_name(&cxl_bus_type, NULL, decoder);
-	if (!dev)
-		return -ENODEV;
-
-	if (!is_endpoint_decoder(dev)) {
-		put_device(dev);
-		return -EINVAL;
-	}
-
-	rc = down_write_killable(&cxl_region_rwsem);
+	if (state == TASK_INTERRUPTIBLE)
+		rc = down_write_killable(&cxl_region_rwsem);
+	else
+		down_write(&cxl_region_rwsem);
 	if (rc)
-		goto out;
+		return rc;
+
 	down_read(&cxl_dpa_rwsem);
-	rc = cxl_region_attach(cxlr, to_cxl_endpoint_decoder(dev), pos);
+	rc = cxl_region_attach(cxlr, cxled, pos);
 	if (rc == 0)
 		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	up_read(&cxl_dpa_rwsem);
 	up_write(&cxl_region_rwsem);
-out:
-	put_device(dev);
 	return rc;
 }
 
@@ -1484,8 +1478,23 @@ static size_t store_targetN(struct cxl_region *cxlr, const char *buf, int pos,
 
 	if (sysfs_streq(buf, "\n"))
 		rc = detach_target(cxlr, pos);
-	else
-		rc = attach_target(cxlr, buf, pos);
+	else {
+		struct device *dev;
+
+		dev = bus_find_device_by_name(&cxl_bus_type, NULL, buf);
+		if (!dev)
+			return -ENODEV;
+
+		if (!is_endpoint_decoder(dev)) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		rc = attach_target(cxlr, to_cxl_endpoint_decoder(dev), pos,
+				   TASK_INTERRUPTIBLE);
+out:
+		put_device(dev);
+	}
 
 	if (rc < 0)
 		return rc;
