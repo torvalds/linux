@@ -614,6 +614,7 @@ static void qcom_slim_ngd_tx_msg_dma_cb(void *args)
 	if (ctrl->capability_timeout) {
 		ctrl->capability_timeout = false;
 		SLIM_WARN(ctrl, "Timedout due to delayed interrupt\n");
+		desc->comp = NULL;
 		return;
 	}
 	spin_lock_irqsave(&ctrl->tx_buf_lock, flags);
