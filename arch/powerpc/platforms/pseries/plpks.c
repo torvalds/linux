@@ -16,6 +16,9 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/of_fdt.h>
+#include <linux/libfdt.h>
+#include <linux/memblock.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
 #include <asm/plpks.h>
@@ -127,6 +130,12 @@ static int plpks_gen_password(void)
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE] = { 0 };
 	u8 *password, consumer = PLPKS_OS_OWNER;
 	int rc;
+
+	// If we booted from kexec, we could be reusing an existing password already
+	if (ospassword) {
+		pr_debug("Password of length %u already in use\n", ospasswordlength);
+		return 0;
+	}
 
 	// The password must not cross a page boundary, so we align to the next power of 2
 	password = kzalloc(roundup_pow_of_two(maxpwsize), GFP_KERNEL);
@@ -619,6 +628,58 @@ int plpks_read_fw_var(struct plpks_var *var)
 int plpks_read_bootloader_var(struct plpks_var *var)
 {
 	return plpks_read_var(PLPKS_BOOTLOADER_OWNER, var);
+}
+
+int plpks_populate_fdt(void *fdt)
+{
+	int chosen_offset = fdt_path_offset(fdt, "/chosen");
+
+	if (chosen_offset < 0) {
+		pr_err("Can't find chosen node: %s\n",
+		       fdt_strerror(chosen_offset));
+		return chosen_offset;
+	}
+
+	return fdt_setprop(fdt, chosen_offset, "ibm,plpks-pw", ospassword, ospasswordlength);
+}
+
+// Once a password is registered with the hypervisor it cannot be cleared without
+// rebooting the LPAR, so to keep using the PLPKS across kexec boots we need to
+// recover the previous password from the FDT.
+//
+// There are a few challenges here.  We don't want the password to be visible to
+// users, so we need to clear it from the FDT.  This has to be done in early boot.
+// Clearing it from the FDT would make the FDT's checksum invalid, so we have to
+// manually cause the checksum to be recalculated.
+void __init plpks_early_init_devtree(void)
+{
+	void *fdt = initial_boot_params;
+	int chosen_node = fdt_path_offset(fdt, "/chosen");
+	const u8 *password;
+	int len;
+
+	if (chosen_node < 0)
+		return;
+
+	password = fdt_getprop(fdt, chosen_node, "ibm,plpks-pw", &len);
+	if (len <= 0) {
+		pr_debug("Couldn't find ibm,plpks-pw node.\n");
+		return;
+	}
+
+	ospassword = memblock_alloc_raw(len, SMP_CACHE_BYTES);
+	if (!ospassword) {
+		pr_err("Error allocating memory for password.\n");
+		goto out;
+	}
+
+	memcpy(ospassword, password, len);
+	ospasswordlength = (u16)len;
+
+out:
+	fdt_nop_property(fdt, chosen_node, "ibm,plpks-pw");
+	// Since we've cleared the password, we must update the FDT checksum
+	early_init_dt_verify(fdt);
 }
 
 static __init int pseries_plpks_init(void)

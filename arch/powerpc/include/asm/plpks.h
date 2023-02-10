@@ -176,6 +176,20 @@ u64 plpks_get_signedupdatealgorithms(void);
  */
 u16 plpks_get_passwordlen(void);
 
+/**
+ * Called in early init to retrieve and clear the PLPKS password from the DT.
+ */
+void plpks_early_init_devtree(void);
+
+/**
+ * Populates the FDT with the PLPKS password to prepare for kexec.
+ */
+int plpks_populate_fdt(void *fdt);
+#else // CONFIG_PSERIES_PLPKS
+static inline bool plpks_is_available(void) { return false; }
+static inline u16 plpks_get_passwordlen(void) { BUILD_BUG(); }
+static inline void plpks_early_init_devtree(void) { }
+static inline int plpks_populate_fdt(void *fdt) { BUILD_BUG(); }
 #endif // CONFIG_PSERIES_PLPKS
 
 #endif // _ASM_POWERPC_PLPKS_H
