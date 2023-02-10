@@ -146,7 +146,7 @@ static int plpks_gen_password(void)
 		memcpy(ospassword, password, ospasswordlength);
 	} else {
 		if (rc == H_IN_USE) {
-			pr_warn("Password is already set for POWER LPAR Platform KeyStore\n");
+			pr_warn("Password already set - authenticated operations will fail\n");
 			rc = 0;
 		} else {
 			goto out;
