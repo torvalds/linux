@@ -104,4 +104,4 @@ static __init int hmem_init(void)
  * As this is a fallback for address ranges unclaimed by the ACPI HMAT
  * parsing it must be at an initcall level greater than hmat_init().
  */
-late_initcall(hmem_init);
+device_initcall(hmem_init);
