@@ -304,13 +304,6 @@ static int replicas_table_update(struct bch_fs *c,
 					sizeof(u64), GFP_KERNEL)))
 			goto err;
 
-	memset(new_usage, 0, sizeof(new_usage));
-
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		if (!(new_usage[i] = __alloc_percpu_gfp(bytes,
-					sizeof(u64), GFP_KERNEL)))
-			goto err;
-
 	if (!(new_base = kzalloc(bytes, GFP_KERNEL)) ||
 	    !(new_scratch  = kmalloc(scratch_bytes, GFP_KERNEL)) ||
 	    (c->usage_gc &&
