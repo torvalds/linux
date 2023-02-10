@@ -218,32 +218,39 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(stack_depot_init);
 
+/* Uses preallocated memory to initialize a new stack depot pool. */
 static void depot_init_pool(void **prealloc)
 {
 	/*
-	 * This smp_load_acquire() pairs with smp_store_release() to
-	 * |next_pool_inited| below and in depot_alloc_stack().
+	 * smp_load_acquire() here pairs with smp_store_release() below and
+	 * in depot_alloc_stack().
 	 */
 	if (smp_load_acquire(&next_pool_inited))
 		return;
+
+	/* Check if the current pool is not yet allocated. */
 	if (stack_pools[pool_index] == NULL) {
+		/* Use the preallocated memory for the current pool. */
 		stack_pools[pool_index] = *prealloc;
 		*prealloc = NULL;
 	} else {
-		/* If this is the last depot pool, do not touch the next one. */
+		/*
+		 * Otherwise, use the preallocated memory for the next pool
+		 * as long as we do not exceed the maximum number of pools.
+		 */
 		if (pool_index + 1 < DEPOT_MAX_POOLS) {
 			stack_pools[pool_index + 1] = *prealloc;
 			*prealloc = NULL;
 		}
 		/*
-		 * This smp_store_release pairs with smp_load_acquire() from
-		 * |next_pool_inited| above and in stack_depot_save().
+		 * This smp_store_release pairs with smp_load_acquire() above
+		 * and in stack_depot_save().
 		 */
 		smp_store_release(&next_pool_inited, 1);
 	}
 }
 
-/* Allocation of a new stack in raw storage */
+/* Allocates a new stack in a stack depot pool. */
 static struct stack_record *
 depot_alloc_stack(unsigned long *entries, int size, u32 hash, void **prealloc)
 {
@@ -252,28 +259,35 @@ depot_alloc_stack(unsigned long *entries, int size, u32 hash, void **prealloc)
 
 	required_size = ALIGN(required_size, 1 << DEPOT_STACK_ALIGN);
 
+	/* Check if there is not enough space in the current pool. */
 	if (unlikely(pool_offset + required_size > DEPOT_POOL_SIZE)) {
+		/* Bail out if we reached the pool limit. */
 		if (unlikely(pool_index + 1 >= DEPOT_MAX_POOLS)) {
 			WARN_ONCE(1, "Stack depot reached limit capacity");
 			return NULL;
 		}
+
+		/* Move on to the next pool. */
 		pool_index++;
 		pool_offset = 0;
 		/*
-		 * smp_store_release() here pairs with smp_load_acquire() from
-		 * |next_pool_inited| in stack_depot_save() and
-		 * depot_init_pool().
+		 * smp_store_release() here pairs with smp_load_acquire() in
+		 * stack_depot_save() and depot_init_pool().
 		 */
 		if (pool_index + 1 < DEPOT_MAX_POOLS)
 			smp_store_release(&next_pool_inited, 0);
 	}
+
+	/* Assign the preallocated memory to a pool if required. */
 	if (*prealloc)
 		depot_init_pool(prealloc);
+
+	/* Check if we have a pool to save the stack trace. */
 	if (stack_pools[pool_index] == NULL)
 		return NULL;
 
+	/* Save the stack trace. */
 	stack = stack_pools[pool_index] + pool_offset;
-
 	stack->hash = hash;
 	stack->size = size;
 	stack->handle.pool_index = pool_index;
