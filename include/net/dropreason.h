@@ -73,6 +73,9 @@
 	FN(FRAG_TOO_FAR)		\
 	FN(TCP_MINTTL)			\
 	FN(IPV6_BAD_EXTHDR)		\
+	FN(IPV6_NDISC_FRAG)		\
+	FN(IPV6_NDISC_HOP_LIMIT)	\
+	FN(IPV6_NDISC_BAD_CODE)		\
 	FNe(MAX)
 
 /**
@@ -321,6 +324,12 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_TCP_MINTTL,
 	/** @SKB_DROP_REASON_IPV6_BAD_EXTHDR: Bad IPv6 extension header. */
 	SKB_DROP_REASON_IPV6_BAD_EXTHDR,
+	/** @SKB_DROP_REASON_IPV6_NDISC_FRAG: invalid frag (suppress_frag_ndisc). */
+	SKB_DROP_REASON_IPV6_NDISC_FRAG,
+	/** @SKB_DROP_REASON_IPV6_NDISC_HOP_LIMIT: invalid hop limit. */
+	SKB_DROP_REASON_IPV6_NDISC_HOP_LIMIT,
+	/** @SKB_DROP_REASON_IPV6_NDISC_BAD_CODE: invalid NDISC icmp6 code. */
+	SKB_DROP_REASON_IPV6_NDISC_BAD_CODE,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'

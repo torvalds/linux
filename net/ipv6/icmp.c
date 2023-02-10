@@ -969,7 +969,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	case NDISC_NEIGHBOUR_SOLICITATION:
 	case NDISC_NEIGHBOUR_ADVERTISEMENT:
 	case NDISC_REDIRECT:
-		ndisc_rcv(skb);
+		reason = ndisc_rcv(skb);
 		break;
 
 	case ICMPV6_MGM_QUERY:
