@@ -4860,6 +4860,11 @@ static int msm_geni_serial_remove(struct platform_device *pdev)
 					port->rx_buf, DMA_RX_BUF_SIZE);
 		port->rx_dma = (dma_addr_t)NULL;
 	}
+	device_remove_file(port->uport.dev, &dev_attr_loopback);
+	device_remove_file(port->uport.dev, &dev_attr_xfer_mode);
+	device_remove_file(port->uport.dev, &dev_attr_ver_info);
+	debugfs_remove(port->dbg);
+
 	return 0;
 }
 
@@ -5253,8 +5258,9 @@ module_init(msm_geni_serial_init);
 static void __exit msm_geni_serial_exit(void)
 {
 	platform_driver_unregister(&msm_geni_serial_platform_driver);
+	if (con_enabled)
+		console_unregister(&msm_geni_console_driver);
 	uart_unregister_driver(&msm_geni_serial_hs_driver);
-	console_unregister(&msm_geni_console_driver);
 }
 module_exit(msm_geni_serial_exit);
 
