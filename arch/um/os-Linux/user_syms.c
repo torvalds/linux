@@ -3,35 +3,36 @@
 #include <linux/types.h>
 #include <linux/module.h>
 
-/* Some of this are builtin function (some are not but could in the future),
- * so I *must* declare good prototypes for them and then EXPORT them.
- * The kernel code uses the macro defined by include/linux/string.h,
- * so I undef macros; the userspace code does not include that and I
- * add an EXPORT for the glibc one.
+/*
+ * This file exports some critical string functions and compiler
+ * built-in functions (where calls are emitted by the compiler
+ * itself that we cannot avoid even in kernel code) to modules.
+ *
+ * "_user.c" code that previously used exports here such as hostfs
+ * really should be considered part of the 'hypervisor' and define
+ * its own API boundary like hostfs does now; don't add exports to
+ * this file for such cases.
  */
-
-#undef strlen
-#undef strstr
-#undef memcpy
-#undef memset
-
-extern size_t strlen(const char *);
-extern void *memmove(void *, const void *, size_t);
-extern void *memset(void *, int, size_t);
 
 /* If it's not defined, the export is included in lib/string.c.*/
 #ifdef __HAVE_ARCH_STRSTR
+#undef strstr
 EXPORT_SYMBOL(strstr);
 #endif
 
 #ifndef __x86_64__
+#undef memcpy
 extern void *memcpy(void *, const void *, size_t);
 EXPORT_SYMBOL(memcpy);
+extern void *memmove(void *, const void *, size_t);
 EXPORT_SYMBOL(memmove);
+#undef memset
+extern void *memset(void *, int, size_t);
 EXPORT_SYMBOL(memset);
 #endif
 
 #ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
+/* needed for __access_ok() */
 EXPORT_SYMBOL(vsyscall_ehdr);
 EXPORT_SYMBOL(vsyscall_end);
 #endif
@@ -44,6 +45,6 @@ extern long __guard __attribute__((weak));
 EXPORT_SYMBOL(__guard);
 
 #ifdef _FORTIFY_SOURCE
-extern int __sprintf_chk(char *str, int flag, size_t strlen, const char *format);
+extern int __sprintf_chk(char *str, int flag, size_t len, const char *format);
 EXPORT_SYMBOL(__sprintf_chk);
 #endif
