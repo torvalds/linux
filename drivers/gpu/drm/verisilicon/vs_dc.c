@@ -647,6 +647,9 @@ static irqreturn_t dc_isr(int irq, void *data)
 	struct vs_dc_info *dc_info = dc->hw.info;
 	u32 i, ret;
 
+    if(!dc_info)
+		return IRQ_HANDLED;
+
 	ret = dc_hw_get_interrupt(&dc->hw);
 
 	for (i = 0; i < dc_info->panel_num; i++)
@@ -856,11 +859,6 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	//regmap_update_bits(dc->dss_regmap, 0x8, BIT(3), 1 << 3);
 
 	dc_hw_setup_display(&dc->hw, &display);
-	ret = devm_request_irq(dev, dc->irq, dc_isr, 0, dev_name(dev), dc);
-	if (ret < 0) {
-		dev_err(dev, "Failed to install irq:%u.\n", dc->irq);
-		return;
-	}
 
 }
 
@@ -1645,7 +1643,12 @@ static int dc_probe(struct platform_device *pdev)
 	if (IS_ERR(dc->hw.mmu_base))
 		return PTR_ERR(dc->hw.mmu_base);
 #endif
-	dc->irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
+	ret = devm_request_irq(dev, irq, dc_isr, 0, dev_name(dev), dc);
+	if (ret < 0) {
+		dev_err(dev, "Failed to install irq:%u.\n", dc->irq);
+		return;
+	}
 
 	dev_set_drvdata(dev, dc);
 
