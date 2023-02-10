@@ -260,7 +260,7 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 			ready_frames = idx + cnt - ntc + 1;
 	}
 
-	if (!ready_frames)
+	if (unlikely(!ready_frames))
 		return 0;
 	ret = ready_frames;
 
@@ -322,17 +322,17 @@ int __ice_xmit_xdp_ring(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring)
 	u32 frag = 0;
 
 	free_space = ICE_DESC_UNUSED(xdp_ring);
-
-	if (ICE_DESC_UNUSED(xdp_ring) < ICE_RING_QUARTER(xdp_ring))
+	if (free_space < ICE_RING_QUARTER(xdp_ring))
 		free_space += ice_clean_xdp_irq(xdp_ring);
+
+	if (unlikely(!free_space))
+		goto busy;
 
 	if (unlikely(xdp_buff_has_frags(xdp))) {
 		sinfo = xdp_get_shared_info_from_buff(xdp);
 		nr_frags = sinfo->nr_frags;
-		if (free_space < nr_frags + 1) {
-			xdp_ring->ring_stats->tx_stats.tx_busy++;
-			return ICE_XDP_CONSUMED;
-		}
+		if (free_space < nr_frags + 1)
+			goto busy;
 	}
 
 	tx_desc = ICE_TX_DESC(xdp_ring, ntu);
@@ -395,6 +395,11 @@ dma_unmap:
 			ntu += cnt;
 		ntu--;
 	}
+	return ICE_XDP_CONSUMED;
+
+busy:
+	xdp_ring->ring_stats->tx_stats.tx_busy++;
+
 	return ICE_XDP_CONSUMED;
 }
 
