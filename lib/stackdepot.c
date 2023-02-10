@@ -96,8 +96,14 @@ static int pool_index;
 static size_t pool_offset;
 /* Lock that protects the variables above. */
 static DEFINE_RAW_SPINLOCK(pool_lock);
-/* Whether the next pool is initialized. */
-static int next_pool_inited;
+/*
+ * Stack depot tries to keep an extra pool allocated even before it runs out
+ * of space in the currently used pool.
+ * This flag marks that this next extra pool needs to be allocated and
+ * initialized. It has the value 0 when either the next pool is not yet
+ * initialized or the limit on the number of pools is reached.
+ */
+static int next_pool_required = 1;
 
 static int __init disable_stack_depot(char *str)
 {
@@ -222,10 +228,12 @@ EXPORT_SYMBOL_GPL(stack_depot_init);
 static void depot_init_pool(void **prealloc)
 {
 	/*
+	 * If the next pool is already initialized or the maximum number of
+	 * pools is reached, do not use the preallocated memory.
 	 * smp_load_acquire() here pairs with smp_store_release() below and
 	 * in depot_alloc_stack().
 	 */
-	if (smp_load_acquire(&next_pool_inited))
+	if (!smp_load_acquire(&next_pool_required))
 		return;
 
 	/* Check if the current pool is not yet allocated. */
@@ -243,10 +251,13 @@ static void depot_init_pool(void **prealloc)
 			*prealloc = NULL;
 		}
 		/*
+		 * At this point, either the next pool is initialized or the
+		 * maximum number of pools is reached. In either case, take
+		 * note that initializing another pool is not required.
 		 * This smp_store_release pairs with smp_load_acquire() above
 		 * and in stack_depot_save().
 		 */
-		smp_store_release(&next_pool_inited, 1);
+		smp_store_release(&next_pool_required, 0);
 	}
 }
 
@@ -271,11 +282,13 @@ depot_alloc_stack(unsigned long *entries, int size, u32 hash, void **prealloc)
 		pool_index++;
 		pool_offset = 0;
 		/*
+		 * If the maximum number of pools is not reached, take note
+		 * that the next pool needs to initialized.
 		 * smp_store_release() here pairs with smp_load_acquire() in
 		 * stack_depot_save() and depot_init_pool().
 		 */
 		if (pool_index + 1 < DEPOT_MAX_POOLS)
-			smp_store_release(&next_pool_inited, 0);
+			smp_store_release(&next_pool_required, 1);
 	}
 
 	/* Assign the preallocated memory to a pool if required. */
@@ -406,14 +419,13 @@ depot_stack_handle_t __stack_depot_save(unsigned long *entries,
 		goto exit;
 
 	/*
-	 * Check if the current or the next stack pool need to be initialized.
-	 * If so, allocate the memory - we won't be able to do that under the
-	 * lock.
+	 * Check if another stack pool needs to be initialized. If so, allocate
+	 * the memory now - we won't be able to do that under the lock.
 	 *
 	 * The smp_load_acquire() here pairs with smp_store_release() to
 	 * |next_pool_inited| in depot_alloc_stack() and depot_init_pool().
 	 */
-	if (unlikely(can_alloc && !smp_load_acquire(&next_pool_inited))) {
+	if (unlikely(can_alloc && smp_load_acquire(&next_pool_required))) {
 		/*
 		 * Zero out zone modifiers, as we don't have specific zone
 		 * requirements. Keep the flags related to allocation in atomic
