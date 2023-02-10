@@ -15,6 +15,7 @@ struct unwind_hint {
 	s16		sp_offset;
 	u8		sp_reg;
 	u8		type;
+	u8		signal;
 	u8		end;
 };
 #endif
@@ -49,7 +50,7 @@ struct unwind_hint {
 
 #ifndef __ASSEMBLY__
 
-#define UNWIND_HINT(sp_reg, sp_offset, type, end)		\
+#define UNWIND_HINT(sp_reg, sp_offset, type, signal, end)	\
 	"987: \n\t"						\
 	".pushsection .discard.unwind_hints\n\t"		\
 	/* struct unwind_hint */				\
@@ -57,6 +58,7 @@ struct unwind_hint {
 	".short " __stringify(sp_offset) "\n\t"			\
 	".byte " __stringify(sp_reg) "\n\t"			\
 	".byte " __stringify(type) "\n\t"			\
+	".byte " __stringify(signal) "\n\t"			\
 	".byte " __stringify(end) "\n\t"			\
 	".balign 4 \n\t"					\
 	".popsection\n\t"
@@ -129,7 +131,7 @@ struct unwind_hint {
  * the debuginfo as necessary.  It will also warn if it sees any
  * inconsistencies.
  */
-.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 end=0
+.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0 end=0
 .Lunwind_hint_ip_\@:
 	.pushsection .discard.unwind_hints
 		/* struct unwind_hint */
@@ -137,6 +139,7 @@ struct unwind_hint {
 		.short \sp_offset
 		.byte \sp_reg
 		.byte \type
+		.byte \signal
 		.byte \end
 		.balign 4
 	.popsection
@@ -174,7 +177,7 @@ struct unwind_hint {
 
 #ifndef __ASSEMBLY__
 
-#define UNWIND_HINT(sp_reg, sp_offset, type, end)	\
+#define UNWIND_HINT(sp_reg, sp_offset, type, signal, end) \
 	"\n\t"
 #define STACK_FRAME_NON_STANDARD(func)
 #define STACK_FRAME_NON_STANDARD_FP(func)
@@ -182,7 +185,7 @@ struct unwind_hint {
 #define ASM_REACHABLE
 #else
 #define ANNOTATE_INTRA_FUNCTION_CALL
-.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 end=0
+.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0 end=0
 .endm
 .macro STACK_FRAME_NON_STANDARD func:req
 .endm
