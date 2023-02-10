@@ -645,16 +645,9 @@ xfs_bmap_extents_to_btree(
 	args.tp = tp;
 	args.mp = mp;
 	xfs_rmap_ino_bmbt_owner(&args.oinfo, ip->i_ino, whichfork);
-	if (tp->t_firstblock == NULLFSBLOCK) {
-		args.type = XFS_ALLOCTYPE_START_BNO;
-		args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
-	} else if (tp->t_flags & XFS_TRANS_LOWMODE) {
-		args.type = XFS_ALLOCTYPE_START_BNO;
-		args.fsbno = tp->t_firstblock;
-	} else {
-		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-		args.fsbno = tp->t_firstblock;
-	}
+
+	args.type = XFS_ALLOCTYPE_START_BNO;
+	args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = wasdel;
 	*logflagsp = 0;
@@ -662,17 +655,14 @@ xfs_bmap_extents_to_btree(
 	if (error)
 		goto out_root_realloc;
 
+	/*
+	 * Allocation can't fail, the space was reserved.
+	 */
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
 		error = -ENOSPC;
 		goto out_root_realloc;
 	}
 
-	/*
-	 * Allocation can't fail, the space was reserved.
-	 */
-	ASSERT(tp->t_firstblock == NULLFSBLOCK ||
-	       args.agno >= XFS_FSB_TO_AGNO(mp, tp->t_firstblock));
-	tp->t_firstblock = args.fsbno;
 	cur->bc_ino.allocated++;
 	ip->i_nblocks++;
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, 1L);
@@ -804,13 +794,8 @@ xfs_bmap_local_to_extents(
 	 * Allocate a block.  We know we need only one, since the
 	 * file currently fits in an inode.
 	 */
-	if (tp->t_firstblock == NULLFSBLOCK) {
-		args.fsbno = XFS_INO_TO_FSB(args.mp, ip->i_ino);
-		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else {
-		args.fsbno = tp->t_firstblock;
-		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	}
+	args.fsbno = XFS_INO_TO_FSB(args.mp, ip->i_ino);
+	args.type = XFS_ALLOCTYPE_START_BNO;
 	args.total = total;
 	args.minlen = args.maxlen = args.prod = 1;
 	error = xfs_alloc_vextent(&args);
@@ -820,7 +805,6 @@ xfs_bmap_local_to_extents(
 	/* Can't fail, the space was reserved. */
 	ASSERT(args.fsbno != NULLFSBLOCK);
 	ASSERT(args.len == 1);
-	tp->t_firstblock = args.fsbno;
 	error = xfs_trans_get_buf(tp, args.mp->m_ddev_targp,
 			XFS_FSB_TO_DADDR(args.mp, args.fsbno),
 			args.mp->m_bsize, 0, &bp);
@@ -854,8 +838,7 @@ xfs_bmap_local_to_extents(
 
 	ifp->if_nextents = 1;
 	ip->i_nblocks = 1;
-	xfs_trans_mod_dquot_byino(tp, ip,
-		XFS_TRANS_DQ_BCOUNT, 1L);
+	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, 1L);
 	flags |= xfs_ilog_fext(whichfork);
 
 done:
@@ -3025,9 +3008,7 @@ xfs_bmap_adjacent(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
 {
 	xfs_fsblock_t	adjust;		/* adjustment to block numbers */
-	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
 	xfs_mount_t	*mp;		/* mount point structure */
-	int		nullfb;		/* true if ap->firstblock isn't set */
 	int		rt;		/* true if inode is realtime */
 
 #define	ISVALID(x,y)	\
@@ -3038,11 +3019,8 @@ xfs_bmap_adjacent(
 		XFS_FSB_TO_AGBNO(mp, x) < mp->m_sb.sb_agblocks)
 
 	mp = ap->ip->i_mount;
-	nullfb = ap->tp->t_firstblock == NULLFSBLOCK;
 	rt = XFS_IS_REALTIME_INODE(ap->ip) &&
 		(ap->datatype & XFS_ALLOC_USERDATA);
-	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp,
-							ap->tp->t_firstblock);
 	/*
 	 * If allocating at eof, and there's a previous real block,
 	 * try to use its last block as our starting point.
@@ -3101,13 +3079,6 @@ xfs_bmap_adjacent(
 				prevbno += adjust;
 			else
 				prevdiff += adjust;
-			/*
-			 * If the firstblock forbids it, can't use it,
-			 * must use default.
-			 */
-			if (!rt && !nullfb &&
-			    XFS_FSB_TO_AGNO(mp, prevbno) != fb_agno)
-				prevbno = NULLFSBLOCK;
 		}
 		/*
 		 * No previous block or can't follow it, just default.
@@ -3143,13 +3114,6 @@ xfs_bmap_adjacent(
 				gotdiff += adjust - ap->length;
 			} else
 				gotdiff += adjust;
-			/*
-			 * If the firstblock forbids it, can't use it,
-			 * must use default.
-			 */
-			if (!rt && !nullfb &&
-			    XFS_FSB_TO_AGNO(mp, gotbno) != fb_agno)
-				gotbno = NULLFSBLOCK;
 		}
 		/*
 		 * No next block, just default.
@@ -3236,7 +3200,7 @@ xfs_bmap_select_minlen(
 }
 
 STATIC int
-xfs_bmap_btalloc_nullfb(
+xfs_bmap_btalloc_select_lengths(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
 	xfs_extlen_t		*blen)
@@ -3247,8 +3211,13 @@ xfs_bmap_btalloc_nullfb(
 	int			error;
 
 	args->type = XFS_ALLOCTYPE_START_BNO;
-	args->total = ap->total;
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
+		args->total = ap->minlen;
+		args->minlen = ap->minlen;
+		return 0;
+	}
 
+	args->total = ap->total;
 	startag = ag = XFS_FSB_TO_AGNO(mp, args->fsbno);
 	if (startag == NULLAGNUMBER)
 		startag = ag = 0;
@@ -3279,6 +3248,13 @@ xfs_bmap_btalloc_filestreams(
 	xfs_agnumber_t		ag;
 	int			notinit = 0;
 	int			error;
+
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
+		args->type = XFS_ALLOCTYPE_FIRST_AG;
+		args->total = ap->minlen;
+		args->minlen = ap->minlen;
+		return 0;
+	}
 
 	args->type = XFS_ALLOCTYPE_NEAR_BNO;
 	args->total = ap->total;
@@ -3460,19 +3436,15 @@ xfs_bmap_exact_minlen_extent_alloc(
 
 	xfs_bmap_compute_alignments(ap, &args);
 
-	if (ap->tp->t_firstblock == NULLFSBLOCK) {
-		/*
-		 * Unlike the longest extent available in an AG, we don't track
-		 * the length of an AG's shortest extent.
-		 * XFS_ERRTAG_BMAP_ALLOC_MINLEN_EXTENT is a debug only knob and
-		 * hence we can afford to start traversing from the 0th AG since
-		 * we need not be concerned about a drop in performance in
-		 * "debug only" code paths.
-		 */
-		ap->blkno = XFS_AGB_TO_FSB(mp, 0, 0);
-	} else {
-		ap->blkno = ap->tp->t_firstblock;
-	}
+	/*
+	 * Unlike the longest extent available in an AG, we don't track
+	 * the length of an AG's shortest extent.
+	 * XFS_ERRTAG_BMAP_ALLOC_MINLEN_EXTENT is a debug only knob and
+	 * hence we can afford to start traversing from the 0th AG since
+	 * we need not be concerned about a drop in performance in
+	 * "debug only" code paths.
+	 */
+	ap->blkno = XFS_AGB_TO_FSB(mp, 0, 0);
 
 	args.fsbno = ap->blkno;
 	args.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
@@ -3515,13 +3487,11 @@ xfs_bmap_btalloc(
 	struct xfs_mount	*mp = ap->ip->i_mount;
 	struct xfs_alloc_arg	args = { .tp = ap->tp, .mp = mp };
 	xfs_alloctype_t		atype = 0;
-	xfs_agnumber_t		fb_agno;	/* ag number of ap->firstblock */
 	xfs_agnumber_t		ag;
 	xfs_fileoff_t		orig_offset;
 	xfs_extlen_t		orig_length;
 	xfs_extlen_t		blen;
 	xfs_extlen_t		nextminlen = 0;
-	int			nullfb; /* true if ap->firstblock isn't set */
 	int			isaligned;
 	int			tryagain;
 	int			error;
@@ -3533,34 +3503,17 @@ xfs_bmap_btalloc(
 
 	stripe_align = xfs_bmap_compute_alignments(ap, &args);
 
-	nullfb = ap->tp->t_firstblock == NULLFSBLOCK;
-	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp,
-							ap->tp->t_firstblock);
-	if (nullfb) {
-		if ((ap->datatype & XFS_ALLOC_USERDATA) &&
-		    xfs_inode_is_filestream(ap->ip)) {
-			ag = xfs_filestream_lookup_ag(ap->ip);
-			ag = (ag != NULLAGNUMBER) ? ag : 0;
-			ap->blkno = XFS_AGB_TO_FSB(mp, ag, 0);
-		} else {
-			ap->blkno = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
-		}
-	} else
-		ap->blkno = ap->tp->t_firstblock;
+	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
+	    xfs_inode_is_filestream(ap->ip)) {
+		ag = xfs_filestream_lookup_ag(ap->ip);
+		ag = (ag != NULLAGNUMBER) ? ag : 0;
+		ap->blkno = XFS_AGB_TO_FSB(mp, ag, 0);
+	} else {
+		ap->blkno = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
+	}
 
 	xfs_bmap_adjacent(ap);
 
-	/*
-	 * If allowed, use ap->blkno; otherwise must use firstblock since
-	 * it's in the right allocation group.
-	 */
-	if (nullfb || XFS_FSB_TO_AGNO(mp, ap->blkno) == fb_agno)
-		;
-	else
-		ap->blkno = ap->tp->t_firstblock;
-	/*
-	 * Normal allocation, done through xfs_alloc_vextent.
-	 */
 	tryagain = isaligned = 0;
 	args.fsbno = ap->blkno;
 	args.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
@@ -3568,30 +3521,19 @@ xfs_bmap_btalloc(
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = min(ap->length, mp->m_ag_max_usable);
 	blen = 0;
-	if (nullfb) {
-		/*
-		 * Search for an allocation group with a single extent large
-		 * enough for the request.  If one isn't found, then adjust
-		 * the minimum allocation size to the largest space found.
-		 */
-		if ((ap->datatype & XFS_ALLOC_USERDATA) &&
-		    xfs_inode_is_filestream(ap->ip))
-			error = xfs_bmap_btalloc_filestreams(ap, &args, &blen);
-		else
-			error = xfs_bmap_btalloc_nullfb(ap, &args, &blen);
-		if (error)
-			return error;
-	} else if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
-		if (xfs_inode_is_filestream(ap->ip))
-			args.type = XFS_ALLOCTYPE_FIRST_AG;
-		else
-			args.type = XFS_ALLOCTYPE_START_BNO;
-		args.total = args.minlen = ap->minlen;
-	} else {
-		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-		args.total = ap->total;
-		args.minlen = ap->minlen;
-	}
+
+	/*
+	 * Search for an allocation group with a single extent large
+	 * enough for the request.  If one isn't found, then adjust
+	 * the minimum allocation size to the largest space found.
+	 */
+	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
+	    xfs_inode_is_filestream(ap->ip))
+		error = xfs_bmap_btalloc_filestreams(ap, &args, &blen);
+	else
+		error = xfs_bmap_btalloc_select_lengths(ap, &args, &blen);
+	if (error)
+		return error;
 
 	/*
 	 * If we are not low on available data blocks, and the underlying
@@ -3678,7 +3620,7 @@ xfs_bmap_btalloc(
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
-	if (args.fsbno == NULLFSBLOCK && nullfb &&
+	if (args.fsbno == NULLFSBLOCK &&
 	    args.minlen > ap->minlen) {
 		args.minlen = ap->minlen;
 		args.type = XFS_ALLOCTYPE_START_BNO;
@@ -3686,7 +3628,7 @@ xfs_bmap_btalloc(
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
-	if (args.fsbno == NULLFSBLOCK && nullfb) {
+	if (args.fsbno == NULLFSBLOCK) {
 		args.fsbno = 0;
 		args.type = XFS_ALLOCTYPE_FIRST_AG;
 		args.total = ap->minlen;

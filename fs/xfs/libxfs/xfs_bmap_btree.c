@@ -206,28 +206,21 @@ xfs_bmbt_alloc_block(
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
-	args.fsbno = cur->bc_tp->t_firstblock;
 	xfs_rmap_ino_bmbt_owner(&args.oinfo, cur->bc_ino.ip->i_ino,
 			cur->bc_ino.whichfork);
 
-	if (args.fsbno == NULLFSBLOCK) {
-		args.fsbno = be64_to_cpu(start->l);
-		args.type = XFS_ALLOCTYPE_START_BNO;
+	args.fsbno = be64_to_cpu(start->l);
+	args.type = XFS_ALLOCTYPE_START_BNO;
 
-		/*
-		 * If we are coming here from something like unwritten extent
-		 * conversion, there has been no data extent allocation already
-		 * done, so we have to ensure that we attempt to locate the
-		 * entire set of bmbt allocations in the same AG, as
-		 * xfs_bmapi_write() would have reserved.
-		 */
+	/*
+	 * If we are coming here from something like unwritten extent
+	 * conversion, there has been no data extent allocation already done, so
+	 * we have to ensure that we attempt to locate the entire set of bmbt
+	 * allocations in the same AG, as xfs_bmapi_write() would have reserved.
+	 */
+	if (cur->bc_tp->t_firstblock == NULLFSBLOCK)
 		args.minleft = xfs_bmapi_minleft(cur->bc_tp, cur->bc_ino.ip,
-						cur->bc_ino.whichfork);
-	} else if (cur->bc_tp->t_flags & XFS_TRANS_LOWMODE) {
-		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else {
-		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	}
+					cur->bc_ino.whichfork);
 
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_ino.flags & XFS_BTCUR_BMBT_WASDEL;
@@ -247,7 +240,7 @@ xfs_bmbt_alloc_block(
 		 */
 		args.fsbno = 0;
 		args.minleft = 0;
-		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.type = XFS_ALLOCTYPE_START_BNO;
 		error = xfs_alloc_vextent(&args);
 		if (error)
 			goto error0;
@@ -259,7 +252,6 @@ xfs_bmbt_alloc_block(
 	}
 
 	ASSERT(args.len == 1);
-	cur->bc_tp->t_firstblock = args.fsbno;
 	cur->bc_ino.allocated++;
 	cur->bc_ino.ip->i_nblocks++;
 	xfs_trans_log_inode(args.tp, cur->bc_ino.ip, XFS_ILOG_CORE);
