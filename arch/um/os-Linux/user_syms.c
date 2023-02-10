@@ -18,7 +18,6 @@
 extern size_t strlen(const char *);
 extern void *memmove(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
-extern int printf(const char *, ...);
 
 /* If it's not defined, the export is included in lib/string.c.*/
 #ifdef __HAVE_ARCH_STRSTR
@@ -31,8 +30,6 @@ EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memset);
 #endif
-
-EXPORT_SYMBOL(printf);
 
 #ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 EXPORT_SYMBOL(vsyscall_ehdr);
