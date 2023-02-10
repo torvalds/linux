@@ -320,6 +320,7 @@ enum gsi_generic_ee_result {
 };
 
 extern const struct regs gsi_regs_v3_1;
+extern const struct regs gsi_regs_v3_5_1;
 
 /**
  * gsi_reg() - Return the structure describing a GSI register
