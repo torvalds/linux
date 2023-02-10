@@ -9627,13 +9627,22 @@ EXPORT_SYMBOL_GPL(devlink_params_unregister);
  *
  *	This function should be used by the driver to get driverinit
  *	configuration for initialization after reload command.
+ *
+ *	Note that lockless call of this function relies on the
+ *	driver to maintain following basic sane behavior:
+ *	1) Driver ensures a call to this function cannot race with
+ *	   registering/unregistering the parameter with the same parameter ID.
+ *	2) Driver ensures a call to this function cannot race with
+ *	   devl_param_driverinit_value_set() call with the same parameter ID.
+ *	3) Driver ensures a call to this function cannot race with
+ *	   reload operation.
+ *	If the driver is not able to comply, it has to take the devlink->lock
+ *	while calling this.
  */
 int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 				    union devlink_param_value *val)
 {
 	struct devlink_param_item *param_item;
-
-	lockdep_assert_held(&devlink->lock);
 
 	if (WARN_ON(!devlink_reload_supported(devlink->ops)))
 		return -EOPNOTSUPP;
