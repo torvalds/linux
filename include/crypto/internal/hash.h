@@ -199,7 +199,7 @@ static inline void *ahash_request_ctx_dma(struct ahash_request *req)
 
 static inline void ahash_request_complete(struct ahash_request *req, int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline u32 ahash_request_flags(struct ahash_request *req)
