@@ -1356,9 +1356,12 @@ static const char *hist_field_name(struct hist_field *field,
 			field_name = field->name;
 	} else if (field->flags & HIST_FIELD_FL_TIMESTAMP)
 		field_name = "common_timestamp";
-	else if (field->flags & HIST_FIELD_FL_STACKTRACE)
-		field_name = "stacktrace";
-	else if (field->flags & HIST_FIELD_FL_HITCOUNT)
+	else if (field->flags & HIST_FIELD_FL_STACKTRACE) {
+		if (field->field)
+			field_name = field->field->name;
+		else
+			field_name = "stacktrace";
+	} else if (field->flags & HIST_FIELD_FL_HITCOUNT)
 		field_name = "hitcount";
 
 	if (field_name == NULL)
@@ -5339,7 +5342,10 @@ static void hist_trigger_print_key(struct seq_file *m,
 			seq_printf(m, "%s: %-30s[%3llu]", field_name,
 				   syscall_name, uval);
 		} else if (key_field->flags & HIST_FIELD_FL_STACKTRACE) {
-			seq_puts(m, "stacktrace:\n");
+			if (key_field->field)
+				seq_printf(m, "%s.stacktrace", key_field->field->name);
+			else
+				seq_puts(m, "stacktrace:\n");
 			hist_trigger_stacktrace_print(m,
 						      key + key_field->offset,
 						      HIST_STACKTRACE_DEPTH);
@@ -5884,7 +5890,8 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 
 	if (hist_field->flags) {
 		if (!(hist_field->flags & HIST_FIELD_FL_VAR_REF) &&
-		    !(hist_field->flags & HIST_FIELD_FL_EXPR)) {
+		    !(hist_field->flags & HIST_FIELD_FL_EXPR) &&
+		    !(hist_field->flags & HIST_FIELD_FL_STACKTRACE)) {
 			const char *flags = get_hist_field_flags(hist_field);
 
 			if (flags)
@@ -5917,9 +5924,12 @@ static int event_hist_trigger_print(struct seq_file *m,
 		if (i > hist_data->n_vals)
 			seq_puts(m, ",");
 
-		if (field->flags & HIST_FIELD_FL_STACKTRACE)
-			seq_puts(m, "stacktrace");
-		else
+		if (field->flags & HIST_FIELD_FL_STACKTRACE) {
+			if (field->field)
+				seq_printf(m, "%s.stacktrace", field->field->name);
+			else
+				seq_puts(m, "stacktrace");
+		} else
 			hist_field_print(m, field);
 	}
 
