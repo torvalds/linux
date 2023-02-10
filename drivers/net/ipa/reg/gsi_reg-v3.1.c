@@ -28,6 +28,10 @@ REG_STRIDE(CH_C_CNTXT_3, ch_c_cntxt_3, 0x0001c00c + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
 
+REG(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
+
+REG(ERROR_LOG_CLR, error_log_clr, 0x0001f210 + 0x4000 * GSI_EE_AP);
+
 REG_STRIDE(CH_C_SCRATCH_0, ch_c_scratch_0,
 	   0x0001c060 + 0x4000 * GSI_EE_AP, 0x80);
 
@@ -84,6 +88,14 @@ REG_STRIDE(CH_C_DOORBELL_0, ch_c_doorbell_0,
 
 REG_STRIDE(EV_CH_E_DOORBELL_0, ev_ch_e_doorbell_0,
 	   0x0001e100 + 0x4000 * GSI_EE_AP, 0x08);
+
+REG(GSI_STATUS, gsi_status, 0x0001f000 + 0x4000 * GSI_EE_AP);
+
+REG(CH_CMD, ch_cmd, 0x0001f008 + 0x4000 * GSI_EE_AP);
+
+REG(EV_CH_CMD, ev_ch_cmd, 0x0001f010 + 0x4000 * GSI_EE_AP);
+
+REG(GENERIC_CMD, generic_cmd, 0x0001f018 + 0x4000 * GSI_EE_AP);
 
 REG(CNTXT_TYPE_IRQ, cntxt_type_irq, 0x0001f080 + 0x4000 * GSI_EE_AP);
 
@@ -156,6 +168,10 @@ static const struct reg *reg_array[] = {
 	[EV_CH_E_SCRATCH_1]		= &reg_ev_ch_e_scratch_1,
 	[CH_C_DOORBELL_0]		= &reg_ch_c_doorbell_0,
 	[EV_CH_E_DOORBELL_0]		= &reg_ev_ch_e_doorbell_0,
+	[GSI_STATUS]			= &reg_gsi_status,
+	[CH_CMD]			= &reg_ch_cmd,
+	[EV_CH_CMD]			= &reg_ev_ch_cmd,
+	[GENERIC_CMD]			= &reg_generic_cmd,
 	[CNTXT_TYPE_IRQ]		= &reg_cntxt_type_irq,
 	[CNTXT_TYPE_IRQ_MSK]		= &reg_cntxt_type_irq_msk,
 	[CNTXT_SRC_CH_IRQ]		= &reg_cntxt_src_ch_irq,
@@ -174,6 +190,8 @@ static const struct reg *reg_array[] = {
 	[CNTXT_GSI_IRQ_EN]		= &reg_cntxt_gsi_irq_en,
 	[CNTXT_GSI_IRQ_CLR]		= &reg_cntxt_gsi_irq_clr,
 	[CNTXT_INTSET]			= &reg_cntxt_intset,
+	[ERROR_LOG]			= &reg_error_log,
+	[ERROR_LOG_CLR]			= &reg_error_log_clr,
 	[CNTXT_SCRATCH_0]		= &reg_cntxt_scratch_0,
 };
 

@@ -154,12 +154,10 @@ enum gsi_prefetch_mode {
 #define MODC_FMASK			GENMASK(23, 16)
 #define MOD_CNT_FMASK			GENMASK(31, 24)
 
-#define GSI_GSI_STATUS_OFFSET \
-			(0x0001f000 + 0x4000 * GSI_EE_AP)
+/* GSI_STATUS register */
 #define ENABLED_FMASK			GENMASK(0, 0)
 
-#define GSI_CH_CMD_OFFSET \
-			(0x0001f008 + 0x4000 * GSI_EE_AP)
+/* CH_CMD register */
 #define CH_CHID_FMASK			GENMASK(7, 0)
 #define CH_OPCODE_FMASK			GENMASK(31, 24)
 
@@ -173,8 +171,7 @@ enum gsi_ch_cmd_opcode {
 	GSI_CH_DB_STOP				= 0xb,
 };
 
-#define GSI_EV_CH_CMD_OFFSET \
-			(0x0001f010 + 0x4000 * GSI_EE_AP)
+/* EV_CH_CMD register */
 #define EV_CHID_FMASK			GENMASK(7, 0)
 #define EV_OPCODE_FMASK			GENMASK(31, 24)
 
@@ -185,8 +182,7 @@ enum gsi_evt_cmd_opcode {
 	GSI_EVT_DE_ALLOC			= 0xa,
 };
 
-#define GSI_GENERIC_CMD_OFFSET \
-			(0x0001f018 + 0x4000 * GSI_EE_AP)
+/* GENERIC_CMD register */
 #define GENERIC_OPCODE_FMASK		GENMASK(4, 0)
 #define GENERIC_CHID_FMASK		GENMASK(9, 5)
 #define GENERIC_EE_FMASK		GENMASK(13, 10)
@@ -201,9 +197,7 @@ enum gsi_generic_cmd_opcode {
 	GSI_GENERIC_QUERY_FLOW_CONTROL		= 0x5,	/* IPA v4.11+ */
 };
 
-/* The next register is present for IPA v3.5.1 and above */
-#define GSI_GSI_HW_PARAM_2_OFFSET \
-			(0x0001f040 + 0x4000 * GSI_EE_AP)
+/* HW_PARAM_2 register */				/* IPA v3.5.1+ */
 #define IRAM_SIZE_FMASK			GENMASK(2, 0)
 #define NUM_CH_PER_EE_FMASK		GENMASK(7, 3)
 #define NUM_EV_PER_EE_FMASK		GENMASK(12, 8)
@@ -272,9 +266,7 @@ enum gsi_general_irq_id {
 /* CNTXT_INTSET register */
 #define INTYPE_FMASK			GENMASK(0, 0)
 
-#define GSI_ERROR_LOG_OFFSET \
-			(0x0001f200 + 0x4000 * GSI_EE_AP)
-
+/* ERROR_LOG register */
 #define ERR_ARG3_FMASK			GENMASK(3, 0)
 #define ERR_ARG2_FMASK			GENMASK(7, 4)
 #define ERR_ARG1_FMASK			GENMASK(11, 8)
@@ -302,9 +294,7 @@ enum gsi_err_type {
 	GSI_ERR_TYPE_EVT			= 0x3,
 };
 
-#define GSI_ERROR_LOG_CLR_OFFSET \
-			(0x0001f210 + 0x4000 * GSI_EE_AP)
-
+/* CNTXT_SCRATCH_0 register */
 #define INTER_EE_RESULT_FMASK		GENMASK(2, 0)
 #define GENERIC_EE_RESULT_FMASK		GENMASK(7, 5)
 

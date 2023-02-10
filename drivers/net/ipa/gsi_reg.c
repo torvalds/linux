@@ -98,13 +98,15 @@ static const struct regs *gsi_regs(struct gsi *gsi)
 {
 	switch (gsi->version) {
 	case IPA_VERSION_3_1:
+		return &gsi_regs_v3_1;
+
 	case IPA_VERSION_3_5_1:
 	case IPA_VERSION_4_2:
 	case IPA_VERSION_4_5:
 	case IPA_VERSION_4_7:
 	case IPA_VERSION_4_9:
 	case IPA_VERSION_4_11:
-		return &gsi_regs_v3_1;
+		return &gsi_regs_v3_5_1;
 
 	default:
 		return NULL;
