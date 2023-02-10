@@ -220,8 +220,11 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 	/* the inode may be gone now */
 }
 
-static void finish_compressed_bio_write(struct compressed_bio *cb)
+static void btrfs_finish_compressed_write_work(struct work_struct *work)
 {
+	struct compressed_bio *cb =
+		container_of(work, struct compressed_bio, write_end_work);
+
 	/*
 	 * Ok, we're the last bio for this extent, step one is to call back
 	 * into the FS and do all the end_io operations.
@@ -236,14 +239,6 @@ static void finish_compressed_bio_write(struct compressed_bio *cb)
 
 	btrfs_free_compressed_pages(cb);
 	bio_put(&cb->bbio.bio);
-}
-
-static void btrfs_finish_compressed_write_work(struct work_struct *work)
-{
-	struct compressed_bio *cb =
-		container_of(work, struct compressed_bio, write_end_work);
-
-	finish_compressed_bio_write(cb);
 }
 
 /*
