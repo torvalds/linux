@@ -414,6 +414,11 @@ static void rockchip_gem_free_secure(struct rockchip_gem_object *rk_obj)
 		      rk_obj->base.size);
 }
 
+static inline bool is_vop_enabled(void)
+{
+	return (IS_ENABLED(CONFIG_ROCKCHIP_VOP) || IS_ENABLED(CONFIG_ROCKCHIP_VOP2));
+}
+
 static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 				  bool alloc_kmap)
 {
@@ -422,7 +427,7 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 	struct rockchip_drm_private *private = drm->dev_private;
 	int ret = 0;
 
-	if (!private->domain)
+	if (!private->domain && is_vop_enabled())
 		rk_obj->flags |= ROCKCHIP_BO_CONTIG;
 
 	if (rk_obj->flags & ROCKCHIP_BO_SECURE) {
@@ -462,7 +467,7 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 		ret = rockchip_gem_iommu_map(rk_obj);
 		if (ret < 0)
 			goto err_free;
-	} else {
+	} else if (is_vop_enabled()) {
 		WARN_ON(!rk_obj->dma_handle);
 		rk_obj->dma_addr = rk_obj->dma_handle;
 	}
