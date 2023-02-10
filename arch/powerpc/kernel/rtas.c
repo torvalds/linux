@@ -38,6 +38,7 @@
 #include <asm/page.h>
 #include <asm/rtas.h>
 #include <asm/time.h>
+#include <asm/trace.h>
 #include <asm/udbg.h>
 
 struct rtas_filter {
@@ -523,24 +524,70 @@ static const struct rtas_function *rtas_token_to_function(s32 token)
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
 
+static void __do_enter_rtas(struct rtas_args *args)
+{
+	enter_rtas(__pa(args));
+	srr_regs_clobbered(); /* rtas uses SRRs, invalidate */
+}
+
+static void __do_enter_rtas_trace(struct rtas_args *args)
+{
+	const char *name = NULL;
+	/*
+	 * If the tracepoints that consume the function name aren't
+	 * active, avoid the lookup.
+	 */
+	if ((trace_rtas_input_enabled() || trace_rtas_output_enabled())) {
+		const s32 token = be32_to_cpu(args->token);
+		const struct rtas_function *func = rtas_token_to_function(token);
+
+		name = func->name;
+	}
+
+	trace_rtas_input(args, name);
+	trace_rtas_ll_entry(args);
+
+	__do_enter_rtas(args);
+
+	trace_rtas_ll_exit(args);
+	trace_rtas_output(args, name);
+}
+
 static void do_enter_rtas(struct rtas_args *args)
 {
-	unsigned long msr;
-
+	const unsigned long msr = mfmsr();
+	/*
+	 * Situations where we want to skip any active tracepoints for
+	 * safety reasons:
+	 *
+	 * 1. The last code executed on an offline CPU as it stops,
+	 *    i.e. we're about to call stop-self. The tracepoints'
+	 *    function name lookup uses xarray, which uses RCU, which
+	 *    isn't valid to call on an offline CPU.  Any events
+	 *    emitted on an offline CPU will be discarded anyway.
+	 *
+	 * 2. In real mode, as when invoking ibm,nmi-interlock from
+	 *    the pseries MCE handler. We cannot count on trace
+	 *    buffers or the entries in rtas_token_to_function_xarray
+	 *    to be contained in the RMO.
+	 */
+	const unsigned long mask = MSR_IR | MSR_DR;
+	const bool can_trace = likely(cpu_online(raw_smp_processor_id()) &&
+				      (msr & mask) == mask);
 	/*
 	 * Make sure MSR[RI] is currently enabled as it will be forced later
 	 * in enter_rtas.
 	 */
-	msr = mfmsr();
 	BUG_ON(!(msr & MSR_RI));
 
 	BUG_ON(!irqs_disabled());
 
 	hard_irq_disable(); /* Ensure MSR[EE] is disabled on PPC64 */
 
-	enter_rtas(__pa(args));
-
-	srr_regs_clobbered(); /* rtas uses SRRs, invalidate */
+	if (can_trace)
+		__do_enter_rtas_trace(args);
+	else
+		__do_enter_rtas(args);
 }
 
 struct rtas_t rtas;
