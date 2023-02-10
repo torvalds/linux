@@ -218,7 +218,7 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(stack_depot_init);
 
-static bool init_stack_pool(void **prealloc)
+static bool depot_init_pool(void **prealloc)
 {
 	if (!*prealloc)
 		return false;
@@ -265,12 +265,12 @@ depot_alloc_stack(unsigned long *entries, int size, u32 hash, void **prealloc)
 		/*
 		 * smp_store_release() here pairs with smp_load_acquire() from
 		 * |next_pool_inited| in stack_depot_save() and
-		 * init_stack_pool().
+		 * depot_init_pool().
 		 */
 		if (pool_index + 1 < DEPOT_MAX_POOLS)
 			smp_store_release(&next_pool_inited, 0);
 	}
-	init_stack_pool(prealloc);
+	depot_init_pool(prealloc);
 	if (stack_pools[pool_index] == NULL)
 		return NULL;
 
@@ -399,7 +399,7 @@ depot_stack_handle_t __stack_depot_save(unsigned long *entries,
 	 * lock.
 	 *
 	 * The smp_load_acquire() here pairs with smp_store_release() to
-	 * |next_pool_inited| in depot_alloc_stack() and init_stack_pool().
+	 * |next_pool_inited| in depot_alloc_stack() and depot_init_pool().
 	 */
 	if (unlikely(can_alloc && !smp_load_acquire(&next_pool_inited))) {
 		/*
@@ -435,7 +435,7 @@ depot_stack_handle_t __stack_depot_save(unsigned long *entries,
 		 * We didn't need to store this stack trace, but let's keep
 		 * the preallocated memory for the future.
 		 */
-		WARN_ON(!init_stack_pool(&prealloc));
+		WARN_ON(!depot_init_pool(&prealloc));
 	}
 
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
