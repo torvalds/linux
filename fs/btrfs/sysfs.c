@@ -702,7 +702,7 @@ static void release_raid_kobj(struct kobject *kobj)
 	kfree(to_raid_kobj(kobj));
 }
 
-static struct kobj_type btrfs_raid_ktype = {
+static const struct kobj_type btrfs_raid_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = release_raid_kobj,
 	.default_groups = raid_groups,
@@ -900,7 +900,7 @@ static void space_info_release(struct kobject *kobj)
 	kfree(sinfo);
 }
 
-static struct kobj_type space_info_ktype = {
+static const struct kobj_type space_info_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = space_info_release,
 	.default_groups = space_info_groups,
@@ -1259,7 +1259,7 @@ static void btrfs_release_fsid_kobj(struct kobject *kobj)
 	complete(&fs_devs->kobj_unregister);
 }
 
-static struct kobj_type btrfs_ktype = {
+static const struct kobj_type btrfs_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.release	= btrfs_release_fsid_kobj,
 };
@@ -1789,7 +1789,7 @@ static void btrfs_release_devid_kobj(struct kobject *kobj)
 	complete(&device->kobj_unregister);
 }
 
-static struct kobj_type devid_ktype = {
+static const struct kobj_type devid_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.default_groups = devid_groups,
 	.release	= btrfs_release_devid_kobj,
@@ -2103,7 +2103,7 @@ static void qgroups_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type qgroups_ktype = {
+static const struct kobj_type qgroups_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = qgroups_groups,
 	.release = qgroups_release,
@@ -2173,7 +2173,7 @@ static void qgroup_release(struct kobject *kobj)
 	memset(&qgroup->kobj, 0, sizeof(*kobj));
 }
 
-static struct kobj_type qgroup_ktype = {
+static const struct kobj_type qgroup_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = qgroup_release,
 	.default_groups = qgroup_groups,
