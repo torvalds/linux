@@ -31,7 +31,7 @@ static unsigned char chrp_nvram_read_val(int addr)
 		return 0xff;
 	}
 	spin_lock_irqsave(&nvram_lock, flags);
-	if ((rtas_call(rtas_token("nvram-fetch"), 3, 2, &done, addr,
+	if ((rtas_call(rtas_function_token(RTAS_FN_NVRAM_FETCH), 3, 2, &done, addr,
 		       __pa(nvram_buf), 1) != 0) || 1 != done)
 		ret = 0xff;
 	else
@@ -53,7 +53,7 @@ static void chrp_nvram_write_val(int addr, unsigned char val)
 	}
 	spin_lock_irqsave(&nvram_lock, flags);
 	nvram_buf[0] = val;
-	if ((rtas_call(rtas_token("nvram-store"), 3, 2, &done, addr,
+	if ((rtas_call(rtas_function_token(RTAS_FN_NVRAM_STORE), 3, 2, &done, addr,
 		       __pa(nvram_buf), 1) != 0) || 1 != done)
 		printk(KERN_DEBUG "rtas IO error storing 0x%02x at %d", val, addr);
 	spin_unlock_irqrestore(&nvram_lock, flags);

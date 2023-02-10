@@ -203,7 +203,7 @@ void __init rtas_work_area_reserve_arena(const phys_addr_t limit)
 	 * So set up the arena if we find that, with a fallback to
 	 * ibm,configure-connector, just in case.
 	 */
-	if (rtas_service_present("ibm,get-system-parameter") ||
-	    rtas_service_present("ibm,configure-connector"))
+	if (rtas_function_implemented(RTAS_FN_IBM_GET_SYSTEM_PARAMETER) ||
+	    rtas_function_implemented(RTAS_FN_IBM_CONFIGURE_CONNECTOR))
 		rwa_state.arena = memblock_alloc_try_nid(size, align, min, limit, nid);
 }

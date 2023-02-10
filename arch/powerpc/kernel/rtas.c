@@ -782,8 +782,8 @@ void rtas_progress(char *s, unsigned short hex)
 					"ibm,display-truncation-length", NULL);
 			of_node_put(root);
 		}
-		display_character = rtas_token("display-character");
-		set_indicator = rtas_token("set-indicator");
+		display_character = rtas_function_token(RTAS_FN_DISPLAY_CHARACTER);
+		set_indicator = rtas_function_token(RTAS_FN_SET_INDICATOR);
 	}
 
 	if (display_character == RTAS_UNKNOWN_SERVICE) {
@@ -937,7 +937,6 @@ static void __init init_error_log_max(void)
 
 
 static char rtas_err_buf[RTAS_ERROR_LOG_MAX];
-static int rtas_last_error_token;
 
 /** Return a copy of the detailed error text associated with the
  *  most recent failed call to rtas.  Because the error text
@@ -947,16 +946,17 @@ static int rtas_last_error_token;
  */
 static char *__fetch_rtas_last_error(char *altbuf)
 {
+	const s32 token = rtas_function_token(RTAS_FN_RTAS_LAST_ERROR);
 	struct rtas_args err_args, save_args;
 	u32 bufsz;
 	char *buf = NULL;
 
-	if (rtas_last_error_token == -1)
+	if (token == -1)
 		return NULL;
 
 	bufsz = rtas_get_error_log_max();
 
-	err_args.token = cpu_to_be32(rtas_last_error_token);
+	err_args.token = cpu_to_be32(token);
 	err_args.nargs = cpu_to_be32(2);
 	err_args.nret = cpu_to_be32(1);
 	err_args.args[0] = cpu_to_be32(__pa(rtas_err_buf));
@@ -1025,8 +1025,11 @@ void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, 
 	va_end(list);
 }
 
-static int ibm_open_errinjct_token;
-static int ibm_errinjct_token;
+static bool token_is_restricted_errinjct(s32 token)
+{
+	return token == rtas_function_token(RTAS_FN_IBM_OPEN_ERRINJCT) ||
+	       token == rtas_function_token(RTAS_FN_IBM_ERRINJCT);
+}
 
 /**
  * rtas_call() - Invoke an RTAS firmware function.
@@ -1098,7 +1101,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
 		return -1;
 
-	if (token == ibm_open_errinjct_token || token == ibm_errinjct_token) {
+	if (token_is_restricted_errinjct(token)) {
 		/*
 		 * It would be nicer to not discard the error value
 		 * from security_locked_down(), but callers expect an
@@ -1330,7 +1333,7 @@ static int rtas_error_rc(int rtas_rc)
 
 int rtas_get_power_level(int powerdomain, int *level)
 {
-	int token = rtas_token("get-power-level");
+	int token = rtas_function_token(RTAS_FN_GET_POWER_LEVEL);
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
@@ -1347,7 +1350,7 @@ EXPORT_SYMBOL_GPL(rtas_get_power_level);
 
 int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 {
-	int token = rtas_token("set-power-level");
+	int token = rtas_function_token(RTAS_FN_SET_POWER_LEVEL);
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
@@ -1365,7 +1368,7 @@ EXPORT_SYMBOL_GPL(rtas_set_power_level);
 
 int rtas_get_sensor(int sensor, int index, int *state)
 {
-	int token = rtas_token("get-sensor-state");
+	int token = rtas_function_token(RTAS_FN_GET_SENSOR_STATE);
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
@@ -1383,7 +1386,7 @@ EXPORT_SYMBOL_GPL(rtas_get_sensor);
 
 int rtas_get_sensor_fast(int sensor, int index, int *state)
 {
-	int token = rtas_token("get-sensor-state");
+	int token = rtas_function_token(RTAS_FN_GET_SENSOR_STATE);
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
@@ -1425,7 +1428,7 @@ bool rtas_indicator_present(int token, int *maxindex)
 
 int rtas_set_indicator(int indicator, int index, int new_value)
 {
-	int token = rtas_token("set-indicator");
+	int token = rtas_function_token(RTAS_FN_SET_INDICATOR);
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
@@ -1446,8 +1449,8 @@ EXPORT_SYMBOL_GPL(rtas_set_indicator);
  */
 int rtas_set_indicator_fast(int indicator, int index, int new_value)
 {
+	int token = rtas_function_token(RTAS_FN_SET_INDICATOR);
 	int rc;
-	int token = rtas_token("set-indicator");
 
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return -ENOENT;
@@ -1489,10 +1492,11 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
  */
 int rtas_ibm_suspend_me(int *fw_status)
 {
+	int token = rtas_function_token(RTAS_FN_IBM_SUSPEND_ME);
 	int fwrc;
 	int ret;
 
-	fwrc = rtas_call(rtas_token("ibm,suspend-me"), 0, 1, NULL);
+	fwrc = rtas_call(token, 0, 1, NULL);
 
 	switch (fwrc) {
 	case 0:
@@ -1525,7 +1529,7 @@ void __noreturn rtas_restart(char *cmd)
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_RESTART);
 	pr_emerg("system-reboot returned %d\n",
-		 rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
+		 rtas_call(rtas_function_token(RTAS_FN_SYSTEM_REBOOT), 0, 1, NULL));
 	for (;;);
 }
 
@@ -1535,7 +1539,7 @@ void rtas_power_off(void)
 		rtas_flash_term_hook(SYS_POWER_OFF);
 	/* allow power on only with power button press */
 	pr_emerg("power-off returned %d\n",
-		 rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+		 rtas_call(rtas_function_token(RTAS_FN_POWER_OFF), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
@@ -1545,16 +1549,17 @@ void __noreturn rtas_halt(void)
 		rtas_flash_term_hook(SYS_HALT);
 	/* allow power on only with power button press */
 	pr_emerg("power-off returned %d\n",
-		 rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+		 rtas_call(rtas_function_token(RTAS_FN_POWER_OFF), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
 /* Must be in the RMO region, so we place it here */
 static char rtas_os_term_buf[2048];
-static s32 ibm_os_term_token = RTAS_UNKNOWN_SERVICE;
+static bool ibm_extended_os_term;
 
 void rtas_os_term(char *str)
 {
+	s32 token = rtas_function_token(RTAS_FN_IBM_OS_TERM);
 	int status;
 
 	/*
@@ -1563,7 +1568,8 @@ void rtas_os_term(char *str)
 	 * this property may terminate the partition which we want to avoid
 	 * since it interferes with panic_timeout.
 	 */
-	if (ibm_os_term_token == RTAS_UNKNOWN_SERVICE)
+
+	if (token == RTAS_UNKNOWN_SERVICE || !ibm_extended_os_term)
 		return;
 
 	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
@@ -1574,8 +1580,7 @@ void rtas_os_term(char *str)
 	 * schedules.
 	 */
 	do {
-		status = rtas_call(ibm_os_term_token, 1, 1, NULL,
-				   __pa(rtas_os_term_buf));
+		status = rtas_call(token, 1, 1, NULL, __pa(rtas_os_term_buf));
 	} while (rtas_busy_delay_time(status));
 
 	if (status != 0)
@@ -1595,10 +1600,9 @@ void rtas_os_term(char *str)
  */
 void rtas_activate_firmware(void)
 {
-	int token;
+	int token = rtas_function_token(RTAS_FN_IBM_ACTIVATE_FIRMWARE);
 	int fwrc;
 
-	token = rtas_token("ibm,activate-firmware");
 	if (token == RTAS_UNKNOWN_SERVICE) {
 		pr_notice("ibm,activate-firmware method unavailable\n");
 		return;
@@ -1684,6 +1688,8 @@ static bool block_rtas_call(int token, int nargs,
 {
 	const struct rtas_function *func;
 	const struct rtas_filter *f;
+	const bool is_platform_dump = token == rtas_function_token(RTAS_FN_IBM_PLATFORM_DUMP);
+	const bool is_config_conn = token == rtas_function_token(RTAS_FN_IBM_CONFIGURE_CONNECTOR);
 	u32 base, size, end;
 
 	/*
@@ -1720,8 +1726,7 @@ static bool block_rtas_call(int token, int nargs,
 		 * Special case for ibm,platform-dump - NULL buffer
 		 * address is used to indicate end of dump processing
 		 */
-		if (!strcmp(func->name, "ibm,platform-dump") &&
-		    base == 0)
+		if (is_platform_dump && base == 0)
 			return false;
 
 		if (!in_rmo_buf(base, end))
@@ -1742,8 +1747,7 @@ static bool block_rtas_call(int token, int nargs,
 		 * Special case for ibm,configure-connector where the
 		 * address can be 0
 		 */
-		if (!strcmp(func->name, "ibm,configure-connector") &&
-		    base == 0)
+		if (is_config_conn && base == 0)
 			return false;
 
 		if (!in_rmo_buf(base, end))
@@ -1798,7 +1802,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 	if (block_rtas_call(token, nargs, &args))
 		return -EINVAL;
 
-	if (token == ibm_open_errinjct_token || token == ibm_errinjct_token) {
+	if (token_is_restricted_errinjct(token)) {
 		int err;
 
 		err = security_locked_down(LOCKDOWN_RTAS_ERROR_INJECTION);
@@ -1807,7 +1811,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 	}
 
 	/* Need to handle ibm,suspend_me call specially */
-	if (token == rtas_token("ibm,suspend-me")) {
+	if (token == rtas_function_token(RTAS_FN_IBM_SUSPEND_ME)) {
 
 		/*
 		 * rtas_ibm_suspend_me assumes the streamid handle is in cpu
@@ -1942,11 +1946,10 @@ void __init rtas_initialize(void)
 	rtas_function_table_init();
 
 	/*
-	 * Discover these now to avoid device tree lookups in the
+	 * Discover this now to avoid a device tree lookup in the
 	 * panic path.
 	 */
-	if (of_property_read_bool(rtas.dev, "ibm,extended-os-term"))
-		ibm_os_term_token = rtas_token("ibm,os-term");
+	ibm_extended_os_term = of_property_read_bool(rtas.dev, "ibm,extended-os-term");
 
 	/* If RTAS was found, allocate the RMO buffer for it and look for
 	 * the stop-self token if any
@@ -1960,12 +1963,6 @@ void __init rtas_initialize(void)
 	if (!rtas_rmo_buf)
 		panic("ERROR: RTAS: Failed to allocate %lx bytes below %pa\n",
 		      PAGE_SIZE, &rtas_region);
-
-#ifdef CONFIG_RTAS_ERROR_LOGGING
-	rtas_last_error_token = rtas_token("rtas-last-error");
-#endif
-	ibm_open_errinjct_token = rtas_token("ibm,open-errinjct");
-	ibm_errinjct_token = rtas_token("ibm,errinjct");
 
 	rtas_work_area_reserve_arena(rtas_region);
 }
@@ -2022,13 +2019,13 @@ void rtas_give_timebase(void)
 
 	raw_spin_lock_irqsave(&timebase_lock, flags);
 	hard_irq_disable();
-	rtas_call(rtas_token("freeze-time-base"), 0, 1, NULL);
+	rtas_call(rtas_function_token(RTAS_FN_FREEZE_TIME_BASE), 0, 1, NULL);
 	timebase = get_tb();
 	raw_spin_unlock(&timebase_lock);
 
 	while (timebase)
 		barrier();
-	rtas_call(rtas_token("thaw-time-base"), 0, 1, NULL);
+	rtas_call(rtas_function_token(RTAS_FN_THAW_TIME_BASE), 0, 1, NULL);
 	local_irq_restore(flags);
 }
 

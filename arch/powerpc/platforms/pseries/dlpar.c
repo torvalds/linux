@@ -143,7 +143,7 @@ struct device_node *dlpar_configure_connector(__be32 drc_index,
 	int cc_token;
 	int rc = -1;
 
-	cc_token = rtas_token("ibm,configure-connector");
+	cc_token = rtas_function_token(RTAS_FN_IBM_CONFIGURE_CONNECTOR);
 	if (cc_token == RTAS_UNKNOWN_SERVICE)
 		return NULL;
 

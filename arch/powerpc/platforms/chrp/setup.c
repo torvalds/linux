@@ -323,11 +323,11 @@ static void __init chrp_setup_arch(void)
 	printk("chrp type = %x [%s]\n", _chrp_type, chrp_names[_chrp_type]);
 
 	rtas_initialize();
-	if (rtas_token("display-character") >= 0)
+	if (rtas_function_token(RTAS_FN_DISPLAY_CHARACTER) >= 0)
 		ppc_md.progress = rtas_progress;
 
 	/* use RTAS time-of-day routines if available */
-	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
+	if (rtas_function_token(RTAS_FN_GET_TIME_OF_DAY) != RTAS_UNKNOWN_SERVICE) {
 		ppc_md.get_boot_time	= rtas_get_boot_time;
 		ppc_md.get_rtc_time	= rtas_get_rtc_time;
 		ppc_md.set_rtc_time	= rtas_set_rtc_time;

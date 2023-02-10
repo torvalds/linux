@@ -136,11 +136,11 @@ static void __init fwnmi_init(void)
 #endif
 	int ibm_nmi_register_token;
 
-	ibm_nmi_register_token = rtas_token("ibm,nmi-register");
+	ibm_nmi_register_token = rtas_function_token(RTAS_FN_IBM_NMI_REGISTER);
 	if (ibm_nmi_register_token == RTAS_UNKNOWN_SERVICE)
 		return;
 
-	ibm_nmi_interlock_token = rtas_token("ibm,nmi-interlock");
+	ibm_nmi_interlock_token = rtas_function_token(RTAS_FN_IBM_NMI_INTERLOCK);
 	if (WARN_ON(ibm_nmi_interlock_token == RTAS_UNKNOWN_SERVICE))
 		return;
 
@@ -1071,14 +1071,14 @@ static void __init pseries_init(void)
 static void pseries_power_off(void)
 {
 	int rc;
-	int rtas_poweroff_ups_token = rtas_token("ibm,power-off-ups");
+	int rtas_poweroff_ups_token = rtas_function_token(RTAS_FN_IBM_POWER_OFF_UPS);
 
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_POWER_OFF);
 
 	if (rtas_poweron_auto == 0 ||
 		rtas_poweroff_ups_token == RTAS_UNKNOWN_SERVICE) {
-		rc = rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1);
+		rc = rtas_call(rtas_function_token(RTAS_FN_POWER_OFF), 2, 1, NULL, -1, -1);
 		printk(KERN_INFO "RTAS power-off returned %d\n", rc);
 	} else {
 		rc = rtas_call(rtas_poweroff_ups_token, 0, 1, NULL);

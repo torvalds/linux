@@ -50,7 +50,7 @@ void papr_sysparm_buf_free(struct papr_sysparm_buf *buf)
 
 int papr_sysparm_get(papr_sysparm_t param, struct papr_sysparm_buf *buf)
 {
-	const s32 token = rtas_token("ibm,get-system-parameter");
+	const s32 token = rtas_function_token(RTAS_FN_IBM_GET_SYSTEM_PARAMETER);
 	struct rtas_work_area *work_area;
 	s32 fwrc;
 	int ret;
@@ -102,7 +102,7 @@ int papr_sysparm_get(papr_sysparm_t param, struct papr_sysparm_buf *buf)
 
 int papr_sysparm_set(papr_sysparm_t param, const struct papr_sysparm_buf *buf)
 {
-	const s32 token = rtas_token("ibm,set-system-parameter");
+	const s32 token = rtas_function_token(RTAS_FN_IBM_SET_SYSTEM_PARAMETER);
 	struct rtas_work_area *work_area;
 	s32 fwrc;
 	int ret;
