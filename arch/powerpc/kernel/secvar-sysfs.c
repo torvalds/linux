@@ -21,26 +21,17 @@ static struct kset *secvar_kset;
 static ssize_t format_show(struct kobject *kobj, struct kobj_attribute *attr,
 			   char *buf)
 {
-	ssize_t rc = 0;
-	struct device_node *node;
-	const char *format;
+	char tmp[32];
+	ssize_t len = secvar_ops->format(tmp, sizeof(tmp));
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!of_device_is_available(node)) {
-		rc = -ENODEV;
-		goto out;
-	}
+	if (len > 0)
+		return sysfs_emit(buf, "%s\n", tmp);
+	else if (len < 0)
+		pr_err("Error %zd reading format string\n", len);
+	else
+		pr_err("Got empty format string from backend\n");
 
-	rc = of_property_read_string(node, "format", &format);
-	if (rc)
-		goto out;
-
-	rc = sysfs_emit(buf, "%s\n", format);
-
-out:
-	of_node_put(node);
-
-	return rc;
+	return -EIO;
 }
 
 
