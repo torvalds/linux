@@ -641,25 +641,6 @@ static void dc_deinit(struct device *dev)
 		dev_err(dev, "assert vout resets error.\n");
 }
 
-static irqreturn_t dc_isr(int irq, void *data)
-{
-	struct vs_dc *dc = data;
-	struct vs_dc_info *dc_info = dc->hw.info;
-	u32 i, ret;
-
-    if(!dc_info)
-		return IRQ_HANDLED;
-
-	ret = dc_hw_get_interrupt(&dc->hw);
-
-	for (i = 0; i < dc_info->panel_num; i++)
-		vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
-
-	return IRQ_HANDLED;
-}
-
-
-///////////////////////////////////////////////////////////
 static int dc_init(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
@@ -1398,7 +1379,22 @@ static int vs_dc_check_plane(struct device *dev, struct drm_plane *plane,
 						  true, true);
 }
 
+static irqreturn_t dc_isr(int irq, void *data)
+{
+	struct vs_dc *dc = data;
+	struct vs_dc_info *dc_info = dc->hw.info;
+	u32 i, ret;
 
+	if(!dc_info)
+	  return IRQ_HANDLED;
+
+	ret = dc_hw_get_interrupt(&dc->hw);
+
+	for (i = 0; i < dc_info->panel_num; i++)
+	  vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
+
+	return IRQ_HANDLED;
+}
 
 static void vs_dc_commit(struct device *dev)
 {
@@ -1576,7 +1572,6 @@ static int dc_bind(struct device *dev, struct device *master, void *data)
 
 /*vout clk disable*/
 	vs_dc_clock_disable(dc);
-	printk("====> %s, %d--devm_request_irq.\n", __func__, __LINE__);
 
 	return 0;
 
@@ -1646,8 +1641,8 @@ static int dc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(dev, irq, dc_isr, 0, dev_name(dev), dc);
 	if (ret < 0) {
-		dev_err(dev, "Failed to install irq:%u.\n", dc->irq);
-		return;
+		dev_err(dev, "Failed to install irq:%u.\n", irq);
+		return ret;
 	}
 
 	dev_set_drvdata(dev, dc);
