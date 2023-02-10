@@ -231,7 +231,6 @@ ice_clean_xdp_tx_buf(struct ice_tx_ring *xdp_ring, struct ice_tx_buf *tx_buf)
 	dma_unmap_single(xdp_ring->dev, dma_unmap_addr(tx_buf, dma),
 			 dma_unmap_len(tx_buf, len), DMA_TO_DEVICE);
 	dma_unmap_len_set(tx_buf, len, 0);
-	xdp_ring->xdp_tx_active--;
 	page_frag_free(tx_buf->raw_buf);
 	tx_buf->raw_buf = NULL;
 }
@@ -246,8 +245,8 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 	u32 ntc = xdp_ring->next_to_clean;
 	struct ice_tx_desc *tx_desc;
 	u32 cnt = xdp_ring->count;
+	u32 frags, xdp_tx = 0;
 	u32 ready_frames = 0;
-	u32 frags;
 	u32 idx;
 	u32 ret;
 
@@ -274,6 +273,7 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 		total_pkts++;
 		/* count head + frags */
 		ready_frames -= frags + 1;
+		xdp_tx++;
 
 		if (xdp_ring->xsk_pool)
 			xsk_buff_free(tx_buf->xdp);
@@ -295,6 +295,7 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 
 	tx_desc->cmd_type_offset_bsz = 0;
 	xdp_ring->next_to_clean = ntc;
+	xdp_ring->xdp_tx_active -= xdp_tx;
 	ice_update_tx_ring_stats(xdp_ring, total_pkts, total_bytes);
 
 	return ret;
