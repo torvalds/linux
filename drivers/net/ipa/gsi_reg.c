@@ -22,6 +22,69 @@
  */
 #define GSI_EE_REG_ADJUST	0x0000d000			/* IPA v4.5+ */
 
+/* Is this register ID valid for the current GSI version? */
+static bool gsi_reg_id_valid(struct gsi *gsi, enum gsi_reg_id reg_id)
+{
+	switch (reg_id) {
+	case INTER_EE_SRC_CH_IRQ_MSK:
+	case INTER_EE_SRC_EV_CH_IRQ_MSK:
+	case CH_C_CNTXT_0:
+	case CH_C_CNTXT_1:
+	case CH_C_CNTXT_2:
+	case CH_C_CNTXT_3:
+	case CH_C_QOS:
+	case CH_C_SCRATCH_0:
+	case CH_C_SCRATCH_1:
+	case CH_C_SCRATCH_2:
+	case CH_C_SCRATCH_3:
+	case EV_CH_E_CNTXT_0:
+	case EV_CH_E_CNTXT_1:
+	case EV_CH_E_CNTXT_2:
+	case EV_CH_E_CNTXT_3:
+	case EV_CH_E_CNTXT_4:
+	case EV_CH_E_CNTXT_8:
+	case EV_CH_E_CNTXT_9:
+	case EV_CH_E_CNTXT_10:
+	case EV_CH_E_CNTXT_11:
+	case EV_CH_E_CNTXT_12:
+	case EV_CH_E_CNTXT_13:
+	case EV_CH_E_SCRATCH_0:
+	case EV_CH_E_SCRATCH_1:
+	case CH_C_DOORBELL_0:
+	case EV_CH_E_DOORBELL_0:
+	case GSI_STATUS:
+	case CH_CMD:
+	case EV_CH_CMD:
+	case GENERIC_CMD:
+	case HW_PARAM_2:
+	case CNTXT_TYPE_IRQ:
+	case CNTXT_TYPE_IRQ_MSK:
+	case CNTXT_SRC_CH_IRQ:
+	case CNTXT_SRC_CH_IRQ_MSK:
+	case CNTXT_SRC_CH_IRQ_CLR:
+	case CNTXT_SRC_EV_CH_IRQ:
+	case CNTXT_SRC_EV_CH_IRQ_MSK:
+	case CNTXT_SRC_EV_CH_IRQ_CLR:
+	case CNTXT_SRC_IEOB_IRQ:
+	case CNTXT_SRC_IEOB_IRQ_MSK:
+	case CNTXT_SRC_IEOB_IRQ_CLR:
+	case CNTXT_GLOB_IRQ_STTS:
+	case CNTXT_GLOB_IRQ_EN:
+	case CNTXT_GLOB_IRQ_CLR:
+	case CNTXT_GSI_IRQ_STTS:
+	case CNTXT_GSI_IRQ_EN:
+	case CNTXT_GSI_IRQ_CLR:
+	case CNTXT_INTSET:
+	case ERROR_LOG:
+	case ERROR_LOG_CLR:
+	case CNTXT_SCRATCH_0:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 /* Sets gsi->virt_raw and gsi->virt, and I/O maps the "gsi" memory range */
 int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 {
@@ -29,6 +92,8 @@ int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev)
 	struct resource *res;
 	resource_size_t size;
 	u32 adjust;
+
+	(void)gsi_reg_id_valid;	/* Avoid a warning */
 
 	/* Get GSI memory range and map it */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
