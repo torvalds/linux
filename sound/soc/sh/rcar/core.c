@@ -828,6 +828,13 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		break;
 	default:
 		/* use default */
+		/*
+		 * Indicate warning if DT has "dai-tdm-slot-width"
+		 * but the value was not expected.
+		 */
+		if (slot_width)
+			dev_warn(dev, "unsupported TDM slot width (%d), force to use default 32\n",
+				 slot_width);
 		slot_width = 32;
 	}
 
