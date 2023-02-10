@@ -2344,6 +2344,16 @@ int security_inode_copy_up_xattr(const char *name)
 }
 EXPORT_SYMBOL(security_inode_copy_up_xattr);
 
+/**
+ * security_kernfs_init_security() - Init LSM context for a kernfs node
+ * @kn_dir: parent kernfs node
+ * @kn: the kernfs node to initialize
+ *
+ * Initialize the security context of a newly created kernfs node based on its
+ * own and its parent's attributes.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_kernfs_init_security(struct kernfs_node *kn_dir,
 				  struct kernfs_node *kn)
 {

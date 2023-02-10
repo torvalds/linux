@@ -32,15 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks for kernfs node operations
- *
- * @kernfs_init_security:
- *	Initialize the security context of a newly created kernfs node based
- *	on its own and its parent's attributes.
- *	@kn_dir the parent kernfs node.
- *	@kn the new child kernfs node.
- *	Return 0 if permission is granted.
- *
  * Security hooks for file operations
  *
  * @file_permission:
