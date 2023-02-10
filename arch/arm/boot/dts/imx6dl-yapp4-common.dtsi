@@ -313,7 +313,7 @@
 		interrupt-parent = <&gpio4>;
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		attb-gpio = <&gpio4 5 GPIO_ACTIVE_HIGH>;
-		reset-gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		touchscreen-size-x = <800>;
 		touchscreen-size-y = <480>;
 		status = "disabled";
