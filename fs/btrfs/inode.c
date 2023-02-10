@@ -669,8 +669,7 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
-	nr_pages = min_t(unsigned long, nr_pages,
-			BTRFS_MAX_COMPRESSED / PAGE_SIZE);
+	nr_pages = min_t(unsigned long, nr_pages, BTRFS_MAX_COMPRESSED_PAGES);
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -1054,23 +1053,14 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 	extent_clear_unlock_delalloc(inode, start, end,
 			NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 			PAGE_UNLOCK | PAGE_START_WRITEBACK);
-	if (btrfs_submit_compressed_write(inode, start,	/* file_offset */
+	btrfs_submit_compressed_write(inode, start,	/* file_offset */
 			    async_extent->ram_size,	/* num_bytes */
 			    ins.objectid,		/* disk_bytenr */
 			    ins.offset,			/* compressed_len */
 			    async_extent->pages,	/* compressed_pages */
 			    async_extent->nr_pages,
 			    async_chunk->write_flags,
-			    async_chunk->blkcg_css, true)) {
-		const u64 start = async_extent->start;
-		const u64 end = start + async_extent->ram_size - 1;
-
-		btrfs_writepage_endio_finish_ordered(inode, NULL, start, end, 0);
-
-		extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
-					     PAGE_END_WRITEBACK | PAGE_SET_ERROR);
-		free_async_extent_pages(async_extent);
-	}
+			    async_chunk->blkcg_css, true);
 	*alloc_hint = ins.objectid + ins.offset;
 	kfree(async_extent);
 	return ret;
@@ -10395,13 +10385,9 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 
 	btrfs_delalloc_release_extents(inode, num_bytes);
 
-	if (btrfs_submit_compressed_write(inode, start, num_bytes, ins.objectid,
+	btrfs_submit_compressed_write(inode, start, num_bytes, ins.objectid,
 					  ins.offset, pages, nr_pages, 0, NULL,
-					  false)) {
-		btrfs_writepage_endio_finish_ordered(inode, pages[0], start, end, 0);
-		ret = -EIO;
-		goto out_pages;
-	}
+					  false);
 	ret = orig_count;
 	goto out;
 

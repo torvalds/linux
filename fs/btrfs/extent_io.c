@@ -156,7 +156,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	if (btrfs_op(bio) == BTRFS_MAP_READ &&
 	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
-		btrfs_submit_compressed_read(inode, bio, mirror_num);
+		btrfs_submit_compressed_read(bio, mirror_num);
 	else
 		btrfs_submit_bio(bio, mirror_num);
 

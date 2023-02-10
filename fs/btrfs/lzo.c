@@ -17,6 +17,7 @@
 #include "compression.h"
 #include "ctree.h"
 #include "super.h"
+#include "btrfs_inode.h"
 
 #define LZO_LEN	4
 
@@ -329,7 +330,7 @@ static void copy_compressed_segment(struct compressed_bio *cb,
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	const struct btrfs_fs_info *fs_info = btrfs_sb(cb->inode->i_sb);
+	const struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
 	char *kaddr;
 	int ret;
