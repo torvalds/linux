@@ -121,10 +121,7 @@ static inline int ice_skb_pad(void)
 #define ICE_TX_FLAGS_TSO	BIT(0)
 #define ICE_TX_FLAGS_HW_VLAN	BIT(1)
 #define ICE_TX_FLAGS_SW_VLAN	BIT(2)
-/* ICE_TX_FLAGS_DUMMY_PKT is used to mark dummy packets that should be
- * freed instead of returned like skb packets.
- */
-#define ICE_TX_FLAGS_DUMMY_PKT	BIT(3)
+/* Free, was ICE_TX_FLAGS_DUMMY_PKT */
 #define ICE_TX_FLAGS_TSYN	BIT(4)
 #define ICE_TX_FLAGS_IPV4	BIT(5)
 #define ICE_TX_FLAGS_IPV6	BIT(6)
@@ -149,22 +146,41 @@ static inline int ice_skb_pad(void)
 
 #define ICE_TXD_LAST_DESC_CMD (ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)
 
+/**
+ * enum ice_tx_buf_type - type of &ice_tx_buf to act on Tx completion
+ * @ICE_TX_BUF_EMPTY: unused OR XSk frame, no action required
+ * @ICE_TX_BUF_DUMMY: dummy Flow Director packet, unmap and kfree()
+ * @ICE_TX_BUF_FRAG: mapped skb OR &xdp_buff frag, only unmap DMA
+ * @ICE_TX_BUF_SKB: &sk_buff, unmap and consume_skb(), update stats
+ * @ICE_TX_BUF_XDP_TX: &xdp_buff, unmap and page_frag_free(), stats
+ * @ICE_TX_BUF_XSK_TX: &xdp_buff on XSk queue, xsk_buff_free(), stats
+ */
+enum ice_tx_buf_type {
+	ICE_TX_BUF_EMPTY	= 0U,
+	ICE_TX_BUF_DUMMY,
+	ICE_TX_BUF_FRAG,
+	ICE_TX_BUF_SKB,
+	ICE_TX_BUF_XDP_TX,
+	ICE_TX_BUF_XSK_TX,
+};
+
 struct ice_tx_buf {
 	union {
 		struct ice_tx_desc *next_to_watch;
 		u32 rs_idx;
 	};
 	union {
-		struct sk_buff *skb;
-		void *raw_buf; /* used for XDP */
-		struct xdp_buff *xdp; /* used for XDP_TX ZC */
+		void *raw_buf;		/* used for XDP_TX and FDir rules */
+		struct sk_buff *skb;	/* used for .ndo_start_xmit() */
+		struct xdp_buff *xdp;	/* used for XDP_TX ZC */
 	};
 	unsigned int bytecount;
 	union {
 		unsigned int gso_segs;
-		unsigned int nr_frags; /* used for mbuf XDP */
+		unsigned int nr_frags;	/* used for mbuf XDP */
 	};
-	u32 tx_flags;
+	u32 type:16;			/* &ice_tx_buf_type */
+	u32 tx_flags:16;
 	DEFINE_DMA_UNMAP_LEN(len);
 	DEFINE_DMA_UNMAP_ADDR(dma);
 };

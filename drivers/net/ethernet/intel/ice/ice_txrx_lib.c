@@ -231,8 +231,14 @@ ice_clean_xdp_tx_buf(struct ice_tx_ring *xdp_ring, struct ice_tx_buf *tx_buf)
 	dma_unmap_single(xdp_ring->dev, dma_unmap_addr(tx_buf, dma),
 			 dma_unmap_len(tx_buf, len), DMA_TO_DEVICE);
 	dma_unmap_len_set(tx_buf, len, 0);
-	page_frag_free(tx_buf->raw_buf);
-	tx_buf->raw_buf = NULL;
+
+	switch (tx_buf->type) {
+	case ICE_TX_BUF_XDP_TX:
+		page_frag_free(tx_buf->raw_buf);
+		break;
+	}
+
+	tx_buf->type = ICE_TX_BUF_EMPTY;
 }
 
 /**
@@ -266,6 +272,7 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 
 	while (ready_frames) {
 		struct ice_tx_buf *tx_buf = &xdp_ring->tx_buf[ntc];
+		struct ice_tx_buf *head = tx_buf;
 
 		/* bytecount holds size of head + frags */
 		total_bytes += tx_buf->bytecount;
@@ -275,7 +282,6 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 		ready_frames -= frags + 1;
 		xdp_tx++;
 
-		ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
 		ntc++;
 		if (ntc == cnt)
 			ntc = 0;
@@ -288,6 +294,8 @@ static u32 ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 			if (ntc == cnt)
 				ntc = 0;
 		}
+
+		ice_clean_xdp_tx_buf(xdp_ring, head);
 	}
 
 	tx_desc->cmd_type_offset_bsz = 0;
@@ -349,6 +357,7 @@ int __ice_xmit_xdp_ring(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring)
 
 		tx_desc->buf_addr = cpu_to_le64(dma);
 		tx_desc->cmd_type_offset_bsz = ice_build_ctob(0, 0, size, 0);
+		tx_buf->type = ICE_TX_BUF_XDP_TX;
 		tx_buf->raw_buf = data;
 
 		ntu++;
