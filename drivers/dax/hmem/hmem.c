@@ -15,25 +15,17 @@ static int dax_hmem_probe(struct platform_device *pdev)
 	struct memregion_info *mri;
 	struct dev_dax_data data;
 	struct dev_dax *dev_dax;
-	struct resource *res;
-	struct range range;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOMEM;
 
 	mri = dev->platform_data;
-	range.start = res->start;
-	range.end = res->end;
-	dax_region = alloc_dax_region(dev, pdev->id, &range, mri->target_node,
-			PMD_SIZE, 0);
+	dax_region = alloc_dax_region(dev, pdev->id, &mri->range,
+				      mri->target_node, PMD_SIZE, 0);
 	if (!dax_region)
 		return -ENOMEM;
 
 	data = (struct dev_dax_data) {
 		.dax_region = dax_region,
 		.id = -1,
-		.size = region_idle ? 0 : resource_size(res),
+		.size = region_idle ? 0 : range_len(&mri->range),
 	};
 	dev_dax = devm_create_dev_dax(&data);
 	if (IS_ERR(dev_dax))

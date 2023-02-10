@@ -15,15 +15,8 @@ static struct resource hmem_active = {
 	.flags = IORESOURCE_MEM,
 };
 
-void hmem_register_device(int target_nid, struct resource *r)
+void hmem_register_device(int target_nid, struct resource *res)
 {
-	/* define a clean / non-busy resource for the platform device */
-	struct resource res = {
-		.start = r->start,
-		.end = r->end,
-		.flags = IORESOURCE_MEM,
-		.desc = IORES_DESC_SOFT_RESERVED,
-	};
 	struct platform_device *pdev;
 	struct memregion_info info;
 	int rc, id;
@@ -31,55 +24,53 @@ void hmem_register_device(int target_nid, struct resource *r)
 	if (nohmem)
 		return;
 
-	rc = region_intersects(res.start, resource_size(&res), IORESOURCE_MEM,
-			IORES_DESC_SOFT_RESERVED);
+	rc = region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
+			       IORES_DESC_SOFT_RESERVED);
 	if (rc != REGION_INTERSECTS)
 		return;
 
 	id = memregion_alloc(GFP_KERNEL);
 	if (id < 0) {
-		pr_err("memregion allocation failure for %pr\n", &res);
+		pr_err("memregion allocation failure for %pr\n", res);
 		return;
 	}
 
 	pdev = platform_device_alloc("hmem", id);
 	if (!pdev) {
-		pr_err("hmem device allocation failure for %pr\n", &res);
+		pr_err("hmem device allocation failure for %pr\n", res);
 		goto out_pdev;
 	}
 
-	if (!__request_region(&hmem_active, res.start, resource_size(&res),
+	if (!__request_region(&hmem_active, res->start, resource_size(res),
 			      dev_name(&pdev->dev), 0)) {
-		dev_dbg(&pdev->dev, "hmem range %pr already active\n", &res);
+		dev_dbg(&pdev->dev, "hmem range %pr already active\n", res);
 		goto out_active;
 	}
 
 	pdev->dev.numa_node = numa_map_to_online_node(target_nid);
 	info = (struct memregion_info) {
 		.target_node = target_nid,
+		.range = {
+			.start = res->start,
+			.end = res->end,
+		},
 	};
 	rc = platform_device_add_data(pdev, &info, sizeof(info));
 	if (rc < 0) {
-		pr_err("hmem memregion_info allocation failure for %pr\n", &res);
-		goto out_resource;
-	}
-
-	rc = platform_device_add_resources(pdev, &res, 1);
-	if (rc < 0) {
-		pr_err("hmem resource allocation failure for %pr\n", &res);
+		pr_err("hmem memregion_info allocation failure for %pr\n", res);
 		goto out_resource;
 	}
 
 	rc = platform_device_add(pdev);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "device add failed for %pr\n", &res);
+		dev_err(&pdev->dev, "device add failed for %pr\n", res);
 		goto out_resource;
 	}
 
 	return;
 
 out_resource:
-	__release_region(&hmem_active, res.start, resource_size(&res));
+	__release_region(&hmem_active, res->start, resource_size(res));
 out_active:
 	platform_device_put(pdev);
 out_pdev:
