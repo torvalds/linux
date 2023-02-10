@@ -9,6 +9,7 @@ struct net_device;
 struct netdev_bpf;
 struct netdev_phys_item_id;
 struct netlink_ext_ack;
+struct cpumask;
 
 /* Random bits of netdevice that don't need to be exposed */
 #define FLOW_LIMIT_HISTORY	(1 << 7)  /* must be ^2 and !overflow buckets */
@@ -134,4 +135,5 @@ static inline void netif_set_gro_ipv4_max_size(struct net_device *dev,
 	WRITE_ONCE(dev->gro_ipv4_max_size, size);
 }
 
+int rps_cpumask_housekeeping(struct cpumask *mask);
 #endif
