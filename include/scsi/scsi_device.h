@@ -462,6 +462,7 @@ struct scsi_exec_args {
 	unsigned int sense_len;		/* sense buffer len */
 	struct scsi_sense_hdr *sshdr;	/* decoded sense header */
 	blk_mq_req_flags_t req_flags;	/* BLK_MQ_REQ flags */
+	int scmd_flags;			/* SCMD flags */
 	int *resid;			/* residual length */
 };
 
