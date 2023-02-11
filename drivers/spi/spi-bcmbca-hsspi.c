@@ -252,7 +252,7 @@ static int bcmbca_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t,
 {
 	struct bcmbca_hsspi *bs = spi_master_get_devdata(spi->master);
 	unsigned int chip_select = spi->chip_select;
-	u16 opcode = 0;
+	u16 opcode = 0, val;
 	int pending = t->len;
 	int step_size = HSSPI_BUFFER_LEN;
 	const u8 *tx = t->tx_buf;
@@ -292,7 +292,9 @@ static int bcmbca_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t,
 			memcpy_toio(bs->fifo + HSSPI_OPCODE_LEN, tx, curr_step);
 			tx += curr_step;
 		}
-		__raw_writew((u16)cpu_to_be16(opcode | curr_step), bs->fifo);
+
+		*(__be16 *)(&val) = cpu_to_be16(opcode | curr_step);
+		__raw_writew(val, bs->fifo);
 
 		/* enable interrupt */
 		if (bs->wait_mode == HSSPI_WAIT_MODE_INTR)

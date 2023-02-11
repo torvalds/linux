@@ -350,7 +350,7 @@ static int bcm63xx_hsspi_do_prepend_txrx(struct spi_device *spi,
 {
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(spi->master);
 	unsigned int chip_select = spi->chip_select;
-	u16 opcode = 0;
+	u16 opcode = 0, val;
 	const u8 *tx = t->tx_buf;
 	u8 *rx = t->rx_buf;
 	u32 reg = 0;
@@ -401,7 +401,8 @@ static int bcm63xx_hsspi_do_prepend_txrx(struct spi_device *spi,
 		memcpy_toio(bs->fifo + HSSPI_OPCODE_LEN + bs->prepend_cnt, tx,
 			    t->len);
 
-	__raw_writew((u16)cpu_to_be16(opcode | t->len), bs->fifo);
+	*(__be16 *)(&val) = cpu_to_be16(opcode | t->len);
+	__raw_writew(val, bs->fifo);
 	/* enable interrupt */
 	if (bs->wait_mode == HSSPI_WAIT_MODE_INTR)
 		__raw_writel(HSSPI_PINGx_CMD_DONE(0), bs->regs + HSSPI_INT_MASK_REG);
@@ -468,7 +469,7 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(spi->master);
 	unsigned int chip_select = spi->chip_select;
-	u16 opcode = 0;
+	u16 opcode = 0, val;
 	int pending = t->len;
 	int step_size = HSSPI_BUFFER_LEN;
 	const u8 *tx = t->tx_buf;
@@ -511,7 +512,8 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 			tx += curr_step;
 		}
 
-		__raw_writew((u16)cpu_to_be16(opcode | curr_step), bs->fifo);
+		*(__be16 *)(&val) = cpu_to_be16(opcode | curr_step);
+		__raw_writew(val, bs->fifo);
 
 		/* enable interrupt */
 		if (bs->wait_mode == HSSPI_WAIT_MODE_INTR)
