@@ -28,32 +28,6 @@ void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 	}
 }
 
-/* Calling Context:
- *
- * rtw_enqueue_cmd can only be called between kernel thread,
- * since only spin_lock is used.
- *
- * ISR/Call-Back functions can't call this sub-function.
- */
-
-static int _rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
-{
-	unsigned long flags;
-
-	if (!obj)
-		goto exit;
-
-	spin_lock_irqsave(&queue->lock, flags);
-
-	list_add_tail(&obj->list, &queue->queue);
-
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-exit:
-
-	return _SUCCESS;
-}
-
 int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->enqueue_cmd);
@@ -125,28 +99,25 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 
 u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 {
-	int res = _FAIL;
+	unsigned long flags;
 	struct adapter *padapter = pcmdpriv->padapter;
 
 	if (!cmd_obj)
-		goto exit;
+		return _FAIL;
 
 	cmd_obj->padapter = padapter;
 
-	res = rtw_cmd_filter(pcmdpriv, cmd_obj);
-	if (res == _FAIL) {
+	if (rtw_cmd_filter(pcmdpriv, cmd_obj) == _FAIL) {
 		rtw_free_cmd_obj(cmd_obj);
-		goto exit;
+		return _FAIL;
 	}
 
-	res = _rtw_enqueue_cmd(&pcmdpriv->cmd_queue, cmd_obj);
+	spin_lock_irqsave(&pcmdpriv->cmd_queue.lock, flags);
+	list_add_tail(&cmd_obj->list, &pcmdpriv->cmd_queue.queue);
+	spin_unlock_irqrestore(&pcmdpriv->cmd_queue.lock, flags);
 
-	if (res == _SUCCESS)
-		complete(&pcmdpriv->enqueue_cmd);
-
-exit:
-
-	return res;
+	complete(&pcmdpriv->enqueue_cmd);
+	return _SUCCESS;
 }
 
 struct	cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
