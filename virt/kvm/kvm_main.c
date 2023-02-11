@@ -3870,7 +3870,10 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 static int vcpu_get_pid(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = data;
-	*val = pid_nr(rcu_access_pointer(vcpu->pid));
+
+	rcu_read_lock();
+	*val = pid_nr(rcu_dereference(vcpu->pid));
+	rcu_read_unlock();
 	return 0;
 }
 
