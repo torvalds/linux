@@ -85,7 +85,7 @@ static const struct regulator_desc max20411_desc = {
 	.min_uV = MAX20411_BASE_UV,
 	.uV_step = MAX20411_UV_STEP,
 	.linear_min_sel = MAX20411_MIN_SEL,
-	.n_voltages = MAX20411_MAX_SEL,
+	.n_voltages = MAX20411_MAX_SEL + 1,
 
 	.vsel_reg = MAX20411_VID_OFFSET,
 	.vsel_mask = MAX20411_VID_MASK,
