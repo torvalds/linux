@@ -194,6 +194,7 @@ def _define_kernel_dist(target, msm_target, variant):
     msm_dist_targets = [
         # do not sort
         ":{}".format(target),
+        ":{}_images".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
         ":signing_key",
