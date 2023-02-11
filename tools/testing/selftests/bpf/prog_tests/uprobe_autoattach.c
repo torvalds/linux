@@ -16,10 +16,10 @@ static noinline int autoattach_trigger_func(int arg1, int arg2, int arg3,
 
 void test_uprobe_autoattach(void)
 {
+	const char *devnull_str = "/dev/null";
 	struct test_uprobe_autoattach *skel;
 	int trigger_ret;
-	size_t malloc_sz = 1;
-	char *mem;
+	FILE *devnull;
 
 	skel = test_uprobe_autoattach__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
@@ -36,16 +36,18 @@ void test_uprobe_autoattach(void)
 	skel->bss->test_pid = getpid();
 
 	/* trigger & validate shared library u[ret]probes attached by name */
-	mem = malloc(malloc_sz);
+	devnull = fopen(devnull_str, "r");
 
 	ASSERT_EQ(skel->bss->uprobe_byname_parm1, 1, "check_uprobe_byname_parm1");
 	ASSERT_EQ(skel->bss->uprobe_byname_ran, 1, "check_uprobe_byname_ran");
 	ASSERT_EQ(skel->bss->uretprobe_byname_rc, trigger_ret, "check_uretprobe_byname_rc");
 	ASSERT_EQ(skel->bss->uretprobe_byname_ret, trigger_ret, "check_uretprobe_byname_ret");
 	ASSERT_EQ(skel->bss->uretprobe_byname_ran, 2, "check_uretprobe_byname_ran");
-	ASSERT_EQ(skel->bss->uprobe_byname2_parm1, malloc_sz, "check_uprobe_byname2_parm1");
+	ASSERT_EQ(skel->bss->uprobe_byname2_parm1, (__u64)(long)devnull_str,
+		  "check_uprobe_byname2_parm1");
 	ASSERT_EQ(skel->bss->uprobe_byname2_ran, 3, "check_uprobe_byname2_ran");
-	ASSERT_EQ(skel->bss->uretprobe_byname2_rc, mem, "check_uretprobe_byname2_rc");
+	ASSERT_EQ(skel->bss->uretprobe_byname2_rc, (__u64)(long)devnull,
+		  "check_uretprobe_byname2_rc");
 	ASSERT_EQ(skel->bss->uretprobe_byname2_ran, 4, "check_uretprobe_byname2_ran");
 
 	ASSERT_EQ(skel->bss->a[0], 1, "arg1");
@@ -67,7 +69,7 @@ void test_uprobe_autoattach(void)
 	ASSERT_EQ(skel->bss->a[7], 8, "arg8");
 #endif
 
-	free(mem);
+	fclose(devnull);
 cleanup:
 	test_uprobe_autoattach__destroy(skel);
 }

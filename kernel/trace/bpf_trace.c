@@ -1237,7 +1237,7 @@ __diag_ignore_all("-Wmissing-prototypes",
  * Return: a bpf_key pointer with a valid key pointer if the key is found, a
  *         NULL pointer otherwise.
  */
-struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
+__bpf_kfunc struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
 {
 	key_ref_t key_ref;
 	struct bpf_key *bkey;
@@ -1286,7 +1286,7 @@ struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
  * Return: a bpf_key pointer with an invalid key pointer set from the
  *         pre-determined ID on success, a NULL pointer otherwise
  */
-struct bpf_key *bpf_lookup_system_key(u64 id)
+__bpf_kfunc struct bpf_key *bpf_lookup_system_key(u64 id)
 {
 	struct bpf_key *bkey;
 
@@ -1310,7 +1310,7 @@ struct bpf_key *bpf_lookup_system_key(u64 id)
  * Decrement the reference count of the key inside *bkey*, if the pointer
  * is valid, and free *bkey*.
  */
-void bpf_key_put(struct bpf_key *bkey)
+__bpf_kfunc void bpf_key_put(struct bpf_key *bkey)
 {
 	if (bkey->has_ref)
 		key_put(bkey->key);
@@ -1330,7 +1330,7 @@ void bpf_key_put(struct bpf_key *bkey)
  *
  * Return: 0 on success, a negative value on error.
  */
-int bpf_verify_pkcs7_signature(struct bpf_dynptr_kern *data_ptr,
+__bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr_kern *data_ptr,
 			       struct bpf_dynptr_kern *sig_ptr,
 			       struct bpf_key *trusted_keyring)
 {

@@ -13,9 +13,9 @@ int uprobe_byname_ran = 0;
 int uretprobe_byname_rc = 0;
 int uretprobe_byname_ret = 0;
 int uretprobe_byname_ran = 0;
-size_t uprobe_byname2_parm1 = 0;
+u64 uprobe_byname2_parm1 = 0;
 int uprobe_byname2_ran = 0;
-char *uretprobe_byname2_rc = NULL;
+u64 uretprobe_byname2_rc = 0;
 int uretprobe_byname2_ran = 0;
 
 int test_pid;
@@ -88,28 +88,28 @@ int BPF_URETPROBE(handle_uretprobe_byname, int ret)
 }
 
 
-SEC("uprobe/libc.so.6:malloc")
-int handle_uprobe_byname2(struct pt_regs *ctx)
+SEC("uprobe/libc.so.6:fopen")
+int BPF_UPROBE(handle_uprobe_byname2, const char *pathname, const char *mode)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 
 	/* ignore irrelevant invocations */
 	if (test_pid != pid)
 		return 0;
-	uprobe_byname2_parm1 = PT_REGS_PARM1_CORE(ctx);
+	uprobe_byname2_parm1 = (u64)(long)pathname;
 	uprobe_byname2_ran = 3;
 	return 0;
 }
 
-SEC("uretprobe/libc.so.6:malloc")
-int handle_uretprobe_byname2(struct pt_regs *ctx)
+SEC("uretprobe/libc.so.6:fopen")
+int BPF_URETPROBE(handle_uretprobe_byname2, void *ret)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 
 	/* ignore irrelevant invocations */
 	if (test_pid != pid)
 		return 0;
-	uretprobe_byname2_rc = (char *)PT_REGS_RC_CORE(ctx);
+	uretprobe_byname2_rc = (u64)(long)ret;
 	uretprobe_byname2_ran = 4;
 	return 0;
 }

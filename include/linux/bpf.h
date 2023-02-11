@@ -899,8 +899,12 @@ enum bpf_cgroup_storage_type {
 /* The argument is a structure. */
 #define BTF_FMODEL_STRUCT_ARG		BIT(0)
 
+/* The argument is signed. */
+#define BTF_FMODEL_SIGNED_ARG		BIT(1)
+
 struct btf_func_model {
 	u8 ret_size;
+	u8 ret_flags;
 	u8 nr_args;
 	u8 arg_size[MAX_BPF_FUNC_ARGS];
 	u8 arg_flags[MAX_BPF_FUNC_ARGS];
@@ -939,7 +943,13 @@ struct btf_func_model {
 /* Each call __bpf_prog_enter + call bpf_func + call __bpf_prog_exit is ~50
  * bytes on x86.
  */
-#define BPF_MAX_TRAMP_LINKS 38
+enum {
+#if defined(__s390x__)
+	BPF_MAX_TRAMP_LINKS = 27,
+#else
+	BPF_MAX_TRAMP_LINKS = 38,
+#endif
+};
 
 struct bpf_tramp_links {
 	struct bpf_tramp_link *links[BPF_MAX_TRAMP_LINKS];
@@ -1836,7 +1846,7 @@ struct bpf_prog * __must_check bpf_prog_inc_not_zero(struct bpf_prog *prog);
 void bpf_prog_put(struct bpf_prog *prog);
 
 void bpf_prog_free_id(struct bpf_prog *prog);
-void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock);
+void bpf_map_free_id(struct bpf_map *map);
 
 struct btf_field *btf_record_find(const struct btf_record *rec,
 				  u32 offset, enum btf_field_type type);

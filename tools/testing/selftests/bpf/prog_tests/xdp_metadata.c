@@ -121,7 +121,7 @@ static void close_xsk(struct xsk *xsk)
 		xsk_umem__delete(xsk->umem);
 	if (xsk->socket)
 		xsk_socket__delete(xsk->socket);
-	munmap(xsk->umem, UMEM_SIZE);
+	munmap(xsk->umem_area, UMEM_SIZE);
 }
 
 static void ip_csum(struct iphdr *iph)
@@ -205,9 +205,8 @@ static void complete_tx(struct xsk *xsk)
 	if (ASSERT_EQ(xsk_ring_cons__peek(&xsk->comp, 1, &idx), 1, "xsk_ring_cons__peek")) {
 		addr = *xsk_ring_cons__comp_addr(&xsk->comp, idx);
 
-		printf("%p: refill idx=%u addr=%llx\n", xsk, idx, addr);
-		*xsk_ring_prod__fill_addr(&xsk->fill, idx) = addr;
-		xsk_ring_prod__submit(&xsk->fill, 1);
+		printf("%p: complete tx idx=%u addr=%llx\n", xsk, idx, addr);
+		xsk_ring_cons__release(&xsk->comp, 1);
 	}
 }
 

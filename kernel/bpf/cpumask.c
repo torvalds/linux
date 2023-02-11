@@ -48,9 +48,12 @@ __diag_ignore_all("-Wmissing-prototypes",
  * bpf_cpumask_create() allocates memory using the BPF memory allocator, and
  * will not block. It may return NULL if no memory is available.
  */
-struct bpf_cpumask *bpf_cpumask_create(void)
+__bpf_kfunc struct bpf_cpumask *bpf_cpumask_create(void)
 {
 	struct bpf_cpumask *cpumask;
+
+	/* cpumask must be the first element so struct bpf_cpumask be cast to struct cpumask. */
+	BUILD_BUG_ON(offsetof(struct bpf_cpumask, cpumask) != 0);
 
 	cpumask = bpf_mem_alloc(&bpf_cpumask_ma, sizeof(*cpumask));
 	if (!cpumask)
@@ -71,7 +74,7 @@ struct bpf_cpumask *bpf_cpumask_create(void)
  * must either be embedded in a map as a kptr, or freed with
  * bpf_cpumask_release().
  */
-struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask)
+__bpf_kfunc struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask)
 {
 	refcount_inc(&cpumask->usage);
 	return cpumask;
@@ -87,7 +90,7 @@ struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask)
  * kptr, or freed with bpf_cpumask_release(). This function may return NULL if
  * no BPF cpumask was found in the specified map value.
  */
-struct bpf_cpumask *bpf_cpumask_kptr_get(struct bpf_cpumask **cpumaskp)
+__bpf_kfunc struct bpf_cpumask *bpf_cpumask_kptr_get(struct bpf_cpumask **cpumaskp)
 {
 	struct bpf_cpumask *cpumask;
 
@@ -113,7 +116,7 @@ struct bpf_cpumask *bpf_cpumask_kptr_get(struct bpf_cpumask **cpumaskp)
  * reference of the BPF cpumask has been released, it is subsequently freed in
  * an RCU callback in the BPF memory allocator.
  */
-void bpf_cpumask_release(struct bpf_cpumask *cpumask)
+__bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 {
 	if (!cpumask)
 		return;
@@ -132,7 +135,7 @@ void bpf_cpumask_release(struct bpf_cpumask *cpumask)
  * Find the index of the first nonzero bit of the cpumask. A struct bpf_cpumask
  * pointer may be safely passed to this function.
  */
-u32 bpf_cpumask_first(const struct cpumask *cpumask)
+__bpf_kfunc u32 bpf_cpumask_first(const struct cpumask *cpumask)
 {
 	return cpumask_first(cpumask);
 }
@@ -145,7 +148,7 @@ u32 bpf_cpumask_first(const struct cpumask *cpumask)
  * Find the index of the first unset bit of the cpumask. A struct bpf_cpumask
  * pointer may be safely passed to this function.
  */
-u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
+__bpf_kfunc u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
 {
 	return cpumask_first_zero(cpumask);
 }
@@ -155,7 +158,7 @@ u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
  * @cpu: The CPU to be set in the cpumask.
  * @cpumask: The BPF cpumask in which a bit is being set.
  */
-void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
+__bpf_kfunc void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
 {
 	if (!cpu_valid(cpu))
 		return;
@@ -168,7 +171,7 @@ void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
  * @cpu: The CPU to be cleared from the cpumask.
  * @cpumask: The BPF cpumask in which a bit is being cleared.
  */
-void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
+__bpf_kfunc void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
 {
 	if (!cpu_valid(cpu))
 		return;
@@ -185,7 +188,7 @@ void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
  * * true  - @cpu is set in the cpumask
  * * false - @cpu was not set in the cpumask, or @cpu is an invalid cpu.
  */
-bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask)
+__bpf_kfunc bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask)
 {
 	if (!cpu_valid(cpu))
 		return false;
@@ -202,7 +205,7 @@ bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask)
  * * true  - @cpu is set in the cpumask
  * * false - @cpu was not set in the cpumask, or @cpu is invalid.
  */
-bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
+__bpf_kfunc bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
 {
 	if (!cpu_valid(cpu))
 		return false;
@@ -220,7 +223,7 @@ bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
  * * true  - @cpu is set in the cpumask
  * * false - @cpu was not set in the cpumask, or @cpu is invalid.
  */
-bool bpf_cpumask_test_and_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
+__bpf_kfunc bool bpf_cpumask_test_and_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
 {
 	if (!cpu_valid(cpu))
 		return false;
@@ -232,7 +235,7 @@ bool bpf_cpumask_test_and_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
  * bpf_cpumask_setall() - Set all of the bits in a BPF cpumask.
  * @cpumask: The BPF cpumask having all of its bits set.
  */
-void bpf_cpumask_setall(struct bpf_cpumask *cpumask)
+__bpf_kfunc void bpf_cpumask_setall(struct bpf_cpumask *cpumask)
 {
 	cpumask_setall((struct cpumask *)cpumask);
 }
@@ -241,7 +244,7 @@ void bpf_cpumask_setall(struct bpf_cpumask *cpumask)
  * bpf_cpumask_clear() - Clear all of the bits in a BPF cpumask.
  * @cpumask: The BPF cpumask being cleared.
  */
-void bpf_cpumask_clear(struct bpf_cpumask *cpumask)
+__bpf_kfunc void bpf_cpumask_clear(struct bpf_cpumask *cpumask)
 {
 	cpumask_clear((struct cpumask *)cpumask);
 }
@@ -258,9 +261,9 @@ void bpf_cpumask_clear(struct bpf_cpumask *cpumask)
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-bool bpf_cpumask_and(struct bpf_cpumask *dst,
-		     const struct cpumask *src1,
-		     const struct cpumask *src2)
+__bpf_kfunc bool bpf_cpumask_and(struct bpf_cpumask *dst,
+				 const struct cpumask *src1,
+				 const struct cpumask *src2)
 {
 	return cpumask_and((struct cpumask *)dst, src1, src2);
 }
@@ -273,9 +276,9 @@ bool bpf_cpumask_and(struct bpf_cpumask *dst,
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-void bpf_cpumask_or(struct bpf_cpumask *dst,
-		    const struct cpumask *src1,
-		    const struct cpumask *src2)
+__bpf_kfunc void bpf_cpumask_or(struct bpf_cpumask *dst,
+				const struct cpumask *src1,
+				const struct cpumask *src2)
 {
 	cpumask_or((struct cpumask *)dst, src1, src2);
 }
@@ -288,9 +291,9 @@ void bpf_cpumask_or(struct bpf_cpumask *dst,
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-void bpf_cpumask_xor(struct bpf_cpumask *dst,
-		     const struct cpumask *src1,
-		     const struct cpumask *src2)
+__bpf_kfunc void bpf_cpumask_xor(struct bpf_cpumask *dst,
+				 const struct cpumask *src1,
+				 const struct cpumask *src2)
 {
 	cpumask_xor((struct cpumask *)dst, src1, src2);
 }
@@ -306,7 +309,7 @@ void bpf_cpumask_xor(struct bpf_cpumask *dst,
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-bool bpf_cpumask_equal(const struct cpumask *src1, const struct cpumask *src2)
+__bpf_kfunc bool bpf_cpumask_equal(const struct cpumask *src1, const struct cpumask *src2)
 {
 	return cpumask_equal(src1, src2);
 }
@@ -322,7 +325,7 @@ bool bpf_cpumask_equal(const struct cpumask *src1, const struct cpumask *src2)
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-bool bpf_cpumask_intersects(const struct cpumask *src1, const struct cpumask *src2)
+__bpf_kfunc bool bpf_cpumask_intersects(const struct cpumask *src1, const struct cpumask *src2)
 {
 	return cpumask_intersects(src1, src2);
 }
@@ -338,7 +341,7 @@ bool bpf_cpumask_intersects(const struct cpumask *src1, const struct cpumask *sr
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpumask *src2)
+__bpf_kfunc bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpumask *src2)
 {
 	return cpumask_subset(src1, src2);
 }
@@ -353,7 +356,7 @@ bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpumask *src2)
  *
  * A struct bpf_cpumask pointer may be safely passed to @cpumask.
  */
-bool bpf_cpumask_empty(const struct cpumask *cpumask)
+__bpf_kfunc bool bpf_cpumask_empty(const struct cpumask *cpumask)
 {
 	return cpumask_empty(cpumask);
 }
@@ -368,7 +371,7 @@ bool bpf_cpumask_empty(const struct cpumask *cpumask)
  *
  * A struct bpf_cpumask pointer may be safely passed to @cpumask.
  */
-bool bpf_cpumask_full(const struct cpumask *cpumask)
+__bpf_kfunc bool bpf_cpumask_full(const struct cpumask *cpumask)
 {
 	return cpumask_full(cpumask);
 }
@@ -380,7 +383,7 @@ bool bpf_cpumask_full(const struct cpumask *cpumask)
  *
  * A struct bpf_cpumask pointer may be safely passed to @src.
  */
-void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src)
+__bpf_kfunc void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src)
 {
 	cpumask_copy((struct cpumask *)dst, src);
 }
@@ -395,7 +398,7 @@ void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src)
  *
  * A struct bpf_cpumask pointer may be safely passed to @src.
  */
-u32 bpf_cpumask_any(const struct cpumask *cpumask)
+__bpf_kfunc u32 bpf_cpumask_any(const struct cpumask *cpumask)
 {
 	return cpumask_any(cpumask);
 }
@@ -412,7 +415,7 @@ u32 bpf_cpumask_any(const struct cpumask *cpumask)
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-u32 bpf_cpumask_any_and(const struct cpumask *src1, const struct cpumask *src2)
+__bpf_kfunc u32 bpf_cpumask_any_and(const struct cpumask *src1, const struct cpumask *src2)
 {
 	return cpumask_any_and(src1, src2);
 }

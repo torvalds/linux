@@ -24,7 +24,6 @@
 #include <linux/net_tstamp.h>
 #include <linux/udp.h>
 #include <linux/sockios.h>
-#include <linux/net_tstamp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <poll.h>
@@ -121,7 +120,7 @@ static void close_xsk(struct xsk *xsk)
 		xsk_umem__delete(xsk->umem);
 	if (xsk->socket)
 		xsk_socket__delete(xsk->socket);
-	munmap(xsk->umem, UMEM_SIZE);
+	munmap(xsk->umem_area, UMEM_SIZE);
 }
 
 static void refill_rx(struct xsk *xsk, __u64 addr)
@@ -165,7 +164,7 @@ static void verify_skb_metadata(int fd)
 	hdr.msg_controllen = sizeof(cmsg_buf);
 
 	if (recvmsg(fd, &hdr, 0) < 0)
-		error(-1, errno, "recvmsg");
+		error(1, errno, "recvmsg");
 
 	for (cmsg = CMSG_FIRSTHDR(&hdr); cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&hdr, cmsg)) {
@@ -270,16 +269,16 @@ static int rxq_num(const char *ifname)
 	struct ifreq ifr = {
 		.ifr_data = (void *)&ch,
 	};
-	strcpy(ifr.ifr_name, ifname);
+	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE - 1);
 	int fd, ret;
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0)
-		error(-1, errno, "socket");
+		error(1, errno, "socket");
 
 	ret = ioctl(fd, SIOCETHTOOL, &ifr);
 	if (ret < 0)
-		error(-1, errno, "ioctl(SIOCETHTOOL)");
+		error(1, errno, "ioctl(SIOCETHTOOL)");
 
 	close(fd);
 
@@ -291,16 +290,16 @@ static void hwtstamp_ioctl(int op, const char *ifname, struct hwtstamp_config *c
 	struct ifreq ifr = {
 		.ifr_data = (void *)cfg,
 	};
-	strcpy(ifr.ifr_name, ifname);
+	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE - 1);
 	int fd, ret;
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0)
-		error(-1, errno, "socket");
+		error(1, errno, "socket");
 
 	ret = ioctl(fd, op, &ifr);
 	if (ret < 0)
-		error(-1, errno, "ioctl(%d)", op);
+		error(1, errno, "ioctl(%d)", op);
 
 	close(fd);
 }
@@ -360,7 +359,7 @@ static void timestamping_enable(int fd, int val)
 
 	ret = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val));
 	if (ret < 0)
-		error(-1, errno, "setsockopt(SO_TIMESTAMPING)");
+		error(1, errno, "setsockopt(SO_TIMESTAMPING)");
 }
 
 int main(int argc, char *argv[])
@@ -386,13 +385,13 @@ int main(int argc, char *argv[])
 
 	rx_xsk = malloc(sizeof(struct xsk) * rxq);
 	if (!rx_xsk)
-		error(-1, ENOMEM, "malloc");
+		error(1, ENOMEM, "malloc");
 
 	for (i = 0; i < rxq; i++) {
 		printf("open_xsk(%s, %p, %d)\n", ifname, &rx_xsk[i], i);
 		ret = open_xsk(ifindex, &rx_xsk[i], i);
 		if (ret)
-			error(-1, -ret, "open_xsk");
+			error(1, -ret, "open_xsk");
 
 		printf("xsk_socket__fd() -> %d\n", xsk_socket__fd(rx_xsk[i].socket));
 	}
@@ -400,7 +399,7 @@ int main(int argc, char *argv[])
 	printf("open bpf program...\n");
 	bpf_obj = xdp_hw_metadata__open();
 	if (libbpf_get_error(bpf_obj))
-		error(-1, libbpf_get_error(bpf_obj), "xdp_hw_metadata__open");
+		error(1, libbpf_get_error(bpf_obj), "xdp_hw_metadata__open");
 
 	prog = bpf_object__find_program_by_name(bpf_obj->obj, "rx");
 	bpf_program__set_ifindex(prog, ifindex);
@@ -409,12 +408,12 @@ int main(int argc, char *argv[])
 	printf("load bpf program...\n");
 	ret = xdp_hw_metadata__load(bpf_obj);
 	if (ret)
-		error(-1, -ret, "xdp_hw_metadata__load");
+		error(1, -ret, "xdp_hw_metadata__load");
 
 	printf("prepare skb endpoint...\n");
 	server_fd = start_server(AF_INET6, SOCK_DGRAM, NULL, 9092, 1000);
 	if (server_fd < 0)
-		error(-1, errno, "start_server");
+		error(1, errno, "start_server");
 	timestamping_enable(server_fd,
 			    SOF_TIMESTAMPING_SOFTWARE |
 			    SOF_TIMESTAMPING_RAW_HARDWARE);
@@ -427,7 +426,7 @@ int main(int argc, char *argv[])
 		printf("map[%d] = %d\n", queue_id, sock_fd);
 		ret = bpf_map_update_elem(bpf_map__fd(bpf_obj->maps.xsk), &queue_id, &sock_fd, 0);
 		if (ret)
-			error(-1, -ret, "bpf_map_update_elem");
+			error(1, -ret, "bpf_map_update_elem");
 	}
 
 	printf("attach bpf program...\n");
@@ -435,12 +434,12 @@ int main(int argc, char *argv[])
 			     bpf_program__fd(bpf_obj->progs.rx),
 			     XDP_FLAGS, NULL);
 	if (ret)
-		error(-1, -ret, "bpf_xdp_attach");
+		error(1, -ret, "bpf_xdp_attach");
 
 	signal(SIGINT, handle_signal);
 	ret = verify_metadata(rx_xsk, rxq, server_fd);
 	close(server_fd);
 	cleanup();
 	if (ret)
-		error(-1, -ret, "verify_metadata");
+		error(1, -ret, "verify_metadata");
 }

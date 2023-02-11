@@ -1926,6 +1926,10 @@ static int tsnep_probe(struct platform_device *pdev)
 	netdev->features = NETIF_F_SG;
 	netdev->hw_features = netdev->features | NETIF_F_LOOPBACK;
 
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			       NETDEV_XDP_ACT_NDO_XMIT |
+			       NETDEV_XDP_ACT_NDO_XMIT_SG;
+
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
