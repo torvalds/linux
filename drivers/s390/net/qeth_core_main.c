@@ -2801,9 +2801,11 @@ static void qeth_print_status_message(struct qeth_card *card)
 		 * of the level OSA sets the first character to zero
 		 * */
 		if (!card->info.mcl_level[0]) {
-			sprintf(card->info.mcl_level, "%02x%02x",
-				card->info.mcl_level[2],
-				card->info.mcl_level[3]);
+			scnprintf(card->info.mcl_level,
+				  sizeof(card->info.mcl_level),
+				  "%02x%02x",
+				  card->info.mcl_level[2],
+				  card->info.mcl_level[3]);
 			break;
 		}
 		fallthrough;
@@ -6090,7 +6092,7 @@ void qeth_dbf_longtext(debug_info_t *id, int level, char *fmt, ...)
 	if (!debug_level_enabled(id, level))
 		return;
 	va_start(args, fmt);
-	vsnprintf(dbf_txt_buf, sizeof(dbf_txt_buf), fmt, args);
+	vscnprintf(dbf_txt_buf, sizeof(dbf_txt_buf), fmt, args);
 	va_end(args);
 	debug_text_event(id, level, dbf_txt_buf);
 }
@@ -6330,8 +6332,8 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		goto err_dev;
 	}
 
-	snprintf(dbf_name, sizeof(dbf_name), "qeth_card_%s",
-		dev_name(&gdev->dev));
+	scnprintf(dbf_name, sizeof(dbf_name), "qeth_card_%s",
+		  dev_name(&gdev->dev));
 	card->debug = qeth_get_dbf_entry(dbf_name);
 	if (!card->debug) {
 		rc = qeth_add_dbf_entry(card, dbf_name);
