@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -111,6 +111,8 @@ static const struct dev_pm_ops qcom_soc_dev_pm_ops = {
 	.suspend_late = qcom_wdt_pet_suspend,
 	.resume_early = qcom_wdt_pet_resume,
 #endif
+	.freeze_late = qcom_wdt_pet_suspend,
+	.restore_early = qcom_wdt_pet_resume,
 };
 
 static const struct of_device_id qcom_soc_match_table[] = {

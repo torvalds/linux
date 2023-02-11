@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _SOC_QCOM_WATCHDOG_H_
@@ -153,6 +153,7 @@ struct msm_watchdog_data {
 	unsigned int tot_irq_count[NR_CPUS];
 	atomic_t irq_counts_running;
 	struct timer_list user_pet_timer;
+	bool hibernate;
 };
 
 extern void qcom_wdt_trigger_bite(void);
