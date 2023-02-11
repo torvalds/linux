@@ -30,7 +30,8 @@
 
 #define ISST_IF_DEV_MBOX	0
 #define ISST_IF_DEV_MMIO	1
-#define ISST_IF_DEV_MAX		2
+#define ISST_IF_DEV_TPMI	2
+#define ISST_IF_DEV_MAX		3
 
 /**
  * struct isst_if_cmd_cb - Used to register a IOCTL handler
