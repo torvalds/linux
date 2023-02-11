@@ -112,9 +112,12 @@
 };
 
 &gmac1 {
-	status = "okay";
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy5>;
+
+	fixed-link {
+		status = "disabled";
+	};
 };
 
 &mdio {
@@ -133,6 +136,10 @@
 		port@4 {
 			status = "okay";
 			label = "ethblue";
+		};
+
+		port@5 {
+			status = "disabled";
 		};
 	};
 };
