@@ -589,25 +589,6 @@
 		};
 	};
 
-	hdmi_sound: hdmi-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,hdmi";
-		simple-audio-card,widgets = "Headphone", "Out Jack",
-					    "Line", "In Jack";
-		status = "disabled";
-
-		simple-audio-card,dai-link {
-			format = "i2s";
-			mclk-fs = <256>;
-			cpu {
-				sound-dai = <&i2s>;
-			};
-			codec {
-				sound-dai = <&hdmi>;
-			};
-		};
-	};
-
 	timer: timer@20044000 {
 		compatible = "rockchip,rk3036-timer", "rockchip,rk3288-timer";
 		reg = <0x20044000 0x20>;
