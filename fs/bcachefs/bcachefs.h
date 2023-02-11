@@ -780,6 +780,9 @@ struct bch_fs {
 	struct workqueue_struct	*btree_interior_update_worker;
 	struct work_struct	btree_interior_update_work;
 
+	struct list_head	pending_node_rewrites;
+	struct mutex		pending_node_rewrites_lock;
+
 	/* btree_io.c: */
 	spinlock_t		btree_write_error_lock;
 	struct btree_write_stats {

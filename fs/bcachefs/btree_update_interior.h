@@ -318,6 +318,9 @@ void bch2_journal_entries_to_btree_roots(struct bch_fs *, struct jset *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
 					struct jset_entry *, struct jset_entry *);
 
+void bch2_do_pending_node_rewrites(struct bch_fs *);
+void bch2_free_pending_node_rewrites(struct bch_fs *);
+
 void bch2_fs_btree_interior_update_exit(struct bch_fs *);
 int bch2_fs_btree_interior_update_init(struct bch_fs *);
 

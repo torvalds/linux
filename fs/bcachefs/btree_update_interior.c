@@ -1998,6 +1998,7 @@ err:
 struct async_btree_rewrite {
 	struct bch_fs		*c;
 	struct work_struct	work;
+	struct list_head	list;
 	enum btree_id		btree_id;
 	unsigned		level;
 	struct bpos		pos;
@@ -2057,15 +2058,10 @@ void async_btree_node_rewrite_work(struct work_struct *work)
 void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 {
 	struct async_btree_rewrite *a;
-
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
-		bch_err(c, "%s: error getting c->writes ref", __func__);
-		return;
-	}
+	int ret;
 
 	a = kmalloc(sizeof(*a), GFP_NOFS);
 	if (!a) {
-		bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
 		bch_err(c, "%s: error allocating memory", __func__);
 		return;
 	}
@@ -2075,9 +2071,61 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 	a->level	= b->c.level;
 	a->pos		= b->key.k.p;
 	a->seq		= b->data->keys.seq;
-
 	INIT_WORK(&a->work, async_btree_node_rewrite_work);
+
+	if (unlikely(!test_bit(BCH_FS_MAY_GO_RW, &c->flags))) {
+		mutex_lock(&c->pending_node_rewrites_lock);
+		list_add(&a->list, &c->pending_node_rewrites);
+		mutex_unlock(&c->pending_node_rewrites_lock);
+		return;
+	}
+
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
+		if (test_bit(BCH_FS_STARTED, &c->flags)) {
+			bch_err(c, "%s: error getting c->writes ref", __func__);
+			kfree(a);
+			return;
+		}
+
+		ret = bch2_fs_read_write_early(c);
+		if (ret) {
+			bch_err(c, "%s: error going read-write: %s",
+				__func__, bch2_err_str(ret));
+			kfree(a);
+			return;
+		}
+
+		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
+	}
+
 	queue_work(c->btree_interior_update_worker, &a->work);
+}
+
+void bch2_do_pending_node_rewrites(struct bch_fs *c)
+{
+	struct async_btree_rewrite *a, *n;
+
+	mutex_lock(&c->pending_node_rewrites_lock);
+	list_for_each_entry_safe(a, n, &c->pending_node_rewrites, list) {
+		list_del(&a->list);
+
+		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
+		queue_work(c->btree_interior_update_worker, &a->work);
+	}
+	mutex_unlock(&c->pending_node_rewrites_lock);
+}
+
+void bch2_free_pending_node_rewrites(struct bch_fs *c)
+{
+	struct async_btree_rewrite *a, *n;
+
+	mutex_lock(&c->pending_node_rewrites_lock);
+	list_for_each_entry_safe(a, n, &c->pending_node_rewrites, list) {
+		list_del(&a->list);
+
+		kfree(a);
+	}
+	mutex_unlock(&c->pending_node_rewrites_lock);
 }
 
 static int __bch2_btree_node_update_key(struct btree_trans *trans,
@@ -2416,6 +2464,9 @@ int bch2_fs_btree_interior_update_init(struct bch_fs *c)
 	INIT_LIST_HEAD(&c->btree_interior_updates_unwritten);
 	mutex_init(&c->btree_interior_update_lock);
 	INIT_WORK(&c->btree_interior_update_work, btree_interior_update_work);
+
+	INIT_LIST_HEAD(&c->pending_node_rewrites);
+	mutex_init(&c->pending_node_rewrites_lock);
 
 	c->btree_interior_update_worker =
 		alloc_workqueue("btree_update", WQ_UNBOUND|WQ_MEM_RECLAIM, 1);
