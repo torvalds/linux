@@ -118,8 +118,6 @@
 
 #define EVMCS1_SUPPORTED_VMFUNC (0)
 
-DEFINE_STATIC_KEY_FALSE(enable_evmcs);
-
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
 #define EVMCS1_FIELD(number, name, clean_field)[ROL16(number, 6)] = \
 		{EVMCS1_OFFSET(name), clean_field}
@@ -611,6 +609,8 @@ int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 }
 
 #if IS_ENABLED(CONFIG_HYPERV)
+DEFINE_STATIC_KEY_FALSE(enable_evmcs);
+
 /*
  * KVM on Hyper-V always uses the latest known eVMCSv1 revision, the assumption
  * is: in case a feature has corresponding fields in eVMCS described and it was

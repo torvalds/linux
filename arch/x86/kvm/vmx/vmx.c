@@ -595,7 +595,7 @@ static void hv_reset_evmcs(void)
 {
 	struct hv_vp_assist_page *vp_ap;
 
-	if (!static_branch_unlikely(&enable_evmcs))
+	if (!kvm_is_using_evmcs())
 		return;
 
 	/*
@@ -2816,8 +2816,7 @@ static int vmx_hardware_enable(void)
 	 * This can happen if we hot-added a CPU but failed to allocate
 	 * VP assist page for it.
 	 */
-	if (static_branch_unlikely(&enable_evmcs) &&
-	    !hv_get_vp_assist_page(cpu))
+	if (kvm_is_using_evmcs() && !hv_get_vp_assist_page(cpu))
 		return -EFAULT;
 
 	intel_pt_handle_vmx(1);
@@ -2869,7 +2868,7 @@ struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags)
 	memset(vmcs, 0, vmcs_config.size);
 
 	/* KVM supports Enlightened VMCS v1 only */
-	if (static_branch_unlikely(&enable_evmcs))
+	if (kvm_is_using_evmcs())
 		vmcs->hdr.revision_id = KVM_EVMCS_VERSION;
 	else
 		vmcs->hdr.revision_id = vmcs_config.revision_id;
@@ -2964,7 +2963,7 @@ static __init int alloc_kvm_area(void)
 		 * still be marked with revision_id reported by
 		 * physical CPU.
 		 */
-		if (static_branch_unlikely(&enable_evmcs))
+		if (kvm_is_using_evmcs())
 			vmcs->hdr.revision_id = vmcs_config.revision_id;
 
 		per_cpu(vmxarea, cpu) = vmcs;
@@ -3931,7 +3930,7 @@ static void vmx_msr_bitmap_l01_changed(struct vcpu_vmx *vmx)
 	 * 'Enlightened MSR Bitmap' feature L0 needs to know that MSR
 	 * bitmap has changed.
 	 */
-	if (IS_ENABLED(CONFIG_HYPERV) && static_branch_unlikely(&enable_evmcs)) {
+	if (kvm_is_using_evmcs()) {
 		struct hv_enlightened_vmcs *evmcs = (void *)vmx->vmcs01.vmcs;
 
 		if (evmcs->hv_enlightenments_control.msr_bitmap)
@@ -7310,7 +7309,7 @@ static fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx_vcpu_enter_exit(vcpu, __vmx_vcpu_run_flags(vmx));
 
 	/* All fields are clean at this point */
-	if (static_branch_unlikely(&enable_evmcs)) {
+	if (kvm_is_using_evmcs()) {
 		current_evmcs->hv_clean_fields |=
 			HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
 
@@ -7440,7 +7439,7 @@ static int vmx_vcpu_create(struct kvm_vcpu *vcpu)
 	 * feature only for vmcs01, KVM currently isn't equipped to realize any
 	 * performance benefits from enabling it for vmcs02.
 	 */
-	if (IS_ENABLED(CONFIG_HYPERV) && static_branch_unlikely(&enable_evmcs) &&
+	if (kvm_is_using_evmcs() &&
 	    (ms_hyperv.nested_features & HV_X64_NESTED_MSR_BITMAP)) {
 		struct hv_enlightened_vmcs *evmcs = (void *)vmx->vmcs01.vmcs;
 

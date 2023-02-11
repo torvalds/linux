@@ -16,8 +16,6 @@
 
 struct vmcs_config;
 
-DECLARE_STATIC_KEY_FALSE(enable_evmcs);
-
 #define current_evmcs ((struct hv_enlightened_vmcs *)this_cpu_read(current_vmcs))
 
 #define KVM_EVMCS_VERSION 1
@@ -68,6 +66,13 @@ static inline u64 evmcs_read_any(struct hv_enlightened_vmcs *evmcs,
 }
 
 #if IS_ENABLED(CONFIG_HYPERV)
+
+DECLARE_STATIC_KEY_FALSE(enable_evmcs);
+
+static __always_inline bool kvm_is_using_evmcs(void)
+{
+	return static_branch_unlikely(&enable_evmcs);
+}
 
 static __always_inline int get_evmcs_offset(unsigned long field,
 					    u16 *clean_field)
@@ -158,6 +163,7 @@ static inline void evmcs_load(u64 phys_addr)
 
 void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf);
 #else /* !IS_ENABLED(CONFIG_HYPERV) */
+static __always_inline bool kvm_is_using_evmcs(void) { return false; }
 static __always_inline void evmcs_write64(unsigned long field, u64 value) {}
 static __always_inline void evmcs_write32(unsigned long field, u32 value) {}
 static __always_inline void evmcs_write16(unsigned long field, u16 value) {}
