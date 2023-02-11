@@ -718,7 +718,7 @@ static void hmat_register_target_devices(struct memory_target *target)
 	for (res = target->memregions.child; res; res = res->sibling) {
 		int target_nid = pxm_to_node(target->memory_pxm);
 
-		hmem_register_device(target_nid, res);
+		hmem_register_resource(target_nid, res);
 	}
 }
 
@@ -869,4 +869,4 @@ out_put:
 	acpi_put_table(tbl);
 	return 0;
 }
-device_initcall(hmat_init);
+subsys_initcall(hmat_init);

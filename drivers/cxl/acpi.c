@@ -731,7 +731,8 @@ static void __exit cxl_acpi_exit(void)
 	cxl_bus_drain();
 }
 
-module_init(cxl_acpi_init);
+/* load before dax_hmem sees 'Soft Reserved' CXL ranges */
+subsys_initcall(cxl_acpi_init);
 module_exit(cxl_acpi_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);

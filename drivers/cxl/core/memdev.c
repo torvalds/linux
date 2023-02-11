@@ -246,6 +246,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 	if (rc < 0)
 		goto err;
 	cxlmd->id = rc;
+	cxlmd->depth = -1;
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);

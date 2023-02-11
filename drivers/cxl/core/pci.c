@@ -214,11 +214,6 @@ static int devm_cxl_enable_mem(struct device *host, struct cxl_dev_state *cxlds)
 	return devm_add_action_or_reset(host, clear_mem_enable, cxlds);
 }
 
-static bool range_contains(struct range *r1, struct range *r2)
-{
-	return r1->start <= r2->start && r1->end >= r2->end;
-}
-
 /* require dvsec ranges to be covered by a locked platform window */
 static int dvsec_range_allowed(struct device *dev, void *arg)
 {

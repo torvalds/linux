@@ -46,6 +46,8 @@ static int cxl_device_id(struct device *dev)
 		return CXL_DEVICE_NVDIMM;
 	if (dev->type == CXL_PMEM_REGION_TYPE())
 		return CXL_DEVICE_PMEM_REGION;
+	if (dev->type == CXL_DAX_REGION_TYPE())
+		return CXL_DEVICE_DAX_REGION;
 	if (is_cxl_port(dev)) {
 		if (is_cxl_root(to_cxl_port(dev)))
 			return CXL_DEVICE_ROOT;
@@ -180,17 +182,7 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
 
-	switch (cxled->mode) {
-	case CXL_DECODER_RAM:
-		return sysfs_emit(buf, "ram\n");
-	case CXL_DECODER_PMEM:
-		return sysfs_emit(buf, "pmem\n");
-	case CXL_DECODER_NONE:
-		return sysfs_emit(buf, "none\n");
-	case CXL_DECODER_MIXED:
-	default:
-		return sysfs_emit(buf, "mixed\n");
-	}
+	return sysfs_emit(buf, "%s\n", cxl_decoder_mode_name(cxled->mode));
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
@@ -304,6 +296,7 @@ static struct attribute *cxl_decoder_root_attrs[] = {
 	&dev_attr_cap_type3.attr,
 	&dev_attr_target_list.attr,
 	SET_CXL_REGION_ATTR(create_pmem_region)
+	SET_CXL_REGION_ATTR(create_ram_region)
 	SET_CXL_REGION_ATTR(delete_region)
 	NULL,
 };
@@ -311,6 +304,13 @@ static struct attribute *cxl_decoder_root_attrs[] = {
 static bool can_create_pmem(struct cxl_root_decoder *cxlrd)
 {
 	unsigned long flags = CXL_DECODER_F_TYPE3 | CXL_DECODER_F_PMEM;
+
+	return (cxlrd->cxlsd.cxld.flags & flags) == flags;
+}
+
+static bool can_create_ram(struct cxl_root_decoder *cxlrd)
+{
+	unsigned long flags = CXL_DECODER_F_TYPE3 | CXL_DECODER_F_RAM;
 
 	return (cxlrd->cxlsd.cxld.flags & flags) == flags;
 }
@@ -323,7 +323,11 @@ static umode_t cxl_root_decoder_visible(struct kobject *kobj, struct attribute *
 	if (a == CXL_REGION_ATTR(create_pmem_region) && !can_create_pmem(cxlrd))
 		return 0;
 
-	if (a == CXL_REGION_ATTR(delete_region) && !can_create_pmem(cxlrd))
+	if (a == CXL_REGION_ATTR(create_ram_region) && !can_create_ram(cxlrd))
+		return 0;
+
+	if (a == CXL_REGION_ATTR(delete_region) &&
+	    !(can_create_pmem(cxlrd) || can_create_ram(cxlrd)))
 		return 0;
 
 	return a->mode;
@@ -444,6 +448,7 @@ bool is_endpoint_decoder(struct device *dev)
 {
 	return dev->type == &cxl_decoder_endpoint_type;
 }
+EXPORT_SYMBOL_NS_GPL(is_endpoint_decoder, CXL);
 
 bool is_root_decoder(struct device *dev)
 {
@@ -455,6 +460,7 @@ bool is_switch_decoder(struct device *dev)
 {
 	return is_root_decoder(dev) || dev->type == &cxl_decoder_switch_type;
 }
+EXPORT_SYMBOL_NS_GPL(is_switch_decoder, CXL);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
@@ -482,6 +488,7 @@ struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_switch_decoder, cxld.dev);
 }
+EXPORT_SYMBOL_NS_GPL(to_cxl_switch_decoder, CXL);
 
 static void cxl_ep_release(struct cxl_ep *ep)
 {
@@ -1207,6 +1214,7 @@ int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 
 	get_device(&endpoint->dev);
 	dev_set_drvdata(dev, endpoint);
+	cxlmd->depth = endpoint->depth;
 	return devm_add_action_or_reset(dev, delete_endpoint, cxlmd);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_autoremove, CXL);
@@ -1241,50 +1249,55 @@ static void reap_dports(struct cxl_port *port)
 	}
 }
 
+struct detach_ctx {
+	struct cxl_memdev *cxlmd;
+	int depth;
+};
+
+static int port_has_memdev(struct device *dev, const void *data)
+{
+	const struct detach_ctx *ctx = data;
+	struct cxl_port *port;
+
+	if (!is_cxl_port(dev))
+		return 0;
+
+	port = to_cxl_port(dev);
+	if (port->depth != ctx->depth)
+		return 0;
+
+	return !!cxl_ep_load(port, ctx->cxlmd);
+}
+
 static void cxl_detach_ep(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
-	struct device *iter;
 
-	for (iter = &cxlmd->dev; iter; iter = grandparent(iter)) {
-		struct device *dport_dev = grandparent(iter);
+	for (int i = cxlmd->depth - 1; i >= 1; i--) {
 		struct cxl_port *port, *parent_port;
+		struct detach_ctx ctx = {
+			.cxlmd = cxlmd,
+			.depth = i,
+		};
+		struct device *dev;
 		struct cxl_ep *ep;
 		bool died = false;
 
-		if (!dport_dev)
-			break;
-
-		port = find_cxl_port(dport_dev, NULL);
-		if (!port)
+		dev = bus_find_device(&cxl_bus_type, NULL, &ctx,
+				      port_has_memdev);
+		if (!dev)
 			continue;
-
-		if (is_cxl_root(port)) {
-			put_device(&port->dev);
-			continue;
-		}
+		port = to_cxl_port(dev);
 
 		parent_port = to_cxl_port(port->dev.parent);
 		device_lock(&parent_port->dev);
-		if (!parent_port->dev.driver) {
-			/*
-			 * The bottom-up race to delete the port lost to a
-			 * top-down port disable, give up here, because the
-			 * parent_port ->remove() will have cleaned up all
-			 * descendants.
-			 */
-			device_unlock(&parent_port->dev);
-			put_device(&port->dev);
-			continue;
-		}
-
 		device_lock(&port->dev);
 		ep = cxl_ep_load(port, cxlmd);
 		dev_dbg(&cxlmd->dev, "disconnect %s from %s\n",
 			ep ? dev_name(ep->ep) : "", dev_name(&port->dev));
 		cxl_ep_remove(port, ep);
 		if (ep && !port->dead && xa_empty(&port->endpoints) &&
-		    !is_cxl_root(parent_port)) {
+		    !is_cxl_root(parent_port) && parent_port->dev.driver) {
 			/*
 			 * This was the last ep attached to a dynamically
 			 * enumerated port. Block new cxl_add_ep() and garbage
@@ -1620,6 +1633,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	}
 
 	cxlrd->calc_hb = calc_hb;
+	mutex_init(&cxlrd->range_lock);
 
 	cxld = &cxlsd->cxld;
 	cxld->dev.type = &cxl_decoder_root_type;
@@ -2003,6 +2017,6 @@ static void cxl_core_exit(void)
 	debugfs_remove_recursive(cxl_debugfs);
 }
 
-module_init(cxl_core_init);
+subsys_initcall(cxl_core_init);
 module_exit(cxl_core_exit);
 MODULE_LICENSE("GPL v2");

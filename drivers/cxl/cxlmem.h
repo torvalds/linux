@@ -39,6 +39,7 @@
  * @cxl_nvb: coordinate removal of @cxl_nvd if present
  * @cxl_nvd: optional bridge to an nvdimm if the device supports pmem
  * @id: id number of this memdev instance.
+ * @depth: endpoint port depth
  */
 struct cxl_memdev {
 	struct device dev;
@@ -48,6 +49,7 @@ struct cxl_memdev {
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_nvdimm *cxl_nvd;
 	int id;
+	int depth;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
@@ -80,6 +82,9 @@ static inline bool is_cxl_endpoint(struct cxl_port *port)
 }
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);
+int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
+			 resource_size_t base, resource_size_t len,
+			 resource_size_t skipped);
 
 static inline struct cxl_ep *cxl_ep_load(struct cxl_port *port,
 					 struct cxl_memdev *cxlmd)
