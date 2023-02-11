@@ -1204,11 +1204,9 @@ static void imx_uart_dma_rx_callback(void *data)
 		r_bytes = rx_ring->head - rx_ring->tail;
 
 		/* If we received something, check for 0xff flood */
-		if (r_bytes > 0) {
-			spin_lock(&sport->port.lock);
-			imx_uart_check_flood(sport, imx_uart_readl(sport, USR2));
-			spin_unlock(&sport->port.lock);
-		}
+		spin_lock(&sport->port.lock);
+		imx_uart_check_flood(sport, imx_uart_readl(sport, USR2));
+		spin_unlock(&sport->port.lock);
 
 		if (!(sport->port.ignore_status_mask & URXD_DUMMY_READ)) {
 
