@@ -391,8 +391,7 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 /* any station allocated can be searched by hash list */
 struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
-	struct list_head *plist, *phead;
-	struct sta_info *psta = NULL;
+	struct sta_info *ploop, *psta = NULL;
 	u32	index;
 	u8 *addr;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -409,18 +408,11 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
 
-	phead = &pstapriv->sta_hash[index];
-	plist = phead->next;
-
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, hash_list);
-
-		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN))) {
-			/*  if found the matched address */
+	list_for_each_entry(ploop, &pstapriv->sta_hash[index], hash_list) {
+		if (!memcmp(ploop->hwaddr, addr, ETH_ALEN)) {
+			psta = ploop;
 			break;
 		}
-		psta = NULL;
-		plist = plist->next;
 	}
 
 	spin_unlock_bh(&pstapriv->sta_hash_lock);
