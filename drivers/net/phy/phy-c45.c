@@ -262,7 +262,11 @@ int genphy_c45_an_config_aneg(struct phy_device *phydev)
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
 
-	changed = genphy_config_eee_advert(phydev);
+	ret = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	if (ret < 0)
+		return ret;
+	else if (ret)
+		changed = true;
 
 	if (genphy_c45_baset1_able(phydev))
 		return genphy_c45_baset1_an_config_aneg(phydev);
@@ -967,6 +971,11 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 					 val & MDIO_AN_STAT1_ABLE);
 		}
 	}
+
+	/* This is optional functionality. If not supported, we may get an error
+	 * which should be ignored.
+	 */
+	genphy_c45_read_eee_abilities(phydev);
 
 	return 0;
 }
