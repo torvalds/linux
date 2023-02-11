@@ -112,6 +112,7 @@ static void isst_delete_hash(void)
  * isst_store_cmd() - Store command to a hash table
  * @cmd: Mailbox command.
  * @sub_cmd: Mailbox sub-command or MSR id.
+ * @cpu: Target CPU for the command
  * @mbox_cmd_type: Mailbox or MSR command.
  * @param: Mailbox parameter.
  * @data: Mailbox request data or MSR data.
@@ -363,7 +364,7 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 /**
  * isst_if_get_pci_dev() - Get the PCI device instance for a CPU
  * @cpu: Logical CPU number.
- * @bus_number: The bus number assigned by the hardware.
+ * @bus_no: The bus number assigned by the hardware.
  * @dev: The device number assigned by the hardware.
  * @fn: The function number assigned by the hardware.
  *
