@@ -1207,6 +1207,7 @@ int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 
 	get_device(&endpoint->dev);
 	dev_set_drvdata(dev, endpoint);
+	cxlmd->depth = endpoint->depth;
 	return devm_add_action_or_reset(dev, delete_endpoint, cxlmd);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_autoremove, CXL);
@@ -1241,50 +1242,55 @@ static void reap_dports(struct cxl_port *port)
 	}
 }
 
+struct detach_ctx {
+	struct cxl_memdev *cxlmd;
+	int depth;
+};
+
+static int port_has_memdev(struct device *dev, const void *data)
+{
+	const struct detach_ctx *ctx = data;
+	struct cxl_port *port;
+
+	if (!is_cxl_port(dev))
+		return 0;
+
+	port = to_cxl_port(dev);
+	if (port->depth != ctx->depth)
+		return 0;
+
+	return !!cxl_ep_load(port, ctx->cxlmd);
+}
+
 static void cxl_detach_ep(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
-	struct device *iter;
 
-	for (iter = &cxlmd->dev; iter; iter = grandparent(iter)) {
-		struct device *dport_dev = grandparent(iter);
+	for (int i = cxlmd->depth - 1; i >= 1; i--) {
 		struct cxl_port *port, *parent_port;
+		struct detach_ctx ctx = {
+			.cxlmd = cxlmd,
+			.depth = i,
+		};
+		struct device *dev;
 		struct cxl_ep *ep;
 		bool died = false;
 
-		if (!dport_dev)
-			break;
-
-		port = find_cxl_port(dport_dev, NULL);
-		if (!port)
+		dev = bus_find_device(&cxl_bus_type, NULL, &ctx,
+				      port_has_memdev);
+		if (!dev)
 			continue;
-
-		if (is_cxl_root(port)) {
-			put_device(&port->dev);
-			continue;
-		}
+		port = to_cxl_port(dev);
 
 		parent_port = to_cxl_port(port->dev.parent);
 		device_lock(&parent_port->dev);
-		if (!parent_port->dev.driver) {
-			/*
-			 * The bottom-up race to delete the port lost to a
-			 * top-down port disable, give up here, because the
-			 * parent_port ->remove() will have cleaned up all
-			 * descendants.
-			 */
-			device_unlock(&parent_port->dev);
-			put_device(&port->dev);
-			continue;
-		}
-
 		device_lock(&port->dev);
 		ep = cxl_ep_load(port, cxlmd);
 		dev_dbg(&cxlmd->dev, "disconnect %s from %s\n",
 			ep ? dev_name(ep->ep) : "", dev_name(&port->dev));
 		cxl_ep_remove(port, ep);
 		if (ep && !port->dead && xa_empty(&port->endpoints) &&
-		    !is_cxl_root(parent_port)) {
+		    !is_cxl_root(parent_port) && parent_port->dev.driver) {
 			/*
 			 * This was the last ep attached to a dynamically
 			 * enumerated port. Block new cxl_add_ep() and garbage

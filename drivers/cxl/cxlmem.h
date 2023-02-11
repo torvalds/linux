@@ -38,6 +38,7 @@
  * @cxl_nvb: coordinate removal of @cxl_nvd if present
  * @cxl_nvd: optional bridge to an nvdimm if the device supports pmem
  * @id: id number of this memdev instance.
+ * @depth: endpoint port depth
  */
 struct cxl_memdev {
 	struct device dev;
@@ -47,6 +48,7 @@ struct cxl_memdev {
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct cxl_nvdimm *cxl_nvd;
 	int id;
+	int depth;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
