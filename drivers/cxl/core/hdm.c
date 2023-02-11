@@ -676,6 +676,14 @@ static int cxl_decoder_reset(struct cxl_decoder *cxld)
 	port->commit_end--;
 	cxld->flags &= ~CXL_DECODER_F_ENABLE;
 
+	/* Userspace is now responsible for reconfiguring this decoder */
+	if (is_endpoint_decoder(&cxld->dev)) {
+		struct cxl_endpoint_decoder *cxled;
+
+		cxled = to_cxl_endpoint_decoder(&cxld->dev);
+		cxled->state = CXL_DECODER_STATE_MANUAL;
+	}
+
 	return 0;
 }
 
@@ -783,6 +791,9 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		return rc;
 	}
 	*dpa_base += dpa_size + skip;
+
+	cxled->state = CXL_DECODER_STATE_AUTO;
+
 	return 0;
 }
 

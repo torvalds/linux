@@ -446,6 +446,7 @@ bool is_endpoint_decoder(struct device *dev)
 {
 	return dev->type == &cxl_decoder_endpoint_type;
 }
+EXPORT_SYMBOL_NS_GPL(is_endpoint_decoder, CXL);
 
 bool is_root_decoder(struct device *dev)
 {
@@ -1628,6 +1629,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	}
 
 	cxlrd->calc_hb = calc_hb;
+	mutex_init(&cxlrd->range_lock);
 
 	cxld = &cxlsd->cxld;
 	cxld->dev.type = &cxl_decoder_root_type;
