@@ -1093,7 +1093,8 @@ static void phantom_pipe_blank(
 			otg_active_height,
 			0);
 
-	hws->funcs.wait_for_blank_complete(opp);
+	if (tg->funcs->is_tg_enabled(tg))
+		hws->funcs.wait_for_blank_complete(opp);
 }
 
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
@@ -1156,6 +1157,7 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			if (old_stream->mall_stream_config.type == SUBVP_PHANTOM) {
 				if (tg->funcs->enable_crtc) {
 					int main_pipe_width, main_pipe_height;
+
 					main_pipe_width = old_stream->mall_stream_config.paired_stream->dst.width;
 					main_pipe_height = old_stream->mall_stream_config.paired_stream->dst.height;
 					phantom_pipe_blank(dc, tg, main_pipe_width, main_pipe_height);
