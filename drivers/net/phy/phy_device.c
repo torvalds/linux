@@ -2231,7 +2231,10 @@ int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
 	int err;
 
-	if (genphy_config_eee_advert(phydev))
+	err = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	if (err < 0)
+		return err;
+	else if (err)
 		changed = true;
 
 	err = genphy_setup_master_slave(phydev);
@@ -2652,6 +2655,11 @@ int genphy_read_abilities(struct phy_device *phydev)
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
 				 phydev->supported, val & ESTATUS_1000_XFULL);
 	}
+
+	/* This is optional functionality. If not supported, we may get an error
+	 * which should be ignored.
+	 */
+	genphy_c45_read_eee_abilities(phydev);
 
 	return 0;
 }
