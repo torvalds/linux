@@ -40,7 +40,7 @@
 #include "remoteproc_internal.h"
 
 #define XO_FREQ		19200000
-#define PIL_TZ_AVG_BW	0
+#define PIL_TZ_AVG_BW	UINT_MAX
 #define PIL_TZ_PEAK_BW	UINT_MAX
 #define QMP_MSG_LEN	64
 
