@@ -999,7 +999,15 @@ static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
 
 		do_div(value, rp->time_unit);
 		y = ilog2(value);
-		f = div64_u64(4 * (value - (1 << y)), 1 << y);
+
+		/*
+		 * The target hardware field is 7 bits wide, so return all ones
+		 * if the exponent is too large.
+		 */
+		if (y > 0x1f)
+			return 0x7f;
+
+		f = div64_u64(4 * (value - (1ULL << y)), 1ULL << y);
 		value = (y & 0x1f) | ((f & 0x3) << 5);
 	}
 	return value;
