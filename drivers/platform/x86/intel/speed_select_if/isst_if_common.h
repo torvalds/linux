@@ -41,6 +41,7 @@
  * @offset:	Offset to the first valid member in command structure.
  *		This will be the offset of the start of the command
  *		after command count field
+ * @api_version: API version supported for this target. 0, if none.
  * @owner:	Registered module owner
  * @cmd_callback: Callback function to handle IOCTL. The callback has the
  *		command pointer with data for command. There is a pointer
@@ -60,7 +61,7 @@ struct isst_if_cmd_cb {
 	int registered;
 	int cmd_size;
 	int offset;
-
+	int api_version;
 	struct module *owner;
 	long (*cmd_callback)(u8 *ptr, int *write_only, int resume);
 	long (*def_ioctl)(struct file *file, unsigned int cmd, unsigned long arg);

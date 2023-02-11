@@ -262,11 +262,13 @@ bool isst_if_mbox_cmd_set_req(struct isst_if_mbox_cmd *cmd)
 }
 EXPORT_SYMBOL_GPL(isst_if_mbox_cmd_set_req);
 
+static int isst_if_api_version;
+
 static int isst_if_get_platform_info(void __user *argp)
 {
 	struct isst_if_platform_info info;
 
-	info.api_version = ISST_IF_API_VERSION;
+	info.api_version = isst_if_api_version;
 	info.driver_version = ISST_IF_DRIVER_VERSION;
 	info.max_cmds_per_ioctl = ISST_IF_CMD_LIMIT;
 	info.mbox_supported = punit_callbacks[ISST_IF_DEV_MBOX].registered;
@@ -767,6 +769,10 @@ int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 		mutex_unlock(&punit_misc_dev_open_lock);
 		return -EAGAIN;
 	}
+	if (!cb->api_version)
+		cb->api_version = ISST_IF_API_VERSION;
+	if (cb->api_version > isst_if_api_version)
+		isst_if_api_version = cb->api_version;
 	memcpy(&punit_callbacks[device_type], cb, sizeof(*cb));
 	punit_callbacks[device_type].registered = 1;
 	mutex_unlock(&punit_misc_dev_open_lock);
