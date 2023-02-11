@@ -477,9 +477,7 @@ static int dwc_eth_dwmac_remove(struct platform_device *pdev)
 
 	data = device_get_match_data(&pdev->dev);
 
-	err = stmmac_dvr_remove(&pdev->dev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to remove platform: %d\n", err);
+	stmmac_dvr_remove(&pdev->dev);
 
 	err = data->remove(pdev);
 	if (err < 0)

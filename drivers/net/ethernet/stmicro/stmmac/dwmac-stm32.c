@@ -421,8 +421,9 @@ static int stm32_dwmac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	int ret = stmmac_dvr_remove(&pdev->dev);
 	struct stm32_dwmac *dwmac = priv->plat->bsp_priv;
+
+	stmmac_dvr_remove(&pdev->dev);
 
 	stm32_dwmac_clk_disable(priv->plat->bsp_priv);
 
@@ -431,7 +432,7 @@ static int stm32_dwmac_remove(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, false);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int stm32mp1_suspend(struct stm32_dwmac *dwmac)
