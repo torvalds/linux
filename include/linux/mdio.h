@@ -428,6 +428,64 @@ static inline void mii_eee_cap1_mod_linkmode_t(unsigned long *adv, u32 val)
 			 adv, val & MDIO_EEE_10GKR);
 }
 
+/**
+ * linkmode_to_mii_eee_cap1_t()
+ * @adv: the linkmode advertisement settings
+ *
+ * A function that translates linkmode to value for IEEE 802.3-2018 45.2.7.13
+ * "EEE advertisement 1" register (7.60)
+ */
+static inline u32 linkmode_to_mii_eee_cap1_t(unsigned long *adv)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, adv))
+		result |= MDIO_EEE_100TX;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, adv))
+		result |= MDIO_EEE_1000T;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, adv))
+		result |= MDIO_EEE_10GT;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT, adv))
+		result |= MDIO_EEE_1000KX;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT, adv))
+		result |= MDIO_EEE_10GKX4;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT, adv))
+		result |= MDIO_EEE_10GKR;
+
+	return result;
+}
+
+/**
+ * mii_10base_t1_adv_mod_linkmode_t()
+ * @adv: linkmode advertisement settings
+ * @val: register value
+ *
+ * A function that translates IEEE 802.3cg-2019 45.2.7.26 "10BASE-T1 AN status"
+ * register (7.527) value to the linkmode.
+ */
+static inline void mii_10base_t1_adv_mod_linkmode_t(unsigned long *adv, u16 val)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			 adv, val & MDIO_AN_10BT1_AN_CTRL_ADV_EEE_T1L);
+}
+
+/**
+ * linkmode_adv_to_mii_10base_t1_t()
+ * @adv: linkmode advertisement settings
+ *
+ * A function that translates the linkmode to IEEE 802.3cg-2019 45.2.7.25
+ * "10BASE-T1 AN control" register (7.526) value.
+ */
+static inline u32 linkmode_adv_to_mii_10base_t1_t(unsigned long *adv)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT, adv))
+		result |= MDIO_AN_10BT1_AN_CTRL_ADV_EEE_T1L;
+
+	return result;
+}
+
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 int __mdiobus_modify_changed(struct mii_bus *bus, int addr, u32 regnum,
