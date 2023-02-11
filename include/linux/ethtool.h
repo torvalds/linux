@@ -73,12 +73,14 @@ enum {
  * @rx_buf_len: Current length of buffers on the rx ring.
  * @tcp_data_split: Scatter packet headers and data to separate buffers
  * @tx_push: The flag of tx push mode
+ * @rx_push: The flag of rx push mode
  * @cqe_size: Size of TX/RX completion queue event
  */
 struct kernel_ethtool_ringparam {
 	u32	rx_buf_len;
 	u8	tcp_data_split;
 	u8	tx_push;
+	u8	rx_push;
 	u32	cqe_size;
 };
 
@@ -87,11 +89,13 @@ struct kernel_ethtool_ringparam {
  * @ETHTOOL_RING_USE_RX_BUF_LEN: capture for setting rx_buf_len
  * @ETHTOOL_RING_USE_CQE_SIZE: capture for setting cqe_size
  * @ETHTOOL_RING_USE_TX_PUSH: capture for setting tx_push
+ * @ETHTOOL_RING_USE_RX_PUSH: capture for setting rx_push
  */
 enum ethtool_supported_ring_param {
 	ETHTOOL_RING_USE_RX_BUF_LEN = BIT(0),
 	ETHTOOL_RING_USE_CQE_SIZE   = BIT(1),
 	ETHTOOL_RING_USE_TX_PUSH    = BIT(2),
+	ETHTOOL_RING_USE_RX_PUSH    = BIT(3),
 };
 
 #define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
