@@ -1125,7 +1125,6 @@ static int adsp_probe(struct platform_device *pdev)
 	timeout_disabled = qcom_pil_timeouts_disabled();
 	qcom_add_glink_subdev(rproc, &adsp->glink_subdev, desc->ssr_name);
 	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
-	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
 	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
 					      desc->sysmon_name,
 					      desc->ssctl_id);
@@ -1134,6 +1133,7 @@ static int adsp_probe(struct platform_device *pdev)
 		goto detach_proxy_pds;
 	}
 
+	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
 	ret = device_create_file(adsp->dev, &dev_attr_txn_id);
 	if (ret)
 		goto remove_subdevs;
