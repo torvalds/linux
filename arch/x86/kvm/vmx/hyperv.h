@@ -67,11 +67,11 @@ static inline u64 evmcs_read_any(struct hv_enlightened_vmcs *evmcs,
 
 #if IS_ENABLED(CONFIG_HYPERV)
 
-DECLARE_STATIC_KEY_FALSE(enable_evmcs);
+DECLARE_STATIC_KEY_FALSE(__kvm_is_using_evmcs);
 
 static __always_inline bool kvm_is_using_evmcs(void)
 {
-	return static_branch_unlikely(&enable_evmcs);
+	return static_branch_unlikely(&__kvm_is_using_evmcs);
 }
 
 static __always_inline int get_evmcs_offset(unsigned long field,

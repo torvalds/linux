@@ -579,7 +579,7 @@ static __init void hv_init_evmcs(void)
 
 		if (enlightened_vmcs) {
 			pr_info("Using Hyper-V Enlightened VMCS\n");
-			static_branch_enable(&enable_evmcs);
+			static_branch_enable(&__kvm_is_using_evmcs);
 		}
 
 		if (ms_hyperv.nested_features & HV_X64_NESTED_DIRECT_FLUSH)
