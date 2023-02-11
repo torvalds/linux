@@ -61,6 +61,7 @@
 #endif
 #include "minidump_memory.h"
 #endif
+#include "../../../kernel/time/tick-internal.h"
 
 #ifdef CONFIG_QCOM_DYN_MINIDUMP_STACK
 
@@ -851,6 +852,17 @@ static inline const char *md_get_task_state(struct task_struct *tsk)
 	return task_state_array[md_task_state_index(tsk)];
 }
 
+static void md_dump_next_event(void)
+{
+	int cpu;
+	struct tick_device *device_dump = DEBUG_SYMBOL_LOOKUP(tick_cpu_device);
+
+	for_each_possible_cpu(cpu) {
+		pr_emerg("CPU%d next event is %ld\n", cpu,
+			per_cpu(device_dump->evtdev, cpu)->next_event);
+	}
+}
+
 static void md_dump_runqueues(void)
 {
 	int cpu;
@@ -1094,6 +1106,7 @@ void md_dump_process(void)
 	md_dump_other_cpus_context();
 dump_rq:
 #endif
+	md_dump_next_event();
 	md_dump_runqueues();
 	if (md_meminfo_seq_buf)
 		md_dump_meminfo(md_meminfo_seq_buf);
