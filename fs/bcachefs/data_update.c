@@ -308,9 +308,11 @@ void bch2_data_update_exit(struct data_update *update)
 		bch2_bkey_ptrs_c(bkey_i_to_s_c(update->k.k));
 	const struct bch_extent_ptr *ptr;
 
-	bkey_for_each_ptr(ptrs, ptr)
+	bkey_for_each_ptr(ptrs, ptr) {
 		bch2_bucket_nocow_unlock(&c->nocow_locks,
-				       PTR_BUCKET_POS(c, ptr), 0);
+					 PTR_BUCKET_POS(c, ptr), 0);
+		percpu_ref_put(&bch_dev_bkey_exists(c, ptr->dev)->ref);
+	}
 
 	bch2_bkey_buf_exit(&update->k, c);
 	bch2_disk_reservation_put(c, &update->op.res);
@@ -410,6 +412,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
+	const struct bch_extent_ptr *ptr;
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
 	unsigned int ptrs_locked = 0;
 	int ret;
@@ -434,6 +437,9 @@ int bch2_data_update_init(struct btree_trans *trans,
 					     io_opts.compression];
 	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE)
 		m->op.alloc_reserve = RESERVE_movinggc;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		percpu_ref_get(&bch_dev_bkey_exists(c, ptr->dev)->ref);
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
@@ -507,7 +513,8 @@ err:
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		if ((1U << i) & ptrs_locked)
 			bch2_bucket_nocow_unlock(&c->nocow_locks,
-						PTR_BUCKET_POS(c, &p.ptr), 0);
+						 PTR_BUCKET_POS(c, &p.ptr), 0);
+		percpu_ref_put(&bch_dev_bkey_exists(c, p.ptr.dev)->ref);
 		i++;
 	}
 
