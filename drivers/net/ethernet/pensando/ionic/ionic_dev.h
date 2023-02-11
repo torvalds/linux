@@ -159,6 +159,11 @@ struct ionic_dev {
 	struct ionic_intr __iomem *intr_ctrl;
 	u64 __iomem *intr_status;
 
+	struct mutex cmb_inuse_lock; /* for cmb_inuse */
+	unsigned long *cmb_inuse;
+	dma_addr_t phy_cmb_pages;
+	u32 cmb_npages;
+
 	u32 port_info_sz;
 	struct ionic_port_info *port_info;
 	dma_addr_t port_info_pa;
@@ -203,6 +208,7 @@ struct ionic_desc_info {
 		struct ionic_rxq_desc *rxq_desc;
 		struct ionic_admin_cmd *adminq_desc;
 	};
+	void __iomem *cmb_desc;
 	union {
 		void *sg_desc;
 		struct ionic_txq_sg_desc *txq_sg_desc;
@@ -241,12 +247,14 @@ struct ionic_queue {
 		struct ionic_rxq_desc *rxq;
 		struct ionic_admin_cmd *adminq;
 	};
+	void __iomem *cmb_base;
 	union {
 		void *sg_base;
 		struct ionic_txq_sg_desc *txq_sgl;
 		struct ionic_rxq_sg_desc *rxq_sgl;
 	};
 	dma_addr_t base_pa;
+	dma_addr_t cmb_base_pa;
 	dma_addr_t sg_base_pa;
 	unsigned int desc_size;
 	unsigned int sg_desc_size;
@@ -309,6 +317,7 @@ static inline bool ionic_q_has_space(struct ionic_queue *q, unsigned int want)
 
 void ionic_init_devinfo(struct ionic *ionic);
 int ionic_dev_setup(struct ionic *ionic);
+void ionic_dev_teardown(struct ionic *ionic);
 
 void ionic_dev_cmd_go(struct ionic_dev *idev, union ionic_dev_cmd *cmd);
 u8 ionic_dev_cmd_status(struct ionic_dev *idev);
@@ -344,6 +353,9 @@ void ionic_dev_cmd_adminq_init(struct ionic_dev *idev, struct ionic_qcq *qcq,
 
 int ionic_db_page_num(struct ionic_lif *lif, int pid);
 
+int ionic_get_cmb(struct ionic_lif *lif, u32 *pgid, phys_addr_t *pgaddr, int order);
+void ionic_put_cmb(struct ionic_lif *lif, u32 pgid, int order);
+
 int ionic_cq_init(struct ionic_lif *lif, struct ionic_cq *cq,
 		  struct ionic_intr_info *intr,
 		  unsigned int num_descs, size_t desc_size);
@@ -360,6 +372,7 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 unsigned int num_descs, size_t desc_size,
 		 size_t sg_desc_size, unsigned int pid);
 void ionic_q_map(struct ionic_queue *q, void *base, dma_addr_t base_pa);
+void ionic_q_cmb_map(struct ionic_queue *q, void __iomem *base, dma_addr_t base_pa);
 void ionic_q_sg_map(struct ionic_queue *q, void *base, dma_addr_t base_pa);
 void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
 		  void *cb_arg);
