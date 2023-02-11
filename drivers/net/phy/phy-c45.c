@@ -662,6 +662,76 @@ int genphy_c45_read_mdix(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_read_mdix);
 
 /**
+ * genphy_c45_read_eee_cap1 - read supported EEE link modes from register 3.20
+ * @phydev: target phy_device struct
+ */
+static int genphy_c45_read_eee_cap1(struct phy_device *phydev)
+{
+	int val;
+
+	/* IEEE 802.3-2018 45.2.3.10 EEE control and capability 1
+	 * (Register 3.20)
+	 */
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
+	if (val < 0)
+		return val;
+
+	/* The 802.3 2018 standard says the top 2 bits are reserved and should
+	 * read as 0. Also, it seems unlikely anybody will build a PHY which
+	 * supports 100GBASE-R deep sleep all the way down to 100BASE-TX EEE.
+	 * If MDIO_PCS_EEE_ABLE is 0xffff assume EEE is not supported.
+	 */
+	if (val == 0xffff)
+		return 0;
+
+	mii_eee_cap1_mod_linkmode_t(phydev->supported_eee, val);
+
+	/* Some buggy devices indicate EEE link modes in MDIO_PCS_EEE_ABLE
+	 * which they don't support as indicated by BMSR, ESTATUS etc.
+	 */
+	linkmode_and(phydev->supported_eee, phydev->supported_eee,
+		     phydev->supported);
+
+	return 0;
+}
+
+/**
+ * genphy_c45_read_eee_abilities - read supported EEE link modes
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_read_eee_abilities(struct phy_device *phydev)
+{
+	int val;
+
+	/* There is not indicator whether optional register
+	 * "EEE control and capability 1" (3.20) is supported. Read it only
+	 * on devices with appropriate linkmodes.
+	 */
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+		val = genphy_c45_read_eee_cap1(phydev);
+		if (val)
+			return val;
+	}
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			      phydev->supported)) {
+		/* IEEE 802.3cg-2019 45.2.1.186b 10BASE-T1L PMA status register
+		 * (Register 1.2295)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10T1L_STAT);
+		if (val < 0)
+			return val;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+				 phydev->supported_eee,
+				 val & MDIO_PMA_10T1L_STAT_EEE);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_read_eee_abilities);
+
+/**
  * genphy_c45_pma_read_abilities - read supported link modes from PMA
  * @phydev: target phy_device struct
  *
