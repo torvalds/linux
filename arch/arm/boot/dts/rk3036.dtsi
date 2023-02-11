@@ -408,6 +408,20 @@
 		status = "disabled";
 	};
 
+	spdif_tx: spdif-tx@10204000 {
+		compatible = "rockchip,rk3066-spdif";
+		reg = <0x10204000 0x1000>;
+		clocks = <&cru SCLK_SPDIF>, <&cru SCLK_SPDIF>;
+		clock-names = "mclk", "hclk";
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 13>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_out>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	sfc: sfc@10208000 {
 		compatible = "rockchip,sfc";
 		reg = <0x10208000 0x200>;
@@ -899,6 +913,12 @@
 						<1 RK_PD5 2 &pcfg_pull_default>,
 						<1 RK_PD6 2 &pcfg_pull_default>,
 						<1 RK_PD7 2 &pcfg_pull_default>;
+			};
+		};
+
+		spdif_tx {
+			spdif_out: spdif-out {
+				rockchip,pins = <0 RK_PD4 1 &pcfg_pull_default>;
 			};
 		};
 
