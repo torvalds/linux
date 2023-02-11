@@ -742,10 +742,109 @@ cfg_test_port()
 	cfg_test_port_l2
 }
 
+ipv4_grps_get()
+{
+	local max_grps=$1; shift
+	local i
+
+	for i in $(seq 0 $((max_grps - 1))); do
+		echo "239.1.1.$i"
+	done
+}
+
+ipv6_grps_get()
+{
+	local max_grps=$1; shift
+	local i
+
+	for i in $(seq 0 $((max_grps - 1))); do
+		echo "ff0e::$(printf %x $i)"
+	done
+}
+
+l2_grps_get()
+{
+	local max_grps=$1; shift
+	local i
+
+	for i in $(seq 0 $((max_grps - 1))); do
+		echo "01:00:00:00:00:$(printf %02x $i)"
+	done
+}
+
+cfg_test_dump_common()
+{
+	local name=$1; shift
+	local fn=$1; shift
+	local max_bridges=2
+	local max_grps=256
+	local max_ports=32
+	local num_entries
+	local batch_file
+	local grp
+	local i j
+
+	RET=0
+
+	# Create net devices.
+	for i in $(seq 1 $max_bridges); do
+		ip link add name br-test${i} up type bridge vlan_filtering 1 \
+			mcast_snooping 1
+		for j in $(seq 1 $max_ports); do
+			ip link add name br-test${i}-du${j} up \
+				master br-test${i} type dummy
+		done
+	done
+
+	# Create batch file with MDB entries.
+	batch_file=$(mktemp)
+	for i in $(seq 1 $max_bridges); do
+		for j in $(seq 1 $max_ports); do
+			for grp in $($fn $max_grps); do
+				echo "mdb add dev br-test${i} \
+					port br-test${i}-du${j} grp $grp \
+					permanent vid 1" >> $batch_file
+			done
+		done
+	done
+
+	# Program the batch file and check for expected number of entries.
+	bridge -b $batch_file
+	for i in $(seq 1 $max_bridges); do
+		num_entries=$(bridge mdb show dev br-test${i} | \
+			grep "permanent" | wc -l)
+		[[ $num_entries -eq $((max_grps * max_ports)) ]]
+		check_err $? "Wrong number of entries in br-test${i}"
+	done
+
+	# Cleanup.
+	rm $batch_file
+	for i in $(seq 1 $max_bridges); do
+		ip link del dev br-test${i}
+		for j in $(seq $max_ports); do
+			ip link del dev br-test${i}-du${j}
+		done
+	done
+
+	log_test "$name large scale dump tests"
+}
+
+# Check large scale dump.
+cfg_test_dump()
+{
+	echo
+	log_info "# Large scale dump tests"
+
+	cfg_test_dump_common "IPv4" ipv4_grps_get
+	cfg_test_dump_common "IPv6" ipv6_grps_get
+	cfg_test_dump_common "L2" l2_grps_get
+}
+
 cfg_test()
 {
 	cfg_test_host
 	cfg_test_port
+	cfg_test_dump
 }
 
 __fwd_test_host_ip()
