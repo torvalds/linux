@@ -641,8 +641,6 @@ static void dc_deinit(struct device *dev)
 		dev_err(dev, "assert vout resets error.\n");
 }
 
-
-///////////////////////////////////////////////////////////
 static int dc_init(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
@@ -746,6 +744,7 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	struct dc_hw_display display;
 	int ret;
 
+
 	if (dc->init_finished == false) {
 		ret = dc_vout_clk_enable(dev, dc);
 		if (ret)
@@ -841,6 +840,7 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	//regmap_update_bits(dc->dss_regmap, 0x8, BIT(3), 1 << 3);
 
 	dc_hw_setup_display(&dc->hw, &display);
+
 }
 
 static void vs_dc_disable(struct device *dev, struct drm_crtc *crtc)
@@ -1385,10 +1385,13 @@ static irqreturn_t dc_isr(int irq, void *data)
 	struct vs_dc_info *dc_info = dc->hw.info;
 	u32 i, ret;
 
+	if(!dc_info)
+	  return IRQ_HANDLED;
+
 	ret = dc_hw_get_interrupt(&dc->hw);
 
 	for (i = 0; i < dc_info->panel_num; i++)
-		vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
+	  vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
 
 	return IRQ_HANDLED;
 }
@@ -1635,7 +1638,6 @@ static int dc_probe(struct platform_device *pdev)
 	if (IS_ERR(dc->hw.mmu_base))
 		return PTR_ERR(dc->hw.mmu_base);
 #endif
-
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(dev, irq, dc_isr, 0, dev_name(dev), dc);
 	if (ret < 0) {
