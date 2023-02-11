@@ -22,12 +22,60 @@
 		reg = <0x60000000 0x20000000>;
 	};
 
-	multi_sound: multi-sound {
+	multi_sounds: multi-sounds {
 		status = "okay";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip,hdmi-codec";
-		rockchip,cpu = <&i2s>;
-		rockchip,codec = <&acodec>, <&hdmi>;
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,rk3036-sounds";
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+			codec {
+				sound-dai = <&acodec>;
+			};
+		};
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+			codec {
+				sound-dai = <&hdmi>;
+			};
+		};
+		simple-audio-card,dai-link@2 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+			codec {
+				sound-dai = <&es8311>;
+			};
+		};
+	};
+
+	spdiftx_codec: spdiftx-codec {
+		status = "okay";
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_sound: spdif-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,spdif-sound";
+		simple-audio-card,dai-link {
+			mclk-fs = <256>;
+			cpu {
+				sound-dai = <&spdif_tx>;
+			};
+			codec {
+				sound-dai = <&spdiftx_codec>;
+			};
+		};
 	};
 
 	vdd_arm: vdd-arm-regulator {
@@ -118,6 +166,7 @@
 };
 
 &hdmi {
+	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
@@ -435,6 +484,11 @@
 
 &mpp_srv {
 	status = "okay";
+};
+
+&spdif_tx {
+	status = "okay";
+	#sound-dai-cells = <0>;
 };
 
 &pinctrl {
