@@ -362,6 +362,10 @@ static inline struct nf_conntrack_net *nf_ct_pernet(const struct net *net)
 	return net_generic(net, nf_conntrack_net_id);
 }
 
+int nf_ct_skb_network_trim(struct sk_buff *skb, int family);
+int nf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
+			   u16 zone, u8 family, u8 *proto, u16 *mru);
+
 #define NF_CT_STAT_INC(net, count)	  __this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_INC_ATOMIC(net, count) this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_ADD_ATOMIC(net, count, v) this_cpu_add((net)->ct.stat->count, (v))

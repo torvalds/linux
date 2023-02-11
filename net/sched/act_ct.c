@@ -726,31 +726,6 @@ drop_ct:
 	return false;
 }
 
-/* Trim the skb to the length specified by the IP/IPv6 header,
- * removing any trailing lower-layer padding. This prepares the skb
- * for higher-layer processing that assumes skb->len excludes padding
- * (such as nf_ip_checksum). The caller needs to pull the skb to the
- * network header, and ensure ip_hdr/ipv6_hdr points to valid data.
- */
-static int tcf_ct_skb_network_trim(struct sk_buff *skb, int family)
-{
-	unsigned int len;
-
-	switch (family) {
-	case NFPROTO_IPV4:
-		len = skb_ip_totlen(skb);
-		break;
-	case NFPROTO_IPV6:
-		len = sizeof(struct ipv6hdr)
-			+ ntohs(ipv6_hdr(skb)->payload_len);
-		break;
-	default:
-		len = skb->len;
-	}
-
-	return pskb_trim_rcsum(skb, len);
-}
-
 static u8 tcf_ct_skb_nf_family(struct sk_buff *skb)
 {
 	u8 family = NFPROTO_UNSPEC;
@@ -810,6 +785,7 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 	struct nf_conn *ct;
 	int err = 0;
 	bool frag;
+	u8 proto;
 	u16 mru;
 
 	/* Previously seen (loopback)? Ignore. */
@@ -825,50 +801,14 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 		return err;
 
 	skb_get(skb);
-	mru = tc_skb_cb(skb)->mru;
+	err = nf_ct_handle_fragments(net, skb, zone, family, &proto, &mru);
+	if (err)
+		return err;
 
-	if (family == NFPROTO_IPV4) {
-		enum ip_defrag_users user = IP_DEFRAG_CONNTRACK_IN + zone;
+	*defrag = true;
+	tc_skb_cb(skb)->mru = mru;
 
-		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
-		local_bh_disable();
-		err = ip_defrag(net, skb, user);
-		local_bh_enable();
-		if (err && err != -EINPROGRESS)
-			return err;
-
-		if (!err) {
-			*defrag = true;
-			mru = IPCB(skb)->frag_max_size;
-		}
-	} else { /* NFPROTO_IPV6 */
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
-		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
-
-		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
-		err = nf_ct_frag6_gather(net, skb, user);
-		if (err && err != -EINPROGRESS)
-			goto out_free;
-
-		if (!err) {
-			*defrag = true;
-			mru = IP6CB(skb)->frag_max_size;
-		}
-#else
-		err = -EOPNOTSUPP;
-		goto out_free;
-#endif
-	}
-
-	if (err != -EINPROGRESS)
-		tc_skb_cb(skb)->mru = mru;
-	skb_clear_hash(skb);
-	skb->ignore_df = 1;
-	return err;
-
-out_free:
-	kfree_skb(skb);
-	return err;
+	return 0;
 }
 
 static void tcf_ct_params_free(struct tcf_ct_params *params)
@@ -1011,7 +951,7 @@ TC_INDIRECT_SCOPE int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	if (err)
 		goto drop;
 
-	err = tcf_ct_skb_network_trim(skb, family);
+	err = nf_ct_skb_network_trim(skb, family);
 	if (err)
 		goto drop;
 
