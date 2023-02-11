@@ -588,6 +588,7 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 	struct isst_if_cmd_cb cmd_cb;
 	struct isst_if_cmd_cb *cb;
 	long ret = -ENOTTY;
+	int i;
 
 	switch (cmd) {
 	case ISST_IF_GET_PLATFORM_INFO:
@@ -616,6 +617,16 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		ret = isst_if_exec_multi_cmd(argp, &cmd_cb);
 		break;
 	default:
+		for (i = 0; i < ISST_IF_DEV_MAX; ++i) {
+			struct isst_if_cmd_cb *cb = &punit_callbacks[i];
+			int ret;
+
+			if (cb->def_ioctl) {
+				ret = cb->def_ioctl(file, cmd, arg);
+				if (!ret)
+					return ret;
+			}
+		}
 		break;
 	}
 

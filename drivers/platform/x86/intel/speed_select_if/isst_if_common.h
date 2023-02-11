@@ -48,6 +48,8 @@
  *		response to user ioctl buffer. The "resume" argument
  *		can be used to avoid storing the command for replay
  *		during system resume
+ * @def_ioctl:	Default IOCTL handler callback, if there is no match in
+ *		the existing list of IOCTL handled by the common handler.
  *
  * This structure is used to register an handler for IOCTL. To avoid
  * code duplication common code handles all the IOCTL command read/write
@@ -58,8 +60,10 @@ struct isst_if_cmd_cb {
 	int registered;
 	int cmd_size;
 	int offset;
+
 	struct module *owner;
 	long (*cmd_callback)(u8 *ptr, int *write_only, int resume);
+	long (*def_ioctl)(struct file *file, unsigned int cmd, unsigned long arg);
 };
 
 /* Internal interface functions */
