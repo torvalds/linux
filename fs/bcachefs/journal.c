@@ -768,6 +768,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	if (c) {
 		bch2_journal_flush_all_pins(&c->journal);
 		bch2_journal_block(&c->journal);
+		mutex_lock(&c->sb_lock);
 	}
 
 	bu		= kcalloc(nr_want, sizeof(*bu), GFP_KERNEL);
@@ -848,6 +849,9 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	if (!new_fs)
 		spin_unlock(&c->journal.lock);
 
+	if (ja->nr != old_nr && !new_fs)
+		bch2_write_super(c);
+
 	if (c)
 		bch2_journal_unblock(&c->journal);
 
@@ -867,6 +871,9 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		}
 	}
 err:
+	if (c)
+		mutex_unlock(&c->sb_lock);
+
 	if (ob && !new_fs)
 		for (i = 0; i < nr_got; i++)
 			bch2_open_bucket_put(c, ob[i]);
@@ -892,7 +899,6 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 {
 	struct journal_device *ja = &ca->journal;
 	struct closure cl;
-	unsigned current_nr;
 	int ret = 0;
 
 	/* don't handle reducing nr of buckets yet: */
@@ -901,36 +907,37 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 
 	closure_init_stack(&cl);
 
-	while (ja->nr != nr && (ret == 0 || ret == -BCH_ERR_bucket_alloc_blocked)) {
+	while (ja->nr != nr) {
 		struct disk_reservation disk_res = { 0, 0 };
-
-		closure_sync(&cl);
-
-		mutex_lock(&c->sb_lock);
-		current_nr = ja->nr;
 
 		/*
 		 * note: journal buckets aren't really counted as _sectors_ used yet, so
 		 * we don't need the disk reservation to avoid the BUG_ON() in buckets.c
 		 * when space used goes up without a reservation - but we do need the
 		 * reservation to ensure we'll actually be able to allocate:
+		 *
+		 * XXX: that's not right, disk reservations only ensure a
+		 * filesystem-wide allocation will succeed, this is a device
+		 * specific allocation - we can hang here:
 		 */
 
 		ret = bch2_disk_reservation_get(c, &disk_res,
 						bucket_to_sector(ca, nr - ja->nr), 1, 0);
-		if (ret) {
-			mutex_unlock(&c->sb_lock);
-			return ret;
-		}
+		if (ret)
+			break;
 
 		ret = __bch2_set_nr_journal_buckets(ca, nr, false, &cl);
 
 		bch2_disk_reservation_put(c, &disk_res);
 
-		if (ja->nr != current_nr)
-			bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
+		closure_sync(&cl);
+
+		if (ret && ret != -BCH_ERR_bucket_alloc_blocked)
+			break;
 	}
+
+	if (ret)
+		bch_err(c, "%s: err %s", __func__, bch2_err_str(ret));
 
 	return ret;
 }
@@ -938,7 +945,6 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 int bch2_dev_journal_alloc(struct bch_dev *ca)
 {
 	unsigned nr;
-	int ret;
 
 	if (dynamic_fault("bcachefs:add:journal_alloc"))
 		return -ENOMEM;
@@ -955,15 +961,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca)
 		     min(1 << 13,
 			 (1 << 24) / ca->mi.bucket_size));
 
-	if (ca->fs)
-		mutex_lock(&ca->fs->sb_lock);
-
-	ret = __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
-
-	if (ca->fs)
-		mutex_unlock(&ca->fs->sb_lock);
-
-	return ret;
+	return __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
 }
 
 /* startup/shutdown: */
