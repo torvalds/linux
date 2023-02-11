@@ -67,6 +67,7 @@ properties:
               - rockchip,rk3568-qos
               - rockchip,rk3588-qos
               - rockchip,rv1126-qos
+              - starfive,jh7100-sysmain
 
           - const: syscon
 
