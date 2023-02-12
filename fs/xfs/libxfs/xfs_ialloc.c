@@ -2217,15 +2217,15 @@ error0:
 
 STATIC int
 xfs_imap_lookup(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
 	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
 	xfs_agino_t		agino,
 	xfs_agblock_t		agbno,
 	xfs_agblock_t		*chunk_agbno,
 	xfs_agblock_t		*offset_agbno,
 	int			flags)
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	struct xfs_inobt_rec_incore rec;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
@@ -2280,12 +2280,13 @@ xfs_imap_lookup(
  */
 int
 xfs_imap(
-	struct xfs_mount	 *mp,	/* file system mount structure */
-	struct xfs_trans	 *tp,	/* transaction pointer */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
 	xfs_ino_t		ino,	/* inode to locate */
 	struct xfs_imap		*imap,	/* location map structure */
 	uint			flags)	/* flags for inode btree lookup */
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	xfs_agblock_t		agbno;	/* block number of inode in the alloc group */
 	xfs_agino_t		agino;	/* inode number within alloc group */
 	xfs_agblock_t		chunk_agbno;	/* first block in inode chunk */
@@ -2293,17 +2294,15 @@ xfs_imap(
 	int			error;	/* error code */
 	int			offset;	/* index of inode in its buffer */
 	xfs_agblock_t		offset_agbno;	/* blks from chunk start to inode */
-	struct xfs_perag	*pag;
 
 	ASSERT(ino != NULLFSINO);
 
 	/*
 	 * Split up the inode number into its parts.
 	 */
-	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ino));
 	agino = XFS_INO_TO_AGINO(mp, ino);
 	agbno = XFS_AGINO_TO_AGBNO(mp, agino);
-	if (!pag || agbno >= mp->m_sb.sb_agblocks ||
+	if (agbno >= mp->m_sb.sb_agblocks ||
 	    ino != XFS_AGINO_TO_INO(mp, pag->pag_agno, agino)) {
 		error = -EINVAL;
 #ifdef DEBUG
@@ -2312,20 +2311,14 @@ xfs_imap(
 		 * as they can be invalid without implying corruption.
 		 */
 		if (flags & XFS_IGET_UNTRUSTED)
-			goto out_drop;
-		if (!pag) {
-			xfs_alert(mp,
-				"%s: agno (%d) >= mp->m_sb.sb_agcount (%d)",
-				__func__, XFS_INO_TO_AGNO(mp, ino),
-				mp->m_sb.sb_agcount);
-		}
+			return error;
 		if (agbno >= mp->m_sb.sb_agblocks) {
 			xfs_alert(mp,
 		"%s: agbno (0x%llx) >= mp->m_sb.sb_agblocks (0x%lx)",
 				__func__, (unsigned long long)agbno,
 				(unsigned long)mp->m_sb.sb_agblocks);
 		}
-		if (pag && ino != XFS_AGINO_TO_INO(mp, pag->pag_agno, agino)) {
+		if (ino != XFS_AGINO_TO_INO(mp, pag->pag_agno, agino)) {
 			xfs_alert(mp,
 		"%s: ino (0x%llx) != XFS_AGINO_TO_INO() (0x%llx)",
 				__func__, ino,
@@ -2333,7 +2326,7 @@ xfs_imap(
 		}
 		xfs_stack_trace();
 #endif /* DEBUG */
-		goto out_drop;
+		return error;
 	}
 
 	/*
@@ -2344,10 +2337,10 @@ xfs_imap(
 	 * in all cases where an untrusted inode number is passed.
 	 */
 	if (flags & XFS_IGET_UNTRUSTED) {
-		error = xfs_imap_lookup(mp, tp, pag, agino, agbno,
+		error = xfs_imap_lookup(pag, tp, agino, agbno,
 					&chunk_agbno, &offset_agbno, flags);
 		if (error)
-			goto out_drop;
+			return error;
 		goto out_map;
 	}
 
@@ -2363,8 +2356,7 @@ xfs_imap(
 		imap->im_len = XFS_FSB_TO_BB(mp, 1);
 		imap->im_boffset = (unsigned short)(offset <<
 							mp->m_sb.sb_inodelog);
-		error = 0;
-		goto out_drop;
+		return 0;
 	}
 
 	/*
@@ -2376,10 +2368,10 @@ xfs_imap(
 		offset_agbno = agbno & M_IGEO(mp)->inoalign_mask;
 		chunk_agbno = agbno - offset_agbno;
 	} else {
-		error = xfs_imap_lookup(mp, tp, pag, agino, agbno,
+		error = xfs_imap_lookup(pag, tp, agino, agbno,
 					&chunk_agbno, &offset_agbno, flags);
 		if (error)
-			goto out_drop;
+			return error;
 	}
 
 out_map:
@@ -2407,14 +2399,9 @@ out_map:
 			__func__, (unsigned long long) imap->im_blkno,
 			(unsigned long long) imap->im_len,
 			XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks));
-		error = -EINVAL;
-		goto out_drop;
+		return -EINVAL;
 	}
-	error = 0;
-out_drop:
-	if (pag)
-		xfs_perag_put(pag);
-	return error;
+	return 0;
 }
 
 /*
