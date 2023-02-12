@@ -2435,7 +2435,7 @@ xfs_agfl_reset(
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_agf		*agf = agbp->b_addr;
 
-	ASSERT(pag->pagf_agflreset);
+	ASSERT(xfs_perag_agfl_needs_reset(pag));
 	trace_xfs_agfl_reset(mp, agf, 0, _RET_IP_);
 
 	xfs_warn(mp,
@@ -2450,7 +2450,7 @@ xfs_agfl_reset(
 				    XFS_AGF_FLCOUNT);
 
 	pag->pagf_flcount = 0;
-	pag->pagf_agflreset = false;
+	clear_bit(XFS_AGSTATE_AGFL_NEEDS_RESET, &pag->pag_opstate);
 }
 
 /*
@@ -2605,7 +2605,7 @@ xfs_alloc_fix_freelist(
 	/* deferred ops (AGFL block frees) require permanent transactions */
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 
-	if (!pag->pagf_init) {
+	if (!xfs_perag_initialised_agf(pag)) {
 		error = xfs_alloc_read_agf(pag, tp, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
@@ -2620,7 +2620,8 @@ xfs_alloc_fix_freelist(
 	 * somewhere else if we are not being asked to try harder at this
 	 * point
 	 */
-	if (pag->pagf_metadata && (args->datatype & XFS_ALLOC_USERDATA) &&
+	if (xfs_perag_prefers_metadata(pag) &&
+	    (args->datatype & XFS_ALLOC_USERDATA) &&
 	    (flags & XFS_ALLOC_FLAG_TRYLOCK)) {
 		ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 		goto out_agbp_relse;
@@ -2646,7 +2647,7 @@ xfs_alloc_fix_freelist(
 	}
 
 	/* reset a padding mismatched agfl before final free space check */
-	if (pag->pagf_agflreset)
+	if (xfs_perag_agfl_needs_reset(pag))
 		xfs_agfl_reset(tp, agbp, pag);
 
 	/* If there isn't enough total space or single-extent, reject it. */
@@ -2803,7 +2804,7 @@ xfs_alloc_get_freelist(
 	if (be32_to_cpu(agf->agf_flfirst) == xfs_agfl_size(mp))
 		agf->agf_flfirst = 0;
 
-	ASSERT(!pag->pagf_agflreset);
+	ASSERT(!xfs_perag_agfl_needs_reset(pag));
 	be32_add_cpu(&agf->agf_flcount, -1);
 	pag->pagf_flcount--;
 
@@ -2892,7 +2893,7 @@ xfs_alloc_put_freelist(
 	if (be32_to_cpu(agf->agf_fllast) == xfs_agfl_size(mp))
 		agf->agf_fllast = 0;
 
-	ASSERT(!pag->pagf_agflreset);
+	ASSERT(!xfs_perag_agfl_needs_reset(pag));
 	be32_add_cpu(&agf->agf_flcount, 1);
 	pag->pagf_flcount++;
 
@@ -3099,7 +3100,7 @@ xfs_alloc_read_agf(
 		return error;
 
 	agf = agfbp->b_addr;
-	if (!pag->pagf_init) {
+	if (!xfs_perag_initialised_agf(pag)) {
 		pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
 		pag->pagf_btreeblks = be32_to_cpu(agf->agf_btreeblks);
 		pag->pagf_flcount = be32_to_cpu(agf->agf_flcount);
@@ -3111,8 +3112,8 @@ xfs_alloc_read_agf(
 		pag->pagf_levels[XFS_BTNUM_RMAPi] =
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAPi]);
 		pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
-		pag->pagf_init = 1;
-		pag->pagf_agflreset = xfs_agfl_needs_reset(pag->pag_mount, agf);
+		if (xfs_agfl_needs_reset(pag->pag_mount, agf))
+			set_bit(XFS_AGSTATE_AGFL_NEEDS_RESET, &pag->pag_opstate);
 
 		/*
 		 * Update the in-core allocbt counter. Filter out the rmapbt
@@ -3127,6 +3128,8 @@ xfs_alloc_read_agf(
 		if (allocbt_blks > 0)
 			atomic64_add(allocbt_blks,
 					&pag->pag_mount->m_allocbt_blks);
+
+		set_bit(XFS_AGSTATE_AGF_INIT, &pag->pag_opstate);
 	}
 #ifdef DEBUG
 	else if (!xfs_is_shutdown(pag->pag_mount)) {

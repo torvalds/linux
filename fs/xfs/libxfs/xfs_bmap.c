@@ -3147,7 +3147,7 @@ xfs_bmap_longest_free_extent(
 	int			error = 0;
 
 	pag = xfs_perag_get(mp, ag);
-	if (!pag->pagf_init) {
+	if (!xfs_perag_initialised_agf(pag)) {
 		error = xfs_alloc_read_agf(pag, tp, XFS_ALLOC_FLAG_TRYLOCK,
 				NULL);
 		if (error) {

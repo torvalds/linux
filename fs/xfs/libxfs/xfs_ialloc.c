@@ -998,8 +998,8 @@ xfs_dialloc_ag_inobt(
 	int			i, j;
 	int			searchdistance = 10;
 
-	ASSERT(pag->pagi_init);
-	ASSERT(pag->pagi_inodeok);
+	ASSERT(xfs_perag_initialised_agi(pag));
+	ASSERT(xfs_perag_allows_inodes(pag));
 	ASSERT(pag->pagi_freecount > 0);
 
  restart_pagno:
@@ -1592,10 +1592,10 @@ xfs_dialloc_good_ag(
 
 	if (!pag)
 		return false;
-	if (!pag->pagi_inodeok)
+	if (!xfs_perag_allows_inodes(pag))
 		return false;
 
-	if (!pag->pagi_init) {
+	if (!xfs_perag_initialised_agi(pag)) {
 		error = xfs_ialloc_read_agi(pag, tp, NULL);
 		if (error)
 			return false;
@@ -1606,7 +1606,7 @@ xfs_dialloc_good_ag(
 	if (!ok_alloc)
 		return false;
 
-	if (!pag->pagf_init) {
+	if (!xfs_perag_initialised_agf(pag)) {
 		error = xfs_alloc_read_agf(pag, tp, flags, NULL);
 		if (error)
 			return false;
@@ -2603,10 +2603,10 @@ xfs_ialloc_read_agi(
 		return error;
 
 	agi = agibp->b_addr;
-	if (!pag->pagi_init) {
+	if (!xfs_perag_initialised_agi(pag)) {
 		pag->pagi_freecount = be32_to_cpu(agi->agi_freecount);
 		pag->pagi_count = be32_to_cpu(agi->agi_count);
-		pag->pagi_init = 1;
+		set_bit(XFS_AGSTATE_AGI_INIT, &pag->pag_opstate);
 	}
 
 	/*

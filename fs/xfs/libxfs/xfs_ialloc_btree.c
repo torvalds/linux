@@ -291,8 +291,8 @@ xfs_inobt_verify(
 	 * Similarly, during log recovery we will have a perag structure
 	 * attached, but the agi information will not yet have been initialised
 	 * from the on disk AGI. We don't currently use any of this information,
-	 * but beware of the landmine (i.e. need to check pag->pagi_init) if we
-	 * ever do.
+	 * but beware of the landmine (i.e. need to check
+	 * xfs_perag_initialised_agi(pag)) if we ever do.
 	 */
 	if (xfs_has_crc(mp)) {
 		fa = xfs_btree_sblock_v5hdr_verify(bp);

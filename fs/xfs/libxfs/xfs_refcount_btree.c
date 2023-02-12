@@ -227,7 +227,7 @@ xfs_refcountbt_verify(
 		return fa;
 
 	level = be16_to_cpu(block->bb_level);
-	if (pag && pag->pagf_init) {
+	if (pag && xfs_perag_initialised_agf(pag)) {
 		if (level >= pag->pagf_refcount_level)
 			return __this_address;
 	} else if (level >= mp->m_refc_maxlevels)

@@ -35,13 +35,9 @@ struct xfs_perag {
 	atomic_t	pag_ref;	/* passive reference count */
 	atomic_t	pag_active_ref;	/* active reference count */
 	wait_queue_head_t pag_active_wq;/* woken active_ref falls to zero */
-	char		pagf_init;	/* this agf's entry is initialized */
-	char		pagi_init;	/* this agi's entry is initialized */
-	char		pagf_metadata;	/* the agf is preferred to be metadata */
-	char		pagi_inodeok;	/* The agi is ok for inodes */
+	unsigned long	pag_opstate;
 	uint8_t		pagf_levels[XFS_BTNUM_AGF];
 					/* # of levels in bno & cnt btree */
-	bool		pagf_agflreset; /* agfl requires reset before use */
 	uint32_t	pagf_flcount;	/* count of blocks in freelist */
 	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
 	xfs_extlen_t	pagf_longest;	/* longest free space */
@@ -107,6 +103,27 @@ struct xfs_perag {
 
 #endif /* __KERNEL__ */
 };
+
+/*
+ * Per-AG operational state. These are atomic flag bits.
+ */
+#define XFS_AGSTATE_AGF_INIT		0
+#define XFS_AGSTATE_AGI_INIT		1
+#define XFS_AGSTATE_PREFERS_METADATA	2
+#define XFS_AGSTATE_ALLOWS_INODES	3
+#define XFS_AGSTATE_AGFL_NEEDS_RESET	4
+
+#define __XFS_AG_OPSTATE(name, NAME) \
+static inline bool xfs_perag_ ## name (struct xfs_perag *pag) \
+{ \
+	return test_bit(XFS_AGSTATE_ ## NAME, &pag->pag_opstate); \
+}
+
+__XFS_AG_OPSTATE(initialised_agf, AGF_INIT)
+__XFS_AG_OPSTATE(initialised_agi, AGI_INIT)
+__XFS_AG_OPSTATE(prefers_metadata, PREFERS_METADATA)
+__XFS_AG_OPSTATE(allows_inodes, ALLOWS_INODES)
+__XFS_AG_OPSTATE(agfl_needs_reset, AGFL_NEEDS_RESET)
 
 int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t agcount,
 			xfs_rfsblock_t dcount, xfs_agnumber_t *maxagi);

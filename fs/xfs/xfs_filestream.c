@@ -125,7 +125,7 @@ xfs_filestream_pick_ag(
 
 		pag = xfs_perag_get(mp, ag);
 
-		if (!pag->pagf_init) {
+		if (!xfs_perag_initialised_agf(pag)) {
 			err = xfs_alloc_read_agf(pag, NULL, trylock, NULL);
 			if (err) {
 				if (err != -EAGAIN) {
@@ -159,7 +159,8 @@ xfs_filestream_pick_ag(
 				xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE));
 		if (((minlen && longest >= minlen) ||
 		     (!minlen && pag->pagf_freeblks >= minfree)) &&
-		    (!pag->pagf_metadata || !(flags & XFS_PICK_USERDATA) ||
+		    (!xfs_perag_prefers_metadata(pag) ||
+		     !(flags & XFS_PICK_USERDATA) ||
 		     (flags & XFS_PICK_LOWSPACE))) {
 
 			/* Break out, retaining the reference on the AG. */
