@@ -888,7 +888,6 @@ xfs_ag_shrink_space(
 		.tp	= *tpp,
 		.mp	= mp,
 		.pag	= pag,
-		.type	= XFS_ALLOCTYPE_THIS_BNO,
 		.minlen = delta,
 		.maxlen = delta,
 		.oinfo	= XFS_RMAP_OINFO_SKIP_UPDATE,
@@ -920,8 +919,6 @@ xfs_ag_shrink_space(
 	if (delta >= aglen)
 		return -EINVAL;
 
-	args.fsbno = XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta);
-
 	/*
 	 * Make sure that the last inode cluster cannot overlap with the new
 	 * end of the AG, even if it's sparse.
@@ -939,7 +936,8 @@ xfs_ag_shrink_space(
 		return error;
 
 	/* internal log shouldn't also show up in the free space btrees */
-	error = xfs_alloc_vextent_this_ag(&args);
+	error = xfs_alloc_vextent_exact_bno(&args,
+			XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta));
 	if (!error && args.agbno == NULLAGBLOCK)
 		error = -ENOSPC;
 

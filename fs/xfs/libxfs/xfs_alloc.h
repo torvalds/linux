@@ -114,16 +114,23 @@ xfs_alloc_log_agf(
 	uint32_t	fields);/* mask of fields to be logged (XFS_AGF_...) */
 
 /*
- * Allocate an extent in the specific AG defined by args->fsbno. If there is no
- * space in that AG, then the allocation will fail.
+ * Allocate an extent anywhere in the specific AG given. If there is no
+ * space matching the requirements in that AG, then the allocation will fail.
  */
-int xfs_alloc_vextent_this_ag(struct xfs_alloc_arg *args);
+int xfs_alloc_vextent_this_ag(struct xfs_alloc_arg *args, xfs_agnumber_t agno);
 
 /*
  * Allocate an extent as close to the target as possible. If there are not
  * viable candidates in the AG, then fail the allocation.
  */
 int xfs_alloc_vextent_near_bno(struct xfs_alloc_arg *args,
+		xfs_fsblock_t target);
+
+/*
+ * Allocate an extent exactly at the target given. If this is not possible
+ * then the allocation fails.
+ */
+int xfs_alloc_vextent_exact_bno(struct xfs_alloc_arg *args,
 		xfs_fsblock_t target);
 
 /*

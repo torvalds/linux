@@ -3272,28 +3272,34 @@ xfs_alloc_vextent_set_fsbno(
  */
 int
 xfs_alloc_vextent_this_ag(
-	struct xfs_alloc_arg	*args)
+	struct xfs_alloc_arg	*args,
+	xfs_agnumber_t		agno)
 {
 	struct xfs_mount	*mp = args->mp;
 	xfs_agnumber_t		minimum_agno = 0;
+	xfs_rfsblock_t		target = XFS_AGB_TO_FSB(mp, agno, 0);
 	int			error;
 
 	if (args->tp->t_highest_agno != NULLAGNUMBER)
 		minimum_agno = args->tp->t_highest_agno;
 
-	error = xfs_alloc_vextent_check_args(args, args->fsbno);
+	if (minimum_agno > agno) {
+		trace_xfs_alloc_vextent_skip_deadlock(args);
+		args->fsbno = NULLFSBLOCK;
+		return 0;
+	}
+
+	error = xfs_alloc_vextent_check_args(args, target);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
 		return error;
 	}
 
-	args->agno = XFS_FSB_TO_AGNO(mp, args->fsbno);
-	if (minimum_agno > args->agno) {
-		trace_xfs_alloc_vextent_skip_deadlock(args);
-		args->fsbno = NULLFSBLOCK;
-		return 0;
-	}
+	args->agno = agno;
+	args->agbno = 0;
+	args->fsbno = target;
+	args->type = XFS_ALLOCTYPE_THIS_AG;
 
 	error = xfs_alloc_ag_vextent(args);
 	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
@@ -3472,10 +3478,49 @@ xfs_alloc_vextent_first_ag(
 	start_agno = max(minimum_agno, XFS_FSB_TO_AGNO(mp, target));
 	args->type = XFS_ALLOCTYPE_THIS_AG;
 	args->fsbno = target;
-	error =  xfs_alloc_vextent_iterate_ags(args, minimum_agno,
+	error = xfs_alloc_vextent_iterate_ags(args, minimum_agno,
 			start_agno, 0);
 	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
 	return error;
+}
+
+/*
+ * Allocate within a single AG only.
+ */
+int
+xfs_alloc_vextent_exact_bno(
+	struct xfs_alloc_arg	*args,
+	xfs_fsblock_t		target)
+{
+	struct xfs_mount	*mp = args->mp;
+	xfs_agnumber_t		minimum_agno = 0;
+	int			error;
+
+	if (args->tp->t_highest_agno != NULLAGNUMBER)
+		minimum_agno = args->tp->t_highest_agno;
+
+	error = xfs_alloc_vextent_check_args(args, target);
+	if (error) {
+		if (error == -ENOSPC)
+			return 0;
+		return error;
+	}
+
+	args->agno = XFS_FSB_TO_AGNO(mp, target);
+	if (minimum_agno > args->agno) {
+		trace_xfs_alloc_vextent_skip_deadlock(args);
+		return 0;
+	}
+
+	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
+	args->fsbno = target;
+	args->type = XFS_ALLOCTYPE_THIS_BNO;
+	error = xfs_alloc_ag_vextent(args);
+	if (error)
+		return error;
+
+	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
+	return 0;
 }
 
 /*
