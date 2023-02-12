@@ -3234,8 +3234,8 @@ xfs_bmap_btalloc_select_lengths(
 	return error;
 }
 
-STATIC int
-xfs_bmap_btalloc_filestreams(
+static int
+xfs_bmap_btalloc_filestreams_select_lengths(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
 	xfs_extlen_t		*blen)
@@ -3576,32 +3576,101 @@ xfs_bmap_btalloc_at_eof(
 	return 0;
 }
 
+/*
+ * We have failed multiple allocation attempts so now are in a low space
+ * allocation situation. Try a locality first full filesystem minimum length
+ * allocation whilst still maintaining necessary total block reservation
+ * requirements.
+ *
+ * If that fails, we are now critically low on space, so perform a last resort
+ * allocation attempt: no reserve, no locality, blocking, minimum length, full
+ * filesystem free space scan. We also indicate to future allocations in this
+ * transaction that we are critically low on space so they don't waste time on
+ * allocation modes that are unlikely to succeed.
+ */
+static int
+xfs_bmap_btalloc_low_space(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args)
+{
+	int			error;
+
+	if (args->minlen > ap->minlen) {
+		args->minlen = ap->minlen;
+		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
+		if (error || args->fsbno != NULLFSBLOCK)
+			return error;
+	}
+
+	/* Last ditch attempt before failure is declared. */
+	args->total = ap->minlen;
+	error = xfs_alloc_vextent_first_ag(args, 0);
+	if (error)
+		return error;
+	ap->tp->t_flags |= XFS_TRANS_LOWMODE;
+	return 0;
+}
+
+static int
+xfs_bmap_btalloc_filestreams(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args,
+	int			stripe_align)
+{
+	xfs_agnumber_t		agno = xfs_filestream_lookup_ag(ap->ip);
+	xfs_extlen_t		blen = 0;
+	int			error;
+
+	/* Determine the initial block number we will target for allocation. */
+	if (agno == NULLAGNUMBER)
+		agno = 0;
+	ap->blkno = XFS_AGB_TO_FSB(args->mp, agno, 0);
+	xfs_bmap_adjacent(ap);
+
+	/*
+	 * If there is very little free space before we start a
+	 * filestreams allocation, we're almost guaranteed to fail to
+	 * find an AG with enough contiguous free space to succeed, so
+	 * just go straight to the low space algorithm.
+	 */
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
+		args->minlen = ap->minlen;
+		return xfs_bmap_btalloc_low_space(ap, args);
+	}
+
+	/*
+	 * Search for an allocation group with a single extent large enough for
+	 * the request.  If one isn't found, then adjust the minimum allocation
+	 * size to the largest space found.
+	 */
+	error = xfs_bmap_btalloc_filestreams_select_lengths(ap, args, &blen);
+	if (error)
+		return error;
+
+	if (ap->aeof) {
+		error = xfs_bmap_btalloc_at_eof(ap, args, blen, stripe_align,
+				true);
+		if (error || args->fsbno != NULLFSBLOCK)
+			return error;
+	}
+
+	error = xfs_alloc_vextent_near_bno(args, ap->blkno);
+	if (error || args->fsbno != NULLFSBLOCK)
+		return error;
+
+	return xfs_bmap_btalloc_low_space(ap, args);
+}
+
 static int
 xfs_bmap_btalloc_best_length(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
 	int			stripe_align)
 {
-	struct xfs_mount	*mp = args->mp;
 	xfs_extlen_t		blen = 0;
-	bool			is_filestream = false;
 	int			error;
 
-	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
-	    xfs_inode_is_filestream(ap->ip))
-		is_filestream = true;
-
-	/*
-	 * Determine the initial block number we will target for allocation.
-	 */
-	if (is_filestream) {
-		xfs_agnumber_t	agno = xfs_filestream_lookup_ag(ap->ip);
-		if (agno == NULLAGNUMBER)
-			agno = 0;
-		ap->blkno = XFS_AGB_TO_FSB(mp, agno, 0);
-	} else {
-		ap->blkno = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
-	}
+	ap->blkno = XFS_INO_TO_FSB(args->mp, ap->ip->i_ino);
 	xfs_bmap_adjacent(ap);
 
 	/*
@@ -3609,21 +3678,7 @@ xfs_bmap_btalloc_best_length(
 	 * the request.  If one isn't found, then adjust the minimum allocation
 	 * size to the largest space found.
 	 */
-	if (is_filestream) {
-		/*
-		 * If there is very little free space before we start a
-		 * filestreams allocation, we're almost guaranteed to fail to
-		 * find an AG with enough contiguous free space to succeed, so
-		 * just go straight to the low space algorithm.
-		 */
-		if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
-			args->minlen = ap->minlen;
-			goto critically_low_space;
-		}
-		error = xfs_bmap_btalloc_filestreams(ap, args, &blen);
-	} else {
-		error = xfs_bmap_btalloc_select_lengths(ap, args, &blen);
-	}
+	error = xfs_bmap_btalloc_select_lengths(ap, args, &blen);
 	if (error)
 		return error;
 
@@ -3635,50 +3690,16 @@ xfs_bmap_btalloc_best_length(
 	 */
 	if (ap->aeof && !(ap->tp->t_flags & XFS_TRANS_LOWMODE)) {
 		error = xfs_bmap_btalloc_at_eof(ap, args, blen, stripe_align,
-				is_filestream);
-		if (error)
-			return error;
-		if (args->fsbno != NULLFSBLOCK)
-			return 0;
-	}
-
-	if (is_filestream)
-		error = xfs_alloc_vextent_near_bno(args, ap->blkno);
-	else
-		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
-	if (error)
-		return error;
-	if (args->fsbno != NULLFSBLOCK)
-		return 0;
-
-	/*
-	 * Try a locality first full filesystem minimum length allocation whilst
-	 * still maintaining necessary total block reservation requirements.
-	 */
-	if (args->minlen > ap->minlen) {
-		args->minlen = ap->minlen;
-		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
-		if (error)
+				false);
+		if (error || args->fsbno != NULLFSBLOCK)
 			return error;
 	}
-	if (args->fsbno != NULLFSBLOCK)
-		return 0;
 
-	/*
-	 * We are now critically low on space, so this is a last resort
-	 * allocation attempt: no reserve, no locality, blocking, minimum
-	 * length, full filesystem free space scan. We also indicate to future
-	 * allocations in this transaction that we are critically low on space
-	 * so they don't waste time on allocation modes that are unlikely to
-	 * succeed.
-	 */
-critically_low_space:
-	args->total = ap->minlen;
-	error = xfs_alloc_vextent_first_ag(args, 0);
-	if (error)
+	error = xfs_alloc_vextent_start_ag(args, ap->blkno);
+	if (error || args->fsbno != NULLFSBLOCK)
 		return error;
-	ap->tp->t_flags |= XFS_TRANS_LOWMODE;
-	return 0;
+
+	return xfs_bmap_btalloc_low_space(ap, args);
 }
 
 static int
@@ -3712,7 +3733,11 @@ xfs_bmap_btalloc(
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = min(ap->length, mp->m_ag_max_usable);
 
-	error = xfs_bmap_btalloc_best_length(ap, &args, stripe_align);
+	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
+	    xfs_inode_is_filestream(ap->ip))
+		error = xfs_bmap_btalloc_filestreams(ap, &args, stripe_align);
+	else
+		error = xfs_bmap_btalloc_best_length(ap, &args, stripe_align);
 	if (error)
 		return error;
 
