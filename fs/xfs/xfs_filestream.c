@@ -98,16 +98,18 @@ xfs_fstrm_free_func(
 static int
 xfs_filestream_pick_ag(
 	struct xfs_inode	*ip,
-	xfs_agnumber_t		startag,
 	xfs_agnumber_t		*agp,
 	int			flags,
-	xfs_extlen_t		minlen)
+	xfs_extlen_t		*longest)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_fstrm_item	*item;
 	struct xfs_perag	*pag;
-	xfs_extlen_t		longest, free = 0, minfree, maxfree = 0;
-	xfs_agnumber_t		ag, max_ag = NULLAGNUMBER;
+	xfs_extlen_t		minlen = *longest;
+	xfs_extlen_t		free = 0, minfree, maxfree = 0;
+	xfs_agnumber_t		startag = *agp;
+	xfs_agnumber_t		ag = startag;
+	xfs_agnumber_t		max_ag = NULLAGNUMBER;
 	int			err, trylock, nscan;
 
 	ASSERT(S_ISDIR(VFS_I(ip)->i_mode));
@@ -115,7 +117,6 @@ xfs_filestream_pick_ag(
 	/* 2% of an AG's blocks must be free for it to be chosen. */
 	minfree = mp->m_sb.sb_agblocks / 50;
 
-	ag = startag;
 	*agp = NULLAGNUMBER;
 
 	/* For the first pass, don't sleep trying to init the per-AG. */
@@ -125,8 +126,8 @@ xfs_filestream_pick_ag(
 		trace_xfs_filestream_scan(mp, ip->i_ino, ag);
 
 		pag = xfs_perag_get(mp, ag);
-		longest = 0;
-		err = xfs_bmap_longest_free_extent(pag, NULL, &longest);
+		*longest = 0;
+		err = xfs_bmap_longest_free_extent(pag, NULL, longest);
 		if (err) {
 			xfs_perag_put(pag);
 			if (err != -EAGAIN)
@@ -152,7 +153,7 @@ xfs_filestream_pick_ag(
 			goto next_ag;
 		}
 
-		if (((minlen && longest >= minlen) ||
+		if (((minlen && *longest >= minlen) ||
 		     (!minlen && pag->pagf_freeblks >= minfree)) &&
 		    (!xfs_perag_prefers_metadata(pag) ||
 		     !(flags & XFS_PICK_USERDATA) ||
@@ -259,58 +260,6 @@ out:
 }
 
 /*
- * Pick a new allocation group for the current file and its file stream.
- *
- * This is called when the allocator can't find a suitable extent in the
- * current AG, and we have to move the stream into a new AG with more space.
- */
-static int
-xfs_filestream_new_ag(
-	struct xfs_bmalloca	*ap,
-	xfs_agnumber_t		*agp)
-{
-	struct xfs_inode	*ip = ap->ip, *pip;
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_extlen_t		minlen = ap->length;
-	xfs_agnumber_t		startag = 0;
-	int			flags = 0;
-	int			err = 0;
-	struct xfs_mru_cache_elem *mru;
-
-	*agp = NULLAGNUMBER;
-
-	pip = xfs_filestream_get_parent(ip);
-	if (!pip)
-		goto exit;
-
-	mru = xfs_mru_cache_remove(mp->m_filestream, pip->i_ino);
-	if (mru) {
-		struct xfs_fstrm_item *item =
-			container_of(mru, struct xfs_fstrm_item, mru);
-		startag = (item->ag + 1) % mp->m_sb.sb_agcount;
-	}
-
-	if (ap->datatype & XFS_ALLOC_USERDATA)
-		flags |= XFS_PICK_USERDATA;
-	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
-		flags |= XFS_PICK_LOWSPACE;
-
-	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
-
-	/*
-	 * Only free the item here so we skip over the old AG earlier.
-	 */
-	if (mru)
-		xfs_fstrm_free_func(mp, mru);
-
-	xfs_irele(pip);
-exit:
-	if (*agp == NULLAGNUMBER)
-		*agp = 0;
-	return err;
-}
-
-/*
  * Search for an allocation group with a single extent large enough for
  * the request.  If one isn't found, then the largest available free extent is
  * returned as the best length possible.
@@ -326,6 +275,7 @@ xfs_filestream_select_ag(
 	struct xfs_inode	*pip = NULL;
 	xfs_agnumber_t		agno = NULLAGNUMBER;
 	struct xfs_mru_cache_elem *mru;
+	int			flags = 0;
 	int			error;
 
 	args->total = ap->total;
@@ -334,13 +284,14 @@ xfs_filestream_select_ag(
 	pip = xfs_filestream_get_parent(ap->ip);
 	if (!pip) {
 		agno = 0;
-		goto new_ag;
+		goto out_select;
 	}
 
 	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
 	if (mru) {
 		agno = container_of(mru, struct xfs_fstrm_item, mru)->ag;
 		xfs_mru_cache_done(mp->m_filestream);
+		mru = NULL;
 
 		trace_xfs_filestream_lookup(mp, ap->ip->i_ino, agno);
 		xfs_irele(pip);
@@ -354,7 +305,7 @@ xfs_filestream_select_ag(
 			xfs_perag_rele(pag);
 			if (error) {
 				if (error != -EAGAIN)
-					return error;
+					goto out_error;
 				*blen = 0;
 			}
 		}
@@ -366,13 +317,18 @@ xfs_filestream_select_ag(
 				mp->m_sb.sb_agcount;
 		mp->m_agfrotor = (mp->m_agfrotor + 1) %
 				 (mp->m_sb.sb_agcount * rotorstep);
-		xfs_irele(pip);
 	} else {
 		agno = XFS_INO_TO_AGNO(mp, pip->i_ino);
-		xfs_irele(pip);
 	}
 
-new_ag:
+	/* Changing parent AG association now, so remove the existing one. */
+	mru = xfs_mru_cache_remove(mp->m_filestream, pip->i_ino);
+	if (mru) {
+		struct xfs_fstrm_item *item =
+			container_of(mru, struct xfs_fstrm_item, mru);
+		agno = (item->ag + 1) % mp->m_sb.sb_agcount;
+		xfs_fstrm_free_func(mp, mru);
+	}
 	ap->blkno = XFS_AGB_TO_FSB(args->mp, agno, 0);
 	xfs_bmap_adjacent(ap);
 
@@ -382,33 +338,45 @@ new_ag:
 	 * larger free space available so we don't even try.
 	 */
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
-		return 0;
+		goto out_select;
 
-	error = xfs_filestream_new_ag(ap, &agno);
+	if (ap->datatype & XFS_ALLOC_USERDATA)
+		flags |= XFS_PICK_USERDATA;
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
+		flags |= XFS_PICK_LOWSPACE;
+
+	*blen = ap->length;
+	error = xfs_filestream_pick_ag(pip, &agno, flags, blen);
 	if (error)
-		return error;
+		goto out_error;
 	if (agno == NULLAGNUMBER) {
 		agno = 0;
-		goto out_select;
+		goto out_irele;
 	}
 
 	pag = xfs_perag_grab(mp, agno);
 	if (!pag)
-		goto out_select;
+		goto out_irele;
 
 	error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
 	xfs_perag_rele(pag);
 	if (error) {
 		if (error != -EAGAIN)
-			return error;
+			goto out_error;
 		*blen = 0;
 	}
 
+out_irele:
+	xfs_irele(pip);
 out_select:
 	ap->blkno = XFS_AGB_TO_FSB(mp, agno, 0);
 	return 0;
-}
 
+out_error:
+	xfs_irele(pip);
+	return error;
+
+}
 
 void
 xfs_filestream_deassociate(
