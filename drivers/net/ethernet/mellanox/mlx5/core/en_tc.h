@@ -69,6 +69,7 @@ struct mlx5_nic_flow_attr {
 
 struct mlx5_flow_attr {
 	u32 action;
+	unsigned long tc_act_cookies[TCA_ACT_MAX_PRIO];
 	struct mlx5_fc *counter;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5e_mod_hdr_handle *mh; /* attached mod header instance */
@@ -79,6 +80,7 @@ struct mlx5_flow_attr {
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	u32 chain;
 	u16 prio;
+	u16 tc_act_cookies_count;
 	u32 dest_chain;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_table *dest_ft;
