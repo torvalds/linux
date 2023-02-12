@@ -3501,7 +3501,6 @@ xfs_bmap_btalloc_at_eof(
 	bool			ag_only)
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_alloctype_t		atype;
 	int			error;
 
 	/*
@@ -3513,14 +3512,12 @@ xfs_bmap_btalloc_at_eof(
 	if (ap->offset) {
 		xfs_extlen_t	nextminlen = 0;
 
-		atype = args->type;
-		args->alignment = 1;
-
 		/*
 		 * Compute the minlen+alignment for the next case.  Set slop so
 		 * that the value of minlen+alignment+slop doesn't go up between
 		 * the calls.
 		 */
+		args->alignment = 1;
 		if (blen > stripe_align && blen <= args->maxlen)
 			nextminlen = blen - stripe_align;
 		else
@@ -3544,17 +3541,15 @@ xfs_bmap_btalloc_at_eof(
 		 * according to the original allocation specification.
 		 */
 		args->pag = NULL;
-		args->type = atype;
 		args->alignment = stripe_align;
 		args->minlen = nextminlen;
 		args->minalignslop = 0;
 	} else {
-		args->alignment = stripe_align;
-		atype = args->type;
 		/*
 		 * Adjust minlen to try and preserve alignment if we
 		 * can't guarantee an aligned maxlen extent.
 		 */
+		args->alignment = stripe_align;
 		if (blen > args->alignment &&
 		    blen <= args->maxlen + args->alignment)
 			args->minlen = blen - args->alignment;
@@ -3576,7 +3571,6 @@ xfs_bmap_btalloc_at_eof(
 	 * original non-aligned state so the caller can proceed on allocation
 	 * failure as if this function was never called.
 	 */
-	args->type = atype;
 	args->fsbno = ap->blkno;
 	args->alignment = 1;
 	return 0;
