@@ -3248,13 +3248,6 @@ xfs_bmap_btalloc_filestreams(
 	int			notinit = 0;
 	int			error;
 
-	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
-		args->type = XFS_ALLOCTYPE_FIRST_AG;
-		args->total = ap->minlen;
-		args->minlen = ap->minlen;
-		return 0;
-	}
-
 	args->type = XFS_ALLOCTYPE_NEAR_BNO;
 	args->total = ap->total;
 
@@ -3462,9 +3455,7 @@ xfs_bmap_exact_minlen_extent_alloc(
 	 */
 	ap->blkno = XFS_AGB_TO_FSB(mp, 0, 0);
 
-	args.fsbno = ap->blkno;
 	args.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
-	args.type = XFS_ALLOCTYPE_FIRST_AG;
 	args.minlen = args.maxlen = ap->minlen;
 	args.total = ap->total;
 
@@ -3476,7 +3467,7 @@ xfs_bmap_exact_minlen_extent_alloc(
 	args.resv = XFS_AG_RESV_NONE;
 	args.datatype = ap->datatype;
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_first_ag(&args, ap->blkno);
 	if (error)
 		return error;
 
@@ -3623,10 +3614,21 @@ xfs_bmap_btalloc_best_length(
 	 * size to the largest space found.
 	 */
 	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
-	    xfs_inode_is_filestream(ap->ip))
+	    xfs_inode_is_filestream(ap->ip)) {
+		/*
+		 * If there is very little free space before we start a
+		 * filestreams allocation, we're almost guaranteed to fail to
+		 * find an AG with enough contiguous free space to succeed, so
+		 * just go straight to the low space algorithm.
+		 */
+		if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
+			args->minlen = ap->minlen;
+			goto critically_low_space;
+		}
 		error = xfs_bmap_btalloc_filestreams(ap, args, &blen);
-	else
+	} else {
 		error = xfs_bmap_btalloc_select_lengths(ap, args, &blen);
+	}
 	if (error)
 		return error;
 
@@ -3673,10 +3675,9 @@ xfs_bmap_btalloc_best_length(
 	 * so they don't waste time on allocation modes that are unlikely to
 	 * succeed.
 	 */
-	args->fsbno = 0;
-	args->type = XFS_ALLOCTYPE_FIRST_AG;
+critically_low_space:
 	args->total = ap->minlen;
-	error = xfs_alloc_vextent(args);
+	error = xfs_alloc_vextent_first_ag(args, 0);
 	if (error)
 		return error;
 	ap->tp->t_flags |= XFS_TRANS_LOWMODE;
