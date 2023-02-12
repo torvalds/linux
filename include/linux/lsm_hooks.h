@@ -32,32 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks for Unix domain networking.
- *
- * @unix_stream_connect:
- *	Check permissions before establishing a Unix domain stream connection
- *	between @sock and @other.
- *	@sock contains the sock structure.
- *	@other contains the peer sock structure.
- *	@newsk contains the new sock structure.
- *	Return 0 if permission is granted.
- * @unix_may_send:
- *	Check permissions before connecting or sending datagrams from @sock to
- *	@other.
- *	@sock contains the socket structure.
- *	@other contains the peer socket structure.
- *	Return 0 if permission is granted.
- *
- * The @unix_stream_connect and @unix_may_send hooks were necessary because
- * Linux provides an alternative to the conventional file name space for Unix
- * domain sockets.  Whereas binding and connecting to sockets in the file name
- * space is mediated by the typical file permissions (and caught by the mknod
- * and permission hooks in inode_security_ops), binding and connecting to
- * sockets in the abstract name space is completely unmediated.  Sufficient
- * control of Unix domain sockets in the abstract name space isn't possible
- * using only the socket layer hooks, since we need to know the actual target
- * socket, which is not looked up until we are inside the af_unix code.
- *
  * Security hooks for socket operations.
  *
  * @socket_create:

@@ -3555,13 +3555,53 @@ int security_watch_key(struct key *key)
 #endif
 
 #ifdef CONFIG_SECURITY_NETWORK
-
+/**
+ * security_unix_stream_connect() - Check if a AF_UNIX stream is allowed
+ * @sock: originating sock
+ * @other: peer sock
+ * @newsk: new sock
+ *
+ * Check permissions before establishing a Unix domain stream connection
+ * between @sock and @other.
+ *
+ * The @unix_stream_connect and @unix_may_send hooks were necessary because
+ * Linux provides an alternative to the conventional file name space for Unix
+ * domain sockets.  Whereas binding and connecting to sockets in the file name
+ * space is mediated by the typical file permissions (and caught by the mknod
+ * and permission hooks in inode_security_ops), binding and connecting to
+ * sockets in the abstract name space is completely unmediated.  Sufficient
+ * control of Unix domain sockets in the abstract name space isn't possible
+ * using only the socket layer hooks, since we need to know the actual target
+ * socket, which is not looked up until we are inside the af_unix code.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_unix_stream_connect(struct sock *sock, struct sock *other, struct sock *newsk)
 {
 	return call_int_hook(unix_stream_connect, 0, sock, other, newsk);
 }
 EXPORT_SYMBOL(security_unix_stream_connect);
 
+/**
+ * security_unix_may_send() - Check if AF_UNIX socket can send datagrams
+ * @sock: originating sock
+ * @other: peer sock
+ *
+ * Check permissions before connecting or sending datagrams from @sock to
+ * @other.
+ *
+ * The @unix_stream_connect and @unix_may_send hooks were necessary because
+ * Linux provides an alternative to the conventional file name space for Unix
+ * domain sockets.  Whereas binding and connecting to sockets in the file name
+ * space is mediated by the typical file permissions (and caught by the mknod
+ * and permission hooks in inode_security_ops), binding and connecting to
+ * sockets in the abstract name space is completely unmediated.  Sufficient
+ * control of Unix domain sockets in the abstract name space isn't possible
+ * using only the socket layer hooks, since we need to know the actual target
+ * socket, which is not looked up until we are inside the af_unix code.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_unix_may_send(struct socket *sock,  struct socket *other)
 {
 	return call_int_hook(unix_may_send, 0, sock, other);
