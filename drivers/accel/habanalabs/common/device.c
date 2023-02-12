@@ -380,18 +380,17 @@ bool hl_ctrl_device_operational(struct hl_device *hdev,
 static void print_idle_status_mask(struct hl_device *hdev, const char *message,
 					u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE])
 {
-	u32 pad_width[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {};
-
-	BUILD_BUG_ON(HL_BUSY_ENGINES_MASK_EXT_SIZE != 4);
-
-	pad_width[3] = idle_mask[3] ? 16 : 0;
-	pad_width[2] = idle_mask[2] || pad_width[3] ? 16 : 0;
-	pad_width[1] = idle_mask[1] || pad_width[2] ? 16 : 0;
-	pad_width[0] = idle_mask[0] || pad_width[1] ? 16 : 0;
-
-	dev_err(hdev->dev, "%s (mask %0*llx_%0*llx_%0*llx_%0*llx)\n",
-		message, pad_width[3], idle_mask[3], pad_width[2], idle_mask[2],
-		pad_width[1], idle_mask[1], pad_width[0], idle_mask[0]);
+	if (idle_mask[3])
+		dev_err(hdev->dev, "%s (mask %#llx_%016llx_%016llx_%016llx)\n",
+			message, idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
+	else if (idle_mask[2])
+		dev_err(hdev->dev, "%s (mask %#llx_%016llx_%016llx)\n",
+			message, idle_mask[2], idle_mask[1], idle_mask[0]);
+	else if (idle_mask[1])
+		dev_err(hdev->dev, "%s (mask %#llx_%016llx)\n",
+			message, idle_mask[1], idle_mask[0]);
+	else
+		dev_err(hdev->dev, "%s (mask %#llx)\n", message, idle_mask[0]);
 }
 
 static void hpriv_release(struct kref *ref)
