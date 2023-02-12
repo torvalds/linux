@@ -789,6 +789,8 @@ xfs_bmap_local_to_extents(
 	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = ip->i_mount;
+	args.total = total;
+	args.minlen = args.maxlen = args.prod = 1;
 	xfs_rmap_ino_owner(&args.oinfo, ip->i_ino, whichfork, 0);
 	/*
 	 * Allocate a block.  We know we need only one, since the
@@ -3506,8 +3508,7 @@ xfs_bmap_btalloc(
 	xfs_extlen_t		orig_length;
 	xfs_extlen_t		blen;
 	xfs_extlen_t		nextminlen = 0;
-	int			isaligned;
-	int			tryagain;
+	int			isaligned = 0;
 	int			error;
 	int			stripe_align;
 
@@ -3528,7 +3529,6 @@ xfs_bmap_btalloc(
 
 	xfs_bmap_adjacent(ap);
 
-	tryagain = isaligned = 0;
 	args.fsbno = ap->blkno;
 	args.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
 
@@ -3576,9 +3576,9 @@ xfs_bmap_btalloc(
 			 * allocation with alignment turned on.
 			 */
 			atype = args.type;
-			tryagain = 1;
 			args.type = XFS_ALLOCTYPE_THIS_BNO;
 			args.alignment = 1;
+
 			/*
 			 * Compute the minlen+alignment for the
 			 * next case.  Set slop so that the value
@@ -3595,34 +3595,37 @@ xfs_bmap_btalloc(
 					args.minlen - 1;
 			else
 				args.minalignslop = 0;
+
+			args.pag = xfs_perag_get(mp,
+					XFS_FSB_TO_AGNO(mp, args.fsbno));
+			error = xfs_alloc_vextent_this_ag(&args);
+			xfs_perag_put(args.pag);
+			if (error)
+				return error;
+
+			if (args.fsbno != NULLFSBLOCK)
+				goto out_success;
+			/*
+			 * Exact allocation failed. Now try with alignment
+			 * turned on.
+			 */
+			args.pag = NULL;
+			args.type = atype;
+			args.fsbno = ap->blkno;
+			args.alignment = stripe_align;
+			args.minlen = nextminlen;
+			args.minalignslop = 0;
+			isaligned = 1;
 		}
 	} else {
 		args.alignment = 1;
 		args.minalignslop = 0;
 	}
-	args.minleft = ap->minleft;
-	args.wasdel = ap->wasdel;
-	args.resv = XFS_AG_RESV_NONE;
-	args.datatype = ap->datatype;
 
 	error = xfs_alloc_vextent(&args);
 	if (error)
 		return error;
 
-	if (tryagain && args.fsbno == NULLFSBLOCK) {
-		/*
-		 * Exact allocation failed. Now try with alignment
-		 * turned on.
-		 */
-		args.type = atype;
-		args.fsbno = ap->blkno;
-		args.alignment = stripe_align;
-		args.minlen = nextminlen;
-		args.minalignslop = 0;
-		isaligned = 1;
-		if ((error = xfs_alloc_vextent(&args)))
-			return error;
-	}
 	if (isaligned && args.fsbno == NULLFSBLOCK) {
 		/*
 		 * allocation failed, so turn off alignment and
@@ -3650,8 +3653,13 @@ xfs_bmap_btalloc(
 			return error;
 		ap->tp->t_flags |= XFS_TRANS_LOWMODE;
 	}
+	args.minleft = ap->minleft;
+	args.wasdel = ap->wasdel;
+	args.resv = XFS_AG_RESV_NONE;
+	args.datatype = ap->datatype;
 
 	if (args.fsbno != NULLFSBLOCK) {
+out_success:
 		xfs_bmap_process_allocated_extent(ap, &args, orig_offset,
 			orig_length);
 	} else {

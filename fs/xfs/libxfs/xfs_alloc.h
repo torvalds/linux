@@ -125,6 +125,12 @@ xfs_alloc_vextent(
 	xfs_alloc_arg_t	*args);	/* allocation argument structure */
 
 /*
+ * Allocate an extent in the specific AG defined by args->fsbno. If there is no
+ * space in that AG, then the allocation will fail.
+ */
+int xfs_alloc_vextent_this_ag(struct xfs_alloc_arg *args);
+
+/*
  * Free an extent.
  */
 int				/* error */

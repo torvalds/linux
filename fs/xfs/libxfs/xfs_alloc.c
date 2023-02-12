@@ -2723,7 +2723,6 @@ xfs_alloc_fix_freelist(
 	targs.agbp = agbp;
 	targs.agno = args->agno;
 	targs.alignment = targs.minlen = targs.prod = 1;
-	targs.type = XFS_ALLOCTYPE_THIS_AG;
 	targs.pag = pag;
 	error = xfs_alloc_read_agfl(pag, tp, &agflbp);
 	if (error)
@@ -3271,13 +3270,16 @@ xfs_alloc_vextent_set_fsbno(
 /*
  * Allocate within a single AG only.
  */
-static int
+int
 xfs_alloc_vextent_this_ag(
-	struct xfs_alloc_arg	*args,
-	xfs_agnumber_t		minimum_agno)
+	struct xfs_alloc_arg	*args)
 {
 	struct xfs_mount	*mp = args->mp;
+	xfs_agnumber_t		minimum_agno = 0;
 	int			error;
+
+	if (args->tp->t_highest_agno != NULLAGNUMBER)
+		minimum_agno = args->tp->t_highest_agno;
 
 	error = xfs_alloc_vextent_check_args(args);
 	if (error) {
@@ -3293,11 +3295,8 @@ xfs_alloc_vextent_this_ag(
 		return 0;
 	}
 
-	args->pag = xfs_perag_get(mp, args->agno);
 	error = xfs_alloc_ag_vextent(args);
-
 	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
-	xfs_perag_put(args->pag);
 	return error;
 }
 
@@ -3480,6 +3479,7 @@ xfs_alloc_vextent(
 	struct xfs_alloc_arg	*args)
 {
 	xfs_agnumber_t		minimum_agno = 0;
+	int			error;
 
 	if (args->tp->t_highest_agno != NULLAGNUMBER)
 		minimum_agno = args->tp->t_highest_agno;
@@ -3488,17 +3488,21 @@ xfs_alloc_vextent(
 	case XFS_ALLOCTYPE_THIS_AG:
 	case XFS_ALLOCTYPE_NEAR_BNO:
 	case XFS_ALLOCTYPE_THIS_BNO:
-		return xfs_alloc_vextent_this_ag(args, minimum_agno);
+		args->pag = xfs_perag_get(args->mp,
+				XFS_FSB_TO_AGNO(args->mp, args->fsbno));
+		error = xfs_alloc_vextent_this_ag(args);
+		xfs_perag_put(args->pag);
+		break;
 	case XFS_ALLOCTYPE_START_BNO:
 		return xfs_alloc_vextent_start_ag(args, minimum_agno);
 	case XFS_ALLOCTYPE_FIRST_AG:
 		return xfs_alloc_vextent_first_ag(args, minimum_agno);
 	default:
+		error = -EFSCORRUPTED;
 		ASSERT(0);
-		/* NOTREACHED */
+		break;
 	}
-	/* Should never get here */
-	return -EFSCORRUPTED;
+	return error;
 }
 
 /* Ensure that the freelist is at full capacity. */
