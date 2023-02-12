@@ -3089,13 +3089,17 @@ xfs_alloc_read_agf(
 static int
 xfs_alloc_vextent_check_args(
 	struct xfs_alloc_arg	*args,
-	xfs_fsblock_t		target)
+	xfs_fsblock_t		target,
+	xfs_agnumber_t		*minimum_agno)
 {
 	struct xfs_mount	*mp = args->mp;
 	xfs_agblock_t		agsize;
 
-	args->agbno = NULLAGBLOCK;
 	args->fsbno = NULLFSBLOCK;
+
+	*minimum_agno = 0;
+	if (args->tp->t_highest_agno != NULLAGNUMBER)
+		*minimum_agno = args->tp->t_highest_agno;
 
 	/*
 	 * Just fix this up, for the case where the last a.g. is shorter
@@ -3123,11 +3127,16 @@ xfs_alloc_vextent_check_args(
 	    XFS_FSB_TO_AGBNO(mp, target) >= agsize ||
 	    args->minlen > args->maxlen || args->minlen > agsize ||
 	    args->mod >= args->prod) {
-		args->fsbno = NULLFSBLOCK;
 		trace_xfs_alloc_vextent_badargs(args);
 		return -ENOSPC;
 	}
+
+	if (args->agno != NULLAGNUMBER && *minimum_agno > args->agno) {
+		trace_xfs_alloc_vextent_skip_deadlock(args);
+		return -ENOSPC;
+	}
 	return 0;
+
 }
 
 /*
@@ -3266,27 +3275,18 @@ xfs_alloc_vextent_this_ag(
 	xfs_agnumber_t		agno)
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_agnumber_t		minimum_agno = 0;
+	xfs_agnumber_t		minimum_agno;
 	int			error;
 
-	if (args->tp->t_highest_agno != NULLAGNUMBER)
-		minimum_agno = args->tp->t_highest_agno;
-
-	if (minimum_agno > agno) {
-		trace_xfs_alloc_vextent_skip_deadlock(args);
-		args->fsbno = NULLFSBLOCK;
-		return 0;
-	}
-
-	error = xfs_alloc_vextent_check_args(args, XFS_AGB_TO_FSB(mp, agno, 0));
+	args->agno = agno;
+	args->agbno = 0;
+	error = xfs_alloc_vextent_check_args(args, XFS_AGB_TO_FSB(mp, agno, 0),
+			&minimum_agno);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
 		return error;
 	}
-
-	args->agno = agno;
-	args->agbno = 0;
 
 	error = xfs_alloc_vextent_prepare_ag(args);
 	if (!error && args->agbp)
@@ -3400,16 +3400,15 @@ xfs_alloc_vextent_start_ag(
 	xfs_fsblock_t		target)
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_agnumber_t		minimum_agno = 0;
+	xfs_agnumber_t		minimum_agno;
 	xfs_agnumber_t		start_agno;
 	xfs_agnumber_t		rotorstep = xfs_rotorstep;
 	bool			bump_rotor = false;
 	int			error;
 
-	if (args->tp->t_highest_agno != NULLAGNUMBER)
-		minimum_agno = args->tp->t_highest_agno;
-
-	error = xfs_alloc_vextent_check_args(args, target);
+	args->agno = NULLAGNUMBER;
+	args->agbno = NULLAGBLOCK;
+	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
@@ -3451,14 +3450,13 @@ xfs_alloc_vextent_first_ag(
 	xfs_fsblock_t		target)
  {
 	struct xfs_mount	*mp = args->mp;
-	xfs_agnumber_t		minimum_agno = 0;
+	xfs_agnumber_t		minimum_agno;
 	xfs_agnumber_t		start_agno;
 	int			error;
 
-	if (args->tp->t_highest_agno != NULLAGNUMBER)
-		minimum_agno = args->tp->t_highest_agno;
-
-	error = xfs_alloc_vextent_check_args(args, target);
+	args->agno = NULLAGNUMBER;
+	args->agbno = NULLAGBLOCK;
+	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
@@ -3481,27 +3479,17 @@ xfs_alloc_vextent_exact_bno(
 	xfs_fsblock_t		target)
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_agnumber_t		minimum_agno = 0;
+	xfs_agnumber_t		minimum_agno;
 	int			error;
 
-	if (args->tp->t_highest_agno != NULLAGNUMBER)
-		minimum_agno = args->tp->t_highest_agno;
-
-	error = xfs_alloc_vextent_check_args(args, target);
+	args->agno = XFS_FSB_TO_AGNO(mp, target);
+	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
+	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
 		return error;
 	}
-
-	args->agno = XFS_FSB_TO_AGNO(mp, target);
-	if (minimum_agno > args->agno) {
-		trace_xfs_alloc_vextent_skip_deadlock(args);
-		args->fsbno = NULLFSBLOCK;
-		return 0;
-	}
-
-	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 
 	error = xfs_alloc_vextent_prepare_ag(args);
 	if (!error && args->agbp)
@@ -3522,31 +3510,21 @@ xfs_alloc_vextent_near_bno(
 	xfs_fsblock_t		target)
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_agnumber_t		minimum_agno = 0;
+	xfs_agnumber_t		minimum_agno;
 	bool			needs_perag = args->pag == NULL;
 	int			error;
 
-	if (args->tp->t_highest_agno != NULLAGNUMBER)
-		minimum_agno = args->tp->t_highest_agno;
-
-	error = xfs_alloc_vextent_check_args(args, target);
+	args->agno = XFS_FSB_TO_AGNO(mp, target);
+	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
+	error = xfs_alloc_vextent_check_args(args, target, &minimum_agno);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
 		return error;
 	}
 
-	args->agno = XFS_FSB_TO_AGNO(mp, target);
-	if (minimum_agno > args->agno) {
-		trace_xfs_alloc_vextent_skip_deadlock(args);
-		args->fsbno = NULLFSBLOCK;
-		return 0;
-	}
-
 	if (needs_perag)
 		args->pag = xfs_perag_get(mp, args->agno);
-
-	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 
 	error = xfs_alloc_vextent_prepare_ag(args);
 	if (!error && args->agbp)
