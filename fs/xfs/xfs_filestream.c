@@ -276,7 +276,7 @@ xfs_filestream_select_ag(
 	xfs_agnumber_t		agno = NULLAGNUMBER;
 	struct xfs_mru_cache_elem *mru;
 	int			flags = 0;
-	int			error;
+	int			error = 0;
 
 	args->total = ap->total;
 	*blen = 0;
@@ -351,27 +351,11 @@ xfs_filestream_select_ag(
 		goto out_error;
 	if (agno == NULLAGNUMBER) {
 		agno = 0;
-		goto out_irele;
-	}
-
-	pag = xfs_perag_grab(mp, agno);
-	if (!pag)
-		goto out_irele;
-
-	error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
-	xfs_perag_rele(pag);
-	if (error) {
-		if (error != -EAGAIN)
-			goto out_error;
 		*blen = 0;
 	}
 
-out_irele:
-	xfs_irele(pip);
 out_select:
 	ap->blkno = XFS_AGB_TO_FSB(mp, agno, 0);
-	return 0;
-
 out_error:
 	xfs_irele(pip);
 	return error;
