@@ -83,9 +83,9 @@ xfs_filestream_pick_ag(
 	struct xfs_perag	*max_pag = NULL;
 	xfs_extlen_t		minlen = *longest;
 	xfs_extlen_t		free = 0, minfree, maxfree = 0;
-	xfs_agnumber_t		startag = *agp;
-	xfs_agnumber_t		ag = startag;
-	int			err, trylock, nscan;
+	xfs_agnumber_t		start_agno = *agp;
+	xfs_agnumber_t		agno;
+	int			err, trylock;
 
 	ASSERT(S_ISDIR(VFS_I(ip)->i_mode));
 
@@ -97,13 +97,9 @@ xfs_filestream_pick_ag(
 	/* For the first pass, don't sleep trying to init the per-AG. */
 	trylock = XFS_ALLOC_FLAG_TRYLOCK;
 
-	for (nscan = 0; 1; nscan++) {
-		trace_xfs_filestream_scan(mp, ip->i_ino, ag);
-
-		err = 0;
-		pag = xfs_perag_grab(mp, ag);
-		if (!pag)
-			goto next_ag;
+restart:
+	for_each_perag_wrap(mp, start_agno, agno, pag) {
+		trace_xfs_filestream_scan(mp, ip->i_ino, agno);
 		*longest = 0;
 		err = xfs_bmap_longest_free_extent(pag, NULL, longest);
 		if (err) {
@@ -111,6 +107,7 @@ xfs_filestream_pick_ag(
 			if (err != -EAGAIN)
 				break;
 			/* Couldn't lock the AGF, skip this AG. */
+			err = 0;
 			goto next_ag;
 		}
 
@@ -129,76 +126,60 @@ xfs_filestream_pick_ag(
 		 * loop, and it guards against two filestreams being established
 		 * in the same AG as each other.
 		 */
-		if (atomic_inc_return(&pag->pagf_fstrms) > 1) {
-			atomic_dec(&pag->pagf_fstrms);
-			xfs_perag_rele(pag);
-			goto next_ag;
-		}
-
-		if (((minlen && *longest >= minlen) ||
-		     (!minlen && pag->pagf_freeblks >= minfree)) &&
-		    (!xfs_perag_prefers_metadata(pag) ||
-		     !(flags & XFS_PICK_USERDATA) ||
-		     (flags & XFS_PICK_LOWSPACE))) {
-
-			/* Break out, retaining the reference on the AG. */
-			free = pag->pagf_freeblks;
-			break;
+		if (atomic_inc_return(&pag->pagf_fstrms) <= 1) {
+			if (((minlen && *longest >= minlen) ||
+			     (!minlen && pag->pagf_freeblks >= minfree)) &&
+			    (!xfs_perag_prefers_metadata(pag) ||
+			     !(flags & XFS_PICK_USERDATA) ||
+			     (flags & XFS_PICK_LOWSPACE))) {
+				/* Break out, retaining the reference on the AG. */
+				free = pag->pagf_freeblks;
+				break;
+			}
 		}
 
 		/* Drop the reference on this AG, it's not usable. */
 		atomic_dec(&pag->pagf_fstrms);
-next_ag:
-		/* Move to the next AG, wrapping to AG 0 if necessary. */
-		if (++ag >= mp->m_sb.sb_agcount)
-			ag = 0;
+	}
 
-		/* If a full pass of the AGs hasn't been done yet, continue. */
-		if (ag != startag)
-			continue;
+	if (err) {
+		xfs_perag_rele(pag);
+		if (max_pag)
+			xfs_perag_rele(max_pag);
+		return err;
+	}
 
+	if (!pag) {
 		/* Allow sleeping in xfs_alloc_read_agf() on the 2nd pass. */
-		if (trylock != 0) {
+		if (trylock) {
 			trylock = 0;
-			continue;
+			goto restart;
 		}
 
 		/* Finally, if lowspace wasn't set, set it for the 3rd pass. */
 		if (!(flags & XFS_PICK_LOWSPACE)) {
 			flags |= XFS_PICK_LOWSPACE;
-			continue;
+			goto restart;
 		}
 
 		/*
-		 * Take the AG with the most free space, regardless of whether
-		 * it's already in use by another filestream.
+		 * No unassociated AGs are available, so select the AG with the
+		 * most free space, regardless of whether it's already in use by
+		 * another filestream. It none suit, return NULLAGNUMBER.
 		 */
-		if (max_pag) {
-			pag = max_pag;
-			atomic_inc(&pag->pagf_fstrms);
-			free = maxfree;
-			break;
+		if (!max_pag) {
+			*agp = NULLAGNUMBER;
+			trace_xfs_filestream_pick(ip, *agp, free, 0);
+			return 0;
 		}
-
-		/* take AG 0 if none matched */
-		trace_xfs_filestream_pick(ip, *agp, free, nscan);
-		*agp = 0;
-		return 0;
-	}
-
-	trace_xfs_filestream_pick(ip, pag ? pag->pag_agno : NULLAGNUMBER,
-			free, nscan);
-
-	if (max_pag)
+		pag = max_pag;
+		free = maxfree;
+		atomic_inc(&pag->pagf_fstrms);
+	} else if (max_pag) {
 		xfs_perag_rele(max_pag);
-
-	if (err)
-		return err;
-
-	if (!pag) {
-		*agp = NULLAGNUMBER;
-		return 0;
 	}
+
+	trace_xfs_filestream_pick(ip, pag->pag_agno, free, 0);
 
 	err = -ENOMEM;
 	item = kmem_alloc(sizeof(*item), KM_MAYFAIL);
