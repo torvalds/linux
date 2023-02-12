@@ -12,6 +12,7 @@ struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_alloc_arg;
 
 /*
  * Argument structure for xfs_bmap_alloc.
@@ -224,6 +225,8 @@ int	xfs_bmap_add_extent_unwritten_real(struct xfs_trans *tp,
 		struct xfs_bmbt_irec *new, int *logflagsp);
 xfs_extlen_t xfs_bmapi_minleft(struct xfs_trans *tp, struct xfs_inode *ip,
 		int fork);
+int	xfs_bmap_btalloc_low_space(struct xfs_bmalloca *ap,
+		struct xfs_alloc_arg *args);
 
 enum xfs_bmap_intent_type {
 	XFS_BMAP_MAP = 1,

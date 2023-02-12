@@ -12,6 +12,7 @@
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_alloc.h"
 #include "xfs_mru_cache.h"
 #include "xfs_trace.h"
@@ -263,7 +264,7 @@ out:
  *
  * Returns NULLAGNUMBER in case of an error.
  */
-xfs_agnumber_t
+static xfs_agnumber_t
 xfs_filestream_lookup_ag(
 	struct xfs_inode	*ip)
 {
@@ -312,7 +313,7 @@ out:
  * This is called when the allocator can't find a suitable extent in the
  * current AG, and we have to move the stream into a new AG with more space.
  */
-int
+static int
 xfs_filestream_new_ag(
 	struct xfs_bmalloca	*ap,
 	xfs_agnumber_t		*agp)
@@ -356,6 +357,101 @@ exit:
 	if (*agp == NULLAGNUMBER)
 		*agp = 0;
 	return err;
+}
+
+static int
+xfs_filestreams_select_lengths(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args,
+	xfs_extlen_t		*blen)
+{
+	struct xfs_mount	*mp = ap->ip->i_mount;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		start_agno;
+	int			error;
+
+	args->total = ap->total;
+
+	start_agno = XFS_FSB_TO_AGNO(mp, ap->blkno);
+	if (start_agno == NULLAGNUMBER)
+		start_agno = 0;
+
+	pag = xfs_perag_grab(mp, start_agno);
+	if (pag) {
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
+		xfs_perag_rele(pag);
+		if (error) {
+			if (error != -EAGAIN)
+				return error;
+			*blen = 0;
+		}
+	}
+
+	if (*blen < args->maxlen) {
+		xfs_agnumber_t	agno = start_agno;
+
+		error = xfs_filestream_new_ag(ap, &agno);
+		if (error)
+			return error;
+		if (agno == NULLAGNUMBER)
+			goto out_select;
+
+		pag = xfs_perag_grab(mp, agno);
+		if (!pag)
+			goto out_select;
+
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
+		xfs_perag_rele(pag);
+		if (error) {
+			if (error != -EAGAIN)
+				return error;
+			*blen = 0;
+		}
+		start_agno = agno;
+	}
+
+out_select:
+	/*
+	 * Set the failure fallback case to look in the selected AG as stream
+	 * may have moved.
+	 */
+	ap->blkno = args->fsbno = XFS_AGB_TO_FSB(mp, start_agno, 0);
+	return 0;
+}
+
+/*
+ * Search for an allocation group with a single extent large enough for
+ * the request.  If one isn't found, then the largest available free extent is
+ * returned as the best length possible.
+ */
+int
+xfs_filestream_select_ag(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args,
+	xfs_extlen_t		*blen)
+{
+	xfs_agnumber_t		start_agno = xfs_filestream_lookup_ag(ap->ip);
+
+	/* Determine the initial block number we will target for allocation. */
+	if (start_agno == NULLAGNUMBER)
+		start_agno = 0;
+	ap->blkno = XFS_AGB_TO_FSB(args->mp, start_agno, 0);
+	xfs_bmap_adjacent(ap);
+
+	/*
+	 * If there is very little free space before we start a filestreams
+	 * allocation, we're almost guaranteed to fail to find a better AG with
+	 * larger free space available so we don't even try.
+	 */
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
+		return 0;
+
+	/*
+	 * Search for an allocation group with a single extent large enough for
+	 * the request.  If one isn't found, then adjust the minimum allocation
+	 * size to the largest space found.
+	 */
+	return xfs_filestreams_select_lengths(ap, args, blen);
 }
 
 void
