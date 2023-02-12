@@ -214,9 +214,6 @@ xfs_bmbt_alloc_block(
 	if (!args.wasdel && args.tp->t_blk_res == 0)
 		return -ENOSPC;
 
-	args.fsbno = be64_to_cpu(start->l);
-	args.type = XFS_ALLOCTYPE_START_BNO;
-
 	/*
 	 * If we are coming here from something like unwritten extent
 	 * conversion, there has been no data extent allocation already done, so
@@ -227,7 +224,7 @@ xfs_bmbt_alloc_block(
 		args.minleft = xfs_bmapi_minleft(cur->bc_tp, cur->bc_ino.ip,
 					cur->bc_ino.whichfork);
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_start_ag(&args, be64_to_cpu(start->l));
 	if (error)
 		return error;
 
@@ -237,10 +234,8 @@ xfs_bmbt_alloc_block(
 		 * a full btree split.  Try again and if
 		 * successful activate the lowspace algorithm.
 		 */
-		args.fsbno = 0;
 		args.minleft = 0;
-		args.type = XFS_ALLOCTYPE_START_BNO;
-		error = xfs_alloc_vextent(&args);
+		error = xfs_alloc_vextent_start_ag(&args, 0);
 		if (error)
 			return error;
 		cur->bc_tp->t_flags |= XFS_TRANS_LOWMODE;

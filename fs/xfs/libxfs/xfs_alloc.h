@@ -20,7 +20,6 @@ unsigned int xfs_agfl_size(struct xfs_mount *mp);
  * Freespace allocation types.  Argument to xfs_alloc_[v]extent.
  */
 #define XFS_ALLOCTYPE_THIS_AG	0x08	/* anywhere in this a.g. */
-#define XFS_ALLOCTYPE_START_BNO	0x10	/* near this block else anywhere */
 #define XFS_ALLOCTYPE_NEAR_BNO	0x20	/* in this a.g. and near this block */
 #define XFS_ALLOCTYPE_THIS_BNO	0x40	/* at exactly this block */
 
@@ -29,7 +28,6 @@ typedef unsigned int xfs_alloctype_t;
 
 #define XFS_ALLOC_TYPES \
 	{ XFS_ALLOCTYPE_THIS_AG,	"THIS_AG" }, \
-	{ XFS_ALLOCTYPE_START_BNO,	"START_BNO" }, \
 	{ XFS_ALLOCTYPE_NEAR_BNO,	"NEAR_BNO" }, \
 	{ XFS_ALLOCTYPE_THIS_BNO,	"THIS_BNO" }
 
@@ -127,6 +125,17 @@ xfs_alloc_vextent(
  * space in that AG, then the allocation will fail.
  */
 int xfs_alloc_vextent_this_ag(struct xfs_alloc_arg *args);
+
+/*
+ * Best effort full filesystem allocation scan.
+ *
+ * Locality aware allocation will be attempted in the initial AG, but on failure
+ * non-localised attempts will be made. The AGs are constrained by previous
+ * allocations in the current transaction. Two passes will be made - the first
+ * non-blocking, the second blocking.
+ */
+int xfs_alloc_vextent_start_ag(struct xfs_alloc_arg *args,
+		xfs_fsblock_t target);
 
 /*
  * Iterate from the AG indicated from args->fsbno through to the end of the

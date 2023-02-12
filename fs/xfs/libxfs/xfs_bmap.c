@@ -646,12 +646,11 @@ xfs_bmap_extents_to_btree(
 	args.mp = mp;
 	xfs_rmap_ino_bmbt_owner(&args.oinfo, ip->i_ino, whichfork);
 
-	args.type = XFS_ALLOCTYPE_START_BNO;
-	args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = wasdel;
 	*logflagsp = 0;
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_start_ag(&args,
+				XFS_INO_TO_FSB(mp, ip->i_ino));
 	if (error)
 		goto out_root_realloc;
 
@@ -792,15 +791,15 @@ xfs_bmap_local_to_extents(
 	args.total = total;
 	args.minlen = args.maxlen = args.prod = 1;
 	xfs_rmap_ino_owner(&args.oinfo, ip->i_ino, whichfork, 0);
+
 	/*
 	 * Allocate a block.  We know we need only one, since the
 	 * file currently fits in an inode.
 	 */
-	args.fsbno = XFS_INO_TO_FSB(args.mp, ip->i_ino);
-	args.type = XFS_ALLOCTYPE_START_BNO;
 	args.total = total;
 	args.minlen = args.maxlen = args.prod = 1;
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_start_ag(&args,
+			XFS_INO_TO_FSB(args.mp, ip->i_ino));
 	if (error)
 		goto done;
 
@@ -3208,7 +3207,6 @@ xfs_bmap_btalloc_select_lengths(
 	int			notinit = 0;
 	int			error = 0;
 
-	args->type = XFS_ALLOCTYPE_START_BNO;
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
 		args->total = ap->minlen;
 		args->minlen = ap->minlen;
@@ -3500,7 +3498,8 @@ xfs_bmap_btalloc_at_eof(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
 	xfs_extlen_t		blen,
-	int			stripe_align)
+	int			stripe_align,
+	bool			ag_only)
 {
 	struct xfs_mount	*mp = args->mp;
 	xfs_alloctype_t		atype;
@@ -3565,7 +3564,10 @@ xfs_bmap_btalloc_at_eof(
 		args->minalignslop = 0;
 	}
 
-	error = xfs_alloc_vextent(args);
+	if (ag_only)
+		error = xfs_alloc_vextent(args);
+	else
+		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
 	if (error)
 		return error;
 
@@ -3591,13 +3593,17 @@ xfs_bmap_btalloc_best_length(
 {
 	struct xfs_mount	*mp = args->mp;
 	xfs_extlen_t		blen = 0;
+	bool			is_filestream = false;
 	int			error;
+
+	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
+	    xfs_inode_is_filestream(ap->ip))
+		is_filestream = true;
 
 	/*
 	 * Determine the initial block number we will target for allocation.
 	 */
-	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
-	    xfs_inode_is_filestream(ap->ip)) {
+	if (is_filestream) {
 		xfs_agnumber_t	agno = xfs_filestream_lookup_ag(ap->ip);
 		if (agno == NULLAGNUMBER)
 			agno = 0;
@@ -3613,8 +3619,7 @@ xfs_bmap_btalloc_best_length(
 	 * the request.  If one isn't found, then adjust the minimum allocation
 	 * size to the largest space found.
 	 */
-	if ((ap->datatype & XFS_ALLOC_USERDATA) &&
-	    xfs_inode_is_filestream(ap->ip)) {
+	if (is_filestream) {
 		/*
 		 * If there is very little free space before we start a
 		 * filestreams allocation, we're almost guaranteed to fail to
@@ -3639,14 +3644,18 @@ xfs_bmap_btalloc_best_length(
 	 * trying.
 	 */
 	if (ap->aeof && !(ap->tp->t_flags & XFS_TRANS_LOWMODE)) {
-		error = xfs_bmap_btalloc_at_eof(ap, args, blen, stripe_align);
+		error = xfs_bmap_btalloc_at_eof(ap, args, blen, stripe_align,
+				is_filestream);
 		if (error)
 			return error;
 		if (args->fsbno != NULLFSBLOCK)
 			return 0;
 	}
 
-	error = xfs_alloc_vextent(args);
+	if (is_filestream)
+		error = xfs_alloc_vextent(args);
+	else
+		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
 	if (error)
 		return error;
 	if (args->fsbno != NULLFSBLOCK)
@@ -3658,9 +3667,7 @@ xfs_bmap_btalloc_best_length(
 	 */
 	if (args->minlen > ap->minlen) {
 		args->minlen = ap->minlen;
-		args->type = XFS_ALLOCTYPE_START_BNO;
-		args->fsbno = ap->blkno;
-		error = xfs_alloc_vextent(args);
+		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
 		if (error)
 			return error;
 	}

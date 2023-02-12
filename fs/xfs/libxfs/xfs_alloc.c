@@ -3189,7 +3189,6 @@ xfs_alloc_vextent_check_args(
 	struct xfs_mount	*mp = args->mp;
 	xfs_agblock_t		agsize;
 
-	args->otype = args->type;
 	args->agbno = NULLAGBLOCK;
 
 	/*
@@ -3345,7 +3344,7 @@ xfs_alloc_vextent_iterate_ags(
 		trace_xfs_alloc_vextent_loopfailed(args);
 
 		if (args->agno == start_agno &&
-		    args->otype == XFS_ALLOCTYPE_START_BNO)
+		    args->otype == XFS_ALLOCTYPE_NEAR_BNO)
 			args->type = XFS_ALLOCTYPE_THIS_AG;
 
 		/*
@@ -3373,7 +3372,7 @@ xfs_alloc_vextent_iterate_ags(
 			}
 
 			flags = 0;
-			if (args->otype == XFS_ALLOCTYPE_START_BNO) {
+			if (args->otype == XFS_ALLOCTYPE_NEAR_BNO) {
 				args->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
 				args->type = XFS_ALLOCTYPE_NEAR_BNO;
 			}
@@ -3396,18 +3395,22 @@ xfs_alloc_vextent_iterate_ags(
  * otherwise will wrap back to the start AG and run a second blocking pass to
  * the end of the filesystem.
  */
-static int
+int
 xfs_alloc_vextent_start_ag(
 	struct xfs_alloc_arg	*args,
-	xfs_agnumber_t		minimum_agno)
+	xfs_fsblock_t		target)
 {
 	struct xfs_mount	*mp = args->mp;
+	xfs_agnumber_t		minimum_agno = 0;
 	xfs_agnumber_t		start_agno;
 	xfs_agnumber_t		rotorstep = xfs_rotorstep;
 	bool			bump_rotor = false;
 	int			error;
 
-	error = xfs_alloc_vextent_check_args(args, args->fsbno);
+	if (args->tp->t_highest_agno != NULLAGNUMBER)
+		minimum_agno = args->tp->t_highest_agno;
+
+	error = xfs_alloc_vextent_check_args(args, target);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
@@ -3416,14 +3419,15 @@ xfs_alloc_vextent_start_ag(
 
 	if ((args->datatype & XFS_ALLOC_INITIAL_USER_DATA) &&
 	    xfs_is_inode32(mp)) {
-		args->fsbno = XFS_AGB_TO_FSB(mp,
+		target = XFS_AGB_TO_FSB(mp,
 				((mp->m_agfrotor / rotorstep) %
 				mp->m_sb.sb_agcount), 0);
 		bump_rotor = 1;
 	}
-	start_agno = max(minimum_agno, XFS_FSB_TO_AGNO(mp, args->fsbno));
-	args->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
+	start_agno = max(minimum_agno, XFS_FSB_TO_AGNO(mp, target));
+	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 	args->type = XFS_ALLOCTYPE_NEAR_BNO;
+	args->fsbno = target;
 
 	error = xfs_alloc_vextent_iterate_ags(args, minimum_agno, start_agno,
 			XFS_ALLOC_FLAG_TRYLOCK);
@@ -3498,8 +3502,6 @@ xfs_alloc_vextent(
 		error = xfs_alloc_vextent_this_ag(args);
 		xfs_perag_put(args->pag);
 		break;
-	case XFS_ALLOCTYPE_START_BNO:
-		return xfs_alloc_vextent_start_ag(args, minimum_agno);
 	default:
 		error = -EFSCORRUPTED;
 		ASSERT(0);
