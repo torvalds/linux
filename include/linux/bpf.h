@@ -181,6 +181,7 @@ enum btf_field_type {
 	BPF_KPTR       = BPF_KPTR_UNREF | BPF_KPTR_REF,
 	BPF_LIST_HEAD  = (1 << 4),
 	BPF_LIST_NODE  = (1 << 5),
+	BPF_GRAPH_NODE_OR_ROOT = BPF_LIST_NODE | BPF_LIST_HEAD,
 };
 
 struct btf_field_kptr {
@@ -575,6 +576,11 @@ enum bpf_type_flag {
 
 	/* MEM is tagged with rcu and memory access needs rcu_read_lock protection. */
 	MEM_RCU			= BIT(13 + BPF_BASE_TYPE_BITS),
+
+	/* Used to tag PTR_TO_BTF_ID | MEM_ALLOC references which are non-owning.
+	 * Currently only valid for linked-list and rbtree nodes.
+	 */
+	NON_OWN_REF		= BIT(14 + BPF_BASE_TYPE_BITS),
 
 	__BPF_TYPE_FLAG_MAX,
 	__BPF_TYPE_LAST_FLAG	= __BPF_TYPE_FLAG_MAX - 1,
