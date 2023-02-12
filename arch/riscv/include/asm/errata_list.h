@@ -23,11 +23,6 @@
 #define	ERRATA_THEAD_NUMBER 3
 #endif
 
-#define	CPUFEATURE_SVPBMT 0
-#define	CPUFEATURE_ZICBOM 1
-#define	CPUFEATURE_ZBB 2
-#define	CPUFEATURE_NUMBER 3
-
 #ifdef __ASSEMBLY__
 
 #define ALT_INSN_FAULT(x)						\
