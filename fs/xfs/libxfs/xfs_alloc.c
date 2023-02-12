@@ -1144,30 +1144,7 @@ static int
 xfs_alloc_ag_vextent(
 	struct xfs_alloc_arg	*args)
 {
-	struct xfs_mount	*mp = args->mp;
 	int			error = 0;
-
-	ASSERT(args->minlen > 0);
-	ASSERT(args->maxlen > 0);
-	ASSERT(args->minlen <= args->maxlen);
-	ASSERT(args->mod < args->prod);
-	ASSERT(args->alignment > 0);
-	ASSERT(args->resv != XFS_AG_RESV_AGFL);
-
-
-	error = xfs_alloc_fix_freelist(args, 0);
-	if (error) {
-		trace_xfs_alloc_vextent_nofix(args);
-		return error;
-	}
-	if (!args->agbp) {
-		/* cannot allocate in this AG at all */
-		trace_xfs_alloc_vextent_noagbp(args);
-		args->agbno = NULLAGBLOCK;
-		return 0;
-	}
-	args->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
-	args->wasfromfl = 0;
 
 	/*
 	 * Branch to correct routine based on the type.
@@ -3201,11 +3178,18 @@ xfs_alloc_vextent_check_args(
 		args->maxlen = agsize;
 	if (args->alignment == 0)
 		args->alignment = 1;
+
+	ASSERT(args->minlen > 0);
+	ASSERT(args->maxlen > 0);
+	ASSERT(args->alignment > 0);
+	ASSERT(args->resv != XFS_AG_RESV_AGFL);
+
 	ASSERT(XFS_FSB_TO_AGNO(mp, target) < mp->m_sb.sb_agcount);
 	ASSERT(XFS_FSB_TO_AGBNO(mp, target) < agsize);
 	ASSERT(args->minlen <= args->maxlen);
 	ASSERT(args->minlen <= agsize);
 	ASSERT(args->mod < args->prod);
+
 	if (XFS_FSB_TO_AGNO(mp, target) >= mp->m_sb.sb_agcount ||
 	    XFS_FSB_TO_AGBNO(mp, target) >= agsize ||
 	    args->minlen > args->maxlen || args->minlen > agsize ||
@@ -3214,6 +3198,41 @@ xfs_alloc_vextent_check_args(
 		trace_xfs_alloc_vextent_badargs(args);
 		return -ENOSPC;
 	}
+	return 0;
+}
+
+/*
+ * Prepare an AG for allocation. If the AG is not prepared to accept the
+ * allocation, return failure.
+ *
+ * XXX(dgc): The complexity of "need_pag" will go away as all caller paths are
+ * modified to hold their own perag references.
+ */
+static int
+xfs_alloc_vextent_prepare_ag(
+	struct xfs_alloc_arg	*args)
+{
+	bool			need_pag = !args->pag;
+	int			error;
+
+	if (need_pag)
+		args->pag = xfs_perag_get(args->mp, args->agno);
+
+	error = xfs_alloc_fix_freelist(args, 0);
+	if (error) {
+		trace_xfs_alloc_vextent_nofix(args);
+		if (need_pag)
+			xfs_perag_put(args->pag);
+		args->agbno = NULLAGBLOCK;
+		return error;
+	}
+	if (!args->agbp) {
+		/* cannot allocate in this AG at all */
+		trace_xfs_alloc_vextent_noagbp(args);
+		args->agbno = NULLAGBLOCK;
+		return 0;
+	}
+	args->wasfromfl = 0;
 	return 0;
 }
 
@@ -3268,7 +3287,8 @@ xfs_alloc_vextent_set_fsbno(
 }
 
 /*
- * Allocate within a single AG only.
+ * Allocate within a single AG only. Caller is expected to hold a
+ * perag reference in args->pag.
  */
 int
 xfs_alloc_vextent_this_ag(
@@ -3301,7 +3321,10 @@ xfs_alloc_vextent_this_ag(
 	args->fsbno = target;
 	args->type = XFS_ALLOCTYPE_THIS_AG;
 
-	error = xfs_alloc_ag_vextent(args);
+	error = xfs_alloc_vextent_prepare_ag(args);
+	if (!error && args->agbp)
+		error = xfs_alloc_ag_vextent(args);
+
 	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
 	return error;
 }
@@ -3339,13 +3362,19 @@ xfs_alloc_vextent_iterate_ags(
 	args->agno = start_agno;
 	for (;;) {
 		args->pag = xfs_perag_get(mp, args->agno);
-		error = xfs_alloc_ag_vextent(args);
-		if (error) {
-			args->agbno = NULLAGBLOCK;
+		args->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
+		error = xfs_alloc_vextent_prepare_ag(args);
+		if (error)
+			break;
+
+		if (args->agbp) {
+			/*
+			 * Allocation is supposed to succeed now, so break out
+			 * of the loop regardless of whether we succeed or not.
+			 */
+			error = xfs_alloc_ag_vextent(args);
 			break;
 		}
-		if (args->agbp)
-			break;
 
 		trace_xfs_alloc_vextent_loopfailed(args);
 
@@ -3378,10 +3407,8 @@ xfs_alloc_vextent_iterate_ags(
 			}
 
 			flags = 0;
-			if (args->otype == XFS_ALLOCTYPE_NEAR_BNO) {
-				args->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
+			if (args->otype == XFS_ALLOCTYPE_NEAR_BNO)
 				args->type = XFS_ALLOCTYPE_NEAR_BNO;
-			}
 		}
 		xfs_perag_put(args->pag);
 		args->pag = NULL;
@@ -3485,7 +3512,8 @@ xfs_alloc_vextent_first_ag(
 }
 
 /*
- * Allocate within a single AG only.
+ * Allocate at the exact block target or fail. Caller is expected to hold a
+ * perag reference in args->pag.
  */
 int
 xfs_alloc_vextent_exact_bno(
@@ -3515,9 +3543,10 @@ xfs_alloc_vextent_exact_bno(
 	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 	args->fsbno = target;
 	args->type = XFS_ALLOCTYPE_THIS_BNO;
-	error = xfs_alloc_ag_vextent(args);
-	if (error)
-		return error;
+
+	error = xfs_alloc_vextent_prepare_ag(args);
+	if (!error && args->agbp)
+		error = xfs_alloc_ag_vextent(args);
 
 	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
 	return 0;
@@ -3526,6 +3555,8 @@ xfs_alloc_vextent_exact_bno(
 /*
  * Allocate an extent as close to the target as possible. If there are not
  * viable candidates in the AG, then fail the allocation.
+ *
+ * Caller may or may not have a per-ag reference in args->pag.
  */
 int
 xfs_alloc_vextent_near_bno(
@@ -3550,21 +3581,22 @@ xfs_alloc_vextent_near_bno(
 	args->agno = XFS_FSB_TO_AGNO(mp, target);
 	if (minimum_agno > args->agno) {
 		trace_xfs_alloc_vextent_skip_deadlock(args);
+		args->fsbno = NULLFSBLOCK;
 		return 0;
 	}
 
 	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
 	args->type = XFS_ALLOCTYPE_NEAR_BNO;
-	if (need_pag)
-		args->pag = xfs_perag_get(args->mp, args->agno);
-	error = xfs_alloc_ag_vextent(args);
-	if (need_pag)
-		xfs_perag_put(args->pag);
-	if (error)
-		return error;
+
+	error = xfs_alloc_vextent_prepare_ag(args);
+	if (!error && args->agbp)
+		error = xfs_alloc_ag_vextent(args);
 
 	xfs_alloc_vextent_set_fsbno(args, minimum_agno);
-	return 0;
+	if (need_pag)
+		xfs_perag_put(args->pag);
+
+	return error;
 }
 
 /* Ensure that the freelist is at full capacity. */
