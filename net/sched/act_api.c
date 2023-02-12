@@ -539,6 +539,8 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			       (unsigned long)p->tcfa_tm.lastuse))
 			continue;
 
+		tcf_action_update_hw_stats(p);
+
 		nest = nla_nest_start_noflag(skb, n_i);
 		if (!nest) {
 			index--;
@@ -1538,9 +1540,6 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *p,
 
 	if (p == NULL)
 		goto errout;
-
-	/* update hw stats for this action */
-	tcf_action_update_hw_stats(p);
 
 	/* compat_mode being true specifies a call that is supposed
 	 * to add additional backward compatibility statistic TLVs.
