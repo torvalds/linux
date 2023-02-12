@@ -192,6 +192,7 @@ static int offload_action_init(struct flow_offload_action *fl_action,
 	fl_action->extack = extack;
 	fl_action->command = cmd;
 	fl_action->index = act->tcfa_index;
+	fl_action->cookie = (unsigned long)act;
 
 	if (act->ops->offload_act_setup) {
 		spin_lock_bh(&act->tcfa_lock);
