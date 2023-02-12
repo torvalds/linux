@@ -168,6 +168,8 @@ static inline bool xfs_bmap_is_written_extent(struct xfs_bmbt_irec *irec)
 #define xfs_valid_startblock(ip, startblock) \
 	((startblock) != 0 || XFS_IS_REALTIME_INODE(ip))
 
+int	xfs_bmap_longest_free_extent(struct xfs_perag *pag,
+		struct xfs_trans *tp, xfs_extlen_t *blen);
 void	xfs_trim_extent(struct xfs_bmbt_irec *irec, xfs_fileoff_t bno,
 		xfs_filblks_t len);
 unsigned int xfs_bmap_compute_attr_offset(struct xfs_mount *mp);

@@ -124,17 +124,14 @@ xfs_filestream_pick_ag(
 		trace_xfs_filestream_scan(mp, ip->i_ino, ag);
 
 		pag = xfs_perag_get(mp, ag);
-
-		if (!xfs_perag_initialised_agf(pag)) {
-			err = xfs_alloc_read_agf(pag, NULL, trylock, NULL);
-			if (err) {
-				if (err != -EAGAIN) {
-					xfs_perag_put(pag);
-					return err;
-				}
-				/* Couldn't lock the AGF, skip this AG. */
-				goto next_ag;
-			}
+		longest = 0;
+		err = xfs_bmap_longest_free_extent(pag, NULL, &longest);
+		if (err) {
+			xfs_perag_put(pag);
+			if (err != -EAGAIN)
+				return err;
+			/* Couldn't lock the AGF, skip this AG. */
+			goto next_ag;
 		}
 
 		/* Keep track of the AG with the most free blocks. */
@@ -154,9 +151,6 @@ xfs_filestream_pick_ag(
 			goto next_ag;
 		}
 
-		longest = xfs_alloc_longest_free_extent(pag,
-				xfs_alloc_min_freelist(mp, pag),
-				xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE));
 		if (((minlen && longest >= minlen) ||
 		     (!minlen && pag->pagf_freeblks >= minfree)) &&
 		    (!xfs_perag_prefers_metadata(pag) ||
