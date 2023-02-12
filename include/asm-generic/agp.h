@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_AGP_H
-#define _ASM_POWERPC_AGP_H
-#ifdef __KERNEL__
+#ifndef _ASM_GENERIC_AGP_H
+#define _ASM_GENERIC_AGP_H
 
 #include <asm/io.h>
 
@@ -9,5 +8,4 @@
 #define unmap_page_from_agp(page) do {} while (0)
 #define flush_agp_cache() mb()
 
-#endif /* __KERNEL__ */
-#endif	/* _ASM_POWERPC_AGP_H */
+#endif	/* _ASM_GENERIC_AGP_H */
