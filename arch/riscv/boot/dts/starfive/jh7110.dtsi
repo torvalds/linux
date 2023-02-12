@@ -1116,16 +1116,13 @@
 			compatible = "starfive,jh7110-tdm";
 			reg = <0x0 0x10090000 0x0 0x1000>;
 			reg-names = "tdm";
-			clocks = <&clkgen JH7110_AHB0>,
-				 <&clkgen JH7110_TDM_CLK_AHB>,
-				 <&clkgen JH7110_APB0>,
+			clocks = <&clkgen JH7110_TDM_CLK_AHB>,
 				 <&clkgen JH7110_TDM_CLK_APB>,
 				 <&clkgen JH7110_TDM_INTERNAL>,
 				 <&tdm_ext>,
 				 <&clkgen JH7110_TDM_CLK_TDM>,
 				 <&clkgen JH7110_MCLK_INNER>;
-			clock-names = "clk_ahb0", "clk_tdm_ahb",
-				      "clk_apb0", "clk_tdm_apb",
+			clock-names = "clk_tdm_ahb", "clk_tdm_apb",
 				      "clk_tdm_internal", "clk_tdm_ext",
 				      "clk_tdm", "mclk_inner";
 			resets = <&rstgen RSTN_U0_TDM16SLOT_AHB>,
@@ -1187,11 +1184,10 @@
 			reg = <0x0 0x100d0000 0x0 0x1000>;
 			reg-names = "pdm";
 			clocks = <&clkgen JH7110_PDM_CLK_DMIC>,
-				 <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_PDM_CLK_APB>,
 				 <&clkgen JH7110_MCLK>,
 				 <&mclk_ext>;
-			clock-names = "pdm_mclk", "clk_apb0",
+			clock-names = "pdm_mclk",
 				      "pdm_apb", "clk_mclk",
 				      "mclk_ext";
 			resets = <&rstgen RSTN_U0_PDM_4MIC_DMIC>,
@@ -1208,10 +1204,13 @@
 				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>,
 				 <&clkgen JH7110_I2SRX_3CH_LRCK_MST>,
 				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
-				 <&clkgen JH7110_I2SRX0_3CH_LRCK>;
+				 <&clkgen JH7110_I2SRX0_3CH_LRCK>,
+				 <&clkgen JH7110_MCLK>,
+				 <&mclk_ext>;
 			clock-names = "apb0", "i2srx_apb",
 				      "i2srx_bclk_mst", "i2srx_lrck_mst",
-				      "i2srx_bclk", "i2srx_lrck";
+				      "i2srx_bclk", "i2srx_lrck",
+				      "mclk", "mclk_ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			reset-names = "rst_apb_rx", "rst_bclk_rx";
@@ -1234,14 +1233,15 @@
 				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
 				 <&clkgen JH7110_I2SRX0_3CH_LRCK>,
 				 <&clkgen JH7110_MCLK>,
+				 <&mclk_ext>,
 				 <&i2srx_bclk_ext>,
 				 <&i2srx_lrck_ext>;
 			clock-names = "apb0", "3ch-apb",
 				      "audioroot", "mclk-inner",
 				      "bclk_mst", "3ch-lrck",
 				      "rx-bclk", "rx-lrck",
-				      "mclk", "bclk-ext",
-				      "lrck-ext";
+				      "mclk", "mclk_ext",
+				      "bclk-ext", "lrck-ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			dmas = <&dma 24 1>;
