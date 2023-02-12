@@ -497,8 +497,7 @@
 	pinctrl-0 = <&fimc_is_uart>;
 	pinctrl-names = "default";
 	status = "okay";
-
-	};
+};
 
 &fimc_lite_0 {
 	status = "okay";
