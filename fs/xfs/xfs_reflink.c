@@ -927,7 +927,7 @@ xfs_reflink_recover_cow(
 	for_each_perag(mp, agno, pag) {
 		error = xfs_refcount_recover_cow_leftovers(mp, pag);
 		if (error) {
-			xfs_perag_put(pag);
+			xfs_perag_rele(pag);
 			break;
 		}
 	}

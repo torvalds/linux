@@ -662,7 +662,7 @@ xchk_bmap_check_rmaps(
 		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag);
 		if (error ||
 		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
-			xfs_perag_put(pag);
+			xfs_perag_rele(pag);
 			return error;
 		}
 	}

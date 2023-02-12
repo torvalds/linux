@@ -32,7 +32,9 @@ struct xfs_ag_resv {
 struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
 	xfs_agnumber_t	pag_agno;	/* AG this structure belongs to */
-	atomic_t	pag_ref;	/* perag reference count */
+	atomic_t	pag_ref;	/* passive reference count */
+	atomic_t	pag_active_ref;	/* active reference count */
+	wait_queue_head_t pag_active_wq;/* woken active_ref falls to zero */
 	char		pagf_init;	/* this agf's entry is initialized */
 	char		pagi_init;	/* this agi's entry is initialized */
 	char		pagf_metadata;	/* the agf is preferred to be metadata */
@@ -111,10 +113,17 @@ int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t agcount,
 int xfs_initialize_perag_data(struct xfs_mount *mp, xfs_agnumber_t agno);
 void xfs_free_perag(struct xfs_mount *mp);
 
+/* Passive AG references */
 struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
 struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *mp, xfs_agnumber_t agno,
 		unsigned int tag);
 void xfs_perag_put(struct xfs_perag *pag);
+
+/* Active AG references */
+struct xfs_perag *xfs_perag_grab(struct xfs_mount *, xfs_agnumber_t);
+struct xfs_perag *xfs_perag_grab_tag(struct xfs_mount *, xfs_agnumber_t,
+				   int tag);
+void xfs_perag_rele(struct xfs_perag *pag);
 
 /*
  * Per-ag geometry infomation and validation
@@ -193,14 +202,18 @@ xfs_perag_next(
 	struct xfs_mount	*mp = pag->pag_mount;
 
 	*agno = pag->pag_agno + 1;
-	xfs_perag_put(pag);
-	if (*agno > end_agno)
-		return NULL;
-	return xfs_perag_get(mp, *agno);
+	xfs_perag_rele(pag);
+	while (*agno <= end_agno) {
+		pag = xfs_perag_grab(mp, *agno);
+		if (pag)
+			return pag;
+		(*agno)++;
+	}
+	return NULL;
 }
 
 #define for_each_perag_range(mp, agno, end_agno, pag) \
-	for ((pag) = xfs_perag_get((mp), (agno)); \
+	for ((pag) = xfs_perag_grab((mp), (agno)); \
 		(pag) != NULL; \
 		(pag) = xfs_perag_next((pag), &(agno), (end_agno)))
 
@@ -213,11 +226,11 @@ xfs_perag_next(
 	for_each_perag_from((mp), (agno), (pag))
 
 #define for_each_perag_tag(mp, agno, pag, tag) \
-	for ((agno) = 0, (pag) = xfs_perag_get_tag((mp), 0, (tag)); \
+	for ((agno) = 0, (pag) = xfs_perag_grab_tag((mp), 0, (tag)); \
 		(pag) != NULL; \
 		(agno) = (pag)->pag_agno + 1, \
-		xfs_perag_put(pag), \
-		(pag) = xfs_perag_get_tag((mp), (agno), (tag)))
+		xfs_perag_rele(pag), \
+		(pag) = xfs_perag_grab_tag((mp), (agno), (tag)))
 
 struct aghdr_init_data {
 	/* per ag data */

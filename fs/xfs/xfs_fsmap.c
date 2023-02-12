@@ -688,11 +688,11 @@ __xfs_getfsmap_datadev(
 		info->agf_bp = NULL;
 	}
 	if (info->pag) {
-		xfs_perag_put(info->pag);
+		xfs_perag_rele(info->pag);
 		info->pag = NULL;
 	} else if (pag) {
 		/* loop termination case */
-		xfs_perag_put(pag);
+		xfs_perag_rele(pag);
 	}
 
 	return error;
