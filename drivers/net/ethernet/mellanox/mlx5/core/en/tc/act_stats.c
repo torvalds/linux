@@ -102,6 +102,9 @@ mlx5e_tc_act_stats_del_flow(struct mlx5e_tc_act_stats_handle *handle,
 	struct mlx5e_tc_act_stats *act_stats;
 	int i;
 
+	if (!flow_flag_test(flow, USE_ACT_STATS))
+		return;
+
 	list_for_each_entry(attr, &flow->attrs, list) {
 		for (i = 0; i < attr->tc_act_cookies_count; i++) {
 			struct rhashtable *ht = &handle->ht;
@@ -130,6 +133,9 @@ mlx5e_tc_act_stats_add_flow(struct mlx5e_tc_act_stats_handle *handle,
 	int err;
 	int i;
 
+	if (!flow_flag_test(flow, USE_ACT_STATS))
+		return 0;
+
 	list_for_each_entry(attr, &flow->attrs, list) {
 		if (attr->counter)
 			curr_counter = attr->counter;
@@ -149,5 +155,43 @@ mlx5e_tc_act_stats_add_flow(struct mlx5e_tc_act_stats_handle *handle,
 	return 0;
 out_err:
 	mlx5e_tc_act_stats_del_flow(handle, flow);
+	return err;
+}
+
+int
+mlx5e_tc_act_stats_fill_stats(struct mlx5e_tc_act_stats_handle *handle,
+			      struct flow_offload_action *fl_act)
+{
+	struct rhashtable *ht = &handle->ht;
+	struct mlx5e_tc_act_stats *item;
+	struct mlx5e_tc_act_stats key;
+	u64 pkts, bytes, lastused;
+	int err = 0;
+
+	key.tc_act_cookie = fl_act->cookie;
+
+	rcu_read_lock();
+	item = rhashtable_lookup(ht, &key, act_counters_ht_params);
+	if (!item) {
+		rcu_read_unlock();
+		err = -ENOENT;
+		goto err_out;
+	}
+
+	mlx5_fc_query_cached_raw(item->counter,
+				 &bytes, &pkts, &lastused);
+
+	flow_stats_update(&fl_act->stats,
+			  bytes - item->lastbytes,
+			  pkts - item->lastpackets,
+			  0, lastused, FLOW_ACTION_HW_STATS_DELAYED);
+
+	item->lastpackets = pkts;
+	item->lastbytes = bytes;
+	rcu_read_unlock();
+
+	return 0;
+
+err_out:
 	return err;
 }

@@ -589,7 +589,7 @@ mlx5e_rep_indr_stats_act(struct mlx5e_rep_priv *rpriv,
 
 	act = mlx5e_tc_act_get(fl_act->id, ns_type);
 	if (!act || !act->stats_action)
-		return -EOPNOTSUPP;
+		return mlx5e_tc_fill_action_stats(priv, fl_act);
 
 	return act->stats_action(priv, fl_act);
 }

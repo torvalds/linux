@@ -20,4 +20,8 @@ void
 mlx5e_tc_act_stats_del_flow(struct mlx5e_tc_act_stats_handle *handle,
 			    struct mlx5e_tc_flow *flow);
 
+int
+mlx5e_tc_act_stats_fill_stats(struct mlx5e_tc_act_stats_handle *handle,
+			      struct flow_offload_action *fl_act);
+
 #endif /* __MLX5_EN_ACT_STATS_H__ */
