@@ -3458,6 +3458,19 @@ int security_setprocattr(const char *lsm, const char *name, void *value,
 	return LSM_RET_DEFAULT(setprocattr);
 }
 
+/**
+ * security_netlink_send() - Save info and check if netlink sending is allowed
+ * @sk: sending socket
+ * @skb: netlink message
+ *
+ * Save security information for a netlink message so that permission checking
+ * can be performed when the message is processed.  The security information
+ * can be saved using the eff_cap field of the netlink_skb_parms structure.
+ * Also may be used to provide fine grained control over message transmission.
+ *
+ * Return: Returns 0 if the information was successfully saved and message is
+ *         allowed to be transmitted.
+ */
 int security_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	return call_int_hook(netlink_send, 0, sk, skb);

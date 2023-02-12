@@ -32,19 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks for Netlink messaging.
- *
- * @netlink_send:
- *	Save security information for a netlink message so that permission
- *	checking can be performed when the message is processed.  The security
- *	information can be saved using the eff_cap field of the
- *	netlink_skb_parms structure.  Also may be used to provide fine
- *	grained control over message transmission.
- *	@sk associated sock of task sending the message.
- *	@skb contains the sk_buff structure for the netlink message.
- *	Return 0 if the information was successfully saved and message
- *	is allowed to be transmitted.
- *
  * Security hooks for Unix domain networking.
  *
  * @unix_stream_connect:
