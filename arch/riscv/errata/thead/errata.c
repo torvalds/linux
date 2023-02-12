@@ -102,9 +102,7 @@ void __init_or_module thead_errata_patch_func(struct alt_entry *begin, struct al
 
 			/* On vm-alternatives, the mmu isn't running yet */
 			if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
-				memcpy((void *)__pa_symbol(oldptr),
-				       (void *)__pa_symbol(altptr),
-				       alt->alt_len);
+				memcpy(oldptr, altptr, alt->alt_len);
 			else
 				patch_text_nosync(oldptr, altptr, alt->alt_len);
 		}
