@@ -545,7 +545,28 @@ static int tcf_pedit_offload_act_setup(struct tc_action *act, void *entry_data,
 		}
 		*index_inc = k;
 	} else {
-		return -EOPNOTSUPP;
+		struct flow_offload_action *fl_action = entry_data;
+		u32 cmd = tcf_pedit_cmd(act, 0);
+		int k;
+
+		switch (cmd) {
+		case TCA_PEDIT_KEY_EX_CMD_SET:
+			fl_action->id = FLOW_ACTION_MANGLE;
+			break;
+		case TCA_PEDIT_KEY_EX_CMD_ADD:
+			fl_action->id = FLOW_ACTION_ADD;
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported pedit command offload");
+			return -EOPNOTSUPP;
+		}
+
+		for (k = 1; k < tcf_pedit_nkeys(act); k++) {
+			if (cmd != tcf_pedit_cmd(act, k)) {
+				NL_SET_ERR_MSG_MOD(extack, "Unsupported pedit command offload");
+				return -EOPNOTSUPP;
+			}
+		}
 	}
 
 	return 0;
