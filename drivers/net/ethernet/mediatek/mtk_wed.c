@@ -787,7 +787,6 @@ mtk_wed_rro_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
 
 	ring->desc_size = sizeof(*ring->desc);
 	ring->size = size;
-	memset(ring->desc, 0, size);
 
 	return 0;
 }
