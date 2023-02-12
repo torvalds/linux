@@ -359,6 +359,8 @@ static int ep93xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 
 	if (dir == SND_SOC_CLOCK_IN || clk_id != 0)
 		return -EINVAL;
+	if (!freq)
+		return 0;
 
 	return clk_set_rate(info->mclk, freq);
 }
