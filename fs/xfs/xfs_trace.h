@@ -668,9 +668,8 @@ DEFINE_FILESTREAM_EVENT(xfs_filestream_lookup);
 DEFINE_FILESTREAM_EVENT(xfs_filestream_scan);
 
 TRACE_EVENT(xfs_filestream_pick,
-	TP_PROTO(struct xfs_inode *ip, struct xfs_perag *pag,
-		 xfs_extlen_t free),
-	TP_ARGS(ip, pag, free),
+	TP_PROTO(struct xfs_perag *pag, xfs_ino_t ino, xfs_extlen_t free),
+	TP_ARGS(pag, ino, free),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
@@ -679,8 +678,8 @@ TRACE_EVENT(xfs_filestream_pick,
 		__field(xfs_extlen_t, free)
 	),
 	TP_fast_assign(
-		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->ino = ino;
 		if (pag) {
 			__entry->agno = pag->pag_agno;
 			__entry->streams = atomic_read(&pag->pagf_fstrms);
