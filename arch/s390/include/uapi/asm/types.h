@@ -12,10 +12,7 @@
 
 #ifndef __ASSEMBLY__
 
-/* A address type so that arithmetic can be done on it & it can be upgraded to
-   64 bit when necessary 
-*/
-typedef unsigned long addr_t; 
+typedef unsigned long addr_t;
 typedef __signed__ long saddr_t;
 
 typedef struct {
