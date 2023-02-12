@@ -8,6 +8,7 @@
 //#include "bkey_methods.h"
 #include "buckets_types.h"
 #include "darray.h"
+#include "errcode.h"
 #include "journal_types.h"
 #include "replicas_types.h"
 #include "six.h"
