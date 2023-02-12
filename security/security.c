@@ -2656,6 +2656,15 @@ int security_file_truncate(struct file *file)
 	return call_int_hook(file_truncate, 0, file);
 }
 
+/**
+ * security_task_alloc() - Allocate a task's LSM blob
+ * @task: the task
+ * @clone_flags: flags indicating what is being shared
+ *
+ * Handle allocation of task-related resources.
+ *
+ * Return: Returns a zero on success, negative values on failure.
+ */
 int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
 {
 	int rc = lsm_task_alloc(task);
@@ -2668,6 +2677,13 @@ int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
 	return rc;
 }
 
+/**
+ * security_task_free() - Free a task's LSM blob and related resources
+ * @task: task
+ *
+ * Handle release of task-related resources.  Note that this can be called from
+ * interrupt context.
+ */
 void security_task_free(struct task_struct *task)
 {
 	call_void_hook(task_free, task);
@@ -2676,6 +2692,16 @@ void security_task_free(struct task_struct *task)
 	task->security = NULL;
 }
 
+/**
+ * security_cred_alloc_blank() - Allocate the min memory to allow cred_transfer
+ * @cred: credentials
+ * @gfp: gfp flags
+ *
+ * Only allocate sufficient memory and attach to @cred such that
+ * cred_transfer() will not get ENOMEM.
+ *
+ * Return: Returns 0 on success, negative values on failure.
+ */
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 {
 	int rc = lsm_cred_alloc(cred, gfp);
@@ -2689,6 +2715,12 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 	return rc;
 }
 
+/**
+ * security_cred_free() - Free the cred's LSM blob and associated resources
+ * @cred: credentials
+ *
+ * Deallocate and clear the cred->security field in a set of credentials.
+ */
 void security_cred_free(struct cred *cred)
 {
 	/*
@@ -2704,6 +2736,16 @@ void security_cred_free(struct cred *cred)
 	cred->security = NULL;
 }
 
+/**
+ * security_prepare_creds() - Prepare a new set of credentials
+ * @new: new credentials
+ * @old: original credentials
+ * @gfp: gfp flags
+ *
+ * Prepare a new set of credentials by copying the data from the old set.
+ *
+ * Return: Returns 0 on success, negative values on failure.
+ */
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 {
 	int rc = lsm_cred_alloc(new, gfp);
@@ -2717,11 +2759,26 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 	return rc;
 }
 
+/**
+ * security_transfer_creds() - Transfer creds
+ * @new: target credentials
+ * @old: original credentials
+ *
+ * Transfer data from original creds to new creds.
+ */
 void security_transfer_creds(struct cred *new, const struct cred *old)
 {
 	call_void_hook(cred_transfer, new, old);
 }
 
+/**
+ * security_cred_getsecid() - Get the secid from a set of credentials
+ * @c: credentials
+ * @secid: secid value
+ *
+ * Retrieve the security identifier of the cred structure @c.  In case of
+ * failure, @secid will be set to zero.
+ */
 void security_cred_getsecid(const struct cred *c, u32 *secid)
 {
 	*secid = 0;
@@ -2729,16 +2786,46 @@ void security_cred_getsecid(const struct cred *c, u32 *secid)
 }
 EXPORT_SYMBOL(security_cred_getsecid);
 
+/**
+ * security_kernel_act_as() - Set the kernel credentials to act as secid
+ * @new: credentials
+ * @secid: secid
+ *
+ * Set the credentials for a kernel service to act as (subjective context).
+ * The current task must be the one that nominated @secid.
+ *
+ * Return: Returns 0 if successful.
+ */
 int security_kernel_act_as(struct cred *new, u32 secid)
 {
 	return call_int_hook(kernel_act_as, 0, new, secid);
 }
 
+/**
+ * security_kernel_create_files_as() - Set file creation context using an inode
+ * @new: target credentials
+ * @inode: reference inode
+ *
+ * Set the file creation context in a set of credentials to be the same as the
+ * objective context of the specified inode.  The current task must be the one
+ * that nominated @inode.
+ *
+ * Return: Returns 0 if successful.
+ */
 int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 {
 	return call_int_hook(kernel_create_files_as, 0, new, inode);
 }
 
+/**
+ * security_kernel_module_request() - Check is loading a module is allowed
+ * @kmod_name: module name
+ *
+ * Ability to trigger the kernel to automatically upcall to userspace for
+ * userspace to load a kernel module with the given name.
+ *
+ * Return: Returns 0 if successful.
+ */
 int security_kernel_module_request(char *kmod_name)
 {
 	int ret;
@@ -2749,6 +2836,16 @@ int security_kernel_module_request(char *kmod_name)
 	return integrity_kernel_module_request(kmod_name);
 }
 
+/**
+ * security_kernel_read_file() - Read a file specified by userspace
+ * @file: file
+ * @id: file identifier
+ * @contents: trust if security_kernel_post_read_file() will be called
+ *
+ * Read a file specified by userspace.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_kernel_read_file(struct file *file, enum kernel_read_file_id id,
 			      bool contents)
 {
@@ -2761,6 +2858,19 @@ int security_kernel_read_file(struct file *file, enum kernel_read_file_id id,
 }
 EXPORT_SYMBOL_GPL(security_kernel_read_file);
 
+/**
+ * security_kernel_post_read_file() - Read a file specified by userspace
+ * @file: file
+ * @buf: file contents
+ * @size: size of file contents
+ * @id: file identifier
+ *
+ * Read a file specified by userspace.  This must be paired with a prior call
+ * to security_kernel_read_file() call that indicated this hook would also be
+ * called, see security_kernel_read_file() for more information.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 				   enum kernel_read_file_id id)
 {
@@ -2773,6 +2883,15 @@ int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 }
 EXPORT_SYMBOL_GPL(security_kernel_post_read_file);
 
+/**
+ * security_kernel_load_data() - Load data provided by userspace
+ * @id: data identifier
+ * @contents: true if security_kernel_post_load_data() will be called
+ *
+ * Load data provided by userspace.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_kernel_load_data(enum kernel_load_data_id id, bool contents)
 {
 	int ret;
@@ -2784,6 +2903,20 @@ int security_kernel_load_data(enum kernel_load_data_id id, bool contents)
 }
 EXPORT_SYMBOL_GPL(security_kernel_load_data);
 
+/**
+ * security_kernel_post_load_data() - Load userspace data from a non-file source
+ * @buf: data
+ * @size: size of data
+ * @id: data identifier
+ * @description: text description of data, specific to the id value
+ *
+ * Load data provided by a non-file source (usually userspace buffer).  This
+ * must be paired with a prior security_kernel_load_data() call that indicated
+ * this hook would also be called, see security_kernel_load_data() for more
+ * information.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_kernel_post_load_data(char *buf, loff_t size,
 				   enum kernel_load_data_id id,
 				   char *description)
@@ -2798,38 +2931,112 @@ int security_kernel_post_load_data(char *buf, loff_t size,
 }
 EXPORT_SYMBOL_GPL(security_kernel_post_load_data);
 
+/**
+ * security_task_fix_setuid() - Update LSM with new user id attributes
+ * @new: updated credentials
+ * @old: credentials being replaced
+ * @flags: LSM_SETID_* flag values
+ *
+ * Update the module's state after setting one or more of the user identity
+ * attributes of the current process.  The @flags parameter indicates which of
+ * the set*uid system calls invoked this hook.  If @new is the set of
+ * credentials that will be installed.  Modifications should be made to this
+ * rather than to @current->cred.
+ *
+ * Return: Returns 0 on success.
+ */
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
 {
 	return call_int_hook(task_fix_setuid, 0, new, old, flags);
 }
 
+/**
+ * security_task_fix_setgid() - Update LSM with new group id attributes
+ * @new: updated credentials
+ * @old: credentials being replaced
+ * @flags: LSM_SETID_* flag value
+ *
+ * Update the module's state after setting one or more of the group identity
+ * attributes of the current process.  The @flags parameter indicates which of
+ * the set*gid system calls invoked this hook.  @new is the set of credentials
+ * that will be installed.  Modifications should be made to this rather than to
+ * @current->cred.
+ *
+ * Return: Returns 0 on success.
+ */
 int security_task_fix_setgid(struct cred *new, const struct cred *old,
 				 int flags)
 {
 	return call_int_hook(task_fix_setgid, 0, new, old, flags);
 }
 
+/**
+ * security_task_fix_setgroups() - Update LSM with new supplementary groups
+ * @new: updated credentials
+ * @old: credentials being replaced
+ *
+ * Update the module's state after setting the supplementary group identity
+ * attributes of the current process.  @new is the set of credentials that will
+ * be installed.  Modifications should be made to this rather than to
+ * @current->cred.
+ *
+ * Return: Returns 0 on success.
+ */
 int security_task_fix_setgroups(struct cred *new, const struct cred *old)
 {
 	return call_int_hook(task_fix_setgroups, 0, new, old);
 }
 
+/**
+ * security_task_setpgid() - Check if setting the pgid is allowed
+ * @p: task being modified
+ * @pgid: new pgid
+ *
+ * Check permission before setting the process group identifier of the process
+ * @p to @pgid.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_setpgid(struct task_struct *p, pid_t pgid)
 {
 	return call_int_hook(task_setpgid, 0, p, pgid);
 }
 
+/**
+ * security_task_getpgid() - Check if getting the pgid is allowed
+ * @p: task
+ *
+ * Check permission before getting the process group identifier of the process
+ * @p.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_getpgid(struct task_struct *p)
 {
 	return call_int_hook(task_getpgid, 0, p);
 }
 
+/**
+ * security_task_getsid() - Check if getting the session id is allowed
+ * @p: task
+ *
+ * Check permission before getting the session identifier of the process @p.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_getsid(struct task_struct *p)
 {
 	return call_int_hook(task_getsid, 0, p);
 }
 
+/**
+ * security_current_getsecid_subj() - Get the current task's subjective secid
+ * @secid: secid value
+ *
+ * Retrieve the subjective security identifier of the current task and return
+ * it in @secid.  In case of failure, @secid will be set to zero.
+ */
 void security_current_getsecid_subj(u32 *secid)
 {
 	*secid = 0;
@@ -2837,6 +3044,14 @@ void security_current_getsecid_subj(u32 *secid)
 }
 EXPORT_SYMBOL(security_current_getsecid_subj);
 
+/**
+ * security_task_getsecid_obj() - Get a task's objective secid
+ * @p: target task
+ * @secid: secid value
+ *
+ * Retrieve the objective security identifier of the task_struct in @p and
+ * return it in @secid. In case of failure, @secid will be set to zero.
+ */
 void security_task_getsecid_obj(struct task_struct *p, u32 *secid)
 {
 	*secid = 0;
@@ -2844,54 +3059,157 @@ void security_task_getsecid_obj(struct task_struct *p, u32 *secid)
 }
 EXPORT_SYMBOL(security_task_getsecid_obj);
 
+/**
+ * security_task_setnice() - Check if setting a task's nice value is allowed
+ * @p: target task
+ * @nice: nice value
+ *
+ * Check permission before setting the nice value of @p to @nice.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_setnice(struct task_struct *p, int nice)
 {
 	return call_int_hook(task_setnice, 0, p, nice);
 }
 
+/**
+ * security_task_setioprio() - Check if setting a task's ioprio is allowed
+ * @p: target task
+ * @ioprio: ioprio value
+ *
+ * Check permission before setting the ioprio value of @p to @ioprio.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_setioprio(struct task_struct *p, int ioprio)
 {
 	return call_int_hook(task_setioprio, 0, p, ioprio);
 }
 
+/**
+ * security_task_getioprio() - Check if getting a task's ioprio is allowed
+ * @p: task
+ *
+ * Check permission before getting the ioprio value of @p.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_getioprio(struct task_struct *p)
 {
 	return call_int_hook(task_getioprio, 0, p);
 }
 
+/**
+ * security_task_prlimit() - Check if get/setting resources limits is allowed
+ * @cred: current task credentials
+ * @tcred: target task credentials
+ * @flags: LSM_PRLIMIT_* flag bits indicating a get/set/both
+ *
+ * Check permission before getting and/or setting the resource limits of
+ * another task.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_prlimit(const struct cred *cred, const struct cred *tcred,
 			  unsigned int flags)
 {
 	return call_int_hook(task_prlimit, 0, cred, tcred, flags);
 }
 
+/**
+ * security_task_setrlimit() - Check if setting a new rlimit value is allowed
+ * @p: target task's group leader
+ * @resource: resource whose limit is being set
+ * @new_rlim: new resource limit
+ *
+ * Check permission before setting the resource limits of process @p for
+ * @resource to @new_rlim.  The old resource limit values can be examined by
+ * dereferencing (p->signal->rlim + resource).
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_setrlimit(struct task_struct *p, unsigned int resource,
 		struct rlimit *new_rlim)
 {
 	return call_int_hook(task_setrlimit, 0, p, resource, new_rlim);
 }
 
+/**
+ * security_task_setscheduler() - Check if setting sched policy/param is allowed
+ * @p: target task
+ *
+ * Check permission before setting scheduling policy and/or parameters of
+ * process @p.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_setscheduler(struct task_struct *p)
 {
 	return call_int_hook(task_setscheduler, 0, p);
 }
 
+/**
+ * security_task_getscheduler() - Check if getting scheduling info is allowed
+ * @p: target task
+ *
+ * Check permission before obtaining scheduling information for process @p.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_getscheduler(struct task_struct *p)
 {
 	return call_int_hook(task_getscheduler, 0, p);
 }
 
+/**
+ * security_task_movememory() - Check if moving memory is allowed
+ * @p: task
+ *
+ * Check permission before moving memory owned by process @p.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_movememory(struct task_struct *p)
 {
 	return call_int_hook(task_movememory, 0, p);
 }
 
+/**
+ * security_task_kill() - Check if sending a signal is allowed
+ * @p: target process
+ * @info: signal information
+ * @sig: signal value
+ * @cred: credentials of the signal sender, NULL if @current
+ *
+ * Check permission before sending signal @sig to @p.  @info can be NULL, the
+ * constant 1, or a pointer to a kernel_siginfo structure.  If @info is 1 or
+ * SI_FROMKERNEL(info) is true, then the signal should be viewed as coming from
+ * the kernel and should typically be permitted.  SIGIO signals are handled
+ * separately by the send_sigiotask hook in file_security_ops.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			int sig, const struct cred *cred)
 {
 	return call_int_hook(task_kill, 0, p, info, sig, cred);
 }
 
+/**
+ * security_task_prctl() - Check if a prctl op is allowed
+ * @option: operation
+ * @arg2: argument
+ * @arg3: argument
+ * @arg4: argument
+ * @arg5: argument
+ *
+ * Check permission before performing a process control operation on the
+ * current process.
+ *
+ * Return: Return -ENOSYS if no-one wanted to handle this op, any other value
+ *         to cause prctl() to return immediately with that value.
+ */
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
@@ -2910,11 +3228,27 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 	return rc;
 }
 
+/**
+ * security_task_to_inode() - Set the security attributes of a task's inode
+ * @p: task
+ * @inode: inode
+ *
+ * Set the security attributes for an inode based on an associated task's
+ * security attributes, e.g. for /proc/pid inodes.
+ */
 void security_task_to_inode(struct task_struct *p, struct inode *inode)
 {
 	call_void_hook(task_to_inode, p, inode);
 }
 
+/**
+ * security_create_user_ns() - Check if creating a new userns is allowed
+ * @cred: prepared creds
+ *
+ * Check permission prior to creating a new user namespace.
+ *
+ * Return: Returns 0 if successful, otherwise < 0 error code.
+ */
 int security_create_user_ns(const struct cred *cred)
 {
 	return call_int_hook(userns_create, 0, cred);
