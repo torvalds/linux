@@ -3139,8 +3139,7 @@ static int
 xfs_bmap_longest_free_extent(
 	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
-	xfs_extlen_t		*blen,
-	int			*notinit)
+	xfs_extlen_t		*blen)
 {
 	xfs_extlen_t		longest;
 	int			error = 0;
@@ -3148,14 +3147,8 @@ xfs_bmap_longest_free_extent(
 	if (!xfs_perag_initialised_agf(pag)) {
 		error = xfs_alloc_read_agf(pag, tp, XFS_ALLOC_FLAG_TRYLOCK,
 				NULL);
-		if (error) {
-			/* Couldn't lock the AGF, so skip this AG. */
-			if (error == -EAGAIN) {
-				*notinit = 1;
-				error = 0;
-			}
+		if (error)
 			return error;
-		}
 	}
 
 	longest = xfs_alloc_longest_free_extent(pag,
@@ -3167,32 +3160,28 @@ xfs_bmap_longest_free_extent(
 	return 0;
 }
 
-static void
+static xfs_extlen_t
 xfs_bmap_select_minlen(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
-	xfs_extlen_t		*blen,
-	int			notinit)
+	xfs_extlen_t		blen)
 {
-	if (notinit || *blen < ap->minlen) {
-		/*
-		 * Since we did a BUF_TRYLOCK above, it is possible that
-		 * there is space for this request.
-		 */
-		args->minlen = ap->minlen;
-	} else if (*blen < args->maxlen) {
-		/*
-		 * If the best seen length is less than the request length,
-		 * use the best as the minimum.
-		 */
-		args->minlen = *blen;
-	} else {
-		/*
-		 * Otherwise we've seen an extent as big as maxlen, use that
-		 * as the minimum.
-		 */
-		args->minlen = args->maxlen;
-	}
+
+	/*
+	 * Since we used XFS_ALLOC_FLAG_TRYLOCK in _longest_free_extent(), it is
+	 * possible that there is enough contiguous free space for this request.
+	 */
+	if (blen < ap->minlen)
+		return ap->minlen;
+
+	/*
+	 * If the best seen length is less than the request length,
+	 * use the best as the minimum, otherwise we've got the maxlen we
+	 * were asked for.
+	 */
+	if (blen < args->maxlen)
+		return blen;
+	return args->maxlen;
 }
 
 static int
@@ -3204,7 +3193,6 @@ xfs_bmap_btalloc_select_lengths(
 	struct xfs_mount	*mp = args->mp;
 	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno, startag;
-	int			notinit = 0;
 	int			error = 0;
 
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
@@ -3220,17 +3208,17 @@ xfs_bmap_btalloc_select_lengths(
 
 	*blen = 0;
 	for_each_perag_wrap(mp, startag, agno, pag) {
-		error = xfs_bmap_longest_free_extent(pag, args->tp, blen,
-						     &notinit);
-		if (error)
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
+		if (error && error != -EAGAIN)
 			break;
+		error = 0;
 		if (*blen >= args->maxlen)
 			break;
 	}
 	if (pag)
 		xfs_perag_rele(pag);
 
-	xfs_bmap_select_minlen(ap, args, blen, notinit);
+	args->minlen = xfs_bmap_select_minlen(ap, args, *blen);
 	return error;
 }
 
@@ -3243,7 +3231,6 @@ xfs_bmap_btalloc_filestreams_select_lengths(
 	struct xfs_mount	*mp = ap->ip->i_mount;
 	struct xfs_perag	*pag;
 	xfs_agnumber_t		start_agno;
-	int			notinit = 0;
 	int			error;
 
 	args->total = ap->total;
@@ -3254,11 +3241,13 @@ xfs_bmap_btalloc_filestreams_select_lengths(
 
 	pag = xfs_perag_grab(mp, start_agno);
 	if (pag) {
-		error = xfs_bmap_longest_free_extent(pag, args->tp, blen,
-				&notinit);
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
 		xfs_perag_rele(pag);
-		if (error)
-			return error;
+		if (error) {
+			if (error != -EAGAIN)
+				return error;
+			*blen = 0;
+		}
 	}
 
 	if (*blen < args->maxlen) {
@@ -3274,18 +3263,18 @@ xfs_bmap_btalloc_filestreams_select_lengths(
 		if (!pag)
 			goto out_select;
 
-		error = xfs_bmap_longest_free_extent(pag, args->tp,
-				blen, &notinit);
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
 		xfs_perag_rele(pag);
-		if (error)
-			return error;
-
+		if (error) {
+			if (error != -EAGAIN)
+				return error;
+			*blen = 0;
+		}
 		start_agno = agno;
-
 	}
 
 out_select:
-	xfs_bmap_select_minlen(ap, args, blen, notinit);
+	args->minlen = xfs_bmap_select_minlen(ap, args, *blen);
 
 	/*
 	 * Set the failure fallback case to look in the selected AG as stream
