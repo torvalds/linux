@@ -3608,11 +3608,40 @@ int security_unix_may_send(struct socket *sock,  struct socket *other)
 }
 EXPORT_SYMBOL(security_unix_may_send);
 
+/**
+ * security_socket_create() - Check if creating a new socket is allowed
+ * @family: protocol family
+ * @type: communications type
+ * @protocol: requested protocol
+ * @kern: set to 1 if a kernel socket is requested
+ *
+ * Check permissions prior to creating a new socket.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_create(int family, int type, int protocol, int kern)
 {
 	return call_int_hook(socket_create, 0, family, type, protocol, kern);
 }
 
+/**
+ * security_socket_create() - Initialize a newly created socket
+ * @sock: socket
+ * @family: protocol family
+ * @type: communications type
+ * @protocol: requested protocol
+ * @kern: set to 1 if a kernel socket is requested
+ *
+ * This hook allows a module to update or allocate a per-socket security
+ * structure. Note that the security field was not added directly to the socket
+ * structure, but rather, the socket security information is stored in the
+ * associated inode.  Typically, the inode alloc_security hook will allocate
+ * and attach security information to SOCK_INODE(sock)->i_security.  This hook
+ * may be used to update the SOCK_INODE(sock)->i_security field with additional
+ * information that wasn't available when the inode was allocated.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_post_create(struct socket *sock, int family,
 				int type, int protocol, int kern)
 {
@@ -3620,74 +3649,223 @@ int security_socket_post_create(struct socket *sock, int family,
 						protocol, kern);
 }
 
+/**
+ * security_socket_socketpair() - Check if creating a socketpair is allowed
+ * @socka: first socket
+ * @sockb: second socket
+ *
+ * Check permissions before creating a fresh pair of sockets.
+ *
+ * Return: Returns 0 if permission is granted and the connection was
+ *         established.
+ */
 int security_socket_socketpair(struct socket *socka, struct socket *sockb)
 {
 	return call_int_hook(socket_socketpair, 0, socka, sockb);
 }
 EXPORT_SYMBOL(security_socket_socketpair);
 
+/**
+ * security_socket_bind() - Check if a socket bind operation is allowed
+ * @sock: socket
+ * @address: requested bind address
+ * @addrlen: length of address
+ *
+ * Check permission before socket protocol layer bind operation is performed
+ * and the socket @sock is bound to the address specified in the @address
+ * parameter.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	return call_int_hook(socket_bind, 0, sock, address, addrlen);
 }
 
+/**
+ * security_socket_connect() - Check if a socket connect operation is allowed
+ * @sock: socket
+ * @address: address of remote connection point
+ * @addrlen: length of address
+ *
+ * Check permission before socket protocol layer connect operation attempts to
+ * connect socket @sock to a remote address, @address.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	return call_int_hook(socket_connect, 0, sock, address, addrlen);
 }
 
+/**
+ * security_socket_listen() - Check if a socket is allowed to listen
+ * @sock: socket
+ * @backlog: connection queue size
+ *
+ * Check permission before socket protocol layer listen operation.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_listen(struct socket *sock, int backlog)
 {
 	return call_int_hook(socket_listen, 0, sock, backlog);
 }
 
+/**
+ * security_socket_accept() - Check if a socket is allowed to accept connections
+ * @sock: listening socket
+ * @newsock: newly creation connection socket
+ *
+ * Check permission before accepting a new connection.  Note that the new
+ * socket, @newsock, has been created and some information copied to it, but
+ * the accept operation has not actually been performed.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_accept(struct socket *sock, struct socket *newsock)
 {
 	return call_int_hook(socket_accept, 0, sock, newsock);
 }
 
+/**
+ * security_socket_sendmsg() - Check is sending a message is allowed
+ * @sock: sending socket
+ * @msg: message to send
+ * @size: size of message
+ *
+ * Check permission before transmitting a message to another socket.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_sendmsg(struct socket *sock, struct msghdr *msg, int size)
 {
 	return call_int_hook(socket_sendmsg, 0, sock, msg, size);
 }
 
+/**
+ * security_socket_recvmsg() - Check if receiving a message is allowed
+ * @sock: receiving socket
+ * @msg: message to receive
+ * @size: size of message
+ * @flags: operational flags
+ *
+ * Check permission before receiving a message from a socket.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_recvmsg(struct socket *sock, struct msghdr *msg,
 			    int size, int flags)
 {
 	return call_int_hook(socket_recvmsg, 0, sock, msg, size, flags);
 }
 
+/**
+ * security_socket_getsockname() - Check if reading the socket addr is allowed
+ * @sock: socket
+ *
+ * Check permission before reading the local address (name) of the socket
+ * object.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_getsockname(struct socket *sock)
 {
 	return call_int_hook(socket_getsockname, 0, sock);
 }
 
+/**
+ * security_socket_getpeername() - Check if reading the peer's addr is allowed
+ * @sock: socket
+ *
+ * Check permission before the remote address (name) of a socket object.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_getpeername(struct socket *sock)
 {
 	return call_int_hook(socket_getpeername, 0, sock);
 }
 
+/**
+ * security_socket_getsockopt() - Check if reading a socket option is allowed
+ * @sock: socket
+ * @level: option's protocol level
+ * @optname: option name
+ *
+ * Check permissions before retrieving the options associated with socket
+ * @sock.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_getsockopt(struct socket *sock, int level, int optname)
 {
 	return call_int_hook(socket_getsockopt, 0, sock, level, optname);
 }
 
+/**
+ * security_socket_setsockopt() - Check if setting a socket option is allowed
+ * @sock: socket
+ * @level: option's protocol level
+ * @optname: option name
+ *
+ * Check permissions before setting the options associated with socket @sock.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_setsockopt(struct socket *sock, int level, int optname)
 {
 	return call_int_hook(socket_setsockopt, 0, sock, level, optname);
 }
 
+/**
+ * security_socket_shutdown() - Checks if shutting down the socket is allowed
+ * @sock: socket
+ * @how: flag indicating how sends and receives are handled
+ *
+ * Checks permission before all or part of a connection on the socket @sock is
+ * shut down.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_socket_shutdown(struct socket *sock, int how)
 {
 	return call_int_hook(socket_shutdown, 0, sock, how);
 }
 
+/**
+ * security_sock_rcv_skb() - Check if an incoming network packet is allowed
+ * @sk: destination sock
+ * @skb: incoming packet
+ *
+ * Check permissions on incoming network packets.  This hook is distinct from
+ * Netfilter's IP input hooks since it is the first time that the incoming
+ * sk_buff @skb has been associated with a particular socket, @sk.  Must not
+ * sleep inside this hook because some callers hold spinlocks.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	return call_int_hook(socket_sock_rcv_skb, 0, sk, skb);
 }
 EXPORT_SYMBOL(security_sock_rcv_skb);
 
+/**
+ * security_socket_getpeersec_stream() - Get the remote peer label
+ * @sock: socket
+ * @optval: destination buffer
+ * @optlen: size of peer label copied into the buffer
+ * @len: maximum size of the destination buffer
+ *
+ * This hook allows the security module to provide peer socket security state
+ * for unix or connected tcp sockets to userspace via getsockopt SO_GETPEERSEC.
+ * For tcp sockets this can be meaningful if the socket is associated with an
+ * ipsec SA.
+ *
+ * Return: Returns 0 if all is well, otherwise, typical getsockopt return
+ *         values.
+ */
 int security_socket_getpeersec_stream(struct socket *sock, sockptr_t optval,
 				      sockptr_t optlen, unsigned int len)
 {
@@ -3695,6 +3873,20 @@ int security_socket_getpeersec_stream(struct socket *sock, sockptr_t optval,
 			     optval, optlen, len);
 }
 
+/**
+ * security_socket_getpeersec_dgram() - Get the remote peer label
+ * @sock: socket
+ * @skb: datagram packet
+ * @secid: remote peer label secid
+ *
+ * This hook allows the security module to provide peer socket security state
+ * for udp sockets on a per-packet basis to userspace via getsockopt
+ * SO_GETPEERSEC. The application must first have indicated the IP_PASSSEC
+ * option via getsockopt. It can then retrieve the security state returned by
+ * this hook for a packet via the SCM_SECURITY ancillary message type.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
 	return call_int_hook(socket_getpeersec_dgram, -ENOPROTOOPT, sock,
@@ -3702,16 +3894,40 @@ int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u
 }
 EXPORT_SYMBOL(security_socket_getpeersec_dgram);
 
+/**
+ * security_sk_alloc() - Allocate and initialize a sock's LSM blob
+ * @sk: sock
+ * @family: protocol family
+ * @priotity: gfp flags
+ *
+ * Allocate and attach a security structure to the sk->sk_security field, which
+ * is used to copy security attributes between local stream sockets.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
 {
 	return call_int_hook(sk_alloc_security, 0, sk, family, priority);
 }
 
+/**
+ * security_sk_free() - Free the sock's LSM blob
+ * @sk: sock
+ *
+ * Deallocate security structure.
+ */
 void security_sk_free(struct sock *sk)
 {
 	call_void_hook(sk_free_security, sk);
 }
 
+/**
+ * security_sk_clone() - Clone a sock's LSM state
+ * @sk: original sock
+ * @newsk: target sock
+ *
+ * Clone/copy security structure.
+ */
 void security_sk_clone(const struct sock *sk, struct sock *newsk)
 {
 	call_void_hook(sk_clone_security, sk, newsk);
@@ -3724,6 +3940,13 @@ void security_sk_classify_flow(struct sock *sk, struct flowi_common *flic)
 }
 EXPORT_SYMBOL(security_sk_classify_flow);
 
+/**
+ * security_req_classify_flow() - Set a flow's secid based on request_sock
+ * @req: request_sock
+ * @flic: target flow
+ *
+ * Sets @flic's secid to @req's secid.
+ */
 void security_req_classify_flow(const struct request_sock *req,
 				struct flowi_common *flic)
 {
@@ -3731,12 +3954,30 @@ void security_req_classify_flow(const struct request_sock *req,
 }
 EXPORT_SYMBOL(security_req_classify_flow);
 
+/**
+ * security_sock_graft() - Reconcile LSM state when grafting a sock on a socket
+ * @sk: sock being grafted
+ * @sock: target socket
+ *
+ * Sets @sock's inode secid to @sk's secid and update @sk with any necessary
+ * LSM state from @sock.
+ */
 void security_sock_graft(struct sock *sk, struct socket *parent)
 {
 	call_void_hook(sock_graft, sk, parent);
 }
 EXPORT_SYMBOL(security_sock_graft);
 
+/**
+ * security_inet_conn_request() - Set request_sock state using incoming connect
+ * @sk: parent listening sock
+ * @skb: incoming connection
+ * @req: new request_sock
+ *
+ * Initialize the @req LSM state based on @sk and the incoming connect in @skb.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_inet_conn_request(const struct sock *sk,
 			struct sk_buff *skb, struct request_sock *req)
 {
@@ -3744,12 +3985,26 @@ int security_inet_conn_request(const struct sock *sk,
 }
 EXPORT_SYMBOL(security_inet_conn_request);
 
+/**
+ * security_inet_csk_clone() - Set new sock LSM state based on request_sock
+ * @newsk: new sock
+ * @req: connection request_sock
+ *
+ * Set that LSM state of @sock using the LSM state from @req.
+ */
 void security_inet_csk_clone(struct sock *newsk,
 			const struct request_sock *req)
 {
 	call_void_hook(inet_csk_clone, newsk, req);
 }
 
+/**
+ * security_inet_conn_established() - Update sock's LSM state with connection
+ * @sk: sock
+ * @skb: connection packet
+ *
+ * Update @sock's LSM state to represent a new connection from @skb.
+ */
 void security_inet_conn_established(struct sock *sk,
 			struct sk_buff *skb)
 {
@@ -3757,54 +4012,121 @@ void security_inet_conn_established(struct sock *sk,
 }
 EXPORT_SYMBOL(security_inet_conn_established);
 
+/**
+ * security_secmark_relabel_packet() - Check if setting a secmark is allowed
+ * @secid: new secmark value
+ *
+ * Check if the process should be allowed to relabel packets to @secid.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_secmark_relabel_packet(u32 secid)
 {
 	return call_int_hook(secmark_relabel_packet, 0, secid);
 }
 EXPORT_SYMBOL(security_secmark_relabel_packet);
 
+/**
+ * security_secmark_refcount_inc() - Increment the secmark labeling rule count
+ *
+ * Tells the LSM to increment the number of secmark labeling rules loaded.
+ */
 void security_secmark_refcount_inc(void)
 {
 	call_void_hook(secmark_refcount_inc);
 }
 EXPORT_SYMBOL(security_secmark_refcount_inc);
 
+/**
+ * security_secmark_refcount_dec() - Decrement the secmark labeling rule count
+ *
+ * Tells the LSM to decrement the number of secmark labeling rules loaded.
+ */
 void security_secmark_refcount_dec(void)
 {
 	call_void_hook(secmark_refcount_dec);
 }
 EXPORT_SYMBOL(security_secmark_refcount_dec);
 
+/**
+ * security_tun_dev_alloc_security() - Allocate a LSM blob for a TUN device
+ * @security: pointer to the LSM blob
+ *
+ * This hook allows a module to allocate a security structure for a TUN	device,
+ * returning the pointer in @security.
+ *
+ * Return: Returns a zero on success, negative values on failure.
+ */
 int security_tun_dev_alloc_security(void **security)
 {
 	return call_int_hook(tun_dev_alloc_security, 0, security);
 }
 EXPORT_SYMBOL(security_tun_dev_alloc_security);
 
+/**
+ * security_tun_dev_free_security() - Free a TUN device LSM blob
+ * @security: LSM blob
+ *
+ * This hook allows a module to free the security structure for a TUN device.
+ */
 void security_tun_dev_free_security(void *security)
 {
 	call_void_hook(tun_dev_free_security, security);
 }
 EXPORT_SYMBOL(security_tun_dev_free_security);
 
+/**
+ * security_tun_dev_create() - Check if creating a TUN device is allowed
+ *
+ * Check permissions prior to creating a new TUN device.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_tun_dev_create(void)
 {
 	return call_int_hook(tun_dev_create, 0);
 }
 EXPORT_SYMBOL(security_tun_dev_create);
 
+/**
+ * security_tun_dev_attach_queue() - Check if attaching a TUN queue is allowed
+ * @security: TUN device LSM blob
+ *
+ * Check permissions prior to attaching to a TUN device queue.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_tun_dev_attach_queue(void *security)
 {
 	return call_int_hook(tun_dev_attach_queue, 0, security);
 }
 EXPORT_SYMBOL(security_tun_dev_attach_queue);
 
+/**
+ * security_tun_dev_attach() - Update TUN device LSM state on attach
+ * @sk: associated sock
+ * @security: TUN device LSM blob
+ *
+ * This hook can be used by the module to update any security state associated
+ * with the TUN device's sock structure.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_tun_dev_attach(struct sock *sk, void *security)
 {
 	return call_int_hook(tun_dev_attach, 0, sk, security);
 }
 EXPORT_SYMBOL(security_tun_dev_attach);
 
+/**
+ * security_tun_dev_open() - Update TUN device LSM state on open
+ * @security: TUN device LSM blob
+ *
+ * This hook can be used by the module to update any security state associated
+ * with the TUN device's security structure.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_tun_dev_open(void *security)
 {
 	return call_int_hook(tun_dev_open, 0, security);
