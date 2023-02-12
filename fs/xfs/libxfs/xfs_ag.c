@@ -44,16 +44,15 @@ xfs_perag_get(
 	xfs_agnumber_t		agno)
 {
 	struct xfs_perag	*pag;
-	int			ref = 0;
 
 	rcu_read_lock();
 	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
 	if (pag) {
+		trace_xfs_perag_get(pag, _RET_IP_);
 		ASSERT(atomic_read(&pag->pag_ref) >= 0);
-		ref = atomic_inc_return(&pag->pag_ref);
+		atomic_inc(&pag->pag_ref);
 	}
 	rcu_read_unlock();
-	trace_xfs_perag_get(mp, agno, ref, _RET_IP_);
 	return pag;
 }
 
@@ -68,7 +67,6 @@ xfs_perag_get_tag(
 {
 	struct xfs_perag	*pag;
 	int			found;
-	int			ref;
 
 	rcu_read_lock();
 	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
@@ -77,9 +75,9 @@ xfs_perag_get_tag(
 		rcu_read_unlock();
 		return NULL;
 	}
-	ref = atomic_inc_return(&pag->pag_ref);
+	trace_xfs_perag_get_tag(pag, _RET_IP_);
+	atomic_inc(&pag->pag_ref);
 	rcu_read_unlock();
-	trace_xfs_perag_get_tag(mp, pag->pag_agno, ref, _RET_IP_);
 	return pag;
 }
 
@@ -87,11 +85,9 @@ void
 xfs_perag_put(
 	struct xfs_perag	*pag)
 {
-	int	ref;
-
+	trace_xfs_perag_put(pag, _RET_IP_);
 	ASSERT(atomic_read(&pag->pag_ref) > 0);
-	ref = atomic_dec_return(&pag->pag_ref);
-	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
+	atomic_dec(&pag->pag_ref);
 }
 
 /*
@@ -110,8 +106,7 @@ xfs_perag_grab(
 	rcu_read_lock();
 	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
 	if (pag) {
-		trace_xfs_perag_grab(mp, pag->pag_agno,
-				atomic_read(&pag->pag_active_ref), _RET_IP_);
+		trace_xfs_perag_grab(pag, _RET_IP_);
 		if (!atomic_inc_not_zero(&pag->pag_active_ref))
 			pag = NULL;
 	}
@@ -138,8 +133,7 @@ xfs_perag_grab_tag(
 		rcu_read_unlock();
 		return NULL;
 	}
-	trace_xfs_perag_grab_tag(mp, pag->pag_agno,
-			atomic_read(&pag->pag_active_ref), _RET_IP_);
+	trace_xfs_perag_grab_tag(pag, _RET_IP_);
 	if (!atomic_inc_not_zero(&pag->pag_active_ref))
 		pag = NULL;
 	rcu_read_unlock();
@@ -150,8 +144,7 @@ void
 xfs_perag_rele(
 	struct xfs_perag	*pag)
 {
-	trace_xfs_perag_rele(pag->pag_mount, pag->pag_agno,
-			atomic_read(&pag->pag_active_ref), _RET_IP_);
+	trace_xfs_perag_rele(pag, _RET_IP_);
 	if (atomic_dec_and_test(&pag->pag_active_ref))
 		wake_up(&pag->pag_active_wq);
 }
