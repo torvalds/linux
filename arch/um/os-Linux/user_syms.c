@@ -39,7 +39,7 @@ EXPORT_SYMBOL(printf);
  * good; so the versions of these symbols will always match
  */
 #define EXPORT_SYMBOL_PROTO(sym)       \
-	int sym(void);                  \
+	int sym(void) __weak; \
 	EXPORT_SYMBOL(sym);
 
 extern void readdir64(void) __attribute__((weak));
