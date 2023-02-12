@@ -1576,21 +1576,6 @@ xfs_dialloc_roll(
 	return error;
 }
 
-static xfs_agnumber_t
-xfs_ialloc_next_ag(
-	xfs_mount_t	*mp)
-{
-	xfs_agnumber_t	agno;
-
-	spin_lock(&mp->m_agirotor_lock);
-	agno = mp->m_agirotor;
-	if (++mp->m_agirotor >= mp->m_maxagi)
-		mp->m_agirotor = 0;
-	spin_unlock(&mp->m_agirotor_lock);
-
-	return agno;
-}
-
 static bool
 xfs_dialloc_good_ag(
 	struct xfs_perag	*pag,
@@ -1748,7 +1733,7 @@ xfs_dialloc(
 	 * an AG has enough space for file creation.
 	 */
 	if (S_ISDIR(mode))
-		start_agno = xfs_ialloc_next_ag(mp);
+		start_agno = atomic_inc_return(&mp->m_agirotor) % mp->m_maxagi;
 	else {
 		start_agno = XFS_INO_TO_AGNO(mp, parent);
 		if (start_agno >= mp->m_maxagi)
