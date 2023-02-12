@@ -3136,17 +3136,14 @@ xfs_bmap_adjacent(
 
 static int
 xfs_bmap_longest_free_extent(
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		ag,
 	xfs_extlen_t		*blen,
 	int			*notinit)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_perag	*pag;
 	xfs_extlen_t		longest;
 	int			error = 0;
 
-	pag = xfs_perag_get(mp, ag);
 	if (!xfs_perag_initialised_agf(pag)) {
 		error = xfs_alloc_read_agf(pag, tp, XFS_ALLOC_FLAG_TRYLOCK,
 				NULL);
@@ -3156,19 +3153,17 @@ xfs_bmap_longest_free_extent(
 				*notinit = 1;
 				error = 0;
 			}
-			goto out;
+			return error;
 		}
 	}
 
 	longest = xfs_alloc_longest_free_extent(pag,
-				xfs_alloc_min_freelist(mp, pag),
+				xfs_alloc_min_freelist(pag->pag_mount, pag),
 				xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE));
 	if (*blen < longest)
 		*blen = longest;
 
-out:
-	xfs_perag_put(pag);
-	return error;
+	return 0;
 }
 
 static void
@@ -3206,9 +3201,10 @@ xfs_bmap_btalloc_select_lengths(
 	xfs_extlen_t		*blen)
 {
 	struct xfs_mount	*mp = ap->ip->i_mount;
-	xfs_agnumber_t		ag, startag;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno, startag;
 	int			notinit = 0;
-	int			error;
+	int			error = 0;
 
 	args->type = XFS_ALLOCTYPE_START_BNO;
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
@@ -3218,24 +3214,24 @@ xfs_bmap_btalloc_select_lengths(
 	}
 
 	args->total = ap->total;
-	startag = ag = XFS_FSB_TO_AGNO(mp, args->fsbno);
+	startag = XFS_FSB_TO_AGNO(mp, args->fsbno);
 	if (startag == NULLAGNUMBER)
-		startag = ag = 0;
+		startag = 0;
 
-	while (*blen < args->maxlen) {
-		error = xfs_bmap_longest_free_extent(args->tp, ag, blen,
+	*blen = 0;
+	for_each_perag_wrap(mp, startag, agno, pag) {
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen,
 						     &notinit);
 		if (error)
-			return error;
-
-		if (++ag == mp->m_sb.sb_agcount)
-			ag = 0;
-		if (ag == startag)
+			break;
+		if (*blen >= args->maxlen)
 			break;
 	}
+	if (pag)
+		xfs_perag_rele(pag);
 
 	xfs_bmap_select_minlen(ap, args, blen, notinit);
-	return 0;
+	return error;
 }
 
 STATIC int
@@ -3245,7 +3241,8 @@ xfs_bmap_btalloc_filestreams(
 	xfs_extlen_t		*blen)
 {
 	struct xfs_mount	*mp = ap->ip->i_mount;
-	xfs_agnumber_t		ag;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		start_agno;
 	int			notinit = 0;
 	int			error;
 
@@ -3259,33 +3256,50 @@ xfs_bmap_btalloc_filestreams(
 	args->type = XFS_ALLOCTYPE_NEAR_BNO;
 	args->total = ap->total;
 
-	ag = XFS_FSB_TO_AGNO(mp, args->fsbno);
-	if (ag == NULLAGNUMBER)
-		ag = 0;
+	start_agno = XFS_FSB_TO_AGNO(mp, args->fsbno);
+	if (start_agno == NULLAGNUMBER)
+		start_agno = 0;
 
-	error = xfs_bmap_longest_free_extent(args->tp, ag, blen, &notinit);
-	if (error)
-		return error;
+	pag = xfs_perag_grab(mp, start_agno);
+	if (pag) {
+		error = xfs_bmap_longest_free_extent(pag, args->tp, blen,
+				&notinit);
+		xfs_perag_rele(pag);
+		if (error)
+			return error;
+	}
 
 	if (*blen < args->maxlen) {
-		error = xfs_filestream_new_ag(ap, &ag);
+		xfs_agnumber_t	agno = start_agno;
+
+		error = xfs_filestream_new_ag(ap, &agno);
+		if (error)
+			return error;
+		if (agno == NULLAGNUMBER)
+			goto out_select;
+
+		pag = xfs_perag_grab(mp, agno);
+		if (!pag)
+			goto out_select;
+
+		error = xfs_bmap_longest_free_extent(pag, args->tp,
+				blen, &notinit);
+		xfs_perag_rele(pag);
 		if (error)
 			return error;
 
-		error = xfs_bmap_longest_free_extent(args->tp, ag, blen,
-						     &notinit);
-		if (error)
-			return error;
+		start_agno = agno;
 
 	}
 
+out_select:
 	xfs_bmap_select_minlen(ap, args, blen, notinit);
 
 	/*
 	 * Set the failure fallback case to look in the selected AG as stream
 	 * may have moved.
 	 */
-	ap->blkno = args->fsbno = XFS_AGB_TO_FSB(mp, ag, 0);
+	ap->blkno = args->fsbno = XFS_AGB_TO_FSB(mp, start_agno, 0);
 	return 0;
 }
 
