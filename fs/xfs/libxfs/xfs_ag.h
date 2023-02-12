@@ -253,6 +253,7 @@ xfs_perag_next_wrap(
 	struct xfs_perag	*pag,
 	xfs_agnumber_t		*agno,
 	xfs_agnumber_t		stop_agno,
+	xfs_agnumber_t		restart_agno,
 	xfs_agnumber_t		wrap_agno)
 {
 	struct xfs_mount	*mp = pag->pag_mount;
@@ -260,10 +261,11 @@ xfs_perag_next_wrap(
 	*agno = pag->pag_agno + 1;
 	xfs_perag_rele(pag);
 	while (*agno != stop_agno) {
-		if (*agno >= wrap_agno)
-			*agno = 0;
-		if (*agno == stop_agno)
-			break;
+		if (*agno >= wrap_agno) {
+			if (restart_agno >= stop_agno)
+				break;
+			*agno = restart_agno;
+		}
 
 		pag = xfs_perag_grab(mp, *agno);
 		if (pag)
@@ -274,14 +276,20 @@ xfs_perag_next_wrap(
 }
 
 /*
+ * Iterate all AGs from start_agno through wrap_agno, then restart_agno through
+ * (start_agno - 1).
+ */
+#define for_each_perag_wrap_range(mp, start_agno, restart_agno, wrap_agno, agno, pag) \
+	for ((agno) = (start_agno), (pag) = xfs_perag_grab((mp), (agno)); \
+		(pag) != NULL; \
+		(pag) = xfs_perag_next_wrap((pag), &(agno), (start_agno), \
+				(restart_agno), (wrap_agno)))
+/*
  * Iterate all AGs from start_agno through wrap_agno, then 0 through
  * (start_agno - 1).
  */
 #define for_each_perag_wrap_at(mp, start_agno, wrap_agno, agno, pag) \
-	for ((agno) = (start_agno), (pag) = xfs_perag_grab((mp), (agno)); \
-		(pag) != NULL; \
-		(pag) = xfs_perag_next_wrap((pag), &(agno), (start_agno), \
-				(wrap_agno)))
+	for_each_perag_wrap_range((mp), (start_agno), 0, (wrap_agno), (agno), (pag))
 
 /*
  * Iterate all AGs from start_agno through to the end of the filesystem, then 0

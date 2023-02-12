@@ -3156,6 +3156,7 @@ xfs_alloc_vextent_prepare_ag(
 	if (need_pag)
 		args->pag = xfs_perag_get(args->mp, args->agno);
 
+	args->agbp = NULL;
 	error = xfs_alloc_fix_freelist(args, 0);
 	if (error) {
 		trace_xfs_alloc_vextent_nofix(args);
@@ -3255,8 +3256,8 @@ xfs_alloc_vextent_finish(
 	XFS_STATS_ADD(mp, xs_allocb, args->len);
 
 out_drop_perag:
-	if (drop_perag) {
-		xfs_perag_put(args->pag);
+	if (drop_perag && args->pag) {
+		xfs_perag_rele(args->pag);
 		args->pag = NULL;
 	}
 	return error;
@@ -3304,6 +3305,10 @@ xfs_alloc_vextent_this_ag(
  * we attempt to allocation in as there is no locality optimisation possible for
  * those allocations.
  *
+ * On return, args->pag may be left referenced if we finish before the "all
+ * failed" return point. The allocation finish still needs the perag, and
+ * so the caller will release it once they've finished the allocation.
+ *
  * When we wrap the AG iteration at the end of the filesystem, we have to be
  * careful not to wrap into AGs below ones we already have locked in the
  * transaction if we are doing a blocking iteration. This will result in an
@@ -3318,72 +3323,55 @@ xfs_alloc_vextent_iterate_ags(
 	uint32_t		flags)
 {
 	struct xfs_mount	*mp = args->mp;
+	xfs_agnumber_t		agno;
 	int			error = 0;
 
-	ASSERT(start_agno >= minimum_agno);
-
-	/*
-	 * Loop over allocation groups twice; first time with
-	 * trylock set, second time without.
-	 */
-	args->agno = start_agno;
-	for (;;) {
-		args->pag = xfs_perag_get(mp, args->agno);
+restart:
+	for_each_perag_wrap_range(mp, start_agno, minimum_agno,
+			mp->m_sb.sb_agcount, agno, args->pag) {
+		args->agno = agno;
 		error = xfs_alloc_vextent_prepare_ag(args);
 		if (error)
 			break;
-
-		if (args->agbp) {
-			/*
-			 * Allocation is supposed to succeed now, so break out
-			 * of the loop regardless of whether we succeed or not.
-			 */
-			if (args->agno == start_agno && target_agbno) {
-				args->agbno = target_agbno;
-				error = xfs_alloc_ag_vextent_near(args);
-			} else {
-				args->agbno = 0;
-				error = xfs_alloc_ag_vextent_size(args);
-			}
-			break;
-		}
-
-		trace_xfs_alloc_vextent_loopfailed(args);
-
-		/*
-		 * If we are try-locking, we can't deadlock on AGF locks so we
-		 * can wrap all the way back to the first AG. Otherwise, wrap
-		 * back to the start AG so we can't deadlock and let the end of
-		 * scan handler decide what to do next.
-		 */
-		if (++(args->agno) == mp->m_sb.sb_agcount) {
-			if (flags & XFS_ALLOC_FLAG_TRYLOCK)
-				args->agno = 0;
-			else
-				args->agno = minimum_agno;
+		if (!args->agbp) {
+			trace_xfs_alloc_vextent_loopfailed(args);
+			continue;
 		}
 
 		/*
-		 * Reached the starting a.g., must either be done
-		 * or switch to non-trylock mode.
+		 * Allocation is supposed to succeed now, so break out of the
+		 * loop regardless of whether we succeed or not.
 		 */
-		if (args->agno == start_agno) {
-			if (flags == 0) {
-				args->agbno = NULLAGBLOCK;
-				trace_xfs_alloc_vextent_allfailed(args);
-				break;
-			}
+		if (args->agno == start_agno && target_agbno) {
 			args->agbno = target_agbno;
-			flags = 0;
+			error = xfs_alloc_ag_vextent_near(args);
+		} else {
+			args->agbno = 0;
+			error = xfs_alloc_ag_vextent_size(args);
 		}
-		xfs_perag_put(args->pag);
-		args->pag = NULL;
+		break;
 	}
+	if (error) {
+		xfs_perag_rele(args->pag);
+		args->pag = NULL;
+		return error;
+	}
+	if (args->agbp)
+		return 0;
+
 	/*
-	 * The perag is left referenced in args for the caller to clean
-	 * up after they've finished the allocation.
+	 * We didn't find an AG we can alloation from. If we were given
+	 * constraining flags by the caller, drop them and retry the allocation
+	 * without any constraints being set.
 	 */
-	return error;
+	if (flags) {
+		flags = 0;
+		goto restart;
+	}
+
+	ASSERT(args->pag == NULL);
+	trace_xfs_alloc_vextent_allfailed(args);
+	return 0;
 }
 
 /*
@@ -3524,7 +3512,7 @@ xfs_alloc_vextent_near_bno(
 	}
 
 	if (needs_perag)
-		args->pag = xfs_perag_get(mp, args->agno);
+		args->pag = xfs_perag_grab(mp, args->agno);
 
 	error = xfs_alloc_vextent_prepare_ag(args);
 	if (!error && args->agbp)
