@@ -56,6 +56,8 @@ struct mlx5e_tc_act {
 				   const struct flow_action_entry *act,
 				   struct mlx5_flow_attr *attr);
 
+	bool (*is_missable)(const struct flow_action_entry *act);
+
 	int (*offload_action)(struct mlx5e_priv *priv,
 			      struct flow_offload_action *fl_act,
 			      struct flow_action_entry *act);

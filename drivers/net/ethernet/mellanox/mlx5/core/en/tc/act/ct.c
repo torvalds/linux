@@ -95,10 +95,17 @@ tc_act_is_multi_table_act_ct(struct mlx5e_priv *priv,
 	return true;
 }
 
+static bool
+tc_act_is_missable_ct(const struct flow_action_entry *act)
+{
+	return !(act->ct.action & TCA_CT_ACT_CLEAR);
+}
+
 struct mlx5e_tc_act mlx5e_tc_act_ct = {
 	.can_offload = tc_act_can_offload_ct,
 	.parse_action = tc_act_parse_ct,
-	.is_multi_table_act = tc_act_is_multi_table_act_ct,
 	.post_parse = tc_act_post_parse_ct,
+	.is_multi_table_act = tc_act_is_multi_table_act_ct,
+	.is_missable = tc_act_is_missable_ct,
 };
 
