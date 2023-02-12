@@ -8405,11 +8405,9 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 
 			/* Allocator not initialized yet */
 			pgdat = arch_alloc_nodedata(nid);
-			if (!pgdat) {
-				pr_err("Cannot allocate %zuB for node %d.\n",
-						sizeof(*pgdat), nid);
-				continue;
-			}
+			if (!pgdat)
+				panic("Cannot allocate %zuB for node %d.\n",
+				       sizeof(*pgdat), nid);
 			arch_refresh_nodedata(nid, pgdat);
 			free_area_init_memoryless_node(nid);
 
