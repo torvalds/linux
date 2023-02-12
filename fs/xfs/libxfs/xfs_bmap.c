@@ -3428,6 +3428,7 @@ xfs_bmap_btalloc_at_eof(
 	bool			ag_only)
 {
 	struct xfs_mount	*mp = args->mp;
+	struct xfs_perag	*caller_pag = args->pag;
 	int			error;
 
 	/*
@@ -3455,9 +3456,11 @@ xfs_bmap_btalloc_at_eof(
 		else
 			args->minalignslop = 0;
 
-		args->pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, ap->blkno));
+		if (!caller_pag)
+			args->pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, ap->blkno));
 		error = xfs_alloc_vextent_exact_bno(args, ap->blkno);
-		xfs_perag_put(args->pag);
+		if (!caller_pag)
+			xfs_perag_put(args->pag);
 		if (error)
 			return error;
 
@@ -3483,10 +3486,14 @@ xfs_bmap_btalloc_at_eof(
 		args->minalignslop = 0;
 	}
 
-	if (ag_only)
+	if (ag_only) {
 		error = xfs_alloc_vextent_near_bno(args, ap->blkno);
-	else
+	} else {
+		args->pag = NULL;
 		error = xfs_alloc_vextent_start_ag(args, ap->blkno);
+		ASSERT(args->pag == NULL);
+		args->pag = caller_pag;
+	}
 	if (error)
 		return error;
 
@@ -3545,12 +3552,13 @@ xfs_bmap_btalloc_filestreams(
 	int			stripe_align)
 {
 	xfs_extlen_t		blen = 0;
-	int			error;
+	int			error = 0;
 
 
 	error = xfs_filestream_select_ag(ap, args, &blen);
 	if (error)
 		return error;
+	ASSERT(args->pag);
 
 	/*
 	 * If we are in low space mode, then optimal allocation will fail so
@@ -3559,22 +3567,31 @@ xfs_bmap_btalloc_filestreams(
 	 */
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
 		args->minlen = ap->minlen;
+		ASSERT(args->fsbno == NULLFSBLOCK);
 		goto out_low_space;
 	}
 
 	args->minlen = xfs_bmap_select_minlen(ap, args, blen);
-	if (ap->aeof) {
+	if (ap->aeof)
 		error = xfs_bmap_btalloc_at_eof(ap, args, blen, stripe_align,
 				true);
-		if (error || args->fsbno != NULLFSBLOCK)
-			return error;
-	}
 
-	error = xfs_alloc_vextent_near_bno(args, ap->blkno);
+	if (!error && args->fsbno == NULLFSBLOCK)
+		error = xfs_alloc_vextent_near_bno(args, ap->blkno);
+
+out_low_space:
+	/*
+	 * We are now done with the perag reference for the filestreams
+	 * association provided by xfs_filestream_select_ag(). Release it now as
+	 * we've either succeeded, had a fatal error or we are out of space and
+	 * need to do a full filesystem scan for free space which will take it's
+	 * own references.
+	 */
+	xfs_perag_rele(args->pag);
+	args->pag = NULL;
 	if (error || args->fsbno != NULLFSBLOCK)
 		return error;
 
-out_low_space:
 	return xfs_bmap_btalloc_low_space(ap, args);
 }
 

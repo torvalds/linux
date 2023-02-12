@@ -53,8 +53,9 @@ xfs_fstrm_free_func(
  */
 static int
 xfs_filestream_pick_ag(
+	struct xfs_alloc_arg	*args,
 	struct xfs_inode	*ip,
-	xfs_agnumber_t		*agp,
+	xfs_agnumber_t		start_agno,
 	int			flags,
 	xfs_extlen_t		*longest)
 {
@@ -64,7 +65,6 @@ xfs_filestream_pick_ag(
 	struct xfs_perag	*max_pag = NULL;
 	xfs_extlen_t		minlen = *longest;
 	xfs_extlen_t		free = 0, minfree, maxfree = 0;
-	xfs_agnumber_t		start_agno = *agp;
 	xfs_agnumber_t		agno;
 	int			err, trylock;
 
@@ -72,8 +72,6 @@ xfs_filestream_pick_ag(
 
 	/* 2% of an AG's blocks must be free for it to be chosen. */
 	minfree = mp->m_sb.sb_agblocks / 50;
-
-	*agp = NULLAGNUMBER;
 
 	/* For the first pass, don't sleep trying to init the per-AG. */
 	trylock = XFS_ALLOC_FLAG_TRYLOCK;
@@ -89,7 +87,7 @@ restart:
 				break;
 			/* Couldn't lock the AGF, skip this AG. */
 			err = 0;
-			goto next_ag;
+			continue;
 		}
 
 		/* Keep track of the AG with the most free blocks. */
@@ -146,16 +144,19 @@ restart:
 		/*
 		 * No unassociated AGs are available, so select the AG with the
 		 * most free space, regardless of whether it's already in use by
-		 * another filestream. It none suit, return NULLAGNUMBER.
+		 * another filestream. It none suit, just use whatever AG we can
+		 * grab.
 		 */
 		if (!max_pag) {
-			*agp = NULLAGNUMBER;
-			trace_xfs_filestream_pick(ip, NULL, free);
-			return 0;
+			for_each_perag_wrap(mp, start_agno, agno, pag)
+				break;
+			atomic_inc(&pag->pagf_fstrms);
+			*longest = 0;
+		} else {
+			pag = max_pag;
+			free = maxfree;
+			atomic_inc(&pag->pagf_fstrms);
 		}
-		pag = max_pag;
-		free = maxfree;
-		atomic_inc(&pag->pagf_fstrms);
 	} else if (max_pag) {
 		xfs_perag_rele(max_pag);
 	}
@@ -167,16 +168,29 @@ restart:
 	if (!item)
 		goto out_put_ag;
 
+
+	/*
+	 * We are going to use this perag now, so take another ref to it for the
+	 * allocation context returned to the caller. If we raced to create and
+	 * insert the filestreams item into the MRU (-EEXIST), then we still
+	 * keep this reference but free the item reference we gained above. On
+	 * any other failure, we have to drop both.
+	 */
+	atomic_inc(&pag->pag_active_ref);
 	item->pag = pag;
+	args->pag = pag;
 
 	err = xfs_mru_cache_insert(mp->m_filestream, ip->i_ino, &item->mru);
 	if (err) {
-		if (err == -EEXIST)
+		if (err == -EEXIST) {
 			err = 0;
+		} else {
+			xfs_perag_rele(args->pag);
+			args->pag = NULL;
+		}
 		goto out_free_item;
 	}
 
-	*agp = pag->pag_agno;
 	return 0;
 
 out_free_item:
@@ -236,7 +250,14 @@ xfs_filestream_select_ag_mru(
 	if (!mru)
 		goto out_default_agno;
 
+	/*
+	 * Grab the pag and take an extra active reference for the caller whilst
+	 * the mru item cannot go away. This means we'll pin the perag with
+	 * the reference we get here even if the filestreams association is torn
+	 * down immediately after we mark the lookup as done.
+	 */
 	pag = container_of(mru, struct xfs_fstrm_item, mru)->pag;
+	atomic_inc(&pag->pag_active_ref);
 	xfs_mru_cache_done(mp->m_filestream);
 
 	trace_xfs_filestream_lookup(pag, ap->ip->i_ino);
@@ -246,6 +267,8 @@ xfs_filestream_select_ag_mru(
 
 	error = xfs_bmap_longest_free_extent(pag, args->tp, blen);
 	if (error) {
+		/* We aren't going to use this perag */
+		xfs_perag_rele(pag);
 		if (error != -EAGAIN)
 			return error;
 		*blen = 0;
@@ -253,12 +276,18 @@ xfs_filestream_select_ag_mru(
 
 	/*
 	 * We are done if there's still enough contiguous free space to succeed.
+	 * If there is very little free space before we start a filestreams
+	 * allocation, we're almost guaranteed to fail to find a better AG with
+	 * larger free space available so we don't even try.
 	 */
 	*agno = pag->pag_agno;
-	if (*blen >= args->maxlen)
+	if (*blen >= args->maxlen || (ap->tp->t_flags & XFS_TRANS_LOWMODE)) {
+		args->pag = pag;
 		return 0;
+	}
 
 	/* Changing parent AG association now, so remove the existing one. */
+	xfs_perag_rele(pag);
 	mru = xfs_mru_cache_remove(mp->m_filestream, pip->i_ino);
 	if (mru) {
 		struct xfs_fstrm_item *item =
@@ -297,46 +326,38 @@ xfs_filestream_select_ag(
 	struct xfs_inode	*pip = NULL;
 	xfs_agnumber_t		agno;
 	int			flags = 0;
-	int			error;
+	int			error = 0;
 
 	args->total = ap->total;
 	*blen = 0;
 
 	pip = xfs_filestream_get_parent(ap->ip);
 	if (!pip) {
-		agno = 0;
-		goto out_select;
+		ap->blkno = XFS_AGB_TO_FSB(mp, 0, 0);
+		return 0;
 	}
 
 	error = xfs_filestream_select_ag_mru(ap, args, pip, &agno, blen);
-	if (error || *blen >= args->maxlen)
+	if (error)
 		goto out_rele;
-
-	ap->blkno = XFS_AGB_TO_FSB(args->mp, agno, 0);
-	xfs_bmap_adjacent(ap);
-
-	/*
-	 * If there is very little free space before we start a filestreams
-	 * allocation, we're almost guaranteed to fail to find a better AG with
-	 * larger free space available so we don't even try.
-	 */
+	if (*blen >= args->maxlen)
+		goto out_select;
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
 		goto out_select;
 
+	ap->blkno = XFS_AGB_TO_FSB(args->mp, agno, 0);
+	xfs_bmap_adjacent(ap);
+	*blen = ap->length;
 	if (ap->datatype & XFS_ALLOC_USERDATA)
 		flags |= XFS_PICK_USERDATA;
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
 		flags |= XFS_PICK_LOWSPACE;
 
-	*blen = ap->length;
-	error = xfs_filestream_pick_ag(pip, &agno, flags, blen);
-	if (agno == NULLAGNUMBER) {
-		agno = 0;
-		*blen = 0;
-	}
-
+	error = xfs_filestream_pick_ag(args, pip, agno, flags, blen);
+	if (error)
+		goto out_rele;
 out_select:
-	ap->blkno = XFS_AGB_TO_FSB(mp, agno, 0);
+	ap->blkno = XFS_AGB_TO_FSB(mp, args->pag->pag_agno, 0);
 out_rele:
 	xfs_irele(pip);
 	return error;
