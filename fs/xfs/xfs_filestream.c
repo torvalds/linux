@@ -31,25 +31,6 @@ enum xfs_fstrm_alloc {
 	XFS_PICK_LOWSPACE = 2,
 };
 
-/*
- * Allocation group filestream associations are tracked with per-ag atomic
- * counters.  These counters allow xfs_filestream_pick_ag() to tell whether a
- * particular AG already has active filestreams associated with it.
- */
-int
-xfs_filestream_peek_ag(
-	xfs_mount_t	*mp,
-	xfs_agnumber_t	agno)
-{
-	struct xfs_perag *pag;
-	int		ret;
-
-	pag = xfs_perag_get(mp, agno);
-	ret = atomic_read(&pag->pagf_fstrms);
-	xfs_perag_put(pag);
-	return ret;
-}
-
 static void
 xfs_fstrm_free_func(
 	void			*data,
@@ -59,7 +40,7 @@ xfs_fstrm_free_func(
 		container_of(mru, struct xfs_fstrm_item, mru);
 	struct xfs_perag	*pag = item->pag;
 
-	trace_xfs_filestream_free(pag->pag_mount, mru->key, pag->pag_agno);
+	trace_xfs_filestream_free(pag, mru->key);
 	atomic_dec(&pag->pagf_fstrms);
 	xfs_perag_rele(pag);
 
@@ -99,7 +80,7 @@ xfs_filestream_pick_ag(
 
 restart:
 	for_each_perag_wrap(mp, start_agno, agno, pag) {
-		trace_xfs_filestream_scan(mp, ip->i_ino, agno);
+		trace_xfs_filestream_scan(pag, ip->i_ino);
 		*longest = 0;
 		err = xfs_bmap_longest_free_extent(pag, NULL, longest);
 		if (err) {
@@ -169,7 +150,7 @@ restart:
 		 */
 		if (!max_pag) {
 			*agp = NULLAGNUMBER;
-			trace_xfs_filestream_pick(ip, *agp, free, 0);
+			trace_xfs_filestream_pick(ip, NULL, free);
 			return 0;
 		}
 		pag = max_pag;
@@ -179,7 +160,7 @@ restart:
 		xfs_perag_rele(max_pag);
 	}
 
-	trace_xfs_filestream_pick(ip, pag->pag_agno, free, 0);
+	trace_xfs_filestream_pick(ip, pag, free);
 
 	err = -ENOMEM;
 	item = kmem_alloc(sizeof(*item), KM_MAYFAIL);
@@ -258,7 +239,7 @@ xfs_filestream_select_ag_mru(
 	pag = container_of(mru, struct xfs_fstrm_item, mru)->pag;
 	xfs_mru_cache_done(mp->m_filestream);
 
-	trace_xfs_filestream_lookup(mp, ap->ip->i_ino, pag->pag_agno);
+	trace_xfs_filestream_lookup(pag, ap->ip->i_ino);
 
 	ap->blkno = XFS_AGB_TO_FSB(args->mp, pag->pag_agno, 0);
 	xfs_bmap_adjacent(ap);

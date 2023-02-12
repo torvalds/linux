@@ -14,7 +14,6 @@ struct xfs_alloc_arg;
 int xfs_filestream_mount(struct xfs_mount *mp);
 void xfs_filestream_unmount(struct xfs_mount *mp);
 void xfs_filestream_deassociate(struct xfs_inode *ip);
-int xfs_filestream_peek_ag(struct xfs_mount *mp, xfs_agnumber_t agno);
 int xfs_filestream_select_ag(struct xfs_bmalloca *ap,
 		struct xfs_alloc_arg *args, xfs_extlen_t *blen);
 
