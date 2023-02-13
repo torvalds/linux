@@ -1414,6 +1414,11 @@ static inline int try_split_folio(struct folio *folio, struct list_head *split_f
 	return rc;
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define NR_MAX_BATCHED_MIGRATION	HPAGE_PMD_NR
+#else
+#define NR_MAX_BATCHED_MIGRATION	512
+#endif
 #define NR_MAX_MIGRATE_PAGES_RETRY	10
 
 struct migrate_pages_stats {
@@ -1515,6 +1520,186 @@ static int migrate_hugetlbs(struct list_head *from, new_page_t get_new_page,
 	return nr_failed;
 }
 
+static int migrate_pages_batch(struct list_head *from, new_page_t get_new_page,
+		free_page_t put_new_page, unsigned long private,
+		enum migrate_mode mode, int reason, struct list_head *ret_folios,
+		struct migrate_pages_stats *stats)
+{
+	int retry = 1;
+	int large_retry = 1;
+	int thp_retry = 1;
+	int nr_failed = 0;
+	int nr_retry_pages = 0;
+	int nr_large_failed = 0;
+	int pass = 0;
+	bool is_large = false;
+	bool is_thp = false;
+	struct folio *folio, *folio2;
+	int rc, nr_pages;
+	LIST_HEAD(split_folios);
+	bool nosplit = (reason == MR_NUMA_MISPLACED);
+	bool no_split_folio_counting = false;
+
+split_folio_migration:
+	for (pass = 0;
+	     pass < NR_MAX_MIGRATE_PAGES_RETRY && (retry || large_retry);
+	     pass++) {
+		retry = 0;
+		large_retry = 0;
+		thp_retry = 0;
+		nr_retry_pages = 0;
+
+		list_for_each_entry_safe(folio, folio2, from, lru) {
+			/*
+			 * Large folio statistics is based on the source large
+			 * folio. Capture required information that might get
+			 * lost during migration.
+			 */
+			is_large = folio_test_large(folio);
+			is_thp = is_large && folio_test_pmd_mappable(folio);
+			nr_pages = folio_nr_pages(folio);
+
+			cond_resched();
+
+			rc = unmap_and_move(get_new_page, put_new_page,
+					    private, folio, pass > 2, mode,
+					    reason, ret_folios);
+			/*
+			 * The rules are:
+			 *	Success: folio will be freed
+			 *	-EAGAIN: stay on the from list
+			 *	-ENOMEM: stay on the from list
+			 *	-ENOSYS: stay on the from list
+			 *	Other errno: put on ret_folios list
+			 */
+			switch(rc) {
+			/*
+			 * Large folio migration might be unsupported or
+			 * the allocation could've failed so we should retry
+			 * on the same folio with the large folio split
+			 * to normal folios.
+			 *
+			 * Split folios are put in split_folios, and
+			 * we will migrate them after the rest of the
+			 * list is processed.
+			 */
+			case -ENOSYS:
+				/* Large folio migration is unsupported */
+				if (is_large) {
+					nr_large_failed++;
+					stats->nr_thp_failed += is_thp;
+					if (!try_split_folio(folio, &split_folios)) {
+						stats->nr_thp_split += is_thp;
+						break;
+					}
+				} else if (!no_split_folio_counting) {
+					nr_failed++;
+				}
+
+				stats->nr_failed_pages += nr_pages;
+				list_move_tail(&folio->lru, ret_folios);
+				break;
+			case -ENOMEM:
+				/*
+				 * When memory is low, don't bother to try to migrate
+				 * other folios, just exit.
+				 */
+				if (is_large) {
+					nr_large_failed++;
+					stats->nr_thp_failed += is_thp;
+					/* Large folio NUMA faulting doesn't split to retry. */
+					if (!nosplit) {
+						int ret = try_split_folio(folio, &split_folios);
+
+						if (!ret) {
+							stats->nr_thp_split += is_thp;
+							break;
+						} else if (reason == MR_LONGTERM_PIN &&
+							   ret == -EAGAIN) {
+							/*
+							 * Try again to split large folio to
+							 * mitigate the failure of longterm pinning.
+							 */
+							large_retry++;
+							thp_retry += is_thp;
+							nr_retry_pages += nr_pages;
+							break;
+						}
+					}
+				} else if (!no_split_folio_counting) {
+					nr_failed++;
+				}
+
+				stats->nr_failed_pages += nr_pages + nr_retry_pages;
+				/*
+				 * There might be some split folios of fail-to-migrate large
+				 * folios left in split_folios list. Move them to ret_folios
+				 * list so that they could be put back to the right list by
+				 * the caller otherwise the folio refcnt will be leaked.
+				 */
+				list_splice_init(&split_folios, ret_folios);
+				/* nr_failed isn't updated for not used */
+				nr_large_failed += large_retry;
+				stats->nr_thp_failed += thp_retry;
+				goto out;
+			case -EAGAIN:
+				if (is_large) {
+					large_retry++;
+					thp_retry += is_thp;
+				} else if (!no_split_folio_counting) {
+					retry++;
+				}
+				nr_retry_pages += nr_pages;
+				break;
+			case MIGRATEPAGE_SUCCESS:
+				stats->nr_succeeded += nr_pages;
+				stats->nr_thp_succeeded += is_thp;
+				break;
+			default:
+				/*
+				 * Permanent failure (-EBUSY, etc.):
+				 * unlike -EAGAIN case, the failed folio is
+				 * removed from migration folio list and not
+				 * retried in the next outer loop.
+				 */
+				if (is_large) {
+					nr_large_failed++;
+					stats->nr_thp_failed += is_thp;
+				} else if (!no_split_folio_counting) {
+					nr_failed++;
+				}
+
+				stats->nr_failed_pages += nr_pages;
+				break;
+			}
+		}
+	}
+	nr_failed += retry;
+	nr_large_failed += large_retry;
+	stats->nr_thp_failed += thp_retry;
+	stats->nr_failed_pages += nr_retry_pages;
+	/*
+	 * Try to migrate split folios of fail-to-migrate large folios, no
+	 * nr_failed counting in this round, since all split folios of a
+	 * large folio is counted as 1 failure in the first round.
+	 */
+	if (!list_empty(&split_folios)) {
+		/*
+		 * Move non-migrated folios (after NR_MAX_MIGRATE_PAGES_RETRY
+		 * retries) to ret_folios to avoid migrating them again.
+		 */
+		list_splice_init(from, ret_folios);
+		list_splice_init(&split_folios, from);
+		no_split_folio_counting = true;
+		retry = 1;
+		goto split_folio_migration;
+	}
+
+	rc = nr_failed + nr_large_failed;
+out:
+	return rc;
+}
+
 /*
  * migrate_pages - migrate the folios specified in a list, to the free folios
  *		   supplied as the target for the page migration
@@ -1545,195 +1730,48 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 		free_page_t put_new_page, unsigned long private,
 		enum migrate_mode mode, int reason, unsigned int *ret_succeeded)
 {
-	int retry = 1;
-	int large_retry = 1;
-	int thp_retry = 1;
-	int nr_failed;
-	int nr_retry_pages = 0;
-	int nr_large_failed = 0;
-	int pass = 0;
-	bool is_large = false;
-	bool is_thp = false;
+	int rc, rc_gather;
+	int nr_pages;
 	struct folio *folio, *folio2;
-	int rc, nr_pages;
+	LIST_HEAD(folios);
 	LIST_HEAD(ret_folios);
-	LIST_HEAD(split_folios);
-	bool nosplit = (reason == MR_NUMA_MISPLACED);
-	bool no_split_folio_counting = false;
 	struct migrate_pages_stats stats;
 
 	trace_mm_migrate_pages_start(mode, reason);
 
 	memset(&stats, 0, sizeof(stats));
-	rc = migrate_hugetlbs(from, get_new_page, put_new_page, private, mode, reason,
-			      &stats, &ret_folios);
-	if (rc < 0)
+
+	rc_gather = migrate_hugetlbs(from, get_new_page, put_new_page, private,
+				     mode, reason, &stats, &ret_folios);
+	if (rc_gather < 0)
 		goto out;
-	nr_failed = rc;
-
-split_folio_migration:
-	for (pass = 0;
-	     pass < NR_MAX_MIGRATE_PAGES_RETRY && (retry || large_retry);
-	     pass++) {
-		retry = 0;
-		large_retry = 0;
-		thp_retry = 0;
-		nr_retry_pages = 0;
-
-		list_for_each_entry_safe(folio, folio2, from, lru) {
-			/* Retried hugetlb folios will be kept in list  */
-			if (folio_test_hugetlb(folio)) {
-				list_move_tail(&folio->lru, &ret_folios);
-				continue;
-			}
-
-			/*
-			 * Large folio statistics is based on the source large
-			 * folio. Capture required information that might get
-			 * lost during migration.
-			 */
-			is_large = folio_test_large(folio);
-			is_thp = is_large && folio_test_pmd_mappable(folio);
-			nr_pages = folio_nr_pages(folio);
-
-			cond_resched();
-
-			rc = unmap_and_move(get_new_page, put_new_page,
-					    private, folio, pass > 2, mode,
-					    reason, &ret_folios);
-			/*
-			 * The rules are:
-			 *	Success: folio will be freed
-			 *	-EAGAIN: stay on the from list
-			 *	-ENOMEM: stay on the from list
-			 *	-ENOSYS: stay on the from list
-			 *	Other errno: put on ret_folios list then splice to
-			 *		     from list
-			 */
-			switch(rc) {
-			/*
-			 * Large folio migration might be unsupported or
-			 * the allocation could've failed so we should retry
-			 * on the same folio with the large folio split
-			 * to normal folios.
-			 *
-			 * Split folios are put in split_folios, and
-			 * we will migrate them after the rest of the
-			 * list is processed.
-			 */
-			case -ENOSYS:
-				/* Large folio migration is unsupported */
-				if (is_large) {
-					nr_large_failed++;
-					stats.nr_thp_failed += is_thp;
-					if (!try_split_folio(folio, &split_folios)) {
-						stats.nr_thp_split += is_thp;
-						break;
-					}
-				} else if (!no_split_folio_counting) {
-					nr_failed++;
-				}
-
-				stats.nr_failed_pages += nr_pages;
-				list_move_tail(&folio->lru, &ret_folios);
-				break;
-			case -ENOMEM:
-				/*
-				 * When memory is low, don't bother to try to migrate
-				 * other folios, just exit.
-				 */
-				if (is_large) {
-					nr_large_failed++;
-					stats.nr_thp_failed += is_thp;
-					/* Large folio NUMA faulting doesn't split to retry. */
-					if (!nosplit) {
-						int ret = try_split_folio(folio, &split_folios);
-
-						if (!ret) {
-							stats.nr_thp_split += is_thp;
-							break;
-						} else if (reason == MR_LONGTERM_PIN &&
-							   ret == -EAGAIN) {
-							/*
-							 * Try again to split large folio to
-							 * mitigate the failure of longterm pinning.
-							 */
-							large_retry++;
-							thp_retry += is_thp;
-							nr_retry_pages += nr_pages;
-							break;
-						}
-					}
-				} else if (!no_split_folio_counting) {
-					nr_failed++;
-				}
-
-				stats.nr_failed_pages += nr_pages + nr_retry_pages;
-				/*
-				 * There might be some split folios of fail-to-migrate large
-				 * folios left in split_folios list. Move them back to migration
-				 * list so that they could be put back to the right list by
-				 * the caller otherwise the folio refcnt will be leaked.
-				 */
-				list_splice_init(&split_folios, from);
-				/* nr_failed isn't updated for not used */
-				nr_large_failed += large_retry;
-				stats.nr_thp_failed += thp_retry;
-				goto out;
-			case -EAGAIN:
-				if (is_large) {
-					large_retry++;
-					thp_retry += is_thp;
-				} else if (!no_split_folio_counting) {
-					retry++;
-				}
-				nr_retry_pages += nr_pages;
-				break;
-			case MIGRATEPAGE_SUCCESS:
-				stats.nr_succeeded += nr_pages;
-				stats.nr_thp_succeeded += is_thp;
-				break;
-			default:
-				/*
-				 * Permanent failure (-EBUSY, etc.):
-				 * unlike -EAGAIN case, the failed folio is
-				 * removed from migration folio list and not
-				 * retried in the next outer loop.
-				 */
-				if (is_large) {
-					nr_large_failed++;
-					stats.nr_thp_failed += is_thp;
-				} else if (!no_split_folio_counting) {
-					nr_failed++;
-				}
-
-				stats.nr_failed_pages += nr_pages;
-				break;
-			}
+again:
+	nr_pages = 0;
+	list_for_each_entry_safe(folio, folio2, from, lru) {
+		/* Retried hugetlb folios will be kept in list  */
+		if (folio_test_hugetlb(folio)) {
+			list_move_tail(&folio->lru, &ret_folios);
+			continue;
 		}
-	}
-	nr_failed += retry;
-	nr_large_failed += large_retry;
-	stats.nr_thp_failed += thp_retry;
-	stats.nr_failed_pages += nr_retry_pages;
-	/*
-	 * Try to migrate split folios of fail-to-migrate large folios, no
-	 * nr_failed counting in this round, since all split folios of a
-	 * large folio is counted as 1 failure in the first round.
-	 */
-	if (!list_empty(&split_folios)) {
-		/*
-		 * Move non-migrated folios (after NR_MAX_MIGRATE_PAGES_RETRY
-		 * retries) to ret_folios to avoid migrating them again.
-		 */
-		list_splice_init(from, &ret_folios);
-		list_splice_init(&split_folios, from);
-		no_split_folio_counting = true;
-		retry = 1;
-		goto split_folio_migration;
-	}
 
-	rc = nr_failed + nr_large_failed;
+		nr_pages += folio_nr_pages(folio);
+		if (nr_pages > NR_MAX_BATCHED_MIGRATION)
+			break;
+	}
+	if (nr_pages > NR_MAX_BATCHED_MIGRATION)
+		list_cut_before(&folios, from, &folio->lru);
+	else
+		list_splice_init(from, &folios);
+	rc = migrate_pages_batch(&folios, get_new_page, put_new_page, private,
+				 mode, reason, &ret_folios, &stats);
+	list_splice_tail_init(&folios, &ret_folios);
+	if (rc < 0) {
+		rc_gather = rc;
+		goto out;
+	}
+	rc_gather += rc;
+	if (!list_empty(from))
+		goto again;
 out:
 	/*
 	 * Put the permanent failure folio back to migration list, they
@@ -1746,7 +1784,7 @@ out:
 	 * are migrated successfully.
 	 */
 	if (list_empty(from))
-		rc = 0;
+		rc_gather = 0;
 
 	count_vm_events(PGMIGRATE_SUCCESS, stats.nr_succeeded);
 	count_vm_events(PGMIGRATE_FAIL, stats.nr_failed_pages);
@@ -1760,7 +1798,7 @@ out:
 	if (ret_succeeded)
 		*ret_succeeded = stats.nr_succeeded;
 
-	return rc;
+	return rc_gather;
 }
 
 struct page *alloc_migration_target(struct page *page, unsigned long private)
