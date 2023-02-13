@@ -154,12 +154,12 @@ static const struct rockchip_cpuclk_reg_data rk3562_cpuclk_data = {
 PNAME(mux_pll_p)			= { "xin24m" };
 PNAME(gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(gpll_cpll_hpll_p)			= { "gpll", "cpll", "hpll" };
-PNAME(gpll_cpll_pvtpll_apll_p)		= { "gpll", "cpll", "log_pvtpll", "apll" };
+PNAME(gpll_cpll_pvtpll_dmyapll_p)	= { "gpll", "cpll", "log_pvtpll", "dummy_apll" };
 PNAME(gpll_cpll_hpll_xin24m_p)		= { "gpll", "cpll", "hpll", "xin24m" };
 PNAME(gpll_cpll_vpll_hpll_p)		= { "gpll", "cpll", "vpll", "hpll" };
 PNAME(gpll_hpll_vpll_apll_p)		= { "gpll", "hpll", "vpll", "apll" };
 PNAME(gpll_cpll_xin24m_p)		= { "gpll", "cpll", "xin24m" };
-PNAME(gpll_cpll_xin24m_apll_p)		= { "gpll", "cpll", "xin24m", "apll" };
+PNAME(gpll_cpll_xin24m_dmyapll_p)	= { "gpll", "cpll", "xin24m", "dummy_apll" };
 PNAME(gpll_cpll_xin24m_hpll_p)		= { "gpll", "cpll", "xin24m", "hpll" };
 PNAME(vpll_hpll_gpll_cpll_p)		= { "vpll", "hpll", "gpll", "cpll" };
 PNAME(mux_xin24m_32k_p)			= { "xin24m", "clk_rtc_32k" };
@@ -308,16 +308,16 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 	COMPOSITE(CLK_24M_SSCSRC, "clk_24m_sscsrc", vpll_hpll_gpll_cpll_p, 0,
 			RK3562_CLKSEL_CON(6), 6, 2, MFLAGS, 0, 6, DFLAGS,
 			RK3562_CLKGATE_CON(1), 9, GFLAGS),
-	COMPOSITE(CLK_CAM0_OUT2IO, "clk_cam0_out2io", gpll_cpll_xin24m_apll_p, 0,
+	COMPOSITE(CLK_CAM0_OUT2IO, "clk_cam0_out2io", gpll_cpll_xin24m_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(8), 6, 2, MFLAGS, 0, 6, DFLAGS,
 			RK3562_CLKGATE_CON(1), 12, GFLAGS),
-	COMPOSITE(CLK_CAM1_OUT2IO, "clk_cam1_out2io", gpll_cpll_xin24m_apll_p, 0,
+	COMPOSITE(CLK_CAM1_OUT2IO, "clk_cam1_out2io", gpll_cpll_xin24m_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(8), 14, 2, MFLAGS, 8, 6, DFLAGS,
 			RK3562_CLKGATE_CON(1), 13, GFLAGS),
-	COMPOSITE(CLK_CAM2_OUT2IO, "clk_cam2_out2io", gpll_cpll_xin24m_apll_p, 0,
+	COMPOSITE(CLK_CAM2_OUT2IO, "clk_cam2_out2io", gpll_cpll_xin24m_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(9), 6, 2, MFLAGS, 0, 6, DFLAGS,
 			RK3562_CLKGATE_CON(1), 14, GFLAGS),
-	COMPOSITE(CLK_CAM3_OUT2IO, "clk_cam3_out2io", gpll_cpll_xin24m_apll_p, 0,
+	COMPOSITE(CLK_CAM3_OUT2IO, "clk_cam3_out2io", gpll_cpll_xin24m_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(9), 14, 2, MFLAGS, 8, 6, DFLAGS,
 			RK3562_CLKGATE_CON(1), 15, GFLAGS),
 	FACTOR(0, "xin_osc0_half", "xin24m", 0, 1, 2),
@@ -981,7 +981,7 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_PMU1_CLKGATE_CON(3), 8, GFLAGS),
 
 	/* PD_RGA */
-	COMPOSITE(ACLK_RGA_PRE, "aclk_rga_pre", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(ACLK_RGA_PRE, "aclk_rga_pre", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(32), 6, 2, MFLAGS, 0, 4, DFLAGS,
 			RK3562_CLKGATE_CON(14), 0, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_RGA_PRE, "hclk_rga_pre", "aclk_rga_jdec", 0,
@@ -991,7 +991,7 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(14), 6, GFLAGS),
 	GATE(HCLK_RGA, "hclk_rga", "hclk_rga_pre", 0,
 			RK3562_CLKGATE_CON(14), 7, GFLAGS),
-	COMPOSITE(CLK_RGA_CORE, "clk_rga_core", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(CLK_RGA_CORE, "clk_rga_core", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(33), 6, 2, MFLAGS, 0, 4, DFLAGS,
 			RK3562_CLKGATE_CON(14), 8, GFLAGS),
 	GATE(ACLK_JDEC, "aclk_jdec", "aclk_rga_jdec", 0,
@@ -1000,10 +1000,10 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(14), 10, GFLAGS),
 
 	/* PD_VDPU */
-	COMPOSITE(ACLK_VDPU_PRE, "aclk_vdpu_pre", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(ACLK_VDPU_PRE, "aclk_vdpu_pre", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(22), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3562_CLKGATE_CON(10), 0, GFLAGS),
-	COMPOSITE(CLK_RKVDEC_HEVC_CA, "clk_rkvdec_hevc_ca", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(CLK_RKVDEC_HEVC_CA, "clk_rkvdec_hevc_ca", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(23), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3562_CLKGATE_CON(10), 3, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_VDPU_PRE, "hclk_vdpu_pre", "aclk_vdpu", 0,
@@ -1015,10 +1015,10 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(10), 8, GFLAGS),
 
 	/* PD_VEPU */
-	COMPOSITE(CLK_RKVENC_CORE, "clk_rkvenc_core", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(CLK_RKVENC_CORE, "clk_rkvenc_core", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(20), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3562_CLKGATE_CON(9), 0, GFLAGS),
-	COMPOSITE(ACLK_VEPU_PRE, "aclk_vepu_pre", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(ACLK_VEPU_PRE, "aclk_vepu_pre", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(20), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3562_CLKGATE_CON(9), 1, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_VEPU_PRE, "hclk_vepu_pre", "aclk_vepu", 0,
@@ -1030,7 +1030,7 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(9), 6, GFLAGS),
 
 	/* PD_VI */
-	COMPOSITE(ACLK_VI, "aclk_vi", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(ACLK_VI, "aclk_vi", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(25), 6, 2, MFLAGS, 0, 4, DFLAGS,
 			RK3562_CLKGATE_CON(11), 0, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_VI, "hclk_vi", "aclk_vi_isp", 0,
@@ -1043,14 +1043,14 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(11), 6, GFLAGS),
 	GATE(HCLK_ISP, "hclk_isp", "hclk_vi", 0,
 			RK3562_CLKGATE_CON(11), 7, GFLAGS),
-	COMPOSITE(CLK_ISP, "clk_isp", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(CLK_ISP, "clk_isp", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(27), 6, 2, MFLAGS, 0, 4, DFLAGS,
 			RK3562_CLKGATE_CON(11), 8, GFLAGS),
 	GATE(ACLK_VICAP, "aclk_vicap", "aclk_vi_isp", 0,
 			RK3562_CLKGATE_CON(11), 9, GFLAGS),
 	GATE(HCLK_VICAP, "hclk_vicap", "hclk_vi", 0,
 			RK3562_CLKGATE_CON(11), 10, GFLAGS),
-	COMPOSITE(DCLK_VICAP, "dclk_vicap", gpll_cpll_pvtpll_apll_p, 0,
+	COMPOSITE(DCLK_VICAP, "dclk_vicap", gpll_cpll_pvtpll_dmyapll_p, 0,
 			RK3562_CLKSEL_CON(27), 14, 2, MFLAGS, 8, 4, DFLAGS,
 			RK3562_CLKGATE_CON(11), 11, GFLAGS),
 	GATE(CSIRX0_CLK_DATA, "csirx0_clk_data", "csirx0_clk_data_io", 0,
