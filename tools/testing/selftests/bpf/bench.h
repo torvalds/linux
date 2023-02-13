@@ -24,6 +24,7 @@ struct env {
 	bool verbose;
 	bool list;
 	bool affinity;
+	bool quiet;
 	int consumer_cnt;
 	int producer_cnt;
 	struct cpu_set prod_cpus;

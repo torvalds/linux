@@ -16,6 +16,7 @@ struct env env = {
 	.warmup_sec = 1,
 	.duration_sec = 5,
 	.affinity = false,
+	.quiet = false,
 	.consumer_cnt = 1,
 	.producer_cnt = 1,
 };
@@ -262,6 +263,7 @@ static const struct argp_option opts[] = {
 	{ "consumers", 'c', "NUM", 0, "Number of consumer threads"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output"},
 	{ "affinity", 'a', NULL, 0, "Set consumer/producer thread affinity"},
+	{ "quiet", 'q', NULL, 0, "Be more quiet"},
 	{ "prod-affinity", ARG_PROD_AFFINITY_SET, "CPUSET", 0,
 	  "Set of CPUs for producer threads; implies --affinity"},
 	{ "cons-affinity", ARG_CONS_AFFINITY_SET, "CPUSET", 0,
@@ -329,6 +331,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'a':
 		env.affinity = true;
+		break;
+	case 'q':
+		env.quiet = true;
 		break;
 	case ARG_PROD_AFFINITY_SET:
 		env.affinity = true;
