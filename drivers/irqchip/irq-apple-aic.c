@@ -210,7 +210,6 @@
 				 FIELD_PREP(AIC_EVENT_NUM, x))
 #define AIC_HWIRQ_IRQ(x)	FIELD_GET(AIC_EVENT_NUM, x)
 #define AIC_HWIRQ_DIE(x)	FIELD_GET(AIC_EVENT_DIE, x)
-#define AIC_NR_FIQ		6
 #define AIC_NR_SWIPI		32
 
 /*
@@ -222,11 +221,18 @@
  * running at EL2 (with VHE). When the kernel is running at EL1, the
  * mapping differs and aic_irq_domain_translate() performs the remapping.
  */
-
-#define AIC_TMR_EL0_PHYS	AIC_TMR_HV_PHYS
-#define AIC_TMR_EL0_VIRT	AIC_TMR_HV_VIRT
-#define AIC_TMR_EL02_PHYS	AIC_TMR_GUEST_PHYS
-#define AIC_TMR_EL02_VIRT	AIC_TMR_GUEST_VIRT
+enum fiq_hwirq {
+	/* Must be ordered as in apple-aic.h */
+	AIC_TMR_EL0_PHYS	= AIC_TMR_HV_PHYS,
+	AIC_TMR_EL0_VIRT	= AIC_TMR_HV_VIRT,
+	AIC_TMR_EL02_PHYS	= AIC_TMR_GUEST_PHYS,
+	AIC_TMR_EL02_VIRT	= AIC_TMR_GUEST_VIRT,
+	AIC_CPU_PMU_Effi	= AIC_CPU_PMU_E,
+	AIC_CPU_PMU_Perf	= AIC_CPU_PMU_P,
+	/* No need for this to be discovered from DT */
+	AIC_VGIC_MI,
+	AIC_NR_FIQ
+};
 
 static DEFINE_STATIC_KEY_TRUE(use_fast_ipi);
 
@@ -384,14 +390,20 @@ static void __exception_irq_entry aic_handle_irq(struct pt_regs *regs)
 
 	/*
 	 * vGIC maintenance interrupts end up here too, so we need to check
-	 * for them separately. This should never trigger if KVM is working
-	 * properly, because it will have already taken care of clearing it
-	 * on guest exit before this handler runs.
+	 * for them separately. It should however only trigger when NV is
+	 * in use, and be cleared when coming back from the handler.
 	 */
-	if (is_kernel_in_hyp_mode() && (read_sysreg_s(SYS_ICH_HCR_EL2) & ICH_HCR_EN) &&
-		read_sysreg_s(SYS_ICH_MISR_EL2) != 0) {
-		pr_err_ratelimited("vGIC IRQ fired and not handled by KVM, disabling.\n");
-		sysreg_clear_set_s(SYS_ICH_HCR_EL2, ICH_HCR_EN, 0);
+	if (is_kernel_in_hyp_mode() &&
+	    (read_sysreg_s(SYS_ICH_HCR_EL2) & ICH_HCR_EN) &&
+	    read_sysreg_s(SYS_ICH_MISR_EL2) != 0) {
+		generic_handle_domain_irq(aic_irqc->hw_domain,
+					  AIC_FIQ_HWIRQ(AIC_VGIC_MI));
+
+		if (unlikely((read_sysreg_s(SYS_ICH_HCR_EL2) & ICH_HCR_EN) &&
+			     read_sysreg_s(SYS_ICH_MISR_EL2))) {
+			pr_err_ratelimited("vGIC IRQ fired and not handled by KVM, disabling.\n");
+			sysreg_clear_set_s(SYS_ICH_HCR_EL2, ICH_HCR_EN, 0);
+		}
 	}
 }
 
@@ -1177,6 +1189,21 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 	cpuhp_setup_state(CPUHP_AP_IRQ_APPLE_AIC_STARTING,
 			  "irqchip/apple-aic/ipi:starting",
 			  aic_init_cpu, NULL);
+
+	if (is_kernel_in_hyp_mode()) {
+		struct irq_fwspec mi = {
+			.fwnode		= of_node_to_fwnode(node),
+			.param_count	= 3,
+			.param		= {
+				[0]	= AIC_FIQ, /* This is a lie */
+				[1]	= AIC_VGIC_MI,
+				[2]	= IRQ_TYPE_LEVEL_HIGH,
+			},
+		};
+
+		vgic_info.maint_irq = irq_create_fwspec_mapping(&mi);
+		WARN_ON(!vgic_info.maint_irq);
+	}
 
 	vgic_set_kvm_info(&vgic_info);
 

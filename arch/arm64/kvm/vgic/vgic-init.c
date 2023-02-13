@@ -570,7 +570,7 @@ int kvm_vgic_hyp_init(void)
 	if (ret)
 		return ret;
 
-	if (!has_mask)
+	if (!has_mask && !kvm_vgic_global_state.maint_irq)
 		return 0;
 
 	ret = request_percpu_irq(kvm_vgic_global_state.maint_irq,
