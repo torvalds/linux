@@ -932,7 +932,7 @@ static int aw_dev_check_cfg_by_hdr(struct aw_device *aw_dev, struct aw_container
 
 	hdr_ddt_len = cfg_hdr->hdr_offset + cfg_hdr->ddt_size;
 	if (hdr_ddt_len > aw_cfg->len) {
-		dev_err(aw_dev->dev, "hdrlen with ddt_len [%d] overflow file size[%d]",
+		dev_err(aw_dev->dev, "hdr_len with ddt_len [%d] overflow file size[%d]",
 		cfg_hdr->hdr_offset, aw_cfg->len);
 		return -EINVAL;
 	}
