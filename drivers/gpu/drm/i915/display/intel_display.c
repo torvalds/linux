@@ -2811,42 +2811,39 @@ static void intel_get_transcoder_timings(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	u32 tmp;
 
 	tmp = intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder));
-	pipe_config->hw.adjusted_mode.crtc_hdisplay = (tmp & 0xffff) + 1;
-	pipe_config->hw.adjusted_mode.crtc_htotal = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_hdisplay = (tmp & 0xffff) + 1;
+	adjusted_mode->crtc_htotal = ((tmp >> 16) & 0xffff) + 1;
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
 		tmp = intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder));
-		pipe_config->hw.adjusted_mode.crtc_hblank_start =
-							(tmp & 0xffff) + 1;
-		pipe_config->hw.adjusted_mode.crtc_hblank_end =
-						((tmp >> 16) & 0xffff) + 1;
+		adjusted_mode->crtc_hblank_start = (tmp & 0xffff) + 1;
+		adjusted_mode->crtc_hblank_end = ((tmp >> 16) & 0xffff) + 1;
 	}
 	tmp = intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder));
-	pipe_config->hw.adjusted_mode.crtc_hsync_start = (tmp & 0xffff) + 1;
-	pipe_config->hw.adjusted_mode.crtc_hsync_end = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_hsync_start = (tmp & 0xffff) + 1;
+	adjusted_mode->crtc_hsync_end = ((tmp >> 16) & 0xffff) + 1;
 
 	tmp = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
-	pipe_config->hw.adjusted_mode.crtc_vdisplay = (tmp & 0xffff) + 1;
-	pipe_config->hw.adjusted_mode.crtc_vtotal = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_vdisplay = (tmp & 0xffff) + 1;
+	adjusted_mode->crtc_vtotal = ((tmp >> 16) & 0xffff) + 1;
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
 		tmp = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
-		pipe_config->hw.adjusted_mode.crtc_vblank_start =
-							(tmp & 0xffff) + 1;
-		pipe_config->hw.adjusted_mode.crtc_vblank_end =
-						((tmp >> 16) & 0xffff) + 1;
+		adjusted_mode->crtc_vblank_start = (tmp & 0xffff) + 1;
+		adjusted_mode->crtc_vblank_end = ((tmp >> 16) & 0xffff) + 1;
 	}
 	tmp = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
-	pipe_config->hw.adjusted_mode.crtc_vsync_start = (tmp & 0xffff) + 1;
-	pipe_config->hw.adjusted_mode.crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_vsync_start = (tmp & 0xffff) + 1;
+	adjusted_mode->crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;
 
 	if (intel_pipe_is_interlaced(pipe_config)) {
-		pipe_config->hw.adjusted_mode.flags |= DRM_MODE_FLAG_INTERLACE;
-		pipe_config->hw.adjusted_mode.crtc_vtotal += 1;
-		pipe_config->hw.adjusted_mode.crtc_vblank_end += 1;
+		adjusted_mode->flags |= DRM_MODE_FLAG_INTERLACE;
+		adjusted_mode->crtc_vtotal += 1;
+		adjusted_mode->crtc_vblank_end += 1;
 	}
 }
 
