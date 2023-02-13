@@ -2509,17 +2509,11 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 {
 	int result = -ENOMEM;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	int dma_address_bits = 64;
 
 	if (pci_enable_device_mem(pdev))
 		return result;
 
 	pci_set_master(pdev);
-
-	if (dev->ctrl.quirks & NVME_QUIRK_DMA_ADDRESS_BITS_48)
-		dma_address_bits = 48;
-	if (dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(dma_address_bits)))
-		goto disable;
 
 	if (readl(dev->bar + NVME_REG_CSTS) == -1) {
 		result = -ENODEV;
@@ -2998,7 +2992,11 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 			     quirks);
 	if (ret)
 		goto out_put_device;
-	
+
+	if (dev->ctrl.quirks & NVME_QUIRK_DMA_ADDRESS_BITS_48)
+		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
+	else
+		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	dma_set_min_align_mask(&pdev->dev, NVME_CTRL_PAGE_SIZE - 1);
 	dma_set_max_seg_size(&pdev->dev, 0xffffffff);
 
