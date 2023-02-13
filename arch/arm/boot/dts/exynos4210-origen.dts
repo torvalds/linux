@@ -85,7 +85,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		status {
+		led-status {
 			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			function = LED_FUNCTION_HEARTBEAT;
 			linux,default-trigger = "heartbeat";

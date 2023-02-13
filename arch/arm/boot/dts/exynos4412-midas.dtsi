@@ -653,8 +653,8 @@
 		CPVDD-supply = <&vbatt_reg>;
 		SPKVDD1-supply = <&vbatt_reg>;
 		SPKVDD2-supply = <&vbatt_reg>;
-		wlf,ldo1ena = <&gpj0 4 0>;
-		wlf,ldo2ena = <&gpj0 4 0>;
+		wlf,ldo1ena-gpios = <&gpj0 4 GPIO_ACTIVE_HIGH>;
+		wlf,ldo2ena-gpios = <&gpj0 4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
