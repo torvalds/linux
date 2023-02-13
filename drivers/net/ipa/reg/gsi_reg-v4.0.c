@@ -18,9 +18,28 @@ REG(INTER_EE_SRC_EV_CH_IRQ_MSK, inter_ee_src_ev_ch_irq_msk,
 
 /* All other register offsets are relative to gsi->virt */
 
-REG_STRIDE(CH_C_CNTXT_0, ch_c_cntxt_0, 0x0001c000 + 0x4000 * GSI_EE_AP, 0x80);
+static const u32 reg_ch_c_cntxt_0_fmask[] = {
+	[CHTYPE_PROTOCOL]				= GENMASK(2, 0),
+	[CHTYPE_DIR]					= BIT(3),
+	[CH_EE]						= GENMASK(7, 4),
+	[CHID]						= GENMASK(12, 8),
+						/* Bit 13 reserved */
+	[ERINDEX]					= GENMASK(18, 14),
+						/* Bit 19 reserved */
+	[CHSTATE]					= GENMASK(23, 20),
+	[ELEMENT_SIZE]					= GENMASK(31, 24),
+};
 
-REG_STRIDE(CH_C_CNTXT_1, ch_c_cntxt_1, 0x0001c004 + 0x4000 * GSI_EE_AP, 0x80);
+REG_STRIDE_FIELDS(CH_C_CNTXT_0, ch_c_cntxt_0,
+		  0x0001c000 + 0x4000 * GSI_EE_AP, 0x80);
+
+static const u32 reg_ch_c_cntxt_1_fmask[] = {
+	[CH_R_LENGTH]					= GENMASK(15, 0),
+						/* Bits 16-31 reserved */
+};
+
+REG_STRIDE_FIELDS(CH_C_CNTXT_1, ch_c_cntxt_1,
+		  0x0001c004 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_CNTXT_2, ch_c_cntxt_2, 0x0001c008 + 0x4000 * GSI_EE_AP, 0x80);
 

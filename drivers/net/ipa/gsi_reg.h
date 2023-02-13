@@ -96,15 +96,16 @@ enum gsi_reg_id {
 };
 
 /* CH_C_CNTXT_0 register */
-#define CHTYPE_PROTOCOL_FMASK		GENMASK(2, 0)
-#define CHTYPE_DIR_FMASK		GENMASK(3, 3)
-#define EE_FMASK			GENMASK(7, 4)
-#define CHID_FMASK			GENMASK(12, 8)
-/* The next field is present for IPA v4.5 and above */
-#define CHTYPE_PROTOCOL_MSB_FMASK	GENMASK(13, 13)
-#define ERINDEX_FMASK			GENMASK(18, 14)
-#define CHSTATE_FMASK			GENMASK(23, 20)
-#define ELEMENT_SIZE_FMASK		GENMASK(31, 24)
+enum gsi_reg_ch_c_cntxt_0_field_id {
+	CHTYPE_PROTOCOL,
+	CHTYPE_DIR,
+	CH_EE,
+	CHID,
+	CHTYPE_PROTOCOL_MSB,				/* IPA v4.9+ */
+	ERINDEX,
+	CHSTATE,
+	ELEMENT_SIZE,
+};
 
 /** enum gsi_channel_type - CHTYPE_PROTOCOL field values in CH_C_CNTXT_0 */
 enum gsi_channel_type {
@@ -118,6 +119,11 @@ enum gsi_channel_type {
 	GSI_CHANNEL_TYPE_MHIP			= 0x7,
 	GSI_CHANNEL_TYPE_AQC			= 0x8,
 	GSI_CHANNEL_TYPE_11AD			= 0x9,
+};
+
+/* CH_C_CNTXT_1 register */
+enum gsi_reg_ch_c_cntxt_1_field_id {
+	CH_R_LENGTH,
 };
 
 /* CH_C_QOS register */
