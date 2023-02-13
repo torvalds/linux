@@ -776,6 +776,38 @@ __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
 	return frame;
 }
 
+bool ieee80211_is_valid_amsdu(struct sk_buff *skb, bool mesh_hdr)
+{
+	int offset = 0, remaining, subframe_len, padding;
+
+	for (offset = 0; offset < skb->len; offset += subframe_len + padding) {
+		struct {
+		    __be16 len;
+		    u8 mesh_flags;
+		} hdr;
+		u16 len;
+
+		if (skb_copy_bits(skb, offset + 2 * ETH_ALEN, &hdr, sizeof(hdr)) < 0)
+			return false;
+
+		if (mesh_hdr)
+			len = le16_to_cpu(*(__le16 *)&hdr.len) +
+			      __ieee80211_get_mesh_hdrlen(hdr.mesh_flags);
+		else
+			len = ntohs(hdr.len);
+
+		subframe_len = sizeof(struct ethhdr) + len;
+		padding = (4 - subframe_len) & 0x3;
+		remaining = skb->len - offset;
+
+		if (subframe_len > remaining)
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(ieee80211_is_valid_amsdu);
+
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
