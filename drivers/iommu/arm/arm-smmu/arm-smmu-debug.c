@@ -46,6 +46,13 @@ void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain
 	} while (chain_length--);
 }
 
+void arm_smmu_debug_dump_qtb_regs(struct device *dev, void __iomem *tbu_base)
+{
+	dev_info(dev, "QSMSTATUS: 0x%lx IDLESTATUS: 0x%lx\n",
+			readl_relaxed(tbu_base + Qtb500_QtbNsDbgQsmStatus),
+			readl_relaxed(tbu_base + Qtb500_QtbNsDbgIdleStatus));
+}
+
 u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
 				bool write, u32 val)
 {

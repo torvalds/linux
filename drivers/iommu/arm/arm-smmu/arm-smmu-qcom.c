@@ -1821,6 +1821,7 @@ static void arm_smmu_testbus_dump(struct arm_smmu_device *smmu, u16 sid)
 								qtb->debugchain_base);
 					qtb500_tbu_resume(tbu);
 				}
+				arm_smmu_debug_dump_qtb_regs(tbu->dev, tbu->base);
 			} else {
 				arm_smmu_debug_dump_tbu_testbus(tbu->dev,
 							tbu->base,

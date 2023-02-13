@@ -15,6 +15,9 @@
 #define DebugChainQTB_debug_Dump_Low		0x10
 #define DebugChainQTB_debug_Dump_High		0x14
 #define DebugChainQTB_debug_ShiftRegLen		0x18
+#define Qtb500_QtbNsDbgQsmStatus		0xc00
+#define Qtb500_QtbNsDbgIdleStatus		0xc08
+
 
 #define TCU_PTW_TESTBUS				BIT(8)
 #define TCU_CACHE_TESTBUS			~TCU_PTW_TESTBUS
@@ -97,6 +100,7 @@ enum testbus_ops {
 u32 arm_smmu_debug_qtb_debugchain_load(void __iomem *debugchain_base);
 u64 arm_smmu_debug_qtb_debugchain_dump(void __iomem *debugchain_base);
 void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain_base);
+void arm_smmu_debug_dump_qtb_regs(struct device *dev, void __iomem *tbu_base);
 u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
 					bool write, u32 val);
 u32 arm_smmu_debug_tbu_testbus_output(void __iomem *tbu_base);
@@ -127,6 +131,9 @@ u64 arm_smmu_debug_qtb_debugchain_dump(void __iomem *debugchain_base);
 	return 0;
 }
 void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain_base);
+{
+}
+void arm_smmu_debug_dump_qtb_regs(struct device *dev, void __iomem *tbu_base)
 {
 }
 static inline u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
