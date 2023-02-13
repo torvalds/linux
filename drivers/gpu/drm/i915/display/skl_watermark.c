@@ -5,6 +5,10 @@
 
 #include <drm/drm_blend.h>
 
+#include "i915_drv.h"
+#include "i915_fixed.h"
+#include "i915_reg.h"
+#include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_bw.h"
@@ -13,13 +17,10 @@
 #include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
-#include "skl_watermark.h"
-
-#include "i915_drv.h"
-#include "i915_fixed.h"
-#include "i915_reg.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
+#include "intel_wm.h"
+#include "skl_watermark.h"
 
 static void skl_sagv_disable(struct drm_i915_private *i915);
 

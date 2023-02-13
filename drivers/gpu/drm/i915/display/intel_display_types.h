@@ -1505,17 +1505,6 @@ struct intel_watermark_params {
 	u8 cacheline_size;
 };
 
-struct cxsr_latency {
-	bool is_desktop : 1;
-	bool is_ddr3 : 1;
-	u16 fsb_freq;
-	u16 mem_freq;
-	u16 display_sr;
-	u16 display_hpll_disable;
-	u16 cursor_sr;
-	u16 cursor_hpll_disable;
-};
-
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_crtc_state(x) container_of(x, struct intel_crtc_state, uapi)

@@ -269,7 +269,9 @@ i915-y += \
 	display/intel_tc.o \
 	display/intel_vblank.o \
 	display/intel_vga.o \
+	display/intel_wm.o \
 	display/i9xx_plane.o \
+	display/i9xx_wm.o \
 	display/skl_scaler.o \
 	display/skl_universal_plane.o \
 	display/skl_watermark.o
