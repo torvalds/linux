@@ -455,7 +455,7 @@ static ssize_t pfru_write(struct file *file, const char __user *buf,
 
 	iov.iov_base = (void __user *)buf;
 	iov.iov_len = len;
-	iov_iter_init(&iter, WRITE, &iov, 1, len);
+	iov_iter_init(&iter, ITER_SOURCE, &iov, 1, len);
 
 	/* map the communication buffer */
 	phy_addr = (phys_addr_t)((buf_info.addr_hi << 32) | buf_info.addr_lo);

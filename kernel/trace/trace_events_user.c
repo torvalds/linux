@@ -1489,7 +1489,7 @@ static ssize_t user_events_write(struct file *file, const char __user *ubuf,
 	if (unlikely(*ppos != 0))
 		return -EFAULT;
 
-	if (unlikely(import_single_range(WRITE, (char __user *)ubuf,
+	if (unlikely(import_single_range(ITER_SOURCE, (char __user *)ubuf,
 					 count, &iov, &i)))
 		return -EFAULT;
 
