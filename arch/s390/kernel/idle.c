@@ -28,7 +28,6 @@ void account_idle_time_irq(void)
 	u64 cycles_new[8];
 	int i;
 
-	clear_cpu_flag(CIF_ENABLED_WAIT);
 	if (smp_cpu_mtid) {
 		stcctm(MT_DIAG, smp_cpu_mtid, cycles_new);
 		for (i = 0; i < smp_cpu_mtid; i++)

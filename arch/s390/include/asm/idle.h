@@ -23,6 +23,5 @@ extern struct device_attribute dev_attr_idle_count;
 extern struct device_attribute dev_attr_idle_time_us;
 
 void psw_idle(struct s390_idle_data *data, unsigned long psw_mask);
-void psw_idle_exit(void);
 
 #endif /* _S390_IDLE_H */

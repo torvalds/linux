@@ -136,7 +136,7 @@ void noinstr do_io_irq(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	int from_idle;
+	bool from_idle;
 
 	irq_enter_rcu();
 
@@ -146,7 +146,7 @@ void noinstr do_io_irq(struct pt_regs *regs)
 			current->thread.last_break = regs->last_break;
 	}
 
-	from_idle = !user_mode(regs) && regs->psw.addr == (unsigned long)psw_idle_exit;
+	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
 	if (from_idle)
 		account_idle_time_irq();
 
@@ -171,7 +171,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	int from_idle;
+	bool from_idle;
 
 	irq_enter_rcu();
 
@@ -185,7 +185,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 	regs->int_parm = S390_lowcore.ext_params;
 	regs->int_parm_long = S390_lowcore.ext_params2;
 
-	from_idle = !user_mode(regs) && regs->psw.addr == (unsigned long)psw_idle_exit;
+	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
 	if (from_idle)
 		account_idle_time_irq();
 
