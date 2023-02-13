@@ -1163,13 +1163,6 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 			intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder), 0,
 				     ADLP_1_BASED_X_GRANULARITY);
 
-		/* Wa_16011168373:adl-p */
-		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
-			intel_de_rmw(dev_priv,
-				     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
-				     TRANS_SET_CONTEXT_LATENCY_MASK,
-				     TRANS_SET_CONTEXT_LATENCY_VALUE(1));
-
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
 		if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
@@ -1334,12 +1327,6 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 			     wa_16013835468_bit_get(intel_dp), 0);
 
 	if (intel_dp->psr.psr2_enabled) {
-		/* Wa_16011168373:adl-p */
-		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
-			intel_de_rmw(dev_priv,
-				     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
-				     TRANS_SET_CONTEXT_LATENCY_MASK, 0);
-
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
 		if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
