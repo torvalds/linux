@@ -511,11 +511,17 @@ static void release_pte_pages(pte_t *pte, pte_t *_pte,
 
 	while (--_pte >= pte) {
 		pte_t pteval = *_pte;
+		unsigned long pfn;
 
-		folio = pfn_folio(pte_pfn(pteval));
-		if (!pte_none(pteval) && !is_zero_pfn(pte_pfn(pteval)) &&
-				!folio_test_large(folio))
-			release_pte_folio(folio);
+		if (pte_none(pteval))
+			continue;
+		pfn = pte_pfn(pteval);
+		if (is_zero_pfn(pfn))
+			continue;
+		folio = pfn_folio(pfn);
+		if (folio_test_large(folio))
+			continue;
+		release_pte_folio(folio);
 	}
 
 	list_for_each_entry_safe(folio, tmp, compound_pagelist, lru) {
