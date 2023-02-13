@@ -219,7 +219,8 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 {
 	req->base.complete = cmpl;
 	req->base.data = data;
-	req->base.flags = flgs;
+	req->base.flags &= CRYPTO_ACOMP_ALLOC_OUTPUT;
+	req->base.flags |= flgs & ~CRYPTO_ACOMP_ALLOC_OUTPUT;
 }
 
 /**
@@ -246,6 +247,7 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 	req->slen = slen;
 	req->dlen = dlen;
 
+	req->flags &= ~CRYPTO_ACOMP_ALLOC_OUTPUT;
 	if (!req->dst)
 		req->flags |= CRYPTO_ACOMP_ALLOC_OUTPUT;
 }
