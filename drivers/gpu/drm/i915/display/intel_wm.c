@@ -114,6 +114,12 @@ int intel_compute_global_watermarks(struct intel_atomic_state *state)
 	return 0;
 }
 
+void intel_wm_get_hw_state(struct drm_i915_private *i915)
+{
+	if (i915->display.funcs.wm->get_hw_state)
+		return i915->display.funcs.wm->get_hw_state(i915);
+}
+
 bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 			    const struct intel_plane_state *plane_state)
 {

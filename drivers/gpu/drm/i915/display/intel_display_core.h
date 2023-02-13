@@ -85,6 +85,7 @@ struct intel_wm_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
+	void (*get_hw_state)(struct drm_i915_private *i915);
 };
 
 struct intel_audio_state {

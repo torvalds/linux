@@ -3487,7 +3487,7 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 #undef _FW_WM
 #undef _FW_WM_VLV
 
-void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
+static void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
 	struct g4x_wm_values *wm = &dev_priv->display.wm.g4x;
 	struct intel_crtc *crtc;
@@ -3580,7 +3580,7 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		    str_yes_no(wm->fbc_en));
 }
 
-void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
+static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 {
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
@@ -3629,7 +3629,13 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
+static void g4x_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
+{
+	g4x_wm_get_hw_state(i915);
+	g4x_wm_sanitize(i915);
+}
+
+static void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
 	struct vlv_wm_values *wm = &dev_priv->display.wm.vlv;
 	struct intel_crtc *crtc;
@@ -3729,7 +3735,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		    wm->sr.plane, wm->sr.cursor, wm->level, wm->cxsr);
 }
 
-void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
+static void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 {
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
@@ -3775,6 +3781,12 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
+static void vlv_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
+{
+	vlv_wm_get_hw_state(i915);
+	vlv_wm_sanitize(i915);
+}
+
 /*
  * FIXME should probably kill this and improve
  * the real watermark readout/sanitation instead
@@ -3791,7 +3803,7 @@ static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
 	 */
 }
 
-void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
+static void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
 	struct ilk_wm_values *hw = &dev_priv->display.wm.hw;
 	struct intel_crtc *crtc;
@@ -3829,6 +3841,7 @@ static const struct intel_wm_funcs ilk_wm_funcs = {
 	.compute_intermediate_wm = ilk_compute_intermediate_wm,
 	.initial_watermarks = ilk_initial_watermarks,
 	.optimize_watermarks = ilk_optimize_watermarks,
+	.get_hw_state = ilk_wm_get_hw_state,
 };
 
 static const struct intel_wm_funcs vlv_wm_funcs = {
@@ -3837,6 +3850,7 @@ static const struct intel_wm_funcs vlv_wm_funcs = {
 	.initial_watermarks = vlv_initial_watermarks,
 	.optimize_watermarks = vlv_optimize_watermarks,
 	.atomic_update_watermarks = vlv_atomic_update_fifo,
+	.get_hw_state = vlv_wm_get_hw_state_and_sanitize,
 };
 
 static const struct intel_wm_funcs g4x_wm_funcs = {
@@ -3844,6 +3858,7 @@ static const struct intel_wm_funcs g4x_wm_funcs = {
 	.compute_intermediate_wm = g4x_compute_intermediate_wm,
 	.initial_watermarks = g4x_initial_watermarks,
 	.optimize_watermarks = g4x_optimize_watermarks,
+	.get_hw_state = g4x_wm_get_hw_state_and_sanitize,
 };
 
 static const struct intel_wm_funcs pnv_wm_funcs = {
@@ -3877,6 +3892,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		     dev_priv->display.wm.spr_latency[0] && dev_priv->display.wm.cur_latency[0])) {
 			dev_priv->display.funcs.wm = &ilk_wm_funcs;
 		} else {
+			ilk_init_lp_watermarks(dev_priv);
 			drm_dbg_kms(&dev_priv->drm,
 				    "Failed to read display plane latency. "
 				    "Disable CxSR\n");

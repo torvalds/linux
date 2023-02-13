@@ -38,9 +38,6 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
 				 int num_entries, int ignore_idx);
 
-void skl_wm_get_hw_state(struct drm_i915_private *i915);
-void skl_wm_sanitize(struct drm_i915_private *i915);
-
 void intel_wm_state_verify(struct intel_crtc *crtc,
 			   struct intel_crtc_state *new_crtc_state);
 

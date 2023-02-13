@@ -25,6 +25,7 @@
 #include "intel_modeset_setup.h"
 #include "intel_pch_display.h"
 #include "intel_pm.h"
+#include "intel_wm.h"
 #include "skl_watermark.h"
 
 static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
@@ -724,18 +725,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 	intel_dpll_sanitize_state(i915);
 
-	if (IS_G4X(i915)) {
-		g4x_wm_get_hw_state(i915);
-		g4x_wm_sanitize(i915);
-	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		vlv_wm_get_hw_state(i915);
-		vlv_wm_sanitize(i915);
-	} else if (DISPLAY_VER(i915) >= 9) {
-		skl_wm_get_hw_state(i915);
-		skl_wm_sanitize(i915);
-	} else if (HAS_PCH_SPLIT(i915)) {
-		ilk_wm_get_hw_state(i915);
-	}
+	intel_wm_get_hw_state(i915);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =

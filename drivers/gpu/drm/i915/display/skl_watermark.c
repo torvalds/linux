@@ -2859,7 +2859,7 @@ static void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 	}
 }
 
-void skl_wm_get_hw_state(struct drm_i915_private *i915)
+static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 {
 	struct intel_dbuf_state *dbuf_state =
 		to_intel_dbuf_state(i915->display.dbuf.obj.state);
@@ -2959,7 +2959,7 @@ static bool skl_dbuf_is_misconfigured(struct drm_i915_private *i915)
 	return false;
 }
 
-void skl_wm_sanitize(struct drm_i915_private *i915)
+static void skl_wm_sanitize(struct drm_i915_private *i915)
 {
 	struct intel_crtc *crtc;
 
@@ -2993,6 +2993,12 @@ void skl_wm_sanitize(struct drm_i915_private *i915)
 
 		memset(&crtc_state->wm.skl.ddb, 0, sizeof(crtc_state->wm.skl.ddb));
 	}
+}
+
+static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
+{
+	skl_wm_get_hw_state(i915);
+	skl_wm_sanitize(i915);
 }
 
 void intel_wm_state_verify(struct intel_crtc *crtc,
@@ -3272,6 +3278,7 @@ static void skl_setup_wm_latency(struct drm_i915_private *i915)
 
 static const struct intel_wm_funcs skl_wm_funcs = {
 	.compute_global_watermarks = skl_compute_wm,
+	.get_hw_state = skl_wm_get_hw_state_and_sanitize,
 };
 
 void skl_wm_init(struct drm_i915_private *i915)
