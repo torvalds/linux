@@ -135,6 +135,7 @@ struct st7701 {
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset;
 	unsigned int sleep_delay;
+	enum drm_panel_orientation orientation;
 };
 
 static inline struct st7701 *panel_to_st7701(struct drm_panel *panel)
@@ -514,7 +515,20 @@ static int st7701_get_modes(struct drm_panel *panel,
 	connector->display_info.width_mm = desc_mode->width_mm;
 	connector->display_info.height_mm = desc_mode->height_mm;
 
+	/*
+	 * TODO: Remove once all drm drivers call
+	 * drm_connector_set_orientation_from_panel()
+	 */
+	drm_connector_set_panel_orientation(connector, st7701->orientation);
+
 	return 1;
+}
+
+static enum drm_panel_orientation st7701_get_orientation(struct drm_panel *panel)
+{
+	struct st7701 *st7701 = panel_to_st7701(panel);
+
+	return st7701->orientation;
 }
 
 static const struct drm_panel_funcs st7701_funcs = {
@@ -523,6 +537,7 @@ static const struct drm_panel_funcs st7701_funcs = {
 	.prepare	= st7701_prepare,
 	.enable		= st7701_enable,
 	.get_modes	= st7701_get_modes,
+	.get_orientation = st7701_get_orientation,
 };
 
 static const struct drm_display_mode ts8550b_mode = {
@@ -853,6 +868,10 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "Couldn't get our reset GPIO\n");
 		return PTR_ERR(st7701->reset);
 	}
+
+	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &st7701->orientation);
+	if (ret < 0)
+		return dev_err_probe(&dsi->dev, ret, "Failed to get orientation\n");
 
 	drm_panel_init(&st7701->panel, &dsi->dev, &st7701_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
