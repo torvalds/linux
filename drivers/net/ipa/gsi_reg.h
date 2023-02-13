@@ -163,11 +163,15 @@ enum gsi_reg_ch_c_ev_ch_e_cntxt_8_field_id {
 };
 
 /* GSI_STATUS register */
-#define ENABLED_FMASK			GENMASK(0, 0)
+enum gsi_reg_gsi_status_field_id {
+	ENABLED,
+};
 
 /* CH_CMD register */
-#define CH_CHID_FMASK			GENMASK(7, 0)
-#define CH_OPCODE_FMASK			GENMASK(31, 24)
+enum gsi_reg_gsi_ch_cmd_field_id {
+	CH_CHID,
+	CH_OPCODE,
+};
 
 /** enum gsi_ch_cmd_opcode - CH_OPCODE field values in CH_CMD */
 enum gsi_ch_cmd_opcode {
@@ -180,8 +184,10 @@ enum gsi_ch_cmd_opcode {
 };
 
 /* EV_CH_CMD register */
-#define EV_CHID_FMASK			GENMASK(7, 0)
-#define EV_OPCODE_FMASK			GENMASK(31, 24)
+enum gsi_ev_ch_cmd_field_id {
+	EV_CHID,
+	EV_OPCODE,
+};
 
 /** enum gsi_evt_cmd_opcode - EV_OPCODE field values in EV_CH_CMD */
 enum gsi_evt_cmd_opcode {
@@ -191,10 +197,12 @@ enum gsi_evt_cmd_opcode {
 };
 
 /* GENERIC_CMD register */
-#define GENERIC_OPCODE_FMASK		GENMASK(4, 0)
-#define GENERIC_CHID_FMASK		GENMASK(9, 5)
-#define GENERIC_EE_FMASK		GENMASK(13, 10)
-#define GENERIC_PARAMS_FMASK		GENMASK(31, 24)	/* IPA v4.11+ */
+enum gsi_generic_cmd_field_id {
+	GENERIC_OPCODE,
+	GENERIC_CHID,
+	GENERIC_EE,
+	GENERIC_PARAMS,					/* IPA v4.11+ */
+};
 
 /** enum gsi_generic_cmd_opcode - GENERIC_OPCODE field values in GENERIC_CMD */
 enum gsi_generic_cmd_opcode {
@@ -206,19 +214,19 @@ enum gsi_generic_cmd_opcode {
 };
 
 /* HW_PARAM_2 register */				/* IPA v3.5.1+ */
-#define IRAM_SIZE_FMASK			GENMASK(2, 0)
-#define NUM_CH_PER_EE_FMASK		GENMASK(7, 3)
-#define NUM_EV_PER_EE_FMASK		GENMASK(12, 8)
-#define GSI_CH_PEND_TRANSLATE_FMASK	GENMASK(13, 13)
-#define GSI_CH_FULL_LOGIC_FMASK		GENMASK(14, 14)
-/* Fields below are present for IPA v4.0 and above */
-#define GSI_USE_SDMA_FMASK		GENMASK(15, 15)
-#define GSI_SDMA_N_INT_FMASK		GENMASK(18, 16)
-#define GSI_SDMA_MAX_BURST_FMASK	GENMASK(26, 19)
-#define GSI_SDMA_N_IOVEC_FMASK		GENMASK(29, 27)
-/* Fields below are present for IPA v4.2 and above */
-#define GSI_USE_RD_WR_ENG_FMASK		GENMASK(30, 30)
-#define GSI_USE_INTER_EE_FMASK		GENMASK(31, 31)
+enum gsi_hw_param_2_field_id {
+	IRAM_SIZE,
+	NUM_CH_PER_EE,
+	NUM_EV_PER_EE,
+	GSI_CH_PEND_TRANSLATE,
+	GSI_CH_FULL_LOGIC,
+	GSI_USE_SDMA,					/* IPA v4.0+ */
+	GSI_SDMA_N_INT,					/* IPA v4.0+ */
+	GSI_SDMA_MAX_BURST,				/* IPA v4.0+ */
+	GSI_SDMA_N_IOVEC,				/* IPA v4.0+ */
+	GSI_USE_RD_WR_ENG,				/* IPA v4.2+ */
+	GSI_USE_INTER_EE,				/* IPA v4.2+ */
+};
 
 /** enum gsi_iram_size - IRAM_SIZE field values in HW_PARAM_2 */
 enum gsi_iram_size {
@@ -272,16 +280,20 @@ enum gsi_general_irq_id {
 };
 
 /* CNTXT_INTSET register */
-#define INTYPE_FMASK			GENMASK(0, 0)
+enum gsi_cntxt_intset_field_id {
+	INTYPE,
+};
 
 /* ERROR_LOG register */
-#define ERR_ARG3_FMASK			GENMASK(3, 0)
-#define ERR_ARG2_FMASK			GENMASK(7, 4)
-#define ERR_ARG1_FMASK			GENMASK(11, 8)
-#define ERR_CODE_FMASK			GENMASK(15, 12)
-#define ERR_VIRT_IDX_FMASK		GENMASK(23, 19)
-#define ERR_TYPE_FMASK			GENMASK(27, 24)
-#define ERR_EE_FMASK			GENMASK(31, 28)
+enum gsi_error_log_field_id {
+	ERR_ARG3,
+	ERR_ARG2,
+	ERR_ARG1,
+	ERR_CODE,
+	ERR_VIRT_IDX,
+	ERR_TYPE,
+	ERR_EE,
+};
 
 /** enum gsi_err_code - ERR_CODE field values in EE_ERR_LOG */
 enum gsi_err_code {
@@ -303,8 +315,10 @@ enum gsi_err_type {
 };
 
 /* CNTXT_SCRATCH_0 register */
-#define INTER_EE_RESULT_FMASK		GENMASK(2, 0)
-#define GENERIC_EE_RESULT_FMASK		GENMASK(7, 5)
+enum gsi_cntxt_scratch_0_field_id {
+	INTER_EE_RESULT,
+	GENERIC_EE_RESULT,
+};
 
 /** enum gsi_generic_ee_result - GENERIC_EE_RESULT field values in SCRATCH_0 */
 enum gsi_generic_ee_result {

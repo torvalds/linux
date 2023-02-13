@@ -59,7 +59,18 @@ static const u32 reg_ch_c_qos_fmask[] = {
 
 REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
 
-REG(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
+static const u32 reg_error_log_fmask[] = {
+	[ERR_ARG3]					= GENMASK(3, 0),
+	[ERR_ARG2]					= GENMASK(7, 4),
+	[ERR_ARG1]					= GENMASK(11, 8),
+	[ERR_CODE]					= GENMASK(15, 12),
+						/* Bits 16-18 reserved */
+	[ERR_VIRT_IDX]					= GENMASK(23, 19),
+	[ERR_TYPE]					= GENMASK(27, 24),
+	[ERR_EE]					= GENMASK(31, 28),
+};
+
+REG_FIELDS(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
 
 REG(ERROR_LOG_CLR, error_log_clr, 0x0001f210 + 0x4000 * GSI_EE_AP);
 
@@ -136,15 +147,52 @@ REG_STRIDE(CH_C_DOORBELL_0, ch_c_doorbell_0,
 REG_STRIDE(EV_CH_E_DOORBELL_0, ev_ch_e_doorbell_0,
 	   0x0001e100 + 0x4000 * GSI_EE_AP, 0x08);
 
-REG(GSI_STATUS, gsi_status, 0x0001f000 + 0x4000 * GSI_EE_AP);
+static const u32 reg_gsi_status_fmask[] = {
+	[ENABLED]					= BIT(0),
+						/* Bits 1-31 reserved */
+};
 
-REG(CH_CMD, ch_cmd, 0x0001f008 + 0x4000 * GSI_EE_AP);
+REG_FIELDS(GSI_STATUS, gsi_status, 0x0001f000 + 0x4000 * GSI_EE_AP);
 
-REG(EV_CH_CMD, ev_ch_cmd, 0x0001f010 + 0x4000 * GSI_EE_AP);
+static const u32 reg_ch_cmd_fmask[] = {
+	[CH_CHID]					= GENMASK(7, 0),
+	[CH_OPCODE]					= GENMASK(31, 24),
+};
 
-REG(GENERIC_CMD, generic_cmd, 0x0001f018 + 0x4000 * GSI_EE_AP);
+REG_FIELDS(CH_CMD, ch_cmd, 0x0001f008 + 0x4000 * GSI_EE_AP);
 
-REG(HW_PARAM_2, hw_param_2, 0x0001f040 + 0x4000 * GSI_EE_AP);
+static const u32 reg_ev_ch_cmd_fmask[] = {
+	[EV_CHID]					= GENMASK(7, 0),
+	[EV_OPCODE]					= GENMASK(31, 24),
+};
+
+REG_FIELDS(EV_CH_CMD, ev_ch_cmd, 0x0001f010 + 0x4000 * GSI_EE_AP);
+
+static const u32 reg_generic_cmd_fmask[] = {
+	[GENERIC_OPCODE]				= GENMASK(4, 0),
+	[GENERIC_CHID]					= GENMASK(9, 5),
+	[GENERIC_EE]					= GENMASK(13, 10),
+						/* Bits 14-23 reserved */
+	[GENERIC_PARAMS]				= GENMASK(31, 24),
+};
+
+REG_FIELDS(GENERIC_CMD, generic_cmd, 0x0001f018 + 0x4000 * GSI_EE_AP);
+
+static const u32 reg_hw_param_2_fmask[] = {
+	[IRAM_SIZE]					= GENMASK(2, 0),
+	[NUM_CH_PER_EE]					= GENMASK(7, 3),
+	[NUM_EV_PER_EE]					= GENMASK(12, 8),
+	[GSI_CH_PEND_TRANSLATE]				= BIT(13),
+	[GSI_CH_FULL_LOGIC]				= BIT(14),
+	[GSI_USE_SDMA]					= BIT(15),
+	[GSI_SDMA_N_INT]				= GENMASK(18, 16),
+	[GSI_SDMA_MAX_BURST]				= GENMASK(26, 19),
+	[GSI_SDMA_N_IOVEC]				= GENMASK(29, 27),
+	[GSI_USE_RD_WR_ENG]				= BIT(30),
+	[GSI_USE_INTER_EE]				= BIT(31),
+};
+
+REG_FIELDS(HW_PARAM_2, hw_param_2, 0x0001f040 + 0x4000 * GSI_EE_AP);
 
 REG(CNTXT_TYPE_IRQ, cntxt_type_irq, 0x0001f080 + 0x4000 * GSI_EE_AP);
 
@@ -186,9 +234,21 @@ REG(CNTXT_GSI_IRQ_EN, cntxt_gsi_irq_en, 0x0001f120 + 0x4000 * GSI_EE_AP);
 
 REG(CNTXT_GSI_IRQ_CLR, cntxt_gsi_irq_clr, 0x0001f128 + 0x4000 * GSI_EE_AP);
 
-REG(CNTXT_INTSET, cntxt_intset, 0x0001f180 + 0x4000 * GSI_EE_AP);
+static const u32 reg_cntxt_intset_fmask[] = {
+	[INTYPE]					= BIT(0)
+						/* Bits 1-31 reserved */
+};
 
-REG(CNTXT_SCRATCH_0, cntxt_scratch_0, 0x0001f400 + 0x4000 * GSI_EE_AP);
+REG_FIELDS(CNTXT_INTSET, cntxt_intset, 0x0001f180 + 0x4000 * GSI_EE_AP);
+
+static const u32 reg_cntxt_scratch_0_fmask[] = {
+	[INTER_EE_RESULT]				= GENMASK(2, 0),
+						/* Bits 3-4 reserved */
+	[GENERIC_EE_RESULT]				= GENMASK(7, 5),
+						/* Bits 8-31 reserved */
+};
+
+REG_FIELDS(CNTXT_SCRATCH_0, cntxt_scratch_0, 0x0001f400 + 0x4000 * GSI_EE_AP);
 
 static const struct reg *reg_array[] = {
 	[INTER_EE_SRC_CH_IRQ_MSK]	= &reg_inter_ee_src_ch_irq_msk,

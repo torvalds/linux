@@ -431,8 +431,8 @@ static void gsi_evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	gsi_irq_ev_ctrl_enable(gsi, evt_ring_id);
 
 	reg = gsi_reg(gsi, EV_CH_CMD);
-	val = u32_encode_bits(evt_ring_id, EV_CHID_FMASK);
-	val |= u32_encode_bits(opcode, EV_OPCODE_FMASK);
+	val = reg_encode(reg, EV_CHID, evt_ring_id);
+	val |= reg_encode(reg, EV_OPCODE, opcode);
 
 	timeout = !gsi_command(gsi, reg_offset(reg), val);
 
@@ -548,8 +548,8 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 	gsi_irq_ch_ctrl_enable(gsi, channel_id);
 
 	reg = gsi_reg(gsi, CH_CMD);
-	val = u32_encode_bits(channel_id, CH_CHID_FMASK);
-	val |= u32_encode_bits(opcode, CH_OPCODE_FMASK);
+	val = reg_encode(reg, CH_CHID, channel_id);
+	val |= reg_encode(reg, CH_OPCODE, opcode);
 
 	timeout = !gsi_command(gsi, reg_offset(reg), val);
 
@@ -1220,28 +1220,29 @@ gsi_isr_glob_evt_err(struct gsi *gsi, u32 err_ee, u32 evt_ring_id, u32 code)
 /* Global error interrupt handler */
 static void gsi_isr_glob_err(struct gsi *gsi)
 {
+	const struct reg *log_reg;
+	const struct reg *clr_reg;
 	enum gsi_err_type type;
 	enum gsi_err_code code;
-	const struct reg *reg;
 	u32 offset;
 	u32 which;
 	u32 val;
 	u32 ee;
 
 	/* Get the logged error, then reinitialize the log */
-	reg = gsi_reg(gsi, ERROR_LOG);
-	offset = reg_offset(reg);
+	log_reg = gsi_reg(gsi, ERROR_LOG);
+	offset = reg_offset(log_reg);
 	val = ioread32(gsi->virt + offset);
 	iowrite32(0, gsi->virt + offset);
 
-	reg = gsi_reg(gsi, ERROR_LOG_CLR);
-	iowrite32(~0, gsi->virt + reg_offset(reg));
+	clr_reg = gsi_reg(gsi, ERROR_LOG_CLR);
+	iowrite32(~0, gsi->virt + reg_offset(clr_reg));
 
 	/* Parse the error value */
-	ee = u32_get_bits(val, ERR_EE_FMASK);
-	type = u32_get_bits(val, ERR_TYPE_FMASK);
-	which = u32_get_bits(val, ERR_VIRT_IDX_FMASK);
-	code = u32_get_bits(val, ERR_CODE_FMASK);
+	ee = reg_decode(log_reg, ERR_EE, val);
+	type = reg_decode(log_reg, ERR_TYPE, val);
+	which = reg_decode(log_reg, ERR_VIRT_IDX, val);
+	code = reg_decode(log_reg, ERR_CODE, val);
 
 	if (type == GSI_ERR_TYPE_CHAN)
 		gsi_isr_glob_chan_err(gsi, ee, which, code);
@@ -1279,7 +1280,7 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 	 */
 	reg = gsi_reg(gsi, CNTXT_SCRATCH_0);
 	val = ioread32(gsi->virt + reg_offset(reg));
-	result = u32_get_bits(val, GENERIC_EE_RESULT_FMASK);
+	result = reg_decode(reg, GENERIC_EE_RESULT, val);
 
 	switch (result) {
 	case GENERIC_EE_SUCCESS:
@@ -1801,16 +1802,16 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	offset = reg_offset(reg);
 	val = ioread32(gsi->virt + offset);
 
-	val &= ~GENERIC_EE_RESULT_FMASK;
+	val &= ~reg_fmask(reg, GENERIC_EE_RESULT);
 	iowrite32(val, gsi->virt + offset);
 
 	/* Now issue the command */
 	reg = gsi_reg(gsi, GENERIC_CMD);
-	val = u32_encode_bits(opcode, GENERIC_OPCODE_FMASK);
-	val |= u32_encode_bits(channel_id, GENERIC_CHID_FMASK);
-	val |= u32_encode_bits(GSI_EE_MODEM, GENERIC_EE_FMASK);
+	val = reg_encode(reg, GENERIC_OPCODE, opcode);
+	val |= reg_encode(reg, GENERIC_CHID, channel_id);
+	val |= reg_encode(reg, GENERIC_EE, GSI_EE_MODEM);
 	if (gsi->version >= IPA_VERSION_4_11)
-		val |= u32_encode_bits(params, GENERIC_PARAMS_FMASK);
+		val |= reg_encode(reg, GENERIC_PARAMS, params);
 
 	timeout = !gsi_command(gsi, reg_offset(reg), val);
 
@@ -1978,7 +1979,7 @@ static int gsi_irq_setup(struct gsi *gsi)
 
 	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
 	reg = gsi_reg(gsi, CNTXT_INTSET);
-	iowrite32(1, gsi->virt + reg_offset(reg));
+	iowrite32(reg_bit(reg, INTYPE), gsi->virt + reg_offset(reg));
 
 	/* Disable all interrupt types */
 	gsi_irq_type_update(gsi, 0);
@@ -2040,7 +2041,7 @@ static int gsi_ring_setup(struct gsi *gsi)
 	reg = gsi_reg(gsi, HW_PARAM_2);
 	val = ioread32(gsi->virt + reg_offset(reg));
 
-	count = u32_get_bits(val, NUM_CH_PER_EE_FMASK);
+	count = reg_decode(reg, NUM_CH_PER_EE, val);
 	if (!count) {
 		dev_err(dev, "GSI reports zero channels supported\n");
 		return -EINVAL;
@@ -2052,7 +2053,7 @@ static int gsi_ring_setup(struct gsi *gsi)
 	}
 	gsi->channel_count = count;
 
-	count = u32_get_bits(val, NUM_EV_PER_EE_FMASK);
+	count = reg_decode(reg, NUM_EV_PER_EE, val);
 	if (!count) {
 		dev_err(dev, "GSI reports zero event rings supported\n");
 		return -EINVAL;
@@ -2078,7 +2079,7 @@ int gsi_setup(struct gsi *gsi)
 	/* Here is where we first touch the GSI hardware */
 	reg = gsi_reg(gsi, GSI_STATUS);
 	val = ioread32(gsi->virt + reg_offset(reg));
-	if (!(val & ENABLED_FMASK)) {
+	if (!(val & reg_bit(reg, ENABLED))) {
 		dev_err(gsi->dev, "GSI has not been enabled\n");
 		return -EIO;
 	}
