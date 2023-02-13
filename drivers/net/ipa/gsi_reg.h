@@ -146,18 +146,21 @@ enum gsi_prefetch_mode {
 };
 
 /* EV_CH_E_CNTXT_0 register */
-/* enum gsi_channel_type defines EV_CHTYPE field values in EV_CH_E_CNTXT_0 */
-#define EV_CHTYPE_FMASK			GENMASK(3, 0)
-#define EV_EE_FMASK			GENMASK(7, 4)
-#define EV_EVCHID_FMASK			GENMASK(15, 8)
-#define EV_INTYPE_FMASK			GENMASK(16, 16)
-#define EV_CHSTATE_FMASK		GENMASK(23, 20)
-#define EV_ELEMENT_SIZE_FMASK		GENMASK(31, 24)
+enum gsi_reg_ch_c_ev_ch_e_cntxt_0_field_id {
+	EV_CHTYPE,	/* enum gsi_channel_type */
+	EV_EE,		/* enum gsi_ee_id; always GSI_EE_AP for us */
+	EV_EVCHID,
+	EV_INTYPE,
+	EV_CHSTATE,
+	EV_ELEMENT_SIZE,
+};
 
 /* EV_CH_E_CNTXT_8 register */
-#define MODT_FMASK			GENMASK(15, 0)
-#define MODC_FMASK			GENMASK(23, 16)
-#define MOD_CNT_FMASK			GENMASK(31, 24)
+enum gsi_reg_ch_c_ev_ch_e_cntxt_8_field_id {
+	EV_MODT,
+	EV_MODC,
+	EV_MOD_CNT,
+};
 
 /* GSI_STATUS register */
 #define ENABLED_FMASK			GENMASK(0, 0)

@@ -163,9 +163,6 @@ static void gsi_validate_build(void)
 	 * ensure the elements themselves meet the requirement.
 	 */
 	BUILD_BUG_ON(!is_power_of_2(GSI_RING_ELEMENT_SIZE));
-
-	/* The event ring element size must fit in this field */
-	BUILD_BUG_ON(GSI_RING_ELEMENT_SIZE > field_max(EV_ELEMENT_SIZE_FMASK));
 }
 
 /* Return the channel id associated with a given channel */
@@ -418,7 +415,7 @@ gsi_evt_ring_state(struct gsi *gsi, u32 evt_ring_id)
 
 	val = ioread32(gsi->virt + reg_n_offset(reg, evt_ring_id));
 
-	return u32_get_bits(val, EV_CHSTATE_FMASK);
+	return reg_decode(reg, EV_CHSTATE, val);
 }
 
 /* Issue an event ring command and wait for it to complete */
@@ -739,9 +736,10 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_0);
 	/* We program all event rings as GPI type/protocol */
-	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, EV_CHTYPE_FMASK);
-	val |= EV_INTYPE_FMASK;
-	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
+	val = reg_encode(reg, EV_CHTYPE, GSI_CHANNEL_TYPE_GPI);
+	/* EV_EE field is 0 (GSI_EE_AP) */
+	val |= reg_bit(reg, EV_INTYPE);
+	val |= reg_encode(reg, EV_ELEMENT_SIZE, GSI_RING_ELEMENT_SIZE);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_1);
@@ -763,11 +761,12 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 
 	/* Enable interrupt moderation by setting the moderation delay */
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_8);
-	val = u32_encode_bits(GSI_EVT_RING_INT_MODT, MODT_FMASK);
-	val |= u32_encode_bits(1, MODC_FMASK);	/* comes from channel */
+	val = reg_encode(reg, EV_MODT, GSI_EVT_RING_INT_MODT);
+	val = reg_encode(reg, EV_MODC, 1);	/* comes from channel */
+	/* EV_MOD_CNT is 0 (no counter-based interrupt coalescing) */
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
-	/* No MSI write data, and MSI address high and low address is 0 */
+	/* No MSI write data, and MSI high and low address is 0 */
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_9);
 	iowrite32(0, gsi->virt + reg_n_offset(reg, evt_ring_id));
 

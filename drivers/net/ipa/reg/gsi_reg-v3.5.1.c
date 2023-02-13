@@ -71,8 +71,18 @@ REG_STRIDE(CH_C_SCRATCH_2, ch_c_scratch_2,
 REG_STRIDE(CH_C_SCRATCH_3, ch_c_scratch_3,
 	   0x0001c06c + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(EV_CH_E_CNTXT_0, ev_ch_e_cntxt_0,
-	   0x0001d000 + 0x4000 * GSI_EE_AP, 0x80);
+static const u32 reg_ev_ch_e_cntxt_0_fmask[] = {
+	[EV_CHTYPE]					= GENMASK(3, 0),
+	[EV_EE]						= GENMASK(7, 4),
+	[EV_EVCHID]					= GENMASK(15, 8),
+	[EV_INTYPE]					= BIT(16),
+						/* Bits 17-19 reserved */
+	[EV_CHSTATE]					= GENMASK(23, 20),
+	[EV_ELEMENT_SIZE]				= GENMASK(31, 24),
+};
+
+REG_STRIDE_FIELDS(EV_CH_E_CNTXT_0, ev_ch_e_cntxt_0,
+		  0x0001d000 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_1, ev_ch_e_cntxt_1,
 	   0x0001d004 + 0x4000 * GSI_EE_AP, 0x80);
@@ -86,8 +96,14 @@ REG_STRIDE(EV_CH_E_CNTXT_3, ev_ch_e_cntxt_3,
 REG_STRIDE(EV_CH_E_CNTXT_4, ev_ch_e_cntxt_4,
 	   0x0001d010 + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(EV_CH_E_CNTXT_8, ev_ch_e_cntxt_8,
-	   0x0001d020 + 0x4000 * GSI_EE_AP, 0x80);
+static const u32 reg_ev_ch_e_cntxt_8_fmask[] = {
+	[EV_MODT]					= GENMASK(15, 0),
+	[EV_MODC]					= GENMASK(23, 16),
+	[EV_MOD_CNT]					= GENMASK(31, 24),
+};
+
+REG_STRIDE_FIELDS(EV_CH_E_CNTXT_8, ev_ch_e_cntxt_8,
+		  0x0001d020 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_9, ev_ch_e_cntxt_9,
 	   0x0001d024 + 0x4000 * GSI_EE_AP, 0x80);
