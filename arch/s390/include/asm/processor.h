@@ -54,19 +54,20 @@ static __always_inline void clear_cpu_flag(int flag)
 	S390_lowcore.cpu_flags &= ~(1UL << flag);
 }
 
-static __always_inline int test_cpu_flag(int flag)
+static __always_inline bool test_cpu_flag(int flag)
 {
-	return !!(S390_lowcore.cpu_flags & (1UL << flag));
+	return S390_lowcore.cpu_flags & (1UL << flag);
 }
 
 /*
  * Test CIF flag of another CPU. The caller needs to ensure that
  * CPU hotplug can not happen, e.g. by disabling preemption.
  */
-static __always_inline int test_cpu_flag_of(int flag, int cpu)
+static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 {
 	struct lowcore *lc = lowcore_ptr[cpu];
-	return !!(lc->cpu_flags & (1UL << flag));
+
+	return lc->cpu_flags & (1UL << flag);
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
