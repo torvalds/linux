@@ -5356,18 +5356,20 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
 
 static void shrink_many(struct pglist_data *pgdat, struct scan_control *sc)
 {
+	int op;
 	int gen;
 	int bin;
 	int first_bin;
 	struct lruvec *lruvec;
 	struct lru_gen_folio *lrugen;
+	struct mem_cgroup *memcg;
 	const struct hlist_nulls_node *pos;
-	int op = 0;
-	struct mem_cgroup *memcg = NULL;
 	unsigned long nr_to_reclaim = get_nr_to_reclaim(sc);
 
 	bin = first_bin = get_random_u32_below(MEMCG_NR_BINS);
 restart:
+	op = 0;
+	memcg = NULL;
 	gen = get_memcg_gen(READ_ONCE(pgdat->memcg_lru.seq));
 
 	rcu_read_lock();
@@ -5391,13 +5393,21 @@ restart:
 
 		op = shrink_one(lruvec, sc);
 
-		if (sc->nr_reclaimed >= nr_to_reclaim)
-			goto success;
-
 		rcu_read_lock();
+
+		if (sc->nr_reclaimed >= nr_to_reclaim)
+			break;
 	}
 
 	rcu_read_unlock();
+
+	if (op)
+		lru_gen_rotate_memcg(lruvec, op);
+
+	mem_cgroup_put(memcg);
+
+	if (sc->nr_reclaimed >= nr_to_reclaim)
+		return;
 
 	/* restart if raced with lru_gen_rotate_memcg() */
 	if (gen != get_nulls_value(pos))
@@ -5407,11 +5417,6 @@ restart:
 	bin = get_memcg_bin(bin + 1);
 	if (bin != first_bin)
 		goto restart;
-success:
-	if (op)
-		lru_gen_rotate_memcg(lruvec, op);
-
-	mem_cgroup_put(memcg);
 }
 
 static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
