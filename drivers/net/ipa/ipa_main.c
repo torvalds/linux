@@ -16,7 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/pm_runtime.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "ipa.h"

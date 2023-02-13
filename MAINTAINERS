@@ -5821,14 +5821,6 @@ W:	http://lists.twibble.org/mailman/listinfo/dc395x/
 F:	Documentation/scsi/dc395x.rst
 F:	drivers/scsi/dc395x.*
 
-DCC QTI DRIVER
-M:	Souradeep Chowdhury <quic_schowdhu@quicinc.com>
-L:	linux-arm-msm@vger.kernel.org
-S:	Maintained
-F:	Documentation/ABI/testing/debugfs-driver-dcc
-F:	Documentation/devicetree/bindings/soc/qcom/qcom,dcc.yaml
-F:	drivers/soc/qcom/dcc.c
-
 DCCP PROTOCOL
 L:	dccp@vger.kernel.org
 S:	Orphan
@@ -17263,7 +17255,8 @@ F:	drivers/clk/qcom/
 F:	include/dt-bindings/clock/qcom,*
 
 QUALCOMM CORE POWER REDUCTION (CPR) AVS DRIVER
-M:	Niklas Cassel <nks@flawful.org>
+M:	Bjorn Andersson <andersson@kernel.org>
+M:	Konrad Dybcio <konrad.dybcio@linaro.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained

@@ -174,6 +174,8 @@ struct socinfo {
 	__le32  pcode;
 	__le32  npartnamemap_offset;
 	__le32  nnum_partname_mapping;
+	/* Version 17 */
+	__le32 oem_variant;
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -196,6 +198,7 @@ struct socinfo_params {
 	u32 nmodem_supported;
 	u32 feature_code;
 	u32 pcode;
+	u32 oem_variant;
 };
 
 struct smem_image_version {
@@ -281,6 +284,10 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(MSM8126) },
 	{ qcom_board_id(APQ8026) },
 	{ qcom_board_id(MSM8926) },
+	{ qcom_board_id(IPQ8062) },
+	{ qcom_board_id(IPQ8064) },
+	{ qcom_board_id(IPQ8066) },
+	{ qcom_board_id(IPQ8068) },
 	{ qcom_board_id(MSM8326) },
 	{ qcom_board_id(MSM8916) },
 	{ qcom_board_id(MSM8994) },
@@ -336,6 +343,8 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(MSM8609) },
 	{ qcom_board_id(APQ8076) },
 	{ qcom_board_id(MSM8976) },
+	{ qcom_board_id(IPQ8065) },
+	{ qcom_board_id(IPQ8069) },
 	{ qcom_board_id(MDM9650) },
 	{ qcom_board_id(MDM9655) },
 	{ qcom_board_id(MDM9250) },
@@ -439,6 +448,8 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(QRU1032) },
 	{ qcom_board_id(QRU1052) },
 	{ qcom_board_id(QRU1062) },
+	{ qcom_board_id(IPQ5332) },
+	{ qcom_board_id(IPQ5322) },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)
@@ -593,6 +604,11 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 17):
+		qcom_socinfo->info.oem_variant = __le32_to_cpu(info->oem_variant);
+		debugfs_create_u32("oem_variant", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.oem_variant);
+		fallthrough;
 	case SOCINFO_VERSION(0, 16):
 		qcom_socinfo->info.feature_code = __le32_to_cpu(info->feature_code);
 		qcom_socinfo->info.pcode = __le32_to_cpu(info->pcode);
