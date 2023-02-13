@@ -268,17 +268,6 @@ enum tx_mgnt_type {
 /* VHT/HE only use bits 0-3 */
 #define MT_TX_RATE_IDX			GENMASK(5, 0)
 
-struct mt7996_txp {
-	__le16 flags;
-	__le16 token;
-	u8 bss_idx;
-	__le16 rept_wds_wcid;
-	u8 nbuf;
-#define MT_TXP_MAX_BUF_NUM	6
-	__le32 buf[MT_TXP_MAX_BUF_NUM];
-	__le16 len[MT_TXP_MAX_BUF_NUM];
-} __packed __aligned(4);
-
 #define MT_TXFREE0_PKT_TYPE		GENMASK(31, 27)
 #define MT_TXFREE0_MSDU_CNT		GENMASK(25, 16)
 #define MT_TXFREE0_RX_BYTE		GENMASK(15, 0)
@@ -381,18 +370,5 @@ struct mt7996_dfs_radar_spec {
 	struct mt7996_dfs_pulse pulse_th;
 	struct mt7996_dfs_pattern radar_pattern[16];
 };
-
-static inline struct mt7996_txp *
-mt7996_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
-{
-	u8 *txwi;
-
-	if (!t)
-		return NULL;
-
-	txwi = mt76_get_txwi_ptr(dev, t);
-
-	return (struct mt7996_txp *)(txwi + MT_TXD_SIZE);
-}
 
 #endif

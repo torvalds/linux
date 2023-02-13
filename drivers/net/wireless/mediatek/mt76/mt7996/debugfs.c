@@ -791,10 +791,10 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 	else
 		buf[count] = '\0';
 
-	/* mode - cck: 0, ofdm: 1, ht: 2, gf: 3, vht: 4, he_su: 8, he_er: 9
-	 * bw - bw20: 0, bw40: 1, bw80: 2, bw160: 3
-	 * nss - vht: 1~4, he: 1~4, others: ignore
-	 * mcs - cck: 0~4, ofdm: 0~7, ht: 0~32, vht: 0~9, he_su: 0~11, he_er: 0~2
+	/* mode - cck: 0, ofdm: 1, ht: 2, gf: 3, vht: 4, he_su: 8, he_er: 9 EHT: 15
+	 * bw - bw20: 0, bw40: 1, bw80: 2, bw160: 3, BW320: 4
+	 * nss - vht: 1~4, he: 1~4, eht: 1~4, others: ignore
+	 * mcs - cck: 0~4, ofdm: 0~7, ht: 0~32, vht: 0~9, he_su: 0~11, he_er: 0~2, eht: 0~13
 	 * gi - (ht/vht) lgi: 0, sgi: 1; (he) 0.8us: 0, 1.6us: 1, 3.2us: 2
 	 * preamble - short: 1, long: 0
 	 * ldpc - off: 0, on: 1

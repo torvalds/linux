@@ -256,8 +256,7 @@ mt7915_wed_check_ppe(struct mt7915_dev *dev, struct mt76_queue *q,
 	if (!msta || !msta->vif)
 		return;
 
-	if (!(q->flags & MT_QFLAG_WED) ||
-	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) != MT76_WED_Q_RX)
+	if (!mt76_queue_is_wed_rx(q))
 		return;
 
 	if (!(info & MT_DMA_INFO_PPE_VLD))
@@ -1061,9 +1060,6 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
 	u16 wcidx;
 	u8 pid;
 
-	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) > 1)
-		return;
-
 	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
 	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
 
@@ -1581,6 +1577,12 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	/* chip partial reset */
 	if (!(READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA))
 		return;
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		mtk_wed_device_stop(&dev->mt76.mmio.wed);
+		if (!is_mt7986(&dev->mt76))
+			mt76_wr(dev, MT_INT_WED_MASK_CSR, 0);
+	}
 
 	ieee80211_stop_queues(mt76_hw(dev));
 	if (ext_phy)

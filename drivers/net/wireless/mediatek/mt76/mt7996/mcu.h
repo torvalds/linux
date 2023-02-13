@@ -347,6 +347,21 @@ struct sta_rec_ba_uni {
 	u8 __rsv[3];
 } __packed;
 
+struct sta_rec_eht {
+	__le16 tag;
+	__le16 len;
+	u8 tid_bitmap;
+	u8 _rsv;
+	__le16 mac_cap;
+	__le64 phy_cap;
+	__le64 phy_cap_ext;
+	u8 mcs_map_bw20[4];
+	u8 mcs_map_bw80[3];
+	u8 mcs_map_bw160[3];
+	u8 mcs_map_bw320[3];
+	u8 _rsv2[3];
+} __packed;
+
 struct sec_key_uni {
 	__le16 wlan_idx;
 	u8 mgmt_prot;
@@ -554,6 +569,7 @@ enum {
 					 sizeof(struct sta_rec_sec) +		\
 					 sizeof(struct sta_rec_ra_fixed) +	\
 					 sizeof(struct sta_rec_he_6g_capa) +	\
+					 sizeof(struct sta_rec_eht) +		\
 					 sizeof(struct sta_rec_hdrt) +		\
 					 sizeof(struct sta_rec_hdr_trans) +	\
 					 sizeof(struct tlv))
