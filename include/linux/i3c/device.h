@@ -18,17 +18,18 @@
 /**
  * enum i3c_error_code - I3C error codes
  *
+ * @I3C_ERROR_UNKNOWN: unknown error, usually means the error is not I3C
+ *		       related
+ * @I3C_ERROR_M0: M0 error
+ * @I3C_ERROR_M1: M1 error
+ * @I3C_ERROR_M2: M2 error
+ *
  * These are the standard error codes as defined by the I3C specification.
  * When -EIO is returned by the i3c_device_do_priv_xfers() or
  * i3c_device_send_hdr_cmds() one can check the error code in
  * &struct_i3c_priv_xfer.err or &struct i3c_hdr_cmd.err to get a better idea of
  * what went wrong.
  *
- * @I3C_ERROR_UNKNOWN: unknown error, usually means the error is not I3C
- *		       related
- * @I3C_ERROR_M0: M0 error
- * @I3C_ERROR_M1: M1 error
- * @I3C_ERROR_M2: M2 error
  */
 enum i3c_error_code {
 	I3C_ERROR_UNKNOWN = 0,
@@ -189,7 +190,7 @@ struct device *i3cdev_to_dev(struct i3c_device *i3cdev);
 
 /**
  * dev_to_i3cdev() - Returns the I3C device containing @dev
- * @dev: device object
+ * @__dev: device object
  *
  * Return: a pointer to an I3C device object.
  */
