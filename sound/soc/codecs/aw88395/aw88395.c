@@ -363,7 +363,7 @@ static const struct snd_kcontrol_new aw88395_controls[] = {
 		aw88395_profile_get, aw88395_profile_set),
 };
 
-static int aw88395_plack_event(struct snd_soc_dapm_widget *w,
+static int aw88395_playback_event(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *k, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
@@ -388,7 +388,7 @@ static int aw88395_plack_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget aw88395_dapm_widgets[] = {
 	 /* playback */
 	SND_SOC_DAPM_AIF_IN_E("AIF_RX", "Speaker_Playback", 0, 0, 0, 0,
-					aw88395_plack_event,
+					aw88395_playback_event,
 					SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 
