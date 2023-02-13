@@ -1427,6 +1427,7 @@ static unsigned int kbps_from_pbn(unsigned int pbn)
 static bool is_dsc_common_config_possible(struct dc_stream_state *stream,
 					  struct dc_dsc_bw_range *bw_range)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dc_dsc_policy dsc_policy = {0};
 
 	dc_dsc_get_policy_for_timing(&stream->timing, 0, &dsc_policy);
@@ -1438,6 +1439,8 @@ static bool is_dsc_common_config_possible(struct dc_stream_state *stream,
 				       &stream->timing, bw_range);
 
 	return bw_range->max_target_bpp_x16 && bw_range->min_target_bpp_x16;
+#endif
+	return false;
 }
 #endif /* CONFIG_DRM_AMD_DC_DCN */
 
