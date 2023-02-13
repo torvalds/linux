@@ -178,11 +178,10 @@ static int cs35l41_request_firmware_files_spkid(struct cs35l41_hda *cs35l41,
 					    cs35l41->speaker_id, "wmfw");
 	if (!ret) {
 		/* try cirrus/part-dspN-fwtype-sub<-spkidN><-ampname>.bin */
-		cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-					      CS35L41_FIRMWARE_ROOT,
-					      cs35l41->acpi_subsystem_id, cs35l41->amp_name,
-					      cs35l41->speaker_id, "bin");
-		return 0;
+		return cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
+						     CS35L41_FIRMWARE_ROOT,
+						     cs35l41->acpi_subsystem_id, cs35l41->amp_name,
+						     cs35l41->speaker_id, "bin");
 	}
 
 	/* try cirrus/part-dspN-fwtype-sub<-ampname>.wmfw */
@@ -191,10 +190,10 @@ static int cs35l41_request_firmware_files_spkid(struct cs35l41_hda *cs35l41,
 					    cs35l41->amp_name, -1, "wmfw");
 	if (!ret) {
 		/* try cirrus/part-dspN-fwtype-sub<-spkidN><-ampname>.bin */
-		cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-					      CS35L41_FIRMWARE_ROOT, cs35l41->acpi_subsystem_id,
-					      cs35l41->amp_name, cs35l41->speaker_id, "bin");
-		return 0;
+		return cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
+						     CS35L41_FIRMWARE_ROOT,
+						     cs35l41->acpi_subsystem_id, cs35l41->amp_name,
+						     cs35l41->speaker_id, "bin");
 	}
 
 	/* try cirrus/part-dspN-fwtype-sub<-spkidN>.wmfw */
@@ -209,11 +208,10 @@ static int cs35l41_request_firmware_files_spkid(struct cs35l41_hda *cs35l41,
 						    cs35l41->amp_name, cs35l41->speaker_id, "bin");
 		if (ret)
 			/* try cirrus/part-dspN-fwtype-sub<-spkidN>.bin */
-			cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-						CS35L41_FIRMWARE_ROOT,
-						cs35l41->acpi_subsystem_id,
-						NULL, cs35l41->speaker_id, "bin");
-		return 0;
+			return cs35l41_request_firmware_file(cs35l41, coeff_firmware,
+							     coeff_filename, CS35L41_FIRMWARE_ROOT,
+							     cs35l41->acpi_subsystem_id, NULL,
+							     cs35l41->speaker_id, "bin");
 	}
 
 	/* try cirrus/part-dspN-fwtype-sub.wmfw */
@@ -224,28 +222,15 @@ static int cs35l41_request_firmware_files_spkid(struct cs35l41_hda *cs35l41,
 		/* try cirrus/part-dspN-fwtype-sub<-spkidN><-ampname>.bin */
 		ret = cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
 						    CS35L41_FIRMWARE_ROOT,
-						    cs35l41->acpi_subsystem_id,
-						    cs35l41->amp_name, cs35l41->speaker_id, "bin");
+						    cs35l41->acpi_subsystem_id, cs35l41->amp_name,
+						    cs35l41->speaker_id, "bin");
 		if (ret)
 			/* try cirrus/part-dspN-fwtype-sub<-spkidN>.bin */
-			cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-						      CS35L41_FIRMWARE_ROOT,
-						      cs35l41->acpi_subsystem_id,
-						      NULL, cs35l41->speaker_id, "bin");
-		return 0;
+			return cs35l41_request_firmware_file(cs35l41, coeff_firmware,
+							     coeff_filename, CS35L41_FIRMWARE_ROOT,
+							     cs35l41->acpi_subsystem_id, NULL,
+							     cs35l41->speaker_id, "bin");
 	}
-
-	/* fallback try cirrus/part-dspN-fwtype.wmfw */
-	ret = cs35l41_request_firmware_file(cs35l41, wmfw_firmware, wmfw_filename,
-					    CS35L41_FIRMWARE_ROOT, NULL, NULL, -1, "wmfw");
-	if (!ret) {
-		/* fallback try cirrus/part-dspN-fwtype.bin */
-		cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-					      CS35L41_FIRMWARE_ROOT, NULL, NULL, -1, "bin");
-		return 0;
-	}
-
-	dev_warn(cs35l41->dev, "Failed to request firmware\n");
 
 	return ret;
 }
@@ -258,9 +243,12 @@ static int cs35l41_request_firmware_files(struct cs35l41_hda *cs35l41,
 {
 	int ret;
 
-	if (cs35l41->speaker_id > -1)
-		return cs35l41_request_firmware_files_spkid(cs35l41, wmfw_firmware, wmfw_filename,
-							    coeff_firmware, coeff_filename);
+	if (cs35l41->speaker_id > -1) {
+		ret = cs35l41_request_firmware_files_spkid(cs35l41, wmfw_firmware, wmfw_filename,
+							   coeff_firmware, coeff_filename);
+		goto out;
+
+	}
 
 	/* try cirrus/part-dspN-fwtype-sub<-ampname>.wmfw */
 	ret = cs35l41_request_firmware_file(cs35l41, wmfw_firmware, wmfw_filename,
@@ -268,10 +256,11 @@ static int cs35l41_request_firmware_files(struct cs35l41_hda *cs35l41,
 					    cs35l41->amp_name, -1, "wmfw");
 	if (!ret) {
 		/* try cirrus/part-dspN-fwtype-sub<-ampname>.bin */
-		cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-					      CS35L41_FIRMWARE_ROOT, cs35l41->acpi_subsystem_id,
-					      cs35l41->amp_name, -1, "bin");
-		return 0;
+		ret = cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
+						    CS35L41_FIRMWARE_ROOT,
+						    cs35l41->acpi_subsystem_id, cs35l41->amp_name,
+						    -1, "bin");
+		goto out;
 	}
 
 	/* try cirrus/part-dspN-fwtype-sub.wmfw */
@@ -286,25 +275,35 @@ static int cs35l41_request_firmware_files(struct cs35l41_hda *cs35l41,
 						    cs35l41->amp_name, -1, "bin");
 		if (ret)
 			/* try cirrus/part-dspN-fwtype-sub.bin */
-			cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-						      CS35L41_FIRMWARE_ROOT,
-						      cs35l41->acpi_subsystem_id,
-						      NULL, -1, "bin");
-		return 0;
+			ret = cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
+							    CS35L41_FIRMWARE_ROOT,
+							    cs35l41->acpi_subsystem_id, NULL, -1,
+							    "bin");
 	}
+
+out:
+	if (!ret)
+		return 0;
+
+	/* Handle fallback */
+	dev_warn(cs35l41->dev, "Falling back to default firmware.\n");
+
+	release_firmware(*wmfw_firmware);
+	kfree(*wmfw_filename);
 
 	/* fallback try cirrus/part-dspN-fwtype.wmfw */
 	ret = cs35l41_request_firmware_file(cs35l41, wmfw_firmware, wmfw_filename,
 					    CS35L41_FIRMWARE_ROOT, NULL, NULL, -1, "wmfw");
-	if (!ret) {
+	if (!ret)
 		/* fallback try cirrus/part-dspN-fwtype.bin */
-		cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
-					      CS35L41_FIRMWARE_ROOT, NULL, NULL, -1, "bin");
-		return 0;
+		ret = cs35l41_request_firmware_file(cs35l41, coeff_firmware, coeff_filename,
+						    CS35L41_FIRMWARE_ROOT, NULL, NULL, -1, "bin");
+
+	if (ret) {
+		release_firmware(*wmfw_firmware);
+		kfree(*wmfw_filename);
+		dev_warn(cs35l41->dev, "Unable to find firmware and tuning\n");
 	}
-
-	dev_warn(cs35l41->dev, "Failed to request firmware\n");
-
 	return ret;
 }
 
