@@ -614,6 +614,7 @@ config SND_SOC_AW88395
 	select CRC8
 	select CRC32
 	select REGMAP_I2C
+	select GPIOLIB
 	select SND_SOC_AW88395_LIB
 	help
 	  this option enables support for aw88395 Smart PA.
