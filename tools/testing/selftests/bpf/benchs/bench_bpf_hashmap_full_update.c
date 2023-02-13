@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2022 Bytedance */
 
-#include <argp.h>
 #include "bench.h"
 #include "bpf_hashmap_full_update_bench.skel.h"
 #include "bpf_util.h"
