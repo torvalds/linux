@@ -698,11 +698,11 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	save_vtotal = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
 	vblank = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
 
-	vtotal = ((save_vtotal >> 16) & 0xfff) + 1;
-	vactive = (save_vtotal & 0x7ff) + 1;
+	vtotal = REG_FIELD_GET(VTOTAL_MASK, save_vtotal) + 1;
+	vactive = REG_FIELD_GET(VACTIVE_MASK, save_vtotal) + 1;
 
-	vblank_start = (vblank & 0xfff) + 1;
-	vblank_end = ((vblank >> 16) & 0xfff) + 1;
+	vblank_start = REG_FIELD_GET(VBLANK_START_MASK, vblank) + 1;
+	vblank_end = REG_FIELD_GET(VBLANK_END_MASK, vblank) + 1;
 
 	/* Set the border color to purple. */
 	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), 0x500050);
@@ -732,11 +732,12 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
 			u32 vsync = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
-			u32 vsync_start = (vsync & 0xffff) + 1;
+			u32 vsync_start = REG_FIELD_GET(VSYNC_START_MASK, vsync) + 1;
 
 			vblank_start = vsync_start;
 			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
-				       (vblank_start - 1) | ((vblank_end - 1) << 16));
+				       VBLANK_START(vblank_start - 1) |
+				       VBLANK_END(vblank_end - 1));
 			restore_vblank = true;
 		}
 		/* sample in the vertical border, selecting the larger one */

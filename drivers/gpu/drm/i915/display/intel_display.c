@@ -2751,18 +2751,24 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 			       vsyncshift);
 
 	intel_de_write(dev_priv, TRANS_HTOTAL(cpu_transcoder),
-		       (adjusted_mode->crtc_hdisplay - 1) | ((adjusted_mode->crtc_htotal - 1) << 16));
+		       HACTIVE(adjusted_mode->crtc_hdisplay - 1) |
+		       HTOTAL(adjusted_mode->crtc_htotal - 1));
 	intel_de_write(dev_priv, TRANS_HBLANK(cpu_transcoder),
-		       (adjusted_mode->crtc_hblank_start - 1) | ((adjusted_mode->crtc_hblank_end - 1) << 16));
+		       HBLANK_START(adjusted_mode->crtc_hblank_start - 1) |
+		       HBLANK_END(adjusted_mode->crtc_hblank_end - 1));
 	intel_de_write(dev_priv, TRANS_HSYNC(cpu_transcoder),
-		       (adjusted_mode->crtc_hsync_start - 1) | ((adjusted_mode->crtc_hsync_end - 1) << 16));
+		       HSYNC_START(adjusted_mode->crtc_hsync_start - 1) |
+		       HSYNC_END(adjusted_mode->crtc_hsync_end - 1));
 
 	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder),
-		       (adjusted_mode->crtc_vdisplay - 1) | ((crtc_vtotal - 1) << 16));
+		       VACTIVE(adjusted_mode->crtc_vdisplay - 1) |
+		       VTOTAL(crtc_vtotal - 1));
 	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
-		       (adjusted_mode->crtc_vblank_start - 1) | ((crtc_vblank_end - 1) << 16));
+		       VBLANK_START(adjusted_mode->crtc_vblank_start - 1) |
+		       VBLANK_END(crtc_vblank_end - 1));
 	intel_de_write(dev_priv, TRANS_VSYNC(cpu_transcoder),
-		       (adjusted_mode->crtc_vsync_start - 1) | ((adjusted_mode->crtc_vsync_end - 1) << 16));
+		       VSYNC_START(adjusted_mode->crtc_vsync_start - 1) |
+		       VSYNC_END(adjusted_mode->crtc_vsync_end - 1));
 
 	/* Workaround: when the EDP input selection is B, the VTOTAL_B must be
 	 * programmed with the VTOTAL_EDP value. Same for VTOTAL_C. This is
@@ -2815,30 +2821,31 @@ static void intel_get_transcoder_timings(struct intel_crtc *crtc,
 	u32 tmp;
 
 	tmp = intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder));
-	adjusted_mode->crtc_hdisplay = (tmp & 0xffff) + 1;
-	adjusted_mode->crtc_htotal = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_hdisplay = REG_FIELD_GET(HACTIVE_MASK, tmp) + 1;
+	adjusted_mode->crtc_htotal = REG_FIELD_GET(HTOTAL_MASK, tmp) + 1;
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
 		tmp = intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder));
-		adjusted_mode->crtc_hblank_start = (tmp & 0xffff) + 1;
-		adjusted_mode->crtc_hblank_end = ((tmp >> 16) & 0xffff) + 1;
+		adjusted_mode->crtc_hblank_start = REG_FIELD_GET(HBLANK_START_MASK, tmp) + 1;
+		adjusted_mode->crtc_hblank_end = REG_FIELD_GET(HBLANK_END_MASK, tmp) + 1;
 	}
+
 	tmp = intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder));
-	adjusted_mode->crtc_hsync_start = (tmp & 0xffff) + 1;
-	adjusted_mode->crtc_hsync_end = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_hsync_start = REG_FIELD_GET(HSYNC_START_MASK, tmp) + 1;
+	adjusted_mode->crtc_hsync_end = REG_FIELD_GET(HSYNC_END_MASK, tmp) + 1;
 
 	tmp = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
-	adjusted_mode->crtc_vdisplay = (tmp & 0xffff) + 1;
-	adjusted_mode->crtc_vtotal = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_vdisplay = REG_FIELD_GET(VACTIVE_MASK, tmp) + 1;
+	adjusted_mode->crtc_vtotal = REG_FIELD_GET(VTOTAL_MASK, tmp) + 1;
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
 		tmp = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
-		adjusted_mode->crtc_vblank_start = (tmp & 0xffff) + 1;
-		adjusted_mode->crtc_vblank_end = ((tmp >> 16) & 0xffff) + 1;
+		adjusted_mode->crtc_vblank_start = REG_FIELD_GET(VBLANK_START_MASK, tmp) + 1;
+		adjusted_mode->crtc_vblank_end = REG_FIELD_GET(VBLANK_END_MASK, tmp) + 1;
 	}
 	tmp = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
-	adjusted_mode->crtc_vsync_start = (tmp & 0xffff) + 1;
-	adjusted_mode->crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;
+	adjusted_mode->crtc_vsync_start = REG_FIELD_GET(VSYNC_START_MASK, tmp) + 1;
+	adjusted_mode->crtc_vsync_end = REG_FIELD_GET(VSYNC_END_MASK, tmp) + 1;
 
 	if (intel_pipe_is_interlaced(pipe_config)) {
 		adjusted_mode->flags |= DRM_MODE_FLAG_INTERLACE;
@@ -8626,13 +8633,20 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		PLL_REF_INPUT_DREFCLK |
 		DPLL_VCO_ENABLE;
 
-	intel_de_write(dev_priv, TRANS_HTOTAL(cpu_transcoder), (640 - 1) | ((800 - 1) << 16));
-	intel_de_write(dev_priv, TRANS_HBLANK(cpu_transcoder), (640 - 1) | ((800 - 1) << 16));
-	intel_de_write(dev_priv, TRANS_HSYNC(cpu_transcoder), (656 - 1) | ((752 - 1) << 16));
-	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder), (480 - 1) | ((525 - 1) << 16));
-	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder), (480 - 1) | ((525 - 1) << 16));
-	intel_de_write(dev_priv, TRANS_VSYNC(cpu_transcoder), (490 - 1) | ((492 - 1) << 16));
-	intel_de_write(dev_priv, PIPESRC(pipe), ((640 - 1) << 16) | (480 - 1));
+	intel_de_write(dev_priv, TRANS_HTOTAL(cpu_transcoder),
+		       HACTIVE(640 - 1) | HTOTAL(800 - 1));
+	intel_de_write(dev_priv, TRANS_HBLANK(cpu_transcoder),
+		       HBLANK_START(640 - 1) | HBLANK_END(800 - 1));
+	intel_de_write(dev_priv, TRANS_HSYNC(cpu_transcoder),
+		       HSYNC_START(656 - 1) | HSYNC_END(752 - 1));
+	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder),
+		       VACTIVE(480 - 1) | VTOTAL(525 - 1));
+	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
+		       VBLANK_START(480 - 1) | VBLANK_END(525 - 1));
+	intel_de_write(dev_priv, TRANS_VSYNC(cpu_transcoder),
+		       VSYNC_START(490 - 1) | VSYNC_END(492 - 1));
+	intel_de_write(dev_priv, PIPESRC(pipe),
+		       PIPESRC_WIDTH(640 - 1) | PIPESRC_HEIGHT(480 - 1));
 
 	intel_de_write(dev_priv, FP0(pipe), fp);
 	intel_de_write(dev_priv, FP1(pipe), fp);

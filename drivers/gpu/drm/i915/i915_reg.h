@@ -1916,11 +1916,35 @@
 
 /* Pipe/transcoder A timing regs */
 #define _TRANS_HTOTAL_A		0x60000
+#define   HTOTAL_MASK			REG_GENMASK(31, 16)
+#define   HTOTAL(htotal)		REG_FIELD_PREP(HTOTAL_MASK, (htotal))
+#define   HACTIVE_MASK			REG_GENMASK(15, 0)
+#define   HACTIVE(hdisplay)		REG_FIELD_PREP(HACTIVE_MASK, (hdisplay))
 #define _TRANS_HBLANK_A		0x60004
+#define   HBLANK_END_MASK		REG_GENMASK(31, 16)
+#define   HBLANK_END(hblank_end)	REG_FIELD_PREP(HBLANK_END_MASK, (hblank_end))
+#define   HBLANK_START_MASK		REG_GENMASK(15, 0)
+#define   HBLANK_START(hblank_start)	REG_FIELD_PREP(HBLANK_START_MASK, (hblank_start))
 #define _TRANS_HSYNC_A		0x60008
+#define   HSYNC_END_MASK		REG_GENMASK(31, 16)
+#define   HSYNC_END(hsync_end)		REG_FIELD_PREP(HSYNC_END_MASK, (hsync_end))
+#define   HSYNC_START_MASK		REG_GENMASK(15, 0)
+#define   HSYNC_START(hsync_start)	REG_FIELD_PREP(HSYNC_START_MASK, (hsync_start))
 #define _TRANS_VTOTAL_A		0x6000c
+#define   VTOTAL_MASK			REG_GENMASK(31, 16)
+#define   VTOTAL(vtotal)		REG_FIELD_PREP(VTOTAL_MASK, (vtotal))
+#define   VACTIVE_MASK			REG_GENMASK(15, 0)
+#define   VACTIVE(vdisplay)		REG_FIELD_PREP(VACTIVE_MASK, (vdisplay))
 #define _TRANS_VBLANK_A		0x60010
+#define   VBLANK_END_MASK		REG_GENMASK(31, 16)
+#define   VBLANK_END(vblank_end)	REG_FIELD_PREP(VBLANK_END_MASK, (vblank_end))
+#define   VBLANK_START_MASK		REG_GENMASK(15, 0)
+#define   VBLANK_START(vblank_start)	REG_FIELD_PREP(VBLANK_START_MASK, (vblank_start))
 #define _TRANS_VSYNC_A		0x60014
+#define   VSYNC_END_MASK		REG_GENMASK(31, 16)
+#define   VSYNC_END(vsync_end)		REG_FIELD_PREP(VSYNC_END_MASK, (vsync_end))
+#define   VSYNC_START_MASK		REG_GENMASK(15, 0)
+#define   VSYNC_START(vsync_start)	REG_FIELD_PREP(VSYNC_START_MASK, (vsync_start))
 #define _TRANS_EXITLINE_A	0x60018
 #define _PIPEASRC		0x6001c
 #define   PIPESRC_WIDTH_MASK	REG_GENMASK(31, 16)
