@@ -14,14 +14,16 @@
 static void intel_dump_crtc_timings(struct drm_i915_private *i915,
 				    const struct drm_display_mode *mode)
 {
-	drm_dbg_kms(&i915->drm, "crtc timings: %d %d %d %d %d %d %d %d %d, "
-		    "type: 0x%x flags: 0x%x\n",
+	drm_dbg_kms(&i915->drm, "crtc timings: clock=%d, "
+		    "hd=%d hb=%d-%d hs=%d-%d ht=%d, "
+		    "vd=%d vb=%d-%d vs=%d-%d vt=%d, "
+		    "flags=0x%x\n",
 		    mode->crtc_clock,
-		    mode->crtc_hdisplay, mode->crtc_hsync_start,
-		    mode->crtc_hsync_end, mode->crtc_htotal,
-		    mode->crtc_vdisplay, mode->crtc_vsync_start,
-		    mode->crtc_vsync_end, mode->crtc_vtotal,
-		    mode->type, mode->flags);
+		    mode->crtc_hdisplay, mode->crtc_hblank_start, mode->crtc_hblank_end,
+		    mode->crtc_hsync_start, mode->crtc_hsync_end, mode->crtc_htotal,
+		    mode->crtc_vdisplay, mode->crtc_vblank_start, mode->crtc_vblank_end,
+		    mode->crtc_vsync_start, mode->crtc_vsync_end, mode->crtc_vtotal,
+		    mode->flags);
 }
 
 static void
