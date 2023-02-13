@@ -13,20 +13,30 @@
 &pinctrl {
 	cam {
 		/omit-if-no-ref/
-		camm0_pins: camm0-pins {
+		camm0_clk0_out: camm0-clk0-out {
 			rockchip,pins =
-				/* cam_clk0_out_m0 */
-				<3 RK_PB2 2 &pcfg_pull_none>,
-				/* cam_clk1_out_m0 */
+				/* camm0_clk0_out */
+				<3 RK_PB2 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		camm0_clk1_out: camm0-clk1-out {
+			rockchip,pins =
+				/* camm0_clk1_out */
 				<3 RK_PB3 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		camm1_pins: camm1-pins {
+		camm1_clk0_out: camm1-clk0-out {
 			rockchip,pins =
-				/* cam_clk0_out_m1 */
-				<4 RK_PB1 3 &pcfg_pull_none>,
-				/* cam_clk1_out_m1 */
+				/* camm1_clk0_out */
+				<4 RK_PB1 3 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		camm1_clk1_out: camm1-clk1-out {
+			rockchip,pins =
+				/* camm1_clk1_out */
 				<4 RK_PB7 3 &pcfg_pull_none>;
 		};
 
@@ -36,6 +46,7 @@
 				/* cam_clk2_out */
 				<3 RK_PB4 2 &pcfg_pull_none>;
 		};
+
 		/omit-if-no-ref/
 		cam_clk3_out: cam-clk3-out {
 			rockchip,pins =
