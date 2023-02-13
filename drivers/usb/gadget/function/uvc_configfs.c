@@ -546,16 +546,16 @@ static ssize_t uvcg_default_output_b_source_id_store(struct config_item *item,
 	int result;
 	u8 num;
 
+	result = kstrtou8(page, 0, &num);
+	if (result)
+		return result;
+
 	mutex_lock(su_mutex); /* for navigating configfs hierarchy */
 
 	opts_item = group->cg_item.ci_parent->ci_parent->
 			ci_parent->ci_parent;
 	opts = to_f_uvc_opts(opts_item);
 	cd = &opts->uvc_output_terminal;
-
-	result = kstrtou8(page, 0, &num);
-	if (result)
-		return result;
 
 	mutex_lock(&opts->lock);
 	cd->bSourceID = num;
