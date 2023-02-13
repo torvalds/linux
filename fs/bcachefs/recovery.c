@@ -974,9 +974,15 @@ static int read_btree_roots(struct bch_fs *c)
 		}
 	}
 
-	for (i = 0; i < BTREE_ID_NR; i++)
-		if (!c->btree_roots[i].b)
+	for (i = 0; i < BTREE_ID_NR; i++) {
+		struct btree_root *r = &c->btree_roots[i];
+
+		if (!r->b) {
+			r->alive = false;
+			r->level = 0;
 			bch2_btree_root_alloc(c, i);
+		}
+	}
 fsck_err:
 	return ret;
 }
