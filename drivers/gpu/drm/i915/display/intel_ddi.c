@@ -944,8 +944,8 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	main_link_aux_power_domain_get(dig_port, crtc_state);
 }
 
-void intel_ddi_enable_pipe_clock(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *crtc_state)
+void intel_ddi_enable_transcoder_clock(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -965,7 +965,7 @@ void intel_ddi_enable_pipe_clock(struct intel_encoder *encoder,
 	}
 }
 
-void intel_ddi_disable_pipe_clock(const struct intel_crtc_state *crtc_state)
+void intel_ddi_disable_transcoder_clock(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -2379,7 +2379,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 * 7.a Configure Transcoder Clock Select to direct the Port clock to the
 	 * Transcoder.
 	 */
-	intel_ddi_enable_pipe_clock(encoder, crtc_state);
+	intel_ddi_enable_transcoder_clock(encoder, crtc_state);
 
 	if (HAS_DP20(dev_priv))
 		intel_ddi_config_transcoder_dp2(encoder, crtc_state);
@@ -2506,7 +2506,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_ddi_enable_fec(encoder, crtc_state);
 
 	if (!is_mst)
-		intel_ddi_enable_pipe_clock(encoder, crtc_state);
+		intel_ddi_enable_transcoder_clock(encoder, crtc_state);
 
 	intel_dsc_dp_pps_write(encoder, crtc_state);
 }
@@ -2548,7 +2548,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
 
-	intel_ddi_enable_pipe_clock(encoder, crtc_state);
+	intel_ddi_enable_transcoder_clock(encoder, crtc_state);
 
 	dig_port->set_infoframes(encoder,
 				 crtc_state->has_infoframe,
@@ -2657,7 +2657,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 		}
 	} else {
 		if (!is_mst)
-			intel_ddi_disable_pipe_clock(old_crtc_state);
+			intel_ddi_disable_transcoder_clock(old_crtc_state);
 	}
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
@@ -2668,7 +2668,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 	 * transcoder"
 	 */
 	if (DISPLAY_VER(dev_priv) >= 12)
-		intel_ddi_disable_pipe_clock(old_crtc_state);
+		intel_ddi_disable_transcoder_clock(old_crtc_state);
 
 	intel_pps_vdd_on(intel_dp);
 	intel_pps_off(intel_dp);
@@ -2694,12 +2694,12 @@ static void intel_ddi_post_disable_hdmi(struct intel_atomic_state *state,
 				 old_crtc_state, old_conn_state);
 
 	if (DISPLAY_VER(dev_priv) < 12)
-		intel_ddi_disable_pipe_clock(old_crtc_state);
+		intel_ddi_disable_transcoder_clock(old_crtc_state);
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
 
 	if (DISPLAY_VER(dev_priv) >= 12)
-		intel_ddi_disable_pipe_clock(old_crtc_state);
+		intel_ddi_disable_transcoder_clock(old_crtc_state);
 
 	intel_display_power_put(dev_priv,
 				dig_port->ddi_io_power_domain,

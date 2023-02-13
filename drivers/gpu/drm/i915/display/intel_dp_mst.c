@@ -598,7 +598,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 	 * no clock to the transcoder"
 	 */
 	if (DISPLAY_VER(dev_priv) < 12 || !last_mst_stream)
-		intel_ddi_disable_pipe_clock(old_crtc_state);
+		intel_ddi_disable_transcoder_clock(old_crtc_state);
 
 
 	intel_mst->connector = NULL;
@@ -678,7 +678,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	 * here for the following ones.
 	 */
 	if (DISPLAY_VER(dev_priv) < 12 || !first_mst_stream)
-		intel_ddi_enable_pipe_clock(encoder, pipe_config);
+		intel_ddi_enable_transcoder_clock(encoder, pipe_config);
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
 }
