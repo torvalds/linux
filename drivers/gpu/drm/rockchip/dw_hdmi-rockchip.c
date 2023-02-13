@@ -1742,10 +1742,8 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		      ret ? "LIT" : "BIG");
 }
 
-static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
-						    bool on)
+static int _dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_hdmi *hdmi, bool on)
 {
-	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	int ret;
 
 	if (on) {
@@ -1761,6 +1759,20 @@ static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
 	} else {
 		clk_disable_unprepare(hdmi->link_clk);
 		hdmi->phy->power_count--;
+	}
+
+	return 0;
+}
+
+static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder, bool on)
+{
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct rockchip_hdmi *secondary;
+
+	_dw_hdmi_rockchip_encoder_loader_protect(hdmi, on);
+	if (hdmi->plat_data->right) {
+		secondary = rockchip_hdmi_find_by_id(hdmi->dev->driver, !hdmi->id);
+		_dw_hdmi_rockchip_encoder_loader_protect(secondary, on);
 	}
 
 	return 0;
@@ -3632,8 +3644,12 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 		if (plat_data->connector) {
 			hdmi->sub_dev.connector = plat_data->connector;
-			hdmi->sub_dev.of_node = dev->of_node;
 			hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
+			if (secondary && device_property_read_bool(secondary->dev, "split-mode"))
+				hdmi->sub_dev.of_node = secondary->dev->of_node;
+			else
+				hdmi->sub_dev.of_node = hdmi->dev->of_node;
+
 			rockchip_drm_register_sub_dev(&hdmi->sub_dev);
 		}
 

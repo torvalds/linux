@@ -2359,7 +2359,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	struct drm_crtc_state *crtc_state, *old_crtc_state;
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
-	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode mode;
 	void *data = hdmi->plat_data->phy_data;
 	struct hdmi_vmode_qp *vmode = &hdmi->hdmi_data.video_mode;
 
@@ -2382,13 +2382,21 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	if (hdmi->plat_data->get_vp_id)
 		hdmi->vp_id = hdmi->plat_data->get_vp_id(crtc_state);
 
-	mode = &crtc_state->mode;
+	memcpy(&mode, &crtc_state->mode, sizeof(mode));
 	/*
 	 * If HDMI is enabled in uboot, it's need to record
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		struct dw_hdmi_qp *secondary = NULL;
+
+		if (hdmi->plat_data->left)
+			secondary = hdmi->plat_data->left;
+		else if (hdmi->plat_data->right)
+			secondary = hdmi->plat_data->right;
 		hdmi->curr_conn = connector;
+		if (secondary)
+			secondary->curr_conn = connector;
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -2403,13 +2411,13 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 				hdmi->plat_data->get_output_bus_format(data);
 
 		if (hdmi->plat_data->split_mode) {
-			hdmi->plat_data->convert_to_origin_mode(mode);
-			mode->crtc_clock /= 2;
+			hdmi->plat_data->convert_to_origin_mode(&mode);
+			mode.crtc_clock /= 2;
 		}
-		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
-		vmode->mpixelclock = mode->crtc_clock * 1000;
-		vmode->previous_pixelclock = mode->clock;
-		vmode->previous_tmdsclock = mode->clock;
+		memcpy(&hdmi->previous_mode, &mode, sizeof(hdmi->previous_mode));
+		vmode->mpixelclock = mode.crtc_clock * 1000;
+		vmode->previous_pixelclock = mode.clock;
+		vmode->previous_tmdsclock = mode.clock;
 		vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi,
 						       vmode->mpixelclock);
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
@@ -2440,7 +2448,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			return PTR_ERR(crtc_state);
 
 		crtc_state->mode_changed = true;
-		if (mode->clock > 600000)
+		if (mode.clock > 600000)
 			hdmi->frl_switch = true;
 	}
 
@@ -2621,7 +2629,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (hdmi->phy.ops->disable && !hdmi->frl_switch) {
 		hdmi_writel(hdmi, 0, FLT_CONFIG0);
 		/* set sink frl mode disable */
-		if (dw_hdmi_support_scdc(hdmi, &hdmi->curr_conn->display_info))
+		if (hdmi->curr_conn && dw_hdmi_support_scdc(hdmi, &hdmi->curr_conn->display_info))
 			drm_scdc_writeb(hdmi->ddc, 0x31, 0);
 
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
