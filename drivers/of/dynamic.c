@@ -332,7 +332,19 @@ void of_node_release(struct kobject *kobj)
 	/* We should never be releasing nodes that haven't been detached. */
 	if (!of_node_check_flag(node, OF_DETACHED)) {
 		pr_err("ERROR: Bad of_node_put() on %pOF\n", node);
-		dump_stack();
+
+		/*
+		 * of unittests will test this path.  Do not print the stack
+		 * trace when the error is caused by unittest so that we do
+		 * not display what a normal developer might reasonably
+		 * consider a real bug.
+		 */
+		if (!IS_ENABLED(CONFIG_OF_UNITTEST) ||
+		    strcmp(node->parent->full_name, "testcase-data")) {
+			dump_stack();
+			pr_err("ERROR: next of_node_put() on this node will result in a kboject warning 'refcount_t: underflow; use-after-free.'\n");
+		}
+
 		return;
 	}
 	if (!of_node_check_flag(node, OF_DYNAMIC))
