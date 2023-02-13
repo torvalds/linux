@@ -39,7 +39,7 @@ Supported formats can be retrieved with the
 ioctl.
 
 The enumerations are defined by the driver, and indexed using the ``index`` field
-of the struct :c:type:`v4l2_subdev_mbus_code_enum`.
+of the struct :c:type:`v4l2_subdev_frame_size_enum`.
 Each pair of ``pad`` and ``code`` correspond to a separate enumeration.
 Each enumeration starts with the ``index`` of 0, and
 the lowest invalid index marks the end of the enumeration.
