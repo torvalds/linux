@@ -2925,6 +2925,7 @@ M:	Patrice Chotard <patrice.chotard@foss.st.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://www.stlinux.com
+F:	Documentation/devicetree/bindings/spi/st,ssc-spi.yaml
 F:	Documentation/devicetree/bindings/i2c/i2c-st.txt
 F:	arch/arm/boot/dts/sti*
 F:	arch/arm/mach-sti/
