@@ -220,20 +220,20 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	intel_de_write(dev_priv, PCH_TRANS_HTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, HTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, HBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, HSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder)));
 
 	intel_de_write(dev_priv, PCH_TRANS_VTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, VTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, VBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, VSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNCSHIFT(pch_transcoder),
-		       intel_de_read(dev_priv, VSYNCSHIFT(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder)));
 }
 
 static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)

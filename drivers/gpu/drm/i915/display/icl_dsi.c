@@ -887,7 +887,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	/* program TRANS_HTOTAL register */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, HTOTAL(dsi_trans),
+		intel_de_write(dev_priv, TRANS_HTOTAL(dsi_trans),
 			       (hactive - 1) | ((htotal - 1) << 16));
 	}
 
@@ -910,7 +910,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, HSYNC(dsi_trans),
+			intel_de_write(dev_priv, TRANS_HSYNC(dsi_trans),
 				       (hsync_start - 1) | ((hsync_end - 1) << 16));
 		}
 	}
@@ -924,7 +924,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		 * struct drm_display_mode.
 		 * For interlace mode: program required pixel minus 2
 		 */
-		intel_de_write(dev_priv, VTOTAL(dsi_trans),
+		intel_de_write(dev_priv, TRANS_VTOTAL(dsi_trans),
 			       (vactive - 1) | ((vtotal - 1) << 16));
 	}
 
@@ -938,7 +938,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, VSYNC(dsi_trans),
+			intel_de_write(dev_priv, TRANS_VSYNC(dsi_trans),
 				       (vsync_start - 1) | ((vsync_end - 1) << 16));
 		}
 	}
@@ -952,7 +952,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, VSYNCSHIFT(dsi_trans),
+			intel_de_write(dev_priv, TRANS_VSYNCSHIFT(dsi_trans),
 				       vsync_shift);
 		}
 	}
@@ -961,7 +961,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, VBLANK(dsi_trans),
+			intel_de_write(dev_priv, TRANS_VBLANK(dsi_trans),
 				       (vactive - 1) | ((vtotal - 1) << 16));
 		}
 	}

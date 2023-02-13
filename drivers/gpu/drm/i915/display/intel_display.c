@@ -1751,7 +1751,7 @@ static void hsw_configure_cpu_transcoder(const struct intel_crtc_state *crtc_sta
 	intel_set_transcoder_timings(crtc_state);
 
 	if (cpu_transcoder != TRANSCODER_EDP)
-		intel_de_write(dev_priv, PIPE_MULT(cpu_transcoder),
+		intel_de_write(dev_priv, TRANS_MULT(cpu_transcoder),
 			       crtc_state->pixel_multiplier - 1);
 
 	hsw_set_frame_start_delay(crtc_state);
@@ -2747,21 +2747,21 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	}
 
 	if (DISPLAY_VER(dev_priv) > 3)
-		intel_de_write(dev_priv, VSYNCSHIFT(cpu_transcoder),
-		               vsyncshift);
+		intel_de_write(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder),
+			       vsyncshift);
 
-	intel_de_write(dev_priv, HTOTAL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_HTOTAL(cpu_transcoder),
 		       (adjusted_mode->crtc_hdisplay - 1) | ((adjusted_mode->crtc_htotal - 1) << 16));
-	intel_de_write(dev_priv, HBLANK(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_HBLANK(cpu_transcoder),
 		       (adjusted_mode->crtc_hblank_start - 1) | ((adjusted_mode->crtc_hblank_end - 1) << 16));
-	intel_de_write(dev_priv, HSYNC(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_HSYNC(cpu_transcoder),
 		       (adjusted_mode->crtc_hsync_start - 1) | ((adjusted_mode->crtc_hsync_end - 1) << 16));
 
-	intel_de_write(dev_priv, VTOTAL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder),
 		       (adjusted_mode->crtc_vdisplay - 1) | ((crtc_vtotal - 1) << 16));
-	intel_de_write(dev_priv, VBLANK(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
 		       (adjusted_mode->crtc_vblank_start - 1) | ((crtc_vblank_end - 1) << 16));
-	intel_de_write(dev_priv, VSYNC(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VSYNC(cpu_transcoder),
 		       (adjusted_mode->crtc_vsync_start - 1) | ((adjusted_mode->crtc_vsync_end - 1) << 16));
 
 	/* Workaround: when the EDP input selection is B, the VTOTAL_B must be
@@ -2770,8 +2770,8 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	 * bits. */
 	if (IS_HASWELL(dev_priv) && cpu_transcoder == TRANSCODER_EDP &&
 	    (pipe == PIPE_B || pipe == PIPE_C))
-		intel_de_write(dev_priv, VTOTAL(pipe),
-		               intel_de_read(dev_priv, VTOTAL(cpu_transcoder)));
+		intel_de_write(dev_priv, TRANS_VTOTAL(pipe),
+			       intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder)));
 
 }
 
@@ -2813,33 +2813,33 @@ static void intel_get_transcoder_timings(struct intel_crtc *crtc,
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 tmp;
 
-	tmp = intel_de_read(dev_priv, HTOTAL(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder));
 	pipe_config->hw.adjusted_mode.crtc_hdisplay = (tmp & 0xffff) + 1;
 	pipe_config->hw.adjusted_mode.crtc_htotal = ((tmp >> 16) & 0xffff) + 1;
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
-		tmp = intel_de_read(dev_priv, HBLANK(cpu_transcoder));
+		tmp = intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder));
 		pipe_config->hw.adjusted_mode.crtc_hblank_start =
 							(tmp & 0xffff) + 1;
 		pipe_config->hw.adjusted_mode.crtc_hblank_end =
 						((tmp >> 16) & 0xffff) + 1;
 	}
-	tmp = intel_de_read(dev_priv, HSYNC(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder));
 	pipe_config->hw.adjusted_mode.crtc_hsync_start = (tmp & 0xffff) + 1;
 	pipe_config->hw.adjusted_mode.crtc_hsync_end = ((tmp >> 16) & 0xffff) + 1;
 
-	tmp = intel_de_read(dev_priv, VTOTAL(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
 	pipe_config->hw.adjusted_mode.crtc_vdisplay = (tmp & 0xffff) + 1;
 	pipe_config->hw.adjusted_mode.crtc_vtotal = ((tmp >> 16) & 0xffff) + 1;
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
-		tmp = intel_de_read(dev_priv, VBLANK(cpu_transcoder));
+		tmp = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
 		pipe_config->hw.adjusted_mode.crtc_vblank_start =
 							(tmp & 0xffff) + 1;
 		pipe_config->hw.adjusted_mode.crtc_vblank_end =
 						((tmp >> 16) & 0xffff) + 1;
 	}
-	tmp = intel_de_read(dev_priv, VSYNC(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
 	pipe_config->hw.adjusted_mode.crtc_vsync_start = (tmp & 0xffff) + 1;
 	pipe_config->hw.adjusted_mode.crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;
 
@@ -3995,7 +3995,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	    !transcoder_is_dsi(pipe_config->cpu_transcoder)) {
 		pipe_config->pixel_multiplier =
 			intel_de_read(dev_priv,
-				      PIPE_MULT(pipe_config->cpu_transcoder)) + 1;
+				      TRANS_MULT(pipe_config->cpu_transcoder)) + 1;
 	} else {
 		pipe_config->pixel_multiplier = 1;
 	}
@@ -8601,6 +8601,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
+	enum transcoder cpu_transcoder = (enum transcoder)pipe;
 	/* 640x480@60Hz, ~25175 kHz */
 	struct dpll clock = {
 		.m1 = 18,
@@ -8627,12 +8628,12 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		PLL_REF_INPUT_DREFCLK |
 		DPLL_VCO_ENABLE;
 
-	intel_de_write(dev_priv, HTOTAL(pipe), (640 - 1) | ((800 - 1) << 16));
-	intel_de_write(dev_priv, HBLANK(pipe), (640 - 1) | ((800 - 1) << 16));
-	intel_de_write(dev_priv, HSYNC(pipe), (656 - 1) | ((752 - 1) << 16));
-	intel_de_write(dev_priv, VTOTAL(pipe), (480 - 1) | ((525 - 1) << 16));
-	intel_de_write(dev_priv, VBLANK(pipe), (480 - 1) | ((525 - 1) << 16));
-	intel_de_write(dev_priv, VSYNC(pipe), (490 - 1) | ((492 - 1) << 16));
+	intel_de_write(dev_priv, TRANS_HTOTAL(cpu_transcoder), (640 - 1) | ((800 - 1) << 16));
+	intel_de_write(dev_priv, TRANS_HBLANK(cpu_transcoder), (640 - 1) | ((800 - 1) << 16));
+	intel_de_write(dev_priv, TRANS_HSYNC(cpu_transcoder), (656 - 1) | ((752 - 1) << 16));
+	intel_de_write(dev_priv, TRANS_VTOTAL(cpu_transcoder), (480 - 1) | ((525 - 1) << 16));
+	intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder), (480 - 1) | ((525 - 1) << 16));
+	intel_de_write(dev_priv, TRANS_VSYNC(cpu_transcoder), (490 - 1) | ((492 - 1) << 16));
 	intel_de_write(dev_priv, PIPESRC(pipe), ((640 - 1) << 16) | (480 - 1));
 
 	intel_de_write(dev_priv, FP0(pipe), fp);
