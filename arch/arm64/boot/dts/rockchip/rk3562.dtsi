@@ -1601,7 +1601,7 @@
 		power-domains = <&power RK3562_PD_VO>;
 		rockchip,grf = <&ioc_grf>;
 		assigned-clocks = <&cru DCLK_VOP>, <&cru DCLK_VOP1>;
-		assigned-clock-parents = <&cru PLL_VPLL>, <&cru PLL_HPLL>;
+		assigned-clock-parents = <&cru PLL_VPLL>, <&cru PLL_APLL>;
 		status = "disabled";
 
 		vop_out: ports {
