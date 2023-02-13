@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2020-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -16,6 +16,7 @@
 #include <linux/gunyah/gh_rm_drv.h>
 #include <linux/gunyah/gh_dbl.h>
 #include <soc/qcom/secure_buffer.h>
+#include <linux/qcom_scm.h>
 #include "qrtr.h"
 
 #define GUNYAH_MAGIC_KEY	0x24495043 /* "$IPC" */
@@ -433,19 +434,20 @@ static void qrtr_gunyah_read(struct qrtr_gunyah_dev *qdev)
 static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
 				 gh_vmid_t peer)
 {
-	u32 src_vmlist[1] = {self};
-	int src_perms[2] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int dst_vmlist[2] = {self, peer};
-	int dst_perms[2] = {PERM_READ | PERM_WRITE, PERM_READ | PERM_WRITE};
+	struct qcom_scm_vmperm src_vmlist[] = {{self,
+						PERM_READ | PERM_WRITE | PERM_EXEC}};
+	struct qcom_scm_vmperm dst_vmlist[] = {{self, PERM_READ | PERM_WRITE},
+					       {peer, PERM_READ | PERM_WRITE}};
+	u64 srcvmids = BIT(src_vmlist[0].vmid);
+	u64 dstvmids = BIT(dst_vmlist[0].vmid) | BIT(dst_vmlist[1].vmid);
 	struct gh_acl_desc *acl;
 	struct gh_sgl_desc *sgl;
 	int ret;
 
-	ret = hyp_assign_phys(qdev->res.start, resource_size(&qdev->res),
-			      src_vmlist, 1,
-			      dst_vmlist, dst_perms, 2);
+	ret = qcom_scm_assign_mem(qdev->res.start, resource_size(&qdev->res),
+				  &srcvmids, dst_vmlist, ARRAY_SIZE(dst_vmlist));
 	if (ret) {
-		pr_err("%s: hyp_assign_phys failed addr=%x size=%u err=%d\n",
+		pr_err("%s: qcom_scm_assign_mem failed addr=%x size=%u err=%d\n",
 		       __func__, qdev->res.start, qdev->size, ret);
 		return ret;
 	}
@@ -474,9 +476,10 @@ static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
 		pr_err("%s: gh_rm_mem_share failed addr=%x size=%u err=%d\n",
 		       __func__, qdev->res.start, qdev->size, ret);
 		/* Attempt to give resource back to HLOS */
-		hyp_assign_phys(qdev->res.start, resource_size(&qdev->res),
-				dst_vmlist, 2,
-				src_vmlist, src_perms, 1);
+		if (qcom_scm_assign_mem(qdev->res.start, resource_size(&qdev->res),
+					&dstvmids, src_vmlist, ARRAY_SIZE(src_vmlist)))
+			pr_err("%s: qcom_scm_assign_mem failed addr=%x size=%u err=%d\n",
+			       __func__, qdev->res.start, qdev->size, ret);
 	}
 
 	kfree(acl);
@@ -488,17 +491,19 @@ static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
 static void qrtr_gunyah_unshare_mem(struct qrtr_gunyah_dev *qdev,
 				    gh_vmid_t self, gh_vmid_t peer)
 {
-	int dst_perms[2] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int src_vmlist[2] = {self, peer};
-	u32 dst_vmlist[1] = {self};
+	u64 src_vmlist = BIT(self);
+	struct qcom_scm_vmperm dst_vmlist[1] = {{self, PERM_READ | PERM_WRITE | PERM_EXEC}};
 	int ret;
 
 	ret = gh_rm_mem_reclaim(qdev->memparcel, 0);
 	if (ret)
 		pr_err("%s: Gunyah reclaim failed\n", __func__);
 
-	hyp_assign_phys(qdev->res.start, resource_size(&qdev->res),
-			src_vmlist, 2, dst_vmlist, dst_perms, 1);
+	ret = qcom_scm_assign_mem(qdev->res.start, resource_size(&qdev->res),
+				  &src_vmlist, dst_vmlist, 1);
+	if (ret)
+		pr_err("%s: qcom_scm_assign_mem failed addr=%x size=%u err=%d\n",
+		       __func__, qdev->res.start, resource_size(&qdev->res), ret);
 }
 
 static int qrtr_gunyah_rm_cb(struct notifier_block *nb, unsigned long cmd,
