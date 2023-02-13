@@ -385,4 +385,10 @@ static inline unsigned long hyp_ffa_proxy_pages(void)
 	return (2 * KVM_FFA_MBOX_NR_PAGES) + DIV_ROUND_UP(desc_max, PAGE_SIZE);
 }
 
+static inline unsigned long hyp_host_fp_pages(unsigned long nr_cpus)
+{
+	return PAGE_ALIGN(nr_cpus * sizeof(struct user_fpsimd_state)) >>
+	       PAGE_SHIFT;
+}
+
 #endif	/* __ARM64_KVM_PKVM_H__ */

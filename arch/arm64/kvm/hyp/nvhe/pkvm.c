@@ -32,12 +32,14 @@ unsigned int kvm_arm_vmid_bits;
 static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
 
 /*
- * Host FPSIMD state. Written to when the guest accesses its own FPSIMD state,
- * and read when the guest state is live and we need to switch back to the host.
+ * Host fp state for all cpus. This could include the host simd state, as well
+ * as the sve and sme states if supported. Written to when the guest accesses
+ * its own FPSIMD state, and read when the guest state is live and we need to
+ * switch back to the host.
  *
  * Only valid when (fp_state == FP_STATE_GUEST_OWNED) in the hyp vCPU structure.
  */
-DEFINE_PER_CPU(struct user_fpsimd_state, loaded_host_fpsimd_state);
+void *host_fp_state;
 
 /*
  * Set trap register values based on features in ID_AA64PFR0.
@@ -262,6 +264,12 @@ void pkvm_hyp_vm_table_init(void *tbl)
 {
 	WARN_ON(vm_table);
 	vm_table = tbl;
+}
+
+void pkvm_hyp_host_fp_init(void *host_fp)
+{
+	WARN_ON(host_fp_state);
+	host_fp_state = host_fp;
 }
 
 /*
