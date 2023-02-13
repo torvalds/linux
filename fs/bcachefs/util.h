@@ -20,6 +20,8 @@
 
 #include "mean_and_variance.h"
 
+#include "darray.h"
+
 struct closure;
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -361,7 +363,11 @@ u64 bch2_read_flag_list(char *, const char * const[]);
 void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
-int bch2_prt_backtrace(struct printbuf *, struct task_struct *);
+
+typedef DARRAY(unsigned long) bch_stacktrace;
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *);
+void bch2_prt_backtrace(struct printbuf *, bch_stacktrace *);
+int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *);
 
 #define NR_QUANTILES	15
 #define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)

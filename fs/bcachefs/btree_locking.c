@@ -191,7 +191,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 			prt_printf(&buf, "backtrace:");
 			prt_newline(&buf);
 			printbuf_indent_add(&buf, 2);
-			bch2_prt_backtrace(&buf, trans->locking_wait.task);
+			bch2_prt_task_backtrace(&buf, trans->locking_wait.task);
 			printbuf_indent_sub(&buf, 2);
 			prt_newline(&buf);
 		}

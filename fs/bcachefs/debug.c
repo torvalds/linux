@@ -527,7 +527,7 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 		prt_printf(&i->buf, "backtrace:");
 		prt_newline(&i->buf);
 		printbuf_indent_add(&i->buf, 2);
-		bch2_prt_backtrace(&i->buf, trans->locking_wait.task);
+		bch2_prt_task_backtrace(&i->buf, trans->locking_wait.task);
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 

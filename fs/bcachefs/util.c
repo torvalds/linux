@@ -266,22 +266,48 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 	console_unlock();
 }
 
-int bch2_prt_backtrace(struct printbuf *out, struct task_struct *task)
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 {
-	unsigned long entries[32];
-	unsigned i, nr_entries;
+	unsigned nr_entries = 0;
+	int ret = 0;
+
+	stack->nr = 0;
+	ret = darray_make_room(stack, 32);
+	if (ret)
+		return ret;
 
 	if (!down_read_trylock(&task->signal->exec_update_lock))
-		return 0;
+		return -1;
 
-	nr_entries = stack_trace_save_tsk(task, entries, ARRAY_SIZE(entries), 0);
-	for (i = 0; i < nr_entries; i++) {
-		prt_printf(out, "[<0>] %pB", (void *)entries[i]);
+	do {
+		nr_entries = stack_trace_save_tsk(task, stack->data, stack->size, 0);
+	} while (nr_entries == stack->size &&
+		 !(ret = darray_make_room(stack, stack->size * 2)));
+
+	stack->nr = nr_entries;
+	up_read(&task->signal->exec_update_lock);
+
+	return ret;
+}
+
+void bch2_prt_backtrace(struct printbuf *out, bch_stacktrace *stack)
+{
+	unsigned long *i;
+
+	darray_for_each(*stack, i) {
+		prt_printf(out, "[<0>] %pB", (void *) *i);
 		prt_newline(out);
 	}
+}
 
-	up_read(&task->signal->exec_update_lock);
-	return 0;
+int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task)
+{
+	bch_stacktrace stack = { 0 };
+	int ret = bch2_save_backtrace(&stack, task);
+
+	bch2_prt_backtrace(out, &stack);
+	darray_exit(&stack);
+	return ret;
 }
 
 /* time stats: */
