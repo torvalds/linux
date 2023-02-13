@@ -82,6 +82,8 @@ struct pkvm_hyp_vm {
 	struct pkvm_hyp_vcpu *vcpus[];
 };
 
+DECLARE_PER_CPU(struct user_fpsimd_state, loaded_host_fpsimd_state);
+
 static inline struct pkvm_hyp_vm *
 pkvm_hyp_vcpu_to_hyp_vm(struct pkvm_hyp_vcpu *hyp_vcpu)
 {

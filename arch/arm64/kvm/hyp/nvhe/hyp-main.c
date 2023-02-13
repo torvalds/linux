@@ -30,14 +30,6 @@
 
 #include "../../sys_regs.h"
 
-/*
- * Host FPSIMD state. Written to when the guest accesses its own FPSIMD state,
- * and read when the guest state is live and we need to switch back to the host.
- *
- * Only valid when (fp_state == FP_STATE_GUEST_OWNED) in the hyp vCPU structure.
- */
-static DEFINE_PER_CPU(struct user_fpsimd_state, loaded_host_fpsimd_state);
-
 DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
