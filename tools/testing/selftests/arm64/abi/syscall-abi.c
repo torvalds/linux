@@ -311,6 +311,35 @@ static int check_za(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	return errors;
 }
 
+uint8_t zt_in[ZT_SIG_REG_BYTES] __attribute__((aligned(16)));
+uint8_t zt_out[ZT_SIG_REG_BYTES] __attribute__((aligned(16)));
+
+static void setup_zt(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
+		     uint64_t svcr)
+{
+	fill_random(zt_in, sizeof(zt_in));
+	memset(zt_out, 0, sizeof(zt_out));
+}
+
+static int check_zt(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
+		    uint64_t svcr)
+{
+	int errors = 0;
+
+	if (!(getauxval(AT_HWCAP2) & HWCAP2_SME2))
+		return 0;
+
+	if (!(svcr & SVCR_ZA_MASK))
+		return 0;
+
+	if (memcmp(zt_in, zt_out, sizeof(zt_in)) != 0) {
+		ksft_print_msg("SME VL %d ZT does not match\n", sme_vl);
+		errors++;
+	}
+
+	return errors;
+}
+
 typedef void (*setup_fn)(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 			 uint64_t svcr);
 typedef int (*check_fn)(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
@@ -334,6 +363,7 @@ static struct {
 	{ setup_ffr, check_ffr },
 	{ setup_svcr, check_svcr },
 	{ setup_za, check_za },
+	{ setup_zt, check_zt },
 };
 
 static bool do_test(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
@@ -474,6 +504,7 @@ int main(void)
 {
 	int i;
 	int tests = 1;  /* FPSIMD */
+	int sme_ver;
 
 	srandom(getpid());
 
@@ -482,10 +513,15 @@ int main(void)
 	tests += (sve_count_vls() * sme_count_vls()) * 3;
 	ksft_set_plan(ARRAY_SIZE(syscalls) * tests);
 
+	if (getauxval(AT_HWCAP2) & HWCAP2_SME2)
+		sme_ver = 2;
+	else
+		sme_ver = 1;
+
 	if (getauxval(AT_HWCAP2) & HWCAP2_SME_FA64)
-		ksft_print_msg("SME with FA64\n");
+		ksft_print_msg("SME%d with FA64\n", sme_ver);
 	else if (getauxval(AT_HWCAP2) & HWCAP2_SME)
-		ksft_print_msg("SME without FA64\n");
+		ksft_print_msg("SME%d without FA64\n", sme_ver);
 
 	for (i = 0; i < ARRAY_SIZE(syscalls); i++)
 		test_one_syscall(&syscalls[i]);

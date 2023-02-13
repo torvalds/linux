@@ -143,7 +143,7 @@ void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
 		fp_state.st = &vcpu->arch.ctxt.fp_regs;
 		fp_state.sve_state = vcpu->arch.sve_state;
 		fp_state.sve_vl = vcpu->arch.sve_max_vl;
-		fp_state.za_state = NULL;
+		fp_state.sme_state = NULL;
 		fp_state.svcr = &vcpu->arch.svcr;
 		fp_state.fp_type = &vcpu->arch.fp_type;
 
