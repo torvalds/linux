@@ -4554,7 +4554,7 @@ EXPORT_SYMBOL(rtw89_mac_get_txpwr_cr);
 int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
 	u32 reg = rtw89_mac_reg_by_idx(R_AX_PPDU_STAT, mac_idx);
-	int ret = 0;
+	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 	if (ret)
@@ -4562,7 +4562,7 @@ int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 
 	if (!enable) {
 		rtw89_write32_clr(rtwdev, reg, B_AX_PPDU_STAT_RPT_EN);
-		return ret;
+		return 0;
 	}
 
 	rtw89_write32(rtwdev, reg, B_AX_PPDU_STAT_RPT_EN |
@@ -4572,7 +4572,7 @@ int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 	rtw89_write32_mask(rtwdev, R_AX_HW_RPT_FWD, B_AX_FWD_PPDU_STAT_MASK,
 			   RTW89_PRPT_DEST_HOST);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ppdu_status);
 
