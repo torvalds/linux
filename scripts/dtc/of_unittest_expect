@@ -9,7 +9,7 @@
 # on the console log that results from executing the Linux kernel
 # devicetree unittest (drivers/of/unitest.c).
 
-$VUFX = "220201a";
+$VUFX = "230121a";
 
 use strict 'refs';
 use strict subs;
@@ -274,7 +274,7 @@ while ($line = <ARGV>) {
 	if ($line =~ /^\s*$exp_begin/) {
 		$data = $line;
 		$data =~ s/^\s*$exp_begin//;
-		push @begin, $data;
+		push @exp_begin_stack, $data;
 
 		if ($verbose) {
 			if ($print_line_num) {
@@ -302,20 +302,20 @@ while ($line = <ARGV>) {
 
 		$found = 0;
 		$no_begin = 0;
-		if (@found_or_begin > 0) {
-			$begin = pop @found_or_begin;
+		if (@exp_found_or_begin > 0) {
+			$begin = pop @exp_found_or_begin;
 			if (compare($data, $begin)) {
 				$found = 1;
 			}
 		} elsif (@begin > 0) {
-			$begin = pop @begin;
+			$begin = pop @exp_begin_stack;
 		} else {
 			$no_begin = 1;
 		}
 
 		if ($no_begin) {
 
-			$expect_missing_begin++;
+			$exp_missing_begin++;
 			print "** ERROR: EXPECT end without any EXPECT begin:\n";
 			print "       end ---> $line\n";
 
@@ -325,20 +325,20 @@ while ($line = <ARGV>) {
 				$line_num = sprintf("%4s ", $.);
 			}
 
-			$expect_not_found++;
+			$exp_missing++;
 			printf "** %s%s$script_name WARNING - not found ---> %s\n",
 					$line_num,  $timestamp, $data;
 
 		} elsif (! compare($data, $begin)) {
 
-			$expect_missing_end++;
+			$exp_missing_end++;
 			print "** ERROR: EXPECT end does not match EXPECT begin:\n";
 			print "       begin -> $begin\n";
 			print "       end ---> $line\n";
 
 		} else {
 
-			$expect_found++;
+			$exp_found++;
 
 		}
 
@@ -357,7 +357,7 @@ while ($line = <ARGV>) {
 	}
 
 	$found = 0;
-	foreach $begin (@begin) {
+	foreach $begin (@exp_begin_stack) {
 		if (compare($begin, $line)) {
 			$found = 1;
 			last;
@@ -365,12 +365,12 @@ while ($line = <ARGV>) {
 	}
 
 	if ($found) {
-		$begin = shift @begin;
+		$begin = shift @exp_begin_stack;
 		while (! compare($begin, $line)) {
-			push @found_or_begin, $begin;
-			$begin = shift @begin;
+			push @exp_found_or_begin, $begin;
+			$begin = shift @exp_begin_stack;
 		}
-		push @found_or_begin, $line;
+		push @exp_found_or_begin, $line;
 
 		if ($hide_expect) {
 			$suppress_line = 1;
@@ -391,18 +391,18 @@ if (! $no_expect_stats) {
 	print  "\n";
 	print  "** EXPECT statistics:\n";
 	print  "**\n";
-	printf "**   EXPECT found          : %4i\n", $expect_found;
-	printf "**   EXPECT not found      : %4i\n", $expect_not_found;
-	printf "**   missing EXPECT begin  : %4i\n", $expect_missing_begin;
-	printf "**   missing EXPECT end    : %4i\n", $expect_missing_end;
+	printf "**   EXPECT found          : %4i\n", $exp_found;
+	printf "**   EXPECT not found      : %4i\n", $exp_missing;
+	printf "**   missing EXPECT begin  : %4i\n", $exp_missing_begin;
+	printf "**   missing EXPECT end    : %4i\n", $exp_missing_end;
 	printf "**   unittest FAIL         : %4i\n", $unittest_fail;
 	printf "**   internal error        : %4i\n", $internal_err;
 }
 
-if (@begin) {
+if (@exp_begin_stack) {
 	print "** ERROR: EXPECT begin without any EXPECT end:\n";
 	print "          This list may be misleading.\n";
-	foreach $begin (@begin) {
+	foreach $begin (@exp_begin_stack) {
 		print "       begin ---> $begin\n";
 	}
 }
