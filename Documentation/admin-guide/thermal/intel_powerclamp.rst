@@ -326,7 +326,7 @@ Module Parameters
 
 ``cpumask`` (RW)
 	A bit mask of CPUs to inject idle. The format of the bitmask is same as
-	used in other subsystems like in /proc/irq/*/smp_affinity. The mask is
+	used in other subsystems like in /proc/irq/\*/smp_affinity. The mask is
 	comma separated 32 bit groups. Each CPU is one bit. For example for a 256
 	CPU system the full mask is:
 	ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff
