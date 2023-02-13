@@ -1402,7 +1402,8 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			topology->nodes[i].num_links = get_extended_data ?
 					topology->nodes[i].num_links +
 							link_info_output->nodes[i].num_links :
-					link_info_output->nodes[i].num_links;
+					((requires_reflection && topology->nodes[i].num_links) ? topology->nodes[i].num_links :
+					 link_info_output->nodes[i].num_links);
 
 			/* reflect the topology information for bi-directionality */
 			if (requires_reflection && topology->nodes[i].num_hops)
