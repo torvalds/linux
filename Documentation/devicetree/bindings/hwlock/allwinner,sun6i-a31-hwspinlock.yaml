@@ -26,11 +26,15 @@ properties:
   resets:
     maxItems: 1
 
+  '#hwlock-cells':
+    const: 1
+
 required:
   - compatible
   - reg
   - clocks
   - resets
+  - "#hwlock-cells"
 
 additionalProperties: false
 
