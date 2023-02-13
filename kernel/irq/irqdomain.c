@@ -682,43 +682,14 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 EXPORT_SYMBOL_GPL(irq_create_direct_mapping);
 #endif
 
-/**
- * irq_create_mapping_affinity() - Map a hardware interrupt into linux irq space
- * @domain: domain owning this hardware interrupt or NULL for default domain
- * @hwirq: hardware irq number in that domain space
- * @affinity: irq affinity
- *
- * Only one mapping per hardware interrupt is permitted. Returns a linux
- * irq number.
- * If the sense/trigger is to be specified, set_irq_type() should be called
- * on the number returned from that call.
- */
-unsigned int irq_create_mapping_affinity(struct irq_domain *domain,
-				       irq_hw_number_t hwirq,
-				       const struct irq_affinity_desc *affinity)
+static unsigned int __irq_create_mapping_affinity(struct irq_domain *domain,
+						  irq_hw_number_t hwirq,
+						  const struct irq_affinity_desc *affinity)
 {
-	struct device_node *of_node;
+	struct device_node *of_node = irq_domain_get_of_node(domain);
 	int virq;
 
 	pr_debug("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
-
-	/* Look for default domain if necessary */
-	if (domain == NULL)
-		domain = irq_default_domain;
-	if (domain == NULL) {
-		WARN(1, "%s(, %lx) called with NULL domain\n", __func__, hwirq);
-		return 0;
-	}
-	pr_debug("-> using domain @%p\n", domain);
-
-	of_node = irq_domain_get_of_node(domain);
-
-	/* Check if mapping already exists */
-	virq = irq_find_mapping(domain, hwirq);
-	if (virq) {
-		pr_debug("-> existing mapping on virq %d\n", virq);
-		return virq;
-	}
 
 	/* Allocate a virtual interrupt number */
 	virq = irq_domain_alloc_descs(-1, 1, hwirq, of_node_to_nid(of_node),
@@ -737,6 +708,41 @@ unsigned int irq_create_mapping_affinity(struct irq_domain *domain,
 		hwirq, of_node_full_name(of_node), virq);
 
 	return virq;
+}
+
+/**
+ * irq_create_mapping_affinity() - Map a hardware interrupt into linux irq space
+ * @domain: domain owning this hardware interrupt or NULL for default domain
+ * @hwirq: hardware irq number in that domain space
+ * @affinity: irq affinity
+ *
+ * Only one mapping per hardware interrupt is permitted. Returns a linux
+ * irq number.
+ * If the sense/trigger is to be specified, set_irq_type() should be called
+ * on the number returned from that call.
+ */
+unsigned int irq_create_mapping_affinity(struct irq_domain *domain,
+					 irq_hw_number_t hwirq,
+					 const struct irq_affinity_desc *affinity)
+{
+	int virq;
+
+	/* Look for default domain if necessary */
+	if (domain == NULL)
+		domain = irq_default_domain;
+	if (domain == NULL) {
+		WARN(1, "%s(, %lx) called with NULL domain\n", __func__, hwirq);
+		return 0;
+	}
+
+	/* Check if mapping already exists */
+	virq = irq_find_mapping(domain, hwirq);
+	if (virq) {
+		pr_debug("existing mapping on virq %d\n", virq);
+		return virq;
+	}
+
+	return __irq_create_mapping_affinity(domain, hwirq, affinity);
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping_affinity);
 
@@ -841,7 +847,7 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 			return 0;
 	} else {
 		/* Create mapping */
-		virq = irq_create_mapping(domain, hwirq);
+		virq = __irq_create_mapping_affinity(domain, hwirq, NULL);
 		if (!virq)
 			return virq;
 	}
