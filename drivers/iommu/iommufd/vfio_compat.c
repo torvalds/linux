@@ -448,7 +448,7 @@ static int iommufd_vfio_iommu_get_info(struct iommufd_ctx *ictx,
 	};
 	size_t minsz = offsetofend(struct vfio_iommu_type1_info, iova_pgsizes);
 	struct vfio_info_cap_header __user *last_cap = NULL;
-	struct vfio_iommu_type1_info info;
+	struct vfio_iommu_type1_info info = {};
 	struct iommufd_ioas *ioas;
 	size_t total_cap_size;
 	int rc;
