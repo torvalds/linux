@@ -62,6 +62,8 @@ enum amdgpu_gfx_partition {
 	AMDGPU_QPX_PARTITION_MODE = 3,
 	AMDGPU_CPX_PARTITION_MODE = 4,
 	AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE = -1,
+	/* Automatically choose the right mode */
+	AMDGPU_AUTO_COMPUTE_PARTITION_MODE = -2,
 };
 
 #define NUM_XCC(x) hweight16(x)

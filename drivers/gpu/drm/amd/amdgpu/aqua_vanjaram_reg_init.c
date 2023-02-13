@@ -235,6 +235,30 @@ int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 	return 0;
 }
 
+static enum amdgpu_gfx_partition
+__aqua_vanjaram_get_auto_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_xcc;
+
+	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+
+	if (adev->gmc.num_mem_partitions == 1)
+		return AMDGPU_SPX_PARTITION_MODE;
+
+	if (adev->gmc.num_mem_partitions == num_xcc)
+		return AMDGPU_CPX_PARTITION_MODE;
+
+	if (adev->gmc.num_mem_partitions == num_xcc / 2)
+		return (adev->flags & AMD_IS_APU) ? AMDGPU_TPX_PARTITION_MODE :
+						    AMDGPU_QPX_PARTITION_MODE;
+
+	if (adev->gmc.num_mem_partitions == 2 && !(adev->flags & AMD_IS_APU))
+		return AMDGPU_DPX_PARTITION_MODE;
+
+	return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+}
+
 static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 					  enum amdgpu_gfx_partition mode)
 {
@@ -304,7 +328,9 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	adev = xcp_mgr->adev;
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	if (!__aqua_vanjaram_is_valid_mode(xcp_mgr, mode))
+	if (mode == AMDGPU_AUTO_COMPUTE_PARTITION_MODE)
+		mode = __aqua_vanjaram_get_auto_mode(xcp_mgr);
+	else if (!__aqua_vanjaram_is_valid_mode(xcp_mgr, mode))
 		return -EINVAL;
 
 	if (adev->kfd.init_complete)

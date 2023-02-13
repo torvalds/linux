@@ -193,7 +193,7 @@ int amdgpu_smartshift_bias;
 int amdgpu_use_xgmi_p2p = 1;
 int amdgpu_vcnfw_log;
 int amdgpu_sg_display = -1; /* auto */
-uint amdgpu_user_partt_mode;
+int amdgpu_user_partt_mode = AMDGPU_AUTO_COMPUTE_PARTITION_MODE;
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -955,8 +955,10 @@ module_param_named(smu_pptable_id, amdgpu_smu_pptable_id, int, 0444);
  * DOC: partition_mode (int)
  * Used to override the default SPX mode.
  */
-MODULE_PARM_DESC(user_partt_mode,
-	"specify partition mode to be used (0 = AMDGPU_SPX_PARTITION_MODE(default value), \
+MODULE_PARM_DESC(
+	user_partt_mode,
+	"specify partition mode to be used (-2 = AMDGPU_AUTO_COMPUTE_PARTITION_MODE(default value) \
+						0 = AMDGPU_SPX_PARTITION_MODE, \
 						1 = AMDGPU_DPX_PARTITION_MODE, \
 						2 = AMDGPU_TPX_PARTITION_MODE, \
 						3 = AMDGPU_QPX_PARTITION_MODE, \
