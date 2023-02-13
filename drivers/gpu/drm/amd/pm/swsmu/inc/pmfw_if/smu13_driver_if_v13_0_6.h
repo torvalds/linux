@@ -121,6 +121,18 @@ typedef struct {
   float    minPsmVoltage[30];
 } AvfsDebugTableXcd_t;
 
+// Defines used for IH-based thermal interrupts to GFX driver - A/X only
+#define IH_INTERRUPT_ID_TO_DRIVER                   0xFE
+#define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
+
+//thermal over-temp mask defines
+#define THROTTLER_TEMP_CCD_BIT     5
+#define THROTTLER_TEMP_XCD_BIT     6
+#define THROTTLER_TEMP_HBM_BIT     7
+#define THROTTLER_TEMP_AID_BIT     8
+#define THROTTLER_VRHOT_BIT        9
+
+
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu
 // SMC_MSG_TransferTableSmu2Dram

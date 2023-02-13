@@ -175,7 +175,6 @@ static const struct cmn2asic_mapping smu_v13_0_6_table_map[SMU_TABLE_COUNT] = {
 #define THROTTLER_PPT_BIT 1
 #define THROTTLER_TEMP_SOC_BIT 2
 #define THROTTLER_TEMP_VR_GFX_BIT 3
-#define THROTTLER_TEMP_HBM_BIT 4
 
 static const uint8_t smu_v13_0_6_throttler_map[] = {
 	[THROTTLER_PPT_BIT]		= (SMU_THROTTLER_PPT0_BIT),
