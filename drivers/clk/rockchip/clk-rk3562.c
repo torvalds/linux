@@ -77,80 +77,6 @@ static struct rockchip_pll_rate_table rk3562_pll_rates[] = {
 	{ /* sentinel */ },
 };
 
-#define RK3562_DIV_PCLK_CORE_MASK	0xf
-#define RK3562_DIV_PCLK_CORE_SHIFT	0
-#define RK3562_DIV_ACLK_CORE_MASK	0x7
-#define RK3562_DIV_ACLK_CORE_SHIFT	0
-
-#define RK3562_CLKSEL1(_aclk_core)				\
-{								\
-	.reg = RK3562_CLKSEL_CON(11),				\
-	.val = HIWORD_UPDATE(_aclk_core, RK3562_DIV_ACLK_CORE_MASK, \
-			RK3562_DIV_ACLK_CORE_SHIFT),		\
-}
-
-#define RK3562_CLKSEL2(_pclk)					\
-{								\
-	.reg = RK3562_CLKSEL_CON(12),				\
-	.val = HIWORD_UPDATE(_pclk, RK3562_DIV_PCLK_CORE_MASK,	\
-			RK3562_DIV_PCLK_CORE_SHIFT),		\
-}
-
-#define RK3562_CPUCLK_RATE(_prate, _acore, _pclk) \
-{								\
-	.prate = _prate##U,					\
-	.divs = {						\
-		RK3562_CLKSEL1(_acore),				\
-		RK3562_CLKSEL2(_pclk),				\
-	},							\
-}
-
-static struct rockchip_cpuclk_rate_table rk3562_cpuclk_rates[] __initdata = {
-	RK3562_CPUCLK_RATE(2016000000, 1, 9),
-	RK3562_CPUCLK_RATE(1896000000, 1, 9),
-	RK3562_CPUCLK_RATE(1800000000, 1, 9),
-	RK3562_CPUCLK_RATE(1704000000, 1, 9),
-	RK3562_CPUCLK_RATE(1608000000, 1, 9),
-	RK3562_CPUCLK_RATE(1584000000, 1, 9),
-	RK3562_CPUCLK_RATE(1560000000, 1, 9),
-	RK3562_CPUCLK_RATE(1536000000, 1, 9),
-	RK3562_CPUCLK_RATE(1512000000, 1, 9),
-	RK3562_CPUCLK_RATE(1488000000, 1, 7),
-	RK3562_CPUCLK_RATE(1464000000, 1, 7),
-	RK3562_CPUCLK_RATE(1440000000, 1, 7),
-	RK3562_CPUCLK_RATE(1416000000, 1, 7),
-	RK3562_CPUCLK_RATE(1392000000, 1, 7),
-	RK3562_CPUCLK_RATE(1368000000, 1, 7),
-	RK3562_CPUCLK_RATE(1344000000, 1, 7),
-	RK3562_CPUCLK_RATE(1320000000, 1, 7),
-	RK3562_CPUCLK_RATE(1296000000, 1, 7),
-	RK3562_CPUCLK_RATE(1272000000, 1, 7),
-	RK3562_CPUCLK_RATE(1248000000, 1, 7),
-	RK3562_CPUCLK_RATE(1224000000, 1, 7),
-	RK3562_CPUCLK_RATE(1200000000, 1, 7),
-	RK3562_CPUCLK_RATE(1104000000, 1, 7),
-	RK3562_CPUCLK_RATE(1008000000, 1, 7),
-	RK3562_CPUCLK_RATE(912000000, 1, 5),
-	RK3562_CPUCLK_RATE(816000000, 1, 5),
-	RK3562_CPUCLK_RATE(696000000, 1, 5),
-	RK3562_CPUCLK_RATE(600000000, 1, 5),
-	RK3562_CPUCLK_RATE(408000000, 1, 3),
-	RK3562_CPUCLK_RATE(312000000, 1, 3),
-	RK3562_CPUCLK_RATE(216000000, 1, 3),
-	RK3562_CPUCLK_RATE(96000000, 1, 1),
-};
-
-static const struct rockchip_cpuclk_reg_data rk3562_cpuclk_data = {
-	.core_reg[0] = RK3562_CLKSEL_CON(10),
-	.div_core_shift[0] = 0,
-	.div_core_mask[0] = 0x1f,
-	.num_cores = 1,
-	.mux_core_alt = 1,
-	.mux_core_main = 0,
-	.mux_core_shift = 7,
-	.mux_core_mask = 0x1,
-};
-
 PNAME(mux_pll_p)			= { "xin24m" };
 PNAME(gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(gpll_cpll_hpll_p)			= { "gpll", "cpll", "hpll" };
@@ -469,10 +395,10 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(27), 2, GFLAGS),
 
 	/* PD_CORE */
-	COMPOSITE_NOMUX(0, "aclk_core_pre", "armclk", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(0, "aclk_core_pre", "scmi_clk_cpu", CLK_IGNORE_UNUSED,
 			RK3562_CLKSEL_CON(11), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3562_CLKGATE_CON(4), 3, GFLAGS),
-	COMPOSITE_NOMUX(0, "pclk_dbg_pre", "armclk", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(0, "pclk_dbg_pre", "scmi_clk_cpu", CLK_IGNORE_UNUSED,
 			RK3562_CLKSEL_CON(12), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3562_CLKGATE_CON(4), 5, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_CORE, "hclk_core", "gpll", CLK_IS_CRITICAL,
@@ -1109,7 +1035,6 @@ static void __init rk3562_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
-	struct clk **clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -1125,16 +1050,10 @@ static void __init rk3562_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
-	clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rk3562_pll_clks,
 				   ARRAY_SIZE(rk3562_pll_clks),
 				   RK3562_GRF_SOC_STATUS0);
-
-	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
-				     2, clks[PLL_APLL], clks[PLL_GPLL],
-				     &rk3562_cpuclk_data, rk3562_cpuclk_rates,
-				     ARRAY_SIZE(rk3562_cpuclk_rates));
 
 	rockchip_clk_register_branches(ctx, rk3562_clk_branches,
 				       ARRAY_SIZE(rk3562_clk_branches));
