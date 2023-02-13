@@ -957,7 +957,12 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		}
 	}
 
-	/* program TRANS_VBLANK register, should be same as vtotal programmed */
+	/*
+	 * program TRANS_VBLANK register, should be same as vtotal programmed
+	 *
+	 * FIXME get rid of these local hacks and do it right,
+	 * this will not handle eg. delayed vblank correctly.
+	 */
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
