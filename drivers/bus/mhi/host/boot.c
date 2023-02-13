@@ -193,6 +193,7 @@ int mhi_download_rddm_image(struct mhi_controller *mhi_cntrl, bool in_panic)
 					      &rx_status) || rx_status,
 			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
+	MHI_VERB(dev, "RXVEC_STATUS: 0x%x\n", rx_status);
 	return (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) ? 0 : -EIO;
 }
 EXPORT_SYMBOL_GPL(mhi_download_rddm_image);
