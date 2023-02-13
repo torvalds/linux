@@ -29,7 +29,7 @@ struct devlink {
 	struct list_head sb_list;
 	struct list_head dpipe_table_list;
 	struct list_head resource_list;
-	struct list_head param_list;
+	struct xarray params;
 	struct list_head region_list;
 	struct list_head reporter_list;
 	struct devlink_dpipe_headers *dpipe_headers;
@@ -188,6 +188,9 @@ static inline bool devlink_reload_supported(const struct devlink_ops *ops)
 {
 	return ops->reload_down && ops->reload_up;
 }
+
+/* Params */
+void devlink_params_driverinit_load_new(struct devlink *devlink);
 
 /* Resources */
 struct devlink_resource;

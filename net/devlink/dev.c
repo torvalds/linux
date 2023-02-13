@@ -369,6 +369,9 @@ int devlink_reload(struct devlink *devlink, struct net *dest_net,
 	if (dest_net && !net_eq(dest_net, curr_net))
 		devlink_reload_netns_change(devlink, curr_net, dest_net);
 
+	if (action == DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
+		devlink_params_driverinit_load_new(devlink);
+
 	err = devlink->ops->reload_up(devlink, action, limit, actions_performed, extack);
 	devlink_reload_failed_set(devlink, !!err);
 	if (err)

@@ -1110,24 +1110,18 @@ devlink_nl_cmd_port_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink_port *devlink_port;
 	unsigned long port_index;
-	int idx = 0;
 	int err = 0;
 
-	xa_for_each(&devlink->ports, port_index, devlink_port) {
-		if (idx < state->idx) {
-			idx++;
-			continue;
-		}
+	xa_for_each_start(&devlink->ports, port_index, devlink_port, state->idx) {
 		err = devlink_nl_port_fill(msg, devlink_port,
 					   DEVLINK_CMD_NEW,
 					   NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq,
 					   NLM_F_MULTI, cb->extack);
 		if (err) {
-			state->idx = idx;
+			state->idx = port_index;
 			break;
 		}
-		idx++;
 	}
 
 	return err;
@@ -3959,26 +3953,22 @@ static int devlink_param_driver_verify(const struct devlink_param *param)
 }
 
 static struct devlink_param_item *
-devlink_param_find_by_name(struct list_head *param_list,
-			   const char *param_name)
+devlink_param_find_by_name(struct xarray *params, const char *param_name)
 {
 	struct devlink_param_item *param_item;
+	unsigned long param_id;
 
-	list_for_each_entry(param_item, param_list, list)
+	xa_for_each(params, param_id, param_item) {
 		if (!strcmp(param_item->param->name, param_name))
 			return param_item;
+	}
 	return NULL;
 }
 
 static struct devlink_param_item *
-devlink_param_find_by_id(struct list_head *param_list, u32 param_id)
+devlink_param_find_by_id(struct xarray *params, u32 param_id)
 {
-	struct devlink_param_item *param_item;
-
-	list_for_each_entry(param_item, param_list, list)
-		if (param_item->param->id == param_id)
-			return param_item;
-	return NULL;
+	return xa_load(params, param_id);
 }
 
 static bool
@@ -4097,9 +4087,12 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 		if (!devlink_param_cmode_is_supported(param, i))
 			continue;
 		if (i == DEVLINK_PARAM_CMODE_DRIVERINIT) {
-			if (!param_item->driverinit_value_valid)
+			if (param_item->driverinit_value_new_valid)
+				param_value[i] = param_item->driverinit_value_new;
+			else if (param_item->driverinit_value_valid)
+				param_value[i] = param_item->driverinit_value;
+			else
 				return -EOPNOTSUPP;
-			param_value[i] = param_item->driverinit_value;
 		} else {
 			ctx.cmode = i;
 			err = devlink_param_get(devlink, param, &ctx);
@@ -4204,14 +4197,10 @@ devlink_nl_cmd_param_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink_param_item *param_item;
-	int idx = 0;
+	unsigned long param_id;
 	int err = 0;
 
-	list_for_each_entry(param_item, &devlink->param_list, list) {
-		if (idx < state->idx) {
-			idx++;
-			continue;
-		}
+	xa_for_each_start(&devlink->params, param_id, param_item, state->idx) {
 		err = devlink_nl_param_fill(msg, devlink, 0, param_item,
 					    DEVLINK_CMD_PARAM_GET,
 					    NETLINK_CB(cb->skb).portid,
@@ -4220,10 +4209,9 @@ devlink_nl_cmd_param_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 		if (err == -EOPNOTSUPP) {
 			err = 0;
 		} else if (err) {
-			state->idx = idx;
+			state->idx = param_id;
 			break;
 		}
-		idx++;
 	}
 
 	return err;
@@ -4309,8 +4297,7 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 }
 
 static struct devlink_param_item *
-devlink_param_get_from_info(struct list_head *param_list,
-			    struct genl_info *info)
+devlink_param_get_from_info(struct xarray *params, struct genl_info *info)
 {
 	char *param_name;
 
@@ -4318,7 +4305,7 @@ devlink_param_get_from_info(struct list_head *param_list,
 		return NULL;
 
 	param_name = nla_data(info->attrs[DEVLINK_ATTR_PARAM_NAME]);
-	return devlink_param_find_by_name(param_list, param_name);
+	return devlink_param_find_by_name(params, param_name);
 }
 
 static int devlink_nl_cmd_param_get_doit(struct sk_buff *skb,
@@ -4329,7 +4316,7 @@ static int devlink_nl_cmd_param_get_doit(struct sk_buff *skb,
 	struct sk_buff *msg;
 	int err;
 
-	param_item = devlink_param_get_from_info(&devlink->param_list, info);
+	param_item = devlink_param_get_from_info(&devlink->params, info);
 	if (!param_item)
 		return -EINVAL;
 
@@ -4350,7 +4337,7 @@ static int devlink_nl_cmd_param_get_doit(struct sk_buff *skb,
 
 static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 					   unsigned int port_index,
-					   struct list_head *param_list,
+					   struct xarray *params,
 					   struct genl_info *info,
 					   enum devlink_command cmd)
 {
@@ -4362,7 +4349,7 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 	union devlink_param_value value;
 	int err = 0;
 
-	param_item = devlink_param_get_from_info(param_list, info);
+	param_item = devlink_param_get_from_info(params, info);
 	if (!param_item)
 		return -EINVAL;
 	param = param_item->param;
@@ -4387,11 +4374,8 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 		return -EOPNOTSUPP;
 
 	if (cmode == DEVLINK_PARAM_CMODE_DRIVERINIT) {
-		if (param->type == DEVLINK_PARAM_TYPE_STRING)
-			strcpy(param_item->driverinit_value.vstr, value.vstr);
-		else
-			param_item->driverinit_value = value;
-		param_item->driverinit_value_valid = true;
+		param_item->driverinit_value_new = value;
+		param_item->driverinit_value_new_valid = true;
 	} else {
 		if (!param->set)
 			return -EOPNOTSUPP;
@@ -4411,7 +4395,7 @@ static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
 {
 	struct devlink *devlink = info->user_ptr[0];
 
-	return __devlink_nl_cmd_param_set_doit(devlink, 0, &devlink->param_list,
+	return __devlink_nl_cmd_param_set_doit(devlink, 0, &devlink->params,
 					       info, DEVLINK_CMD_PARAM_NEW);
 }
 
@@ -8043,6 +8027,7 @@ void devlink_notify_register(struct devlink *devlink)
 	struct devlink_rate *rate_node;
 	struct devlink_region *region;
 	unsigned long port_index;
+	unsigned long param_id;
 
 	devlink_notify(devlink, DEVLINK_CMD_NEW);
 	list_for_each_entry(linecard, &devlink->linecard_list, list)
@@ -8068,7 +8053,7 @@ void devlink_notify_register(struct devlink *devlink)
 	list_for_each_entry(region, &devlink->region_list, list)
 		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
-	list_for_each_entry(param_item, &devlink->param_list, list)
+	xa_for_each(&devlink->params, param_id, param_item)
 		devlink_param_notify(devlink, 0, param_item,
 				     DEVLINK_CMD_PARAM_NEW);
 }
@@ -8083,8 +8068,9 @@ void devlink_notify_unregister(struct devlink *devlink)
 	struct devlink_rate *rate_node;
 	struct devlink_region *region;
 	unsigned long port_index;
+	unsigned long param_id;
 
-	list_for_each_entry_reverse(param_item, &devlink->param_list, list)
+	xa_for_each(&devlink->params, param_id, param_item)
 		devlink_param_notify(devlink, 0, param_item,
 				     DEVLINK_CMD_PARAM_DEL);
 
@@ -9511,9 +9497,10 @@ static int devlink_param_register(struct devlink *devlink,
 				  const struct devlink_param *param)
 {
 	struct devlink_param_item *param_item;
+	int err;
 
 	WARN_ON(devlink_param_verify(param));
-	WARN_ON(devlink_param_find_by_name(&devlink->param_list, param->name));
+	WARN_ON(devlink_param_find_by_name(&devlink->params, param->name));
 
 	if (param->supported_cmodes == BIT(DEVLINK_PARAM_CMODE_DRIVERINIT))
 		WARN_ON(param->get || param->set);
@@ -9526,9 +9513,16 @@ static int devlink_param_register(struct devlink *devlink,
 
 	param_item->param = param;
 
-	list_add_tail(&param_item->list, &devlink->param_list);
+	err = xa_insert(&devlink->params, param->id, param_item, GFP_KERNEL);
+	if (err)
+		goto err_xa_insert;
+
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 	return 0;
+
+err_xa_insert:
+	kfree(param_item);
+	return err;
 }
 
 static void devlink_param_unregister(struct devlink *devlink,
@@ -9536,12 +9530,11 @@ static void devlink_param_unregister(struct devlink *devlink,
 {
 	struct devlink_param_item *param_item;
 
-	param_item =
-		devlink_param_find_by_name(&devlink->param_list, param->name);
+	param_item = devlink_param_find_by_id(&devlink->params, param->id);
 	if (WARN_ON(!param_item))
 		return;
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_DEL);
-	list_del(&param_item->list);
+	xa_erase(&devlink->params, param->id);
 	kfree(param_item);
 }
 
@@ -9629,22 +9622,32 @@ EXPORT_SYMBOL_GPL(devlink_params_unregister);
  *
  *	@devlink: devlink
  *	@param_id: parameter ID
- *	@init_val: value of parameter in driverinit configuration mode
+ *	@val: pointer to store the value of parameter in driverinit
+ *	      configuration mode
  *
  *	This function should be used by the driver to get driverinit
  *	configuration for initialization after reload command.
+ *
+ *	Note that lockless call of this function relies on the
+ *	driver to maintain following basic sane behavior:
+ *	1) Driver ensures a call to this function cannot race with
+ *	   registering/unregistering the parameter with the same parameter ID.
+ *	2) Driver ensures a call to this function cannot race with
+ *	   devl_param_driverinit_value_set() call with the same parameter ID.
+ *	3) Driver ensures a call to this function cannot race with
+ *	   reload operation.
+ *	If the driver is not able to comply, it has to take the devlink->lock
+ *	while calling this.
  */
 int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				    union devlink_param_value *init_val)
+				    union devlink_param_value *val)
 {
 	struct devlink_param_item *param_item;
-
-	lockdep_assert_held(&devlink->lock);
 
 	if (WARN_ON(!devlink_reload_supported(devlink->ops)))
 		return -EOPNOTSUPP;
 
-	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
+	param_item = devlink_param_find_by_id(&devlink->params, param_id);
 	if (!param_item)
 		return -EINVAL;
 
@@ -9655,10 +9658,7 @@ int devl_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
 		return -EOPNOTSUPP;
 
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(init_val->vstr, param_item->driverinit_value.vstr);
-	else
-		*init_val = param_item->driverinit_value;
+	*val = param_item->driverinit_value;
 
 	return 0;
 }
@@ -9681,7 +9681,9 @@ void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 {
 	struct devlink_param_item *param_item;
 
-	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
+	devl_assert_locked(devlink);
+
+	param_item = devlink_param_find_by_id(&devlink->params, param_id);
 	if (WARN_ON(!param_item))
 		return;
 
@@ -9689,15 +9691,28 @@ void devl_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 						      DEVLINK_PARAM_CMODE_DRIVERINIT)))
 		return;
 
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
-	else
-		param_item->driverinit_value = init_val;
+	param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
 
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devl_param_driverinit_value_set);
+
+void devlink_params_driverinit_load_new(struct devlink *devlink)
+{
+	struct devlink_param_item *param_item;
+	unsigned long param_id;
+
+	xa_for_each(&devlink->params, param_id, param_item) {
+		if (!devlink_param_cmode_is_supported(param_item->param,
+						      DEVLINK_PARAM_CMODE_DRIVERINIT) ||
+		    !param_item->driverinit_value_new_valid)
+			continue;
+		param_item->driverinit_value = param_item->driverinit_value_new;
+		param_item->driverinit_value_valid = true;
+		param_item->driverinit_value_new_valid = false;
+	}
+}
 
 /**
  *	devl_param_value_changed - notify devlink on a parameter's value
@@ -9715,7 +9730,7 @@ void devl_param_value_changed(struct devlink *devlink, u32 param_id)
 {
 	struct devlink_param_item *param_item;
 
-	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
+	param_item = devlink_param_find_by_id(&devlink->params, param_id);
 	WARN_ON(!param_item);
 
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);

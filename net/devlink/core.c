@@ -212,6 +212,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	devlink->dev = dev;
 	devlink->ops = ops;
 	xa_init_flags(&devlink->ports, XA_FLAGS_ALLOC);
+	xa_init_flags(&devlink->params, XA_FLAGS_ALLOC);
 	xa_init_flags(&devlink->snapshot_ids, XA_FLAGS_ALLOC);
 	write_pnet(&devlink->_net, net);
 	INIT_LIST_HEAD(&devlink->rate_list);
@@ -219,7 +220,6 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	INIT_LIST_HEAD(&devlink->sb_list);
 	INIT_LIST_HEAD_RCU(&devlink->dpipe_table_list);
 	INIT_LIST_HEAD(&devlink->resource_list);
-	INIT_LIST_HEAD(&devlink->param_list);
 	INIT_LIST_HEAD(&devlink->region_list);
 	INIT_LIST_HEAD(&devlink->reporter_list);
 	INIT_LIST_HEAD(&devlink->trap_list);
@@ -255,7 +255,6 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!list_empty(&devlink->trap_list));
 	WARN_ON(!list_empty(&devlink->reporter_list));
 	WARN_ON(!list_empty(&devlink->region_list));
-	WARN_ON(!list_empty(&devlink->param_list));
 	WARN_ON(!list_empty(&devlink->resource_list));
 	WARN_ON(!list_empty(&devlink->dpipe_table_list));
 	WARN_ON(!list_empty(&devlink->sb_list));
@@ -264,6 +263,7 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!xa_empty(&devlink->ports));
 
 	xa_destroy(&devlink->snapshot_ids);
+	xa_destroy(&devlink->params);
 	xa_destroy(&devlink->ports);
 
 	WARN_ON_ONCE(unregister_netdevice_notifier(&devlink->netdevice_nb));
