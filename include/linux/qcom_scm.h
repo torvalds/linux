@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <linux/cpumask.h>
 
+#include <dt-bindings/firmware/qcom,scm.h>
+
 #define QCOM_SCM_VERSION(major, minor)	(((major) << 16) | ((minor) & 0xFF))
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
@@ -51,10 +53,6 @@ enum qcom_scm_ice_cipher {
 	QCOM_SCM_ICE_CIPHER_AES_256_CBC = 4,
 };
 
-#define QCOM_SCM_VMID_HLOS       0x3
-#define QCOM_SCM_VMID_MSS_MSA    0xF
-#define QCOM_SCM_VMID_WLAN       0x18
-#define QCOM_SCM_VMID_WLAN_CE    0x19
 #define QCOM_SCM_PERM_READ       0x4
 #define QCOM_SCM_PERM_WRITE      0x2
 #define QCOM_SCM_PERM_EXEC       0x1

@@ -27,9 +27,11 @@ properties:
       identifier of the client to use this region for buffers
 
   qcom,vmid:
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     description: >
-      vmid of the remote processor, to set up memory protection
+      Array of vmids of the remote processors, to set up memory protection
+    minItems: 1
+    maxItems: 2
 
 required:
   - qcom,client-id
