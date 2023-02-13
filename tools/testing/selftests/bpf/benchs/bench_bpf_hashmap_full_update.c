@@ -68,7 +68,7 @@ static void setup(void)
 		bpf_map_update_elem(map_fd, &i, &i, BPF_ANY);
 }
 
-void hashmap_report_final(struct bench_res res[], int res_cnt)
+static void hashmap_report_final(struct bench_res res[], int res_cnt)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	int i;
