@@ -826,7 +826,7 @@
 
 		reboot_mode: reboot-mode {
 			compatible = "syscon-reboot-mode";
-			offset = <0x200>;
+			offset = <0x220>;
 			mode-bootloader = <BOOT_BL_DOWNLOAD>;
 			mode-charge = <BOOT_CHARGING>;
 			mode-fastboot = <BOOT_FASTBOOT>;
