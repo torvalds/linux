@@ -315,7 +315,6 @@ struct geni_i3c_dev {
 	struct geni_i3c_ver_info ver_info;
 	struct msm_geni_i3c_rsc i3c_rsc;
 	struct device *wrapper_dev;
-	u32 maxdevs;
 };
 
 struct geni_i3c_i2c_dev_data {
@@ -569,6 +568,17 @@ static void set_new_addr_slot(unsigned long *addrslot, u8 addr)
 
 	ptr = addrslot + (addr / BITS_PER_LONG);
 	*ptr |= 1 << (addr % BITS_PER_LONG);
+}
+
+static void clear_new_addr_slot(unsigned long *addrslot, u8 addr)
+{
+	unsigned long *ptr;
+
+	if (addr > I3C_ADDR_MASK)
+		return;
+
+	ptr = addrslot + (addr / BITS_PER_LONG);
+	*ptr &= ~(1 << (addr % BITS_PER_LONG));
 }
 
 static bool is_new_addr_slot_set(unsigned long *addrslot, u8 addr)
@@ -1138,34 +1148,11 @@ static void geni_i3c_perform_daa(struct geni_i3c_dev *gi3c)
 		}
 
 		if (i3cboardinfo->init_dyn_addr &&
-			(i3cboardinfo->init_dyn_addr < I3C_MAX_ADDR))
+			(i3cboardinfo->init_dyn_addr < I3C_MAX_ADDR)) {
 			/* If DA is specified in DTSI, use it */
 			addr = init_dyn_addr = i3cboardinfo->init_dyn_addr;
-
-		/* Ask framework to get free address for us */
-		ret = i3c_master_get_free_addr(m, addr);
-		if (ret >= 0) {
-			addr = ret;
-			i3cboardinfo->init_dyn_addr = addr;
-			init_dyn_addr = addr;
-		} else {
-			I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-					"%s: Asked addr:%d not free, ret:%d\n",
-					 __func__, addr, ret);
-			return;
 		}
-
-		if (is_new_addr_slot_set(gi3c->newaddrslots, addr)) {
-			I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-				"%s:slot addr:%d not free, try new addr:%d\n",
-				__func__, addr, addr + 1);
-			ret = i3c_master_get_free_addr(m, addr + 1);
-			if (ret >= 0) {
-				addr = ret;
-				i3cboardinfo->init_dyn_addr = addr;
-				init_dyn_addr = addr;
-			}
-		}
+		addr = ret = i3c_master_get_free_addr(m, addr);
 
 		if (ret < 0) {
 			I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
@@ -1228,12 +1215,8 @@ static void geni_i3c_perform_daa(struct geni_i3c_dev *gi3c)
 				IBI_NACK_TBL_CTRL;
 
 		ret = i3c_geni_execute_write_command(gi3c, &xfer, tx_buf, 1);
-		if (ret) {
-			I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-					"%s: Failed:%d to assign DA:%d\n",
-					__func__, ret, tx_buf[0]);
+		if (ret)
 			break;
-		}
 	}
 daa_err:
 	return;
@@ -1505,50 +1488,35 @@ static void geni_i3c_master_detach_i3c_dev(struct i3c_dev_desc *dev)
 	i3c_dev_set_master_data(dev, NULL);
 }
 
-static int geni_i3c_master_do_daa(struct i3c_master_controller *m)
+static int geni_i3c_master_entdaa_locked(struct geni_i3c_dev *gi3c)
 {
-	struct geni_i3c_dev *gi3c = to_geni_i3c_master(m);
-	u8 start_addr = 0;
-	int addr = 0, ret = 0, free_addr = 0;
-
-	/* Get ready with the DAA table */
-	for (addr = 0; addr < gi3c->maxdevs; addr++) {
-		free_addr = i3c_master_get_free_addr(m, start_addr + 1);
-		if (free_addr < 0)
-			return -ENOSPC;
-
-		start_addr = free_addr;
-		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
-				"%s: Got free_addr:%d\n",
-				 __func__, free_addr);
-		set_new_addr_slot(gi3c->newaddrslots, free_addr);
-	}
+	struct i3c_master_controller *m = &gi3c->ctrlr;
+	u8 addr;
+	int ret;
 
 	ret = i3c_master_entdaa_locked(m);
 	if (ret && ret != I3C_ERROR_M2)
 		return ret;
 
-	for (addr = 0; addr < gi3c->maxdevs; addr++) {
+	for (addr = 0; addr <= I3C_ADDR_MASK; addr++) {
 		if (is_new_addr_slot_set(gi3c->newaddrslots, addr)) {
-			ret = i3c_master_add_i3c_dev_locked(m,
-						gi3c->newaddrslots[addr]);
-			if (ret < 0)
-				I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-					"%s: error:%d adding device addr:%d\n",
-					 __func__, ret, addr);
+			clear_new_addr_slot(gi3c->newaddrslots, addr);
+			i3c_master_add_i3c_dev_locked(m, addr);
 		}
 	}
 
-	ret = i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
+	i3c_master_enec_locked(m, I3C_BROADCAST_ADDR,
 				      I3C_CCC_EVENT_MR |
 				      I3C_CCC_EVENT_HJ);
-	if (ret)
-		I3C_LOG_ERR(gi3c->ipcl, false, gi3c->se.dev,
-				 "%s: error:%d with i3c_master_enec_locked\n",
-				__func__, ret);
 
-	/* For now can't make DAA failing with ret and impact DAA */
 	return 0;
+}
+
+static int geni_i3c_master_do_daa(struct i3c_master_controller *m)
+{
+	struct geni_i3c_dev *gi3c = to_geni_i3c_master(m);
+
+	return geni_i3c_master_entdaa_locked(gi3c);
 }
 
 static int geni_i3c_master_bus_init(struct i3c_master_controller *m)
@@ -2180,14 +2148,6 @@ static int i3c_geni_rsrcs_init(struct geni_i3c_dev *gi3c,
 		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
 			"SE clk freq not specified, default to 100 MHz.\n");
 		gi3c->clk_src_freq = 100000000;
-	}
-
-	ret = device_property_read_u32(&pdev->dev, "max_i3c_devs",
-		&gi3c->maxdevs);
-	if (ret) {
-		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
-			"max_i3c_devs is undefined, default to two\n");
-		gi3c->maxdevs = 1;
 	}
 
 	ret = geni_se_common_resources_init(&gi3c->se,
