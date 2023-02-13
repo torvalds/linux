@@ -22,14 +22,13 @@
 #
 # Makefile for Display Core (dc) component.
 
-DC_LIBS = basics bios dml clk_mgr dce gpio irq link virtual
+DC_LIBS = basics bios dml clk_mgr dce gpio irq link virtual dsc
 
 ifdef CONFIG_DRM_AMD_DC_DCN
 
 KCOV_INSTRUMENT := n
 
 DC_LIBS += dcn20
-DC_LIBS += dsc
 DC_LIBS += dcn10
 DC_LIBS += dcn21
 DC_LIBS += dcn201
