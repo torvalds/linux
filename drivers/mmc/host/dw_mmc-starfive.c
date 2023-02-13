@@ -234,43 +234,11 @@ static int dw_mci_starfive_remove(struct platform_device *pdev)
 	return dw_mci_pltfm_remove(pdev);
 }
 
-#ifdef CONFIG_PM
-static int dw_mci_starfive_runtime_suspend(struct device *dev)
-{
-	struct dw_mci *host = dev_get_drvdata(dev);
-
-	clk_disable_unprepare(host->biu_clk);
-	clk_disable_unprepare(host->ciu_clk);
-
-	return 0;
-}
-
-static int dw_mci_starfive_runtime_resume(struct device *dev)
-{
-	struct dw_mci *host = dev_get_drvdata(dev);
-	int ret;
-
-	ret = clk_prepare_enable(host->biu_clk);
-	if (ret) {
-		dev_err(host->dev, "Failed to prepare_enable biu_clk clock\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(host->ciu_clk);
-	if (ret) {
-		dev_err(host->dev, "Failed to prepare_enable ciu_clk clock\n");
-		return ret;
-	}
-
-	return 0;
-}
-#endif
-
 static const struct dev_pm_ops dw_mci_starfive_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(dw_mci_starfive_runtime_suspend,
-			   dw_mci_starfive_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
+			   dw_mci_runtime_resume, NULL)
 };
 
 static struct platform_driver dw_mci_starfive_driver = {
