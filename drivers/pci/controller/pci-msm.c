@@ -9073,7 +9073,9 @@ static int __maybe_unused msm_pcie_pm_resume_noirq(struct device *dev)
 		if (rc) {
 			PCIE_ERR(pcie_dev, "PCIe: fail to enable GDSC-CORE for RC%d (%s)\n",
 					pcie_dev->rc_idx, pcie_dev->pdev->name);
-					return rc;
+			msm_pcie_vreg_deinit_analog_rails(pcie_dev);
+			mutex_unlock(&pcie_dev->recovery_lock);
+			return rc;
 		}
 
 		/* Turn on ahb clock first as its needed for register access */
@@ -9160,6 +9162,11 @@ static int __maybe_unused msm_pcie_pm_resume_noirq(struct device *dev)
 	return 0;
 
 out:
+	if (pcie_dev->pipe_clk_ext_src && pcie_dev->pipe_clk_mux)
+		clk_set_parent(pcie_dev->pipe_clk_ext_src, pcie_dev->pipe_clk_mux);
+	regulator_disable(pcie_dev->gdsc_core);
+	msm_pcie_vreg_deinit_analog_rails(pcie_dev);
+
 	mutex_unlock(&pcie_dev->recovery_lock);
 
 	return rc;
