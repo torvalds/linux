@@ -53,6 +53,13 @@ struct glink_rpm_pipe {
 	void __iomem *fifo;
 };
 
+struct glink_rpm {
+	struct qcom_glink *glink;
+
+	struct glink_rpm_pipe rx_pipe;
+	struct glink_rpm_pipe tx_pipe;
+};
+
 static size_t glink_rpm_rx_avail(struct qcom_glink_pipe *glink_pipe)
 {
 	struct glink_rpm_pipe *pipe = to_rpm_pipe(glink_pipe);
@@ -257,8 +264,7 @@ err_inval:
 static int glink_rpm_probe(struct platform_device *pdev)
 {
 	struct qcom_glink *glink;
-	struct glink_rpm_pipe *rx_pipe;
-	struct glink_rpm_pipe *tx_pipe;
+	struct glink_rpm *rpm;
 	struct device_node *np;
 	void __iomem *msg_ram;
 	size_t msg_ram_size;
@@ -266,9 +272,8 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	struct resource r;
 	int ret;
 
-	rx_pipe = devm_kzalloc(&pdev->dev, sizeof(*rx_pipe), GFP_KERNEL);
-	tx_pipe = devm_kzalloc(&pdev->dev, sizeof(*tx_pipe), GFP_KERNEL);
-	if (!rx_pipe || !tx_pipe)
+	rpm = devm_kzalloc(&pdev->dev, sizeof(*rpm), GFP_KERNEL);
+	if (!rpm)
 		return -ENOMEM;
 
 	np = of_parse_phandle(dev->of_node, "qcom,rpm-msg-ram", 0);
@@ -283,36 +288,39 @@ static int glink_rpm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = glink_rpm_parse_toc(dev, msg_ram, msg_ram_size,
-				  rx_pipe, tx_pipe);
+				  &rpm->rx_pipe, &rpm->tx_pipe);
 	if (ret)
 		return ret;
 
 	/* Pipe specific accessors */
-	rx_pipe->native.avail = glink_rpm_rx_avail;
-	rx_pipe->native.peak = glink_rpm_rx_peak;
-	rx_pipe->native.advance = glink_rpm_rx_advance;
-	tx_pipe->native.avail = glink_rpm_tx_avail;
-	tx_pipe->native.write = glink_rpm_tx_write;
+	rpm->rx_pipe.native.avail = glink_rpm_rx_avail;
+	rpm->rx_pipe.native.peak = glink_rpm_rx_peak;
+	rpm->rx_pipe.native.advance = glink_rpm_rx_advance;
+	rpm->tx_pipe.native.avail = glink_rpm_tx_avail;
+	rpm->tx_pipe.native.write = glink_rpm_tx_write;
 
-	writel(0, tx_pipe->head);
-	writel(0, rx_pipe->tail);
+	writel(0, rpm->tx_pipe.head);
+	writel(0, rpm->rx_pipe.tail);
 
-	glink = qcom_glink_native_probe(&pdev->dev,
+	glink = qcom_glink_native_probe(dev,
 					0,
-					&rx_pipe->native,
-					&tx_pipe->native,
+					&rpm->rx_pipe.native,
+					&rpm->tx_pipe.native,
 					true);
 	if (IS_ERR(glink))
 		return PTR_ERR(glink);
 
-	platform_set_drvdata(pdev, glink);
+	rpm->glink = glink;
+
+	platform_set_drvdata(pdev, rpm);
 
 	return 0;
 }
 
 static int glink_rpm_remove(struct platform_device *pdev)
 {
-	struct qcom_glink *glink = platform_get_drvdata(pdev);
+	struct glink_rpm *rpm = platform_get_drvdata(pdev);
+	struct qcom_glink *glink = rpm->glink;
 
 	qcom_glink_native_remove(glink);
 
