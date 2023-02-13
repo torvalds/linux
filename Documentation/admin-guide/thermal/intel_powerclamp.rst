@@ -155,13 +155,15 @@ b) determine the amount of compensation needed at each target ratio
 Compensation to each target ratio consists of two parts:
 
 	a) steady state error compensation
-	This is to offset the error occurring when the system can
-	enter idle without extra wakeups (such as external interrupts).
+
+	   This is to offset the error occurring when the system can
+	   enter idle without extra wakeups (such as external interrupts).
 
 	b) dynamic error compensation
-	When an excessive amount of wakeups occurs during idle, an
-	additional idle ratio can be added to quiet interrupts, by
-	slowing down CPU activities.
+
+	   When an excessive amount of wakeups occurs during idle, an
+	   additional idle ratio can be added to quiet interrupts, by
+	   slowing down CPU activities.
 
 A debugfs file is provided for the user to examine compensation
 progress and results, such as on a Westmere system::
@@ -283,6 +285,7 @@ cur_state returns value -1 instead of 0 which is to avoid confusing
 100% busy state with the disabled state.
 
 Example usage:
+
 - To inject 25% idle time::
 
 	$ sudo sh -c "echo 25 > /sys/class/thermal/cooling_device80/cur_state
