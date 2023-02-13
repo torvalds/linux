@@ -2899,7 +2899,6 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 	static ieee80211_rx_result res;
 	struct ethhdr ethhdr;
 	const u8 *check_da = ethhdr.h_dest, *check_sa = ethhdr.h_source;
-	bool mesh = false;
 
 	if (unlikely(ieee80211_has_a4(hdr->frame_control))) {
 		check_da = NULL;
@@ -2917,7 +2916,6 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 		case NL80211_IFTYPE_MESH_POINT:
 			check_sa = NULL;
 			check_da = NULL;
-			mesh = true;
 			break;
 		default:
 			break;
@@ -2932,10 +2930,21 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 					  data_offset, true))
 		return RX_DROP_UNUSABLE;
 
+	if (rx->sta && rx->sta->amsdu_mesh_control < 0) {
+		bool valid_std = ieee80211_is_valid_amsdu(skb, true);
+		bool valid_nonstd = ieee80211_is_valid_amsdu(skb, false);
+
+		if (valid_std && !valid_nonstd)
+			rx->sta->amsdu_mesh_control = 1;
+		else if (valid_nonstd && !valid_std)
+			rx->sta->amsdu_mesh_control = 0;
+	}
+
 	ieee80211_amsdu_to_8023s(skb, &frame_list, dev->dev_addr,
 				 rx->sdata->vif.type,
 				 rx->local->hw.extra_tx_headroom,
-				 check_da, check_sa, mesh);
+				 check_da, check_sa,
+				 rx->sta->amsdu_mesh_control);
 
 	while (!skb_queue_empty(&frame_list)) {
 		rx->skb = __skb_dequeue(&frame_list);

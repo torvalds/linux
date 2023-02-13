@@ -6237,6 +6237,19 @@ static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 }
 
 /**
+ * ieee80211_is_valid_amsdu - check if subframe lengths of an A-MSDU are valid
+ *
+ * This is used to detect non-standard A-MSDU frames, e.g. the ones generated
+ * by ath10k and ath11k, where the subframe length includes the length of the
+ * mesh control field.
+ *
+ * @skb: The input A-MSDU frame without any headers.
+ * @mesh_hdr: use standard compliant mesh A-MSDU subframe header
+ * Returns: true if subframe header lengths are valid for the @mesh_hdr mode
+ */
+bool ieee80211_is_valid_amsdu(struct sk_buff *skb, bool mesh_hdr);
+
+/**
  * ieee80211_amsdu_to_8023s - decode an IEEE 802.11n A-MSDU frame
  *
  * Decode an IEEE 802.11 A-MSDU and convert it to a list of 802.3 frames.
