@@ -918,12 +918,12 @@ void kvm_arm_vmid_clear_active(void);
 
 static inline void kvm_arm_pvtime_vcpu_init(struct kvm_vcpu_arch *vcpu_arch)
 {
-	vcpu_arch->steal.base = GPA_INVALID;
+	vcpu_arch->steal.base = INVALID_GPA;
 }
 
 static inline bool kvm_arm_is_pvtime_enabled(struct kvm_vcpu_arch *vcpu_arch)
 {
-	return (vcpu_arch->steal.base != GPA_INVALID);
+	return (vcpu_arch->steal.base != INVALID_GPA);
 }
 
 void kvm_set_sei_esr(struct kvm_vcpu *vcpu, u64 syndrome);

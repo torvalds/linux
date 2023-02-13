@@ -1922,9 +1922,7 @@ static int __init kvm_hyp_init_protection(u32 hyp_va_bits)
 	return 0;
 }
 
-/**
- * Inits Hyp-mode on all online CPUs
- */
+/* Inits Hyp-mode on all online CPUs */
 static int __init init_hyp_mode(void)
 {
 	u32 hyp_va_bits;
@@ -2200,9 +2198,7 @@ void kvm_arch_irq_bypass_start(struct irq_bypass_consumer *cons)
 	kvm_arm_resume_guest(irqfd->kvm);
 }
 
-/**
- * Initialize Hyp-mode and memory mappings on all CPUs.
- */
+/* Initialize Hyp-mode and memory mappings on all CPUs */
 static __init int kvm_arm_init(void)
 {
 	int err;
