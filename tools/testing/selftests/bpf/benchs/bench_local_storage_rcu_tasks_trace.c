@@ -271,6 +271,7 @@ static void report_final(struct bench_res res[], int res_cnt)
  */
 const struct bench bench_local_storage_tasks_trace = {
 	.name = "local-storage-tasks-trace",
+	.argp = &bench_local_storage_rcu_tasks_trace_argp,
 	.validate = validate,
 	.setup = local_storage_tasks_trace_setup,
 	.producer_thread = producer,

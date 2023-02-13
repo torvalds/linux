@@ -47,6 +47,7 @@ struct bench_res {
 
 struct bench {
 	const char *name;
+	const struct argp *argp;
 	void (*validate)(void);
 	void (*setup)(void);
 	void *(*producer_thread)(void *ctx);
