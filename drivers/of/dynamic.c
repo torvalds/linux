@@ -329,9 +329,17 @@ void of_node_release(struct kobject *kobj)
 {
 	struct device_node *node = kobj_to_device_node(kobj);
 
+	/*
+	 * can not use '"%pOF", node' in pr_err() calls from this function
+	 * because an of_node_get(node) when refcount is already zero
+	 * will result in an error and a stack dump
+	 */
+
 	/* We should never be releasing nodes that haven't been detached. */
 	if (!of_node_check_flag(node, OF_DETACHED)) {
-		pr_err("ERROR: Bad of_node_put() on %pOF\n", node);
+
+		pr_err("ERROR: %s() detected bad of_node_put() on %pOF/%s\n",
+			__func__, node->parent, node->full_name);
 
 		/*
 		 * of unittests will test this path.  Do not print the stack
