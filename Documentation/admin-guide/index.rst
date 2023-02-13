@@ -116,7 +116,7 @@ configure specific aspects of kernel behavior to your liking.
    svga
    syscall-user-dispatch
    sysrq
-   thermal
+   thermal/index
    thunderbolt
    ufs
    unicode
