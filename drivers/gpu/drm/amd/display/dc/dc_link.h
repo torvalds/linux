@@ -549,8 +549,8 @@ void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
 void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
 
 /*
- * CB function for when the status of the Req above is complete. We will
- * find out the result of allocating on CM and update structs accordingly
+ * Handle function for when the status of the Request above is complete.
+ * We will find out the result of allocating on CM and update structs.
  *
  * @link: pointer to the dc_link struct instance
  * @bw: Allocated or Estimated BW depending on the result
@@ -558,7 +558,7 @@ void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
  *
  * return: none
  */
-void dc_link_get_usb4_req_bw_resp(struct dc_link *link, uint8_t bw, uint8_t result);
+void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result);
 
 /*
  * Handle the USB4 BW Allocation related functionality here:

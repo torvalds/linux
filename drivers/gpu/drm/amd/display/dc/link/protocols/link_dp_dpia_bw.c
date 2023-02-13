@@ -300,7 +300,7 @@ bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link)
 out:
 	return ret;
 }
-void dc_link_get_usb4_req_bw_resp(struct dc_link *link, uint8_t bw, uint8_t result)
+void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result)
 {
 	if (!get_bw_alloc_proceed_flag((link)))
 		return;
