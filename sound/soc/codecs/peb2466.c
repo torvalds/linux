@@ -1848,7 +1848,7 @@ static int peb2466_chip_direction_input(struct gpio_chip *c, unsigned int offset
 	if (offset < 16) {
 		/* SOx_{0,1} */
 		return -EINVAL;
-	};
+	}
 
 	ret = peb2466_chip_gpio_offset_to_dir_regmask(offset, &xr_reg, &mask);
 	if (ret) {
@@ -1884,7 +1884,7 @@ static int peb2466_chip_direction_output(struct gpio_chip *c, unsigned int offse
 	if (offset < 16) {
 		/* SOx_{0,1} */
 		return 0;
-	};
+	}
 
 	ret = peb2466_chip_gpio_offset_to_dir_regmask(offset, &xr_reg, &mask);
 	if (ret) {
