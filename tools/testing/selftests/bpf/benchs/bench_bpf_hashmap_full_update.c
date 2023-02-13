@@ -85,7 +85,7 @@ void hashmap_report_final(struct bench_res res[], int res_cnt)
 }
 
 const struct bench bench_bpf_hashmap_full_update = {
-	.name = "bpf-hashmap-ful-update",
+	.name = "bpf-hashmap-full-update",
 	.validate = validate,
 	.setup = setup,
 	.producer_thread = producer,
