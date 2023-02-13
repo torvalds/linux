@@ -631,8 +631,9 @@ int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 		break;
 	}
 
-	if (likely(skb_copy_bits(skb, hdrlen, &payload, sizeof(payload)) == 0 &&
-	           ((!is_amsdu && ether_addr_equal(payload.hdr, rfc1042_header) &&
+	if (likely(!is_amsdu &&
+		   skb_copy_bits(skb, hdrlen, &payload, sizeof(payload)) == 0 &&
+	           ((ether_addr_equal(payload.hdr, rfc1042_header) &&
 		     payload.proto != htons(ETH_P_AARP) &&
 		     payload.proto != htons(ETH_P_IPX)) ||
 		    ether_addr_equal(payload.hdr, bridge_tunnel_header)))) {
