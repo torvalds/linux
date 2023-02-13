@@ -414,13 +414,11 @@ static void mrvl_serdev_remove(struct serdev_device *serdev)
 	hci_uart_unregister_device(&mrvldev->hu);
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id mrvl_bluetooth_of_match[] = {
+static const struct of_device_id __maybe_unused mrvl_bluetooth_of_match[] = {
 	{ .compatible = "mrvl,88w8897" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, mrvl_bluetooth_of_match);
-#endif
 
 static struct serdev_device_driver mrvl_serdev_driver = {
 	.probe = mrvl_serdev_probe,
