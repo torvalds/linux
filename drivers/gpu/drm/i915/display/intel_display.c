@@ -2794,8 +2794,8 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 	if (IS_HASWELL(dev_priv) && cpu_transcoder == TRANSCODER_EDP &&
 	    (pipe == PIPE_B || pipe == PIPE_C))
 		intel_de_write(dev_priv, TRANS_VTOTAL(pipe),
-			       intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder)));
-
+			       VACTIVE(crtc_vdisplay - 1) |
+			       VTOTAL(crtc_vtotal - 1));
 }
 
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
