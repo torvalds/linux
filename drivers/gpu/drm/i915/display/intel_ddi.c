@@ -953,33 +953,34 @@ void intel_ddi_enable_transcoder_clock(struct intel_encoder *encoder,
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	u32 val;
 
-	if (cpu_transcoder != TRANSCODER_EDP) {
-		if (DISPLAY_VER(dev_priv) >= 13)
-			val = TGL_TRANS_CLK_SEL_PORT(phy);
-		else if (DISPLAY_VER(dev_priv) >= 12)
-			val = TGL_TRANS_CLK_SEL_PORT(encoder->port);
-		else
-			val = TRANS_CLK_SEL_PORT(encoder->port);
+	if (cpu_transcoder == TRANSCODER_EDP)
+		return;
 
-		intel_de_write(dev_priv, TRANS_CLK_SEL(cpu_transcoder), val);
-	}
+	if (DISPLAY_VER(dev_priv) >= 13)
+		val = TGL_TRANS_CLK_SEL_PORT(phy);
+	else if (DISPLAY_VER(dev_priv) >= 12)
+		val = TGL_TRANS_CLK_SEL_PORT(encoder->port);
+	else
+		val = TRANS_CLK_SEL_PORT(encoder->port);
+
+	intel_de_write(dev_priv, TRANS_CLK_SEL(cpu_transcoder), val);
 }
 
 void intel_ddi_disable_transcoder_clock(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 val;
 
-	if (cpu_transcoder != TRANSCODER_EDP) {
-		if (DISPLAY_VER(dev_priv) >= 12)
-			intel_de_write(dev_priv,
-				       TRANS_CLK_SEL(cpu_transcoder),
-				       TGL_TRANS_CLK_SEL_DISABLED);
-		else
-			intel_de_write(dev_priv,
-				       TRANS_CLK_SEL(cpu_transcoder),
-				       TRANS_CLK_SEL_DISABLED);
-	}
+	if (cpu_transcoder == TRANSCODER_EDP)
+		return;
+
+	if (DISPLAY_VER(dev_priv) >= 12)
+		val = TGL_TRANS_CLK_SEL_DISABLED;
+	else
+		val = TRANS_CLK_SEL_DISABLED;
+
+	intel_de_write(dev_priv, TRANS_CLK_SEL(cpu_transcoder), val);
 }
 
 static void _skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
