@@ -377,6 +377,10 @@ void of_node_release(struct kobject *kobj)
 			       __func__, node);
 	}
 
+	if (node->child)
+		pr_err("ERROR: %s() unexpected children for %pOF/%s\n",
+			__func__, node->parent, node->full_name);
+
 	property_list_free(node->properties);
 	property_list_free(node->deadprops);
 	fwnode_links_purge(of_fwnode_handle(node));
