@@ -435,7 +435,7 @@ static void bch2_sb_update(struct bch_fs *c)
 		ca->mi = bch2_mi_to_cpu(mi->members + i);
 }
 
-static void __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
+static int __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 {
 	struct bch_sb_field *src_f, *dst_f;
 	struct bch_sb *dst = dst_handle->sb;
@@ -460,42 +460,45 @@ static void __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 	memcpy(dst->compat,	src->compat,	sizeof(dst->compat));
 
 	for (i = 0; i < BCH_SB_FIELD_NR; i++) {
+		int d;
+
 		if ((1U << i) & BCH_SINGLE_DEVICE_SB_FIELDS)
 			continue;
 
 		src_f = bch2_sb_field_get(src, i);
 		dst_f = bch2_sb_field_get(dst, i);
+
+		d = (src_f ? le32_to_cpu(src_f->u64s) : 0) -
+		    (dst_f ? le32_to_cpu(dst_f->u64s) : 0);
+		if (d > 0) {
+			int ret = bch2_sb_realloc(dst_handle, le32_to_cpu(dst_handle->sb->u64s) + d);
+			if (ret)
+				return ret;
+
+			dst = dst_handle->sb;
+			dst_f = bch2_sb_field_get(dst, i);
+		}
+
 		dst_f = __bch2_sb_field_resize(dst_handle, dst_f,
 				src_f ? le32_to_cpu(src_f->u64s) : 0);
 
 		if (src_f)
 			memcpy(dst_f, src_f, vstruct_bytes(src_f));
 	}
+
+	return 0;
 }
 
 int bch2_sb_to_fs(struct bch_fs *c, struct bch_sb *src)
 {
-	struct bch_sb_field_journal *journal_buckets =
-		bch2_sb_get_journal(src);
-	unsigned journal_u64s = journal_buckets
-		? le32_to_cpu(journal_buckets->field.u64s)
-		: 0;
 	int ret;
 
 	lockdep_assert_held(&c->sb_lock);
 
-	ret = bch2_sb_realloc(&c->disk_sb,
-			      le32_to_cpu(src->u64s) - journal_u64s);
-	if (ret)
-		return ret;
-
-	__copy_super(&c->disk_sb, src);
-
-	ret = bch2_sb_replicas_to_cpu_replicas(c);
-	if (ret)
-		return ret;
-
-	ret = bch2_sb_disk_groups_to_cpu(c);
+	ret =   bch2_sb_realloc(&c->disk_sb, 0) ?:
+		__copy_super(&c->disk_sb, src) ?:
+		bch2_sb_replicas_to_cpu_replicas(c) ?:
+		bch2_sb_disk_groups_to_cpu(c);
 	if (ret)
 		return ret;
 
@@ -505,21 +508,7 @@ int bch2_sb_to_fs(struct bch_fs *c, struct bch_sb *src)
 
 int bch2_sb_from_fs(struct bch_fs *c, struct bch_dev *ca)
 {
-	struct bch_sb *src = c->disk_sb.sb, *dst = ca->disk_sb.sb;
-	struct bch_sb_field_journal *journal_buckets =
-		bch2_sb_get_journal(dst);
-	unsigned journal_u64s = journal_buckets
-		? le32_to_cpu(journal_buckets->field.u64s)
-		: 0;
-	unsigned u64s = le32_to_cpu(src->u64s) + journal_u64s;
-	int ret;
-
-	ret = bch2_sb_realloc(&ca->disk_sb, u64s);
-	if (ret)
-		return ret;
-
-	__copy_super(&ca->disk_sb, src);
-	return 0;
+	return __copy_super(&ca->disk_sb, c->disk_sb.sb);
 }
 
 /* read superblock: */
