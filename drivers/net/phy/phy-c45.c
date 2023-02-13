@@ -262,7 +262,11 @@ int genphy_c45_an_config_aneg(struct phy_device *phydev)
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
 
-	changed = genphy_config_eee_advert(phydev);
+	ret = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	if (ret < 0)
+		return ret;
+	else if (ret)
+		changed = true;
 
 	if (genphy_c45_baset1_able(phydev))
 		return genphy_c45_baset1_an_config_aneg(phydev);
@@ -662,6 +666,199 @@ int genphy_c45_read_mdix(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_read_mdix);
 
 /**
+ * genphy_c45_write_eee_adv - write advertised EEE link modes
+ * @phydev: target phy_device struct
+ * @adv: the linkmode advertisement settings
+ */
+int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
+{
+	int val, changed;
+
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+		val = linkmode_to_mii_eee_cap1_t(adv);
+
+		/* In eee_broken_modes are stored MDIO_AN_EEE_ADV specific raw
+		 * register values.
+		 */
+		val &= ~phydev->eee_broken_modes;
+
+		/* IEEE 802.3-2018 45.2.7.13 EEE advertisement 1
+		 * (Register 7.60)
+		 */
+		val = phy_modify_mmd_changed(phydev, MDIO_MMD_AN,
+					     MDIO_AN_EEE_ADV,
+					     MDIO_EEE_100TX | MDIO_EEE_1000T |
+					     MDIO_EEE_10GT | MDIO_EEE_1000KX |
+					     MDIO_EEE_10GKX4 | MDIO_EEE_10GKR,
+					     val);
+		if (val < 0)
+			return val;
+		if (val > 0)
+			changed = 1;
+	}
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			      phydev->supported_eee)) {
+		val = linkmode_adv_to_mii_10base_t1_t(adv);
+		/* IEEE 802.3cg-2019 45.2.7.25 10BASE-T1 AN control register
+		 * (Register 7.526)
+		 */
+		val = phy_modify_mmd_changed(phydev, MDIO_MMD_AN,
+					     MDIO_AN_10BT1_AN_CTRL,
+					     MDIO_AN_10BT1_AN_CTRL_ADV_EEE_T1L,
+					     val);
+		if (val < 0)
+			return val;
+		if (val > 0)
+			changed = 1;
+	}
+
+	return changed;
+}
+
+/**
+ * genphy_c45_read_eee_adv - read advertised EEE link modes
+ * @phydev: target phy_device struct
+ * @adv: the linkmode advertisement status
+ */
+static int genphy_c45_read_eee_adv(struct phy_device *phydev,
+				   unsigned long *adv)
+{
+	int val;
+
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+		/* IEEE 802.3-2018 45.2.7.13 EEE advertisement 1
+		 * (Register 7.60)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
+		if (val < 0)
+			return val;
+
+		mii_eee_cap1_mod_linkmode_t(adv, val);
+	}
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			      phydev->supported_eee)) {
+		/* IEEE 802.3cg-2019 45.2.7.25 10BASE-T1 AN control register
+		 * (Register 7.526)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10BT1_AN_CTRL);
+		if (val < 0)
+			return val;
+
+		mii_10base_t1_adv_mod_linkmode_t(adv, val);
+	}
+
+	return 0;
+}
+
+/**
+ * genphy_c45_read_eee_lpa - read advertised LP EEE link modes
+ * @phydev: target phy_device struct
+ * @lpa: the linkmode LP advertisement status
+ */
+static int genphy_c45_read_eee_lpa(struct phy_device *phydev,
+				   unsigned long *lpa)
+{
+	int val;
+
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+		/* IEEE 802.3-2018 45.2.7.14 EEE link partner ability 1
+		 * (Register 7.61)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE);
+		if (val < 0)
+			return val;
+
+		mii_eee_cap1_mod_linkmode_t(lpa, val);
+	}
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			      phydev->supported_eee)) {
+		/* IEEE 802.3cg-2019 45.2.7.26 10BASE-T1 AN status register
+		 * (Register 7.527)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10BT1_AN_STAT);
+		if (val < 0)
+			return val;
+
+		mii_10base_t1_adv_mod_linkmode_t(lpa, val);
+	}
+
+	return 0;
+}
+
+/**
+ * genphy_c45_read_eee_cap1 - read supported EEE link modes from register 3.20
+ * @phydev: target phy_device struct
+ */
+static int genphy_c45_read_eee_cap1(struct phy_device *phydev)
+{
+	int val;
+
+	/* IEEE 802.3-2018 45.2.3.10 EEE control and capability 1
+	 * (Register 3.20)
+	 */
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
+	if (val < 0)
+		return val;
+
+	/* The 802.3 2018 standard says the top 2 bits are reserved and should
+	 * read as 0. Also, it seems unlikely anybody will build a PHY which
+	 * supports 100GBASE-R deep sleep all the way down to 100BASE-TX EEE.
+	 * If MDIO_PCS_EEE_ABLE is 0xffff assume EEE is not supported.
+	 */
+	if (val == 0xffff)
+		return 0;
+
+	mii_eee_cap1_mod_linkmode_t(phydev->supported_eee, val);
+
+	/* Some buggy devices indicate EEE link modes in MDIO_PCS_EEE_ABLE
+	 * which they don't support as indicated by BMSR, ESTATUS etc.
+	 */
+	linkmode_and(phydev->supported_eee, phydev->supported_eee,
+		     phydev->supported);
+
+	return 0;
+}
+
+/**
+ * genphy_c45_read_eee_abilities - read supported EEE link modes
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_read_eee_abilities(struct phy_device *phydev)
+{
+	int val;
+
+	/* There is not indicator whether optional register
+	 * "EEE control and capability 1" (3.20) is supported. Read it only
+	 * on devices with appropriate linkmodes.
+	 */
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+		val = genphy_c45_read_eee_cap1(phydev);
+		if (val)
+			return val;
+	}
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			      phydev->supported)) {
+		/* IEEE 802.3cg-2019 45.2.1.186b 10BASE-T1L PMA status register
+		 * (Register 1.2295)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10T1L_STAT);
+		if (val < 0)
+			return val;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+				 phydev->supported_eee,
+				 val & MDIO_PMA_10T1L_STAT_EEE);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_read_eee_abilities);
+
+/**
  * genphy_c45_pma_read_abilities - read supported link modes from PMA
  * @phydev: target phy_device struct
  *
@@ -774,6 +971,11 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 					 val & MDIO_AN_STAT1_ABLE);
 		}
 	}
+
+	/* This is optional functionality. If not supported, we may get an error
+	 * which should be ignored.
+	 */
+	genphy_c45_read_eee_abilities(phydev);
 
 	return 0;
 }
@@ -1123,6 +1325,121 @@ int genphy_c45_plca_get_status(struct phy_device *phydev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(genphy_c45_plca_get_status);
+
+/**
+ * genphy_c45_eee_is_active - get EEE status
+ * @phydev: target phy_device struct
+ * @adv: variable to store advertised linkmodes
+ * @lp: variable to store LP advertised linkmodes
+ * @is_enabled: variable to store EEE enabled/disabled configuration value
+ *
+ * Description: this function will read local and link partner PHY
+ * advertisements. Compare them return current EEE state.
+ */
+int genphy_c45_eee_is_active(struct phy_device *phydev, unsigned long *adv,
+			     unsigned long *lp, bool *is_enabled)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp_adv) = {};
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp_lp) = {};
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	bool eee_enabled, eee_active;
+	int ret;
+
+	ret = genphy_c45_read_eee_adv(phydev, tmp_adv);
+	if (ret)
+		return ret;
+
+	ret = genphy_c45_read_eee_lpa(phydev, tmp_lp);
+	if (ret)
+		return ret;
+
+	eee_enabled = !linkmode_empty(tmp_adv);
+	linkmode_and(common, tmp_adv, tmp_lp);
+	if (eee_enabled && !linkmode_empty(common))
+		eee_active = phy_check_valid(phydev->speed, phydev->duplex,
+					     common);
+	else
+		eee_active = false;
+
+	if (adv)
+		linkmode_copy(adv, tmp_adv);
+	if (lp)
+		linkmode_copy(lp, tmp_lp);
+	if (is_enabled)
+		*is_enabled = eee_enabled;
+
+	return eee_active;
+}
+EXPORT_SYMBOL(genphy_c45_eee_is_active);
+
+/**
+ * genphy_c45_ethtool_get_eee - get EEE supported and status
+ * @phydev: target phy_device struct
+ * @data: ethtool_eee data
+ *
+ * Description: it reports the Supported/Advertisement/LP Advertisement
+ * capabilities.
+ */
+int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
+			       struct ethtool_eee *data)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp) = {};
+	bool overflow = false, is_enabled;
+	int ret;
+
+	ret = genphy_c45_eee_is_active(phydev, adv, lp, &is_enabled);
+	if (ret < 0)
+		return ret;
+
+	data->eee_enabled = is_enabled;
+	data->eee_active = ret;
+
+	if (!ethtool_convert_link_mode_to_legacy_u32(&data->supported,
+						     phydev->supported_eee))
+		overflow = true;
+	if (!ethtool_convert_link_mode_to_legacy_u32(&data->advertised, adv))
+		overflow = true;
+	if (!ethtool_convert_link_mode_to_legacy_u32(&data->lp_advertised, lp))
+		overflow = true;
+
+	if (overflow)
+		phydev_warn(phydev, "Not all supported or advertised EEE link modes were passed to the user space\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
+
+/**
+ * genphy_c45_ethtool_set_eee - get EEE supported and status
+ * @phydev: target phy_device struct
+ * @data: ethtool_eee data
+ *
+ * Description: it reportes the Supported/Advertisement/LP Advertisement
+ * capabilities.
+ */
+int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
+			       struct ethtool_eee *data)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
+	int ret;
+
+	if (data->eee_enabled) {
+		if (data->advertised)
+			adv[0] = data->advertised;
+		else
+			linkmode_copy(adv, phydev->supported_eee);
+	}
+
+	ret = genphy_c45_write_eee_adv(phydev, adv);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		return phy_restart_aneg(phydev);
+
+	return 0;
+}
+EXPORT_SYMBOL(genphy_c45_ethtool_set_eee);
 
 struct phy_driver genphy_c45_driver = {
 	.phy_id         = 0xffffffff,
