@@ -1333,6 +1333,8 @@ patternProperties:
     description: thingy.jp
   "^thundercomm,.*":
     description: Thundercomm Technology Co., Ltd.
+  "^thwc,.*":
+    description: Shenzhen Tong Heng Wei Chuang Technology Co., Ltd.
   "^ti,.*":
     description: Texas Instruments
   "^tianma,.*":

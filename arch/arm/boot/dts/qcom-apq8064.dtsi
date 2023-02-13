@@ -865,9 +865,9 @@
 				 <&gcc PLL8_VOTE>,
 				 <&dsi0_phy 1>,
 				 <&dsi0_phy 0>,
-				 <0>,
-				 <0>,
-				 <0>;
+				 <&dsi1_phy 1>,
+				 <&dsi1_phy 0>,
+				 <&hdmi_phy>;
 			clock-names = "pxo",
 				      "pll3",
 				      "pll8_vote",
@@ -1342,6 +1342,80 @@
 			status = "disabled";
 		};
 
+		dsi1: dsi@5800000 {
+			compatible = "qcom,mdss-dsi-ctrl";
+			interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x05800000 0x200>;
+			reg-names = "dsi_ctrl";
+
+			clocks = <&mmcc DSI2_M_AHB_CLK>,
+				 <&mmcc DSI2_S_AHB_CLK>,
+				 <&mmcc AMP_AHB_CLK>,
+				 <&mmcc DSI2_CLK>,
+				 <&mmcc DSI2_BYTE_CLK>,
+				 <&mmcc DSI2_PIXEL_CLK>,
+				 <&mmcc DSI2_ESC_CLK>;
+			clock-names = "iface",
+				      "bus",
+				      "core_mmss",
+				      "src",
+				      "byte",
+				      "pixel",
+				      "core";
+
+			assigned-clocks = <&mmcc DSI2_BYTE_SRC>,
+					  <&mmcc DSI2_ESC_SRC>,
+					  <&mmcc DSI2_SRC>,
+					  <&mmcc DSI2_PIXEL_SRC>;
+			assigned-clock-parents = <&dsi1_phy 0>,
+						 <&dsi1_phy 0>,
+						 <&dsi1_phy 1>,
+						 <&dsi1_phy 1>;
+
+			syscon-sfpb = <&mmss_sfpb>;
+			phys = <&dsi1_phy>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dsi1_in: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dsi1_out: endpoint {
+					};
+				};
+			};
+		};
+
+
+		dsi1_phy: dsi-phy@5800200 {
+			compatible = "qcom,dsi-phy-28nm-8960";
+			reg = <0x05800200 0x100>,
+			      <0x05800300 0x200>,
+			      <0x05800500 0x5c>;
+			reg-names = "dsi_pll",
+				    "dsi_phy",
+				    "dsi_phy_regulator";
+			clock-names = "iface",
+				      "ref";
+			clocks = <&mmcc DSI2_M_AHB_CLK>,
+				 <&pxo_board>;
+			#clock-cells = <1>;
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
 
 		mdp_port0: iommu@7500000 {
 			compatible = "qcom,apq8064-iommu";
@@ -1489,6 +1563,7 @@
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
 			clock-names = "slave_iface";
 			#phy-cells = <0>;
+			#clock-cells = <0>;
 
 			status = "disabled";
 		};

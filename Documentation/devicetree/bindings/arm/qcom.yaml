@@ -49,6 +49,7 @@ description: |
         qru1000
         sa8155p
         sa8540p
+        sa8775p
         sc7180
         sc7280
         sc8180x
@@ -89,6 +90,7 @@ description: |
         liquid
         mtp
         qrd
+        ride
         sbc
         x100
 
@@ -221,6 +223,8 @@ properties:
               - samsung,j5
               - samsung,j5x
               - samsung,serranove
+              - thwc,uf896
+              - thwc,ufi001c
               - wingtech,wt88047
           - const: qcom,msm8916
 
@@ -652,6 +656,12 @@ properties:
           - const: google,hoglin
           - const: qcom,sc7280
 
+      - description: Qualcomm Technologies, Inc. sc7280 CRD Pro platform (newest rev)
+        items:
+          - const: google,zoglin-sku1536
+          - const: google,hoglin-sku1536
+          - const: qcom,sc7280
+
       - description: Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform
         items:
           - const: qcom,sc7280-idp
@@ -807,6 +817,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sa8775p-ride
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
               - google,cheza
               - google,cheza-rev1
               - google,cheza-rev2
@@ -875,6 +890,7 @@ properties:
               - qcom,sm8250-mtp
               - sony,pdx203-generic
               - sony,pdx206-generic
+              - xiaomi,elish
           - const: qcom,sm8250
 
       - items:
