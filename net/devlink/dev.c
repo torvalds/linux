@@ -476,6 +476,12 @@ int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		dest_net = devlink_netns_get(skb, info);
 		if (IS_ERR(dest_net))
 			return PTR_ERR(dest_net);
+		if (!net_eq(dest_net, devlink_net(devlink)) &&
+		    action != DEVLINK_RELOAD_ACTION_DRIVER_REINIT) {
+			NL_SET_ERR_MSG_MOD(info->extack,
+					   "Changing namespace is only supported for reinit action");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	err = devlink_reload(devlink, dest_net, action, limit, &actions_performed, info->extack);
