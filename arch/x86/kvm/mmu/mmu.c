@@ -101,7 +101,7 @@ module_param_named(flush_on_reuse, force_flush_and_sync_on_reuse, bool, 0644);
  */
 bool tdp_enabled = false;
 
-bool __ro_after_init tdp_mmu_allowed;
+static bool __ro_after_init tdp_mmu_allowed;
 
 #ifdef CONFIG_X86_64
 bool __read_mostly tdp_mmu_enabled = true;
