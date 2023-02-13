@@ -1408,16 +1408,22 @@ skl_check_nv12_wm_level(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
 	}
 }
 
-static bool icl_need_wm1_wa(struct drm_i915_private *i915,
-			    enum plane_id plane_id)
+static bool skl_need_wm_copy_wa(struct drm_i915_private *i915, int level,
+				const struct skl_plane_wm *wm)
 {
 	/*
 	 * Wa_1408961008:icl, ehl
 	 * Wa_14012656716:tgl, adl
-	 * Underruns with WM1+ disabled
+	 * Wa_14017887344:icl
+	 * Wa_14017868169:adl, tgl
+	 * Due to some power saving optimizations, different subsystems
+	 * like PSR, might still use even disabled wm level registers,
+	 * for "reference", so lets keep at least the values sane.
+	 * Considering amount of WA requiring us to do similar things, was
+	 * decided to simply do it for all of the platforms, as those wm
+	 * levels are disabled, this isn't going to do harm anyway.
 	 */
-	return DISPLAY_VER(i915) == 11 ||
-	       (IS_DISPLAY_VER(i915, 12, 13) && plane_id == PLANE_CURSOR);
+	return level > 0 && !wm->wm[level].enable;
 }
 
 struct skl_plane_ddb_iter {
@@ -1586,12 +1592,10 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			else
 				skl_check_wm_level(&wm->wm[level], ddb);
 
-			if (icl_need_wm1_wa(i915, plane_id) &&
-			    level == 1 && !wm->wm[level].enable &&
-			    wm->wm[0].enable) {
-				wm->wm[level].blocks = wm->wm[0].blocks;
-				wm->wm[level].lines = wm->wm[0].lines;
-				wm->wm[level].ignore_lines = wm->wm[0].ignore_lines;
+			if (skl_need_wm_copy_wa(i915, level, wm)) {
+				wm->wm[level].blocks = wm->wm[level - 1].blocks;
+				wm->wm[level].lines = wm->wm[level - 1].lines;
+				wm->wm[level].ignore_lines = wm->wm[level - 1].ignore_lines;
 			}
 		}
 	}
