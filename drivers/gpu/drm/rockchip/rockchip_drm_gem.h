@@ -81,14 +81,5 @@ int rockchip_gem_prime_begin_cpu_access(struct drm_gem_object *obj,
 int rockchip_gem_prime_end_cpu_access(struct drm_gem_object *obj,
 				      enum dma_data_direction dir);
 
-int rockchip_gem_prime_begin_cpu_access_partial(struct drm_gem_object *obj,
-						enum dma_data_direction dir,
-						unsigned int offset,
-						unsigned int len);
-
-int rockchip_gem_prime_end_cpu_access_partial(struct drm_gem_object *obj,
-					      enum dma_data_direction dir,
-					      unsigned int offset,
-					      unsigned int len);
 void rockchip_gem_get_ddr_info(void);
 #endif /* _ROCKCHIP_DRM_GEM_H */
