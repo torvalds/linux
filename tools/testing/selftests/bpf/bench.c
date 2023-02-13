@@ -577,7 +577,8 @@ static void setup_benchmark(void)
 {
 	int i, err;
 
-	printf("Setting up benchmark '%s'...\n", bench->name);
+	if (!env.quiet)
+		printf("Setting up benchmark '%s'...\n", bench->name);
 
 	state.producers = calloc(env.producer_cnt, sizeof(*state.producers));
 	state.consumers = calloc(env.consumer_cnt, sizeof(*state.consumers));
@@ -623,7 +624,8 @@ static void setup_benchmark(void)
 					    next_cpu(&env.prod_cpus));
 	}
 
-	printf("Benchmark '%s' started.\n", bench->name);
+	if (!env.quiet)
+		printf("Benchmark '%s' started.\n", bench->name);
 }
 
 static pthread_mutex_t bench_done_mtx = PTHREAD_MUTEX_INITIALIZER;
