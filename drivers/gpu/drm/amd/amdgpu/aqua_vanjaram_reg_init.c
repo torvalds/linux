@@ -238,21 +238,28 @@ int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 					  enum amdgpu_gfx_partition mode)
 {
+	struct amdgpu_device *adev = xcp_mgr->adev;
 	int num_xcc, num_xccs_per_xcp;
 
-	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
-		return num_xcc > 0;
+		return adev->gmc.num_mem_partitions == 1 && num_xcc > 0;
 	case AMDGPU_DPX_PARTITION_MODE:
-		return (num_xcc % 4) == 0;
+		return adev->gmc.num_mem_partitions != 8 && (num_xcc % 4) == 0;
 	case AMDGPU_TPX_PARTITION_MODE:
-		return (num_xcc % 3) == 0;
+		return (adev->gmc.num_mem_partitions == 1 ||
+			adev->gmc.num_mem_partitions == 3) &&
+		       ((num_xcc % 3) == 0);
 	case AMDGPU_QPX_PARTITION_MODE:
 		num_xccs_per_xcp = num_xcc / 4;
-		return (num_xccs_per_xcp >= 2);
+		return (adev->gmc.num_mem_partitions == 1 ||
+			adev->gmc.num_mem_partitions == 4) &&
+		       (num_xccs_per_xcp >= 2);
 	case AMDGPU_CPX_PARTITION_MODE:
-		return (num_xcc > 1);
+		return (num_xcc > 1) &&
+		       (adev->gmc.num_mem_partitions == 1 ||
+			adev->gmc.num_mem_partitions == num_xcc);
 	default:
 		return false;
 	}
