@@ -127,11 +127,13 @@ properties:
       phandle to apps_smmu node with sid mask.
 
   interconnects:
+    minItems: 1
     items:
       - description: data path, sdhc to ddr
       - description: config path, cpu to sdhc
 
   interconnect-names:
+    minItems: 1
     items:
       - const: sdhc-ddr
       - const: cpu-sdhc
