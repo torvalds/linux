@@ -24,6 +24,7 @@ struct qcom_glink_pipe {
 	void (*write)(struct qcom_glink_pipe *glink_pipe,
 		      const void *hdr, size_t hlen,
 		      const void *data, size_t dlen);
+	void (*kick)(struct qcom_glink_pipe *glink_pipe);
 };
 
 struct device;
@@ -35,6 +36,6 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 					   struct qcom_glink_pipe *tx,
 					   bool intentless);
 void qcom_glink_native_remove(struct qcom_glink *glink);
+void qcom_glink_native_rx(struct qcom_glink *glink);
 
-void qcom_glink_native_unregister(struct qcom_glink *glink);
 #endif
