@@ -179,6 +179,24 @@ static unsigned get_crtc_mask(struct drm_atomic_state *state)
 	return mask;
 }
 
+int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
+				      new_crtc_state, i) {
+		if ((old_crtc_state->ctm && !new_crtc_state->ctm) ||
+		    (!old_crtc_state->ctm && new_crtc_state->ctm)) {
+			new_crtc_state->mode_changed = true;
+			state->allow_modeset = true;
+		}
+	}
+
+	return drm_atomic_helper_check(dev, state);
+}
+
 void msm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;

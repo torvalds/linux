@@ -55,7 +55,7 @@
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = msm_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
