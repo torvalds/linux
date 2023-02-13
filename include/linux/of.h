@@ -100,6 +100,17 @@ struct of_reconfig_data {
 	struct property		*old_prop;
 };
 
+/**
+ * of_node_init - initialize a devicetree node
+ * @node: Pointer to device node that has been created by kzalloc()
+ * @phandle_name: Name of property holding a phandle value
+ *
+ * On return the device_node refcount is set to one.  Use of_node_put()
+ * on @node when done to free the memory allocated for it.  If the node
+ * is NOT a dynamic node the memory will not be freed. The decision of
+ * whether to free the memory will be done by node->release(), which is
+ * of_node_release().
+ */
 /* initialize a node */
 extern const struct kobj_type of_node_ktype;
 extern const struct fwnode_operations of_fwnode_ops;

@@ -443,7 +443,8 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
  * another node.  The node data are dynamically allocated and all the node
  * flags have the OF_DYNAMIC & OF_DETACHED bits set.
  *
- * Return: The newly allocated node or NULL on out of memory error.
+ * Return: The newly allocated node or NULL on out of memory error.  Use
+ * of_node_put() on it when done to free the memory allocated for it.
  */
 struct device_node *__of_node_dup(const struct device_node *np,
 				  const char *full_name)
