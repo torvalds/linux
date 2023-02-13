@@ -73,7 +73,7 @@
 };
 
 &apps_rsc {
-	pm8350-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8350-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -178,7 +178,7 @@
 		};
 	};
 
-	pm8350c-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8350c-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -309,7 +309,7 @@
 				reg = <0>;
 
 				lt9611_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -723,15 +723,15 @@
 	};
 
 	lt9611_state: lt9611-state {
-		rst {
+		rst-pins {
 			pins = "gpio48";
-			function = "normal";
+			function = "gpio";
 
 			output-high;
 			input-disable;
 		};
 
-		irq {
+		irq-pins {
 			pins = "gpio50";
 			function = "gpio";
 			bias-disable;

@@ -2239,6 +2239,8 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&wsa_swr_active>;
+
+			status = "disabled";
 		};
 
 		swr0: soundwire-controller@3250000 {
@@ -2259,6 +2261,8 @@
 			#sound-dai-cells = <1>;
 			#address-cells = <2>;
 			#size-cells = <0>;
+
+			status = "disabled";
 		};
 
 		audiocc: clock-controller@3300000 {

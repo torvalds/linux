@@ -266,6 +266,13 @@
 			status = "disabled";
 		};
 
+		qfprom: efuse@a4000 {
+			compatible = "qcom,ipq8074-qfprom", "qcom,qfprom";
+			reg = <0x000a4000 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		prng: rng@e3000 {
 			compatible = "qcom,prng-ee";
 			reg = <0x000e3000 0x1000>;

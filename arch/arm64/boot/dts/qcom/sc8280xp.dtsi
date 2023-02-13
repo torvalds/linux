@@ -2646,7 +2646,7 @@
 			      <0 0x3550000 0x0 0x10000>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&lpass_tlmm 0 0 18>;
+			gpio-ranges = <&lpass_tlmm 0 0 19>;
 
 			clocks = <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
 				 <&q6prmcc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
@@ -3204,7 +3204,8 @@
 				reg = <0 0xae9a000 0 0x200>,
 				      <0 0xae9a200 0 0x200>,
 				      <0 0xae9a400 0 0x600>,
-				      <0 0xae9b000 0 0x400>;
+				      <0 0xae9b000 0 0x400>,
+				      <0 0xae9b400 0 0x400>;
 
 				clocks = <&dispcc0 DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc0 DISP_CC_MDSS_DPTX2_AUX_CLK>,
@@ -3275,7 +3276,8 @@
 				reg = <0 0xaea0000 0 0x200>,
 				      <0 0xaea0200 0 0x200>,
 				      <0 0xaea0400 0 0x600>,
-				      <0 0xaea1000 0 0x400>;
+				      <0 0xaea1000 0 0x400>,
+				      <0 0xaea1400 0 0x400>;
 
 				clocks = <&dispcc0 DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc0 DISP_CC_MDSS_DPTX3_AUX_CLK>,
@@ -4150,7 +4152,8 @@
 				reg = <0 0x22090000 0 0x200>,
 				      <0 0x22090200 0 0x200>,
 				      <0 0x22090400 0 0x600>,
-				      <0 0x22091000 0 0x400>;
+				      <0 0x22091000 0 0x400>,
+				      <0 0x22091400 0 0x400>;
 
 				clocks = <&dispcc1 DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc1 DISP_CC_MDSS_DPTX0_AUX_CLK>,
@@ -4222,7 +4225,8 @@
 				reg = <0 0x22098000 0 0x200>,
 				      <0 0x22098200 0 0x200>,
 				      <0 0x22098400 0 0x600>,
-				      <0 0x22099000 0 0x400>;
+				      <0 0x22099000 0 0x400>,
+				      <0 0x22099400 0 0x400>;
 
 				clocks = <&dispcc1 DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc1 DISP_CC_MDSS_DPTX1_AUX_CLK>,
@@ -4293,7 +4297,8 @@
 				reg = <0 0x2209a000 0 0x200>,
 				      <0 0x2209a200 0 0x200>,
 				      <0 0x2209a400 0 0x600>,
-				      <0 0x2209b000 0 0x400>;
+				      <0 0x2209b000 0 0x400>,
+				      <0 0x2209b400 0 0x400>;
 
 				clocks = <&dispcc1 DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc1 DISP_CC_MDSS_DPTX2_AUX_CLK>,
@@ -4364,7 +4369,8 @@
 				reg = <0 0x220a0000 0 0x200>,
 				      <0 0x220a0200 0 0x200>,
 				      <0 0x220a0400 0 0x600>,
-				      <0 0x220a1000 0 0x400>;
+				      <0 0x220a1000 0 0x400>,
+				      <0 0x220a1400 0 0x400>;
 
 				clocks = <&dispcc1 DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc1 DISP_CC_MDSS_DPTX3_AUX_CLK>,
