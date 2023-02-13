@@ -90,6 +90,7 @@ struct glink_core_rx_intent {
  * @intentless:	flag to indicate that there is no intent
  * @tx_avail_notify: Waitqueue for pending tx tasks
  * @sent_read_notify: flag to check cmd sent or not
+ * @abort_tx:	flag indicating that all tx attempts should fail
  */
 struct qcom_glink {
 	struct device *dev;
@@ -111,6 +112,8 @@ struct qcom_glink {
 	bool intentless;
 	wait_queue_head_t tx_avail_notify;
 	bool sent_read_notify;
+
+	bool abort_tx;
 };
 
 enum {
@@ -326,9 +329,19 @@ static int qcom_glink_tx(struct qcom_glink *glink,
 
 	spin_lock_irqsave(&glink->tx_lock, flags);
 
+	if (glink->abort_tx) {
+		ret = -EIO;
+		goto out;
+	}
+
 	while (qcom_glink_tx_avail(glink) < tlen) {
 		if (!wait) {
 			ret = -EAGAIN;
+			goto out;
+		}
+
+		if (glink->abort_tx) {
+			ret = -EIO;
 			goto out;
 		}
 
@@ -1763,10 +1776,17 @@ static int qcom_glink_remove_device(struct device *dev, void *data)
 void qcom_glink_native_remove(struct qcom_glink *glink)
 {
 	struct glink_channel *channel;
+	unsigned long flags;
 	int cid;
 	int ret;
 
 	qcom_glink_cancel_rx_work(glink);
+
+	/* Fail all attempts at sending messages */
+	spin_lock_irqsave(&glink->tx_lock, flags);
+	glink->abort_tx = true;
+	wake_up_all(&glink->tx_avail_notify);
+	spin_unlock_irqrestore(&glink->tx_lock, flags);
 
 	ret = device_for_each_child(glink->dev, NULL, qcom_glink_remove_device);
 	if (ret)
