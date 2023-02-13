@@ -301,8 +301,8 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 		enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
 		/* Wait for the Pipe State to go off */
-		if (intel_de_wait_for_clear(dev_priv, PIPECONF(cpu_transcoder),
-					    PIPECONF_STATE_ENABLE, 100))
+		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(cpu_transcoder),
+					    TRANSCONF_STATE_ENABLE, 100))
 			drm_WARN(&dev_priv->drm, 1, "pipe_off wait timed out\n");
 	} else {
 		intel_wait_for_pipe_scanline_stopped(crtc);
@@ -323,8 +323,8 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
 	if (wakeref) {
-		u32 val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
-		cur_state = !!(val & PIPECONF_ENABLE);
+		u32 val = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
+		cur_state = !!(val & TRANSCONF_ENABLE);
 
 		intel_display_power_put(dev_priv, power_domain, wakeref);
 	} else {
@@ -436,15 +436,15 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 		intel_de_rmw(dev_priv, PIPE_ARB_CTL(pipe),
 			     0, PIPE_ARB_USE_PROG_SLOTS);
 
-	reg = PIPECONF(cpu_transcoder);
+	reg = TRANSCONF(cpu_transcoder);
 	val = intel_de_read(dev_priv, reg);
-	if (val & PIPECONF_ENABLE) {
+	if (val & TRANSCONF_ENABLE) {
 		/* we keep both pipes enabled on 830 */
 		drm_WARN_ON(&dev_priv->drm, !IS_I830(dev_priv));
 		return;
 	}
 
-	intel_de_write(dev_priv, reg, val | PIPECONF_ENABLE);
+	intel_de_write(dev_priv, reg, val | TRANSCONF_ENABLE);
 	intel_de_posting_read(dev_priv, reg);
 
 	/*
@@ -475,9 +475,9 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 	 */
 	assert_planes_disabled(crtc);
 
-	reg = PIPECONF(cpu_transcoder);
+	reg = TRANSCONF(cpu_transcoder);
 	val = intel_de_read(dev_priv, reg);
-	if ((val & PIPECONF_ENABLE) == 0)
+	if ((val & TRANSCONF_ENABLE) == 0)
 		return;
 
 	/*
@@ -485,11 +485,11 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 	 * so best keep it disabled when not needed.
 	 */
 	if (old_crtc_state->double_wide)
-		val &= ~PIPECONF_DOUBLE_WIDE;
+		val &= ~TRANSCONF_DOUBLE_WIDE;
 
 	/* Don't disable pipe or pipe PLLs if needed */
 	if (!IS_I830(dev_priv))
-		val &= ~PIPECONF_ENABLE;
+		val &= ~TRANSCONF_ENABLE;
 
 	if (DISPLAY_VER(dev_priv) >= 14)
 		intel_de_rmw(dev_priv, MTL_CHICKEN_TRANS(cpu_transcoder),
@@ -499,7 +499,7 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 			     FECSTALL_DIS_DPTSTREAM_DPTTG, 0);
 
 	intel_de_write(dev_priv, reg, val);
-	if ((val & PIPECONF_ENABLE) == 0)
+	if ((val & TRANSCONF_ENABLE) == 0)
 		intel_wait_for_pipe_off(old_crtc_state);
 }
 
@@ -2800,9 +2800,9 @@ static bool intel_pipe_is_interlaced(const struct intel_crtc_state *crtc_state)
 
 	if (DISPLAY_VER(dev_priv) >= 9 ||
 	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-		return intel_de_read(dev_priv, PIPECONF(cpu_transcoder)) & PIPECONF_INTERLACE_MASK_HSW;
+		return intel_de_read(dev_priv, TRANSCONF(cpu_transcoder)) & TRANSCONF_INTERLACE_MASK_HSW;
 	else
-		return intel_de_read(dev_priv, PIPECONF(cpu_transcoder)) & PIPECONF_INTERLACE_MASK;
+		return intel_de_read(dev_priv, TRANSCONF(cpu_transcoder)) & TRANSCONF_INTERLACE_MASK;
 }
 
 static void intel_get_transcoder_timings(struct intel_crtc *crtc,
@@ -2887,7 +2887,8 @@ void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 pipeconf = 0;
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 val = 0;
 
 	/*
 	 * - We keep both pipes enabled on 830
@@ -2895,18 +2896,18 @@ void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	 * - During fastset the pipe is already enabled and must remain so
 	 */
 	if (IS_I830(dev_priv) || !intel_crtc_needs_modeset(crtc_state))
-		pipeconf |= PIPECONF_ENABLE;
+		val |= TRANSCONF_ENABLE;
 
 	if (crtc_state->double_wide)
-		pipeconf |= PIPECONF_DOUBLE_WIDE;
+		val |= TRANSCONF_DOUBLE_WIDE;
 
 	/* only g4x and later have fancy bpc/dither controls */
 	if (IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
 	    IS_CHERRYVIEW(dev_priv)) {
 		/* Bspec claims that we can't use dithering for 30bpp pipes. */
 		if (crtc_state->dither && crtc_state->pipe_bpp != 30)
-			pipeconf |= PIPECONF_DITHER_EN |
-				    PIPECONF_DITHER_TYPE_SP;
+			val |= TRANSCONF_DITHER_EN |
+				TRANSCONF_DITHER_TYPE_SP;
 
 		switch (crtc_state->pipe_bpp) {
 		default:
@@ -2914,13 +2915,13 @@ void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 			MISSING_CASE(crtc_state->pipe_bpp);
 			fallthrough;
 		case 18:
-			pipeconf |= PIPECONF_BPC_6;
+			val |= TRANSCONF_BPC_6;
 			break;
 		case 24:
-			pipeconf |= PIPECONF_BPC_8;
+			val |= TRANSCONF_BPC_8;
 			break;
 		case 30:
-			pipeconf |= PIPECONF_BPC_10;
+			val |= TRANSCONF_BPC_10;
 			break;
 		}
 	}
@@ -2928,23 +2929,23 @@ void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		if (DISPLAY_VER(dev_priv) < 4 ||
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
-			pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+			val |= TRANSCONF_INTERLACE_W_FIELD_INDICATION;
 		else
-			pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
+			val |= TRANSCONF_INTERLACE_W_SYNC_SHIFT;
 	} else {
-		pipeconf |= PIPECONF_INTERLACE_PROGRESSIVE;
+		val |= TRANSCONF_INTERLACE_PROGRESSIVE;
 	}
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	     crtc_state->limited_color_range)
-		pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
+		val |= TRANSCONF_COLOR_RANGE_SELECT;
 
-	pipeconf |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
+	val |= TRANSCONF_GAMMA_MODE(crtc_state->gamma_mode);
 
-	pipeconf |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
+	val |= TRANSCONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
 
-	intel_de_write(dev_priv, PIPECONF(crtc->pipe), pipeconf);
-	intel_de_posting_read(dev_priv, PIPECONF(crtc->pipe));
+	intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), val);
+	intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
 }
 
 static bool i9xx_has_pfit(struct drm_i915_private *dev_priv)
@@ -3103,20 +3104,20 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	ret = false;
 
-	tmp = intel_de_read(dev_priv, PIPECONF(crtc->pipe));
-	if (!(tmp & PIPECONF_ENABLE))
+	tmp = intel_de_read(dev_priv, TRANSCONF(pipe_config->cpu_transcoder));
+	if (!(tmp & TRANSCONF_ENABLE))
 		goto out;
 
 	if (IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
 	    IS_CHERRYVIEW(dev_priv)) {
-		switch (tmp & PIPECONF_BPC_MASK) {
-		case PIPECONF_BPC_6:
+		switch (tmp & TRANSCONF_BPC_MASK) {
+		case TRANSCONF_BPC_6:
 			pipe_config->pipe_bpp = 18;
 			break;
-		case PIPECONF_BPC_8:
+		case TRANSCONF_BPC_8:
 			pipe_config->pipe_bpp = 24;
 			break;
-		case PIPECONF_BPC_10:
+		case TRANSCONF_BPC_10:
 			pipe_config->pipe_bpp = 30;
 			break;
 		default:
@@ -3126,12 +3127,12 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    (tmp & PIPECONF_COLOR_RANGE_SELECT))
+	    (tmp & TRANSCONF_COLOR_RANGE_SELECT))
 		pipe_config->limited_color_range = true;
 
-	pipe_config->gamma_mode = REG_FIELD_GET(PIPECONF_GAMMA_MODE_MASK_I9XX, tmp);
+	pipe_config->gamma_mode = REG_FIELD_GET(TRANSCONF_GAMMA_MODE_MASK_I9XX, tmp);
 
-	pipe_config->framestart_delay = REG_FIELD_GET(PIPECONF_FRAME_START_DELAY_MASK, tmp) + 1;
+	pipe_config->framestart_delay = REG_FIELD_GET(TRANSCONF_FRAME_START_DELAY_MASK, tmp) + 1;
 
 	if (IS_CHERRYVIEW(dev_priv))
 		pipe_config->cgm_mode = intel_de_read(dev_priv,
@@ -3141,7 +3142,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	intel_color_get_config(pipe_config);
 
 	if (DISPLAY_VER(dev_priv) < 4)
-		pipe_config->double_wide = tmp & PIPECONF_DOUBLE_WIDE;
+		pipe_config->double_wide = tmp & TRANSCONF_DOUBLE_WIDE;
 
 	intel_get_transcoder_timings(crtc, pipe_config);
 	intel_get_pipe_src_size(crtc, pipe_config);
@@ -3211,7 +3212,7 @@ void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val = 0;
 
 	/*
@@ -3219,7 +3220,7 @@ void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	 * - During fastset the pipe is already enabled and must remain so
 	 */
 	if (!intel_crtc_needs_modeset(crtc_state))
-		val |= PIPECONF_ENABLE;
+		val |= TRANSCONF_ENABLE;
 
 	switch (crtc_state->pipe_bpp) {
 	default:
@@ -3227,26 +3228,26 @@ void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 		MISSING_CASE(crtc_state->pipe_bpp);
 		fallthrough;
 	case 18:
-		val |= PIPECONF_BPC_6;
+		val |= TRANSCONF_BPC_6;
 		break;
 	case 24:
-		val |= PIPECONF_BPC_8;
+		val |= TRANSCONF_BPC_8;
 		break;
 	case 30:
-		val |= PIPECONF_BPC_10;
+		val |= TRANSCONF_BPC_10;
 		break;
 	case 36:
-		val |= PIPECONF_BPC_12;
+		val |= TRANSCONF_BPC_12;
 		break;
 	}
 
 	if (crtc_state->dither)
-		val |= PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP;
+		val |= TRANSCONF_DITHER_EN | TRANSCONF_DITHER_TYPE_SP;
 
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
-		val |= PIPECONF_INTERLACE_IF_ID_ILK;
+		val |= TRANSCONF_INTERLACE_IF_ID_ILK;
 	else
-		val |= PIPECONF_INTERLACE_PF_PD_ILK;
+		val |= TRANSCONF_INTERLACE_PF_PD_ILK;
 
 	/*
 	 * This would end up with an odd purple hue over
@@ -3257,18 +3258,18 @@ void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	if (crtc_state->limited_color_range &&
 	    !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
-		val |= PIPECONF_COLOR_RANGE_SELECT;
+		val |= TRANSCONF_COLOR_RANGE_SELECT;
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
-		val |= PIPECONF_OUTPUT_COLORSPACE_YUV709;
+		val |= TRANSCONF_OUTPUT_COLORSPACE_YUV709;
 
-	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
+	val |= TRANSCONF_GAMMA_MODE(crtc_state->gamma_mode);
 
-	val |= PIPECONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-	val |= PIPECONF_MSA_TIMING_DELAY(crtc_state->msa_timing_delay);
+	val |= TRANSCONF_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
+	val |= TRANSCONF_MSA_TIMING_DELAY(crtc_state->msa_timing_delay);
 
-	intel_de_write(dev_priv, PIPECONF(pipe), val);
-	intel_de_posting_read(dev_priv, PIPECONF(pipe));
+	intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), val);
+	intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
 }
 
 static void hsw_set_transconf(const struct intel_crtc_state *crtc_state)
@@ -3283,22 +3284,22 @@ static void hsw_set_transconf(const struct intel_crtc_state *crtc_state)
 	 * - During fastset the pipe is already enabled and must remain so
 	 */
 	if (!intel_crtc_needs_modeset(crtc_state))
-		val |= PIPECONF_ENABLE;
+		val |= TRANSCONF_ENABLE;
 
 	if (IS_HASWELL(dev_priv) && crtc_state->dither)
-		val |= PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP;
+		val |= TRANSCONF_DITHER_EN | TRANSCONF_DITHER_TYPE_SP;
 
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
-		val |= PIPECONF_INTERLACE_IF_ID_ILK;
+		val |= TRANSCONF_INTERLACE_IF_ID_ILK;
 	else
-		val |= PIPECONF_INTERLACE_PF_PD_ILK;
+		val |= TRANSCONF_INTERLACE_PF_PD_ILK;
 
 	if (IS_HASWELL(dev_priv) &&
 	    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
-		val |= PIPECONF_OUTPUT_COLORSPACE_YUV_HSW;
+		val |= TRANSCONF_OUTPUT_COLORSPACE_YUV_HSW;
 
-	intel_de_write(dev_priv, PIPECONF(cpu_transcoder), val);
-	intel_de_posting_read(dev_priv, PIPECONF(cpu_transcoder));
+	intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), val);
+	intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
 }
 
 static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
@@ -3523,33 +3524,33 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->shared_dpll = NULL;
 
 	ret = false;
-	tmp = intel_de_read(dev_priv, PIPECONF(crtc->pipe));
-	if (!(tmp & PIPECONF_ENABLE))
+	tmp = intel_de_read(dev_priv, TRANSCONF(pipe_config->cpu_transcoder));
+	if (!(tmp & TRANSCONF_ENABLE))
 		goto out;
 
-	switch (tmp & PIPECONF_BPC_MASK) {
-	case PIPECONF_BPC_6:
+	switch (tmp & TRANSCONF_BPC_MASK) {
+	case TRANSCONF_BPC_6:
 		pipe_config->pipe_bpp = 18;
 		break;
-	case PIPECONF_BPC_8:
+	case TRANSCONF_BPC_8:
 		pipe_config->pipe_bpp = 24;
 		break;
-	case PIPECONF_BPC_10:
+	case TRANSCONF_BPC_10:
 		pipe_config->pipe_bpp = 30;
 		break;
-	case PIPECONF_BPC_12:
+	case TRANSCONF_BPC_12:
 		pipe_config->pipe_bpp = 36;
 		break;
 	default:
 		break;
 	}
 
-	if (tmp & PIPECONF_COLOR_RANGE_SELECT)
+	if (tmp & TRANSCONF_COLOR_RANGE_SELECT)
 		pipe_config->limited_color_range = true;
 
-	switch (tmp & PIPECONF_OUTPUT_COLORSPACE_MASK) {
-	case PIPECONF_OUTPUT_COLORSPACE_YUV601:
-	case PIPECONF_OUTPUT_COLORSPACE_YUV709:
+	switch (tmp & TRANSCONF_OUTPUT_COLORSPACE_MASK) {
+	case TRANSCONF_OUTPUT_COLORSPACE_YUV601:
+	case TRANSCONF_OUTPUT_COLORSPACE_YUV709:
 		pipe_config->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
 		break;
 	default:
@@ -3557,11 +3558,11 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 		break;
 	}
 
-	pipe_config->gamma_mode = REG_FIELD_GET(PIPECONF_GAMMA_MODE_MASK_ILK, tmp);
+	pipe_config->gamma_mode = REG_FIELD_GET(TRANSCONF_GAMMA_MODE_MASK_ILK, tmp);
 
-	pipe_config->framestart_delay = REG_FIELD_GET(PIPECONF_FRAME_START_DELAY_MASK, tmp) + 1;
+	pipe_config->framestart_delay = REG_FIELD_GET(TRANSCONF_FRAME_START_DELAY_MASK, tmp) + 1;
 
-	pipe_config->msa_timing_delay = REG_FIELD_GET(PIPECONF_MSA_TIMING_DELAY_MASK, tmp);
+	pipe_config->msa_timing_delay = REG_FIELD_GET(TRANSCONF_MSA_TIMING_DELAY_MASK, tmp);
 
 	pipe_config->csc_mode = intel_de_read(dev_priv,
 					      PIPE_CSC_MODE(crtc->pipe));
@@ -3838,9 +3839,9 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 			pipe_config->pch_pfit.force_thru = true;
 	}
 
-	tmp = intel_de_read(dev_priv, PIPECONF(pipe_config->cpu_transcoder));
+	tmp = intel_de_read(dev_priv, TRANSCONF(pipe_config->cpu_transcoder));
 
-	return tmp & PIPECONF_ENABLE;
+	return tmp & TRANSCONF_ENABLE;
 }
 
 static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
@@ -3944,9 +3945,9 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 
 	if (IS_HASWELL(dev_priv)) {
 		u32 tmp = intel_de_read(dev_priv,
-					PIPECONF(pipe_config->cpu_transcoder));
+					TRANSCONF(pipe_config->cpu_transcoder));
 
-		if (tmp & PIPECONF_OUTPUT_COLORSPACE_YUV_HSW)
+		if (tmp & TRANSCONF_OUTPUT_COLORSPACE_YUV_HSW)
 			pipe_config->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
 		else
 			pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
@@ -8665,8 +8666,8 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		udelay(150); /* wait for warmup */
 	}
 
-	intel_de_write(dev_priv, PIPECONF(pipe), PIPECONF_ENABLE);
-	intel_de_posting_read(dev_priv, PIPECONF(pipe));
+	intel_de_write(dev_priv, TRANSCONF(pipe), TRANSCONF_ENABLE);
+	intel_de_posting_read(dev_priv, TRANSCONF(pipe));
 
 	intel_wait_for_pipe_scanline_moving(crtc);
 }
@@ -8689,8 +8690,8 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	drm_WARN_ON(&dev_priv->drm,
 		    intel_de_read(dev_priv, CURCNTR(PIPE_B)) & MCURSOR_MODE_MASK);
 
-	intel_de_write(dev_priv, PIPECONF(pipe), 0);
-	intel_de_posting_read(dev_priv, PIPECONF(pipe));
+	intel_de_write(dev_priv, TRANSCONF(pipe), 0);
+	intel_de_posting_read(dev_priv, TRANSCONF(pipe));
 
 	intel_wait_for_pipe_scanline_stopped(crtc);
 

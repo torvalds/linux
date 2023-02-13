@@ -708,11 +708,11 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), 0x500050);
 
 	if (DISPLAY_VER(dev_priv) != 2) {
-		u32 pipeconf = intel_de_read(dev_priv, PIPECONF(pipe));
+		u32 transconf = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
 
-		intel_de_write(dev_priv, PIPECONF(pipe),
-			       pipeconf | PIPECONF_FORCE_BORDER);
-		intel_de_posting_read(dev_priv, PIPECONF(pipe));
+		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder),
+			       transconf | TRANSCONF_FORCE_BORDER);
+		intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
@@ -721,7 +721,7 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			connector_status_connected :
 			connector_status_disconnected;
 
-		intel_de_write(dev_priv, PIPECONF(pipe), pipeconf);
+		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), transconf);
 	} else {
 		bool restore_vblank = false;
 		int count, detect;

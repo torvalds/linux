@@ -1739,7 +1739,7 @@ bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 	 * Our YCbCr output is always limited range.
 	 * crtc_state->limited_color_range only applies to RGB,
 	 * and it must never be set for YCbCr or we risk setting
-	 * some conflicting bits in PIPECONF which will mess up
+	 * some conflicting bits in TRANSCONF which will mess up
 	 * the colors on the monitor.
 	 */
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)

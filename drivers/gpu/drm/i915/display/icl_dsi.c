@@ -976,11 +976,11 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_rmw(dev_priv, PIPECONF(dsi_trans), 0, PIPECONF_ENABLE);
+		intel_de_rmw(dev_priv, TRANSCONF(dsi_trans), 0, TRANSCONF_ENABLE);
 
 		/* wait for transcoder to be enabled */
-		if (intel_de_wait_for_set(dev_priv, PIPECONF(dsi_trans),
-					  PIPECONF_STATE_ENABLE, 10))
+		if (intel_de_wait_for_set(dev_priv, TRANSCONF(dsi_trans),
+					  TRANSCONF_STATE_ENABLE, 10))
 			drm_err(&dev_priv->drm,
 				"DSI transcoder not enabled\n");
 	}
@@ -1238,11 +1238,11 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		dsi_trans = dsi_port_to_transcoder(port);
 
 		/* disable transcoder */
-		intel_de_rmw(dev_priv, PIPECONF(dsi_trans), PIPECONF_ENABLE, 0);
+		intel_de_rmw(dev_priv, TRANSCONF(dsi_trans), TRANSCONF_ENABLE, 0);
 
 		/* wait for transcoder to be disabled */
-		if (intel_de_wait_for_clear(dev_priv, PIPECONF(dsi_trans),
-					    PIPECONF_STATE_ENABLE, 50))
+		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(dsi_trans),
+					    TRANSCONF_STATE_ENABLE, 50))
 			drm_err(&dev_priv->drm,
 				"DSI trancoder not disabled\n");
 	}
@@ -1662,8 +1662,8 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 			goto out;
 		}
 
-		tmp = intel_de_read(dev_priv, PIPECONF(dsi_trans));
-		ret = tmp & PIPECONF_ENABLE;
+		tmp = intel_de_read(dev_priv, TRANSCONF(dsi_trans));
+		ret = tmp & TRANSCONF_ENABLE;
 	}
 out:
 	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);

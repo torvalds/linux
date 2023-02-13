@@ -286,7 +286,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 	/*
 	 * Set the dithering flag on LVDS as needed, note that there is no
 	 * special lvds dither control bit on pch-split platforms, dithering is
-	 * only controlled through the PIPECONF reg.
+	 * only controlled through the TRANSCONF reg.
 	 */
 	if (DISPLAY_VER(i915) == 4) {
 		/*

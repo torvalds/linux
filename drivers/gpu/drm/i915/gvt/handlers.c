@@ -697,12 +697,12 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if (data & PIPECONF_ENABLE) {
-		vgpu_vreg(vgpu, offset) |= PIPECONF_STATE_ENABLE;
+	if (data & TRANSCONF_ENABLE) {
+		vgpu_vreg(vgpu, offset) |= TRANSCONF_STATE_ENABLE;
 		vgpu_update_refresh_rate(vgpu);
 		vgpu_update_vblank_emulation(vgpu, true);
 	} else {
-		vgpu_vreg(vgpu, offset) &= ~PIPECONF_STATE_ENABLE;
+		vgpu_vreg(vgpu, offset) &= ~TRANSCONF_STATE_ENABLE;
 		vgpu_update_vblank_emulation(vgpu, false);
 	}
 	return 0;
@@ -2262,10 +2262,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(GEN7_HALF_SLICE_CHICKEN1, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
 	/* display */
-	MMIO_DH(PIPECONF(PIPE_A), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(PIPECONF(PIPE_B), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(PIPECONF(PIPE_C), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(PIPECONF(_PIPE_EDP), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(TRANSCODER_A), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(TRANSCODER_B), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(TRANSCODER_C), D_ALL, NULL, pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(TRANSCODER_EDP), D_ALL, NULL, pipeconf_mmio_write);
 	MMIO_DH(DSPSURF(PIPE_A), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_DH(REG_50080(PIPE_A, PLANE_PRIMARY), D_ALL, NULL,
 		reg50080_mmio_write);

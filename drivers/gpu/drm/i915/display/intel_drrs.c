@@ -71,11 +71,11 @@ intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 	u32 bit;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		bit = PIPECONF_REFRESH_RATE_ALT_VLV;
+		bit = TRANSCONF_REFRESH_RATE_ALT_VLV;
 	else
-		bit = PIPECONF_REFRESH_RATE_ALT_ILK;
+		bit = TRANSCONF_REFRESH_RATE_ALT_ILK;
 
-	intel_de_rmw(dev_priv, PIPECONF(cpu_transcoder),
+	intel_de_rmw(dev_priv, TRANSCONF(cpu_transcoder),
 		     bit, refresh_rate == DRRS_REFRESH_RATE_LOW ? bit : 0);
 }
 

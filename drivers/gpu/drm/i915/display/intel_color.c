@@ -257,7 +257,7 @@ static bool ilk_limited_range(const struct intel_crtc_state *crtc_state)
 	if (DISPLAY_VER(i915) >= 11)
 		return false;
 
-	/* pre-hsw have PIPECONF_COLOR_RANGE_SELECT */
+	/* pre-hsw have TRANSCONF_COLOR_RANGE_SELECT */
 	if (DISPLAY_VER(i915) < 7 || IS_IVYBRIDGE(i915))
 		return false;
 
@@ -624,7 +624,7 @@ static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 
 static void i9xx_color_commit_arm(const struct intel_crtc_state *crtc_state)
 {
-	/* update PIPECONF GAMMA_MODE */
+	/* update TRANSCONF GAMMA_MODE */
 	i9xx_set_pipeconf(crtc_state);
 }
 
@@ -633,7 +633,7 @@ static void ilk_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	/* update PIPECONF GAMMA_MODE */
+	/* update TRANSCONF GAMMA_MODE */
 	ilk_set_pipeconf(crtc_state);
 
 	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
