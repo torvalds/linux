@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 #ifndef _GSI_REG_H_
 #define _GSI_REG_H_
 
-/* === Only "gsi.c" should include this file === */
+/* === Only "gsi.c" and "gsi_reg.c" should include this file === */
 
 #include <linux/bits.h>
 
@@ -38,32 +38,64 @@
  * (though the actual limit is hardware-dependent).
  */
 
-/* GSI EE registers as a group are shifted downward by a fixed constant amount
- * for IPA versions 4.5 and beyond.  This applies to all GSI registers we use
- * *except* the ones that disable inter-EE interrupts for channels and event
- * channels.
- *
- * The "raw" (not adjusted) GSI register range is mapped, and a pointer to
- * the mapped range is held in gsi->virt_raw.  The inter-EE interrupt
- * registers are accessed using that pointer.
- *
- * Most registers are accessed using gsi->virt, which is a copy of the "raw"
- * pointer, adjusted downward by the fixed amount.
- */
-#define GSI_EE_REG_ADJUST			0x0000d000	/* IPA v4.5+ */
+/* enum gsi_reg_id - GSI register IDs */
+enum gsi_reg_id {
+	INTER_EE_SRC_CH_IRQ_MSK,			/* IPA v3.5+ */
+	INTER_EE_SRC_EV_CH_IRQ_MSK,			/* IPA v3.5+ */
+	CH_C_CNTXT_0,
+	CH_C_CNTXT_1,
+	CH_C_CNTXT_2,
+	CH_C_CNTXT_3,
+	CH_C_QOS,
+	CH_C_SCRATCH_0,
+	CH_C_SCRATCH_1,
+	CH_C_SCRATCH_2,
+	CH_C_SCRATCH_3,
+	EV_CH_E_CNTXT_0,
+	EV_CH_E_CNTXT_1,
+	EV_CH_E_CNTXT_2,
+	EV_CH_E_CNTXT_3,
+	EV_CH_E_CNTXT_4,
+	EV_CH_E_CNTXT_8,
+	EV_CH_E_CNTXT_9,
+	EV_CH_E_CNTXT_10,
+	EV_CH_E_CNTXT_11,
+	EV_CH_E_CNTXT_12,
+	EV_CH_E_CNTXT_13,
+	EV_CH_E_SCRATCH_0,
+	EV_CH_E_SCRATCH_1,
+	CH_C_DOORBELL_0,
+	EV_CH_E_DOORBELL_0,
+	GSI_STATUS,
+	CH_CMD,
+	EV_CH_CMD,
+	GENERIC_CMD,
+	HW_PARAM_2,					/* IPA v3.5.1+ */
+	CNTXT_TYPE_IRQ,
+	CNTXT_TYPE_IRQ_MSK,
+	CNTXT_SRC_CH_IRQ,
+	CNTXT_SRC_CH_IRQ_MSK,
+	CNTXT_SRC_CH_IRQ_CLR,
+	CNTXT_SRC_EV_CH_IRQ,
+	CNTXT_SRC_EV_CH_IRQ_MSK,
+	CNTXT_SRC_EV_CH_IRQ_CLR,
+	CNTXT_SRC_IEOB_IRQ,
+	CNTXT_SRC_IEOB_IRQ_MSK,
+	CNTXT_SRC_IEOB_IRQ_CLR,
+	CNTXT_GLOB_IRQ_STTS,
+	CNTXT_GLOB_IRQ_EN,
+	CNTXT_GLOB_IRQ_CLR,
+	CNTXT_GSI_IRQ_STTS,
+	CNTXT_GSI_IRQ_EN,
+	CNTXT_GSI_IRQ_CLR,
+	CNTXT_INTSET,
+	ERROR_LOG,
+	ERROR_LOG_CLR,
+	CNTXT_SCRATCH_0,
+	GSI_REG_ID_COUNT,				/* Last; not an ID */
+};
 
-/* The inter-EE IRQ registers are relative to gsi->virt_raw (IPA v3.5+) */
-
-#define GSI_INTER_EE_SRC_CH_IRQ_MSK_OFFSET \
-			(0x0000c020 + 0x1000 * GSI_EE_AP)
-
-#define GSI_INTER_EE_SRC_EV_CH_IRQ_MSK_OFFSET \
-			(0x0000c024 + 0x1000 * GSI_EE_AP)
-
-/* All other register offsets are relative to gsi->virt */
-
-#define GSI_CH_C_CNTXT_0_OFFSET(ch) \
-			(0x0001c000 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
+/* CH_C_CNTXT_0 register */
 #define CHTYPE_PROTOCOL_FMASK		GENMASK(2, 0)
 #define CHTYPE_DIR_FMASK		GENMASK(3, 3)
 #define EE_FMASK			GENMASK(7, 4)
@@ -88,17 +120,7 @@ enum gsi_channel_type {
 	GSI_CHANNEL_TYPE_11AD			= 0x9,
 };
 
-#define GSI_CH_C_CNTXT_1_OFFSET(ch) \
-			(0x0001c004 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_CNTXT_2_OFFSET(ch) \
-			(0x0001c008 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_CNTXT_3_OFFSET(ch) \
-			(0x0001c00c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_QOS_OFFSET(ch) \
-			(0x0001c05c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
+/* CH_C_QOS register */
 #define WRR_WEIGHT_FMASK		GENMASK(3, 0)
 #define MAX_PREFETCH_FMASK		GENMASK(8, 8)
 #define USE_DB_ENG_FMASK		GENMASK(9, 9)
@@ -118,20 +140,7 @@ enum gsi_prefetch_mode {
 	GSI_FREE_PREFETCH			= 0x3,
 };
 
-#define GSI_CH_C_SCRATCH_0_OFFSET(ch) \
-			(0x0001c060 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_SCRATCH_1_OFFSET(ch) \
-			(0x0001c064 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_SCRATCH_2_OFFSET(ch) \
-			(0x0001c068 + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_CH_C_SCRATCH_3_OFFSET(ch) \
-			(0x0001c06c + 0x4000 * GSI_EE_AP + 0x80 * (ch))
-
-#define GSI_EV_CH_E_CNTXT_0_OFFSET(ev) \
-			(0x0001d000 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
+/* EV_CH_E_CNTXT_0 register */
 /* enum gsi_channel_type defines EV_CHTYPE field values in EV_CH_E_CNTXT_0 */
 #define EV_CHTYPE_FMASK			GENMASK(3, 0)
 #define EV_EE_FMASK			GENMASK(7, 4)
@@ -140,57 +149,15 @@ enum gsi_prefetch_mode {
 #define EV_CHSTATE_FMASK		GENMASK(23, 20)
 #define EV_ELEMENT_SIZE_FMASK		GENMASK(31, 24)
 
-#define GSI_EV_CH_E_CNTXT_1_OFFSET(ev) \
-			(0x0001d004 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_2_OFFSET(ev) \
-			(0x0001d008 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_3_OFFSET(ev) \
-			(0x0001d00c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_4_OFFSET(ev) \
-			(0x0001d010 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_8_OFFSET(ev) \
-			(0x0001d020 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
+/* EV_CH_E_CNTXT_8 register */
 #define MODT_FMASK			GENMASK(15, 0)
 #define MODC_FMASK			GENMASK(23, 16)
 #define MOD_CNT_FMASK			GENMASK(31, 24)
 
-#define GSI_EV_CH_E_CNTXT_9_OFFSET(ev) \
-			(0x0001d024 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_10_OFFSET(ev) \
-			(0x0001d028 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_11_OFFSET(ev) \
-			(0x0001d02c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_12_OFFSET(ev) \
-			(0x0001d030 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_CNTXT_13_OFFSET(ev) \
-			(0x0001d034 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_SCRATCH_0_OFFSET(ev) \
-			(0x0001d048 + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_EV_CH_E_SCRATCH_1_OFFSET(ev) \
-			(0x0001d04c + 0x4000 * GSI_EE_AP + 0x80 * (ev))
-
-#define GSI_CH_C_DOORBELL_0_OFFSET(ch) \
-			(0x0001e000 + 0x4000 * GSI_EE_AP + 0x08 * (ch))
-
-#define GSI_EV_CH_E_DOORBELL_0_OFFSET(ev) \
-			(0x0001e100 + 0x4000 * GSI_EE_AP + 0x08 * (ev))
-
-#define GSI_GSI_STATUS_OFFSET \
-			(0x0001f000 + 0x4000 * GSI_EE_AP)
+/* GSI_STATUS register */
 #define ENABLED_FMASK			GENMASK(0, 0)
 
-#define GSI_CH_CMD_OFFSET \
-			(0x0001f008 + 0x4000 * GSI_EE_AP)
+/* CH_CMD register */
 #define CH_CHID_FMASK			GENMASK(7, 0)
 #define CH_OPCODE_FMASK			GENMASK(31, 24)
 
@@ -204,8 +171,7 @@ enum gsi_ch_cmd_opcode {
 	GSI_CH_DB_STOP				= 0xb,
 };
 
-#define GSI_EV_CH_CMD_OFFSET \
-			(0x0001f010 + 0x4000 * GSI_EE_AP)
+/* EV_CH_CMD register */
 #define EV_CHID_FMASK			GENMASK(7, 0)
 #define EV_OPCODE_FMASK			GENMASK(31, 24)
 
@@ -216,8 +182,7 @@ enum gsi_evt_cmd_opcode {
 	GSI_EVT_DE_ALLOC			= 0xa,
 };
 
-#define GSI_GENERIC_CMD_OFFSET \
-			(0x0001f018 + 0x4000 * GSI_EE_AP)
+/* GENERIC_CMD register */
 #define GENERIC_OPCODE_FMASK		GENMASK(4, 0)
 #define GENERIC_CHID_FMASK		GENMASK(9, 5)
 #define GENERIC_EE_FMASK		GENMASK(13, 10)
@@ -232,9 +197,7 @@ enum gsi_generic_cmd_opcode {
 	GSI_GENERIC_QUERY_FLOW_CONTROL		= 0x5,	/* IPA v4.11+ */
 };
 
-/* The next register is present for IPA v3.5.1 and above */
-#define GSI_GSI_HW_PARAM_2_OFFSET \
-			(0x0001f040 + 0x4000 * GSI_EE_AP)
+/* HW_PARAM_2 register */				/* IPA v3.5.1+ */
 #define IRAM_SIZE_FMASK			GENMASK(2, 0)
 #define NUM_CH_PER_EE_FMASK		GENMASK(7, 3)
 #define NUM_EV_PER_EE_FMASK		GENMASK(12, 8)
@@ -261,12 +224,6 @@ enum gsi_iram_size {
 	IRAM_SIZE_FOUR_KB			= 0x5,
 };
 
-/* IRQ condition for each type is cleared by writing type-specific register */
-#define GSI_CNTXT_TYPE_IRQ_OFFSET \
-			(0x0001f080 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_TYPE_IRQ_MSK_OFFSET \
-			(0x0001f088 + 0x4000 * GSI_EE_AP)
-
 /**
  * enum gsi_irq_type_id: GSI IRQ types
  * @GSI_CH_CTRL:		Channel allocation, deallocation, etc.
@@ -288,40 +245,6 @@ enum gsi_irq_type_id {
 	/* IRQ types 7-31 (and their bit values) are reserved */
 };
 
-#define GSI_CNTXT_SRC_CH_IRQ_OFFSET \
-			(0x0001f090 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_EV_CH_IRQ_OFFSET \
-			(0x0001f094 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET \
-			(0x0001f098 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET \
-			(0x0001f09c + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_CH_IRQ_CLR_OFFSET \
-			(0x0001f0a0 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_EV_CH_IRQ_CLR_OFFSET \
-			(0x0001f0a4 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_IEOB_IRQ_OFFSET \
-			(0x0001f0b0 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET \
-			(0x0001f0b8 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SRC_IEOB_IRQ_CLR_OFFSET \
-			(0x0001f0c0 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_GLOB_IRQ_STTS_OFFSET \
-			(0x0001f100 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GLOB_IRQ_EN_OFFSET \
-			(0x0001f108 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GLOB_IRQ_CLR_OFFSET \
-			(0x0001f110 + 0x4000 * GSI_EE_AP)
-
 /** enum gsi_global_irq_id: Global GSI interrupt events */
 enum gsi_global_irq_id {
 	ERROR_INT				= BIT(0),
@@ -330,13 +253,6 @@ enum gsi_global_irq_id {
 	GP_INT3					= BIT(3),
 	/* Global IRQ types 4-31 (and their bit values) are reserved */
 };
-
-#define GSI_CNTXT_GSI_IRQ_STTS_OFFSET \
-			(0x0001f118 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GSI_IRQ_EN_OFFSET \
-			(0x0001f120 + 0x4000 * GSI_EE_AP)
-#define GSI_CNTXT_GSI_IRQ_CLR_OFFSET \
-			(0x0001f128 + 0x4000 * GSI_EE_AP)
 
 /** enum gsi_general_irq_id: GSI general IRQ conditions */
 enum gsi_general_irq_id {
@@ -347,13 +263,10 @@ enum gsi_general_irq_id {
 	/* General IRQ types 4-31 (and their bit values) are reserved */
 };
 
-#define GSI_CNTXT_INTSET_OFFSET \
-			(0x0001f180 + 0x4000 * GSI_EE_AP)
+/* CNTXT_INTSET register */
 #define INTYPE_FMASK			GENMASK(0, 0)
 
-#define GSI_ERROR_LOG_OFFSET \
-			(0x0001f200 + 0x4000 * GSI_EE_AP)
-
+/* ERROR_LOG register */
 #define ERR_ARG3_FMASK			GENMASK(3, 0)
 #define ERR_ARG2_FMASK			GENMASK(7, 4)
 #define ERR_ARG1_FMASK			GENMASK(11, 8)
@@ -381,11 +294,7 @@ enum gsi_err_type {
 	GSI_ERR_TYPE_EVT			= 0x3,
 };
 
-#define GSI_ERROR_LOG_CLR_OFFSET \
-			(0x0001f210 + 0x4000 * GSI_EE_AP)
-
-#define GSI_CNTXT_SCRATCH_0_OFFSET \
-			(0x0001f400 + 0x4000 * GSI_EE_AP)
+/* CNTXT_SCRATCH_0 register */
 #define INTER_EE_RESULT_FMASK		GENMASK(2, 0)
 #define GENERIC_EE_RESULT_FMASK		GENMASK(7, 5)
 
@@ -399,5 +308,32 @@ enum gsi_generic_ee_result {
 	GENERIC_EE_RETRY			= 0x6,
 	GENERIC_EE_NO_RESOURCES			= 0x7,
 };
+
+extern const struct regs gsi_regs_v3_1;
+extern const struct regs gsi_regs_v3_5_1;
+
+/**
+ * gsi_reg() - Return the structure describing a GSI register
+ * @gsi:	GSI pointer
+ * @reg_id:	GSI register ID
+ */
+const struct reg *gsi_reg(struct gsi *gsi, enum gsi_reg_id reg_id);
+
+/**
+ * gsi_reg_init() - Perform GSI register initialization
+ * @gsi:	GSI pointer
+ * @pdev:	GSI (IPA) platform device
+ *
+ * Initialize GSI registers, including looking up and I/O mapping
+ * the "gsi" memory space.  This function sets gsi->virt_raw and
+ * gsi->virt.
+ */
+int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev);
+
+/**
+ * gsi_reg_exit() - Inverse of gsi_reg_init()
+ * @gsi:	GSI pointer
+ */
+void gsi_reg_exit(struct gsi *gsi);
 
 #endif	/* _GSI_REG_H_ */
