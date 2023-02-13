@@ -56,7 +56,8 @@ static int rings_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_BUF_LEN */
 	       nla_total_size(sizeof(u8))  +	/* _RINGS_TCP_DATA_SPLIT */
 	       nla_total_size(sizeof(u32)  +	/* _RINGS_CQE_SIZE */
-	       nla_total_size(sizeof(u8)));	/* _RINGS_TX_PUSH */
+	       nla_total_size(sizeof(u8))  +	/* _RINGS_TX_PUSH */
+	       nla_total_size(sizeof(u8)));	/* _RINGS_RX_PUSH */
 }
 
 static int rings_fill_reply(struct sk_buff *skb,
@@ -96,7 +97,8 @@ static int rings_fill_reply(struct sk_buff *skb,
 			 kr->tcp_data_split))) ||
 	    (kr->cqe_size &&
 	     (nla_put_u32(skb, ETHTOOL_A_RINGS_CQE_SIZE, kr->cqe_size))) ||
-	    nla_put_u8(skb, ETHTOOL_A_RINGS_TX_PUSH, !!kr->tx_push))
+	    nla_put_u8(skb, ETHTOOL_A_RINGS_TX_PUSH, !!kr->tx_push) ||
+	    nla_put_u8(skb, ETHTOOL_A_RINGS_RX_PUSH, !!kr->rx_push))
 		return -EMSGSIZE;
 
 	return 0;
@@ -114,6 +116,7 @@ const struct nla_policy ethnl_rings_set_policy[] = {
 	[ETHTOOL_A_RINGS_RX_BUF_LEN]            = NLA_POLICY_MIN(NLA_U32, 1),
 	[ETHTOOL_A_RINGS_CQE_SIZE]		= NLA_POLICY_MIN(NLA_U32, 1),
 	[ETHTOOL_A_RINGS_TX_PUSH]		= NLA_POLICY_MAX(NLA_U8, 1),
+	[ETHTOOL_A_RINGS_RX_PUSH]		= NLA_POLICY_MAX(NLA_U8, 1),
 };
 
 static int
@@ -147,6 +150,14 @@ ethnl_set_rings_validate(struct ethnl_req_info *req_info,
 		return -EOPNOTSUPP;
 	}
 
+	if (tb[ETHTOOL_A_RINGS_RX_PUSH] &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_RX_PUSH)) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_RX_PUSH],
+				    "setting rx push not supported");
+		return -EOPNOTSUPP;
+	}
+
 	return ops->get_ringparam && ops->set_ringparam ? 1 : -EOPNOTSUPP;
 }
 
@@ -176,6 +187,8 @@ ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 			 tb[ETHTOOL_A_RINGS_CQE_SIZE], &mod);
 	ethnl_update_u8(&kernel_ringparam.tx_push,
 			tb[ETHTOOL_A_RINGS_TX_PUSH], &mod);
+	ethnl_update_u8(&kernel_ringparam.rx_push,
+			tb[ETHTOOL_A_RINGS_RX_PUSH], &mod);
 	if (!mod)
 		return 0;
 
