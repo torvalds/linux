@@ -26,7 +26,18 @@ REG_STRIDE(CH_C_CNTXT_2, ch_c_cntxt_2, 0x0001c008 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_CNTXT_3, ch_c_cntxt_3, 0x0001c00c + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
+static const u32 reg_ch_c_qos_fmask[] = {
+	[WRR_WEIGHT]					= GENMASK(3, 0),
+						/* Bits 4-7 reserved */
+	[MAX_PREFETCH]					= BIT(8),
+	[USE_DB_ENG]					= BIT(9),
+	[PREFETCH_MODE]					= GENMASK(13, 10),
+						/* Bits 14-15 reserved */
+	[EMPTY_LVL_THRSHOLD]				= GENMASK(23, 16),
+						/* Bits 24-31 reserved */
+};
+
+REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
 
 REG(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
 

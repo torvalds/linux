@@ -889,14 +889,14 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Command channel gets low weighted round-robin priority */
 	if (channel->command)
-		wrr_weight = field_max(WRR_WEIGHT_FMASK);
-	val = u32_encode_bits(wrr_weight, WRR_WEIGHT_FMASK);
+		wrr_weight = reg_field_max(reg, WRR_WEIGHT);
+	val = reg_encode(reg, WRR_WEIGHT, wrr_weight);
 
 	/* Max prefetch is 1 segment (do not set MAX_PREFETCH_FMASK) */
 
 	/* No need to use the doorbell engine starting at IPA v4.0 */
 	if (gsi->version < IPA_VERSION_4_0 && doorbell)
-		val |= USE_DB_ENG_FMASK;
+		val |= reg_bit(reg, USE_DB_ENG);
 
 	/* v4.0 introduces an escape buffer for prefetch.  We use it
 	 * on all but the AP command channel.
@@ -904,14 +904,13 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	if (gsi->version >= IPA_VERSION_4_0 && !channel->command) {
 		/* If not otherwise set, prefetch buffers are used */
 		if (gsi->version < IPA_VERSION_4_5)
-			val |= USE_ESCAPE_BUF_ONLY_FMASK;
+			val |= reg_bit(reg, USE_ESCAPE_BUF_ONLY);
 		else
-			val |= u32_encode_bits(GSI_ESCAPE_BUF_ONLY,
-					       PREFETCH_MODE_FMASK);
+			val |= reg_encode(reg, PREFETCH_MODE, ESCAPE_BUF_ONLY);
 	}
 	/* All channels set DB_IN_BYTES */
 	if (gsi->version >= IPA_VERSION_4_9)
-		val |= DB_IN_BYTES;
+		val |= reg_bit(reg, DB_IN_BYTES);
 
 	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 

@@ -121,23 +121,22 @@ enum gsi_channel_type {
 };
 
 /* CH_C_QOS register */
-#define WRR_WEIGHT_FMASK		GENMASK(3, 0)
-#define MAX_PREFETCH_FMASK		GENMASK(8, 8)
-#define USE_DB_ENG_FMASK		GENMASK(9, 9)
-/* The next field is only present for IPA v4.0, v4.1, and v4.2 */
-#define USE_ESCAPE_BUF_ONLY_FMASK	GENMASK(10, 10)
-/* The next two fields are present for IPA v4.5 and above */
-#define PREFETCH_MODE_FMASK		GENMASK(13, 10)
-#define EMPTY_LVL_THRSHOLD_FMASK	GENMASK(23, 16)
-/* The next field is present for IPA v4.9 and above */
-#define DB_IN_BYTES			GENMASK(24, 24)
+enum gsi_reg_ch_c_qos_field_id {
+	WRR_WEIGHT,
+	MAX_PREFETCH,
+	USE_DB_ENG,
+	USE_ESCAPE_BUF_ONLY,				/* IPA v4.0-4.2 */
+	PREFETCH_MODE,					/* IPA v4.5+ */
+	EMPTY_LVL_THRSHOLD,				/* IPA v4.5+ */
+	DB_IN_BYTES,					/* IPA v4.9+ */
+};
 
 /** enum gsi_prefetch_mode - PREFETCH_MODE field in CH_C_QOS */
 enum gsi_prefetch_mode {
-	GSI_USE_PREFETCH_BUFS			= 0x0,
-	GSI_ESCAPE_BUF_ONLY			= 0x1,
-	GSI_SMART_PREFETCH			= 0x2,
-	GSI_FREE_PREFETCH			= 0x3,
+	USE_PREFETCH_BUFS			= 0,
+	ESCAPE_BUF_ONLY				= 1,
+	SMART_PREFETCH				= 2,
+	FREE_PREFETCH				= 3,
 };
 
 /* EV_CH_E_CNTXT_0 register */
