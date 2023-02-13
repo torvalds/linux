@@ -1568,9 +1568,39 @@ static int rtw_br_client_tx(struct adapter *padapter, struct sk_buff **pskb)
 
 u32 rtw_get_ff_hwaddr(struct xmit_frame *pxmitframe)
 {
+	u32 addr;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 
-	return pattrib->qsel == 0x11 ? HIGH_QUEUE_INX : 0;
+	switch (pattrib->qsel) {
+	case 0:
+	case 3:
+		addr = BE_QUEUE_INX;
+		break;
+	case 1:
+	case 2:
+		addr = BK_QUEUE_INX;
+		break;
+	case 4:
+	case 5:
+		addr = VI_QUEUE_INX;
+		break;
+	case 6:
+	case 7:
+		addr = VO_QUEUE_INX;
+		break;
+	case 0x10:
+		addr = BCN_QUEUE_INX;
+		break;
+	case 0x11:/* BC/MC in PS (HIQ) */
+		addr = HIGH_QUEUE_INX;
+		break;
+	case 0x12:
+	default:
+		addr = MGT_QUEUE_INX;
+		break;
+	}
+
+	return addr;
 }
 
 /*
