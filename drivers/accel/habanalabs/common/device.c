@@ -2616,7 +2616,7 @@ void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_
 		*event_mask |=  HL_NOTIFIER_EVENT_PAGE_FAULT;
 }
 
-void hl_capture_hw_err(struct hl_device *hdev, u16 event_id)
+static void hl_capture_hw_err(struct hl_device *hdev, u16 event_id)
 {
 	struct hw_err_info *info = &hdev->captured_err_info.hw_err;
 
@@ -2638,7 +2638,7 @@ void hl_handle_critical_hw_err(struct hl_device *hdev, u16 event_id, u64 *event_
 		*event_mask |= HL_NOTIFIER_EVENT_CRITICL_HW_ERR;
 }
 
-void hl_capture_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *fw_info)
+static void hl_capture_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *fw_info)
 {
 	struct fw_err_info *info = &hdev->captured_err_info.fw_err;
 
