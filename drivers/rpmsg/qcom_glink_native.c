@@ -423,6 +423,12 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 	complete(&channel->intent_req_comp);
 }
 
+static void qcom_glink_intent_req_abort(struct glink_channel *channel)
+{
+	channel->intent_req_result = 0;
+	complete(&channel->intent_req_comp);
+}
+
 /**
  * qcom_glink_send_open_req() - send a RPM_CMD_OPEN request to the remote
  * @glink: Ptr to the glink edge
@@ -1787,6 +1793,12 @@ void qcom_glink_native_remove(struct qcom_glink *glink)
 	glink->abort_tx = true;
 	wake_up_all(&glink->tx_avail_notify);
 	spin_unlock_irqrestore(&glink->tx_lock, flags);
+
+	/* Abort any senders waiting for intent requests */
+	spin_lock_irqsave(&glink->idr_lock, flags);
+	idr_for_each_entry(&glink->lcids, channel, cid)
+		qcom_glink_intent_req_abort(channel);
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
 	ret = device_for_each_child(glink->dev, NULL, qcom_glink_remove_device);
 	if (ret)
