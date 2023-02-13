@@ -93,7 +93,6 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
 {
 	return link_get_status(link);
 }
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 
 /* return true if the connected receiver supports the hdcp version */
 bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal)
@@ -105,7 +104,6 @@ bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal)
 {
 	return link_is_hdcp22(link, signal);
 }
-#endif
 
 void dc_link_clear_dprx_states(struct dc_link *link)
 {

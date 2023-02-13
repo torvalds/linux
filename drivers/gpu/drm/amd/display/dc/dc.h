@@ -29,9 +29,7 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
-#include "hdcp_types.h"
-#endif
+#include "hdcp_msg_types.h"
 #include "gpio_types.h"
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
@@ -993,11 +991,7 @@ struct dc_init_data {
 };
 
 struct dc_callback_init {
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
-#else
-	uint8_t reserved;
-#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
@@ -1475,9 +1469,7 @@ struct dc_link {
 	uint32_t dongle_max_pix_clk;
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	struct hdcp_caps hdcp_caps;
-#endif
 	enum edp_revision edp_revision;
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
@@ -1661,12 +1653,9 @@ bool dc_is_oem_i2c_device_present(
 	size_t slave_address
 );
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
-
 /* return true if the connected receiver supports the hdcp version */
 bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal);
 bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
-#endif
 
 /* Notify DC about DP RX Interrupt (aka DP IRQ_HPD).
  *
@@ -2154,7 +2143,6 @@ void dc_resume(struct dc *dc);
 
 void dc_power_down_on_boot(struct dc *dc);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 /*
  * HDCP Interfaces
  */
@@ -2162,7 +2150,6 @@ enum hdcp_message_status dc_process_hdcp_msg(
 		enum signal_type signal,
 		struct dc_link *link,
 		struct hdcp_protection_message *message_info);
-#endif
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);

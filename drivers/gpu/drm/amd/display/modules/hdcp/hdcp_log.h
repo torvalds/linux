@@ -26,13 +26,11 @@
 #ifndef MOD_HDCP_LOG_H_
 #define MOD_HDCP_LOG_H_
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 #define HDCP_LOG_ERR(hdcp, ...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define HDCP_LOG_VER(hdcp, ...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define HDCP_LOG_FSM(hdcp, ...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define HDCP_LOG_TOP(hdcp, ...) pr_debug("[HDCP_TOP]:"__VA_ARGS__)
 #define HDCP_LOG_DDC(hdcp, ...) pr_debug("[HDCP_DDC]:"__VA_ARGS__)
-#endif
 
 /* default logs */
 #define HDCP_ERROR_TRACE(hdcp, status) \

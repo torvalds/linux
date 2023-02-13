@@ -1570,7 +1570,6 @@ bool perform_link_training_with_retries(
 			msleep(delay_dp_power_up_in_ms);
 		}
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 		if (panel_mode == DP_PANEL_MODE_EDP) {
 			struct cp_psp *cp_psp = &stream->ctx->cp_psp;
 
@@ -1584,7 +1583,6 @@ bool perform_link_training_with_retries(
 				result = cp_psp->funcs.enable_assr(cp_psp->handle, link);
 			}
 		}
-#endif
 
 		dp_set_panel_mode(link, panel_mode);
 

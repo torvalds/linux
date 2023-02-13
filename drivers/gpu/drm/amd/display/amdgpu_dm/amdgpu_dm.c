@@ -52,10 +52,8 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_plane.h"
 #include "amdgpu_dm_crtc.h"
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "amdgpu_dm_hdcp.h"
 #include <drm/display/drm_hdcp_helper.h>
-#endif
 #include "amdgpu_pm.h"
 #include "amdgpu_atombios.h"
 
@@ -1488,9 +1486,7 @@ static void retrieve_dmi_info(struct amdgpu_display_manager *dm)
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct dc_callback_init init_params;
-#endif
 	int r;
 
 	adev->dm.ddev = adev_to_drm(adev);
@@ -1498,9 +1494,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	/* Zero all the fields */
 	memset(&init_data, 0, sizeof(init_data));
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	memset(&init_params, 0, sizeof(init_params));
-#endif
 
 	mutex_init(&adev->dm.dpia_aux_lock);
 	mutex_init(&adev->dm.dc_lock);
@@ -1726,7 +1720,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 			DRM_ERROR("amdgpu: failed to initialize vblank_workqueue.\n");
 	}
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.dc->caps.max_links > 0 && adev->family >= AMDGPU_FAMILY_RV) {
 		adev->dm.hdcp_workqueue = hdcp_create_workqueue(adev, &init_params.cp_psp, adev->dm.dc);
 
@@ -1737,7 +1730,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}
-#endif
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	adev->dm.secure_display_ctxs = amdgpu_dm_crtc_secure_display_create_contexts(adev);
 	if (!adev->dm.secure_display_ctxs) {
@@ -1844,7 +1836,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 		adev->dm.secure_display_ctxs = NULL;
 	}
 #endif
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.hdcp_workqueue) {
 		hdcp_destroy(&adev->dev->kobj, adev->dm.hdcp_workqueue);
 		adev->dm.hdcp_workqueue = NULL;
@@ -1852,7 +1843,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 	if (adev->dm.dc)
 		dc_deinit_callbacks(adev->dm.dc);
-#endif
 
 	dc_dmub_srv_destroy(&adev->dm.dc->ctx->dmub_srv);
 
@@ -3111,11 +3101,9 @@ void amdgpu_dm_update_connector_after_detect(
 		aconnector->edid = NULL;
 		kfree(aconnector->timing_requested);
 		aconnector->timing_requested = NULL;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 		/* Set CP to DESIRED if it was ENABLED, so we can re-enable it again on hotplug */
 		if (connector->state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED)
 			connector->state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-#endif
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
@@ -3132,9 +3120,7 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 	struct drm_device *dev = connector->dev;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	struct amdgpu_device *adev = drm_to_adev(dev);
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct dm_connector_state *dm_con_state = to_dm_connector_state(connector->state);
-#endif
 	bool ret = false;
 
 	if (adev->dm.disable_hpd_irq)
@@ -3146,12 +3132,10 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 	 */
 	mutex_lock(&aconnector->hpd_lock);
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.hdcp_workqueue) {
 		hdcp_reset_display(adev->dm.hdcp_workqueue, aconnector->dc_link->link_index);
 		dm_con_state->update_hdcp = true;
 	}
-#endif
 	if (aconnector->fake_enable)
 		aconnector->fake_enable = false;
 
@@ -3398,12 +3382,10 @@ out:
 			}
 		}
 	}
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (hpd_irq_data.bytes.device_service_irq.bits.CP_IRQ) {
 		if (adev->dm.hdcp_workqueue)
 			hdcp_handle_cpirq(adev->dm.hdcp_workqueue,  aconnector->base.index);
 	}
-#endif
 
 	if (dc_link->type != dc_connection_mst_branch)
 		drm_dp_cec_irq(&aconnector->dm_dp_aux.aux);
@@ -7273,10 +7255,8 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 		if (!aconnector->mst_root)
 			drm_connector_attach_vrr_capable_property(&aconnector->base);
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 		if (adev->dm.hdcp_workqueue)
 			drm_connector_attach_content_protection_property(&aconnector->base, true);
-#endif
 	}
 }
 
@@ -7538,7 +7518,6 @@ is_scaling_state_different(const struct dm_connector_state *dm_state,
 	return false;
 }
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 static bool is_content_protection_different(struct drm_crtc_state *new_crtc_state,
 					    struct drm_crtc_state *old_crtc_state,
 					    struct drm_connector_state *new_conn_state,
@@ -7658,7 +7637,6 @@ static bool is_content_protection_different(struct drm_crtc_state *new_crtc_stat
 	pr_debug("[HDCP_DM] DESIRED->ENABLED %s :false\n", __func__);
 	return false;
 }
-#endif
 
 static void remove_stream(struct amdgpu_device *adev,
 			  struct amdgpu_crtc *acrtc,
@@ -8538,7 +8516,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				acrtc->otg_inst = status->primary_otg_inst;
 		}
 	}
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
@@ -8649,7 +8626,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				new_con_state->hdcp_content_type, enable_encryption);
 		}
 	}
-#endif
 
 	/* Handle connector state changes */
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {

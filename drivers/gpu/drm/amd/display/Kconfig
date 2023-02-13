@@ -25,12 +25,6 @@ config DRM_AMD_DC_DCN
 	help
 	  Raven, Navi, and newer family support for display engine
 
-config DRM_AMD_DC_HDCP
-	bool "Enable HDCP support in DC"
-	depends on DRM_AMD_DC
-	help
-	  Choose this option if you want to support HDCP authentication.
-
 config DRM_AMD_DC_SI
 	bool "AMD DC support for Southern Islands ASICs"
 	depends on DRM_AMDGPU_SI

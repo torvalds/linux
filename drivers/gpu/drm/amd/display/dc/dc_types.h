@@ -40,9 +40,7 @@
 #include "grph_object_defs.h"
 #include "grph_object_ctrl_defs.h"
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "dm_cp_psp.h"
-#endif
 
 /* forward declarations */
 struct dc_plane_state;
@@ -813,9 +811,7 @@ struct dc_context {
 	uint32_t dc_edp_id_count;
 	uint64_t fbc_gpu_addr;
 	struct dc_dmub_srv *dmub_srv;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
-#endif
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
 };
@@ -955,7 +951,6 @@ struct dc_link_status {
 	struct dpcd_caps *dpcd_caps;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 union hdcp_rx_caps {
 	struct {
 		uint8_t version;
@@ -982,7 +977,6 @@ struct hdcp_caps {
 	union hdcp_rx_caps rx_caps;
 	union hdcp_bcaps bcaps;
 };
-#endif
 
 /* DP MST stream allocation (payload bandwidth number) */
 struct link_mst_stream_allocation {

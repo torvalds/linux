@@ -466,7 +466,6 @@ static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *lin
 	link->local_sink = prev_sink;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 {
 	struct hdcp_protection_message msg22;
@@ -508,7 +507,6 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 	}
 
 }
-#endif // CONFIG_DRM_AMD_DC_HDCP
 static void read_current_link_settings_on_detect(struct dc_link *link)
 {
 	union lane_count_set lane_count_set = {0};
@@ -1084,9 +1082,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			 * TODO debug why certain monitors don't like
 			 *  two link trainings
 			 */
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 			query_hdcp_capability(sink->sink_signal, link);
-#endif
 		} else {
 			// If edid is the same, then discard new sink and revert back to original sink
 			if (same_edid) {
@@ -1094,9 +1090,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				sink = prev_sink;
 				prev_sink = NULL;
 			}
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 			query_hdcp_capability(sink->sink_signal, link);
-#endif
 		}
 
 		/* HDMI-DVI Dongle */
@@ -1162,9 +1156,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		/* From Connected-to-Disconnected. */
 		link->type = dc_connection_none;
 		sink_caps.signal = SIGNAL_TYPE_NONE;
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 		memset(&link->hdcp_caps, 0, sizeof(struct hdcp_caps));
-#endif
 		/* When we unplug a passive DP-HDMI dongle connection, dongle_max_pix_clk
 		 *  is not cleared. If we emulate a DP signal on this connection, it thinks
 		 *  the dongle is still there and limits the number of modes we can emulate.
@@ -1266,7 +1258,6 @@ void link_clear_dprx_states(struct dc_link *link)
 {
 	memset(&link->dprx_states, 0, sizeof(link->dprx_states));
 }
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 
 bool link_is_hdcp14(struct dc_link *link, enum signal_type signal)
 {
@@ -1314,7 +1305,6 @@ bool link_is_hdcp22(struct dc_link *link, enum signal_type signal)
 
 	return ret;
 }
-#endif // CONFIG_DRM_AMD_DC_HDCP
 
 const struct dc_link_status *link_get_status(const struct dc_link *link)
 {

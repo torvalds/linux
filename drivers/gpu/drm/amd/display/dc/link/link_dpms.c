@@ -647,7 +647,6 @@ static void write_i2c_redriver_setting(
 	if (!i2c_success)
 		DC_LOG_DEBUG("Set redriver failed");
 }
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 
 static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 {
@@ -713,7 +712,6 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 
 	cp_psp->funcs.update_stream_config(cp_psp->handle, &config);
 }
-#endif
 
 static void set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 {
@@ -2269,9 +2267,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 
 	dc->hwss.disable_audio_stream(pipe_ctx);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	update_psp_stream_config(pipe_ctx, true);
-#endif
 	dc->hwss.blank_stream(pipe_ctx);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
@@ -2417,9 +2413,7 @@ void link_set_dpms_on(
 				dc->hwss.enable_audio_stream(pipe_ctx);
 			}
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 			update_psp_stream_config(pipe_ctx, false);
-#endif
 			return;
 		}
 
@@ -2429,9 +2423,7 @@ void link_set_dpms_on(
 					!pipe_ctx->stream->timing.flags.DSC &&
 					!pipe_ctx->next_odm_pipe) {
 			pipe_ctx->stream->dpms_off = false;
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 			update_psp_stream_config(pipe_ctx, false);
-#endif
 			return;
 		}
 
@@ -2515,9 +2507,7 @@ void link_set_dpms_on(
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 		update_psp_stream_config(pipe_ctx, false);
-#endif
 
 		dc->hwss.enable_audio_stream(pipe_ctx);
 
