@@ -678,13 +678,8 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 	bool result = false;
 	uint32_t i, j = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->abm == NULL && res_pool->multiple_abms[inst] == NULL)
 		return false;
-#else
-	if (res_pool->abm == NULL)
-		return false;
-#endif
 
 	memset(&ram_table, 0, sizeof(ram_table));
 	memset(&config, 0, sizeof(config));
@@ -737,12 +732,10 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->multiple_abms[inst]) {
 		result = res_pool->multiple_abms[inst]->funcs->init_abm_config(
 			res_pool->multiple_abms[inst], (char *)(&config), sizeof(struct abm_config_table), inst);
 	} else
-#endif
 		result = res_pool->abm->funcs->init_abm_config(
 			res_pool->abm, (char *)(&config), sizeof(struct abm_config_table), 0);
 

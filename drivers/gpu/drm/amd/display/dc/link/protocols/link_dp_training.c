@@ -723,12 +723,10 @@ void override_training_settings(
 	if (link->preferred_training_settings.fec_enable != NULL)
 		lt_settings->should_set_fec_ready = *link->preferred_training_settings.fec_enable;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Check DP tunnel LTTPR mode debug option. */
 	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && link->dc->debug.dpia_debug.bits.force_non_lttpr)
 		lt_settings->lttpr_mode = LTTPR_MODE_NON_LTTPR;
 
-#endif
 	dp_get_lttpr_mode_override(link, &lt_settings->lttpr_mode);
 
 }

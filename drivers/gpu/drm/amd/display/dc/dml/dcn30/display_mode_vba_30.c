@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 #include "dc.h"
 #include "../display_mode_lib.h"
 #include "display_mode_vba_30.h"
@@ -6634,4 +6633,3 @@ static noinline_for_stack void UseMinimumDCFCLK(
 	}
 }
 
-#endif /* CONFIG_DRM_AMD_DC_DCN */

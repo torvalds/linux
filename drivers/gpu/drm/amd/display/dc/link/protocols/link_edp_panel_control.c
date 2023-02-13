@@ -695,7 +695,6 @@ bool edp_setup_psr(struct dc_link *link,
 	psr_context->psr_level.u32all = 0;
 
 	/*skip power down the single pipe since it blocks the cstate*/
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV) {
 		switch (link->ctx->asic_id.chip_family) {
 		case FAMILY_YELLOW_CARP:
@@ -709,10 +708,6 @@ bool edp_setup_psr(struct dc_link *link,
 			break;
 		}
 	}
-#else
-	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
-		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
-#endif
 
 	/* SMU will perform additional powerdown sequence.
 	 * For unsupported ASICs, set psr_level flag to skip PSR
