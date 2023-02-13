@@ -1,5 +1,10 @@
 qcom_wdt_core.ko
 gh_virt_wdt.ko
+gh_arm_drv.ko
+gh_ctrl.ko
+gh_dbl.ko
+gh_msgq.ko
+gh_rm_drv.ko
 clk-rpmh.ko
 gcc-kalama.ko
 icc-rpmh.ko
