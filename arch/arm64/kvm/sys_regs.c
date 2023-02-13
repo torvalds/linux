@@ -1122,7 +1122,9 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 		treg = TIMER_REG_CVAL;
 		break;
 	default:
-		BUG();
+		print_sys_reg_msg(p, "%s", "Unhandled trapped timer register");
+		kvm_inject_undefined(vcpu);
+		return false;
 	}
 
 	if (p->is_write)
