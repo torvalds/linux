@@ -15,7 +15,9 @@ maintainers:
 
 properties:
   compatible:
-    const: mrvl,88w8897
+    enum:
+      - mrvl,88w8897
+      - mrvl,88w8997
 
 required:
   - compatible
