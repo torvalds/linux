@@ -582,8 +582,7 @@ static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
 
 	/* Disable the companion LVDS encoder in dual-link mode. */
 	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
-		lvds->companion->funcs->atomic_disable(lvds->companion,
-						       old_bridge_state);
+		rcar_lvds_atomic_disable(lvds->companion, old_bridge_state);
 
 	pm_runtime_put_sync(lvds->dev);
 }
