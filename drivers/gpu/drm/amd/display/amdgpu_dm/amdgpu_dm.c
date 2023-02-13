@@ -5737,7 +5737,6 @@ static bool is_freesync_video_mode(const struct drm_display_mode *mode,
 		return true;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static void update_dsc_caps(struct amdgpu_dm_connector *aconnector,
 			    struct dc_sink *sink, struct dc_stream_state *stream,
 			    struct dsc_dec_dpcd_caps *dsc_caps)
@@ -5892,7 +5891,6 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 	if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_bits_per_pixel)
 		stream->timing.dsc_cfg.bits_per_pixel = aconnector->dsc_settings.dsc_bits_per_pixel;
 }
-#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
@@ -5915,9 +5913,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	int mode_refresh;
 	int preferred_refresh = 0;
 	enum color_transfer_func tf = TRANSFER_FUNC_UNKNOWN;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dsc_dec_dpcd_caps dsc_caps;
-#endif
 
 	struct dc_sink *sink = NULL;
 
@@ -6016,12 +6012,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		stream->timing = *aconnector->timing_requested;
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* SST DSC determination policy */
 	update_dsc_caps(aconnector, sink, stream, &dsc_caps);
 	if (aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE && dsc_caps.is_dsc_supported)
 		apply_dsc_policy_for_stream(aconnector, sink, stream, &dsc_caps);
-#endif
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
 
@@ -6747,7 +6741,6 @@ const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs = {
 	.atomic_check = dm_encoder_helper_atomic_check
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 					    struct dc_state *dc_state,
 					    struct dsc_mst_fairness_vars *vars)
@@ -6821,7 +6814,6 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 	}
 	return 0;
 }
-#endif
 
 static int to_drm_connector_type(enum signal_type st)
 {
@@ -9758,7 +9750,6 @@ static int dm_check_crtc_cursor(struct drm_atomic_state *state,
 	return 0;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static int add_affected_mst_dsc_crtcs(struct drm_atomic_state *state, struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
@@ -9784,7 +9775,6 @@ static int add_affected_mst_dsc_crtcs(struct drm_atomic_state *state, struct drm
 
 	return drm_dp_mst_add_affected_dsc_crtcs(state, &aconnector->mst_root->mst_mgr);
 }
-#endif
 
 /**
  * amdgpu_dm_atomic_check() - Atomic check implementation for AMDgpu DM.
@@ -9828,11 +9818,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	bool lock_and_validation_needed = false;
 	bool is_top_most_overlay = true;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct drm_dp_mst_topology_mgr *mgr;
 	struct drm_dp_mst_topology_state *mst_state;
 	struct dsc_mst_fairness_vars vars[MAX_PIPES];
-#endif
 
 	trace_amdgpu_dm_atomic_check_begin(state);
 
@@ -9863,7 +9851,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			new_crtc_state->connectors_changed = true;
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (dc_resource_is_dsc_encoding_supported(dc)) {
 		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
@@ -9875,7 +9862,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			}
 		}
 	}
-#endif
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
@@ -10013,13 +9999,11 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (dc_resource_is_dsc_encoding_supported(dc)) {
 		ret = pre_validate_dsc(state, &dm_state, vars);
 		if (ret != 0)
 			goto fail;
 	}
-#endif
 
 	/* Run this here since we want to validate the streams we created */
 	ret = drm_atomic_helper_check_planes(dev, state);
@@ -10085,7 +10069,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		lock_and_validation_needed = true;
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* set the slot info for each mst_state based on the link encoding format */
 	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
 		struct amdgpu_dm_connector *aconnector;
@@ -10105,7 +10088,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 		drm_connector_list_iter_end(&iter);
 	}
-#endif
 
 	/**
 	 * Streams and planes are reset when there are changes that affect
@@ -10133,7 +10115,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			goto fail;
 		}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		ret = compute_mst_dsc_configs_for_state(state, dm_state->context, vars);
 		if (ret) {
 			DRM_DEBUG_DRIVER("compute_mst_dsc_configs_for_state() failed\n");
@@ -10145,7 +10126,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			DRM_DEBUG_DRIVER("dm_update_mst_vcpi_slots_for_dsc() failed\n");
 			goto fail;
 		}
-#endif
 
 		/*
 		 * Perform validation of MST topology in the state:
