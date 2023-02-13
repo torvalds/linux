@@ -419,6 +419,11 @@ static const hyp_entry_exit_handler_fn exit_hyp_vm_handlers[] = {
 	[ESR_ELx_EC_DABT_LOW]		= handle_vm_exit_abt,
 };
 
+static struct user_fpsimd_state *get_host_fpsimd_state(void)
+{
+	return this_cpu_ptr(&loaded_host_fpsimd_state);
+}
+
 static void flush_hyp_vgic_state(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
@@ -689,7 +694,7 @@ static void fpsimd_host_restore(void)
 		struct pkvm_hyp_vcpu *hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
 		struct user_fpsimd_state *host_fpsimd_state;
 
-		host_fpsimd_state = this_cpu_ptr(&loaded_host_fpsimd_state);
+		host_fpsimd_state = get_host_fpsimd_state();
 
 		if (vcpu_has_sve(&hyp_vcpu->vcpu))
 			__hyp_sve_save_guest(hyp_vcpu);
@@ -733,7 +738,7 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 		*last_ran = hyp_vcpu->vcpu.vcpu_id;
 	}
 
-	hyp_vcpu->vcpu.arch.host_fpsimd_state = this_cpu_ptr(&loaded_host_fpsimd_state);
+	hyp_vcpu->vcpu.arch.host_fpsimd_state = get_host_fpsimd_state();
 	hyp_vcpu->vcpu.arch.fp_state = FP_STATE_HOST_OWNED;
 
 	if (pkvm_hyp_vcpu_is_protected(hyp_vcpu)) {
