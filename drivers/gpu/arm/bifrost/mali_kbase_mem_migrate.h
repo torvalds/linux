@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,13 +23,22 @@
  * DOC: Base kernel page migration implementation.
  */
 
-#define PAGE_STATUS_MASK ((u8)0x7F)
+#define PAGE_STATUS_MASK ((u8)0x3F)
 #define PAGE_STATUS_GET(status) (status & PAGE_STATUS_MASK)
 #define PAGE_STATUS_SET(status, value) ((status & ~PAGE_STATUS_MASK) | (value & PAGE_STATUS_MASK))
+
 #define PAGE_ISOLATE_SHIFT (7)
+#define PAGE_ISOLATE_MASK ((u8)1 << PAGE_ISOLATE_SHIFT)
 #define PAGE_ISOLATE_SET(status, value)                                                            \
-	((status & PAGE_STATUS_MASK) | (value << PAGE_ISOLATE_SHIFT))
-#define IS_PAGE_ISOLATED(status) ((bool)(status & ~PAGE_STATUS_MASK))
+	((status & ~PAGE_ISOLATE_MASK) | (value << PAGE_ISOLATE_SHIFT))
+#define IS_PAGE_ISOLATED(status) ((bool)(status & PAGE_ISOLATE_MASK))
+
+#define PAGE_MOVABLE_SHIFT (6)
+#define PAGE_MOVABLE_MASK ((u8)1 << PAGE_MOVABLE_SHIFT)
+#define PAGE_MOVABLE_CLEAR(status) ((status) & ~PAGE_MOVABLE_MASK)
+#define PAGE_MOVABLE_SET(status) (status | PAGE_MOVABLE_MASK)
+
+#define IS_PAGE_MOVABLE(status) ((bool)(status & PAGE_MOVABLE_MASK))
 
 /* Global integer used to determine if module parameter value has been
  * provided and if page migration feature is enabled.
