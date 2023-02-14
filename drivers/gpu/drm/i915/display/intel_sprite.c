@@ -1217,7 +1217,8 @@ g4x_sprite_update_arm(struct intel_plane *plane,
 	}
 
 	intel_de_write_fw(dev_priv, DVSLINOFF(pipe), linear_offset);
-	intel_de_write_fw(dev_priv, DVSTILEOFF(pipe), (y << 16) | x);
+	intel_de_write_fw(dev_priv, DVSTILEOFF(pipe),
+			  DVS_OFFSET_Y(y) | DVS_OFFSET_X(x));
 
 	/*
 	 * The control register self-arms if the plane was previously
