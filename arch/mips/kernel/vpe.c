@@ -640,7 +640,7 @@ static int vpe_elfload(struct vpe *v)
 		layout_sections(&mod, hdr, sechdrs, secstrings);
 	}
 
-	v->load_addr = alloc_progmem(mod.mod_mem[MOD_TEXT].size);
+	v->load_addr = alloc_progmem(mod.mem[MOD_TEXT].size);
 	if (!v->load_addr)
 		return -ENOMEM;
 
