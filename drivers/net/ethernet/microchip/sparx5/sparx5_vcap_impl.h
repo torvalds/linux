@@ -176,6 +176,18 @@ enum vcap_es2_port_sel_arp {
 	VCAP_ES2_PS_ARP_ARP,
 };
 
+/* Selects TPID for ES0 matching */
+enum SPX5_TPID_SEL {
+	SPX5_TPID_SEL_UNTAGGED,
+	SPX5_TPID_SEL_8100,
+	SPX5_TPID_SEL_UNUSED_0,
+	SPX5_TPID_SEL_UNUSED_1,
+	SPX5_TPID_SEL_88A8,
+	SPX5_TPID_SEL_TPIDCFG_1,
+	SPX5_TPID_SEL_TPIDCFG_2,
+	SPX5_TPID_SEL_TPIDCFG_3,
+};
+
 /* Get the port keyset for the vcap lookup */
 int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 				struct vcap_admin *admin,

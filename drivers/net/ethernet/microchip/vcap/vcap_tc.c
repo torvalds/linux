@@ -235,6 +235,9 @@ int vcap_tc_flower_handler_vlan_usage(struct vcap_tc_flower_parse_usage *st,
 			goto out;
 	}
 
+	if (mt.mask->vlan_tpid)
+		st->tpid = be16_to_cpu(mt.key->vlan_tpid);
+
 	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_VLAN);
 
 	return 0;

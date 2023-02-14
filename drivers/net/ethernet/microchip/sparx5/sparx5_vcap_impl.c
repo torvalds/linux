@@ -852,6 +852,9 @@ static void sparx5_vcap_es0_add_default_fields(struct net_device *ndev,
 	struct sparx5_port *port = netdev_priv(ndev);
 
 	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_NO, port->portno, ~0);
+	/* Match untagged frames if there was no VLAN key */
+	vcap_rule_add_key_u32(rule, VCAP_KF_8021Q_TPID, SPX5_TPID_SEL_UNTAGGED,
+			      ~0);
 }
 
 static void sparx5_vcap_es2_add_default_fields(struct net_device *ndev,
