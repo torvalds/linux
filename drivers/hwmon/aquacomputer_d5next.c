@@ -441,6 +441,10 @@ struct aqc_data {
 	const char *name;
 
 	int status_report_id;	/* Used for legacy devices, report is stored in buffer */
+	int ctrl_report_id;
+	int secondary_ctrl_report_id;
+	int secondary_ctrl_report_size;
+	u8 *secondary_ctrl_report;
 
 	int buffer_size;
 	u8 *buffer;
@@ -513,7 +517,7 @@ static int aqc_get_ctrl_data(struct aqc_data *priv)
 	int ret;
 
 	memset(priv->buffer, 0x00, priv->buffer_size);
-	ret = hid_hw_raw_request(priv->hdev, CTRL_REPORT_ID, priv->buffer, priv->buffer_size,
+	ret = hid_hw_raw_request(priv->hdev, priv->ctrl_report_id, priv->buffer, priv->buffer_size,
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 	if (ret < 0)
 		ret = -ENODATA;
@@ -535,15 +539,15 @@ static int aqc_send_ctrl_data(struct aqc_data *priv)
 	put_unaligned_be16(checksum, priv->buffer + priv->checksum_offset);
 
 	/* Send the patched up report back to the device */
-	ret = hid_hw_raw_request(priv->hdev, CTRL_REPORT_ID, priv->buffer, priv->buffer_size,
+	ret = hid_hw_raw_request(priv->hdev, priv->ctrl_report_id, priv->buffer, priv->buffer_size,
 				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret < 0)
 		return ret;
 
 	/* The official software sends this report after every change, so do it here as well */
-	ret = hid_hw_raw_request(priv->hdev, SECONDARY_CTRL_REPORT_ID, secondary_ctrl_report,
-				 SECONDARY_CTRL_REPORT_SIZE, HID_FEATURE_REPORT,
-				 HID_REQ_SET_REPORT);
+	ret = hid_hw_raw_request(priv->hdev, priv->secondary_ctrl_report_id,
+				 priv->secondary_ctrl_report, priv->secondary_ctrl_report_size,
+				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	return ret;
 }
 
@@ -1446,6 +1450,11 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	default:
 		priv->serial_number_start_offset = AQC_SERIAL_START;
 		priv->firmware_version_offset = AQC_FIRMWARE_VERSION;
+
+		priv->ctrl_report_id = CTRL_REPORT_ID;
+		priv->secondary_ctrl_report_id = SECONDARY_CTRL_REPORT_ID;
+		priv->secondary_ctrl_report_size = SECONDARY_CTRL_REPORT_SIZE;
+		priv->secondary_ctrl_report = secondary_ctrl_report;
 
 		if (priv->kind == aquastreamult)
 			priv->fan_structure = &aqc_aquastreamult_fan_structure;
