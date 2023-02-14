@@ -601,8 +601,8 @@ int __pkvm_load_el2_module(struct module *this, unsigned long *token)
 	};
 	void *start, *end, *hyp_va;
 	kvm_nvhe_reloc_t *endrel;
+	int ret, i, secs_first;
 	size_t offset, size;
-	int ret, i;
 
 	if (!is_protected_kvm_enabled())
 		return -EOPNOTSUPP;
@@ -619,8 +619,13 @@ int __pkvm_load_el2_module(struct module *this, unsigned long *token)
 		return -ENODEV;
 	}
 
+	/* Missing or empty module sections are placed first */
 	sort(secs_map, ARRAY_SIZE(secs_map), sizeof(secs_map[0]), __pkvm_cmp_mod_sec, NULL);
-	start = secs_map[0].sec->start;
+	for (secs_first = 0; secs_first < ARRAY_SIZE(secs_map); secs_first++) {
+		start = secs_map[secs_first].sec->start;
+		if (start)
+			break;
+	}
 	end = secs_map[ARRAY_SIZE(secs_map) - 1].sec->end;
 	size = end - start;
 
@@ -642,7 +647,8 @@ int __pkvm_load_el2_module(struct module *this, unsigned long *token)
 	endrel = (void *)mod->relocs + mod->nr_relocs * sizeof(*endrel);
 	kvm_apply_hyp_module_relocations(start, hyp_va, mod->relocs, endrel);
 
-	ret = pkvm_map_module_sections(secs_map, hyp_va, ARRAY_SIZE(secs_map));
+	ret = pkvm_map_module_sections(secs_map + secs_first, hyp_va,
+				       ARRAY_SIZE(secs_map) - secs_first);
 	if (ret) {
 		kvm_err("Failed to map EL2 module page: %d\n", ret);
 		module_put(this);
