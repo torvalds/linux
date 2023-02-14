@@ -689,7 +689,7 @@ static int tc_add_fd_and_name(struct libbpf_nla_req *req, int fd)
 	int len, ret;
 
 	memset(&info, 0, info_len);
-	ret = bpf_obj_get_info_by_fd(fd, &info, &info_len);
+	ret = bpf_prog_get_info_by_fd(fd, &info, &info_len);
 	if (ret < 0)
 		return ret;
 

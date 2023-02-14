@@ -1350,9 +1350,9 @@ struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 	void *ptr;
 	int err;
 
-	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
+	/* we won't know btf_size until we call bpf_btf_get_info_by_fd(). so
 	 * let's start with a sane default - 4KiB here - and resize it only if
-	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
+	 * bpf_btf_get_info_by_fd() needs a bigger buffer.
 	 */
 	last_size = 4096;
 	ptr = malloc(last_size);
@@ -1362,7 +1362,7 @@ struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 	memset(&btf_info, 0, sizeof(btf_info));
 	btf_info.btf = ptr_to_u64(ptr);
 	btf_info.btf_size = last_size;
-	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+	err = bpf_btf_get_info_by_fd(btf_fd, &btf_info, &len);
 
 	if (!err && btf_info.btf_size > last_size) {
 		void *temp_ptr;
@@ -1380,7 +1380,7 @@ struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf)
 		btf_info.btf = ptr_to_u64(ptr);
 		btf_info.btf_size = last_size;
 
-		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+		err = bpf_btf_get_info_by_fd(btf_fd, &btf_info, &len);
 	}
 
 	if (err || btf_info.btf_size > last_size) {

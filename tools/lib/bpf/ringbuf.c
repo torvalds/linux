@@ -83,7 +83,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 
 	memset(&info, 0, sizeof(info));
 
-	err = bpf_obj_get_info_by_fd(map_fd, &info, &len);
+	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
 		err = -errno;
 		pr_warn("ringbuf: failed to get map info for fd=%d: %d\n",
@@ -359,7 +359,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 
 	memset(&info, 0, sizeof(info));
 
-	err = bpf_obj_get_info_by_fd(map_fd, &info, &len);
+	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
 		err = -errno;
 		pr_warn("user ringbuf: failed to get map info for fd=%d: %d\n", map_fd, err);
