@@ -146,6 +146,13 @@ struct maple_subtree_state {
 	struct maple_big_node *bn;
 };
 
+#ifdef CONFIG_KASAN_STACK
+/* Prevent mas_wr_bnode() from exceeding the stack frame limit */
+#define noinline_for_kasan noinline_for_stack
+#else
+#define noinline_for_kasan inline
+#endif
+
 /* Functions */
 static inline struct maple_node *mt_alloc_one(gfp_t gfp)
 {
@@ -2107,7 +2114,7 @@ static inline void mas_bulk_rebalance(struct ma_state *mas, unsigned char end,
  *
  * Return: The actual end of the data stored in @b_node
  */
-static inline void mas_store_b_node(struct ma_wr_state *wr_mas,
+static noinline_for_kasan void mas_store_b_node(struct ma_wr_state *wr_mas,
 		struct maple_big_node *b_node, unsigned char offset_end)
 {
 	unsigned char slot;
@@ -3579,7 +3586,7 @@ static inline bool mas_reuse_node(struct ma_wr_state *wr_mas,
  * @b_node: The maple big node
  * @end: The end of the data.
  */
-static inline int mas_commit_b_node(struct ma_wr_state *wr_mas,
+static noinline_for_kasan int mas_commit_b_node(struct ma_wr_state *wr_mas,
 			    struct maple_big_node *b_node, unsigned char end)
 {
 	struct maple_node *node;
