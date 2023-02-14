@@ -646,13 +646,13 @@ next:
 						 NULL, 0, NULL, NULL))
 					goto next;
 
-				__clear_bit_le(ir - MFT_REC_RESERVED,
+				__clear_bit(ir - MFT_REC_RESERVED,
 					    &sbi->mft.reserved_bitmap);
 			}
 		}
 
 		/* Scan 5 bits for zero. Bit 0 == MFT_REC_RESERVED */
-		zbit = find_next_zero_bit_le(&sbi->mft.reserved_bitmap,
+		zbit = find_next_zero_bit(&sbi->mft.reserved_bitmap,
 					  MFT_REC_FREE, MFT_REC_RESERVED);
 		if (zbit >= MFT_REC_FREE) {
 			sbi->mft.next_reserved = MFT_REC_FREE;
@@ -720,7 +720,7 @@ found:
 	if (*rno >= MFT_REC_FREE)
 		wnd_set_used(wnd, *rno, 1);
 	else if (*rno >= MFT_REC_RESERVED && sbi->mft.reserved_bitmap_inited)
-		__set_bit_le(*rno - MFT_REC_RESERVED, &sbi->mft.reserved_bitmap);
+		__set_bit(*rno - MFT_REC_RESERVED, &sbi->mft.reserved_bitmap);
 
 out:
 	if (!mft)
@@ -748,7 +748,7 @@ void ntfs_mark_rec_free(struct ntfs_sb_info *sbi, CLST rno, bool is_mft)
 		else
 			wnd_set_free(wnd, rno, 1);
 	} else if (rno >= MFT_REC_RESERVED && sbi->mft.reserved_bitmap_inited) {
-		__clear_bit_le(rno - MFT_REC_RESERVED, &sbi->mft.reserved_bitmap);
+		__clear_bit(rno - MFT_REC_RESERVED, &sbi->mft.reserved_bitmap);
 	}
 
 	if (rno < wnd_zone_bit(wnd))
@@ -846,9 +846,8 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 {
 	int err;
 	struct super_block *sb = sbi->sb;
-	u32 blocksize;
+	u32 blocksize, bytes;
 	sector_t block1, block2;
-	u32 bytes;
 
 	if (!sb)
 		return;
