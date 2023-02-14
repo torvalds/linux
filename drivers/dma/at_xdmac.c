@@ -2130,7 +2130,11 @@ static int __maybe_unused atmel_xdmac_suspend(struct device *dev)
 	atxdmac->save_gim = at_xdmac_read(atxdmac, AT_XDMAC_GIM);
 
 	at_xdmac_off(atxdmac);
-	return pm_runtime_force_suspend(atxdmac->dev);
+	pm_runtime_mark_last_busy(atxdmac->dev);
+	pm_runtime_put_noidle(atxdmac->dev);
+	clk_disable_unprepare(atxdmac->clk);
+
+	return 0;
 }
 
 static int __maybe_unused atmel_xdmac_resume(struct device *dev)
@@ -2142,9 +2146,11 @@ static int __maybe_unused atmel_xdmac_resume(struct device *dev)
 	int			i;
 	int ret;
 
-	ret = pm_runtime_force_resume(atxdmac->dev);
-	if (ret < 0)
+	ret = clk_prepare_enable(atxdmac->clk);
+	if (ret)
 		return ret;
+
+	pm_runtime_get_noresume(atxdmac->dev);
 
 	at_xdmac_axi_config(pdev);
 
