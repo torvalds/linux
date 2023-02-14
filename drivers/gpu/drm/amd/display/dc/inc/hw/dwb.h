@@ -202,7 +202,7 @@ struct dwbc_funcs {
 		struct dwb_warmup_params *warmup_params);
 
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 
 	void (*dwb_program_output_csc)(
 		struct dwbc *dwbc,

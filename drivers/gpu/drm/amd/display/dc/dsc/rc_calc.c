@@ -39,7 +39,7 @@
  */
 void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	enum colour_mode mode;
 	enum bits_per_comp bpc;
 	bool is_navite_422_or_420;

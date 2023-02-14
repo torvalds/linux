@@ -24,7 +24,7 @@
 
 DC_LIBS = basics bios dml clk_mgr dce gpio irq link virtual dsc
 
-ifdef CONFIG_DRM_AMD_DC_DCN
+ifdef CONFIG_DRM_AMD_DC_FP
 
 KCOV_INSTRUMENT := n
 
