@@ -144,6 +144,15 @@ config QCOM_TLMM_VM_IRQCHIP
          Say Y here to compile the driver as a part of kernel or M to compile
          as a module.
 
+config GIC_INTERRUPT_ROUTING
+	tristate "GIC Interrupt Routing driver"
+	depends on ARM_GIC_V3
+	help
+	  GIC interrupt routing driver.
+	  The driver manages interrupt routing for shared peripheral interrupts.
+	  Say Y here to compile the driver as a part of kernel or M to compile
+	  as a module.
+
 config QCOM_LLCC
 	tristate "Qualcomm Technologies, Inc. LLCC driver"
 	depends on ARCH_QCOM || COMPILE_TEST

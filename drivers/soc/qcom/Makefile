@@ -65,6 +65,7 @@ crypto-qti-$(CONFIG_QTI_HW_KEY_MANAGER) += crypto-qti-hwkm.o
 obj-$(CONFIG_QTI_HW_KEY_MANAGER) += hwkm.o
 obj-$(CONFIG_MSM_TMECOM_QMP) += tmecom/
 obj-$(CONFIG_MSM_HAB) += hab/
+obj-$(CONFIG_GIC_INTERRUPT_ROUTING) += gic_intr_routing.o
 obj-$(CONFIG_QCOM_MINIDUMP) += minidump.o
 minidump-y   += msm_minidump.o minidump_log.o
 minidump-$(CONFIG_QCOM_MINIDUMP_PANIC_MEMORY_INFO) += minidump_memory.o
