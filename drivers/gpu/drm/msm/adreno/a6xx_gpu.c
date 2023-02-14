@@ -1362,73 +1362,23 @@ static const char *a6xx_fault_block(struct msm_gpu *gpu, u32 id)
 	return a6xx_uche_fault_block(gpu, id);
 }
 
-#define ARM_SMMU_FSR_TF                 BIT(1)
-#define ARM_SMMU_FSR_PF			BIT(3)
-#define ARM_SMMU_FSR_EF			BIT(4)
-
 static int a6xx_fault_handler(void *arg, unsigned long iova, int flags, void *data)
 {
 	struct msm_gpu *gpu = arg;
 	struct adreno_smmu_fault_info *info = data;
-	const char *type = "UNKNOWN";
-	const char *block;
-	bool do_devcoredump = info && !READ_ONCE(gpu->crashstate);
+	const char *block = "unknown";
 
-	/*
-	 * If we aren't going to be resuming later from fault_worker, then do
-	 * it now.
-	 */
-	if (!do_devcoredump) {
-		gpu->aspace->mmu->funcs->resume_translation(gpu->aspace->mmu);
-	}
-
-	/*
-	 * Print a default message if we couldn't get the data from the
-	 * adreno-smmu-priv
-	 */
-	if (!info) {
-		pr_warn_ratelimited("*** gpu fault: iova=%.16lx flags=%d (%u,%u,%u,%u)\n",
-			iova, flags,
+	u32 scratch[] = {
 			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(4)),
 			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(5)),
 			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(6)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(7)));
+			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(7)),
+	};
 
-		return 0;
-	}
+	if (info)
+		block = a6xx_fault_block(gpu, info->fsynr1 & 0xff);
 
-	if (info->fsr & ARM_SMMU_FSR_TF)
-		type = "TRANSLATION";
-	else if (info->fsr & ARM_SMMU_FSR_PF)
-		type = "PERMISSION";
-	else if (info->fsr & ARM_SMMU_FSR_EF)
-		type = "EXTERNAL";
-
-	block = a6xx_fault_block(gpu, info->fsynr1 & 0xff);
-
-	pr_warn_ratelimited("*** gpu fault: ttbr0=%.16llx iova=%.16lx dir=%s type=%s source=%s (%u,%u,%u,%u)\n",
-			info->ttbr0, iova,
-			flags & IOMMU_FAULT_WRITE ? "WRITE" : "READ",
-			type, block,
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(4)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(5)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(6)),
-			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(7)));
-
-	if (do_devcoredump) {
-		/* Turn off the hangcheck timer to keep it from bothering us */
-		del_timer(&gpu->hangcheck_timer);
-
-		gpu->fault_info.ttbr0 = info->ttbr0;
-		gpu->fault_info.iova  = iova;
-		gpu->fault_info.flags = flags;
-		gpu->fault_info.type  = type;
-		gpu->fault_info.block = block;
-
-		kthread_queue_work(gpu->worker, &gpu->fault_work);
-	}
-
-	return 0;
+	return adreno_fault_handler(gpu, iova, flags, info, block, scratch);
 }
 
 static void a6xx_cp_hw_err_irq(struct msm_gpu *gpu)
