@@ -366,7 +366,7 @@ static int xgene_rng_remove(struct platform_device *pdev)
 	if (rc)
 		dev_err(&pdev->dev, "RNG init wakeup failed error %d\n", rc);
 
-	return rc;
+	return 0;
 }
 
 static const struct of_device_id xgene_rng_of_match[] = {
