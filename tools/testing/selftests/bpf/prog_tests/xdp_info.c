@@ -34,7 +34,7 @@ void serial_test_xdp_info(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
 	if (CHECK(err, "get_prog_info", "errno=%d\n", errno))
 		goto out_close;
 
