@@ -171,6 +171,334 @@ static const char * const gcc_xo_ddr_500_200[] = {
 	"ddrpllapss",
 };
 
+/* Calculates the VCO rate for FEPLL. */
+static u64 clk_fepll_vco_calc_rate(struct clk_fepll *pll_div,
+				   unsigned long parent_rate)
+{
+	const struct clk_fepll_vco *pll_vco = pll_div->pll_vco;
+	u32 fdbkdiv, refclkdiv, cdiv;
+	u64 vco;
+
+	regmap_read(pll_div->cdiv.clkr.regmap, pll_vco->reg, &cdiv);
+	refclkdiv = (cdiv >> pll_vco->refclkdiv_shift) &
+		    (BIT(pll_vco->refclkdiv_width) - 1);
+	fdbkdiv = (cdiv >> pll_vco->fdbkdiv_shift) &
+		  (BIT(pll_vco->fdbkdiv_width) - 1);
+
+	vco = parent_rate / refclkdiv;
+	vco *= 2;
+	vco *= fdbkdiv;
+
+	return vco;
+}
+
+static const struct clk_fepll_vco gcc_apss_ddrpll_vco = {
+	.fdbkdiv_shift = 16,
+	.fdbkdiv_width = 8,
+	.refclkdiv_shift = 24,
+	.refclkdiv_width = 5,
+	.reg = 0x2e020,
+};
+
+static const struct clk_fepll_vco gcc_fepll_vco = {
+	.fdbkdiv_shift = 16,
+	.fdbkdiv_width = 8,
+	.refclkdiv_shift = 24,
+	.refclkdiv_width = 5,
+	.reg = 0x2f020,
+};
+
+/*
+ * Round rate function for APSS CPU PLL Clock divider.
+ * It looks up the frequency table and returns the next higher frequency
+ * supported in hardware.
+ */
+static long clk_cpu_div_round_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long *p_rate)
+{
+	struct clk_fepll *pll = to_clk_fepll(hw);
+	struct clk_hw *p_hw;
+	const struct freq_tbl *f;
+
+	f = qcom_find_freq(pll->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	p_hw = clk_hw_get_parent_by_index(hw, f->src);
+	*p_rate = clk_hw_get_rate(p_hw);
+
+	return f->freq;
+};
+
+/*
+ * Clock set rate function for APSS CPU PLL Clock divider.
+ * It looks up the frequency table and updates the PLL divider to corresponding
+ * divider value.
+ */
+static int clk_cpu_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct clk_fepll *pll = to_clk_fepll(hw);
+	const struct freq_tbl *f;
+	u32 mask;
+
+	f = qcom_find_freq(pll->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	mask = (BIT(pll->cdiv.width) - 1) << pll->cdiv.shift;
+	regmap_update_bits(pll->cdiv.clkr.regmap,
+			   pll->cdiv.reg, mask,
+			   f->pre_div << pll->cdiv.shift);
+	/*
+	 * There is no status bit which can be checked for successful CPU
+	 * divider update operation so using delay for the same.
+	 */
+	udelay(1);
+
+	return 0;
+};
+
+/*
+ * Clock frequency calculation function for APSS CPU PLL Clock divider.
+ * This clock divider is nonlinear so this function calculates the actual
+ * divider and returns the output frequency by dividing VCO Frequency
+ * with this actual divider value.
+ */
+static unsigned long
+clk_cpu_div_recalc_rate(struct clk_hw *hw,
+			unsigned long parent_rate)
+{
+	struct clk_fepll *pll = to_clk_fepll(hw);
+	u32 cdiv, pre_div;
+	u64 rate;
+
+	regmap_read(pll->cdiv.clkr.regmap, pll->cdiv.reg, &cdiv);
+	cdiv = (cdiv >> pll->cdiv.shift) & (BIT(pll->cdiv.width) - 1);
+
+	/*
+	 * Some dividers have value in 0.5 fraction so multiply both VCO
+	 * frequency(parent_rate) and pre_div with 2 to make integer
+	 * calculation.
+	 */
+	if (cdiv > 10)
+		pre_div = (cdiv + 1) * 2;
+	else
+		pre_div = cdiv + 12;
+
+	rate = clk_fepll_vco_calc_rate(pll, parent_rate) * 2;
+	do_div(rate, pre_div);
+
+	return rate;
+};
+
+static const struct clk_ops clk_regmap_cpu_div_ops = {
+	.round_rate = clk_cpu_div_round_rate,
+	.set_rate = clk_cpu_div_set_rate,
+	.recalc_rate = clk_cpu_div_recalc_rate,
+};
+
+static const struct freq_tbl ftbl_apss_ddr_pll[] = {
+	{ 384000000, P_XO, 0xd, 0, 0 },
+	{ 413000000, P_XO, 0xc, 0, 0 },
+	{ 448000000, P_XO, 0xb, 0, 0 },
+	{ 488000000, P_XO, 0xa, 0, 0 },
+	{ 512000000, P_XO, 0x9, 0, 0 },
+	{ 537000000, P_XO, 0x8, 0, 0 },
+	{ 565000000, P_XO, 0x7, 0, 0 },
+	{ 597000000, P_XO, 0x6, 0, 0 },
+	{ 632000000, P_XO, 0x5, 0, 0 },
+	{ 672000000, P_XO, 0x4, 0, 0 },
+	{ 716000000, P_XO, 0x3, 0, 0 },
+	{ 768000000, P_XO, 0x2, 0, 0 },
+	{ 823000000, P_XO, 0x1, 0, 0 },
+	{ 896000000, P_XO, 0x0, 0, 0 },
+	{ }
+};
+
+static struct clk_fepll gcc_apss_cpu_plldiv_clk = {
+	.cdiv.reg = 0x2e020,
+	.cdiv.shift = 4,
+	.cdiv.width = 4,
+	.cdiv.clkr = {
+		.enable_reg = 0x2e000,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "ddrpllapss",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_cpu_div_ops,
+		},
+	},
+	.freq_tbl = ftbl_apss_ddr_pll,
+	.pll_vco = &gcc_apss_ddrpll_vco,
+};
+
+/* Calculates the rate for PLL divider.
+ * If the divider value is not fixed then it gets the actual divider value
+ * from divider table. Then, it calculate the clock rate by dividing the
+ * parent rate with actual divider value.
+ */
+static unsigned long
+clk_regmap_clk_div_recalc_rate(struct clk_hw *hw,
+			       unsigned long parent_rate)
+{
+	struct clk_fepll *pll = to_clk_fepll(hw);
+	u32 cdiv, pre_div = 1;
+	u64 rate;
+	const struct clk_div_table *clkt;
+
+	if (pll->fixed_div) {
+		pre_div = pll->fixed_div;
+	} else {
+		regmap_read(pll->cdiv.clkr.regmap, pll->cdiv.reg, &cdiv);
+		cdiv = (cdiv >> pll->cdiv.shift) & (BIT(pll->cdiv.width) - 1);
+
+		for (clkt = pll->div_table; clkt->div; clkt++) {
+			if (clkt->val == cdiv)
+				pre_div = clkt->div;
+		}
+	}
+
+	rate = clk_fepll_vco_calc_rate(pll, parent_rate);
+	do_div(rate, pre_div);
+
+	return rate;
+};
+
+static const struct clk_ops clk_fepll_div_ops = {
+	.recalc_rate = clk_regmap_clk_div_recalc_rate,
+};
+
+static struct clk_fepll gcc_apss_sdcc_clk = {
+	.fixed_div = 28,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "ddrpllsdcc",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.pll_vco = &gcc_apss_ddrpll_vco,
+};
+
+static struct clk_fepll gcc_fepll125_clk = {
+	.fixed_div = 32,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "fepll125",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.pll_vco = &gcc_fepll_vco,
+};
+
+static struct clk_fepll gcc_fepll125dly_clk = {
+	.fixed_div = 32,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "fepll125dly",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.pll_vco = &gcc_fepll_vco,
+};
+
+static struct clk_fepll gcc_fepll200_clk = {
+	.fixed_div = 20,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "fepll200",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.pll_vco = &gcc_fepll_vco,
+};
+
+static struct clk_fepll gcc_fepll500_clk = {
+	.fixed_div = 8,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "fepll500",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.pll_vco = &gcc_fepll_vco,
+};
+
+static const struct clk_div_table fepllwcss_clk_div_table[] = {
+	{ 0, 15 },
+	{ 1, 16 },
+	{ 2, 18 },
+	{ 3, 20 },
+	{ },
+};
+
+static struct clk_fepll gcc_fepllwcss2g_clk = {
+	.cdiv.reg = 0x2f020,
+	.cdiv.shift = 8,
+	.cdiv.width = 2,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "fepllwcss2g",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.div_table = fepllwcss_clk_div_table,
+	.pll_vco = &gcc_fepll_vco,
+};
+
+static struct clk_fepll gcc_fepllwcss5g_clk = {
+	.cdiv.reg = 0x2f020,
+	.cdiv.shift = 12,
+	.cdiv.width = 2,
+	.cdiv.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "fepllwcss5g",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
+			},
+			.num_parents = 1,
+			.ops = &clk_fepll_div_ops,
+		},
+	},
+	.div_table = fepllwcss_clk_div_table,
+	.pll_vco = &gcc_fepll_vco,
+};
+
 static const struct freq_tbl ftbl_gcc_audio_pwm_clk[] = {
 	F(48000000, P_XO, 1, 0, 0),
 	F(200000000, P_FEPLL200, 1, 0, 0),
@@ -1211,334 +1539,6 @@ static struct clk_branch gcc_wcss5g_rtc_clk = {
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
-};
-
-/* Calculates the VCO rate for FEPLL. */
-static u64 clk_fepll_vco_calc_rate(struct clk_fepll *pll_div,
-				   unsigned long parent_rate)
-{
-	const struct clk_fepll_vco *pll_vco = pll_div->pll_vco;
-	u32 fdbkdiv, refclkdiv, cdiv;
-	u64 vco;
-
-	regmap_read(pll_div->cdiv.clkr.regmap, pll_vco->reg, &cdiv);
-	refclkdiv = (cdiv >> pll_vco->refclkdiv_shift) &
-		    (BIT(pll_vco->refclkdiv_width) - 1);
-	fdbkdiv = (cdiv >> pll_vco->fdbkdiv_shift) &
-		  (BIT(pll_vco->fdbkdiv_width) - 1);
-
-	vco = parent_rate / refclkdiv;
-	vco *= 2;
-	vco *= fdbkdiv;
-
-	return vco;
-}
-
-static const struct clk_fepll_vco gcc_apss_ddrpll_vco = {
-	.fdbkdiv_shift = 16,
-	.fdbkdiv_width = 8,
-	.refclkdiv_shift = 24,
-	.refclkdiv_width = 5,
-	.reg = 0x2e020,
-};
-
-static const struct clk_fepll_vco gcc_fepll_vco = {
-	.fdbkdiv_shift = 16,
-	.fdbkdiv_width = 8,
-	.refclkdiv_shift = 24,
-	.refclkdiv_width = 5,
-	.reg = 0x2f020,
-};
-
-/*
- * Round rate function for APSS CPU PLL Clock divider.
- * It looks up the frequency table and returns the next higher frequency
- * supported in hardware.
- */
-static long clk_cpu_div_round_rate(struct clk_hw *hw, unsigned long rate,
-				   unsigned long *p_rate)
-{
-	struct clk_fepll *pll = to_clk_fepll(hw);
-	struct clk_hw *p_hw;
-	const struct freq_tbl *f;
-
-	f = qcom_find_freq(pll->freq_tbl, rate);
-	if (!f)
-		return -EINVAL;
-
-	p_hw = clk_hw_get_parent_by_index(hw, f->src);
-	*p_rate = clk_hw_get_rate(p_hw);
-
-	return f->freq;
-};
-
-/*
- * Clock set rate function for APSS CPU PLL Clock divider.
- * It looks up the frequency table and updates the PLL divider to corresponding
- * divider value.
- */
-static int clk_cpu_div_set_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long parent_rate)
-{
-	struct clk_fepll *pll = to_clk_fepll(hw);
-	const struct freq_tbl *f;
-	u32 mask;
-
-	f = qcom_find_freq(pll->freq_tbl, rate);
-	if (!f)
-		return -EINVAL;
-
-	mask = (BIT(pll->cdiv.width) - 1) << pll->cdiv.shift;
-	regmap_update_bits(pll->cdiv.clkr.regmap,
-			   pll->cdiv.reg, mask,
-			   f->pre_div << pll->cdiv.shift);
-	/*
-	 * There is no status bit which can be checked for successful CPU
-	 * divider update operation so using delay for the same.
-	 */
-	udelay(1);
-
-	return 0;
-};
-
-/*
- * Clock frequency calculation function for APSS CPU PLL Clock divider.
- * This clock divider is nonlinear so this function calculates the actual
- * divider and returns the output frequency by dividing VCO Frequency
- * with this actual divider value.
- */
-static unsigned long
-clk_cpu_div_recalc_rate(struct clk_hw *hw,
-			unsigned long parent_rate)
-{
-	struct clk_fepll *pll = to_clk_fepll(hw);
-	u32 cdiv, pre_div;
-	u64 rate;
-
-	regmap_read(pll->cdiv.clkr.regmap, pll->cdiv.reg, &cdiv);
-	cdiv = (cdiv >> pll->cdiv.shift) & (BIT(pll->cdiv.width) - 1);
-
-	/*
-	 * Some dividers have value in 0.5 fraction so multiply both VCO
-	 * frequency(parent_rate) and pre_div with 2 to make integer
-	 * calculation.
-	 */
-	if (cdiv > 10)
-		pre_div = (cdiv + 1) * 2;
-	else
-		pre_div = cdiv + 12;
-
-	rate = clk_fepll_vco_calc_rate(pll, parent_rate) * 2;
-	do_div(rate, pre_div);
-
-	return rate;
-};
-
-static const struct clk_ops clk_regmap_cpu_div_ops = {
-	.round_rate = clk_cpu_div_round_rate,
-	.set_rate = clk_cpu_div_set_rate,
-	.recalc_rate = clk_cpu_div_recalc_rate,
-};
-
-static const struct freq_tbl ftbl_apss_ddr_pll[] = {
-	{ 384000000, P_XO, 0xd, 0, 0 },
-	{ 413000000, P_XO, 0xc, 0, 0 },
-	{ 448000000, P_XO, 0xb, 0, 0 },
-	{ 488000000, P_XO, 0xa, 0, 0 },
-	{ 512000000, P_XO, 0x9, 0, 0 },
-	{ 537000000, P_XO, 0x8, 0, 0 },
-	{ 565000000, P_XO, 0x7, 0, 0 },
-	{ 597000000, P_XO, 0x6, 0, 0 },
-	{ 632000000, P_XO, 0x5, 0, 0 },
-	{ 672000000, P_XO, 0x4, 0, 0 },
-	{ 716000000, P_XO, 0x3, 0, 0 },
-	{ 768000000, P_XO, 0x2, 0, 0 },
-	{ 823000000, P_XO, 0x1, 0, 0 },
-	{ 896000000, P_XO, 0x0, 0, 0 },
-	{ }
-};
-
-static struct clk_fepll gcc_apss_cpu_plldiv_clk = {
-	.cdiv.reg = 0x2e020,
-	.cdiv.shift = 4,
-	.cdiv.width = 4,
-	.cdiv.clkr = {
-		.enable_reg = 0x2e000,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "ddrpllapss",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_regmap_cpu_div_ops,
-		},
-	},
-	.freq_tbl = ftbl_apss_ddr_pll,
-	.pll_vco = &gcc_apss_ddrpll_vco,
-};
-
-/* Calculates the rate for PLL divider.
- * If the divider value is not fixed then it gets the actual divider value
- * from divider table. Then, it calculate the clock rate by dividing the
- * parent rate with actual divider value.
- */
-static unsigned long
-clk_regmap_clk_div_recalc_rate(struct clk_hw *hw,
-			       unsigned long parent_rate)
-{
-	struct clk_fepll *pll = to_clk_fepll(hw);
-	u32 cdiv, pre_div = 1;
-	u64 rate;
-	const struct clk_div_table *clkt;
-
-	if (pll->fixed_div) {
-		pre_div = pll->fixed_div;
-	} else {
-		regmap_read(pll->cdiv.clkr.regmap, pll->cdiv.reg, &cdiv);
-		cdiv = (cdiv >> pll->cdiv.shift) & (BIT(pll->cdiv.width) - 1);
-
-		for (clkt = pll->div_table; clkt->div; clkt++) {
-			if (clkt->val == cdiv)
-				pre_div = clkt->div;
-		}
-	}
-
-	rate = clk_fepll_vco_calc_rate(pll, parent_rate);
-	do_div(rate, pre_div);
-
-	return rate;
-};
-
-static const struct clk_ops clk_fepll_div_ops = {
-	.recalc_rate = clk_regmap_clk_div_recalc_rate,
-};
-
-static struct clk_fepll gcc_apss_sdcc_clk = {
-	.fixed_div = 28,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "ddrpllsdcc",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.pll_vco = &gcc_apss_ddrpll_vco,
-};
-
-static struct clk_fepll gcc_fepll125_clk = {
-	.fixed_div = 32,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "fepll125",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.pll_vco = &gcc_fepll_vco,
-};
-
-static struct clk_fepll gcc_fepll125dly_clk = {
-	.fixed_div = 32,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "fepll125dly",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.pll_vco = &gcc_fepll_vco,
-};
-
-static struct clk_fepll gcc_fepll200_clk = {
-	.fixed_div = 20,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "fepll200",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.pll_vco = &gcc_fepll_vco,
-};
-
-static struct clk_fepll gcc_fepll500_clk = {
-	.fixed_div = 8,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "fepll500",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.pll_vco = &gcc_fepll_vco,
-};
-
-static const struct clk_div_table fepllwcss_clk_div_table[] = {
-	{ 0, 15 },
-	{ 1, 16 },
-	{ 2, 18 },
-	{ 3, 20 },
-	{ },
-};
-
-static struct clk_fepll gcc_fepllwcss2g_clk = {
-	.cdiv.reg = 0x2f020,
-	.cdiv.shift = 8,
-	.cdiv.width = 2,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "fepllwcss2g",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.div_table = fepllwcss_clk_div_table,
-	.pll_vco = &gcc_fepll_vco,
-};
-
-static struct clk_fepll gcc_fepllwcss5g_clk = {
-	.cdiv.reg = 0x2f020,
-	.cdiv.shift = 12,
-	.cdiv.width = 2,
-	.cdiv.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "fepllwcss5g",
-			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo",
-			},
-			.num_parents = 1,
-			.ops = &clk_fepll_div_ops,
-		},
-	},
-	.div_table = fepllwcss_clk_div_table,
-	.pll_vco = &gcc_fepll_vco,
 };
 
 static const struct freq_tbl ftbl_gcc_pcnoc_ahb_clk[] = {
