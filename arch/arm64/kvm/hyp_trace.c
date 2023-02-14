@@ -351,12 +351,24 @@ static const struct file_operations hyp_buffer_size_fops = {
 
 static inline void hyp_trace_read_start(int cpu)
 {
-	mutex_lock(&per_cpu(hyp_trace_reader_lock, cpu));
+	if (cpu != RING_BUFFER_ALL_CPUS) {
+		mutex_lock(&per_cpu(hyp_trace_reader_lock, cpu));
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		mutex_lock(&per_cpu(hyp_trace_reader_lock, cpu));
 }
 
 static inline void hyp_trace_read_stop(int cpu)
 {
-	mutex_unlock(&per_cpu(hyp_trace_reader_lock, cpu));
+	if (cpu != RING_BUFFER_ALL_CPUS) {
+		mutex_unlock(&per_cpu(hyp_trace_reader_lock, cpu));
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		mutex_unlock(&per_cpu(hyp_trace_reader_lock, cpu));
 }
 
 static void ht_print_trace_time(struct ht_iterator *iter)
@@ -367,8 +379,13 @@ static void ht_print_trace_time(struct ht_iterator *iter)
 	do_div(ts_ns, 1000);
 	usecs_rem = do_div(ts_ns, USEC_PER_SEC);
 
-	trace_seq_printf(&iter->seq, "[%5lu.%06lu] ",
+	trace_seq_printf(&iter->seq, "%5lu.%06lu: ",
 			 (unsigned long)ts_ns, usecs_rem);
+}
+
+static void ht_print_trace_cpu(struct ht_iterator *iter)
+{
+	trace_seq_printf(&iter->seq, "[%03d]\t", iter->ent_cpu);
 }
 
 extern struct trace_event *ftrace_find_event(int type);
@@ -379,10 +396,11 @@ static void ht_print_trace_fmt(struct ht_iterator *iter)
 
 	if (iter->lost_events)
 		trace_seq_printf(&iter->seq, "CPU:%d [LOST %lu EVENTS]\n",
-				 iter->cpu, iter->lost_events);
+				 iter->ent_cpu, iter->lost_events);
 
 	/* TODO: format bin/hex/raw */
 
+	ht_print_trace_cpu(iter);
 	ht_print_trace_time(iter);
 
 	e = ftrace_find_event(iter->ent->id);
@@ -394,27 +412,84 @@ static void ht_print_trace_fmt(struct ht_iterator *iter)
 	trace_seq_printf(&iter->seq, "Unknown event id %d\n", iter->ent->id);
 };
 
-static void *ht_next(struct seq_file *m, void *v, loff_t *pos)
+static struct ring_buffer_event *ht_next_event(struct ht_iterator *iter,
+					       u64 *ts, int *cpu)
 {
-	struct ht_iterator *iter = m->private;
-	struct ring_buffer_event *evt;
-	u64 ts;
-
-	(*pos)++;
+	struct ring_buffer_event *evt = NULL;
+	int _cpu;
+	u64 _ts;
 
 	if (!iter->buf_iter)
 		return NULL;
 
-	evt = ring_buffer_iter_peek(iter->buf_iter, &ts);
+	if (iter->cpu != RING_BUFFER_ALL_CPUS) {
+		evt = ring_buffer_iter_peek(iter->buf_iter[iter->cpu], ts);
+		if (!evt)
+			return NULL;
+
+		*cpu = iter->cpu;
+		ring_buffer_iter_advance(iter->buf_iter[*cpu]);
+
+		return evt;
+	}
+
+	*ts = LLONG_MAX;
+	for_each_cpu(_cpu, iter->cpus) {
+		struct ring_buffer_event *_evt;
+
+		_evt = ring_buffer_iter_peek(iter->buf_iter[_cpu], &_ts);
+		if (!_evt)
+			continue;
+
+		if (_ts >= *ts)
+			continue;
+
+		*ts = _ts;
+		*cpu = _cpu;
+		evt = _evt;
+	}
+
+	if (evt)
+		ring_buffer_iter_advance(iter->buf_iter[*cpu]);
+
+	return evt;
+}
+
+static void *ht_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct ht_iterator *iter = m->private;
+	struct ring_buffer_event *evt;
+	int cpu;
+	u64 ts;
+
+	(*pos)++;
+
+	evt = ht_next_event(iter, &ts, &cpu);
 	if (!evt)
 		return NULL;
 
 	iter->ent = (struct hyp_entry_hdr *)&evt->array[1];
 	iter->ts = ts;
 	iter->ent_size = evt->array[0];
-	ring_buffer_iter_advance(iter->buf_iter);
+	iter->ent_cpu = cpu;
 
 	return iter;
+}
+
+static void ht_iter_reset(struct ht_iterator *iter)
+{
+	int cpu = iter->cpu;
+
+	if (!iter->buf_iter)
+		return;
+
+	if (cpu != RING_BUFFER_ALL_CPUS) {
+		ring_buffer_iter_reset(iter->buf_iter[cpu]);
+		return;
+	}
+
+	for_each_cpu(cpu, iter->cpus)
+		ring_buffer_iter_reset(iter->buf_iter[cpu]);
 }
 
 static void *ht_start(struct seq_file *m, loff_t *pos)
@@ -422,8 +497,7 @@ static void *ht_start(struct seq_file *m, loff_t *pos)
 	struct ht_iterator *iter = m->private;
 
 	if (*pos == 0) {
-		if (iter->buf_iter)
-			ring_buffer_iter_reset(iter->buf_iter);
+		ht_iter_reset(iter);
 		(*pos)++;
 		iter->ent = NULL;
 
@@ -442,18 +516,37 @@ static void ht_stop(struct seq_file *m, void *v)
 	hyp_trace_read_stop(iter->cpu);
 }
 
+static void ht_total_entries(struct ht_iterator *iter, unsigned long *entries,
+			     unsigned long *overrun)
+{
+	int cpu = iter->cpu;
+
+	*entries = 0;
+	*overrun = 0;
+
+	if (!hyp_trace_buffer)
+		return;
+
+	if (cpu != RING_BUFFER_ALL_CPUS) {
+		*entries = ring_buffer_entries_cpu(hyp_trace_buffer, cpu);
+		*overrun = ring_buffer_overrun_cpu(hyp_trace_buffer, cpu);
+		return;
+	}
+
+	for_each_cpu(cpu, iter->cpus) {
+		*entries += ring_buffer_entries_cpu(hyp_trace_buffer, cpu);
+		*overrun += ring_buffer_overrun_cpu(hyp_trace_buffer, cpu);
+	}
+}
+
 static int ht_show(struct seq_file *m, void *v)
 {
 	struct ht_iterator *iter = v;
 
 	if (!iter->ent) {
-		unsigned long entries = 0, overrun = 0;
+		unsigned long entries, overrun;
 
-		if (hyp_trace_buffer) {
-			entries = ring_buffer_entries_cpu(hyp_trace_buffer, iter->cpu);
-			overrun = ring_buffer_overrun_cpu(hyp_trace_buffer, iter->cpu);
-		}
-
+		ht_total_entries(iter, &entries, &overrun);
 		seq_printf(m, "# entries-in-buffer/entries-written: %lu/%lu\n",
 			  entries, overrun + entries);
 	} else {
@@ -473,7 +566,7 @@ static const struct seq_operations hyp_trace_ops = {
 
 static int hyp_trace_open(struct inode *inode, struct file *file)
 {
-	unsigned long cpu = (unsigned long)inode->i_private;
+	int cpu = (s64)inode->i_private;
 	struct ht_iterator *iter;
 	int ret = 0;
 
@@ -488,7 +581,7 @@ static int hyp_trace_open(struct inode *inode, struct file *file)
 	if (!hyp_trace_buffer)
 		goto unlock_and_read;
 
-	iter->buf_iter = ring_buffer_read_prepare(hyp_trace_buffer, cpu, GFP_KERNEL);
+	iter->buf_iter = kcalloc(nr_cpu_ids, sizeof(*iter->buf_iter), GFP_KERNEL);
 	if (!iter->buf_iter) {
 		seq_release_private(inode, file);
 		ret = -ENOMEM;
@@ -496,12 +589,38 @@ static int hyp_trace_open(struct inode *inode, struct file *file)
 	}
 
 	iter->cpu = cpu;
+	if (cpu == RING_BUFFER_ALL_CPUS) {
+		if (!zalloc_cpumask_var(&iter->cpus, GFP_KERNEL)) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
 
-	ring_buffer_read_prepare_sync();
-	ring_buffer_read_start(iter->buf_iter);
+		for_each_possible_cpu(cpu) {
+			iter->buf_iter[cpu] =
+				ring_buffer_read_prepare(hyp_trace_buffer, cpu,
+							 GFP_KERNEL);
+			if (iter->buf_iter[cpu])
+				cpumask_set_cpu(cpu, iter->cpus);
+
+			ring_buffer_read_start(iter->buf_iter[cpu]);
+		}
+	} else {
+		iter->buf_iter[cpu] = ring_buffer_read_prepare(hyp_trace_buffer,
+							       cpu, GFP_KERNEL);
+		if (!iter->buf_iter[cpu]) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+		ring_buffer_read_start(iter->buf_iter[cpu]);
+	}
 unlock_and_read:
 	hyp_trace_readers++;
 unlock:
+	if (ret && iter) {
+		kfree(iter->buf_iter);
+		free_cpumask_var(iter->cpus);
+		seq_release_private(inode, file);
+	}
 	mutex_unlock(&hyp_trace_lock);
 
 	return ret;
@@ -512,9 +631,21 @@ int hyp_trace_release(struct inode *inode, struct file *file)
 	struct seq_file *m = file->private_data;
 	struct ht_iterator *iter = m->private;
 
-	if (iter->buf_iter)
-		ring_buffer_read_finish(iter->buf_iter);
+	if (!iter->buf_iter)
+		goto end;
 
+	if (iter->cpu == RING_BUFFER_ALL_CPUS) {
+		int cpu;
+
+		for_each_cpu(cpu, iter->cpus)
+			ring_buffer_read_finish(iter->buf_iter[cpu]);
+		free_cpumask_var(iter->cpus);
+	} else {
+		ring_buffer_read_finish(iter->buf_iter[iter->cpu]);
+	}
+
+	kfree(iter->buf_iter);
+end:
 	mutex_lock(&hyp_trace_lock);
 	hyp_trace_readers--;
 	mutex_unlock(&hyp_trace_lock);
@@ -545,6 +676,7 @@ static void *trace_buffer_peek(struct ht_iterator *iter)
 
 	iter->ent = (struct hyp_entry_hdr *)&event->array[1];
 	iter->ent_size = event->array[0];
+	iter->ent_cpu = iter->cpu;
 
 	return iter;
 }
@@ -594,7 +726,7 @@ static void __poke_reader(struct work_struct *work)
 
 static int hyp_trace_pipe_open(struct inode *inode, struct file *file)
 {
-	unsigned long cpu = (unsigned long)inode->i_private;
+	int cpu = (s64)inode->i_private;
 	struct ht_iterator *iter;
 	int ret = -EINVAL;
 
@@ -730,11 +862,11 @@ static const struct file_operations hyp_trace_raw_fops = {
 };
 
 static void hyp_tracefs_create_cpu_file(const char *file_name,
-					unsigned long cpu,
+					int cpu,
 					const struct file_operations *fops,
 					struct dentry *parent)
 {
-	if (!tracefs_create_file(file_name, 0440, parent, (void *)cpu, fops))
+	if (!tracefs_create_file(file_name, 0440, parent, (void *)(s64)cpu, fops))
 		pr_warn("Failed to create tracefs %pd/%s\n", parent, file_name);
 }
 
@@ -745,8 +877,7 @@ int init_hyp_tracefs(void)
 {
 	struct dentry *d, *root_dir, *per_cpu_root_dir;
 	char per_cpu_name[16];
-	unsigned long cpu;
-	int err;
+	int err, cpu;
 
 	if (!is_protected_kvm_enabled())
 		return 0;
@@ -769,6 +900,8 @@ int init_hyp_tracefs(void)
 	if (!d)
 		pr_err("Failed to create tracefs "TRACEFS_DIR"/buffer_size_kb\n");
 
+	hyp_tracefs_create_cpu_file("trace", RING_BUFFER_ALL_CPUS,
+				    &hyp_trace_fops, root_dir);
 
 	per_cpu_root_dir = tracefs_create_dir("per_cpu", root_dir);
 	if (!per_cpu_root_dir) {
@@ -779,10 +912,10 @@ int init_hyp_tracefs(void)
 	for_each_possible_cpu(cpu) {
 		struct dentry *dir;
 
-		snprintf(per_cpu_name, sizeof(per_cpu_name), "cpu%lu", cpu);
+		snprintf(per_cpu_name, sizeof(per_cpu_name), "cpu%d", cpu);
 		dir = tracefs_create_dir(per_cpu_name, per_cpu_root_dir);
 		if (!dir) {
-			pr_warn("Failed to create tracefs "TRACEFS_DIR"/per_cpu/cpu%lu\n",
+			pr_warn("Failed to create tracefs "TRACEFS_DIR"/per_cpu/cpu%d\n",
 				cpu);
 			continue;
 		}
