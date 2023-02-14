@@ -44,10 +44,6 @@ struct md_pending_region {
 	struct md_region	entry;
 };
 
-struct md_rm_region {
-	char	name[MAX_NAME_LENGTH + 1];
-	u32	slot_num;
-};
 
 struct md_rm_request {
 	struct md_region	entry;

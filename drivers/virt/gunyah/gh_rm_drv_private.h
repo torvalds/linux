@@ -98,6 +98,7 @@ struct gh_vm_property {
 #define GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_INFO		0x56000040
 #define GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_REGISTER_RANGE	0x56000041
 #define GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_DEREGISTER_SLOT	0x56000042
+#define GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_SLOT_NUMBER	0x56000043
 
 /* Message IDs: VM Configuration */
 #define GH_RM_RPC_MSG_ID_CALL_VM_IRQ_ACCEPT		0x56000050
@@ -494,6 +495,18 @@ struct gh_minidump_deregister_slot_req_payload {
 	u16 slot_num;
 	u16 reserved;
 } __packed;
+
+struct gh_minidump_get_slot_req_payload {
+	u32 name_len : 8;
+	u32 reserved1 : 24;
+	u16 starting_slot;
+	u16 reserved2;
+};
+
+struct gh_minidump_get_slot_resp_payload {
+	u16 slot_number;
+	u16 reserved;
+};
 
 /* End Message ID headers */
 

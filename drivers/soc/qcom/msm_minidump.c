@@ -43,11 +43,6 @@ struct md_table {
 	struct md_region	entry[MAX_NUM_ENTRIES];
 };
 
-struct md_rm_table {
-	struct workqueue_struct *minidump_rm_wq;
-	struct md_rm_region entry[MAX_NUM_ENTRIES];
-};
-
 /**
  * md_elfhdr: Minidump table elf header
  * @ehdr: elf main header
@@ -68,7 +63,7 @@ struct md_elfhdr {
 static DEFINE_SPINLOCK(mdt_lock);
 static DEFINE_RWLOCK(mdt_remove_lock);
 static struct md_table		*minidump_table;
-static struct md_rm_table	*minidump_rm_table;
+struct workqueue_struct *minidump_rm_wq;
 static struct md_elfhdr		minidump_elfheader;
 static int first_removed_entry = INT_MAX;
 static bool md_init_done;
@@ -106,25 +101,28 @@ static inline unsigned int set_section_name(const char *name)
 struct md_region md_get_region(char *name)
 {
 	struct md_region *mdr = NULL, tmp = {0};
-	struct md_rm_region *rm_region;
-	int i, regno;
+	int i, j, regno;
 	struct elfhdr *hdr = minidump_elfheader.ehdr;
 	struct elf_phdr *phdr;
-
+	struct elf_shdr *shdr;
+	char *hdr_name;
 
 	if (is_rm_minidump) {
-		if (!minidump_rm_table)
-			goto out;
-		regno = num_regions;
-		for (i = 0; i < regno; i++) {
-			rm_region = &minidump_rm_table->entry[i];
-			if (!strcmp(rm_region->name, name)) {
-				strscpy(tmp.name, rm_region->name, sizeof(tmp.name));
-				phdr = elf_program(hdr, i + 1);
-				tmp.phys_addr = phdr->p_vaddr;
-				tmp.virt_addr = phdr->p_paddr;
-				tmp.size = phdr->p_filesz;
-				goto out;
+		for (i = 0; i < hdr->e_shnum; i++) {
+			shdr = elf_section(hdr, i);
+			hdr_name = elf_lookup_string(hdr, shdr->sh_name);
+			if (!strcmp(hdr_name, name)) {
+				for (j = 0; j < hdr->e_phnum; j++) {
+					phdr = elf_program(hdr, j);
+					if (shdr->sh_addr == phdr->p_vaddr) {
+						strscpy(tmp.name, hdr_name,
+							sizeof(tmp.name));
+						tmp.phys_addr = phdr->p_vaddr;
+						tmp.virt_addr = phdr->p_paddr;
+						tmp.size = phdr->p_filesz;
+						goto out;
+					}
+				}
 			}
 		}
 	} else {
@@ -172,14 +170,17 @@ static inline int md_entry_num(const struct md_region *entry)
 	return -ENOENT;
 }
 
-static inline int md_rm_entry_num(const struct md_region *entry)
+static inline int md_elf_entry_number(const struct md_region *entry)
 {
-	struct md_rm_region *mdr;
-	int i, regno = num_regions;
+	struct elf_shdr *shdr;
+	char *hdr_name;
+	int i;
 
-	for (i = 0; i < regno; i++) {
-		mdr = &minidump_rm_table->entry[i];
-		if (!strcmp(mdr->name, entry->name))
+	for (i = 0; i < minidump_elfheader.ehdr->e_shnum; i++) {
+		shdr = elf_section(minidump_elfheader.ehdr, i);
+		hdr_name = elf_lookup_string(minidump_elfheader.ehdr,
+					     shdr->sh_name);
+		if (!strcmp(hdr_name, entry->name))
 			return i;
 	}
 	return -ENOENT;
@@ -215,7 +216,11 @@ static void md_update_elf_header(int entryno, const struct md_region *entry)
 	struct elf_shdr *shdr;
 	struct elf_phdr *phdr;
 
-	shdr = elf_section(hdr, entryno + 4);
+	if (is_rm_minidump)
+		shdr = elf_section(hdr, entryno + 3);
+	else
+		shdr = elf_section(hdr, entryno + 4);
+
 	phdr = elf_program(hdr, entryno + 1);
 
 	shdr->sh_addr = (elf_addr_t)entry->virt_addr;
@@ -302,22 +307,16 @@ int msm_minidump_clear_headers(const struct md_region *entry)
 static void md_rm_update_work(struct md_region *entry)
 {
 	int slot_num, entryno, ret;
-	struct md_rm_region *mdr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&mdt_lock, flags);
-	/* clear slot number to avoid remove during update */
-	entryno = md_rm_entry_num(entry);
-	if (entryno < 0) {
-		printk_deferred("Not able to find the entry %s in table\n",
-				entry->name);
-		spin_unlock_irqrestore(&mdt_lock, flags);
+	slot_num = gh_rm_minidump_get_slot_from_name(0, entry->name,
+						     strlen(entry->name));
+	if (slot_num < 0) {
+		printk_deferred(
+			"Get slot number:[%s] failed:%d unable to get slot number\n",
+			entry->name, slot_num);
 		return;
 	}
-	mdr = &minidump_rm_table->entry[entryno];
-	slot_num = mdr->slot_num;
-	mdr->slot_num = 0;
-	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	ret = gh_rm_minidump_deregister_slot(slot_num);
 	if (ret < 0) {
@@ -337,12 +336,11 @@ static void md_rm_update_work(struct md_region *entry)
 	}
 
 	spin_lock_irqsave(&mdt_lock, flags);
-	if (strcmp(entry->name, mdr->name)) {
+	entryno = md_elf_entry_number(entry);
+	if (entryno < 0) {
 		printk_deferred(
 			"Update entry:%s failed, minidump table is corrupt\n",
 			entry->name);
-	} else {
-		mdr->slot_num = slot_num;
 		md_update_elf_header(entryno, entry);
 	}
 	spin_unlock_irqrestore(&mdt_lock, flags);
@@ -350,43 +348,18 @@ static void md_rm_update_work(struct md_region *entry)
 
 static void md_rm_add_work(struct md_region *entry)
 {
-	int slot_num, entry_num;
+	int slot_num;
 	unsigned long flags;
-
-	spin_lock_irqsave(&mdt_lock, flags);
-	entry_num = md_rm_entry_num(entry);
-	if (entry_num < 0) {
-		printk_deferred(
-			"Failed to find entry %s in table, table is broken\n",
-			entry->name);
-		goto out;
-	}
-	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	slot_num =
 		gh_rm_minidump_register_range(entry->phys_addr, entry->size,
 					      entry->name, strlen(entry->name));
 	spin_lock_irqsave(&mdt_lock, flags);
 	if (slot_num < 0) {
-		memmove(&minidump_rm_table->entry[entry_num],
-			&minidump_rm_table->entry[entry_num + 1],
-			((num_regions - entry_num - 1) *
-			 sizeof(struct md_rm_region)));
-		memset(&minidump_rm_table->entry[num_regions - 1], 0,
-		       sizeof(struct md_rm_region));
 		num_regions--;
 		pr_err("Failed to register minidump entry:%s ret:%d\n",
 		       entry->name, slot_num);
 		goto out;
-	}
-	if (strcmp(entry->name, minidump_rm_table->entry[entry_num].name)) {
-		printk_deferred(
-			"Add entry:%s failed, minidump table is corrupt\n",
-			entry->name);
-		spin_unlock_irqrestore(&mdt_lock, flags);
-		gh_rm_minidump_deregister_slot(slot_num);
-	} else {
-		minidump_rm_table->entry[entry_num].slot_num = slot_num;
 	}
 	md_add_elf_header(entry);
 
@@ -397,27 +370,15 @@ out:
 static void md_rm_remove_work(struct md_region *entry)
 {
 	int entryno, ret, slot_num;
-	struct md_rm_region *mdr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&mdt_lock, flags);
-	ret = md_rm_entry_num(entry);
-	if (ret < 0) {
-		printk_deferred("Not able to find the entry %s in table\n",
-				entry->name);
-		goto out;
+	slot_num = gh_rm_minidump_get_slot_from_name(0, entry->name,
+						     strlen(entry->name));
+	if (slot_num < 0) {
+		pr_err("Failed to find slot number of minidump entry:%s ret:%d\n",
+		       entry->name, slot_num);
+		return;
 	}
-	entryno = ret;
-	mdr = &minidump_rm_table->entry[entryno];
-	/* to avoid double remove */
-	slot_num = mdr->slot_num;
-	if (slot_num == 0) {
-		printk_deferred("Minidump entry:%s not registered\n",
-				entry->name);
-		goto out;
-	}
-	mdr->slot_num = 0;
-	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	ret = gh_rm_minidump_deregister_slot(slot_num);
 	if (ret < 0) {
@@ -427,24 +388,16 @@ static void md_rm_remove_work(struct md_region *entry)
 	}
 
 	spin_lock_irqsave(&mdt_lock, flags);
-	if (strcmp(entry->name, mdr->name)) {
+	entryno = md_elf_entry_number(entry);
+	if (entryno < 0) {
 		printk_deferred(
 			"Remove entry:%s failed, minidump table is corrupt\n",
 			entry->name);
-	} else {
-		ret = msm_minidump_clear_headers(entry);
-		if (ret)
-			goto out;
-		memmove(&minidump_rm_table->entry[entryno],
-			&minidump_rm_table->entry[entryno + 1],
-			((num_regions - entryno - 1) *
-			 sizeof(struct md_rm_region)));
-		memset(&minidump_rm_table->entry[num_regions - 1], 0,
-		       sizeof(struct md_rm_region));
-		if (ret)
-			goto out;
-		num_regions--;
 	}
+	ret = msm_minidump_clear_headers(entry);
+	if (ret)
+		goto out;
+	num_regions--;
 
 out:
 	spin_unlock_irqrestore(&mdt_lock, flags);
@@ -503,19 +456,15 @@ static void md_add_ss_toc(const struct md_region *entry)
 static int md_rm_add_region(const struct md_region *entry)
 {
 	struct md_rm_request *rm_work;
-	struct md_rm_region *rm_region;
 
 	/* alloc a RM entry for workqueue, need free in work */
 	rm_work = kzalloc(sizeof(*rm_work), GFP_ATOMIC);
 	if (!rm_work)
 		return -ENOMEM;
-	rm_region = &minidump_rm_table->entry[num_regions];
-	strscpy(rm_region->name, entry->name, sizeof(rm_region->name));
-	rm_region->slot_num = 0;
 	rm_work->entry = *entry;
 	rm_work->work_cmd = MINIDUMP_ADD;
 	INIT_WORK(&rm_work->work, minidump_rm_work);
-	queue_work(minidump_rm_table->minidump_rm_wq, &rm_work->work);
+	queue_work(minidump_rm_wq, &rm_work->work);
 
 	return 0;
 }
@@ -607,7 +556,7 @@ static int md_rm_update(int regno, const struct md_region *entry)
 	int entryno;
 	struct md_rm_request *rm_work;
 
-	entryno = md_rm_entry_num(entry);
+	entryno = md_elf_entry_number(entry);
 	if (entryno < 0) {
 		printk_deferred("Not able to find the entry %s in table\n",
 				entry->name);
@@ -619,7 +568,7 @@ static int md_rm_update(int regno, const struct md_region *entry)
 	rm_work->work_cmd = MINIDUMP_UPDATE;
 	rm_work->entry = *entry;
 	INIT_WORK(&rm_work->work, minidump_rm_work);
-	queue_work(minidump_rm_table->minidump_rm_wq, &rm_work->work);
+	queue_work(minidump_rm_wq, &rm_work->work);
 
 	return 0;
 }
@@ -688,7 +637,7 @@ int msm_minidump_add_region(const struct md_region *entry)
 		md_add_elf_header(entry);
 		/* Ensure that init completes before register region */
 	} else if (is_rm_minidump && smp_load_acquire(&md_init_done)) {
-		if (md_rm_entry_num(entry) >= 0) {
+		if (md_elf_entry_number(entry) >= 0) {
 			printk_deferred("Entry name already exist\n");
 			ret = -EEXIST;
 			goto out;
@@ -723,7 +672,7 @@ static int md_rm_remove_region(const struct md_region *entry)
 	int entryno;
 	struct md_rm_request *rm_work;
 
-	entryno = md_rm_entry_num(entry);
+	entryno = md_elf_entry_number(entry);
 	if (entryno < 0) {
 		printk_deferred("Not able to find the entry %s in table\n",
 				entry->name);
@@ -735,7 +684,7 @@ static int md_rm_remove_region(const struct md_region *entry)
 	rm_work->work_cmd = MINIDUMP_REMOVE;
 	rm_work->entry = *entry;
 	INIT_WORK(&rm_work->work, minidump_rm_work);
-	queue_work(minidump_rm_table->minidump_rm_wq, &rm_work->work);
+	queue_work(minidump_rm_wq, &rm_work->work);
 
 	return 0;
 }
@@ -818,7 +767,7 @@ int msm_minidump_remove_region(const struct md_region *entry)
 	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	if (ret)
-		printk_deferred("Minidump is broken..disable Minidump collection\n");
+		printk_deferred("Failed to remove region:%s\n", entry->name);
 	return ret;
 }
 EXPORT_SYMBOL(msm_minidump_remove_region);
@@ -905,15 +854,14 @@ static int msm_minidump_add_header(void)
 	shdr++;
 
 	/* 3rd section is for minidump_table VA, used by parsers */
-	shdr->sh_type = SHT_PROGBITS;
-	shdr->sh_entsize = 0;
-	shdr->sh_flags = 0;
-	if (is_rm_minidump)
-		shdr->sh_addr = (elf_addr_t)minidump_rm_table;
-	else
+	if (!is_rm_minidump) {
+		shdr->sh_type = SHT_PROGBITS;
+		shdr->sh_entsize = 0;
+		shdr->sh_flags = 0;
 		shdr->sh_addr = (elf_addr_t)minidump_table;
-	shdr->sh_name = set_section_name("minidump_table");
-	shdr++;
+		shdr->sh_name = set_section_name("minidump_table");
+		shdr++;
+	}
 
 	/* 4th section is linux banner */
 	banner = (char *)ehdr + strtbl_off + MAX_STRTBL_SIZE;
@@ -936,7 +884,10 @@ static int msm_minidump_add_header(void)
 
 	/* Update headers count*/
 	ehdr->e_phnum = 1;
-	ehdr->e_shnum = 4;
+	if (is_rm_minidump)
+		ehdr->e_shnum = 3;
+	else
+		ehdr->e_shnum = 4;
 
 	if (!is_rm_minidump)
 		mdreg->md_valid = MD_REGION_VALID;
@@ -976,14 +927,10 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 			return ret;
 		}
 		pr_debug("Get available slot number:%d\n", ret);
-		minidump_rm_table = devm_kzalloc(
-			&pdev->dev, sizeof(*minidump_rm_table), GFP_KERNEL);
-		if (!minidump_rm_table)
-			return -ENOMEM;
 
-		minidump_rm_table->minidump_rm_wq = alloc_workqueue(
-			"minidump_wq", WQ_HIGHPRI | WQ_UNBOUND, 1);
-		if (!minidump_rm_table->minidump_rm_wq) {
+		minidump_rm_wq = alloc_workqueue("minidump_wq",
+						 WQ_HIGHPRI | WQ_UNBOUND, 1);
+		if (!minidump_rm_wq) {
 			pr_err("Unable to initialize workqueue\n");
 			return -EINVAL;
 		}
@@ -1046,15 +993,10 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 				spin_unlock_irqrestore(&mdt_lock, flags);
 				return -ENOMEM;
 			}
-			strscpy(minidump_rm_table->entry[region_number].name,
-				pending_region->entry.name,
-				sizeof(minidump_rm_table->entry[region_number]
-					       .name));
 			rm_region->entry = pending_region->entry;
 			rm_region->work_cmd = MINIDUMP_ADD;
 			INIT_WORK(&rm_region->work, minidump_rm_work);
-			queue_work(minidump_rm_table->minidump_rm_wq,
-				   &rm_region->work);
+			queue_work(minidump_rm_wq, &rm_region->work);
 		} else {
 			/* Add pending entry to minidump table and ss toc */
 			minidump_table->entry[region_number] =

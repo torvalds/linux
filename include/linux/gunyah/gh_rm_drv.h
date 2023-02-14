@@ -423,6 +423,8 @@ int gh_rm_minidump_get_info(void);
 int gh_rm_minidump_register_range(phys_addr_t base_ipa, size_t region_size,
 				  const char *name, size_t name_size);
 int gh_rm_minidump_deregister_slot(uint16_t slot_num);
+int gh_rm_minidump_get_slot_from_name(uint16_t starting_slot, const char *name,
+				      size_t name_size);
 
 #else
 /* RM client register notifications APIs */
@@ -719,6 +721,13 @@ static inline int gh_rm_minidump_register_range(phys_addr_t base_ipa,
 }
 
 static inline int gh_rm_minidump_deregister_slot(uint16_t slot_num)
+{
+	return -EINVAL;
+}
+
+static inline int gh_rm_minidump_get_slot_from_name(uint16_t starting_slot,
+						    const char *name,
+						    size_t name_size)
 {
 	return -EINVAL;
 }

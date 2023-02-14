@@ -2634,3 +2634,58 @@ int gh_rm_minidump_deregister_slot(uint16_t slot_num)
 	return 0;
 }
 EXPORT_SYMBOL(gh_rm_minidump_deregister_slot);
+
+/**
+ * gh_rm_minidump_get_slot_from_name: Get a slot number by entry name
+ *
+ * @starting_slot: The start slot number to find the entry
+ * @name: The name of a registered entry
+ * @name_size: Length of the entry name
+ *
+ * On success, the function will return slot number. Otherwise, a negative
+ * value will be returned.
+ */
+int gh_rm_minidump_get_slot_from_name(uint16_t starting_slot, const char *name, size_t name_size)
+{
+	int reply_err_code, ret = -EINVAL;
+	struct gh_minidump_get_slot_req_payload *req_payload;
+	struct gh_minidump_get_slot_resp_payload *resp_payload;
+	size_t req_size, resp_size;
+	void *req_buf;
+
+	if (!name)
+		return -EINVAL;
+
+	req_size = sizeof(*req_payload) + name_size;
+
+	req_buf = kzalloc(req_size, GFP_KERNEL);
+	if (!req_buf)
+		return -ENOMEM;
+
+	req_payload = req_buf;
+	req_payload->name_len = name_size;
+	req_payload->starting_slot = starting_slot;
+	memcpy(req_buf + sizeof(*req_payload), name, name_size);
+
+	resp_payload =
+		gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_SLOT_NUMBER,
+			   req_buf, req_size, &resp_size, &reply_err_code);
+
+	if (reply_err_code || IS_ERR(resp_payload)) {
+		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp_payload, reply_err_code);
+		ret = PTR_ERR(resp_payload);
+		goto err_rm_call;
+	}
+
+	if (resp_size != sizeof(*resp_payload)) {
+		ret = -EINVAL;
+		pr_err("%s: Invalid size received: %u\n", __func__, resp_size);
+		goto err_rm_call;
+	}
+	ret = resp_payload->slot_number;
+
+err_rm_call:
+	kfree(req_buf);
+	return ret;
+}
+EXPORT_SYMBOL(gh_rm_minidump_get_slot_from_name);
