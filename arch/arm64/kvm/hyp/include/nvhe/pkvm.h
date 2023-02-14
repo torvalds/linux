@@ -13,6 +13,13 @@
 #include <nvhe/spinlock.h>
 
 /*
+ * Misconfiguration events that can undermine pKVM security.
+ */
+enum pkvm_system_misconfiguration {
+	NO_DMA_ISOLATION,
+};
+
+/*
  * Holds the relevant data for maintaining the vcpu state completely at hyp.
  */
 struct pkvm_hyp_vcpu {
@@ -145,5 +152,10 @@ static inline bool pkvm_ipa_range_has_pvmfw(struct pkvm_hyp_vm *vm,
 int pkvm_load_pvmfw_pages(struct pkvm_hyp_vm *vm, u64 ipa, phys_addr_t phys,
 			  u64 size);
 void pkvm_poison_pvmfw_pages(void);
+
+/*
+ * Notify pKVM about events that can undermine pKVM security.
+ */
+void pkvm_handle_system_misconfiguration(enum pkvm_system_misconfiguration event);
 
 #endif /* __ARM64_KVM_NVHE_PKVM_H__ */
