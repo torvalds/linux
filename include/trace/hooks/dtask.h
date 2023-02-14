@@ -32,6 +32,15 @@ DECLARE_HOOK(android_vh_mutex_wait_start,
 DECLARE_HOOK(android_vh_mutex_wait_finish,
 	TP_PROTO(struct mutex *lock),
 	TP_ARGS(lock));
+DECLARE_HOOK(android_vh_mutex_opt_spin_start,
+	TP_PROTO(struct mutex *lock, bool *time_out, int *cnt),
+	TP_ARGS(lock, time_out, cnt));
+DECLARE_HOOK(android_vh_mutex_opt_spin_finish,
+	TP_PROTO(struct mutex *lock, bool taken),
+	TP_ARGS(lock, taken));
+DECLARE_HOOK(android_vh_mutex_can_spin_on_owner,
+	TP_PROTO(struct mutex *lock, int *retval),
+	TP_ARGS(lock, retval));
 
 DECLARE_HOOK(android_vh_rtmutex_wait_start,
 	TP_PROTO(struct rt_mutex *lock),
@@ -52,6 +61,15 @@ DECLARE_HOOK(android_vh_rwsem_write_wait_start,
 DECLARE_HOOK(android_vh_rwsem_write_wait_finish,
 	TP_PROTO(struct rw_semaphore *sem),
 	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_rwsem_opt_spin_start,
+	TP_PROTO(struct rw_semaphore *sem, bool *time_out, int *cnt, bool chk_only),
+	TP_ARGS(sem, time_out, cnt, chk_only));
+DECLARE_HOOK(android_vh_rwsem_opt_spin_finish,
+	TP_PROTO(struct rw_semaphore *sem, bool taken, bool wlock),
+	TP_ARGS(sem, taken, wlock));
+DECLARE_HOOK(android_vh_rwsem_can_spin_on_owner,
+	TP_PROTO(struct rw_semaphore *sem, bool *ret, bool wlock),
+	TP_ARGS(sem, ret, wlock));
 
 DECLARE_HOOK(android_vh_sched_show_task,
 	TP_PROTO(struct task_struct *task),
