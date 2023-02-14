@@ -1804,15 +1804,16 @@ static bool ndisc_suppress_frag_ndisc(struct sk_buff *skb)
 	return false;
 }
 
-int ndisc_rcv(struct sk_buff *skb)
+enum skb_drop_reason ndisc_rcv(struct sk_buff *skb)
 {
 	struct nd_msg *msg;
+	SKB_DR(reason);
 
 	if (ndisc_suppress_frag_ndisc(skb))
-		return 0;
+		return SKB_DROP_REASON_IPV6_NDISC_FRAG;
 
 	if (skb_linearize(skb))
-		return 0;
+		return SKB_DROP_REASON_NOMEM;
 
 	msg = (struct nd_msg *)skb_transport_header(skb);
 
@@ -1821,13 +1822,13 @@ int ndisc_rcv(struct sk_buff *skb)
 	if (ipv6_hdr(skb)->hop_limit != 255) {
 		ND_PRINTK(2, warn, "NDISC: invalid hop-limit: %d\n",
 			  ipv6_hdr(skb)->hop_limit);
-		return 0;
+		return SKB_DROP_REASON_IPV6_NDISC_HOP_LIMIT;
 	}
 
 	if (msg->icmph.icmp6_code != 0) {
 		ND_PRINTK(2, warn, "NDISC: invalid ICMPv6 code: %d\n",
 			  msg->icmph.icmp6_code);
-		return 0;
+		return SKB_DROP_REASON_IPV6_NDISC_BAD_CODE;
 	}
 
 	switch (msg->icmph.icmp6_type) {
@@ -1853,7 +1854,7 @@ int ndisc_rcv(struct sk_buff *skb)
 		break;
 	}
 
-	return 0;
+	return reason;
 }
 
 static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
