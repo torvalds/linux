@@ -193,7 +193,7 @@ static struct attribute *cppc_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cppc);
 
-static struct kobj_type cppc_ktype = {
+static const struct kobj_type cppc_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = cppc_groups,
 };
