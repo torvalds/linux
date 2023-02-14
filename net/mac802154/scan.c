@@ -383,9 +383,8 @@ void mac802154_beacon_worker(struct work_struct *work)
 		dev_err(&sdata->dev->dev,
 			"Beacon could not be transmitted (%d)\n", ret);
 
-	if (local->beacon_interval >= 0)
-		queue_delayed_work(local->mac_wq, &local->beacon_work,
-				   local->beacon_interval);
+	queue_delayed_work(local->mac_wq, &local->beacon_work,
+			   local->beacon_interval);
 }
 
 int mac802154_stop_beacons_locked(struct ieee802154_local *local,
