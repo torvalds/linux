@@ -2246,6 +2246,11 @@ int vcap_add_rule(struct vcap_rule *rule)
 	if (move.count > 0)
 		vcap_move_rules(ri, &move);
 
+	/* Set the counter to zero */
+	ret = vcap_write_counter(ri, &ctr);
+	if (ret)
+		goto out;
+
 	if (ri->state == VCAP_RS_DISABLED) {
 		/* Erase the rule area */
 		ri->vctrl->ops->init(ri->ndev, ri->admin, ri->addr, ri->size);
@@ -2264,8 +2269,6 @@ int vcap_add_rule(struct vcap_rule *rule)
 		pr_err("%s:%d: rule write error: %d\n", __func__, __LINE__, ret);
 		goto out;
 	}
-	/* Set the counter to zero */
-	ret = vcap_write_counter(ri, &ctr);
 out:
 	mutex_unlock(&ri->admin->lock);
 	return ret;
