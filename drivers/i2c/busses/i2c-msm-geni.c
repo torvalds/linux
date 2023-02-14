@@ -437,7 +437,7 @@ static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 {
 	if (gi2c->se_mode == UNINITIALIZED) {
 		int proto = geni_se_read_proto(&gi2c->i2c_rsc);
-		u32 se_mode;
+		u32 se_mode, geni_se_hw_param_2;
 
 		if (proto != GENI_SE_I2C) {
 			dev_err(gi2c->dev, "Invalid proto %d\n", proto);
@@ -474,6 +474,15 @@ static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 					"i2c fifo/se-dma mode. fifo depth:%d\n",
 					gi2c_tx_depth);
+		}
+
+		if (!gi2c->is_i2c_hub) {
+			/* Check if SE is RTL based SE */
+			geni_se_hw_param_2 = readl_relaxed(gi2c->base + SE_HW_PARAM_2);
+			if (geni_se_hw_param_2 & GEN_HW_FSM_I2C) {
+				gi2c->is_i2c_rtl_based  = true;
+				dev_info(gi2c->dev, "%s: RTL based SE\n", __func__);
+			}
 		}
 	}
 	return 0;
@@ -1563,11 +1572,6 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "qcom,rtl_se")) {
-		gi2c->is_i2c_rtl_based  = true;
-		dev_info(&pdev->dev, "%s: RTL based SE\n", __func__);
-	}
-
 	/*
 	 * For LE, clocks, gpio and icb voting will be provided by
 	 * LA. The I2C operates in GSI mode only for LE usecase,
@@ -1618,6 +1622,12 @@ static int geni_i2c_probe(struct platform_device *pdev)
 			}
 			gi2c->i2c_rsc.icc_paths[GENI_TO_CORE].avg_bw = GENI_DEFAULT_BW;
 			gi2c->i2c_rsc.icc_paths[CPU_TO_GENI].avg_bw = GENI_DEFAULT_BW;
+
+			/* For I2C HUB, we don't have HW reg to identify RTL/SW base SE.
+			 * Hence setting flag for all I2C HUB instances.
+			 */
+			gi2c->is_i2c_rtl_based  = true;
+			dev_info(gi2c->dev, "%s: RTL based SE\n", __func__);
 		} else {
 			ret = geni_se_common_resources_init(&gi2c->i2c_rsc,
 					GENI_DEFAULT_BW, GENI_DEFAULT_BW,
