@@ -443,9 +443,7 @@ TC_INDIRECT_SCOPE int tcf_pedit_act(struct sk_buff *skb,
 	goto done;
 
 bad:
-	spin_lock(&p->tcf_lock);
-	p->tcf_qstats.overlimits++;
-	spin_unlock(&p->tcf_lock);
+	tcf_action_inc_overlimit_qstats(&p->common);
 done:
 	return p->tcf_action;
 }
