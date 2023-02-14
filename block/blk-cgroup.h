@@ -234,30 +234,30 @@ static inline bool bio_issue_as_root_blkg(struct bio *bio)
 }
 
 /**
- * blkg_lookup - lookup blkg for the specified blkcg - disk pair
+ * blkg_lookup - lookup blkg for the specified blkcg - q pair
  * @blkcg: blkcg of interest
- * @disk: gendisk of interest
+ * @q: request_queue of interest
  *
- * Lookup blkg for the @blkcg - @disk pair.
+ * Lookup blkg for the @blkcg - @q pair.
 
  * Must be called in a RCU critical section.
  */
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
-					   struct gendisk *disk)
+					   struct request_queue *q)
 {
 	struct blkcg_gq *blkg;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	if (blkcg == &blkcg_root)
-		return disk->queue->root_blkg;
+		return q->root_blkg;
 
 	blkg = rcu_dereference(blkcg->blkg_hint);
-	if (blkg && blkg->disk == disk)
+	if (blkg && blkg->disk->queue == q)
 		return blkg;
 
-	blkg = radix_tree_lookup(&blkcg->blkg_tree, disk->queue->id);
-	if (blkg && blkg->disk != disk)
+	blkg = radix_tree_lookup(&blkcg->blkg_tree, q->id);
+	if (blkg && blkg->disk->queue != q)
 		blkg = NULL;
 	return blkg;
 }
@@ -357,7 +357,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 #define blkg_for_each_descendant_pre(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_pre((pos_css), &(p_blkg)->blkcg->css)	\
 		if (((d_blkg) = blkg_lookup(css_to_blkcg(pos_css),	\
-					    (p_blkg)->disk)))
+					    (p_blkg)->disk->queue)))
 
 /**
  * blkg_for_each_descendant_post - post-order walk of a blkg's descendants
@@ -372,7 +372,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 #define blkg_for_each_descendant_post(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\
 		if (((d_blkg) = blkg_lookup(css_to_blkcg(pos_css),	\
-					    (p_blkg)->disk)))
+					    (p_blkg)->disk->queue)))
 
 bool __blkcg_punt_bio_submit(struct bio *bio);
 
