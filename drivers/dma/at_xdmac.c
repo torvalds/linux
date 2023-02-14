@@ -2181,8 +2181,7 @@ static int __maybe_unused atmel_xdmac_resume(struct device *dev)
 	struct at_xdmac_chan	*atchan;
 	struct dma_chan		*chan, *_chan;
 	struct platform_device	*pdev = container_of(dev, struct platform_device, dev);
-	int			i;
-	int ret;
+	int			i, ret;
 
 	ret = clk_prepare_enable(atxdmac->clk);
 	if (ret)
