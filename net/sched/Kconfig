@@ -45,23 +45,6 @@ if NET_SCHED
 
 comment "Queueing/Scheduling"
 
-config NET_SCH_CBQ
-	tristate "Class Based Queueing (CBQ)"
-	help
-	  Say Y here if you want to use the Class-Based Queueing (CBQ) packet
-	  scheduling algorithm. This algorithm classifies the waiting packets
-	  into a tree-like hierarchy of classes; the leaves of this tree are
-	  in turn scheduled by separate algorithms.
-
-	  See the top of <file:net/sched/sch_cbq.c> for more details.
-
-	  CBQ is a commonly used scheduler, so if you're unsure, you should
-	  say Y here. Then say Y to all the queueing algorithms below that you
-	  want to use as leaf disciplines.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called sch_cbq.
-
 config NET_SCH_HTB
 	tristate "Hierarchical Token Bucket (HTB)"
 	help
