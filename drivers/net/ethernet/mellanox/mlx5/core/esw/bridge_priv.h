@@ -233,10 +233,10 @@ void mlx5_esw_bridge_mcast_disable(struct mlx5_esw_bridge *bridge);
 
 int mlx5_esw_bridge_mdb_init(struct mlx5_esw_bridge *bridge);
 void mlx5_esw_bridge_mdb_cleanup(struct mlx5_esw_bridge *bridge);
-int mlx5_esw_bridge_port_mdb_attach(struct mlx5_esw_bridge_port *port, const unsigned char *addr,
-				    u16 vid);
-void mlx5_esw_bridge_port_mdb_detach(struct mlx5_esw_bridge_port *port, const unsigned char *addr,
-				     u16 vid);
+int mlx5_esw_bridge_port_mdb_attach(struct net_device *dev, struct mlx5_esw_bridge_port *port,
+				    const unsigned char *addr, u16 vid);
+void mlx5_esw_bridge_port_mdb_detach(struct net_device *dev, struct mlx5_esw_bridge_port *port,
+				     const unsigned char *addr, u16 vid);
 void mlx5_esw_bridge_port_mdb_vlan_flush(struct mlx5_esw_bridge_port *port,
 					 struct mlx5_esw_bridge_vlan *vlan);
 void mlx5_esw_bridge_mdb_flush(struct mlx5_esw_bridge *bridge);

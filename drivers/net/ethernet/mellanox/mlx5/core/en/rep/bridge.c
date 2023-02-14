@@ -238,7 +238,7 @@ mlx5_esw_bridge_port_obj_add(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		mdb = SWITCHDEV_OBJ_PORT_MDB(obj);
-		err = mlx5_esw_bridge_port_mdb_add(vport_num, esw_owner_vhca_id, mdb->addr,
+		err = mlx5_esw_bridge_port_mdb_add(dev, vport_num, esw_owner_vhca_id, mdb->addr,
 						   mdb->vid, br_offloads, extack);
 		break;
 	default:
@@ -270,7 +270,7 @@ mlx5_esw_bridge_port_obj_del(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		mdb = SWITCHDEV_OBJ_PORT_MDB(obj);
-		mlx5_esw_bridge_port_mdb_del(vport_num, esw_owner_vhca_id, mdb->addr, mdb->vid,
+		mlx5_esw_bridge_port_mdb_del(dev, vport_num, esw_owner_vhca_id, mdb->addr, mdb->vid,
 					     br_offloads);
 		break;
 	default:

@@ -5,6 +5,7 @@
 #include "bridge.h"
 #include "eswitch.h"
 #include "bridge_priv.h"
+#include "diag/bridge_tracepoint.h"
 
 static const struct rhashtable_params mdb_ht_params = {
 	.key_offset = offsetof(struct mlx5_esw_bridge_mdb_entry, key),
@@ -180,8 +181,8 @@ static void mlx5_esw_bridge_port_mdb_entry_cleanup(struct mlx5_esw_bridge *bridg
 	kvfree(entry);
 }
 
-int mlx5_esw_bridge_port_mdb_attach(struct mlx5_esw_bridge_port *port, const unsigned char *addr,
-				    u16 vid)
+int mlx5_esw_bridge_port_mdb_attach(struct net_device *dev, struct mlx5_esw_bridge_port *port,
+				    const unsigned char *addr, u16 vid)
 {
 	struct mlx5_esw_bridge *bridge = port->bridge;
 	struct mlx5_esw_bridge_mdb_entry *entry;
@@ -224,6 +225,8 @@ int mlx5_esw_bridge_port_mdb_attach(struct mlx5_esw_bridge_port *port, const uns
 		 */
 		esw_warn(bridge->br_offloads->esw->dev, "MDB attach failed to offload (MAC=%pM,vid=%u,vport=%u,err=%d)\n",
 			 addr, vid, port->vport_num, err);
+
+	trace_mlx5_esw_bridge_port_mdb_attach(dev, entry);
 	return 0;
 }
 
@@ -248,8 +251,8 @@ static void mlx5_esw_bridge_port_mdb_entry_detach(struct mlx5_esw_bridge_port *p
 			 entry->key.addr, entry->key.vid, port->vport_num);
 }
 
-void mlx5_esw_bridge_port_mdb_detach(struct mlx5_esw_bridge_port *port, const unsigned char *addr,
-				     u16 vid)
+void mlx5_esw_bridge_port_mdb_detach(struct net_device *dev, struct mlx5_esw_bridge_port *port,
+				     const unsigned char *addr, u16 vid)
 {
 	struct mlx5_esw_bridge *bridge = port->bridge;
 	struct mlx5_esw_bridge_mdb_entry *entry;
@@ -269,6 +272,7 @@ void mlx5_esw_bridge_port_mdb_detach(struct mlx5_esw_bridge_port *port, const un
 		return;
 	}
 
+	trace_mlx5_esw_bridge_port_mdb_detach(dev, entry);
 	mlx5_esw_bridge_port_mdb_entry_detach(port, entry);
 }
 

@@ -1803,8 +1803,9 @@ void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
 	}
 }
 
-int mlx5_esw_bridge_port_mdb_add(u16 vport_num, u16 esw_owner_vhca_id, const unsigned char *addr,
-				 u16 vid, struct mlx5_esw_bridge_offloads *br_offloads,
+int mlx5_esw_bridge_port_mdb_add(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
+				 const unsigned char *addr, u16 vid,
+				 struct mlx5_esw_bridge_offloads *br_offloads,
 				 struct netlink_ext_ack *extack)
 {
 	struct mlx5_esw_bridge_vlan *vlan;
@@ -1837,7 +1838,7 @@ int mlx5_esw_bridge_port_mdb_add(u16 vport_num, u16 esw_owner_vhca_id, const uns
 		}
 	}
 
-	err = mlx5_esw_bridge_port_mdb_attach(port, addr, vid);
+	err = mlx5_esw_bridge_port_mdb_attach(dev, port, addr, vid);
 	if (err) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Failed to add MDB (MAC=%pM,vid=%u,vport=%u)\n",
 				       addr, vid, vport_num);
@@ -1847,8 +1848,9 @@ int mlx5_esw_bridge_port_mdb_add(u16 vport_num, u16 esw_owner_vhca_id, const uns
 	return 0;
 }
 
-void mlx5_esw_bridge_port_mdb_del(u16 vport_num, u16 esw_owner_vhca_id, const unsigned char *addr,
-				  u16 vid, struct mlx5_esw_bridge_offloads *br_offloads)
+void mlx5_esw_bridge_port_mdb_del(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
+				  const unsigned char *addr, u16 vid,
+				  struct mlx5_esw_bridge_offloads *br_offloads)
 {
 	struct mlx5_esw_bridge_port *port;
 
@@ -1856,7 +1858,7 @@ void mlx5_esw_bridge_port_mdb_del(u16 vport_num, u16 esw_owner_vhca_id, const un
 	if (!port)
 		return;
 
-	mlx5_esw_bridge_port_mdb_detach(port, addr, vid);
+	mlx5_esw_bridge_port_mdb_detach(dev, port, addr, vid);
 }
 
 static void mlx5_esw_bridge_flush(struct mlx5_esw_bridge_offloads *br_offloads)
