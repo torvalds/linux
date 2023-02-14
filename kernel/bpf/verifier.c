@@ -3631,6 +3631,7 @@ static int check_stack_write_var_off(struct bpf_verifier_env *env,
 	int min_off, max_off;
 	int i, err;
 	struct bpf_reg_state *ptr_reg = NULL, *value_reg = NULL;
+	struct bpf_insn *insn = &env->prog->insnsi[insn_idx];
 	bool writing_zero = false;
 	/* set if the fact that we're writing a zero is used to let any
 	 * stack slots remain STACK_ZERO
@@ -3643,7 +3644,8 @@ static int check_stack_write_var_off(struct bpf_verifier_env *env,
 	max_off = ptr_reg->smax_value + off + size;
 	if (value_regno >= 0)
 		value_reg = &cur->regs[value_regno];
-	if (value_reg && register_is_null(value_reg))
+	if ((value_reg && register_is_null(value_reg)) ||
+	    (!value_reg && is_bpf_st_mem(insn) && insn->imm == 0))
 		writing_zero = true;
 
 	err = grow_stack_state(state, round_up(-min_off, BPF_REG_SIZE));
