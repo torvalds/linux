@@ -1630,7 +1630,7 @@ static void raid10_end_discard_request(struct bio *bio)
 		/*
 		 * raid10_remove_disk uses smp_mb to make sure rdev is set to
 		 * replacement before setting replacement to NULL. It can read
-		 * rdev first without barrier protect even replacment is NULL
+		 * rdev first without barrier protect even replacement is NULL
 		 */
 		smp_rmb();
 		rdev = conf->mirrors[dev].rdev;
