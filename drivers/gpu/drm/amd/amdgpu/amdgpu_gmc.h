@@ -178,6 +178,21 @@ struct amdgpu_xgmi {
 	struct amdgpu_xgmi_ras *ras;
 };
 
+struct amdgpu_mem_partition_info {
+	union {
+		struct {
+			uint32_t fpfn;
+			uint32_t lpfn;
+		} range;
+		struct {
+			int node;
+		} numa;
+	};
+	uint64_t size;
+};
+
+#define INVALID_PFN    -1
+
 struct amdgpu_gmc {
 	/* FB's physical address in MMIO space (for CPU to
 	 * map FB). This is different compared to the agp/
@@ -266,6 +281,8 @@ struct amdgpu_gmc {
 	bool tmz_enabled;
 	bool is_app_apu;
 
+	struct amdgpu_mem_partition_info *mem_partitions;
+	uint8_t num_mem_partitions;
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 
 	struct amdgpu_xgmi xgmi;
