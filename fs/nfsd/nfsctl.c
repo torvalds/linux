@@ -1214,22 +1214,17 @@ static void nfsd_symlink(struct dentry *parent, const char *name,
 {
 	struct inode *dir = parent->d_inode;
 	struct dentry *dentry;
-	int ret = -ENOMEM;
+	int ret;
 
 	inode_lock(dir);
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
-		goto out_err;
+		goto out;
 	ret = __nfsd_symlink(d_inode(parent), dentry, S_IFLNK | 0777, content);
 	if (ret)
-		goto out_err;
+		dput(dentry);
 out:
 	inode_unlock(dir);
-	return;
-out_err:
-	dput(dentry);
-	dentry = ERR_PTR(ret);
-	goto out;
 }
 #else
 static inline void nfsd_symlink(struct dentry *parent, const char *name,
