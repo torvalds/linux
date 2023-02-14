@@ -2625,10 +2625,9 @@ int cxl_add_to_region(struct cxl_port *root, struct cxl_endpoint_decoder *cxled)
 		cxlr = to_cxl_region(region_dev);
 	mutex_unlock(&cxlrd->range_lock);
 
-	if (IS_ERR(cxlr)) {
-		rc = PTR_ERR(cxlr);
+	rc = PTR_ERR_OR_ZERO(cxlr);
+	if (rc)
 		goto out;
-	}
 
 	attach_target(cxlr, cxled, -1, TASK_UNINTERRUPTIBLE);
 

@@ -47,7 +47,7 @@ config DEV_DAX_HMEM
 
 config DEV_DAX_CXL
 	tristate "CXL DAX: direct access to CXL RAM regions"
-	depends on CXL_REGION && DEV_DAX
+	depends on CXL_BUS && CXL_REGION && DEV_DAX
 	default CXL_REGION && DEV_DAX
 	help
 	  CXL RAM regions are either mapped by platform-firmware
