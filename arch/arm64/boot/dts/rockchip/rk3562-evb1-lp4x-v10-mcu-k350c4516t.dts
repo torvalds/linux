@@ -10,8 +10,8 @@
 #include "rk3562-rk817.dtsi"
 
 / {
-	model = "Rockchip RK3562 EVB2 DDR4 V10 Board + RK EVB MCU PANLE DISPLAY Ext Board";
-	compatible = "rockchip,rk3562-evb2-ddr4-v10-mcu-k350c4516t", "rockchip,rk3562";
+	model = "Rockchip RK3562 EVB1 LP4X V10 Board + RK EVB MCU PANLE DISPLAY Ext Board";
+	compatible = "rockchip,rk3562-evb1-lp4x-v10-mcu-k350c4516t", "rockchip,rk3562";
 };
 
 &backlight {
@@ -58,7 +58,6 @@
 		 */
 		bus-format = <MEDIA_BUS_FMT_RGB565_1X16>;
 		backlight = <&backlight>;
-		bl-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
 		enable-delay-ms = <20>;
 		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
