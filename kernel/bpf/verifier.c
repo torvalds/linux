@@ -14703,9 +14703,10 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(prog);
 
-	if (btf_record_has_field(map->record, BPF_LIST_HEAD)) {
+	if (btf_record_has_field(map->record, BPF_LIST_HEAD) ||
+	    btf_record_has_field(map->record, BPF_RB_ROOT)) {
 		if (is_tracing_prog_type(prog_type)) {
-			verbose(env, "tracing progs cannot use bpf_list_head yet\n");
+			verbose(env, "tracing progs cannot use bpf_{list_head,rb_root} yet\n");
 			return -EINVAL;
 		}
 	}

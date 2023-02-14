@@ -58,12 +58,12 @@ static struct {
 	TEST(inner_map, pop_front)
 	TEST(inner_map, pop_back)
 #undef TEST
-	{ "map_compat_kprobe", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_kretprobe", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_tp", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_perf", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_raw_tp", "tracing progs cannot use bpf_list_head yet" },
-	{ "map_compat_raw_tp_w", "tracing progs cannot use bpf_list_head yet" },
+	{ "map_compat_kprobe", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_kretprobe", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_tp", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_perf", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_raw_tp", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_raw_tp_w", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
 	{ "obj_type_id_oor", "local type ID argument must be in range [0, U32_MAX]" },
 	{ "obj_new_no_composite", "bpf_obj_new type ID argument must be of a struct" },
 	{ "obj_new_no_struct", "bpf_obj_new type ID argument must be of a struct" },
