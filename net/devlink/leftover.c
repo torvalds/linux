@@ -5963,61 +5963,6 @@ nla_put_failure:
 	return err;
 }
 
-static void devlink_recover_notify(struct devlink_health_reporter *reporter,
-				   enum devlink_command cmd)
-{
-	struct devlink *devlink = reporter->devlink;
-	struct sk_buff *msg;
-	int err;
-
-	WARN_ON(cmd != DEVLINK_CMD_HEALTH_REPORTER_RECOVER);
-	WARN_ON(!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED));
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return;
-
-	err = devlink_nl_health_reporter_fill(msg, reporter, cmd, 0, 0, 0);
-	if (err) {
-		nlmsg_free(msg);
-		return;
-	}
-
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink), msg,
-				0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
-}
-
-void
-devlink_health_reporter_recovery_done(struct devlink_health_reporter *reporter)
-{
-	reporter->recovery_count++;
-	reporter->last_recovery_ts = jiffies;
-}
-EXPORT_SYMBOL_GPL(devlink_health_reporter_recovery_done);
-
-static int
-devlink_health_reporter_recover(struct devlink_health_reporter *reporter,
-				void *priv_ctx, struct netlink_ext_ack *extack)
-{
-	int err;
-
-	if (reporter->health_state == DEVLINK_HEALTH_REPORTER_STATE_HEALTHY)
-		return 0;
-
-	if (!reporter->ops->recover)
-		return -EOPNOTSUPP;
-
-	err = reporter->ops->recover(reporter, priv_ctx, extack);
-	if (err)
-		return err;
-
-	devlink_health_reporter_recovery_done(reporter);
-	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
-	devlink_recover_notify(reporter, DEVLINK_CMD_HEALTH_REPORTER_RECOVER);
-
-	return 0;
-}
-
 static void
 devlink_health_dump_clear(struct devlink_health_reporter *reporter)
 {
@@ -6027,9 +5972,9 @@ devlink_health_dump_clear(struct devlink_health_reporter *reporter)
 	reporter->dump_fmsg = NULL;
 }
 
-static int devlink_health_do_dump(struct devlink_health_reporter *reporter,
-				  void *priv_ctx,
-				  struct netlink_ext_ack *extack)
+int devlink_health_do_dump(struct devlink_health_reporter *reporter,
+			   void *priv_ctx,
+			   struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -6068,55 +6013,6 @@ dump_err:
 	return err;
 }
 
-int devlink_health_report(struct devlink_health_reporter *reporter,
-			  const char *msg, void *priv_ctx)
-{
-	enum devlink_health_reporter_state prev_health_state;
-	struct devlink *devlink = reporter->devlink;
-	unsigned long recover_ts_threshold;
-	int ret;
-
-	/* write a log message of the current error */
-	WARN_ON(!msg);
-	trace_devlink_health_report(devlink, reporter->ops->name, msg);
-	reporter->error_count++;
-	prev_health_state = reporter->health_state;
-	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
-	devlink_recover_notify(reporter, DEVLINK_CMD_HEALTH_REPORTER_RECOVER);
-
-	/* abort if the previous error wasn't recovered */
-	recover_ts_threshold = reporter->last_recovery_ts +
-			       msecs_to_jiffies(reporter->graceful_period);
-	if (reporter->auto_recover &&
-	    (prev_health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
-	     (reporter->last_recovery_ts && reporter->recovery_count &&
-	      time_is_after_jiffies(recover_ts_threshold)))) {
-		trace_devlink_health_recover_aborted(devlink,
-						     reporter->ops->name,
-						     reporter->health_state,
-						     jiffies -
-						     reporter->last_recovery_ts);
-		return -ECANCELED;
-	}
-
-	if (reporter->auto_dump) {
-		mutex_lock(&reporter->dump_lock);
-		/* store current dump of current error, for later analysis */
-		devlink_health_do_dump(reporter, priv_ctx, NULL);
-		mutex_unlock(&reporter->dump_lock);
-	}
-
-	if (!reporter->auto_recover)
-		return 0;
-
-	devl_lock(devlink);
-	ret = devlink_health_reporter_recover(reporter, priv_ctx, NULL);
-	devl_unlock(devlink);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(devlink_health_report);
-
 static struct devlink_health_reporter *
 devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 {
@@ -6133,37 +6029,6 @@ devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 	reporter = devlink_health_reporter_get_from_attrs(devlink, attrs);
 	devlink_put(devlink);
 	return reporter;
-}
-
-void
-devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
-				     enum devlink_health_reporter_state state)
-{
-	if (WARN_ON(state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY &&
-		    state != DEVLINK_HEALTH_REPORTER_STATE_ERROR))
-		return;
-
-	if (reporter->health_state == state)
-		return;
-
-	reporter->health_state = state;
-	trace_devlink_health_reporter_state_update(reporter->devlink,
-						   reporter->ops->name, state);
-	devlink_recover_notify(reporter, DEVLINK_CMD_HEALTH_REPORTER_RECOVER);
-}
-EXPORT_SYMBOL_GPL(devlink_health_reporter_state_update);
-
-static int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
-						       struct genl_info *info)
-{
-	struct devlink *devlink = info->user_ptr[0];
-	struct devlink_health_reporter *reporter;
-
-	reporter = devlink_health_reporter_get_from_info(devlink, info);
-	if (!reporter)
-		return -EINVAL;
-
-	return devlink_health_reporter_recover(reporter, NULL, info->extack);
 }
 
 static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,

@@ -237,6 +237,9 @@ devlink_nl_health_reporter_fill(struct sk_buff *msg,
 				struct devlink_health_reporter *reporter,
 				enum devlink_command cmd, u32 portid,
 				u32 seq, int flags);
+int devlink_health_do_dump(struct devlink_health_reporter *reporter,
+			   void *priv_ctx,
+			   struct netlink_ext_ack *extack);
 
 void devlink_fmsg_free(struct devlink_fmsg *fmsg);
 
@@ -267,3 +270,5 @@ int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info);
+int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
+						struct genl_info *info);
