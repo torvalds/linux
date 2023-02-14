@@ -370,6 +370,17 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 	if (!msg_data)
 		return -EINVAL;
 
+	if (!no_pm) {
+		const struct sof_dsp_power_state target_state = {
+			.state = SOF_DSP_PM_D0,
+		};
+
+		/* ensure the DSP is in D0i0 before sending a new IPC */
+		ret = snd_sof_dsp_set_power_state(sdev, &target_state);
+		if (ret < 0)
+			return ret;
+	}
+
 	/* Serialise IPC TX */
 	mutex_lock(&ipc->tx_mutex);
 
@@ -656,9 +667,22 @@ static int sof_ipc4_ctx_save(struct snd_sof_dev *sdev)
 	return sof_ipc4_set_core_state(sdev, SOF_DSP_PRIMARY_CORE, false);
 }
 
+static int sof_ipc4_set_pm_gate(struct snd_sof_dev *sdev, u32 flags)
+{
+	struct sof_ipc4_msg msg = {{0}};
+
+	msg.primary = SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_SET_D0IX);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.extension = flags;
+
+	return sof_ipc4_tx_msg(sdev, &msg, 0, NULL, 0, true);
+}
+
 static const struct sof_ipc_pm_ops ipc4_pm_ops = {
 	.ctx_save = sof_ipc4_ctx_save,
 	.set_core_state = sof_ipc4_set_core_state,
+	.set_pm_gate = sof_ipc4_set_pm_gate,
 };
 
 static int sof_ipc4_init(struct snd_sof_dev *sdev)

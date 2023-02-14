@@ -425,11 +425,13 @@ struct sof_ipc_fw_tracing_ops {
  * @ctx_save:		Optional function pointer for context save
  * @ctx_restore:	Optional function pointer for context restore
  * @set_core_state:	Optional function pointer for turning on/off a DSP core
+ * @set_pm_gate:	Optional function pointer for pm gate settings
  */
 struct sof_ipc_pm_ops {
 	int (*ctx_save)(struct snd_sof_dev *sdev);
 	int (*ctx_restore)(struct snd_sof_dev *sdev);
 	int (*set_core_state)(struct snd_sof_dev *sdev, int core_idx, bool on);
+	int (*set_pm_gate)(struct snd_sof_dev *sdev, u32 flags);
 };
 
 /**
