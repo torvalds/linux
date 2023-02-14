@@ -13,4 +13,4 @@ modules.builtin
 modules.builtin.modinfo
 "
 
-NDK_TRIPLE=x86_64-linux-android31
+NDK_TRIPLE=${X86_64_NDK_TRIPLE}
