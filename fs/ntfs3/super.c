@@ -1117,8 +1117,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto put_inode_out;
 	}
 
-	/* Not necessary. */
-	sbi->used.bitmap.set_tail = true;
 	err = wnd_init(&sbi->used.bitmap, sb, tt);
 	if (err)
 		goto put_inode_out;

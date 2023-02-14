@@ -163,7 +163,6 @@ struct wnd_bitmap {
 	size_t zone_bit;
 	size_t zone_end;
 
-	bool set_tail; // Not necessary in driver.
 	bool inited;
 };
 
