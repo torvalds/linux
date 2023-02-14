@@ -186,7 +186,7 @@
 		};
 	};
 
-	nand@1 {
+	flash@1 {
 		compatible = "spi-nand";
 		reg = <1>;
 		spi-max-frequency = <40000000>;
