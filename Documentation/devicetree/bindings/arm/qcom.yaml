@@ -33,6 +33,7 @@ description: |
         ipq5332
         ipq6018
         ipq8074
+        ipq9574
         mdm9615
         msm8226
         msm8916
@@ -81,6 +82,7 @@ description: |
   The 'board' element must be one of the following strings:
 
         adp
+        ap-al02-c7
         ap-mi01.2
         cdp
         cp01-c1
@@ -339,6 +341,11 @@ properties:
               - qcom,ipq8074-hk10-c1
               - qcom,ipq8074-hk10-c2
           - const: qcom,ipq8074
+
+      - items:
+          - enum:
+              - qcom,ipq9574-ap-al02-c7
+          - const: qcom,ipq9574
 
       - description: Sierra Wireless MangOH Green with WP8548 Module
         items:
