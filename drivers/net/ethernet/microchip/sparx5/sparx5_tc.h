@@ -21,6 +21,14 @@ enum SPX5_PORT_MASK_MODE {
 	SPX5_PMM_OR_PGID_MASK,
 };
 
+/* Controls ES0 forwarding  */
+enum SPX5_FORWARDING_SEL {
+	SPX5_FWSEL_NO_ACTION,
+	SPX5_FWSEL_COPY_TO_LOOPBACK,
+	SPX5_FWSEL_REDIRECT_TO_LOOPBACK,
+	SPX5_FWSEL_DISCARD,
+};
+
 int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			 void *type_data);
 

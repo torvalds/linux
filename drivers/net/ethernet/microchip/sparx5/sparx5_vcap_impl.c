@@ -740,6 +740,8 @@ bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype)
 		known_etypes = sparx5_vcap_is2_known_etypes;
 		size = ARRAY_SIZE(sparx5_vcap_is2_known_etypes);
 		break;
+	case VCAP_TYPE_ES0:
+		return true;
 	case VCAP_TYPE_ES2:
 		known_etypes = sparx5_vcap_es2_known_etypes;
 		size = ARRAY_SIZE(sparx5_vcap_es2_known_etypes);

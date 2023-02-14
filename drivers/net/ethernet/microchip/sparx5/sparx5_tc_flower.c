@@ -508,10 +508,14 @@ static int sparx5_tc_set_actionset(struct vcap_admin *admin,
 	case VCAP_TYPE_IS2:
 		aset = VCAP_AFS_BASE_TYPE;
 		break;
+	case VCAP_TYPE_ES0:
+		aset = VCAP_AFS_ES0;
+		break;
 	case VCAP_TYPE_ES2:
 		aset = VCAP_AFS_BASE_TYPE;
 		break;
 	default:
+		pr_err("%s:%d: %s\n", __func__, __LINE__, "Invalid VCAP type");
 		return -EINVAL;
 	}
 	/* Do not overwrite any current actionset */
@@ -547,6 +551,7 @@ static int sparx5_tc_add_rule_link_target(struct vcap_admin *admin,
 		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
 					     link_val, /* target */
 					     ~0);
+	case VCAP_TYPE_ES0:
 	case VCAP_TYPE_ES2:
 		/* Add ISDX key for chaining rules from IS0 */
 		return vcap_rule_add_key_u32(vrule, VCAP_KF_ISDX_CLS, link_val,
@@ -598,8 +603,9 @@ static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
 		if (err)
 			goto out;
 	} else if (admin->vtype == VCAP_TYPE_IS0 &&
-		   to_admin->vtype == VCAP_TYPE_ES2) {
-		/* Between IS0 and ES2 the ISDX value is used */
+		   (to_admin->vtype == VCAP_TYPE_ES0 ||
+		    to_admin->vtype == VCAP_TYPE_ES2)) {
+		/* Between IS0 and ES0/ES2 the ISDX value is used */
 		err = vcap_rule_add_action_u32(vrule, VCAP_AF_ISDX_VAL,
 					       diff);
 		if (err)
@@ -750,6 +756,51 @@ static int sparx5_tc_flower_psfp_setup(struct sparx5 *sparx5,
 	return 0;
 }
 
+/* Handle the action trap for a VCAP rule */
+static int sparx5_tc_action_trap(struct vcap_admin *admin,
+				 struct vcap_rule *vrule,
+				 struct flow_cls_offload *fco)
+{
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS2:
+		err = vcap_rule_add_action_bit(vrule,
+					       VCAP_AF_CPU_COPY_ENA,
+					       VCAP_BIT_1);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_CPU_QUEUE_NUM, 0);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_MASK_MODE,
+					       SPX5_PMM_REPLACE_ALL);
+		break;
+	case VCAP_TYPE_ES0:
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_FWD_SEL,
+					       SPX5_FWSEL_REDIRECT_TO_LOOPBACK);
+		break;
+	case VCAP_TYPE_ES2:
+		err = vcap_rule_add_action_bit(vrule,
+					       VCAP_AF_CPU_COPY_ENA,
+					       VCAP_BIT_1);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_CPU_QUEUE_NUM, 0);
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Trap action not supported in this VCAP");
+		err = -EOPNOTSUPP;
+		break;
+	}
+	return err;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin,
@@ -820,27 +871,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			break;
 		}
 		case FLOW_ACTION_TRAP:
-			if (admin->vtype != VCAP_TYPE_IS2 &&
-			    admin->vtype != VCAP_TYPE_ES2) {
-				NL_SET_ERR_MSG_MOD(fco->common.extack,
-						   "Trap action not supported in this VCAP");
-				err = -EOPNOTSUPP;
-				goto out;
-			}
-			err = vcap_rule_add_action_bit(vrule,
-						       VCAP_AF_CPU_COPY_ENA,
-						       VCAP_BIT_1);
-			if (err)
-				goto out;
-			err = vcap_rule_add_action_u32(vrule,
-						       VCAP_AF_CPU_QUEUE_NUM, 0);
-			if (err)
-				goto out;
-			if (admin->vtype != VCAP_TYPE_IS2)
-				break;
-			err = vcap_rule_add_action_u32(vrule,
-						       VCAP_AF_MASK_MODE,
-				SPX5_PMM_REPLACE_ALL);
+			err = sparx5_tc_action_trap(admin, vrule, fco);
 			if (err)
 				goto out;
 			break;
