@@ -5372,22 +5372,6 @@ out_unlock:
 	return err;
 }
 
-static int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
-						    struct genl_info *info)
-{
-	struct devlink *devlink = info->user_ptr[0];
-	struct devlink_health_reporter *reporter;
-
-	reporter = devlink_health_reporter_get_from_info(devlink, info);
-	if (!reporter)
-		return -EINVAL;
-
-	if (!reporter->ops->test)
-		return -EOPNOTSUPP;
-
-	return reporter->ops->test(reporter, info->extack);
-}
-
 struct devlink_stats {
 	u64_stats_t rx_bytes;
 	u64_stats_t rx_packets;

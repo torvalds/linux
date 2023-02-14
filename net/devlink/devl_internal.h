@@ -282,3 +282,5 @@ int devlink_nl_cmd_health_reporter_dump_get_dumpit(struct sk_buff *skb,
 						   struct netlink_callback *cb);
 int devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
 						   struct genl_info *info);
+int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
+					     struct genl_info *info);

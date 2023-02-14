@@ -1296,3 +1296,19 @@ int devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
 	mutex_unlock(&reporter->dump_lock);
 	return 0;
 }
+
+int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
+					     struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->test)
+		return -EOPNOTSUPP;
+
+	return reporter->ops->test(reporter, info->extack);
+}
