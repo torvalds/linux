@@ -54,12 +54,6 @@ static const guid_t amd_xcc_dsm_guid = GUID_INIT(0x8267f5d5, 0xa556, 0x44f2,
 
 #define AMD_XCC_MAX_HID 24
 
-struct amdgpu_numa_info {
-	uint64_t size;
-	int pxm;
-	int nid;
-};
-
 struct xarray numa_info_xa;
 
 /* Encapsulates the XCD acpi object information */
@@ -1154,6 +1148,32 @@ int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev, u64 *tmr_offset,
 	*tmr_size = dev_info->tmr_size;
 
 	return 0;
+}
+
+int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev, int xcc_id,
+			     struct amdgpu_numa_info *numa_info)
+{
+	struct amdgpu_acpi_dev_info *dev_info;
+	struct amdgpu_acpi_xcc_info *xcc_info;
+	u16 bdf;
+
+	if (!numa_info)
+		return -EINVAL;
+
+	bdf = (adev->pdev->bus->number << 8) | adev->pdev->devfn;
+	dev_info = amdgpu_acpi_get_dev(bdf);
+	if (!dev_info)
+		return -ENOENT;
+
+	list_for_each_entry(xcc_info, &dev_info->xcc_list, list) {
+		if (xcc_info->phy_id == xcc_id) {
+			memcpy(numa_info, xcc_info->numa_info,
+			       sizeof(*numa_info));
+			return 0;
+		}
+	}
+
+	return -ENOENT;
 }
 
 /**
