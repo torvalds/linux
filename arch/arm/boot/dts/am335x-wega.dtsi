@@ -8,7 +8,7 @@
 	model = "Phytec AM335x phyBOARD-WEGA";
 	compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx";
 
-	sound: sound-iface {
+	sound: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "snd-wega";
 		simple-audio-card,format = "i2s";
@@ -49,7 +49,7 @@
 
 /* Audio */
 &am33xx_pinmux {
-	mcasp0_pins: pinmux_mcasp0 {
+	mcasp0_pins: pinmux-mcasp0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKX, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKX, PIN_INPUT_PULLDOWN, MUX_MODE0)
@@ -90,7 +90,7 @@
 
 /* CAN Busses */
 &am33xx_pinmux {
-	dcan1_pins: pinmux_dcan1 {
+	dcan1_pins: pinmux-dcan1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT_PULLUP, MUX_MODE2) /* uart0_ctsn.d_can1_tx */
 			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT_PULLUP, MUX_MODE2) /* uart0_rtsn.d_can1_rx */
@@ -106,7 +106,7 @@
 
 /* Ethernet */
 &am33xx_pinmux {
-	ethernet1_pins: pinmux_ethernet1 {
+	ethernet1_pins: pinmux-ethernet1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A0, PIN_OUTPUT, MUX_MODE1)		/* gpmc_a0.mii2_txen */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A1, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a1.mii2_rxdv */
@@ -146,7 +146,7 @@
 
 /* MMC */
 &am33xx_pinmux {
-	mmc1_pins: pinmux_mmc1 {
+	mmc1_pins: pinmux-mmc1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -176,14 +176,14 @@
 
 /* UARTs */
 &am33xx_pinmux {
-	uart0_pins: pinmux_uart0 {
+	uart0_pins: pinmux-uart0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: pinmux-uart1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
