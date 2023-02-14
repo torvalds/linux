@@ -286,6 +286,17 @@ static void irq_cpu_rmap_release(struct kref *ref)
 }
 
 /**
+ * irq_cpu_rmap_remove - remove an IRQ from a CPU affinity reverse-map
+ * @rmap: The reverse-map
+ * @irq: The IRQ number
+ */
+int irq_cpu_rmap_remove(struct cpu_rmap *rmap, int irq)
+{
+	return irq_set_affinity_notifier(irq, NULL);
+}
+EXPORT_SYMBOL(irq_cpu_rmap_remove);
+
+/**
  * irq_cpu_rmap_add - add an IRQ to a CPU affinity reverse-map
  * @rmap: The reverse-map
  * @irq: The IRQ number

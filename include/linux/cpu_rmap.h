@@ -60,6 +60,7 @@ static inline struct cpu_rmap *alloc_irq_cpu_rmap(unsigned int size)
 }
 extern void free_irq_cpu_rmap(struct cpu_rmap *rmap);
 
+int irq_cpu_rmap_remove(struct cpu_rmap *rmap, int irq);
 extern int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq);
 
 #endif /* __LINUX_CPU_RMAP_H */
