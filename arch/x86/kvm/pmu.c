@@ -93,7 +93,7 @@ void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops)
 #undef __KVM_X86_PMU_OP
 }
 
-static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
+static inline bool pmc_is_globally_enabled(struct kvm_pmc *pmc)
 {
 	return static_call(kvm_x86_pmu_pmc_is_enabled)(pmc);
 }
@@ -409,7 +409,7 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 
 	pmc_pause_counter(pmc);
 
-	if (!pmc_speculative_in_use(pmc) || !pmc_is_enabled(pmc))
+	if (!pmc_speculative_in_use(pmc) || !pmc_is_globally_enabled(pmc))
 		goto reprogram_complete;
 
 	if (!check_pmu_event_filter(pmc))
@@ -688,7 +688,7 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
 		pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, i);
 
-		if (!pmc || !pmc_is_enabled(pmc) || !pmc_speculative_in_use(pmc))
+		if (!pmc || !pmc_is_globally_enabled(pmc) || !pmc_speculative_in_use(pmc))
 			continue;
 
 		/* Ignore checks for edge detect, pin control, invert and CMASK bits */
