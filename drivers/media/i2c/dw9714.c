@@ -15,6 +15,7 @@
 #include <media/v4l2-device.h>
 #include <linux/rk_vcm_head.h>
 #include <linux/compat.h>
+#include <linux/regulator/consumer.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
 #define DW9714_NAME			"dw9714"
@@ -95,6 +96,9 @@ struct dw9714_device {
 	struct rk_cam_vcm_cfg vcm_cfg;
 
 	struct gpio_desc *xsd_gpio;
+	struct regulator *supply;
+	struct i2c_client *client;
+	bool power_on;
 };
 
 struct TimeTabel_s {
@@ -631,8 +635,98 @@ static const struct v4l2_ctrl_ops dw9714_vcm_ctrl_ops = {
 	.s_ctrl = dw9714_set_ctrl,
 };
 
+static int dw9714_init(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
+	unsigned char data = 0x0;
+	int ret = 0;
+
+	if (dw9714_dev->adcanced_mode) {
+		// need to wait 1ms after poweron
+		usleep_range(1000, 1200);
+		// Advanced Mode
+		ret = dw9714_write_msg(client, 0xED, 0xAB);
+		if (ret)
+			goto err;
+		// Power down
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_CONTROL, 0x01);
+		if (ret)
+			goto err;
+		// active
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_CONTROL, 0x00);
+		if (ret)
+			goto err;
+		// delay 1ms
+		usleep_range(1000, 1200);
+		// SAC mode & nrc_time & nrc_infl
+		data = DW9714_ADVMODE_RING_EN << 7 |
+		       (dw9714_dev->nrc_infl & 0x3) << 5 |
+		       (dw9714_dev->nrc_time & 0x1) << 4 |
+		       (dw9714_dev->sac_mode & 0xF);
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_SAC_CFG, data);
+		if (ret)
+			goto err;
+		// Set Tvib (PRESC[1:0] )
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_PRESC, dw9714_dev->sac_prescl);
+		if (ret)
+			goto err;
+		// Set Tvib (SACT[6:0] )
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_SAC_TIME, dw9714_dev->sac_time);
+		if (ret)
+			goto err;
+		// nrc preset
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_PRESET, dw9714_dev->nrc_preset);
+		if (ret)
+			goto err;
+		// nrc en & nrc mode
+		data = (dw9714_dev->nrc_en & 0x1) << 1 |
+		       (dw9714_dev->nrc_mode & 0x1);
+		ret = dw9714_write_msg(client, DW9714_ADVMODE_NRC, data);
+		if (ret)
+			goto err;
+	} else {
+		// need to wait 12ms after poweron
+		usleep_range(12000, 12500);
+
+		ret = dw9714_write_msg(client, 0xEC, 0xA3);
+		if (ret)
+			goto err;
+
+		data = (dw9714_dev->mclk & 0x3) | 0x04 |
+				((dw9714_dev->dlc_enable << 0x3) & 0x08);
+		ret = dw9714_write_msg(client, 0xA1, data);
+		if (ret)
+			goto err;
+
+		data = (dw9714_dev->t_src << 0x3) & 0xf8;
+		ret = dw9714_write_msg(client, 0xF2, data);
+		if (ret)
+			goto err;
+
+		ret = dw9714_write_msg(client, 0xDC, 0x51);
+		if (ret)
+			goto err;
+
+		/* set normal mode */
+		ret = dw9714_write_msg(client, 0xDF, 0x5B);
+		if (ret != 0)
+			dev_err(&client->dev,
+				"%s: failed with error %d\n", __func__, ret);
+	}
+
+	return 0;
+err:
+	dev_err(&client->dev, "failed with error %d\n", ret);
+	return -1;
+}
+
 static int dw9714_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
+	struct dw9714_device *dev_vcm = sd_to_dw9714_vcm(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	unsigned int move_time;
+	int dac = 0;
 	int rval;
 
 	rval = pm_runtime_get_sync(sd->dev);
@@ -641,11 +735,50 @@ static int dw9714_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return rval;
 	}
 
+	dw9714_init(client);
+
+	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
+		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+	move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
+	while (dac <= dev_vcm->current_lens_pos) {
+		dw9714_set_dac(dev_vcm, dac);
+		usleep_range(move_time, move_time + 1000);
+		dac += DW9714_GRADUAL_MOVELENS_STEPS;
+		if (dac >= dev_vcm->current_lens_pos)
+			break;
+	}
+
+	if (dac > dev_vcm->current_lens_pos) {
+		dac = dev_vcm->current_lens_pos;
+		dw9714_set_dac(dev_vcm, dac);
+	}
+
 	return 0;
 }
 
 static int dw9714_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
+	struct dw9714_device *dev_vcm = sd_to_dw9714_vcm(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int dac = dev_vcm->current_lens_pos;
+	unsigned int move_time;
+
+	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
+		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+	move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
+	while (dac >= 0) {
+		dw9714_set_dac(dev_vcm, dac);
+		usleep_range(move_time, move_time + 1000);
+		dac -= DW9714_GRADUAL_MOVELENS_STEPS;
+		if (dac <= 0)
+			break;
+	}
+
+	if (dac < 0) {
+		dac = 0;
+		dw9714_set_dac(dev_vcm, dac);
+	}
+
 	pm_runtime_put(sd->dev);
 
 	return 0;
@@ -899,6 +1032,76 @@ static inline int remove_sysfs_interfaces(struct device *dev)
 }
 #endif
 
+static int dw9714_set_power(struct dw9714_device *dw9714, bool on)
+{
+	struct i2c_client *client = dw9714->client;
+	int ret = 0;
+
+	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
+
+	if (dw9714->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = regulator_enable(dw9714->supply);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to enable regulator\n");
+			goto unlock_and_return;
+		}
+		dw9714->power_on = true;
+	} else {
+		ret = regulator_disable(dw9714->supply);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to disable regulator\n");
+			goto unlock_and_return;
+		}
+		dw9714->power_on = false;
+	}
+
+unlock_and_return:
+	return ret;
+}
+
+static int dw9714_check_i2c(struct dw9714_device *dw9714,
+			    struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	int ret;
+
+	if (dw9714->adcanced_mode) {
+		// need to wait 1ms after poweron
+		usleep_range(1000, 1200);
+		// Advanced Mode
+		ret = dw9714_write_msg(client, 0xED, 0xAB);
+	} else {
+		// need to wait 12ms after poweron
+		usleep_range(12000, 12500);
+		ret = dw9714_write_msg(client, 0xEC, 0xA3);
+	}
+	if (!ret)
+		dev_info(dev, "check dw9714 connection OK!\n");
+	else
+		dev_info(dev, "dw9714 not connect!\n");
+
+	return ret;
+}
+
+static int dw9714_configure_regulator(struct dw9714_device *dw9714)
+{
+	struct i2c_client *client = dw9714->client;
+	int ret = 0;
+
+	dw9714->supply = devm_regulator_get(&client->dev, "avdd");
+	if (IS_ERR(dw9714->supply)) {
+		ret = PTR_ERR(dw9714->supply);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&client->dev, "could not get regulator avdd\n");
+		return ret;
+	}
+	dw9714->power_on = false;
+	return ret;
+}
+
 static int dw9714_parse_dt_property(struct i2c_client *client,
 				    struct dw9714_device *dev_vcm)
 {
@@ -1051,6 +1254,13 @@ static int dw9714_parse_dt_property(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	dev_vcm->client = client;
+	ret = dw9714_configure_regulator(dev_vcm);
+	if (ret) {
+		dev_err(&client->dev, "Failed to get power regulator!\n");
+		return ret;
+	}
+
 	dev_dbg(&client->dev, "current: %d, %d, %d, dlc_en: %d, t_src: %d, mclk: %d",
 		dev_vcm->max_current,
 		dev_vcm->start_current,
@@ -1104,6 +1314,14 @@ static int dw9714_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto err_cleanup;
 
+	ret = dw9714_set_power(dw9714_dev, true);
+	if (ret)
+		goto err_cleanup;
+
+	ret = dw9714_check_i2c(dw9714_dev, client);
+	if (ret)
+		goto err_power_off;
+
 	sd = &dw9714_dev->sd;
 	sd->entity.function = MEDIA_ENT_F_LENS;
 
@@ -1135,6 +1353,8 @@ static int dw9714_probe(struct i2c_client *client,
 
 	return 0;
 
+err_power_off:
+	dw9714_set_power(dw9714_dev, false);
 err_cleanup:
 	dw9714_subdev_cleanup(dw9714_dev);
 	dev_err(&client->dev, "Probe failed: %d\n", ret);
@@ -1153,115 +1373,13 @@ static int dw9714_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int dw9714_init(struct i2c_client *client)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
-	unsigned char data = 0x0;
-	int ret = 0;
-
-	if (dw9714_dev->adcanced_mode) {
-		// need to wait 1ms after poweron
-		usleep_range(1000, 1200);
-		// Advanced Mode
-		ret = dw9714_write_msg(client, 0xED, 0xAB);
-		if (ret)
-			goto err;
-		// Power down
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_CONTROL, 0x01);
-		if (ret)
-			goto err;
-		// active
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_CONTROL, 0x00);
-		if (ret)
-			goto err;
-		// delay 1ms
-		usleep_range(1000, 1200);
-		// SAC mode & nrc_time & nrc_infl
-		data = DW9714_ADVMODE_RING_EN << 7 |
-		       (dw9714_dev->nrc_infl & 0x3) << 5 |
-		       (dw9714_dev->nrc_time & 0x1) << 4 |
-		       (dw9714_dev->sac_mode & 0xF);
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_SAC_CFG, data);
-		if (ret)
-			goto err;
-		// Set Tvib (PRESC[1:0] )
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_PRESC, dw9714_dev->sac_prescl);
-		if (ret)
-			goto err;
-		// Set Tvib (SACT[6:0] )
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_SAC_TIME, dw9714_dev->sac_time);
-		if (ret)
-			goto err;
-		// nrc preset
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_PRESET, dw9714_dev->nrc_preset);
-		if (ret)
-			goto err;
-		// nrc en & nrc mode
-		data = (dw9714_dev->nrc_en & 0x1) << 1 |
-		       (dw9714_dev->nrc_mode & 0x1);
-		ret = dw9714_write_msg(client, DW9714_ADVMODE_NRC, data);
-		if (ret)
-			goto err;
-	} else {
-		// need to wait 12ms after poweron
-		usleep_range(12000, 12500);
-
-		ret = dw9714_write_msg(client, 0xEC, 0xA3);
-		if (ret)
-			goto err;
-
-		data = (dw9714_dev->mclk & 0x3) | 0x04 |
-				((dw9714_dev->dlc_enable << 0x3) & 0x08);
-		ret = dw9714_write_msg(client, 0xA1, data);
-		if (ret)
-			goto err;
-
-		data = (dw9714_dev->t_src << 0x3) & 0xf8;
-		ret = dw9714_write_msg(client, 0xF2, data);
-		if (ret)
-			goto err;
-
-		ret = dw9714_write_msg(client, 0xDC, 0x51);
-		if (ret)
-			goto err;
-
-		/* set normal mode */
-		ret = dw9714_write_msg(client, 0xDF, 0x5B);
-		if (ret != 0)
-			dev_err(&client->dev,
-				"%s: failed with error %d\n", __func__, ret);
-	}
-
-	return 0;
-err:
-	dev_err(&client->dev, "failed with error %d\n", ret);
-	return -1;
-}
-
 static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct dw9714_device *dev_vcm = sd_to_dw9714_vcm(sd);
-	int dac = dev_vcm->current_lens_pos;
-	unsigned int move_time;
 
-	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
-		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
-	while (dac >= 0) {
-		dw9714_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac -= DW9714_GRADUAL_MOVELENS_STEPS;
-		if (dac <= 0)
-			break;
-	}
-
-	if (dac < 0) {
-		dac = 0;
-		dw9714_set_dac(dev_vcm, dac);
-	}
+	dw9714_set_power(dev_vcm, false);
 	return 0;
 }
 
@@ -1270,27 +1388,8 @@ static int __maybe_unused dw9714_vcm_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct dw9714_device *dev_vcm = sd_to_dw9714_vcm(sd);
-	unsigned int move_time;
-	int dac = 0;
 
-	dw9714_init(client);
-
-	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
-		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
-	while (dac <= dev_vcm->current_lens_pos) {
-		dw9714_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac += DW9714_GRADUAL_MOVELENS_STEPS;
-		if (dac >= dev_vcm->current_lens_pos)
-			break;
-	}
-
-	if (dac > dev_vcm->current_lens_pos) {
-		dac = dev_vcm->current_lens_pos;
-		dw9714_set_dac(dev_vcm, dac);
-	}
-
+	dw9714_set_power(dev_vcm, true);
 	return 0;
 }
 
