@@ -429,6 +429,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	return 0;
 
 out_remove_minor:
+	list_del(&dev->list);
 	idr_remove(&ubiblock_minor_idr, gd->first_minor);
 out_cleanup_disk:
 	put_disk(dev->gd);
