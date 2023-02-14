@@ -76,6 +76,7 @@ MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH "brcmfmac*-pcie.*.txt");
 /* per-board firmware binaries */
 MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH "brcmfmac*-pcie.*.bin");
 MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH "brcmfmac*-pcie.*.clm_blob");
+MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH "brcmfmac*-pcie.*.txcap_blob");
 
 static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43602_CHIP_ID, 0xFFFFFFFF, 43602),
@@ -329,7 +330,9 @@ struct brcmf_pciedev_info {
 	char fw_name[BRCMF_FW_NAME_LEN];
 	char nvram_name[BRCMF_FW_NAME_LEN];
 	char clm_name[BRCMF_FW_NAME_LEN];
+	char txcap_name[BRCMF_FW_NAME_LEN];
 	const struct firmware *clm_fw;
+	const struct firmware *txcap_fw;
 	const struct brcmf_pcie_reginfo *reginfo;
 	void __iomem *regs;
 	void __iomem *tcm;
@@ -1520,6 +1523,10 @@ static int brcmf_pcie_get_blob(struct device *dev, const struct firmware **fw,
 		*fw = devinfo->clm_fw;
 		devinfo->clm_fw = NULL;
 		break;
+	case BRCMF_BLOB_TXCAP:
+		*fw = devinfo->txcap_fw;
+		devinfo->txcap_fw = NULL;
+		break;
 	default:
 		return -ENOENT;
 	}
@@ -2112,6 +2119,7 @@ static int brcmf_pcie_read_otp(struct brcmf_pciedev_info *devinfo)
 #define BRCMF_PCIE_FW_CODE	0
 #define BRCMF_PCIE_FW_NVRAM	1
 #define BRCMF_PCIE_FW_CLM	2
+#define BRCMF_PCIE_FW_TXCAP	3
 
 static void brcmf_pcie_setup(struct device *dev, int ret,
 			     struct brcmf_fw_request *fwreq)
@@ -2138,6 +2146,7 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	nvram = fwreq->items[BRCMF_PCIE_FW_NVRAM].nv_data.data;
 	nvram_len = fwreq->items[BRCMF_PCIE_FW_NVRAM].nv_data.len;
 	devinfo->clm_fw = fwreq->items[BRCMF_PCIE_FW_CLM].binary;
+	devinfo->txcap_fw = fwreq->items[BRCMF_PCIE_FW_TXCAP].binary;
 	kfree(fwreq);
 
 	ret = brcmf_chip_get_raminfo(devinfo->ci);
@@ -2219,6 +2228,7 @@ brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
 		{ ".bin", devinfo->fw_name },
 		{ ".txt", devinfo->nvram_name },
 		{ ".clm_blob", devinfo->clm_name },
+		{ ".txcap_blob", devinfo->txcap_name },
 	};
 
 	fwreq = brcmf_fw_alloc_request(devinfo->ci->chip, devinfo->ci->chiprev,
@@ -2233,6 +2243,8 @@ brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
 	fwreq->items[BRCMF_PCIE_FW_NVRAM].flags = BRCMF_FW_REQF_OPTIONAL;
 	fwreq->items[BRCMF_PCIE_FW_CLM].type = BRCMF_FW_TYPE_BINARY;
 	fwreq->items[BRCMF_PCIE_FW_CLM].flags = BRCMF_FW_REQF_OPTIONAL;
+	fwreq->items[BRCMF_PCIE_FW_TXCAP].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_PCIE_FW_TXCAP].flags = BRCMF_FW_REQF_OPTIONAL;
 	/* NVRAM reserves PCI domain 0 for Broadcom's SDK faked bus */
 	fwreq->domain_nr = pci_domain_nr(devinfo->pdev->bus) + 1;
 	fwreq->bus_nr = devinfo->pdev->bus->number;
@@ -2530,6 +2542,7 @@ brcmf_pcie_remove(struct pci_dev *pdev)
 	brcmf_pcie_reset_device(devinfo);
 	brcmf_pcie_release_resource(devinfo);
 	release_firmware(devinfo->clm_fw);
+	release_firmware(devinfo->txcap_fw);
 
 	if (devinfo->ci)
 		brcmf_chip_detach(devinfo->ci);
