@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cache.h>
@@ -1308,17 +1308,6 @@ static int md_module_process(struct module *mod)
 	return 0;
 }
 
-static int md_get_present_module(const char *mod_name,
-				void *mod_addr, void *data)
-{
-	struct module *mod = container_of(mod_name,
-				struct module, name[0]);
-
-	if (mod != THIS_MODULE)
-		md_module_process(mod);
-	return 0;
-}
-
 static int md_module_notify(struct notifier_block *self,
 			    unsigned long val, void *data)
 {
@@ -1338,6 +1327,8 @@ static struct notifier_block md_module_nb = {
 static void md_register_module_data(void)
 {
 	int ret;
+	struct module *module;
+	struct list_head *module_list;
 
 	ret = md_register_panic_entries(MD_MODULE_PAGES, "KMODULES",
 					&md_mod_info_seq_buf);
@@ -1353,7 +1344,15 @@ static void md_register_module_data(void)
 		return;
 	}
 
-	android_debug_for_each_module(md_get_present_module, NULL);
+	module_list = DEBUG_SYMBOL_LOOKUP(modules);
+	if (IS_ERR_OR_NULL(module_list))
+		return;
+	preempt_disable();
+	list_for_each_entry_rcu(module, module_list, list) {
+		if (module != THIS_MODULE)
+			md_module_process(module);
+	}
+	preempt_enable();
 }
 #endif
 
