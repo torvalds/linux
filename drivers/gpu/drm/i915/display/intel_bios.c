@@ -3399,10 +3399,22 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
  */
 bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 {
+	const struct intel_bios_encoder_data *devdata;
+
 	if (WARN_ON(!has_ddi_port_info(i915)))
 		return true;
 
-	return i915->display.vbt.ports[port];
+	if (!is_port_valid(i915, port))
+		return false;
+
+	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
+		const struct child_device_config *child = &devdata->child;
+
+		if (dvo_port_to_port(i915, child->dvo_port) == port)
+			return true;
+	}
+
+	return false;
 }
 
 /**
