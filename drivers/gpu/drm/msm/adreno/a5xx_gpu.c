@@ -1103,6 +1103,8 @@ static int a5xx_fault_handler(void *arg, unsigned long iova, int flags, void *da
 			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(6)),
 			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(7)));
 
+	gpu->aspace->mmu->funcs->resume_translation(gpu->aspace->mmu);
+
 	return 0;
 }
 
