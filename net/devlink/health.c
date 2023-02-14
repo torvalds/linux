@@ -27,7 +27,7 @@ struct devlink_fmsg {
 			      */
 };
 
-struct devlink_fmsg *devlink_fmsg_alloc(void)
+static struct devlink_fmsg *devlink_fmsg_alloc(void)
 {
 	struct devlink_fmsg *fmsg;
 
@@ -40,7 +40,7 @@ struct devlink_fmsg *devlink_fmsg_alloc(void)
 	return fmsg;
 }
 
-void devlink_fmsg_free(struct devlink_fmsg *fmsg)
+static void devlink_fmsg_free(struct devlink_fmsg *fmsg)
 {
 	struct devlink_fmsg_item *item, *tmp;
 
@@ -50,6 +50,25 @@ void devlink_fmsg_free(struct devlink_fmsg *fmsg)
 	}
 	kfree(fmsg);
 }
+
+struct devlink_health_reporter {
+	struct list_head list;
+	void *priv;
+	const struct devlink_health_reporter_ops *ops;
+	struct devlink *devlink;
+	struct devlink_port *devlink_port;
+	struct devlink_fmsg *dump_fmsg;
+	struct mutex dump_lock; /* lock parallel read/write from dump buffers */
+	u64 graceful_period;
+	bool auto_recover;
+	bool auto_dump;
+	u8 health_state;
+	u64 dump_ts;
+	u64 dump_real_ts;
+	u64 error_count;
+	u64 recovery_count;
+	u64 last_recovery_ts;
+};
 
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
@@ -70,7 +89,7 @@ __devlink_health_reporter_find_by_name(struct list_head *reporter_list,
 	return NULL;
 }
 
-struct devlink_health_reporter *
+static struct devlink_health_reporter *
 devlink_health_reporter_find_by_name(struct devlink *devlink,
 				     const char *reporter_name)
 {
@@ -78,7 +97,7 @@ devlink_health_reporter_find_by_name(struct devlink *devlink,
 						      reporter_name);
 }
 
-struct devlink_health_reporter *
+static struct devlink_health_reporter *
 devlink_port_health_reporter_find_by_name(struct devlink_port *devlink_port,
 					  const char *reporter_name)
 {
@@ -239,7 +258,7 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
 
-int
+static int
 devlink_nl_health_reporter_fill(struct sk_buff *msg,
 				struct devlink_health_reporter *reporter,
 				enum devlink_command cmd, u32 portid,
@@ -310,7 +329,7 @@ genlmsg_cancel:
 	return -EMSGSIZE;
 }
 
-struct devlink_health_reporter *
+static struct devlink_health_reporter *
 devlink_health_reporter_get_from_attrs(struct devlink *devlink,
 				       struct nlattr **attrs)
 {
@@ -330,7 +349,7 @@ devlink_health_reporter_get_from_attrs(struct devlink *devlink,
 								 reporter_name);
 }
 
-struct devlink_health_reporter *
+static struct devlink_health_reporter *
 devlink_health_reporter_get_from_info(struct devlink *devlink,
 				      struct genl_info *info)
 {
@@ -517,9 +536,9 @@ devlink_health_dump_clear(struct devlink_health_reporter *reporter)
 	reporter->dump_fmsg = NULL;
 }
 
-int devlink_health_do_dump(struct devlink_health_reporter *reporter,
-			   void *priv_ctx,
-			   struct netlink_ext_ack *extack)
+static int devlink_health_do_dump(struct devlink_health_reporter *reporter,
+				  void *priv_ctx,
+				  struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -1157,9 +1176,9 @@ nla_put_failure:
 	return err;
 }
 
-int devlink_fmsg_dumpit(struct devlink_fmsg *fmsg, struct sk_buff *skb,
-			struct netlink_callback *cb,
-			enum devlink_command cmd)
+static int devlink_fmsg_dumpit(struct devlink_fmsg *fmsg, struct sk_buff *skb,
+			       struct netlink_callback *cb,
+			       enum devlink_command cmd)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	int index = state->idx;
