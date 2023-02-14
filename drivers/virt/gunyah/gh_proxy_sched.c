@@ -14,7 +14,7 @@
  * This driver is based on idea from Hafnium Hypervisor Linux Driver,
  * but modified to work with Gunyah Hypervisor as needed.
  *
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"gh_proxy_sched: " fmt
@@ -308,6 +308,8 @@ static int gh_populate_vm_vcpu_info(gh_vmid_t vmid, gh_label_t cpu_idx,
 			pr_err("%s: IRQ registration failed ret=%d\n", __func__, ret);
 			goto err_irq;
 		}
+
+		irq_set_irq_wake(virq_num, 1);
 
 		strscpy(vm->vcpu[vm->vcpu_count].ws_name, "gh_vcpu_ws",
 				sizeof(vm->vcpu[vm->vcpu_count].ws_name));
@@ -611,7 +613,10 @@ int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 
 		if (ret == GH_ERROR_OK) {
 			switch (resp->vcpu_state) {
-			/* VCPU is preempted by PVM interrupt. */
+			/*
+			 * The caller's hypervisor timeslice ended, or the caller received an interrupt.
+			 * The caller should retry after handling any pending interrupts.
+			 */
 			case GH_VCPU_STATE_READY:
 				if (need_resched()) {
 					schedule();
@@ -620,14 +625,36 @@ int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 				}
 				break;
 
-			/* VCPU in WFI or suspended/powered down. */
+			/*
+			 * The VCPU is waiting to receive an interrupt; for example, it may have executed a WFI instruction,
+			 * or made a firmware call requesting entry into a low-power state.
+			 */
 			case GH_VCPU_STATE_EXPECTS_WAKEUP:
+				/*
+				 * VCPU requested a firmware call requesting
+				 * entry into a low-power state.
+				 * Release wake lock for non C1 states
+				 */
+				if (resp->vcpu_suspend_state)
+					__pm_relax(vcpu->ws);
+				gh_vcpu_sleep(vcpu);
+				break;
+
+			/*
+			 * The VCPU has not yet been started by calling vcpu_poweron, or has stopped itself by calling vcpu_poweroff,
+			 * or has been terminated due to a reset request from another VM.
+			 */
 			case GH_VCPU_STATE_POWERED_OFF:
 				__pm_relax(vcpu->ws);
 				gh_vcpu_sleep(vcpu);
 				break;
 
-			/* VCPU is blocked in EL2 for an unspecified reason */
+			/*
+			 * The VCPU is temporarily unable to run due to a hypervisor operation.
+			 * This may include a hypercall made by the VCPU that transiently blocks it,
+			 * or by an incomplete migration from another physical CPU. The caller should
+			 * retry after yielding to the calling VM's scheduler.
+			 */
 			case GH_VCPU_STATE_BLOCKED:
 				schedule();
 				break;
