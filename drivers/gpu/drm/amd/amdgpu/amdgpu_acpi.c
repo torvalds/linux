@@ -26,6 +26,7 @@
 #include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/slab.h>
+#include <linux/xarray.h>
 #include <linux/power_supply.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
@@ -53,10 +54,18 @@ static const guid_t amd_xcc_dsm_guid = GUID_INIT(0x8267f5d5, 0xa556, 0x44f2,
 
 #define AMD_XCC_MAX_HID 24
 
+struct amdgpu_numa_info {
+	uint64_t size;
+	int pxm;
+	int nid;
+};
+
+struct xarray numa_info_xa;
+
 /* Encapsulates the XCD acpi object information */
 struct amdgpu_acpi_xcc_info {
 	struct list_head list;
-	int mem_node;
+	struct amdgpu_numa_info *numa_info;
 	uint8_t xcp_node;
 	uint8_t phy_id;
 	acpi_handle handle;
@@ -838,6 +847,52 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
 	return r;
 }
 
+static inline uint64_t amdgpu_acpi_get_numa_size(int nid)
+{
+	/* This is directly using si_meminfo_node implementation as the
+	 * function is not exported.
+	 */
+	int zone_type;
+	uint64_t managed_pages = 0;
+
+	pg_data_t *pgdat = NODE_DATA(nid);
+
+	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
+		managed_pages +=
+			zone_managed_pages(&pgdat->node_zones[zone_type]);
+	return managed_pages * PAGE_SIZE;
+}
+
+static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
+{
+	struct amdgpu_numa_info *numa_info;
+	int nid;
+
+	numa_info = xa_load(&numa_info_xa, pxm);
+
+	if (!numa_info) {
+		struct sysinfo info;
+
+		numa_info = kzalloc(sizeof *numa_info, GFP_KERNEL);
+		if (!numa_info)
+			return NULL;
+
+		nid = pxm_to_node(pxm);
+		numa_info->pxm = pxm;
+		numa_info->nid = nid;
+
+		if (numa_info->nid == NUMA_NO_NODE) {
+			si_meminfo(&info);
+			numa_info->size = info.totalram * info.mem_unit;
+		} else {
+			numa_info->size = amdgpu_acpi_get_numa_size(nid);
+		}
+		xa_store(&numa_info_xa, numa_info->pxm, numa_info, GFP_KERNEL);
+	}
+
+	return numa_info;
+}
+
 /**
  * amdgpu_acpi_get_node_id - obtain the NUMA node id for corresponding amdgpu
  * acpi device handle
@@ -850,18 +905,25 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
  *
  * Returns ACPI STATUS OK with Node ID on success or the corresponding failure reason
  */
-acpi_status amdgpu_acpi_get_node_id(acpi_handle handle, int *nid)
+acpi_status amdgpu_acpi_get_node_id(acpi_handle handle,
+				    struct amdgpu_numa_info **numa_info)
 {
 #ifdef CONFIG_ACPI_NUMA
 	u64 pxm;
 	acpi_status status;
+
+	if (!numa_info)
+		return_ACPI_STATUS(AE_ERROR);
 
 	status = acpi_evaluate_integer(handle, "_PXM", NULL, &pxm);
 
 	if (ACPI_FAILURE(status))
 		return status;
 
-	*nid = pxm_to_node(pxm);
+	*numa_info = amdgpu_acpi_get_numa_info(pxm);
+
+	if (!*numa_info)
+		return_ACPI_STATUS(AE_ERROR);
 
 	return_ACPI_STATUS(AE_OK);
 #else
@@ -1001,7 +1063,8 @@ static int amdgpu_acpi_get_xcc_info(struct amdgpu_acpi_xcc_info *xcc_info,
 	ACPI_FREE(obj);
 	obj = NULL;
 
-	status = amdgpu_acpi_get_node_id(xcc_info->handle, &xcc_info->mem_node);
+	status =
+		amdgpu_acpi_get_node_id(xcc_info->handle, &xcc_info->numa_info);
 
 	/* TODO: check if this check is required */
 	if (ACPI_SUCCESS(status))
@@ -1023,6 +1086,7 @@ static int amdgpu_acpi_enumerate_xcc(void)
 	u16 bdf;
 
 	INIT_LIST_HEAD(&amdgpu_acpi_dev_list);
+	xa_init(&numa_info_xa);
 
 	for (id = 0; id < AMD_XCC_MAX_HID; id++) {
 		sprintf(hid, "%s%d", "AMD", AMD_XCC_HID_START + id);
@@ -1353,6 +1417,13 @@ void amdgpu_acpi_release(void)
 {
 	struct amdgpu_acpi_dev_info *dev_info, *dev_tmp;
 	struct amdgpu_acpi_xcc_info *xcc_info, *xcc_tmp;
+	struct amdgpu_numa_info *numa_info;
+	unsigned long index;
+
+	xa_for_each(&numa_info_xa, index, numa_info) {
+		kfree(numa_info);
+		xa_erase(&numa_info_xa, index);
+	}
 
 	if (list_empty(&amdgpu_acpi_dev_list))
 		return;
