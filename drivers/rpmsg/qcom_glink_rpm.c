@@ -81,7 +81,7 @@ static size_t glink_rpm_rx_avail(struct qcom_glink_pipe *glink_pipe)
 		return head - tail;
 }
 
-static void glink_rpm_rx_peak(struct qcom_glink_pipe *glink_pipe,
+static void glink_rpm_rx_peek(struct qcom_glink_pipe *glink_pipe,
 			      void *data, unsigned int offset, size_t count)
 {
 	struct glink_rpm_pipe *pipe = to_rpm_pipe(glink_pipe);
@@ -333,7 +333,7 @@ static int glink_rpm_probe(struct platform_device *pdev)
 
 	/* Pipe specific accessors */
 	rpm->rx_pipe.native.avail = glink_rpm_rx_avail;
-	rpm->rx_pipe.native.peak = glink_rpm_rx_peak;
+	rpm->rx_pipe.native.peek = glink_rpm_rx_peek;
 	rpm->rx_pipe.native.advance = glink_rpm_rx_advance;
 	rpm->tx_pipe.native.avail = glink_rpm_tx_avail;
 	rpm->tx_pipe.native.write = glink_rpm_tx_write;

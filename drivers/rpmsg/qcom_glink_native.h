@@ -17,7 +17,7 @@ struct qcom_glink_pipe {
 
 	size_t (*avail)(struct qcom_glink_pipe *glink_pipe);
 
-	void (*peak)(struct qcom_glink_pipe *glink_pipe, void *data,
+	void (*peek)(struct qcom_glink_pipe *glink_pipe, void *data,
 		     unsigned int offset, size_t count);
 	void (*advance)(struct qcom_glink_pipe *glink_pipe, size_t count);
 

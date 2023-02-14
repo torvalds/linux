@@ -91,7 +91,7 @@ static size_t glink_smem_rx_avail(struct qcom_glink_pipe *np)
 		return head - tail;
 }
 
-static void glink_smem_rx_peak(struct qcom_glink_pipe *np,
+static void glink_smem_rx_peek(struct qcom_glink_pipe *np,
 			       void *data, unsigned int offset, size_t count)
 {
 	struct glink_smem_pipe *pipe = to_smem_pipe(np);
@@ -324,7 +324,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 
 	rx_pipe->smem = smem;
 	rx_pipe->native.avail = glink_smem_rx_avail;
-	rx_pipe->native.peak = glink_smem_rx_peak;
+	rx_pipe->native.peek = glink_smem_rx_peek;
 	rx_pipe->native.advance = glink_smem_rx_advance;
 
 	tx_pipe->smem = smem;
