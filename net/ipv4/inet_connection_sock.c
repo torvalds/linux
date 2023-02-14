@@ -1199,8 +1199,6 @@ void inet_csk_destroy_sock(struct sock *sk)
 
 	xfrm_sk_free_policy(sk);
 
-	sk_refcnt_debug_release(sk);
-
 	this_cpu_dec(*sk->sk_prot->orphan_count);
 
 	sock_put(sk);
