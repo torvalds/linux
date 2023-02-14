@@ -1409,7 +1409,7 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 
 	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR) {
 		NL_SET_ERR_MSG(info->extack, "Monitors are not allowed to perform scans");
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	if (!nla_get_u8(info->attrs[NL802154_ATTR_SCAN_TYPE])) {
