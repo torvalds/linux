@@ -574,9 +574,9 @@ unlock_and_return:
 	return ret;
 }
 
-static int aqc_set_ctrl_val(struct aqc_data *priv, int offset, long val, int type)
+static int aqc_set_ctrl_vals(struct aqc_data *priv, int *offsets, long *vals, int *types, int len)
 {
-	int ret;
+	int ret, i;
 
 	mutex_lock(&priv->mutex);
 
@@ -584,15 +584,17 @@ static int aqc_set_ctrl_val(struct aqc_data *priv, int offset, long val, int typ
 	if (ret < 0)
 		goto unlock_and_return;
 
-	switch (type) {
-	case AQC_BE16:
-		put_unaligned_be16((s16)val, priv->buffer + offset);
-		break;
-	case AQC_8:
-		priv->buffer[offset] = (u8)val;
-		break;
-	default:
-		ret = -EINVAL;
+	for (i = 0; i < len; i++) {
+		switch (types[i]) {
+		case AQC_BE16:
+			put_unaligned_be16((s16)vals[i], priv->buffer + offsets[i]);
+			break;
+		case AQC_8:
+			priv->buffer[offsets[i]] = (u8)vals[i];
+			break;
+		default:
+			ret = -EINVAL;
+		}
 	}
 
 	if (ret < 0)
@@ -603,6 +605,11 @@ static int aqc_set_ctrl_val(struct aqc_data *priv, int offset, long val, int typ
 unlock_and_return:
 	mutex_unlock(&priv->mutex);
 	return ret;
+}
+
+static int aqc_set_ctrl_val(struct aqc_data *priv, int offset, long val, int type)
+{
+	return aqc_set_ctrl_vals(priv, &offset, &val, &type, 1);
 }
 
 static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr, int channel)
