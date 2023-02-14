@@ -66,6 +66,13 @@ struct lkg_conversion_table {
 	int conv;
 };
 
+struct otp_opp_info {
+	u16 min_freq;
+	u16 max_freq;
+	u8 volt;
+	u8 length;
+} __packed;
+
 #define PVTM_CH_MAX	8
 #define PVTM_SUB_CH_MAX	8
 
@@ -1443,6 +1450,44 @@ static void rockchip_adjust_opp_by_mbist_vmin(struct device *dev,
 	mutex_unlock(&opp_table->lock);
 }
 
+static void rockchip_adjust_opp_by_otp(struct device *dev,
+				       struct device_node *np)
+{
+	struct dev_pm_opp *opp;
+	struct opp_table *opp_table;
+	struct otp_opp_info opp_info = {};
+	int ret;
+
+	ret = rockchip_nvmem_cell_read_common(np, "opp-info", &opp_info,
+					      sizeof(opp_info));
+	if (ret || !opp_info.volt)
+		return;
+
+	dev_info(dev, "adjust opp-table by otp: min=%uM, max=%uM, volt=%umV\n",
+		 opp_info.min_freq, opp_info.max_freq, opp_info.volt);
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return;
+
+	mutex_lock(&opp_table->lock);
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
+		if (opp->rate < opp_info.min_freq * 1000000)
+			continue;
+		if (opp->rate > opp_info.max_freq * 1000000)
+			continue;
+
+		opp->supplies->u_volt += opp_info.volt * 1000;
+		if (opp->supplies->u_volt > opp->supplies->u_volt_max)
+			opp->supplies->u_volt = opp->supplies->u_volt_max;
+	}
+	mutex_unlock(&opp_table->lock);
+
+	dev_pm_opp_put_opp_table(opp_table);
+}
+
 static int rockchip_adjust_opp_table(struct device *dev,
 				     unsigned long scale_rate)
 {
@@ -1489,6 +1534,7 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 	of_property_read_u32(np, "rockchip,avs-enable", &avs);
 	of_property_read_u32(np, "rockchip,avs", &avs);
 	of_property_read_u32(np, "rockchip,avs-scale", &avs_scale);
+	rockchip_adjust_opp_by_otp(dev, np);
 	rockchip_adjust_opp_by_mbist_vmin(dev, np);
 	rockchip_adjust_opp_by_irdrop(dev, np, &safe_rate, &max_rate);
 
