@@ -162,6 +162,7 @@ extern "C" {
 #define dmub_udelay(microseconds) udelay(microseconds)
 #endif
 
+#pragma pack(push, 1)
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
@@ -172,6 +173,7 @@ union dmub_addr {
 	} u; /*<< Low/high bit access */
 	uint64_t quad_part; /*<< 64 bit address */
 };
+#pragma pack(pop)
 
 /**
  * Dirty rect definition.
