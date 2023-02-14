@@ -460,6 +460,7 @@
 #define SCMI_PKA_CRYPTO_S              29
 #define SCMI_CORE_KLAD                 30
 #define SCMI_ACLK_KLAD                 31
+#define SCMI_HCLK_TRNG                 32
 
 // CRU_SOFTRST_CON03(Offset:0xA0C)
 #define SRST_NCOREPORESET0             0x00000030

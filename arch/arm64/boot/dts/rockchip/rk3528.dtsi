@@ -1993,7 +1993,7 @@
 		compatible = "rockchip,rkrng";
 		reg = <0x0 0xffc50000 0x0 0x200>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_TRNG_NS>;
+		clocks = <&scmi_clk SCMI_HCLK_TRNG>;
 		clock-names = "hclk_trng";
 		resets = <&cru SRST_HRESETN_TRNG_NS>;
 		reset-names = "reset";
