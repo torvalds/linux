@@ -284,6 +284,44 @@ static void sparx5_vcap_is2_port_stickies(struct sparx5 *sparx5,
 	out->prf(out->dst, "\n");
 }
 
+static void sparx5_vcap_es0_port_keys(struct sparx5 *sparx5,
+				      struct vcap_admin *admin,
+				      struct sparx5_port *port,
+				      struct vcap_output_print *out)
+{
+	u32 value;
+
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+		 netdev_name(port->ndev));
+	out->prf(out->dst, "\n    Lookup 0: ");
+
+	/* Get lookup state */
+	value = spx5_rd(sparx5, REW_ES0_CTRL);
+	out->prf(out->dst, "\n      state: ");
+	if (REW_ES0_CTRL_ES0_LU_ENA_GET(value))
+		out->prf(out->dst, "on");
+	else
+		out->prf(out->dst, "off");
+
+	out->prf(out->dst, "\n      keyset: ");
+	value = spx5_rd(sparx5, REW_RTAG_ETAG_CTRL(port->portno));
+	switch (REW_RTAG_ETAG_CTRL_ES0_ISDX_KEY_ENA_GET(value)) {
+	case VCAP_ES0_PS_NORMAL_SELECTION:
+		out->prf(out->dst, "normal");
+		break;
+	case VCAP_ES0_PS_FORCE_ISDX_LOOKUPS:
+		out->prf(out->dst, "isdx");
+		break;
+	case VCAP_ES0_PS_FORCE_VID_LOOKUPS:
+		out->prf(out->dst, "vid");
+		break;
+	case VCAP_ES0_PS_RESERVED:
+		out->prf(out->dst, "reserved");
+		break;
+	}
+	out->prf(out->dst, "\n");
+}
+
 static void sparx5_vcap_es2_port_keys(struct sparx5 *sparx5,
 				      struct vcap_admin *admin,
 				      struct sparx5_port *port,
@@ -417,6 +455,9 @@ int sparx5_port_info(struct net_device *ndev,
 	case VCAP_TYPE_IS2:
 		sparx5_vcap_is2_port_keys(sparx5, admin, port, out);
 		sparx5_vcap_is2_port_stickies(sparx5, admin, out);
+		break;
+	case VCAP_TYPE_ES0:
+		sparx5_vcap_es0_port_keys(sparx5, admin, port, out);
 		break;
 	case VCAP_TYPE_ES2:
 		sparx5_vcap_es2_port_keys(sparx5, admin, port, out);

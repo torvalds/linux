@@ -290,14 +290,29 @@ static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 {
 	int err;
 
-	if (admin->vtype == VCAP_TYPE_IS2 || admin->vtype == VCAP_TYPE_ES2) {
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		break;
+	case VCAP_TYPE_ES0:
+		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_ESDX,
+					       vrule->id);
+		if (err)
+			return err;
+		vcap_rule_set_counter_id(vrule, vrule->id);
+		break;
+	case VCAP_TYPE_IS2:
+	case VCAP_TYPE_ES2:
 		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID,
 					       vrule->id);
 		if (err)
 			return err;
 		vcap_rule_set_counter_id(vrule, vrule->id);
+		break;
+	default:
+		pr_err("%s:%d: vcap type: %d not supported\n",
+		       __func__, __LINE__, admin->vtype);
+		break;
 	}
-
 	return 0;
 }
 
