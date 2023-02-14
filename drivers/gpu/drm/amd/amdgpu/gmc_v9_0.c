@@ -79,6 +79,7 @@
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION_DCN2                                                          0x05ea
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION_DCN2_BASE_IDX                                                 2
 
+#define MAX_MEM_RANGES 8
 
 static const char *gfxhub_client_ids[] = {
 	"CB",
@@ -1742,6 +1743,169 @@ static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
 		adev->gmc.sdpif_register = RREG32_SOC15(DCE, 0, mmDCHUBBUB_SDPIF_MMIO_CNTRL_0);
 }
 
+static bool gmc_v9_0_validate_partition_info(struct amdgpu_device *adev)
+{
+	enum amdgpu_memory_partition mode;
+	u32 supp_modes;
+	bool valid;
+
+	mode = gmc_v9_0_get_memory_partition(adev, &supp_modes);
+
+	/* Mode detected by hardware not present in supported modes */
+	if ((mode != UNKNOWN_MEMORY_PARTITION_MODE) &&
+	    !(BIT(mode - 1) & supp_modes))
+		return false;
+
+	switch (mode) {
+	case UNKNOWN_MEMORY_PARTITION_MODE:
+	case AMDGPU_NPS1_PARTITION_MODE:
+		valid = (adev->gmc.num_mem_partitions == 1);
+		break;
+	case AMDGPU_NPS2_PARTITION_MODE:
+		valid = (adev->gmc.num_mem_partitions == 2);
+		break;
+	case AMDGPU_NPS4_PARTITION_MODE:
+		valid = (adev->gmc.num_mem_partitions == 3 ||
+			 adev->gmc.num_mem_partitions == 4);
+		break;
+	default:
+		valid = false;
+	}
+
+	return valid;
+}
+
+static bool gmc_v9_0_is_node_present(int *node_ids, int num_ids, int nid)
+{
+	int i;
+
+	/* Check if node with id 'nid' is present in 'node_ids' array */
+	for (i = 0; i < num_ids; ++i)
+		if (node_ids[i] == nid)
+			return true;
+
+	return false;
+}
+
+static void
+gmc_v9_0_init_acpi_mem_ranges(struct amdgpu_device *adev,
+			      struct amdgpu_mem_partition_info *mem_ranges)
+{
+	int num_ranges = 0, ret, mem_groups;
+	struct amdgpu_numa_info numa_info;
+	int node_ids[MAX_MEM_RANGES];
+	int num_xcc, xcc_id;
+	uint32_t xcc_mask;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	xcc_mask = (1U << num_xcc) - 1;
+	mem_groups = hweight32(adev->aid_mask);
+
+	for_each_inst(xcc_id, xcc_mask)	{
+		ret = amdgpu_acpi_get_mem_info(adev, xcc_id, &numa_info);
+		if (ret)
+			continue;
+
+		if (numa_info.nid == NUMA_NO_NODE) {
+			mem_ranges[0].size = numa_info.size;
+			mem_ranges[0].numa.node = numa_info.nid;
+			num_ranges = 1;
+			break;
+		}
+
+		if (gmc_v9_0_is_node_present(node_ids, num_ranges,
+					     numa_info.nid))
+			continue;
+
+		node_ids[num_ranges] = numa_info.nid;
+		mem_ranges[num_ranges].numa.node = numa_info.nid;
+		mem_ranges[num_ranges].size = numa_info.size;
+		++num_ranges;
+	}
+
+	adev->gmc.num_mem_partitions = num_ranges;
+
+	/* If there is only partition, don't use entire size */
+	if (adev->gmc.num_mem_partitions == 1)
+		mem_ranges[0].size =
+			(mem_ranges[0].size * (mem_groups - 1) / mem_groups);
+}
+
+static void
+gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
+			    struct amdgpu_mem_partition_info *mem_ranges)
+{
+	enum amdgpu_memory_partition mode;
+	u32 start_addr = 0, size;
+	int i;
+
+	mode = gmc_v9_0_query_memory_partition(adev);
+
+	switch (mode) {
+	case UNKNOWN_MEMORY_PARTITION_MODE:
+	case AMDGPU_NPS1_PARTITION_MODE:
+		adev->gmc.num_mem_partitions = 1;
+		break;
+	case AMDGPU_NPS2_PARTITION_MODE:
+		adev->gmc.num_mem_partitions = 2;
+		break;
+	case AMDGPU_NPS4_PARTITION_MODE:
+		if (adev->flags & AMD_IS_APU)
+			adev->gmc.num_mem_partitions = 3;
+		else
+			adev->gmc.num_mem_partitions = 4;
+		break;
+	default:
+		adev->gmc.num_mem_partitions = 1;
+		break;
+	}
+
+	size = (adev->gmc.real_vram_size >> AMDGPU_GPU_PAGE_SHIFT) /
+	       adev->gmc.num_mem_partitions;
+
+	for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
+		mem_ranges[i].range.fpfn = start_addr;
+		mem_ranges[i].size = ((u64)size << AMDGPU_GPU_PAGE_SHIFT);
+		mem_ranges[i].range.lpfn = start_addr + size - 1;
+		start_addr += size;
+	}
+
+	/* Adjust the last one */
+	mem_ranges[adev->gmc.num_mem_partitions - 1].range.lpfn =
+		(adev->gmc.real_vram_size >> AMDGPU_GPU_PAGE_SHIFT) - 1;
+	mem_ranges[adev->gmc.num_mem_partitions - 1].size =
+		adev->gmc.real_vram_size -
+		((u64)mem_ranges[adev->gmc.num_mem_partitions - 1].range.fpfn
+		 << AMDGPU_GPU_PAGE_SHIFT);
+}
+
+static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
+{
+	bool valid;
+
+	adev->gmc.mem_partitions = kzalloc(
+		MAX_MEM_RANGES * sizeof(struct amdgpu_mem_partition_info),
+		GFP_KERNEL);
+
+	if (!adev->gmc.mem_partitions)
+		return -ENOMEM;
+
+	/* TODO : Get the range from PSP/Discovery for dGPU */
+	if (adev->gmc.is_app_apu)
+		gmc_v9_0_init_acpi_mem_ranges(adev, adev->gmc.mem_partitions);
+	else
+		gmc_v9_0_init_sw_mem_ranges(adev, adev->gmc.mem_partitions);
+
+	valid = gmc_v9_0_validate_partition_info(adev);
+	if (!valid) {
+		/* TODO: handle invalid case */
+		dev_WARN(adev->dev,
+			 "Mem ranges not matching with hardware config");
+	}
+
+	return 0;
+}
+
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
@@ -1888,6 +2052,12 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	amdgpu_gmc_get_vbios_allocations(adev);
 
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		r = gmc_v9_0_init_mem_ranges(adev);
+		if (r)
+			return r;
+	}
+
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
 	if (r)
@@ -1932,6 +2102,8 @@ static int gmc_v9_0_sw_fini(void *handle)
 
 	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
 		amdgpu_gmc_sysfs_fini(adev);
+	adev->gmc.num_mem_partitions = 0;
+	kfree(adev->gmc.mem_partitions);
 
 	amdgpu_gmc_ras_fini(adev);
 	amdgpu_gem_force_release(adev);
