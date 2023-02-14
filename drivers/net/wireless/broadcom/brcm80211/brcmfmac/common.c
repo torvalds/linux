@@ -101,7 +101,7 @@ void brcmf_c_set_joinpref_default(struct brcmf_if *ifp)
 
 static int brcmf_c_download(struct brcmf_if *ifp, u16 flag,
 			    struct brcmf_dload_data_le *dload_buf,
-			    u32 len)
+			    u32 len, const char *var)
 {
 	s32 err;
 
@@ -111,18 +111,18 @@ static int brcmf_c_download(struct brcmf_if *ifp, u16 flag,
 	dload_buf->len = cpu_to_le32(len);
 	dload_buf->crc = cpu_to_le32(0);
 
-	err = brcmf_fil_iovar_data_set(ifp, "clmload", dload_buf,
+	err = brcmf_fil_iovar_data_set(ifp, var, dload_buf,
 				       struct_size(dload_buf, data, len));
 
 	return err;
 }
 
-static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
+static int brcmf_c_download_blob(struct brcmf_if *ifp,
+				 const void *data, size_t size,
+				 const char *loadvar, const char *statvar)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_bus *bus = drvr->bus_if;
 	struct brcmf_dload_data_le *chunk_buf;
-	const struct firmware *clm = NULL;
 	u32 chunk_len;
 	u32 datalen;
 	u32 cumulative_len;
@@ -132,21 +132,14 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	err = brcmf_bus_get_blob(bus, &clm, BRCMF_BLOB_CLM);
-	if (err || !clm) {
-		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
-			   err);
-		return 0;
-	}
-
 	chunk_buf = kzalloc(struct_size(chunk_buf, data, MAX_CHUNK_LEN),
 			    GFP_KERNEL);
 	if (!chunk_buf) {
 		err = -ENOMEM;
-		goto done;
+		return -ENOMEM;
 	}
 
-	datalen = clm->size;
+	datalen = size;
 	cumulative_len = 0;
 	do {
 		if (datalen > MAX_CHUNK_LEN) {
@@ -155,9 +148,10 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 			chunk_len = datalen;
 			dl_flag |= DL_END;
 		}
-		memcpy(chunk_buf->data, clm->data + cumulative_len, chunk_len);
+		memcpy(chunk_buf->data, data + cumulative_len, chunk_len);
 
-		err = brcmf_c_download(ifp, dl_flag, chunk_buf, chunk_len);
+		err = brcmf_c_download(ifp, dl_flag, chunk_buf, chunk_len,
+				       loadvar);
 
 		dl_flag &= ~DL_BEGIN;
 
@@ -166,20 +160,64 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 	} while ((datalen > 0) && (err == 0));
 
 	if (err) {
-		bphy_err(drvr, "clmload (%zu byte file) failed (%d)\n",
-			 clm->size, err);
-		/* Retrieve clmload_status and print */
-		err = brcmf_fil_iovar_int_get(ifp, "clmload_status", &status);
+		bphy_err(drvr, "%s (%zu byte file) failed (%d)\n",
+			 loadvar, size, err);
+		/* Retrieve status and print */
+		err = brcmf_fil_iovar_int_get(ifp, statvar, &status);
 		if (err)
-			bphy_err(drvr, "get clmload_status failed (%d)\n", err);
+			bphy_err(drvr, "get %s failed (%d)\n", statvar, err);
 		else
-			brcmf_dbg(INFO, "clmload_status=%d\n", status);
+			brcmf_dbg(INFO, "%s=%d\n", statvar, status);
 		err = -EIO;
 	}
 
 	kfree(chunk_buf);
-done:
-	release_firmware(clm);
+	return err;
+}
+
+static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
+{
+	struct brcmf_pub *drvr = ifp->drvr;
+	struct brcmf_bus *bus = drvr->bus_if;
+	const struct firmware *fw = NULL;
+	s32 err;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	err = brcmf_bus_get_blob(bus, &fw, BRCMF_BLOB_CLM);
+	if (err || !fw) {
+		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
+			   err);
+		return 0;
+	}
+
+	err = brcmf_c_download_blob(ifp, fw->data, fw->size,
+				    "clmload", "clmload_status");
+
+	release_firmware(fw);
+	return err;
+}
+
+static int brcmf_c_process_txcap_blob(struct brcmf_if *ifp)
+{
+	struct brcmf_pub *drvr = ifp->drvr;
+	struct brcmf_bus *bus = drvr->bus_if;
+	const struct firmware *fw = NULL;
+	s32 err;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	err = brcmf_bus_get_blob(bus, &fw, BRCMF_BLOB_TXCAP);
+	if (err || !fw) {
+		brcmf_info("no txcap_blob available (err=%d)\n", err);
+		return 0;
+	}
+
+	brcmf_info("TxCap blob found, loading\n");
+	err = brcmf_c_download_blob(ifp, fw->data, fw->size,
+				    "txcapload", "txcapload_status");
+
+	release_firmware(fw);
 	return err;
 }
 
@@ -288,6 +326,13 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_c_process_clm_blob(ifp);
 	if (err < 0) {
 		bphy_err(drvr, "download CLM blob file failed, %d\n", err);
+		goto done;
+	}
+
+	/* Do TxCap downloading, if needed */
+	err = brcmf_c_process_txcap_blob(ifp);
+	if (err < 0) {
+		bphy_err(drvr, "download TxCap blob file failed, %d\n", err);
 		goto done;
 	}
 
