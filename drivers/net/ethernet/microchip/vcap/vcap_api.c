@@ -1649,10 +1649,8 @@ bool vcap_is_next_lookup(struct vcap_control *vctrl, int src_cid, int dst_cid)
 	if (vcap_api_check(vctrl))
 		return false;
 
-	/* The offset must be at least one lookup, round up */
-	next_cid = src_cid + VCAP_CID_LOOKUP_SIZE;
-	next_cid /= VCAP_CID_LOOKUP_SIZE;
-	next_cid *= VCAP_CID_LOOKUP_SIZE;
+	/* The offset must be at least one lookup so round up one chain */
+	next_cid = roundup(src_cid + 1, VCAP_CID_LOOKUP_SIZE);
 
 	if (dst_cid < next_cid)
 		return false;
@@ -2177,12 +2175,13 @@ static int vcap_get_next_chain(struct vcap_control *vctrl,
 static bool vcap_path_exist(struct vcap_control *vctrl, struct net_device *ndev,
 			    int dst_cid)
 {
+	int cid = rounddown(dst_cid, VCAP_CID_LOOKUP_SIZE);
 	struct vcap_enabled_port *eport = NULL;
 	struct vcap_enabled_port *elem;
 	struct vcap_admin *admin;
 	int tmp;
 
-	if (dst_cid == 0) /* Chain zero is always available */
+	if (cid == 0) /* Chain zero is always available */
 		return true;
 
 	/* Find first entry that starts from chain 0*/
@@ -2201,7 +2200,7 @@ static bool vcap_path_exist(struct vcap_control *vctrl, struct net_device *ndev,
 		return false;
 
 	tmp = eport->dst_cid;
-	while (tmp != dst_cid && tmp != 0)
+	while (tmp != cid && tmp != 0)
 		tmp = vcap_get_next_chain(vctrl, ndev, tmp);
 
 	return !!tmp;
