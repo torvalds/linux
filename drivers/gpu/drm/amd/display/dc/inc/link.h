@@ -48,8 +48,38 @@ struct link_init_data {
 	bool is_dpia_link;
 };
 
+struct link_service {
+	void (*dp_handle_automated_test)(struct dc_link *link);
+	bool (*dp_set_test_pattern)(
+			struct dc_link *link,
+			enum dp_test_pattern test_pattern,
+			enum dp_test_pattern_color_space test_pattern_color_space,
+			const struct link_training_settings *p_link_settings,
+			const unsigned char *p_custom_pattern,
+			unsigned int cust_pattern_size);
+	void (*dp_set_preferred_link_settings)(struct dc *dc,
+			struct dc_link_settings *link_setting,
+			struct dc_link *link);
+	void (*dp_set_preferred_training_settings)(struct dc *dc,
+			struct dc_link_settings *link_setting,
+			struct dc_link_training_overrides *lt_overrides,
+			struct dc_link *link,
+			bool skip_immediate_retrain);
+	bool (*dp_trace_is_initialized)(struct dc_link *link);
+	void (*dp_trace_set_is_logged_flag)(struct dc_link *link,
+			bool in_detection,
+			bool is_logged);
+	bool (*dp_trace_is_logged)(struct dc_link *link, bool in_detection);
+	unsigned long long (*dp_trace_get_lt_end_timestamp)(
+			struct dc_link *link, bool in_detection);
+	const struct dp_trace_lt_counts *(*dp_trace_get_lt_counts)(
+			struct dc_link *link, bool in_detection);
+	unsigned int (*dp_trace_get_link_loss_count)(struct dc_link *link);
+};
+
 struct dc_link *link_create(const struct link_init_data *init_params);
 void link_destroy(struct dc_link **link);
+const struct link_service *link_get_link_service(void);
 
 // TODO - convert any function declarations below to function pointers
 struct gpio *link_get_hpd_gpio(struct dc_bios *dcb,
@@ -150,5 +180,10 @@ uint32_t dp_link_bandwidth_kbps(
 uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing);
 void link_get_cur_res_map(const struct dc *dc, uint32_t *map);
 void link_restore_res_map(const struct dc *dc, uint32_t *map);
-
+void link_get_cur_link_res(const struct dc_link *link,
+		struct link_resource *link_res);
+void dp_set_drive_settings(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	struct link_training_settings *lt_settings);
 #endif /* __DC_LINK_HPD_H__ */

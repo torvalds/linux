@@ -37,7 +37,7 @@ void dp_trace_reset(struct dc_link *link)
 	memset(&link->dp_trace, 0, sizeof(link->dp_trace));
 }
 
-bool dc_dp_trace_is_initialized(struct dc_link *link)
+bool dp_trace_is_initialized(struct dc_link *link)
 {
 	return link->dp_trace.is_initialized;
 }
@@ -76,7 +76,7 @@ void dp_trace_lt_total_count_increment(struct dc_link *link,
 		link->dp_trace.commit_lt_trace.counts.total++;
 }
 
-void dc_dp_trace_set_is_logged_flag(struct dc_link *link,
+void dp_trace_set_is_logged_flag(struct dc_link *link,
 		bool in_detection,
 		bool is_logged)
 {
@@ -86,8 +86,7 @@ void dc_dp_trace_set_is_logged_flag(struct dc_link *link,
 		link->dp_trace.commit_lt_trace.is_logged = is_logged;
 }
 
-bool dc_dp_trace_is_logged(struct dc_link *link,
-		bool in_detection)
+bool dp_trace_is_logged(struct dc_link *link, bool in_detection)
 {
 	if (in_detection)
 		return link->dp_trace.detect_lt_trace.is_logged;
@@ -123,7 +122,7 @@ void dp_trace_set_lt_end_timestamp(struct dc_link *link,
 		link->dp_trace.commit_lt_trace.timestamps.end = dm_get_timestamp(link->dc->ctx);
 }
 
-unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
+unsigned long long dp_trace_get_lt_end_timestamp(struct dc_link *link,
 		bool in_detection)
 {
 	if (in_detection)
@@ -132,7 +131,7 @@ unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
 		return link->dp_trace.commit_lt_trace.timestamps.end;
 }
 
-struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
+const struct dp_trace_lt_counts *dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection)
 {
 	if (in_detection)
@@ -141,7 +140,7 @@ struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 		return &link->dp_trace.commit_lt_trace.counts;
 }
 
-unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link)
+unsigned int dp_trace_get_link_loss_count(struct dc_link *link)
 {
 	return link->dp_trace.link_loss_count;
 }

@@ -714,6 +714,7 @@ struct dc_bounding_box_overrides {
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
+struct link_service;
 
 /**
  * struct dc_debug_options - DC debug struct
@@ -890,6 +891,7 @@ struct dc {
 
 	uint8_t link_count;
 	struct dc_link *links[MAX_PIPES * 2];
+	const struct link_service *link_srv;
 
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
@@ -1828,7 +1830,7 @@ bool dc_link_is_dp_sink_present(struct dc_link *link);
  */
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
-				const struct dc_link *link);
+				struct dc_link *link);
 
 /* Enable a test pattern in Link or PHY layer in an active link for compliance
  * test or debugging purpose. The test pattern will remain until next un-plug.
@@ -1986,7 +1988,7 @@ unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
  * training in detection sequence. false to get link training count of last link
  * training in commit (dpms) sequence
  */
-struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
+const struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection);
 
 /* Get how many link loss has happened since last link training attempts */

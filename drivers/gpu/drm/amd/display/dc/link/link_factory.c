@@ -27,6 +27,9 @@
  * This file owns the creation/destruction of link structure.
  */
 #include "link_factory.h"
+#include "accessories/link_dp_cts.h"
+#include "accessories/link_dp_trace.h"
+#include "accessories/link_fpga.h"
 #include "protocols/link_ddc.h"
 #include "protocols/link_edp_panel_control.h"
 #include "protocols/link_hpd.h"
@@ -38,6 +41,19 @@
 #define LINK_INFO(...) \
 	DC_LOG_HW_HOTPLUG(  \
 		__VA_ARGS__)
+
+static struct link_service link_srv = {
+	.dp_handle_automated_test = dp_handle_automated_test,
+	.dp_set_test_pattern = dp_set_test_pattern,
+	.dp_set_preferred_link_settings = dp_set_preferred_link_settings,
+	.dp_set_preferred_training_settings = dp_set_preferred_training_settings,
+	.dp_trace_is_initialized = dp_trace_is_initialized,
+	.dp_trace_set_is_logged_flag = dp_trace_set_is_logged_flag,
+	.dp_trace_is_logged = dp_trace_is_logged,
+	.dp_trace_get_lt_end_timestamp = dp_trace_get_lt_end_timestamp,
+	.dp_trace_get_lt_counts = dp_trace_get_lt_counts,
+	.dp_trace_get_link_loss_count = dp_trace_get_link_loss_count,
+};
 
 static enum transmitter translate_encoder_to_transmitter(struct graphics_object_id encoder)
 {
@@ -575,3 +591,7 @@ void link_destroy(struct dc_link **link)
 	*link = NULL;
 }
 
+const struct link_service *link_get_link_service(void)
+{
+	return &link_srv;
+}

@@ -981,6 +981,8 @@ static bool dc_construct(struct dc *dc,
 		goto fail;
 	}
 
+	dc->link_srv = link_get_link_service();
+
 	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_ctx->dce_version);
 	if (!dc->res_pool)
 		goto fail;

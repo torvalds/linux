@@ -186,3 +186,81 @@ bool dc_submit_i2c_oem(
 	return false;
 }
 
+void dc_link_dp_handle_automated_test(struct dc_link *link)
+{
+	link->dc->link_srv->dp_handle_automated_test(link);
+}
+
+bool dc_link_dp_set_test_pattern(
+	struct dc_link *link,
+	enum dp_test_pattern test_pattern,
+	enum dp_test_pattern_color_space test_pattern_color_space,
+	const struct link_training_settings *p_link_settings,
+	const unsigned char *p_custom_pattern,
+	unsigned int cust_pattern_size)
+{
+	return link->dc->link_srv->dp_set_test_pattern(link, test_pattern,
+			test_pattern_color_space, p_link_settings,
+			p_custom_pattern, cust_pattern_size);
+}
+
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				struct dc_link *link)
+{
+	struct link_resource link_res;
+
+	link_get_cur_link_res(link, &link_res);
+	dp_set_drive_settings(link, &link_res, lt_settings);
+}
+
+void dc_link_set_preferred_link_settings(struct dc *dc,
+					 struct dc_link_settings *link_setting,
+					 struct dc_link *link)
+{
+	dc->link_srv->dp_set_preferred_link_settings(dc, link_setting, link);
+}
+
+void dc_link_set_preferred_training_settings(struct dc *dc,
+		struct dc_link_settings *link_setting,
+		struct dc_link_training_overrides *lt_overrides,
+		struct dc_link *link,
+		bool skip_immediate_retrain)
+{
+	dc->link_srv->dp_set_preferred_training_settings(dc, link_setting,
+			lt_overrides, link, skip_immediate_retrain);
+}
+
+bool dc_dp_trace_is_initialized(struct dc_link *link)
+{
+	return link->dc->link_srv->dp_trace_is_initialized(link);
+}
+
+void dc_dp_trace_set_is_logged_flag(struct dc_link *link,
+		bool in_detection,
+		bool is_logged)
+{
+	link->dc->link_srv->dp_trace_set_is_logged_flag(link, in_detection, is_logged);
+}
+
+bool dc_dp_trace_is_logged(struct dc_link *link, bool in_detection)
+{
+	return link->dc->link_srv->dp_trace_is_logged(link, in_detection);
+}
+
+unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
+		bool in_detection)
+{
+	return link->dc->link_srv->dp_trace_get_lt_end_timestamp(link, in_detection);
+}
+
+const struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
+		bool in_detection)
+{
+	return link->dc->link_srv->dp_trace_get_lt_counts(link, in_detection);
+}
+
+unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link)
+{
+	return link->dc->link_srv->dp_trace_get_link_loss_count(link);
+}
