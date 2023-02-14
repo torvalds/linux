@@ -8,6 +8,9 @@ patternProperties:
   "connector-enable": if this connector should be enabled
   "connector-vp-id": which video port this connector attached to.
   The connector here should be hdmi0/1, dp0/1, mipi0/1
+  "virtual-connector-count": the number of virtual connector devices.
+  "virtualX-disconnected": Set specified virtual connector to disconnected.
+  The X here should be less than virtual-connector-count.
 
 Example:
 vconn {
@@ -16,6 +19,8 @@ vconn {
 	hdmi1-enable;
 	hdmi0-vp-id = <0>;
 	hdmi1-vp-id = <1>;
+	virtual-connector-count = <2>;
+	virtual1-disconnected;
 	status = "okay";
 };
 
