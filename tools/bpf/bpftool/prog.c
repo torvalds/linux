@@ -198,7 +198,7 @@ static void show_prog_maps(int fd, __u32 num_maps)
 	info.nr_map_ids = num_maps;
 	info.map_ids = ptr_to_u64(map_ids);
 
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_prog_get_info_by_fd(fd, &info, &len);
 	if (err || !info.nr_map_ids)
 		return;
 
@@ -231,7 +231,7 @@ static void *find_metadata(int prog_fd, struct bpf_map_info *map_info)
 
 	memset(&prog_info, 0, sizeof(prog_info));
 	prog_info_len = sizeof(prog_info);
-	ret = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret)
 		return NULL;
 
@@ -248,7 +248,7 @@ static void *find_metadata(int prog_fd, struct bpf_map_info *map_info)
 	prog_info.map_ids = ptr_to_u64(map_ids);
 	prog_info_len = sizeof(prog_info);
 
-	ret = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret)
 		goto free_map_ids;
 
@@ -259,7 +259,7 @@ static void *find_metadata(int prog_fd, struct bpf_map_info *map_info)
 
 		memset(map_info, 0, sizeof(*map_info));
 		map_info_len = sizeof(*map_info);
-		ret = bpf_obj_get_info_by_fd(map_fd, map_info, &map_info_len);
+		ret = bpf_map_get_info_by_fd(map_fd, map_info, &map_info_len);
 		if (ret < 0) {
 			close(map_fd);
 			goto free_map_ids;
@@ -580,7 +580,7 @@ static int show_prog(int fd)
 	__u32 len = sizeof(info);
 	int err;
 
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_prog_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get prog info: %s", strerror(errno));
 		return -1;
@@ -949,7 +949,7 @@ static int do_dump(int argc, char **argv)
 	for (i = 0; i < nb_fds; i++) {
 		memset(&info, 0, sizeof(info));
 
-		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		err = bpf_prog_get_info_by_fd(fds[i], &info, &info_len);
 		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			break;
@@ -961,7 +961,7 @@ static int do_dump(int argc, char **argv)
 			break;
 		}
 
-		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		err = bpf_prog_get_info_by_fd(fds[i], &info, &info_len);
 		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			break;
@@ -2170,9 +2170,9 @@ static char *profile_target_name(int tgt_fd)
 	char *name = NULL;
 	int err;
 
-	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(tgt_fd, &info, &info_len);
 	if (err) {
-		p_err("failed to bpf_obj_get_info_by_fd for prog FD %d", tgt_fd);
+		p_err("failed to get info for prog FD %d", tgt_fd);
 		goto out;
 	}
 
@@ -2183,7 +2183,7 @@ static char *profile_target_name(int tgt_fd)
 
 	func_info_rec_size = info.func_info_rec_size;
 	if (info.nr_func_info == 0) {
-		p_err("bpf_obj_get_info_by_fd for prog FD %d found 0 func_info", tgt_fd);
+		p_err("found 0 func_info for prog FD %d", tgt_fd);
 		goto out;
 	}
 
@@ -2192,7 +2192,7 @@ static char *profile_target_name(int tgt_fd)
 	info.func_info_rec_size = func_info_rec_size;
 	info.func_info = ptr_to_u64(&func_info);
 
-	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(tgt_fd, &info, &info_len);
 	if (err) {
 		p_err("failed to get func_info for prog FD %d", tgt_fd);
 		goto out;
