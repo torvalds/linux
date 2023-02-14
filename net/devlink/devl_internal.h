@@ -176,6 +176,8 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 
 struct devlink_port *
 devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
+struct devlink_port *devlink_port_get_from_attrs(struct devlink *devlink,
+						 struct nlattr **attrs);
 
 /* Reload */
 bool devlink_reload_actions_valid(const struct devlink_ops *ops);
@@ -224,6 +226,18 @@ devlink_health_reporter_find_by_name(struct devlink *devlink,
 struct devlink_health_reporter *
 devlink_port_health_reporter_find_by_name(struct devlink_port *devlink_port,
 					  const char *reporter_name);
+struct devlink_health_reporter *
+devlink_health_reporter_get_from_attrs(struct devlink *devlink,
+				       struct nlattr **attrs);
+struct devlink_health_reporter *
+devlink_health_reporter_get_from_info(struct devlink *devlink,
+				      struct genl_info *info);
+int
+devlink_nl_health_reporter_fill(struct sk_buff *msg,
+				struct devlink_health_reporter *reporter,
+				enum devlink_command cmd, u32 portid,
+				u32 seq, int flags);
+
 void devlink_fmsg_free(struct devlink_fmsg *fmsg);
 
 /* Line cards */
@@ -249,3 +263,7 @@ int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
+					    struct genl_info *info);
+int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
+					    struct genl_info *info);
