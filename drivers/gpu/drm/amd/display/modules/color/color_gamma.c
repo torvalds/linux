@@ -1883,7 +1883,7 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 	struct pwl_float_data_ex *curve = NULL;
 	struct gamma_pixel *axis_x = NULL;
 	struct pixel_gamma_point *coeff = NULL;
-	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
+	enum dc_transfer_func_predefined tf;
 	uint32_t i;
 	bool ret = false;
 
@@ -2125,7 +2125,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 	struct pwl_float_data_ex *rgb_regamma = NULL;
 	struct gamma_pixel *axis_x = NULL;
 	struct pixel_gamma_point *coeff = NULL;
-	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
+	enum dc_transfer_func_predefined tf;
 	bool do_clamping = true;
 	bool ret = false;
 
