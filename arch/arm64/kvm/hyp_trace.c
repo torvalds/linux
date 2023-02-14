@@ -20,8 +20,11 @@
 #define RB_POLL_MS 1000
 
 #define TRACEFS_DIR "hyp"
+#define TRACEFS_MODE_WRITE 0640
+#define TRACEFS_MODE_READ 0440
 
 static bool hyp_trace_on;
+static bool hyp_free_tracing_deferred;
 static int hyp_trace_readers;
 static struct trace_buffer *hyp_trace_buffer;
 static size_t hyp_trace_buffer_size = 7 << 10;
@@ -198,25 +201,11 @@ end:
 	hyp_trace_buffer = NULL;
 }
 
-static void hyp_free_tracing(void)
-{
-	if (!hyp_trace_buffer)
-		return;
-
-	trace_buffer_teardown(NULL);
-	bpage_backing_teardown();
-}
-
-static int hyp_start_tracing(void)
+static int hyp_load_tracing(void)
 {
 	struct hyp_trace_pack *pack;
 	size_t pack_size;
-	int ret = 0;
-
-	if (hyp_trace_on || hyp_trace_readers)
-		return -EBUSY;
-
-	hyp_free_tracing();
+	int ret;
 
 	ret = trace_buffer_setup(&pack, &pack_size);
 	if (ret)
@@ -229,20 +218,45 @@ static int hyp_start_tracing(void)
 		goto end_buffer_teardown;
 
 	ret = kvm_call_hyp_nvhe(__pkvm_load_tracing, (unsigned long)pack, pack_size);
-	if (ret)
-		goto end_backing_teardown;
-
-	ret = kvm_call_hyp_nvhe(__pkvm_enable_tracing, true);
-	if (!ret) {
-		hyp_trace_on = true;
+	if (!ret)
 		goto end_free_pack;
-	}
-end_backing_teardown:
+
 	bpage_backing_teardown();
 end_buffer_teardown:
 	trace_buffer_teardown(&pack->trace_buffer_pack);
 end_free_pack:
 	free_pages_exact(pack, pack_size);
+
+	return ret;
+}
+
+static void hyp_free_tracing(void)
+{
+	WARN_ON(hyp_trace_readers || hyp_trace_on);
+
+	if (WARN_ON(kvm_call_hyp_nvhe(__pkvm_teardown_tracing)))
+		return;
+
+	trace_buffer_teardown(NULL);
+	bpage_backing_teardown();
+}
+
+static int hyp_start_tracing(void)
+{
+	int ret = 0;
+
+	if (hyp_trace_on)
+		return -EBUSY;
+
+	if (!hyp_trace_buffer) {
+		ret = hyp_load_tracing();
+		if (ret)
+			return ret;
+	}
+
+	ret = kvm_call_hyp_nvhe(__pkvm_enable_tracing, true);
+	if (!ret)
+		hyp_trace_on = true;
 
 	return ret;
 }
@@ -254,7 +268,7 @@ static void hyp_stop_tracing(void)
 	if (!hyp_trace_buffer || !hyp_trace_on)
 		return;
 
-	ret = kvm_call_hyp_nvhe(__pkvm_teardown_tracing);
+	ret = kvm_call_hyp_nvhe(__pkvm_enable_tracing, false);
 	if (ret) {
 		WARN_ON(1);
 		return;
@@ -564,6 +578,48 @@ static const struct seq_operations hyp_trace_ops = {
 	.show	= ht_show,
 };
 
+static int hyp_trace_reset(int cpu)
+{
+	if (!hyp_trace_buffer)
+		return 0;
+
+	if (hyp_trace_on)
+		return -EBUSY;
+
+	if (cpu == RING_BUFFER_ALL_CPUS) {
+		if (hyp_trace_readers)
+			hyp_free_tracing_deferred = true;
+		else
+			hyp_free_tracing();
+
+		return 0;
+	}
+
+	ring_buffer_reset_cpu(hyp_trace_buffer, cpu);
+
+	return 0;
+}
+
+static void hyp_inc_readers(void)
+{
+	hyp_trace_readers++;
+}
+
+static void hyp_dec_readers(void)
+{
+	hyp_trace_readers--;
+
+	WARN_ON(hyp_trace_readers < 0);
+
+	if (hyp_trace_readers)
+		return;
+
+	if (hyp_free_tracing_deferred) {
+		hyp_free_tracing();
+		hyp_free_tracing_deferred = false;
+	}
+}
+
 static int hyp_trace_open(struct inode *inode, struct file *file)
 {
 	int cpu = (s64)inode->i_private;
@@ -571,6 +627,11 @@ static int hyp_trace_open(struct inode *inode, struct file *file)
 	int ret = 0;
 
 	mutex_lock(&hyp_trace_lock);
+
+	if (file->f_mode & FMODE_WRITE) {
+		ret = hyp_trace_reset(cpu);
+		goto unlock;
+	}
 
 	iter = __seq_open_private(file, &hyp_trace_ops, sizeof(*iter));
 	if (!iter) {
@@ -614,7 +675,7 @@ static int hyp_trace_open(struct inode *inode, struct file *file)
 		ring_buffer_read_start(iter->buf_iter[cpu]);
 	}
 unlock_and_read:
-	hyp_trace_readers++;
+	hyp_inc_readers();
 unlock:
 	if (ret && iter) {
 		kfree(iter->buf_iter);
@@ -630,6 +691,9 @@ int hyp_trace_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct ht_iterator *iter = m->private;
+
+	if (file->f_mode & FMODE_WRITE)
+		return 0;
 
 	if (!iter->buf_iter)
 		goto end;
@@ -647,17 +711,25 @@ int hyp_trace_release(struct inode *inode, struct file *file)
 	kfree(iter->buf_iter);
 end:
 	mutex_lock(&hyp_trace_lock);
-	hyp_trace_readers--;
+	hyp_dec_readers();
 	mutex_unlock(&hyp_trace_lock);
 
 	return seq_release_private(inode, file);
 }
 
+static ssize_t hyp_trace_write(struct file *filp, const char __user *ubuf,
+			       size_t count, loff_t *ppos)
+{
+	/* No matter the input, writing resets the buffer */
+	return count;
+}
+
 static const struct file_operations hyp_trace_fops = {
-	.open  = hyp_trace_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = hyp_trace_release,
+	.open		= hyp_trace_open,
+	.read		= seq_read,
+	.write		= hyp_trace_write,
+	.llseek		= seq_lseek,
+	.release	= hyp_trace_release,
 };
 
 /*
@@ -728,12 +800,15 @@ static int hyp_trace_pipe_open(struct inode *inode, struct file *file)
 {
 	int cpu = (s64)inode->i_private;
 	struct ht_iterator *iter;
-	int ret = -EINVAL;
+	int ret;
 
 	mutex_lock(&hyp_trace_lock);
 
-	if (!hyp_trace_buffer)
-		goto unlock;
+	if (!hyp_trace_buffer) {
+		ret = hyp_load_tracing();
+		if (ret)
+			goto unlock;
+	}
 
 	ret = ring_buffer_poke(hyp_trace_buffer, cpu);
 	if (ret)
@@ -753,7 +828,7 @@ static int hyp_trace_pipe_open(struct inode *inode, struct file *file)
 
 	file->private_data = iter;
 
-	hyp_trace_readers++;
+	hyp_inc_readers();
 unlock:
 	mutex_unlock(&hyp_trace_lock);
 
@@ -769,7 +844,7 @@ static int hyp_trace_pipe_release(struct inode *inode, struct file *file)
 	kfree(iter);
 
 	mutex_lock(&hyp_trace_lock);
-	hyp_trace_readers--;
+	hyp_dec_readers();
 	mutex_unlock(&hyp_trace_lock);
 
 	return 0;
@@ -863,10 +938,11 @@ static const struct file_operations hyp_trace_raw_fops = {
 
 static void hyp_tracefs_create_cpu_file(const char *file_name,
 					int cpu,
+					umode_t mode,
 					const struct file_operations *fops,
 					struct dentry *parent)
 {
-	if (!tracefs_create_file(file_name, 0440, parent, (void *)(s64)cpu, fops))
+	if (!tracefs_create_file(file_name, mode, parent, (void *)(s64)cpu, fops))
 		pr_warn("Failed to create tracefs %pd/%s\n", parent, file_name);
 }
 
@@ -888,20 +964,21 @@ int init_hyp_tracefs(void)
 		return -ENODEV;
 	}
 
-	d = tracefs_create_file("tracing_on", 0640, root_dir, NULL,
-				&hyp_tracing_on_fops);
+	d = tracefs_create_file("tracing_on", TRACEFS_MODE_WRITE, root_dir,
+				NULL, &hyp_tracing_on_fops);
 	if (!d) {
 		pr_err("Failed to create tracefs "TRACEFS_DIR"/tracing_on\n");
 		return -ENODEV;
 	}
 
-	d = tracefs_create_file("buffer_size_kb", 0640, root_dir, NULL,
-				&hyp_buffer_size_fops);
+	d = tracefs_create_file("buffer_size_kb", TRACEFS_MODE_WRITE, root_dir,
+				NULL, &hyp_buffer_size_fops);
 	if (!d)
 		pr_err("Failed to create tracefs "TRACEFS_DIR"/buffer_size_kb\n");
 
 	hyp_tracefs_create_cpu_file("trace", RING_BUFFER_ALL_CPUS,
-				    &hyp_trace_fops, root_dir);
+				    TRACEFS_MODE_WRITE, &hyp_trace_fops,
+				    root_dir);
 
 	per_cpu_root_dir = tracefs_create_dir("per_cpu", root_dir);
 	if (!per_cpu_root_dir) {
@@ -920,10 +997,12 @@ int init_hyp_tracefs(void)
 			continue;
 		}
 
-		hyp_tracefs_create_cpu_file("trace", cpu, &hyp_trace_fops, dir);
-		hyp_tracefs_create_cpu_file("trace_pipe", cpu,
+		hyp_tracefs_create_cpu_file("trace", cpu, TRACEFS_MODE_WRITE,
+					    &hyp_trace_fops, dir);
+		hyp_tracefs_create_cpu_file("trace_pipe", cpu, TRACEFS_MODE_READ,
 					    &hyp_trace_pipe_fops, dir);
 		hyp_tracefs_create_cpu_file("trace_pipe_raw", cpu,
+					    TRACEFS_MODE_READ,
 					    &hyp_trace_raw_fops, dir);
 	}
 
