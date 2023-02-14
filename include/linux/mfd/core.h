@@ -78,6 +78,9 @@ struct mfd_cell {
 	void			*platform_data;
 	size_t			pdata_size;
 
+	/* Matches ACPI */
+	const struct mfd_cell_acpi_match	*acpi_match;
+
 	/* Software node for the device. */
 	const struct software_node *swnode;
 
@@ -96,9 +99,6 @@ struct mfd_cell {
 
 	/* Set to 'true' to use 'of_reg' (above) - allows for of_reg=0 */
 	bool use_of_reg;
-
-	/* Matches ACPI */
-	const struct mfd_cell_acpi_match	*acpi_match;
 
 	/*
 	 * These resources can be specified relative to the parent device.
@@ -119,8 +119,8 @@ struct mfd_cell {
 	/* A list of regulator supplies that should be mapped to the MFD
 	 * device rather than the child device when requested
 	 */
-	const char * const	*parent_supplies;
 	int			num_parent_supplies;
+	const char * const	*parent_supplies;
 };
 
 /*
