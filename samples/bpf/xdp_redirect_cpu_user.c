@@ -494,9 +494,9 @@ int main(int argc, char **argv)
 		goto end_cpu;
 	}
 
-	ret = bpf_obj_get_info_by_fd(bpf_map__fd(skel->maps.cpu_map), &info, &infosz);
+	ret = bpf_map_get_info_by_fd(bpf_map__fd(skel->maps.cpu_map), &info, &infosz);
 	if (ret < 0) {
-		fprintf(stderr, "Failed bpf_obj_get_info_by_fd for cpumap: %s\n",
+		fprintf(stderr, "Failed bpf_map_get_info_by_fd for cpumap: %s\n",
 			strerror(errno));
 		goto end_cpu;
 	}
