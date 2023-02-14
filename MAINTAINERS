@@ -4024,6 +4024,7 @@ S:	Maintained
 F:	tools/testing/selftests/bpf/
 
 BPF [DOCUMENTATION] (Related to Standardization)
+R:	David Vernet <void@manifault.com>
 L:	bpf@vger.kernel.org
 L:	bpf@ietf.org
 S:	Maintained
