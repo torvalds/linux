@@ -7207,28 +7207,19 @@ static void vop2_setup_dual_channel_if(struct drm_crtc *crtc)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
-	int output_type = vcstate->output_type;
 
 	VOP_MODULE_SET(vop2, vp, dual_channel_en, 1);
 	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DATA_SWAP)
 		VOP_MODULE_SET(vop2, vp, dual_channel_swap, 1);
 
-	switch (output_type) {
-	case DRM_MODE_CONNECTOR_DisplayPort:
+	if (vcstate->output_if & VOP_OUTPUT_IF_DP1)
 		VOP_CTRL_SET(vop2, dp_dual_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_eDP:
+	else if (vcstate->output_if & VOP_OUTPUT_IF_eDP1)
 		VOP_CTRL_SET(vop2, edp_dual_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_HDMIA:
+	else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)
 		VOP_CTRL_SET(vop2, hdmi_dual_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_DSI:
+	else if (vcstate->output_if & VOP_OUTPUT_IF_MIPI1)
 		VOP_CTRL_SET(vop2, mipi_dual_en, 1);
-		break;
-	default:
-		break;
-	}
 }
 
 /*
