@@ -326,7 +326,25 @@ static int mac802154_transmit_beacon(struct ieee802154_local *local,
 		return ret;
 	}
 
-	return ieee802154_subif_start_xmit(skb, sdata->dev);
+	/* Using the MLME transmission helper for sending beacons is a bit
+	 * overkill because we do not really care about the final outcome.
+	 *
+	 * Even though, going through the whole net stack with a regular
+	 * dev_queue_xmit() is not relevant either because we want beacons to be
+	 * sent "now" rather than go through the whole net stack scheduling
+	 * (qdisc & co).
+	 *
+	 * Finally, using ieee802154_subif_start_xmit() would only be an option
+	 * if we had a generic transmit helper which would acquire the
+	 * HARD_TX_LOCK() to prevent buffer handling conflicts with regular
+	 * packets.
+	 *
+	 * So for now we keep it simple and send beacons with our MLME helper,
+	 * even if it stops the ieee802154 queue entirely during these
+	 * transmissions, wich anyway does not have a huge impact on the
+	 * performances given the current design of the stack.
+	 */
+	return ieee802154_mlme_tx(local, sdata, skb);
 }
 
 void mac802154_beacon_worker(struct work_struct *work)
