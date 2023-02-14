@@ -710,6 +710,8 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
+	rtw89_fw_release_general_pkt_list(rtwdev, true);
+
 	ret = rtw89_wow_check_fw_status(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to check disable fw ready\n");
@@ -778,8 +780,6 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "wow: failed to swap to normal fw\n");
 		goto out;
 	}
-
-	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_swap_fw(rtwdev, false);
 	if (ret) {
