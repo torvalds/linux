@@ -779,10 +779,8 @@ void dce110_edp_wait_for_hpd_ready(
 
 	dal_gpio_destroy_irq(&hpd);
 
-	if (false == edp_hpd_high) {
-		DC_LOG_WARNING(
-				"%s: wait timed out!\n", __func__);
-	}
+	/* ensure that the panel is detected */
+	ASSERT(edp_hpd_high);
 }
 
 void dce110_edp_power_control(
