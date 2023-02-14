@@ -83,7 +83,7 @@ struct xilinx_spi {
 	void __iomem	*regs;	/* virt. address of the control registers */
 
 	int		irq;
-
+	bool force_irq;		/* force irq to setup master inhibit */
 	u8 *rx_ptr;		/* pointer in the Tx buffer */
 	const u8 *tx_ptr;	/* pointer in the Rx buffer */
 	u8 bytes_per_word;
@@ -248,7 +248,8 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	xspi->rx_ptr = t->rx_buf;
 	remaining_words = t->len / xspi->bytes_per_word;
 
-	if (xspi->irq >= 0 &&  remaining_words > xspi->buffer_size) {
+	if (xspi->irq >= 0 &&
+	    (xspi->force_irq || remaining_words > xspi->buffer_size)) {
 		u32 isr;
 		use_irq = true;
 		/* Inhibit irq to avoid spurious irqs on tx_empty*/
@@ -393,6 +394,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, num_cs = 0, bits_per_word;
 	struct spi_master *master;
+	bool force_irq = false;
 	u32 tmp;
 	u8 i;
 
@@ -400,6 +402,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
 		bits_per_word = pdata->bits_per_word;
+		force_irq = pdata->force_irq;
 	} else {
 		of_property_read_u32(pdev->dev.of_node, "xlnx,num-ss-bits",
 					  &num_cs);
@@ -477,6 +480,8 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 				dev_name(&pdev->dev), xspi);
 		if (ret)
 			return ret;
+
+		xspi->force_irq = force_irq;
 	}
 
 	/* SPI controller initializations */
