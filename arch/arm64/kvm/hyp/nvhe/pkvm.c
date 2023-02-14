@@ -43,6 +43,33 @@ static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
  */
 void *host_fp_state;
 
+static void *__get_host_fpsimd_bytes(void)
+{
+	void *state = host_fp_state +
+		      size_mul(pkvm_host_fp_state_size(), hyp_smp_processor_id());
+
+	if (state < host_fp_state)
+		return NULL;
+
+	return state;
+}
+
+struct user_fpsimd_state *get_host_fpsimd_state(struct kvm_vcpu *vcpu)
+{
+	if (likely(!is_protected_kvm_enabled()))
+		return vcpu->arch.host_fpsimd_state;
+
+	WARN_ON(system_supports_sve());
+	return __get_host_fpsimd_bytes();
+}
+
+struct kvm_host_sve_state *get_host_sve_state(struct kvm_vcpu *vcpu)
+{
+	WARN_ON(!system_supports_sve());
+	WARN_ON(!is_protected_kvm_enabled());
+	return __get_host_fpsimd_bytes();
+}
+
 /*
  * Set trap register values based on features in ID_AA64PFR0.
  */
