@@ -8,6 +8,14 @@
 	model = "ALFA Network AP120C-AC";
 	compatible = "alfa-network,ap120c-ac", "qcom,ipq4018";
 
+	aliases {
+		serial0 = &blsp1_uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	keys {
 		compatible = "gpio-keys";
 
