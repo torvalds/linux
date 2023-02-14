@@ -1143,7 +1143,7 @@ const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
 	.setattr	= ntfs3_setattr,
 	.listxattr	= ntfs_listxattr,
-	.get_inode_acl	= ntfs_get_acl,
+	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 	.fiemap		= ntfs_fiemap,
 };

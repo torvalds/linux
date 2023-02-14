@@ -607,7 +607,7 @@ const struct inode_operations ntfs_dir_inode_operations = {
 	.rmdir		= ntfs_rmdir,
 	.mknod		= ntfs_mknod,
 	.rename		= ntfs_rename,
-	.get_inode_acl	= ntfs_get_acl,
+	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 	.setattr	= ntfs3_setattr,
 	.getattr	= ntfs_getattr,
@@ -620,7 +620,7 @@ const struct inode_operations ntfs_special_inode_operations = {
 	.setattr	= ntfs3_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,
-	.get_inode_acl	= ntfs_get_acl,
+	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 };
 

@@ -520,9 +520,14 @@ out:
 }
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
-static struct posix_acl *ntfs_get_acl_ex(struct inode *inode, int type,
-					 int locked)
+
+/*
+ * ntfs_get_acl - inode_operations::get_acl
+ */
+struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap,
+			       struct dentry *dentry, int type)
 {
+	struct inode *inode = d_inode(dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
 	const char *name;
 	size_t name_len;
@@ -545,13 +550,11 @@ static struct posix_acl *ntfs_get_acl_ex(struct inode *inode, int type,
 		name_len = sizeof(XATTR_NAME_POSIX_ACL_DEFAULT) - 1;
 	}
 
-	if (!locked)
-		ni_lock(ni);
+	ni_lock(ni);
 
 	err = ntfs_get_ea(inode, name, name_len, buf, PATH_MAX, &req);
 
-	if (!locked)
-		ni_unlock(ni);
+	ni_unlock(ni);
 
 	/* Translate extended attribute to acl. */
 	if (err >= 0) {
@@ -568,17 +571,6 @@ static struct posix_acl *ntfs_get_acl_ex(struct inode *inode, int type,
 	__putname(buf);
 
 	return acl;
-}
-
-/*
- * ntfs_get_acl - inode_operations::get_acl
- */
-struct posix_acl *ntfs_get_acl(struct inode *inode, int type, bool rcu)
-{
-	if (rcu)
-		return ERR_PTR(-ECHILD);
-
-	return ntfs_get_acl_ex(inode, type, 0);
 }
 
 static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
