@@ -171,6 +171,9 @@ attribute-sets:
       -
         name: tx-push
         type: u8
+      -
+        name: rx-push
+        type: u8
 
   -
     name: mm-stat
@@ -320,6 +323,7 @@ operations:
             - tcp-data-split
             - cqe-size
             - tx-push
+            - rx-push
       dump: *ring-get-op
     -
       name: rings-set
@@ -339,6 +343,7 @@ operations:
             - tcp-data-split
             - cqe-size
             - tx-push
+            - rx-push
     -
       name: rings-ntf
       doc: Notification for change in ring params.
