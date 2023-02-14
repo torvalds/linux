@@ -559,11 +559,14 @@ static bool reg_needs_read_steering(struct intel_gt *gt,
 				    i915_mcr_reg_t reg,
 				    enum intel_steering_type type)
 {
-	const u32 offset = i915_mmio_reg_offset(reg);
+	u32 offset = i915_mmio_reg_offset(reg);
 	const struct intel_mmio_range *entry;
 
 	if (likely(!gt->steering_table[type]))
 		return false;
+
+	if (IS_GSI_REG(offset))
+		offset += gt->uncore->gsi_offset;
 
 	for (entry = gt->steering_table[type]; entry->end; entry++) {
 		if (offset >= entry->start && offset <= entry->end)
