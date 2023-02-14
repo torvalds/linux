@@ -108,10 +108,10 @@ static struct cgroup_subsys_state *blkcg_css(void)
 	return task_css(current, io_cgrp_id);
 }
 
-static bool blkcg_policy_enabled(struct gendisk *disk,
+static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
 {
-	return pol && test_bit(pol->plid, disk->blkcg_pols);
+	return pol && test_bit(pol->plid, q->blkcg_pols);
 }
 
 static void blkg_free_workfn(struct work_struct *work)
@@ -123,18 +123,18 @@ static void blkg_free_workfn(struct work_struct *work)
 	/*
 	 * pd_free_fn() can also be called from blkcg_deactivate_policy(),
 	 * in order to make sure pd_free_fn() is called in order, the deletion
-	 * of the list blkg->entry is delayed to here from blkg_destroy(), and
+	 * of the list blkg->q_node is delayed to here from blkg_destroy(), and
 	 * blkcg_mutex is used to synchronize blkg_free_workfn() and
 	 * blkcg_deactivate_policy().
 	 */
-	mutex_lock(&blkg->disk->blkcg_mutex);
+	mutex_lock(&blkg->disk->queue->blkcg_mutex);
 	for (i = 0; i < BLKCG_MAX_POLS; i++)
 		if (blkg->pd[i])
 			blkcg_policy[i]->pd_free_fn(blkg->pd[i]);
 	if (blkg->parent)
 		blkg_put(blkg->parent);
-	list_del_init(&blkg->entry);
-	mutex_unlock(&blkg->disk->blkcg_mutex);
+	list_del_init(&blkg->q_node);
+	mutex_unlock(&blkg->disk->queue->blkcg_mutex);
 
 	put_disk(blkg->disk);
 	free_percpu(blkg->iostat_cpu);
@@ -269,7 +269,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct gendisk *disk,
 	get_device(disk_to_dev(disk));
 	blkg->disk = disk;
 
-	INIT_LIST_HEAD(&blkg->entry);
+	INIT_LIST_HEAD(&blkg->q_node);
 	spin_lock_init(&blkg->async_bio_lock);
 	bio_list_init(&blkg->async_bios);
 	INIT_WORK(&blkg->async_bio_work, blkg_async_bio_workfn);
@@ -285,7 +285,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct gendisk *disk,
 		struct blkcg_policy *pol = blkcg_policy[i];
 		struct blkg_policy_data *pd;
 
-		if (!blkcg_policy_enabled(disk, pol))
+		if (!blkcg_policy_enabled(disk->queue, pol))
 			continue;
 
 		/* alloc per-policy data and attach it to blkg */
@@ -371,7 +371,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg, struct gendisk *disk,
 	ret = radix_tree_insert(&blkcg->blkg_tree, disk->queue->id, blkg);
 	if (likely(!ret)) {
 		hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
-		list_add(&blkg->entry, &disk->blkg_list);
+		list_add(&blkg->q_node, &disk->queue->blkg_list);
 
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
@@ -444,7 +444,7 @@ static struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	while (true) {
 		struct blkcg *pos = blkcg;
 		struct blkcg *parent = blkcg_parent(blkcg);
-		struct blkcg_gq *ret_blkg = disk->root_blkg;
+		struct blkcg_gq *ret_blkg = q->root_blkg;
 
 		while (parent) {
 			blkg = blkg_lookup(parent, disk);
@@ -526,7 +526,7 @@ static void blkg_destroy_all(struct gendisk *disk)
 
 restart:
 	spin_lock_irq(&q->queue_lock);
-	list_for_each_entry_safe(blkg, n, &disk->blkg_list, entry) {
+	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
 		struct blkcg *blkcg = blkg->blkcg;
 
 		spin_lock(&blkcg->lock);
@@ -545,7 +545,7 @@ restart:
 		}
 	}
 
-	disk->root_blkg = NULL;
+	q->root_blkg = NULL;
 	spin_unlock_irq(&q->queue_lock);
 }
 
@@ -620,7 +620,7 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		spin_lock_irq(&blkg->disk->queue->queue_lock);
-		if (blkcg_policy_enabled(blkg->disk, pol))
+		if (blkcg_policy_enabled(blkg->disk->queue, pol))
 			total += prfill(sf, blkg->pd[pol->plid], data);
 		spin_unlock_irq(&blkg->disk->queue->queue_lock);
 	}
@@ -728,7 +728,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	rcu_read_lock();
 	spin_lock_irq(&q->queue_lock);
 
-	if (!blkcg_policy_enabled(disk, pol)) {
+	if (!blkcg_policy_enabled(q, pol)) {
 		ret = -EOPNOTSUPP;
 		goto fail_unlock;
 	}
@@ -771,7 +771,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		rcu_read_lock();
 		spin_lock_irq(&q->queue_lock);
 
-		if (!blkcg_policy_enabled(disk, pol)) {
+		if (!blkcg_policy_enabled(q, pol)) {
 			blkg_free(new_blkg);
 			ret = -EOPNOTSUPP;
 			goto fail_preloaded;
@@ -951,7 +951,7 @@ static void blkcg_fill_root_iostats(void)
 	class_dev_iter_init(&iter, &block_class, NULL, &disk_type);
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct block_device *bdev = dev_to_bdev(dev);
-		struct blkcg_gq *blkg = bdev->bd_disk->root_blkg;
+		struct blkcg_gq *blkg = bdev->bd_disk->queue->root_blkg;
 		struct blkg_iostat tmp;
 		int cpu;
 		unsigned long flags;
@@ -1298,8 +1298,8 @@ int blkcg_init_disk(struct gendisk *disk)
 	bool preloaded;
 	int ret;
 
-	INIT_LIST_HEAD(&disk->blkg_list);
-	mutex_init(&disk->blkcg_mutex);
+	INIT_LIST_HEAD(&q->blkg_list);
+	mutex_init(&q->blkcg_mutex);
 
 	new_blkg = blkg_alloc(&blkcg_root, disk, GFP_KERNEL);
 	if (!new_blkg)
@@ -1313,7 +1313,7 @@ int blkcg_init_disk(struct gendisk *disk)
 	blkg = blkg_create(&blkcg_root, disk, new_blkg);
 	if (IS_ERR(blkg))
 		goto err_unlock;
-	disk->root_blkg = blkg;
+	q->root_blkg = blkg;
 	spin_unlock_irq(&q->queue_lock);
 
 	if (preloaded)
@@ -1426,7 +1426,7 @@ int blkcg_activate_policy(struct gendisk *disk, const struct blkcg_policy *pol)
 	struct blkcg_gq *blkg, *pinned_blkg = NULL;
 	int ret;
 
-	if (blkcg_policy_enabled(disk, pol))
+	if (blkcg_policy_enabled(q, pol))
 		return 0;
 
 	if (queue_is_mq(q))
@@ -1435,7 +1435,7 @@ retry:
 	spin_lock_irq(&q->queue_lock);
 
 	/* blkg_list is pushed at the head, reverse walk to allocate parents first */
-	list_for_each_entry_reverse(blkg, &disk->blkg_list, entry) {
+	list_for_each_entry_reverse(blkg, &q->blkg_list, q_node) {
 		struct blkg_policy_data *pd;
 
 		if (blkg->pd[pol->plid])
@@ -1480,16 +1480,16 @@ retry:
 
 	/* all allocated, init in the same order */
 	if (pol->pd_init_fn)
-		list_for_each_entry_reverse(blkg, &disk->blkg_list, entry)
+		list_for_each_entry_reverse(blkg, &q->blkg_list, q_node)
 			pol->pd_init_fn(blkg->pd[pol->plid]);
 
-	list_for_each_entry_reverse(blkg, &disk->blkg_list, entry) {
+	list_for_each_entry_reverse(blkg, &q->blkg_list, q_node) {
 		if (pol->pd_online_fn)
 			pol->pd_online_fn(blkg->pd[pol->plid]);
 		blkg->pd[pol->plid]->online = true;
 	}
 
-	__set_bit(pol->plid, disk->blkcg_pols);
+	__set_bit(pol->plid, q->blkcg_pols);
 	ret = 0;
 
 	spin_unlock_irq(&q->queue_lock);
@@ -1505,7 +1505,7 @@ out:
 enomem:
 	/* alloc failed, nothing's initialized yet, free everything */
 	spin_lock_irq(&q->queue_lock);
-	list_for_each_entry(blkg, &disk->blkg_list, entry) {
+	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		struct blkcg *blkcg = blkg->blkcg;
 
 		spin_lock(&blkcg->lock);
@@ -1535,18 +1535,18 @@ void blkcg_deactivate_policy(struct gendisk *disk,
 	struct request_queue *q = disk->queue;
 	struct blkcg_gq *blkg;
 
-	if (!blkcg_policy_enabled(disk, pol))
+	if (!blkcg_policy_enabled(q, pol))
 		return;
 
 	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
 
-	mutex_lock(&disk->blkcg_mutex);
+	mutex_lock(&q->blkcg_mutex);
 	spin_lock_irq(&q->queue_lock);
 
-	__clear_bit(pol->plid, disk->blkcg_pols);
+	__clear_bit(pol->plid, q->blkcg_pols);
 
-	list_for_each_entry(blkg, &disk->blkg_list, entry) {
+	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		struct blkcg *blkcg = blkg->blkcg;
 
 		spin_lock(&blkcg->lock);
@@ -1560,7 +1560,7 @@ void blkcg_deactivate_policy(struct gendisk *disk,
 	}
 
 	spin_unlock_irq(&q->queue_lock);
-	mutex_unlock(&disk->blkcg_mutex);
+	mutex_unlock(&q->blkcg_mutex);
 
 	if (queue_is_mq(q))
 		blk_mq_unfreeze_queue(q);
@@ -1957,7 +1957,7 @@ static inline struct blkcg_gq *blkg_tryget_closest(struct bio *bio,
  * Associate @bio with the blkg found by combining the css's blkg and the
  * request_queue of the @bio.  An association failure is handled by walking up
  * the blkg tree.  Therefore, the blkg associated can be anything between @blkg
- * and disk->root_blkg.  This situation only happens when a cgroup is dying and
+ * and q->root_blkg.  This situation only happens when a cgroup is dying and
  * then the remaining bios will spill to the closest alive blkg.
  *
  * A reference will be taken on the blkg and will be released when @bio is
@@ -1972,8 +1972,8 @@ void bio_associate_blkg_from_css(struct bio *bio,
 	if (css && css->parent) {
 		bio->bi_blkg = blkg_tryget_closest(bio, css);
 	} else {
-		blkg_get(bio->bi_bdev->bd_disk->root_blkg);
-		bio->bi_blkg = bio->bi_bdev->bd_disk->root_blkg;
+		blkg_get(bdev_get_queue(bio->bi_bdev)->root_blkg);
+		bio->bi_blkg = bdev_get_queue(bio->bi_bdev)->root_blkg;
 	}
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);

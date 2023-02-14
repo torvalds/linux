@@ -451,8 +451,7 @@ static void blk_throtl_update_limit_valid(struct throtl_data *td)
 	bool low_valid = false;
 
 	rcu_read_lock();
-	blkg_for_each_descendant_post(blkg, pos_css,
-			td->queue->disk->root_blkg) {
+	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg) {
 		struct throtl_grp *tg = blkg_to_tg(blkg);
 
 		if (tg->bps[READ][LIMIT_LOW] || tg->bps[WRITE][LIMIT_LOW] ||
@@ -1181,7 +1180,7 @@ static void throtl_pending_timer_fn(struct timer_list *t)
 
 	spin_lock_irq(&q->queue_lock);
 
-	if (!q->disk->root_blkg)
+	if (!q->root_blkg)
 		goto out_unlock;
 
 	if (throtl_can_upgrade(td, NULL))
@@ -1323,8 +1322,7 @@ static void tg_conf_updated(struct throtl_grp *tg, bool global)
 	 * blk-throttle.
 	 */
 	blkg_for_each_descendant_pre(blkg, pos_css,
-			global ? tg->td->queue->disk->root_blkg :
-			tg_to_blkg(tg)) {
+			global ? tg->td->queue->root_blkg : tg_to_blkg(tg)) {
 		struct throtl_grp *this_tg = blkg_to_tg(blkg);
 		struct throtl_grp *parent_tg;
 
@@ -1719,7 +1717,7 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 	 * path need RCU protection and to prevent warning from lockdep.
 	 */
 	rcu_read_lock();
-	blkg_for_each_descendant_post(blkg, pos_css, disk->root_blkg) {
+	blkg_for_each_descendant_post(blkg, pos_css, q->root_blkg) {
 		struct throtl_grp *tg = blkg_to_tg(blkg);
 		struct throtl_service_queue *sq = &tg->service_queue;
 
@@ -1873,8 +1871,7 @@ static bool throtl_can_upgrade(struct throtl_data *td,
 		return false;
 
 	rcu_read_lock();
-	blkg_for_each_descendant_post(blkg, pos_css,
-			td->queue->disk->root_blkg) {
+	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg) {
 		struct throtl_grp *tg = blkg_to_tg(blkg);
 
 		if (tg == this_tg)
@@ -1920,8 +1917,7 @@ static void throtl_upgrade_state(struct throtl_data *td)
 	td->low_upgrade_time = jiffies;
 	td->scale = 0;
 	rcu_read_lock();
-	blkg_for_each_descendant_post(blkg, pos_css,
-			td->queue->disk->root_blkg) {
+	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg) {
 		struct throtl_grp *tg = blkg_to_tg(blkg);
 		struct throtl_service_queue *sq = &tg->service_queue;
 

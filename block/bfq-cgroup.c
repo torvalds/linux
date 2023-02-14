@@ -999,7 +999,7 @@ void bfq_end_wr_async(struct bfq_data *bfqd)
 {
 	struct blkcg_gq *blkg;
 
-	list_for_each_entry(blkg, &bfqd->queue->disk->blkg_list, entry) {
+	list_for_each_entry(blkg, &bfqd->queue->blkg_list, q_node) {
 		struct bfq_group *bfqg = blkg_to_bfqg(blkg);
 
 		bfq_end_wr_async_queues(bfqd, bfqg);
@@ -1293,7 +1293,7 @@ struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
 	if (ret)
 		return NULL;
 
-	return blkg_to_bfqg(bfqd->queue->disk->root_blkg);
+	return blkg_to_bfqg(bfqd->queue->root_blkg);
 }
 
 struct blkcg_policy blkcg_policy_bfq = {

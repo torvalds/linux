@@ -54,7 +54,7 @@ struct blkg_iostat_set {
 /* association between a blk cgroup and a request queue */
 struct blkcg_gq {
 	struct gendisk			*disk;
-	struct list_head		entry;
+	struct list_head		q_node;
 	struct hlist_node		blkcg_node;
 	struct blkcg			*blkcg;
 
@@ -250,7 +250,7 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	if (blkcg == &blkcg_root)
-		return disk->root_blkg;
+		return disk->queue->root_blkg;
 
 	blkg = rcu_dereference(blkcg->blkg_hint);
 	if (blkg && blkg->disk == disk)
