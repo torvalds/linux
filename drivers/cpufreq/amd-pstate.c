@@ -1057,27 +1057,28 @@ static void amd_pstate_epp_init(unsigned int cpu)
 
 	cpudata->epp_policy = cpudata->policy;
 
-	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
-		epp = amd_pstate_get_epp(cpudata, value);
-		if (epp < 0)
-			goto skip_epp;
-		/* force the epp value to be zero for performance policy */
-		epp = 0;
-	} else {
-		/* Get BIOS pre-defined epp value */
-		epp = amd_pstate_get_epp(cpudata, value);
-		if (epp)
-			goto skip_epp;
+	/* Get BIOS pre-defined epp value */
+	epp = amd_pstate_get_epp(cpudata, value);
+	if (epp < 0) {
+		/**
+		 * This return value can only be negative for shared_memory
+		 * systems where EPP register read/write not supported.
+		 */
+		goto skip_epp;
 	}
+
+	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
+		epp = 0;
+
 	/* Set initial EPP value */
 	if (boot_cpu_has(X86_FEATURE_CPPC)) {
 		value &= ~GENMASK_ULL(31, 24);
 		value |= (u64)epp << 24;
 	}
 
+	WRITE_ONCE(cpudata->cppc_req_cached, value);
 	amd_pstate_set_epp(cpudata, epp);
 skip_epp:
-	WRITE_ONCE(cpudata->cppc_req_cached, value);
 	cpufreq_cpu_put(policy);
 }
 
