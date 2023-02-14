@@ -35,6 +35,7 @@ extern struct sort_entry sort_sym_from;
 extern struct sort_entry sort_sym_to;
 extern struct sort_entry sort_srcline;
 extern const char default_mem_sort_order[];
+extern bool chk_double_cl;
 
 struct res_sample {
 	u64 time;

@@ -130,6 +130,12 @@ REPORT OPTIONS
 	The known limitations include exception handing such as
 	setjmp/longjmp will have calls/returns not match.
 
+--double-cl::
+	Group the detection of shared cacheline events into double cacheline
+	granularity. Some architectures have an Adjacent Cacheline Prefetch
+	feature, which causes cacheline sharing to behave like the cacheline
+	size is doubled.
+
 C2C RECORD
 ----------
 The perf c2c record command setup options related to HITM cacheline analysis
