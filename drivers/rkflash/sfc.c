@@ -42,12 +42,16 @@ u32 sfc_get_max_iosize(void)
 
 u32 sfc_get_max_dll_cells(void)
 {
-	if (sfc_get_version() == SFC_VER_5)
+	switch (sfc_get_version()) {
+	case SFC_VER_8:
+	case SFC_VER_6:
+	case SFC_VER_5:
 		return SCLK_SMP_SEL_MAX_V5;
-	else if (sfc_get_version() == SFC_VER_4)
+	case SFC_VER_4:
 		return SCLK_SMP_SEL_MAX_V4;
-	else
+	default:
 		return 0;
+	}
 }
 
 void sfc_set_delay_lines(u16 cells)

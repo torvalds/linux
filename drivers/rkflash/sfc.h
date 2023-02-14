@@ -8,6 +8,8 @@
 #define SFC_VER_3		0x3
 #define SFC_VER_4		0x4
 #define SFC_VER_5		0x5
+#define SFC_VER_6		0x6
+#define SFC_VER_8		0x8
 
 #define SFC_EN_INT		(0)         /* enable interrupt */
 #define SFC_EN_DMA		(1)         /* enable dma */
