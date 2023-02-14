@@ -499,6 +499,43 @@ static struct clk_fepll gcc_fepllwcss5g_clk = {
 	.pll_vco = &gcc_fepll_vco,
 };
 
+static const struct freq_tbl ftbl_gcc_pcnoc_ahb_clk[] = {
+	F(48000000,  P_XO,	 1, 0, 0),
+	F(100000000, P_FEPLL200, 2, 0, 0),
+	{ }
+};
+
+static struct clk_rcg2 gcc_pcnoc_ahb_clk_src = {
+	.cmd_rcgr = 0x21024,
+	.hid_width = 5,
+	.parent_map = gcc_xo_200_500_map,
+	.freq_tbl = ftbl_gcc_pcnoc_ahb_clk,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gcc_pcnoc_ahb_clk_src",
+		.parent_names = gcc_xo_200_500,
+		.num_parents = 3,
+		.ops = &clk_rcg2_ops,
+	},
+};
+
+static struct clk_branch pcnoc_clk_src = {
+	.halt_reg = 0x21030,
+	.clkr = {
+		.enable_reg = 0x21030,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "pcnoc_clk_src",
+			.parent_names = (const char *[]){
+				"gcc_pcnoc_ahb_clk_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch2_ops,
+			.flags = CLK_SET_RATE_PARENT |
+				CLK_IS_CRITICAL,
+		},
+	},
+};
+
 static const struct freq_tbl ftbl_gcc_audio_pwm_clk[] = {
 	F(48000000, P_XO, 1, 0, 0),
 	F(200000000, P_FEPLL200, 1, 0, 0),
@@ -1537,43 +1574,6 @@ static struct clk_branch gcc_wcss5g_rtc_clk = {
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 			.flags = CLK_SET_RATE_PARENT,
-		},
-	},
-};
-
-static const struct freq_tbl ftbl_gcc_pcnoc_ahb_clk[] = {
-	F(48000000,  P_XO,	 1, 0, 0),
-	F(100000000, P_FEPLL200, 2, 0, 0),
-	{ }
-};
-
-static struct clk_rcg2 gcc_pcnoc_ahb_clk_src = {
-	.cmd_rcgr = 0x21024,
-	.hid_width = 5,
-	.parent_map = gcc_xo_200_500_map,
-	.freq_tbl = ftbl_gcc_pcnoc_ahb_clk,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "gcc_pcnoc_ahb_clk_src",
-		.parent_names = gcc_xo_200_500,
-		.num_parents = 3,
-		.ops = &clk_rcg2_ops,
-	},
-};
-
-static struct clk_branch pcnoc_clk_src = {
-	.halt_reg = 0x21030,
-	.clkr = {
-		.enable_reg = 0x21030,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "pcnoc_clk_src",
-			.parent_names = (const char *[]){
-				"gcc_pcnoc_ahb_clk_src",
-			},
-			.num_parents = 1,
-			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT |
-				CLK_IS_CRITICAL,
 		},
 	},
 };
