@@ -668,6 +668,8 @@ void del_gendisk(struct gendisk *disk)
 	rq_qos_exit(q);
 	blk_mq_unquiesce_queue(q);
 
+	blkcg_exit_disk(disk);
+
 	/*
 	 * If the disk does not own the queue, allow using passthrough requests
 	 * again.  Else leave the queue frozen to fail all I/O.
@@ -1163,8 +1165,6 @@ static void disk_release(struct device *dev)
 
 	might_sleep();
 	WARN_ON_ONCE(disk_live(disk));
-
-	blkcg_exit_disk(disk);
 
 	/*
 	 * To undo the all initialization from blk_mq_init_allocated_queue in
