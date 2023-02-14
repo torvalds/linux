@@ -739,7 +739,7 @@ static void iommu_group_release(struct kobject *kobj)
 	kfree(group);
 }
 
-static struct kobj_type iommu_group_ktype = {
+static const struct kobj_type iommu_group_ktype = {
 	.sysfs_ops = &iommu_group_sysfs_ops,
 	.release = iommu_group_release,
 };
