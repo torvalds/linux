@@ -1415,6 +1415,28 @@ static int intel_dp_sink_dsc_version_minor(struct intel_dp *intel_dp)
 		DP_DSC_MINOR_SHIFT;
 }
 
+static int intel_dp_get_slice_height(int vactive)
+{
+	int slice_height;
+
+	/*
+	 * VDSC 1.2a spec in Section 3.8 Options for Slices implies that 108
+	 * lines is an optimal slice height, but any size can be used as long as
+	 * vertical active integer multiple and maximum vertical slice count
+	 * requirements are met.
+	 */
+	for (slice_height = 108; slice_height <= vactive; slice_height += 2)
+		if (vactive % slice_height == 0)
+			return slice_height;
+
+	/*
+	 * Highly unlikely we reach here as most of the resolutions will end up
+	 * finding appropriate slice_height in above loop but returning
+	 * slice_height as 2 here as it should work with all resolutions.
+	 */
+	return 2;
+}
+
 static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
 {
@@ -1433,17 +1455,7 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
 	vdsc_cfg->pic_height = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 
-	/*
-	 * Slice Height of 8 works for all currently available panels. So start
-	 * with that if pic_height is an integral multiple of 8. Eventually add
-	 * logic to try multiple slice heights.
-	 */
-	if (vdsc_cfg->pic_height % 8 == 0)
-		vdsc_cfg->slice_height = 8;
-	else if (vdsc_cfg->pic_height % 4 == 0)
-		vdsc_cfg->slice_height = 4;
-	else
-		vdsc_cfg->slice_height = 2;
+	vdsc_cfg->slice_height = intel_dp_get_slice_height(vdsc_cfg->pic_height);
 
 	ret = intel_dsc_compute_params(crtc_state);
 	if (ret)
