@@ -337,10 +337,8 @@ static int xgene_rng_probe(struct platform_device *pdev)
 
 	rc = devm_request_irq(&pdev->dev, ctx->irq, xgene_rng_irq_handler, 0,
 				dev_name(&pdev->dev), ctx);
-	if (rc) {
-		dev_err(&pdev->dev, "Could not request RNG alarm IRQ\n");
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(&pdev->dev, rc, "Could not request RNG alarm IRQ\n");
 
 	/* Enable IP clock */
 	ctx->clk = devm_clk_get(&pdev->dev, NULL);
@@ -348,30 +346,25 @@ static int xgene_rng_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Couldn't get the clock for RNG\n");
 	} else {
 		rc = clk_prepare_enable(ctx->clk);
-		if (rc) {
-			dev_warn(&pdev->dev,
-				 "clock prepare enable failed for RNG");
-			return rc;
-		}
+		if (rc)
+			return dev_err_probe(&pdev->dev, rc,
+					     "clock prepare enable failed for RNG");
 	}
 
 	xgene_rng_func.priv = (unsigned long) ctx;
 
 	rc = devm_hwrng_register(&pdev->dev, &xgene_rng_func);
 	if (rc) {
-		dev_err(&pdev->dev, "RNG registering failed error %d\n", rc);
 		if (!IS_ERR(ctx->clk))
 			clk_disable_unprepare(ctx->clk);
-		return rc;
+		return dev_err_probe(&pdev->dev, rc, "RNG registering failed\n");
 	}
 
 	rc = device_init_wakeup(&pdev->dev, 1);
 	if (rc) {
-		dev_err(&pdev->dev, "RNG device_init_wakeup failed error %d\n",
-			rc);
 		if (!IS_ERR(ctx->clk))
 			clk_disable_unprepare(ctx->clk);
-		return rc;
+		return dev_err_probe(&pdev->dev, rc, "RNG device_init_wakeup failed\n");
 	}
 
 	return 0;
