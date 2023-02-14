@@ -101,14 +101,3 @@
 		wp-inverted;
 	};
 };
-
-&pcie0_dart_2 {
-	status = "disabled";
-};
-
-&pcie0_dart_3 {
-	status = "disabled";
-};
-
-/delete-node/ &port02;
-/delete-node/ &port03;

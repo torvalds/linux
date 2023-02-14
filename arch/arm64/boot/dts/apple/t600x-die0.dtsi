@@ -233,6 +233,7 @@
 		interrupt-parent = <&aic>;
 		interrupts = <AIC_IRQ 0 1277 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&ps_apcie_gp_sys>;
+		status = "disabled";
 	};
 
 	pcie0_dart_3: iommu@584008000 {
@@ -242,6 +243,7 @@
 		interrupt-parent = <&aic>;
 		interrupts = <AIC_IRQ 0 1280 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&ps_apcie_gp_sys>;
+		status = "disabled";
 	};
 
 	pcie0: pcie@590000000 {
@@ -338,6 +340,7 @@
 					<0 0 0 2 &port02 0 0 0 1>,
 					<0 0 0 3 &port02 0 0 0 2>,
 					<0 0 0 4 &port02 0 0 0 3>;
+			status = "disabled";
 		};
 
 		port03: pci@3,0 {
@@ -357,5 +360,6 @@
 					<0 0 0 2 &port03 0 0 0 1>,
 					<0 0 0 3 &port03 0 0 0 2>,
 					<0 0 0 4 &port03 0 0 0 3>;
+			status = "disabled";
 		};
 	};
