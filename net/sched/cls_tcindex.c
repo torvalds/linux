@@ -502,7 +502,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		/* lookup the filter, guaranteed to exist */
 		for (cf = rcu_dereference_bh_rtnl(*fp); cf;
 		     fp = &cf->next, cf = rcu_dereference_bh_rtnl(*fp))
-			if (cf->key == handle)
+			if (cf->key == (u16)handle)
 				break;
 
 		f->next = cf->next;
