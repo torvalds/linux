@@ -1000,7 +1000,7 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-static void dc_log_vcp_x_y(const struct dc_link *link, struct fixed31_32 avg_time_slots_per_mtp)
+static void log_vcp_x_y(const struct dc_link *link, struct fixed31_32 avg_time_slots_per_mtp)
 {
 	const uint32_t VCP_Y_PRECISION = 1000;
 	uint64_t vcp_x, vcp_y;
@@ -1516,7 +1516,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	pbn = get_pbn_from_timing(pipe_ctx);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
-	dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
+	log_vcp_x_y(link, avg_time_slots_per_mtp);
 
 	if (link_hwss->ext.set_throttled_vcp_size)
 		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
@@ -1669,7 +1669,7 @@ static enum dc_status update_sst_payload(struct pipe_ctx *pipe_ctx,
 	if (!allocate) {
 		avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 
-		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
+		log_vcp_x_y(link, avg_time_slots_per_mtp);
 
 		if (link_hwss->ext.set_throttled_vcp_size)
 			link_hwss->ext.set_throttled_vcp_size(pipe_ctx,
@@ -1720,7 +1720,7 @@ static enum dc_status update_sst_payload(struct pipe_ctx *pipe_ctx,
 			DP_128b_132b_ENCODING) {
 		avg_time_slots_per_mtp = link_calculate_sst_avg_time_slots_per_mtp(stream, link);
 
-		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
+		log_vcp_x_y(link, avg_time_slots_per_mtp);
 
 		if (link_hwss->ext.set_throttled_vcp_size)
 			link_hwss->ext.set_throttled_vcp_size(pipe_ctx,

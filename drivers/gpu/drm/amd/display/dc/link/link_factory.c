@@ -27,6 +27,7 @@
  * This file owns the creation/destruction of link structure.
  */
 #include "link_factory.h"
+#include "link_detection.h"
 #include "accessories/link_dp_cts.h"
 #include "accessories/link_dp_trace.h"
 #include "accessories/link_fpga.h"
@@ -43,6 +44,8 @@
 		__VA_ARGS__)
 
 static struct link_service link_srv = {
+	.add_remote_sink = link_add_remote_sink,
+	.remove_remote_sink = link_remove_remote_sink,
 	.dp_handle_automated_test = dp_handle_automated_test,
 	.dp_set_test_pattern = dp_set_test_pattern,
 	.dp_set_preferred_link_settings = dp_set_preferred_link_settings,
@@ -197,7 +200,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
-static bool dc_link_construct_phy(struct dc_link *link,
+static bool construct_phy(struct dc_link *link,
 			      const struct link_init_data *init_params)
 {
 	uint8_t i;
@@ -489,7 +492,7 @@ create_fail:
 	return false;
 }
 
-static bool dc_link_construct_dpia(struct dc_link *link,
+static bool construct_dpia(struct dc_link *link,
 			      const struct link_init_data *init_params)
 {
 	struct ddc_service_init_data ddc_service_init_data = { 0 };
@@ -559,9 +562,9 @@ static bool link_construct(struct dc_link *link,
 {
 	/* Handle dpia case */
 	if (init_params->is_dpia_link == true)
-		return dc_link_construct_dpia(link, init_params);
+		return construct_dpia(link, init_params);
 	else
-		return dc_link_construct_phy(link, init_params);
+		return construct_phy(link, init_params);
 }
 
 struct dc_link *link_create(const struct link_init_data *init_params)

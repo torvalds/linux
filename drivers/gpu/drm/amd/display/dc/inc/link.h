@@ -49,6 +49,12 @@ struct link_init_data {
 };
 
 struct link_service {
+	struct dc_sink *(*add_remote_sink)(
+			struct dc_link *link,
+			const uint8_t *edid,
+			int len,
+			struct dc_sink_init_data *init_data);
+	void (*remove_remote_sink)(struct dc_link *link, struct dc_sink *sink);
 	void (*dp_handle_automated_test)(struct dc_link *link);
 	bool (*dp_set_test_pattern)(
 			struct dc_link *link,
