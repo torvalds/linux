@@ -154,7 +154,6 @@ TC_INDIRECT_FILTER_DECLARE(mall_classify);
 TC_INDIRECT_FILTER_DECLARE(route4_classify);
 TC_INDIRECT_FILTER_DECLARE(rsvp_classify);
 TC_INDIRECT_FILTER_DECLARE(rsvp6_classify);
-TC_INDIRECT_FILTER_DECLARE(tcindex_classify);
 TC_INDIRECT_FILTER_DECLARE(u32_classify);
 
 static inline int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -206,10 +205,6 @@ static inline int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 #if IS_BUILTIN(CONFIG_NET_CLS_RSVP6)
 	if (tp->classify == rsvp6_classify)
 		return rsvp6_classify(skb, tp, res);
-#endif
-#if IS_BUILTIN(CONFIG_NET_CLS_TCINDEX)
-	if (tp->classify == tcindex_classify)
-		return tcindex_classify(skb, tp, res);
 #endif
 
 skip:
