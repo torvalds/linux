@@ -551,12 +551,16 @@ static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
 	struct vcap_admin *to_admin = vcap_find_admin(vctrl, to_cid);
 	int diff, err = 0;
 
-	diff = vcap_chain_offset(vctrl, from_cid, to_cid);
-	if (!(to_admin && diff > 0)) {
+	if (!to_admin) {
 		pr_err("%s:%d: unsupported chain direction: %d\n",
 		       __func__, __LINE__, to_cid);
 		return -EINVAL;
 	}
+
+	diff = vcap_chain_offset(vctrl, from_cid, to_cid);
+	if (!diff)
+		return 0;
+
 	if (admin->vtype == VCAP_TYPE_IS0 &&
 	    to_admin->vtype == VCAP_TYPE_IS0) {
 		/* Between IS0 instances the G_IDX value is used */
