@@ -1614,8 +1614,9 @@ static void intel_pwm_disable_backlight(const struct drm_connector_state *conn_s
 static int intel_pwm_setup_backlight(struct intel_connector *connector, enum pipe pipe)
 {
 	struct intel_panel *panel = &connector->panel;
-	int ret = panel->backlight.pwm_funcs->setup(connector, pipe);
+	int ret;
 
+	ret = panel->backlight.pwm_funcs->setup(connector, pipe);
 	if (ret < 0)
 		return ret;
 
