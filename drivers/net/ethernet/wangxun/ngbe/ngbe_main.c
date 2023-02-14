@@ -17,6 +17,7 @@
 #include "ngbe_type.h"
 #include "ngbe_mdio.h"
 #include "ngbe_hw.h"
+#include "ngbe_ethtool.h"
 
 char ngbe_driver_name[] = "ngbe";
 
@@ -546,6 +547,8 @@ static int ngbe_probe(struct pci_dev *pdev,
 		goto err_pci_release_regions;
 	}
 
+	wx->driver_name = ngbe_driver_name;
+	ngbe_set_ethtool_ops(netdev);
 	netdev->netdev_ops = &ngbe_netdev_ops;
 
 	netdev->features |= NETIF_F_HIGHDMA;
@@ -631,6 +634,8 @@ static int ngbe_probe(struct pci_dev *pdev,
 		etrack_id |= e2rom_ver;
 		wr32(wx, NGBE_EEPROM_VERSION_STORE_REG, etrack_id);
 	}
+	snprintf(wx->eeprom_id, sizeof(wx->eeprom_id),
+		 "0x%08x", etrack_id);
 
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	wx_mac_set_default_filter(wx, wx->mac.perm_addr);

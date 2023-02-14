@@ -633,6 +633,7 @@ struct wx {
 	bool adapter_stopped;
 	u16 tpid[8];
 	char eeprom_id[32];
+	char *driver_name;
 	enum wx_reset_type reset_type;
 
 	/* PHY stuff */
