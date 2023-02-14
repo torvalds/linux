@@ -244,8 +244,8 @@ struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long psmid;		/* Message id. */
 	void *msg;			/* Pointer to message buffer. */
-	unsigned int len;		/* actual msg len in msg buffer */
-	unsigned int bufsize;		/* allocated msg buffer size */
+	size_t len;			/* actual msg len in msg buffer */
+	size_t bufsize;			/* allocated msg buffer size */
 	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
 	struct ap_fi fi;		/* Failure Injection cmd */
 	int rc;				/* Return code for this message */
@@ -285,8 +285,8 @@ static inline void ap_release_message(struct ap_message *ap_msg)
  * for the first time. Otherwise the ap message queue will get
  * confused.
  */
-int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t length);
-int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t length);
+int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen);
+int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen);
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);

@@ -59,7 +59,7 @@ static int ap_queue_enable_irq(struct ap_queue *aq, void *ind)
  * @qid: The AP queue number
  * @psmid: The program supplied message identifier
  * @msg: The message text
- * @length: The message length
+ * @msglen: The message length
  * @special: Special Bit
  *
  * Returns AP queue status structure.
@@ -68,19 +68,19 @@ static int ap_queue_enable_irq(struct ap_queue *aq, void *ind)
  * because a segment boundary was reached. The NQAP is repeated.
  */
 static inline struct ap_queue_status
-__ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t length,
+__ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen,
 	  int special)
 {
 	if (special)
 		qid |= 0x400000UL;
-	return ap_nqap(qid, psmid, msg, length);
+	return ap_nqap(qid, psmid, msg, msglen);
 }
 
-int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t length)
+int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen)
 {
 	struct ap_queue_status status;
 
-	status = __ap_send(qid, psmid, msg, length, 0);
+	status = __ap_send(qid, psmid, msg, msglen, 0);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -95,13 +95,13 @@ int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t length)
 }
 EXPORT_SYMBOL(ap_send);
 
-int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t length)
+int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen)
 {
 	struct ap_queue_status status;
 
 	if (!msg)
 		return -EINVAL;
-	status = ap_dqap(qid, psmid, msg, length, NULL, NULL);
+	status = ap_dqap(qid, psmid, msg, msglen, NULL, NULL, NULL);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -150,7 +150,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 	do {
 		status = ap_dqap(aq->qid, &aq->reply->psmid,
 				 aq->reply->msg, aq->reply->bufsize,
-				 &reslen, &resgr0);
+				 &aq->reply->len, &reslen, &resgr0);
 		parts++;
 	} while (status.response_code == 0xFF && resgr0 != 0);
 

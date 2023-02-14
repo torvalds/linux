@@ -359,10 +359,11 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
  * ap_dqap(): Receive message from adjunct processor queue.
  * @qid: The AP queue number
  * @psmid: Pointer to program supplied message identifier
- * @msg: The message text
- * @length: The message length
- * @reslength: Resitual length on return
- * @resgr0: input: gr0 value (only used if != 0), output: resitual gr0 content
+ * @msg: Pointer to message buffer
+ * @msglen: Message buffer size
+ * @length: Pointer to length of actually written bytes
+ * @reslength: Residual length on return
+ * @resgr0: input: gr0 value (only used if != 0), output: residual gr0 content
  *
  * Returns AP queue status structure.
  * Condition code 1 on DQAP means the receive has taken place
@@ -387,7 +388,8 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
  */
 static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 					     unsigned long *psmid,
-					     void *msg, size_t length,
+					     void *msg, size_t msglen,
+					     size_t *length,
 					     size_t *reslength,
 					     unsigned long *resgr0)
 {
@@ -399,7 +401,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 	rp1.even = 0UL;
 	rp1.odd  = 0UL;
 	rp2.even = (unsigned long)msg;
-	rp2.odd  = (unsigned long)length;
+	rp2.odd  = (unsigned long)msglen;
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"   /* qid param into gr0 */
@@ -433,6 +435,10 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		if (resgr0)
 			*resgr0 = 0;
 	}
+
+	/* update *length with the nr of bytes stored into the msg buffer */
+	if (length)
+		*length = msglen - rp2.odd;
 
 	return reg1.status;
 }
