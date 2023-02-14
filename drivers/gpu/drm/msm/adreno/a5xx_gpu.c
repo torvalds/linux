@@ -1096,16 +1096,19 @@ bool a5xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 static int a5xx_fault_handler(void *arg, unsigned long iova, int flags, void *data)
 {
 	struct msm_gpu *gpu = arg;
-	pr_warn_ratelimited("*** gpu fault: iova=%08lx, flags=%d (%u,%u,%u,%u)\n",
-			iova, flags,
+	struct adreno_smmu_fault_info *info = data;
+	char block[12] = "unknown";
+	u32 scratch[] = {
 			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(4)),
 			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(5)),
 			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(6)),
-			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(7)));
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(7)),
+	};
 
-	gpu->aspace->mmu->funcs->resume_translation(gpu->aspace->mmu);
+	if (info)
+		snprintf(block, sizeof(block), "%x", info->fsynr1);
 
-	return 0;
+	return adreno_fault_handler(gpu, iova, flags, info, block, scratch);
 }
 
 static void a5xx_cp_err_irq(struct msm_gpu *gpu)
