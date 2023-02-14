@@ -3602,9 +3602,7 @@ int device_add(struct device *dev)
 		if (error)
 			goto SysEntryError;
 
-		error = devtmpfs_create_node(dev);
-		if (error)
-			goto DevtmpfsError;
+		devtmpfs_create_node(dev);
 	}
 
 	/* Notify clients of device addition.  This call must come
@@ -3660,8 +3658,6 @@ int device_add(struct device *dev)
 done:
 	put_device(dev);
 	return error;
- DevtmpfsError:
-	device_remove_sys_dev_entry(dev);
  SysEntryError:
 	if (MAJOR(dev->devt))
 		device_remove_file(dev, &dev_attr_dev);
