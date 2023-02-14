@@ -91,8 +91,8 @@ bool dcn30_set_blend_lut(
 	return result;
 }
 
-static bool dcn30_set_mpc_shaper_3dlut(
-	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
+static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
+				       const struct dc_stream_state *stream)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
@@ -104,19 +104,18 @@ static bool dcn30_set_mpc_shaper_3dlut(
 	const struct pwl_params *shaper_lut = NULL;
 	//get the shaper lut params
 	if (stream->func_shaper) {
-		if (stream->func_shaper->type == TF_TYPE_HWPWL)
+		if (stream->func_shaper->type == TF_TYPE_HWPWL) {
 			shaper_lut = &stream->func_shaper->pwl;
-		else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(
-					stream->func_shaper,
-					&dpp_base->shaper_params, true);
+		} else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
+			cm_helper_translate_curve_to_hw_format(stream->func_shaper,
+							       &dpp_base->shaper_params, true);
 			shaper_lut = &dpp_base->shaper_params;
 		}
 	}
 
 	if (stream->lut3d_func &&
-		stream->lut3d_func->state.bits.initialized == 1 &&
-		stream->lut3d_func->state.bits.rmu_idx_valid == 1) {
+	    stream->lut3d_func->state.bits.initialized == 1 &&
+	    stream->lut3d_func->state.bits.rmu_idx_valid == 1) {
 		if (stream->lut3d_func->state.bits.rmu_mux_num == 0)
 			mpcc_id_projected = stream->lut3d_func->state.bits.mpc_rmu0_mux;
 		else if (stream->lut3d_func->state.bits.rmu_mux_num == 1)
@@ -125,20 +124,22 @@ static bool dcn30_set_mpc_shaper_3dlut(
 			mpcc_id_projected = stream->lut3d_func->state.bits.mpc_rmu2_mux;
 		if (mpcc_id_projected != mpcc_id)
 			BREAK_TO_DEBUGGER();
-		/*find the reason why logical layer assigned a differant mpcc_id into acquire_post_bldn_3dlut*/
+		/* find the reason why logical layer assigned a different
+		 * mpcc_id into acquire_post_bldn_3dlut
+		 */
 		acquired_rmu = mpc->funcs->acquire_rmu(mpc, mpcc_id,
-				stream->lut3d_func->state.bits.rmu_mux_num);
+						       stream->lut3d_func->state.bits.rmu_mux_num);
 		if (acquired_rmu != stream->lut3d_func->state.bits.rmu_mux_num)
 			BREAK_TO_DEBUGGER();
-		result = mpc->funcs->program_3dlut(mpc,
-								&stream->lut3d_func->lut_3d,
-								stream->lut3d_func->state.bits.rmu_mux_num);
-		result = mpc->funcs->program_shaper(mpc, shaper_lut,
-				stream->lut3d_func->state.bits.rmu_mux_num);
-	} else
-		/*loop through the available mux and release the requested mpcc_id*/
-		mpc->funcs->release_rmu(mpc, mpcc_id);
 
+		result = mpc->funcs->program_3dlut(mpc, &stream->lut3d_func->lut_3d,
+						   stream->lut3d_func->state.bits.rmu_mux_num);
+		result = mpc->funcs->program_shaper(mpc, shaper_lut,
+						    stream->lut3d_func->state.bits.rmu_mux_num);
+	} else {
+		// loop through the available mux and release the requested mpcc_id
+		mpc->funcs->release_rmu(mpc, mpcc_id);
+	}
 
 	return result;
 }
