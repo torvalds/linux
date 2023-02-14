@@ -537,9 +537,6 @@ void btf_record_free(struct btf_record *rec)
 		return;
 	for (i = 0; i < rec->cnt; i++) {
 		switch (rec->fields[i].type) {
-		case BPF_SPIN_LOCK:
-		case BPF_TIMER:
-			break;
 		case BPF_KPTR_UNREF:
 		case BPF_KPTR_REF:
 			if (rec->fields[i].kptr.module)
@@ -548,7 +545,11 @@ void btf_record_free(struct btf_record *rec)
 			break;
 		case BPF_LIST_HEAD:
 		case BPF_LIST_NODE:
-			/* Nothing to release for bpf_list_head */
+		case BPF_RB_ROOT:
+		case BPF_RB_NODE:
+		case BPF_SPIN_LOCK:
+		case BPF_TIMER:
+			/* Nothing to release */
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -581,9 +582,6 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 	new_rec->cnt = 0;
 	for (i = 0; i < rec->cnt; i++) {
 		switch (fields[i].type) {
-		case BPF_SPIN_LOCK:
-		case BPF_TIMER:
-			break;
 		case BPF_KPTR_UNREF:
 		case BPF_KPTR_REF:
 			btf_get(fields[i].kptr.btf);
@@ -594,7 +592,11 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 			break;
 		case BPF_LIST_HEAD:
 		case BPF_LIST_NODE:
-			/* Nothing to acquire for bpf_list_head */
+		case BPF_RB_ROOT:
+		case BPF_RB_NODE:
+		case BPF_SPIN_LOCK:
+		case BPF_TIMER:
+			/* Nothing to acquire */
 			break;
 		default:
 			ret = -EFAULT;
@@ -674,7 +676,13 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 				continue;
 			bpf_list_head_free(field, field_ptr, obj + rec->spin_lock_off);
 			break;
+		case BPF_RB_ROOT:
+			if (WARN_ON_ONCE(rec->spin_lock_off < 0))
+				continue;
+			bpf_rb_root_free(field, field_ptr, obj + rec->spin_lock_off);
+			break;
 		case BPF_LIST_NODE:
+		case BPF_RB_NODE:
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1010,7 +1018,8 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 		return -EINVAL;
 
 	map->record = btf_parse_fields(btf, value_type,
-				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD,
+				       BPF_SPIN_LOCK | BPF_TIMER | BPF_KPTR | BPF_LIST_HEAD |
+				       BPF_RB_ROOT,
 				       map->value_size);
 	if (!IS_ERR_OR_NULL(map->record)) {
 		int i;
@@ -1058,6 +1067,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 				}
 				break;
 			case BPF_LIST_HEAD:
+			case BPF_RB_ROOT:
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_ARRAY) {
