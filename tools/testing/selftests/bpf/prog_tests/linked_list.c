@@ -715,6 +715,43 @@ static void test_btf(void)
 		btf__free(btf);
 		break;
 	}
+
+	while (test__start_subtest("btf: list_node and rb_node in same struct")) {
+		btf = init_btf();
+		if (!ASSERT_OK_PTR(btf, "init_btf"))
+			break;
+
+		id = btf__add_struct(btf, "bpf_rb_node", 24);
+		if (!ASSERT_EQ(id, 5, "btf__add_struct bpf_rb_node"))
+			break;
+		id = btf__add_struct(btf, "bar", 40);
+		if (!ASSERT_EQ(id, 6, "btf__add_struct bar"))
+			break;
+		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		if (!ASSERT_OK(err, "btf__add_field bar::a"))
+			break;
+		err = btf__add_field(btf, "c", 5, 128, 0);
+		if (!ASSERT_OK(err, "btf__add_field bar::c"))
+			break;
+
+		id = btf__add_struct(btf, "foo", 20);
+		if (!ASSERT_EQ(id, 7, "btf__add_struct foo"))
+			break;
+		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
+		if (!ASSERT_OK(err, "btf__add_field foo::a"))
+			break;
+		err = btf__add_field(btf, "b", SPIN_LOCK, 128, 0);
+		if (!ASSERT_OK(err, "btf__add_field foo::b"))
+			break;
+		id = btf__add_decl_tag(btf, "contains:bar:a", 7, 0);
+		if (!ASSERT_EQ(id, 8, "btf__add_decl_tag contains:bar:a"))
+			break;
+
+		err = btf__load_into_kernel(btf);
+		ASSERT_EQ(err, -EINVAL, "check btf");
+		btf__free(btf);
+		break;
+	}
 }
 
 void test_linked_list(void)

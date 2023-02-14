@@ -3768,6 +3768,30 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 		goto end;
 	}
 
+	/* need collection identity for non-owning refs before allowing this
+	 *
+	 * Consider a node type w/ both list and rb_node fields:
+	 *   struct node {
+	 *     struct bpf_list_node l;
+	 *     struct bpf_rb_node r;
+	 *   }
+	 *
+	 * Used like so:
+	 *   struct node *n = bpf_obj_new(....);
+	 *   bpf_list_push_front(&list_head, &n->l);
+	 *   bpf_rbtree_remove(&rb_root, &n->r);
+	 *
+	 * It should not be possible to rbtree_remove the node since it hasn't
+	 * been added to a tree. But push_front converts n to a non-owning
+	 * reference, and rbtree_remove accepts the non-owning reference to
+	 * a type w/ bpf_rb_node field.
+	 */
+	if (btf_record_has_field(rec, BPF_LIST_NODE) &&
+	    btf_record_has_field(rec, BPF_RB_NODE)) {
+		ret = -EINVAL;
+		goto end;
+	}
+
 	return rec;
 end:
 	btf_record_free(rec);

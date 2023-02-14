@@ -9682,14 +9682,26 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				return ret;
 			break;
 		case KF_ARG_PTR_TO_RB_NODE:
-			if (reg->type != (PTR_TO_BTF_ID | MEM_ALLOC)) {
-				verbose(env, "arg#%d expected pointer to allocated object\n", i);
-				return -EINVAL;
+			if (meta->func_id == special_kfunc_list[KF_bpf_rbtree_remove]) {
+				if (!type_is_non_owning_ref(reg->type) || reg->ref_obj_id) {
+					verbose(env, "rbtree_remove node input must be non-owning ref\n");
+					return -EINVAL;
+				}
+				if (in_rbtree_lock_required_cb(env)) {
+					verbose(env, "rbtree_remove not allowed in rbtree cb\n");
+					return -EINVAL;
+				}
+			} else {
+				if (reg->type != (PTR_TO_BTF_ID | MEM_ALLOC)) {
+					verbose(env, "arg#%d expected pointer to allocated object\n", i);
+					return -EINVAL;
+				}
+				if (!reg->ref_obj_id) {
+					verbose(env, "allocated object must be referenced\n");
+					return -EINVAL;
+				}
 			}
-			if (!reg->ref_obj_id) {
-				verbose(env, "allocated object must be referenced\n");
-				return -EINVAL;
-			}
+
 			ret = process_kf_arg_ptr_to_rbtree_node(env, reg, regno, meta);
 			if (ret < 0)
 				return ret;
@@ -9940,11 +9952,12 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				   meta.func_id == special_kfunc_list[KF_bpf_list_pop_back]) {
 				struct btf_field *field = meta.arg_list_head.field;
 
-				mark_reg_known_zero(env, regs, BPF_REG_0);
-				regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
-				regs[BPF_REG_0].btf = field->graph_root.btf;
-				regs[BPF_REG_0].btf_id = field->graph_root.value_btf_id;
-				regs[BPF_REG_0].off = field->graph_root.node_offset;
+				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
+			} else if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_remove] ||
+				   meta.func_id == special_kfunc_list[KF_bpf_rbtree_first]) {
+				struct btf_field *field = meta.arg_rbtree_root.field;
+
+				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
 			} else if (meta.func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx]) {
 				mark_reg_known_zero(env, regs, BPF_REG_0);
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_TRUSTED;
@@ -10010,7 +10023,13 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			if (is_kfunc_ret_null(&meta))
 				regs[BPF_REG_0].id = id;
 			regs[BPF_REG_0].ref_obj_id = id;
+		} else if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_first]) {
+			ref_set_non_owning(env, &regs[BPF_REG_0]);
 		}
+
+		if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_remove])
+			invalidate_non_owning_refs(env);
+
 		if (reg_may_point_to_spin_lock(&regs[BPF_REG_0]) && !regs[BPF_REG_0].id)
 			regs[BPF_REG_0].id = ++env->id_gen;
 	} /* else { add_kfunc_call() ensures it is btf_type_is_void(t) } */
