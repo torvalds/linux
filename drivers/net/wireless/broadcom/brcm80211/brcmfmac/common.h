@@ -54,6 +54,8 @@ struct brcmf_mp_device {
 	const char	*board_type;
 	unsigned char	mac[ETH_ALEN];
 	const char	*antenna_sku;
+	const void	*cal_blob;
+	int		cal_size;
 	union {
 		struct brcmfmac_sdio_pd sdio;
 	} bus;
