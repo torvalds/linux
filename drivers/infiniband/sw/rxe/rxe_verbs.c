@@ -245,7 +245,7 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	int num_sge = ibwr->num_sge;
 	int full;
 
-	full = queue_full(rq->queue, QUEUE_TYPE_TO_DRIVER);
+	full = queue_full(rq->queue, QUEUE_TYPE_FROM_ULP);
 	if (unlikely(full))
 		return -ENOMEM;
 
@@ -256,7 +256,7 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	for (i = 0; i < num_sge; i++)
 		length += ibwr->sg_list[i].length;
 
-	recv_wqe = queue_producer_addr(rq->queue, QUEUE_TYPE_TO_DRIVER);
+	recv_wqe = queue_producer_addr(rq->queue, QUEUE_TYPE_FROM_ULP);
 	recv_wqe->wr_id = ibwr->wr_id;
 
 	memcpy(recv_wqe->dma.sge, ibwr->sg_list,
@@ -268,7 +268,7 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	recv_wqe->dma.cur_sge		= 0;
 	recv_wqe->dma.sge_offset	= 0;
 
-	queue_advance_producer(rq->queue, QUEUE_TYPE_TO_DRIVER);
+	queue_advance_producer(rq->queue, QUEUE_TYPE_FROM_ULP);
 
 	return 0;
 }
@@ -623,17 +623,17 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 
 	spin_lock_irqsave(&qp->sq.sq_lock, flags);
 
-	full = queue_full(sq->queue, QUEUE_TYPE_TO_DRIVER);
+	full = queue_full(sq->queue, QUEUE_TYPE_FROM_ULP);
 
 	if (unlikely(full)) {
 		spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
 		return -ENOMEM;
 	}
 
-	send_wqe = queue_producer_addr(sq->queue, QUEUE_TYPE_TO_DRIVER);
+	send_wqe = queue_producer_addr(sq->queue, QUEUE_TYPE_FROM_ULP);
 	init_send_wqe(qp, ibwr, mask, length, send_wqe);
 
-	queue_advance_producer(sq->queue, QUEUE_TYPE_TO_DRIVER);
+	queue_advance_producer(sq->queue, QUEUE_TYPE_FROM_ULP);
 
 	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
 
@@ -821,12 +821,12 @@ static int rxe_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	for (i = 0; i < num_entries; i++) {
-		cqe = queue_head(cq->queue, QUEUE_TYPE_FROM_DRIVER);
+		cqe = queue_head(cq->queue, QUEUE_TYPE_TO_ULP);
 		if (!cqe)
 			break;
 
 		memcpy(wc++, &cqe->ibwc, sizeof(*wc));
-		queue_advance_consumer(cq->queue, QUEUE_TYPE_FROM_DRIVER);
+		queue_advance_consumer(cq->queue, QUEUE_TYPE_TO_ULP);
 	}
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
@@ -838,7 +838,7 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 	struct rxe_cq *cq = to_rcq(ibcq);
 	int count;
 
-	count = queue_count(cq->queue, QUEUE_TYPE_FROM_DRIVER);
+	count = queue_count(cq->queue, QUEUE_TYPE_TO_ULP);
 
 	return (count > wc_cnt) ? wc_cnt : count;
 }
@@ -854,7 +854,7 @@ static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = flags & IB_CQ_SOLICITED_MASK;
 
-	empty = queue_empty(cq->queue, QUEUE_TYPE_FROM_DRIVER);
+	empty = queue_empty(cq->queue, QUEUE_TYPE_TO_ULP);
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !empty)
 		ret = 1;
