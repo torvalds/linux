@@ -600,6 +600,7 @@ void ttm_pool_fini(struct ttm_pool *pool)
 	 */
 	synchronize_shrinkers();
 }
+EXPORT_SYMBOL(ttm_pool_fini);
 
 /* As long as pages are available make sure to release at least one */
 static unsigned long ttm_pool_shrinker_scan(struct shrinker *shrink,
