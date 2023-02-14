@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "debug-ipc.h"
@@ -132,6 +132,23 @@ void dwc3_dbg_trace_event(void *log_ctxt, u32 event, struct dwc3 *dwc)
 			dwc3_decode_event(event_str, DWC3_MSG_MAX,
 					event, dwc->ep0state));
 	kfree(event_str);
+}
+
+void dwc3_dbg_trace_ep(void *log_ctxt, struct dwc3_ep *dep)
+{
+
+	ipc_log_string(log_ctxt,
+		"%s: mps %d/%d streams %d burst %d ring %d/%d flags %c:%c%c%c%c:%c",
+		dep->name, dep->endpoint.maxpacket,
+		dep->endpoint.maxpacket_limit, dep->endpoint.max_streams,
+		dep->endpoint.maxburst, dep->trb_enqueue,
+		dep->trb_dequeue,
+		dep->flags & DWC3_EP_ENABLED ? 'E' : 'e',
+		dep->flags & DWC3_EP_STALL ? 'S' : 's',
+		dep->flags & DWC3_EP_WEDGE ? 'W' : 'w',
+		dep->flags & DWC3_EP_TRANSFER_STARTED ? 'B' : 'b',
+		dep->flags & DWC3_EP_PENDING_REQUEST ? 'P' : 'p',
+		dep->direction ? '<' : '>');
 }
 
 /**

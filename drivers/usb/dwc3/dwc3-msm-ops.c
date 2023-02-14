@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -144,77 +144,57 @@ static int entry___dwc3_gadget_start(struct kretprobe_instance *ri,
 	return 0;
 }
 
-static int entry_trace_dwc3_ctrl_req(struct kretprobe_instance *ri,
+static int entry_trace_event_raw_event_dwc3_log_request(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
-	struct usb_ctrlrequest *ctrl = (struct usb_ctrlrequest *)regs->regs[0];
-
-	dbg_trace_ctrl_req(ctrl);
-
-	return 0;
-}
-
-static int entry_trace_dwc3_ep_queue(struct kretprobe_instance *ri,
-				   struct pt_regs *regs)
-{
-	struct dwc3_request *req = (struct dwc3_request *)regs->regs[0];
+	struct dwc3_request *req = (struct dwc3_request *)regs->regs[1];
 
 	dbg_trace_ep_queue(req);
 
 	return 0;
 }
 
-static int entry_trace_dwc3_ep_dequeue(struct kretprobe_instance *ri,
+static int entry_trace_event_raw_event_dwc3_log_gadget_ep_cmd(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
-	struct dwc3_request *req = (struct dwc3_request *)regs->regs[0];
-
-	dbg_trace_ep_dequeue(req);
-
-	return 0;
-}
-
-static int entry_trace_dwc3_gadget_giveback(struct kretprobe_instance *ri,
-				   struct pt_regs *regs)
-{
-	struct dwc3_request *req = (struct dwc3_request *)regs->regs[0];
-
-	dbg_trace_gadget_giveback(req);
-
-	return 0;
-}
-
-static int entry_trace_dwc3_gadget_ep_cmd(struct kretprobe_instance *ri,
-				   struct pt_regs *regs)
-{
-	struct dwc3_ep *dep = (struct dwc3_ep *)regs->regs[0];
-	unsigned int cmd = regs->regs[1];
-	struct dwc3_gadget_ep_cmd_params *param = (struct dwc3_gadget_ep_cmd_params *)regs->regs[2];
-	int cmd_status = regs->regs[3];
+	struct dwc3_ep *dep = (struct dwc3_ep *)regs->regs[1];
+	unsigned int cmd = regs->regs[2];
+	struct dwc3_gadget_ep_cmd_params *param = (struct dwc3_gadget_ep_cmd_params *)regs->regs[3];
+	int cmd_status = regs->regs[4];
 
 	dbg_trace_gadget_ep_cmd(dep, cmd, param, cmd_status);
 
 	return 0;
 }
 
-static int entry_trace_dwc3_prepare_trb(struct kretprobe_instance *ri,
+static int entry_trace_event_raw_event_dwc3_log_trb(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
-	struct dwc3_ep *dep = (struct dwc3_ep *)regs->regs[0];
-	struct dwc3_trb *trb = (struct dwc3_trb *)regs->regs[1];
+	struct dwc3_ep *dep = (struct dwc3_ep *)regs->regs[1];
+	struct dwc3_trb *trb = (struct dwc3_trb *)regs->regs[2];
 
 	dbg_trace_trb_prepare(dep, trb);
 
 	return 0;
 }
 
-static int entry_trace_dwc3_event(struct kretprobe_instance *ri,
+static int entry_trace_event_raw_event_dwc3_log_event(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
-	u32 event = regs->regs[0];
-	struct dwc3 *dwc = (struct dwc3 *)regs->regs[1];
+	u32 event = regs->regs[1];
+	struct dwc3 *dwc = (struct dwc3 *)regs->regs[2];
 
 	dbg_trace_event(event, dwc);
+
+	return 0;
+}
+
+static int entry_trace_event_raw_event_dwc3_log_ep(struct kretprobe_instance *ri,
+				   struct pt_regs *regs)
+{
+	struct dwc3_ep *dep = (struct dwc3_ep *)regs->regs[1];
+
+	dbg_trace_ep(dep);
 
 	return 0;
 }
@@ -241,13 +221,11 @@ static struct kretprobe dwc3_msm_probes[] = {
 	ENTRY_EXIT(dwc3_gadget_conndone_interrupt),
 	ENTRY_EXIT(dwc3_gadget_pullup),
 	ENTRY(__dwc3_gadget_start),
-	ENTRY(trace_dwc3_ctrl_req),
-	ENTRY(trace_dwc3_ep_queue),
-	ENTRY(trace_dwc3_ep_dequeue),
-	ENTRY(trace_dwc3_gadget_giveback),
-	ENTRY(trace_dwc3_gadget_ep_cmd),
-	ENTRY(trace_dwc3_prepare_trb),
-	ENTRY(trace_dwc3_event),
+	ENTRY(trace_event_raw_event_dwc3_log_request),
+	ENTRY(trace_event_raw_event_dwc3_log_gadget_ep_cmd),
+	ENTRY(trace_event_raw_event_dwc3_log_trb),
+	ENTRY(trace_event_raw_event_dwc3_log_event),
+	ENTRY(trace_event_raw_event_dwc3_log_ep),
 };
 
 
