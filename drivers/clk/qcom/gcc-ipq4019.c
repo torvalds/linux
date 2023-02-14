@@ -657,8 +657,9 @@ static struct clk_branch gcc_dcd_xo_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_dcd_xo_clk",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -954,8 +955,9 @@ static struct clk_branch gcc_usb2_sleep_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb2_sleep_clk",
-			.parent_names = (const char *[]){
-				"gcc_sleep_clk_src",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "sleep_clk",
+				.name = "gcc_sleep_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1021,8 +1023,9 @@ static struct clk_branch gcc_usb3_sleep_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb3_sleep_clk",
-			.parent_names = (const char *[]){
-				"gcc_sleep_clk_src",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "sleep_clk",
+				.name = "gcc_sleep_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1110,8 +1113,9 @@ static struct clk_branch gcc_wcss2g_ref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_wcss2g_ref_clk",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1127,8 +1131,9 @@ static struct clk_branch gcc_wcss2g_rtc_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_wcss2g_rtc_clk",
-			.parent_names = (const char *[]){
-				"gcc_sleep_clk_src",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "sleep_clk",
+				.name = "gcc_sleep_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1179,8 +1184,9 @@ static struct clk_branch gcc_wcss5g_ref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_wcss5g_ref_clk",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1196,8 +1202,9 @@ static struct clk_branch gcc_wcss5g_rtc_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_wcss5g_rtc_clk",
-			.parent_names = (const char *[]){
-				"gcc_sleep_clk_src",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "sleep_clk",
+				.name = "gcc_sleep_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1360,8 +1367,9 @@ static struct clk_fepll gcc_apss_cpu_plldiv_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "ddrpllapss",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_regmap_cpu_div_ops,
@@ -1412,8 +1420,9 @@ static struct clk_fepll gcc_apss_sdcc_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "ddrpllsdcc",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
@@ -1427,8 +1436,9 @@ static struct clk_fepll gcc_fepll125_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "fepll125",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
@@ -1442,8 +1452,9 @@ static struct clk_fepll gcc_fepll125dly_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "fepll125dly",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
@@ -1457,8 +1468,9 @@ static struct clk_fepll gcc_fepll200_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "fepll200",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
@@ -1472,8 +1484,9 @@ static struct clk_fepll gcc_fepll500_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "fepll500",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
@@ -1497,8 +1510,9 @@ static struct clk_fepll gcc_fepllwcss2g_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "fepllwcss2g",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
@@ -1515,8 +1529,9 @@ static struct clk_fepll gcc_fepllwcss5g_clk = {
 	.cdiv.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "fepllwcss5g",
-			.parent_names = (const char *[]){
-				"xo",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "xo",
+				.name = "xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_fepll_div_ops,
