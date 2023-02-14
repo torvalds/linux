@@ -153,7 +153,7 @@ static void nb7vpq904m_vdd_enable(struct nb7vpq904m_redriver *redriver, bool on)
 {
 	int l, v, s;
 
-	if (!redriver->vdd || redriver->op_mode != OP_MODE_NONE) {
+	if (!redriver->vdd) {
 		dev_dbg(redriver->dev, "no vdd regulator operation\n");
 		return;
 	}
