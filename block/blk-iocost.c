@@ -2947,7 +2947,7 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 {
 	struct ioc_gq *iocg = pd_to_iocg(pd);
 	struct blkcg_gq *blkg = pd_to_blkg(&iocg->pd);
-	struct ioc *ioc = q_to_ioc(blkg->disk->queue);
+	struct ioc *ioc = q_to_ioc(blkg->q);
 	struct ioc_now now;
 	struct blkcg_gq *tblkg;
 	unsigned long flags;
