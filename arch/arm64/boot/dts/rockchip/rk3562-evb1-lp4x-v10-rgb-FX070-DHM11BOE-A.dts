@@ -1,0 +1,131 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3562-evb1-lp4x-v10.dtsi"
+#include "rk3562-android.dtsi"
+#include "rk3562-rk817.dtsi"
+
+
+/ {
+	model = "Rockchip RK3562 EVB1 LP4X V10 Board + RK EVB VOP3 RGB24BIT DISPLAY Ext Board";
+	compatible = "rockchip,rk3562-evb1-lp4x-v10-rgb-FX070-DHM11BOE-A", "rockchip,rk3562";
+
+	panel: panel {
+		compatible = "simple-panel";
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		enable-delay-ms = <20>;
+		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+		reset-value = <0>;
+		reset-delay-ms = <10>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&fx070_dhm11boe_timing>;
+
+			fx070_dhm11boe_timing: timing0 {
+				clock-frequency = <50000000>;
+				hactive = <1024>;
+				vactive = <600>;
+				hback-porch = <140>;
+				hfront-porch = <160>;
+				vback-porch = <20>;
+				vfront-porch = <20>;
+				hsync-len = <20>;
+				vsync-len = <2>; //value range <2~22>
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+};
+
+&backlight {
+	pwms = <&pwm9 0 25000 0>;
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "disabled";
+};
+
+&dsi {
+	status = "disabled";
+};
+
+/*
+ * The pins of gmac0/pcie2x1/pdm_codec and rgb are multiplexed
+ */
+&gmac0 {
+	status = "disabled";
+};
+
+&pcie2x1 {
+	status = "disabled";
+};
+
+&pdm_codec {
+	status = "disabled";
+};
+
+&pwm9 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm9m0_pins>;
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-0 = <&rgb666_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_panel: endpoint {
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp0 {
+	status = "okay";
+};
+
+&rgb_in_vp1 {
+	status = "disabled";
+};
+
+&route_rgb {
+	status = "okay";
+	connect = <&vp0_out_rgb>;
+};
+
+/*
+ * The pins of sai0/vcc_mipicsi0 and rgb are multiplexed
+ */
+&sai0 {
+	status = "disabled";
+};
+
+&vcc_mipicsi0 {
+	status = "disabled";
+};
+
+&video_phy {
+	status = "disabled";
+};
