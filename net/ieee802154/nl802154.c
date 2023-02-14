@@ -1407,9 +1407,15 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	u8 type;
 	int err;
 
-	/* Monitors are not allowed to perform scans */
-	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR) {
+		NL_SET_ERR_MSG(info->extack, "Monitors are not allowed to perform scans");
 		return -EPERM;
+	}
+
+	if (!nla_get_u8(info->attrs[NL802154_ATTR_SCAN_TYPE])) {
+		NL_SET_ERR_MSG(info->extack, "Malformed request, missing scan type");
+		return -EINVAL;
+	}
 
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request)
@@ -1424,7 +1430,7 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		request->type = type;
 		break;
 	default:
-		pr_err("Unsupported scan type: %d\n", type);
+		NL_SET_ERR_MSG_FMT(info->extack, "Unsupported scan type: %d", type);
 		err = -EINVAL;
 		goto free_request;
 	}
@@ -1576,12 +1582,13 @@ nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_beacon_request *request;
 	int err;
 
-	/* Only coordinators can send beacons */
-	if (wpan_dev->iftype != NL802154_IFTYPE_COORD)
+	if (wpan_dev->iftype != NL802154_IFTYPE_COORD) {
+		NL_SET_ERR_MSG(info->extack, "Only coordinators can send beacons");
 		return -EOPNOTSUPP;
+	}
 
 	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
-		pr_err("Device is not part of any PAN\n");
+		NL_SET_ERR_MSG(info->extack, "Device is not part of any PAN");
 		return -EPERM;
 	}
 
