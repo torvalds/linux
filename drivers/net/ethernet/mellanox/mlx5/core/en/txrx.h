@@ -69,7 +69,7 @@ INDIRECT_CALLABLE_DECLARE(bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq));
 INDIRECT_CALLABLE_DECLARE(bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq));
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
 void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
-void mlx5e_free_rx_in_progress_descs(struct mlx5e_rq *rq);
+void mlx5e_free_rx_missing_descs(struct mlx5e_rq *rq);
 
 static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 {
