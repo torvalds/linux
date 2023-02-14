@@ -56,6 +56,7 @@ static const char *const aqc_device_names[] = {
 #define SERIAL_PART_OFFSET		2
 
 #define CTRL_REPORT_ID			0x03
+#define AQUAERO_CTRL_REPORT_ID		0x0b
 
 /* The HID report that the official software always sends
  * after writing values, currently same for all devices
@@ -65,6 +66,14 @@ static const char *const aqc_device_names[] = {
 
 static u8 secondary_ctrl_report[] = {
 	0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x34, 0xC6
+};
+
+/* Secondary HID report values for Aquaero */
+#define AQUAERO_SECONDARY_CTRL_REPORT_ID	0x06
+#define AQUAERO_SECONDARY_CTRL_REPORT_SIZE	0x07
+
+static u8 aquaero_secondary_ctrl_report[] = {
+	0x06, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00
 };
 
 /* Report IDs for legacy devices */
@@ -94,6 +103,7 @@ static u8 secondary_ctrl_report[] = {
 #define AQUAERO_NUM_VIRTUAL_SENSORS		8
 #define AQUAERO_NUM_CALC_VIRTUAL_SENSORS	4
 #define AQUAERO_NUM_FLOW_SENSORS		2
+#define AQUAERO_CTRL_REPORT_SIZE		0xa93
 
 /* Sensor report offsets for Aquaero fan controllers */
 #define AQUAERO_SENSOR_START			0x65
@@ -531,12 +541,16 @@ static int aqc_send_ctrl_data(struct aqc_data *priv)
 	int ret;
 	u16 checksum;
 
-	/* Init and xorout value for CRC-16/USB is 0xffff */
-	checksum = crc16(0xffff, priv->buffer + priv->checksum_start, priv->checksum_length);
-	checksum ^= 0xffff;
+	/* Checksum is not needed for Aquaero */
+	if (priv->kind != aquaero) {
+		/* Init and xorout value for CRC-16/USB is 0xffff */
+		checksum = crc16(0xffff, priv->buffer + priv->checksum_start,
+				 priv->checksum_length);
+		checksum ^= 0xffff;
 
-	/* Place the new checksum at the end of the report */
-	put_unaligned_be16(checksum, priv->buffer + priv->checksum_offset);
+		/* Place the new checksum at the end of the report */
+		put_unaligned_be16(checksum, priv->buffer + priv->checksum_offset);
+	}
 
 	/* Send the patched up report back to the device */
 	ret = hid_hw_raw_request(priv->hdev, priv->ctrl_report_id, priv->buffer, priv->buffer_size,
@@ -1280,6 +1294,8 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->num_flow_sensors = AQUAERO_NUM_FLOW_SENSORS;
 		priv->flow_sensors_start_offset = AQUAERO_FLOW_SENSORS_START;
 
+		priv->buffer_size = AQUAERO_CTRL_REPORT_SIZE;
+
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
 		priv->calc_virt_temp_label = label_aquaero_calc_temp_sensors;
@@ -1443,6 +1459,11 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->firmware_version_offset = AQUAERO_FIRMWARE_VERSION;
 
 		priv->fan_structure = &aqc_aquaero_fan_structure;
+
+		priv->ctrl_report_id = AQUAERO_CTRL_REPORT_ID;
+		priv->secondary_ctrl_report_id = AQUAERO_SECONDARY_CTRL_REPORT_ID;
+		priv->secondary_ctrl_report_size = AQUAERO_SECONDARY_CTRL_REPORT_SIZE;
+		priv->secondary_ctrl_report = aquaero_secondary_ctrl_report;
 		break;
 	case poweradjust3:
 		priv->status_report_id = POWERADJUST3_STATUS_REPORT_ID;
