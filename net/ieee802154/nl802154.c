@@ -1453,20 +1453,14 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	else
 		request->duration = IEEE802154_MAX_SCAN_DURATION;
 
-	if (wpan_dev->netdev)
-		dev_hold(wpan_dev->netdev);
-
 	err = rdev_trigger_scan(rdev, request);
 	if (err) {
 		pr_err("Failure starting scanning (%d)\n", err);
-		goto free_device;
+		goto free_request;
 	}
 
 	return 0;
 
-free_device:
-	if (wpan_dev->netdev)
-		dev_put(wpan_dev->netdev);
 free_request:
 	kfree(request);
 
@@ -1555,9 +1549,6 @@ int nl802154_scan_done(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	if (err == -ESRCH)
 		err = 0;
 
-	if (wpan_dev->netdev)
-		dev_put(wpan_dev->netdev);
-
 	return err;
 }
 EXPORT_SYMBOL_GPL(nl802154_scan_done);
@@ -1605,21 +1596,15 @@ nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
 	else
 		request->interval = IEEE802154_MAX_SCAN_DURATION;
 
-	if (wpan_dev->netdev)
-		dev_hold(wpan_dev->netdev);
-
 	err = rdev_send_beacons(rdev, request);
 	if (err) {
 		pr_err("Failure starting sending beacons (%d)\n", err);
-		goto free_device;
+		goto free_request;
 	}
 
 	return 0;
 
-free_device:
-	if (wpan_dev->netdev)
-		dev_put(wpan_dev->netdev);
-
+free_request:
 	kfree(request);
 
 	return err;
@@ -1627,8 +1612,7 @@ free_device:
 
 void nl802154_beaconing_done(struct wpan_dev *wpan_dev)
 {
-	if (wpan_dev->netdev)
-		dev_put(wpan_dev->netdev);
+	/* NOP */
 }
 EXPORT_SYMBOL_GPL(nl802154_beaconing_done);
 
