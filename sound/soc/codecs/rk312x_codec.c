@@ -1424,8 +1424,7 @@ static int rk312x_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_component *component = dai->component;
 	struct rk312x_codec_priv *rk312x = rk312x_priv;
 	unsigned int rate = params_rate(params);
 	unsigned int div;
