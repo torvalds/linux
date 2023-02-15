@@ -548,7 +548,8 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	if (sysfs_create_group(&pdev->dev.kobj, &bcmbca_hsspi_group)) {
+	ret = sysfs_create_group(&pdev->dev.kobj, &bcmbca_hsspi_group);
+	if (ret) {
 		dev_err(&pdev->dev, "couldn't register sysfs group\n");
 		goto out_pm_disable;
 	}
