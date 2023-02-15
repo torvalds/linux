@@ -4,6 +4,7 @@ qcom_cpu_vendor_hooks.ko
 cmd-db.ko
 qcom_rpmh.ko
 qcom-pdc.ko
+qcom_tsens.ko
 qcom_iommu_util.ko
 iommu-logger.ko
 arm_smmu.ko
@@ -18,6 +19,8 @@ pinctrl-msm.ko
 pinctrl-pineapple.ko
 sched-walt.ko
 sched-walt-debug.ko
+thermal_pause.ko
+cpu_hotplug.ko
 clk-qcom.ko
 clk-dummy.ko
 clk-rpmh.ko
@@ -83,3 +86,4 @@ qcom-pmu-lib.ko
 sdhci-msm.ko
 cqhci.ko
 crm.ko
+bcl_pmic5.ko
