@@ -1319,8 +1319,8 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 	}
 
 	if (rk_pcie->bifurcation)
-		ret = phy_set_mode_ext(rk_pcie->phy, rk_pcie->phy_mode,
-				       PHY_MODE_PCIE_BIFURCATION);
+		phy_set_mode_ext(rk_pcie->phy, rk_pcie->phy_mode,
+				 PHY_MODE_PCIE_BIFURCATION);
 
 	ret = phy_init(rk_pcie->phy);
 	if (ret < 0) {
@@ -2111,7 +2111,7 @@ retry_regulator:
 	ret = rk_pcie_init_dma_trx(rk_pcie);
 	if (ret) {
 		dev_err(dev, "failed to add dma extension\n");
-		return ret;
+		goto remove_irq_domain;
 	}
 
 	if (rk_pcie->dma_obj) {
