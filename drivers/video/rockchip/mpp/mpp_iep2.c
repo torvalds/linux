@@ -439,7 +439,7 @@ static void iep2_config(struct mpp_dev *mpp, struct iep_task *task)
 		mpp_write_relaxed(mpp, IEP2_REG_SRC_ADDR_NXTV, bot->cr);
 	}
 
-	reg = IEP2_REG_TIMEOUT_CFG_EN | 0x7fffff;
+	reg = IEP2_REG_TIMEOUT_CFG_EN | 0x3ffffff;
 	mpp_write_relaxed(mpp, IEP2_REG_TIMEOUT_CFG, reg);
 
 	mpp_write_relaxed(mpp, IEP2_REG_SRC_ADDR_PREY, cfg->src[2].y);
