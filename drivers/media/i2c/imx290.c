@@ -13,6 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -160,6 +161,21 @@
 
 #define IMX290_NUM_SUPPLIES				3
 
+enum imx290_colour_variant {
+	IMX290_VARIANT_COLOUR,
+	IMX290_VARIANT_MONO,
+	IMX290_VARIANT_MAX
+};
+
+enum imx290_model {
+	IMX290_MODEL_IMX290LQR,
+	IMX290_MODEL_IMX290LLR,
+};
+
+struct imx290_model_info {
+	enum imx290_colour_variant colour_variant;
+};
+
 struct imx290_regval {
 	u32 reg;
 	u32 val;
@@ -180,6 +196,7 @@ struct imx290 {
 	struct clk *xclk;
 	struct regmap *regmap;
 	u8 nlanes;
+	const struct imx290_model_info *model;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -417,7 +434,7 @@ static inline int imx290_modes_num(const struct imx290 *imx290)
 }
 
 struct imx290_format_info {
-	u32 code;
+	u32 code[IMX290_VARIANT_MAX];
 	u8 bpp;
 	const struct imx290_regval *regs;
 	unsigned int num_regs;
@@ -425,26 +442,33 @@ struct imx290_format_info {
 
 static const struct imx290_format_info imx290_formats[] = {
 	{
-		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.code = {
+			[IMX290_VARIANT_COLOUR] = MEDIA_BUS_FMT_SRGGB10_1X10,
+			[IMX290_VARIANT_MONO] = MEDIA_BUS_FMT_Y10_1X10
+		},
 		.bpp = 10,
 		.regs = imx290_10bit_settings,
 		.num_regs = ARRAY_SIZE(imx290_10bit_settings),
 	}, {
-		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.code = {
+			[IMX290_VARIANT_COLOUR] = MEDIA_BUS_FMT_SRGGB12_1X12,
+			[IMX290_VARIANT_MONO] = MEDIA_BUS_FMT_Y12_1X12
+		},
 		.bpp = 12,
 		.regs = imx290_12bit_settings,
 		.num_regs = ARRAY_SIZE(imx290_12bit_settings),
 	}
 };
 
-static const struct imx290_format_info *imx290_format_info(u32 code)
+static const struct imx290_format_info *
+imx290_format_info(const struct imx290 *imx290, u32 code)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(imx290_formats); ++i) {
 		const struct imx290_format_info *info = &imx290_formats[i];
 
-		if (info->code == code)
+		if (info->code[imx290->model->colour_variant] == code)
 			return info;
 	}
 
@@ -541,7 +565,7 @@ static int imx290_set_black_level(struct imx290 *imx290,
 				  const struct v4l2_mbus_framefmt *format,
 				  unsigned int black_level, int *err)
 {
-	unsigned int bpp = imx290_format_info(format->code)->bpp;
+	unsigned int bpp = imx290_format_info(imx290, format->code)->bpp;
 
 	return imx290_write(imx290, IMX290_BLKLEVEL,
 			    black_level >> (16 - bpp), err);
@@ -553,7 +577,7 @@ static int imx290_setup_format(struct imx290 *imx290,
 	const struct imx290_format_info *info;
 	int ret;
 
-	info = imx290_format_info(format->code);
+	info = imx290_format_info(imx290, format->code);
 
 	ret = imx290_set_register_array(imx290, info->regs, info->num_regs);
 	if (ret < 0) {
@@ -654,7 +678,7 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 
 	/* pixel rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
 	pixel_rate = link_freq * 2 * imx290->nlanes;
-	do_div(pixel_rate, imx290_format_info(format->code)->bpp);
+	do_div(pixel_rate, imx290_format_info(imx290, format->code)->bpp);
 
 	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
 	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate, pixel_rate);
@@ -849,10 +873,12 @@ static int imx290_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
+	const struct imx290 *imx290 = to_imx290(sd);
+
 	if (code->index >= ARRAY_SIZE(imx290_formats))
 		return -EINVAL;
 
-	code->code = imx290_formats[code->index].code;
+	code->code = imx290_formats[code->index].code[imx290->model->colour_variant];
 
 	return 0;
 }
@@ -864,7 +890,7 @@ static int imx290_enum_frame_size(struct v4l2_subdev *sd,
 	const struct imx290 *imx290 = to_imx290(sd);
 	const struct imx290_mode *imx290_modes = imx290_modes_ptr(imx290);
 
-	if (!imx290_format_info(fse->code))
+	if (!imx290_format_info(imx290, fse->code))
 		return -EINVAL;
 
 	if (fse->index >= imx290_modes_num(imx290))
@@ -893,8 +919,8 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 
-	if (!imx290_format_info(fmt->format.code))
-		fmt->format.code = imx290_formats[0].code;
+	if (!imx290_format_info(imx290, fmt->format.code))
+		fmt->format.code = imx290_formats[0].code[imx290->model->colour_variant];
 
 	fmt->format.field = V4L2_FIELD_NONE;
 
@@ -1182,6 +1208,15 @@ static s64 imx290_check_link_freqs(const struct imx290 *imx290,
 	return 0;
 }
 
+static const struct imx290_model_info imx290_models[] = {
+	[IMX290_MODEL_IMX290LQR] = {
+		.colour_variant = IMX290_VARIANT_COLOUR,
+	},
+	[IMX290_MODEL_IMX290LLR] = {
+		.colour_variant = IMX290_VARIANT_MONO,
+	},
+};
+
 static int imx290_parse_dt(struct imx290 *imx290)
 {
 	/* Only CSI2 is supported for now: */
@@ -1191,6 +1226,8 @@ static int imx290_parse_dt(struct imx290 *imx290)
 	struct fwnode_handle *endpoint;
 	int ret;
 	s64 fq;
+
+	imx290->model = of_device_get_match_data(imx290->dev);
 
 	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(imx290->dev), NULL);
 	if (!endpoint) {
@@ -1357,8 +1394,18 @@ static void imx290_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id imx290_of_match[] = {
-	{ .compatible = "sony,imx290" },
-	{ /* sentinel */ }
+	{
+		/* Deprecated - synonym for "sony,imx290lqr" */
+		.compatible = "sony,imx290",
+		.data = &imx290_models[IMX290_MODEL_IMX290LQR],
+	}, {
+		.compatible = "sony,imx290lqr",
+		.data = &imx290_models[IMX290_MODEL_IMX290LQR],
+	}, {
+		.compatible = "sony,imx290llr",
+		.data = &imx290_models[IMX290_MODEL_IMX290LLR],
+	},
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, imx290_of_match);
 
