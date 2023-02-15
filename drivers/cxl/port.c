@@ -69,22 +69,27 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	if (rc == 1)
 		return devm_cxl_add_passthrough_decoder(port);
 
-	cxlhdm = devm_cxl_setup_hdm(port);
+	cxlhdm = devm_cxl_setup_hdm(port, NULL);
 	if (IS_ERR(cxlhdm))
 		return PTR_ERR(cxlhdm);
 
-	return devm_cxl_enumerate_decoders(cxlhdm);
+	return devm_cxl_enumerate_decoders(cxlhdm, NULL);
 }
 
 static int cxl_endpoint_port_probe(struct cxl_port *port)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
+	struct cxl_endpoint_dvsec_info info = { 0 };
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_hdm *cxlhdm;
 	struct cxl_port *root;
 	int rc;
 
-	cxlhdm = devm_cxl_setup_hdm(port);
+	rc = cxl_dvsec_rr_decode(cxlds->dev, cxlds->cxl_dvsec, &info);
+	if (rc < 0)
+		return rc;
+
+	cxlhdm = devm_cxl_setup_hdm(port, &info);
 	if (IS_ERR(cxlhdm))
 		return PTR_ERR(cxlhdm);
 
@@ -96,7 +101,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	if (rc)
 		return rc;
 
-	rc = cxl_hdm_decode_init(cxlds, cxlhdm);
+	rc = cxl_hdm_decode_init(cxlds, cxlhdm, &info);
 	if (rc)
 		return rc;
 
@@ -106,7 +111,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 		return rc;
 	}
 
-	rc = devm_cxl_enumerate_decoders(cxlhdm);
+	rc = devm_cxl_enumerate_decoders(cxlhdm, &info);
 	if (rc)
 		return rc;
 
