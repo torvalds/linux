@@ -159,12 +159,8 @@ static int cirrus_pitch(struct drm_framebuffer *fb)
 
 static void cirrus_set_start_address(struct cirrus_device *cirrus, u32 offset)
 {
-	int idx;
 	u32 addr;
 	u8 tmp;
-
-	if (!drm_dev_enter(&cirrus->dev, &idx))
-		return;
 
 	addr = offset >> 2;
 	wreg_crt(cirrus, 0x0c, (u8)((addr >> 8) & 0xff));
@@ -180,8 +176,6 @@ static void cirrus_set_start_address(struct cirrus_device *cirrus, u32 offset)
 	tmp &= 0x7f;
 	tmp |= (addr >> 12) & 0x80;
 	wreg_crt(cirrus, 0x1d, tmp);
-
-	drm_dev_exit(idx);
 }
 
 static int cirrus_mode_set(struct cirrus_device *cirrus,
@@ -190,11 +184,8 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 {
 	int hsyncstart, hsyncend, htotal, hdispend;
 	int vtotal, vdispend;
-	int tmp, idx;
+	int tmp;
 	int sr07 = 0, hdr = 0;
-
-	if (!drm_dev_enter(&cirrus->dev, &idx))
-		return -1;
 
 	htotal = mode->htotal / 8;
 	hsyncend = mode->hsync_end / 8;
@@ -281,7 +272,6 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 		hdr = 0xc5;
 		break;
 	default:
-		drm_dev_exit(idx);
 		return -1;
 	}
 
@@ -311,7 +301,6 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 	/* Unblank (needed on S3 resume, vgabios doesn't do it then) */
 	outb(0x20, 0x3c0);
 
-	drm_dev_exit(idx);
 	return 0;
 }
 
@@ -321,17 +310,11 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 {
 	struct cirrus_device *cirrus = to_cirrus(fb->dev);
 	struct iosys_map dst;
-	int idx;
-
-	if (!drm_dev_enter(&cirrus->dev, &idx))
-		return -ENODEV;
 
 	iosys_map_set_vaddr_iomem(&dst, cirrus->vram);
 	iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
 
 	drm_fb_blit(&dst, &cirrus->pitch, cirrus->format->format, vmap, fb, rect);
-
-	drm_dev_exit(idx);
 
 	return 0;
 }
@@ -425,9 +408,15 @@ static void cirrus_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct cirrus_device *cirrus = to_cirrus(pipe->crtc.dev);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	int idx;
+
+	if (!drm_dev_enter(&cirrus->dev, &idx))
+		return;
 
 	cirrus_mode_set(cirrus, &crtc_state->mode, plane_state->fb);
 	cirrus_fb_blit_fullscreen(plane_state->fb, &shadow_plane_state->data[0]);
+
+	drm_dev_exit(idx);
 }
 
 static void cirrus_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -438,12 +427,18 @@ static void cirrus_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect rect;
+	int idx;
+
+	if (!drm_dev_enter(&cirrus->dev, &idx))
+		return;
 
 	if (state->fb && cirrus->format != cirrus_format(state->fb))
 		cirrus_mode_set(cirrus, &crtc->mode, state->fb);
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		cirrus_fb_blit_rect(state->fb, &shadow_plane_state->data[0], &rect);
+
+	drm_dev_exit(idx);
 }
 
 static const struct drm_simple_display_pipe_funcs cirrus_pipe_funcs = {
