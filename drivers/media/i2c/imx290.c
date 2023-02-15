@@ -50,6 +50,7 @@
 #define IMX290_GAIN					IMX290_REG_8BIT(0x3014)
 #define IMX290_VMAX					IMX290_REG_24BIT(0x3018)
 #define IMX290_HMAX					IMX290_REG_16BIT(0x301c)
+#define IMX290_HMAX_MAX					0xffff
 #define IMX290_SHS1					IMX290_REG_24BIT(0x3020)
 #define IMX290_WINWV_OB					IMX290_REG_8BIT(0x303a)
 #define IMX290_WINPV					IMX290_REG_16BIT(0x303c)
@@ -186,7 +187,7 @@ struct imx290_regval {
 struct imx290_mode {
 	u32 width;
 	u32 height;
-	u32 hmax;
+	u32 hmax_min;
 	u8 link_freq_index;
 
 	const struct imx290_regval *data;
@@ -429,7 +430,7 @@ static const struct imx290_mode imx290_modes_2lanes[] = {
 	{
 		.width = 1920,
 		.height = 1080,
-		.hmax = 2200,
+		.hmax_min = 2200,
 		.link_freq_index = FREQ_INDEX_1080P,
 		.data = imx290_1080p_settings,
 		.data_size = ARRAY_SIZE(imx290_1080p_settings),
@@ -437,7 +438,7 @@ static const struct imx290_mode imx290_modes_2lanes[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.hmax = 3300,
+		.hmax_min = 3300,
 		.link_freq_index = FREQ_INDEX_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
@@ -448,7 +449,7 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 	{
 		.width = 1920,
 		.height = 1080,
-		.hmax = 2200,
+		.hmax_min = 2200,
 		.link_freq_index = FREQ_INDEX_1080P,
 		.data = imx290_1080p_settings,
 		.data_size = ARRAY_SIZE(imx290_1080p_settings),
@@ -456,7 +457,7 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.hmax = 3300,
+		.hmax_min = 3300,
 		.link_freq_index = FREQ_INDEX_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
@@ -712,6 +713,12 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 
+	case V4L2_CID_HBLANK:
+		ret = imx290_write(imx290, IMX290_HMAX,
+				   ctrl->val + imx290->current_mode->width,
+				   NULL);
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -742,12 +749,14 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 			       const struct v4l2_mbus_framefmt *format,
 			       const struct imx290_mode *mode)
 {
-	unsigned int hblank = mode->hmax - mode->width;
+	unsigned int hblank_min = mode->hmax_min - mode->width;
+	unsigned int hblank_max = IMX290_HMAX_MAX - mode->width;
 	unsigned int vblank = IMX290_VMAX_DEFAULT - mode->height;
 
 	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
 
-	__v4l2_ctrl_modify_range(imx290->hblank, hblank, hblank, 1, hblank);
+	__v4l2_ctrl_modify_range(imx290->hblank, hblank_min, hblank_max, 1,
+				 hblank_min);
 	__v4l2_ctrl_modify_range(imx290->vblank, vblank, vblank, 1, vblank);
 }
 
@@ -804,10 +813,11 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 				     ARRAY_SIZE(imx290_test_pattern_menu) - 1,
 				     0, 0, imx290_test_pattern_menu);
 
+	/*
+	 * Actual range will be set from imx290_ctrl_update later in the probe.
+	 */
 	imx290->hblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 					   V4L2_CID_HBLANK, 1, 1, 1, 1);
-	if (imx290->hblank)
-		imx290->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	imx290->vblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 					   V4L2_CID_VBLANK, 1, 1, 1, 1);
@@ -875,11 +885,6 @@ static int imx290_start_streaming(struct imx290 *imx290,
 		dev_err(imx290->dev, "Could not set current mode\n");
 		return ret;
 	}
-
-	ret = imx290_write(imx290, IMX290_HMAX, imx290->current_mode->hmax,
-			   NULL);
-	if (ret)
-		return ret;
 
 	/* Apply customized values from user */
 	ret = __v4l2_ctrl_handler_setup(imx290->sd.ctrl_handler);
