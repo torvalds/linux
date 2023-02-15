@@ -1584,7 +1584,7 @@ static void *do_printloop(void *arg)
 		/*
 		 * Toss a coin to decide if we want to sleep before printing
 		 * out the backtrace. The reason for this is that opening
-		 * /sys/kernel/debug/tracing/trace will cause a blackout of
+		 * /sys/kernel/tracing/trace will cause a blackout of
 		 * hundreds of ms, where no latencies will be noted by the
 		 * latency tracer. Thus by randomly sleeping we try to avoid
 		 * missing traces systematically due to this. With this option
