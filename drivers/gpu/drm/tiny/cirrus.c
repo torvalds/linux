@@ -555,17 +555,8 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 /* ------------------------------------------------------------------ */
 /* cirrus framebuffers & mode config				      */
 
-static struct drm_framebuffer*
-cirrus_fb_create(struct drm_device *dev, struct drm_file *file_priv,
-		 const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	if (cirrus_check_size(mode_cmd->width, mode_cmd->height, NULL) < 0)
-		return ERR_PTR(-EINVAL);
-	return drm_gem_fb_create_with_dirty(dev, file_priv, mode_cmd);
-}
-
 static const struct drm_mode_config_funcs cirrus_mode_config_funcs = {
-	.fb_create = cirrus_fb_create,
+	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
