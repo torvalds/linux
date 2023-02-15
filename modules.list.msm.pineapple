@@ -19,6 +19,7 @@ mem_buf.ko
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-pineapple.ko
+pinctrl-cliffs.ko
 sched-walt.ko
 sched-walt-debug.ko
 thermal_pause.ko
