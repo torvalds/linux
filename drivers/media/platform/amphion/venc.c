@@ -250,19 +250,10 @@ static int venc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	}
 
 	if (V4L2_TYPE_IS_OUTPUT(f->type)) {
-		if (!vpu_color_check_primaries(pix_mp->colorspace)) {
-			venc->params.color.primaries = pix_mp->colorspace;
-			vpu_color_get_default(venc->params.color.primaries,
-					      &venc->params.color.transfer,
-					      &venc->params.color.matrix,
-					      &venc->params.color.full_range);
-		}
-		if (!vpu_color_check_transfers(pix_mp->xfer_func))
-			venc->params.color.transfer = pix_mp->xfer_func;
-		if (!vpu_color_check_matrix(pix_mp->ycbcr_enc))
-			venc->params.color.matrix = pix_mp->ycbcr_enc;
-		if (!vpu_color_check_full_range(pix_mp->quantization))
-			venc->params.color.full_range = pix_mp->quantization;
+		venc->params.color.primaries = pix_mp->colorspace;
+		venc->params.color.transfer = pix_mp->xfer_func;
+		venc->params.color.matrix = pix_mp->ycbcr_enc;
+		venc->params.color.full_range = pix_mp->quantization;
 	}
 
 	pix_mp->colorspace = venc->params.color.primaries;
@@ -1281,7 +1272,6 @@ static void venc_init(struct file *file)
 	f.fmt.pix_mp.width = 1280;
 	f.fmt.pix_mp.height = 720;
 	f.fmt.pix_mp.field = V4L2_FIELD_NONE;
-	f.fmt.pix_mp.colorspace = V4L2_COLORSPACE_REC709;
 	venc_s_fmt(file, &inst->fh, &f);
 
 	memset(&f, 0, sizeof(f));

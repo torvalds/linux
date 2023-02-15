@@ -261,134 +261,6 @@ static int ov2722_write_reg_array(struct i2c_client *client,
 	return __ov2722_flush_reg_array(client, &ctrl);
 }
 
-static int ov2722_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (OV2722_FOCAL_LENGTH_NUM << 16) | OV2722_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int ov2722_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/*const f number for imx*/
-	*val = (OV2722_F_NUMBER_DEFAULT_NUM << 16) | OV2722_F_NUMBER_DEM;
-	return 0;
-}
-
-static int ov2722_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (OV2722_F_NUMBER_DEFAULT_NUM << 24) |
-	       (OV2722_F_NUMBER_DEM << 16) |
-	       (OV2722_F_NUMBER_DEFAULT_NUM << 8) | OV2722_F_NUMBER_DEM;
-	return 0;
-}
-
-static int ov2722_get_intg_factor(struct i2c_client *client,
-				  struct camera_mipi_info *info,
-				  const struct ov2722_resolution *res)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov2722_device *dev = NULL;
-	struct atomisp_sensor_mode_data *buf = &info->data;
-	const unsigned int ext_clk_freq_hz = 19200000;
-	const unsigned int pll_invariant_div = 10;
-	unsigned int pix_clk_freq_hz;
-	u16 pre_pll_clk_div;
-	u16 pll_multiplier;
-	u16 op_pix_clk_div;
-	u16 reg_val;
-	int ret;
-
-	if (!info)
-		return -EINVAL;
-
-	dev = to_ov2722_sensor(sd);
-
-	/* pixel clock calculattion */
-	ret =  ov2722_read_reg(client, OV2722_8BIT,
-			       OV2722_SC_CMMN_PLL_CTRL3, &pre_pll_clk_div);
-	if (ret)
-		return ret;
-
-	ret =  ov2722_read_reg(client, OV2722_8BIT,
-			       OV2722_SC_CMMN_PLL_MULTIPLIER, &pll_multiplier);
-	if (ret)
-		return ret;
-
-	ret =  ov2722_read_reg(client, OV2722_8BIT,
-			       OV2722_SC_CMMN_PLL_DEBUG_OPT, &op_pix_clk_div);
-	if (ret)
-		return ret;
-
-	pre_pll_clk_div = (pre_pll_clk_div & 0x70) >> 4;
-	if (!pre_pll_clk_div)
-		return -EINVAL;
-
-	pll_multiplier = pll_multiplier & 0x7f;
-	op_pix_clk_div = op_pix_clk_div & 0x03;
-	pix_clk_freq_hz = ext_clk_freq_hz / pre_pll_clk_div * pll_multiplier
-			  * op_pix_clk_div / pll_invariant_div;
-
-	dev->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = OV2722_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    OV2722_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = OV2722_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    OV2722_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = OV2722_FINE_INTG_TIME_MIN;
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  ov2722_read_reg(client, OV2722_16BIT,
-			       OV2722_H_CROP_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_start = reg_val;
-
-	ret =  ov2722_read_reg(client, OV2722_16BIT,
-			       OV2722_V_CROP_START_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_start = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_H_CROP_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_end = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_V_CROP_END_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_end = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_H_OUTSIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = reg_val;
-
-	ret = ov2722_read_reg(client, OV2722_16BIT,
-			      OV2722_V_OUTSIZE_H, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = reg_val;
-
-	buf->binning_factor_x = res->bin_factor_x ?
-				res->bin_factor_x : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				res->bin_factor_y : 1;
-	return 0;
-}
-
 static long __ov2722_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -547,15 +419,6 @@ static int ov2722_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = ov2722_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = ov2722_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = ov2722_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = ov2722_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_LINK_FREQ:
 		val = dev->res->mipi_freq;
 		if (val == 0)
@@ -584,39 +447,6 @@ static const struct v4l2_ctrl_config ov2722_controls[] = {
 		.max = 0xffff,
 		.step = 0x01,
 		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "focal length",
-		.min = OV2722_FOCAL_LENGTH_DEFAULT,
-		.max = OV2722_FOCAL_LENGTH_DEFAULT,
-		.step = 0x01,
-		.def = OV2722_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number",
-		.min = OV2722_F_NUMBER_DEFAULT,
-		.max = OV2722_F_NUMBER_DEFAULT,
-		.step = 0x01,
-		.def = OV2722_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number range",
-		.min = OV2722_F_NUMBER_RANGE,
-		.max = OV2722_F_NUMBER_RANGE,
-		.step = 0x01,
-		.def = OV2722_F_NUMBER_RANGE,
 		.flags = 0,
 	},
 	{
@@ -682,10 +512,7 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	 * before PWDN# when turning it on or off.
 	 */
 	ret = dev->platform_data->gpio0_ctrl(sd, flag);
-	/*
-	 *ov2722 PWDN# active high when pull down,opposite to the convention
-	 */
-	ret |= dev->platform_data->gpio1_ctrl(sd, !flag);
+	ret |= dev->platform_data->gpio1_ctrl(sd, flag);
 	return ret;
 }
 
@@ -700,6 +527,9 @@ static int power_up(struct v4l2_subdev *sd)
 			"no camera_sensor_platform_data");
 		return -ENODEV;
 	}
+
+	if (dev->power_on == 1)
+		return 0; /* Already on */
 
 	/* power control */
 	ret = power_ctrl(sd, 1);
@@ -725,6 +555,7 @@ static int power_up(struct v4l2_subdev *sd)
 	/* according to DS, 20ms is needed between PWDN and i2c access */
 	msleep(20);
 
+	dev->power_on = 1;
 	return 0;
 
 fail_clk:
@@ -748,6 +579,9 @@ static int power_down(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
+	if (dev->power_on == 0)
+		return 0; /* Already off */
+
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
 	if (ret)
 		dev_err(&client->dev, "flisclk failed\n");
@@ -765,6 +599,7 @@ static int power_down(struct v4l2_subdev *sd)
 	if (ret)
 		dev_err(&client->dev, "vprog failed.\n");
 
+	dev->power_on = 0;
 	return ret;
 }
 
@@ -824,7 +659,6 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	if (!ov2722_info)
 		return -EINVAL;
 
-	mutex_lock(&dev->input_lock);
 	res = v4l2_find_nearest_size(ov2722_res_preview,
 				     ARRAY_SIZE(ov2722_res_preview), width,
 				     height, fmt->width, fmt->height);
@@ -838,10 +672,13 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		sd_state->pads->try_fmt = *fmt;
-		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
 
+	mutex_lock(&dev->input_lock);
+
+	/* s_power has not been called yet for std v4l2 clients (camorama) */
+	power_up(sd);
 
 	dev->pixels_per_line = dev->res->pixels_per_line;
 	dev->lines_per_frame = dev->res->lines_per_frame;
@@ -874,10 +711,6 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 			goto err;
 		}
 	}
-
-	ret = ov2722_get_intg_factor(client, ov2722_info, dev->res);
-	if (ret)
-		dev_err(&client->dev, "failed to get integration_factor\n");
 
 err:
 	mutex_unlock(&dev->input_lock);
@@ -1137,6 +970,7 @@ static int ov2722_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	mutex_init(&dev->input_lock);
+	dev->power_on = -1;
 
 	dev->res = &ov2722_res_preview[0];
 	v4l2_i2c_subdev_init(&dev->sd, client, &ov2722_ops);
@@ -1168,6 +1002,7 @@ out_ctrl_handler_free:
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
 out_free:
+	atomisp_gmin_remove_subdev(&dev->sd);
 	v4l2_device_unregister_subdev(&dev->sd);
 	kfree(dev);
 	return ret;

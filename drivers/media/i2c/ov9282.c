@@ -148,7 +148,6 @@ struct ov9282_mode {
 /**
  * struct ov9282 - ov9282 sensor device structure
  * @dev: Pointer to generic device
- * @client: Pointer to i2c client
  * @sd: V4L2 sub-device
  * @pad: Media pad. Only one pad supported
  * @reset_gpio: Sensor reset gpio
@@ -170,7 +169,6 @@ struct ov9282_mode {
  */
 struct ov9282 {
 	struct device *dev;
-	struct i2c_client *client;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct gpio_desc *reset_gpio;
@@ -1144,10 +1142,9 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	}
 
 	ret = ov9282_configure_regulators(ov9282);
-	if (ret) {
-		dev_err(ov9282->dev, "Failed to get power regulators\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(ov9282->dev, ret,
+				     "Failed to get power regulators\n");
 
 	rate = clk_get_rate(ov9282->inclk);
 	if (rate != OV9282_INCLK_RATE) {

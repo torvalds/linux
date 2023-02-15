@@ -1149,7 +1149,7 @@ static int vpbe_display_open(struct file *file)
 
 	/* leaving if layer is already initialized */
 	if (!v4l2_fh_is_singular_file(file))
-		return err;
+		return 0;
 
 	if (!layer->usrs) {
 		if (mutex_lock_interruptible(&layer->opslock))
