@@ -270,11 +270,11 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("hidden",		Opt_nohidden),
 	fsparam_flag_no("hide_dot_files",	Opt_hide_dot_files),
 	fsparam_flag_no("windows_names",	Opt_windows_names),
-	fsparam_flag_no("acl",			Opt_acl),
 	fsparam_flag_no("showmeta",		Opt_showmeta),
+	fsparam_flag_no("acl",			Opt_acl),
+	fsparam_string("iocharset",		Opt_iocharset),
 	fsparam_flag_no("prealloc",		Opt_prealloc),
 	fsparam_flag_no("nocase",		Opt_nocase),
-	fsparam_string("iocharset",		Opt_iocharset),
 	{}
 };
 
@@ -364,6 +364,9 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 	case Opt_windows_names:
 		opts->windows_names = result.negated ? 0 : 1;
 		break;
+	case Opt_showmeta:
+		opts->showmeta = result.negated ? 0 : 1;
+		break;
 	case Opt_acl:
 		if (!result.negated)
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
@@ -374,9 +377,6 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 #endif
 		else
 			fc->sb_flags &= ~SB_POSIXACL;
-		break;
-	case Opt_showmeta:
-		opts->showmeta = result.negated ? 0 : 1;
 		break;
 	case Opt_iocharset:
 		kfree(opts->nls_name);
@@ -547,34 +547,36 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 
 	seq_printf(m, ",uid=%u", from_kuid_munged(user_ns, opts->fs_uid));
 	seq_printf(m, ",gid=%u", from_kgid_munged(user_ns, opts->fs_gid));
-	if (opts->fmask)
-		seq_printf(m, ",fmask=%04o", opts->fs_fmask_inv ^ 0xffff);
 	if (opts->dmask)
 		seq_printf(m, ",dmask=%04o", opts->fs_dmask_inv ^ 0xffff);
-	if (opts->nls)
-		seq_printf(m, ",iocharset=%s", opts->nls->charset);
-	else
-		seq_puts(m, ",iocharset=utf8");
+	if (opts->fmask)
+		seq_printf(m, ",fmask=%04o", opts->fs_fmask_inv ^ 0xffff);
 	if (opts->sys_immutable)
 		seq_puts(m, ",sys_immutable");
 	if (opts->discard)
 		seq_puts(m, ",discard");
-	if (opts->sparse)
-		seq_puts(m, ",sparse");
-	if (opts->showmeta)
-		seq_puts(m, ",showmeta");
-	if (opts->nohidden)
-		seq_puts(m, ",nohidden");
-	if (opts->windows_names)
-		seq_puts(m, ",windows_names");
-	if (opts->hide_dot_files)
-		seq_puts(m, ",hide_dot_files");
 	if (opts->force)
 		seq_puts(m, ",force");
-	if (opts->prealloc)
-		seq_puts(m, ",prealloc");
+	if (opts->sparse)
+		seq_puts(m, ",sparse");
+	if (opts->nohidden)
+		seq_puts(m, ",nohidden");
+	if (opts->hide_dot_files)
+		seq_puts(m, ",hide_dot_files");
+	if (opts->windows_names)
+		seq_puts(m, ",windows_names");
+	if (opts->showmeta)
+		seq_puts(m, ",showmeta");
 	if (sb->s_flags & SB_POSIXACL)
 		seq_puts(m, ",acl");
+	if (opts->nls)
+		seq_printf(m, ",iocharset=%s", opts->nls->charset);
+	else
+		seq_puts(m, ",iocharset=utf8");
+	if (opts->prealloc)
+		seq_puts(m, ",prealloc");
+	if (opts->nocase)
+		seq_puts(m, ",nocase");
 
 	return 0;
 }
