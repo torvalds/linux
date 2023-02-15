@@ -23,7 +23,7 @@ static const u32 reg_ch_c_cntxt_0_fmask[] = {
 	[CHTYPE_DIR]					= BIT(3),
 	[CH_EE]						= GENMASK(7, 4),
 	[CHID]						= GENMASK(12, 8),
-						/* Bit 13 reserved */
+	[CHTYPE_PROTOCOL_MSB]				= BIT(13),
 	[ERINDEX]					= GENMASK(18, 14),
 						/* Bit 19 reserved */
 	[CHSTATE]					= GENMASK(23, 20),
@@ -50,7 +50,10 @@ static const u32 reg_ch_c_qos_fmask[] = {
 						/* Bits 4-7 reserved */
 	[MAX_PREFETCH]					= BIT(8),
 	[USE_DB_ENG]					= BIT(9),
-						/* Bits 10-31 reserved */
+	[PREFETCH_MODE]					= GENMASK(13, 10),
+						/* Bits 14-15 reserved */
+	[EMPTY_LVL_THRSHOLD]				= GENMASK(23, 16),
+						/* Bits 24-31 reserved */
 };
 
 REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
@@ -179,7 +182,12 @@ static const u32 reg_hw_param_2_fmask[] = {
 	[NUM_EV_PER_EE]					= GENMASK(12, 8),
 	[GSI_CH_PEND_TRANSLATE]				= BIT(13),
 	[GSI_CH_FULL_LOGIC]				= BIT(14),
-						/* Bits 15-31 reserved */
+	[GSI_USE_SDMA]					= BIT(15),
+	[GSI_SDMA_N_INT]				= GENMASK(18, 16),
+	[GSI_SDMA_MAX_BURST]				= GENMASK(26, 19),
+	[GSI_SDMA_N_IOVEC]				= GENMASK(29, 27),
+	[GSI_USE_RD_WR_ENG]				= BIT(30),
+	[GSI_USE_INTER_EE]				= BIT(31),
 };
 
 REG_FIELDS(HW_PARAM_2, hw_param_2, 0x0001f040 + 0x4000 * GSI_EE_AP);
@@ -295,7 +303,7 @@ static const struct reg *reg_array[] = {
 	[CNTXT_SCRATCH_0]		= &reg_cntxt_scratch_0,
 };
 
-const struct regs gsi_regs_v3_5_1 = {
+const struct regs gsi_regs_v4_5 = {
 	.reg_count	= ARRAY_SIZE(reg_array),
 	.reg		= reg_array,
 };

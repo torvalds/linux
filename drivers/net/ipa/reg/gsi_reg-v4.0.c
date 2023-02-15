@@ -50,7 +50,8 @@ static const u32 reg_ch_c_qos_fmask[] = {
 						/* Bits 4-7 reserved */
 	[MAX_PREFETCH]					= BIT(8),
 	[USE_DB_ENG]					= BIT(9),
-						/* Bits 10-31 reserved */
+	[USE_ESCAPE_BUF_ONLY]				= BIT(10),
+						/* Bits 11-31 reserved */
 };
 
 REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
@@ -179,7 +180,11 @@ static const u32 reg_hw_param_2_fmask[] = {
 	[NUM_EV_PER_EE]					= GENMASK(12, 8),
 	[GSI_CH_PEND_TRANSLATE]				= BIT(13),
 	[GSI_CH_FULL_LOGIC]				= BIT(14),
-						/* Bits 15-31 reserved */
+	[GSI_USE_SDMA]					= BIT(15),
+	[GSI_SDMA_N_INT]				= GENMASK(18, 16),
+	[GSI_SDMA_MAX_BURST]				= GENMASK(26, 19),
+	[GSI_SDMA_N_IOVEC]				= GENMASK(29, 27),
+						/* Bits 30-31 reserved */
 };
 
 REG_FIELDS(HW_PARAM_2, hw_param_2, 0x0001f040 + 0x4000 * GSI_EE_AP);
@@ -295,7 +300,7 @@ static const struct reg *reg_array[] = {
 	[CNTXT_SCRATCH_0]		= &reg_cntxt_scratch_0,
 };
 
-const struct regs gsi_regs_v3_5_1 = {
+const struct regs gsi_regs_v4_0 = {
 	.reg_count	= ARRAY_SIZE(reg_array),
 	.reg		= reg_array,
 };

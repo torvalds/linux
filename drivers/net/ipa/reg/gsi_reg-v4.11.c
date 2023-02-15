@@ -23,7 +23,7 @@ static const u32 reg_ch_c_cntxt_0_fmask[] = {
 	[CHTYPE_DIR]					= BIT(3),
 	[CH_EE]						= GENMASK(7, 4),
 	[CHID]						= GENMASK(12, 8),
-						/* Bit 13 reserved */
+	[CHTYPE_PROTOCOL_MSB]				= BIT(13),
 	[ERINDEX]					= GENMASK(18, 14),
 						/* Bit 19 reserved */
 	[CHSTATE]					= GENMASK(23, 20),
@@ -34,8 +34,8 @@ REG_STRIDE_FIELDS(CH_C_CNTXT_0, ch_c_cntxt_0,
 		  0x0001c000 + 0x4000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_ch_c_cntxt_1_fmask[] = {
-	[CH_R_LENGTH]					= GENMASK(15, 0),
-						/* Bits 16-31 reserved */
+	[CH_R_LENGTH]					= GENMASK(19, 0),
+						/* Bits 20-31 reserved */
 };
 
 REG_STRIDE_FIELDS(CH_C_CNTXT_1, ch_c_cntxt_1,
@@ -50,7 +50,11 @@ static const u32 reg_ch_c_qos_fmask[] = {
 						/* Bits 4-7 reserved */
 	[MAX_PREFETCH]					= BIT(8),
 	[USE_DB_ENG]					= BIT(9),
-						/* Bits 10-31 reserved */
+	[PREFETCH_MODE]					= GENMASK(13, 10),
+						/* Bits 14-15 reserved */
+	[EMPTY_LVL_THRSHOLD]				= GENMASK(23, 16),
+	[DB_IN_BYTES]					= BIT(24),
+						/* Bits 25-31 reserved */
 };
 
 REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
@@ -168,7 +172,8 @@ static const u32 reg_generic_cmd_fmask[] = {
 	[GENERIC_OPCODE]				= GENMASK(4, 0),
 	[GENERIC_CHID]					= GENMASK(9, 5),
 	[GENERIC_EE]					= GENMASK(13, 10),
-						/* Bits 14-31 reserved */
+						/* Bits 14-23 reserved */
+	[GENERIC_PARAMS]				= GENMASK(31, 24),
 };
 
 REG_FIELDS(GENERIC_CMD, generic_cmd, 0x0001f018 + 0x4000 * GSI_EE_AP);
@@ -179,7 +184,12 @@ static const u32 reg_hw_param_2_fmask[] = {
 	[NUM_EV_PER_EE]					= GENMASK(12, 8),
 	[GSI_CH_PEND_TRANSLATE]				= BIT(13),
 	[GSI_CH_FULL_LOGIC]				= BIT(14),
-						/* Bits 15-31 reserved */
+	[GSI_USE_SDMA]					= BIT(15),
+	[GSI_SDMA_N_INT]				= GENMASK(18, 16),
+	[GSI_SDMA_MAX_BURST]				= GENMASK(26, 19),
+	[GSI_SDMA_N_IOVEC]				= GENMASK(29, 27),
+	[GSI_USE_RD_WR_ENG]				= BIT(30),
+	[GSI_USE_INTER_EE]				= BIT(31),
 };
 
 REG_FIELDS(HW_PARAM_2, hw_param_2, 0x0001f040 + 0x4000 * GSI_EE_AP);
@@ -295,7 +305,7 @@ static const struct reg *reg_array[] = {
 	[CNTXT_SCRATCH_0]		= &reg_cntxt_scratch_0,
 };
 
-const struct regs gsi_regs_v3_5_1 = {
+const struct regs gsi_regs_v4_11 = {
 	.reg_count	= ARRAY_SIZE(reg_array),
 	.reg		= reg_array,
 };
