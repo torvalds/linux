@@ -150,7 +150,7 @@ struct sd_emmc_desc {
 
 struct meson_host {
 	struct	device		*dev;
-	struct	meson_mmc_data *data;
+	const struct meson_mmc_data *data;
 	struct	mmc_host	*mmc;
 	struct	mmc_command	*cmd;
 
@@ -1195,8 +1195,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
 		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
 
-	host->data = (struct meson_mmc_data *)
-		of_device_get_match_data(&pdev->dev);
+	host->data = of_device_get_match_data(&pdev->dev);
 	if (!host->data)
 		return -EINVAL;
 
