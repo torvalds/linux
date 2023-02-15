@@ -63,10 +63,6 @@ struct cirrus_device {
 	struct drm_encoder	       encoder;
 	struct drm_connector	       connector;
 
-	/* HW scanout buffer */
-	const struct drm_format_info   *format;
-	unsigned int		       pitch;
-
 	/* HW resources */
 	void __iomem		       *vram;
 	void __iomem		       *mmio;
@@ -76,6 +72,10 @@ struct cirrus_device {
 
 struct cirrus_primary_plane_state {
 	struct drm_shadow_plane_state base;
+
+	/* HW scanout buffer */
+	const struct drm_format_info   *format;
+	unsigned int		       pitch;
 };
 
 static inline struct cirrus_primary_plane_state *
@@ -268,15 +268,14 @@ static void cirrus_mode_set(struct cirrus_device *cirrus,
 }
 
 static void cirrus_format_set(struct cirrus_device *cirrus,
-			      struct drm_framebuffer *fb)
+			      const struct drm_format_info *format)
 {
 	u8 sr07, hdr;
 
 	sr07 = rreg_seq(cirrus, 0x07);
 	sr07 &= 0xe0;
 
-	cirrus->format = cirrus_format(fb);
-	switch (cirrus->format->format) {
+	switch (format->format) {
 	case DRM_FORMAT_C8:
 		sr07 |= 0x11;
 		hdr = 0x00;
@@ -308,20 +307,18 @@ static void cirrus_format_set(struct cirrus_device *cirrus,
 	wreg_hdr(cirrus, hdr);
 }
 
-static void cirrus_pitch_set(struct cirrus_device *cirrus,
-			     struct drm_framebuffer *fb)
+static void cirrus_pitch_set(struct cirrus_device *cirrus, unsigned int pitch)
 {
 	u8 cr13, cr1b;
 
 	/* Program the pitch */
-	cirrus->pitch = cirrus_pitch(fb);
-	cr13 = cirrus->pitch / 8;
+	cr13 = pitch / 8;
 	wreg_crt(cirrus, VGA_CRTC_OFFSET, cr13);
 
 	/* Enable extended blanking and pitch bits, and enable full memory */
 	cr1b = 0x22;
-	cr1b |= (cirrus->pitch >> 7) & 0x10;
-	cr1b |= (cirrus->pitch >> 6) & 0x40;
+	cr1b |= (pitch >> 7) & 0x10;
+	cr1b |= (pitch >> 6) & 0x40;
 	wreg_crt(cirrus, 0x1b, cr1b);
 
 	cirrus_set_start_address(cirrus, 0);
@@ -345,6 +342,8 @@ static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						    struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct cirrus_primary_plane_state *new_primary_plane_state =
+		to_cirrus_primary_plane_state(new_plane_state);
 	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
@@ -371,6 +370,9 @@ static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	else if (pitch * fb->height > CIRRUS_VRAM_SIZE)
 		return -EINVAL;
 
+	new_primary_plane_state->format = cirrus_format(fb);
+	new_primary_plane_state->pitch = pitch;
+
 	return 0;
 }
 
@@ -379,9 +381,15 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 {
 	struct cirrus_device *cirrus = to_cirrus(plane->dev);
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct cirrus_primary_plane_state *primary_plane_state =
+		to_cirrus_primary_plane_state(plane_state);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
+	const struct drm_format_info *format = primary_plane_state->format;
+	unsigned int pitch = primary_plane_state->pitch;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct cirrus_primary_plane_state *old_primary_plane_state =
+		to_cirrus_primary_plane_state(old_plane_state);
 	struct iosys_map vaddr = IOSYS_MAP_INIT_VADDR_IOMEM(cirrus->vram);
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_rect damage;
@@ -393,18 +401,17 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	if (!drm_dev_enter(&cirrus->dev, &idx))
 		return;
 
-	if (cirrus->format != cirrus_format(fb))
-		cirrus_format_set(cirrus, fb);
-	if (cirrus->pitch != cirrus_pitch(fb))
-		cirrus_pitch_set(cirrus, fb);
+	if (old_primary_plane_state->format != format)
+		cirrus_format_set(cirrus, format);
+	if (old_primary_plane_state->pitch != pitch)
+		cirrus_pitch_set(cirrus, pitch);
 
 	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
 	drm_atomic_for_each_plane_damage(&iter, &damage) {
-		unsigned int offset = drm_fb_clip_offset(cirrus->pitch, fb->format, &damage);
+		unsigned int offset = drm_fb_clip_offset(pitch, format, &damage);
 		struct iosys_map dst = IOSYS_MAP_INIT_OFFSET(&vaddr, offset);
 
-		drm_fb_blit(&dst, &cirrus->pitch, cirrus->format->format,
-			    &shadow_plane_state->data[0], fb, &damage);
+		drm_fb_blit(&dst, &pitch, format->format, shadow_plane_state->data, fb, &damage);
 	}
 
 	drm_dev_exit(idx);
@@ -420,6 +427,8 @@ static struct drm_plane_state *
 cirrus_primary_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
 	struct drm_plane_state *plane_state = plane->state;
+	struct cirrus_primary_plane_state *primary_plane_state =
+		to_cirrus_primary_plane_state(plane_state);
 	struct cirrus_primary_plane_state *new_primary_plane_state;
 	struct drm_shadow_plane_state *new_shadow_plane_state;
 
@@ -432,6 +441,8 @@ cirrus_primary_plane_atomic_duplicate_state(struct drm_plane *plane)
 	new_shadow_plane_state = &new_primary_plane_state->base;
 
 	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+	new_primary_plane_state->format = primary_plane_state->format;
+	new_primary_plane_state->pitch = primary_plane_state->pitch;
 
 	return &new_shadow_plane_state->base;
 }
