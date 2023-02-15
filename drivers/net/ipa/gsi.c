@@ -193,17 +193,6 @@ static u32 ch_c_cntxt_0_type_encode(enum ipa_version version,
 	return val | reg_encode(reg, CHTYPE_PROTOCOL_MSB, type);
 }
 
-/* Encode the length of the event channel ring buffer for the
- * EV_CH_E_CNTXT_1 register.
- */
-static u32 ev_ch_e_cntxt_1_length_encode(enum ipa_version version, u32 length)
-{
-	if (version < IPA_VERSION_4_9)
-		return u32_encode_bits(length, GENMASK(15, 0));
-
-	return u32_encode_bits(length, GENMASK(19, 0));
-}
-
 /* Update the GSI IRQ type register with the cached value */
 static void gsi_irq_type_update(struct gsi *gsi, u32 val)
 {
@@ -731,7 +720,6 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct gsi_ring *ring = &evt_ring->ring;
 	const struct reg *reg;
-	size_t size;
 	u32 val;
 
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_0);
@@ -743,8 +731,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_1);
-	size = ring->count * GSI_RING_ELEMENT_SIZE;
-	val = ev_ch_e_cntxt_1_length_encode(gsi->version, size);
+	val = reg_encode(reg, R_LENGTH, ring->count * GSI_RING_ELEMENT_SIZE);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* The context 2 and 3 registers store the low-order and

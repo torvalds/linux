@@ -135,6 +135,7 @@ enum gsi_reg_ch_c_qos_field_id {
 	PREFETCH_MODE,					/* IPA v4.5+ */
 	EMPTY_LVL_THRSHOLD,				/* IPA v4.5+ */
 	DB_IN_BYTES,					/* IPA v4.9+ */
+	LOW_LATENCY_EN,					/* IPA v5.0+ */
 };
 
 /** enum gsi_prefetch_mode - PREFETCH_MODE field in CH_C_QOS */
@@ -153,6 +154,11 @@ enum gsi_reg_ch_c_ev_ch_e_cntxt_0_field_id {
 	EV_INTYPE,
 	EV_CHSTATE,
 	EV_ELEMENT_SIZE,
+};
+
+/* EV_CH_E_CNTXT_1 register */
+enum gsi_reg_ev_ch_c_cntxt_1_field_id {
+	R_LENGTH,
 };
 
 /* EV_CH_E_CNTXT_8 register */
