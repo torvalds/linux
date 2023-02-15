@@ -101,6 +101,10 @@
 #define PIN_IO_INTA_OUT	2
 #define PIN_IO_INTA_HIZ	3
 
+#define OSC_CAP_SEL	GENMASK(1, 0)
+#define OSC_CAP_6000	0x01
+#define OSC_CAP_12500	0x02
+
 #define STOP_EN_STOP	BIT(0)
 
 #define RESET_CPR	0xa4
@@ -116,6 +120,32 @@ struct pcf85x63_config {
 	struct regmap_config regmap;
 	unsigned int num_nvram;
 };
+
+static int pcf85363_load_capacitance(struct pcf85363 *pcf85363, struct device_node *node)
+{
+	u32 load = 7000;
+	u8 value = 0;
+
+	of_property_read_u32(node, "quartz-load-femtofarads", &load);
+
+	switch (load) {
+	default:
+		dev_warn(&pcf85363->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
+			 load);
+		fallthrough;
+	case 7000:
+		break;
+	case 6000:
+		value = OSC_CAP_6000;
+		break;
+	case 12500:
+		value = OSC_CAP_12500;
+		break;
+	}
+
+	return regmap_update_bits(pcf85363->regmap, CTRL_OSCILLATOR,
+				  OSC_CAP_SEL, value);
+}
 
 static int pcf85363_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -372,7 +402,7 @@ static int pcf85363_probe(struct i2c_client *client)
 			.reg_write = pcf85363_nvram_write,
 		},
 	};
-	int ret, i;
+	int ret, i, err;
 
 	if (data)
 		config = data;
@@ -393,6 +423,11 @@ static int pcf85363_probe(struct i2c_client *client)
 	pcf85363->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(pcf85363->rtc))
 		return PTR_ERR(pcf85363->rtc);
+
+	err = pcf85363_load_capacitance(pcf85363, client->dev.of_node);
+	if (err < 0)
+		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
+			 err);
 
 	pcf85363->rtc->ops = &rtc_ops;
 	pcf85363->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
