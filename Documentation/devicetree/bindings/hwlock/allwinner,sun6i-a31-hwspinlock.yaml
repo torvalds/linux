@@ -48,5 +48,6 @@ examples:
         reg = <0x01c18000 0x1000>;
         clocks = <&ccu CLK_BUS_SPINLOCK>;
         resets = <&ccu RST_BUS_SPINLOCK>;
+        #hwlock-cells = <1>;
     };
 ...
