@@ -1268,7 +1268,8 @@ int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
 	struct sk_buff *skb;
 	struct hal_srng *srng;
 	dma_addr_t paddr;
-	u32 cookie, buf_id;
+	u32 cookie;
+	int buf_id;
 
 	srng = &ab->hal.srng_list[buf_ring->refill_buf_ring.ring_id];
 	spin_lock_bh(&srng->lock);
