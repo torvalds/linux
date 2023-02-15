@@ -66,7 +66,9 @@ static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
 			      struct vsp1_entity *prev, unsigned int prev_pad,
 			      struct vsp1_entity *next, unsigned int next_pad)
 {
-	struct v4l2_subdev_format format;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
 	if (!uif) {
@@ -82,8 +84,6 @@ static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
 	prev->sink = uif;
 	prev->sink_pad = UIF_PAD_SINK;
 
-	memset(&format, 0, sizeof(format));
-	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	format.pad = prev_pad;
 
 	ret = v4l2_subdev_call(&prev->subdev, pad, get_fmt, NULL, &format);
@@ -118,8 +118,12 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 				      struct vsp1_entity *uif,
 				      unsigned int brx_input)
 {
-	struct v4l2_subdev_selection sel;
-	struct v4l2_subdev_format format;
+	struct v4l2_subdev_selection sel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	const struct v4l2_rect *crop;
 	int ret;
 
@@ -129,8 +133,6 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	 */
 	crop = &vsp1->drm->inputs[rpf->entity.index].crop;
 
-	memset(&format, 0, sizeof(format));
-	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	format.pad = RWPF_PAD_SINK;
 	format.format.width = crop->width + crop->left;
 	format.format.height = crop->height + crop->top;
@@ -147,8 +149,6 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 		__func__, format.format.width, format.format.height,
 		format.format.code, rpf->entity.index);
 
-	memset(&sel, 0, sizeof(sel));
-	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.pad = RWPF_PAD_SINK;
 	sel.target = V4L2_SEL_TGT_CROP;
 	sel.r = *crop;
