@@ -425,31 +425,28 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 
 	if (args->flags & DRM_XE_MMIO_WRITE) {
 		switch (bits_flag) {
-		case DRM_XE_MMIO_8BIT:
-			return -EINVAL; /* TODO */
-		case DRM_XE_MMIO_16BIT:
-			return -EINVAL; /* TODO */
 		case DRM_XE_MMIO_32BIT:
-			if (XE_IOCTL_ERR(xe, args->value > U32_MAX))
-				return -EINVAL;
+			if (XE_IOCTL_ERR(xe, args->value > U32_MAX)) {
+				ret = -EINVAL;
+				goto exit;
+			}
 			xe_mmio_write32(to_gt(xe), args->addr, args->value);
 			break;
 		case DRM_XE_MMIO_64BIT:
 			xe_mmio_write64(to_gt(xe), args->addr, args->value);
 			break;
 		default:
-			drm_WARN(&xe->drm, 1, "Invalid MMIO bit size");
-			ret = -EINVAL;
+			drm_dbg(&xe->drm, "Invalid MMIO bit size");
+			fallthrough;
+		case DRM_XE_MMIO_8BIT: /* TODO */
+		case DRM_XE_MMIO_16BIT: /* TODO */
+			ret = -ENOTSUPP;
 			goto exit;
 		}
 	}
 
 	if (args->flags & DRM_XE_MMIO_READ) {
 		switch (bits_flag) {
-		case DRM_XE_MMIO_8BIT:
-			return -EINVAL; /* TODO */
-		case DRM_XE_MMIO_16BIT:
-			return -EINVAL; /* TODO */
 		case DRM_XE_MMIO_32BIT:
 			args->value = xe_mmio_read32(to_gt(xe), args->addr);
 			break;
@@ -457,8 +454,11 @@ int xe_mmio_ioctl(struct drm_device *dev, void *data,
 			args->value = xe_mmio_read64(to_gt(xe), args->addr);
 			break;
 		default:
-			drm_WARN(&xe->drm, 1, "Invalid MMIO bit size");
-			ret = -EINVAL;
+			drm_dbg(&xe->drm, "Invalid MMIO bit size");
+			fallthrough;
+		case DRM_XE_MMIO_8BIT: /* TODO */
+		case DRM_XE_MMIO_16BIT: /* TODO */
+			ret = -ENOTSUPP;
 		}
 	}
 
