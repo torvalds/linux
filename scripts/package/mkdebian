@@ -135,29 +135,24 @@ else
 fi
 
 mkdir -p debian/source/
-echo "1.0" > debian/source/format
+echo "3.0 (quilt)" > debian/source/format
 
-# Ugly: ignore anything except .config or debian/
-cat<<'EOF' > debian/source/local-options
-diff-ignore
+{
+	echo "diff-ignore"
+	echo "extend-diff-ignore = .*"
+} > debian/source/local-options
 
-extend-diff-ignore = ^[^.d]
-
-extend-diff-ignore = ^\.[^c]
-extend-diff-ignore = ^\.c($|[^o])
-extend-diff-ignore = ^\.co($|[^n])
-extend-diff-ignore = ^\.con($|[^f])
-extend-diff-ignore = ^\.conf($|[^i])
-extend-diff-ignore = ^\.confi($|[^g])
-extend-diff-ignore = ^\.config.
-
-extend-diff-ignore = ^d($|[^e])
-extend-diff-ignore = ^de($|[^b])
-extend-diff-ignore = ^deb($|[^i])
-extend-diff-ignore = ^debi($|[^a])
-extend-diff-ignore = ^debia($|[^n])
-extend-diff-ignore = ^debian[^/]
-EOF
+# Add .config as a patch
+mkdir -p debian/patches
+{
+	echo "Subject: Add .config"
+	echo "Author: ${maintainer}"
+	echo
+	echo "--- /dev/null"
+	echo "+++ linux/.config"
+	diff -u /dev/null "${KCONFIG_CONFIG}" | tail -n +3
+} > debian/patches/config
+echo config > debian/patches/series
 
 echo $debarch > debian/arch
 extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev:native)"
