@@ -5344,6 +5344,20 @@ pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *dev_priv,
 	}
 }
 
+/* Returns the length up to and including the last differing byte */
+static size_t
+memcmp_diff_len(const u8 *a, const u8 *b, size_t len)
+{
+	int i;
+
+	for (i = len - 1; i >= 0; i--) {
+		if (a[i] != b[i])
+			return i + 1;
+	}
+
+	return 0;
+}
+
 static void
 pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 			    bool fastset, const char *name,
@@ -5353,6 +5367,9 @@ pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 		if (!drm_debug_enabled(DRM_UT_KMS))
 			return;
 
+		/* only dump up to the last difference */
+		len = memcmp_diff_len(a, b, len);
+
 		drm_dbg_kms(&dev_priv->drm,
 			    "fastset mismatch in %s buffer\n", name);
 		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_NONE,
@@ -5360,6 +5377,9 @@ pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_NONE,
 			       16, 0, b, len, false);
 	} else {
+		/* only dump up to the last difference */
+		len = memcmp_diff_len(a, b, len);
+
 		drm_err(&dev_priv->drm, "mismatch in %s buffer\n", name);
 		print_hex_dump(KERN_ERR, "expected: ", DUMP_PREFIX_NONE,
 			       16, 0, a, len, false);
