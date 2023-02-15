@@ -109,7 +109,6 @@
 
 #define IMX290_VMAX_DEFAULT				1125
 
-
 /*
  * The IMX290 pixel array is organized as follows:
  *
@@ -353,6 +352,7 @@ static const s64 imx290_link_freq_2lanes[] = {
 	[FREQ_INDEX_1080P] = 445500000,
 	[FREQ_INDEX_720P] = 297000000,
 };
+
 static const s64 imx290_link_freq_4lanes[] = {
 	[FREQ_INDEX_1080P] = 222750000,
 	[FREQ_INDEX_720P] = 148500000,
@@ -488,7 +488,7 @@ static int __always_unused imx290_read(struct imx290 *imx290, u32 addr, u32 *val
 			      data, (addr >> IMX290_REG_SIZE_SHIFT) & 3);
 	if (ret < 0) {
 		dev_err(imx290->dev, "%u-bit read from 0x%04x failed: %d\n",
-			 ((addr >> IMX290_REG_SIZE_SHIFT) & 3) * 8,
+			((addr >> IMX290_REG_SIZE_SHIFT) & 3) * 8,
 			 addr & IMX290_REG_ADDR_MASK, ret);
 		return ret;
 	}
@@ -511,7 +511,7 @@ static int imx290_write(struct imx290 *imx290, u32 addr, u32 value, int *err)
 			       data, (addr >> IMX290_REG_SIZE_SHIFT) & 3);
 	if (ret < 0) {
 		dev_err(imx290->dev, "%u-bit write to 0x%04x failed: %d\n",
-			 ((addr >> IMX290_REG_SIZE_SHIFT) & 3) * 8,
+			((addr >> IMX290_REG_SIZE_SHIFT) & 3) * 8,
 			 addr & IMX290_REG_ADDR_MASK, ret);
 		if (err)
 			*err = ret;
@@ -777,8 +777,7 @@ static int imx290_start_streaming(struct imx290 *imx290,
 
 	/* Set init register settings */
 	ret = imx290_set_register_array(imx290, imx290_global_init_settings,
-					ARRAY_SIZE(
-						imx290_global_init_settings));
+					ARRAY_SIZE(imx290_global_init_settings));
 	if (ret < 0) {
 		dev_err(imx290->dev, "Could not set init registers\n");
 		return ret;
