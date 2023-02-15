@@ -736,6 +736,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	const struct element *country_elem = NULL;
+	const struct element *ssid;
 	const u8 *country_data;
 	u8 country_datalen;
 #ifdef CONFIG_CFG80211_WEXT
@@ -893,6 +894,22 @@ void __cfg80211_connect_result(struct net_device *dev,
 				   cr->links[link].bss->channel->band,
 				   country_data, country_datalen);
 	kfree(country_data);
+
+	if (!wdev->u.client.ssid_len) {
+		rcu_read_lock();
+		for_each_valid_link(cr, link) {
+			ssid = ieee80211_bss_get_elem(cr->links[link].bss,
+						      WLAN_EID_SSID);
+
+			if (!ssid || !ssid->datalen)
+				continue;
+
+			memcpy(wdev->u.client.ssid, ssid->data, ssid->datalen);
+			wdev->u.client.ssid_len = ssid->datalen;
+			break;
+		}
+		rcu_read_unlock();
+	}
 
 	return;
 out:
