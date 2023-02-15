@@ -329,20 +329,7 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 	iosys_map_set_vaddr_iomem(&dst, cirrus->vram);
 	iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
 
-	if (cirrus->format == fb->format) {
-		drm_fb_memcpy(&dst, fb->pitches, vmap, fb, rect);
-
-	} else if (fb->format->format == DRM_FORMAT_XRGB8888 &&
-		   cirrus->format->format == DRM_FORMAT_RGB565) {
-		drm_fb_xrgb8888_to_rgb565(&dst, &cirrus->pitch, vmap, fb, rect, false);
-
-	} else if (fb->format->format == DRM_FORMAT_XRGB8888 &&
-		   cirrus->format->format == DRM_FORMAT_RGB565) {
-		drm_fb_xrgb8888_to_rgb888(&dst, &cirrus->pitch, vmap, fb, rect);
-
-	} else {
-		WARN_ON_ONCE("cpp mismatch");
-	}
+	drm_fb_blit(&dst, &cirrus->pitch, cirrus->format->format, vmap, fb, rect);
 
 	drm_dev_exit(idx);
 
