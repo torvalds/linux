@@ -2738,7 +2738,7 @@ static int ufs_qcom_update_qos_constraints(struct qos_cpu_group *qcg,
 	return 0;
 }
 
-static void ufs_qcom_qos(struct ufs_hba *hba, int tag, bool is_scsi_cmd)
+static void ufs_qcom_qos(struct ufs_hba *hba, int tag)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct qos_cpu_group *qcg;
@@ -4737,7 +4737,6 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.dbg_register_dump	= ufs_qcom_dump_dbg_regs,
 	.device_reset		= ufs_qcom_device_reset,
 	.config_scaling_param = ufs_qcom_config_scaling_param,
-	.setup_xfer_req         = ufs_qcom_qos,
 	.program_key		= ufs_qcom_ice_program_key,
 	.fixup_dev_quirks       = ufs_qcom_fixup_dev_quirks,
 	.reinit_notify		= ufs_qcom_reinit_notify,
@@ -5009,6 +5008,8 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 	if (lrbp && lrbp->cmd && lrbp->cmd->cmnd[0]) {
 		struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
 		int sz = rq ? blk_rq_sectors(rq) : 0;
+
+		ufs_qcom_qos(hba, lrbp->task_tag);
 
 		if (is_mcq_enabled(hba)) {
 			u32 utag = (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
