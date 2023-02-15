@@ -196,7 +196,3 @@ unsigned int cs35l45_get_clk_freq_id(unsigned int freq)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l45_get_clk_freq_id, SND_SOC_CS35L45_TABLES);
-
-MODULE_DESCRIPTION("ASoC CS35L45 driver tables");
-MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
-MODULE_LICENSE("Dual BSD/GPL");

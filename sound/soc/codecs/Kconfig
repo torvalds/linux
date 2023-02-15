@@ -688,9 +688,6 @@ config SND_SOC_CS35L41_I2C
 	select SND_SOC_CS35L41
 	select REGMAP_I2C
 
-config SND_SOC_CS35L45_TABLES
-	tristate
-
 config SND_SOC_CS35L45
 	tristate
 
@@ -699,7 +696,6 @@ config SND_SOC_CS35L45_SPI
 	depends on SPI_MASTER
 	select REGMAP
 	select REGMAP_SPI
-	select SND_SOC_CS35L45_TABLES
 	select SND_SOC_CS35L45
 	help
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
@@ -710,7 +706,6 @@ config SND_SOC_CS35L45_I2C
 	depends on I2C
 	select REGMAP
 	select REGMAP_I2C
-	select SND_SOC_CS35L45_TABLES
 	select SND_SOC_CS35L45
 	help
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
