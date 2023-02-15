@@ -32,5 +32,6 @@ bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 void intel_print_wm_latency(struct drm_i915_private *i915,
 			    const char *name, const u16 wm[]);
 void intel_wm_init(struct drm_i915_private *i915);
+void intel_wm_debugfs_register(struct drm_i915_private *i915);
 
 #endif /* __INTEL_WM_H__ */
