@@ -185,7 +185,7 @@ static u32 ch_c_cntxt_0_type_encode(enum ipa_version version,
 	u32 val;
 
 	val = reg_encode(reg, CHTYPE_PROTOCOL, type);
-	if (version < IPA_VERSION_4_5)
+	if (version < IPA_VERSION_4_5 || version >= IPA_VERSION_5_0)
 		return val;
 
 	type >>= hweight32(reg_fmask(reg, CHTYPE_PROTOCOL));

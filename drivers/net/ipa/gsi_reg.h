@@ -101,7 +101,7 @@ enum gsi_reg_ch_c_cntxt_0_field_id {
 	CHTYPE_DIR,
 	CH_EE,
 	CHID,
-	CHTYPE_PROTOCOL_MSB,				/* IPA v4.9+ */
+	CHTYPE_PROTOCOL_MSB,				/* IPA v4.5-4.11 */
 	ERINDEX,
 	CHSTATE,
 	ELEMENT_SIZE,
