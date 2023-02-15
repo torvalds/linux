@@ -19911,6 +19911,12 @@ F:	Documentation/devicetree/bindings/clock/starfive,jh7100-*.yaml
 F:	drivers/clk/starfive/clk-starfive-jh7100*
 F:	include/dt-bindings/clock/starfive-jh7100*.h
 
+STARFIVE JH7110 MMC/SD/SDIO DRIVER
+M:	William Qiu <william.qiu@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/mmc/starfive*
+F:	drivers/mmc/host/dw_mmc-starfive.c
+
 STARFIVE JH7100 PINCTRL DRIVER
 M:	Emil Renner Berthing <kernel@esmil.dk>
 L:	linux-gpio@vger.kernel.org
