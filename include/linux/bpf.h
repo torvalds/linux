@@ -363,6 +363,13 @@ static inline void bpf_obj_init(const struct btf_field_offs *foffs, void *obj)
 		memset(obj + foffs->field_off[i], 0, foffs->field_sz[i]);
 }
 
+/* 'dst' must be a temporary buffer and should not point to memory that is being
+ * used in parallel by a bpf program or bpf syscall, otherwise the access from
+ * the bpf program or bpf syscall may be corrupted by the reinitialization,
+ * leading to weird problems. Even 'dst' is newly-allocated from bpf memory
+ * allocator, it is still possible for 'dst' to be used in parallel by a bpf
+ * program or bpf syscall.
+ */
 static inline void check_and_init_map_value(struct bpf_map *map, void *dst)
 {
 	bpf_obj_init(map->field_offs, dst);
