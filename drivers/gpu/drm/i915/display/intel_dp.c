@@ -5256,11 +5256,6 @@ static void intel_edp_backlight_setup(struct intel_dp *intel_dp,
 
 		if (pipe != PIPE_A && pipe != PIPE_B)
 			pipe = PIPE_A;
-
-		drm_dbg_kms(&i915->drm,
-			    "[CONNECTOR:%d:%s] using pipe %c for initial backlight setup\n",
-			    connector->base.base.id, connector->base.name,
-			    pipe_name(pipe));
 	}
 
 	intel_backlight_setup(connector, pipe);

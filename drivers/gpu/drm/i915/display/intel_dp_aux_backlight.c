@@ -273,6 +273,11 @@ intel_dp_aux_hdr_disable_backlight(const struct drm_connector_state *conn_state,
 	panel->backlight.pwm_funcs->disable(conn_state, intel_backlight_invert_pwm_level(connector, 0));
 }
 
+static const char *dpcd_vs_pwm_str(bool aux)
+{
+	return aux ? "DPCD" : "PWM";
+}
+
 static int
 intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pipe)
 {
@@ -282,11 +287,11 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 		&connector->base.display_info.luminance_range;
 	int ret;
 
-	if (panel->backlight.edp.intel.sdr_uses_aux) {
-		drm_dbg_kms(&i915->drm, "SDR backlight is controlled through DPCD\n");
-	} else {
-		drm_dbg_kms(&i915->drm, "SDR backlight is controlled through PWM\n");
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] SDR backlight is controlled through %s\n",
+		    connector->base.base.id, connector->base.name,
+		    dpcd_vs_pwm_str(panel->backlight.edp.intel.sdr_uses_aux));
 
+	if (!panel->backlight.edp.intel.sdr_uses_aux) {
 		ret = panel->backlight.pwm_funcs->setup(connector, pipe);
 		if (ret < 0) {
 			drm_err(&i915->drm,
@@ -303,8 +308,10 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 		panel->backlight.min = 0;
 	}
 
-	drm_dbg_kms(&i915->drm, "Using backlight range %d..%d\n", panel->backlight.min,
-		    panel->backlight.max);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] Using AUX HDR interface for backlight control (range %d..%d)\n",
+		    connector->base.base.id, connector->base.name,
+		    panel->backlight.min, panel->backlight.max);
+
 
 	panel->backlight.level = intel_dp_aux_hdr_get_backlight(connector, pipe);
 	panel->backlight.enabled = panel->backlight.level != 0;
@@ -386,6 +393,13 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 	if (ret < 0)
 		return ret;
 
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] AUX VESA backlight enable is controlled through %s\n",
+		    connector->base.base.id, connector->base.name,
+		    dpcd_vs_pwm_str(panel->backlight.edp.vesa.info.aux_enable));
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] AUX VESA backlight level is controlled through %s\n",
+		    connector->base.base.id, connector->base.name,
+		    dpcd_vs_pwm_str(panel->backlight.edp.vesa.info.aux_set));
+
 	if (!panel->backlight.edp.vesa.info.aux_set || !panel->backlight.edp.vesa.info.aux_enable) {
 		ret = panel->backlight.pwm_funcs->setup(connector, pipe);
 		if (ret < 0) {
@@ -417,6 +431,9 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 			panel->backlight.enabled = false;
 		}
 	}
+
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] Using AUX VESA interface for backlight control\n",
+		    connector->base.base.id, connector->base.name);
 
 	return 0;
 }
