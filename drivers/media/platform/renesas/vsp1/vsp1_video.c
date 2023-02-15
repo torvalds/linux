@@ -62,7 +62,9 @@ vsp1_video_remote_subdev(struct media_pad *local, u32 *pad)
 
 static int vsp1_video_verify_format(struct vsp1_video *video)
 {
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	int ret;
 
@@ -70,7 +72,6 @@ static int vsp1_video_verify_format(struct vsp1_video *video)
 	if (subdev == NULL)
 		return -EINVAL;
 
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret == -ENOIOCTLCMD ? -EINVAL : ret;

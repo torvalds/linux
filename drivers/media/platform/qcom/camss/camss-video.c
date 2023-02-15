@@ -342,7 +342,9 @@ static struct v4l2_subdev *video_remote_subdev(struct camss_video *video,
 static int video_get_subdev_format(struct camss_video *video,
 				   struct v4l2_format *format)
 {
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	u32 pad;
 	int ret;
@@ -353,7 +355,6 @@ static int video_get_subdev_format(struct camss_video *video,
 
 	memset(&fmt, 0, sizeof(fmt));
 	fmt.pad = pad;
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret)

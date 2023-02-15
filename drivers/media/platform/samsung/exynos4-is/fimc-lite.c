@@ -765,7 +765,12 @@ static int fimc_lite_s_fmt_mplane(struct file *file, void *priv,
 static int fimc_pipeline_validate(struct fimc_lite *fimc)
 {
 	struct v4l2_subdev *sd = &fimc->subdev;
-	struct v4l2_subdev_format sink_fmt, src_fmt;
+	struct v4l2_subdev_format sink_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_subdev_format src_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct media_pad *pad;
 	int ret;
 
@@ -782,7 +787,6 @@ static int fimc_pipeline_validate(struct fimc_lite *fimc)
 			sink_fmt.format.code = fimc->inp_frame.fmt->mbus_code;
 		} else {
 			sink_fmt.pad = pad->index;
-			sink_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 			ret = v4l2_subdev_call(sd, pad, get_fmt, NULL,
 					       &sink_fmt);
 			if (ret < 0 && ret != -ENOIOCTLCMD)
@@ -795,7 +799,6 @@ static int fimc_pipeline_validate(struct fimc_lite *fimc)
 
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 		src_fmt.pad = pad->index;
-		src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &src_fmt);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return -EPIPE;

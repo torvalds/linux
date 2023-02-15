@@ -190,7 +190,9 @@ static int camif_register_sensor(struct camif_dev *camif)
 	struct s3c_camif_sensor_info *sensor = &camif->pdata.sensor;
 	struct v4l2_device *v4l2_dev = &camif->v4l2_dev;
 	struct i2c_adapter *adapter;
-	struct v4l2_subdev_format format;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *sd;
 	int ret;
 
@@ -220,7 +222,6 @@ static int camif_register_sensor(struct camif_dev *camif)
 
 	/* Get initial pixel format and set it at the camif sink pad */
 	format.pad = 0;
-	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &format);
 
 	if (ret < 0)

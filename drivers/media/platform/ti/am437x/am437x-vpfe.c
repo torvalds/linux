@@ -1285,12 +1285,12 @@ static int __subdev_get_format(struct vpfe_device *vpfe,
 			       struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_subdev *sd = vpfe->current_subdev->sd;
-	struct v4l2_subdev_format sd_fmt;
+	struct v4l2_subdev_format sd_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad = 0,
+	};
 	struct v4l2_mbus_framefmt *mbus_fmt = &sd_fmt.format;
 	int ret;
-
-	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	sd_fmt.pad = 0;
 
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sd_fmt);
 	if (ret)
@@ -1309,12 +1309,13 @@ static int __subdev_set_format(struct vpfe_device *vpfe,
 			       struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_subdev *sd = vpfe->current_subdev->sd;
-	struct v4l2_subdev_format sd_fmt;
+	struct v4l2_subdev_format sd_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad = 0,
+	};
 	struct v4l2_mbus_framefmt *mbus_fmt = &sd_fmt.format;
 	int ret;
 
-	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	sd_fmt.pad = 0;
 	*mbus_fmt = *fmt;
 
 	ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &sd_fmt);
@@ -1393,7 +1394,9 @@ static int vpfe_try_fmt(struct file *file, void *priv,
 	struct vpfe_device *vpfe = video_drvdata(file);
 	struct v4l2_subdev *sd = vpfe->current_subdev->sd;
 	const struct vpfe_fmt *fmt;
-	struct v4l2_subdev_frame_size_enum fse;
+	struct v4l2_subdev_frame_size_enum fse = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret, found;
 
 	fmt = find_format_by_pix(vpfe, f->fmt.pix.pixelformat);
@@ -1412,7 +1415,6 @@ static int vpfe_try_fmt(struct file *file, void *priv,
 	found = false;
 	fse.pad = 0;
 	fse.code = fmt->code;
-	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	for (fse.index = 0; ; fse.index++) {
 		ret = v4l2_subdev_call(sd, pad, enum_frame_size,
 				       NULL, &fse);
