@@ -106,11 +106,12 @@ static u32 rockchip_clock_pvtm_get_value(struct rockchip_clock_pvtm *pvtm,
 	rockchip_clock_pvtm_delay(time_us);
 
 	check_cnt = 100;
-	while (check_cnt--) {
+	while (check_cnt) {
 		regmap_read(pvtm->grf, info->sta, &sta);
 		if (sta & 0x1)
 			break;
 		udelay(4);
+		check_cnt--;
 	}
 
 	if (check_cnt) {
