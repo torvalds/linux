@@ -50,6 +50,8 @@ static int ap_queue_enable_irq(struct ap_queue *aq, void *ind)
 	qirqctrl.ir = 1;
 	qirqctrl.isc = AP_ISC;
 	status = ap_aqic(aq->qid, qirqctrl, virt_to_phys(ind));
+	if (status.async)
+		return -EPERM;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_OTHERWISE_CHANGED:
@@ -96,6 +98,8 @@ int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen)
 	struct ap_queue_status status;
 
 	status = __ap_send(qid, psmid, msg, msglen, 0);
+	if (status.async)
+		return -EPERM;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -117,6 +121,8 @@ int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen)
 	if (!msg)
 		return -EINVAL;
 	status = ap_dqap(qid, psmid, msg, msglen, NULL, NULL, NULL);
+	if (status.async)
+		return -EPERM;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -225,6 +231,8 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 	if (!aq->reply)
 		return AP_SM_WAIT_NONE;
 	status = ap_sm_recv(aq);
+	if (status.async)
+		return AP_SM_WAIT_NONE;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		if (aq->queue_count > 0) {
@@ -276,6 +284,8 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 	status = __ap_send(qid, ap_msg->psmid,
 			   ap_msg->msg, ap_msg->len,
 			   ap_msg->flags & AP_MSG_FLAG_SPECIAL);
+	if (status.async)
+		return AP_SM_WAIT_NONE;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		aq->queue_count = max_t(int, 1, aq->queue_count + 1);
@@ -338,6 +348,8 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	struct ap_queue_status status;
 
 	status = ap_rapq(aq->qid, aq->rapq_fbit);
+	if (status.async)
+		return AP_SM_WAIT_NONE;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:

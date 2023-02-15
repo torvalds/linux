@@ -342,11 +342,14 @@ EXPORT_SYMBOL(ap_test_config_ctrl_domain);
 
 /*
  * ap_queue_info(): Check and get AP queue info.
- * Returns true if TAPQ succeeded and the info is filled or
- * false otherwise.
+ * Returns: 1 if APQN exists and info is filled,
+ *	    0 if APQN seems to exit but there is no info
+ *	      available (eg. caused by an asynch pending error)
+ *	   -1 invalid APQN, TAPQ error or AP queue status which
+ *	      indicates there is no APQN.
  */
-static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
-			  int *q_depth, int *q_ml, bool *q_decfg, bool *q_cstop)
+static int ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
+			 int *q_depth, int *q_ml, bool *q_decfg, bool *q_cstop)
 {
 	struct ap_queue_status status;
 	struct ap_tapq_gr2 tapq_info;
@@ -356,10 +359,15 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 	/* make sure we don't run into a specifiation exception */
 	if (AP_QID_CARD(qid) > ap_max_adapter_id ||
 	    AP_QID_QUEUE(qid) > ap_max_domain_id)
-		return false;
+		return -1;
 
 	/* call TAPQ on this APQN */
 	status = ap_test_queue(qid, ap_apft_available(), &tapq_info);
+
+	/* handle pending async error with return 'no info available' */
+	if (status.async)
+		return 0;
+
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
@@ -372,7 +380,7 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 		 * there is at least one of the mode bits set.
 		 */
 		if (WARN_ON_ONCE(!tapq_info.value))
-			return false;
+			return 0;
 		*q_type = tapq_info.at;
 		*q_fac = tapq_info.fac;
 		*q_depth = tapq_info.qd;
@@ -396,12 +404,12 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 		default:
 			break;
 		}
-		return true;
+		return 1;
 	default:
 		/*
 		 * A response code which indicates, there is no info available.
 		 */
-		return false;
+		return -1;
 	}
 }
 
@@ -1798,12 +1806,12 @@ static inline void ap_scan_rm_card_dev_and_queue_devs(struct ap_card *ac)
  */
 static inline void ap_scan_domains(struct ap_card *ac)
 {
-	bool decfg, chkstop;
-	ap_qid_t qid;
-	unsigned int func;
-	struct device *dev;
-	struct ap_queue *aq;
 	int rc, dom, depth, type, ml;
+	bool decfg, chkstop;
+	struct ap_queue *aq;
+	struct device *dev;
+	unsigned int func;
+	ap_qid_t qid;
 
 	/*
 	 * Go through the configuration for the domains and compare them
@@ -1822,20 +1830,24 @@ static inline void ap_scan_domains(struct ap_card *ac)
 				AP_DBF_INFO("%s(%d,%d) not in config anymore, rm queue dev\n",
 					    __func__, ac->id, dom);
 				device_unregister(dev);
-				put_device(dev);
 			}
-			continue;
+			goto put_dev_and_continue;
 		}
 		/* domain is valid, get info from this APQN */
-		if (!ap_queue_info(qid, &type, &func, &depth,
-				   &ml, &decfg, &chkstop)) {
-			if (aq) {
+		rc = ap_queue_info(qid, &type, &func, &depth,
+				   &ml, &decfg, &chkstop);
+		switch (rc) {
+		case -1:
+			if (dev) {
 				AP_DBF_INFO("%s(%d,%d) queue_info() failed, rm queue dev\n",
 					    __func__, ac->id, dom);
 				device_unregister(dev);
-				put_device(dev);
 			}
-			continue;
+			fallthrough;
+		case 0:
+			goto put_dev_and_continue;
+		default:
+			break;
 		}
 		/* if no queue device exists, create a new one */
 		if (!aq) {
@@ -1951,12 +1963,12 @@ put_dev_and_continue:
  */
 static inline void ap_scan_adapter(int ap)
 {
-	bool decfg, chkstop;
-	ap_qid_t qid;
-	unsigned int func;
-	struct device *dev;
-	struct ap_card *ac;
 	int rc, dom, depth, type, comp_type, ml;
+	bool decfg, chkstop;
+	struct ap_card *ac;
+	struct device *dev;
+	unsigned int func;
+	ap_qid_t qid;
 
 	/* Is there currently a card device for this adapter ? */
 	dev = bus_find_device(&ap_bus_type, NULL,
@@ -1986,11 +1998,11 @@ static inline void ap_scan_adapter(int ap)
 		if (ap_test_config_usage_domain(dom)) {
 			qid = AP_MKQID(ap, dom);
 			if (ap_queue_info(qid, &type, &func, &depth,
-					  &ml, &decfg, &chkstop))
+					  &ml, &decfg, &chkstop) > 0)
 				break;
 		}
 	if (dom > ap_max_domain_id) {
-		/* Could not find a valid APQN for this adapter */
+		/* Could not find one valid APQN for this adapter */
 		if (ac) {
 			AP_DBF_INFO("%s(%d) no type info (no APQN found), rm card and queue devs\n",
 				    __func__, ap);
