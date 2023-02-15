@@ -868,13 +868,18 @@ pci_init:
 	rc = hl_fw_read_preboot_status(hdev);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
+			/* we are already on failure flow, so don't check if hw_fini fails. */
 			hdev->asic_funcs->hw_fini(hdev, true, false);
 		goto pci_fini;
 	}
 
 	if (gaudi_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
 		dev_dbg(hdev->dev, "H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true, false);
+		rc = hdev->asic_funcs->hw_fini(hdev, true, false);
+		if (rc) {
+			dev_err(hdev->dev, "failed to reset HW in dirty state (%d)\n", rc);
+			goto pci_fini;
+		}
 	}
 
 	return 0;
