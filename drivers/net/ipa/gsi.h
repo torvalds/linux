@@ -140,8 +140,7 @@ struct gsi_evt_ring {
 struct gsi {
 	struct device *dev;		/* Same as IPA device */
 	enum ipa_version version;
-	void __iomem *virt_raw;		/* I/O mapped address range */
-	void __iomem *virt;		/* Adjusted for most registers */
+	void __iomem *virt;		/* I/O mapped registers */
 	const struct regs *regs;
 
 	u32 irq;

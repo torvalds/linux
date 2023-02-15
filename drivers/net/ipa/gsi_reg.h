@@ -351,8 +351,7 @@ const struct reg *gsi_reg(struct gsi *gsi, enum gsi_reg_id reg_id);
  * @pdev:	GSI (IPA) platform device
  *
  * Initialize GSI registers, including looking up and I/O mapping
- * the "gsi" memory space.  This function sets gsi->virt_raw and
- * gsi->virt.
+ * the "gsi" memory space.
  */
 int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev);
 

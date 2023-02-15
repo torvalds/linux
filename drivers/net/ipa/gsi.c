@@ -1999,12 +1999,11 @@ static int gsi_irq_setup(struct gsi *gsi)
 
 	/* The inter-EE interrupts are not supported for IPA v3.0-v3.1 */
 	if (gsi->version > IPA_VERSION_3_1) {
-		/* These registers are in the non-adjusted address range */
 		reg = gsi_reg(gsi, INTER_EE_SRC_CH_IRQ_MSK);
-		iowrite32(0, gsi->virt_raw + reg_offset(reg));
+		iowrite32(0, gsi->virt + reg_offset(reg));
 
 		reg = gsi_reg(gsi, INTER_EE_SRC_EV_CH_IRQ_MSK);
-		iowrite32(0, gsi->virt_raw + reg_offset(reg));
+		iowrite32(0, gsi->virt + reg_offset(reg));
 	}
 
 	reg = gsi_reg(gsi, CNTXT_GSI_IRQ_EN);
