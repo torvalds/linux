@@ -5115,6 +5115,8 @@ static int ufshcd_slave_configure(struct scsi_device *sdev)
 
 	ufshcd_crypto_register(hba, q);
 
+	trace_android_vh_ufs_update_sdev(sdev);
+
 	return 0;
 }
 
