@@ -50,6 +50,8 @@
 #define ACPI_SIG_S3PT           "S3PT"	/* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"	/* PCC Shared Memory Region */
 
+#define ACPI_SIG_NBFT		"NBFT"	/* NVMe Boot Firmware Table */
+
 /* Reserved table signatures */
 
 #define ACPI_SIG_MATR           "MATR"	/* Memory Address Translation Table */

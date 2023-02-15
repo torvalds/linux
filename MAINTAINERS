@@ -361,6 +361,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
 F:	Documentation/ABI/testing/configfs-acpi
 F:	Documentation/ABI/testing/sysfs-bus-acpi
 F:	Documentation/firmware-guide/acpi/
+F:	arch/x86/kernel/acpi/
+F:	arch/x86/pci/acpi.c
 F:	drivers/acpi/
 F:	drivers/pci/*/*acpi*
 F:	drivers/pci/*acpi*
@@ -20105,7 +20107,8 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 B:	https://bugzilla.kernel.org
 F:	Documentation/power/
-F:	arch/x86/kernel/acpi/
+F:	arch/x86/kernel/acpi/sleep*
+F:	arch/x86/kernel/acpi/wakeup*
 F:	drivers/base/power/
 F:	include/linux/freezer.h
 F:	include/linux/pm.h
