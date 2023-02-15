@@ -616,6 +616,10 @@ static int error_type_set(void *data, u64 val)
 	u32 available_error_type = 0;
 	u32 tval, vendor;
 
+	/* Only low 32 bits for error type are valid */
+	if (val & GENMASK_ULL(63, 32))
+		return -EINVAL;
+
 	/*
 	 * Vendor defined types have 0x80000000 bit set, and
 	 * are not enumerated by ACPI_EINJ_GET_ERROR_TYPE
