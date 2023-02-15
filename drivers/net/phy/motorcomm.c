@@ -1533,10 +1533,10 @@ static int yt8531_config_init(struct phy_device *phydev)
 static void yt8531_link_change_notify(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
+	bool tx_clk_1000_inverted = false;
+	bool tx_clk_100_inverted = false;
+	bool tx_clk_10_inverted = false;
 	bool tx_clk_adj_enabled = false;
-	bool tx_clk_1000_inverted;
-	bool tx_clk_100_inverted;
-	bool tx_clk_10_inverted;
 	u16 val = 0;
 	int ret;
 
