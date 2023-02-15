@@ -582,18 +582,14 @@ DECLARE_IDTENTRY_RAW(X86_TRAP_MC,	xenpv_exc_machine_check);
 
 /* NMI */
 
-#if defined(CONFIG_X86_64) && IS_ENABLED(CONFIG_KVM_INTEL)
+#if IS_ENABLED(CONFIG_KVM_INTEL)
 /*
- * Special NOIST entry point for VMX which invokes this on the kernel
- * stack. asm_exc_nmi() requires an IST to work correctly vs. the NMI
- * 'executing' marker.
- *
- * On 32bit this just uses the regular NMI entry point because 32-bit does
- * not have ISTs.
+ * Special entry point for VMX which invokes this on the kernel stack, even for
+ * 64-bit, i.e. without using an IST.  asm_exc_nmi() requires an IST to work
+ * correctly vs. the NMI 'executing' marker.  Used for 32-bit kernels as well
+ * to avoid more ifdeffery.
  */
-DECLARE_IDTENTRY(X86_TRAP_NMI,		exc_nmi_noist);
-#else
-#define asm_exc_nmi_noist		asm_exc_nmi
+DECLARE_IDTENTRY(X86_TRAP_NMI,		exc_nmi_kvm_vmx);
 #endif
 
 DECLARE_IDTENTRY_NMI(X86_TRAP_NMI,	exc_nmi);

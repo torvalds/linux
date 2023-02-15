@@ -196,7 +196,7 @@ static __always_inline void evmcs_write64(unsigned long field, u64 value)
 	current_evmcs->hv_clean_fields &= ~clean_field;
 }
 
-static inline void evmcs_write32(unsigned long field, u32 value)
+static __always_inline void evmcs_write32(unsigned long field, u32 value)
 {
 	u16 clean_field;
 	int offset = get_evmcs_offset(field, &clean_field);
@@ -208,7 +208,7 @@ static inline void evmcs_write32(unsigned long field, u32 value)
 	current_evmcs->hv_clean_fields &= ~clean_field;
 }
 
-static inline void evmcs_write16(unsigned long field, u16 value)
+static __always_inline void evmcs_write16(unsigned long field, u16 value)
 {
 	u16 clean_field;
 	int offset = get_evmcs_offset(field, &clean_field);
@@ -220,7 +220,7 @@ static inline void evmcs_write16(unsigned long field, u16 value)
 	current_evmcs->hv_clean_fields &= ~clean_field;
 }
 
-static inline u64 evmcs_read64(unsigned long field)
+static __always_inline u64 evmcs_read64(unsigned long field)
 {
 	int offset = get_evmcs_offset(field, NULL);
 
@@ -230,7 +230,7 @@ static inline u64 evmcs_read64(unsigned long field)
 	return *(u64 *)((char *)current_evmcs + offset);
 }
 
-static inline u32 evmcs_read32(unsigned long field)
+static __always_inline u32 evmcs_read32(unsigned long field)
 {
 	int offset = get_evmcs_offset(field, NULL);
 
@@ -240,7 +240,7 @@ static inline u32 evmcs_read32(unsigned long field)
 	return *(u32 *)((char *)current_evmcs + offset);
 }
 
-static inline u16 evmcs_read16(unsigned long field)
+static __always_inline u16 evmcs_read16(unsigned long field)
 {
 	int offset = get_evmcs_offset(field, NULL);
 
@@ -248,16 +248,6 @@ static inline u16 evmcs_read16(unsigned long field)
 		return 0;
 
 	return *(u16 *)((char *)current_evmcs + offset);
-}
-
-static inline void evmcs_touch_msr_bitmap(void)
-{
-	if (unlikely(!current_evmcs))
-		return;
-
-	if (current_evmcs->hv_enlightenments_control.msr_bitmap)
-		current_evmcs->hv_clean_fields &=
-			~HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
 }
 
 static inline void evmcs_load(u64 phys_addr)
@@ -274,13 +264,12 @@ static inline void evmcs_load(u64 phys_addr)
 void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf);
 #else /* !IS_ENABLED(CONFIG_HYPERV) */
 static __always_inline void evmcs_write64(unsigned long field, u64 value) {}
-static inline void evmcs_write32(unsigned long field, u32 value) {}
-static inline void evmcs_write16(unsigned long field, u16 value) {}
-static inline u64 evmcs_read64(unsigned long field) { return 0; }
-static inline u32 evmcs_read32(unsigned long field) { return 0; }
-static inline u16 evmcs_read16(unsigned long field) { return 0; }
+static __always_inline void evmcs_write32(unsigned long field, u32 value) {}
+static __always_inline void evmcs_write16(unsigned long field, u16 value) {}
+static __always_inline u64 evmcs_read64(unsigned long field) { return 0; }
+static __always_inline u32 evmcs_read32(unsigned long field) { return 0; }
+static __always_inline u16 evmcs_read16(unsigned long field) { return 0; }
 static inline void evmcs_load(u64 phys_addr) {}
-static inline void evmcs_touch_msr_bitmap(void) {}
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
 
 #define EVMPTR_INVALID (-1ULL)
