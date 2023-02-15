@@ -372,6 +372,7 @@ enum hl_cs_type {
 	CS_RESERVE_SIGNALS,
 	CS_UNRESERVE_SIGNALS,
 	CS_TYPE_ENGINE_CORE,
+	CS_TYPE_ENGINES,
 	CS_TYPE_FLUSH_PCI_HBW_WRITES,
 };
 
@@ -644,7 +645,8 @@ struct hl_hints_range {
  *                                      which the property supports_user_set_page_size is true
  *                                      (i.e. the DRAM supports multiple page sizes), otherwise
  *                                      it will shall  be equal to dram_page_size.
- * @num_engine_cores: number of engine cpu cores
+ * @num_engine_cores: number of engine cpu cores.
+ * @max_num_of_engines: maximum number of all engines in the ASIC.
  * @num_of_special_blocks: special_blocks array size.
  * @glbl_err_cause_num: global err cause number.
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
@@ -695,6 +697,7 @@ struct hl_hints_range {
  * @supports_user_set_page_size: true if user can set the allocation page size.
  * @dma_mask: the dma mask to be set for this device
  * @supports_advanced_cpucp_rc: true if new cpucp opcodes are supported.
+ * @supports_engine_modes: true if changing engines/engine_cores modes is supported.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -773,6 +776,7 @@ struct asic_fixed_properties {
 	u32				xbar_edge_enabled_mask;
 	u32				device_mem_alloc_default_page_size;
 	u32				num_engine_cores;
+	u32				max_num_of_engines;
 	u32				num_of_special_blocks;
 	u32				glbl_err_cause_num;
 	u32				hbw_flush_reg;
@@ -810,6 +814,7 @@ struct asic_fixed_properties {
 	u8				supports_user_set_page_size;
 	u8				dma_mask;
 	u8				supports_advanced_cpucp_rc;
+	u8				supports_engine_modes;
 };
 
 /**
@@ -1564,6 +1569,7 @@ struct engines_data {
  * @access_dev_mem: access device memory
  * @set_dram_bar_base: set the base of the DRAM BAR
  * @set_engine_cores: set a config command to engine cores
+ * @set_engines: set a config command to user engines
  * @send_device_activity: indication to FW about device availability
  * @set_dram_properties: set DRAM related properties.
  * @set_binning_masks: set binning/enable masks for all relevant components.
@@ -1703,6 +1709,8 @@ struct hl_asic_funcs {
 	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
 	int (*set_engine_cores)(struct hl_device *hdev, u32 *core_ids,
 					u32 num_cores, u32 core_command);
+	int (*set_engines)(struct hl_device *hdev, u32 *engine_ids,
+					u32 num_engines, u32 engine_command);
 	int (*send_device_activity)(struct hl_device *hdev, bool open);
 	int (*set_dram_properties)(struct hl_device *hdev);
 	int (*set_binning_masks)(struct hl_device *hdev);
@@ -1826,7 +1834,7 @@ struct hl_cs_outcome_store {
  * @hpriv: pointer to the private (Kernel Driver) data of the process (fd).
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
- *		this hits 0l. It is incremented on CS and CS_WAIT.
+ *		this hits 0. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of hl fence objects representing pending CS.
  * @outcome_store: storage data structure used to remember outcomes of completed
  *                 command submissions for a long time after CS id wraparound.

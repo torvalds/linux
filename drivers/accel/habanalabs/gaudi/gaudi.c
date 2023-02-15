@@ -656,6 +656,7 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GAUDI_EVENT_SIZE;
+	prop->max_num_of_engines = GAUDI_ENGINE_ID_SIZE;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
 	set_default_power_values(hdev);

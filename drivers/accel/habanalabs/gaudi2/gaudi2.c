@@ -1714,6 +1714,34 @@ static const u32 gaudi2_tpc_cfg_blocks_bases[TPC_ID_SIZE] = {
 	[TPC_ID_DCORE0_TPC6] = mmDCORE0_TPC6_CFG_BASE,
 };
 
+static const u32 gaudi2_tpc_eml_cfg_blocks_bases[TPC_ID_SIZE] = {
+	[TPC_ID_DCORE0_TPC0] = mmDCORE0_TPC0_EML_CFG_BASE,
+	[TPC_ID_DCORE0_TPC1] = mmDCORE0_TPC1_EML_CFG_BASE,
+	[TPC_ID_DCORE0_TPC2] = mmDCORE0_TPC2_EML_CFG_BASE,
+	[TPC_ID_DCORE0_TPC3] = mmDCORE0_TPC3_EML_CFG_BASE,
+	[TPC_ID_DCORE0_TPC4] = mmDCORE0_TPC4_EML_CFG_BASE,
+	[TPC_ID_DCORE0_TPC5] = mmDCORE0_TPC5_EML_CFG_BASE,
+	[TPC_ID_DCORE1_TPC0] = mmDCORE1_TPC0_EML_CFG_BASE,
+	[TPC_ID_DCORE1_TPC1] = mmDCORE1_TPC1_EML_CFG_BASE,
+	[TPC_ID_DCORE1_TPC2] = mmDCORE1_TPC2_EML_CFG_BASE,
+	[TPC_ID_DCORE1_TPC3] = mmDCORE1_TPC3_EML_CFG_BASE,
+	[TPC_ID_DCORE1_TPC4] = mmDCORE1_TPC4_EML_CFG_BASE,
+	[TPC_ID_DCORE1_TPC5] = mmDCORE1_TPC5_EML_CFG_BASE,
+	[TPC_ID_DCORE2_TPC0] = mmDCORE2_TPC0_EML_CFG_BASE,
+	[TPC_ID_DCORE2_TPC1] = mmDCORE2_TPC1_EML_CFG_BASE,
+	[TPC_ID_DCORE2_TPC2] = mmDCORE2_TPC2_EML_CFG_BASE,
+	[TPC_ID_DCORE2_TPC3] = mmDCORE2_TPC3_EML_CFG_BASE,
+	[TPC_ID_DCORE2_TPC4] = mmDCORE2_TPC4_EML_CFG_BASE,
+	[TPC_ID_DCORE2_TPC5] = mmDCORE2_TPC5_EML_CFG_BASE,
+	[TPC_ID_DCORE3_TPC0] = mmDCORE3_TPC0_EML_CFG_BASE,
+	[TPC_ID_DCORE3_TPC1] = mmDCORE3_TPC1_EML_CFG_BASE,
+	[TPC_ID_DCORE3_TPC2] = mmDCORE3_TPC2_EML_CFG_BASE,
+	[TPC_ID_DCORE3_TPC3] = mmDCORE3_TPC3_EML_CFG_BASE,
+	[TPC_ID_DCORE3_TPC4] = mmDCORE3_TPC4_EML_CFG_BASE,
+	[TPC_ID_DCORE3_TPC5] = mmDCORE3_TPC5_EML_CFG_BASE,
+	[TPC_ID_DCORE0_TPC6] = mmDCORE0_TPC6_EML_CFG_BASE,
+};
+
 const u32 gaudi2_rot_blocks_bases[ROTATOR_ID_SIZE] = {
 	[ROTATOR_ID_0] = mmROT0_BASE,
 	[ROTATOR_ID_1] = mmROT1_BASE
@@ -1750,6 +1778,56 @@ static const u32 gaudi2_tpc_id_to_queue_id[TPC_ID_SIZE] = {
 static const u32 gaudi2_rot_id_to_queue_id[ROTATOR_ID_SIZE] = {
 	[ROTATOR_ID_0] = GAUDI2_QUEUE_ID_ROT_0_0,
 	[ROTATOR_ID_1] = GAUDI2_QUEUE_ID_ROT_1_0,
+};
+
+static const u32 gaudi2_tpc_engine_id_to_tpc_id[] = {
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_0] = TPC_ID_DCORE0_TPC0,
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_1] = TPC_ID_DCORE0_TPC1,
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_2] = TPC_ID_DCORE0_TPC2,
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_3] = TPC_ID_DCORE0_TPC3,
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_4] = TPC_ID_DCORE0_TPC4,
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_5] = TPC_ID_DCORE0_TPC5,
+	[GAUDI2_DCORE1_ENGINE_ID_TPC_0] = TPC_ID_DCORE1_TPC0,
+	[GAUDI2_DCORE1_ENGINE_ID_TPC_1] = TPC_ID_DCORE1_TPC1,
+	[GAUDI2_DCORE1_ENGINE_ID_TPC_2] = TPC_ID_DCORE1_TPC2,
+	[GAUDI2_DCORE1_ENGINE_ID_TPC_3] = TPC_ID_DCORE1_TPC3,
+	[GAUDI2_DCORE1_ENGINE_ID_TPC_4] = TPC_ID_DCORE1_TPC4,
+	[GAUDI2_DCORE1_ENGINE_ID_TPC_5] = TPC_ID_DCORE1_TPC5,
+	[GAUDI2_DCORE2_ENGINE_ID_TPC_0] = TPC_ID_DCORE2_TPC0,
+	[GAUDI2_DCORE2_ENGINE_ID_TPC_1] = TPC_ID_DCORE2_TPC1,
+	[GAUDI2_DCORE2_ENGINE_ID_TPC_2] = TPC_ID_DCORE2_TPC2,
+	[GAUDI2_DCORE2_ENGINE_ID_TPC_3] = TPC_ID_DCORE2_TPC3,
+	[GAUDI2_DCORE2_ENGINE_ID_TPC_4] = TPC_ID_DCORE2_TPC4,
+	[GAUDI2_DCORE2_ENGINE_ID_TPC_5] = TPC_ID_DCORE2_TPC5,
+	[GAUDI2_DCORE3_ENGINE_ID_TPC_0] = TPC_ID_DCORE3_TPC0,
+	[GAUDI2_DCORE3_ENGINE_ID_TPC_1] = TPC_ID_DCORE3_TPC1,
+	[GAUDI2_DCORE3_ENGINE_ID_TPC_2] = TPC_ID_DCORE3_TPC2,
+	[GAUDI2_DCORE3_ENGINE_ID_TPC_3] = TPC_ID_DCORE3_TPC3,
+	[GAUDI2_DCORE3_ENGINE_ID_TPC_4] = TPC_ID_DCORE3_TPC4,
+	[GAUDI2_DCORE3_ENGINE_ID_TPC_5] = TPC_ID_DCORE3_TPC5,
+	/* the PCI TPC is placed last (mapped liked HW) */
+	[GAUDI2_DCORE0_ENGINE_ID_TPC_6] = TPC_ID_DCORE0_TPC6,
+};
+
+static const u32 gaudi2_mme_engine_id_to_mme_id[] = {
+	[GAUDI2_DCORE0_ENGINE_ID_MME] = MME_ID_DCORE0,
+	[GAUDI2_DCORE1_ENGINE_ID_MME] = MME_ID_DCORE1,
+	[GAUDI2_DCORE2_ENGINE_ID_MME] = MME_ID_DCORE2,
+	[GAUDI2_DCORE3_ENGINE_ID_MME] = MME_ID_DCORE3,
+};
+
+static const u32 gaudi2_edma_engine_id_to_edma_id[] = {
+	[GAUDI2_ENGINE_ID_PDMA_0] = DMA_CORE_ID_PDMA0,
+	[GAUDI2_ENGINE_ID_PDMA_1] = DMA_CORE_ID_PDMA1,
+	[GAUDI2_DCORE0_ENGINE_ID_EDMA_0] = DMA_CORE_ID_EDMA0,
+	[GAUDI2_DCORE0_ENGINE_ID_EDMA_1] = DMA_CORE_ID_EDMA1,
+	[GAUDI2_DCORE1_ENGINE_ID_EDMA_0] = DMA_CORE_ID_EDMA2,
+	[GAUDI2_DCORE1_ENGINE_ID_EDMA_1] = DMA_CORE_ID_EDMA3,
+	[GAUDI2_DCORE2_ENGINE_ID_EDMA_0] = DMA_CORE_ID_EDMA4,
+	[GAUDI2_DCORE2_ENGINE_ID_EDMA_1] = DMA_CORE_ID_EDMA5,
+	[GAUDI2_DCORE3_ENGINE_ID_EDMA_0] = DMA_CORE_ID_EDMA6,
+	[GAUDI2_DCORE3_ENGINE_ID_EDMA_1] = DMA_CORE_ID_EDMA7,
+	[GAUDI2_ENGINE_ID_KDMA] = DMA_CORE_ID_KDMA,
 };
 
 const u32 edma_stream_base[NUM_OF_EDMA_PER_DCORE * NUM_OF_DCORES] = {
@@ -2026,6 +2104,12 @@ static void gaudi2_set_arc_id_cap(struct hl_device *hdev, u64 arc_id);
 static void gaudi2_memset_device_lbw(struct hl_device *hdev, u32 addr, u32 size, u32 val);
 static int gaudi2_send_job_to_kdma(struct hl_device *hdev, u64 src_addr, u64 dst_addr, u32 size,
 										bool is_memset);
+static bool gaudi2_get_tpc_idle_status(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+		struct engines_data *e);
+static bool gaudi2_get_mme_idle_status(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+		struct engines_data *e);
+static bool gaudi2_get_edma_idle_status(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+		struct engines_data *e);
 static u64 gaudi2_mmu_scramble_addr(struct hl_device *hdev, u64 raw_addr);
 
 static void gaudi2_init_scrambler_hbm(struct hl_device *hdev)
@@ -2326,10 +2410,13 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 		prop->pmmu_huge.end_addr = VA_HOST_SPACE_HPAGE_END;
 	}
 
+	prop->max_num_of_engines = GAUDI2_ENGINE_ID_SIZE;
 	prop->num_engine_cores = CPU_ID_MAX;
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GAUDI2_EVENT_SIZE;
+
+	prop->supports_engine_modes = true;
 
 	prop->dc_power_default = DC_POWER_DEFAULT;
 
@@ -4322,7 +4409,6 @@ static int gaudi2_set_engine_cores(struct hl_device *hdev, u32 *core_ids,
 {
 	int i, rc;
 
-
 	for (i = 0 ; i < num_cores ; i++) {
 		if (gaudi2_is_arc_enabled(hdev, core_ids[i]))
 			gaudi2_set_arc_running_mode(hdev, core_ids[i], core_command);
@@ -4339,6 +4425,172 @@ static int gaudi2_set_engine_cores(struct hl_device *hdev, u32 *core_ids,
 				return -1;
 			}
 		}
+	}
+
+	return 0;
+}
+
+static int gaudi2_set_tpc_engine_mode(struct hl_device *hdev, u32 engine_id, u32 engine_command)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	u32 reg_base, reg_addr, reg_val, tpc_id;
+
+	if (!(gaudi2->tpc_hw_cap_initialized & HW_CAP_TPC_MASK))
+		return 0;
+
+	tpc_id = gaudi2_tpc_engine_id_to_tpc_id[engine_id];
+	if (!(gaudi2->tpc_hw_cap_initialized & BIT_ULL(HW_CAP_TPC_SHIFT + tpc_id)))
+		return 0;
+
+	reg_base = gaudi2_tpc_cfg_blocks_bases[tpc_id];
+	reg_addr = reg_base + TPC_CFG_STALL_OFFSET;
+	reg_val = FIELD_PREP(DCORE0_TPC0_CFG_TPC_STALL_V_MASK,
+			!!(engine_command == HL_ENGINE_STALL));
+	WREG32(reg_addr, reg_val);
+
+	if (engine_command == HL_ENGINE_RESUME) {
+		reg_base = gaudi2_tpc_eml_cfg_blocks_bases[tpc_id];
+		reg_addr = reg_base + TPC_EML_CFG_DBG_CNT_OFFSET;
+		RMWREG32(reg_addr, 0x1, DCORE0_TPC0_EML_CFG_DBG_CNT_DBG_EXIT_MASK);
+	}
+
+	return 0;
+}
+
+static int gaudi2_set_mme_engine_mode(struct hl_device *hdev, u32 engine_id, u32 engine_command)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	u32 reg_base, reg_addr, reg_val, mme_id;
+
+	mme_id = gaudi2_mme_engine_id_to_mme_id[engine_id];
+	if (!(gaudi2->hw_cap_initialized & BIT_ULL(HW_CAP_MME_SHIFT + mme_id)))
+		return 0;
+
+	reg_base = gaudi2_mme_ctrl_lo_blocks_bases[mme_id];
+	reg_addr = reg_base + MME_CTRL_LO_QM_STALL_OFFSET;
+	reg_val = FIELD_PREP(DCORE0_MME_CTRL_LO_QM_STALL_V_MASK,
+			!!(engine_command == HL_ENGINE_STALL));
+	WREG32(reg_addr, reg_val);
+
+	return 0;
+}
+
+static int gaudi2_set_edma_engine_mode(struct hl_device *hdev, u32 engine_id, u32 engine_command)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	u32 reg_base, reg_addr, reg_val, edma_id;
+
+	if (!(gaudi2->hw_cap_initialized & HW_CAP_EDMA_MASK))
+		return 0;
+
+	edma_id = gaudi2_edma_engine_id_to_edma_id[engine_id];
+	if (!(gaudi2->hw_cap_initialized & BIT_ULL(HW_CAP_EDMA_SHIFT + edma_id)))
+		return 0;
+
+	reg_base = gaudi2_dma_core_blocks_bases[edma_id];
+	reg_addr = reg_base + EDMA_CORE_CFG_STALL_OFFSET;
+	reg_val = FIELD_PREP(DCORE0_EDMA0_CORE_CFG_1_HALT_MASK,
+			!!(engine_command == HL_ENGINE_STALL));
+	WREG32(reg_addr, reg_val);
+
+	if (engine_command == HL_ENGINE_STALL) {
+		reg_val = FIELD_PREP(DCORE0_EDMA0_CORE_CFG_1_HALT_MASK, 0x1) |
+				FIELD_PREP(DCORE0_EDMA0_CORE_CFG_1_FLUSH_MASK, 0x1);
+		WREG32(reg_addr, reg_val);
+	}
+
+	return 0;
+}
+
+static int gaudi2_set_engine_modes(struct hl_device *hdev,
+		u32 *engine_ids, u32 num_engines, u32 engine_command)
+{
+	int i, rc;
+
+	for (i = 0 ; i < num_engines ; ++i) {
+		switch (engine_ids[i]) {
+		case GAUDI2_DCORE0_ENGINE_ID_TPC_0 ... GAUDI2_DCORE0_ENGINE_ID_TPC_5:
+		case GAUDI2_DCORE1_ENGINE_ID_TPC_0 ... GAUDI2_DCORE1_ENGINE_ID_TPC_5:
+		case GAUDI2_DCORE2_ENGINE_ID_TPC_0 ... GAUDI2_DCORE2_ENGINE_ID_TPC_5:
+		case GAUDI2_DCORE3_ENGINE_ID_TPC_0 ... GAUDI2_DCORE3_ENGINE_ID_TPC_5:
+			rc = gaudi2_set_tpc_engine_mode(hdev, engine_ids[i], engine_command);
+			if (rc)
+				return rc;
+
+			break;
+		case GAUDI2_DCORE0_ENGINE_ID_MME:
+		case GAUDI2_DCORE1_ENGINE_ID_MME:
+		case GAUDI2_DCORE2_ENGINE_ID_MME:
+		case GAUDI2_DCORE3_ENGINE_ID_MME:
+			rc = gaudi2_set_mme_engine_mode(hdev, engine_ids[i], engine_command);
+			if (rc)
+				return rc;
+
+			break;
+		case GAUDI2_DCORE0_ENGINE_ID_EDMA_0 ... GAUDI2_DCORE0_ENGINE_ID_EDMA_1:
+		case GAUDI2_DCORE1_ENGINE_ID_EDMA_0 ... GAUDI2_DCORE1_ENGINE_ID_EDMA_1:
+		case GAUDI2_DCORE2_ENGINE_ID_EDMA_0 ... GAUDI2_DCORE2_ENGINE_ID_EDMA_1:
+		case GAUDI2_DCORE3_ENGINE_ID_EDMA_0 ... GAUDI2_DCORE3_ENGINE_ID_EDMA_1:
+			rc = gaudi2_set_edma_engine_mode(hdev, engine_ids[i], engine_command);
+			if (rc)
+				return rc;
+
+			break;
+		default:
+			dev_err(hdev->dev, "Invalid engine ID %u\n", engine_ids[i]);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int gaudi2_verify_engine_modes(struct hl_device *hdev, u32 *engine_ids,
+		u32 num_engines, u32 engine_command)
+{
+	bool is_engine_idle = true;
+	u64 mask_arr = 0;
+	int i;
+
+	gaudi2_get_tpc_idle_status(hdev, &mask_arr, 8 * sizeof(mask_arr), NULL);
+	gaudi2_get_mme_idle_status(hdev, &mask_arr, 8 * sizeof(mask_arr), NULL);
+	gaudi2_get_edma_idle_status(hdev, &mask_arr, 8 * sizeof(mask_arr), NULL);
+
+	for (i = 0 ; i < num_engines ; ++i) {
+		is_engine_idle = !(mask_arr & BIT_ULL(engine_ids[i]));
+		if ((engine_command == HL_ENGINE_RESUME) && !is_engine_idle) {
+			dev_err(hdev->dev, "Engine ID %u remained NOT idle!\n", engine_ids[i]);
+			return -EBUSY;
+		} else if ((engine_command == HL_ENGINE_STALL) && is_engine_idle) {
+			dev_err(hdev->dev, "Engine ID %u remained idle!\n", engine_ids[i]);
+			return -EBUSY;
+		}
+	}
+
+	return 0;
+}
+
+static int gaudi2_set_engines(struct hl_device *hdev, u32 *engine_ids,
+					u32 num_engines, u32 engine_command)
+{
+	int rc;
+
+	switch (engine_command) {
+	case HL_ENGINE_CORE_HALT:
+	case HL_ENGINE_CORE_RUN:
+		return gaudi2_set_engine_cores(hdev, engine_ids, num_engines, engine_command);
+
+	case HL_ENGINE_STALL:
+	case HL_ENGINE_RESUME:
+		rc = gaudi2_set_engine_modes(hdev, engine_ids, num_engines, engine_command);
+		if (rc)
+			return rc;
+
+		return gaudi2_verify_engine_modes(hdev, engine_ids, num_engines, engine_command);
+
+	default:
+		dev_err(hdev->dev, "failed to execute command id %u\n", engine_command);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -10883,6 +11135,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.access_dev_mem = hl_access_dev_mem,
 	.set_dram_bar_base = gaudi2_set_hbm_bar_base,
 	.set_engine_cores = gaudi2_set_engine_cores,
+	.set_engines = gaudi2_set_engines,
 	.send_device_activity = gaudi2_send_device_activity,
 	.set_dram_properties = gaudi2_set_dram_properties,
 	.set_binning_masks = gaudi2_set_binning_masks,

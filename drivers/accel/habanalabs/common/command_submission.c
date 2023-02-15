@@ -14,7 +14,7 @@
 #define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
 			HL_CS_FLAGS_COLLECTIVE_WAIT | HL_CS_FLAGS_RESERVE_SIGNALS_ONLY | \
 			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY | HL_CS_FLAGS_ENGINE_CORE_COMMAND | \
-			HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES)
+			HL_CS_FLAGS_ENGINES_COMMAND | HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES)
 
 
 #define MAX_TS_ITER_NUM 100
@@ -1319,6 +1319,8 @@ static enum hl_cs_type hl_cs_get_cs_type(u32 cs_type_flags)
 		return CS_UNRESERVE_SIGNALS;
 	else if (cs_type_flags & HL_CS_FLAGS_ENGINE_CORE_COMMAND)
 		return CS_TYPE_ENGINE_CORE;
+	else if (cs_type_flags & HL_CS_FLAGS_ENGINES_COMMAND)
+		return CS_TYPE_ENGINES;
 	else if (cs_type_flags & HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES)
 		return CS_TYPE_FLUSH_PCI_HBW_WRITES;
 	else
@@ -2444,10 +2446,13 @@ out:
 static int cs_ioctl_engine_cores(struct hl_fpriv *hpriv, u64 engine_cores,
 						u32 num_engine_cores, u32 core_command)
 {
-	int rc;
 	struct hl_device *hdev = hpriv->hdev;
 	void __user *engine_cores_arr;
 	u32 *cores;
+	int rc;
+
+	if (!hdev->asic_prop.supports_engine_modes)
+		return -EPERM;
 
 	if (!num_engine_cores || num_engine_cores > hdev->asic_prop.num_engine_cores) {
 		dev_err(hdev->dev, "Number of engine cores %d is invalid\n", num_engine_cores);
@@ -2472,6 +2477,48 @@ static int cs_ioctl_engine_cores(struct hl_fpriv *hpriv, u64 engine_cores,
 
 	rc = hdev->asic_funcs->set_engine_cores(hdev, cores, num_engine_cores, core_command);
 	kfree(cores);
+
+	return rc;
+}
+
+static int cs_ioctl_engines(struct hl_fpriv *hpriv, u64 engines_arr_user_addr,
+						u32 num_engines, enum hl_engine_command command)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 *engines, max_num_of_engines;
+	void __user *engines_arr;
+	int rc;
+
+	if (!hdev->asic_prop.supports_engine_modes)
+		return -EPERM;
+
+	if (command >= HL_ENGINE_COMMAND_MAX) {
+		dev_err(hdev->dev, "Engine command is invalid\n");
+		return -EINVAL;
+	}
+
+	max_num_of_engines = hdev->asic_prop.max_num_of_engines;
+	if (command == HL_ENGINE_CORE_RUN || command == HL_ENGINE_CORE_HALT)
+		max_num_of_engines = hdev->asic_prop.num_engine_cores;
+
+	if (!num_engines || num_engines > max_num_of_engines) {
+		dev_err(hdev->dev, "Number of engines %d is invalid\n", num_engines);
+		return -EINVAL;
+	}
+
+	engines_arr = (void __user *) (uintptr_t) engines_arr_user_addr;
+	engines = kmalloc_array(num_engines, sizeof(u32), GFP_KERNEL);
+	if (!engines)
+		return -ENOMEM;
+
+	if (copy_from_user(engines, engines_arr, num_engines * sizeof(u32))) {
+		dev_err(hdev->dev, "Failed to copy engine-ids array from user\n");
+		kfree(engines);
+		return -EFAULT;
+	}
+
+	rc = hdev->asic_funcs->set_engines(hdev, engines, num_engines, command);
+	kfree(engines);
 
 	return rc;
 }
@@ -2546,6 +2593,10 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_TYPE_ENGINE_CORE:
 		rc = cs_ioctl_engine_cores(hpriv, args->in.engine_cores,
 				args->in.num_engine_cores, args->in.core_command);
+		break;
+	case CS_TYPE_ENGINES:
+		rc = cs_ioctl_engines(hpriv, args->in.engines,
+				args->in.num_engines, args->in.engine_command);
 		break;
 	case CS_TYPE_FLUSH_PCI_HBW_WRITES:
 		rc = cs_ioctl_flush_pci_hbw_writes(hpriv);

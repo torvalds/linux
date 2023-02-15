@@ -1535,17 +1535,31 @@ struct hl_cs_chunk {
  */
 #define HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES	0x8000
 
+/*
+ * The engines CS is merged into the existing CS ioctls.
+ * Use it to control engines modes.
+ */
+#define HL_CS_FLAGS_ENGINES_COMMAND		0x10000
+
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512
 
-/* HL_ENGINE_CORE_ values
+/*
+ * enum hl_engine_command - engine command
  *
- * HL_ENGINE_CORE_HALT: engine core halt
- * HL_ENGINE_CORE_RUN:  engine core run
+ * @HL_ENGINE_CORE_HALT: engine core halt
+ * @HL_ENGINE_CORE_RUN: engine core run
+ * @HL_ENGINE_STALL: user engine/s stall
+ * @HL_ENGINE_RESUME: user engine/s resume
  */
-#define HL_ENGINE_CORE_HALT	(1 << 0)
-#define HL_ENGINE_CORE_RUN	(1 << 1)
+enum hl_engine_command {
+	HL_ENGINE_CORE_HALT = 1,
+	HL_ENGINE_CORE_RUN = 2,
+	HL_ENGINE_STALL = 3,
+	HL_ENGINE_RESUME = 4,
+	HL_ENGINE_COMMAND_MAX
+};
 
 struct hl_cs_in {
 
@@ -1568,6 +1582,18 @@ struct hl_cs_in {
 
 			/* the core command to be sent towards engine cores */
 			__u32 core_command;
+		};
+
+		/* Valid only when HL_CS_FLAGS_ENGINES_COMMAND is set */
+		struct {
+			/* this holds address of array of uint32 for engines */
+			__u64 engines;
+
+			/* number of engines in engines array */
+			__u32 num_engines;
+
+			/* the engine command to be sent towards engines */
+			__u32 engine_command;
 		};
 	};
 
