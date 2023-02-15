@@ -257,7 +257,7 @@ properties:
 
   capacity-dmips-mhz:
     description:
-      u32 value representing CPU capacity (see ./cpu-capacity.txt) in
+      u32 value representing CPU capacity (see ../cpu/cpu-capacity.txt) in
       DMIPS/MHz, relative to highest capacity-dmips-mhz
       in the system.
 
