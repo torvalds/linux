@@ -53,6 +53,8 @@
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_BYPASS		BIT(24)
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
+#define DLL_TAP_VALUE_SEL		BIT(25)
+#define DLL_TAP_VALUE_OFFSET		8
 #define DLL_TXCLK_TAPNUM_DEFAULT	0x10
 #define DLL_TXCLK_TAPNUM_90_DEGREES	0xA
 #define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
@@ -91,7 +93,7 @@ struct dwcmshc_driver_data {
 #define RK_PLATFROM		BIT(0)
 #define RK_DLL_CMD_OUT		BIT(1)
 #define RK_RXCLK_NO_INVERTER	BIT(2)
-#define RK_RXCLK_SW_TUNING	BIT(3)
+#define RK_TAP_VALUE_SEL	BIT(3)
 
 	u8 hs200_tx_tap;
 	u8 hs400_tx_tap;
@@ -107,7 +109,6 @@ struct rk35xx_priv {
 	enum dwcmshc_rk_type devtype;
 	u8 txclk_tapnum;
 	u32 cclk_rate;
-	u8 hs200_rx_tap;
 	unsigned int actual_clk;
 	const struct dwcmshc_driver_data *drv_data;
 	u32 acpi_en;
@@ -234,9 +235,8 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
 	struct rk35xx_priv *priv = dwc_priv->priv;
 	const struct dwcmshc_driver_data *drv_data = priv->drv_data;
-	u8 rxclk_tapnum;
 	u8 txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
-	u32 extra, reg;
+	u32 extra, reg, dll_lock_value;
 	int err;
 
 	host->mmc->actual_clock = 0;
@@ -274,9 +274,14 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	extra &= ~BIT(0);
 	sdhci_writel(host, extra, reg);
 
+	/* Disable output clock while config DLL */
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
 	if (clock <= 52000000) {
+		/* Disable DLL */
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 		/*
-		 * Disable DLL and reset both of sample and drive clock.
+		 * Config DLL BYPASS and Reset both of sample and drive clock.
 		 * The bypass bit and start bit need to set if DLL is not locked.
 		 */
 		sdhci_writel(host, DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START, DWCMSHC_EMMC_DLL_CTRL);
@@ -292,7 +297,7 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 			DLL_STRBIN_DELAY_NUM_SEL |
 			drv_data->ddr50_strbin_delay_num << DLL_STRBIN_DELAY_NUM_OFFSET;
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
-		return;
+		goto exit;
 	}
 
 	/* Reset DLL */
@@ -312,26 +317,21 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 				 500 * USEC_PER_MSEC);
 	if (err) {
 		dev_err(mmc_dev(host->mmc), "DLL lock timeout!\n");
-		return;
+		goto exit;
 	}
+
+	dll_lock_value = ((sdhci_readl(host, DWCMSHC_EMMC_DLL_STATUS0) & 0xFF) * 2) & 0xFF;
 
 	extra = 0x1 << 16 | /* tune clock stop en */
 		0x3 << 17 | /* pre-change delay */
 		0x3 << 19;  /* post-change delay */
 	sdhci_writel(host, extra, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
 
-	rxclk_tapnum = priv->hs200_rx_tap;
-	if ((drv_data->flags & RK_RXCLK_NO_INVERTER) &&
-	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
-		extra = drv_data->hs200_tx_tap - drv_data->hs400_tx_tap;
-		if (rxclk_tapnum + extra < DLL_RXCLK_MAX_TAP)
-			rxclk_tapnum += extra;
-	}
 	extra = DWCMSHC_EMMC_DLL_DLYENA | DLL_RXCLK_ORI_GATE;
 	if (drv_data->flags & RK_RXCLK_NO_INVERTER)
 		extra |= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-	if (drv_data->flags & RK_RXCLK_SW_TUNING && priv->hs200_rx_tap)
-		extra |= DLL_RXCLK_TAPNUM_FROM_SW | rxclk_tapnum;
+	if (drv_data->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
 	txclk_tapnum = drv_data->hs200_tx_tap;
@@ -343,18 +343,28 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 			DWCMSHC_EMMC_DLL_DLYENA |
 			drv_data->hs400_cmd_tap |
 			DLL_CMDOUT_TAPNUM_FROM_SW;
+		if (drv_data->flags & RK_TAP_VALUE_SEL)
+			extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
 	}
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_TXCLK_TAPNUM_FROM_SW |
 		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL |
 		txclk_tapnum;
+	if (drv_data->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		drv_data->hs400_strbin_tap |
 		DLL_STRBIN_TAPNUM_FROM_SW;
+	if (drv_data->flags & RK_TAP_VALUE_SEL)
+		extra |= DLL_TAP_VALUE_SEL | dll_lock_value << DLL_TAP_VALUE_OFFSET;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
+
+exit:
+	/* enable output clock */
+	sdhci_enable_clk(host, 0);
 }
 
 static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
@@ -378,31 +388,6 @@ static void sdhci_dwcmshc_request_done(struct sdhci_host *host, struct mmc_reque
 		return;
 
 	mmc_request_done(host->mmc, mrq);
-}
-
-static int dwcmshc_rk_execute_tuning(struct mmc_host *mmc, u32 opcode)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
-	struct rk35xx_priv *priv = dwc_priv->priv;
-	int rx_delay, dll_lock_num, ret;
-	u32 extra;
-
-	ret = sdhci_execute_tuning(mmc, opcode);
-	if (!ret) {
-		rx_delay = (sdhci_readl(host, DWCMSHC_EMMC_DLL_STATUS1) >> 8) & 0xFF;
-		dll_lock_num = sdhci_readl(host, DWCMSHC_EMMC_DLL_STATUS0) & 0xFF;
-		sdhci_reset_tuning(host);
-		priv->hs200_rx_tap = rx_delay * 16 / dll_lock_num;
-		extra = sdhci_readl(host, DWCMSHC_EMMC_DLL_RXCLK);
-		extra &= DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-		extra |= DWCMSHC_EMMC_DLL_DLYENA | DLL_RXCLK_ORI_GATE |
-			 DLL_RXCLK_TAPNUM_FROM_SW | priv->hs200_rx_tap;
-		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
-	}
-
-	return ret;
 }
 
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
@@ -528,7 +513,7 @@ static const struct dwcmshc_driver_data rk3588_drvdata = {
 
 static const struct dwcmshc_driver_data rk3528_drvdata = {
 	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
-	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_RXCLK_SW_TUNING | RK_RXCLK_NO_INVERTER,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
 	.hs200_tx_tap = 12,
 	.hs400_tx_tap = 6,
 	.hs400_cmd_tap = 6,
@@ -538,11 +523,11 @@ static const struct dwcmshc_driver_data rk3528_drvdata = {
 
 static const struct dwcmshc_driver_data rk3562_drvdata = {
 	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
-	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_RXCLK_SW_TUNING | RK_RXCLK_NO_INVERTER,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
 	.hs200_tx_tap = 12,
 	.hs400_tx_tap = 6,
 	.hs400_cmd_tap = 6,
-	.hs400_strbin_tap = 1,
+	.hs400_strbin_tap = 3,
 	.ddr50_strbin_delay_num = 10,
 };
 
@@ -663,7 +648,6 @@ static int dwcmshc_probe(struct platform_device *pdev)
 		}
 
 		rk_priv->drv_data = drv_data;
-		rk_priv->hs200_rx_tap = 0;
 		rk_priv->acpi_en = has_acpi_companion(&pdev->dev);
 
 		if (of_device_is_compatible(pdev->dev.of_node, "rockchip,rk3588-dwcmshc"))
@@ -673,8 +657,6 @@ static int dwcmshc_probe(struct platform_device *pdev)
 
 		priv->priv = rk_priv;
 
-		if (drv_data->flags & RK_RXCLK_SW_TUNING)
-			host->mmc_host_ops.execute_tuning = dwcmshc_rk_execute_tuning;
 		err = dwcmshc_rk35xx_init(host, priv);
 		if (err)
 			goto err_clk;
