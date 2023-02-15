@@ -251,12 +251,10 @@ build: build-arch
 
 binary-indep:
 binary-arch: build-arch
-	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
-	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile intdeb-pkg
-
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} intdeb-pkg
 clean:
 	rm -rf debian/files debian/linux-*
-	\$(MAKE) clean
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} clean
 
 binary: binary-arch
 EOF
