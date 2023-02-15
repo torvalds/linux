@@ -57,7 +57,7 @@
 struct cirrus_device {
 	struct drm_device	       dev;
 	struct drm_simple_display_pipe pipe;
-	struct drm_connector	       conn;
+	struct drm_connector	       connector;
 	const struct drm_format_info   *format;
 	unsigned int		       pitch;
 	void __iomem		       *vram;
@@ -352,41 +352,7 @@ static int cirrus_check_size(int width, int height,
 }
 
 /* ------------------------------------------------------------------ */
-/* cirrus connector						      */
-
-static int cirrus_conn_get_modes(struct drm_connector *conn)
-{
-	int count;
-
-	count = drm_add_modes_noedid(conn,
-				     conn->dev->mode_config.max_width,
-				     conn->dev->mode_config.max_height);
-	drm_set_preferred_mode(conn, 1024, 768);
-	return count;
-}
-
-static const struct drm_connector_helper_funcs cirrus_conn_helper_funcs = {
-	.get_modes = cirrus_conn_get_modes,
-};
-
-static const struct drm_connector_funcs cirrus_conn_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static int cirrus_conn_init(struct cirrus_device *cirrus)
-{
-	drm_connector_helper_add(&cirrus->conn, &cirrus_conn_helper_funcs);
-	return drm_connector_init(&cirrus->dev, &cirrus->conn,
-				  &cirrus_conn_funcs, DRM_MODE_CONNECTOR_VGA);
-
-}
-
-/* ------------------------------------------------------------------ */
-/* cirrus (simple) display pipe					      */
+/* cirrus display pipe						      */
 
 static enum drm_mode_status cirrus_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 						   const struct drm_display_mode *mode)
@@ -473,15 +439,49 @@ static const uint64_t cirrus_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+static int cirrus_connector_helper_get_modes(struct drm_connector *connector)
+{
+	int count;
+
+	count = drm_add_modes_noedid(connector,
+				     connector->dev->mode_config.max_width,
+				     connector->dev->mode_config.max_height);
+	drm_set_preferred_mode(connector, 1024, 768);
+	return count;
+}
+
+static const struct drm_connector_helper_funcs cirrus_connector_helper_funcs = {
+	.get_modes = cirrus_connector_helper_get_modes,
+};
+
+static const struct drm_connector_funcs cirrus_connector_funcs = {
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
 static int cirrus_pipe_init(struct cirrus_device *cirrus)
 {
-	return drm_simple_display_pipe_init(&cirrus->dev,
+	struct drm_device *dev = &cirrus->dev;
+	struct drm_connector *connector;
+	int ret;
+
+	connector = &cirrus->connector;
+	ret = drm_connector_init(&cirrus->dev, connector, &cirrus_connector_funcs,
+				 DRM_MODE_CONNECTOR_VGA);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &cirrus_connector_helper_funcs);
+
+	return drm_simple_display_pipe_init(dev,
 					    &cirrus->pipe,
 					    &cirrus_pipe_funcs,
 					    cirrus_formats,
 					    ARRAY_SIZE(cirrus_formats),
 					    cirrus_modifiers,
-					    &cirrus->conn);
+					    connector);
 }
 
 /* ------------------------------------------------------------------ */
@@ -582,10 +582,6 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 
 	ret = cirrus_mode_config_init(cirrus);
 	if (ret)
-		return ret;
-
-	ret = cirrus_conn_init(cirrus);
-	if (ret < 0)
 		return ret;
 
 	ret = cirrus_pipe_init(cirrus);
