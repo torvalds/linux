@@ -412,7 +412,6 @@ static int do_pending_cancel(struct geni_i2c_dev *gi2c)
 		dmaengine_terminate_all(gi2c->tx_c);
 		gi2c->cfg_sent = 0;
 	} else {
-		do_reg68_war_for_rtl_se(gi2c);
 		reinit_completion(&gi2c->xfer);
 		geni_se_cancel_m_cmd(&gi2c->i2c_rsc);
 		timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
