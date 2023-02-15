@@ -246,7 +246,7 @@ static unsigned long damon_pa_pageout(struct damon_region *r, struct damos *s)
 
 		folio_clear_referenced(folio);
 		folio_test_clear_young(folio);
-		if (folio_isolate_lru(folio)) {
+		if (!folio_isolate_lru(folio)) {
 			folio_put(folio);
 			continue;
 		}

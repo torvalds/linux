@@ -1033,7 +1033,7 @@ static int migrate_folio_add(struct folio *folio, struct list_head *foliolist,
 	 * expensive, so check the estimated mapcount of the folio instead.
 	 */
 	if ((flags & MPOL_MF_MOVE_ALL) || folio_estimated_sharers(folio) == 1) {
-		if (!folio_isolate_lru(folio)) {
+		if (folio_isolate_lru(folio)) {
 			list_add_tail(&folio->lru, foliolist);
 			node_stat_mod_folio(folio,
 				NR_ISOLATED_ANON + folio_is_file_lru(folio),

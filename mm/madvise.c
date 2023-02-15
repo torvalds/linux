@@ -406,7 +406,7 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 		folio_clear_referenced(folio);
 		folio_test_clear_young(folio);
 		if (pageout) {
-			if (!folio_isolate_lru(folio)) {
+			if (folio_isolate_lru(folio)) {
 				if (folio_test_unevictable(folio))
 					folio_putback_lru(folio);
 				else
@@ -500,7 +500,7 @@ regular_folio:
 		folio_clear_referenced(folio);
 		folio_test_clear_young(folio);
 		if (pageout) {
-			if (!folio_isolate_lru(folio)) {
+			if (folio_isolate_lru(folio)) {
 				if (folio_test_unevictable(folio))
 					folio_putback_lru(folio);
 				else

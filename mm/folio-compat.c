@@ -115,9 +115,15 @@ EXPORT_SYMBOL(grab_cache_page_write_begin);
 
 int isolate_lru_page(struct page *page)
 {
+	bool ret;
+
 	if (WARN_RATELIMIT(PageTail(page), "trying to isolate tail page"))
 		return -EBUSY;
-	return folio_isolate_lru((struct folio *)page);
+	ret = folio_isolate_lru((struct folio *)page);
+	if (ret)
+		return 0;
+
+	return -EBUSY;
 }
 
 void putback_lru_page(struct page *page)

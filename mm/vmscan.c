@@ -2337,12 +2337,12 @@ move:
  * (2) The lru_lock must not be held.
  * (3) Interrupts must be enabled.
  *
- * Return: 0 if the folio was removed from an LRU list.
- * -EBUSY if the folio was not on an LRU list.
+ * Return: true if the folio was removed from an LRU list.
+ * false if the folio was not on an LRU list.
  */
-int folio_isolate_lru(struct folio *folio)
+bool folio_isolate_lru(struct folio *folio)
 {
-	int ret = -EBUSY;
+	bool ret = false;
 
 	VM_BUG_ON_FOLIO(!folio_ref_count(folio), folio);
 
@@ -2353,7 +2353,7 @@ int folio_isolate_lru(struct folio *folio)
 		lruvec = folio_lruvec_lock_irq(folio);
 		lruvec_del_folio(lruvec, folio);
 		unlock_page_lruvec_irq(lruvec);
-		ret = 0;
+		ret = true;
 	}
 
 	return ret;
