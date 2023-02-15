@@ -3003,6 +3003,7 @@
   snd_soc_put_volsw
   snd_soc_register_component
   snd_soc_rtdcom_lookup
+  snd_timer_interrupt
   snd_soc_set_runtime_hwparams
   snd_soc_unregister_card
   snd_soc_unregister_component
