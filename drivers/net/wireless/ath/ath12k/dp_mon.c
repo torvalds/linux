@@ -529,12 +529,12 @@ static void ath12k_dp_mon_parse_he_sig_su(u8 *tlv_data,
 	case 3:
 		if (he_dcm && he_stbc) {
 			he_gi = HE_GI_0_8;
-					he_ltf = HE_LTF_4_X;
+			he_ltf = HE_LTF_4_X;
 		} else {
 			he_gi = HE_GI_3_2;
 			he_ltf = HE_LTF_4_X;
-			}
-			break;
+		}
+		break;
 	}
 	ppdu_info->gi = he_gi;
 	value = he_gi << HE_GI_SHIFT;
