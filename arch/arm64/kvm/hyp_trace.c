@@ -988,6 +988,24 @@ static const struct file_operations hyp_trace_raw_fops = {
 	.llseek		= no_llseek,
 };
 
+static int hyp_trace_clock_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "[boot]\n");
+	return 0;
+}
+
+static int hyp_trace_clock_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hyp_trace_clock_show, NULL);
+}
+
+static const struct file_operations hyp_trace_clock_fops = {
+	.open = hyp_trace_clock_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static void hyp_tracefs_create_cpu_file(const char *file_name,
 					int cpu,
 					umode_t mode,
@@ -1027,6 +1045,11 @@ int init_hyp_tracefs(void)
 				NULL, &hyp_buffer_size_fops);
 	if (!d)
 		pr_err("Failed to create tracefs "TRACEFS_DIR"/buffer_size_kb\n");
+
+	d = tracefs_create_file("trace_clock", TRACEFS_MODE_READ, root_dir, NULL,
+				&hyp_trace_clock_fops);
+	if (!d)
+		pr_err("Failed to create tracefs "TRACEFS_DIR"/trace_clock\n");
 
 	hyp_tracefs_create_cpu_file("trace", RING_BUFFER_ALL_CPUS,
 				    TRACEFS_MODE_WRITE, &hyp_trace_fops,
