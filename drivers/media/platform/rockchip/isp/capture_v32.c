@@ -1193,7 +1193,7 @@ static void luma_frame_readout(unsigned long arg)
 		if (val & ISP32_YNR_LUMA_RDBK_RDY)
 			break;
 	}
-	if (!timeout) {
+	if (timeout < 0) {
 		v4l2_err(&dev->v4l2_dev, "%s no ready\n", __func__);
 		return;
 	}
