@@ -735,10 +735,12 @@ int resctrl_val(char **benchmark_cmd, struct resctrl_val_param *param)
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
 		ret = param->setup(1, param);
-		if (ret) {
+		if (ret == END_OF_TESTS) {
 			ret = 0;
 			break;
 		}
+		if (ret < 0)
+			break;
 
 		if (!strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)) ||
 		    !strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR))) {
