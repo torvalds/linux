@@ -231,6 +231,9 @@ static int psci_dt_cpu_init_topology(struct cpuidle_driver *drv,
 	if (!psci_has_osi_support())
 		return 0;
 
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		return 0;
+
 	data->dev = psci_dt_attach_cpu(cpu);
 	if (IS_ERR_OR_NULL(data->dev))
 		return PTR_ERR_OR_ZERO(data->dev);

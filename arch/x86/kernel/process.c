@@ -721,6 +721,7 @@ void arch_cpu_idle(void)
 {
 	x86_idle();
 }
+EXPORT_SYMBOL_GPL(arch_cpu_idle);
 
 /*
  * We use this if we don't have any better idle routine..
