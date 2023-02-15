@@ -90,10 +90,8 @@ rm -rf debian
 version=$KERNELRELEASE
 if [ -n "$KDEB_PKGVERSION" ]; then
 	packageversion=$KDEB_PKGVERSION
-	revision=${packageversion##*-}
 else
-	revision=$($srctree/init/build-version)
-	packageversion=$version-$revision
+	packageversion=$version-$($srctree/init/build-version)
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
@@ -244,8 +242,9 @@ srctree ?= .
 
 build-indep:
 build-arch:
-	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
-	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
+	\$(shell \$(srctree)/scripts/package/deb-build-option) \
+	olddefconfig all
 
 build: build-arch
 
