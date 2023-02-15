@@ -3133,7 +3133,7 @@ int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
 			break;
 		default:
 			break;
-		};
+		}
 
 		buf += le16_to_cpu(tlv->len);
 	}
