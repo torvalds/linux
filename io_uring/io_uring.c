@@ -3785,7 +3785,7 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 			IORING_FEAT_POLL_32BITS | IORING_FEAT_SQPOLL_NONFIXED |
 			IORING_FEAT_EXT_ARG | IORING_FEAT_NATIVE_WORKERS |
 			IORING_FEAT_RSRC_TAGS | IORING_FEAT_CQE_SKIP |
-			IORING_FEAT_LINKED_FILE;
+			IORING_FEAT_LINKED_FILE | IORING_FEAT_REG_REG_RING;
 
 	if (copy_to_user(params, p, sizeof(*p))) {
 		ret = -EFAULT;
@@ -4306,17 +4306,36 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 	struct io_ring_ctx *ctx;
 	long ret = -EBADF;
 	struct fd f;
+	bool use_registered_ring;
+
+	use_registered_ring = !!(opcode & IORING_REGISTER_USE_REGISTERED_RING);
+	opcode &= ~IORING_REGISTER_USE_REGISTERED_RING;
 
 	if (opcode >= IORING_REGISTER_LAST)
 		return -EINVAL;
 
-	f = fdget(fd);
-	if (!f.file)
-		return -EBADF;
+	if (use_registered_ring) {
+		/*
+		 * Ring fd has been registered via IORING_REGISTER_RING_FDS, we
+		 * need only dereference our task private array to find it.
+		 */
+		struct io_uring_task *tctx = current->io_uring;
 
-	ret = -EOPNOTSUPP;
-	if (!io_is_uring_fops(f.file))
-		goto out_fput;
+		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
+			return -EINVAL;
+		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
+		f.file = tctx->registered_rings[fd];
+		f.flags = 0;
+		if (unlikely(!f.file))
+			return -EBADF;
+	} else {
+		f = fdget(fd);
+		if (unlikely(!f.file))
+			return -EBADF;
+		ret = -EOPNOTSUPP;
+		if (!io_is_uring_fops(f.file))
+			goto out_fput;
+	}
 
 	ctx = f.file->private_data;
 
