@@ -840,12 +840,15 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	val = ch_c_cntxt_0_type_encode(gsi->version, reg, GSI_CHANNEL_TYPE_GPI);
 	if (channel->toward_ipa)
 		val |= reg_bit(reg, CHTYPE_DIR);
-	val |= reg_encode(reg, ERINDEX, channel->evt_ring_id);
+	if (gsi->version < IPA_VERSION_5_0)
+		val |= reg_encode(reg, ERINDEX, channel->evt_ring_id);
 	val |= reg_encode(reg, ELEMENT_SIZE, GSI_RING_ELEMENT_SIZE);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	reg = gsi_reg(gsi, CH_C_CNTXT_1);
 	val = reg_encode(reg, CH_R_LENGTH, size);
+	if (gsi->version >= IPA_VERSION_5_0)
+		val |= reg_encode(reg, CH_ERINDEX, channel->evt_ring_id);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	/* The context 2 and 3 registers store the low-order and

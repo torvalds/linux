@@ -102,7 +102,7 @@ enum gsi_reg_ch_c_cntxt_0_field_id {
 	CH_EE,
 	CHID,
 	CHTYPE_PROTOCOL_MSB,				/* IPA v4.5-4.11 */
-	ERINDEX,
+	ERINDEX,					/* Not IPA v5.0+ */
 	CHSTATE,
 	ELEMENT_SIZE,
 };
@@ -124,6 +124,7 @@ enum gsi_channel_type {
 /* CH_C_CNTXT_1 register */
 enum gsi_reg_ch_c_cntxt_1_field_id {
 	CH_R_LENGTH,
+	CH_ERINDEX,					/* IPA v5.0+ */
 };
 
 /* CH_C_QOS register */
