@@ -44,6 +44,7 @@
 #include <linux/uaccess.h>
 #include <linux/hash.h>
 #include <linux/kern_levels.h>
+#include <linux/kstrtox.h>
 #include <linux/kthread.h>
 
 #include <asm/page.h>
@@ -267,6 +268,17 @@ void kvm_flush_remote_tlbs_with_address(struct kvm *kvm,
 	range.pages = pages;
 
 	kvm_flush_remote_tlbs_with_range(kvm, &range);
+}
+
+static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index);
+
+/* Flush the range of guest memory mapped by the given SPTE. */
+static void kvm_flush_remote_tlbs_sptep(struct kvm *kvm, u64 *sptep)
+{
+	struct kvm_mmu_page *sp = sptep_to_sp(sptep);
+	gfn_t gfn = kvm_mmu_page_get_gfn(sp, spte_index(sptep));
+
+	kvm_flush_remote_tlbs_gfn(kvm, gfn, sp->role.level);
 }
 
 static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
@@ -813,7 +825,7 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	kvm_mmu_gfn_disallow_lpage(slot, gfn);
 
 	if (kvm_mmu_slot_gfn_write_protect(kvm, slot, gfn, PG_LEVEL_4K))
-		kvm_flush_remote_tlbs_with_address(kvm, gfn, 1);
+		kvm_flush_remote_tlbs_gfn(kvm, gfn, PG_LEVEL_4K);
 }
 
 void track_possible_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp)
@@ -1187,8 +1199,7 @@ static void drop_large_spte(struct kvm *kvm, u64 *sptep, bool flush)
 	drop_spte(kvm, sptep);
 
 	if (flush)
-		kvm_flush_remote_tlbs_with_address(kvm, sp->gfn,
-			KVM_PAGES_PER_HPAGE(sp->role.level));
+		kvm_flush_remote_tlbs_sptep(kvm, sptep);
 }
 
 /*
@@ -1469,7 +1480,7 @@ restart:
 	}
 
 	if (need_flush && kvm_available_flush_tlb_with_range()) {
-		kvm_flush_remote_tlbs_with_address(kvm, gfn, 1);
+		kvm_flush_remote_tlbs_gfn(kvm, gfn, level);
 		return false;
 	}
 
@@ -1639,8 +1650,7 @@ static void __rmap_add(struct kvm *kvm,
 		kvm->stat.max_mmu_rmap_size = rmap_count;
 	if (rmap_count > RMAP_RECYCLE_THRESHOLD) {
 		kvm_zap_all_rmap_sptes(kvm, rmap_head);
-		kvm_flush_remote_tlbs_with_address(
-				kvm, sp->gfn, KVM_PAGES_PER_HPAGE(sp->role.level));
+		kvm_flush_remote_tlbs_gfn(kvm, gfn, sp->role.level);
 	}
 }
 
@@ -2405,7 +2415,7 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			return;
 
 		drop_parent_pte(child, sptep);
-		kvm_flush_remote_tlbs_with_address(vcpu->kvm, child->gfn, 1);
+		kvm_flush_remote_tlbs_sptep(vcpu->kvm, sptep);
 	}
 }
 
@@ -2889,8 +2899,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 	}
 
 	if (flush)
-		kvm_flush_remote_tlbs_with_address(vcpu->kvm, gfn,
-				KVM_PAGES_PER_HPAGE(level));
+		kvm_flush_remote_tlbs_gfn(vcpu->kvm, gfn, level);
 
 	pgprintk("%s: setting spte %llx\n", __func__, *sptep);
 
@@ -3169,7 +3178,7 @@ static int direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		if (fault->nx_huge_page_workaround_enabled)
 			disallowed_hugepage_adjust(fault, *it.sptep, it.level);
 
-		base_gfn = fault->gfn & ~(KVM_PAGES_PER_HPAGE(it.level) - 1);
+		base_gfn = gfn_round_for_level(fault->gfn, it.level);
 		if (it.level == fault->goal_level)
 			break;
 
@@ -4440,7 +4449,8 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	if (shadow_memtype_mask && kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
 		for ( ; fault->max_level > PG_LEVEL_4K; --fault->max_level) {
 			int page_num = KVM_PAGES_PER_HPAGE(fault->max_level);
-			gfn_t base = fault->gfn & ~(page_num - 1);
+			gfn_t base = gfn_round_for_level(fault->gfn,
+							 fault->max_level);
 
 			if (kvm_mtrr_check_gfn_range_consistency(vcpu, base, page_num))
 				break;
@@ -4556,10 +4566,12 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	union kvm_mmu_page_role new_role = mmu->root_role;
 
-	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role)) {
-		/* kvm_mmu_ensure_valid_pgd will set up a new root.  */
+	/*
+	 * Return immediately if no usable root was found, kvm_mmu_reload()
+	 * will establish a valid root prior to the next VM-Enter.
+	 */
+	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role))
 		return;
-	}
 
 	/*
 	 * It's possible that the cached previous root page is obsolete because
@@ -6518,8 +6530,7 @@ restart:
 			kvm_zap_one_rmap_spte(kvm, rmap_head, sptep);
 
 			if (kvm_available_flush_tlb_with_range())
-				kvm_flush_remote_tlbs_with_address(kvm, sp->gfn,
-					KVM_PAGES_PER_HPAGE(sp->role.level));
+				kvm_flush_remote_tlbs_sptep(kvm, sptep);
 			else
 				need_tlb_flush = 1;
 
@@ -6752,7 +6763,7 @@ static int set_nx_huge_pages(const char *val, const struct kernel_param *kp)
 		new_val = 1;
 	else if (sysfs_streq(val, "auto"))
 		new_val = get_nx_auto_mode();
-	else if (strtobool(val, &new_val) < 0)
+	else if (kstrtobool(val, &new_val) < 0)
 		return -EINVAL;
 
 	__set_nx_huge_pages(new_val);
