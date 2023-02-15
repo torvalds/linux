@@ -230,8 +230,26 @@ struct vcpu_svm {
 
 	struct svm_nested_state nested;
 
+	/* NMI mask value, used when vNMI is not enabled */
+	bool nmi_masked;
+
+	/*
+	 * True when NMIs are still masked but guest IRET was just intercepted
+	 * and KVM is waiting for RIP to change, which will signal that the
+	 * intercepted IRET was retired and thus NMI can be unmasked.
+	 */
+	bool awaiting_iret_completion;
+
+	/*
+	 * Set when KVM is awaiting IRET completion and needs to inject NMIs as
+	 * soon as the IRET completes (e.g. NMI is pending injection).  KVM
+	 * temporarily steals RFLAGS.TF to single-step the guest in this case
+	 * in order to regain control as soon as the NMI-blocking condition
+	 * goes away.
+	 */
 	bool nmi_singlestep;
 	u64 nmi_singlestep_guest_rflags;
+
 	bool nmi_l1_to_l2;
 
 	unsigned long soft_int_csbase;
@@ -273,6 +291,9 @@ struct vcpu_svm {
 	bool guest_state_loaded;
 
 	bool x2avic_msrs_intercepted;
+
+	/* Guest GIF value, used when vGIF is not enabled */
+	bool guest_gif;
 };
 
 struct svm_cpu_data {
@@ -490,7 +511,7 @@ static inline void enable_gif(struct vcpu_svm *svm)
 	if (vmcb)
 		vmcb->control.int_ctl |= V_GIF_MASK;
 	else
-		svm->vcpu.arch.hflags |= HF_GIF_MASK;
+		svm->guest_gif = true;
 }
 
 static inline void disable_gif(struct vcpu_svm *svm)
@@ -500,7 +521,7 @@ static inline void disable_gif(struct vcpu_svm *svm)
 	if (vmcb)
 		vmcb->control.int_ctl &= ~V_GIF_MASK;
 	else
-		svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
+		svm->guest_gif = false;
 }
 
 static inline bool gif_set(struct vcpu_svm *svm)
@@ -510,7 +531,7 @@ static inline bool gif_set(struct vcpu_svm *svm)
 	if (vmcb)
 		return !!(vmcb->control.int_ctl & V_GIF_MASK);
 	else
-		return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
+		return svm->guest_gif;
 }
 
 static inline bool nested_npt_enabled(struct vcpu_svm *svm)
@@ -637,7 +658,7 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 	BIT(APICV_INHIBIT_REASON_LOGICAL_ID_ALIASED)	\
 )
 
-bool avic_hardware_setup(struct kvm_x86_ops *ops);
+bool avic_hardware_setup(void);
 int avic_ga_log_notifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);

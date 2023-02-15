@@ -111,8 +111,6 @@ static void check_smram_offsets(void)
 
 void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
 {
-	BUILD_BUG_ON(HF_SMM_MASK != X86EMUL_SMM_MASK);
-
 	trace_kvm_smm_transition(vcpu->vcpu_id, vcpu->arch.smbase, entering_smm);
 
 	if (entering_smm) {
