@@ -2017,11 +2017,14 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	ret = drm_framebuffer_init(&dev_priv->drm, fb, &intel_fb_funcs);
 	if (ret) {
 		drm_err(&dev_priv->drm, "framebuffer init failed %d\n", ret);
-		goto err;
+		goto err_free_dpt;
 	}
 
 	return 0;
 
+err_free_dpt:
+	if (intel_fb_uses_dpt(fb))
+		intel_dpt_destroy(intel_fb->dpt_vm);
 err:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 	return ret;
