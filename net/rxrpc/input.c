@@ -606,7 +606,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		rxrpc_proto_abort(call, sp->hdr.seq, rxrpc_badmsg_bad_jumbo);
 		goto out_notify;
 	}
-	skb = NULL;
+	return;
 
 out_notify:
 	trace_rxrpc_notify_socket(call->debug_id, serial);

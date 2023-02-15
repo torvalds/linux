@@ -334,10 +334,23 @@ try_again:
 
 	/* Find the next call and dequeue it if we're not just peeking.  If we
 	 * do dequeue it, that comes with a ref that we will need to release.
+	 * We also want to weed out calls that got requeued whilst we were
+	 * shovelling data out.
 	 */
 	spin_lock(&rx->recvmsg_lock);
 	l = rx->recvmsg_q.next;
 	call = list_entry(l, struct rxrpc_call, recvmsg_link);
+
+	if (!rxrpc_call_is_complete(call) &&
+	    skb_queue_empty(&call->recvmsg_queue)) {
+		list_del_init(&call->recvmsg_link);
+		spin_unlock(&rx->recvmsg_lock);
+		release_sock(&rx->sk);
+		trace_rxrpc_recvmsg(call->debug_id, rxrpc_recvmsg_unqueue, 0);
+		rxrpc_put_call(call, rxrpc_call_put_recvmsg);
+		goto try_again;
+	}
+
 	if (!(flags & MSG_PEEK))
 		list_del_init(&call->recvmsg_link);
 	else
@@ -402,7 +415,8 @@ try_again:
 	if (rxrpc_call_has_failed(call))
 		goto call_failed;
 
-	rxrpc_notify_socket(call);
+	if (!skb_queue_empty(&call->recvmsg_queue))
+		rxrpc_notify_socket(call);
 	goto not_yet_complete;
 
 call_failed:
