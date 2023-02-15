@@ -2042,7 +2042,12 @@ static int gsi_ring_setup(struct gsi *gsi)
 	}
 	gsi->channel_count = count;
 
-	count = reg_decode(reg, NUM_EV_PER_EE, val);
+	if (gsi->version < IPA_VERSION_5_0) {
+		count = reg_decode(reg, NUM_EV_PER_EE, val);
+	} else {
+		reg = gsi_reg(gsi, HW_PARAM_4);
+		count = reg_decode(reg, EV_PER_EE, val);
+	}
 	if (!count) {
 		dev_err(dev, "GSI reports zero event rings supported\n");
 		return -EINVAL;

@@ -71,6 +71,7 @@ enum gsi_reg_id {
 	EV_CH_CMD,
 	GENERIC_CMD,
 	HW_PARAM_2,					/* IPA v3.5.1+ */
+	HW_PARAM_4,					/* IPA v5.0+ */
 	CNTXT_TYPE_IRQ,
 	CNTXT_TYPE_IRQ_MSK,
 	CNTXT_SRC_CH_IRQ,
@@ -224,7 +225,7 @@ enum gsi_generic_cmd_opcode {
 enum gsi_hw_param_2_field_id {
 	IRAM_SIZE,
 	NUM_CH_PER_EE,
-	NUM_EV_PER_EE,
+	NUM_EV_PER_EE,					/* Not IPA v5.0+ */
 	GSI_CH_PEND_TRANSLATE,
 	GSI_CH_FULL_LOGIC,
 	GSI_USE_SDMA,					/* IPA v4.0+ */
@@ -245,6 +246,12 @@ enum gsi_iram_size {
 	/* The next two values are available for IPA v4.5 and above */
 	IRAM_SIZE_THREE_N_HALF_KB		= 0x4,
 	IRAM_SIZE_FOUR_KB			= 0x5,
+};
+
+/* HW_PARAM_4 register */				/* IPA v5.0+ */
+enum gsi_hw_param_4_field_id {
+	EV_PER_EE,
+	IRAM_PROTOCOL_COUNT,
 };
 
 /**
