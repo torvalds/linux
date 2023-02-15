@@ -4007,19 +4007,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
-
-		if ((DISPLAY_VER(dev_priv) == 5 && dev_priv->display.wm.pri_latency[1] &&
-		     dev_priv->display.wm.spr_latency[1] && dev_priv->display.wm.cur_latency[1]) ||
-		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->display.wm.pri_latency[0] &&
-		     dev_priv->display.wm.spr_latency[0] && dev_priv->display.wm.cur_latency[0])) {
-			dev_priv->display.funcs.wm = &ilk_wm_funcs;
-		} else {
-			ilk_init_lp_watermarks(dev_priv);
-			drm_dbg_kms(&dev_priv->drm,
-				    "Failed to read display plane latency. "
-				    "Disable CxSR\n");
-			dev_priv->display.funcs.wm = &nop_funcs;
-		}
+		dev_priv->display.funcs.wm = &ilk_wm_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev_priv);
 		dev_priv->display.funcs.wm = &vlv_wm_funcs;
