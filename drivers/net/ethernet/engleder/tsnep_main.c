@@ -450,7 +450,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		/* ring full, shall not happen because queue is stopped if full
 		 * below
 		 */
-		netif_stop_queue(tx->adapter->netdev);
+		netif_stop_subqueue(tx->adapter->netdev, tx->queue_index);
 
 		spin_unlock_irqrestore(&tx->lock, flags);
 
@@ -493,7 +493,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 	if (tsnep_tx_desc_available(tx) < (MAX_SKB_FRAGS + 1)) {
 		/* ring can get full with next frame */
-		netif_stop_queue(tx->adapter->netdev);
+		netif_stop_subqueue(tx->adapter->netdev, tx->queue_index);
 	}
 
 	spin_unlock_irqrestore(&tx->lock, flags);
@@ -503,11 +503,14 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 {
+	struct tsnep_tx_entry *entry;
+	struct netdev_queue *nq;
 	unsigned long flags;
 	int budget = 128;
-	struct tsnep_tx_entry *entry;
-	int count;
 	int length;
+	int count;
+
+	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
 
 	spin_lock_irqsave(&tx->lock, flags);
 
@@ -564,8 +567,8 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 	} while (likely(budget));
 
 	if ((tsnep_tx_desc_available(tx) >= ((MAX_SKB_FRAGS + 1) * 2)) &&
-	    netif_queue_stopped(tx->adapter->netdev)) {
-		netif_wake_queue(tx->adapter->netdev);
+	    netif_tx_queue_stopped(nq)) {
+		netif_tx_wake_queue(nq);
 	}
 
 	spin_unlock_irqrestore(&tx->lock, flags);

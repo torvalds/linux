@@ -67,14 +67,17 @@ SYM_FUNC_END(except_vec_cex)
 	.macro	BUILD_HANDLER exception handler prep
 	.align	5
 	SYM_FUNC_START(handle_\exception)
+	666:
 	BACKUP_T0T1
 	SAVE_ALL
 	build_prep_\prep
 	move	a0, sp
 	la.abs	t0, do_\handler
 	jirl	ra, t0, 0
+	668:
 	RESTORE_ALL_AND_RET
 	SYM_FUNC_END(handle_\exception)
+	SYM_DATA(unwind_hint_\exception, .word 668b - 666b)
 	.endm
 
 	BUILD_HANDLER ade ade badv

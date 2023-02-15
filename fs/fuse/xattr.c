@@ -203,27 +203,6 @@ static int fuse_xattr_set(const struct xattr_handler *handler,
 	return fuse_setxattr(inode, name, value, size, flags, 0);
 }
 
-static bool no_xattr_list(struct dentry *dentry)
-{
-	return false;
-}
-
-static int no_xattr_get(const struct xattr_handler *handler,
-			struct dentry *dentry, struct inode *inode,
-			const char *name, void *value, size_t size)
-{
-	return -EOPNOTSUPP;
-}
-
-static int no_xattr_set(const struct xattr_handler *handler,
-			struct user_namespace *mnt_userns,
-			struct dentry *dentry, struct inode *nodee,
-			const char *name, const void *value,
-			size_t size, int flags)
-{
-	return -EOPNOTSUPP;
-}
-
 static const struct xattr_handler fuse_xattr_handler = {
 	.prefix = "",
 	.get    = fuse_xattr_get,
@@ -231,36 +210,6 @@ static const struct xattr_handler fuse_xattr_handler = {
 };
 
 const struct xattr_handler *fuse_xattr_handlers[] = {
-	&fuse_xattr_handler,
-	NULL
-};
-
-const struct xattr_handler *fuse_acl_xattr_handlers[] = {
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
-	&fuse_xattr_handler,
-	NULL
-};
-
-static const struct xattr_handler fuse_no_acl_access_xattr_handler = {
-	.name  = XATTR_NAME_POSIX_ACL_ACCESS,
-	.flags = ACL_TYPE_ACCESS,
-	.list  = no_xattr_list,
-	.get   = no_xattr_get,
-	.set   = no_xattr_set,
-};
-
-static const struct xattr_handler fuse_no_acl_default_xattr_handler = {
-	.name  = XATTR_NAME_POSIX_ACL_DEFAULT,
-	.flags = ACL_TYPE_ACCESS,
-	.list  = no_xattr_list,
-	.get   = no_xattr_get,
-	.set   = no_xattr_set,
-};
-
-const struct xattr_handler *fuse_no_acl_xattr_handlers[] = {
-	&fuse_no_acl_access_xattr_handler,
-	&fuse_no_acl_default_xattr_handler,
 	&fuse_xattr_handler,
 	NULL
 };

@@ -225,10 +225,34 @@ static int cxl_pmem_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	return cxl_pmem_nvdimm_ctl(nvdimm, cmd, buf, buf_len);
 }
 
+static int detach_nvdimm(struct device *dev, void *data)
+{
+	struct cxl_nvdimm *cxl_nvd;
+	bool release = false;
+
+	if (!is_cxl_nvdimm(dev))
+		return 0;
+
+	device_lock(dev);
+	if (!dev->driver)
+		goto out;
+
+	cxl_nvd = to_cxl_nvdimm(dev);
+	if (cxl_nvd->cxlmd && cxl_nvd->cxlmd->cxl_nvb == data)
+		release = true;
+out:
+	device_unlock(dev);
+	if (release)
+		device_release_driver(dev);
+	return 0;
+}
+
 static void unregister_nvdimm_bus(void *_cxl_nvb)
 {
 	struct cxl_nvdimm_bridge *cxl_nvb = _cxl_nvb;
 	struct nvdimm_bus *nvdimm_bus = cxl_nvb->nvdimm_bus;
+
+	bus_for_each_dev(&cxl_bus_type, NULL, cxl_nvb, detach_nvdimm);
 
 	cxl_nvb->nvdimm_bus = NULL;
 	nvdimm_bus_unregister(nvdimm_bus);

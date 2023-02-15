@@ -578,7 +578,6 @@ int mlx5e_mpwrq_validate_xsk(struct mlx5_core_dev *mdev, struct mlx5e_params *pa
 {
 	enum mlx5e_mpwrq_umr_mode umr_mode = mlx5e_mpwrq_umr_mode(mdev, xsk);
 	u8 page_shift = mlx5e_mpwrq_page_shift(mdev, xsk);
-	bool unaligned = xsk ? xsk->unaligned : false;
 	u16 max_mtu_pkts;
 
 	if (!mlx5e_check_fragmented_striding_rq_cap(mdev, page_shift, umr_mode))
@@ -591,7 +590,7 @@ int mlx5e_mpwrq_validate_xsk(struct mlx5_core_dev *mdev, struct mlx5e_params *pa
 	 * needed number of WQEs exceeds the maximum.
 	 */
 	max_mtu_pkts = min_t(u8, MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE,
-			     mlx5e_mpwrq_max_log_rq_pkts(mdev, page_shift, unaligned));
+			     mlx5e_mpwrq_max_log_rq_pkts(mdev, page_shift, xsk->unaligned));
 	if (params->log_rq_mtu_frames > max_mtu_pkts) {
 		mlx5_core_err(mdev, "Current RQ length %d is too big for XSK with given frame size %u\n",
 			      1 << params->log_rq_mtu_frames, xsk->chunk_size);

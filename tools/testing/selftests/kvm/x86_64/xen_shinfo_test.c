@@ -431,6 +431,7 @@ static void *juggle_shinfo_state(void *arg)
 int main(int argc, char *argv[])
 {
 	struct timespec min_ts, max_ts, vm_ts;
+	struct kvm_xen_hvm_attr evt_reset;
 	struct kvm_vm *vm;
 	pthread_t thread;
 	bool verbose;
@@ -959,10 +960,8 @@ int main(int argc, char *argv[])
 	}
 
  done:
-	struct kvm_xen_hvm_attr evt_reset = {
-		.type = KVM_XEN_ATTR_TYPE_EVTCHN,
-		.u.evtchn.flags = KVM_XEN_EVTCHN_RESET,
-	};
+	evt_reset.type = KVM_XEN_ATTR_TYPE_EVTCHN;
+	evt_reset.u.evtchn.flags = KVM_XEN_EVTCHN_RESET;
 	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &evt_reset);
 
 	alarm(0);

@@ -11,7 +11,6 @@
 static struct rxrpc_bundle rxrpc_service_dummy_bundle = {
 	.ref		= REFCOUNT_INIT(1),
 	.debug_id	= UINT_MAX,
-	.channel_lock	= __SPIN_LOCK_UNLOCKED(&rxrpc_service_dummy_bundle.channel_lock),
 };
 
 /*

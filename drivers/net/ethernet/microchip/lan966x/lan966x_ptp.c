@@ -1073,6 +1073,9 @@ void lan966x_ptp_deinit(struct lan966x *lan966x)
 	struct lan966x_port *port;
 	int i;
 
+	if (!lan966x->ptp)
+		return;
+
 	for (i = 0; i < lan966x->num_phys_ports; i++) {
 		port = lan966x->ports[i];
 		if (!port)

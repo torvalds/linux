@@ -263,7 +263,7 @@ struct vgic_dist {
 	struct vgic_io_device	dist_iodev;
 
 	bool			has_its;
-	bool			save_its_tables_in_progress;
+	bool			table_write_in_progress;
 
 	/*
 	 * Contains the attributes and gpa of the LPI configuration table.

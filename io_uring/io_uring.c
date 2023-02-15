@@ -1765,17 +1765,12 @@ queue:
 	}
 	spin_unlock(&ctx->completion_lock);
 
-	ret = io_req_prep_async(req);
-	if (ret) {
-fail:
-		io_req_defer_failed(req, ret);
-		return;
-	}
 	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL);
 	if (!de) {
 		ret = -ENOMEM;
-		goto fail;
+		io_req_defer_failed(req, ret);
+		return;
 	}
 
 	spin_lock(&ctx->completion_lock);
@@ -2048,13 +2043,16 @@ static void io_queue_sqe_fallback(struct io_kiocb *req)
 		req->flags &= ~REQ_F_HARDLINK;
 		req->flags |= REQ_F_LINK;
 		io_req_defer_failed(req, req->cqe.res);
-	} else if (unlikely(req->ctx->drain_active)) {
-		io_drain_req(req);
 	} else {
 		int ret = io_req_prep_async(req);
 
-		if (unlikely(ret))
+		if (unlikely(ret)) {
 			io_req_defer_failed(req, ret);
+			return;
+		}
+
+		if (unlikely(req->ctx->drain_active))
+			io_drain_req(req);
 		else
 			io_queue_iowq(req, NULL);
 	}
@@ -3674,7 +3672,7 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 
 	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER
 	    && !(ctx->flags & IORING_SETUP_R_DISABLED))
-		ctx->submitter_task = get_task_struct(current);
+		WRITE_ONCE(ctx->submitter_task, get_task_struct(current));
 
 	file = io_uring_get_file(ctx);
 	if (IS_ERR(file)) {
@@ -3868,7 +3866,7 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 		return -EBADFD;
 
 	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER && !ctx->submitter_task)
-		ctx->submitter_task = get_task_struct(current);
+		WRITE_ONCE(ctx->submitter_task, get_task_struct(current));
 
 	if (ctx->restrictions.registered)
 		ctx->restricted = 1;

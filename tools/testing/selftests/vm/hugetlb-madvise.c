@@ -17,7 +17,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#define __USE_GNU
 #include <fcntl.h>
 
 #define MIN_FREE_PAGES	20
