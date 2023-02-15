@@ -288,6 +288,8 @@ static void taprio_update_queue_max_sdu(struct taprio_sched *q,
 						    dev->hard_header_len + 1);
 			}
 			max_sdu_dynamic = max_frm_len - dev->hard_header_len;
+			if (max_sdu_dynamic > dev->max_mtu)
+				max_sdu_dynamic = U32_MAX;
 		}
 
 		max_sdu = min(max_sdu_dynamic, max_sdu_from_user);
