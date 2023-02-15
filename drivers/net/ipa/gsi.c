@@ -762,7 +762,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	/* Enable interrupt moderation by setting the moderation delay */
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_8);
 	val = reg_encode(reg, EV_MODT, GSI_EVT_RING_INT_MODT);
-	val = reg_encode(reg, EV_MODC, 1);	/* comes from channel */
+	val |= reg_encode(reg, EV_MODC, 1);	/* comes from channel */
 	/* EV_MOD_CNT is 0 (no counter-based interrupt coalescing) */
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
