@@ -113,8 +113,6 @@
 /* Number of lines by which exposure must be less than VMAX */
 #define IMX290_EXPOSURE_OFFSET				2
 
-#define IMX290_VMAX_DEFAULT				1125
-
 #define IMX290_PIXEL_RATE				148500000
 
 /*
@@ -192,6 +190,7 @@ struct imx290_mode {
 	u32 width;
 	u32 height;
 	u32 hmax_min;
+	u32 vmax_min;
 	u8 link_freq_index;
 
 	const struct imx290_regval *data;
@@ -435,6 +434,7 @@ static const struct imx290_mode imx290_modes_2lanes[] = {
 		.width = 1920,
 		.height = 1080,
 		.hmax_min = 2200,
+		.vmax_min = 1125,
 		.link_freq_index = FREQ_INDEX_1080P,
 		.data = imx290_1080p_settings,
 		.data_size = ARRAY_SIZE(imx290_1080p_settings),
@@ -443,6 +443,7 @@ static const struct imx290_mode imx290_modes_2lanes[] = {
 		.width = 1280,
 		.height = 720,
 		.hmax_min = 3300,
+		.vmax_min = 750,
 		.link_freq_index = FREQ_INDEX_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
@@ -454,6 +455,7 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 		.width = 1920,
 		.height = 1080,
 		.hmax_min = 2200,
+		.vmax_min = 1125,
 		.link_freq_index = FREQ_INDEX_1080P,
 		.data = imx290_1080p_settings,
 		.data_size = ARRAY_SIZE(imx290_1080p_settings),
@@ -462,6 +464,7 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 		.width = 1280,
 		.height = 720,
 		.hmax_min = 3300,
+		.vmax_min = 750,
 		.link_freq_index = FREQ_INDEX_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
@@ -784,7 +787,7 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 {
 	unsigned int hblank_min = mode->hmax_min - mode->width;
 	unsigned int hblank_max = IMX290_HMAX_MAX - mode->width;
-	unsigned int vblank_min = IMX290_VMAX_DEFAULT - mode->height;
+	unsigned int vblank_min = mode->vmax_min - mode->height;
 	unsigned int vblank_max = IMX290_VMAX_MAX - mode->height;
 
 	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
