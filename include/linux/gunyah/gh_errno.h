@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -63,6 +63,7 @@ static inline int gh_remap_error(int gh_error)
 	case GH_ERROR_MSGQUEUE_EMPTY:
 		return -EPERM;
 	case GH_ERROR_UNIMPLEMENTED:
+		return -EOPNOTSUPP;
 	case GH_ERROR_ARG_INVAL:
 	case GH_ERROR_ARG_SIZE:
 	case GH_ERROR_ARG_ALIGN:
