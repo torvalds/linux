@@ -56,6 +56,7 @@
 
 #define	UFS_QCOM_IRQ_PRIME_MASK	0x80
 #define	UFS_QCOM_IRQ_SLVR_MASK	0x0f
+#define	UFS_QCOM_ESI_AFFINITY_MASK	0xf0
 
 #define UFS_QCOM_BER_TH_DEF_G1_G4	0
 #define UFS_QCOM_BER_TH_DEF_G5	3
@@ -2984,6 +2985,15 @@ static void ufs_qcom_parse_irq_affinity(struct ufs_hba *hba)
 			dev_err(dev, "Invalid group silver mask\n");
 			host->def_mask.bits[0] = UFS_QCOM_IRQ_SLVR_MASK;
 		}
+		mask = 0;
+		of_property_read_u32(np, "qcom,esi-affinity-mask", &mask);
+		host->esi_affinity_mask.bits[0] = mask;
+		if (!cpumask_subset(&host->esi_affinity_mask,
+				    cpu_possible_mask)) {
+			dev_err(dev, "Invalid group ESI affinity mask\n");
+			host->esi_affinity_mask.bits[0] =
+					UFS_QCOM_ESI_AFFINITY_MASK;
+		}
 	}
 }
 
@@ -4647,6 +4657,21 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *__hba)
 	return IRQ_HANDLED;
 }
 
+static void ufs_qcom_set_esi_affinity_hint(struct ufs_hba *hba, int irq)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	cpumask_t *affinity_mask = &host->esi_affinity_mask;
+	unsigned int set = IRQ_NO_BALANCING;
+	unsigned int clear = 0;
+	int ret;
+
+	irq_modify_status(irq, clear, set);
+	ret = irq_set_affinity_hint(irq, affinity_mask);
+	if (ret < 0)
+		dev_err(hba->dev, "%s: Failed to set affinity hint for ESI %d, err = %d\n",
+			__func__, irq, ret);
+}
+
 static int ufs_qcom_config_esi(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
@@ -4682,6 +4707,10 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 			failed_desc = desc;
 			break;
 		}
+
+		/* dev_cmd queue does not worth esi affinity */
+		if (desc->irq != host->esi_base)
+			ufs_qcom_set_esi_affinity_hint(hba, desc->irq);
 	}
 
 	if (ret) {
