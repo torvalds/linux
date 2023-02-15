@@ -230,8 +230,8 @@ with :c:macro:`MSR_AMD_CPPC_ENABLE` or ``cppc_set_enable``, it will respond
 to the request from AMD P-States.
 
 
-User Space Interface in ``sysfs``
-==================================
+User Space Interface in ``sysfs`` - Per-policy control
+======================================================
 
 ``amd-pstate`` exposes several global attributes (files) in ``sysfs`` to
 control its functionality at the system level. They are located in the
@@ -339,8 +339,8 @@ processor must provide at least nominal performance requested and go higher if c
 operating conditions allow.
 
 
-User Space Interface in ``sysfs``
-=================================
+User Space Interface in ``sysfs`` - General
+===========================================
 
 Global Attributes
 -----------------
