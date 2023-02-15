@@ -699,3 +699,8 @@ int __init thermal_netlink_init(void)
 {
 	return genl_register_family(&thermal_gnl_family);
 }
+
+void __init thermal_netlink_exit(void)
+{
+	genl_unregister_family(&thermal_gnl_family);
+}
