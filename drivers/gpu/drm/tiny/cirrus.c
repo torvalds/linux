@@ -327,17 +327,15 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 		return -ENODEV;
 
 	iosys_map_set_vaddr_iomem(&dst, cirrus->vram);
+	iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
 
 	if (cirrus->cpp == fb->format->cpp[0]) {
-		iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, rect));
 		drm_fb_memcpy(&dst, fb->pitches, vmap, fb, rect);
 
 	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 2) {
-		iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
 		drm_fb_xrgb8888_to_rgb565(&dst, &cirrus->pitch, vmap, fb, rect, false);
 
 	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 3) {
-		iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
 		drm_fb_xrgb8888_to_rgb888(&dst, &cirrus->pitch, vmap, fb, rect);
 
 	} else {
