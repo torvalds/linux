@@ -336,12 +336,12 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 
 	cfg->sdata_gpio = devm_gpiod_get_index(dev, "ac97", 1, GPIOD_ASIS);
 	if (IS_ERR(cfg->sdata_gpio))
-		return dev_err_probe(dev, PTR_ERR(cfg->sync_gpio), "Can't find ac97-sdata gpio\n");
+		return dev_err_probe(dev, PTR_ERR(cfg->sdata_gpio), "Can't find ac97-sdata gpio\n");
 	gpiod_set_consumer_name(cfg->sdata_gpio, "AC97 link sdata");
 
 	cfg->reset_gpio = devm_gpiod_get_index(dev, "ac97", 2, GPIOD_ASIS);
 	if (IS_ERR(cfg->reset_gpio))
-		return dev_err_probe(dev, PTR_ERR(cfg->sync_gpio), "Can't find ac97-reset gpio\n");
+		return dev_err_probe(dev, PTR_ERR(cfg->reset_gpio), "Can't find ac97-reset gpio\n");
 	gpiod_set_consumer_name(cfg->reset_gpio, "AC97 link reset");
 
 	return 0;
