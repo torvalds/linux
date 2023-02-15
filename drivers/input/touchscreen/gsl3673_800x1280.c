@@ -60,7 +60,7 @@ static char chip_type;
 	#include "gsl3680_tab106.h"
 	#define TP_SIZE_1366X768
 	#define Y_POL
-#elif defined(CONFIG_TOUCHSCREEN_GSL3673_800X1280)
+#elif IS_ENABLED(CONFIG_TOUCHSCREEN_GSL3673_800X1280)
 	#define TP_SIZE_800X1280
 	#include "rochkchip_gslX680_8inch_800x1280_tg806_10.h"
 //	#include "gsl3673_800x1280.h"
