@@ -51,12 +51,14 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 	TP_ARGS(cxlmd, status, fe, hl),
 	TP_STRUCT__entry(
 		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
 		__field(u32, status)
 		__field(u32, first_error)
 		__array(u32, header_log, CXL_HEADERLOG_SIZE_U32)
 	),
 	TP_fast_assign(
 		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
 		__entry->status = status;
 		__entry->first_error = fe;
 		/*
@@ -65,8 +67,8 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 		 */
 		memcpy(__entry->header_log, hl, CXL_HEADERLOG_SIZE);
 	),
-	TP_printk("memdev=%s: status: '%s' first_error: '%s'",
-		  __get_str(memdev),
+	TP_printk("memdev=%s host=%s: status: '%s' first_error: '%s'",
+		  __get_str(memdev), __get_str(host),
 		  show_uc_errs(__entry->status),
 		  show_uc_errs(__entry->first_error)
 	)
@@ -95,14 +97,17 @@ TRACE_EVENT(cxl_aer_correctable_error,
 	TP_ARGS(cxlmd, status),
 	TP_STRUCT__entry(
 		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
 		__field(u32, status)
 	),
 	TP_fast_assign(
 		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
 		__entry->status = status;
 	),
-	TP_printk("memdev=%s: status: '%s'",
-		  __get_str(memdev), show_ce_errs(__entry->status)
+	TP_printk("memdev=%s host=%s: status: '%s'",
+		  __get_str(memdev), __get_str(host),
+		  show_ce_errs(__entry->status)
 	)
 );
 
@@ -122,6 +127,7 @@ TRACE_EVENT(cxl_overflow,
 
 	TP_STRUCT__entry(
 		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
 		__field(int, log)
 		__field(u64, first_ts)
 		__field(u64, last_ts)
@@ -130,15 +136,17 @@ TRACE_EVENT(cxl_overflow,
 
 	TP_fast_assign(
 		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
 		__entry->log = log;
 		__entry->count = le16_to_cpu(payload->overflow_err_count);
 		__entry->first_ts = le64_to_cpu(payload->first_overflow_timestamp);
 		__entry->last_ts = le64_to_cpu(payload->last_overflow_timestamp);
 	),
 
-	TP_printk("memdev=%s: log=%s : %u records from %llu to %llu",
-		__get_str(memdev), cxl_event_log_type_str(__entry->log),
-		__entry->count, __entry->first_ts, __entry->last_ts)
+	TP_printk("memdev=%s host=%s: log=%s : %u records from %llu to %llu",
+		__get_str(memdev), __get_str(host),
+		cxl_event_log_type_str(__entry->log), __entry->count,
+		__entry->first_ts, __entry->last_ts)
 
 );
 
@@ -171,6 +179,7 @@ TRACE_EVENT(cxl_overflow,
  */
 #define CXL_EVT_TP_entry					\
 	__string(memdev, dev_name(&cxlmd->dev))			\
+	__string(host, dev_name(cxlmd->dev.parent))		\
 	__field(int, log)					\
 	__field_struct(uuid_t, hdr_uuid)			\
 	__field(u32, hdr_flags)					\
@@ -182,6 +191,7 @@ TRACE_EVENT(cxl_overflow,
 
 #define CXL_EVT_TP_fast_assign(cxlmd, l, hdr)					\
 	__assign_str(memdev, dev_name(&(cxlmd)->dev));				\
+	__assign_str(host, dev_name((cxlmd)->dev.parent));			\
 	__entry->log = (l);							\
 	memcpy(&__entry->hdr_uuid, &(hdr).id, sizeof(uuid_t));			\
 	__entry->hdr_length = (hdr).length;					\
@@ -192,10 +202,11 @@ TRACE_EVENT(cxl_overflow,
 	__entry->hdr_maint_op_class = (hdr).maint_op_class
 
 #define CXL_EVT_TP_printk(fmt, ...) \
-	TP_printk("memdev=%s log=%s : time=%llu uuid=%pUb len=%d flags='%s' "	\
-		"handle=%x related_handle=%x maint_op_class=%u"			\
+	TP_printk("memdev=%s host=%s log=%s : time=%llu uuid=%pUb len=%d "	\
+		"flags='%s' handle=%x related_handle=%x maint_op_class=%u"	\
 		" : " fmt,							\
-		__get_str(memdev), cxl_event_log_type_str(__entry->log),	\
+		__get_str(memdev), __get_str(host),				\
+		cxl_event_log_type_str(__entry->log),				\
 		__entry->hdr_timestamp, &__entry->hdr_uuid, __entry->hdr_length,\
 		show_hdr_flags(__entry->hdr_flags), __entry->hdr_handle,	\
 		__entry->hdr_related_handle, __entry->hdr_maint_op_class,	\
