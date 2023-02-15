@@ -41,19 +41,13 @@ static inline void submit_dmub_read_modify_write(
 	const struct dc_context *ctx)
 {
 	struct dmub_rb_cmd_read_modify_write *cmd_buf = &offload->cmd_data.read_modify_write;
-	bool gather = false;
 
 	offload->should_burst_write =
 			(offload->same_addr_count == (DMUB_READ_MODIFY_WRITE_SEQ__MAX - 1));
 	cmd_buf->header.payload_bytes =
 			sizeof(struct dmub_cmd_read_modify_write_sequence) * offload->reg_seq_count;
 
-	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
-
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -66,17 +60,11 @@ static inline void submit_dmub_burst_write(
 	const struct dc_context *ctx)
 {
 	struct dmub_rb_cmd_burst_write *cmd_buf = &offload->cmd_data.burst_write;
-	bool gather = false;
 
 	cmd_buf->header.payload_bytes =
 			sizeof(uint32_t) * offload->reg_seq_count;
 
-	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
-
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -88,17 +76,11 @@ static inline void submit_dmub_reg_wait(
 		const struct dc_context *ctx)
 {
 	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
-	bool gather = false;
 
-	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
+	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 	offload->reg_seq_count = 0;
-
-	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
 }
 
 struct dc_reg_value_masks {
@@ -151,7 +133,6 @@ static void dmub_flush_buffer_execute(
 		const struct dc_context *ctx)
 {
 	submit_dmub_read_modify_write(offload, ctx);
-	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
 }
 
 static void dmub_flush_burst_write_buffer_execute(
@@ -159,7 +140,6 @@ static void dmub_flush_burst_write_buffer_execute(
 		const struct dc_context *ctx)
 {
 	submit_dmub_burst_write(offload, ctx);
-	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
 }
 
 static bool dmub_reg_value_burst_set_pack(const struct dc_context *ctx, uint32_t addr,
@@ -691,8 +671,6 @@ void reg_sequence_start_execute(const struct dc_context *ctx)
 		default:
 			return;
 		}
-
-		dc_dmub_srv_cmd_execute(ctx->dmub_srv);
 	}
 }
 

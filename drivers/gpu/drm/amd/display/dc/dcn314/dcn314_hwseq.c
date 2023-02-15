@@ -417,9 +417,7 @@ void dcn314_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool 
 	cmd.domain_control.data.inst = hubp_inst;
 	cmd.domain_control.data.power_gate = !power_on;
 
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(ctx->dmub_srv);
+	dm_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	PERF_TRACE();
 }

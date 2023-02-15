@@ -40,6 +40,7 @@
 
 struct dmub_srv;
 struct dc_dmub_srv;
+union dmub_rb_cmd;
 
 irq_handler_idx dm_register_interrupt(
 	struct dc_context *ctx,
@@ -272,6 +273,12 @@ void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc
 
 #define PERF_TRACE()	dm_perf_trace_timestamp(__func__, __LINE__, CTX)
 #define PERF_TRACE_CTX(__CTX)	dm_perf_trace_timestamp(__func__, __LINE__, __CTX)
+
+/*
+ * DMUB Interfaces
+ */
+bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
+bool dm_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
 
 /*
  * Debug and verification hooks
