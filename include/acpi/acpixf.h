@@ -526,7 +526,7 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					   struct acpi_buffer *ret_path_ptr))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_handle(acpi_handle parent,
-					     acpi_string pathname,
+					     const char *pathname,
 					     acpi_handle *ret_handle))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_attach_data(acpi_handle object,
