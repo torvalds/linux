@@ -4269,6 +4269,17 @@ EXPORT_SYMBOL(security_ib_free_security);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
+/**
+ * security_xfrm_policy_alloc() - Allocate a xfrm policy LSM blob
+ * @ctxp: xfrm security context being added to the SPD
+ * @sec_ctx: security label provided by userspace
+ * @gfp: gfp flags
+ *
+ * Allocate a security structure to the xp->security field; the security field
+ * is initialized to NULL when the xfrm_policy is allocated.
+ *
+ * Return:  Return 0 if operation was successful.
+ */
 int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
 			       struct xfrm_user_sec_ctx *sec_ctx,
 			       gfp_t gfp)
@@ -4277,23 +4288,58 @@ int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
 }
 EXPORT_SYMBOL(security_xfrm_policy_alloc);
 
+/**
+ * security_xfrm_policy_clone() - Clone xfrm policy LSM state
+ * @old_ctx: xfrm security context
+ * @new_ctxp: target xfrm security context
+ *
+ * Allocate a security structure in new_ctxp that contains the information from
+ * the old_ctx structure.
+ *
+ * Return: Return 0 if operation was successful.
+ */
 int security_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 			      struct xfrm_sec_ctx **new_ctxp)
 {
 	return call_int_hook(xfrm_policy_clone_security, 0, old_ctx, new_ctxp);
 }
 
+/**
+ * security_xfrm_policy_free() - Free a xfrm security context
+ * @ctx: xfrm security context
+ *
+ * Free LSM resources associated with @ctx.
+ */
 void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
 	call_void_hook(xfrm_policy_free_security, ctx);
 }
 EXPORT_SYMBOL(security_xfrm_policy_free);
 
+/**
+ * security_xfrm_policy_delete() - Check if deleting a xfrm policy is allowed
+ * @ctx: xfrm security context
+ *
+ * Authorize deletion of a SPD entry.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 {
 	return call_int_hook(xfrm_policy_delete_security, 0, ctx);
 }
 
+/**
+ * security_xfrm_state_alloc() - Allocate a xfrm state LSM blob
+ * @x: xfrm state being added to the SAD
+ * @sec_ctx: security label provided by userspace
+ *
+ * Allocate a security structure to the @x->security field; the security field
+ * is initialized to NULL when the xfrm_state is allocated. Set the context to
+ * correspond to @sec_ctx.
+ *
+ * Return: Return 0 if operation was successful.
+ */
 int security_xfrm_state_alloc(struct xfrm_state *x,
 			      struct xfrm_user_sec_ctx *sec_ctx)
 {
@@ -4301,28 +4347,76 @@ int security_xfrm_state_alloc(struct xfrm_state *x,
 }
 EXPORT_SYMBOL(security_xfrm_state_alloc);
 
+/**
+ * security_xfrm_state_alloc_acquire() - Allocate a xfrm state LSM blob
+ * @x: xfrm state being added to the SAD
+ * @polsec: associated policy's security context
+ * @secid: secid from the flow
+ *
+ * Allocate a security structure to the x->security field; the security field
+ * is initialized to NULL when the xfrm_state is allocated.  Set the context to
+ * correspond to secid.
+ *
+ * Return: Returns 0 if operation was successful.
+ */
 int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
 				      struct xfrm_sec_ctx *polsec, u32 secid)
 {
 	return call_int_hook(xfrm_state_alloc_acquire, 0, x, polsec, secid);
 }
 
+/**
+ * security_xfrm_state_delete() - Check if deleting a xfrm state is allowed
+ * @x: xfrm state
+ *
+ * Authorize deletion of x->security.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_xfrm_state_delete(struct xfrm_state *x)
 {
 	return call_int_hook(xfrm_state_delete_security, 0, x);
 }
 EXPORT_SYMBOL(security_xfrm_state_delete);
 
+/**
+ * security_xfrm_state_free() - Free a xfrm state
+ * @x: xfrm state
+ *
+ * Deallocate x->security.
+ */
 void security_xfrm_state_free(struct xfrm_state *x)
 {
 	call_void_hook(xfrm_state_free_security, x);
 }
 
+/**
+ * security_xfrm_policy_lookup() - Check if using a xfrm policy is allowed
+ * @ctx: target xfrm security context
+ * @fl_secid: flow secid used to authorize access
+ *
+ * Check permission when a flow selects a xfrm_policy for processing XFRMs on a
+ * packet.  The hook is called when selecting either a per-socket policy or a
+ * generic xfrm policy.
+ *
+ * Return: Return 0 if permission is granted, -ESRCH otherwise, or -errno on
+ *         other errors.
+ */
 int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid)
 {
 	return call_int_hook(xfrm_policy_lookup, 0, ctx, fl_secid);
 }
 
+/**
+ * security_xfrm_state_pol_flow_match() - Check for a xfrm match
+ * @x: xfrm state to match
+ * @xp xfrm policy to check for a match
+ * @flic: flow to check for a match.
+ *
+ * Check @xp and @flic for a match with @x.
+ *
+ * Return: Returns 1 if there is a match.
+ */
 int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				       struct xfrm_policy *xp,
 				       const struct flowi_common *flic)
@@ -4347,6 +4441,15 @@ int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	return rc;
 }
 
+/**
+ * security_xfrm_decode_session() - Determine the xfrm secid for a packet
+ * @skb: xfrm packet
+ * @secid: secid
+ *
+ * Decode the packet in @skb and return the security label in @secid.
+ *
+ * Return: Return 0 if all xfrms used have the same secid.
+ */
 int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
 {
 	return call_int_hook(xfrm_decode_session, 0, skb, secid, 1);
