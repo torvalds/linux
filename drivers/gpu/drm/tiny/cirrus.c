@@ -559,10 +559,6 @@ static struct drm_framebuffer*
 cirrus_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	if (mode_cmd->pixel_format != DRM_FORMAT_RGB565 &&
-	    mode_cmd->pixel_format != DRM_FORMAT_RGB888 &&
-	    mode_cmd->pixel_format != DRM_FORMAT_XRGB8888)
-		return ERR_PTR(-EINVAL);
 	if (cirrus_check_size(mode_cmd->width, mode_cmd->height, NULL) < 0)
 		return ERR_PTR(-EINVAL);
 	return drm_gem_fb_create_with_dirty(dev, file_priv, mode_cmd);
