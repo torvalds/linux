@@ -525,14 +525,11 @@ static int firmware_param_path_get(char *buffer, const struct kernel_param *kp)
 {
 	int count = 0, i;
 
-	for (i = 0; i < CUSTOM_FW_PATH_COUNT; i++) {
+	for (i = 0; i < CUSTOM_FW_PATH_COUNT; i++)
 		if (strlen(fw_path_para[i]) != 0)
-			count += scnprintf(buffer + count, PATH_SIZE, "%s%s", fw_path_para[i], ",");
-	}
+			count += sysfs_emit_at(buffer, count, "%s,", fw_path_para[i]);
 
-	buffer[count - 1] = '\0';
-
-	return count - 1;
+	return count;
 }
 /*
  * Typical usage is that passing 'firmware_class.path=/vendor,/firwmare_mnt'
