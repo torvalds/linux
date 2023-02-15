@@ -907,18 +907,22 @@ static int av1_iommu_probe(struct platform_device *pdev)
 	for (i = 0; i < iommu->num_irq; i++) {
 		int irq = platform_get_irq(pdev, i);
 
-		if (irq < 0)
-			return irq;
+		if (irq < 0) {
+			err = -ENODEV;
+			goto err_diable_runtime;
+		}
 
 		err = devm_request_irq(iommu->dev, irq, av1_iommu_irq,
 				       IRQF_SHARED, dev_name(dev), iommu);
-		if (err) {
-			pm_runtime_disable(dev);
-			goto err_remove_sysfs;
-		}
+		if (err)
+			goto err_diable_runtime;
+
 	}
 
 	return 0;
+err_diable_runtime:
+	pm_runtime_disable(dev);
+	iommu_device_unregister(&iommu->iommu);
 err_remove_sysfs:
 	iommu_device_sysfs_remove(&iommu->iommu);
 err_put_group:
