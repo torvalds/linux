@@ -393,7 +393,8 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_rect rect;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
 	int idx;
 
 	if (!fb)
@@ -407,8 +408,10 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	if (cirrus->pitch != cirrus_pitch(fb))
 		cirrus_pitch_set(cirrus, fb);
 
-	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
-		cirrus_fb_blit_rect(fb, &shadow_plane_state->data[0], &rect);
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		cirrus_fb_blit_rect(fb, &shadow_plane_state->data[0], &damage);
+	}
 
 	drm_dev_exit(idx);
 }
@@ -529,6 +532,7 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 	if (ret)
 		return ret;
 	drm_plane_helper_add(primary_plane, &cirrus_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary_plane);
 
 	crtc = &cirrus->crtc;
 	ret = drm_crtc_init_with_planes(dev, crtc, primary_plane, NULL,
