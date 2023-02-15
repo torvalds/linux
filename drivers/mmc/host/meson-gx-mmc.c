@@ -155,7 +155,6 @@ struct meson_host {
 	struct	mmc_command	*cmd;
 
 	void __iomem *regs;
-	struct clk *core_clk;
 	struct clk *mux_clk;
 	struct clk *mmc_clk;
 	unsigned long req_rate;
@@ -1166,6 +1165,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct meson_host *host;
 	struct mmc_host *mmc;
+	struct clk *core_clk;
 	int cd_irq, ret;
 
 	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(struct meson_host));
@@ -1228,17 +1228,13 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		host->pins_clk_gate = NULL;
 	}
 
-	host->core_clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(host->core_clk))
-		return PTR_ERR(host->core_clk);
-
-	ret = clk_prepare_enable(host->core_clk);
-	if (ret)
-		return ret;
+	core_clk = devm_clk_get_enabled(&pdev->dev, "core");
+	if (IS_ERR(core_clk))
+		return PTR_ERR(core_clk);
 
 	ret = meson_mmc_clk_init(host);
 	if (ret)
-		goto err_core_clk;
+		return ret;
 
 	/* set config to sane default */
 	meson_mmc_cfg_init(host);
@@ -1322,8 +1318,6 @@ err_free_irq:
 	free_irq(host->irq, host);
 err_init_clk:
 	clk_disable_unprepare(host->mmc_clk);
-err_core_clk:
-	clk_disable_unprepare(host->core_clk);
 	return ret;
 }
 
@@ -1338,7 +1332,6 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	free_irq(host->irq, host);
 
 	clk_disable_unprepare(host->mmc_clk);
-	clk_disable_unprepare(host->core_clk);
 
 	return 0;
 }
