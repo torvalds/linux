@@ -385,7 +385,7 @@ static struct mdio_device_id __maybe_unused rk630_phy_tbl[] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(mdio, rockchip_phy_tbl);
+MODULE_DEVICE_TABLE(mdio, rk630_phy_tbl);
 
 module_phy_driver(rk630_phy_driver);
 
