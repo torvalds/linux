@@ -256,7 +256,7 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
  */
 int genphy_c45_an_config_aneg(struct phy_device *phydev)
 {
-	int changed, ret;
+	int changed = 0, ret;
 	u32 adv;
 
 	linkmode_and(phydev->advertising, phydev->advertising,
