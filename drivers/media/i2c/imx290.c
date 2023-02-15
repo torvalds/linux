@@ -1012,20 +1012,20 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	/* Set clock parameters based on mode and xclk */
 	ret = imx290_set_clock(imx290);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set clocks\n");
+		dev_err(imx290->dev, "Could not set clocks - %d\n", ret);
 		return ret;
 	}
 
 	/* Set data lane count */
 	ret = imx290_set_data_lanes(imx290);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set data lanes\n");
+		dev_err(imx290->dev, "Could not set data lanes - %d\n", ret);
 		return ret;
 	}
 
 	ret = imx290_set_csi_config(imx290);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set csi cfg\n");
+		dev_err(imx290->dev, "Could not set csi cfg - %d\n", ret);
 		return ret;
 	}
 
@@ -1033,7 +1033,7 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
 	ret = imx290_setup_format(imx290, format);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set frame format\n");
+		dev_err(imx290->dev, "Could not set frame format - %d\n", ret);
 		return ret;
 	}
 
@@ -1041,14 +1041,14 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	ret = imx290_set_register_array(imx290, imx290->current_mode->data,
 					imx290->current_mode->data_size);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set current mode\n");
+		dev_err(imx290->dev, "Could not set current mode - %d\n", ret);
 		return ret;
 	}
 
 	/* Apply customized values from user */
 	ret = __v4l2_ctrl_handler_setup(imx290->sd.ctrl_handler);
 	if (ret) {
-		dev_err(imx290->dev, "Could not sync v4l2 controls\n");
+		dev_err(imx290->dev, "Could not sync v4l2 controls - %d\n", ret);
 		return ret;
 	}
 
