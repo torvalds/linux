@@ -2271,8 +2271,10 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		goto err_suspend;
 	}
 
-	if (of_property_read_bool(node, "rockchip,no-dmaengine"))
-		return ret;
+	if (of_property_read_bool(node, "rockchip,no-dmaengine")) {
+		dev_info(&pdev->dev, "Used for Multi-DAI\n");
+		return 0;
+	}
 
 	if (of_property_read_bool(node, "rockchip,digital-loopback"))
 		ret = devm_snd_dmaengine_dlp_register(&pdev->dev, &dconfig);
