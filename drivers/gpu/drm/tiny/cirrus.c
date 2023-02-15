@@ -354,6 +354,17 @@ static int cirrus_check_size(int width, int height,
 /* ------------------------------------------------------------------ */
 /* cirrus display pipe						      */
 
+static const uint32_t cirrus_primary_plane_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_XRGB8888,
+};
+
+static const uint64_t cirrus_primary_plane_format_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static enum drm_mode_status cirrus_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 						   const struct drm_display_mode *mode)
 {
@@ -428,17 +439,6 @@ static const struct drm_simple_display_pipe_funcs cirrus_pipe_funcs = {
 	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
 };
 
-static const uint32_t cirrus_formats[] = {
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_RGB888,
-	DRM_FORMAT_XRGB8888,
-};
-
-static const uint64_t cirrus_modifiers[] = {
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
 static int cirrus_connector_helper_get_modes(struct drm_connector *connector)
 {
 	int count;
@@ -478,9 +478,9 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 	return drm_simple_display_pipe_init(dev,
 					    &cirrus->pipe,
 					    &cirrus_pipe_funcs,
-					    cirrus_formats,
-					    ARRAY_SIZE(cirrus_formats),
-					    cirrus_modifiers,
+					    cirrus_primary_plane_formats,
+					    ARRAY_SIZE(cirrus_primary_plane_formats),
+					    cirrus_primary_plane_format_modifiers,
 					    connector);
 }
 
