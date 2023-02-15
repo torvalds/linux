@@ -910,7 +910,9 @@ static int cobalt_s_fmt_vid_out(struct file *file, void *priv_fh,
 {
 	struct cobalt_stream *s = video_drvdata(file);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_subdev_format sd_fmt = { 0 };
+	struct v4l2_subdev_format sd_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	u32 code;
 
 	if (cobalt_try_fmt_vid_out(file, priv_fh, f))
@@ -941,7 +943,6 @@ static int cobalt_s_fmt_vid_out(struct file *file, void *priv_fh,
 	s->xfer_func = pix->xfer_func;
 	s->ycbcr_enc = pix->ycbcr_enc;
 	s->quantization = pix->quantization;
-	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	v4l2_fill_mbus_format(&sd_fmt.format, pix, code);
 	v4l2_subdev_call(s->sd, pad, set_fmt, NULL, &sd_fmt);
 	return 0;

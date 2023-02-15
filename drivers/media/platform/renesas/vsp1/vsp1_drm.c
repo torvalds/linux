@@ -481,10 +481,11 @@ static int vsp1_du_pipeline_setup_output(struct vsp1_device *vsp1,
 					 struct vsp1_pipeline *pipe)
 {
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
-	struct v4l2_subdev_format format = { 0, };
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
-	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	format.pad = RWPF_PAD_SINK;
 	format.format.width = drm_pipe->width;
 	format.format.height = drm_pipe->height;
