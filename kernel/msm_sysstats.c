@@ -661,6 +661,7 @@ static struct genl_family family __ro_after_init = {
 	.ops		= sysstats_ops,
 	.n_ops		= ARRAY_SIZE(sysstats_ops),
 	.pre_doit	= sysstats_pre_doit,
+	.resv_start_op	= SYSSTATS_PIDS_CMD_GET + 1,
 };
 
 static int __init sysstats_init(void)
