@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016-2017, Linaro Ltd
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/idr.h>
@@ -47,6 +47,25 @@ do {									     \
 		dev_err_ratelimited(ch->glink->dev, "[%s]: "x, __func__, ##__VA_ARGS__); \
 	}								     \
 } while (0)
+
+#if IS_ENABLED(CONFIG_RPMSG_QCOM_GLINK_DEBUG)
+#define GLINK_BUG(ctxt, x, ...)						\
+do {									\
+	ipc_log_string(ctxt, "[%s]: ASSERT at line %d: "x,		\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+	pr_err("[%s]: ASSERT at line %d: "x,				\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+	BUG();								\
+} while (0)
+#else
+#define GLINK_BUG(ctxt, x, ...)						\
+do {									\
+	ipc_log_string(ctxt, "[%s]: WARN at line %d: "x,		\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+	pr_err("[%s]: WARN at line %d: "x,				\
+		       __func__, __LINE__, ##__VA_ARGS__);		\
+} while (0)
+#endif
 
 #define GLINK_NAME_SIZE		32
 #define GLINK_VERSION_1		1
