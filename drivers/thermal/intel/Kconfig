@@ -3,6 +3,9 @@ config INTEL_POWERCLAMP
 	tristate "Intel PowerClamp idle injection driver"
 	depends on X86
 	depends on CPU_SUP_INTEL
+	depends on CPU_IDLE
+	select POWERCAP
+	select IDLE_INJECT
 	help
 	  Enable this to enable Intel PowerClamp idle injection driver. This
 	  enforce idle time which results in more package C-state residency. The

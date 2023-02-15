@@ -21,42 +21,11 @@
 #define TEMP_MIN_DECIK	2180
 #define TEMP_MAX_DECIK	4480
 
-static int thermal_acpi_trip_init(struct acpi_device *adev,
-				  enum thermal_trip_type type, int id,
-				  struct thermal_trip *trip)
+static int thermal_acpi_trip_temp(struct acpi_device *adev, char *obj_name,
+				  int *ret_temp)
 {
 	unsigned long long temp;
 	acpi_status status;
-	char obj_name[5];
-
-	switch (type) {
-	case THERMAL_TRIP_ACTIVE:
-		if (id < 0 || id > 9)
-			return -EINVAL;
-
-		obj_name[1] = 'A';
-		obj_name[2] = 'C';
-		obj_name[3] = '0' + id;
-		break;
-	case THERMAL_TRIP_PASSIVE:
-		obj_name[1] = 'P';
-		obj_name[2] = 'S';
-		obj_name[3] = 'V';
-		break;
-	case THERMAL_TRIP_HOT:
-		obj_name[1] = 'H';
-		obj_name[2] = 'O';
-		obj_name[3] = 'T';
-		break;
-	case THERMAL_TRIP_CRITICAL:
-		obj_name[1] = 'C';
-		obj_name[2] = 'R';
-		obj_name[3] = 'T';
-		break;
-	}
-
-	obj_name[0] = '_';
-	obj_name[4] = '\0';
 
 	status = acpi_evaluate_integer(adev->handle, obj_name, NULL, &temp);
 	if (ACPI_FAILURE(status)) {
@@ -65,87 +34,84 @@ static int thermal_acpi_trip_init(struct acpi_device *adev,
 	}
 
 	if (temp >= TEMP_MIN_DECIK && temp <= TEMP_MAX_DECIK) {
-		trip->temperature = deci_kelvin_to_millicelsius(temp);
+		*ret_temp = deci_kelvin_to_millicelsius(temp);
 	} else {
 		acpi_handle_debug(adev->handle, "%s result %llu out of range\n",
 				  obj_name, temp);
-		trip->temperature = THERMAL_TEMP_INVALID;
+		*ret_temp = THERMAL_TEMP_INVALID;
 	}
-
-	trip->hysteresis = 0;
-	trip->type = type;
 
 	return 0;
 }
 
 /**
- * thermal_acpi_trip_active - Get the specified active trip point
- * @adev: Thermal zone ACPI device object to get the description from.
+ * thermal_acpi_active_trip_temp - Retrieve active trip point temperature
+ * @adev: Target thermal zone ACPI device object.
  * @id: Active cooling level (0 - 9).
- * @trip: Trip point structure to be populated on success.
+ * @ret_temp: Address to store the retrieved temperature value on success.
  *
  * Evaluate the _ACx object for the thermal zone represented by @adev to obtain
  * the temperature of the active cooling trip point corresponding to the active
- * cooling level given by @id and initialize @trip as an active trip point using
- * that temperature value.
+ * cooling level given by @id.
  *
  * Return 0 on success or a negative error value on failure.
  */
-int thermal_acpi_trip_active(struct acpi_device *adev, int id,
-			     struct thermal_trip *trip)
+int thermal_acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp)
 {
-	return thermal_acpi_trip_init(adev, THERMAL_TRIP_ACTIVE, id, trip);
+	char obj_name[] = {'_', 'A', 'C', '0' + id, '\0'};
+
+	if (id < 0 || id > 9)
+		return -EINVAL;
+
+	return thermal_acpi_trip_temp(adev, obj_name, ret_temp);
 }
-EXPORT_SYMBOL_GPL(thermal_acpi_trip_active);
+EXPORT_SYMBOL_GPL(thermal_acpi_active_trip_temp);
 
 /**
- * thermal_acpi_trip_passive - Get the passive trip point
- * @adev: Thermal zone ACPI device object to get the description from.
- * @trip: Trip point structure to be populated on success.
+ * thermal_acpi_passive_trip_temp - Retrieve passive trip point temperature
+ * @adev: Target thermal zone ACPI device object.
+ * @ret_temp: Address to store the retrieved temperature value on success.
  *
  * Evaluate the _PSV object for the thermal zone represented by @adev to obtain
- * the temperature of the passive cooling trip point and initialize @trip as a
- * passive trip point using that temperature value.
+ * the temperature of the passive cooling trip point.
  *
  * Return 0 on success or -ENODATA on failure.
  */
-int thermal_acpi_trip_passive(struct acpi_device *adev, struct thermal_trip *trip)
+int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
-	return thermal_acpi_trip_init(adev, THERMAL_TRIP_PASSIVE, INT_MAX, trip);
+	return thermal_acpi_trip_temp(adev, "_PSV", ret_temp);
 }
-EXPORT_SYMBOL_GPL(thermal_acpi_trip_passive);
+EXPORT_SYMBOL_GPL(thermal_acpi_passive_trip_temp);
 
 /**
- * thermal_acpi_trip_hot - Get the near critical trip point
- * @adev: the ACPI device to get the description from.
- * @trip: a &struct thermal_trip to be filled if the function succeed.
+ * thermal_acpi_hot_trip_temp - Retrieve hot trip point temperature
+ * @adev: Target thermal zone ACPI device object.
+ * @ret_temp: Address to store the retrieved temperature value on success.
  *
  * Evaluate the _HOT object for the thermal zone represented by @adev to obtain
  * the temperature of the trip point at which the system is expected to be put
- * into the S4 sleep state and initialize @trip as a hot trip point using that
- * temperature value.
+ * into the S4 sleep state.
  *
  * Return 0 on success or -ENODATA on failure.
  */
-int thermal_acpi_trip_hot(struct acpi_device *adev, struct thermal_trip *trip)
+int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
-	return thermal_acpi_trip_init(adev, THERMAL_TRIP_HOT, INT_MAX, trip);
+	return thermal_acpi_trip_temp(adev, "_HOT", ret_temp);
 }
-EXPORT_SYMBOL_GPL(thermal_acpi_trip_hot);
+EXPORT_SYMBOL_GPL(thermal_acpi_hot_trip_temp);
 
 /**
- * thermal_acpi_trip_critical - Get the critical trip point
- * @adev: the ACPI device to get the description from.
- * @trip: a &struct thermal_trip to be filled if the function succeed.
+ * thermal_acpi_critical_trip_temp - Retrieve critical trip point temperature
+ * @adev: Target thermal zone ACPI device object.
+ * @ret_temp: Address to store the retrieved temperature value on success.
  *
  * Evaluate the _CRT object for the thermal zone represented by @adev to obtain
- * the temperature of the critical cooling trip point and initialize @trip as a
- * critical trip point using that temperature value.
+ * the temperature of the critical cooling trip point.
  *
  * Return 0 on success or -ENODATA on failure.
  */
-int thermal_acpi_trip_critical(struct acpi_device *adev, struct thermal_trip *trip)
+int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
-	return thermal_acpi_trip_init(adev, THERMAL_TRIP_CRITICAL, INT_MAX, trip);
+	return thermal_acpi_trip_temp(adev, "_CRT", ret_temp);
 }
-EXPORT_SYMBOL_GPL(thermal_acpi_trip_critical);
+EXPORT_SYMBOL_GPL(thermal_acpi_critical_trip_temp);
