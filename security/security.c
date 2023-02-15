@@ -4133,12 +4133,35 @@ int security_tun_dev_open(void *security)
 }
 EXPORT_SYMBOL(security_tun_dev_open);
 
+/**
+ * security_sctp_assoc_request() - Update the LSM on a SCTP association req
+ * @asoc: SCTP association
+ * @skb: packet requesting the association
+ *
+ * Passes the @asoc and @chunk->skb of the association INIT packet to the LSM.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_sctp_assoc_request(struct sctp_association *asoc, struct sk_buff *skb)
 {
 	return call_int_hook(sctp_assoc_request, 0, asoc, skb);
 }
 EXPORT_SYMBOL(security_sctp_assoc_request);
 
+/**
+ * security_sctp_bind_connect() - Validate a list of addrs for a SCTP option
+ * @sk: socket
+ * @optname: SCTP option to validate
+ * @address: list of IP addresses to validate
+ * @addrlen: length of the address list
+ *
+ * Validiate permissions required for each address associated with sock	@sk.
+ * Depending on @optname, the addresses will be treated as either a connect or
+ * bind service. The @addrlen is calculated on each IPv4 and IPv6 address using
+ * sizeof(struct sockaddr_in) or sizeof(struct sockaddr_in6).
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_sctp_bind_connect(struct sock *sk, int optname,
 			       struct sockaddr *address, int addrlen)
 {
@@ -4147,6 +4170,16 @@ int security_sctp_bind_connect(struct sock *sk, int optname,
 }
 EXPORT_SYMBOL(security_sctp_bind_connect);
 
+/**
+ * security_sctp_sk_clone() - Clone a SCTP sock's LSM state
+ * @asoc: SCTP association
+ * @sk: original sock
+ * @newsk: target sock
+ *
+ * Called whenever a new socket is created by accept(2) (i.e. a TCP style
+ * socket) or when a socket is 'peeled off' e.g userspace calls
+ * sctp_peeloff(3).
+ */
 void security_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 			    struct sock *newsk)
 {
@@ -4154,6 +4187,16 @@ void security_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 }
 EXPORT_SYMBOL(security_sctp_sk_clone);
 
+/**
+ * security_sctp_assoc_established() - Update LSM state when assoc established
+ * @asoc: SCTP association
+ * @skb: packet establishing the association
+ *
+ * Passes the @asoc and @chunk->skb of the association COOKIE_ACK packet to the
+ * security module.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sctp_assoc_established(struct sctp_association *asoc,
 				    struct sk_buff *skb)
 {

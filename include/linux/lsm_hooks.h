@@ -32,39 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks for SCTP
- *
- * @sctp_assoc_request:
- *	Passes the @asoc and @chunk->skb of the association INIT packet to
- *	the security module.
- *	@asoc pointer to sctp association structure.
- *	@skb pointer to skbuff of association packet.
- *	Return 0 on success, error on failure.
- * @sctp_bind_connect:
- *	Validiate permissions required for each address associated with sock
- *	@sk. Depending on @optname, the addresses will be treated as either
- *	for a connect or bind service. The @addrlen is calculated on each
- *	ipv4 and ipv6 address using sizeof(struct sockaddr_in) or
- *	sizeof(struct sockaddr_in6).
- *	@sk pointer to sock structure.
- *	@optname name of the option to validate.
- *	@address list containing one or more ipv4/ipv6 addresses.
- *	@addrlen total length of address(s).
- *	Return 0 on success, error on failure.
- * @sctp_sk_clone:
- *	Called whenever a new socket is created by accept(2) (i.e. a TCP
- *	style socket) or when a socket is 'peeled off' e.g userspace
- *	calls sctp_peeloff(3).
- *	@asoc pointer to current sctp association structure.
- *	@sk pointer to current sock structure.
- *	@newsk pointer to new sock structure.
- * @sctp_assoc_established:
- *	Passes the @asoc and @chunk->skb of the association COOKIE_ACK packet
- *	to the security module.
- *	@asoc pointer to sctp association structure.
- *	@skb pointer to skbuff of association packet.
- *	Return 0 if permission is granted.
- *
  * Security hooks for Infiniband
  *
  * @ib_pkey_access:
