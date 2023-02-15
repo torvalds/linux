@@ -60,6 +60,7 @@ The new-style data structures are intrusive and are defined similarly to their
 vanilla kernel counterparts:
 
 .. code-block:: c
+
         struct node_data {
           long key;
           long data;
