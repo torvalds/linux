@@ -1858,8 +1858,6 @@
 			qcom,controlled-remotely;
 			iommus = <&apps_smmu 0x480 0x0>,
 				 <&apps_smmu 0x481 0x0>;
-			interconnects = <&aggre2_noc MASTER_CRYPTO 0 &mc_virt SLAVE_EBI1 0>;
-			interconnect-names = "memory";
 		};
 
 		crypto: crypto@1de0000 {
