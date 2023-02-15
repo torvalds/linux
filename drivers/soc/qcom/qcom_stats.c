@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cdev.h>
@@ -35,7 +35,7 @@
 
 #define DDR_STATS_MAGIC_KEY	0xA1157A75
 #define DDR_STATS_MAX_NUM_MODES	0x14
-#define MAX_DRV			18
+#define MAX_DRV			28
 #define MAX_MSG_LEN		64
 #define DRV_ABSENT		0xdeaddead
 #define DRV_INVALID		0xffffdead
@@ -111,6 +111,7 @@ static struct subsystem_data subsystems[] = {
 struct stats_config {
 	size_t stats_offset;
 	size_t ddr_stats_offset;
+	size_t cx_vote_offset;
 	size_t num_records;
 	bool appended_stats_avail;
 	bool dynamic_offset;
@@ -527,13 +528,32 @@ int ddr_stats_get_ss_count(void)
 }
 EXPORT_SYMBOL(ddr_stats_get_ss_count);
 
+static void __iomem *qcom_stats_get_ddr_stats_data_addr(void)
+{
+	void __iomem *reg = NULL;
+	u32 vote_offset;
+	u32 entry_count;
+
+	reg = drv->base + drv->config->ddr_stats_offset;
+	entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
+	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
+		pr_err("Invalid entry count\n");
+		return NULL;
+	}
+
+	vote_offset = DDR_STATS_ENTRY_ADDR;
+	vote_offset +=  entry_count * (sizeof(struct sleep_stats) - 2 * sizeof(u64));
+	reg = drv->base + drv->config->ddr_stats_offset + vote_offset;
+
+	return reg;
+}
+
 int ddr_stats_get_ss_vote_info(int ss_count,
 			       struct ddr_stats_ss_vote_info *vote_info)
 {
 	static const char buf[MAX_MSG_LEN] = "{class: ddr, res: drvs_ddr_votes}";
-	u32 vote_offset, val[MAX_DRV];
+	u32 val[MAX_DRV];
 	void __iomem *reg;
-	u32 entry_count;
 	int ret, i;
 
 	if (!vote_info || !(ss_count == MAX_DRV) || !drv)
@@ -550,19 +570,15 @@ int ddr_stats_get_ss_vote_info(int ss_count,
 		return ret;
 	}
 
-	reg = drv->base + drv->config->ddr_stats_offset;
-	entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
-	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
-		pr_err("Invalid entry count\n");
+	reg = qcom_stats_get_ddr_stats_data_addr();
+	if (!reg) {
+		pr_err("Error getting ddr stats data addr\n");
 		mutex_unlock(&drv->lock);
 		return -EINVAL;
 	}
 
-	vote_offset = DDR_STATS_ENTRY_ADDR;
-	vote_offset +=  entry_count * (sizeof(struct sleep_stats) - 2 * sizeof(u64));
-
 	for (i = 0; i < ss_count; i++, reg += sizeof(u32)) {
-		val[i] = readl_relaxed(reg + vote_offset);
+		val[i] = readl_relaxed(reg);
 		if (val[i] == DRV_ABSENT) {
 			vote_info[i].ab = DRV_ABSENT;
 			vote_info[i].ib = DRV_ABSENT;
@@ -581,6 +597,60 @@ int ddr_stats_get_ss_vote_info(int ss_count,
 	return 0;
 }
 EXPORT_SYMBOL(ddr_stats_get_ss_vote_info);
+
+static void cxvt_info_fill_data(void __iomem *reg, u32 entry_count,
+								u32 *data)
+{
+	int i;
+
+	for (i = 0; i < entry_count; i++) {
+		data[i] = readl_relaxed(reg);
+		reg += sizeof(u32);
+	}
+}
+
+int cx_stats_get_ss_vote_info(int ss_count,
+			       struct qcom_stats_cx_vote_info *vote_info)
+{
+	static const char buf[MAX_MSG_LEN] = "{class: arc_statis, res: cx_vote}";
+	void __iomem *reg;
+	int ret;
+	int i, j;
+	u32 data[((MAX_DRV + 0x3) & (~0x3))/4];
+
+	if (!vote_info || !(ss_count == MAX_DRV) || !drv)
+		return -ENODEV;
+
+	if (!drv->qmp || !drv->config->cx_vote_offset)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&drv->lock);
+	ret = qmp_send(drv->qmp, buf, sizeof(buf));
+	if (ret) {
+		pr_err("Error sending qmp message: %d\n", ret);
+		mutex_unlock(&drv->lock);
+		return ret;
+	}
+
+	reg = qcom_stats_get_ddr_stats_data_addr();
+	if (!reg) {
+		pr_err("Error getting ddr stats data addr\n");
+		mutex_unlock(&drv->lock);
+		return -EINVAL;
+	}
+
+	cxvt_info_fill_data(reg, ((MAX_DRV + 0x3) & (~0x3))/4, data);
+	for (i = 0, j = 0; i < ((MAX_DRV + 0x3) & (~0x3))/4; i++, j += 4) {
+		vote_info[j].level = (data[i] & 0xff);
+		vote_info[j+1].level = ((data[i] & 0xff00) >> 8);
+		vote_info[j+2].level = ((data[i] & 0xff0000) >> 16);
+		vote_info[j+3].level = ((data[i] & 0xff000000) >> 24);
+	}
+
+	mutex_unlock(&drv->lock);
+	return 0;
+}
+EXPORT_SYMBOL(cx_stats_get_ss_vote_info);
 
 static void qcom_print_stats(struct seq_file *s, const struct sleep_stats *stat)
 {
@@ -1017,6 +1087,7 @@ static const struct stats_config rpmh_data = {
 static const struct stats_config rpmh_v2_data = {
 	.stats_offset = 0x48,
 	.ddr_stats_offset = 0xb8,
+	.cx_vote_offset = 0xb8,
 	.num_records = 3,
 	.appended_stats_avail = false,
 	.dynamic_offset = false,
