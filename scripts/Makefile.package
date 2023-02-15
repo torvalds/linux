@@ -43,12 +43,46 @@ if test "$(objtree)" != "$(srctree)"; then \
 	echo >&2 "  ERROR:"; \
 	echo >&2 "  Building source tarball is not possible outside the"; \
 	echo >&2 "  kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
-	echo >&2 "  binrpm-pkg or bindeb-pkg target instead."; \
+	echo >&2 "  binrpm-pkg target instead."; \
 	echo >&2; \
 	false; \
 fi ; \
 tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
 	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3)
+
+# .tmp_filelist .tmp_filelist_exclude
+# ---------------------------------------------------------------------------
+
+scripts/list-gitignored: FORCE
+	$(Q)$(MAKE) -f $(srctree)/Makefile scripts_package
+
+# 1f5d3a6b6532e25a5cdf1f311956b2b03d343a48 removed '*.rej' from .gitignore,
+# but it is definitely a generated file.
+filechk_filelist = \
+	$< --exclude='*.rej' --output=$@_exclude --prefix=./ --rootdir=$(srctree) --stat=-
+
+.tmp_filelist: scripts/list-gitignored FORCE
+	$(call filechk,filelist)
+
+# tarball
+# ---------------------------------------------------------------------------
+
+quiet_cmd_tar = TAR     $@
+      cmd_tar = tar -c -f $@ $(tar-compress-opt) $(tar-exclude-opt) \
+                --owner=0 --group=0 --sort=name \
+                --transform 's:^\.:$*:S' -C $(tar-rootdir) .
+
+tar-rootdir := $(srctree)
+
+%.tar.gz: private tar-compress-opt := -I $(KGZIP)
+%.tar.gz:
+	$(call cmd,tar)
+
+# Linux source tarball
+# ---------------------------------------------------------------------------
+
+linux.tar.gz: tar-exclude-opt = --exclude=./$@ --exclude-from=$<_exclude
+linux.tar.gz: .tmp_filelist
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -80,13 +114,12 @@ binrpm-pkg:
 		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
 
 PHONY += deb-pkg
-deb-pkg:
-	$(MAKE) clean
+deb-pkg: linux.tar.gz
 	$(CONFIG_SHELL) $(srctree)/scripts/package/mkdebian
-	$(call cmd,src_tar,$(KDEB_SOURCENAME))
 	origversion=$$(dpkg-parsechangelog -SVersion |sed 's/-[^-]*$$//');\
-		mv $(KDEB_SOURCENAME).tar.gz ../$(KDEB_SOURCENAME)_$${origversion}.orig.tar.gz
-	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) --source-option=-sP -i.git -us -uc
+		cp linux.tar.gz ../$(KDEB_SOURCENAME)_$${origversion}.orig.tar.gz
+	+dpkg-buildpackage -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch) $(DPKG_FLAGS) \
+		--build=source,binary --source-option=-sP -nc -us -uc
 
 PHONY += bindeb-pkg
 bindeb-pkg:
@@ -173,5 +206,8 @@ help:
 	@echo '  perf-tarbz2-src-pkg - Build $(perf-tar).tar.bz2 source tarball'
 	@echo '  perf-tarxz-src-pkg  - Build $(perf-tar).tar.xz source tarball'
 	@echo '  perf-tarzst-src-pkg - Build $(perf-tar).tar.zst source tarball'
+
+PHONY += FORCE
+FORCE:
 
 .PHONY: $(PHONY)
