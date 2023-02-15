@@ -317,21 +317,6 @@ static void cirrus_pitch_set(struct cirrus_device *cirrus,
 	cirrus_set_start_address(cirrus, 0);
 }
 
-static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
-			       const struct iosys_map *vmap,
-			       struct drm_rect *rect)
-{
-	struct cirrus_device *cirrus = to_cirrus(fb->dev);
-	struct iosys_map dst;
-
-	iosys_map_set_vaddr_iomem(&dst, cirrus->vram);
-	iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
-
-	drm_fb_blit(&dst, &cirrus->pitch, cirrus->format->format, vmap, fb, rect);
-
-	return 0;
-}
-
 static int cirrus_check_size(int width, int height,
 			     struct drm_framebuffer *fb)
 {
@@ -393,6 +378,7 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct iosys_map vaddr = IOSYS_MAP_INIT_VADDR_IOMEM(cirrus->vram);
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_rect damage;
 	int idx;
@@ -410,7 +396,11 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
 	drm_atomic_for_each_plane_damage(&iter, &damage) {
-		cirrus_fb_blit_rect(fb, &shadow_plane_state->data[0], &damage);
+		unsigned int offset = drm_fb_clip_offset(cirrus->pitch, fb->format, &damage);
+		struct iosys_map dst = IOSYS_MAP_INIT_OFFSET(&vaddr, offset);
+
+		drm_fb_blit(&dst, &cirrus->pitch, cirrus->format->format,
+			    &shadow_plane_state->data[0], fb, &damage);
 	}
 
 	drm_dev_exit(idx);
