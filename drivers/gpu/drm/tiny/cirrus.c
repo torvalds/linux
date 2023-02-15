@@ -178,14 +178,12 @@ static void cirrus_set_start_address(struct cirrus_device *cirrus, u32 offset)
 	wreg_crt(cirrus, 0x1d, tmp);
 }
 
-static int cirrus_mode_set(struct cirrus_device *cirrus,
-			   struct drm_display_mode *mode,
-			   struct drm_framebuffer *fb)
+static void cirrus_mode_set(struct cirrus_device *cirrus,
+			    struct drm_display_mode *mode)
 {
 	int hsyncstart, hsyncend, htotal, hdispend;
 	int vtotal, vdispend;
 	int tmp;
-	int sr07 = 0, hdr = 0;
 
 	htotal = mode->htotal / 8;
 	hsyncend = mode->hsync_end / 8;
@@ -249,15 +247,21 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 
 	/* Disable Hercules/CGA compatibility */
 	wreg_crt(cirrus, VGA_CRTC_MODE, 0x03);
+}
+
+static void cirrus_format_set(struct cirrus_device *cirrus,
+			      struct drm_framebuffer *fb)
+{
+	u8 sr07, hdr;
 
 	sr07 = rreg_seq(cirrus, 0x07);
 	sr07 &= 0xe0;
-	hdr = 0;
 
 	cirrus->format = cirrus_format(fb);
 	switch (cirrus->format->format) {
 	case DRM_FORMAT_C8:
 		sr07 |= 0x11;
+		hdr = 0x00;
 		break;
 	case DRM_FORMAT_RGB565:
 		sr07 |= 0x17;
@@ -272,21 +276,10 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 		hdr = 0xc5;
 		break;
 	default:
-		return -1;
+		return;
 	}
 
 	wreg_seq(cirrus, 0x7, sr07);
-
-	/* Program the pitch */
-	cirrus->pitch = cirrus_pitch(fb);
-	tmp = cirrus->pitch / 8;
-	wreg_crt(cirrus, VGA_CRTC_OFFSET, tmp);
-
-	/* Enable extended blanking and pitch bits, and enable full memory */
-	tmp = 0x22;
-	tmp |= (cirrus->pitch >> 7) & 0x10;
-	tmp |= (cirrus->pitch >> 6) & 0x40;
-	wreg_crt(cirrus, 0x1b, tmp);
 
 	/* Enable high-colour modes */
 	wreg_gfx(cirrus, VGA_GFX_MODE, 0x40);
@@ -295,13 +288,25 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 	wreg_gfx(cirrus, VGA_GFX_MISC, 0x01);
 
 	wreg_hdr(cirrus, hdr);
+}
+
+static void cirrus_pitch_set(struct cirrus_device *cirrus,
+			     struct drm_framebuffer *fb)
+{
+	u8 cr13, cr1b;
+
+	/* Program the pitch */
+	cirrus->pitch = cirrus_pitch(fb);
+	cr13 = cirrus->pitch / 8;
+	wreg_crt(cirrus, VGA_CRTC_OFFSET, cr13);
+
+	/* Enable extended blanking and pitch bits, and enable full memory */
+	cr1b = 0x22;
+	cr1b |= (cirrus->pitch >> 7) & 0x10;
+	cr1b |= (cirrus->pitch >> 6) & 0x40;
+	wreg_crt(cirrus, 0x1b, cr1b);
 
 	cirrus_set_start_address(cirrus, 0);
-
-	/* Unblank (needed on S3 resume, vgabios doesn't do it then) */
-	outb(0x20, 0x3c0);
-
-	return 0;
 }
 
 static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
@@ -413,8 +418,13 @@ static void cirrus_pipe_enable(struct drm_simple_display_pipe *pipe,
 	if (!drm_dev_enter(&cirrus->dev, &idx))
 		return;
 
-	cirrus_mode_set(cirrus, &crtc_state->mode, plane_state->fb);
+	cirrus_mode_set(cirrus, &crtc_state->mode);
+	cirrus_format_set(cirrus, plane_state->fb);
+	cirrus_pitch_set(cirrus, plane_state->fb);
 	cirrus_fb_blit_fullscreen(plane_state->fb, &shadow_plane_state->data[0]);
+
+	/* Unblank (needed on S3 resume, vgabios doesn't do it then) */
+	outb(0x20, 0x3c0);
 
 	drm_dev_exit(idx);
 }
@@ -425,15 +435,18 @@ static void cirrus_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct cirrus_device *cirrus = to_cirrus(pipe->crtc.dev);
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect rect;
 	int idx;
 
 	if (!drm_dev_enter(&cirrus->dev, &idx))
 		return;
 
-	if (state->fb && cirrus->format != cirrus_format(state->fb))
-		cirrus_mode_set(cirrus, &crtc->mode, state->fb);
+	if (state->fb) {
+		if (cirrus->format != cirrus_format(state->fb))
+			cirrus_format_set(cirrus, state->fb);
+		if (cirrus->pitch != cirrus_pitch(state->fb))
+			cirrus_pitch_set(cirrus, state->fb);
+	}
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		cirrus_fb_blit_rect(state->fb, &shadow_plane_state->data[0], &rect);
