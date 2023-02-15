@@ -440,16 +440,8 @@ config RISCV_ISA_ZBB
 
 	   If you don't know what to do here, say Y.
 
-config TOOLCHAIN_HAS_ZICBOM
-	bool
-	default y
-	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zicbom)
-	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zicbom)
-	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23800
-
 config RISCV_ISA_ZICBOM
 	bool "Zicbom extension support for non-coherent DMA operation"
-	depends on TOOLCHAIN_HAS_ZICBOM
 	depends on !XIP_KERNEL && MMU
 	default y
 	select RISCV_ALTERNATIVE

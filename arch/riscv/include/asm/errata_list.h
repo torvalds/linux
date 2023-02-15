@@ -7,6 +7,7 @@
 
 #include <asm/alternative.h>
 #include <asm/csr.h>
+#include <asm/insn-def.h>
 #include <asm/hwcap.h>
 #include <asm/vendorid_list.h>
 
@@ -122,7 +123,7 @@ asm volatile(ALTERNATIVE_2(						\
 	"mv a0, %1\n\t"							\
 	"j 2f\n\t"							\
 	"3:\n\t"							\
-	"cbo." __stringify(_op) " (a0)\n\t"				\
+	CBO_##_op(a0)							\
 	"add a0, a0, %0\n\t"						\
 	"2:\n\t"							\
 	"bltu a0, %2, 3b\n\t"						\
