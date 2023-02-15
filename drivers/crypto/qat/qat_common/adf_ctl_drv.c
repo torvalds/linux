@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2014 - 2020 Intel Corporation */
+
+#include <crypto/algapi.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -8,7 +10,6 @@
 #include <linux/pci.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
-#include <linux/crypto.h>
 
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
