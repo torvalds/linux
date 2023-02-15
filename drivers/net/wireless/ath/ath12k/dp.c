@@ -1429,7 +1429,7 @@ static int ath12k_dp_cc_init(struct ath12k_base *ab)
 		}
 
 		if (dp->spt_info[i].paddr & ATH12K_SPT_4K_ALIGN_CHECK) {
-			ath12k_warn(ab, "SPT allocated memoty is not 4K aligned");
+			ath12k_warn(ab, "SPT allocated memory is not 4K aligned");
 			ret = -EINVAL;
 			goto free;
 		}

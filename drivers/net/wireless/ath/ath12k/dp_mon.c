@@ -813,7 +813,7 @@ ath12k_dp_mon_rx_parse_status_tlv(struct ath12k_base *ab,
 		spin_unlock_bh(&buf_ring->idr_lock);
 
 		if (unlikely(!msdu)) {
-			ath12k_warn(ab, "montior destination with invalid buf_id %d\n",
+			ath12k_warn(ab, "monitor destination with invalid buf_id %d\n",
 				    buf_id);
 			return HAL_RX_MON_STATUS_PPDU_NOT_DONE;
 		}
@@ -1124,7 +1124,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 
 	/* PN for multicast packets are not validate in HW,
 	 * so skip 802.3 rx path
-	 * Also, fast_rx expectes the STA to be authorized, hence
+	 * Also, fast_rx expects the STA to be authorized, hence
 	 * eapol packets are sent in slow path.
 	 */
 	if (decap == DP_RX_DECAP_TYPE_ETHERNET2_DIX && !is_eapol_tkip &&
@@ -1917,7 +1917,7 @@ ath12k_dp_mon_tx_parse_status_tlv(struct ath12k_base *ab,
 		spin_unlock_bh(&buf_ring->idr_lock);
 
 		if (unlikely(!msdu)) {
-			ath12k_warn(ab, "montior destination with invalid buf_id %d\n",
+			ath12k_warn(ab, "monitor destination with invalid buf_id %d\n",
 				    buf_id);
 			return DP_MON_TX_STATUS_PPDU_NOT_DONE;
 		}
@@ -2110,7 +2110,7 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int mac_id, int *budget,
 		spin_unlock_bh(&buf_ring->idr_lock);
 
 		if (unlikely(!skb)) {
-			ath12k_warn(ab, "montior destination with invalid buf_id %d\n",
+			ath12k_warn(ab, "monitor destination with invalid buf_id %d\n",
 				    buf_id);
 			goto move_next;
 		}
@@ -2511,7 +2511,7 @@ int ath12k_dp_mon_rx_process_stats(struct ath12k *ar, int mac_id,
 		spin_unlock_bh(&buf_ring->idr_lock);
 
 		if (unlikely(!skb)) {
-			ath12k_warn(ab, "montior destination with invalid buf_id %d\n",
+			ath12k_warn(ab, "monitor destination with invalid buf_id %d\n",
 				    buf_id);
 			goto move_next;
 		}

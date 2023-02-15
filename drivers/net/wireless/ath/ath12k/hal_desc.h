@@ -706,7 +706,7 @@ struct rx_msdu_desc {
  *
  * msdu_continuation
  *		When set, this MSDU buffer was not able to hold the entire MSDU.
- *		The next buffer will therefor contain additional information
+ *		The next buffer will therefore contain additional information
  *		related to this MSDU.
  *
  * msdu_length
@@ -1294,7 +1294,7 @@ struct hal_tcl_data_cmd {
  *		link descriptor.
  *
  * tcl_cmd_type
- *		used to select the type of TCL Command decriptor
+ *		used to select the type of TCL Command descriptor
  *
  * desc_type
  *		Indicates the type of address provided in the buf_addr_info.
@@ -1408,7 +1408,7 @@ struct hal_tcl_data_cmd {
  * index_loop_override
  *		When set, address search and packet routing is forced to use
  *		'search_index' instead of following the register configuration
- *		seleced by Bank_id.
+ *		selected by Bank_id.
  *
  * ring_id
  *		The buffer pointer ring ID.
@@ -1990,7 +1990,7 @@ struct hal_wbm_release_ring {
  *	Producer: SW/TQM/RXDMA/REO/SWITCH
  *	Consumer: WBM/SW/FW
  *
- * HTT tx status is overlayed on wbm_release ring on 4-byte words 2, 3, 4 and 5
+ * HTT tx status is overlaid on wbm_release ring on 4-byte words 2, 3, 4 and 5
  * for software based completions.
  *
  * buf_addr_info
@@ -2552,7 +2552,7 @@ struct hal_reo_status_hdr {
  *		commands.
  *
  * execution_time (in us)
- *		The amount of time REO took to excecute the command. Note that
+ *		The amount of time REO took to execute the command. Note that
  *		this time does not include the duration of the command waiting
  *		in the command ring, before the execution started.
  *
