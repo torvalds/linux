@@ -1366,13 +1366,13 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	if (!spi_new_device(ispi->master, &chip))
 		return -ENODEV;
 
-	/* Add the second chip if present */
-	if (ispi->master->num_chipselect < 2)
-		return 0;
-
 	ret = intel_spi_read_desc(ispi);
 	if (ret)
 		return ret;
+
+	/* Add the second chip if present */
+	if (ispi->master->num_chipselect < 2)
+		return 0;
 
 	chip.platform_data = NULL;
 	chip.chip_select = 1;
