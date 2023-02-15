@@ -58,7 +58,7 @@ struct cirrus_device {
 	struct drm_device	       dev;
 	struct drm_simple_display_pipe pipe;
 	struct drm_connector	       conn;
-	unsigned int		       cpp;
+	const struct drm_format_info   *format;
 	unsigned int		       pitch;
 	void __iomem		       *vram;
 	void __iomem		       *mmio;
@@ -126,34 +126,34 @@ static void wreg_hdr(struct cirrus_device *cirrus, u8 val)
 	iowrite8(val, cirrus->mmio + VGA_DAC_MASK);
 }
 
-static int cirrus_convert_to(struct drm_framebuffer *fb)
+static const struct drm_format_info *cirrus_convert_to(struct drm_framebuffer *fb)
 {
-	if (fb->format->cpp[0] == 4 && fb->pitches[0] > CIRRUS_MAX_PITCH) {
+	if (fb->format->format == DRM_FORMAT_XRGB8888 && fb->pitches[0] > CIRRUS_MAX_PITCH) {
 		if (fb->width * 3 <= CIRRUS_MAX_PITCH)
 			/* convert from XR24 to RG24 */
-			return 3;
+			return drm_format_info(DRM_FORMAT_RGB888);
 		else
 			/* convert from XR24 to RG16 */
-			return 2;
+			return drm_format_info(DRM_FORMAT_RGB565);
 	}
-	return 0;
+	return NULL;
 }
 
-static int cirrus_cpp(struct drm_framebuffer *fb)
+static const struct drm_format_info *cirrus_format(struct drm_framebuffer *fb)
 {
-	int convert_cpp = cirrus_convert_to(fb);
+	const struct drm_format_info *format = cirrus_convert_to(fb);
 
-	if (convert_cpp)
-		return convert_cpp;
-	return fb->format->cpp[0];
+	if (format)
+		return format;
+	return fb->format;
 }
 
 static int cirrus_pitch(struct drm_framebuffer *fb)
 {
-	int convert_cpp = cirrus_convert_to(fb);
+	const struct drm_format_info *format = cirrus_convert_to(fb);
 
-	if (convert_cpp)
-		return convert_cpp * fb->width;
+	if (format)
+		return drm_format_info_min_pitch(format, 0, fb->width);
 	return fb->pitches[0];
 }
 
@@ -263,20 +263,20 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 	sr07 &= 0xe0;
 	hdr = 0;
 
-	cirrus->cpp = cirrus_cpp(fb);
-	switch (cirrus->cpp * 8) {
-	case 8:
+	cirrus->format = cirrus_format(fb);
+	switch (cirrus->format->format) {
+	case DRM_FORMAT_C8:
 		sr07 |= 0x11;
 		break;
-	case 16:
+	case DRM_FORMAT_RGB565:
 		sr07 |= 0x17;
 		hdr = 0xc1;
 		break;
-	case 24:
+	case DRM_FORMAT_RGB888:
 		sr07 |= 0x15;
 		hdr = 0xc5;
 		break;
-	case 32:
+	case DRM_FORMAT_XRGB8888:
 		sr07 |= 0x19;
 		hdr = 0xc5;
 		break;
@@ -329,13 +329,15 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 	iosys_map_set_vaddr_iomem(&dst, cirrus->vram);
 	iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
 
-	if (cirrus->cpp == fb->format->cpp[0]) {
+	if (cirrus->format == fb->format) {
 		drm_fb_memcpy(&dst, fb->pitches, vmap, fb, rect);
 
-	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 2) {
+	} else if (fb->format->format == DRM_FORMAT_XRGB8888 &&
+		   cirrus->format->format == DRM_FORMAT_RGB565) {
 		drm_fb_xrgb8888_to_rgb565(&dst, &cirrus->pitch, vmap, fb, rect, false);
 
-	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 3) {
+	} else if (fb->format->format == DRM_FORMAT_XRGB8888 &&
+		   cirrus->format->format == DRM_FORMAT_RGB565) {
 		drm_fb_xrgb8888_to_rgb888(&dst, &cirrus->pitch, vmap, fb, rect);
 
 	} else {
@@ -450,7 +452,7 @@ static void cirrus_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect rect;
 
-	if (state->fb && cirrus->cpp != cirrus_cpp(state->fb))
+	if (state->fb && cirrus->format != cirrus_format(state->fb))
 		cirrus_mode_set(cirrus, &crtc->mode, state->fb);
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
