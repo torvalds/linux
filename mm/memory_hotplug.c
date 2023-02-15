@@ -1632,6 +1632,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		struct folio *folio;
+		bool isolated;
 
 		if (!pfn_valid(pfn))
 			continue;
@@ -1667,9 +1668,10 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		 * We can skip free pages. And we can deal with pages on
 		 * LRU and non-lru movable pages.
 		 */
-		if (PageLRU(page))
-			ret = isolate_lru_page(page);
-		else
+		if (PageLRU(page)) {
+			isolated = isolate_lru_page(page);
+			ret = isolated ? 0 : -EBUSY;
+		} else
 			ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
 		if (!ret) { /* Success */
 			list_add_tail(&page->lru, &source);

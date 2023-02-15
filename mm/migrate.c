@@ -2132,11 +2132,14 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
 		}
 	} else {
 		struct page *head;
+		bool isolated;
 
 		head = compound_head(page);
-		err = isolate_lru_page(head);
-		if (err)
+		isolated = isolate_lru_page(head);
+		if (!isolated) {
+			err = -EBUSY;
 			goto out_putpage;
+		}
 
 		err = 1;
 		list_add_tail(&head->lru, pagelist);
@@ -2541,7 +2544,7 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
 		return 0;
 	}
 
-	if (isolate_lru_page(page))
+	if (!isolate_lru_page(page))
 		return 0;
 
 	mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON + page_is_file_lru(page),

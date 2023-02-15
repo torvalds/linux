@@ -187,7 +187,7 @@ pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
 /*
  * in mm/vmscan.c:
  */
-int isolate_lru_page(struct page *page);
+bool isolate_lru_page(struct page *page);
 bool folio_isolate_lru(struct folio *folio);
 void putback_lru_page(struct page *page);
 void folio_putback_lru(struct folio *folio);
