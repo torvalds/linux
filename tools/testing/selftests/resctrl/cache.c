@@ -77,7 +77,7 @@ static int reset_enable_llc_perf(pid_t pid, int cpu_no)
 
 /*
  * get_llc_perf:	llc cache miss through perf events
- * @cpu_no:		CPU number that the benchmark PID is binded to
+ * @llc_perf_miss:	LLC miss counter that is filled on success
  *
  * Perf events like HW_CACHE_MISSES could be used to validate number of
  * cache lines allocated.
