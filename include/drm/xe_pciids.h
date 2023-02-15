@@ -41,8 +41,8 @@
 	MACRO__(0x9AF8, ## __VA_ARGS__)
 
 #define XE_TGL_IDS(MACRO__, ...)		\
-	XE_TGL_GT1_IDS(MACRO__, ...),		\
-	XE_TGL_GT2_IDS(MACRO__, ...)
+	XE_TGL_GT1_IDS(MACRO__, ## __VA_ARGS__),\
+	XE_TGL_GT2_IDS(MACRO__, ## __VA_ARGS__)
 
 /* RKL */
 #define XE_RKL_IDS(MACRO__, ...)		\

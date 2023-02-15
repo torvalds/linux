@@ -279,7 +279,7 @@ static const struct xe_device_desc mtl_desc = {
  * PCI ID matches, otherwise we'll use the wrong info struct above.
  */
 static const struct pci_device_id pciidlist[] = {
-	XE_TGL_GT2_IDS(INTEL_VGA_DEVICE, &tgl_desc),
+	XE_TGL_IDS(INTEL_VGA_DEVICE, &tgl_desc),
 	XE_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
 	XE_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),
 	XE_DG2_IDS(INTEL_VGA_DEVICE, &dg2_desc),
