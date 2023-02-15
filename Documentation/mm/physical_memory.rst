@@ -210,7 +210,7 @@ General
 ``node_page_ext``
   For UMA systems that use FLATMEM memory model the 0's node
   ``node_page_ext`` is array of extensions of struct pages. Available only
-  in the kernels built with ``CONFIG_PAGE_EXTENTION`` enabled.
+  in the kernels built with ``CONFIG_PAGE_EXTENSION`` enabled.
 
 ``node_start_pfn``
   The page frame number of the starting page frame in this node.
