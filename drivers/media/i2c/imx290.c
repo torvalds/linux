@@ -211,6 +211,7 @@ struct imx290_mode {
 	u32 hmax_min;
 	u32 vmax_min;
 	u8 link_freq_index;
+	u8 ctrl_07;
 
 	const struct imx290_regval *data;
 	u32 data_size;
@@ -251,6 +252,10 @@ struct imx290 {
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *exposure;
+	struct {
+		struct v4l2_ctrl *hflip;
+		struct v4l2_ctrl *vflip;
+	};
 };
 
 static inline struct imx290 *to_imx290(struct v4l2_subdev *_sd)
@@ -328,7 +333,6 @@ static const struct imx290_regval xclk_regs[][IMX290_NUM_CLK_REGS] = {
 
 static const struct imx290_regval imx290_1080p_settings[] = {
 	/* mode settings */
-	{ IMX290_CTRL_07, IMX290_WINMODE_1080P },
 	{ IMX290_WINWV_OB, 12 },
 	{ IMX290_OPB_SIZE_V, 10 },
 	{ IMX290_X_OUT_SIZE, 1920 },
@@ -337,7 +341,6 @@ static const struct imx290_regval imx290_1080p_settings[] = {
 
 static const struct imx290_regval imx290_720p_settings[] = {
 	/* mode settings */
-	{ IMX290_CTRL_07, IMX290_WINMODE_720P },
 	{ IMX290_WINWV_OB, 6 },
 	{ IMX290_OPB_SIZE_V, 4 },
 	{ IMX290_X_OUT_SIZE, 1280 },
@@ -497,6 +500,7 @@ static const struct imx290_mode imx290_modes_2lanes[] = {
 		.hmax_min = 2200,
 		.vmax_min = 1125,
 		.link_freq_index = FREQ_INDEX_1080P,
+		.ctrl_07 = IMX290_WINMODE_1080P,
 		.data = imx290_1080p_settings,
 		.data_size = ARRAY_SIZE(imx290_1080p_settings),
 		.clk_cfg = imx290_1080p_clock_config,
@@ -507,6 +511,7 @@ static const struct imx290_mode imx290_modes_2lanes[] = {
 		.hmax_min = 3300,
 		.vmax_min = 750,
 		.link_freq_index = FREQ_INDEX_720P,
+		.ctrl_07 = IMX290_WINMODE_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
 		.clk_cfg = imx290_720p_clock_config,
@@ -520,6 +525,7 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 		.hmax_min = 2200,
 		.vmax_min = 1125,
 		.link_freq_index = FREQ_INDEX_1080P,
+		.ctrl_07 = IMX290_WINMODE_1080P,
 		.data = imx290_1080p_settings,
 		.data_size = ARRAY_SIZE(imx290_1080p_settings),
 		.clk_cfg = imx290_1080p_clock_config,
@@ -530,6 +536,7 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 		.hmax_min = 3300,
 		.vmax_min = 750,
 		.link_freq_index = FREQ_INDEX_720P,
+		.ctrl_07 = IMX290_WINMODE_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
 		.clk_cfg = imx290_720p_clock_config,
@@ -840,6 +847,20 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 				   NULL);
 		break;
 
+	case V4L2_CID_HFLIP:
+	case V4L2_CID_VFLIP:
+	{
+		u32 reg;
+
+		reg = imx290->current_mode->ctrl_07;
+		if (imx290->hflip->val)
+			reg |= IMX290_HREVERSE;
+		if (imx290->vflip->val)
+			reg |= IMX290_VREVERSE;
+		ret = imx290_write(imx290, IMX290_CTRL_07, reg, NULL);
+		break;
+	}
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -892,7 +913,7 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 	if (ret < 0)
 		return ret;
 
-	v4l2_ctrl_handler_init(&imx290->ctrls, 9);
+	v4l2_ctrl_handler_init(&imx290->ctrls, 11);
 
 	/*
 	 * The sensor has an analog gain and a digital gain, both controlled
@@ -948,6 +969,12 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 
 	imx290->vblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 					   V4L2_CID_VBLANK, 1, 1, 1, 1);
+
+	imx290->hflip = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
+					  V4L2_CID_HFLIP, 0, 1, 1, 0);
+	imx290->vflip = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
+					  V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_cluster(2, &imx290->hflip);
 
 	v4l2_ctrl_new_fwnode_properties(&imx290->ctrls, &imx290_ctrl_ops,
 					&props);
@@ -1070,6 +1097,13 @@ static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put_autosuspend(imx290->dev);
 	}
 
+	/*
+	 * vflip and hflip should not be changed during streaming as the sensor
+	 * will produce an invalid frame.
+	 */
+	__v4l2_ctrl_grab(imx290->vflip, enable);
+	__v4l2_ctrl_grab(imx290->hflip, enable);
+
 unlock:
 	v4l2_subdev_unlock_state(state);
 	return ret;
@@ -1152,16 +1186,23 @@ static int imx290_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
+	struct imx290 *imx290 = to_imx290(sd);
 	struct v4l2_mbus_framefmt *format;
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP: {
 		format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
 
+		/*
+		 * The sensor moves the readout by 1 pixel based on flips to
+		 * keep the Bayer order the same.
+		 */
 		sel->r.top = IMX920_PIXEL_ARRAY_MARGIN_TOP
-			   + (IMX290_PIXEL_ARRAY_RECORDING_HEIGHT - format->height) / 2;
+			   + (IMX290_PIXEL_ARRAY_RECORDING_HEIGHT - format->height) / 2
+			   + imx290->vflip->val;
 		sel->r.left = IMX920_PIXEL_ARRAY_MARGIN_LEFT
-			    + (IMX290_PIXEL_ARRAY_RECORDING_WIDTH - format->width) / 2;
+			    + (IMX290_PIXEL_ARRAY_RECORDING_WIDTH - format->width) / 2
+			    + imx290->hflip->val;
 		sel->r.width = format->width;
 		sel->r.height = format->height;
 
