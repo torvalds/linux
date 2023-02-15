@@ -747,6 +747,19 @@ static int efx_ef100_get_base_mport(struct efx_nic *efx)
 			   id);
 	nic_data->base_mport = id;
 	nic_data->have_mport = true;
+
+	/* Construct mport selector for "calling PF" */
+	efx_mae_mport_uplink(efx, &selector);
+	/* Look up actual mport ID */
+	rc = efx_mae_lookup_mport(efx, selector, &id);
+	if (rc)
+		return rc;
+	if (id >> 16)
+		netif_warn(efx, probe, efx->net_dev, "Bad own m-port id %#x\n",
+			   id);
+	nic_data->own_mport = id;
+	nic_data->have_own_mport = true;
+
 	return 0;
 }
 #endif
@@ -1126,6 +1139,14 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 			   rc);
 	}
 
+	rc = efx_init_mae(efx);
+	if (rc)
+		netif_warn(efx, probe, net_dev,
+			   "Failed to init MAE rc %d; representors will not function\n",
+			   rc);
+	else
+		efx_ef100_init_reps(efx);
+
 	rc = efx_init_tc(efx);
 	if (rc) {
 		/* Either we don't have an MAE at all (i.e. legacy v-switching),
@@ -1157,6 +1178,12 @@ void ef100_remove(struct efx_nic *efx)
 {
 	struct ef100_nic_data *nic_data = efx->nic_data;
 
+#ifdef CONFIG_SFC_SRIOV
+	if (efx->mae) {
+		efx_ef100_fini_reps(efx);
+		efx_fini_mae(efx);
+	}
+#endif
 	efx_mcdi_detach(efx);
 	efx_mcdi_fini(efx);
 	if (nic_data)
