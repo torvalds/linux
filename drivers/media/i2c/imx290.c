@@ -193,6 +193,18 @@ struct imx290_mode {
 	u32 data_size;
 };
 
+struct imx290_csi_cfg {
+	u16 repetition;
+	u16 tclkpost;
+	u16 thszero;
+	u16 thsprepare;
+	u16 tclktrail;
+	u16 thstrail;
+	u16 tclkzero;
+	u16 tclkprepare;
+	u16 tlpx;
+};
+
 struct imx290 {
 	struct device *dev;
 	struct clk *xclk;
@@ -292,16 +304,6 @@ static const struct imx290_regval imx290_1080p_settings[] = {
 	{ IMX290_INCKSEL4, 0x01 },
 	{ IMX290_INCKSEL5, 0x1a },
 	{ IMX290_INCKSEL6, 0x1a },
-	/* data rate settings */
-	{ IMX290_REPETITION, 0x10 },
-	{ IMX290_TCLKPOST, 87 },
-	{ IMX290_THSZERO, 55 },
-	{ IMX290_THSPREPARE, 31 },
-	{ IMX290_TCLKTRAIL, 31 },
-	{ IMX290_THSTRAIL, 31 },
-	{ IMX290_TCLKZERO, 119 },
-	{ IMX290_TCLKPREPARE, 31 },
-	{ IMX290_TLPX, 23 },
 };
 
 static const struct imx290_regval imx290_720p_settings[] = {
@@ -317,16 +319,6 @@ static const struct imx290_regval imx290_720p_settings[] = {
 	{ IMX290_INCKSEL4, 0x01 },
 	{ IMX290_INCKSEL5, 0x1a },
 	{ IMX290_INCKSEL6, 0x1a },
-	/* data rate settings */
-	{ IMX290_REPETITION, 0x10 },
-	{ IMX290_TCLKPOST, 79 },
-	{ IMX290_THSZERO, 47 },
-	{ IMX290_THSPREPARE, 23 },
-	{ IMX290_TCLKTRAIL, 23 },
-	{ IMX290_THSTRAIL, 23 },
-	{ IMX290_TCLKZERO, 87 },
-	{ IMX290_TCLKPREPARE, 23 },
-	{ IMX290_TLPX, 23 },
 };
 
 static const struct imx290_regval imx290_10bit_settings[] = {
@@ -345,6 +337,58 @@ static const struct imx290_regval imx290_12bit_settings[] = {
 	{ IMX290_ADBIT2, IMX290_ADBIT2_12BIT },
 	{ IMX290_ADBIT3, IMX290_ADBIT3_12BIT },
 	{ IMX290_CSI_DT_FMT, IMX290_CSI_DT_FMT_RAW12 },
+};
+
+static const struct imx290_csi_cfg imx290_csi_222_75mhz = {
+	/* 222.75MHz or 445.5Mbit/s per lane */
+	.repetition = 0x10,
+	.tclkpost = 87,
+	.thszero = 55,
+	.thsprepare = 31,
+	.tclktrail = 31,
+	.thstrail = 31,
+	.tclkzero = 119,
+	.tclkprepare = 31,
+	.tlpx = 23,
+};
+
+static const struct imx290_csi_cfg imx290_csi_445_5mhz = {
+	/* 445.5MHz or 891Mbit/s per lane */
+	.repetition = 0x00,
+	.tclkpost = 119,
+	.thszero = 103,
+	.thsprepare = 71,
+	.tclktrail = 55,
+	.thstrail = 63,
+	.tclkzero = 255,
+	.tclkprepare = 63,
+	.tlpx = 55,
+};
+
+static const struct imx290_csi_cfg imx290_csi_148_5mhz = {
+	/* 148.5MHz or 297Mbit/s per lane */
+	.repetition = 0x10,
+	.tclkpost = 79,
+	.thszero = 47,
+	.thsprepare = 23,
+	.tclktrail = 23,
+	.thstrail = 23,
+	.tclkzero = 87,
+	.tclkprepare = 23,
+	.tlpx = 23,
+};
+
+static const struct imx290_csi_cfg imx290_csi_297mhz = {
+	/* 297MHz or 594Mbit/s per lane */
+	.repetition = 0x00,
+	.tclkpost = 103,
+	.thszero = 87,
+	.thsprepare = 47,
+	.tclktrail = 39,
+	.thstrail = 47,
+	.tclkzero = 191,
+	.tclkprepare = 47,
+	.tlpx = 39,
 };
 
 /* supported link frequencies */
@@ -562,6 +606,42 @@ static int imx290_set_black_level(struct imx290 *imx290,
 			    black_level >> (16 - bpp), err);
 }
 
+static int imx290_set_csi_config(struct imx290 *imx290)
+{
+	const s64 *link_freqs = imx290_link_freqs_ptr(imx290);
+	const struct imx290_csi_cfg *csi_cfg;
+	int ret = 0;
+
+	switch (link_freqs[imx290->current_mode->link_freq_index]) {
+	case 445500000:
+		csi_cfg = &imx290_csi_445_5mhz;
+		break;
+	case 297000000:
+		csi_cfg = &imx290_csi_297mhz;
+		break;
+	case 222750000:
+		csi_cfg = &imx290_csi_222_75mhz;
+		break;
+	case 148500000:
+		csi_cfg = &imx290_csi_148_5mhz;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	imx290_write(imx290, IMX290_REPETITION, csi_cfg->repetition, &ret);
+	imx290_write(imx290, IMX290_TCLKPOST, csi_cfg->tclkpost, &ret);
+	imx290_write(imx290, IMX290_THSZERO, csi_cfg->thszero, &ret);
+	imx290_write(imx290, IMX290_THSPREPARE, csi_cfg->thsprepare, &ret);
+	imx290_write(imx290, IMX290_TCLKTRAIL, csi_cfg->tclktrail, &ret);
+	imx290_write(imx290, IMX290_THSTRAIL, csi_cfg->thstrail, &ret);
+	imx290_write(imx290, IMX290_TCLKZERO, csi_cfg->tclkzero, &ret);
+	imx290_write(imx290, IMX290_TCLKPREPARE, csi_cfg->tclkprepare, &ret);
+	imx290_write(imx290, IMX290_TLPX, csi_cfg->tlpx, &ret);
+
+	return ret;
+}
+
 static int imx290_setup_format(struct imx290 *imx290,
 			       const struct v4l2_mbus_framefmt *format)
 {
@@ -771,6 +851,12 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	ret = imx290_set_data_lanes(imx290);
 	if (ret < 0) {
 		dev_err(imx290->dev, "Could not set data lanes\n");
+		return ret;
+	}
+
+	ret = imx290_set_csi_config(imx290);
+	if (ret < 0) {
+		dev_err(imx290->dev, "Could not set csi cfg\n");
 		return ret;
 	}
 
