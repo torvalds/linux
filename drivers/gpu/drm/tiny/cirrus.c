@@ -419,15 +419,6 @@ static const struct drm_plane_funcs cirrus_primary_plane_funcs = {
 	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
-static enum drm_mode_status cirrus_crtc_helper_mode_valid(struct drm_crtc *crtc,
-							  const struct drm_display_mode *mode)
-{
-	if (cirrus_check_size(mode->hdisplay, mode->vdisplay, NULL) < 0)
-		return MODE_BAD;
-
-	return MODE_OK;
-}
-
 static int cirrus_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
@@ -462,7 +453,6 @@ static void cirrus_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs cirrus_crtc_helper_funcs = {
-	.mode_valid = cirrus_crtc_helper_mode_valid,
 	.atomic_check = cirrus_crtc_helper_atomic_check,
 	.atomic_enable = cirrus_crtc_helper_atomic_enable,
 };
@@ -555,8 +545,21 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 /* ------------------------------------------------------------------ */
 /* cirrus framebuffers & mode config				      */
 
+static enum drm_mode_status cirrus_mode_config_mode_valid(struct drm_device *dev,
+							  const struct drm_display_mode *mode)
+{
+	const struct drm_format_info *format = drm_format_info(DRM_FORMAT_XRGB8888);
+	uint64_t pitch = drm_format_info_min_pitch(format, 0, mode->hdisplay);
+
+	if (pitch * mode->vdisplay > CIRRUS_VRAM_SIZE)
+		return MODE_MEM;
+
+	return MODE_OK;
+}
+
 static const struct drm_mode_config_funcs cirrus_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = cirrus_mode_config_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
