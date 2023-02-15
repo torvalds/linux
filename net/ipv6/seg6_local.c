@@ -364,6 +364,14 @@ static void seg6_next_csid_advance_arg(struct in6_addr *addr,
 	memset(&addr->s6_addr[16 - fnc_octects], 0x00, fnc_octects);
 }
 
+static int input_action_end_finish(struct sk_buff *skb,
+				   struct seg6_local_lwt *slwt)
+{
+	seg6_lookup_nexthop(skb, NULL, 0);
+
+	return dst_input(skb);
+}
+
 static int input_action_end_core(struct sk_buff *skb,
 				 struct seg6_local_lwt *slwt)
 {
@@ -375,9 +383,7 @@ static int input_action_end_core(struct sk_buff *skb,
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	seg6_lookup_nexthop(skb, NULL, 0);
-
-	return dst_input(skb);
+	return input_action_end_finish(skb, slwt);
 
 drop:
 	kfree_skb(skb);
@@ -395,9 +401,7 @@ static int end_next_csid_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	/* update DA */
 	seg6_next_csid_advance_arg(daddr, finfo);
 
-	seg6_lookup_nexthop(skb, NULL, 0);
-
-	return dst_input(skb);
+	return input_action_end_finish(skb, slwt);
 }
 
 static bool seg6_next_csid_enabled(__u32 fops)
