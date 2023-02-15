@@ -11,6 +11,7 @@
 #define __DA7219_AAD_H
 
 #include <linux/timer.h>
+#include <linux/mutex.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include <sound/da7219-aad.h>
@@ -196,6 +197,9 @@ struct da7219_aad_priv {
 
 	struct work_struct btn_det_work;
 	struct work_struct hptest_work;
+	struct work_struct jack_det_work;
+
+	struct mutex  jack_det_mutex;
 
 	struct snd_soc_jack *jack;
 	bool micbias_resume_enable;
