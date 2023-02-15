@@ -2068,6 +2068,12 @@ void ath11k_wmi_start_scan_init(struct ath11k *ar,
 				  WMI_SCAN_EVENT_FOREIGN_CHAN |
 				  WMI_SCAN_EVENT_DEQUEUED;
 	arg->scan_flags |= WMI_SCAN_CHAN_STAT_EVENT;
+
+	if (test_bit(WMI_TLV_SERVICE_PASSIVE_SCAN_START_TIME_ENHANCE,
+		     ar->ab->wmi_ab.svc_map))
+		arg->scan_ctrl_flags_ext |=
+			WMI_SCAN_FLAG_EXT_PASSIVE_SCAN_START_TIME_ENHANCE;
+
 	arg->num_bssid = 1;
 
 	/* fill bssid_list[0] with 0xff, otherwise bssid and RA will be
@@ -2149,6 +2155,8 @@ ath11k_wmi_copy_scan_event_cntrl_flags(struct wmi_start_scan_cmd *cmd,
 	/* for adaptive scan mode using 3 bits (21 - 23 bits) */
 	WMI_SCAN_SET_DWELL_MODE(cmd->scan_ctrl_flags,
 				param->adaptive_dwell_time_mode);
+
+	cmd->scan_ctrl_flags_ext = param->scan_ctrl_flags_ext;
 }
 
 int ath11k_wmi_send_scan_start_cmd(struct ath11k *ar,
