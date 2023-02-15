@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/rtc/nxp,pcf8563.yaml#
+$id: http://devicetree.org/schemas/rtc/nxp,pcf85363.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Philips PCF8563/Epson RTC8564 Real Time Clock
+title: Philips PCF85263/PCF85363 Real Time Clock
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
@@ -15,10 +15,8 @@ allOf:
 properties:
   compatible:
     enum:
-      - epson,rtc8564
-      - microcrystal,rv8564
-      - nxp,pca8565
-      - nxp,pcf8563
+      - nxp,pcf85263
+      - nxp,pcf85363
 
   reg:
     maxItems: 1
@@ -31,6 +29,12 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  quartz-load-femtofarads:
+    description:
+      The capacitive load of the quartz(x-tal).
+    enum: [6000, 7000, 12500]
+    default: 7000
 
   start-year: true
   wakeup-source: true
@@ -48,9 +52,9 @@ examples:
         #size-cells = <0>;
 
         rtc@51 {
-            compatible = "nxp,pcf8563";
+            compatible = "nxp,pcf85363";
             reg = <0x51>;
             #clock-cells = <0>;
+            quartz-load-femtofarads = <12500>;
         };
     };
-...
