@@ -279,8 +279,14 @@ static void taprio_update_queue_max_sdu(struct taprio_sched *q,
 			u32 max_frm_len;
 
 			max_frm_len = duration_to_length(q, sched->max_open_gate_duration[tc]);
-			if (stab)
+			/* Compensate for L1 overhead from size table,
+			 * but don't let the frame size go negative
+			 */
+			if (stab) {
 				max_frm_len -= stab->szopts.overhead;
+				max_frm_len = max_t(int, max_frm_len,
+						    dev->hard_header_len + 1);
+			}
 			max_sdu_dynamic = max_frm_len - dev->hard_header_len;
 		}
 
