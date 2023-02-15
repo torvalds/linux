@@ -115,16 +115,13 @@ static int query_memory_usage(struct xe_device *xe,
 		return -EINVAL;
 	}
 
-	usage = kmalloc(size, GFP_KERNEL);
+	usage = kzalloc(size, GFP_KERNEL);
 	if (XE_IOCTL_ERR(xe, !usage))
 		return -ENOMEM;
-
-	usage->pad = 0;
 
 	man = ttm_manager_type(&xe->ttm, XE_PL_TT);
 	usage->regions[0].mem_class = XE_MEM_REGION_CLASS_SYSMEM;
 	usage->regions[0].instance = 0;
-	usage->regions[0].pad = 0;
 	usage->regions[0].min_page_size = PAGE_SIZE;
 	usage->regions[0].max_page_size = PAGE_SIZE;
 	usage->regions[0].total_size = man->size << PAGE_SHIFT;
@@ -138,7 +135,6 @@ static int query_memory_usage(struct xe_device *xe,
 				XE_MEM_REGION_CLASS_VRAM;
 			usage->regions[usage->num_regions].instance =
 				usage->num_regions;
-			usage->regions[usage->num_regions].pad = 0;
 			usage->regions[usage->num_regions].min_page_size =
 				xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K ?
 				SZ_64K : PAGE_SIZE;
