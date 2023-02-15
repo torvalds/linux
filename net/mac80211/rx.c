@@ -4125,6 +4125,8 @@ static bool ieee80211_rx_data_set_sta(struct ieee80211_rx_data *rx,
 		if (!rx->sdata)
 			rx->sdata = sta->sdata;
 		rx->link_sta = &sta->deflink;
+	} else {
+		rx->link_sta = NULL;
 	}
 
 	if (link_id < 0)
