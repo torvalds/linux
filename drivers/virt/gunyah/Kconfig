@@ -127,4 +127,13 @@ config GH_GUEST_POPS
 	  one, it'll emulate a power key press action by sending an input
 	  notification to user-space.
 
+config GH_PANIC_NOTIFIER
+	tristate "Nofity other VM to do error handle when Primary VM panic"
+	depends on GH_RM_DRV
+	help
+	  Through the use of a Gunyah doorbell object to notify other VM do error
+	  handle when Primary VM panic. After other VM received the doorbell, it
+	  can collect some debug information. This driver is to be enabled on both
+	  Primary VM and the other VM who need do error handle.
+
 endif
