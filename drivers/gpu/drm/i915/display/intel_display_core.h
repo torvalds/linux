@@ -25,7 +25,7 @@
 #include "intel_global_state.h"
 #include "intel_gmbus.h"
 #include "intel_opregion.h"
-#include "intel_pm_types.h"
+#include "intel_wm_types.h"
 
 struct drm_i915_private;
 struct drm_property;

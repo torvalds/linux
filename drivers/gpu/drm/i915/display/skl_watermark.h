@@ -10,7 +10,7 @@
 
 #include "intel_display_limits.h"
 #include "intel_global_state.h"
-#include "intel_pm_types.h"
+#include "intel_wm_types.h"
 
 struct drm_i915_private;
 struct intel_atomic_state;

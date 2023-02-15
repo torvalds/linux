@@ -3,8 +3,8 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#ifndef __INTEL_PM_TYPES_H__
-#define __INTEL_PM_TYPES_H__
+#ifndef __INTEL_WM_TYPES_H__
+#define __INTEL_WM_TYPES_H__
 
 #include <linux/types.h>
 
@@ -73,4 +73,4 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 	return false;
 }
 
-#endif /* __INTEL_PM_TYPES_H__ */
+#endif /* __INTEL_WM_TYPES_H__ */

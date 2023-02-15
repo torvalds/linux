@@ -53,7 +53,7 @@
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
-#include "intel_pm_types.h"
+#include "intel_wm_types.h"
 
 struct drm_printer;
 struct __intel_global_objs_state;
