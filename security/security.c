@@ -4208,24 +4208,58 @@ EXPORT_SYMBOL(security_sctp_assoc_established);
 
 #ifdef CONFIG_SECURITY_INFINIBAND
 
+/**
+ * security_ib_pkey_access() - Check if access to an IB pkey is allowed
+ * @sec: LSM blob
+ * @subnet_prefix: subnet prefix of the port
+ * @pkey: IB pkey
+ *
+ * Check permission to access a pkey when modifing a QP.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_ib_pkey_access(void *sec, u64 subnet_prefix, u16 pkey)
 {
 	return call_int_hook(ib_pkey_access, 0, sec, subnet_prefix, pkey);
 }
 EXPORT_SYMBOL(security_ib_pkey_access);
 
+/**
+ * security_ib_endport_manage_subnet() - Check if SMPs traffic is allowed
+ * @sec: LSM blob
+ * @dev_name: IB device name
+ * @port_num: port number
+ *
+ * Check permissions to send and receive SMPs on a end port.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_ib_endport_manage_subnet(void *sec, const char *dev_name, u8 port_num)
 {
 	return call_int_hook(ib_endport_manage_subnet, 0, sec, dev_name, port_num);
 }
 EXPORT_SYMBOL(security_ib_endport_manage_subnet);
 
+/**
+ * security_ib_alloc_security() - Allocate an Infiniband LSM blob
+ * @sec: LSM blob
+ *
+ * Allocate a security structure for Infiniband objects.
+ *
+ * Return: Returns 0 on success, non-zero on failure.
+ */
 int security_ib_alloc_security(void **sec)
 {
 	return call_int_hook(ib_alloc_security, 0, sec);
 }
 EXPORT_SYMBOL(security_ib_alloc_security);
 
+/**
+ * security_ib_free_security() - Free an Infiniband LSM blob
+ * @sec: LSM blob
+ *
+ * Deallocate an Infiniband security structure.
+ */
 void security_ib_free_security(void *sec)
 {
 	call_void_hook(ib_free_security, sec);

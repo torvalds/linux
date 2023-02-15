@@ -32,28 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks for Infiniband
- *
- * @ib_pkey_access:
- *	Check permission to access a pkey when modifing a QP.
- *	@subnet_prefix the subnet prefix of the port being used.
- *	@pkey the pkey to be accessed.
- *	@sec pointer to a security structure.
- *	Return 0 if permission is granted.
- * @ib_endport_manage_subnet:
- *	Check permissions to send and receive SMPs on a end port.
- *	@dev_name the IB device name (i.e. mlx4_0).
- *	@port_num the port number.
- *	@sec pointer to a security structure.
- *	Return 0 if permission is granted.
- * @ib_alloc_security:
- *	Allocate a security structure for Infiniband objects.
- *	@sec pointer to a security structure pointer.
- *	Returns 0 on success, non-zero on failure.
- * @ib_free_security:
- *	Deallocate an Infiniband security structure.
- *	@sec contains the security structure to be freed.
- *
  * Security hooks for XFRM operations.
  *
  * @xfrm_policy_alloc_security:
