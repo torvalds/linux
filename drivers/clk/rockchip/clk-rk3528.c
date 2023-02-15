@@ -441,8 +441,6 @@ static struct rockchip_clk_branch rk3528_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(HCLK_BUS_ROOT, "hclk_bus_root", mux_200m_100m_50m_24m_p, CLK_IS_CRITICAL,
 	                RK3528_CLKSEL_CON(43), 8, 2, MFLAGS,
 	                RK3528_CLKGATE_CON(8), 5, GFLAGS),
-	GATE(HCLK_TRNG_NS, "hclk_trng_ns", "hclk_bus_root", 0,
-	     RK3528_CLKGATE_CON(10), 3, GFLAGS),
 
 	COMPOSITE_NODIV(PCLK_BUS_ROOT, "pclk_bus_root", mux_100m_50m_24m_p, CLK_IS_CRITICAL,
 	                RK3528_CLKSEL_CON(43), 10, 2, MFLAGS,
