@@ -2107,18 +2107,21 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
-	if (ep) {
-		asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
-						      struct v4l2_async_subdev);
+	if (!ep) {
+		ret = dev_err_probe(csi->dev, -ENOTCONN,
+				    "Failed to get remote endpoint\n");
+		goto error;
+	}
 
-		fwnode_handle_put(ep);
+	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+					      struct v4l2_async_subdev);
 
-		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
-			/* OK if asd already exists */
-			if (ret != -EEXIST)
-				goto error;
-		}
+	fwnode_handle_put(ep);
+
+	if (IS_ERR(asd)) {
+		ret = dev_err_probe(csi->dev, PTR_ERR(asd),
+				    "Failed to add remote subdev to notifier\n");
+		goto error;
 	}
 
 	csi->notifier.ops = &imx7_csi_notify_ops;
