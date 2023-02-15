@@ -87,11 +87,9 @@ linux.tar.gz: .tmp_filelist
 # rpm-pkg
 # ---------------------------------------------------------------------------
 PHONY += rpm-pkg
-rpm-pkg:
-	$(MAKE) clean
-	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
-	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
-	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -ta $(KERNELPATH).tar.gz \
+rpm-pkg: srpm = $(shell rpmspec --srpm --query --queryformat='%{name}-%{VERSION}-%{RELEASE}.src.rpm' kernel.spec)
+rpm-pkg: srcrpm-pkg
+	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -rb $(srpm) \
 	--define='_smp_mflags %{nil}'
 
 # srcrpm-pkg
