@@ -145,13 +145,30 @@ snap-pkg:
 	cd $(objtree)/snap && \
 	snapcraft --target-arch=$(UTS_MACHINE)
 
-# tarball targets
+# dir-pkg tar*-pkg - tarball targets
 # ---------------------------------------------------------------------------
-tar-pkgs := dir-pkg tar-pkg targz-pkg tarbz2-pkg tarxz-pkg tarzst-pkg
-PHONY += $(tar-pkgs)
-$(tar-pkgs):
-	$(MAKE) -f $(srctree)/Makefile
-	+$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
+
+tar-pkg-tarball = linux-$(KERNELRELEASE)-$(ARCH).$(1)
+tar-pkg-phony = $(subst .,,$(1))-pkg
+
+tar-install: FORCE
+	$(Q)$(MAKE) -f $(srctree)/Makefile
+	+$(Q)$(srctree)/scripts/package/buildtar $@
+
+PHONY += dir-pkg
+dir-pkg: tar-install
+	@echo "Kernel tree successfully created in $<"
+
+define tar-pkg-rule
+PHONY += $(tar-pkg-phony)
+$(tar-pkg-phony): $(tar-pkg-tarball)
+	@:
+
+$(tar-pkg-tarball): private tar-rootdir := tar-install
+$(tar-pkg-tarball): tar-install
+endef
+
+$(foreach x, tar tar.gz tar.bz2 tar.xz tar.zst, $(eval $(call tar-pkg-rule,$(x))))
 
 # perf-tar*-src-pkg - generate a source tarball with perf source
 # ---------------------------------------------------------------------------
