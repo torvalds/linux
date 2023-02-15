@@ -36,8 +36,8 @@ STATIC struct xfs_btree_cur *
 xfs_inobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
-	return xfs_inobt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_ag.agbp, cur->bc_ag.pag, cur->bc_btnum);
+	return xfs_inobt_init_cursor(cur->bc_ag.pag, cur->bc_tp,
+			cur->bc_ag.agbp, cur->bc_btnum);
 }
 
 STATIC void
@@ -103,15 +103,15 @@ __xfs_inobt_alloc_block(
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
+	args.pag = cur->bc_ag.pag;
 	args.oinfo = XFS_RMAP_OINFO_INOBT;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_ag.pag->pag_agno, sbno);
 	args.minlen = 1;
 	args.maxlen = 1;
 	args.prod = 1;
-	args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	args.resv = resv;
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_near_bno(&args,
+			XFS_AGB_TO_FSB(args.mp, args.pag->pag_agno, sbno));
 	if (error)
 		return error;
 
@@ -291,8 +291,8 @@ xfs_inobt_verify(
 	 * Similarly, during log recovery we will have a perag structure
 	 * attached, but the agi information will not yet have been initialised
 	 * from the on disk AGI. We don't currently use any of this information,
-	 * but beware of the landmine (i.e. need to check pag->pagi_init) if we
-	 * ever do.
+	 * but beware of the landmine (i.e. need to check
+	 * xfs_perag_initialised_agi(pag)) if we ever do.
 	 */
 	if (xfs_has_crc(mp)) {
 		fa = xfs_btree_sblock_v5hdr_verify(bp);
@@ -427,11 +427,11 @@ static const struct xfs_btree_ops xfs_finobt_ops = {
  */
 static struct xfs_btree_cur *
 xfs_inobt_init_common(
-	struct xfs_mount	*mp,		/* file system mount point */
-	struct xfs_trans	*tp,		/* transaction pointer */
 	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,		/* transaction pointer */
 	xfs_btnum_t		btnum)		/* ialloc or free ino btree */
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	struct xfs_btree_cur	*cur;
 
 	cur = xfs_btree_alloc_cursor(mp, tp, btnum,
@@ -456,16 +456,15 @@ xfs_inobt_init_common(
 /* Create an inode btree cursor. */
 struct xfs_btree_cur *
 xfs_inobt_init_cursor(
-	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
-	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)
 {
 	struct xfs_btree_cur	*cur;
 	struct xfs_agi		*agi = agbp->b_addr;
 
-	cur = xfs_inobt_init_common(mp, tp, pag, btnum);
+	cur = xfs_inobt_init_common(pag, tp, btnum);
 	if (btnum == XFS_BTNUM_INO)
 		cur->bc_nlevels = be32_to_cpu(agi->agi_level);
 	else
@@ -477,14 +476,13 @@ xfs_inobt_init_cursor(
 /* Create an inode btree cursor with a fake root for staging. */
 struct xfs_btree_cur *
 xfs_inobt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
 	struct xfs_perag	*pag,
+	struct xbtree_afakeroot	*afake,
 	xfs_btnum_t		btnum)
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_inobt_init_common(mp, NULL, pag, btnum);
+	cur = xfs_inobt_init_common(pag, NULL, btnum);
 	xfs_btree_stage_afakeroot(cur, afake);
 	return cur;
 }
@@ -708,9 +706,8 @@ xfs_inobt_max_size(
 /* Read AGI and create inobt cursor. */
 int
 xfs_inobt_cur(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
 	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
 	xfs_btnum_t		which,
 	struct xfs_btree_cur	**curpp,
 	struct xfs_buf		**agi_bpp)
@@ -725,16 +722,15 @@ xfs_inobt_cur(
 	if (error)
 		return error;
 
-	cur = xfs_inobt_init_cursor(mp, tp, *agi_bpp, pag, which);
+	cur = xfs_inobt_init_cursor(pag, tp, *agi_bpp, which);
 	*curpp = cur;
 	return 0;
 }
 
 static int
 xfs_inobt_count_blocks(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
 	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
 	xfs_btnum_t		btnum,
 	xfs_extlen_t		*tree_blocks)
 {
@@ -742,7 +738,7 @@ xfs_inobt_count_blocks(
 	struct xfs_btree_cur	*cur = NULL;
 	int			error;
 
-	error = xfs_inobt_cur(mp, tp, pag, btnum, &cur, &agbp);
+	error = xfs_inobt_cur(pag, tp, btnum, &cur, &agbp);
 	if (error)
 		return error;
 
@@ -779,22 +775,21 @@ xfs_finobt_read_blocks(
  */
 int
 xfs_finobt_calc_reserves(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
 	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
 	xfs_extlen_t		*ask,
 	xfs_extlen_t		*used)
 {
 	xfs_extlen_t		tree_len = 0;
 	int			error;
 
-	if (!xfs_has_finobt(mp))
+	if (!xfs_has_finobt(pag->pag_mount))
 		return 0;
 
-	if (xfs_has_inobtcounts(mp))
+	if (xfs_has_inobtcounts(pag->pag_mount))
 		error = xfs_finobt_read_blocks(pag, tp, &tree_len);
 	else
-		error = xfs_inobt_count_blocks(mp, tp, pag, XFS_BTNUM_FINO,
+		error = xfs_inobt_count_blocks(pag, tp, XFS_BTNUM_FINO,
 				&tree_len);
 	if (error)
 		return error;
