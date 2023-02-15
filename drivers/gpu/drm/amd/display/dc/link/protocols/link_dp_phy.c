@@ -40,7 +40,7 @@
 #define DC_LOGGER \
 	link->ctx->logger
 
-void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on)
+void dpcd_write_rx_power_ctrl(struct dc_link *link, bool on)
 {
 	uint8_t state;
 

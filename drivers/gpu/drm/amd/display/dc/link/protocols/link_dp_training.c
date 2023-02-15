@@ -777,7 +777,7 @@ enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *link,
 	return pattern;
 }
 
-enum lttpr_mode dc_link_decide_lttpr_mode(struct dc_link *link,
+enum lttpr_mode dp_decide_lttpr_mode(struct dc_link *link,
 		struct dc_link_settings *link_setting)
 {
 	enum dp_link_encoding encoding = link_dp_get_encoding_format(link_setting);
@@ -1587,12 +1587,12 @@ bool perform_link_training_with_retries(
 		dp_set_panel_mode(link, panel_mode);
 
 		if (link->aux_access_disabled) {
-			dc_link_dp_perform_link_training_skip_aux(link, &pipe_ctx->link_res, &cur_link_settings);
+			dp_perform_link_training_skip_aux(link, &pipe_ctx->link_res, &cur_link_settings);
 			return true;
 		} else {
 			/** @todo Consolidate USB4 DP and DPx.x training. */
 			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-				status = dc_link_dpia_perform_link_training(
+				status = dpia_perform_link_training(
 						link,
 						&pipe_ctx->link_res,
 						&cur_link_settings,

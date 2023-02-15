@@ -139,7 +139,7 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 	return DP_PANEL_MODE_DEFAULT;
 }
 
-bool dc_link_set_backlight_level_nits(struct dc_link *link,
+bool edp_set_backlight_level_nits(struct dc_link *link,
 		bool isHDR,
 		uint32_t backlight_millinits,
 		uint32_t transition_time_in_ms)
@@ -171,7 +171,7 @@ bool dc_link_set_backlight_level_nits(struct dc_link *link,
 	return true;
 }
 
-bool dc_link_get_backlight_level_nits(struct dc_link *link,
+bool edp_get_backlight_level_nits(struct dc_link *link,
 		uint32_t *backlight_millinits_avg,
 		uint32_t *backlight_millinits_peak)
 {
@@ -299,7 +299,7 @@ bool link_is_edp_ilr_optimization_required(struct dc_link *link,
 	return false;
 }
 
-void dc_link_edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd)
+void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd)
 {
 	if (link->connector_signal != SIGNAL_TYPE_EDP)
 		return;
@@ -311,7 +311,7 @@ void dc_link_edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hp
 		link->dc->hwss.edp_backlight_control(link, true);
 }
 
-bool dc_link_wait_for_t12(struct dc_link *link)
+bool edp_wait_for_t12(struct dc_link *link)
 {
 	if (link->connector_signal == SIGNAL_TYPE_EDP && link->dc->hwss.edp_wait_for_T12) {
 		link->dc->hwss.edp_wait_for_T12(link);
@@ -422,7 +422,7 @@ static struct pipe_ctx *get_pipe_from_link(const struct dc_link *link)
 	return pipe_ctx;
 }
 
-bool dc_link_set_backlight_level(const struct dc_link *link,
+bool edp_set_backlight_level(const struct dc_link *link,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp)
 {
@@ -453,7 +453,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 	return true;
 }
 
-bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
+bool edp_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
 		bool wait, bool force_static, const unsigned int *power_opts)
 {
 	struct dc  *dc = link->ctx->dc;
@@ -502,7 +502,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 	return true;
 }
 
-bool dc_link_get_psr_state(const struct dc_link *link, enum dc_psr_state *state)
+bool edp_get_psr_state(const struct dc_link *link, enum dc_psr_state *state)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
@@ -557,7 +557,7 @@ transmitter_to_phy_id(struct dc_link *link)
 	}
 }
 
-bool dc_link_setup_psr(struct dc_link *link,
+bool edp_setup_psr(struct dc_link *link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context)
 {
@@ -803,7 +803,7 @@ static struct abm *get_abm_from_stream_res(const struct dc_link *link)
 	return abm;
 }
 
-int dc_link_get_backlight_level(const struct dc_link *link)
+int edp_get_backlight_level(const struct dc_link *link)
 {
 	struct abm *abm = get_abm_from_stream_res(link);
 	struct panel_cntl *panel_cntl = link->panel_cntl;
@@ -822,7 +822,7 @@ int dc_link_get_backlight_level(const struct dc_link *link)
 		return DC_ERROR_UNEXPECTED;
 }
 
-int dc_link_get_target_backlight_pwm(const struct dc_link *link)
+int edp_get_target_backlight_pwm(const struct dc_link *link)
 {
 	struct abm *abm = get_abm_from_stream_res(link);
 

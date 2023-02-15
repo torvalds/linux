@@ -53,7 +53,7 @@ struct aux_payloads {
 	struct vector payloads;
 };
 
-static bool dal_ddc_i2c_payloads_create(
+static bool i2c_payloads_create(
 		struct dc_context *ctx,
 		struct i2c_payloads *payloads,
 		uint32_t count)
@@ -65,14 +65,22 @@ static bool dal_ddc_i2c_payloads_create(
 	return false;
 }
 
-static struct i2c_payload *dal_ddc_i2c_payloads_get(struct i2c_payloads *p)
+static struct i2c_payload *i2c_payloads_get(struct i2c_payloads *p)
 {
 	return (struct i2c_payload *)p->payloads.container;
 }
 
-static uint32_t dal_ddc_i2c_payloads_get_count(struct i2c_payloads *p)
+static uint32_t i2c_payloads_get_count(struct i2c_payloads *p)
 {
 	return p->payloads.count;
+}
+
+static void i2c_payloads_destroy(struct i2c_payloads *p)
+{
+	if (!p)
+		return;
+
+	dal_vector_destruct(&p->payloads);
 }
 
 #define DDC_MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -364,10 +372,10 @@ bool link_query_ddc_data(
 		struct i2c_command command = {0};
 		struct i2c_payloads payloads;
 
-		if (!dal_ddc_i2c_payloads_create(ddc->ctx, &payloads, payloads_num))
+		if (!i2c_payloads_create(ddc->ctx, &payloads, payloads_num))
 			return false;
 
-		command.payloads = dal_ddc_i2c_payloads_get(&payloads);
+		command.payloads = i2c_payloads_get(&payloads);
 		command.number_of_payloads = 0;
 		command.engine = DDC_I2C_COMMAND_ENGINE;
 		command.speed = ddc->ctx->dc->caps.i2c_speed_in_khz;
@@ -379,20 +387,20 @@ bool link_query_ddc_data(
 			&payloads, address, read_size, read_buf, false);
 
 		command.number_of_payloads =
-			dal_ddc_i2c_payloads_get_count(&payloads);
+			i2c_payloads_get_count(&payloads);
 
 		success = dm_helpers_submit_i2c(
 				ddc->ctx,
 				ddc->link,
 				&command);
 
-		dal_vector_destruct(&payloads.payloads);
+		i2c_payloads_destroy(&payloads);
 	}
 
 	return success;
 }
 
-int dc_link_aux_transfer_raw(struct ddc_service *ddc,
+int link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result)
 {

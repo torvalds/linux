@@ -30,4 +30,24 @@
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 bool set_default_brightness_aux(struct dc_link *link);
+void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
+int edp_get_backlight_level(const struct dc_link *link);
+bool edp_get_backlight_level_nits(struct dc_link *link,
+		uint32_t *backlight_millinits_avg,
+		uint32_t *backlight_millinits_peak);
+bool edp_set_backlight_level(const struct dc_link *link,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp);
+bool edp_set_backlight_level_nits(struct dc_link *link,
+		bool isHDR,
+		uint32_t backlight_millinits,
+		uint32_t transition_time_in_ms);
+int edp_get_target_backlight_pwm(const struct dc_link *link);
+bool edp_get_psr_state(const struct dc_link *link, enum dc_psr_state *state);
+bool edp_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
+		bool wait, bool force_static, const unsigned int *power_opts);
+bool edp_setup_psr(struct dc_link *link,
+		const struct dc_stream_state *stream, struct psr_config *psr_config,
+		struct psr_context *psr_context);
+bool edp_wait_for_t12(struct dc_link *link);
 #endif /* __DC_LINK_EDP_POWER_CONTROL_H__ */

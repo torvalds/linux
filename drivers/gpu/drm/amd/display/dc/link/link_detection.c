@@ -1205,7 +1205,7 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 
 	/* Link may not have physical HPD pin. */
 	if (link->ep_type != DISPLAY_ENDPOINT_PHY) {
-		if (link->is_hpd_pending || !dc_link_dpia_query_hpd_status(link))
+		if (link->is_hpd_pending || !dpia_query_hpd_status(link))
 			*type = dc_connection_none;
 		else
 			*type = dc_connection_single;

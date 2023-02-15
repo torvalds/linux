@@ -39,7 +39,7 @@
 
 #define DC_LOGGER_INIT(logger)
 
-bool dc_link_check_link_loss_status(
+bool dp_parse_link_loss_status(
 	struct dc_link *link,
 	union hpd_irq_data *hpd_irq_dpcd_data)
 {
@@ -174,7 +174,7 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 	return false;
 }
 
-void dc_link_dp_handle_link_loss(struct dc_link *link)
+void dp_handle_link_loss(struct dc_link *link)
 {
 	struct pipe_ctx *pipes[MAX_PIPES];
 	struct dc_state *state = link->dc->current_state;
@@ -200,7 +200,7 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 	}
 }
 
-enum dc_status dc_link_dp_read_hpd_rx_irq_data(
+enum dc_status dp_read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
 {
@@ -247,7 +247,7 @@ enum dc_status dc_link_dp_read_hpd_rx_irq_data(
 }
 
 /*************************Short Pulse IRQ***************************/
-bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link)
+bool dp_should_allow_hpd_rx_irq(const struct dc_link *link)
 {
 	/*
 	 * Don't handle RX IRQ unless one of following is met:
@@ -262,8 +262,9 @@ bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link)
 	return false;
 }
 
-bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss,
-							bool defer_handling, bool *has_left_work)
+bool dp_handle_hpd_rx_irq(struct dc_link *link,
+		union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss,
+		bool defer_handling, bool *has_left_work)
 {
 	union hpd_irq_data hpd_irq_dpcd_data = {0};
 	union device_service_irq device_service_clear = {0};

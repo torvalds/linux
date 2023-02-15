@@ -57,5 +57,8 @@ void set_dongle_type(struct ddc_service *ddc,
 
 struct ddc *get_ddc_pin(struct ddc_service *ddc_service);
 
+int link_aux_transfer_raw(struct ddc_service *ddc,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result);
 #endif /* __DAL_DDC_SERVICE_H__ */
 

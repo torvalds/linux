@@ -155,7 +155,7 @@ uint8_t dp_parse_lttpr_repeater_count(uint8_t lttpr_repeater_count)
 	return 0; // invalid value
 }
 
-uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
+uint32_t link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
 {
 	switch (bw) {
 	case 0b001:
@@ -309,7 +309,7 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 		link->wa_flags.dp_keep_receiver_powered = false;
 }
 
-bool dc_link_is_fec_supported(const struct dc_link *link)
+bool dp_is_fec_supported(const struct dc_link *link)
 {
 	/* TODO - use asic cap instead of link_enc->features
 	 * we no longer know which link enc to use for this link before commit
@@ -325,7 +325,7 @@ bool dc_link_is_fec_supported(const struct dc_link *link)
 			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
 }
 
-bool dc_link_should_enable_fec(const struct dc_link *link)
+bool dp_should_enable_fec(const struct dc_link *link)
 {
 	bool force_disable = false;
 
@@ -679,7 +679,8 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	return false;
 }
 
-bool dc_link_decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
+bool edp_decide_link_settings(struct dc_link *link,
+		struct dc_link_settings *link_setting, uint32_t req_bw)
 {
 	struct dc_link_settings initial_link_setting;
 	struct dc_link_settings current_link_setting;
@@ -948,7 +949,7 @@ enum dp_link_encoding link_dp_get_encoding_format(const struct dc_link_settings 
 	return DP_UNKNOWN_ENCODING;
 }
 
-enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link)
+enum dp_link_encoding mst_decide_link_encoding_format(const struct dc_link *link)
 {
 	struct dc_link_settings link_settings = {0};
 
@@ -1121,7 +1122,7 @@ static void get_active_converter_info(
 						union hdmi_encoded_link_bw hdmi_encoded_link_bw;
 
 						link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps =
-								dc_link_bw_kbps_from_raw_frl_link_rate_data(
+								link_bw_kbps_from_raw_frl_link_rate_data(
 										hdmi_color_caps.bits.MAX_ENCODED_LINK_BW_SUPPORT);
 
 						// Intersect reported max link bw support with the supported link rate post FRL link training
@@ -1216,7 +1217,7 @@ static void apply_usbc_combo_phy_reset_wa(struct dc_link *link,
 	dp_disable_link_phy(link, &link_res, link->connector_signal);
 }
 
-static bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
+bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
 {
 	uint8_t dpcd_data[16];
 	uint32_t read_dpcd_retry_cnt = 3;
@@ -1276,12 +1277,6 @@ static bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
 		edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE;
 
 	return true;
-}
-
-void dc_link_overwrite_extended_receiver_cap(
-		struct dc_link *link)
-{
-	dp_overwrite_extended_receiver_cap(link);
 }
 
 void dpcd_set_source_specific_data(struct dc_link *link)
@@ -1972,7 +1967,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 			sizeof(link->dpcd_caps.alpm_caps.raw));
 }
 
-bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
+bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
 {
 	struct link_encoder *link_enc = NULL;
 
@@ -1995,7 +1990,7 @@ bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_
 	return false;
 }
 
-const struct dc_link_settings *dc_link_get_link_cap(
+const struct dc_link_settings *dp_get_verified_link_cap(
 		const struct dc_link *link)
 {
 	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
@@ -2181,10 +2176,9 @@ bool dp_verify_link_cap_with_retries(
 }
 
 /**
- * dc_link_is_dp_sink_present() - Check if there is a native DP
- * or passive DP-HDMI dongle connected
+ * Check if there is a native DP or passive DP-HDMI dongle connected
  */
-bool dc_link_is_dp_sink_present(struct dc_link *link)
+bool dp_is_sink_present(struct dc_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
