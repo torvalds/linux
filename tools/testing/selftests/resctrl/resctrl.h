@@ -28,7 +28,7 @@
 #define MB			(1024 * 1024)
 #define RESCTRL_PATH		"/sys/fs/resctrl"
 #define PHYS_ID_PATH		"/sys/devices/system/cpu/cpu"
-#define CBM_MASK_PATH		"/sys/fs/resctrl/info"
+#define INFO_PATH		"/sys/fs/resctrl/info"
 #define L3_PATH			"/sys/fs/resctrl/info/L3"
 #define MB_PATH			"/sys/fs/resctrl/info/MB"
 #define L3_MON_PATH		"/sys/fs/resctrl/info/L3_MON"

@@ -210,7 +210,7 @@ int get_cbm_mask(char *cache_type, char *cbm_mask)
 	if (!cbm_mask)
 		return -1;
 
-	sprintf(cbm_mask_path, "%s/%s/cbm_mask", CBM_MASK_PATH, cache_type);
+	sprintf(cbm_mask_path, "%s/%s/cbm_mask", INFO_PATH, cache_type);
 
 	fp = fopen(cbm_mask_path, "r");
 	if (!fp) {
