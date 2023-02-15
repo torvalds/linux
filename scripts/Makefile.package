@@ -96,7 +96,11 @@ debian-orig: private source = $(shell dpkg-parsechangelog -S Source)
 debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-[^-]*$$//')
 debian-orig: private orig-name = $(source)_$(version).orig.tar.gz
 debian-orig: linux.tar.gz debian
-	$(Q)cp $< ../$(orig-name)
+	$(Q)if [ "$(df  --output=target .. 2>/dev/null)" = "$(df --output=target $< 2>/dev/null)" ]; then \
+		ln -f $< ../$(orig-name); \
+	else \
+		cp $< ../$(orig-name); \
+	fi
 
 PHONY += deb-pkg
 deb-pkg: debian-orig
