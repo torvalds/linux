@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "phy-qcom-ufs-qmp-v4-pineapple.h"
@@ -252,6 +252,24 @@ static void ufs_qcom_phy_qmp_v4_dbg_register_dump(struct ufs_qcom_phy *phy)
 					"PHY TX1 Registers ");
 }
 
+static void ufs_qcom_phy_qmp_v4_dbg_register_save(struct ufs_qcom_phy *phy)
+{
+	ufs_qcom_phy_save_regs(phy, COM_BASE, COM_SIZE,
+					"PHY QSERDES COM Registers ");
+	ufs_qcom_phy_save_regs(phy, PCS2_BASE, PCS2_SIZE,
+					"PHY PCS2 Registers ");
+	ufs_qcom_phy_save_regs(phy, PHY_BASE, PHY_SIZE,
+					"PHY Registers ");
+	ufs_qcom_phy_save_regs(phy, RX_BASE(0), RX_SIZE,
+					"PHY RX0 Registers ");
+	ufs_qcom_phy_save_regs(phy, TX_BASE(0), TX_SIZE,
+					"PHY TX0 Registers ");
+	ufs_qcom_phy_save_regs(phy, RX_BASE(1), RX_SIZE,
+					"PHY RX1 Registers ");
+	ufs_qcom_phy_save_regs(phy, TX_BASE(1), TX_SIZE,
+					"PHY TX1 Registers ");
+}
+
 static const struct phy_ops ufs_qcom_phy_qmp_v4_phy_ops = {
 	.init		= ufs_qcom_phy_qmp_v4_init,
 	.exit		= ufs_qcom_phy_qmp_v4_exit,
@@ -269,6 +287,7 @@ static struct ufs_qcom_phy_specific_ops phy_v4_ops = {
 	.ctrl_rx_linecfg	= ufs_qcom_phy_qmp_v4_ctrl_rx_linecfg,
 	.power_control		= ufs_qcom_phy_qmp_v4_power_control,
 	.dbg_register_dump	= ufs_qcom_phy_qmp_v4_dbg_register_dump,
+	.dbg_register_save	= ufs_qcom_phy_qmp_v4_dbg_register_save,
 };
 
 static int ufs_qcom_phy_qmp_v4_probe(struct platform_device *pdev)

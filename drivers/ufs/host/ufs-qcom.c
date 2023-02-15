@@ -53,6 +53,14 @@
 #define	UFS_QCOM_IRQ_PRIME_MASK	0x80
 #define	UFS_QCOM_IRQ_SLVR_MASK	0x0f
 
+#define UFS_QCOM_BER_TH_DEF_G1_G4	0
+#define UFS_QCOM_BER_TH_DEF_G5	3
+/*
+ * Default time window of PHY BER monitor in millisecond.
+ * Can be overridden by MODULE CmdLine and MODULE sysfs node.
+ */
+#define UFS_QCOM_BER_DUR_DEF_MS	(60*60*1000)
+
 /* Max number of log pages */
 #define UFS_QCOM_MAX_LOG_SZ	10
 #define ufs_qcom_log_str(host, fmt, ...)	\
@@ -115,6 +123,220 @@ static int ufs_qcom_unvote_qos_all(struct ufs_hba *hba);
 static void ufs_qcom_parse_g4_workaround_flag(struct ufs_qcom_host *host);
 static int ufs_qcom_mod_min_cpufreq(unsigned int cpu, s32 new_val);
 static int ufs_qcom_config_shared_ice(struct ufs_qcom_host *host);
+static int ufs_qcom_ber_threshold_set(const char *val, const struct kernel_param *kp);
+static int ufs_qcom_ber_duration_set(const char *val, const struct kernel_param *kp);
+static void ufs_qcom_ber_mon_init(struct ufs_hba *hba);
+
+static s64 idle_time[UFS_QCOM_BER_MODE_MAX];
+static ktime_t idle_start;
+static bool crash_on_ber;
+static bool override_ber_threshold;
+static bool override_ber_duration;
+static int ber_threshold = UFS_QCOM_BER_TH_DEF_G1_G4;
+static int ber_mon_dur_ms = UFS_QCOM_BER_DUR_DEF_MS;
+
+static struct ufs_qcom_ber_table ber_table[] = {
+	[UFS_HS_DONT_CHANGE] = {UFS_QCOM_BER_MODE_G1_G4, UFS_QCOM_BER_TH_DEF_G1_G4},
+	[UFS_HS_G1] = {UFS_QCOM_BER_MODE_G1_G4, UFS_QCOM_BER_TH_DEF_G1_G4},
+	[UFS_HS_G2] = {UFS_QCOM_BER_MODE_G1_G4, UFS_QCOM_BER_TH_DEF_G1_G4},
+	[UFS_HS_G3] = {UFS_QCOM_BER_MODE_G1_G4, UFS_QCOM_BER_TH_DEF_G1_G4},
+	[UFS_HS_G4] = {UFS_QCOM_BER_MODE_G1_G4, UFS_QCOM_BER_TH_DEF_G1_G4},
+	[UFS_HS_G5] = {UFS_QCOM_BER_MODE_G5, UFS_QCOM_BER_TH_DEF_G5},
+};
+
+module_param(crash_on_ber, bool, 0644);
+MODULE_PARM_DESC(crash_on_ber, "Crash if PHY BER exceeds threshold. the default value is false");
+
+static const struct kernel_param_ops ber_threshold_ops = {
+	.set = ufs_qcom_ber_threshold_set,
+	.get = param_get_int,
+};
+
+module_param_cb(ber_threshold, &ber_threshold_ops, &ber_threshold, 0644);
+MODULE_PARM_DESC(ber_threshold, "Set UFS BER threshold, should be less than 16.\n"
+								"The default value is 3 for G5 and 0 for Non G5.");
+
+static int ufs_qcom_ber_threshold_set(const char *val, const struct kernel_param *kp)
+{
+	unsigned int n;
+	int ret;
+
+	ret = kstrtou32(val, 0, &n);
+	if (ret != 0 || n > UFS_QCOM_EVT_LEN)
+		return -EINVAL;
+	if (n)
+		override_ber_threshold = true;
+	else
+		override_ber_threshold = false;
+
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops ber_duration_ops = {
+	.set = ufs_qcom_ber_duration_set,
+	.get = param_get_int,
+};
+
+module_param_cb(ber_duration_ms, &ber_duration_ops, &ber_mon_dur_ms, 0644);
+MODULE_PARM_DESC(ber_duration_ms, "Set the duration of BER monitor window.\n"
+								"The default value is 3600000(1 hour)");
+
+static int ufs_qcom_ber_duration_set(const char *val, const struct kernel_param *kp)
+{
+	s64 n;
+
+	if (kstrtos64(val, 0, &n))
+		return -EINVAL;
+
+	if (n)
+		override_ber_duration = true;
+	else
+		override_ber_duration = false;
+
+	return param_set_int(val, kp);
+}
+
+/**
+ * ufs_qcom_save_regs - read register value and save to memory for specified domain.
+ * If it is a new domain which never been saved, allocate memory for it and add to list.
+ * @host - ufs_qcom_host
+ * @offset - register address offest
+ * @len - length or size
+ * @prefix - domain name
+ */
+static int ufs_qcom_save_regs(struct ufs_qcom_host *host, size_t offset, size_t len,
+		     const char *prefix)
+{
+	struct ufs_qcom_regs *regs = NULL;
+	struct list_head *head = &host->regs_list_head;
+	unsigned int noio_flag;
+	size_t pos;
+
+	if (offset % 4 != 0 || len % 4 != 0)
+		return -EINVAL;
+
+	/* find the node if this register domain has been saved before */
+	list_for_each_entry(regs, head, list)
+		if (regs->prefix && !strcmp(regs->prefix, prefix))
+			break;
+
+	/* create a new node and add it to list if this domain never been written */
+	if (&regs->list == head) {
+		/* use memalloc_noio_save() here as GFP_ATOMIC should not be invoked
+		 * in an IO error context
+		 */
+		noio_flag = memalloc_noio_save();
+		regs = devm_kzalloc(host->hba->dev, sizeof(*regs), GFP_ATOMIC);
+		if (!regs)
+			goto out;
+		regs->ptr = devm_kzalloc(host->hba->dev, len, GFP_ATOMIC);
+		if (!regs->ptr)
+			goto out;
+		memalloc_noio_restore(noio_flag);
+		regs->prefix = prefix;
+		regs->len = len;
+		list_add_tail(&regs->list, &host->regs_list_head);
+	}
+
+	for (pos = 0; pos < len; pos += 4) {
+		if (offset == 0 &&
+		    pos >= REG_UIC_ERROR_CODE_PHY_ADAPTER_LAYER &&
+		    pos <= REG_UIC_ERROR_CODE_DME)
+			continue;
+		regs->ptr[pos / 4] = ufshcd_readl(host->hba, offset + pos);
+	}
+	return 0;
+
+out:
+	memalloc_noio_restore(noio_flag);
+	return -ENOMEM;
+}
+
+static int ufs_qcom_save_testbus(struct ufs_qcom_host *host)
+{
+	struct ufs_qcom_regs *regs = NULL;
+	struct list_head *head = &host->regs_list_head;
+	int i, j;
+	int nminor = 32, testbus_len = nminor * sizeof(u32);
+	unsigned int noio_flag;
+	char *prefix;
+
+	for (j = 0; j < TSTBUS_MAX; j++) {
+		switch (j) {
+		case TSTBUS_UAWM:
+			prefix = "TSTBUS_UAWM ";
+			break;
+		case TSTBUS_UARM:
+			prefix = "TSTBUS_UARM ";
+			break;
+		case TSTBUS_TXUC:
+			prefix = "TSTBUS_TXUC ";
+			break;
+		case TSTBUS_RXUC:
+			prefix = "TSTBUS_RXUC ";
+			break;
+		case TSTBUS_DFC:
+			prefix = "TSTBUS_DFC ";
+			break;
+		case TSTBUS_TRLUT:
+			prefix = "TSTBUS_TRLUT ";
+			break;
+		case TSTBUS_TMRLUT:
+			prefix = "TSTBUS_TMRLUT ";
+			break;
+		case TSTBUS_OCSC:
+			prefix = "TSTBUS_OCSC ";
+			break;
+		case TSTBUS_UTP_HCI:
+			prefix = "TSTBUS_UTP_HCI ";
+			break;
+		case TSTBUS_COMBINED:
+			prefix = "TSTBUS_COMBINED ";
+			break;
+		case TSTBUS_WRAPPER:
+			prefix = "TSTBUS_WRAPPER ";
+			break;
+		case TSTBUS_UNIPRO:
+			prefix = "TSTBUS_UNIPRO ";
+			break;
+		default:
+			prefix = "UNKNOWN ";
+			break;
+		}
+
+		/* find the node if this register domain has been saved before */
+		list_for_each_entry(regs, head, list)
+			if (regs->prefix && !strcmp(regs->prefix, prefix))
+				break;
+
+		/* create a new node and add it to list if this domain never been written */
+		if (&regs->list == head) {
+			noio_flag = memalloc_noio_save();
+			regs = devm_kzalloc(host->hba->dev, sizeof(*regs), GFP_ATOMIC);
+			if (!regs)
+				goto out;
+			regs->ptr = devm_kzalloc(host->hba->dev, testbus_len, GFP_ATOMIC);
+			if (!regs->ptr)
+				goto out;
+			memalloc_noio_restore(noio_flag);
+			regs->prefix = prefix;
+			regs->len = testbus_len;
+			list_add_tail(&regs->list, &host->regs_list_head);
+		}
+
+		host->testbus.select_major = j;
+		for (i = 0; i < nminor; i++) {
+			host->testbus.select_minor = i;
+			ufs_qcom_testbus_config(host);
+			regs->ptr[i] = ufshcd_readl(host->hba, UFS_TEST_BUS);
+		}
+	}
+	return 0;
+
+out:
+	memalloc_noio_restore(noio_flag);
+	return -ENOMEM;
+}
 
 static inline void cancel_dwork_unvote_cpufreq(struct ufs_hba *hba)
 {
@@ -1923,6 +2145,9 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		if (ufshcd_is_hs_mode(&hba->pwr_info) &&
 			!ufshcd_is_hs_mode(dev_req_params))
 			ufs_qcom_dev_ref_clk_ctrl(host, false);
+		/* update BER threshold depends on gear mode */
+		if (!override_ber_threshold && !ret)
+			ber_threshold = ber_table[dev_req_params->gear_rx].ber_threshold;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2219,6 +2444,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int err = 0;
 	struct phy *phy;
+	u32 mode;
 
 	/*
 	 * In case ufs_qcom_init() is not yet done, simply ignore.
@@ -2279,6 +2505,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 			if (err)
 				return err;
 			err = ufs_qcom_unvote_qos_all(hba);
+			idle_start = ktime_get();
 		} else {
 			err = ufs_qcom_phy_power_on(hba);
 			if (err) {
@@ -2289,6 +2516,10 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 
 			if (ufshcd_is_hs_mode(&hba->pwr_info))
 				ufs_qcom_dev_ref_clk_ctrl(host, true);
+
+			for (mode = 0; mode < UFS_QCOM_BER_MODE_MAX; mode++)
+				idle_time[mode] += ktime_to_ms(ktime_sub(ktime_get(),
+									idle_start));
 		}
 		if (!err)
 			atomic_set(&host->clks_on, on);
@@ -3212,6 +3443,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 
 	ufs_qcom_qos_init(hba);
 	ufs_qcom_parse_irq_affinity(hba);
+	ufs_qcom_ber_mon_init(hba);
 	host->ufs_ipc_log_ctx = ipc_log_context_create(UFS_QCOM_MAX_LOG_SZ,
 							"ufs-qcom", 0);
 	if (!host->ufs_ipc_log_ctx)
@@ -3479,6 +3711,193 @@ out:
 	return err;
 }
 
+/*
+ * ufs_qcom_ber_mon_init - init BER monition history mode name and register domain list.
+ */
+static void ufs_qcom_ber_mon_init(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	int m = UFS_QCOM_BER_MODE_G1_G4;
+
+	INIT_LIST_HEAD(&host->regs_list_head);
+
+	for (m = UFS_QCOM_BER_MODE_G1_G4; m < UFS_QCOM_BER_MODE_MAX; m++) {
+		switch (m) {
+		case UFS_QCOM_BER_MODE_G1_G4:
+			host->ber_hist[m].name = "gear1-4";
+			break;
+		case UFS_QCOM_BER_MODE_G5:
+			host->ber_hist[m].name = "gear5";
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void ufs_qcom_print_ber_hist(struct ufs_qcom_host *host)
+{
+	struct ufs_qcom_ber_hist *h;
+	int m = UFS_QCOM_BER_MODE_G1_G4;
+	int i;
+
+	for (m = UFS_QCOM_BER_MODE_G1_G4; m < UFS_QCOM_BER_MODE_MAX; m++) {
+		h = &host->ber_hist[m];
+		for (i = 0; i < UFS_QCOM_EVT_LEN; i++) {
+			int p = (i + h->pos) % UFS_QCOM_EVT_LEN;
+
+			if (h->tstamp[p] == 0)
+				continue;
+			dev_err(host->hba->dev, "pa_err_%d=0x%x, err_code=0x%x, gear=%d, time=%lld us\n",
+						p, h->uec_pa[p], h->err_code[p], h->gear[p],
+						ktime_to_us(h->tstamp[p]));
+		}
+		dev_err(host->hba->dev, "total %llu PA error on %s mode\n", h->cnt, h->name);
+	}
+}
+
+static bool ufs_qcom_cal_ber(struct ufs_qcom_host *host, struct ufs_qcom_ber_hist *h)
+{
+	int idx_start, idx_end, i;
+	s64 total_run_time = 0;
+	s64 total_full_time = 0;
+	u32 gear = h->gear[h->pos-1];
+
+	if (!override_ber_threshold)
+		ber_threshold = ber_table[gear].ber_threshold;
+
+	if (!override_ber_duration)
+		ber_mon_dur_ms = UFS_QCOM_BER_DUR_DEF_MS;
+
+	dev_dbg(host->hba->dev, "ber=%d, dur_ms=%d, h->cnt=%d, pos=%d\n",
+					ber_threshold, ber_mon_dur_ms, h->cnt, h->pos);
+
+	/* return from here if total error count is not more than BER threshold */
+	if (h->cnt <= ber_threshold)
+		return false;
+
+	/*
+	 * BER threshold allows num (ber_threshold) of errors, and we have h->cnt errors,
+	 * go find the error event slot which records the #(h->cnt - ber_threshold) error.
+	 */
+	idx_end = (h->cnt - 1) % UFS_QCOM_EVT_LEN;
+	idx_start = ((h->cnt - 1) - ber_threshold) % UFS_QCOM_EVT_LEN;
+
+	/*
+	 * Calculate the total valid running time
+	 * plus one here due to the first step in
+	 * following while loop is i--.
+	 */
+	i = idx_end + 1;
+	do {
+		i--;
+		if (i < 0)
+			i += UFS_QCOM_EVT_LEN;
+		total_run_time += h->run_time[i];
+		total_full_time += h->full_time[i];
+	} while (i != idx_start);
+
+	dev_dbg(host->hba->dev, "idx_start=%d, idx_end=%d, total_time=%lld ms, total_run_time=%lld ms\n",
+					idx_start, idx_end, total_full_time, total_run_time);
+
+	if (total_run_time < ber_mon_dur_ms)
+		return true;
+
+	return false;
+}
+
+static bool ufs_qcom_update_ber_event(struct ufs_qcom_host *host,
+									  u32 data,
+									  enum ufs_hs_gear_tag gear)
+{
+	struct ufs_qcom_ber_hist *h;
+	ktime_t t_prv;
+	u32 mode = ber_table[gear].mode;
+	bool rc = false;
+
+	h = &host->ber_hist[mode];
+	h->uec_pa[h->pos] = data;
+
+	/* For PHY errors, record PA error code */
+	if ((data & 0xFF) & ~UIC_PHY_ADAPTER_LAYER_GENERIC_ERROR)
+		h->err_code[h->pos] = ufshcd_readl(host->hba, UFS_MEM_REG_PA_ERR_CODE);
+
+	h->gear[h->pos] = gear;
+	h->tstamp[h->pos] = ktime_get();
+
+	if (h->pos != 0)
+		t_prv = h->tstamp[h->pos - 1];
+	else if (h->cnt == 0)
+		t_prv = ms_to_ktime(0);
+	else
+		t_prv = h->tstamp[UFS_QCOM_EVT_LEN - 1];
+
+	/* Calcuate the valid running time since last PA error event */
+	h->full_time[h->pos] = ktime_to_ms(ktime_sub(h->tstamp[h->pos], t_prv));
+	h->run_time[h->pos] = h->full_time[h->pos] - idle_time[mode];
+
+	/* reset idle time for next error event. */
+	idle_time[mode] = 0;
+
+	h->cnt++;
+	h->pos = (h->pos + 1) % UFS_QCOM_EVT_LEN;
+
+	/* don't need to calculate again if BER has already exceeded threshold */
+	if (!host->ber_th_exceeded)
+		rc = ufs_qcom_cal_ber(host, h);
+
+	return rc;
+}
+
+static void ufs_qcom_save_all_regs(struct ufs_qcom_host *host)
+{
+	struct phy *phy = host->generic_phy;
+
+	ufs_qcom_save_regs(host, 0, UFSHCI_REG_SPACE_SIZE,
+							"host_regs ");
+	ufs_qcom_save_regs(host, REG_UFS_SYS1CLK_1US, 16 * 4,
+							"HCI Vendor Specific Registers ");
+	ufs_qcom_save_regs(host, UFS_MEM_ICE, 29 * 4,
+							"HCI Shared ICE Registers ");
+	ufs_qcom_save_regs(host, UFS_TEST_BUS, 4,
+							"UFS_TEST_BUS ");
+	ufs_qcom_save_testbus(host);
+	ufs_qcom_phy_dbg_register_save(phy);
+}
+
+static void ufs_qcom_event_notify(struct ufs_hba *hba,
+								  enum ufs_event_type evt,
+								  void *data)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct phy *phy = host->generic_phy;
+	bool ber_th_exceeded = false;
+
+	switch (evt) {
+	case UFS_EVT_PA_ERR:
+		ber_th_exceeded = ufs_qcom_update_ber_event(host, *(u32 *)data,
+								hba->pwr_info.gear_rx);
+
+		if (ber_th_exceeded) {
+			host->ber_th_exceeded = true;
+			ufs_qcom_save_all_regs(host);
+			ufs_qcom_print_ber_hist(host);
+
+			if (crash_on_ber) {
+				ufs_qcom_phy_dbg_register_dump(phy);
+				BUG_ON(1);
+			}
+		}
+
+		if (host->ber_th_exceeded)
+			dev_err(hba->dev, "Warning: BER exceed threshold !!!\n");
+
+		break;
+	default:
+		break;
+	}
+}
+
 void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba,
 		void *priv, void (*print_fn)(struct ufs_hba *hba,
 		int offset, int num_regs, const char *str, void *priv))
@@ -3587,7 +4006,9 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 	if (!host)
 		return -EINVAL;
 	hba = host->hba;
-	spin_lock_irqsave(hba->host->host_lock, flags);
+	if (in_task())
+		spin_lock_irqsave(hba->host->host_lock, flags);
+
 	if (!ufs_qcom_testbus_cfg_is_ok(host))
 		return -EPERM;
 
@@ -3649,7 +4070,9 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 	}
 	mask <<= offset;
 
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
+	if (in_task())
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+
 	ufshcd_rmwl(host->hba, TEST_BUS_SEL,
 		    (u32)host->testbus.select_major << 19,
 		    REG_UFS_CFG1);
@@ -3924,6 +4347,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.exit                   = ufs_qcom_exit,
 	.get_ufs_hci_version	= ufs_qcom_get_ufs_hci_version,
 	.clk_scale_notify	= ufs_qcom_clk_scale_notify,
+	.event_notify       = ufs_qcom_event_notify,
 	.setup_clocks           = ufs_qcom_setup_clocks,
 	.hce_enable_notify      = ufs_qcom_hce_enable_notify,
 	.link_startup_notify    = ufs_qcom_link_startup_notify,
@@ -4152,6 +4576,17 @@ static ssize_t hibern8_count_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hibern8_count);
 
+static ssize_t ber_th_exceeded_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", host->ber_th_exceeded);
+}
+
+static DEVICE_ATTR_RO(ber_th_exceeded);
+
 static struct attribute *ufs_qcom_sysfs_attrs[] = {
 	&dev_attr_err_state.attr,
 	&dev_attr_power_mode.attr,
@@ -4161,6 +4596,7 @@ static struct attribute *ufs_qcom_sysfs_attrs[] = {
 	&dev_attr_dbg_state.attr,
 	&dev_attr_crash_on_err.attr,
 	&dev_attr_hibern8_count.attr,
+	&dev_attr_ber_th_exceeded.attr,
 	NULL
 };
 
@@ -4365,6 +4801,7 @@ static int ufs_qcom_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&(pdev)->dev);
 	for (i = 0; i < r->num_groups; i++, qcg++)
 		remove_group_qos(qcg);
+
 	ufshcd_remove(hba);
 	return 0;
 }
