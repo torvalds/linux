@@ -373,6 +373,7 @@ ssize_t direct_splice_read(struct file *in, loff_t *ppos,
 	kfree(bv);
 	return ret;
 }
+EXPORT_SYMBOL(direct_splice_read);
 
 /**
  * generic_file_splice_read - splice data from file to a pipe

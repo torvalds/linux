@@ -2971,6 +2971,7 @@ out:
 
 	return total_spliced ? total_spliced : error;
 }
+EXPORT_SYMBOL(filemap_splice_read);
 
 static inline loff_t folio_seek_hole_data(struct xa_state *xas,
 		struct address_space *mapping, struct folio *folio,
