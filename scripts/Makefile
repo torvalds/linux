@@ -38,7 +38,7 @@ HOSTCFLAGS_sorttable.o += -DMCOUNT_SORT_ENABLED
 endif
 
 # The following programs are only built on demand
-hostprogs += unifdef
+hostprogs += list-gitignored unifdef
 
 # The module linker script is preprocessed on demand
 targets += module.lds
