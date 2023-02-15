@@ -1541,13 +1541,15 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	if (of_get_property(np, "rockchip,phy-table", &val)) {
 		if (val % PHY_TAB_LEN || !val) {
 			dev_err(dev, "Invalid phy cfg table format!\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_regsmap;
 		}
 
 		phy_config = kmalloc(val, GFP_KERNEL);
 		if (!phy_config) {
 			dev_err(dev, "kmalloc phy table failed\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_regsmap;
 		}
 
 		phy_table_size = val / PHY_TAB_LEN;
@@ -1556,7 +1558,8 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 					     GFP_KERNEL);
 		if (!inno->phy_cfg) {
 			kfree(phy_config);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_regsmap;
 		}
 		of_property_read_u32_array(np, "rockchip,phy-table",
 					   phy_config, val / sizeof(u32));
@@ -1565,7 +1568,7 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 						 phy_table_size);
 		if (ret) {
 			kfree(phy_config);
-			return ret;
+			goto err_regsmap;
 		}
 		kfree(phy_config);
 	} else {
