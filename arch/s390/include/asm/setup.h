@@ -150,8 +150,6 @@ static inline unsigned long kaslr_offset(void)
 	return __kaslr_offset;
 }
 
-extern int is_full_image;
-
 struct initrd_data {
 	unsigned long start;
 	unsigned long size;

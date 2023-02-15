@@ -34,8 +34,6 @@
 #include <asm/switch_to.h>
 #include "entry.h"
 
-int __bootdata(is_full_image);
-
 #define decompressor_handled_param(param)			\
 static int __init ignore_decompressor_param_##param(char *s)	\
 {								\
@@ -288,17 +286,6 @@ static void __init setup_boot_command_line(void)
 	strscpy(boot_command_line, early_command_line, COMMAND_LINE_SIZE);
 }
 
-static void __init check_image_bootable(void)
-{
-	if (is_full_image)
-		return;
-
-	sclp_early_printk("Linux kernel boot failure: An attempt to boot a vmlinux ELF image failed.\n");
-	sclp_early_printk("This image does not contain all parts necessary for starting up. Use\n");
-	sclp_early_printk("bzImage or arch/s390/boot/compressed/vmlinux instead.\n");
-	disabled_wait();
-}
-
 static void __init sort_amode31_extable(void)
 {
 	sort_extable(__start_amode31_ex_table, __stop_amode31_ex_table);
@@ -307,7 +294,6 @@ static void __init sort_amode31_extable(void)
 void __init startup_init(void)
 {
 	reset_tod_clock();
-	check_image_bootable();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
