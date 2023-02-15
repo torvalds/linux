@@ -1304,8 +1304,7 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 		return -ENODEV;
 
 	info->dev = &pdev->dev;
-	info->ops = (const struct at91_pinctrl_mux_ops *)
-		of_match_device(at91_pinctrl_of_match, &pdev->dev)->data;
+	info->ops = of_device_get_match_data(dev);
 	at91_pinctrl_child_count(info, np);
 
 	/*
@@ -1844,8 +1843,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	at91_chip->ops = (const struct at91_pinctrl_mux_ops *)
-		of_match_device(at91_gpio_of_match, &pdev->dev)->data;
+	at91_chip->ops = of_device_get_match_data(dev);
 	at91_chip->pioc_virq = irq;
 	at91_chip->pioc_idx = alias_idx;
 
