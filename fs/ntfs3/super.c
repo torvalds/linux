@@ -734,48 +734,81 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	err = -EINVAL;
 	boot = (struct NTFS_BOOT *)bh->b_data;
 
-	if (memcmp(boot->system_id, "NTFS    ", sizeof("NTFS    ") - 1))
+	if (memcmp(boot->system_id, "NTFS    ", sizeof("NTFS    ") - 1)) {
+		ntfs_err(sb, "Boot's signature is not NTFS.");
 		goto out;
+	}
 
 	/* 0x55AA is not mandaroty. Thanks Maxim Suhanov*/
 	/*if (0x55 != boot->boot_magic[0] || 0xAA != boot->boot_magic[1])
 	 *	goto out;
 	 */
 
-	boot_sector_size = (u32)boot->bytes_per_sector[1] << 8;
-	if (boot->bytes_per_sector[0] || boot_sector_size < SECTOR_SIZE ||
+	boot_sector_size = ((u32)boot->bytes_per_sector[1] << 8) |
+			   boot->bytes_per_sector[0];
+	if (boot_sector_size < SECTOR_SIZE ||
 	    !is_power_of_2(boot_sector_size)) {
+		ntfs_err(sb, "Invalid bytes per sector %u.", boot_sector_size);
 		goto out;
 	}
 
 	/* cluster size: 512, 1K, 2K, 4K, ... 2M */
 	sct_per_clst = true_sectors_per_clst(boot);
-	if ((int)sct_per_clst < 0)
+	if ((int)sct_per_clst < 0 || !is_power_of_2(sct_per_clst)) {
+		ntfs_err(sb, "Invalid sectors per cluster %u.", sct_per_clst);
 		goto out;
-	if (!is_power_of_2(sct_per_clst))
-		goto out;
+	}
+
+	sbi->cluster_size = boot_sector_size * sct_per_clst;
+	sbi->cluster_bits = cluster_bits = blksize_bits(sbi->cluster_size);
+	sbi->cluster_mask = sbi->cluster_size - 1;
+	sbi->cluster_mask_inv = ~(u64)sbi->cluster_mask;
 
 	mlcn = le64_to_cpu(boot->mft_clst);
 	mlcn2 = le64_to_cpu(boot->mft2_clst);
 	sectors = le64_to_cpu(boot->sectors_per_volume);
 
-	if (mlcn * sct_per_clst >= sectors)
-		goto out;
-
-	if (mlcn2 * sct_per_clst >= sectors)
-		goto out;
-
-	/* Check MFT record size. */
-	if ((boot->record_size < 0 &&
-	     SECTOR_SIZE > (2U << (-boot->record_size))) ||
-	    (boot->record_size >= 0 && !is_power_of_2(boot->record_size))) {
+	if (mlcn * sct_per_clst >= sectors || mlcn2 * sct_per_clst >= sectors) {
+		ntfs_err(
+			sb,
+			"Start of MFT 0x%llx (0x%llx) is out of volume 0x%llx.",
+			mlcn, mlcn2, sectors);
 		goto out;
 	}
 
+	sbi->record_size = record_size =
+		boot->record_size < 0 ? 1 << (-boot->record_size) :
+					      (u32)boot->record_size << cluster_bits;
+	sbi->record_bits = blksize_bits(record_size);
+	sbi->attr_size_tr = (5 * record_size >> 4); // ~320 bytes
+
+	/* Check MFT record size. */
+	if (record_size < SECTOR_SIZE || !is_power_of_2(record_size)) {
+		ntfs_err(sb, "Invalid bytes per MFT record %u (%d).",
+			 record_size, boot->record_size);
+		goto out;
+	}
+
+	if (record_size > MAXIMUM_BYTES_PER_MFT) {
+		ntfs_err(sb, "Unsupported bytes per MFT record %u.",
+			 record_size);
+		goto out;
+	}
+
+	sbi->index_size = boot->index_size < 0 ?
+					1u << (-boot->index_size) :
+					(u32)boot->index_size << cluster_bits;
+
 	/* Check index record size. */
-	if ((boot->index_size < 0 &&
-	     SECTOR_SIZE > (2U << (-boot->index_size))) ||
-	    (boot->index_size >= 0 && !is_power_of_2(boot->index_size))) {
+	if (sbi->index_size < SECTOR_SIZE || !is_power_of_2(sbi->index_size)) {
+		ntfs_err(sb, "Invalid bytes per index %u(%d).", sbi->index_size,
+			 boot->index_size);
+		goto out;
+	}
+
+	if (sbi->index_size > MAXIMUM_BYTES_PER_INDEX) {
+		ntfs_err(sb, "Unsupported bytes per index %u.",
+			 sbi->index_size);
 		goto out;
 	}
 
@@ -796,15 +829,15 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 		dev_size += sector_size - 1;
 	}
 
-	sbi->cluster_size = boot_sector_size * sct_per_clst;
-	sbi->cluster_bits = blksize_bits(sbi->cluster_size);
-
 	sbi->mft.lbo = mlcn << cluster_bits;
 	sbi->mft.lbo2 = mlcn2 << cluster_bits;
 
 	/* Compare boot's cluster and sector. */
-	if (sbi->cluster_size < boot_sector_size)
+	if (sbi->cluster_size < boot_sector_size) {
+		ntfs_err(sb, "Invalid bytes per cluster (%u).",
+			 sbi->cluster_size);
 		goto out;
+	}
 
 	/* Compare boot's cluster and media sector. */
 	if (sbi->cluster_size < sector_size) {
@@ -816,27 +849,10 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 		goto out;
 	}
 
-	sbi->cluster_mask = sbi->cluster_size - 1;
-	sbi->cluster_mask_inv = ~(u64)sbi->cluster_mask;
-	sbi->record_size = record_size = boot->record_size < 0
-						 ? 1 << (-boot->record_size)
-						 : (u32)boot->record_size
-							   << sbi->cluster_bits;
-
-	if (record_size > MAXIMUM_BYTES_PER_MFT || record_size < SECTOR_SIZE)
-		goto out;
-
-	sbi->record_bits = blksize_bits(record_size);
-	sbi->attr_size_tr = (5 * record_size >> 4); // ~320 bytes
-
 	sbi->max_bytes_per_attr =
 		record_size - ALIGN(MFTRECORD_FIXUP_OFFSET_1, 8) -
 		ALIGN(((record_size >> SECTOR_SHIFT) * sizeof(short)), 8) -
 		ALIGN(sizeof(enum ATTR_TYPE), 8);
-
-	sbi->index_size = boot->index_size < 0
-				  ? 1u << (-boot->index_size)
-				  : (u32)boot->index_size << sbi->cluster_bits;
 
 	sbi->volume.ser_num = le64_to_cpu(boot->serial_num);
 
@@ -928,6 +944,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	int err;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct block_device *bdev = sb->s_bdev;
+	struct ntfs_mount_options *options;
 	struct inode *inode;
 	struct ntfs_inode *ni;
 	size_t i, tt, bad_len, bad_frags;
@@ -942,7 +959,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.high = 0;
 
 	sbi->sb = sb;
-	sbi->options = fc->fs_private;
+	sbi->options = options = fc->fs_private;
 	fc->fs_private = NULL;
 	sb->s_flags |= SB_NODIRATIME;
 	sb->s_magic = 0x7366746e; // "ntfs"
@@ -950,12 +967,12 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_export_op = &ntfs_export_ops;
 	sb->s_time_gran = NTFS_TIME_GRAN; // 100 nsec
 	sb->s_xattr = ntfs_xattr_handlers;
-	sb->s_d_op = sbi->options->nocase ? &ntfs_dentry_ops : NULL;
+	sb->s_d_op = options->nocase ? &ntfs_dentry_ops : NULL;
 
-	sbi->options->nls = ntfs_load_nls(sbi->options->nls_name);
-	if (IS_ERR(sbi->options->nls)) {
-		sbi->options->nls = NULL;
-		errorf(fc, "Cannot load nls %s", sbi->options->nls_name);
+	options->nls = ntfs_load_nls(options->nls_name);
+	if (IS_ERR(options->nls)) {
+		options->nls = NULL;
+		errorf(fc, "Cannot load nls %s", options->nls_name);
 		err = -EINVAL;
 		goto out;
 	}
@@ -980,8 +997,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.seq = cpu_to_le16(MFT_REC_VOL);
 	inode = ntfs_iget5(sb, &ref, &NAME_VOLUME);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $Volume.");
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $Volume (%d).", err);
 		goto out;
 	}
 
@@ -1007,13 +1024,9 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	attr = ni_find_attr(ni, attr, NULL, ATTR_VOL_INFO, NULL, 0, NULL, NULL);
-	if (!attr || is_attr_ext(attr)) {
-		err = -EINVAL;
-		goto put_inode_out;
-	}
-
-	info = resident_data_ex(attr, SIZEOF_ATTRIBUTE_VOLUME_INFO);
-	if (!info) {
+	if (!attr || is_attr_ext(attr) ||
+	    !(info = resident_data_ex(attr, SIZEOF_ATTRIBUTE_VOLUME_INFO))) {
+		ntfs_err(sb, "$Volume is corrupted.");
 		err = -EINVAL;
 		goto put_inode_out;
 	}
@@ -1028,13 +1041,13 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.seq = cpu_to_le16(MFT_REC_MIRR);
 	inode = ntfs_iget5(sb, &ref, &NAME_MIRROR);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $MFTMirr.");
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $MFTMirr (%d).", err);
 		goto out;
 	}
 
-	sbi->mft.recs_mirr =
-		ntfs_up_cluster(sbi, inode->i_size) >> sbi->record_bits;
+	sbi->mft.recs_mirr = ntfs_up_cluster(sbi, inode->i_size) >>
+			     sbi->record_bits;
 
 	iput(inode);
 
@@ -1043,8 +1056,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.seq = cpu_to_le16(MFT_REC_LOG);
 	inode = ntfs_iget5(sb, &ref, &NAME_LOGFILE);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load \x24LogFile.");
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load \x24LogFile (%d).", err);
 		goto out;
 	}
 
@@ -1064,7 +1077,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 			goto out;
 		}
 	} else if (sbi->volume.flags & VOLUME_FLAG_DIRTY) {
-		if (!sb_rdonly(sb) && !sbi->options->force) {
+		if (!sb_rdonly(sb) && !options->force) {
 			ntfs_warn(
 				sb,
 				"volume is dirty and \"force\" flag is not set!");
@@ -1079,8 +1092,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	inode = ntfs_iget5(sb, &ref, &NAME_MFT);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $MFT.");
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $MFT (%d).", err);
 		goto out;
 	}
 
@@ -1095,8 +1108,10 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto put_inode_out;
 
 	err = ni_load_all_mi(ni);
-	if (err)
+	if (err) {
+		ntfs_err(sb, "Failed to load $MFT's subrecords (%d).", err);
 		goto put_inode_out;
+	}
 
 	sbi->mft.ni = ni;
 
@@ -1105,8 +1120,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.seq = cpu_to_le16(MFT_REC_BITMAP);
 	inode = ntfs_iget5(sb, &ref, &NAME_BITMAP);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $Bitmap.");
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $Bitmap (%d).", err);
 		goto out;
 	}
 
@@ -1120,20 +1135,25 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Check bitmap boundary. */
 	tt = sbi->used.bitmap.nbits;
 	if (inode->i_size < bitmap_size(tt)) {
+		ntfs_err(sb, "$Bitmap is corrupted.");
 		err = -EINVAL;
 		goto put_inode_out;
 	}
 
 	err = wnd_init(&sbi->used.bitmap, sb, tt);
-	if (err)
+	if (err) {
+		ntfs_err(sb, "Failed to initialize $Bitmap (%d).", err);
 		goto put_inode_out;
+	}
 
 	iput(inode);
 
 	/* Compute the MFT zone. */
 	err = ntfs_refresh_zone(sbi);
-	if (err)
+	if (err) {
+		ntfs_err(sb, "Failed to initialize MFT zone (%d).", err);
 		goto out;
+	}
 
 	/* Load $BadClus. */
 	ref.low = cpu_to_le32(MFT_REC_BADCLUST);
@@ -1178,8 +1198,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.seq = cpu_to_le16(MFT_REC_ATTR);
 	inode = ntfs_iget5(sb, &ref, &NAME_ATTRDEF);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $AttrDef -> %d", err);
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $AttrDef (%d)", err);
 		goto out;
 	}
 
@@ -1208,6 +1228,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
+			ntfs_err(sb, "Failed to read $AttrDef (%d).", err);
 			goto put_inode_out;
 		}
 		memcpy(Add2Ptr(t, done), page_address(page),
@@ -1215,6 +1236,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		ntfs_unmap_page(page);
 
 		if (!idx && ATTR_STD != t->type) {
+			ntfs_err(sb, "$AttrDef is corrupted.");
 			err = -EINVAL;
 			goto put_inode_out;
 		}
@@ -1249,13 +1271,14 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.seq = cpu_to_le16(MFT_REC_UPCASE);
 	inode = ntfs_iget5(sb, &ref, &NAME_UPCASE);
 	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $UpCase.");
 		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $UpCase (%d).", err);
 		goto out;
 	}
 
 	if (inode->i_size != 0x10000 * sizeof(short)) {
 		err = -EINVAL;
+		ntfs_err(sb, "$UpCase is corrupted.");
 		goto put_inode_out;
 	}
 
@@ -1266,6 +1289,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
+			ntfs_err(sb, "Failed to read $UpCase (%d).", err);
 			goto put_inode_out;
 		}
 
@@ -1291,23 +1315,31 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (is_ntfs3(sbi)) {
 		/* Load $Secure. */
 		err = ntfs_security_init(sbi);
-		if (err)
+		if (err) {
+			ntfs_err(sb, "Failed to initialize $Secure (%d).", err);
 			goto out;
+		}
 
 		/* Load $Extend. */
 		err = ntfs_extend_init(sbi);
-		if (err)
+		if (err) {
+			ntfs_warn(sb, "Failed to initialize $Extend.");
 			goto load_root;
+		}
 
-		/* Load $Extend\$Reparse. */
+		/* Load $Extend/$Reparse. */
 		err = ntfs_reparse_init(sbi);
-		if (err)
+		if (err) {
+			ntfs_warn(sb, "Failed to initialize $Extend/$Reparse.");
 			goto load_root;
+		}
 
-		/* Load $Extend\$ObjId. */
+		/* Load $Extend/$ObjId. */
 		err = ntfs_objid_init(sbi);
-		if (err)
+		if (err) {
+			ntfs_warn(sb, "Failed to initialize $Extend/$ObjId.");
 			goto load_root;
+		}
 	}
 
 load_root:
@@ -1316,8 +1348,8 @@ load_root:
 	ref.seq = cpu_to_le16(MFT_REC_ROOT);
 	inode = ntfs_iget5(sb, &ref, &NAME_ROOT);
 	if (IS_ERR(inode) || !inode->i_op) {
-		ntfs_err(sb, "Failed to load root.");
-		err = IS_ERR(inode) ? PTR_ERR(inode) : -EINVAL;
+		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load root (%d).", err);
 		goto out;
 	}
 

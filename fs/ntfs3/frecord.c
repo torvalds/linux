@@ -3360,7 +3360,7 @@ out:
 	ni_unlock(ni);
 
 	if (err) {
-		ntfs_err(sb, "%s r=%lx failed, %d.", hint, inode->i_ino, err);
+		ntfs_inode_err(inode, "%s failed, %d.", hint, err);
 		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
 		return err;
 	}

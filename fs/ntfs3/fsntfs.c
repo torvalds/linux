@@ -223,7 +223,7 @@ int ntfs_extend_init(struct ntfs_sb_info *sbi)
 	inode = ntfs_iget5(sb, &ref, &NAME_EXTEND);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		ntfs_err(sb, "Failed to load $Extend.");
+		ntfs_err(sb, "Failed to load $Extend (%d).", err);
 		inode = NULL;
 		goto out;
 	}
@@ -282,7 +282,7 @@ int ntfs_loadlog_and_replay(struct ntfs_inode *ni, struct ntfs_sb_info *sbi)
 
 	/* Check for 4GB. */
 	if (ni->vfs_inode.i_size >= 0x100000000ull) {
-		ntfs_err(sb, "\x24LogFile is too big");
+		ntfs_err(sb, "\x24LogFile is large than 4G.");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1863,7 +1863,7 @@ int ntfs_security_init(struct ntfs_sb_info *sbi)
 	inode = ntfs_iget5(sb, &ref, &NAME_SECURE);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		ntfs_err(sb, "Failed to load $Secure.");
+		ntfs_err(sb, "Failed to load $Secure (%d).", err);
 		inode = NULL;
 		goto out;
 	}
@@ -1874,45 +1874,43 @@ int ntfs_security_init(struct ntfs_sb_info *sbi)
 
 	attr = ni_find_attr(ni, NULL, &le, ATTR_ROOT, SDH_NAME,
 			    ARRAY_SIZE(SDH_NAME), NULL, NULL);
-	if (!attr) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	if(!(root_sdh = resident_data_ex(attr, sizeof(struct INDEX_ROOT))) ||
+	if (!attr ||
+	    !(root_sdh = resident_data_ex(attr, sizeof(struct INDEX_ROOT))) ||
 	    root_sdh->type != ATTR_ZERO ||
 	    root_sdh->rule != NTFS_COLLATION_TYPE_SECURITY_HASH ||
 	    offsetof(struct INDEX_ROOT, ihdr) +
-			le32_to_cpu(root_sdh->ihdr.used) >
-			le32_to_cpu(attr->res.data_size)) {
+			    le32_to_cpu(root_sdh->ihdr.used) >
+		    le32_to_cpu(attr->res.data_size)) {
+		ntfs_err(sb, "$Secure::$SDH is corrupted.");
 		err = -EINVAL;
 		goto out;
 	}
 
 	err = indx_init(indx_sdh, sbi, attr, INDEX_MUTEX_SDH);
-	if (err)
-		goto out;
-
-	attr = ni_find_attr(ni, attr, &le, ATTR_ROOT, SII_NAME,
-			    ARRAY_SIZE(SII_NAME), NULL, NULL);
-	if (!attr) {
-		err = -EINVAL;
+	if (err) {
+		ntfs_err(sb, "Failed to initialize $Secure::$SDH (%d).", err);
 		goto out;
 	}
 
-	if(!(root_sii = resident_data_ex(attr, sizeof(struct INDEX_ROOT))) ||
+	attr = ni_find_attr(ni, attr, &le, ATTR_ROOT, SII_NAME,
+			    ARRAY_SIZE(SII_NAME), NULL, NULL);
+	if (!attr ||
+	    !(root_sii = resident_data_ex(attr, sizeof(struct INDEX_ROOT))) ||
 	    root_sii->type != ATTR_ZERO ||
 	    root_sii->rule != NTFS_COLLATION_TYPE_UINT ||
 	    offsetof(struct INDEX_ROOT, ihdr) +
-			le32_to_cpu(root_sii->ihdr.used) >
-			le32_to_cpu(attr->res.data_size)) {
+			    le32_to_cpu(root_sii->ihdr.used) >
+		    le32_to_cpu(attr->res.data_size)) {
+		ntfs_err(sb, "$Secure::$SII is corrupted.");
 		err = -EINVAL;
 		goto out;
 	}
 
 	err = indx_init(indx_sii, sbi, attr, INDEX_MUTEX_SII);
-	if (err)
+	if (err) {
+		ntfs_err(sb, "Failed to initialize $Secure::$SII (%d).", err);
 		goto out;
+	}
 
 	fnd_sii = fnd_get();
 	if (!fnd_sii) {
