@@ -317,21 +317,6 @@ static void cirrus_pitch_set(struct cirrus_device *cirrus,
 	cirrus_set_start_address(cirrus, 0);
 }
 
-static int cirrus_check_size(int width, int height,
-			     struct drm_framebuffer *fb)
-{
-	int pitch = width * 2;
-
-	if (fb)
-		pitch = cirrus_pitch(fb);
-
-	if (pitch > CIRRUS_MAX_PITCH)
-		return -EINVAL;
-	if (pitch * height > CIRRUS_VRAM_SIZE)
-		return -EINVAL;
-	return 0;
-}
-
 /* ------------------------------------------------------------------ */
 /* cirrus display pipe						      */
 
@@ -354,6 +339,7 @@ static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
 	int ret;
+	unsigned int pitch;
 
 	if (new_crtc)
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
@@ -367,7 +353,15 @@ static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	else if (!new_plane_state->visible)
 		return 0;
 
-	return cirrus_check_size(fb->width, fb->height, fb);
+	pitch = cirrus_pitch(fb);
+
+	/* validate size constraints */
+	if (pitch > CIRRUS_MAX_PITCH)
+		return -EINVAL;
+	else if (pitch * fb->height > CIRRUS_VRAM_SIZE)
+		return -EINVAL;
+
+	return 0;
 }
 
 static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
