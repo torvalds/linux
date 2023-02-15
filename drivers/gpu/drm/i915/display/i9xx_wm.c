@@ -3437,6 +3437,9 @@ void ilk_wm_sanitize(struct drm_i915_private *dev_priv)
 	if (!dev_priv->display.funcs.wm->optimize_watermarks)
 		return;
 
+	if (drm_WARN_ON(&dev_priv->drm, DISPLAY_VER(dev_priv) >= 9))
+		return;
+
 	state = drm_atomic_state_alloc(&dev_priv->drm);
 	if (drm_WARN_ON(&dev_priv->drm, !state))
 		return;
