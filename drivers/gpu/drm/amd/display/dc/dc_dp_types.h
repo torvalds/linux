@@ -921,12 +921,6 @@ struct dpcd_usb4_dp_tunneling_info {
 #ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
 #define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
 #endif
-#ifndef DP_LINK_SQUARE_PATTERN
-#define DP_LINK_SQUARE_PATTERN				0x10F
-#endif
-#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
-#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
-#endif
 #ifndef DP_DSC_CONFIGURATION
 #define DP_DSC_CONFIGURATION				0x161
 #endif
@@ -938,12 +932,6 @@ struct dpcd_usb4_dp_tunneling_info {
 #endif
 #ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL
 #define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
-#endif
-#ifndef DP_LINK_SQUARE_PATTERN
-#define DP_LINK_SQUARE_PATTERN				0x10F
-#endif
-#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
-#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217
 #endif
 #ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
 #define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
@@ -988,10 +976,6 @@ struct dpcd_usb4_dp_tunneling_info {
 #define DP_INTRA_HOP_AUX_REPLY_INDICATION		(1 << 3)
 /* TODO - Use DRM header to replace above once available */
 #endif // DP_INTRA_HOP_AUX_REPLY_INDICATION
-
-#ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
-#define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50
-#endif
 union dp_main_line_channel_coding_cap {
 	struct {
 		uint8_t DP_8b_10b_SUPPORTED	:1;
@@ -1368,4 +1352,54 @@ struct dp_trace {
 	bool is_initialized;
 	struct edp_trace_power_timestamps edp_trace_power_timestamps;
 };
+
+/* TODO - This is a temporary location for any new DPCD definitions.
+ * We should move these to drm_dp header.
+ */
+#ifndef DP_LINK_SQUARE_PATTERN
+#define DP_LINK_SQUARE_PATTERN				0x10F
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
+#endif
+#ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
+#define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50
+#endif
+#ifndef DP_TUNNELING_IRQ
+#define DP_TUNNELING_IRQ				(1 << 5)
+#endif
+/** USB4 DPCD BW Allocation Registers Chapter 10.7 **/
+#ifndef DP_TUNNELING_CAPABILITIES
+#define DP_TUNNELING_CAPABILITIES			0xE000D /* 1.4a */
+#endif
+#ifndef USB4_DRIVER_ID
+#define USB4_DRIVER_ID					0xE000F /* 1.4a */
+#endif
+#ifndef USB4_DRIVER_BW_CAPABILITY
+#define USB4_DRIVER_BW_CAPABILITY			0xE0020 /* 1.4a */
+#endif
+#ifndef DP_IN_ADAPTER_TUNNEL_INFO
+#define DP_IN_ADAPTER_TUNNEL_INFO			0xE0021 /* 1.4a */
+#endif
+#ifndef DP_BW_GRANULALITY
+#define DP_BW_GRANULALITY				0xE0022 /* 1.4a */
+#endif
+#ifndef ESTIMATED_BW
+#define ESTIMATED_BW					0xE0023 /* 1.4a */
+#endif
+#ifndef ALLOCATED_BW
+#define ALLOCATED_BW					0xE0024 /* 1.4a */
+#endif
+#ifndef DP_TUNNELING_STATUS
+#define DP_TUNNELING_STATUS				0xE0025 /* 1.4a */
+#endif
+#ifndef DPTX_BW_ALLOCATION_MODE_CONTROL
+#define DPTX_BW_ALLOCATION_MODE_CONTROL			0xE0030 /* 1.4a */
+#endif
+#ifndef REQUESTED_BW
+#define REQUESTED_BW					0xE0031 /* 1.4a */
+#endif
 #endif /* DC_DP_TYPES_H */
