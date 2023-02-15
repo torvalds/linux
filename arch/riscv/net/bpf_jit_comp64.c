@@ -8,6 +8,8 @@
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/memory.h>
+#include <linux/stop_machine.h>
 #include "bpf_jit.h"
 
 #define RV_REG_TCC RV_REG_A6
@@ -238,7 +240,7 @@ static void __build_epilogue(bool is_tail_call, struct rv_jit_context *ctx)
 	if (!is_tail_call)
 		emit_mv(RV_REG_A0, RV_REG_A5, ctx);
 	emit_jalr(RV_REG_ZERO, is_tail_call ? RV_REG_T3 : RV_REG_RA,
-		  is_tail_call ? 4 : 0, /* skip TCC init */
+		  is_tail_call ? 20 : 0, /* skip reserved nops and TCC init */
 		  ctx);
 }
 
@@ -613,6 +615,84 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	ctx->nexentries++;
 	return 0;
+}
+
+static int gen_call_or_nops(void *target, void *ip, u32 *insns)
+{
+	s64 rvoff;
+	int i, ret;
+	struct rv_jit_context ctx;
+
+	ctx.ninsns = 0;
+	ctx.insns = (u16 *)insns;
+
+	if (!target) {
+		for (i = 0; i < 4; i++)
+			emit(rv_nop(), &ctx);
+		return 0;
+	}
+
+	rvoff = (s64)(target - (ip + 4));
+	emit(rv_sd(RV_REG_SP, -8, RV_REG_RA), &ctx);
+	ret = emit_jump_and_link(RV_REG_RA, rvoff, false, &ctx);
+	if (ret)
+		return ret;
+	emit(rv_ld(RV_REG_RA, -8, RV_REG_SP), &ctx);
+
+	return 0;
+}
+
+static int gen_jump_or_nops(void *target, void *ip, u32 *insns)
+{
+	s64 rvoff;
+	struct rv_jit_context ctx;
+
+	ctx.ninsns = 0;
+	ctx.insns = (u16 *)insns;
+
+	if (!target) {
+		emit(rv_nop(), &ctx);
+		emit(rv_nop(), &ctx);
+		return 0;
+	}
+
+	rvoff = (s64)(target - ip);
+	return emit_jump_and_link(RV_REG_ZERO, rvoff, false, &ctx);
+}
+
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
+		       void *old_addr, void *new_addr)
+{
+	u32 old_insns[4], new_insns[4];
+	bool is_call = poke_type == BPF_MOD_CALL;
+	int (*gen_insns)(void *target, void *ip, u32 *insns);
+	int ninsns = is_call ? 4 : 2;
+	int ret;
+
+	if (!is_bpf_text_address((unsigned long)ip))
+		return -ENOTSUPP;
+
+	gen_insns = is_call ? gen_call_or_nops : gen_jump_or_nops;
+
+	ret = gen_insns(old_addr, ip, old_insns);
+	if (ret)
+		return ret;
+
+	if (memcmp(ip, old_insns, ninsns * 4))
+		return -EFAULT;
+
+	ret = gen_insns(new_addr, ip, new_insns);
+	if (ret)
+		return ret;
+
+	cpus_read_lock();
+	mutex_lock(&text_mutex);
+	if (memcmp(ip, new_insns, ninsns * 4))
+		ret = patch_text(ip, new_insns, ninsns);
+	mutex_unlock(&text_mutex);
+	cpus_read_unlock();
+
+	return ret;
 }
 
 int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
@@ -1266,7 +1346,7 @@ out_be:
 
 void bpf_jit_build_prologue(struct rv_jit_context *ctx)
 {
-	int stack_adjust = 0, store_offset, bpf_stack_adjust;
+	int i, stack_adjust = 0, store_offset, bpf_stack_adjust;
 
 	bpf_stack_adjust = round_up(ctx->prog->aux->stack_depth, 16);
 	if (bpf_stack_adjust)
@@ -1292,6 +1372,10 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx)
 	stack_adjust += bpf_stack_adjust;
 
 	store_offset = stack_adjust - 8;
+
+	/* reserve 4 nop insns */
+	for (i = 0; i < 4; i++)
+		emit(rv_nop(), ctx);
 
 	/* First instruction is always setting the tail-call-counter
 	 * (TCC) register. This instruction is skipped for tail calls.
