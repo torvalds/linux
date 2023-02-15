@@ -1269,9 +1269,9 @@ static int hdptx_ropll_cmn_config(struct rockchip_hdptx_phy *hdptx, unsigned lon
 	hdptx_write(hdptx, CMN_REG0043, 0x00);
 	hdptx_write(hdptx, CMN_REG0044, 0x46);
 	hdptx_write(hdptx, CMN_REG0045, 0x24);
-	hdptx_write(hdptx, CMN_REG0046, 0xff);
+	hdptx_write(hdptx, CMN_REG0046, 0xdd);
 	hdptx_write(hdptx, CMN_REG0047, 0x00);
-	hdptx_write(hdptx, CMN_REG0048, 0x44);
+	hdptx_write(hdptx, CMN_REG0048, 0x11);
 	hdptx_write(hdptx, CMN_REG0049, 0xfa);
 	hdptx_write(hdptx, CMN_REG004A, 0x08);
 	hdptx_write(hdptx, CMN_REG004B, 0x00);
