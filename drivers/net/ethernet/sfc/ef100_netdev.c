@@ -337,6 +337,7 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	ef100_unregister_netdev(efx);
 
 #ifdef CONFIG_SFC_SRIOV
+	ef100_pf_unset_devlink_port(efx);
 	efx_fini_tc(efx);
 #endif
 
@@ -422,6 +423,9 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 		rc = ef100_probe_netdev_pf(efx);
 		if (rc)
 			goto fail;
+#ifdef CONFIG_SFC_SRIOV
+		ef100_pf_set_devlink_port(efx);
+#endif
 	}
 
 	efx->netdev_notifier.notifier_call = ef100_netdev_event;
@@ -432,7 +436,13 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 		goto fail;
 	}
 
+	efx_probe_devlink_unlock(efx);
+	return rc;
 fail:
+#ifdef CONFIG_SFC_SRIOV
+	/* remove devlink port if does exist */
+	ef100_pf_unset_devlink_port(efx);
+#endif
 	efx_probe_devlink_unlock(efx);
 	return rc;
 }

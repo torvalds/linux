@@ -36,4 +36,12 @@ void efx_probe_devlink_unlock(struct efx_nic *efx);
 void efx_fini_devlink_lock(struct efx_nic *efx);
 void efx_fini_devlink_and_unlock(struct efx_nic *efx);
 
+#ifdef CONFIG_SFC_SRIOV
+struct efx_rep;
+
+void ef100_pf_set_devlink_port(struct efx_nic *efx);
+void ef100_rep_set_devlink_port(struct efx_rep *efv);
+void ef100_pf_unset_devlink_port(struct efx_nic *efx);
+void ef100_rep_unset_devlink_port(struct efx_rep *efv);
+#endif
 #endif	/* _EFX_DEVLINK_H */
