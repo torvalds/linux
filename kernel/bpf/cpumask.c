@@ -55,7 +55,7 @@ __bpf_kfunc struct bpf_cpumask *bpf_cpumask_create(void)
 	/* cpumask must be the first element so struct bpf_cpumask be cast to struct cpumask. */
 	BUILD_BUG_ON(offsetof(struct bpf_cpumask, cpumask) != 0);
 
-	cpumask = bpf_mem_alloc(&bpf_cpumask_ma, sizeof(*cpumask));
+	cpumask = bpf_mem_cache_alloc(&bpf_cpumask_ma);
 	if (!cpumask)
 		return NULL;
 
@@ -123,7 +123,7 @@ __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 
 	if (refcount_dec_and_test(&cpumask->usage)) {
 		migrate_disable();
-		bpf_mem_free(&bpf_cpumask_ma, cpumask);
+		bpf_mem_cache_free(&bpf_cpumask_ma, cpumask);
 		migrate_enable();
 	}
 }
@@ -468,7 +468,7 @@ static int __init cpumask_kfunc_init(void)
 		},
 	};
 
-	ret = bpf_mem_alloc_init(&bpf_cpumask_ma, 0, false);
+	ret = bpf_mem_alloc_init(&bpf_cpumask_ma, sizeof(struct bpf_cpumask), false);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &cpumask_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &cpumask_kfunc_set);
 	return  ret ?: register_btf_id_dtor_kfuncs(cpumask_dtors,
