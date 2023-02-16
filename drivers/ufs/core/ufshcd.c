@@ -8521,7 +8521,9 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 			return ret;
 		if (is_mcq_supported(hba) && !hba->scsi_host_added) {
 			ret = ufshcd_alloc_mcq(hba);
-			if (ret) {
+			if (!ret) {
+				ufshcd_config_mcq(hba);
+			} else {
 				/* Continue with SDB mode */
 				use_mcq_mode = false;
 				dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
@@ -8533,10 +8535,10 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 				return ret;
 			}
 			hba->scsi_host_added = true;
-		}
-		/* MCQ may be disabled if ufshcd_alloc_mcq() fails */
-		if (is_mcq_supported(hba) && use_mcq_mode)
+		} else if (is_mcq_supported(hba)) {
+			/* UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH is set */
 			ufshcd_config_mcq(hba);
+		}
 	}
 
 	ufshcd_tune_unipro_params(hba);
