@@ -279,8 +279,8 @@ struct socinfo {
 	/* Version 14 */
 	__le32 num_clusters;
 	__le32 ncluster_array_offset;
-	__le32 num_defective_parts;
-	__le32 ndefective_parts_array_offset;
+	__le32 num_subset_parts;
+	__le32 nsubset_parts_array_offset;
 	/* Version 15 */
 	__le32 nmodem_supported;
 	/* Version 16 */
@@ -329,8 +329,8 @@ struct socinfo_params {
 	u32 nproduct_id;
 	u32 num_clusters;
 	u32 ncluster_array_offset;
-	u32 num_defective_parts;
-	u32 ndefective_parts_array_offset;
+	u32 num_subset_parts;
+	u32 nsubset_parts_array_offset;
 	u32 nmodem_supported;
 	u32 gpu_chip_id;
 	u32 gpu_vulkan_id;
@@ -488,19 +488,19 @@ static uint32_t socinfo_get_ncluster_array_offset(void)
 		: 0;
 }
 
-static uint32_t socinfo_get_num_defective_parts(void)
+static uint32_t socinfo_get_num_subset_parts(void)
 {
 	return socinfo ?
 		(socinfo_format >= SOCINFO_VERSION(0, 14) ?
-		 le32_to_cpu(socinfo->num_defective_parts) : 0)
+		 le32_to_cpu(socinfo->num_subset_parts) : 0)
 		: 0;
 }
 
-static uint32_t socinfo_get_ndefective_parts_array_offset(void)
+static uint32_t socinfo_get_nsubset_parts_array_offset(void)
 {
 	return socinfo ?
 		(socinfo_format >= SOCINFO_VERSION(0, 14) ?
-		 le32_to_cpu(socinfo->ndefective_parts_array_offset) : 0)
+		 le32_to_cpu(socinfo->nsubset_parts_array_offset) : 0)
 		: 0;
 }
 
@@ -767,24 +767,24 @@ msm_get_ncluster_array_offset(struct device *dev,
 ATTR_DEFINE(ncluster_array_offset);
 
 static ssize_t
-msm_get_num_defective_parts(struct device *dev,
+msm_get_num_subset_parts(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n",
-			socinfo_get_num_defective_parts());
+			socinfo_get_num_subset_parts());
 }
-ATTR_DEFINE(num_defective_parts);
+ATTR_DEFINE(num_subset_parts);
 
 static ssize_t
-msm_get_ndefective_parts_array_offset(struct device *dev,
+msm_get_nsubset_parts_array_offset(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n",
-			socinfo_get_ndefective_parts_array_offset());
+			socinfo_get_nsubset_parts_array_offset());
 }
-ATTR_DEFINE(ndefective_parts_array_offset);
+ATTR_DEFINE(nsubset_parts_array_offset);
 
 /* Version 15 */
 static ssize_t
@@ -1271,9 +1271,9 @@ static void socinfo_populate_sysfs(struct qcom_socinfo *qcom_socinfo)
 		msm_custom_socinfo_attrs[i++] =
 			&dev_attr_ncluster_array_offset.attr;
 		msm_custom_socinfo_attrs[i++] =
-			&dev_attr_num_defective_parts.attr;
+			&dev_attr_num_subset_parts.attr;
 		msm_custom_socinfo_attrs[i++] =
-			&dev_attr_ndefective_parts_array_offset.attr;
+			&dev_attr_nsubset_parts_array_offset.attr;
 		fallthrough;
 	case SOCINFO_VERSION(0, 13):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_nproduct_id.attr;
@@ -1496,7 +1496,7 @@ static void socinfo_print(void)
 				"foundry_id=%u serial_number=%u > num_pmics=%u chip_family=0x%x " \
 				"raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x " \
 				"num_clusters=0x%x ncluster_array_offset=0x%x " \
-				"num_defective_parts=0x%x ndefective_parts_array_offset=0x%x\n",
+				"num_subset_parts=0x%x nsubset_parts_array_offset=0x%x\n",
 				f_maj, f_min, socinfo->id, v_maj, v_min,
 				socinfo->raw_id, socinfo->raw_ver,
 				socinfo->hw_plat,
@@ -1514,8 +1514,8 @@ static void socinfo_print(void)
 				socinfo->nproduct_id,
 				socinfo->num_clusters,
 				socinfo->ncluster_array_offset,
-				socinfo->num_defective_parts,
-				socinfo->ndefective_parts_array_offset);
+				socinfo->num_subset_parts,
+				socinfo->nsubset_parts_array_offset);
 		break;
 	case SOCINFO_VERSION(0, 15):
 		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u," \
@@ -1524,7 +1524,7 @@ static void socinfo_print(void)
 				"foundry_id=%u serial_number=%u > num_pmics=%u chip_family=0x%x " \
 				"raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x " \
 				"num_clusters=0x%x ncluster_array_offset=0x%x " \
-				"num_defective_parts=0x%x ndefective_parts_array_offset=0x%x " \
+				"num_subset_parts=0x%x nsubset_parts_array_offset=0x%x " \
 				"> \nmodem_supported=0x%x\n",
 				f_maj, f_min, socinfo->id, v_maj, v_min,
 				socinfo->raw_id, socinfo->raw_ver,
@@ -1543,13 +1543,13 @@ static void socinfo_print(void)
 				socinfo->nproduct_id,
 				socinfo->num_clusters,
 				socinfo->ncluster_array_offset,
-				socinfo->num_defective_parts,
-				socinfo->ndefective_parts_array_offset,
+				socinfo->num_subset_parts,
+				socinfo->nsubset_parts_array_offset,
 				socinfo->nmodem_supported);
 		break;
 
 	case SOCINFO_VERSION(0, 16):
-		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s\n",
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_subset_parts=0x%x nsubset_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s\n",
 			f_maj, f_min, socinfo->id, v_maj, v_min,
 			socinfo->raw_id, socinfo->raw_ver,
 			socinfo->hw_plat,
@@ -1567,8 +1567,8 @@ static void socinfo_print(void)
 			socinfo->nproduct_id,
 			socinfo->num_clusters,
 			socinfo->ncluster_array_offset,
-			socinfo->num_defective_parts,
-			socinfo->ndefective_parts_array_offset,
+			socinfo->num_subset_parts,
+			socinfo->nsubset_parts_array_offset,
 			socinfo->nmodem_supported,
 			socinfo->feature_code,
 			socinfo->pcode,
@@ -1576,7 +1576,7 @@ static void socinfo_print(void)
 		break;
 
 	case SOCINFO_VERSION(0, 17):
-		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u\n",
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_subset_parts=0x%x nsubset_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u\n",
 			f_maj, f_min, socinfo->id, v_maj, v_min,
 			socinfo->raw_id, socinfo->raw_ver,
 			socinfo->hw_plat,
@@ -1594,8 +1594,8 @@ static void socinfo_print(void)
 			socinfo->nproduct_id,
 			socinfo->num_clusters,
 			socinfo->ncluster_array_offset,
-			socinfo->num_defective_parts,
-			socinfo->ndefective_parts_array_offset,
+			socinfo->num_subset_parts,
+			socinfo->nsubset_parts_array_offset,
 			socinfo->nmodem_supported,
 			socinfo->feature_code,
 			socinfo->pcode,
@@ -1604,7 +1604,7 @@ static void socinfo_print(void)
 		break;
 
 	case SOCINFO_VERSION(0, 18):
-		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u num_kvps=%u kvps_offset=%u\n",
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_subset_parts=0x%x nsubset_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u num_kvps=%u kvps_offset=%u\n",
 			f_maj, f_min, socinfo->id, v_maj, v_min,
 			socinfo->raw_id, socinfo->raw_ver,
 			socinfo->hw_plat,
@@ -1622,8 +1622,8 @@ static void socinfo_print(void)
 			socinfo->nproduct_id,
 			socinfo->num_clusters,
 			socinfo->ncluster_array_offset,
-			socinfo->num_defective_parts,
-			socinfo->ndefective_parts_array_offset,
+			socinfo->num_subset_parts,
+			socinfo->nsubset_parts_array_offset,
 			socinfo->nmodem_supported,
 			socinfo->feature_code,
 			socinfo->pcode,
@@ -1634,7 +1634,7 @@ static void socinfo_print(void)
 		break;
 
 	case SOCINFO_VERSION(0, 19):
-		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u num_kvps=%u kvps_offset=%u num_func_clusters=%u boot_cluster=%u boot_core=%u\n",
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_subset_parts=0x%x nsubset_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u num_kvps=%u kvps_offset=%u num_func_clusters=%u boot_cluster=%u boot_core=%u\n",
 			f_maj, f_min, socinfo->id, v_maj, v_min,
 			socinfo->raw_id, socinfo->raw_ver,
 			socinfo->hw_plat,
@@ -1652,8 +1652,8 @@ static void socinfo_print(void)
 			socinfo->nproduct_id,
 			socinfo->num_clusters,
 			socinfo->ncluster_array_offset,
-			socinfo->num_defective_parts,
-			socinfo->ndefective_parts_array_offset,
+			socinfo->num_subset_parts,
+			socinfo->nsubset_parts_array_offset,
 			socinfo->nmodem_supported,
 			socinfo->feature_code,
 			socinfo->pcode,
@@ -1991,17 +1991,18 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 	case SOCINFO_VERSION(0, 14):
 		qcom_socinfo->info.num_clusters = __le32_to_cpu(info->num_clusters);
 		qcom_socinfo->info.ncluster_array_offset = __le32_to_cpu(info->ncluster_array_offset);
-		qcom_socinfo->info.num_defective_parts = __le32_to_cpu(info->num_defective_parts);
-		qcom_socinfo->info.ndefective_parts_array_offset = __le32_to_cpu(info->ndefective_parts_array_offset);
+		qcom_socinfo->info.num_subset_parts = __le32_to_cpu(info->num_subset_parts);
+		qcom_socinfo->info.nsubset_parts_array_offset =
+			__le32_to_cpu(info->nsubset_parts_array_offset);
 
 		debugfs_create_u32("num_clusters", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.num_clusters);
 		debugfs_create_u32("ncluster_array_offset", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.ncluster_array_offset);
-		debugfs_create_u32("num_defective_parts", 0444, qcom_socinfo->dbg_root,
-				   &qcom_socinfo->info.num_defective_parts);
-		debugfs_create_u32("ndefective_parts_array_offset", 0444, qcom_socinfo->dbg_root,
-				   &qcom_socinfo->info.ndefective_parts_array_offset);
+		debugfs_create_u32("num_subset_parts", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.num_subset_parts);
+		debugfs_create_u32("nsubset_parts_array_offset", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.nsubset_parts_array_offset);
 		fallthrough;
 	case SOCINFO_VERSION(0, 13):
 		qcom_socinfo->info.nproduct_id = __le32_to_cpu(info->nproduct_id);
