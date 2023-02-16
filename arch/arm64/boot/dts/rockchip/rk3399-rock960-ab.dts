@@ -122,6 +122,7 @@
 		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "ROCKCHIP,SPDIF";
+		simple-audio-card,mclk-fs = <128>;
 		simple-audio-card,cpu {
 			sound-dai = <&spdif>;
 		};
