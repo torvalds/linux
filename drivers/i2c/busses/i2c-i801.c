@@ -511,19 +511,23 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 
 	status = i801_transaction(priv, xact);
 	if (status)
-		return status;
+		goto out;
 
 	if (read_write == I2C_SMBUS_READ ||
 	    command == I2C_SMBUS_BLOCK_PROC_CALL) {
 		len = inb_p(SMBHSTDAT0(priv));
-		if (len < 1 || len > I2C_SMBUS_BLOCK_MAX)
-			return -EPROTO;
+		if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
+			status = -EPROTO;
+			goto out;
+		}
 
 		data->block[0] = len;
 		for (i = 0; i < len; i++)
 			data->block[i + 1] = inb_p(SMBBLKDAT(priv));
 	}
-	return 0;
+out:
+	outb_p(inb_p(SMBAUXCTL(priv)) & ~SMBAUXCTL_E32B, SMBAUXCTL(priv));
+	return status;
 }
 
 static void i801_isr_byte_done(struct i801_priv *priv)
@@ -921,11 +925,10 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		ret = i801_simple_transaction(priv, data, read_write, size);
 
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
-	   time, so we forcibly disable it after every transaction. Turn off
-	   E32B for the same reason. */
-	if (hwpec || block)
-		outb_p(inb_p(SMBAUXCTL(priv)) &
-		       ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B), SMBAUXCTL(priv));
+	 * time, so we forcibly disable it after every transaction.
+	 */
+	if (hwpec)
+		outb_p(inb_p(SMBAUXCTL(priv)) & ~SMBAUXCTL_CRC, SMBAUXCTL(priv));
 out:
 	/*
 	 * Unlock the SMBus device for use by BIOS/ACPI,
