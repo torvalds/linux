@@ -93,6 +93,7 @@ enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_CRYPTO		= 1 << 0,
 	MLX5_IPSEC_CAP_ESN		= 1 << 1,
 	MLX5_IPSEC_CAP_PACKET_OFFLOAD	= 1 << 2,
+	MLX5_IPSEC_CAP_ROCE             = 1 << 3,
 };
 
 struct mlx5e_priv;
@@ -147,6 +148,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_aso *aso;
 	struct notifier_block nb;
+	struct mlx5_ipsec_fs *roce;
 };
 
 struct mlx5e_ipsec_esn_state {
