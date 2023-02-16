@@ -987,7 +987,7 @@ static int accept_untracked_na(struct net_device *dev, struct in6_addr *saddr)
 	}
 }
 
-static void ndisc_recv_na(struct sk_buff *skb)
+static enum skb_drop_reason ndisc_recv_na(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
 	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
@@ -1000,22 +1000,21 @@ static void ndisc_recv_na(struct sk_buff *skb)
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	struct inet6_ifaddr *ifp;
 	struct neighbour *neigh;
+	SKB_DR(reason);
 	u8 new_state;
 
-	if (skb->len < sizeof(struct nd_msg)) {
-		ND_PRINTK(2, warn, "NA: packet too short\n");
-		return;
-	}
+	if (skb->len < sizeof(struct nd_msg))
+		return SKB_DROP_REASON_PKT_TOO_SMALL;
 
 	if (ipv6_addr_is_multicast(&msg->target)) {
 		ND_PRINTK(2, warn, "NA: target address is multicast\n");
-		return;
+		return reason;
 	}
 
 	if (ipv6_addr_is_multicast(daddr) &&
 	    msg->icmph.icmp6_solicited) {
 		ND_PRINTK(2, warn, "NA: solicited NA is multicasted\n");
-		return;
+		return reason;
 	}
 
 	/* For some 802.11 wireless deployments (and possibly other networks),
@@ -1025,18 +1024,18 @@ static void ndisc_recv_na(struct sk_buff *skb)
 	 */
 	if (!msg->icmph.icmp6_solicited && idev &&
 	    idev->cnf.drop_unsolicited_na)
-		return;
+		return reason;
 
 	if (!ndisc_parse_options(dev, msg->opt, ndoptlen, &ndopts)) {
 		ND_PRINTK(2, warn, "NS: invalid ND option\n");
-		return;
+		return reason;
 	}
 	if (ndopts.nd_opts_tgt_lladdr) {
 		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_tgt_lladdr, dev);
 		if (!lladdr) {
 			ND_PRINTK(2, warn,
 				  "NA: invalid link-layer address length\n");
-			return;
+			return reason;
 		}
 	}
 	ifp = ipv6_get_ifaddr(dev_net(dev), &msg->target, dev, 1);
@@ -1044,7 +1043,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		if (skb->pkt_type != PACKET_LOOPBACK
 		    && (ifp->flags & IFA_F_TENTATIVE)) {
 				addrconf_dad_failure(skb, ifp);
-				return;
+				return reason;
 		}
 		/* What should we make now? The advertisement
 		   is invalid, but ndisc specs say nothing
@@ -1060,7 +1059,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 				  "NA: %pM advertised our address %pI6c on %s!\n",
 				  eth_hdr(skb)->h_source, &ifp->addr, ifp->idev->dev->name);
 		in6_ifa_put(ifp);
-		return;
+		return reason;
 	}
 
 	neigh = neigh_lookup(&nd_tbl, &msg->target, dev);
@@ -1121,10 +1120,11 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			 */
 			rt6_clean_tohost(dev_net(dev),  saddr);
 		}
-
+		reason = SKB_CONSUMED;
 out:
 		neigh_release(neigh);
 	}
+	return reason;
 }
 
 static void ndisc_recv_rs(struct sk_buff *skb)
@@ -1840,7 +1840,7 @@ enum skb_drop_reason ndisc_rcv(struct sk_buff *skb)
 		break;
 
 	case NDISC_NEIGHBOUR_ADVERTISEMENT:
-		ndisc_recv_na(skb);
+		reason = ndisc_recv_na(skb);
 		break;
 
 	case NDISC_ROUTER_SOLICITATION:
