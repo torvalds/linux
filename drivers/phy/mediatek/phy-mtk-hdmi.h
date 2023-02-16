@@ -40,10 +40,12 @@ struct mtk_hdmi_phy {
 	unsigned char drv_imp_d0;
 	unsigned int ibias;
 	unsigned int ibias_up;
+	bool tmds_over_340M;
 };
 
 struct mtk_hdmi_phy *to_mtk_hdmi_phy(struct clk_hw *hw);
 
+extern struct mtk_hdmi_phy_conf mtk_hdmi_phy_8195_conf;
 extern struct mtk_hdmi_phy_conf mtk_hdmi_phy_8173_conf;
 extern struct mtk_hdmi_phy_conf mtk_hdmi_phy_2701_conf;
 
