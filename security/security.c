@@ -4762,21 +4762,62 @@ int security_key_getsecurity(struct key *key, char **_buffer)
 
 #ifdef CONFIG_AUDIT
 
+/**
+ * security_audit_rule_init() - Allocate and init an LSM audit rule struct
+ * @field: audit action
+ * @op: rule operator
+ * @rulestr: rule context
+ * @lsmrule: receive buffer for audit rule struct
+ *
+ * Allocate and initialize an LSM audit rule structure.
+ *
+ * Return: Return 0 if @lsmrule has been successfully set, -EINVAL in case of
+ *         an invalid rule.
+ */
 int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
 {
 	return call_int_hook(audit_rule_init, 0, field, op, rulestr, lsmrule);
 }
 
+/**
+ * security_audit_rule_known() - Check if an audit rule contains LSM fields
+ * @krule: audit rule
+ *
+ * Specifies whether given @krule contains any fields related to the current
+ * LSM.
+ *
+ * Return: Returns 1 in case of relation found, 0 otherwise.
+ */
 int security_audit_rule_known(struct audit_krule *krule)
 {
 	return call_int_hook(audit_rule_known, 0, krule);
 }
 
+/**
+ * security_audit_rule_free() - Free an LSM audit rule struct
+ * @lsmrule: audit rule struct
+ *
+ * Deallocate the LSM audit rule structure previously allocated by
+ * audit_rule_init().
+ */
 void security_audit_rule_free(void *lsmrule)
 {
 	call_void_hook(audit_rule_free, lsmrule);
 }
 
+/**
+ * security_audit_rule_match() - Check if a label matches an audit rule
+ * @secid: security label
+ * @field: LSM audit field
+ * @op: matching operator
+ * @lsmrule: audit rule
+ *
+ * Determine if given @secid matches a rule previously approved by
+ * security_audit_rule_known().
+ *
+ * Return: Returns 1 if secid matches the rule, 0 if it does not, -ERRNO on
+ *         failure.
+ */
 int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule)
 {
 	return call_int_hook(audit_rule_match, 0, secid, field, op, lsmrule);

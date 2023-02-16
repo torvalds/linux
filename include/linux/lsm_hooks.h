@@ -135,38 +135,6 @@
  *	@secdata contains the security context.
  *	@seclen contains the length of the security context.
  *
- * Security hooks for Audit
- *
- * @audit_rule_init:
- *	Allocate and initialize an LSM audit rule structure.
- *	@field contains the required Audit action.
- *	Fields flags are defined in <include/linux/audit.h>
- *	@op contains the operator the rule uses.
- *	@rulestr contains the context where the rule will be applied to.
- *	@lsmrule contains a pointer to receive the result.
- *	Return 0 if @lsmrule has been successfully set,
- *	-EINVAL in case of an invalid rule.
- *
- * @audit_rule_known:
- *	Specifies whether given @krule contains any fields related to
- *	current LSM.
- *	@krule contains the audit rule of interest.
- *	Return 1 in case of relation found, 0 otherwise.
- *
- * @audit_rule_match:
- *	Determine if given @secid matches a rule previously approved
- *	by @audit_rule_known.
- *	@secid contains the security id in question.
- *	@field contains the field which relates to current LSM.
- *	@op contains the operator that will be used for matching.
- *	@lrule points to the audit rule that will be checked against.
- *	Return 1 if secid matches the rule, 0 if it does not, -ERRNO on failure.
- *
- * @audit_rule_free:
- *	Deallocate the LSM audit rule structure previously allocated by
- *	audit_rule_init.
- *	@lsmrule contains the allocated rule.
- *
  * @inode_invalidate_secctx:
  *	Notify the security module that it must revalidate the security context
  *	of an inode.
