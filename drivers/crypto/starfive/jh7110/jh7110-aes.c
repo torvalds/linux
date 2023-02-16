@@ -652,8 +652,6 @@ static void jh7110_cryp_finish_req(struct jh7110_sec_ctx *ctx, int err)
 	else
 		crypto_finalize_skcipher_request(ctx->sdev->engine, rctx->req.sreq,
 				err);
-
-	memset(ctx->key, 0, ctx->keylen);
 }
 
 static bool jh7110_check_counter_overflow(struct jh7110_sec_ctx *ctx, size_t count)
